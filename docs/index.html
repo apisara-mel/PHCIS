@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MIH PHCIS — Documentation</title>
+<style>
+  :root {
+    --brand: #007549;
+    --brand-100: #F4FBF8;
+    --brand-200: #DDF0E6;
+    --brand-700: #00563A;
+    --ink: #1F2937;
+    --ink-2: #4D5358;
+    --ink-3: #6B7177;
+    --ink-4: #ADB2B7;
+    --border: #E2E4E6;
+    --surface: #FFFFFF;
+    --bg: #F7F9FA;
+    --info: #2580EA;
+    --teal: #0E9B7F;
+    --orange: #F46928;
+    --purple: #7C3AED;
+    --indigo: #4F46E5;
+    --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
+    --shadow-hover: 0 4px 8px rgba(15, 23, 42, 0.06), 0 12px 24px rgba(15, 23, 42, 0.08);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Sarabun', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 15px;
+    min-height: 100vh;
+  }
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
+  /* ── Hero ───────────────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-700) 100%);
+    color: #fff;
+    padding: 40px 44px;
+    border-radius: 18px;
+    margin-bottom: 36px;
+    box-shadow: var(--shadow);
+  }
+  .hero .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .hero .dot {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.28);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 18px;
+  }
+  .hero h1 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .hero p {
+    margin: 12px 0 0;
+    font-size: 15px;
+    opacity: 0.94;
+    max-width: 760px;
+  }
+  .hero .meta {
+    margin-top: 22px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .hero .pill {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.28);
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  /* ── Group section ─────────────────────────────────────── */
+  .group {
+    margin-bottom: 36px;
+  }
+  .group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .group-head h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .group-head .sub {
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+  /* ── Card grid ───────────────────────────────────────────── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: var(--shadow);
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--brand-200);
+  }
+  .card .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .card .icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+  .card.brand   .icon { background: var(--brand-100);  color: var(--brand-700); }
+  .card.info    .icon { background: #EAF4FF;            color: var(--info); }
+  .card.teal    .icon { background: #E5F7F2;            color: var(--teal); }
+  .card.orange  .icon { background: #FFF1E5;            color: var(--orange); }
+  .card.purple  .icon { background: #F3EBFE;            color: var(--purple); }
+  .card.indigo  .icon { background: #EDEEFE;            color: var(--indigo); }
+  .card .badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--ink-3);
+    background: var(--bg);
+    padding: 3px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .card .badge.html { color: var(--info); background: #EAF4FF; border-color: #C2DCF7; }
+  .card .badge.md   { color: var(--ink-2); background: var(--bg); }
+  .card .badge.live { color: var(--brand-700); background: var(--brand-100); border-color: var(--brand-200); }
+  .card .badge.dev  { color: var(--orange); background: #FFF1E5; border-color: #FCDABF; }
+  .card .name {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--ink);
+    margin: 6px 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .card .desc {
+    font-size: 13.5px;
+    color: var(--ink-2);
+    margin: 0;
+    flex: 1;
+    line-height: 1.55;
+  }
+  .card .path {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-family: 'Menlo', monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+    word-break: break-all;
+  }
+  .card .arrow {
+    position: absolute;
+    bottom: 14px;
+    right: 18px;
+    font-size: 18px;
+    color: var(--ink-4);
+    opacity: 0;
+    transition: opacity 160ms, transform 160ms;
+  }
+  .card:hover .arrow {
+    opacity: 1;
+    transform: translateX(2px);
+    color: var(--brand);
+  }
+  /* ── Note callout ───────────────────────────────────────── */
+  .note {
+    margin-top: 36px;
+    padding: 18px 22px;
+    background: var(--brand-100);
+    border: 1px solid var(--brand-200);
+    border-left: 4px solid var(--brand);
+    border-radius: 10px;
+    font-size: 13.5px;
+    color: var(--ink-2);
+  }
+  .note strong { color: var(--ink); }
+  .note code {
+    font-family: 'Menlo', monospace;
+    font-size: 12.5px;
+    background: var(--surface);
+    padding: 1px 7px;
+    border-radius: 4px;
+    color: var(--brand-700);
+  }
+  /* Responsive */
+  @media (max-width: 640px) {
+    .wrap { padding: 24px 16px 60px; }
+    .hero { padding: 28px 24px; border-radius: 14px; }
+    .hero h1 { font-size: 22px; }
+    .card { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── Hero ───────────────────────────────────────────── -->
+  <div class="hero">
+    <div class="brand-row">
+      <span class="dot">M</span>
+      <h1>MIH PHCIS Documentation</h1>
+    </div>
+    <p>เอกสารทั้งหมดของโปรเจกต์ — design system, product spec, user flow, และ live component catalog. คลิกการ์ดเพื่อเปิดเอกสารแต่ละชิ้น.</p>
+    <div class="meta">
+      <span class="pill">Vite 2 + React 17</span>
+      <span class="pill">Tailwind 2 + design tokens</span>
+      <span class="pill">react-router-dom 5</span>
+    </div>
+  </div>
+
+  <!-- ── Group 1 — Design ──────────────────────────────── -->
+  <div class="group">
+    <div class="group-head">
+      <h2>Design</h2>
+      <span class="sub">Token reference + visual catalog ของทุก component</span>
+    </div>
+    <div class="grid">
+
+      <a class="card brand" href="design-system.html">
+        <div class="top">
+          <span class="icon">🎨</span>
+          <span class="badge live">spec + live</span>
+        </div>
+        <div class="name">Design System</div>
+        <p class="desc">Token reference + per-component spec (จาก <code>design.md</code>) <strong>รวมกับ live preview ของ 118 components</strong> — sidebar เดียวเลือกได้ทั้ง spec doc และ React showcase ของ component เดียวกัน. Tabs: 📖 Spec / 🧩 Live / ⫩ Both.</p>
+        <div class="path">docs/design-system.html ← design.md + /components</div>
+        <span class="arrow">→</span>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ── Group 2 — Product ─────────────────────────────── -->
+  <div class="group">
+    <div class="group-head">
+      <h2>Product</h2>
+      <span class="sub">User flow + product spec ของ 8 subsystems</span>
+    </div>
+    <div class="grid">
+
+      <a class="card info" href="product-spec.html">
+        <div class="top">
+          <span class="icon">📋</span>
+          <span class="badge html">html</span>
+        </div>
+        <div class="name">Product Spec</div>
+        <p class="desc">Purpose · routes · user flow · data shape · validation rules ของทุก subsystem (Dashboard / OPD / Registration / Treatment / Forms / Users / Dev).</p>
+        <div class="path">docs/product-spec.html</div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="card orange" href="user-flow.html">
+        <div class="top">
+          <span class="icon">🧭</span>
+          <span class="badge html">html</span>
+        </div>
+        <div class="name">User Flow</div>
+        <p class="desc">ASCII flow diagram ของการ navigate ระหว่างหน้า · modal · popup · stub menu — based on route map + Sidebar.</p>
+        <div class="path">docs/user-flow.html</div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="card purple" href="product-spec.md">
+        <div class="top">
+          <span class="icon">📄</span>
+          <span class="badge md">markdown</span>
+        </div>
+        <div class="name">Product Spec (Markdown)</div>
+        <p class="desc">Source markdown ของ Product Spec — เปิดดูใน VS Code <code>Cmd+Shift+V</code> หรือ render ผ่าน markdown viewer.</p>
+        <div class="path">docs/product-spec.md</div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="card indigo" href="user-flow.md">
+        <div class="top">
+          <span class="icon">📄</span>
+          <span class="badge md">markdown</span>
+        </div>
+        <div class="name">User Flow (Markdown)</div>
+        <p class="desc">Source markdown ของ User Flow — ASCII art ดูใน editor ได้สวยกว่า rendered HTML.</p>
+        <div class="path">docs/user-flow.md</div>
+        <span class="arrow">→</span>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ── Group 3 — Source ─────────────────────────────── -->
+  <div class="group">
+    <div class="group-head">
+      <h2>Source files</h2>
+      <span class="sub">ไฟล์ markdown ต้นทาง (อยู่นอก docs/)</span>
+    </div>
+    <div class="grid">
+
+      <a class="card brand" href="../design.md">
+        <div class="top">
+          <span class="icon">📐</span>
+          <span class="badge md">markdown</span>
+        </div>
+        <div class="name">design.md (raw)</div>
+        <p class="desc">ต้นฉบับของ design system — 3000+ บรรทัด · token reference + per-component spec · ใช้เป็น source ของ <code>design-system.html</code>.</p>
+        <div class="path">design.md (root)</div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="card teal" href="../CLAUDE.md">
+        <div class="top">
+          <span class="icon">📌</span>
+          <span class="badge md">markdown</span>
+        </div>
+        <div class="name">CLAUDE.md</div>
+        <p class="desc">Project rules + convention สำหรับ AI assistance — input chrome stripping pattern, browser-default form chrome rules.</p>
+        <div class="path">CLAUDE.md (root)</div>
+        <span class="arrow">→</span>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ── Group 4 — App ─────────────────────────────────── -->
+  <div class="group">
+    <div class="group-head">
+      <h2>Live app</h2>
+      <span class="sub">เปิดผ่าน Vite dev server</span>
+    </div>
+    <div class="grid">
+
+      <a class="card brand" href="/" target="_blank">
+        <div class="top">
+          <span class="icon">🏥</span>
+          <span class="badge live">live</span>
+        </div>
+        <div class="name">Open App</div>
+        <p class="desc">PHCIS เต็มรูปแบบ — Dashboard · OPD · Registration · Treatment · Forms · Users. ต้องรัน <code>npm run dev</code>.</p>
+        <div class="path">http://127.0.0.1:3000/</div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="card orange" href="/components" target="_blank">
+        <div class="top">
+          <span class="icon">🧩</span>
+          <span class="badge dev">dev</span>
+        </div>
+        <div class="name">Components Library (React)</div>
+        <p class="desc">Live showcase ของ component หน้า React (ที่ <code>design-system.html</code> tab "Live" เปิดผ่าน iframe).</p>
+        <div class="path">http://127.0.0.1:3000/components</div>
+        <span class="arrow">→</span>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ── Footer note ───────────────────────────────────── -->
+  <div class="note">
+    <strong>หมายเหตุการเปิดไฟล์:</strong> <code>design-system.html</code> ต้องเปิดผ่าน Vite (URL <code>http://127.0.0.1:3000/docs/…</code>) เพราะดึงข้อมูลจาก server + load iframe live preview. ส่วน <code>product-spec.html</code> และ <code>user-flow.html</code> เปิด <code>file://</code> ตรงๆ ได้.
+  </div>
+
+</div>
+</body>
+</html>

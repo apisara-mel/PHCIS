@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MIH PHCIS — Design System</title>
+<style>
+  :root {
+    --brand: #007549;
+    --brand-100: #F4FBF8;
+    --brand-200: #DDF0E6;
+    --brand-700: #00563A;
+    --ink: #1F2937;
+    --ink-2: #4D5358;
+    --ink-3: #6B7177;
+    --ink-4: #ADB2B7;
+    --border: #E2E4E6;
+    --surface: #FFFFFF;
+    --bg: #F7F9FA;
+    --code-bg: #F2F4F5;
+    --info: #2580EA;
+    --warn: #F46928;
+    --danger: #C72121;
+    --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Sarabun', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    font-size: 14px;
+    overflow: hidden;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: 100vh;
+  }
+  /* ── Sidebar ─────────────────────────────────────────────── */
+  aside {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  aside .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  aside .dot {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--brand);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  aside .title-wrap { line-height: 1.3; }
+  aside .title { font-weight: 700; font-size: 14px; color: var(--ink); }
+  aside .subtitle { font-size: 11px; color: var(--ink-3); }
+  aside .search-wrap {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  aside .search {
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--ink);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 120ms, background 120ms;
+  }
+  aside .search:focus { border-color: var(--brand); background: #fff; }
+  aside .server-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 10.5px;
+    color: var(--ink-3);
+    flex-shrink: 0;
+  }
+  aside .server-bar input {
+    flex: 1;
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font: inherit;
+    font-size: 10.5px;
+    color: var(--ink);
+    background: var(--surface);
+    font-family: 'Menlo', monospace;
+  }
+  aside .server-bar button {
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    cursor: pointer;
+    font: inherit;
+    font-size: 10.5px;
+    color: var(--ink-2);
+  }
+  aside .server-bar button:hover { border-color: var(--brand); color: var(--brand); }
+  aside nav.toc {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 4px 24px;
+  }
+  aside nav.toc::-webkit-scrollbar { width: 6px; }
+  aside nav.toc::-webkit-scrollbar-thumb { background: var(--ink-4); border-radius: 3px; }
+  aside nav.toc::-webkit-scrollbar-track { background: transparent; }
+  .group {
+    margin-bottom: 4px;
+  }
+  .group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px 5px;
+    color: var(--ink-3);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .group-head .count {
+    background: var(--brand-100);
+    color: var(--brand-700);
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    margin: 1px 4px;
+    border-radius: 6px;
+    color: var(--ink-2);
+    text-decoration: none;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: background 100ms, color 100ms;
+    border: none;
+    background: none;
+    text-align: left;
+    width: calc(100% - 8px);
+    font-family: inherit;
+    line-height: 1.4;
+  }
+  .item:hover { background: var(--brand-100); color: var(--brand-700); }
+  .item.active {
+    background: var(--brand);
+    color: #fff;
+    font-weight: 600;
+  }
+  .item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .marks {
+    display: inline-flex;
+    gap: 3px;
+    font-size: 9px;
+    line-height: 1;
+  }
+  .item .mark {
+    width: 12px; height: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    opacity: 0.7;
+  }
+  .item .mark.spec { background: var(--brand-100); color: var(--brand-700); }
+  .item .mark.live { background: #EAF4FF;          color: var(--info);     }
+  .item.active .mark { background: rgba(255,255,255,0.25); color: #fff; opacity: 1; }
+  /* ── Main pane ──────────────────────────────────────────── */
+  main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .topbar .heading {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+    flex-shrink: 0;
+  }
+  .topbar .slug {
+    font-family: 'Menlo', monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .topbar .tabs {
+    display: inline-flex;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 2px;
+    margin-left: 12px;
+  }
+  .tab-btn {
+    padding: 4px 14px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-3);
+    border-radius: 6px;
+    transition: background 120ms, color 120ms;
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn.active {
+    background: var(--surface);
+    color: var(--brand-700);
+    box-shadow: var(--shadow);
+  }
+  .topbar .actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-left: auto;
+  }
+  .topbar .actions a,
+  .topbar .actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 11.5px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms, color 120ms;
+  }
+  .topbar .actions a:hover,
+  .topbar .actions button:hover {
+    border-color: var(--brand);
+    color: var(--brand);
+    background: var(--brand-100);
+  }
+  /* ── Panes ──────────────────────────────────────────────── */
+  .panes {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .pane {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg);
+    position: relative;
+  }
+  .pane::-webkit-scrollbar { width: 10px; }
+  .pane::-webkit-scrollbar-thumb { background: var(--ink-4); border-radius: 5px; }
+  .pane::-webkit-scrollbar-track { background: transparent; }
+  /* In "both" mode the two panes split vertically.
+     Live pane fixed 50vh so iframe gets enough space. */
+  .panes.mode-both .pane.spec { flex: 1; min-height: 0; }
+  .panes.mode-both .pane.live { flex: 0 0 50vh; border-top: 1px solid var(--border); }
+  .panes.mode-spec .pane.live { display: none; }
+  .panes.mode-live .pane.spec { display: none; }
+  .pane.live {
+    background: var(--surface);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  iframe.preview {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: var(--surface);
+  }
+  .no-live, .no-spec {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+    color: var(--ink-3);
+  }
+  .no-live .big, .no-spec .big {
+    font-size: 56px;
+    margin-bottom: 12px;
+    opacity: 0.4;
+  }
+  .no-live .heading, .no-spec .heading {
+    font-size: 15px;
+    color: var(--ink);
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  /* ── Content (markdown) ────────────────────────────────── */
+  .content {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 28px 32px 80px;
+  }
+  .loading, .error {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--ink-3);
+  }
+  .error { color: var(--danger); }
+  .error code {
+    background: #FFF0F0;
+    color: var(--danger);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Menlo', monospace;
+    font-size: 13px;
+  }
+  .content h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--brand-700);
+    margin: 8px 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 3px solid var(--brand-200);
+    scroll-margin-top: 24px;
+  }
+  .content h2 {
+    font-size: 21px;
+    font-weight: 800;
+    color: var(--ink);
+    margin: 28px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--brand-200);
+    scroll-margin-top: 24px;
+  }
+  .content h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 22px 0 10px;
+    scroll-margin-top: 24px;
+  }
+  .content h4 {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--ink-2);
+    margin: 18px 0 8px;
+    scroll-margin-top: 24px;
+  }
+  .content h5, .content h6 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+    margin: 14px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .content p { margin: 7px 0; color: var(--ink-2); }
+  .content ul, .content ol { margin: 7px 0 10px 22px; color: var(--ink-2); }
+  .content li { margin-bottom: 4px; }
+  .content strong { color: var(--ink); font-weight: 700; }
+  .content em { font-style: italic; color: var(--ink-2); }
+  .content hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 28px 0;
+  }
+  .content a {
+    color: var(--brand);
+    text-decoration: none;
+    border-bottom: 1px dashed transparent;
+    transition: border-color 120ms;
+  }
+  .content a:hover { border-bottom-color: var(--brand); }
+  .content code {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    background: var(--code-bg);
+    color: var(--ink);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .content pre {
+    background: #1B2027;
+    color: #E2E4E6;
+    padding: 14px 18px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.55;
+    margin: 12px 0;
+  }
+  .content pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
+  .content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12.5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .content thead { background: var(--brand-100); }
+  .content th {
+    color: var(--brand-700);
+    font-weight: 700;
+    text-align: left;
+    padding: 9px 11px;
+    border-bottom: 2px solid var(--brand-200);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .content td {
+    padding: 8px 11px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--ink-2);
+  }
+  .content tbody tr:nth-child(even) td { background: #FAFBFC; }
+  .content tbody tr:hover td { background: var(--brand-100); }
+  .content td code { font-size: 11px; }
+  .content blockquote {
+    border-left: 4px solid var(--brand);
+    background: var(--brand-100);
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin: 14px 0;
+    color: var(--ink-2);
+  }
+  .content blockquote p { margin: 3px 0; }
+  .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    vertical-align: middle;
+    margin-right: 4px;
+  }
+  /* Highlight the active section in the spec pane */
+  .content .active-section {
+    background: linear-gradient(180deg, rgba(0, 117, 73, 0.08), transparent 80px);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-left: -10px;
+    margin-right: -10px;
+  }
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 280px 1fr; }
+  }
+  html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Sidebar ──────────────────────────────────────────── -->
+  <aside>
+    <div class="brand-row">
+      <span class="dot">M</span>
+      <div class="title-wrap">
+        <div class="title">MIH Design System</div>
+        <div class="subtitle">Foundations · 118 components</div>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <input id="search" class="search" type="text" placeholder="ค้นหา… (e.g. button, vital, token)" />
+    </div>
+    <div class="server-bar">
+      <span>Live:</span>
+      <input id="server-url" type="text" value="http://127.0.0.1:3000" />
+      <button id="server-save" type="button">บันทึก</button>
+    </div>
+    <nav class="toc" id="toc">
+      <div class="item" style="color: var(--ink-4);">⏳ กำลังโหลด…</div>
+    </nav>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────────────── -->
+  <main>
+    <div class="topbar">
+      <span class="heading" id="current-name">เลือก section จาก sidebar</span>
+      <span class="slug" id="current-slug" style="display:none"></span>
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="spec" type="button">📖 Spec</button>
+        <button class="tab-btn" data-tab="live" type="button">🧩 Live</button>
+        <button class="tab-btn" data-tab="both" type="button">⫩ Both</button>
+      </div>
+      <div class="actions">
+        <a id="open-new" href="#" target="_blank" rel="noopener" style="display:none">↗ แท็บใหม่</a>
+        <button id="reload-btn" type="button" style="display:none">↻ Reload</button>
+        <a href="../design.md" target="_blank" rel="noopener">↗ raw design.md</a>
+      </div>
+    </div>
+    <div class="panes mode-spec" id="panes">
+      <div class="pane spec" id="spec-pane">
+        <article id="content" class="content">
+          <p class="loading">⏳ กำลังโหลด <code>design.md</code>…</p>
+        </article>
+      </div>
+      <div class="pane live" id="live-pane">
+        <div class="no-live" id="no-live-placeholder">
+          <div class="big">🧩</div>
+          <div class="heading">เลือก component จาก sidebar เพื่อดู live preview</div>
+          <div style="font-size:12px;margin-top:8px;">iframe จะโหลด <code>/components/&lt;slug&gt;</code> จาก Vite</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  import { marked } from 'https://esm.sh/marked@12';
+
+  marked.setOptions({ gfm: true, breaks: false });
+
+  /* ── DOM refs ─────────────────────────────────────────── */
+  const content      = document.getElementById('content');
+  const tocEl        = document.getElementById('toc');
+  const searchEl     = document.getElementById('search');
+  const reloadBtn    = document.getElementById('reload-btn');
+  const serverInput  = document.getElementById('server-url');
+  const serverSave   = document.getElementById('server-save');
+  const nameEl       = document.getElementById('current-name');
+  const slugEl       = document.getElementById('current-slug');
+  const openNew      = document.getElementById('open-new');
+  const panes        = document.getElementById('panes');
+  const livePane     = document.getElementById('live-pane');
+  const noLivePh     = document.getElementById('no-live-placeholder');
+  const tabBtns      = document.querySelectorAll('.tab-btn');
+
+  const STORAGE_KEY  = 'mih-design-system-server-url';
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) serverInput.value = saved;
+  } catch (_) {}
+
+  /* ── Components catalog (mirrors ComponentsLibraryPage.jsx slugs).
+       Each entry: { slug, name }. Group label drives sidebar grouping. */
+  const CATALOG = [
+    { group: 'Alert & Badge', items: [
+      { slug: 'alert',                              name: 'Alert' },
+      { slug: 'small-alert',                        name: 'SmallAlert' },
+      { slug: 'status-badge',                       name: 'StatusBadge' },
+      { slug: 'colorful-badge',                     name: 'ColorfulBadge' },
+      { slug: 'colorful-icon-badge',                name: 'ColorfulIconBadge' },
+    ]},
+    { group: 'Button — Brand', items: [
+      { slug: 'brand-button',                       name: 'BrandButton' },
+      { slug: 'brand-subdue-button',                name: 'BrandSubdueButton' },
+      { slug: 'brand-subdue-float-button',          name: 'BrandSubdueFloatButton' },
+      { slug: 'brand-dashed-add-button',            name: 'BrandDashedAddButton' },
+      { slug: 'brand-icon-button',                  name: 'BrandIconButton' },
+      { slug: 'brand-subdue-icon-button',           name: 'BrandSubdueIconButton' },
+      { slug: 'brand-circle-icon-button',           name: 'BrandCircleIconButton' },
+      { slug: 'brand-circle-subdue-icon-button',    name: 'BrandCircleSubdueIconButton' },
+    ]},
+    { group: 'Button — Danger', items: [
+      { slug: 'danger-button',                      name: 'DangerButton' },
+      { slug: 'danger-subdue-button',               name: 'DangerSubdueButton' },
+      { slug: 'danger-icon-button',                 name: 'DangerIconButton' },
+      { slug: 'danger-subdue-icon-button',          name: 'DangerSubdueIconButton' },
+    ]},
+    { group: 'Button — Neutral', items: [
+      { slug: 'neutral-button',                     name: 'NeutralButton' },
+      { slug: 'neutral-subdue-button',              name: 'NeutralSubdueButton' },
+      { slug: 'neutral-icon-button',                name: 'NeutralIconButton' },
+      { slug: 'neutral-subdue-icon-button',         name: 'NeutralSubdueIconButton' },
+    ]},
+    { group: 'Checkbox & Radio & Switch', items: [
+      { slug: 'checkbox',                           name: 'Checkbox' },
+      { slug: 'checkbox-box',                       name: 'CheckboxBox' },
+      { slug: 'checkbox-button',                    name: 'CheckboxButton' },
+      { slug: 'checkbox-group',                     name: 'CheckboxGroup' },
+      { slug: 'radio',                              name: 'Radio' },
+      { slug: 'radio-box',                          name: 'RadioBox' },
+      { slug: 'radio-button',                       name: 'RadioButton' },
+      { slug: 'radio-group',                        name: 'RadioGroup' },
+      { slug: 'switch',                             name: 'Switch' },
+    ]},
+    { group: 'Tag & Timeslot', items: [
+      { slug: 'selectable-tag',                     name: 'SelectableTag' },
+      { slug: 'filter-tag',                         name: 'FilterTag' },
+      { slug: 'filter-date-tag',                    name: 'FilterDateTag' },
+      { slug: 'timeslot',                           name: 'Timeslot' },
+    ]},
+    { group: 'Topic / Tooltip / Information', items: [
+      { slug: 'topic',                              name: 'Topic' },
+      { slug: 'tooltip',                            name: 'Tooltip' },
+      { slug: 'information',                        name: 'Information' },
+    ]},
+    { group: 'Card — Patient & Vital', items: [
+      { slug: 'patient-card',                       name: 'PatientCard' },
+      { slug: 'vital-card',                         name: 'VitalCard' },
+      { slug: 'vital-sign-timeline-card',           name: 'VitalSignTimelineCard' },
+      { slug: 'inventory-card',                     name: 'InventoryCard' },
+    ]},
+    { group: 'Card — Dashboard', items: [
+      { slug: 'age-service-pyramid-card',           name: 'AgeServicePyramidCard' },
+      { slug: 'coc-card',                           name: 'CocCard' },
+      { slug: 'consent-card',                       name: 'ConsentCard' },
+      { slug: 'disease-21-groups-card',             name: 'Disease21GroupsCard' },
+      { slug: 'dm-complications-card',              name: 'DmComplicationsCard' },
+      { slug: 'dm-control-gauge-card',              name: 'DmControlGaugeCard' },
+      { slug: 'dm-ht-new-patients-card',            name: 'DmHtNewPatientsCard' },
+      { slug: 'ht-control-gauge-card',              name: 'HtControlGaugeCard' },
+      { slug: 'monthly-visits-card',                name: 'MonthlyVisitsCard' },
+      { slug: 'rights-donut-card',                  name: 'RightsDonutCard' },
+      { slug: 'top10-diseases-card',                name: 'Top10DiseasesCard' },
+      { slug: 'top10-diseases-short-card',          name: 'Top10DiseasesShortCard' },
+      { slug: 'visit-total-card',                   name: 'VisitTotalCard' },
+      { slug: 'working-age-groups-card',            name: 'WorkingAgeGroupsCard' },
+    ]},
+    { group: 'Charts', items: [
+      { slug: 'big-charts',                         name: 'BigCharts' },
+      { slug: 'charts',                             name: 'Charts' },
+      { slug: 'vitals-sign-graph',                  name: 'VitalsSignGraph' },
+    ]},
+    { group: 'Form fields', items: [
+      { slug: 'input-field',                        name: 'InputField' },
+      { slug: 'input-field-range',                  name: 'InputFieldRange' },
+      { slug: 'input-field-slash',                  name: 'InputFieldSlash' },
+      { slug: 'textarea',                           name: 'Textarea' },
+      { slug: 'suggestible-textarea',               name: 'SuggestibleTextarea' },
+      { slug: 'voice-input-field',                  name: 'VoiceInputField' },
+      { slug: 'voice-textarea',                     name: 'VoiceTextarea' },
+      { slug: 'select',                             name: 'Select' },
+      { slug: 'dropdown',                           name: 'Dropdown' },
+      { slug: 'calendar',                           name: 'Calendar' },
+      { slug: 'date-picker',                        name: 'DatePicker' },
+      { slug: 'registration-form-fields-layout',    name: 'Fields · Section / SubCard / Field' },
+    ]},
+    { group: 'Forms', items: [
+      { slug: 'allergy-form',                       name: 'AllergyForm' },
+      { slug: 'disease-form',                       name: 'DiseaseForm' },
+      { slug: 'vitals-form',                        name: 'VitalsForm' },
+      { slug: 'history-list-form',                  name: 'HistoryListForm' },
+      { slug: 'forms-library',                      name: 'FormsLibrary' },
+      { slug: 'registration-steps',                 name: 'RegistrationSteps' },
+      { slug: 'treatment-steps',                    name: 'TreatmentSteps' },
+    ]},
+    { group: 'Form Builder', items: [
+      { slug: 'form-builder-content',               name: 'Content' },
+      { slug: 'form-builder-drag-and-drop',         name: 'DragAndDrop' },
+      { slug: 'form-builder-signature',             name: 'Signature' },
+    ]},
+    { group: 'Examination', items: [
+      { slug: 'body-mark',                          name: 'BodyMark' },
+      { slug: 'body-diagram-panel',                 name: 'BodyDiagramPanel' },
+      { slug: 'body-record-popup',                  name: 'BodyRecordPopup' },
+      { slug: 'drawing-canvas-popup',               name: 'DrawingCanvasPopup' },
+      { slug: 'exam-notes-panel',                   name: 'ExamNotesPanel' },
+      { slug: 'exam-support-list',                  name: 'ExamSupportList' },
+    ]},
+    { group: 'Layout', items: [
+      { slug: 'icon',                               name: 'Icon' },
+      { slug: 'footer',                             name: 'Footer' },
+      { slug: 'header',                             name: 'Header' },
+      { slug: 'sub-header',                         name: 'SubHeader' },
+      { slug: 'sidebar',                            name: 'Sidebar' },
+      { slug: 'side-submenu',                       name: 'SideSubMenu' },
+      { slug: 'summary-cards-bar',                  name: 'SummaryCardsBar' },
+    ]},
+    { group: 'Page Shells', items: [
+      { slug: 'queue-page-shell',                   name: 'QueuePageShell' },
+      { slug: 'form-shell',                         name: 'FormShell' },
+      { slug: 'treatment-form-shell',               name: 'TreatmentFormShell' },
+    ]},
+    { group: 'Popup & Dialog', items: [
+      { slug: 'alert-dialog',                       name: 'AlertDialog' },
+      { slug: 'popup',                              name: 'Popup' },
+      { slug: 'popover',                            name: 'Popover' },
+      { slug: 'profile-popover',                    name: 'ProfilePopover' },
+      { slug: 'date-filter-popup',                  name: 'DateFilterPopup' },
+      { slug: 'settings-modal',                     name: 'SettingsModal' },
+      { slug: 'vitals-graph-popup',                 name: 'VitalsGraphPopup' },
+      { slug: 'vitals-sign-graph-dialog',           name: 'VitalsSignGraphDialog' },
+    ]},
+    { group: 'List & Table', items: [
+      { slug: 'action-list',                        name: 'ActionList' },
+      { slug: 'service-date-list',                  name: 'ServiceDateList' },
+      { slug: 'pagination',                         name: 'Pagination' },
+      { slug: 'table',                              name: 'Table' },
+    ]},
+    { group: 'Search', items: [
+      { slug: 'primary-search',                     name: 'PrimarySearch' },
+      { slug: 'secondary-search',                   name: 'SecondarySearch' },
+      { slug: 'ai-search',                          name: 'AISearch' },
+    ]},
+    { group: 'Step & Tab', items: [
+      { slug: 'step',                               name: 'Step' },
+      { slug: 'stepper',                            name: 'Stepper' },
+      { slug: 'step-progress',                      name: 'StepProgress' },
+      { slug: 'tab-pill',                           name: 'TabPill' },
+      { slug: 'tab-underline',                      name: 'TabUnderline' },
+      { slug: 'tab-capsule',                        name: 'TabCapsule' },
+    ]},
+    { group: 'Timeline', items: [
+      { slug: 'history-timeline',                   name: 'HistoryTimeline' },
+    ]},
+  ];
+
+  /* ── State ────────────────────────────────────────────── */
+  let currentTab = 'spec';         /* 'spec' | 'live' | 'both' */
+  let activeEntry = null;          /* current sidebar entry */
+  let allEntries = [];             /* unified list (foundation + components) */
+  let headingSlugs = new Set();    /* slugs of headings present in design.md */
+
+  /* ── Foundation entries — design.md sections NOT covered by components.
+       These get a TOC entry but no live preview. Each entry tries to
+       match a heading slug in design.md via the `anchor` field. */
+  const FOUNDATIONS = [
+    { group: 'Token Hierarchy', items: [
+      { name: 'Overview',                          anchor: 'token-hierarchy' },
+      { name: 'Primitive Tokens',                  anchor: '1-primitive-tokens' },
+      { name: '  Colors',                          anchor: '1a-color-palettes' },
+      { name: '  Additional Colors',               anchor: '1a-2-additional-color-palettes-from-json' },
+      { name: '  Typography (36 styles + primitives)', anchor: 'text-styles-overview' },
+      { name: '  Dimension',                       anchor: '1c-dimension' },
+      { name: '  Effects',                         anchor: '1d-effect-styles' },
+      { name: 'Brand Tokens',                      anchor: '2-brand-tokens' },
+      { name: 'Breakpoints',                       anchor: '3-breakpoint-tokens' },
+      { name: 'Semantic Tokens',                   anchor: '4-semantic-tokens' },
+    ]},
+    { group: 'Reference', items: [
+      { name: 'Component Token Mapping',           anchor: '5-component-token-mapping' },
+      { name: 'How to Use This Reference',         anchor: 'appendix-how-to-use-this-reference' },
+      { name: 'Icon Reference',                    anchor: 'appendix-b-icon-reference-mih-design-system' },
+      { name: 'Component Tokens (§6)',             anchor: '6-component-tokens' },
+    ]},
+  ];
+
+  /* ── Slugify util — matches what marked generates by default. */
+  const slugify = (s) =>
+    String(s).toLowerCase()
+      .replace(/[`*_~]/g, '')
+      .replace(/[^a-z0-9\s฀-๿-]/gi, '')
+      .trim()
+      .replace(/\s+/g, '-');
+
+  /* ── Try to auto-match a catalog entry's name to a heading slug in
+       design.md. Many heading sources include "Brand Button" while the
+       catalog slug is `brand-button` — also try kebab-from-name and
+       PascalCase split. Returns a slug present in `headingSlugs`, or null. */
+  function findAnchorForComponent(name, slug) {
+    const candidates = [
+      slug,                                                  /* exact */
+      slug + '-1',                                           /* duplicate suffix */
+      slugify(name),                                         /* pascal → words */
+      slugify(name.replace(/([a-z])([A-Z])/g, '$1 $2')),    /* split PascalCase */
+    ];
+    for (const c of candidates) {
+      if (headingSlugs.has(c)) return c;
+    }
+    /* Best-effort substring match against all known heading slugs */
+    const kebab = slugify(name.replace(/([a-z])([A-Z])/g, '$1 $2'));
+    for (const h of headingSlugs) {
+      if (h.endsWith('-' + kebab) || h.includes('-' + kebab + '-')) return h;
+    }
+    return null;
+  }
+
+  /* ── Inject color swatch chips next to hex codes in inline <code>. */
+  function injectSwatches(root) {
+    root.querySelectorAll('code').forEach((c) => {
+      const t = c.textContent.trim();
+      if (/^#[0-9A-Fa-f]{6}$/.test(t)) {
+        const sw = document.createElement('span');
+        sw.className = 'swatch';
+        sw.style.background = t;
+        c.parentNode.insertBefore(sw, c);
+      }
+    });
+  }
+
+  /* ── Assign IDs to all headings + collect their slugs. */
+  function indexHeadings() {
+    const headings = content.querySelectorAll('h1, h2, h3, h4');
+    headingSlugs = new Set();
+    const counts = new Map();
+    headings.forEach((h) => {
+      let slug = slugify(h.textContent);
+      if (!slug) return;
+      const n = counts.get(slug) || 0;
+      counts.set(slug, n + 1);
+      if (n > 0) slug = `${slug}-${n}`;
+      h.id = slug;
+      headingSlugs.add(slug);
+    });
+  }
+
+  /* ── Build the unified entry list — foundations + components. */
+  function buildEntries() {
+    allEntries = [];
+    /* Foundations — anchor only */
+    for (const g of FOUNDATIONS) {
+      for (const it of g.items) {
+        allEntries.push({
+          kind: 'foundation',
+          group: g.group,
+          name: it.name,
+          anchor: it.anchor && headingSlugs.has(it.anchor) ? it.anchor : null,
+          slug: null,
+        });
+      }
+    }
+    /* Components — auto-match anchor + always have live preview */
+    for (const g of CATALOG) {
+      for (const it of g.items) {
+        const anchor = findAnchorForComponent(it.name, it.slug);
+        allEntries.push({
+          kind: 'component',
+          group: g.group,
+          name: it.name,
+          slug: it.slug,
+          anchor,
+        });
+      }
+    }
+  }
+
+  /* ── Render sidebar from allEntries (respecting search filter). */
+  function renderSidebar(filter) {
+    tocEl.innerHTML = '';
+    const q = (filter || '').toLowerCase().trim();
+    /* Group entries by `group` preserving insertion order. */
+    const seen = new Map(); /* group → [entries] */
+    for (const e of allEntries) {
+      if (q) {
+        const hay = `${e.name} ${e.slug || ''} ${e.anchor || ''}`.toLowerCase();
+        if (!hay.includes(q)) continue;
+      }
+      if (!seen.has(e.group)) seen.set(e.group, []);
+      seen.get(e.group).push(e);
+    }
+    if (seen.size === 0) {
+      tocEl.innerHTML = `<div class="item" style="color: var(--ink-4);">ไม่พบ "<strong>${q}</strong>"</div>`;
+      return;
+    }
+    for (const [group, entries] of seen) {
+      const groupEl = document.createElement('div');
+      groupEl.className = 'group';
+      const head = document.createElement('div');
+      head.className = 'group-head';
+      head.innerHTML = `<span>${group}</span><span class="count">${entries.length}</span>`;
+      groupEl.appendChild(head);
+      for (const e of entries) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'item' + (activeEntry === e ? ' active' : '');
+        const marks = [];
+        if (e.anchor) marks.push('<span class="mark spec" title="มี spec">📖</span>');
+        if (e.slug)   marks.push('<span class="mark live" title="มี live preview">🧩</span>');
+        btn.innerHTML = `<span class="name">${e.name}</span><span class="marks">${marks.join('')}</span>`;
+        btn.addEventListener('click', () => selectEntry(e));
+        groupEl.appendChild(btn);
+      }
+      tocEl.appendChild(groupEl);
+    }
+  }
+
+  /* ── Highlight active section in spec pane by wrapping it in a styled
+       container that draws a soft gradient. Strip prior highlight first. */
+  function highlightSection(anchorId) {
+    content.querySelectorAll('.active-section').forEach((el) => {
+      el.classList.remove('active-section');
+    });
+    if (!anchorId) return;
+    const h = document.getElementById(anchorId);
+    if (h) h.classList.add('active-section');
+  }
+
+  /* ── Choose entry → update topbar, scroll, iframe. */
+  function selectEntry(e) {
+    activeEntry = e;
+    nameEl.textContent = e.name;
+    slugEl.style.display = e.slug ? 'inline-block' : 'none';
+    slugEl.textContent = e.slug || '';
+
+    /* Live tab availability */
+    const liveBtn = document.querySelector('.tab-btn[data-tab="live"]');
+    const bothBtn = document.querySelector('.tab-btn[data-tab="both"]');
+    if (e.slug) {
+      liveBtn.disabled = false; liveBtn.style.opacity = '1'; liveBtn.style.cursor = 'pointer';
+      bothBtn.disabled = false; bothBtn.style.opacity = '1'; bothBtn.style.cursor = 'pointer';
+    } else {
+      liveBtn.disabled = true;  liveBtn.style.opacity = '0.4'; liveBtn.style.cursor = 'not-allowed';
+      bothBtn.disabled = true;  bothBtn.style.opacity = '0.4'; bothBtn.style.cursor = 'not-allowed';
+      if (currentTab !== 'spec') setTab('spec');
+    }
+
+    /* Build live URL */
+    const liveUrl = e.slug
+      ? `${(serverInput.value || 'http://127.0.0.1:3000').replace(/\/+$/, '')}/components/${e.slug}`
+      : '';
+    openNew.style.display = e.slug ? 'inline-flex' : 'none';
+    openNew.href = liveUrl;
+    reloadBtn.style.display = e.slug ? 'inline-flex' : 'none';
+
+    /* Live pane content */
+    livePane.innerHTML = '';
+    if (e.slug) {
+      const iframe = document.createElement('iframe');
+      iframe.className = 'preview';
+      iframe.src = liveUrl;
+      iframe.loading = 'lazy';
+      iframe.id = 'live-iframe';
+      livePane.appendChild(iframe);
+    } else {
+      const ph = document.createElement('div');
+      ph.className = 'no-live';
+      ph.innerHTML = `
+        <div class="big">📖</div>
+        <div class="heading">section นี้เป็น spec ของ design system</div>
+        <div style="font-size:12px;margin-top:8px;color:var(--ink-3);">ไม่มี live preview ใน Components Library</div>
+      `;
+      livePane.appendChild(ph);
+    }
+
+    /* Scroll spec pane to the section */
+    if (e.anchor) {
+      const h = document.getElementById(e.anchor);
+      if (h) {
+        h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        highlightSection(e.anchor);
+      }
+    } else if (e.kind === 'component' && currentTab === 'spec') {
+      /* Component without a design.md anchor — switch to live tab */
+      setTab('live');
+    }
+
+    /* URL hash for shareable deep-link */
+    if (e.slug) {
+      history.replaceState(null, '', `#${e.slug}`);
+    } else if (e.anchor) {
+      history.replaceState(null, '', `#${e.anchor}`);
+    }
+
+    /* Re-render sidebar to update active state */
+    renderSidebar(searchEl.value);
+  }
+
+  /* ── Tab control. */
+  function setTab(tab) {
+    currentTab = tab;
+    tabBtns.forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    panes.className = `panes mode-${tab}`;
+  }
+
+  tabBtns.forEach((b) => {
+    b.addEventListener('click', () => {
+      if (b.disabled) return;
+      setTab(b.dataset.tab);
+    });
+  });
+
+  /* ── Search. */
+  searchEl.addEventListener('input', (e) => renderSidebar(e.target.value));
+
+  /* ── Server URL save → rebuild iframe. */
+  serverSave.addEventListener('click', () => {
+    try { localStorage.setItem(STORAGE_KEY, serverInput.value); } catch (_) {}
+    if (activeEntry && activeEntry.slug) selectEntry(activeEntry);
+  });
+
+  reloadBtn.addEventListener('click', () => {
+    const f = document.getElementById('live-iframe');
+    if (f) f.src = f.src;
+  });
+
+  /* ── Load + render design.md. */
+  async function loadDoc() {
+    content.innerHTML = '<p class="loading">⏳ กำลังโหลด <code>design.md</code>…</p>';
+    try {
+      const res = await fetch('../design.md', { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const md = await res.text();
+      content.innerHTML = marked.parse(md);
+      indexHeadings();
+      injectSwatches(content);
+      buildEntries();
+      renderSidebar('');
+      /* Initial entry: URL hash, else first foundation entry */
+      const hash = location.hash.slice(1);
+      let initial = null;
+      if (hash) {
+        initial = allEntries.find((e) => e.slug === hash || e.anchor === hash);
+      }
+      if (!initial) initial = allEntries.find((e) => e.anchor) || allEntries[0];
+      if (initial) selectEntry(initial);
+    } catch (err) {
+      content.innerHTML = `
+        <p class="error">❌ โหลด <code>design.md</code> ไม่สำเร็จ — ${err.message}</p>
+        <p class="error">เปิดผ่าน Vite (<code>http://127.0.0.1:3000/docs/design-system.html</code>) ไม่ใช่ file://</p>
+      `;
+      tocEl.innerHTML = '<div class="item" style="color: var(--danger);">(load failed)</div>';
+    }
+  }
+
+  loadDoc();
+</script>
+</body>
+</html>

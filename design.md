@@ -773,21 +773,17 @@ Effect styles define shadows and blurs. Multi-layer effects are separated by `+`
 | `effect.brand-drop-shadow-bottom.400` | `drop_shadow blur=4px x=0 y=4 #08A76814` + `drop_shadow blur=32px x=0 y=16 #08A7681A` |
 | `effect.brand-drop-shadow-bottom.500` | `drop_shadow blur=4px x=0 y=4 #08A76814` + `drop_shadow blur=16px x=0 y=16 #08A7681A` |
 | `effect.brand-drop-shadow-bottom.600` | `drop_shadow blur=32px x=0 y=16 #08A76833` |
-| `effect.brand-inner-shadow.100` | `inner_shadow blur=4px x=0 y=1 #08A7681A` |
-| `effect.brand-inner-shadow.200` | `inner_shadow blur=4px x=0 y=1 #08A7681A` |
-| `effect.brand-inner-shadow.300` | `inner_shadow blur=4px x=0 y=4 #08A7681A` |
-| `effect.brand-inner-shadow.400` | `inner_shadow blur=32px x=0 y=16 #08A76821` |
-| `effect.brand-inner-shadow.500` | `inner_shadow blur=16px x=0 y=16 #08A76821` |
-| `effect.brand-inner-shadow.600` | `inner_shadow blur=32px x=0 y=16 #08A76840` |
-| `effect.blur.overlay` | `background_blur 4px` |
-| `effect.blur.layer` | `layer_blur 4px` |
-| `effect.blur.glass` | `background_blur 4px` |
-| `effect.drop-shadow.3xs` | `drop_shadow blur=2px x=0 y=1 #0000000D` + `drop_shadow blur=1px x=0 y=0 #00000009` |
-| `effect.drop-shadow.2xs` | `drop_shadow blur=8px x=0 y=4 #00000013` + `drop_shadow blur=7px x=0 y=1 #0000000E` |
-| `effect.drop-shadow.xs` | `drop_shadow blur=15px x=0 y=7 #0000001A` + `drop_shadow blur=12px x=0 y=3 #00000012` |
-| `effect.drop-shadow.sm` | `drop_shadow blur=22px x=0 y=9 #00000020` + `drop_shadow blur=18px x=0 y=4 #00000016` |
-| `effect.drop-shadow.md` | `drop_shadow blur=29px x=0 y=12 #00000026` + `drop_shadow blur=23px x=0 y=5 #0000001B` |
-| `effect.drop-shadow.lg` | `drop_shadow blur=35px x=0 y=15 #0000002D` + `drop_shadow blur=28px x=0 y=6 #0000001F` |
+| `effect.brand-inner-shadow.100` | `inner_shadow blur=2px x=0 y=1 #08A76814` |
+| `effect.brand-inner-shadow.200` | `inner_shadow blur=4px x=0 y=2 #08A7681A` |
+| `effect.brand-inner-shadow.300` | `inner_shadow blur=6px x=0 y=4 #08A7681F` |
+| `effect.brand-inner-shadow.400` | `inner_shadow blur=8px x=0 y=4 #08A76826` |
+| `effect.brand-inner-shadow.500` | `inner_shadow blur=12px x=0 y=8 #08A7682E` |
+| `effect.brand-inner-shadow.600` | `inner_shadow blur=16px x=0 y=12 #08A76838` |
+| `effect.blur.overlay` | `background_blur 8px` |
+| `effect.blur.layer` | `layer_blur 6px` |
+| `effect.blur.glass` | `background_blur 12px` |
+| `effect.indigo-drop-shadow-bottom.100` | `drop_shadow blur=4px x=0 y=1 #818CF814` |
+| `effect.indigo-drop-shadow-bottom.200` | `drop_shadow blur=4px x=0 y=1 #818CF814` + `drop_shadow blur=8px x=0 y=1 #818CF81A` |
 
 ---
 
@@ -2079,6 +2075,37 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 
 ### 4.6. `typography`
 
+#### Text Styles — overview
+
+**36 text styles** · **2 font families** · **7 groups** (per Figma `3465:2`, `3467:2`).
+
+> 🔗 **Primitives:** the px / weight / letter-spacing values referenced by these styles live in [§1b. Typography](#1b-typography) (font-size scale `xxs`–`6xl`, weight `thin`–`bold`, letter-spacing `tighter`/`normal`).
+
+##### Font families
+
+| Family | Role | Styles | Weights | Sample |
+|---|---|---|---|---|
+| **Sao Chingcha** | Display graphic — hero, marketing, brand moments | 9 | Bold only | `Aa Bb Cc · กขคงจ · 0123456789` |
+| **Sarabun** | UI typography — headings, body, labels, captions, buttons | 27 | Regular · Medium · Bold | `Aa Bb Cc · กขคงจ · 0123456789` |
+
+> Sao Chingcha is a custom brand typeface used **exclusively** for display graphic styles. Sarabun is the primary UI typeface for everything else.
+
+##### Groups
+
+| Group | Count | Family | Weight | Size range | Common use |
+|---|---|---|---|---|---|
+| Display Graphic | 9 | Sao Chingcha | Bold | 60 → 14 px | Hero, marketing splash, brand moments. LH 125%, LS 0. |
+| Display / Heading | 9 | Sarabun | Bold | 60 → 14 px | Page-level display headlines. `display1` LS 0; `display2`–`display9` LS −2% (`tighter`). |
+| Heading | 8 | Sarabun | Bold | 36 → 12 px | Section headings. h1–h4 LH **137.5%**; h5–h8 LH **150%**. |
+| Body | 4 | Sarabun | Regular | 20 → 14 px | Body text, paragraphs, descriptions. LH 150%. |
+| Label | 2 | Sarabun | Medium | 14, 12 px | Form labels, nav items, tab labels, tags, chips, overlines. |
+| Caption | 2 | Sarabun | Regular | 12, 10 px | Supporting text, timestamps, metadata, legal copy, hints. |
+| Button | 2 | Sarabun | Medium | 16, 14 px | `button.lg` — CTA / primary. `button.sm` — secondary / compact. |
+
+#### Full token reference
+
+Every style below maps to a Figma text style of the same name. The right-hand "Alias:" columns expose the primitive-token paths each style composes from (so retheming swaps one place, all styles follow).
+
 | Token | Font Family | Weight | Size | Line Height | Letter Spacing | Alias: Family | Alias: Weight | Alias: Size | Alias: Tracking |
 |-------|-------------|--------|------|-------------|----------------|---------------|---------------|-------------|-----------------|
 | `typography.display.graphic1` | Sao Chingcha | Bold | 60px | 125% | 0% | `typography.family.heading-graphic` | `typography.weight.bold` | `typography.size.6xl` | `typography.letter-spacing.normal` |
@@ -2114,7 +2141,7 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `typography.label1` | Sarabun | Medium | 14px | 150% | 0% | `typography.family.body` | `typography.weight.medium` | `typography.size.sm` | `typography.letter-spacing.normal` |
 | `typography.label2` | Sarabun | Medium | 12px | 150% | 0% | `typography.family.body` | `typography.weight.medium` | `typography.size.xs` | `typography.letter-spacing.normal` |
 | `typography.caption1` | Sarabun | Regular | 12px | 150% | 0px | `typography.family.body` | `typography.weight.regular` | `typography.size.xs` | `typography.letter-spacing.normal` |
-| `typography.caption3` | Sarabun | Regular | 10px | 150% | 0px | `typography.family.body` | `typography.weight.regular` | `typography.size.xxs` | `typography.letter-spacing.normal` |
+| `typography.caption2` | Sarabun | Regular | 10px | 150% | 0px | `typography.family.body` | `typography.weight.regular` | `typography.size.xxs` | `typography.letter-spacing.normal` |
 | `typography.button.lg` | Sarabun | Medium | 16px | 150% | 0% | `typography.family.body` | `typography.weight.medium` | `typography.size.base` | `typography.letter-spacing.normal` |
 | `typography.button.sm` | Sarabun | Medium | 14px | 150% | 0% | `typography.family.body` | `typography.weight.medium` | `typography.size.sm` | `typography.letter-spacing.normal` |
 
