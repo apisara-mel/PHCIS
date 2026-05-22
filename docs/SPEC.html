@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MIH PHCIS — Product Spec</title>
+<style>
+  :root {
+    --brand: #007549;
+    --brand-100: #F4FBF8;
+    --brand-200: #DDF0E6;
+    --brand-700: #00563A;
+    --ink: #1F2937;
+    --ink-2: #4D5358;
+    --ink-3: #6B7177;
+    --ink-4: #ADB2B7;
+    --border: #E2E4E6;
+    --surface: #FFFFFF;
+    --bg: #F7F9FA;
+    --code-bg: #F2F4F5;
+    --info: #2580EA;
+    --warn: #F46928;
+    --danger: #C72121;
+    --teal: #0E9B7F;
+    --purple: #7C3AED;
+    --indigo: #4F46E5;
+    --orange: #F46928;
+    --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Sarabun', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  /* ── Layout ───────────────────────────────────────────────── */
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+  }
+  aside.toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 20px;
+  }
+  aside.toc .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 18px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  aside.toc .brand .dot {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--brand);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  aside.toc .brand .title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  aside.toc .brand .subtitle {
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  aside.toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: section;
+  }
+  aside.toc ol > li {
+    counter-increment: section;
+    margin-bottom: 2px;
+  }
+  aside.toc ol > li > a {
+    display: block;
+    text-decoration: none;
+    color: var(--ink-2);
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    transition: background 120ms ease, color 120ms ease;
+  }
+  aside.toc ol > li > a::before {
+    content: counter(section) ". ";
+    color: var(--ink-4);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    margin-right: 4px;
+  }
+  aside.toc ol > li > a:hover {
+    background: var(--brand-100);
+    color: var(--brand-700);
+  }
+  aside.toc .legend {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--ink-3);
+    line-height: 1.5;
+  }
+  main {
+    padding: 40px 56px 100px 56px;
+    max-width: 1200px;
+  }
+  /* ── Header banner ─────────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-700) 100%);
+    color: #fff;
+    padding: 32px 40px;
+    border-radius: 16px;
+    margin-bottom: 32px;
+    box-shadow: var(--shadow);
+  }
+  .hero h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .hero p {
+    margin: 8px 0 0;
+    font-size: 14px;
+    opacity: 0.92;
+    max-width: 720px;
+  }
+  .hero .meta {
+    margin-top: 18px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .hero .pill {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.28);
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  /* ── Section + headings ────────────────────────────────────── */
+  section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+  section h2 {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 0 0 14px;
+    color: var(--brand-700);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--brand-200);
+  }
+  section h2 .num {
+    background: var(--brand);
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  section h3 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 24px 0 12px;
+    color: var(--ink);
+  }
+  section h4 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 18px 0 10px;
+    color: var(--ink);
+  }
+  section p { margin: 8px 0; color: var(--ink-2); }
+  section ul, section ol { margin: 8px 0 8px 22px; color: var(--ink-2); }
+  section li { margin-bottom: 5px; }
+  section strong { color: var(--ink); font-weight: 700; }
+  section em { font-style: italic; color: var(--ink-2); }
+  section a {
+    color: var(--brand);
+    text-decoration: none;
+    border-bottom: 1px dashed transparent;
+    transition: border-color 120ms ease;
+  }
+  section a:hover { border-bottom-color: var(--brand); }
+  section a.fileref {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 12.5px;
+    background: var(--brand-100);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border-bottom: none;
+  }
+  section a.fileref:hover {
+    background: var(--brand-200);
+    border-bottom: none;
+  }
+  /* ── Code ─────────────────────────────────────────────────── */
+  code {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    background: var(--code-bg);
+    color: var(--ink);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  pre {
+    background: #1B2027;
+    color: #E2E4E6;
+    padding: 16px 20px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 14px 0;
+  }
+  pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: 13px;
+  }
+  /* ── Tables ───────────────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 13.5px;
+  }
+  th {
+    background: var(--brand-100);
+    color: var(--brand-700);
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--brand-200);
+    font-size: 12.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--ink-2);
+  }
+  tbody tr:nth-child(even) td { background: #FAFBFC; }
+  tbody tr:hover td { background: var(--brand-100); }
+  td code, td a.fileref { font-size: 12px; }
+  /* ── Callouts ─────────────────────────────────────────────── */
+  .callout {
+    border-left: 4px solid var(--brand);
+    background: var(--brand-100);
+    padding: 12px 18px;
+    border-radius: 8px;
+    margin: 16px 0;
+    color: var(--ink-2);
+  }
+  .callout.warn { border-color: var(--warn); background: #FFF6EE; }
+  .callout.danger { border-color: var(--danger); background: #FFF0F0; }
+  .callout.info { border-color: var(--info); background: #F0F6FF; }
+  .callout-title {
+    font-weight: 700;
+    color: var(--ink);
+    margin-right: 6px;
+  }
+  /* ── Step pills ───────────────────────────────────────────── */
+  .step-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--brand-200);
+    color: var(--brand-700);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-right: 4px;
+  }
+  .tag {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .tag.req { background: #FFE9E9; color: var(--danger); }
+  .tag.opt { background: #EAF7FF; color: var(--info); }
+  .tag.ro  { background: #F2F4F5; color: var(--ink-3); }
+  .tag.rw  { background: var(--brand-200); color: var(--brand-700); }
+  /* ── Scrollbar ───────────────────────────────────────────── */
+  aside.toc::-webkit-scrollbar { width: 6px; }
+  aside.toc::-webkit-scrollbar-thumb { background: var(--ink-4); border-radius: 3px; }
+  aside.toc::-webkit-scrollbar-track { background: transparent; }
+  /* ── Print ────────────────────────────────────────────────── */
+  @media print {
+    aside.toc { display: none; }
+    .layout { grid-template-columns: 1fr; }
+    main { padding: 20px; }
+    section { break-inside: avoid; box-shadow: none; }
+    .hero { color: var(--ink); background: none; padding: 0; }
+  }
+  /* ── Small screens ───────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    aside.toc { position: relative; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    main { padding: 24px 18px 80px; }
+    section { padding: 20px 18px; }
+    .hero { padding: 22px 22px; }
+    .hero h1 { font-size: 22px; }
+  }
+  html { scroll-behavior: smooth; }
+  /* Section number badges */
+  .ix { color: var(--ink-3); font-weight: 600; margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Sidebar TOC ────────────────────────────────────────── -->
+  <aside class="toc">
+    <div class="brand">
+      <span class="dot">M</span>
+      <div>
+        <div class="title">MIH PHCIS</div>
+        <div class="subtitle">Product Spec</div>
+      </div>
+    </div>
+    <ol>
+      <li><a href="#sec-arch">Architecture &amp; Conventions</a></li>
+      <li><a href="#sec-routes">Routes Map</a></li>
+      <li><a href="#sec-patterns">Cross-cutting Patterns</a></li>
+      <li><a href="#sec-dashboard">Dashboard</a></li>
+      <li><a href="#sec-opd">OPD Screening</a></li>
+      <li><a href="#sec-registration">Registration (เวชระเบียน)</a></li>
+      <li><a href="#sec-treatment">Treatment / CPOE</a></li>
+      <li><a href="#sec-forms">Forms Library</a></li>
+      <li><a href="#sec-users">Users &amp; Access</a></li>
+      <li><a href="#sec-dev">Dev Tools</a></li>
+      <li><a href="#sec-pitfalls">Pitfalls &amp; Gotchas</a></li>
+    </ol>
+    <div class="legend">
+      <strong>Tag legend</strong><br />
+      <span class="tag req">required</span> field required<br />
+      <span class="tag opt">optional</span> optional field<br />
+      <span class="tag ro">read-only</span> review only<br />
+      <span class="tag rw">edit</span> user input
+    </div>
+  </aside>
+
+  <main>
+    <div class="hero">
+      <h1>MIH PHCIS — Product Spec</h1>
+      <p>Companion to <code>design.md</code> (design-system tokens). This document is the <strong>product spec</strong> — purpose, user flow, page logic, data shapes, validation rules for every subsystem.</p>
+      <div class="meta">
+        <span class="pill">Vite 2 + React 17</span>
+        <span class="pill">react-router-dom 5</span>
+        <span class="pill">Tailwind 2 + design tokens</span>
+        <span class="pill">Refreshed 2026-05-21</span>
+      </div>
+    </div>
+
+    <!-- ────────────────────────────────────────────────────────
+         1. Architecture & Conventions
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-arch">
+      <h2><span class="num">1</span>Architecture &amp; Conventions</h2>
+      <table>
+        <thead><tr><th>Concern</th><th>Choice</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Bundler</td><td>Vite 2</td><td><a class="fileref" href="../vite.config.mjs">vite.config.mjs</a> pins <code>host: '127.0.0.1'</code> to avoid a <code>uv_interface_addresses</code> crash that fires with default host.</td></tr>
+          <tr><td>React</td><td>17 (no React-18 hooks)</td><td><code>useId</code>, <code>useSyncExternalStore</code>, <code>useDeferredValue</code>, <code>useTransition</code>, <code>useInsertionEffect</code> are unavailable — they import as <code>undefined</code> and crash at render.</td></tr>
+          <tr><td>Router</td><td><code>react-router-dom@5</code></td><td><a class="fileref" href="../src/routes/Routes.jsx">src/routes/Routes.jsx</a> — Switch + Route.</td></tr>
+          <tr><td>Styling</td><td>Tailwind 2 (JIT) + design tokens via CSS variables</td><td>Token reference lives in <a class="fileref" href="../design.md">design.md</a> §6. Inline <code>style</code> uses tokens, not raw hex.</td></tr>
+          <tr><td>Fonts</td><td>Self-hosted Inter + Sarabun + Material Symbols (CDN)</td><td>See <a class="fileref" href="../index.html">index.html</a>.</td></tr>
+          <tr><td>State</td><td>Per-page <code>useState</code> for entire flow</td><td>e.g. <a class="fileref" href="../src/pages/registration/RegistrationFormPage.jsx#L33">RegistrationFormPage.jsx:33</a>, <a class="fileref" href="../src/pages/treat/TreatmentFormPage.jsx#L163">TreatmentFormPage.jsx:163</a>.</td></tr>
+          <tr><td>Persistence</td><td>sessionStorage for OPD drafts only</td><td><a class="fileref" href="../src/data/opdScreeningDrafts.js">opdScreeningDrafts.js</a>.</td></tr>
+          <tr><td>Mocks</td><td>Static exports from <code>src/data/*.js</code></td><td>Identity master is <a class="fileref" href="../src/data/patientProfiles.js">patientProfiles.js</a>; MR shape is <a class="fileref" href="../src/data/mrPatients.js">mrPatients.js</a>.</td></tr>
+          <tr><td>Brand mode</td><td>Multi-brand CSS variable swap</td><td>Documented in design.md §2.</td></tr>
+          <tr><td>Voice input</td><td>Web SpeechRecognition</td><td>Requires HTTPS or localhost. Wrapped by <a class="fileref" href="../src/components/forms/SuggestibleTextarea.jsx">SuggestibleTextarea</a> + <a class="fileref" href="../src/utils/speechRecognition.js">speechRecognition.js</a>.</td></tr>
+          <tr><td>Camera</td><td><code>getUserMedia</code> (desktop) + <code>&lt;input capture&gt;</code> (mobile)</td><td>Helpers in <a class="fileref" href="../src/utils/cameraDevice.js">cameraDevice.js</a> + <a class="fileref" href="../src/hooks/useTakePhotoCapture.js">useTakePhotoCapture.js</a>.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Folder layout</h3>
+<pre><code>src/
+  data/        ← mock rosters, validators, helpers
+  pages/       ← one folder per route domain
+  components/  ← presentational + design-system primitives
+  templates/   ← page shells (FormShell, TreatmentFormShell, QueuePageShell)
+  routes/      ← Routes.jsx
+  hooks/       ← cross-page hooks (useTakePhotoCapture, useSearchHistory, …)
+  utils/       ← camera / speech / formatting helpers</code></pre>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         2. Routes Map
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-routes">
+      <h2><span class="num">2</span>Routes Map</h2>
+      <p>Source of truth: <a class="fileref" href="../src/routes/Routes.jsx">src/routes/Routes.jsx</a>.</p>
+      <table>
+        <thead><tr><th>Path</th><th>Page</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>/</code>, <code>/dashboard</code></td><td><a class="fileref" href="../src/pages/dashboard/DashboardPage.jsx">DashboardPage</a></td><td>Hospital-overview KPIs + clinical analytics cards</td></tr>
+          <tr><td><code>/opd</code>, <code>/opd/queue</code></td><td><a class="fileref" href="../src/pages/opd/QueuePage.jsx">QueuePage (OPD)</a></td><td>OPD screening queue</td></tr>
+          <tr><td><code>/opd/screening</code></td><td><a class="fileref" href="../src/pages/opd/ScreeningPage.jsx">ScreeningPage</a></td><td>5-step nurse screening form</td></tr>
+          <tr><td><code>/registration</code>, <code>/registration/queue</code></td><td><a class="fileref" href="../src/pages/registration/RegistrationQueuePage.jsx">RegistrationQueuePage</a></td><td>เวชระเบียน roster</td></tr>
+          <tr><td><code>/registration/register</code></td><td><a class="fileref" href="../src/pages/registration/RegistrationFormPage.jsx">RegistrationFormPage</a></td><td>5-step ลงทะเบียน form (chip read)</td></tr>
+          <tr><td><code>/treat</code>, <code>/treat/queue</code></td><td><a class="fileref" href="../src/pages/treat/TreatmentQueuePage.jsx">TreatmentQueuePage</a></td><td>คิวตรวจรักษา (OPD CPOE)</td></tr>
+          <tr><td><code>/treat/record</code></td><td><a class="fileref" href="../src/pages/treat/TreatmentFormPage.jsx">TreatmentFormPage</a></td><td>7-step บันทึกการรักษา</td></tr>
+          <tr><td><code>/forms</code></td><td><a class="fileref" href="../src/pages/forms/FormsLibraryPage.jsx">FormsLibraryPage</a></td><td>คลังแบบฟอร์ม hub</td></tr>
+          <tr><td><code>/forms/category/:categoryKey</code></td><td><a class="fileref" href="../src/pages/forms/FormsCategoryPage.jsx">FormsCategoryPage</a></td><td>Category drill-down</td></tr>
+          <tr><td><code>/forms/:slug</code></td><td><a class="fileref" href="../src/pages/forms/FormDetailPage.jsx">FormDetailPage</a></td><td>Form detail + field-preview list + QR target</td></tr>
+          <tr><td><code>/forms/:slug/fill</code></td><td><a class="fileref" href="../src/pages/forms/FormFillPage.jsx">FormFillPage</a></td><td>Live fillable (<code>?role=patient</code> strips clinician chrome)</td></tr>
+          <tr><td><code>/users</code></td><td><a class="fileref" href="../src/pages/users/UsersAccessPage.jsx">UsersAccessPage</a></td><td>User list with role/department filters</td></tr>
+          <tr><td><code>/users/new</code>, <code>/users/:id</code></td><td><a class="fileref" href="../src/pages/users/UserEditPage.jsx">UserEditPage</a></td><td>Edit / create user + access matrix</td></tr>
+          <tr><td><code>/components</code>, <code>/components/:slug</code></td><td><a class="fileref" href="../src/pages/components/ComponentsLibraryPage.jsx">ComponentsLibraryPage</a></td><td>Design-system showcase (dev only)</td></tr>
+          <tr><td><code>/preview/tabs</code></td><td><a class="fileref" href="../src/pages/preview/TabsPreviewPage.jsx">TabsPreviewPage</a></td><td>Tab variants (dev only)</td></tr>
+          <tr><td><code>/preview/cards</code></td><td><a class="fileref" href="../src/pages/preview/CardsPreviewPage.jsx">CardsPreviewPage</a></td><td>Card variants (dev only)</td></tr>
+          <tr><td><code>/preview/body-record</code></td><td><a class="fileref" href="../src/pages/preview/BodyRecordPreviewPage.jsx">BodyRecordPreviewPage</a></td><td>Body diagram + drawing canvas (dev only)</td></tr>
+        </tbody>
+      </table>
+      <div class="callout info"><span class="callout-title">Navigation contract:</span> when a queue row navigates to a form page it carries router state <code>{ hn, queue, name }</code>. The destination page looks the patient up by <code>hn</code> against the appropriate roster (<code>PATIENT_PROFILES</code>, <code>MR_PATIENTS</code>, <code>TREATMENT_QUEUE_ROWS</code>). Direct visits without state fall back to a default profile.</div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         3. Cross-cutting Patterns
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-patterns">
+      <h2><span class="num">3</span>Cross-cutting Patterns</h2>
+
+      <h3>3.1 StepProgress check-mark rule</h3>
+      <p>Component: <a class="fileref" href="../src/components/step/StepProgress.jsx">StepProgress.jsx</a>. A step circle renders in one of three types:</p>
+      <table>
+        <thead><tr><th>Type</th><th>Visual</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td><strong>current</strong></td><td>brand-filled circle, 4-px outer ring, bold title</td><td><code>idx === current</code> (always wins)</td></tr>
+          <tr><td><strong>success</strong></td><td>brand-filled circle, animated check</td><td><code>completedSteps[idx] === true</code> (or <code>idx &lt; current</code> when prop omitted)</td></tr>
+          <tr><td><strong>default</strong></td><td>neutral filled circle with step number</td><td>otherwise</td></tr>
+        </tbody>
+      </table>
+      <p>The <code>completedSteps</code> prop is the opt-in validation gate (<a class="fileref" href="../src/components/step/StepProgress.jsx#L213">StepProgress.jsx:213-237</a>): a step earns ✓ only when its required fields are filled — not just because the user advanced past. Parents compute the array; the component never validates on its own.</p>
+      <p><strong>Per-form validators:</strong></p>
+      <ul>
+        <li>Registration → <code>getRegistrationCompletedSteps(form)</code> in <a class="fileref" href="../src/data/registrationForm.js">registrationForm.js</a> — array of 5 booleans, derived from <code>&lt;Field required&gt;</code> markers.</li>
+        <li>Treatment → <code>getTreatmentCompletedSteps(form, stepIndex)</code> in <a class="fileref" href="../src/data/treatmentVisits.js">treatmentVisits.js</a> — array of 7 booleans. Steps 1, 2, 3, 5 use advance-past semantics; 4, 6, 7 use real validators.</li>
+        <li>OPD Screening → inline from <code>stepValidities[idx]</code>. Step bodies opt in by calling <code>onValidityChange(boolean)</code>.</li>
+      </ul>
+
+      <h3>3.2 Dirty tracking + unsaved-changes guard</h3>
+      <p>Pattern lives most fully in <a class="fileref" href="../src/pages/opd/ScreeningPage.jsx#L823">ScreeningPage.jsx:823-921</a>.</p>
+      <ul>
+        <li><strong><code>dirtyStepsRef</code> (ref) + <code>dirtySteps</code> (state mirror)</strong> — per-step Set of touched steps.</li>
+        <li><strong><code>markDirty</code></strong> listens to <code>onKeyDown</code> + <code>onPointerDown</code> on the form wrapper — NOT <code>onChange</code> / <code>onInput</code>, because autofill / library <code>dispatchEvent</code> fires those. Gates on <code>event.isTrusted</code> and on <code>aria-pressed</code> / <code>aria-label="decrement|increment"</code> for pointer presses, so only real user gestures flip the flag.</li>
+        <li><strong>Save-draft button</strong> visible always; disabled when <code>!anyDirty</code> so clicking doesn't persist an empty draft.</li>
+        <li><strong>Next button</strong> disabled until <code>currentStepValid</code>. Validity = <code>stepValidities[current] ?? currentStepDirty</code> — explicit wins over heuristic.</li>
+        <li><strong>Unsaved-changes popup</strong> fires from <code>handleBack</code> when <code>dirtyStepsRef.current.size &gt; 0</code>. Outcomes: save-draft + leave / discard + leave / cancel.</li>
+      </ul>
+
+      <h3>3.3 PrimarySearch + history</h3>
+      <p>Recent-search history is page-scoped via <code>localStorage</code> key passed to <a class="fileref" href="../src/components/search/useSearchHistory.js">useSearchHistory</a>.</p>
+      <table>
+        <thead><tr><th>Page</th><th>localStorage key</th><th>Seed builder</th></tr></thead>
+        <tbody>
+          <tr><td>OPD queue</td><td><code>mih:primarysearch-history:opd-queue</code></td><td><code>buildOpdSearchHistorySeed</code></td></tr>
+          <tr><td>Registration queue</td><td><em>(page-local)</em></td><td><code>buildRegistrationSearchHistorySeed</code></td></tr>
+          <tr><td>Treatment queue</td><td><code>mih:primarysearch-history:treatment-queue</code></td><td><code>buildTreatmentSearchHistorySeed</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3>3.4 Voice + AI inputs</h3>
+      <ul>
+        <li><strong><a class="fileref" href="../src/components/forms/SuggestibleTextarea.jsx">SuggestibleTextarea</a></strong> — textarea with mic + language toggle + typing suggestions. Used pervasively. Every voice textarea in this project <strong>must</strong> ship with <code>suggestions</code> + <code>minChars</code> — bare <code>VoiceTextarea</code> is forbidden.</li>
+        <li><strong><a class="fileref" href="../src/components/search/AISearch.jsx">AISearch / Doctor AI</a></strong> — powers Treatment Step 4's ICD-10 lookup (<code>icdQuery</code> state). DEFAULT / FOCUSED / FILLED visual states with brand-tinted borders.</li>
+        <li>Helpers: <a class="fileref" href="../src/utils/speechRecognition.js">speechRecognition.js</a> wraps <code>SpeechRecognition</code> / <code>webkitSpeechRecognition</code> and requests mic permission via <code>getUserMedia</code> before starting recognition.</li>
+      </ul>
+      <div class="callout warn"><span class="callout-title">HTTPS requirement:</span> SpeechRecognition and <code>getUserMedia(audio)</code> require a secure context. Plain HTTP over LAN works for camera via <code>&lt;input capture&gt;</code> but <strong>does not work for voice</strong>.</div>
+
+      <h3>3.5 Camera flow</h3>
+      <p>Hook: <a class="fileref" href="../src/hooks/useTakePhotoCapture.js">useTakePhotoCapture</a>. Two branches:</p>
+      <ul>
+        <li><strong>Mobile</strong> → <code>&lt;input type='file' capture&gt;</code> opens the OS camera app. No HTTPS needed.</li>
+        <li><strong>Desktop</strong> → <a class="fileref" href="../src/components/popup/CameraCapturePopup.jsx">CameraCapturePopup</a> with <code>getUserMedia</code> + device picker. Auto-prefers phone-like devices (Continuity Camera, USB phone, DroidCam) via <code>pickPreferredVideoDeviceId</code>.</li>
+        <li><strong>In-app browsers</strong> (LINE / Facebook / Instagram) → detected by <code>prefersInPageCameraPopup</code>. Falls back to the in-page popup since <code>&lt;input capture&gt;</code> is unreliable there.</li>
+      </ul>
+
+      <h3>3.6 Smart card chip read (Registration only)</h3>
+      <p>Trigger: "อ่านบัตรสมาร์ทการ์ด" CTA in the Registration sub-header. Handler: <code>applySmartCardRead(form, patient)</code> in <a class="fileref" href="../src/data/registrationForm.js#L301">registrationForm.js:301</a> — merges chip-sourced fields, then re-applies user-typed values for keys the chip does NOT carry: <code>NON_CHIP_FIELDS = ['education', 'occupation', 'marital']</code>.</p>
+      <p>Chip read locks card-sourced fields (<code>disabled={fromChip}</code>) until cleared.</p>
+
+      <h3>3.7 PatientCard sticky behaviour</h3>
+      <p>When <a class="fileref" href="../src/components/card/PatientCard.jsx">PatientCard</a>'s <code>sticky</code> prop is set, it mounts an IntersectionObserver sentinel + sticky wrapper. On scroll under the app header, the card collapses to a compact "mini" layout (fullName + insurance pill only). Used by TreatmentFormPage and ScreeningPage.</p>
+
+      <h3>3.8 Step transition animation</h3>
+      <p>Module: <a class="fileref" href="../src/components/step/stepTransition.js">stepTransition.js</a>. <code>useStepDirection(stepIndex)</code> tracks forward / backward direction so the wrapper sets <code>data-direction</code> and the CSS keyframe slides content from the corresponding side. The wrapper <code>key={stepIndex}</code> re-mount is what triggers the animation.</p>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         4. Dashboard
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-dashboard">
+      <h2><span class="num">4</span>Dashboard</h2>
+      <p><strong>Purpose.</strong> Single-page hospital overview + clinical analytics. Lands on <code>/</code> for any logged-in user, surfaces yearly KPIs and 14+ pre-built chart cards (population pyramid, top-10 diseases, NCD control gauges, etc.). Read-only.</p>
+      <p><strong>Routes:</strong> <code>/</code>, <code>/dashboard</code> → <a class="fileref" href="../src/pages/dashboard/DashboardPage.jsx">DashboardPage</a>.</p>
+      <h3>Page structure</h3>
+      <ol>
+        <li><strong>Year selector</strong> (Dropdown — defaults to ปีงบประมาณ 2569).</li>
+        <li><strong>Hospital Overview banner</strong> — 6 KPI cards: ประชากร / เกิด / เสียชีวิต / การรับบริการสะสม / ค่าบริการสะสม / หน่วยบริการ. Rendered via <a class="fileref" href="../src/components/layout/SummaryCardsBar.jsx">SummaryCardsBar</a> variant <code>banner</code>.</li>
+        <li><strong>Big chart cards</strong> — PopulationPyramidCard, OpdTypeLineCard, ResidencePieCard, ServiceCenterMapCard (Leaflet map).</li>
+        <li><strong>Standard cards</strong> — top-10 diseases, visit totals, age-service pyramid, rights donut, monthly visits, disease-21 groups, DM/HT new patients, DM/HT control gauges, working-age groups, COC, consent rate, DM complications. All from <a class="fileref" href="../src/components/graph/DashboardCards.jsx">DashboardCards.jsx</a>.</li>
+        <li><strong>Recent patients table</strong> — mock list of last few visits.</li>
+      </ol>
+      <p><strong>Data shape.</strong> Year-pinned mock values per chart card. No live API.</p>
+      <div class="callout warn"><span class="callout-title">Pitfall:</span> Leaflet CSS and JS are loaded from CDN with SRI integrity in index.html — if upstream files drift, the map silently breaks.</div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         5. OPD Screening
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-opd">
+      <h2><span class="num">5</span>OPD Screening</h2>
+      <p><strong>Purpose.</strong> Nurse / triage workflow: pick a patient from the OPD queue, complete the 5-step screening form, hand off to the doctor (Treatment / CPOE).</p>
+      <p><strong>Routes &amp; navigation:</strong></p>
+      <ul>
+        <li><code>/opd</code>, <code>/opd/queue</code> → <a class="fileref" href="../src/pages/opd/QueuePage.jsx">QueuePage</a></li>
+        <li>Queue row click → <code>/opd/screening</code> with router state <code>{ hn, queue, name }</code>.</li>
+        <li>Form save (last step) → returns to the queue with row status flipped or a draft persisted.</li>
+      </ul>
+
+      <h3>5.1 OPD Queue page</h3>
+      <p><strong>Breadcrumb:</strong> "ระบบงานผู้รับบริการนอก (OPD)".</p>
+      <p><strong>Summary cards (6):</strong> ผู้รับบริการรวมวันนี้ · Walk-in · Telemedicine · นัดหมายวันนี้ · กำลังรอคัดกรอง · คัดกรองเสร็จ.</p>
+      <p><strong>Tabs:</strong></p>
+      <ul>
+        <li><span class="step-pill">ทั้งหมด</span><span class="step-pill">รอคัดกรอง</span><span class="step-pill">กำลังคัดกรอง</span><span class="step-pill">คัดกรองแล้ว</span><span class="step-pill">ที่ร่างไว้</span></li>
+      </ul>
+      <p>The "ที่ร่างไว้" tab is populated by <code>applyOpdScreeningDrafts(rows)</code> — drafts persist across reloads via <code>sessionStorage</code>.</p>
+      <p><strong>Filters:</strong> แผนก / แพทย์ / ประเภท (walkin / appointment_hospital / telemedicine) / วันที่ (FilterDateTag) / เวลา.</p>
+      <p><strong>Search:</strong> PrimarySearch with page-scoped history key <code>mih:primarysearch-history:opd-queue</code>.</p>
+      <p><strong>Table:</strong> 12 columns — queue pill, patient (avatar + name link), HN, gender, age, type, room, doctor, status pill, vitals (BP/HR/SpO2), time, actions. Row click → screening.</p>
+
+      <h3>5.2 Screening form (5 steps)</h3>
+      <p>Page: <a class="fileref" href="../src/pages/opd/ScreeningPage.jsx">ScreeningPage.jsx</a> (~1069 lines). Confirm-on-entry popup opens on first mount; cancel returns to queue, confirm starts form.</p>
+      <table>
+        <thead><tr><th>#</th><th>Title</th><th>Body</th><th>Validity protocol</th><th>Key components</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>สัญญาณชีพ</td><td><a class="fileref" href="../src/components/forms/VitalsForm.jsx">VitalsForm</a> — BP, HR, RR, Temp, SpO2, weight, height</td><td><code>onValidityChange</code> ✓</td><td>VitalCard, PressureCard, Stepper</td></tr>
+          <tr><td>2</td><td>อาการป่วย</td><td>Inline SymptomStep — CC, duration, present illness + Pain / Triage / Care orders / Cert chip groups</td><td><code>onValidityChange</code> ✓</td><td>Textarea, SuggestibleTextarea, SelectableCardButton, BedSelectionPopup</td></tr>
+          <tr><td>3</td><td>ประวัติการแพ้ยา / สารเคมี</td><td><a class="fileref" href="../src/components/forms/AllergyForm.jsx">AllergyForm</a> — history-list card with "ไม่แพ้ยา" toggle</td><td><code>onValidityChange</code> ✓</td><td>HistoryListForm</td></tr>
+          <tr><td>4</td><td>ประวัติโรคประจำตัว</td><td><a class="fileref" href="../src/pages/opd/ScreeningStep4.jsx">ScreeningStep4</a> → <a class="fileref" href="../src/components/forms/DiseaseForm.jsx">DiseaseForm</a></td><td><code>onValidityChange</code> ✓</td><td>HistoryListForm</td></tr>
+          <tr><td>5</td><td>แบบฟอร์ม</td><td><a class="fileref" href="../src/components/forms/FormsLibrary.jsx">FormsLibrary</a> — picks consent / assessment forms to attach</td><td><em>not yet adopted</em></td><td>FormsLibrary widget</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Footer:</strong> sticky, with autoSave indicator, ยกเลิก, บันทึกร่าง (disabled when <code>!anyDirty</code>), ถัดไป / บันทึกข้อมูลผู้ป่วย.</p>
+      <p><strong>Save draft:</strong> <code>saveOpdScreeningDraft({ hn, name, queue })</code> writes a key into <code>sessionStorage</code> under <code>mih:opd-screening-drafts</code>. The queue reads it back via <code>applyOpdScreeningDrafts(rows)</code> to tint those rows with <code>statusKey: 'draft'</code>.</p>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         6. Registration
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-registration">
+      <h2><span class="num">6</span>Registration (เวชระเบียน)</h2>
+      <p><strong>Purpose.</strong> Medical-records workflow: register a new patient or open an existing one's MR. Captures identity, address, contact, insurance rights, medical flags. Uses smart-card chip-read prefill where available.</p>
+
+      <h3>6.1 Registration Queue page</h3>
+      <p><a class="fileref" href="../src/pages/registration/RegistrationQueuePage.jsx">RegistrationQueuePage.jsx</a> (~686 lines).</p>
+      <p><strong>Breadcrumb:</strong> "ระบบงานเวชระเบียน". <strong>Summary cards (6):</strong> same metrics as OPD queue, relabeled for ซักประวัติ flow.</p>
+      <p><strong>Tabs:</strong></p>
+      <ul>
+        <li><span class="step-pill">ทั้งหมด</span><span class="step-pill">รอลงทะเบียน</span><span class="step-pill">กำลังลงทะเบียน</span><span class="step-pill">ลงทะเบียนแล้ว</span><span class="step-pill">ที่ร่างไว้</span></li>
+      </ul>
+      <p><strong>Filters:</strong> สถานะ (ตรวจเสร็จ / รอคัดกรอง / กำลังลงทะเบียน / รอลงทะเบียน / ที่ร่างไว้) + วันที่ + เวลา.</p>
+      <p><strong>Table:</strong> คิว, HN, ชื่อ + avatar (color-seeded by HN), วันเกิด, อายุ, เลขบัตรประชาชน, โทรศัพท์, สิทธิการรักษา (color-coded RightsPill), สถานะ, การจัดการคิว.</p>
+
+      <h3>6.2 Registration form (5 steps)</h3>
+      <p>Page: <a class="fileref" href="../src/pages/registration/RegistrationFormPage.jsx">RegistrationFormPage.jsx</a>. Shell: <a class="fileref" href="../src/templates/FormShell.jsx">FormShell.jsx</a>. Step bodies: <a class="fileref" href="../src/components/forms/RegistrationSteps.jsx">RegistrationSteps.jsx</a>.</p>
+      <p><strong>Step labels:</strong> <span class="step-pill">1. ข้อมูลส่วนตัว</span><span class="step-pill">2. ที่อยู่</span><span class="step-pill">3. ข้อมูลการติดต่อ</span><span class="step-pill">4. สิทธิการรักษา</span><span class="step-pill">5. หมายเหตุและ Flag</span></p>
+
+      <h4>Form-shell chrome</h4>
+      <ul>
+        <li>SubHeader with 4 trailing actions: ปริ้นบัตรคิว / เพิ่มการนัดหมาย / พิมพ์บัตรผู้รับบริการ / <strong>อ่านบัตรสมาร์ทการ์ด</strong> (toggles <code>active</code> when chip-read).</li>
+        <li>Tab strip — "ข้อมูลปัจจุบัน" / "ประวัติการแก้ไขข้อมูล" (read-only audit log: <a class="fileref" href="../src/components/forms/RegistrationEditHistoryPanel.jsx">RegistrationEditHistoryPanel</a>).</li>
+        <li>StatusBar — สถานะรับบริการ + "ผู้ป่วยใหม่" pill + HN + Active/Inactive toggle.</li>
+        <li>Footer — sticky, ย้อนกลับ / บันทึกร่าง / ถัดไป (or บันทึก on last).</li>
+      </ul>
+
+      <h4>Step 1 — ข้อมูลส่วนตัว</h4>
+      <p>Captures Thai name triplet, English name triplet, gender + identity, national ID (with format mask), ID card dates (Thai Buddhist DatePicker), DOB + age display + bloodType, education, occupation, marital + conditional spouse fields, hospital photo + ID card photo.</p>
+      <p><span class="tag req">Required (13)</span> <code>prefixTh, firstNameTh, lastNameTh, prefixEn, firstNameEn, lastNameEn, gender, nationalId, idIssueDate, idExpiryDate, dob, education, occupation</code>.</p>
+      <p><span class="tag opt">Optional</span> <code>genderIdentity, ageDisplay, bloodType, marital, spouseFirstName, spouseLastName, hospitalPhoto, idCardPhoto</code>.</p>
+      <div class="callout"><span class="callout-title">Chip-read locking:</span> when <code>form.idCardFromChip === true</code>, the 8 card-sourced fields disable so the receptionist can't overwrite chip data. They still must type the 3 NON_CHIP_FIELDS (education / occupation / marital).</div>
+
+      <h4>Step 2 — ที่อยู่</h4>
+      <p>Three address slices:</p>
+      <ol>
+        <li><code>addressRegistered</code> — ที่อยู่ตามทะเบียนบ้าน.</li>
+        <li><code>addressCurrent</code> — ที่อยู่ปัจจุบัน. "เหมือนที่อยู่ตามทะเบียนบ้าน" checkbox mirrors text fields. Includes <a class="fileref" href="../src/components/forms/AddressMapBlock.jsx">AddressMapBlock</a> for lat/lng pin saving.</li>
+        <li><code>addressContact</code> — ที่อยู่ติดต่อได้. Same mirror checkbox.</li>
+      </ol>
+      <p><span class="tag req">Required per slice</span> <code>zip, province, district</code>.</p>
+      <p>Mirror checkbox stays disabled until registered address is complete. Clearing the registered address drops both mirror flags so they don't go out of sync.</p>
+
+      <h4>Step 3 — ข้อมูลการติดต่อ</h4>
+      <p>Phone + altPhone + email; emergency contacts array <code>{ name, last, relation, phone, tag }</code>. RELATIONS: บิดา / มารดา / คู่สมรส / บุตร / พี่-น้อง / ญาติ / เพื่อน / อื่นๆ. "เพิ่มผู้ติดต่อ" gated by previous-entry-complete check.</p>
+      <p><span class="tag req">Required</span> <code>phone</code> + at least one emergency contact with <code>{name, last, relation, phone}</code> filled.</p>
+
+      <h4>Step 4 — สิทธิการรักษา</h4>
+      <p>Two-state body: empty (RightsLookupPanel prompts lookup) → results (group cards with priorityItems, documents, photos).</p>
+      <p><span class="tag req">Required</span> <code>rightsLookupDone === true</code>. Document / photo uploads are optional.</p>
+
+      <h4>Step 5 — หมายเหตุและ Flag</h4>
+      <p>Mobility radio (เดินได้ปกติ / นั่งรถเข็น / ใช้ไม้เท้า / มีผู้ช่วยพยุง / อื่นๆ + free-text Voice Textarea). Flags checkboxes (VIP / แพ้ยา / แพ้อื่นๆ / ผิวหนัง / เรื้อรัง / อื่นๆ). Four history-list cards: drugAllergies, foodAllergies, chemicalAllergies, chronicConditions. Each entry <code>{ id, name, symptom, severity }</code>.</p>
+      <p><span class="tag req">Required</span> <code>mobility</code> set (and if 'other', <code>mobilityOther</code> non-empty).</p>
+
+      <h4>Form state shape</h4>
+<pre><code>{
+  // Step 1
+  prefixTh, firstNameTh, lastNameTh,
+  prefixEn, firstNameEn, lastNameEn,
+  gender, genderIdentity, nationalId, idIssueDate, idExpiryDate,
+  dob, ageDisplay, bloodType, education, occupation, marital,
+  spouseFirstName, spouseLastName,
+  hospitalPhoto, idCardPhoto, idCardFromChip, idCardAddress,
+
+  // Step 2
+  addressRegistered, useRegisteredForCurrent, addressCurrent,
+  useRegisteredForContact, addressContact,
+
+  // Step 3
+  phone, altPhone, email,
+  emergency: [{ name, last, relation, phone, tag }],
+
+  // Step 4
+  rightsLookupDone, rightsGroups,
+
+  // Step 5
+  mobility, mobilityOther,
+  flags: { vip, allergyDrug, allergyOther, skinReaction, chronic, flagOther },
+  drugAllergies, foodAllergies, chemicalAllergies, chronicConditions,
+}</code></pre>
+      <p><code>EMPTY_ADDRESS</code>: <code>{ zip, province, district, subdistrict, road, moo, houseNo, lat, lng, pinSaved }</code>.</p>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         7. Treatment / CPOE
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-treatment">
+      <h2><span class="num">7</span>Treatment / CPOE</h2>
+      <p><strong>Purpose.</strong> Doctor workflow for an OPD visit: review history + screening, perform exam, diagnose, order treatment, schedule follow-up, issue medical cert. Upstream the patient was screened by OPD Screening; downstream the dispensary picks up the orders.</p>
+
+      <h3>7.1 Treatment Queue + QueueSubMenu</h3>
+      <p><a class="fileref" href="../src/pages/treat/TreatmentQueuePage.jsx">TreatmentQueuePage.jsx</a> (~654 lines).</p>
+      <p><strong>Breadcrumb:</strong> "ระบบบันทึกการรักษา → ตรวจรักษาทั่วไป (OPD)". <strong>Summary cards (6, no trend):</strong> คิวทั้งหมด / รอตรวจ / กำลังตรวจ / เสร็จแล้ว / เร่งด่วน / นาทีรอเฉลี่ย.</p>
+      <p><strong>Tabs:</strong></p>
+      <ul>
+        <li><span class="step-pill">ทั้งหมด</span><span class="step-pill">รอตรวจ</span><span class="step-pill">กำลังตรวจ</span><span class="step-pill">ตรวจเสร็จแล้ว</span><span class="step-pill">ที่ร่างไว้</span></li>
+      </ul>
+      <p><strong>Avatar:</strong> gender-inferred (<code>isFemaleName(name)</code> heuristic); falls back to a deterministic pool of mock avatar files.</p>
+      <p><strong>Default sort:</strong> done → draft → progress → waiting, then by queue ID — the doctor often re-opens recent records.</p>
+      <p><strong>QueueSubMenu</strong> (<a class="fileref" href="../src/components/layout/QueueSubMenu.jsx">QueueSubMenu</a>) sits between Sidebar and main column inside the form page. Three buckets (รอตรวจ / กำลังตรวจ / ตรวจเสร็จ). Starts collapsed; "ดูทั้งหมด" jumps to <code>/treat/queue</code>.</p>
+
+      <h3>7.2 Treatment form (7 steps)</h3>
+      <p>Page: <a class="fileref" href="../src/pages/treat/TreatmentFormPage.jsx">TreatmentFormPage.jsx</a>. Shell: <a class="fileref" href="../src/templates/TreatmentFormShell.jsx">TreatmentFormShell.jsx</a>. Step bodies: <a class="fileref" href="../src/components/forms/TreatmentSteps.jsx">TreatmentSteps.jsx</a> (~3700 lines).</p>
+      <table>
+        <thead><tr><th>#</th><th>Title</th><th>Mode</th><th>Key components</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>ประวัติ</td><td><span class="tag ro">read-only</span></td><td>HistoryTimeline, allergy / chronic-disease lists from MR patient</td></tr>
+          <tr><td>2</td><td>หน้าจอคัดกรอง</td><td><span class="tag ro">read-only</span></td><td>Screening summary card — vitals, CC, triage, mobility, pain, orders from upstream nurse</td></tr>
+          <tr><td>3</td><td>ตรวจร่างกาย</td><td><span class="tag rw">edit</span></td><td><a class="fileref" href="../src/components/examination/BodyDrawingCanvas.jsx">BodyDrawingCanvas</a> + <a class="fileref" href="../src/components/examination/BodyDiagramPanel.jsx">BodyDiagramPanel</a>; nurse + doctor exam notes; attachments</td></tr>
+          <tr><td>4</td><td>บันทึกแพทย์</td><td><span class="tag rw">edit</span></td><td>AISearch (Doctor AI) for ICD-10; diagnoses table + SuggestibleTextarea for diagnosis + doctor order; ordering doctor</td></tr>
+          <tr><td>5</td><td>สั่งการรักษา</td><td><span class="tag rw">edit</span></td><td>Category tabs (medication / lab / xray / procedure / consult); <a class="fileref" href="../src/components/popup/AddMedicationPopup.jsx">AddMedicationPopup</a>; FrequentOrdersCard chips; cross-class allergy alert panel</td></tr>
+          <tr><td>6</td><td>นัดหมาย</td><td><span class="tag rw">edit</span></td><td>Mode radio (skip / schedule); ApptCollapse animation; clinic / type / doctor / reason / preparation; advance-orders; location (onsite / telemedicine); date + APPT_TIMESLOTS grid</td></tr>
+          <tr><td>7</td><td>ใบรับรองแพทย์</td><td><span class="tag rw">edit</span></td><td>Issue radio (รับ / ไม่รับ); cert type; rest-days pills; FormBuilder signature canvas; signer</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Cross-step linking</h4>
+      <ul>
+        <li><strong>Step 4 → Step 3:</strong> Empty-state CTA "ตรวจร่างกาย" jumps to Step 3 via <code>onStepChange(STEP_EXAM_INDEX)</code>.</li>
+        <li><strong>Step 7 → Step 4:</strong> Reads <code>form.diagnoses[0]</code> + <code>form.diagnosisNote</code> for the certificate's diagnosis section. Missing → "บันทึกการวินิจฉัย" CTA back to Step 4.</li>
+      </ul>
+
+      <h4>Step completion (✓) rules</h4>
+      <table>
+        <thead><tr><th>Step</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td>1 ประวัติ</td><td><code>stepIndex &gt; 0</code> (read-only; ✓ once advanced past)</td></tr>
+          <tr><td>2 หน้าจอคัดกรอง</td><td><code>stepIndex &gt; 1</code> (read-only)</td></tr>
+          <tr><td>3 ตรวจร่างกาย</td><td><code>stepIndex &gt; 2</code> (no enforced required field)</td></tr>
+          <tr><td>4 บันทึกแพทย์</td><td><code>diagnosisNote</code> + <code>doctorOrderNote</code> + <code>orderingDoctor</code> non-empty</td></tr>
+          <tr><td>5 สั่งการรักษา</td><td><code>stepIndex &gt; 4</code> (orders optional)</td></tr>
+          <tr><td>6 นัดหมาย</td><td><code>appointment.mode === 'skip'</code> <strong>OR</strong> <code>mode === 'schedule'</code> + clinic/type/doctor/reason/preparation all non-empty</td></tr>
+          <tr><td>7 ใบรับรองแพทย์</td><td><code>certIssue === 'no'</code> <strong>OR</strong> <code>certIssue === 'yes'</code> + <code>certSignature</code> non-empty</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Form state shape (excerpt)</h4>
+<pre><code>{
+  // Step 2 summary (read-only)
+  vitalsRecordedAt, vitals, symptoms, allergies,
+  // Step 3 exam
+  examSystem, examView, bodyMarkers, bodyDrawings,
+  nurseExam, doctorExam, examAttachments,
+  // Step 4 diagnosis
+  diagnosisNote, doctorOrderNote, orderingDoctor,
+  diagnoses: [{ icd10, label, type, note }],
+  icdQuery,
+  // Step 5 orders
+  orderCategory, medications, labs, xrayOrders, procedureOrders, consultOrders,
+  showAllergyAlert,
+  // Step 6 appointment
+  appointment: { mode, clinic, type, doctor, reason, preparation,
+                 advance, location, date },
+  // Step 7 cert
+  certIssue, certType, certNo, restDays, startDate, endDate,
+  certSignerDoctor, certSignerLicense, certSignature, certSignedAt,
+}</code></pre>
+      <div class="callout warn"><span class="callout-title">Pitfall:</span> <code>buildInitialForm(patient)</code> runs once. If the user switches patients via QueueSubMenu, the page must re-mount or <code>setForm(buildInitialForm(newPatient))</code> — there's no derived-state effect.</div>
+      <div class="callout"><span class="callout-title">Note:</span> ApptCollapse (Step 6) keeps the schedule body mounted but height-collapsed so toggling <code>mode='skip'</code> ↔ <code>mode='schedule'</code> glides instead of snapping. Empty-state vs filled-state transitions are heavily commented in TreatmentSteps.jsx.</div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         8. Forms Library
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-forms">
+      <h2><span class="num">8</span>Forms Library (คลังแบบฟอร์ม)</h2>
+      <p><strong>Purpose.</strong> Catalog of forms (consent letters, assessments, reports, surveys) that clinicians can either print, share via QR (patient fills on phone), or fill in-clinic ("เจ้าหน้าที่กรอกแทน"). Each form is a static schema in <a class="fileref" href="../src/data/formsLibrary.js">formsLibrary.js</a> — sections + fields with type tags.</p>
+
+      <h3>Routes</h3>
+      <ul>
+        <li><code>/forms</code> → <a class="fileref" href="../src/pages/forms/FormsLibraryPage.jsx">FormsLibraryPage</a> — hub with category bands + full catalog table.</li>
+        <li><code>/forms/category/:categoryKey</code> → <a class="fileref" href="../src/pages/forms/FormsCategoryPage.jsx">FormsCategoryPage</a> — category drill-down: cards + TabPill pivot + pagination.</li>
+        <li><code>/forms/:slug</code> → <a class="fileref" href="../src/pages/forms/FormDetailPage.jsx">FormDetailPage</a> — detail + field-preview list + QR target.</li>
+        <li><code>/forms/:slug/fill</code> → <a class="fileref" href="../src/pages/forms/FormFillPage.jsx">FormFillPage</a> — live fillable. <code>?role=patient</code> strips clinician chrome so the QR-landed view feels patient-facing.</li>
+      </ul>
+
+      <h3>Categories</h3>
+      <table>
+        <thead><tr><th>Key</th><th>Label</th><th>Icon</th><th>Color</th></tr></thead>
+        <tbody>
+          <tr><td><code>consent</code></td><td>แบบฟอร์มยินยอม</td><td>verified_user</td><td>brand</td></tr>
+          <tr><td><code>assessment</code></td><td>แบบฟอร์มประเมิน</td><td>fact_check</td><td>blue</td></tr>
+          <tr><td><code>report</code></td><td>แบบฟอร์มรายงาน</td><td>report</td><td>orange</td></tr>
+          <tr><td><code>survey</code></td><td>แบบสอบถามสุขภาพ</td><td>assignment</td><td>teal</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Form schema</h3>
+<pre><code>{ slug, code, category, name, summary, language, estimatedMinutes, version,
+  sections: [{ title, fields: [{ label, type, required, critical, placeholder }] }] }</code></pre>
+      <p><strong>Field types:</strong> <code>text</code>, <code>textarea</code>, <code>date</code>, <code>datetime</code>, <code>signature</code>, <code>checkbox</code>, <code>select</code>, <code>radio-4</code> (PHQ-9/GAD-7 scale), <code>radio-5</code>, <code>slider-0-10</code>.</p>
+      <p><strong><code>field.critical</code></strong> flags vitals fields with a "ตรวจซ้ำเมื่อพบสัญญาณเสี่ยง" pill.</p>
+      <p><strong>Filter facets</strong> on the catalog page are pseudo-randomly assigned via a hash of the form slug — deterministic mock dimensions, not real metadata.</p>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         9. Users & Access
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-users">
+      <h2><span class="num">9</span>Users &amp; Access</h2>
+      <p><strong>Purpose.</strong> Admin assigns roles, sub-roles, departments, and per-feature access (<code>none</code> / <code>view</code> / <code>edit</code>) to staff users.</p>
+
+      <h3>Routes</h3>
+      <ul>
+        <li><code>/users</code> → <a class="fileref" href="../src/pages/users/UsersAccessPage.jsx">UsersAccessPage</a> — table with filters.</li>
+        <li><code>/users/new</code>, <code>/users/:id</code> → <a class="fileref" href="../src/pages/users/UserEditPage.jsx">UserEditPage</a> — edit / create.</li>
+      </ul>
+
+      <h3>Model (<code>usersAccess.js</code>)</h3>
+      <table>
+        <thead><tr><th>Entity</th><th>Values / shape</th></tr></thead>
+        <tbody>
+          <tr><td><code>ROLES</code></td><td>doctor / nurse / pharmacist / registrar / lab-tech / admin. Each <code>{ key, label, color, icon }</code>.</td></tr>
+          <tr><td><code>SUB_ROLES</code></td><td>Keyed by role. doctor → gp / surgeon / dentist / family / psychiatrist / obgyn. nurse → opd-nurse / er-nurse / anc-nurse / wellness-nurse / tb-nurse.</td></tr>
+          <tr><td><code>DEPARTMENTS</code></td><td>opd / registration / + more.</td></tr>
+          <tr><td><code>FEATURE_GROUPS</code></td><td>Feature catalog grouped by domain. Each feature declares <code>supportedLevels</code> (some only support <code>'edit'</code> — binary actions like "ส่ง QR").</td></tr>
+          <tr><td>User shape</td><td><code>{ id, name, email, avatarUrl, status, role, subRole, departments[], features: { [key]: 'view' | 'edit' } }</code>. Missing key = no access.</td></tr>
+        </tbody>
+      </table>
+      <p><strong><code>BLANK_USER</code></strong> default for <code>/users/new</code>: status <code>active</code>, role <code>nurse</code>.</p>
+
+      <h3>UI patterns</h3>
+      <ul>
+        <li><strong>RoleRadioCard</strong> — role picker rendered as selectable card grid.</li>
+        <li><strong>SectionCard</strong> — uniform white card with title + icon for each edit section.</li>
+        <li><strong>Access matrix</strong> — feature group → row with three radio levels (none / view / edit), respecting <code>supportedLevels</code>.</li>
+      </ul>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         10. Dev Tools
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-dev">
+      <h2><span class="num">10</span>Dev Tools</h2>
+      <p>These routes are not part of the clinician workflow — they're internal tools for the design system and engineering teams.</p>
+
+      <h3>10.1 Components Library</h3>
+      <p>Route: <code>/components</code>, <code>/components/:slug</code> → <a class="fileref" href="../src/pages/components/ComponentsLibraryPage.jsx">ComponentsLibraryPage</a> (~7400 lines). Live showcase of every design-system component documented in design.md. One section per component slug (button / badge / card / table / step / stepper / popup / etc.) — imports every component, renders state matrices + interactive demos.</p>
+      <p><code>WIDE_PREVIEW_SLUGS</code> get a full-width canvas — used by examination-canvas and table demos.</p>
+
+      <h3>10.2 Preview pages</h3>
+      <ul>
+        <li><code>/preview/tabs</code> → <a class="fileref" href="../src/pages/preview/TabsPreviewPage.jsx">TabsPreviewPage</a> — every Tab variant (Underline / Capsule / Pill) side-by-side.</li>
+        <li><code>/preview/cards</code> → <a class="fileref" href="../src/pages/preview/CardsPreviewPage.jsx">CardsPreviewPage</a> — VitalCard / PatientCard / SubCard variations.</li>
+        <li><code>/preview/body-record</code> → <a class="fileref" href="../src/pages/preview/BodyRecordPreviewPage.jsx">BodyRecordPreviewPage</a> — BodyDrawingCanvas + BodyRecordPopup interaction sandbox.</li>
+      </ul>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         11. Pitfalls & Gotchas
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-pitfalls">
+      <h2><span class="num">11</span>Pitfalls &amp; Gotchas</h2>
+
+      <div class="callout danger"><span class="callout-title">React 17 only:</span> React-18 hooks (<code>useId</code>, <code>useSyncExternalStore</code>, etc.) crash at render. See memory note <code>project_react17_runtime</code>.</div>
+      <div class="callout warn"><span class="callout-title">Voice textareas:</span> every <code>SuggestibleTextarea voice</code> in clinician fields must ship with <code>suggestions</code> + <code>minChars</code>. Bare <code>VoiceTextarea</code> is forbidden. See memory note <code>feedback_voice_textarea_suggestions</code>.</div>
+      <div class="callout warn"><span class="callout-title">Input chrome stripping:</span> wrapper-owned border/focus chrome → inner native input must strip <code>border / outline / box-shadow / appearance / -webkit-appearance</code> with <code>!important</code> for <code>:focus</code> and <code>:focus-visible</code>. See CLAUDE.md.</div>
+      <div class="callout"><span class="callout-title">Vite host pinning:</span> <code>vite.config.mjs</code> pins <code>host: '127.0.0.1'</code> to avoid a <code>uv_interface_addresses</code> crash with default host. When exposing to LAN, use <code>npx vite --host &lt;ip&gt;</code> to bind to one specific interface (not 0.0.0.0).</div>
+      <div class="callout"><span class="callout-title">Google Drive sync ghosts:</span> vite.config.mjs ignores <code>**/.!*</code> placeholder files + <code>**/.DS_Store</code> in chokidar — without it, the watcher fires on missing files and Vite/Tailwind blow up with ENOENT.</div>
+      <div class="callout"><span class="callout-title">Dirty tracking event sources:</span> on OPD ScreeningPage, <code>markDirty</code> listens on <code>keydown</code> + <code>pointerdown</code> only, gates on <code>event.isTrusted</code>, and for pointer presses additionally requires <code>[aria-pressed]</code> or <code>[aria-label="decrement|increment"]</code>. Prevents autofill + <code>dispatchEvent</code> from flipping the Next-button gate before a real user gesture.</div>
+      <div class="callout"><span class="callout-title">Continuity Camera labels:</span> <code>cameraDevice.js</code> hints include <code>'continuity'</code>, <code>'iphone'</code>, <code>'desk view'</code>, <code>'continuity camera'</code>. New phone vendors must be added to <code>PHONE_LABEL_HINTS</code> to be auto-picked.</div>
+      <div class="callout warn"><span class="callout-title">sessionStorage scope:</span> OPD drafts persist only for the tab session, not across browser restarts. Production needs a real backend hook. The key (<code>mih:opd-screening-drafts</code>) is a flat list of <code>queue|hn|name</code> strings — adding fields needs migration logic.</div>
+      <div class="callout warn"><span class="callout-title">Three identity rosters:</span> mock patients live in <strong>three</strong> overlapping rosters — <code>PATIENT_PROFILES</code> (display), <code>MR_PATIENTS</code> (registration), <code>TREATMENT_QUEUE_ROWS</code> (queue). Adding a new mock patient requires adding to <strong>all three</strong> or downstream pages fall back to defaults.</div>
+      <div class="callout"><span class="callout-title">Thai Buddhist dates:</span> DOB / ID issue / ID expiry use <code>formatThaiBuddhistDate</code> / <code>parseThaiBuddhistDate</code>. Format: <code>"20 กุมภาพันธ์ 2563"</code>. Parser is strict — month names must match <code>THAI_MONTHS</code> exactly.</div>
+      <div class="callout"><span class="callout-title">National ID mask:</span> <code>formatNationalId(value)</code> injects <code>1-####-##-###-###</code>. Raw can be 17 chars (13 digits + 4 dashes).</div>
+      <div class="callout"><span class="callout-title">Chip-read NON_CHIP_FIELDS:</span> the Thai ID chip does not carry <code>education</code>, <code>occupation</code>, <code>marital</code>. <code>applySmartCardRead</code> preserves what the user already typed for these three keys.</div>
+      <div class="callout info"><span class="callout-title">"อื่นๆ" branches:</span> Mobility 'other' (Step 5 Registration) — <code>mobilityOther</code> must be non-empty for the step to count as complete. Mirror this pattern when adding any new "อื่นๆ" sub-text field.</div>
+    </section>
+
+    <p style="text-align:center;color:var(--ink-4);font-size:12px;margin-top:36px;">
+      End of spec · Last refreshed alongside the StepProgress check-mark feature (2026-05-21)
+    </p>
+  </main>
+</div>
+</body>
+</html>

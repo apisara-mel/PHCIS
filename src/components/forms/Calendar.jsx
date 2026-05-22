@@ -1,0 +1,312 @@
+import React, { useState } from 'react';
+
+/* MIH Calendar — Figma node 238:39268 (Calendar/Default subnode 74:5708)
+   Single-month grid showing 6 weeks (42 cells) with weekday header.
+   DateFilterPopup renders two instances: side-by-side when the container is wide
+   enough (flex-wrap row); stacked when narrow.
+
+   Cell visual states (from Figma):
+     • default     — white bg · text #4D5358 · rounded-full hover halo
+     • disabled    — white bg · text #ADB2B7 (days outside the visible month)
+     • selected    — bg brand-p700 · text white · rounded-full
+                     (range endpoints get rounded-l-full or rounded-r-full only)
+     • range       — bg brand-p100 · text brand-p700 · no rounding
+   Header chevrons appear only on the outer edges in a 2-month layout. */
+
+const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+const Sym = ({ name, size = 16, color }) => (
+  <span
+    className='material-symbols-outlined'
+    style={{
+      fontFamily: 'Material Symbols Outlined',
+      fontSize: size,
+      color,
+      lineHeight: 1,
+      display: 'inline-flex',
+    }}
+    aria-hidden
+  >
+    {name}
+  </span>
+);
+
+const startOfDay = (d) => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+const sameDay = (a, b) =>
+  a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const isBefore = (a, b) => startOfDay(a).getTime() < startOfDay(b).getTime();
+const isBetween = (d, a, b) => {
+  const t = startOfDay(d).getTime();
+  return t > startOfDay(a).getTime() && t < startOfDay(b).getTime();
+};
+
+/* Build a 6×7 grid of Date objects starting from the Sunday on or before
+   the first day of `viewMonth`. */
+const buildGrid = (viewMonth) => {
+  const firstOfMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
+  const start = new Date(firstOfMonth);
+  start.setDate(start.getDate() - start.getDay()); // back to Sunday
+  return Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+};
+
+const ChevronButton = ({ direction, onClick }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className='shrink-0 flex items-center justify-center cursor-pointer'
+      style={{
+        width: 24,
+        height: 24,
+        borderRadius: 'var(--dim-radius-200)',
+        background: hovered ? 'var(--surface-list-hover)' : 'transparent',
+        border: 'none',
+        color: 'var(--text-content-default)',
+      }}
+      aria-label={direction === 'left' ? 'เดือนก่อน' : 'เดือนถัดไป'}
+    >
+      <Sym name={direction === 'left' ? 'chevron_left' : 'chevron_right'} size={16} color='currentColor' />
+    </button>
+  );
+};
+
+const Calendar = ({
+  viewMonth,
+  mode = 'single',         // 'single' | 'range'
+  selection,               // Date (single) | { start, end } (range)
+  onSelect,                // (Date) => void
+  onNavigate,              // (delta: number) => void
+  showLeftChevron = true,
+  showRightChevron = true,
+  minDate,                 // dates strictly before this are disabled (inclusive lower bound)
+}) => {
+  const grid = buildGrid(viewMonth);
+  const monthLabel = `${MONTH_NAMES[viewMonth.getMonth()]} ${viewMonth.getFullYear()}`;
+  const minTs = minDate ? startOfDay(minDate).getTime() : null;
+
+  const stateOf = (d) => {
+    const inMonth = d.getMonth() === viewMonth.getMonth();
+    if (!inMonth) return { kind: 'disabled' };
+    if (minTs !== null && startOfDay(d).getTime() < minTs) return { kind: 'disabled' };
+
+    if (mode === 'range' && selection && selection.start && selection.end) {
+      const { start, end } = selection;
+      const lo = isBefore(start, end) ? start : end;
+      const hi = isBefore(start, end) ? end : start;
+      if (sameDay(d, lo) && sameDay(d, hi)) return { kind: 'selected', radius: 'full' };
+      if (sameDay(d, lo)) return { kind: 'selected', radius: 'left' };
+      if (sameDay(d, hi)) return { kind: 'selected', radius: 'right' };
+      if (isBetween(d, lo, hi)) return { kind: 'range' };
+      return { kind: 'default' };
+    }
+    if (mode === 'single' && selection && sameDay(d, selection)) {
+      return { kind: 'selected', radius: 'full' };
+    }
+    if (mode === 'range' && selection && selection.start && sameDay(d, selection.start)) {
+      return { kind: 'selected', radius: 'full' };
+    }
+    return { kind: 'default' };
+  };
+
+  const cellStyleFor = (state, hovered) => {
+    const radius =
+      state.radius === 'full' ? 9999
+        : state.radius === 'left' ? '9999px 0 0 9999px'
+          : state.radius === 'right' ? '0 9999px 9999px 0'
+            : 0;
+    if (state.kind === 'selected') {
+      return {
+        background: 'var(--brand-p700)',
+        color: '#FFFFFF',
+        borderRadius: radius,
+      };
+    }
+    if (state.kind === 'range') {
+      return {
+        background: 'var(--brand-p100)',
+        color: 'var(--brand-p700)',
+        borderRadius: 0,
+      };
+    }
+    if (state.kind === 'disabled') {
+      return {
+        background: '#FFFFFF',
+        color: '#ADB2B7',
+        borderRadius: 'var(--dim-radius-full)',
+      };
+    }
+    return {
+      background: hovered ? 'var(--brand-p100)' : '#FFFFFF',
+      color: hovered ? 'var(--brand-p700)' : '#4D5358',
+      borderRadius: 'var(--dim-radius-full)',
+    };
+  };
+
+  return (
+    <div
+      className='flex w-full max-w-[320px] flex-col items-center'
+      style={{
+        width: 'min(320px, 100%)',
+        gap: 'var(--dim-space-100)',
+        padding: 'var(--dim-space-400)',
+      }}
+    >
+      {/* Header — month label + chevrons (left/right depending on which side) */}
+      <div className='flex items-center w-full' style={{ height: 32, gap: 'var(--dim-space-100)' }}>
+        {showLeftChevron ? <ChevronButton direction='left' onClick={() => onNavigate?.(-1)} /> : <span style={{ width: 24 }} />}
+        <p
+          className='flex-1 text-center'
+          style={{
+            color: '#4D5358',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-base)',
+            fontWeight: 'var(--type-weight-medium)',
+            margin: 'var(--dim-space-0)',
+          }}
+        >
+          {monthLabel}
+        </p>
+        {showRightChevron ? <ChevronButton direction='right' onClick={() => onNavigate?.(1)} /> : <span style={{ width: 24 }} />}
+      </div>
+
+      {/* Weekday row */}
+      <div className='flex w-full' style={{ gap: 'var(--dim-space-050)' }}>
+        {WEEKDAYS.map((w) => (
+          <div
+            key={w}
+            className='flex-1 flex items-center justify-center'
+            style={{
+              height: 28,
+              color: '#636B72',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              fontWeight: 'var(--type-weight-medium)',
+              lineHeight: 'normal',
+            }}
+          >
+            {w}
+          </div>
+        ))}
+      </div>
+
+      {/* Day grid — 6 rows × 7 cells */}
+      {Array.from({ length: 6 }, (_, row) => (
+        <div key={row} className='flex w-full' style={{ gap: 'var(--dim-space-050)' }}>
+          {grid.slice(row * 7, row * 7 + 7).map((d, i) => (
+            <DayCell
+              key={i}
+              date={d}
+              state={stateOf(d)}
+              cellStyleFor={cellStyleFor}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const DayCell = ({ date, state, cellStyleFor, onSelect }) => {
+  const [hovered, setHovered] = useState(false);
+  const visual = cellStyleFor(state, hovered);
+  const clickable = state.kind !== 'disabled';
+  return (
+    <button
+      type='button'
+      disabled={!clickable}
+      onClick={() => clickable && onSelect && onSelect(date)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className='flex items-center justify-center transition-colors'
+      style={{
+        width: 40,
+        height: 40,
+        border: 'none',
+        cursor: clickable ? 'pointer' : 'default',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        lineHeight: 1.5,
+        ...visual,
+      }}
+    >
+      {date.getDate()}
+    </button>
+  );
+};
+
+export default Calendar;
+export { startOfDay, sameDay };
+
+/* ── Preview helpers for state-matrix demos ──────────────────────
+   These render a single day cell / chevron with explicit visual state,
+   matching Figma 325:3609 (day cell) and 3070:4061 (chevron) so the
+   design-system docs can display each state side-by-side.        */
+
+const DAY_PREVIEW_STATES = {
+  default:  { bg: '#FFFFFF',           color: '#4D5358',          radius: 9999, opacity: 1 },
+  hover:    { bg: 'var(--brand-p100)', color: 'var(--brand-p700)',radius: 9999, opacity: 1 },
+  range:    { bg: 'var(--brand-p100)', color: 'var(--brand-p700)',radius: 0,    opacity: 1 },
+  selected: { bg: 'var(--brand-p700)', color: '#FFFFFF',          radius: 9999, opacity: 1 },
+  disabled: { bg: '#FFFFFF',           color: '#ADB2B7',          radius: 9999, opacity: 1 },
+};
+
+export const CalendarDayPreview = ({ state = 'default', day = 15 }) => {
+  const s = DAY_PREVIEW_STATES[state] || DAY_PREVIEW_STATES.default;
+  return (
+    <div
+      className='inline-flex items-center justify-center'
+      style={{
+        width: 40,
+        height: 40,
+        background: s.bg,
+        color: s.color,
+        borderRadius: s.radius,
+        opacity: s.opacity,
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        lineHeight: 1.5,
+      }}
+    >
+      {day}
+    </div>
+  );
+};
+
+const CHEV_PREVIEW_STATES = {
+  default: { bg: 'transparent',                  color: 'var(--text-content-default)' },
+  hover:   { bg: 'var(--surface-list-hover)',    color: 'var(--brand-p700)' },
+};
+
+export const CalendarChevronPreview = ({ state = 'default', direction = 'left' }) => {
+  const s = CHEV_PREVIEW_STATES[state] || CHEV_PREVIEW_STATES.default;
+  return (
+    <div
+      className='inline-flex items-center justify-center'
+      style={{
+        width: 24,
+        height: 24,
+        borderRadius: 'var(--dim-radius-200)',
+        background: s.bg,
+        color: s.color,
+      }}
+    >
+      <Sym name={direction === 'left' ? 'chevron_left' : 'chevron_right'} size={16} color='currentColor' />
+    </div>
+  );
+};

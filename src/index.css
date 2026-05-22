@@ -1,0 +1,1500 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────
+   DESIGN TOKENS · MIH PHCIS
+   Two-layer system per design.md:
+     1. Brand primitives  (var(--brand-p50..950)) — switch per mode
+     2. Semantic tokens   — alias the primitives
+   Switch brand by setting <html data-brand="..."> (10 modes).
+   All semantic tokens that reference --brand-p* update atomically.
+   ───────────────────────────────────────────────────────────── */
+
+/* ── 1. Brand primitives — DEFAULT (emerald + forest) ──────── */
+/* Values match design.md §1a "emerald" palette (rows 28-40).
+   Do NOT diverge: many semantic tokens (border/brandPrimary/tertiary,
+   border/brandPrimaryButton/tertiary, surface/steps/hover, brandTag …)
+   resolve through these primitives. */
+:root {
+  --brand-p50:  #F4FBF8;
+  --brand-p100: #E2F3EB;
+  --brand-p200: #C5EDDA;   /* emerald/200 — Selected radio/border tint */
+  --brand-p300: #91DFBB;   /* emerald/300 */
+  --brand-p400: #6AD6A5;
+  --brand-p500: #54CF97;
+  --brand-p600: #08A768;
+  --brand-p700: #007549;
+  --brand-p800: #004C31;
+  --brand-p900: #003322;
+  --brand-p950: #002318;
+
+  --brand-s100: #EFF5EF;
+  --brand-s200: #E1F0E0;
+  --brand-s700: #366233;
+
+  /* RGB triplets (space-separated for rgb() modern syntax) */
+  --brand-p400-rgb: 106 214 165;
+  --brand-p500-rgb:  84 207 151;
+  --brand-p600-rgb:   8 167 104;
+  --brand-p700-rgb:   0 117  73;
+  --brand-p800-rgb:   0  76  49;
+
+  /* PatientCard defaults (keep original default visual) */
+  --patient-card-grad-start: rgb(0 164 172);
+  --patient-card-grad-end: rgb(31 160 145);
+  --patient-card-avatar-bg: #6EBBD0;
+}
+
+/* Non-default themed modes should follow active brand tokens */
+[data-brand]:not([data-brand="default"]) {
+  --patient-card-grad-start: var(--brand-p700);
+  --patient-card-grad-end: var(--brand-p600);
+  --patient-card-avatar-bg: var(--brand-p400);
+}
+
+/* ── Brand mode overrides (per design.md §2) ─────────── */
+[data-brand="blue-serenity"] {
+  --brand-p50:  #F0F2FF; --brand-p100: #E4E8FF; --brand-p200: #D0D7FF;
+  --brand-p300: #BBC6FE; --brand-p400: #A5B3FC; --brand-p500: #8EA0F8;
+  --brand-p600: #7A8CF0; --brand-p700: #6676E0; --brand-p800: #5060C8;
+  --brand-p900: #3A4AAA; --brand-p950: #2A3488;
+  --brand-s100: #E4E8FF; --brand-s200: #D0D7FF; --brand-s700: #6676E0;
+  --brand-p400-rgb: 165 179 252; --brand-p500-rgb: 142 160 248;
+  --brand-p600-rgb: 122 140 240; --brand-p700-rgb: 102 118 224;
+  --brand-p800-rgb:  80  96 200;
+}
+[data-brand="soft-lavender"] {
+  --brand-p50:  #FAF7FF; --brand-p100: #F2ECFF; --brand-p200: #E5D9FF;
+  --brand-p300: #D6C6FA; --brand-p400: #C5B2F5; --brand-p500: #B49EEE;
+  --brand-p600: #9D87D8; --brand-p700: #836FC0; --brand-p800: #6655A0;
+  --brand-p900: #4A3D7A; --brand-p950: #302754;
+  --brand-s100: #F2ECFF; --brand-s200: #E5D9FF; --brand-s700: #836FC0;
+  --brand-p400-rgb: 197 178 245; --brand-p500-rgb: 180 158 238;
+  --brand-p600-rgb: 157 135 216; --brand-p700-rgb: 131 111 192;
+  --brand-p800-rgb: 102  85 160;
+}
+[data-brand="dusty-mauve"] {
+  --brand-p50:  #F9F4F5; --brand-p100: #F2E6E8; --brand-p200: #E4CDD0;
+  --brand-p300: #D0ADB2; --brand-p400: #B58E94; --brand-p500: #977177;
+  --brand-p600: #7E5A60; --brand-p700: #664750; --brand-p800: #503840;
+  --brand-p900: #3C2A30; --brand-p950: #281C21;
+  --brand-s100: #F2E6E8; --brand-s200: #E4CDD0; --brand-s700: #664750;
+  --brand-p400-rgb: 181 142 148; --brand-p500-rgb: 151 113 119;
+  --brand-p600-rgb: 126  90  96; --brand-p700-rgb: 102  71  80;
+  --brand-p800-rgb:  80  56  64;
+}
+[data-brand="muted-teal"] {
+  --brand-p50:  #F0F8F7; --brand-p100: #DAEEED; --brand-p200: #B5DBD9;
+  --brand-p300: #8DC3C0; --brand-p400: #7AABA8; --brand-p500: #6F9693;
+  --brand-p600: #5A7D7A; --brand-p700: #486462; --brand-p800: #374E4C;
+  --brand-p900: #283A38; --brand-p950: #1A2726;
+  --brand-s100: #DAEEED; --brand-s200: #B5DBD9; --brand-s700: #486462;
+  --brand-p400-rgb: 122 171 168; --brand-p500-rgb: 111 150 147;
+  --brand-p600-rgb:  90 125 122; --brand-p700-rgb:  72 100  98;
+  --brand-p800-rgb:  55  78  76;
+}
+[data-brand="sakura"] {
+  --brand-p50:  #FFF8FA; --brand-p100: #FFEDF3; --brand-p200: #FFE0EC;
+  --brand-p300: #FFCFDF; --brand-p400: #FFC0D4; --brand-p500: #F5AFCA;
+  --brand-p600: #E89DBA; --brand-p700: #D687A8; --brand-p800: #C07494;
+  --brand-p900: #A35C7C; --brand-p950: #8A4665;
+  --brand-s100: #FFEDF3; --brand-s200: #FFE0EC; --brand-s700: #D687A8;
+  --brand-p400-rgb: 255 192 212; --brand-p500-rgb: 245 175 202;
+  --brand-p600-rgb: 232 157 186; --brand-p700-rgb: 214 135 168;
+  --brand-p800-rgb: 192 116 148;
+}
+[data-brand="rose-mist"] {
+  --brand-p50:  #FFF9F9; --brand-p100: #FCEEED; --brand-p200: #F8E0DF;
+  --brand-p300: #F4D0CF; --brand-p400: #EEBFBE; --brand-p500: #E5ADAC;
+  --brand-p600: #D49A99; --brand-p700: #BC8584; --brand-p800: #A06F6E;
+  --brand-p900: #7E5554; --brand-p950: #5E3C3C;
+  --brand-s100: #FCEEED; --brand-s200: #F8E0DF; --brand-s700: #BC8584;
+  --brand-p400-rgb: 238 191 190; --brand-p500-rgb: 229 173 172;
+  --brand-p600-rgb: 212 154 153; --brand-p700-rgb: 188 133 132;
+  --brand-p800-rgb: 160 111 110;
+}
+[data-brand="soft-sky"] {
+  --brand-p50:  #F5FBFF; --brand-p100: #E8F5FD; --brand-p200: #D6ECFA;
+  --brand-p300: #D6ECFA; --brand-p400: #A8D3EE; --brand-p500: #8EC4E5;
+  --brand-p600: #8EC4E5; --brand-p700: #5594C4; --brand-p800: #3D78A8;
+  --brand-p900: #285A82; --brand-p950: #183D5C;
+  --brand-s100: #E8F5FD; --brand-s200: #D6ECFA; --brand-s700: #5594C4;
+  --brand-p400-rgb: 168 211 238; --brand-p500-rgb: 142 196 229;
+  --brand-p600-rgb: 142 196 229; --brand-p700-rgb:  85 148 196;
+  --brand-p800-rgb:  61 120 168;
+}
+[data-brand="soft-peach"] {
+  --brand-p50:  #FFFAF7; --brand-p100: #FEF0E8; --brand-p200: #FDE2D0;
+  --brand-p300: #FCD1B8; --brand-p400: #FBBEA0; --brand-p500: #FAA381;
+  --brand-p600: #E88A66; --brand-p700: #D0714D; --brand-p800: #B05A38;
+  --brand-p900: #844026; --brand-p950: #562814;
+  --brand-s100: #FEF0E8; --brand-s200: #FDE2D0; --brand-s700: #D0714D;
+  --brand-p400-rgb: 251 190 160; --brand-p500-rgb: 250 163 129;
+  --brand-p600-rgb: 232 138 102; --brand-p700-rgb: 208 113  77;
+  --brand-p800-rgb: 176  90  56;
+}
+[data-brand="warm-gray"] {
+  --brand-p50:  #F5F3F1; --brand-p100: #EBE7E4; --brand-p200: #D5CEC9;
+  --brand-p300: #BDB5AF; --brand-p400: #A39A94; --brand-p500: #8A8078;
+  --brand-p600: #726760; --brand-p700: #5C504A; --brand-p800: #463C37;
+  --brand-p900: #312B26; --brand-p950: #211D19;
+  --brand-s100: #EBE7E4; --brand-s200: #D5CEC9; --brand-s700: #5C504A;
+  --brand-p400-rgb: 163 154 148; --brand-p500-rgb: 138 128 120;
+  --brand-p600-rgb: 114 103  96; --brand-p700-rgb:  92  80  74;
+  --brand-p800-rgb:  70  60  55;
+}
+
+/* ── 2. Semantic tokens — alias primitives + neutrals ──────── */
+:root {
+  /* — Surface · brand-aware — */
+  --surface-brandPrimary-default:        var(--brand-p700);
+  --surface-brandPrimary-default-hover:  var(--brand-p800);
+  --surface-brandPrimary-secondary:      var(--brand-p200);
+  --surface-brandPrimary-tertiary:       var(--brand-p100);
+  --surface-brandPrimary-quaternary:     var(--brand-p50);
+
+  --surface-brandPrimaryButton-default:  var(--brand-p700);
+  --surface-brandPrimaryButton-hover:    var(--brand-p800);
+  --surface-brandPrimaryButton-tertiary: var(--brand-p100);
+
+  /* Danger Button — Figma 2024:3590, design.md §4.5 */
+  --surface-dangerButton-default:        #B91C1C;            /* red/700 */
+  --surface-dangerButton-default-hover:  #991B1B;            /* red/800 */
+  --surface-dangerButton-secondary:      #FECACA;            /* red/200 */
+  --surface-dangerButton-secondary-hover:#FCA5A5;            /* red/300 */
+  --surface-dangerButton-tertiary:       #FEE2E2;            /* red/100 */
+  --surface-dangerButton-tertiary-hover: #FECACA;            /* red/200 */
+  --surface-dangerButton-quaternary:     #FFF0F0;            /* red/50  */
+  --surface-dangerButton-quaternary-hover:#FEE2E2;           /* red/100 */
+  --surface-dangerButton-quinary:        #FFFFFF;
+  --surface-dangerButton-quinary-hover:  #FFF0F0;            /* red/50  */
+  --border-dangerButton-default:         #DC2626;            /* red/600 — Figma `border/dangerbutton/default` (Outline border is one step lighter than the red/700 fill)   */
+  --border-dangerButton-default-hover:   #B91C1C;            /* red/700 */
+  --border-dangerButton-secondary:       #F87171;            /* red/400 — Subdue Outline hover border (Figma 2024:4434) */
+  --border-dangerButton-secondary-hover: #EF4444;            /* red/500 */
+  --border-dangerButton-tertiary:        #FECACA;            /* red/200 — Focus ring (4px) Figma 2024:3701 */
+  --border-dangerButton-quaternary:      #FEE2E2;            /* red/100 — Active state border Figma 2024:3701 */
+  --text-dangerButton-default:           #B91C1C;            /* red/700 */
+  --text-dangerButton-default-hover:     #991B1B;
+  --text-dangerButton-on-danger:         #FFFFFF;
+  --text-danger-default:                 #B91C1C;            /* text/danger/default — elevated vitals (Figma 184:17588) */
+  --text-warning-default:                #C2410C;            /* text/warning/default — orange/700 */
+  --icon-dangerButton-default:           #B91C1C;
+  --icon-dangerButton-default-hover:     #991B1B;
+  --icon-dangerButton-on-danger:         #FFFFFF;
+
+  /* Neutral Button — Figma 2024:3591, design.md §4.5 */
+  --surface-neutralButton-default:       #4D5358;            /* neutral/700 */
+  --surface-neutralButton-default-hover: #363B3F;            /* neutral/800 */
+  --surface-neutralButton-secondary:     #E2E4E6;            /* neutral/200 */
+  --surface-neutralButton-secondary-hover:#C9CDD0;           /* neutral/300 */
+  --surface-neutralButton-tertiary:      #F4F5F5;            /* neutral/100 */
+  --surface-neutralButton-tertiary-hover:#E2E4E6;            /* neutral/200 */
+  --surface-neutralButton-quaternary:    #F9FBFB;            /* neutral/50  */
+  --surface-neutralButton-quaternary-hover:#F4F5F5;          /* neutral/100 */
+  --surface-neutralButton-quinary:       #FFFFFF;
+  --surface-neutralButton-quinary-hover: #F9FBFB;
+  --border-neutralButton-default:        #4D5358;
+  --border-neutralButton-default-hover:  #363B3F;
+  --border-neutralButton-secondary:      #ADB2B7;            /* neutral/400 — Focus ring (4px) for Fill Neutral (Figma 2024:4189) */
+  --border-neutralButton-tertiary:       #E2E4E6;            /* neutral/200 — Outline default border + Focus ring for Outline/Ghost */
+  --border-neutralButton-quaternary:     #F4F5F5;            /* neutral/100 — Active state border (Figma 2024:4189) */
+  --text-neutralButton-default:          #4D5358;
+  --text-neutralButton-default-hover:    #363B3F;
+  --text-neutralButton-on-neutral:       #FFFFFF;
+  --icon-neutralButton-default:          #4D5358;
+  --icon-neutralButton-default-hover:    #363B3F;
+  --icon-neutralButton-on-neutral:       #FFFFFF;
+  /* design.md row 3979 · icon/neutral/default → neutral/700.
+     Used as the inline-icon color for RadioButton (Figma node 2831:6734)
+     and any caller asking for the canonical neutral icon shade.        */
+  --icon-neutral-default:                #4D5358;
+  --icon-neutral-secondary:              #636B72;            /* icon/neutral/secondary → neutral/500   */
+  --icon-neutral-tertiary:               #ADB2B7;            /* icon/neutral/tertiary  → neutral/400   */
+
+  --surface-steps-default:        var(--brand-p100);  /* surface/steps/default → primary/100 */
+  --surface-steps-hover:          var(--brand-p200);  /* surface/steps/hover → primary/200 */
+  --surface-steps-selected:       var(--brand-p700);  /* surface/steps/selected → primary/700 */
+  --surface-steps-success:        #24A899;            /* surface/steps/success → teal/500 (fixed) */
+  --surface-steps-success-hover:  #1B867D;            /* surface/steps/success-hover → teal/600 (fixed) */
+  /* legacy aliases — keep until callers migrate */
+  --surface-steps-default-hover:  var(--surface-steps-hover);
+  --surface-steps-selected-hover: var(--brand-p800);
+
+  --surface-card-100:        #FFFFFF;
+  /* surface/card/brand-100 → brand-p50 (Figma 2498:6269, 133:1031 Selected-Hover).
+     Despite the "100" in the name, the Figma primitive is primary/50.
+     Brand-aware via --brand-p50, so retints with <html data-brand="…">.  */
+  --surface-card-brand100:   var(--brand-p50);
+  --surface-card-sakura-200: #FFEDF3;            /* surface/card/sakura-200 → color/sakura/100 (light) · color/sakura/900 #A35C7C (dark) */
+  --surface-input-default:   #FFFFFF;
+  --surface-table-default:   #FFFFFF; /* surface.table.default */
+
+  /* — TabPill / TabBar (Figma MIH Design System Foundation 2514:7929, 370:30;
+     design.md §6 rows 1297–1300, 1662–1665, 1965–1969).
+     Light values below — override under `[data-mode="dark"]` for dark mode. */
+  --surface-tabpill-background:  var(--brand-p100);          /* surface/tabpill/background  emerald/100 ↔ emerald/900 */
+  --surface-tabpill-default:     #FFFFFF;                    /* surface/tabpill/default     grey/50 ↔ neutral/800 */
+  --surface-tabpill-selected:    var(--surface-tabpill-default); /* alias of default */
+  --surface-tabpill-hover:       var(--brand-p200);          /* surface/tabpill/hover       primary/200 ↔ primary/800 */
+  --surface-tabpill-disabled:    var(--surface-tabpill-default); /* alias of default */
+  --text-tabpill-default:        var(--brand-p700);          /* text/tabpill/default        primary/700 ↔ primary/300 */
+  --text-tabpill-hover:          var(--brand-p700);          /* text/tabpill/hover */
+  --text-tabpill-selected:       var(--brand-p700);          /* text/tabpill/selected */
+  --text-tabpill-disabled:       var(--brand-p500);          /* text/tabpill/disabled       primary/500 (both modes) */
+  --icon-tabpill-default:        var(--brand-p700);          /* icon/tabpill/default        primary/700 ↔ primary/300 */
+  --icon-tabpill-hover:          var(--brand-p700);          /* icon/tabpill/hover */
+  --icon-tabpill-selected:       var(--brand-p700);          /* icon/tabpill/selected */
+  --icon-tabpill-disabled:       var(--brand-p500);          /* icon/tabpill/disabled       primary/500 (both modes) */
+  --text-neutral-default:        var(--text-neutralbutton-default); /* text/neutral/default — alias used by Selected label in Figma */
+
+  /* — Timeslot (Figma 2302:11293) — outline-style Selected swap, not
+     the older filled chip. Light mode aliases the brand-p600 token;
+     dark mode swaps to brand-p400 inside the matching @media block
+     below. Surface + border tokens move in lockstep so the chip reads
+     as a 2 px brand outline on a white pill. */
+  --text-timeslot-selected:      var(--brand-p600);
+  --border-timeslot-selected:    var(--brand-p600);
+  --surface-timeslot-selected:   var(--surface-timeslot-default, #FFFFFF);
+  /* Default-state border for the pill AND the surrounding slot tray.
+     Aliases brand-quaternary so the chip's idle outline picks up the
+     same soft mint hairline the Figma 2302:11293 / 4025:14538 panels
+     use — retints via [data-brand] so non-green themes follow suit. */
+  --border-timeslot-default:     var(--border-brandPrimary-quaternary);
+
+  /* — Vital sign chart-area (Figma PHCIS-ALL 2418:69815) — */
+  --surface-chart-area:          #FEFEFE;                    /* chart-area fill */
+  --text-chart-axis-label:       #A3ACB4;                    /* axis + date ticks */
+  --stroke-chart-grid:           var(--border-neutral-quaternary);
+  --stroke-chart-series-sbp:     #2575EF;                    /* SBP / informational blue */
+  --stroke-chart-series-dbp:     #F49A1F;                    /* DBP / orange */
+  --dim-radius-chart-area:       10px;                       /* Figma chart-area r=10 */
+
+  /* — Border · brand-aware — */
+  --border-brandPrimary-default:       var(--brand-p700);
+  --border-brandPrimary-tertiary:      var(--brand-p200);
+  --border-brandPrimary-quaternary:    var(--brand-p100);  /* Brand/primary/100 per design.md */
+  --border-input-hover:                var(--brand-p600);
+  --border-steps-default:              var(--brand-p200);
+
+  --border-card-default:               #E2E4E6;
+  --border-card-sakura-100:            #FFE0EC;   /* border/card/sakura-100 → color/sakura/200 (light) · color/sakura/700 #D687A8 (dark) */
+  --border-input-default:              #E2E4E6;
+  --border-neutral-quat:               #F4F5F5;
+
+  /* — Text · brand-aware — */
+  --text-brandPrimary-default:         var(--brand-p700);
+  --text-brandPrimary-secondary:       var(--brand-p600);
+  --text-brandPrimary-on-brand:        #FFFFFF;
+  --text-brandPrimaryButton-default:   var(--brand-p700);
+  --text-brandPrimaryButton-on-brand:  #FFFFFF;
+  --text-steps-default:                var(--brand-p700);                 /* text/steps/default */
+  --text-steps-select:                 #FFFFFF;                            /* text/steps/select */
+  --text-steps-title:                  rgb(var(--brand-p700-rgb) / 0.5);   /* text/steps/title */
+  --text-steps-title-select:           var(--brand-p700);                  /* text/steps/title-select */
+  --text-steps-title-hover:            var(--brand-p700);                  /* text/steps/title-hover */
+  --text-steps-title-success:          #196c65;                            /* text/steps/title-success → teal/700 (fixed) */
+  --text-steps-subtitle:               #858C92;                            /* text/steps/subtitle → neutral/500 (fixed) */
+  --icon-steps-success-on:             #FFFFFF;                            /* icon/step/success-on */
+
+  /* Step DS aliases (design.md naming) */
+  --surface-step-default:              var(--surface-steps-default);           /* surface.steps.default */
+  --surface-step-selected:             var(--surface-steps-selected);          /* surface.steps.selected */
+  --surface-step-selected-hover:       var(--surface-steps-selected-hover);
+  --surface-step-default-hover:        var(--surface-steps-default-hover);
+  --surface-step-success:              #24A899;                                /* surface.steps.success */
+  --focus-ring-step-current:           var(--primaryBorder-600);              /* ring glow primary/600 @15% */
+  --border-step-default:               var(--border-steps-default);            /* border.steps.default */
+  --text-step-default:                 var(--text-steps-default);              /* text.steps.default */
+  --text-step-selected:                var(--text-steps-select);               /* text.steps.select */
+  --text-step-title:                   var(--text-steps-title);                /* text.steps.title/subtitle */
+  --text-step-title-hover:             var(--text-steps-title-hover);          /* text.steps.title-hover */
+  --text-step-title-selected:          var(--text-steps-title-select);         /* text.steps.title-select */
+  --icon-step-success-on:              #FFFFFF;                                /* icon.step.success-on */
+  --text-navigation-title:             var(--brand-p700);
+  --text-topic-primary-title:          var(--brand-p700);
+  --icon-topic-default:                var(--brand-p700);  /* icon/topic/default → Brand/primary/700 */
+  --icon-topic-hover:                  var(--brand-p700);  /* icon/topic/hover → Brand/primary/700 */
+
+  /* — Text · neutral / static — */
+  --text-content-default:    #363B3F;
+  --text-content-secondary:  #636B72;
+  --text-content-tertiary:   #858C92;
+  --text-content-quaternary: #ADB2B7;
+  --text-content-on-content: #FFFFFF;
+  --text-neutralbutton-default: #4D5358;
+  --text-breadcrumb-current:    #363B3F;
+  --text-breadcrumb-pagename:   #858C92;
+  --text-input-require:         #DC2626;
+
+  /* — Form Input · alias per design.md §6.4 ───────────
+     trigger field used by Dropdown / DatePicker / TextInput. */
+  --surface-input-disabled:     #F4F5F5;
+  --border-input-filled:        #E2E4E6;
+  --border-input-error:         #DC2626;
+  --border-input-disabled:      #E2E4E6;
+  --border-input-typing:        var(--brand-p600);   /* brand-aware */
+  --text-input-default:         #ADB2B7;             /* placeholder */
+  --text-input-hover:           #ADB2B7;
+  --text-input-typing:          #4D5358;
+  --text-input-filled:          #4D5358;             /* selected value */
+  --text-input-disabled:        #ADB2B7;
+  --icon-input-default:         #ADB2B7;             /* placeholder/idle/error/disabled */
+  --icon-input-filled:          #4D5358;             /* open / value-selected — n700 */
+  --icon-input-hover:           var(--brand-p600);   /* brand-aware (reserved) */
+  --primaryBorder-600:          rgb(var(--brand-p600-rgb) / 0.15); /* effect/input/100 */
+  --focus-ring-input-hover:     rgb(var(--brand-p600-rgb) / 0.15);
+  --focus-ring-input-typing:    var(--primaryBorder-600);
+  --focus-ring-input-error:     rgb(220 38 38 / 0.12);
+  /* Input state aliases — Figma states keep placeholder/icon gray; only the
+     border + focus ring move. Adding the missing names so components can
+     use one canonical token per state. */
+  --text-input-error:           #ADB2B7;             /* placeholder stays gray in Error */
+  --icon-input-error:           #ADB2B7;             /* icon stays gray in Error      */
+  --icon-input-disabled:        #ADB2B7;             /* icon stays gray when disabled */
+  --text-danger-secondary:      #DC2626;             /* helper text in Error state    */
+  /* Select-specific aliases (Figma 268:55) */
+  --text-input-label:           #4D5358;             /* Field label color (neutral/700) */
+  --text-input-helper:          #ADB2B7;             /* Helper text under select (neutral/400) */
+  --text-input-errorHelper:     var(--text-danger-secondary);  /* Error helper (#DC2626) */
+  --icon-input-typing:          #4D5358;             /* Leading icon in Open/Filled state */
+  --surface-disabled-tertiary:  var(--surface-input-disabled);  /* alias for Figma "surface/disabled/tertiary" */
+
+  /* — Dropdown panel · alias per design.md §6.14 ────── */
+  --surface-dropdown-default:   #FFFFFF;
+  --border-dropdown-default:    #EBEBEB;
+  --shadow-dropdown:
+    0 16px 32px rgb(100 116 139 / 0.15),
+    0 4px 4px   rgb(100 116 139 / 0.10);
+
+  /* — Modal text (per design.md §4.2) ───────────────── */
+  --text-modal-text:    #4D5358;   /* Primitive/color/neutral/700 */
+  --text-modal-subtext: #ADB2B7;   /* Primitive/color/neutral/400 */
+
+  /* — Colorful badge · per design.md §4 (lowercase Figma alias names) — */
+  --surface-colorfulBadge-blue: #DBEAFE;  /* Primitive/color/blue/100 */
+  --text-colorfulBadge-blue:    #1D4ED8;  /* Primitive/color/blue/700 */
+  --surface-colorfulbadge-blue: #DBEAFE;
+  --text-colorfulbadge-blue:    #1D4ED8;
+  --surface-colorfulbadge-blue-bold: #3B82F6; /* blue/500 — Figma surface/colorfulbadge/blue-bold (AISearch recent-history ICD code prefix · Figma 3396:1627 / 3401:4293). ColorfulBadge primary hierarchy auto-picks this up. */
+  --surface-colorfulbadge-teal:   #D1F6EE; /* Primitive/color/teal/100 — surface/colorfulbadge/teal */
+  --text-colorfulbadge-teal:      #196C65; /* Primitive/color/teal/700 — text/colorfulbadge/teal */
+  --surface-colorfulbadge-teal-bold: #24A899; /* teal/500 — Figma surface/colorfulbadge/teal-bold (FormShell ผู้ป่วยใหม่ · 120:12717). ColorfulBadge primary hierarchy auto-picks this up. */
+  --surface-colorfulbadge-orange: #FFEDD5; /* Primitive/color/orange/100 — surface/colorfulbadge/orange */
+  --text-colorfulbadge-orange:    #C2410C; /* Primitive/color/orange/700 — text/colorfulbadge/orange */
+  --surface-colorfulbadge-grey:   #F5F7F9; /* Primitive/color/slate/100  — neutral grey badge (RadioButton trailing badge) */
+  --text-colorfulbadge-grey:      #4D5358; /* Primitive/color/neutral/700 — grey badge text                              */
+  --surface-colorfulbadge-red:    #FEE2E2; /* Primitive/color/red/100    — red badge (RadioButton badgeTitle)            */
+  --text-colorfulbadge-red:       #B91C1C; /* Primitive/color/red/700    — red badge text                                */
+  /* Additional colorful badge styles per Figma 2076:8413 (ColorfulBadge).
+     Secondary bg = `surface/colorfulbadge/{color}` (100-shade),
+     saturated text/border + Primary bg = `text/colorfulbadge/{color}` (700-shade).
+     Outline fill keeps bg transparent + colored stroke/text.            */
+  /* PHCIS brand emerald — Figma surface/icon colorfulBadge/green (226:29353).
+     Distinct from teal (#D1F6EE / #196C65); do not alias green → teal. */
+  --surface-colorfulbadge-green:   var(--brand-p100); /* #E2F3EB */
+  --text-colorfulbadge-green:      var(--brand-p700); /* #007549 */
+  --surface-colorfulbadge-yellow:  #FEF9C3; /* yellow/100 */
+  --text-colorfulbadge-yellow:     #A16207; /* yellow/700 */
+  --surface-colorfulbadge-indigo:      #E0E7FF; /* indigo/100 — secondary hierarchy bg */
+  --text-colorfulbadge-indigo:         #4338CA; /* indigo/700 — secondary hierarchy text */
+  --surface-colorfulbadge-indigo-bold: #818CF8; /* indigo/400 — Figma surface/colorfulbadge/indigo-bold (Doctor AI ICD chip badge, code prefix). ColorfulBadge primary hierarchy auto-picks this up when set; falls back to --text-colorfulbadge-indigo otherwise. */
+  --surface-colorfulbadge-pink:    #FCE7F3; /* pink/100   */
+  --text-colorfulbadge-pink:       #BE185D; /* pink/700   */
+  --surface-colorfulbadge-magenta: #FAE8FF; /* fuchsia/100 */
+  --text-colorfulbadge-magenta:    #A21CAF; /* fuchsia/700 */
+  --surface-colorfulbadge-purple:  #F3E8FF; /* purple/100 */
+  --text-colorfulbadge-purple:     #7E22CE; /* purple/700 */
+  /* Turquoise alias for ColorfulIconBadge — same palette as teal. */
+  --surface-colorfulbadge-turquoise: var(--surface-colorfulbadge-teal);
+  --text-colorfulbadge-turquoise:    var(--text-colorfulbadge-teal);
+
+  /* — Topic surface · per design.md §6.28 (surface.topic.*) ─ */
+  --surface-topic-default:       #FFFFFF; /* Primitive/color/grey/50 */
+  --surface-topic-hover:         var(--brand-p50, #F4FBF8);
+  --surface-topic-disabled:      #F9FBFB;
+
+  /* — Neutral quaternary panel surface (Vitals right column) ── */
+  --surface-neutral-quaternary:  #F9FBFB; /* Primitive/color/neutral/50 — surface/neutral/quaternary */
+
+  /* — Border alias mirroring design.md naming ───────── */
+  --border-neutral-quaternary:  var(--border-neutral-quat); /* #F4F5F5 */
+  --border-neutral-tertiary:    #E2E4E6;                    /* design.md §6 border/neutral/tertiary — vertical dividers */
+
+  /* — Dropdown list items (brand-aware on hover) ────────────── */
+  --surface-list-default:               #FFFFFF;
+  --surface-list-selected:              #FFFFFF;
+  --surface-list-hover:                 var(--brand-p50);    /* brand-aware */
+  --surface-list-selected-hover:        var(--brand-p50);    /* brand-aware */
+  --text-list-default:                  #4D5358;
+  --text-list-selected:                 #4D5358;
+  --text-list-hover:                    var(--brand-p700);   /* brand-aware */
+  --text-list-selected-hover:           var(--brand-p700);   /* brand-aware */
+  /* Subtext rows (Figma List · `Show Subtext` true) — tertiary neutral
+     resting, retints to brand-p500 on hover. Both states inherit from
+     the parent row state, so subtext follows the same tone as the label. */
+  --text-list-subtext:                  #858C92;             /* neutral/500 */
+  --text-list-subtext-hover:            var(--brand-p500);   /* brand-aware (brand/500) */
+  --icon-list-secondary-default:        #858C92;
+  --icon-list-primary-selected-hover:   var(--brand-p700);   /* brand-aware */
+  --icon-brandSecondary-quaternary:     var(--brand-p300);         /* alias from primary/300 */
+  /* design.md §6 row 1504 — icon/brandPrimary/default aliases Brand/primary/700.
+     Brand-aware so switching <html data-brand="..."> retints all callers. */
+  --icon-brandPrimary-default:          var(--brand-p700);
+  /* Figma icon/brandPrimary/quaternary | secondary — e.g. SuggestList add (335:64463). */
+  --icon-brandPrimary-quaternary:       var(--brand-p300);
+  --icon-brandPrimary-secondary:       var(--brand-p600);
+  --icon-list-check:                    var(--icon-brandPrimary-default);  /* alias */
+
+  /* — Brand drop shadow primitives (PHCIS · design.md) ─
+     PrimaryShadow/600 = brand-p600 @ 8%
+     PrimaryShadow/601 = brand-p600 @ 10%
+     PrimaryShadow/602 = brand-p600 @ 12%
+     Brand Drop Shadow Bottom/100 = single-layer 4px blur @ /600. */
+  --PrimaryShadow-600: rgb(var(--brand-p600-rgb) / 0.08);
+  --PrimaryShadow-601: rgb(var(--brand-p600-rgb) / 0.10);
+  --PrimaryShadow-602: rgb(var(--brand-p600-rgb) / 0.12);
+
+  /* — Indigo shadow primitives — `Primitive/color/shadow/indigo-{050,100,400}`.
+     Aliased from the indigo/400 swatch (#818CF8 — same color as
+     `--surface-colorfulbadge-indigo-bold`) at three opacity tiers
+     (050 = 10%, 100 = 15%, 400 = 25%). The `-rgb` triplet is exposed
+     so future shadow composites can use `rgb(var(--indigo-400-rgb) / 0.x)`
+     directly without redefining the same swatch. */
+  --indigo-400-rgb: 129 140 248;
+  --color-shadow-indigo-050: rgb(var(--indigo-400-rgb) / 0.10);
+  --color-shadow-indigo-100: rgb(var(--indigo-400-rgb) / 0.15);
+  --color-shadow-indigo-400: rgb(var(--indigo-400-rgb) / 0.25);
+
+  /* — Indigo color primitives (Figma Primitive/color/indigo/*) ─
+     Tailwind-equivalent stops 100 / 300 / 400 / 600 / 700. Reused by
+     the aiSearch semantic group below (Doctor-AI search panel — Figma
+     156:27359 / 3396:1598) and any future indigo-themed AI surface. */
+  --color-indigo-100: #EEF2FF;   /* indigo/100 — AISearch X-clear chip bg (Figma 3396:3243) */
+  --color-indigo-200: #E0E7FF;   /* indigo/200 — AISearch X-clear chip bg on hover (Figma 3396:3245) */
+  --color-indigo-300: #A5B4FC;   /* indigo/300 — dark-mode hover/typing border + icon */
+  --color-indigo-400: #818CF8;   /* indigo/400 — dark-mode default/filled + light-mode shadow primitive */
+  --color-indigo-500: #6F82FF;   /* indigo/500 — Doctor AI panel container border (Figma 156:27359) + border/aiSearch/default (both modes) */
+  --color-indigo-600: #4F46E5;   /* indigo/600 — light-mode default/filled border + icon */
+  --color-indigo-700: #4338CA;   /* indigo/700 — light-mode hover/typing border + icon (same as --text-colorfulbadge-indigo) */
+
+  /* Indigo-tinted card surface (Figma `surface/card/indigo-100`).
+     Used by the Doctor AI ICD search panel (156:27359) — a soft violet
+     fill so the AI surface reads as distinct from the plain white
+     section cards around it without overpowering the page palette. */
+  --surface-card-indigo-100: #F3F5FC;
+  --border-doctor-ai-panel:  var(--color-indigo-500);   /* alias to keep ICD-panel callers off the raw color name */
+
+  /* TabBar sliding indicator · TabPill selected (animated=false) —
+     Brand Drop Shadow Bottom/200 — matches --shadow-card; retints with [data-brand] via --brand-p600-rgb. */
+  --shadow-tabpill-selected:
+    0px 1px 4px var(--PrimaryShadow-600),
+    0px 1px 8px var(--PrimaryShadow-601);
+
+  /* — Dimension + Typography aliases (Figma token names) —─────
+     Used by MIH Design System components (Select/TabPill/etc).
+     Keep these as simple pixel/weight aliases so the app can
+     mirror Figma specs without hard-coding magic numbers. */
+  --dimension/space/050: 2px;
+  --dimension/space/100: 4px;
+  --dimension/space/150: 6px;
+  --dimension/space/200: 8px;
+  --dimension/space/300: 12px;
+  --dimension/space/400: 16px;
+
+  --dimension/radius/100:  4px;
+  --dimension/radius/200:  8px;
+  --dimension/radius/500:  16px;
+  --dimension/radius/full: 9999px;
+
+  --dimension/size/300:   16px;  /* icon */
+  --dimension/size/500:   24px;  /* badge height */
+  --dimension/size/800:   40px;  /* avatar */
+  --dimension/size/1000:  48px;  /* list row min-h */
+
+  --dimension/stroke/100: 1px;
+  --dimension/stroke/200: 2px;
+
+  /* ── Dash-aliased mirrors of the slash-named tokens above.
+        CSS spec requires custom-property names to be <dashed-ident>
+        (no `/` allowed). Some browsers parse slash-named vars leniently;
+        these aliases guarantee resolution everywhere. ───────────────── */
+  --dim-space-0:    0px;
+  --dim-space-100:  4px;
+  --dim-space-150:  6px;
+  --dim-space-200:  8px;
+  --dim-space-300:  12px;
+  --dim-space-400:  16px;
+
+  --dim-radius-100:  4px;
+  --dim-radius-200:  8px;
+  --dim-radius-400:  12px;
+  --dim-radius-500:  16px;
+  --dim-radius-600:  24px;  /* dimension.radius.600 — pill / circle-icon button */
+  --dim-radius-full: 9999px;
+
+  --dim-size-200:   12px;  /* dimension.size.200 — small select icon */
+  --dim-size-250:   14px;  /* dimension.size.250 — xs circle-icon glyph */
+  --dim-size-300:   16px;
+  --dim-size-500:   24px;
+  --dim-size-600:   32px;
+  --dim-size-700:   36px;  /* Button Small  / dimension.size.700 */
+  --dim-size-800:   40px;  /* Button Medium / dimension.size.800 */
+  --dim-size-900:   44px;  /* Button Large  / dimension.size.900 */
+  --dim-size-1000:  48px;
+  --dim-size-1200:  56px;  /* dimension.size.1200 — HistoryListForm dashed add (Figma 3360:2711) */
+  --dim-size-1400:  64px;
+  --dim-size-2900:  640px;  /* primary search w / max-w */
+
+  --dim-stroke-100: 1px;
+  --dim-stroke-150: 1.5px;
+
+  --type-family-body:             'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --type-family-heading-content:  'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --type-family-ui:               'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --type-size-xs:        12px;
+  --type-size-sm:        14px;
+  --type-size-base:      16px;
+  --type-weight-regular: 400;
+  --type-weight-medium:  500;
+  --type-weight-bold:    700;
+
+  /* extra spacing/sizing/stroke aliases used by the Settings modal */
+  --dim-space-050: 2px;
+  --dim-space-500: 20px;            /* dimension.space.500 — Figma scale */
+  --dim-space-600: 24px;
+  --dim-space-800: 32px;            /* dimension.space.800 */
+  --dim-space-1200: 48px;           /* dimension.space.1200 — large column gap (Figma Step 7 patient/diagnosis row) */
+  --dim-size-400:  20px;
+  --dim-stroke-200: 2px;
+  --dim-stroke-400: 4px;
+
+  /* Queue Page tokens — OPD Queue (Figma 115:35757)
+     Status Summary Cards (4 colored variants — info/positive/inprogress/brand) */
+  --surface-statussummarycard-info:        #DBEAFE;  /* blue-100  */
+  --surface-statussummarycard-positive:    #D1F6EE;  /* teal-100  */
+  --surface-statussummarycard-inprogress:  #FFEDD5;  /* orange-100 */
+  --surface-statussummarycard-brand:       var(--brand-p100);
+  --text-statussummarycard-info-number:        #1D4ED8;
+  --text-statussummarycard-positive-number:    #196C65;
+  --text-statussummarycard-inprogress-number:  #C2410C;
+  --text-statussummarycard-brand-number:       var(--brand-p700);
+  --text-statussummarycard-subtext:    #858C92;
+  --text-statussummarycard-increase:   #636B72;
+
+  /* Tab underline — design.md §6.15 / 1301-1305, 1473-1476, 1666-1670.
+     hover           = primary/600 (light) · primary/400 (dark)
+     selected-hover  = primary/800 (light) · primary/200 (dark) */
+  --surface-tabunderline-hover:        var(--brand-p50);  /* surface.brandPrimaryButton.quinary-hover */
+  --text-tabunderline-default:         #4D5358;
+  --text-tabunderline-hover:           var(--brand-p600); /* text.tabUnderline.hover */
+  --text-tabunderline-selected:        var(--brand-p700); /* text.tabUnderline.selected */
+  --text-tabunderline-selected-hover:  var(--brand-p800); /* text.tabUnderline.selected-hover */
+  --icon-tabunderline-default:         #4D5358;
+  --icon-tabunderline-hover:           var(--brand-p600); /* icon.tabUnderline.hover */
+  --icon-tabunderline-selected:        var(--brand-p700); /* icon.tabUnderline.selected */
+  --icon-tabunderline-selected-hover:  var(--brand-p800); /* icon.tabUnderline.selected-hover */
+  --border-tab-hover:                  var(--brand-p600); /* border.tab.hover */
+  --border-tab-selected:               var(--brand-p700); /* border.tab.selected */
+  --border-tab-selected-hover:         var(--brand-p800); /* border.tab.selected-hover */
+  --text-tabunderline-disabled:        #C9CDD0;           /* neutral/300 — Tab Underline disabled state (Figma 371:30) */
+  --icon-tabunderline-disabled:        #C9CDD0;
+
+  /* Tab Capsule — Figma 2612:7791. Capsule-shaped tab with leading indicator.
+     3 types (default · in-progress · success) × 4 states. */
+  --surface-tabcapsule-default:        #FFFFFF;             /* white capsule */
+  --surface-tabcapsule-hover:          var(--brand-p50);    /* primary/50 tint */
+  --surface-tabcapsule-selected:       var(--brand-p50);    /* selected (Active) bg */
+  --surface-tabcapsule-success:        #FFFFFF;             /* in-progress / success default bg */
+  --surface-tabcapsule-disabled:       #FFFFFF;
+  --border-tabcapsule-default:         #E2E4E6;             /* neutral/200 */
+  --border-tabcapsule-hover:           var(--brand-p200);   /* primary/200 — hover/active border */
+  --border-tabcapsule-selected:        var(--brand-p200);
+  --border-tabcapsule-inprogress:      #E2E4E6;             /* same as default — in-progress shares neutral border */
+  --border-tabcapsule-success:         #E2E4E6;
+  --border-tabcapsule-disabled:        #E2E4E6;
+  --text-tabcapsule-default:           #4D5358;             /* neutral/700 */
+  --text-tabcapsule-hover:             var(--brand-p700);
+  --text-tabcapsule-selected:          var(--brand-p700);
+  --text-tabcapsule-inprogress:        #4D5358;
+  --text-tabcapsule-success:           #4D5358;
+  --text-tabcapsule-disabled:          #C9CDD0;             /* neutral/300 */
+  --icon-tabcapsule-default:           #4D5358;
+  --icon-tabcapsule-hover:             var(--brand-p700);
+  --icon-tabcapsule-selected:          var(--brand-p700);
+  --icon-tabcapsule-success:           var(--brand-p700);   /* check icon tint */
+  --icon-tabcapsule-inprogress:        #F08C29;             /* orange dot (Figma) */
+  --icon-tabcapsule-disabled:          #C9CDD0;
+
+  /* Brand Tag (filter chips) */
+  --surface-brandtag-default:   #FFFFFF;
+  --surface-brandtag-hover:     var(--brand-p50);  /* surface.brandTag.default-hover */
+  --surface-brandtag-selected:  var(--brand-p50);
+  --surface-brandtag-selected-hover: var(--brand-p100); /* surface.brandTag.selected-hover */
+  --text-brandtag-default:      #4D5358;
+  --text-brandtag-hover:        var(--brand-p700); /* text.brandTag.hover */
+  --text-brandtag-selected:     var(--brand-p700);
+  --text-brandtag-selected-hover: var(--brand-p700); /* text.brandTag.selected-hover */
+  --text-brandtag-title:        #858C92;
+  --border-brandtag-default:    #E2E4E6;
+  --border-brandtag-hover:      var(--brand-p200); /* border.brandTag.default-hover */
+  --border-brandtag-selected:   var(--brand-p200);
+  --border-brandtag-selected-hover: var(--brand-p200); /* border.brandTag.selected (hover) */
+  /* Leading icon in FilterTag — primary/700 across all states (design.md §6 brandTag rows 6665-6680) */
+  --icon-brandtag-default:        var(--brand-p700);
+  --icon-brandtag-hover:          var(--brand-p700);
+  --icon-brandtag-selected:       var(--brand-p700);
+  --icon-brandtag-selected-hover: var(--brand-p700);
+  --icon-brandtag-tailing:        #C9CDD0;             /* neutral/300 — chevron in brandTag (Figma "icon/brandTag/tailing") */
+  --surface-danger-quaternary:    var(--surface-dangerButton-quaternary);  /* alias for VoiceTextarea error-toolbar bg */
+
+  /* Neutral Tag — Figma 2056:4263 "Tag" with Style=Neutral.
+     All shades are neutral grays (not brand-tinted), so this variant
+     does NOT retint with [data-brand]. */
+  --surface-neutraltag-default:        #FFFFFF;             /* neutral surface */
+  --surface-neutraltag-hover:          #F9FBFB;             /* neutral/50  — surface/neutralTag/default-hover */
+  --surface-neutraltag-selected:       #F4F5F5;             /* neutral/100 */
+  --surface-neutraltag-selected-hover: #E2E4E6;             /* neutral/200 */
+  --border-neutraltag-default:         #E2E4E6;             /* neutral/200 — same border for all states */
+  --border-neutraltag-hover:           #E2E4E6;
+  --border-neutraltag-selected:        #E2E4E6;
+  --border-neutraltag-selected-hover:  #E2E4E6;
+  --text-neutraltag-default:           #4D5358;             /* neutral/700 — text/neutralTag/default */
+  --text-neutraltag-hover:             #4D5358;
+  --text-neutraltag-selected:          #4D5358;
+  --text-neutraltag-selected-hover:    #4D5358;
+  --icon-neutraltag-default:           #4D5358;             /* icon/tag/default (neutral) */
+  --icon-neutraltag-hover:             #4D5358;
+  --icon-neutraltag-selected:          #4D5358;
+  --icon-neutraltag-selected-hover:    #4D5358;
+  --icon-neutraltag-tailing:           #C9CDD0;             /* shared chevron color */
+
+  /* Table */
+  --surface-table-header:           var(--brand-p50);
+  --surface-table-hover:            var(--brand-p50);   /* surface.table.hover — design.md row 1973 */
+  --surface-table-footer:           var(--brand-p100);  /* surface.table.footer — design.md row 1971 */
+  --surface-table-selected:         var(--brand-p50);   /* surface.table.selected — design.md row 1974 */
+  --surface-table-selected-hover:   var(--brand-p100);  /* surface.table.selected-hover — design.md row 1975 */
+  --border-table-default:           var(--brand-p100);
+  --border-table-line:              var(--brand-p50);   /* border.table.line */
+  --text-table-title:               var(--brand-p800);
+
+  /* Pagination — design.md §6.19 (Figma 328:4734).
+     Hover state aliases the brand palette (Figma node 306:1808):
+       light: surface→brand/p50,  text→brand/p700
+       dark:  surface→brand/p950, text→brand/p300
+     Both flip automatically when --brand-p* primitives swap per
+     [data-brand]/[data-theme] without changing this rule. */
+  --surface-pagination-default:  #FFFFFF;
+  --surface-pagination-hover:    var(--brand-p50);    /* #F4FBF8 */
+  --surface-pagination-selected: var(--brand-p100);   /* #E2F3EB */
+  --text-pagination-default:     #4D5358;
+  --text-pagination-hover:       var(--brand-p700);   /* #007549 */
+  --text-pagination-selected:    var(--brand-p700);   /* #007549 */
+  --text-neutral-tertiary:       #ADB2B7;             /* ellipsis */
+
+  /* Switch (off-state primitives used by the toggle inside ActionList).
+     Full switch token set is documented in design.md §4.2/4.5.            */
+  --surface-switch-off:          #E2E4E6;             /* neutral/200 */
+  --surface-switch-on:           var(--brand-p600);   /* brand/p600  */
+  --surface-switch-icon:         #FFFFFF;             /* thumb       */
+
+  /* Checkbox primitives — Figma "Checkbox" 306:1099 / 269:28.
+     surface/switch/* names mirror Figma's data-name on the box element. */
+  --surface-switch-default:                  #FFFFFF;             /* unchecked bg                            */
+  --surface-switch-hover:                    #3EC3B2;             /* surface/switch/hover → teal/300         */
+  --surface-switch-on-hover:                 #196C65;             /* surface/switch/on-hover → teal/700      */
+  --surface-switch-checkbox:                 var(--brand-p600);   /* legacy alias → brand/p600 #08A768       */
+  --surface-switch-checkbox-hover:           var(--brand-p700);   /* legacy alias → brand/p700 #007549       */
+  --surface-switch-checkbox-default-hover:   var(--brand-p500);   /* Unchecked Hover preview (brand/p500)    */
+  --border-switch-default:                   #C9CDD0;             /* unchecked border (neutral/300)          */
+  --border-switch-disabled:                  #E2E4E6;             /* disabled border (neutral/200)           */
+  --surface-disabled-secondary-hover:        #C9CDD0;             /* Disabled-Checked fill (neutral/300)     */
+  --icon-switch-checkbox-tick:               #FFFFFF;             /* tick stroke colour                      */
+
+  /* Form Builder — Figma "Content" 2210:7837, "Signature" 2451:13969,
+     "Drag and Drop" 2451:13908. Brand-aware drop-zone palette: tokens
+     alias --brand-p* primitives so retinting via [data-brand] works.
+     Error variant uses fixed danger tokens (non-brand-responsive).        */
+  --surface-formbuilder-default:    var(--brand-p50);    /* dashed-border idle bg                 */
+  --surface-formbuilder-hover:      var(--brand-p50);    /* hover bg (border darkens, bg holds)   */
+  --surface-formbuilder-card:       #FFFFFF;             /* Filled state — uploaded-file card     */
+  --surface-formbuilder-error:      var(--surface-dangerButton-quaternary);  /* danger/quaternary (#FFF0F0)  */
+  --border-formbuilder-default:     var(--brand-p200);                       /* dashed border idle (#C5EDDA) */
+  --border-formbuilder-hover:       var(--brand-p600);                       /* dashed border hover (#08A768)*/
+  --border-formbuilder-filled:      var(--brand-p100);                       /* solid 1px on Filled card     */
+  --border-formbuilder-error:       var(--border-dangerButton-default);      /* dangerbutton/default (#DC2626) */
+  --icon-formbuilder-iconbox-default: var(--brand-p100); /* Content's left iconbox bg (#E2F3EB)   */
+  --icon-formbuilder-iconbox-hover:   var(--brand-p100); /* Same — only outer state changes       */
+  --icon-formbuilder-error:         var(--border-dangerButton-default);      /* file-up icon stroke in Error state (#DC2626) — Figma `icon/formBuilder/error` */
+  --text-formbuilder-text:          var(--brand-p700);                       /* Title default (#007549)      */
+  --text-formbuilder-error:         var(--border-dangerButton-default);      /* Title in Error state (#DC2626) — Figma `text/formbuilder/error` */
+  --text-formbuilder-subtext:       #858C92;             /* Subtitle / helper (neutral/500)       */
+
+  /* Figma "Brand Drop Shadow Bottom/200" — stacked PrimaryShadow/600 + /601
+     (offset 0,1px · blur 4 + 8). Brand-aware via `--PrimaryShadow-*`.
+     Shared by Form Builder chrome, Small Alert success, copy toast, etc.   */
+  --shadow-brand-drop-bottom-200:
+    0 1px 4px var(--PrimaryShadow-600),
+    0 1px 8px var(--PrimaryShadow-601);
+  /* Twin for `filter:` — use on animated toast wrapper so shadow follows the pill. */
+  --filter-brand-drop-bottom-200:
+    drop-shadow(0 1px 4px var(--PrimaryShadow-600)) drop-shadow(0 1px 8px var(--PrimaryShadow-601));
+
+  /* Figma "Indigo Drop Shadow Bottom/200" — stacked indigo-050 + indigo-100
+     (offset 0,1px · blur 4 + 8). The /200 spec is the canonical AISearch
+     drop — same shape as Brand Drop Shadow Bottom/200 but with the indigo
+     shadow primitives so the violet glow stays consistent across every
+     brand mode. NOT brand-aware. */
+  --shadow-indigo-drop-bottom-200:
+    0 1px 4px 0 var(--color-shadow-indigo-050),
+    0 1px 8px 0 var(--color-shadow-indigo-100);
+  /* Twin for `filter:` — use on animated wrappers where the shadow must
+     follow non-rectangular content. */
+  --filter-indigo-drop-bottom-200:
+    drop-shadow(0 1px 4px var(--color-shadow-indigo-050))
+    drop-shadow(0 1px 8px var(--color-shadow-indigo-100));
+  /* Legacy single-layer alias — kept for callers that landed before the
+     two-layer /200 token was published. Points at the canonical /200 so
+     existing usages auto-upgrade. New code should reference /200 directly. */
+  --shadow-indigo-drop-bottom:   var(--shadow-indigo-drop-bottom-200);
+  --filter-indigo-drop-bottom:   var(--filter-indigo-drop-bottom-200);
+
+  /* Form Builder drop shadow — Figma "Brand Drop Shadow Bottom/200".
+     Aliases the brand-aware PrimaryShadow primitives so when the user
+     switches theme via <html data-brand="..."> the shadow retints
+     atomically with the rest of the brand surfaces.                       */
+  --shadow-formbuilder: var(--shadow-brand-drop-bottom-200);
+
+  /* SuccessIcon (TickOnCircle) — Figma node 2798:5280.
+     `icon/positive/success` = teal/500 (fixed, non-brand-responsive).
+     White tick stays white in both light + dark modes.                    */
+  --icon-positive-success:       #24A899;             /* teal/500    */
+  --text-positive-success-tick:  #FFFFFF;             /* tick stroke */
+
+  /* Small Alert — Figma 3355:3149 (MIH Design System Foundation).
+     Solid fills + white label/icon; success uses Brand Drop Shadow Bottom/200;
+     error uses neutral slate shadow (Figma Drop Shadow Bottom/200). */
+  --surface-smallalert-success: #24A899;             /* Primitive/color/teal/500  — surface/smallalert/success */
+  --surface-smallalert-error:   #EF4444;             /* Primitive/color/red/500   — surface/smallalert/error   */
+  --text-smallalert-on-success: #FFFFFF;             /* grey/50 on teal/500 — Figma text/positive/on-positive */
+  --text-smallalert-on-error:   var(--text-danger-on-default);  /* #FFFFFF — Figma text/danger/on-default */
+  --shadow-smallalert-success: var(--shadow-brand-drop-bottom-200);
+  --shadow-smallalert-error:
+    0 1px 4px rgba(100, 116, 139, 0.15),
+    0 1px 2px rgba(100, 116, 139, 0.10);
+
+  /* Status Badge — Figma 302:73, design.md §4.1/4.2.
+     Surface (filled bg) + text per style. Outline variant uses neutral
+     border instead of filled bg.                                          */
+  --surface-statusbadge-neutral: #F5F7F9;             /* slate/100   */
+  --surface-statusbadge-info:    #DBEAFE;             /* blue/100    */
+  --surface-statusbadge-success: #D1F6EE;             /* teal/100    */
+  --surface-statusbadge-warning: #FFEDD5;             /* orange/100  */
+  --surface-statusbadge-error:   #FEE2E2;             /* red/100     */
+  --text-statusbadge-neutral:    #4D5358;             /* neutral/700 */
+  --text-statusbadge-info:       #1D4ED8;             /* blue/700    */
+  --text-statusbadge-success:    #196C65;             /* teal/700    */
+  --text-statusbadge-warning:    #C2410C;             /* orange/700 — Figma calls this `text/statuslBadge/in-progress` */
+  --text-statusbadge-error:      #B91C1C;             /* red/700     */
+  --border-statusbadge-neutral:  #E2E4E6;             /* neutral/200 — outline */
+  --surface-statusbadge-yellow:  var(--surface-pill-yellow);  /* extended status — used for "in progress" queue rows */
+  --text-statusbadge-yellow:     var(--text-pill-yellow);
+
+  /* Alert — design.md §4.1/4.2/4.3 (Figma 325:2623 LargeAlert).
+     4 tones (info/success/warning/error) × 3 properties (surface/border/text). */
+  --surface-alert-info:          #F0F6FF;             /* blue/50    */
+  --surface-alert-success:       #F4FBFA;             /* teal/50    */
+  --surface-alert-warning:       #FFF9F0;             /* orange/50  */
+  --surface-alert-error:         #FFF0F0;             /* red/50     */
+  --border-alert-info:            #DBEAFE;            /* blue/100   */
+  --border-alert-success:         #D1F6EE;            /* teal/100   */
+  --border-alert-warning:         #FFEDD5;            /* orange/100 */
+  --border-alert-error:           #FEE2E2;            /* red/100    */
+  --text-alert-info:              #1D4ED8;            /* blue/700   */
+  --text-alert-success:           #196C65;            /* teal/700   */
+  --text-alert-warning:           #C2410C;            /* orange/700 */
+  --text-alert-error:             #B91C1C;            /* red/700    */
+  --surface-alertdialog-default:  var(--surface-card-100);    /* white card */
+  --border-alertdialog-default:   #E2E4E6;                    /* neutral/200 — Figma `border/alertdialog/default` (AlertDialog 1:1159) */
+  --text-alertdialog-text:        #4D5358;                    /* neutral/700 — title color (h5/h6) */
+  --text-alertdialog-subtext:     #636B72;                    /* neutral/600 — description body */
+  /* AlertDialog tone icons — Figma node 1:1162 ("Info") uses brand/primary/700.
+     Brand-aware so it follows setBrandTheme() automatically. Success/Warning/
+     Destructive icons reuse Alert banner tones (fixed semantic colors). */
+  --icon-alertdialog-info:        var(--brand-p700);          /* icon/alertDialog/info → primary/700 (brand-aware) */
+  --icon-alertdialog-success:     var(--text-alert-success);  /* icon/alert/success → teal/700 (#196C65) */
+  --icon-alertdialog-warning:     var(--text-alert-warning);  /* icon/alert/warning → orange/700 (#C2410C) */
+  --icon-alertdialog-destructive: var(--text-alert-error);    /* icon/alert/error → red/700 (#B91C1C) */
+
+  /* Background tertiary-hover (X close button hover bg per tone)
+     design.md §4.0 / Figma 3064:4984. */
+  --background-info-tertiary-hover:     #BFDBFE;             /* blue/200      */
+  --background-positive-tertiary-hover: var(--brand-p200);   /* brand/p200    */
+  --background-warning-tertiary-hover:  #FED7AA;             /* orange/200    */
+  --background-danger-tertiary-hover:   #FECACA;             /* red/200       */
+
+  /* Alert scrollbar — design.md "Alert · Scrollbar" table.
+     Bar = same as alert border (100-shade), Pill thumb = 300-shade.   */
+  --surface-scrollbar-info-bar:    #DBEAFE;                  /* blue/100      */
+  --surface-scrollbar-info-pill:   #93C5FD;                  /* blue/300      */
+  --surface-scrollbar-success-bar: #D1F6EE;                  /* teal/100      */
+  --surface-scrollbar-success-pill:#6CDCCA;                  /* teal/300      */
+  --surface-scrollbar-warning-bar: #FFEDD5;                  /* orange/100    */
+  --surface-scrollbar-warning-pill:#FDBA74;                  /* orange/300    */
+  --surface-scrollbar-error-bar:   #FEE2E2;                  /* red/100       */
+  --surface-scrollbar-error-pill:  #FCA5A5;                  /* red/300       */
+
+  /* Primary Search — 4 states per Figma MIH DS Foundation 2056:4246
+     Default/Filled use brand-p600; Hover/Typing use brand-p700.       */
+  --surface-primarysearch-default:    #FFFFFF; /* alias of surface/search/default */
+  --border-primarysearch-default:     var(--brand-p600);
+  --border-primarysearch-hover:       var(--brand-p700);
+  /* Focus state — Figma 2056:4246 property panel adds a 5th state between
+     Hover and Typing: the input is focused with an empty value (dropdown
+     shows recent searches). Per Figma the border stays on `default` while
+     a focus ring lights up; text stays on the placeholder tone. */
+  --border-primarysearch-focus:       var(--border-primarysearch-default);
+  --border-primarysearch-typing:      var(--brand-p700);
+  --border-primarysearch-filled:      var(--brand-p600);
+  --text-primarysearch-default:       #ADB2B7;   /* placeholder */
+  --text-primarysearch-hover:         #4D5358;
+  --text-primarysearch-focus:         var(--text-primarysearch-default);  /* placeholder grey */
+  --text-primarysearch-typing:        #4D5358;
+  --text-primarysearch-filled:        #4D5358;
+
+  /* Brand drop shadow Bottom/200 (used by Primary Search) */
+  --shadow-primarysearch:
+    0 1px 4px var(--PrimaryShadow-600),
+    0 1px 8px var(--PrimaryShadow-601);
+
+  /* — AI Search (Doctor-AI ICD panel — Figma 156:27359 / Variables panel
+     border/aiSearch + icon/aiSearch). 4 states share the indigo palette
+     used by the AI surface chrome:
+       default  → indigo/500  (same in light + dark — no theme swap)
+       hover    → indigo/700  (light) / indigo/300 (dark)
+       typing   → indigo/700  (light) / indigo/300 (dark)  — same as hover, per Figma
+       filled   → indigo/600  (light) / indigo/400 (dark)  — matches resting tint
+     Dark-mode swap (below in @media block) flips 600→400 / 700→300.
+     `border/aiSearch/default` deliberately skips the swap — indigo/500
+     reads as the "resting AI border" identically on both surfaces. */
+  --border-aiSearch-default: var(--color-indigo-500);
+  --border-aiSearch-hover:   var(--color-indigo-700);
+  --border-aiSearch-typing:  var(--color-indigo-700);
+  --border-aiSearch-filled:  var(--color-indigo-600);
+  --icon-aiSearch-default:   var(--color-indigo-600);
+  --icon-aiSearch-hover:     var(--color-indigo-700);
+  --icon-aiSearch-typing:    var(--color-indigo-700);
+  --icon-aiSearch-filled:    var(--color-indigo-600);
+
+  /* Secondary Search (per Figma MIH DS Foundation 305:43) */
+  --surface-search-default:           #FFFFFF;
+  --border-secondarysearch-default:   #C9CDD0;
+  --border-secondarysearch-filled:    #C9CDD0;
+  --border-secondarysearch-hover:     var(--brand-p700);  /* brand-aware */
+  --border-secondarysearch-typing:    var(--brand-p700);
+  --text-secondarysearch-default:     #ADB2B7;            /* placeholder */
+  --text-secondarysearch-hover:       #4D5358;
+  --text-secondarysearch-typing:      #4D5358;
+  --text-secondarysearch-filled:      #4D5358;
+  --ring-secondarysearch:             rgb(var(--brand-p600-rgb) / 0.15); /* effect/input/100 = primaryborder/600 */
+
+  /* Settings modal — surfaces, borders, text, mode-icon backdrops */
+  --surface-modal-default:           #FFFFFF;
+  --border-popover-grey:             #E2E4E6;
+  --surface-neutralbutton-quinary:        #FFFFFF;
+  --surface-neutralbutton-quinary-hover:  #F9FBFB;          /* design.md row 1876 */
+  --surface-neutralbutton-quaternary:      #F9FBFB;         /* design.md §7d row 3054 — Ghost button Default bg (= background/neutral/quinary) */
+  --surface-neutralbutton-quaternary-hover: #F4F5F5;        /* design.md row 1874 — Ghost button hover bg (= background/neutral/tertiary) */
+  /* Neutral Subdue (Icon) Button — design.md §7f row 3088/3089/3091 (node 2024-4516).
+     Fill Default uses neutral/200, Fill Hover steps to neutral/300; Selected
+     reuses the Ghost-tier quaternary surface + border. */
+  --surface-neutralbutton-secondary:        #E2E4E6;        /* neutral/200 — Subdue Fill default bg */
+  --surface-neutralbutton-secondary-hover:  #C9CDD0;        /* neutral/300 — Subdue Fill hover bg */
+  --border-neutralbutton-tertiary:        #E2E4E6;
+  --border-neutralbutton-tertiary-hover:  #C9CDD0;          /* design.md row 1435 */
+  --border-neutralbutton-quaternary:      #F4F5F5;          /* neutral/100 — Subdue Selected border */
+  --icon-neutralbutton-default:           #4D5358;          /* design.md row 1609 — Ghost icon Default */
+  --icon-neutralbutton-secondary:         #636B72;          /* design.md row 1612 — Ghost icon Hover (e.g. Popup close X 104:5369) */
+  --border-brandprimarybutton-tertiary: var(--brand-p200);   /* #C5EDDA on default */
+  --text-topic-tertiary-title:       #363B3F;
+  --surface-pink-quaternary:         #FBF4F8;
+  --surface-pink-default:            #BE185D;  /* Figma 217:27084 mark dot */
+  --surface-pink-default-hover:      #9D174D;  /* Figma 220:27777 Hover */
+  --border-image-default:            #FFFFFF;
+  --border-popover-grey:             #E2E4E6;
+  --text-modal-subtext:              #ADB2B7;
+  --surface-navy-quaternary:         #F3F5FC;
+
+  --typograpphy/family/body: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --typograpphy/size/xs: 12px;
+  --typograpphy/size/sm: 14px;
+  --typograpphy/size/base: 16px;
+  --typograpphy/weight/regular: 400;
+  --typograpphy/weight/medium: 500;
+
+  /* — Sidemenu (brand-aware) — */
+  --surface-navigation-default: #FFFFFF;
+  --surface-sidemenu-hover:     var(--brand-p50);  /* surface/sidemenu/hover */
+  --surface-sidemenu-active:    var(--brand-p50);
+  --border-sidemenu-active:     var(--brand-p700);
+  /* Shell right edge — Figma Design Template Urt0JAQES9364u2ud3XtpY · node 1:2447:
+     border/brandprimary/quaternary @ dimension/stroke/100 */
+  --border-sidemenu-shell:      var(--border-brandPrimary-quaternary);
+  --text-sidemenu-default:      #4D5358;
+  --text-sidemenu-hover:        var(--brand-p700);
+  --text-sidemenu-selected:     var(--brand-p700);
+  --text-sidemenu-disabled:     #ADB2B7;
+  --text-sidemenu-tertiary:     #858C92;
+  --text-brand-name: #383B3D;
+  --text-brand-sub:  #565D6C;
+
+  /* — Patient banner gradient — */
+  --gradient-patient-banner:
+    linear-gradient(94.93deg, #00A4AC 0.67%, #1FA091 100.76%);
+
+  /* — Notifications — */
+  --surface-notification-default: #DB2777;
+  --text-danger-on-default: #FFFFFF;
+
+  /* — Severity / status badges (Triage levels — STATIC, not brand) — */
+  --surface-triage-level1: #FEE2E2; --text-triage-level1: #B91C1C; /* Resuscitation — red */
+  --surface-triage-level2: #FFEDD5; --text-triage-level2: #C2410C; /* Emergency — orange */
+  --surface-triage-level3: #FEF9C3; --text-triage-level3: #A16207; /* Urgent — yellow */
+  --surface-triage-level4: var(--surface-colorfulbadge-teal); --text-triage-level4: var(--text-colorfulbadge-teal); /* Semi-urgent — teal */
+  --surface-triage-level5: #DBEAFE; --text-triage-level5: #1D4ED8; /* Non-urgent — blue */
+
+  /* — Severity badges (allergy/disease) — */
+  --surface-severity-high:   #FEE2E2; --text-severity-high:   #B91C1C;
+  --surface-severity-medium: #FFEDD5; --text-severity-medium: #C2410C;
+  --surface-severity-low:    #FEF9C3; --text-severity-low:    #A16207;
+  --surface-severity-mild:   #D1F6EE; --text-severity-mild:   #196C65;
+
+  /* — Colorful status pills — */
+  --surface-pill-green:  #DFF2E9; --text-pill-green:  #007549;
+  --surface-pill-red:    #FEE2E2; --text-pill-red:    #B91C1C;
+  --surface-pill-orange: #FFEDD5; --text-pill-orange: #C2410C;
+  --surface-pill-blue:   #DBEAFE; --text-pill-blue:   #1D4ED8;
+  --surface-pill-teal:   #D1F6EE; --text-pill-teal:   #196C65;
+  --surface-pill-yellow: #FEF9C3; --text-pill-yellow: #A16207;
+  --surface-pill-purple: #F3E8FF; --text-pill-purple: #7E22CE;
+
+  /* — Sidemenu dimensions — */
+  --sm-width-closed: 64px;
+  --sm-width-open:   320px;
+  --sm-stroke-400:    4px;
+  --sm-radius-100:    6px;
+  --sm-space-300:    12px;
+  --sm-space-600:    24px;
+  --sm-z-overlay:    1300; /* sidebar — above Topbar (z=1200) and Leaflet (z≤1000) */
+  --sm-z-modal:      1400; /* full-screen modal (Popup): above sidebar + app header */
+  /* Portaled menus from inside a modal (e.g. OverflowFlexRow "More" in DateFilterPopup). */
+  --sm-z-modal-popover: 1450;
+  /* Tooltips must sit above EVERY UI layer — including modals + their
+     portal'd popovers — since they explain controls inside those
+     layers. Anything lower means hovering a tool inside a popup
+     surfaces no tooltip (the popup paints over the bubble). */
+  --sm-z-tooltip:    1500;
+  --sm-z-dropdown:   1196; /* dropdown trigger layer: near header, still below it */
+  --sm-z-popover:    1199; /* dropdown popover: almost header level, but lower */
+  /* Portaled lists (e.g. FilterDropdown): above Topbar (1200) and above mobile
+     sidemenu (--sm-z-overlay 1300) so the menu is not hidden behind the drawer. */
+  --sm-z-popover-nested: calc(var(--sm-z-overlay) + 2);
+  --sm-shadow-overlay:
+    0 8px 24px rgb(var(--brand-p600-rgb) / 0.12),
+    0 2px 6px  rgb(var(--brand-p600-rgb) / 0.08);
+
+  /* — Figma "Brand Drop Shadow Top/200" — used by SideMenu shell.
+     Two stacked DROP_SHADOWs per Figma Design Template node 1:2447:
+       layer 1 — color PrimaryShadow/600  · offset (0, −1) · blur 4 · spread 0
+       layer 2 — color PrimaryShadow/601  · offset (0, −1) · blur 8 · spread 0
+     Both colors are tied to var(--brand-p600-rgb) → the shadow tint
+     follows whichever brand mode is active (mode-independent). */
+  --shadow-brand-top-200:
+    0px -1px 4px var(--PrimaryShadow-600),
+    0px -1px 8px var(--PrimaryShadow-601);
+  --shadow-sidemenu: var(--shadow-brand-top-200);
+
+  --icon-sidemenu-hover-filter:
+    brightness(0) invert(27%) sepia(100%) saturate(600%) hue-rotate(148deg) brightness(89%) contrast(99%);
+
+  /* — Shadows · Brand Drop Shadow Bottom (PHCIS Figma) ──────
+     Bottom/200 = 2 layers (4px @ /600) + (8px @ /601) → cards
+     Bottom/100 = 1 layer  (4px @ /602)                → header bar */
+  --shadow-card:
+    0px 1px 4px var(--PrimaryShadow-600),
+    0px 1px 8px var(--PrimaryShadow-601);
+  /* Queue / table card shell: same two layers as --shadow-card, each layer
+     alpha +10% vs PrimaryShadow-600/601 (0.08→0.088, 0.10→0.11). */
+  --shadow-card-strong:
+    0px 1px 4px rgb(var(--brand-p600-rgb) / 0.088),
+    0px 1px 8px rgb(var(--brand-p600-rgb) / 0.11);
+  --shadow-card-hover:
+    0px 1px 4px var(--PrimaryShadow-600),
+    0px 1px 8px var(--PrimaryShadow-601);
+  --shadow-header: 0px 1px 4px var(--PrimaryShadow-602);
+
+  /* ── Brand Primary Button — full token set per design.md §7a (Brand Icon Button)
+        Surface levels (semantic, brand-aware via brand-pXXX): default-hover,
+        secondary (#C5EDDA — selected/subdue fill), quaternary (#F4FBF8),
+        quaternary-hover (#E2F3EB), quinary (#FFFFFF), quinary-hover (#F4FBF8). */
+  --surface-brandPrimaryButton-default-hover:     var(--brand-p800);
+  --surface-brandPrimaryButton-secondary:         var(--brand-p200);
+  --surface-brandPrimaryButton-tertiary-hover:    var(--brand-p200);  /* Subdue Fill hover · design.md row 1714 */
+  --surface-brandPrimaryButton-quaternary:        var(--brand-p50);
+  --surface-brandPrimaryButton-quaternary-hover:  var(--brand-p100);
+  --surface-brandPrimaryButton-quinary:           #FFFFFF;
+  --surface-brandPrimaryButton-quinary-hover:     var(--brand-p50);
+
+  --border-brandPrimaryButton-default:            var(--brand-p700);
+  --border-brandPrimaryButton-default-hover:      var(--brand-p800);
+  --border-brandPrimaryButton-tertiary:           var(--brand-p200);  /* Focus ring (4px) — Figma 377:11596 */
+  /* Dashed "add row" hover (HistoryListForm · Figma 3360:2711) — brand/primary/300 */
+  --border-brandPrimaryButton-tertiary-hover:     var(--brand-p300);
+  --border-brandPrimaryButton-quaternary:         var(--brand-p100);  /* Active state border — Figma 377:11596 */
+  --border-brandPrimaryButton-quaternary-hover:   var(--brand-p200);
+
+  --icon-brandPrimaryButton-default:              var(--brand-p700);
+  --icon-brandPrimaryButton-default-hover:        var(--brand-p800);
+  --icon-brandPrimaryButton-on-brand:             #FFFFFF;
+  --icon-brandPrimaryButton-secondary:            var(--brand-p600);
+
+  /* lowercase aliases — match Figma data-name "brandprimarybutton".
+     RadioButton/SelectableCardButton selected state aliases the
+     border colour from `border/brandPrimaryButton/Default` (Figma
+     node 2250:8270) → brand-p700. Routing the lowercase variant
+     through the camelCase token keeps brand-aware tinting intact
+     when `<html data-brand="…">` switches palettes. */
+  --surface-brandprimarybutton-tertiary:          var(--surface-brandPrimaryButton-tertiary);
+  --surface-brandprimarybutton-tertiary-hover:    var(--surface-brandPrimaryButton-tertiary-hover);
+  --border-brandprimarybutton-default:            var(--border-brandPrimaryButton-default);
+  --border-brandprimarybutton-default-hover:      var(--border-brandPrimaryButton-default-hover);
+  --border-brandprimarybutton-tertiary-hover:     var(--border-brandPrimaryButton-tertiary-hover);
+  --icon-brandprimarybutton-default:              var(--icon-brandPrimaryButton-default);
+  --icon-brandprimarybutton-default-hover:        var(--icon-brandPrimaryButton-default-hover);
+
+  /* ── Disabled Button — design.md §7 disabled state (neutral, brand-agnostic) */
+  --surface-disabledButton-default:               #4D5358;  /* neutral/700 */
+  --surface-disabledButton-tertiary:              #F4F5F5;  /* neutral/100 — Subdue/Ghost disabled bg */
+  --surface-disabledButton-quinary:               #FFFFFF;  /* Outline disabled */
+  --border-disabledButton-default:                #636B72;  /* neutral/600 */
+  --border-disabledButton-tertiary:               #E2E4E6;  /* neutral/200 — Subdue Outline disabled border (design.md §7f row 3094) */
+  --icon-disabledButton-default:                  #4D5358;  /* neutral/700 */
+  --icon-disabledButton-tertiary:                 #ADB2B7;  /* neutral/400 — Subdue Disabled icon (design.md §7f row 3090/3094) */
+  --icon-disabledButton-on-disabled:              #FFFFFF;
+  --text-disabledButton-tertiary:                 #ADB2B7;  /* text.disabledButton.tertiary — matches icon-disabledButton-tertiary (design.md §5.2a / §7f) */
+  --text-disabledbutton-tertiary:                 var(--text-disabledButton-tertiary); /* legacy lowercase alias */
+
+  /* Brand Primary Button drop shadow — primaryshadow/600 + /601 (Figma effect). */
+  --shadow-brandPrimaryButton-default:
+    0 1px 2px var(--PrimaryShadow-600),
+    0 1px 3px var(--PrimaryShadow-601);
+
+  /* — Backward-compat aliases (lowercase, for legacy components) — */
+  --surface-brandprimary-default:    var(--surface-brandPrimary-default);
+  --surface-brandprimary-secondary:  var(--brand-p600);
+  --surface-brandprimary-tertiary:   var(--surface-brandPrimary-tertiary);
+  --surface-brandprimary-quaternary: var(--surface-brandPrimary-quaternary);
+  --surface-brandprimary-quinary:    var(--brand-p100);
+  --background-screen-brand-100:     var(--brand-p50);
+
+  /* — Popup quick-options sidebar — Figma MIH DS Popup node 74:7041
+     Both surface + border are brand-aware (resolved via brand primitives)
+     so the panel retints automatically across brand/mode switches.       */
+  --surface-popup-quickoptions:      var(--background-screen-brand-100);
+  --border-popup-quickoptions:       var(--border-brandPrimary-quaternary);
+
+  /* — Popup quick-options list item · hover — Figma MIH DS Popup
+     node 111:5394 specifies a stronger hover than the generic list hover:
+       surface/brandPrimary/quaternary-hover  = brand-p100  (#E2F3EB)
+       text/list/hover                        = brand-p700  (#007549)
+     Aliased separately from --surface-list-hover (= brand-p50) so other
+     list components keep their existing softer hover. Mode-independent
+     because both resolve through brand primitives. */
+  --surface-brandPrimary-quaternary-hover: var(--brand-p100);
+  --surface-popup-listitem-hover:    var(--surface-brandPrimary-quaternary-hover);
+  --text-popup-listitem-hover:       var(--text-list-hover);
+  --text-brandprimarybutton-default:   var(--text-brandPrimary-default);
+  --text-brandprimarybutton-secondary: var(--text-brandPrimary-secondary);
+  --text-brandprimarybutton-on-brand:  var(--text-brandPrimary-on-brand);
+  --border-brandprimary-default:     var(--border-brandPrimary-default);
+  --border-brandprimary-tertiary:    var(--border-brandPrimary-tertiary);
+  --border-brandprimary-quaternary:  var(--border-brandPrimary-quaternary);
+  --icon-brandprimary-quaternary:    var(--icon-brandPrimary-quaternary);
+  --icon-brandprimary-secondary:     var(--icon-brandPrimary-secondary);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Dark-mode token overrides (Figma Variables panel — dark column).
+   Triggered by either the OS-level preference or an explicit
+   `data-theme="dark"` attribute on `<html>` so consumers can pin the
+   theme manually when needed. Today only the aiSearch tokens publish
+   dark-mode values; broader dark-mode coverage will follow as more
+   Figma variables ship.
+   ───────────────────────────────────────────────────────────── */
+:root[data-theme="dark"],
+:root[data-theme="dark"] [data-brand] {
+  --border-aiSearch-default: var(--color-indigo-500); /* same alias as light — no swap */
+  --border-aiSearch-hover:   var(--color-indigo-300);
+  --border-aiSearch-typing:  var(--color-indigo-300);
+  --border-aiSearch-filled:  var(--color-indigo-400);
+  --icon-aiSearch-default:   var(--color-indigo-400);
+  --icon-aiSearch-hover:     var(--color-indigo-300);
+  --icon-aiSearch-typing:    var(--color-indigo-300);
+  --icon-aiSearch-filled:    var(--color-indigo-400);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --border-aiSearch-default: var(--color-indigo-500); /* same alias as light — no swap */
+    --border-aiSearch-hover:   var(--color-indigo-300);
+    --border-aiSearch-typing:  var(--color-indigo-300);
+    --border-aiSearch-filled:  var(--color-indigo-400);
+    --icon-aiSearch-default:   var(--color-indigo-400);
+    --icon-aiSearch-hover:     var(--color-indigo-300);
+    --icon-aiSearch-typing:    var(--color-indigo-300);
+    --icon-aiSearch-filled:    var(--color-indigo-400);
+
+    /* Timeslot Selected — dark mode swaps the brand-p600 alias for
+       brand-p400 so the outline + label stay visible against a deeper
+       surface backdrop. Border tracks the text colour for consistency. */
+    --text-timeslot-selected:   var(--brand-p400);
+    --border-timeslot-selected: var(--brand-p400);
+  }
+}
+
+@layer base {
+  html, body {
+    font-family: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text-content-default);
+    background-color: var(--brand-p50);
+  }
+  #root {
+    width: 100%;
+  }
+  /* Reserve scrollbar gutter at the document level so content doesn't
+     reflow horizontally when the vertical scrollbar appears/disappears
+     (e.g. when typing in <PrimarySearch> filters the queue table and
+     the page becomes shorter than the viewport for one frame). */
+  html {
+    scrollbar-gutter: stable;
+  }
+  body {
+    @apply text-sm md:text-base;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Sarabun', system-ui, sans-serif;
+    font-weight: 700;
+  }
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
+  input[type='number'] { -moz-appearance: textfield; }
+  .mih-text-input::placeholder {
+    color: var(--text-input-default, #ADB2B7);
+    opacity: 1;
+  }
+  .mih-text-input:disabled::placeholder {
+    color: var(--text-input-disabled, var(--text-input-default, #ADB2B7));
+  }
+  .mih-primarysearch-input::placeholder {
+    color: var(--text-primarysearch-default, #ADB2B7);
+    opacity: 1;
+  }
+  /* Suppress every browser-native affordance that `<input type="search">`
+     bolts onto the field. PrimarySearch already owns its right-side
+     slot (AvatarPile + caption / brand submit button), so the WebKit
+     cancel button + decoration and the IE/Edge clear/reveal pseudos
+     would just stack on top of our UI and look like a duplicate
+     control. `appearance: none` covers Firefox + modern engines that
+     respect the standard property. */
+  .mih-primarysearch-input {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .mih-primarysearch-input::-webkit-search-cancel-button,
+  .mih-primarysearch-input::-webkit-search-decoration,
+  .mih-primarysearch-input::-webkit-search-results-button,
+  .mih-primarysearch-input::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+  }
+  .mih-primarysearch-input::-ms-clear,
+  .mih-primarysearch-input::-ms-reveal {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* PrimarySearch dropdown row — Figma 2692:5995 (List items inside
+     dropdown). Hover state morphs surface + label + sublabel + leading
+     icon to the brand-aware list tokens together. CSS-var-based hover is
+     written here (not via Tailwind arbitrary value classes) so it works
+     reliably under Tailwind v2.1's JIT and so inline `style.color` can't
+     override the resting tone — every color below comes from a class.   */
+  .mih-search-row {
+    background-color: var(--surface-list-default, #FFFFFF);
+    color: var(--text-list-default, #4D5358);
+    transition:
+      background-color 150ms ease-out,
+      color 150ms ease-out;
+  }
+  .mih-search-row__icon,
+  .mih-search-row__sublabel {
+    color: var(--text-content-tertiary, #858C92);
+    transition: color 150ms ease-out;
+  }
+  .mih-search-row:hover {
+    background-color: var(--surface-list-hover, #F4FBF8);
+    color: var(--text-list-hover, #007549);
+  }
+  .mih-search-row:hover .mih-search-row__icon,
+  .mih-search-row:hover .mih-search-row__sublabel {
+    color: var(--text-list-hover, #007549);
+  }
+  /* Trailing chevron-right — Figma 3345:2981 / 3346:8231 show it only on
+     the hovered row of the recent/typing dropdowns. Fade in on row hover
+     so the resting state stays calm. Color follows the row's hover text. */
+  .mih-search-row__chevron {
+    opacity: 0;
+    color: var(--icon-list-secondary-default, #858C92);
+    transition: opacity 150ms ease-out, color 150ms ease-out;
+  }
+  .mih-search-row:hover .mih-search-row__chevron {
+    opacity: 1;
+    color: var(--text-list-hover, #007549);
+  }
+
+  /* BigCharts district / center pickers — list row hover (surface/list/hover).
+     Tailwind hover:bg-* on CSS-var colors is unreliable in v2 JIT. */
+  .mih-chart-list-row {
+    transition: background-color 150ms ease-out, color 150ms ease-out;
+  }
+  .mih-chart-list-row:hover {
+    background-color: var(--surface-list-hover, #F4FBF8);
+  }
+  .mih-chart-list-row:hover .mih-chart-list-row__label {
+    color: var(--text-list-hover, #007549);
+  }
+  .mih-chart-list-row.is-selected {
+    background-color: var(--surface-list-hover, #F4FBF8);
+  }
+  .mih-chart-list-row.is-selected .mih-chart-list-row__label {
+    color: var(--text-list-hover, #007549);
+    font-weight: 500;
+  }
+
+  /* PrimarySearch AvatarPile — recent-search avatar stack. Idle: 32-px
+     squircles overlapping by -12 px per Figma 2056:4107. Hovering the
+     pile spreads the stack so every face is legible; hovering an
+     individual avatar lifts it (translateY/scale) and adds a soft
+     drop-shadow. All easings use the DS standard cubic-bezier so the
+     interaction feels matched to PrimarySearch's focus ring + dropdown
+     fade. `position: relative` is required for z-index restacking on
+     hover. */
+  .mih-avatar-pile__item {
+    position: relative;
+    transition:
+      margin-left 240ms cubic-bezier(0.32, 0.72, 0, 1),
+      transform 220ms cubic-bezier(0.32, 0.72, 0, 1),
+      box-shadow 220ms cubic-bezier(0.32, 0.72, 0, 1),
+      border-color 220ms cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: margin-left, transform;
+  }
+  .mih-avatar-pile:hover .mih-avatar-pile__item + .mih-avatar-pile__item {
+    margin-left: -4px;
+  }
+  .mih-avatar-pile__item:hover {
+    transform: translateY(-2px) scale(1.08);
+    box-shadow: 0 6px 14px -4px rgba(15, 23, 42, 0.18);
+    border-color: var(--surface-card-100, #FFFFFF);
+    z-index: 10;
+  }
+
+  /* Browser focus suppressor moved to unlayered section at end of file so it
+     beats anything in @layer utilities (Tailwind outline-* classes etc). */
+}
+
+@layer components {
+  .material-symbols-outlined {
+    font-variation-settings:
+      'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    line-height: 1;
+    user-select: none;
+    vertical-align: middle;
+  }
+  .ms-16 { font-size: 16px; }
+  .ms-20 { font-size: 20px; }
+  .ms-24 { font-size: 24px; }
+
+  /* Hide native scrollbar but keep the element scrollable. The Alert
+     component pairs this with an externally-rendered, scroll-synced
+     decorative ScrollBar (Figma 2496:5223) so only one scrollbar is
+     visible at a time. */
+  .scrollbar-hide-native {
+    scrollbar-width: none;       /* Firefox */
+  }
+  .scrollbar-hide-native::-webkit-scrollbar {
+    display: none;               /* Chrome / Safari / Edge */
+  }
+
+  /* Visible thin scrollbar used by every scrollable popup body, side
+     menu, and dropdown surface. Width bumped 4 → 8 px and thumb tinted
+     darker so macOS's auto-hide-scrollbar setting doesn't render an
+     invisible 4-px hairline — long-content popups (Re-Medicine /
+     Re-Diagnosis lists, history timelines) need a clearly readable
+     scrollbar so the user immediately knows there's more below the
+     fold. `scrollbar-gutter: stable` reserves the gutter even before
+     overflow so content doesn't horizontally shift when the bar
+     appears mid-render.
+
+     `transition + :hover` thumb dim/highlight gives a subtle
+     affordance — the thumb sits at quaternary by default and brightens
+     to tertiary on hover/active so the scrollable region reads as
+     interactive without becoming visually noisy at rest. */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-content-tertiary) var(--border-neutral-quat);
+    scrollbar-gutter: stable;
+  }
+  .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: var(--border-neutral-quat);
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--text-content-quaternary);
+    border-radius: 9999px;
+    transition: background-color 150ms ease-out;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover,
+  .scrollbar-thin::-webkit-scrollbar-thumb:active {
+    background: var(--text-content-tertiary);
+  }
+
+  /* PrimarySearch popover entrance */
+  @keyframes mih-popover-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+  }
+  .mih-search-popover {
+    animation: mih-popover-in 160ms ease-out;
+    transform-origin: top center;
+  }
+
+  /* SecondarySearch inner field: no native focus ring — wrapper shows DS ring. */
+  .mih-secondary-search__input:focus,
+  .mih-secondary-search__input:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  /* Placeholder colour — Figma MIH DS Foundation 305:3 / 305:43.
+     Browser defaults vary (Firefox lands at 0.54 opacity), so we
+     pin the colour to the token and force `opacity: 1` so the
+     "Search..." copy matches the design system across browsers. */
+  .mih-secondary-search__input::placeholder {
+    color: var(--text-secondarysearch-default, #ADB2B7);
+    opacity: 1;
+  }
+  .mih-secondary-search__input::-webkit-search-decoration,
+  .mih-secondary-search__input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+}
+
+/* ── Leaflet map pins (BkkLeafletMap) ───────────────────────── */
+.leaflet-container { font-family: 'Sarabun', sans-serif; background: var(--brand-p50); }
+.leaflet-tile { filter: saturate(0.85); }                    /* tone tiles to brand */
+.mih-pin { background: transparent; border: 0; overflow: visible !important; }
+.mih-pin svg { display: block; overflow: visible; }
+.mih-pin__wrap {
+  position: relative; transform-origin: center bottom;
+  transition: transform .15s ease;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.3));
+  overflow: visible;
+}
+.mih-pin__wrap.is-active   { transform: scale(1.25); z-index: 600; }
+.mih-pin__wrap.is-selected { transform: scale(1.45); z-index: 700; }
+.mih-pin__wrap.is-selected svg path { stroke: var(--brand-p800, #034e2e); stroke-width: 2.5; }
+.mih-pin__label {
+  position: absolute; left: 50%; bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  padding: 2px 6px; border-radius: 6px;
+  background: #fff; border: 1px solid var(--border-input-default, #e2e4e6);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  font-size: 10px; line-height: 1.3; white-space: nowrap;
+  display: flex; flex-direction: column;
+}
+.mih-pin__label strong { color: var(--text-content-default, #363b3f); font-weight: 700; }
+.mih-pin__label span   { color: var(--text-content-tertiary, #858c92); }
+.mih-pin__wrap.is-active .mih-pin__label,
+.mih-pin__wrap.is-selected .mih-pin__label { display: flex !important; border-color: var(--brand-p500, #08A768); }
+
+/* Pin drop-in animation — scale from 0 + slight bounce, opacity 0→1.
+   Each marker delays via inline `--pin-delay` set per index. */
+@keyframes mih-pin-drop {
+  0%   { transform: translateY(-18px) scale(0.4); opacity: 0; }
+  60%  { transform: translateY(2px)  scale(1.08); opacity: 1; }
+  100% { transform: translateY(0)    scale(1);   opacity: 1; }
+}
+.mih-pin__wrap {
+  animation: mih-pin-drop 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--pin-delay, 0ms);
+}
+.mih-pin__wrap.is-active   { animation: none; transform: scale(1.25); z-index: 600; }
+.mih-pin__wrap.is-selected { animation: none; transform: scale(1.45); z-index: 700; }
+
+/* ─────────────────────────────────────────────────────────────
+   Global focus suppressor — UNLAYERED so it beats any Tailwind
+   utility (@layer utilities) or base rule. Every component owns
+   its own visual focus state (border swap, brand-aware box-shadow
+   ring on input/textarea, hover lift on buttons), so the
+   browser's default outline only creates visual noise here.
+   Keep `outline: none !important` + reset `box-shadow` only when
+   it's the browser-default (we explicitly set our own via inline
+   styles, so this is fine).                                       */
+*:focus,
+*:focus-visible,
+*:focus-within {
+  outline: none !important;
+  outline-offset: 0 !important;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Native form-control borders are owned by our wrapper div — keep the inner
+   <input>/<textarea>/<select> completely chrome-free so no inset/outset
+   browser-default border leaks through (seen as faint blue verticals on some
+   Chrome/Webkit setups). */
+.mih-input-placeholder,
+input.mih-input-placeholder,
+textarea.mih-input-placeholder,
+select.mih-input-placeholder {
+  padding-left: 0;
+  padding-right: 0;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+/* Stronger sweep for native form controls and interactive roles —
+   covers older browsers that still ignore the `*` rule on some
+   user-agent default outlines. */
+button:focus, button:focus-visible,
+input:focus, input:focus-visible,
+textarea:focus, textarea:focus-visible,
+select:focus, select:focus-visible,
+a:focus, a:focus-visible,
+[tabindex]:focus, [tabindex]:focus-visible,
+[role="button"]:focus, [role="button"]:focus-visible,
+[role="menuitem"]:focus, [role="menuitem"]:focus-visible,
+[role="radio"]:focus, [role="radio"]:focus-visible,
+[role="checkbox"]:focus, [role="checkbox"]:focus-visible,
+[role="tab"]:focus, [role="tab"]:focus-visible,
+[role="option"]:focus, [role="option"]:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+}

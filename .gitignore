@@ -1,0 +1,10 @@
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+
+# Scratch portrait downloads (use public/avatars/ instead)
+/tmp-*.jpg
+/us-photo-*.jpg
+/tmp-*.png
