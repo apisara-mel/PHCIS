@@ -53,6 +53,9 @@ const BrandDashedAddButton = ({
   disabledAppearance = 'tokens',
   icon = 'plus',
   iconSize = 20,
+  /* Controlled hover override — when omitted the component tracks its own
+     hover state. Used by the design-system state-matrix table. */
+  hovered: hoveredProp,
   className = '',
   style = {},
   type = 'button',
@@ -60,7 +63,7 @@ const BrandDashedAddButton = ({
 }) => {
   const [hover, setHover] = useState(false);
   const interactive = !disabled;
-  const hovered = interactive && hover;
+  const hovered = interactive && (hoveredProp ?? hover);
   const brandFadeDisabled = disabled && disabledAppearance === 'brandFade';
 
   const bg = disabled && !brandFadeDisabled

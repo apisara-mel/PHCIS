@@ -198,6 +198,25 @@ showing fullName + insurance pill only. Used by [TreatmentFormPage](../src/pages
 
 Module: [src/components/step/stepTransition.js](../src/components/step/stepTransition.js). Hook `useStepDirection(stepIndex)` tracks forward / backward navigation so the step wrapper sets `data-direction` and the CSS keyframe animation slides content in from the corresponding side. The wrapper `key={stepIndex}` re-mount is what triggers the animation each step change.
 
+### 3.9 Component Guidelines (Do / Don't)
+
+All 118 routed components in the Components Library carry a `<Guidelines>` panel — three arrays summarising:
+
+- **`behavior`** — semantic / accessibility contract, state resolution rules, ARIA wiring, project-specific tech gotchas (HTTPS for voice, chrome-stripping rule, etc.).
+- **`dos`** — when + why to use the component, common pairings, recommended sizes / variants per context.
+- **`donts`** — anti-patterns from real incidents (e.g. bare `VoiceTextarea` rule, missing aria-label for icon-only buttons), confusable alternatives ("use BrandSubdueButton not BrandButton when paired with primary").
+
+**Where to read:**
+- **Live viewer:** [docs/design-system.html](design-system.html) → pick a component → **Live** tab → Guidelines panel at the bottom of the Section.
+- **Canonical source:** [src/pages/components/ComponentsLibraryPage.jsx](../src/pages/components/ComponentsLibraryPage.jsx). Each demo function ends with `<Guidelines behavior={[...]} dos={[...]} donts={[...]} />` inside its `<Section>`.
+
+**Where NOT to read:** [design.md](../design.md). The token document is intentionally token-only — Guidelines live next to the live demo so they update with the same review as code changes.
+
+When adding or editing a component:
+1. Update token tables in design.md (visual contract).
+2. Update the demo in ComponentsLibraryPage.jsx, including the `<Guidelines>` block.
+3. The Guidelines panel auto-appears in `docs/design-system.html` (it embeds the live demo via iframe).
+
 ---
 
 ## 4. Dashboard
@@ -577,11 +596,13 @@ These routes are not part of the clinician workflow — they're internal tools f
 
 ### 10.1 Components Library
 
-Route: `/components`, `/components/:slug` → [ComponentsLibraryPage](../src/pages/components/ComponentsLibraryPage.jsx) (~7400 lines).
+Route: `/components`, `/components/:slug` → [ComponentsLibraryPage](../src/pages/components/ComponentsLibraryPage.jsx) (~7900 lines).
 
-Live showcase of every design-system component documented in [design.md](../design.md). One section per component slug (button / badge / card / table / step / stepper / popup / etc.). The page imports every component and renders state matrices (default / hover / focus / disabled, sizes, variants) plus interactive demos.
+Live showcase of every design-system component documented in [design.md](../design.md). **118 routed components** organised into 21 categories (alert / badge / button × 3 families / checkbox / radio / switch / tag / topic / tooltip / card × 2 / charts / form fields / forms / form-builder / examination / layout / shells / popup / list-table / search / step / tab / timeline). Each demo renders state matrices (rows = sizes / checked-modes, cols = states) + interactive variants + a `<Guidelines>` panel (behavior · dos · donts — see [§3.9](#39-component-guidelines-do--dont)).
 
-The "wide preview" slugs (`WIDE_PREVIEW_SLUGS`, [ComponentsLibraryPage.jsx:7397](../src/pages/components/ComponentsLibraryPage.jsx#L7397)) get a full-width canvas — used by examination-canvas and table demos.
+**Embed mode** — append `?embed=1` to the URL (e.g. `/components/brand-button?embed=1`) to hide the internal SideMenu so the page renders cleanly inside an iframe. `docs/design-system.html` uses this so its outer sidebar is the only navigation.
+
+The "wide preview" slugs (`WIDE_PREVIEW_SLUGS`) get a full-width canvas — used by examination-canvas and table demos.
 
 ### 10.2 Preview pages
 
@@ -643,6 +664,21 @@ Mobility 'other' branches (Step 5 Registration) — `mobilityOther` must be non-
 ### Chip-read NON_CHIP_FIELDS
 The Thai ID chip does not carry `education`, `occupation`, `marital`. `applySmartCardRead` preserves whatever the user has already typed for these three keys; the receptionist must still input them manually.
 
+### `caption2` token (NOT a duplicate of `caption1`)
+A previous version of [design.md §4.6](../design.md) had `caption1` and `caption2` with identical 12 px values, which looked like a duplicate — and got deleted, leaving `caption1` + `caption3`. Figma `3465:2` actually defines **`caption2` as 10 px** (not 12). The fix re-numbered the 10 px token from `caption3` → `caption2`. If you see code referencing `caption3`, it's stale — it was renamed on 2026-05-22.
+
+### Effect Styles audit (per Figma `3446:4426`)
+Synced 2026-05-22. Notable token-table corrections that landed:
+- **Brand Inner Shadow 100–600** values rewritten to match Figma's progressive blur (2 → 16 px) / y-offset (1 → 12) / α (8% → 22%). Previous design.md values were copy-paste errors.
+- **Blur radii** corrected: `blur.overlay` 4 → 8 px · `blur.layer` 4 → 6 px · `blur.glass` 4 → 12 px.
+- **Indigo Drop Shadow Bottom 100 / 200** added (were missing). Base colour: `#818CF8` (indigo-400, matching the existing `color.shadow.indigo-*` pattern).
+- **Generic `effect.drop-shadow.{3xs,2xs,xs,sm,md,lg}`** removed — Tailwind-shaped tokens that were never wired into CSS variables; if you need a neutral shadow, use `drop-shadow-bottom.{100…600}` (Slate `#64748B`).
+
+Total: 36 / 36 Figma styles now match design.md.
+
+### UTF-8 markdown serving (Vite plugin)
+[vite.config.mjs](../vite.config.mjs) has a `utf8MarkdownPlugin` middleware that appends `; charset=utf-8` to `text/markdown` responses. Without it, browsers fall back to Latin-1 → Thai text in `.md` files renders as mojibake (`ถ่ายรูป` → `à¸–à¹‰à¸²à¸¢à¸£à¸¹à¸›`). HTML files have an in-file `<meta charset="UTF-8">` so they were unaffected.
+
 ---
 
-*End of spec. Last refreshed alongside the StepProgress check-mark feature (2026-05-21).*
+*End of spec. Last refreshed alongside the Component Guidelines + caption2 + Effect Styles audit (2026-05-23).*

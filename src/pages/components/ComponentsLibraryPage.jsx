@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useHistory, Link } from 'react-router-dom';
+import { useParams, useHistory, useLocation, Link } from 'react-router-dom';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import TabUnderline, { TabUnderlineItem } from '@/components/tab/TabUnderline';
 import TabCapsule from '@/components/tab/TabCapsule';
@@ -1081,6 +1081,22 @@ const SelectDemo = () => {
           <Select label='With badge slot'   showBadge   leadingIcon='calendar_today' options={SAMPLE_OPTIONS} />
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Single-select with a popover list. State auto-resolves from disabled / error / focus / value; pass `state` to force.',
+          'Options may carry `colorfulBadgeStyle` to render ColorfulBadge rows (severity / likelihood pickers).',
+        ]}
+        dos={[
+          'Use when the user picks ONE option from a known list (≤ 30 options is the comfort zone).',
+          'Pair with leading icon + helper text in narrow form rows so the empty value still tells the user what to pick.',
+          'Use the badge option layout for clinical category pickers (severity / likelihood) so the colour map carries through.',
+        ]}
+        donts={[
+          "Don't use for multi-select — use CheckboxGroup.",
+          "Don't use for very long lists (50+) — use a searchable Dropdown / autocomplete instead.",
+          "Don't ship without a label — narrow Selects without a label are unscannable.",
+        ]}
+      />
     </Section>
   );
 };
@@ -2081,6 +2097,20 @@ const PopoverDemo = () => {
           </Popover>
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Anchor-positioned floating panel (below caller). Caller renders both anchor + Popover inside a `position:relative` container.',
+          'Closes on outside-click and Esc; does NOT trap focus (use Popup for modal interactions).',
+        ]}
+        dos={[
+          'Use for inline contextual lists (filter dropdown, kebab menu actions, user avatar menu).',
+          'Pass `anchorRef` so the panel re-positions if the trigger moves on scroll.',
+        ]}
+        donts={[
+          "Don't use Popover for destructive confirms — use AlertDialog (focus trap + role=alertdialog).",
+          "Don't nest Popovers — flatten the choice into a single layer.",
+        ]}
+      />
     </Section>
   );
 };
@@ -2224,6 +2254,20 @@ const PopupDemo = () => {
           </Popup>
         )}
       </Variant>
+      <Guidelines
+        behavior={[
+          'Portal-rendered modal; backdrop / Esc / button-close all fire `onClose`. Locks body scroll while open (stack-aware with AlertDialog).',
+          'Sizes: default (448) · large (640) · extraLarge (fluid up to 1440×1024). Focus is trapped within the dialog; restored to invoker on close.',
+        ]}
+        dos={[
+          'Use for multi-step forms, list editors, vitals input — places where AlertDialog is too small.',
+          'Pair primaryAction with a clear verb ("ยืนยัน" / "บันทึก"); secondaryAction usually maps to "ยกเลิก".',
+        ]}
+        donts={[
+          "Don't show two Popups at once — drive a single source of truth and update its props.",
+          "Don't use Popup for destructive single-step confirms — that's AlertDialog with type='destructive'.",
+        ]}
+      />
     </Section>
   );
 };
@@ -2855,6 +2899,22 @@ const StepProgressDemo = () => {
           <StepProgress steps={TREATMENT_STEPS} current={1} />
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          '`completedSteps={[bool,…]}` is the opt-in validation gate — when omitted, fallback is `idx < current` ⇒ ✓ (legacy behaviour).',
+          'Current step always wins (renders as `current` even if `completedSteps[idx]` is true).',
+        ]}
+        dos={[
+          'Pass `completedSteps` derived from your form\'s validator (see getRegistrationCompletedSteps / getTreatmentCompletedSteps) so ✓ only appears when required fields are actually filled.',
+          'Use `framed` when the stepper sits in a card surface that needs the white chrome top + brand-quaternary hairline divider.',
+          'Wire `onStepClick` so the user can jump back to fix completed steps.',
+        ]}
+        donts={[
+          "Don't show ✓ for steps the user hasn't completed — that's the bug the `completedSteps` prop exists to fix.",
+          "Don't omit the active label — focus + bold typography is the primary feedback for keyboard / screen-reader users.",
+          "Don't use for non-linear navigation — that's a Tab.",
+        ]}
+      />
     </Section>
   );
 };
@@ -2871,6 +2931,20 @@ const HeaderDemo = () => (
         <HeaderChrome breadcrumb={['ระบบงานเวชระเบียน', 'รายการผู้รับบริการ']} />
       </div>
     </Variant>
+    <Guidelines
+      behavior={[
+        'Sticky top chrome — same border + shadow contract everywhere; sit at the top of every routed page.',
+        'Breadcrumb is keyboard-focusable and links back to parent sections.',
+      ]}
+      dos={[
+        'Pass a `breadcrumb` array (2–3 entries) reflecting the subsystem hierarchy.',
+        'Render exactly one `<Header />` per page — it owns the global sticky offset.',
+      ]}
+      donts={[
+        "Don't override the border / shadow tokens — they retint with the brand mode.",
+        "Don't render Header inside scrollable content — it must be page-level for the sticky to work.",
+      ]}
+    />
   </Section>
 );
 
@@ -2894,6 +2968,20 @@ const SubHeaderDemo = () => (
         </SubHeaderChrome>
       </div>
     </Variant>
+    <Guidelines
+      behavior={[
+        'Mirrors Header chrome (border + shadow) so the two read as a single visual unit. Optional `onBack` shows a leading back-button.',
+        'Right-side children slot holds action buttons; the row wraps on small screens.',
+      ]}
+      dos={[
+        'Use directly under Header for in-page action rows (Registration / Treatment form sub-headers).',
+        'Limit to 3–4 actions max; put the primary CTA on the right.',
+      ]}
+      donts={[
+        "Don't render multiple SubHeaders on one page — confuses the visual hierarchy.",
+        "Don't combine `onBack` with the Header's breadcrumb in a way that gives the user two ways to navigate up at once.",
+      ]}
+    />
   </Section>
 );
 
@@ -3043,6 +3131,20 @@ const VitalSignTimelineCardDemo = () => {
           />
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Card holds a timestamp + 2–3 vital-value pairs; selected adds 2 px brand border + chevron + shadow lift.',
+          'Disabled grays everything and disables hover — used for placeholder measurements that haven\'t happened yet.',
+        ]}
+        dos={[
+          'Use in a horizontal scroll rail to compare measurement rounds (Treatment Step 3 nurse exam timeline).',
+          'Sort newest to oldest; the user typically clicks the newest first.',
+        ]}
+        donts={[
+          "Don't use as a primary vitals input — that's VitalsForm.",
+          "Don't render with > 3 vital pairs per card — beyond that, switch to a table.",
+        ]}
+      />
     </Section>
   );
 };
@@ -3087,6 +3189,20 @@ const SummaryCardsBarDemo = () => (
         />
       </div>
     </Variant>
+    <Guidelines
+      behavior={[
+        'Single component; `variant="panel"` = queue summary tiles in a flush card; `variant="banner"` = dashboard overview bordered cards that wrap.',
+        '`tone` controls icon background; `subTone` (banner only) tints the sub-line text.',
+      ]}
+      dos={[
+        'Use `panel` on queue / list pages above the data table (4–6 KPI tiles).',
+        'Use `banner` on the dashboard above the chart grid (6 cards is the comfort max).',
+      ]}
+      donts={[
+        "Don't mix tones randomly — pick semantic colours (info / positive / inprogress) that map to the metric meaning.",
+        "Don't render > 8 cards in one row — beyond that, group into sections.",
+      ]}
+    />
   </Section>
 );
 
@@ -3155,6 +3271,20 @@ const IconDemo = () => (
         <Icon name='bell' size={24} />
       </span>
     </Variant>
+    <Guidelines
+      behavior={[
+        'Inline SVG with `stroke="currentColor"` — colour inherits from the parent text color (use `className` / inline style on the parent).',
+        'Common sizes: 16 · 20 · 24 · 32. Aria-hidden by default.',
+      ]}
+      dos={[
+        'Use 16 px in dense table cells / chips; 20 px in form fields; 24 px in buttons; 32 px in card icon tiles.',
+        'Wrap with an `aria-label` element if the icon conveys meaning beyond decoration.',
+      ]}
+      donts={[
+        "Don't hard-code icon colour with hex — pass via parent text colour or `--text-*` tokens so brand swap retints.",
+        "Don't use raster icons (PNG) — use the SVG icon set or Material Symbols.",
+      ]}
+    />
   </Section>
 );
 
@@ -3185,6 +3315,21 @@ const RegistrationLayoutDemo = () => (
     <Variant label='AddRowButton' stack>
       <AddRowButton onClick={() => {}}>เพิ่มผู้ติดต่อฉุกเฉิน</AddRowButton>
     </Variant>
+    <Guidelines
+      behavior={[
+        'Layout primitives that compose a Registration / Treatment form section: `SectionTitle` → `SubCard` (optional) → `FieldGrid` → `Field` rows.',
+        '`FieldGrid` `cols` controls column count; `Field span` lets one field span multiple columns.',
+      ]}
+      dos={[
+        'Build forms by composing these primitives rather than hand-rolling layout.',
+        'Use `SubCard` to group related fields inside a section (e.g. "ที่อยู่ปัจจุบัน" inside "ที่อยู่").',
+        'Mark required fields via `<Field required>` so the asterisk + validator wiring stays in sync.',
+      ]}
+      donts={[
+        "Don't bypass Field for ad-hoc input rendering — labels + asterisks live on Field.",
+        "Don't nest SubCard inside SubCard — flatten the structure instead.",
+      ]}
+    />
   </Section>
 );
 
@@ -3201,6 +3346,20 @@ const FormShellDemo = () => {
           </FormShell>
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Layout-only wrapper; the page owns `form` state and passes step-body via `children`.',
+          'StepProgress + sticky Footer (prev / save-draft / next) live inside the shell; pass `completedSteps` from your validator so ✓ matches reality.',
+        ]}
+        dos={[
+          'Use as the routed wrapper for the Registration (เวชระเบียน) flow.',
+          'Drive `stepIndex` from page state and pass `getRegistrationCompletedSteps(form)` to make the ✓ truthful.',
+        ]}
+        donts={[
+          "Don't render outside the Registration subsystem — the chrome (SubHeader actions, status bar) is bespoke for MR.",
+          "Don't manage form state inside the shell — the page owns it.",
+        ]}
+      />
     </Section>
   );
 };
@@ -3219,6 +3378,20 @@ const RegistrationStepsDemo = () => {
           ข้อมูลส่วนตัว · ที่อยู่ · ข้อมูลการติดต่อ · สิทธิการรักษา · หมายเหตุและ Flag
         </span>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Each `Step*` component is controlled via `{ form, setForm }` — the page owns the form state, the step is a thin presenter.',
+          'Step 1 honors chip-read locking (`form.idCardFromChip`) by disabling card-sourced fields.',
+        ]}
+        dos={[
+          'Use inside FormShell with `STEP_RENDERERS[stepIndex]` switch (see RegistrationFormPage).',
+          'Wire `setForm` so each `<Field required>` change updates the form in one place.',
+        ]}
+        donts={[
+          "Don't render steps outside the FormShell — they need the surrounding chrome (StatusBar / Footer / step animation).",
+          "Don't fork the form shape per step — keep one shared `form` object across all 5 steps.",
+        ]}
+      />
     </Section>
   );
 };
@@ -3501,6 +3674,22 @@ const BrandSubdueButtonDemo = () => (
       <BrandSubdueButton leadingIcon='credit_card' trailingIcon='expand_more' showLeadingIcon={false}>Leading off</BrandSubdueButton>
       <BrandSubdueButton leadingIcon='credit_card' trailingIcon='expand_more' showLabel={false} aria-label='Icons only' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Brand-tinted surface tier sits one step below BrandButton (quaternary instead of default), reading as "less prominent" while still brand-coloured.',
+      ]}
+      dos={[
+        'Use as a secondary action in a row that already has a BrandButton primary (e.g. "บันทึก" primary + "บันทึกร่าง" subdue).',
+        'Use Outline on already brand-tinted surfaces where Fill would over-saturate.',
+        'Use for repeated lightweight brand actions (chips, toolbars, filter clusters).',
+      ]}
+      donts={[
+        "Don't use as the page's only / primary CTA — promote to BrandButton (Fill).",
+        "Don't mix Fill and Outline of BrandSubdue in the same row — pick one tier per row for visual consistency.",
+        "Don't use for destructive actions — switch to DangerSubdueButton.",
+      ]}
+    />
   </Section>
 );
 
@@ -3517,6 +3706,22 @@ const NeutralSubdueButtonDemo = () => (
       <NeutralSubdueButton leadingIcon='share' trailingIcon='expand_more' showLeadingIcon={false}>Leading off</NeutralSubdueButton>
       <NeutralSubdueButton leadingIcon='share' trailingIcon='expand_more' showLabel={false} aria-label='Icons only' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Neutral grey — does not pick up brand colour, so safe to repeat in dense areas without drowning the page in brand.',
+      ]}
+      dos={[
+        'Use for non-brand chrome actions: filters, exports, settings, "ดูทั้งหมด", "ปริ้น".',
+        'Use as a secondary alongside a brand-aware primary when you want neutrality (e.g. paired with a Brand or Danger primary).',
+        'Use Outline on tinted brand surfaces (queue summary bands) where a grey fill would clash.',
+      ]}
+      donts={[
+        "Don't use for brand-anchored actions (chips, brand chrome) — switch to BrandSubdueButton.",
+        "Don't use for destructive actions — switch to DangerSubdueButton.",
+        "Don't bury a primary action inside a Neutral row — promote it to BrandButton or DangerButton.",
+      ]}
+    />
   </Section>
 );
 
@@ -3534,6 +3739,23 @@ const BrandIconButtonDemo = () => (
     <Variant label='Style · Quaternary (Figma 339:36817 row-action)' stack>
       <ButtonIconStateTable Component={BrandIconButton} variant='quaternary' icon='edit' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Icon-only — REQUIRES `aria-label`; the icon is `aria-hidden` so screen readers don\'t double-announce.',
+        '`quaternary` variant ships a "pre-pressed" look (brand-p50 surface + brand-p100 border) for row-action editors without hijacking the live `active` semantics.',
+      ]}
+      dos={[
+        'Use for compact brand actions in toolbars, table rows, card headers where label text would crowd the layout.',
+        'Pair with a Tooltip when the icon alone is ambiguous.',
+        'Use Fill for a high-emphasis brand action (e.g. ID-card chip read); Ghost for tertiary; quaternary for "edit row" row-action.',
+      ]}
+      donts={[
+        "Don't ship without an `aria-label` — icon-only buttons without a label are invisible to assistive tech.",
+        "Don't use for destructive actions — switch to DangerIconButton (red).",
+        "Don't line up 3+ icon-only brand buttons side-by-side without tooltips or label clarity.",
+      ]}
+    />
   </Section>
 );
 
@@ -3548,6 +3770,22 @@ const NeutralIconButtonDemo = () => (
     <Variant label='Style · Ghost' stack>
       <ButtonIconStateTable Component={NeutralIconButton} variant='ghost' icon='more_vert' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Icon-only — REQUIRES `aria-label`; the icon is `aria-hidden`.',
+      ]}
+      dos={[
+        'Use for non-brand chrome actions: kebab menus, close icons, "more" affordances in table rows.',
+        'Use Ghost on tinted surfaces where Fill / Outline would clash.',
+        'Pair with a Tooltip when the icon alone is ambiguous (more_vert in particular).',
+      ]}
+      donts={[
+        "Don't ship without an `aria-label`.",
+        "Don't use for brand-anchored actions — use BrandIconButton instead.",
+        "Don't use for destructive single-tap actions without a confirm — pair with AlertDialog.",
+      ]}
+    />
   </Section>
 );
 
@@ -3559,6 +3797,22 @@ const NeutralSubdueIconButtonDemo = () => (
     <Variant label='Style · Outline' stack>
       <ButtonIconStateTable Component={NeutralSubdueIconButton} variant='outline' icon='close' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Icon-only — REQUIRES `aria-label`; the icon is `aria-hidden`.',
+        'Softer surface tier than NeutralIconButton — sits as a faint chrome control.',
+      ]}
+      dos={[
+        'Use for compact chrome controls inside cards / tables where NeutralIconButton would be too heavy.',
+        'Use for "close" buttons in popovers / modal dialogs / chip pills (X icon).',
+      ]}
+      donts={[
+        "Don't ship without an `aria-label`.",
+        "Don't use for the page's primary action — barely visible.",
+        "Don't use for destructive actions — use DangerSubdueIconButton.",
+      ]}
+    />
   </Section>
 );
 
@@ -3620,6 +3874,20 @@ const SidebarDemo = () => (
         height={700}
       />
     </Variant>
+    <Guidelines
+      behavior={[
+        '`position: fixed` — only ONE Sidebar instance per page; pages pass `activeKey` to highlight the current menu.',
+        'Menus with `subItems` open a `<SideSubMenu>` to the right on click (currently only `treat`).',
+      ]}
+      dos={[
+        'Use one Sidebar at the app-shell level; pages should NEVER duplicate the rail.',
+        'Drive `activeKey` from the route so the highlight matches what the user is viewing.',
+      ]}
+      donts={[
+        "Don't render multiple Sidebars — they\'ll stack as fixed elements and overlap.",
+        "Don't add page-level navigation items inside the Sidebar — use SubHeader for in-page nav.",
+      ]}
+    />
   </Section>
 );
 
@@ -3758,6 +4026,17 @@ const HistoryTimelineDemo = () => (
         <HistoryTimeline />
       </div>
     </Variant>
+    <Guidelines
+      behavior={[
+        'Renders past rounds + note presets in a vertical timeline; emits `onRoundsChange` / `onActiveRoundChange` for parent state.',
+      ]}
+      dos={[
+        'Use as a side panel inside Treatment / OPD forms where the doctor needs quick recall of prior rounds.',
+      ]}
+      donts={[
+        "Don't widen past 360 px — long round labels wrap; tighten the column if labels are short.",
+      ]}
+    />
   </Section>
 );
 
@@ -3800,6 +4079,21 @@ const PatientCardDemo = () => (
         ]}
       />
     </Variant>
+    <Guidelines
+      behavior={[
+        '`sticky` opts into parallax collapse — PatientCard owns IntersectionObserver internally and toggles `compact` when it tucks under the page Header.',
+        'Severity-tagged allergy / chronic rows always show below the gradient card (visible across every step).',
+      ]}
+      dos={[
+        'Use ONE PatientCard per patient-scoped page (Registration, Treatment, OPD Screening).',
+        'Pass `sticky` for long pages so the card collapses to the mini variant on scroll.',
+        'Order allergy / chronic entries by severity (critical → high → medium) — readers stop after the top 2-3.',
+      ]}
+      donts={[
+        "Don't nest a PatientCard inside another card.",
+        "Don't pass empty `drugAllergies` / `chronicDiseases` arrays expecting the row to hide — leave the prop undefined.",
+      ]}
+    />
   </Section>
 );
 
@@ -3815,6 +4109,20 @@ const VitalCardDemo = () => (
       <BMICard value='22.5' />
       <BMICard weight='70' height='170' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'VitalCard takes label / unit / value / onChange + optional `badge`. PressureCard wraps Systolic / Diastolic into one card. BMICard auto-computes from weight + height OR takes a bare `value`.',
+        'Each card owns Stepper +/- internally — uses canonical Stepper aria contract.',
+      ]}
+      dos={[
+        'Use inside VitalsForm grid — one card per vital sign.',
+        'Pass `badge={{ tone, label }}` for out-of-range / critical values (e.g. SpO₂ < 95% → orange "ผิดปกติ").',
+      ]}
+      donts={[
+        "Don't render with no value AND no onChange — that's a read-only display; use VitalSignTimelineCard instead.",
+        "Don't bypass PressureCard with two side-by-side VitalCards — the combined card pairs Systolic + Diastolic correctly.",
+      ]}
+    />
   </Section>
 );
 
@@ -3864,6 +4172,20 @@ const InventoryCardDemo = () => {
         <InventoryCard showBadge={false}       title='ซ่อน Colorful Badge' subtext='เหลือแต่ Status Badge' />
         <InventoryCard showBadge={false} showStatusBadge={false} title='ซ่อน Badge ทั้งสอง' subtext='เหลือแต่ Title + Subtext' />
       </Variant>
+      <Guidelines
+        behavior={[
+          '180h photo + badge row + title + subtext. Border width never changes — Hover / Selected add a 3 px outer ring (reads as 4 px Figma stroke) so layout stays stable.',
+          'Hover auto-detects when `onClick` is provided.',
+        ]}
+        dos={[
+          'Use as a selectable card in inventory picker flows (ward bed, equipment, room).',
+          'Pair Status Badge (operational state — ว่าง / จอง / ใช้งาน) with Colorful Badge (category — Standard / VIP / Isolation).',
+        ]}
+        donts={[
+          "Don't shrink past ~240 px wide — the badge + status row crowds.",
+          "Don't use for data-only rows — use Table.",
+        ]}
+      />
     </Section>
   );
 };
@@ -3875,6 +4197,17 @@ const VitalsSignGraphDemo = () => (
         <VitalsSignGraph />
       </div>
     </Variant>
+    <Guidelines
+      behavior={[
+        'Time-series chart with TabPill switcher for each vital. Read-only (no zoom / pan).',
+      ]}
+      dos={[
+        'Use inline inside a card on a patient profile / treatment record; wrap in VitalsGraphPopup for a fullscreen view.',
+      ]}
+      donts={[
+        "Don't use as the only signal for clinical decision — pair with the numeric measurement and reference range.",
+      ]}
+    />
   </Section>
 );
 
@@ -3894,6 +4227,17 @@ const DateFilterPopupDemo = () => {
           onApply={() => setOpen(false)}
         />
       </Variant>
+      <Guidelines
+        behavior={[
+          'Two-tab popup: Quick (วันนี้ / เมื่อวาน / 7 / 30 วัน) + Custom (single date or range). Emits `onApply(value)`.',
+        ]}
+        dos={[
+          'Wrap with `FilterDateTag` for the canonical "chip → open popup" pattern; reach for this raw component only for custom triggers.',
+        ]}
+        donts={[
+          "Don't duplicate this popup\'s Quick-options inside another picker — `FilterDateTag` already provides them.",
+        ]}
+      />
     </Section>
   );
 };
@@ -3916,6 +4260,17 @@ const ProfilePopoverDemo = () => {
           />
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Anchor-positioned popover (like Popover) — closes on outside-click and Esc. Items: profile · language · settings · logout.',
+        ]}
+        dos={[
+          'Anchor to the Sidebar avatar — that\'s the only place this popover should appear.',
+        ]}
+        donts={[
+          "Don't re-implement the profile menu elsewhere — reuse this popover so menu items stay in sync.",
+        ]}
+      />
     </Section>
   );
 };
@@ -3932,6 +4287,17 @@ const SettingsModalDemo = () => {
           onApply={() => setOpen(false)}
         />
       </Variant>
+      <Guidelines
+        behavior={[
+          'Modal for theme + light/dark mode. Emits `onApply({ mode, theme })` on save.',
+        ]}
+        dos={[
+          'Wire `onApply` to the brand-mode + colour-scheme toggle so the whole app retints.',
+        ]}
+        donts={[
+          "Don't add unrelated settings here — bound to theme controls only; complex settings belong in a full settings page.",
+        ]}
+      />
     </Section>
   );
 };
@@ -3950,6 +4316,17 @@ const VitalsGraphPopupDemo = () => {
           <VitalsSignGraph fillHeight />
         </VitalsGraphPopup>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Popup `size=extraLarge` (fluid up to 1440×1024) wrapping VitalsSignGraph + footer.',
+        ]}
+        dos={[
+          'Use when callers need a custom trigger; otherwise prefer VitalsSignGraphDialog (trigger + popup in one).',
+        ]}
+        donts={[
+          "Don't render the graph inline on small surfaces — use the popup for the full-detail view.",
+        ]}
+      />
     </Section>
   );
 };
@@ -3965,6 +4342,17 @@ const VitalsSignGraphDialogDemo = () => (
     <Variant label='Disabled (no rounds)' stack>
       <VitalsSignGraphDialog subtitle='ยังไม่มีข้อมูลการวัด' disabled />
     </Variant>
+    <Guidelines
+      behavior={[
+        'NeutralSubdueButton trigger + VitalsGraphPopup in one component — `subtitle` shows the round label below the trigger.',
+      ]}
+      dos={[
+        'Use as the canonical "ดูแบบกราฟ" affordance inside VitalsForm and treatment vitals panels.',
+      ]}
+      donts={[
+        "Don't render the popup separately when this dialog covers the case.",
+      ]}
+    />
   </Section>
 );
 
@@ -4004,6 +4392,19 @@ const QueuePageShellDemo = () => {
           </QueuePageShell>
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Layout shell: Sidebar + Header + SubHeader + SummaryCardsBar + sticky TabUnderline + body + Footer. The page passes title / breadcrumb / summaryCards / tabs and renders the queue table in children.',
+        ]}
+        dos={[
+          'Use as the routed wrapper for OPD / Registration / Treatment queue pages.',
+          'Drive `activeTab` from URL or page state so deep-links keep the right tab open.',
+        ]}
+        donts={[
+          "Don't render outside a queue page — the chrome is bespoke for list / queue surfaces.",
+          "Don't duplicate Header / Sidebar inside `children` — they\'re already in the shell.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4013,6 +4414,17 @@ const AllergyFormDemo = () => (
     <Variant label='Default' stack>
       <AllergyForm />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Thin wrapper around `HistoryListForm` with an allergy schema (ชื่อยา / อาการ / ระดับความรุนแรง). Reports validity via `onValidityChange`.',
+      ]}
+      dos={[
+        'Use inside OPD Screening Step 3 and Registration Step 5; wire `onValidityChange` for the step-completion gate.',
+      ]}
+      donts={[
+        "Don't replace with a hand-rolled list — the schema and validators stay in sync with the data layer here.",
+      ]}
+    />
   </Section>
 );
 
@@ -4021,6 +4433,17 @@ const DiseaseFormDemo = () => (
     <Variant label='Default' stack>
       <DiseaseForm />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Thin wrapper around `HistoryListForm` with a chronic-disease schema. Reports validity via `onValidityChange`.',
+      ]}
+      dos={[
+        'Use inside OPD Screening Step 4; wire `onValidityChange` so the step ✓ updates when entries are valid.',
+      ]}
+      donts={[
+        "Don't use for acute conditions — those belong in the visit Treatment Step 4 diagnosis.",
+      ]}
+    />
   </Section>
 );
 
@@ -4029,6 +4452,17 @@ const HistoryListFormDemo = () => (
     <Variant label='Shown via AllergyForm wrapper' stack>
       <AllergyForm />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Schema-driven: pass `schema` with topic / options / defaults / badges. Renders a repeating row list with an add-row button.',
+      ]}
+      dos={[
+        'Use via a domain wrapper (AllergyForm / DiseaseForm) so the schema lives next to its data.',
+      ]}
+      donts={[
+        "Don't render HistoryListForm directly in production UI — always wrap with a domain form so the schema travels with its consumer.",
+      ]}
+    />
   </Section>
 );
 
@@ -4037,6 +4471,17 @@ const VitalsFormDemo = () => (
     <Variant label='Default' stack>
       <VitalsForm />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Composes VitalCard / PressureCard / BMICard in a grid + HistoryTimeline aside; reports validity via `onValidityChange`.',
+      ]}
+      dos={[
+        'Use as Step 1 of OPD Screening; wire `onValidityChange` for the step-completion gate.',
+      ]}
+      donts={[
+        "Don't add non-vital fields here — keep this scoped to BP / HR / RR / Temp / SpO₂ / weight / height.",
+      ]}
+    />
   </Section>
 );
 
@@ -4072,6 +4517,17 @@ const TreatmentFormShellDemo = () => {
           </TreatmentFormShell>
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Layout shell for /treat/record: unified card with bilingual StepProgress (framed) + body + sticky footer. Children = active step body.',
+        ]}
+        dos={[
+          'Use as the routed wrapper for the Treatment / CPOE flow. Drive `stepIndex` from page state and pass `getTreatmentCompletedSteps(form, stepIndex)` to make ✓ truthful.',
+        ]}
+        donts={[
+          "Don't render outside CPOE — chrome (bilingual labels, footer copy) is bespoke for the doctor flow.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4108,6 +4564,20 @@ const TreatmentStepsDemo = () => {
           {TREATMENT_STEPS.map((s) => `${s.title} (${s.subtitle})`).join(' · ')}
         </span>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Each step is controlled via `{ form, setForm }` from TreatmentFormPage; Step 1–2 are read-only, 3–7 are write.',
+          'Steps cross-link: Step 4 jumps to Step 3 via `onStepChange`; Step 7 reads diagnosis from Step 4.',
+        ]}
+        dos={[
+          'Use inside TreatmentFormShell with `STEP_RENDERERS[stepIndex]`.',
+          'Keep one shared `form` object across all 7 steps; never fork per-step.',
+        ]}
+        donts={[
+          "Don't render steps outside the shell — they need step animation + footer.",
+          "Don't manage state inside the step bodies — the page owns `form`.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4145,6 +4615,17 @@ const BodyMarkDemo = () => (
         <BodyMarkReeditLogicPreview />
       </div>
     </Variant>
+    <Guidelines
+      behavior={[
+        '6 states: Default · Hover · Focus-Empty · Focus-Type · Focus-Re-open · Active. Save button enables only when note has been edited from its saved value.',
+      ]}
+      dos={[
+        'Use inside BodyDrawingCanvas / BodyDiagramPanel; never render standalone outside an anatomy figure.',
+      ]}
+      donts={[
+        "Don't drop a mark without an associated note flow — empty marks are not persistable.",
+      ]}
+    />
   </Section>
 );
 
@@ -4164,6 +4645,17 @@ const BodyDiagramPanelDemo = () => {
           />
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'System TabCapsule + View TabBar + dual anatomy figures + pain markers. ปุ่ม "บันทึกบนรูปภาพ" opens BodyRecordPopup.',
+        ]}
+        dos={[
+          'Use as the anatomy summary card in Treatment Step 3; persist markers via parent state.',
+        ]}
+        donts={[
+          "Don't bypass the popup for editing — read-only diagrams here, editing happens in BodyRecordPopup.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4197,6 +4689,19 @@ const BodyRecordPopupDemo = () => {
           onViewChange={setViewKey}
         />
       </Variant>
+      <Guidelines
+        behavior={[
+          'Domain wrapper around DrawingCanvasPopup — resolves the title from `systemKey` (HEENT / Heart / Lungs / …). Drawings are tagged by `viewKey` so front/back views don\'t bleed.',
+          'Save button enables only when canvas reports an edit (mark / draw / note / erase).',
+        ]}
+        dos={[
+          'Use as the canonical editor for body markers + drawings. Open from BodyDiagramPanel\'s "บันทึกบนรูปภาพ" button.',
+          'Forward `markers` + `drawings` state from the page so persistence is parent-controlled.',
+        ]}
+        donts={[
+          "Don't use DrawingCanvasPopup directly for examination work — this wrapper is the canonical entry.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4231,6 +4736,19 @@ const DrawingCanvasPopupDemo = () => {
           onViewChange={setViewKey}
         />
       </Variant>
+      <Guidelines
+        behavior={[
+          'Popup extraLarge + BodyDrawingCanvas + dirty tracking. Save enables only after an edit. Tools: cursor · markpoint · pen · eraser · text · circle · square · arrow.',
+          'Drawings tagged by `viewKey` to avoid view-bleed (front vs back).',
+        ]}
+        dos={[
+          'Wrap with a domain component (BodyRecordPopup) that supplies title / subtitle from a key.',
+          'Wire `onSave(markers, drawings)` to commit changes to parent state.',
+        ]}
+        donts={[
+          "Don't render this generic shell directly in production — domain wrappers carry the correct titles.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4240,6 +4758,17 @@ const ExamSupportListDemo = () => (
     <Variant label='Default' stack>
       <ExamSupportList />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Sidebar list of exam-support entries (e.g. lab results, prior imaging) with success-tick state.',
+      ]}
+      dos={[
+        'Use as the right rail in Treatment Step 3 / Step 4 to show what supporting data is available.',
+      ]}
+      donts={[
+        "Don't use as a primary nav — that's Sidebar / SideSubMenu.",
+      ]}
+    />
   </Section>
 );
 
@@ -4261,6 +4790,17 @@ const ExamNotesPanelDemo = () => {
           onRemoveAttachment={(id) => setAttachments((a) => a.filter((f) => f.id !== id))}
         />
       </Variant>
+      <Guidelines
+        behavior={[
+          'Two-column note panel: read-only nurse column + editable physician textareas + DragAndDrop attachments. `onCopyFromNurse(key)` lifts a nurse note into the doctor column.',
+        ]}
+        dos={[
+          'Use in Treatment Step 3 Examination so the doctor can review nurse pre-screening and add their own observations.',
+        ]}
+        donts={[
+          "Don't allow editing of the nurse column — it's the source-of-truth from upstream OPD Screening.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4285,6 +4825,17 @@ const ServiceDateListDemo = () => {
           </div>
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Left-rail ActionList of "วันที่รับบริการ" — selectable rows with date + ColorfulBadge center; chevron reserved on every row (visible when selected).',
+        ]}
+        dos={[
+          'Use as the left rail in Treatment Step 1 history so the doctor can pick a prior visit to inspect.',
+        ]}
+        donts={[
+          "Don't make this rail wider than ~280 px — it's a navigation rail, not the primary content.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4294,6 +4845,17 @@ const FormsLibraryDemo = () => (
     <Variant label='Default' stack>
       <FormsLibrary />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Grid of FormCards keyed by category — cover art from /illustration/form-cover0[1-5].svg. Frame default 1px → Hover 4px + Brand Drop Bottom/200. Selected = 4px brand stroke + shadow.',
+      ]}
+      dos={[
+        'Use as the OPD Screening Step 5 "แบบฟอร์ม" picker; pair with a confirm before attaching a form to the screening.',
+      ]}
+      donts={[
+        "Don't ship a form without cover art — fall back to the category default cover, not a blank slot.",
+      ]}
+    />
   </Section>
 );
 
@@ -4305,6 +4867,18 @@ const BigChartsDemo = () => (
     <Variant label='OpdTypeLineCard' stack><div style={{ width: '100%' }}><OpdTypeLineCard /></div></Variant>
     <Variant label='ResidencePieCard' stack><div style={{ width: '100%' }}><ResidencePieCard /></div></Variant>
     <Variant label='ServiceCenterMapCard' stack><div style={{ width: '100%' }}><ServiceCenterMapCard /></div></Variant>
+    <Guidelines
+      behavior={[
+        'Composite cards that wrap chart primitives with Dashboard chrome (title row + filter + chart). Each card ships internal sample data.',
+      ]}
+      dos={[
+        'Use on the Dashboard layout where bigger insight charts are the primary content.',
+        'Pass live data via the underlying primitive props — the card chrome stays the same.',
+      ]}
+      donts={[
+        "Don't embed BigCharts inside narrow card grids — they need ≥ 480 px width to be readable.",
+      ]}
+    />
   </Section>
 );
 
@@ -4357,6 +4931,18 @@ const ChartsDemo = () => {
         <Gauge value={71.13} color='#6366F1' label='ของเป้าหมาย 70%' />
         <Gauge value={12.4}  color='#EC4899' label='Diabetic foot' size={130} />
       </Variant>
+      <Guidelines
+        behavior={[
+          'Pure chart primitives — accept `data` props and emit click callbacks (`onRowClick`, `onMonthClick`, `onSegmentClick`). No internal data dependency.',
+        ]}
+        dos={[
+          'Use directly when you need a custom chart card; wrap with BigCharts / DashboardCards for the standard dashboard chrome.',
+        ]}
+        donts={[
+          "Don't hard-code series colours — drive from data + tokens so brand swap retints.",
+          "Don't use Pyramid charts for non-symmetric data — they imply a male/female-like split.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4379,6 +4965,22 @@ const DangerButtonDemo = () => (
       <DangerButton leadingIcon='delete' trailingIcon='arrow_forward' showTrailingIcon={false}>Trailing off</DangerButton>
       <DangerButton leadingIcon='delete' trailingIcon='arrow_forward' showLabel={false} aria-label='Icons only' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Red palette signals "destructive / irreversible" — pair colour with the verb (Delete / Discard / Sign-out) so colour-blind users still get the warning.',
+      ]}
+      dos={[
+        'Use for destructive commits (delete row, discard draft, sign-out, void order).',
+        'ALWAYS pair with a confirm dialog (AlertDialog) before the destructive op actually runs.',
+        'Place at the end of the action row (right-most) so users move through safe → destructive direction.',
+      ]}
+      donts={[
+        "Don't use for cancel actions — ยกเลิก is not destructive; use NeutralSubdueButton.",
+        "Don't put a Danger button next to a Brand button without separation — users mis-click red / green pairs.",
+        "Don't use Fill for repeated bulk delete in tables — use DangerIconButton or DangerSubdueButton (less alarming).",
+      ]}
+    />
   </Section>
 );
 
@@ -4395,6 +4997,21 @@ const DangerSubdueButtonDemo = () => (
       <DangerSubdueButton leadingIcon='delete' trailingIcon='arrow_forward' showLeadingIcon={false}>Leading off</DangerSubdueButton>
       <DangerSubdueButton leadingIcon='delete' showLabel={false} aria-label='Icon only' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Softer red palette — reads as "warning / partial-undo" rather than full destructive.',
+      ]}
+      dos={[
+        'Use for reversible destructive actions (remove row from a draft, clear a field, revoke a draft permission).',
+        'Use when a destructive row-action repeats often in a table — DangerButton would flood the screen with red.',
+        'Pair with a clear confirm only when the action commits to backend.',
+      ]}
+      donts={[
+        "Don't use for irreversible destructive commits — promote to DangerButton (Fill).",
+        "Don't pair with another red action in the same row — pick one.",
+      ]}
+    />
   </Section>
 );
 
@@ -4414,6 +5031,20 @@ const NeutralButtonDemo = () => (
       <NeutralButton leadingIcon='filter_list' trailingIcon='expand_more' showTrailingIcon={false}>Trailing off</NeutralButton>
       <NeutralButton leadingIcon='filter_list' showLabel={false} aria-label='Icon only' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'neutral/700 dark fill reads as a strong but non-brand action — distinct from NeutralSubdueButton (lighter quaternary tier).',
+      ]}
+      dos={[
+        'Use for strong neutral actions where a brand colour would be inappropriate (e.g. system-level controls, export, sign-out from a non-clinical screen).',
+        'Use Fill where neutral emphasis is needed; Outline / Ghost on tinted surfaces.',
+      ]}
+      donts={[
+        "Don't use as the clinical primary action — patient-facing flows want brand colour (BrandButton).",
+        "Don't mix with BrandButton in the same row as equal-emphasis — pick the dominant tone.",
+      ]}
+    />
   </Section>
 );
 
@@ -4428,6 +5059,23 @@ const DangerIconButtonDemo = () => (
     <Variant label='Style · Ghost' stack>
       <ButtonIconStateTable Component={DangerIconButton} variant='ghost' icon='delete' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Icon-only — REQUIRES `aria-label`; the icon is `aria-hidden`.',
+        'Red palette reads as destructive — never use as a generic close icon.',
+      ]}
+      dos={[
+        'Use for compact destructive actions in table rows (delete, remove, void).',
+        'Pair with a confirm dialog when the row action commits irreversibly.',
+        'Use Ghost only when the row already shows the destructive intent (red text label, alert chrome).',
+      ]}
+      donts={[
+        "Don't use for close / dismiss — that's NeutralSubdueIconButton.",
+        "Don't ship without an `aria-label`.",
+        "Don't put a Danger icon next to a Brand icon in a tight row — separate visually.",
+      ]}
+    />
   </Section>
 );
 
@@ -4439,6 +5087,21 @@ const DangerSubdueIconButtonDemo = () => (
     <Variant label='Style · Outline' stack>
       <ButtonIconStateTable Component={DangerSubdueIconButton} variant='outline' icon='delete' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Icon-only — REQUIRES `aria-label`; the icon is `aria-hidden`.',
+        'Softer red surface — for reversible row-level destructive actions.',
+      ]}
+      dos={[
+        'Use for "remove from this draft" row actions (clears local state, no backend commit yet).',
+        'Use in compact toolbars where DangerIconButton would over-alarm.',
+      ]}
+      donts={[
+        "Don't use for irreversible destructive commits — promote to DangerIconButton.",
+        "Don't ship without an `aria-label`.",
+      ]}
+    />
   </Section>
 );
 
@@ -4450,6 +5113,23 @@ const BrandSubdueIconButtonDemo = () => (
     <Variant label='Style · Outline' stack>
       <ButtonIconStateTable Component={BrandSubdueIconButton} variant='outline' icon='add' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Icon-only — REQUIRES `aria-label`; the icon is `aria-hidden`.',
+        'Softer brand surface (p100 fill / p200 outline) — sits below BrandIconButton in visual weight.',
+      ]}
+      dos={[
+        'Use for repeated brand row-actions where BrandIconButton (full brand) would feel too loud.',
+        'Use Outline on already brand-tinted surfaces.',
+        'Pair with a Tooltip for ambiguous icons.',
+      ]}
+      donts={[
+        "Don't use for destructive actions — use DangerSubdueIconButton.",
+        "Don't ship without an `aria-label`.",
+        "Don't use as the surface's primary action — promote to BrandIconButton.",
+      ]}
+    />
   </Section>
 );
 
@@ -4478,6 +5158,24 @@ const BrandCircleIconButtonDemo = () => {
           selected = {String(selected)}
         </span>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+          'Icon-only — REQUIRES `aria-label`; the icon is `aria-hidden`.',
+          'Round (50%) shape — reads as a togglable / standalone affordance distinct from square BrandIconButton.',
+          'Pass `selected` to lock the highlighted state (toggle filter chip, favorite star, pinned item).',
+        ]}
+        dos={[
+          'Use as a toggle indicator (favorite, pin, filter chip) — the round shape signals "on/off".',
+          'Use for prominent single-tap actions in card headers or sticky toolbars.',
+          'Pair Selected with a clear off-state colour (Ghost default → Selected) for accessibility.',
+        ]}
+        donts={[
+          "Don't use as a standard primary CTA — use BrandButton (rectangular).",
+          "Don't put multiple unrelated round buttons in a row — round shape implies they belong together.",
+          "Don't ship without an `aria-label`.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4490,44 +5188,199 @@ const BrandCircleSubdueIconButtonDemo = () => (
     <Variant label='Style · Outline' stack>
       <ButtonIconStateTable Component={BrandCircleSubdueIconButton} variant='outline' icon='add' sizeRows={CIRCLE_SUBDUE_SIZE_ROWS} />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Icon-only — REQUIRES `aria-label`; the icon is `aria-hidden`.',
+        'Unique XSmall (32 px) size — fits in dense list rows / chips.',
+        '`active` (with `selected` legacy alias) is the toggle-on state — quaternary surface + 1 px border.',
+      ]}
+      dos={[
+        'Use XSmall for inline row actions (alongside text, in chips, in compact dense lists).',
+        'Use as a togglable indicator (active flag, expanded panel).',
+        'Pair with a Tooltip for ambiguous icons.',
+      ]}
+      donts={[
+        "Don't use XSmall for the main page action — promote to BrandIconButton lg.",
+        "Don't ship without an `aria-label`.",
+        "Don't use the `active` chrome to fake a destructive press — `active` is purely a toggle indicator.",
+      ]}
+    />
   </Section>
 );
 
+/* Float button has no variant axis (single style per Figma) and only 2
+   states (default + hover) — so its state matrix is rows = sizes,
+   cols = 2 states. Reuses ButtonIconStateTable's table chrome by passing
+   a custom sizeRows + stateCols (no variant key needed since the
+   component just ignores it via `...rest`). */
+const FLOAT_STATE_COLS = [
+  { key: 'default', label: 'Default', props: {} },
+  { key: 'hover',   label: 'Hover',   props: { hovered: true } },
+];
+const FLOAT_SIZE_ROWS = [
+  { key: 72, label: 'Large (72)'  },
+  { key: 56, label: 'Medium (56)' },
+  { key: 48, label: 'Small (48)'  },
+];
+
 const BrandSubdueFloatButtonDemo = () => (
-  <Section title='BrandSubdueFloatButton' summary='Figma "Brand Subdue Float Button" (node 2293:11088). FAB-style circular button with brand-tinted shadow. Single variant — default + hover only. Designed for fixed/floating placement (e.g. bottom-right of a page).'>
-    <Variant label='Default size (56)'>
-      <BrandSubdueFloatButton icon='add' aria-label='Add' />
+  <Section title='BrandSubdueFloatButton' summary='Figma "Brand Subdue Float Button" (node 2293:11088). FAB-style circular button with brand-tinted shadow. Single style — default + hover only (no disabled per Figma). Sizes: 48 · 56 · 72. Designed for fixed / floating placement (e.g. bottom-right of a page). Table below mirrors the Figma variant matrix — rows are sizes, columns are 2 states.'>
+    <Variant label='3 sizes × 2 states' stack>
+      <ButtonIconStateTable
+        Component={BrandSubdueFloatButton}
+        variant='float'
+        icon='add'
+        stateCols={FLOAT_STATE_COLS}
+        sizeRows={FLOAT_SIZE_ROWS}
+      />
     </Variant>
-    <Variant label='Custom sizes'>
-      <BrandSubdueFloatButton size={48} icon='add' aria-label='48' />
-      <BrandSubdueFloatButton size={56} icon='add' aria-label='56 (default)' />
-      <BrandSubdueFloatButton size={72} icon='add' aria-label='72' />
-    </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation; aria-label REQUIRED (icon-only).',
+        'Brand-tinted drop shadow lifts the FAB off the page background — never tweak the shadow per-instance.',
+        'Single variant per Figma — only default + hover (no disabled / active state). If you need disabled FAB, hide it from view instead.',
+      ]}
+      dos={[
+        'Use ONE FAB per surface, anchored bottom-right or bottom-center over a scrolling list.',
+        'Use for the page\'s single "add" / "create" entry point (e.g. + appointment, + medication on mobile).',
+        'Use larger size (72) for touch surfaces; 56 for desktop default; 48 in dense sidebars.',
+      ]}
+      donts={[
+        "Don't ship two FABs on the same surface — pick the most important add action.",
+        "Don't use for destructive actions — red on a FAB reads as a wrong-place panic button.",
+        "Don't use inline in flow — FAB belongs in a fixed/floating layer.",
+      ]}
+    />
   </Section>
+);
+
+/* DashedAddButton has no size variant (fixed 56px height) and 3 states
+   (default · hover · disabled) — but its disabled has two appearances
+   (`tokens` and `brandFade`). Render as 2 rows × 3 cols. */
+const DASHED_STATE_COLS = [
+  { key: 'default',  label: 'Default',  props: {} },
+  { key: 'hover',    label: 'Hover',    props: { hovered: true } },
+  { key: 'disabled', label: 'Disabled', props: { disabled: true } },
+];
+const DASHED_APPEARANCE_ROWS = [
+  { key: 'tokens',    label: 'disabledAppearance="tokens"',    appearanceProp: 'tokens' },
+  { key: 'brandFade', label: 'disabledAppearance="brandFade"', appearanceProp: 'brandFade' },
+];
+
+const BrandDashedAddButtonStateTable = () => (
+  <div
+    className='w-full overflow-x-auto'
+    style={{
+      border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+      borderRadius: 'var(--dim-radius-200)',
+      background: 'var(--surface-card-100, #FFFFFF)',
+    }}
+  >
+    <table
+      style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-xs)',
+        color: 'var(--text-content-secondary)',
+      }}
+    >
+      <thead>
+        <tr>
+          <th
+            style={{
+              textAlign: 'left',
+              padding: 'var(--dim-space-200) var(--dim-space-300)',
+              borderBottom: 'var(--dim-stroke-100) solid var(--border-card-default)',
+              fontWeight: 'var(--type-weight-medium)',
+              color: 'var(--text-content-default)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Disabled mode
+          </th>
+          {DASHED_STATE_COLS.map((c) => (
+            <th
+              key={c.key}
+              style={{
+                textAlign: 'left',
+                padding: 'var(--dim-space-200) var(--dim-space-300)',
+                borderBottom: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                fontWeight: 'var(--type-weight-medium)',
+                color: 'var(--text-content-secondary)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {c.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {DASHED_APPEARANCE_ROWS.map((row, i) => (
+          <tr key={row.key}>
+            <td
+              style={{
+                padding: 'var(--dim-space-300)',
+                borderTop: i === 0 ? 'none' : 'var(--dim-stroke-100) solid var(--border-card-default)',
+                color: 'var(--text-content-tertiary)',
+                whiteSpace: 'nowrap',
+                verticalAlign: 'middle',
+                fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+              }}
+            >
+              {row.label}
+            </td>
+            {DASHED_STATE_COLS.map((col) => (
+              <td
+                key={col.key}
+                style={{
+                  padding: 'var(--dim-space-300)',
+                  borderTop: i === 0 ? 'none' : 'var(--dim-stroke-100) solid var(--border-card-default)',
+                  verticalAlign: 'middle',
+                  minWidth: 200,
+                }}
+              >
+                <BrandDashedAddButton
+                  type='button'
+                  disabledAppearance={row.appearanceProp}
+                  {...col.props}
+                  onClick={() => {}}
+                >
+                  เพิ่มรายการ
+                </BrandDashedAddButton>
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 );
 
 const BrandDashedAddButtonDemo = () => (
-  <Section title='BrandDashedAddButton' summary='Figma MIH Design System Foundation node 3360:2711 (HistoryListFormButton). Dashed full-width add control (56px height). Default: brand quaternary surface + dashed tertiary border. Hover: quaternary-hover + tertiary-hover border. Disabled: disabledButton.tertiary surface/border/text (same language as Brand Subdue outline disabled — no opacity fade).'>
-    <Variant label='Default' stack>
-      <div style={{ maxWidth: 480 }}>
-        <BrandDashedAddButton type='button' onClick={() => {}}>
-          เพิ่มชื่อยา/สารเคมี
-        </BrandDashedAddButton>
-      </div>
+  <Section title='BrandDashedAddButton' summary='Figma MIH Design System Foundation node 3360:2711 (HistoryListFormButton). Dashed full-width add control (56px height). Default: brand quaternary surface + dashed tertiary border. Hover: quaternary-hover + tertiary-hover border. Disabled has two appearances — `tokens` (design-system disabledButton.tertiary, used in HistoryListForm / VitalsForm) and `brandFade` (PHCIS Registration 207:16014/16027, brand default colors @ 50% opacity). Table below mirrors the Figma variant matrix — rows are the two disabled appearances, columns are the 3 states.'>
+    <Variant label='2 disabled modes × 3 states' stack>
+      <BrandDashedAddButtonStateTable />
     </Variant>
-    <Variant label='Disabled' stack>
-      <div style={{ maxWidth: 480 }}>
-        <BrandDashedAddButton type='button' disabled onClick={() => {}}>
-          เพิ่มรอบการวัด
-        </BrandDashedAddButton>
-        <span
-          className='block mt-2'
-          style={{ color: 'var(--text-content-tertiary)', fontFamily: 'ui-monospace, SFMono-Regular, monospace', fontSize: 'var(--type-size-xs)' }}
-        >
-          disabled — surface/border/text.disabledButton.tertiary
-        </span>
-      </div>
-    </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Fixed 56 px height across all uses — designed to align with HistoryListForm row height.',
+        '`disabledAppearance="tokens"` uses disabledButton.tertiary; `"brandFade"` keeps brand colours at 50 % opacity for specific Registration screens.',
+      ]}
+      dos={[
+        'Use as the trailing "add" row inside HistoryListForm-style lists (drug allergy, food allergy, chronic conditions).',
+        'Use for "add new row" affordances inside form cards — its full-width dashed border signals the empty insert slot.',
+        'Use `borderless` when the row sits inside an already-bordered container that owns the dashed treatment.',
+      ]}
+      donts={[
+        "Don't use as a page primary CTA — its 56 px dashed treatment is for in-list insertion, not page-level commit.",
+        "Don't nest in tight grids — the 56 px height needs breathing room.",
+        "Don't use disabled to imply pending — wire onClick to a confirm flow instead.",
+      ]}
+    />
   </Section>
 );
 
@@ -4593,6 +5446,22 @@ const StatusBadgeDemo = () => (
         <StatusBadgeComp style='info'    size='default' showDot icon='campaign'>ประกาศ</StatusBadgeComp>
       </div>
     </Variant>
+    <Guidelines
+      behavior={[
+        'Visual label only — non-interactive (no aria-button). Convey state, not action.',
+        'Colour is decoration — pair semantic colour with text or icon so colour-blind users still get the state.',
+      ]}
+      dos={[
+        'Use to communicate operational status (success / pending / warning / error / info) on cards, rows, header chrome.',
+        'Use the small size in dense tables; default size in cards and banner sections.',
+        'Pair `showDot` with text for high-glanceability states like "เสร็จสิ้น" / "กำลังดำเนินการ".',
+      ]}
+      donts={[
+        "Don't make it interactive — if the user can click it, use Tag / Button instead.",
+        "Don't use to convey time-critical alerts — escalate to Alert / SmallAlert.",
+        "Don't stack more than 2 badges per row — readers stop scanning after 2.",
+      ]}
+    />
   </Section>
 );
 
@@ -4677,6 +5546,23 @@ const ColorfulBadgeDemo = () => (
         ชื่อแท็กยาวมากที่ถูกตัดด้วย ellipsis เมื่อเกิน 224px
       </ColorfulBadgeComp>
     </Variant>
+    <Guidelines
+      behavior={[
+        'Visual label — non-interactive. Conveys a domain category (severity / likelihood / treatment status / tag).',
+        '11-style palette is for categorical mapping. The semantic meaning of each colour is set by the data dictionary (e.g. magenta = principle DX), not by ColorfulBadge itself.',
+        '`width="hug"` for short data-driven labels (severity dropdown); `width="cap"` for free-text labels with ellipsis (treatment history tags).',
+      ]}
+      dos={[
+        'Use to render domain-mapped categories with a stable colour key (e.g. severity, likelihood, ICD type).',
+        'Use Secondary hierarchy (light fill) for table cells; Primary (saturated) for emphasis chips.',
+        'Use Outline fill on already-tinted card surfaces where Secondary would blend in.',
+      ]}
+      donts={[
+        "Don't use as a status indicator — that's StatusBadge (semantic 5-state).",
+        "Don't reassign colour meaning per page — pick one mapping and document it in the data layer.",
+        "Don't make it interactive — use FilterTag or SelectableTag for clickable chips.",
+      ]}
+    />
   </Section>
 );
 
@@ -4707,47 +5593,145 @@ const ColorfulIconBadgeDemo = () => (
       <ColorfulIconBadgeComp style='red'    size='default' icon='cancel' />
       <ColorfulIconBadgeComp style='purple' size='default' icon='auto_awesome' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Visual icon-only label — non-interactive. Pairs with ColorfulBadge\'s palette.',
+        'Always supply an `aria-label` if the icon conveys non-decorative meaning (e.g. allergy / VIP flag).',
+        '`iconFill={1}` toggles the material symbol from outline to filled — pick once per category and stay consistent.',
+      ]}
+      dos={[
+        'Use for at-a-glance category icons on patient cards (allergy, VIP, chronic).',
+        'Pair with the same colour your ColorfulBadge text labels use elsewhere so the colour↔category mapping is consistent.',
+      ]}
+      donts={[
+        "Don't use as a button — switch to BrandIconButton or its family.",
+        "Don't combine with text inside the badge — that's ColorfulBadge with `icon` + label.",
+      ]}
+    />
   </Section>
 );
 
 /* ── checkbox ─────────────────────────────────────────────── */
 
-const CheckboxBoxDemo = () => {
-  /* The 16×16 atom (Figma 306:1099) — 6 states. Stateless, pass `checked`,
-     `hover`, `disabled`. */
-  return (
-    <Section title='CheckboxBox' summary='The 16×16 box atom — 6 states (default / hover / selected / selected-hover / disabled / checked-disabled). Stateless building block.'>
-      <Variant label='All states'>
-        <div className='flex items-center' style={{ gap: 'var(--dim-space-400)' }}>
-          <div className='flex flex-col items-center gap-2'>
-            <CheckboxBox />
-            <code style={{ fontSize: 'var(--type-size-xs)' }}>default</code>
-          </div>
-          <div className='flex flex-col items-center gap-2'>
-            <CheckboxBox hover />
-            <code style={{ fontSize: 'var(--type-size-xs)' }}>hover</code>
-          </div>
-          <div className='flex flex-col items-center gap-2'>
-            <CheckboxBox checked />
-            <code style={{ fontSize: 'var(--type-size-xs)' }}>selected</code>
-          </div>
-          <div className='flex flex-col items-center gap-2'>
-            <CheckboxBox checked hover />
-            <code style={{ fontSize: 'var(--type-size-xs)' }}>selected-hover</code>
-          </div>
-          <div className='flex flex-col items-center gap-2'>
-            <CheckboxBox disabled />
-            <code style={{ fontSize: 'var(--type-size-xs)' }}>disabled</code>
-          </div>
-          <div className='flex flex-col items-center gap-2'>
-            <CheckboxBox disabled checked />
-            <code style={{ fontSize: 'var(--type-size-xs)' }}>checked-disabled</code>
-          </div>
-        </div>
-      </Variant>
-    </Section>
-  );
-};
+/* Atom state-matrix table — used by CheckboxBox + RadioBox. They share
+   the same 6-state matrix: 2 checked-modes (Unchecked / Selected) ×
+   3 interaction states (Default / Hover / Disabled). The component is
+   stateless so each cell renders the atom with explicit `checked` +
+   `hover` + `disabled` flags. */
+const ATOM_BOX_STATE_COLS = [
+  { key: 'default',  label: 'Default',  props: {} },
+  { key: 'hover',    label: 'Hover',    props: { hover: true } },
+  { key: 'disabled', label: 'Disabled', props: { disabled: true } },
+];
+const ATOM_BOX_CHECKED_ROWS = [
+  { key: 'unchecked', label: 'Unchecked', checked: false },
+  { key: 'checked',   label: 'Selected',  checked: true  },
+];
+
+const AtomBoxStateTable = ({ Component, label = 'Box' }) => (
+  <div
+    className='w-full overflow-x-auto'
+    style={{
+      border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+      borderRadius: 'var(--dim-radius-200)',
+      background: 'var(--surface-card-100, #FFFFFF)',
+    }}
+  >
+    <table
+      style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-xs)',
+        color: 'var(--text-content-secondary)',
+      }}
+    >
+      <thead>
+        <tr>
+          <th
+            style={{
+              textAlign: 'left',
+              padding: 'var(--dim-space-200) var(--dim-space-300)',
+              borderBottom: 'var(--dim-stroke-100) solid var(--border-card-default)',
+              fontWeight: 'var(--type-weight-medium)',
+              color: 'var(--text-content-default)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {label}
+          </th>
+          {ATOM_BOX_STATE_COLS.map((c) => (
+            <th
+              key={c.key}
+              style={{
+                textAlign: 'left',
+                padding: 'var(--dim-space-200) var(--dim-space-300)',
+                borderBottom: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                fontWeight: 'var(--type-weight-medium)',
+                color: 'var(--text-content-secondary)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {c.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {ATOM_BOX_CHECKED_ROWS.map((row, i) => (
+          <tr key={row.key}>
+            <td
+              style={{
+                padding: 'var(--dim-space-300)',
+                borderTop: i === 0 ? 'none' : 'var(--dim-stroke-100) solid var(--border-card-default)',
+                color: 'var(--text-content-tertiary)',
+                whiteSpace: 'nowrap',
+                verticalAlign: 'middle',
+              }}
+            >
+              {row.label}
+            </td>
+            {ATOM_BOX_STATE_COLS.map((col) => (
+              <td
+                key={col.key}
+                style={{
+                  padding: 'var(--dim-space-300)',
+                  borderTop: i === 0 ? 'none' : 'var(--dim-stroke-100) solid var(--border-card-default)',
+                  verticalAlign: 'middle',
+                }}
+              >
+                <Component checked={row.checked} {...col.props} />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+const CheckboxBoxDemo = () => (
+  <Section title='CheckboxBox' summary='The 16×16 box atom (Figma 306:1099) — 6 states arranged as 2 checked modes (Unchecked / Selected) × 3 interaction states (Default / Hover / Disabled). Stateless building block — parent owns `checked` + `hover`. Used by `Checkbox`, `CheckboxButton`, `CheckboxGroup`.'>
+    <Variant label='2 checked modes × 3 states' stack>
+      <AtomBoxStateTable Component={CheckboxBox} label='CheckboxBox' />
+    </Variant>
+    <Guidelines
+      behavior={[
+        'Pure stateless atom — parent passes `checked`, `hover`, `disabled`. The atom does not own any state.',
+        'No `aria-checkbox` semantics here — wrap with `Checkbox` or `CheckboxButton` for interactive use.',
+        '16×16 fixed — never re-scale; if you need a different size, compose with the parent control.',
+      ]}
+      dos={[
+        'Use directly when you need a non-form-control visual indicator (e.g. preview chips in design docs).',
+        'Compose into custom card patterns where the click target wraps the whole card.',
+      ]}
+      donts={[
+        "Don't render alone in production UI — pair with a label (Checkbox / CheckboxButton).",
+        "Don't add state inside — keep it stateless so it composes cleanly inside groups.",
+      ]}
+    />
+  </Section>
+);
 
 const CheckboxDemo = () => {
   const [a, setA] = useState(false);
@@ -4883,6 +5867,23 @@ const CheckboxButtonDemo = () => {
           />
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'role="checkbox" + aria-checked on the inner control; whole card is the click target.',
+          'Selected state lifts the card with a 2 px brand border + top shadow — Hover is one shade lighter to differentiate keyboard-focus from confirmed selection.',
+          'Slots (border / showIcon / showCircleIcon / showBadge / showBadge2 / showDescription) all default to OFF — opt in only what the design calls for.',
+        ]}
+        dos={[
+          'Use for card-style selectable surfaces (plans, add-ons, "เหมือนที่อยู่ตามทะเบียนบ้าน" mirror).',
+          'Use `border` for standalone cards; turn off for inline rows inside an already-bordered container.',
+          'Keep the slot set consistent within one group — don\'t show description on one row but hide on the next.',
+        ]}
+        donts={[
+          "Don't use for in-line form rows where Checkbox (atom + label) is enough — CheckboxButton is a heavy card.",
+          "Don't combine with RadioButton in the same group — pick multi-select OR single-select, not both.",
+          "Don't stretch a CheckboxButton to full content width when it sits next to other selectable rows of different widths.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4945,6 +5946,22 @@ const CheckboxGroupDemo = () => {
           />
         </div>
       </Variant>
+      <Guidelines
+        behavior={[
+          'Renders a <fieldset> with <legend> — the legend is the group label; required marker (asterisk) attaches to the legend, not each row.',
+          'Multi-select; `value` is an array of selected option values. Pass `error` (string) to render the error message below the group.',
+        ]}
+        dos={[
+          'Use when a user can pick zero, one, or many options.',
+          'Wire `error` from form-level validation — the message replaces any helper text below the group.',
+          'Keep option labels parallel in tone and length so the column reads as a set.',
+        ]}
+        donts={[
+          "Don't use for single-select — use RadioGroup.",
+          "Don't omit the legend — assistive tech announces it before each option.",
+          "Don't toggle `withDescription` per option — apply at the group level for consistency.",
+        ]}
+      />
     </Section>
   );
 };
@@ -4952,35 +5969,24 @@ const CheckboxGroupDemo = () => {
 /* ── radio (Figma 269:55 + 328:5812 + 2860:3497) ─────────── */
 
 const RadioBoxDemo = () => (
-  <Section title='RadioBox' summary='The 16×16 radio atom (Figma 328:5812). 6 states: default / hover / selected / selected-hover / disabled-unchecked / selected-disabled. Stateless — parent owns hover + checked. Used by `Radio`, `RadioGroup`, and `RadioButton`.'>
-    <Variant label='All 6 states'>
-      <div className='flex items-center' style={{ gap: 'var(--dim-space-400)' }}>
-        <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-150)' }}>
-          <RadioBoxAtom />
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>Default</span>
-        </div>
-        <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-150)' }}>
-          <RadioBoxAtom hover />
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>Hover</span>
-        </div>
-        <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-150)' }}>
-          <RadioBoxAtom checked />
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>Selected</span>
-        </div>
-        <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-150)' }}>
-          <RadioBoxAtom checked hover />
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>Selected-Hover</span>
-        </div>
-        <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-150)' }}>
-          <RadioBoxAtom disabled />
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>Disabled-Unchecked</span>
-        </div>
-        <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-150)' }}>
-          <RadioBoxAtom disabled checked />
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>Selected-Disabled</span>
-        </div>
-      </div>
+  <Section title='RadioBox' summary='The 16×16 radio atom (Figma 328:5812) — 6 states arranged as 2 checked modes (Unchecked / Selected) × 3 interaction states (Default / Hover / Disabled). Stateless — parent owns `checked` + `hover`. Used by `Radio`, `RadioGroup`, and `RadioButton`. Mirrors the `CheckboxBox` matrix.'>
+    <Variant label='2 checked modes × 3 states' stack>
+      <AtomBoxStateTable Component={RadioBoxAtom} label='RadioBox' />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Pure stateless atom — parent passes `checked`, `hover`, `disabled`. Mirrors `CheckboxBox` API exactly.',
+        '16×16 fixed — never re-scale; if you need a different size, compose with the parent control.',
+      ]}
+      dos={[
+        'Use directly when you need a non-form-control visual indicator.',
+        'Compose into custom card patterns where the click target wraps the whole card.',
+      ]}
+      donts={[
+        "Don't render alone in production UI — pair with a label (Radio / RadioButton).",
+        "Don't add state inside — keep it stateless so it composes cleanly inside groups.",
+      ]}
+    />
   </Section>
 );
 
@@ -5099,6 +6105,23 @@ const RadioGroupDemo = () => {
           direction='row'
         />
       </Variant>
+      <Guidelines
+        behavior={[
+          'Renders a <fieldset> with <legend>. Arrow keys move between options and immediately select (radio-group keyboard contract).',
+          'Single-select; `value` is the selected option\'s value, not an array.',
+          'Pass `error` (string) to render the error message below the group.',
+        ]}
+        dos={[
+          'Use when the user MUST pick exactly one of N options.',
+          'Wire `error` from form-level validation; the message replaces helper text below the group.',
+          'Use `direction="row"` only for short labels (≤ 3 options) where the labels fit on one line.',
+        ]}
+        donts={[
+          "Don't use for multi-select — use CheckboxGroup.",
+          "Don't omit the legend for stacked groups — assistive tech needs it to announce the question.",
+          "Don't allow no selection at submit time unless the field is genuinely optional.",
+        ]}
+      />
     </Section>
   );
 };
@@ -5190,6 +6213,23 @@ const RadioButtonDemo = () => {
             />
           </div>
         </Variant>
+        <Guidelines
+          behavior={[
+            'role="radio" inside a role="radiogroup"; whole card is the click target.',
+            'Hover + Selected both lift with `--shadow-brand-top-200`; Selected uses 2 px brand-default border, Hover uses 2 px brand-tertiary — keeps keyboard focus visually distinct from confirmed selection.',
+            'Stroke is a real CSS border (not transparent + inset shadow) — prevents the white-seam bug on browsers that anti-alias inset shadows differently.',
+          ]}
+          dos={[
+            'Use for card-style single-select surfaces (appointment mode "นัดหมาย / ไม่นัดหมาย", treatment certificate "รับ / ไม่รับ").',
+            'Use `border` for standalone surface cards; turn off when the row sits inside an already-bordered container.',
+            'Keep the slot set consistent within one group — all rows show the same combo of icon / title / description / badge.',
+          ]}
+          donts={[
+            "Don't combine with CheckboxButton in the same group — pick single-select OR multi-select.",
+            "Don't render RadioButton alone — wrap in a RadioGroup or pair with a controlled `checked` from a single-select parent.",
+            "Don't use for in-line form rows — that's `Radio` (atom + label).",
+          ]}
+        />
     </Section>
   );
 };
@@ -5460,6 +6500,23 @@ const InputFieldDemo = () => (
         leadingIcon='calendar_today'
       />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Native <input> wrapped in chrome — state auto-resolves from focus + value + error/disabled; pass `state` to force a visual.',
+        'Chrome (border / focus ring / shadow) lives on the wrapper — the inner <input> is intentionally chrome-free (see CLAUDE.md `--mih-*-input` rule).',
+        '`aria-invalid` flips on error; `aria-disabled` honored on programmatic disable.',
+      ]}
+      dos={[
+        'Pair with a `Field` label (see Fields demo) — never ship a bare input without a visible / aria label.',
+        'Use Large (44) inside cards and form sections; Medium (36) in inline / dense rows.',
+        'Wire `error` from form-level validation; the helper text slot doubles as the error message.',
+      ]}
+      donts={[
+        "Don't apply border / outline / box-shadow on the inner <input> — chrome lives on the wrapper.",
+        "Don't pre-fill with placeholder text inside the value — that breaks the empty / filled state resolution.",
+        "Don't omit the label for narrow inputs — the asterisk + label is the only required-field signal.",
+      ]}
+    />
   </Section>
 );
 
@@ -5472,6 +6529,23 @@ const VoiceInputFieldDemo = () => (
         helperText='Click the mic to dictate (Chrome/Edge supports SpeechRecognition).'
       />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Native <input> + trailing mic button. Mic uses Web SpeechRecognition (Chrome/Edge/Safari) — requires a SECURE context (HTTPS or localhost).',
+        'Microphone permission is requested via `getUserMedia` before recognition starts so mobile browsers don\'t swallow the SR prompt.',
+        'Falls back to `onMicClick` callback if SpeechRecognition is unavailable.',
+      ]}
+      dos={[
+        'Use for short single-line clinician fields where dictation saves time (HN search, ICD lookup query).',
+        'Wire `onMicClick` for environments without SpeechRecognition so the mic button still does something.',
+        'Test over HTTPS — mic over plain HTTP / LAN silently fails.',
+      ]}
+      donts={[
+        "Don't use over plain HTTP for mobile testing — mic is blocked; use a HTTPS tunnel.",
+        "Don't use for long multi-sentence dictation — switch to `VoiceTextarea` (multiline) or `SuggestibleTextarea voice`.",
+        "Don't assume SpeechRecognition is available — feature-detect via `isSpeechRecognitionAvailable()`.",
+      ]}
+    />
   </Section>
 );
 
@@ -5491,6 +6565,20 @@ const InputFieldSlashDemo = () => (
         cellMinWidth={300}
       />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Two native <input>s separated by a literal `/` glyph — `value` is a tuple `[a, b]`.',
+        'Both inputs share one label, helper, error state, and focus chrome — error tints both halves.',
+      ]}
+      dos={[
+        'Use for clinical paired values: BP Systolic / Diastolic, score / max, ratio numerator / denominator.',
+        'Validate both halves at the field level; either-half-empty should flag the whole control.',
+      ]}
+      donts={[
+        "Don't use for unrelated values that happen to be next to each other — use two separate `InputField`s.",
+        "Don't use the slash to mean alternation (OR) — that's a different domain pattern; use a Select instead.",
+      ]}
+    />
   </Section>
 );
 
@@ -5510,6 +6598,20 @@ const InputFieldRangeDemo = () => (
         cellMinWidth={300}
       />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Two native <input>s separated by a literal `-` glyph — `value` is a tuple `[min, max]`. Aliases InputFieldSlash with separator="-".',
+        'Both halves share one label, helper, error state, and focus chrome.',
+      ]}
+      dos={[
+        'Use for filter ranges (age range, weight range, date range numeric halves) and clinical normal-range entry.',
+        'Validate that min ≤ max at the field level and surface as `error` text.',
+      ]}
+      donts={[
+        "Don't use for non-numeric ranges (e.g. text ranges) — use two separate InputFields with labels.",
+        "Don't omit the unit in the label or helper — the dash separator gives no clue what unit applies.",
+      ]}
+    />
   </Section>
 );
 
@@ -5524,6 +6626,19 @@ const VoiceTextareaDemo = () => (
         cellMinWidth={300}
       />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Low-level multiline + mic primitive. Web SpeechRecognition + mic permission via getUserMedia — requires HTTPS / localhost.',
+        'Toolbar at bottom holds the language tag + brand mic button.',
+      ]}
+      dos={[
+        'Use ONLY inside design-system / preview surfaces where you want the bare voice textarea (no suggestion popover).',
+      ]}
+      donts={[
+        "PROJECT RULE: Don't use bare `VoiceTextarea` in clinician fields — wrap in `SuggestibleTextarea voice` with a non-empty `suggestions` array + `minChars`. Previous incident: a clinician field shipped without suggestions and was unusable on a slow connection (memory: feedback_voice_textarea_suggestions).",
+        "Don't ship over plain HTTP — mic is blocked.",
+      ]}
+    />
   </Section>
 );
 
@@ -5538,6 +6653,20 @@ const TextareaDemo = () => (
         cellMinWidth={300}
       />
     </Variant>
+    <Guidelines
+      behavior={[
+        'Native <textarea> wrapped in chrome — same state-resolution model as InputField. Min-height 96 px.',
+        'Vertical resize handle enabled by default; chrome lives on the wrapper.',
+      ]}
+      dos={[
+        'Use for short free-form notes that don\'t need dictation or suggestions.',
+        'Pair with a `Field` label + helper text.',
+      ]}
+      donts={[
+        "Don't use for clinician dictation fields — use `SuggestibleTextarea voice` instead so suggestions are always available.",
+        "Don't apply border / outline / box-shadow on the inner <textarea> — chrome lives on the wrapper.",
+      ]}
+    />
   </Section>
 );
 
@@ -5604,6 +6733,23 @@ const SuggestibleTextareaDemo = () => {
           placeholder='เช่น ผู้ป่วยรู้สึกตัวดี ฟังปอด: vesicular breath sound…'
         />
       </Variant>
+      <Guidelines
+        behavior={[
+          'Multiline + portalled suggestions popover anchored 4 px below the last typed glyph row (caret-tracking, not textarea-bottom).',
+          '`voice` prop swaps the inner field for VoiceTextarea (mic + language tag). `minChars` controls popover trigger (per Figma data: 1 for short durations, 3 for free-text).',
+          'Clicking a suggestion row replaces the ENTIRE value — not appends — so the popover is for full-phrase replacement, not autocomplete.',
+        ]}
+        dos={[
+          'PROJECT RULE: ALWAYS pass a non-empty `suggestions` array + `minChars` for clinician fields — this is the canonical voice-textarea pattern.',
+          'Tune `minChars` to the field: short-burst fields (durations) → 1; free-text clinical notes → 3.',
+          'Use `voice` for clinician-typed fields where dictation saves time.',
+        ]}
+        donts={[
+          "Don't ship with an empty `suggestions` array — the popover never appears and the mic alone is useless (memory: feedback_voice_textarea_suggestions).",
+          "Don't expect partial substring autocomplete — the popover replaces the whole value.",
+          "Don't use this for forms that the patient fills (e.g. consent forms) — it's a clinician-typing primitive.",
+        ]}
+      />
     </Section>
   );
 };
@@ -6897,6 +8043,21 @@ const PaginationDemo = () => {
       <Variant label='Edge: only 1 page (renders just disabled arrows)' stack>
         <Pagination currentPage={1} pageCount={1} onPageChange={() => {}} />
       </Variant>
+      <Guidelines
+        behavior={[
+          '1-based page numbering. Auto-collapses long lists with `…` ellipsis on both sides; `siblingCount` controls the window around current.',
+          'Disabled previous / next arrows on boundary edges; single-page mode shows only the disabled arrows.',
+        ]}
+        dos={[
+          'Use under any table / list that grows beyond ~25 rows.',
+          'Wire `onPageChange` to the data fetcher; keep selection state in the parent.',
+          'Use `siblingCount={2}` on wider tables where users skim across many pages.',
+        ]}
+        donts={[
+          "Don't use for infinite-scroll lists — switch to a Load-more pattern.",
+          "Don't reset to page 1 silently on filter change — show a transient hint or scroll to top.",
+        ]}
+      />
     </Section>
   );
 };
@@ -7411,6 +8572,7 @@ const WIDE_PREVIEW_SLUGS = new Set([
 const ComponentsLibraryPage = () => {
   const { slug } = useParams();
   const history = useHistory();
+  const location = useLocation();
   const item = slug ? ALL_ITEMS.find((i) => i.slug === slug) : null;
 
   if (slug && !item) {
@@ -7419,6 +8581,12 @@ const ComponentsLibraryPage = () => {
     return null;
   }
 
+  /* Embedded mode — `?embed=1` hides this page's own side rail so the
+     outer design-system.html doesn't duplicate component navigation.
+     The TopBar (brand switcher) stays because picking a brand is still
+     useful inside the iframe preview. */
+  const embedded = new URLSearchParams(location.search).get('embed') === '1';
+
   const Demo = item ? item.Demo : LandingDemo;
   const contentMaxWidth = slug && WIDE_PREVIEW_SLUGS.has(slug) ? 1280 : 960;
 
@@ -7426,7 +8594,7 @@ const ComponentsLibraryPage = () => {
     <div className='flex flex-col w-full h-screen' style={{ background: '#F4F5F5' }}>
       <TopBar />
       <div className='flex flex-1 min-h-0'>
-        <SideMenu activeSlug={slug} />
+        {!embedded && <SideMenu activeSlug={slug} />}
         <main
           className='flex-1 min-w-0'
           style={{

@@ -388,7 +388,7 @@
         <span class="pill">Vite 2 + React 17</span>
         <span class="pill">react-router-dom 5</span>
         <span class="pill">Tailwind 2 + design tokens</span>
-        <span class="pill">Refreshed 2026-05-21</span>
+        <span class="pill">Refreshed 2026-05-23</span>
       </div>
     </div>
 
@@ -526,6 +526,20 @@
 
       <h3>3.8 Step transition animation</h3>
       <p>Module: <a class="fileref" href="../src/components/step/stepTransition.js">stepTransition.js</a>. <code>useStepDirection(stepIndex)</code> tracks forward / backward direction so the wrapper sets <code>data-direction</code> and the CSS keyframe slides content from the corresponding side. The wrapper <code>key={stepIndex}</code> re-mount is what triggers the animation.</p>
+
+      <h3>3.9 Component Guidelines (Do / Don't)</h3>
+      <p>All <strong>118 routed components</strong> in the Components Library carry a <code>&lt;Guidelines&gt;</code> panel — three arrays summarising:</p>
+      <ul>
+        <li><strong><code>behavior</code></strong> — semantic / accessibility contract, state resolution rules, ARIA wiring, project-specific tech gotchas (HTTPS for voice, chrome-stripping rule, etc.).</li>
+        <li><strong><code>dos</code></strong> — when + why to use, common pairings, recommended sizes / variants per context.</li>
+        <li><strong><code>donts</code></strong> — anti-patterns from real incidents (bare <code>VoiceTextarea</code> rule, missing aria-label on icon buttons), and confusable alternatives.</li>
+      </ul>
+      <p><strong>Where to read:</strong></p>
+      <ul>
+        <li>Live viewer: <a href="design-system.html">docs/design-system.html</a> → pick a component → <strong>Live</strong> tab → Guidelines panel at the bottom of the Section.</li>
+        <li>Canonical source: <a class="fileref" href="../src/pages/components/ComponentsLibraryPage.jsx">ComponentsLibraryPage.jsx</a>. Each demo ends with <code>&lt;Guidelines behavior={[…]} dos={[…]} donts={[…]} /&gt;</code> inside its Section.</li>
+      </ul>
+      <div class="callout info"><span class="callout-title">Where NOT to read:</span> <a class="fileref" href="../design.md">design.md</a>. The token document is intentionally token-only — Guidelines live next to the live demo so they update with the same review as code changes.</div>
     </section>
 
     <!-- ────────────────────────────────────────────────────────
@@ -828,7 +842,8 @@
       <p>These routes are not part of the clinician workflow — they're internal tools for the design system and engineering teams.</p>
 
       <h3>10.1 Components Library</h3>
-      <p>Route: <code>/components</code>, <code>/components/:slug</code> → <a class="fileref" href="../src/pages/components/ComponentsLibraryPage.jsx">ComponentsLibraryPage</a> (~7400 lines). Live showcase of every design-system component documented in design.md. One section per component slug (button / badge / card / table / step / stepper / popup / etc.) — imports every component, renders state matrices + interactive demos.</p>
+      <p>Route: <code>/components</code>, <code>/components/:slug</code> → <a class="fileref" href="../src/pages/components/ComponentsLibraryPage.jsx">ComponentsLibraryPage</a> (~7900 lines). Live showcase of <strong>118 routed components</strong> organised into 21 categories (alert / badge / button × 3 families / checkbox / radio / switch / tag / topic / tooltip / card × 2 / charts / form fields / forms / form-builder / examination / layout / shells / popup / list-table / search / step / tab / timeline). Each demo renders state matrices (rows = sizes / checked-modes, cols = states) + interactive variants + a <code>&lt;Guidelines&gt;</code> panel (behavior · dos · donts — see §3.9).</p>
+      <p><strong>Embed mode:</strong> append <code>?embed=1</code> to a component URL (e.g. <code>/components/brand-button?embed=1</code>) to hide the page's own SideMenu so it renders cleanly inside an iframe. <code>docs/design-system.html</code> uses this so its outer sidebar is the only navigation.</p>
       <p><code>WIDE_PREVIEW_SLUGS</code> get a full-width canvas — used by examination-canvas and table demos.</p>
 
       <h3>10.2 Preview pages</h3>
@@ -858,10 +873,13 @@
       <div class="callout"><span class="callout-title">National ID mask:</span> <code>formatNationalId(value)</code> injects <code>1-####-##-###-###</code>. Raw can be 17 chars (13 digits + 4 dashes).</div>
       <div class="callout"><span class="callout-title">Chip-read NON_CHIP_FIELDS:</span> the Thai ID chip does not carry <code>education</code>, <code>occupation</code>, <code>marital</code>. <code>applySmartCardRead</code> preserves what the user already typed for these three keys.</div>
       <div class="callout info"><span class="callout-title">"อื่นๆ" branches:</span> Mobility 'other' (Step 5 Registration) — <code>mobilityOther</code> must be non-empty for the step to count as complete. Mirror this pattern when adding any new "อื่นๆ" sub-text field.</div>
+      <div class="callout warn"><span class="callout-title"><code>caption2</code> token is NOT a duplicate of <code>caption1</code>:</span> An old version of design.md had <code>caption1</code> and <code>caption2</code> with identical 12 px values and one got deleted — Figma <code>3465:2</code> actually defines <code>caption2</code> as <strong>10 px</strong>. The fix re-numbered the 10 px token from <code>caption3</code> → <code>caption2</code> (2026-05-22). If you see code referencing <code>caption3</code>, it's stale.</div>
+      <div class="callout"><span class="callout-title">Effect Styles audit (Figma <code>3446:4426</code>):</span> Synced 2026-05-22. <strong>Brand Inner Shadow 100–600</strong> values rewritten to match Figma's progressive blur (2→16 px) / y-offset (1→12) / α (8%→22%); <strong>Blur radii</strong> corrected (overlay 4→8 px · layer 4→6 · glass 4→12); <strong>Indigo Drop Shadow Bottom 100/200</strong> added (base <code>#818CF8</code>); 6 generic <code>effect.drop-shadow.{3xs..lg}</code> tokens removed (never wired into CSS). Total: 36/36 Figma styles match.</div>
+      <div class="callout"><span class="callout-title">UTF-8 markdown serving:</span> <a class="fileref" href="../vite.config.mjs">vite.config.mjs</a> has a <code>utf8MarkdownPlugin</code> middleware that appends <code>; charset=utf-8</code> to <code>text/markdown</code> responses. Without it, browsers fall back to Latin-1 → Thai text in <code>.md</code> renders as mojibake (<code>ถ่ายรูป</code> → <code>à¸–à¹‰à¸²à¸¢à¸£à¸¹à¸›</code>). HTML files have in-file <code>&lt;meta charset="UTF-8"&gt;</code> so unaffected.</div>
     </section>
 
     <p style="text-align:center;color:var(--ink-4);font-size:12px;margin-top:36px;">
-      End of spec · Last refreshed alongside the StepProgress check-mark feature (2026-05-21)
+      End of spec · Last refreshed alongside the Component Guidelines + caption2 + Effect Styles audit (2026-05-23)
     </p>
   </main>
 </div>

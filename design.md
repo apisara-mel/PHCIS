@@ -2155,6 +2155,13 @@ Component Token Mapping แสดงว่าแต่ละ property ของ 
 > Brand mode: **default** (primary = emerald palette, secondary = forest palette).
 > All hex values shown for **light / dark** modes respectively.
 
+> 📘 **Usage Guidelines (Do / Don't):** Per-component Do/Don't rules — behavior · dos · donts — live in the live components page, **not** in this token document. The token tables below specify *what* each variant looks like; the Guidelines specify *when* and *why* to use each variant. To browse Do/Don't for any component:
+>
+> - **Live viewer:** [docs/design-system.html](docs/design-system.html) → pick a component in the sidebar → **Live** tab. Each component renders its `<Guidelines>` panel at the bottom of its Section.
+> - **Canonical source code:** [src/pages/components/ComponentsLibraryPage.jsx](src/pages/components/ComponentsLibraryPage.jsx). Search for the component's `<Guidelines behavior={[...]} dos={[...]} donts={[...]}/>` block.
+>
+> All 118 routed components carry a `<Guidelines>` panel as of 2026-05-23. To update, edit `ComponentsLibraryPage.jsx` only — design.md token mappings stay focused on the token layer.
+
 ---
 
 ---

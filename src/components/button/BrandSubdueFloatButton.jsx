@@ -17,19 +17,32 @@ const Sym = ({ name, size, color }) => (
 );
 
 const BrandSubdueFloatButton = React.forwardRef(function BrandSubdueFloatButton(
-  { icon, onClick, type = 'button', size = 56, 'aria-label': ariaLabel, className = '', style = {}, ...rest },
+  {
+    icon,
+    onClick,
+    type = 'button',
+    size = 56,
+    /* Controlled hover override — when omitted the component tracks its
+       own hover state. Used by the design-system state-matrix table. */
+    hovered: hoveredProp,
+    'aria-label': ariaLabel,
+    className = '',
+    style = {},
+    ...rest
+  },
   ref,
 ) {
-  const [hovered, setHovered] = useState(false);
+  const [hoveredState, setHoveredState] = useState(false);
   const [pressed, setPressed] = useState(false);
+  const hovered = hoveredProp ?? hoveredState;
   return (
     <button
       ref={ref}
       type={type}
       aria-label={ariaLabel}
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setPressed(false); }}
+      onMouseEnter={() => setHoveredState(true)}
+      onMouseLeave={() => { setHoveredState(false); setPressed(false); }}
       onMouseDown={() => setPressed(true)}
       onMouseUp={() => setPressed(false)}
       className={`inline-flex items-center justify-center transition-all duration-200 ease-out ${className}`}

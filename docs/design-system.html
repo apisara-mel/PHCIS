@@ -930,9 +930,10 @@
       if (currentTab !== 'spec') setTab('spec');
     }
 
-    /* Build live URL */
+    /* Build live URL — `?embed=1` tells ComponentsLibraryPage to hide
+       its own side rail so the outer sidebar here is the only one. */
     const liveUrl = e.slug
-      ? `${(serverInput.value || 'http://127.0.0.1:3000').replace(/\/+$/, '')}/components/${e.slug}`
+      ? `${(serverInput.value || 'http://127.0.0.1:3000').replace(/\/+$/, '')}/components/${e.slug}?embed=1`
       : '';
     openNew.style.display = e.slug ? 'inline-flex' : 'none';
     openNew.href = liveUrl;
