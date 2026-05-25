@@ -31,7 +31,7 @@ const DefaultCircleIcon = ({ name = 'stethoscope', size = 20 }) => (
     style={{
       width: 36,
       height: 36,
-      borderRadius: 18,
+      borderRadius: 'var(--dim-radius-full, 9999px)',
       background: 'var(--surface-brandPrimary-quaternary)',
       color: 'var(--text-brandPrimary-default)',
     }}

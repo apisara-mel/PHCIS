@@ -288,7 +288,7 @@ const CameraCapturePopup = ({ open, onClose, onCapture }) => {
           style={{
             aspectRatio: '4 / 3',
             background: 'var(--surface-neutral-secondary, #1F2937)',
-            borderRadius: 'var(--dim-radius-300)',
+            borderRadius: 'var(--dim-radius-400, 12px)',
           }}
         >
           <video
@@ -311,7 +311,7 @@ const CameraCapturePopup = ({ open, onClose, onCapture }) => {
             <div
               className='absolute inset-0 flex items-center justify-center text-center'
               style={{
-                background: 'rgba(0,0,0,0.55)',
+                background: 'var(--surface-overlay-default)',
                 color: '#FFFFFF',
                 fontFamily: 'var(--type-family-body)',
                 fontSize: 'var(--type-size-sm)',

@@ -78,7 +78,7 @@ const CircleIconTile = ({ name }) => (
     style={{
       width: 36,
       height: 36,
-      borderRadius: 18,
+      borderRadius: 'var(--dim-radius-full, 9999px)',
       background: 'var(--surface-brandPrimary-quaternary)',
       color: 'var(--text-brandPrimary-default)',
     }}
@@ -105,7 +105,7 @@ const SuccessTick = () => (
     style={{
       width: 18,
       height: 18,
-      borderRadius: 9,
+      borderRadius: 'var(--dim-radius-150, 6px)',
       background: 'var(--icon-positive-success)',
       color: 'var(--text-positive-success-tick)',
     }}

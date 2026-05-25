@@ -77,7 +77,7 @@ const ProfilePopover = ({ open, anchorRect, anchorRef, onClose, onSelect }) => {
         background:    'var(--surface-dropdown-default)',
         border:        'var(--dim-stroke-100) solid var(--border-dropdown-default)',
         borderRadius:  'var(--dim-radius-500)',
-        boxShadow:     'var(--shadow-dropdown)',
+        boxShadow:     'var(--shadow-drop-bottom-400)',
         padding:       'var(--dim-space-100)',
         fontFamily:    'var(--type-family-body)',
         display: 'flex',

@@ -98,7 +98,7 @@ const NavItem = ({ icon, label, active, onClick }) => {
         paddingRight:  'var(--dim-space-300)',
         paddingTop:    'var(--dim-space-200)',
         paddingBottom: 'var(--dim-space-200)',
-        borderRadius:  active ? 'var(--dim-radius-100)' : 6,
+        borderRadius:  active ? 'var(--dim-radius-100)' : 'var(--dim-radius-150, 6px)',
         borderLeft:    active ? 'var(--dim-stroke-400) solid var(--brand-p700)' : 'none',
         background: tinted ? 'var(--surface-list-hover)' : 'transparent',
         color:      tinted ? 'var(--text-list-hover)'    : 'var(--text-list-default)',
@@ -181,7 +181,7 @@ const ModeButton = ({ mode, selected, onClick }) => (
       style={{
         width:  'var(--dim-size-700)',           /* 36px */
         height: 'var(--dim-size-700)',
-        borderRadius: 18,
+        borderRadius: 'var(--dim-radius-500, 16px)',
         background: mode.bg,
       }}
     >

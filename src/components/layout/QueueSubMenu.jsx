@@ -98,7 +98,7 @@ const QueueRow = ({ name, tone, badge, emphasis = false, onClick }) => (
       className='shrink-0'
       style={{
         width: 8, height: 8,
-        borderRadius: 4,
+        borderRadius: 'var(--dim-radius-100, 4px)',
         background: tone,
       }}
     />

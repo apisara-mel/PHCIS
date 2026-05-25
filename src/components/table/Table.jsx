@@ -8,6 +8,28 @@ import Select       from '@/components/forms/Select';
 import BrandIconButton       from '@/components/button/BrandIconButton';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 
+/* Skeleton-row pulse — idempotent module-load stylesheet injection so HMR
+   doesn't leave a stale <style> behind. Mirrors the AISearch chrome-strip
+   pattern in CLAUDE.md. The bar uses `--surface-table-hover` (brand-p50)
+   so the placeholder tint stays consistent with hover rows. */
+if (typeof document !== 'undefined' && !document.getElementById('mih-table-skeleton-style')) {
+  const css = document.createElement('style');
+  css.id = 'mih-table-skeleton-style';
+  css.textContent = `
+    @keyframes mih-table-skeleton-pulse {
+      0%, 100% { opacity: 0.55; }
+      50%      { opacity: 1; }
+    }
+    .mih-table-skeleton-bar {
+      height: var(--dim-space-300, 12px);
+      background: var(--surface-table-hover);
+      border-radius: var(--dim-radius-150, 6px);
+      animation: mih-table-skeleton-pulse 1.4s ease-in-out infinite;
+    }
+  `;
+  document.head.appendChild(css);
+}
+
 /* MIH Table — Figma node 49FBtstXs6YQGlpVqREqhy / 22:11760.
    Brand-aware via design.md tokens (surface.table.*, border.table.*,
    text.table.*) so switching `<html data-brand="...">` retints
@@ -76,7 +98,7 @@ export const EllipsisText = ({ text, className = '', fill = true }) => {
           style={{
             position: 'absolute', left: 'var(--dim-space-0)', top: 'calc(100% + 4px)', zIndex: 1200,
             maxWidth: 480, whiteSpace: 'normal', overflowWrap: 'break-word',
-            padding: '6px 8px', borderRadius: 6,
+            padding: '6px 8px', borderRadius: 'var(--dim-radius-150, 6px)',
             background: 'var(--surface-dropdown-default)',
             color: 'var(--text-list-default)',
             border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',
@@ -272,8 +294,15 @@ export const FooterCell = React.forwardRef(function FooterCell(
 
 const ProfileSlot = ({ src = '/images/doctor-a.png', alt = '' }) => (
   <span aria-hidden={!alt} style={{
-    width: 36, height: 36, flexShrink: 0, borderRadius: 'var(--dim-radius-full)',
-    background: '#E7F1F8', overflow: 'hidden', position: 'relative',
+    width: 'var(--dim-size-700, 36px)',
+    height: 'var(--dim-size-700, 36px)',
+    flexShrink: 0,
+    borderRadius: 'var(--dim-radius-full)',
+    background: 'var(--surface-table-header)',
+    border: 'var(--dim-stroke-100) solid var(--border-table-default)',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+    position: 'relative',
     display: 'inline-block',
   }}>
     <img
@@ -870,6 +899,15 @@ const Table = ({
   stickyHeaderTop = null,
 
   emptyMessage = 'ไม่พบข้อมูล',
+
+  /* Loading / skeleton state. When `loading` is true, the rows array is
+     ignored and N placeholder rows are rendered with pulsing bars sized
+     to each column's width. Use this while fetching server data so the
+     user sees the column structure immediately instead of an empty box
+     followed by a flash of content. */
+  loading = false,
+  skeletonRows = 5,
+
   className = '',
   style = {},
 }) => {
@@ -960,28 +998,75 @@ const Table = ({
     </>
   );
 
+  /* Skeleton placeholder rows — match the real row chrome (height,
+     dividers, padding) so the table doesn't shift when real data lands.
+     Each cell gets a `.mih-table-skeleton-bar` whose width is a stable
+     pseudo-random fraction of the column's pixel width (60 – 88%), keyed
+     off `colIdx + rowIdx` so the same row/column always renders at the
+     same width across re-renders. */
+  const skeletonBarWidth = (rowIdx, colIdx) => {
+    const seed = (rowIdx * 7 + colIdx * 13) % 100;
+    return `${60 + (seed % 29)}%`;
+  };
+
   const rowsAndEmpty = (
     <>
-      {rows.map((row, idx) => (
-        <Row
-          key={rowKey(row)}
-          row={row}
-          index={idx}
-          columns={columns}
-          stickyColCount={stickyColCount}
-          stickyLeft={stickyLeft}
-          stickyShadow={stickyShadow}
-          editMode={editMode}
-          isDragging={editMode && draggedIdx === idx}
-          isOver={editMode && overIdx === idx && draggedIdx !== idx}
-          onDragStart={editMode && onDragStart ? onDragStart(idx) : undefined}
-          onDragOver={editMode && onDragOver ? onDragOver(idx) : undefined}
-          onDrop={editMode && onDrop ? onDrop(idx) : undefined}
-          onDragEnd={editMode && onDragEnd ? onDragEnd : undefined}
-          onRowClick={onRowClick}
-        />
-      ))}
-      {rows.length === 0 && (
+      {loading
+        ? Array.from({ length: Math.max(1, skeletonRows) }).map((_, rowIdx) => (
+            <div
+              key={`skeleton-${rowIdx}`}
+              className='flex items-center'
+              style={{
+                minWidth: totalMinWidth,
+                paddingLeft: 'var(--dim-space-400, 16px)',
+                paddingRight: 'var(--dim-space-400, 16px)',
+                paddingTop: 'var(--dim-space-300, 12px)',
+                paddingBottom: 'var(--dim-space-300, 12px)',
+                borderBottom:
+                  'var(--dim-stroke-100) solid var(--border-table-line)',
+                background: 'var(--surface-table-default)',
+              }}
+            >
+              {editMode && (
+                <div aria-hidden style={{ width: DRAG_COL_W, flexShrink: 0 }} />
+              )}
+              {columns.map((c, colIdx) => (
+                <div
+                  key={c.key}
+                  style={{
+                    width: colWidthPx(c),
+                    flexShrink: 0,
+                    paddingRight: 'var(--dim-space-200, 8px)',
+                  }}
+                >
+                  <span
+                    className='mih-table-skeleton-bar'
+                    style={{ display: 'block', width: skeletonBarWidth(rowIdx, colIdx) }}
+                  />
+                </div>
+              ))}
+            </div>
+          ))
+        : rows.map((row, idx) => (
+            <Row
+              key={rowKey(row)}
+              row={row}
+              index={idx}
+              columns={columns}
+              stickyColCount={stickyColCount}
+              stickyLeft={stickyLeft}
+              stickyShadow={stickyShadow}
+              editMode={editMode}
+              isDragging={editMode && draggedIdx === idx}
+              isOver={editMode && overIdx === idx && draggedIdx !== idx}
+              onDragStart={editMode && onDragStart ? onDragStart(idx) : undefined}
+              onDragOver={editMode && onDragOver ? onDragOver(idx) : undefined}
+              onDrop={editMode && onDrop ? onDrop(idx) : undefined}
+              onDragEnd={editMode && onDragEnd ? onDragEnd : undefined}
+              onRowClick={onRowClick}
+            />
+          ))}
+      {!loading && rows.length === 0 && (
         <div
           className='flex items-center justify-center'
           style={{

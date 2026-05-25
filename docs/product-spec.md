@@ -26,8 +26,9 @@ client. Persistence is opportunistic: only the OPD draft list is kept in
 7. [Treatment / CPOE](#7-treatment--cpoe)
 8. [Forms Library (คลังแบบฟอร์ม)](#8-forms-library-คลังแบบฟอร์ม)
 9. [Users & Access](#9-users--access)
-10. [Dev Tools](#10-dev-tools)
-11. [Appendix — Pitfalls & Gotchas](#11-appendix--pitfalls--gotchas)
+10. [Sidebar Stub Menus](#10-sidebar-stub-menus)
+11. [Dev Tools](#11-dev-tools)
+12. [Appendix — Pitfalls & Gotchas](#12-appendix--pitfalls--gotchas)
 
 ---
 
@@ -240,6 +241,15 @@ Read-only.
 
 **Pitfalls.** Leaflet's CSS and JS are loaded from a CDN ([index.html](../index.html)) and integrity-checked; if the SRI hash drifts the map silently breaks.
 
+### 4.1 Logic
+
+- **Entry:** any authenticated route hit on `/` lands here. Sidebar `dashboard` key is highlighted by `Sidebar` derivation logic when `pathname.startsWith('/dashboard')`.
+- **State scope:** local to the page only — `selectedYear` (Dropdown) is the single piece of UI state; nothing persists across sessions.
+- **Filter logic:** `selectedYear` is presentational right now — chart cards use their internal `DEFAULT_*` mocks regardless. Wiring a real filter would: (a) lift year up to a context, (b) pass `{ year }` into every chart card's data fetcher, (c) memoize the chart query keys.
+- **No leave-guard / no dirty tracking** because the page is read-only.
+- **Cross-system entry points:** the "Recent patients" table rows are plain mock — they do NOT navigate; production would route each row into `/treat/record` or `/opd/screening` with `state: { hn }`.
+- **Error handling:** chart-card primitives swallow missing data and render an empty state. Leaflet (ServiceCenterMapCard) silently fails if the CDN SRI hash drifts — there is no fallback UI.
+
 ---
 
 ## 5. OPD Screening
@@ -292,6 +302,52 @@ unreported steps fall back to `idx < current` (advance-past).
 **Dirty tracking & step-validity protocol** — see [§3.2](#32-dirty-tracking--unsaved-changes-guard). Critical detail: the wrapper listens on `onKeyDown` + `onPointerDown` (not `onChange`) and gates on `event.isTrusted` so autofill / programmatic dispatch can't flip the dirty flag before a real user gesture.
 
 **Save draft** — calls `saveOpdScreeningDraft({ hn, name, queue })` which writes a key into `sessionStorage` under `mih:opd-screening-drafts`. The queue page reads it back via `applyOpdScreeningDrafts(rows)` and tints those rows with `statusKey: 'draft'`.
+
+### 5.3 Logic
+
+#### Queue → Screening transition
+
+1. **Queue row click** → `<Link to={{ pathname: '/opd/screening', state: { hn, queue, name } }}>`.
+2. **Patient resolution** ([ScreeningPage.jsx:808-810](../src/pages/opd/ScreeningPage.jsx#L808)): try `getPatientByHN(navState.hn)` first; fall back to `getPatientByShortName(navState.name)`; final fallback is `DEFAULT_PATIENT`. **Direct visits without router state still render** — they get the default profile.
+3. **Confirm-on-entry popup** ([ScreeningConfirmPopup](../src/components/popup/ScreeningConfirmPopup.jsx)) mounts immediately. Cancel → `history.push('/opd/queue')`. Confirm → `setConfirmOpen(false)` and form mounts.
+
+#### Per-step state model
+
+- **`current`** (0..4) — currently visible step. `goNext = () => setCurrent(c => Math.min(STEPS.length - 1, c + 1))`.
+- **`dirtyStepsRef` (Set) + mirror state** — tracked per step, mutated only via `markDirty(event)`. Source-of-truth is the ref so the unsaved-changes guard reads synchronously without a re-render.
+- **`stepValidities` (map { stepIndex → bool })** — written by step bodies via `onValidityChange(valid)`. The two-tier Next-button gate is: `currentStepValid = stepValidities[current] ?? currentStepDirty` — explicit validity wins over dirty-proxy heuristic.
+
+#### `markDirty` event-source filter (deliberate)
+
+Listens **only** on `onKeyDown` + `onPointerDown` of the form-wrapper subtree, NOT `onChange` / `onInput`. Rationale:
+- `keydown` and `pointerdown` fire only from real user devices.
+- `change` / `input` fire on autofill, on programmatic `dispatchEvent`, and on React strict-mode artefacts — these would falsely unlock the Next button before the clinician typed anything.
+- Additional `event.isTrusted` check rejects synthetic events.
+- For pointer presses, additionally require `[aria-pressed]` (chip-style toggles) or `[aria-label="decrement|increment"]` (Stepper +/- buttons) so generic clicks on voice mic / accordions don't flip the dirty flag.
+
+#### Save Draft
+
+1. Click *บันทึกร่าง* (enabled when `anyDirty` is true).
+2. `saveOpdScreeningDraft({ hn, name, queue })` writes a `queue|hn|name` key into `sessionStorage` under `mih:opd-screening-drafts` (de-duped via `Set`).
+3. `clearDirty()` resets both `dirtyStepsRef` and the React mirror.
+4. `history.push('/opd/queue', { activeTab: 'progress', focusDrafts: true })` — back to queue with the "ที่ร่างไว้" tab focused.
+
+#### Leave guard
+
+Back button (`handleBack`) checks `dirtyStepsRef.current.size > 0`. If dirty → opens [UnsavedChangesPopup](../src/components/popup/UnsavedChangesPopup.jsx) with three outcomes:
+- **บันทึกร่าง** → `handleSaveDraftAndLeave` (writes draft, leaves).
+- **ทิ้งการแก้ไข** → `handleDiscardAndLeave` (clears dirty, leaves).
+- **ยกเลิก** → close popup, stay on the page.
+
+If no dirty steps → `leaveScreen()`: `history.length > 1 ? goBack() : push('/opd/queue')` (defends against direct visits with no prior history).
+
+#### Bed selection branch
+
+Step 2 (SymptomStep) has a "เตียง" tag that opens [BedSelectionPopup](../src/components/popup/BedSelectionPopup.jsx). State `selectedBedId` is local to the page. Confirming the popup writes `formatThaiBedChipLabel(bedId)` onto the tag and closes — the bed becomes part of the symptom slice (not persisted to a separate field).
+
+#### Voice/AI gating (HTTPS prerequisite)
+
+Step 2/3/4 host `SuggestibleTextarea voice` and `AISearch` fields. SpeechRecognition + `getUserMedia` both require a secure context. Over plain HTTP/LAN the mic button silently does nothing — there is no in-app warning. See [§3.4](#34-voice--ai-inputs) and [Pitfalls](#11-appendix--pitfalls--gotchas).
 
 ---
 
@@ -427,6 +483,66 @@ State flag: `form.rightsLookupDone` flips true after lookup. Mock result = `buil
 
 `EMPTY_ADDRESS` keys: `{ zip, province, district, subdistrict, road, moo, houseNo, lat, lng, pinSaved }`.
 
+### 6.3 Logic
+
+#### Entry + state ownership
+
+- Queue row → `/registration/register` with `state: { hn, ... }`. [RegistrationFormPage.jsx:28-30](../src/pages/registration/RegistrationFormPage.jsx#L28-L30) resolves `patient` via `findMrPatientByHn(hn)` ⟶ falls back to `DEFAULT_MR_PATIENT`.
+- `form` state lives on the page (`useState(buildEmptyRegistrationForm)`), passed to every step as `{ form, setForm }`. Each `<Field>` writes via `setForm(s => ({ ...s, [key]: v }))`.
+- `stepIndex` is page-local. No URL-driven step routing — refreshing returns to step 0.
+
+#### Smart-card chip-read flow ([§3.6](#36-smart-card-chip-read-registration-only))
+
+1. User clicks **อ่านบัตรสมาร์ทการ์ด** in the SubHeader.
+2. `handleReadSmartCard` calls `applySmartCardRead(form, patient)`.
+3. `buildPersonalDataFromPatient(patient)` returns chip-sourced fields, then `NON_CHIP_FIELDS = ['education', 'occupation', 'marital']` are RESTORED from the user's prior typing so chip read never clobbers manually-entered data.
+4. `idCardFromChip` is set to `true` → 8 card-sourced fields (`prefixTh`, `firstNameTh`, `lastNameTh`, `prefixEn`, `gender`, `nationalId`, `idIssueDate`, `idExpiryDate`, `addressRegistered`) lock via `disabled={fromChip}`.
+5. `setStepIndex(0)` — return to Step 1 so the user can verify chip data before continuing.
+
+#### Step 2 — address mirror logic
+
+- **"เหมือนที่อยู่ตามทะเบียนบ้าน"** checkbox state lives in `form.useRegisteredForCurrent` / `useRegisteredForContact`.
+- Checkbox is disabled until `isRegisteredAddressComplete(form.addressRegistered)` — gates on zip + province + district.
+- Toggling ON: `copyRegisteredInto(...)` mirrors the text fields (zip/province/district/subdistrict/road/moo/houseNo). Map pin (lat/lng/pinSaved) stays on the target slice.
+- While the flag is true, a `useEffect` re-mirrors edits made on `addressRegistered` so changes propagate live.
+- If `addressRegistered` is later cleared past the required keys: both `useRegisteredFor*` flags drop to false (defense against orphaned mirrored data).
+
+#### Step 3 — emergency contact array
+
+- `form.emergency` is an array. The "เพิ่มผู้ติดต่อ" button is gated by `isEmergencyContactComplete(lastEmergencyEntry)` — you can't add a new row until the previous one has `{ name, last, relation, phone }` all filled.
+- Per-step ✓ requires at least one complete entry (see `isStep3Complete` in [registrationForm.js](../src/data/registrationForm.js)).
+
+#### Step 4 — rights lookup state machine
+
+```
+[empty]  rightsLookupDone === false
+     │
+     │  RightsLookupPanel: search / lookup
+     ▼
+[results]  rightsLookupDone === true, rightsGroups = [...buildMockRightsGroups()]
+     │
+     │  add documents / photos / reorder priorityItems
+     ▼
+[edited]  same rightsGroups[].documents/photos modified
+```
+
+Step ✓ flips as soon as `rightsLookupDone === true`. Document / photo uploads are optional.
+
+#### Step 5 — mobility "อื่นๆ" branch
+
+- `form.mobility` is a single value from the radio (one of: `walk` / `wheelchair` / `cane` / `assisted` / `other`).
+- When mobility is set to `other`, a `mobilityOther` Voice Textarea appears with `MOBILITY_OTHER_SUGGESTIONS`.
+- Step ✓ requires `mobility` set, AND (if `mobility === 'other'`) `mobilityOther` non-empty. Anything else → step shows as incomplete on `StepProgress`.
+- Switching away from `other` clears `mobilityOther` to prevent stale text persisting.
+
+#### Step ✓ aggregation
+
+[`getRegistrationCompletedSteps(form)`](../src/data/registrationForm.js) returns a 5-element boolean array. RegistrationFormPage passes this to `<FormShell completedSteps={...} />` which forwards to `<StepProgress>`. ✓ appears only when validators pass — see [§3.1](#31-stepprogress-check-mark-rule).
+
+#### Footer + leave guard
+
+Unlike OPD Screening, Registration does NOT currently implement an `UnsavedChangesPopup` — clicking the back-button via `handleBack` would lose unsaved work. Adding the same `dirtyStepsRef` + popup pattern is on the to-do for parity (see Pitfalls).
+
 ---
 
 ## 7. Treatment / CPOE
@@ -530,6 +646,75 @@ From [`getTreatmentCompletedSteps`](../src/data/treatmentVisits.js):
 - **`certSignature` is base64 PNG** from the canvas — large strings; `certSignedAt` only flips when the doctor explicitly taps "ยืนยันลายเซ็น".
 - **Empty-state vs filled-state transitions** are heavily commented in TreatmentSteps.jsx — the doctor's "first paint" must match Figma defaults precisely (no seeded ICD rows, no medication chips). The mock seed exports (DEFAULT_MEDICATION_ORDERS, etc.) still exist in [treatmentVisits.js](../src/data/treatmentVisits.js) but are only used by the Components Library demo screens.
 
+### 7.3 Logic
+
+#### Entry + state ownership
+
+- Queue row → `/treat/record` with `state: { hn, queue, name }`. Page resolves TWO patient shapes:
+  - **`patient`** via `findMrPatientByHn` (MR shape — full address, rights, drugAllergies, chronicDiseases). Used by Step bodies.
+  - **`cardPatient`** via `getPatientByHN` (display shape — fullName, englishName, insurance, patientType). Used by the sticky PatientCard header.
+- Both fall back to defaults so direct visits don't crash.
+- `form` state lives on the page; `buildInitialForm(patient)` runs once on mount. Switching patients via QueueSubMenu (`onPickPatient`) calls `history.push('/treat/record', { state: { hn, queue, name } })` — the page re-mounts via route param change, so `form` is rebuilt from the new patient.
+
+#### Read-only steps (1, 2)
+
+- Step 1 (ประวัติ) and Step 2 (หน้าจอคัดกรอง) are read-only summaries — no editable fields. They surface upstream data (HistoryTimeline of past visits / nurse-screening summary).
+- `getTreatmentCompletedSteps` marks these as ✓ once `stepIndex > N` (advance-past semantics) — there's nothing to validate.
+
+#### Cross-step linking (4 ↔ 3, 7 ↔ 4)
+
+- **Step 4 → Step 3 "ตรวจร่างกาย" CTA**: when Step 4 paints its empty state (no body markers/drawings yet), the empty-state block renders a button that calls `onStepChange(STEP_EXAM_INDEX)` — sends the doctor back to Step 3 to capture the exam before diagnosing.
+- **Step 7 reads Step 4**: Cert section computes `hasDiagnosisData = Boolean(primaryDx || form.diagnosisNote || form.diagnoses.length)`. If false, the cert shows "บันทึกการวินิจฉัย" CTA back to Step 4. The cert never copies diagnosis data — it always reads live from form.
+
+#### Step 5 — order category tabs
+
+- `form.orderCategory` is the active tab (`'medication' | 'lab' | 'xray' | 'procedure' | 'consult'`).
+- Each category has its own array (`form.medications`, `form.labs`, etc.) — switching the tab does NOT reset, so the user can build orders across categories.
+- Empty-state branch hides `<showAllergyAlert />` cross-class warning panel; populated-state shows it (dismissible — `setForm(s => ({ ...s, showAllergyAlert: false }))`).
+
+#### Step 6 — appointment mode state machine
+
+```
+[undefined]  appointment.mode === undefined
+     │
+     ├──▶ click "ไม่นัดหมาย"  → mode === 'skip'  → body collapses (ApptCollapse)
+     │
+     └──▶ click "นัดหมาย"      → mode === 'schedule' → body expands:
+                                  • Card 1: clinic / type / doctor / reason / preparation
+                                  • Card 2: advance-orders (yes/no)
+                                  • Card 3: location radio + date picker + timeslot grid
+```
+
+- `ApptCollapse` keeps the body mounted but height-collapses so toggling `mode` between `skip` and `schedule` glides instead of snapping. Form state in collapsed cards is preserved.
+- Step ✓ rule: `mode === 'skip'` ⇒ ✓; `mode === 'schedule'` requires all of `{ clinic, type, doctor, reason, preparation }`.
+
+#### Step 7 — certificate issuance state machine
+
+```
+[empty]  certIssue === ''
+     │
+     ├──▶ click "ไม่รับ"  → certIssue === 'no'  → certificate body stays hidden, step ✓
+     │
+     └──▶ click "รับ"     → certIssue === 'yes' → certificate body renders:
+                              • cert type (general / sick / medico / travel)
+                              • rest-days pills (auto-fills startDate/endDate from today)
+                              • signer + signature canvas
+                              • Step ✓ flips when `certSignature` is non-empty
+```
+
+- `certSignature` is base64 PNG from canvas. `certSignedAt` only flips when the doctor taps **ยืนยันลายเซ็น** (not on every stroke).
+- Clearing the signature via `handleCertSignatureChange('')` also clears `certSignedAt` so an unsigned cert can't pretend to be confirmed.
+
+#### Sticky PatientCard collapse
+
+- PatientCard is rendered ABOVE TreatmentFormShell with `sticky` prop. It owns an IntersectionObserver + sentinel internally.
+- As the form column scrolls under the app Header, the card collapses to its compact "mini" variant ([§3.7](#37-patientcard-sticky-behaviour)). drugAllergies + chronicDiseases pills stay visible inline in mini state.
+- Requires the form column to be scrollable — if the wrapping `<main>` doesn't have `overflow: auto`, the sentinel never crosses and the mini state never engages.
+
+#### Step ✓ aggregation
+
+[`getTreatmentCompletedSteps(form, stepIndex)`](../src/data/treatmentVisits.js) returns 7 booleans. Steps 1, 2, 3, 5 use `stepIndex > N` (advance-past); 4, 6, 7 use real validators. Passed to `<TreatmentFormShell completedSteps={...} />` → `<StepProgress>`.
+
 ---
 
 ## 8. Forms Library (คลังแบบฟอร์ม)
@@ -563,6 +748,54 @@ From [`getTreatmentCompletedSteps`](../src/data/treatmentVisits.js):
 
 **Renderers** ([FormFillPage.jsx](../src/pages/forms/FormFillPage.jsx)) — one per field type. `radio-4` = "ไม่เลย / บางวัน / มากกว่าครึ่ง / เกือบทุกวัน" (PHQ-9 / GAD-7 scale). `radio-5` = "น้อยที่สุด … มากที่สุด". `signature` = inline canvas.
 
+### 8.1 Logic
+
+#### Navigation flow
+
+```
+/forms                       (FormsLibraryPage — hub)
+   │
+   ├──▶ category band click  → /forms/category/:categoryKey  (FormsCategoryPage — drill-down grid)
+   │       │
+   │       └──▶ tabPill pivot → /forms/category/:other  (lateral move across categories)
+   │
+   └──▶ form card click       → /forms/:slug  (FormDetailPage — preview + QR)
+           │
+           ├──▶ "เจ้าหน้าที่กรอกแทน" → /forms/:slug/fill              (clinician chrome)
+           │
+           └──▶ "ส่ง QR ให้ผู้ป่วย" → /forms/:slug/fill?role=patient  (patient-facing chrome stripped)
+```
+
+#### `?role=patient` chrome strip
+
+[FormFillPage](../src/pages/forms/FormFillPage.jsx) reads `useLocation().search` and parses `role`. When `role === 'patient'`, the page:
+- Hides the back-to-catalog button.
+- Hides the "เจ้าหน้าที่กรอกแทน" banner.
+- Sidebar collapses to drawer (< md breakpoint detection).
+
+The form schema renders identically — only chrome differs. This way the QR-landed phone view feels patient-owned without a separate page.
+
+#### Field renderer dispatch
+
+Each field has `type` ∈ `{text, textarea, date, datetime, signature, checkbox, select, radio-4, radio-5, slider-0-10}`. FormFillPage maps `type` → renderer component:
+- Native renderers (text / textarea / date / datetime / checkbox / select) use the bare HTML element with shared `fieldStyle`.
+- `radio-4` / `radio-5` map to `RADIO_4_OPTIONS` / `RADIO_5_OPTIONS` constants (zero-config).
+- `signature` mounts an inline canvas.
+- `slider-0-10` renders a 0–10 step slider (for pain scales).
+
+Unknown types fall through to a text input (defensive default).
+
+#### Filter facet generation (mock)
+
+[`catalogFiltersForForm(form)`](../src/pages/forms/FormsLibraryPage.jsx) uses a deterministic hash of `slug` to assign mock facets (policy / usage / department / creator / formStatus). This means:
+- Filter facets are stable across reloads (same hash → same facet).
+- They're NOT real metadata — production would replace this with form-level fields.
+- Filter UX still works for catalog testing, but values shouldn't be treated as authoritative.
+
+#### Persistence
+
+There is **no persistence** for fills — `useState` on FormFillPage owns the entire form values map. Refreshing loses everything. Production needs a draft autosave per form session.
+
 ---
 
 ## 9. Users & Access
@@ -588,9 +821,114 @@ From [`getTreatmentCompletedSteps`](../src/data/treatmentVisits.js):
 - **SectionCard** — uniform white card with title + icon for each section of the edit page.
 - **Access matrix** — feature group → row with three radio levels (none / view / edit), respecting `supportedLevels`.
 
+### 9.1 Logic
+
+#### Role → SubRole cascade
+
+- Changing `user.role` clears `user.subRole` automatically — the sub-role catalog is keyed by role. E.g. switching role from `doctor` → `nurse` invalidates `subRole = 'gp'` (doctor-only).
+- `SUB_ROLES[role]` may be an empty array — in that case the SubRole picker hides.
+
+#### Feature access matrix logic
+
+- Each feature in `FEATURE_GROUPS` declares `supportedLevels: Array<'none' | 'view' | 'edit'>`.
+- The radio row renders only the supported levels; e.g. a binary-action feature like "ส่ง QR" only shows `'none' | 'edit'` (no 'view').
+- `user.features[featureKey]` defaults to undefined → renders as "ไม่มีสิทธิ์" (`none`).
+
+#### `countAccess(user)` helper
+
+[`countAccess(user)`](../src/data/usersAccess.js) → returns `{ none, view, edit }` counts across the entire feature catalog. Used in the user-list table to show a per-row "X features · Y view · Z edit" summary at-a-glance.
+
+#### Create vs Edit branch
+
+- `/users/new` → `getUserById('new')` returns undefined → `BLANK_USER` seeds the form.
+- `/users/:id` → `getUserById(id)` returns the user or undefined; undefined falls back to BLANK_USER (defensive — should ideally 404).
+- Save / Apply is currently a stub — no persistence wiring. Production needs API integration.
+
+#### Status toggle
+
+`user.status ∈ {'active', 'inactive'}`. Inactive users render greyed in the list and are filtered out of role-based permission resolution at runtime (intended; not yet enforced in mocks).
+
 ---
 
-## 10. Dev Tools
+## 10. Sidebar Stub Menus
+
+The Sidebar ([src/components/layout/Sidebar.jsx:38-66](../src/components/layout/Sidebar.jsx#L38-L66)) defines **12 primary menus** for the full PHCIS surface. **6 are wired to routes** (covered in §4–§9 above). **6 remain stubs** — they render in the Sidebar and are clickable, but they have no `path` and clicking them is a no-op (the click handler ignores items without `path`).
+
+This section documents the intended logic for each stub so future implementation work has a single reference.
+
+### 10.1 `radiology` — แผนกรังสีวินิจฉัย
+
+- **Sidebar:** key `radiology`, icon `radiology`.
+- **Status:** stub — no route.
+- **Intended scope:** imaging order management (CXR / CT / MRI / U/S). Worklist of pending imaging requests sent from Treatment Step 5 (`xrayOrders` slice of the treatment form).
+- **Logic sketch:** queue page (pending/in-progress/reported), per-study viewer card, sign-off → "ตรวจเสร็จ" status flips, write-back to original Treatment record.
+- **Cross-system:** receives from `/treat/record` Step 5 `xrayOrders[]`; reports back to TreatmentVisit.history.
+
+### 10.2 `lab` — ห้องปฏิบัติการ
+
+- **Sidebar:** key `lab`, icon `biotech`.
+- **Status:** stub.
+- **Intended scope:** lab test ordering + result viewer (CBC / BUN / Cr / electrolyte / etc.). Pre-set common panels exist in [treatmentVisits.js](../src/data/treatmentVisits.js) (`'CBC + BUN/Cr + electrolyte panel'`).
+- **Logic sketch:** sample collection workflow (collected → analysing → reported), critical-value alerts (red flag back to doctor), historical trend view.
+- **Cross-system:** receives Treatment Step 5 `labs[]`; reports flow back to TreatmentVisit + a Dashboard top-tests-ordered chart.
+
+### 10.3 `pharmacy` — ระบบงานเภสัชกรรม
+
+- **Sidebar:** key `pharmacy`, icon `pill`.
+- **Status:** stub.
+- **Intended scope:** dispensing workflow + medication catalog ([medicationCatalog.js](../src/data/medicationCatalog.js) already lists ~50 drugs).
+- **Logic sketch:** queue of dispensable prescriptions (from Treatment Step 5 `medications[]`), counter call (เรียกคิว), label printing, allergy double-check (cross-class warnings re-validated against patient `drugAllergies`), inventory deduction.
+- **Cross-system:** receives Treatment Step 5 `medications[]`; reports `dispensed` status back to TreatmentVisit; consults the patient's `drugAllergies` from MR.
+
+### 10.4 `finance` — งานการเงิน
+
+- **Sidebar:** key `finance`, icon `baht`.
+- **Status:** stub.
+- **Intended scope:** payment + insurance claim workflow. Reads from `rightsGroups` (set in Registration Step 4) to determine claim source.
+- **Logic sketch:** charge calculation per visit (services + medications + labs + imaging), claim eligibility per `rightsGroup`, payment receipt printing, sign-off.
+- **Cross-system:** receives all completed Treatment records; consults Registration `rightsGroups`; emits Dashboard "ค่าบริการสะสม" feed.
+
+### 10.5 `appoint` — ระบบนัดหมาย
+
+- **Sidebar:** key `appoint`, icon `calendar_clock`.
+- **Status:** stub.
+- **Intended scope:** master scheduling. Today's appointments + future calendar + walk-in queue.
+- **Logic sketch:** weekly calendar grid, slot reservation, conflict detection, reminder notifications (SMS/LINE), Telemedicine link generation. Appointments created here also surface as the `นัดหมาย` tab in the OPD queue.
+- **Cross-system:** writes to TreatmentVisit Step 6 `appointment` slice when the doctor confirms a follow-up; receives "นัดหมายวันนี้" count for the Dashboard summary tile.
+
+### 10.6 `log` — ประวัติการใช้งาน
+
+- **Sidebar:** key `log`, icon `history`.
+- **Status:** stub.
+- **Intended scope:** audit log viewer — who edited what + when. The Registration `RegistrationEditHistoryPanel` ([RegistrationEditHistoryPanel.jsx](../src/components/forms/RegistrationEditHistoryPanel.jsx)) is the per-patient prototype; this menu is the system-wide equivalent.
+- **Logic sketch:** filterable table (user / date range / entity type / action), per-row diff view, export to CSV / PDF, retention policy (rolling N days).
+- **Cross-system:** read-only consumer of every other subsystem's audit trail. Required for compliance review.
+
+### 10.7 Treatment sub-menus (9 sub-departments)
+
+The `treat` primary menu has 10 sub-items (Sidebar.jsx:43-56). Only the **first one is wired**:
+
+- ✅ `opd-treat` — ตรวจรักษาทั่วไป (OPD) → `/treat/queue`
+
+The other 9 are stubs with intended scope:
+
+| Sub-key | Label | Intended scope |
+|---|---|---|
+| `family` | แผนกส่งเสริมสุขภาพ (วางแผนครอบครัว) | Family planning consultations + contraceptive dispensing. |
+| `std` | แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์ | STI screening + HIV care; restricted-access ward. |
+| `drug` | แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด | Substance-abuse treatment program; methadone clinic. |
+| `anc` | แผนกฝากครรภ์ | Antenatal care; OB/GYN visits + ultrasound coordination. |
+| `wellness` | แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ | Wellness program (DM / HT / NCD high-risk) — visit cadence + lifestyle counseling. |
+| `vaccine` | แผนกสร้างเสริมภูมิคุ้มกันโรค | Vaccination clinic + schedule tracking. |
+| `dental` | แผนกทันตกรรม | Dental visits + procedures. |
+| `tb` | แผนกวัณโรค | TB DOTS program — DOT visit logs + treatment milestones. |
+| `mental` | แผนกสุขภาพจิตและคลินิกสุขภาพจิต | Mental health visits + PHQ-9 / GAD-7 forms (which already exist in the Forms Library). |
+
+**Logic sketch (shared pattern across all 9):** each sub-department reuses the same `TreatmentFormShell` + 7-step form scaffolding, with a per-domain form schema (e.g. ANC adds gestational age, fundus height; TB adds DOT cadence). Sub-menu click ⇒ open the same Treatment route filtered to that department.
+
+---
+
+## 11. Dev Tools
 
 These routes are not part of the clinician workflow — they're internal tools for the design system and engineering teams.
 
@@ -616,7 +954,7 @@ These pages are useful when iterating on a complex component without booting the
 
 ---
 
-## 11. Appendix — Pitfalls & Gotchas
+## 12. Appendix — Pitfalls & Gotchas
 
 Collected from inline `/* */` comments in the codebase.
 

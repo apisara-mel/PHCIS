@@ -183,7 +183,7 @@ const DropdownRow = ({ label, icon, image, colorfulBadgeStyle, badge, selected, 
         paddingRight:  'var(--dim-space-300)',
         paddingTop:    'var(--dim-space-200)',
         paddingBottom: 'var(--dim-space-200)',
-        borderRadius:  6,
+        borderRadius:  'var(--dim-radius-150, 6px)',
         background: tinted
           ? 'var(--surface-list-hover, var(--surface-brandPrimary-quaternary))'
           : 'var(--surface-list-default)',

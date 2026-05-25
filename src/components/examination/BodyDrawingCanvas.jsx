@@ -125,7 +125,7 @@ export const DRAW_COLORS = [
   '#F4A4AA', // soft-rose/500
 ];
 
-const CARD_SHADOW_TOOL = 'var(--shadow-card, 0 1px 4px rgba(100,116,139,0.10))';
+const CARD_SHADOW_TOOL = 'var(--shadow-formbuilder, 0 1px 4px rgba(100, 116, 139, 0.10))';
 const CARD_SHADOW_SIDEBAR = 'var(--shadow-dropdown, 0 16px 32px rgba(100,116,139,0.15), 0 4px 4px rgba(100,116,139,0.1))';
 
 const BODY_DIAGRAM_ZOOM_MIN = 0.5;
@@ -3609,7 +3609,7 @@ export const BodyImageGroup = ({
                 zIndex: BODY_BOARD_Z.focusedTool + 1,
                 width: 28,
                 height: 28,
-                borderRadius: 14,
+                borderRadius: 'var(--dim-radius-400, 12px)',
                 background: 'var(--surface-card-100, #fff)',
                 border: 'var(--dim-stroke-100) solid var(--border-neutral-tertiary, #E2E4E6)',
                 boxShadow: CARD_SHADOW_TOOL,
@@ -3755,7 +3755,7 @@ const SlideSlider = ({ label, value, onChange, min = 1, max = 20, labelGap = 'va
             height: 20,
             borderRadius: '50%',
             background: '#fff',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)',
+            boxShadow: 'var(--shadow-formbuilder, 0 1px 4px rgba(100, 116, 139, 0.10))',
             pointerEvents: 'none',
           }}
         />
@@ -4006,7 +4006,7 @@ const DrawingSelectionFrame = ({ left, top, width, height, onResizeStart, onResi
     height: DRAWING_SELECTION_HANDLE_SIZE,
     background: '#FFFFFF',
     border: `1.5px solid ${DRAWING_SELECTION_COLOR}`,
-    borderRadius: 2,
+    borderRadius: 'var(--dim-radius-100, 4px)',
     boxSizing: 'border-box',
     pointerEvents: resizable ? 'auto' : 'none',
     touchAction: 'none',

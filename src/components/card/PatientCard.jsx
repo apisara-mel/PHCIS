@@ -300,9 +300,9 @@ const PatientCard = ({
               className='inline-flex items-center rounded-full bg-badge-greenBg text-badge-greenText font-medium'
               style={{
                 height: compact ? 24 : 32,
-                paddingLeft: compact ? 8 : 12,
-                paddingRight: compact ? 8 : 12,
-                fontSize: compact ? 12 : 14,
+                paddingLeft: compact ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-300, 12px)',
+                paddingRight: compact ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-300, 12px)',
+                fontSize: compact ? 'var(--type-size-xs, 12px)' : 'var(--type-size-sm, 14px)',
                 transition: `height ${T}, padding ${T}, font-size ${T}`,
               }}
             >

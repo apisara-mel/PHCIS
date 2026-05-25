@@ -374,7 +374,7 @@ const AddressMapBlock = ({ value, onChange }) => {
               background: 'var(--surface-card-100)',
               borderRadius: 'var(--dim-radius-200)',
               border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+              boxShadow: 'var(--shadow-brand-drop-bottom-100)',
               maxHeight: 240,
               overflowY: 'auto',
             }}
@@ -488,7 +488,7 @@ const AddressMapBlock = ({ value, onChange }) => {
             fontFamily: 'var(--type-family-body)',
             fontWeight: 'var(--type-weight-medium)',
             fontSize: 'var(--type-size-xs)',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.10)',
+            boxShadow: 'var(--shadow-brand-drop-bottom-100)',
             whiteSpace: 'nowrap',
           }}
         >
@@ -504,7 +504,7 @@ const AddressMapBlock = ({ value, onChange }) => {
             borderRadius: 'var(--dim-radius-200)',
             background: 'var(--surface-card-100)',
             border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+            boxShadow: 'var(--shadow-brand-drop-bottom-100)',
           }}
           onClick={(e) => e.stopPropagation()}
         >

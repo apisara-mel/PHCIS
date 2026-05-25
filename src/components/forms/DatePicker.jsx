@@ -133,7 +133,7 @@ const ModalQuickRow = ({ option, selected, onClick }) => {
         paddingRight: 'var(--dim-space-300)',
         paddingTop: 'var(--dim-space-200)',
         paddingBottom: 'var(--dim-space-200)',
-        borderRadius: 6,
+        borderRadius: 'var(--dim-radius-150, 6px)',
         background: tinted
           ? 'var(--surface-popup-listitem-hover)'
           : 'var(--surface-list-default)',

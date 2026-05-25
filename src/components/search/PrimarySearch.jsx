@@ -187,7 +187,7 @@ const SectionHeader = ({ title, trailing }) => (
       paddingRight:  'var(--dim-space-400)',
       paddingTop:    'var(--dim-space-400)',
       paddingBottom: 'var(--dim-space-200)',
-      gap: 10,
+      gap: 'var(--dim-space-200, 8px)',
     }}
   >
     <span

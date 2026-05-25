@@ -47,7 +47,7 @@ const SectionCard = ({ icon, title, subtitle, children, action }) => (
         style={{
           width: 40,
           height: 40,
-          borderRadius: 10,
+          borderRadius: 'var(--dim-radius-300, 10px)',
           background: 'var(--surface-brandPrimary-quaternary)',
           color: 'var(--text-brandPrimary-default)',
         }}
@@ -219,7 +219,7 @@ const FeatureGroupBlock = ({ group, features, setFeature }) => {
           style={{
             width: 32,
             height: 32,
-            borderRadius: 9,
+            borderRadius: 'var(--dim-radius-200, 8px)',
             background: 'var(--surface-brandPrimary-quaternary)',
             color: 'var(--text-brandPrimary-default)',
           }}

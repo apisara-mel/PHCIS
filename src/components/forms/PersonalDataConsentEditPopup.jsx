@@ -86,7 +86,7 @@ function ConsentChoiceTiles({ value, onChange, name }) {
   const circle = (tone, selected) => ({
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 'var(--dim-radius-full, 9999px)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',

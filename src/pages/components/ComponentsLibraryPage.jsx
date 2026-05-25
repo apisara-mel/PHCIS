@@ -63,11 +63,13 @@ import {
   DEFAULT_NURSE_EXAM_NOTES,
   DEFAULT_DOCTOR_EXAM_NOTES,
   DEFAULT_EXAM_ATTACHMENTS,
+  DEFAULT_BODY_MARKERS,
   DEMO_BODY_MARKERS,
   DEFAULT_ICD_SUGGESTIONS,
 } from '@/data/treatmentVisits';
 import PatientCard from '@/components/card/PatientCard';
 import VitalCard, { PressureCard, BMICard } from '@/components/card/VitalCard';
+import VitalReadingCard from '@/components/card/VitalReadingCard';
 import VitalSignTimelineCard from '@/components/card/VitalSignTimelineCard';
 import InventoryCard from '@/components/card/InventoryCard';
 import BrandButton from '@/components/button/BrandButton';
@@ -599,7 +601,7 @@ const AISearchAliasSwatch = ({ alias, hex }) => (
       style={{
         width: 16,
         height: 16,
-        borderRadius: 'var(--dim-radius-100, 6px)',
+        borderRadius: 'var(--dim-radius-150, 6px)',
         background: hex,
         border: 'var(--dim-stroke-100) solid var(--border-card-default)',
         flexShrink: 0,
@@ -2647,6 +2649,34 @@ const TableDemo = () => (
         />
       </div>
     </Variant>
+    <Variant label='Loading skeleton (loading={true}, skeletonRows={4})' stack>
+      <div className='w-full'>
+        <Table
+          columns={[
+            { key: 'queue', header: 'คิว', width: 70 },
+            { key: 'hn',    header: 'HN',  width: 90 },
+            { key: 'name',  header: 'ชื่อ-นามสกุล', flex: 1 },
+            { key: 'dept',  header: 'แผนก', width: 130 },
+          ]}
+          rows={[]}
+          loading
+          skeletonRows={4}
+        />
+      </div>
+    </Variant>
+    <Variant label='Empty state (loading={false}, rows=[])' stack>
+      <div className='w-full'>
+        <Table
+          columns={[
+            { key: 'queue', header: 'คิว', width: 70 },
+            { key: 'hn',    header: 'HN',  width: 90 },
+            { key: 'name',  header: 'ชื่อ-นามสกุล', flex: 1 },
+            { key: 'dept',  header: 'แผนก', width: 130 },
+          ]}
+          rows={[]}
+        />
+      </div>
+    </Variant>
     <Guidelines
       behavior={[
         'HeaderCell: 44h, brand-p50 surface (#F4FBF8) default, brand-p100 (#E2F3EB) on hover. Title is heading-content bold xs (12px) brand-p800; subtext is regular xs neutral-tertiary. Sort icon flips between unfold_more / expand_less / expand_more.',
@@ -4121,6 +4151,73 @@ const VitalCardDemo = () => (
       donts={[
         "Don't render with no value AND no onChange — that's a read-only display; use VitalSignTimelineCard instead.",
         "Don't bypass PressureCard with two side-by-side VitalCards — the combined card pairs Systolic + Diastolic correctly.",
+      ]}
+    />
+  </Section>
+);
+
+/* VitalReadingCard — read-only display variant (Figma 17:1504 borderless,
+   17:1458 with-Border). Distinct from interactive VitalCard above which
+   embeds an input + ± stepper. The 8-variant matrix below (4 from each
+   Figma set) covers horizontal/vertical × reading/BMI × bordered/borderless. */
+const VitalReadingCardDemo = () => (
+  <Section
+    title='VitalReadingCard'
+    summary='Read-only vital-sign display card. Figma "MIH Design System · Card" nodes 17:1504 (borderless) and 17:1458 (with Border). 4 variants per set: horizontal × type (reading | BMI). Toggles: showIcon, showBadge. Use for dashboards / summary panels / read-only headers (Treatment Step 2). For data entry, use the interactive <VitalCard> instead.'
+  >
+    <Variant label='With Border — Figma 17:1458'>
+      <div className='flex flex-wrap items-start' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        <VitalReadingCard bordered horizontal type='reading' iconName='thermometer'
+          label='อุณหภูมิ (°C)' value='36.8' badge={{ tone: 'success', label: 'ปกติ' }} />
+        <VitalReadingCard bordered horizontal={false} type='reading' iconName='thermometer'
+          label='อุณหภูมิ' value='36.8' badge={{ tone: 'success', label: 'ปกติ' }} />
+        <VitalReadingCard bordered horizontal type='bmi' iconName='thermometer'
+          label='BMI (°C)' value='36.5' bmiMarkerPercent={50}
+          badge={{ tone: 'success', label: 'ปกติ' }} />
+        <VitalReadingCard bordered horizontal={false} type='bmi' iconName='thermometer'
+          label='BMI' value='36.8' bmiMarkerPercent={50}
+          badge={{ tone: 'success', label: 'ปกติ' }} />
+      </div>
+    </Variant>
+    <Variant label='Borderless (embedded in panels) — Figma 17:1504'>
+      <div className='flex flex-wrap items-start' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        <VitalReadingCard bordered={false} horizontal type='reading' iconName='thermometer'
+          label='อุณหภูมิ (°C)' value='36.8' badge={{ tone: 'success', label: 'ปกติ' }} />
+        <VitalReadingCard bordered={false} horizontal={false} type='reading' iconName='thermometer'
+          label='อุณหภูมิ' value='36.8' badge={{ tone: 'success', label: 'ปกติ' }} />
+        <VitalReadingCard bordered={false} horizontal type='bmi' iconName='thermometer'
+          label='BMI (°C)' value='36.5' bmiMarkerPercent={50}
+          badge={{ tone: 'success', label: 'ปกติ' }} />
+        <VitalReadingCard bordered={false} horizontal={false} type='bmi' iconName='thermometer'
+          label='BMI' value='36.8' bmiMarkerPercent={50}
+          badge={{ tone: 'success', label: 'ปกติ' }} />
+      </div>
+    </Variant>
+    <Variant label='Toggle showIcon / showBadge'>
+      <div className='flex flex-wrap items-start' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        <VitalReadingCard bordered showIcon={false} label='อุณหภูมิ (°C)' value='36.8'
+          badge={{ tone: 'success', label: 'ปกติ' }} />
+        <VitalReadingCard bordered showBadge={false} label='อุณหภูมิ (°C)' value='36.8' />
+        <VitalReadingCard bordered showIcon={false} showBadge={false}
+          label='อุณหภูมิ (°C)' value='36.8' />
+      </div>
+    </Variant>
+    <Guidelines
+      behavior={[
+        '4-variant matrix from Figma: horizontal (Yes/No) × type (reading | BMI). bordered=true adds 1px border + 12px padding; bordered=false is for embedding inside other panels with their own chrome.',
+        'BMI variants render a GradientBar gauge (blue→red clinical scale) with a marker at bmiMarkerPercent.',
+        'Width is fixed per Figma: 215px when horizontal, 130px when vertical.',
+        'Badge defaults to `{ tone: "success", label: "ปกติ" }`; pass `badge={null}` or `showBadge={false}` to hide.',
+      ]}
+      dos={[
+        'Use for read-only displays (dashboards, summary panels, Treatment Step 2 header).',
+        'Reuse the borderless variant when embedding inside cards/panels that already own a chrome.',
+        'Wire badge.tone to the value\'s clinical range (success / warning / error) so abnormal readings stand out.',
+      ]}
+      donts={[
+        "Don't use for clinician data entry — use the interactive <VitalCard> with built-in input + ± stepper instead.",
+        "Don't hardcode width: 215 / 130 px — the component picks the right value from `horizontal` so vertical lists wrap correctly.",
+        "Don't render bmi variants without bmiMarkerPercent — the marker defaults to 50% which can mislead.",
       ]}
     />
   </Section>
@@ -8128,6 +8225,7 @@ const REGISTRY = [
   { group: 'card', items: [
     { slug: 'patient-card',                name: 'PatientCard',              Demo: PatientCardDemo },
     { slug: 'vital-card',                  name: 'VitalCard',                Demo: VitalCardDemo },
+    { slug: 'vital-reading-card',          name: 'VitalReadingCard',         Demo: VitalReadingCardDemo },
     { slug: 'vital-sign-timeline-card',    name: 'VitalSignTimelineCard',    Demo: VitalSignTimelineCardDemo },
     { slug: 'inventory-card',              name: 'InventoryCard',            Demo: InventoryCardDemo },
   ]},

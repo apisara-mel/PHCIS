@@ -368,6 +368,7 @@
       <li><a href="#sec-treatment">Treatment / CPOE</a></li>
       <li><a href="#sec-forms">Forms Library</a></li>
       <li><a href="#sec-users">Users &amp; Access</a></li>
+      <li><a href="#sec-stubs">Sidebar Stub Menus</a></li>
       <li><a href="#sec-dev">Dev Tools</a></li>
       <li><a href="#sec-pitfalls">Pitfalls &amp; Gotchas</a></li>
     </ol>
@@ -559,6 +560,16 @@
       </ol>
       <p><strong>Data shape.</strong> Year-pinned mock values per chart card. No live API.</p>
       <div class="callout warn"><span class="callout-title">Pitfall:</span> Leaflet CSS and JS are loaded from CDN with SRI integrity in index.html — if upstream files drift, the map silently breaks.</div>
+
+      <h3>4.1 Logic</h3>
+      <ul>
+        <li><strong>Entry:</strong> any authenticated route hit on <code>/</code> lands here. Sidebar <code>dashboard</code> key is highlighted by <code>Sidebar</code> derivation when <code>pathname.startsWith('/dashboard')</code>.</li>
+        <li><strong>State scope:</strong> local to the page — <code>selectedYear</code> (Dropdown) is the only UI state. Nothing persists across sessions.</li>
+        <li><strong>Filter logic:</strong> <code>selectedYear</code> is presentational right now — chart cards use internal <code>DEFAULT_*</code> mocks regardless. Wiring a real filter would lift year into a context, thread <code>{ year }</code> into every chart data fetcher, and memoise the query keys.</li>
+        <li><strong>No leave-guard / no dirty tracking</strong> — page is read-only.</li>
+        <li><strong>Cross-system entry points:</strong> the "Recent patients" table rows are mock — they do NOT navigate. Production would route each row to <code>/treat/record</code> or <code>/opd/screening</code> with <code>state: { hn }</code>.</li>
+        <li><strong>Error handling:</strong> chart primitives swallow missing data and render an empty state. Leaflet (ServiceCenterMapCard) silently fails on a CDN SRI drift — no fallback UI.</li>
+      </ul>
     </section>
 
     <!-- ────────────────────────────────────────────────────────
@@ -600,6 +611,39 @@
       </table>
       <p><strong>Footer:</strong> sticky, with autoSave indicator, ยกเลิก, บันทึกร่าง (disabled when <code>!anyDirty</code>), ถัดไป / บันทึกข้อมูลผู้ป่วย.</p>
       <p><strong>Save draft:</strong> <code>saveOpdScreeningDraft({ hn, name, queue })</code> writes a key into <code>sessionStorage</code> under <code>mih:opd-screening-drafts</code>. The queue reads it back via <code>applyOpdScreeningDrafts(rows)</code> to tint those rows with <code>statusKey: 'draft'</code>.</p>
+
+      <h3>5.3 Logic</h3>
+      <h4>Queue → Screening transition</h4>
+      <ol>
+        <li>Queue row click → <code>&lt;Link state={{ hn, queue, name }}&gt;</code>.</li>
+        <li>Patient resolution: <code>getPatientByHN(hn)</code> → fall back to <code>getPatientByShortName(name)</code> → final fallback <code>DEFAULT_PATIENT</code>. Direct visits without router state still render — they get the default profile.</li>
+        <li><a class="fileref" href="../src/components/popup/ScreeningConfirmPopup.jsx">ScreeningConfirmPopup</a> mounts immediately. Cancel → <code>/opd/queue</code>. Confirm → form mounts.</li>
+      </ol>
+      <h4>Per-step state model</h4>
+      <ul>
+        <li><strong><code>current</code></strong> (0..4) — currently visible step. <code>goNext = () =&gt; setCurrent(c =&gt; Math.min(STEPS.length - 1, c + 1))</code>.</li>
+        <li><strong><code>dirtyStepsRef</code> (Set) + mirror state</strong> — tracked per step via <code>markDirty</code>. Source-of-truth is the ref so the leave-guard reads synchronously.</li>
+        <li><strong><code>stepValidities</code></strong> — written by step bodies via <code>onValidityChange</code>. Two-tier Next-button gate: <code>stepValidities[current] ?? currentStepDirty</code> — explicit validity wins.</li>
+      </ul>
+      <h4><code>markDirty</code> event-source filter (deliberate)</h4>
+      <ul>
+        <li>Listens on <code>onKeyDown</code> + <code>onPointerDown</code> only — NOT <code>onChange</code> / <code>onInput</code>. Autofill, programmatic <code>dispatchEvent</code>, and React strict-mode artefacts fire change/input but not keydown/pointerdown.</li>
+        <li><code>event.isTrusted</code> rejects synthetic events.</li>
+        <li>Pointer presses additionally require <code>[aria-pressed]</code> (chip toggles) or <code>[aria-label="decrement|increment"]</code> (Stepper +/-) so voice mic / accordion clicks don't flip dirty.</li>
+      </ul>
+      <h4>Save Draft</h4>
+      <ol>
+        <li>Click <em>บันทึกร่าง</em> (enabled when <code>anyDirty</code>).</li>
+        <li><code>saveOpdScreeningDraft({ hn, name, queue })</code> writes <code>queue|hn|name</code> into <code>sessionStorage</code> under <code>mih:opd-screening-drafts</code> (de-duped via Set).</li>
+        <li><code>clearDirty()</code> resets ref + mirror.</li>
+        <li><code>history.push('/opd/queue', { activeTab: 'progress', focusDrafts: true })</code> — back to queue with the "ที่ร่างไว้" tab focused.</li>
+      </ol>
+      <h4>Leave guard</h4>
+      <p><code>handleBack</code> checks <code>dirtyStepsRef.current.size &gt; 0</code>. If dirty → opens <a class="fileref" href="../src/components/popup/UnsavedChangesPopup.jsx">UnsavedChangesPopup</a> (save-draft / discard / cancel). If no dirty steps → <code>leaveScreen()</code>: <code>history.length &gt; 1 ? goBack() : push('/opd/queue')</code>.</p>
+      <h4>Bed selection branch</h4>
+      <p>Symptom step "เตียง" tag opens <a class="fileref" href="../src/components/popup/BedSelectionPopup.jsx">BedSelectionPopup</a>. <code>selectedBedId</code> is local. Confirm writes <code>formatThaiBedChipLabel(bedId)</code> onto the tag — the bed becomes part of the symptom slice (not a separate field).</p>
+      <h4>Voice/AI gating (HTTPS prerequisite)</h4>
+      <p>Step 2/3/4 host <code>SuggestibleTextarea voice</code> and <code>AISearch</code>. SpeechRecognition + <code>getUserMedia</code> require a secure context. Over plain HTTP/LAN the mic button silently does nothing — there is no in-app warning.</p>
     </section>
 
     <!-- ────────────────────────────────────────────────────────
@@ -686,6 +730,56 @@
   drugAllergies, foodAllergies, chemicalAllergies, chronicConditions,
 }</code></pre>
       <p><code>EMPTY_ADDRESS</code>: <code>{ zip, province, district, subdistrict, road, moo, houseNo, lat, lng, pinSaved }</code>.</p>
+
+      <h3>6.3 Logic</h3>
+      <h4>Entry + state ownership</h4>
+      <ul>
+        <li>Queue row → <code>/registration/register</code> with <code>state: { hn, ... }</code>. RegistrationFormPage resolves <code>patient</code> via <code>findMrPatientByHn(hn)</code> → falls back to <code>DEFAULT_MR_PATIENT</code>.</li>
+        <li><code>form</code> state lives on the page; each <code>&lt;Field&gt;</code> writes via <code>setForm(s =&gt; ({ ...s, [key]: v }))</code>.</li>
+        <li><code>stepIndex</code> is page-local. No URL-driven step routing — refreshing returns to step 0.</li>
+      </ul>
+      <h4>Smart-card chip-read flow</h4>
+      <ol>
+        <li>User clicks <strong>อ่านบัตรสมาร์ทการ์ด</strong> in the SubHeader.</li>
+        <li><code>handleReadSmartCard</code> calls <code>applySmartCardRead(form, patient)</code>.</li>
+        <li><code>buildPersonalDataFromPatient(patient)</code> returns chip-sourced fields; <code>NON_CHIP_FIELDS = ['education', 'occupation', 'marital']</code> are RESTORED from prior typing so chip read never clobbers manual entry.</li>
+        <li><code>idCardFromChip</code> set to <code>true</code> → 8 card-sourced fields lock via <code>disabled={fromChip}</code>.</li>
+        <li><code>setStepIndex(0)</code> — return to Step 1 so the user can verify chip data.</li>
+      </ol>
+      <h4>Step 2 — address mirror logic</h4>
+      <ul>
+        <li>"เหมือนที่อยู่ตามทะเบียนบ้าน" state in <code>form.useRegisteredForCurrent</code> / <code>useRegisteredForContact</code>.</li>
+        <li>Checkbox disabled until <code>isRegisteredAddressComplete(form.addressRegistered)</code> — gates on zip + province + district.</li>
+        <li>Toggling ON: <code>copyRegisteredInto(...)</code> mirrors text fields. Map pin (lat/lng/pinSaved) stays on target slice.</li>
+        <li>While flag true, a <code>useEffect</code> re-mirrors edits made on <code>addressRegistered</code>.</li>
+        <li>If registered address is later cleared past required keys → both mirror flags drop to false (defense against orphaned data).</li>
+      </ul>
+      <h4>Step 3 — emergency contact array</h4>
+      <ul>
+        <li><code>form.emergency[]</code> — "เพิ่มผู้ติดต่อ" gated by <code>isEmergencyContactComplete(lastEmergencyEntry)</code>.</li>
+        <li>Per-step ✓ requires at least one entry with <code>{ name, last, relation, phone }</code> filled.</li>
+      </ul>
+      <h4>Step 4 — rights lookup state machine</h4>
+      <pre><code>[empty]  rightsLookupDone === false
+     │
+     │  RightsLookupPanel: search / lookup
+     ▼
+[results]  rightsLookupDone === true, rightsGroups = [...buildMockRightsGroups()]
+     │
+     │  add documents / photos / reorder priorityItems
+     ▼
+[edited]  same rightsGroups[].documents/photos modified</code></pre>
+      <p>Step ✓ flips as soon as <code>rightsLookupDone === true</code>. Document / photo uploads are optional.</p>
+      <h4>Step 5 — mobility "อื่นๆ" branch</h4>
+      <ul>
+        <li><code>form.mobility</code> is the radio value (walk / wheelchair / cane / assisted / other).</li>
+        <li>When set to <code>other</code>, a <code>mobilityOther</code> Voice Textarea appears with <code>MOBILITY_OTHER_SUGGESTIONS</code>.</li>
+        <li>Step ✓ requires <code>mobility</code> set AND (if other) <code>mobilityOther</code> non-empty.</li>
+        <li>Switching away from <code>other</code> clears <code>mobilityOther</code> so stale text doesn't persist.</li>
+      </ul>
+      <h4>Step ✓ aggregation</h4>
+      <p><code>getRegistrationCompletedSteps(form)</code> returns a 5-boolean array passed to <code>&lt;FormShell completedSteps={...} /&gt;</code> → <code>&lt;StepProgress&gt;</code>.</p>
+      <div class="callout warn"><span class="callout-title">Missing leave guard:</span> Unlike OPD Screening, Registration does NOT currently implement an <code>UnsavedChangesPopup</code> — back-button via <code>handleBack</code> would lose unsaved work. Parity with OPD is on the to-do.</div>
     </section>
 
     <!-- ────────────────────────────────────────────────────────
@@ -764,6 +858,78 @@
 }</code></pre>
       <div class="callout warn"><span class="callout-title">Pitfall:</span> <code>buildInitialForm(patient)</code> runs once. If the user switches patients via QueueSubMenu, the page must re-mount or <code>setForm(buildInitialForm(newPatient))</code> — there's no derived-state effect.</div>
       <div class="callout"><span class="callout-title">Note:</span> ApptCollapse (Step 6) keeps the schedule body mounted but height-collapsed so toggling <code>mode='skip'</code> ↔ <code>mode='schedule'</code> glides instead of snapping. Empty-state vs filled-state transitions are heavily commented in TreatmentSteps.jsx.</div>
+
+      <h3>7.3 Logic</h3>
+
+      <h4>Entry + state ownership</h4>
+      <ul>
+        <li>Queue row → <code>/treat/record</code> with <code>state: { hn, queue, name }</code>. Page resolves <strong>two</strong> patient shapes:
+          <ul>
+            <li><code>patient</code> via <code>findMrPatientByHn</code> (MR shape — full address, rights, drugAllergies, chronicDiseases). Used by Step bodies.</li>
+            <li><code>cardPatient</code> via <code>getPatientByHN</code> (display shape — fullName, englishName, insurance, patientType). Used by the sticky PatientCard header.</li>
+          </ul>
+        </li>
+        <li>Both fall back to defaults so direct visits don't crash.</li>
+        <li><code>form</code> state lives on the page; <code>buildInitialForm(patient)</code> runs once on mount. Switching patients via QueueSubMenu (<code>onPickPatient</code>) calls <code>history.push('/treat/record', { state: { hn, queue, name } })</code> — the page re-mounts via route param change, so <code>form</code> is rebuilt from the new patient.</li>
+      </ul>
+
+      <h4>Read-only steps (1, 2)</h4>
+      <ul>
+        <li>Step 1 (ประวัติ) and Step 2 (หน้าจอคัดกรอง) are read-only summaries — no editable fields. They surface upstream data (HistoryTimeline of past visits / nurse-screening summary).</li>
+        <li><code>getTreatmentCompletedSteps</code> marks these as ✓ once <code>stepIndex &gt; N</code> (advance-past semantics) — there's nothing to validate.</li>
+      </ul>
+
+      <h4>Cross-step linking (4 ↔ 3, 7 ↔ 4)</h4>
+      <ul>
+        <li><strong>Step 4 → Step 3 "ตรวจร่างกาย" CTA</strong>: when Step 4 paints its empty state (no body markers/drawings yet), the empty-state block renders a button that calls <code>onStepChange(STEP_EXAM_INDEX)</code> — sends the doctor back to Step 3 to capture the exam before diagnosing.</li>
+        <li><strong>Step 7 reads Step 4</strong>: Cert section computes <code>hasDiagnosisData = Boolean(primaryDx || form.diagnosisNote || form.diagnoses.length)</code>. If false, the cert shows "บันทึกการวินิจฉัย" CTA back to Step 4. The cert never copies diagnosis data — it always reads live from form.</li>
+      </ul>
+
+      <h4>Step 5 — order category tabs</h4>
+      <ul>
+        <li><code>form.orderCategory</code> is the active tab (<code>'medication' | 'lab' | 'xray' | 'procedure' | 'consult'</code>).</li>
+        <li>Each category has its own array (<code>form.medications</code>, <code>form.labs</code>, etc.) — switching the tab does NOT reset, so the user can build orders across categories.</li>
+        <li>Empty-state branch hides the cross-class allergy warning panel; populated-state shows it (dismissible — <code>setForm(s =&gt; ({ ...s, showAllergyAlert: false }))</code>).</li>
+      </ul>
+
+      <h4>Step 6 — appointment mode state machine</h4>
+<pre><code>[undefined]  appointment.mode === undefined
+     │
+     ├──▶ click "ไม่นัดหมาย"  → mode === 'skip'  → body collapses (ApptCollapse)
+     │
+     └──▶ click "นัดหมาย"      → mode === 'schedule' → body expands:
+                                  • Card 1: clinic / type / doctor / reason / preparation
+                                  • Card 2: advance-orders (yes/no)
+                                  • Card 3: location radio + date picker + timeslot grid</code></pre>
+      <ul>
+        <li><code>ApptCollapse</code> keeps the body mounted but height-collapses so toggling <code>mode</code> between <code>skip</code> and <code>schedule</code> glides instead of snapping. Form state in collapsed cards is preserved.</li>
+        <li>Step ✓ rule: <code>mode === 'skip'</code> ⇒ ✓; <code>mode === 'schedule'</code> requires all of <code>{ clinic, type, doctor, reason, preparation }</code>.</li>
+      </ul>
+
+      <h4>Step 7 — certificate issuance state machine</h4>
+<pre><code>[empty]  certIssue === ''
+     │
+     ├──▶ click "ไม่รับ"  → certIssue === 'no'  → certificate body stays hidden, step ✓
+     │
+     └──▶ click "รับ"     → certIssue === 'yes' → certificate body renders:
+                              • cert type (general / sick / medico / travel)
+                              • rest-days pills (auto-fills startDate/endDate from today)
+                              • signer + signature canvas
+                              • Step ✓ flips when `certSignature` is non-empty</code></pre>
+      <ul>
+        <li><code>certSignature</code> is base64 PNG from canvas. <code>certSignedAt</code> only flips when the doctor taps <strong>ยืนยันลายเซ็น</strong> (not on every stroke).</li>
+        <li>Clearing the signature via <code>handleCertSignatureChange('')</code> also clears <code>certSignedAt</code> so an unsigned cert can't pretend to be confirmed.</li>
+      </ul>
+
+      <h4>Sticky PatientCard collapse</h4>
+      <ul>
+        <li>PatientCard is rendered ABOVE TreatmentFormShell with the <code>sticky</code> prop. It owns an IntersectionObserver + sentinel internally.</li>
+        <li>As the form column scrolls under the app Header, the card collapses to its compact "mini" variant (§3.7). drugAllergies + chronicDiseases pills stay visible inline in mini state.</li>
+        <li>Requires the form column to be scrollable — if the wrapping <code>&lt;main&gt;</code> doesn't have <code>overflow: auto</code>, the sentinel never crosses and the mini state never engages.</li>
+      </ul>
+
+      <h4>Step ✓ aggregation</h4>
+      <p><a class="fileref" href="../src/data/treatmentVisits.js"><code>getTreatmentCompletedSteps(form, stepIndex)</code></a> returns 7 booleans. Steps 1, 2, 3, 5 use <code>stepIndex &gt; N</code> (advance-past); 4, 6, 7 use real validators. Passed to <code>&lt;TreatmentFormShell completedSteps={...} /&gt;</code> → <code>&lt;StepProgress&gt;</code>.</p>
     </section>
 
     <!-- ────────────────────────────────────────────────────────
@@ -798,6 +964,51 @@
       <p><strong>Field types:</strong> <code>text</code>, <code>textarea</code>, <code>date</code>, <code>datetime</code>, <code>signature</code>, <code>checkbox</code>, <code>select</code>, <code>radio-4</code> (PHQ-9/GAD-7 scale), <code>radio-5</code>, <code>slider-0-10</code>.</p>
       <p><strong><code>field.critical</code></strong> flags vitals fields with a "ตรวจซ้ำเมื่อพบสัญญาณเสี่ยง" pill.</p>
       <p><strong>Filter facets</strong> on the catalog page are pseudo-randomly assigned via a hash of the form slug — deterministic mock dimensions, not real metadata.</p>
+
+      <h3>8.1 Logic</h3>
+
+      <h4>Navigation flow</h4>
+<pre><code>/forms                       (FormsLibraryPage — hub)
+   │
+   ├──▶ category band click  → /forms/category/:categoryKey  (FormsCategoryPage — drill-down grid)
+   │       │
+   │       └──▶ tabPill pivot → /forms/category/:other  (lateral move across categories)
+   │
+   └──▶ form card click       → /forms/:slug  (FormDetailPage — preview + QR)
+           │
+           ├──▶ "เจ้าหน้าที่กรอกแทน" → /forms/:slug/fill              (clinician chrome)
+           │
+           └──▶ "ส่ง QR ให้ผู้ป่วย" → /forms/:slug/fill?role=patient  (patient-facing chrome stripped)</code></pre>
+
+      <h4><code>?role=patient</code> chrome strip</h4>
+      <p><a class="fileref" href="../src/pages/forms/FormFillPage.jsx">FormFillPage</a> reads <code>useLocation().search</code> and parses <code>role</code>. When <code>role === 'patient'</code>, the page:</p>
+      <ul>
+        <li>Hides the back-to-catalog button.</li>
+        <li>Hides the "เจ้าหน้าที่กรอกแทน" banner.</li>
+        <li>Sidebar collapses to drawer (&lt; md breakpoint detection).</li>
+      </ul>
+      <p>The form schema renders identically — only chrome differs. This way the QR-landed phone view feels patient-owned without a separate page.</p>
+
+      <h4>Field renderer dispatch</h4>
+      <p>Each field has <code>type</code> ∈ <code>{text, textarea, date, datetime, signature, checkbox, select, radio-4, radio-5, slider-0-10}</code>. FormFillPage maps <code>type</code> → renderer component:</p>
+      <ul>
+        <li>Native renderers (text / textarea / date / datetime / checkbox / select) use the bare HTML element with shared <code>fieldStyle</code>.</li>
+        <li><code>radio-4</code> / <code>radio-5</code> map to <code>RADIO_4_OPTIONS</code> / <code>RADIO_5_OPTIONS</code> constants (zero-config).</li>
+        <li><code>signature</code> mounts an inline canvas.</li>
+        <li><code>slider-0-10</code> renders a 0–10 step slider (for pain scales).</li>
+      </ul>
+      <p>Unknown types fall through to a text input (defensive default).</p>
+
+      <h4>Filter facet generation (mock)</h4>
+      <p><code>catalogFiltersForForm(form)</code> uses a deterministic hash of <code>slug</code> to assign mock facets (policy / usage / department / creator / formStatus). This means:</p>
+      <ul>
+        <li>Filter facets are stable across reloads (same hash → same facet).</li>
+        <li>They're NOT real metadata — production would replace this with form-level fields.</li>
+        <li>Filter UX still works for catalog testing, but values shouldn't be treated as authoritative.</li>
+      </ul>
+
+      <h4>Persistence</h4>
+      <p>There is <strong>no persistence</strong> for fills — <code>useState</code> on FormFillPage owns the entire form values map. Refreshing loses everything. Production needs a draft autosave per form session.</p>
     </section>
 
     <!-- ────────────────────────────────────────────────────────
@@ -832,21 +1043,134 @@
         <li><strong>SectionCard</strong> — uniform white card with title + icon for each edit section.</li>
         <li><strong>Access matrix</strong> — feature group → row with three radio levels (none / view / edit), respecting <code>supportedLevels</code>.</li>
       </ul>
+
+      <h3>9.1 Logic</h3>
+
+      <h4>Role → SubRole cascade</h4>
+      <ul>
+        <li>Changing <code>user.role</code> clears <code>user.subRole</code> automatically — the sub-role catalog is keyed by role. E.g. switching role from <code>doctor</code> → <code>nurse</code> invalidates <code>subRole = 'gp'</code> (doctor-only).</li>
+        <li><code>SUB_ROLES[role]</code> may be an empty array — in that case the SubRole picker hides.</li>
+      </ul>
+
+      <h4>Feature access matrix logic</h4>
+      <ul>
+        <li>Each feature in <code>FEATURE_GROUPS</code> declares <code>supportedLevels: Array&lt;'none' | 'view' | 'edit'&gt;</code>.</li>
+        <li>The radio row renders only the supported levels; e.g. a binary-action feature like "ส่ง QR" only shows <code>'none' | 'edit'</code> (no 'view').</li>
+        <li><code>user.features[featureKey]</code> defaults to undefined → renders as "ไม่มีสิทธิ์" (<code>none</code>).</li>
+      </ul>
+
+      <h4><code>countAccess(user)</code> helper</h4>
+      <p><a class="fileref" href="../src/data/usersAccess.js"><code>countAccess(user)</code></a> → returns <code>{ none, view, edit }</code> counts across the entire feature catalog. Used in the user-list table to show a per-row "X features · Y view · Z edit" summary at-a-glance.</p>
+
+      <h4>Create vs Edit branch</h4>
+      <ul>
+        <li><code>/users/new</code> → <code>getUserById('new')</code> returns undefined → <code>BLANK_USER</code> seeds the form.</li>
+        <li><code>/users/:id</code> → <code>getUserById(id)</code> returns the user or undefined; undefined falls back to BLANK_USER (defensive — should ideally 404).</li>
+        <li>Save / Apply is currently a stub — no persistence wiring. Production needs API integration.</li>
+      </ul>
+
+      <h4>Status toggle</h4>
+      <p><code>user.status ∈ {'active', 'inactive'}</code>. Inactive users render greyed in the list and are filtered out of role-based permission resolution at runtime (intended; not yet enforced in mocks).</p>
     </section>
 
     <!-- ────────────────────────────────────────────────────────
-         10. Dev Tools
+         10. Sidebar Stub Menus
+         ──────────────────────────────────────────────────────── -->
+    <section id="sec-stubs">
+      <h2><span class="num">10</span>Sidebar Stub Menus</h2>
+      <p>The Sidebar (<a class="fileref" href="../src/components/layout/Sidebar.jsx">Sidebar.jsx:38-66</a>) defines <strong>12 primary menus</strong> for the full PHCIS surface. <strong>6 are wired to routes</strong> (covered in §4–§9 above). <strong>6 remain stubs</strong> — they render in the Sidebar and are clickable, but they have no <code>path</code> and clicking them is a no-op (the click handler ignores items without <code>path</code>).</p>
+      <p>This section documents the intended logic for each stub so future implementation work has a single reference.</p>
+
+      <h3>10.1 <code>radiology</code> — แผนกรังสีวินิจฉัย</h3>
+      <ul>
+        <li><strong>Sidebar:</strong> key <code>radiology</code>, icon <code>radiology</code>.</li>
+        <li><strong>Status:</strong> stub — no route.</li>
+        <li><strong>Intended scope:</strong> imaging order management (CXR / CT / MRI / U/S). Worklist of pending imaging requests sent from Treatment Step 5 (<code>xrayOrders</code> slice of the treatment form).</li>
+        <li><strong>Logic sketch:</strong> queue page (pending/in-progress/reported), per-study viewer card, sign-off → "ตรวจเสร็จ" status flips, write-back to original Treatment record.</li>
+        <li><strong>Cross-system:</strong> receives from <code>/treat/record</code> Step 5 <code>xrayOrders[]</code>; reports back to TreatmentVisit.history.</li>
+      </ul>
+
+      <h3>10.2 <code>lab</code> — ห้องปฏิบัติการ</h3>
+      <ul>
+        <li><strong>Sidebar:</strong> key <code>lab</code>, icon <code>biotech</code>.</li>
+        <li><strong>Status:</strong> stub.</li>
+        <li><strong>Intended scope:</strong> lab test ordering + result viewer (CBC / BUN / Cr / electrolyte / etc.). Pre-set common panels exist in <a class="fileref" href="../src/data/treatmentVisits.js">treatmentVisits.js</a> (<code>'CBC + BUN/Cr + electrolyte panel'</code>).</li>
+        <li><strong>Logic sketch:</strong> sample collection workflow (collected → analysing → reported), critical-value alerts (red flag back to doctor), historical trend view.</li>
+        <li><strong>Cross-system:</strong> receives Treatment Step 5 <code>labs[]</code>; reports flow back to TreatmentVisit + a Dashboard top-tests-ordered chart.</li>
+      </ul>
+
+      <h3>10.3 <code>pharmacy</code> — ระบบงานเภสัชกรรม</h3>
+      <ul>
+        <li><strong>Sidebar:</strong> key <code>pharmacy</code>, icon <code>pill</code>.</li>
+        <li><strong>Status:</strong> stub.</li>
+        <li><strong>Intended scope:</strong> dispensing workflow + medication catalog (<a class="fileref" href="../src/data/medicationCatalog.js">medicationCatalog.js</a> already lists ~50 drugs).</li>
+        <li><strong>Logic sketch:</strong> queue of dispensable prescriptions (from Treatment Step 5 <code>medications[]</code>), counter call (เรียกคิว), label printing, allergy double-check (cross-class warnings re-validated against patient <code>drugAllergies</code>), inventory deduction.</li>
+        <li><strong>Cross-system:</strong> receives Treatment Step 5 <code>medications[]</code>; reports <code>dispensed</code> status back to TreatmentVisit; consults the patient's <code>drugAllergies</code> from MR.</li>
+      </ul>
+
+      <h3>10.4 <code>finance</code> — งานการเงิน</h3>
+      <ul>
+        <li><strong>Sidebar:</strong> key <code>finance</code>, icon <code>baht</code>.</li>
+        <li><strong>Status:</strong> stub.</li>
+        <li><strong>Intended scope:</strong> payment + insurance claim workflow. Reads from <code>rightsGroups</code> (set in Registration Step 4) to determine claim source.</li>
+        <li><strong>Logic sketch:</strong> charge calculation per visit (services + medications + labs + imaging), claim eligibility per <code>rightsGroup</code>, payment receipt printing, sign-off.</li>
+        <li><strong>Cross-system:</strong> receives all completed Treatment records; consults Registration <code>rightsGroups</code>; emits Dashboard "ค่าบริการสะสม" feed.</li>
+      </ul>
+
+      <h3>10.5 <code>appoint</code> — ระบบนัดหมาย</h3>
+      <ul>
+        <li><strong>Sidebar:</strong> key <code>appoint</code>, icon <code>calendar_clock</code>.</li>
+        <li><strong>Status:</strong> stub.</li>
+        <li><strong>Intended scope:</strong> master scheduling. Today's appointments + future calendar + walk-in queue.</li>
+        <li><strong>Logic sketch:</strong> weekly calendar grid, slot reservation, conflict detection, reminder notifications (SMS/LINE), Telemedicine link generation. Appointments created here also surface as the <code>นัดหมาย</code> tab in the OPD queue.</li>
+        <li><strong>Cross-system:</strong> writes to TreatmentVisit Step 6 <code>appointment</code> slice when the doctor confirms a follow-up; receives "นัดหมายวันนี้" count for the Dashboard summary tile.</li>
+      </ul>
+
+      <h3>10.6 <code>log</code> — ประวัติการใช้งาน</h3>
+      <ul>
+        <li><strong>Sidebar:</strong> key <code>log</code>, icon <code>history</code>.</li>
+        <li><strong>Status:</strong> stub.</li>
+        <li><strong>Intended scope:</strong> audit log viewer — who edited what + when. The Registration <code>RegistrationEditHistoryPanel</code> (<a class="fileref" href="../src/components/forms/RegistrationEditHistoryPanel.jsx">RegistrationEditHistoryPanel.jsx</a>) is the per-patient prototype; this menu is the system-wide equivalent.</li>
+        <li><strong>Logic sketch:</strong> filterable table (user / date range / entity type / action), per-row diff view, export to CSV / PDF, retention policy (rolling N days).</li>
+        <li><strong>Cross-system:</strong> read-only consumer of every other subsystem's audit trail. Required for compliance review.</li>
+      </ul>
+
+      <h3>10.7 Treatment sub-menus (9 sub-departments)</h3>
+      <p>The <code>treat</code> primary menu has 10 sub-items (Sidebar.jsx:43-56). Only the <strong>first one is wired</strong>:</p>
+      <ul>
+        <li>✅ <code>opd-treat</code> — ตรวจรักษาทั่วไป (OPD) → <code>/treat/queue</code></li>
+      </ul>
+      <p>The other 9 are stubs with intended scope:</p>
+      <table>
+        <thead><tr><th>Sub-key</th><th>Label</th><th>Intended scope</th></tr></thead>
+        <tbody>
+          <tr><td><code>family</code></td><td>แผนกส่งเสริมสุขภาพ (วางแผนครอบครัว)</td><td>Family planning consultations + contraceptive dispensing.</td></tr>
+          <tr><td><code>std</code></td><td>แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์</td><td>STI screening + HIV care; restricted-access ward.</td></tr>
+          <tr><td><code>drug</code></td><td>แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด</td><td>Substance-abuse treatment program; methadone clinic.</td></tr>
+          <tr><td><code>anc</code></td><td>แผนกฝากครรภ์</td><td>Antenatal care; OB/GYN visits + ultrasound coordination.</td></tr>
+          <tr><td><code>wellness</code></td><td>แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ</td><td>Wellness program (DM / HT / NCD high-risk) — visit cadence + lifestyle counseling.</td></tr>
+          <tr><td><code>vaccine</code></td><td>แผนกสร้างเสริมภูมิคุ้มกันโรค</td><td>Vaccination clinic + schedule tracking.</td></tr>
+          <tr><td><code>dental</code></td><td>แผนกทันตกรรม</td><td>Dental visits + procedures.</td></tr>
+          <tr><td><code>tb</code></td><td>แผนกวัณโรค</td><td>TB DOTS program — DOT visit logs + treatment milestones.</td></tr>
+          <tr><td><code>mental</code></td><td>แผนกสุขภาพจิตและคลินิกสุขภาพจิต</td><td>Mental health visits + PHQ-9 / GAD-7 forms (which already exist in the Forms Library).</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Logic sketch (shared pattern across all 9):</strong> each sub-department reuses the same <code>TreatmentFormShell</code> + 7-step form scaffolding, with a per-domain form schema (e.g. ANC adds gestational age, fundus height; TB adds DOT cadence). Sub-menu click ⇒ open the same Treatment route filtered to that department.</p>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────
+         11. Dev Tools
          ──────────────────────────────────────────────────────── -->
     <section id="sec-dev">
-      <h2><span class="num">10</span>Dev Tools</h2>
+      <h2><span class="num">11</span>Dev Tools</h2>
       <p>These routes are not part of the clinician workflow — they're internal tools for the design system and engineering teams.</p>
 
-      <h3>10.1 Components Library</h3>
+      <h3>11.1 Components Library</h3>
       <p>Route: <code>/components</code>, <code>/components/:slug</code> → <a class="fileref" href="../src/pages/components/ComponentsLibraryPage.jsx">ComponentsLibraryPage</a> (~7900 lines). Live showcase of <strong>118 routed components</strong> organised into 21 categories (alert / badge / button × 3 families / checkbox / radio / switch / tag / topic / tooltip / card × 2 / charts / form fields / forms / form-builder / examination / layout / shells / popup / list-table / search / step / tab / timeline). Each demo renders state matrices (rows = sizes / checked-modes, cols = states) + interactive variants + a <code>&lt;Guidelines&gt;</code> panel (behavior · dos · donts — see §3.9).</p>
       <p><strong>Embed mode:</strong> append <code>?embed=1</code> to a component URL (e.g. <code>/components/brand-button?embed=1</code>) to hide the page's own SideMenu so it renders cleanly inside an iframe. <code>docs/design-system.html</code> uses this so its outer sidebar is the only navigation.</p>
       <p><code>WIDE_PREVIEW_SLUGS</code> get a full-width canvas — used by examination-canvas and table demos.</p>
 
-      <h3>10.2 Preview pages</h3>
+      <h3>11.2 Preview pages</h3>
       <ul>
         <li><code>/preview/tabs</code> → <a class="fileref" href="../src/pages/preview/TabsPreviewPage.jsx">TabsPreviewPage</a> — every Tab variant (Underline / Capsule / Pill) side-by-side.</li>
         <li><code>/preview/cards</code> → <a class="fileref" href="../src/pages/preview/CardsPreviewPage.jsx">CardsPreviewPage</a> — VitalCard / PatientCard / SubCard variations.</li>
@@ -855,10 +1179,10 @@
     </section>
 
     <!-- ────────────────────────────────────────────────────────
-         11. Pitfalls & Gotchas
+         12. Pitfalls & Gotchas
          ──────────────────────────────────────────────────────── -->
     <section id="sec-pitfalls">
-      <h2><span class="num">11</span>Pitfalls &amp; Gotchas</h2>
+      <h2><span class="num">12</span>Pitfalls &amp; Gotchas</h2>
 
       <div class="callout danger"><span class="callout-title">React 17 only:</span> React-18 hooks (<code>useId</code>, <code>useSyncExternalStore</code>, etc.) crash at render. See memory note <code>project_react17_runtime</code>.</div>
       <div class="callout warn"><span class="callout-title">Voice textareas:</span> every <code>SuggestibleTextarea voice</code> in clinician fields must ship with <code>suggestions</code> + <code>minChars</code>. Bare <code>VoiceTextarea</code> is forbidden. See memory note <code>feedback_voice_textarea_suggestions</code>.</div>
@@ -879,7 +1203,7 @@
     </section>
 
     <p style="text-align:center;color:var(--ink-4);font-size:12px;margin-top:36px;">
-      End of spec · Last refreshed alongside the Component Guidelines + caption2 + Effect Styles audit (2026-05-23)
+      End of spec · Last refreshed with the per-menu Logic audit + Sidebar Stub Menus catalog (2026-05-23)
     </p>
   </main>
 </div>

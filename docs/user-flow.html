@@ -201,6 +201,39 @@
       letter-spacing: .3px;
     }
     table.modal-table tr:hover td { background: var(--surface-2); }
+
+    .logic-block {
+      margin-top: 18px;
+      padding: 14px 18px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--brand);
+      border-radius: 10px;
+    }
+    .logic-block h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      color: var(--brand);
+    }
+    .logic-block h4 {
+      margin: 14px 0 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .logic-block ul {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .logic-block ul li + li { margin-top: 4px; }
+    .logic-block ul ul { margin-top: 4px; }
+    .logic-block p { margin: 6px 0; font-size: 13px; line-height: 1.6; }
+    .logic-block table.modal-table { margin-top: 10px; }
     code {
       font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
       font-size: 12px;
@@ -333,9 +366,9 @@ flowchart LR
   SB([Sidebar])
   SB --> DASH[/dashboard/]:::page
   SB --> FORMS[/forms/]:::page
-  SB --> REG[/registration/queue/]:::page
-  SB --> OPD[/opd/queue/]:::page
-  SB --> TRT[/treat/queue/]:::page
+  SB --> REG[/"registration/queue"/]:::page
+  SB --> OPD[/"opd/queue"/]:::page
+  SB --> TRT[/"treat/queue"/]:::page
   SB --> USR[/users/]:::page
   SB --> RAD[Radiology ✕]:::stub
   SB --> LAB[Lab ✕]:::stub
@@ -375,6 +408,15 @@ flowchart LR
   click D call openDetail("dashboard","/dashboard","DashboardPage.jsx","Year-filtered KPIs and charts — terminal screen")
         </div>
       </div>
+      <div class="logic-block">
+        <h3>Logic — flow notes</h3>
+        <ul>
+          <li><strong>Entry:</strong> Sidebar item <code>dashboard</code> → <code>/dashboard</code>. Also the default landing when the app opens with no path (router index redirect).</li>
+          <li><strong>State scope:</strong> all charts/KPIs derive from in-memory mock arrays (<code>dashboardMock.js</code>). No draft/dirty state — refresh is free.</li>
+          <li><strong>No queue → form pattern:</strong> unlike Registration / OPD / Treatment, no row click navigates anywhere. The "Recent patients" table is informational only.</li>
+          <li><strong>No leave guard:</strong> nothing is editable, so <code>UnsavedChangesPopup</code> is never wired into this route.</li>
+        </ul>
+      </div>
     </section>
 
     <!-- 2 · REGISTRATION -->
@@ -393,8 +435,8 @@ flowchart LR
   classDef step fill:#FDF1E0,stroke:#E0973C,color:#5C3D14,rx:6,ry:6
   classDef modal fill:#E7F8F0,stroke:#08A768,color:#0B5435,rx:18,ry:18
 
-  Q[/registration/queue/]:::page
-  F[/registration/register/]:::page
+  Q[/"registration/queue"/]:::page
+  F[/"registration/register"/]:::page
   S1[Step 1<br/>Personal]:::step
   S2[Step 2<br/>Address]:::step
   S3[Step 3<br/>Contact]:::step
@@ -403,7 +445,7 @@ flowchart LR
   USP((UnsavedChanges<br/>Popup)):::modal
   Save{Save}
 
-  Q -->|row click<br/>state:{hn}| F
+  Q -->|"row click<br/>state:{hn}"| F
   F --> S1 --> S2 --> S3 --> S4 --> S5 --> Save
   Save -.->|return| Q
   F -. nav away dirty .-> USP
@@ -412,6 +454,19 @@ flowchart LR
   click F call openDetail("regF","/registration/register","RegistrationFormPage.jsx","Owns 5-step state · prefills from MR_PATIENTS via state.hn")
   click USP call openDetail("usp","modal","UnsavedChangesPopup.jsx","Triggered on route change when form is dirty · Save/Discard/Cancel")
         </div>
+      </div>
+      <div class="logic-block">
+        <h3>Logic — flow notes</h3>
+        <ul>
+          <li><strong>Entry:</strong> queue row click → <code>history.push('/registration/register', { state: { hn } })</code>. Direct visit (no state) → <code>BLANK_REGISTRATION</code> seeds the form (defensive).</li>
+          <li><strong>State ownership:</strong> <code>RegistrationFormPage</code> owns the full 5-step form; step bodies receive <code>{form, setForm}</code>. Switching patients requires a fresh push to <code>/registration/register</code> (re-mount).</li>
+          <li><strong>Smart-card chip-read:</strong> "อ่านบัตร" pulls Thai ID data into Step 1 + Step 2. <code>NON_CHIP_FIELDS = ['education', 'occupation', 'marital']</code> are preserved (chip doesn't carry them).</li>
+          <li><strong>Step 2 address mirror:</strong> "ที่อยู่ปัจจุบันเหมือนทะเบียนบ้าน" checkbox mirrors <code>registeredAddress</code> → <code>currentAddress</code>; unchecking restores the previous typed value (not a hard reset).</li>
+          <li><strong>Step 4 rights state machine:</strong> rights group radio (SSO / Gold / CSMBS / Other) gates which sub-fields render. Switching group clears the previous group's sub-state.</li>
+          <li><strong>Step 5 mobility "อื่นๆ" branch:</strong> picking <code>other</code> requires <code>mobilityOther</code> non-empty for the step to count complete.</li>
+          <li><strong>Step ✓ aggregation:</strong> <code>getRegistrationCompletedSteps(form)</code> returns 5 booleans → passed to <code>StepProgress</code>.</li>
+          <li><strong>Leave guard:</strong> currently <strong>not wired</strong> to <code>UnsavedChangesPopup</code> on this page (gap vs OPD / Treatment — to be added).</li>
+        </ul>
       </div>
     </section>
 
@@ -433,8 +488,8 @@ flowchart LR
   classDef step fill:#FDF1E0,stroke:#E0973C,color:#5C3D14,rx:6,ry:6
   classDef modal fill:#E7F8F0,stroke:#08A768,color:#0B5435,rx:18,ry:18
 
-  Q[/opd/queue/]:::page
-  S[/opd/screening/]:::page
+  Q[/"opd/queue"/]:::page
+  S[/"opd/screening"/]:::page
   S1[Step 1<br/>Vitals]:::step
   S2[Step 2<br/>Chief Complaint<br/>+ pain + triage]:::step
   S3[Step 3<br/>Allergies]:::step
@@ -458,6 +513,19 @@ flowchart LR
   click SC call openDetail("sc","modal","ScreeningConfirmPopup.jsx","Final confirmation before persisting screening record")
         </div>
       </div>
+      <div class="logic-block">
+        <h3>Logic — flow notes</h3>
+        <ul>
+          <li><strong>Entry:</strong> queue row click → <code>/opd/screening</code>, <code>state:{ hn, queue, name }</code>. Page reads <code>state.hn</code> to look up the patient in <code>MR_PATIENTS</code>; missing HN falls back to a draft from <code>sessionStorage</code> (<code>mih:opd-screening-drafts</code> keyed by <code>queue|hn|name</code>).</li>
+          <li><strong>Per-step state model:</strong> each step body owns its own slice; the parent stitches <code>stepValidities[idx]</code> (boolean per step) into StepProgress check-marks.</li>
+          <li><strong><code>markDirty</code> event-source filter:</strong> listens on <code>keydown</code> + <code>pointerdown</code> only, requires <code>event.isTrusted</code>, and for pointers requires <code>[aria-pressed]</code> or <code>[aria-label="decrement|increment"]</code>. Stops autofill / synthetic <code>dispatchEvent</code> from prematurely unlocking the Next button.</li>
+          <li><strong>Save Draft:</strong> explicit footer button → writes form snapshot to <code>sessionStorage</code>. Survives the tab session only (not browser restart).</li>
+          <li><strong>Leave guard:</strong> any dirty step + route change → <code>UnsavedChangesPopup</code> (Save / Discard / Cancel). Cancel keeps user on the current step.</li>
+          <li><strong>Bed selection branch:</strong> Step 4 "Bed" trigger opens <code>BedSelectionPopup</code>; picking a bed flips the IPD admission branch on for that visit.</li>
+          <li><strong>Voice / AI gating:</strong> Voice + AI inputs (Chief Complaint, AISearch in Step 5) require HTTPS — without it, <code>getUserMedia(audio)</code> is denied and the voice button silently disables.</li>
+          <li><strong>Final save:</strong> <code>ScreeningConfirmPopup</code> → confirm pushes the visit to the treatment queue and returns to <code>/opd/queue</code>.</li>
+        </ul>
+      </div>
     </section>
 
     <!-- 4 · TREATMENT (the big one) -->
@@ -480,51 +548,71 @@ flowchart TB
   classDef modal fill:#E7F8F0,stroke:#08A768,color:#0B5435,rx:18,ry:18
   classDef shell fill:#FAFAFA,stroke:#9098A1,color:#171A1F,rx:8,ry:8
 
-  Q[/treat/queue/]:::page
-  R[/treat/record/]:::page
-  H[Header<br/>PatientCard · print actions]:::shell
+  Q[treat-queue]:::page
+  R[treat-record]:::page
+  H[Header + PatientCard]:::shell
 
   S1[Step 1<br/>ประวัติการรักษา]:::step
-  S2[Step 2<br/>คัดกรอง &amp; ซักประวัติ]:::step
-  S3[Step 3<br/>ผลการตรวจร่างกาย ★]:::step
+  S2[Step 2<br/>คัดกรอง ซักประวัติ]:::step
+  S3[Step 3<br/>ผลการตรวจร่างกาย]:::step
   S4[Step 4<br/>บันทึกแพทย์]:::step
-  S5[Step 5<br/>สั่งยา / สั่งตรวจ]:::step
+  S5[Step 5<br/>สั่งยา สั่งตรวจ]:::step
   S6[Step 6<br/>การนัดหมาย]:::step
   S7[Step 7<br/>ใบรับรอง]:::step
 
-  ET[EXAM_SYSTEM_TABS<br/>HEENT · Heart · Lungs · ...]:::substep
+  ET[EXAM_SYSTEM_TABS<br/>HEENT Heart Lungs]:::substep
   BP[BodyDiagramPanel]:::substep
   EN[ExamNotesPanel]:::substep
   ES[ExamSupportList]:::substep
 
-  BR((BodyRecordPopup<br/>= DrawingCanvasPopup)):::modal
-  BC[BodyDrawingCanvas<br/>+ tools + colors<br/>+ markers + suggestions]:::shell
+  BR((BodyRecord<br/>Popup)):::modal
+  BC[BodyDrawingCanvas<br/>tools colors markers]:::shell
 
-  VG((VitalsSignGraphDialog)):::modal
-  USP((UnsavedChangesPopup)):::modal
+  VG((VitalsSignGraph<br/>Dialog)):::modal
+  USP((UnsavedChanges<br/>Popup)):::modal
 
-  Q -->|row click<br/>state:{hn,queue,name}| R
+  Q -->|row click| R
   R --> H
   R --> S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
   S3 --> ET
   S3 --> BP
   S3 --> EN
   S3 --> ES
-  BP -. "บันทึกร่างกาย" .-> BR
+  BP -. open canvas .-> BR
   BR --> BC
-  BR -->|save<br/>dirty-gated| S3
+  BR -->|save| S3
   S2 -. vitals header .-> VG
   R -. nav dirty .-> USP
 
-  click Q call openDetail("trtQ","/treat/queue","TreatmentQueuePage.jsx","248 patient rows · sticky pagination · Link from name")
-  click R call openDetail("trtR","/treat/record","TreatmentFormPage.jsx","Uses TreatmentFormShell · 7 steps · header PatientCard")
-  click S3 call openDetail("step3","Step 3","Step3Examination (in TreatmentSteps.jsx)","Tabs per system · view toggle · diagram + notes + support")
-  click BP call openDetail("bp","component","BodyDiagramPanel.jsx","Body figure with markers · 'บันทึกร่างกาย' opens BodyRecordPopup")
-  click BR call openDetail("br","modal","BodyRecordPopup.jsx → DrawingCanvasPopup.jsx","Title resolved from systemKey · dirty-gated Save")
-  click BC call openDetail("bc","component","BodyDrawingCanvas.jsx","Drawing tools · color palette · marker placement · region-aware suggestions (≥3 chars)")
+  click Q call openDetail("trtQ","/treat/queue","TreatmentQueuePage.jsx","248 patient rows, sticky pagination, Link from name")
+  click R call openDetail("trtR","/treat/record","TreatmentFormPage.jsx","Uses TreatmentFormShell, 7 steps, header PatientCard")
+  click S3 call openDetail("step3","Step 3","Step3Examination in TreatmentSteps.jsx","Tabs per system, view toggle, diagram and notes and support")
+  click BP call openDetail("bp","component","BodyDiagramPanel.jsx","Body figure with markers, opens BodyRecordPopup")
+  click BR call openDetail("br","modal","BodyRecordPopup / DrawingCanvasPopup","Title resolved from systemKey, dirty-gated Save")
+  click BC call openDetail("bc","component","BodyDrawingCanvas.jsx","Drawing tools, color palette, marker placement, region-aware suggestions")
   click VG call openDetail("vg2","modal","VitalsSignGraphDialog.jsx","Same chart shared with Screening Step 1")
-  click USP call openDetail("usp2","modal","UnsavedChangesPopup.jsx","Save · Discard · Cancel before route change")
+  click USP call openDetail("usp2","modal","UnsavedChangesPopup.jsx","Save, Discard, Cancel before route change")
         </div>
+      </div>
+      <div class="logic-block">
+        <h3>Logic — flow notes</h3>
+        <ul>
+          <li><strong>Entry:</strong> <code>/treat/record</code>, <code>state:{ hn, queue, name }</code>. Page resolves <strong>two</strong> patient shapes — <code>patient</code> via <code>findMrPatientByHn</code> (full MR) and <code>cardPatient</code> via <code>getPatientByHN</code> (display). Both fall back to defaults so direct visits don't crash.</li>
+          <li><strong>State ownership:</strong> <code>form</code> lives on the page; <code>buildInitialForm(patient)</code> runs once on mount. Switching patients via <code>QueueSubMenu.onPickPatient</code> re-mounts the page via <code>history.push('/treat/record', ...)</code>.</li>
+          <li><strong>Read-only steps (1, 2):</strong> ประวัติ / หน้าจอคัดกรอง are summaries only — ✓ flips when <code>stepIndex &gt; N</code> (advance-past).</li>
+          <li><strong>Cross-step linking:</strong>
+            <ul>
+              <li>Step 4 empty-state CTA "ตรวจร่างกาย" → <code>onStepChange(STEP_EXAM_INDEX)</code> jumps to Step 3.</li>
+              <li>Step 7 cert reads <code>form.diagnoses[0] + form.diagnosisNote</code> live from Step 4; missing → CTA back to Step 4.</li>
+            </ul>
+          </li>
+          <li><strong>Step 5 order category tabs:</strong> <code>form.orderCategory</code> switches active tab. Each category owns its own array (<code>medications</code> / <code>labs</code> / <code>xrayOrders</code> / <code>procedureOrders</code> / <code>consultOrders</code>); switching the tab does NOT reset.</li>
+          <li><strong>Step 6 appointment state machine:</strong> <code>appointment.mode === 'skip'</code> collapses body (✓); <code>'schedule'</code> expands and requires <code>{ clinic, type, doctor, reason, preparation }</code>. <code>ApptCollapse</code> keeps body mounted but height-collapsed so toggling glides.</li>
+          <li><strong>Step 7 cert state machine:</strong> <code>certIssue === 'no'</code> ⇒ ✓; <code>'yes'</code> requires <code>certSignature</code> (base64 PNG from canvas). <code>certSignedAt</code> only flips on explicit "ยืนยันลายเซ็น" — never on every stroke.</li>
+          <li><strong>Sticky PatientCard:</strong> ABOVE TreatmentFormShell with <code>sticky</code> prop. Uses an internal IntersectionObserver + sentinel; collapses to mini variant as the form column scrolls under Header. Requires <code>&lt;main&gt;</code> to be scrollable.</li>
+          <li><strong>Step ✓ aggregation:</strong> <code>getTreatmentCompletedSteps(form, stepIndex)</code> returns 7 booleans → <code>&lt;TreatmentFormShell completedSteps={...} /&gt;</code> → <code>&lt;StepProgress&gt;</code>.</li>
+          <li><strong>Leave guard:</strong> dirty + route change → <code>UnsavedChangesPopup</code>. The page also intercepts the browser back gesture.</li>
+        </ul>
       </div>
     </section>
 
@@ -543,9 +631,9 @@ flowchart TB
 flowchart LR
   classDef page fill:#EEF0FF,stroke:#6366F1,color:#1F2240,rx:8,ry:8
   L[/forms/]:::page
-  C[/forms/category/:key/]:::page
-  D[/forms/:slug/]:::page
-  Fi[/forms/:slug/fill/]:::page
+  C[/"forms/category/:key"/]:::page
+  D[/"forms/:slug"/]:::page
+  Fi[/"forms/:slug/fill"/]:::page
   L -->|click card| C
   C -->|click card| D
   D -->|Fill| Fi
@@ -556,6 +644,17 @@ flowchart LR
   click D call openDetail("formsDet","/forms/:slug","FormDetailPage.jsx","Metadata · QR share · preview · edit action")
   click Fi call openDetail("formsFill","/forms/:slug/fill","FormFillPage.jsx","Dynamic field renderer with save / cancel")
         </div>
+      </div>
+      <div class="logic-block">
+        <h3>Logic — flow notes</h3>
+        <ul>
+          <li><strong>Navigation flow:</strong> <code>/forms</code> (hub) → <code>/forms/category/:key</code> (drill-down) → <code>/forms/:slug</code> (detail + QR) → <code>/forms/:slug/fill</code> (live fill).</li>
+          <li><strong><code>?role=patient</code> chrome strip:</strong> FormFillPage reads <code>useLocation().search</code>. When <code>role === 'patient'</code>, hides back-to-catalog button, hides "เจ้าหน้าที่กรอกแทน" banner, collapses sidebar to drawer. Same schema renders; only chrome differs — the QR-landed phone view feels patient-owned.</li>
+          <li><strong>Field renderer dispatch:</strong> <code>type</code> ∈ <code>{text, textarea, date, datetime, signature, checkbox, select, radio-4, radio-5, slider-0-10}</code> → one renderer per type. <code>radio-4</code> = PHQ-9 / GAD-7 scale, <code>radio-5</code> = น้อยที่สุด…มากที่สุด. Unknown types fall through to text input (defensive default).</li>
+          <li><strong>Filter facets (catalog):</strong> <code>catalogFiltersForForm(slug)</code> uses a deterministic hash → mock policy / usage / department / creator / formStatus. Stable across reloads; NOT real metadata.</li>
+          <li><strong>Persistence:</strong> <strong>none</strong> — <code>useState</code> on FormFillPage owns the values map. Refresh loses everything. Production needs draft autosave.</li>
+          <li><strong>Inline reuse from OPD Step 5:</strong> the FormsLibrary surface renders inline (no route change) inside ScreeningPage Step 5; selection writes into the screening form's <code>forms[]</code> slice.</li>
+        </ul>
       </div>
     </section>
 
@@ -576,8 +675,8 @@ flowchart LR
   classDef modal fill:#E7F8F0,stroke:#08A768,color:#0B5435,rx:18,ry:18
 
   L[/users/]:::page
-  N[/users/new/]:::page
-  E[/users/:id/]:::page
+  N[/"users/new"/]:::page
+  E[/"users/:id"/]:::page
   Del((DeleteQueueConfirm<br/>Popup)):::modal
 
   L -->|add| N
@@ -592,6 +691,17 @@ flowchart LR
   click E call openDetail("usrEdit","/users/:id","UserEditPage.jsx","Edit existing user")
   click Del call openDetail("del","modal","DeleteQueueConfirmPopup.jsx","Generic destructive confirmation")
         </div>
+      </div>
+      <div class="logic-block">
+        <h3>Logic — flow notes</h3>
+        <ul>
+          <li><strong>Role → SubRole cascade:</strong> changing <code>user.role</code> clears <code>user.subRole</code> automatically (sub-role catalog is keyed by role). E.g. doctor → nurse invalidates <code>subRole='gp'</code>. If <code>SUB_ROLES[role]</code> is empty, the SubRole picker hides.</li>
+          <li><strong>Feature access matrix:</strong> each feature in <code>FEATURE_GROUPS</code> declares <code>supportedLevels: Array&lt;'none' | 'view' | 'edit'&gt;</code>. The row renders only the supported levels (e.g. binary "ส่ง QR" shows only <code>none | edit</code>). <code>user.features[key]</code> defaults to undefined → "ไม่มีสิทธิ์" (<code>none</code>).</li>
+          <li><strong><code>countAccess(user)</code> helper:</strong> returns <code>{ none, view, edit }</code> counts across the catalog. Used in the table for "X features · Y view · Z edit" per-row summary.</li>
+          <li><strong>Create vs Edit branch:</strong> <code>/users/new</code> → <code>getUserById('new')</code> returns undefined → <code>BLANK_USER</code> seeds the form. <code>/users/:id</code> → real user or BLANK_USER fallback. Save / Apply is a stub — no persistence wiring.</li>
+          <li><strong>Status toggle:</strong> <code>user.status ∈ {'active', 'inactive'}</code>. Inactive renders greyed; filtered out of role-based permission resolution at runtime (intended; not yet enforced in mocks).</li>
+          <li><strong>Delete:</strong> trash icon → <code>DeleteQueueConfirmPopup</code> → confirm removes the row (in-memory only in mocks).</li>
+        </ul>
       </div>
     </section>
 
@@ -655,15 +765,86 @@ flowchart LR
 
     <!-- 8 · STUBS -->
     <section class="flow" id="stubs">
-      <h2>8 · Unwired sidebar items</h2>
-      <p class="lead">UI present in the sidebar, route not implemented.</p>
-      <table class="modal-table">
-        <thead><tr><th>Item</th><th>Notes</th></tr></thead>
-        <tbody>
-          <tr><td>Treatment sub-departments (Family · STD · Substance · Antenatal · Mental · Vaccine · Dental · TB · Psychiatry)</td><td>SideSubMenu opens but child items have no <code>path</code></td></tr>
-          <tr><td>รังสีวินิจฉัย · ห้องปฏิบัติการ · เภสัชกรรม · งานการเงิน · นัดหมาย · ประวัติการใช้งาน</td><td>No <code>path</code> in the <code>ITEMS</code> array</td></tr>
-        </tbody>
-      </table>
+      <h2>8 · Unwired sidebar items (intended logic)</h2>
+      <p class="lead">The Sidebar (<code>src/components/layout/Sidebar.jsx</code>) lists <strong>12 primary menus</strong>. <strong>6 are wired</strong> (covered in §1–§6 above). <strong>6 are stubs</strong> — clickable but the click handler ignores items without <code>path</code>. Intended logic for each stub is documented below so future implementation work has a single reference.</p>
+
+      <div class="logic-block">
+        <h3>8.1 <code>radiology</code> — แผนกรังสีวินิจฉัย</h3>
+        <ul>
+          <li><strong>Sidebar:</strong> key <code>radiology</code>, icon <code>radiology</code>. <strong>Status:</strong> stub — no route.</li>
+          <li><strong>Intended flow:</strong> queue (pending / in-progress / reported) → per-study viewer card → sign-off → "ตรวจเสร็จ" status flips → write back to TreatmentVisit.</li>
+          <li><strong>Cross-system:</strong> receives Treatment Step 5 <code>xrayOrders[]</code>; reports back to <code>TreatmentVisit.history</code>.</li>
+        </ul>
+      </div>
+
+      <div class="logic-block">
+        <h3>8.2 <code>lab</code> — ห้องปฏิบัติการ</h3>
+        <ul>
+          <li><strong>Sidebar:</strong> key <code>lab</code>, icon <code>biotech</code>.</li>
+          <li><strong>Intended flow:</strong> sample collection (collected → analysing → reported), critical-value alerts (red flag → doctor), historical trend view. Pre-set panels already exist in <code>treatmentVisits.js</code> (e.g. <code>'CBC + BUN/Cr + electrolyte panel'</code>).</li>
+          <li><strong>Cross-system:</strong> receives Treatment Step 5 <code>labs[]</code>; reports back to TreatmentVisit + Dashboard "top-tests-ordered" chart.</li>
+        </ul>
+      </div>
+
+      <div class="logic-block">
+        <h3>8.3 <code>pharmacy</code> — ระบบงานเภสัชกรรม</h3>
+        <ul>
+          <li><strong>Sidebar:</strong> key <code>pharmacy</code>, icon <code>pill</code>.</li>
+          <li><strong>Intended flow:</strong> queue of dispensable prescriptions (from Treatment Step 5 <code>medications[]</code>) → counter call (เรียกคิว) → label printing → allergy double-check (re-validated against patient <code>drugAllergies</code>) → inventory deduction.</li>
+          <li><strong>Cross-system:</strong> receives Treatment Step 5 <code>medications[]</code>; reports <code>dispensed</code> status back; consults MR <code>drugAllergies</code>. Catalog already lives in <code>medicationCatalog.js</code> (~50 drugs).</li>
+        </ul>
+      </div>
+
+      <div class="logic-block">
+        <h3>8.4 <code>finance</code> — งานการเงิน</h3>
+        <ul>
+          <li><strong>Sidebar:</strong> key <code>finance</code>, icon <code>baht</code>.</li>
+          <li><strong>Intended flow:</strong> charge calculation per visit (services + medications + labs + imaging) → claim eligibility per <code>rightsGroup</code> (set in Registration Step 4) → payment receipt printing → sign-off.</li>
+          <li><strong>Cross-system:</strong> consumes completed Treatment records + Registration rights; emits Dashboard "ค่าบริการสะสม" feed.</li>
+        </ul>
+      </div>
+
+      <div class="logic-block">
+        <h3>8.5 <code>appoint</code> — ระบบนัดหมาย</h3>
+        <ul>
+          <li><strong>Sidebar:</strong> key <code>appoint</code>, icon <code>calendar_clock</code>.</li>
+          <li><strong>Intended flow:</strong> weekly calendar grid → slot reservation → conflict detection → reminder notifications (SMS / LINE) → Telemedicine link generation.</li>
+          <li><strong>Cross-system:</strong> writes TreatmentVisit Step 6 <code>appointment</code> slice when the doctor confirms; emits "นัดหมายวันนี้" count for Dashboard; surfaces as the OPD queue "นัดหมาย" tab.</li>
+        </ul>
+      </div>
+
+      <div class="logic-block">
+        <h3>8.6 <code>log</code> — ประวัติการใช้งาน</h3>
+        <ul>
+          <li><strong>Sidebar:</strong> key <code>log</code>, icon <code>history</code>.</li>
+          <li><strong>Intended flow:</strong> filterable table (user / date range / entity type / action) → per-row diff view → export to CSV / PDF → retention policy (rolling N days).</li>
+          <li><strong>Cross-system:</strong> read-only consumer of every other subsystem's audit trail. The Registration <code>RegistrationEditHistoryPanel</code> is the per-patient prototype; this menu is the system-wide equivalent. Required for compliance review.</li>
+        </ul>
+      </div>
+
+      <div class="logic-block">
+        <h3>8.7 Treatment sub-menus (9 sub-departments)</h3>
+        <p>The <code>treat</code> primary menu has 10 sub-items (<code>Sidebar.jsx:43-56</code>). Only the <strong>first</strong> is wired:</p>
+        <ul>
+          <li>✅ <code>opd-treat</code> — ตรวจรักษาทั่วไป (OPD) → <code>/treat/queue</code></li>
+        </ul>
+        <p>The other 9 are stubs:</p>
+        <table class="modal-table">
+          <thead><tr><th>sub-key</th><th>Label</th><th>Intended scope</th></tr></thead>
+          <tbody>
+            <tr><td><code>family</code></td><td>แผนกส่งเสริมสุขภาพ (วางแผนครอบครัว)</td><td>Family planning + contraceptive dispensing.</td></tr>
+            <tr><td><code>std</code></td><td>แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์</td><td>STI screening + HIV care; restricted-access ward.</td></tr>
+            <tr><td><code>drug</code></td><td>แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด</td><td>Substance-abuse program; methadone clinic.</td></tr>
+            <tr><td><code>anc</code></td><td>แผนกฝากครรภ์</td><td>Antenatal care; OB/GYN + ultrasound coordination.</td></tr>
+            <tr><td><code>wellness</code></td><td>แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ</td><td>Wellness (DM / HT / NCD high-risk) — visit cadence + lifestyle counseling.</td></tr>
+            <tr><td><code>vaccine</code></td><td>แผนกสร้างเสริมภูมิคุ้มกันโรค</td><td>Vaccination clinic + schedule tracking.</td></tr>
+            <tr><td><code>dental</code></td><td>แผนกทันตกรรม</td><td>Dental visits + procedures.</td></tr>
+            <tr><td><code>tb</code></td><td>แผนกวัณโรค</td><td>TB DOTS program — DOT visit logs + treatment milestones.</td></tr>
+            <tr><td><code>mental</code></td><td>แผนกสุขภาพจิตและคลินิกสุขภาพจิต</td><td>Mental health + PHQ-9 / GAD-7 (forms exist in Forms Library).</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Shared logic sketch:</strong> each sub-department reuses the same <code>TreatmentFormShell</code> + 7-step scaffold with a per-domain schema (e.g. ANC adds gestational age + fundus height; TB adds DOT cadence). Sub-menu click ⇒ same Treatment route filtered to that department.</p>
+      </div>
     </section>
 
     <!-- 9 · PREVIEW ROUTES -->

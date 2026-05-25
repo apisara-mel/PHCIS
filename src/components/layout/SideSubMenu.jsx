@@ -136,7 +136,7 @@ export const SideSubMenuItem = React.forwardRef(function SideSubMenuItem(
         gap: 'var(--dim-space-300, 12px)',
         minHeight: 48,
         padding: 'var(--dim-space-200, 8px) var(--dim-space-600, 24px)',
-        borderRadius: 'var(--dim-radius-200, 6px)',
+        borderRadius: 'var(--dim-radius-150, 6px)',
         background: tone.bg,
         cursor: interactive ? 'pointer' : (isDisabled ? 'not-allowed' : 'default'),
         transition: `background-color 160ms ${EASE}`,

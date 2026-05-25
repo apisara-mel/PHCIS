@@ -162,7 +162,7 @@ const ScrollBar = ({ tone, thumbPct = 100, topPct = 0 }) => (
         left: 'var(--dim-space-0)',
         width: '100%',
         height: `${thumbPct}%`,
-        borderRadius: 100,
+        borderRadius: 'var(--dim-radius-full, 9999px)',
         background: TONES[tone].scrollbarPillBg,
         transition: 'height 80ms linear, top 0s linear',
       }}

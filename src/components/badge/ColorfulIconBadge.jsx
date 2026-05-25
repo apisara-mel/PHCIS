@@ -57,7 +57,7 @@ const PILL_SPEC = {
   icon: 16,
   paddingX: 'var(--dim-space-200)',
   paddingY: 'var(--dim-space-100)',
-  borderRadius: 999,
+  borderRadius: 'var(--dim-radius-full, 9999px)',
 };
 
 const ColorfulIconBadge = ({

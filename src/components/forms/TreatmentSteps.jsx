@@ -2335,7 +2335,7 @@ export const Step5Orders = ({ form, setForm }) => {
           <div
             className='flex flex-col items-center justify-center w-full text-center'
             style={{
-              gap: 8,
+              gap: 'var(--dim-space-200, 8px)',
               paddingTop: 'var(--dim-space-600)',
               paddingBottom: 'var(--dim-space-800)',
               paddingLeft: 'var(--dim-space-600)',
@@ -3418,7 +3418,7 @@ const CertTypeCircleIcon = ({ option }) => {
       style={{
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: 'var(--dim-radius-full, 9999px)',
         background: option.tone.bg,
       }}
       aria-hidden

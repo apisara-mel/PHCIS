@@ -723,7 +723,7 @@ const SymptomStep = ({ onValidityChange }) => {
               gap: 'var(--dim-space-300, 12px)',
               padding: 'var(--dim-space-400, 16px)',
               background: 'var(--background-screen-brand-100, var(--surface-brandPrimary-quaternary, #F4FBF8))',
-              borderRadius: 'var(--dim-radius-300, 12px)',
+              borderRadius: 'var(--dim-radius-400, 12px)',
               border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
             }}
           >

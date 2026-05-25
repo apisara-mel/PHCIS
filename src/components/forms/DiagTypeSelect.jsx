@@ -247,7 +247,7 @@ const DiagTypeRow = ({ option, selected, onSelect }) => {
         padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)',
         background: active ? 'var(--surface-list-hover, #F4FBF8)' : 'transparent',
         border: 'none',
-        borderRadius: 'var(--dim-radius-100, 6px)',
+        borderRadius: 'var(--dim-radius-150, 6px)',
         color: active ? 'var(--text-list-hover, #007549)' : 'var(--text-list-default, #4D5358)',
         cursor: 'pointer',
         fontFamily: 'var(--type-family-body)',

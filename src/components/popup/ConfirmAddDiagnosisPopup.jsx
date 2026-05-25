@@ -86,7 +86,7 @@ const ConfirmAddDiagnosisPopup = ({
           style={{
             width: 24,
             height: 24,
-            borderRadius: '50%',
+            borderRadius: 'var(--dim-radius-500, 16px)',
             border: 'var(--dim-stroke-150, 1.5px) solid var(--text-brandprimary-default, #007549)',
             color: 'var(--text-brandprimary-default, #007549)',
           }}

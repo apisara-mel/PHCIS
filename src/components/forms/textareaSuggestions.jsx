@@ -258,7 +258,7 @@ export function useTextareaSuggestions({
                       ? 'var(--surface-list-hover, #F4FBF8)'
                       : 'var(--surface-list-default, #FFFFFF)',
                     border: 'none',
-                    borderRadius: 'var(--dim-radius-100, 6px)',
+                    borderRadius: 'var(--dim-radius-150, 6px)',
                     color: 'var(--text-list-default, #4D5358)',
                     fontFamily: 'var(--type-family-body)',
                     fontWeight: 'var(--type-weight-regular, 400)',

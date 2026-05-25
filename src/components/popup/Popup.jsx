@@ -55,7 +55,7 @@ import DangerButton from '@/components/button/DangerButton';
      text/modal/text                  → --text-modal-text
      text/modal/subtext               → --text-modal-subtext
      border/neutral/quaternary        → --border-neutral-quaternary
-     shadow/dropdown                  → --shadow-dropdown
+     effect/drop-shadow-bottom/400    → --shadow-drop-bottom-400 (canonical popup-family shadow; --shadow-dropdown is a back-compat alias)
      dim/radius/500                   → --dim-radius-500
      dim/space/{100,200,400,600}      → paddings + gaps
      type/family/heading-content      → title font
@@ -309,7 +309,7 @@ const Popup = ({
         position: 'fixed',
         inset: 0,
         zIndex: 'var(--sm-z-modal, 1400)',
-        background: 'rgba(15, 23, 42, 0.4)',
+        background: 'var(--surface-overlay-default)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -341,7 +341,7 @@ const Popup = ({
              `border/popover/grey` (#E2E4E6) ring around the dialog. */
           border: 'var(--dim-stroke-100) solid var(--border-popover-grey, #E2E4E6)',
           borderRadius: 'var(--dim-radius-500)',
-          boxShadow: 'var(--shadow-dropdown)',
+          boxShadow: 'var(--shadow-drop-bottom-400)',
           fontFamily: 'var(--type-family-body)',
           display: 'flex',
           flexDirection: 'column',

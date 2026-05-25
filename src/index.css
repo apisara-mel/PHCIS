@@ -364,9 +364,23 @@
   /* — Dropdown panel · alias per design.md §6.14 ────── */
   --surface-dropdown-default:   #FFFFFF;
   --border-dropdown-default:    #EBEBEB;
-  --shadow-dropdown:
-    0 16px 32px rgb(100 116 139 / 0.15),
-    0 4px 4px   rgb(100 116 139 / 0.10);
+  /* Figma "Drop Shadow Bottom/400" — neutral slate-500 (#64748B), two-layer
+     (blur 4 + 32, y-offset 4 + 16, alpha 10% + 15%) per design.md row 762.
+     Canonical shadow for the popup-container family: <Popup>, <AlertDialog>,
+     <ScreeningConfirmPopup>, and any future popup-shaped surface. */
+  --shadow-drop-bottom-400:
+    0 4px 4px   rgb(100 116 139 / 0.10),
+    0 16px 32px rgb(100 116 139 / 0.15);
+  /* Back-compat alias — `--shadow-dropdown` predates the explicit
+     drop-bottom-400 name. Both resolve to the same value so existing
+     callers keep working; new code should reference the spec-named token. */
+  --shadow-dropdown: var(--shadow-drop-bottom-400);
+
+  /* Popup backdrop overlay — slate-500 @ 40% so the tint family stays
+     aligned with --shadow-drop-bottom-400. Replaces the hardcoded
+     rgba(15,23,42,0.4) (slate-900) that drifted across Popup, AlertDialog,
+     and CameraCapturePopup. */
+  --surface-overlay-default: rgb(100 116 139 / 0.40);
 
   /* — Modal text (per design.md §4.2) ───────────────── */
   --text-modal-text:    #4D5358;   /* Primitive/color/neutral/700 */
@@ -528,6 +542,7 @@
   --dim-space-400:  16px;
 
   --dim-radius-100:  4px;
+  --dim-radius-150:  6px;
   --dim-radius-200:  8px;
   --dim-radius-400:  12px;
   --dim-radius-500:  16px;
@@ -732,6 +747,12 @@
   --text-formbuilder-error:         var(--border-dangerButton-default);      /* Title in Error state (#DC2626) — Figma `text/formbuilder/error` */
   --text-formbuilder-subtext:       #858C92;             /* Subtitle / helper (neutral/500)       */
 
+  /* Figma "Brand Drop Shadow Bottom/100" — single-layer PrimaryShadow/600
+     (offset 0,1px · blur 4). Brand-aware via `--PrimaryShadow-*`.
+     Use on subtle brand-tinted lifts (map popovers, tool markers, dropdowns). */
+  --shadow-brand-drop-bottom-100:
+    0 1px 4px var(--PrimaryShadow-600);
+
   /* Figma "Brand Drop Shadow Bottom/200" — stacked PrimaryShadow/600 + /601
      (offset 0,1px · blur 4 + 8). Brand-aware via `--PrimaryShadow-*`.
      Shared by Form Builder chrome, Small Alert success, copy toast, etc.   */
@@ -761,11 +782,11 @@
   --shadow-indigo-drop-bottom:   var(--shadow-indigo-drop-bottom-200);
   --filter-indigo-drop-bottom:   var(--filter-indigo-drop-bottom-200);
 
-  /* Form Builder drop shadow — Figma "Brand Drop Shadow Bottom/200".
-     Aliases the brand-aware PrimaryShadow primitives so when the user
-     switches theme via <html data-brand="..."> the shadow retints
-     atomically with the rest of the brand surfaces.                       */
-  --shadow-formbuilder: var(--shadow-brand-drop-bottom-200);
+  /* Form Builder / floating form chrome — neutral slate drop shadow.
+     Not brand-tinted (--shadow-brand-drop-bottom-* / --shadow-card).
+     Used by form-builder tiles, exam floating toolbars, registration cards. */
+  --shadow-formbuilder:
+    0 1px 4px rgba(100, 116, 139, 0.10);
 
   /* SuccessIcon (TickOnCircle) — Figma node 2798:5280.
      `icon/positive/success` = teal/500 (fixed, non-brand-responsive).
@@ -1423,7 +1444,7 @@
 .mih-pin__label {
   position: absolute; left: 50%; bottom: calc(100% + 4px);
   transform: translateX(-50%);
-  padding: 2px 6px; border-radius: 6px;
+  padding: 2px 6px; border-radius: var(--dim-radius-150, 6px);
   background: #fff; border: 1px solid var(--border-input-default, #e2e4e6);
   box-shadow: 0 2px 4px rgba(0,0,0,0.08);
   font-size: 10px; line-height: 1.3; white-space: nowrap;

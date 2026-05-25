@@ -258,7 +258,7 @@ const HistoryRow = ({ item, onSelect, highlighted = false, onHover }) => {
         paddingRight: 'var(--dim-space-300, 12px)',
         paddingTop: 'var(--dim-space-200, 8px)',
         paddingBottom: 'var(--dim-space-200, 8px)',
-        borderRadius: 6,
+        borderRadius: 'var(--dim-radius-150, 6px)',
         background: active ? 'var(--surface-list-hover, #F4FBF8)' : 'var(--surface-list-default, #FFFFFF)',
         border: 'none',
         color: active ? 'var(--text-list-hover, #007549)' : 'var(--text-list-default, #4D5358)',

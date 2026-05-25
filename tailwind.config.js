@@ -60,8 +60,15 @@ module.exports = {
         header: 'var(--shadow-header)',
       },
       borderRadius: {
-        card: '16px',
-        chip: '999px',
+        /* `rounded-card` — currently --dim-radius-500 (16 px) so existing
+           VitalCard / VitalSignTimelineCard / InventoryCard etc keep their
+           visual. NOTE: Figma "MIH Design System · Card" (KGU3Sk3s04cgRNSbE2M78w,
+           nodes 17:1458 / 17:1504) currently specs 12 px = --dim-radius-400
+           for the new VitalCard variants. Track the drift in design.md before
+           switching the alias — flipping 16 → 12 will shrink every existing
+           card visually. */
+        card: 'var(--dim-radius-500, 16px)',
+        chip: 'var(--dim-radius-full, 9999px)',
       },
     },
   },

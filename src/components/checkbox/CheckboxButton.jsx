@@ -216,7 +216,7 @@ const CheckboxButton = React.forwardRef(function CheckboxButton(
             style={{
               width: 36,
               height: 36,
-              borderRadius: 18,
+              borderRadius: 'var(--dim-radius-full, 9999px)',
               background: 'var(--surface-brandprimary-quaternary)',
               color: 'var(--icon-brandprimarybutton-default)',
             }}

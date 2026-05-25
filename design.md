@@ -653,6 +653,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 |-------|-------|
 | `dimension.radius.0` | `0` |
 | `dimension.radius.100` | `4` |
+| `dimension.radius.150` | `6` |
 | `dimension.radius.200` | `8` |
 | `dimension.radius.300` | `10` |
 | `dimension.radius.400` | `12` |
@@ -6741,6 +6742,23 @@ On narrow viewports (e.g. tablet preview) the dialog shrinks with the screen; on
 - Esc and backdrop click call `onClose` (clicks inside the panel do not close).
 - Stack-aware body scroll lock (composes with `AlertDialog` and nested modals).
 
+##### Popup-family chrome tokens (2026-05-25 audit)
+
+Every popup container — `<Popup>`, `<AlertDialog>`, `<ProfilePopover>`, plus anything composing them (`ScreeningConfirmPopup`, `DrawingCanvasPopup`, `VitalsGraphPopup`, etc.) — uses the **same** chrome:
+
+| Slot | Token | Resolves to | Figma origin |
+|---|---|---|---|
+| Container shadow | `--shadow-drop-bottom-400` | `0 4px 4px rgba(100,116,139,.10), 0 16px 32px rgba(100,116,139,.15)` | `effect.drop-shadow-bottom.400` |
+| Container radius | `--dim-radius-500` (16 px) | 16 px | `dimension.radius.500` |
+| Backdrop overlay | `--surface-overlay-default` | `rgba(100,116,139,.40)` (slate-500 @ 40%) | aligned with drop-shadow-bottom slate family |
+
+Pre-audit drift that was fixed:
+- `<Popup>` and `<AlertDialog>` referenced `--shadow-dropdown` (functionally identical but un-spec'd name) — now reference `--shadow-drop-bottom-400` directly. `--shadow-dropdown` remains as a back-compat alias.
+- Three popups hardcoded their backdrop (`rgba(15,23,42,.4)` slate-900 / `rgba(0,0,0,.55)` pure-black) — now standardized on `--surface-overlay-default` so the overlay tint matches the slate-500 family used by the container shadow.
+- `<ScreeningConfirmPopup>` and `<CameraCapturePopup>` used non-spec radii (`--shadow-card`, `--dim-radius-300`) — migrated.
+
+**Rule:** any new popup-shaped component MUST use these three tokens. Don't reach for `--shadow-card`, `--shadow-card-hover`, or hardcoded `rgba(...)` backdrops — those belong to the card family.
+
 ---
 
 ### 6.14 Dropdown Menu
@@ -8960,6 +8978,52 @@ Every surface / border / shadow alias is brand-aware — flipping `<html data-br
 - Only `border-color`, `box-shadow`, and `background-color` are CSS-transitioned (150 ms `ease-out`). Border-**width** and padding snap instantly — animating 1 px → 2 px stroke produces visible subpixel jitter (Figma 133:1448).
 - Default → selected-hover transitions the background fill smoothly so the surface swap on a click reads as one motion.
 - `aria-pressed` reflects the `selected` prop; Enter / Space activate the card when an `onClick` is supplied.
+
+---
+
+### 6.20.6 VitalReadingCard (MIH Design System / Card)
+
+> **Figma file:** `KGU3Sk3s04cgRNSbE2M78w` — MIH Design System · Card
+> **Figma nodes:** `17:1504` (borderless "vital card") · `17:1458` (bordered "vital card with Border")
+> **Project component:** `src/components/card/VitalReadingCard.jsx`
+> **Used in:** Read-only displays — Dashboard vitals tiles, Treatment Step 2 summary header, MR patient history snapshot.
+
+Read-only display variant of the vital-card family. **Structurally different** from the interactive `<VitalCard>` (which embeds an input + ± stepper for clinician data entry) — VitalReadingCard renders just label + value + optional icon + optional status badge, with no input controls.
+
+#### Variant matrix (Figma)
+
+| Set | Node | bordered | Default padding | Default width | Notes |
+|---|---|---|---|---|---|
+| borderless | `17:1504` | `false` | `0` | `215px` (horizontal) / `130px` (vertical) | Embedded inside other panels with own chrome |
+| with Border | `17:1458` | `true`  | `--dim-space-300` (12 px) | same | Standalone card |
+
+Each set has 4 prop combinations: `horizontal: Yes/No` × `type: reading / bmi`. Both expose `showIcon` and `showBadge` toggles.
+
+#### Tokens
+
+| Slot | Token | Value |
+|---|---|---|
+| Container surface | `--surface-card-100` | `#FFFFFF` |
+| Container border (when `bordered`) | `--border-card-default` | `#E2E4E6` |
+| Container border-radius | `--dim-radius-400` | **12 px** (Figma `--sds-size-radius-200`) |
+| Container padding (when `bordered`) | `--dim-space-300` | 12 px |
+| Inner gap | `--dim-space-200` | 8 px |
+| Icon circle bg | `--surface-brandPrimary-quaternary` | `#F4FBF8` |
+| Icon circle size | `--dim-size-700` | 36 px |
+| Icon glyph size | `--dim-size-400` | 20 px |
+| Label text | `--text-content-tertiary` / `--type-size-xs` / Medium | `#858C92` · 12 px |
+| Value text | `--text-content-default` / `--type-size-base` / Bold | `#363B3F` · 16 px |
+| Status badge | `<Badge style="success/warning/error/info" size="small">` | inherits semantic token |
+
+#### BMI variant
+
+- Replaces the value-only row with a **GradientBar gauge** (clinical scale: blue → green → orange → red).
+- `bmiMarkerPercent` (0–100) positions a white circle marker over the gauge.
+- Optional `bmiLabels` show ผอม / ปกติ / น้ำหนักเกิน / อ้วน beneath the bar.
+
+#### Drift note (2026-05-25 audit)
+
+- Tailwind `rounded-card` utility was hardcoded to **16 px** (`--dim-radius-500`) — now aliased to `var(--dim-radius-500, 16px)` so existing cards keep their visual. Figma 17:1458 specs **12 px** (`--dim-radius-400`) for these new variants — VitalReadingCard uses the smaller value directly to match Figma. If/when the rest of the card family migrates to 12 px, flip the Tailwind alias from radius-500 → radius-400.
 
 ---
 

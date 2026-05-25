@@ -342,7 +342,7 @@ const EmptyRecordsPlaceholder = ({ schema }) => (
     style={{
       gap: 'var(--dim-space-150, 6px)',
       padding: 'var(--dim-space-700, 28px) var(--dim-space-500, 20px)',
-      borderRadius: 'var(--dim-radius-400, 16px)',
+      borderRadius: 'var(--dim-radius-500, 16px)',
       background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
       border: 'var(--dim-stroke-100, 1px) dashed var(--border-brandPrimary-quaternary, #DCEAE3)',
     }}
