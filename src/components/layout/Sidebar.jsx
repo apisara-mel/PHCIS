@@ -471,6 +471,7 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null }) => {
               key={it.key}
               role='menuitem'
               tabIndex={0}
+              data-spotlight={`sidebar-${it.key}`}
               onClick={onActivate}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivate(); } }}
               onMouseEnter={() => setHoverItem(it.key)}

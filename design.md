@@ -607,10 +607,13 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Token | Value |
 |-------|-------|
-| `typography.family.heading-graphic` | `Sao Chingcha` |
-| `typography.family.heading-content` | `Sarabun` |
-| `typography.family.body` | `Sarabun` |
-| `typography.family.ui` | `Sarabun` |
+| `typography.family.heading-graphic`  | `Sao Chingcha` |
+| `typography.family.heading-graphic2` | `Mitr` |
+| `typography.family.heading-content`  | `Sarabun` |
+| `typography.family.body`             | `Sarabun` |
+| `typography.family.ui`               | `Sarabun` |
+
+> `heading-graphic` and `heading-graphic2` are the two **brand display** typefaces. `heading-graphic` (Sao Chingcha) is the original Thai-led display font; `heading-graphic2` (Mitr — Google Fonts) is the secondary Latin-led display family with broader weight coverage (200–900). Use either via the `typography.display.graphic*` (Sao Chingcha) or `typography.display.graphic2-*` (Mitr) style series. Body / heading / UI keep using Sarabun.
 
 #### Font Style
 
@@ -657,6 +660,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | `dimension.radius.200` | `8` |
 | `dimension.radius.300` | `10` |
 | `dimension.radius.400` | `12` |
+| `dimension.radius.450` | `14` |
 | `dimension.radius.500` | `16` |
 | `dimension.radius.600` | `24` |
 | `dimension.radius.full` | `9999` |
@@ -2078,7 +2082,7 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 
 #### Text Styles — overview
 
-**36 text styles** · **2 font families** · **7 groups** (per Figma `3465:2`, `3467:2`).
+**45 text styles** · **3 font families** · **8 groups** (per Figma `3465:2`, `3467:2`, plus Display Graphic 2).
 
 > 🔗 **Primitives:** the px / weight / letter-spacing values referenced by these styles live in [§1b. Typography](#1b-typography) (font-size scale `xxs`–`6xl`, weight `thin`–`bold`, letter-spacing `tighter`/`normal`).
 
@@ -2086,18 +2090,20 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 
 | Family | Role | Styles | Weights | Sample |
 |---|---|---|---|---|
-| **Sao Chingcha** | Display graphic — hero, marketing, brand moments | 9 | Bold only | `Aa Bb Cc · กขคงจ · 0123456789` |
-| **Sarabun** | UI typography — headings, body, labels, captions, buttons | 27 | Regular · Medium · Bold | `Aa Bb Cc · กขคงจ · 0123456789` |
+| **Sao Chingcha** | Display graphic 1 — Thai-led hero, brand moments | 9 | Bold only | `Aa Bb Cc · กขคงจ · 0123456789` |
+| **Mitr**         | Display graphic 2 + Heading (h1–h8) — brand display family driving both hero + section headings | 17 | Regular (heading) · Bold (graphic2) — broader scale available 200–900 | `Aa Bb Cc · กขคงจ · 0123456789` |
+| **Sarabun**      | UI typography — display, body, labels, captions, buttons (no longer used for headings) | 19 | Regular · Medium · Bold | `Aa Bb Cc · กขคงจ · 0123456789` |
 
-> Sao Chingcha is a custom brand typeface used **exclusively** for display graphic styles. Sarabun is the primary UI typeface for everything else.
+> Sao Chingcha + Mitr are the two **brand display** typefaces. Mitr now also drives **headings h1–h8** (Regular weight) — gives the product a softer, warmer brand voice than Sarabun Bold did previously. Sarabun remains the workhorse for body / display / labels / captions / buttons.
 
 ##### Groups
 
 | Group | Count | Family | Weight | Size range | Common use |
 |---|---|---|---|---|---|
-| Display Graphic | 9 | Sao Chingcha | Bold | 60 → 14 px | Hero, marketing splash, brand moments. LH 125%, LS 0. |
+| Display Graphic   | 9 | Sao Chingcha | Bold | 60 → 14 px | Hero, marketing splash, brand moments. LH 125%, LS 0. |
+| Display Graphic 2 | 9 | Mitr | Bold (default) · Medium / SemiBold available | 60 → 14 px | Alternative display headings, posters, kiosk hero blocks where Mitr's wider Latin glyphs read better. LH 125%, LS 0. |
 | Display / Heading | 9 | Sarabun | Bold | 60 → 14 px | Page-level display headlines. `display1` LS 0; `display2`–`display9` LS −2% (`tighter`). |
-| Heading | 8 | Sarabun | Bold | 36 → 12 px | Section headings. h1–h4 LH **137.5%**; h5–h8 LH **150%**. |
+| Heading | 8 | Mitr | Regular | 36 → 12 px | Section headings. h1–h4 LH **137.5%**; h5–h8 LH **150%**. Brand-driven heading family (was Sarabun Bold; now Mitr Regular for warmer brand voice). |
 | Body | 4 | Sarabun | Regular | 20 → 14 px | Body text, paragraphs, descriptions. LH 150%. |
 | Label | 2 | Sarabun | Medium | 14, 12 px | Form labels, nav items, tab labels, tags, chips, overlines. |
 | Caption | 2 | Sarabun | Regular | 12, 10 px | Supporting text, timestamps, metadata, legal copy, hints. |
@@ -2118,6 +2124,15 @@ Every style below maps to a Figma text style of the same name. The right-hand "A
 | `typography.display.graphic7` | Sao Chingcha | Bold | 18px | 125% | 0% | `typography.family.heading-graphic` | `typography.weight.bold` | `typography.size.lg` | `typography.letter-spacing.normal` |
 | `typography.display.graphic8` | Sao Chingcha | Bold | 16px | 125% | 0% | `typography.family.heading-graphic` | `typography.weight.bold` | `typography.size.base` | `typography.letter-spacing.normal` |
 | `typography.display.graphic9` | Sao Chingcha | Bold | 14px | 125% | 0% | `typography.family.heading-graphic` | `typography.weight.bold` | `typography.size.sm` | `typography.letter-spacing.normal` |
+| `typography.display.graphic2-1` | Mitr | Bold | 60px | 125% | 0% | `typography.family.heading-graphic2` | `typography.weight.bold` | `typography.size.6xl` | `typography.letter-spacing.normal` |
+| `typography.display.graphic2-2` | Mitr | Bold | 48px | 125% | 0% | `typography.family.heading-graphic2` | `typography.weight.bold` | `typography.size.5xl` | `typography.letter-spacing.normal` |
+| `typography.display.graphic2-3` | Mitr | Bold | 36px | 125% | 0% | `typography.family.heading-graphic2` | `typography.weight.bold` | `typography.size.4xl` | `typography.letter-spacing.normal` |
+| `typography.display.graphic2-4` | Mitr | Bold | 30px | 125% | 0% | `typography.family.heading-graphic2` | `typography.weight.bold` | `typography.size.3xl` | `typography.letter-spacing.normal` |
+| `typography.display.graphic2-5` | Mitr | Bold | 24px | 125% | 0% | `typography.family.heading-graphic2` | `typography.weight.bold` | `typography.size.2xl` | `typography.letter-spacing.normal` |
+| `typography.display.graphic2-6` | Mitr | Bold | 20px | 125% | 0% | `typography.family.heading-graphic2` | `typography.weight.bold` | `typography.size.xl`  | `typography.letter-spacing.normal` |
+| `typography.display.graphic2-7` | Mitr | Bold | 18px | 125% | 0% | `typography.family.heading-graphic2` | `typography.weight.bold` | `typography.size.lg`  | `typography.letter-spacing.normal` |
+| `typography.display.graphic2-8` | Mitr | Bold | 16px | 125% | 0% | `typography.family.heading-graphic2` | `typography.weight.bold` | `typography.size.base`| `typography.letter-spacing.normal` |
+| `typography.display.graphic2-9` | Mitr | Bold | 14px | 125% | 0% | `typography.family.heading-graphic2` | `typography.weight.bold` | `typography.size.sm`  | `typography.letter-spacing.normal` |
 | `typography.display1` | Sarabun | Bold | 60px | 125% | 0% | `typography.family.body` | `typography.weight.bold` | `typography.size.6xl` | `typography.letter-spacing.normal` |
 | `typography.display2` | Sarabun | Bold | 48px | 125% | -2% | `typography.family.body` | `typography.weight.bold` | `typography.size.5xl` | `typography.letter-spacing.tighter` |
 | `typography.display3` | Sarabun | Bold | 36px | 125% | -2% | `typography.family.body` | `typography.weight.bold` | `typography.size.4xl` | `typography.letter-spacing.tighter` |
@@ -2127,14 +2142,14 @@ Every style below maps to a Figma text style of the same name. The right-hand "A
 | `typography.display7` | Sarabun | Bold | 18px | 125% | -2% | `typography.family.body` | `typography.weight.bold` | `typography.size.lg` | `typography.letter-spacing.tighter` |
 | `typography.display8` | Sarabun | Bold | 16px | 125% | -2% | `typography.family.body` | `typography.weight.bold` | `typography.size.base` | `typography.letter-spacing.tighter` |
 | `typography.display9` | Sarabun | Bold | 14px | 125% | -2% | `typography.family.body` | `typography.weight.bold` | `typography.size.sm` | `typography.letter-spacing.tighter` |
-| `typography.h1` | Sarabun | Bold | 36px | 137.5% | 0% | `typography.family.body` | `typography.weight.bold` | `typography.size.4xl` | `typography.letter-spacing.normal` |
-| `typography.h2` | Sarabun | Bold | 30px | 137.5% | 0% | `typography.family.body` | `typography.weight.bold` | `typography.size.3xl` | `typography.letter-spacing.normal` |
-| `typography.h3` | Sarabun | Bold | 24px | 137.5% | 0% | `typography.family.body` | `typography.weight.bold` | `typography.size.2xl` | `typography.letter-spacing.normal` |
-| `typography.h4` | Sarabun | Bold | 20px | 137.5% | 0% | `typography.family.body` | `typography.weight.bold` | `typography.size.xl` | `typography.letter-spacing.normal` |
-| `typography.h5` | Sarabun | Bold | 18px | 150% | 0% | `typography.family.body` | `typography.weight.bold` | `typography.size.lg` | `typography.letter-spacing.normal` |
-| `typography.h6` | Sarabun | Bold | 16px | 150% | 0% | `typography.family.body` | `typography.weight.bold` | `typography.size.base` | `typography.letter-spacing.normal` |
-| `typography.h7` | Sarabun | Bold | 14px | 150% | 0% | `typography.family.body` | `typography.weight.bold` | `typography.size.sm` | `typography.letter-spacing.normal` |
-| `typography.h8` | Sarabun | Bold | 12px | 150% | 0% | `typography.family.body` | `typography.weight.bold` | `typography.size.xs` | `typography.letter-spacing.normal` |
+| `typography.h1` | Mitr | Regular | 36px | 137.5% | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.4xl`  | `typography.letter-spacing.normal` |
+| `typography.h2` | Mitr | Regular | 30px | 137.5% | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.3xl`  | `typography.letter-spacing.normal` |
+| `typography.h3` | Mitr | Regular | 24px | 137.5% | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.2xl`  | `typography.letter-spacing.normal` |
+| `typography.h4` | Mitr | Regular | 20px | 137.5% | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.xl`   | `typography.letter-spacing.normal` |
+| `typography.h5` | Mitr | Regular | 18px | 150%   | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.lg`   | `typography.letter-spacing.normal` |
+| `typography.h6` | Mitr | Regular | 16px | 150%   | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.base` | `typography.letter-spacing.normal` |
+| `typography.h7` | Mitr | Regular | 14px | 150%   | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.sm`   | `typography.letter-spacing.normal` |
+| `typography.h8` | Mitr | Regular | 12px | 150%   | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.xs`   | `typography.letter-spacing.normal` |
 | `typography.body1` | Sarabun | Regular | 20px | 150% | 0% | `typography.family.body` | `typography.weight.regular` | `typography.size.xl` | `typography.letter-spacing.normal` |
 | `typography.body2` | Sarabun | Regular | 18px | 150% | 0% | `typography.family.body` | `typography.weight.regular` | `typography.size.lg` | `typography.letter-spacing.normal` |
 | `typography.body3` | Sarabun | Regular | 16px | 150% | 0% | `typography.family.body` | `typography.weight.regular` | `typography.size.base` | `typography.letter-spacing.normal` |
@@ -3717,6 +3732,51 @@ Empty badge = ❌ INVALID
 5. **Border width for Outline style**: Always `dimension.stroke.100` = `1px`. The stroke is inside the component bounds.
 
 6. **Icon-only buttons**: Use the same surface/icon tokens as text buttons at the same style/state combination. Circle variants use `dimension.radius.full` for the container; square icon buttons use `dimension.radius.200` (8px) or `dimension.radius.full` depending on the specific frame.
+
+---
+
+### 5.13. Figma ↔ React Component Map
+
+Central index of Figma component_sets / components in MIH Design System Foundation (`SBdh4TtY0KAa22s3dnyRNr`) paired with their React implementations. Use this as the **source of truth** for cross-tool navigation — open the Figma node in the design tool, then jump to the React file (and vice-versa).
+
+**Why this exists (not Code Connect):** Figma's official Code Connect mapping API (`send_code_connect_mappings`, `@figma/code-connect` CLI) requires an **Organization or Enterprise plan with Developer seats**. Until the org upgrades, this table is the manual equivalent — pair-tested with `get_metadata` on the live DS file.
+
+**Convention** — every React component file in `src/components/` SHOULD include a header docblock referencing its Figma node id, e.g.:
+
+```jsx
+/* MIH BrandButton — Figma node 231:29 (Brand Button ✅ · MIH Design System Foundation). */
+```
+
+The ✅ suffix marks the **approved** version of the component; some files reference older draft node ids historically (e.g. Alert.jsx had `325:2623` before the approved `297:59` set landed). When updating, supersede the old id and note it inline rather than deleting the history.
+
+#### Verified mappings (Phase 1)
+
+| Figma node | Figma name | React file | React export |
+|---|---|---|---|
+| `231:29`     | Brand Button ✅                 | [src/components/button/BrandButton.jsx](src/components/button/BrandButton.jsx) | `BrandButton` |
+| `377:11596`  | Brand Icon Button ✅            | [src/components/button/BrandIconButton.jsx](src/components/button/BrandIconButton.jsx) | `BrandIconButton` |
+| `302:73`     | Status Badge ✅                 | [src/components/badge/StatusBadge.jsx](src/components/badge/StatusBadge.jsx) | `StatusBadge` |
+| `2076:8413`  | Colorful Badge ✅               | [src/components/badge/ColorfulBadge.jsx](src/components/badge/ColorfulBadge.jsx) | `ColorfulBadge` |
+| `2307:11697` | Colorful icon Badge ✅          | [src/components/badge/ColorfulIconBadge.jsx](src/components/badge/ColorfulIconBadge.jsx) | `ColorfulIconBadge` |
+| `297:59`     | Alert (Large) ✅                | [src/components/alert/Alert.jsx](src/components/alert/Alert.jsx) | `Alert` |
+| `3355:3149`  | Small Alert ✅                  | [src/components/alert/SmallAlert.jsx](src/components/alert/SmallAlert.jsx) | `SmallAlert` |
+| `2796:3168`  | Action List ✅                  | [src/components/list/ActionList.jsx](src/components/list/ActionList.jsx) | `ActionList` |
+| `292:21`     | Accordion ✅                    | _(no React equivalent yet — TODO)_ | — |
+
+#### Pending mappings (Phase 2 — to be filled)
+
+To extend this table, run a one-off Figma scan (`use_figma` walking `figma.root.children` filtered to `COMPONENT_SET` nodes), then verify each React file exists. Add rows for at least: Neutral Button, Neutral Icon Button, Brand Subdue Button, Danger Button, Inputs (TextField, Select), Checkbox, Radio, Switch, Popup, Tabs, Stepper, Date Picker, Calendar.
+
+The MIH DS Foundation file has **~1500 component nodes** total (most are Feather icon imports on the `icon ✍️` page — those are *not* the target. Focus on `Component ✅` / `Button ✅ 🌙 ✍️` / `Badge ✅ 🌙 ✍️` etc. — the ✅-flagged production versions).
+
+#### Workflow when adding a new DS component
+
+1. Build the variant set in MIH Design System Foundation, name it `Component/<Name>` with ✅ suffix when approved.
+2. Capture its node id via `get_metadata` or inspecting the URL.
+3. Create the React file in `src/components/<family>/<Name>.jsx`.
+4. Add docblock header: `/* MIH <Name> — Figma node <id> (<Name> ✅ · MIH DS Foundation). */`.
+5. Add a row to §5.13 above.
+6. Add a Guidelines entry to [ComponentsLibraryPage.jsx](src/pages/components/ComponentsLibraryPage.jsx) with the demo + Do/Don't matrix.
 
 ---
 
@@ -12260,6 +12320,307 @@ Replacements applied:
 | `ActionList.jsx` | local `MiniSwitch` 44 × 24 | `<Switch>` (spread of `switchProps`) |
 
 Benefit: brand-aware tokens, focus ring, press stretch, accessibility (`role`, `aria-*`), and all interaction polish flow from one source — switching themes or upgrading the design-system component automatically updates every consumer.
+
+---
+
+## 7. Mobile Application Design System
+
+The mobile citizen app (`/m/*` routes, see [src/pages/mobile/](src/pages/mobile/)) reuses the **foundation** tokens — colour, typography family, icon size, motion — verbatim from §1–§4. Only **shape, height, and density** differ, because thumb reach and one-handed use are the dominant constraints on a 390-wide viewport.
+
+The mobile system is intentionally lean: ~7 primitives that compose every screen. There is no mobile `Table`, `Tabs`, `Accordion`, or `Dropdown` yet — when those land, they extend this layer, not duplicate it.
+
+### 7.1. Layering rules
+
+```
+┌──────────────────────────────────────────────────┐
+│  Foundation (shared)                             │  §1–§4
+│  --brand-p*, --type-family-*, --text-*, etc.     │
+└──────────────────────────────────────────────────┘
+              ▲                      ▲
+              │                      │
+┌─────────────────────────┐  ┌──────────────────────┐
+│  Web tokens (default)   │  │  Mobile tokens       │  §7.2
+│  --dim-*, --type-size-* │  │  --mobile-*          │
+└─────────────────────────┘  └──────────────────────┘
+              ▲                      ▲
+              │                      │
+   Web components (§5–§6)     Mobile components (§7.3)
+```
+
+**Hard rules:**
+
+| Rule | What it means | Where it's enforced |
+|------|---------------|--------------------|
+| ✅ Mobile components alias `--mobile-*` and foundation tokens | shape/height/density tokens are platform-specific; everything else is shared | [`src/components/mobile/*`](src/components/mobile/) — every primitive |
+| ❌ Web components MUST NOT consume `--mobile-*` | if a value belongs on both, it lives in `--dim-*` / `--type-*` instead | review |
+| ❌ Mobile components MUST NOT redefine colour / typography family / icon | brand fork = brand broken | review |
+| ❌ Mobile components MUST NOT alias `--btn-*`, `--card-*`, web-only component tokens | those carry web-only geometry (radius 6, height 44/56 fixed shape) | review |
+| ✅ Touch target floor = `var(--mobile-touch-target-min, 44px)` | iOS HIG / Material 3 minimum — even for icon-only taps | every interactive primitive |
+
+If you find yourself reaching for a literal pixel in a mobile component, the answer is **add a new `--mobile-*` token** — not paste in `12px`.
+
+### 7.2. Platform tokens (`--mobile-*`)
+
+Defined in [`src/index.css`](src/index.css) — a single `:root` block right above the Spotlight CSS. Each token aliases a foundation `--dim-*` / `--type-*` value where possible, so a foundation rescale still propagates.
+
+#### Button
+
+| Token | Value | Resolves to |
+|-------|-------|-------------|
+| `--mobile-button-radius` | `var(--dim-radius-full)` | `9999px` (pill) |
+| `--mobile-button-height-md` | `44px` | iOS HIG touch target |
+| `--mobile-button-height-lg` | `56px` | screen-bottom CTA |
+| `--mobile-button-padding-x` | `var(--dim-space-500)` | `20px` |
+| `--mobile-button-gap` | `var(--dim-space-200)` | `8px` (icon ↔ label) |
+| `--mobile-button-type-size` | `var(--type-size-base)` | `16px` |
+| `--mobile-button-type-weight` | `var(--type-weight-bold)` | `700` |
+
+> **Why pill, not 6 px?** The brief is "ทรงมนโค้ง" — mobile buttons read as soft chips, not rectangular form-controls. Pill survives at any width without re-tuning the radius (a fixed `12 px` looks pill at width 60, square at width 280).
+
+#### Input
+
+| Token | Value | Resolves to |
+|-------|-------|-------------|
+| `--mobile-input-radius` | `var(--dim-radius-400)` | `12px` |
+| `--mobile-input-height` | `48px` | comfortable thumb-tap target |
+| `--mobile-input-padding-x` | `var(--dim-space-400)` | `16px` |
+| `--mobile-input-type-size` | `var(--type-size-base)` | `16px` ⚠️ |
+
+> ⚠️ **iOS Safari auto-zoom**: input `font-size < 16 px` triggers the viewport zoom on focus. Never override `--mobile-input-type-size` below 16.
+
+#### Card
+
+| Token | Value | Resolves to |
+|-------|-------|-------------|
+| `--mobile-card-radius` | `var(--dim-radius-500)` | `16px` |
+| `--mobile-card-padding` | `var(--dim-space-400)` | `16px` |
+
+#### Badge
+
+| Token | Value | Resolves to |
+|-------|-------|-------------|
+| `--mobile-badge-radius` | `var(--dim-radius-full)` | `9999px` (pill) |
+| `--mobile-badge-padding-x` | `var(--dim-space-200)` | `8px` |
+| `--mobile-badge-padding-y` | — | `2px` |
+| `--mobile-badge-type-size` | `var(--type-size-xs)` | `12px` |
+
+#### Shell (frame chrome)
+
+| Token | Value | Resolves to |
+|-------|-------|-------------|
+| `--mobile-header-height` | — | `56px` |
+| `--mobile-status-bar-height` | — | `44px` |
+| `--mobile-bottom-nav-height` | — | `80px` |
+| `--mobile-touch-target-min` | — | `44px` |
+
+#### Semantic colour (`--mobile-surface-*` / `--mobile-text-*` / `--mobile-border-*` / `--mobile-icon-*`)
+
+Mobile colour tokens are **separate from web** (web uses `--surface-*` / `--text-*` directly). This split lets the citizen app run a different palette — currently a brighter emerald (`#08A768`) versus the desktop deep-green (`#007549`) — without re-skinning the desktop EMR. Both palettes inherit foundation tokens (typography family, motion, icon families).
+
+Source of truth: Figma file `opz7X9AAKGQf5prHhsPDGn` Light/Dark variable collections. Values exported to [`src/index.css`](src/index.css) — light values live under `:root`, dark overrides under `[data-mobile-theme="dark"]` (toggleable per-subtree).
+
+Each tone covers 4 categories × 5 surface tiers + on-* text variants. The button system reads from these tokens via the `buildPalette(tone, options)` helper in [_base.jsx](src/components/mobile/button/_base.jsx):
+
+| Tone | Used by | Default fill (light) | Default fill (dark) |
+|------|---------|----------------------|---------------------|
+| `brandPrimaryButton` | BrandButton, BrandSubdueButton, BrandIconButton, BrandSubdueIconButton, BrandCircleIconButton, BrandCircleSubdueIconButton, BrandSubdueFloatButton | `#08A768` | `#6AD6A5` |
+| `brandSecondaryButton` | reserved for second-tier brand actions | `#427C3D` | `#78B573` |
+| `dangerButton` | DangerButton, DangerSubdueButton, DangerIconButton, DangerSubdueIconButton | `#B91C1C` | `#FCA5A5` |
+| `neutralButton` | NeutralButton, NeutralSubdueButton, NeutralIconButton, NeutralSubdueIconButton, HistoryListFormButton | `#4D5358` | `#C9CDD0` |
+| `disabledButton` | every variant's `disabled` state (all tones) | `#F4F5F5` | `#363B3F` |
+
+Per-tone surface tiers — same shape for every tone:
+
+| Tier | Where it shows up |
+|------|-------------------|
+| `default` | Fill bg for solid (fill) variant |
+| `default-hover` | Hover bg for solid fill |
+| `secondary` | Active bg for solid fill (pressed) |
+| `secondary-hover` | (reserved — currently unused by buttons) |
+| `tertiary` | Active bg for ghost / outline-active fallback |
+| `tertiary-hover` | (reserved) |
+| `quaternary` | Default bg for subdue (soft) fill |
+| `quaternary-hover` | Hover bg for subdue fill / outline-active |
+| `quinary` | (reserved — lightest tier) |
+| `quinary-hover` | Hover bg for outline / ghost variant |
+
+Text + icon tokens follow the same naming (`text-{tone}-default | secondary | tertiary | quaternary | on-brand | on-default | on-neutral`). `on-*` keys carry the contrast colour painted ON TOP of the matching solid fill (`text-brandPrimaryButton-on-brand` = white in light mode, `#002318` in dark mode).
+
+Focus ring stroke comes from `--mobile-focus-ring-width` (4px); colour is `--mobile-border-brandPrimaryButton-tertiary` regardless of tone (the focus ring's job is to mark _focus_, not _intent_).
+
+> **How to add a new tone**: append the full tier+text+border+icon set to BOTH `:root` and `[data-mobile-theme="dark"]` in [src/index.css](src/index.css), then call `buildPalette('newTone')` from the consuming button file. No changes to `_base.jsx` should be needed.
+
+### 7.3. Component map
+
+Each primitive lives in its own file under [src/components/mobile/](src/components/mobile/). Pages can import from `'src/components/mobile'` (barrel) or from `'./MobileShell'` (legacy re-exports — kept so the existing 19 pages don't need to be touched).
+
+**Naming convention** — mobile components use the **same names as the Figma file** (no `Mobile` prefix). The folder location (`src/components/mobile/button/BrandButton.jsx` vs `src/components/button/BrandButton.jsx`) is what disambiguates them from the web equivalents. Import path is the source of truth:
+
+```js
+import { BrandButton } from '@/components/button';         // web (44h, radius-150)
+import { BrandButton } from '@/components/mobile';         // mobile (44/56h, pill)
+import { BrandButton } from '@/components/mobile/button';  // mobile, explicit
+```
+
+#### Button family (Figma section 319:2012 · 16 components)
+
+All buttons live under [src/components/mobile/button/](src/components/mobile/button/). They share `MobileButtonBase` ([_base.jsx](src/components/mobile/button/_base.jsx)) — each file calls `buildPalette(tone, { fillTier, variants })` to derive its full state matrix from `--mobile-*` semantic tokens, then passes the result to the shared renderer. Two sizes: `md` (44h) and `lg` (56h, default).
+
+**State matrix** — every variant resolves to 5 states (`default` / `hover` / `active` / `focus` / `disabled`) just like the web BrandButton. The renderer tracks `hover` via `useState` + `onMouseEnter` / `onMouseLeave`, `focus` via `onFocus` / `onBlur`, and `pressed` via `onMouseDown` / `onMouseUp`. Callers can also force a state via `hovered` / `active` / `focused` / `disabled` props — used by the `/m/components` state-matrix grid to render every state side-by-side. Focus ring uses CSS `outline` (paints OUTSIDE the box) so the button doesn't grow on focus.
+
+| Component | Figma node | Shape | Notes |
+|-----------|-----------|-------|-------|
+| [`BrandButton`](src/components/mobile/button/BrandButton.jsx) | 231:29 | pill | Primary CTA — `variant='fill'` default |
+| [`BrandSubdueButton`](src/components/mobile/button/BrandSubdueButton.jsx) | 2024:3589 | pill | Soft brand surface — quaternary bg |
+| [`DangerButton`](src/components/mobile/button/DangerButton.jsx) | 2024:3590 | pill | Destructive / irreversible actions |
+| [`DangerSubdueButton`](src/components/mobile/button/DangerSubdueButton.jsx) | 2024:3592 | pill | Soft destructive — warning quaternary bg |
+| [`NeutralButton`](src/components/mobile/button/NeutralButton.jsx) | 2024:3591 | pill | Greyscale secondary |
+| [`NeutralSubdueButton`](src/components/mobile/button/NeutralSubdueButton.jsx) | 2024:2940 | pill | "Skip" / "later" — content/secondary bg |
+| [`BrandIconButton`](src/components/mobile/button/BrandIconButton.jsx) | 377:11596 | pill (square) | Icon-only — 44×44 or 56×56 |
+| [`BrandSubdueIconButton`](src/components/mobile/button/BrandSubdueIconButton.jsx) | 2024:4352 | pill (square) | Icon-only · soft brand |
+| [`DangerIconButton`](src/components/mobile/button/DangerIconButton.jsx) | 2024:3701 | pill (square) | Icon-only · destructive |
+| [`DangerSubdueIconButton`](src/components/mobile/button/DangerSubdueIconButton.jsx) | 2024:4434 | pill (square) | Icon-only · soft destructive |
+| [`NeutralIconButton`](src/components/mobile/button/NeutralIconButton.jsx) | 2024:4189 | pill (square) | Icon-only · neutral |
+| [`NeutralSubdueIconButton`](src/components/mobile/button/NeutralSubdueIconButton.jsx) | 2024:4516 | pill (square) | Icon-only · soft neutral |
+| [`BrandCircleIconButton`](src/components/mobile/button/BrandCircleIconButton.jsx) | 2103:548 | circle (50%) | Force-circular — distinct from pill |
+| [`BrandCircleSubdueIconButton`](src/components/mobile/button/BrandCircleSubdueIconButton.jsx) | 2103:645 | circle (50%) | Force-circular · soft brand |
+| [`BrandSubdueFloatButton`](src/components/mobile/button/BrandSubdueFloatButton.jsx) | 2293:11088 | circle (50%) | FAB · drop-shadow lifted |
+| [`HistoryListFormButton`](src/components/mobile/button/HistoryListFormButton.jsx) | 3360:2711 | pill | Wide pill row · forced size=md · neutral surface |
+
+**Props (shared via `MobileButtonBase`):**
+
+```jsx
+<BrandButton
+  variant='fill' | 'outline' | 'ghost'   // Figma "Style" property (default 'fill')
+  size='md' | 'lg'                        // 'lg' default (56h); 'md' = 44h
+  leadingIcon='event_available'           // Material Symbol name
+  trailingIcon='arrow_forward'
+  disabled
+  fullWidth                               // default true; pass false for inline
+  shape='pill' | 'circle'                 // 'circle' only used by *Circle* variants
+  iconOnly                                // set automatically by *IconButton variants
+  onClick={...}
+>
+  Label
+</BrandButton>
+```
+
+> ⚠️ **Deprecated**: `MobileButton` with `variant='primary' | 'secondary' | 'ghost' | 'danger' | 'neutral'` is kept as a translation shim ([MobileButton.jsx](src/components/mobile/MobileButton.jsx)) so the 19 existing `/m/*` pages don't need to be touched. New code MUST use the canonical Figma names above.
+
+#### Primitives
+
+| Component | File | Web equivalent | What differs on mobile |
+|-----------|------|----------------|------------------------|
+| [`MobileCard`](src/components/mobile/Card.jsx) | Card.jsx | `Card` (web) | Radius 16 vs 8; subtle elevation opt-in |
+| [`MobileInput`](src/components/mobile/Input.jsx) | Input.jsx | `InputField` (§6.12) | 16px base font (iOS zoom guard); 48h; pill-leaning radius |
+| [`MobileField`](src/components/mobile/Field.jsx) | Field.jsx | `FormControl` wrapper | Stacks label / hint / error around any control |
+| [`MobileBadge`](src/components/mobile/Badge.jsx) | Badge.jsx | `ColorfulBadge` (§5.11) | Always pill; smaller padding for 390-wide layouts |
+| [`MobileHeader`](src/components/mobile/Header.jsx) | Header.jsx | `Header` (§6.19) | 56h app-bar pattern; back arrow + title + right-slot; `transparent` mode over hero gradient |
+| [`MobileSectionLabel`](src/components/mobile/SectionLabel.jsx) | SectionLabel.jsx | — | Section header above content blocks |
+| [`MobileShell`](src/components/mobile/MobileShell.jsx) | MobileShell.jsx | — | Phone frame + status bar + bottom nav + auth gate |
+| [`Sym`](src/components/mobile/Sym.jsx) | Sym.jsx | `Sym` (web) | Same shape, separate file so the mobile tree has no web-only coupling |
+
+> 📝 **Naming exception**: Primitives that are conceptually "mobile shell" (Card, Input, Field, Badge, Header, SectionLabel, Shell) keep the `Mobile*` prefix because there is no Figma master of these yet — the prefix marks them as mobile-only until a Figma source-of-truth exists. Buttons drop the prefix because Figma 319:2012 IS the source-of-truth.
+
+#### 7.3.1 MobileButton — props & variants
+
+```jsx
+<MobileButton
+  variant='primary' | 'secondary' | 'ghost' | 'danger' | 'neutral'
+  size='md' | 'lg'           // default 'lg' (56h)
+  icon='event_available'     // optional leading Material Symbol
+  iconRight='arrow_forward'  // optional trailing
+  disabled
+  fullWidth                  // default true — mobile CTAs span the safe area
+  onClick={...}
+>
+  จองนัด
+</MobileButton>
+```
+
+| Variant | Surface token | Text token | Border |
+|---------|---------------|------------|--------|
+| `primary` | `--surface-brandPrimary-default` | `#FFFFFF` | transparent |
+| `secondary` | `--surface-brandPrimary-quaternary` | `--text-brandPrimary-default` | `--border-brandPrimary-default` |
+| `ghost` | transparent | `--text-brandPrimary-default` | transparent |
+| `danger` | `--surface-warning-default` | `#FFFFFF` | transparent |
+| `neutral` | `--surface-content-default` | `--text-content-primary` | `--border-content-tertiary` |
+
+#### 7.3.2 MobileCard — props
+
+```jsx
+<MobileCard
+  padding='var(--dim-space-500, 20px)'   // override default 16
+  onClick={...}                          // makes the card a button (role/keyboard)
+  interactive                            // visual cursor: pointer without onClick
+  elevated                               // adds --shadow-brand-drop-bottom-200
+>
+  …
+</MobileCard>
+```
+
+#### 7.3.3 MobileInput + MobileField — pattern
+
+```jsx
+<MobileField label='เลขประจำตัวประชาชน' required hint='13 หลัก' error={errors.cid}>
+  <MobileInput inputMode='numeric' maxLength={13} value={cid} onChange={…} />
+</MobileField>
+```
+
+`MobileField` accepts **any control** as children — `MobileInput`, `<textarea>`, `<select>`, or a custom picker. The label / hint / error treatment is the same.
+
+#### 7.3.4 MobileBadge — tones
+
+`tone` = `'neutral'` | `'brand'` | `'success'` | `'warning'` | `'info'`. Always pill; never used for primary actions (use `MobileButton variant='ghost'` instead).
+
+#### 7.3.5 MobileHeader — props
+
+```jsx
+<MobileHeader
+  title='นัดหมาย'
+  subtitle='TOR §4.2'      // optional small line beneath title
+  onBack={...}              // defaults to history.goBack()
+  right={<BellIcon />}      // any node — usually an icon-button or badge
+  hideBack                  // omit the back arrow (e.g. tab-root pages)
+  transparent               // for hero screens that own their background
+/>
+```
+
+#### 7.3.6 MobileShell — frame
+
+```jsx
+<MobileShell
+  showStatusBar={true}      // hide for full-bleed onboarding
+  showBottomNav={true}      // hide on auth screens / wizard steps
+  requireAuth={false}       // public pages (login, register, reset)
+  background='var(--surface-content-secondary)'
+>
+  <MobileHeader title='…' />
+  {/* page body */}
+</MobileShell>
+```
+
+The shell wraps the page in a 390×844 iPhone mock so desktop reviewers can demo the citizen flow. On touch devices ≤ 430 wide the chrome collapses and the app fills the viewport.
+
+### 7.4. What does **not** exist yet on mobile
+
+These web primitives have **no** mobile equivalent today. Pages that need them must either compose from existing mobile primitives or motivate the new addition in a PR:
+
+- `Table` — long list patterns use stacked `MobileCard` rows instead.
+- `Tabs` — segmented control should land here when first needed.
+- `Accordion` — `MobileCard` + collapsible state is the current pattern.
+- `Dropdown` / `Select` — bottom-sheet picker is the mobile-native pattern; not yet built.
+- `DatePicker` / `TimeSlot` — wizards currently use a custom grid (see [MobileBookPage.jsx](src/pages/mobile/MobileBookPage.jsx)). A canonical `MobileDatePicker` belongs here.
+
+When adding a new mobile primitive: create the file under [src/components/mobile/](src/components/mobile/), add tokens to §7.2, and register the entry in §7.3's component-map table.
+
+### 7.5. Figma reference
+
+**Mobile button source-of-truth** — file `opz7X9AAKGQf5prHhsPDGn` (MIH-Design-System-Foundation Copy), Button section `319:2012`. The 16 frames in that section map 1:1 to the 16 files in [src/components/mobile/button/](src/components/mobile/button/) — see §7.3 table for per-component node IDs.
+
+**Web button source-of-truth** — file `GXI1CGpLhpImm8JYpW9ksh`, Button section `319:2012`. Web buttons live at [src/components/button/](src/components/button/) and use the same component names (BrandButton, etc.) with web-specific tokens (radius-150 / 4-6 px, no pill).
+
+Other mobile primitives (Card / Input / Field / Badge / Header / SectionLabel / Shell) do not yet have a Figma master — when they do, add Figma node IDs to the §7.3 component map and drop the `Mobile*` prefix following the button-family convention.
 
 ---
 

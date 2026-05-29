@@ -68,6 +68,52 @@
   aside .title-wrap { line-height: 1.3; }
   aside .title { font-weight: 700; font-size: 14px; color: var(--ink); }
   aside .subtitle { font-size: 11px; color: var(--ink-3); }
+  /* Platform toggle — Desktop vs Mobile. Primitive tokens (Foundations) are
+     shared between both; only the component catalog changes. */
+  aside .platform-toggle {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    margin: 12px 14px 4px;
+    background: var(--code-bg, #F2F4F5);
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  aside .pt-btn {
+    flex: 1;
+    padding: 7px 10px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: background 140ms, color 140ms, box-shadow 140ms;
+  }
+  aside .pt-btn:hover { color: var(--brand); }
+  aside .pt-btn.active {
+    background: var(--brand);
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,117,73,0.25), 0 2px 8px rgba(0,117,73,0.18);
+  }
+  aside .pt-btn.active:hover { color: #fff; }
+  aside .pt-btn .pt-emoji { font-size: 13px; line-height: 1; }
+  aside .platform-note {
+    margin: 0 14px 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--brand-100, #F4FBF8);
+    color: var(--brand-700, #00563A);
+    font-size: 10.5px;
+    line-height: 1.45;
+    flex-shrink: 0;
+  }
   aside .search-wrap {
     padding: 10px 14px;
     border-bottom: 1px solid var(--border);
@@ -501,8 +547,15 @@
       <span class="dot">M</span>
       <div class="title-wrap">
         <div class="title">MIH Design System</div>
-        <div class="subtitle">Foundations · 118 components</div>
+        <div class="subtitle" id="brand-subtitle">Foundations · 118 components</div>
       </div>
+    </div>
+    <div class="platform-toggle" role="tablist" aria-label="Platform">
+      <button class="pt-btn active" data-platform="desktop" type="button" role="tab"><span class="pt-emoji">🖥</span> Desktop</button>
+      <button class="pt-btn"        data-platform="mobile"  type="button" role="tab"><span class="pt-emoji">📱</span> Mobile</button>
+    </div>
+    <div class="platform-note" id="platform-note">
+      Primitive tokens (color · typography · dimension) ใช้ร่วมกันทั้งสอง platform
     </div>
     <div class="search-wrap">
       <input id="search" class="search" type="text" placeholder="ค้นหา… (e.g. button, vital, token)" />
@@ -741,11 +794,68 @@
     ]},
   ];
 
+  /* ── Mobile components catalog (from design.md §7.3).
+       Mobile primitives don't have per-component routes — they all live
+       inside one preview page at /m/components. So every mobile entry
+       shares the same `livePath` and just scrolls the spec pane to a
+       different §7 anchor. */
+  const CATALOG_MOBILE = [
+    { group: 'Mobile · Button', items: [
+      { slug: 'brand-button',                       name: 'BrandButton' },
+      { slug: 'brand-subdue-button',                name: 'BrandSubdueButton' },
+      { slug: 'danger-button',                      name: 'DangerButton' },
+      { slug: 'danger-subdue-button',               name: 'DangerSubdueButton' },
+      { slug: 'neutral-button',                     name: 'NeutralButton' },
+      { slug: 'neutral-subdue-button',              name: 'NeutralSubdueButton' },
+    ]},
+    { group: 'Mobile · Icon Button', items: [
+      { slug: 'brand-icon-button',                  name: 'BrandIconButton' },
+      { slug: 'brand-subdue-icon-button',           name: 'BrandSubdueIconButton' },
+      { slug: 'danger-icon-button',                 name: 'DangerIconButton' },
+      { slug: 'danger-subdue-icon-button',          name: 'DangerSubdueIconButton' },
+      { slug: 'neutral-icon-button',                name: 'NeutralIconButton' },
+      { slug: 'neutral-subdue-icon-button',         name: 'NeutralSubdueIconButton' },
+    ]},
+    { group: 'Mobile · Specialty Button', items: [
+      { slug: 'brand-circle-icon-button',           name: 'BrandCircleIconButton' },
+      { slug: 'brand-circle-subdue-icon-button',    name: 'BrandCircleSubdueIconButton' },
+      { slug: 'brand-subdue-float-button',          name: 'BrandSubdueFloatButton' },
+      { slug: 'history-list-form-button',           name: 'HistoryListFormButton' },
+    ]},
+    { group: 'Mobile · Primitives', items: [
+      { slug: 'mobile-card',          name: 'MobileCard' },
+      { slug: 'mobile-input',         name: 'MobileInput' },
+      { slug: 'mobile-field',         name: 'MobileField' },
+      { slug: 'mobile-badge',         name: 'MobileBadge' },
+      { slug: 'mobile-section-label', name: 'MobileSectionLabel' },
+      { slug: 'mobile-header',        name: 'MobileHeader' },
+      { slug: 'mobile-shell',         name: 'MobileShell' },
+      { slug: 'sym',                  name: 'Sym' },
+    ]},
+    { group: 'Mobile · Reference', items: [
+      { slug: null, name: 'Layering rules',       anchor: '71-layering-rules' },
+      { slug: null, name: 'Platform tokens',      anchor: '72-platform-tokens---mobile-' },
+      { slug: null, name: 'Component map',        anchor: '73-component-map' },
+      { slug: null, name: 'Not yet on mobile',    anchor: '74-what-does-not-exist-yet-on-mobile' },
+      { slug: null, name: 'Figma reference',      anchor: '75-figma-reference' },
+    ]},
+  ];
+
+  /* Mobile components share a single live preview page. */
+  const MOBILE_PREVIEW_PATH = '/m/components';
+
   /* ── State ────────────────────────────────────────────── */
   let currentTab = 'spec';         /* 'spec' | 'live' | 'both' */
   let activeEntry = null;          /* current sidebar entry */
   let allEntries = [];             /* unified list (foundation + components) */
   let headingSlugs = new Set();    /* slugs of headings present in design.md */
+  let platform = 'desktop';        /* 'desktop' | 'mobile' */
+
+  const PLATFORM_KEY = 'mih-design-system-platform';
+  try {
+    const saved = localStorage.getItem(PLATFORM_KEY);
+    if (saved === 'desktop' || saved === 'mobile') platform = saved;
+  } catch (_) {}
 
   /* ── Foundation entries — design.md sections NOT covered by components.
        These get a TOC entry but no live preview. Each entry tries to
@@ -830,14 +940,17 @@
     });
   }
 
-  /* ── Build the unified entry list — foundations + components. */
+  /* ── Build the unified entry list — foundations + components.
+       FOUNDATIONS are always shared (primitive tokens, brand, semantic,
+       reference). The component catalogue swaps per platform. */
   function buildEntries() {
     allEntries = [];
-    /* Foundations — anchor only */
+    /* Foundations — anchor only, shared across platforms */
     for (const g of FOUNDATIONS) {
       for (const it of g.items) {
         allEntries.push({
           kind: 'foundation',
+          platform: 'shared',
           group: g.group,
           name: it.name,
           anchor: it.anchor && headingSlugs.has(it.anchor) ? it.anchor : null,
@@ -845,18 +958,73 @@
         });
       }
     }
-    /* Components — auto-match anchor + always have live preview */
-    for (const g of CATALOG) {
-      for (const it of g.items) {
-        const anchor = findAnchorForComponent(it.name, it.slug);
-        allEntries.push({
-          kind: 'component',
-          group: g.group,
-          name: it.name,
-          slug: it.slug,
-          anchor,
-        });
+    /* Components — choose catalogue per platform */
+    if (platform === 'mobile') {
+      for (const g of CATALOG_MOBILE) {
+        for (const it of g.items) {
+          /* Prefer explicit anchor; else auto-match by component name. */
+          let anchor = null;
+          if (it.anchor && headingSlugs.has(it.anchor)) {
+            anchor = it.anchor;
+          } else if (it.slug && it.name) {
+            anchor = findAnchorForComponent(it.name, it.slug);
+          }
+          allEntries.push({
+            kind: it.slug ? 'component' : 'foundation',
+            platform: 'mobile',
+            group: g.group,
+            name: it.name,
+            slug: it.slug,
+            anchor,
+          });
+        }
       }
+    } else {
+      for (const g of CATALOG) {
+        for (const it of g.items) {
+          const anchor = findAnchorForComponent(it.name, it.slug);
+          allEntries.push({
+            kind: 'component',
+            platform: 'desktop',
+            group: g.group,
+            name: it.name,
+            slug: it.slug,
+            anchor,
+          });
+        }
+      }
+    }
+  }
+
+  /* ── Apply the current platform — rebuild sidebar + update subtitle.
+       If the currently selected entry no longer exists on the new
+       platform, fall back to the first entry. */
+  function setPlatform(next) {
+    if (next !== 'desktop' && next !== 'mobile') return;
+    if (next === platform) return;
+    platform = next;
+    try { localStorage.setItem(PLATFORM_KEY, platform); } catch (_) {}
+    document.querySelectorAll('.pt-btn').forEach((b) =>
+      b.classList.toggle('active', b.dataset.platform === platform),
+    );
+    const subtitle = document.getElementById('brand-subtitle');
+    if (subtitle) {
+      subtitle.textContent = platform === 'mobile'
+        ? 'Foundations + Mobile primitives'
+        : 'Foundations · 118 components';
+    }
+    buildEntries();
+    /* If active entry still exists by name, keep it. Otherwise pick the
+       first entry that has either an anchor or a slug. */
+    let next2 = activeEntry
+      ? allEntries.find((e) => e.name === activeEntry.name && e.platform === activeEntry.platform)
+      : null;
+    if (!next2) next2 = allEntries.find((e) => e.anchor || e.slug) || allEntries[0];
+    if (next2) {
+      selectEntry(next2);
+    } else {
+      activeEntry = null;
+      renderSidebar(searchEl.value);
     }
   }
 
@@ -930,11 +1098,17 @@
       if (currentTab !== 'spec') setTab('spec');
     }
 
-    /* Build live URL — `?embed=1` tells ComponentsLibraryPage to hide
-       its own side rail so the outer sidebar here is the only one. */
-    const liveUrl = e.slug
-      ? `${(serverInput.value || 'http://127.0.0.1:3000').replace(/\/+$/, '')}/components/${e.slug}?embed=1`
-      : '';
+    /* Build live URL.
+       • Desktop components → /components/<slug>?embed=1 (ComponentsLibraryPage)
+       • Mobile components → /m/components (single page that shows ALL mobile
+         primitives — there is no per-component mobile route yet) */
+    const serverRoot = (serverInput.value || 'http://127.0.0.1:3000').replace(/\/+$/, '');
+    let liveUrl = '';
+    if (e.slug) {
+      liveUrl = e.platform === 'mobile'
+        ? `${serverRoot}${MOBILE_PREVIEW_PATH}?embed=1&component=${e.slug}`
+        : `${serverRoot}/components/${e.slug}?embed=1`;
+    }
     openNew.style.display = e.slug ? 'inline-flex' : 'none';
     openNew.href = liveUrl;
     reloadBtn.style.display = e.slug ? 'inline-flex' : 'none';
@@ -995,6 +1169,16 @@
       setTab(b.dataset.tab);
     });
   });
+
+  /* ── Platform toggle wiring. */
+  document.querySelectorAll('.pt-btn').forEach((b) => {
+    b.addEventListener('click', () => setPlatform(b.dataset.platform));
+    b.classList.toggle('active', b.dataset.platform === platform);
+  });
+  const initialSubtitle = document.getElementById('brand-subtitle');
+  if (initialSubtitle && platform === 'mobile') {
+    initialSubtitle.textContent = 'Foundations + Mobile primitives';
+  }
 
   /* ── Search. */
   searchEl.addEventListener('input', (e) => renderSidebar(e.target.value));

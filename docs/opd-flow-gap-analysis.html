@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <title>PHCIS · OPD Flow Gap Analysis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #F4F5F5;
+      --surface: #FFFFFF;
+      --surface-2: #FAFAFA;
+      --surface-3: #F4F5F5;
+      --border: #E2E4E6;
+      --text: #171A1F;
+      --muted: #6E757C;
+      --brand: #007549;
+      --brand-soft: #F4FBF8;
+      --brand-mid: #C5EDDA;
+      --success: #08A768;
+      --warn: #E0973C;
+      --warn-soft: #FDF1E0;
+      --danger: #D04949;
+      --danger-soft: #FBE8E8;
+      --info: #1D4ED8;
+      --info-soft: #DBEAFE;
+      --shadow: 0 1px 3px rgba(15,23,42,.06), 0 4px 12px rgba(15,23,42,.04);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Sarabun", "Noto Sans Thai", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    body {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      grid-template-rows: 60px 1fr;
+      grid-template-areas: "header header" "sidebar content";
+      height: 100vh;
+    }
+    header {
+      grid-area: header;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 16px;
+    }
+    header .title { font-weight: 700; font-size: 15px; }
+    header .subtitle { color: var(--muted); font-size: 12px; }
+    header .badge {
+      margin-left: auto;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      border: 1px solid var(--brand-mid);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    aside {
+      grid-area: sidebar;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 12px;
+      overflow-y: auto;
+    }
+    aside .group-label {
+      font-size: 11px;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 12px 12px 6px;
+    }
+    aside a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13px;
+    }
+    aside a:hover { background: var(--surface-2); }
+    aside a.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+    aside a .ic { width: 18px; text-align: center; }
+    aside a .pct {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    main {
+      grid-area: content;
+      overflow-y: auto;
+      padding: 24px 36px 80px;
+    }
+    section.flow {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      scroll-margin-top: 80px;
+    }
+    section.flow h2 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    section.flow .lead {
+      color: var(--muted);
+      margin: 0 0 16px;
+      font-size: 13px;
+    }
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px; height: 28px;
+      border-radius: 999px;
+      background: var(--brand);
+      color: white;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .step-num.muted { background: var(--muted); }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .pill.full       { background: #DCFCE7; color: #166534; border-color: #BBF7D0; }
+    .pill.partial    { background: var(--warn-soft); color: var(--warn); border-color: #F7DEB5; }
+    .pill.missing    { background: var(--danger-soft); color: var(--danger); border-color: #F2C7C7; }
+    .pill.priority-1 { background: var(--danger-soft); color: var(--danger); border-color: #F2C7C7; }
+    .pill.priority-2 { background: var(--warn-soft); color: var(--warn); border-color: #F7DEB5; }
+    .pill.priority-3 { background: var(--info-soft); color: var(--info); border-color: #C7DBFD; }
+
+    /* Coverage bar */
+    .cov-bar {
+      position: relative;
+      height: 10px;
+      background: var(--surface-3);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 4px 0;
+    }
+    .cov-bar-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      border-radius: 999px;
+      transition: width .4s ease;
+    }
+    .cov-bar-fill.full    { background: var(--success); }
+    .cov-bar-fill.partial { background: var(--warn); }
+    .cov-bar-fill.missing { background: var(--danger); }
+
+    /* Summary card grid */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin: 14px 0;
+    }
+    .summary-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .summary-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+    .summary-card .value { font-size: 28px; font-weight: 700; margin: 4px 0; font-variant-numeric: tabular-nums; }
+    .summary-card .value.full    { color: var(--success); }
+    .summary-card .value.partial { color: var(--warn); }
+    .summary-card .value.missing { color: var(--danger); }
+    .summary-card .hint  { font-size: 12px; color: var(--muted); }
+
+    /* Step row */
+    .step-row {
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      gap: 14px;
+      align-items: start;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .step-row:last-child { border-bottom: 0; }
+    .step-row .title { font-weight: 600; }
+    .step-row .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .step-row .module { font-size: 12px; margin-top: 4px; }
+    .step-row .module code { background: var(--brand-soft); color: var(--brand); padding: 1px 6px; border-radius: 4px; font-size: 11px; }
+    .step-row .gaps { margin-top: 6px; font-size: 12px; color: var(--text); }
+    .step-row .gaps ul { margin: 4px 0 0; padding-left: 18px; }
+    .step-row .gaps li { margin-bottom: 2px; }
+
+    /* Action list */
+    table.actions { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.actions th, table.actions td { text-align: left; padding: 10px 12px; vertical-align: top; border-bottom: 1px solid var(--border); }
+    table.actions th { background: var(--surface-2); font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; }
+    table.actions tr:hover td { background: var(--surface-2); }
+    table.actions .rank {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 999px;
+      background: var(--brand);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    code { font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace; font-size: 12px; background: var(--surface-3); padding: 1px 6px; border-radius: 4px; }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .legend .dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 999px;
+      margin-right: 4px;
+      vertical-align: -1px;
+    }
+    .legend .dot.full    { background: var(--success); }
+    .legend .dot.partial { background: var(--warn); }
+    .legend .dot.missing { background: var(--danger); }
+
+    @media (max-width: 880px) {
+      body { grid-template-columns: 1fr; grid-template-rows: 60px auto 1fr; grid-template-areas: "header" "sidebar" "content"; }
+      aside { border-right: 0; border-bottom: 1px solid var(--border); max-height: 200px; }
+    }
+    @media print {
+      body { display: block; }
+      aside, header { display: none; }
+      main { padding: 0; }
+      section.flow { box-shadow: none; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="title">PHCIS · OPD Flow Gap Analysis</span>
+    <span class="subtitle">Source: HCIS OPD Flow (drawio PDF) · ~50% end-to-end coverage</span>
+    <span class="badge">2026-05-25</span>
+  </header>
+
+  <aside>
+    <div class="group-label">Overview</div>
+    <a href="#summary"><span class="ic">📊</span>Summary <span class="pct">~50%</span></a>
+    <a href="#legend"><span class="ic">🎨</span>Legend</a>
+
+    <div class="group-label">Flow steps</div>
+    <a href="#step-0"><span class="ic">0️⃣</span>Kiosk <span class="pct" style="color:var(--danger)">0%</span></a>
+    <a href="#step-1"><span class="ic">1️⃣</span>Registration <span class="pct" style="color:var(--success)">90%</span></a>
+    <a href="#step-2"><span class="ic">2️⃣</span>Screening <span class="pct" style="color:var(--success)">95%</span></a>
+    <a href="#step-3"><span class="ic">3️⃣</span>Queue <span class="pct" style="color:var(--success)">100%</span></a>
+    <a href="#step-4"><span class="ic">4️⃣</span>Doctor (EMR + CPOE) <span class="pct" style="color:var(--warn)">70%</span></a>
+    <a href="#step-5"><span class="ic">5️⃣</span>Rights / Cost <span class="pct" style="color:var(--danger)">10%</span></a>
+    <a href="#step-6"><span class="ic">6️⃣</span>Pharmacy <span class="pct" style="color:var(--danger)">10%</span></a>
+    <a href="#step-7"><span class="ic">7️⃣</span>Payment <span class="pct" style="color:var(--danger)">0%</span></a>
+    <a href="#step-8"><span class="ic">8️⃣</span>Discharge <span class="pct" style="color:var(--danger)">5%</span></a>
+    <a href="#step-9"><span class="ic">9️⃣</span>Appointment <span class="pct" style="color:var(--success)">80%</span></a>
+
+    <div class="group-label">Cross-cutting</div>
+    <a href="#cdss"><span class="ic">⚠️</span>CDSS</a>
+    <a href="#telemed"><span class="ic">🎥</span>Telemedicine</a>
+    <a href="#reporting"><span class="ic">📈</span>Reporting</a>
+
+    <div class="group-label">Action plan</div>
+    <a href="#actions"><span class="ic">🎯</span>Recommended order</a>
+  </aside>
+
+  <main id="main">
+
+    <!-- SUMMARY -->
+    <section class="flow" id="summary">
+      <h2>📊 Overall Coverage</h2>
+      <p class="lead">PHCIS ครอบคลุมประมาณ <strong>50% ของ end-to-end OPD workflow</strong> ตาม flow ใน HCIS PDF — ส่วนต้นน้ำ (ทะเบียน, คัดกรอง, คิว, EMR/CPOE หลัก) ทำได้ดี แต่ส่วนปลายน้ำ (สิทธิ, จ่ายเงิน, ยา, จำหน่าย) ยังเป็น stub menus.</p>
+
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="label">Implemented (✅)</div>
+          <div class="value full">5 / 10</div>
+          <div class="hint">Registration · Screening · Queue · Appointment · Reporting</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Partial (⚠️)</div>
+          <div class="value partial">1 / 10</div>
+          <div class="hint">Doctor (EMR + CPOE) — ขาด SOAP, Med Rec, Order Set, full CDSS</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Missing (❌)</div>
+          <div class="value missing">4 / 10</div>
+          <div class="hint">Kiosk · Rights/Cost · Pharmacy · Payment · Discharge</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Total stub menus</div>
+          <div class="value" style="color:var(--info)">6</div>
+          <div class="hint">radiology · lab · pharmacy · finance · appoint · log</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LEGEND -->
+    <section class="flow" id="legend">
+      <h2>🎨 Legend</h2>
+      <div class="legend">
+        <span><span class="dot full"></span>Full — ≥ 80% ของ flow ขั้นนั้นทำได้ครบ</span>
+        <span><span class="dot partial"></span>Partial — มีบางส่วน แต่ขาด feature สำคัญ</span>
+        <span><span class="dot missing"></span>Missing — ยังไม่มี / stub menu เท่านั้น</span>
+      </div>
+      <p class="lead" style="margin-top:12px">Priority badges: <span class="pill priority-1">P1 Critical</span> ขัด workflow / <span class="pill priority-2">P2 Important</span> ทำให้ครบวงจร / <span class="pill priority-3">P3 Nice-to-have</span> เสริม</p>
+    </section>
+
+    <!-- STEP 0 — KIOSK -->
+    <section class="flow" id="step-0">
+      <div class="step-row">
+        <span class="step-num muted">0</span>
+        <div>
+          <div class="title">กดบัตรคิว (Kiosk / Self-Service Entry) <span class="pill missing">Missing · 0%</span></div>
+          <div class="meta">Flow: ผู้รับบริการมาถึง → ตรวจสอบสิทธิ → รับบัตรคิว → ออก e-Receipt</div>
+          <div class="module"><strong>PHCIS:</strong> ไม่มี route — walk-in/appointment branch ไม่ปรากฏ → เข้า <code>/registration</code> ตรงๆ</div>
+          <div class="gaps"><strong>ขาด:</strong>
+            <ul>
+              <li>Route <code>/kiosk</code> + 2-branch UI (walk-in / มาตามนัด)</li>
+              <li>Hardware integration: card reader, camera, EDC, QR payment</li>
+              <li>Online rights check (สปสช.) ที่ kiosk</li>
+              <li>e-Receipt printing</li>
+            </ul>
+          </div>
+        </div>
+        <div><div class="cov-bar"><div class="cov-bar-fill missing" style="width:0%"></div></div></div>
+      </div>
+    </section>
+
+    <!-- STEP 1 — REGISTRATION -->
+    <section class="flow" id="step-1">
+      <div class="step-row">
+        <span class="step-num">1</span>
+        <div>
+          <div class="title">ลงทะเบียนรับบริการ (OPD 1.2.1) <span class="pill full">Full · 90%</span></div>
+          <div class="meta">Flow: ลงทะเบียน Walk-in/นัด → เปิด Visit Number (1.1.2.1) → ออกคิวตาม Slot</div>
+          <div class="module"><strong>PHCIS:</strong> <code>/registration/queue</code> + <code>/registration/register</code> (5 steps: Personal · Address · Contact · Rights · Flags)</div>
+          <div class="gaps"><strong>ขาด:</strong>
+            <ul>
+              <li><strong>VN (Visit Number)</strong> generation — ปัจจุบันใช้แค่ <code>queue</code> + <code>hn</code> ไม่มี VN ที่ link visit episodes (1.1.2.1)</li>
+              <li>Time-slot scheduling UI สำหรับนัดล่วงหน้า</li>
+            </ul>
+          </div>
+        </div>
+        <div><div class="cov-bar"><div class="cov-bar-fill full" style="width:90%"></div></div></div>
+      </div>
+    </section>
+
+    <!-- STEP 2 — SCREENING -->
+    <section class="flow" id="step-2">
+      <div class="step-row">
+        <span class="step-num">2</span>
+        <div>
+          <div class="title">คัดกรอง + ซักประวัติ (OPD 1.2.2) <span class="pill full">Full · 95%</span></div>
+          <div class="meta">Flow: Vital signs · BMI · Pain · ESI · อาการนำ · แพ้ยา · โรคประจำตัว · พฤติกรรมสุขภาพ</div>
+          <div class="module"><strong>PHCIS:</strong> <code>/opd/screening</code> 5 steps: Vitals · Chief Complaint+Pain+Triage · Allergies · Chronic · Forms picker</div>
+          <div class="gaps"><strong>เสริมได้:</strong>
+            <ul>
+              <li>ESI level visual indicator (สี + label "Resuscitation / Emergency / Urgency / Semi-Urgency / Non-Urgency")</li>
+              <li>พฤติกรรมสุขภาพ (สูบบุหรี่ / ดื่มแอลกอฮอล์) — ตอนนี้อยู่ใน Forms Library ไม่ใช่ในตัว screening</li>
+            </ul>
+          </div>
+        </div>
+        <div><div class="cov-bar"><div class="cov-bar-fill full" style="width:95%"></div></div></div>
+      </div>
+    </section>
+
+    <!-- STEP 3 — QUEUE -->
+    <section class="flow" id="step-3">
+      <div class="step-row">
+        <span class="step-num">3</span>
+        <div>
+          <div class="title">จัดการคิวและรอพบแพทย์ (1.3) <span class="pill full">Full · 100%</span></div>
+          <div class="meta">Flow: รายชื่อ + สถานะ + ลำดับคิวตามแพทย์/คลินิก</div>
+          <div class="module"><strong>PHCIS:</strong> <code>/opd/queue</code>, <code>/treat/queue</code> + <code>QueueSubMenu</code> sub-section</div>
+          <div class="gaps"><strong>ครบถ้วน</strong> — pagination 20/page, sort, filter chips, status badges</div>
+        </div>
+        <div><div class="cov-bar"><div class="cov-bar-fill full" style="width:100%"></div></div></div>
+      </div>
+    </section>
+
+    <!-- STEP 4 — DOCTOR (EMR + CPOE) -->
+    <section class="flow" id="step-4">
+      <div class="step-row">
+        <span class="step-num">4</span>
+        <div>
+          <div class="title">แพทย์ตรวจรักษา — EMR + CPOE (1.4 + 1.5) <span class="pill partial">Partial · 70%</span></div>
+          <div class="meta">Flow: Timeline · CC · Physical Exam · Diagnosis · Med Rec · Notes · Allergy · Attachments · Telemed + CPOE: medication/lab/x-ray/procedure/consult + CDSS + Order Set + e-Refer</div>
+          <div class="module"><strong>PHCIS:</strong> <code>/treat/record</code> 7 steps · <code>BodyDrawingCanvas</code> สำหรับ Physical Exam · ICD-10 AISearch · cross-class allergy panel</div>
+          <div class="gaps"><strong>ขาด:</strong>
+            <ul>
+              <li><strong>SOAP Progress Note</strong> — ตอนนี้มีแค่ free-text (nurseExam / doctorExam / diagnosisNote)</li>
+              <li><strong>Medication Reconciliation</strong> — ไม่มี panel ที่ reconcile ยาเก่า ↔ ใหม่</li>
+              <li><strong>Order Set</strong> — <code>FrequentOrdersCard</code> เป็น chip-recall เฉยๆ ไม่ใช่ bundled order set</li>
+              <li><strong>e-Refer</strong> — ส่งต่อนอกสถานพยาบาล (consult tab ใน Step 5 เป็น internal เท่านั้น)</li>
+              <li><strong>SNOMED-CT</strong> coding — มีแค่ ICD-10</li>
+              <li><strong>Full CDSS</strong> — มีแต่ allergy panel; ขาด Dose limit · Drug Interaction · Drug Duplicate · configurable thresholds</li>
+            </ul>
+          </div>
+        </div>
+        <div><div class="cov-bar"><div class="cov-bar-fill partial" style="width:70%"></div></div></div>
+      </div>
+    </section>
+
+    <!-- STEP 5 — RIGHTS/COST -->
+    <section class="flow" id="step-5">
+      <div class="step-row">
+        <span class="step-num muted">5</span>
+        <div>
+          <div class="title">ตรวจสอบสิทธิและค่าใช้จ่าย (1.7) <span class="pill missing">Missing · 10%</span></div>
+          <div class="meta">Flow: เรียกดูสิทธิการรักษา (สปสช., กทม.) + คำนวณส่วนเกิน / ร่วมจ่าย</div>
+          <div class="module"><strong>PHCIS:</strong> มี <code>rightsGroups</code> ใน Registration Step 4 (SSO/Gold/CSMBS/Other) แต่ไม่มี cost calc page</div>
+          <div class="gaps"><strong>ขาด:</strong>
+            <ul>
+              <li>Route <code>/finance/lookup</code> + online สปสช./กทม. API call</li>
+              <li>Cost breakdown UI (services + meds + labs + imaging)</li>
+              <li>Claim eligibility logic ต่อ rightsGroup</li>
+              <li>Copay / surplus calculation</li>
+            </ul>
+            <strong>Reference:</strong> product-spec §10.4 "finance" stub
+          </div>
+        </div>
+        <div><div class="cov-bar"><div class="cov-bar-fill missing" style="width:10%"></div></div></div>
+      </div>
+    </section>
+
+    <!-- STEP 6 — PHARMACY -->
+    <section class="flow" id="step-6">
+      <div class="step-row">
+        <span class="step-num muted">6</span>
+        <div>
+          <div class="title">จ่ายยาและคำแนะนำ — เภสัชกรรม (1.9) <span class="pill missing">Missing · 10%</span></div>
+          <div class="meta">Flow: ตรวจใบสั่งยา · จ่ายยา · พิมพ์ฉลาก · counseling · บันทึก dispensing</div>
+          <div class="module"><strong>PHCIS:</strong> <code>medicationCatalog.js</code> (~50 drugs) มีอยู่แล้ว · <code>pharmacy</code> menu เป็น stub</div>
+          <div class="gaps"><strong>ขาด:</strong>
+            <ul>
+              <li>Route <code>/pharmacy/queue</code> + dispense workflow</li>
+              <li>"เรียกคิว" — counter call functionality</li>
+              <li>Label printing template</li>
+              <li>Allergy double-check (re-validate against patient <code>drugAllergies</code>)</li>
+              <li>Inventory deduction tracking</li>
+              <li>Write-back <code>dispensed</code> status → TreatmentVisit</li>
+            </ul>
+            <strong>Reference:</strong> product-spec §10.3 "pharmacy" stub
+          </div>
+        </div>
+        <div><div class="cov-bar"><div class="cov-bar-fill missing" style="width:10%"></div></div></div>
+      </div>
+    </section>
+
+    <!-- STEP 7 — PAYMENT -->
+    <section class="flow" id="step-7">
+      <div class="step-row">
+        <span class="step-num muted">7</span>
+        <div>
+          <div class="title">ชำระเงิน (1.8) <span class="pill missing">Missing · 0%</span></div>
+          <div class="meta">Flow: เงินสด · บัตรเครดิต · QR Code → ออก e-Receipt + ส่วนลด/ยกเว้น → ปิดสิทธิ</div>
+          <div class="module"><strong>PHCIS:</strong> ไม่มี — finance stub</div>
+          <div class="gaps"><strong>ขาด:</strong>
+            <ul>
+              <li>Route <code>/finance/payment</code> + payment method picker</li>
+              <li>Kiosk QR scan integration (เชื่อมกับ Step 0)</li>
+              <li>e-Receipt generation + print/save PDF</li>
+              <li>Discount / waiver tracking</li>
+              <li>"ปิดสิทธิ" — close-visit state machine</li>
+            </ul>
+          </div>
+        </div>
+        <div><div class="cov-bar"><div class="cov-bar-fill missing" style="width:0%"></div></div></div>
+      </div>
+    </section>
+
+    <!-- STEP 8 — DISCHARGE -->
+    <section class="flow" id="step-8">
+      <div class="step-row">
+        <span class="step-num muted">8</span>
+        <div>
+          <div class="title">จำหน่ายผู้รับบริการ (OPD 1.2.6) <span class="pill missing">Missing · 5%</span></div>
+          <div class="meta">Flow: ส่งกลับบ้าน / ส่งต่อแผนกอื่น / ส่งต่อสถานพยาบาลอื่น (e-Referral)</div>
+          <div class="module"><strong>PHCIS:</strong> หลัง save Treatment Step 7 → return ไป queue เฉยๆ ไม่มี discharge state</div>
+          <div class="gaps"><strong>ขาด:</strong>
+            <ul>
+              <li><strong>Discharge popup</strong> ตอน final save พร้อม 3 buttons: กลับบ้าน / ส่งต่อแผนกอื่น / Admit IPD</li>
+              <li><strong>e-Referral</strong> integration (เชื่อม สปสช. / Health Link)</li>
+              <li>Observation/Admission state flow</li>
+            </ul>
+          </div>
+        </div>
+        <div><div class="cov-bar"><div class="cov-bar-fill missing" style="width:5%"></div></div></div>
+      </div>
+    </section>
+
+    <!-- STEP 9 — APPOINTMENT -->
+    <section class="flow" id="step-9">
+      <div class="step-row">
+        <span class="step-num">9</span>
+        <div>
+          <div class="title">บันทึกนัดหมาย (1.6) <span class="pill full">Full · 80%</span></div>
+          <div class="meta">Flow: เลือกคลินิก/แพทย์/วันเวลา → พิมพ์ใบนัด → แจ้งเตือนผ่าน Mobile</div>
+          <div class="module"><strong>PHCIS:</strong> <code>/treat/record</code> Step 6 (mode skip/schedule · ApptCollapse · clinic/type/doctor/reason/preparation · advance-orders · onsite/telemedicine · date + APPT_TIMESLOTS)</div>
+          <div class="gaps"><strong>ขาด:</strong>
+            <ul>
+              <li>Print appointment slip template</li>
+              <li>SMS / LINE notification integration</li>
+              <li>Master scheduling — ปัจจุบัน per-record; <code>appoint</code> menu (stub) ควรเป็น master calendar</li>
+            </ul>
+          </div>
+        </div>
+        <div><div class="cov-bar"><div class="cov-bar-fill full" style="width:80%"></div></div></div>
+      </div>
+    </section>
+
+    <!-- CROSS-CUTTING: CDSS -->
+    <section class="flow" id="cdss">
+      <h2>⚠️ CDSS (Clinical Decision Support System)</h2>
+      <p class="lead">Flow ข้อ 1.5.4.18-21 ระบุ CDSS 4 ประเภท + กำหนดเกณฑ์ได้ ปัจจุบันมีแค่ allergy panel</p>
+      <table class="actions">
+        <thead><tr><th style="width:40%">CDSS check</th><th>Flow ref</th><th>สถานะ</th></tr></thead>
+        <tbody>
+          <tr><td>Dose limit warning</td><td>1.5.4.18</td><td><span class="pill missing">Missing</span></td></tr>
+          <tr><td>Drug Allergy warning</td><td>1.5.4.19</td><td><span class="pill partial">Partial</span> — มี cross-class allergy panel ใน Step 5</td></tr>
+          <tr><td>Drug Interaction warning</td><td>1.5.4.20</td><td><span class="pill missing">Missing</span></td></tr>
+          <tr><td>Drug Duplicate warning</td><td>1.5.4.21</td><td><span class="pill missing">Missing</span></td></tr>
+          <tr><td>Configurable threshold rules</td><td>(flow note)</td><td><span class="pill missing">Missing</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- CROSS-CUTTING: TELEMEDICINE -->
+    <section class="flow" id="telemed">
+      <h2>🎥 Telemedicine</h2>
+      <p class="lead">มี foundation — Step 6 location radio รองรับ onsite/telemedicine + 6 ไฟล์อ้างอิง telemedicine</p>
+      <div class="gaps"><strong>ขาด:</strong>
+        <ul>
+          <li>Video room URL provisioning</li>
+          <li>Session management (start/end/recording)</li>
+          <li>Screen share for showing imaging results</li>
+          <li>e-Prescription delivery for telemed visits</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- CROSS-CUTTING: REPORTING -->
+    <section class="flow" id="reporting">
+      <h2>📈 Reporting</h2>
+      <p class="lead">ระบบรายงานอ้างอิงจาก flow — สรุปรายงานเบิกจ่ายชดเชย, top-tests-ordered, etc.</p>
+      <p><strong>PHCIS:</strong> <code>/dashboard</code> 6 KPIs + 13 charts — ครอบคลุม basic reporting แล้ว แต่ขาด:</p>
+      <ul>
+        <li>เบิกจ่ายชดเชย report (อ้างอิง flow's "ส่งเบิกจ่ายชดเชย")</li>
+        <li>Drill-down per-clinic / per-doctor / per-rights-group</li>
+        <li>Export CSV / PDF</li>
+        <li>Date-range comparison (vs previous period)</li>
+      </ul>
+    </section>
+
+    <!-- RECOMMENDED ACTION ORDER -->
+    <section class="flow" id="actions">
+      <h2>🎯 Recommended Action Order</h2>
+      <p class="lead">เรียงตาม impact ÷ effort — เริ่มจาก quick win เพื่อปิด end-to-end loop ก่อน, แล้วค่อยลึกในแต่ละ module</p>
+      <table class="actions">
+        <thead>
+          <tr><th style="width:40px">#</th><th>Action</th><th>Priority</th><th>Effort</th><th>Impact</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="rank">1</span></td>
+            <td>
+              <strong>Wire 4 stub menus</strong> — finance · pharmacy · appoint · log<br/>
+              <span style="color:var(--muted);font-size:12px">เพิ่ม queue page + 1 form page ตาม OPD pattern → ปิด nav flow ครบ. มี product-spec §10 รองรับอยู่แล้ว</span>
+            </td>
+            <td><span class="pill priority-1">P1</span></td>
+            <td>Medium</td>
+            <td>🔥 High</td>
+          </tr>
+          <tr>
+            <td><span class="rank">2</span></td>
+            <td>
+              <strong>SOAP Progress Note + Medication Reconciliation</strong><br/>
+              <span style="color:var(--muted);font-size:12px">เพิ่ม structured block ใน Treatment Step 4 + reconcile panel ใน Step 5 → คุณภาพ EMR ตามมาตรฐาน</span>
+            </td>
+            <td><span class="pill priority-1">P1</span></td>
+            <td>Medium</td>
+            <td>🔥 High</td>
+          </tr>
+          <tr>
+            <td><span class="rank">3</span></td>
+            <td>
+              <strong>Unified CDSS module</strong><br/>
+              <span style="color:var(--muted);font-size:12px">รวม allergy/dose/duplicate/interaction warnings เป็น 1 component พร้อม Settings page tune thresholds</span>
+            </td>
+            <td><span class="pill priority-1">P1</span></td>
+            <td>High</td>
+            <td>🔥 High</td>
+          </tr>
+          <tr>
+            <td><span class="rank">4</span></td>
+            <td>
+              <strong>Discharge popup</strong> ใน Treatment Step 7 final save<br/>
+              <span style="color:var(--muted);font-size:12px">3-branch (กลับบ้าน / ส่งต่อ / Admit IPD) → ปิด OPD episode อย่างชัดเจน</span>
+            </td>
+            <td><span class="pill priority-2">P2</span></td>
+            <td>Low</td>
+            <td>⭐ Med</td>
+          </tr>
+          <tr>
+            <td><span class="rank">5</span></td>
+            <td>
+              <strong>Kiosk + VN generation</strong><br/>
+              <span style="color:var(--muted);font-size:12px">Standalone <code>/kiosk</code> route + auto-generate VN ตอน registration save</span>
+            </td>
+            <td><span class="pill priority-2">P2</span></td>
+            <td>Medium</td>
+            <td>⭐ Med</td>
+          </tr>
+          <tr>
+            <td><span class="rank">6</span></td>
+            <td>
+              <strong>e-Refer + e-Referral</strong><br/>
+              <span style="color:var(--muted);font-size:12px">External referral popup ใน Treatment Step 5 (consult tab) + discharge transfer integration</span>
+            </td>
+            <td><span class="pill priority-2">P2</span></td>
+            <td>Medium</td>
+            <td>⭐ Med</td>
+          </tr>
+          <tr>
+            <td><span class="rank">7</span></td>
+            <td>
+              <strong>Order Set library</strong> — pre-configured order bundles per disease<br/>
+              <span style="color:var(--muted);font-size:12px">เช่น DM Order Set, TB Initial Workup. ใช้ใน CPOE Step 5</span>
+            </td>
+            <td><span class="pill priority-3">P3</span></td>
+            <td>Low</td>
+            <td>⭐ Med</td>
+          </tr>
+          <tr>
+            <td><span class="rank">8</span></td>
+            <td>
+              <strong>SNOMED-CT</strong> coding (เสริม ICD-10)<br/>
+              <span style="color:var(--muted);font-size:12px">เพิ่ม second autocomplete ใน Treatment Step 4</span>
+            </td>
+            <td><span class="pill priority-3">P3</span></td>
+            <td>Medium</td>
+            <td>Low</td>
+          </tr>
+          <tr>
+            <td><span class="rank">9</span></td>
+            <td>
+              <strong>SMS / LINE notification</strong> integration สำหรับ appointment + queue updates
+            </td>
+            <td><span class="pill priority-3">P3</span></td>
+            <td>High</td>
+            <td>⭐ Med</td>
+          </tr>
+          <tr>
+            <td><span class="rank">10</span></td>
+            <td>
+              <strong>Insurance claim submission</strong> (เบิกจ่ายชดเชย) เชื่อม สปสช./กทม. APIs
+            </td>
+            <td><span class="pill priority-3">P3</span></td>
+            <td>High</td>
+            <td>Low</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:36px;">
+      End of gap analysis · Generated 2026-05-25 · Source: HCIS OPD Flow drawio PDF + current PHCIS code
+    </p>
+  </main>
+
+  <script>
+    // Active link sync on scroll
+    const links = document.querySelectorAll('aside a');
+    const sections = document.querySelectorAll('section.flow');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach((a) => {
+            a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+          });
+        }
+      });
+    }, { rootMargin: '-40% 0px -50% 0px' });
+    sections.forEach((s) => observer.observe(s));
+  </script>
+</body>
+</html>
