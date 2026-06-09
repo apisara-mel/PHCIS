@@ -179,7 +179,7 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
         paddingTop: 'var(--dim-space-200, 8px)',
         paddingBottom: 'var(--dim-space-200, 8px)',
         background: isHover
-          ? 'var(--surface-table-hover, var(--brand-p100, #E2F3EB))'
+          ? 'var(--surface-table-hover, var(--brand-p50, #F4FBF8))'
           : 'var(--surface-table-header, var(--brand-p50, #F4FBF8))',
         borderBottom: 'var(--dim-stroke-200, 2px) solid var(--border-table-default, var(--brand-p100, #E2F3EB))',
         justifyContent: align === 'center' ? 'center' : 'flex-start',
@@ -898,7 +898,14 @@ const Table = ({
      regress. Set to `0` to opt in to page-scroll sticky without an offset. */
   stickyHeaderTop = null,
 
+  /* Empty state. `emptyMessage` is the primary line (title). `emptySubtext`
+     is an optional secondary line for guidance ("ลองปรับตัวกรอง…"). Pass an
+     `emptyIllustration` node (Lottie / <img>) to render an illustration above
+     the text — Figma's Table system has no canonical empty-state symbol, so
+     this stays opt-in and falls back to the plain title-only layout. */
   emptyMessage = 'ไม่พบข้อมูล',
+  emptySubtext = null,
+  emptyIllustration = null,
 
   /* Loading / skeleton state. When `loading` is true, the rows array is
      ignored and N placeholder rows are rendered with pulsing bars sized
@@ -1068,15 +1075,37 @@ const Table = ({
           ))}
       {!loading && rows.length === 0 && (
         <div
-          className='flex items-center justify-center'
+          className='flex flex-col items-center justify-center text-center'
           style={{
+            gap: 'var(--dim-space-150)',
             padding: 'var(--dim-space-600)',
-            color: 'var(--text-content-tertiary)',
             fontFamily: 'var(--type-family-body)',
-            fontSize: 'var(--type-size-sm)',
           }}
         >
-          {emptyMessage}
+          {emptyIllustration}
+          <span
+            style={{
+              color: 'var(--text-content-tertiary)',
+              fontSize: 'var(--type-size-sm)',
+              fontWeight: emptySubtext
+                ? 'var(--type-weight-medium, 500)'
+                : 'var(--type-weight-regular, 400)',
+              lineHeight: 1.5,
+            }}
+          >
+            {emptyMessage}
+          </span>
+          {emptySubtext && (
+            <span
+              style={{
+                color: 'var(--text-content-tertiary)',
+                fontSize: 'var(--type-size-xs)',
+                lineHeight: 1.5,
+              }}
+            >
+              {emptySubtext}
+            </span>
+          )}
         </div>
       )}
     </>

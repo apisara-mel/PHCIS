@@ -162,7 +162,7 @@ const dropdownRowLabelStyle = {
    "[category-pill] · [item label]". Separate from `colorfulBadgeStyle`
    which keeps the older "entire-label-as-badge" treatment for severity
    pills etc. */
-const DropdownRow = ({ label, icon, image, colorfulBadgeStyle, badge, selected, onClick }) => {
+const DropdownRow = ({ label, subtext, icon, image, colorfulBadgeStyle, badge, selected, onClick }) => {
   const [hover, setHover] = useState(false);
   const tinted = hover || selected;
   const hasBadge = !!colorfulBadgeStyle;
@@ -267,7 +267,40 @@ const DropdownRow = ({ label, icon, image, colorfulBadgeStyle, badge, selected, 
               color='var(--icon-list-secondary-default, var(--text-content-tertiary))'
             />
           )}
-          <span style={dropdownRowLabelStyle}>{label}</span>
+          {subtext ? (
+            /* Two-line option per Figma 29:4788 — label on top, gray subtext
+               below. Subtext color tints brand-green when the row is the
+               selected/hovered state (text-list-subtext-hover). */
+            <span
+              className='flex-1 min-w-0'
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+            >
+              <span style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm, 14px)',
+                fontWeight: 'var(--type-weight-regular, 400)',
+                lineHeight: 1.5,
+                color: 'inherit',
+                width: '100%',
+              }}>
+                {label}
+              </span>
+              <span style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs, 12px)',
+                fontWeight: 'var(--type-weight-regular, 400)',
+                lineHeight: 1.5,
+                color: tinted
+                  ? 'var(--text-list-subtext-hover, #54CF97)'
+                  : 'var(--text-list-subtext, #858C92)',
+                width: '100%',
+              }}>
+                {subtext}
+              </span>
+            </span>
+          ) : (
+            <span style={dropdownRowLabelStyle}>{label}</span>
+          )}
           {/* Selected-state tick — mirrors the badge branch's check icon
               so plain (image/icon/text-only) options also show a visual
               confirmation in the listbox after the doctor picks one
@@ -327,6 +360,13 @@ const Select = React.forwardRef(function Select(
        Selects whose option lists are short or whose UX should not
        invite free-text entry (e.g. AddMedicationPopup's ชื่อยา). */
     searchable = true,
+    /* Optional fixed dropdown width (px or any CSS length). When set, the
+       popover ignores the measured trigger width and renders at this size
+       — used by the Schedule editor's "ตัวเลือกด่วน" field where the
+       trigger is only 260px wide but the dropdown rows carry long subtext
+       (Figma 29:4788 = 640px). When unset (default) the popover continues
+       to match the trigger width so existing callers are unaffected. */
+    dropdownWidth,
     id: idProp,
     name,
     className = '',
@@ -633,10 +673,16 @@ const Select = React.forwardRef(function Select(
                extends past the field's right edge — critical inside
                popups where the parent modal is the hard width
                boundary. Fallback `minWidth: 200` only kicks in before
-               the first measurement. */
-            width:    triggerWidth ?? undefined,
-            maxWidth: triggerWidth ?? undefined,
-            minWidth: triggerWidth ?? 200,
+               the first measurement.
+
+               When `dropdownWidth` is supplied by the caller, it
+               overrides the trigger-width clamp on all three axes —
+               used by Selects whose option rows carry richer content
+               (icon + label + subtext, Figma 29:4788) and need to
+               break out of a narrow trigger. */
+            width:    dropdownWidth ?? triggerWidth ?? undefined,
+            maxWidth: dropdownWidth ?? triggerWidth ?? undefined,
+            minWidth: dropdownWidth ?? triggerWidth ?? 200,
             /* Cap dropdown height — Figma "Select / Open" spec + Treatment
                Order popup constraint. Bounded by an absolute 480 px and
                by the viewport minus a 64 px breathing buffer (32 px top
@@ -703,6 +749,7 @@ const Select = React.forwardRef(function Select(
                   <DropdownRow
                     key={val}
                     label={lbl}
+                    subtext={opt.subtext}
                     icon={ic}
                     image={img}
                     colorfulBadgeStyle={opt.colorfulBadgeStyle}

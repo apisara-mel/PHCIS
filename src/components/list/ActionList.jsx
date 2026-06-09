@@ -3,8 +3,9 @@ import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Switch from '@/components/switch/Switch';
 
-/* MIH ActionList (a.k.a. List) — Figma 382:14360 / 382:14361 (MIH
-   Design System Foundation · "List"). Single-row list item used inside
+/* MIH ActionList (a.k.a. List) — Figma node 2796:3168 (Action List ✅ ·
+   MIH Design System Foundation). Earlier draft referenced 382:14360 / 382:14361;
+   superseded by the ✅-approved component_set 2796:3168. Single-row list item used inside
    dropdowns, menus, and side panels. The Figma property panel ships
    with eleven knobs which this component mirrors 1:1:
 

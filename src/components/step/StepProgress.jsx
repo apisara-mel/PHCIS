@@ -102,7 +102,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick }) => {
   return (
     <div className='w-[160px] shrink-0 flex flex-col gap-2 items-start'>
       {/* Indicator row: circle + connector */}
-      <div className='flex items-center gap-1.5 w-full'>
+      <div className='flex items-center gap-1.5 w-full' data-spotlight={`step-${idx + 1}`}>
         <button
           type='button'
           onClick={() => isClickable && onStepClick(idx)}

@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Badge from '@/components/badge/Badge';
 
-/* MIH Alert — Figma 325:2623 (Large Alert · MIH Design System Foundation).
+/* MIH Alert — Figma node 297:59 (Large Alert ✅ · MIH Design System Foundation).
+   Earlier draft referenced 325:2623; superseded by the ✅-approved set 297:59.
    See design.md §4.1/4.2/4.3 for the alert token set. Four tones — info,
    success, warning, error — share one layout: leading icon · content stack
    (title + subtext + optional indicator group + optional badge group +

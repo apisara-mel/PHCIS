@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Changelog · 2026-05-25 13:30 → 2026-05-26 — Components, Design System, Docs</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=swap" rel="stylesheet">
+<style>
+:root {
+  --surface-content-default: #FFFFFF;
+  --surface-content-secondary: #F5F6F7;
+  --border-content-tertiary: #E1E3E5;
+  --border-content-quaternary: #F0F1F3;
+  --text-primary: #0F1B17;
+  --text-secondary: #565D6D;
+  --text-tertiary: #858C92;
+  --brand: #007549;
+  --brand-quat: #F4FBF8;
+  --success: #1F9D55;
+  --success-quat: #E8F6EC;
+  --warn: #D43838;
+  --warn-quat: #FDECEC;
+  --info: #1F6FEB;
+  --info-quat: #ECF4FE;
+  --shadow-card: 0 1px 4px rgba(8,167,104,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Sarabun', system-ui, sans-serif;
+  background: var(--surface-content-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.ms {
+  font-family: 'Material Symbols Outlined';
+  font-weight: 400;
+  display: inline-block;
+  vertical-align: middle;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Header */
+.hero {
+  background: linear-gradient(160deg, #0A8268 0%, #18A688 45%, #4CC6AE 100%);
+  color: #FFFFFF;
+  padding: 28px 32px;
+}
+.hero h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.hero .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.hero .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.hero p.lede {
+  font-size: 14px;
+  opacity: 0.95;
+  margin-top: 14px;
+  max-width: 800px;
+  line-height: 1.55;
+}
+
+/* Container */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 32px 80px;
+}
+
+/* TOC */
+.toc {
+  background: var(--surface-content-default);
+  border: 1px solid var(--border-content-tertiary);
+  border-radius: 16px;
+  padding: 18px 22px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow-card);
+}
+.toc h3 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+}
+.toc ol {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 6px;
+  counter-reset: toc;
+}
+.toc li {
+  counter-increment: toc;
+  padding-left: 28px;
+  position: relative;
+}
+.toc li::before {
+  content: counter(toc);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 22px;
+  height: 22px;
+  background: var(--brand-quat);
+  color: var(--brand);
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 22px;
+}
+.toc a {
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+.toc a:hover { color: var(--brand); }
+
+/* Section */
+section.sec {
+  background: var(--surface-content-default);
+  border: 1px solid var(--border-content-tertiary);
+  border-radius: 16px;
+  padding: 22px 26px;
+  margin-bottom: 22px;
+  box-shadow: var(--shadow-card);
+}
+section.sec h2 {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--brand-quat);
+}
+section.sec h2 .ms {
+  font-size: 22px;
+  color: var(--brand);
+}
+section.sec .sec-sub {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  margin-bottom: 18px;
+}
+section.sec h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 18px;
+  margin-bottom: 10px;
+}
+
+/* Change item */
+.change {
+  background: var(--surface-content-secondary);
+  border: 1px solid var(--border-content-quaternary);
+  border-left: 4px solid var(--brand);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+}
+.change.new      { border-left-color: var(--success); }
+.change.changed  { border-left-color: var(--info); }
+.change.breaking { border-left-color: var(--warn); }
+.change-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.tag.new      { background: var(--success-quat); color: var(--success); }
+.tag.changed  { background: var(--info-quat);    color: var(--info); }
+.tag.breaking { background: var(--warn-quat);    color: var(--warn); }
+.tag.token    { background: #F4F2FF;             color: #6A4FE4; }
+.tag.figma    { background: #FFF3D6;             color: #A66D00; }
+.change-title {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text-primary);
+}
+.change-path {
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: var(--surface-content-default);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-content-quaternary);
+}
+.change-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.change-body code {
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: 12px;
+  background: var(--surface-content-default);
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border-content-quaternary);
+  color: var(--text-primary);
+}
+.change-body ul {
+  margin: 6px 0 0 18px;
+  font-size: 12.5px;
+}
+
+/* Token table */
+.tok-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin: 6px 0;
+}
+.tok-table th, .tok-table td {
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border-content-quaternary);
+}
+.tok-table th {
+  background: var(--surface-content-secondary);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-tertiary);
+}
+.tok-table td.tok-name {
+  font-family: 'SF Mono', Consolas, monospace;
+  color: var(--brand);
+  font-size: 12px;
+}
+.tok-table td.tok-val {
+  font-family: 'SF Mono', Consolas, monospace;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+/* Component list */
+.cmp-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.cmp {
+  background: var(--surface-content-default);
+  border: 1px solid var(--border-content-quaternary);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.cmp-path {
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: 11.5px;
+  color: var(--brand);
+  display: block;
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+.cmp-note {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Actions checklist */
+.actions {
+  background: linear-gradient(135deg, var(--warn-quat) 0%, #FFF6F2 100%);
+  border: 1px solid rgba(212, 56, 56, 0.2);
+  border-radius: 14px;
+  padding: 20px 24px;
+}
+.actions h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: var(--warn);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.actions ul {
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.actions ul li {
+  padding: 6px 0 6px 28px;
+  position: relative;
+  border-bottom: 1px solid rgba(212,56,56,0.1);
+}
+.actions ul li::before {
+  content: '□';
+  position: absolute;
+  left: 4px;
+  top: 5px;
+  color: var(--warn);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+.actions ul li:last-child { border-bottom: none; }
+
+a.file-link {
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 500;
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: 12px;
+}
+a.file-link:hover { text-decoration: underline; }
+
+.stat-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.stat {
+  flex: 1;
+  min-width: 140px;
+  background: var(--surface-content-secondary);
+  border: 1px solid var(--border-content-quaternary);
+  border-radius: 10px;
+  padding: 10px 14px;
+  text-align: center;
+}
+.stat .n {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--brand);
+  display: block;
+}
+.stat .l {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .container { padding: 20px 16px; }
+  .hero { padding: 20px 18px; }
+  .toc ol { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1><span class="ms" style="font-size:28px;vertical-align:-4px">deployed_code_history</span> Changelog · Components / Design System / Docs</h1>
+  <div class="meta">
+    <span class="pill"><span class="ms" style="font-size:14px">schedule</span> 2026-05-25 13:30 → 2026-05-26</span>
+    <span class="pill"><span class="ms" style="font-size:14px">commit</span> 1 commit + uncommitted</span>
+    <span class="pill"><span class="ms" style="font-size:14px">folder</span> ~50+ files touched</span>
+  </div>
+  <p class="lede">เอกสารสรุปการเปลี่ยนแปลงใน PHCIS frontend repo สำหรับ handoff ให้ทีม Developer. ครอบคลุม design tokens · React components · routes ใหม่ · เอกสาร docs · skill files. การเปลี่ยนแปลงส่วนใหญ่ยังอยู่ใน working tree (ยังไม่ commit) ยกเว้น token-discipline pass ที่ commit ไปแล้วเมื่อ 13:49.</p>
+</div>
+
+<div class="container">
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h3>สารบัญ</h3>
+    <ol>
+      <li><a href="#summary">สรุปภาพรวม (Summary)</a></li>
+      <li><a href="#design-tokens">Design Tokens (design.md + index.css)</a></li>
+      <li><a href="#typography">Typography — heading-graphic2 / Mitr</a></li>
+      <li><a href="#new-components">React Components ใหม่</a></li>
+      <li><a href="#modified-components">React Components ที่แก้ไข</a></li>
+      <li><a href="#routes">Routes ใหม่ (Mobile + Kiosk)</a></li>
+      <li><a href="#docs">Documentation (docs/)</a></li>
+      <li><a href="#skills">Skill files (.claude/skills/)</a></li>
+      <li><a href="#actions">⚠ Action items ที่ Developer ต้องทำต่อ</a></li>
+    </ol>
+  </nav>
+
+  <!-- Summary -->
+  <section class="sec" id="summary">
+    <h2><span class="ms">summarize</span> สรุปภาพรวม</h2>
+    <div class="sec-sub">งานหลัก 4 ก้อนใหญ่ในช่วง 1.5 วันที่ผ่านมา</div>
+    <div class="stat-row">
+      <div class="stat"><span class="n">8</span><span class="l">New Tokens</span></div>
+      <div class="stat"><span class="n">22</span><span class="l">New Components</span></div>
+      <div class="stat"><span class="n">25+</span><span class="l">Modified Components</span></div>
+      <div class="stat"><span class="n">21</span><span class="l">New Routes</span></div>
+      <div class="stat"><span class="n">5</span><span class="l">New Docs</span></div>
+    </div>
+    <div style="margin-top:18px">
+      <h3>4 ก้อนงานหลัก</h3>
+      <ol style="margin-left:18px;font-size:13px;line-height:1.8">
+        <li><strong>Token discipline + brand display family</strong> — เพิ่ม <code>--dim-radius-450</code>, <code>--type-family-heading-graphic2</code> (Mitr), bind <code>h1–h8</code> ใหม่ + audit literal → variable ทั่ว repo (commit 910cd92)</li>
+        <li><strong>Mobile App (TOR §4)</strong> — สร้างใหม่ทั้งระบบ /m/* — 19 หน้า + MobileShell + mock data + bottom nav (ยังไม่ commit)</li>
+        <li><strong>Kiosk + Spotlight</strong> — สร้างหน้า /kiosk + Spotlight component สำหรับ TOR checklist deep-link highlighting (ยังไม่ commit)</li>
+        <li><strong>Documentation suite</strong> — Service Blueprint, Kiosk userflow, OPD gap analysis, TOR checklist, Mobile spec (ยังไม่ commit)</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Design Tokens -->
+  <section class="sec" id="design-tokens">
+    <h2><span class="ms">palette</span> Design Tokens — design.md + src/index.css</h2>
+    <div class="sec-sub">เพิ่ม + อัปเดต tokens ที่ใช้ทั่ว repo · alias chain primitive → semantic → CSS variable</div>
+
+    <div class="change new">
+      <div class="change-head">
+        <span class="tag new">NEW</span><span class="tag token">Dimension</span>
+        <span class="change-title">เพิ่ม <code>--dim-radius-450</code> = 14px</span>
+        <span class="change-path">src/index.css:526</span>
+      </div>
+      <div class="change-body">
+        ใช้สำหรับ kiosk card, header chip, queue-number box (Figma PHCIS|KIOSK 4002:928). อ้างใน <code>.mih-spotlight</code> ด้วย.
+      </div>
+    </div>
+
+    <div class="change new">
+      <div class="change-head">
+        <span class="tag new">NEW</span><span class="tag token">Animation</span>
+        <span class="change-title">เพิ่ม keyframes <code>mih-spotlight-pulse</code> + class <code>.mih-spotlight</code></span>
+        <span class="change-path">src/index.css:1527-1552</span>
+      </div>
+      <div class="change-body">
+        ใช้โดย <code>&lt;Spotlight&gt;</code> component เพื่อ highlight element เมื่อ URL มี <code>?spotlight=&lt;key&gt;</code> (TOR Compliance Checklist deep-link). กระพริบ brand-tinted glow 1.4s ease-in-out ค้างไว้ 6s แล้วลบเอง.
+      </div>
+    </div>
+
+    <div class="change changed">
+      <div class="change-head">
+        <span class="tag changed">CHANGED</span><span class="tag token">Token alias chain</span>
+        <span class="change-title">Token literal → variable audit (commit 910cd92)</span>
+        <span class="change-path">25+ component files</span>
+      </div>
+      <div class="change-body">
+        แก้ raw hex/px literals → <code>var(--*)</code> ในไฟล์ดังนี้: Alert, ColorfulIconBadge, PatientCard, CheckboxButton, BodyDrawingCanvas, AddressMapBlock, DatePicker, DiagTypeSelect, Dropdown, HistoryListForm, PersonalDataConsentEditPopup, Select, TreatmentSteps, textareaSuggestions, QueueSubMenu, SideSubMenu, ActionList, AlertDialog, CameraCapturePopup, ConfirmAddDiagnosisPopup, DateFilterPopup, Popup, ProfilePopover, SettingsModal, RadioButton, AISearch, PrimarySearch, Table, ScreeningPage, UserEditPage.
+      </div>
+    </div>
+  </section>
+
+  <!-- Typography -->
+  <section class="sec" id="typography">
+    <h2><span class="ms">format_size</span> Typography — Mitr brand display family</h2>
+    <div class="sec-sub">เพิ่ม brand display font ตัวที่สอง (Mitr) + เปลี่ยน h1–h8 ให้ alias จาก Mitr Regular</div>
+
+    <div class="change new">
+      <div class="change-head">
+        <span class="tag new">NEW</span><span class="tag token">Font family</span>
+        <span class="change-title">เพิ่ม <code>typography.family.heading-graphic2</code> = Mitr</span>
+        <span class="change-path">design.md §1b · src/index.css · index.html · public/fonts/Mitr-*.ttf</span>
+      </div>
+      <div class="change-body">
+        Brand display family ตัวที่ 2 (คู่กับ Sao Chingcha) — แบบ Latin-led มี weight 200–900 ครบจาก Google Fonts.
+        <ul>
+          <li>เพิ่ม CSS var <code>--type-family-heading-graphic2: 'Mitr', 'Sarabun', system-ui</code></li>
+          <li>โหลด Mitr ผ่าน Google Fonts ใน <code>index.html</code> (weight 400/500/600/700)</li>
+          <li>เพิ่ม fallback fonts ใน <code>public/fonts/</code> (Mitr Regular/Medium/SemiBold/Bold/Light/ExtraLight)</li>
+          <li>เพิ่ม sister CSS var <code>--type-family-heading-graphic</code> (เคย missing — drift fix)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="change new">
+      <div class="change-head">
+        <span class="tag new">NEW</span><span class="tag token">Text styles</span>
+        <span class="change-title">เพิ่ม <code>typography.display.graphic2-1</code> ถึง <code>graphic2-9</code></span>
+        <span class="change-path">design.md §4.6 Full token reference</span>
+      </div>
+      <div class="change-body">
+        9 sizes คู่ขนานกับ <code>graphic1–9</code> เดิม — 60/48/36/30/24/20/18/16/14 px · LH 125% · LS 0% · Bold weight. ทุก row alias <code>typography.family.heading-graphic2</code>.
+      </div>
+    </div>
+
+    <div class="change breaking">
+      <div class="change-head">
+        <span class="tag breaking">BREAKING</span><span class="tag token">Token rebind</span>
+        <span class="change-title">เปลี่ยน <code>typography.h1</code>–<code>h8</code> alias: Sarabun Bold → Mitr Regular</span>
+        <span class="change-path">design.md §4.6 (rows h1–h8)</span>
+      </div>
+      <div class="change-body">
+        ⚠ <strong>Heading family เปลี่ยน</strong> — ทุกหน้าที่ใช้ h1–h8 จะเห็นเป็น Mitr Regular แทน Sarabun Bold. ขนาด/Line-Height/Letter-Spacing คงเดิม.
+        <table class="tok-table">
+          <thead><tr><th>Token</th><th>Family ใหม่</th><th>Weight ใหม่</th><th>Size / LH</th></tr></thead>
+          <tbody>
+            <tr><td class="tok-name">typography.h1</td><td class="tok-val">Mitr</td><td class="tok-val">Regular</td><td>36 / 137.5%</td></tr>
+            <tr><td class="tok-name">typography.h2</td><td class="tok-val">Mitr</td><td class="tok-val">Regular</td><td>30 / 137.5%</td></tr>
+            <tr><td class="tok-name">typography.h3</td><td class="tok-val">Mitr</td><td class="tok-val">Regular</td><td>24 / 137.5%</td></tr>
+            <tr><td class="tok-name">typography.h4</td><td class="tok-val">Mitr</td><td class="tok-val">Regular</td><td>20 / 137.5%</td></tr>
+            <tr><td class="tok-name">typography.h5</td><td class="tok-val">Mitr</td><td class="tok-val">Regular</td><td>18 / 150%</td></tr>
+            <tr><td class="tok-name">typography.h6</td><td class="tok-val">Mitr</td><td class="tok-val">Regular</td><td>16 / 150%</td></tr>
+            <tr><td class="tok-name">typography.h7</td><td class="tok-val">Mitr</td><td class="tok-val">Regular</td><td>14 / 150%</td></tr>
+            <tr><td class="tok-name">typography.h8</td><td class="tok-val">Mitr</td><td class="tok-val">Regular</td><td>12 / 150%</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px"><strong>หมายเหตุ:</strong> <code>--type-family-heading-content</code> ยังเป็น Sarabun (ใช้ใน 30+ ที่ — popup, card, table) ไม่ได้กระทบ.</div>
+      </div>
+    </div>
+
+    <div class="change new">
+      <div class="change-head">
+        <span class="tag new">NEW</span><span class="tag figma">Figma Map</span>
+        <span class="change-title">เพิ่ม §5.13 — Figma ↔ React Component Map</span>
+        <span class="change-path">design.md §5.13</span>
+      </div>
+      <div class="change-body">
+        Central index ของ Figma node IDs ที่ map กับ React components — เริ่มจาก 9 mappings (Phase 1):
+        <ul>
+          <li><code>231:29 Brand Button</code> → BrandButton.jsx</li>
+          <li><code>377:11596 Brand Icon Button</code> → BrandIconButton.jsx</li>
+          <li><code>302:73 Status Badge</code> → StatusBadge.jsx</li>
+          <li><code>2076:8413 Colorful Badge</code> → ColorfulBadge.jsx</li>
+          <li><code>2307:11697 Colorful icon Badge</code> → ColorfulIconBadge.jsx</li>
+          <li><code>297:59 Alert</code> → Alert.jsx</li>
+          <li><code>3355:3149 Small Alert</code> → SmallAlert.jsx</li>
+          <li><code>2796:3168 Action List</code> → ActionList.jsx</li>
+        </ul>
+        Code Connect ถูกบล็อกโดย Figma plan (Org/Enterprise + Developer seat required) — fallback เป็น header comments + central table.
+      </div>
+    </div>
+
+    <div class="change changed">
+      <div class="change-head">
+        <span class="tag changed">CHANGED</span><span class="tag figma">Figma Node Refs</span>
+        <span class="change-title">อัปเดต outdated Figma node IDs (✅ approved versions)</span>
+        <span class="change-path">Alert.jsx · ActionList.jsx</span>
+      </div>
+      <div class="change-body">
+        <ul>
+          <li><a class="file-link" href="../src/components/alert/Alert.jsx">src/components/alert/Alert.jsx</a> — <code>325:2623</code> → <code>297:59</code></li>
+          <li><a class="file-link" href="../src/components/list/ActionList.jsx">src/components/list/ActionList.jsx</a> — <code>382:14360</code> → <code>2796:3168</code></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- New Components -->
+  <section class="sec" id="new-components">
+    <h2><span class="ms">add_box</span> React Components ใหม่</h2>
+    <div class="sec-sub">22 components ใหม่ — แบ่งเป็น 3 กลุ่ม: Mobile App / Kiosk / Utility</div>
+
+    <h3>🩺 Mobile App (TOR §4) — Citizen-facing companion</h3>
+    <p style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">เข้าผ่าน <code>/m</code> · 390×844 phone frame · MobileShell + 18 pages</p>
+    <div class="cmp-list">
+      <div class="cmp">
+        <span class="cmp-path">src/components/mobile/MobileShell.jsx</span>
+        <span class="cmp-note">Phone frame + bottom nav + status bar + auth gate · i18n context (TH/EN) · exports MobileButton/Card/Field/Input/Badge/Sym</span>
+      </div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileLoginPage.jsx</span><span class="cmp-note">Login + OTP step + Face ID quick-action</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileRegisterPage.jsx</span><span class="cmp-note">6-step wizard: welcome → citizen ID → OTP → face → password → done</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileResetPage.jsx</span><span class="cmp-note">3-step SMS password reset</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileHomePage.jsx</span><span class="cmp-note">Hero + 6 pastel quick-actions + vitals + appointment card + bill banner + news</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileAppointmentsPage.jsx</span><span class="cmp-note">List w/ upcoming/past tabs · TOR §4.2</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileAppointmentDetailPage.jsx</span><span class="cmp-note">Detail w/ reschedule/cancel/enter-room</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileBookPage.jsx</span><span class="cmp-note">4-step booking: clinic → dept → doctor → slot</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileTelemedPage.jsx</span><span class="cmp-note">Video call + chat + doc share (TOR §4.3)</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileRecordsPage.jsx</span><span class="cmp-note">Visits / Meds / ANC tabs (§4.4, §4.6.7)</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileVisitPage.jsx</span><span class="cmp-note">Visit detail w/ files + e-Doc request</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileProfilePage.jsx</span><span class="cmp-note">Identity + centers + chronic/allergies (§4.5)</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileProfileQrPage.jsx</span><span class="cmp-note">My QR for kiosk check-in (§4.1.4)</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileVitalsPage.jsx</span><span class="cmp-note">Self-log BP/weight/pulse/height (§4.5.2)</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileClinicsPage.jsx</span><span class="cmp-note">Find clinics — Leaflet map + list + detail (§4.7)</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileRequestsPage.jsx</span><span class="cmp-note">6 request types (diapers, cert, etc.) (§4.8)</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileNewsPage.jsx</span><span class="cmp-note">News/podcast/article cards (§4.9)</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileMorePage.jsx</span><span class="cmp-note">More tab — settings/services index</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobileSettingsPage.jsx</span><span class="cmp-note">Language toggle + password + notifications + PDPA (§4.10, §4.11)</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/mobile/MobilePaymentPage.jsx</span><span class="cmp-note">Bills list + QR PromptPay + card form + e-receipt (§4.12)</span></div>
+    </div>
+
+    <h3 style="margin-top:16px">🖥 Kiosk (Standalone touchscreen)</h3>
+    <div class="cmp-list">
+      <div class="cmp"><span class="cmp-path">src/pages/kiosk/KioskPage.jsx</span><span class="cmp-note">7-step state machine — welcome → service → sub → appointment → verify → confirm → ticket (1440×1462 canvas)</span></div>
+      <div class="cmp"><span class="cmp-path">src/pages/kiosk/MobileTicketPage.jsx</span><span class="cmp-note">QR scan target on phone · Canvas API for PNG save</span></div>
+    </div>
+
+    <h3 style="margin-top:16px">🛠 Utility</h3>
+    <div class="cmp-list">
+      <div class="cmp"><span class="cmp-path">src/components/util/Spotlight.jsx</span><span class="cmp-note">Global URL <code>?spotlight=&lt;key&gt;</code> deep-link highlighter · pulses .mih-spotlight class for 6s on target element</span></div>
+      <div class="cmp"><span class="cmp-path">src/components/card/VitalReadingCard.jsx</span><span class="cmp-note">8 Figma variants (horizontal × type × bordered) for vital snapshot · Figma 17:1458 (committed in 910cd92)</span></div>
+    </div>
+
+    <h3 style="margin-top:16px">📦 Data files</h3>
+    <div class="cmp-list">
+      <div class="cmp"><span class="cmp-path">src/data/mobileMock.js</span><span class="cmp-note">CURRENT_USER + CLINICS + DOCTORS + APPOINTMENTS + SCHEDULE_SLOTS + VISIT_HISTORY + BILLS + REQUEST_TYPES + NEWS + ANC_PROFILE</span></div>
+      <div class="cmp"><span class="cmp-path">src/data/kioskMock.js</span><span class="cmp-note">SERVICES + SUB_SERVICES + PATIENTS keyed by 13-digit national ID + generateQueueNumber()</span></div>
+    </div>
+  </section>
+
+  <!-- Modified Components -->
+  <section class="sec" id="modified-components">
+    <h2><span class="ms">edit_note</span> React Components ที่แก้ไข</h2>
+    <div class="sec-sub">5 components modified นอกเหนือจาก token-discipline pass</div>
+
+    <div class="change changed">
+      <div class="change-head">
+        <span class="tag changed">CHANGED</span>
+        <span class="change-title">เพิ่ม <code>data-spotlight</code> attribute</span>
+        <span class="change-path">Sidebar.jsx · StepProgress.jsx</span>
+      </div>
+      <div class="change-body">
+        ทำให้ <code>&lt;Spotlight&gt;</code> หา element ที่ตรงกับ <code>?spotlight=sidebar-&lt;key&gt;</code> หรือ <code>?spotlight=step-N</code> ได้.
+        <ul>
+          <li>Sidebar menu items: <code>data-spotlight={`sidebar-${it.key}`}</code></li>
+          <li>StepProgress step wrapper: <code>data-spotlight={`step-${idx + 1}`}</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="change changed">
+      <div class="change-head">
+        <span class="tag changed">CHANGED</span>
+        <span class="change-title">Routes.jsx — เพิ่ม mobile + kiosk routes + Spotlight mount</span>
+        <span class="change-path">src/routes/Routes.jsx</span>
+      </div>
+      <div class="change-body">
+        +67 lines · เพิ่ม 21 routes ใหม่ ภายใต้ <code>/m/*</code> + <code>/kiosk/*</code> · ห่อ /m ด้วย <code>&lt;MobileAppProvider&gt;</code> · เพิ่ม <code>&lt;Spotlight /&gt;</code> ภายใน <code>&lt;Router&gt;</code> นอก <code>&lt;Switch&gt;</code>.
+      </div>
+    </div>
+
+    <div class="change changed">
+      <div class="change-head">
+        <span class="tag changed">CHANGED</span>
+        <span class="change-title">Big component updates (commit 910cd92)</span>
+        <span class="change-path">Table.jsx · ComponentsLibraryPage.jsx</span>
+      </div>
+      <div class="change-body">
+        <ul>
+          <li><a class="file-link" href="../src/components/table/Table.jsx">Table.jsx</a> — +131 lines — loading skeleton + pulsing bars</li>
+          <li><a class="file-link" href="../src/pages/components/ComponentsLibraryPage.jsx">ComponentsLibraryPage.jsx</a> — +100 lines — VitalReadingCard demo + Do/Don't guidelines</li>
+          <li><a class="file-link" href="../tailwind.config.js">tailwind.config.js</a> — alias <code>rounded-card</code> → <code>var(--dim-radius-500, 16px)</code></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Routes -->
+  <section class="sec" id="routes">
+    <h2><span class="ms">route</span> Routes ใหม่ใน Routes.jsx</h2>
+    <div class="sec-sub">+21 routes · กลุ่ม /m/* citizen mobile app + /kiosk/* standalone touchscreen</div>
+
+    <h3>📱 Mobile App (/m/*) — 19 routes</h3>
+    <table class="tok-table">
+      <thead><tr><th>Path</th><th>Page Component</th><th>TOR Ref</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">/m</td><td>MobileHomePage</td><td>—</td></tr>
+        <tr><td class="tok-name">/m/login</td><td>MobileLoginPage</td><td>§4.1.2</td></tr>
+        <tr><td class="tok-name">/m/register</td><td>MobileRegisterPage</td><td>§4.1.1</td></tr>
+        <tr><td class="tok-name">/m/reset</td><td>MobileResetPage</td><td>§4.1.2.3, §4.11.1</td></tr>
+        <tr><td class="tok-name">/m/home</td><td>MobileHomePage</td><td>—</td></tr>
+        <tr><td class="tok-name">/m/appointments</td><td>MobileAppointmentsPage</td><td>§4.2</td></tr>
+        <tr><td class="tok-name">/m/appointments/:id</td><td>MobileAppointmentDetailPage</td><td>§4.2.2, §4.2.3</td></tr>
+        <tr><td class="tok-name">/m/book</td><td>MobileBookPage</td><td>§4.2.1, §4.2.6.4</td></tr>
+        <tr><td class="tok-name">/m/telemed</td><td>MobileTelemedPage</td><td>§4.3</td></tr>
+        <tr><td class="tok-name">/m/records</td><td>MobileRecordsPage</td><td>§4.4, §4.6</td></tr>
+        <tr><td class="tok-name">/m/visit/:id</td><td>MobileVisitPage</td><td>§4.6.1–§4.6.4</td></tr>
+        <tr><td class="tok-name">/m/profile</td><td>MobileProfilePage</td><td>§4.5</td></tr>
+        <tr><td class="tok-name">/m/profile/qr</td><td>MobileProfileQrPage</td><td>§4.1.4</td></tr>
+        <tr><td class="tok-name">/m/profile/vitals</td><td>MobileVitalsPage</td><td>§4.5.2</td></tr>
+        <tr><td class="tok-name">/m/clinics</td><td>MobileClinicsPage</td><td>§4.7.1</td></tr>
+        <tr><td class="tok-name">/m/clinics/:code</td><td>MobileClinicDetailPage</td><td>§4.7.2, §4.7.3</td></tr>
+        <tr><td class="tok-name">/m/requests</td><td>MobileRequestsPage</td><td>§4.8</td></tr>
+        <tr><td class="tok-name">/m/news</td><td>MobileNewsPage</td><td>§4.9</td></tr>
+        <tr><td class="tok-name">/m/news/:id</td><td>MobileNewsDetailPage</td><td>§4.9</td></tr>
+        <tr><td class="tok-name">/m/more</td><td>MobileMorePage</td><td>—</td></tr>
+        <tr><td class="tok-name">/m/settings</td><td>MobileSettingsPage</td><td>§4.10, §4.11</td></tr>
+        <tr><td class="tok-name">/m/payment</td><td>MobilePaymentPage</td><td>§4.12</td></tr>
+        <tr><td class="tok-name">/m/payment/:id</td><td>MobilePaymentDetailPage</td><td>§4.12.2, §4.12.3</td></tr>
+      </tbody>
+    </table>
+
+    <h3>🖥 Kiosk (/kiosk/*) — 2 routes</h3>
+    <table class="tok-table">
+      <thead><tr><th>Path</th><th>Page Component</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">/kiosk</td><td>KioskPage</td><td>Standalone 1440×1462 · no Sidebar/Header chrome</td></tr>
+        <tr><td class="tok-name">/kiosk/ticket/:queueId</td><td>MobileTicketPage</td><td>QR scan target · Canvas PNG save</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Docs -->
+  <section class="sec" id="docs">
+    <h2><span class="ms">menu_book</span> Documentation</h2>
+    <div class="sec-sub">5 new HTML docs + 1 updated</div>
+
+    <div class="cmp-list">
+      <div class="cmp">
+        <span class="cmp-path"><a class="file-link" href="13_Service_Blueprint.html">13_Service_Blueprint.html</a></span>
+        <span class="cmp-note">Service Blueprint ข้ามแผนก — 12 phases × 5 layers — MIH design system theme + Material Symbols Outlined</span>
+      </div>
+      <div class="cmp">
+        <span class="cmp-path"><a class="file-link" href="kiosk-userflow.html">kiosk-userflow.html</a></span>
+        <span class="cmp-note">Kiosk userflow + 7 use cases + screen mockups</span>
+      </div>
+      <div class="cmp">
+        <span class="cmp-path"><a class="file-link" href="opd-flow-gap-analysis.html">opd-flow-gap-analysis.html</a></span>
+        <span class="cmp-note">PHCIS vs HCIS OPD flow coverage analysis</span>
+      </div>
+      <div class="cmp">
+        <span class="cmp-path"><a class="file-link" href="tor-checklist.html">tor-checklist.html</a></span>
+        <span class="cmp-note">TOR Compliance Checklist (~600 requirements) · localStorage state · spotlight URL builder · 197 IMPL mappings (91 done · 79 partial · 27 todo)</span>
+      </div>
+      <div class="cmp">
+        <span class="cmp-path"><a class="file-link" href="product-spec.md">product-spec.md</a></span>
+        <span class="cmp-note">UPDATED — +103 lines · เพิ่ม Mobile App section §10.8</span>
+      </div>
+      <div class="cmp">
+        <span class="cmp-path"><a class="file-link" href="index.html">index.html</a></span>
+        <span class="cmp-note">UPDATED — เพิ่ม tile สำหรับ Mobile App (/m) + ลิงก์ docs ใหม่</span>
+      </div>
+    </div>
+
+    <h3 style="margin-top:16px">📝 Spec markdowns at repo root (English)</h3>
+    <div class="cmp-list">
+      <div class="cmp"><span class="cmp-path">application-home-screen-prompt-en.md</span></div>
+      <div class="cmp"><span class="cmp-path">application-register-flow-en.md</span></div>
+      <div class="cmp"><span class="cmp-path">application-reset-password-flow-en.md</span></div>
+      <div class="cmp"><span class="cmp-path">appointment-flow-en.md</span></div>
+      <div class="cmp"><span class="cmp-path">telemedicine-video-call-en.md</span></div>
+    </div>
+  </section>
+
+  <!-- Skills -->
+  <section class="sec" id="skills">
+    <h2><span class="ms">school</span> Skill files (.claude/skills/)</h2>
+    <div class="sec-sub">เพิ่ม ux-ui-designer skill — Senior UX/UI designer expert in PHCIS workflows + Figma DS + token-aliased vibe code</div>
+
+    <div class="change new">
+      <div class="change-head">
+        <span class="tag new">NEW</span>
+        <span class="change-title">.claude/skills/ux-ui-designer/SKILL.md</span>
+        <span class="change-path">~1023 lines</span>
+      </div>
+      <div class="change-body">
+        ครอบคลุม: PHCIS domain expertise (ลงทะเบียน / พยาบาล / แพทย์), Figma plugin API pitfalls (16 gotchas), reference-first design workflow, layer naming conventions, design.md §6 + ComponentsLibrary integration. ใช้เมื่อต้องการความช่วยเหลือเกี่ยวกับ UX/UI ในโปรเจกต์นี้.
+      </div>
+    </div>
+  </section>
+
+  <!-- Actions -->
+  <section class="actions" id="actions">
+    <h3><span class="ms">checklist</span> Action items ที่ Developer ต้องทำต่อ</h3>
+    <ul>
+      <li><strong>Visual review</strong> — ทดสอบ h1–h8 ใหม่ (Mitr Regular แทน Sarabun Bold) ในทุกหน้าหลัก เผื่อมีหน้าที่ heading ดูเบาเกินหรือไม่เข้ากับ context</li>
+      <li><strong>Font fallback test</strong> — โหลด <code>/m</code> ในเครือข่ายช้าเพื่อเช็คว่า Mitr fallback ไป Sarabun ได้ smooth ไหม (ดู FOUC)</li>
+      <li><strong>Commit working tree</strong> — มีไฟล์ใหม่ ~22 components + 5 docs + skill ที่ยังไม่ commit (ดู <code>git status</code>). ตัดสินใจว่าจะ split PR เป็น 3 ก้อน (mobile-app / kiosk-spotlight / docs) หรือ commit ครั้งเดียว</li>
+      <li><strong>Mobile routes smoke test</strong> — เข้า <code>/m</code> ด้วยข้อมูลสาธิต <code>1234567890123 / demo1234 / OTP 123456</code> ทดลองครบทั้ง 19 หน้า ดูว่า navigation + state ทำงานถูก</li>
+      <li><strong>Telemedicine page UX</strong> — page เป็น mock เท่านั้น (ไม่มี WebRTC จริง) — ทีมต้องตัดสินใจว่าจะ integrate Agora/Twilio/อื่นๆ ในเฟส 2 หรือไม่</li>
+      <li><strong>Kiosk runtime test</strong> — เปิด <code>/kiosk</code> ด้วย touchscreen จริงหรือ Chrome DevTools touch mode เพื่อทดสอบ 7-step state machine</li>
+      <li><strong>Spotlight integration</strong> — เปิด <code>docs/tor-checklist.html</code> คลิกลิงก์ที่ผูก <code>?spotlight=...</code> เพื่อทดสอบว่า Spotlight component ทำงานถูกในทุกหน้าใน /opd, /treat, /m</li>
+      <li><strong>Figma node header audit</strong> — ตรวจ <code>src/components/*/*.jsx</code> ที่มี <code>/* MIH ... — Figma X:Y */</code> header — sync IDs กับ DS Foundation ✅ approved versions (ดู design.md §5.13)</li>
+      <li><strong>Code Connect</strong> — ถ้า org plan upgrade เป็น Figma Organization/Enterprise + Developer seat แล้ว ให้รัน Code Connect mapping ตาม table ใน design.md §5.13</li>
+      <li><strong>TOR checklist seeding</strong> — เปิด <code>docs/tor-checklist.html</code> ดูว่า auto-seed flag v2_mobile ตั้งสถานะ done/partial ของ TOR §4 ถูกต้องหรือไม่</li>
+    </ul>
+  </section>
+
+  <div style="margin-top:32px;padding:18px 22px;background:var(--brand-quat);border:1px solid rgba(8,117,73,0.2);border-radius:14px;font-size:13px;color:var(--text-secondary)">
+    <strong style="color:var(--brand)">📞 Q&A · Communication</strong>
+    <p style="margin-top:6px">เอกสารฉบับนี้ generate จาก git log + working tree diff ของ branch <code>main</code> ที่ commit <code>910cd92</code> และไฟล์ที่แก้หลังจากนั้น. ถ้ามีคำถามให้เปิด <a class="file-link" href="../design.md">design.md</a> §5.13 หรือ <a class="file-link" href="13_Service_Blueprint.html">13_Service_Blueprint.html</a> สำหรับ context เพิ่มเติม.</p>
+  </div>
+
+</div>
+</body>
+</html>

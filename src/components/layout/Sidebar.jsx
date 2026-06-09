@@ -59,7 +59,7 @@ const ITEMS = [
   { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18                },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill'                                   },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht'                                   },
-  { key: 'appoint',   label: 'ระบบนัดหมาย',               icon: 'calendar_clock'                         },
+  { key: 'appoint',   label: 'ระบบนัดหมาย',               icon: 'calendar_clock', path: '/appointment'       },
   { key: 'log',       label: 'ประวัติการใช้งาน',          icon: 'history'                                },
   { key: 'users',     label: 'ผู้ใช้และสิทธิ์การเข้าถึง', icon: 'group',            path: '/users'        },
 ];
@@ -471,6 +471,7 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null }) => {
               key={it.key}
               role='menuitem'
               tabIndex={0}
+              data-spotlight={`sidebar-${it.key}`}
               onClick={onActivate}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivate(); } }}
               onMouseEnter={() => setHoverItem(it.key)}

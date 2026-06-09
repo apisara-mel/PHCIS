@@ -67,6 +67,7 @@ const ProfilePopover = ({ open, anchorRect, anchorRef, onClose, onSelect }) => {
   return (
     <div
       ref={popRef}
+      className='mih-popover-in'
       role='menu'
       onMouseLeave={() => onClose && onClose()}
       style={{

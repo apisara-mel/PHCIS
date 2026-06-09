@@ -474,5 +474,5 @@ const DateFilterPopup = ({
   );
 };
 
-export { QUICK_OPTIONS, QUICK_OPTIONS_SINGLE, QUICK_OPTIONS_RANGE };
+export { QUICK_OPTIONS, QUICK_OPTIONS_SINGLE, QUICK_OPTIONS_RANGE, computeQuickRange, computeQuickSingle };
 export default DateFilterPopup;

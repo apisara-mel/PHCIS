@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <title>ระบบจัดการนัดหมาย — [ชื่อโรงพยาบาล]</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* ─── Design tokens ──────────────────────────────────────────
+       Map these to your project's design.md semantic tokens.
+       If running inside MIH PHCIS the brand vars (--brand-p700 etc.)
+       are already in :root from src/index.css and are referenced below. */
+    :root {
+      /* Color roles (override these to alias your design system) */
+      --green:  var(--color-primary,   var(--brand-p700, #007549));
+      --green-50: var(--brand-p50, #F4FBF8);
+      --green-100: var(--brand-p100, #E2F3EB);
+      --blue:   var(--color-secondary, #1D4ED8);
+      --blue-50: #EFF6FF;
+      --amber:  var(--color-warning,   #C2410C);
+      --amber-50: #FFF7ED;
+      --purple: var(--color-info,      #7E22CE);
+      --purple-50: #FAF5FF;
+      --red:    var(--color-danger,    #B91C1C);
+      --red-50: #FEF2F2;
+
+      /* Ink / surfaces */
+      --ink-dark:  var(--text-content-primary,   #171A1F);
+      --ink-body:  var(--text-content-secondary, #4D5358);
+      --ink-mute:  var(--text-content-tertiary,  #858C92);
+      --line:      var(--border-content-tertiary,#E2E4E6);
+      --bg:        var(--surface-content-secondary, #F5F6F7);
+      --card:      var(--surface-content-default,  #FFFFFF);
+
+      /* Dimension (map to --dim-radius-* / --dim-space-*) */
+      --r-sm:  var(--dim-radius-100, 4px);
+      --r-md:  var(--dim-radius-200, 8px);
+      --r-lg:  var(--dim-radius-300, 10px);
+      --r-xl:  var(--dim-radius-500, 16px);
+      --r-pill:var(--dim-radius-full, 9999px);
+      --sp-1: var(--dim-space-100, 4px);
+      --sp-2: var(--dim-space-200, 8px);
+      --sp-3: var(--dim-space-300, 12px);
+      --sp-4: var(--dim-space-400, 16px);
+      --sp-6: var(--dim-space-600, 24px);
+    }
+
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink-dark);font-family:'Sarabun','Inter',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5}
+    button{font-family:inherit;font-size:inherit;cursor:pointer;border:0}
+
+    /* ─── Shell ────────────────────────────────────────────── */
+    .topbar{background:var(--card);border-bottom:1px solid var(--line);padding:var(--sp-3) var(--sp-6);display:flex;align-items:center;gap:var(--sp-3);position:sticky;top:0;z-index:10}
+    .site-logo{width:36px;height:36px;border-radius:var(--r-lg);background:var(--green);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+    .site-name{font-weight:700;font-size:16px}
+    .site-sub{color:var(--ink-mute);font-size:12px}
+
+    .tabbar{background:var(--card);border-bottom:1px solid var(--line);padding:0 var(--sp-6);display:flex;gap:var(--sp-4);overflow-x:auto;position:sticky;top:60px;z-index:9}
+    .tab{padding:14px 4px;font-size:14px;font-weight:500;color:var(--ink-mute);background:transparent;border-bottom:3px solid transparent;white-space:nowrap}
+    .tab.active{color:var(--green);border-bottom-color:var(--green);font-weight:700}
+
+    main{max-width:1200px;margin:0 auto;padding:var(--sp-6) var(--sp-4)}
+    .page{display:none}
+    .page.active{display:block}
+
+    /* ─── Cards / atoms ────────────────────────────────────── */
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);padding:var(--sp-4)}
+    .card+.card{margin-top:var(--sp-3)}
+    .card h2,.card h3{margin:0 0 var(--sp-3)}
+    h1{font-size:22px;margin:0 0 var(--sp-3)}
+    h2{font-size:18px}
+    h3{font-size:15px}
+
+    .grid{display:grid;gap:var(--sp-3)}
+    .grid-2{grid-template-columns:repeat(2,1fr)}
+    .grid-3{grid-template-columns:repeat(3,1fr)}
+    @media(max-width:720px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:var(--r-pill);font-weight:700;font-size:14px;background:var(--green);color:#fff}
+    .btn-outline{background:transparent;border:1.5px solid var(--green);color:var(--green)}
+    .btn-ghost{background:transparent;color:var(--green)}
+    .btn-danger{background:var(--red)}
+    .btn-sm{padding:6px 12px;font-size:12px}
+
+    .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--r-pill);font-size:11px;font-weight:700}
+    .pill-green{background:var(--green-50);color:var(--green)}
+    .pill-blue{background:var(--blue-50);color:var(--blue)}
+    .pill-amber{background:var(--amber-50);color:var(--amber)}
+    .pill-purple{background:var(--purple-50);color:var(--purple)}
+    .pill-red{background:var(--red-50);color:var(--red)}
+
+    .input,select{display:block;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-md);font-size:14px;background:var(--card);color:var(--ink-dark)}
+    .input:focus,select:focus{outline:0;border-color:var(--green)}
+    label{display:block;font-size:12px;font-weight:500;color:var(--ink-body);margin-bottom:4px}
+    .field{margin-bottom:var(--sp-3)}
+
+    .row{display:flex;align-items:center;gap:var(--sp-3)}
+    .row-between{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3)}
+    .row-wrap{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+
+    /* ─── Slot bar ─────────────────────────────────────────── */
+    .period{border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-3);margin-bottom:var(--sp-3)}
+    .period.off{opacity:.55}
+    .switch{position:relative;display:inline-block;width:40px;height:22px;background:var(--line);border-radius:var(--r-pill);transition:background 150ms;cursor:pointer}
+    .switch.on{background:var(--green)}
+    .switch::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left 150ms}
+    .switch.on::after{left:20px}
+
+    /* ─── Tables ───────────────────────────────────────────── */
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+    th{font-weight:700;color:var(--ink-body);background:var(--bg)}
+    tr:hover td{background:var(--green-50)}
+
+    /* ─── Toast ────────────────────────────────────────────── */
+    #toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:50}
+    .toast{background:var(--ink-dark);color:#fff;padding:12px 16px;border-radius:var(--r-md);font-size:13px;max-width:320px;animation:slide 200ms}
+    .toast.success{background:var(--green)}
+    @keyframes slide{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+    /* ─── Calendar grid (day-off picker) ──────────────────── */
+    .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+    .cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:var(--r-md);border:1px solid var(--line);font-size:12px;background:var(--card);cursor:pointer}
+    .cal-day.off{background:var(--red-50);color:var(--red);border-color:var(--red)}
+    .cal-day.today{outline:2px solid var(--green)}
+  </style>
+</head>
+<body>
+
+<!-- ─── Top bar ────────────────────────────────────────────────── -->
+<header class="topbar">
+  <span class="site-logo">🏥</span>
+  <div style="flex:1">
+    <div class="site-name">ระบบจัดการนัดหมาย — <span id="siteName">[ชื่อโรงพยาบาล]</span></div>
+    <div class="site-sub">OPD Scheduling · พยาบาล + แพทย์ + เคาน์เตอร์</div>
+  </div>
+  <span class="pill pill-green">Mock · in-browser</span>
+</header>
+
+<!-- ─── Tabs ───────────────────────────────────────────────────── -->
+<nav class="tabbar" id="tabbar">
+  <button class="tab active" data-tab="schedule">ตั้งค่าตารางออกตรวจ</button>
+  <button class="tab" data-tab="overview">ภาพรวมตารางแพทย์</button>
+  <button class="tab" data-tab="appointments">รายการนัดหมาย</button>
+  <button class="tab" data-tab="notifications">การแจ้งเตือน</button>
+  <button class="tab" data-tab="staff">จัดการบุคลากร</button>
+</nav>
+
+<main>
+  <!-- ═════════════════════════════════════════════════════════════
+       PAGE 1 · ตั้งค่าตารางออกตรวจ
+       ═════════════════════════════════════════════════════════════ -->
+  <section class="page active" id="page-schedule">
+    <div class="card">
+      <div class="row-between">
+        <h1>ตั้งค่าตารางออกตรวจ</h1>
+        <div class="row-wrap">
+          <select id="doctorPicker" class="input" style="width:auto"></select>
+          <input type="date" id="datePicker" class="input" style="width:auto">
+        </div>
+      </div>
+      <p style="color:var(--ink-mute);margin:0">เลือกแพทย์ → กำหนดช่วงเวลา + slot duration → เลือก preset % การจอง → กด "บันทึกตาราง"</p>
+    </div>
+
+    <div class="grid grid-2">
+      <!-- Slot config -->
+      <div class="card">
+        <h2>ช่วงเวลาที่เปิด</h2>
+        <div class="field row-between">
+          <label style="margin:0">ระยะเวลาต่อ slot (นาที)</label>
+          <select id="slotDuration" class="input" style="width:120px">
+            <option value="10">10 นาที</option>
+            <option value="15" selected>15 นาที</option>
+            <option value="20">20 นาที</option>
+            <option value="30">30 นาที</option>
+          </select>
+        </div>
+
+        <div class="period" id="period-morning">
+          <div class="row-between">
+            <strong>ช่วงเช้า · 08:00–12:00</strong>
+            <span class="switch on" data-period="morning"></span>
+          </div>
+          <div style="font-size:12px;color:var(--ink-mute);margin-top:6px">240 นาที · <span class="slot-count">16</span> slot</div>
+        </div>
+        <div class="period off" id="period-noon">
+          <div class="row-between">
+            <strong>ช่วงเที่ยง · 12:00–13:00</strong>
+            <span class="switch" data-period="noon"></span>
+          </div>
+          <div style="font-size:12px;color:var(--ink-mute);margin-top:6px">60 นาที · <span class="slot-count">4</span> slot</div>
+        </div>
+        <div class="period" id="period-afternoon">
+          <div class="row-between">
+            <strong>ช่วงบ่าย · 13:00–17:00</strong>
+            <span class="switch on" data-period="afternoon"></span>
+          </div>
+          <div style="font-size:12px;color:var(--ink-mute);margin-top:6px">240 นาที · <span class="slot-count">16</span> slot</div>
+        </div>
+
+        <div class="row-between" style="margin-top:var(--sp-3);padding-top:var(--sp-3);border-top:1px solid var(--line)">
+          <span style="font-weight:700">รวม</span>
+          <span style="font-weight:700;color:var(--green)" id="totalSlots">32 slot/วัน</span>
+        </div>
+      </div>
+
+      <!-- Booking % presets -->
+      <div class="card">
+        <h2>% ประเภทการจอง</h2>
+        <div class="field">
+          <label>Preset</label>
+          <select id="presetPicker" class="input"></select>
+        </div>
+        <div id="presetRows">
+          <!-- filled by JS -->
+        </div>
+        <div style="margin-top:var(--sp-3);padding:var(--sp-3);background:var(--green-50);border-radius:var(--r-md);font-size:12px;color:var(--ink-body)">
+          พิเศษ/ฉุกเฉิน คำนวณอัตโนมัติ = 100 − จองปกติ − ออนไลน์
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;justify-content:flex-end;gap:var(--sp-2)">
+      <button class="btn btn-outline" onclick="resetSchedule()">รีเซ็ต</button>
+      <button class="btn" onclick="saveSchedule()">💾 บันทึกตาราง</button>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════════════════════════════════════════
+       PAGE 2 · ภาพรวมตารางแพทย์
+       ═════════════════════════════════════════════════════════════ -->
+  <section class="page" id="page-overview">
+    <div class="card">
+      <h1>ภาพรวมตารางแพทย์</h1>
+      <p style="color:var(--ink-mute);margin:0">ดูสถานะการตั้งตารางและ slot ของแพทย์ทั้งหมด</p>
+    </div>
+    <div class="card" style="overflow-x:auto">
+      <table id="overviewTable">
+        <thead>
+          <tr>
+            <th>แพทย์</th><th>สาขา</th><th>แผนก</th>
+            <th>วันทำงาน</th><th>Slot/วัน</th><th>สถานะ</th>
+          </tr>
+        </thead>
+        <tbody><!-- filled by JS --></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════════════════════════════════════════
+       PAGE 3 · รายการนัดหมาย
+       ═════════════════════════════════════════════════════════════ -->
+  <section class="page" id="page-appointments">
+    <div class="card">
+      <h1>รายการนัดหมาย</h1>
+      <div class="row-wrap" style="margin-top:var(--sp-3)">
+        <select id="filterDoctor" class="input" style="width:auto"><option value="">ทุกแพทย์</option></select>
+        <input type="date" id="filterDate" class="input" style="width:auto">
+        <select id="filterType" class="input" style="width:auto">
+          <option value="">ทุกประเภท</option>
+          <option value="normal">จองปกติ</option>
+          <option value="online">ออนไลน์</option>
+          <option value="special">พิเศษ/ฉุกเฉิน</option>
+        </select>
+      </div>
+    </div>
+    <div class="card" style="overflow-x:auto">
+      <table id="apptTable">
+        <thead>
+          <tr><th>วันที่</th><th>เวลา</th><th>ผู้รับบริการ</th><th>HN</th><th>แพทย์</th><th>ประเภท</th><th>สถานะ</th></tr>
+        </thead>
+        <tbody><!-- filled by JS --></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════════════════════════════════════════
+       PAGE 4 · การแจ้งเตือน
+       ═════════════════════════════════════════════════════════════ -->
+  <section class="page" id="page-notifications">
+    <div class="card">
+      <h1>การแจ้งเตือน</h1>
+      <p style="color:var(--ink-mute);margin:0">ระบบจะ notify ส่งหาแพทย์อัตโนมัติเมื่อมีการบันทึกตาราง — ไม่ต้องรอแพทย์ยืนยัน</p>
+    </div>
+    <div class="card">
+      <div id="notiList"><!-- filled by JS --></div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════════════════════════════════════════
+       PAGE 5 · จัดการบุคลากร
+       ═════════════════════════════════════════════════════════════ -->
+  <section class="page" id="page-staff">
+    <div class="card row-between">
+      <h1 style="margin:0">จัดการบุคลากร</h1>
+      <button class="btn btn-sm" onclick="addStaff()">+ เพิ่มบุคลากร</button>
+    </div>
+    <div id="staffList"><!-- filled by JS --></div>
+  </section>
+</main>
+
+<div id="toasts"></div>
+
+<script>
+/* ═════════════════════════════════════════════════════════════════
+   Sample staffList — REPLACE with your project's staff before saving
+   ═════════════════════════════════════════════════════════════════ */
+let staffList = [
+  {
+    id: 1, role: 'doctor', name: 'นพ. สมชาย ใจดี', spec: 'อายุรกรรม',
+    dept: 'OPD อายุรกรรม', icon: '👨‍⚕️', phone: '02-742-1234',
+    schedule: { mon:{on:true,start:'08:00',end:'16:00'}, tue:{on:true,start:'08:00',end:'16:00'},
+                wed:{on:true,start:'08:00',end:'16:00'}, thu:{on:true,start:'08:00',end:'16:00'},
+                fri:{on:true,start:'08:00',end:'16:00'}, sat:{on:false,start:'08:00',end:'12:00'},
+                sun:{on:false,start:'08:00',end:'12:00'} },
+    daysOff: []
+  },
+  {
+    id: 2, role: 'doctor', name: 'พญ. สมหญิง รักษ์ดี', spec: 'หัวใจ',
+    dept: 'OPD หัวใจ', icon: '👩‍⚕️', phone: '02-742-1235',
+    schedule: { mon:{on:true,start:'09:00',end:'17:00'}, tue:{on:false,start:'09:00',end:'17:00'},
+                wed:{on:true,start:'09:00',end:'17:00'}, thu:{on:true,start:'09:00',end:'17:00'},
+                fri:{on:true,start:'09:00',end:'17:00'}, sat:{on:false,start:'09:00',end:'12:00'},
+                sun:{on:false,start:'09:00',end:'12:00'} },
+    daysOff: []
+  },
+  {
+    id: 3, role: 'nurse', name: 'นส. วิภา สุขศรี', spec: '',
+    dept: 'OPD อายุรกรรม', icon: '👩‍⚕️', phone: '02-742-1236',
+    schedule: { mon:{on:true,start:'07:30',end:'15:30'}, tue:{on:true,start:'07:30',end:'15:30'},
+                wed:{on:true,start:'07:30',end:'15:30'}, thu:{on:true,start:'07:30',end:'15:30'},
+                fri:{on:true,start:'07:30',end:'15:30'}, sat:{on:true,start:'08:00',end:'12:00'},
+                sun:{on:false,start:'08:00',end:'12:00'} },
+    daysOff: []
+  },
+];
+
+/* ── Presets ── */
+const PRESETS = [
+  { key:'balanced',     label:'สมดุล',         normal:50, online:25 },
+  { key:'normal-heavy', label:'เน้นปกติ',      normal:70, online:20 },
+  { key:'online-heavy', label:'เน้นออนไลน์',   normal:40, online:40 },
+  { key:'special-heavy',label:'เน้นพิเศษ',     normal:50, online:10 },
+  { key:'equal',        label:'เท่ากัน',       normal:34, online:33 },
+];
+
+/* ── Time periods ── */
+const PERIODS = { morning:{label:'เช้า',minutes:240,on:true}, noon:{label:'เที่ยง',minutes:60,on:false}, afternoon:{label:'บ่าย',minutes:240,on:true} };
+
+/* ── State ── */
+const state = {
+  doctorId: null, date: new Date().toISOString().slice(0,10),
+  slotDuration: 15, periods: { ...PERIODS },
+  preset: 'balanced', normal: 50, online: 25, // special auto
+  appointments: [], notifications: [],
+};
+
+/* ═════════════════════════════════════════════════════════════════
+   Tab routing
+   ═════════════════════════════════════════════════════════════════ */
+document.getElementById('tabbar').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab'); if (!btn) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('page-' + btn.dataset.tab).classList.add('active');
+  if (btn.dataset.tab === 'overview') renderOverview();
+  if (btn.dataset.tab === 'appointments') renderAppts();
+  if (btn.dataset.tab === 'notifications') renderNotifs();
+  if (btn.dataset.tab === 'staff') renderStaff();
+});
+
+/* ═════════════════════════════════════════════════════════════════
+   Page 1 · Schedule
+   ═════════════════════════════════════════════════════════════════ */
+function initSchedulePage() {
+  const dp = document.getElementById('doctorPicker');
+  dp.innerHTML = staffList.filter(s => s.role === 'doctor').map(s =>
+    `<option value="${s.id}">${s.icon} ${s.name} · ${s.spec}</option>`).join('');
+  state.doctorId = parseInt(dp.value);
+  dp.addEventListener('change', () => { state.doctorId = parseInt(dp.value); recalc(); });
+  document.getElementById('datePicker').value = state.date;
+  document.getElementById('datePicker').addEventListener('change', (e) => state.date = e.target.value);
+  document.getElementById('slotDuration').addEventListener('change', (e) => { state.slotDuration = parseInt(e.target.value); recalc(); });
+  document.querySelectorAll('.switch').forEach(sw => sw.addEventListener('click', () => {
+    sw.classList.toggle('on');
+    const period = sw.dataset.period;
+    state.periods[period].on = sw.classList.contains('on');
+    document.getElementById('period-' + period).classList.toggle('off', !state.periods[period].on);
+    recalc();
+  }));
+  const pp = document.getElementById('presetPicker');
+  pp.innerHTML = PRESETS.map(p => `<option value="${p.key}">${p.label} (ปกติ ${p.normal}% · ออนไลน์ ${p.online}%)</option>`).join('');
+  pp.addEventListener('change', applyPreset);
+  applyPreset();
+  recalc();
+}
+function applyPreset() {
+  const key = document.getElementById('presetPicker').value;
+  const p = PRESETS.find(x => x.key === key) || PRESETS[0];
+  state.preset = key; state.normal = p.normal; state.online = p.online;
+  renderPresetRows();
+}
+function renderPresetRows() {
+  const special = 100 - state.normal - state.online;
+  document.getElementById('presetRows').innerHTML = `
+    <div class="field">
+      <label>จองปกติ</label>
+      <div class="row"><input type="range" min="0" max="100" value="${state.normal}" oninput="state.normal=+this.value;renderPresetRows();recalc()" style="flex:1"><span style="width:48px;text-align:right;font-weight:700;color:var(--green)">${state.normal}%</span></div>
+    </div>
+    <div class="field">
+      <label>ออนไลน์</label>
+      <div class="row"><input type="range" min="0" max="${100 - state.normal}" value="${state.online}" oninput="state.online=+this.value;renderPresetRows();recalc()" style="flex:1"><span style="width:48px;text-align:right;font-weight:700;color:var(--blue)">${state.online}%</span></div>
+    </div>
+    <div class="field">
+      <label>พิเศษ/ฉุกเฉิน (auto)</label>
+      <div class="row"><div style="flex:1;height:8px;background:var(--bg);border-radius:var(--r-pill);overflow:hidden"><div style="width:${special}%;height:100%;background:var(--amber)"></div></div><span style="width:48px;text-align:right;font-weight:700;color:var(--amber)">${special}%</span></div>
+    </div>`;
+}
+function recalc() {
+  let total = 0;
+  Object.entries(state.periods).forEach(([k, p]) => {
+    const c = p.on ? Math.floor(p.minutes / state.slotDuration) : 0;
+    const el = document.querySelector(`#period-${k} .slot-count`);
+    if (el) el.textContent = c;
+    total += c;
+  });
+  document.getElementById('totalSlots').textContent = total + ' slot/วัน';
+}
+function resetSchedule() {
+  state.slotDuration = 15;
+  state.periods = JSON.parse(JSON.stringify(PERIODS));
+  document.querySelectorAll('.switch').forEach(sw => sw.classList.toggle('on', state.periods[sw.dataset.period].on));
+  document.querySelectorAll('.period').forEach(p => p.classList.toggle('off', !state.periods[p.id.replace('period-','')].on));
+  document.getElementById('slotDuration').value = '15';
+  recalc();
+}
+function saveSchedule() {
+  const doc = staffList.find(s => s.id === state.doctorId);
+  if (!doc) return toast('กรุณาเลือกแพทย์', 'error');
+  const total = parseInt(document.getElementById('totalSlots').textContent);
+  toast(`บันทึกตารางของ ${doc.name} วันที่ ${state.date} · ${total} slot สำเร็จ`, 'success');
+  state.notifications.unshift({
+    id: 'N-' + Date.now(),
+    when: new Date().toLocaleString('th-TH'),
+    to: doc.name,
+    msg: `บันทึกตารางออกตรวจวันที่ ${state.date} · ${total} slot (ปกติ ${state.normal}% / ออนไลน์ ${state.online}% / พิเศษ ${100-state.normal-state.online}%)`,
+  });
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   Page 2 · Overview
+   ═════════════════════════════════════════════════════════════════ */
+function renderOverview() {
+  const tbody = document.querySelector('#overviewTable tbody');
+  tbody.innerHTML = staffList.filter(s => s.role === 'doctor').map(s => {
+    const days = Object.entries(s.schedule).filter(([_,v]) => v.on).length;
+    const slots = days * 32; // mock
+    return `<tr>
+      <td><strong>${s.icon} ${s.name}</strong></td>
+      <td>${s.spec || '—'}</td>
+      <td>${s.dept}</td>
+      <td>${days} วัน/สัปดาห์</td>
+      <td>${slots}</td>
+      <td><span class="pill pill-green">● Active</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   Page 3 · Appointments (mock data)
+   ═════════════════════════════════════════════════════════════════ */
+function seedAppts() {
+  if (state.appointments.length) return;
+  state.appointments = [
+    { date: state.date, time: '09:00', name: 'สมชาย มีสุข', hn: '67-00012', doctor: 'นพ. สมชาย ใจดี', type:'normal', status:'confirmed' },
+    { date: state.date, time: '09:15', name: 'ดวงใจ พินิจ', hn: '67-00031', doctor: 'นพ. สมชาย ใจดี', type:'online', status:'confirmed' },
+    { date: state.date, time: '10:00', name: 'ภูริ ใจกล้า', hn: '67-00067', doctor: 'พญ. สมหญิง รักษ์ดี', type:'special', status:'pending' },
+    { date: state.date, time: '13:30', name: 'สุดา ปลอดโปร่ง', hn: '67-00094', doctor: 'นพ. สมชาย ใจดี', type:'normal', status:'confirmed' },
+  ];
+}
+function renderAppts() {
+  seedAppts();
+  // populate doctor filter once
+  const fd = document.getElementById('filterDoctor');
+  if (fd.children.length === 1) {
+    staffList.filter(s => s.role === 'doctor').forEach(s => {
+      const o = document.createElement('option'); o.value = s.name; o.textContent = s.name; fd.appendChild(o);
+    });
+    [fd, document.getElementById('filterDate'), document.getElementById('filterType')].forEach(el => el.addEventListener('change', renderAppts));
+  }
+  const fDoc = fd.value, fDate = document.getElementById('filterDate').value, fType = document.getElementById('filterType').value;
+  const typeMap = { normal:['จองปกติ','pill-green'], online:['ออนไลน์','pill-blue'], special:['พิเศษ/ฉุกเฉิน','pill-amber'] };
+  const statusMap = { confirmed:['ยืนยันแล้ว','pill-green'], pending:['รอยืนยัน','pill-amber'], cancelled:['ยกเลิก','pill-red'] };
+  document.querySelector('#apptTable tbody').innerHTML = state.appointments
+    .filter(a => (!fDoc || a.doctor === fDoc) && (!fDate || a.date === fDate) && (!fType || a.type === fType))
+    .map(a => {
+      const [tl, tc] = typeMap[a.type] || ['—',''];
+      const [sl, sc] = statusMap[a.status] || ['—',''];
+      return `<tr><td>${a.date}</td><td><strong>${a.time}</strong></td><td>${a.name}</td><td>${a.hn}</td><td>${a.doctor}</td><td><span class="pill ${tc}">${tl}</span></td><td><span class="pill ${sc}">${sl}</span></td></tr>`;
+    }).join('');
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   Page 4 · Notifications
+   ═════════════════════════════════════════════════════════════════ */
+function renderNotifs() {
+  const el = document.getElementById('notiList');
+  if (!state.notifications.length) {
+    el.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--ink-mute)">ยังไม่มีการแจ้งเตือน<br><span style="font-size:12px">บันทึกตารางออกตรวจในหน้าแรกเพื่อทดสอบระบบ</span></div>`;
+    return;
+  }
+  el.innerHTML = state.notifications.map(n => `
+    <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)">
+      <div style="width:40px;height:40px;border-radius:var(--r-pill);background:var(--green-50);color:var(--green);display:inline-flex;align-items:center;justify-content:center;font-size:18px">🔔</div>
+      <div style="flex:1">
+        <div style="font-weight:700">ส่งหา: ${n.to}</div>
+        <div style="color:var(--ink-body);margin:4px 0">${n.msg}</div>
+        <div style="font-size:11px;color:var(--ink-mute)">${n.when} · ID ${n.id}</div>
+      </div>
+      <span class="pill pill-green">ส่งสำเร็จ</span>
+    </div>`).join('');
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   Page 5 · Staff manager
+   ═════════════════════════════════════════════════════════════════ */
+const DAYS = [['mon','จ.'],['tue','อ.'],['wed','พ.'],['thu','พฤ.'],['fri','ศ.'],['sat','ส.'],['sun','อา.']];
+function renderStaff() {
+  document.getElementById('staffList').innerHTML = staffList.map((s, i) => {
+    const onDays = DAYS.map(([k,l]) => s.schedule[k].on ? `<span class="pill pill-green">${l}</span>` : `<span class="pill" style="background:var(--bg);color:var(--ink-mute)">${l}</span>`).join('');
+    return `
+    <div class="card">
+      <div class="row-between" style="margin-bottom:var(--sp-3)">
+        <div class="row">
+          <span style="font-size:28px">${s.icon}</span>
+          <div>
+            <div style="font-weight:700;font-size:16px">${s.name}</div>
+            <div style="font-size:12px;color:var(--ink-mute)">${s.role === 'doctor' ? s.spec + ' · ' : ''}${s.dept}${s.phone ? ' · 📞 ' + s.phone : ''}</div>
+          </div>
+        </div>
+        <div class="row-wrap">
+          <span class="pill ${s.role === 'doctor' ? 'pill-blue' : 'pill-purple'}">${s.role === 'doctor' ? 'แพทย์' : 'พยาบาล'}</span>
+          <button class="btn btn-sm btn-outline" onclick="editStaff(${s.id})">แก้ไข</button>
+          <button class="btn btn-sm btn-danger" onclick="removeStaff(${s.id})">ลบ</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--ink-body);margin-bottom:6px">วันทำงาน</div>
+      <div class="row-wrap" style="margin-bottom:var(--sp-3)">${onDays}</div>
+      <div style="font-size:12px;color:var(--ink-body)">วันหยุด/วันลาที่บันทึก: ${s.daysOff.length ? s.daysOff.join(', ') : 'ยังไม่มี'}</div>
+    </div>`;
+  }).join('');
+}
+function addStaff() {
+  const name = prompt('ชื่อ:'); if (!name) return;
+  const role = confirm('OK = แพทย์ · Cancel = พยาบาล') ? 'doctor' : 'nurse';
+  const spec = role === 'doctor' ? (prompt('สาขา:') || '') : '';
+  const dept = prompt('แผนก:') || 'OPD';
+  const id = Math.max(0, ...staffList.map(s => s.id)) + 1;
+  staffList.push({
+    id, role, name, spec, dept, icon: role === 'doctor' ? '👨‍⚕️' : '👩‍⚕️', phone: '',
+    schedule: Object.fromEntries(DAYS.map(([k]) => [k, { on: k !== 'sat' && k !== 'sun', start: '08:00', end: '16:00' }])),
+    daysOff: [],
+  });
+  renderStaff(); initSchedulePage(); toast('เพิ่ม ' + name + ' สำเร็จ', 'success');
+}
+function editStaff(id) {
+  const s = staffList.find(x => x.id === id); if (!s) return;
+  const name = prompt('ชื่อ:', s.name); if (!name) return;
+  s.name = name;
+  if (s.role === 'doctor') s.spec = prompt('สาขา:', s.spec) || s.spec;
+  s.dept = prompt('แผนก:', s.dept) || s.dept;
+  s.phone = prompt('เบอร์โทร:', s.phone) || s.phone;
+  renderStaff(); toast('อัปเดต ' + s.name + ' สำเร็จ', 'success');
+}
+function removeStaff(id) {
+  if (!confirm('ยืนยันลบ?')) return;
+  staffList = staffList.filter(x => x.id !== id);
+  renderStaff(); initSchedulePage(); toast('ลบสำเร็จ', 'success');
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   Toast helper
+   ═════════════════════════════════════════════════════════════════ */
+function toast(msg, kind) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + (kind || '');
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+/* ─── Bootstrap ─── */
+initSchedulePage();
+</script>
+</body>
+</html>

@@ -928,6 +928,109 @@ The other 9 are stubs with intended scope:
 
 ---
 
+## 10.8 `/kiosk` — Step 0 of OPD flow (multi-step v2)
+
+> **Routes:** [`/kiosk`](../src/pages/kiosk/KioskPage.jsx) · [`/kiosk/ticket/:queueId`](../src/pages/kiosk/MobileTicketPage.jsx)
+> **Standalone** — no Sidebar / Header chrome · **Fixed canvas** 1440 × 1462 px
+> **Figma:** PHCIS | KIOSK · file `PlyfeAl2AdZtqZK7eZrxKg` · node `4002:928`
+> **Userflow doc:** [docs/kiosk-userflow.html](./kiosk-userflow.html) — full screen mockups + 7 use cases
+
+Touchscreen self-service entry — the missing **Step 0** from the OPD HCIS flow (กดบัตรคิว). Visitor arrives, picks a service + sub-service, identifies whether they have an appointment, verifies via Thai national ID, confirms, then receives a queue ticket (printable + QR-shareable).
+
+### State machine (7 steps)
+
+```
+welcome → service → sub-service → appointment → verify → confirm → ticket
+                                  └─ skip when service.drill === false
+```
+
+Skips `sub-service` for services without drill-down (screening, finance, pharmacy, lab). Implemented as a switch on `step` state with `flow` accumulator holding the user's choices.
+
+### Mock data — [`src/data/kioskMock.js`](../src/data/kioskMock.js)
+
+- **`SERVICES`** — 6 top-level cards (screening · consultation · finance · pharmacy · lab · other). Each has `key · label · desc · icon · drill · queuePrefix?`.
+- **`SUB_SERVICES`** — keyed by parent service. `consultation` has 8 sub-clinics (OPD · ANC · pediatrics · elderly · chronic · mental · dental · TB). `other` has 4 (vaccine · family · xray · physio). Each carries its own `queuePrefix` (A=OPD, B=ANC, C=chronic, …).
+- **`PATIENTS`** — 5 mock patients keyed by 13-digit national ID. Some have today's appointments wired (`appointments[].sub` matches a sub-service key); others are walk-in candidates.
+- **`pickDemoPatient()`** — testing shortcut for the chip-read simulation; biased ~50/50 between has-appt and no-appt to expose both branches.
+- **`generateQueueNumber(prefix, seed)`** — deterministic FNV-1a-ish hash, so re-renders of the same session show the same queue number until the flow resets. Output looks like `A-042`, `C-021`, `P-015`, etc.
+- **`callingNowFor(issued)`** — always 7 numbers behind (mock "still calling earlier queue").
+- **`estimateWaitMinutes(issued, calling)`** — `(diff × 3 min)` rough wait.
+
+### Use cases (covered)
+
+| # | Scenario | Path | Outcome |
+|---|---|---|---|
+| 1 | นัดล่วงหน้า · ผู้สูงอายุ · เบาหวาน | service:consultation → sub:chronic → appt:yes → chip → confirm → print | `C-021` printed |
+| 2 | Walk-in · ไข้/ปวดหัว | service:consultation → sub:opd-general → appt:no → chip → confirm → QR | `A-042` to mobile |
+| 3 | ตรวจครรภ์ครั้งแรก (ANC) | service:consultation → sub:anc → appt:no → chip → confirm | new HN generated |
+| 4 | ลืมบัตร · จำ HN ได้ | service:opd-general → appt:no → **manual entry** 13 digits → confirm | manual fallback |
+| 5 | ID ไม่พบในระบบ | manual entry → "ไม่พบข้อมูล" | error + suggest counter |
+| 6 | รับยาตามใบสั่ง | service:pharmacy → appt:no → chip → confirm | `P-015`, no drill-down |
+| 7 | Idle timeout | any in-flow step idle 60s → auto-reset | back to welcome |
+
+### Mobile ticket page — `/kiosk/ticket/:queueId`
+
+QR scan target. Mobile-first layout (max-width 480). URL params drive the displayed ticket:
+```
+/kiosk/ticket/A-042?dept=OPD&name=สมชาย&hn=00012345&zone=...&calling=A-035&eta=15
+```
+
+**Image save** — pure-Canvas (no library): renders an 800 × 1000 PNG mirroring the on-screen card with brand gradient header + big queue number + patient + meta + zone + timestamp. Filename: `queue-A-042-2025-05-25.png`. Triggered via `canvas.toBlob` + `<a download>` — works on iOS Safari (Files → Save to Photos) and Android Chrome (Downloads → auto-show in Photos).
+
+### Layout (Figma 4002:928)
+
+Same outer chrome as v1 (brand-gradient header, white card with brand border + drop shadow), but **the card body is now per-step content** rendered by the active step's component. Step-1 grid + step-5 ticket retain Figma fidelity; steps 0/1b/2/3/4 are new.
+
+**Layout (Figma 4002:928):**
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  Header (144 px, brand gradient #54AA8C → #4CC6AE)                     │
+│  [Logo] สำนักอนามัย         [📅 date/time]  [♿ ตัวช่วย] [ไทย] [EN]   │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  ┌────── Step card (flex 1) ──────┐  ┌── Queue ticket (486 px) ──┐    │
+│  │ ① กรุณาเลือกแผนก         🔊   │  │ บัตรคิวของคุณ              │    │
+│  │ ┌─────────┐ ┌─────────┐         │  │ แผนก: ห้องตรวจ (ตึก B)    │    │
+│  │ │ ซักประวัติ│ │ ห้องตรวจ │ ←sel  │  │ ┌──── A-042 ────┐         │    │
+│  │ └─────────┘ └─────────┘         │  │ │   (100 px)    │         │    │
+│  │ ┌─────────┐ ┌─────────┐         │  │ └───────────────┘         │    │
+│  │ │ การเงิน │ │ รับยา   │         │  │ คิวกำลังเรียก: A-035       │    │
+│  │ └─────────┘ └─────────┘         │  │ ~ 15 นาที                  │    │
+│  │ ┌─────────┐ ┌─────────┐         │  │ คำแนะนำ: โซน B ชั้น 2 ...  │    │
+│  │ │ เจาะเลือด│ │ อื่นๆ   │         │  │ [พิมพ์บัตรคิว] [รับผ่าน QR] │   │
+│  │ └─────────┘ └─────────┘         │  └────────────────────────────┘   │
+│  └────────────────────────────────┘                                    │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+> Note: the diagram above shows step 1 (service picker). The other 5 steps share the same outer chrome but swap the inner content; the right-side queue-ticket panel only appears at step 5 because the queue number is generated post-ID-verify (gate against ticket leakage).
+
+**Brand tokens used:**
+- Container radii: `--dim-radius-450` (14 px — Figma kiosk uses 14 px not 12/16), `--dim-radius-600` (24 px outer cards), `--dim-radius-full`
+- Border (selected): 4 px `--border-brandPrimary-quaternary` + `--surface-brandPrimary-quaternary` background
+- Shadow: `--shadow-brand-drop-bottom-200` (selected card lift) + `--shadow-brand-drop-bottom-100` (default ambient)
+- Background: `--background-screen-brand-100` (#FAFCFA)
+- Backdrop (QR modal): `--surface-overlay-default`
+- Container shadow (QR modal): `--shadow-drop-bottom-400`
+- Gradient (linear-gradient exception per CLAUDE.md): `#54AA8C → #4CC6AE`
+
+**Material Symbols Outlined** font used inline for all icons (department glyphs + utility + step icons like `event_available`, `restart_alt`, `backspace`, `download`). Pattern mirrors `Popup.jsx` and `SettingsModal.jsx`.
+
+**Logic notes:**
+- Clock ticks once per minute (`setInterval(60_000)`) — kiosk runs for hours; per-second would burn renders.
+- Language toggle (ไทย / EN) — wires `setLang`; full i18n still TODO.
+- Print button shows 3-state UX: idle → "กำลังพิมพ์..." → "พิมพ์สำเร็จ" → auto-reset to welcome after 4s. Production wires the loading state to the printer SDK.
+- QR uses public `api.qrserver.com` for generation (mock-friendly). Production should run a local QR encoder.
+- Time/date format: Thai Buddhist year (`+543`), Thai month names.
+- Manual entry: 13-digit Thai ID number-pad with formatted preview (`X-XXXX-XXXXX-XX-X`), error states for length + not-found.
+
+**Cross-system:**
+- Downstream: kiosk picks a dept → would write a queue row to the appropriate `*Queue` module (registration / opd / finance / pharmacy / lab).
+- Upstream: kiosk reads patient by national ID (mock `MR_PATIENTS`-equivalent in `kioskMock.PATIENTS`) + today's appointments.
+
+---
+
 ## 11. Dev Tools
 
 These routes are not part of the clinician workflow — they're internal tools for the design system and engineering teams.

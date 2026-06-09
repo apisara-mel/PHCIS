@@ -65,6 +65,82 @@ a token, not to bypass the rule.
 
 ---
 
+## Icons come from Figma first, shadcn (Lucide) second — nothing else
+
+**Every icon rendered in any component, page, or new piece of "vibe code"
+MUST be one of the following, in this priority order:**
+
+1. **An icon that exists in the MIH Figma library** — use the exact same
+   glyph name. The MIH design system uses **Material Symbols (Outlined)**
+   as its base icon family plus a curated set of custom medical / PHCIS
+   SVGs (see [`design.md` Appendix B "Icon Reference"](design.md)). On web,
+   render via `<Icon name="..." />`
+   ([`src/components/icons/Icon.jsx`](src/components/icons/Icon.jsx)); on
+   mobile, via `<Sym name="..." />`
+   ([`src/components/mobile/Sym.jsx`](src/components/mobile/Sym.jsx)).
+2. **If the icon is NOT in Figma**, pull it from **shadcn/ui** — which uses
+   [`lucide-react`](https://lucide.dev). Install with `npm i lucide-react`
+   and import the named export (e.g. `import { Stethoscope } from
+   'lucide-react'`). Lucide icons render at 24×24 stroke 2 by default —
+   wrap in the same `<Icon>` / `<Sym>` size + color contract so the
+   downstream component never knows which library it came from.
+
+### Forbidden
+
+- ❌ Copy-pasting random SVG paths from the web, Iconify, FontAwesome,
+  Heroicons (unless that exact glyph is what Figma specifies — in which
+  case use Figma's chosen family), Phosphor, Tabler, Boxicons, or any
+  other set not listed above.
+- ❌ Inline `<svg>...</svg>` markup hardcoded inside a component for a
+  glyph that already exists in Material Symbols or Lucide.
+- ❌ Mixing icon families inside one screen — pick the Figma family if
+  Figma has it, otherwise Lucide. Never half-and-half by component.
+- ❌ Renaming icons. Use the canonical Material Symbols name
+  (`event_available`, `arrow_forward`, `more_vert`, …) or the canonical
+  Lucide PascalCase export name — never invent aliases.
+
+### Decision flow
+
+```
+Need an icon?
+   │
+   ├──▶ Check Figma first.
+   │     │
+   │     ├──▶ Figma has it (Material Symbols name OR a custom SVG).
+   │     │     → use that exact name via <Icon> / <Sym>.
+   │     │
+   │     └──▶ Figma does NOT have it.
+   │           │
+   │           └──▶ Use a Lucide icon (shadcn's library).
+   │                 → Add the import to the icon adapter so future
+   │                   callers also use the shared component, not the
+   │                   raw lucide-react import.
+   │
+   └──▶ Never reach for a third source.
+```
+
+### When adding a new custom medical icon
+
+If the design needs a PHCIS-specific glyph that doesn't exist in either
+Material Symbols or Lucide (e.g. a unique clinical instrument), then:
+
+1. Confirm the glyph is in Figma as a custom SVG component.
+2. Export the SVG from Figma → add it to the curated `iconMap` switch in
+   [`src/components/icons/Icon.jsx`](src/components/icons/Icon.jsx) under
+   its Figma name.
+3. Register it in [`design.md` Appendix B](design.md) so the catalog stays
+   the source of truth.
+
+### Checklist when adding / touching an icon
+
+- [ ] Searched the Figma MIH library for the glyph.
+- [ ] If Figma has it, used the exact name via `<Icon>` / `<Sym>`.
+- [ ] If Figma doesn't, pulled from Lucide via `lucide-react` (npm).
+- [ ] Did NOT inline a raw `<svg>` for an existing-library glyph.
+- [ ] Did NOT introduce a new icon dependency (Heroicons, Phosphor, etc).
+
+---
+
 ## No browser-default input chrome
 
 Custom search / input / textarea / select wrappers in this project own

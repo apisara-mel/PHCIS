@@ -4,6 +4,7 @@ import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import DangerButton from '@/components/button/DangerButton';
 import DangerSubdueButton from '@/components/button/DangerSubdueButton';
+import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMotion';
 
 /* MIH AlertDialog — Figma "Alert Dialog" (MIH DS · Popup node 1:1159).
    Compact confirmation modal for critical actions. Distinct from <Popup>
@@ -130,6 +131,7 @@ const AlertDialog = ({
   className = '',
 }) => {
   const dialogRef = useRef(null);
+  const { mounted, motionState } = useModalMotion(open, MODAL_MOTION_MS);
   const spec = TYPE_SPEC[type] || TYPE_SPEC.info;
   const isCenter = alignment === 'center';
   /* Action buttons collapse to danger family for warning + destructive;
@@ -151,12 +153,12 @@ const AlertDialog = ({
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!mounted) return undefined;
     lockBodyScroll();
     return () => unlockBodyScroll();
-  }, [open]);
+  }, [mounted]);
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   /* Card width — Figma 448 (Center) / 320 (Left). On narrow viewports
      clamp by 24px gutter (--dim-space-600) each side so the card never
@@ -170,8 +172,10 @@ const AlertDialog = ({
   const card = (
     <div
       role='presentation'
+      className='mih-popup-overlay'
+      data-state={motionState}
       onMouseDown={(e) => {
-        if (!onClose) return;
+        if (!open || !onClose) return;
         const t = e.target instanceof Element ? e.target : e.target?.parentElement;
         if (!t) return;
         if (dialogRef.current?.contains(t)) return;
@@ -195,7 +199,8 @@ const AlertDialog = ({
         aria-modal='true'
         aria-labelledby={title ? 'mih-alertdialog-title' : undefined}
         aria-describedby={description ? 'mih-alertdialog-desc' : undefined}
-        className={className}
+        className={`mih-popup-dialog ${className}`.trim()}
+        data-state={motionState}
         style={{
           width: dialogWidth,
           maxWidth: '100%',
