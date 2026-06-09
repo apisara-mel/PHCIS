@@ -27,25 +27,38 @@ export const PATIENT_AVATAR_POOL = [
   '/avatars/patient-male-e.png',
 ];
 
-/** PrimarySearch recent-search avatar pile (was Unsplash `us-photo-*` downloads). */
+/** PrimarySearch recent-search avatar pile — aligned with appointment mock patients. */
 export const DEFAULT_SEARCH_AVATARS = [
+  { src: '/avatars/somchai-mock.png' },
   { src: '/avatars/patient-female-a.png' },
   { src: '/avatars/patient-female-c.png' },
-  { src: '/avatars/mock-male-asian-a.png' },
 ];
 
-/** Staff roster portraits — replaces randomuser.me in usersAccess mock data. */
+/** Doctor roster portraits — appointment scheduling mocks. */
 export const STAFF_AVATARS = [
-  '/avatars/patient-female-e.png',
-  '/avatars/mock-male-asian-b.png',
-  '/avatars/patient-female-d.png',
-  '/avatars/patient-female-b.png',
-  '/avatars/patient-mock-09.png',
-  '/avatars/patient-mock-05.png',
-  '/avatars/patient-female-c.png',
-  '/avatars/mock-male-asian-c.png',
-  '/avatars/patient-mock-02.png',
-  '/avatars/mock-male-asian-a.png',
-  '/avatars/patient-mock-07.png',
-  '/avatars/patient-mock-04.png',
+  '/images/staff/doctors/doctor-portrait-01.png',
+  '/images/staff/doctors/doctor-portrait-02.png',
+  '/images/staff/doctors/doctor-portrait-03.png',
+  '/images/staff/doctors/doctor-portrait-04.png',
+  '/images/staff/doctors/doctor-portrait-05.png',
+  '/images/staff/doctors/doctor-portrait-06.png',
+  '/images/staff/doctors/doctor-portrait-07.png',
+  '/images/staff/doctors/doctor-portrait-08.png',
+  '/images/staff/doctors/doctor-portrait-09.png',
+  '/images/staff/doctors/doctor-portrait-10.png',
+  '/images/staff/doctors/doctor-portrait-11.png',
+  '/images/staff/doctors/doctor-portrait-12.png',
+  '/images/staff/doctors/doctor-portrait-13.png',
+  '/images/staff/doctors/doctor-portrait-14.png',
+  '/images/staff/doctors/doctor-portrait-15.png',
+  '/images/staff/doctors/doctor-portrait-16.png',
+  '/images/staff/doctors/doctor-portrait-17.png',
+  '/images/staff/doctors/doctor-portrait-18.png',
+  '/images/staff/doctors/doctor-portrait-19.png',
+  '/images/staff/doctors/doctor-portrait-20.png',
+  '/images/staff/doctors/doctor-portrait-21.png',
+  '/images/staff/doctors/doctor-portrait-22.png',
+  '/images/staff/doctors/doctor-portrait-23.png',
+  '/images/staff/doctors/doctor-portrait-24.png',
+  '/images/staff/doctors/doctor-portrait-25.png',
 ];

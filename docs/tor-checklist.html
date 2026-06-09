@@ -137,6 +137,35 @@
     font-style:italic;
   }
 
+  /* ====== Systems progress summary (top of main) ======
+     Per top-level system (PHCIS / Community / Childcare / Mobile / Drug):
+       · Counts done / partial / todo
+       · Progress bar weighted: done=1, partial=0.5
+     Card grid wraps to 1-col on narrow viewports. */
+  .systems-progress{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;margin-bottom:20px;box-shadow:var(--shadow)}
+  .systems-progress h2{margin:0 0 4px;font-size:16px;font-weight:700;color:var(--text)}
+  .systems-progress .sub{font-size:12px;color:var(--muted);margin-bottom:14px}
+  .sys-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+  .sys-card{display:block;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--text);transition:background .15s ease,border-color .15s ease}
+  .sys-card:hover{background:#FFFFFF;border-color:var(--brand-mid)}
+  .sys-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .sys-head .sys-id{font-family:ui-monospace,monospace;font-size:11px;color:var(--brand);font-weight:700;background:var(--brand-soft);border:1px solid var(--brand-mid);border-radius:6px;padding:1px 6px;flex-shrink:0}
+  .sys-head .sys-title{font-size:13px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sys-head .sys-pct{font-size:14px;font-weight:700;color:var(--success);font-variant-numeric:tabular-nums;flex-shrink:0}
+  .sys-bar{height:8px;border-radius:999px;background:var(--surface-3);overflow:hidden;margin:6px 0 8px}
+  .sys-bar > span{display:block;height:100%;background:linear-gradient(90deg,var(--success) 0%,var(--brand) 100%);border-radius:999px;transition:width .3s ease-out}
+  .sys-counts{display:flex;flex-wrap:wrap;gap:6px;font-size:11px;font-variant-numeric:tabular-nums}
+  .sys-counts .c{padding:2px 7px;border-radius:999px;border:1px solid transparent;font-weight:600}
+  .sys-counts .c.done{background:var(--successSoft);color:var(--success);border-color:#bff0d4}
+  .sys-counts .c.partial{background:var(--warnSoft);color:var(--warn);border-color:#f7deb5}
+  .sys-counts .c.todo{background:#FFFFFF;color:#565D6D;border-color:#c9cdd0}
+  .sys-counts .c.total{margin-left:auto;background:transparent;color:var(--muted);border:0;padding:2px 0}
+  .sys-overall{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 14px;background:var(--brand-soft);border:1px solid var(--brand-mid);border-radius:10px;font-size:13px}
+  .sys-overall > span:first-child{font-weight:700;color:var(--text)}
+  .sys-overall .sys-bar{flex:1;margin:0;height:10px}
+  .sys-overall-pct{font-weight:700;color:var(--brand);font-size:18px;font-variant-numeric:tabular-nums}
+  .sys-overall-counts{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
   .filter-hidden{display:none !important}
 
   @media (max-width:880px){body{grid-template-columns:1fr;grid-template-rows:64px auto 1fr;grid-template-areas:"header" "sidebar" "content"}aside{border-right:0;border-bottom:1px solid var(--border);max-height:220px}}
@@ -161,6 +190,14 @@
 </aside>
 
 <main id="main">
+  <!-- Per-system progress summary. Populated by renderSystemsProgress()
+       in the script below; each row is a <a href="#sec-{id}"> so clicking
+       jumps to that system in the requirements list. -->
+  <section class="systems-progress">
+    <h2>สรุปความครอบคลุมตาม TOR (per system)</h2>
+    <div class="sub">นับเฉพาะ requirement ระดับ leaf · weighted score: done = 100%, partial = 50%, todo = 0%</div>
+    <div id="systemsProgress"></div>
+  </section>
   <div class="toolbar">
     <input type="search" id="searchAll" placeholder="ค้นหาในข้อกำหนดทั้งหมด (e.g. CDSS, Telemedicine, นัดหมาย, Re-medication)..." />
     <button data-filter="all" class="active">ทั้งหมด</button>
@@ -1912,6 +1949,47 @@ const updateSummary=()=>{
   document.getElementById('sum-partial').textContent=`– ${partial}`;
   document.getElementById('sum-todo').textContent=`☐ ${todo}`;
   document.getElementById('sum-total').textContent=`${done+partial}/${total} · ${pct}%`;
+  renderSystemsProgress();
+};
+
+/* ====== Per-system progress (top of main) ======
+   Walks every top-level (level=1) TOR node, calls statsFor() on the
+   node's id prefix, and paints one card per system + an overall total
+   row. Re-runs after every state change via updateSummary(). */
+const renderSystemsProgress=()=>{
+  const root=document.getElementById('systemsProgress');
+  if(!root)return;
+  const tops=TOR.filter(r=>r.level===1);
+  let allTotal=0, allDone=0, allPartial=0;
+  const cards=tops.map(top=>{
+    const st=statsFor(top.id);
+    allTotal+=st.total; allDone+=st.done; allPartial+=st.partial;
+    const todoN=st.total-st.done-st.partial;
+    return `
+      <a class="sys-card" href="#sec-${top.id}">
+        <div class="sys-head">
+          <span class="sys-id">${top.id}</span>
+          <span class="sys-title" title="${escapeHtml(top.title)}">${escapeHtml(top.title)}</span>
+          <span class="sys-pct">${st.pct}%</span>
+        </div>
+        <div class="sys-bar"><span style="width:${st.pct}%"></span></div>
+        <div class="sys-counts">
+          <span class="c done">✓ ${st.done}</span>
+          <span class="c partial">– ${st.partial}</span>
+          <span class="c todo">☐ ${todoN}</span>
+          <span class="c total">${st.total} ข้อ</span>
+        </div>
+      </a>`;
+  }).join('');
+  const overallPct=allTotal?Math.round((allDone+allPartial*0.5)/allTotal*100):0;
+  root.innerHTML=`
+    <div class="sys-grid">${cards}</div>
+    <div class="sys-overall">
+      <span>รวมทุกระบบ</span>
+      <div class="sys-bar"><span style="width:${overallPct}%"></span></div>
+      <span class="sys-overall-pct">${overallPct}%</span>
+      <span class="sys-overall-counts">${allDone+allPartial} of ${allTotal}</span>
+    </div>`;
 };
 
 const updateSectionProgress=()=>{

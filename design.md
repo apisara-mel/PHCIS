@@ -2,16 +2,122 @@
 
 > Auto-generated from Figma Variable exports. Last updated: May 2026
 
-## Token Hierarchy
+## Token Architecture
+
+The MIH token system has **3 vertical layers + 2 orthogonal overlays**.
+Each layer aliases the layer above it — components never consume raw
+primitives, and primitives never know which surface uses them. This is
+what makes the 10-brand theme swap atomic, the mobile platform overlay
+non-invasive, and the design tokens-only rule in
+[`CLAUDE.md`](CLAUDE.md) enforceable.
 
 ```
-Primitive  ──────────────────────────────────────┐
-  Raw values: colors, typography, dimensions      │
-                                                   ▼
-Brand (7 modes)          Platform (3 modes)   Semantic (light/dark)
-  Aliases Primitive         Aliases Primitive    Primary/Secondary → Brand
-  primary, secondary        device, width       All others → Primitive
+┌─────────────────────────────────────────────────────────────────────┐
+│ LAYER 1 · PRIMITIVES — raw values · never used directly in code     │
+│ ─────────────────────────────────────────────────────────────────── │
+│  COLOR              DIMENSION         TYPOGRAPHY      EFFECTS       │
+│  --brand-p{50…900}  --dim-radius-*    --type-size-*   inner-shadow  │
+│  --color-{red,      --dim-stroke-*    --type-weight-* drop-shadow   │
+│   orange, blue,     --dim-space-*     --type-family-* blur          │
+│   teal, indigo,     --dim-size-*                       (effect      │
+│   …}                --dim-blur-*                        primitives) │
+│  --PrimaryShadow-*                                                   │
+│                                                                      │
+│  ~89 color · 37 dim · 11 typography · effect primitives             │
+└──────────────────────────────────┬──────────────────────────────────┘
+                                   │ aliased by ↓
+┌──────────────────────────────────▼──────────────────────────────────┐
+│ LAYER 2 · SEMANTIC — purpose-based · brand-aware                    │
+│ ─────────────────────────────────────────────────────────────────── │
+│  --surface-*    --border-*    --text-*      --icon-*                │
+│  --shadow-*     --background-*                                       │
+│                                                                      │
+│  examples (each alias resolves to a Layer 1 primitive):              │
+│   --surface-card-default          → var(--brand-p50)                │
+│   --text-content-primary          → ink-dark                        │
+│   --shadow-card                   → drop-shadow-bottom.200 stack    │
+│   --shadow-brand-drop-bottom-100  → uses --PrimaryShadow-600        │
+│                                                                      │
+│  ~552 semantic tokens                                                │
+└──────────────────────────────────┬──────────────────────────────────┘
+                                   │ aliased by ↓
+┌──────────────────────────────────▼──────────────────────────────────┐
+│ LAYER 3 · COMPONENT — per-component · per-state · per-variant       │
+│ ─────────────────────────────────────────────────────────────────── │
+│  --surface-table-header           --surface-table-footer            │
+│  --surface-button-brand-*         --border-alert-{info,warn,error}  │
+│  --text-calendar-selected         --surface-pill-{red,orange,…}     │
+│                                                                      │
+│  Components consume these DIRECTLY (Table.jsx, BrandButton.jsx, …). │
+│  Adding a new variant → add a new component token here, alias it    │
+│  to a semantic (Layer 2) token, then reference the variable.        │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+      ┌───────────────────────────────────────────────────────────┐
+      │ ORTHOGONAL · PLATFORM OVERLAY — --mobile-*                │
+      │ ───────────────────────────────────────────────────────── │
+      │ Mirrors the Layer 2 + 3 structure with mobile-specific    │
+      │ values (bigger touch targets, pill radius default):       │
+      │                                                            │
+      │   --mobile-button-height-md   = 44   (web md = 40)        │
+      │   --mobile-button-height-lg   = 56                        │
+      │   --mobile-button-radius      = pill (full)               │
+      │   --mobile-surface-* / --mobile-text-* / --mobile-border-*│
+      │                                                            │
+      │ ~290 mobile-namespaced tokens. Mobile components read     │
+      │ ONLY --mobile-*; desktop components read the unprefixed   │
+      │ tokens. The two trees never cross.                        │
+      └───────────────────────────────────────────────────────────┘
+
+      ┌───────────────────────────────────────────────────────────┐
+      │ ORTHOGONAL · BRAND-MODE SWAP — [data-brand="…"]           │
+      │ ───────────────────────────────────────────────────────── │
+      │ Overrides selected color PRIMITIVES (Layer 1) under each  │
+      │ brand selector. Every semantic + component token that     │
+      │ aliases --brand-p* retints atomically — no component      │
+      │ change, no JS, no re-render contract.                     │
+      │                                                            │
+      │ 10 brand modes published (SettingsModal → ProfilePopover):│
+      │   default · soft-peach · muted-teal · sakura · soft-sky · │
+      │   rose-mist · blue-serenity · dusty-mauve ·               │
+      │   soft-lavender · warm-gray                               │
+      │                                                            │
+      │ Applied on <html data-brand="…"> — global swap; the user  │
+      │ selects in the Settings modal and the host page sets it.  │
+      └───────────────────────────────────────────────────────────┘
 ```
+
+### Alias rules
+
+1. **A token may ONLY alias a token from the layer above it.** Never raw
+   values inside a component, never sideways (semantic → semantic of
+   unrelated purpose), never upward (a component token bypassing semantic
+   to reach a primitive).
+2. **Components consume ONLY Layer 3 (component) or Layer 2 (semantic)
+   tokens.** Never Layer 1. Gradients are the only documented exception —
+   see [`CLAUDE.md`](CLAUDE.md) § "Design tokens are the only source of truth".
+3. **The fallback in `var(--token, literal)` must match the variable's
+   actual resolved value.** A mismatched fallback (e.g.
+   `var(--dim-radius-100, 6px)` when `radius-100` is 4 px) flags that the
+   wrong token was chosen — pick the token whose value matches.
+4. **Adding a new value to Figma:** first add the primitive in §1,
+   wire it into `src/index.css` `:root`, then alias downward to semantic
+   (§4) and (where needed) component (§5/§6). Do not introduce literals
+   that bypass the cascade.
+5. **Brand swap is orthogonal:** never hard-code a brand colour at the
+   semantic or component layer. Reference `--brand-p{50…900}` so the
+   `[data-brand]` overrides flow through.
+
+### File map
+
+| Layer | Source of truth (Figma) | Spec file | CSS variable file |
+|---|---|---|---|
+| 1 · Primitives | MIH Foundation library | [`design.md` §1, §3](design.md) | [`src/index.css`](src/index.css) `:root` (top block) |
+| 2 · Semantic | MIH Foundation library | [`design.md` §4](design.md) | [`src/index.css`](src/index.css) `:root` (middle block) |
+| 3 · Component | Per-component Figma file | [`design.md` §5, §6](design.md) | [`src/index.css`](src/index.css) `:root` (bottom block) |
+| Mobile overlay | MIH Mobile section | [`design.md` §7](design.md) | [`src/index.css`](src/index.css) `--mobile-*` block |
+| Brand swap | (no Figma file — runtime override) | [`design.md` §2](design.md) | [`src/index.css`](src/index.css) `[data-brand="…"]` blocks |
 
 ---
 
@@ -44,7 +150,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | Step | Hex |
 |------|-----|
 | 50 | `#FAFCFA` |
-| 100 | `#F1F9F1` |
+| 100 | `#EFF5EF` |
 | 200 | `#E1F0E0` |
 | 300 | `#A7D2A3` |
 | 400 | `#78B573` |
@@ -59,7 +165,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Step | Hex |
 |------|-----|
-| 50 | `#FBFCFC` |
+| 50 | `#F9FBFB` |
 | 100 | `#F4F5F5` |
 | 200 | `#E2E4E6` |
 | 300 | `#C9CDD0` |
@@ -75,7 +181,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Step | Hex |
 |------|-----|
-| 50 | `#F9FAFC` |
+| 50 | `#F5F6FA` |
 | 100 | `#F5F7F9` |
 | 200 | `#E9EDF5` |
 | 300 | `#CBD5E1` |
@@ -107,7 +213,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Step | Hex |
 |------|-----|
-| 50 | `#FCF7FA` |
+| 50 | `#FBF4F8` |
 | 100 | `#FCE7F3` |
 | 200 | `#FBCFE8` |
 | 300 | `#F9A8D4` |
@@ -123,7 +229,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Step | Hex |
 |------|-----|
-| 50 | `#FCFCF7` |
+| 50 | `#FBFAF4` |
 | 100 | `#FEF9C3` |
 | 200 | `#FEF08A` |
 | 300 | `#FDE047` |
@@ -139,7 +245,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Step | Hex |
 |------|-----|
-| 50 | `#FFFBF4` |
+| 50 | `#FFF9F0` |
 | 100 | `#FFEDD5` |
 | 200 | `#FED7AA` |
 | 300 | `#FDBA74` |
@@ -155,7 +261,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Step | Hex |
 |------|-----|
-| 50 | `#F7FCFB` |
+| 50 | `#F4FBFA` |
 | 100 | `#D1F6EE` |
 | 200 | `#A2EDDE` |
 | 300 | `#6CDCCA` |
@@ -167,11 +273,11 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | 900 | `#194845` |
 | 950 | `#082B2A` |
 
-#### `Purple`
+#### `purple`
 
 | Step | Hex |
 |------|-----|
-| 50 | `#F8F6FC` |
+| 50 | `#F7F3FC` |
 | 100 | `#F3E8FF` |
 | 200 | `#E9D5FF` |
 | 300 | `#D8B4FE` |
@@ -181,13 +287,13 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | 700 | `#7E22CE` |
 | 800 | `#6B21A8` |
 | 900 | `#581C87` |
-| 950 | `—` |
+| 950 | `#3B0764` |
 
 #### `magenta`
 
 | Step | Hex |
 |------|-----|
-| 50 | `#FBF6FC` |
+| 50 | `#FAF3FC` |
 | 100 | `#F9D6FE` |
 | 200 | `#F3ADFD` |
 | 300 | `#EA78F9` |
@@ -203,7 +309,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Step | Hex |
 |------|-----|
-| 50 | `#F3F8FF` |
+| 50 | `#F0F6FF` |
 | 100 | `#DBEAFE` |
 | 200 | `#BFDBFE` |
 | 300 | `#93C5FD` |
@@ -219,7 +325,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Step | Hex |
 |------|-----|
-| 50 | `#F6F7FC` |
+| 50 | `#F3F5FC` |
 | 100 | `#EEF2FF` |
 | 200 | `#E0E7FF` |
 | 300 | `#C7D2FE` |
@@ -235,7 +341,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Step | Hex |
 |------|-----|
-| 50 | `#FFF7F7` |
+| 50 | `#FFF0F0` |
 | 100 | `#FEE2E2` |
 | 200 | `#FECACA` |
 | 300 | `#FCA5A5` |
@@ -249,26 +355,25 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 #### Special Color Tokens
 
-| Token | Hex | Opacity | CSS variable |
-|-------|-----|---------|---|
-| `color.border.100` | `#08A768` | — | — |
-| `color.shadow.050` | `#64748B` | 10 % | — |
-| `color.shadow.100` | `#64748B` | 15 % | — |
-| `color.shadow.400` | `#64748B` | 25 % | — |
-| `color.shadow.indigo-050` | `#818CF8` | 10 % | [`--color-shadow-indigo-050`](src/index.css) |
-| `color.shadow.indigo-100` | `#818CF8` | 15 % | [`--color-shadow-indigo-100`](src/index.css) |
-| `color.shadow.indigo-400` | `#818CF8` | 25 % | [`--color-shadow-indigo-400`](src/index.css) |
-| `color.shadowBrand.100` | `#08A768` | — | — |
-| `color.shadowBrand.400` | `#08A768` | — | — |
-| `color.shadowBrand.050` | `#08A768` | — | — |
+Alpha-baked shadow primitives. Alpha is pre-multiplied into the swatch — consumers use them as drop-shadow / glow color values directly.
 
-> **Indigo shadow primitives** alias `indigo/400` (`#818CF8` — the same swatch used by [`--surface-colorfulbadge-indigo-bold`](src/index.css)) at three opacity tiers. The shared `--indigo-400-rgb: 129 140 248` triplet is exposed so future composite shadows can drop straight to `rgb(var(--indigo-400-rgb) / 0.x)` without re-declaring the swatch. Used wherever a brand-violet ambient glow is needed — e.g. Doctor AI panel hover (Figma 156:27359) and indigo-bold pill drops.
+| Token | Hex | Opacity |
+|-------|-----|---------|
+| `color.shadow.050` | `#64748B` | 10 % |
+| `color.shadow.100` | `#64748B` | 15 % |
+| `color.shadow.400` | `#64748B` | 25 % |
+| `color.shadow.indigo-050` | `#818CF8` | 10 % |
+| `color.shadow.indigo-100` | `#818CF8` | 15 % |
+| `color.shadow.indigo-400` | `#818CF8` | 25 % |
+
+> **Indigo shadow primitives** alias `indigo/400` (`#818CF8` — the same swatch used by `--surface-colorfulbadge-indigo-bold`) at three opacity tiers. Used wherever a brand-violet ambient glow is needed — e.g. Doctor AI panel hover and indigo-bold pill drops.
 
 ---
 
+
 ### 1a-2. Additional Color Palettes (from JSON)
 
-> Palettes below were found in `primitive_tokens.json` and are not yet referenced in Brand or Semantic layers.
+> Palettes below come from `primitive.tokens.json` and are addressable as primitives. Brand modes (§2) reach into a subset of these for their `primary`/`secondary` maps.
 
 #### `blue-serenity`
 
@@ -398,54 +503,6 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | 900 | `#283A38` |
 | 950 | `#1A2726` |
 
-#### `soft-rose`
-
-| Step | Hex |
-|------|-----|
-| 50 | `#FEF5F6` |
-| 100 | `#FDE8EA` |
-| 200 | `#FBD1D4` |
-| 300 | `#F8B8BC` |
-| 400 | `#F6AEB2` |
-| 500 | `#F4A4AA` |
-| 600 | `#E07880` |
-| 700 | `#C25560` |
-| 800 | `#9E3A44` |
-| 900 | `#78272F` |
-| 950 | `#521A20` |
-
-#### `rose-mist`
-
-| Step | Hex |
-|------|-----|
-| 50 | `#FFF9F9` |
-| 100 | `#FCEEED` |
-| 200 | `#F8E0DF` |
-| 300 | `#F4D0CF` |
-| 400 | `#EEBFBE` |
-| 500 | `#E5ADAC` |
-| 600 | `#D49A99` |
-| 700 | `#BC8584` |
-| 800 | `#A06F6E` |
-| 900 | `#7E5554` |
-| 950 | `#5E3C3C` |
-
-#### `sakura`
-
-| Step | Hex |
-|------|-----|
-| 50 | `#FFF8FA` |
-| 100 | `#FFEDF3` |
-| 200 | `#FFE0EC` |
-| 300 | `#FFCFDF` |
-| 400 | `#FFC0D4` |
-| 500 | `#F5AFCA` |
-| 600 | `#E89DBA` |
-| 700 | `#D687A8` |
-| 800 | `#C07494` |
-| 900 | `#A35C7C` |
-| 950 | `#8A4665` |
-
 #### `lavender`
 
 | Step | Hex |
@@ -461,6 +518,38 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | 800 | `#6B4EB8` |
 | 900 | `#4E3490` |
 | 950 | `#342068` |
+
+#### `lime`
+
+| Step | Hex |
+|------|-----|
+| 50 | `#F5FCE6` |
+| 100 | `#EAF7CC` |
+| 200 | `#D5EF9A` |
+| 300 | `#BDE36A` |
+| 400 | `#ADD654` |
+| 500 | `#A5CF4F` |
+| 600 | `#88B033` |
+| 700 | `#6B8E26` |
+| 800 | `#526C1C` |
+| 900 | `#3B4E14` |
+| 950 | `#27340D` |
+
+#### `soft-rose`
+
+| Step | Hex |
+|------|-----|
+| 50 | `#FEF5F6` |
+| 100 | `#FDE8EA` |
+| 200 | `#FBD1D4` |
+| 300 | `#F8B8BC` |
+| 400 | `#F6AEB2` |
+| 500 | `#F4A4AA` |
+| 600 | `#E07880` |
+| 700 | `#C25560` |
+| 800 | `#9E3A44` |
+| 900 | `#78272F` |
+| 950 | `#521A20` |
 
 #### `soft-lavender`
 
@@ -494,23 +583,37 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | 900 | `#285A82` |
 | 950 | `#183D5C` |
 
-> **Note:** `soft-sky` has intentional repeats at 200/300 (`#D6ECFA`) and 500/600 (`#8EC4E5`) per the Figma export. Treat 300 and 600 as visual aliases — consumers should pick the lower step (200 / 500) as the canonical reference and reserve the duplicate slot for future palette refinement.
-
-#### `lime`
+#### `soft-yellow`
 
 | Step | Hex |
 |------|-----|
-| 50 | `#F5FCE6` |
-| 100 | `#EAF7CC` |
-| 200 | `#D5EF9A` |
-| 300 | `#BDE36A` |
-| 400 | `#ADD654` |
-| 500 | `#A5CF4F` |
-| 600 | `#88B033` |
-| 700 | `#6B8E26` |
-| 800 | `#526C1C` |
-| 900 | `#3B4E14` |
-| 950 | `#27340D` |
+| 50 | `#FFFDF5` |
+| 100 | `#FDF8E2` |
+| 200 | `#FAF0C4` |
+| 300 | `#F8E7AA` |
+| 400 | `#F6DE9C` |
+| 500 | `#F5DD90` |
+| 600 | `#DEC472` |
+| 700 | `#C4A852` |
+| 800 | `#A08838` |
+| 900 | `#786420` |
+| 950 | `#4E4010` |
+
+#### `soft-peach`
+
+| Step | Hex |
+|------|-----|
+| 50 | `#FFFAF7` |
+| 100 | `#FEF0E8` |
+| 200 | `#FDE2D0` |
+| 300 | `#FCD1B8` |
+| 400 | `#FBBEA0` |
+| 500 | `#FAA381` |
+| 600 | `#E88A66` |
+| 700 | `#D0714D` |
+| 800 | `#B05A38` |
+| 900 | `#844026` |
+| 950 | `#562814` |
 
 #### `dusty-mauve`
 
@@ -528,24 +631,6 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | 900 | `#3C2A30` |
 | 950 | `#281C21` |
 
-#### `soft-peach`
-
-> **Updated** (Figma export, 2026-05-12) — softer mid-tones, retuned dark steps. The brand mode `[data-brand="soft-peach"]` in `index.css` still maps to the legacy chain (high-saturation orange) — schedule a follow-up migration to wire the brand mode to this updated primitive.
-
-| Step | Hex |
-|------|-----|
-| 50 | `#FFFAF7` |
-| 100 | `#FEF0E8` |
-| 200 | `#FDE2D0` |
-| 300 | `#FCD1B8` |
-| 400 | `#FBBEA0` |
-| 500 | `#FAA381` |
-| 600 | `#E88A66` |
-| 700 | `#D0714D` |
-| 800 | `#B05A38` |
-| 900 | `#844026` |
-| 950 | `#562814` |
-
 #### `cool-lavender`
 
 | Step | Hex |
@@ -562,7 +647,42 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | 900 | `#180945` |
 | 950 | `#0C0528` |
 
+#### `sakura`
+
+| Step | Hex |
+|------|-----|
+| 50 | `#FFF8FA` |
+| 100 | `#FFEDF3` |
+| 200 | `#FFE0EC` |
+| 300 | `#FFCFDF` |
+| 400 | `#FFC0D4` |
+| 500 | `#F5AFCA` |
+| 600 | `#E89DBA` |
+| 700 | `#D687A8` |
+| 800 | `#C07494` |
+| 900 | `#A35C7C` |
+| 950 | `#8A4665` |
+
+#### `rose-mist`
+
+| Step | Hex |
+|------|-----|
+| 50 | `#FFF9F9` |
+| 100 | `#FCEEED` |
+| 200 | `#F8E0DF` |
+| 300 | `#F4D0CF` |
+| 400 | `#EEBFBE` |
+| 500 | `#E5ADAC` |
+| 600 | `#D49A99` |
+| 700 | `#BC8584` |
+| 800 | `#A06F6E` |
+| 900 | `#7E5554` |
+| 950 | `#5E3C3C` |
+
+> **Note:** `soft-sky` has intentional repeats at 200/300 (`#D6ECFA`) and 500/600 (`#8EC4E5`) per the Figma export. Treat 300 and 600 as visual aliases.
+
 ---
+
 
 ### 1b. Typography
 
@@ -607,13 +727,13 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 
 | Token | Value |
 |-------|-------|
-| `typography.family.heading-graphic`  | `Sao Chingcha` |
+| `typography.family.heading-graphic` | `Sao Chingcha` |
 | `typography.family.heading-graphic2` | `Mitr` |
-| `typography.family.heading-content`  | `Sarabun` |
-| `typography.family.body`             | `Sarabun` |
-| `typography.family.ui`               | `Sarabun` |
+| `typography.family.heading-content` | `Sarabun` |
+| `typography.family.body` | `Sarabun` |
+| `typography.family.ui` | `Sarabun` |
 
-> `heading-graphic` and `heading-graphic2` are the two **brand display** typefaces. `heading-graphic` (Sao Chingcha) is the original Thai-led display font; `heading-graphic2` (Mitr — Google Fonts) is the secondary Latin-led display family with broader weight coverage (200–900). Use either via the `typography.display.graphic*` (Sao Chingcha) or `typography.display.graphic2-*` (Mitr) style series. Body / heading / UI keep using Sarabun.
+> `heading-graphic` (Sao Chingcha) and `heading-graphic2` (Mitr — Google Fonts) are the two **brand display** typefaces; Mitr has broader weight coverage (200–900). Body / heading / UI use Sarabun.
 
 #### Font Style
 
@@ -625,6 +745,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | `typography.style.medium` | `Medium` |
 | `typography.style.bold` | `Bold` |
 
+
 ### 1c. Dimension
 
 #### Spacing (px)
@@ -632,6 +753,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | Token | Value |
 |-------|-------|
 | `dimension.space.0` | `0` |
+| `dimension.space.050` | `2` |
 | `dimension.space.100` | `4` |
 | `dimension.space.150` | `6` |
 | `dimension.space.200` | `8` |
@@ -643,7 +765,6 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | `dimension.space.1600` | `64` |
 | `dimension.space.2400` | `96` |
 | `dimension.space.4000` | `160` |
-| `dimension.space.050` | `2` |
 | `dimension.space.negative-100` | `-4` |
 | `dimension.space.negative-200` | `-8` |
 | `dimension.space.negative-300` | `-12` |
@@ -660,7 +781,6 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | `dimension.radius.200` | `8` |
 | `dimension.radius.300` | `10` |
 | `dimension.radius.400` | `12` |
-| `dimension.radius.450` | `14` |
 | `dimension.radius.500` | `16` |
 | `dimension.radius.600` | `24` |
 | `dimension.radius.full` | `9999` |
@@ -716,12 +836,12 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | Token | Value |
 |-------|-------|
 | `dimension.depth.0` | `0` |
+| `dimension.depth.025` | `1` |
 | `dimension.depth.100` | `4` |
 | `dimension.depth.200` | `8` |
 | `dimension.depth.400` | `16` |
 | `dimension.depth.800` | `32` |
 | `dimension.depth.1200` | `48` |
-| `dimension.depth.025` | `1` |
 | `dimension.depth.negative-025` | `-1` |
 | `dimension.depth.negative-100` | `-4` |
 | `dimension.depth.negative-200` | `-8` |
@@ -743,7 +863,6 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | `dimension.stroke.700` | `7` |
 | `dimension.stroke.800` | `8` |
 | `dimension.stroke.900` | `9` |
-
 
 ### 1d. Effect Styles
 
@@ -789,6 +908,24 @@ Effect styles define shadows and blurs. Multi-layer effects are separated by `+`
 | `effect.blur.glass` | `background_blur 12px` |
 | `effect.indigo-drop-shadow-bottom.100` | `drop_shadow blur=4px x=0 y=1 #818CF814` |
 | `effect.indigo-drop-shadow-bottom.200` | `drop_shadow blur=4px x=0 y=1 #818CF814` + `drop_shadow blur=8px x=0 y=1 #818CF81A` |
+
+#### Motion tokens
+
+CSS custom properties for enter/exit transitions. Declared in [`src/index.css`](src/index.css) `:root`; consumed by `.mih-popup-*` (centered modals) and `.mih-popover-in` (anchored popovers).
+
+| Token | CSS variable | Value | Role |
+|---|---|---|---|
+| Modal duration | `--motion-duration-modal` | **220 ms** | Overlay + panel enter/exit for `<Popup>` · `<AlertDialog>` |
+| Popover duration | `--motion-duration-popover` | **160 ms** | Anchored popover entrance (`Popover`, `ProfilePopover`, search panels) |
+| Standard easing | `--motion-easing-standard` | `cubic-bezier(0.4, 0, 0.2, 1)` | Modal fade + lift |
+| Popover easing | `--motion-easing-popover` | `ease-out` | Popover scale-in |
+| Panel offset Y | `--motion-panel-offset-y` | `var(--dim-space-200)` (**8 px**) | Modal panel start position (enter from below) |
+| Panel scale from | `--motion-panel-scale-from` | **0.98** | Modal panel start scale |
+| Calendar duration | `--motion-duration-calendar` | **320 ms** | Appointment calendar period slide (`AppointmentCalendarView`) |
+| Calendar offset X | `--motion-offset-calendar-x` | `var(--dim-space-600)` (**24 px**) | Horizontal slide distance |
+| Enter easing | `--motion-easing-enter` | `cubic-bezier(0.16, 1, 0.3, 1)` | Calendar slide · step transitions |
+
+> **Reduced motion:** `@media (prefers-reduced-motion: reduce)` disables transitions on `.mih-popup-overlay` / `.mih-popup-dialog` and snaps to the visible state.
 
 ---
 
@@ -910,16 +1047,16 @@ All tokens that alias `Brand/primary/*` update when the mode changes:
 
 Each brand token step (`50`–`950`) resolves to the corresponding step in the mapped Primitive palette.
 
-> **Usage in code:** Reference `brand.primary.{step}` or `brand.secondary.{step}` and switch the brand mode to automatically change colors.
+> **Usage in code:** Reference `brand.primary.{step}` or `brand.secondary.{step}` and switch the brand mode to automatically change colors. Alpha tokens (`primaryBorder`, `PrimaryShadow`, `primaryText`) follow the same brand-mode switch and are pre-baked transparency variants used for shadows, focus rings, and subdued text.
 
 #### Brand: `default`
 
 | Step | primary (`emerald`) | secondary (`forest`) |
 |------|------------------------|------------------------|
 | 50 | `#F4FBF8` | `#FAFCFA` |
-| 100 | `#DFF2E9` | `#EFF5EF` |
-| 200 | `#B1E6CD` | `#E1F0E0` |
-| 300 | `#84DBB4` | `#A7D2A3` |
+| 100 | `#E2F3EB` | `#EFF5EF` |
+| 200 | `#C5EDDA` | `#E1F0E0` |
+| 300 | `#91DFBB` | `#A7D2A3` |
 | 400 | `#6AD6A5` | `#78B573` |
 | 500 | `#54CF97` | `#53954E` |
 | 600 | `#08A768` | `#427C3D` |
@@ -927,6 +1064,19 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | 800 | `#004C31` | `#2E4F2C` |
 | 900 | `#003322` | `#274126` |
 | 950 | `#002318` | `#102310` |
+
+| Alpha Token | Hex | Alpha | Source step |
+|-------------|-----|-------|-------------|
+| `brand.primaryBorder.400` | `#6AD6A5` | `15%` | `primaryBorder/400` |
+| `brand.primaryBorder.600` | `#08A768` | `15%` | `primaryBorder/600` |
+| `brand.PrimaryShadow.400` | `#6AD6A5` | `8%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#6AD6A5` | `10%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.402` | `#6AD6A5` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.600` | `#08A768` | `8%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#08A768` | `10%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.602` | `#08A768` | `20%` | `PrimaryShadow/600` |
+| `brand.primaryText.300` | `#7DE0B3` | `50%` | `primaryText/300` |
+| `brand.primaryText.700` | `#007549` | `50%` | `primaryText/700` |
 
 #### Brand: `blue-serenity`
 
@@ -944,21 +1094,18 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | 900 | `#3A4AAA` | `#3A4AAA` |
 | 950 | `#2A3488` | `#2A3488` |
 
-#### Brand: `cool-lavender`
-
-| Step | primary (`cool-lavender`) | secondary (`cool-lavender`) |
-|------|------------------------|------------------------|
-| 50 | `#F5F0FF` | `#F5F0FF` |
-| 100 | `#EAE0FF` | `#EAE0FF` |
-| 200 | `#D0BFFF` | `#D0BFFF` |
-| 300 | `#AC8AE8` | `#AC8AE8` |
-| 400 | `#8B62D4` | `#8B62D4` |
-| 500 | `#6E45BC` | `#6E45BC` |
-| 600 | `#5230A0` | `#5230A0` |
-| 700 | `#3C1E80` | `#3C1E80` |
-| 800 | `#281260` | `#281260` |
-| 900 | `#180945` | `#180945` |
-| 950 | `#0C0528` | `#0C0528` |
+| Alpha Token | Hex | Alpha | Source step |
+|-------------|-----|-------|-------------|
+| `brand.primaryBorder.400` | `#A5B3FC` | `15%` | `primaryBorder/400` |
+| `brand.primaryBorder.600` | `#8EA0F8` | `15%` | `primaryBorder/600` |
+| `brand.PrimaryShadow.400` | `#A5B3FC` | `8%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#A5B3FC` | `10%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.402` | `#A5B3FC` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.600` | `#8EA0F8` | `8%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#8EA0F8` | `10%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.602` | `#8EA0F8` | `20%` | `PrimaryShadow/600` |
+| `brand.primaryText.300` | `#BBC6FE` | `50%` | `primaryText/300` |
+| `brand.primaryText.700` | `#6676E0` | `50%` | `primaryText/700` |
 
 #### Brand: `dusty-mauve`
 
@@ -976,6 +1123,19 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | 900 | `#3C2A30` | `#3C2A30` |
 | 950 | `#281C21` | `#281C21` |
 
+| Alpha Token | Hex | Alpha | Source step |
+|-------------|-----|-------|-------------|
+| `brand.primaryBorder.400` | `#B58E94` | `15%` | `primaryBorder/400` |
+| `brand.primaryBorder.600` | `#7E5A60` | `15%` | `primaryBorder/600` |
+| `brand.PrimaryShadow.400` | `#B58E94` | `8%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#B58E94` | `10%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.402` | `#B58E94` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.600` | `#7E5A60` | `8%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#7E5A60` | `10%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.602` | `#7E5A60` | `20%` | `PrimaryShadow/600` |
+| `brand.primaryText.300` | `#D0ADB2` | `50%` | `primaryText/300` |
+| `brand.primaryText.700` | `#664750` | `50%` | `primaryText/700` |
+
 #### Brand: `muted-teal`
 
 | Step | primary (`muted-teal`) | secondary (`muted-teal`) |
@@ -992,69 +1152,163 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | 900 | `#283A38` | `#283A38` |
 | 950 | `#1A2726` | `#1A2726` |
 
-#### Brand: `pink`
+| Alpha Token | Hex | Alpha | Source step |
+|-------------|-----|-------|-------------|
+| `brand.primaryBorder.400` | `#7AABA8` | `15%` | `primaryBorder/400` |
+| `brand.primaryBorder.600` | `#6F9693` | `15%` | `primaryBorder/600` |
+| `brand.PrimaryShadow.400` | `#7AABA8` | `8%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#7AABA8` | `10%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.402` | `#7AABA8` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.600` | `#6F9693` | `8%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#6F9693` | `10%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.602` | `#6F9693` | `20%` | `PrimaryShadow/600` |
+| `brand.primaryText.300` | `#8DC3C0` | `50%` | `primaryText/300` |
+| `brand.primaryText.700` | `#486462` | `50%` | `primaryText/700` |
 
-| Step | primary (`pink`) | secondary (`red`) |
+#### Brand: `rose-mist`
+
+| Step | primary (`rose-mist`) | secondary (`rose-mist`) |
 |------|------------------------|------------------------|
-| 50 | `#FBF4F8` | `#FFF0F0` |
-| 100 | `#FCE7F3` | `#FEE2E2` |
-| 200 | `#FBCFE8` | `#FECACA` |
-| 300 | `#F9A8D4` | `#FCA5A5` |
-| 400 | `#F472B6` | `#F87171` |
-| 500 | `#EC4899` | `#EF4444` |
-| 600 | `#DB2777` | `#DC2626` |
-| 700 | `#BE185D` | `#B91C1C` |
-| 800 | `#9D174D` | `#991B1B` |
-| 900 | `#831843` | `#7F1D1D` |
-| 950 | `#500724` | `#450A0A` |
+| 50 | `#FFF9F9` | `#FFF9F9` |
+| 100 | `#FCEEED` | `#FCEEED` |
+| 200 | `#F8E0DF` | `#F8E0DF` |
+| 300 | `#F4D0CF` | `#F4D0CF` |
+| 400 | `#EEBFBE` | `#EEBFBE` |
+| 500 | `#E5ADAC` | `#E5ADAC` |
+| 600 | `#D49A99` | `#D49A99` |
+| 700 | `#BC8584` | `#BC8584` |
+| 800 | `#A06F6E` | `#A06F6E` |
+| 900 | `#7E5554` | `#7E5554` |
+| 950 | `#5E3C3C` | `#5E3C3C` |
 
-#### Brand: `rose`
+| Alpha Token | Hex | Alpha | Source step |
+|-------------|-----|-------|-------------|
+| `brand.primaryBorder.400` | `#EEBFBE` | `15%` | `primaryBorder/400` |
+| `brand.primaryBorder.600` | `#D49A99` | `15%` | `primaryBorder/600` |
+| `brand.PrimaryShadow.400` | `#EEBFBE` | `8%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#EEBFBE` | `10%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.402` | `#EEBFBE` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.600` | `#D49A99` | `8%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#D49A99` | `10%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.602` | `#D49A99` | `20%` | `PrimaryShadow/600` |
+| `brand.primaryText.300` | `#F4D0CF` | `50%` | `primaryText/300` |
+| `brand.primaryText.700` | `#BC8584` | `50%` | `primaryText/700` |
 
-| Step | primary (`rose`) | secondary (`rose`) |
+#### Brand: `sakura`
+
+| Step | primary (`sakura`) | secondary (`sakura`) |
 |------|------------------------|------------------------|
-| 50 | `#FEF2F2` | `#FEF2F2` |
-| 100 | `#FCE4E5` | `#FCE4E5` |
-| 200 | `#F8C5C7` | `#F8C5C7` |
-| 300 | `#F2A0A3` | `#F2A0A3` |
-| 400 | `#EA8285` | `#EA8285` |
-| 500 | `#E27B7F` | `#E27B7F` |
-| 600 | `#CC5E62` | `#CC5E62` |
-| 700 | `#AB4548` | `#AB4548` |
-| 800 | `#8C3437` | `#8C3437` |
-| 900 | `#6B2527` | `#6B2527` |
-| 950 | `#4A181A` | `#4A181A` |
+| 50 | `#FFF8FA` | `#FFF8FA` |
+| 100 | `#FFEDF3` | `#FFEDF3` |
+| 200 | `#FFE0EC` | `#FFE0EC` |
+| 300 | `#FFCFDF` | `#FFCFDF` |
+| 400 | `#FFC0D4` | `#FFC0D4` |
+| 500 | `#F5AFCA` | `#F5AFCA` |
+| 600 | `#E89DBA` | `#E89DBA` |
+| 700 | `#D687A8` | `#D687A8` |
+| 800 | `#C07494` | `#C07494` |
+| 900 | `#A35C7C` | `#A35C7C` |
+| 950 | `#8A4665` | `#8A4665` |
 
-#### Brand: `sky-cyan`
+| Alpha Token | Hex | Alpha | Source step |
+|-------------|-----|-------|-------------|
+| `brand.primaryBorder.400` | `#FFC0D4` | `15%` | `primaryBorder/400` |
+| `brand.primaryBorder.600` | `#E89DBA` | `15%` | `primaryBorder/600` |
+| `brand.PrimaryShadow.400` | `#FFC0D4` | `8%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#FFC0D4` | `10%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.402` | `#FFC0D4` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.600` | `#E89DBA` | `8%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#E89DBA` | `10%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.602` | `#E89DBA` | `20%` | `PrimaryShadow/600` |
+| `brand.primaryText.300` | `#F9A8D4` | `50%` | `primaryText/300` |
+| `brand.primaryText.700` | `#D687A8` | `50%` | `primaryText/700` |
 
-| Step | primary (`sky-cyan`) | secondary (`sky-cyan`) |
+#### Brand: `soft-lavender`
+
+| Step | primary (`soft-lavender`) | secondary (`soft-lavender`) |
 |------|------------------------|------------------------|
-| 50 | `#F4F9FD` | `#F4F9FD` |
-| 100 | `#E5F2FC` | `#E5F2FC` |
-| 200 | `#BCDDF9` | `#BCDDF9` |
-| 300 | `#80C3F7` | `#80C3F7` |
-| 400 | `#40AAF2` | `#40AAF2` |
-| 500 | `#0E90E8` | `#0E90E8` |
-| 600 | `#0A73CB` | `#0A73CB` |
-| 700 | `#0859A8` | `#0859A8` |
-| 800 | `#0A4383` | `#0A4383` |
-| 900 | `#0C3062` | `#0C3062` |
-| 950 | `#081E40` | `#081E40` |
+| 50 | `#FAF7FF` | `#FAF7FF` |
+| 100 | `#F2ECFF` | `#F2ECFF` |
+| 200 | `#E5D9FF` | `#E5D9FF` |
+| 300 | `#D6C6FA` | `#D6C6FA` |
+| 400 | `#C5B2F5` | `#C5B2F5` |
+| 500 | `#B49EEE` | `#B49EEE` |
+| 600 | `#9D87D8` | `#9D87D8` |
+| 700 | `#836FC0` | `#836FC0` |
+| 800 | `#6655A0` | `#6655A0` |
+| 900 | `#4A3D7A` | `#4A3D7A` |
+| 950 | `#302754` | `#302754` |
+
+| Alpha Token | Hex | Alpha | Source step |
+|-------------|-----|-------|-------------|
+| `brand.primaryBorder.400` | `#C5B2F5` | `15%` | `primaryBorder/400` |
+| `brand.primaryBorder.600` | `#9D87D8` | `15%` | `primaryBorder/600` |
+| `brand.PrimaryShadow.400` | `#C5B2F5` | `8%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#C5B2F5` | `10%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.402` | `#C5B2F5` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.600` | `#9D87D8` | `8%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#9D87D8` | `10%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.602` | `#9D87D8` | `20%` | `PrimaryShadow/600` |
+| `brand.primaryText.300` | `#D6C6FA` | `50%` | `primaryText/300` |
+| `brand.primaryText.700` | `#836FC0` | `50%` | `primaryText/700` |
 
 #### Brand: `soft-peach`
 
 | Step | primary (`soft-peach`) | secondary (`soft-peach`) |
 |------|------------------------|------------------------|
-| 50 | `#FFF5F0` | `#FFF5F0` |
-| 100 | `#FFE8D8` | `#FFE8D8` |
-| 200 | `#FFC8A0` | `#FFC8A0` |
-| 300 | `#FFA878` | `#FFA878` |
-| 400 | `#F07845` | `#F07845` |
-| 500 | `#E05825` | `#E05825` |
-| 600 | `#C04015` | `#C04015` |
-| 700 | `#9A2E10` | `#9A2E10` |
-| 800 | `#7A2008` | `#7A2008` |
-| 900 | `#5A1505` | `#5A1505` |
-| 950 | `#2A0A02` | `#2A0A02` |
+| 50 | `#FFFAF7` | `#FFFAF7` |
+| 100 | `#FEF0E8` | `#FEF0E8` |
+| 200 | `#FDE2D0` | `#FDE2D0` |
+| 300 | `#FCD1B8` | `#FCD1B8` |
+| 400 | `#FBBEA0` | `#FBBEA0` |
+| 500 | `#FAA381` | `#FAA381` |
+| 600 | `#E88A66` | `#E88A66` |
+| 700 | `#D0714D` | `#D0714D` |
+| 800 | `#B05A38` | `#B05A38` |
+| 900 | `#844026` | `#844026` |
+| 950 | `#562814` | `#562814` |
+
+| Alpha Token | Hex | Alpha | Source step |
+|-------------|-----|-------|-------------|
+| `brand.primaryBorder.400` | `#FBBEA0` | `15%` | `primaryBorder/400` |
+| `brand.primaryBorder.600` | `#E88A66` | `15%` | `primaryBorder/600` |
+| `brand.PrimaryShadow.400` | `#FBBEA0` | `8%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#FBBEA0` | `10%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.402` | `#FBBEA0` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.600` | `#E88A66` | `8%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#E88A66` | `10%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.602` | `#E88A66` | `20%` | `PrimaryShadow/600` |
+| `brand.primaryText.300` | `#FCD1B8` | `50%` | `primaryText/300` |
+| `brand.primaryText.700` | `#D0714D` | `50%` | `primaryText/700` |
+
+#### Brand: `soft-sky`
+
+| Step | primary (`soft-sky`) | secondary (`soft-sky`) |
+|------|------------------------|------------------------|
+| 50 | `#F5FBFF` | `#F5FBFF` |
+| 100 | `#E8F5FD` | `#E8F5FD` |
+| 200 | `#D6ECFA` | `#D6ECFA` |
+| 300 | `#D6ECFA` | `#D6ECFA` |
+| 400 | `#A8D3EE` | `#A8D3EE` |
+| 500 | `#8EC4E5` | `#8EC4E5` |
+| 600 | `#8EC4E5` | `#8EC4E5` |
+| 700 | `#5594C4` | `#5594C4` |
+| 800 | `#3D78A8` | `#3D78A8` |
+| 900 | `#285A82` | `#285A82` |
+| 950 | `#183D5C` | `#183D5C` |
+
+| Alpha Token | Hex | Alpha | Source step |
+|-------------|-----|-------|-------------|
+| `brand.primaryBorder.400` | `#A8D3EE` | `15%` | `primaryBorder/400` |
+| `brand.primaryBorder.600` | `#8EC4E5` | `15%` | `primaryBorder/600` |
+| `brand.PrimaryShadow.400` | `#A8D3EE` | `8%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#A8D3EE` | `10%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.402` | `#A8D3EE` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.600` | `#8EC4E5` | `8%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#8EC4E5` | `10%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.602` | `#8EC4E5` | `20%` | `PrimaryShadow/600` |
+| `brand.primaryText.300` | `#A8D3EE` | `50%` | `primaryText/300` |
+| `brand.primaryText.700` | `#5594C4` | `50%` | `primaryText/700` |
 
 #### Brand: `warm-gray`
 
@@ -1071,6 +1325,19 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | 800 | `#463C37` | `#463C37` |
 | 900 | `#312B26` | `#312B26` |
 | 950 | `#211D19` | `#211D19` |
+
+| Alpha Token | Hex | Alpha | Source step |
+|-------------|-----|-------|-------------|
+| `brand.primaryBorder.400` | `#A39A94` | `15%` | `primaryBorder/400` |
+| `brand.primaryBorder.600` | `#8A8078` | `15%` | `primaryBorder/600` |
+| `brand.PrimaryShadow.400` | `#A39A94` | `8%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#A39A94` | `10%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.402` | `#A39A94` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.600` | `#8A8078` | `8%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#8A8078` | `10%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.602` | `#8A8078` | `20%` | `PrimaryShadow/600` |
+| `brand.primaryText.300` | `#BDB5AF` | `50%` | `primaryText/300` |
+| `brand.primaryText.700` | `#5C504A` | `50%` | `primaryText/700` |
 
 ---
 
@@ -1104,7 +1371,7 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `background.brandPrimary.default` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
 | `background.brandPrimary.default-hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `background.brandPrimary.secondary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `background.brandPrimary.secondary-hover` | `#84DBB4` | `#007549` | `Brand/primary/300` |
+| `background.brandPrimary.secondary-hover` | `#91DFBB` | `#007549` | `Brand/primary/300` |
 | `background.brandPrimary.tertiary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
 | `background.brandPrimary.tertiary-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
 | `background.brandSecondary.default` | `#53954E` | `#53954E` | `Brand/secondary/500` |
@@ -1131,17 +1398,10 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `background.info.secondary-hover` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
 | `background.info.tertiary` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
 | `background.info.tertiary-hover` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `background.neutral.default` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `background.neutral.default-hover` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `background.neutral.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `background.neutral.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `background.neutral.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `background.neutral.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `background.overlay.default` | `#64748B` | `#64748B` | `` |
 | `background.positive.default` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
 | `background.positive.default-hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `background.positive.secondary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `background.positive.secondary-hover` | `#84DBB4` | `#007549` | `Brand/primary/300` |
+| `background.positive.secondary-hover` | `#91DFBB` | `#007549` | `Brand/primary/300` |
 | `background.positive.tertiary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
 | `background.positive.tertiary-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
 | `background.progress.default` | `#EAB308` | `#EAB308` | `Primitive/color/yellow/500` |
@@ -1150,881 +1410,954 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `background.progress.secondary-hover` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
 | `background.progress.tertiary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
 | `background.progress.tertiary-hover` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `background.screen.100` | `#F5F6FA` | `#0F172A` | `Primitive/color/slate/50` |
-| `background.screen.200` | `#F5F7F9` | `#1E293B` | `Primitive/color/slate/100` |
-| `background.screen.300` | `#E9EDF5` | `#334155` | `Primitive/color/slate/200` |
-| `background.screen.400` | `#CBD5E1` | `#475569` | `Primitive/color/slate/300` |
-| `background.screen.brand-100` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `background.screen.brand-200` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `background.screen.default` | `#FFFFFF` | `#0F172A` | `Primitive/color/grey/50` |
-| `background.screen.disabled` | `#64748B` | `#94A3B8` | `Primitive/color/slate/500` |
 | `background.warning.default` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
 | `background.warning.default-hover` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
 | `background.warning.secondary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
 | `background.warning.secondary-hover` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
 | `background.warning.tertiary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
 | `background.warning.tertiary-hover` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `background.neutral.default` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `background.neutral.default-hover` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `background.neutral.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `background.neutral.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `background.neutral.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `background.neutral.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `background.overlay.default` | `#64748B @ 50%` | `#64748B @ 50%` |  |
+| `background.screen.default` | `#FFFFFF` | `#0F172A` | `Primitive/color/grey/50` |
+| `background.screen.disabled` | `#64748B` | `#94A3B8` | `Primitive/color/slate/500` |
+| `background.screen.100` | `#F5F6FA` | `#0F172A` | `Primitive/color/slate/50` |
+| `background.screen.200` | `#F5F7F9` | `#1E293B` | `Primitive/color/slate/100` |
+| `background.screen.300` | `#E9EDF5` | `#334155` | `Primitive/color/slate/200` |
+| `background.screen.400` | `#CBD5E1` | `#475569` | `Primitive/color/slate/300` |
+| `background.screen.brand-100` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `background.screen.brand-200` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
 
 ### 4.2. `text`
 
 | Token | Light | Dark | Alias (Light) |
 |-------|-------|------|----------------|
-| `text.accordion.collapsed` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.accordion.content` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.accordion.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.accordion.expanded` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.alert.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.alert.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `text.alert.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `text.alert.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `text.alertDialog.subtext` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.alertDialog.text` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.smallAlert.onError` | `#FFFFFF` | `#FFFFFF` | `Primitive/color/grey/50` (label + icon on `surface.smallAlert.error` — Figma `text/danger/on-default`) |
-| `text.smallAlert.onSuccess` | `#FFFFFF` | `#FFFFFF` | `Primitive/color/grey/50` (label + icon on `surface.smallAlert.success` — Figma `text/positive/on-positive`) |
-| `text.brandPrimary.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.brandPrimary.on-brand` | `#FFFFFF` | `#002318` | `Primitive/color/grey/50` |
-| `text.brandPrimary.quaternary` | `#84DBB4` | `#007549` | `Brand/primary/300` |
+| `text.brandPrimary.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `text.brandPrimary.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `text.brandPrimary.tertiary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
-| `text.brandPrimaryButton.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.brandPrimaryButton.on-brand` | `#FFFFFF` | `#002318` | `Primitive/color/grey/50` |
-| `text.brandPrimaryButton.quaternary` | `#84DBB4` | `#007549` | `Brand/primary/300` |
-| `text.brandPrimaryButton.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `text.brandPrimaryButton.tertiary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `text.brandPrimary.quaternary` | `#91DFBB` | `#007549` | `Brand/primary/300` |
+| `text.brandPrimary.on-brand` | `#FFFFFF` | `#002318` | `Primitive/color/grey/50` |
 | `text.brandSecondary.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
-| `text.brandSecondary.on-default` | `#FFFFFF` | `#102310` | `Primitive/color/grey/50` |
-| `text.brandSecondary.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
 | `text.brandSecondary.secondary` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
 | `text.brandSecondary.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
+| `text.brandSecondary.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
+| `text.brandSecondary.on-default` | `#FFFFFF` | `#102310` | `Primitive/color/grey/50` |
+| `text.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.danger.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `text.danger.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
+| `text.danger.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `text.danger.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.disabled.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.disabled.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.disabled.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.disabled.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `text.disabled.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.info.default` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `text.info.secondary` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
+| `text.info.tertiary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
+| `text.info.quaternary` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
+| `text.info.on-info` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.navy.default` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `text.navy.secondary` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
+| `text.navy.tertiary` | `#A5B4FC` | `#6366F1` | `Primitive/color/indigo/400` |
+| `text.navy.quaternary` | `#C7D2FE` | `#4F46E5` | `Primitive/color/indigo/300` |
+| `text.navy.on-info` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.magenta.default` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
+| `text.magenta.secondary` | `#A81BBD` | `#DC4CF2` | `Primitive/color/magenta/600` |
+| `text.magenta.tertiary` | `#DC4CF2` | `#A81BBD` | `Primitive/color/magenta/400` |
+| `text.magenta.quaternary` | `#EA78F9` | `#871598` | `Primitive/color/magenta/300` |
+| `text.magenta.on-info` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.pink.default` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
+| `text.pink.secondary` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
+| `text.pink.tertiary` | `#F472B6` | `#DB2777` | `Primitive/color/pink/400` |
+| `text.pink.quaternary` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
+| `text.pink.on-info` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.positive.secondary` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `text.positive.tertiary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
+| `text.positive.quaternary` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
+| `text.positive.on-positive` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `text.progress.secondary` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
+| `text.progress.tertiary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
+| `text.progress.quaternary` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
+| `text.progress.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `text.warning.secondary` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
+| `text.warning.tertiary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
+| `text.warning.quaternary` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
+| `text.warning.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.neutral.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.neutral.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.neutral.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `text.neutral.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.accordion.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.accordion.collapsed` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.accordion.expanded` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.accordion.content` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.alert.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.alert.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.alert.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `text.alert.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `text.alertDialog.text` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.alertDialog.subtext` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.breadcrumb.pagename` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.breadcrumb.current` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
+| `text.calendar.date-default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.calendar.date-current` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar.date-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar.date-selected` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
+| `text.calendar.date-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
+| `text.calendar.month` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.calendar slot.date-default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.calendar slot.date-current` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar slot.date-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar slot.date-selected` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
+| `text.calendar slot.date-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
+| `text.calendar slot.slot-default` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `text.calendar slot.slot-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar slot.slot-selected` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
+| `text.calendar slot.slot-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
+| `text.calendar slot.cta-default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `text.calendar slot.cta-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar slot.cta-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
+| `text.calendar slot.month` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.calendar slot.text` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.colorfulBadge.badge-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.colorfulBadge.grey` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.colorfulBadge.green` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.colorfulBadge.blue` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `text.colorfulBadge.teal` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.colorfulBadge.yellow` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `text.colorfulBadge.orange` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `text.colorfulBadge.red` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.colorfulBadge.indigo` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `text.colorfulBadge.pink` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
+| `text.colorfulBadge.purple` | `#7E22CE` | `#D8B4FE` | `Primitive/color/purple/700` |
+| `text.colorfulBadge.megenta` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
+| `text.content.default` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
+| `text.content.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.content.tertiary` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.content.quaternary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.content.on-content` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.input.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.input.hover` | `#ADB2B7` | `#C9CDD0` | `Primitive/color/neutral/400` |
+| `text.input.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.input.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.input.error` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.input.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.input.label` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.input.helper` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.input.errorHelper` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `text.input.require` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `text.list.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.list.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.list.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.list.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.list.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.list.subtext-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `text.modal.text` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.modal.content` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.modal.subtext` | `#ADB2B7` | `#ADB2B7` | `Primitive/color/neutral/400` |
+| `text.navigation.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.navigation.title` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.pagination.default` | `#4D5358` | `#E2E4E6` | `Primitive/color/neutral/700` |
+| `text.pagination.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.pagination.selected` | `#007549` | `#FFFFFF` | `Brand/primary/700` |
+| `text.primarySearch.default` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
+| `text.primarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.primarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.primarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.secondarySearch.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.sideMenu.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.sideMenu.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.sideMenu.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.statuslBadge.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.statuslBadge.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.statuslBadge.warning` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `text.statuslBadge.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `text.statuslBadge.brand` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.statuslBadge.in progress` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `text.statuslBadge.neutral` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.steps.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.steps.success` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.steps.title` | `#007549 @ 50%` | `#7DE0B3 @ 50%` | `Brand/primaryText/700` |
+| `text.steps.select` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.steps.subtitle` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.steps.title-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.steps.title-select` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.steps.title-success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.tabCapsule.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.tabCapsule.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabCapsule.disabled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `text.tabCapsule.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabCapsule.inProgress` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.tabCapsule.success` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.tabPill.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabPill.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabPill.disabled` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `text.tabPill.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabUnderline.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.tabUnderline.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `text.tabUnderline.disabled` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
+| `text.tabUnderline.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.table.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.table.title` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
+| `text.table.footer` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
+| `text.topic.primary-title` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.topic.primary-subtext-default` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
+| `text.topic.primary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.topic.primary-subtext-hover` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
+| `text.topic.primary-disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.topic.primary-subtext-disabled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `text.topic.secondary-title` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.topic.secondary-subtext` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.topic.secondary-subtext-on` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.topic.tertiary-title` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
+| `text.topic.tertiary-subtext` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.topic.tertiary-subtext-on` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.tooltip.tooltip-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.brandPrimaryButton.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `text.brandPrimaryButton.tertiary` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `text.brandPrimaryButton.quaternary` | `#91DFBB` | `#007549` | `Brand/primary/300` |
+| `text.brandPrimaryButton.on-brand` | `#FFFFFF` | `#002318` | `Primitive/color/grey/50` |
 | `text.brandSecondaryButton.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
-| `text.brandSecondaryButton.on-default` | `#FFFFFF` | `#102310` | `Primitive/color/grey/50` |
-| `text.brandSecondaryButton.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
 | `text.brandSecondaryButton.secondary` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
 | `text.brandSecondaryButton.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
+| `text.brandSecondaryButton.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
+| `text.brandSecondaryButton.on-default` | `#FFFFFF` | `#102310` | `Primitive/color/grey/50` |
+| `text.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.dangerButton.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `text.dangerButton.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
+| `text.dangerButton.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `text.dangerButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.disabledButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.disabledButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.disabledButton.tertiary` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
+| `text.disabledButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `text.disabledButton.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.neutralButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.neutralButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.neutralButton.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.neutralButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `text.neutralButton.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.neutralTag.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.neutralTag.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.neutralTag.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.neutralTag.selected-hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.brandTag.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.brandTag.hover` | `#007549` | `#C9CDD0` | `Brand/primary/700` |
 | `text.brandTag.selected` | `#007549` | `#C9CDD0` | `Brand/primary/700` |
 | `text.brandTag.selected-hover` | `#007549` | `#C9CDD0` | `Brand/primary/700` |
 | `text.brandTag.title` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.breadcrumb.current` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `text.breadcrumb.pagename` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.calendar.current` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.calendar.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.calendar.disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
-| `text.calendar.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.calendar.month` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.calendar.selected` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
+| `text.timeslot.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.timeslot.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.timeslot.disabled` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `text.timeslot.selected` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `text.formBuilder.error` | `#DC2626` | `#FCA5A5` | `Primitive/color/red/600` |
+| `text.formBuilder.text` | `#007549` | `#54CF97` | `Brand/primary/700` |
+| `text.formBuilder.subtext` | `#858C92` | `#C9CDD0` | `Primitive/color/neutral/500` |
+| `text.statusSummaryCard.subtext` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
+| `text.statusSummaryCard.increase` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.statusSummaryCard.decrease` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.statusSummaryCard.Info-number` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `text.statusSummaryCard.Indigo-number` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `text.statusSummaryCard.lavender-number` | `#8A6CD8` | `#D0BEFF` | `Primitive/color/lavender/700` |
+| `text.statusSummaryCard.sakura-number` | `#D687A8` | `#FFCFDF` | `Primitive/color/sakura/700` |
+| `text.statusSummaryCard.Positive-number` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.statusSummaryCard.Lime-number` | `#6B8E26` | `#BDE36A` | `Primitive/color/lime/700` |
+| `text.statusSummaryCard.Inprogress-number` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `text.statusSummaryCard.Destructive-number` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.categorySummaryCard.Title` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.categorySummaryCard.Subtext` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
+| `text.categorySummaryCard.Warning` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
 | `text.categorySummaryCard.A-number` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `text.categorySummaryCard.B-number` | `#007549` | `#84DBB4` | `Brand/primary/700` |
+| `text.categorySummaryCard.B-number` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `text.categorySummaryCard.C-number` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
 | `text.categorySummaryCard.D-number` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
 | `text.categorySummaryCard.E-number` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `text.categorySummaryCard.F-number` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
 | `text.categorySummaryCard.G-number` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
 | `text.categorySummaryCard.H-number` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `text.categorySummaryCard.Subtext` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
-| `text.categorySummaryCard.Title` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.categorySummaryCard.Warning` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.colorfulBadge.badge-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.colorfulBadge.blue` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `text.colorfulBadge.green` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.colorfulBadge.grey` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.colorfulBadge.indigo` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `text.colorfulBadge.megenta` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
-| `text.colorfulBadge.orange` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `text.colorfulBadge.pink` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
-| `text.colorfulBadge.purple` | `#7E22CE` | `#D8B4FE` | `Primitive/color/purple/700` |
-| `text.colorfulBadge.red` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.colorfulBadge.teal` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `text.colorfulBadge.yellow` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `text.content.default` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `text.content.on-content` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.content.quaternary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.content.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.content.tertiary` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.danger.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.danger.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `text.danger.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `text.danger.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
-| `text.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.dangerButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.dangerButton.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `text.dangerButton.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `text.dangerButton.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
-| `text.disabled.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.disabled.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.disabled.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `text.disabled.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.disabled.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.disabledButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.disabledButton.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.disabledButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `text.disabledButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.disabledButton.tertiary` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
-| `text.formBuilder.error` | `#DC2626` | `#FCA5A5` | `Primitive/color/red/600` |
-| `text.formBuilder.subtext` | `#858C92` | `#C9CDD0` | `Primitive/color/neutral/500` |
-| `text.formBuilder.text` | `#007549` | `#54CF97` | `Brand/primary/700` |
-| `text.info.default` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `text.info.on-info` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.info.quaternary` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
-| `text.info.secondary` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
-| `text.info.tertiary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
-| `text.input.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.input.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.input.error` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.input.errorHelper` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `text.input.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.input.helper` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.input.hover` | `#ADB2B7` | `#C9CDD0` | `Primitive/color/neutral/400` |
-| `text.input.label` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.input.require` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `text.input.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.list.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.list.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.list.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.list.selected-hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.magenta.default` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
-| `text.magenta.on-info` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.magenta.quaternary` | `#EA78F9` | `#871598` | `Primitive/color/magenta/300` |
-| `text.magenta.secondary` | `#A81BBD` | `#DC4CF2` | `Primitive/color/magenta/600` |
-| `text.magenta.tertiary` | `#DC4CF2` | `#A81BBD` | `Primitive/color/magenta/400` |
-| `text.modal.content` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.modal.subtext` | `#ADB2B7` | `#ADB2B7` | `Primitive/color/neutral/400` |
-| `text.modal.text` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.navigation.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.navigation.title` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.navy.default` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `text.navy.on-info` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.navy.quaternary` | `#C7D2FE` | `#4F46E5` | `Primitive/color/indigo/300` |
-| `text.navy.secondary` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
-| `text.navy.tertiary` | `#A5B4FC` | `#6366F1` | `Primitive/color/indigo/400` |
-| `text.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.neutral.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.neutral.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `text.neutral.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.neutral.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.neutralButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.neutralButton.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.neutralButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `text.neutralButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.neutralButton.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.neutralTag.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.neutralTag.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.neutralTag.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.neutralTag.selected-hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.pagination.default` | `#4D5358` | `#E2E4E6` | `Primitive/color/neutral/700` |
-| `text.pagination.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` (light) · `Brand/primary/300` (dark) |
-| `text.pagination.selected` | `#007549` | `#FFFFFF` | `Brand/primary/700` |
-| `text.pink.default` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
-| `text.pink.on-info` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.pink.quaternary` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
-| `text.pink.secondary` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
-| `text.pink.tertiary` | `#F472B6` | `#DB2777` | `Primitive/color/pink/400` |
-| `text.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `text.positive.on-positive` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.positive.quaternary` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
-| `text.positive.secondary` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
-| `text.positive.tertiary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
-| `text.primarySearch.default` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
-| `text.primarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.primarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.primarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `text.progress.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.progress.quaternary` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
-| `text.progress.secondary` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
-| `text.progress.tertiary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
-| `text.secondarySearch.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.sideMenu.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.sideMenu.selected` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.sideMenu.selected-hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.statusSummaryCard.Destructive-number` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.statusSummaryCard.Inprogress-number` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `text.statusSummaryCard.Positive-number` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `text.statusSummaryCard.decrease` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.statusSummaryCard.increase` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.statusSummaryCard.info-number` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `text.statusSummaryCard.subtext` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
-| `text.statuslBadge.brand` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.statuslBadge.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.statuslBadge.in progress` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `text.statuslBadge.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `text.statuslBadge.neutral` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.statuslBadge.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `text.statuslBadge.warning` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `text.steps.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.steps.select` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.steps.subtitle` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.steps.success` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.steps.title` | `#007549` | `#91DFBB` | `Primitive/primaryText/700` |
-| `text.steps.title-select` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.tabCapsule.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.tabCapsule.disabled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `text.tabCapsule.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.tabCapsule.inProgress` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.tabCapsule.selected` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.tabCapsule.success` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.tabPill.default` | `#007549` | `#91DFBB` | `Brand/primary/700` (light) · `Brand/primary/300` (dark) |
-| `text.tabPill.disabled` | `#54CF97` | `#54CF97` | `Brand/primary/500` (both modes) |
-| `text.tabPill.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` (light) · `Brand/primary/300` (dark) |
-| `text.tabPill.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` (light) · `Brand/primary/300` (dark) |
-| `text.tabUnderline.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.tabUnderline.disabled` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
-| `text.tabUnderline.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` (light) · `Brand/primary/400` (dark) |
-| `text.tabUnderline.selected` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.tabUnderline.selected-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` (light) · `Brand/primary/200` (dark) |
-| `text.table.footer` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
-| `text.table.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.table.title` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
-| `text.timeslot.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.timeslot.disabled` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `text.timeslot.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.timeslot.selected` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.tooltip.tooltip-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.topic.primary-disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.topic.primary-hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.topic.primary-subtext-default` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
-| `text.topic.primary-subtext-disabled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `text.topic.primary-subtext-hover` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
-| `text.topic.primary-title` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.topic.secondary-subtext` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.topic.secondary-subtext-on` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.topic.secondary-title` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `text.topic.tertiary-subtext` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.topic.tertiary-subtext-on` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.topic.tertiary-title` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `text.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `text.warning.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.warning.quaternary` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
-| `text.warning.secondary` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
-| `text.warning.tertiary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
 
 ### 4.3. `border`
 
 | Token | Light | Dark | Alias (Light) |
 |-------|-------|------|----------------|
-| `border.accordion.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `border.accordion.line` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.actionList.default` | `#EBEBEB` | `#F4F4F4` | `Primitive/color/grey/600` |
-| `border.alert.error` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `border.alert.info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `border.alert.success` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `border.alert.warning` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `border.alertDialog.default` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.brandPrimary.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.brandPrimary.quaternary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `border.brandPrimary.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.brandPrimary.secondary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
 | `border.brandPrimary.tertiary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.brandPrimaryButton.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
+| `border.brandPrimary.quaternary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `border.brandSecondary.default` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
+| `border.brandSecondary.secondary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
+| `border.brandSecondary.tertiary` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
+| `border.brandSecondary.quaternary` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
+| `border.danger.default` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `border.danger.secondary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
+| `border.danger.tertiary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `border.danger.quaternary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `border.disabled.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `border.disabled.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `border.disabled.tertiary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.disabled.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `border.info.default` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
+| `border.info.secondary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
+| `border.info.tertiary` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
+| `border.info.quaternary` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `border.positive.default` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `border.positive.secondary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
+| `border.positive.tertiary` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `border.positive.quaternary` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `border.progress.default` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
+| `border.progress.secondary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
+| `border.progress.tertiary` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `border.progress.quaternary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
+| `border.warning.default` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
+| `border.warning.secondary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
+| `border.warning.tertiary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `border.warning.quaternary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `border.neutral.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `border.neutral.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `border.neutral.tertiary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.neutral.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `border.accordion.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `border.accordion.line` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.alert.error` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `border.alert.success` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `border.alert.warning` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `border.alert.info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `border.alertDialog.default` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.calendar slot.slot-default` | `#E2F3EB` | `#002318` | `Brand/primary/100` |
+| `border.calendar slot.slot-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.calendar slot.slot-selected` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `border.calendar slot.slot-disabled` | `#F5F7F9` | `#0F172A` | `Primitive/color/slate/100` |
+| `border.colorfulBadge.error` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `border.colorfulBadge.success` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `border.colorfulBadge.warning` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `border.colorfulBadge.warning2` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `border.colorfulBadge.info` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
+| `border.colorfulBadge.brand` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.colorfulBadge.neutral` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.input.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `border.input.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `border.input.typing` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `border.input.filled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.input.error` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `border.input.disabled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.modal.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.modal.secondary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
+| `border.modal.tertiary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.modal.quaternary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `border.modal.cardBorder` | `#F5F6FA` | `#004C31` | `Primitive/color/slate/50` |
+| `border.navigation.default` | `#F4F5F5` | `#4D5358` | `Primitive/color/neutral/100` |
+| `border.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `border.primarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.primarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `border.secondarySearch.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `border.secondarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.secondarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.secondarySearch.filled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `border.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `border.sideMenu.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `border.sideMenu.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.sideMenu.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.statusBadge.error` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `border.statusBadge.success` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `border.statusBadge.warning` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `border.statusBadge.warning2` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `border.statusBadge.info` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
+| `border.statusBadge.brand` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.statusBadge.neutral` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.steps.default` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.tabCapsule.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `border.tabCapsule.hover` | `#C5EDDA` | `#007549` | `Brand/primary/200` |
+| `border.tabCapsule.disabled` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `border.tabCapsule.selected` | `#C5EDDA` | `#007549` | `Brand/primary/200` |
+| `border.tabCapsule.inProgress` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `border.tabCapsule.success` | `#E2E4E6` | `#24A899` | `Primitive/color/neutral/200` |
+| `border.table.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `border.table.line` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `border.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
-| `border.brandPrimaryButton.quaternary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `border.brandPrimaryButton.quaternary-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
 | `border.brandPrimaryButton.secondary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
 | `border.brandPrimaryButton.secondary-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
 | `border.brandPrimaryButton.tertiary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.brandPrimaryButton.tertiary-hover` | `#84DBB4` | `#007549` | `Brand/primary/300` |
-| `border.brandSecondary.default` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
-| `border.brandSecondary.quaternary` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
-| `border.brandSecondary.secondary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
-| `border.brandSecondary.tertiary` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
+| `border.brandPrimaryButton.tertiary-hover` | `#91DFBB` | `#007549` | `Brand/primary/300` |
+| `border.brandPrimaryButton.quaternary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `border.brandPrimaryButton.quaternary-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
 | `border.brandSecondaryButton.default` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
 | `border.brandSecondaryButton.default-hover` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
-| `border.brandSecondaryButton.quaternary` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
-| `border.brandSecondaryButton.quaternary-hover` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
 | `border.brandSecondaryButton.secondary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
 | `border.brandSecondaryButton.secondary-hover` | `#53954E` | `#53954E` | `Brand/secondary/500` |
 | `border.brandSecondaryButton.tertiary` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
 | `border.brandSecondaryButton.tertiary-hover` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
-| `border.brandTag.default` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.brandTag.default-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.brandTag.quaternary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.brandTag.selected` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.card.blue-100` | `#BFDBFE` | `#1D4ED8` | `Primitive/color/blue/200` |
-| `border.card.brand-100` | `#C5EDDA` | `#4D5358` | `Primitive/color/emerald/200` |
-| `border.card.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `border.card.indigo-100` | `#E0E7FF` | `#4F46E5` | `Primitive/color/indigo/200` |
-| `border.card.sakura-100` | `#FFE0EC` | `#D687A8` | `Primitive/color/sakura/200` (light) · `Primitive/color/sakura/700` (dark) |
-| `border.colorfulBadge.brand` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.colorfulBadge.error` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `border.colorfulBadge.info` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `border.colorfulBadge.neutral` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.colorfulBadge.success` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `border.colorfulBadge.warning` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `border.colorfulBadge.warning2` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `border.danger.default` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `border.danger.quaternary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `border.danger.secondary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
-| `border.danger.tertiary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `border.brandSecondaryButton.quaternary` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
+| `border.brandSecondaryButton.quaternary-hover` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
 | `border.dangerButton.default` | `#DC2626` | `#FCA5A5` | `Primitive/color/red/600` |
 | `border.dangerButton.default-hover` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `border.dangerButton.quaternary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `border.dangerButton.quaternary-hover` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
 | `border.dangerButton.secondary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
 | `border.dangerButton.secondary-hover` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
 | `border.dangerButton.tertiary` | `#FECACA` | `#7F1D1D` | `Primitive/color/red/200` |
 | `border.dangerButton.tertiary-hover` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `border.disabled.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `border.disabled.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `border.disabled.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `border.disabled.tertiary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.dangerButton.quaternary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `border.dangerButton.quaternary-hover` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
 | `border.disabledButton.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `border.disabledButton.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `border.disabledButton.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `border.disabledButton.tertiary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.dropdown.default` | `#EBEBEB` | `#F4F4F4` | `Primitive/color/grey/600` |
-| `border.formBuilder.default` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.formBuilder.error` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `border.formBuilder.filled` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `border.formBuilder.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `border.image.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `border.info.default` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
-| `border.info.quaternary` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `border.info.secondary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
-| `border.info.tertiary` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `border.input.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `border.input.disabled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.input.error` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `border.input.filled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.input.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `border.input.typing` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `border.modal.cardBorder` | `#F5F6FA` | `#004C31` | `Primitive/color/slate/50` |
-| `border.modal.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.modal.quaternary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `border.modal.secondary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
-| `border.modal.tertiary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.navigation.default` | `#F4F5F5` | `#4D5358` | `Primitive/color/neutral/100` |
-| `border.neutral.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `border.neutral.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `border.neutral.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `border.neutral.tertiary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.disabledButton.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `border.neutralButton.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `border.neutralButton.default-hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `border.neutralButton.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `border.neutralButton.quaternary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.neutralButton.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `border.neutralButton.secondary-hover` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
 | `border.neutralButton.tertiary` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
 | `border.neutralButton.tertiary-hover` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
+| `border.neutralButton.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `border.neutralButton.quaternary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.neutralTag.default` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.neutralTag.default-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.neutralTag.quaternary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.neutralTag.selected` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.pill.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.popover.grey` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.positive.default` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
-| `border.positive.quaternary` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `border.positive.secondary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
-| `border.positive.tertiary` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `border.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `border.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `border.primarySearch.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.primarySearch.typing` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.progress.default` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
-| `border.progress.quaternary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
-| `border.progress.secondary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
-| `border.progress.tertiary` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `border.secondarySearch.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `border.secondarySearch.filled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `border.secondarySearch.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.secondarySearch.typing` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `border.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `border.sideMenu.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.sideMenu.selected` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.sideMenu.selected-hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.statusBadge.brand` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.statusBadge.error` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `border.statusBadge.info` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `border.statusBadge.neutral` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.statusBadge.success` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `border.statusBadge.warning` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `border.statusBadge.warning2` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `border.steps.default` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.brandTag.default` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.brandTag.default-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.brandTag.quaternary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.brandTag.selected` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
 | `border.switch.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
 | `border.switch.disabled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.tab.line` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `border.tab.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` (light) · `Brand/primary/400` (dark) |
-| `border.tab.selected` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `border.tab.selected-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` (light) · `Brand/primary/200` (dark) |
-| `border.tabCapsule.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `border.tabCapsule.disabled` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `border.tabCapsule.hover` | `#C5EDDA` | `#007549` | `Brand/primary/200` |
-| `border.tabCapsule.inProgress` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `border.tabCapsule.selected` | `#C5EDDA` | `#007549` | `Brand/primary/200` |
-| `border.tabCapsule.success` | `#E2E4E6` | `#24A899` | `Primitive/color/neutral/200` |
-| `border.table.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `border.table.line` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
 | `border.timeslot.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `border.warning.default` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
-| `border.warning.quaternary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `border.warning.secondary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
-| `border.warning.tertiary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `border.aiSearch.default` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
+| `border.aiSearch.hover` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `border.aiSearch.typing` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `border.aiSearch.filled` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
+| `border.image.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `border.card.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `border.card.brand-100` | `#C5EDDA` | `#4D5358` | `Primitive/color/emerald/200` |
+| `border.card.sakura-100` | `#FFE0EC` | `#D687A8` | `Primitive/color/sakura/200` |
+| `border.card.indigo-100` | `#E0E7FF` | `#4F46E5` | `Primitive/color/indigo/200` |
+| `border.card.blue-100` | `#BFDBFE` | `#1D4ED8` | `Primitive/color/blue/200` |
+| `border.tab.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `border.tab.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.tab.selected-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
+| `border.tab.line` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `border.pill.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.formBuilder.default` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.formBuilder.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `border.formBuilder.filled` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `border.formBuilder.error` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `border.dropdown.default` | `#EBEBEB` | `#F4F4F4` | `Primitive/color/grey/600` |
+| `border.actionList.default` | `#EBEBEB` | `#F4F4F4` | `Primitive/color/grey/600` |
+| `border.slider.blue` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
+| `border.slider.teal` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `border.slider.orange` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
+| `border.slider.red` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
+| `border.slider.indigo` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
+| `border.slider.lavender` | `#C8B6FF` | `#C8B6FF` | `Primitive/color/lavender/500` |
+| `border.slider.lime` | `#A5CF4F` | `#A5CF4F` | `Primitive/color/lime/500` |
+| `border.slider.sakura` | `#F5AFCA` | `#F5AFCA` | `Primitive/color/sakura/500` |
+| `border.slider.primary` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `border.slider.neutral` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `border.popover.grey` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 
 ### 4.4. `icon`
 
 | Token | Light | Dark | Alias (Light) |
 |-------|-------|------|----------------|
-| `icon.accordion.collapsed` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.accordion.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.accordion.expanded` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.alert.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.alert.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `icon.alert.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.alert.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `icon.alertDialog.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.alertDialog.info` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.alertDialog.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.alertDialog.warning` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.brandPrimary.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.brandPrimary.on-brand` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.brandPrimary.quaternary` | `#84DBB4` | `#007549` | `Brand/primary/300` |
+| `icon.brandPrimary.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `icon.brandPrimary.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `icon.brandPrimary.tertiary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
-| `icon.brandPrimaryButton.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
-| `icon.brandPrimaryButton.on-brand` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.brandPrimaryButton.quaternary` | `#84DBB4` | `#007549` | `Brand/primary/300` |
-| `icon.brandPrimaryButton.quaternary-hover` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
-| `icon.brandPrimaryButton.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.brandPrimaryButton.secondary-hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.brandPrimaryButton.tertiary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
-| `icon.brandPrimaryButton.tertiary-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `icon.brandPrimary.quaternary` | `#91DFBB` | `#007549` | `Brand/primary/300` |
+| `icon.brandPrimary.on-brand` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
 | `icon.brandSecondary.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
-| `icon.brandSecondary.on-default` | `#FFFFFF` | `#102310` | `Primitive/color/grey/50` |
-| `icon.brandSecondary.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
 | `icon.brandSecondary.secondary` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
 | `icon.brandSecondary.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
+| `icon.brandSecondary.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
+| `icon.brandSecondary.on-default` | `#FFFFFF` | `#102310` | `Primitive/color/grey/50` |
+| `icon.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.danger.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `icon.danger.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
+| `icon.danger.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `icon.danger.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.disabled.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.disabled.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `icon.disabled.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.disabled.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.disabled.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `icon.info.default` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `icon.info.secondary` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
+| `icon.info.tertiary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
+| `icon.info.quaternary` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
+| `icon.info.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.navy.default` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `icon.navy.secondary` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
+| `icon.navy.tertiary` | `#A5B4FC` | `#6366F1` | `Primitive/color/indigo/400` |
+| `icon.navy.quaternary` | `#C7D2FE` | `#4F46E5` | `Primitive/color/indigo/300` |
+| `icon.navy.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.magenta.default` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
+| `icon.magenta.secondary` | `#A81BBD` | `#DC4CF2` | `Primitive/color/magenta/600` |
+| `icon.magenta.tertiary` | `#DC4CF2` | `#A81BBD` | `Primitive/color/magenta/400` |
+| `icon.magenta.quaternary` | `#EA78F9` | `#871598` | `Primitive/color/magenta/300` |
+| `icon.magenta.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.pink.default` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
+| `icon.pink.secondary` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
+| `icon.pink.tertiary` | `#F472B6` | `#DB2777` | `Primitive/color/pink/400` |
+| `icon.pink.quaternary` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
+| `icon.pink.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.positive.secondary` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `icon.positive.tertiary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
+| `icon.positive.quaternary` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
+| `icon.positive.on-brand` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.positive.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `icon.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `icon.progress.secondary` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
+| `icon.progress.tertiary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
+| `icon.progress.quaternary` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
+| `icon.progress.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `icon.warning.secondary` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
+| `icon.warning.tertiary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
+| `icon.warning.quaternary` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
+| `icon.warning.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.neutral.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `icon.neutral.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.neutral.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.neutral.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `icon.accordion.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.accordion.collapsed` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.accordion.expanded` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.alert.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.alert.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.alert.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `icon.alert.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `icon.alertDialog.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.alertDialog.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.alertDialog.warning` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.alertDialog.info` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.calendar.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.calendar.selected` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.calendar slot.selected` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `icon.colorfulBadge.badge-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `icon.colorfulBadge.grey` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.colorfulBadge.green` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.colorfulBadge.blue` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `icon.colorfulBadge.teal` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.colorfulBadge.yellow` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `icon.colorfulBadge.orange` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `icon.colorfulBadge.red` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.colorfulBadge.indigo` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `icon.colorfulBadge.pink` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
+| `icon.colorfulBadge.purple` | `#7E22CE` | `#D8B4FE` | `Primitive/color/purple/700` |
+| `icon.colorfulBadge.megenta` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
+| `icon.input.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.input.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.input.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.input.filled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.input.error` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.input.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.list.secondary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.list.primary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.list.primary-default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.list.primary-selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.list.primary-selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.list.secondary-default` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `icon.list.secondary-selected` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `icon.list.secondary-selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.primarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.primarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.secondarySearch.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.sideMenu.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.sideMenu.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.sideMenu.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.statuslBadge.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.statuslBadge.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.statuslBadge.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `icon.statuslBadge.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `icon.statuslBadge.brand` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.statuslBadge.neutral` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.step.success-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `icon.tabCapsule.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.tabCapsule.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabCapsule.disabled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.tabCapsule.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabCapsule.inProgress` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
+| `icon.tabCapsule.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `icon.tabPill.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabPill.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabPill.disabled` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `icon.tabPill.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabUnderline.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.tabUnderline.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.tabUnderline.disabled` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
+| `icon.tabUnderline.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabUnderline.selected-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
+| `icon.topic.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.topic.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.topic.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
+| `icon.brandPrimaryButton.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.brandPrimaryButton.secondary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.brandPrimaryButton.tertiary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
+| `icon.brandPrimaryButton.tertiary-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `icon.brandPrimaryButton.quaternary` | `#91DFBB` | `#007549` | `Brand/primary/300` |
+| `icon.brandPrimaryButton.quaternary-hover` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
+| `icon.brandPrimaryButton.on-brand` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
 | `icon.brandSecondaryButton.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
 | `icon.brandSecondaryButton.default-hover` | `#2E4F2C` | `#E1F0E0` | `Brand/secondary/800` |
-| `icon.brandSecondaryButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.brandSecondaryButton.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
-| `icon.brandSecondaryButton.quaternary-hover` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
 | `icon.brandSecondaryButton.secondary` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
 | `icon.brandSecondaryButton.secondary-hover` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
 | `icon.brandSecondaryButton.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
 | `icon.brandSecondaryButton.tertiary-hover` | `#53954E` | `#53954E` | `Brand/secondary/500` |
+| `icon.brandSecondaryButton.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
+| `icon.brandSecondaryButton.quaternary-hover` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
+| `icon.brandSecondaryButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.dangerButton.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `icon.dangerButton.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
+| `icon.dangerButton.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `icon.dangerButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.disablediconButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.disablediconButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `icon.disablediconButton.tertiary` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
+| `icon.disablediconButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.disablediconButton.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `icon.neutralButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.neutralButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `icon.neutralButton.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.neutralButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.neutralButton.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 | `icon.brandTag.default` | `#007549` | `#08A768` | `Brand/primary/700` |
 | `icon.brandTag.hover` | `#007549` | `#08A768` | `Brand/primary/700` |
 | `icon.brandTag.selected` | `#007549` | `#08A768` | `Brand/primary/700` |
 | `icon.brandTag.selected-hover` | `#007549` | `#08A768` | `Brand/primary/700` |
 | `icon.brandTag.tailing` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.calendar.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.colorfulBadge.badge-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.colorfulBadge.blue` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `icon.colorfulBadge.green` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.colorfulBadge.grey` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.colorfulBadge.indigo` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `icon.colorfulBadge.megenta` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
-| `icon.colorfulBadge.orange` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `icon.colorfulBadge.pink` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
-| `icon.colorfulBadge.purple` | `#7E22CE` | `#D8B4FE` | `Primitive/color/purple/700` |
-| `icon.colorfulBadge.red` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.colorfulBadge.teal` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.colorfulBadge.yellow` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `icon.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.danger.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.danger.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `icon.danger.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `icon.danger.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
-| `icon.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.dangerButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.dangerButton.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `icon.dangerButton.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `icon.dangerButton.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
-| `icon.disabled.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.disabled.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.disabled.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.disabled.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `icon.disabled.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.disablediconButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.disablediconButton.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.disablediconButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.disablediconButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `icon.disablediconButton.tertiary` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
-| `icon.formBuilder.content` | `#007549` | `#08A768` | `Brand/primary/700` |
-| `icon.formBuilder.default` | `#007549` | `#CBD5E1` | `Brand/primary/700` |
-| `icon.formBuilder.error` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `icon.formBuilder.iconBox-default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `icon.formBuilder.iconBox-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `icon.info.default` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `icon.info.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.info.quaternary` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
-| `icon.info.secondary` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
-| `icon.info.tertiary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
-| `icon.input.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.input.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.input.error` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.input.filled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.input.hover` | `#ADB2B7` | `#C9CDD0` | `Primitive/color/neutral/400` |
-| `icon.input.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.list.primary-default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.list.primary-hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.list.primary-selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.list.primary-selected-hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.list.secondary-default` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `icon.list.secondary-hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.list.secondary-selected` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `icon.list.secondary-selected-hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.magenta.default` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
-| `icon.magenta.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.magenta.quaternary` | `#EA78F9` | `#871598` | `Primitive/color/magenta/300` |
-| `icon.magenta.secondary` | `#A81BBD` | `#DC4CF2` | `Primitive/color/magenta/600` |
-| `icon.magenta.tertiary` | `#DC4CF2` | `#A81BBD` | `Primitive/color/magenta/400` |
-| `icon.navy.default` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `icon.navy.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.navy.quaternary` | `#C7D2FE` | `#4F46E5` | `Primitive/color/indigo/300` |
-| `icon.navy.secondary` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
-| `icon.navy.tertiary` | `#A5B4FC` | `#6366F1` | `Primitive/color/indigo/400` |
-| `icon.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.neutral.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.neutral.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.neutral.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `icon.neutral.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.neutralButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.neutralButton.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.neutralButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.neutralButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `icon.neutralButton.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.pink.default` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
-| `icon.pink.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.pink.quaternary` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
-| `icon.pink.secondary` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
-| `icon.pink.tertiary` | `#F472B6` | `#DB2777` | `Primitive/color/pink/400` |
-| `icon.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.positive.on-brand` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.positive.quaternary` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
-| `icon.positive.secondary` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
-| `icon.positive.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `icon.positive.tertiary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
-| `icon.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.primarySearch.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.primarySearch.typing` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `icon.progress.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.progress.quaternary` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
-| `icon.progress.secondary` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
-| `icon.progress.tertiary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
-| `icon.secondarySearch.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.sideMenu.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.sideMenu.selected` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.sideMenu.selected-hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.statusSummaryCard.Destructive` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.statusSummaryCard.Info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `icon.statusSummaryCard.Inprogress` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `icon.statusSummaryCard.Positive` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.statusSummaryCard.decrease` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.statusSummaryCard.increase` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.statuslBadge.brand` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.statuslBadge.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.statuslBadge.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `icon.statuslBadge.neutral` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.statuslBadge.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.statuslBadge.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `icon.step.success-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.tabCapsule.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.tabCapsule.disabled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.tabCapsule.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.tabCapsule.inProgress` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
-| `icon.tabCapsule.selected` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.tabCapsule.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `icon.tabPill.default` | `#007549` | `#91DFBB` | `Brand/primary/700` (light) · `Brand/primary/300` (dark) |
-| `icon.tabPill.disabled` | `#54CF97` | `#54CF97` | `Brand/primary/500` (both modes) |
-| `icon.tabPill.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` (light) · `Brand/primary/300` (dark) |
-| `icon.tabPill.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` (light) · `Brand/primary/300` (dark) |
-| `icon.tabUnderline.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.tabUnderline.disabled` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
-| `icon.tabUnderline.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` (light) · `Brand/primary/400` (dark) |
-| `icon.tabUnderline.selected` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.tabUnderline.selected-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` (light) · `Brand/primary/200` (dark) |
 | `icon.tag.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `icon.tag.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `icon.tag.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `icon.tag.selected-hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `icon.tag.tailing` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.topic.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.topic.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.topic.hover` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `icon.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `icon.warning.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.warning.quaternary` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
-| `icon.warning.secondary` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
-| `icon.warning.tertiary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
+| `icon.aiSearch.default` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
+| `icon.aiSearch.hover` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `icon.aiSearch.typing` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `icon.aiSearch.filled` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
+| `icon.formBuilder.default` | `#007549` | `#CBD5E1` | `Brand/primary/700` |
+| `icon.formBuilder.error` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `icon.formBuilder.content` | `#007549` | `#08A768` | `Brand/primary/700` |
+| `icon.formBuilder.iconBox-default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `icon.formBuilder.iconBox-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `icon.statusSummaryCard.Info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `icon.statusSummaryCard.Positive` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.statusSummaryCard.Inprogress` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `icon.statusSummaryCard.Destructive` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.statusSummaryCard.increase` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.statusSummaryCard.decrease` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.indigo.default` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `icon.indigo.secondary` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
+| `icon.indigo.tertiary` | `#A5B4FC` | `#6366F1` | `Primitive/color/indigo/400` |
+| `icon.indigo.quaternary` | `#C7D2FE` | `#4F46E5` | `Primitive/color/indigo/300` |
+| `icon.indigo.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.lavender.default` | `#8A6CD8` | `#D0BEFF` | `Primitive/color/lavender/700` |
+| `icon.lavender.secondary` | `#A98EF0` | `#CBBCFF` | `Primitive/color/lavender/600` |
+| `icon.lavender.tertiary` | `#CBBCFF` | `#A98EF0` | `Primitive/color/lavender/400` |
+| `icon.lavender.quaternary` | `#D0BEFF` | `#8A6CD8` | `Primitive/color/lavender/300` |
+| `icon.lavender.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.lime.default` | `#6B8E26` | `#BDE36A` | `Primitive/color/lime/700` |
+| `icon.lime.secondary` | `#88B033` | `#ADD654` | `Primitive/color/lime/600` |
+| `icon.lime.tertiary` | `#ADD654` | `#88B033` | `Primitive/color/lime/400` |
+| `icon.lime.quaternary` | `#BDE36A` | `#6B8E26` | `Primitive/color/lime/300` |
+| `icon.lime.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.sakura.default` | `#D687A8` | `#FFCFDF` | `Primitive/color/sakura/700` |
+| `icon.sakura.secondary` | `#E89DBA` | `#FFC0D4` | `Primitive/color/sakura/600` |
+| `icon.sakura.tertiary` | `#FFC0D4` | `#E89DBA` | `Primitive/color/sakura/400` |
+| `icon.sakura.quaternary` | `#FFCFDF` | `#D687A8` | `Primitive/color/sakura/300` |
+| `icon.sakura.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
 
 ### 4.5. `surface`
 
 | Token | Light | Dark | Alias (Light) |
 |-------|-------|------|----------------|
-| `surface.accordion.collapsed` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.accordion.disabled` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
-| `surface.accordion.expanded` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.actionList.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.alert.error` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
-| `surface.alert.info` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
-| `surface.alert.success` | `#F4FBFA` | `#082B2A` | `Primitive/color/teal/50` |
-| `surface.alert.warning` | `#FFF9F0` | `#431407` | `Primitive/color/orange/50` |
-| `surface.alertDialog.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.brandPrimary.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
+| `surface.brandPrimary.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `surface.brandPrimary.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
-| `surface.brandPrimary.quaternary` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.brandPrimary.quaternary-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
 | `surface.brandPrimary.secondary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `surface.brandPrimary.secondary-hover` | `#84DBB4` | `#007549` | `Brand/primary/300` |
+| `surface.brandPrimary.secondary-hover` | `#91DFBB` | `#007549` | `Brand/primary/300` |
 | `surface.brandPrimary.tertiary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
 | `surface.brandPrimary.tertiary-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `surface.brandPrimaryButton.default` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `surface.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
-| `surface.brandPrimaryButton.quaternary` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.brandPrimaryButton.quaternary-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.brandPrimaryButton.quinary` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `surface.brandPrimaryButton.quinary-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.brandPrimaryButton.secondary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `surface.brandPrimaryButton.secondary-hover` | `#84DBB4` | `#007549` | `Brand/primary/300` |
-| `surface.brandPrimaryButton.tertiary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.brandPrimaryButton.tertiary-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `surface.brandPrimary.quaternary` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.brandPrimary.quaternary-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
 | `surface.brandSecondary.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
 | `surface.brandSecondary.default-hover` | `#2E4F2C` | `#E1F0E0` | `Brand/secondary/800` |
-| `surface.brandSecondary.quaternary` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
-| `surface.brandSecondary.quaternary-hover` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
 | `surface.brandSecondary.secondary` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
 | `surface.brandSecondary.secondary-hover` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
 | `surface.brandSecondary.tertiary` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
 | `surface.brandSecondary.tertiary-hover` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
-| `surface.brandSecondarybutton.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
-| `surface.brandSecondarybutton.default-hover` | `#2E4F2C` | `#E1F0E0` | `Brand/secondary/800` |
-| `surface.brandSecondarybutton.quaternary` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
-| `surface.brandSecondarybutton.quaternary-hover` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
-| `surface.brandSecondarybutton.quinary` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `surface.brandSecondarybutton.quinary-hover` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
-| `surface.brandSecondarybutton.secondary` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
-| `surface.brandSecondarybutton.secondary-hover` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
-| `surface.brandSecondarybutton.tertiary` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
-| `surface.brandSecondarybutton.tertiary-hover` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
-| `surface.brandTag.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.brandTag.default-hover` | `#F4FBF8` | `#003322` | `Brand/primary/50` |
-| `surface.brandTag.selected` | `#F4FBF8` | `#003322` | `Brand/primary/50` |
-| `surface.brandTag.selected-hover` | `#E2F3EB` | `#004C31` | `Brand/primary/100` |
-| `surface.calendar.current` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.calendar.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.calendar.disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.calendar.hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.calendar.selected` | `#007549` | `#08A768` | `Brand/primary/700` |
-| `surface.card.100` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.card.200` | `#FDFDFD` | `#363B3F` | `Primitive/color/grey/100` |
-| `surface.card.300` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
-| `surface.card.blue-100` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
-| `surface.card.brand-100` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.card.indigo-100` | `#F3F5FC` | `#1E1B4B` | `Primitive/color/indigo/50` |
-| `surface.card.sakura-200` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` (light) · `Primitive/color/sakura/900` (dark) |
-| `surface.categorySummaryCard.A` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `surface.categorySummaryCard.B` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `surface.categorySummaryCard.C` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `surface.categorySummaryCard.D` | `#F3ADFD` | `#6E1379` | `Primitive/color/magenta/200` |
-| `surface.categorySummaryCard.E` | `#E0E7FF` | `#4338CA` | `Primitive/color/indigo/200` |
-| `surface.categorySummaryCard.F` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `surface.categorySummaryCard.G` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `surface.categorySummaryCard.H` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `surface.colorfulBadge.blue` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `surface.colorfulBadge.blue-bold` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
-| `surface.colorfulBadge.green` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.colorfulBadge.green-bold` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `surface.colorfulBadge.grey` | `#F5F7F9` | `#0F172A` | `Primitive/color/slate/100` |
-| `surface.colorfulBadge.grey-bold` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `surface.colorfulBadge.indigo` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
-| `surface.colorfulBadge.indigo-bold` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
-| `surface.colorfulBadge.megenta` | `#F9D6FE` | `#5A125F` | `Primitive/color/magenta/100` |
-| `surface.colorfulBadge.megenta-bold` | `#C926E0` | `#C926E0` | `Primitive/color/magenta/500` |
-| `surface.colorfulBadge.orange` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.colorfulBadge.orange-bold` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
-| `surface.colorfulBadge.pink` | `#FCE7F3` | `#831843` | `Primitive/color/pink/100` |
-| `surface.colorfulBadge.pink-bold` | `#EC4899` | `#EC4899` | `Primitive/color/pink/500` |
-| `surface.colorfulBadge.purple` | `#F3E8FF` | `#581C87` | `Primitive/color/purple/100` |
-| `surface.colorfulBadge.purple-bold` | `#A855F7` | `#A855F7` | `Primitive/color/purple/500` |
-| `surface.colorfulBadge.red` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.colorfulBadge.red-bold` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
-| `surface.colorfulBadge.teal` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.colorfulBadge.teal-bold` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `surface.colorfulBadge.yellow` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
-| `surface.colorfulBadge.yellow-bold` | `#EAB308` | `#EAB308` | `Primitive/color/yellow/500` |
+| `surface.brandSecondary.quaternary` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
+| `surface.brandSecondary.quaternary-hover` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
 | `surface.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
 | `surface.danger.default-hover` | `#991B1B` | `#FECACA` | `Primitive/color/red/800` |
-| `surface.danger.quaternary` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
-| `surface.danger.quaternary-hover` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
 | `surface.danger.secondary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
 | `surface.danger.secondary-hover` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
 | `surface.danger.tertiary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
 | `surface.danger.tertiary-hover` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `surface.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `surface.dangerButton.default-hover` | `#991B1B` | `#FECACA` | `Primitive/color/red/800` |
-| `surface.dangerButton.quaternary` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
-| `surface.dangerButton.quaternary-hover` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.dangerButton.quinary` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
-| `surface.dangerButton.quinary-hover` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
-| `surface.dangerButton.secondary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `surface.dangerButton.secondary-hover` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `surface.dangerButton.tertiary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.dangerButton.tertiary-hover` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `surface.danger.quaternary` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
+| `surface.danger.quaternary-hover` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
 | `surface.disabled.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `surface.disabled.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `surface.disabled.quaternary` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
-| `surface.disabled.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `surface.disabled.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `surface.disabled.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
 | `surface.disabled.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `surface.disabled.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `surface.disabledButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `surface.disabledButton.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `surface.disabledButton.quaternary` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
-| `surface.disabledButton.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `surface.disabledButton.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `surface.disabledButton.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `surface.disabledButton.tertiary` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
-| `surface.disabledButton.tertiary-hover` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `surface.dropdown.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.formBuilder.card` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.formBuilder.default` | `#F4FBF8` | `#E8E8E8` | `Brand/primary/50` |
-| `surface.formBuilder.default-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.formBuilder.error` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
-| `surface.formBuilder.filled` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.formBuilder.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.indicator.blue` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
-| `surface.indicator.green` | `#08A768` | `#6AD6A5` | `Primitive/color/emerald/600` |
-| `surface.indicator.grey` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `surface.indicator.indigo` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
-| `surface.indicator.magenta` | `#A81BBD` | `#DC4CF2` | `Primitive/color/magenta/600` |
-| `surface.indicator.orange` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
-| `surface.indicator.pink` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
-| `surface.indicator.purple` | `#9333EA` | `#C084FC` | `Primitive/color/purple/600` |
-| `surface.indicator.red` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `surface.indicator.teal` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
-| `surface.indicator.yellow` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
+| `surface.disabled.quaternary` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
+| `surface.disabled.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `surface.info.default` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
 | `surface.info.default-hover` | `#1E40AF` | `#BFDBFE` | `Primitive/color/blue/800` |
-| `surface.info.quaternary` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
-| `surface.info.quaternary-hover` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
 | `surface.info.secondary` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
 | `surface.info.secondary-hover` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
 | `surface.info.tertiary` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
 | `surface.info.tertiary-hover` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
+| `surface.info.quaternary` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
+| `surface.info.quaternary-hover` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `surface.navy.default` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `surface.navy.default-hover` | `#4338CA` | `#E0E7FF` | `Primitive/color/indigo/800` |
+| `surface.navy.secondary` | `#E0E7FF` | `#4338CA` | `Primitive/color/indigo/200` |
+| `surface.navy.secondary-hover` | `#C7D2FE` | `#4F46E5` | `Primitive/color/indigo/300` |
+| `surface.navy.tertiary` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
+| `surface.navy.tertiary-hover` | `#E0E7FF` | `#4338CA` | `Primitive/color/indigo/200` |
+| `surface.navy.quaternary` | `#F3F5FC` | `#1E1B4B` | `Primitive/color/indigo/50` |
+| `surface.navy.quaternary-hover` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
+| `surface.magenta.default` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
+| `surface.magenta.default-hover` | `#6E1379` | `#F3ADFD` | `Primitive/color/magenta/800` |
+| `surface.magenta.secondary` | `#F3ADFD` | `#6E1379` | `Primitive/color/magenta/200` |
+| `surface.magenta.secondary-hover` | `#EA78F9` | `#871598` | `Primitive/color/magenta/300` |
+| `surface.magenta.tertiary` | `#F9D6FE` | `#5A125F` | `Primitive/color/magenta/100` |
+| `surface.magenta.tertiary-hover` | `#F3ADFD` | `#6E1379` | `Primitive/color/magenta/200` |
+| `surface.magenta.quaternary` | `#FAF3FC` | `#380040` | `Primitive/color/magenta/50` |
+| `surface.magenta.quaternary-hover` | `#F9D6FE` | `#5A125F` | `Primitive/color/magenta/100` |
+| `surface.pink.default` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
+| `surface.pink.default-hover` | `#9D174D` | `#FBCFE8` | `Primitive/color/pink/800` |
+| `surface.pink.secondary` | `#FBCFE8` | `#9D174D` | `Primitive/color/pink/200` |
+| `surface.pink.secondary-hover` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
+| `surface.pink.tertiary` | `#FCE7F3` | `#831843` | `Primitive/color/pink/100` |
+| `surface.pink.tertiary-hover` | `#FBCFE8` | `#9D174D` | `Primitive/color/pink/200` |
+| `surface.pink.quaternary` | `#FBF4F8` | `#500724` | `Primitive/color/pink/50` |
+| `surface.pink.quaternary-hover` | `#FCE7F3` | `#831843` | `Primitive/color/pink/100` |
+| `surface.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `surface.positive.default-hover` | `#195652` | `#A2EDDE` | `Primitive/color/teal/800` |
+| `surface.positive.secondary` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `surface.positive.secondary-hover` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
+| `surface.positive.tertiary` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.positive.tertiary-hover` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `surface.positive.quaternary` | `#F4FBFA` | `#082B2A` | `Primitive/color/teal/50` |
+| `surface.positive.quaternary-hover` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `surface.progress.default-hover` | `#854D0E` | `#FEF08A` | `Primitive/color/yellow/800` |
+| `surface.progress.secondary` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `surface.progress.secondary-hover` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
+| `surface.progress.tertiary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
+| `surface.progress.tertiary-hover` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `surface.progress.quaternary` | `#FBFAF4` | `#422006` | `Primitive/color/yellow/50` |
+| `surface.progress.quaternary-hover` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
+| `surface.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `surface.warning.default-hover` | `#9A3412` | `#FED7AA` | `Primitive/color/orange/800` |
+| `surface.warning.secondary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `surface.warning.secondary-hover` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
+| `surface.warning.tertiary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.warning.tertiary-hover` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `surface.warning.quaternary` | `#FFF9F0` | `#431407` | `Primitive/color/orange/50` |
+| `surface.warning.quaternary-hover` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `surface.neutral.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
+| `surface.neutral.secondary` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
+| `surface.neutral.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `surface.neutral.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `surface.neutral.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `surface.neutral.quaternary` | `#F9FBFB` | `#363B3F` | `Primitive/color/neutral/50` |
+| `surface.neutral.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `surface.accordion.disabled` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
+| `surface.accordion.collapsed` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.accordion.expanded` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.alert.error` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
+| `surface.alert.success` | `#F4FBFA` | `#082B2A` | `Primitive/color/teal/50` |
+| `surface.alert.warning` | `#FFF9F0` | `#431407` | `Primitive/color/orange/50` |
+| `surface.alert.info` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
+| `surface.alertDialog.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.calendar.date-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar.date-current` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.calendar.date-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.calendar.date-selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.calendar.date-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.date-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.date-current` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.calendar slot.date-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.calendar slot.date-selected` | `#007549` | `#08A768` | `Brand/primary/700` |
+| `surface.calendar slot.date-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.slot-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.slot-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.calendar slot.slot-selected` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.calendar slot.slot-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.cta-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.cta-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.calendar slot.cta-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.colorfulBadge.grey` | `#F5F7F9` | `#0F172A` | `Primitive/color/slate/100` |
+| `surface.colorfulBadge.green` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.colorfulBadge.blue` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `surface.colorfulBadge.teal` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.colorfulBadge.yellow` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
+| `surface.colorfulBadge.orange` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.colorfulBadge.red` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.colorfulBadge.indigo` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
+| `surface.colorfulBadge.pink` | `#FCE7F3` | `#831843` | `Primitive/color/pink/100` |
+| `surface.colorfulBadge.purple` | `#F3E8FF` | `#581C87` | `Primitive/color/purple/100` |
+| `surface.colorfulBadge.megenta` | `#F9D6FE` | `#5A125F` | `Primitive/color/magenta/100` |
+| `surface.colorfulBadge.grey-bold` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `surface.colorfulBadge.green-bold` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `surface.colorfulBadge.blue-bold` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
+| `surface.colorfulBadge.teal-bold` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.colorfulBadge.yellow-bold` | `#EAB308` | `#EAB308` | `Primitive/color/yellow/500` |
+| `surface.colorfulBadge.orange-bold` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
+| `surface.colorfulBadge.red-bold` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
+| `surface.colorfulBadge.indigo-bold` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
+| `surface.colorfulBadge.pink-bold` | `#EC4899` | `#EC4899` | `Primitive/color/pink/500` |
+| `surface.colorfulBadge.megenta-bold` | `#C926E0` | `#C926E0` | `Primitive/color/magenta/500` |
+| `surface.colorfulBadge.purple-bold` | `#A855F7` | `#A855F7` | `Primitive/color/purple/500` |
 | `surface.input.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
 | `surface.input.disabled` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
 | `surface.list.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
 | `surface.list.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
 | `surface.list.selected` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
 | `surface.list.selected-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.magenta.default` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
-| `surface.magenta.default-hover` | `#6E1379` | `#F3ADFD` | `Primitive/color/magenta/800` |
-| `surface.magenta.quaternary` | `#FAF3FC` | `#380040` | `Primitive/color/magenta/50` |
-| `surface.magenta.quaternary-hover` | `#F9D6FE` | `#5A125F` | `Primitive/color/magenta/100` |
-| `surface.magenta.secondary` | `#F3ADFD` | `#6E1379` | `Primitive/color/magenta/200` |
-| `surface.magenta.secondary-hover` | `#EA78F9` | `#871598` | `Primitive/color/magenta/300` |
-| `surface.magenta.tertiary` | `#F9D6FE` | `#5A125F` | `Primitive/color/magenta/100` |
-| `surface.magenta.tertiary-hover` | `#F3ADFD` | `#6E1379` | `Primitive/color/magenta/200` |
 | `surface.modal.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
 | `surface.modal.disabled` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
 | `surface.navigation.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.navy.default` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `surface.navy.default-hover` | `#4338CA` | `#E0E7FF` | `Primitive/color/indigo/800` |
-| `surface.navy.quaternary` | `#F3F5FC` | `#1E1B4B` | `Primitive/color/indigo/50` |
-| `surface.navy.quaternary-hover` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
-| `surface.navy.secondary` | `#E0E7FF` | `#4338CA` | `Primitive/color/indigo/200` |
-| `surface.navy.secondary-hover` | `#C7D2FE` | `#4F46E5` | `Primitive/color/indigo/300` |
-| `surface.navy.tertiary` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
-| `surface.navy.tertiary-hover` | `#E0E7FF` | `#4338CA` | `Primitive/color/indigo/200` |
-| `surface.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `surface.neutral.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `surface.neutral.quaternary` | `#F9FBFB` | `#363B3F` | `Primitive/color/neutral/50` |
-| `surface.neutral.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `surface.neutral.secondary` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `surface.neutral.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `surface.neutral.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `surface.neutral.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `surface.pagination.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.pagination.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.pagination.selected` | `#E2F3EB` | `#007549` | `Brand/primary/100` |
+| `surface.sideMenu.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.sideMenu.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.sideMenu.disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.sideMenu.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.sideMenu.selected-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.statusBadge.error` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.statusBadge.success` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.statusBadge.warning` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.statusBadge.info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `surface.statusBadge.brand` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.statusBadge.neutral` | `#F5F7F9` | `#334155` | `Primitive/color/slate/100` |
+| `surface.steps.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.steps.hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `surface.steps.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.steps.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.steps.success-hover` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `surface.tabCapsule.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.tabCapsule.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.tabCapsule.disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.tabCapsule.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.tabCapsule.success` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.tabPill.default` | `#FFFFFF` | `#363B3F` | `Primitive/color/grey/50` |
+| `surface.tabPill.hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `surface.tabPill.disabled` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.tabPill.selected` | `#FFFFFF` | `#363B3F` | `Primitive/color/grey/50` |
+| `surface.tabPill.background` | `#E2F3EB` | `#003322` | `Primitive/color/emerald/100` |
+| `surface.table.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.table.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.table.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.table.selected-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.table.header` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.table.footer` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.topic.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.topic.hover` | `#F4FBF8` | `#003322` | `Brand/primary/50` |
+| `surface.topic.disabled` | `#F9FBFB` | `#363B3F` | `Primitive/color/neutral/50` |
+| `surface.tooltip.default` | `#007549` | `#08A768` | `Brand/primary/700` |
+| `surface.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
+| `surface.brandPrimaryButton.secondary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `surface.brandPrimaryButton.secondary-hover` | `#91DFBB` | `#007549` | `Brand/primary/300` |
+| `surface.brandPrimaryButton.tertiary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.brandPrimaryButton.tertiary-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `surface.brandPrimaryButton.quaternary` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.brandPrimaryButton.quaternary-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.brandPrimaryButton.quinary` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `surface.brandPrimaryButton.quinary-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.brandSecondarybutton.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
+| `surface.brandSecondarybutton.default-hover` | `#2E4F2C` | `#E1F0E0` | `Brand/secondary/800` |
+| `surface.brandSecondarybutton.secondary` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
+| `surface.brandSecondarybutton.secondary-hover` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
+| `surface.brandSecondarybutton.tertiary` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
+| `surface.brandSecondarybutton.tertiary-hover` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
+| `surface.brandSecondarybutton.quaternary` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
+| `surface.brandSecondarybutton.quaternary-hover` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
+| `surface.brandSecondarybutton.quinary` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `surface.brandSecondarybutton.quinary-hover` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
+| `surface.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `surface.dangerButton.default-hover` | `#991B1B` | `#FECACA` | `Primitive/color/red/800` |
+| `surface.dangerButton.secondary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `surface.dangerButton.secondary-hover` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `surface.dangerButton.tertiary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.dangerButton.tertiary-hover` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `surface.dangerButton.quaternary` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
+| `surface.dangerButton.quaternary-hover` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.dangerButton.quinary` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
+| `surface.dangerButton.quinary-hover` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
+| `surface.disabledButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `surface.disabledButton.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
+| `surface.disabledButton.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `surface.disabledButton.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `surface.disabledButton.tertiary` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
+| `surface.disabledButton.tertiary-hover` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `surface.disabledButton.quaternary` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
+| `surface.disabledButton.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `surface.neutralButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `surface.neutralButton.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `surface.neutralButton.quaternary` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
-| `surface.neutralButton.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `surface.neutralButton.quinary` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.neutralButton.quinary-hover` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
 | `surface.neutralButton.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `surface.neutralButton.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
 | `surface.neutralButton.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `surface.neutralButton.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `surface.neutralButton.quaternary` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
+| `surface.neutralButton.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `surface.neutralButton.quinary` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.neutralButton.quinary-hover` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
 | `surface.neutralTag.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
 | `surface.neutralTag.default-hover` | `#F9FBFB` | `#222629` | `Primitive/color/neutral/50` |
 | `surface.neutralTag.selected` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
 | `surface.neutralTag.selectedy-hover` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `surface.notification.default` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
-| `surface.pagination.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.pagination.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` (light) · `Brand/primary/950` (dark) |
-| `surface.pagination.selected` | `#E2F3EB` | `#007549` | `Brand/primary/100` |
-| `surface.pink.default` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
-| `surface.pink.default-hover` | `#9D174D` | `#FBCFE8` | `Primitive/color/pink/800` |
-| `surface.pink.quaternary` | `#FBF4F8` | `#500724` | `Primitive/color/pink/50` |
-| `surface.pink.quaternary-hover` | `#FCE7F3` | `#831843` | `Primitive/color/pink/100` |
-| `surface.pink.secondary` | `#FBCFE8` | `#9D174D` | `Primitive/color/pink/200` |
-| `surface.pink.secondary-hover` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
-| `surface.pink.tertiary` | `#FCE7F3` | `#831843` | `Primitive/color/pink/100` |
-| `surface.pink.tertiary-hover` | `#FBCFE8` | `#9D174D` | `Primitive/color/pink/200` |
-| `surface.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `surface.positive.default-hover` | `#195652` | `#A2EDDE` | `Primitive/color/teal/800` |
-| `surface.positive.quaternary` | `#F4FBFA` | `#082B2A` | `Primitive/color/teal/50` |
-| `surface.positive.quaternary-hover` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.positive.secondary` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `surface.positive.secondary-hover` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
-| `surface.positive.tertiary` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.positive.tertiary-hover` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `surface.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `surface.progress.default-hover` | `#854D0E` | `#FEF08A` | `Primitive/color/yellow/800` |
-| `surface.progress.quaternary` | `#FBFAF4` | `#422006` | `Primitive/color/yellow/50` |
-| `surface.progress.quaternary-hover` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
-| `surface.progress.secondary` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `surface.progress.secondary-hover` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
-| `surface.progress.tertiary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
-| `surface.progress.tertiary-hover` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `surface.scrollBar.error-bar` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.scrollBar.error-pill` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `surface.scrollBar.info-bar` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `surface.scrollBar.info-pill` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
-| `surface.scrollBar.neutral-bar` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `surface.scrollBar.neutral-pill` | `#ADB2B7` | `#ADB2B7` | `Primitive/color/neutral/400` |
-| `surface.scrollBar.success-bar` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.scrollBar.success-pill` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
-| `surface.scrollBar.warning-bar` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.scrollBar.warning-pill` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
-| `surface.search.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.sideMenu.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.sideMenu.disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.sideMenu.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.sideMenu.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.sideMenu.selected-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.smallAlert.error` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
-| `surface.smallAlert.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `surface.statusBadge.brand` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.statusBadge.error` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.statusBadge.info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `surface.statusBadge.neutral` | `#F5F7F9` | `#334155` | `Primitive/color/slate/100` |
-| `surface.statusBadge.success` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.statusBadge.warning` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.statusSummaryCard.Destructive` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.statusSummaryCard.Info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `surface.statusSummaryCard.Inprogress` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.statusSummaryCard.Positive` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.statusSummaryCard.decrease` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.statusSummaryCard.increase` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.steps.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.steps.selected` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `surface.steps.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.brandTag.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.brandTag.default-hover` | `#F4FBF8` | `#003322` | `Brand/primary/50` |
+| `surface.brandTag.selected` | `#F4FBF8` | `#003322` | `Brand/primary/50` |
+| `surface.brandTag.selected-hover` | `#E2F3EB` | `#004C31` | `Brand/primary/100` |
+| `surface.switch.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.switch.hover` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
+| `surface.switch.disabled` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `surface.switch.icon` | `#FFFFFF` | `#FFFFFF` | `Primitive/color/grey/50` |
+| `surface.switch.icon-disabled` | `#F4F5F5` | `#636B72` | `Primitive/color/neutral/100` |
+| `surface.switch.off` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `surface.switch.off-hover` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
+| `surface.switch.on` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `surface.switch.on-hover` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `surface.switch.checkbox` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `surface.switch.checkbox-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.switch.checkbox-dedault-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `surface.switch.radio` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `surface.switch.radio-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.switch.radio-dedault-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
 | `surface.switch.A` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
 | `surface.switch.B` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
 | `surface.switch.C` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
@@ -2033,47 +2366,106 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.switch.F` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
 | `surface.switch.G` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
 | `surface.switch.H` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `surface.switch.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.switch.disabled` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `surface.switch.icon` | `#FFFFFF` | `#FFFFFF` | `Primitive/color/grey/50` |
-| `surface.switch.icon-disabled` | `#F4F5F5` | `#636B72` | `Primitive/color/neutral/100` |
-| `surface.switch.off` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `surface.switch.off-hover` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
-| `surface.switch.on` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
-| `surface.switch.on-hover` | `#194845` | `#A2EDDE` | `Primitive/color/teal/900` |
-| `surface.tabCapsule.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.tabCapsule.disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.tabCapsule.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.tabCapsule.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.tabCapsule.success` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.tabPill.background` | `#E2F3EB` | `#003322` | `Primitive/color/emerald/100` (light) · `Primitive/color/emerald/900` (dark) |
-| `surface.tabPill.default` | `#FFFFFF` | `#363B3F` | `Primitive/color/grey/50` (light) · `Primitive/color/neutral/800` (dark) |
-| `surface.tabPill.disabled` | `#FFFFFF` | `#363B3F` | `Primitive/color/grey/50` (light) · `Primitive/color/neutral/800` (dark) |
-| `surface.tabPill.hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` (light) · `Brand/primary/800` (dark) |
-| `surface.tabPill.selected` | `#FFFFFF` | `#363B3F` | `Primitive/color/grey/50` (light) · `Primitive/color/neutral/800` (dark) |
-| `surface.table.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.table.footer` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.table.header` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.table.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.table.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.table.selected-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.timeslot.box` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
 | `surface.timeslot.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.timeslot.hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
 | `surface.timeslot.disabled` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
-| `surface.timeslot.hover` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
-| `surface.timeslot.selected` | `#007549` | `#84DBB4` | `Brand/primary/700` |
-| `surface.tooltip.default` | `#007549` | `#08A768` | `Brand/primary/700` |
-| `surface.topic.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.topic.disabled` | `#F9FBFB` | `#363B3F` | `Primitive/color/neutral/50` |
-| `surface.topic.hover` | `#F4FBF8` | `#003322` | `Brand/primary/50` |
-| `surface.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `surface.warning.default-hover` | `#9A3412` | `#FED7AA` | `Primitive/color/orange/800` |
-| `surface.warning.quaternary` | `#FFF9F0` | `#431407` | `Primitive/color/orange/50` |
-| `surface.warning.quaternary-hover` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.warning.secondary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `surface.warning.secondary-hover` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
-| `surface.warning.tertiary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.warning.tertiary-hover` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `surface.timeslot.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.timeslot.box` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
+| `surface.card.100` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.card.200` | `#FDFDFD` | `#363B3F` | `Primitive/color/grey/100` |
+| `surface.card.300` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
+| `surface.card.brand-100` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.card.sakura-200` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` |
+| `surface.card.indigo-100` | `#F3F5FC` | `#1E1B4B` | `Primitive/color/indigo/50` |
+| `surface.card.blue-100` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
+| `surface.notification.default` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
+| `surface.formBuilder.default` | `#F4FBF8` | `#E8E8E8` | `Brand/primary/50` |
+| `surface.formBuilder.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.formBuilder.filled` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.formBuilder.error` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
+| `surface.formBuilder.card` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.formBuilder.default-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.statusSummaryCard.Info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `surface.statusSummaryCard.Indigo` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
+| `surface.statusSummaryCard.Sakura` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` |
+| `surface.statusSummaryCard.Positive` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.statusSummaryCard.Lime` | `#EAF7CC` | `#3B4E14` | `Primitive/color/lime/100` |
+| `surface.statusSummaryCard.Inprogress` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.statusSummaryCard.Destructive` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.statusSummaryCard.increase` | `#D1F6EE` | `#003322` | `Primitive/color/teal/100` |
+| `surface.statusSummaryCard.decrease` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.categorySummaryCard.A` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
+| `surface.categorySummaryCard.B` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `surface.categorySummaryCard.C` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `surface.categorySummaryCard.D` | `#F3ADFD` | `#6E1379` | `Primitive/color/magenta/200` |
+| `surface.categorySummaryCard.E` | `#E0E7FF` | `#4338CA` | `Primitive/color/indigo/200` |
+| `surface.categorySummaryCard.F` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `surface.categorySummaryCard.G` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `surface.categorySummaryCard.H` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `surface.dropdown.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.actionList.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.scrollBar.neutral-bar` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `surface.scrollBar.neutral-pill` | `#ADB2B7` | `#ADB2B7` | `Primitive/color/neutral/400` |
+| `surface.scrollBar.info-bar` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `surface.scrollBar.info-pill` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
+| `surface.scrollBar.success-bar` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.scrollBar.success-pill` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
+| `surface.scrollBar.warning-bar` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.scrollBar.warning-pill` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
+| `surface.scrollBar.error-bar` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.scrollBar.error-pill` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `surface.indicator.grey` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `surface.indicator.green` | `#08A768` | `#6AD6A5` | `Primitive/color/emerald/600` |
+| `surface.indicator.blue` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
+| `surface.indicator.teal` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `surface.indicator.yellow` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
+| `surface.indicator.orange` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
+| `surface.indicator.red` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `surface.indicator.indigo` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
+| `surface.indicator.magenta` | `#A81BBD` | `#DC4CF2` | `Primitive/color/magenta/600` |
+| `surface.indicator.pink` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
+| `surface.indicator.purple` | `#9333EA` | `#C084FC` | `Primitive/color/purple/600` |
+| `surface.slider.primary-bar` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `surface.slider.primary-pill` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `surface.slider.neutral-bar` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `surface.slider.neutral-pill` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `surface.slider.blue-bar` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `surface.slider.blue-pill` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
+| `surface.slider.indigo-bar` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
+| `surface.slider.indigo-pill` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
+| `surface.slider.lavender-bar` | `#EDE7FF` | `#4E3490` | `Primitive/color/lavender/100` |
+| `surface.slider.lavender-pill` | `#C8B6FF` | `#C8B6FF` | `Primitive/color/lavender/500` |
+| `surface.slider.teal-bar` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.slider.teal-pill` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.slider.lime-bar` | `#EAF7CC` | `#3B4E14` | `Primitive/color/lime/100` |
+| `surface.slider.lime-pill` | `#A5CF4F` | `#A5CF4F` | `Primitive/color/lime/500` |
+| `surface.slider.sakura-bar` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` |
+| `surface.slider.sakura-pill` | `#F5AFCA` | `#F5AFCA` | `Primitive/color/sakura/500` |
+| `surface.slider.orange-bar` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.slider.orange-pill` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
+| `surface.slider.red-bar` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.slider.red-pill` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
+| `surface.progress Bar.neutral-bar` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `surface.progress Bar.neutral-pill` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `surface.progress Bar.blue-bar` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `surface.progress Bar.blue-pill` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
+| `surface.progress Bar.indigo-bar` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
+| `surface.progress Bar.indigo-pill` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
+| `surface.progress Bar.lavender-bar` | `#EDE7FF` | `#4E3490` | `Primitive/color/lavender/100` |
+| `surface.progress Bar.lavender-pill` | `#C8B6FF` | `#C8B6FF` | `Primitive/color/lavender/500` |
+| `surface.progress Bar.teal-bar` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.progress Bar.teal-pill` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.progress Bar.lime-bar` | `#EAF7CC` | `#3B4E14` | `Primitive/color/lime/100` |
+| `surface.progress Bar.lime-pill` | `#A5CF4F` | `#A5CF4F` | `Primitive/color/lime/500` |
+| `surface.progress Bar.sakura-bar` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` |
+| `surface.progress Bar.sakura-pill` | `#F5AFCA` | `#F5AFCA` | `Primitive/color/sakura/500` |
+| `surface.progress Bar.orange-bar` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.progress Bar.orange-pill` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
+| `surface.progress Bar.red-bar` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.progress Bar.red-pill` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
+| `surface.search.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.smallAlert.error` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
+| `surface.smallAlert.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
 
 
 ---
@@ -6749,6 +7141,7 @@ Compact confirmation modal for critical actions — distinct from `<Popup>` whic
 - Esc and backdrop click both fire `onClose`; the primary button fires `onConfirm`.
 - Locks body scroll while open (stack-aware — composes with `<Popup>` and other dialogs).
 - Renders via `createPortal` to `document.body` so the dialog escapes any `overflow: hidden` ancestor.
+- **Enter / exit motion** — same contract as [`Popup`](#6133-popup) § Modal enter / exit motion (`useModalMotion` + `.mih-popup-overlay` / `.mih-popup-dialog`).
 
 ##### When to use
 
@@ -6801,6 +7194,28 @@ On narrow viewports (e.g. tablet preview) the dialog shrinks with the screen; on
 - `role="dialog"` · `aria-modal="true"` · portal to `document.body`.
 - Esc and backdrop click call `onClose` (clicks inside the panel do not close).
 - Stack-aware body scroll lock (composes with `AlertDialog` and nested modals).
+- **Enter / exit motion** — see § Modal enter / exit motion below.
+
+##### Modal enter / exit motion (Popup family)
+
+Every **centered modal** in the app — `<Popup>`, `<AlertDialog>`, and all domain wrappers that compose them (`DrawingCanvasPopup`, `AppointmentHistoryPopup`, `MedicalHistoryPopup`, `VitalsGraphPopup`, `AddMedicationPopup`, …) — shares one motion contract:
+
+| Layer | CSS class | Enter | Exit | Duration / easing |
+|---|---|---|---|---|
+| Backdrop | `.mih-popup-overlay` | opacity **0 → 1** | **1 → 0** | `--motion-duration-modal` · `--motion-easing-standard` |
+| Panel | `.mih-popup-dialog` | opacity **0 → 1** · `translateY(--motion-panel-offset-y) → 0` · `scale(--motion-panel-scale-from) → 1` | reverse | same |
+
+**Implementation**
+
+| Piece | File | Notes |
+|---|---|---|
+| Hook | [`useModalMotion.js`](src/components/popup/useModalMotion.js) | `mounted` keeps the portal in the DOM through exit; `motionState` drives `data-state="visible"\|"hidden"` |
+| Styles | [`src/index.css`](src/index.css) | `.mih-popup-overlay` · `.mih-popup-dialog` |
+| Constants | `MODAL_MOTION_MS` (= `--motion-duration-modal`) | Unmount delay after `open` → `false` |
+
+**Caller rule:** always render `<Popup open={open} />` / `<AlertDialog open={open} />` and toggle `open` — **never** `{open && <Popup … />}` or the exit animation is skipped.
+
+**Anchored popovers** (`Popover`, `ProfilePopover`, search panels) are **not** centered modals — they use `.mih-popover-in` with `--motion-duration-popover` instead.
 
 ##### Popup-family chrome tokens (2026-05-25 audit)
 

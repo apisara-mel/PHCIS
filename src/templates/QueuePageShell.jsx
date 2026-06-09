@@ -4,6 +4,7 @@ import Header, { SubHeader } from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import TabUnderline from '@/components/tab/TabUnderline';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
+import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 
 /* MIH QueuePageShell — shared chrome for queue / list pages.
@@ -27,6 +28,8 @@ import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
      summaryTitle     — optional h1 above the summary cards (Figma Topic tertiary)
      summaryFlushUnderSubHeader — when false, summary band uses Figma
                             PHCIS_Header_Summary chrome (auto false if no SubHeader)
+     headerInfo       — optional slot (Figma PHCIS_Header_Info) rendered in a white
+                        panel flush under SubHeader — e.g. Appointment staff hero
      tabs             — when set, renders the sticky <TabUnderline />
      activeTab        — controlled tab value
      onTabChange      — fired when the user changes tabs
@@ -43,6 +46,7 @@ const QueuePageShell = ({
   summaryCards,
   summaryTitle,
   summaryFlushUnderSubHeader,
+  headerInfo,
   tabs,
   activeTab,
   onTabChange,
@@ -50,7 +54,9 @@ const QueuePageShell = ({
   children,
 }) => {
   const hasSubHeader = !!(title || onBack || actions);
+  const hasHeaderInfo = !!headerInfo;
   const summaryFlush = summaryFlushUnderSubHeader ?? hasSubHeader;
+  const subHeaderFlushBelow = !!(summaryCards) || hasHeaderInfo;
 
   return (
   <ClinicFilterProvider>
@@ -67,10 +73,14 @@ const QueuePageShell = ({
             title={title}
             onBack={onBack}
             backLabel={backLabel}
-            flushSummaryCardsBelow={!!summaryCards}
+            flushSummaryCardsBelow={subHeaderFlushBelow}
           >
             {actions}
           </SubHeader>
+        ) : null}
+
+        {headerInfo ? (
+          <PageHeaderInfoPanel>{headerInfo}</PageHeaderInfoPanel>
         ) : null}
 
         {summaryCards ? (

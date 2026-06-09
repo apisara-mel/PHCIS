@@ -67,7 +67,7 @@ const Popover = ({
   return createPortal(
     <div
       ref={popRef}
-      className={className}
+      className={`mih-popover-in ${className}`.trim()}
       style={{
         position: 'fixed',
         top: pos.top,

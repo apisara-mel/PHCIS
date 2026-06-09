@@ -196,7 +196,12 @@ const Stepper = React.forwardRef(function Stepper(
           color: isDisabled
             ? 'var(--text-input-disabled, #ADB2B7)'
             : 'var(--text-input-filled, #4D5358)',
-          caretColor: 'transparent',
+          /* `auto` lets the native blinking caret render on focus so the
+             field reads as typeable (Figma 35:7682). Previously this was
+             `transparent` for visual minimalism, but that masked the fact
+             that the input is editable. Other states are unaffected — the
+             caret only renders while focused. */
+          caretColor: 'auto',
           outline: 'none',
           boxShadow: 'none',
           WebkitTapHighlightColor: 'transparent',

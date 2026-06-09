@@ -86,12 +86,13 @@ const Timeslot = React.forwardRef(function Timeslot(
 ) {
   const [internalHover, setInternalHover] = useState(false);
   const effectiveState = state || (
-    disabled  ? 'disabled'
+    disabled && selected ? 'selected'
+    : disabled ? 'disabled'
     : selected ? 'selected'
     : internalHover ? 'hover'
     : 'default'
   );
-  const isDisabled = effectiveState === 'disabled';
+  const isDisabled = disabled;
   const tone = resolveTone({ state: effectiveState });
   const dim = SIZES[size] || SIZES.md;
 

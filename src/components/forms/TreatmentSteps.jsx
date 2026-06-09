@@ -66,7 +66,9 @@ import AdvanceOrderPickerPopup from '@/components/popup/AdvanceOrderPickerPopup'
 import DeleteAdvanceOrderConfirmPopup from '@/components/popup/DeleteAdvanceOrderConfirmPopup';
 import AddMedicationPopup from '@/components/popup/AddMedicationPopup';
 import ConfirmAddDiagnosisPopup from '@/components/popup/ConfirmAddDiagnosisPopup';
-import Popup from '@/components/popup/Popup';
+import MedicalHistoryPopup from '@/components/popup/MedicalHistoryPopup';
+import AppointmentHistoryPopup from '@/components/popup/AppointmentHistoryPopup';
+import { INITIAL_APPOINTMENTS } from '@/pages/appointment/appointmentShared';
 import {
   FALLBACK_MED_IMG,
   medImg,
@@ -395,7 +397,7 @@ const ChronicDiseaseCard = ({ index, entry }) => (
 
 /* Same read-only medical-history chrome as Step 1 — reused by Step 6
    "ประวัติการรักษา" modal (Figma PHCIS | Appointment 4034:3723). */
-const MedicalHistoryReadOnlyLayout = ({ patient, hideSectionTitle = false, independentScroll = false }) => {
+export const MedicalHistoryReadOnlyLayout = ({ patient, hideSectionTitle = false, independentScroll = false }) => {
   const visits = useMemo(() => findVisitDetailsByHn(patient?.hn), [patient?.hn]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
@@ -2822,6 +2824,7 @@ export const Step6Appointment = ({ form, setForm, patient, cardPatient }) => {
   /* Same event shape as Step 4 SuggestibleTextarea + `setFromEvent`. */
   const setApptFromEvent = (k) => (e) => setAppt(k)(e?.target?.value ?? '');
   const [medicalHistoryOpen, setMedicalHistoryOpen] = useState(false);
+  const [appointmentHistoryOpen, setAppointmentHistoryOpen] = useState(false);
   /* Advance-order picker popup state — opens from the Step-6 "เลือก
      คำสั่งล่วงหน้า" trigger. Multi-select; commits as an array of ids
      into `appt.advanceOrders`. */
@@ -2936,7 +2939,7 @@ export const Step6Appointment = ({ form, setForm, patient, cardPatient }) => {
             >
               ประวัติการรักษา
             </BrandButton>
-            <BrandButton variant='outline' size='sm' leadingIcon='history'>
+            <BrandButton variant='outline' size='sm' leadingIcon='history' onClick={() => setAppointmentHistoryOpen(true)}>
               ประวัติการนัด
             </BrandButton>
             {appt.mode === 'schedule' && (
@@ -3336,21 +3339,18 @@ export const Step6Appointment = ({ form, setForm, patient, cardPatient }) => {
           layout so the left rail and right pane scroll independently —
           the date list stays put while the doctor reads through the
           right pane's full visit detail. */}
-      <Popup
+      <MedicalHistoryPopup
         open={medicalHistoryOpen}
         onClose={() => setMedicalHistoryOpen(false)}
-        title='ประวัติการรักษา'
-        subtitle='แสดงรายละเอียดประวัติการรักษาของผู้ป่วย รวมถึงการวินิจฉัย การสั่งยา และบันทึกทางการแพทย์'
-        size='extraLarge'
-        bodyScrollable={false}
-        /* Footer carries only the brand-primary "ปิด" button per Figma
-           4034:3723 — the popup is read-only, so there's nothing to
-           "confirm". The earlier secondary ปิด + primary ตกลง pair
-           collapsed into a single primary close action. */
-        primaryAction={{ label: 'ปิด', onClick: () => setMedicalHistoryOpen(false) }}
-      >
-        <MedicalHistoryReadOnlyLayout patient={patient} hideSectionTitle independentScroll />
-      </Popup>
+        patient={patient}
+      />
+
+      <AppointmentHistoryPopup
+        open={appointmentHistoryOpen}
+        onClose={() => setAppointmentHistoryOpen(false)}
+        hn={patient?.hn}
+        appointments={INITIAL_APPOINTMENTS}
+      />
 
       {/* Advance-order picker (Figma 4053:6953). Multi-select; commits
           the picked ids into `appt.advanceOrders` as an array. */}

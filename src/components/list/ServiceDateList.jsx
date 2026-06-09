@@ -3,10 +3,8 @@ import ActionList from '@/components/list/ActionList';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { Sym } from '@/components/forms/Fields';
 
-/* MIH ServiceDateList — Figma PHCIS | CPOE node 176:38629 (Action List · วันที่รับบริการ).
-   Rows use ActionList four-state matrix: default · hover · selected (at-rest uses
-   list/hover surface + left accent) · selected-hover. Label stays --text-list-default
-   on the active row per Figma; unselected rows pick up --text-list-hover on hover. */
+/* MIH ServiceDateList — Figma Appointment 29:13306 Action List (px space-400 · py space-300).
+   PHCIS | CPOE 176:38629 uses the same rail inset when showRailShadow is set. */
 
 const ROW_RADIUS = 'var(--sm-radius-100, 6px)';
 
@@ -77,28 +75,41 @@ const ServiceDateList = ({
   onSelect,
   width = 316,
   className = '',
+  showRailShadow = false,
+  fillHeight = false,
 }) => (
   <aside
     className={`flex flex-col shrink-0 ${className}`}
     style={{
       width,
+      minWidth: 160,
       gap: 'var(--dim-space-100)',
-      padding: 'var(--dim-space-300) var(--dim-space-400)',
+      paddingTop: 'var(--dim-space-300)',
+      paddingBottom: 'var(--dim-space-300)',
+      paddingLeft: 'var(--dim-space-400)',
+      paddingRight: 'var(--dim-space-400)',
       borderRight: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
       background: 'var(--surface-card-100)',
+      boxShadow: showRailShadow ? 'var(--shadow-brand-top-200)' : undefined,
+      ...(fillHeight
+        ? { alignSelf: 'stretch', height: '100%', minHeight: 720 }
+        : null),
     }}
   >
     <div
-      className='flex items-start w-full'
+      className='flex items-start w-full shrink-0'
       style={{
         gap: 'var(--dim-space-300)',
-        padding: 'var(--dim-space-200) var(--dim-space-400)',
+        paddingTop: 'var(--dim-space-200)',
+        paddingBottom: 'var(--dim-space-200)',
+        paddingLeft: 'var(--dim-space-400)',
+        paddingRight: 'var(--dim-space-400)',
       }}
     >
       <span style={{
         color: 'var(--text-topic-tertiary-title)',
-        fontFamily: 'var(--type-family-heading-content)',
-        fontWeight: 'var(--type-weight-bold)',
+        fontFamily: 'var(--type-family-heading-graphic2)',
+        fontWeight: 'var(--type-weight-regular)',
         fontSize: 'var(--type-size-base)',
         lineHeight: 1.5,
         wordBreak: 'break-word',
@@ -107,7 +118,10 @@ const ServiceDateList = ({
         {title}
       </span>
     </div>
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-0)' }}>
+    <div
+      className='flex flex-col w-full min-h-0'
+      style={{ gap: 'var(--dim-space-0)', flex: fillHeight ? 1 : undefined }}
+    >
       {items.map((item, index) => (
         <ServiceDateRow
           key={item.id ?? `${item.date}-${index}`}

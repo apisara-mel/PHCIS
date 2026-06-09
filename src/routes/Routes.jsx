@@ -2,6 +2,10 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 
 import DashboardPage from '@/pages/dashboard/DashboardPage';
+import SystemHubPage from '@/pages/hub/SystemHubPage';
+import AppointmentPage from '@/pages/appointment/AppointmentPage';
+import SchedulePage from '@/pages/schedule/SchedulePage';
+import ScheduleEditorPage from '@/pages/schedule/ScheduleEditorPage';
 import ScreeningPage from '@/pages/opd/ScreeningPage';
 import QueuePage from '@/pages/opd/QueuePage';
 import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
@@ -50,7 +54,16 @@ export default function Routes() {
           Reads `?spotlight=<key>&label=<TOR-id>` from every page. */}
       <Spotlight />
       <Switch>
-        <Route exact path='/'                component={DashboardPage} />
+        {/* Root = System Selection Hub (PHCIS-ALL · Figma node 2149:104090).
+            Shown BEFORE entering any specific subsystem. Each card routes
+            into its respective system (PHCIS dashboard, mobile, kiosk, …). */}
+        <Route exact path='/'                component={SystemHubPage} />
+        <Route exact path='/hub'             component={SystemHubPage} />
+        <Route exact path='/appointment'     component={AppointmentPage} />
+        {/* ระบบจัดการตารางเวร (Schedule Management) — TOP-LEVEL system, sibling of PHCIS.
+            Figma PHCIS-ALL · entered from hub card 2149:104214. No PhcisChrome — owns its shell. */}
+        <Route exact path='/schedule'        component={SchedulePage} />
+        <Route exact path='/schedule/:id'    component={ScheduleEditorPage} />
         <Route exact path='/dashboard'       component={DashboardPage} />
         <Route exact path='/opd'             component={QueuePage} />
         <Route exact path='/opd/queue'       component={QueuePage} />

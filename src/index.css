@@ -223,6 +223,7 @@
   --surface-steps-selected-hover: var(--brand-p800);
 
   --surface-card-100:        #FFFFFF;
+  --surface-card-200:        #FDFDFD;            /* surface/card/200 → grey/100 (light) */
   /* surface/card/brand-100 → brand-p50 (Figma 2498:6269, 133:1031 Selected-Hover).
      Despite the "100" in the name, the Figma primitive is primary/50.
      Brand-aware via --brand-p50, so retints with <html data-brand="…">.  */
@@ -262,6 +263,47 @@
      same soft mint hairline the Figma 2302:11293 / 4025:14538 panels
      use — retints via [data-brand] so non-green themes follow suit. */
   --border-timeslot-default:     var(--border-brandPrimary-quaternary);
+
+  /* — Calendar slot (design.md text/surface/border.calendar slot.* · Appointment) */
+  --text-calendar-slot-date-default:   #4D5358;
+  /* Today's pill — white on bright brand-p600 green per Figma 134:20117. */
+  --text-calendar-slot-date-current:   #FFFFFF;
+  --text-calendar-slot-date-hover:     var(--brand-p700);
+  --text-calendar-slot-date-selected:  #FFFFFF;
+  --text-calendar-slot-date-disabled:  #CBD5E1;
+  --text-calendar-slot-slot-default:   var(--brand-p500);
+  --text-calendar-slot-slot-hover:     var(--brand-p700);
+  --text-calendar-slot-slot-selected:  #FFFFFF;
+  --text-calendar-slot-slot-disabled:  #CBD5E1;
+  --text-calendar-slot-cta-default:    var(--brand-p600);
+  --text-calendar-slot-cta-hover:      var(--brand-p700);
+  --text-calendar-slot-cta-disabled:   #CBD5E1;
+  --text-calendar-slot-month:          #4D5358;
+  --text-calendar-slot-text:           var(--brand-p700);
+  --border-calendar-slot-slot-default:   var(--brand-p100);
+  --border-calendar-slot-slot-hover:     var(--brand-p200);
+  --border-calendar-slot-slot-selected:  #24A899;
+  --border-calendar-slot-slot-disabled:  #F5F7F9;
+  --surface-calendar-slot-date-default:    #FFFFFF;
+  /* Today's pill — bright brand-p600 (#08A768) per Figma 134:20117.
+     Distinct from brand-p700 (selected) and brand-p100 (hover) so the
+     user can tell "today" apart from interaction states. */
+  --surface-calendar-slot-date-current:    var(--brand-p600);
+  --surface-calendar-slot-date-hover:      var(--brand-p100);
+  --surface-calendar-slot-date-selected:   var(--brand-p700);
+  --surface-calendar-slot-date-disabled:   #FFFFFF;
+  --surface-calendar-slot-slot-default:    #FFFFFF;
+  --surface-calendar-slot-slot-hover:      var(--brand-p50);
+  --surface-calendar-slot-slot-selected:   #24A899;
+  --surface-calendar-slot-slot-disabled:   #FFFFFF;
+  --surface-calendar-slot-cta-default:     #FFFFFF;
+  --surface-calendar-slot-cta-hover:       var(--brand-p50);
+  --surface-calendar-slot-cta-disabled:    #FFFFFF;
+  --icon-calendar-slot-selected:           #FFFFFF;
+
+  /* — Profile avatar surfaces (Figma Appointment 1:38622 DoctorG · design.md §6.11) — */
+  --surface-profile-avatar-default:   #CFE6F7;
+  --surface-profile-avatar-secondary: #E7F1F8;
 
   /* — Vital sign chart-area (Figma PHCIS-ALL 2418:69815) — */
   --surface-chart-area:          #FEFEFE;                    /* chart-area fill */
@@ -561,6 +603,7 @@
   --dim-size-1000:  48px;
   --dim-size-1200:  56px;  /* dimension.size.1200 — HistoryListForm dashed add (Figma 3360:2711) */
   --dim-size-1400:  64px;
+  --dim-size-1700:  80px;  /* dimension.size.1700 — hub card illustration tile (Figma 21:1875) */
   --dim-size-2900:  640px;  /* primary search w / max-w */
 
   --dim-stroke-100: 1px;
@@ -1062,6 +1105,17 @@
     0px 1px 8px var(--PrimaryShadow-601);
   --shadow-header: 0px 1px 4px var(--PrimaryShadow-602);
 
+  /* ── Motion (enter/exit) — design.md §1d Motion tokens */
+  --motion-duration-modal: 220ms;
+  --motion-duration-popover: 160ms;
+  --motion-duration-calendar: 320ms;
+  --motion-easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-easing-popover: ease-out;
+  --motion-easing-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-panel-offset-y: var(--dim-space-200, 8px);
+  --motion-panel-scale-from: 0.98;
+  --motion-offset-calendar-x: var(--dim-space-600, 24px);
+
   /* ── Brand Primary Button — full token set per design.md §7a (Brand Icon Button)
         Surface levels (semantic, brand-aware via brand-pXXX): default-hover,
         secondary (#C5EDDA — selected/subdue fill), quaternary (#F4FBF8),
@@ -1402,14 +1456,93 @@
     background: var(--text-content-tertiary);
   }
 
-  /* PrimarySearch popover entrance */
+  /* Anchored popover entrance — PrimarySearch, Popover, ProfilePopover */
   @keyframes mih-popover-in {
-    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
-    to   { opacity: 1; transform: translateY(0)   scale(1); }
+    from {
+      opacity: 0;
+      transform: translateY(calc(-1 * var(--dim-space-100, 4px)))
+        scale(var(--motion-panel-scale-from, 0.98));
+    }
+    to { opacity: 1; transform: translateY(0) scale(1); }
   }
+  .mih-popover-in,
   .mih-search-popover {
-    animation: mih-popover-in 160ms ease-out;
+    animation: mih-popover-in var(--motion-duration-popover, 160ms)
+      var(--motion-easing-popover, ease-out);
     transform-origin: top center;
+  }
+
+  /* Popup modal enter + exit — Popup.jsx · AlertDialog.jsx (overlay fade + panel lift/scale). */
+  .mih-popup-overlay {
+    opacity: 0;
+    transition: opacity var(--motion-duration-modal, 220ms)
+      var(--motion-easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+  }
+  .mih-popup-overlay[data-state='visible'] {
+    opacity: 1;
+  }
+  .mih-popup-dialog {
+    opacity: 0;
+    transform: translateY(var(--motion-panel-offset-y, var(--dim-space-200, 8px)))
+      scale(var(--motion-panel-scale-from, 0.98));
+    transform-origin: center center;
+    transition:
+      opacity var(--motion-duration-modal, 220ms)
+        var(--motion-easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      transform var(--motion-duration-modal, 220ms)
+        var(--motion-easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+  }
+  .mih-popup-dialog[data-state='visible'] {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mih-popup-overlay,
+    .mih-popup-dialog {
+      transition: none;
+    }
+    .mih-popup-overlay[data-state='visible'],
+    .mih-popup-dialog[data-state='visible'] {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Appointment calendar period slide — AppointmentCalendarView prev/next + view switch */
+  @keyframes mih-calendar-enter-forward {
+    from {
+      opacity: 0;
+      transform: translate3d(var(--motion-offset-calendar-x, var(--dim-space-600, 24px)), 0, 0);
+    }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes mih-calendar-enter-backward {
+    from {
+      opacity: 0;
+      transform: translate3d(
+        calc(-1 * var(--motion-offset-calendar-x, var(--dim-space-600, 24px))),
+        0,
+        0
+      );
+    }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  .mih-calendar-slide {
+    animation-duration: var(--motion-duration-calendar, 320ms);
+    animation-timing-function: var(--motion-easing-enter, cubic-bezier(0.16, 1, 0.3, 1));
+    animation-fill-mode: both;
+    will-change: opacity, transform;
+  }
+  .mih-calendar-slide[data-direction='forward'] {
+    animation-name: mih-calendar-enter-forward;
+  }
+  .mih-calendar-slide[data-direction='backward'] {
+    animation-name: mih-calendar-enter-backward;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mih-calendar-slide {
+      animation: none !important;
+    }
   }
 
   /* SecondarySearch inner field: no native focus ring — wrapper shows DS ring. */

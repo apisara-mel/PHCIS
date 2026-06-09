@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Icon } from '@/components/icons/Icon';
 import ActionList from '@/components/list/ActionList';
 import OverflowMoreTrigger from '@/components/overflow/OverflowMoreTrigger';
 
@@ -37,13 +38,14 @@ const EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
    `[data-tabunderline-ink]` so the bar hugs the label glyphs. */
 const UNDERLINE_INSET = 12; /* var(--dim-space-300) */
 
-const Sym = ({ name, size = 16, color }) => (
-  <span
-    className='material-symbols-outlined'
-    style={{ fontFamily: 'Material Symbols Outlined', fontSize: size, color, lineHeight: 1, display: 'inline-flex' }}
-    aria-hidden
-  >
-    {name}
+/* Icon wrapper — defers to the project's <Icon> adapter (curated Lucide
+   SVGs for users/clock/check-circle/save/etc · Material Symbols Outlined
+   font fallback for everything else). This honours CLAUDE.md icon rule
+   "render via <Icon name='...' />" and lets tab callers reference Figma's
+   exact glyph names (Lucide-PascalCase or MS-snake_case) interchangeably. */
+const TabIcon = ({ name, size = 16, color }) => (
+  <span style={{ color, display: 'inline-flex', lineHeight: 1 }} aria-hidden>
+    <Icon name={name} size={size} />
   </span>
 );
 
@@ -110,7 +112,7 @@ const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick,
         className='inline-flex items-center'
         style={{ gap: 'var(--dim-space-150)', height: '100%' }}
       >
-        {tab.icon && <Sym name={tab.icon} size={16} color={iconColor} />}
+        {tab.icon && <TabIcon name={tab.icon} size={16} color={iconColor} />}
         <span
           data-tabunderline-ink
           className='relative inline-block max-w-full whitespace-nowrap'

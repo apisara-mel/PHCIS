@@ -2132,7 +2132,7 @@ const AlertDialogDemo = () => {
   return (
     <Section
       title='AlertDialog'
-      summary='Compact confirmation modal (Figma MIH DS · Popup 1:1159) for critical actions. 4 types (Information · Success · Warning · Destructive) × 2 alignments (Center · Left). Center stacks the tone icon above the title; Left places the icon inline with the title. Action buttons alias <BrandButton> + <BrandSubdueButton> for info/success and <DangerButton> + <DangerSubdueButton> for warning/destructive.'
+      summary='Compact confirmation modal (Figma MIH DS · Popup 1:1159) for critical actions. Smooth enter/exit motion matches Popup (--motion-duration-modal). 4 types (Information · Success · Warning · Destructive) × 2 alignments (Center · Left). Center stacks the tone icon above the title; Left places the icon inline with the title. Action buttons alias <BrandButton> + <BrandSubdueButton> for info/success and <DangerButton> + <DangerSubdueButton> for warning/destructive.'
     >
       {['center', 'left'].map((alignment) => (
         <Variant
@@ -2149,24 +2149,23 @@ const AlertDialogDemo = () => {
           </div>
         </Variant>
       ))}
-      {active && (
-        <AlertDialog
-          open
-          type={active.type}
-          alignment={active.alignment}
-          title={COPY[active.type].title}
-          description={COPY[active.type].desc}
-          cancelLabel='Cancel'
-          confirmLabel='Got it'
-          onClose={close}
-          onConfirm={close}
-        />
-      )}
+      <AlertDialog
+        open={Boolean(active)}
+        type={active?.type ?? 'info'}
+        alignment={active?.alignment ?? 'center'}
+        title={active ? COPY[active.type].title : 'Information'}
+        description={active ? COPY[active.type].desc : ''}
+        cancelLabel='Cancel'
+        confirmLabel='Got it'
+        onClose={close}
+        onConfirm={close}
+      />
       <Guidelines
         behavior={[
           '`role="alertdialog"`, `aria-modal="true"`, title + description are wired via aria-labelledby/aria-describedby.',
           'Esc and backdrop click both fire `onClose`; the primary button fires `onConfirm`.',
           'Locks body scroll while open (stack-aware so it composes with <Popup>).',
+          'Enter/exit: overlay fades; panel lifts from `--motion-panel-offset-y` with scale `--motion-panel-scale-from` over `--motion-duration-modal` (`useModalMotion` + `.mih-popup-*`). Keep mounted — drive visibility with `open` only so exit animation completes.',
         ]}
         dos={[
           'Use AlertDialog when an action is reversible-with-effort (delete, sign out, discard draft) — short single decision.',
@@ -2186,7 +2185,7 @@ const PopupDemo = () => {
   const [verticalOpen, setVerticalOpen] = useState(false);
   const [extraLargeOpen, setExtraLargeOpen] = useState(false);
   return (
-    <Section title='Popup' summary='Centered modal dialog with size variants (default 448px · large 640px · extraLarge fluid up to 1440×1024 with 24px viewport inset) and footer button row. Full-viewport overlay, dimmed backdrop, Esc / backdrop / button close.'>
+    <Section title='Popup' summary='Centered modal dialog with size variants (default 448px · large 640px · extraLarge fluid up to 1440×1024). Smooth enter/exit: overlay fade + panel lift/scale over --motion-duration-modal. All domain wrappers inherit this motion automatically.'>
       <Variant label='Default · primary + secondary actions' stack>
         <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
           <BrandButton onClick={() => setOpen(true)} disabled={open}>
@@ -2200,66 +2199,61 @@ const PopupDemo = () => {
             Click ยืนยัน / ยกเลิก / backdrop / Esc to close.
           </span>
         </div>
-        {open && (
-          <Popup
-            open
-            title='ยืนยันการบันทึก'
-            subtitle='ตรวจสอบข้อมูลก่อนบันทึกลงในระบบ'
-            onClose={() => setOpen(false)}
-            primaryAction={{ label: 'ยืนยัน',   onClick: () => setOpen(false) }}
-            secondaryAction={{ label: 'ยกเลิก', onClick: () => setOpen(false) }}
-          >
-            <p style={{ margin: 'var(--dim-space-0)', color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.6 }}>
-              เนื้อหา body ของ popup สามารถใส่ฟอร์ม รายการ หรือข้อความยืนยันได้
-              ตามต้องการ ระบบจะล็อก scroll ของหน้าหลักและเปิด overlay สีเทาเข้ม
-              จนกว่าผู้ใช้จะปิดด้วยปุ่ม / backdrop / Esc.
-            </p>
-          </Popup>
-        )}
+        <Popup
+          open={open}
+          title='ยืนยันการบันทึก'
+          subtitle='ตรวจสอบข้อมูลก่อนบันทึกลงในระบบ'
+          onClose={() => setOpen(false)}
+          primaryAction={{ label: 'ยืนยัน',   onClick: () => setOpen(false) }}
+          secondaryAction={{ label: 'ยกเลิก', onClick: () => setOpen(false) }}
+        >
+          <p style={{ margin: 'var(--dim-space-0)', color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.6 }}>
+            เนื้อหา body ของ popup สามารถใส่ฟอร์ม รายการ หรือข้อความยืนยันได้
+            ตามต้องการ ระบบจะล็อก scroll ของหน้าหลักและเปิด overlay สีเทาเข้ม
+            จนกว่าผู้ใช้จะปิดด้วยปุ่ม / backdrop / Esc.
+          </p>
+        </Popup>
       </Variant>
       <Variant label='3 actions · vertical button layout' stack>
         <BrandButton onClick={() => setVerticalOpen(true)}>Open vertical popup</BrandButton>
-        {verticalOpen && (
-          <Popup
-            open
-            title='ลบรายการนี้?'
-            subtitle='การลบไม่สามารถยกเลิกได้'
-            buttonLayout='vertical'
-            onClose={() => setVerticalOpen(false)}
-            primaryAction={{   label: 'ยืนยันลบ',  onClick: () => setVerticalOpen(false) }}
-            secondaryAction={{ label: 'บันทึกร่าง', onClick: () => setVerticalOpen(false) }}
-            tertiaryAction={{  label: 'ยกเลิก',     onClick: () => setVerticalOpen(false) }}
-          >
-            <p style={{ margin: 'var(--dim-space-0)', color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.6 }}>
-              การลบรายการนี้จะส่งผลต่อข้อมูลที่เกี่ยวข้องทั้งหมด
-              คุณแน่ใจหรือไม่?
-            </p>
-          </Popup>
-        )}
+        <Popup
+          open={verticalOpen}
+          title='ลบรายการนี้?'
+          subtitle='การลบไม่สามารถยกเลิกได้'
+          buttonLayout='vertical'
+          onClose={() => setVerticalOpen(false)}
+          primaryAction={{   label: 'ยืนยันลบ',  onClick: () => setVerticalOpen(false) }}
+          secondaryAction={{ label: 'บันทึกร่าง', onClick: () => setVerticalOpen(false) }}
+          tertiaryAction={{  label: 'ยกเลิก',     onClick: () => setVerticalOpen(false) }}
+        >
+          <p style={{ margin: 'var(--dim-space-0)', color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.6 }}>
+            การลบรายการนี้จะส่งผลต่อข้อมูลที่เกี่ยวข้องทั้งหมด
+            คุณแน่ใจหรือไม่?
+          </p>
+        </Popup>
       </Variant>
       <Variant label='extraLarge · fluid up to 1440×1024' stack>
         <BrandButton onClick={() => setExtraLargeOpen(true)} disabled={extraLargeOpen}>
           {extraLargeOpen ? 'extraLarge popup is open ↑' : 'Open extraLarge popup'}
         </BrandButton>
-        {extraLargeOpen && (
-          <Popup
-            open
-            size='extraLarge'
-            title='Popup extraLarge'
-            subtitle='Fluid width/height — resize the browser to see growth up to 1440×1024 (24px viewport inset).'
-            onClose={() => setExtraLargeOpen(false)}
-            primaryAction={{ label: 'ปิด', onClick: () => setExtraLargeOpen(false) }}
-          >
-            <p style={{ margin: 'var(--dim-space-0)', color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.6 }}>
-              ใช้ size=&quot;extraLarge&quot; โดยไม่กำหนด width — เหมือน VitalsGraphPopup และ BodyRecordPopup
-            </p>
-          </Popup>
-        )}
+        <Popup
+          open={extraLargeOpen}
+          size='extraLarge'
+          title='Popup extraLarge'
+          subtitle='Fluid width/height — resize the browser to see growth up to 1440×1024 (24px viewport inset).'
+          onClose={() => setExtraLargeOpen(false)}
+          primaryAction={{ label: 'ปิด', onClick: () => setExtraLargeOpen(false) }}
+        >
+          <p style={{ margin: 'var(--dim-space-0)', color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.6 }}>
+            ใช้ size=&quot;extraLarge&quot; โดยไม่กำหนด width — เหมือน VitalsGraphPopup และ BodyRecordPopup
+          </p>
+        </Popup>
       </Variant>
       <Guidelines
         behavior={[
           'Portal-rendered modal; backdrop / Esc / button-close all fire `onClose`. Locks body scroll while open (stack-aware with AlertDialog).',
           'Sizes: default (448) · large (640) · extraLarge (fluid up to 1440×1024). Focus is trapped within the dialog; restored to invoker on close.',
+          'Enter/exit motion is built in — every domain wrapper (`DrawingCanvasPopup`, `AppointmentHistoryPopup`, …) inherits it. Keep `<Popup open={…} />` mounted; do not `{open && <Popup />}` or exit animation is skipped.',
         ]}
         dos={[
           'Use for multi-step forms, list editors, vitals input — places where AlertDialog is too small.',

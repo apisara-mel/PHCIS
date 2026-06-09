@@ -4,6 +4,7 @@ import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import DangerButton from '@/components/button/DangerButton';
+import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMotion';
 
 /* MIH Popup — design-system modal template per Figma:
    • Default     (node 1:424) — 448px wide
@@ -40,6 +41,11 @@ import DangerButton from '@/components/button/DangerButton';
      • footer            full custom footer JSX override
      • showCloseButton   show the X close button in the header        (default: true)
      • closeOnEscape     close the dialog when Escape is pressed       (default: true)
+
+   Enter/exit motion (design.md §6.13.3 · Modal enter / exit motion):
+     • useModalMotion(open) — keeps portal mounted through exit
+     • .mih-popup-overlay + .mih-popup-dialog — data-state visible|hidden
+     • Tokens: --motion-duration-modal, --motion-panel-offset-y, etc.
 
    Note on dismissal hardening — set both flags to false to force the
    user to either click the primary footer action or click outside the
@@ -226,6 +232,7 @@ const Popup = ({
   closeOnEscape = true,
 }) => {
   const dialogRef = useRef(null);
+  const { mounted, motionState } = useModalMotion(open, MODAL_MOTION_MS);
 
   useEffect(() => {
     if (!open || !closeOnEscape) return undefined;
@@ -237,12 +244,12 @@ const Popup = ({
   }, [open, onClose, closeOnEscape]);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!mounted) return undefined;
     lockBodyScroll();
     return () => unlockBodyScroll();
-  }, [open]);
+  }, [mounted]);
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   /* Numeric width → cap by viewport so modals stay usable on small screens.
      String `width` is passed through (e.g. caller-defined min()). */
@@ -287,8 +294,10 @@ const Popup = ({
   const overlay = (
     <div
       role='presentation'
+      className='mih-popup-overlay'
+      data-state={motionState}
       onMouseDown={(e) => {
-        if (!onClose) return;
+        if (!open || !onClose) return;
         const t = e.target instanceof Element ? e.target : e.target?.parentElement;
         if (!t) return;
         /* Clicks on the panel (header/body/footer) stay open. */
@@ -324,7 +333,8 @@ const Popup = ({
         ref={dialogRef}
         role='dialog'
         aria-modal='true'
-        className={className}
+        className={`mih-popup-dialog ${className}`.trim()}
+        data-state={motionState}
         style={{
           ...dialogWidthStyle,
           maxHeight: viewportHeight,
