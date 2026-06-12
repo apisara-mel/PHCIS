@@ -368,6 +368,15 @@ Alpha-baked shadow primitives. Alpha is pre-multiplied into the swatch — consu
 
 > **Indigo shadow primitives** alias `indigo/400` (`#818CF8` — the same swatch used by `--surface-colorfulbadge-indigo-bold`) at three opacity tiers. Used wherever a brand-violet ambient glow is needed — e.g. Doctor AI panel hover and indigo-bold pill drops.
 
+Alpha-baked **background tint** primitives (Figma scope `EFFECT_COLOR`). Each is a `teal`/`sky-cyan` swatch pre-multiplied to 20 % — used directly as a translucent fill (e.g. card / chip ambient wash). The light and dark modes alias these via `background.bg.*` (§4).
+
+| Token | Hex | Opacity |
+|-------|-----|---------|
+| `color.bg.teal-400` | `#3EC3B2` | 20 % |
+| `color.bg.teal-600` | `#1B867D` | 20 % |
+| `color.bg.sky-cyan-400` | `#40AAF2` | 20 % |
+| `color.bg.sky-cyan-600` | `#0A73CB` | 20 % |
+
 ---
 
 
@@ -1431,6 +1440,10 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `background.screen.400` | `#CBD5E1` | `#475569` | `Primitive/color/slate/300` |
 | `background.screen.brand-100` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
 | `background.screen.brand-200` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `background.bg.teal-400` | `#3EC3B2 @ 20%` | `#1B867D @ 20%` | `Primitive/color/bg/teal-400` |
+| `background.bg.blue-400` | `#40AAF2 @ 20%` | `#0A73CB @ 20%` | `Primitive/color/bg/sky-cyan-400` |
+
+> `background.bg.*` are translucent ambient-wash fills (alpha-baked primitives, §1 *Special Color Tokens*). Light aliases `color/bg/teal-400` & `color/bg/sky-cyan-400`; dark aliases the deeper `color/bg/teal-600` & `color/bg/sky-cyan-600` — both at 20 % opacity.
 
 ### 4.2. `text`
 
@@ -5717,6 +5730,8 @@ Box container border (brand-responsive):
 |-------|-------|-----------|
 | Ambient | `color/shadow/100` | `0 16px 32px rgba(100,116,139,.15)` |
 | Key | `color/shadow/050` | `0 4px 4px rgba(100,116,139,.10)` |
+
+> **Brand variant — `Brand Drop Shadow Bottom/400`** (`--shadow-brand-drop-bottom-400`): same two-layer geometry but tinted with `PrimaryShadow/600 + /601` and a −4px spread — `0 4px 4px -4px var(--PrimaryShadow-600), 0 16px 32px -4px var(--PrimaryShadow-601)`. Used by the floating auth card on PHCIS-Signin "select" (node 42:8722). Brand-aware via `--PrimaryShadow-*`.
 
 #### 6.8.3 Dimension Tokens
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import Icon from '@/components/icons/Icon';
+import SystemGridMenu from '@/components/layout/SystemGridMenu';
 
 /* MIH · ระบบจัดตารางเวร · Header (Figma Schedule-Management 16:52473).
    64px top bar — apps · program name + breadcrumb · location pill · spacer
@@ -16,30 +17,6 @@ function formatThaiDate(d) {
   const year = d.getFullYear() + 543; /* Buddhist year */
   return `${day} ${month} ${year}`;
 }
-
-const AppsButton = ({ onClick }) => (
-  <button
-    type='button'
-    onClick={onClick}
-    title='เปลี่ยนระบบ'
-    aria-label='เปลี่ยนระบบ'
-    style={{
-      boxSizing: 'border-box',
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 'var(--dim-size-800, 40px)',
-      height: 'var(--dim-size-800, 40px)',
-      borderRadius: 'var(--dim-radius-200, 8px)',
-      border: 0,
-      background: 'var(--surface-brandPrimaryButton-tertiary, var(--brand-p100, #E2F3EB))',
-      color: 'var(--text-brandPrimary-default, var(--brand-p700, #007549))',
-      cursor: 'pointer',
-    }}
-  >
-    <Icon name='apps' size={20} style={{ color: 'currentColor' }} />
-  </button>
-);
 
 const ProgramName = ({ onHomeClick }) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -258,7 +235,6 @@ const ScheduleHeader = ({
   date,
   fontSize = 'base',
   onFontSizeChange,
-  onAppsClick,
   onHomeClick,
   onBranchClick,
   onManualClick,
@@ -288,7 +264,7 @@ const ScheduleHeader = ({
           gap: 'var(--dim-space-300, 12px)',
         }}
       >
-        <AppsButton onClick={onAppsClick} />
+        <SystemGridMenu buttonVariant='fill' />
         <ProgramName onHomeClick={onHomeClick} />
       </div>
 

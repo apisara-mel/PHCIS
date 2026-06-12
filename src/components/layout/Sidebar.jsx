@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
-import ProfilePopover from '@/components/popup/ProfilePopover';
-import SettingsModal from '@/components/popup/SettingsModal';
+import SidebarProfileMenu from '@/components/layout/SidebarProfileMenu';
 import SideSubMenu from '@/components/layout/SideSubMenu';
 import Icon from '@/components/icons/Icon';
 import { FilterDropdown } from '@/components/forms/FilterTag';
@@ -60,8 +59,8 @@ const ITEMS = [
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill'                                   },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht'                                   },
   { key: 'appoint',   label: 'ระบบนัดหมาย',               icon: 'calendar_clock', path: '/appointment'       },
-  { key: 'log',       label: 'ประวัติการใช้งาน',          icon: 'history'                                },
-  { key: 'users',     label: 'ผู้ใช้และสิทธิ์การเข้าถึง', icon: 'group',            path: '/users'        },
+  /* 'ประวัติการใช้งาน' (log) และ 'ผู้ใช้และสิทธิ์การเข้าถึง' (users) ถูกย้ายไป
+     แสดงเป็น "ระบบกลาง" บน System Hub แทน — จึงไม่อยู่ในเมนู PHCIS แล้ว. */
 ];
 
 // Glyphs missing from the Material Symbols font (e.g. Thai Baht ฿) fall back
@@ -88,14 +87,18 @@ const Sym = ({ name, size = 20, color, className = '' }) => {
   );
 };
 
-const Sidebar = ({ activeKey, defaultSubmenuKey = null }) => {
+/* `items` defaults to the PHCIS nav (ITEMS) but can be overridden so a
+   separate top-level system (e.g. Consent Management — Figma PHCIS|Consent
+   Side Menu 270:95324) reuses the exact same shell/header/footer with its
+   own menu. `fallbackKey` is the derived-active key when no path matches. */
+const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackKey = 'opd' }) => {
   const history = useHistory();
   const location = useLocation();
   const clinicFilter = useClinicFilter();
   // Derive active item from current pathname when not explicitly set
   const derivedKey = (() => {
-    const match = ITEMS.find((it) => it.path && location.pathname.startsWith(it.path));
-    return match ? match.key : 'opd';
+    const match = items.find((it) => it.path && location.pathname.startsWith(it.path));
+    return match ? match.key : fallbackKey;
   })();
   const currentKey = activeKey || derivedKey;
 
@@ -147,8 +150,8 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null }) => {
   const [submenuVisible, setSubmenuVisible] = useState(!!defaultSubmenuKey);
   const [submenuMounted, setSubmenuMounted] = useState(!!defaultSubmenuKey);
   const [renderSubmenuKey, setRenderSubmenuKey] = useState(defaultSubmenuKey);
-  const submenu       = ITEMS.find((it) => it.key === submenuKey       && it.subItems);
-  const renderSubmenu = ITEMS.find((it) => it.key === renderSubmenuKey && it.subItems);
+  const submenu       = items.find((it) => it.key === submenuKey       && it.subItems);
+  const renderSubmenu = items.find((it) => it.key === renderSubmenuKey && it.subItems);
   const sidebarRef  = useRef(null);
   const submenuRef  = useRef(null);
 
@@ -250,37 +253,9 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null }) => {
     setProfileOpen(true);
   };
 
-  // Settings modal — Mode (light/dark/system) + Theme (10 brand keys).
-  // Theme applies via <html data-brand="..."> so every semantic token aliased
-  // through --brand-p* re-tints atomically. `default` strips the attribute.
-  const readPref = (k, fallback) => {
-    if (typeof window === 'undefined') return fallback;
-    try { return window.localStorage.getItem(k) ?? fallback; } catch { return fallback; }
-  };
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [appliedMode,  setAppliedMode]  = useState(() => readPref('phcis.mode',  'light'));
-  const [appliedTheme, setAppliedTheme] = useState(() => readPref('phcis.theme', 'default'));
-  // Apply persisted theme on mount (and whenever it changes).
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (appliedTheme && appliedTheme !== 'default') {
-      document.documentElement.setAttribute('data-brand', appliedTheme);
-    } else {
-      document.documentElement.removeAttribute('data-brand');
-    }
-  }, [appliedTheme]);
-  const applySettings = ({ mode, theme }) => {
-    setAppliedMode(mode);
-    if (theme !== undefined) setAppliedTheme(theme);
-    try {
-      window.localStorage.setItem('phcis.mode', mode);
-      if (theme !== undefined) window.localStorage.setItem('phcis.theme', theme);
-    } catch (_e) { /* storage unavailable — non-fatal */ }
-    setSettingsOpen(false);
-  };
-  const handleProfileSelect = (key) => {
-    if (key === 'theme') setSettingsOpen(true);
-  };
+  // Profile menu (popover + Mode/Theme settings) is the shared
+  // <SidebarProfileMenu> — same component every system shell uses, so theme
+  // changes apply globally and the menu stays identical across systems.
 
   const ease = 'opacity 160ms ease, max-width 220ms ease';
 
@@ -338,9 +313,15 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null }) => {
       }}
       className='flex flex-col overflow-hidden'
     >
-      {/* ── Logo area · 64px · logo true-centers when collapsed ─ */}
+      {/* ── Logo area · 64px · logo true-centers when collapsed ─
+           Click → System Hub (Figma 291:113045 nav behaviour). */}
       <div
-        className='flex items-center shrink-0 overflow-hidden'
+        role='button'
+        tabIndex={0}
+        onClick={() => history.push('/hub')}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') history.push('/hub'); }}
+        title='ไปยังหน้าเลือกระบบ'
+        className='flex items-center shrink-0 overflow-hidden cursor-pointer'
         style={{
           height: 64,
           padding: '0 var(--sm-space-300)',
@@ -443,7 +424,7 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null }) => {
         onScroll={updateNavScrollShadow}
         className='flex-1 min-h-0 flex flex-col gap-1.5 py-4 overflow-y-auto overflow-x-hidden scrollbar-thin'
       >
-        {ITEMS.map((it) => {
+        {items.map((it) => {
           // While a sub-menu panel is open the owning primary menu wins the
           // "active" visual (brand-p50 bg + 4px left border + chevron),
           // even if the URL doesn't match its path.
@@ -710,19 +691,12 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null }) => {
         }}
       />
     )}
-    <ProfilePopover
+    <SidebarProfileMenu
       open={profileOpen}
       anchorRect={profileRect}
       anchorRef={userAreaRef}
       onClose={() => setProfileOpen(false)}
-      onSelect={handleProfileSelect}
-    />
-    <SettingsModal
-      open={settingsOpen}
-      onClose={() => setSettingsOpen(false)}
-      onApply={applySettings}
-      initialMode={appliedMode}
-      initialTheme={appliedTheme}
+      onLogout={() => history.push('/login')}
     />
     </>
   );

@@ -3,6 +3,7 @@ import Popover from '@/components/popup/Popover';
 import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
+import CheckboxBox from '@/components/checkbox/CheckboxBox';
 import { Sym, FieldShell, useFieldId } from '@/components/forms/_inputBox';
 
 /* Chrome-strip stylesheet for the typeable trigger input — CLAUDE.md
@@ -323,6 +324,53 @@ const DropdownRow = ({ label, subtext, icon, image, colorfulBadgeStyle, badge, s
   );
 };
 
+/* Multi-select dropdown row — Figma "List" 271:12592. Flat (no border, no
+   shadow): label on the left, checkbox on the right. Hover tints the row with
+   the brand list-hover surface (#F4FBF8); disabled fades to 50%. The checkbox
+   glyph (shared CheckboxBox) reflects `selected`. */
+const CheckboxListRow = ({ label, subtext, selected, disabled, onClick }) => {
+  const [hover, setHover] = useState(false);
+  const active = hover && !disabled;
+  return (
+    <button
+      type='button'
+      role='option'
+      aria-selected={selected}
+      disabled={disabled}
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className='w-full text-left'
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--dim-space-200)',
+        minHeight: 48,
+        padding: 'var(--dim-space-200) var(--dim-space-300)',
+        background: active ? 'var(--surface-list-hover)' : 'var(--surface-list-default, #FFFFFF)',
+        borderRadius: 'var(--dim-radius-400)',
+        border: 'none',
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        outline: 'none',
+        transition: 'background-color 120ms ease',
+      }}
+    >
+      <span style={{ flex: '1 0 0', minWidth: 0 }}>
+        <span style={{ display: 'block', color: 'var(--text-list-default, #4D5358)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
+          {label}
+        </span>
+        {subtext && (
+          <span style={{ display: 'block', color: 'var(--text-list-subtext, #858C92)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', lineHeight: 1.5 }}>
+            {subtext}
+          </span>
+        )}
+      </span>
+      <CheckboxBox checked={selected} hover={active} disabled={disabled} />
+    </button>
+  );
+};
+
 const Select = React.forwardRef(function Select(
   {
     /* No literal default label — Figma 155:20747 expects the caller to
@@ -341,6 +389,19 @@ const Select = React.forwardRef(function Select(
     value,
     defaultValue,
     onChange,
+    /* Fired with the trigger DOM node each time the dropdown opens. Lets a
+       caller scroll the field into view so a downward-opening popover that
+       would otherwise fall behind a sticky footer becomes fully visible. */
+    onOpen,
+    /* When true the field selects MANY options: `value` is an array, rows
+       toggle in/out, the dropdown stays open after each pick, and the
+       trigger shows the joined labels. Default false keeps the original
+       single-select behaviour so every existing caller is unaffected. */
+    multiple = false,
+    /* When set (multiple only), a "select all" row with this label sits at the
+       top of the dropdown. Clicking it selects every option; clicking again
+       when all are already selected clears them. */
+    selectAllLabel,
     options = [],
     leadingIcon,
     badge,
@@ -377,9 +438,13 @@ const Select = React.forwardRef(function Select(
 ) {
   const autoId = useFieldId('select');
   const id = idProp || autoId;
-  const [internal, setInternal] = useState(defaultValue ?? '');
+  const [internal, setInternal] = useState(defaultValue ?? (multiple ? [] : ''));
   const isControlled = value !== undefined;
   const v = isControlled ? value : internal;
+  /* Normalised array view of the value when multiple — tolerant of a stray
+     scalar/empty so the field never crashes on a mis-typed initial value. */
+  const arr = multiple ? (Array.isArray(v) ? v : (v == null || v === '' ? [] : [v])) : null;
+  const hasValue = multiple ? arr.length > 0 : !!v;
   const [hovered, setHovered] = useState(false);
   const [open, setOpen] = useState(false);
   /* The trigger doubles as a combobox input — typing into it filters
@@ -414,14 +479,21 @@ const Select = React.forwardRef(function Select(
     else if (ref) ref.current = node;
   };
 
+  /* Notify the caller when the dropdown opens (e.g. to scroll the field
+     into view). Fires on the open→true edge only. */
+  useEffect(() => {
+    if (open && onOpen) onOpen(triggerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const autoState = disabled ? 'disabled'
                   : error    ? 'error'
                   : open     ? 'open'
                   : hovered  ? 'hover'
-                  : v        ? 'filled'
+                  : hasValue ? 'filled'
                   : 'default';
   const effState = state || autoState;
-  const s = resolveTrigger({ state: effState, hasValue: !!v, error: !!error, disabled });
+  const s = resolveTrigger({ state: effState, hasValue, error: !!error, disabled });
   const dim = SIZES[size] || SIZES.lg;
 
   const selected = options.find((o) => (o.value ?? o) === v);
@@ -436,6 +508,15 @@ const Select = React.forwardRef(function Select(
      Order of precedence: matched option's `label` → primitive option
      string → raw `v` → empty (renders placeholder). */
   const displayLabel = (() => {
+    if (multiple) {
+      if (!arr.length) return '';
+      return arr
+        .map((vv) => {
+          const o = options.find((op) => (op.value ?? op) === vv);
+          return o ? (o.label ?? o) : String(vv);
+        })
+        .join(', ');
+    }
     if (selected) return selected.label ?? (typeof selected === 'string' ? selected : '');
     if (v != null && v !== '') return String(v);
     return '';
@@ -443,9 +524,31 @@ const Select = React.forwardRef(function Select(
   const isPlaceholder = !displayLabel;
 
   const choose = (next) => {
+    if (multiple) {
+      const exists = arr.includes(next);
+      const updated = exists ? arr.filter((x) => x !== next) : [...arr, next];
+      if (!isControlled) setInternal(updated);
+      onChange && onChange(updated);
+      setSearchQuery('');
+      /* Keep the dropdown open so several options can be toggled in a row. */
+      return;
+    }
     if (!isControlled) setInternal(next);
     onChange && onChange(next);
     setOpen(false);
+  };
+
+  /* "Select all" row (multi only) — operates on the ENABLED options only, so a
+     disabled row (e.g. a สาขาย่อย whose Group Policy isn't selected) is never
+     force-selected. Toggles: select every enabled option, or clear them. */
+  const selectableValues = options.filter((o) => !(o && o.disabled)).map((o) => o.value ?? o);
+  const allSelected = multiple && selectableValues.length > 0 && selectableValues.every((vv) => arr.includes(vv));
+  const toggleAll = () => {
+    const next = allSelected
+      ? arr.filter((x) => !selectableValues.includes(x))
+      : Array.from(new Set([...arr, ...selectableValues]));
+    if (!isControlled) setInternal(next);
+    onChange && onChange(next);
   };
 
   /* Reset the search query whenever the popover closes so the next open
@@ -725,8 +828,18 @@ const Select = React.forwardRef(function Select(
               minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
+              /* Checkbox-card rows (multi) need breathing room between cards. */
+              ...(multiple ? { display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-100)' } : {}),
             }}
           >
+            {multiple && selectAllLabel && options.length > 0 && !searchQuery.trim() && (
+              <CheckboxListRow
+                key='__select_all__'
+                label={selectAllLabel}
+                selected={allSelected}
+                onClick={toggleAll}
+              />
+            )}
             {visibleOptions.length === 0 ? (
               <div
                 style={{
@@ -745,7 +858,17 @@ const Select = React.forwardRef(function Select(
                 const lbl = opt.label ?? opt;
                 const ic  = opt.icon;
                 const img = opt.image;
-                return (
+                const isSel = multiple ? arr.includes(val) : val === v;
+                return multiple ? (
+                  <CheckboxListRow
+                    key={val}
+                    label={lbl}
+                    subtext={opt.subtext}
+                    selected={isSel}
+                    disabled={opt.disabled}
+                    onClick={() => choose(val)}
+                  />
+                ) : (
                   <DropdownRow
                     key={val}
                     label={lbl}
@@ -754,7 +877,7 @@ const Select = React.forwardRef(function Select(
                     image={img}
                     colorfulBadgeStyle={opt.colorfulBadgeStyle}
                     badge={opt.badge}
-                    selected={val === v}
+                    selected={isSel}
                     onClick={() => choose(val)}
                   />
                 );

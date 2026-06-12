@@ -38,7 +38,12 @@ import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 
 const QueuePageShell = ({
   activeKey,
+  /* Override the sidebar nav for a separate top-level system (e.g. Consent
+     Management). Defaults to the PHCIS nav inside <Sidebar>. */
+  sidebarItems,
+  sidebarFallbackKey,
   breadcrumb,
+  brandTitle,
   title,
   onBack,
   backLabel,
@@ -64,9 +69,9 @@ const QueuePageShell = ({
     className='flex w-full min-h-screen'
     style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}
   >
-    <Sidebar activeKey={activeKey} />
+    <Sidebar activeKey={activeKey} items={sidebarItems} fallbackKey={sidebarFallbackKey} />
     <div className='flex-1 min-w-0 flex flex-col'>
-      <Header breadcrumb={breadcrumb} />
+      <Header breadcrumb={breadcrumb} brandTitle={brandTitle} />
       <main className='flex-1 min-w-0 flex flex-col'>
         {(title || onBack || actions) ? (
           <SubHeader

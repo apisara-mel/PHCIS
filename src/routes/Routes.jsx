@@ -22,6 +22,14 @@ import TabsPreviewPage from '@/pages/preview/TabsPreviewPage';
 import CardsPreviewPage from '@/pages/preview/CardsPreviewPage';
 import BodyRecordPreviewPage from '@/pages/preview/BodyRecordPreviewPage';
 import ComponentsLibraryPage from '@/pages/components/ComponentsLibraryPage';
+import LoginPage from '@/pages/auth/LoginPage';
+import LoginVerifyPage from '@/pages/auth/LoginVerifyPage';
+import ConsentManagementPage from '@/pages/consent/ConsentManagementPage';
+import CreateConsentFormPage from '@/pages/consent/CreateConsentFormPage';
+import AccessManagementPage from '@/pages/consent/AccessManagementPage';
+import ConsentReportPage from '@/pages/consent/ConsentReportPage';
+import ConsentFormsPage from '@/pages/consent/ConsentFormsPage';
+import ConsentFormViewPage from '@/pages/consent/ConsentFormViewPage';
 import KioskPage from '@/pages/kiosk/KioskPage';
 import MobileTicketPage from '@/pages/kiosk/MobileTicketPage';
 import Spotlight from '@/components/util/Spotlight';
@@ -59,6 +67,25 @@ export default function Routes() {
             into its respective system (PHCIS dashboard, mobile, kiosk, …). */}
         <Route exact path='/'                component={SystemHubPage} />
         <Route exact path='/hub'             component={SystemHubPage} />
+        {/* PHCIS Sign-in (Figma "PHCIS-Signin" 1:1249). Standalone full-screen
+            auth surface — NO sidebar/header chrome. /login/verify is the OTP
+            step (SMS / Email channel + 6-digit code). */}
+        <Route exact path='/login'           component={LoginPage} />
+        <Route exact path='/signin'          component={LoginPage} />
+        <Route exact path='/login/verify'    component={LoginVerifyPage} />
+        {/* ระบบจัดการความยินยอม (Consent Management · Figma "PHCIS | Consent" 1:4) */}
+        <Route exact path='/consent'              component={ConsentManagementPage} />
+        {/* สร้างแบบฟอร์มใหม่ — 3-step wizard, stays INSIDE the consent system
+            (own consent side menu) instead of bouncing to /forms (PHCIS). */}
+        {/* แบบฟอร์มความยินยอม — consent-form template registry (Figma 291:113045). */}
+        <Route exact path='/consent/forms'        component={ConsentFormsPage} />
+        <Route exact path='/consent/forms/new'    component={CreateConsentFormPage} />
+        {/* ดูแบบฟอร์ม — read-only Step-3 preview of an existing form (Figma 336:170901). */}
+        <Route exact path='/consent/forms/:id/view' component={ConsentFormViewPage} />
+        {/* จัดการสิทธิ์การเข้าถึง — access-request registry (Figma 363:122327). */}
+        <Route exact path='/consent/access'       component={AccessManagementPage} />
+        {/* สถิติและรายงาน — consent reports dashboard (Figma 358:113804). */}
+        <Route exact path='/consent/report'       component={ConsentReportPage} />
         <Route exact path='/appointment'     component={AppointmentPage} />
         {/* ระบบจัดการตารางเวร (Schedule Management) — TOP-LEVEL system, sibling of PHCIS.
             Figma PHCIS-ALL · entered from hub card 2149:104214. No PhcisChrome — owns its shell. */}

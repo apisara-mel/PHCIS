@@ -164,6 +164,12 @@ export const Icon = ({ name, size = 16, className = '', style, ...rest }) => {
       return (<svg {...s} className={className} style={style}><circle cx='11' cy='11' r='7' /><line x1='21' y1='21' x2='16.5' y2='16.5' /></svg>);
     case 'save':
       return (<svg {...s} className={className} style={style}><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z' /><polyline points='17 21 17 13 7 13 7 21' /><polyline points='7 3 7 8 15 8' /></svg>);
+    /* MIH inbox-text glyphs (Figma) — document with text lines + a share
+       (up-arrow) or don't-share (x) mark. Used by consent-form status tabs. */
+    case 'inbox_text_share':
+      return (<svg {...s} className={className} style={style}><path d='M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6' /><line x1='8' y1='8' x2='13' y2='8' /><line x1='8' y1='12' x2='11' y2='12' /><path d='M19 21v-6' /><polyline points='16.5 17.5 19 15 21.5 17.5' /></svg>);
+    case 'inbox_text_dontshare':
+      return (<svg {...s} className={className} style={style}><path d='M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6' /><line x1='8' y1='8' x2='13' y2='8' /><line x1='8' y1='12' x2='11' y2='12' /><line x1='16' y1='15.5' x2='21.5' y2='21' /><line x1='21.5' y1='15.5' x2='16' y2='21' /></svg>);
     case 'pin':
       return (<svg {...s} className={className} style={style}><line x1='12' y1='17' x2='12' y2='22' /><path d='M5 17h14V11l-3-3-2 2H10l-2-2-3 3z' /></svg>);
     case 'building':
