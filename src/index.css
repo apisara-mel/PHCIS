@@ -53,6 +53,16 @@
   --patient-card-avatar-bg: var(--brand-p400);
 }
 
+/* Hub user-info banner ("profile cover"). Default theme (no data-brand) keeps
+   its original teal/green gradient; any active brand theme re-tints it via the
+   theme's --brand-p* tokens. */
+.mih-hub-profile-cover {
+  background: linear-gradient(97.85deg, rgb(0, 164, 172) 0.67%, rgb(31, 160, 145) 100.76%);
+}
+[data-brand]:not([data-brand="default"]) .mih-hub-profile-cover {
+  background: linear-gradient(97.85deg, var(--brand-p500) 0.67%, var(--brand-p700) 100.76%);
+}
+
 /* ── Brand mode overrides (per design.md §2) ─────────── */
 [data-brand="blue-serenity"] {
   --brand-p50:  #F0F2FF; --brand-p100: #E4E8FF; --brand-p200: #D0D7FF;
@@ -180,6 +190,12 @@
   --text-dangerButton-on-danger:         #FFFFFF;
   --text-danger-default:                 #B91C1C;            /* text/danger/default — elevated vitals (Figma 184:17588) */
   --text-warning-default:                #C2410C;            /* text/warning/default — orange/700 */
+  --text-info-default:                   #1D4ED8;            /* text/info/default — blue/700 (design.md §4.2) */
+  /* Status-tertiary surfaces — soft tonal tile fills for Status Summary
+     Cards (Figma PHCIS | Consent 297:83830). design.md §4.5. */
+  --surface-danger-tertiary:             #FEE2E2;            /* red/100  */
+  --surface-info-tertiary:               #DBEAFE;            /* blue/100 */
+  --surface-neutral-tertiary:            #F4F5F5;            /* neutral/100 */
   --icon-dangerButton-default:           #B91C1C;
   --icon-dangerButton-default-hover:     #991B1B;
   --icon-dangerButton-on-danger:         #FFFFFF;
@@ -427,6 +443,9 @@
   /* — Modal text (per design.md §4.2) ───────────────── */
   --text-modal-text:    #4D5358;   /* Primitive/color/neutral/700 */
   --text-modal-subtext: #ADB2B7;   /* Primitive/color/neutral/400 */
+  /* — Modal borders (multi-select checkbox list rows, Figma 271:12592 · design.md §4.3) — */
+  --border-modal-cardBorder: #F5F6FA;  /* Primitive/color/slate/50 — resting card outline */
+  --border-modal-default:    var(--border-brandPrimary-default);  /* #007549 — hover/active outline (brand-aware) */
 
   /* — Colorful badge · per design.md §4 (lowercase Figma alias names) — */
   --surface-colorfulBadge-blue: #DBEAFE;  /* Primitive/color/blue/100 */
@@ -601,9 +620,15 @@
   --dim-size-800:   40px;  /* Button Medium / dimension.size.800 */
   --dim-size-900:   44px;  /* Button Large  / dimension.size.900 */
   --dim-size-1000:  48px;
+  --dim-size-1100:  52px;  /* dimension.size.1100 — OTP cell width (PHCIS-Signin 55:8422) */
   --dim-size-1200:  56px;  /* dimension.size.1200 — HistoryListForm dashed add (Figma 3360:2711) */
+  --dim-size-1300:  60px;  /* dimension.size.1300 — OTP cell height (PHCIS-Signin 55:8422) */
   --dim-size-1400:  64px;
   --dim-size-1700:  80px;  /* dimension.size.1700 — hub card illustration tile (Figma 21:1875) */
+  --dim-size-2500:  320px; /* dimension.size.2500 — input field min-width / sign-in form column */
+  --dim-size-2600:  384px; /* dimension.size.2600 — sign-in card content / button max-width */
+  --dim-size-2700:  448px; /* dimension.size.2700 — sign-in card max-width (Figma 40:10656) */
+  --dim-size-2800:  512px; /* dimension.size.2800 */
   --dim-size-2900:  640px;  /* primary search w / max-w */
 
   --dim-stroke-100: 1px;
@@ -617,9 +642,17 @@
      Both fall back to Sarabun → system if the brand font hasn't loaded yet. */
   --type-family-heading-graphic:  'Sao Chingcha', 'Sarabun', system-ui, sans-serif;
   --type-family-heading-graphic2: 'Mitr', 'Sarabun', system-ui, sans-serif;
+  --type-size-xxs:       10px;      /* typography.size.xxs */
   --type-size-xs:        12px;
   --type-size-sm:        14px;
   --type-size-base:      16px;
+  --type-size-lg:        18px;      /* typography.size.lg */
+  --type-size-xl:        20px;      /* typography.size.xl */
+  --type-size-2xl:       24px;      /* typography.size.2xl — Sign-in card heading (h3 · Mitr) */
+  --type-size-3xl:       30px;      /* typography.size.3xl */
+  --type-size-4xl:       36px;      /* typography.size.4xl */
+  --type-size-5xl:       48px;      /* typography.size.5xl */
+  --type-size-6xl:       60px;      /* typography.size.6xl */
   --type-weight-regular: 400;
   --type-weight-medium:  500;
   --type-weight-bold:    700;
@@ -630,6 +663,7 @@
   --dim-space-600: 24px;
   --dim-space-800: 32px;            /* dimension.space.800 */
   --dim-space-1200: 48px;           /* dimension.space.1200 — large column gap (Figma Step 7 patient/diagnosis row) */
+  --dim-space-2400: 96px;           /* dimension.space.2400 — sign-in screen padding (PHCIS-Signin 79:15268) */
   --dim-size-400:  20px;
   --dim-stroke-200: 2px;
   --dim-stroke-400: 4px;
@@ -811,6 +845,13 @@
   /* Twin for `filter:` — use on animated toast wrapper so shadow follows the pill. */
   --filter-brand-drop-bottom-200:
     drop-shadow(0 1px 4px var(--PrimaryShadow-600)) drop-shadow(0 1px 8px var(--PrimaryShadow-601));
+
+  /* Figma "Brand Drop Shadow Bottom/400" — stacked PrimaryShadow/600 + /601
+     (offset 0,4 blur 4 spread -4 · offset 0,16 blur 32 spread -4).
+     Large brand-tinted lift for floating auth cards (PHCIS-Signin 42:8722). */
+  --shadow-brand-drop-bottom-400:
+    0 4px 4px -4px var(--PrimaryShadow-600),
+    0 16px 32px -4px var(--PrimaryShadow-601);
 
   /* Figma "Indigo Drop Shadow Bottom/200" — stacked indigo-050 + indigo-100
      (offset 0,1px · blur 4 + 8). The /200 spec is the canonical AISearch
@@ -1245,6 +1286,18 @@
   }
 }
 
+/* Card — interactive hover state (MIH Design System | Card 227:193).
+   Rest = Brand Drop Shadow Bottom/200 (--shadow-card); on hover the card
+   lifts to Brand Drop Shadow Bottom/400. Opt-in via the panel SummaryCard
+   `hover` prop so static queue-page cards keep their flat resting style. */
+.mih-summary-card {
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.18s ease;
+}
+.mih-summary-card:hover {
+  box-shadow: var(--shadow-brand-drop-bottom-400);
+}
+
 @layer base {
   html, body {
     font-family: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -1253,6 +1306,10 @@
   }
   #root {
     width: 100%;
+    /* Fill the viewport so the document background (--brand-p50) can never
+       show as a strip below short pages. */
+    min-height: 100dvh;
+    background-color: var(--brand-p50);
   }
   /* Reserve scrollbar gutter at the document level so content doesn't
      reflow horizontally when the vertical scrollbar appears/disappears
@@ -2079,4 +2136,66 @@ a:focus, a:focus-visible,
   z-index: 50;
   scroll-margin-top: 100px;
   scroll-margin-bottom: 100px;
+}
+
+/* PHCIS Sign-in — Figma 79:15269 "Picture and card"
+   Screen padding keeps the card off every viewport edge (incl. right).
+   Two-column (illustration + card) only when ≥1280px so content never
+   overflows and gets clipped by overflow:hidden. */
+.mih-signin-screen {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--dim-space-600);
+  overflow: hidden;
+}
+.mih-signin-content {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  width: 100%;
+  max-width: var(--dim-size-2700);
+  margin-inline: auto;
+}
+.mih-signin-illus {
+  display: none;
+}
+.mih-signin-panel {
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: var(--dim-radius-600);
+  padding: var(--dim-space-800) var(--dim-space-600);
+}
+@media (min-width: 768px) {
+  .mih-signin-screen {
+    padding: var(--dim-space-800);
+  }
+}
+@media (min-width: 1280px) {
+  .mih-signin-screen {
+    padding: var(--dim-space-2400);
+  }
+  .mih-signin-content {
+    display: flex;
+    max-width: none;
+    gap: var(--dim-space-1200);
+    align-items: center;
+    justify-content: center;
+  }
+  .mih-signin-illus {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+  }
+  .mih-signin-panel {
+    flex: 0 0 var(--dim-size-2700);
+    width: var(--dim-size-2700);
+    padding: var(--dim-space-1200) var(--dim-space-800);
+  }
 }

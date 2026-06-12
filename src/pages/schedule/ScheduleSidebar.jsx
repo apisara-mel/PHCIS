@@ -1,68 +1,81 @@
-import React from 'react';
+import React, { useState, useRef, forwardRef } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Icon from '@/components/icons/Icon';
+import DoctorProfileAvatar from '@/components/layout/DoctorProfileAvatar';
+import SidebarProfileMenu from '@/components/layout/SidebarProfileMenu';
 
-/* MIH · ระบบจัดการตารางเวร · Side Menu (Figma Schedule-Management 15:3758).
-   64px slim sidebar — collapsed (icon-only) variant.
+/* MIH · ระบบจัดการตารางเวร · Side Menu.
+   Behaves EXACTLY like the PHCIS shell <Sidebar>: a slim 64px rail that
+   HOVER-EXPANDS to 320px, revealing the brand title, item labels and the
+   user name/role. The profile photo is the shared <DoctorProfileAvatar>
+   (doctor-a.png) so the logged-in user is the SAME person as PHCIS / the hub.
 
-   Structure (top → bottom):
-     · Logo area (64h) — MIH mark, bottom hairline border
-     · Top nav (flex 1) — 3 icon items, gap 6px
-         · bar_chart_4_bars → /dashboard
-         · calendar_today  → /appointment
-         · edit_calendar   → /schedule (active when on /schedule/*)
-     · Bottom — notification bell (with red dot) + user avatar tile (56h)
-
-   Active item styling per Figma:
-     · surface = --surface-brandPrimary-quaternary
-     · left border = 4px --surface-brandPrimary-default
-     · icon color = --text-brandPrimary-default
-     · no rounded corners (full-bleed strip)
-*/
-
-const SIDEBAR_WIDTH = 64;
+   Schedule Management is a TOP-LEVEL system (sibling of PHCIS), so this menu
+   only links INSIDE the schedule system — it must never bounce out to PHCIS
+   routes (/dashboard, /appointment, …). */
 
 const MIH_LOGO = '/images/office-health-logo.png';
+const REVEAL = 'opacity 160ms ease, max-width 220ms ease';
 
+/* Schedule-system-only nav. Every route stays within /schedule. */
 const NAV_ITEMS = [
-  { key: 'dashboard',   icon: 'bar_chart_4_bars', route: '/dashboard',   label: 'Dashboard' },
-  { key: 'appointment', icon: 'calendar_today',   route: '/appointment', label: 'นัดหมาย' },
-  { key: 'schedule',    icon: 'edit_calendar',    route: '/schedule',    label: 'จัดการตารางเวร' },
+  { key: 'schedule', icon: 'edit_calendar', route: '/schedule', label: 'จัดการตารางเวร' },
 ];
 
-const SideMenuItem = ({ item, active, onClick }) => (
-  <button
-    type='button'
-    onClick={onClick}
-    title={item.label}
-    aria-label={item.label}
-    aria-current={active ? 'page' : undefined}
-    style={{
-      boxSizing: 'border-box',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: '100%',
-      minHeight: 'var(--dim-size-1000, 48px)',
-      padding: 'var(--dim-space-200, 8px) var(--dim-space-600, 24px)',
-      background: active ? 'var(--surface-brandPrimary-quaternary, #F4FBF8)' : 'transparent',
-      border: 0,
-      borderLeft: active
-        ? 'var(--dim-stroke-400, 4px) solid var(--surface-brandPrimary-default, var(--brand-p700, #007549))'
-        : 'var(--dim-stroke-400, 4px) solid transparent',
-      borderRadius: 0,
-      color: active
-        ? 'var(--text-brandPrimary-default, var(--brand-p700, #007549))'
-        : 'var(--text-content-secondary, #565D6D)',
-      cursor: 'pointer',
-      transition: 'background-color 120ms ease, color 120ms ease',
-    }}
-  >
-    <Icon name={item.icon} size={16} style={{ color: 'currentColor' }} />
-  </button>
-);
+const SideMenuItem = ({ item, active, expanded, onClick }) => {
+  const [hover, setHover] = useState(false);
+  const tinted = active || hover;
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      title={item.label}
+      aria-label={item.label}
+      aria-current={active ? 'page' : undefined}
+      style={{
+        boxSizing: 'border-box',
+        display: 'flex',
+        alignItems: 'center',
+        gap: expanded ? 'var(--sm-space-300, 12px)' : 0,
+        justifyContent: expanded ? 'flex-start' : 'center',
+        width: '100%',
+        minHeight: 'var(--dim-size-1000, 48px)',
+        padding: '0 var(--sm-space-300, 12px)',
+        background: active
+          ? 'var(--surface-brandPrimary-quaternary, #F4FBF8)'
+          : hover ? 'var(--surface-sidemenu-hover, #F4FBF8)' : 'transparent',
+        border: 0,
+        borderLeft: active
+          ? 'var(--dim-stroke-400, 4px) solid var(--surface-brandPrimary-default, var(--brand-p700, #007549))'
+          : 'var(--dim-stroke-400, 4px) solid transparent',
+        borderRadius: 0,
+        color: tinted
+          ? 'var(--text-brandPrimary-default, var(--brand-p700, #007549))'
+          : 'var(--text-sidemenu-default, #4D5358)',
+        cursor: 'pointer',
+        transition: 'background-color 120ms ease, color 120ms ease',
+      }}
+    >
+      <Icon name={item.icon} size={16} style={{ color: 'currentColor', flexShrink: 0 }} />
+      <span
+        className='whitespace-nowrap overflow-hidden text-left'
+        style={{
+          flex: 1,
+          opacity: expanded ? 1 : 0,
+          maxWidth: expanded ? 'calc(var(--sm-width-open, 320px) - 100px)' : 0,
+          fontSize: 'var(--type-size-sm, 14px)',
+          transition: REVEAL,
+        }}
+      >
+        {item.label}
+      </span>
+    </button>
+  );
+};
 
-const NotificationBell = ({ onClick, hasUnread = true }) => (
+const NotificationBell = ({ onClick, expanded, hasUnread = true }) => (
   <button
     type='button'
     onClick={onClick}
@@ -70,21 +83,21 @@ const NotificationBell = ({ onClick, hasUnread = true }) => (
     aria-label='การแจ้งเตือน'
     style={{
       boxSizing: 'border-box',
-      display: 'inline-flex',
+      display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: expanded ? 'var(--sm-space-300, 12px)' : 0,
+      justifyContent: expanded ? 'flex-start' : 'center',
       width: '100%',
       minHeight: 'var(--dim-size-1000, 48px)',
-      padding: 'var(--dim-space-200, 8px) var(--dim-space-600, 24px)',
+      padding: '0 var(--sm-space-300, 12px)',
       background: 'transparent',
       border: 0,
       borderRadius: 'var(--dim-radius-150, 6px)',
-      color: 'var(--text-content-secondary, #565D6D)',
+      color: 'var(--text-sidemenu-default, #4D5358)',
       cursor: 'pointer',
-      position: 'relative',
     }}
   >
-    <span style={{ position: 'relative', display: 'inline-flex', color: 'currentColor' }}>
+    <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0, color: 'currentColor' }}>
       <Icon name='notifications' size={16} style={{ color: 'currentColor' }} />
       {hasUnread && (
         <span
@@ -102,54 +115,94 @@ const NotificationBell = ({ onClick, hasUnread = true }) => (
         />
       )}
     </span>
+    <span
+      className='whitespace-nowrap overflow-hidden'
+      style={{
+        opacity: expanded ? 1 : 0,
+        maxWidth: expanded ? 'calc(var(--sm-width-open, 320px) - 100px)' : 0,
+        fontSize: 'var(--type-size-sm, 14px)',
+        transition: REVEAL,
+      }}
+    >
+      การแจ้งเตือน
+    </span>
   </button>
 );
 
-const UserTile = ({ avatarSrc = 'https://api.dicebear.com/9.x/lorelei/svg?seed=DoctorA', onClick }) => (
+const UserTile = forwardRef(({ onClick, expanded, active }, ref) => (
   <button
+    ref={ref}
     type='button'
     onClick={onClick}
+    aria-haspopup='menu'
+    aria-expanded={active}
     title='โปรไฟล์ผู้ใช้'
     aria-label='โปรไฟล์ผู้ใช้'
     style={{
       boxSizing: 'border-box',
-      display: 'inline-flex',
+      display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: expanded ? 'var(--sm-space-300, 12px)' : 0,
+      justifyContent: expanded ? 'flex-start' : 'center',
       width: '100%',
       height: 'var(--dim-size-1200, 56px)',
-      padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)',
+      padding: '0 var(--sm-space-300, 12px)',
       background: 'transparent',
       border: 0,
       borderTop: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
       cursor: 'pointer',
     }}
   >
+    <DoctorProfileAvatar className='shrink-0' />
+    <div
+      className='flex-1 min-w-0 flex flex-col overflow-hidden text-left'
+      style={{
+        opacity: expanded ? 1 : 0,
+        maxWidth: expanded ? 'calc(var(--sm-width-open, 320px) - 116px)' : 0,
+        transition: REVEAL,
+      }}
+    >
+      <span
+        className='whitespace-nowrap overflow-hidden'
+        style={{ fontSize: 'var(--type-size-sm, 14px)', lineHeight: 1.25, color: 'var(--text-sidemenu-default, #4D5358)' }}
+      >
+        พญ.สมหญิง รักษ์ดี
+      </span>
+      <span
+        className='whitespace-nowrap overflow-hidden'
+        style={{ fontSize: 'var(--type-size-xs, 12px)', lineHeight: 1.25, color: 'var(--text-content-tertiary, #8A9099)' }}
+      >
+        อายุรกรรม
+      </span>
+    </div>
+    {/* switch-user glyph — same as the PHCIS shell sidebar profile row. */}
     <span
       aria-hidden
-      style={{
-        display: 'inline-block',
-        width: 'var(--dim-size-800, 40px)',
-        height: 'var(--dim-size-800, 40px)',
-        borderRadius: 'var(--dim-radius-full, 9999px)',
-        background: 'var(--surface-info-quaternary, #E7F1F8)',
-        backgroundImage: `url(${avatarSrc})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        overflow: 'hidden',
-      }}
-    />
+      className='shrink-0 inline-flex items-center justify-center'
+      style={{ width: 24, height: 24, color: 'var(--text-content-secondary)', opacity: expanded ? 1 : 0, maxWidth: expanded ? 24 : 0, transition: REVEAL }}
+    >
+      <Icon name='unfold_more' size={20} />
+    </span>
   </button>
-);
+));
 
-const ScheduleSidebar = ({ activeKey, onNavigate, onNotificationClick, onProfileClick }) => {
+const ScheduleSidebar = ({ activeKey, onNavigate, onNotificationClick }) => {
   const history = useHistory();
   const location = useLocation();
+  const [hovered, setHovered] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileRect, setProfileRect] = useState(null);
+  const userRef = useRef(null);
+  const expanded = hovered || profileOpen;
 
-  /* Determine active item from prop, falling back to current path */
+  const toggleProfile = () => {
+    if (profileOpen) { setProfileOpen(false); return; }
+    if (userRef.current) setProfileRect(userRef.current.getBoundingClientRect());
+    setProfileOpen(true);
+  };
   const resolvedActive = activeKey || (() => {
     const path = location?.pathname || '';
-    const match = NAV_ITEMS.find(n => path === n.route || path.startsWith(n.route + '/'));
+    const match = NAV_ITEMS.find((n) => path === n.route || path.startsWith(n.route + '/'));
     return match ? match.key : null;
   })();
 
@@ -159,80 +212,128 @@ const ScheduleSidebar = ({ activeKey, onNavigate, onNotificationClick, onProfile
   };
 
   return (
-    <aside
-      style={{
-        boxSizing: 'border-box',
-        flexShrink: 0,
-        width: SIDEBAR_WIDTH,
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        background: 'var(--surface-card-default, #FFFFFF)',
-        borderRight: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-        boxShadow: 'var(--shadow-brand-drop-bottom-200, 0 1px 4px rgba(8,167,104,0.10), 0 1px 2px rgba(8,167,104,0.08))',
-      }}
-    >
-      {/* Logo area */}
-      <div
+    <>
+      {/* Placeholder keeps a 64px column in flow so content doesn't reflow
+          when the fixed rail expands on hover. */}
+      <div style={{ width: 'var(--sm-width-closed, 64px)', flexShrink: 0 }} aria-hidden />
+
+      <aside
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         style={{
           boxSizing: 'border-box',
-          height: 'var(--dim-size-1400, 64px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 'var(--dim-space-300, 12px)',
-          borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
-        }}
-      >
-        <img
-          src={MIH_LOGO}
-          alt='MIH'
-          style={{
-            width: 'var(--dim-size-800, 40px)',
-            height: 'var(--dim-size-800, 40px)',
-            objectFit: 'contain',
-          }}
-        />
-      </div>
-
-      {/* Top nav — 3 items, fills remaining vertical space */}
-      <nav
-        role='navigation'
-        style={{
-          flex: '1 0 0',
-          minHeight: 0,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          zIndex: 'var(--sm-z-overlay, 40)',
+          width: expanded ? 'var(--sm-width-open, 320px)' : 'var(--sm-width-closed, 64px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'stretch',
-          gap: 'var(--dim-space-150, 6px)',
-          padding: 'var(--dim-space-400, 16px) 0',
+          background: 'var(--surface-navigation-default, #FFFFFF)',
+          borderRight: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+          boxShadow: 'var(--shadow-brand-drop-bottom-200, 0 1px 4px rgba(8,167,104,0.10), 0 1px 2px rgba(8,167,104,0.08))',
+          transition: 'width 220ms cubic-bezier(.4,0,.2,1), box-shadow 220ms ease',
           overflow: 'hidden',
         }}
       >
-        {NAV_ITEMS.map(item => (
-          <SideMenuItem
-            key={item.key}
-            item={item}
-            active={resolvedActive === item.key}
-            onClick={() => go(item)}
+        {/* Logo area — brand text reveals on hover · click → System Hub */}
+        <div
+          role='button'
+          tabIndex={0}
+          onClick={() => history.push('/hub')}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') history.push('/hub'); }}
+          title='ไปยังหน้าเลือกระบบ'
+          style={{
+            boxSizing: 'border-box',
+            height: 'var(--dim-size-1400, 64px)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: expanded ? 'var(--sm-space-300, 12px)' : 0,
+            justifyContent: expanded ? 'flex-start' : 'center',
+            padding: '0 var(--sm-space-300, 12px)',
+            borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+            cursor: 'pointer',
+          }}
+        >
+          <img
+            src={MIH_LOGO}
+            alt='MIH'
+            style={{ width: 'var(--dim-size-800, 40px)', height: 'var(--dim-size-800, 40px)', objectFit: 'contain', flexShrink: 0 }}
           />
-        ))}
-      </nav>
+          <div
+            className='flex-1 min-w-0 flex flex-col overflow-hidden'
+            style={{
+              opacity: expanded ? 1 : 0,
+              maxWidth: expanded ? 'calc(var(--sm-width-open, 320px) - 100px)' : 0,
+              transition: REVEAL,
+            }}
+          >
+            <span
+              className='font-bold whitespace-nowrap overflow-hidden'
+              style={{ fontSize: 'var(--type-size-base, 16px)', lineHeight: 1.25, color: 'var(--text-brand-name, #007549)' }}
+            >
+              สำนักอนามัย
+            </span>
+            <span
+              className='whitespace-nowrap overflow-hidden'
+              style={{ fontSize: 'var(--type-size-xs, 12px)', lineHeight: 1.25, color: 'var(--text-brand-sub, #8A9099)' }}
+            >
+              ศูนย์ 4 ดินแดง
+            </span>
+          </div>
+        </div>
 
-      {/* Bottom — notification + user */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'stretch',
-          gap: 'var(--dim-space-200, 8px)',
-        }}
-      >
-        <NotificationBell onClick={onNotificationClick} />
-        <UserTile onClick={onProfileClick} />
-      </div>
-    </aside>
+        {/* Top nav — schedule-only items */}
+        <nav
+          role='navigation'
+          style={{
+            flex: '1 0 0',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            gap: 'var(--dim-space-150, 6px)',
+            padding: 'var(--dim-space-400, 16px) 0',
+            overflow: 'hidden',
+          }}
+        >
+          {NAV_ITEMS.map((item) => (
+            <SideMenuItem
+              key={item.key}
+              item={item}
+              active={resolvedActive === item.key}
+              expanded={expanded}
+              onClick={() => go(item)}
+            />
+          ))}
+        </nav>
+
+        {/* Bottom — notification + user */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            gap: 'var(--dim-space-200, 8px)',
+            paddingBottom: 'var(--dim-space-200, 8px)',
+          }}
+        >
+          <NotificationBell onClick={onNotificationClick} expanded={expanded} />
+          <UserTile ref={userRef} onClick={toggleProfile} expanded={expanded} active={profileOpen} />
+        </div>
+      </aside>
+
+      {/* Shared profile menu — same component as every system shell; theme global. */}
+      <SidebarProfileMenu
+        open={profileOpen}
+        anchorRect={profileRect}
+        anchorRef={userRef}
+        onClose={() => setProfileOpen(false)}
+        onLogout={() => history.push('/login')}
+      />
+    </>
   );
 };
 
