@@ -22,13 +22,13 @@ import { Sym } from '@/components/forms/_inputBox';
 
 const CHANNELS = [
   { key: 'sms',   illustration: '/illustration/auth/otp-sms.png',   title: 'SMS (ข้อความมือถือ)', desc: 'ส่งรหัสยืนยัน 6 หลัก\nไปยังหมายเลขโทรศัพท์ที่ลงทะเบียนไว้\n(****1234)' },
-  { key: 'email', illustration: '/illustration/auth/otp-email.png', title: 'อีเมล (Email)',       desc: 'ส่งรหัสยืนยันไปยังที่อยู่อีเมลที่ผูกกับบัญชี\n(e***@example.com)' },
+  { key: 'email', illustration: '/illustration/auth/otp-email.png', title: 'อีเมล (Email)',       desc: 'ส่งรหัสยืนยันไปยังที่อยู่อีเมลที่ผูกกับบัญชี [e***@example.com]' },
 ];
 
-/* Per-channel copy for the OTP step (Figma 43:10405 shows the SMS variant). */
+/* Per-channel copy for the OTP step — Email (Figma 43:10405) · Phone (120:11591). */
 const OTP_COPY = {
-  sms:   { subtitle: 'เราได้ส่งรหัสยืนยัน 6 หลัก ไปยังหมายเลขโทรศัพท์ของคุณ', masked: '****-****-1234' },
-  email: { subtitle: 'เราได้ส่งรหัสยืนยัน 6 หลัก ไปยังอีเมลของคุณ',           masked: 'e***@example.com' },
+  sms:   { subtitle: 'เราได้ส่งรหัสยืนยัน 6 หลัก ไปยังหมายเลขโทรศัพท์', masked: '*******380' },
+  email: { subtitle: 'เราได้ส่งรหัสยืนยัน 6 หลัก ไปยังอีเมล',           masked: 'p*******w@gmail.com' },
 };
 
 const OTP_TTL_SECONDS = 5 * 60; // "รหัสหมดอายุใน 5 นาที"
@@ -42,7 +42,10 @@ const formatCountdown = (s) => {
 export default function LoginVerifyPage() {
   const history = useHistory();
   const [step, setStep] = useState('channel'); // 'channel' | 'code'
-  const [channel, setChannel] = useState('');   // none selected by default
+  /* The chosen delivery channel — drives the OTP-step copy. There is no
+     "ถัดไป" button: picking a method (the card or the "หรือ" alternate) goes
+     straight to the OTP step (Figma 42:8722). */
+  const [channel, setChannel] = useState('email');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [secondsLeft, setSecondsLeft] = useState(OTP_TTL_SECONDS);
@@ -75,10 +78,20 @@ export default function LoginVerifyPage() {
     if (v.length < 6) { setError('กรุณากรอกรหัสยืนยันให้ครบ 6 หลัก'); return; }
     if (secondsLeft <= 0) { setError('รหัสหมดอายุแล้ว กรุณาส่งรหัสใหม่อีกครั้ง'); return; }
     setError('');
-    history.push('/'); // verified → into the system hub
+    history.push('/login/set-password'); // verified → create account password (Figma 57:6086)
   };
 
   const otpCopy = OTP_COPY[channel] || OTP_COPY.sms;
+  /* Email is the primary card; SMS is the "หรือ" alternate (Figma 42:8722). */
+  const primaryChannel = CHANNELS.find((c) => c.key === 'email') || CHANNELS[1];
+  const alternateChannel = CHANNELS.find((c) => c.key === 'sms') || CHANNELS[0];
+
+  /* Picking a channel (the card or the alternate) records it and goes
+     straight to the OTP step — no intermediate "ถัดไป" button. */
+  const pickChannel = (key) => {
+    setChannel(key);
+    goToCode();
+  };
 
   return (
     <div
@@ -116,7 +129,7 @@ export default function LoginVerifyPage() {
               lineHeight: 1.375,
             }}
           >
-            {step === 'channel' ? 'เลือกวิธียืนยันตัวตน' : 'กรอกรหัสยืนยัน'}
+            {step === 'channel' ? 'เลือกช่องทางในการรับรหัสยืนยัน' : 'กรอกรหัสยืนยัน'}
           </h1>
           <p
             style={{
@@ -130,7 +143,7 @@ export default function LoginVerifyPage() {
             }}
           >
             {step === 'channel'
-              ? 'เพื่อความปลอดภัยของข้อมูลสถานพยาบาล โปรดเลือกช่องทางในการรับรหัสยืนยัน'
+              ? 'เพื่อความปลอดภัยในการเข้าถึงข้อมูลของสำนักงานอนามัย'
               : otpCopy.subtitle}
           </p>
           {step === 'code' && (
@@ -152,32 +165,37 @@ export default function LoginVerifyPage() {
 
         {step === 'channel' ? (
           <>
-            <div className='flex items-stretch' style={{ gap: 'var(--dim-space-400)' }} role='radiogroup'>
-              {CHANNELS.map((c) => (
-                <SelectableOptionCard
-                  key={c.key}
-                  illustration={c.illustration}
-                  title={c.title}
-                  description={c.desc}
-                  selected={channel === c.key}
-                  onSelect={() => setChannel(c.key)}
-                  style={{ flex: 1, minWidth: 0 }}
-                />
-              ))}
-            </div>
-            {/* ถัดไป — Brand Fill Large, centered per Figma 42:8722 (hugs
-                the component max-width, not the card width). */}
-            <div className='flex justify-center'>
-              <BrandButton
-                variant='fill'
-                size='lg'
-                trailingIcon='arrow_forward'
-                disabled={!channel}
-                onClick={() => channel && goToCode()}
-                style={{ width: '100%' }}
-              >
-                ถัดไป
-              </BrandButton>
+            {/* Forms — Email is the primary method card; SMS is offered below
+                as an "หรือ" ghost alternate. Picking either goes straight to
+                the OTP step — no "ถัดไป" button (Figma 42:8722). */}
+            <div className='flex flex-col items-center w-full' style={{ gap: 'var(--dim-space-400)' }} role='radiogroup'>
+              <SelectableOptionCard
+                illustration={primaryChannel.illustration}
+                title={primaryChannel.title}
+                description={primaryChannel.desc}
+                onSelect={() => pickChannel(primaryChannel.key)}
+                style={{ width: 'var(--dim-size-2450)' }}
+              />
+              <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-300)' }}>
+                <span
+                  style={{
+                    color: 'var(--text-content-secondary)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-sm)',
+                    fontWeight: 'var(--type-weight-regular)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  หรือ
+                </span>
+                <BrandButton
+                  variant='ghost'
+                  size='lg'
+                  onClick={() => pickChannel(alternateChannel.key)}
+                >
+                  {alternateChannel.title}
+                </BrandButton>
+              </div>
             </div>
             {/* Back — Neutral Ghost Large with chevron per Figma 42:8722. */}
             <div className='flex justify-center'>

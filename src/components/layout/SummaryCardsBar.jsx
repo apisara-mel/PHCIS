@@ -82,12 +82,12 @@ const SUB_TONE = {
   info:     'var(--text-pill-blue)',
 };
 
-/* Panel-variant card — Status Summary Card_Horizontal (Figma 291:62532).
-   Tile + value ink default to the `statussummarycard-{color}` token pair,
-   but a card may override with explicit `tileBg` / `iconInk` to reach tones
-   outside that family (danger / info / neutral — Figma PHCIS | Consent
-   297:83830). The tile glyph is an exported Figma SVG when `iconSvg` is set
-   (recoloured to the ink via MaskIcon), else the Material Symbol `icon` font.
+/* Panel-variant card — Status Summary Card_Horizontal (Figma 291:62532 · 10:37835).
+   Tile + value ink default to the `statussummarycard-{color}` token pair
+   (info · positive · inprogress · brand · destructive). A card may override
+   with explicit `tileBg` / `iconInk` for tones outside that family. The tile
+   glyph is an exported Figma SVG when `iconSvg` is set (recoloured to the ink
+   via MaskIcon), else the Material Symbol `icon` font.
    Indicator glyph defaults to `trending_up`; pass `indicatorIconSvg` for an
    exported glyph or `indicatorIcon: null` for a plain line with no icon.
    Leading tile icons use Material **outline** (FILL 0) per PHCIS Figma 329:51905. */
@@ -118,7 +118,11 @@ const PanelSummaryCard = ({ card, hover = false }) => {
       >
         {card.iconSvg
           ? <MaskIcon src={card.iconSvg} size={20} color='currentColor' />
-          : <Sym name={card.icon} size={20} color='currentColor' />}
+          /* Use the <Icon> adapter (not raw <Sym>) so Lucide-style names
+             ('clipboard-list', 'file-text', …) render their curated SVG
+             instead of leaking the ligature TEXT when Material Symbols has
+             no such glyph. Material names still fall through to <Sym>. */
+          : <Icon name={card.icon} size={20} color='currentColor' />}
       </div>
       <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-0)' }}>

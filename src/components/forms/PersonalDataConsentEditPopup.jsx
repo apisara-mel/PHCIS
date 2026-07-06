@@ -232,7 +232,7 @@ export default function PersonalDataConsentEditPopup({
                   <InputField
                     size='lg'
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    onChange={setFirstName}
                     placeholder='ชื่อ'
                     showLabel={false}
                     showHelperText={false}
@@ -242,7 +242,7 @@ export default function PersonalDataConsentEditPopup({
                   <InputField
                     size='lg'
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    onChange={setLastName}
                     placeholder='นามสกุล'
                     showLabel={false}
                     showHelperText={false}
@@ -255,7 +255,7 @@ export default function PersonalDataConsentEditPopup({
                   <InputField
                     size='lg'
                     value={ageText}
-                    onChange={(e) => setAgeText(e.target.value)}
+                    onChange={setAgeText}
                     placeholder='อายุ'
                     leadingIcon='calendar_today'
                     showLeadingIcon
@@ -316,7 +316,7 @@ export default function PersonalDataConsentEditPopup({
                   <InputField
                     size='lg'
                     value={hn}
-                    onChange={(e) => setHn(e.target.value)}
+                    onChange={setHn}
                     placeholder='HN'
                     showLabel={false}
                     showHelperText={false}

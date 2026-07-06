@@ -5,7 +5,6 @@ import Footer from '@/components/layout/Footer';
 import TabUnderline from '@/components/tab/TabUnderline';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
-import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 
 /* MIH QueuePageShell — shared chrome for queue / list pages.
    Composes the four chrome layers used across OPD / MR / Treatment / etc:
@@ -64,7 +63,6 @@ const QueuePageShell = ({
   const subHeaderFlushBelow = !!(summaryCards) || hasHeaderInfo;
 
   return (
-  <ClinicFilterProvider>
   <div
     className='flex w-full min-h-screen'
     style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}
@@ -126,7 +124,6 @@ const QueuePageShell = ({
       </main>
     </div>
   </div>
-  </ClinicFilterProvider>
   );
 };
 

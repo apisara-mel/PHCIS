@@ -20,6 +20,10 @@ import { FieldShell, InputBox, useFieldId } from '@/components/forms/_inputBox';
    just <InputBox>. This is the path the legacy Fields.TextInput exercise
    inside their own <Field> wrappers — same DOM as before the merge.
 
+   onChange contract: `onChange(value, event?)` — first argument is the
+   string value (not a DOM event). Use `onChange={setState}` or
+   `onChange={(v) => ...}`; do not use `(e) => e.target.value`.
+
    All visual values alias from design.md tokens (--surface-input-*,
    --border-input-*, --text-input-*, --icon-input-*, --dim-stroke-200,
    --primaryBorder-600). Brand-aware tokens retint via <html data-brand>. */

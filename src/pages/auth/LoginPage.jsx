@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import InputField from '@/components/forms/InputField';
 import PasswordField from '@/components/forms/PasswordField';
 import Checkbox from '@/components/checkbox/Checkbox';
 import BrandButton from '@/components/button/BrandButton';
 import { Sym } from '@/components/forms/_inputBox';
+import { FakeQR } from '@/pages/mobile/MobileRegisterPage';
 /* PHCIS Sign-in — Figma "PHCIS-Signin" Bg + login card (nodes 32:2131 / 40:10656).
    First screen of the auth flow (1st/2nd-time user). Two-column layout:
    isometric healthcare illustration on the left, brand seal + sign-in card
@@ -87,11 +88,164 @@ const ThaIdLogo = ({ size = 'var(--dim-size-600)' }) => (
   </svg>
 );
 
+/* ThaID wordmark badge that sits in the centre of the QR — a white disc with
+   the "ThaiD" lockup (brand colours, like <ThaIdLogo>, are the official app's
+   palette, not design-system tokens). Real QR error-correction tolerates a
+   centred logo, so it overlays the FakeQR without breaking the pattern. */
+const ThaIdQrBadge = () => (
+  <span
+    className='absolute inline-flex items-center justify-center'
+    style={{
+      width: 'var(--dim-size-1000, 56px)',
+      height: 'var(--dim-size-1000, 56px)',
+      borderRadius: 'var(--dim-radius-full)',
+      background: 'var(--surface-card-100, #FFFFFF)',
+      boxShadow: 'var(--shadow-card)',
+    }}
+  >
+    <span
+      style={{
+        fontFamily: "'Mitr', system-ui, sans-serif",
+        fontSize: 'var(--type-size-base)',
+        fontWeight: 'var(--type-weight-medium)',
+        lineHeight: 1,
+        letterSpacing: '-0.02em',
+      }}
+    >
+      <span style={{ color: '#1F4FA8' }}>Thai</span>
+      <span style={{ color: '#F08A1D' }}>D</span>
+    </span>
+  </span>
+);
+
+/* Thai ID sign-in QR — Figma "PHCIS-Signin" thaiID (57:8699 / 57:8570).
+   Shown when the user picks "ดำเนินการต่อด้วย Thai ID": a centred card with a
+   live, auto-rotating QR (the citizen scans it in the ThaID app). The
+   countdown mirrors the real one-minute QR lifetime; on expiry the seed
+   rotates and the timer resets so the code is never stale. Scanning is
+   simulated by clicking the QR, which advances to OTP verification. */
+const ThaIdQrCard = ({ onBack, onScanned }) => {
+  const [secondsLeft, setSecondsLeft] = useState(59);
+  const [nonce, setNonce] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          /* QR expired — rotate to a fresh code and restart the minute. */
+          setNonce((n) => n + 1);
+          return 59;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+  const ss = String(secondsLeft % 60).padStart(2, '0');
+  /* Deterministic per-rotation payload (a mock DOPA ThaID auth ref). */
+  const qrSeed = `https://imauth.bora.dopa.go.th/phcis/login?ref=PHCIS-${nonce}`;
+
+  return (
+    <div
+      className='relative z-[1] w-full flex flex-col items-center'
+      style={{ maxWidth: 'var(--dim-size-2700)', gap: 'var(--dim-space-400)' }}
+    >
+      <div
+        className='mih-signin-panel flex flex-col items-center text-center'
+        style={{
+          background: 'var(--surface-card-100)',
+          boxShadow: 'var(--shadow-brand-drop-bottom-400)',
+          gap: 'var(--dim-space-800)',
+        }}
+      >
+        {/* Heading + countdown */}
+        <div className='flex flex-col items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+          <h1
+            style={{
+              margin: 0,
+              color: 'var(--text-brandPrimary-default)',
+              fontFamily: 'var(--type-family-heading-graphic2)',
+              fontSize: 'var(--type-size-2xl)',
+              fontWeight: 'var(--type-weight-regular)',
+              lineHeight: 1.375,
+            }}
+          >
+            ลงชื่อเข้าใช้งานระบบ
+          </h1>
+          <p
+            style={{
+              margin: 0,
+              color: 'var(--text-content-secondary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-base)',
+              fontWeight: 'var(--type-weight-regular)',
+              lineHeight: 1.5,
+            }}
+          >
+            {`หมดเวลาใน: ${mm}:${ss}`}
+          </p>
+        </div>
+
+        {/* QR with the ThaID badge centred. Clicking simulates a successful
+            scan and advances to OTP verification. */}
+        <button
+          type='button'
+          onClick={onScanned}
+          title='จำลองการสแกน ThaiID สำเร็จ'
+          className='relative inline-flex items-center justify-center'
+          style={{ background: 'transparent', border: 0, padding: 0, cursor: 'pointer' }}
+        >
+          <FakeQR seed={qrSeed} size={288} />
+          <ThaIdQrBadge />
+        </button>
+
+        {/* Issuer note */}
+        <div
+          style={{
+            color: 'var(--text-content-secondary)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-base)',
+            lineHeight: 1.5,
+          }}
+        >
+          <p style={{ margin: 0 }}>คิวอาร์โค้ดนี้เป็นสิ่งยืนยันตนทางดิจิทัล ออกให้โดย</p>
+          <p style={{ margin: 0 }}>กรมการปกครอง กระทรวงมหาดไทย</p>
+        </div>
+      </div>
+
+      {/* Back to the credentials form */}
+      <button
+        type='button'
+        onClick={onBack}
+        className='inline-flex items-center'
+        style={{
+          background: 'transparent',
+          border: 0,
+          padding: 0,
+          cursor: 'pointer',
+          gap: 'var(--dim-space-100)',
+          color: 'var(--text-brandPrimary-default)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+          fontWeight: 'var(--type-weight-medium)',
+          lineHeight: 1.5,
+        }}
+      >
+        <Sym name='chevron_left' size={'var(--dim-size-400)'} color='currentColor' />
+        ย้อนกลับ
+      </button>
+    </div>
+  );
+};
+
 export default function LoginPage() {
   const history = useHistory();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
+  const [thaiIdOpen, setThaiIdOpen] = useState(false);
 
   const goToOtp = (e) => {
     e && e.preventDefault();
@@ -131,7 +285,10 @@ export default function LoginPage() {
     <div className='mih-signin-screen'>
       <SignInBackground />
 
-      {/* Figma 79:15265 — padded row: illustration flex-grows, card fixed 448px. */}
+      {thaiIdOpen ? (
+        <ThaIdQrCard onBack={() => setThaiIdOpen(false)} onScanned={goToOtp} />
+      ) : (
+      /* Figma 79:15265 — padded row: illustration flex-grows, card fixed 448px. */
       <div className='mih-signin-content'>
         {/* Left — isometric healthcare illustration (Figma 79:14357). */}
         <div className='mih-signin-illus'>
@@ -193,7 +350,7 @@ export default function LoginPage() {
                in the leading slot; tokens mirror NeutralButton/outline. */}
             <button
               type='button'
-              onClick={goToOtp}
+              onClick={() => setThaiIdOpen(true)}
               className='flex items-center w-full transition-colors duration-200 ease-out'
               style={{
                 gap: 'var(--dim-space-200)',
@@ -285,6 +442,7 @@ export default function LoginPage() {
             </div>
         </form>
       </div>
+      )}
     </div>
   );
 }

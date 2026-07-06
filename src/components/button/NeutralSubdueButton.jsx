@@ -105,6 +105,7 @@ const resolveStyles = ({ variant, isHover, active, focused, disabled }) => {
 const NeutralSubdueButton = React.forwardRef(function NeutralSubdueButton(
   {
     leadingIcon,
+    leadingIconElement,
     trailingIcon,
     children,
     onClick,
@@ -135,7 +136,9 @@ const NeutralSubdueButton = React.forwardRef(function NeutralSubdueButton(
   const styleType = variant === 'outlined' ? 'outline' : variant;
   const dim = SIZES[size] || SIZES.sm;
   const s = resolveStyles({ variant: styleType, isHover, active, focused, disabled });
-  const renderLeadingIcon  = showLeadingIcon  !== undefined ? showLeadingIcon  : !!leadingIcon;
+  const renderLeadingIcon  = showLeadingIcon  !== undefined
+    ? showLeadingIcon
+    : !!(leadingIconElement || leadingIcon);
   const renderTrailingIcon = showTrailingIcon !== undefined ? showTrailingIcon : !!trailingIcon;
 
   const collapsePx = (collapseLabelBelow && COLLAPSE_LABEL_MIN_PX[collapseLabelBelow]) ?? null;
@@ -188,7 +191,10 @@ const NeutralSubdueButton = React.forwardRef(function NeutralSubdueButton(
       }}
       {...rest}
     >
-      {renderLeadingIcon && leadingIcon && <Sym name={leadingIcon} size={dim.icon} color={s.icon} />}
+      {renderLeadingIcon && (
+        leadingIconElement
+          ?? (leadingIcon && <Sym name={leadingIcon} size={dim.icon} color={s.icon} />)
+      )}
       {effectiveShowLabel && children != null && <span>{children}</span>}
       {renderTrailingIcon && trailingIcon && <Sym name={trailingIcon} size={dim.icon} color={s.icon} />}
     </button>

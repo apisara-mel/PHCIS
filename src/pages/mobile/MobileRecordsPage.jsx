@@ -8,7 +8,8 @@ import {
   MobileButton,
   Sym,
 } from '@/components/mobile/MobileShell';
-import { VISIT_HISTORY, ACTIVE_MEDS, ANC_PROFILE } from '@/data/mobileMock';
+import { ACTIVE_MEDS, ANC_PROFILE } from '@/data/mobileMock';
+import { usePhcisLink } from '@/data/phcisLink';
 
 /* MIH PHCIS Mobile · Records & history — TOR §4.4 + §4.6 + §4.6.7.
    Tabs:
@@ -185,13 +186,14 @@ const sectionTitle = {
 const MobileRecordsInner = () => {
   const history = useHistory();
   const [tab, setTab] = useState('visits');
+  const { visits } = usePhcisLink(); // synced with PHCIS (doctor records → patient sees)
 
   const visitsByType = useMemo(() => ({
-    all:       VISIT_HISTORY,
-    visit:     VISIT_HISTORY.filter((v) => v.type === 'visit'),
-    video:     VISIT_HISTORY.filter((v) => v.type === 'video'),
-    homevisit: VISIT_HISTORY.filter((v) => v.type === 'homevisit'),
-  }), []);
+    all:       visits,
+    visit:     visits.filter((v) => v.type === 'visit'),
+    video:     visits.filter((v) => v.type === 'video'),
+    homevisit: visits.filter((v) => v.type === 'homevisit'),
+  }), [visits]);
   const [visitFilter, setVisitFilter] = useState('all');
 
   return (

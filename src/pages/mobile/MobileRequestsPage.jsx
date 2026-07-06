@@ -11,6 +11,7 @@ import {
   Sym,
 } from '@/components/mobile/MobileShell';
 import { REQUEST_TYPES, REQUESTS_HISTORY, findRequestType } from '@/data/mobileMock';
+import MobileIconBadge from '@/components/mobile/MobileIconBadge';
 
 /* MIH PHCIS Mobile · Send Requests — TOR §4.8.
    Lists request types as cards. Clicking a card opens a compose sheet
@@ -55,14 +56,7 @@ const MobileRequestsInner = () => {
               {REQUEST_TYPES.map((r) => (
                 <MobileCard key={r.key} onClick={() => setPicked(r)} padding='var(--dim-space-400, 16px)'>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 8 }}>
-                    <span style={{
-                      width: 48, height: 48, borderRadius: 'var(--dim-radius-300, 10px)',
-                      background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-                      color: 'var(--text-brandPrimary-default, #007549)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Sym name={r.icon} size={24} fill />
-                    </span>
+                    <MobileIconBadge icon={r.icon} tone={r.tone || 'green'} size={48} iconSize={24} />
                     <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-content-primary)', fontSize: 'var(--type-size-sm, 14px)' }}>{r.label}</p>
                     <p style={{ margin: 0, fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary)' }}>{r.desc}</p>
                   </div>
@@ -84,18 +78,11 @@ const MobileRequestsInner = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-300, 12px)' }}>
                 {items.map((r) => {
                   const meta = findRequestType(r.type);
+                  const tone = meta?.tone || 'green';
                   return (
                     <MobileCard key={r.id} padding='var(--dim-space-400, 16px)'>
                       <div className='flex items-start' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-                        <span style={{
-                          width: 36, height: 36, borderRadius: 'var(--dim-radius-300, 10px)',
-                          background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-                          color: 'var(--text-brandPrimary-default, #007549)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          flexShrink: 0,
-                        }}>
-                          <Sym name={meta ? meta.icon : 'help'} size={20} fill />
-                        </span>
+                        <MobileIconBadge icon={meta ? meta.icon : 'help'} tone={tone} size={36} iconSize={18} />
                         <div className='flex-1 min-w-0'>
                           <div className='flex items-center' style={{ gap: 6, flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 700, color: 'var(--text-content-primary)' }}>{meta ? meta.label : r.type}</span>

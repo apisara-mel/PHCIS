@@ -8,7 +8,7 @@ import {
   MobileBadge,
   Sym,
 } from '@/components/mobile/MobileShell';
-import { findVisit } from '@/data/mobileMock';
+import { usePhcisLink } from '@/data/phcisLink';
 
 /* MIH PHCIS Mobile · Visit detail (TOR §4.4 + §4.6.1-§4.6.4).
    Each card group corresponds to one TOR sub-requirement so the
@@ -36,7 +36,8 @@ const Row = ({ label, value, mono }) => (
 const MobileVisitInner = () => {
   const history = useHistory();
   const { id } = useParams();
-  const v = findVisit(id);
+  const { visits } = usePhcisLink();
+  const v = visits.find((x) => x.id === id);
   if (!v) {
     return (
       <>

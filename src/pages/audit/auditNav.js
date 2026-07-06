@@ -1,0 +1,11 @@
+/* ระบบประวัติการใช้งาน (Audit / Activity log) is a SEPARATE top-level system
+   (sibling of PHCIS / จัดการระบบ / Consent), entered from the System Hub
+   "ประวัติการใช้งาน" card. Reuses the shared <Sidebar> shell via QueuePageShell
+   with its own menu. The activity content used to live inside จัดการระบบ
+   (SystemActivityPage) and was moved out here. */
+export const AUDIT_NAV = [
+  { key: 'audit-overview', label: 'ภาพรวมการใช้งาน', icon: 'bar_chart_4_bars', path: '/audit' },
+  { key: 'audit-log',      label: 'บันทึกการใช้งาน',  icon: 'history',          path: '/audit/log' },
+];
+
+export default AUDIT_NAV;

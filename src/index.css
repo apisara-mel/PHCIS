@@ -625,6 +625,8 @@
   --dim-size-1300:  60px;  /* dimension.size.1300 — OTP cell height (PHCIS-Signin 55:8422) */
   --dim-size-1400:  64px;
   --dim-size-1700:  80px;  /* dimension.size.1700 — hub card illustration tile (Figma 21:1875) */
+  --dim-size-2450:  280px; /* dimension.size.2450 — OTP channel select card width (PHCIS-Signin 42:8722) */
+  --dim-size-2470:  298px; /* dimension.size.2470 — auth primary button width (PHCIS-Signin 112:10776) */
   --dim-size-2500:  320px; /* dimension.size.2500 — input field min-width / sign-in form column */
   --dim-size-2600:  384px; /* dimension.size.2600 — sign-in card content / button max-width */
   --dim-size-2700:  448px; /* dimension.size.2700 — sign-in card max-width (Figma 40:10656) */
@@ -669,14 +671,16 @@
   --dim-stroke-400: 4px;
 
   /* Queue Page tokens — OPD Queue (Figma 115:35757)
-     Status Summary Cards (4 colored variants — info/positive/inprogress/brand) */
+     Status Summary Cards (info / positive / inprogress / brand / destructive) */
   --surface-statussummarycard-info:        #DBEAFE;  /* blue-100  */
   --surface-statussummarycard-positive:    #D1F6EE;  /* teal-100  */
   --surface-statussummarycard-inprogress:  #FFEDD5;  /* orange-100 */
+  --surface-statussummarycard-destructive: #FEE2E2;  /* red-100   */
   --surface-statussummarycard-brand:       var(--brand-p100);
   --text-statussummarycard-info-number:        #1D4ED8;
   --text-statussummarycard-positive-number:    #196C65;
   --text-statussummarycard-inprogress-number:  #C2410C;
+  --text-statussummarycard-destructive-number: #B91C1C;
   --text-statussummarycard-brand-number:       var(--brand-p700);
   --text-statussummarycard-subtext:    #858C92;
   --text-statussummarycard-increase:   #636B72;
