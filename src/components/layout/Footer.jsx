@@ -51,6 +51,10 @@ const Footer = ({
     { label: 'Privacy Policy', href: '#' },
     { label: 'Terms of Service', href: '#' },
   ],
+  /* When false, the legal/copyright row is omitted — used when the Footer is
+     an action bar inside a shell (QueuePageShell) that already renders its own
+     legal Footer, so the © row isn't duplicated. */
+  showLegal = true,
   className = '',
   style = {},
 }) => {
@@ -223,8 +227,9 @@ const Footer = ({
         </div>
       )}
 
-      {/* Row 2 — Legal container (always present) */}
-      {LegalRow}
+      {/* Row 2 — Legal container (omitted when showLegal=false, e.g. action
+          bars inside a shell that already renders its own legal Footer) */}
+      {showLegal && LegalRow}
     </footer>
   );
 };

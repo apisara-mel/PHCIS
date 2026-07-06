@@ -150,7 +150,14 @@ const MockMapSVG = () => (
   </svg>
 );
 
-const AddressMapBlock = ({ value, onChange }) => {
+const AddressMapBlock = ({
+  value,
+  onChange,
+  heading = 'ปักหมุดตำแหน่งบ้าน',
+  hint = 'ลากหมุดเพื่อปรับตำแหน่ง คลิกบนแผนที่ หรือกด “ใช้ตำแหน่งปัจจุบัน”',
+  readOnly = false,
+  compact = false,
+}) => {
   const mapRef = useRef(null);
   const draggingRef = useRef(false);
   const [pinPct, setPinPct] = useState(() => latLngToPct(value || {}));
@@ -191,6 +198,7 @@ const AddressMapBlock = ({ value, onChange }) => {
   };
 
   const handleMapClick = (e) => {
+    if (readOnly) return;
     if (draggingRef.current) return; /* click after drag — ignore */
     const next = eventToPct(e);
     if (!next) return;
@@ -200,6 +208,7 @@ const AddressMapBlock = ({ value, onChange }) => {
 
   /* Pointer-based drag — works on mouse + touch + pen via Pointer Events. */
   const handlePinPointerDown = (e) => {
+    if (readOnly) return;
     e.preventDefault();
     e.stopPropagation();
     e.target.setPointerCapture?.(e.pointerId);
@@ -305,10 +314,13 @@ const AddressMapBlock = ({ value, onChange }) => {
   const handleZoomIn  = () => setZoom((z) => Math.min(1.8, z + 0.2));
   const handleZoomOut = () => setZoom((z) => Math.max(1, z - 0.2));
 
+  const mapHeight = compact ? 224 : 360;
+  const mapRadius = compact ? 'var(--dim-radius-600, 24px)' : 'var(--dim-radius-400)';
+
   return (
     <div
       className='flex flex-col w-full'
-      style={{
+      style={compact ? { maxWidth: 718 } : {
         gap: 'var(--dim-space-300)',
         padding: 'var(--dim-space-600)',
         borderRadius: 'var(--dim-radius-400)',
@@ -316,6 +328,8 @@ const AddressMapBlock = ({ value, onChange }) => {
         maxWidth: 780,
       }}
     >
+      {!compact && (
+      <>
       {/* Header row */}
       <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
         <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
@@ -325,30 +339,35 @@ const AddressMapBlock = ({ value, onChange }) => {
             fontWeight: 'var(--type-weight-bold)',
             fontSize: 'var(--type-size-sm)',
           }}>
-            ปักหมุดตำแหน่งบ้าน
+            {heading}
           </span>
-          <span style={{
-            color: 'var(--text-content-tertiary)',
-            fontFamily: 'var(--type-family-body)',
-            fontSize: 'var(--type-size-xs)',
-            lineHeight: 1.5,
-          }}>
-            ลากหมุดเพื่อปรับตำแหน่ง คลิกบนแผนที่ หรือกด “ใช้ตำแหน่งปัจจุบัน”
-          </span>
+          {!readOnly && (
+            <span style={{
+              color: 'var(--text-content-tertiary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              lineHeight: 1.5,
+            }}>
+              {hint}
+            </span>
+          )}
         </div>
-        <BrandSubdueButton
-          variant='outline'
-          size='sm'
-          leadingIcon='my_location'
-          onClick={handleUseCurrent}
-        >
-          ใช้ตำแหน่งปัจจุบัน
-        </BrandSubdueButton>
+        {!readOnly && (
+          <BrandSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='my_location'
+            onClick={handleUseCurrent}
+          >
+            ใช้ตำแหน่งปัจจุบัน
+          </BrandSubdueButton>
+        )}
       </div>
 
       {/* Search — SecondarySearch alias + typeahead dropdown anchored to
           the input. The wrapper is `relative` so the suggestions
           overlay can absolutely-position right below the field. */}
+      {!readOnly && (
       <div ref={searchBoxRef} className='relative w-full'>
         <SecondarySearch
           value={query}
@@ -423,16 +442,20 @@ const AddressMapBlock = ({ value, onChange }) => {
           </div>
         )}
       </div>
+      )}
+      </>
+      )}
 
       {/* Map canvas */}
       <div
         ref={mapRef}
         className='relative w-full overflow-hidden'
         style={{
-          height: 360,
-          borderRadius: 'var(--dim-radius-400)',
+          height: mapHeight,
+          borderRadius: mapRadius,
           border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-          cursor: 'crosshair',
+          cursor: readOnly ? 'default' : 'crosshair',
+          pointerEvents: readOnly ? 'none' : 'auto',
         }}
         onClick={handleMapClick}
       >
@@ -464,8 +487,9 @@ const AddressMapBlock = ({ value, onChange }) => {
             transform: 'translate(-50%, -100%)',
             color: 'var(--text-brandPrimary-default, #007549)',
             filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.25))',
-            cursor: draggingRef.current ? 'grabbing' : 'grab',
-            touchAction: 'none',
+            cursor: readOnly ? 'default' : (draggingRef.current ? 'grabbing' : 'grab'),
+            touchAction: readOnly ? 'auto' : 'none',
+            pointerEvents: readOnly ? 'none' : 'auto',
           }}
         >
           <Sym name='location_on' size={48} color='currentColor' />
@@ -495,45 +519,48 @@ const AddressMapBlock = ({ value, onChange }) => {
           {coordLabel}
         </div>
 
-        {/* Zoom buttons */}
-        <div
-          className='absolute flex flex-col overflow-hidden'
-          style={{
-            right: 'var(--dim-space-300)',
-            top:   'var(--dim-space-300)',
-            borderRadius: 'var(--dim-radius-200)',
-            background: 'var(--surface-card-100)',
-            border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-            boxShadow: 'var(--shadow-brand-drop-bottom-100)',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {[
-            { icon: 'add',    onClick: handleZoomIn,  label: 'ขยายแผนที่' },
-            { icon: 'remove', onClick: handleZoomOut, label: 'ย่อแผนที่'  },
-          ].map(({ icon, onClick, label }, i) => (
-            <button
-              key={icon}
-              type='button'
-              aria-label={label}
-              onClick={onClick}
-              className='inline-flex items-center justify-center'
-              style={{
-                width: 32,
-                height: 32,
-                background: 'transparent',
-                border: 'none',
-                borderTop: i === 0 ? 'none' : 'var(--dim-stroke-100) solid var(--border-card-default)',
-                color: 'var(--text-content-default)',
-                cursor: 'pointer',
-              }}
-            >
-              <Sym name={icon} size={18} color='currentColor' />
-            </button>
-          ))}
-        </div>
+        {!readOnly && (
+          <div
+            className='absolute flex flex-col overflow-hidden'
+            style={{
+              right: 'var(--dim-space-300)',
+              top:   'var(--dim-space-300)',
+              borderRadius: 'var(--dim-radius-200)',
+              background: 'var(--surface-card-100)',
+              border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+              boxShadow: 'var(--shadow-brand-drop-bottom-100)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {[
+              { icon: 'add',    onClick: handleZoomIn,  label: 'ขยายแผนที่' },
+              { icon: 'remove', onClick: handleZoomOut, label: 'ย่อแผนที่'  },
+            ].map(({ icon, onClick, label }, i) => (
+              <button
+                key={icon}
+                type='button'
+                aria-label={label}
+                onClick={onClick}
+                className='inline-flex items-center justify-center'
+                style={{
+                  width: 32,
+                  height: 32,
+                  background: 'transparent',
+                  border: 'none',
+                  borderTop: i === 0 ? 'none' : 'var(--dim-stroke-100) solid var(--border-card-default)',
+                  color: 'var(--text-content-default)',
+                  cursor: 'pointer',
+                }}
+              >
+                <Sym name={icon} size={18} color='currentColor' />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {!compact && (
+      <>
       {/* Footer row */}
       <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
         <Sym name='location_on' size={16} color='var(--text-brandPrimary-default)' />
@@ -548,23 +575,24 @@ const AddressMapBlock = ({ value, onChange }) => {
             {coordLabel}
           </span>
         </span>
-        <div className='flex-1' />
-        {/* Save button — Figma 133:9181 / DS 129:19146:
-              • Default → outline + quinary surface, location_on, บันทึกตำแหน่ง.
-              • Saved   → active state: `--surface-brandPrimaryButton-quaternary`
-                          + `--border-brandPrimary-quaternary`, check icon,
-                          บันทึกแล้ว (non-interactive until pin moves). */}
-        <BrandPrimaryButton
-          size='sm'
-          variant='outline'
-          leadingIcon={pinSaved ? 'check' : 'location_on'}
-          active={pinSaved}
-          onClick={pinSaved ? undefined : handleSave}
-          aria-label={pinSaved ? 'บันทึกตำแหน่งแล้ว' : 'บันทึกตำแหน่ง'}
-        >
-          {pinSaved ? 'บันทึกแล้ว' : 'บันทึกตำแหน่ง'}
-        </BrandPrimaryButton>
+        {!readOnly && (
+          <>
+            <div className='flex-1' />
+            <BrandPrimaryButton
+              size='sm'
+              variant='outline'
+              leadingIcon={pinSaved ? 'check' : 'location_on'}
+              active={pinSaved}
+              onClick={pinSaved ? undefined : handleSave}
+              aria-label={pinSaved ? 'บันทึกตำแหน่งแล้ว' : 'บันทึกตำแหน่ง'}
+            >
+              {pinSaved ? 'บันทึกแล้ว' : 'บันทึกตำแหน่ง'}
+            </BrandPrimaryButton>
+          </>
+        )}
       </div>
+      </>
+      )}
     </div>
   );
 };

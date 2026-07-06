@@ -15,7 +15,7 @@ import DangerSubdueIconButton from '@/components/button/DangerSubdueIconButton';
 import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import AlertDialog from '@/components/popup/AlertDialog';
-import LottieIllustration from '@/components/illustrations/LottieIllustration';
+import SuccessScreen from '@/components/layout/SuccessScreen';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — สร้างแบบฟอร์มใหม่ (Figma node 294:124265, steps
@@ -584,61 +584,6 @@ const CheckboxRow = ({ fields, value, onToggle }) => (
 );
 
 /* ── Page ───────────────────────────────────────────────────────────── */
-/* Publish-success screen — Figma 372:126529. Full-viewport soft gradient with a
-   centred white card: success animation (Lottie from /illustration if present,
-   else a static check), title, and a "เข้าสู่หน้าหลัก" button. */
-const SUCCESS_LOTTIE = '/illustration/consent-success.json';
-function PublishSuccessScreen({ onHome }) {
-  const [anim, setAnim] = useState(null);
-  useEffect(() => {
-    let alive = true;
-    fetch(SUCCESS_LOTTIE)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive) setAnim(d); })
-      .catch(() => { /* fall back to static check */ });
-    return () => { alive = false; };
-  }, []);
-  return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 'var(--sm-z-modal, 1400)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 'var(--dim-space-600)',
-        background: 'radial-gradient(120% 120% at 28% 18%, #EAF7F1 0%, #F4F8FF 52%, #EAF2FF 100%)',
-      }}
-    >
-      {/* Card dimensions per Figma 372:126529 — w-640 · px-32 py-48 · gap-32 ·
-         radius-24 · Brand Drop Shadow Bottom/400. */}
-      <div
-        className='flex flex-col items-center'
-        style={{
-          width: '100%', maxWidth: 'var(--dim-size-2900, 640px)',
-          background: 'var(--surface-card-100)',
-          borderRadius: 'var(--dim-radius-600)',
-          boxShadow: 'var(--shadow-brand-drop-bottom-400)',
-          padding: 'var(--dim-space-1200, 48px) var(--dim-space-800, 32px)',
-          gap: 'var(--dim-space-800)',
-        }}
-      >
-        {anim ? (
-          <LottieIllustration animationData={anim} size={256} loop={false} ariaLabel='สำเร็จ' />
-        ) : (
-          <span
-            className='inline-flex items-center justify-center'
-            style={{ width: 64, height: 64, borderRadius: 'var(--dim-radius-full)', background: 'var(--color-emerald-600, #08A768)', color: '#FFFFFF' }}
-          >
-            <Icon name='check' size={32} />
-          </span>
-        )}
-        <h1 style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-2xl)', fontWeight: 'var(--type-weight-regular, 400)', textAlign: 'center', lineHeight: 1.375 }}>
-          คุณสร้างแบบฟอร์มใหม่สำเร็จ
-        </h1>
-        <BrandButton variant='fill' size='lg' trailingIcon='arrow_forward' onClick={onHome}>แบบฟอร์มความยินยอมทั้งหมด</BrandButton>
-      </div>
-    </div>
-  );
-}
-
 export default function CreateConsentFormPage() {
   const history = useHistory();
   const [step, setStep] = useState(0);
@@ -820,7 +765,12 @@ export default function CreateConsentFormPage() {
       />
 
       {published && (
-        <PublishSuccessScreen onHome={() => { setPublished(false); history.push('/consent/forms'); }} />
+        <SuccessScreen
+          title='คุณสร้างแบบฟอร์มใหม่สำเร็จ'
+          buttonLabel='แบบฟอร์มความยินยอมทั้งหมด'
+          lottieSize={256}
+          onDone={() => { setPublished(false); history.push('/consent/forms'); }}
+        />
       )}
     </>
   );

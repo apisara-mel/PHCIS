@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import SystemHubPage from '@/pages/hub/SystemHubPage';
@@ -24,12 +24,34 @@ import BodyRecordPreviewPage from '@/pages/preview/BodyRecordPreviewPage';
 import ComponentsLibraryPage from '@/pages/components/ComponentsLibraryPage';
 import LoginPage from '@/pages/auth/LoginPage';
 import LoginVerifyPage from '@/pages/auth/LoginVerifyPage';
+import LoginSetPasswordPage from '@/pages/auth/LoginSetPasswordPage';
+import LoginSuccessPage from '@/pages/auth/LoginSuccessPage';
 import ConsentManagementPage from '@/pages/consent/ConsentManagementPage';
 import CreateConsentFormPage from '@/pages/consent/CreateConsentFormPage';
 import AccessManagementPage from '@/pages/consent/AccessManagementPage';
 import ConsentReportPage from '@/pages/consent/ConsentReportPage';
 import ConsentFormsPage from '@/pages/consent/ConsentFormsPage';
 import ConsentFormViewPage from '@/pages/consent/ConsentFormViewPage';
+import SystemStaffPage from '@/pages/system/SystemStaffPage';
+import SystemStaffDetailPage from '@/pages/system/SystemStaffDetailPage';
+import SystemStaffAddPage from '@/pages/system/SystemStaffAddPage';
+import SystemRolesPage from '@/pages/system/SystemRolesPage';
+import SystemRoleCreatePage from '@/pages/system/SystemRoleCreatePage';
+import SystemOverviewPage from '@/pages/system/SystemOverviewPage';
+import SystemCentersPage from '@/pages/system/SystemCentersPage';
+import AddCenterPage from '@/pages/system/AddCenterPage';
+import AuditOverviewPage from '@/pages/audit/AuditOverviewPage';
+import AuditLogPage from '@/pages/audit/AuditLogPage';
+import CreateDocTemplatePage from '@/pages/doc-template/CreateDocTemplatePage';
+import GroupPolicyPage from '@/pages/assess/GroupPolicyPage';
+import DepartmentPage from '@/pages/assess/DepartmentPage';
+import PositionPage from '@/pages/assess/PositionPage';
+import AccessControlPage from '@/pages/assess/AccessControlPage';
+import AccessControlCreatePage from '@/pages/assess/AccessControlCreatePage';
+import AccessControlDetailPage from '@/pages/assess/AccessControlDetailPage';
+import AssessUserPage from '@/pages/assess/AssessUserPage';
+import AssessUserCreatePage from '@/pages/assess/AssessUserCreatePage';
+import AssessUserDetailPage from '@/pages/assess/AssessUserDetailPage';
 import KioskPage from '@/pages/kiosk/KioskPage';
 import MobileTicketPage from '@/pages/kiosk/MobileTicketPage';
 import Spotlight from '@/components/util/Spotlight';
@@ -65,7 +87,9 @@ export default function Routes() {
         {/* Root = System Selection Hub (PHCIS-ALL · Figma node 2149:104090).
             Shown BEFORE entering any specific subsystem. Each card routes
             into its respective system (PHCIS dashboard, mobile, kiosk, …). */}
-        <Route exact path='/'                component={SystemHubPage} />
+        {/* Landing always shows the sign-in screen; the System Hub lives at
+            /hub and is reached after a successful login. */}
+        <Redirect exact from='/' to='/login' />
         <Route exact path='/hub'             component={SystemHubPage} />
         {/* PHCIS Sign-in (Figma "PHCIS-Signin" 1:1249). Standalone full-screen
             auth surface — NO sidebar/header chrome. /login/verify is the OTP
@@ -73,6 +97,8 @@ export default function Routes() {
         <Route exact path='/login'           component={LoginPage} />
         <Route exact path='/signin'          component={LoginPage} />
         <Route exact path='/login/verify'    component={LoginVerifyPage} />
+        <Route exact path='/login/set-password' component={LoginSetPasswordPage} />
+        <Route exact path='/login/success'   component={LoginSuccessPage} />
         {/* ระบบจัดการความยินยอม (Consent Management · Figma "PHCIS | Consent" 1:4) */}
         <Route exact path='/consent'              component={ConsentManagementPage} />
         {/* สร้างแบบฟอร์มใหม่ — 3-step wizard, stays INSIDE the consent system
@@ -86,6 +112,34 @@ export default function Routes() {
         <Route exact path='/consent/access'       component={AccessManagementPage} />
         {/* สถิติและรายงาน — consent reports dashboard (Figma 358:113804). */}
         <Route exact path='/consent/report'       component={ConsentReportPage} />
+        {/* ระบบจัดการระบบ (System/Org administration · Figma 0EDfjwf1 24:2612) —
+            central admin: org structure · staff · roles. Reached from the Hub.
+            (The activity history moved to its own system · /audit.) */}
+        <Route exact path='/admin'           component={SystemOverviewPage} />
+        {/* ศูนย์บริการ — health-center registry + 5-step add wizard (Figma 4D3nTx53 · 1:3273). */}
+        <Route exact path='/admin/centers'      component={SystemCentersPage} />
+        <Route exact path='/admin/centers/new'  component={AddCenterPage} />
+        <Route exact path='/admin/staff'        component={SystemStaffPage} />
+        <Route exact path='/admin/staff/new'    component={SystemStaffAddPage} />
+        <Route exact path='/admin/staff/:id'    component={SystemStaffDetailPage} />
+        <Route exact path='/admin/roles'        component={SystemRolesPage} />
+        <Route exact path='/admin/roles/new'    component={SystemRoleCreatePage} />
+        {/* ระบบประวัติการใช้งาน (Audit / Activity log · Figma 0EDfjwf1 12:1624) —
+            usage overview + history log. Top-level system, reached from the Hub. */}
+        <Route exact path='/audit'           component={AuditOverviewPage} />
+        <Route exact path='/audit/log'       component={AuditLogPage} />
+        {/* PHCIS | Assess-control — Group Policy (Figma 4D3nTx53 · 3:18430). */}
+        <Route exact path='/assess/group-policy' component={GroupPolicyPage} />
+        <Route exact path='/assess/departments'   component={DepartmentPage} />
+        <Route exact path='/assess/positions'     component={PositionPage} />
+        <Route exact path='/assess/access-control/new' component={AccessControlCreatePage} />
+        <Route exact path='/assess/access-control/:id/edit' component={AccessControlCreatePage} />
+        <Route exact path='/assess/access-control/:id' component={AccessControlDetailPage} />
+        <Route exact path='/assess/access-control' component={AccessControlPage} />
+        <Route exact path='/assess/users/new' component={AssessUserCreatePage} />
+        <Route exact path='/assess/users/:id/edit' component={AssessUserCreatePage} />
+        <Route exact path='/assess/users/:id' component={AssessUserDetailPage} />
+        <Route exact path='/assess/users' component={AssessUserPage} />
         <Route exact path='/appointment'     component={AppointmentPage} />
         {/* ระบบจัดการตารางเวร (Schedule Management) — TOP-LEVEL system, sibling of PHCIS.
             Figma PHCIS-ALL · entered from hub card 2149:104214. No PhcisChrome — owns its shell. */}
@@ -101,6 +155,9 @@ export default function Routes() {
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
+        <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
+        <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />
         {/* คลังแบบฟอร์ม — catalog grouped by category + detail w/ QR share */}
         <Route exact path='/forms'                          component={FormsLibraryPage} />
         <Route exact path='/forms/category/:categoryKey'    component={FormsCategoryPage} />

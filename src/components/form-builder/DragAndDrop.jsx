@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import DangerButton from '@/components/button/DangerButton';
 
@@ -136,6 +136,121 @@ const FileCard = ({ file, onRemove, disabled }) => {
   );
 };
 
+/* Image-preview variant of the filled card — used when `preview` is on and
+   the file is an image. Renders the actual uploaded image (object-fit:
+   contain on a brand-p50 stage) above a filename + size + remove row, so
+   the user sees the cover art clearly instead of a generic file icon.
+   Non-image files (e.g. PDF) keep the compact <FileCard>. */
+const ImagePreviewCard = ({ file, onRemove, disabled }) => {
+  const [hover, setHover] = useState(false);
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className='flex flex-col w-full'
+      style={{
+        gap: 'var(--dim-space-300)',
+        padding: 'var(--dim-space-400)',
+        background: 'var(--surface-formbuilder-card)',
+        border: `var(--dim-stroke-100) solid var(--border-formbuilder-filled)`,
+        borderRadius: 'var(--dim-radius-200)',
+        boxShadow: hover ? 'var(--shadow-formbuilder)' : 'none',
+        boxSizing: 'border-box',
+        transition: 'box-shadow 120ms ease',
+      }}
+    >
+      {/* Image stage — full-width 16:9 frame, image fills it (object-fit: cover) */}
+      <div
+        className='w-full flex items-center justify-center overflow-hidden'
+        style={{
+          borderRadius: 'var(--dim-radius-200)',
+          background: 'var(--surface-formbuilder-default)',
+          aspectRatio: '16 / 9',
+        }}
+      >
+        {url && (
+          <img
+            src={url}
+            alt={file.name}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
+        )}
+      </div>
+      {/* filename + size + remove */}
+      <div className='inline-flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        <span
+          className='inline-flex items-center justify-center shrink-0'
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 'var(--dim-radius-200)',
+            background: 'var(--brand-p100)',
+            color: 'var(--text-formbuilder-text)',
+          }}
+        >
+          <Sym name='image' size={20} color='currentColor' fill />
+        </span>
+        <div className='flex flex-col flex-1 min-w-0'>
+          <span
+            className='truncate'
+            style={{
+              color: 'var(--text-formbuilder-text)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+              fontWeight: 'var(--type-weight-regular)',
+              lineHeight: 1.5,
+            }}
+          >
+            {file.name}
+          </span>
+          <span
+            className='truncate'
+            style={{
+              color: 'var(--text-formbuilder-subtext)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              fontWeight: 'var(--type-weight-regular)',
+              lineHeight: 1.5,
+            }}
+          >
+            {formatBytes(file.size)}
+          </span>
+        </div>
+        <button
+          type='button'
+          onClick={onRemove}
+          disabled={disabled}
+          aria-label={`Remove ${file.name}`}
+          className='inline-flex items-center justify-center shrink-0'
+          style={{
+            width: 24,
+            height: 24,
+            background: 'transparent',
+            border: 'none',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            color: 'var(--text-formbuilder-text)',
+          }}
+        >
+          <Sym name='close' size={16} color='currentColor' />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const isImageFile = (f) => !!f && typeof f.type === 'string' && f.type.startsWith('image/');
+
 const DragAndDrop = React.forwardRef(function DragAndDrop(
   {
     value,
@@ -146,6 +261,10 @@ const DragAndDrop = React.forwardRef(function DragAndDrop(
     multiple = true,
     maxSize = DEFAULT_MAX,
     size = 'lg',
+    /* When true, image files render as a large <ImagePreviewCard> showing the
+       actual uploaded picture (used for cover-image uploads). Non-image files
+       still fall back to the compact <FileCard>. */
+    preview = false,
     disabled = false,
     error: errorProp,
     state,                                /* force 'default' | 'hover' | 'error' | 'filled' for demos */
@@ -251,12 +370,21 @@ const DragAndDrop = React.forwardRef(function DragAndDrop(
         {...rest}
       >
         {files.map((f, i) => (
-          <FileCard
-            key={`${f.name}-${i}`}
-            file={f}
-            disabled={disabled}
-            onRemove={() => removeAt(i)}
-          />
+          preview && isImageFile(f) ? (
+            <ImagePreviewCard
+              key={`${f.name}-${i}`}
+              file={f}
+              disabled={disabled}
+              onRemove={() => removeAt(i)}
+            />
+          ) : (
+            <FileCard
+              key={`${f.name}-${i}`}
+              file={f}
+              disabled={disabled}
+              onRemove={() => removeAt(i)}
+            />
+          )
         ))}
         {multiple && !disabled && (
           <BrandSubdueButton

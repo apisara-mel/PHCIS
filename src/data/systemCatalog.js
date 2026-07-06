@@ -65,7 +65,7 @@ export const SYSTEM_CATALOG = [
     gridLabel: 'แม่แบบเอกสาร',
     desc: 'รวบรวมแม่แบบเอกสารทั้งหมด โดยแบ่งเป็นประเภทเอกสารต่างๆ',
     lastUsed: 'วันนี้, 08:30 น.',
-    route: null,
+    route: '/doc-template/new',
   },
   {
     key: 'audit',
@@ -74,7 +74,7 @@ export const SYSTEM_CATALOG = [
     gridLabel: 'ประวัติการใช้งาน',
     desc: 'บันทึกกิจกรรมทุกอย่างที่เกิดขึ้นในระบบแบบอัตโนมัติ ครอบคลุมการสร้าง แก้ไข ลบ และเข้าถึงข้อมูล Consent ของผู้ใช้ทุกคน',
     lastUsed: 'วันนี้, 08:30 น.',
-    route: null,
+    route: '/audit',
   },
   {
     key: 'admin',
@@ -83,7 +83,7 @@ export const SYSTEM_CATALOG = [
     gridLabel: 'จัดการระบบ',
     desc: 'ศูนย์กลางสำหรับผู้ดูแลระบบในการกำหนดโครงสร้างและนโยบายการใช้งานทั้งหมด การกำหนด Role และสิทธิ์การเข้าถึงของผู้ใช้แต่ละคน',
     lastUsed: 'วันนี้, 08:30 น.',
-    route: '/users',
+    route: '/admin',
   },
 ];
 

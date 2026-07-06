@@ -138,11 +138,10 @@ const StatusBar = () => {
 
 /* ─── Bottom tab nav ─────────────────────────────────────────────────── */
 const TABS = [
-  { key: 'home',         path: '/m/home',         icon: 'home',           labelTh: 'หน้าหลัก',  labelEn: 'Home' },
-  { key: 'appointments', path: '/m/appointments', icon: 'event_available', labelTh: 'นัดหมาย',  labelEn: 'Appointments' },
-  { key: 'records',      path: '/m/records',      icon: 'description',    labelTh: 'ประวัติ',  labelEn: 'Records' },
-  { key: 'profile',      path: '/m/profile',      icon: 'account_circle', labelTh: 'โปรไฟล์',  labelEn: 'Profile' },
-  { key: 'more',         path: '/m/more',         icon: 'apps',           labelTh: 'เพิ่มเติม', labelEn: 'More' },
+  { key: 'home',         path: '/m/home',         icon: 'home',           iconActive: 'home',           labelTh: 'หน้าแรก',  labelEn: 'Home' },
+  { key: 'appointments', path: '/m/appointments', icon: 'calendar_clock', iconActive: 'calendar_clock', labelTh: 'นัดหมาย',  labelEn: 'Appointments' },
+  { key: 'requests',     path: '/m/requests',     icon: 'send',           iconActive: 'send',           labelTh: 'ส่งคำขอ',  labelEn: 'Requests' },
+  { key: 'profile',      path: '/m/profile',      icon: 'face',           iconActive: 'face',           labelTh: 'โปรไฟล์',  labelEn: 'Profile' },
 ];
 
 const BottomNav = () => {
@@ -150,17 +149,10 @@ const BottomNav = () => {
   const { pathname } = useLocation();
   const { lang } = useMobileApp();
   const activeKey = (() => {
-    if (pathname.startsWith('/m/home')) return 'home';
-    if (pathname.startsWith('/m/appointments') || pathname.startsWith('/m/book')) return 'appointments';
-    if (pathname.startsWith('/m/records') || pathname.startsWith('/m/results') || pathname.startsWith('/m/visit/')) return 'records';
+    if (pathname.startsWith('/m/home') || pathname === '/m') return 'home';
+    if (pathname.startsWith('/m/appointments') || pathname.startsWith('/m/book') || pathname.startsWith('/m/telemed')) return 'appointments';
+    if (pathname.startsWith('/m/requests')) return 'requests';
     if (pathname.startsWith('/m/profile')) return 'profile';
-    if (pathname.startsWith('/m/more')
-        || pathname.startsWith('/m/clinics')
-        || pathname.startsWith('/m/requests')
-        || pathname.startsWith('/m/news')
-        || pathname.startsWith('/m/payment')
-        || pathname.startsWith('/m/settings')
-        || pathname.startsWith('/m/telemed')) return 'more';
     return null;
   })();
   return (
@@ -168,9 +160,10 @@ const BottomNav = () => {
       className='flex items-stretch'
       style={{
         height: 'var(--mobile-bottom-nav-height, 80px)',
-        background: 'var(--surface-content-default, #FFFFFF)',
-        borderTop: '1px solid var(--border-content-tertiary, #E1E3E5)',
-        paddingBottom: 16,                /* iOS safe-area inset visual */
+        background: 'var(--surface-card-100)',
+        borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+        boxShadow: 'var(--shadow-brand-drop-top-200)',
+        paddingBottom: 16,
       }}
     >
       {TABS.map((tab) => {
@@ -191,7 +184,7 @@ const BottomNav = () => {
               fontWeight: active ? 'var(--type-weight-bold, 700)' : 'var(--type-weight-medium, 500)',
             }}
           >
-            <Sym name={tab.icon} size={24} fill={active} />
+            <Sym name={active ? tab.iconActive : tab.icon} size={24} fill={active} />
             <span>{label}</span>
           </button>
         );

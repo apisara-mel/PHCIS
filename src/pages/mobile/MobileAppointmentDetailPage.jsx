@@ -5,9 +5,12 @@ import {
   MobileHeader,
   MobileCard,
   MobileButton,
-  MobileBadge,
   Sym,
 } from '@/components/mobile/MobileShell';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import StatusBadge from '@/components/badge/StatusBadge';
+import MobileIconBadge from '@/components/mobile/MobileIconBadge';
+import { MOBILE_SERVICE_META } from '@/components/mobile/mobileIconTones';
 import { APPOINTMENTS, CLINICS, findAppointment } from '@/data/mobileMock';
 
 /* MIH PHCIS Mobile · Appointment detail.
@@ -21,11 +24,7 @@ const formatThaiDate = (yyyy_mm_dd) => {
   return `${d} ${months[m - 1]} ${y}`;
 };
 
-const typeMeta = {
-  visit:     { icon: 'medical_services', label: 'พบแพทย์',   tone: 'brand' },
-  video:     { icon: 'video_camera_front', label: 'วิดีโอคอล', tone: 'info' },
-  homevisit: { icon: 'home_health', label: 'เยี่ยมบ้าน',     tone: 'success' },
-};
+const typeMeta = MOBILE_SERVICE_META;
 
 const Row = ({ label, value, mono = false }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--dim-space-300, 12px)', padding: '10px 0', borderBottom: '1px solid var(--border-content-quaternary, #F0F1F3)' }}>
@@ -75,18 +74,15 @@ const MobileAppointmentDetailInner = () => {
         {/* Hero card */}
         <MobileCard padding='var(--dim-space-500, 20px)'>
           <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)', marginBottom: 'var(--dim-space-300, 12px)' }}>
-            <span style={{
-              width: 56, height: 56, borderRadius: 'var(--dim-radius-400, 12px)',
-              background: 'linear-gradient(135deg, #007549 0%, #4CC6AE 100%)',
-              color: '#FFFFFF',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Sym name={meta.icon} size={28} fill />
-            </span>
+            <MobileIconBadge icon={meta.listIcon} tone={meta.tone} size={56} iconSize={28} />
             <div>
-              <MobileBadge tone={meta.tone}>{meta.label}</MobileBadge>
-              {cancelled && <MobileBadge tone='warning'>ยกเลิกแล้ว</MobileBadge>}
-              {apt.status === 'past' && <MobileBadge>เสร็จสิ้น</MobileBadge>}
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                <ColorfulBadge style={meta.badgeStyle} size='small' hierarchy='secondary' width='hug' showIcon icon={meta.icon}>
+                  {meta.badgeLabel}
+                </ColorfulBadge>
+                {cancelled && <StatusBadge style='warning' size='small'>ยกเลิกแล้ว</StatusBadge>}
+                {apt.status === 'past' && <StatusBadge style='neutral' size='small'>เสร็จสิ้น</StatusBadge>}
+              </div>
               <p style={{
                 margin: '4px 0 0',
                 fontFamily: 'var(--type-family-display)',

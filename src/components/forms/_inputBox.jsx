@@ -356,8 +356,8 @@ if (typeof document !== 'undefined' && !document.getElementById('mih-input-place
   const s = document.createElement('style');
   s.id = 'mih-input-placeholder-style';
   s.textContent = `
-.mih-input-placeholder::placeholder { color: var(--text-input-default); opacity: 1; }
-.mih-input-placeholder:disabled::placeholder { color: var(--text-input-disabled); }
+.mih-input-placeholder::placeholder { color: var(--text-input-default, #ADB2B7); opacity: 1; }
+.mih-input-placeholder:disabled::placeholder { color: var(--text-input-disabled, var(--text-input-default, #ADB2B7)); }
 `;
   document.head.appendChild(s);
 }

@@ -444,7 +444,7 @@ const Select = React.forwardRef(function Select(
   /* Normalised array view of the value when multiple — tolerant of a stray
      scalar/empty so the field never crashes on a mis-typed initial value. */
   const arr = multiple ? (Array.isArray(v) ? v : (v == null || v === '' ? [] : [v])) : null;
-  const hasValue = multiple ? arr.length > 0 : !!v;
+  const hasValue = multiple ? arr.length > 0 : (v != null && v !== '');
   const [hovered, setHovered] = useState(false);
   const [open, setOpen] = useState(false);
   /* The trigger doubles as a combobox input — typing into it filters
@@ -496,7 +496,18 @@ const Select = React.forwardRef(function Select(
   const s = resolveTrigger({ state: effState, hasValue, error: !!error, disabled });
   const dim = SIZES[size] || SIZES.lg;
 
-  const selected = options.find((o) => (o.value ?? o) === v);
+  const selected = hasValue ? options.find((o) => (o.value ?? o) === v) : null;
+  /* Sentinel option (`value: ''`) carries the placeholder copy in many
+     forms (e.g. Add Center Step 2 — Figma 3:9187). When the field is
+     empty, render that label in `--text-input-default`, not as filled
+     value text. */
+  const emptyOption = options.find((o) => {
+    const ov = o?.value ?? o;
+    return ov === '' || ov == null;
+  });
+  const emptyOptionLabel = emptyOption
+    ? (emptyOption.label ?? (typeof emptyOption === 'string' ? emptyOption : ''))
+    : '';
   /* `displayLabel` lets the trigger reflect ANY value the caller has
      set on the field, not just values that match an entry in
      `options`. Without this fallback, seeding a value that isn't in
@@ -517,11 +528,13 @@ const Select = React.forwardRef(function Select(
         })
         .join(', ');
     }
+    if (!hasValue) return '';
     if (selected) return selected.label ?? (typeof selected === 'string' ? selected : '');
     if (v != null && v !== '') return String(v);
     return '';
   })();
-  const isPlaceholder = !displayLabel;
+  const isPlaceholder = !hasValue;
+  const triggerText = displayLabel || emptyOptionLabel || placeholder;
 
   const choose = (next) => {
     if (multiple) {
@@ -692,8 +705,8 @@ const Select = React.forwardRef(function Select(
                  ghost text when the doctor opens the popover. */
               placeholder={
                 open
-                  ? (displayLabel || placeholder)
-                  : (isPlaceholder ? placeholder : undefined)
+                  ? (displayLabel || emptyOptionLabel || placeholder)
+                  : (isPlaceholder ? triggerText : undefined)
               }
               onFocus={() => { if (!disabled) setOpen(true); }}
               onChange={(e) => {
@@ -714,8 +727,8 @@ const Select = React.forwardRef(function Select(
                 padding: 0,
                 color: open
                   ? 'var(--text-input-filled, #4D5358)'
-                  : (disabled || effState === 'disabled' || isPlaceholder
-                      ? s.textColor
+                  : (isPlaceholder
+                      ? 'var(--text-input-default, #ADB2B7)'
                       : 'var(--text-input-filled)'),
                 fontFamily: 'var(--type-family-body)',
                 fontSize:   dim.fontSize,
@@ -733,16 +746,18 @@ const Select = React.forwardRef(function Select(
               aria-invalid={!!error || undefined}
               className='flex-1 min-w-0 truncate'
               style={{
-                color: disabled || effState === 'disabled' || isPlaceholder
+                color: disabled || effState === 'disabled'
                   ? s.textColor
-                  : 'var(--text-input-filled)',
+                  : (isPlaceholder
+                      ? 'var(--text-input-default, #ADB2B7)'
+                      : 'var(--text-input-filled)'),
                 fontFamily: 'var(--type-family-body)',
                 fontSize:   dim.fontSize,
                 fontWeight: dim.fontWeight,
                 lineHeight: 1.5,
               }}
             >
-              {displayLabel || placeholder}
+              {triggerText}
             </span>
           )}
           <span

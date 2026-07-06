@@ -2,306 +2,425 @@ import React, { useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import {
   MobileShell,
-  MobileHeader,
   MobileCard,
   MobileButton,
-  MobileBadge,
   Sym,
 } from '@/components/mobile/MobileShell';
+import {
+  BookingWizardShell,
+  BookingPanel,
+  BookingSearchRow,
+  CentreListCard,
+  DoctorListCard,
+  BookingTagRow,
+  ConfirmDetailRow,
+  BOOKING_STEP_META,
+} from '@/components/mobile/BookingWizard';
 import { CLINICS, DOCTORS, SCHEDULE_SLOTS } from '@/data/mobileMock';
+import { MOBILE_ICON_TONES } from '@/components/mobile/mobileIconTones';
+import { bookAppointment } from '@/data/phcisLink';
 
-/* MIH PHCIS Mobile · Appointment booking flow — TOR §4.2.1 / §4.2.6.4.
-   4-step wizard:
-     1. clinic       — pick a service center
-     2. department   — pick a clinic department
-     3. doctor       — pick from doctors available at that clinic + dept
-     4. date + slot  — choose date and time from SCHEDULE_SLOTS grid
-   Final success card shows the new appointment ID + summary.             */
+/* Figma Mobile Application · Booking flow (6dCDQkwc8DhvyovBbDTyp5 · 173:82969).
+   5-step wizard: ประเภทบริการ → ศูนย์ → แพทย์ → วัน/เวลา → ยืนยัน */
 
-const STEPS = ['clinic', 'dept', 'doctor', 'slot', 'done'];
+const STEPS = ['service', 'centre', 'doctor', 'datetime', 'confirm', 'success'];
+const DEPT_KEY = 'general';
+const DOCTOR_TAGS = ['ทั้งหมด', 'อายุรกรรม', 'กระดูกและข้อ', 'กุมารเวช'];
 
-const formatThaiDate = (yyyy_mm_dd) => {
-  const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-  const [y, m, d] = yyyy_mm_dd.split('-').map(Number);
-  return `${d} ${months[m - 1]} ${y}`;
+const THAI_MONTHS_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+const formatThaiDateShort = (yyyyMmDd) => {
+  const [, mm, dd] = yyyyMmDd.split('-').map(Number);
+  const today = new Date();
+  const isToday = today.getDate() === dd && (today.getMonth() + 1) === mm;
+  return isToday ? `วันนี้, ${dd} ${THAI_MONTHS_SHORT[mm - 1]}` : `${dd} ${THAI_MONTHS_SHORT[mm - 1]}`;
 };
-
-const StepDots = ({ idx }) => (
-  <div className='flex items-center justify-center' style={{ gap: 6 }}>
-    {STEPS.slice(0, -1).map((_, i) => (
-      <span key={i}
-        style={{
-          width: i === idx ? 24 : 8,
-          height: 8, borderRadius: 999,
-          background: i <= idx ? 'var(--surface-brandPrimary-default, #007549)' : 'var(--surface-content-secondary, #E1E3E5)',
-          transition: 'all 200ms ease',
-        }}
-      />
-    ))}
-  </div>
-);
 
 const MobileBookInner = () => {
   const history = useHistory();
   const { search } = useLocation();
   const reschedule = new URLSearchParams(search).get('reschedule');
 
-  const [step, setStep] = useState('clinic');
+  const [step, setStep] = useState('service');
+  const [serviceType, setServiceType] = useState(null);
   const [clinic, setClinic] = useState(null);
-  const [dept,   setDept]   = useState(null);
   const [doctor, setDoctor] = useState(null);
-  const [date,   setDate]   = useState(null);
-  const [time,   setTime]   = useState(null);
+  const [date, setDate] = useState(null);
+  const [time, setTime] = useState(null);
+  const [symptom, setSymptom] = useState('');
+  const [doctorTag, setDoctorTag] = useState('ทั้งหมด');
+  const [centreQuery, setCentreQuery] = useState('');
+  const [doctorQuery, setDoctorQuery] = useState('');
 
   const idx = STEPS.indexOf(step);
-  const titlePrefix = reschedule ? 'เลื่อนนัดหมาย' : 'ทำนัดหมายใหม่';
-
+  const go = (s) => setStep(s);
   const goBack = () => {
-    const i = STEPS.indexOf(step);
-    if (i > 0) setStep(STEPS[i - 1]);
-    else history.push('/m/appointments');
+    if (idx <= 0) history.push('/m/appointments');
+    else setStep(STEPS[idx - 1]);
   };
 
-  const availableDoctors = useMemo(() => {
-    if (!clinic || !dept) return [];
-    return DOCTORS.filter((d) => d.dept === dept.key && d.clinics.includes(clinic.code));
-  }, [clinic, dept]);
-
   const schedule = useMemo(() => {
-    if (!clinic || !dept) return {};
-    return SCHEDULE_SLOTS[`${clinic.code}_${dept.key}`] || {};
-  }, [clinic, dept]);
+    if (!clinic) return {};
+    return SCHEDULE_SLOTS[`${clinic.code}_${DEPT_KEY}`] || {};
+  }, [clinic]);
 
-  const renderClinic = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-300, 12px)' }}>
-      <p style={subStyle}>เลือกศูนย์บริการสาธารณสุขที่คุณต้องการเข้ารับบริการ</p>
-      {CLINICS.map((c) => (
-        <MobileCard key={c.code}
-          onClick={() => { setClinic(c); setDept(null); setDoctor(null); setStep('dept'); }}>
-          <div className='flex items-start' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-            <Sym name='local_hospital' size={28} color='var(--text-brandPrimary-default)' fill />
-            <div className='flex-1 min-w-0'>
-              <p style={{
-                margin: 0,
-                fontFamily: 'var(--type-family-display)',
-                fontSize: 'var(--type-size-base, 16px)',
-                fontWeight: 'var(--type-weight-bold, 700)',
-                color: 'var(--text-content-primary)',
-              }}>{c.name}</p>
-              <p style={{ margin: 0, fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary)' }}>
-                {c.distanceKm} กม. · {c.hours}
-              </p>
-            </div>
-            <Sym name='chevron_right' size={20} color='var(--text-content-tertiary)' />
-          </div>
-        </MobileCard>
-      ))}
-    </div>
-  );
+  const filteredClinics = useMemo(() => {
+    const q = centreQuery.trim().toLowerCase();
+    if (!q) return CLINICS;
+    return CLINICS.filter((c) => (
+      String(c.number).includes(q)
+      || (c.shortName || c.name).toLowerCase().includes(q)
+      || c.name.toLowerCase().includes(q)
+    ));
+  }, [centreQuery]);
 
-  const renderDept = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-300, 12px)' }}>
-      <p style={subStyle}>คลินิกที่เปิดให้บริการที่ <strong>{clinic.name}</strong></p>
-      {clinic.departments.map((d) => (
-        <MobileCard key={d.key} onClick={() => { setDept(d); setDoctor(null); setStep('doctor'); }}>
-          <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-            <span style={{
-              width: 40, height: 40, borderRadius: 'var(--dim-radius-300, 10px)',
-              background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-              color: 'var(--text-brandPrimary-default, #007549)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Sym name='stethoscope' size={20} fill />
-            </span>
-            <span style={{ flex: 1, fontWeight: 'var(--type-weight-bold, 700)', color: 'var(--text-content-primary)' }}>
-              {d.label}
-            </span>
-            <Sym name='chevron_right' size={20} color='var(--text-content-tertiary)' />
-          </div>
-        </MobileCard>
-      ))}
-    </div>
-  );
+  const filteredDoctors = useMemo(() => {
+    let list = DOCTORS.filter((d) => d.clinics.includes(clinic?.code) && d.dept === DEPT_KEY);
+    if (doctorTag !== 'ทั้งหมด') {
+      list = list.filter((d) => d.specialty.includes(doctorTag));
+    }
+    const q = doctorQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter((d) => d.name.toLowerCase().includes(q) || d.specialty.toLowerCase().includes(q));
+    }
+    return list;
+  }, [clinic, doctorTag, doctorQuery]);
 
-  const renderDoctor = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-300, 12px)' }}>
-      <p style={subStyle}>เลือกแพทย์ที่ <strong>{dept.label}</strong></p>
-      {availableDoctors.length === 0 && (
-        <MobileCard>
-          <p style={{ margin: 0, color: 'var(--text-content-tertiary)', textAlign: 'center' }}>
-            ขณะนี้ยังไม่มีตารางแพทย์ในคลินิกที่เลือก
+  const confirmBooking = () => {
+    if (!date || !time || !clinic || !doctor) return;
+    bookAppointment({
+      type: serviceType === 'online' ? 'video' : 'visit',
+      date,
+      time,
+      clinic: clinic.code,
+      deptKey: DEPT_KEY,
+      deptLabel: serviceType === 'online' ? 'เข้ารับบริการออนไลน์' : 'ตรวจรักษาทั่วไป',
+      doctor: doctor.name,
+      note: symptom || 'จองผ่านแอปผู้รับบริการ',
+    });
+    go('success');
+  };
+
+  if (step === 'success') {
+    return (
+      <div className='flex flex-col' style={{ minHeight: '100%', background: 'var(--background-screen-brand-100)' }}>
+        <div className='flex-1 flex flex-col items-center justify-center' style={{ padding: 'var(--dim-space-600, 24px)' }}>
+          <span
+            className='inline-flex items-center justify-center'
+            style={{
+              width: 96, height: 96, borderRadius: 'var(--dim-radius-full)',
+              background: 'var(--surface-brandPrimary-default)',
+              color: 'var(--text-brandPrimary-on-brand)',
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            <Sym name='check' size={52} />
+          </span>
+          <h1 style={{
+            margin: 'var(--dim-space-500, 20px) 0 0',
+            fontFamily: 'var(--type-family-heading-graphic2)',
+            fontSize: 'var(--type-size-xl)',
+            color: 'var(--text-brandPrimary-default)',
+          }}
+          >
+            {reschedule ? 'เลื่อนนัดหมายสำเร็จ' : 'จองนัดหมายสำเร็จ'}
+          </h1>
+          <p style={{
+            margin: 'var(--dim-space-200, 8px) 0 0',
+            fontSize: 'var(--type-size-sm)',
+            color: 'var(--text-content-secondary)',
+            textAlign: 'center',
+            lineHeight: 1.5,
+          }}
+          >
+            ระบบได้บันทึกนัดหมายและจะส่งการแจ้งเตือนก่อนถึงเวลา
           </p>
-        </MobileCard>
-      )}
-      {availableDoctors.map((d) => (
-        <MobileCard key={d.id} onClick={() => { setDoctor(d); setStep('slot'); }}>
-          <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-            <span style={{
-              width: 48, height: 48, borderRadius: 'var(--dim-radius-full)',
-              background: 'var(--surface-brandPrimary-default, #007549)',
-              color: '#FFFFFF',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 700,
-            }}>{d.name.replace(/[นพ\.พญ\.พ\.ว\.\s]/g, '').slice(0, 2)}</span>
-            <div className='flex-1 min-w-0'>
-              <p style={{ margin: 0, fontWeight: 'var(--type-weight-bold, 700)', color: 'var(--text-content-primary)' }}>{d.name}</p>
-              <p style={{ margin: 0, fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary)' }}>
-                ID {d.id} · {dept.label}
-              </p>
-            </div>
-            <Sym name='chevron_right' size={20} color='var(--text-content-tertiary)' />
-          </div>
-        </MobileCard>
-      ))}
-    </div>
-  );
+        </div>
+        <div style={{ padding: 'var(--dim-space-400, 16px)' }}>
+          <MobileButton onClick={() => history.push('/m/appointments')}>
+            กลับสู่รายการนัดหมาย
+          </MobileButton>
+        </div>
+      </div>
+    );
+  }
 
-  const renderSlot = () => {
+  if (step === 'service') {
+    return (
+      <BookingWizardShell
+        stepKey='service'
+        title={BOOKING_STEP_META.service.title}
+        onBack={goBack}
+        footerLabel='ถัดไป'
+        footerDisabled={!serviceType}
+        onFooter={() => go('centre')}
+      >
+        <BookingPanel title='เลือกรูปแบบการรับบริการ'>
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+            {[
+              { key: 'online', icon: 'videocam', label: 'เข้ารับบริการออนไลน์', sub: 'Telemedicine · พบแพทย์ผ่านวิดีโอคอล', tone: 'indigo' },
+              { key: 'clinic', icon: 'local_hospital', label: 'เข้ารับบริการที่ศูนย์', sub: 'นัดหมายที่ศูนย์บริการสาธารณสุข', tone: 'green' },
+            ].map((opt) => {
+              const palette = MOBILE_ICON_TONES[opt.tone];
+              return (
+              <button
+                key={opt.key}
+                type='button'
+                onClick={() => setServiceType(opt.key)}
+                className='flex items-center w-full text-left'
+                style={{
+                  gap: 'var(--dim-space-400, 16px)',
+                  padding: 'var(--dim-space-400, 16px)',
+                  borderRadius: 'var(--dim-radius-500, 16px)',
+                  border: serviceType === opt.key
+                    ? 'var(--dim-stroke-200) solid var(--border-brandPrimary-default)'
+                    : 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                  background: 'var(--surface-card-100)',
+                  cursor: 'pointer',
+                }}
+              >
+                <span
+                  className='inline-flex items-center justify-center shrink-0'
+                  style={{
+                    width: 48, height: 48, borderRadius: 'var(--dim-radius-full)',
+                    background: palette.bg,
+                  }}
+                >
+                  <Sym name={opt.icon} size={24} color={palette.fg} fill />
+                </span>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>{opt.label}</p>
+                  <p style={{ margin: 0, fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>{opt.sub}</p>
+                </div>
+              </button>
+              );
+            })}
+          </div>
+        </BookingPanel>
+      </BookingWizardShell>
+    );
+  }
+
+  if (step === 'centre') {
+    return (
+      <BookingWizardShell
+        stepKey='centre'
+        title={BOOKING_STEP_META.centre.title}
+        onBack={goBack}
+        footerLabel='ถัดไป'
+        footerDisabled={!clinic}
+        onFooter={() => go('doctor')}
+      >
+        <BookingPanel title='เลือกศูนย์บริการที่ต้องการนัดหมาย'>
+          <BookingSearchRow
+            placeholder='ค้นหาเลขหรือชื่อศูนย์บริการ'
+            value={centreQuery}
+            onChange={setCentreQuery}
+            onFilter={() => {}}
+          />
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {filteredClinics.map((c) => (
+              <CentreListCard
+                key={c.code}
+                number={c.number}
+                name={c.shortName || c.name}
+                distanceKm={c.distanceKm}
+                selected={clinic?.code === c.code}
+                onClick={() => { setClinic(c); setDoctor(null); }}
+              />
+            ))}
+          </div>
+        </BookingPanel>
+      </BookingWizardShell>
+    );
+  }
+
+  if (step === 'doctor') {
+    return (
+      <BookingWizardShell
+        stepKey='doctor'
+        title={BOOKING_STEP_META.doctor.title}
+        onBack={goBack}
+        footerLabel='ถัดไป'
+        footerDisabled={!doctor}
+        onFooter={() => go('datetime')}
+      >
+        <BookingPanel title='เลือกแพทย์ที่ต้องการนัดหมาย'>
+          <BookingSearchRow
+            placeholder='ค้นหาชื่อแพทย์'
+            value={doctorQuery}
+            onChange={setDoctorQuery}
+          />
+          <BookingTagRow tags={DOCTOR_TAGS} value={doctorTag} onChange={setDoctorTag} />
+          <div style={{ height: 1, background: 'var(--border-neutral-quaternary)', width: '100%' }} />
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {filteredDoctors.map((d) => (
+              <DoctorListCard
+                key={d.id}
+                name={d.name}
+                specialty={d.specialty}
+                availableToday={d.availableToday}
+                selected={doctor?.id === d.id}
+                onClick={() => setDoctor(d)}
+              />
+            ))}
+          </div>
+        </BookingPanel>
+      </BookingWizardShell>
+    );
+  }
+
+  if (step === 'datetime') {
     const dates = Object.keys(schedule);
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-300, 12px)' }}>
-        <p style={subStyle}>เลือกวันและเวลาที่สะดวก</p>
-        {/* Date row */}
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-          {dates.length === 0 && (
-            <p style={{ color: 'var(--text-content-tertiary)' }}>ไม่มีตารางว่างของแพทย์ในระยะนี้</p>
-          )}
-          {dates.map((d) => {
-            const active = d === date;
-            const [, mm, dd] = d.split('-');
-            return (
-              <button key={d} type='button' onClick={() => { setDate(d); setTime(null); }}
-                style={{
-                  flex: '0 0 64px', height: 76,
-                  borderRadius: 'var(--dim-radius-300, 10px)',
-                  background: active ? 'var(--surface-brandPrimary-default, #007549)' : 'var(--surface-content-default, #FFFFFF)',
-                  border: active ? '1.5px solid var(--surface-brandPrimary-default)' : '1.5px solid var(--border-content-tertiary)',
-                  color: active ? '#FFFFFF' : 'var(--text-content-primary)',
-                  cursor: 'pointer', display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                <span style={{ fontSize: 'var(--type-size-xs, 12px)', opacity: 0.85 }}>
-                  {['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'][new Date(d).getDay()]}
-                </span>
-                <span style={{ fontSize: 'var(--type-size-xl, 20px)', fontWeight: 700, lineHeight: 1.1 }}>{Number(dd)}</span>
-                <span style={{ fontSize: 'var(--type-size-xs, 12px)', opacity: 0.85 }}>เดือน {Number(mm)}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Time grid */}
-        {date && (
-          <div>
-            <p style={{ margin: '0 0 8px', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 700, color: 'var(--text-content-primary)' }}>
-              {formatThaiDate(date)} — เลือกเวลา
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+      <BookingWizardShell
+        stepKey='datetime'
+        title={BOOKING_STEP_META.datetime.title}
+        onBack={goBack}
+        footerLabel='ถัดไป'
+        footerDisabled={!date || !time}
+        onFooter={() => go('confirm')}
+      >
+        <BookingPanel title='เลือกวันและเวลาที่สะดวก'>
+          <div className='flex overflow-x-auto' style={{ gap: 'var(--dim-space-200, 8px)', paddingBottom: 4 }}>
+            {dates.map((d) => {
+              const active = d === date;
+              const [, mm, dd] = d.split('-');
+              return (
+                <button
+                  key={d}
+                  type='button'
+                  onClick={() => { setDate(d); setTime(null); }}
+                  style={{
+                    flex: '0 0 72px',
+                    height: 84,
+                    borderRadius: 'var(--dim-radius-300, 10px)',
+                    border: active
+                      ? 'var(--dim-stroke-200) solid var(--border-brandPrimary-default)'
+                      : 'var(--dim-stroke-100) solid var(--border-neutral-tertiary)',
+                    background: active ? 'var(--surface-brandPrimary-default)' : 'var(--surface-card-100)',
+                    color: active ? 'var(--text-brandPrimary-on-brand)' : 'var(--text-content-default)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontSize: 'var(--type-size-xl)', fontWeight: 'var(--type-weight-bold)' }}>{Number(dd)}</div>
+                  <div style={{ fontSize: 'var(--type-size-xs)' }}>{THAI_MONTHS_SHORT[mm - 1]}</div>
+                </button>
+              );
+            })}
+          </div>
+          {date && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--dim-space-200, 8px)' }}>
               {schedule[date].map((t) => {
                 const active = t === time;
                 return (
-                  <button key={t} type='button' onClick={() => setTime(t)}
+                  <button
+                    key={t}
+                    type='button'
+                    onClick={() => setTime(t)}
                     style={{
-                      height: 44, borderRadius: 'var(--dim-radius-300, 10px)',
-                      background: active ? 'var(--surface-brandPrimary-default, #007549)' : 'var(--surface-content-default, #FFFFFF)',
-                      border: active ? '1.5px solid var(--surface-brandPrimary-default)' : '1.5px solid var(--border-content-tertiary)',
-                      color: active ? '#FFFFFF' : 'var(--text-content-primary)',
-                      fontWeight: 700, cursor: 'pointer',
-                    }}>{t}</button>
+                      height: 44,
+                      borderRadius: 'var(--dim-radius-full)',
+                      border: active
+                        ? 'var(--dim-stroke-200) solid var(--border-brandPrimary-default)'
+                        : 'var(--dim-stroke-100) solid var(--border-neutral-tertiary)',
+                      background: active ? 'var(--surface-brandPrimary-default)' : 'var(--surface-card-100)',
+                      color: active ? 'var(--text-brandPrimary-on-brand)' : 'var(--text-content-default)',
+                      fontWeight: 'var(--type-weight-bold)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t}
+                  </button>
                 );
               })}
             </div>
-          </div>
-        )}
-
-        <MobileButton disabled={!date || !time} onClick={() => setStep('done')}>
-          ยืนยันนัดหมาย
-        </MobileButton>
-      </div>
+          )}
+        </BookingPanel>
+      </BookingWizardShell>
     );
-  };
+  }
 
-  const renderDone = () => {
-    const id = `APT-${Math.floor(Math.random() * 9000 + 1000)}`;
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-400, 16px)' }}>
-        <MobileCard padding='var(--dim-space-500, 20px)' style={{ textAlign: 'center' }}>
-          <div style={{
-            width: 72, height: 72, margin: '0 auto var(--dim-space-300, 12px)',
-            background: 'linear-gradient(135deg, #007549 0%, #4CC6AE 100%)',
-            borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF',
-          }}>
-            <Sym name='check' size={40} />
-          </div>
-          <h2 style={titleStyle}>{reschedule ? 'เลื่อนนัดหมายสำเร็จ' : 'ทำนัดหมายสำเร็จ'}</h2>
-          <p style={subStyle}>ระบบได้บันทึกนัดหมายและจะส่งการแจ้งเตือนก่อนถึงเวลา</p>
-        </MobileCard>
-
-        <MobileCard>
-          <Row label='รหัสนัดหมาย' value={id} mono />
-          <Row label='ศูนย์บริการ' value={clinic.name} />
-          <Row label='คลินิก' value={dept.label} />
-          <Row label='แพทย์' value={doctor.name} />
-          <Row label='วันและเวลา' value={`${formatThaiDate(date)} · ${time} น.`} />
-        </MobileCard>
-
-        <MobileButton onClick={() => history.push('/m/appointments')}>
-          กลับสู่รายการนัดหมาย
-        </MobileButton>
-      </div>
-    );
-  };
-
+  /* confirm */
   return (
-    <>
-      <MobileHeader
-        title={step === 'done' ? 'ยืนยันการนัดหมาย' : titlePrefix}
-        subtitle={step === 'done' ? undefined : `ขั้นที่ ${idx + 1} จาก 4`}
-        onBack={goBack}
-      />
-      <div style={{ padding: 'var(--dim-space-400, 16px)', display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-400, 16px)' }}>
-        {step !== 'done' && <StepDots idx={idx} />}
-        {step === 'clinic' && renderClinic()}
-        {step === 'dept'   && renderDept()}
-        {step === 'doctor' && renderDoctor()}
-        {step === 'slot'   && renderSlot()}
-        {step === 'done'   && renderDone()}
+    <BookingWizardShell
+      stepKey='confirm'
+      title={BOOKING_STEP_META.confirm.title}
+      onBack={goBack}
+      footerLabel='ยืนยันเวลานัดหมาย'
+      footerDisabled={!symptom.trim()}
+      onFooter={confirmBooking}
+    >
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <MobileCard padding='var(--dim-space-400, 16px)'>
+          <div className='flex items-center' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+            <span
+              className='inline-flex items-center justify-center shrink-0'
+              style={{
+                width: 48, height: 48, borderRadius: 'var(--dim-radius-full)',
+                background: 'var(--surface-brandPrimary-default)',
+                color: 'var(--text-brandPrimary-on-brand)',
+                fontWeight: 'var(--type-weight-bold)',
+              }}
+            >
+              {doctor?.name.replace(/[นพ\.พญ\.พ\.ว\.\s]/g, '').slice(0, 2)}
+            </span>
+            <div>
+              <p style={{ margin: 0, fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)' }}>{doctor?.name}</p>
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                <Sym name='stethoscope' size={14} color='var(--text-content-tertiary)' />
+                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>{doctor?.specialty}</span>
+              </div>
+            </div>
+          </div>
+        </MobileCard>
+
+        <MobileCard padding='var(--dim-space-400, 16px)'>
+          <p style={{ margin: '0 0 var(--dim-space-400, 16px)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>รายละเอียดการนัดหมาย</p>
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+            <ConfirmDetailRow icon='calendar_today' label='วันที่' value={formatThaiDateShort(date)} />
+            <ConfirmDetailRow icon='schedule' label='เวลา' value={`${time} น.`} />
+            <ConfirmDetailRow
+              icon={serviceType === 'online' ? 'videocam' : 'local_hospital'}
+              label='ประเภทการเข้ารับบริการ'
+              value={serviceType === 'online' ? 'เข้ารับบริการออนไลน์ (Telemedicine)' : 'เข้ารับบริการที่ศูนย์'}
+              tone={serviceType === 'online' ? 'indigo' : 'green'}
+            />
+          </div>
+        </MobileCard>
+
+        <MobileCard padding='var(--dim-space-400, 16px)'>
+          <p style={{ margin: '0 0 var(--dim-space-300, 12px)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>ข้อมูลประกอบการนัดหมาย</p>
+          <label style={{ display: 'block', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)', marginBottom: 'var(--dim-space-150, 6px)' }}>
+            อาการเบื้องต้น / หมายเหตุ <span style={{ color: 'var(--text-input-require)' }}>*</span>
+          </label>
+          <textarea
+            className='mih-mobile-book-note'
+            value={symptom}
+            onChange={(e) => setSymptom(e.target.value)}
+            placeholder='เช่น มีอาการเจ็บหน้าอกแปลบๆ บางครั้งเวลาออกกำลังกายหนัก ต้องการปรึกษาเบื้องต้น'
+            rows={4}
+            style={{
+              width: '100%',
+              minHeight: 96,
+              padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              border: 'var(--dim-stroke-100) solid var(--border-input-default)',
+              background: 'var(--surface-input-default)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-base)',
+              color: 'var(--text-content-default)',
+              resize: 'none',
+            }}
+          />
+        </MobileCard>
       </div>
-    </>
+    </BookingWizardShell>
   );
 };
 
-const Row = ({ label, value, mono }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--dim-space-300, 12px)', padding: '10px 0', borderBottom: '1px solid var(--border-content-quaternary, #F0F1F3)' }}>
-    <span style={{ fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-tertiary)' }}>{label}</span>
-    <span style={{
-      fontSize: 'var(--type-size-sm, 14px)',
-      fontWeight: 'var(--type-weight-bold, 700)',
-      color: 'var(--text-content-primary)',
-      fontFamily: mono ? 'ui-monospace, monospace' : 'inherit',
-      textAlign: 'right',
-    }}>{value}</span>
-  </div>
-);
-
-const titleStyle = {
-  margin: '0 0 4px',
-  fontFamily: 'var(--type-family-display)',
-  fontSize: 'var(--type-size-lg, 18px)',
-  fontWeight: 'var(--type-weight-bold, 700)',
-  color: 'var(--text-content-primary)',
-};
-
-const subStyle = {
-  margin: 0,
-  fontSize: 'var(--type-size-sm, 14px)',
-  color: 'var(--text-content-tertiary)',
-  lineHeight: 1.5,
-};
-
 const MobileBookPage = () => (
-  <MobileShell>
+  <MobileShell showBottomNav={false} background='var(--background-screen-brand-100)'>
     <MobileBookInner />
   </MobileShell>
 );

@@ -45,6 +45,8 @@ export const CURRENT_USER = {
 export const CLINICS = [
   {
     code: 'BNA',
+    number: '01',
+    shortName: 'ดินแดง',
     name: 'ศูนย์บริการสาธารณสุข 8 บางนา',
     address: '88 ถ.สรรพาวุธ บางนา กรุงเทพฯ 10260',
     distanceKm: 1.2,
@@ -61,6 +63,8 @@ export const CLINICS = [
   },
   {
     code: 'PRK',
+    number: '02',
+    shortName: 'พระโขนง',
     name: 'ศูนย์บริการสาธารณสุข 21 พระโขนง',
     address: '1093 ถ.สุขุมวิท 71 พระโขนง กรุงเทพฯ 10260',
     distanceKm: 3.4,
@@ -75,6 +79,8 @@ export const CLINICS = [
   },
   {
     code: 'KLM',
+    number: '03',
+    shortName: 'คลองสาน',
     name: 'ศูนย์บริการสาธารณสุข 36 บุคคโล',
     address: '232 ถ.สมเด็จพระเจ้าตากสิน คลองสาน กรุงเทพฯ 10600',
     distanceKm: 6.8,
@@ -89,27 +95,28 @@ export const CLINICS = [
 ];
 
 export const DOCTORS = [
-  { id: 'D-01', name: 'นพ.สมชาย ใจดี',     dept: 'general', clinics: ['BNA', 'PRK'] },
-  { id: 'D-02', name: 'พญ.สมหญิง รักษ์ดี', dept: 'general', clinics: ['BNA'] },
-  { id: 'D-03', name: 'พญ.วิภา สุขศรี',    dept: 'general', clinics: ['BNA', 'KLM'] },
-  { id: 'D-04', name: 'นพ.ธวัช ทันใจ',     dept: 'dental',  clinics: ['BNA', 'PRK'] },
-  { id: 'D-05', name: 'พญ.รัตนา หล่อรูป',  dept: 'anc',     clinics: ['BNA'] },
-  { id: 'D-06', name: 'นพ.ปรีชา ปรารถนา', dept: 'chronic', clinics: ['PRK'] },
+  { id: 'D-01', name: 'นพ.สมชาย ใจดี',     specialty: 'อายุรแพทย์โรคหัวใจ', dept: 'general', clinics: ['BNA', 'PRK'], availableToday: true },
+  { id: 'D-02', name: 'พญ.สมหญิง รักษ์ดี', specialty: 'อายุรกรรมทั่วไป', dept: 'general', clinics: ['BNA'], availableToday: true },
+  { id: 'D-03', name: 'พญ.วิภา สุขศรี',    specialty: 'อายุรกรรมทั่วไป', dept: 'general', clinics: ['BNA', 'KLM'], availableToday: false },
+  { id: 'D-04', name: 'นพ.ธวัช ทันใจ',     specialty: 'ทันตแพทย์', dept: 'dental',  clinics: ['BNA', 'PRK'], availableToday: true },
+  { id: 'D-05', name: 'พญ.รัตนา หล่อรูป',  specialty: 'สูตินรีเวช', dept: 'anc',     clinics: ['BNA'], availableToday: true },
+  { id: 'D-06', name: 'นพ.ปรีชา ปรารถนา', specialty: 'อายุรกรรมโรคเรื้อรัง', dept: 'chronic', clinics: ['PRK'], availableToday: false },
 ];
 
 /* ─── Appointments (mix of upcoming + past, mix of types) ───────────── */
 export const APPOINTMENTS = [
   {
     id: 'APT-2401',
-    type: 'visit',
+    type: 'video',
     status: 'upcoming',
-    date: '2569-05-28',
-    time: '09:00',
+    date: '2569-05-24',
+    time: '10:30',
     clinic: 'BNA',
     deptKey: 'general',
-    deptLabel: 'ตรวจรักษาทั่วไป',
-    doctor: 'นพ.สมชาย ใจดี',
-    note: 'ติดตามความดันโลหิต',
+    deptLabel: 'อายุรกรรมทั่วไป',
+    doctor: 'พญ.สมหญิง รักษ์ดี',
+    note: 'ปรึกษาแพทย์ออนไลน์ (ติดตามอาการ)',
+    locationLabel: 'ศูนย์ 4, ดินแดง',
   },
   {
     id: 'APT-2402',
@@ -297,12 +304,12 @@ export const BILLS = [
 
 /* ─── Service requests (4.8) — citizen-initiated asks ───────────────── */
 export const REQUEST_TYPES = [
-  { key: 'diapers',     label: 'ขอผ้าอ้อมผู้ใหญ่',      icon: 'baby_changing_station', desc: 'สำหรับผู้ป่วยติดบ้าน-ติดเตียงในความดูแลของศูนย์' },
-  { key: 'homevisit',   label: 'ขอเยี่ยมบ้าน',           icon: 'home_health',           desc: 'แจ้งความประสงค์ให้พยาบาลเข้าเยี่ยมบ้าน' },
-  { key: 'cert',        label: 'ขอใบรับรองแพทย์',         icon: 'description',           desc: 'ออกใบรับรองในรูปแบบ e-Document' },
-  { key: 'medrecord',   label: 'ขอประวัติการรักษา',       icon: 'medical_information',   desc: 'ขอเอกสารประวัติการรักษาแบบ e-Document' },
-  { key: 'transfer',    label: 'ขอส่งต่อหน่วยบริการอื่น', icon: 'send',                  desc: 'แจ้งความประสงค์ขอใบส่งตัว' },
-  { key: 'medicine',    label: 'ขอเติมยาตามใบเดิม',       icon: 'pill',                  desc: 'ยาประจำที่หมดและต้องการขอเติม' },
+  { key: 'diapers',     label: 'ขอผ้าอ้อมผู้ใหญ่',      icon: 'baby_changing_station', tone: 'pink',    desc: 'สำหรับผู้ป่วยติดบ้าน-ติดเตียงในความดูแลของศูนย์' },
+  { key: 'homevisit',   label: 'ขอเยี่ยมบ้าน',           icon: 'home',                  tone: 'blue',    desc: 'แจ้งความประสงค์ให้พยาบาลเข้าเยี่ยมบ้าน' },
+  { key: 'cert',        label: 'ขอใบรับรองแพทย์',         icon: 'description',           tone: 'green',   desc: 'ออกใบรับรองในรูปแบบ e-Document' },
+  { key: 'medrecord',   label: 'ขอประวัติการรักษา',       icon: 'medical_information',   tone: 'purple',  desc: 'ขอเอกสารประวัติการรักษาแบบ e-Document' },
+  { key: 'transfer',    label: 'ขอส่งต่อหน่วยบริการอื่น', icon: 'send',                  tone: 'indigo',  desc: 'แจ้งความประสงค์ขอใบส่งตัว' },
+  { key: 'medicine',    label: 'ขอเติมยาตามใบเดิม',       icon: 'pill',                  tone: 'purple',  desc: 'ยาประจำที่หมดและต้องการขอเติม' },
 ];
 
 export const REQUESTS_HISTORY = [
