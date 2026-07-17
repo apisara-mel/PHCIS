@@ -17,11 +17,17 @@ import {
   BrandCircleSubdueIconButton,
   BrandSubdueFloatButton,
   HistoryListFormButton,
+  KeypadButton,
   /* Primitives */
   MobileCard,
   MobileInput,
   MobileField,
+  MobileInputField,
+  Password,
+  Textarea,
+  SuccessCard,
   MobileBadge,
+  ColorfulBadge,
   MobileSectionLabel,
   MobileHeader,
   Sym,
@@ -49,7 +55,16 @@ const ActiveSectionContext = createContext('all');
    A couple of non-button slugs still fold into a shared section. */
 const SLUG_TO_SECTION = {
   'brand-subdue-float-button': 'float-button',  /* FAB section anchor */
-  'mobile-field':              'mobile-input',  /* Field lives in the Input + Field section */
+  /* MobileInputField superseded MobileInput + MobileField — all three fold
+     into the one merged Input Field section so the catalog shows a single
+     text-field entry instead of three competing ones. */
+  'mobile-input':              'mobile-input-field',
+  'mobile-field':              'mobile-input-field',
+  'mobile-password':           'mobile-password',
+  'mobile-textarea':           'mobile-textarea',
+  'mobile-success-card':       'mobile-success-card',
+  'mobile-badge':              'mobile-badge',
+  'mobile-colorful-badge':     'mobile-colorful-badge',
 };
 
 const Section = ({ title, anchor, subtitle, children }) => {
@@ -134,11 +149,12 @@ const MATRIX_STATES = [
   { key: 'disabled', label: 'Disabled', forced: { disabled: true } },
 ];
 
-/* Mobile buttons ship 2 sizes (md 44 / lg 56). Figma's Small (36) is
-   desktop-only — not implemented on mobile per design.md §7.3. */
+/* Mobile Brand Button sizes — Figma App 231:29
+   Small 40 / Medium 48 / Large 56 */
 const MATRIX_SIZES = [
   { key: 'lg', label: 'Large (56)' },
-  { key: 'md', label: 'Medium (44)' },
+  { key: 'md', label: 'Medium (48)' },
+  { key: 'sm', label: 'Small (40)' },
 ];
 
 const VARIANT_LABEL = { fill: 'Fill', outline: 'Outline', ghost: 'Ghost' };
@@ -280,8 +296,8 @@ const ICON_DEMO = { icon: 'add' };
 const BUTTON_GUIDE = {
   'brand-button': {
     behavior: ['ปุ่มหลักของหน้า/section — ใช้ 1 ปุ่ม Fill ต่อกลุ่ม action', 'Fill = primary · Outline = secondary · Ghost = tertiary/inline', 'เต็มความกว้าง (fullWidth) เป็นค่าเริ่มต้นบนมือถือ'],
-    dos: ['ใช้ Fill กับ action หลัก เช่น "ยืนยันนัดหมาย"', 'ใส่ trailing arrow เมื่อพาไปขั้นถัดไป', 'ใช้ size lg (56) สำหรับ CTA เต็มจอ'],
-    donts: ['อย่าวาง Fill หลายปุ่มในกลุ่มเดียว — แย่งความสนใจ', 'อย่าใช้ Ghost เป็น action หลัก', 'อย่าตั้งความสูงเอง — ใช้ token md/lg'],
+    dos: ['ใช้ Fill กับ action หลัก เช่น "ยืนยันนัดหมาย"', 'ใส่ trailing arrow เมื่อพาไปขั้นถัดไป', 'ใช้ size Large (56) สำหรับ CTA เต็มจอ'],
+    donts: ['อย่าวาง Fill หลายปุ่มในกลุ่มเดียว — แย่งความสนใจ', 'อย่าใช้ Ghost เป็น action หลัก', 'อย่าตั้งความสูงเอง — ใช้ Size Small/Medium/Large'],
   },
   'brand-subdue-button': {
     behavior: ['พื้นผิว brand แบบนุ่ม (quaternary) — เน้นน้อยกว่า BrandButton', 'มีเฉพาะ Fill / Outline (ไม่มี Ghost)'],
@@ -401,7 +417,7 @@ const MobileComponentsPage = () => {
             width: 36, height: 36,
             borderRadius: 'var(--dim-radius-300, 10px)',
             background: 'var(--surface-brandPrimary-default, #007549)',
-            color: '#FFFFFF',
+            color: 'var(--text-content-on-content)',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -666,6 +682,61 @@ const MobileComponentsPage = () => {
         </Section>
 
         <Section
+          title='KeypadButton'
+          anchor='keypad-button'
+          subtitle='Archive 314:43835 · 72 circle · Type Number/icon · Default 1px brand-p400 · Pressed 1.5px brand-p300 + white@20% · used on Set PIN'
+        >
+          <div
+            className='flex flex-col'
+            style={{
+              gap: 'var(--dim-space-400, 16px)',
+              padding: 'var(--dim-space-400, 16px)',
+              borderRadius: 'var(--dim-radius-400, 12px)',
+              background: 'linear-gradient(155.3deg, rgb(19, 178, 146) 0%, rgb(0, 163, 166) 100%)',
+            }}
+          >
+            <Row>
+              <KeypadButton type='Number' digit='1' state='Default' />
+              <KeypadButton type='Number' digit='1' state='Pressed' />
+              <KeypadButton type='icon' state='Default' />
+              <KeypadButton type='icon' state='Pressed' />
+            </Row>
+            <div
+              className='flex flex-col'
+              style={{ gap: 'var(--dim-space-300, 12px)', width: 264 }}
+            >
+              {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del']].map((row) => (
+                <div
+                  key={row.join('-')}
+                  className='flex items-center'
+                  style={{ gap: 'var(--dim-space-600, 24px)' }}
+                >
+                  {row.map((k) => {
+                    if (k === '') {
+                      return (
+                        <span
+                          key='empty'
+                          aria-hidden
+                          style={{
+                            width: 'var(--dim-size-1600, 72px)',
+                            height: 'var(--dim-size-1600, 72px)',
+                            opacity: 0,
+                          }}
+                        />
+                      );
+                    }
+                    if (k === 'del') {
+                      return <KeypadButton key='del' type='icon' onClick={() => {}} />;
+                    }
+                    return <KeypadButton key={k} type='Number' digit={k} onClick={() => {}} />;
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        <Section
           title='Card'
           anchor='mobile-card'
           subtitle='radius-500 · padding / onClick / elevated opt-in'
@@ -691,10 +762,56 @@ const MobileComponentsPage = () => {
         </Section>
 
         <Section
-          title='Input + Field'
-          anchor='mobile-input'
-          subtitle='16px base font (กัน iOS auto-zoom) · 48h · label / required / hint / error'
+          title='Input Field'
+          anchor='mobile-input-field'
+          subtitle='Figma App DS 267:50 · Size Large (56h · px24 · icon 20) / Medium (48h · px16 · icon 16) · State Default · Press(=Hover) · Filled · Error · Disabled · icon ใช้ --icon-input-* (Press = brand green) · ring input/100'
         >
+          {['lg', 'md'].map((sz) => (
+            <div key={sz} style={{ marginBottom: 'var(--dim-space-600, 24px)' }}>
+              <MobileSectionLabel>{sz === 'lg' ? 'Size = Large' : 'Size = Medium'}</MobileSectionLabel>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-500, 20px)' }}>
+                {['default', 'press', 'filled', 'error', 'disabled'].map((st) => (
+                  <MobileInputField
+                    key={st}
+                    size={sz}
+                    state={st}
+                    label={`State = ${st === 'press' ? 'Hover / Press' : st}`}
+                    required
+                    leadingIcon='calendar_today'
+                    placeholder='Placeholder'
+                    value={st === 'filled' ? 'สมชาย ใจดี' : ''}
+                    readOnly
+                    helperText={st === 'error' ? 'Error message here' : 'Helper text'}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          <MobileSectionLabel>Toggles</MobileSectionLabel>
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-500, 20px)' }}>
+            <MobileInputField label='ไม่มี * และไม่มี helper' leadingIcon='calendar_today' placeholder='Show * = false' />
+            <MobileInputField label='ไม่มี leading icon' required placeholder='Show leading icon = false' helperText='Helper text' />
+            <MobileInputField showFieldName={false} leadingIcon='search' placeholder='Show Field Name = false' />
+          </div>
+
+          {/* Deprecated MobileInput / MobileField live in this same section —
+              they're still mounted by 4 pages (Payment · Register · Requests ·
+              Vitals), so the catalog keeps ONE text-field entry that shows both
+              the canonical component and what it replaces, side by side. */}
+          <MobileSectionLabel>Legacy · MobileInput + MobileField (เลิกใช้)</MobileSectionLabel>
+          <p
+            style={{
+              margin: '0 0 var(--dim-space-300, 12px)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs, 12px)',
+              lineHeight: 1.5,
+              color: 'var(--text-content-tertiary, #858C92)',
+            }}
+          >
+            มาก่อน Figma component เลยไม่ตรง: radius 12 (ควรเป็น full) · 48h (ควร 56 ที่ Large) ·
+            border 1.5px (ควร 1px) · label/asterisk ผูก token ผิด. ยังคงไว้เพราะอีก 4 หน้าใช้อยู่ —
+            โค้ดใหม่ให้ใช้ <code>MobileInputField</code> ด้านบน
+          </p>
           <MobileField label='ชื่อ-นามสกุล' hint='ใส่ชื่อจริงตามบัตรประชาชน'>
             <MobileInput placeholder='เช่น สมชาย ใจดี' value={text} onChange={(e) => setText(e.target.value)} />
           </MobileField>
@@ -707,9 +824,117 @@ const MobileComponentsPage = () => {
         </Section>
 
         <Section
+          title='Password'
+          anchor='mobile-password'
+          subtitle='Figma App DS Password 5021:1008 · Size Large/Medium · State Default · Press · Filled · Error · Disabled · lock + eye toggle · Show Field Name / * / leading icon / Password / Helper'
+        >
+          {['lg', 'md'].map((sz) => (
+            <div key={sz} style={{ marginBottom: 'var(--dim-space-600, 24px)' }}>
+              <MobileSectionLabel>{sz === 'lg' ? 'Size = Large' : 'Size = Medium'}</MobileSectionLabel>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-500, 20px)' }}>
+                {['default', 'press', 'filled', 'error', 'disabled'].map((st) => (
+                  <Password
+                    key={st}
+                    size={sz}
+                    state={st}
+                    label={`State = ${st === 'press' ? 'Hover / Press' : st}`}
+                    required
+                    placeholder='Placeholder'
+                    value={st === 'filled' ? '••••••••' : ''}
+                    readOnly
+                    helperText={st === 'error' ? 'Error message here' : 'Helper text'}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          <MobileSectionLabel>Interactive</MobileSectionLabel>
+          <Password
+            label='รหัสผ่าน'
+            required
+            placeholder='กรอกรหัสผ่าน'
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            helperText='อย่างน้อย 8 ตัวอักษร'
+            autoComplete='new-password'
+          />
+        </Section>
+
+        <Section
+          title='Textarea'
+          anchor='mobile-textarea'
+          subtitle='Figma App DS Textarea 268:26 · Press(=Hover) 268:13 · 2px border-input-hover + 4px primaryBorder-600 ring (inset+outer shadow) · Default · Filled · Error · Disabled · min-height 96 · radius-200'
+        >
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-500, 20px)', marginBottom: 'var(--dim-space-600, 24px)' }}>
+            {['default', 'press', 'filled', 'error', 'disabled'].map((st) => (
+              <Textarea
+                key={st}
+                state={st}
+                label={`State = ${st === 'press' ? 'Hover / Press' : st}`}
+                required
+                placeholder='Placeholder'
+                value={st === 'filled' ? 'ข้อความที่กรอกแล้ว' : ''}
+                readOnly
+                helperText={st === 'error' ? 'Error message here' : 'Helper text'}
+              />
+            ))}
+          </div>
+          <MobileSectionLabel>Interactive</MobileSectionLabel>
+          <Textarea
+            label='อาการเบื้องต้น / หมายเหตุ'
+            required
+            placeholder='เช่น มีอาการเจ็บหน้าอกแปลบๆ'
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            helperText='กรอกรายละเอียดประกอบการนัดหมาย'
+          />
+        </Section>
+
+        <Section
+          title='SuccessCard'
+          anchor='mobile-success-card'
+          subtitle='Archive 175:94673 · teal gradient + arch card (radius-1000 / 600) · award hero · rows and/or description · Brand Fill + Brand Outline (chevron)'
+        >
+          <div style={{ maxWidth: 390, margin: '0 auto', borderRadius: 'var(--dim-radius-400, 12px)', overflow: 'hidden' }}>
+            <SuccessCard
+              fill={false}
+              title='ยืนยันตัวตนสำเร็จ'
+              rows={[
+                { label: 'ชื่อ–สกุล', value: 'นายสมชาย มั่นใจดี' },
+                { label: 'เลขประจำตัวประชาชน', value: '1-1678-89302-23-5' },
+              ]}
+              primaryAction={{ label: 'ดำเนินการต่อ', onClick: () => {} }}
+            />
+          </div>
+          <div style={{ maxWidth: 390, margin: 'var(--dim-space-400, 16px) auto 0', borderRadius: 'var(--dim-radius-400, 12px)', overflow: 'hidden' }}>
+            <SuccessCard
+              fill={false}
+              title='สร้างนัดหมายสำเร็จ'
+              description={(
+                <>
+                  ระบบได้บันทึกการนัดหมายของคุณเรียบร้อยแล้ว กรุณารอการยืนยันจากเจ้าหน้าที่ภายใน 5 วัน
+                  <br />
+                  ซึ่งอาจจะมีการเปลี่ยนแปลง
+                </>
+              )}
+              primaryAction={{ label: 'ดูการนัดหมาย', onClick: () => {} }}
+              secondaryAction={{ label: 'กลับสู่หน้าหลัก', onClick: () => {} }}
+            />
+          </div>
+          <div style={{ maxWidth: 390, margin: 'var(--dim-space-400, 16px) auto 0', borderRadius: 'var(--dim-radius-400, 12px)', overflow: 'hidden' }}>
+            <SuccessCard
+              fill={false}
+              title='ลงทะเบียนสำเร็จ'
+              description='ยินดีต้อนรับเข้าสู่แอปพลิเคชัน PHCIS ข้อมูลของคุณถูกบันทึกเข้าระบบเรียบร้อยแล้ว'
+              primaryAction={{ label: 'เข้าสู่ระบบ', onClick: () => {} }}
+            />
+          </div>
+        </Section>
+
+        <Section
           title='Badge'
           anchor='mobile-badge'
-          subtitle='5 tones · always pill · กำกับ status / chips'
+          subtitle='5 tones · sm chip / md countdown pill (Figma 2119:51196) — soft status chips; prefer ColorfulBadge for categorical tags'
         >
           <Row>
             <MobileBadge>neutral</MobileBadge>
@@ -723,6 +948,47 @@ const MobileComponentsPage = () => {
             <MobileBadge tone='success'>ยืนยันแล้ว</MobileBadge>
             <MobileBadge tone='warning'>ยกเลิก</MobileBadge>
             <MobileBadge tone='info'>ใหม่</MobileBadge>
+          </Row>
+          <Row>
+            <MobileBadge size='md' icon='schedule'>
+              ขอรหัสใหม่ได้ใน 0:46
+            </MobileBadge>
+          </Row>
+        </Section>
+
+        <Section
+          title='ColorfulBadge'
+          anchor='mobile-colorful-badge'
+          subtitle='Figma App DS 2076:8413 · 11 styles × Small/Default × Default/Outline × Primary/Secondary · Show Dot / Icon / Text'
+        >
+          <MobileSectionLabel>Secondary · Small</MobileSectionLabel>
+          <Row>
+            {['grey', 'green', 'blue', 'teal', 'orange', 'yellow', 'red', 'indigo', 'pink', 'magenta', 'purple'].map((s) => (
+              <ColorfulBadge key={s} style={s} size='small' hierarchy='secondary' showDot icon='pill'>
+                Text
+              </ColorfulBadge>
+            ))}
+          </Row>
+          <MobileSectionLabel>Primary · Small</MobileSectionLabel>
+          <Row>
+            {['grey', 'green', 'blue', 'teal', 'orange', 'yellow', 'red', 'indigo', 'pink', 'magenta', 'purple'].map((s) => (
+              <ColorfulBadge key={s} style={s} size='small' hierarchy='primary' showDot icon='pill'>
+                Text
+              </ColorfulBadge>
+            ))}
+          </Row>
+          <MobileSectionLabel>Outline · Small (Grey / Green)</MobileSectionLabel>
+          <Row>
+            <ColorfulBadge style='grey' size='small' fill='outline' showDot icon='pill'>Text</ColorfulBadge>
+            <ColorfulBadge style='green' size='small' fill='outline' showDot icon='pill'>Text</ColorfulBadge>
+          </Row>
+          <MobileSectionLabel>Default size · Primary</MobileSectionLabel>
+          <Row>
+            {['grey', 'green', 'blue', 'teal'].map((s) => (
+              <ColorfulBadge key={s} style={s} size='default' hierarchy='primary' showDot icon='pill'>
+                Text
+              </ColorfulBadge>
+            ))}
           </Row>
         </Section>
 
@@ -827,7 +1093,7 @@ const MobileComponentsPage = () => {
         <Section
           title='Shell (PhoneFrame)'
           anchor='mobile-shell'
-          subtitle='390×844 phone mock — ใช้เฉพาะตอน demo app flow ไม่ใช่ docs'
+          subtitle='402×874 iPhone 17 phone mock — ใช้เฉพาะตอน demo app flow ไม่ใช่ docs'
         >
           <MobileCard>
             <p style={{ margin: 0, fontSize: 'var(--type-size-base, 16px)', fontWeight: 'var(--type-weight-bold, 700)' }}>
@@ -853,7 +1119,7 @@ const MobileComponentsPage = () => {
                   padding: '8px 14px',
                   borderRadius: 'var(--dim-radius-full, 9999px)',
                   background: 'var(--surface-brandPrimary-default, #007549)',
-                  color: '#FFFFFF',
+                  color: 'var(--text-content-on-content)',
                   fontSize: 'var(--type-size-sm, 14px)',
                   fontWeight: 'var(--type-weight-bold, 700)',
                   textDecoration: 'none',

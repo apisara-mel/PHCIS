@@ -5131,7 +5131,7 @@ const BodyDrawingCanvas = ({
 
   return (
     <div
-      className={`flex w-full min-w-0 bg-[var(--surface-card-100,#fff)] ${fillHeight ? 'h-full min-h-0 flex-1' : 'items-start'}`}
+      className={`flex w-full min-w-0 bg-surface-card ${fillHeight ? 'h-full min-h-0 flex-1' : 'items-start'}`}
       style={{ gap: 'var(--dim-space-600)' }}
     >
       <div
@@ -5162,7 +5162,7 @@ const BodyDrawingCanvas = ({
                drawing capture + marker hit-area extends the full canvas
                (between the left and right tool sidebars) so the user
                can pen / text / mark anywhere on the board. */
-            className='mx-auto w-full bg-[var(--surface-card-100,#fff)]'
+            className='mx-auto w-full bg-surface-card'
             {...markingProps}
           />
         </BodyDiagramInteractiveViewport>

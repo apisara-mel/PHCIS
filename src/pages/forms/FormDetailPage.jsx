@@ -243,7 +243,7 @@ const FormDetailPage = () => {
 
           {/* Hero card */}
           <section
-            className='bg-white rounded-card shadow-card flex items-start w-full flex-col md:flex-row'
+            className='bg-surface-card rounded-card shadow-card flex items-start w-full flex-col md:flex-row'
             style={{ gap: 'var(--dim-space-500)', padding: 'var(--dim-space-600)' }}
           >
             <div className='flex-1 min-w-0 flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
@@ -327,7 +327,7 @@ const FormDetailPage = () => {
 
           {/* Sections + fields */}
           <section
-            className='bg-white rounded-card shadow-card flex flex-col w-full'
+            className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
             style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}
           >
             <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>

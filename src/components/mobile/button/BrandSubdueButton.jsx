@@ -1,18 +1,20 @@
 import React from 'react';
-import { MobileButtonBase, buildPalette } from './_base';
+import { buildPalette, createFigmaTextButton } from './_base';
 
-/* Mobile · BrandSubdueButton (Figma node 2024:3589).
-   Tone = brandPrimaryButton (subdue tier — quaternary bg + brand text).
-   Variants: fill / outline (no ghost). Pairs with BrandButton as the
-   softer brand surface used inside cards. */
+/* Mobile · BrandSubdueButton — Figma App node 2024:3589
+   Soft brand surface. Style: Fill / Outline (no Ghost).
+   Size: Large / Medium / Small · Show Leading / Tailing icon. */
 
 const PALETTE = buildPalette('brandPrimaryButton', {
   fillTier: 'subdue',
   variants: ['fill', 'outline'],
 });
 
-export const BrandSubdueButton = (props) => (
-  <MobileButtonBase palette={PALETTE} {...props} />
-);
+export const BrandSubdueButton = createFigmaTextButton(PALETTE, {
+  name: 'BrandSubdueButton',
+  figmaNode: '2024:3589',
+  defaultStyle: 'Fill',
+  allowedStyles: ['fill', 'outline'],
+});
 
 export default BrandSubdueButton;

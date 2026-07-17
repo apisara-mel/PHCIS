@@ -36,6 +36,31 @@ export default function SidebarProfileMenu({ open, anchorRect, anchorRef, onClos
     }
   }, [appliedTheme]);
 
+  // Apply Light/Dark/System mode → <html data-mode="dark">. 'system' follows
+  // the OS prefers-color-scheme and live-updates while selected. The dark
+  // token overrides live under [data-mode="dark"] in index.css.
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const root = document.documentElement;
+    const setDark = (on) => {
+      if (on) root.setAttribute('data-mode', 'dark');
+      else root.removeAttribute('data-mode');
+    };
+    if (appliedMode === 'system' && typeof window !== 'undefined' && window.matchMedia) {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const sync = () => setDark(mq.matches);
+      sync();
+      if (mq.addEventListener) mq.addEventListener('change', sync);
+      else mq.addListener(sync);
+      return () => {
+        if (mq.removeEventListener) mq.removeEventListener('change', sync);
+        else mq.removeListener(sync);
+      };
+    }
+    setDark(appliedMode === 'dark');
+    return undefined;
+  }, [appliedMode]);
+
   const applySettings = ({ mode, theme }) => {
     setAppliedMode(mode);
     if (theme !== undefined) setAppliedTheme(theme);

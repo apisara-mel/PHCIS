@@ -1,22 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import { DEFAULT_SEARCH_AVATARS } from '@/data/avatarAssets';
+import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
+import { Icon } from '@/components/icons/Icon';
 
 /* PrimarySearch — Figma MIH DS Foundation 2056:4246
-   Single 64px-tall search bar with 4 states: Default / Hover / Typing / Filled.
-   When focused (Typing) it shows a brand circle submit button on the right
-   and an overlay dropdown beneath. Otherwise the right side shows a pile of
-   recent-search avatars + "ค้นหาล่าสุด" caption.
-
-   Avatar pile (right side, default/hover/filled states):
-     `avatars` accepts `Array<{ src: string } | string>`. Each entry renders
-     as a 32-px circle (-12 px overlap) per Figma. Callers typically derive
-     this list from the recent-search history — resolving each entry back
-     to a patient profile and feeding the matching `avatarUrl` here — so
-     the pile mirrors who the user just searched for. When the array is
-     empty the entire right-side block (pile + "ค้นหาล่าสุด" caption)
-     fades out so the search bar reads cleanly on a first-time view.
+   56px pill search with five states: Default / Hover / Focus / Typing /
+   Filled. Typing shows the Figma X Button + Brand Circle Icon Button;
+   all other states contain only the leading Search glyph and input text.
 
    Dropdown (focused state, overlays the page):
      • empty input   → recent-search history (`history` prop, default [])
@@ -30,69 +21,46 @@ import { DEFAULT_SEARCH_AVATARS } from '@/data/avatarAssets';
    All colors / dimensions / typography aliased from design.md via the
    dash-named CSS variables in src/index.css. */
 
-const Sym = ({ name, size = 16, color }) => (
-  <span
-    className='material-symbols-outlined transition-colors duration-200 ease-out'
-    style={{
-      fontFamily: 'Material Symbols Outlined',
-      fontSize: size,
-      color,
-      lineHeight: 1,
-      display: 'inline-flex',
-    }}
-    aria-hidden
-  >
-    {name}
-  </span>
-);
-
-const AvatarPile = ({ avatars }) => {
-  /* Cap at 3 to match the Figma foundation (2056:4107). Stable z-index
-     puts the first avatar on top so the pile has a consistent reading
-     order at rest; the per-item hover rule in index.css then promotes
-     whichever avatar the user is pointing at. Hover interactions
-     (pile-spread + lift + shadow) all live in `.mih-avatar-pile` /
-     `.mih-avatar-pile__item` so the React layer stays declarative. */
-  const items = (avatars ?? []).slice(0, 3);
-  return (
-    <div className='mih-avatar-pile flex items-center'>
-      {items.map((avatar, i) => {
-        const src = typeof avatar === 'object' ? avatar?.src : null;
-        const bg = typeof avatar === 'string' ? avatar : 'var(--surface-card-100)';
-        return (
-          <div
-            key={src ?? i}
-            className='mih-avatar-pile__item overflow-hidden'
-            style={{
-              width:  'var(--dim-size-600)',          /* 32 */
-              height: 'var(--dim-size-600)',
-              marginLeft: i === 0 ? 0 : -12,
-              borderRadius: 'var(--dim-radius-500)',  /* 16 */
-              background: src ? 'var(--surface-card-100)' : bg,
-              border: 'var(--dim-stroke-200) solid var(--surface-card-100)',
-              boxSizing: 'border-box',
-              zIndex: items.length - i,
-            }}
-          >
-            {src ? (
-              <img
-                src={src}
-                alt=''
-                draggable={false}
-                className='block w-full h-full object-cover'
-              />
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
+/* Wrapped native input owns no browser chrome; the pill shell renders every
+   border, background and shadow. The caret intentionally remains visible
+   because Figma's Typing state explicitly shows the insertion point. */
+if (typeof document !== 'undefined') {
+  const styleId = 'mih-primarysearch-input-style';
+  const css = `
+.mih-primarysearch-input::placeholder {
+  color: var(--primarysearch-input-color, var(--text-primarysearch-default, #ADB2B7));
+  opacity: 1;
+}
+.mih-primarysearch-input,
+.mih-primarysearch-input:focus,
+.mih-primarysearch-input:focus-visible {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+.mih-primarysearch-input::-webkit-search-cancel-button,
+.mih-primarysearch-input::-webkit-search-decoration,
+.mih-primarysearch-input::-webkit-search-results-button,
+.mih-primarysearch-input::-webkit-search-results-decoration {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  display: none !important;
+}
+`;
+  let el = document.getElementById(styleId);
+  if (!el) {
+    el = document.createElement('style');
+    el.id = styleId;
+    document.head.appendChild(el);
+  }
+  if (el.textContent !== css) el.textContent = css;
+}
 
 /* XButton (typing-state clear) — Figma node 3345:2713 / 2056:4246's
-   typing variant. 32×32 brand-quaternary chip that wipes the input.
-   Default radius 24 → 9999 (perfect circle) on hover, surface morphs
-   from brand-p50 → brand-p100. Mirror of the SecondarySearch helper. */
+   typing variant. 40×40 brand-quaternary chip that wipes the input. */
 const XButton = ({ onClick }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -105,9 +73,9 @@ const XButton = ({ onClick }) => {
       onMouseLeave={() => setHovered(false)}
       className='inline-flex items-center justify-center shrink-0'
       style={{
-        width:  'var(--dim-size-600)',  /* 32 */
-        height: 'var(--dim-size-600)',
-        borderRadius: hovered ? 'var(--dim-radius-full)' : 'var(--dim-radius-600)',
+        width: 'var(--dim-size-800, 40px)',
+        height: 'var(--dim-size-800, 40px)',
+        borderRadius: 'var(--dim-radius-600, 24px)',
         background: hovered
           ? 'var(--surface-brandPrimary-quaternary-hover)'
           : 'var(--surface-brandPrimary-quaternary)',
@@ -115,35 +83,24 @@ const XButton = ({ onClick }) => {
         border: 'none',
         cursor: 'pointer',
         padding: 'var(--dim-space-0)',
-        transition:
-          'background-color 150ms ease-out, border-radius 200ms ease-out, color 150ms ease-out',
+        transition: 'background-color 150ms ease-out, color 150ms ease-out',
       }}
     >
-      <Sym name='close' size={16} color='currentColor' />
+      <Icon name='close' size={16} style={{ color: 'currentColor' }} />
     </button>
   );
 };
 
 const SubmitButton = ({ onClick }) => (
-  <button
-    type='button'
-    aria-label='submit search'
+  <BrandCircleIconButton
+    icon='arrow_upward'
+    variant='fill'
+    size='md'
+    aria-label='ค้นหา'
     onClick={onClick}
     onMouseDown={(e) => e.preventDefault() /* keep input focused */}
-    className='inline-flex items-center justify-center shrink-0 transition-all duration-200 ease-out hover:scale-105 active:scale-95 hover:brightness-110'
-    style={{
-      width:  'var(--dim-size-700)',          /* 36 */
-      height: 'var(--dim-size-700)',
-      borderRadius: 'var(--dim-radius-full)',
-      background: 'var(--surface-brandPrimaryButton-default)',
-      color:      'var(--text-brandPrimaryButton-on-brand)',
-      border: 'none',
-      cursor: 'pointer',
-      boxShadow: 'var(--shadow-card)',
-    }}
-  >
-    <Sym name='arrow_upward' size={16} color='currentColor' />
-  </button>
+    className='shrink-0'
+  />
 );
 
 /* Normalise a suggestion / history entry into `{ id, label, sublabel?, value?, icon?, avatarSrc? }`.
@@ -274,7 +231,7 @@ const SuggestionRow = ({ item, leadingIcon, onPick }) => {
             height: 'var(--dim-size-400)',
           }}
         >
-          <Sym name={iconName} size={18} color='currentColor' />
+          <Icon name={iconName} size={18} style={{ color: 'currentColor' }} />
         </span>
       ) : null}
       <span className='flex-1 min-w-0 flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
@@ -314,7 +271,7 @@ const SuggestionRow = ({ item, leadingIcon, onPick }) => {
           height: 'var(--dim-size-400)',
         }}
       >
-        <Sym name='chevron_right' size={16} color='currentColor' />
+        <Icon name='chevron_right' size={16} style={{ color: 'currentColor' }} />
       </span>
     </button>
   );
@@ -336,8 +293,6 @@ const DropdownPanel = ({ children }) => (
   </div>
 );
 
-const DEFAULT_AVATARS = DEFAULT_SEARCH_AVATARS;
-
 const PrimarySearch = ({
   value,
   defaultValue = '',
@@ -345,7 +300,9 @@ const PrimarySearch = ({
   onSubmit,
   placeholder = 'ค้นหาเลข HN / เลขบัตรประชาชน / ชื่อ-นามสกุล',
   width = 640,
-  avatars = DEFAULT_AVATARS,
+  /* Kept for backward API compatibility; the current Figma component no
+     longer renders the legacy recent-search avatar pile. */
+  avatars: _avatars,
   /* Live match list while typing — `Array<string | { id?, label, sublabel?, value?, icon? }>`.
      Default `[]` so non-opt-in pages don't show a dropdown. */
   suggestions = [],
@@ -432,7 +389,7 @@ const PrimarySearch = ({
   /* Resolve visual state — Figma 2056:4246 property panel exposes FIVE
      states: Default · Hover · Focus · Typing · Filled. Focus and Typing
      both have the input focused, but split on whether a value is present:
-       focused + empty   → focus   (right cluster: avatars + caption; dropdown shows recent)
+       focused + empty   → focus   (dropdown shows recent)
        focused + value   → typing  (right cluster: XButton + SubmitButton; dropdown shows suggestions)
      `stateProp` keeps overriding for the state-matrix preview. */
   const filled = !!v;
@@ -443,33 +400,35 @@ const PrimarySearch = ({
     : filled
     ? 'filled'
     : 'default';
-  const state = stateProp || computedState;
-  const isTyping = state === 'typing';   // only typing swaps to XButton + Submit
-  const hasRing  = state === 'hover' || state === 'focus' || state === 'typing';
+  /* Foundation's earlier state node calls Hover "Pressed" (2056:4105).
+     Keep `pressed` as an API alias while resolving to the canonical token. */
+  const forcedState = String(stateProp || '').toLowerCase();
+  const state = forcedState === 'pressed' ? 'hover' : (forcedState || computedState);
+  const isTyping = state === 'typing';
 
   // Color tokens follow the state's variant per Figma 2056:4246.
-  const iconColor  = `var(--text-primarysearch-${state})`;
+  const iconColor  = `var(--icon-primarysearch-${state})`;
   const inputColor = `var(--text-primarysearch-${state})`;
 
-  // Shared shell styling for the 64px row (used in all 4 states)
+  // Figma 2056:4246 — shared 56px pill shell for all five states.
   const shellStyle = {
-    height: 'var(--dim-size-1400)',         /* 64 */
+    height: 'var(--dim-size-1200, 56px)',
     boxSizing: 'border-box',
     width: '100%',
-    minWidth: 320,
+    minWidth: state === 'default' || state === 'typing'
+      ? 'var(--dim-size-2500, 320px)'
+      : 'var(--dim-size-2100, 160px)',
     maxWidth: width,
     background: 'var(--surface-search-default)',
     borderStyle: 'solid',
     borderWidth: 'var(--dim-stroke-200)',
     borderColor: `var(--border-primarysearch-${state})`,
-    borderRadius: 'var(--dim-radius-500)',
-    boxShadow: hasRing
-      ? 'var(--shadow-primarysearch), 0 0 0 4px var(--primaryBorder-600, var(--focus-ring-input-typing, var(--focus-ring-input-hover)))'
-      : 'var(--shadow-primarysearch)',
-    paddingLeft:  'var(--dim-space-600)',  /* 24 */
-    paddingRight: 'var(--dim-space-600)',
-    paddingTop:    'var(--dim-space-400)', /* 16 */
-    paddingBottom: 'var(--dim-space-400)',
+    borderRadius: 'var(--dim-radius-full, 9999px)',
+    boxShadow: 'var(--shadow-primarysearch)',
+    paddingLeft: 'var(--dim-size-500, 24px)',
+    paddingRight: 'var(--dim-size-500, 24px)',
+    paddingTop: 'var(--dim-space-400, 16px)',
+    paddingBottom: 'var(--dim-space-400, 16px)',
     gap: 'var(--dim-space-600)',
     display: 'flex',
     alignItems: 'center',
@@ -480,8 +439,8 @@ const PrimarySearch = ({
       ref={wrapRef}
       className={`flex flex-col ${className}`}
       style={{
-        width: width || '100%',
-        minWidth: 320,
+        width: '100%',
+        minWidth: 'var(--dim-size-2100, 160px)',
         maxWidth: width || 640,
         position: 'relative',
         ...style,
@@ -503,7 +462,7 @@ const PrimarySearch = ({
             className='inline-flex items-center justify-center shrink-0'
             style={{ width: 'var(--dim-size-400)', height: 'var(--dim-size-400)' }}
           >
-            <Sym name='search' size={20} color={iconColor} />
+            <Icon name='search' size={20} style={{ color: iconColor }} />
           </span>
           <input
             ref={inputRef}
@@ -518,8 +477,10 @@ const PrimarySearch = ({
             style={{
               fontFamily: 'var(--type-family-body)',
               fontSize:   'var(--type-size-sm)',
+              fontWeight: 'var(--type-weight-regular, 400)',
               lineHeight: 1.5,
               color: inputColor,
+              '--primarysearch-input-color': inputColor,
               WebkitTextStroke: 0,
               WebkitAppearance: 'none',
               appearance: 'none',
@@ -531,47 +492,9 @@ const PrimarySearch = ({
           />
         </div>
 
-        {/* Right cluster — Figma 2056:4246 swaps the contents per state:
-              default · hover · focus · filled → avatars + "ค้นหาล่าสุด" caption
-              typing                            → XButton (clear) + SubmitButton
-            Both arrangements are rendered so the opacity/scale crossfade
-            stays smooth; whichever is inactive flips to absolute positioning
-            so the active arrangement drives layout. */}
-        <div
-          className='relative flex items-center shrink-0 justify-end'
-          style={{ height: 'var(--dim-size-700)' /* 36 */ }}
-        >
-          <div
-            aria-hidden={isTyping || avatars.length === 0}
-            className={`flex items-center transition-all duration-200 ease-out ${
-              isTyping || avatars.length === 0
-                ? 'absolute right-0 opacity-0 scale-95 pointer-events-none'
-                : 'relative opacity-100 scale-100'
-            }`}
-            style={{ gap: 'var(--dim-space-200)' }}
-          >
-            <AvatarPile avatars={avatars} />
-            <span
-              className='whitespace-nowrap transition-colors duration-200 ease-out'
-              style={{
-                color:      `var(--text-primarysearch-${state})`,
-                fontFamily: 'var(--type-family-body)',
-                fontSize:   'var(--type-size-xs)',
-                lineHeight: 1.5,
-              }}
-            >
-              ค้นหาล่าสุด
-            </span>
-          </div>
-          <div
-            aria-hidden={!isTyping}
-            className={`flex items-center transition-all duration-200 ease-out ${
-              isTyping
-                ? 'relative opacity-100 scale-100'
-                : 'absolute right-0 opacity-0 scale-75 pointer-events-none'
-            }`}
-            style={{ gap: 'var(--dim-space-200)' }}
-          >
+        {/* Figma Typing state only: X Button + Brand Circle Icon Button. */}
+        {isTyping && (
+          <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-600, 24px)' }}>
             <XButton
               onClick={() => {
                 if (!isControlled) setInnerValue('');
@@ -581,7 +504,7 @@ const PrimarySearch = ({
             />
             <SubmitButton onClick={() => onSubmit && onSubmit(v)} />
           </div>
-        </div>
+        )}
       </div>
 
       {/* Dropdown — focused + empty value → history;

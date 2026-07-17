@@ -15,7 +15,7 @@
 import { useState, useEffect } from 'react';
 import { APPOINTMENTS, VISIT_HISTORY, CURRENT_USER } from '@/data/mobileMock';
 
-const STORAGE_KEY = 'phcis.link.v1';
+const STORAGE_KEY = 'phcis.link.v3';
 
 /* The demo patient PHCIS and the app agree on (HN ties the two sides together). */
 const PATIENT = {
@@ -26,7 +26,7 @@ const PATIENT = {
 const seed = () => ({
   patient: PATIENT,
   appointments: APPOINTMENTS.map((a) => ({ ...a })),
-  visits: VISIT_HISTORY.map((v) => ({ ...v })),
+  visits: VISIT_HISTORY.map((v) => ({ ...v, date: v.date || v.dateLabel })),
 });
 
 const load = () => {

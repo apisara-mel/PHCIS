@@ -1,6 +1,6 @@
 /* MIH Mobile · Button family barrel.
-   16 button components mirroring Figma file MIH-Design-System-Foundation
-   section 319:2012. See design.md §7.3.1. Names match Figma 1:1 — no
+   Button components mirroring Figma (App DS + Archive Keypad).
+   See design.md §7.3.1. Names match Figma 1:1 — no
    "Mobile" prefix because the folder (`mobile/button/`) already
    disambiguates from the web button family at `components/button/`. */
 
@@ -22,3 +22,4 @@ export { BrandCircleIconButton }       from './BrandCircleIconButton';
 export { BrandCircleSubdueIconButton } from './BrandCircleSubdueIconButton';
 export { BrandSubdueFloatButton }      from './BrandSubdueFloatButton';
 export { HistoryListFormButton }       from './HistoryListFormButton';
+export { KeypadButton, KEYPAD_BUTTON_SIZE } from './KeypadButton';

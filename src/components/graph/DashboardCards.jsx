@@ -12,9 +12,14 @@ import {
 /* ── Internal helpers ─────────────────────────────────────── */
 
 const Card = ({ title, icon, action, children, className = '', headerClassName = '' }) => (
-  <section className={`bg-white rounded-card shadow-card flex flex-col border-0 ${className}`}>
+  <section className={`bg-surface-card rounded-card shadow-card flex flex-col border-0 ${className}`}>
     {(title || icon || action) && (
-      <header className={`flex items-center gap-2 px-4 py-3 border-b border-[var(--border-brandPrimary-quaternary)] shadow-header border-b-0 ${headerClassName}`}>
+      <header
+        className={`flex items-center gap-2 px-4 py-3 border-b shadow-header border-b-0 ${headerClassName}`}
+        /* borderBottomColor inline — Tailwind v2.1 JIT parses `border-[var(...)]`
+           as border-width, so the class can't tint this rule. */
+        style={{ borderBottomColor: 'var(--border-brandPrimary-quaternary)' }}
+      >
         {icon && <span className='text-brand-500'><Icon name={icon} size={18} /></span>}
         <h3 className='flex-1 text-sm font-bold text-ink truncate'>{title}</h3>
         {action ?? (
@@ -71,7 +76,7 @@ const BigStat = ({ value, label, tone = 'brand', color, bg }) => (
 
 const PersonStat = ({ avatar, materialSymbol, value, label }) => (
   <div className='flex items-center gap-2 p-2 rounded-lg bg-brand-50'>
-    <span className='w-9 h-9 rounded-full bg-white text-lg flex items-center justify-center text-ink-secondary'>
+    <span className='w-9 h-9 rounded-full bg-surface-card text-lg flex items-center justify-center text-ink-secondary'>
       {materialSymbol != null ? (
         <span className='material-symbols-outlined text-[22px] leading-none' aria-hidden>
           {materialSymbol}

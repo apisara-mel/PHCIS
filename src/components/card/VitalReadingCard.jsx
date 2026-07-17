@@ -87,7 +87,7 @@ const GaugeBar = ({ markerPercent = 50, labels }) => (
           width: 10,
           height: 10,
           borderRadius: 'var(--dim-radius-full, 9999px)',
-          background: '#FFFFFF',
+          background: 'var(--surface-card-100)',
           border: '2px solid var(--text-content-default, #363B3F)',
           boxSizing: 'border-box',
         }}

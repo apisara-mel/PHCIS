@@ -164,7 +164,31 @@ export const Icon = ({ name, size = 16, className = '', style, ...rest }) => {
     case 'eye':
       return (<svg {...s} className={className} style={style}><path d='M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z' /><circle cx='12' cy='12' r='3' /></svg>);
     case 'search':
-      return (<svg {...s} className={className} style={style}><circle cx='11' cy='11' r='7' /><line x1='21' y1='21' x2='16.5' y2='16.5' /></svg>);
+      /* Exact Figma Search glyph · Foundation App 2056:4073.
+         Masking the exported asset keeps the icon colour inheritable. */
+      return (
+        <span
+          {...rest}
+          aria-hidden
+          className={className}
+          style={{
+            display: 'inline-block',
+            width: size,
+            height: size,
+            flexShrink: 0,
+            backgroundColor: 'currentColor',
+            WebkitMaskImage: 'url("/illustration/mobile/search-icon.svg")',
+            maskImage: 'url("/illustration/mobile/search-icon.svg")',
+            WebkitMaskPosition: 'center',
+            maskPosition: 'center',
+            WebkitMaskRepeat: 'no-repeat',
+            maskRepeat: 'no-repeat',
+            WebkitMaskSize: 'contain',
+            maskSize: 'contain',
+            ...(style || {}),
+          }}
+        />
+      );
     case 'save':
       return (<svg {...s} className={className} style={style}><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z' /><polyline points='17 21 17 13 7 13 7 21' /><polyline points='7 3 7 8 15 8' /></svg>);
     /* MIH inbox-text glyphs (Figma) — document with text lines + a share

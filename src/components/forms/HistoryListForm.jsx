@@ -261,7 +261,7 @@ const Textarea = ({ label, required, value, onChange, ...rest }) => (
 
 
 const RecordCard = ({ index, record, schema, onChange, onRemove }) => (
-  <div className='w-full bg-white border border-ink-line rounded-xl p-4 flex flex-col gap-4'>
+  <div className='w-full bg-surface-card border border-ink-line rounded-xl p-4 flex flex-col gap-4'>
     <div className='flex items-center justify-between'>
       <h4 className='text-sm font-bold text-ink'>{schema.recordLabel} {index + 1}</h4>
       <NeutralSubdueIconButton
@@ -703,7 +703,7 @@ const HistoryListForm = ({ schema, onValidityChange }) => {
   }, [updateScroll]);
 
   return (
-    <section className='bg-white rounded-b-card p-6 flex flex-col gap-4'>
+    <section className='bg-surface-card rounded-b-card p-6 flex flex-col gap-4'>
       <div className='flex items-center gap-2 w-full'>
         <span className='text-brand-500'><Icon name={schema.icon} size={20} /></span>
         <h2 className='text-base font-bold text-brand-500'>{schema.topic}</h2>

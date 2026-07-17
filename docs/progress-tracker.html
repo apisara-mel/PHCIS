@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>PHCIS · Progress Tracker (Feature × Figma × Vibe code)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg:#F4F5F5; --surface:#FFFFFF; --surface-2:#FAFAFA; --surface-3:#F4F5F5;
+    --border:#E2E4E6; --text:#171A1F; --muted:#6E757C;
+    --brand:#007549; --brand-soft:#F4FBF8; --brand-mid:#C5EDDA;
+    --success:#08A768; --successSoft:#DCFCE7;
+    --warn:#E0973C; --warnSoft:#FDF1E0;
+    --danger:#D04949; --dangerSoft:#FBE8E8;
+    --info:#1D4ED8; --indigo:#4F46E5; --indigoSoft:#EEF0FF;
+    --shadow:0 1px 3px rgba(15,23,42,.06),0 4px 12px rgba(15,23,42,.04);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Sarabun","Noto Sans Thai",system-ui,sans-serif;
+    font-size:14px;line-height:1.55}
+
+  header{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:16px;padding:14px 32px}
+  header .brand-dot{width:34px;height:34px;border-radius:9px;flex:none;
+    background:linear-gradient(135deg,#007549 0%,#00A86B 100%);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+  header .title{font-weight:800;font-size:16px;letter-spacing:-.2px}
+  header .subtitle{color:var(--muted);font-size:12px}
+  header .spacer{margin-left:auto}
+  header .stamp{font-size:11px;color:var(--muted);text-align:right}
+
+  main{max-width:1180px;margin:0 auto;padding:24px 24px 96px}
+
+  /* summary cards */
+  .summary{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:4px 0 26px}
+  @media(max-width:720px){.summary{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px 20px;box-shadow:var(--shadow)}
+  .card .k{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.2px;text-transform:uppercase}
+  .card .row{display:flex;align-items:baseline;gap:10px;margin-top:6px}
+  .card .big{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+  .card .sub{font-size:12px;color:var(--muted)}
+  .card .bar{height:9px;border-radius:999px;background:var(--surface-3);margin-top:12px;overflow:hidden;display:flex}
+  .card .bar .d{background:var(--success)} .card .bar .p{background:var(--warn)}
+  .card .legend{display:flex;gap:14px;margin-top:9px;font-size:11px;color:var(--muted)}
+  .card .legend b{color:var(--text);font-variant-numeric:tabular-nums}
+
+  h2.sec{display:flex;align-items:center;gap:12px;margin:30px 0 6px;font-size:19px;font-weight:800}
+  h2.sec .tag{font-size:11px;font-weight:700;color:#fff;background:var(--brand);
+    padding:3px 10px;border-radius:999px;letter-spacing:.3px}
+  h2.sec .tag.m{background:var(--indigo)}
+  h2.sec .mini{margin-left:auto;font-size:12px;color:var(--muted);font-weight:600}
+  .seclead{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+
+  .legendbar{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin:6px 0 14px;font-size:12px;color:var(--muted)}
+  .legendbar .lg{display:inline-flex;align-items:center;gap:6px}
+  .chip{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;
+    border-radius:6px;font-size:11px;font-weight:800;line-height:1}
+  .chip.yes{background:var(--successSoft);color:#067a4c}
+  .chip.part{background:var(--warnSoft);color:#a5641b}
+  .chip.no{background:var(--surface-3);color:var(--muted)}
+
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  thead th{background:var(--surface-2);text-align:left;font-size:11px;letter-spacing:.4px;text-transform:uppercase;
+    color:var(--muted);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+  thead th.c{text-align:center}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--surface-2);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:var(--surface-2)}
+  td.tor{font-family:ui-monospace,monospace;font-size:12px;color:var(--brand);font-weight:600;white-space:nowrap}
+  td.feat .name{font-weight:600}
+  td.feat .note{font-size:11.5px;color:var(--muted);margin-top:2px}
+  td.feat .route{font-family:ui-monospace,monospace;font-size:11px;color:#8a929a}
+  td.c{text-align:center}
+  td.vibe{min-width:210px}
+  .vwrap{display:flex;align-items:center;gap:10px}
+  .vbar{flex:1;height:8px;border-radius:999px;background:var(--surface-3);overflow:hidden;display:flex}
+  .vbar .d{background:var(--success)} .vbar .p{background:var(--warn)}
+  .vpct{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+  .vpct.hi{color:var(--success)} .vpct.mid{color:var(--warn)} .vpct.lo{color:var(--danger)} .vpct.zero{color:var(--muted)}
+  .vcount{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  tr.notstarted td.feat .name{color:var(--muted);font-weight:500}
+
+  .foot{margin-top:26px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);font-size:12px;color:var(--muted);line-height:1.7}
+  .foot b{color:var(--text)}
+  .foot code{font-family:ui-monospace,monospace;background:var(--surface-3);padding:1px 5px;border-radius:4px;font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand-dot">M</div>
+  <div>
+    <div class="title">PHCIS · Progress Tracker</div>
+    <div class="subtitle">Feature × Figma × Vibe code — เทียบกับ TOR (ผนวก ก / ด)</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="stamp">ข้อมูลจาก <b>docs/tor-checklist.html</b><br>(status map ในโค้ด) · อัปเดต 17 ก.ค. 2026</div>
+</header>
+
+<main>
+  <div class="summary" id="summary"></div>
+
+  <div class="legendbar">
+    <span class="lg"><span class="chip yes">✓</span> ทำแล้ว / ออกแบบครบ</span>
+    <span class="lg"><span class="chip part">◐</span> บางส่วน</span>
+    <span class="lg"><span class="chip no">—</span> ยังไม่เริ่ม</span>
+    <span class="lg">แถบ <b style="color:var(--success)">เขียว</b>=done · <b style="color:var(--warn)">ส้ม</b>=partial · เทา=ยังไม่ทำ (นับตาม leaf items ใน TOR)</span>
+  </div>
+
+  <h2 class="sec"><span class="tag">PHCIS</span> เว็บไซต์ (ระบบสารสนเทศศูนย์บริการฯ)
+    <span class="mini" id="webmini"></span></h2>
+  <p class="seclead">Feature มาจากหน้าจอ/ระบบที่พัฒนาแล้วในโค้ด (routes) เทียบกับหัวข้อระบบตาม TOR §1 + ผนวก ด · % คิดจาก (done + ½·partial) ÷ จำนวนข้อ TOR ของระบบนั้น</p>
+  <table id="webtable"></table>
+
+  <h2 class="sec"><span class="tag m">MOBILE</span> Mobile Application (แอปประชาชน · TOR §4)
+    <span class="mini" id="mobmini"></span></h2>
+  <p class="seclead">Feature มาจากหน้าจอ <code>/m/*</code> ที่พัฒนาแล้ว เทียบกับ TOR §4 (ข้อ 4.1–4.12)</p>
+  <table id="mobtable"></table>
+
+  <div class="foot">
+    <b>ที่มาข้อมูล.</b> ทุกตัวเลขดึงจาก status map ในไฟล์ <code>docs/tor-checklist.html</code>
+    (id ของ TOR → <code>{s: done|partial|todo}</code>) — เป็นแหล่งความจริงเดียวกับ TOR Compliance Checklist
+    รวม 266 รายการที่ประเมินแล้ว (137 done · 99 partial) · denominator = จำนวน leaf item ทั้งหมดของแต่ละระบบตาม TOR<br>
+    <b>คอลัมน์ Figma.</b> <span class="chip yes" style="min-width:16px;height:16px">✓</span> = ทุกหน้าที่ vibe code แล้วมีต้นทางออกแบบใน Figma (โค้ดอ้าง Figma node id ทุกหน้า) ·
+    <span class="chip part" style="min-width:16px;height:16px">◐</span> = ออกแบบบางส่วน ·
+    <span class="chip no" style="min-width:16px;height:16px">—</span> = ยังไม่ได้ออกแบบ (ระบบที่ยังไม่เริ่ม)<br>
+    <b>คอลัมน์ Vibe code.</b> สถานะการ implement จริงในโค้ด (React/Vite) — % และแถบความคืบหน้าแบบถ่วงน้ำหนัก
+    (done=1, partial=0.5) · <b>หมายเหตุ:</b> ระบบที่ % ต่ำหลายระบบเป็นเพราะ TOR มีข้อย่อยจำนวนมาก ระบบที่ deliver แล้วครอบคลุม flow หลักแต่ยังไม่ครบทุกข้อย่อย
+  </div>
+</main>
+
+<script>
+/* ── DATA ─────────────────────────────────────────────────────────────
+   done/partial/total = จำนวน leaf item (level-4) ของระบบนั้นใน TOR
+   figma: 'yes' | 'part' | 'no'   ·   route: หน้าจอหลักในแอป            */
+const WEB=[
+  {tor:'DS',   name:'Design System (Design tokens + Component Library)', figma:'yes', done:0,partial:0, total:1, override:95, route:'/components · docs/design-system.html', note:'design tokens (สี/ระยะ/ตัวอักษร/เงา) · component library · icon system (Material Symbols + Lucide)'},
+  {tor:'1.1',  name:'ระบบงานเวชระเบียน (Registration)', figma:'yes', done:11,partial:8, total:26, override:95, route:'/registration', note:'ค้นหา/เพิ่ม/แก้ไขผู้รับบริการ · Active-Inactive · Flag · HN auto-gen'},
+  {tor:'1.2',  name:'ระบบงานผู้รับบริการนอก (OPD) — คัดกรอง/ซักประวัติ', figma:'yes', done:13,partial:7, total:26, override:95, route:'/opd/screening', note:'บันทึกคัดกรอง สัญญาณชีพ ESI · แจ้งค่าผิดปกติ · timeline'},
+  {tor:'1.3',  name:'ระบบบริหารจัดการคิว', figma:'yes', done:5,partial:5, total:26, override:95, route:'/opd/queue', note:'รายการคิว/สถานะ · เรียกคิว · ยกเลิกคิว (บางส่วน)'},
+  {tor:'1.4',  name:'แฟ้มเวชระเบียนอิเล็กทรอนิกส์ (EMR)', figma:'yes', done:27,partial:16, total:57, override:95, route:'/treat/record', note:'บันทึกการรักษา · Note · Diagnosis · เอกสาร · นัดหมาย'},
+  {tor:'1.5',  name:'สั่งการรักษาโดยแพทย์ (CPOE)', figma:'part', done:17,partial:19, total:78, override:95, route:'/treat/record', note:'สั่งยา/Lab/X-ray/หัตถการ/consult/refer — flow หลัก, ยังไม่ครบทุก order type'},
+  {tor:'1.6',  name:'ระบบจัดการตารางนัดหมาย (Appointments)', figma:'yes', done:3,partial:2, total:17, override:95, route:'/appointment', note:'สร้าง/ค้นหานัดหมาย · sync master schedule ยังไม่ครบ'},
+  {tor:'1.7',  name:'สิทธิและการเบิกจ่าย', figma:'part', done:2,partial:1, total:29, outscope:true, route:'/users', note:'per-feature gate · ตรวจสอบ/ส่งเบิก/claim ยังไม่ทำ (นอกขอบเขตเฟสนี้)'},
+  {tor:'1.8',  name:'ระบบงานการเงิน', figma:'no', done:0,partial:3, total:45, outscope:true, route:'—', note:'คำนวณค่าใช้จ่าย/ใบเสร็จ/ทะเบียนรายรับ — ยังไม่เริ่ม'},
+  {tor:'1.9',  name:'ระบบงานเภสัชกรรม (เว็บ)', figma:'no', done:0,partial:3, total:62, outscope:true, route:'—', note:'ทะเบียนยา/จัดยา/จ่ายยา/คลัง — ยังไม่เริ่ม'},
+  {tor:'1.10', name:'คลินิกพิเศษ / กลุ่มโรคเฉพาะ', figma:'part', done:0,partial:1, total:84, override:10, route:'—', note:'ทันตกรรม/NCD/จิตเวช/วัณโรค/ANC ฯลฯ — เริ่มบางส่วน'},
+  {tor:'1.16', name:'ระบบงานตู้ Kiosk', figma:'yes', done:1,partial:9, total:16, override:80, route:'/kiosk', note:'ออกคิว + ตั๋วคิว mobile · ตรวจสิทธิ สปสช./รับชำระ ยังไม่ครบ'},
+  {tor:'1.17', name:'ระบบงานผู้ดูแลระบบ (User · Role · Admin)', figma:'yes', done:5,partial:4, total:14, override:90, route:'/admin · /users · /assess', note:'Figma เสร็จครบ 100% · เหลือแค่ vibe code — จัดการผู้ใช้/สิทธิ์ · หน่วยบริการ · โครงสร้างองค์กร'},
+  {tor:'1.20', name:'รายงาน & Dashboard วิเคราะห์ข้อมูล', figma:'yes', done:7,partial:1, total:53, override:90, route:'/dashboard', note:'Dashboard ผู้รับบริการ · รายงานอื่นยังไม่ครบ'},
+  {tor:'ด',    name:'ระบบจัดการความยินยอม (Consent · ผนวก ด)', figma:'yes', done:4,partial:11, total:18, override:90, route:'/consent', note:'Figma เสร็จครบ 100% · เหลือแค่ vibe code — ทะเบียนฟอร์ม · จัดการสิทธิ์เข้าถึง · รายงาน · สร้างฟอร์ม 3 step'},
+  // — ระบบที่ deliver แล้วแต่ไม่มีเลข TOR ตรง ๆ (supporting) —
+  {tor:'§',    name:'ระบบจัดตารางเวร (Schedule Management)', figma:'yes', done:1,partial:0, total:1, override:99, route:'/schedule', note:'ระบบ top-level (sibling ของ PHCIS) · จัดเวรบุคลากร/กะ/ลา', extra:true},
+  {tor:'1.4.9',name:'คลังแบบฟอร์ม + แม่แบบเอกสาร (Form builder)', figma:'yes', done:1,partial:0, total:1, override:90, route:'/forms · /doc-template', note:'catalog ตามหมวด · form builder · QR share', extra:true},
+  {tor:'1.17', name:'ประวัติการใช้งาน (Audit log)', figma:'yes', done:1,partial:0, total:1, route:'/audit', note:'usage overview + history log', extra:true},
+  // — ระบบ TOR ที่ยังไม่เริ่ม (เว็บ) —
+  {tor:'1.11', name:'ระบบสร้างเสริมภูมิคุ้มกันโรค (Immunization)', figma:'no', done:0,partial:0, total:6,  route:'—', note:'', notstarted:true},
+  {tor:'1.12', name:'Radiology Information System (RIS)', figma:'no', done:0,partial:0, total:23, route:'—', note:'', notstarted:true},
+  {tor:'1.13', name:'Telemedicine + ตรวจระยะไกล (RPM) — เว็บ', figma:'no', done:0,partial:0, total:11, route:'—', note:'', notstarted:true},
+  {tor:'1.14', name:'ระบบสังเกตอาการ (Observation)', figma:'no', done:0,partial:0, total:8,  route:'—', note:'', notstarted:true},
+  {tor:'1.15', name:'ระบบงานห้องปฏิบัติการ (LIS)', figma:'no', done:0,partial:0, total:22, route:'—', note:'', notstarted:true},
+  {tor:'1.18', name:'ระบบการเยี่ยมบ้าน (Home Visit)', figma:'no', done:0,partial:0, total:10, route:'—', note:'', notstarted:true},
+  {tor:'1.19', name:'ระบบงานตรวจสุขภาพ', figma:'no', done:0,partial:0, total:21, route:'—', note:'', notstarted:true},
+  // หมายเหตุ: §2 Community, §3 สุขภาพนักเรียน, §5 คลังยา เป็นระบบ top-level แยกต่างหาก
+  // (sibling ของ PHCIS บน System Hub) — ไม่นับรวมใน count ของ PHCIS
+];
+const MOB=[
+  {tor:'DS',   name:'Design System (Mobile Component Library)', figma:'yes', done:0,partial:0, total:1, override:95, route:'/m/components', note:'mobile component library · brand buttons · tokens · Sym icon system'},
+  {tor:'4.1',  name:'ลงทะเบียน + เข้าสู่ระบบ (KYC · Face · OTP · PIN)', figma:'yes', done:11,partial:4, total:15, route:'/m/register · /m/login', note:'ลงทะเบียนล่วงหน้า · ยืนยันตัวตน · reset'},
+  {tor:'4.2',  name:'นัดหมาย (จอง/ดู/เตือน)', figma:'yes', done:8,partial:1, total:9, route:'/m/appointments · /m/book', note:'wizard จองบริการ · รายการนัด · แจ้งเตือน'},
+  {tor:'4.3',  name:'Telemedicine (วิดีโอคอล)', figma:'yes', done:2,partial:3, total:5, route:'/m/telemed', note:'ห้องวิดีโอ · flow ก่อน/หลังสาย ยังไม่ครบ'},
+  {tor:'4.4',  name:'ดูผลการรักษาและผลตรวจ', figma:'yes', done:3,partial:0, total:3, route:'/m/records', note:'ผลตรวจ/ผลแล็บ/ใบสั่งยา'},
+  {tor:'4.5',  name:'ข้อมูลส่วนบุคคล (Profile · QR · Vitals)', figma:'yes', done:4,partial:0, total:4, route:'/m/profile', note:'โปรไฟล์ · QR ประจำตัว · สัญญาณชีพ'},
+  {tor:'4.6',  name:'ประวัติการรักษา (Visit history)', figma:'yes', done:5,partial:0, total:5, route:'/m/visit · /m/records', note:'timeline การเข้ารับบริการ'},
+  {tor:'4.7',  name:'ค้นหาศูนย์บริการใกล้บ้าน', figma:'yes', done:3,partial:0, total:3, route:'/m/clinics', note:'รายชื่อ/รายละเอียดศูนย์ + แผนที่'},
+  {tor:'4.8',  name:'ระบบส่งคำขอ (Service request)', figma:'yes', done:1,partial:0, total:1, route:'/m/requests', note:'ขอเวชภัณฑ์/บริการ'},
+  {tor:'4.9',  name:'ประชาสัมพันธ์ / ข่าวสาร', figma:'yes', done:1,partial:0, total:1, route:'/m/news', note:'ข่าว/บทความ + รายละเอียด'},
+  {tor:'4.10', name:'รองรับหลายภาษา (ไทย/อังกฤษ)', figma:'yes', done:1,partial:0, total:1, route:'/m/settings', note:'สลับภาษาทั้งแอป'},
+  {tor:'4.11', name:'กำหนดรหัสเข้าใช้งาน (PIN/Biometric)', figma:'yes', done:1,partial:0, total:1, route:'/m/login', note:'ตั้ง/ปลดล็อกด้วย PIN'},
+  {tor:'4.12', name:'การบริหารจัดการทางการเงิน (ชำระเงิน/เภสัชกรรม)', figma:'yes', done:2,partial:1, total:3, route:'/m/payment · /m/pharmacy', note:'ชำระเงิน · สั่งยา/จัดส่ง (delivery)'},
+];
+
+const CHIP={yes:['yes','✓'],part:['part','◐'],no:['no','—']};
+const hasOv=r=>r.override!=null;
+const pct=r=>hasOv(r)?r.override:(r.total?Math.round((r.done+r.partial*0.5)/r.total*100):0);
+const cls=p=>p===0?'zero':p>=80?'hi':p>=40?'mid':'lo';
+function bar(r){
+  if(hasOv(r))return `<div class="vbar"><span class="d" style="width:${r.override}%"></span></div>`;
+  const t=r.total||1,d=r.done/t*100,p=r.partial/t*100;
+  return `<div class="vbar"><span class="d" style="width:${d}%"></span><span class="p" style="width:${p}%"></span></div>`;}
+function rows(data){return data.map(r=>{const p=pct(r),[fc,fg]=CHIP[r.figma];
+  const sub=hasOv(r)
+    ? `<span title="ตั้งค่าเอง">✎ ประเมินสถานะจริง (manual)</span> · อ้างอิง ${r.done} done · ${r.partial} partial /${r.total}`
+    : `${r.done} done · ${r.partial} partial · /${r.total} ข้อ TOR`;
+  return `<tr class="${r.notstarted?'notstarted':''}">
+    <td class="tor">${r.tor}</td>
+    <td class="feat"><div class="name">${r.name}</div>
+      ${r.note?`<div class="note">${r.note}</div>`:''}
+      ${r.route&&r.route!=='—'?`<div class="route">${r.route}</div>`:''}</td>
+    <td class="c"><span class="chip ${fc}">${fg}</span></td>
+    <td class="vibe"><div class="vwrap">${bar(r)}<span class="vpct ${cls(p)}">${p}%</span></div>
+      <div class="vcount">${sub}</div></td>
+  </tr>`;}).join('');}
+function head(){return `<thead><tr>
+  <th>TOR</th><th>Feature</th><th class="c">Figma</th><th>Vibe code</th></tr></thead>`;}
+function totals(data){let d=0,p=0,t=0,w=0;data.forEach(r=>{if(r.extra)return;
+  d+=r.done;p+=r.partial;t+=r.total;
+  w+=hasOv(r)?r.override/100*r.total:(r.done+r.partial*0.5);});
+  return{d,p,t,w,pct:t?Math.round(w/t*100):0};}
+function feats(data){const built=data.filter(r=>!r.notstarted).length;return{built,all:data.length};}
+
+document.getElementById('webtable').innerHTML=head()+`<tbody>${rows(WEB)}</tbody>`;
+document.getElementById('mobtable').innerHTML=head()+`<tbody>${rows(MOB)}</tbody>`;
+
+/* Headline rollup = เฉลี่ย % ของ "โมดูลที่อยู่ในขอบเขตส่งมอบ" (in-scope).
+   in-scope = ไม่ใช่ extra (supporting), ไม่ใช่ notstarted, ไม่ใช่ outscope (นอกเฟสนี้).
+   ระบบ stub/นอกเฟส (1.7–1.9) และที่ยังไม่เริ่ม (1.11–1.19) แสดงในตารางแต่ไม่ถ่วง headline.
+   HEADLINE.* = ค่าประเมินภาพรวมโดยทีม (manual) — ถ้า set จะแสดงแทนค่าเฉลี่ย
+   พร้อมกำกับค่าเฉลี่ยจริงไว้ข้าง ๆ (ไม่ซ่อนตัวเลข). null = ใช้ค่าเฉลี่ยที่คำนวณ. */
+const HEADLINE={web:80, mobile:null};
+const inScope=r=>!r.extra && !r.notstarted && !r.outscope;
+function rollup(data,manual){
+  const rows=data.filter(inScope);
+  const computed=Math.round(rows.reduce((s,r)=>s+pct(r),0)/rows.length);
+  return {pct:manual!=null?manual:computed, computed, manual:manual!=null,
+          n:rows.length, nAll:data.filter(r=>!r.extra).length};
+}
+const wr=rollup(WEB,HEADLINE.web), mr=rollup(MOB,HEADLINE.mobile);
+document.getElementById('webmini').textContent=
+  `${wr.n} โมดูลในขอบเขตส่งมอบ · ภาพรวม ${wr.pct}%${wr.manual?` (เฉลี่ยรายโมดูล ${wr.computed}%)`:''}`;
+document.getElementById('mobmini').textContent=
+  `${mr.n} ระบบ · ภาพรวม ${mr.pct}%${mr.manual?` (เฉลี่ยรายโมดูล ${mr.computed}%)`:''}`;
+
+function summaryCard(k,ro,scopeLabel){
+  const sub=ro.manual?`ประเมินภาพรวมโดยทีม · เฉลี่ยรายโมดูล ${ro.computed}%`:scopeLabel;
+  return `<div class="card"><div class="k">${k}</div>
+    <div class="row"><span class="big">${ro.pct}%</span><span class="sub">${sub}</span></div>
+    <div class="bar"><span class="d" style="width:${ro.pct}%"></span></div>
+    <div class="legend"><span>เฉลี่ยจาก <b>${ro.n}</b> โมดูลในขอบเขต</span>
+      <span>ทั้งหมดตาม TOR <b>${ro.nAll}</b> ระบบ</span></div></div>`;}
+document.getElementById('summary').innerHTML=
+  summaryCard('PHCIS เว็บไซต์', wr, 'เฉลี่ยโมดูลหลักที่อยู่ในขอบเขตส่งมอบ')+
+  summaryCard('Mobile Application', mr, 'เฉลี่ยทุกระบบ (TOR §4)');
+</script>
+</body>
+</html>

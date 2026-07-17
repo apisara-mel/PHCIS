@@ -125,7 +125,7 @@ export const AppointmentHistoryReadOnlyLayout = ({
       </div>
 
       <section
-        className='flex flex-col flex-1 min-w-0 bg-white'
+        className='flex flex-col flex-1 min-w-0 bg-surface-card'
         style={{
           gap: 'var(--dim-space-300)',
           paddingTop: 'var(--dim-space-200)',

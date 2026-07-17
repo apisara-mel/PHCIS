@@ -1,15 +1,17 @@
 import React from 'react';
-import { MobileButtonBase, buildPalette } from './_base';
+import { buildPalette, createFigmaTextButton } from './_base';
 
-/* Mobile · BrandButton (Figma node 231:29).
-   Tone = brandPrimaryButton (solid fill). Variants: fill / outline / ghost.
-   Sizes: md=44h, lg=56h. Pill radius. State matrix mirrors web BrandButton
-   (default / hover / active / focus / disabled). See design.md §7.3.1. */
+/* Mobile · BrandButton — Figma App node 231:29
+   Style: Fill / Outline / Ghost · Size: Large / Medium / Small
+   State: Default / Hover / Active / Focus / Disable
+   Show Leading icon / Show Tailing icon */
 
 const PALETTE = buildPalette('brandPrimaryButton', { fillTier: 'solid' });
 
-export const BrandButton = (props) => (
-  <MobileButtonBase palette={PALETTE} {...props} />
-);
+export const BrandButton = createFigmaTextButton(PALETTE, {
+  name: 'BrandButton',
+  figmaNode: '231:29',
+  defaultStyle: 'Fill',
+});
 
 export default BrandButton;

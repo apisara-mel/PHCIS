@@ -153,7 +153,7 @@ const MobileClinicDetailInner = () => {
             width: '100%', height: 140, borderRadius: 'var(--dim-radius-400, 12px)',
             background: 'linear-gradient(135deg, #54AA8C 0%, #4CC6AE 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#FFFFFF',
+            color: 'var(--text-content-on-content)',
           }}>
             <Sym name='local_hospital' size={72} fill />
           </div>

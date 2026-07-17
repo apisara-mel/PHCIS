@@ -140,7 +140,7 @@ const Avatar = ({ name, hn }) => {
       style={{
         width: 32, height: 32,
         background: bg,
-        color: '#FFFFFF',
+        color: 'var(--text-content-on-content)',
         fontFamily: 'var(--type-family-body)',
         fontSize: 'var(--type-size-sm)',
         fontWeight: 'var(--type-weight-medium)',

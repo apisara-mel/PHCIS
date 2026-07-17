@@ -38,7 +38,7 @@ const ACCESS_OPTIONS = [
 /* Section card — uniform white card with title row + content. */
 const SectionCard = ({ icon, title, subtitle, children, action }) => (
   <section
-    className='bg-white rounded-card shadow-card flex flex-col w-full'
+    className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
     style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
   >
     <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
@@ -567,7 +567,7 @@ const UserEditPage = () => {
 
           {/* Footer actions */}
           <section
-            className='bg-white rounded-card shadow-card flex flex-wrap items-center w-full sticky bottom-0'
+            className='bg-surface-card rounded-card shadow-card flex flex-wrap items-center w-full sticky bottom-0'
             style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)' }}
           >
             <div className='flex-1 min-w-0 flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>

@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { Sym } from './Sym';
+import NavigationMenu from './NavigationMenu';
 
 /* MIH PHCIS · Mobile App shell.
 
    Wraps every /m/* page with:
-     • 390×844 iPhone-shaped viewport (centered on desktop background)
+     • 402×874 iPhone 17 viewport (centered on desktop background; matches Figma)
      • status bar (time + signal/wifi/battery glyphs)
      • per-page header (provided by `<MobileHeader>` — see Header.jsx)
      • bottom tab nav (Home · Appointments · Records · Profile · More)
@@ -31,6 +32,8 @@ export { MobileSectionLabel } from './SectionLabel';
 /* ─── Auth + Language context (single provider) ──────────────────────── */
 const STORAGE_AUTH = 'phcis_mobile_auth_v1';
 const STORAGE_LANG = 'phcis_mobile_lang_v1';
+/* Mobile appearance only — never writes <html data-mode> (PHCIS web owns that). */
+const STORAGE_THEME = 'phcis_mobile_theme_v1';
 
 const MobileAppContext = createContext({
   isAuthed: false,
@@ -38,6 +41,8 @@ const MobileAppContext = createContext({
   signOut: () => {},
   lang: 'th',
   setLang: () => {},
+  theme: 'light', /* 'light' | 'dark' — scoped to MobileShell via data-mobile-theme */
+  setTheme: () => {},
   t: (th) => th,
 });
 
@@ -64,6 +69,21 @@ const STRINGS = {
   },
 };
 
+/* Re-apply PHCIS web appearance from its own storage — mobile must never
+   own <html data-mode>. Also undoes any accidental pollution from an
+   earlier mobile settings build that wrote documentElement. */
+const restorePhcisDocumentMode = () => {
+  try {
+    const root = document.documentElement;
+    const mode = window.localStorage.getItem('phcis.mode') || 'light';
+    const prefersDark = window.matchMedia
+      && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const dark = mode === 'dark' || (mode === 'system' && prefersDark);
+    if (dark) root.setAttribute('data-mode', 'dark');
+    else root.removeAttribute('data-mode');
+  } catch (_e) { /* noop */ }
+};
+
 export const MobileAppProvider = ({ children }) => {
   const [isAuthed, setIsAuthed] = useState(() => {
     try { return Boolean(JSON.parse(localStorage.getItem(STORAGE_AUTH) || 'false')); }
@@ -73,6 +93,26 @@ export const MobileAppProvider = ({ children }) => {
     try { return localStorage.getItem(STORAGE_LANG) || 'th'; }
     catch (e) { return 'th'; }
   });
+  const [theme, setThemeState] = useState(() => {
+    try {
+      const t = localStorage.getItem(STORAGE_THEME);
+      if (t === 'dark' || t === 'light') return t;
+      /* One-time migrate from older settings blob that wrongly coupled theme. */
+      const raw = localStorage.getItem('phcis_mobile_settings_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.theme === 'dark' || parsed?.theme === 'light') {
+          localStorage.setItem(STORAGE_THEME, parsed.theme);
+          return parsed.theme;
+        }
+      }
+    } catch (e) { /* noop */ }
+    return 'light';
+  });
+
+  useEffect(() => {
+    restorePhcisDocumentMode();
+  }, []);
 
   const signIn = () => {
     setIsAuthed(true);
@@ -86,6 +126,13 @@ export const MobileAppProvider = ({ children }) => {
     setLangState(l);
     try { localStorage.setItem(STORAGE_LANG, l); } catch (e) { /* noop */ }
   };
+  const setTheme = (next) => {
+    const value = next === 'dark' ? 'dark' : 'light';
+    setThemeState(value);
+    try { localStorage.setItem(STORAGE_THEME, value); } catch (e) { /* noop */ }
+    /* Never touch <html data-mode> — PHCIS web stays independent. */
+    restorePhcisDocumentMode();
+  };
 
   /* `t(thai, english?)` — quick translator. The mock app keeps strings
      inline in pages (Thai); pages that want bilingual support pass the
@@ -97,8 +144,8 @@ export const MobileAppProvider = ({ children }) => {
   };
 
   const value = useMemo(
-    () => ({ isAuthed, signIn, signOut, lang, setLang, t }),
-    [isAuthed, lang],
+    () => ({ isAuthed, signIn, signOut, lang, setLang, theme, setTheme, t }),
+    [isAuthed, lang, theme],
   );
   return <MobileAppContext.Provider value={value}>{children}</MobileAppContext.Provider>;
 };
@@ -106,7 +153,9 @@ export const MobileAppProvider = ({ children }) => {
 export const useMobileApp = () => useContext(MobileAppContext);
 
 /* ─── Status bar (clock + dummy radio glyphs) ────────────────────────── */
-const StatusBar = () => {
+/* tone: default = dark on white · onBrand = white/transparent ·
+   transparentDark = dark/transparent (booking success 175:94673). */
+const StatusBar = ({ tone = 'default', style }) => {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30 * 1000);
@@ -114,23 +163,32 @@ const StatusBar = () => {
   }, []);
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
+  const onBrand = tone === 'onBrand';
+  const transparentDark = tone === 'transparentDark';
+  const ink = onBrand
+    ? 'var(--text-content-on-content, #FFFFFF)'
+    : 'var(--text-content-primary)';
   return (
     <div
-      className='flex items-center justify-between'
+      className='flex items-center justify-between shrink-0'
       style={{
         height: 'var(--mobile-status-bar-height, 44px)',
-        padding: '0 var(--dim-space-500, 20px)',
+        padding: '0 var(--dim-space-400, 16px)',
         fontFamily: 'var(--type-family-body)',
         fontSize: 'var(--type-size-sm, 14px)',
         fontWeight: 'var(--type-weight-bold, 700)',
-        color: 'var(--text-content-primary)',
+        color: ink,
+        background: onBrand || transparentDark
+          ? 'transparent'
+          : 'var(--surface-card-100, #FFFFFF)',
+        ...style,
       }}
     >
       <span>{hh}:{mm}</span>
-      <div className='flex items-center' style={{ gap: 4 }}>
-        <Sym name='signal_cellular_alt' size={16} />
-        <Sym name='wifi' size={16} />
-        <Sym name='battery_full' size={16} />
+      <div className='flex items-center' style={{ gap: 4, color: ink }}>
+        <Sym name='signal_cellular_alt' size={16} color={ink} />
+        <Sym name='wifi' size={16} color={ink} />
+        <Sym name='battery_full' size={16} color={ink} />
       </div>
     </div>
   );
@@ -141,6 +199,7 @@ const TABS = [
   { key: 'home',         path: '/m/home',         icon: 'home',           iconActive: 'home',           labelTh: 'หน้าแรก',  labelEn: 'Home' },
   { key: 'appointments', path: '/m/appointments', icon: 'calendar_clock', iconActive: 'calendar_clock', labelTh: 'นัดหมาย',  labelEn: 'Appointments' },
   { key: 'requests',     path: '/m/requests',     icon: 'send',           iconActive: 'send',           labelTh: 'ส่งคำขอ',  labelEn: 'Requests' },
+  { key: 'history',      path: '/m/records',      icon: 'history',        iconActive: 'history',        labelTh: 'ประวัติ',  labelEn: 'History' },
   { key: 'profile',      path: '/m/profile',      icon: 'face',           iconActive: 'face',           labelTh: 'โปรไฟล์',  labelEn: 'Profile' },
 ];
 
@@ -152,61 +211,69 @@ const BottomNav = () => {
     if (pathname.startsWith('/m/home') || pathname === '/m') return 'home';
     if (pathname.startsWith('/m/appointments') || pathname.startsWith('/m/book') || pathname.startsWith('/m/telemed')) return 'appointments';
     if (pathname.startsWith('/m/requests')) return 'requests';
-    if (pathname.startsWith('/m/profile')) return 'profile';
+    if (pathname.startsWith('/m/records') || pathname.startsWith('/m/visit')) return 'history';
+    if (pathname.startsWith('/m/profile') || pathname.startsWith('/m/settings')) return 'profile';
     return null;
   })();
+  /* Render via the DS NavigationMenu (Figma L8AlrWha3QNKcxaVCH1UFE 3:555). */
+  const items = TABS.map((tab) => ({
+    key: tab.key,
+    icon: tab.icon,
+    label: lang === 'en' ? tab.labelEn : tab.labelTh,
+    path: tab.path,
+  }));
   return (
-    <div
-      className='flex items-stretch'
-      style={{
-        height: 'var(--mobile-bottom-nav-height, 80px)',
-        background: 'var(--surface-card-100)',
-        borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-        boxShadow: 'var(--shadow-brand-drop-top-200)',
-        paddingBottom: 16,
-      }}
-    >
-      {TABS.map((tab) => {
-        const active = tab.key === activeKey;
-        const label = lang === 'en' ? tab.labelEn : tab.labelTh;
-        return (
-          <button
-            key={tab.key}
-            type='button'
-            onClick={() => history.push(tab.path)}
-            className='flex-1 flex flex-col items-center justify-center'
-            style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              color: active ? 'var(--text-brandPrimary-default, #007549)' : 'var(--text-content-tertiary, #858C92)',
-              gap: 2,
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-xs, 12px)',
-              fontWeight: active ? 'var(--type-weight-bold, 700)' : 'var(--type-weight-medium, 500)',
-            }}
-          >
-            <Sym name={active ? tab.iconActive : tab.icon} size={24} fill={active} />
-            <span>{label}</span>
-          </button>
-        );
-      })}
-    </div>
+    <NavigationMenu
+      items={items}
+      activeKey={activeKey}
+      onSelect={(item) => history.push(item.path)}
+    />
   );
 };
 
 /* ─── Frame wrapper ──────────────────────────────────────────────────── */
-const PHONE_W = 390;
-const PHONE_H = 844;
+/* iPhone 17 — 402×874 CSS points (6.3" @3x). Same artboard as Figma Mobile. */
+const PHONE_W = 402;
+const PHONE_H = 874;
+const PHONE_BEZEL = 12;
+
+export const MobileHomeIndicator = ({
+  background = 'var(--surface-card-100, #FFFFFF)',
+}) => (
+  <div
+    aria-hidden
+    className='flex items-end justify-center shrink-0 w-full'
+    style={{
+      height: 'calc(var(--dim-size-600, 32px) + var(--dim-space-050, 2px))',
+      paddingBottom: 'var(--dim-space-200, 8px)',
+      background,
+    }}
+  >
+    <span
+      style={{
+        width: 'var(--dim-size-2050, 144px)',
+        height: 'calc(var(--dim-space-100, 4px) + var(--dim-stroke-100, 1px))',
+        borderRadius: 'var(--dim-radius-full, 9999px)',
+        background: 'var(--labels-primary, #000000)',
+      }}
+    />
+  </div>
+);
 
 export const MobileShell = ({
   children,
   showStatusBar = true,
   showBottomNav = true,
+  homeIndicatorOverlay = false,
+  homeIndicatorBackground,
   requireAuth = true,
   background = 'var(--surface-content-secondary, #F5F6F7)',
+  statusBarTone = 'default', /* 'default' | 'onBrand' | 'transparentDark' */
+  statusBarStyle,
 }) => {
   const history = useHistory();
   const { pathname } = useLocation();
-  const { isAuthed } = useMobileApp();
+  const { isAuthed, theme } = useMobileApp();
 
   /* Auth gate — redirect to /m/login if user isn't signed in. We do it
      in an effect so we can render a brief loader instead of throwing
@@ -220,27 +287,42 @@ export const MobileShell = ({
 
   if (requireAuth && !isAuthed) {
     return (
-      <PhoneFrame>
-        <div className='flex items-center justify-center h-full'
+      <PhoneFrame theme={theme}>
+        <div className='flex flex-1 items-center justify-center min-h-0'
              style={{ color: 'var(--text-content-tertiary)' }}>
           กำลังพาไปหน้าเข้าสู่ระบบ…
         </div>
+        <MobileHomeIndicator />
       </PhoneFrame>
     );
   }
 
   return (
-    <PhoneFrame background={background}>
-      {showStatusBar && <StatusBar />}
+    <PhoneFrame background={background} theme={theme}>
+      {showStatusBar && <StatusBar tone={statusBarTone} style={statusBarStyle} />}
       <div className='flex-1 min-h-0 overflow-y-auto' style={{ background }}>
         {children}
       </div>
       {showBottomNav && <BottomNav />}
+      {homeIndicatorOverlay ? (
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            left: 0,
+            zIndex: 20,
+            pointerEvents: 'none',
+          }}
+        >
+          <MobileHomeIndicator background={homeIndicatorBackground} />
+        </div>
+      ) : <MobileHomeIndicator background={homeIndicatorBackground} />}
     </PhoneFrame>
   );
 };
 
-const PhoneFrame = ({ children, background }) => (
+const PhoneFrame = ({ children, background, theme = 'light' }) => (
   <div
     style={{
       minHeight: '100vh',
@@ -254,11 +336,11 @@ const PhoneFrame = ({ children, background }) => (
   >
     <div
       style={{
-        width: PHONE_W,
-        height: PHONE_H,
+        width: PHONE_W + PHONE_BEZEL * 2,
+        height: PHONE_H + PHONE_BEZEL * 2,
         borderRadius: 48,
         background: '#000',
-        padding: 12,
+        padding: PHONE_BEZEL,
         boxShadow: '0 30px 80px rgba(0,0,0,0.45), 0 0 0 2px rgba(255,255,255,0.06)',
         position: 'relative',
         flexShrink: 0,
@@ -269,16 +351,19 @@ const PhoneFrame = ({ children, background }) => (
       <div style={{ position: 'absolute', left: -3, top: 180, width: 3, height: 56, background: '#222', borderRadius: 2 }} />
       <div style={{ position: 'absolute', left: -3, top: 248, width: 3, height: 56, background: '#222', borderRadius: 2 }} />
       <div style={{ position: 'absolute', right: -3, top: 180, width: 3, height: 88, background: '#222', borderRadius: 2 }} />
+      {/* data-mobile-theme scopes dark tokens to this phone only — not PHCIS web. */}
       <div
+        data-mobile-theme={theme === 'dark' ? 'dark' : undefined}
         style={{
-          width: '100%',
-          height: '100%',
+          width: PHONE_W,
+          height: PHONE_H,
           borderRadius: 38,
           background,
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',
+          colorScheme: theme === 'dark' ? 'dark' : 'light',
         }}
       >
         {/* Dynamic-island notch (cosmetic) */}

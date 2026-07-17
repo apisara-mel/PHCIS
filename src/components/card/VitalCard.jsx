@@ -126,7 +126,7 @@ const VitalCard = ({
   }, [hasMeasurement]);
 
   return (
-    <div className='bg-white border border-ink-line rounded-card p-4 flex flex-col gap-1 w-full'>
+    <div className='bg-surface-card border border-ink-line rounded-card p-4 flex flex-col gap-1 w-full'>
       <Header label={label} unit={unit} required={required} badge={visibleBadge} />
 
       {children ? (
@@ -258,7 +258,7 @@ export const PressureCard = ({ sys = '128', dia = '80', step = 1, onChange, onVa
   const fmt = (n) => (step < 1 ? n.toFixed(1).replace(/\.0$/, '') : String(Math.round(n)));
 
   return (
-    <div className='bg-white border border-ink-line rounded-card p-4 flex flex-col gap-1 w-full'>
+    <div className='bg-surface-card border border-ink-line rounded-card p-4 flex flex-col gap-1 w-full'>
       <Header label='ความดัน' unit='mmHg' required badge={badge} />
       <div className='flex items-center gap-3 w-full flex-wrap'>
         <PressureValue
@@ -353,7 +353,7 @@ export const BMICard = ({ value, weight, height }) => {
     : '—';
 
   return (
-    <div className='bg-white border border-ink-line rounded-card p-4 flex flex-col gap-1 w-full'>
+    <div className='bg-surface-card border border-ink-line rounded-card p-4 flex flex-col gap-1 w-full'>
       <Header label='BMI' required badge={badge} />
       <div className='flex items-center w-full'>
         <p
@@ -375,7 +375,7 @@ export const BMICard = ({ value, weight, height }) => {
              the gradient bar reads as an unfilled legend rather than
              implying the patient is at the extreme-thin end. */
           <div
-            className='absolute top-1/2 z-[1] rounded-full bg-white pointer-events-none'
+            className='absolute top-1/2 z-[1] rounded-full bg-surface-card pointer-events-none'
             style={{
               width: 16,
               height: 16,

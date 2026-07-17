@@ -1,303 +1,830 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import {
   MobileShell,
-  MobileButton,
-  MobileInput,
-  MobileField,
   useMobileApp,
   Sym,
-} from '@/components/mobile/MobileShell';
+  BrandButton,
+  BrandSubdueButton,
+  NeutralButton,
+  MobileInputField,
+  Password,
+} from '@/components/mobile';
+import Checkbox from '@/components/checkbox/Checkbox';
+import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import { CURRENT_USER } from '@/data/mobileMock';
 
-/* MIH PHCIS Mobile · Login screen — TOR §4.1.2.
-   Accepts national ID + password. Demo creds shown in a hint card so
-   reviewers can sign in without seeding state. After sign-in we redirect
-   to `?next=` (typically the page that triggered the auth gate) or
-   default to /m/home.
+/* BMA Health · Sign In — Archive Figma 4WXeI8fgBLQGgQ9VheM2yD · Login 147:27384
+   Branching (artboard Title Annotations):
+   · เคย set PIN ไว้ → Unlock PIN / Biometric ก่อน → Home
+   · ไม่เคย set PIN → หน้า Login (รหัสผ่าน)
+   Annotation Thai ID: deep-link ThaID app หรือส่งไปสโตร์ถ้ายังไม่ติดตั้ง
+   PIN lock: ผิด 5 ครั้ง → ล็อก 2 ชม. (แจ้งหลังผิด 3 ครั้ง) */
 
-   The "ลงทะเบียน / Register" link routes to /m/register which walks the
-   visitor through the §4.1.1 enrollment ceremony (citizen ID → OTP →
-   face capture → password). Biometric (§4.1.2.6) is offered as a quick
-   action that ends in the same authed state without a typed password. */
+/* Sign-in hero — Figma 147:27384 "Man visiting Hospital" (also Lottie). */
+const SIGNIN_HERO_LOTTIE = '/illustration/mobile/man-visiting-hospital.json';
+const SIGNIN_HERO_FALLBACK = '/illustration/mobile/signin-hero.png';
+const SIGNIN_HERO_SIZE = 128;
+
+/* Unlock-PIN artwork — Figma 2042:27787 "Mobile security" at 112px. Reuses the
+   welcome-4 asset (same illustration in the Figma library). */
+const UNLOCK_ART_LOTTIE = '/illustration/mobile/mobile-security-recolored.json';
+const UNLOCK_ART_FALLBACK = '/illustration/mobile/welcome-4-mobile-security.png';
+const UNLOCK_ART_SIZE = 112;
+
+/* Keypad key — Figma 2042:27804 (KeypadButton). 72px disc, 1px primary/400
+   ring. Shared by the digits and the delete key so they can't drift apart. */
+const KEY_STYLE = {
+  width: 'var(--dim-size-1600, 72px)',
+  height: 'var(--dim-size-1600, 72px)',
+  margin: '0 auto',
+  border: 'var(--dim-stroke-100, 1px) solid var(--brand-p400, #6AD6A5)',
+  borderRadius: 'var(--dim-radius-full, 9999px)',
+  background: 'transparent',
+  color: 'var(--text-content-on-content, #FFFFFF)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const STORAGE_PIN = 'phcis_mobile_pin_v1';
+const STORAGE_PIN_LOCK = 'phcis_mobile_pin_lock_until_v1';
+const STORAGE_REMEMBER = 'phcis_mobile_remember_id_v1';
+const STORAGE_BIO = 'phcis_mobile_biometric_enabled_v1';
+const PIN_LEN = 6;
+const PIN_MAX_ATTEMPTS = 5;
+const PIN_WARN_AT = 3;
+const PIN_LOCK_MS = 2 * 60 * 60 * 1000;
+
+const C = {
+  teal: 'var(--mobile-surface-brandPrimaryButton-default, #08A768)',
+  brand: 'var(--text-brandPrimary-default, #007549)',
+  brandSoft: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+  ink: 'var(--text-content-default, #111314)',
+  sub: 'var(--text-content-secondary, #636B72)',
+  muted: 'var(--text-content-tertiary, #858C92)',
+  card: 'var(--surface-card-100, #FFFFFF)',
+  border: 'var(--border-content-tertiary, #E1E3E5)',
+  danger: 'var(--text-alert-error, #B91C1C)',
+  dangerBg: 'var(--surface-alert-error, #FFF0F0)',
+  dangerBorder: 'var(--border-alert-error, #FEE2E2)',
+  white: 'var(--text-content-on-content, #FFFFFF)',
+};
+
+/* Figma 147:27384 Login fill — Linear exact:
+   155.55deg, #13B292 0% → #00A08E 120.93% */
+const LOGIN_BG = 'linear-gradient(155.55deg, #13B292 0%, #00A08E 120.93%)';
+
+const digits = (v) => String(v || '').replace(/\D/g, '');
+
+const DEMO_PHONE = digits(CURRENT_USER.phone);
+
+const passwordMatches = (password) => {
+  if (password === CURRENT_USER.password) return true;
+  try {
+    const reset = localStorage.getItem('phcis_mobile_demo_password_v1');
+    return Boolean(reset) && password === reset;
+  } catch {
+    return false;
+  }
+};
+
+const readPin = () => {
+  try { return localStorage.getItem(STORAGE_PIN) || ''; } catch { return ''; }
+};
+
+const readRememberedId = () => {
+  try { return localStorage.getItem(STORAGE_REMEMBER) || ''; } catch { return ''; }
+};
+
+const pinLockUntil = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_PIN_LOCK);
+    return raw ? Number(raw) : 0;
+  } catch { return 0; }
+};
+
+const hasBiometric = () => {
+  try { return localStorage.getItem(STORAGE_BIO) === '1'; } catch { return false; }
+};
+
+/* Strip native chrome from pill fields (project rule for wrapped inputs). */
+if (typeof document !== 'undefined' && !document.getElementById('mih-signin-input-chrome')) {
+  const style = document.createElement('style');
+  style.id = 'mih-signin-input-chrome';
+  style.textContent = `
+    .mih-signin-input,
+    .mih-signin-input:focus,
+    .mih-signin-input:focus-visible {
+      caret-color: var(--text-content-default, #111314);
+      border: 0 !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      -webkit-appearance: none !important;
+      appearance: none !important;
+    }
+    .mih-signin-input::placeholder {
+      color: var(--text-content-tertiary, #858C92);
+      opacity: 1;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+const ErrorAlert = ({ message, onClose }) => (
+  <div
+    className='flex items-start'
+    role='alert'
+    style={{
+      gap: 'var(--dim-space-300, 12px)',
+      padding: 'var(--dim-space-400, 16px)',
+      background: C.dangerBg,
+      border: `var(--dim-stroke-100, 1px) solid ${C.dangerBorder}`,
+      borderRadius: 'var(--dim-radius-600, 24px)',
+      width: '100%',
+    }}
+  >
+    <span className='inline-flex shrink-0' style={{ color: C.danger, marginTop: 2 }}>
+      <Sym name='cancel' size={20} />
+    </span>
+    <p
+      style={{
+        flex: 1,
+        margin: 0,
+        fontSize: 'var(--type-size-xs, 12px)',
+        fontWeight: 'var(--type-weight-medium, 500)',
+        color: C.danger,
+        lineHeight: 1.5,
+      }}
+    >
+      {message}
+    </p>
+    {onClose && (
+      <button
+        type='button'
+        onClick={onClose}
+        aria-label='ปิด'
+        style={{
+          border: 0,
+          background: 'transparent',
+          cursor: 'pointer',
+          padding: 0,
+          color: C.danger,
+          display: 'inline-flex',
+        }}
+      >
+        <Sym name='close' size={18} />
+      </button>
+    )}
+  </div>
+);
+
+/* ─── Unlock PIN (2042:27780) ───────────────────────────────────────── */
+export const UnlockPinView = ({
+  onSuccess,
+  onForgot,
+  onClose,
+  onUseBiometric,
+}) => {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [attempts, setAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(pinLockUntil);
+
+  /* Same contract as the sign-in hero: fetch the JSON and hand the parsed
+     object to <LottieIllustration animationData> — `path:` races the container. */
+  const [pinAnim, setPinAnim] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(UNLOCK_ART_LOTTIE)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive) setPinAnim(d); })
+      .catch(() => { /* keep the static PNG fallback */ });
+    return () => { alive = false; };
+  }, []);
+
+  const locked = lockedUntil > Date.now();
+
+  useEffect(() => {
+    if (!locked) return undefined;
+    const id = window.setInterval(() => {
+      if (pinLockUntil() <= Date.now()) {
+        setLockedUntil(0);
+        setError('');
+        try { localStorage.removeItem(STORAGE_PIN_LOCK); } catch { /* noop */ }
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [locked]);
+
+  const press = (n) => {
+    if (locked) return;
+    if (pin.length >= PIN_LEN) return;
+    const next = pin + n;
+    setPin(next);
+    setError('');
+    if (next.length === PIN_LEN) {
+      window.setTimeout(() => verify(next), 80);
+    }
+  };
+
+  const backspace = () => {
+    if (locked) return;
+    setPin((p) => p.slice(0, -1));
+    setError('');
+  };
+
+  const verify = (value) => {
+    const stored = readPin();
+    if (!stored || value === stored) {
+      setAttempts(0);
+      onSuccess();
+      return;
+    }
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
+    setPin('');
+    if (nextAttempts >= PIN_MAX_ATTEMPTS) {
+      const until = Date.now() + PIN_LOCK_MS;
+      try { localStorage.setItem(STORAGE_PIN_LOCK, String(until)); } catch { /* noop */ }
+      setLockedUntil(until);
+      setError('กรอกรหัส PIN ผิดครบ 5 ครั้ง — ล็อกไว้ 2 ชั่วโมง หรือรีเซ็ต PIN');
+      return;
+    }
+    if (nextAttempts >= PIN_WARN_AT) {
+      setError(`รหัส PIN ไม่ถูกต้อง (เหลืออีก ${PIN_MAX_ATTEMPTS - nextAttempts} ครั้ง)`);
+      return;
+    }
+    setError('รหัส PIN ไม่ถูกต้อง');
+  };
+
+  return (
+    <div
+      className='flex flex-col'
+      style={{
+        minHeight: '100%',
+        background: LOGIN_BG,
+        color: C.white,
+        position: 'relative',
+      }}
+    >
+      <button
+        type='button'
+        onClick={onClose}
+        aria-label='ปิด'
+        className='inline-flex items-center justify-center'
+        style={{
+          position: 'absolute',
+          top: 'var(--dim-space-400, 16px)',
+          right: 'var(--dim-space-400, 16px)',
+          width: 40,
+          height: 40,
+          borderRadius: 'var(--dim-radius-full)',
+          border: 0,
+          background: C.white,
+          color: C.teal,
+          cursor: 'pointer',
+          zIndex: 2,
+        }}
+      >
+        <Sym name='close' size={22} />
+      </button>
+
+      <div
+        className='flex-1 flex flex-col items-center'
+        style={{
+          padding: 'var(--dim-space-800, 32px) var(--dim-space-500, 20px) var(--dim-space-400, 16px)',
+          gap: 'var(--dim-space-400, 16px)',
+        }}
+      >
+        {/* Figma 2042:27787 "Mobile security", 112px. The old signin-pin-hero.png
+            was a cropped screenshot with the title AND the six PIN dots baked
+            into it, so the screen drew both twice — once flat in the image and
+            once live below. Same artwork as the welcome-4 slide. */}
+        {pinAnim ? (
+          <LottieIllustration
+            animationData={pinAnim}
+            size={UNLOCK_ART_SIZE}
+            loop
+            ariaLabel=''
+          />
+        ) : (
+          <img
+            src={UNLOCK_ART_FALLBACK}
+            alt=''
+            width={UNLOCK_ART_SIZE}
+            height={UNLOCK_ART_SIZE}
+            style={{ width: UNLOCK_ART_SIZE, height: UNLOCK_ART_SIZE, objectFit: 'contain' }}
+          />
+        )}
+        {/* Text style "h3" — heading-graphic2 Regular 24/1.375 (Figma 2042:27790).
+            Not bold: the Figma style is weight/regular. */}
+        <h1
+          style={{
+            margin: 0,
+            textAlign: 'center',
+            fontFamily: 'var(--type-family-heading-graphic2, var(--type-family-body))',
+            fontSize: 'var(--type-size-2xl, 24px)',
+            fontWeight: 'var(--type-weight-regular, 400)',
+            color: C.white,
+            lineHeight: 1.375,
+          }}
+        >
+          กรอกรหัส PIN เพื่อเข้าสู่ระบบ
+        </h1>
+
+        <div className='flex justify-center' style={{ gap: 'var(--dim-space-300, 12px)', marginTop: 'var(--dim-space-200, 8px)' }}>
+          {Array.from({ length: PIN_LEN }).map((_, i) => (
+            <span
+              key={i}
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                background: i < pin.length ? C.white : 'transparent',
+                border: `2px solid ${C.white}`,
+                boxSizing: 'border-box',
+              }}
+            />
+          ))}
+        </div>
+
+        {error && (
+          <p
+            style={{
+              margin: 0,
+              textAlign: 'center',
+              fontSize: 'var(--type-size-sm, 14px)',
+              color: C.white,
+              opacity: 0.95,
+              maxWidth: 280,
+            }}
+          >
+            {error}
+          </p>
+        )}
+
+        {hasBiometric() && !locked && (
+          <button
+            type='button'
+            onClick={onUseBiometric}
+            style={{
+              border: 0,
+              background: 'transparent',
+              color: C.white,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--dim-space-200, 8px)',
+              fontSize: 'var(--type-size-sm, 14px)',
+              padding: 'var(--dim-space-200, 8px)',
+            }}
+          >
+            <Sym name='fingerprint' size={22} />
+            ใช้ลายนิ้วมือ / Face ID
+          </button>
+        )}
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 'var(--dim-space-400, 16px)',
+          padding: 'var(--dim-space-400, 16px) var(--dim-space-600, 24px)',
+          maxWidth: 360,
+          width: '100%',
+          margin: '0 auto',
+        }}
+      >
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'].map((k) => {
+          if (k === '') return <span key='empty' />;
+          if (k === 'del') {
+            /* Delete shares the number keys' disc + hairline ring (Figma
+               2042:27817) — it is a keypad key, not a bare glyph. */
+            return (
+              <button
+                key='del'
+                type='button'
+                onClick={backspace}
+                aria-label='ลบ'
+                disabled={locked}
+                style={{ ...KEY_STYLE, cursor: locked ? 'not-allowed' : 'pointer' }}
+              >
+                <Sym name='backspace' size={24} />
+              </button>
+            );
+          }
+          return (
+            <button
+              key={k}
+              type='button'
+              onClick={() => press(k)}
+              disabled={locked}
+              style={{
+                ...KEY_STYLE,
+                /* Digits are body/Sarabun Bold 24, not the heading face
+                   (Figma text style "body1-emphasis"). */
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-2xl, 24px)',
+                fontWeight: 'var(--type-weight-bold, 700)',
+                cursor: locked ? 'not-allowed' : 'pointer',
+                opacity: locked ? 0.5 : 1,
+              }}
+            >
+              {k}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ padding: 'var(--dim-space-300, 12px) var(--dim-space-500, 20px) var(--dim-space-600, 24px)' }}>
+        {/* Figma 2042:27819 — Brand Subdue Button, Style=Outline Size=Medium.
+            On the teal wash the ring is brand/200, not white, and the label is
+            on-content white (the component's own brand ink would vanish). */}
+        <BrandSubdueButton
+          variant='outline'
+          size='md'
+          onClick={onForgot}
+          style={{
+            background: 'transparent',
+            border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)',
+            color: 'var(--text-content-on-content, #FFFFFF)',
+          }}
+        >
+          ลืมรหัส PIN?
+        </BrandSubdueButton>
+      </div>
+    </div>
+  );
+};
+
+/* ─── Password login (Figma 147:27384) ──────────────────────────────── */
+const LoginFormView = ({ onSignedIn, onBackToPin, showPinReturn }) => {
+  const history = useHistory();
+  const remembered = readRememberedId();
+  const [identifier, setIdentifier] = useState(remembered);
+  const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(Boolean(remembered));
+  const [error, setError] = useState('');
+  const [thaiIdMsg, setThaiIdMsg] = useState('');
+
+  /* Hero Lottie lives in public/, so fetch the JSON and hand the parsed object
+     to <LottieIllustration animationData> — same contract as <SuccessScreen>.
+     Passing `path:` instead would hit the empty-container race the component
+     documents. Until it resolves, the PNG still renders (no layout jump). */
+  const [heroAnim, setHeroAnim] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(SIGNIN_HERO_LOTTIE)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive) setHeroAnim(d); })
+      .catch(() => { /* keep the static PNG fallback */ });
+    return () => { alive = false; };
+  }, []);
+
+  const idDigits = digits(identifier);
+  const canSubmit = idDigits.length >= 10 && password.length > 0;
+
+  const matchesIdentity = () => {
+    if (idDigits === CURRENT_USER.citizenId) return true;
+    if (idDigits === DEMO_PHONE) return true;
+    return false;
+  };
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+    setThaiIdMsg('');
+    if (!canSubmit) return;
+    if (!matchesIdentity() || !passwordMatches(password)) {
+      setError('เลขบัตรประชาชนหรือเบอร์โทรศัพท์ไม่ถูกต้อง');
+      return;
+    }
+    try {
+      if (remember) localStorage.setItem(STORAGE_REMEMBER, identifier);
+      else localStorage.removeItem(STORAGE_REMEMBER);
+    } catch { /* noop */ }
+    onSignedIn({ via: 'password' });
+  };
+
+  const openThaiId = () => {
+    /* Figma annotation 149:29339 — deep-link ThaID; store fallback if missing.
+       Demo: surface a short note until the native bridge lands. */
+    const thaidScheme = 'thaid://';
+    try {
+      window.location.href = thaidScheme;
+    } catch { /* noop */ }
+    setThaiIdMsg('Thai ID จะเชื่อมต่อในรอบถัดไป — ใช้เลขบัตร/เบอร์ + รหัสผ่านได้ในโหมดสาธิต');
+  };
+
+  return (
+    <div
+      className='flex flex-col'
+      style={{
+        minHeight: '100%',
+        backgroundImage: LOGIN_BG,
+      }}
+    >
+      {/* Hero sits on the teal band, overlapping the white sheet (Figma). */}
+      <div
+        className='flex justify-center shrink-0'
+        style={{
+          paddingTop: 'var(--dim-space-600, 24px)',
+          marginBottom: -20,
+          position: 'relative',
+          zIndex: 2,
+        }}
+      >
+        {heroAnim ? (
+          <LottieIllustration
+            animationData={heroAnim}
+            size={SIGNIN_HERO_SIZE}
+            loop
+            ariaLabel='ผู้ใช้เดินทางมาโรงพยาบาล'
+            style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.1))' }}
+          />
+        ) : (
+          <img
+            src={SIGNIN_HERO_FALLBACK}
+            alt=''
+            width={SIGNIN_HERO_SIZE}
+            height={SIGNIN_HERO_SIZE}
+            style={{
+              width: SIGNIN_HERO_SIZE,
+              height: SIGNIN_HERO_SIZE,
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.1))',
+            }}
+          />
+        )}
+      </div>
+
+      {/* Figma 147:27162 — 16px side inset around the white card */}
+      <div
+        className='flex-1 flex flex-col'
+        style={{
+          paddingLeft: 'var(--dim-space-400, 16px)',
+          paddingRight: 'var(--dim-space-400, 16px)',
+          marginTop: 0,
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
+        <div
+          className='flex flex-col'
+          style={{
+            flex: 1,
+            background: C.card,
+            borderTopLeftRadius: 100,
+            borderTopRightRadius: 100,
+            borderBottomLeftRadius: 'var(--dim-radius-600, 24px)',
+            borderBottomRightRadius: 'var(--dim-radius-600, 24px)',
+            padding: 'var(--dim-space-600, 24px)',
+            boxShadow: 'var(--shadow-brand-drop-bottom-400)',
+            gap: 'var(--dim-space-600, 24px)',
+          }}
+        >
+          <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-150, 6px)', textAlign: 'center' }}>
+            <h1
+              style={{
+                margin: 0,
+                width: '100%',
+                fontFamily: 'var(--type-family-heading-graphic2)',
+                fontSize: 'var(--type-size-2xl, 24px)',
+                fontWeight: 'var(--type-weight-regular, 400)',
+                color: C.brand,
+                lineHeight: 1.375,
+              }}
+            >
+              เข้าสู่ระบบ
+            </h1>
+            <p
+              style={{
+                margin: 0,
+                width: '100%',
+                fontFamily: 'var(--type-family-heading-graphic2)',
+                fontSize: 'var(--type-size-base, 16px)',
+                color: C.sub,
+                lineHeight: 1.5,
+              }}
+            >
+              จัดการสุขภาพของคุณง่ายๆ ผ่านสมาร์ทโฟน
+            </p>
+          </div>
+
+          <form
+            onSubmit={onSubmit}
+            className='flex flex-col'
+            style={{ gap: 'var(--dim-space-600, 24px)', flex: 1 }}
+          >
+            <NeutralButton
+              variant='outline'
+              size='Large'
+              trailingIcon='arrow_forward'
+              showLeadingIcon={false}
+              showTailingIcon
+              type='button'
+              onClick={openThaiId}
+              style={{ justifyContent: 'center' }}
+            >
+              <img
+                src='/illustration/mobile/thai-id-logo.png'
+                alt=''
+                width={32}
+                height={32}
+                style={{
+                  width: 32,
+                  height: 32,
+                  objectFit: 'cover',
+                  borderRadius: 'var(--dim-radius-100, 4px)',
+                  flexShrink: 0,
+                }}
+              />
+              เข้าสู่ระบบด้วย Thai ID
+            </NeutralButton>
+
+            {thaiIdMsg && (
+              <p style={{ margin: '-12px 0 0', fontSize: 'var(--type-size-xs, 12px)', color: C.sub, textAlign: 'center' }}>
+                {thaiIdMsg}
+              </p>
+            )}
+
+            {error && <ErrorAlert message={error} onClose={() => setError('')} />}
+
+            <MobileInputField
+              label='เลขบัตรประชาชน / เบอร์โทรศัพท์'
+              required
+              size='Large'
+              leadingIcon='person'
+              placeholder='กรอกเลขบัตรประชาชนหรือเบอร์โทร'
+              value={identifier}
+              inputMode='numeric'
+              maxLength={13}
+              autoComplete='username'
+              onChange={(e) => {
+                setIdentifier(digits(e.target.value).slice(0, 13));
+                setError('');
+              }}
+            />
+
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <Password
+                label='รหัสผ่าน'
+                required
+                size='Large'
+                placeholder='กรอกรหัสผ่านอีกครั้ง'
+                value={password}
+                autoComplete='current-password'
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError('');
+                }}
+              />
+
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+                <div className='flex-1 min-w-0'>
+                  <Checkbox
+                    checked={remember}
+                    onChange={setRemember}
+                    label='จดจำฉันไว้'
+                  />
+                </div>
+                <BrandButton
+                  variant='ghost'
+                  size='Small'
+                  type='button'
+                  showLeadingIcon={false}
+                  showTailingIcon={false}
+                  onClick={() => history.push('/m/reset')}
+                  style={{ width: 'auto', flexShrink: 0 }}
+                >
+                  ลืมรหัสผ่าน?
+                </BrandButton>
+              </div>
+            </div>
+
+            <BrandButton
+              type='submit'
+              size='Large'
+              disabled={!canSubmit}
+              showLeadingIcon={false}
+              showTailingIcon={false}
+            >
+              เข้าสู่ระบบ
+            </BrandButton>
+
+            <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--border-neutral-quaternary, #F4F5F5)' }} />
+                <span
+                  style={{
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-sm, 14px)',
+                    color: C.muted,
+                  }}
+                >
+                  หรือ
+                </span>
+                <div style={{ flex: 1, height: 1, background: 'var(--border-neutral-quaternary, #F4F5F5)' }} />
+              </div>
+
+              <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-sm, 14px)',
+                    color: C.muted,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  ยังไม่มีบัญชีผู้ใช้?
+                </span>
+                <BrandButton
+                  variant='ghost'
+                  size='Small'
+                  type='button'
+                  showLeadingIcon={false}
+                  showTailingIcon={false}
+                  onClick={() => history.push('/m/register')}
+                  style={{ width: 'auto', flexShrink: 0 }}
+                >
+                  ลงทะเบียนใหม่
+                </BrandButton>
+              </div>
+            </div>
+
+            {showPinReturn && (
+              <button
+                type='button'
+                onClick={onBackToPin}
+                style={{
+                  border: 0,
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  color: C.brand,
+                  fontSize: 'var(--type-size-sm, 14px)',
+                  padding: 'var(--dim-space-200, 8px)',
+                }}
+              >
+                ← กลับไปปลดล็อกด้วย PIN
+              </button>
+            )}
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const MobileLoginInner = () => {
   const history = useHistory();
   const { search } = useLocation();
-  const { signIn, lang, t } = useMobileApp();
-
+  const { signIn } = useMobileApp();
   const next = new URLSearchParams(search).get('next') || '/m/home';
 
-  const [citizenId, setCitizenId] = useState('');
-  const [password,  setPassword]  = useState('');
-  const [showPw,    setShowPw]    = useState(false);
-  const [error,     setError]     = useState(null);
+  const [mode, setMode] = useState(() => (readPin() ? 'pin' : 'login'));
 
-  /* OTP step — shown after the visitor taps "Sign in" if the citizen ID
-     matches the mock user. Mirrors §4.1.2.4 (OTP within a time window). */
-  const [otpRequired, setOtpRequired] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
-
-  useEffect(() => {
-    if (!otpRequired) return undefined;
-    setOtpSecondsLeft(120);
-    const id = setInterval(() => {
-      setOtpSecondsLeft((s) => (s > 0 ? s - 1 : 0));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [otpRequired]);
-
-  const onPasswordSubmit = (e) => {
-    e.preventDefault();
-    setError(null);
-    if (citizenId.length !== 13) {
-      setError('กรุณากรอกเลขประจำตัวประชาชน 13 หลัก');
-      return;
-    }
-    if (citizenId !== CURRENT_USER.citizenId || password !== CURRENT_USER.password) {
-      setError('เลขประจำตัวประชาชนหรือรหัสผ่านไม่ถูกต้อง (ลองใช้ข้อมูลสาธิตด้านล่าง)');
-      return;
-    }
-    setOtpRequired(true);
-  };
-
-  const onOtpSubmit = (e) => {
-    e.preventDefault();
-    setError(null);
-    if (otp.length !== 6) {
-      setError('กรุณากรอกรหัส OTP 6 หลัก');
-      return;
-    }
-    if (otpSecondsLeft <= 0) {
-      setError('รหัส OTP หมดอายุ กรุณากดส่งใหม่');
-      return;
-    }
+  const finish = () => {
     signIn();
     history.replace(next);
   };
 
-  const onBiometric = () => {
-    /* Pretend Face ID succeeded after 600 ms */
-    setTimeout(() => {
-      signIn();
-      history.replace(next);
-    }, 600);
-  };
+  if (mode === 'pin') {
+    return (
+      <UnlockPinView
+        onSuccess={finish}
+        onForgot={() => history.push('/m/reset')}
+        onClose={() => setMode('login')}
+        onUseBiometric={() => {
+          window.setTimeout(finish, 500);
+        }}
+      />
+    );
+  }
 
   return (
-    <div style={{ padding: 'var(--dim-space-500, 20px)', minHeight: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-500, 20px)' }}>
-      {/* Brand + welcome */}
-      <div style={{ textAlign: 'center', marginTop: 'var(--dim-space-600, 24px)' }}>
-        <div
-          style={{
-            width: 72, height: 72,
-            margin: '0 auto var(--dim-space-300, 12px)',
-            background: 'linear-gradient(135deg, #54AA8C 0%, #4CC6AE 100%)',
-            borderRadius: 'var(--dim-radius-450, 14px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#FFFFFF',
-          }}
-        >
-          <Sym name='health_and_safety' size={40} fill />
-        </div>
-        <h1 style={{
-          margin: 0,
-          fontFamily: 'var(--type-family-display)',
-          fontSize: 'var(--type-size-xl, 20px)',
-          fontWeight: 'var(--type-weight-bold, 700)',
-          color: 'var(--text-content-primary)',
-        }}>
-          {t('PHCIS Mobile', 'PHCIS Mobile')}
-        </h1>
-        <p style={{
-          margin: '4px 0 0',
-          fontSize: 'var(--type-size-sm, 14px)',
-          color: 'var(--text-content-tertiary, #858C92)',
-        }}>
-          {t('สำนักอนามัย กรุงเทพมหานคร', 'Bangkok Health Department')}
-        </p>
-      </div>
-
-      {!otpRequired ? (
-        <form onSubmit={onPasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-400, 16px)' }}>
-          <MobileField label={t('เลขประจำตัวประชาชน', 'Citizen ID')} required>
-            <MobileInput
-              inputMode='numeric'
-              maxLength={13}
-              placeholder='1-2345-67890-12-3'
-              value={citizenId}
-              onChange={(e) => setCitizenId(e.target.value.replace(/\D/g, '').slice(0, 13))}
-            />
-          </MobileField>
-          <MobileField label={t('รหัสผ่าน', 'Password')} required>
-            <div style={{ position: 'relative' }}>
-              <MobileInput
-                type={showPw ? 'text' : 'password'}
-                placeholder='••••••••'
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={{ paddingRight: 48 }}
-              />
-              <button
-                type='button'
-                onClick={() => setShowPw((v) => !v)}
-                style={{
-                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                  width: 36, height: 36, borderRadius: 'var(--dim-radius-full)',
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                  color: 'var(--text-content-tertiary)',
-                }}
-                aria-label={showPw ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-              >
-                <Sym name={showPw ? 'visibility_off' : 'visibility'} size={20} />
-              </button>
-            </div>
-          </MobileField>
-
-          {error && (
-            <div style={{
-              padding: 'var(--dim-space-300, 12px)',
-              background: 'var(--surface-warning-quaternary, #FDECEC)',
-              border: '1px solid var(--border-warning-default, #D43838)',
-              borderRadius: 'var(--dim-radius-300, 10px)',
-              color: 'var(--text-warning-default, #D43838)',
-              fontSize: 'var(--type-size-sm, 14px)',
-            }}>{error}</div>
-          )}
-
-          <MobileButton type='submit'>{t('เข้าสู่ระบบ', 'Sign in')}</MobileButton>
-
-          <div className='flex items-center justify-between' style={{ marginTop: 'var(--dim-space-100, 4px)' }}>
-            <button type='button' onClick={() => history.push('/m/reset')}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer',
-                       color: 'var(--text-brandPrimary-default)', fontSize: 'var(--type-size-sm, 14px)',
-                       fontWeight: 'var(--type-weight-bold, 700)', padding: 0 }}>
-              {t('ลืมรหัสผ่าน?', 'Forgot password?')}
-            </button>
-            <button type='button' onClick={() => history.push('/m/register')}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer',
-                       color: 'var(--text-brandPrimary-default)', fontSize: 'var(--type-size-sm, 14px)',
-                       fontWeight: 'var(--type-weight-bold, 700)', padding: 0 }}>
-              {t('ลงทะเบียนใหม่', 'Register')}
-            </button>
-          </div>
-
-          {/* Biometric quick action — TOR §4.1.2.6 */}
-          <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)', margin: 'var(--dim-space-400, 16px) 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'var(--border-content-tertiary)' }} />
-            <span style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary)' }}>
-              {t('หรือ', 'or')}
-            </span>
-            <div style={{ flex: 1, height: 1, background: 'var(--border-content-tertiary)' }} />
-          </div>
-          <MobileButton variant='secondary' icon='face' onClick={onBiometric}>
-            {t('เข้าสู่ระบบด้วย Face ID', 'Sign in with Face ID')}
-          </MobileButton>
-
-          {/* Demo creds hint */}
-          <div style={{
-            marginTop: 'var(--dim-space-300, 12px)',
-            padding: 'var(--dim-space-300, 12px)',
-            background: 'var(--surface-info-quaternary, #ECF4FE)',
-            border: '1px dashed var(--border-info-default, #1F6FEB)',
-            borderRadius: 'var(--dim-radius-300, 10px)',
-            fontSize: 'var(--type-size-xs, 12px)',
-            color: 'var(--text-content-secondary)',
-            lineHeight: 1.5,
-          }}>
-            <strong style={{ display: 'block', marginBottom: 4 }}>ข้อมูลสาธิต</strong>
-            เลขประจำตัวประชาชน <code>{CURRENT_USER.citizenId}</code><br />
-            รหัสผ่าน <code>{CURRENT_USER.password}</code>
-          </div>
-        </form>
-      ) : (
-        <form onSubmit={onOtpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-400, 16px)' }}>
-          <div style={{ textAlign: 'center', padding: 'var(--dim-space-400, 16px) 0' }}>
-            <Sym name='mark_email_unread' size={64} color='var(--text-brandPrimary-default)' />
-            <h2 style={{
-              margin: 'var(--dim-space-300, 12px) 0 4px',
-              fontFamily: 'var(--type-family-display)',
-              fontSize: 'var(--type-size-lg, 18px)',
-              fontWeight: 'var(--type-weight-bold, 700)',
-              color: 'var(--text-content-primary)',
-            }}>
-              ยืนยันด้วยรหัส OTP
-            </h2>
-            <p style={{ margin: 0, fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-tertiary)' }}>
-              เราส่งรหัส 6 หลักไปที่เบอร์ {CURRENT_USER.phone}<br />
-              <strong style={{ color: 'var(--text-content-primary)' }}>(สาธิต: 123456)</strong>
-            </p>
-          </div>
-
-          <MobileField label='รหัส OTP' hint={otpSecondsLeft > 0 ? `รหัสจะหมดอายุใน ${otpSecondsLeft} วินาที` : 'รหัสหมดอายุ'}>
-            <MobileInput
-              inputMode='numeric'
-              maxLength={6}
-              placeholder='123456'
-              value={otp}
-              autoFocus
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              style={{ fontSize: 24, fontWeight: 700, textAlign: 'center', letterSpacing: 12 }}
-            />
-          </MobileField>
-
-          {error && (
-            <div style={{
-              padding: 'var(--dim-space-300, 12px)',
-              background: 'var(--surface-warning-quaternary, #FDECEC)',
-              border: '1px solid var(--border-warning-default, #D43838)',
-              borderRadius: 'var(--dim-radius-300, 10px)',
-              color: 'var(--text-warning-default, #D43838)',
-              fontSize: 'var(--type-size-sm, 14px)',
-            }}>{error}</div>
-          )}
-
-          <MobileButton type='submit' disabled={otp.length !== 6 || otpSecondsLeft <= 0}>
-            ยืนยันรหัส OTP
-          </MobileButton>
-
-          <button type='button'
-            onClick={() => { setOtpRequired(false); setOtp(''); setError(null); }}
-            style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-sm, 14px)',
-              padding: 'var(--dim-space-200, 8px)',
-            }}>
-            ← ย้อนกลับไปกรอกรหัสผ่าน
-          </button>
-        </form>
-      )}
-
-      {/* Language toggle — TOR §4.10 */}
-      <LangFooter />
-    </div>
-  );
-};
-
-const LangFooter = () => {
-  const { lang, setLang } = useMobileApp();
-  return (
-    <div className='flex items-center justify-center' style={{ marginTop: 'auto', paddingTop: 'var(--dim-space-300, 12px)' }}>
-      <button type='button' onClick={() => setLang(lang === 'th' ? 'en' : 'th')}
-        style={{
-          background: 'transparent', border: '1px solid var(--border-content-tertiary)',
-          borderRadius: 'var(--dim-radius-full, 9999px)',
-          padding: '6px var(--dim-space-300, 12px)',
-          fontSize: 'var(--type-size-xs, 12px)',
-          color: 'var(--text-content-secondary)',
-          cursor: 'pointer',
-        }}>
-        🌐 {lang === 'th' ? 'TH · ไทย' : 'EN · English'}
-      </button>
-    </div>
+    <LoginFormView
+      showPinReturn={Boolean(readPin())}
+      onBackToPin={() => setMode('pin')}
+      onSignedIn={() => {
+        finish();
+      }}
+    />
   );
 };
 
 const MobileLoginPage = () => (
-  <MobileShell requireAuth={false} showStatusBar showBottomNav={false}>
+  <MobileShell
+    requireAuth={false}
+    showStatusBar
+    showBottomNav={false}
+    background={LOGIN_BG}
+  >
     <MobileLoginInner />
   </MobileShell>
 );
 
 export default MobileLoginPage;
+

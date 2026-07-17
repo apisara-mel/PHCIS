@@ -65,7 +65,7 @@ const MaskIcon = ({ src, size = 20, color = 'currentColor' }) => (
 
 /* Banner-variant tone palette — semantic pills + brand. */
 const BANNER_TONE = {
-  brand:  { tile: 'var(--brand-p100)',          ink: 'var(--brand-p700)'         },
+  brand:  { tile: 'var(--surface-brandPrimary-tertiary)', ink: 'var(--text-brandPrimary-default)' },
   blue:   { tile: 'var(--surface-pill-blue)',   ink: 'var(--text-pill-blue)'     },
   teal:   { tile: 'var(--surface-pill-teal)',   ink: 'var(--text-pill-teal)'     },
   red:    { tile: 'var(--surface-pill-red)',    ink: 'var(--text-pill-red)'      },
@@ -165,7 +165,17 @@ const BannerSummaryCard = ({ card }) => {
   const tileBg = card.tileBg || tone.tile;
   const iconInk = card.iconInk || tone.ink;
   return (
-    <div className='flex-1 min-w-[180px] bg-white border border-[var(--border-brandPrimary-quaternary)] rounded-xl p-3 flex flex-col gap-2'>
+    <div
+      /* borderColor inline, not `border-[var(...)]` — Tailwind v2.1 JIT reads
+         that arbitrary value as border-WIDTH, so the class never tinted and the
+         tile fell back to preflight's #E5E7EB (light, even on dark). Same
+         pattern as StepProgress / VitalsForm. */
+      className='flex-1 min-w-[180px] border rounded-xl p-3 flex flex-col gap-2'
+      style={{
+        background: 'var(--surface-card-100)',
+        borderColor: 'var(--border-brandPrimary-quaternary)',
+      }}
+    >
       <div className='flex items-start gap-3'>
         <div
           className='w-10 h-10 rounded-lg flex items-center justify-center shrink-0'

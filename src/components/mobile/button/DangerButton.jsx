@@ -1,14 +1,17 @@
 import React from 'react';
-import { MobileButtonBase, buildPalette } from './_base';
+import { buildPalette, createFigmaTextButton } from './_base';
 
-/* Mobile · DangerButton (Figma node 2024:3590).
-   Tone = dangerButton (solid fill). Destructive / irreversible actions —
-   cancel, delete, sign out. */
+/* Mobile · DangerButton — Figma App node 2024:3590
+   Destructive action. Style: Fill / Outline / Ghost.
+   State: Default / Hover / Active / Focus / Disable.
+   Size: Large / Medium / Small · Show Leading / Tailing icon. */
 
 const PALETTE = buildPalette('dangerButton', { fillTier: 'solid' });
 
-export const DangerButton = (props) => (
-  <MobileButtonBase palette={PALETTE} {...props} />
-);
+export const DangerButton = createFigmaTextButton(PALETTE, {
+  name: 'DangerButton',
+  figmaNode: '2024:3590',
+  defaultStyle: 'Fill',
+});
 
 export default DangerButton;

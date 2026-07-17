@@ -120,7 +120,7 @@ const FormCard = ({
   return (
     <div
       role='group'
-      className='w-full h-full min-h-0 bg-white rounded-xl overflow-hidden flex flex-col gap-3 pb-3 transition-[box-shadow] duration-200 ease-out'
+      className='w-full h-full min-h-0 bg-surface-card rounded-xl overflow-hidden flex flex-col gap-3 pb-3 transition-[box-shadow] duration-200 ease-out'
       style={formCardFrameStyle({ selected, hovered })}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -223,7 +223,7 @@ const FormsLibrary = () => {
     open={consentEditOpen}
     onClose={() => setConsentEditOpen(false)}
   />
-  <section className='bg-white rounded-b-card p-6 flex flex-col gap-6'>
+  <section className='bg-surface-card rounded-b-card p-6 flex flex-col gap-6'>
     <div className='flex items-center gap-2 w-full'>
       <span className='text-brand-500'><Icon name='clipboard' size={20} /></span>
       <h2 className='text-base font-bold text-brand-500'>แบบฟอร์ม</h2>

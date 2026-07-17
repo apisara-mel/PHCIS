@@ -801,12 +801,12 @@
        different §7 anchor. */
   const CATALOG_MOBILE = [
     { group: 'Mobile · Button', items: [
-      { slug: 'brand-button',                       name: 'BrandButton' },
-      { slug: 'brand-subdue-button',                name: 'BrandSubdueButton' },
-      { slug: 'danger-button',                      name: 'DangerButton' },
-      { slug: 'danger-subdue-button',               name: 'DangerSubdueButton' },
-      { slug: 'neutral-button',                     name: 'NeutralButton' },
-      { slug: 'neutral-subdue-button',              name: 'NeutralSubdueButton' },
+      { slug: 'brand-button',                       name: 'BrandButton',        anchor: 'brandbutton' },
+      { slug: 'brand-subdue-button',                name: 'BrandSubdueButton',  anchor: 'brandsubduebutton' },
+      { slug: 'danger-button',                      name: 'DangerButton',       anchor: 'dangerbutton' },
+      { slug: 'danger-subdue-button',               name: 'DangerSubdueButton', anchor: 'dangersubduebutton' },
+      { slug: 'neutral-button',                     name: 'NeutralButton',      anchor: 'neutralbutton' },
+      { slug: 'neutral-subdue-button',              name: 'NeutralSubdueButton',anchor: 'neutralsubduebutton' },
     ]},
     { group: 'Mobile · Icon Button', items: [
       { slug: 'brand-icon-button',                  name: 'BrandIconButton' },
@@ -821,12 +821,20 @@
       { slug: 'brand-circle-subdue-icon-button',    name: 'BrandCircleSubdueIconButton' },
       { slug: 'brand-subdue-float-button',          name: 'BrandSubdueFloatButton' },
       { slug: 'history-list-form-button',           name: 'HistoryListFormButton' },
+      { slug: 'keypad-button',                      name: 'KeypadButton' },
     ]},
     { group: 'Mobile · Primitives', items: [
       { slug: 'mobile-card',          name: 'MobileCard' },
-      { slug: 'mobile-input',         name: 'MobileInput' },
-      { slug: 'mobile-field',         name: 'MobileField' },
+      /* MobileInputField supersedes MobileInput + MobileField (which predate
+         the Figma component and don't match it). All three slugs resolve to
+         the one merged "Input Field" section — see SLUG_TO_SECTION in
+         MobileComponentsPage. Figma DS "Input Field" 267:50. */
+      { slug: 'mobile-input-field',   name: 'MobileInputField' },
+      { slug: 'mobile-password',      name: 'Password' },
+      { slug: 'mobile-textarea',      name: 'Textarea' },
+      { slug: 'mobile-success-card',  name: 'SuccessCard' },
       { slug: 'mobile-badge',         name: 'MobileBadge' },
+      { slug: 'mobile-colorful-badge', name: 'ColorfulBadge' },
       { slug: 'mobile-section-label', name: 'MobileSectionLabel' },
       { slug: 'mobile-header',        name: 'MobileHeader' },
       { slug: 'mobile-shell',         name: 'MobileShell' },

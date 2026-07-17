@@ -312,7 +312,7 @@ const CameraCapturePopup = ({ open, onClose, onCapture }) => {
               className='absolute inset-0 flex items-center justify-center text-center'
               style={{
                 background: 'var(--surface-overlay-default)',
-                color: '#FFFFFF',
+                color: 'var(--text-content-on-content)',
                 fontFamily: 'var(--type-family-body)',
                 fontSize: 'var(--type-size-sm)',
                 padding: 'var(--dim-space-400)',

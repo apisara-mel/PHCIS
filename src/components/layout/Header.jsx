@@ -68,8 +68,9 @@ const Header = ({
 
   return (
     <header
-      className='sticky top-0 z-[1200] h-16 w-full bg-white text-[color:var(--border-brandPrimary-quaternary)] flex items-center gap-3 md:gap-8 px-3 md:px-6'
+      className='sticky top-0 z-[1200] h-16 w-full text-[color:var(--border-brandPrimary-quaternary)] flex items-center gap-3 md:gap-8 px-3 md:px-6'
       style={{
+        background: 'var(--surface-navigation-default)',
         borderBottom:
           'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
         boxShadow: barShadow,
@@ -160,7 +161,12 @@ const Header = ({
         <button
           type='button'
           aria-label='คู่มือใช้งานระบบ'
-          className='h-9 inline-flex items-center gap-1.5 rounded-lg border border-ink-line bg-white px-2 lg:px-3 text-sm font-medium text-[#4d5358] hover:bg-ink-neutral shrink-0'
+          className='h-9 inline-flex items-center gap-1.5 rounded-lg border px-2 lg:px-3 text-sm font-medium shrink-0'
+          style={{
+            background: 'var(--surface-navigation-default)',
+            borderColor: 'var(--border-neutralButton-tertiary)',
+            color: 'var(--text-neutralButton-default)',
+          }}
         >
           <Icon name='book' size={16} />
           <span className='hidden lg:inline'>คู่มือใช้งานระบบ</span>

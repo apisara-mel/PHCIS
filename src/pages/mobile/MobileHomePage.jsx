@@ -1,191 +1,326 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
   MobileShell,
   Sym,
-} from '@/components/mobile/MobileShell';
-import { CURRENT_USER } from '@/data/mobileMock';
+  BrandButton,
+  BrandSubdueButton,
+  ServiceRequestCard,
+} from '@/components/mobile';
+import LottieIllustration from '@/components/illustrations/LottieIllustration';
+import { CURRENT_USER, BILLS, REQUEST_TYPES, resolveDoctorAvatar } from '@/data/mobileMock';
 import { usePhcisLink } from '@/data/phcisLink';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import StatusBadge from '@/components/badge/StatusBadge';
-import BrandButton from '@/components/button/BrandButton';
-import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { MOBILE_ICON_TONES, MOBILE_SERVICE_META } from '@/components/mobile/mobileIconTones';
+import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
 import MobileIconBadge from '@/components/mobile/MobileIconBadge';
 
-/* MIH PHCIS Mobile · Home — Figma Mobile Application 6dCDQkwc8DhvyovBbDTyp5 · 124:6012.
-   Hero · 4 quick actions · next appointment (online) · ส่งคำขอ carousel · ประวัติการรักษา */
+/* BMA Health · Home — Archive Figma 4WXeI8fgBLQGgQ9VheM2yD · 124:6012
+   (also mirrored in Mobile Application 6dCDQkwc8DhvyovBbDTyp5 · 2042:27492).
+   Cases:
+   · มีนัด 1 ใบ / หลายใบ → แสดงการ์ดตามจำนวน (carousel ถ้า >1)
+   · ไม่มีนัด → Hide Appointment Section
+   · Online + ใกล้ถึง ≤15 นาที → countdown + เข้าห้องวิดีโอคอล
+   · ไม่ใช่ online ใกล้ถึง → แสดงสถานะใกล้ถึงนัด โดยไม่มีปุ่มวิดีโอ */
 
-const THAI_MONTHS_FULL  = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
-                           'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-const THAI_MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.',
-                           'ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-const THAI_WEEKDAYS = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+const THAI_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+const THAI_MONTHS_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const THAI_WEEKDAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
 
-/* Use today's date for the hero (Thai full format e.g. "พุธที่ 6 พฤษภาคม 2569"). */
+const C = {
+  brand: 'var(--text-brandPrimary-default, #007549)',
+  ink: 'var(--text-content-default, #111314)',
+  muted: 'var(--text-content-tertiary, #858C92)',
+  card: 'var(--surface-card-100, #FFFFFF)',
+  white: 'var(--text-content-on-content, #FFFFFF)',
+  borderBrand: 'var(--border-brandPrimary-quaternary, #E2F3EB)',
+  borderApt: 'var(--border-brandPrimary-secondary, #6AD6A5)',
+};
+
 const todayThaiFull = () => {
   const d = new Date();
   return `${THAI_WEEKDAYS[d.getDay()]}ที่ ${d.getDate()} ${THAI_MONTHS_FULL[d.getMonth()]} ${d.getFullYear() + 543}`;
 };
 
-/* ─── Hero ───────────────────────────────────────────────────────────── */
+const formatCountdown = (sec) => {
+  const s = Math.max(0, Math.floor(sec));
+  const mm = String(Math.floor(s / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
+};
+
+/* Demo: first upcoming video apt is treated as "within 15 minutes". */
+const NEAR_WINDOW_SEC = 15 * 60;
+
+const Avatar = ({ src, alt, size = 56, fallback, ring = true }) => (
+  <div
+    className='overflow-hidden shrink-0'
+    style={{
+      width: size,
+      height: size,
+      borderRadius: 'var(--dim-radius-full)',
+      border: ring ? `var(--dim-stroke-200, 2px) solid ${C.white}` : 'none',
+      background: 'var(--surface-neutral-tertiary, #F4F5F5)',
+    }}
+  >
+    <img
+      src={src}
+      alt={alt}
+      width={size}
+      height={size}
+      onError={(e) => {
+        if (fallback && e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
+        else e.currentTarget.style.display = 'none';
+      }}
+      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+    />
+  </div>
+);
+
+/* ─── Hero ──────────────────────────────────────────────────────────── */
 const Hero = () => {
   const history = useHistory();
+  const hn = CURRENT_USER.centers?.[0]?.hn || '67-004321';
+
   return (
     <div
+      className='flex items-start'
       style={{
-        padding: 'var(--dim-space-500, 20px) var(--dim-space-500, 20px) calc(var(--dim-space-700, 28px) + var(--dim-space-500, 20px))',
-        background: 'linear-gradient(160deg, #0A8268 0%, #18A688 45%, #4CC6AE 100%)',
-        color: '#FFFFFF',
-        borderBottomLeftRadius: 'var(--dim-radius-500, 16px)',
-        borderBottomRightRadius: 'var(--dim-radius-500, 16px)',
-        position: 'relative',
+        /* Figma 124:5378 — pl-400 · pr-200 · gap-300 */
+        padding: '0 var(--dim-space-200, 8px) 0 var(--dim-space-400, 16px)',
+        gap: 'var(--dim-space-300, 12px)',
+        color: C.white,
       }}
     >
-      <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <img
-            src={CURRENT_USER.avatar}
-            alt={CURRENT_USER.firstName}
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+      <Avatar
+        src={CURRENT_USER.avatar || '/illustration/mobile/user-a.png'}
+        fallback='/illustration/mobile/user-a.png'
+        alt={CURRENT_USER.firstName}
+        size={56}
+      />
+      <div className='flex-1 min-w-0 flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+          <p
             style={{
-              width: 52, height: 52,
-              borderRadius: 'var(--dim-radius-full)',
-              objectFit: 'cover',
-              border: '2px solid rgba(255,255,255,0.85)',
+              margin: 0,
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-base, 16px)',
+              fontWeight: 'var(--type-weight-bold, 700)',
+              lineHeight: 1.5,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
-          />
-          <span style={{
-            position: 'absolute', bottom: -2, right: -2,
-            width: 14, height: 14, borderRadius: '50%',
-            background: '#3DD49F',
-            border: '2px solid #FFFFFF',
-          }} />
-        </div>
-
-        <div className='flex-1 min-w-0'>
-          <p style={{
-            margin: 0,
-            fontFamily: 'var(--type-family-display)',
-            fontSize: 'var(--type-size-lg, 18px)',
-            fontWeight: 'var(--type-weight-bold, 700)',
-            lineHeight: 1.25,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
+          >
             สวัสดี, {CURRENT_USER.prefix}{CURRENT_USER.firstName}
           </p>
           <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>
-            HN: {CURRENT_USER.centers[0].hn}
+            HN: {hn}
           </ColorfulBadge>
-          <p style={{ margin: 0, fontSize: 'var(--type-size-xs, 12px)', opacity: 0.92 }}>
-            {todayThaiFull()}
-          </p>
         </div>
-
-        <button
-          type='button'
-          onClick={() => history.push('/m/news')}
-          aria-label='การแจ้งเตือน'
+        <p
           style={{
-            width: 40, height: 40,
-            background: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.35)',
-            borderRadius: 'var(--dim-radius-full)',
-            color: '#FFFFFF', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            position: 'relative',
-            flexShrink: 0,
+            margin: 0,
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-xs, 12px)',
+            fontWeight: 'var(--type-weight-regular, 400)',
+            lineHeight: 1.5,
+            color: C.white,
           }}
         >
-          <Sym name='notifications' size={20} fill />
-          <span style={{
-            position: 'absolute', top: 6, right: 8,
-            width: 8, height: 8, borderRadius: '50%',
-            background: '#FF5A5F',
-            border: '1.5px solid #FFFFFF',
-          }} />
-        </button>
+          {todayThaiFull()}
+        </p>
       </div>
-
-      {/* Info chip — dark teal pill below the greeting row. Wraps if Thai
-          fits onto two lines on narrow widths. */}
-      <div
-        className='flex items-center'
+      {/* Figma 124:5564 — Brand Circle Subdue on teal = white glyph, no fill */}
+      <button
+        type='button'
+        aria-label='การแจ้งเตือน'
+        onClick={() => history.push('/m/notifications')}
+        className='inline-flex items-center justify-center shrink-0'
         style={{
-          marginTop: 'var(--dim-space-400, 16px)',
-          background: 'rgba(0,0,0,0.22)',
-          border: '1px solid rgba(255,255,255,0.18)',
+          position: 'relative',
+          width: 48,
+          height: 48,
           borderRadius: 'var(--dim-radius-full)',
-          padding: '6px var(--dim-space-400, 16px)',
-          color: '#FFFFFF',
-          fontSize: 'var(--type-size-xs, 12px)',
-          fontWeight: 'var(--type-weight-medium, 500)',
-          gap: 8,
-          flexWrap: 'wrap',
+          border: 0,
+          background: 'transparent',
+          color: C.white,
+          cursor: 'pointer',
+          padding: 0,
         }}
       >
-        <span style={{ width: 6, height: 6, background: '#7AF0C8', borderRadius: '50%', flexShrink: 0 }} />
-        <span>HN {CURRENT_USER.centers[0].hn}</span>
-        <span style={{ opacity: 0.55 }}>·</span>
-        <span>สิทธิ์ {CURRENT_USER.centers[0].rights.replace('บัตรทอง (UC)', 'สปสช.')}</span>
-        <span style={{ opacity: 0.55 }}>·</span>
-        <span>โลหิต B+</span>
-      </div>
+        <Sym name='notifications' size={20} color={C.white} />
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            width: 8,
+            height: 8,
+            borderRadius: 'var(--dim-radius-full)',
+            background: 'var(--surface-danger-default, #DC2626)',
+            pointerEvents: 'none',
+          }}
+        />
+      </button>
     </div>
   );
 };
 
-/* ─── Quick actions ──────────────────────────────────────────────────── */
+/* ─── Quick actions ───────────────────────────────────────────────────
+   Archive Figma quick menu 189:142123
+   · Medications / Booking / Results / Centre (ศูนย์บริการ)
+   · + Centre ส่งคำขอ 519:54748 (Send)
+   Press: Booking 519:54747 pattern — art tiles swap SVG; solid tiles swap bg. */
 const QUICK_ACTIONS = [
-  { key: 'meds',    icon: 'pill',            label: 'ยาของฉัน',     path: '/m/records', tone: 'purple' },
-  { key: 'book',    icon: 'calendar_add_on', label: 'จองนัดหมาย',   path: '/m/book',    tone: 'blue' },
-  { key: 'records', icon: 'description',     label: 'ผลการรักษา',  path: '/m/records', tone: 'green' },
-  { key: 'clinics', icon: 'location_on',     label: 'ศูนย์บริการ', path: '/m/clinics', tone: 'pink' },
+  {
+    key: 'meds',
+    icon: 'pill',
+    label: 'ยาของฉัน',
+    path: '/m/records',
+    tone: 'purple',
+    art: '/illustration/mobile/home-qa-meds.svg',
+    artPressed: '/illustration/mobile/home-qa-meds-pressed.svg',
+  },
+  {
+    key: 'book',
+    icon: 'calendar_add_on',
+    label: 'จองนัดหมาย',
+    path: '/m/book',
+    tone: 'blue',
+    art: '/illustration/mobile/home-qa-book.svg',
+    artPressed: '/illustration/mobile/home-qa-book-pressed.svg',
+  },
+  /* Figma Home 2042:26021 — File text (not Material description) */
+  { key: 'records', icon: 'file-text', label: 'ผลการรักษา', path: '/m/records', tone: 'green', art: null },
+  {
+    key: 'clinics',
+    icon: 'map-pin',
+    label: 'ศูนย์บริการ',
+    path: '/m/clinics',
+    tone: 'pink',
+    art: '/illustration/mobile/home-qa-clinics.svg',
+    artPressed: '/illustration/mobile/home-qa-clinics-pressed.svg',
+  },
+  /* Archive Figma 519:54748 — Quick Action Centre · ส่งคำขอ · Send */
+  {
+    key: 'requests',
+    icon: 'send',
+    label: 'ส่งคำขอ',
+    path: '/m/requests',
+    tone: 'purple',
+    art: '/illustration/mobile/home-qa-request.svg',
+    artPressed: '/illustration/mobile/home-qa-request-pressed.svg',
+  },
 ];
 
 const QuickActions = () => {
   const history = useHistory();
+  const [pressedKey, setPressedKey] = useState(null);
+
+  const clearPress = () => setPressedKey(null);
+
   return (
+    /* Figma 189:142123 — quick menu sits directly on the white sheet:
+       fixed 64px actions; the viewport reveals about 4½ actions and the
+       remaining item is reached by horizontal touch scrolling. */
     <div
+      className='scrollbar-hide-native flex items-center overflow-x-auto'
+      aria-label='เมนูทางลัด'
       style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: 'var(--dim-space-200, 8px)',
-        padding: 'var(--dim-space-400, 16px) var(--dim-space-200, 8px) 0',
+        /* 402px frame − 24px left inset: show 4 full 64px actions +
+           four 16px gaps + half of the fifth action. The 8px inner gutters
+           keep the edge item from being clipped while scrolling. */
+        width: 'calc(100% - var(--dim-space-500, 20px) + var(--dim-space-050, 2px))',
+        marginLeft: 'calc(-1 * var(--dim-space-200, 8px))',
+        paddingInline: 'var(--dim-space-200, 8px)',
+        gap: 'var(--dim-space-400, 16px)',
+        scrollSnapType: 'x proximity',
+        scrollPaddingLeft: 'var(--dim-space-200, 8px)',
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehaviorInline: 'contain',
       }}
     >
       {QUICK_ACTIONS.map((a) => {
         const palette = MOBILE_ICON_TONES[a.tone];
+        const pressed = pressedKey === a.key;
+        const artSrc = pressed && a.artPressed ? a.artPressed : a.art;
         return (
           <button
             key={a.key}
             type='button'
             onClick={() => history.push(a.path)}
+            onPointerDown={() => setPressedKey(a.key)}
+            onPointerUp={clearPress}
+            onPointerCancel={clearPress}
+            onPointerLeave={clearPress}
             style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              gap: 'var(--dim-space-150, 6px)', padding: 'var(--dim-space-200, 8px) 0',
-              color: 'var(--text-content-default)',
+              flex: '0 0 var(--dim-size-1400, 64px)',
+              width: 'var(--dim-size-1400, 64px)',
+              minWidth: 'var(--dim-size-1400, 64px)',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 'var(--dim-space-100, 4px)',
+              padding: 0,
+              color: C.ink,
+              WebkitTapHighlightColor: 'transparent',
+              scrollSnapAlign: 'start',
             }}
           >
             <span
+              className='inline-flex items-center justify-center overflow-hidden'
               style={{
-                width: 64, height: 64, borderRadius: 'var(--dim-radius-full)',
-                background: palette.bg,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 'var(--dim-size-1400, 64px)',
+                height: 'var(--dim-size-1400, 64px)',
+                borderRadius: 'var(--dim-radius-full, 9999px)',
+                background: a.art
+                  ? 'transparent'
+                  : (pressed ? (palette.bgPressed || palette.bg) : palette.bg),
+                flexShrink: 0,
+                transition: 'background-color 80ms ease',
               }}
             >
-              <Sym name={a.icon} size={24} color={palette.fg} fill />
+              {artSrc ? (
+                <img
+                  src={artSrc}
+                  alt=''
+                  width={64}
+                  height={64}
+                  draggable={false}
+                  style={{
+                    width: 'var(--dim-size-1400, 64px)',
+                    height: 'var(--dim-size-1400, 64px)',
+                    objectFit: 'contain',
+                    display: 'block',
+                    pointerEvents: 'none',
+                  }}
+                />
+              ) : (
+                <Sym name={a.icon} size={24} color={palette.fg} fill />
+              )}
             </span>
-            <span style={{
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-xs, 12px)',
-              fontWeight: 'var(--type-weight-medium, 500)',
-              textAlign: 'center',
-              lineHeight: 1.3,
-            }}>{a.label}</span>
+            <span
+              style={{
+                fontFamily: 'var(--type-family-heading-graphic2)',
+                fontSize: 'var(--type-size-xs, 12px)',
+                textAlign: 'center',
+                lineHeight: 1.5,
+                whiteSpace: 'nowrap',
+                maxWidth: '100%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {a.label}
+            </span>
           </button>
         );
       })}
@@ -193,254 +328,631 @@ const QuickActions = () => {
   );
 };
 
-/* ─── Section header (title + "ดูทั้งหมด ›" link) ─────────────────────── */
-const SectionHead = ({ title, viewAllPath }) => {
+/* ─── Payment banner — Archive Figma 284:39950 ──────────────────────── */
+const PAYMENT_HERO_LOTTIE = '/illustration/mobile/home-payment-health-insurance.json';
+const PAYMENT_HERO_FALLBACK = '/illustration/mobile/home-payment-hero.png';
+const PAYMENT_HERO_SIZE = 80;
+
+const PaymentBanner = () => {
   const history = useHistory();
+  const { appointments } = usePhcisLink();
+  const pending = BILLS.find((b) => b.status === 'pending');
+  const hasCompletedTelemed = appointments.some((appointment) => appointment.telemedDone);
+  const [heroAnim, setHeroAnim] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(PAYMENT_HERO_LOTTIE)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive) setHeroAnim(d); })
+      .catch(() => { /* PNG fallback */ });
+    return () => { alive = false; };
+  }, []);
+
+  if (!hasCompletedTelemed || !pending) return null;
+
+  const goPay = () => history.push(`/m/payment/${pending.id}`);
+
   return (
-    <div className='flex items-center justify-between' style={{ marginBottom: 'var(--dim-space-200, 8px)' }}>
-      <h3 style={{
+    <div
+      style={{
+        width: '100%',
+        boxSizing: 'border-box',
+        padding: 'var(--dim-space-400, 16px)',
+        borderRadius: 'var(--dim-radius-600, 24px)',
+        background: 'linear-gradient(146.05deg, rgb(243, 132, 161) 1.19%, rgb(214, 128, 182) 128.22%)',
+        boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 'var(--dim-space-200, 8px)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Payment Banner row — gap-200 · illus 80 · text gap-150 */}
+      <div
+        className='flex items-start w-full'
+        style={{ gap: 'var(--dim-space-200, 8px)' }}
+      >
+        <span
+          className='overflow-hidden shrink-0'
+          style={{ width: PAYMENT_HERO_SIZE, height: PAYMENT_HERO_SIZE }}
+        >
+          {heroAnim ? (
+            <LottieIllustration
+              animationData={heroAnim}
+              size={PAYMENT_HERO_SIZE}
+              loop
+              ariaLabel=''
+            />
+          ) : (
+            <img
+              src={PAYMENT_HERO_FALLBACK}
+              alt=''
+              width={PAYMENT_HERO_SIZE}
+              height={PAYMENT_HERO_SIZE}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+            />
+          )}
+        </span>
+        <div
+          className='flex flex-col flex-1 min-w-0'
+          style={{ gap: 'var(--dim-space-150, 6px)' }}
+        >
+          {/* Figma text style h5-emphasis — Archive 284:39953 */}
+          <p
+            style={{
+              margin: 0,
+              width: '100%',
+              fontFamily: 'var(--type-h5-emphasis-family, var(--type-family-heading-graphic2))',
+              fontSize: 'var(--type-h5-emphasis-size, var(--type-size-lg, 18px))',
+              fontWeight: 'var(--type-h5-emphasis-weight, var(--type-weight-medium, 500))',
+              lineHeight: 'var(--type-h5-emphasis-leading, 1.5)',
+              letterSpacing: 0,
+              color: 'var(--text-content-on-content, #FFFFFF)',
+            }}
+          >
+            พร้อมชำระเงินแล้ว
+          </p>
+          {/* Figma text style label1 — Archive 284:39954 */}
+          <p
+            style={{
+              margin: 0,
+              width: '100%',
+              fontFamily: 'var(--type-label1-family, var(--type-family-body))',
+              fontSize: 'var(--type-label1-size, var(--type-size-sm, 14px))',
+              fontWeight: 'var(--type-label1-weight, var(--type-weight-medium, 500))',
+              lineHeight: 'var(--type-label1-leading, 1.5)',
+              letterSpacing: 0,
+              color: 'color-mix(in srgb, var(--text-content-on-content, #FFFFFF) 80%, transparent)',
+            }}
+          >
+            เภสัชกรจัดยาสำหรับการปรึกษาวันที่ 1 ก.ค. 2569 เรียบร้อยแล้ว
+          </p>
+        </div>
+      </div>
+
+      {/* Brand Button · Medium · white fill — Figma 284:39955 (48h · hug · chevron 20) */}
+      <BrandButton
+        size='Medium'
+        buttonStyle='Fill'
+        showLeadingIcon={false}
+        showTailingIcon
+        trailingIcon='chevron_right'
+        fullWidth={false}
+        onClick={goPay}
+        style={{
+          background: 'var(--surface-card-100, #FFFFFF)',
+          color: 'var(--text-neutral-default, #4D5358)',
+          width: 'auto',
+          minWidth: 'var(--dim-size-1700, 80px)',
+          maxWidth: 'var(--dim-size-2600, 384px)',
+          flexShrink: 0,
+          boxShadow: 'var(--mobile-button-shadow-fill)',
+        }}
+      >
+        ชำระเงิน
+      </BrandButton>
+    </div>
+  );
+};
+
+/* ─── Section head ──────────────────────────────────────────────────── */
+/* Figma Home sections: title + optional count badge only (no ดูทั้งหมด).
+   Count = Status Badge 371:44807 — hug · h18 · px-200 · py-0 · type xs medium */
+const SectionHead = ({ title, count }) => (
+  <div className='flex items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+    <h3
+      style={{
         margin: 0,
         fontFamily: 'var(--type-family-heading-graphic2)',
-        fontSize: 'var(--type-size-base, 16px)',
-        fontWeight: 'var(--type-weight-bold, 700)',
-        color: 'var(--text-brandPrimary-default)',
-      }}>{title}</h3>
-      {viewAllPath && (
-        <button type='button' onClick={() => history.push(viewAllPath)}
-          style={{
-            background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
-            color: 'var(--text-brandPrimary-default, #007549)',
-            fontFamily: 'var(--type-family-body)',
-            fontSize: 'var(--type-size-sm, 14px)',
-            fontWeight: 'var(--type-weight-bold, 700)',
-            display: 'inline-flex', alignItems: 'center', gap: 2,
-          }}>
-          ดูทั้งหมด <Sym name='chevron_right' size={16} />
-        </button>
+        fontSize: 'var(--type-size-lg, 18px)',
+        fontWeight: 'var(--type-weight-regular, 400)',
+        color: C.brand,
+        lineHeight: 1.5,
+      }}
+    >
+      {title}
+    </h3>
+    {count != null && count > 0 && (
+      <StatusBadge
+        style='success'
+        size='small'
+        styleProp={{
+          height: 'auto',
+          minHeight: 0,
+          minWidth: 0,
+          paddingTop: 0,
+          paddingBottom: 0,
+          lineHeight: 1.5,
+        }}
+      >
+        {String(count)}
+      </StatusBadge>
+    )}
+  </div>
+);
+
+/* Horizontal carousel track — overflow-x clips box-shadow on the first/last
+   card. Bleed space-200 outside via negative margin, then pad the same amount
+   so cards stay aligned with the section title while Brand Drop Bottom/200
+   (blur ≤8px) paints inside the scrollport. */
+const carouselTrackStyle = (gap) => ({
+  gap,
+  marginInline: 'calc(-1 * var(--dim-space-200, 8px))',
+  paddingInline: 'var(--dim-space-200, 8px)',
+  paddingBottom: 'var(--dim-space-200, 8px)',
+});
+
+const DetailCell = ({ icon, label, value, flex = 1 }) => (
+  <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)', flex, minWidth: 0 }}>
+    <MobileIconBadge
+      icon={icon}
+      tone='green'
+      size='var(--dim-size-600, 32px)'
+      iconSize={16}
+    />
+    <div className='min-w-0' style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-050, 2px)' }}>
+      <p style={{ margin: 0, fontSize: 'var(--type-size-xs, 12px)', color: C.muted, lineHeight: 1.5 }}>{label}</p>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 'var(--type-size-sm, 14px)',
+          fontWeight: 'var(--type-weight-bold, 700)',
+          color: C.ink,
+          lineHeight: 1.5,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {value}
+      </p>
+    </div>
+  </div>
+);
+
+/* ─── Appointment card ────────────────────────────────────────────────
+   Archive Figma Home 369:42229 · Group card_more than 1 (367:41054)
+   · Default cards: no top stroke · status from aptStatus · divider +
+     ยกเลิก (Subdue outline) / เลื่อนนัด (Brand outline)
+   · nearOnline + video: top brand stroke · countdown · เข้าห้องวิดีโอคอล */
+const HOME_APT_STATUS = {
+  confirmed: { style: 'success', label: 'ยืนยันแล้ว' },
+  pending: { style: 'warning', label: 'รอยืนยัน' },
+};
+
+const isTodayBeDate = (beDate) => {
+  const [year, month, day] = String(beDate || '').split('-').map(Number);
+  if (!year || !month || !day) return false;
+  const today = new Date();
+  return (
+    year === today.getFullYear() + 543
+    && month === today.getMonth() + 1
+    && day === today.getDate()
+  );
+};
+
+const AppointmentCard = ({ apt, nearOnline, countdownSec, width = '100%' }) => {
+  const history = useHistory();
+  const isOnline = apt.type === 'video';
+  const serviceMeta = MOBILE_SERVICE_META[apt.type] || MOBILE_SERVICE_META.visit;
+  const location = apt.locationLabel || (apt.clinic === 'BNA' ? 'ศูนย์ 08, บางนา' : 'ศูนย์บริการ');
+  const dateLabel = (() => {
+    const parts = String(apt.date || '').split('-').map(Number);
+    if (parts.length < 3) return apt.date;
+    const [, mm, dd] = parts;
+    const short = `${dd} ${THAI_MONTHS_SHORT[mm - 1]}`;
+    return nearOnline || isTodayBeDate(apt.date) ? `วันนี้, ${short}` : short;
+  })();
+  const statusMeta = (() => {
+    if (nearOnline && !isOnline) return { style: 'warning', label: 'ใกล้ถึงนัด' };
+    return HOME_APT_STATUS[apt.aptStatus] || HOME_APT_STATUS.confirmed;
+  })();
+  const serviceTypeLabel = isOnline
+    ? 'ออนไลน์ (Telemedicine)'
+    : apt.type === 'homevisit'
+      ? 'เยี่ยมบ้าน'
+      : 'ที่ศูนย์บริการ';
+
+  return (
+    <div
+      style={{
+        width,
+        flexShrink: 0,
+        background: C.card,
+        borderRadius: 'var(--dim-radius-500, 16px)',
+        borderTop: nearOnline
+          ? `var(--dim-stroke-500, 5px) solid ${C.borderApt}`
+          : undefined,
+        boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+        padding: 'var(--dim-space-400, 16px)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--dim-space-300, 12px)',
+      }}
+    >
+      <div className='flex items-center justify-between' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        <ColorfulBadge style={serviceMeta.badgeStyle} size='small' hierarchy='secondary' width='hug' showIcon icon={serviceMeta.icon}>
+          {serviceMeta.badgeLabel}
+        </ColorfulBadge>
+        <StatusBadge style={statusMeta.style} size='small'>
+          {statusMeta.label}
+        </StatusBadge>
+      </div>
+
+      <div
+        className='flex items-start'
+        style={{
+          gap: 'var(--dim-space-200, 8px)',
+          padding: 'var(--dim-space-300, 12px)',
+          background: 'var(--surface-info-quaternary, #F4F9FD)',
+          borderRadius: 'var(--dim-radius-400, 12px)',
+        }}
+      >
+        <Avatar
+          src={apt.doctorAvatar || resolveDoctorAvatar(apt.doctor)}
+          alt={apt.doctor}
+          size={40}
+          ring={false}
+        />
+        <div
+          className='flex flex-col min-w-0'
+          style={{ gap: 'var(--dim-space-050, 2px)', lineHeight: 1.5 }}
+        >
+          <p style={{ margin: 0, fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm, 14px)', color: C.ink, lineHeight: 1.5 }}>
+            {apt.doctor}
+          </p>
+          <p style={{ margin: 0, fontSize: 'var(--type-size-xs, 12px)', color: C.muted, lineHeight: 1.5 }}>{apt.deptLabel}</p>
+        </div>
+      </div>
+
+      {/* Figma Home 2042:26021 — Calendar · Clock · Map pin · Video */}
+      <div className='flex items-center' style={{ gap: 'var(--dim-space-400, 16px)', width: '100%' }}>
+        <DetailCell icon='calendar' label='วันที่' value={dateLabel} />
+        <DetailCell icon='clock' label='เวลา' value={`${apt.time} น.`} />
+      </div>
+
+      <DetailCell icon='map-pin' label='ศูนย์ให้บริการ' value={location} />
+      <DetailCell
+        icon={serviceMeta.icon}
+        label='ประเภทการเข้ารับบริการ'
+        value={serviceTypeLabel}
+      />
+
+      {nearOnline && (
+        <>
+          <div
+            aria-hidden
+            style={{
+              width: '100%',
+              height: 'var(--dim-stroke-100, 1px)',
+              background: 'var(--border-neutral-quaternary, #F4F5F5)',
+            }}
+          />
+          <p
+            style={{
+              margin: 0,
+              width: '100%',
+              fontSize: 'var(--type-size-sm, 14px)',
+              fontWeight: 'var(--type-weight-bold, 700)',
+              color: C.brand,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 'var(--dim-space-150, 6px)',
+              padding: 'var(--dim-space-200, 8px) 0',
+              lineHeight: 1.5,
+            }}
+          >
+            {/* Figma countdown Clock fill #08A768; label stays brand/700 */}
+            <Sym name='clock' size={16} color='var(--text-brandPrimary-secondary, #08A768)' />
+            เริ่มใน {formatCountdown(countdownSec)} นาที
+          </p>
+        </>
+      )}
+
+      {/* Figma 149:35429 + 153:50935 — near-online video:
+          Brand Button (เข้าห้อง) then Brand Subdue Outline (ยกเลิก) */}
+      {nearOnline && isOnline ? (
+        <>
+          <BrandButton
+            variant='fill'
+            size='md'
+            leadingIcon='video'
+            onClick={() => history.push('/m/telemed')}
+          >
+            เข้าห้องวิดีโอคอล
+          </BrandButton>
+          <BrandSubdueButton
+            variant='outline'
+            size='md'
+            fullWidth
+            onClick={() => history.push(`/m/appointments/${apt.id}`)}
+          >
+            ยกเลิก
+          </BrandSubdueButton>
+        </>
+      ) : (
+        <>
+          {/* Figma 367:41054 / 369:42229 — Brand Subdue Outline ยกเลิก + Brand Outline เลื่อนนัด */}
+          {!nearOnline && (
+            <div
+              aria-hidden
+              style={{
+                width: '100%',
+                height: 'var(--dim-stroke-100, 1px)',
+                background: 'var(--border-neutral-quaternary, #F4F5F5)',
+              }}
+            />
+          )}
+          <div className='flex' style={{ gap: 'var(--dim-space-300, 12px)', width: '100%' }}>
+            <BrandSubdueButton
+              variant='outline'
+              size='md'
+              style={{ flex: 1 }}
+              onClick={() => history.push(`/m/appointments/${apt.id}`)}
+            >
+              ยกเลิก
+            </BrandSubdueButton>
+            <BrandButton
+              variant='outline'
+              size='md'
+              style={{ flex: 1 }}
+              onClick={() => history.push(`/m/book?reschedule=${apt.id}`)}
+            >
+              เลื่อนนัด
+            </BrandButton>
+          </div>
+        </>
       )}
     </div>
   );
 };
 
-/* ─── Next appointment — Figma 124:6012 appointment card ─────────────── */
-const NextAppointmentCard = () => {
-  const history = useHistory();
+const NextAppointments = () => {
   const { appointments } = usePhcisLink();
-  const next = appointments.find((a) => a.status === 'upcoming');
-  if (!next) return null;
-  const isOnline = next.type === 'video';
-  const serviceMeta = MOBILE_SERVICE_META[next.type] || MOBILE_SERVICE_META.visit;
-  const location = next.locationLabel || (next.clinic === 'BNA' ? 'ศูนย์ 4, ดินแดง' : 'ศูนย์บริการ');
-  const dateLabel = (() => {
-    const [, mm, dd] = next.date.split('-').map(Number);
-    return `วันนี้, ${dd} ${THAI_MONTHS_SHORT[mm - 1]}`;
-  })();
+  const upcoming = useMemo(
+    () => appointments.filter((a) => a.status === 'upcoming'),
+    [appointments],
+  );
+
+  const [countdownSec, setCountdownSec] = useState(NEAR_WINDOW_SEC);
+
+  useEffect(() => {
+    if (!upcoming.length) return undefined;
+    const id = window.setInterval(() => {
+      setCountdownSec((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [upcoming.length]);
+
+  if (!upcoming.length) return null;
+
+  const first = upcoming[0];
+  const nearOnline = first.type === 'video' && !!first.nearStart;
+  const multi = upcoming.length > 1;
 
   return (
-    <div>
-      <SectionHead title='นัดหมายถัดไป' />
-      <div
-        style={{
-          background: 'var(--surface-card-100)',
-          borderRadius: 'var(--dim-radius-500, 16px)',
-          borderTop: 'var(--dim-stroke-500, 5px) solid var(--border-brandPrimary-secondary)',
-          boxShadow: 'var(--shadow-card)',
-          padding: 'var(--dim-space-400, 16px)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--dim-space-300, 12px)',
-        }}
-      >
-        <div className='flex items-center justify-between'>
-          <ColorfulBadge style={serviceMeta.badgeStyle} size='small' hierarchy='secondary' width='hug' showIcon icon={serviceMeta.icon}>
-            {serviceMeta.badgeLabel}
-          </ColorfulBadge>
-          <StatusBadge style='success' size='small'>ยืนยันแล้ว</StatusBadge>
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)', width: '100%' }}>
+      <SectionHead title='นัดหมายถัดไป' count={upcoming.length} />
+      {multi ? (
+        <div className='flex overflow-x-auto' style={carouselTrackStyle('var(--dim-space-400, 16px)')}>
+          {upcoming.map((apt, i) => (
+            <AppointmentCard
+              key={apt.id}
+              apt={apt}
+              nearOnline={i === 0 && nearOnline}
+              countdownSec={countdownSec}
+              width='var(--dim-size-2500, 320px)'
+            />
+          ))}
         </div>
-
-        <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <span
-            className='inline-flex items-center justify-center shrink-0'
-            style={{
-              width: 48, height: 48, borderRadius: 'var(--dim-radius-full)',
-              background: 'var(--surface-brandPrimary-default)',
-              color: 'var(--text-brandPrimary-on-brand)',
-              fontFamily: 'var(--type-family-heading-graphic2)',
-              fontSize: 'var(--type-size-sm)',
-              fontWeight: 'var(--type-weight-bold)',
-            }}
-          >
-            {next.doctor.replace(/[นพ\.พญ\.พ\.ว\.\s]/g, '').slice(0, 2)}
-          </span>
-          <div>
-            <p style={{ margin: 0, fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
-              {next.doctor}
-            </p>
-            <p style={{ margin: 0, fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>{next.deptLabel}</p>
-          </div>
-        </div>
-
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <DetailRow icon='calendar_today' label='วันที่' value={dateLabel} />
-          <DetailRow icon='schedule' label='เวลา' value={`${next.time} น.`} />
-          <DetailRow icon='location_on' label='สถานที่' value={location} />
-        </div>
-
-        {isOnline && (
-          <>
-            <p style={{ margin: 0, fontSize: 'var(--type-size-sm)', color: 'var(--text-brandPrimary-default)', display: 'flex', alignItems: 'center', gap: 'var(--dim-space-100, 4px)' }}>
-              <Sym name='schedule' size={16} color='var(--text-brandPrimary-default)' />
-              เริ่มใน 14:59 นาที
-            </p>
-            <BrandButton variant='fill' size='md' className='w-full' leadingIcon='videocam' onClick={() => history.push('/m/telemed')}>
-              เข้าห้องวิดีโอคอล
-            </BrandButton>
-            <div className='flex' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-              <BrandSubdueButton variant='outline' size='md' className='flex-1' onClick={() => history.push(`/m/appointments/${next.id}`)}>ยกเลิก</BrandSubdueButton>
-              <BrandSubdueButton variant='outline' size='md' className='flex-1' onClick={() => history.push(`/m/book?reschedule=${next.id}`)}>เลื่อนนัด</BrandSubdueButton>
-            </div>
-          </>
-        )}
-      </div>
+      ) : (
+        <AppointmentCard
+          apt={first}
+          nearOnline={nearOnline}
+          countdownSec={countdownSec}
+        />
+      )}
     </div>
   );
 };
 
-const DetailRow = ({ icon, label, value }) => (
-  <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-    <MobileIconBadge icon={icon} tone='green' size={40} iconSize={16} />
-    <div>
-      <p style={{ margin: 0, fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>{label}</p>
-      <p style={{ margin: 0, fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>{value}</p>
-    </div>
-  </div>
-);
-
-/* ─── ส่งคำขอ carousel — Figma 194:153207 ───────────────────────────── */
-const REQUEST_CARDS = [
-  { label: 'ขอน้ำยาฆ่าเชื้อผู้ใหญ่', icon: 'location_on', tone: 'green', path: '/m/requests' },
-  { label: 'นัดเยี่ยมบ้าน', icon: 'home', tone: 'blue', path: '/m/requests' },
-];
+/* ─── ส่งคำขอ — Archive Figma card group 194:153207 ─────────────────── */
+/* Figma SVG icons for the first three; remaining use Material via `icon`. */
+const REQUEST_ICON_SRC = {
+  sanitizer: '/illustration/mobile/request-sanitizer.svg',
+  diapers: '/illustration/mobile/request-diaper.svg',
+};
 
 const RequestsCarousel = () => {
   const history = useHistory();
   return (
-    <div>
-      <SectionHead title='ส่งคำขอ' viewAllPath='/m/requests' />
-      <div className='flex overflow-x-auto' style={{ gap: 'var(--dim-space-300, 12px)', paddingBottom: 4 }}>
-        {REQUEST_CARDS.map((card) => (
-          <button
-            key={card.label}
-            type='button'
-            onClick={() => history.push(card.path)}
-            style={{
-              flex: '0 0 160px',
-              background: 'var(--surface-card-100)',
-              border: 0,
-              borderRadius: 'var(--dim-radius-600, 24px)',
-              boxShadow: 'var(--shadow-card)',
-              padding: 'var(--dim-space-300, 12px)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 'var(--dim-space-200, 8px)',
-              cursor: 'pointer',
-            }}
-          >
-            <MobileIconBadge icon={card.icon} tone={card.tone} size={40} iconSize={16} />
-            <span style={{
-              fontFamily: 'var(--type-family-heading-graphic2)',
-              fontSize: 'var(--type-size-sm)',
-              color: 'var(--text-content-default)',
-              textAlign: 'center',
-              lineHeight: 1.5,
-            }}
-            >
-              {card.label}
-            </span>
-          </button>
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)', width: '100%' }}>
+      <SectionHead title='ส่งคำขอ' count={REQUEST_TYPES.length} />
+      <div className='flex overflow-x-auto' style={carouselTrackStyle('var(--dim-space-300, 12px)')}>
+        {REQUEST_TYPES.map((card) => (
+          <ServiceRequestCard
+            key={card.key}
+            label={card.label}
+            badgeStyle={card.tone}
+            icon={card.icon}
+            iconSrc={REQUEST_ICON_SRC[card.key]}
+            onClick={() => history.push(`/m/requests?type=${card.key}`)}
+          />
         ))}
       </div>
     </div>
   );
 };
 
-/* ─── ประวัติการรักษา carousel — Figma 194:153538 ──────────────────── */
+/* ─── ประวัติการรักษา ───────────────────────────────────────────────── */
 const VisitHistoryCard = ({ visit, onClick }) => {
   const meta = MOBILE_SERVICE_META[visit.type] || MOBILE_SERVICE_META.visit;
   return (
     <div
       onClick={onClick}
-      role='button' tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      role='button'
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       style={{
-        flex: '0 0 280px',
+        flex: '0 0 320px',
+        width: 320,
         padding: 'var(--dim-space-400, 16px)',
-        background: 'var(--surface-card-100)',
+        background: C.card,
         borderRadius: 'var(--dim-radius-500, 16px)',
-        boxShadow: 'var(--shadow-card)',
+        boxShadow: 'var(--shadow-brand-drop-bottom-200)',
         cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--dim-space-300, 12px)',
       }}
     >
-      <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)', marginBottom: 'var(--dim-space-300, 12px)' }}>
-        <MobileIconBadge icon='calendar_today' tone='purple' size={32} iconSize={16} />
-        <span style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+      <div className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+        {/* Archive Figma 194:153538 — Colorful icon Badge · Purple · Medium · Calendar */}
+        <ColorfulIconBadge style='purple' size='medium' icon='calendar' />
+        <span
+          style={{
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-sm, 14px)',
+            fontWeight: 'var(--type-weight-bold, 700)',
+            color: C.ink,
+            lineHeight: 1.5,
+          }}
+        >
           {visit.date}
         </span>
       </div>
-      <p style={{ margin: '0 0 var(--dim-space-200, 8px)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-        {visit.time} น.
-      </p>
-      <ColorfulBadge style={meta.badgeStyle} size='small' hierarchy='secondary' width='hug' showIcon icon={meta.icon}>
-        {meta.badgeLabel}
-      </ColorfulBadge>
-      <p style={{
-        margin: 'var(--dim-space-200, 8px) 0',
-        fontFamily: 'var(--type-family-heading-graphic2)',
-        fontSize: 'var(--type-size-sm)',
-        fontWeight: 'var(--type-weight-bold)',
-        color: 'var(--text-content-default)',
-      }}
-      >
-        {visit.dept}
-      </p>
-      <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+
+      <div
+        aria-hidden
+        style={{
+          width: '100%',
+          height: 'var(--dim-stroke-100, 1px)',
+          background: 'var(--border-neutral-quaternary, #F4F5F5)',
+        }}
+      />
+
+      <div className='flex items-center justify-between' style={{ gap: 'var(--dim-space-300, 12px)' }}>
         <span
-          className='inline-flex items-center justify-center shrink-0'
+          className='inline-flex items-center'
           style={{
-            width: 28, height: 28, borderRadius: 'var(--dim-radius-full)',
-            background: 'var(--surface-brandPrimary-default)',
-            color: 'var(--text-brandPrimary-on-brand)',
-            fontSize: 'var(--type-size-xs)',
-            fontWeight: 'var(--type-weight-bold)',
+            gap: 'var(--dim-space-100, 4px)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-sm, 14px)',
+            fontWeight: 'var(--type-weight-medium, 500)',
+            color: C.muted,
+            lineHeight: 1.5,
           }}
         >
-          {visit.doctor.replace(/[นพ\.พญ\.พ\.ว\.\s]/g, '').slice(0, 2)}
+          <Sym name='clock' size={14} color={C.muted} />
+          {visit.time} น.
         </span>
-        <div>
-          <p style={{ margin: 0, fontSize: 'var(--type-size-xs)', color: 'var(--text-content-default)' }}>{visit.doctor}</p>
-          <p style={{ margin: 0, fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>{visit.center}</p>
-        </div>
+        <ColorfulBadge
+          style={meta.badgeStyle}
+          size='small'
+          hierarchy='secondary'
+          width='hug'
+          showIcon
+          icon={meta.icon}
+        >
+          {meta.badgeLabel}
+        </ColorfulBadge>
       </div>
-      <button
-        type='button'
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
+
+      <p
         style={{
-          marginTop: 'var(--dim-space-300, 12px)',
-          border: 0,
-          background: 'transparent',
-          padding: 0,
-          color: 'var(--text-brandPrimary-default)',
-          fontSize: 'var(--type-size-sm)',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 'var(--dim-space-100, 4px)',
-          cursor: 'pointer',
+          margin: 0,
+          fontFamily: 'var(--type-family-heading-graphic2)',
+          fontSize: 'var(--type-size-sm, 14px)',
+          fontWeight: 'var(--type-weight-regular, 400)',
+          color: C.ink,
+          lineHeight: 1.5,
         }}
       >
-        ดูผลตรวจหรือบันทึกการรักษา
-        <Sym name='chevron_right' size={16} color='var(--text-brandPrimary-default)' />
-      </button>
+        {visit.title || visit.cc || visit.dept}
+      </p>
+
+      <div
+        className='flex items-start'
+        style={{
+          gap: 'var(--dim-space-200, 8px)',
+          padding: 'var(--dim-space-300, 12px)',
+          background: 'var(--surface-info-quaternary, #F4F9FD)',
+          borderRadius: 'var(--dim-radius-400, 12px)',
+        }}
+      >
+        <Avatar src={visit.doctorAvatar || resolveDoctorAvatar(visit.doctor)} alt={visit.doctor} size={40} ring={false} />
+        <div className='min-w-0' style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-050, 2px)' }}>
+          <p
+            style={{
+              margin: 0,
+              fontFamily: 'var(--type-family-heading-graphic2)',
+              fontSize: 'var(--type-size-sm, 14px)',
+              color: C.ink,
+              lineHeight: 1.5,
+            }}
+          >
+            {visit.doctor}
+          </p>
+          <p style={{ margin: 0, fontSize: 'var(--type-size-xs, 12px)', color: C.muted, lineHeight: 1.5 }}>
+            {visit.dept}
+          </p>
+        </div>
+      </div>
+
+      <div
+        className='flex items-center'
+        style={{
+          gap: 'var(--dim-space-200, 8px)',
+          minHeight: 56,
+          padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)',
+          background: 'var(--surface-list-default, #FFFFFF)',
+          borderTop: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+          borderRadius: 'var(--dim-radius-150, 6px)',
+        }}
+      >
+        {/* Figma List 194:153552 — text/list/default (#4D5358) · body sm regular */}
+        <span
+          className='flex-1 min-w-0'
+          style={{
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-sm, 14px)',
+            fontWeight: 'var(--type-weight-regular, 400)',
+            lineHeight: 1.5,
+            color: 'var(--text-list-default, #4D5358)',
+          }}
+        >
+          ดูผลตรวจหรือบันทึกการรักษา
+        </span>
+        <Sym name='chevron-right' size={16} color='var(--icon-list-secondary, #858C92)' />
+      </div>
     </div>
   );
 };
@@ -450,9 +962,9 @@ const HistoryCarousel = () => {
   const { visits } = usePhcisLink();
   if (!visits.length) return null;
   return (
-    <div>
-      <SectionHead title='ประวัติการรักษา' viewAllPath='/m/records' />
-      <div className='flex overflow-x-auto' style={{ gap: 'var(--dim-space-300, 12px)', paddingBottom: 4 }}>
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)', width: '100%' }}>
+      <SectionHead title='ประวัติการรักษา' />
+      <div className='flex overflow-x-auto' style={carouselTrackStyle('var(--dim-space-300, 12px)')}>
         {visits.slice(0, 4).map((visit) => (
           <VisitHistoryCard
             key={visit.id}
@@ -465,33 +977,66 @@ const HistoryCarousel = () => {
   );
 };
 
-/* ─── Page ───────────────────────────────────────────────────────────── */
-const MobileHomePage = () => (
-  <MobileShell background='var(--surface-content-secondary, #F5F6F7)'>
+/* ─── Page ──────────────────────────────────────────────────────────── */
+const HOME_HERO_GRADIENT = 'linear-gradient(71.27deg, #13B292 58.07%, #00A08E 83.06%)';
+
+const MobileHomeInner = () => (
+  <div
+    className='flex flex-col'
+    style={{
+      minHeight: '100%',
+      /* Figma 124:6012 — gap-400 between hero + sheet */
+      gap: 'var(--dim-space-400, 16px)',
+      backgroundImage: HOME_HERO_GRADIENT,
+    }}
+  >
     <Hero />
-    {/* Quick actions overlap the hero by ~28px so they read as "floating
-        on top" — matches the Figma's visual rhythm. The negative margin
-        pulls the block up; the surrounding wrapper still owns side
-        padding so content remains on-grid. */}
-    <div style={{ marginTop: 'calc(-1 * var(--dim-space-700, 28px))', padding: '0 var(--dim-space-200, 8px)' }}>
-      <div style={{
-        background: 'var(--surface-card-brand100, #F4FBF8)',
-        border: '1px solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-        borderRadius: 'var(--dim-radius-500, 16px)',
-        boxShadow: 'var(--shadow-brand-drop-bottom-100)',
-        paddingBottom: 'var(--dim-space-300, 12px)',
-        marginLeft: 'var(--dim-space-200, 8px)',
-        marginRight: 'var(--dim-space-200, 8px)',
-      }}>
+    <div
+      style={{
+        flex: 1,
+        /* Figma 189:142122 — radius-600 top corners · white → brand soft */
+        background: 'linear-gradient(180deg, var(--surface-card-100, #FFFFFF) 0%, var(--surface-card-brand-100, #F4FBF8) 100%)',
+        borderTopLeftRadius: 'var(--dim-radius-600, 24px)',
+        borderTopRightRadius: 'var(--dim-radius-600, 24px)',
+        /* Full-bleed sheet; section content owns its 24px left inset. */
+        padding: 'var(--dim-space-600, 24px) 0',
+        boxShadow: '0 -16px 16px rgba(100, 116, 139, 0.25)',
+      }}
+    >
+      <div
+        className='flex flex-col'
+        style={{
+          width: '100%',
+          paddingLeft: 'var(--dim-space-600, 24px)',
+          gap: 'var(--dim-space-600, 24px)',
+        }}
+      >
         <QuickActions />
+        <div
+          style={{
+            width: 'calc(100% - var(--dim-space-400, 16px))',
+            marginLeft: 'calc(-1 * var(--dim-space-100, 4px))',
+          }}
+        >
+          <PaymentBanner />
+        </div>
+        <NextAppointments />
+        <RequestsCarousel />
+        <HistoryCarousel />
       </div>
     </div>
+  </div>
+);
 
-    <div style={{ padding: 'var(--dim-space-500, 20px) var(--dim-space-400, 16px) var(--dim-space-500, 20px)', display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-500, 20px)' }}>
-      <NextAppointmentCard />
-      <RequestsCarousel />
-      <HistoryCarousel />
-    </div>
+const MobileHomePage = () => (
+  <MobileShell
+    requireAuth
+    showStatusBar
+    showBottomNav
+    statusBarTone='onBrand'
+    background={HOME_HERO_GRADIENT}
+  >
+    <MobileHomeInner />
   </MobileShell>
 );
 

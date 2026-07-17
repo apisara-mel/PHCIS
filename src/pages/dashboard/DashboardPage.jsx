@@ -9,6 +9,9 @@ import { Reveal } from '@/components/graph/Charts';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import Pagination from '@/components/pagination/Pagination';
 import Badge from '@/components/badge/Badge';
+import BrandButton from '@/components/button/BrandButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import {
   PopulationPyramidCard,
   OpdTypeLineCard,
@@ -53,19 +56,18 @@ const DASHBOARD_OVERVIEW_CARDS = [
 /* Card wrapper — used by the recent-patients table only. The chart cards
    already ship with their own internal Card chrome. */
 const Card = ({ title, icon, action, children, className = '', headerClassName = '' }) => (
-  <section className={`bg-white rounded-card shadow-card flex flex-col border-0 ${className}`}>
+  <section className={`bg-surface-card rounded-card shadow-card flex flex-col border-0 ${className}`}>
     {(title || icon || action) && (
-      <header className={`flex items-center gap-2 px-4 py-3 border-b border-[var(--border-brandPrimary-quaternary)] shadow-header border-b-0 ${headerClassName}`}>
+      <header
+        className={`flex items-center gap-2 px-4 py-3 border-b shadow-header border-b-0 ${headerClassName}`}
+        /* borderBottomColor inline — Tailwind v2.1 JIT parses `border-[var(...)]`
+           as border-width, so the class can't tint this rule. */
+        style={{ borderBottomColor: 'var(--border-brandPrimary-quaternary)' }}
+      >
         {icon && <span className='text-brand-500'><Icon name={icon} size={18} /></span>}
         <h3 className='flex-1 text-sm font-bold text-ink truncate'>{title}</h3>
         {action ?? (
-          <button
-            type='button'
-            aria-label='options'
-            className='w-7 h-7 flex items-center justify-center rounded-md text-ink-tertiary hover:bg-ink-neutral'
-          >
-            <Icon name='kebab-vertical' size={16} />
-          </button>
+          <NeutralSubdueIconButton icon='more_vert' variant='outline' size='sm' ariaLabel='options' />
         )}
       </header>
     )}
@@ -151,7 +153,7 @@ const DashboardPage = () => {
       <Header breadcrumb={['แดชบอร์ด']} />
 
       {/* — White section: page header + overview — */}
-      <div className='bg-white px-6 pt-6 pb-5 border-b-0 shadow-header flex flex-col gap-4'>
+      <div className='bg-surface-card px-6 pt-6 pb-5 border-b-0 shadow-header flex flex-col gap-4'>
         <div className='flex items-center gap-4'>
           <h1 className='flex-1 text-xl font-bold text-ink'>แดชบอร์ดภาพรวมโรงพยาบาล</h1>
           <div className='relative w-[200px]' style={{ marginLeft: 'var(--dimension/space/300,12px)' }}>
@@ -164,14 +166,14 @@ const DashboardPage = () => {
               placeholder='เลือกปีงบประมาณ'
             />
           </div>
-          <button
-            type='button'
+          <BrandButton
+            variant='fill'
+            size='sm'
+            leadingIcon='save'
             onClick={() => alert(`ส่งออกข้อมูล ${yearLabel}`)}
-            className='h-9 px-3 rounded-lg bg-brand-500 text-white text-sm font-medium inline-flex items-center gap-1.5 hover:bg-brand-600'
           >
-            <Icon name='save' size={14} />
             ส่งออกข้อมูล
-          </button>
+          </BrandButton>
         </div>
 
         <SummaryCardsBar variant='banner' cards={DASHBOARD_OVERVIEW_CARDS} />
@@ -217,14 +219,14 @@ const DashboardPage = () => {
         <Reveal>
         <Card title='รายชื่อผู้รับบริการล่าสุด' icon='users'
           action={
-            <button
-              type='button'
+            <NeutralSubdueButton
+              variant='outline'
+              size='sm'
+              trailingIcon={showAll ? 'expand_less' : 'chevron_right'}
               onClick={() => { setShowAll((v) => !v); setPage(0); }}
-              className='h-8 px-3 rounded-md border border-ink-line text-xs text-ink-secondary inline-flex items-center gap-1 hover:bg-ink-neutral'
             >
               {showAll ? 'แสดงเฉพาะล่าสุด' : 'ดูข้อมูลทั้งหมด'}
-              <Icon name={showAll ? 'chevron-up' : 'chevron-right'} size={14} />
-            </button>
+            </NeutralSubdueButton>
           }
         >
           <div className='flex items-center gap-2 mb-3'>
@@ -244,7 +246,10 @@ const DashboardPage = () => {
           <div className='overflow-x-auto'>
             <table className='w-full text-xs'>
               <thead>
-                <tr className='text-ink-tertiary border-b border-ink-line'>
+                <tr
+                  className='text-ink-tertiary border-b'
+                  style={{ borderBottomColor: 'var(--border-table-default)' }}
+                >
                   {[
                     { k: 'date',   label: 'วันที่' },
                     { k: 'cid',    label: 'เลขบัตรประชาชน' },
@@ -281,8 +286,15 @@ const DashboardPage = () => {
                 )}
                 {visiblePatients.map((p, i) => {
                   const badgeStyle = STATUS_TO_BADGE_STYLE[p.status] || 'yellow';
+                  /* Row chrome mirrors the shared <Table>: line + hover come from
+                     the same surface/border tokens, so this hand-rolled table
+                     follows light/dark exactly like every other table. */
                   return (
-                    <tr key={`${p.cid}-${i}`} className='border-b border-ink-line hover:bg-brand-50'>
+                    <tr
+                      key={`${p.cid}-${i}`}
+                      className='border-b hover:bg-surface-tableHover'
+                      style={{ borderBottomColor: 'var(--border-table-line)' }}
+                    >
                       <td className='py-2 px-2 text-ink-secondary'>{p.date}</td>
                       <td className='py-2 px-2 text-ink-secondary tabular-nums'>{p.cid}</td>
                       <td className='py-2 px-2 text-brand-500 font-medium'>{p.name}</td>
@@ -327,8 +339,8 @@ const DashboardPage = () => {
         <div className='py-3 flex items-center justify-between text-xs text-ink-tertiary'>
           <span>© 2026 ศูนย์การพยาบาลคุณภาพ ดินแดง กรุงเทพมหานคร</span>
           <div className='flex items-center gap-4'>
-            <a href='#' className='hover:text-brand-500'>Privacy Policy</a>
-            <a href='#' className='hover:text-brand-500'>Terms of Service</a>
+            <a href='/privacy' target='_blank' rel='noopener noreferrer' className='hover:text-brand-500'>Privacy Policy</a>
+            <a href='/terms' target='_blank' rel='noopener noreferrer' className='hover:text-brand-500'>Terms of Service</a>
           </div>
         </div>
       </div>

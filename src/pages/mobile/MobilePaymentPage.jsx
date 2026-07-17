@@ -34,7 +34,7 @@ const MobilePaymentListInner = () => {
         {/* Pending banner */}
         {totalPending > 0 && (
           <MobileCard padding='var(--dim-space-500, 20px)'
-            style={{ background: 'linear-gradient(135deg, #D43838 0%, #FFA67E 100%)', borderColor: 'transparent', color: '#FFFFFF' }}>
+            style={{ background: 'linear-gradient(135deg, #D43838 0%, #FFA67E 100%)', borderColor: 'transparent', color: 'var(--text-content-on-content)' }}>
             <p style={{ margin: 0, fontSize: 'var(--type-size-xs, 12px)', opacity: 0.9, fontWeight: 700 }}>ยอดค้างชำระทั้งหมด</p>
             <p style={{
               margin: '4px 0 0',
@@ -177,7 +177,7 @@ const MobilePaymentDetailInner = () => {
                   marginTop: 'calc(-1 * var(--dim-space-500, 20px))',
                   marginLeft: 'calc(-1 * var(--dim-space-500, 20px))',
                   marginRight: 'calc(-1 * var(--dim-space-500, 20px))',
-                  color: '#FFFFFF',
+                  color: 'var(--text-content-on-content)',
                   fontWeight: 700,
                 }}>
                   PromptPay · พร้อมเพย์
@@ -232,7 +232,7 @@ const MobilePaymentDetailInner = () => {
               <div style={{
                 width: 56, height: 56, margin: '0 auto var(--dim-space-200, 8px)',
                 background: 'var(--surface-success-default, #1F9D55)',
-                color: '#FFFFFF', borderRadius: '50%',
+                color: 'var(--text-content-on-content)', borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <Sym name='check' size={32} />

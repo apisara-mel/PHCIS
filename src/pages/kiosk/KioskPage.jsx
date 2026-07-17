@@ -83,7 +83,7 @@ const stepBadgeStyle = {
   height: 48,
   borderRadius: 'var(--dim-radius-full, 9999px)',
   background: 'var(--text-brandPrimary-default, #007549)',
-  color: '#FFFFFF',
+  color: 'var(--text-content-on-content)',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -102,7 +102,7 @@ const DateTimeChip = ({ now }) => (
       padding: 'var(--dim-space-400, 16px) var(--dim-space-600, 24px)',
       borderRadius: 'var(--dim-radius-450, 14px)',
       background: 'rgba(0, 0, 0, 0.20)',
-      color: '#FFFFFF',
+      color: 'var(--text-content-on-content)',
       width: 239,
       height: 80,
       boxSizing: 'border-box',
@@ -184,7 +184,7 @@ const KioskHeader = ({ now, lang, setLang }) => (
       >
         <Sym name='health_and_safety' size={56} color='var(--text-brandPrimary-default, #007549)' fill />
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', color: '#FFFFFF', fontFamily: 'var(--type-family-body)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', color: 'var(--text-content-on-content)', fontFamily: 'var(--type-family-body)' }}>
         <span style={{ fontSize: 36, fontWeight: 'var(--type-weight-bold, 700)', lineHeight: 1.25 }}>{FACILITY.brand}</span>
         <span style={{ fontSize: 'var(--type-size-2xl, 24px)', fontWeight: 'var(--type-weight-bold, 700)', marginTop: 4 }}>{FACILITY.branch}</span>
       </div>
@@ -311,7 +311,7 @@ const WelcomeScreen = ({ onStart }) => (
     <div
       style={{
         background: 'var(--text-brandPrimary-default, #007549)',
-        color: '#FFFFFF',
+        color: 'var(--text-content-on-content)',
         padding: 'var(--dim-space-600, 24px) var(--dim-space-1200, 48px)',
         borderRadius: 'var(--dim-radius-450, 14px)',
         fontSize: 30,
@@ -549,7 +549,7 @@ const VerifyScreen = ({ onVerified, onManual }) => {
               onClick={simulateChipRead}
               style={{
                 background: 'var(--text-brandPrimary-default, #007549)',
-                color: '#FFFFFF',
+                color: 'var(--text-content-on-content)',
                 padding: 'var(--dim-space-400, 16px) var(--dim-space-800, 32px)',
                 border: 'none',
                 borderRadius: 'var(--dim-radius-450, 14px)',
@@ -703,7 +703,7 @@ const ManualEntryScreen = ({ onVerified, onCancel }) => {
           onClick={submit}
           style={{
             background: 'var(--text-brandPrimary-default, #007549)',
-            color: '#FFFFFF',
+            color: 'var(--text-content-on-content)',
             border: 'none',
             borderRadius: 'var(--dim-radius-450, 14px)',
             fontSize: 'var(--type-size-2xl, 24px)',
@@ -850,7 +850,7 @@ const ConfirmScreen = ({ patient, hasAppointment, service, subService, appointme
         style={{
           flex: '2 1 0%',
           background: 'var(--text-brandPrimary-default, #007549)',
-          color: '#FFFFFF',
+          color: 'var(--text-content-on-content)',
           border: 'none',
           borderRadius: 'var(--dim-radius-450, 14px)',
           padding: 'var(--dim-space-600, 24px)',
@@ -912,7 +912,7 @@ const QRModal = ({ url, onClose }) => {
           style={{
             marginTop: 'var(--dim-space-600, 24px)',
             background: 'var(--text-brandPrimary-default, #007549)',
-            color: '#FFFFFF',
+            color: 'var(--text-content-on-content)',
             border: 'none',
             borderRadius: 'var(--dim-radius-450, 14px)',
             padding: 'var(--dim-space-400, 16px) var(--dim-space-800, 32px)',
@@ -1018,7 +1018,7 @@ const TicketScreen = ({ queue, patient, service, subService, appointment, onDone
           style={{
             flex: '1 1 0%',
             background: printDone ? 'var(--success, #08A768)' : 'var(--text-brandPrimary-default, #007549)',
-            color: '#FFFFFF',
+            color: 'var(--text-content-on-content)',
             border: 'none',
             borderRadius: 'var(--dim-radius-450, 14px)',
             padding: 'var(--dim-space-600, 24px)',

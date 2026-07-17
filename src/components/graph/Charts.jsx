@@ -61,12 +61,15 @@ const Tooltip = ({ x, y, children, anchor = 'top' }) => {
     : 'translate(-50%, 8px)';
   return (
     <div
-      className='pointer-events-none absolute z-20 px-3 py-2.5 rounded-card text-xs text-ink-secondary shadow-card border border-[var(--border-brandPrimary-quaternary)] flex flex-col gap-1 leading-snug'
+      /* borderColor inline — Tailwind v2.1 JIT parses `border-[var(...)]` as
+         border-width, so the class can't tint this hairline. */
+      className='pointer-events-none absolute z-20 px-3 py-2.5 rounded-card text-xs text-ink-secondary shadow-card border flex flex-col gap-1 leading-snug'
       style={{
         left: x,
         top: y,
         transform,
         background: 'var(--surface-card-100)',
+        borderColor: 'var(--border-brandPrimary-quaternary)',
         width: 'max-content',
         maxWidth: 'min(18rem, calc(100vw - 2rem))',
       }}
