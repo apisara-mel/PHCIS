@@ -44,7 +44,7 @@ const RadioPill = ({ selected, disabled = false, onClick, children }) => (
     aria-pressed={selected || undefined}
     aria-disabled={disabled || undefined}
     className={[
-      'min-h-[56px] px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition bg-[var(--surface-neutralbutton-quinary,#FFFFFF)]',
+      'min-h-[56px] px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition bg-surface-btnQuinary',
       selected ? 'border-2' : 'border',
       disabled ? 'cursor-not-allowed' : 'cursor-pointer',
     ].join(' ')}
@@ -291,7 +291,7 @@ const VitalsForm = ({ onValidityChange }) => {
   }, [isFormValid]);
 
   return (
-    <section className='bg-white rounded-b-card p-6 flex flex-col gap-3'>
+    <section className='bg-surface-card rounded-b-card p-6 flex flex-col gap-3'>
       {/* Topic — DS atom (Figma "Topic" 2334:1841, hierarchy=Primary,
          state=default). Aliases the Vitals section header so it inherits
          the same surface tint, leading-icon styling, and brand-tinted
@@ -360,7 +360,7 @@ const VitalsForm = ({ onValidityChange }) => {
             borderColor: 'var(--border-neutral-quaternary)',
           }}
         >
-          <h3 className='text-base font-bold text-[var(--text-topic-tertiary-title,#363B3F)]'>
+          <h3 className='text-base font-bold text-token-topicTertiaryTitle'>
             {measurementTitle}
           </h3>
           {/* React key — `activeRound.id` reseeds the cards when the user

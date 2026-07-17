@@ -126,7 +126,7 @@ const CatalogFormCard = ({ form }) => {
   return (
     <div
       role='group'
-      className='w-full h-full min-h-0 bg-white rounded-xl overflow-hidden flex flex-col gap-3 pb-3 transition-[box-shadow] duration-200 ease-out'
+      className='w-full h-full min-h-0 bg-surface-card rounded-xl overflow-hidden flex flex-col gap-3 pb-3 transition-[box-shadow] duration-200 ease-out'
       style={catalogCardFrameStyle({ hovered })}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -309,7 +309,7 @@ const FormsLibraryPage = () => {
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           {/* Search + filter toolbar — PHCIS | Forms */}
           <section
-            className='bg-white rounded-card shadow-card flex flex-col w-full'
+            className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
             style={{
               padding: 'var(--dim-space-500)',
               gap: 'var(--dim-space-400)',
@@ -420,7 +420,7 @@ const FormsLibraryPage = () => {
 
           {filteredFormsFlat.length === 0 && (
             <section
-              className='bg-white rounded-card shadow-card border border-dashed flex flex-col items-center justify-center text-center'
+              className='bg-surface-card rounded-card shadow-card border border-dashed flex flex-col items-center justify-center text-center'
               style={{
                 padding: 'var(--dim-space-800)',
                 gap: 'var(--dim-space-300)',
@@ -445,7 +445,7 @@ const FormsLibraryPage = () => {
               <section
                 key={category.key}
                 id={`forms-section-${category.key}`}
-                className='bg-white rounded-card shadow-card flex flex-col w-full'
+                className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
                 style={{
                   padding: 'var(--dim-space-600)',
                   gap: 'var(--dim-space-500)',
@@ -525,7 +525,7 @@ const FormsLibraryPage = () => {
           })}
 
           <section
-            className='bg-white rounded-card shadow-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'
+            className='bg-surface-card rounded-card shadow-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'
             style={{ padding: 'var(--dim-space-400) var(--dim-space-600)' }}
           >
             <p className='text-sm text-ink-secondary'>

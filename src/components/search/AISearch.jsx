@@ -151,7 +151,7 @@ const AISubmitButton = ({ onClick, disabled, ariaLabel = 'ส่งคำค้�
         borderRadius: 'var(--dim-radius-600, 24px)',
         background: 'linear-gradient(180deg, #6F82FF 0%, #C079EA 100%)',
         border: 'none',
-        color: '#FFFFFF',
+        color: 'var(--text-content-on-content)',
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.6 : 1,
         transform: pressed ? 'translateY(1px) scale(0.95)' : 'translateY(0) scale(1)',

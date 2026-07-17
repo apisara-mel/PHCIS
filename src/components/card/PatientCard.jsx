@@ -194,7 +194,7 @@ const PatientCard = ({
          under the app header. Rendered only in sticky mode. */}
       {sticky && <div ref={sentinelRef} aria-hidden style={{ height: 1 }} />}
     <div
-      className='w-full bg-white px-6 border-b border-brand-200 shadow-card'
+      className='w-full bg-surface-card px-6 border-b border-brand-200 shadow-card'
       style={cardStyle}
     >
       {/* Top row (back · title · actions). Figma 343:5629 drops this row

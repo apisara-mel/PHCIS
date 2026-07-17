@@ -59,7 +59,7 @@ const MobileNewsListInner = () => {
                   <div style={{
                     width: 96, height: 96, borderRadius: 'var(--dim-radius-300, 10px)',
                     background: 'linear-gradient(135deg, #54AA8C 0%, #4CC6AE 100%)',
-                    color: '#FFFFFF',
+                    color: 'var(--text-content-on-content)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     position: 'relative', flexShrink: 0,
                   }}>
@@ -68,7 +68,7 @@ const MobileNewsListInner = () => {
                       <span style={{
                         position: 'absolute', bottom: 6, right: 6,
                         background: 'rgba(0,0,0,0.55)',
-                        color: '#FFFFFF',
+                        color: 'var(--text-content-on-content)',
                         padding: '2px 6px', borderRadius: 4,
                         fontSize: 10, fontWeight: 700,
                       }}>{n.duration || `${n.readMinutes} นาที`}</span>
@@ -121,7 +121,7 @@ const MobileNewsDetailInner = () => {
         <div style={{
           width: '100%', aspectRatio: n.type === 'audio' ? '21/9' : '16/9',
           background: 'linear-gradient(135deg, #1F3D33 0%, #0F1B17 100%)',
-          color: '#FFFFFF',
+          color: 'var(--text-content-on-content)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           gap: 12, position: 'relative',
         }}>
@@ -136,7 +136,7 @@ const MobileNewsDetailInner = () => {
               style={{
                 width: 64, height: 64, borderRadius: '50%',
                 background: 'rgba(255,255,255,0.18)',
-                border: '2px solid #FFFFFF', color: '#FFFFFF',
+                border: '2px solid #FFFFFF', color: 'var(--text-content-on-content)',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
               <Sym name='play_arrow' size={36} fill />

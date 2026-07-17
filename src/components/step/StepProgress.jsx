@@ -262,7 +262,7 @@ const StepProgress = ({
          `border-b` (width + style) with an explicit `borderColor`
          matches how Popup / Calendar / DateFilterPopup tint their own
          chrome from the same token. */
-      className='w-full bg-white border-b rounded-t-card flex items-center justify-center px-6 py-6'
+      className='w-full bg-surface-card border-b rounded-t-card flex items-center justify-center px-6 py-6'
       style={{ borderBottomColor: 'var(--border-brandPrimary-quaternary)' }}
     >
       {row}

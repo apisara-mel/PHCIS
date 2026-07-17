@@ -502,7 +502,7 @@ const SymptomStep = ({ onValidityChange }) => {
   };
 
   return (
-    <section className='bg-white rounded-b-card p-6 flex flex-col gap-6'>
+    <section className='bg-surface-card rounded-b-card p-6 flex flex-col gap-6'>
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='smile'>อาการป่วย</TopicHeader>
         <div className='flex items-start gap-6 w-full'>
@@ -979,7 +979,7 @@ const ScreeningPage = () => {
             belt-and-braces guard against any future event source we
             haven't anticipated.                                     */}
         <div className='p-3 md:p-6 flex-1'>
-          <div className='bg-white rounded-card shadow-card overflow-hidden'>
+          <div className='bg-surface-card rounded-card shadow-card overflow-hidden'>
             <StepProgress
               framed
               steps={STEPS}

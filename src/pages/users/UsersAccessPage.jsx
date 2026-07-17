@@ -314,7 +314,7 @@ const UsersAccessPage = () => {
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           {/* Hero */}
           <section
-            className='bg-white rounded-card shadow-card flex flex-col md:flex-row md:items-center w-full'
+            className='bg-surface-card rounded-card shadow-card flex flex-col md:flex-row md:items-center w-full'
             style={{ gap: 'var(--dim-space-400)', padding: 'var(--dim-space-600)' }}
           >
             <div
@@ -358,7 +358,7 @@ const UsersAccessPage = () => {
 
           {/* Filter bar */}
           <section
-            className='bg-white rounded-card shadow-card flex flex-col w-full'
+            className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
             style={{ padding: 'var(--dim-space-500)', gap: 'var(--dim-space-300)' }}
           >
             <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
@@ -440,7 +440,7 @@ const UsersAccessPage = () => {
           <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
             {filtered.length === 0 ? (
               <div
-                className='bg-white rounded-card shadow-card flex flex-col items-center text-center'
+                className='bg-surface-card rounded-card shadow-card flex flex-col items-center text-center'
                 style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-200)' }}
               >
                 <Icon name='search_off' size={32} />

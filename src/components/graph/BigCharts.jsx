@@ -76,7 +76,12 @@ const YEAR_OPTS = [
 ];
 
 const Toolbar = ({ children, onReset, onExport }) => (
-  <div className='flex flex-wrap items-center gap-2 px-4 py-3 border-b border-[var(--border-brandPrimary-quaternary)] shadow-header'>
+  /* borderBottomColor inline — Tailwind v2.1 JIT parses `border-[var(...)]`
+     as border-width, so the class can't tint this rule. */
+  <div
+    className='flex flex-wrap items-center gap-2 px-4 py-3 border-b shadow-header'
+    style={{ borderBottomColor: 'var(--border-brandPrimary-quaternary)' }}
+  >
     {children}
     <div className='flex items-center gap-2 ml-auto'>
       <button
@@ -97,7 +102,7 @@ const Toolbar = ({ children, onReset, onExport }) => (
 
 const ChartCard = ({ label, title, toolbar, onReset, onExport, children, className = '' }) => (
   <section
-    className={`bg-white rounded-card shadow-card overflow-hidden flex flex-col ${className}`}
+    className={`bg-surface-card rounded-card shadow-card overflow-hidden flex flex-col ${className}`}
   >
     {label && (
       <div className='px-4 pt-3 text-sm font-bold text-ink'>{label}</div>
@@ -364,7 +369,7 @@ export const ResidencePieCard = () => {
                   <button
                     type='button'
                     onClick={(e) => { e.stopPropagation(); opt && set('district')(isActive ? '' : opt.value); }}
-                    className={`w-5 h-5 rounded border border-ink-line flex items-center justify-center shrink-0 ${isActive ? 'bg-brand-500 text-white border-brand-500' : 'text-ink-tertiary bg-white'}`}
+                    className={`w-5 h-5 rounded border border-ink-line flex items-center justify-center shrink-0 ${isActive ? 'bg-brand-500 text-white border-brand-500' : 'text-ink-tertiary bg-surface-card'}`}
                     aria-label={`เลือก ${d}`}
                   >
                     <Icon name={isActive ? 'check' : 'plus'} size={12} />
@@ -590,7 +595,7 @@ export const ServiceCenterMapCard = () => {
           />
           {/* Average bubble */}
           {showAvg && (
-            <div className='absolute top-2 right-12 bg-white rounded-md border border-ink-line shadow-card px-3 py-1.5 text-[10px] z-[400] pointer-events-none'>
+            <div className='absolute top-2 right-12 bg-surface-card rounded-md border border-ink-line shadow-card px-3 py-1.5 text-[10px] z-[400] pointer-events-none'>
               <span className='text-ink-tertiary'>ค่าเฉลี่ย:</span>{' '}
               <span className='font-bold text-ink tabular-nums'>
                 {(MAP_MARKERS.reduce((s, m) => s + m.value, 0) / MAP_MARKERS.length).toFixed(1)}%
@@ -599,7 +604,7 @@ export const ServiceCenterMapCard = () => {
           )}
           {/* Hover detail tooltip — richer than the inline label */}
           {hoverMarker != null && (
-            <div className='absolute top-2 left-12 z-[400] pointer-events-none px-3 py-2 rounded-md bg-white border border-brand-300 shadow-card text-[11px] flex flex-col gap-0.5 whitespace-nowrap'>
+            <div className='absolute top-2 left-12 z-[400] pointer-events-none px-3 py-2 rounded-md bg-surface-card border border-brand-300 shadow-card text-[11px] flex flex-col gap-0.5 whitespace-nowrap'>
               <div className='font-bold text-brand-500'>{MAP_MARKERS[hoverMarker].name}</div>
               <div className='text-ink-secondary'>{MAP_MARKERS[hoverMarker].district}</div>
               <div className='flex items-center gap-3 mt-1 pt-1 border-t border-ink-line'>
@@ -610,7 +615,7 @@ export const ServiceCenterMapCard = () => {
             </div>
           )}
           {/* Legend */}
-          <div className='absolute bottom-2 left-2 bg-white rounded-md border border-ink-line shadow-card p-2 text-[10px] space-y-1 z-[400] pointer-events-none'>
+          <div className='absolute bottom-2 left-2 bg-surface-card rounded-md border border-ink-line shadow-card p-2 text-[10px] space-y-1 z-[400] pointer-events-none'>
             <p className='font-bold text-ink'>สัดส่วนประชากร (ร้อยละ)</p>
             {[
               { c: '#6366F1', t: '> 10%'    },

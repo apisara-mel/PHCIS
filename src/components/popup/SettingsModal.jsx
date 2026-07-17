@@ -282,15 +282,46 @@ const SettingsModal = ({
     }
   }, [open, initialMode, initialTheme]);
 
+  // Paint a (mode, theme) pair onto <html> — used for the live preview so the
+  // user sees the appearance change before committing.
+  const previewToDom = (m, t) => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    const prefersDark = typeof window !== 'undefined' && window.matchMedia
+      && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const dark = m === 'dark' || (m === 'system' && prefersDark);
+    if (dark) root.setAttribute('data-mode', 'dark');
+    else root.removeAttribute('data-mode');
+    if (t && t !== 'default') root.setAttribute('data-brand', t);
+    else root.removeAttribute('data-brand');
+  };
+
+  // Live preview — while the modal is open, reflect the current selection on
+  // the whole document so the colour change is visible immediately.
+  useEffect(() => {
+    if (open) previewToDom(mode, theme);
+  }, [open, mode, theme]);
+
+  // Dismiss (close / ปิด) → discard the preview and restore what was applied.
+  const handleDismiss = () => {
+    previewToDom(initialMode, initialTheme);
+    onClose && onClose();
+  };
+
+  // Confirm (ตกลง) → keep the previewed appearance; the host persists it.
+  const handleApply = () => {
+    onApply && onApply({ mode, theme });
+  };
+
   return (
     <Popup
       open={open}
-      onClose={onClose}
+      onClose={handleDismiss}
       title='การตั้งค่า'
       subtitle='ปรับแต่งการใช้งานให้เหมาะกับคุณ'
       width={1024}
-      secondaryAction={{ label: 'ปิด', onClick: onClose }}
-      primaryAction={{ label: 'ตกลง', onClick: () => onApply && onApply({ mode, theme }) }}
+      secondaryAction={{ label: 'ปิด', onClick: handleDismiss }}
+      primaryAction={{ label: 'ตกลง', onClick: handleApply }}
       /* Body owns its own sidebar + right-panel layout, so reset the
          template's column padding/gap and let the children paint to edges. */
       bodyStyle={{ padding: 'var(--dim-space-0)', gap: 'var(--dim-space-0)', flexDirection: 'row' }}

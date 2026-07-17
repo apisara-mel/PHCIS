@@ -60,8 +60,9 @@ non-invasive, and the design tokens-only rule in
       │ Mirrors the Layer 2 + 3 structure with mobile-specific    │
       │ values (bigger touch targets, pill radius default):       │
       │                                                            │
-      │   --mobile-button-height-md   = 44   (web md = 40)        │
-      │   --mobile-button-height-lg   = 56                        │
+      │   --mobile-button-height-sm   = 40   (Figma Small)         │
+      │   --mobile-button-height-md   = 48   (Figma Medium)        │
+      │   --mobile-button-height-lg   = 56   (Figma Large)         │
       │   --mobile-button-radius      = pill (full)               │
       │   --mobile-surface-* / --mobile-text-* / --mobile-border-*│
       │                                                            │
@@ -376,6 +377,10 @@ Alpha-baked **background tint** primitives (Figma scope `EFFECT_COLOR`). Each is
 | `color.bg.teal-600` | `#1B867D` | 20 % |
 | `color.bg.sky-cyan-400` | `#40AAF2` | 20 % |
 | `color.bg.sky-cyan-600` | `#0A73CB` | 20 % |
+
+Solid **sky-cyan/700** (`--color-sky-cyan-700 = #0859A8`) — the ศูนย์ number text
+inside the Clinic Card badge (Figma DS Card `E5DppVK8yi0EKJp1SUuKa9` 39:197); the
+badge fill itself is a 141° cyan gradient (token exception, inline).
 
 ---
 
@@ -790,9 +795,15 @@ Alpha-baked **background tint** primitives (Figma scope `EFFECT_COLOR`). Each is
 | `dimension.radius.200` | `8` |
 | `dimension.radius.300` | `10` |
 | `dimension.radius.400` | `12` |
+| `dimension.radius.450` | `14` |
 | `dimension.radius.500` | `16` |
+| `dimension.radius.550` | `22` |
 | `dimension.radius.600` | `24` |
+| `dimension.radius.700` | `38` |
+| `dimension.radius.1000` | `100` |
 | `dimension.radius.full` | `9999` |
+
+> `dimension.radius.1000` (100px) — success card top arch (Archive Mobile [178:122765](https://www.figma.com/design/4WXeI8fgBLQGgQ9VheM2yD/-Archive--Mobile-Application?node-id=178-122765)).
 
 #### Size Scale (px)
 
@@ -811,6 +822,7 @@ Alpha-baked **background tint** primitives (Figma scope `EFFECT_COLOR`). Each is
 | `dimension.size.800` | `40` |
 | `dimension.size.900` | `44` |
 | `dimension.size.1000` | `48` |
+| `dimension.size.1050` | `50` |
 | `dimension.size.1100` | `52` |
 | `dimension.size.1200` | `56` |
 | `dimension.size.1300` | `60` |
@@ -818,15 +830,21 @@ Alpha-baked **background tint** primitives (Figma scope `EFFECT_COLOR`). Each is
 | `dimension.size.1500` | `68` |
 | `dimension.size.1600` | `72` |
 | `dimension.size.1700` | `80` |
+| `dimension.size.1750` | `82` |
 | `dimension.size.1800` | `96` |
 | `dimension.size.1900` | `112` |
 | `dimension.size.2000` | `128` |
+| `dimension.size.2050` | `144` |
 | `dimension.size.2100` | `160` |
+| `dimension.size.2170` | `177` |
+| `dimension.size.2190` | `190` |
 | `dimension.size.2200` | `192` |
+| `dimension.size.2280` | `218` |
 | `dimension.size.2300` | `224` |
 | `dimension.size.2400` | `256` |
 | `dimension.size.2500` | `320` |
 | `dimension.size.2600` | `384` |
+| `dimension.size.2610` | `402` |
 | `dimension.size.2700` | `448` |
 | `dimension.size.2800` | `512` |
 | `dimension.size.2900` | `640` |
@@ -1454,6 +1472,7 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.brandPrimary.tertiary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
 | `text.brandPrimary.quaternary` | `#91DFBB` | `#007549` | `Brand/primary/300` |
 | `text.brandPrimary.on-brand` | `#FFFFFF` | `#002318` | `Primitive/color/grey/50` |
+| `text.payment.total` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
 | `text.brandSecondary.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
 | `text.brandSecondary.secondary` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
 | `text.brandSecondary.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
@@ -1470,6 +1489,7 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.disabled.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
 | `text.disabled.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 | `text.info.default` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `text.info.emphasis` | `#3B82F6` | `#BFDBFE` | `Primitive/color/blue/500` |
 | `text.info.secondary` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
 | `text.info.tertiary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
 | `text.info.quaternary` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
@@ -1558,6 +1578,7 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.content.tertiary` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
 | `text.content.quaternary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.content.on-content` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `labels.primary` | `#000000` | `#FFFFFF` | iOS system label / Home Indicator |
 | `text.input.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.input.hover` | `#ADB2B7` | `#C9CDD0` | `Primitive/color/neutral/400` |
 | `text.input.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
@@ -1568,6 +1589,8 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.input.helper` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.input.errorHelper` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
 | `text.input.require` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `text.disabled.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.disabled.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.list.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.list.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `text.list.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
@@ -1927,6 +1950,7 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `icon.pink.tertiary` | `#F472B6` | `#DB2777` | `Primitive/color/pink/400` |
 | `icon.pink.quaternary` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
 | `icon.pink.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.step.accent` (`--icon-step-accent`) | `#FD879F` | `#FD879F` | coral accent in the two-tone care-journey step glyphs (Figma 371:45332 — `stepIcons.jsx`) |
 | `icon.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
 | `icon.positive.secondary` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
 | `icon.positive.tertiary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
@@ -2388,9 +2412,11 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.card.200` | `#FDFDFD` | `#363B3F` | `Primitive/color/grey/100` |
 | `surface.card.300` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
 | `surface.card.brand-100` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.camera.viewport` | `#111827` | `#111827` | `Primitive/color/slate/900` |
 | `surface.card.sakura-200` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` |
 | `surface.card.indigo-100` | `#F3F5FC` | `#1E1B4B` | `Primitive/color/indigo/50` |
 | `surface.card.blue-100` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
+| `surface.card.skycyan-100` | `#F4F9FD` | `#081E40` | `Primitive/color/sky-cyan/50` |
 | `surface.notification.default` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
 | `surface.formBuilder.default` | `#F4FBF8` | `#E8E8E8` | `Brand/primary/50` |
 | `surface.formBuilder.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
@@ -2552,6 +2578,7 @@ Every style below maps to a Figma text style of the same name. The right-hand "A
 | `typography.h3` | Mitr | Regular | 24px | 137.5% | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.2xl`  | `typography.letter-spacing.normal` |
 | `typography.h4` | Mitr | Regular | 20px | 137.5% | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.xl`   | `typography.letter-spacing.normal` |
 | `typography.h5` | Mitr | Regular | 18px | 150%   | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.lg`   | `typography.letter-spacing.normal` |
+| `typography.h5-emphasis` | Mitr | Medium | 18px | 150% | 0% | `typography.family.heading-graphic2` | `typography.weight.medium` | `typography.size.lg` | `typography.letter-spacing.normal` |
 | `typography.h6` | Mitr | Regular | 16px | 150%   | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.base` | `typography.letter-spacing.normal` |
 | `typography.h7` | Mitr | Regular | 14px | 150%   | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.sm`   | `typography.letter-spacing.normal` |
 | `typography.h8` | Mitr | Regular | 12px | 150%   | 0% | `typography.family.heading-graphic2` | `typography.weight.regular` | `typography.size.xs`   | `typography.letter-spacing.normal` |
@@ -3825,7 +3852,7 @@ Buttons use the **full** pill radius by default in this design system:
 | Brand Outline | `surface.brandPrimaryButton.quinary` (`#FFFFFF`) | `text/icon.brandPrimaryButton.default` (`#007549`) | `border.brandPrimaryButton.default` (`#007549`) |
 | Brand Ghost | `surface.brandPrimaryButton.quaternary` (`#F4FBF8`) | `text/icon.brandPrimaryButton.default` (`#007549`) | — |
 | Brand Subdue Fill | `surface.brandPrimaryButton.secondary` (`#C5EDDA`) | `text/icon.brandPrimaryButton.default` (`#007549`) | — |
-| Brand Subdue Outline | `surface.brandPrimaryButton.quinary` (`#FFFFFF`) | `text/icon.brandPrimaryButton.default` (`#007549`) | `border.brandPrimaryButton.secondary` (`#6AD6A5`) |
+| Brand Subdue Outline | `surface.brandPrimaryButton.quinary` (`#FFFFFF`) | `text/icon.brandPrimaryButton.default` (`#007549`) | `border.brandPrimaryButton.tertiary` (`#C5EDDA`) |
 | Danger Fill | `surface.dangerButton.default` (`#B91C1C`) | `text/icon.dangerButton.on-default` (`#FFFFFF`) | — |
 | Danger Outline | `surface.dangerButton.quinary` (`#FFFFFF`) | `text/icon.dangerButton.default` (`#B91C1C`) | `border.dangerButton.default` (`#DC2626`) |
 | Danger Ghost | `surface.dangerButton.quaternary` (`#FFF0F0`) | `text/icon.dangerButton.default` (`#B91C1C`) | — |
@@ -4530,6 +4557,23 @@ border.brandPrimary.default             → Brand-colored border
 
 ---
 
+### Mobile Application · Home Feather (filled)
+
+Figma [Mobile Application Home `2042:26021`](https://www.figma.com/design/6dCDQkwc8DhvyovBbDTyp5/Mobile-Application?node-id=2042-26021) uses filled Feather glyphs (not outline stroke, not Material). Rendered via `<Sym>` / `FigmaIcon` in [`src/components/mobile/figmaIcons.jsx`](src/components/mobile/figmaIcons.jsx).
+
+| Figma name | Sym `name` | Aliases |
+|------------|------------|---------|
+| Calendar | `calendar` | `calendar_today`, `calendar_month`, `event` — purple Colorful icon Badge Archive [`194:153538`](https://www.figma.com/design/4WXeI8fgBLQGgQ9VheM2yD/-Archive--Mobile-Application?node-id=194-153538) |
+| Clock | `clock` | `schedule`, `access_time` |
+| Map pin | `map-pin` | `location_on`, `place`, `map_pin` — also clinic visit service badge (Archive `367:41054`) |
+| Video | `video` | `videocam`, `video_cam` |
+| File text | `file-text` | `description`, `file_text`, `article` |
+| Chevron right | `chevron-right` | `chevron_right` |
+
+Colorful icon Badge glyphs on the appointment card use `text/brandPrimary/secondary` (`#08A768`), not Colorful Badge label green (`#007549`).
+
+---
+
 ### MIH Custom / Medical Icons (Material Symbols)
 
 | Preview | Name | Node ID | Source |
@@ -4664,7 +4708,8 @@ Row buttons set `className='flex-1 min-w-0'` and `style={{ minWidth: 0, maxWidth
 | `--text-calendar-hover` | `text/calendar/hover` | emerald-700 | `#007549` | Day number on hover |
 | `--surface-calendar-current` | `surface/calendar/current` | emerald-100 | `#E2F3EB` | Today/Current day bg — **no border** |
 | `--text-calendar-current` | `text/calendar/current` | emerald-700 | `#007549` | Today/Current day number |
-| `--surface-calendar-selected` | `surface/calendar/selected` | emerald-700 | `#007549` | Selected day · Range endpoints bg |
+| `--surface-calendar-selected` | `surface/calendar/selected` | emerald-700 | `#007549` | Selected day · Range endpoints bg (web deep-green) |
+| `--surface-calendar-selected-mobile` | `surface/calendar/selected` | emerald-600 | `#08A768` | Selected day bg on **mobile** (brighter emerald — §12889 · Figma 173:82996) |
 | `--text-calendar-selected` | `text/calendar/selected` | neutral/white | `#FFFFFF` | Selected day · Range endpoints text |
 | `--text-calendar-disabled` | `text/calendar/disabled` | slate-200 | `#CBD5E1` | Disabled day number |
 | `--text-calendar-other` | `text/neutral/tertiary` | neutral-400 | `#ADB2B7` | Other-month day numbers |
@@ -4703,7 +4748,8 @@ Row buttons set `className='flex-1 min-w-0'` and `style={{ minWidth: 0, maxWidth
 | Default | transparent | `--text-calendar-default` | White bg from container |
 | Hover | `--surface-calendar-hover` | `--text-calendar-hover` | CSS `:hover` only — no JS |
 | Today / Current | `--surface-calendar-current` | `--text-calendar-current` | **No border** (old impl had border — wrong) |
-| Selected | `--surface-calendar-selected` | `--text-calendar-selected` | Single-select; fully round |
+| Selected | `--surface-calendar-selected` | `--text-calendar-selected` | Single-select; fully round (mobile → `--surface-calendar-selected-mobile` `#08A768`) |
+| Full (เต็ม) | transparent | `--text-calendar-disabled` | Fully-booked day — renders label **"เต็ม"** (12px) instead of the number; `cursor: not-allowed`. Figma 140:9320 |
 | Range start | `--surface-calendar-selected` | `--text-calendar-selected` | `border-radius: 9999px 0 0 9999px` |
 | Range (middle) | `--surface-calendar-hover` | `--text-calendar-default` | `border-radius: 0` |
 | Range end | `--surface-calendar-selected` | `--text-calendar-selected` | `border-radius: 0 9999px 9999px 0` |
@@ -4728,7 +4774,8 @@ SVG path (Figma exact): `M9.52864 3.52864 ... L5.52864 7.52864Z` — right chevr
 --text-calendar-hover:       #007549;   /* text/calendar/hover */
 --surface-calendar-current:  #E2F3EB;   /* surface/calendar/current */
 --text-calendar-current:     #007549;   /* text/calendar/current */
---surface-calendar-selected: #007549;   /* surface/calendar/selected */
+--surface-calendar-selected: #007549;   /* surface/calendar/selected (web) */
+--surface-calendar-selected-mobile: #08A768;  /* surface/calendar/selected on mobile (emerald-600) */
 --text-calendar-selected:    #FFFFFF;   /* text/calendar/selected */
 --text-calendar-disabled:    #CBD5E1;   /* text/calendar/disabled */
 --text-calendar-other:       #ADB2B7;   /* text/neutral/tertiary */
@@ -6956,7 +7003,8 @@ The Alert component communicates system feedback. All color, text, and icon toke
 | Text gap | `dimension/space/100` | **4 px** | Between title and subtext |
 | Icon ↔ content gap | `dimension/space/300` | **12 px** | Horizontal gap |
 | Detail box padding | `dimension/space/300` | **12 px** | Internal padding |
-| Border radius | `dimension/radius/200` | **8 px** | Container and detail box corners |
+| Container border radius | `dimension/radius/600` | **24 px** | Large Alert outer corners |
+| Detail box border radius | `dimension/radius/200` | **8 px** | Detail box corners |
 | Border width | `dimension/stroke/100` | **1 px** | Container and detail box border |
 
 ---
@@ -7842,14 +7890,14 @@ Export: `VOICE_TEXTAREA_LANGUAGE_OPTIONS` from `VoiceTextarea.jsx`. Pass `menuZI
 
 ### 6.17 Search
 
-> **Figma:** [MIH Design System Foundation — Search](https://www.figma.com/design/SBdh4TtY0KAa22s3dnyRNr/MIH-Design-System-Foundation?node-id=325-3014)  
+> **Figma:** [MIH Design System Foundation — Primary Search](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2056-4246)
 > Primary Search node: `2056:4246` · Secondary Search node: `305:43`
 
 The Search component ships in **two variants**:
 
 | Variant | Description | Height | Radius | Figma Node |
 |---------|-------------|--------|--------|------------|
-| **Primary Search** | Full-width bar with brand border, recent-search avatar cluster, typing dropdown. **5 states** — Default · Hover · Focus · Typing · Filled. | `64px` | `16px` | `2056:4246` |
+| **Primary Search** | Full-width pill with brand border. **5 states** — Default · Hover · Focus · Typing · Filled. Typing adds X + submit controls. | `56px` | `9999px` | `2056:4246` |
 | **Secondary Search** | Compact inline input with neutral border, focus ring, clear button | `40px` / `36px` (SM) | `8px` | `305:43` |
 
 ---
@@ -7892,7 +7940,7 @@ primaryBorder/600                   →  brand primitive        →  rgba(8,167,
 
 #### 6.17.1 Primary Search — Color Tokens
 
-> **Property panel — Figma 2056:4246:** the canonical `State` enum exposes **five** values: `Default` · `Hover` · `Focus` · `Typing` · `Filled`. `Focus` and `Typing` both have the input focused but split on whether a value is present — `Focus` keeps the recent-search avatars on the right and shows the `Dropdown/Recent` panel below; `Typing` swaps the right cluster for an XButton + SubmitButton and surfaces live suggestions in the same dropdown panel.
+> **Property panel — Figma 2056:4246:** the canonical `State` enum exposes **five** values: `Default` · `Hover` · `Focus` · `Typing` · `Filled`. `Focus` and `Typing` both have the input focused but split on whether a value is present. Only Typing adds the XButton + Brand Circle Icon Button. The code component preserves the existing recent/suggestion dropdown API below the Figma shell for production queue lookup.
 
 | Property | Semantic Token | Primitive / Brand | CSS Variable | Brand-responsive |
 |----------|---------------|-------------------|-------------|-----------------|
@@ -7902,7 +7950,6 @@ primaryBorder/600                   →  brand primitive        →  rgba(8,167,
 | Border — Focus | `border/primarySearch/focus` (aliases `default`) | `primary/600` | `var(--border-primarySearch-focus)` | ✓ |
 | Border — Typing | `border/primarySearch/typing` | `primary/700` | `var(--border-primarySearch-typing)` | ✓ |
 | Border — Filled | `border/primarySearch/filled` | `primary/600` | `var(--border-primarySearch-filled)` | ✓ |
-| Focus ring (Hover · Focus · Typing) | `primaryBorder/600` @ 4 px | `primary/600` @ 15% | `var(--primaryBorder-600)` | ✓ |
 | Shadow layer 1 | `PrimaryShadow/600` | `primary/600` @ 8% | `var(--PrimaryShadow-600)` | ✓ |
 | Shadow layer 2 | `PrimaryShadow/601` | `primary/600` @ 10% | `var(--PrimaryShadow-601)` | ✓ |
 
@@ -7920,15 +7967,15 @@ primaryBorder/600                   →  brand primitive        →  rgba(8,167,
 
 **Right cluster (per state):**
 
-| State | Avatars + "ค้นหาล่าสุด" | XButton (32 px) | SubmitButton (36 px) | Dropdown |
-|---|---|---|---|---|
-| Default | ✓ | — | — | — |
-| Hover | ✓ | — | — | — |
-| Focus | ✓ | — | — | `Dropdown/Recent` (history rows) |
-| Typing | — | ✓ (brand-quaternary chip) | ✓ (brand-primary circle, `arrow_upward`) | `Dropdown/Recent` (suggestion rows) |
-| Filled | ✓ | — | — | — |
+| State | XButton (40 px) | SubmitButton (40 px) | Dropdown |
+|---|---|---|---|
+| Default | — | — | — |
+| Hover | — | — | — |
+| Focus | — | — | `Dropdown/Recent` (history rows) |
+| Typing | ✓ (brand-quaternary chip) | ✓ (brand-primary circle, `arrow_upward`) | `Dropdown/Recent` (suggestion rows) |
+| Filled | — | — | — |
 
-> The XButton appears **only** in `Typing` — it wipes the value back to empty (which collapses the state to `Focus`, restoring the avatars + recent dropdown). See [`SecondarySearch`'s `XButton`](src/components/search/SecondarySearch.jsx) for the canonical 24 → 9999 px radius morph on hover; PrimarySearch reuses the same shape inline.
+> The XButton appears **only** in `Typing` — it wipes the value back to empty, collapsing the state to `Focus` and restoring the recent dropdown.
 
 **Icon tokens:**
 
@@ -7945,15 +7992,15 @@ primaryBorder/600                   →  brand primitive        →  rgba(8,167,
 
 | Property | Semantic Token | Resolved Value |
 |----------|---------------|----------------|
-| Height | *(fixed)* | `64px` |
+| Height | `dimension/size/1200` | `56px` |
 | Border-width (all states) | `dimension/stroke/200` | `2px` |
-| Border-radius | `dimension/radius/500` | `16px` |
+| Border-radius | `dimension/radius/full` | `9999px` |
 | Padding X | `dimension/size/500` | `24px` |
 | Padding Y | `dimension/space/400` | `16px` |
 | Gap | `dimension/space/600` | `24px` |
 | Icon size | `dimension/size/400` | `20px` |
-| Avatar overlap | `dimension/space/negative-300` | `-12px` |
-| Min-width | `dimension/size/2500` | `320px` |
+| Min-width — Default / Typing | `dimension/size/2500` | `320px` |
+| Min-width — Hover / Focus / Filled | `dimension/size/2100` | `160px` |
 | Max-width | `dimension/size/2900` | `640px` |
 
 ---
@@ -7978,14 +8025,14 @@ CSS: `box-shadow: 0 1px 4px rgba(8,167,104,.08), 0 1px 8px rgba(8,167,104,.10);`
 
 #### 6.17.4 Primary Search — Typing State
 
-**Search button (Brand Circle Icon Button, replaces avatar cluster):**
+**Search button (Brand Circle Icon Button):**
 
 | Property | Semantic Token | Primitive | Value |
 |----------|---------------|-----------|-------|
 | Background | `surface/brandPrimaryButton/default` | `emerald/700` | `#007549` |
 | Icon color | `icon/brandPrimary/on-brand` | `grey/50` | `#FFFFFF` |
-| Size | *(fixed)* | — | `36px × 36px` |
-| Border-radius | `dimension/radius/600` | — | `24px` |
+| Size | `dimension/size/800` | — | `40px × 40px` |
+| Border-radius | `dimension/radius/full` | — | `9999px` |
 
 **Dropdown panel:**
 
@@ -8153,8 +8200,8 @@ CSS: `box-shadow: 0 0 0 4px rgba(8,167,104,0.15);`
 |---|---|---|
 | [`--color-indigo-300`](src/index.css) | `#A5B4FC` | Dark-mode hover/typing |
 | [`--color-indigo-400`](src/index.css) | `#818CF8` | Dark-mode default/filled · `--surface-colorfulbadge-indigo-bold` · indigo shadow primitives |
-| [`--color-indigo-600`](src/index.css) | `#4F46E5` | Light-mode default/filled |
-| [`--color-indigo-700`](src/index.css) | `#4338CA` | Light-mode hover/typing · `--text-colorfulbadge-indigo` |
+| [`--color-indigo-600`](src/index.css) | `#4F46E5` | Light-mode default/filled · `--text-colorfulbadge-indigo` |
+| [`--color-indigo-700`](src/index.css) | `#4338CA` | Light-mode hover/typing |
 
 **Dark-mode trigger.** The dark values activate on either:
 1. `<html data-theme="dark">` — explicit override (palette switcher, "dark" toggle), or
@@ -11146,7 +11193,7 @@ function pickSelect(val) {
 ### Overview
 
 **Figma node:** `2056:4246` — Primary Search + Secondary Search
-**Component variants:** Primary Search (4 states) · Secondary Search (4 states × 2 sizes)
+**Component variants:** Primary Search (5 states) · Secondary Search (4 states × 2 sizes)
 
 The Search component is divided into two variants aligned with the MIH brand system. All colors, spacing, and shadows reference semantic tokens that alias MIH primitive tokens.
 
@@ -11154,16 +11201,18 @@ The Search component is divided into two variants aligned with the MIH brand sys
 
 ### 6.26.1 Primary Search
 
+> Current implementation follows §6.17 and Figma `2056:4246`. The legacy avatar-pile treatment has been retired.
+
 **Dimensions (from Figma):**
-- Height: `64px` (`dimension/size/800`)
-- Width: `min-width: 320px`, `max-width: 640px` (`dimension/size/2900`)
+- Height: `56px` (`dimension/size/1200`)
+- Width: `min-width: 160px` (Default/Typing use `320px`), `max-width: 640px`
 - Padding: `16px 24px` (`dimension/space/400` × `dimension/size/500`)
-- Border-radius: `16px` (`dimension/radius/500`)
+- Border-radius: `9999px` (`dimension/radius/full`)
 - Border-width: `2px` (`dimension/stroke/200`)
 - Inner gap (icon ↔ text): `16px` (`dimension/space/400`)
 - Outer gap (left-block ↔ right-block): `24px` (`dimension/space/600`)
-- Avatar size: `32px × 32px`, radius `16px`, overlap margin `-12px`, border `2px solid white`
-- Submit button: `36px × 36px`, radius `24px` (`dimension/radius/600`)
+- X Button: `40px × 40px`, radius `24px` (`dimension/radius/600`) — Typing only
+- Submit button: `40px × 40px`, radius full — Typing only
 
 **State Token Table:**
 
@@ -11171,6 +11220,7 @@ The Search component is divided into two variants aligned with the MIH brand sys
 |-------|-------------|-----------|-----|
 | Default | `border/primarySearch/default` | emerald/600 | `#08A768` |
 | Hover | `border/primarySearch/hover` | emerald/700 | `#007549` |
+| Focus | `border/primarySearch/focus` | emerald/600 | `#08A768` |
 | Typing | `border/primarySearch/typing` | emerald/700 | `#007549` |
 | Filled | `border/primarySearch/filled` | emerald/600 | `#08A768` |
 
@@ -11178,6 +11228,7 @@ The Search component is divided into two variants aligned with the MIH brand sys
 |-------|-----------|-----------|-----|
 | Default | `icon/primarySearch/default` | primary/600 = emerald/600 | `#08A768` |
 | Hover | `icon/primarySearch/hover` | primary/700 = emerald/700 | `#007549` |
+| Focus | `icon/primarySearch/focus` | primary/600 = emerald/600 | `#08A768` |
 | Typing | `icon/primarySearch/typing` | primary/700 = emerald/700 | `#007549` |
 | Filled | `icon/primarySearch/filled` | primary/600 = emerald/600 | `#08A768` |
 
@@ -11185,6 +11236,7 @@ The Search component is divided into two variants aligned with the MIH brand sys
 |-------|----------------------|-----------|-----|
 | Default | `text/primarySearch/default` | neutral/400 | `#ADB2B7` |
 | Hover | `text/primarySearch/hover` | neutral/700 | `#4D5358` |
+| Focus | `text/primarySearch/focus` | neutral/400 | `#ADB2B7` |
 | Typing | `text/primarySearch/typing` | neutral/700 | `#4D5358` |
 | Filled | `text/primarySearch/filled` | neutral/700 | `#4D5358` |
 
@@ -11193,12 +11245,11 @@ The Search component is divided into two variants aligned with the MIH brand sys
 - CSS: `box-shadow: 0 1px 4px rgba(8,167,104,0.10), 0 1px 2px rgba(8,167,104,0.08)`
 - Variable: `--PrimaryShadow-600: rgba(8,167,104,0.08)` · `--PrimaryShadow-601: rgba(8,167,104,0.10)`
 
-**Right side — Default / Hover / Filled:**
-- 3 avatar circles (32×32, radius 16px, overlap -12px, white border 2px)
-- Caption: `ค้นหาล่าสุด` · 12px · token `text/primarySearch/*`
+**Right side — Default / Hover / Focus / Filled:** no trailing controls.
 
 **Right side — Typing state:**
-- Green submit button (36×36, radius 24px, bg `surface/brandPrimaryButton/default = #007549`)
+- X Button (40×40, brand-quaternary surface)
+- Green submit button (40×40, full radius, bg `surface/brandPrimaryButton/default = #007549`)
 - Arrow-up icon inside button: 16×16, white (`icon/brandPrimary/on-brand`)
 - Token: `surface/brandPrimaryButton/default` = emerald/700 = `#007549`
 
@@ -12377,7 +12428,7 @@ A central reference for *behavior, accessibility, and usage rules* across recent
 #### 6.30.15 Search — Primary / Secondary ([6.26](#626-search-figma-2056-4246))
 
 **Behavior**
-- **PrimarySearch** — hero search input with avatar pile + "ค้นหาล่าสุด"; opens a Combobox panel on focus. Panel content is condition-driven:
+- **PrimarySearch** — 56px brand-bordered pill. Typing exposes the 40px X + submit controls; it opens a Combobox panel on focus. Panel content is condition-driven:
   - empty input → **recent-search history** (`history` prop, persist in `localStorage`; header `ค้นหาล่าสุด`, optional `ล้างประวัติ`)
   - typing (≥ 1 char) → **live suggestions** (`suggestions` prop) with rich rows (`label` + tertiary `sublabel`); falls back to `emptyMessage` when no match.
   - `history` / `suggestions` default to `[]` — pages must opt-in. `onSubmit` (Enter / suggestion click) is the hook for pushing the committed query into history.
@@ -12800,12 +12851,17 @@ Defined in [`src/index.css`](src/index.css) — a single `:root` block right abo
 | Token | Value | Resolves to |
 |-------|-------|-------------|
 | `--mobile-button-radius` | `var(--dim-radius-full)` | `9999px` (pill) |
-| `--mobile-button-height-md` | `44px` | iOS HIG touch target |
-| `--mobile-button-height-lg` | `56px` | screen-bottom CTA |
-| `--mobile-button-padding-x` | `var(--dim-space-500)` | `20px` |
-| `--mobile-button-gap` | `var(--dim-space-200)` | `8px` (icon ↔ label) |
-| `--mobile-button-type-size` | `var(--type-size-base)` | `16px` |
-| `--mobile-button-type-weight` | `var(--type-weight-bold)` | `700` |
+| `--mobile-button-height-sm` | `40px` | Figma Size=Small (`dimension/size/800`) |
+| `--mobile-button-height-md` | `48px` | Figma Size=Medium (`dimension/size/1000`) |
+| `--mobile-button-height-lg` | `56px` | Figma Size=Large (`dimension/size/1200`) |
+| `--mobile-button-padding-x` | `var(--dim-space-600)` | `24px` |
+| `--mobile-button-gap` | `var(--dim-space-200)` | `8px` (Medium / Large) |
+| `--mobile-button-gap-sm` | `var(--dim-space-150)` | `6px` (Small) |
+| `--mobile-button-type-size` | `var(--type-size-base)` | `16px` (Small) |
+| `--mobile-button-type-size-lg` | `var(--type-size-lg)` | `18px` (Medium / Large) |
+| `--mobile-button-type-weight` | `var(--type-weight-regular)` | `400` (heading-graphic2) |
+| `--mobile-button-shadow-fill` | Brand Drop Shadow Bottom/300 | Fill · Default / Hover / Focus |
+| `--mobile-surface-keypadButton-pressed` | white @ 20% (`color-mix` on `--text-content-on-content`) | KeypadButton · Pressed fill (Archive `314:43835`) |
 
 > **Why pill, not 6 px?** The brief is "ทรงมนโค้ง" — mobile buttons read as soft chips, not rectangular form-controls. Pill survives at any width without re-tuning the radius (a fixed `12 px` looks pill at width 60, square at width 280).
 
@@ -12889,70 +12945,171 @@ Each primitive lives in its own file under [src/components/mobile/](src/componen
 **Naming convention** — mobile components use the **same names as the Figma file** (no `Mobile` prefix). The folder location (`src/components/mobile/button/BrandButton.jsx` vs `src/components/button/BrandButton.jsx`) is what disambiguates them from the web equivalents. Import path is the source of truth:
 
 ```js
-import { BrandButton } from '@/components/button';         // web (44h, radius-150)
-import { BrandButton } from '@/components/mobile';         // mobile (44/56h, pill)
+import { BrandButton } from '@/components/button';         // web (36/40/44h, radius-150)
+import { BrandButton } from '@/components/mobile';         // mobile (40/48/56h, pill)
 import { BrandButton } from '@/components/mobile/button';  // mobile, explicit
 ```
 
-#### Button family (Figma section 319:2012 · 16 components)
+#### Button family (Figma App `opz7X9AAKGQf5prHhsPDGn` · Brand Button `231:29` + siblings)
 
-All buttons live under [src/components/mobile/button/](src/components/mobile/button/). They share `MobileButtonBase` ([_base.jsx](src/components/mobile/button/_base.jsx)) — each file calls `buildPalette(tone, { fillTier, variants })` to derive its full state matrix from `--mobile-*` semantic tokens, then passes the result to the shared renderer. Two sizes: `md` (44h) and `lg` (56h, default).
+All text buttons live under [src/components/mobile/button/](src/components/mobile/button/). They share `MobileButtonBase` + `createFigmaTextButton` ([_base.jsx](src/components/mobile/button/_base.jsx)) — each file builds a tone palette then exposes the **same Figma property surface**:
 
-**State matrix** — every variant resolves to 5 states (`default` / `hover` / `active` / `focus` / `disabled`) just like the web BrandButton. The renderer tracks `hover` via `useState` + `onMouseEnter` / `onMouseLeave`, `focus` via `onFocus` / `onBlur`, and `pressed` via `onMouseDown` / `onMouseUp`. Callers can also force a state via `hovered` / `active` / `focused` / `disabled` props — used by the `/m/components` state-matrix grid to render every state side-by-side. Focus ring uses CSS `outline` (paints OUTSIDE the box) so the button doesn't grow on focus.
+| Figma property | Code prop | Values |
+|----------------|-----------|--------|
+| **Style** | `variant` / `buttonStyle` | `Fill` · `Outline` · `Ghost` (Subdue families: Fill · Outline only) |
+| **State** | `state` or `hovered` / `active` / `focused` / `disabled` | `Default` · `Hover` · `Active` · `Focus` · `Disable` |
+| **Size** | `size` | `Large` (56) · `Medium` (48) · `Small` (40) — also `lg` / `md` / `sm` |
+| **Show Leading icon** | `showLeadingIcon` + `leadingIcon` | boolean + Material Symbol name |
+| **Show Tailing icon** | `showTailingIcon` + `trailingIcon` | boolean + Material Symbol name (Figma spelling *Tailing*) |
 
-| Component | Figma node | Shape | Notes |
-|-----------|-----------|-------|-------|
-| [`BrandButton`](src/components/mobile/button/BrandButton.jsx) | 231:29 | pill | Primary CTA — `variant='fill'` default |
-| [`BrandSubdueButton`](src/components/mobile/button/BrandSubdueButton.jsx) | 2024:3589 | pill | Soft brand surface — quaternary bg |
-| [`DangerButton`](src/components/mobile/button/DangerButton.jsx) | 2024:3590 | pill | Destructive / irreversible actions |
-| [`DangerSubdueButton`](src/components/mobile/button/DangerSubdueButton.jsx) | 2024:3592 | pill | Soft destructive — warning quaternary bg |
-| [`NeutralButton`](src/components/mobile/button/NeutralButton.jsx) | 2024:3591 | pill | Greyscale secondary |
-| [`NeutralSubdueButton`](src/components/mobile/button/NeutralSubdueButton.jsx) | 2024:2940 | pill | "Skip" / "later" — content/secondary bg |
-| [`BrandIconButton`](src/components/mobile/button/BrandIconButton.jsx) | 377:11596 | pill (square) | Icon-only — 44×44 or 56×56 |
+**Size matrix (Figma App):**
+
+| Size | Height | Icon | Gap | Type |
+|------|--------|------|-----|------|
+| Small | 40px | 16 | 6px | `--type-size-base` (16) |
+| Medium | 48px | 20 | 8px | `--type-size-lg` (18) |
+| Large | 56px | 24 | 8px | `--type-size-lg` (18) |
+
+Padding X = `24px` (`--dim-space-600`) · radius = pill · font = `--type-family-heading-graphic2` regular. Fill · Default uses `--mobile-button-shadow-fill` (Brand Drop Shadow Bottom/300).
+
+**State matrix** — every Style resolves to 5 states (`default` / `hover` / `active` / `focus` / `disabled`). The renderer tracks hover/focus/pressed; callers can force a state via props (used by `/m/components`). Focus ring uses CSS `outline` outside the box.
+
+| Component | Figma node | Styles | Notes |
+|-----------|-----------|--------|-------|
+| [`BrandButton`](src/components/mobile/button/BrandButton.jsx) | [231:29](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=231-29) | Fill · Outline · Ghost | Primary CTA |
+| [`BrandSubdueButton`](src/components/mobile/button/BrandSubdueButton.jsx) | [2024:3589](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2024-3589) | Fill · Outline | Soft brand · no Ghost |
+| [`DangerButton`](src/components/mobile/button/DangerButton.jsx) | [2024:3590](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2024-3590) | Fill · Outline · Ghost | Destructive |
+| [`DangerSubdueButton`](src/components/mobile/button/DangerSubdueButton.jsx) | [2024:3592](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2024-3592) | Fill · Outline | Soft destructive · no Ghost |
+| [`NeutralButton`](src/components/mobile/button/NeutralButton.jsx) | [2024:3591](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2024-3591) | Fill · Outline · Ghost | Greyscale secondary |
+| [`NeutralSubdueButton`](src/components/mobile/button/NeutralSubdueButton.jsx) | [2024:2940](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2024-2940) | Fill · Outline | Soft neutral · no Ghost |
+| [`BrandIconButton`](src/components/mobile/button/BrandIconButton.jsx) | 377:11596 | pill (square) | Icon-only |
 | [`BrandSubdueIconButton`](src/components/mobile/button/BrandSubdueIconButton.jsx) | 2024:4352 | pill (square) | Icon-only · soft brand |
 | [`DangerIconButton`](src/components/mobile/button/DangerIconButton.jsx) | 2024:3701 | pill (square) | Icon-only · destructive |
 | [`DangerSubdueIconButton`](src/components/mobile/button/DangerSubdueIconButton.jsx) | 2024:4434 | pill (square) | Icon-only · soft destructive |
 | [`NeutralIconButton`](src/components/mobile/button/NeutralIconButton.jsx) | 2024:4189 | pill (square) | Icon-only · neutral |
 | [`NeutralSubdueIconButton`](src/components/mobile/button/NeutralSubdueIconButton.jsx) | 2024:4516 | pill (square) | Icon-only · soft neutral |
-| [`BrandCircleIconButton`](src/components/mobile/button/BrandCircleIconButton.jsx) | 2103:548 | circle (50%) | Force-circular — distinct from pill |
+| [`BrandCircleIconButton`](src/components/mobile/button/BrandCircleIconButton.jsx) | 2103:548 | circle (50%) | Force-circular |
 | [`BrandCircleSubdueIconButton`](src/components/mobile/button/BrandCircleSubdueIconButton.jsx) | 2103:645 | circle (50%) | Force-circular · soft brand |
-| [`BrandSubdueFloatButton`](src/components/mobile/button/BrandSubdueFloatButton.jsx) | 2293:11088 | circle (50%) | FAB · drop-shadow lifted |
-| [`HistoryListFormButton`](src/components/mobile/button/HistoryListFormButton.jsx) | 3360:2711 | pill | Wide pill row · forced size=md · neutral surface |
+| [`BrandSubdueFloatButton`](src/components/mobile/button/BrandSubdueFloatButton.jsx) | 2293:11088 | circle (50%) | FAB · drop-shadow |
+| [`HistoryListFormButton`](src/components/mobile/button/HistoryListFormButton.jsx) | 3360:2711 | pill | Wide row · forced Medium |
+| [`KeypadButton`](src/components/mobile/button/KeypadButton.jsx) | [314:43835](https://www.figma.com/design/4WXeI8fgBLQGgQ9VheM2yD/-Archive--Mobile-Application?node-id=314-43835) | circle 72 | PIN keypad · Number / icon · Default / Pressed |
 
-**Props (shared via `MobileButtonBase`):**
+#### BrandButton
+
+> Mobile · Figma App node [`231:29`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=231-29) · Live: [`/m/components`](/m/components)
+
+##### Component Properties
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `variant` / `buttonStyle` | `Fill` \| `Outline` \| `Ghost` | `Fill` | Figma **Style** |
+| `size` | `Large` \| `Medium` \| `Small` | `Large` | 56 / 48 / 40 px height |
+| `state` | `Default` \| `Hover` \| `Active` \| `Focus` \| `Disable` | `Default` | Force state (demos) |
+| `showLeadingIcon` | `boolean` | `true` | Show leading icon when `leadingIcon` set |
+| `showTailingIcon` | `boolean` | `true` | Show trailing icon when `trailingIcon` set (Figma name) |
+| `leadingIcon` / `trailingIcon` | Material Symbol name | — | Icon slots |
+| `fullWidth` | `boolean` | `true` | Span container width |
+| `disabled` | `boolean` | `false` | Non-interactive |
+
+##### Spacing
+
+| Size | Height | Padding X | Gap | Icon | Type |
+|---|---|---|---|---|---|
+| Large | 56px | 24px | 8px | 24×24 | 18px regular |
+| Medium | 48px | 24px | 8px | 20×20 | 18px regular |
+| Small | 40px | 24px | 6px | 16×16 | 16px regular |
 
 ```jsx
 <BrandButton
-  variant='fill' | 'outline' | 'ghost'   // Figma "Style" property (default 'fill')
-  size='md' | 'lg'                        // 'lg' default (56h); 'md' = 44h
-  leadingIcon='event_available'           // Material Symbol name
-  trailingIcon='arrow_forward'
+  buttonStyle="Fill"
+  size="Large"
+  leadingIcon="image"
+  trailingIcon="chevron_right"
+  showLeadingIcon
+  showTailingIcon
+>
+  Button
+</BrandButton>
+```
+
+#### BrandSubdueButton
+
+> Mobile · Figma [`2024:3589`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2024-3589) · Soft brand · **Style: Fill / Outline only** (no Ghost) · same Size / State / icon toggles as BrandButton.
+
+#### DangerButton
+
+> Mobile · Figma [`2024:3590`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2024-3590) · Destructive · Style: Fill / Outline / Ghost · same Size / State / icon toggles.
+
+#### DangerSubdueButton
+
+> Mobile · Figma [`2024:3592`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2024-3592) · Soft destructive · **Style: Fill / Outline only** · same Size / State / icon toggles.
+
+#### NeutralButton
+
+> Mobile · Figma [`2024:3591`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2024-3591) · Greyscale · Style: Fill / Outline / Ghost · same Size / State / icon toggles.
+
+#### NeutralSubdueButton
+
+> Mobile · Figma [`2024:2940`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2024-2940) · Soft neutral · **Style: Fill / Outline only** · same Size / State / icon toggles.
+
+**Props (shared via `createFigmaTextButton`):**
+
+```jsx
+<BrandButton
+  variant="Fill" | "Outline" | "Ghost"   // or buttonStyle=…
+  size="Large" | "Medium" | "Small"      // or lg | md | sm
+  state="Default"                        // optional force for demos
+  leadingIcon="event_available"
+  trailingIcon="arrow_forward"
+  showLeadingIcon
+  showTailingIcon
   disabled
-  fullWidth                               // default true; pass false for inline
-  shape='pill' | 'circle'                 // 'circle' only used by *Circle* variants
-  iconOnly                                // set automatically by *IconButton variants
+  fullWidth                              // default true
   onClick={...}
 >
   Label
 </BrandButton>
 ```
 
-> ⚠️ **Deprecated**: `MobileButton` with `variant='primary' | 'secondary' | 'ghost' | 'danger' | 'neutral'` is kept as a translation shim ([MobileButton.jsx](src/components/mobile/MobileButton.jsx)) so the 19 existing `/m/*` pages don't need to be touched. New code MUST use the canonical Figma names above.
+> ⚠️ **Deprecated**: `MobileButton` with `variant='primary' | 'secondary' | 'ghost' | 'danger' | 'neutral'` is kept as a translation shim ([MobileButton.jsx](src/components/mobile/MobileButton.jsx)) so existing `/m/*` pages keep working. New code MUST use the canonical Figma names above.
+
+#### KeypadButton — Archive `314:43835`
+
+> Mobile · [`KeypadButton.jsx`](src/components/mobile/button/KeypadButton.jsx) · Live: [`/m/components#keypad-button`](/m/components#keypad-button)
+
+PIN / numeric keypad key. 72×72 circle (`--dim-size-1600`). Default: 1px `--brand-p400` ring · transparent fill. Pressed: 1.5px `--brand-p300` ring + `--mobile-surface-keypadButton-pressed` (white @ 20%). Digit = Sarabun Bold 24 / on-content. Icon type uses Material `backspace` (Figma Delete).
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `type` | `Number` \| `icon` | `Number` | Digit vs delete |
+| `state` | `Default` \| `Pressed` | interactive | Force for demos |
+| `digit` / `children` | `ReactNode` | — | Number label |
+| `icon` | Material Symbol | `backspace` | When `type=icon` |
+
+```jsx
+<KeypadButton type="Number" digit="1" onClick={() => press('1')} />
+<KeypadButton type="icon" onClick={backspace} aria-label="ลบ" />
+```
 
 #### Primitives
 
 | Component | File | Web equivalent | What differs on mobile |
 |-----------|------|----------------|------------------------|
+| [`Password`](src/components/mobile/Password.jsx) | Password.jsx | `PasswordField` (§6) | Figma App [`5021:1008`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=5021-1008) · pill · lock + eye · Large 56 / Medium 48 |
+| [`Textarea`](src/components/mobile/Textarea.jsx) | Textarea.jsx | `Textarea` (§6.12) | Figma App [`268:26`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=268-26) · min-h 96 · radius-200 · Default/Press/Filled/Error/Disabled |
+| [`SuccessCard`](src/components/mobile/SuccessCard.jsx) | SuccessCard.jsx | — | Archive [`178:122765`](https://www.figma.com/design/4WXeI8fgBLQGgQ9VheM2yD/?node-id=178-122765) · teal gradient + arch card (radius-1000 / 600) · award hero · optional rows / dual CTA |
 | [`MobileCard`](src/components/mobile/Card.jsx) | Card.jsx | `Card` (web) | Radius 16 vs 8; subtle elevation opt-in |
+| [`ServiceRequestCard`](src/components/mobile/ServiceRequestCard.jsx) | ServiceRequestCard.jsx | — | Archive [`194:153209`](https://www.figma.com/design/4WXeI8fgBLQGgQ9VheM2yD/?node-id=194-153209) · 160w · radius-600 · Colorful icon Badge pill · Home ส่งคำขอ |
 | [`MobileInput`](src/components/mobile/Input.jsx) | Input.jsx | `InputField` (§6.12) | 16px base font (iOS zoom guard); 48h; pill-leaning radius |
 | [`MobileField`](src/components/mobile/Field.jsx) | Field.jsx | `FormControl` wrapper | Stacks label / hint / error around any control |
-| [`MobileBadge`](src/components/mobile/Badge.jsx) | Badge.jsx | `ColorfulBadge` (§5.11) | Always pill; smaller padding for 390-wide layouts |
+| [`MobileBadge`](src/components/mobile/Badge.jsx) | Badge.jsx | soft tone chips | countdown / distance pills — prefer ColorfulBadge for categorical tags |
+| [`ColorfulBadge`](src/components/badge/ColorfulBadge.jsx) | shared web | Figma App [`2076:8413`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=2076-8413) · 11 styles × Small/Default × Default/Outline × Primary/Secondary |
 | [`MobileHeader`](src/components/mobile/Header.jsx) | Header.jsx | `Header` (§6.19) | 56h app-bar pattern; back arrow + title + right-slot; `transparent` mode over hero gradient |
 | [`MobileSectionLabel`](src/components/mobile/SectionLabel.jsx) | SectionLabel.jsx | — | Section header above content blocks |
 | [`MobileShell`](src/components/mobile/MobileShell.jsx) | MobileShell.jsx | — | Phone frame + status bar + bottom nav + auth gate |
 | [`Sym`](src/components/mobile/Sym.jsx) | Sym.jsx | `Sym` (web) | Same shape, separate file so the mobile tree has no web-only coupling |
 
-> 📝 **Naming exception**: Primitives that are conceptually "mobile shell" (Card, Input, Field, Badge, Header, SectionLabel, Shell) keep the `Mobile*` prefix because there is no Figma master of these yet — the prefix marks them as mobile-only until a Figma source-of-truth exists. Buttons drop the prefix because Figma 319:2012 IS the source-of-truth.
+> 📝 **Naming exception**: Primitives that are conceptually "mobile shell" (Card, Input, Field, Badge, Header, SectionLabel, Shell) keep the `Mobile*` prefix because there is no Figma master of these yet — the prefix marks them as mobile-only until a Figma source-of-truth exists. Buttons, **Password**, and **Textarea** drop the prefix because their Figma App masters (`319:2012` / `5021:1008` / `268:26`) ARE the source-of-truth. **SuccessCard** drops the prefix as a shared flow template (Archive success screens), not a shell chrome piece.
 
 #### 7.3.1 MobileButton — props & variants
 
@@ -12991,7 +13148,101 @@ All buttons live under [src/components/mobile/button/](src/components/mobile/but
 </MobileCard>
 ```
 
-#### 7.3.3 MobileInput + MobileField — pattern
+#### 7.3.3 Password — Figma App `5021:1008`
+
+> Mobile · [`Password.jsx`](src/components/mobile/Password.jsx) · Live: [`/m/components#mobile-password`](/m/components#mobile-password)
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `size` | `Large` \| `Medium` \| `lg` \| `md` | `lg` | 56 / 48 px height |
+| `state` | `default` \| `press` \| `filled` \| `error` \| `disabled` | derived | Force for demos |
+| `showFieldName` | `boolean` | `true` | Show label |
+| `required` | `boolean` | `false` | Show `*` |
+| `showLeadingIcon` | `boolean` | `true` | Leading `lock` (override via `leadingIcon`) |
+| `showPassword` | `boolean` | `true` | Eye toggle (`visibility` / `visibility_off`) |
+| `helperText` / `error` | `string` | — | Helper under field; `error` forces Error state |
+
+```jsx
+<Password
+  label="รหัสผ่าน"
+  required
+  size="Large"
+  value={pw}
+  onChange={(e) => setPw(e.target.value)}
+  placeholder="กรอกรหัสผ่าน"
+  helperText="อย่างน้อย 8 ตัวอักษร"
+/>
+```
+
+#### 7.3.4 Textarea — Figma App `268:26`
+
+> Mobile · [`Textarea.jsx`](src/components/mobile/Textarea.jsx) · Live: [`/m/components#mobile-textarea`](/m/components#mobile-textarea)
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `state` | `default` \| `press` \| `filled` \| `error` \| `disabled` | derived | Force for demos |
+| `showFieldName` | `boolean` | `true` | Show label |
+| `required` | `boolean` | `false` | Show `*` |
+| `helperText` / `error` | `string` | — | Helper under field; `error` forces Error state |
+| `minHeight` | `number` | `96` | Box min-height (px) |
+| `rows` | `number` | `3` | Native rows |
+| `resize` | CSS resize | `none` | Override if needed |
+
+```jsx
+<Textarea
+  label="อาการเบื้องต้น / หมายเหตุ"
+  required
+  value={note}
+  onChange={(e) => setNote(e.target.value)}
+  placeholder="Placeholder"
+  helperText="Helper text"
+/>
+```
+
+#### 7.3.5 SuccessCard — Archive `178:122765`
+
+> Mobile · [`SuccessCard.jsx`](src/components/mobile/SuccessCard.jsx) · Live: [`/m/components#mobile-success-card`](/m/components#mobile-success-card)
+
+Reusable post-flow success template: teal gradient shell + white arch card (top `--dim-radius-1000`, bottom `--dim-radius-600`) + award hero + title + optional description / info rows + primary `BrandButton` (+ optional `BrandSubdueButton` Outline).
+
+Used by register identity success, **register complete** ([Archive `171:70337`](https://www.figma.com/design/4WXeI8fgBLQGgQ9VheM2yD/-Archive--Mobile-Application?node-id=171-70337)), and booking success. Export `SUCCESS_CARD_BG` for `MobileShell` `background` when chrome is hidden.
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `title` | `ReactNode` | — | Brand heading |
+| `description` | `ReactNode` | — | Supporting copy under title |
+| `rows` | `{ label, value }[]` | — | Soft brand summary card |
+| `primaryAction` / `secondaryAction` | `{ label, onClick, showTailingIcon?, … }` | — | CTA(s); primary defaults chevron |
+| `heroSrc` / `heroSize` | `string` / `number` | award PNG / `160` | Hero illustration |
+| `fill` | `boolean` | `true` | `flex:1` + min-height 100% |
+| `background` | `string` | `SUCCESS_CARD_BG` | Gradient override |
+
+```jsx
+<SuccessCard
+  title="ยืนยันตัวตนสำเร็จ"
+  rows={[
+    { label: 'ชื่อ–สกุล', value: fullName },
+    { label: 'เลขประจำตัวประชาชน', value: formatCid(cid) },
+  ]}
+  primaryAction={{ label: 'ดำเนินการต่อ', onClick: onNext }}
+/>
+
+{/* Archive 171:70337 — register complete */}
+<SuccessCard
+  title="ลงทะเบียนสำเร็จ"
+  description="ยินดีต้อนรับเข้าสู่แอปพลิเคชัน PHCIS ข้อมูลของคุณถูกบันทึกเข้าระบบเรียบร้อยแล้ว"
+  primaryAction={{ label: 'เข้าสู่ระบบ', onClick: enterApp }}
+/>
+
+<SuccessCard
+  title="สร้างนัดหมายสำเร็จ"
+  description={<>ระบบได้บันทึก…</>}
+  primaryAction={{ label: 'ดูการนัดหมาย', showTailingIcon: false, onClick: goAppts }}
+  secondaryAction={{ label: 'กลับสู่หน้าหลัก', onClick: goHome }}
+/>
+```
+
+#### 7.3.6 MobileInput + MobileField — pattern
 
 ```jsx
 <MobileField label='เลขประจำตัวประชาชน' required hint='13 หลัก' error={errors.cid}>
@@ -13001,11 +13252,25 @@ All buttons live under [src/components/mobile/button/](src/components/mobile/but
 
 `MobileField` accepts **any control** as children — `MobileInput`, `<textarea>`, `<select>`, or a custom picker. The label / hint / error treatment is the same.
 
-#### 7.3.4 MobileBadge — tones
+#### 7.3.7 MobileBadge — tones
 
-`tone` = `'neutral'` | `'brand'` | `'success'` | `'warning'` | `'info'`. Always pill; never used for primary actions (use `MobileButton variant='ghost'` instead).
+`tone` = `'neutral'` | `'brand'` | `'success'` | `'warning'` | `'info'`. Soft countdown / distance chips. For categorical tags use **ColorfulBadge** (Figma App `2076:8413`) instead.
 
-#### 7.3.5 MobileHeader — props
+#### 7.3.8 ColorfulBadge — Figma App `2076:8413`
+
+> Shared · [`ColorfulBadge.jsx`](src/components/badge/ColorfulBadge.jsx) · Live: [`/m/components#mobile-colorful-badge`](/m/components#mobile-colorful-badge) · Web: `/components`
+
+11 styles × Small (24) / Default (32) × Default / Outline × Primary (`*-bold` + badge-on) / Secondary (100 + 700). Toggles: Show Dot · Show Icon · Show Text.
+
+```jsx
+<ColorfulBadge style="green" size="small" hierarchy="secondary" showDot icon="pill">
+  Text
+</ColorfulBadge>
+<ColorfulBadge style="green" size="small" hierarchy="primary" showDot>Text</ColorfulBadge>
+<ColorfulBadge style="grey" size="small" fill="outline" showDot>Text</ColorfulBadge>
+```
+
+#### 7.3.9 MobileHeader — props
 
 ```jsx
 <MobileHeader
@@ -13018,7 +13283,7 @@ All buttons live under [src/components/mobile/button/](src/components/mobile/but
 />
 ```
 
-#### 7.3.6 MobileShell — frame
+#### 7.3.10 MobileShell — frame
 
 ```jsx
 <MobileShell
@@ -13032,7 +13297,7 @@ All buttons live under [src/components/mobile/button/](src/components/mobile/but
 </MobileShell>
 ```
 
-The shell wraps the page in a 390×844 iPhone mock so desktop reviewers can demo the citizen flow. On touch devices ≤ 430 wide the chrome collapses and the app fills the viewport.
+The shell wraps the page in a 402×874 iPhone 17 mock so desktop reviewers can demo the citizen flow. On touch devices ≤ 430 wide the chrome collapses and the app fills the viewport.
 
 ### 7.4. What does **not** exist yet on mobile
 
@@ -13051,6 +13316,10 @@ When adding a new mobile primitive: create the file under [src/components/mobile
 **Mobile button source-of-truth** — file `opz7X9AAKGQf5prHhsPDGn` (MIH-Design-System-Foundation Copy), Button section `319:2012`. The 16 frames in that section map 1:1 to the 16 files in [src/components/mobile/button/](src/components/mobile/button/) — see §7.3 table for per-component node IDs.
 
 **Web button source-of-truth** — file `GXI1CGpLhpImm8JYpW9ksh`, Button section `319:2012`. Web buttons live at [src/components/button/](src/components/button/) and use the same component names (BrandButton, etc.) with web-specific tokens (radius-150 / 4-6 px, no pill).
+
+**Password source-of-truth** — Figma App file `opz7X9AAKGQf5prHhsPDGn`, Password set [`5021:1008`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=5021-1008) → [`Password.jsx`](src/components/mobile/Password.jsx).
+
+**Textarea source-of-truth** — Figma App file `opz7X9AAKGQf5prHhsPDGn`, Textarea set [`268:26`](https://www.figma.com/design/opz7X9AAKGQf5prHhsPDGn/MIH-Design-System-Foundation--App-?node-id=268-26) → [`Textarea.jsx`](src/components/mobile/Textarea.jsx).
 
 Other mobile primitives (Card / Input / Field / Badge / Header / SectionLabel / Shell) do not yet have a Figma master — when they do, add Figma node IDs to the §7.3 component map and drop the `Mobile*` prefix following the button-family convention.
 

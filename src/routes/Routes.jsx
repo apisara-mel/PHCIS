@@ -60,6 +60,7 @@ import MobileLoginPage from '@/pages/mobile/MobileLoginPage';
 import MobileRegisterPage from '@/pages/mobile/MobileRegisterPage';
 import MobileResetPage from '@/pages/mobile/MobileResetPage';
 import MobileHomePage from '@/pages/mobile/MobileHomePage';
+import MobileNotificationsPage from '@/pages/mobile/MobileNotificationsPage';
 import MobileAppointmentsPage from '@/pages/mobile/MobileAppointmentsPage';
 import MobileAppointmentDetailPage from '@/pages/mobile/MobileAppointmentDetailPage';
 import MobileBookPage from '@/pages/mobile/MobileBookPage';
@@ -75,7 +76,11 @@ import { MobileNewsPage, MobileNewsDetailPage } from '@/pages/mobile/MobileNewsP
 import MobileMorePage from '@/pages/mobile/MobileMorePage';
 import MobileSettingsPage from '@/pages/mobile/MobileSettingsPage';
 import { MobilePaymentPage, MobilePaymentDetailPage } from '@/pages/mobile/MobilePaymentPage';
+import MobilePharmacyPreparingPage from '@/pages/mobile/MobilePharmacyPreparingPage';
+import MobilePharmacyPaymentPage from '@/pages/mobile/MobilePharmacyPaymentPage';
+import MobilePharmacySuccessPage from '@/pages/mobile/MobilePharmacySuccessPage';
 import MobileComponentsPage from '@/pages/mobile/MobileComponentsPage';
+import MobileSplashPage from '@/pages/mobile/MobileSplashPage';
 
 export default function Routes() {
   return (
@@ -184,18 +189,24 @@ export default function Routes() {
         <Route exact path='/preview/body-record'  component={BodyRecordPreviewPage} />
 
         {/* PHCIS Mobile app (TOR §4). Citizen-facing companion app rendered
-            inside a 390×844 phone frame for desktop demo. All /m/* routes
+            inside a 402×874 iPhone 17 phone frame for desktop demo. All /m/* routes
             share the same MobileAppProvider so auth + language state
             survives navigation between screens.                            */}
         <Route path='/m'>
           <MobileAppProvider>
             <Switch>
-              <Route exact path='/m'                     component={MobileHomePage} />
+              {/* Splash owns the bare /m entry — the app's first paint is the
+                  brand screen, which hands off to /m/home or /m/login on its
+                  own (Figma 2042:28039). /m/splash stays addressable so the
+                  screen can be linked or reviewed directly. */}
+              <Route exact path='/m'                     component={MobileSplashPage} />
+              <Route exact path='/m/splash'              component={MobileSplashPage} />
               <Route exact path='/m/components'          component={MobileComponentsPage} />
               <Route exact path='/m/login'               component={MobileLoginPage} />
               <Route exact path='/m/register'            component={MobileRegisterPage} />
               <Route exact path='/m/reset'               component={MobileResetPage} />
               <Route exact path='/m/home'                component={MobileHomePage} />
+              <Route exact path='/m/notifications'       component={MobileNotificationsPage} />
               <Route exact path='/m/appointments'        component={MobileAppointmentsPage} />
               <Route exact path='/m/appointments/:id'    component={MobileAppointmentDetailPage} />
               <Route exact path='/m/book'                component={MobileBookPage} />
@@ -212,6 +223,9 @@ export default function Routes() {
               <Route exact path='/m/news/:id'            component={MobileNewsDetailPage} />
               <Route exact path='/m/more'                component={MobileMorePage} />
               <Route exact path='/m/settings'            component={MobileSettingsPage} />
+              <Route exact path='/m/pharmacy/preparing'  component={MobilePharmacyPreparingPage} />
+              <Route exact path='/m/pharmacy/payment'    component={MobilePharmacyPaymentPage} />
+              <Route exact path='/m/pharmacy/success'    component={MobilePharmacySuccessPage} />
               <Route exact path='/m/payment'             component={MobilePaymentPage} />
               <Route exact path='/m/payment/:id'         component={MobilePaymentDetailPage} />
             </Switch>

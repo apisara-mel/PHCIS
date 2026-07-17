@@ -103,7 +103,7 @@ const ProfilePopover = ({ open, anchorRect, anchorRef, onClose, onSelect }) => {
             width:  'var(--dim-size-800)',           /* 40px */
             height: 'var(--dim-size-800)',
             borderRadius: 'var(--dim-radius-full)',
-            background: '#e7f1f8',
+            background: 'var(--surface-card-200)',
           }}
         >
           {/* Inner 42×42 crop at (-1,-1) — Figma 276:5061 percentage math is

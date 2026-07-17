@@ -41,7 +41,7 @@ const CategoryFormCard = ({ form }) => {
   return (
     <Link
       to={`/forms/${form.slug}`}
-      className='flex flex-col w-full text-left bg-white rounded-xl transition-shadow hover:shadow-cardHover'
+      className='flex flex-col w-full text-left bg-surface-card rounded-xl transition-shadow hover:shadow-cardHover'
       style={{
         border: 'var(--dim-stroke-100) solid var(--border-card-default)',
         textDecoration: 'none',
@@ -175,7 +175,7 @@ const FormsCategoryPage = () => {
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           {/* Hero */}
           <section
-            className='bg-white rounded-card shadow-card flex flex-col w-full'
+            className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
             style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
           >
             <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-400)' }}>
@@ -266,7 +266,7 @@ const FormsCategoryPage = () => {
 
           {/* Filter tabs */}
           <section
-            className='bg-white rounded-card shadow-card flex flex-wrap items-center w-full'
+            className='bg-surface-card rounded-card shadow-card flex flex-wrap items-center w-full'
             style={{ padding: 'var(--dim-space-400)', gap: 'var(--dim-space-200)' }}
             role='tablist'
             aria-label='ตัวกรองประเภทแบบฟอร์ม'
@@ -296,7 +296,7 @@ const FormsCategoryPage = () => {
           {/* Grid */}
           {visible.length === 0 ? (
             <section
-              className='bg-white rounded-card shadow-card flex flex-col items-center text-center'
+              className='bg-surface-card rounded-card shadow-card flex flex-col items-center text-center'
               style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-200)' }}
             >
               <Icon name='search_off' size={32} style={{ color: 'var(--text-content-tertiary)' }} />
@@ -320,7 +320,7 @@ const FormsCategoryPage = () => {
           {/* Pagination footer */}
           {pageCount > 1 && (
             <section
-              className='bg-white rounded-card shadow-card flex items-center justify-between w-full'
+              className='bg-surface-card rounded-card shadow-card flex items-center justify-between w-full'
               style={{ padding: 'var(--dim-space-400) var(--dim-space-600)' }}
             >
               <span className='text-xs text-ink-tertiary'>

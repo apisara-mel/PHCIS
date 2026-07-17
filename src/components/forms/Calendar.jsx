@@ -7,6 +7,8 @@ import React, { useState } from 'react';
 
    Cell visual states (from Figma):
      • default     — white bg · text #4D5358 · rounded-full hover halo
+     • current     — today: surface-calendar-current (#E2F3EB) · text-calendar-current (#007549)
+     • full         — fully-booked: renders "เต็ม" (text-calendar-disabled), non-selectable
      • disabled    — white bg · text #ADB2B7 (days outside the visible month)
      • selected    — bg brand-p700 · text white · rounded-full
                      (range endpoints get rounded-l-full or rounded-r-full only)
@@ -94,6 +96,8 @@ const Calendar = ({
   showLeftChevron = true,
   showRightChevron = true,
   minDate,                 // dates strictly before this are disabled (inclusive lower bound)
+  isFull,                  // (Date) => boolean — mark fully-booked days (render "เต็ม", non-selectable)
+  fullLabel = 'เต็ม',
 }) => {
   const grid = buildGrid(viewMonth);
   const monthLabel = `${MONTH_NAMES[viewMonth.getMonth()]} ${viewMonth.getFullYear()}`;
@@ -103,6 +107,7 @@ const Calendar = ({
     const inMonth = d.getMonth() === viewMonth.getMonth();
     if (!inMonth) return { kind: 'disabled' };
     if (minTs !== null && startOfDay(d).getTime() < minTs) return { kind: 'disabled' };
+    if (isFull && isFull(d)) return { kind: 'full' };
 
     if (mode === 'range' && selection && selection.start && selection.end) {
       const { start, end } = selection;
@@ -120,6 +125,8 @@ const Calendar = ({
     if (mode === 'range' && selection && selection.start && sameDay(d, selection.start)) {
       return { kind: 'selected', radius: 'full' };
     }
+    // today — only when the cell isn't part of a selection/range (those win visually)
+    if (sameDay(d, new Date())) return { kind: 'current' };
     return { kind: 'default' };
   };
 
@@ -132,8 +139,15 @@ const Calendar = ({
     if (state.kind === 'selected') {
       return {
         background: 'var(--brand-p700)',
-        color: '#FFFFFF',
+        color: 'var(--text-content-on-content)',
         borderRadius: radius,
+      };
+    }
+    if (state.kind === 'current') {
+      return {
+        background: 'var(--surface-calendar-current)',
+        color: 'var(--text-calendar-current)',
+        borderRadius: 'var(--dim-radius-full)',
       };
     }
     if (state.kind === 'range') {
@@ -143,9 +157,17 @@ const Calendar = ({
         borderRadius: 0,
       };
     }
+    if (state.kind === 'full') {
+      return {
+        background: 'var(--surface-calendar-disabled)',
+        color: 'var(--text-calendar-disabled)',
+        borderRadius: 'var(--dim-radius-full)',
+        fontSize: 'var(--type-size-xs)',
+      };
+    }
     if (state.kind === 'disabled') {
       return {
-        background: '#FFFFFF',
+        background: 'var(--surface-card-100)',
         color: '#ADB2B7',
         borderRadius: 'var(--dim-radius-full)',
       };
@@ -214,6 +236,7 @@ const Calendar = ({
               state={stateOf(d)}
               cellStyleFor={cellStyleFor}
               onSelect={onSelect}
+              fullLabel={fullLabel}
             />
           ))}
         </div>
@@ -222,10 +245,10 @@ const Calendar = ({
   );
 };
 
-const DayCell = ({ date, state, cellStyleFor, onSelect }) => {
+const DayCell = ({ date, state, cellStyleFor, onSelect, fullLabel }) => {
   const [hovered, setHovered] = useState(false);
   const visual = cellStyleFor(state, hovered);
-  const clickable = state.kind !== 'disabled';
+  const clickable = state.kind !== 'disabled' && state.kind !== 'full';
   return (
     <button
       type='button'
@@ -245,7 +268,7 @@ const DayCell = ({ date, state, cellStyleFor, onSelect }) => {
         ...visual,
       }}
     >
-      {date.getDate()}
+      {state.kind === 'full' ? fullLabel : date.getDate()}
     </button>
   );
 };
@@ -260,9 +283,11 @@ export { startOfDay, sameDay };
 
 const DAY_PREVIEW_STATES = {
   default:  { bg: '#FFFFFF',           color: '#4D5358',          radius: 9999, opacity: 1 },
+  current:  { bg: 'var(--surface-calendar-current)', color: 'var(--text-calendar-current)', radius: 9999, opacity: 1 },
+  full:     { bg: 'var(--surface-calendar-disabled)', color: 'var(--text-calendar-disabled)', radius: 9999, opacity: 1, label: 'เต็ม', fontSize: 'var(--type-size-xs)' },
   hover:    { bg: 'var(--brand-p100)', color: 'var(--brand-p700)',radius: 9999, opacity: 1 },
   range:    { bg: 'var(--brand-p100)', color: 'var(--brand-p700)',radius: 0,    opacity: 1 },
-  selected: { bg: 'var(--brand-p700)', color: '#FFFFFF',          radius: 9999, opacity: 1 },
+  selected: { bg: 'var(--brand-p700)', color: 'var(--text-content-on-content)',          radius: 9999, opacity: 1 },
   disabled: { bg: '#FFFFFF',           color: '#ADB2B7',          radius: 9999, opacity: 1 },
 };
 
@@ -279,11 +304,11 @@ export const CalendarDayPreview = ({ state = 'default', day = 15 }) => {
         borderRadius: s.radius,
         opacity: s.opacity,
         fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
+        fontSize: s.fontSize || 'var(--type-size-sm)',
         lineHeight: 1.5,
       }}
     >
-      {day}
+      {s.label || day}
     </div>
   );
 };

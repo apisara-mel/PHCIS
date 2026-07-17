@@ -440,7 +440,7 @@ const FormFillPage = () => {
           {/* Hero */}
           {!submitted && (
             <section
-              className='bg-white rounded-card shadow-card flex items-start w-full'
+              className='bg-surface-card rounded-card shadow-card flex items-start w-full'
               style={{ gap: 'var(--dim-space-400)', padding: 'var(--dim-space-500)' }}
             >
               {tone && (
@@ -469,7 +469,7 @@ const FormFillPage = () => {
 
           {submitted ? (
             <section
-              className='bg-white rounded-card shadow-card flex flex-col items-center w-full text-center'
+              className='bg-surface-card rounded-card shadow-card flex flex-col items-center w-full text-center'
               style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-400)' }}
             >
               <div
@@ -525,7 +525,7 @@ const FormFillPage = () => {
 
               {/* Footer actions */}
               <section
-                className='bg-white rounded-card shadow-card flex flex-wrap items-center justify-end w-full'
+                className='bg-surface-card rounded-card shadow-card flex flex-wrap items-center justify-end w-full'
                 style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)' }}
               >
                 {role === 'staff' && (

@@ -1,3 +1,4 @@
+import React from 'react';
 import PhcisTopToast, { PHCIS_TOP_TOAST_CYCLE_MS } from '@/components/alert/PhcisTopToast';
 
 /* History copy feedback — delegates to PhcisTopToast (Figma 322:49597). */

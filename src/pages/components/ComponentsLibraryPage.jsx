@@ -381,7 +381,7 @@ const PrimarySearchDemo = () => {
   }, [v]);
 
   return (
-    <Section title='PrimarySearch' summary='Hero search input (Figma 2056:4246) with avatar pile + “ค้นหาล่าสุด” affordance. 5 states (default · hover · focus · typing · filled). Used at the top of queue cards. Pass `state` to force the visual state; otherwise it resolves from focus/hover/value — `focused + empty → focus`, `focused + value → typing`. Focus + typing both open the dropdown (recent vs suggestions). Typing swaps the right cluster to XButton + SubmitButton; the other four states keep the avatars + “ค้นหาล่าสุด” caption. Table below mirrors the Figma variant matrix — columns are states.'>
+    <Section title='PrimarySearch' summary='Primary 56px pill search input (Figma 2056:4246). Five states: default · hover · focus · typing · filled. Pass `state` to force the visual state; otherwise it resolves from focus/hover/value — `focused + empty → focus`, `focused + value → typing`. Focus + typing open the dropdown (recent vs suggestions). Typing alone adds the 40px X Button + Brand Circle Icon Button; all other states contain only the search glyph and text.'>
       <Variant label='State matrix · 5 states' stack>
         <SearchStateTable
           Component={PrimarySearch}
@@ -425,14 +425,14 @@ const PrimarySearchDemo = () => {
         </div>
       </Variant>
       <Variant label='Interactive · history & suggestions disabled' code='<PrimarySearch value onChange placeholder />'>
-        <div style={{ flex: 1, minWidth: 320 }}>
+        <div style={{ flex: 1, minWidth: 'var(--dim-size-2500, 320px)' }}>
           <PrimarySearch value={v} onChange={setV} placeholder='ค้นหาด้วย HN / เลขบัตร / ชื่อ-สกุล' />
         </div>
       </Variant>
       <Guidelines
         behavior={[
           'Five states per Figma 2056:4246: `default` · `hover` · `focus` · `typing` · `filled`. Resolved by the component as `focused + empty → focus`, `focused + value → typing`; the `state` prop overrides for state-matrix previews.',
-          'Right-side cluster crossfades by state: avatars + "ค้นหาล่าสุด" on default/hover/focus/filled; XButton + brand-green SubmitButton **only** on typing. Clicking XButton wipes the value and collapses typing back to focus.',
+          'Right-side controls render only in Typing: the 40px X Button clears the query and the 40px Brand Circle Icon Button submits it. Default, Hover, Focus, and Filled have no trailing controls, matching the current Figma variant set.',
           'Dropdown opens on focus + typing. Empty input → recent-search history with the "ค้นหาล่าสุด" header (Figma 3345:2981). Typing (≥ 1 char) → live suggestions (Figma 3346:8231). Both share the same row layout — text-only by default; pass `item.badges = [{ label, tone }, …]` to render colorful leading pills (queue + HN per the Figma reference).',
           'Row leading slot precedence: `item.badges` (Colorful pills) → `item.icon` (Material symbol) → text-only. Trailing `chevron_right` is always in the DOM but fades in only on `:hover` (CSS `.mih-search-row__chevron`) so resting rows stay quiet.',
           'Empty history still opens the dropdown and shows `historyEmptyMessage` ("ยังไม่มีประวัติการค้นหา" by default) so users discover the feature. Pass `historyEmptyMessage={null}` to revert to the silent-closed behaviour.',
@@ -2506,7 +2506,7 @@ const TableSelectLiveDemo = () => {
                     : 'var(--border-switch-default, #C9CDD0)'}`,
                   borderRadius: 'var(--dim-radius-100, 4px)',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#FFFFFF', fontSize: 12,
+                  color: 'var(--text-content-on-content)', fontSize: 12,
                 }}>
                   {allChecked ? '✓' : selected.size > 0 ? '–' : ''}
                 </span>
@@ -5566,7 +5566,7 @@ const HISTORY_BADGE_SAMPLES = [
 ];
 
 const ColorfulBadgeDemo = () => (
-  <Section title='ColorfulBadge' summary='Figma 2076:8413 (Colorful Badge). 11 styles × 2 sizes × 2 fills × 2 hierarchies. `width="hug"` sizes the pill to the label (treatment history); default `width="cap"` keeps min 40 / max 224 with ellipsis.'>
+  <Section title='ColorfulBadge' summary='Figma App 2076:8413. 11 styles × Small(24)/Default(32) × Default/Outline × Primary(*-bold + badge-on)/Secondary(100+700). Outline Grey→border-neutral, Green→border-brand.'>
     <Variant label='Clinical maps (CPOE 245:24395 · 245:24530 · 245:24603)' stack>
       <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200)' }}>
         {HISTORY_BADGE_SAMPLES.map(({ kind, value }) => (
@@ -5608,14 +5608,21 @@ const ColorfulBadgeDemo = () => (
         ))}
       </div>
     </Variant>
-    <Variant label='Primary (saturated) · default · 11 styles' stack>
+    <Variant label='Primary (bold mid-tone) · small · 11 styles' stack>
+      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+        {COLORFUL_STYLES.map((s) => (
+          <ColorfulBadgeComp key={s} style={s} size='small' hierarchy='primary' showDot icon='link'>Text</ColorfulBadgeComp>
+        ))}
+      </div>
+    </Variant>
+    <Variant label='Primary (bold mid-tone) · default · 11 styles' stack>
       <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
         {COLORFUL_STYLES.map((s) => (
           <ColorfulBadgeComp key={s} style={s} size='default' hierarchy='primary' showDot icon='link'>Text</ColorfulBadgeComp>
         ))}
       </div>
     </Variant>
-    <Variant label='Outline · small · 11 styles' stack>
+    <Variant label='Outline · small · Grey / Green (Figma) + others' stack>
       <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
         {COLORFUL_STYLES.map((s) => (
           <ColorfulBadgeComp key={s} style={s} size='small' fill='outline' showDot icon='link'>Text</ColorfulBadgeComp>
@@ -5658,7 +5665,7 @@ const ColorfulBadgeDemo = () => (
 );
 
 const ColorfulIconBadgeDemo = () => (
-  <Section title='ColorfulIconBadge' summary='Figma 2307:11697 (Colorful icon Badge). Circular badge holding a single material symbol — no text. 11 styles × 3 sizes × 2 badge fills (default · outline). Material glyph defaults to outline (`iconFill` 0, PHCIS 329:51905); pass `iconFill={1}` for filled. Reuses ColorfulBadge palette aliases.'>
+  <Section title='ColorfulIconBadge' summary='Figma 2307:11697 (Colorful icon Badge). Circular badge — Figma Feather when name resolves (e.g. calendar · Archive 194:153538), else Material. 11 styles × 3 sizes × 2 badge fills. Material glyph defaults to outline (`iconFill` 0); pass `iconFill={1}` for filled. Reuses ColorfulBadge palette.'>
     <Variant label='Default fill · 3 sizes × 11 styles' stack>
       {['default', 'medium', 'small'].map((sz) => (
         <div key={sz} className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>

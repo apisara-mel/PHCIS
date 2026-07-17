@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Badge from '@/components/badge/Badge';
+import Icon from '@/components/icons/Icon';
 
 /* MIH Alert — Figma node 297:59 (Large Alert ✅ · MIH Design System Foundation).
    Earlier draft referenced 325:2623; superseded by the ✅-approved set 297:59.
@@ -13,7 +14,7 @@ import Badge from '@/components/badge/Badge';
      --surface-pill-{blue,green,red,teal} · --text-pill-{...} (badges)
      --surface-alertdialog-default                       (detail card bg)
      --text-content-{default,secondary}                  (indicator + detail)
-     --dim-space-{050,100,200,300,400} · --dim-radius-200
+     --dim-space-{050,100,200,300,400} · --dim-radius-{200,600}
      --type-family-{body,heading-content} · --type-size-{base,sm,xs}
    No hardcoded colours. */
 
@@ -46,21 +47,15 @@ const TONES = {
              scrollbarPillBg: 'var(--surface-scrollbar-error-pill)' },
 };
 
-const Sym = ({ name, size = 20, color, weight = 400, fill = 0 }) => (
-  <span
-    className='material-symbols-outlined'
+const AlertIcon = ({ name, size, color, weight = 400, fill = 0 }) => (
+  <Icon
+    name={name}
+    size={size}
     style={{
-      fontFamily: 'Material Symbols Outlined',
-      fontSize: size,
       color,
-      lineHeight: 1,
-      display: 'inline-flex',
       fontVariationSettings: `'FILL' ${fill}, 'wght' ${weight}, 'GRAD' 0, 'opsz' 24`,
     }}
-    aria-hidden
-  >
-    {name}
-  </span>
+  />
 );
 
 /* Indicator dot · 8px filled circle in the alert tone.                    */
@@ -199,7 +194,7 @@ const CloseButton = ({ tone, onClose }) => {
         transition: 'background-color 150ms ease',
       }}
     >
-      <Sym name='close' size={16} color='currentColor' weight={500} />
+      <AlertIcon name='close' size='var(--dim-size-300, 16px)' color='currentColor' weight={500} />
     </button>
   );
 };
@@ -236,6 +231,12 @@ const Alert = ({
   onClose,                 // () => void
   maxContentHeight = 280,  // px · content scrolls when it exceeds this height.
                            // Pass `null` (or 0) to disable bounded scrolling.
+  iconName,
+  iconSize = 'var(--dim-size-300, 16px)',
+  iconWeight = 400,
+  titleStyle,
+  subtextStyle,
+  textGap = 'var(--dim-space-050, 2px)',
   className = '',
   style,
 }) => {
@@ -295,7 +296,7 @@ const Alert = ({
         minWidth: 224,
         background: tone.surface,
         border: `var(--dim-stroke-100) solid ${tone.border}`,
-        borderRadius: 'var(--dim-radius-200)',
+        borderRadius: 'var(--dim-radius-600, 24px)',
         alignItems: 'flex-start',
         ...style,
       }}
@@ -303,9 +304,9 @@ const Alert = ({
       {showIcon && (
         <div
           className='shrink-0'
-          style={{ width: 20, paddingTop: 'var(--dim-space-050, 2px)' }}
+          style={{ width: iconSize, paddingTop: 'var(--dim-space-050, 2px)' }}
         >
-          <Sym name={tone.icon} size={20} color={tone.text} weight={500} fill={1} />
+          <AlertIcon name={iconName || tone.icon} size={iconSize} color={tone.text} weight={iconWeight} />
         </div>
       )}
 
@@ -321,17 +322,18 @@ const Alert = ({
       >
         <div
           className='flex flex-col w-full'
-          style={{ gap: 'var(--dim-space-100)', color: tone.text }}
+          style={{ gap: textGap, color: tone.text }}
         >
           {title && (
             <p
               style={{
                 margin: 'var(--dim-space-0)',
-                fontFamily: 'var(--type-family-heading-content)',
-                fontWeight: 'var(--type-weight-bold)',
-                fontSize: 'var(--type-size-base)',
+                fontFamily: 'var(--type-family-heading-graphic2)',
+                fontWeight: 'var(--type-weight-regular, 400)',
+                fontSize: 'var(--type-size-sm, 14px)',
                 lineHeight: 1.5,
                 color: tone.text,
+                ...titleStyle,
               }}
             >
               {title}
@@ -342,10 +344,11 @@ const Alert = ({
               style={{
                 margin: 'var(--dim-space-0)',
                 fontFamily: 'var(--type-family-body)',
-                fontWeight: 'var(--type-weight-regular)',
-                fontSize: 'var(--type-size-sm)',
+                fontWeight: 'var(--type-weight-medium, 500)',
+                fontSize: 'var(--type-size-xs, 12px)',
                 lineHeight: 1.5,
                 color: tone.text,
+                ...subtextStyle,
               }}
             >
               {subtext}

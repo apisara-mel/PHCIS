@@ -305,7 +305,7 @@ const HistoryTimeline = forwardRef(function HistoryTimeline(
       }}
     >
       <div className='flex items-center gap-3 w-full'>
-        <h3 className='flex-1 text-base font-bold text-[var(--text-topic-tertiary-title,#363B3F)]'>
+        <h3 className='flex-1 text-base font-bold text-token-topicTertiaryTitle'>
           ประวัติการวัด
         </h3>
         <span

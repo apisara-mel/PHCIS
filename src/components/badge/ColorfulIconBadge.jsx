@@ -1,9 +1,11 @@
 import React from 'react';
+import { FigmaIcon, resolveFigmaIconKey } from '@/components/mobile/figmaIcons';
 
-/* MIH ColorfulIconBadge — Figma 2307:11697 (Colorful icon Badge). A
-   circular badge that wraps a single material symbol — no text, no dot.
-   Used as the small avatar-style indicator in lists and Radio/Checkbox
-   cards.
+/* MIH ColorfulIconBadge — Figma 2307:11697 (Colorful icon Badge).
+   Circular badge, no text. Archive Home purple Calendar: 194:153538.
+
+   Icons: Figma Feather (Home / Archive) via FigmaIcon when the name
+   resolves; otherwise Material Symbols Outlined.
 
    Property panel (per Figma):
      • Style : Grey | Green | Blue | Turquoise | Orange | Yellow | Red
@@ -20,24 +22,29 @@ import React from 'react';
 
    Material symbol axis: icons default to **outline** (`FILL` 0) per PHCIS
    queue surfaces (Figma 329:51905). Pass `iconFill={1}` when a filled
-   glyph is required. */
+   glyph is required. Figma Feather glyphs ignore Material FILL. */
 
-const Sym = ({ name, size = 16, color, weight = 500, fill = 0 }) => (
-  <span
-    className='material-symbols-outlined'
-    style={{
-      fontFamily: 'Material Symbols Outlined',
-      fontSize: size,
-      color,
-      lineHeight: 1,
-      display: 'inline-flex',
-      fontVariationSettings: `'FILL' ${fill}, 'wght' ${weight}, 'GRAD' 0, 'opsz' 24`,
-    }}
-    aria-hidden
-  >
-    {name}
-  </span>
-);
+const Sym = ({ name, size = 16, color, weight = 500, fill = 0 }) => {
+  if (resolveFigmaIconKey(name)) {
+    return <FigmaIcon name={name} size={size} color={color} />;
+  }
+  return (
+    <span
+      className='material-symbols-outlined'
+      style={{
+        fontFamily: 'Material Symbols Outlined',
+        fontSize: size,
+        color,
+        lineHeight: 1,
+        display: 'inline-flex',
+        fontVariationSettings: `'FILL' ${fill}, 'wght' ${weight}, 'GRAD' 0, 'opsz' 24`,
+      }}
+      aria-hidden
+    >
+      {name}
+    </span>
+  );
+};
 
 const STYLES = [
   'grey', 'green', 'blue', 'turquoise', 'teal', 'orange', 'yellow', 'red',

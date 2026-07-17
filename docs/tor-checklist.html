@@ -65,7 +65,12 @@
   section.tor h4{margin:12px 0 4px;font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;display:flex;align-items:center;gap:6px}
   section.tor h4 .id{color:var(--brand);font-family:ui-monospace,monospace;font-size:11px;font-weight:500}
 
-  .req{display:grid;grid-template-columns:36px 80px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--surface-2);align-items:start;font-size:13px}
+  .col-legend{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:0 0 6px;font-size:12px;color:var(--muted)}
+  .col-legend .lg{display:inline-flex;align-items:center;gap:6px}
+  .col-legend .sw{width:14px;height:14px;border-radius:4px;display:inline-block}
+  .col-legend .sw.ai{background:#4F46E5}    /* AI · indigo/600 */
+  .col-legend .sw.man{background:#08A768}   /* Manual · brand-p600 */
+  .req{display:grid;grid-template-columns:32px 32px 80px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--surface-2);align-items:start;font-size:13px}
   .req:last-child{border-bottom:0}
   .req:hover{background:var(--surface-2)}
 
@@ -107,6 +112,22 @@
   .req .state-btn[data-state="done"]:hover{
     background:#007549;                /* --surface-switch-checkbox-hover (brand-p700) */
   }
+  /* AI check (column 1) — indigo palette so it reads distinct from the green
+     Manual check (column 2). Same 3-state cycle. */
+  .req .state-btn[data-col="ai"][data-state="todo"]{
+    background:#FFFFFF;
+    border:1.5px solid #A5B4FC;        /* indigo/300 */
+    color:transparent;
+  }
+  .req .state-btn[data-col="ai"][data-state="todo"]:hover{
+    background:#818CF8;                /* indigo/400 */
+    border-color:transparent;color:#FFFFFF;
+  }
+  .req .state-btn[data-col="ai"][data-state="done"]{
+    background:#4F46E5;                /* indigo/600 */
+    border:1.5px solid transparent;color:#FFFFFF;
+  }
+  .req .state-btn[data-col="ai"][data-state="done"]:hover{ background:#4338CA; } /* indigo/700 */
   .req .id-cell{font-family:ui-monospace,monospace;font-size:11px;color:var(--muted);padding-top:7px;white-space:nowrap}
   .req .text-cell{padding-top:5px;line-height:1.55}
   .req .text-cell .note-trigger{margin-left:6px;color:var(--brand);background:none;border:0;cursor:pointer;font-size:11px;text-decoration:underline}
@@ -206,6 +227,11 @@
     <button data-filter="done">✓ ผ่าน</button>
     <button id="exportBtn">⬇ Export JSON</button>
     <button id="resetBtn">↻ Reset</button>
+  </div>
+  <div class="col-legend">
+    แต่ละข้อมี 2 ช่องตรวจ (คลิกวน ☐ → – → ✓) :
+    <span class="lg"><span class="sw ai"></span> ช่อง&nbsp;1 · <b>AI เช็ค</b> (นับใน % สรุป · ใส่ผล "สิ่งที่ทำแล้ว" ไว้)</span>
+    <span class="lg"><span class="sw man"></span> ช่อง&nbsp;2 · <b>Manual เช็ค</b> (คนตรวจซ้ำ)</span>
   </div>
   <div id="content"></div>
 </main>
@@ -1798,40 +1824,74 @@ const IMPL = {
 };
 
 /* ====== Runtime ====== */
-const STORAGE_KEY='phcis_tor_checklist_v1';
+const STORAGE_KEY='phcis_tor_checklist_v1';   // column 2 · Manual check (drives the summary)
+const AI_KEY='phcis_tor_ai_v1';               // column 1 · AI check (parallel track)
 const NOTES_KEY='phcis_tor_notes_v1';
 const STATES=['todo','partial','done'];
 /* Default (todo) state = empty checkbox, no glyph — visual matches design system
    `CheckboxBox` unchecked state. Partial = half-tick. Done = brand-tick.        */
 const STATE_ICONS={todo:'',partial:'–',done:'✓'};
 
-let store={};   // {id: 'todo'|'partial'|'done'}
+let store={};   // Manual check — {id: 'todo'|'partial'|'done'}
+let aistore={}; // AI check     — {id: 'todo'|'partial'|'done'}
 let notes={};   // {id: 'note text'}
 let filter='all';
 let searchTerm='';
 
-/* Seed-flag version — bump when IMPL gets a major batch of new entries
-   so existing visitors re-seed the new rows on next page load. The
-   `!(id in store)` guard inside the seed loop already protects rows the
-   user manually flipped. */
-const SEED_FLAG='phcis_tor_seeded_v2_mobile';
+/* Supplementary AI seed — systems built AFTER the IMPL map was written, so
+   they aren't in it. ระบบจัดการความยินยอม (Consent · prefix ด) shipped 6 pages
+   (/consent, /consent/forms, /consent/forms/new, /consent/forms/:id/view,
+   /consent/access, /consent/report) + the doc-template form builder.
+   Mapped to the ผนวก ด requirements: done = built UI, partial = built but
+   shallow, (omitted = still todo, e.g. multi-channel ด.1.1.6, re-consent ด.1.1.7). */
+const EXTRA_AI={
+  'ด.1.1.1':'partial', // identity proofing — ThaiID/OTP auth exists, owner-binding not explicit
+  'ด.1.1.2':'done',    // record/change consent — ConsentManagementPage
+  'ด.1.1.3':'done',    // store status + history
+  'ด.1.1.4':'done',    // consent-request management process
+  'ด.1.1.5':'partial', // form Version Control — CreateConsentFormPage
+  'ด.1.1.8':'partial', // staff records change from signed/revoked doc
+  'ด.1.1.9':'done',    // overview Dashboard (status + history)
+  'ด.1.1.10':'partial',// history detail (channel/timestamp/form version)
+  'ด.1.1.11':'done',   // Consent Management admin screen
+  'ด.1.1.12':'partial',// Dashboard template
+  'ด.1.1.13':'done',   // form + report builder tool (CreateConsentForm + doc-template)
+  'ด.1.1.14':'done',   // view by permission — AccessManagementPage
+  'ด.1.1.15':'partial',// download consent doc to sign — ConsentFormViewPage
+  'ด.1.1.16':'done',   // export/print reports — ConsentReportPage
+  'ด.1.1.17':'partial',// access management (scan form / time-bound / active)
+  'ด.1.1.18':'partial',// access rights by consent level (add/revoke)
+};
+
+/* Recheck flag — bump to re-apply the seed for ALL visitors (old localStorage
+   included) on their next page load. Seed puts the AI/vibe-code assessment
+   (IMPL done/partial + EXTRA_AI) into the AI column so "what's already built"
+   is filled in, while the Manual column stays blank for a human to verify. */
+const SEED_FLAG='phcis_tor_recheck_v5_nomobile';
+/* Systems intentionally left UNCHECKED in the AI seed (not vibe-coded yet). */
+const AI_SKIP_PREFIX=['4.'];   // 4 · Mobile Application
 const loadStore=()=>{
   try{store=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')}catch(e){store={}}
+  try{aistore=JSON.parse(localStorage.getItem(AI_KEY)||'{}')}catch(e){aistore={}}
   try{notes=JSON.parse(localStorage.getItem(NOTES_KEY)||'{}')}catch(e){notes={}}
-  /* First-time visitors: auto-seed states from the IMPL map so the checklist
-     reflects the current vibe-code implementation. User clicks override and
-     persist; re-seeding never overwrites existing entries.                  */
+  /* On a new flag version: Manual = blank (fresh verification); AI = seeded
+     from the IMPL assessment (done/partial). User notes are kept. */
   if(!localStorage.getItem(SEED_FLAG)){
+    store={};aistore={};
     Object.entries(IMPL).forEach(([id,m])=>{
-      if(m.s && m.s!=='todo' && !(id in store)) store[id]=m.s;
+      if(AI_SKIP_PREFIX.some(p=>id.startsWith(p))) return; // e.g. Mobile — not vibe-coded yet
+      if(m.s && m.s!=='todo') aistore[id]=m.s;
     });
-    saveStore();
+    Object.entries(EXTRA_AI).forEach(([id,s])=>{ aistore[id]=s; });
+    saveStore();saveAiStore();
     localStorage.setItem(SEED_FLAG,'1');
   }
 };
 const saveStore=()=>localStorage.setItem(STORAGE_KEY,JSON.stringify(store));
+const saveAiStore=()=>localStorage.setItem(AI_KEY,JSON.stringify(aistore));
 const saveNotes=()=>localStorage.setItem(NOTES_KEY,JSON.stringify(notes));
 
+/* Manual check (column 2) */
 const getState=(id)=>store[id]||'todo';
 const cycleState=(id)=>{
   const cur=getState(id);
@@ -1839,11 +1899,28 @@ const cycleState=(id)=>{
   if(next==='todo')delete store[id]; else store[id]=next;
   saveStore();
 };
+/* AI check (column 1) */
+const getAiState=(id)=>aistore[id]||'todo';
+const cycleAiState=(id)=>{
+  const cur=getAiState(id);
+  const next=STATES[(STATES.indexOf(cur)+1)%STATES.length];
+  if(next==='todo')delete aistore[id]; else aistore[id]=next;
+  saveAiStore();
+};
 
-const requirements=()=>TOR.filter(r=>r.level===4);
+/* Systems OUTSIDE our scope — not our responsibility, so they are hidden from
+   the per-system progress cards, the sidebar, the requirement list, and are
+   excluded from every count (summary + รวมทุกระบบ).
+     2 · ระบบ Community
+     3 · ระบบ Childcare and School Health
+     5 · ระบบบริหารจัดการคลังยาและเวชภัณฑ์ (Drug Medical Inventory)          */
+const OUT_OF_SCOPE=['2','3','5'];
+const inScope=(id)=>!OUT_OF_SCOPE.some(p=>id===p||id.startsWith(p+'.'));
+
+const requirements=()=>TOR.filter(r=>r.level===4 && inScope(r.id));
 
 /* Build section groups: top-level items (level 1) for sidebar */
-const topGroups=()=>TOR.filter(r=>r.level===1);
+const topGroups=()=>TOR.filter(r=>r.level===1 && inScope(r.id));
 const childrenOf=(parentId)=>{
   const parts=parentId.split('.');
   return TOR.filter(r=>{
@@ -1857,8 +1934,8 @@ const childrenOf=(parentId)=>{
 const reqsUnder=(prefix)=>requirements().filter(r=>r.id===prefix||r.id.startsWith(prefix+'.'));
 const statsFor=(prefix)=>{
   const items=reqsUnder(prefix);
-  const done=items.filter(r=>getState(r.id)==='done').length;
-  const partial=items.filter(r=>getState(r.id)==='partial').length;
+  const done=items.filter(r=>getAiState(r.id)==='done').length;
+  const partial=items.filter(r=>getAiState(r.id)==='partial').length;
   return {total:items.length,done,partial,pct:items.length?Math.round((done+partial*0.5)/items.length*100):0};
 };
 
@@ -1954,7 +2031,7 @@ const renderOneReq=(parent,r)=>{
   const row=document.createElement('div');
   row.className='req';
   row.dataset.id=r.id;
-  row.dataset.state=getState(r.id);
+  row.dataset.state=getAiState(r.id);
   row.dataset.text=(r.text||'').toLowerCase();
   const state=getState(r.id);
   const hasNote=!!notes[r.id];
@@ -1966,8 +2043,10 @@ const renderOneReq=(parent,r)=>{
   const implNote = impl?.n
     ? `<span class="impl-note">${escapeHtml(impl.n)}</span>`
     : '';
+  const aistate=getAiState(r.id);
   row.innerHTML=`
-    <button class="state-btn" data-state="${state}" title="Click to cycle: ☐ → – → ✓">${STATE_ICONS[state]}</button>
+    <button class="state-btn" data-col="ai" data-state="${aistate}" title="AI เช็ค · คลิกวน ☐ → – → ✓">${STATE_ICONS[aistate]}</button>
+    <button class="state-btn" data-col="manual" data-state="${state}" title="Manual เช็ค · คลิกวน ☐ → – → ✓">${STATE_ICONS[state]}</button>
     <div class="id-cell">${r.id}</div>
     <div class="text-cell">
       <span>${escapeHtml(r.text||'')}</span>
@@ -1984,8 +2063,8 @@ const renderOneReq=(parent,r)=>{
 const updateSummary=()=>{
   const reqs=requirements();
   const total=reqs.length;
-  const done=reqs.filter(r=>getState(r.id)==='done').length;
-  const partial=reqs.filter(r=>getState(r.id)==='partial').length;
+  const done=reqs.filter(r=>getAiState(r.id)==='done').length;
+  const partial=reqs.filter(r=>getAiState(r.id)==='partial').length;
   const todo=total-done-partial;
   const pct=total?Math.round((done+partial*0.5)/total*100):0;
   document.getElementById('sum-done').textContent=`✓ ${done}`;
@@ -2002,7 +2081,7 @@ const updateSummary=()=>{
 const renderSystemsProgress=()=>{
   const root=document.getElementById('systemsProgress');
   if(!root)return;
-  const tops=TOR.filter(r=>r.level===1);
+  const tops=TOR.filter(r=>r.level===1 && inScope(r.id));
   let allTotal=0, allDone=0, allPartial=0;
   const cards=tops.map(top=>{
     const st=statsFor(top.id);
@@ -2072,20 +2151,25 @@ const applyFilter=()=>{
 
 /* ====== Event handlers ====== */
 document.addEventListener('click',(e)=>{
-  // State button click
+  // State button click — AI (column 1) or Manual (column 2)
   if(e.target.classList.contains('state-btn')){
     const row=e.target.closest('.req');
     const id=row.dataset.id;
-    cycleState(id);
-    const newState=getState(id);
-    row.dataset.state=newState;
-    e.target.dataset.state=newState;
-    e.target.textContent=STATE_ICONS[newState];
-    updateSummary();
-    updateSectionProgress();
-    if(filter!=='all'){
-      const show=(newState===filter);
-      row.classList.toggle('filter-hidden',!show);
+    if(e.target.dataset.col==='ai'){
+      cycleAiState(id);
+      const s=getAiState(id);
+      row.dataset.state=s;                       // AI = primary → drives filter + summary
+      e.target.dataset.state=s;
+      e.target.textContent=STATE_ICONS[s];
+      updateSummary();
+      updateSectionProgress();
+      renderSystemsProgress();
+      if(filter!=='all') row.classList.toggle('filter-hidden',s!==filter);
+    }else{
+      cycleState(id);                            // Manual = per-row verification mark only
+      const s=getState(id);
+      e.target.dataset.state=s;
+      e.target.textContent=STATE_ICONS[s];
     }
   }
   // Note toggle
@@ -2102,7 +2186,7 @@ document.addEventListener('click',(e)=>{
   }
   // Export
   if(e.target.id==='exportBtn'){
-    const payload={updatedAt:new Date().toISOString(),states:store,notes};
+    const payload={updatedAt:new Date().toISOString(),aiStates:aistore,manualStates:store,notes};
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
@@ -2112,10 +2196,11 @@ document.addEventListener('click',(e)=>{
   }
   // Reset
   if(e.target.id==='resetBtn'){
-    if(confirm('ลบสถานะและโน้ตทั้งหมด?')){
+    if(confirm('ลบสถานะ (AI + Manual) และโน้ตทั้งหมด?')){
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(AI_KEY);
       localStorage.removeItem(NOTES_KEY);
-      store={};notes={};
+      store={};aistore={};notes={};
       renderContent();renderNav();
     }
   }

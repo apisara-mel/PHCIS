@@ -34,6 +34,26 @@ module.exports = {
           200: 'var(--brand-s200)',
           700: 'var(--brand-s700)',
         },
+        /* ── Semantic surfaces, registered as real palette entries ──
+           Tailwind v2.1 JIT CANNOT parse `var(...)` as an arbitrary COLOR, so
+           `bg-[var(--surface-card-100)]` silently emits no rule at all and the
+           element ends up with no background (it only works for non-color
+           utilities like `z-[var(...)]`). Colors declared HERE are emitted
+           verbatim — `.bg-surface-card { background-color: var(--surface-card-100) }`
+           — so they stay token-aliased and retint per data-mode / data-brand.
+           Use these instead of `bg-[var(--surface-*)]`.                        */
+        surface: {
+          card:       'var(--surface-card-100)',
+          table:      'var(--surface-table-default)',
+          tableHover: 'var(--surface-table-hover)',
+          topic:      'var(--surface-topic-default)',
+          topicHover: 'var(--surface-topic-hover)',
+          btnQuinary: 'var(--surface-neutralbutton-quinary)',
+        },
+        /* Same rule for text tokens — `text-[var(...)]` is dead in v2.1. */
+        token: {
+          topicTertiaryTitle: 'var(--text-topic-tertiary-title)',
+        },
         ink: {
           DEFAULT:    '#363B3F',
           secondary:  '#636B72',

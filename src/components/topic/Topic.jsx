@@ -158,7 +158,7 @@ const Topic = React.forwardRef(function Topic(
         className={[
           'flex items-center w-full',
           useRuntimeHover
-            ? 'bg-[var(--surface-topic-default)] hover:bg-[var(--surface-topic-hover)] focus-visible:bg-[var(--surface-topic-hover)]'
+            ? 'bg-surface-topic hover:bg-surface-topicHover focus-visible:bg-surface-topicHover'
             : '',
           className,
         ].filter(Boolean).join(' ')}
