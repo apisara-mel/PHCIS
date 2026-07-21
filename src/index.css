@@ -187,6 +187,7 @@
   --border-dangerButton-secondary-hover: #EF4444;            /* red/500 */
   --border-dangerButton-tertiary:        #FECACA;            /* red/200 — Focus ring (4px) Figma 2024:3701 */
   --border-dangerButton-quaternary:      #FEE2E2;            /* red/100 — Active state border Figma 2024:3701 */
+  --border-dangerButton-quaternary-hover:#FECACA;            /* red/200 — Active+hover border (Danger Circle Subdue, Figma 3853:1298) */
   --text-dangerButton-default:           #B91C1C;            /* red/700 */
   --text-dangerButton-default-hover:     #991B1B;
   --text-dangerButton-on-danger:         #FFFFFF;
@@ -511,6 +512,9 @@
   --border-colorfulbadge-warning: #FEF08A; /* yellow/200 */
   --border-colorfulbadge-warning2:#FED7AA; /* orange/200 */
   --border-colorfulbadge-error:   #FECACA; /* red/200 */
+  /* Telemed queue badge blink rings — Figma PHCIS | Telemed 78:16496 / 78:16478 */
+  --border-telemed-queue-teal-blink: rgba(209, 246, 238, 0.4);   /* teal/100 @ 40% */
+  --border-telemed-queue-orange-blink: rgba(254, 215, 170, 0.4); /* orange/200 @ 40% */
   /* Quick Action press — Archive Figma 519:54747 (100 → 200, one level darker) */
   --surface-quickaction-purple-pressed: #E9D5FF; /* purple/200 */
   --surface-quickaction-blue-pressed:   #BFDBFE; /* blue/200 */
@@ -672,6 +676,7 @@
   --dim-radius-1000: 100px; /* dimension.radius.1000 — success card top arch (Archive 178:122765) */
   --dim-radius-full: 9999px;
 
+  --dim-size-100:   8px;   /* dimension.size.100 — XSmall trailing chevron (Brand Radius Subdue Icon Button 3871:4851) */
   --dim-size-200:   12px;  /* dimension.size.200 — small select icon */
   --dim-size-250:   14px;  /* dimension.size.250 — xs circle-icon glyph */
   --dim-size-300:   16px;
@@ -1261,6 +1266,11 @@
     0px 1px 4px var(--PrimaryShadow-600),
     0px 1px 8px var(--PrimaryShadow-601);
   --shadow-header: 0px 1px 4px var(--PrimaryShadow-602);
+  /* Telemed floating CTA — purple→magenta glow on hover, matching its
+     gradient (#7A4CE5 / #D833A1). Decorative elevation for the FAB only. */
+  --shadow-telemed-fab-hover:
+    0px 10px 28px -4px rgba(122, 76, 229, 0.50),
+    0px 4px 12px rgba(216, 51, 161, 0.32);
 
   /* ── Motion (enter/exit) — design.md §1d Motion tokens */
   --motion-duration-modal: 220ms;
@@ -1882,6 +1892,11 @@ a:focus, a:focus-visible,
   --mobile-status-bar-height:    44px;
   --mobile-bottom-nav-height:    80px;
 
+  /* Web form sticky action-bar height (Footer.jsx: lg button 44px +
+     2× --dim-space-400 padding + 1px border). Used to offset floating
+     CTAs so they clear the bar. */
+  --form-action-bar-height:      77px;
+
   /* Touch target floor (iOS HIG / Material 3 minimum) */
   --mobile-touch-target-min:     44px;
 
@@ -2312,6 +2327,40 @@ a:focus, a:focus-visible,
   z-index: 50;
   scroll-margin-top: 100px;
   scroll-margin-bottom: 100px;
+}
+
+/* Telemed queue badge — Figma 78:16524 "กระพริบ" on due (teal) + overdue (orange). */
+@keyframes mih-telemed-queue-blink-teal {
+  0%, 100% {
+    border-color: var(--border-telemed-queue-teal-blink, rgba(209, 246, 238, 0.4));
+    box-shadow: 0 0 0 0 rgba(36, 168, 153, 0);
+  }
+  50% {
+    border-color: var(--surface-colorfulbadge-teal-bold, #24A899);
+    box-shadow: 0 0 0 var(--dim-space-100, 4px) rgba(36, 168, 153, 0.35);
+  }
+}
+@keyframes mih-telemed-queue-blink-orange {
+  0%, 100% {
+    border-color: var(--border-telemed-queue-orange-blink, rgba(254, 215, 170, 0.4));
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
+  }
+  50% {
+    border-color: var(--surface-colorfulbadge-orange-bold, #F97316);
+    box-shadow: 0 0 0 var(--dim-space-100, 4px) rgba(249, 115, 22, 0.35);
+  }
+}
+.mih-telemed-queue-badge--blink-teal {
+  animation: mih-telemed-queue-blink-teal 1.2s ease-in-out infinite;
+}
+.mih-telemed-queue-badge--blink-orange {
+  animation: mih-telemed-queue-blink-orange 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mih-telemed-queue-badge--blink-teal,
+  .mih-telemed-queue-badge--blink-orange {
+    animation: none;
+  }
 }
 
 /* PHCIS Sign-in — Figma 79:15269 "Picture and card"

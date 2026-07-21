@@ -54,6 +54,7 @@ import AssessUserCreatePage from '@/pages/assess/AssessUserCreatePage';
 import AssessUserDetailPage from '@/pages/assess/AssessUserDetailPage';
 import KioskPage from '@/pages/kiosk/KioskPage';
 import MobileTicketPage from '@/pages/kiosk/MobileTicketPage';
+import { TelemedCallProvider, TelemedRouteTrigger } from '@/components/telemed/TelemedCallProvider';
 import Spotlight from '@/components/util/Spotlight';
 import { MobileAppProvider } from '@/components/mobile/MobileShell';
 import MobileLoginPage from '@/pages/mobile/MobileLoginPage';
@@ -88,6 +89,10 @@ export default function Routes() {
       {/* Global deep-link highlighter for TOR Compliance Checklist URLs.
           Reads `?spotlight=<key>&label=<TOR-id>` from every page. */}
       <Spotlight />
+      {/* Telemedicine call lives ABOVE the Switch so the video call + its live
+          media streams survive route changes — the doctor can minimise the
+          call and keep recording in ระบบบันทึกการรักษา (TOR 1.13). */}
+      <TelemedCallProvider>
       <Switch>
         {/* Root = System Selection Hub (PHCIS-ALL · Figma node 2149:104090).
             Shown BEFORE entering any specific subsystem. Each card routes
@@ -183,6 +188,12 @@ export default function Routes() {
         <Route exact path='/kiosk'                       component={KioskPage} />
         <Route exact path='/kiosk/ticket/:queueId'       component={MobileTicketPage} />
 
+        {/* ระบบ Telemedicine / RPM (TOR ข้อ 1.13) — หน้าวิดีโอคอลฝั่งแพทย์.
+            เปิดจากปุ่ม Telemedicine (floating) ในระบบบันทึกการรักษา.
+            Standalone full-screen surface — ไม่มี PHCIS sidebar chrome. */}
+        <Route exact path='/telemed'                     component={TelemedRouteTrigger} />
+        <Route exact path='/telemed/:visitId'            component={TelemedRouteTrigger} />
+
         {/* Legacy chrome-free preview sandboxes (kept for reference) */}
         <Route exact path='/preview/tabs'         component={TabsPreviewPage} />
         <Route exact path='/preview/cards'        component={CardsPreviewPage} />
@@ -232,6 +243,7 @@ export default function Routes() {
           </MobileAppProvider>
         </Route>
       </Switch>
+      </TelemedCallProvider>
     </Router>
   );
 }
