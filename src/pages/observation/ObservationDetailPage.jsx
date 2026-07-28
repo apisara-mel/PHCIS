@@ -9,7 +9,8 @@ import BrandButton from '@/components/button/BrandButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import Icon from '@/components/icons/Icon';
+import Alert from '@/components/alert/Alert';
+import TabBar, { TabPill } from '@/components/tab/TabPill';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
 
@@ -272,46 +273,31 @@ export default function ObservationDetailPage() {
                 </div>
               </div>
 
-              {/* Clinical Protocol Directive */}
-              <div
-                className='p-3.5 rounded-xl border text-xs w-full lg:w-auto max-w-lg'
-                style={{
-                  backgroundColor: currentEws.tier.color + '10',
-                  borderColor: currentEws.tier.color + '40',
-                }}
-              >
-                <div className='font-bold mb-1 flex items-center gap-1.5' style={{ color: currentEws.tier.color }}>
-                  <span className='material-symbols-outlined text-base'>clinical_notes</span>
-                  แนวทางปฏิบัติทางคลินิกตาม EWS Score:
-                </div>
-                <div className='text-gray-800 leading-relaxed font-medium'>
-                  {currentEws.score >= 5 && (
-                    <span className='text-rose-900 font-bold'>
-                      🚨 **ระดับวิกฤต (High Risk):** พยาบาลเข้าประเมินทันที, รายงานแพทย์ผู้ดูแลด่วน, เตรียมเครื่อง Defibrillator / O2 High Flow, และพิจารณาส่งต่อห้องฉุกเฉิน (ER) หรือ ICU ด่วน!
-                    </span>
-                  )}
-                  {currentEws.score >= 2 && currentEws.score < 5 && (
-                    <span className='text-amber-900 font-bold'>
-                      ⚠️ **ระดับเฝ้าระวัง (Medium Risk):** แจ้งพยาบาลหัวหน้าเวรและปรึกษาแพทย์, เพิ่มความถี่ในการวัด สัญญาณชีพเป็นทุก 30–60 นาที
-                    </span>
-                  )}
-                  {currentEws.score < 2 && (
-                    <span className='text-brand-900 font-bold'>
-                      ✅ **ระดับปกติ (Low Risk):** ผู้ป่วยสัญญาณชีพคงที่ เฝ้าสังเกตอาการตามปกติ วัด V/S ตามรอบ q 4 ชม.
-                    </span>
-                  )}
-                </div>
+              {/* Clinical Protocol Directive Alert */}
+              <div className='w-full lg:w-auto max-w-lg shrink-0'>
+                <Alert
+                  type={currentEws.score >= 5 ? 'error' : currentEws.score >= 2 ? 'warning' : 'success'}
+                  title='แนวทางปฏิบัติทางคลินิกตาม EWS Score:'
+                  subtext={
+                    currentEws.score >= 5
+                      ? '🚨 ระดับวิกฤต (High Risk): พยาบาลเข้าประเมินทันที, รายงานแพทย์ผู้ดูแลด่วน, เตรียมเครื่อง Defibrillator / O2 High Flow, และพิจารณาส่งต่อห้องฉุกเฉิน (ER) หรือ ICU ด่วน!'
+                      : currentEws.score >= 2
+                      ? '⚠️ ระดับเฝ้าระวัง (Medium Risk): แจ้งพยาบาลหัวหน้าเวรและปรึกษาแพทย์, เพิ่มความถี่ในการวัดสัญญาณชีพเป็นทุก 30–60 นาที'
+                      : '✅ ระดับปกติ (Low Risk): ผู้ป่วยสัญญาณชีพคงที่ เฝ้าสังเกตอาการตามปกติ วัด V/S ตามรอบ q 4 ชม.'
+                  }
+                  showCloseButton={false}
+                />
               </div>
             </div>
 
             {/* Vital Signs Trend Charts (SVG Sparklines) */}
             <div className='space-y-3'>
-              <div className='flex items-center justify-between'>
+              <div className='flex flex-wrap items-center justify-between gap-3'>
                 <h4 className='font-bold text-gray-800 text-xs flex items-center gap-1.5'>
                   <span className='material-symbols-outlined text-brand-600 text-base'>show_chart</span>
                   กราฟแนวโน้มสัญญาณชีพตามช่วงเวลา (Vital Signs Trend Visualizer)
                 </h4>
-                <div className='flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-200'>
+                <TabBar align='end'>
                   {[
                     { key: 'bp', label: 'ความดัน (BP)' },
                     { key: 'pulse', label: 'ชีพจร (Pulse)' },
@@ -319,16 +305,17 @@ export default function ObservationDetailPage() {
                     { key: 'temp', label: 'อุณหภูมิ' },
                     { key: 'rr', label: 'หายใจ (RR)' },
                   ].map((param) => (
-                    <BrandButton
+                    <TabPill
                       key={param.key}
-                      variant={selectedTrendParam === param.key ? 'fill' : 'ghost'}
-                      size='sm'
+                      size='small'
+                      selected={selectedTrendParam === param.key}
                       onClick={() => setSelectedTrendParam(param.key)}
+                      role='tab'
                     >
                       {param.label}
-                    </BrandButton>
+                    </TabPill>
                   ))}
-                </div>
+                </TabBar>
               </div>
 
               <VitalTrendChart data={patient.vitalsTrend} parameter={selectedTrendParam} height={160} />
