@@ -790,18 +790,23 @@ export default function ObservationDetailPage() {
         </div>
       )}
 
-      {/* Tab 3: Nursing Focus Notes */}
+      {/* Tab 3: Nursing Focus Notes — two-column layout, mirroring VitalsForm's
+          left-panel/right-content split: the add-note form is a fixed-width
+          left panel, the activity log timeline fills the remaining width. */}
       {activeTab === 'notes' && (
-        <div className='space-y-6'>
-          {/* Add Nursing Note */}
-          <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
+        <div className='flex items-start' style={{ gap: 'var(--dim-space-600)' }}>
+          {/* Add Nursing Note — left panel */}
+          <div
+            className='w-[360px] shrink-0 bg-white rounded-2xl p-5 border-none'
+            style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}
+          >
             <h3 className='font-bold text-gray-900 text-sm mb-3 flex items-center gap-2'>
               <span className='material-symbols-outlined text-brand-600'>edit_note</span>
               บันทึกทางการพยาบาลเพิ่มเติม (Focus Nursing Log)
             </h3>
             <form onSubmit={handleAddNursingNote} className='space-y-3 text-xs'>
               <Textarea
-                rows={3}
+                rows={5}
                 placeholder='ระบุบันทึกทางการพยาบาล อาการเปลี่ยนแปลง การตอบสนองต่อการรักษา หรือการประเมินความเสี่ยง'
                 value={newNursingNote}
                 onChange={(val) => setNewNursingNote(val)}
@@ -815,8 +820,8 @@ export default function ObservationDetailPage() {
             </form>
           </div>
 
-          {/* Nursing Notes Timeline */}
-          <div className='bg-white rounded-2xl p-6 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
+          {/* Nursing Notes Timeline — right content */}
+          <div className='flex-1 min-w-0 bg-white rounded-2xl p-6 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
             <h3 className='font-bold text-gray-900 text-sm mb-6 flex items-center gap-2 border-b border-gray-100 pb-3'>
               <span className='material-symbols-outlined text-brand-600'>history</span>
               ประวัติการบันทึกทางการพยาบาล (Nursing Activity Log)
