@@ -1,7 +1,7 @@
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
 
-/* PROTOTYPE — wipe me. Mock data for the `lab` module UI prototype
-   (src/pages/lab/LabQueuePrototypePage.jsx). Not wired to a backend.
+/* Mock data for the `lab` module (src/pages/lab/LabQueuePage.jsx). Not
+   wired to a backend — same tier as treatmentQueue.js / pharmacyQueue.js.
 
    Shaped after the real lab test catalog in treatmentVisits.js
    (APPT_ADVANCE_ORDER_OPTIONS, 'lab' group) and the `labs[]` slice

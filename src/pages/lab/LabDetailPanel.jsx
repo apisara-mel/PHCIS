@@ -4,12 +4,12 @@ import Badge from '@/components/badge/Badge';
 import XCloseButton from '@/components/button/XCloseButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { Icon } from '@/components/icons/Icon';
-import { LAB_TEST_CATALOG, resolveReferenceRange } from '@/data/labOrdersPrototype';
+import { LAB_TEST_CATALOG, resolveReferenceRange } from '@/data/labOrders';
 
-/* PROTOTYPE — wipe me. Shared detail-panel + trend-chart used by
-   LabQueueVariantB's split table + click-to-detail layout.
+/* Detail panel + trend-chart shown alongside LabQueuePage's table when a
+   row is selected.
 
-   Additions per TOR ภาคผนวก ก §1.15:
+   Covers TOR ภาคผนวก ก §1.15:
      §1.15.4.9 — STAT urgency badge next to the test title; specimen +
                  price shown in the meta line.
      §1.15.4.6 — "ผลผิดปกติ" (abnormal, non-critical) alert — same Alert
@@ -24,7 +24,7 @@ import { LAB_TEST_CATALOG, resolveReferenceRange } from '@/data/labOrdersPrototy
                  a result exists and (for confidential rows) is revealed.
      §1.15.4.9 — "ข้อมูลยอดรวมทั้งหมด" — total scoped to the ONE order this
                  test belongs to (`orderItemCount` / `orderTotal` props from
-                 LabQueueVariantB), not the whole table — see that file's
+                 LabQueuePage), not the whole table — see that file's
                  comment on `orderSiblings` for why. */
 
 const STATUS_PILL_LABEL = {
@@ -87,7 +87,7 @@ const LabDetailPanel = ({
   orderTotal = 0,
   emptyMessage = 'เลือกรายการทางซ้ายเพื่อดูรายละเอียด',
 }) => {
-  /* Reset per order — LabQueueVariantB passes `key={order.id}` on this
+  /* Reset per order — LabQueuePage passes `key={order.id}` on this
      component so a freshly-selected row always starts masked again. */
   const [revealed, setRevealed] = useState(false);
 

@@ -55,8 +55,8 @@ const ITEMS = [
     ],
   },
   { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18                },
-  { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18                },
-  { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill'                                   },
+  { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18, path: '/lab/queue' },
+  { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht'                                   },
   { key: 'appoint',   label: 'ระบบนัดหมาย',               icon: 'calendar_clock', path: '/appointment'       },
   /* 'ประวัติการใช้งาน' (log) และ 'ผู้ใช้และสิทธิ์การเข้าถึง' (users) ถูกย้ายไป

@@ -14,7 +14,7 @@ import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
 import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
 import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
-import LabQueuePrototypePage from '@/pages/lab/LabQueuePrototypePage';
+import LabQueuePage from '@/pages/lab/LabQueuePage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
 import FormsCategoryPage from '@/pages/forms/FormsCategoryPage';
 import FormDetailPage from '@/pages/forms/FormDetailPage';
@@ -166,10 +166,8 @@ export default function Routes() {
         <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
-        {/* PROTOTYPE — wipe me. Lab module (ห้องปฏิบัติการ) UI exploration —
-            `lab` is still a Sidebar stub (no path), so this is reachable
-            only via the direct URL. See src/pages/lab/NOTES.md. */}
-        <Route exact path='/prototype/lab'   component={LabQueuePrototypePage} />
+        <Route exact path='/lab'              component={LabQueuePage} />
+        <Route exact path='/lab/queue'        component={LabQueuePage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
         <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
         <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />
