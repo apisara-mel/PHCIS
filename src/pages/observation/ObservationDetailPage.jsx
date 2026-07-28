@@ -478,7 +478,7 @@ export default function ObservationDetailPage() {
           {/* Add Stat Order Form */}
           <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
             <h3 className='font-bold text-gray-900 text-sm mb-3 flex items-center gap-2'>
-              <span className='material-symbols-outlined text-rose-600'>order_approve</span>
+              <span className='material-symbols-outlined text-brand-600'>order_approve</span>
               เพิ่มคำสั่งการรักษาด่วน (Add STAT / Urgent Order)
             </h3>
             <form onSubmit={handleAddOrder} className='flex items-end gap-3 text-xs'>
@@ -663,7 +663,7 @@ export default function ObservationDetailPage() {
 
             {/* Refer Hospital Selector if refer */}
             {dischargeForm.disposition === 'refer' && (
-              <div className='p-4 bg-rose-50 rounded-xl border border-rose-200 space-y-3 animate-fade-in'>
+              <div className='p-4 bg-brand-50/70 rounded-xl border border-brand-200/80 space-y-3 animate-fade-in'>
                 <Select
                   label='โรงพยาบาลรับส่งต่อ (Destination Referral Hospital):'
                   value={dischargeForm.referHospital}
