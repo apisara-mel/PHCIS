@@ -136,6 +136,7 @@ const VitalCard = ({
           <input
             type='number'
             min={0}
+            step={step}
             value={value}
             onChange={(e) => update(e.target.value)}
             className='flex-1 min-w-0 text-base font-bold bg-transparent border-0 focus:ring-0 px-0 leading-snug'
@@ -192,6 +193,7 @@ const PressureValue = ({ value, onChange, ariaLabel, danger, step, fmt }) => {
       <input
         type='number'
         min={0}
+        step={step}
         value={value}
         onChange={(e) => handleType(e.target.value)}
         aria-label={ariaLabel}
