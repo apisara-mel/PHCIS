@@ -179,11 +179,12 @@ export default function VitalTrendChart({ data = [], parameter = 'bp', height = 
             x={getX(idx)}
             y={height - 4}
             textAnchor='middle'
-            fontSize='8'
-            fill='#94A3B8'
+            fontSize='7.5'
+            fontWeight='500'
+            fill='#64748B'
             className='font-mono'
           >
-            {t}
+            {t.replace(/\s*น\./g, '')}
           </text>
         ))}
       </svg>
