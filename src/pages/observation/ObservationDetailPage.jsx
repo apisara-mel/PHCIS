@@ -514,7 +514,7 @@ export default function ObservationDetailPage() {
               className='flex items-center justify-between'
               style={{
                 padding: 'var(--dim-space-400)',
-                background: 'var(--surface-table-header)',
+                background: 'var(--surface-card-100)',
                 borderBottom: 'var(--dim-stroke-100) solid var(--border-table-default)',
               }}
             >
