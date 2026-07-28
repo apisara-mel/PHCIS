@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html class="light" lang="th"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>HealthQuest - การชำระเงินและใบเสร็จ</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                "outline-variant": "#bccac0",
+                "on-secondary-container": "#00714d",
+                "on-primary": "#ffffff",
+                "surface-container-lowest": "#ffffff",
+                "error": "#ba1a1a",
+                "surface-container": "#e5eeff",
+                "background": "#f8f9ff",
+                "on-error-container": "#93000a",
+                "on-tertiary-fixed": "#002114",
+                "surface-dim": "#cbdbf5",
+                "surface-bright": "#f8f9ff",
+                "secondary-fixed-dim": "#4edea3",
+                "on-tertiary-fixed-variant": "#005137",
+                "on-tertiary-container": "#f5fff7",
+                "on-primary-fixed": "#002114",
+                "surface": "#f8f9ff",
+                "secondary-container": "#6cf8bb",
+                "tertiary-fixed": "#68fcbf",
+                "primary": "#006948",
+                "surface-container-low": "#eff4ff",
+                "inverse-surface": "#213145",
+                "inverse-primary": "#68dba9",
+                "inverse-on-surface": "#eaf1ff",
+                "on-surface-variant": "#3d4a42",
+                "surface-container-high": "#dce9ff",
+                "primary-fixed": "#85f8c4",
+                "surface-tint": "#006c4a",
+                "on-secondary": "#ffffff",
+                "primary-fixed-dim": "#68dba9",
+                "on-secondary-fixed": "#002113",
+                "on-primary-container": "#f5fff7",
+                "on-tertiary": "#ffffff",
+                "surface-variant": "#d3e4fe",
+                "on-secondary-fixed-variant": "#005236",
+                "error-container": "#ffdad6",
+                "secondary-fixed": "#6ffbbe",
+                "on-surface": "#0b1c30",
+                "on-primary-fixed-variant": "#005137",
+                "on-error": "#ffffff",
+                "tertiary-fixed-dim": "#45dfa4",
+                "outline": "#6d7a72",
+                "on-background": "#0b1c30",
+                "tertiary-container": "#00855d",
+                "surface-container-highest": "#d3e4fe",
+                "secondary": "#006c49",
+                "primary-container": "#00855d",
+                "tertiary": "#006949"
+              },
+              "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+              },
+              "spacing": {
+                "element-gap": "24px",
+                "stack-lg": "64px",
+                "container-padding": "40px",
+                "unit": "8px",
+                "touch-target-min": "56px",
+                "stack-sm": "16px",
+                "stack-md": "32px"
+              },
+              "fontFamily": {
+                "label-lg": ["Plus Jakarta Sans"],
+                "body-md": ["Plus Jakarta Sans"],
+                "headline-md": ["Plus Jakarta Sans"],
+                "headline-lg": ["Plus Jakarta Sans"],
+                "display-lg": ["Plus Jakarta Sans"],
+                "label-sm": ["Plus Jakarta Sans"],
+                "display-md": ["Plus Jakarta Sans"],
+                "body-lg": ["Plus Jakarta Sans"]
+              },
+              "fontSize": {
+                "label-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                "headline-lg": ["30px", {"lineHeight": "38px", "fontWeight": "600"}],
+                "display-lg": ["48px", {"lineHeight": "60px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                "label-sm": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                "display-md": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+      </script>
+<style>
+        body {
+          background-color: #f8f9ff;
+          color: #0b1c30;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          overflow: hidden;
+        }
+
+        .glass-panel {
+          background: rgba(255, 255, 255, 0.8);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.5);
+          box-shadow: 0 8px 30px rgba(5, 150, 105, 0.04);
+        }
+
+        .medical-shadow {
+          box-shadow: 0 10px 40px rgba(5, 150, 105, 0.08);
+        }
+
+        .qr-animation-glow {
+          animation: qr-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes qr-pulse {
+          0%, 100% { opacity: 0.15; transform: scale(1); }
+          50% { opacity: 0.3; transform: scale(1.02); }
+        }
+
+        .scanner-line {
+          height: 2px;
+          background: linear-gradient(90deg, transparent, #006948, transparent);
+          width: 100%;
+          position: absolute;
+          top: 0;
+          animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+          0% { top: 0; }
+          100% { top: 100%; }
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+<!-- Top Navigation Shell -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-container-padding h-[80px] bg-surface/80 dark:bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 shadow-sm">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary text-[32px]">health_metrics</span>
+<h1 class="font-display-md text-display-md text-primary tracking-tight">HealthQuest</h1>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary-container/20 text-secondary">
+<span class="material-symbols-outlined text-[20px]">verified_user</span>
+<span class="font-label-lg text-label-lg">จุดบริการชำระเงินปลอดภัย</span>
+</div>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-on-surface-variant">schedule</span>
+<span class="material-symbols-outlined text-on-surface-variant">wifi</span>
+<span class="material-symbols-outlined text-on-surface-variant">battery_full</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 mt-[80px] mb-[100px] px-container-padding py-stack-md overflow-hidden relative">
+<!-- Background Decoration -->
+<div class="absolute top-1/4 -left-20 w-96 h-96 bg-primary-fixed/20 rounded-full blur-[120px] pointer-events-none"></div>
+<div class="absolute bottom-1/4 -right-20 w-96 h-96 bg-secondary-fixed/20 rounded-full blur-[120px] pointer-events-none"></div>
+<div class="h-full grid grid-cols-12 gap-element-gap">
+<!-- Left Section: Payment QR -->
+<div class="col-span-5 flex flex-col gap-element-gap">
+<div class="glass-panel rounded-3xl p-8 flex-1 flex flex-col items-center justify-center text-center relative overflow-hidden">
+<div class="mb-stack-sm">
+<span class="material-symbols-outlined text-primary text-[48px] mb-2">qr_code_scanner</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">สแกนเพื่อชำระเงิน</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">รองรับ Mobile Banking และ E-Wallets ทุกธนาคาร</p>
+</div>
+<!-- QR Code Container -->
+<div class="relative w-64 h-64 bg-white p-4 rounded-2xl medical-shadow border border-outline-variant/30 flex items-center justify-center">
+<div class="scanner-line"></div>
+<div class="absolute inset-0 bg-primary/5 qr-animation-glow rounded-2xl pointer-events-none"></div>
+<img alt="QR Code สำหรับชำระเงิน" class="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJ1bOUUu3kDVXfSqKhogADvVL0W7pk6t5GFCTT0EdYBQsk0n9WUKYemEFqsp0-rmv-tz91OhUpPQy9igJHUNh2GBC4sRwlEG6QLM1fEn-rykUrwt_DDANHaw9MI2lsvtjzCzkSzIOg1ygpxSqA5T_Pl4BO5XxYGSzRC0Tg4jkmrCohsfdSjlTPiPF8RbxZsPaZ5MiXzoz7uQ3SVtDEcNQhzKAgio-80hh41Zu6BKNiX90VGDHHLlNFeVipBsn7m9sr8idr_XpTKWY"/>
+</div>
+<div class="mt-stack-md flex flex-wrap justify-center gap-4">
+<div class="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-full">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+<span class="font-label-sm text-label-sm">PromptPay</span>
+</div>
+<div class="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-full">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+<span class="font-label-sm text-label-sm">Visa/Mastercard</span>
+</div>
+<div class="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-full">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+<span class="font-label-sm text-label-sm">Rabbit LINE Pay</span>
+</div>
+</div>
+</div>
+<!-- Instructional Card -->
+<div class="glass-panel rounded-3xl p-6 flex items-center gap-6">
+<div class="w-16 h-16 rounded-2xl bg-primary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-primary-container text-display-md">smartphone</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">พบปัญหาในการใช้งาน?</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">กดปุ่ม 'ช่วยเหลือ' ด้านล่างเพื่อเรียกเจ้าหน้าที่มายังจุดบริการนี้</p>
+</div>
+</div>
+</div>
+<!-- Right Section: Detailed Breakdown -->
+<div class="col-span-7 flex flex-col gap-element-gap">
+<div class="glass-panel rounded-3xl p-8 flex flex-col h-full">
+<div class="flex justify-between items-start mb-stack-md border-b border-outline-variant/20 pb-stack-sm">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">สรุปรายละเอียดบริการ</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">รหัสผู้ป่วย: #HQ-9823-2023</p>
+</div>
+<div class="text-right">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">วันที่</p>
+<p class="font-label-lg text-label-lg text-on-surface">24 ต.ค. 2023 | 14:30</p>
+</div>
+</div>
+<!-- Line Items -->
+<div class="flex-1 space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+<div class="flex justify-between items-center group">
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">medical_information</span>
+</div>
+<div>
+<h4 class="font-label-lg text-label-lg text-on-surface">ตรวจโรคทั่วไป</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">พญ. ซาร่าห์ ทอมป์สัน • อายุรกรรม</p>
+</div>
+</div>
+<span class="font-label-lg text-label-lg text-on-surface">1,200.00 บาท</span>
+</div>
+<div class="flex justify-between items-center group">
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">lab_panel</span>
+</div>
+<div>
+<h4 class="font-label-lg text-label-lg text-on-surface">ตรวจความสมบูรณ์ของเม็ดเลือด (CBC)</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">บริการห้องปฏิบัติการวินิจฉัย</p>
+</div>
+</div>
+<span class="font-label-lg text-label-lg text-on-surface">850.00 บาท</span>
+</div>
+<div class="flex justify-between items-center group">
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">radiology</span>
+</div>
+<div>
+<h4 class="font-label-lg text-label-lg text-on-surface">เอ็กซ์เรย์ทรวงอก</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">แผนกรังสีวิทยา • ภาพวินิจฉัยดิจิทัล</p>
+</div>
+</div>
+<span class="font-label-lg text-label-lg text-on-surface">1,500.00 บาท</span>
+</div>
+<div class="flex justify-between items-center group">
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">pill</span>
+</div>
+<div>
+<h4 class="font-label-lg text-label-lg text-on-surface">ค่ายาตามใบสั่งแพทย์</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">ยาปฏิชีวนะและยาลดการอักเสบ</p>
+</div>
+</div>
+<span class="font-label-lg text-label-lg text-on-surface">1,300.00 บาท</span>
+</div>
+</div>
+<!-- Total Calculation -->
+<div class="mt-stack-md pt-stack-sm border-t border-outline-variant/30 space-y-3">
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-body-md text-body-md">ยอดรวมเบื้องต้น</span>
+<span class="font-body-md text-body-md">4,850.00 บาท</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-body-md text-body-md">ค่าบริการ (รวมแล้ว)</span>
+<span class="font-body-md text-body-md">0.00 บาท</span>
+</div>
+<div class="flex justify-between items-center pt-2">
+<span class="font-headline-md text-headline-md text-on-surface">ยอดรวมสุทธิ</span>
+<div class="text-right">
+<span class="font-display-md text-display-md text-primary">4,850.00 บาท</span>
+<p class="text-secondary font-label-sm text-label-sm">รวมภาษีมูลค่าเพิ่ม 7%</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Shell -->
+<footer class="fixed bottom-0 left-0 w-full z-50 flex justify-between items-center px-container-padding py-stack-sm h-[100px] bg-surface/90 backdrop-blur-2xl shadow-[0_-8px_30px_rgb(0,0,0,0.04)] rounded-t-xl">
+<button class="flex flex-row items-center justify-center gap-2 text-on-surface-variant px-8 py-4 hover:bg-secondary/5 transition-all active:translate-y-1 duration-150">
+<span class="material-symbols-outlined">arrow_back</span>
+<span class="font-label-lg text-label-lg">ย้อนกลับ</span>
+</button>
+<div class="flex items-center gap-4">
+<p class="font-label-sm text-label-sm text-on-surface-variant text-right hidden md:block">
+            ดำเนินการอย่างปลอดภัยโดย <br/>บริการทางการเงิน HealthQuest
+        </p>
+<button class="flex flex-row items-center justify-center gap-2 bg-secondary-container text-on-secondary-container rounded-full px-8 py-4 hover:bg-secondary/5 transition-all active:translate-y-1 duration-150">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-label-lg text-label-lg">ช่วยเหลือ</span>
+</button>
+</div>
+</footer>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('Payment terminal ready...');
+      
+      const panels = document.querySelectorAll('.glass-panel');
+      window.addEventListener('mousemove', (e) => {
+        const xAxis = (window.innerWidth / 2 - e.pageX) / 100;
+        const yAxis = (window.innerHeight / 2 - e.pageY) / 100;
+        
+        panels.forEach(panel => {
+          panel.style.transform = `translate(${xAxis}px, ${yAxis}px)`;
+        });
+      });
+    });
+</script>
+</body></html>

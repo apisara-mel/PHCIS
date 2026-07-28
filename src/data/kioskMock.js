@@ -1,11 +1,13 @@
 /* MIH PHCIS · Kiosk mock data
-   Drives /kiosk multi-step flow (welcome → service → sub → appointment
-   → verify → confirm → ticket). Mirrors the userflow doc at
-   docs/kiosk-userflow.html. Replace with backend integration when ready.
+   Drives /kiosk multi-step flow (welcome → hub → intent branches).
+   Mirrors docs/kiosk-userflow.html + Stitch refs in docs/kiosk/stitch/.
+   Replace with backend integration when ready.
 
-   - SERVICES: top-level Step 1 picker (6 cards in 3×2 grid)
-   - SUB_SERVICES: Step 1b drill-down (only when service.drill === true)
-   - PATIENTS: keyed by 13-digit national ID (Step 3 verify lookup)
+   - HUB_SERVICES: Stitch service-select (register / appointment / eligibility / payment)
+   - SERVICES: department picker for register + post-rights queue path
+   - SUB_SERVICES: Step drill-down (only when service.drill === true)
+   - PATIENTS: keyed by 13-digit national ID (verify lookup)
+   - PAYMENT_CHANNELS / MOCK_BILL / buildRightsDetail: TOR §1.16.1 / §1.16.3 mocks
    - generateQueueNumber(): deterministic per-day, per-prefix increment
 */
 
@@ -226,4 +228,95 @@ export const estimateWaitMinutes = (issued, calling) => {
   if (!issued || !calling) return null;
   const diff = parseInt(issued.split('-')[1], 10) - parseInt(calling.split('-')[1], 10);
   return Math.max(diff * 3, 1); // mock: ~3 min/person
+};
+
+/* ─── Stitch Smart Service hub (docs/kiosk/stitch) · TOR §1.16 ─── */
+
+export const HUB_SERVICES = [
+  {
+    key: 'register',
+    label: 'รับบริการใหม่',
+    labelEn: 'New Registration',
+    desc: 'สำหรับผู้ป่วยใหม่ หรือผู้ที่ไม่ได้นัดหมาย',
+    icon: 'person_add',
+    intent: 'register',
+  },
+  {
+    key: 'appointment',
+    label: 'คิวนัดหมาย',
+    labelEn: 'Check Appointment',
+    desc: 'ตรวจสอบเวลาและการรักษาล่วงหน้า',
+    icon: 'calendar_month',
+    intent: 'appointment',
+  },
+  {
+    key: 'eligibility',
+    label: 'ตรวจสอบสิทธิ์',
+    labelEn: 'Verify Eligibility',
+    desc: 'ตรวจสอบสิทธิการรักษาและประกันสุขภาพ',
+    icon: 'verified_user',
+    intent: 'eligibility',
+  },
+  {
+    key: 'payment',
+    label: 'ชำระเงิน',
+    labelEn: 'Payment',
+    desc: 'ชำระค่าบริการทางการแพทย์และค่ายา',
+    icon: 'payments',
+    intent: 'payment',
+  },
+];
+
+export const PAYMENT_CHANNELS = [
+  {
+    key: 'qr',
+    label: 'คิวอาร์โค้ด / โมบายแบงก์กิ้ง',
+    desc: 'รองรับแอปพลิเคชันธนาคารชั้นนำผ่าน PromptPay',
+    icon: 'qr_code_2',
+  },
+  {
+    key: 'card',
+    label: 'บัตรเครดิต / บัตรเดบิต',
+    desc: 'Visa, Mastercard, JCB และ UnionPay',
+    icon: 'credit_card',
+  },
+  {
+    key: 'counter',
+    label: 'เคาน์เตอร์เซอร์วิส',
+    desc: 'ชำระด้วยเงินสดหรือบัตรที่เคาน์เตอร์หลัก',
+    icon: 'storefront',
+  },
+];
+
+/** Mock bill for payment flow (TOR 1.16.3) — amounts in THB. */
+export const MOCK_BILL = {
+  id: 'HQ-9823-2023',
+  issuedAt: '2025-05-25T14:30:00',
+  lines: [
+    { key: 'opd', label: 'ค่ารักษาพยาบาล', sub: 'ตรวจโรคทั่วไป', amount: 1500 },
+    { key: 'lab', label: 'ค่าตรวจทางห้องปฏิบัติการ', sub: 'CBC / Lab', amount: 2200 },
+    { key: 'med', label: 'ค่ายา (เบื้องต้น)', sub: 'ตามใบสั่งแพทย์', amount: 550 },
+  ],
+  get total() {
+    return this.lines.reduce((s, l) => s + l.amount, 0);
+  },
+};
+
+export const buildRightsDetail = (patient) => {
+  if (!patient) return null;
+  const group = patient.rightsGroup || 'บัตรทอง';
+  return {
+    status: 'eligible',
+    statusLabel: 'มีสิทธิ์ใช้งาน',
+    validUntil: '2568',
+    hospital: 'หน่วยบริการสำนักอนามัย',
+    hospitalPhone: '02-123-4567',
+    coverageTitle: group === 'ชำระเงินเอง' ? 'ชำระเงินเอง' : 'คุ้มครองตามสิทธิ์',
+    coverageItems: group === 'ชำระเงินเอง'
+      ? ['ชำระค่าบริการที่เคาน์เตอร์หรือตู้ Kiosk', 'ขอใบเสร็จ / e-Receipt ได้']
+      : ['OPD ตามสิทธิ์', 'IPD ตามสิทธิ์', `${group}`],
+    bloodType: patient.bloodType || '—',
+    dobLabel: patient.age ? `อายุ ${patient.age} ปี` : '—',
+    languages: 'ไทย',
+  };
 };

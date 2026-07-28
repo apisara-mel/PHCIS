@@ -117,6 +117,9 @@ const BrandCircleSubdueIconButton = React.forwardRef(function BrandCircleSubdueI
     type = 'button',
     variant = 'fill',
     size = 'md',
+    /** Override glyph color (e.g. `var(--icon-brandPrimaryButton-on-brand, #FFFFFF)`
+        when the button sits on a brand-colored surface, per Figma). */
+    iconColor,
     'aria-label': ariaLabel,
     className = '',
     style = {},
@@ -172,7 +175,7 @@ const BrandCircleSubdueIconButton = React.forwardRef(function BrandCircleSubdueI
         <Sym
           name={icon}
           size={dim.icon}
-          color={s.icon}
+          color={iconColor || s.icon}
           weight={isCheckGlyph ? 600 : 400}
           fill={isCheckGlyph ? 1 : 0}
         />

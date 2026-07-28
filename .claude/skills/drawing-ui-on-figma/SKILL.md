@@ -95,10 +95,17 @@ For each vibe-code component:
 
 Layer naming (aligned with prototype-from-figma):
 
-- Screen → `Screen/<Name>`
+- Screen → `Screen/<Name>` or `Screen/<Name> · <State>` (e.g. `Screen/TelemedQueue · Empty`)
 - Section → `Section/<Name>`
 - Component instance → `<ComponentName>` or `<ComponentName> · <State>`
+- Intentional new (no vibe-code match) → `NEW/<Name>`
 - Dynamic placeholder → `data:<field>` · fixed copy → `label:<slug>`
+
+Validate after assembly:
+
+```bash
+node .claude/skills/drawing-ui-on-figma/scripts/validate-figma-layers.mjs <metadata.json>
+```
 
 ### Step 4 — Styles (PHCIS-ALL + tokens)
 
@@ -135,10 +142,18 @@ Popup flows: show trigger frame + open state + dismiss path. Table flows: sort i
 
 ### Step 7 — Verify
 
-1. `get_screenshot` on finished frame — compare to PHCIS-ALL reference.
-2. Confirm **zero** unbound hex fills on library-eligible layers.
-3. Confirm every layer maps to a vibe-code name OR is marked `NEW/*` with token aliases listed.
-4. Add `note:*` layers for non-obvious logic (timeouts, PDPA, role gates).
+1. `get_metadata` on the finished frame → save JSON → run layer validation:
+
+```bash
+node .claude/skills/drawing-ui-on-figma/scripts/validate-figma-layers.mjs meta.json
+```
+
+Exit **0** = no default layer names; review WARNs (unknown components, missing states). Exit **1** = rename `Frame 12` / `Group 3` layers first.
+
+2. `get_screenshot` on finished frame — compare to PHCIS-ALL reference.
+3. Confirm **zero** unbound hex fills on library-eligible layers.
+4. Confirm every layer maps to a vibe-code name OR is prefixed `NEW/` with token aliases in a `note:*` layer.
+5. Add `note:*` layers for non-obvious logic (timeouts, PDPA, role gates).
 
 ## When to create new (requirement 7)
 
@@ -162,3 +177,4 @@ Allowed only when Steps 2–3 find **no** library or vibe-code match:
 
 - Library file keys & entry nodes → [REFERENCE.md](REFERENCE.md)
 - State / edge-case matrix → [LOGIC-MATRIX.md](LOGIC-MATRIX.md)
+- Layer-name validator → [scripts/validate-figma-layers.mjs](scripts/validate-figma-layers.mjs)

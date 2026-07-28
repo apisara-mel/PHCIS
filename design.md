@@ -1,5 +1,9 @@
 # Design System Token Reference
 
+> **Canonical package:** [`@mih/design-tokens`](https://github.com/namonlims/mih-design) (`packages/design-tokens`).  
+> CSS custom properties ship from that package (`tokens.css`); this `design.md` is the human-readable mirror.  
+> Edit tokens in **mih-design**, then run `npm run tokens:pull` here to refresh this file.
+>
 > Auto-generated from Figma Variable exports. Last updated: July 2026 (§1–§4 synced from tokens/figma/ (primitive · brand · breakpoint · semantic))
 
 ## Token Architecture

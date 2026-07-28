@@ -1526,27 +1526,35 @@ const SPOTLIGHT = {
 };
 
 const IMPL = {
-  /* ===== 1.1 Registration ===== */
+  /* ===== 1.1 Registration =====
+     Rechecked 2026-07-23 against Figma "PHCIS | Registration" (node 1:3827) TOR
+     annotation checklist (section 97:1782). "Figma ✓/✗" below = whether the
+     design frame's own TOR checkbox marks that requirement in-scope. */
   '1.1.1.1':  {s:'done',    u:'/registration/queue',    n:'Queue page · Active/Inactive badges'},
-  '1.1.1.3':  {s:'partial', u:'/registration/queue',    n:'PrimarySearch covers HN+ชื่อ; ยังไม่ครอบ Passport/โทรศัพท์'},
+  '1.1.1.2':  {s:'todo',                                 n:'สถานะมีชีวิตอยู่/เสียชีวิต — ไม่มีทั้งใน Figma (ไม่มี checkbox กำกับ) และในโค้ด · real gap, ต้องออกแบบใหม่'},
+  '1.1.1.3':  {s:'partial', u:'/registration/queue',    n:'PrimarySearch covers HN+ชื่อ; ยังไม่ครอบ Passport/โทรศัพท์ · Figma ก็ไม่มี search-by chip สำหรับ 2 ช่องนี้เช่นกัน'},
   '1.1.1.4':  {s:'done',    u:'/registration/register', n:'5-step form (Personal/Address/Contact/Rights/Flags) + auto HN'},
-  '1.1.1.5':  {s:'partial', u:'/registration/register', n:'Duplicate-name warning not yet hooked'},
+  '1.1.1.5':  {s:'partial', u:'/registration/register', n:'Duplicate-name warning not yet hooked · Figma ✗ (unchecked) — real design gap, ต้องออกแบบใหม่'},
   '1.1.1.6':  {s:'done',    u:'/registration/register', n:'แสดง/บันทึก/แก้ไข ครบ 5 step'},
   '1.1.1.7':  {s:'done',    u:'/registration/register', n:'Smart-card chip-read flow (อ่านบัตร)'},
   '1.1.1.8':  {s:'done',    u:'/registration/register', n:'Auto-fill จาก chip + แก้ไขเพิ่มเติม manual'},
-  '1.1.1.9':  {s:'partial', u:'/components/components-library', n:'Generic camera flow (CameraCapturePopup); ยังไม่มีปุ่มอัปโหลดในหน้า registration'},
-  '1.1.1.10': {s:'todo',                                 n:'พิมพ์บัตรผู้รับบริการ — ไม่มี print template'},
-  '1.1.1.11': {s:'todo',                                 n:'ใส่เฉพาะปีเกิด — DOB ปัจจุบันบังคับวัน+เดือน+ปี'},
+  '1.1.1.9':  {s:'partial', u:'/components/components-library', n:'Generic camera flow (CameraCapturePopup); ยังไม่มีปุ่มอัปโหลดในหน้า registration · Figma ✓ ครอบคลุมแล้ว — ต้อง wire เข้า flow'},
+  '1.1.1.10': {s:'todo',                                 n:'พิมพ์บัตรผู้รับบริการ — ไม่มี print template · Figma ✓ ครอบคลุมแล้ว — ต้อง build template'},
+  '1.1.1.11': {s:'todo',                                 n:'ใส่เฉพาะปีเกิด — DOB ปัจจุบันบังคับวัน+เดือน+ปี · Figma ✗ (unchecked) — real design gap'},
   '1.1.1.12': {s:'done',    u:'/registration/register', n:'Step 3 emergency contacts (array)'},
-  '1.1.1.13': {s:'partial', u:'/registration/register', n:'Step-validity gating; ไม่มี toast แจ้งเตือนแบบ explicit'},
-  '1.1.1.14': {s:'partial', u:'/registration/register', n:'Step 1 มีฟิลด์เกิด; ขาด แพทย์ผู้ออกใบรับรองการเกิด'},
-  '1.1.1.15': {s:'partial', u:'/registration/register', n:'RegistrationEditHistoryPanel แสดง audit ย้อนหลัง'},
+  '1.1.1.13': {s:'partial', u:'/registration/register', n:'Step-validity gating; ไม่มี toast แจ้งเตือนแบบ explicit · Figma ✓ ครอบคลุมแล้ว'},
+  '1.1.1.14': {s:'partial', u:'/registration/register', n:'Step 1 มีฟิลด์เกิด; ขาด แพทย์ผู้ออกใบรับรองการเกิด · Figma ✓ ครอบคลุมแล้ว'},
+  '1.1.1.15': {s:'partial', u:'/registration/register', n:'RegistrationEditHistoryPanel แสดง audit ย้อนหลัง · Figma ✓ ครอบคลุมแล้ว'},
   '1.1.1.16': {s:'done',    u:'/registration/register', n:'อายุ auto-calc จาก DOB (registrationForm.js)'},
-  '1.1.1.17': {s:'partial', u:'/components/address-map-block', n:'AddressMapBlock มีพิกัด + แผนที่'},
+  '1.1.1.17': {s:'partial', u:'/components/address-map-block', n:'AddressMapBlock มีพิกัด + แผนที่ · Figma ✓ ครอบคลุมแล้ว'},
   '1.1.1.18': {s:'done',    u:'/registration/queue',    n:'Active/Inactive status'},
   '1.1.1.19': {s:'done',    u:'/registration/register', n:'Step 5 Flags + VIP'},
-  '1.1.1.20': {s:'partial', u:'/registration/register', n:'HN auto-gen; 3-group split (ไทย/ต่างชาติ/ไม่มีเอกสาร) ไม่ชัดเจน'},
+  '1.1.1.20': {s:'partial', u:'/registration/register', n:'HN auto-gen; 3-group split (ไทย/ต่างชาติ/ไม่มีเอกสาร) ไม่ชัดเจน · Figma ✓ ครอบคลุมแล้ว'},
+  '1.1.2.1':  {s:'todo',                                 n:'เปิด Visit Number (VN) — ยังไม่มีในโค้ด · Figma ✗ (unchecked) — real design gap'},
+  '1.1.2.2':  {s:'todo',                                 n:'แจ้งเตือนยืนยันมาตามนัดผ่าน Mobile Application — ยังไม่มี · Figma ✗ (unchecked) — real design gap'},
   '1.1.2.3':  {s:'done',    u:'/registration/register', n:'Step 4 rights (SSO/Gold/CSMBS/Other)'},
+  '1.1.2.4':  {s:'todo',                                 n:'รับผู้ป่วยส่งต่อจากสถานพยาบาลอื่น — ยังไม่มีในโค้ด · Figma ✓ ครอบคลุมแล้ว — ต้อง build'},
+  '1.1.2.5':  {s:'todo',                                 n:'ระบุสภาพผู้รับบริการ (เดิน/รถเข็น/เปลนอน) — ยังไม่มีในโค้ด · Figma ✓ ครอบคลุมแล้ว — ต้อง build'},
   '1.1.3.1':  {s:'done',    u:'/registration/register', n:'Step 5 flag config'},
 
   /* ===== 1.2 OPD ===== */
@@ -1708,12 +1716,12 @@ const IMPL = {
   /* ===== 1.10 Special clinics — most are stubs in Sidebar.jsx ===== */
   '1.10.2.1': {s:'partial', u:'/treat/record',  n:'Same patient UI applies to NCD via Treatment'},
 
-  /* ===== 1.16 Kiosk — fully implemented v2 ===== */
-  '1.16.1.1': {s:'partial', u:'/kiosk',         n:'Chip-read simulation (Demo button); ไม่ wire กับ สปสช จริง'},
-  '1.16.1.2': {s:'partial', u:'/kiosk',         n:'Verify result mocked; ไม่ persist'},
-  '1.16.1.3': {s:'done',    u:'/kiosk',         n:'Verify→Confirm screen + service drill-down'},
-  '1.16.1.4': {s:'partial', u:'/kiosk',         n:'Walk-in branch → confirm screen'},
-  '1.16.1.5': {s:'partial', u:'/kiosk',         n:'Appointment branch reads mock kioskMock.PATIENTS appointments'},
+  /* ===== 1.16 Kiosk — hub + queue + rights/payment mocks (Stitch) ===== */
+  '1.16.1.1': {s:'partial', u:'/kiosk',         n:'Hub→ตรวจสอบสิทธิ์ + chip-read mock; ไม่ wire สปสช. จริง'},
+  '1.16.1.2': {s:'partial', u:'/kiosk',         n:'RightsDetailScreen แสดงผล mock; ไม่ persist ประวัติเช็คสิทธิ์'},
+  '1.16.1.3': {s:'done',    u:'/kiosk',         n:'หลัง rights → เลือกแผนก + ออกคิว'},
+  '1.16.1.4': {s:'partial', u:'/kiosk',         n:'Walk-in / ไม่มีประวัติ → confirm (ยังไม่แยกคิวเวชระเบียน)'},
+  '1.16.1.5': {s:'partial', u:'/kiosk',         n:'Hub→คิวนัดหมาย อ่าน appointments จาก kioskMock'},
   '1.16.1.6': {s:'todo',                          n:'Real card reader integration — ไม่มี (simulated)'},
   '1.16.1.7': {s:'todo',                          n:'Camera integration — ไม่มี'},
   '1.16.1.8': {s:'todo',                          n:'Barcode/QR reader — ไม่มี'},
@@ -1721,9 +1729,10 @@ const IMPL = {
   '1.16.1.10':{s:'partial', u:'/kiosk',         n:'Mock data shared with rest of app'},
   '1.16.1.11':{s:'todo',                          n:'Biometric — ไม่มี'},
   '1.16.2.1': {s:'todo',                          n:'ปิดสิทธิ สปสช — ไม่มี'},
-  '1.16.3.1': {s:'partial', u:'/kiosk/ticket/A-042?dept=OPD&name=Demo&hn=00012345&zone=โซน+B&calling=A-035&eta=15', n:'QR scan target + Canvas image save'},
-  '1.16.3.2': {s:'partial', u:'/kiosk',         n:'พิมพ์บัตรคิว = receipt-like print'},
-  '1.16.3.3': {s:'partial', u:'/kiosk/ticket/A-042?dept=OPD&name=Demo&hn=00012345&zone=โซน+B&calling=A-035&eta=15', n:'PNG download (e-Receipt analog)'},
+  '1.16.3.1': {s:'partial', u:'/kiosk',         n:'Hub→ชำระเงิน: เลือกช่องทาง + QR/EDC จำลอง (ไม่ต่อเครื่องจริง)'},
+  '1.16.3.2': {s:'partial', u:'/kiosk',         n:'PaymentReceiptScreen สรุปใบเสร็จ + พิมพ์บัตรคิว path'},
+  '1.16.3.3': {s:'partial', u:'/kiosk',         n:'e-Receipt mock บน payment-receipt; PNG ยังที่ /kiosk/ticket'},
+  '1.16.3.4': {s:'todo',                          n:'บัญชีเจ้าหนี้/ลูกหนี้ — ไม่มี'},
 
   /* ===== 1.17 Admin / Users ===== */
   '1.17.1.1': {s:'todo',                          n:'OIDC/SAML — ไม่มี (mock auth only)'},
@@ -1737,7 +1746,28 @@ const IMPL = {
   '1.17.5.1': {s:'partial', u:'/users/new',     n:'Username/email; ไม่มี QR scan / OTP'},
   '1.17.5.2': {s:'done',    u:'/users/new',     n:'Avatar + email + phone editable'},
   '1.17.5.4': {s:'todo',                          n:'Switch center context — ไม่มี'},
-  '1.17.5.5': {s:'todo',                          n:'Notification system — ไม่มี'},
+  /* ===== 1.14 Observation ===== */
+  /* ===== 1.13 Telemedicine (audit 2026-07-29 · Obsidian tor-telemedicine-compliance) ===== */
+  '1.13.1':  {s:'partial', u:'/treat', n:'Health tab vitals/allergies/chronic mock — no RPM assessment store'},
+  '1.13.2':  {s:'todo',    u:'/treat', n:'Assessment edit by role — not built'},
+  '1.13.3':  {s:'partial', u:'/treat', n:'Patient card + post-call → treatment/payment; API write-back mock'},
+  '1.13.4':  {s:'done',    u:'/treat', n:'Video/audio UI + getUserMedia/getDisplayMedia (signalling demo)'},
+  '1.13.5':  {s:'todo',    u:'/treat', n:'GIS map for assessment location — missing'},
+  '1.13.6':  {s:'partial', u:'/treat', n:'In-call health panel; not full EMR'},
+  '1.13.7':  {s:'partial', u:'/m/telemed', n:'MobileTelemedPage AV+chat; session pairing mocked'},
+  '1.13.8':  {s:'partial', u:'/treat', n:'PDPA consent UX (mobile + recording popup); ops retention TBD'},
+  '1.13.9':  {s:'done',    u:'/treat', n:'TelemedRecordingConfirmPopup — record only after grant'},
+  '1.13.10': {s:'partial', u:'/treat', n:'Elapsed timer + post-call summary; no admin call stats'},
+  '1.13.11': {s:'todo',    u:'/treat', n:'Telemed-specific user login audit — missing'},
+
+  '1.14.1': {s:'done', u:'/observation/record/obs-001', n:'บันทึกวันที่ เวลาเริ่มต้นและเวลาจำหน่าย (admitTime, durationMinutes, executedTime)'},
+  '1.14.2': {s:'done', u:'/observation/record/obs-001', n:'บันทึก Timed Vital Signs (BP, Pulse, Temp, SpO2, RR) พร้อมคำนวณ EWS/NEWS Score และตารางย้อนหลัง'},
+  '1.14.3': {s:'done', u:'/observation/record/obs-001', n:'บันทึกความเห็นของบุคลากร (Progress Note, Nursing Log, Doctor Summary Note)'},
+  '1.14.4': {s:'done', u:'/observation/record/obs-001', n:'บันทึกหัตถการและกิจกรรมการพยาบาล (เช่น การพ่นยา, ให้ออกซิเจน, เช็ดตัวลดไข้)'},
+  '1.14.5': {s:'done', u:'/observation/record/obs-001', n:'สั่งยา STAT dose (เช่น Berodual Nebulizer, Paracetamol IV, Amlodipine Oral) พร้อมติดตามสถานะ'},
+  '1.14.6': {s:'done', u:'/observation/record/obs-001', n:'สั่ง Lab/EKG STAT (เช่น Stat CBC, Electrolyte, Amylase, EKG 12 leads)'},
+  '1.14.7': {s:'done', u:'/observation/record/obs-001', n:'สรุปผลการดูแลรักษา (Discharge Summary & Instructions)'},
+  '1.14.8': {s:'done', u:'/observation/record/obs-001', n:'บันทึกการส่งต่อโรงพยาบาล (E-Referral Disposition)'},
 
   /* ===== 1.20 Dashboard ===== */
   '1.20.1.1': {s:'done',    u:'/dashboard',     n:'KPI total patients'},

@@ -82,3 +82,35 @@ For the prototype itself, build a **clearly-labelled** local stand-in (comment `
 | Any other image | context-appropriate placeholder, never a grey box or `example.com` |
 
 Match sex + age band when picking an avatar. Keep names/HN consistent across a screen (one patient = one identity everywhere).
+
+## 6. Responsive  [req 7]
+
+A Figma frame is a single fixed width; the prototype must adapt. Breakpoints (design.md §3, Tailwind-aligned):
+
+| Token | min-width | Typical device |
+|---|---|---|
+| `xs` | 402 | small phone |
+| `sm` | 640 | phone / large phone |
+| `md` | 768 | tablet |
+| `lg` | 1024 | small laptop |
+| `xl` | 1280 | desktop |
+| `2xl` | 1536 | large desktop |
+
+Read the frame width in Gate 1 → that's the primary breakpoint. Grab sibling frames at other widths if they exist; each is the spec for that breakpoint.
+
+Build rules:
+- **Fluid, not fixed.** `width: 100%` + `max-width` (a token), `flex`/`grid` with `flex-wrap` / `repeat(auto-fit, minmax(...))`. Put `min-width: 0` on flex children so long text/wide children shrink instead of forcing overflow. Fixed px only for truly fixed dimensions (icon/control sizes) — still tokens.
+- **Adapt by tier.** Tailwind prefixes (`md:`, `lg:`) work in this repo (v2.1). Multi-column → single column, tighten padding/gap by one `--dim-space-*` tier, reflow toolbars, stack cards as width drops.
+- **No horizontal page scroll — ever.** Wide tables/charts/code scroll inside their own `overflow-x: auto` box; the body never does.
+- **Mobile shell.** Mobile-frame screens use the existing `src/components/mobile/*` layout (MobileShell etc.), not a shrunk desktop layout.
+- **Images.** `max-width: 100%`, `height: auto`, `object-fit: cover` for avatars/photos so they scale without distortion.
+- Watch the known repo quirks: inline `padding`/`margin` **shorthand** with `var()` renders as 0 (use longhand); Tailwind 2.1 `bg-[var(--x)]` emits no CSS (use a config color or inline `style`).
+
+Verify with `scripts/verify-route.mjs <route> --viewport 390x844 --viewport 768x1024 --viewport 1440x900 --shot <name>.png` — checks each width for errors + horizontal-scroll and writes `<name>@<w>.png` per viewport to diff against the matching Figma frame.
+
+### Responsive checklist
+- [ ] No layout pinned to the Figma canvas width
+- [ ] Columns collapse and paddings/gaps step down as width shrinks
+- [ ] Each captured Figma frame resembled at its breakpoint (single frame → degrade toward `xs`)
+- [ ] Wide content scrolls in its own container; body has no horizontal scroll at any width
+- [ ] Mobile screens use the mobile shell; images scale with `max-width:100%`

@@ -58,6 +58,7 @@ const ITEMS = [
   { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18                },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill'                                   },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht'                                   },
+  { key: 'observation', label: 'ระบบสังเกตอาการ',         icon: 'hotel',             path: '/observation'   },
   { key: 'appoint',   label: 'ระบบนัดหมาย',               icon: 'calendar_clock', path: '/appointment'       },
   /* 'ประวัติการใช้งาน' (log) และ 'ผู้ใช้และสิทธิ์การเข้าถึง' (users) ถูกย้ายไป
      แสดงเป็น "ระบบกลาง" บน System Hub แทน — จึงไม่อยู่ในเมนู PHCIS แล้ว. */

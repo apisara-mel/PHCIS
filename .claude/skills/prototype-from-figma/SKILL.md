@@ -1,6 +1,6 @@
 ---
 name: prototype-from-figma
-description: Turn a Figma frame into a working, design-system-accurate prototype in this repo. Prepares the Figma file (layer renames + reading every annotation), maps each value to design.md tokens and existing components, fills gaps (new tokens, or a Google Sheet of missing components), and mocks realistic in-context content. Use when the user shares a Figma URL and wants it built or prototyped, says "prototype from Figma", "build this Figma", "turn this design into code", or points at a Figma node to implement.
+description: Turn a Figma frame into a working, design-system-accurate, responsive prototype in this repo. Prepares the Figma file (layer renames + reading every annotation), maps each value to design.md tokens and existing components, fills gaps (new tokens, or a Google Sheet of missing components), mocks realistic in-context content, and builds a fluid layout that adapts across breakpoints. Use when the user shares a Figma URL and wants it built or prototyped, says "prototype from Figma", "build this Figma", "turn this design into code", or points at a Figma node to implement.
 ---
 
 # Prototype from Figma
@@ -49,10 +49,23 @@ Record two lists: *covered by the system* and *missing*.
 
 Fill every `data:*` slot with content that fits the clinical context — real-looking Thai patient names / HN / vitals (reuse `src/data/*`) and images from `public/avatars/*` or a context-appropriate placeholder. No "Lorem ipsum", no `example.com`, no grey box where a real photo belongs. Text and imagery must read as a plausible real screen.
 
-## 5. Build and verify
+## 5. Make it responsive  [req 7]
+
+A Figma frame is one fixed width — the prototype must not be. Build it fluid from that frame and adapt to the other breakpoints:
+
+- **No hard-coded frame widths.** Don't pin the layout to the Figma canvas width. Use `max-width` + `width: 100%`, `flex`/`grid` with `flex-wrap`/`minmax`, relative units, and `min-width: 0` on flex children so long content shrinks instead of overflowing. Fixed px stays only for genuinely fixed things (icon sizes, control heights) and must still be tokens.
+- **Adapt across breakpoints** (design.md §3). Tailwind prefixes (`md:`, `lg:`) work in this repo; use them or an inline `@media` in an injected stylesheet. Collapse multi-column → single column, shrink paddings/gaps by token tier, and reflow toolbars/tables as the viewport narrows.
+- **Match the Figma frames you captured** in Gate 1 — if there are mobile + desktop frames, each breakpoint should resemble its frame. With only one frame, degrade sensibly toward `xs`.
+- **The page body must never scroll horizontally.** Wide content (tables, charts, code) scrolls inside its own `overflow-x:auto` container.
+- Mobile-shell screens follow the existing mobile layout conventions (`src/components/mobile/*`), not a shrunk desktop.
+
+Details + a checklist in [REFERENCE.md](REFERENCE.md) "Responsive".
+
+## 6. Build and verify
 
 - React 17 (`import React`), tokens-only, one route that follows the repo's existing routing convention, runnable with the current dev command. Name the route/file so it's obviously a prototype.
 - Verify with `scripts/verify-route.mjs <route> --stale '<srcPath>::<needle>' --selector '<css>' --shot <png>` (run under `~/.local/node16/bin/node`). It fails on console/page errors, asserts selectors, screenshots for the Figma diff, and — critically — detects a **stale dev server** (rsync preserves mtimes → Vite serves an old compile) and prints the exact restart command (exit 3).
+- Verify responsiveness at several widths in one run: `--viewport 390x844 --viewport 768x1024 --viewport 1440x900` — each viewport is checked for errors and (with `--shot`) screenshotted as `<name>@<w>.png`. No horizontal page scroll at any width.
 
 See [EXAMPLES.md](EXAMPLES.md) for a full six-gate run.
 
@@ -63,4 +76,5 @@ See [EXAMPLES.md](EXAMPLES.md) for a full six-gate run.
 - [ ] Values mapped to tokens; any new token added to design.md + index.css (gradients excepted)
 - [ ] Components aliased; genuinely-missing ones logged to the Google Sheet + stubbed locally
 - [ ] All `data:*` slots mocked with in-context text and images
-- [ ] `verify-route.mjs` passes (exit 0) — no errors, selectors present, server fresh; screenshot matches Figma
+- [ ] Responsive — fluid layout, adapts across design.md §3 breakpoints, no horizontal page scroll at any width
+- [ ] `verify-route.mjs` passes (exit 0) at every target viewport — no errors, selectors present, server fresh; screenshots match the Figma frames

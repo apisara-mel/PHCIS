@@ -6,6 +6,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "serve": "vite preview",
+    "tokens:pull": "node scripts/pull-design-tokens.mjs",
     "tokens:sync": "node scripts/sync-design-md-from-figma-tokens.mjs",
     "tokens:sync:primitive": "node scripts/sync-design-md-from-figma-tokens.mjs primitive",
     "tokens:sync:brand": "node scripts/sync-design-md-from-figma-tokens.mjs brand",
@@ -13,6 +14,7 @@
     "tokens:sync:semantic": "node scripts/sync-design-md-from-figma-tokens.mjs semantic"
   },
   "dependencies": {
+    "@mih/design-tokens": "file:../mih-design/packages/design-tokens",
     "@tailwindcss/forms": "^0.3.2",
     "leaflet": "^1.9.4",
     "lottie-web": "^5.13.0",

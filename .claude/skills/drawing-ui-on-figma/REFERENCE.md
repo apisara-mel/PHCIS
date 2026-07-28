@@ -79,3 +79,22 @@ Always call `search_design_system` before inventing a new component key.
 - **New exploratory screen** → user's target file or create via `create_new_file`.
 - **Design-system contribution** → appropriate library file (Foundation / Popup / Card / Table) — get explicit user approval before writing to published libraries.
 - **Product feature mock** → PHCIS-ALL or a feature file linked from the user's URL.
+
+## Layer validation script
+
+After `get_metadata` on a finished screen, run:
+
+```bash
+node .claude/skills/drawing-ui-on-figma/scripts/validate-figma-layers.mjs meta.json
+```
+
+| Check | Level |
+|-------|-------|
+| Default Figma names (`Frame 12`, `Group 3`) | ERROR |
+| Unknown PascalCase without `NEW/` prefix | WARN |
+| Off-grammar names | WARN |
+| Missing state suffixes (` · Empty`, ` · Loading`, …) | WARN |
+| `note:*` logic annotations | reported |
+| Case-insensitive vibe-code component match | OK list |
+
+Intentional new components: prefix layer `NEW/<Name>` and add `note:tokens-<slug>` listing bound variables.
