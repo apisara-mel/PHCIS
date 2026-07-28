@@ -384,7 +384,8 @@ export default function ObservationDetailPage() {
               </div>
             </div>
 
-            {/* Vital Signs Trend Charts (SVG Sparklines) */}
+            {/* Vital Signs Trend Chart — shares the VitalsSignGraph chart engine
+                used by the OPD screening "กราฟสัญญาณชีพ" popup. */}
             <div className='space-y-3'>
               <div className='flex flex-wrap items-center justify-between gap-3'>
                 <h4 className='font-bold text-gray-800 text-xs flex items-center gap-1.5'>
@@ -412,7 +413,7 @@ export default function ObservationDetailPage() {
                 </TabBar>
               </div>
 
-              <VitalTrendChart data={patient.vitalsTrend} parameter={selectedTrendParam} height={110} />
+              <VitalTrendChart data={patient.vitalsTrend} parameter={selectedTrendParam} />
             </div>
           </div>
 
