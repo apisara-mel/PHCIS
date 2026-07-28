@@ -347,9 +347,9 @@ export default function ObservationDetailPage() {
   };
 
   const observationSteps = [
-    { title: 'แนวโน้มสัญญาณชีพตามเวลา', subtitle: `${patient.vitalsTrend?.length || 0} รายการ` },
-    { title: 'คำสั่งการรักษาด่วน/STAT', subtitle: `${patient.statOrders?.length || 0} รายการ` },
-    { title: 'บันทึกทางการพยาบาล', subtitle: `${patient.nursingNotes?.length || 0} รายการ` },
+    { title: 'แนวโน้มสัญญาณชีพตามเวลา' },
+    { title: 'คำสั่งการรักษาด่วน/STAT' },
+    { title: 'บันทึกทางการพยาบาล' },
     { title: 'สรุปผลสังเกตอาการ & จำหน่าย' },
   ];
 
