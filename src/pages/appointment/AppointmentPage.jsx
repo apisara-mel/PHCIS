@@ -7,15 +7,18 @@ import StaffListView from './StaffListView';
 import AppointmentCalendarView from './AppointmentCalendarView';
 import AppointmentListView from './AppointmentListView';
 import AppointmentFormPopup from './AppointmentFormPopup';
+import AppointmentSettingsPanel from './AppointmentSettingsPanel';
 import {
   STAFF,
   INITIAL_APPOINTMENTS,
   APPT_CREATE_SUCCESS_TOAST_DELAY_MS,
   isAppointmentReadOnly,
 } from './appointmentShared';
+import { appendCancelAudit } from './appointmentSettingsStore';
 
 /* MIH PHCIS · ระบบนัดหมาย (Figma Appointment · 0k2gyvvXwZ6JR3WQcokvEU)
-   Staff list 3:10414 → calendar 3:10413 → popups 3:9730 / 4:17113 */
+   Staff list 3:10414 → calendar 3:10413 → popups 3:9730 / 4:17113
+   + TOR settings tab (1.6.1.3 / 1.6.4 / cancel audit). */
 
 const breadcrumb = ['ระบบนัดหมาย'];
 
@@ -23,6 +26,14 @@ const breadcrumb = ['ระบบนัดหมาย'];
 const APPOINTMENT_ROOT_TABS = [
   { key: 'list', label: 'รายการนัด', icon: 'calendar_clock' },
   { key: 'staff', label: 'รายชื่อแพทย์', icon: 'stethoscope' },
+  { key: 'settings', label: 'ตั้งค่า / ตาราง', icon: 'tune' },
+];
+
+const CANCEL_REASONS = [
+  'ผู้ป่วยขอยกเลิก',
+  'แพทย์ไม่ว่าง / ปรับตาราง',
+  'ผิดพลาดในการจอง',
+  'อื่น ๆ',
 ];
 
 const AppointmentPage = () => {
@@ -36,6 +47,7 @@ const AppointmentPage = () => {
   const [editingAppt, setEditingAppt] = useState(null);
   const [slotPick, setSlotPick] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState(CANCEL_REASONS[0]);
   const [toast, setToast] = useState(null);
   const dismissToast = useCallback(() => setToast(null), []);
   const createToastTimerRef = useRef(null);
@@ -72,7 +84,6 @@ const AppointmentPage = () => {
   };
 
   const openDetail = (appt) => {
-    /* Stay on root list — Figma 73:15393 popup overlays the page; do not drill into doctor calendar. */
     setFormMode('edit');
     setEditingAppt(appt);
     setSlotPick({ date: appt.date, time: appt.time });
@@ -81,7 +92,7 @@ const AppointmentPage = () => {
 
   const formStaff = staff.find(
     (s) => s.id === (editingAppt?.staffId ?? selectedId),
-  );
+  ) || staff[0];
 
   const saveForm = (form) => {
     if (editingAppt && isAppointmentReadOnly(editingAppt)) return;
@@ -90,7 +101,10 @@ const AppointmentPage = () => {
       setAppointments((arr) => arr.map((a) => (a.id === editingAppt.id ? { ...a, ...form } : a)));
     } else {
       const id = `A-${Date.now()}`;
-      setAppointments((arr) => [...arr, { id, staffId: selectedId, ...form }]);
+      const staffId = selectedId
+        || staff.find((s) => s.name === form.doctor)?.id
+        || staff[0]?.id;
+      setAppointments((arr) => [...arr, { id, staffId, status: 'confirmed', ...form }]);
     }
     setFormOpen(false);
     flashSuccess(
@@ -101,9 +115,17 @@ const AppointmentPage = () => {
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
+    appendCancelAudit({
+      appointmentId: deleteTarget.id,
+      patient: deleteTarget.patient,
+      reason: cancelReason,
+      date: deleteTarget.date,
+      time: deleteTarget.time,
+    });
     setAppointments((arr) => arr.filter((a) => a.id !== deleteTarget.id));
     setDeleteTarget(null);
     setFormOpen(false);
+    setCancelReason(CANCEL_REASONS[0]);
     flashSuccess('ยกเลิกนัดหมายสำเร็จ');
   };
 
@@ -129,6 +151,14 @@ const AppointmentPage = () => {
           {!selected ? (
             rootView === 'staff' ? (
               <StaffListView staff={staff} onSelect={setSelectedId} />
+            ) : rootView === 'settings' ? (
+              <AppointmentSettingsPanel
+                appointments={appointments}
+                onBookEarliest={(hit) => {
+                  setSelectedId(hit.staff.id);
+                  openCreate({ date: hit.date, time: hit.time });
+                }}
+              />
             ) : (
               <AppointmentListView
                 staff={staff}
@@ -172,13 +202,44 @@ const AppointmentPage = () => {
       <AlertDialog
         open={!!deleteTarget}
         type='destructive'
-        title='ลบ Slot นัดหมาย'
-        description='ยืนยันลบนัดหมายนี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้'
-        confirmLabel='ลบ'
-        cancelLabel='ยกเลิก'
+        title='ยกเลิกนัดหมาย'
+        description='ระบุเหตุผลการยกเลิก — ระบบจะบันทึกผู้ดำเนินการและเวลาไว้ในประวัติ (TOR 1.6.2.7)'
+        confirmLabel='ยืนยันยกเลิก'
+        cancelLabel='ปิด'
         onConfirm={confirmDelete}
-        onClose={() => setDeleteTarget(null)}
-      />
+        onClose={() => { setDeleteTarget(null); setCancelReason(CANCEL_REASONS[0]); }}
+      >
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)', marginTop: 'var(--dim-space-300)' }}>
+          <label
+            htmlFor='appt-cancel-reason'
+            style={{
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              color: 'var(--text-content-tertiary)',
+            }}
+          >
+            เหตุผลการยกเลิก
+          </label>
+          <select
+            id='appt-cancel-reason'
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            style={{
+              height: 40,
+              borderRadius: 'var(--dim-radius-200)',
+              border: 'var(--dim-stroke-100) solid var(--border-neutral-tertiary)',
+              padding: '0 var(--dim-space-300)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+              background: 'var(--surface-card-100)',
+            }}
+          >
+            {CANCEL_REASONS.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
+      </AlertDialog>
 
       <PhcisTopToast session={toast} onDismiss={dismissToast} />
     </>

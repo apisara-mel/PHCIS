@@ -1,0 +1,35 @@
+{
+  "projectId": "10817979751782111775",
+  "title": "Smart Service Kiosk UI",
+  "fetchedAt": "2026-07-21T13:54:12.848Z",
+  "screens": [
+    {
+      "id": "13a0ef82694c40c087dc5251a694844f",
+      "slug": "rights-detail",
+      "title": "หน้ารายละเอียดสิทธิ์",
+      "htmlFile": "html/rights-detail.html",
+      "imageFile": "images/rights-detail.png"
+    },
+    {
+      "id": "a6271d0774024f8baff5ac6347f1bb63",
+      "slug": "payment-channel",
+      "title": "หน้าเลือกช่องทางการชำระเงิน",
+      "htmlFile": "html/payment-channel.html",
+      "imageFile": "images/payment-channel.png"
+    },
+    {
+      "id": "5d6c7fa9282c4f92b727066b26ccc7d8",
+      "slug": "service-select",
+      "title": "หน้าเลือกบริการ",
+      "htmlFile": "html/service-select.html",
+      "imageFile": "images/service-select.png"
+    },
+    {
+      "id": "da9021d1299d48a6a06a10ae03c60cbc",
+      "slug": "payment-receipt",
+      "title": "หน้าชำระค่าบริการและรับใบเสร็จ",
+      "htmlFile": "html/payment-receipt.html",
+      "imageFile": "images/payment-receipt.png"
+    }
+  ]
+}

@@ -26,6 +26,7 @@ const FILTERS = [
   { key: 'all', label: 'ทั้งหมด' },
   { key: 'video', label: 'เข้ารับบริการออนไลน์' },
   { key: 'visit', label: 'เข้ารับที่ศูนย์บริการ' },
+  { key: 'homevisit', label: 'เยี่ยมบ้าน' },
 ];
 
 const APT_STATUS_META = {
@@ -310,9 +311,10 @@ const MobileAppointmentsInner = () => {
   const [dateFilter, setDateFilter] = useState(null);   // BE key 'YYYY-MM-DD' from the calendar sheet
 
   const list = useMemo(() => {
-    let rows = appointments.filter((a) => a.type !== 'homevisit');
+    let rows = [...appointments];
     if (filter === 'video') rows = rows.filter((a) => a.type === 'video');
     if (filter === 'visit') rows = rows.filter((a) => a.type === 'visit');
+    if (filter === 'homevisit') rows = rows.filter((a) => a.type === 'homevisit');
     if (dateFilter) rows = rows.filter((a) => a.date === dateFilter);
     return rows.sort((a, b) => {
       const au = a.status === 'upcoming' ? 0 : 1;

@@ -933,40 +933,45 @@ The other 9 are stubs with intended scope:
 > **Routes:** [`/kiosk`](../src/pages/kiosk/KioskPage.jsx) · [`/kiosk/ticket/:queueId`](../src/pages/kiosk/MobileTicketPage.jsx)
 > **Standalone** — no Sidebar / Header chrome · **Fixed canvas** 1440 × 1462 px
 > **Figma:** PHCIS | KIOSK · file `PlyfeAl2AdZtqZK7eZrxKg` · node `4002:928`
+> **Stitch refs:** [docs/kiosk/stitch](./kiosk/stitch/) — hub / rights / payment (TOR §1.16)
 > **Userflow doc:** [docs/kiosk-userflow.html](./kiosk-userflow.html) — full screen mockups + 7 use cases
 
-Touchscreen self-service entry — the missing **Step 0** from the OPD HCIS flow (กดบัตรคิว). Visitor arrives, picks a service + sub-service, identifies whether they have an appointment, verifies via Thai national ID, confirms, then receives a queue ticket (printable + QR-shareable).
+Touchscreen self-service entry — the missing **Step 0** from the OPD HCIS flow (กดบัตรคิว). After the idle welcome, the visitor lands on a **hub** (4 cards from Stitch `service-select`), then branches by intent.
 
-### State machine (7 steps)
+### State machine
 
 ```
-welcome → service → sub-service → appointment → verify → confirm → ticket
-                                  └─ skip when service.drill === false
+welcome → hub
+  ├─ register     → service → sub-service? → appointment → verify → confirm → ticket
+  ├─ appointment  → appointment → verify → confirm → ticket
+  ├─ eligibility  → verify → rights → service → sub-service? → confirm → ticket
+  └─ payment      → payment-channel → payment-receipt
 ```
 
-Skips `sub-service` for services without drill-down (screening, finance, pharmacy, lab). Implemented as a switch on `step` state with `flow` accumulator holding the user's choices.
+Skips `sub-service` for services without drill-down (screening, finance, pharmacy, lab). Implemented as a switch on `step` state with `flow` accumulator (`intent`, service picks, patient, payment channel).
 
 ### Mock data — [`src/data/kioskMock.js`](../src/data/kioskMock.js)
 
-- **`SERVICES`** — 6 top-level cards (screening · consultation · finance · pharmacy · lab · other). Each has `key · label · desc · icon · drill · queuePrefix?`.
-- **`SUB_SERVICES`** — keyed by parent service. `consultation` has 8 sub-clinics (OPD · ANC · pediatrics · elderly · chronic · mental · dental · TB). `other` has 4 (vaccine · family · xray · physio). Each carries its own `queuePrefix` (A=OPD, B=ANC, C=chronic, …).
-- **`PATIENTS`** — 5 mock patients keyed by 13-digit national ID. Some have today's appointments wired (`appointments[].sub` matches a sub-service key); others are walk-in candidates.
-- **`pickDemoPatient()`** — testing shortcut for the chip-read simulation; biased ~50/50 between has-appt and no-appt to expose both branches.
-- **`generateQueueNumber(prefix, seed)`** — deterministic FNV-1a-ish hash, so re-renders of the same session show the same queue number until the flow resets. Output looks like `A-042`, `C-021`, `P-015`, etc.
-- **`callingNowFor(issued)`** — always 7 numbers behind (mock "still calling earlier queue").
-- **`estimateWaitMinutes(issued, calling)`** — `(diff × 3 min)` rough wait.
+- **`HUB_SERVICES`** — 4 hub cards (register · appointment · eligibility · payment) mapped to TOR §1.16 paths.
+- **`SERVICES`** — 6 department cards for the register / post-rights queue path.
+- **`SUB_SERVICES`** — keyed by parent service. `consultation` has 8 sub-clinics; `other` has 4.
+- **`PATIENTS`** — mock patients keyed by 13-digit national ID (+ `rightsGroup` / `bloodType` for rights screen).
+- **`PAYMENT_CHANNELS` / `MOCK_BILL` / `buildRightsDetail()`** — payment + rights UI mocks (EDC/สปสช. not live).
+- **`pickDemoPatient()`** / **`generateQueueNumber()`** / **`callingNowFor()`** / **`estimateWaitMinutes()`** — unchanged helpers.
 
 ### Use cases (covered)
 
 | # | Scenario | Path | Outcome |
 |---|---|---|---|
-| 1 | นัดล่วงหน้า · ผู้สูงอายุ · เบาหวาน | service:consultation → sub:chronic → appt:yes → chip → confirm → print | `C-021` printed |
-| 2 | Walk-in · ไข้/ปวดหัว | service:consultation → sub:opd-general → appt:no → chip → confirm → QR | `A-042` to mobile |
-| 3 | ตรวจครรภ์ครั้งแรก (ANC) | service:consultation → sub:anc → appt:no → chip → confirm | new HN generated |
-| 4 | ลืมบัตร · จำ HN ได้ | service:opd-general → appt:no → **manual entry** 13 digits → confirm | manual fallback |
+| 1 | นัดล่วงหน้า · ผู้สูงอายุ · เบาหวาน | hub:register → consultation → chronic → appt:yes → chip → confirm → print | `C-021` printed |
+| 2 | Walk-in · ไข้/ปวดหัว | hub:register → consultation → opd-general → appt:no → chip → confirm → QR | `A-042` to mobile |
+| 3 | ตรวจครรภ์ครั้งแรก (ANC) | hub:register → consultation → anc → appt:no → chip → confirm | new HN generated |
+| 4 | ลืมบัตร · จำ HN ได้ | hub:register → … → **manual entry** 13 digits → confirm | manual fallback |
 | 5 | ID ไม่พบในระบบ | manual entry → "ไม่พบข้อมูล" | error + suggest counter |
-| 6 | รับยาตามใบสั่ง | service:pharmacy → appt:no → chip → confirm | `P-015`, no drill-down |
+| 6 | รับยาตามใบสั่ง | hub:register → pharmacy → appt:no → chip → confirm | `P-015`, no drill-down |
 | 7 | Idle timeout | any in-flow step idle 60s → auto-reset | back to welcome |
+| 8 | ตรวจสอบสิทธิ์ (TOR 1.16.1) | hub:eligibility → verify → rights → pick dept → ticket | rights mock + queue |
+| 9 | ชำระเงิน (TOR 1.16.3) | hub:payment → channel → receipt (QR/EDC mock) | e-Receipt mock |
 
 ### Mobile ticket page — `/kiosk/ticket/:queueId`
 

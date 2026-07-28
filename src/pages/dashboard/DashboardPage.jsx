@@ -33,6 +33,7 @@ import {
   CocCard,
   ConsentCard,
   DmComplicationsCard,
+  TelemedCallStatsCard,
 } from '@/components/graph/DashboardCards';
 
 const YEAR_OPTIONS = [
@@ -51,6 +52,7 @@ const DASHBOARD_OVERVIEW_CARDS = [
   { key: 'visits',  icon: 'clipboard-list', tone: 'brand',  value: '299,445',   label: 'การรับบริการสะสม (ครั้ง)',      subIcon: 'check-circle', sub: 'เฉลี่ย 820.40 ครั้ง/วัน', subTone: 'success' },
   { key: 'fee',     icon: 'baht',           tone: 'purple', value: '1,496,420', label: 'ค่าบริการสะสม (บาท)',           subIcon: 'file-text',    sub: 'รายรับ 0 บาท' },
   { key: 'units',   icon: 'building',       tone: 'orange', value: '69',        label: 'หน่วยบริการที่ส่งข้อมูล (แห่ง)' },
+  { key: 'telemed', icon: 'stethoscope',    tone: 'teal',   value: '167',       label: 'สาย Telemed ปีงบฯ (ครั้ง)', subIcon: 'history', sub: 'เฉลี่ย 18:42 นาที/สาย' },
 ];
 
 /* Card wrapper — used by the recent-patients table only. The chart cards
@@ -213,6 +215,11 @@ const DashboardPage = () => {
           <CocCard />
           <ConsentCard />
           <DmComplicationsCard />
+        </Reveal>
+
+        {/* — Row 5b: Telemedicine call stats (TOR 1.13.10) — */}
+        <Reveal className='grid grid-cols-1 gap-4'>
+          <TelemedCallStatsCard title={`สถิติการปรึกษาทางไกล (Telemedicine) ${yearLabel}`} />
         </Reveal>
 
         {/* — Row 6: recent patients table (search + sort + pagination) — */}
