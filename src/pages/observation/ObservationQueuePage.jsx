@@ -13,6 +13,7 @@ import BrandIconButton from '@/components/button/BrandIconButton';
 import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 
 export default function ObservationQueuePage() {
@@ -334,9 +335,13 @@ export default function ObservationQueuePage() {
                   <div className='mb-4'>
                     <div className='flex items-center gap-2.5 mb-2'>
                       <img
-                        src={patient.avatar || '/avatars/patient-mock-01.png'}
+                        src={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl || '/avatars/somchai-mock.png'}
                         alt={patient.patientName}
                         className='w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0 shadow-2xs'
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '/avatars/somchai-mock.png';
+                        }}
                       />
                       <div className='flex-1 min-w-0'>
                         <div className='flex items-baseline justify-between gap-1'>
@@ -487,9 +492,13 @@ export default function ObservationQueuePage() {
                       <td className='py-3.5 px-4'>
                         <div className='flex items-center gap-2.5'>
                           <img
-                            src={patient.avatar || '/avatars/patient-mock-01.png'}
+                            src={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl || '/avatars/somchai-mock.png'}
                             alt={patient.patientName}
                             className='w-8 h-8 rounded-full object-cover border border-gray-200 shrink-0 shadow-2xs'
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = '/avatars/somchai-mock.png';
+                            }}
                           />
                           <div>
                             <div className='font-bold text-gray-900'>{patient.patientName}</div>

@@ -11,6 +11,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Alert from '@/components/alert/Alert';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
+import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
 
@@ -180,8 +181,19 @@ export default function ObservationDetailPage() {
         <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
         <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100'>
           <div className='flex items-center gap-3.5'>
-            <div className='w-12 h-12 rounded-2xl bg-brand-700 text-white flex items-center justify-center font-bold text-xl shadow-sm shrink-0'>
-              {patient.bedNo.replace('เตียง ', '')}
+            <div className='relative shrink-0'>
+              <img
+                src={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl || '/avatars/somchai-mock.png'}
+                alt={patient.patientName}
+                className='w-14 h-14 rounded-2xl object-cover border-2 border-brand-100 shadow-sm'
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = '/avatars/somchai-mock.png';
+                }}
+              />
+              <span className='absolute -bottom-1 -right-1 bg-brand-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-2xs'>
+                {patient.bedNo.replace('เตียง ', '')}
+              </span>
             </div>
             <div>
               <div className='flex items-center gap-3 mb-1'>
