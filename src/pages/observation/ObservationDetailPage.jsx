@@ -267,7 +267,7 @@ export default function ObservationDetailPage() {
               <img
                 src={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl || '/avatars/somchai-mock.png'}
                 alt={patient.patientName}
-                className='w-14 h-14 rounded-2xl object-cover border-2 border-brand-100 shadow-sm'
+                className='w-14 h-14 rounded-full object-cover border-2 border-brand-100 shadow-sm'
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = '/avatars/somchai-mock.png';
