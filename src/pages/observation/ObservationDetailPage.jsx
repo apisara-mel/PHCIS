@@ -15,6 +15,13 @@ import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
 import Table, { EllipsisText } from '@/components/table/Table';
+import StepProgress from '@/components/step/StepProgress';
+
+/* Section order for the page-level step indicator — same StepProgress
+   component used by the treatment/CPOE wizard (Figma node 2709:6562),
+   so the observation record's 4 sections read the same way as any other
+   numbered-step flow in the app. */
+const OBSERVATION_STEP_KEYS = ['vitals', 'orders', 'notes', 'discharge'];
 
 /* Timed Vital Signs Sheet columns — styled to match the OPD screening
    worklist table (shared <Table>, design tokens, StatusBadge for the
@@ -221,11 +228,11 @@ export default function ObservationDetailPage() {
     alert('บันทึกผลการสรุปจำหน่ายสังเกตอาการเรียบร้อยแล้ว!');
   };
 
-  const tabs = [
-    { key: 'vitals', label: `1. แนวโน้มสัญญาณชีพตามเวลา (${patient.vitalsTrend?.length || 0})` },
-    { key: 'orders', label: `2. คำสั่งการรักษาด่วน/STAT (${patient.statOrders?.length || 0})` },
-    { key: 'notes', label: `3. บันทึกทางการพยาบาล (${patient.nursingNotes?.length || 0})` },
-    { key: 'discharge', label: '4. สรุปผลสังเกตอาการ & จำหน่าย' },
+  const observationSteps = [
+    { title: 'แนวโน้มสัญญาณชีพตามเวลา', subtitle: `${patient.vitalsTrend?.length || 0} รายการ` },
+    { title: 'คำสั่งการรักษาด่วน/STAT', subtitle: `${patient.statOrders?.length || 0} รายการ` },
+    { title: 'บันทึกทางการพยาบาล', subtitle: `${patient.nursingNotes?.length || 0} รายการ` },
+    { title: 'สรุปผลสังเกตอาการ & จำหน่าย' },
   ];
 
   return (
@@ -235,9 +242,6 @@ export default function ObservationDetailPage() {
       title={`แฟ้มบันทึกสังเกตอาการ (Observation Record)`}
       onBack={() => history.push('/observation')}
       backLabel='กลับสู่ผังเตียง'
-      tabs={tabs}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
       actions={
         <div className='flex items-center gap-2'>
           <NeutralSubdueButton leadingIcon='print' onClick={() => window.print()}>
@@ -249,6 +253,30 @@ export default function ObservationDetailPage() {
         </div>
       }
     >
+      {/* Section step indicator — same StepProgress used by the CPOE
+          treatment wizard, sticky in the same slot QueuePageShell's
+          TabUnderline would otherwise occupy. */}
+      <div
+        className='w-full sticky'
+        style={{
+          top: '64px',
+          zIndex: 1100,
+          background: 'var(--surface-card-100)',
+          paddingTop: 'var(--dim-space-300)',
+          paddingBottom: 'var(--dim-space-300)',
+          paddingLeft: 'var(--dim-space-600)',
+          paddingRight: 'var(--dim-space-600)',
+          borderBottom: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+        }}
+      >
+        <StepProgress
+          steps={observationSteps}
+          current={OBSERVATION_STEP_KEYS.indexOf(activeTab)}
+          completedSteps={OBSERVATION_STEP_KEYS.map(() => false)}
+          onStepClick={(idx) => setActiveTab(OBSERVATION_STEP_KEYS[idx])}
+        />
+      </div>
+
       <div
         className='flex flex-col flex-1 min-w-0'
         style={{
@@ -720,27 +748,39 @@ export default function ObservationDetailPage() {
                   { key: 'refer', label: 'ส่งต่อโรงพยาบาลใหญ่ (E-Referral)', icon: 'local_hospital', color: 'rose' },
                   { key: 'admit_ipd', label: 'ส่งเข้าตึกผู้ป่วยใน (Admit IPD)', icon: 'bed', color: 'amber' },
                   { key: 'opd', label: 'ส่งกลับตรวจ OPD ปกติ', icon: 'directions_walk', color: 'blue' },
-                ].map((disp) => (
-                  <label
-                    key={disp.key}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${
-                      dischargeForm.disposition === disp.key
-                        ? 'bg-brand-50 border-brand-600 ring-2 ring-brand-600/20 text-brand-900 font-bold'
-                        : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <input
-                      type='radio'
-                      name='disposition'
-                      value={disp.key}
-                      checked={dischargeForm.disposition === disp.key}
-                      onChange={(e) => setDischargeForm({ ...dischargeForm, disposition: e.target.value })}
-                      className='sr-only'
-                    />
-                    <span className='material-symbols-outlined text-2xl text-brand-700'>{disp.icon}</span>
-                    <span className='text-xs leading-snug'>{disp.label}</span>
-                  </label>
-                ))}
+                ].map((disp) => {
+                  const isSelected = dischargeForm.disposition === disp.key;
+                  return (
+                    <label
+                      key={disp.key}
+                      className='flex flex-col items-center justify-center text-center cursor-pointer transition-all'
+                      style={{
+                        gap: 'var(--dim-space-200)',
+                        padding: 'var(--dim-space-400)',
+                        borderRadius: 'var(--dim-radius-400)',
+                        border: isSelected
+                          ? 'var(--dim-stroke-200) solid var(--border-brandPrimary-default)'
+                          : 'var(--dim-stroke-100) solid var(--border-card-default)',
+                        background: isSelected ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
+                        color: isSelected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
+                        fontWeight: isSelected ? 'var(--type-weight-bold)' : 'var(--type-weight-regular)',
+                      }}
+                    >
+                      <input
+                        type='radio'
+                        name='disposition'
+                        value={disp.key}
+                        checked={isSelected}
+                        onChange={(e) => setDischargeForm({ ...dischargeForm, disposition: e.target.value })}
+                        className='sr-only'
+                      />
+                      <span className='material-symbols-outlined text-2xl' style={{ color: 'var(--icon-brandPrimary-default)' }}>
+                        {disp.icon}
+                      </span>
+                      <span style={{ fontSize: 'var(--type-size-xs)', lineHeight: 1.4 }}>{disp.label}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
