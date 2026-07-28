@@ -15,7 +15,12 @@ import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
 import Table, { EllipsisText } from '@/components/table/Table';
+import Pagination from '@/components/pagination/Pagination';
 import StepProgress from '@/components/step/StepProgress';
+import VitalCard, { PressureCard } from '@/components/card/VitalCard';
+
+/* Matches the OPD queue table's own page size (QueuePage.jsx PAGE_SIZE). */
+const VITALS_PAGE_SIZE = 20;
 
 /* Section order for the page-level step indicator — same StepProgress
    component used by the treatment/CPOE wizard (Figma node 2709:6562),
@@ -118,6 +123,12 @@ export default function ObservationDetailPage() {
   const [newVital, setNewVital] = useState({
     bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: ''
   });
+  /* VitalCard/PressureCard (shared with OPD screening's VitalsForm) hold
+     their own uncontrolled input state after mount, so bumping this key
+     after a successful save remounts them fresh instead of leaving the
+     just-submitted numbers on screen. */
+  const [vitalFormResetKey, setVitalFormResetKey] = useState(0);
+  const [vitalsPage, setVitalsPage] = useState(1);
 
   const [newOrderText, setNewOrderText] = useState('');
   const [newNursingNote, setNewNursingNote] = useState('');
@@ -133,6 +144,16 @@ export default function ObservationDetailPage() {
   // Calculate EWS for latest vitals
   const latestVitals = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
   const currentEws = latestVitals ? calculateEwsScore(latestVitals) : { score: 0, tier: EWS_RISK_TIERS.NORMAL };
+
+  // Timed Vital Signs table pagination — same PAGE_SIZE/Pagination pattern as QueuePage.jsx
+  const vitalsTotalPages = Math.max(1, Math.ceil(patient.vitalsTrend.length / VITALS_PAGE_SIZE));
+  const vitalsPageClamped = Math.min(vitalsPage, vitalsTotalPages);
+  const vitalsRangeStart = patient.vitalsTrend.length === 0 ? 0 : (vitalsPageClamped - 1) * VITALS_PAGE_SIZE + 1;
+  const vitalsRangeEnd = Math.min(vitalsPageClamped * VITALS_PAGE_SIZE, patient.vitalsTrend.length);
+  const pagedVitalsTrend = patient.vitalsTrend.slice(
+    (vitalsPageClamped - 1) * VITALS_PAGE_SIZE,
+    vitalsPageClamped * VITALS_PAGE_SIZE,
+  );
 
   const handleAddVital = (e) => {
     e.preventDefault();
@@ -154,6 +175,7 @@ export default function ObservationDetailPage() {
     }));
 
     setNewVital({ bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '' });
+    setVitalFormResetKey((k) => k + 1);
   };
 
   const handleAddOrder = (e) => {
@@ -195,6 +217,101 @@ export default function ObservationDetailPage() {
       }),
     }));
   };
+
+  /* STAT Order List columns — same shared <Table> pattern as the Timed
+     Vital Signs sheet, instead of a bespoke div-per-row list. Defined
+     inside the component (not module scope) because the actions column
+     closes over handleUpdateOrderStatus. */
+  const STAT_ORDER_STATUS_STYLE = {
+    completed:   { bg: 'var(--surface-colorfulbadge-green)',  color: 'var(--text-colorfulbadge-green)',  icon: 'check_circle' },
+    in_progress: { bg: 'var(--surface-colorfulbadge-orange)', color: 'var(--text-colorfulbadge-orange)', icon: 'hourglass_top' },
+    pending:     { bg: 'var(--surface-colorfulbadge-red)',    color: 'var(--text-colorfulbadge-red)',    icon: 'error' },
+  };
+  const statOrderColumns = [
+    {
+      key: 'status',
+      label: '',
+      width: 64,
+      align: 'center',
+      sortable: false,
+      render: (ord) => {
+        const cfg = STAT_ORDER_STATUS_STYLE[ord.status];
+        return (
+          <span
+            className={ord.status === 'pending' ? 'animate-pulse' : undefined}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 'var(--dim-radius-400)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: cfg.bg,
+              color: cfg.color,
+            }}
+          >
+            <span className='material-symbols-outlined text-xl'>{cfg.icon}</span>
+          </span>
+        );
+      },
+    },
+    {
+      key: 'order',
+      label: 'คำสั่งการรักษา',
+      flex: true,
+      minWidth: 260,
+      sortable: false,
+      render: (ord) => (
+        <div>
+          <div style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>{ord.orderText}</div>
+          <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+            <span>เวลาสั่งการ: <strong style={{ color: 'var(--text-content-secondary)' }}>{ord.orderTime}</strong></span>
+            <span>•</span>
+            <span>ผู้ดำเนินการ: <strong style={{ color: 'var(--text-brandPrimary-default)' }}>{ord.executedBy}</strong> ({ord.executedTime})</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: '',
+      width: 160,
+      align: 'right',
+      sortable: false,
+      render: (ord) => {
+        if (ord.status === 'pending') {
+          return (
+            <BrandSubdueButton leadingIcon='play_arrow' size='sm' onClick={() => handleUpdateOrderStatus(ord.id, 'in_progress')}>
+              เริ่มดำเนินการ
+            </BrandSubdueButton>
+          );
+        }
+        if (ord.status === 'in_progress') {
+          return (
+            <BrandPrimaryButton leadingIcon='check' size='sm' onClick={() => handleUpdateOrderStatus(ord.id, 'completed')}>
+              เสร็จสิ้น
+            </BrandPrimaryButton>
+          );
+        }
+        return (
+          <span
+            style={{
+              display: 'inline-block',
+              padding: 'var(--dim-space-150) var(--dim-space-300)',
+              borderRadius: 'var(--dim-radius-200)',
+              border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+              background: 'var(--surface-card-100)',
+              color: 'var(--text-content-secondary)',
+              fontSize: 'var(--type-size-xs)',
+              fontWeight: 'var(--type-weight-bold)',
+            }}
+          >
+            ดำเนินการแล้ว
+          </span>
+        );
+      },
+    },
+  ];
 
   const handleAddNursingNote = (e) => {
     e.preventDefault();
@@ -244,10 +361,10 @@ export default function ObservationDetailPage() {
       backLabel='กลับสู่ผังเตียง'
       actions={
         <div className='flex items-center gap-2'>
-          <NeutralSubdueButton leadingIcon='print' onClick={() => window.print()}>
+          <NeutralSubdueButton variant='outline' size='md' leadingIcon='print' onClick={() => window.print()}>
             พิมพ์ใบสังเกตอาการ (Timed Sheet)
           </NeutralSubdueButton>
-          <BrandPrimaryButton leadingIcon='assignment_turned_in' onClick={() => setActiveTab('discharge')}>
+          <BrandPrimaryButton size='md' leadingIcon='assignment_turned_in' onClick={() => setActiveTab('discharge')}>
             สรุปการจำหน่าย
           </BrandPrimaryButton>
         </div>
@@ -453,61 +570,50 @@ export default function ObservationDetailPage() {
             </h3>
 
             <form onSubmit={handleAddVital} className='space-y-4 text-xs'>
-              <div className='grid grid-cols-2 md:grid-cols-6 gap-3'>
-                <InputField
-                  label='BP Systolic (mmHg)'
-                  type='number'
-                  placeholder='120'
-                  value={newVital.bpSys}
-                  onChange={(val) => setNewVital({ ...newVital, bpSys: val })}
-                  size='sm'
-                  required
+              {/* Same VitalCard / PressureCard used by OPD screening's
+                  VitalsForm — reused here instead of plain InputFields so
+                  the quick-entry row shares steppers, hints, and threshold
+                  badges with the rest of the app. `key` forces a remount
+                  (clearing the fields) after each successful save, since
+                  these cards hold their own uncontrolled input state. */}
+              <div key={vitalFormResetKey} className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'>
+                <PressureCard
+                  sys={newVital.bpSys}
+                  dia={newVital.bpDia}
+                  onChange={({ sys, dia }) => setNewVital({ ...newVital, bpSys: sys, bpDia: dia })}
                 />
-                <InputField
-                  label='BP Diastolic (mmHg)'
-                  type='number'
-                  placeholder='80'
-                  value={newVital.bpDia}
-                  onChange={(val) => setNewVital({ ...newVital, bpDia: val })}
-                  size='sm'
+                <VitalCard
+                  label='ชีพจร'
+                  unit='ครั้ง/นาที'
                   required
-                />
-                <InputField
-                  label='Pulse (bpm)'
-                  type='number'
-                  placeholder='80'
                   value={newVital.pulse}
                   onChange={(val) => setNewVital({ ...newVital, pulse: val })}
-                  size='sm'
-                  required
+                  hint='ปกติ 60–100 ครั้ง/นาที'
                 />
-                <InputField
-                  label='Temp (°C)'
-                  type='number'
-                  step='0.1'
-                  placeholder='36.6'
+                <VitalCard
+                  label='อุณหภูมิ'
+                  unit='°C'
+                  required
+                  step={0.1}
                   value={newVital.temp}
                   onChange={(val) => setNewVital({ ...newVital, temp: val })}
-                  size='sm'
-                  required
+                  hint='ปกติ 36.1–37.2 °C'
                 />
-                <InputField
-                  label='SpO2 (%)'
-                  type='number'
-                  placeholder='98'
+                <VitalCard
+                  label='SpO2'
+                  unit='%'
+                  required
                   value={newVital.spo2}
                   onChange={(val) => setNewVital({ ...newVital, spo2: val })}
-                  size='sm'
-                  required
+                  hint='ปกติ ≥ 95%'
                 />
-                <InputField
-                  label='RR (bpm)'
-                  type='number'
-                  placeholder='18'
+                <VitalCard
+                  label='อัตราการหายใจ'
+                  unit='ครั้ง/นาที'
+                  required
                   value={newVital.rr}
                   onChange={(val) => setNewVital({ ...newVital, rr: val })}
-                  size='sm'
-                  required
+                  hint='ปกติ 12–20 ครั้ง/นาที'
                 />
               </div>
 
@@ -574,10 +680,30 @@ export default function ObservationDetailPage() {
             <div style={{ padding: 'var(--dim-space-400)' }}>
               <Table
                 columns={VITALS_TABLE_COLUMNS}
-                rows={patient.vitalsTrend}
+                rows={pagedVitalsTrend}
                 rowKey={(log, idx) => `${log.time}-${idx}`}
                 emptyMessage='ยังไม่มีการบันทึกสัญญาณชีพ'
               />
+
+              {/* Pagination — only once the log actually spans more than one
+                  page, same PAGE_SIZE/Pagination pattern as QueuePage.jsx. */}
+              {patient.vitalsTrend.length > VITALS_PAGE_SIZE && (
+                <div
+                  className='flex items-center'
+                  style={{
+                    gap: 'var(--dim-space-200)',
+                    paddingTop: 'var(--dim-space-300)',
+                    marginTop: 'var(--dim-space-300)',
+                    borderTop: 'var(--dim-stroke-100) solid var(--border-table-default)',
+                  }}
+                >
+                  <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+                    แสดง {vitalsRangeStart}–{vitalsRangeEnd} จาก {patient.vitalsTrend.length} รายการ
+                  </span>
+                  <div className='flex-1' />
+                  <Pagination currentPage={vitalsPageClamped} pageCount={vitalsTotalPages} onPageChange={setVitalsPage} />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -608,71 +734,56 @@ export default function ObservationDetailPage() {
             </form>
           </div>
 
-          {/* Orders List */}
-          <div className='bg-white rounded-2xl border-none overflow-hidden' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
-            <div className='p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between'>
-              <h3 className='font-bold text-gray-900 text-sm flex items-center gap-2'>
-                <span className='material-symbols-outlined text-brand-600'>format_list_bulleted</span>
+          {/* Orders List — same shared <Table> pattern as the Timed Vital
+              Signs sheet, instead of a bespoke div-per-row list. */}
+          <div
+            style={{
+              background: 'var(--surface-card-100)',
+              borderRadius: 'var(--dim-radius-500)',
+              boxShadow: 'var(--shadow-card-strong)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              className='flex items-center justify-between'
+              style={{
+                padding: 'var(--dim-space-400)',
+                background: 'var(--surface-card-100)',
+                borderBottom: 'var(--dim-stroke-100) solid var(--border-table-default)',
+              }}
+            >
+              <h3
+                className='flex items-center'
+                style={{
+                  gap: 'var(--dim-space-150, 6px)',
+                  color: 'var(--text-table-title)',
+                  fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
+                  fontWeight: 'var(--type-weight-bold)',
+                  fontSize: 'var(--type-size-sm)',
+                }}
+              >
+                <span className='material-symbols-outlined' style={{ color: 'var(--icon-brandPrimary-default)' }}>format_list_bulleted</span>
                 รายการคำสั่งการรักษา & การพยาบาลด่วน (STAT Order List)
               </h3>
-              <span className='text-xs text-gray-500 font-medium'>ทั้งหมด {patient.statOrders.length} รายการ</span>
+              <span
+                style={{
+                  color: 'var(--text-content-secondary)',
+                  fontFamily: 'var(--type-family-body)',
+                  fontWeight: 'var(--type-weight-medium)',
+                  fontSize: 'var(--type-size-xs)',
+                }}
+              >
+                ทั้งหมด {patient.statOrders.length} รายการ
+              </span>
             </div>
 
-            <div className='divide-y divide-gray-100'>
-              {patient.statOrders.map((ord) => (
-                <div key={ord.id} className='p-4 hover:bg-gray-50/80 transition-colors flex items-center justify-between gap-4'>
-                  <div className='flex items-start gap-3'>
-                    <span
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                        ord.status === 'completed'
-                          ? 'bg-brand-100 text-brand-800'
-                          : ord.status === 'in_progress'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-rose-100 text-rose-800 animate-pulse'
-                      }`}
-                    >
-                      <span className='material-symbols-outlined text-xl'>
-                        {ord.status === 'completed' ? 'check_circle' : ord.status === 'in_progress' ? 'hourglass_top' : 'error'}
-                      </span>
-                    </span>
-
-                    <div>
-                      <div className='font-bold text-gray-900 text-sm mb-1'>{ord.orderText}</div>
-                      <div className='flex flex-wrap items-center gap-3 text-xs text-gray-500 font-mono'>
-                        <span>เวลาสั่งการ: <strong className='text-gray-800'>{ord.orderTime}</strong></span>
-                        <span>•</span>
-                        <span>ผู้ดำเนินการ: <strong className='text-brand-800 font-sans'>{ord.executedBy}</strong> ({ord.executedTime})</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className='flex items-center gap-2 shrink-0'>
-                    {ord.status === 'pending' && (
-                      <BrandSubdueButton
-                        leadingIcon='play_arrow'
-                        size='sm'
-                        onClick={() => handleUpdateOrderStatus(ord.id, 'in_progress')}
-                      >
-                        เริ่มดำเนินการ
-                      </BrandSubdueButton>
-                    )}
-                    {ord.status === 'in_progress' && (
-                      <BrandPrimaryButton
-                        leadingIcon='check'
-                        size='sm'
-                        onClick={() => handleUpdateOrderStatus(ord.id, 'completed')}
-                      >
-                        เสร็จสิ้น
-                      </BrandPrimaryButton>
-                    )}
-                    {ord.status === 'completed' && (
-                      <span className='px-3 py-1 bg-brand-50 text-brand-800 rounded-md text-xs font-bold border border-brand-200/60'>
-                        ดำเนินการแล้ว
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div style={{ padding: 'var(--dim-space-400)' }}>
+              <Table
+                columns={statOrderColumns}
+                rows={patient.statOrders}
+                rowKey={(ord) => ord.id}
+                emptyMessage='ยังไม่มีคำสั่งการรักษาด่วน'
+              />
             </div>
           </div>
         </div>
