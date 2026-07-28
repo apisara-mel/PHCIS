@@ -169,7 +169,7 @@ export default function ObservationDetailPage() {
       <div className='bg-white rounded-2xl p-5 shadow-sm border border-gray-200 mb-6'>
         <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100'>
           <div className='flex items-center gap-3.5'>
-            <div className='w-12 h-12 rounded-2xl bg-teal-700 text-white flex items-center justify-center font-bold text-xl shadow-sm shrink-0'>
+            <div className='w-12 h-12 rounded-2xl bg-brand-700 text-white flex items-center justify-center font-bold text-xl shadow-sm shrink-0'>
               {patient.bedNo.replace('เตียง ', '')}
             </div>
             <div>
@@ -203,25 +203,25 @@ export default function ObservationDetailPage() {
                 <span>•</span>
                 <span>VN: <strong className='text-gray-900'>{patient.vn}</strong></span>
                 <span>•</span>
-                <span className='font-sans text-teal-800 font-semibold'>{patient.rights}</span>
+                <span className='font-sans text-brand-800 font-semibold'>{patient.rights}</span>
               </div>
             </div>
           </div>
 
-          <div className='flex items-center gap-4 bg-teal-50/60 p-3 rounded-xl border border-teal-100 text-xs'>
+          <div className='flex items-center gap-4 bg-brand-50/60 p-3 rounded-xl border border-brand-100 text-xs'>
             <div>
               <div className='text-gray-500 font-medium text-[11px] mb-0.5'>แพทย์ผู้ดูแล:</div>
               <div className='font-bold text-gray-900'>{patient.doctorName}</div>
             </div>
-            <div className='h-8 w-px bg-teal-200/60' />
+            <div className='h-8 w-px bg-brand-200/60' />
             <div>
               <div className='text-gray-500 font-medium text-[11px] mb-0.5'>พยาบาลเจ้าของไข้:</div>
               <div className='font-bold text-gray-900'>{patient.nurseName}</div>
             </div>
-            <div className='h-8 w-px bg-teal-200/60' />
+            <div className='h-8 w-px bg-brand-200/60' />
             <div>
               <div className='text-gray-500 font-medium text-[11px] mb-0.5'>เวลาเข้าเตียง:</div>
-              <div className='font-bold text-teal-900'>{patient.admitTime}</div>
+              <div className='font-bold text-brand-900'>{patient.admitTime}</div>
             </div>
           </div>
         </div>
@@ -234,7 +234,7 @@ export default function ObservationDetailPage() {
           </div>
           <div className='bg-gray-50 p-3 rounded-xl border border-gray-100'>
             <span className='font-bold text-gray-500 block mb-0.5'>การวินิจฉัย (Diagnosis):</span>
-            <span className='font-semibold text-teal-900 font-mono'>{patient.diagnosis}</span>
+            <span className='font-semibold text-brand-900 font-mono'>{patient.diagnosis}</span>
           </div>
         </div>
       </div>
@@ -286,7 +286,7 @@ export default function ObservationDetailPage() {
                     </span>
                   )}
                   {currentEws.score < 2 && (
-                    <span className='text-teal-900 font-bold'>
+                    <span className='text-brand-900 font-bold'>
                       ✅ **ระดับปกติ (Low Risk):** ผู้ป่วยสัญญาณชีพคงที่ เฝ้าสังเกตอาการตามปกติ วัด V/S ตามรอบ q 4 ชม.
                     </span>
                   )}
@@ -298,7 +298,7 @@ export default function ObservationDetailPage() {
             <div className='space-y-3'>
               <div className='flex items-center justify-between'>
                 <h4 className='font-bold text-gray-800 text-xs flex items-center gap-1.5'>
-                  <span className='material-symbols-outlined text-teal-600 text-base'>show_chart</span>
+                  <span className='material-symbols-outlined text-brand-600 text-base'>show_chart</span>
                   กราฟแนวโน้มสัญญาณชีพตามช่วงเวลา (Vital Signs Trend Visualizer)
                 </h4>
                 <div className='flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-200'>
@@ -328,7 +328,7 @@ export default function ObservationDetailPage() {
           {/* Add Vital Form Card */}
           <div className='bg-white rounded-2xl p-5 shadow-sm border border-gray-200'>
             <h3 className='font-bold text-gray-900 text-sm mb-4 flex items-center gap-2'>
-              <span className='material-symbols-outlined text-teal-600'>add_chart</span>
+              <span className='material-symbols-outlined text-brand-600'>add_chart</span>
               ลงบันทึกสัญญาณชีพประจำช่วงเวลา (Add Timed Vitals)
             </h3>
 
@@ -411,7 +411,7 @@ export default function ObservationDetailPage() {
           <div className='bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden'>
             <div className='p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between'>
               <h3 className='font-bold text-gray-900 text-sm flex items-center gap-2'>
-                <span className='material-symbols-outlined text-teal-600'>table_chart</span>
+                <span className='material-symbols-outlined text-brand-600'>table_chart</span>
                 ตารางบันทึกสัญญาณชีพตามเวลา (Timed Vital Signs Sheet)
               </h3>
               <span className='text-xs text-gray-500 font-medium'>บันทึกแล้ว {patient.vitalsTrend.length} รอบ</span>
@@ -435,12 +435,12 @@ export default function ObservationDetailPage() {
                   {patient.vitalsTrend.map((log, idx) => {
                     const ewsRes = calculateEwsScore(log);
                     return (
-                      <tr key={idx} className='hover:bg-teal-50/20 transition-colors'>
-                        <td className='py-3 px-4 font-bold text-teal-800 font-sans'>{log.time}</td>
+                      <tr key={idx} className='hover:bg-brand-50/20 transition-colors'>
+                        <td className='py-3 px-4 font-bold text-brand-800 font-sans'>{log.time}</td>
                         <td className='py-3 px-4 text-center font-bold text-gray-900'>
                           {log.bpSys}/{log.bpDia}
                         </td>
-                        <td className='py-3 px-4 text-center font-bold text-teal-700'>{log.pulse}</td>
+                        <td className='py-3 px-4 text-center font-bold text-brand-700'>{log.pulse}</td>
                         <td className='py-3 px-4 text-center font-bold text-amber-700'>{log.temp}</td>
                         <td className='py-3 px-4 text-center font-bold text-blue-700'>{log.spo2}%</td>
                         <td className='py-3 px-4 text-center font-bold text-gray-700'>{log.rr}</td>
@@ -492,7 +492,7 @@ export default function ObservationDetailPage() {
           <div className='bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden'>
             <div className='p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between'>
               <h3 className='font-bold text-gray-900 text-sm flex items-center gap-2'>
-                <span className='material-symbols-outlined text-teal-600'>format_list_bulleted</span>
+                <span className='material-symbols-outlined text-brand-600'>format_list_bulleted</span>
                 รายการคำสั่งการรักษา & การพยาบาลด่วน (STAT Order List)
               </h3>
               <span className='text-xs text-gray-500 font-medium'>ทั้งหมด {patient.statOrders.length} รายการ</span>
@@ -505,7 +505,7 @@ export default function ObservationDetailPage() {
                     <span
                       className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                         ord.status === 'completed'
-                          ? 'bg-teal-100 text-teal-800'
+                          ? 'bg-brand-100 text-brand-800'
                           : ord.status === 'in_progress'
                           ? 'bg-amber-100 text-amber-800'
                           : 'bg-rose-100 text-rose-800 animate-pulse'
@@ -521,7 +521,7 @@ export default function ObservationDetailPage() {
                       <div className='flex flex-wrap items-center gap-3 text-xs text-gray-500 font-mono'>
                         <span>เวลาสั่งการ: <strong className='text-gray-800'>{ord.orderTime}</strong></span>
                         <span>•</span>
-                        <span>ผู้ดำเนินการ: <strong className='text-teal-800 font-sans'>{ord.executedBy}</strong> ({ord.executedTime})</span>
+                        <span>ผู้ดำเนินการ: <strong className='text-brand-800 font-sans'>{ord.executedBy}</strong> ({ord.executedTime})</span>
                       </div>
                     </div>
                   </div>
@@ -546,7 +546,7 @@ export default function ObservationDetailPage() {
                       </BrandPrimaryButton>
                     )}
                     {ord.status === 'completed' && (
-                      <span className='px-3 py-1 bg-teal-50 text-teal-800 rounded-md text-xs font-bold border border-teal-200/60'>
+                      <span className='px-3 py-1 bg-brand-50 text-brand-800 rounded-md text-xs font-bold border border-brand-200/60'>
                         ดำเนินการแล้ว
                       </span>
                     )}
@@ -564,7 +564,7 @@ export default function ObservationDetailPage() {
           {/* Add Nursing Note */}
           <div className='bg-white rounded-2xl p-5 shadow-sm border border-gray-200'>
             <h3 className='font-bold text-gray-900 text-sm mb-3 flex items-center gap-2'>
-              <span className='material-symbols-outlined text-teal-600'>edit_note</span>
+              <span className='material-symbols-outlined text-brand-600'>edit_note</span>
               บันทึกทางการพยาบาลเพิ่มเติม (Focus Nursing Log)
             </h3>
             <form onSubmit={handleAddNursingNote} className='space-y-3 text-xs'>
@@ -586,16 +586,16 @@ export default function ObservationDetailPage() {
           {/* Nursing Notes Timeline */}
           <div className='bg-white rounded-2xl p-6 shadow-sm border border-gray-200'>
             <h3 className='font-bold text-gray-900 text-sm mb-6 flex items-center gap-2 border-b border-gray-100 pb-3'>
-              <span className='material-symbols-outlined text-teal-600'>history</span>
+              <span className='material-symbols-outlined text-brand-600'>history</span>
               ประวัติการบันทึกทางการพยาบาล (Nursing Activity Log)
             </h3>
 
-            <div className='relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-teal-200'>
+            <div className='relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-brand-200'>
               {patient.nursingNotes.map((note, idx) => (
                 <div key={idx} className='relative pl-4 group'>
-                  <div className='absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-full bg-teal-600 border-2 border-white shadow-2xs group-hover:scale-125 transition-transform' />
+                  <div className='absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-full bg-brand-600 border-2 border-white shadow-2xs group-hover:scale-125 transition-transform' />
                   <div className='flex items-center gap-3 text-xs mb-1 font-mono'>
-                    <span className='font-bold text-teal-900 bg-teal-50 px-2 py-0.5 rounded border border-teal-200/60'>
+                    <span className='font-bold text-brand-900 bg-brand-50 px-2 py-0.5 rounded border border-brand-200/60'>
                       {note.time}
                     </span>
                     <span className='text-gray-500 font-sans font-medium'>บันทึกโดย: {note.nurse}</span>
@@ -614,7 +614,7 @@ export default function ObservationDetailPage() {
       {activeTab === 'discharge' && (
         <div className='bg-white rounded-2xl p-6 shadow-sm border border-gray-200'>
           <h3 className='font-bold text-gray-900 text-sm mb-6 flex items-center gap-2 border-b border-gray-100 pb-3'>
-            <span className='material-symbols-outlined text-teal-600'>output</span>
+            <span className='material-symbols-outlined text-brand-600'>output</span>
             แบบฟอร์มสรุปการจำหน่ายผู้ป่วย (Discharge Summary & Disposition)
           </h3>
 
@@ -633,7 +633,7 @@ export default function ObservationDetailPage() {
                     key={disp.key}
                     className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${
                       dischargeForm.disposition === disp.key
-                        ? 'bg-teal-50 border-teal-600 ring-2 ring-teal-600/20 text-teal-900 font-bold'
+                        ? 'bg-brand-50 border-brand-600 ring-2 ring-brand-600/20 text-brand-900 font-bold'
                         : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -645,7 +645,7 @@ export default function ObservationDetailPage() {
                       onChange={(e) => setDischargeForm({ ...dischargeForm, disposition: e.target.value })}
                       className='sr-only'
                     />
-                    <span className='material-symbols-outlined text-2xl text-teal-700'>{disp.icon}</span>
+                    <span className='material-symbols-outlined text-2xl text-brand-700'>{disp.icon}</span>
                     <span className='text-xs leading-snug'>{disp.label}</span>
                   </label>
                 ))}
@@ -691,15 +691,15 @@ export default function ObservationDetailPage() {
             />
 
             {/* Checkbox Complete */}
-            <div className='p-4 bg-teal-50/60 rounded-xl border border-teal-100 flex items-center gap-3'>
+            <div className='p-4 bg-brand-50/60 rounded-xl border border-brand-100 flex items-center gap-3'>
               <input
                 type='checkbox'
                 id='isDischargedCheck'
                 checked={dischargeForm.isDischarged}
                 onChange={(e) => setDischargeForm({ ...dischargeForm, isDischarged: e.target.checked })}
-                className='w-4 h-4 text-teal-600 rounded border-gray-300 focus:ring-teal-500 cursor-pointer'
+                className='w-4 h-4 text-brand-600 rounded border-gray-300 focus:ring-brand-500 cursor-pointer'
               />
-              <label htmlFor='isDischargedCheck' className='font-bold text-teal-900 cursor-pointer text-xs'>
+              <label htmlFor='isDischargedCheck' className='font-bold text-brand-900 cursor-pointer text-xs'>
                 ยืนยันการจำหน่ายผู้ป่วยออกจากเตียงสังเกตอาการ (Discharge & Release Bed)
               </label>
             </div>
