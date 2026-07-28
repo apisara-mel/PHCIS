@@ -6,6 +6,32 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { Icon } from '@/components/icons/Icon';
 import { LAB_TEST_CATALOG, resolveReferenceRange } from '@/data/labOrders';
 
+/* Print scoping — TOR §1.15.6.3's print button used to call bare
+   window.print(), which printed the whole app chrome (sidebar/header/
+   table) since nothing told the browser to isolate just the result.
+   Idempotent stylesheet injection, same pattern as the "no browser-
+   default input chrome" convention elsewhere in this project: on
+   @media print, hide everything except `.mih-lab-print-area`, and hide
+   `.no-print` elements (the print button itself) even inside that area. */
+if (typeof document !== 'undefined') {
+  const styleId = 'mih-lab-print-style';
+  const css = `
+@media print {
+  body * { visibility: hidden !important; }
+  .mih-lab-print-area, .mih-lab-print-area * { visibility: visible !important; }
+  .mih-lab-print-area { position: fixed; inset: 0; padding: 24px; }
+  .mih-lab-print-area .no-print { display: none !important; }
+}
+`;
+  let el = document.getElementById(styleId);
+  if (!el) {
+    el = document.createElement('style');
+    el.id = styleId;
+    document.head.appendChild(el);
+  }
+  if (el.textContent !== css) el.textContent = css;
+}
+
 /* Detail panel + trend-chart shown alongside LabQueuePage's table when a
    row is selected.
 
@@ -83,6 +109,7 @@ export const TrendChart = ({ points }) => {
 const LabDetailPanel = ({
   order,
   onClose,
+  onReveal,
   orderItemCount = 1,
   orderTotal = 0,
   emptyMessage = 'เลือกรายการทางซ้ายเพื่อดูรายละเอียด',
@@ -104,10 +131,14 @@ const LabDetailPanel = ({
   return (
     <div className='flex-1 flex flex-col' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
       {onClose && (
-        <div className='flex justify-end' style={{ marginBottom: 'calc(-1 * var(--dim-space-200))' }}>
+        <div className='flex justify-end no-print' style={{ marginBottom: 'calc(-1 * var(--dim-space-200))' }}>
           <XCloseButton onClick={onClose} ariaLabel='ปิดรายละเอียดผลตรวจ' />
         </div>
       )}
+      {/* Printable region — everything below is what "พิมพ์ผลตรวจ" actually
+          prints; the close button above and the print button itself
+          (marked no-print) stay out of the printout. */}
+      <div className='mih-lab-print-area flex-1 flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
       {order.critical && (
         <Alert
           type='error'
@@ -147,6 +178,7 @@ const LabDetailPanel = ({
               meaningful once a result exists, and not while a confidential
               result is still masked. */}
           <BrandSubdueButton
+            className='no-print'
             variant='outline'
             size='sm'
             leadingIcon='print'
@@ -204,8 +236,12 @@ const LabDetailPanel = ({
           {order.confidential && (
             <button
               type='button'
-              onClick={() => setRevealed((v) => !v)}
-              className='inline-flex items-center'
+              onClick={() => setRevealed((v) => {
+                const next = !v;
+                if (next) onReveal?.(order);
+                return next;
+              })}
+              className='inline-flex items-center no-print'
               style={{
                 gap: 'var(--dim-space-100)',
                 background: 'transparent',
@@ -239,7 +275,7 @@ const LabDetailPanel = ({
             (falls back to the flat range when a test has no split). */}
         {!masked && resolveReferenceRange(test, order.patient) && (
           <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-quaternary)' }}>
-            ค่าปกติ: {resolveReferenceRange(test, order.patient)} {test.unit}
+            ค่าปกติ: {resolveReferenceRange(test, order.patient)}{test.unit ? ` ${test.unit}` : ''}
           </span>
         )}
       </div>
@@ -261,6 +297,7 @@ const LabDetailPanel = ({
           <TrendChart points={order.trend} />
         </div>
       )}
+      </div>
     </div>
   );
 };

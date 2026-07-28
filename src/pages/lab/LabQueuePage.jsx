@@ -8,6 +8,7 @@ import { FilterDropdown } from '@/components/forms/FilterTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import AlertDialog from '@/components/popup/AlertDialog';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Pagination from '@/components/pagination/Pagination';
 import { Icon } from '@/components/icons/Icon';
 import { LAB_ORDERS, LAB_STATUSES, LAB_CATEGORIES, withTestLabel } from '@/data/labOrders';
@@ -63,20 +64,26 @@ const ROWS = LAB_ORDERS.map(withTestLabel);
 /* Same pagination convention (and page size) as QueuePage.jsx's worklist. */
 const PAGE_SIZE = 20;
 
-const SUMMARY_CARDS = [
-  { key: 'collected', label: 'เก็บตัวอย่างแล้ว', value: LAB_ORDERS.filter((o) => o.status === 'collected').length, indicator: 'รอนำเข้าวิเคราะห์', color: 'info', icon: 'science' },
-  { key: 'analysing', label: 'กำลังวิเคราะห์', value: LAB_ORDERS.filter((o) => o.status === 'analysing').length, indicator: 'อยู่ระหว่างดำเนินการ', color: 'inprogress', icon: 'hourglass_top' },
-  { key: 'reported', label: 'รายงานผลแล้ว', value: LAB_ORDERS.filter((o) => o.status === 'reported').length, indicator: 'วันนี้', color: 'positive', icon: 'check_circle' },
-  { key: 'critical', label: 'ค่าวิกฤต (Critical)', value: LAB_ORDERS.filter((o) => o.critical).length, indicator: 'แจ้งแพทย์แล้ว', color: 'destructive', icon: 'warning' },
+/* Summary cards + sticky tab counts are built from `liveRows` (see
+   buildSummaryCards/buildTabs below, called inside the component) so a
+   delete actually updates them — computing from the static LAB_ORDERS
+   seed once at module load would leave stale counts after a delete, which
+   reads as a real bug now that this is a production page (was an
+   accepted prototype simplification before). */
+const buildSummaryCards = (rows) => [
+  { key: 'collected', label: 'เก็บตัวอย่างแล้ว', value: rows.filter((o) => o.status === 'collected').length, indicator: 'รอนำเข้าวิเคราะห์', color: 'info', icon: 'science' },
+  { key: 'analysing', label: 'กำลังวิเคราะห์', value: rows.filter((o) => o.status === 'analysing').length, indicator: 'อยู่ระหว่างดำเนินการ', color: 'inprogress', icon: 'hourglass_top' },
+  { key: 'reported', label: 'รายงานผลแล้ว', value: rows.filter((o) => o.status === 'reported').length, indicator: 'วันนี้', color: 'positive', icon: 'check_circle' },
+  { key: 'critical', label: 'ค่าวิกฤต (Critical)', value: rows.filter((o) => o.critical).length, indicator: 'แจ้งแพทย์แล้ว', color: 'destructive', icon: 'warning' },
 ];
 
-const LAB_TABS = [
-  { key: 'all', label: 'ทั้งหมด', icon: 'biotech', count: ROWS.length },
+const buildTabs = (rows) => [
+  { key: 'all', label: 'ทั้งหมด', icon: 'biotech', count: rows.length },
   ...LAB_STATUSES.map((s) => ({
     key: s.key,
     label: s.label,
     icon: s.key === 'collected' ? 'science' : s.key === 'analysing' ? 'hourglass_top' : 'check_circle',
-    count: ROWS.filter((r) => r.status === s.key).length,
+    count: rows.filter((r) => r.status === s.key).length,
   })),
 ];
 
@@ -224,8 +231,8 @@ const buildColumns = (onDelete) => [
   {
     key: 'panel', label: 'ชุดตรวจ', width: 320,
     render: (row) => (
-      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>
-        {row.panel ?? '—'}
+      <span className='block min-w-0' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>
+        <EllipsisText text={row.panel ?? '—'} />
       </span>
     ),
   },
@@ -233,8 +240,8 @@ const buildColumns = (onDelete) => [
   {
     key: 'specimen', label: 'สิ่งส่งตรวจ', width: 150,
     render: (row) => (
-      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
-        {row.specimen ?? '—'}
+      <span className='block min-w-0' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+        <EllipsisText text={row.specimen ?? '—'} />
       </span>
     ),
   },
@@ -360,17 +367,49 @@ const LabQueuePage = () => {
      ลบข้อมูลได้") actually remove a row from this table. */
   const [liveRows, setLiveRows] = useState(ROWS);
 
+  const summaryCards = useMemo(() => buildSummaryCards(liveRows), [liveRows]);
+  const tabs = useMemo(() => buildTabs(liveRows), [liveRows]);
+
   /* Delete confirmation — same `deleteCandidate` pattern as QueuePage.jsx's
      row-delete flow. Holds the row pending confirmation so the popup keeps
      showing the right copy until the user confirms/cancels. */
   const [deleteCandidate, setDeleteCandidate] = useState(null);
   const handleAskDelete = (row) => setDeleteCandidate(row);
   const handleCancelDelete = () => setDeleteCandidate(null);
+
+  /* Audit trail — no per-session/logged-in-user context exists anywhere
+     in this frontend-only app yet (Sidebar's user footer is placeholder
+     text, not a real auth object), so `CURRENT_ACTOR` stands in for
+     whoever a real auth layer would resolve. Local to this page for now;
+     src/pages/audit/auditData.js's `LOG` is presentational mock data with
+     no shared append API to plug into. Sensitive-data views (confidential
+     reveal) and deletions are exactly the actions a real PDPA-style audit
+     log would need to capture — same spirit as the consent system
+     elsewhere in this app. */
+  const CURRENT_ACTOR = 'เจ้าหน้าที่ห้องปฏิบัติการ';
+  const [auditLog, setAuditLog] = useState([]);
+  const [auditLogOpen, setAuditLogOpen] = useState(false);
+  const logAudit = (action, detail) => {
+    const entry = {
+      id: `AUD-${Date.now()}-${Math.round(Math.random() * 1e4)}`,
+      time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      actor: CURRENT_ACTOR,
+      action,
+      detail,
+    };
+    setAuditLog((prev) => [entry, ...prev].slice(0, 20));
+  };
+
   const handleConfirmDelete = () => {
     if (!deleteCandidate) return;
+    logAudit('ลบรายการตรวจ', `${deleteCandidate.testLabel} — ${deleteCandidate.patient.shortName} (HN ${deleteCandidate.patient.hn}, ${deleteCandidate.orderId})`);
     setLiveRows((prev) => prev.filter((r) => r.id !== deleteCandidate.id));
     setSelectedId((prev) => (prev === deleteCandidate.id ? null : prev));
     setDeleteCandidate(null);
+  };
+
+  const handleRevealConfidential = (order) => {
+    logAudit('ดูผลตรวจที่เป็นความลับ', `${order.testLabel} — ${order.patient.shortName} (HN ${order.patient.hn})`);
   };
 
   const columns = useMemo(() => buildColumns(handleAskDelete), []);
@@ -493,9 +532,9 @@ const LabQueuePage = () => {
       activeKey='lab'
       breadcrumb={breadcrumb}
       title='ห้องปฏิบัติการ (Lab)'
-      summaryCards={SUMMARY_CARDS}
+      summaryCards={summaryCards}
       summaryFlushUnderSubHeader={false}
-      tabs={LAB_TABS}
+      tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
     >
@@ -623,11 +662,66 @@ const LabQueuePage = () => {
                 key={selected?.id}
                 order={selected}
                 onClose={() => setSelectedId(null)}
+                onReveal={handleRevealConfidential}
                 orderItemCount={orderSiblings.length}
                 orderTotal={orderTotal}
               />
             </div>
           </div>
+        </div>
+        {/* Audit trail — records confidential-result reveals and deletions,
+           the two actions a real PDPA-style audit log would care about
+           most on this page. See CURRENT_ACTOR/logAudit above for why this
+           is local-only rather than wired to src/pages/audit's shared log. */}
+        <div
+          className='w-full flex flex-col'
+          style={{
+            background: 'var(--surface-card-100)',
+            borderRadius: 'var(--dim-radius-500)',
+            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+            boxShadow: 'var(--shadow-card)',
+            padding: 'var(--dim-space-400) var(--dim-space-600)',
+            gap: 'var(--dim-space-300)',
+          }}
+        >
+          <NeutralSubdueButton
+            variant='outline'
+            size='sm'
+            trailingIcon={auditLogOpen ? 'expand_less' : 'expand_more'}
+            onClick={() => setAuditLogOpen((v) => !v)}
+            className='self-start'
+          >
+            ประวัติการดำเนินการ{auditLog.length > 0 ? ` (${auditLog.length})` : ''}
+          </NeutralSubdueButton>
+          {auditLogOpen && (
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+              {auditLog.length === 0 ? (
+                <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>
+                  ยังไม่มีการดำเนินการที่บันทึกในเซสชันนี้
+                </span>
+              ) : (
+                auditLog.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className='flex items-start'
+                    style={{ gap: 'var(--dim-space-300)', paddingBottom: 'var(--dim-space-200)', borderBottom: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)' }}
+                  >
+                    <span style={{ flexShrink: 0, width: 72, fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                      {entry.time}
+                    </span>
+                    <div className='flex flex-col min-w-0'>
+                      <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+                        {entry.actor} — {entry.action}
+                      </span>
+                      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary)' }}>
+                        {entry.detail}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
     </QueuePageShell>
