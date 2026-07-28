@@ -14,6 +14,88 @@ import TabPill, { TabBar } from '@/components/tab/TabPill';
 import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
+import Table, { EllipsisText } from '@/components/table/Table';
+
+/* Timed Vital Signs Sheet columns — styled to match the OPD screening
+   worklist table (shared <Table>, design tokens, StatusBadge for the
+   EWS score) instead of a bespoke Tailwind-gray <table>. */
+const VITALS_TABLE_COLUMNS = [
+  {
+    key: 'time',
+    label: 'เวลาบันทึก',
+    width: 96,
+    render: (log) => (
+      <span style={{ color: 'var(--text-brandPrimary-default, var(--brand-p700))', fontWeight: 'var(--type-weight-bold)' }}>
+        {log.time}
+      </span>
+    ),
+  },
+  {
+    key: 'bp',
+    label: 'ความดันโลหิต (mmHg)',
+    width: 168,
+    align: 'center',
+    sortable: false,
+    render: (log) => (
+      <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{log.bpSys}/{log.bpDia}</span>
+    ),
+  },
+  {
+    key: 'pulse',
+    label: 'ชีพจร (bpm)',
+    width: 112,
+    align: 'center',
+    sortable: false,
+    render: (log) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{log.pulse}</span>,
+  },
+  {
+    key: 'temp',
+    label: 'อุณหภูมิ (°C)',
+    width: 112,
+    align: 'center',
+    sortable: false,
+    render: (log) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{log.temp}</span>,
+  },
+  {
+    key: 'spo2',
+    label: 'SpO2 (%)',
+    width: 96,
+    align: 'center',
+    sortable: false,
+    render: (log) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{log.spo2}%</span>,
+  },
+  {
+    key: 'rr',
+    label: 'RR (bpm)',
+    width: 96,
+    align: 'center',
+    sortable: false,
+    render: (log) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{log.rr}</span>,
+  },
+  {
+    key: 'ews',
+    label: 'EWS Score',
+    width: 128,
+    align: 'center',
+    sortable: false,
+    render: (log) => {
+      const ewsRes = calculateEwsScore(log);
+      return (
+        <StatusBadge style={ewsRes.tier.style} size='small' showDot>
+          Score: {ewsRes.score}
+        </StatusBadge>
+      );
+    },
+  },
+  {
+    key: 'note',
+    label: 'หมายเหตุ / การประเมิน',
+    flex: true,
+    minWidth: 220,
+    sortable: false,
+    render: (log) => <EllipsisText text={log.note || '-'} />,
+  },
+];
 
 export default function ObservationDetailPage() {
   const { id } = useParams();
@@ -416,57 +498,57 @@ export default function ObservationDetailPage() {
             </form>
           </div>
 
-          {/* Timed Vitals History Table */}
-          <div className='bg-white rounded-2xl border-none overflow-hidden' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
-            <div className='p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between'>
-              <h3 className='font-bold text-gray-900 text-sm flex items-center gap-2'>
-                <span className='material-symbols-outlined text-brand-600'>table_chart</span>
+          {/* Timed Vitals History Table — styled to match the OPD screening
+              worklist card: surface-card-100 body, brandPrimary-quaternary
+              header band, shared <Table> for header/row/cell chrome. */}
+          <div
+            style={{
+              background: 'var(--surface-card-100)',
+              borderRadius: 'var(--dim-radius-500)',
+              boxShadow: 'var(--shadow-card-strong)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              className='flex items-center justify-between'
+              style={{
+                padding: 'var(--dim-space-400)',
+                background: 'var(--surface-table-header)',
+                borderBottom: 'var(--dim-stroke-100) solid var(--border-table-default)',
+              }}
+            >
+              <h3
+                className='flex items-center'
+                style={{
+                  gap: 'var(--dim-space-150, 6px)',
+                  color: 'var(--text-table-title)',
+                  fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
+                  fontWeight: 'var(--type-weight-bold)',
+                  fontSize: 'var(--type-size-sm)',
+                }}
+              >
+                <span className='material-symbols-outlined' style={{ color: 'var(--icon-brandPrimary-default)' }}>table_chart</span>
                 ตารางบันทึกสัญญาณชีพตามเวลา (Timed Vital Signs Sheet)
               </h3>
-              <span className='text-xs text-gray-500 font-medium'>บันทึกแล้ว {patient.vitalsTrend.length} รอบ</span>
+              <span
+                style={{
+                  color: 'var(--text-content-secondary)',
+                  fontFamily: 'var(--type-family-body)',
+                  fontWeight: 'var(--type-weight-medium)',
+                  fontSize: 'var(--type-size-xs)',
+                }}
+              >
+                บันทึกแล้ว {patient.vitalsTrend.length} รอบ
+              </span>
             </div>
 
-            <div className='overflow-x-auto'>
-              <table className='w-full text-left text-xs border-collapse'>
-                <thead>
-                  <tr className='bg-gray-100/70 border-b border-gray-200 text-gray-600 font-bold uppercase tracking-wider'>
-                    <th className='py-3 px-4'>เวลาบันทึก</th>
-                    <th className='py-3 px-4 text-center'>ความดันโลหิต (mmHg)</th>
-                    <th className='py-3 px-4 text-center'>ชีพจร (bpm)</th>
-                    <th className='py-3 px-4 text-center'>อุณหภูมิ (°C)</th>
-                    <th className='py-3 px-4 text-center'>SpO2 (%)</th>
-                    <th className='py-3 px-4 text-center'>RR (bpm)</th>
-                    <th className='py-3 px-4 text-center'>EWS Score</th>
-                    <th className='py-3 px-4'>หมายเหตุ / การประเมิน</th>
-                  </tr>
-                </thead>
-                <tbody className='divide-y divide-gray-100 text-gray-800 font-mono'>
-                  {patient.vitalsTrend.map((log, idx) => {
-                    const ewsRes = calculateEwsScore(log);
-                    return (
-                      <tr key={idx} className='hover:bg-brand-50/20 transition-colors'>
-                        <td className='py-3 px-4 font-bold text-brand-800 font-sans'>{log.time}</td>
-                        <td className='py-3 px-4 text-center font-bold text-gray-900'>
-                          {log.bpSys}/{log.bpDia}
-                        </td>
-                        <td className='py-3 px-4 text-center font-bold text-brand-700'>{log.pulse}</td>
-                        <td className='py-3 px-4 text-center font-bold text-amber-700'>{log.temp}</td>
-                        <td className='py-3 px-4 text-center font-bold text-blue-700'>{log.spo2}%</td>
-                        <td className='py-3 px-4 text-center font-bold text-gray-700'>{log.rr}</td>
-                        <td className='py-3 px-4 text-center'>
-                          <span
-                            className='inline-block px-2.5 py-0.5 rounded font-bold text-xs shadow-2xs font-sans'
-                            style={{ backgroundColor: ewsRes.tier.color + '20', color: ewsRes.tier.color }}
-                          >
-                            Score: {ewsRes.score}
-                          </span>
-                        </td>
-                        <td className='py-3 px-4 font-sans text-gray-700'>{log.note}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div style={{ padding: 'var(--dim-space-400)' }}>
+              <Table
+                columns={VITALS_TABLE_COLUMNS}
+                rows={patient.vitalsTrend}
+                rowKey={(log, idx) => `${log.time}-${idx}`}
+                emptyMessage='ยังไม่มีการบันทึกสัญญาณชีพ'
+              />
             </div>
           </div>
         </div>
