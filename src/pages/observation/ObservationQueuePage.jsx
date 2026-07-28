@@ -13,12 +13,205 @@ import BrandIconButton from '@/components/button/BrandIconButton';
 import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import Table, { EllipsisText } from '@/components/table/Table';
 import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
+
+/* List-view columns — styled to match the OPD screening worklist table
+   (shared <Table>, design tokens, StatusBadge) instead of a bespoke
+   Tailwind-gray <table>. The "actions" column is bound to page-level
+   handlers (history, admit-form state) so it's appended via useMemo in
+   the component body — see QueuePage.jsx's makeRenderActions pattern. */
+const OBSERVATION_QUEUE_BASE_COLUMNS = [
+  {
+    key: 'bedNo',
+    label: 'เลขเตียง',
+    width: 96,
+    sortable: false,
+    render: (patient) => (
+      <span style={{ color: 'var(--text-brandPrimary-default, var(--brand-p700))', fontWeight: 'var(--type-weight-bold)' }}>
+        {patient.bedNo}
+      </span>
+    ),
+  },
+  {
+    key: 'name',
+    label: 'ชื่อ-นามสกุล / HN',
+    flex: true,
+    minWidth: 200,
+    sortable: false,
+    render: (patient) => {
+      if (patient.status === 'empty') {
+        return (
+          <span style={{ color: 'var(--text-content-tertiary)', fontStyle: 'italic' }}>
+            เตียงว่าง ({patient.bedType})
+          </span>
+        );
+      }
+      return (
+        <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <img
+            src={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl || '/avatars/somchai-mock.png'}
+            alt={patient.patientName}
+            className='w-8 h-8 rounded-full object-cover shrink-0'
+            style={{ border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)' }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = '/avatars/somchai-mock.png';
+            }}
+          />
+          <div className='min-w-0'>
+            <div className='truncate' style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>
+              {patient.patientName}
+            </div>
+            <div style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+              HN: {patient.hn}
+            </div>
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    key: 'genderAge',
+    label: 'เพศ / อายุ',
+    width: 112,
+    sortable: false,
+    render: (patient) => (patient.status === 'empty' ? '-' : `${patient.gender}, ${patient.age} ปี`),
+  },
+  {
+    key: 'admitTime',
+    label: 'เวลาเข้าเตียง',
+    width: 140,
+    sortable: false,
+    render: (patient) => {
+      if (patient.status === 'empty') return '-';
+      return (
+        <div>
+          <div>{patient.admitTime}</div>
+          <div style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+            ({Math.floor(patient.durationMinutes / 60)} ชม. {patient.durationMinutes % 60} นาที)
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    key: 'complaint',
+    label: 'อาการสำคัญ / วินิจฉัย',
+    flex: true,
+    minWidth: 220,
+    sortable: false,
+    render: (patient) => {
+      if (patient.status === 'empty') return '-';
+      return (
+        <div className='min-w-0'>
+          <EllipsisText text={patient.chiefComplaint} />
+          <div className='truncate' style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+            {patient.diagnosis}
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    key: 'vitals',
+    label: 'สัญญาณชีพล่าสุด',
+    width: 176,
+    align: 'center',
+    sortable: false,
+    render: (patient) => {
+      const latest = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
+      if (!latest) return '-';
+      return (
+        <div style={{ fontWeight: 'var(--type-weight-bold)' }}>
+          <div>{latest.bpSys}/{latest.bpDia} mmHg</div>
+          <div style={{ fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-regular)', color: 'var(--text-content-tertiary)' }}>
+            P: {latest.pulse} | SpO2: {latest.spo2}%
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    key: 'ews',
+    label: 'EWS Score',
+    width: 128,
+    align: 'center',
+    sortable: false,
+    render: (patient) => {
+      const latest = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
+      if (!latest) return '-';
+      const ews = calculateEwsScore(latest);
+      return (
+        <StatusBadge style={ews.tier.style} size='small' showDot>
+          {ews.score} ({ews.tier.level.toUpperCase()})
+        </StatusBadge>
+      );
+    },
+  },
+  {
+    key: 'status',
+    label: 'สถานะ',
+    width: 128,
+    align: 'center',
+    sortable: false,
+    render: (patient) => {
+      if (patient.status === 'empty') return '-';
+      return (
+        <StatusBadge style={patient.status === 'ready_discharge' ? 'success' : 'info'} size='small'>
+          {patient.status === 'ready_discharge' ? 'พร้อมจำหน่าย' : 'สังเกตอาการ'}
+        </StatusBadge>
+      );
+    },
+  },
+];
 
 export default function ObservationQueuePage() {
   const history = useHistory();
   const [patients, setPatients] = useState(MOCK_OBSERVATION_PATIENTS);
+  const columns = React.useMemo(
+    () => [
+      ...OBSERVATION_QUEUE_BASE_COLUMNS,
+      {
+        key: 'actions',
+        label: 'เครื่องมือ',
+        width: 140,
+        align: 'right',
+        sortable: false,
+        render: (patient) => {
+          if (patient.status === 'empty') {
+            return (
+              <BrandSubdueButton
+                leadingIcon='add'
+                size='sm'
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAdmitForm((prev) => ({ ...prev, bedId: patient.id }));
+                  setShowAdmitModal(true);
+                }}
+              >
+                ครองเตียง
+              </BrandSubdueButton>
+            );
+          }
+          return (
+            <BrandPrimaryButton
+              leadingIcon='clinical_notes'
+              size='sm'
+              onClick={(e) => {
+                e.stopPropagation();
+                history.push(`/observation/record/${patient.id}`);
+              }}
+            >
+              เปิดแฟ้ม
+            </BrandPrimaryButton>
+          );
+        },
+      },
+    ],
+    [history],
+  );
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
@@ -441,126 +634,15 @@ export default function ObservationQueuePage() {
           })}
         </div>
       ) : (
-        /* Table View */
-        <div className='bg-white rounded-2xl border-none overflow-hidden' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
-          <div className='overflow-x-auto'>
-            <table className='w-full text-left text-xs border-collapse'>
-              <thead>
-                <tr className='bg-gray-50 border-b border-gray-200 text-gray-600 font-bold uppercase tracking-wider'>
-                  <th className='py-3.5 px-4'>เลขเตียง</th>
-                  <th className='py-3.5 px-4'>ชื่อ-นามสกุล / HN</th>
-                  <th className='py-3.5 px-4'>เพศ / อายุ</th>
-                  <th className='py-3.5 px-4'>เวลาเข้าเตียง</th>
-                  <th className='py-3.5 px-4'>อาการสำคัญ / วินิจฉัย</th>
-                  <th className='py-3.5 px-4 text-center'>สัญญาณชีพล่าสุด</th>
-                  <th className='py-3.5 px-4 text-center'>EWS Score</th>
-                  <th className='py-3.5 px-4 text-center'>สถานะ</th>
-                  <th className='py-3.5 px-4 text-right'>เครื่องมือ</th>
-                </tr>
-              </thead>
-              <tbody className='divide-y divide-gray-100 text-gray-800'>
-                {filteredPatients.map((patient) => {
-                  if (patient.status === 'empty') {
-                    return (
-                      <tr key={patient.id} className='bg-gray-50/50 hover:bg-gray-50'>
-                        <td className='py-3 px-4 font-bold text-gray-500'>{patient.bedNo}</td>
-                        <td className='py-3 px-4 text-gray-400 italic' colSpan={7}>
-                          เตียงว่าง ({patient.bedType})
-                        </td>
-                        <td className='py-3 px-4 text-right'>
-                          <BrandSubdueButton
-                            leadingIcon='add'
-                            size='sm'
-                            onClick={() => {
-                              setAdmitForm((prev) => ({ ...prev, bedId: patient.id }));
-                              setShowAdmitModal(true);
-                            }}
-                          >
-                            ครองเตียง
-                          </BrandSubdueButton>
-                        </td>
-                      </tr>
-                    );
-                  }
-
-                  const latestVitals = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
-                  const ews = latestVitals ? calculateEwsScore(latestVitals) : null;
-
-                  return (
-                    <tr key={patient.id} className='hover:bg-brand-50/20 transition-colors'>
-                      <td className='py-3.5 px-4 font-bold text-brand-700'>{patient.bedNo}</td>
-                      <td className='py-3.5 px-4'>
-                        <div className='flex items-center gap-2.5'>
-                          <img
-                            src={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl || '/avatars/somchai-mock.png'}
-                            alt={patient.patientName}
-                            className='w-8 h-8 rounded-full object-cover border border-gray-200 shrink-0 shadow-2xs'
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = '/avatars/somchai-mock.png';
-                            }}
-                          />
-                          <div>
-                            <div className='font-bold text-gray-900'>{patient.patientName}</div>
-                            <div className='text-[11px] text-gray-500 font-mono'>HN: {patient.hn}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className='py-3.5 px-4'>{patient.gender}, {patient.age} ปี</td>
-                      <td className='py-3.5 px-4'>
-                        <div>{patient.admitTime}</div>
-                        <div className='text-[11px] text-gray-500'>
-                          ({Math.floor(patient.durationMinutes / 60)} ชม. {patient.durationMinutes % 60} นาที)
-                        </div>
-                      </td>
-                      <td className='py-3.5 px-4 max-w-xs'>
-                        <div className='font-medium text-gray-900 truncate' title={patient.chiefComplaint}>
-                          {patient.chiefComplaint}
-                        </div>
-                        <div className='text-[11px] text-gray-500 truncate'>{patient.diagnosis}</div>
-                      </td>
-                      <td className='py-3.5 px-4 text-center'>
-                        {latestVitals ? (
-                          <div className='font-mono font-semibold text-gray-800 text-[11px]'>
-                            <div>{latestVitals.bpSys}/{latestVitals.bpDia} mmHg</div>
-                            <div className='text-[10px] text-gray-500'>P: {latestVitals.pulse} | SpO2: {latestVitals.spo2}%</div>
-                          </div>
-                        ) : '-'}
-                      </td>
-                      <td className='py-3.5 px-4 text-center'>
-                        {ews ? (
-                          <span
-                            className='inline-block px-2 py-1 rounded font-bold font-mono text-xs'
-                            style={{ backgroundColor: ews.tier.color + '20', color: ews.tier.color }}
-                          >
-                            {ews.score} ({ews.tier.level.toUpperCase()})
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td className='py-3.5 px-4 text-center'>
-                        <StatusBadge
-                          style={patient.status === 'ready_discharge' ? 'success' : 'info'}
-                          size='small'
-                        >
-                          {patient.status === 'ready_discharge' ? 'พร้อมจำหน่าย' : 'สังเกตอาการ'}
-                        </StatusBadge>
-                      </td>
-                      <td className='py-3.5 px-4 text-right'>
-                        <BrandPrimaryButton
-                          leadingIcon='clinical_notes'
-                          size='sm'
-                          onClick={() => history.push(`/observation/record/${patient.id}`)}
-                        >
-                          เปิดแฟ้ม
-                        </BrandPrimaryButton>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        /* Table View — shared <Table> component (see OBSERVATION_QUEUE_BASE_COLUMNS
+           above) instead of a bespoke Tailwind-gray <table>, matching the OPD
+           screening worklist. */
+        <Table
+          columns={columns}
+          rows={filteredPatients}
+          rowKey={(patient) => patient.id}
+          emptyMessage='ไม่พบข้อมูลเตียงสังเกตอาการ'
+        />
       )}
       </div>
       </div>
