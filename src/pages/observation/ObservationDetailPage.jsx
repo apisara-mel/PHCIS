@@ -129,6 +129,7 @@ export default function ObservationDetailPage() {
      just-submitted numbers on screen. */
   const [vitalFormResetKey, setVitalFormResetKey] = useState(0);
   const [vitalsPage, setVitalsPage] = useState(1);
+  const [hoveredDisposition, setHoveredDisposition] = useState(null);
 
   const [newOrderText, setNewOrderText] = useState('');
   const [newNursingNote, setNewNursingNote] = useState('');
@@ -861,10 +862,16 @@ export default function ObservationDetailPage() {
                   { key: 'opd', label: 'ส่งกลับตรวจ OPD ปกติ', icon: 'directions_walk', color: 'blue' },
                 ].map((disp) => {
                   const isSelected = dischargeForm.disposition === disp.key;
+                  /* Hover contract mirrors SelectableOptionCard (Figma "Card /
+                     Selectable Option" 227:193) — elevated shadow + 2px lift
+                     on hover, suppressed once selected. */
+                  const isHovered = !isSelected && hoveredDisposition === disp.key;
                   return (
                     <label
                       key={disp.key}
-                      className='flex flex-col items-center justify-center text-center cursor-pointer transition-all'
+                      className='flex flex-col items-center justify-center text-center cursor-pointer'
+                      onMouseEnter={() => setHoveredDisposition(disp.key)}
+                      onMouseLeave={() => setHoveredDisposition((h) => (h === disp.key ? null : h))}
                       style={{
                         gap: 'var(--dim-space-200)',
                         padding: 'var(--dim-space-400)',
@@ -875,6 +882,9 @@ export default function ObservationDetailPage() {
                         background: isSelected ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
                         color: isSelected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
                         fontWeight: isSelected ? 'var(--type-weight-bold)' : 'var(--type-weight-regular)',
+                        boxShadow: isHovered ? 'var(--shadow-drop, var(--shadow-card))' : 'none',
+                        transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+                        transition: 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 200ms cubic-bezier(0.32, 0.72, 0, 1)',
                       }}
                     >
                       <input
