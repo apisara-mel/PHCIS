@@ -420,13 +420,13 @@ export default function ObservationQueuePage() {
         </div>
 
         {/* Action & View Mode Bar */}
-        <div className='flex items-center justify-between gap-4 pt-2 border-t border-gray-100'>
-          <div className='text-xs text-gray-500 font-medium flex items-center gap-2'>
+        <div className='flex items-center justify-between gap-4 pt-2 border-t border-ink-line'>
+          <div className='text-xs text-ink-tertiary font-medium flex items-center gap-2'>
             <span>รายการเตียงสังเกตอาการทั้งหมด ({filteredPatients.length} รายการ)</span>
           </div>
 
           <div className='flex items-center gap-3 shrink-0'>
-            <div className='inline-flex p-1 bg-gray-50 rounded-xl border border-gray-200 shadow-2xs gap-1'>
+            <div className='inline-flex p-1 bg-ink-neutral rounded-xl border border-ink-line shadow-2xs gap-1'>
               <BrandIconButton
                 icon='grid_view'
                 variant={viewMode === 'grid' ? 'fill' : 'ghost'}
@@ -459,13 +459,29 @@ export default function ObservationQueuePage() {
               return (
                 <div
                   key={patient.id}
-                  className='bg-[#F8FAFC] border-2 border-dashed border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[260px] text-center hover:border-brand-600 hover:bg-brand-50/20 transition-all group'
+                  className='rounded-2xl p-6 flex flex-col items-center justify-center min-h-[260px] text-center transition-all group'
+                  style={{
+                    background: 'var(--surface-neutral-quaternary)',
+                    border: 'var(--dim-stroke-200) dashed var(--border-card-default)',
+                  }}
                 >
-                  <div className='w-12 h-12 rounded-full bg-white border border-gray-200 shadow-2xs flex items-center justify-center text-gray-400 group-hover:text-brand-600 group-hover:border-brand-300 transition-all mb-3'>
+                  <div
+                    className='w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-all'
+                    style={{
+                      background: 'var(--surface-card-100)',
+                      border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                      boxShadow: 'var(--shadow-2xs, none)',
+                      color: 'var(--text-content-quaternary)',
+                    }}
+                  >
                     <span className='material-symbols-outlined text-2xl'>king_bed</span>
                   </div>
-                  <h3 className='font-bold text-gray-900 text-base mb-0.5'>{patient.bedNo}</h3>
-                  <p className='text-xs text-gray-500 mb-4'>{patient.bedType} (ว่าง)</p>
+                  <h3 style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)', fontSize: 'var(--type-size-base)', marginBottom: 'var(--dim-space-050, 2px)' }}>
+                    {patient.bedNo}
+                  </h3>
+                  <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)', marginBottom: 'var(--dim-space-400)' }}>
+                    {patient.bedType} (ว่าง)
+                  </p>
                   <BrandSubdueButton
                     leadingIcon='person_add'
                     size='sm'
@@ -483,28 +499,42 @@ export default function ObservationQueuePage() {
             return (
               <div
                 key={patient.id}
-                className='bg-white border-none rounded-2xl p-5 transition-all flex flex-col justify-between relative overflow-hidden mih-summary-card'
-                style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}
+                className='rounded-2xl p-5 transition-all flex flex-col justify-between relative overflow-hidden mih-summary-card'
+                style={{ background: 'var(--surface-card-100)', border: 'none', boxShadow: 'var(--shadow-card-strong)' }}
               >
                 {/* Status bar accent */}
                 <div
-                  className={`absolute top-0 left-0 right-0 h-1.5 ${
-                    ewsResult?.tier.level === 'high'
-                      ? 'bg-rose-500'
-                      : ewsResult?.tier.level === 'medium'
-                      ? 'bg-amber-500'
-                      : 'bg-brand-500'
-                  }`}
+                  className='absolute top-0 left-0 right-0 h-1.5'
+                  style={{
+                    background:
+                      ewsResult?.tier.level === 'high'
+                        ? 'var(--surface-colorfulbadge-red-bold)'
+                        : ewsResult?.tier.level === 'medium'
+                        ? 'var(--surface-colorfulbadge-orange-bold)'
+                        : 'var(--surface-colorfulbadge-green-bold)',
+                  }}
                 />
 
                 {/* Card Header */}
                 <div>
                   <div className='flex items-center justify-between mb-3 pt-1'>
                     <div className='flex items-center gap-2'>
-                      <span className='px-2.5 py-1 bg-brand-50 text-brand-700 rounded-md font-bold text-xs border border-brand-200'>
+                      <span
+                        style={{
+                          padding: 'var(--dim-space-150, 6px) var(--dim-space-250, 10px)',
+                          background: 'var(--surface-brandPrimary-quaternary)',
+                          color: 'var(--text-brandPrimary-default)',
+                          borderRadius: 'var(--dim-radius-150, 6px)',
+                          border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                          fontWeight: 'var(--type-weight-bold)',
+                          fontSize: 'var(--type-size-xs)',
+                        }}
+                      >
                         {patient.bedNo}
                       </span>
-                      <span className='text-xs text-gray-500 font-medium'>{patient.rights}</span>
+                      <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>
+                        {patient.rights}
+                      </span>
                     </div>
 
                     <StatusBadge
@@ -530,7 +560,7 @@ export default function ObservationQueuePage() {
                       <img
                         src={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl || '/avatars/somchai-mock.png'}
                         alt={patient.patientName}
-                        className='w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0 shadow-2xs'
+                        className='w-10 h-10 rounded-full object-cover border border-ink-line shrink-0 shadow-2xs'
                         onError={(e) => {
                           e.target.onerror = null;
                           e.target.src = '/avatars/somchai-mock.png';
@@ -539,25 +569,25 @@ export default function ObservationQueuePage() {
                       <div className='flex-1 min-w-0'>
                         <div className='flex items-baseline justify-between gap-1'>
                           <h3
-                            className='font-bold text-gray-900 text-base leading-tight hover:text-brand-600 cursor-pointer truncate'
+                            className='font-bold text-ink text-base leading-tight hover:text-brand-600 cursor-pointer truncate'
                             onClick={() => history.push(`/observation/record/${patient.id}`)}
                           >
                             {patient.patientName}
                           </h3>
-                          <span className='text-xs font-semibold text-gray-500 shrink-0'>
+                          <span className='text-xs font-semibold text-ink-tertiary shrink-0'>
                             {patient.gender}, {patient.age} ปี
                           </span>
                         </div>
-                        <div className='flex items-center gap-2 text-xs text-gray-600 mt-0.5'>
-                          <span>HN: <strong className='text-gray-800 font-mono'>{patient.hn}</strong></span>
+                        <div className='flex items-center gap-2 text-xs text-ink-secondary mt-0.5'>
+                          <span>HN: <strong className='text-ink font-mono'>{patient.hn}</strong></span>
                           <span>•</span>
-                          <span className='font-mono text-gray-500 text-[11px]'>{patient.vn}</span>
+                          <span className='font-mono text-ink-tertiary text-[11px]'>{patient.vn}</span>
                         </div>
                       </div>
                     </div>
-                    <div className='bg-gray-50 p-2.5 rounded-lg border border-gray-100 text-xs text-gray-700 mb-3'>
-                      <div className='text-gray-500 font-medium mb-0.5'>อาการสำคัญ / การวินิจฉัย:</div>
-                      <div className='font-semibold text-gray-900 line-clamp-2'>{patient.chiefComplaint}</div>
+                    <div className='bg-ink-neutral p-2.5 rounded-lg border border-ink-line text-xs text-ink-secondary mb-3'>
+                      <div className='text-ink-tertiary font-medium mb-0.5'>อาการสำคัญ / การวินิจฉัย:</div>
+                      <div className='font-semibold text-ink line-clamp-2'>{patient.chiefComplaint}</div>
                     </div>
                   </div>
 
@@ -569,51 +599,45 @@ export default function ObservationQueuePage() {
                           <span className='material-symbols-outlined text-sm text-brand-600'>monitor_heart</span>
                           สัญญาณชีพล่าสุด ({latestVitals.time})
                         </span>
-                        <span
-                          className='px-2 py-0.5 rounded font-mono font-bold text-[11px]'
-                          style={{
-                            backgroundColor: ewsResult.tier.color + '20',
-                            color: ewsResult.tier.color,
-                          }}
-                        >
+                        <StatusBadge style={ewsResult.tier.style} size='small' showDot>
                           EWS: {ewsResult.score}
-                        </span>
+                        </StatusBadge>
                       </div>
                       <div className='grid grid-cols-4 gap-2 text-center text-xs'>
-                        <div className='bg-white p-1.5 rounded-lg shadow-2xs border border-gray-100'>
-                          <div className='text-[10px] text-gray-400 font-medium'>ความดัน</div>
-                          <div className='font-bold text-gray-800 text-[11px]'>{latestVitals.bpSys}/{latestVitals.bpDia}</div>
+                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'>
+                          <div className='text-[10px] text-ink-quaternary font-medium'>ความดัน</div>
+                          <div className='font-bold text-ink text-[11px]'>{latestVitals.bpSys}/{latestVitals.bpDia}</div>
                         </div>
-                        <div className='bg-white p-1.5 rounded-lg shadow-2xs border border-gray-100'>
-                          <div className='text-[10px] text-gray-400 font-medium'>ชีพจร</div>
-                          <div className='font-bold text-brand-600 text-[11px]'>{latestVitals.pulse} <span className='text-[9px] font-normal text-gray-400'>bpm</span></div>
+                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'>
+                          <div className='text-[10px] text-ink-quaternary font-medium'>ชีพจร</div>
+                          <div className='font-bold text-brand-600 text-[11px]'>{latestVitals.pulse} <span className='text-[9px] font-normal text-ink-quaternary'>bpm</span></div>
                         </div>
-                        <div className='bg-white p-1.5 rounded-lg shadow-2xs border border-gray-100'>
-                          <div className='text-[10px] text-gray-400 font-medium'>SpO2</div>
-                          <div className='font-bold text-blue-700 text-[11px]'>{latestVitals.spo2}%</div>
+                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'>
+                          <div className='text-[10px] text-ink-quaternary font-medium'>SpO2</div>
+                          <div className='font-bold text-badge-blueText text-[11px]'>{latestVitals.spo2}%</div>
                         </div>
-                        <div className='bg-white p-1.5 rounded-lg shadow-2xs border border-gray-100'>
-                          <div className='text-[10px] text-gray-400 font-medium'>อุณหภูมิ</div>
-                          <div className='font-bold text-amber-700 text-[11px]'>{latestVitals.temp}°C</div>
+                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'>
+                          <div className='text-[10px] text-ink-quaternary font-medium'>อุณหภูมิ</div>
+                          <div className='font-bold text-badge-orangeText text-[11px]'>{latestVitals.temp}°C</div>
                         </div>
                       </div>
                     </div>
                   )}
 
                   {/* Doctor & Admission Time */}
-                  <div className='flex items-center justify-between text-xs text-gray-500 mb-4 px-1'>
+                  <div className='flex items-center justify-between text-xs text-ink-tertiary mb-4 px-1'>
                     <div className='flex items-center gap-1'>
-                      <span className='material-symbols-outlined text-sm text-gray-400'>schedule</span>
-                      สังเกตอาการแล้ว <strong className='text-gray-700'>{Math.floor(patient.durationMinutes / 60)} ชม. {patient.durationMinutes % 60} นาที</strong>
+                      <span className='material-symbols-outlined text-sm text-ink-quaternary'>schedule</span>
+                      สังเกตอาการแล้ว <strong className='text-ink-secondary'>{Math.floor(patient.durationMinutes / 60)} ชม. {patient.durationMinutes % 60} นาที</strong>
                     </div>
-                    <div className='text-gray-600 truncate max-w-[140px]' title={patient.doctorName}>
+                    <div className='text-ink-secondary truncate max-w-[140px]' title={patient.doctorName}>
                       {patient.doctorName}
                     </div>
                   </div>
                 </div>
 
                 {/* Card Actions */}
-                <div className='pt-3 border-t border-gray-100 grid grid-cols-2 gap-2'>
+                <div className='pt-3 border-t border-ink-line grid grid-cols-2 gap-2'>
                   <NeutralSubdueButton
                     leadingIcon='add_chart'
                     size='sm'
@@ -654,7 +678,7 @@ export default function ObservationQueuePage() {
           className='fixed inset-0 z-[1400] flex items-center justify-center p-4 animate-fade-in'
           style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
-          <div className='bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100'>
+          <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-ink-line'>
             <div className='bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>
               <div className='flex items-center gap-2'>
                 <span className='material-symbols-outlined text-2xl'>monitor_heart</span>
@@ -670,11 +694,11 @@ export default function ObservationQueuePage() {
               />
             </div>
 
-            <form onSubmit={handleSaveVitals} className='p-6 space-y-4 text-xs text-gray-700'>
+            <form onSubmit={handleSaveVitals} className='p-6 space-y-4 text-xs text-ink-secondary'>
               <div className='bg-brand-50 p-3 rounded-xl border border-brand-100 flex items-center justify-between'>
                 <div>
-                  <span className='font-bold text-gray-900 text-sm'>{selectedPatientForVitals.patientName}</span>
-                  <span className='text-gray-500 ml-2'>({selectedPatientForVitals.bedNo})</span>
+                  <span className='font-bold text-ink text-sm'>{selectedPatientForVitals.patientName}</span>
+                  <span className='text-ink-tertiary ml-2'>({selectedPatientForVitals.bedNo})</span>
                 </div>
                 <span className='text-xs text-brand-800 font-mono font-semibold'>HN: {selectedPatientForVitals.hn}</span>
               </div>
@@ -740,8 +764,8 @@ export default function ObservationQueuePage() {
               />
 
               {/* Calculated Live EWS Badge */}
-              <div className='p-3 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between'>
-                <span className='font-semibold text-gray-700'>คะแนนเตือนภัยล่วงหน้า (EWS Calculated):</span>
+              <div className='p-3 bg-ink-neutral rounded-xl border border-ink-line flex items-center justify-between'>
+                <span className='font-semibold text-ink-secondary'>คะแนนเตือนภัยล่วงหน้า (EWS Calculated):</span>
                 {(() => {
                   const res = calculateEwsScore({
                     bpSys: Number(vitalsForm.bpSys),
@@ -761,7 +785,7 @@ export default function ObservationQueuePage() {
                 })()}
               </div>
 
-              <div className='pt-3 flex items-center justify-end gap-3 border-t border-gray-100'>
+              <div className='pt-3 flex items-center justify-end gap-3 border-t border-ink-line'>
                 <NeutralSubdueButton type='button' onClick={() => setShowVitalsModal(false)}>
                   ยกเลิก
                 </NeutralSubdueButton>
@@ -782,7 +806,7 @@ export default function ObservationQueuePage() {
           className='fixed inset-0 z-[1400] flex items-center justify-center p-4 animate-fade-in'
           style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
-          <div className='bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-gray-100'>
+          <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-ink-line'>
             <div className='bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>
               <div className='flex items-center gap-2'>
                 <span className='material-symbols-outlined text-2xl'>hotel</span>
@@ -798,7 +822,7 @@ export default function ObservationQueuePage() {
               />
             </div>
 
-            <form onSubmit={handleAdmitSubmit} className='p-6 space-y-4 text-xs text-gray-700'>
+            <form onSubmit={handleAdmitSubmit} className='p-6 space-y-4 text-xs text-ink-secondary'>
               <div className='grid grid-cols-2 gap-4'>
                 <Select
                   label='เลือกเตียงสังเกตอาการ'
@@ -878,7 +902,7 @@ export default function ObservationQueuePage() {
                 />
               </div>
 
-              <div className='pt-3 flex items-center justify-end gap-3 border-t border-gray-100'>
+              <div className='pt-3 flex items-center justify-end gap-3 border-t border-ink-line'>
                 <NeutralSubdueButton type='button' onClick={() => setShowAdmitModal(false)}>
                   ยกเลิก
                 </NeutralSubdueButton>
