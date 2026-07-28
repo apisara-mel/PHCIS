@@ -209,7 +209,7 @@ export default function ObservationQueuePage() {
           style={{
             background: 'var(--surface-card-100, #FFFFFF)',
             borderRadius: 'var(--dim-radius-500, 24px)',
-            border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+            border: 'none',
             boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))',
             padding: 'var(--dim-space-600, 24px)',
           }}
@@ -289,7 +289,8 @@ export default function ObservationQueuePage() {
             return (
               <div
                 key={patient.id}
-                className='bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden mih-summary-card'
+                className='bg-white border-none rounded-2xl p-5 transition-all flex flex-col justify-between relative overflow-hidden mih-summary-card'
+                style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}
               >
                 {/* Status bar accent */}
                 <div
@@ -436,7 +437,7 @@ export default function ObservationQueuePage() {
         </div>
       ) : (
         /* Table View */
-        <div className='bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden'>
+        <div className='bg-white rounded-2xl border-none overflow-hidden' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
           <div className='overflow-x-auto'>
             <table className='w-full text-left text-xs border-collapse'>
               <thead>

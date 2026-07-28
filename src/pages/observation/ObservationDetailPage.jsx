@@ -10,7 +10,7 @@ import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Alert from '@/components/alert/Alert';
-import TabBar, { TabPill } from '@/components/tab/TabPill';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
 
@@ -177,7 +177,7 @@ export default function ObservationDetailPage() {
         }}
       >
         {/* Patient Profile Header Card */}
-        <div className='bg-white rounded-2xl p-5 shadow-sm border border-gray-200'>
+        <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
         <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100'>
           <div className='flex items-center gap-3.5'>
             <div className='w-12 h-12 rounded-2xl bg-brand-700 text-white flex items-center justify-center font-bold text-xl shadow-sm shrink-0'>
@@ -254,7 +254,7 @@ export default function ObservationDetailPage() {
       {activeTab === 'vitals' && (
         <div className='space-y-6'>
           {/* EWS Score & Clinical Escalation Protocol Card */}
-          <div className='bg-white rounded-2xl p-5 shadow-sm border border-gray-200'>
+          <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
             <div className='flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-4 border-b border-gray-100 mb-4'>
               <div className='flex items-center gap-3'>
                 <div
@@ -323,7 +323,7 @@ export default function ObservationDetailPage() {
           </div>
 
           {/* Add Vital Form Card */}
-          <div className='bg-white rounded-2xl p-5 shadow-sm border border-gray-200'>
+          <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
             <h3 className='font-bold text-gray-900 text-sm mb-4 flex items-center gap-2'>
               <span className='material-symbols-outlined text-brand-600'>add_chart</span>
               ลงบันทึกสัญญาณชีพประจำช่วงเวลา (Add Timed Vitals)
@@ -405,7 +405,7 @@ export default function ObservationDetailPage() {
           </div>
 
           {/* Timed Vitals History Table */}
-          <div className='bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden'>
+          <div className='bg-white rounded-2xl border-none overflow-hidden' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
             <div className='p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between'>
               <h3 className='font-bold text-gray-900 text-sm flex items-center gap-2'>
                 <span className='material-symbols-outlined text-brand-600'>table_chart</span>
@@ -464,7 +464,7 @@ export default function ObservationDetailPage() {
       {activeTab === 'orders' && (
         <div className='space-y-6'>
           {/* Add Stat Order Form */}
-          <div className='bg-white rounded-2xl p-5 shadow-sm border border-gray-200'>
+          <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
             <h3 className='font-bold text-gray-900 text-sm mb-3 flex items-center gap-2'>
               <span className='material-symbols-outlined text-rose-600'>order_approve</span>
               เพิ่มคำสั่งการรักษาด่วน (Add STAT / Urgent Order)
@@ -486,7 +486,7 @@ export default function ObservationDetailPage() {
           </div>
 
           {/* Orders List */}
-          <div className='bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden'>
+          <div className='bg-white rounded-2xl border-none overflow-hidden' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
             <div className='p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between'>
               <h3 className='font-bold text-gray-900 text-sm flex items-center gap-2'>
                 <span className='material-symbols-outlined text-brand-600'>format_list_bulleted</span>
@@ -559,7 +559,7 @@ export default function ObservationDetailPage() {
       {activeTab === 'notes' && (
         <div className='space-y-6'>
           {/* Add Nursing Note */}
-          <div className='bg-white rounded-2xl p-5 shadow-sm border border-gray-200'>
+          <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
             <h3 className='font-bold text-gray-900 text-sm mb-3 flex items-center gap-2'>
               <span className='material-symbols-outlined text-brand-600'>edit_note</span>
               บันทึกทางการพยาบาลเพิ่มเติม (Focus Nursing Log)
@@ -581,7 +581,7 @@ export default function ObservationDetailPage() {
           </div>
 
           {/* Nursing Notes Timeline */}
-          <div className='bg-white rounded-2xl p-6 shadow-sm border border-gray-200'>
+          <div className='bg-white rounded-2xl p-6 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
             <h3 className='font-bold text-gray-900 text-sm mb-6 flex items-center gap-2 border-b border-gray-100 pb-3'>
               <span className='material-symbols-outlined text-brand-600'>history</span>
               ประวัติการบันทึกทางการพยาบาล (Nursing Activity Log)
@@ -609,7 +609,7 @@ export default function ObservationDetailPage() {
 
       {/* Tab 4: Discharge Summary & Disposition */}
       {activeTab === 'discharge' && (
-        <div className='bg-white rounded-2xl p-6 shadow-sm border border-gray-200'>
+        <div className='bg-white rounded-2xl p-6 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
           <h3 className='font-bold text-gray-900 text-sm mb-6 flex items-center gap-2 border-b border-gray-100 pb-3'>
             <span className='material-symbols-outlined text-brand-600'>output</span>
             แบบฟอร์มสรุปการจำหน่ายผู้ป่วย (Discharge Summary & Disposition)
