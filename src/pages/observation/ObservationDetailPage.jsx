@@ -130,6 +130,17 @@ export default function ObservationDetailPage() {
   const [vitalFormResetKey, setVitalFormResetKey] = useState(0);
   const [vitalsPage, setVitalsPage] = useState(1);
   const [hoveredDisposition, setHoveredDisposition] = useState(null);
+  /* VitalCard/PressureCard's `required` prop only renders the asterisk —
+     unlike InputField it never reaches the native <input>, so nothing
+     stops an all-empty submit. Track each field's validity explicitly
+     (same pattern as VitalsForm.jsx's vitalValidity) and gate the submit
+     button + handler on it, so a forgotten field can't silently get
+     recorded as a "normal" default reading. */
+  const [vitalFieldValidity, setVitalFieldValidity] = useState({});
+  const setVitalFieldValid = (field, valid) =>
+    setVitalFieldValidity((prev) => (prev[field] === valid ? prev : { ...prev, [field]: valid }));
+  const REQUIRED_VITAL_FIELDS = ['pressure', 'pulse', 'temp', 'spo2', 'rr'];
+  const isVitalFormValid = REQUIRED_VITAL_FIELDS.every((f) => vitalFieldValidity[f] === true);
 
   const [newOrderText, setNewOrderText] = useState('');
   const [newNursingNote, setNewNursingNote] = useState('');
@@ -158,6 +169,11 @@ export default function ObservationDetailPage() {
 
   const handleAddVital = (e) => {
     e.preventDefault();
+    /* Guard against implicit form submission (pressing Enter inside a
+       VitalCard's number input submits the form even when the visible
+       button is disabled) — without this, an unmeasured field could
+       still slip through as a "normal" default reading. */
+    if (!isVitalFormValid) return;
     const nowStr = `${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')} น.`;
     const newLog = {
       time: nowStr,
@@ -177,6 +193,7 @@ export default function ObservationDetailPage() {
 
     setNewVital({ bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '' });
     setVitalFormResetKey((k) => k + 1);
+    setVitalFieldValidity({});
   };
 
   const handleAddOrder = (e) => {
@@ -582,6 +599,7 @@ export default function ObservationDetailPage() {
                   sys={newVital.bpSys}
                   dia={newVital.bpDia}
                   onChange={({ sys, dia }) => setNewVital({ ...newVital, bpSys: sys, bpDia: dia })}
+                  onValidityChange={(v) => setVitalFieldValid('pressure', v)}
                 />
                 <VitalCard
                   label='ชีพจร'
@@ -589,6 +607,7 @@ export default function ObservationDetailPage() {
                   required
                   value={newVital.pulse}
                   onChange={(val) => setNewVital({ ...newVital, pulse: val })}
+                  onValidityChange={(v) => setVitalFieldValid('pulse', v)}
                   hint='ปกติ 60–100 ครั้ง/นาที'
                 />
                 <VitalCard
@@ -598,6 +617,7 @@ export default function ObservationDetailPage() {
                   step={0.1}
                   value={newVital.temp}
                   onChange={(val) => setNewVital({ ...newVital, temp: val })}
+                  onValidityChange={(v) => setVitalFieldValid('temp', v)}
                   hint='ปกติ 36.1–37.2 °C'
                 />
                 <VitalCard
@@ -606,6 +626,7 @@ export default function ObservationDetailPage() {
                   required
                   value={newVital.spo2}
                   onChange={(val) => setNewVital({ ...newVital, spo2: val })}
+                  onValidityChange={(v) => setVitalFieldValid('spo2', v)}
                   hint='ปกติ ≥ 95%'
                 />
                 <VitalCard
@@ -614,6 +635,7 @@ export default function ObservationDetailPage() {
                   required
                   value={newVital.rr}
                   onChange={(val) => setNewVital({ ...newVital, rr: val })}
+                  onValidityChange={(v) => setVitalFieldValid('rr', v)}
                   hint='ปกติ 12–20 ครั้ง/นาที'
                 />
               </div>
@@ -627,10 +649,15 @@ export default function ObservationDetailPage() {
                     size='sm'
                   />
                 </div>
-                <BrandPrimaryButton type='submit' leadingIcon='add' size='sm'>
+                <BrandPrimaryButton type='submit' leadingIcon='add' size='sm' disabled={!isVitalFormValid}>
                   บันทึก
                 </BrandPrimaryButton>
               </div>
+              {!isVitalFormValid && (
+                <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+                  กรุณากรอกค่าให้ครบทุกช่อง (ความดัน, ชีพจร, อุณหภูมิ, SpO2, อัตราการหายใจ) ก่อนบันทึก
+                </p>
+              )}
             </form>
           </div>
 
