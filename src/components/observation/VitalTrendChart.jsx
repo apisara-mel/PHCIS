@@ -9,6 +9,15 @@ import { BloodPressureChart, TimeSeriesChart } from '@/components/graph/VitalsSi
 
 const stripUnitSuffix = (t) => t.replace(/\s*น\./g, '');
 
+/* Compact card height for this inline trend view — shorter than the
+   full-size chart's natural ~508px (that scale suits the OPD screening
+   popup, not a card embedded in the page). Plain number, not a design
+   token: same category as VitalsSignGraph's own CHART_H/CHART_H_MIN
+   constants (SVG viewBox geometry, not a CSS design property). Chart's
+   own fillHeight mode enforces a 280px floor, so this just trims the
+   excess above that. */
+const COMPACT_CHART_HEIGHT = 300;
+
 function niceTicks(min, max, count = 4) {
   const range = max - min || 1;
   const rawStep = range / count;
@@ -95,18 +104,21 @@ export default function VitalTrendChart({ data = [], parameter = 'bp' }) {
     const dataMax = Math.max(...sbpValues, 160) + 10;
     const ticks = niceTicks(dataMin, dataMax);
     return (
-      <BloodPressureChart
-        sbpValues={sbpValues}
-        dbpValues={dbpValues}
-        xLabels={xLabels}
-        minY={ticks[ticks.length - 1]}
-        maxY={ticks[0]}
-        ticks={ticks}
-        thresholds={[
-          { value: 140, color: 'var(--text-danger-default)' },
-          { value: 90, color: 'var(--text-info-default)' },
-        ]}
-      />
+      <div style={{ height: COMPACT_CHART_HEIGHT }}>
+        <BloodPressureChart
+          fillHeight
+          sbpValues={sbpValues}
+          dbpValues={dbpValues}
+          xLabels={xLabels}
+          minY={ticks[ticks.length - 1]}
+          maxY={ticks[0]}
+          ticks={ticks}
+          thresholds={[
+            { value: 140, color: 'var(--text-danger-default)' },
+            { value: 90, color: 'var(--text-info-default)' },
+          ]}
+        />
+      </div>
     );
   }
 
@@ -117,17 +129,20 @@ export default function VitalTrendChart({ data = [], parameter = 'bp' }) {
   const ticks = niceTicks(dataMin, dataMax);
 
   return (
-    <TimeSeriesChart
-      values={values}
-      minY={ticks[ticks.length - 1]}
-      maxY={ticks[0]}
-      yTicks={ticks}
-      stroke={config.stroke}
-      label={config.label}
-      name={config.name}
-      unit={config.unit}
-      xLabels={xLabels}
-      thresholds={config.thresholds}
-    />
+    <div style={{ height: COMPACT_CHART_HEIGHT }}>
+      <TimeSeriesChart
+        fillHeight
+        values={values}
+        minY={ticks[ticks.length - 1]}
+        maxY={ticks[0]}
+        yTicks={ticks}
+        stroke={config.stroke}
+        label={config.label}
+        name={config.name}
+        unit={config.unit}
+        xLabels={xLabels}
+        thresholds={config.thresholds}
+      />
+    </div>
   );
 }
