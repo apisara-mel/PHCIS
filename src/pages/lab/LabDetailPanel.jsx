@@ -1,0 +1,268 @@
+import React, { useState } from 'react';
+import Alert from '@/components/alert/Alert';
+import Badge from '@/components/badge/Badge';
+import XCloseButton from '@/components/button/XCloseButton';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import { Icon } from '@/components/icons/Icon';
+import { LAB_TEST_CATALOG, resolveReferenceRange } from '@/data/labOrdersPrototype';
+
+/* PROTOTYPE — wipe me. Shared detail-panel + trend-chart used by
+   LabQueueVariantB's split table + click-to-detail layout.
+
+   Additions per TOR ภาคผนวก ก §1.15:
+     §1.15.4.9 — STAT urgency badge next to the test title; specimen +
+                 price shown in the meta line.
+     §1.15.4.6 — "ผลผิดปกติ" (abnormal, non-critical) alert — same Alert
+                 component as the critical banner, `type='warning'` instead
+                 of `type='error'`, shown only when NOT critical (critical
+                 already implies/supersedes abnormal).
+     §1.15.3.2 — reference range resolved per patient sex/age via
+                 `resolveReferenceRange()` instead of a single flat string.
+     §1.15.2.4 — "ปกปิดผลการตรวจที่เป็นความลับ" — confidential results
+                 (e.g. Anti-HIV) render masked behind a reveal toggle.
+     §1.15.6.3 — "สามารถพิมพ์ผลตรวจได้" — print button, enabled only once
+                 a result exists and (for confidential rows) is revealed.
+     §1.15.4.9 — "ข้อมูลยอดรวมทั้งหมด" — total scoped to the ONE order this
+                 test belongs to (`orderItemCount` / `orderTotal` props from
+                 LabQueueVariantB), not the whole table — see that file's
+                 comment on `orderSiblings` for why. */
+
+const STATUS_PILL_LABEL = {
+  collected:  'เก็บตัวอย่างแล้ว',
+  analysing:  'กำลังวิเคราะห์',
+  reported:   'รายงานผลแล้ว',
+};
+
+const CHART_W = 420;
+const CHART_H = 160;
+const PAD_L = 32;
+const PAD_R = 12;
+const PAD_T = 16;
+const PAD_B = 28;
+
+export const TrendChart = ({ points }) => {
+  const values = points.map((p) => p.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = Math.max(1, max - min);
+  const plotW = CHART_W - PAD_L - PAD_R;
+  const plotH = CHART_H - PAD_T - PAD_B;
+
+  const coords = points.map((p, i) => {
+    const x = PAD_L + (plotW * i) / Math.max(1, points.length - 1);
+    const y = PAD_T + plotH - ((p.value - min) / span) * plotH;
+    return { ...p, x, y };
+  });
+  const path = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`).join(' ');
+
+  return (
+    <svg width='100%' viewBox={`0 0 ${CHART_W} ${CHART_H}`} role='img' aria-label='แนวโน้มผลตรวจย้อนหลัง'>
+      <rect x={0} y={0} width={CHART_W} height={CHART_H} rx={10} fill='var(--surface-chart-area)' />
+      <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={CHART_H - PAD_B} stroke='var(--stroke-chart-grid)' strokeWidth={1} />
+      <line x1={PAD_L} y1={CHART_H - PAD_B} x2={CHART_W - PAD_R} y2={CHART_H - PAD_B} stroke='var(--stroke-chart-grid)' strokeWidth={1} />
+      <path d={path} fill='none' stroke='var(--stroke-chart-series-sbp)' strokeWidth={2} strokeLinejoin='round' strokeLinecap='round' />
+      {coords.map((c) => (
+        <circle key={c.date} cx={c.x} cy={c.y} r={3} fill='var(--stroke-chart-series-sbp)' />
+      ))}
+      {coords.map((c) => (
+        <text
+          key={`${c.date}-label`}
+          x={c.x}
+          y={CHART_H - 8}
+          fontSize={9}
+          textAnchor='middle'
+          fill='var(--text-chart-axis-label)'
+        >
+          {c.date}
+        </text>
+      ))}
+    </svg>
+  );
+};
+
+const LabDetailPanel = ({
+  order,
+  onClose,
+  orderItemCount = 1,
+  orderTotal = 0,
+  emptyMessage = 'เลือกรายการทางซ้ายเพื่อดูรายละเอียด',
+}) => {
+  /* Reset per order — LabQueueVariantB passes `key={order.id}` on this
+     component so a freshly-selected row always starts masked again. */
+  const [revealed, setRevealed] = useState(false);
+
+  if (!order) {
+    return (
+      <div className='flex-1 flex items-center justify-center' style={{ color: 'var(--text-content-tertiary)' }}>
+        {emptyMessage}
+      </div>
+    );
+  }
+  const test = LAB_TEST_CATALOG[order.testKey];
+  const masked = order.confidential && !revealed;
+
+  return (
+    <div className='flex-1 flex flex-col' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
+      {onClose && (
+        <div className='flex justify-end' style={{ marginBottom: 'calc(-1 * var(--dim-space-200))' }}>
+          <XCloseButton onClick={onClose} ariaLabel='ปิดรายละเอียดผลตรวจ' />
+        </div>
+      )}
+      {order.critical && (
+        <Alert
+          type='error'
+          iconName='warning'
+          iconFill={1}
+          title='ค่าวิกฤต (Critical value)'
+          subtext={`แพทย์ผู้สั่งตรวจ — ${order.doctor}${order.status === 'reported' ? ' (ได้รับผลแล้ว)' : ''}`}
+          showBadge={false}
+          showIndicator={false}
+          showDetail={false}
+        />
+      )}
+      {/* Abnormal but not critical — TOR §1.15.4.6, own tone from critical. */}
+      {!order.critical && order.abnormal && (
+        <Alert
+          type='warning'
+          iconName='warning'
+          iconFill={1}
+          title='ผลผิดปกติ (Abnormal)'
+          subtext='ค่าอยู่นอกช่วงอ้างอิงปกติ แต่ยังไม่ถึงระดับวิกฤต'
+          showBadge={false}
+          showIndicator={false}
+          showDetail={false}
+        />
+      )}
+
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+        <div className='flex items-center justify-between'>
+          <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+            <h2 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-default)' }}>
+              {order.testLabel}
+            </h2>
+            {/* STAT urgency — TOR §1.15.4.9 "ความเร่งด่วน" */}
+            {order.urgency === 'stat' && <Badge style='error' size='small'>STAT</Badge>}
+          </div>
+          {/* Print result — TOR §1.15.6.3 "สามารถพิมพ์ผลตรวจได้". Only
+              meaningful once a result exists, and not while a confidential
+              result is still masked. */}
+          <BrandSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='print'
+            disabled={order.status !== 'reported' || masked}
+            onClick={() => window.print()}
+          >
+            พิมพ์ผลตรวจ
+          </BrandSubdueButton>
+        </div>
+        <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+          {order.patient.shortName} · HN {order.patient.hn} · สั่งโดย {order.doctor} · {order.orderedAt}
+        </span>
+        {/* Specimen + price — TOR §1.15.4.9 "สิ่งส่งตรวจ...ราคา" */}
+        <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+          {order.specimen && <>สิ่งส่งตรวจ: {order.specimen} · </>}
+          ราคา: {order.price?.toLocaleString('th-TH')} บาท
+        </span>
+        {/* Order-level total — TOR §1.15.4.9 "ข้อมูลยอดรวมทั้งหมด", scoped
+            to this ONE order (orderId), same order the doctor placed
+            together — only shown when the order has more than one test,
+            otherwise it would just repeat the price line above. */}
+        {orderItemCount > 1 && (
+          <span
+            className='inline-flex items-center'
+            style={{
+              gap: 'var(--dim-space-100)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              fontWeight: 'var(--type-weight-medium)',
+              color: 'var(--text-content-secondary)',
+            }}
+          >
+            ยอดรวมของคำสั่ง {order.orderId} ({orderItemCount} รายการ): {orderTotal.toLocaleString('th-TH')} บาท
+          </span>
+        )}
+      </div>
+
+      <div
+        className='flex flex-col'
+        style={{
+          background: 'var(--surface-card-200)',
+          borderRadius: 'var(--dim-radius-300)',
+          border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+          padding: 'var(--dim-space-400)',
+          gap: 'var(--dim-space-150)',
+        }}
+      >
+        <div className='flex items-center justify-between'>
+          <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+            ผลตรวจ
+          </span>
+          {/* Confidential masking — TOR §1.15.2.4 "ปกปิดผลการตรวจที่เป็น
+              ความลับได้ เช่น ผลการตรวจ Anti-HIV". Requires an explicit
+              click to reveal; re-masks on the next row selection. */}
+          {order.confidential && (
+            <button
+              type='button'
+              onClick={() => setRevealed((v) => !v)}
+              className='inline-flex items-center'
+              style={{
+                gap: 'var(--dim-space-100)',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-brandPrimary-default)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+                fontWeight: 'var(--type-weight-medium)',
+              }}
+            >
+              <Icon name={revealed ? 'visibility_off' : 'visibility'} size={14} />
+              {revealed ? 'ปกปิดผลตรวจ' : 'แสดงผลตรวจ (เป็นความลับ)'}
+            </button>
+          )}
+        </div>
+        {masked ? (
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)', letterSpacing: 2 }}>
+            ••••••••••
+          </span>
+        ) : order.resultSummary ? (
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+            {order.resultSummary}
+          </span>
+        ) : (
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>
+            รอผลตรวจ — สถานะปัจจุบัน: {STATUS_PILL_LABEL[order.status]}
+          </span>
+        )}
+        {/* TOR §1.15.3.2 — reference range resolved per patient sex/age
+            (falls back to the flat range when a test has no split). */}
+        {!masked && resolveReferenceRange(test, order.patient) && (
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-quaternary)' }}>
+            ค่าปกติ: {resolveReferenceRange(test, order.patient)} {test.unit}
+          </span>
+        )}
+      </div>
+
+      {order.trend && (
+        <div
+          className='flex flex-col'
+          style={{
+            background: 'var(--surface-card-200)',
+            borderRadius: 'var(--dim-radius-300)',
+            border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+            padding: 'var(--dim-space-400)',
+            gap: 'var(--dim-space-200)',
+          }}
+        >
+          <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+            แนวโน้มผลตรวจย้อนหลัง
+          </span>
+          <TrendChart points={order.trend} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default LabDetailPanel;
