@@ -822,21 +822,76 @@ export default function ObservationDetailPage() {
               ประวัติการบันทึกทางการพยาบาล (Nursing Activity Log)
             </h3>
 
-            <div className='relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-brand-200'>
-              {patient.nursingNotes.map((note, idx) => (
-                <div key={idx} className='relative pl-4 group'>
-                  <div className='absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-full bg-brand-600 border-2 border-white shadow-2xs group-hover:scale-125 transition-transform' />
-                  <div className='flex items-center gap-3 text-xs mb-1 font-mono'>
-                    <span className='font-bold text-brand-900 bg-brand-50 px-2 py-0.5 rounded border border-brand-200/60'>
-                      {note.time}
-                    </span>
-                    <span className='text-gray-500 font-sans font-medium'>บันทึกโดย: {note.nurse}</span>
+            {/* Activity log timeline — dot + connecting line drawn inside a
+                flex marker column (stretches to the row height via the
+                container's default align-items:stretch) instead of the
+                previous absolute-position + pseudo-element line, which
+                mispositioned the dot over the time chip. */}
+            <div className='flex flex-col'>
+              {patient.nursingNotes.map((note, idx) => {
+                const isLast = idx === patient.nursingNotes.length - 1;
+                return (
+                  <div key={idx} className='flex' style={{ gap: 'var(--dim-space-300)' }}>
+                    <div className='flex flex-col items-center shrink-0' style={{ width: 'var(--dim-size-300, 16px)' }}>
+                      <span
+                        className='shrink-0 rounded-full'
+                        style={{
+                          width: 12,
+                          height: 12,
+                          background: 'var(--brand-p600)',
+                          border: 'var(--dim-stroke-200, 2px) solid var(--surface-card-100)',
+                          boxShadow: '0 0 0 2px var(--border-brandPrimary-quaternary)',
+                        }}
+                      />
+                      {!isLast && (
+                        <span
+                          className='flex-1'
+                          style={{
+                            width: 2,
+                            background: 'var(--border-steps-default)',
+                            marginTop: 'var(--dim-space-100)',
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    <div className='flex-1 min-w-0' style={{ paddingBottom: isLast ? 0 : 'var(--dim-space-500)' }}>
+                      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-150, 6px)' }}>
+                        <span
+                          className='font-mono'
+                          style={{
+                            fontWeight: 'var(--type-weight-bold)',
+                            color: 'var(--text-brandPrimary-default)',
+                            background: 'var(--surface-brandPrimary-quaternary)',
+                            padding: 'var(--dim-space-050, 2px) var(--dim-space-200)',
+                            borderRadius: 'var(--dim-radius-150, 6px)',
+                            fontSize: 'var(--type-size-xs)',
+                          }}
+                        >
+                          {note.time}
+                        </span>
+                        <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>
+                          บันทึกโดย: {note.nurse}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          color: 'var(--text-content-default)',
+                          background: 'var(--surface-neutral-quaternary)',
+                          padding: 'var(--dim-space-300)',
+                          borderRadius: 'var(--dim-radius-300)',
+                          border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+                          fontSize: 'var(--type-size-xs)',
+                          fontWeight: 'var(--type-weight-medium)',
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        {note.note}
+                      </div>
+                    </div>
                   </div>
-                  <div className='text-xs text-gray-800 bg-gray-50 p-3 rounded-xl border border-gray-100 font-medium leading-relaxed'>
-                    {note.note}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
