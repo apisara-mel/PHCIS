@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import StatusBadge from '@/components/badge/StatusBadge';
@@ -552,10 +553,13 @@ export default function ObservationQueuePage() {
       </div>
 
       {/* Modal: Log Timed Vital Signs */}
-      {showVitalsModal && selectedPatientForVitals && (
-        <div className='fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in'>
+      {showVitalsModal && selectedPatientForVitals && createPortal(
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowVitalsModal(false); }}
+          className='fixed inset-0 bg-black/50 z-[1400] flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in'
+        >
           <div className='bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100'>
-            <div className='bg-teal-800 text-white px-6 py-4 flex items-center justify-between'>
+            <div className='bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>
               <div className='flex items-center gap-2'>
                 <span className='material-symbols-outlined text-2xl'>monitor_heart</span>
                 <h3 className='font-bold text-base'>บันทึกสัญญาณชีพประจำช่วงเวลา</h3>
@@ -571,12 +575,12 @@ export default function ObservationQueuePage() {
             </div>
 
             <form onSubmit={handleSaveVitals} className='p-6 space-y-4 text-xs text-gray-700'>
-              <div className='bg-teal-50 p-3 rounded-xl border border-teal-100 flex items-center justify-between'>
+              <div className='bg-brand-50 p-3 rounded-xl border border-brand-100 flex items-center justify-between'>
                 <div>
                   <span className='font-bold text-gray-900 text-sm'>{selectedPatientForVitals.patientName}</span>
                   <span className='text-gray-500 ml-2'>({selectedPatientForVitals.bedNo})</span>
                 </div>
-                <span className='text-xs text-teal-800 font-mono font-semibold'>HN: {selectedPatientForVitals.hn}</span>
+                <span className='text-xs text-brand-800 font-mono font-semibold'>HN: {selectedPatientForVitals.hn}</span>
               </div>
 
               <div className='grid grid-cols-2 gap-4'>
@@ -586,7 +590,7 @@ export default function ObservationQueuePage() {
                     type='number'
                     value={vitalsForm.bpSys}
                     onChange={(e) => setVitalsForm({ ...vitalsForm, bpSys: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                     required
                   />
                 </div>
@@ -596,7 +600,7 @@ export default function ObservationQueuePage() {
                     type='number'
                     value={vitalsForm.bpDia}
                     onChange={(e) => setVitalsForm({ ...vitalsForm, bpDia: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                     required
                   />
                 </div>
@@ -606,7 +610,7 @@ export default function ObservationQueuePage() {
                     type='number'
                     value={vitalsForm.pulse}
                     onChange={(e) => setVitalsForm({ ...vitalsForm, pulse: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                     required
                   />
                 </div>
@@ -617,7 +621,7 @@ export default function ObservationQueuePage() {
                     step='0.1'
                     value={vitalsForm.temp}
                     onChange={(e) => setVitalsForm({ ...vitalsForm, temp: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                     required
                   />
                 </div>
@@ -627,7 +631,7 @@ export default function ObservationQueuePage() {
                     type='number'
                     value={vitalsForm.spo2}
                     onChange={(e) => setVitalsForm({ ...vitalsForm, spo2: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                     required
                   />
                 </div>
@@ -637,7 +641,7 @@ export default function ObservationQueuePage() {
                     type='number'
                     value={vitalsForm.rr}
                     onChange={(e) => setVitalsForm({ ...vitalsForm, rr: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                     required
                   />
                 </div>
@@ -650,7 +654,7 @@ export default function ObservationQueuePage() {
                   value={vitalsForm.note}
                   onChange={(e) => setVitalsForm({ ...vitalsForm, note: e.target.value })}
                   placeholder='เช่น พ่นยาครบคอร์ส, ผู้ป่วยลุกนั่งได้ดี, มีอาการเวียนศีรษะเบาลง'
-                  className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                  className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                 />
               </div>
 
@@ -686,14 +690,18 @@ export default function ObservationQueuePage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal: Admit Patient to Bed */}
-      {showAdmitModal && (
-        <div className='fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in'>
+      {showAdmitModal && createPortal(
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAdmitModal(false); }}
+          className='fixed inset-0 bg-black/50 z-[1400] flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in'
+        >
           <div className='bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-gray-100'>
-            <div className='bg-teal-800 text-white px-6 py-4 flex items-center justify-between'>
+            <div className='bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>
               <div className='flex items-center gap-2'>
                 <span className='material-symbols-outlined text-2xl'>hotel</span>
                 <h3 className='font-bold text-base'>ลงทะเบียนรับผู้ป่วยเข้าเตียงสังเกตอาการ</h3>
@@ -715,7 +723,7 @@ export default function ObservationQueuePage() {
                   <select
                     value={admitForm.bedId}
                     onChange={(e) => setAdmitForm({ ...admitForm, bedId: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                   >
                     {patients.map((p) => (
                       <option key={p.id} value={p.id} disabled={p.status !== 'empty' && p.id !== admitForm.bedId}>
@@ -730,7 +738,7 @@ export default function ObservationQueuePage() {
                     type='text'
                     value={admitForm.vn}
                     onChange={(e) => setAdmitForm({ ...admitForm, vn: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none font-mono'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono'
                     required
                   />
                 </div>
@@ -741,7 +749,7 @@ export default function ObservationQueuePage() {
                     placeholder='เช่น นาย สนั่น มั่นคง'
                     value={admitForm.patientName}
                     onChange={(e) => setAdmitForm({ ...admitForm, patientName: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                     required
                   />
                 </div>
@@ -752,7 +760,7 @@ export default function ObservationQueuePage() {
                     placeholder='เช่น 67009988'
                     value={admitForm.hn}
                     onChange={(e) => setAdmitForm({ ...admitForm, hn: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none font-mono'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono'
                     required
                   />
                 </div>
@@ -763,7 +771,7 @@ export default function ObservationQueuePage() {
                     placeholder='เช่น 45'
                     value={admitForm.age}
                     onChange={(e) => setAdmitForm({ ...admitForm, age: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                     required
                   />
                 </div>
@@ -772,7 +780,7 @@ export default function ObservationQueuePage() {
                   <select
                     value={admitForm.gender}
                     onChange={(e) => setAdmitForm({ ...admitForm, gender: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                   >
                     <option value='ชาย'>ชาย</option>
                     <option value='หญิง'>หญิง</option>
@@ -787,7 +795,7 @@ export default function ObservationQueuePage() {
                   placeholder='เช่น แน่นหน้าอก เวียนศีรษะ ปวดท้องรุนแรง มีไข้สูง'
                   value={admitForm.chiefComplaint}
                   onChange={(e) => setAdmitForm({ ...admitForm, chiefComplaint: e.target.value })}
-                  className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                  className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                   required
                 />
               </div>
@@ -799,7 +807,7 @@ export default function ObservationQueuePage() {
                     type='text'
                     value={admitForm.doctorName}
                     onChange={(e) => setAdmitForm({ ...admitForm, doctorName: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                     required
                   />
                 </div>
@@ -809,7 +817,7 @@ export default function ObservationQueuePage() {
                     type='text'
                     value={admitForm.nurseName}
                     onChange={(e) => setAdmitForm({ ...admitForm, nurseName: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
                     required
                   />
                 </div>
@@ -825,7 +833,8 @@ export default function ObservationQueuePage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </QueuePageShell>
   );

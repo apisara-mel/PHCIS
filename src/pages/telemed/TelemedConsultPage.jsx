@@ -20,6 +20,8 @@ import TelemedConnectingPopup from '@/components/telemed/TelemedConnectingPopup'
 import TelemedRecordingConfirmPopup from '@/components/telemed/TelemedRecordingConfirmPopup';
 import TelemedJoinRequestPopup from '@/components/telemed/TelemedJoinRequestPopup';
 import DraggablePip from '@/components/telemed/DraggablePip';
+import AddressMapBlock from '@/components/forms/AddressMapBlock';
+import { appendAuditEvent } from '@/pages/audit/auditData';
 
 /*
   ระบบ Telemedicine / RPM (TOR ข้อ 1.13) — ฝั่งแพทย์ (PHCIS web).
@@ -175,6 +177,14 @@ const POST_ORDERS = [
   { id: 'o1', name: 'ตรวจน้ำตาลสะสม (HbA1c)', detail: 'นัดติดตาม 3 เดือน' },
   { id: 'o2', name: 'ตรวจไขมันในเลือด (Lipid profile)', detail: 'งดอาหาร 8-12 ชม.' },
 ];
+
+/* GIS pin for assessment location (TOR 1.13.5) — Phra Khanong mock coords. */
+const ASSESSMENT_GIS = {
+  lat: 13.754,
+  lng: 100.5288,
+  pinSaved: true,
+  label: '124/64 พงษ์เวชอนุสรณ์ 2 สุขุมวิท บางจาก พระโขนง',
+};
 
 const DOCTOR = {
   name: 'พญ.สมหญิง รักษาดี',
@@ -1055,6 +1065,11 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     return () => window.clearInterval(id);
   }, [phase]);
 
+  /* TOR 1.13.11 — record telemed session login when the consult UI opens. */
+  useEffect(() => {
+    appendAuditEvent({ user: DOCTOR.name, action: 'เข้าสู่ระบบ Telemed' });
+  }, []);
+
   // Doctor camera — REAL getUserMedia. Opens while camOn; stops on off/unmount.
   // A permission-denied / no-camera rejection flips to the camError banner.
   useEffect(() => {
@@ -1151,11 +1166,24 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
   };
 
   const toggleRecord = () => {
-    if (recording) { setRecording(false); return; }
-    if (consent === 'granted') { setRecording(true); return; }
+    if (recording) {
+      setRecording(false);
+      appendAuditEvent({ user: DOCTOR.name, action: 'หยุดบันทึกวิดีโอ' });
+      return;
+    }
+    if (consent === 'granted') {
+      setRecording(true);
+      appendAuditEvent({ user: DOCTOR.name, action: 'เริ่มบันทึกวิดีโอ' });
+      return;
+    }
     setConsentModal(true); // must ask patient first (PDPA)
   };
-  const grantConsent = () => { setConsent('granted'); setRecording(true); setConsentModal(false); };
+  const grantConsent = () => {
+    setConsent('granted');
+    setRecording(true);
+    setConsentModal(false);
+    appendAuditEvent({ user: DOCTOR.name, action: 'ยินยอมบันทึกวิดีโอ + เริ่มบันทึก' });
+  };
   const denyConsent = () => { setConsentModal(false); };
 
   const [leaveOpen, setLeaveOpen] = useState(false);
@@ -1206,6 +1234,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setCloseReason(null);
     setAudioOnly(false);
     setPhase('in-call');
+    appendAuditEvent({ user: DOCTOR.name, action: 'เข้าร่วมสาย Telemed' });
     /* Demo: patient requests admission shortly after doctor enters (Figma 95:48873). */
     joinRequestTimerRef.current = window.setTimeout(() => {
       setJoinRequestOpen(true);
@@ -1217,6 +1246,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setJoinRequestOpen(false);
     setPatientPresent(true);
     setNoShowStep(null);
+    appendAuditEvent({ user: DOCTOR.name, action: 'รับผู้ป่วยเข้าสาย' });
   };
 
   const dismissJoinRequest = () => {
@@ -2640,6 +2670,26 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--dim-space-150, 6px)' }}>
                     {CHRONIC.map((c) => <Pill key={c} tone='warn' icon='medical_information'>{c}</Pill>)}
                   </div>
+                </div>
+                <div style={{ ...boxStyle, marginTop: 'var(--dim-space-300, 12px)' }}>
+                  <SectionTitle icon='location_on'>ตำแหน่งการประเมิน (GIS)</SectionTitle>
+                  <p style={{
+                    margin: '0 0 var(--dim-space-200, 8px)',
+                    fontSize: 'var(--type-size-xs, 12px)',
+                    color: 'var(--text-content-tertiary, #858C92)',
+                    fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
+                    lineHeight: 1.5,
+                  }}
+                  >
+                    {ASSESSMENT_GIS.label}
+                  </p>
+                  <AddressMapBlock
+                    value={ASSESSMENT_GIS}
+                    readOnly
+                    compact
+                    heading='ตำแหน่งการประเมินผู้รับบริการ'
+                    hint='พิกัดจาก GIS ณ เวลาประเมิน (ดูอย่างเดียว)'
+                  />
                 </div>
               </div>
             )}
