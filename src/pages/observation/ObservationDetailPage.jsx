@@ -318,7 +318,7 @@ export default function ObservationDetailPage() {
                 </TabBar>
               </div>
 
-              <VitalTrendChart data={patient.vitalsTrend} parameter={selectedTrendParam} height={160} />
+              <VitalTrendChart data={patient.vitalsTrend} parameter={selectedTrendParam} height={110} />
             </div>
           </div>
 

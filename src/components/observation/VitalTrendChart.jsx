@@ -4,13 +4,13 @@ import React from 'react';
  * Interactive SVG Sparkline & Multi-parameter Trend Chart for Vital Signs
  * Supports BP, Pulse, SpO2, Temp, RR with reference thresholds & point markers.
  */
-export default function VitalTrendChart({ data = [], parameter = 'bp', height = 140 }) {
+export default function VitalTrendChart({ data = [], parameter = 'bp', height = 110 }) {
   if (!data || data.length === 0) {
-    return <div className='text-xs text-gray-400 italic py-4 text-center'>ไม่มีข้อมูลสัญญาณชีพย้อนหลัง</div>;
+    return <div className='text-xs text-gray-400 italic py-3 text-center'>ไม่มีข้อมูลสัญญาณชีพย้อนหลัง</div>;
   }
 
   const width = 500;
-  const padding = 30;
+  const padding = 24;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
 
@@ -83,24 +83,24 @@ export default function VitalTrendChart({ data = [], parameter = 'bp', height = 
   const points2 = values2.length > 0 ? values2.map((v, i) => `${getX(i)},${getY(v)}`).join(' ') : null;
 
   return (
-    <div className='bg-white rounded-xl p-3 border border-gray-200 shadow-2xs w-full overflow-hidden'>
-      <div className='flex items-center justify-between text-xs font-bold mb-2'>
-        <span className='text-gray-800 flex items-center gap-1.5'>
-          <span className='w-2.5 h-2.5 rounded-full' style={{ backgroundColor: color1 }} />
+    <div className='bg-gray-50/70 rounded-xl p-2.5 border border-gray-100 w-full overflow-hidden'>
+      <div className='flex items-center justify-between text-xs font-semibold mb-1.5 px-1'>
+        <span className='text-gray-700 flex items-center gap-1.5 text-[11px]'>
+          <span className='w-2 h-2 rounded-full' style={{ backgroundColor: color1 }} />
           {parameter === 'bp' && 'ความดันโลหิต (BP Systolic / Diastolic)'}
           {parameter === 'pulse' && 'ชีพจร (Pulse Rate)'}
           {parameter === 'spo2' && 'ออกซิเจนในเลือด (SpO2)'}
           {parameter === 'temp' && 'อุณหภูมิร่างกาย (Temperature)'}
           {parameter === 'rr' && 'อัตราการหายใจ (Respiratory Rate)'}
         </span>
-        <span className='text-gray-500 font-mono text-[11px]'>หน่วย: {unit}</span>
+        <span className='text-gray-400 font-mono text-[10px]'>หน่วย: {unit}</span>
       </div>
 
       <svg viewBox={`0 0 ${width} ${height}`} className='w-full h-auto overflow-visible'>
         {/* Grid lines */}
-        <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke='#E2E8F0' strokeDasharray='3 3' />
-        <line x1={padding} y1={height / 2} x2={width - padding} y2={height / 2} stroke='#E2E8F0' strokeDasharray='3 3' />
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke='#CBD5E1' />
+        <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke='#E2E8F0' strokeDasharray='2 2' strokeWidth='0.75' />
+        <line x1={padding} y1={height / 2} x2={width - padding} y2={height / 2} stroke='#E2E8F0' strokeDasharray='2 2' strokeWidth='0.75' />
+        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke='#CBD5E1' strokeWidth='0.75' />
 
         {/* Threshold lines */}
         {thresholdMax !== null && (
@@ -110,8 +110,8 @@ export default function VitalTrendChart({ data = [], parameter = 'bp', height = 
             x2={width - padding}
             y2={getY(thresholdMax)}
             stroke='#F87171'
-            strokeDasharray='4 4'
-            strokeWidth='1'
+            strokeDasharray='3 3'
+            strokeWidth='0.75'
           />
         )}
         {thresholdMin !== null && (
@@ -121,32 +121,32 @@ export default function VitalTrendChart({ data = [], parameter = 'bp', height = 
             x2={width - padding}
             y2={getY(thresholdMin)}
             stroke='#38BDF8'
-            strokeDasharray='4 4'
-            strokeWidth='1'
+            strokeDasharray='3 3'
+            strokeWidth='0.75'
           />
         )}
 
         {/* Main Trend Line 1 */}
         {values1.length > 1 ? (
-          <polyline fill='none' stroke={color1} strokeWidth='2.5' points={points1} strokeLinecap='round' strokeLinejoin='round' />
+          <polyline fill='none' stroke={color1} strokeWidth='1.5' points={points1} strokeLinecap='round' strokeLinejoin='round' />
         ) : null}
 
         {/* Trend Line 2 (Diastolic BP) */}
         {points2 && values2.length > 1 ? (
-          <polyline fill='none' stroke={color2} strokeWidth='2' points={points2} strokeDasharray='4 2' strokeLinecap='round' strokeLinejoin='round' />
+          <polyline fill='none' stroke={color2} strokeWidth='1.25' points={points2} strokeDasharray='3 2' strokeLinecap='round' strokeLinejoin='round' />
         ) : null}
 
         {/* Data points with values */}
         {values1.map((v, idx) => (
           <g key={`p1-${idx}`}>
-            <circle cx={getX(idx)} cy={getY(v)} r='4' fill='#FFFFFF' stroke={color1} strokeWidth='2' />
+            <circle cx={getX(idx)} cy={getY(v)} r='2.5' fill='#FFFFFF' stroke={color1} strokeWidth='1.5' />
             <text
               x={getX(idx)}
-              y={getY(v) - 8}
+              y={getY(v) - 5}
               textAnchor='middle'
-              fontSize='10'
-              fontWeight='bold'
-              fill='#1E293B'
+              fontSize='8.5'
+              fontWeight='600'
+              fill='#334155'
               className='font-mono'
             >
               {v}
@@ -157,14 +157,14 @@ export default function VitalTrendChart({ data = [], parameter = 'bp', height = 
         {/* Data points for Line 2 */}
         {values2.map((v, idx) => (
           <g key={`p2-${idx}`}>
-            <circle cx={getX(idx)} cy={getY(v)} r='3.5' fill='#FFFFFF' stroke={color2} strokeWidth='2' />
+            <circle cx={getX(idx)} cy={getY(v)} r='2.5' fill='#FFFFFF' stroke={color2} strokeWidth='1.25' />
             <text
               x={getX(idx)}
-              y={getY(v) + 14}
+              y={getY(v) + 11}
               textAnchor='middle'
-              fontSize='9'
-              fontWeight='semibold'
-              fill='#475569'
+              fontSize='8'
+              fontWeight='500'
+              fill='#64748B'
               className='font-mono'
             >
               {v}
@@ -177,10 +177,10 @@ export default function VitalTrendChart({ data = [], parameter = 'bp', height = 
           <text
             key={`t-${idx}`}
             x={getX(idx)}
-            y={height - 8}
+            y={height - 4}
             textAnchor='middle'
-            fontSize='9'
-            fill='#64748B'
+            fontSize='8'
+            fill='#94A3B8'
             className='font-mono'
           >
             {t}
