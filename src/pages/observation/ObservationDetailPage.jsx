@@ -257,7 +257,7 @@ export default function ObservationDetailPage() {
           treatment wizard, sticky in the same slot QueuePageShell's
           TabUnderline would otherwise occupy. */}
       <div
-        className='w-full sticky'
+        className='w-full sticky flex justify-center overflow-x-auto'
         style={{
           top: '64px',
           zIndex: 1100,
