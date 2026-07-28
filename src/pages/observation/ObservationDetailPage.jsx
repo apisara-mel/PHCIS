@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useParams, useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import StatusBadge from '@/components/badge/StatusBadge';
+import InputField from '@/components/forms/InputField';
+import Select from '@/components/forms/Select';
+import Textarea from '@/components/forms/Textarea';
 import BrandButton from '@/components/button/BrandButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -331,83 +334,72 @@ export default function ObservationDetailPage() {
 
             <form onSubmit={handleAddVital} className='space-y-4 text-xs'>
               <div className='grid grid-cols-2 md:grid-cols-6 gap-3'>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>BP Systolic (mmHg)</label>
-                  <input
-                    type='number'
-                    placeholder='120'
-                    value={newVital.bpSys}
-                    onChange={(e) => setNewVital({ ...newVital, bpSys: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>BP Diastolic (mmHg)</label>
-                  <input
-                    type='number'
-                    placeholder='80'
-                    value={newVital.bpDia}
-                    onChange={(e) => setNewVital({ ...newVital, bpDia: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>Pulse (bpm)</label>
-                  <input
-                    type='number'
-                    placeholder='80'
-                    value={newVital.pulse}
-                    onChange={(e) => setNewVital({ ...newVital, pulse: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>Temp (°C)</label>
-                  <input
-                    type='number'
-                    step='0.1'
-                    placeholder='36.6'
-                    value={newVital.temp}
-                    onChange={(e) => setNewVital({ ...newVital, temp: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>SpO2 (%)</label>
-                  <input
-                    type='number'
-                    placeholder='98'
-                    value={newVital.spo2}
-                    onChange={(e) => setNewVital({ ...newVital, spo2: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>RR (bpm)</label>
-                  <input
-                    type='number'
-                    placeholder='18'
-                    value={newVital.rr}
-                    onChange={(e) => setNewVital({ ...newVital, rr: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
-                    required
-                  />
-                </div>
+                <InputField
+                  label='BP Systolic (mmHg)'
+                  type='number'
+                  placeholder='120'
+                  value={newVital.bpSys}
+                  onChange={(val) => setNewVital({ ...newVital, bpSys: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='BP Diastolic (mmHg)'
+                  type='number'
+                  placeholder='80'
+                  value={newVital.bpDia}
+                  onChange={(val) => setNewVital({ ...newVital, bpDia: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='Pulse (bpm)'
+                  type='number'
+                  placeholder='80'
+                  value={newVital.pulse}
+                  onChange={(val) => setNewVital({ ...newVital, pulse: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='Temp (°C)'
+                  type='number'
+                  step='0.1'
+                  placeholder='36.6'
+                  value={newVital.temp}
+                  onChange={(val) => setNewVital({ ...newVital, temp: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='SpO2 (%)'
+                  type='number'
+                  placeholder='98'
+                  value={newVital.spo2}
+                  onChange={(val) => setNewVital({ ...newVital, spo2: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='RR (bpm)'
+                  type='number'
+                  placeholder='18'
+                  value={newVital.rr}
+                  onChange={(val) => setNewVital({ ...newVital, rr: val })}
+                  size='sm'
+                  required
+                />
               </div>
 
-              <div className='flex items-center gap-3'>
-                <input
-                  type='text'
-                  placeholder='หมายเหตุ / อาการขณะวัด (เช่น หลังพ่นยา 15 นาที, หายใจเหนื่อยลดลง)'
-                  value={newVital.note}
-                  onChange={(e) => setNewVital({ ...newVital, note: e.target.value })}
-                  className='flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-600 focus:outline-none'
-                />
+              <div className='flex items-end gap-3'>
+                <div className='flex-1'>
+                  <InputField
+                    placeholder='หมายเหตุ / อาการขณะวัด (เช่น หลังพ่นยา 15 นาที, หายใจเหนื่อยลดลง)'
+                    value={newVital.note}
+                    onChange={(val) => setNewVital({ ...newVital, note: val })}
+                    size='sm'
+                  />
+                </div>
                 <BrandPrimaryButton type='submit' leadingIcon='add' size='sm'>
                   บันทึก
                 </BrandPrimaryButton>
@@ -480,15 +472,16 @@ export default function ObservationDetailPage() {
               <span className='material-symbols-outlined text-rose-600'>order_approve</span>
               เพิ่มคำสั่งการรักษาด่วน (Add STAT / Urgent Order)
             </h3>
-            <form onSubmit={handleAddOrder} className='flex gap-3 text-xs'>
-              <input
-                type='text'
-                placeholder='ระบุคำสั่งการรักษา STAT เช่น Berodual 1 respule Nebulizer Stat, Oxygen Cannula 3 LPM, IV NSS 1,000 ml'
-                value={newOrderText}
-                onChange={(e) => setNewOrderText(e.target.value)}
-                className='flex-1 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-1 focus:ring-teal-600 focus:outline-none'
-                required
-              />
+            <form onSubmit={handleAddOrder} className='flex items-end gap-3 text-xs'>
+              <div className='flex-1'>
+                <InputField
+                  placeholder='ระบุคำสั่งการรักษา STAT เช่น Berodual 1 respule Nebulizer Stat, Oxygen Cannula 3 LPM, IV NSS 1,000 ml'
+                  value={newOrderText}
+                  onChange={(val) => setNewOrderText(val)}
+                  size='sm'
+                  required
+                />
+              </div>
               <BrandPrimaryButton type='submit' leadingIcon='bolt' size='sm'>
                 สั่งการ STAT
               </BrandPrimaryButton>
@@ -575,12 +568,11 @@ export default function ObservationDetailPage() {
               บันทึกทางการพยาบาลเพิ่มเติม (Focus Nursing Log)
             </h3>
             <form onSubmit={handleAddNursingNote} className='space-y-3 text-xs'>
-              <textarea
+              <Textarea
                 rows={3}
                 placeholder='ระบุบันทึกทางการพยาบาล อาการเปลี่ยนแปลง การตอบสนองต่อการรักษา หรือการประเมินความเสี่ยง'
                 value={newNursingNote}
-                onChange={(e) => setNewNursingNote(e.target.value)}
-                className='w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-1 focus:ring-teal-600 focus:outline-none'
+                onChange={(val) => setNewNursingNote(val)}
                 required
               />
               <div className='flex justify-end'>
@@ -663,46 +655,40 @@ export default function ObservationDetailPage() {
             {/* Refer Hospital Selector if refer */}
             {dischargeForm.disposition === 'refer' && (
               <div className='p-4 bg-rose-50 rounded-xl border border-rose-200 space-y-3 animate-fade-in'>
-                <label className='block font-bold text-rose-900'>โรงพยาบาลรับส่งต่อ (Destination Referral Hospital):</label>
-                <select
+                <Select
+                  label='โรงพยาบาลรับส่งต่อ (Destination Referral Hospital):'
                   value={dischargeForm.referHospital}
-                  onChange={(e) => setDischargeForm({ ...dischargeForm, referHospital: e.target.value })}
-                  className='w-full px-3 py-2 border border-rose-300 rounded-lg text-xs font-semibold focus:ring-1 focus:ring-rose-600 focus:outline-none bg-white'
-                  required
-                >
-                  <option value=''>-- เลือกโรงพยาบาลส่งต่อ --</option>
-                  <option value='โรงพยาบาลตากสิน'>โรงพยาบาลตากสิน (กทม.)</option>
-                  <option value='โรงพยาบาลเจริญกรุงประชารักษ์'>โรงพยาบาลเจริญกรุงประชารักษ์</option>
-                  <option value='โรงพยาบาลกลาง'>โรงพยาบาลกลาง</option>
-                  <option value='โรงพยาบาลศิริราช'>โรงพยาบาลศิริราช (Ex-referral)</option>
-                </select>
+                  onChange={(val) => setDischargeForm({ ...dischargeForm, referHospital: val })}
+                  options={[
+                    '-- เลือกโรงพยาบาลส่งต่อ --',
+                    'โรงพยาบาลตากสิน',
+                    'โรงพยาบาลเจริญกรุงประชารักษ์',
+                    'โรงพยาบาลกลาง',
+                    'โรงพยาบาลศิริราช'
+                  ]}
+                  size='sm'
+                />
               </div>
             )}
 
             {/* Doctor Discharge Note */}
-            <div>
-              <label className='block font-bold text-gray-800 mb-1'>2. สรุปความเห็นแพทย์ (Doctor Discharge Note)</label>
-              <textarea
-                rows={3}
-                value={dischargeForm.doctorSummary}
-                onChange={(e) => setDischargeForm({ ...dischargeForm, doctorSummary: e.target.value })}
-                placeholder='ระบุสรุปการรักษา ผลการติดตาม และเหตุผลในการจำหน่าย...'
-                className='w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-1 focus:ring-teal-600 focus:outline-none'
-                required
-              />
-            </div>
+            <Textarea
+              label='2. สรุปความเห็นแพทย์ (Doctor Discharge Note)'
+              rows={3}
+              value={dischargeForm.doctorSummary}
+              onChange={(val) => setDischargeForm({ ...dischargeForm, doctorSummary: val })}
+              placeholder='ระบุสรุปการรักษา ผลการติดตาม และเหตุผลในการจำหน่าย...'
+              required
+            />
 
             {/* Discharge Advice */}
-            <div>
-              <label className='block font-bold text-gray-800 mb-1'>คำแนะนำและข้อควรระวังเมื่อจำหน่าย (Discharge Instructions)</label>
-              <textarea
-                rows={3}
-                placeholder='ระบุคำแนะนำการรับประทานยา การดูแลตนเองที่บ้าน หรือสัญญาณอันตรายที่ต้องกลับมาพบแพทย์'
-                value={dischargeForm.dischargeAdvice}
-                onChange={(e) => setDischargeForm({ ...dischargeForm, dischargeAdvice: e.target.value })}
-                className='w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-1 focus:ring-teal-600 focus:outline-none'
-              />
-            </div>
+            <Textarea
+              label='คำแนะนำและข้อควรระวังเมื่อจำหน่าย (Discharge Instructions)'
+              rows={3}
+              placeholder='ระบุคำแนะนำการรับประทานยา การดูแลตนเองที่บ้าน หรือสัญญาณอันตรายที่ต้องกลับมาพบแพทย์'
+              value={dischargeForm.dischargeAdvice}
+              onChange={(val) => setDischargeForm({ ...dischargeForm, dischargeAdvice: val })}
+            />
 
             {/* Checkbox Complete */}
             <div className='p-4 bg-teal-50/60 rounded-xl border border-teal-100 flex items-center gap-3'>

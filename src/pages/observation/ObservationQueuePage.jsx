@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import StatusBadge from '@/components/badge/StatusBadge';
+import InputField from '@/components/forms/InputField';
+import Select from '@/components/forms/Select';
+import Textarea from '@/components/forms/Textarea';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -585,79 +588,64 @@ export default function ObservationQueuePage() {
               </div>
 
               <div className='grid grid-cols-2 gap-4'>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>ความดัน Systolic (mmHg)</label>
-                  <input
-                    type='number'
-                    value={vitalsForm.bpSys}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, bpSys: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>ความดัน Diastolic (mmHg)</label>
-                  <input
-                    type='number'
-                    value={vitalsForm.bpDia}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, bpDia: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>ชีพจร Pulse (bpm)</label>
-                  <input
-                    type='number'
-                    value={vitalsForm.pulse}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, pulse: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>อุณหภูมิ Temp (°C)</label>
-                  <input
-                    type='number'
-                    step='0.1'
-                    value={vitalsForm.temp}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, temp: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>ออกซิเจน SpO2 (%)</label>
-                  <input
-                    type='number'
-                    value={vitalsForm.spo2}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, spo2: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>อัตราการหายใจ RR (bpm)</label>
-                  <input
-                    type='number'
-                    value={vitalsForm.rr}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, rr: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className='block font-semibold text-gray-700 mb-1'>หมายเหตุเพิ่มเติม / อาการขณะวัด</label>
-                <textarea
-                  rows={2}
-                  value={vitalsForm.note}
-                  onChange={(e) => setVitalsForm({ ...vitalsForm, note: e.target.value })}
-                  placeholder='เช่น พ่นยาครบคอร์ส, ผู้ป่วยลุกนั่งได้ดี, มีอาการเวียนศีรษะเบาลง'
-                  className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
+                <InputField
+                  label='ความดัน Systolic (mmHg)'
+                  type='number'
+                  value={vitalsForm.bpSys}
+                  onChange={(val) => setVitalsForm({ ...vitalsForm, bpSys: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='ความดัน Diastolic (mmHg)'
+                  type='number'
+                  value={vitalsForm.bpDia}
+                  onChange={(val) => setVitalsForm({ ...vitalsForm, bpDia: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='ชีพจร Pulse (bpm)'
+                  type='number'
+                  value={vitalsForm.pulse}
+                  onChange={(val) => setVitalsForm({ ...vitalsForm, pulse: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='อุณหภูมิ Temp (°C)'
+                  type='number'
+                  step='0.1'
+                  value={vitalsForm.temp}
+                  onChange={(val) => setVitalsForm({ ...vitalsForm, temp: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='ออกซิเจน SpO2 (%)'
+                  type='number'
+                  value={vitalsForm.spo2}
+                  onChange={(val) => setVitalsForm({ ...vitalsForm, spo2: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='อัตราการหายใจ RR (bpm)'
+                  type='number'
+                  value={vitalsForm.rr}
+                  onChange={(val) => setVitalsForm({ ...vitalsForm, rr: val })}
+                  size='sm'
+                  required
                 />
               </div>
+
+              <Textarea
+                label='หมายเหตุเพิ่มเติม / อาการขณะวัด'
+                rows={2}
+                value={vitalsForm.note}
+                onChange={(val) => setVitalsForm({ ...vitalsForm, note: val })}
+                placeholder='เช่น พ่นยาครบคอร์ส, ผู้ป่วยลุกนั่งได้ดี, มีอาการเวียนศีรษะเบาลง'
+              />
 
               {/* Calculated Live EWS Badge */}
               <div className='p-3 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between'>
@@ -720,109 +708,82 @@ export default function ObservationQueuePage() {
 
             <form onSubmit={handleAdmitSubmit} className='p-6 space-y-4 text-xs text-gray-700'>
               <div className='grid grid-cols-2 gap-4'>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>เลือกเตียงสังเกตอาการ</label>
-                  <select
-                    value={admitForm.bedId}
-                    onChange={(e) => setAdmitForm({ ...admitForm, bedId: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                  >
-                    {patients.map((p) => (
-                      <option key={p.id} value={p.id} disabled={p.status !== 'empty' && p.id !== admitForm.bedId}>
-                        {p.bedNo} ({p.bedType}) {p.status !== 'empty' ? '- ครองเตียงแล้ว' : '- ว่าง'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>เลข VN / Visit No.</label>
-                  <input
-                    type='text'
-                    value={admitForm.vn}
-                    onChange={(e) => setAdmitForm({ ...admitForm, vn: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>ชื่อ-นามสกุล ผู้ป่วย</label>
-                  <input
-                    type='text'
-                    placeholder='เช่น นาย สนั่น มั่นคง'
-                    value={admitForm.patientName}
-                    onChange={(e) => setAdmitForm({ ...admitForm, patientName: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>เลข HN (Hospital No.)</label>
-                  <input
-                    type='text'
-                    placeholder='เช่น 67009988'
-                    value={admitForm.hn}
-                    onChange={(e) => setAdmitForm({ ...admitForm, hn: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>อายุ (ปี)</label>
-                  <input
-                    type='number'
-                    placeholder='เช่น 45'
-                    value={admitForm.age}
-                    onChange={(e) => setAdmitForm({ ...admitForm, age: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>เพศ</label>
-                  <select
-                    value={admitForm.gender}
-                    onChange={(e) => setAdmitForm({ ...admitForm, gender: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                  >
-                    <option value='ชาย'>ชาย</option>
-                    <option value='หญิง'>หญิง</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className='block font-semibold text-gray-700 mb-1'>อาการสำคัญแรกรับ (Chief Complaint)</label>
-                <textarea
-                  rows={2}
-                  placeholder='เช่น แน่นหน้าอก เวียนศีรษะ ปวดท้องรุนแรง มีไข้สูง'
-                  value={admitForm.chiefComplaint}
-                  onChange={(e) => setAdmitForm({ ...admitForm, chiefComplaint: e.target.value })}
-                  className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
+                <Select
+                  label='เลือกเตียงสังเกตอาการ'
+                  value={admitForm.bedId}
+                  onChange={(val) => setAdmitForm({ ...admitForm, bedId: val })}
+                  options={patients.map((p) => ({
+                    value: p.id,
+                    label: `${p.bedNo} (${p.bedType}) ${p.status !== 'empty' ? '- ครองเตียงแล้ว' : '- ว่าง'}`,
+                    disabled: p.status !== 'empty' && p.id !== admitForm.bedId
+                  }))}
+                  size='sm'
+                />
+                <InputField
+                  label='เลข VN / Visit No.'
+                  value={admitForm.vn}
+                  onChange={(val) => setAdmitForm({ ...admitForm, vn: val })}
+                  size='sm'
                   required
+                />
+                <InputField
+                  label='ชื่อ-นามสกุล ผู้ป่วย'
+                  placeholder='เช่น นาย สนั่น มั่นคง'
+                  value={admitForm.patientName}
+                  onChange={(val) => setAdmitForm({ ...admitForm, patientName: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='เลข HN (Hospital No.)'
+                  placeholder='เช่น 67009988'
+                  value={admitForm.hn}
+                  onChange={(val) => setAdmitForm({ ...admitForm, hn: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='อายุ (ปี)'
+                  type='number'
+                  placeholder='เช่น 45'
+                  value={admitForm.age}
+                  onChange={(val) => setAdmitForm({ ...admitForm, age: val })}
+                  size='sm'
+                  required
+                />
+                <Select
+                  label='เพศ'
+                  value={admitForm.gender}
+                  onChange={(val) => setAdmitForm({ ...admitForm, gender: val })}
+                  options={['ชาย', 'หญิง']}
+                  size='sm'
                 />
               </div>
 
+              <Textarea
+                label='อาการสำคัญแรกรับ (Chief Complaint)'
+                rows={2}
+                placeholder='เช่น แน่นหน้าอก เวียนศีรษะ ปวดท้องรุนแรง มีไข้สูง'
+                value={admitForm.chiefComplaint}
+                onChange={(val) => setAdmitForm({ ...admitForm, chiefComplaint: val })}
+                required
+              />
+
               <div className='grid grid-cols-2 gap-4'>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>แพทย์ผู้ดูแลสั่งการ</label>
-                  <input
-                    type='text'
-                    value={admitForm.doctorName}
-                    onChange={(e) => setAdmitForm({ ...admitForm, doctorName: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block font-semibold text-gray-700 mb-1'>พยาบาลรับผู้ป่วย</label>
-                  <input
-                    type='text'
-                    value={admitForm.nurseName}
-                    onChange={(e) => setAdmitForm({ ...admitForm, nurseName: e.target.value })}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-600 focus:outline-none'
-                    required
-                  />
-                </div>
+                <InputField
+                  label='แพทย์ผู้ดูแลสั่งการ'
+                  value={admitForm.doctorName}
+                  onChange={(val) => setAdmitForm({ ...admitForm, doctorName: val })}
+                  size='sm'
+                  required
+                />
+                <InputField
+                  label='พยาบาลรับผู้ป่วย'
+                  value={admitForm.nurseName}
+                  onChange={(val) => setAdmitForm({ ...admitForm, nurseName: val })}
+                  size='sm'
+                  required
+                />
               </div>
 
               <div className='pt-3 flex items-center justify-end gap-3 border-t border-gray-100'>
