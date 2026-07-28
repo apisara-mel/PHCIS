@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import QueuePageShell from '@/templates/QueuePageShell';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
 import PrimarySearch from '@/components/search/PrimarySearch';
@@ -9,47 +10,47 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import Pagination from '@/components/pagination/Pagination';
 import { Icon } from '@/components/icons/Icon';
-import { LAB_ORDERS, LAB_STATUSES, LAB_CATEGORIES, withTestLabel } from '@/data/labOrdersPrototype';
+import { LAB_ORDERS, LAB_STATUSES, LAB_CATEGORIES, withTestLabel } from '@/data/labOrders';
 import LabDetailPanel from '@/pages/lab/LabDetailPanel';
 
-/* PROTOTYPE variant B — wipe me.
-   Flat table + status filter tabs — closest structural match to the
-   existing OPD/registration/treatment queue pages (src/pages/opd/QueuePage.jsx),
-   so this variant reads as "the lab module, in the house style". Search box
-   is the same <PrimarySearch> used on src/pages/opd/QueuePage.jsx (56px
-   pill, suggestion dropdown, avatar pile + recent-search history), wired
-   to patient/HN/test/doctor instead of queue/HN/name/doctor. Clicking a
-   row (or committing a search match) opens the same detail panel as
-   Variant C (result summary, normal range, trend chart, critical-value
-   banner) in a split pane on the right.
+/* ห้องปฏิบัติการ (Lab) — main queue/result-viewing screen. Table + status
+   filter tabs, closest structural match to the existing OPD/registration/
+   treatment queue pages (src/pages/opd/QueuePage.jsx). Search box is the
+   same <PrimarySearch> used on QueuePage.jsx (56px pill, suggestion
+   dropdown, avatar pile + recent-search history), wired to patient/HN/
+   test/doctor instead of queue/HN/name/doctor. Clicking a row (or
+   committing a search match) opens a detail panel (result summary, normal
+   range, trend chart, critical-value banner) in a split pane on the right.
 
-   The status-filter tabs themselves are NOT rendered here — they're lifted
-   to LabQueuePrototypePage and passed to QueuePageShell's `tabs` prop, same
-   positioning as QueuePage.jsx's sticky tab strip (flush under the summary
-   band, full width, not indented inside the card). `LAB_TABS` is exported
-   so the page can wire it up; `activeTab` arrives as a prop.
-
-   Additions per TOR ภาคผนวก ก §1.15 (ระบบงานห้องปฏิบัติการ):
+   Covers TOR ภาคผนวก ก §1.15 (ระบบงานห้องปฏิบัติการ) for everything in
+   scope of this queue/result-viewing page:
      §1.15.4.10 — category action-bar filter (โลหิตวิทยา/เคมีคลินิก/
                   น้ำเหลืองวิทยา/จุลชีววิทยา/สารเสพติด), same FilterDropdown
                   widget as QueuePage.jsx's action bar.
-     §1.15.4.9  — "ความเร่งด่วน" STAT badge inline on the Order cell;
-                  "สิ่งส่งตรวจ" (specimen) column; "ราคา และข้อมูลยอดรวม
-                  ทั้งหมด" price column + a total-of-visible-rows footer;
-                  "สามารถลบข้อมูลได้" delete action per row.
+     §1.15.4.9  — "ความเร่งด่วน" STAT/Routine column + filter; "ชุดตรวจ"
+                  (test panel) column; "สิ่งส่งตรวจ" (specimen) column;
+                  "ราคา และข้อมูลยอดรวมทั้งหมด" price column + a per-order
+                  total in the detail panel; "สามารถลบข้อมูลได้" delete
+                  action per row with a confirmation dialog.
      §1.15.4.6  — "ผลผิดปกติ" (abnormal, not just critical) flag, alongside
                   the existing critical flag in the same column.
      §1.15.2.4  — "ปกปิดผลการตรวจที่เป็นความลับ" — a lock glyph next to the
                   patient name flags confidential rows; the actual masking
                   happens in LabDetailPanel.
 
-   `ROWS` (module-level) seeds `LAB_TABS`' counts AND the component's local
-   `liveRows` state — deleting a row only affects the table in front of you
-   (liveRows), not the sticky status-tab counts up in QueuePageShell, which
-   stay computed from the original seed. Acceptable simplification for a
-   throwaway prototype; a real delete would need that count lifted too. */
+   Out of scope for this page (belong elsewhere per product-spec.md):
+   §1.15.1 LIS integration (backend), §1.15.3.1/3.3 test registry + rights-
+   based pricing config (admin screen), §1.15.4.1–4.4/4.7–4.8 order
+   placement + reorder + duplicate/pre-order alerts (Treatment Step 5),
+   §1.15.5 sticker/barcode printing (sample-collection desk), §1.15.6.1–6.2
+   result entry + external-lab results (lab tech's data-entry screen).
 
-export const label = 'Table + status filter (house style)';
+   `ROWS` (module-level) seeds the sticky status tabs' counts AND the
+   component's local `liveRows` state — deleting a row only affects the
+   table in front of you (liveRows), same simplification QueuePage.jsx
+   makes for its own row-delete flow. */
+
+const breadcrumb = ['ห้องปฏิบัติการ (Lab)'];
 
 const STATUS_PILL = {
   collected:  { style: 'info',    label: 'เก็บตัวอย่างแล้ว' },
@@ -61,6 +62,23 @@ const ROWS = LAB_ORDERS.map(withTestLabel);
 
 /* Same pagination convention (and page size) as QueuePage.jsx's worklist. */
 const PAGE_SIZE = 20;
+
+const SUMMARY_CARDS = [
+  { key: 'collected', label: 'เก็บตัวอย่างแล้ว', value: LAB_ORDERS.filter((o) => o.status === 'collected').length, indicator: 'รอนำเข้าวิเคราะห์', color: 'info', icon: 'science' },
+  { key: 'analysing', label: 'กำลังวิเคราะห์', value: LAB_ORDERS.filter((o) => o.status === 'analysing').length, indicator: 'อยู่ระหว่างดำเนินการ', color: 'inprogress', icon: 'hourglass_top' },
+  { key: 'reported', label: 'รายงานผลแล้ว', value: LAB_ORDERS.filter((o) => o.status === 'reported').length, indicator: 'วันนี้', color: 'positive', icon: 'check_circle' },
+  { key: 'critical', label: 'ค่าวิกฤต (Critical)', value: LAB_ORDERS.filter((o) => o.critical).length, indicator: 'แจ้งแพทย์แล้ว', color: 'destructive', icon: 'warning' },
+];
+
+const LAB_TABS = [
+  { key: 'all', label: 'ทั้งหมด', icon: 'biotech', count: ROWS.length },
+  ...LAB_STATUSES.map((s) => ({
+    key: s.key,
+    label: s.label,
+    icon: s.key === 'collected' ? 'science' : s.key === 'analysing' ? 'hourglass_top' : 'check_circle',
+    count: ROWS.filter((r) => r.status === s.key).length,
+  })),
+];
 
 /* Category key → Thai label, for the table column (the action-bar filter
    dropdown already has its own value/label list, CATEGORY_OPTIONS below). */
@@ -127,10 +145,9 @@ const CATEGORY_OPTIONS = [
   ...LAB_CATEGORIES.map((c) => ({ value: c.key, label: c.label })),
 ];
 
-/* Status filter for the action bar — same values as the sticky LAB_TABS
-   strip up in QueuePageShell; this dropdown is a second way to set the
-   same `activeTab` value (see `onActiveTabChange` prop), not a separate
-   filter dimension. */
+/* Status filter for the action bar — same values as the sticky tab strip
+   up in QueuePageShell; this dropdown is a second way to set the same
+   `activeTab` value, not a separate filter dimension. */
 const STATUS_OPTIONS = [
   { value: 'all', label: 'ทุกสถานะ' },
   ...LAB_STATUSES.map((s) => ({ value: s.key, label: s.label })),
@@ -143,22 +160,12 @@ const URGENCY_OPTIONS = [
   { value: 'routine', label: 'Routine' },
 ];
 
-export const LAB_TABS = [
-  { key: 'all', label: 'ทั้งหมด', icon: 'biotech', count: ROWS.length },
-  ...LAB_STATUSES.map((s) => ({
-    key: s.key,
-    label: s.label,
-    icon: s.key === 'collected' ? 'science' : s.key === 'analysing' ? 'hourglass_top' : 'check_circle',
-    count: ROWS.filter((r) => r.status === s.key).length,
-  })),
-];
-
 /* Function (not a plain array) because the delete action needs the
    component's `onDelete` closure — see `buildColumns(handleDelete)` below. */
 const buildColumns = (onDelete) => [
   { key: 'orderId', label: 'Order', width: 104 },
-  /* TOR §1.15.4.9 "ความเร่งด่วน" — own column (was inline in Order) so it
-     reads as a proper field, not a decoration on the order number. */
+  /* TOR §1.15.4.9 "ความเร่งด่วน" — own column so it reads as a proper
+     field, not a decoration on the order number. */
   {
     key: 'urgency', label: 'ระดับความเร่งด่วน', width: 160,
     render: (row) => (
@@ -266,9 +273,10 @@ const buildColumns = (onDelete) => [
       return null;
     },
   },
-  /* TOR §1.15.4.9 "ราคา และข้อมูลยอดรวมทั้งหมด" — per-row price; the grand
-     total of the currently-filtered rows is rendered as a footer line
-     below the table (see LabQueueVariantB's return JSX). */
+  /* TOR §1.15.4.9 "ราคา และข้อมูลยอดรวมทั้งหมด" — per-row price; the
+     per-order total is rendered in the detail panel (see `orderTotal`
+     below — a table-wide sum would mix line items across different
+     patients' unrelated orders, which isn't what "ยอดรวม" means here). */
   {
     key: 'price', label: 'ราคา', width: 96,
     /* Table only natively supports align:'center'|'left' — right-align
@@ -281,8 +289,7 @@ const buildColumns = (onDelete) => [
       </div>
     ),
   },
-  /* TOR §1.15.4.9 "สามารถลบข้อมูลได้" — in-memory removal only, see the
-     module-doc note above about liveRows vs. the sticky tab counts. */
+  /* TOR §1.15.4.9 "สามารถลบข้อมูลได้" */
   {
     key: 'actions', label: 'การดำเนินการ', width: 120, sortable: false, align: 'center',
     render: (row) => (
@@ -309,8 +316,8 @@ const matchesQuery = (row, q) => {
    caller has to). Rank maps below turn non-alphabetic columns (urgency,
    status, the combined critical/abnormal flag) into a sortable number;
    everything else sorts as text via Intl.Collator (handles Thai text AND
-   numeric-looking strings like VN/HN correctly — "a-z or 1-100" either
-   way). Mirrors QueuePage.jsx's `sortedRows` pattern. */
+   numeric-looking strings like VN/HN correctly). Mirrors QueuePage.jsx's
+   `sortedRows` pattern. */
 const URGENCY_RANK = { stat: 0, routine: 1 };
 const STATUS_RANK = { collected: 0, analysing: 1, reported: 2 };
 const severityRank = (row) => (row.critical ? 0 : row.abnormal ? 1 : 2);
@@ -341,7 +348,8 @@ const sortRows = (rows, sortConfig) => {
   });
 };
 
-const LabQueueVariantB = ({ activeTab = 'all', onActiveTabChange = () => {} }) => {
+const LabQueuePage = () => {
+  const [activeTab, setActiveTab] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState(null);
@@ -349,8 +357,7 @@ const LabQueueVariantB = ({ activeTab = 'all', onActiveTabChange = () => {} }) =
   const [urgency, setUrgency] = useState('all');
   const [page, setPage] = useState(1);
   /* Editable copy of ROWS — lets the delete action (TOR §1.15.4.9 "สามารถ
-     ลบข้อมูลได้") actually remove a row from this table. See the module
-     doc comment above for why LAB_TABS' counts stay on the static seed. */
+     ลบข้อมูลได้") actually remove a row from this table. */
   const [liveRows, setLiveRows] = useState(ROWS);
 
   /* Delete confirmation — same `deleteCandidate` pattern as QueuePage.jsx's
@@ -388,7 +395,7 @@ const LabQueueVariantB = ({ activeTab = 'all', onActiveTabChange = () => {} }) =
   const sorted = useMemo(() => sortRows(filtered, sortConfig), [filtered, sortConfig]);
 
   /* Pagination — same convention as QueuePage.jsx's worklist (Pagination
-     component + "แสดง X–Y จาก N รายการ" sticky footer bar). */
+     component + "แสดง X–Y จาก N รายการ" footer bar). */
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const rangeStart = sorted.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -416,10 +423,8 @@ const LabQueueVariantB = ({ activeTab = 'all', onActiveTabChange = () => {} }) =
 
   /* TOR §1.15.4.9 "ข้อมูลยอดรวมทั้งหมด" — total for the ONE order the doctor
      placed (all rows sharing `orderId`, e.g. a panel like CBC+Renal+
-     Electrolyte ordered together as ORD-241), not the whole filtered table
-     — a table-wide sum would mix line items across different patients'
-     unrelated orders, which isn't what "ยอดรวม" means in §1.15.4's order-
-     placement context. Shown in the detail panel, scoped to `selected`. */
+     Electrolyte ordered together). Shown in the detail panel, scoped to
+     `selected`. */
   const orderSiblings = useMemo(
     () => (selected ? liveRows.filter((r) => r.orderId === selected.orderId) : []),
     [liveRows, selected],
@@ -484,130 +489,150 @@ const LabQueueVariantB = ({ activeTab = 'all', onActiveTabChange = () => {} }) =
       onCancel={handleCancelDelete}
       onConfirm={handleConfirmDelete}
     />
-    <div className='w-full flex' style={{ gap: 'var(--dim-space-400)' }}>
+    <QueuePageShell
+      activeKey='lab'
+      breadcrumb={breadcrumb}
+      title='ห้องปฏิบัติการ (Lab)'
+      summaryCards={SUMMARY_CARDS}
+      summaryFlushUnderSubHeader={false}
+      tabs={LAB_TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+    >
       <div
         className='flex flex-col flex-1 min-w-0'
         style={{
-          background: 'var(--surface-card-100)',
-          borderRadius: 'var(--dim-radius-500)',
-          border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-          boxShadow: 'var(--shadow-card-strong)',
-          padding: 'var(--dim-space-600)',
-          gap: 'var(--dim-space-400)',
+          paddingTop: 'var(--dim-space-600)',
+          paddingLeft: 'var(--dim-space-600)',
+          paddingRight: 'var(--dim-space-600)',
+          paddingBottom: 'var(--dim-space-1200)',
+          gap: 'var(--dim-space-600)',
         }}
       >
-        {/* Centered Primary Search — same component/layout as
-            src/pages/opd/QueuePage.jsx's search row (Figma 115:35757). */}
-        <div className='w-full flex items-start justify-center'>
-          <PrimarySearch
-            value={query}
-            onChange={setQuery}
-            onSubmit={(v, item) => {
-              const row = resolveSearchRow(v, item);
-              pushHistory(row ? rowToSearchItem(row) : v);
-              setQuery(v);
-              if (row) setSelectedId(row.id);
+        <div className='w-full flex' style={{ gap: 'var(--dim-space-400)' }}>
+          <div
+            className='flex flex-col flex-1 min-w-0'
+            style={{
+              background: 'var(--surface-card-100)',
+              borderRadius: 'var(--dim-radius-500)',
+              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+              boxShadow: 'var(--shadow-card-strong)',
+              padding: 'var(--dim-space-600)',
+              gap: 'var(--dim-space-400)',
             }}
-            placeholder='ค้นหาผู้ป่วย · HN · รายการตรวจ · แพทย์ผู้สั่ง'
-            width={640}
-            history={searchHistory}
-            onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
-            suggestions={searchSuggestions}
-            avatars={searchAvatars}
-          />
-        </div>
-        {/* Category action bar — TOR §1.15.4.10 "แสดงแถบข้อมูลการขอตรวจตาม
-            ประเภท" (โลหิตวิทยา/น้ำเหลืองวิทยา/จุลชีววิทยา/สารเสพติด, +
-            เคมีคลินิก). Same FilterDropdown widget as QueuePage.jsx's
-            action bar (department/doctor/type filters); "ทุกประเภทตรวจ"
-            is already the dropdown's own reset option, so the separate
-            reset FilterTag pill was removed as redundant. */}
-        <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-          {/* Urgency filter — TOR §1.15.4.9 "ความเร่งด่วน" */}
-          <FilterDropdown
-            prefix='ความเร่งด่วน:'
-            options={URGENCY_OPTIONS}
-            value={urgency}
-            onChange={setUrgency}
-          />
-          <FilterDropdown
-            prefix='ประเภทตรวจ:'
-            options={CATEGORY_OPTIONS}
-            value={category}
-            onChange={setCategory}
-          />
-          {/* Status filter — same `activeTab` value the sticky LAB_TABS
-              strip up in QueuePageShell controls, just a second way to
-              set it from inside the action bar. */}
-          <FilterDropdown
-            prefix='สถานะ:'
-            options={STATUS_OPTIONS}
-            value={activeTab}
-            onChange={onActiveTabChange}
-          />
-        </OverflowFlexRow>
-        <Table
-          columns={columns}
-          rows={pageRows}
-          rowKey={(row) => row.id}
-          sortConfig={sortConfig}
-          onSort={handleSort}
-          onRowClick={(row) => setSelectedId(row.id)}
-          stickyColCount={2}
-          emptyMessage='ไม่พบรายการตรวจที่ตรงกับการค้นหา'
-        />
-        {/* Pagination — same "แสดง X–Y จาก N รายการ" + <Pagination> footer
-            bar as QueuePage.jsx's worklist. */}
-        <div
-          className='flex items-center w-full'
-          style={{
-            gap: 'var(--dim-space-200)',
-            paddingTop: 'var(--dim-space-200)',
-            borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-          }}
-        >
-          <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-            แสดง {rangeStart}–{rangeEnd} จาก {sorted.length} รายการ
-          </span>
-          <div className='flex-1' />
-          <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
+          >
+            {/* Centered Primary Search — same component/layout as
+                src/pages/opd/QueuePage.jsx's search row (Figma 115:35757). */}
+            <div className='w-full flex items-start justify-center'>
+              <PrimarySearch
+                value={query}
+                onChange={setQuery}
+                onSubmit={(v, item) => {
+                  const row = resolveSearchRow(v, item);
+                  pushHistory(row ? rowToSearchItem(row) : v);
+                  setQuery(v);
+                  if (row) setSelectedId(row.id);
+                }}
+                placeholder='ค้นหาผู้ป่วย · HN · รายการตรวจ · แพทย์ผู้สั่ง'
+                width={640}
+                history={searchHistory}
+                onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+                suggestions={searchSuggestions}
+                avatars={searchAvatars}
+              />
+            </div>
+            {/* Category action bar — TOR §1.15.4.10 "แสดงแถบข้อมูลการขอตรวจตาม
+                ประเภท" (โลหิตวิทยา/น้ำเหลืองวิทยา/จุลชีววิทยา/สารเสพติด, +
+                เคมีคลินิก). Same FilterDropdown widget as QueuePage.jsx's
+                action bar (department/doctor/type filters). */}
+            <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
+              {/* Urgency filter — TOR §1.15.4.9 "ความเร่งด่วน" */}
+              <FilterDropdown
+                prefix='ความเร่งด่วน:'
+                options={URGENCY_OPTIONS}
+                value={urgency}
+                onChange={setUrgency}
+              />
+              <FilterDropdown
+                prefix='ประเภทตรวจ:'
+                options={CATEGORY_OPTIONS}
+                value={category}
+                onChange={setCategory}
+              />
+              {/* Status filter — same `activeTab` value the sticky tab strip
+                  up in QueuePageShell controls, just a second way to set it
+                  from inside the action bar. */}
+              <FilterDropdown
+                prefix='สถานะ:'
+                options={STATUS_OPTIONS}
+                value={activeTab}
+                onChange={setActiveTab}
+              />
+            </OverflowFlexRow>
+            <Table
+              columns={columns}
+              rows={pageRows}
+              rowKey={(row) => row.id}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              onRowClick={(row) => setSelectedId(row.id)}
+              stickyColCount={2}
+              emptyMessage='ไม่พบรายการตรวจที่ตรงกับการค้นหา'
+            />
+            {/* Pagination — same "แสดง X–Y จาก N รายการ" + <Pagination> footer
+                bar as QueuePage.jsx's worklist. */}
+            <div
+              className='flex items-center w-full'
+              style={{
+                gap: 'var(--dim-space-200)',
+                paddingTop: 'var(--dim-space-200)',
+                borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+              }}
+            >
+              <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+                แสดง {rangeStart}–{rangeEnd} จาก {sorted.length} รายการ
+              </span>
+              <div className='flex-1' />
+              <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
+            </div>
+          </div>
+          {/* Always mounted (rather than conditionally rendered) so opening /
+              closing animates via a width + opacity transition instead of
+              popping in and out. `pointerEvents: 'none'` while closed stops
+              the invisible collapsed box from swallowing clicks. */}
+          <div
+            className='flex flex-col'
+            aria-hidden={!panelOpen}
+            style={{
+              width: panelOpen ? 420 : 0,
+              minWidth: 0,
+              flexShrink: 0,
+              opacity: panelOpen ? 1 : 0,
+              pointerEvents: panelOpen ? 'auto' : 'none',
+              transition: 'width 280ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease-out',
+              background: 'var(--surface-card-100)',
+              borderRadius: 'var(--dim-radius-500)',
+              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+              boxShadow: 'var(--shadow-card-strong)',
+              minHeight: 560,
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ width: 420 }}>
+              <LabDetailPanel
+                key={selected?.id}
+                order={selected}
+                onClose={() => setSelectedId(null)}
+                orderItemCount={orderSiblings.length}
+                orderTotal={orderTotal}
+              />
+            </div>
+          </div>
         </div>
       </div>
-      {/* Always mounted (rather than conditionally rendered) so opening /
-          closing animates via a width + opacity transition instead of
-          popping in and out. `pointerEvents: 'none'` while closed stops
-          the invisible collapsed box from swallowing clicks. */}
-      <div
-        className='flex flex-col'
-        aria-hidden={!panelOpen}
-        style={{
-          width: panelOpen ? 420 : 0,
-          minWidth: 0,
-          flexShrink: 0,
-          opacity: panelOpen ? 1 : 0,
-          pointerEvents: panelOpen ? 'auto' : 'none',
-          transition: 'width 280ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease-out',
-          background: 'var(--surface-card-100)',
-          borderRadius: 'var(--dim-radius-500)',
-          border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-          boxShadow: 'var(--shadow-card-strong)',
-          minHeight: 560,
-          overflow: 'hidden',
-        }}
-      >
-        <div style={{ width: 420 }}>
-          <LabDetailPanel
-            key={selected?.id}
-            order={selected}
-            onClose={() => setSelectedId(null)}
-            orderItemCount={orderSiblings.length}
-            orderTotal={orderTotal}
-          />
-        </div>
-      </div>
-    </div>
+    </QueuePageShell>
     </>
   );
 };
 
-export default LabQueueVariantB;
+export default LabQueuePage;
