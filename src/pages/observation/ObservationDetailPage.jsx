@@ -794,7 +794,7 @@ export default function ObservationDetailPage() {
           left-panel/right-content split: the add-note form is a fixed-width
           left panel, the activity log timeline fills the remaining width. */}
       {activeTab === 'notes' && (
-        <div className='flex items-start' style={{ gap: 'var(--dim-space-600)' }}>
+        <div className='flex items-stretch' style={{ gap: 'var(--dim-space-600)' }}>
           {/* Add Nursing Note — left panel */}
           <div
             className='w-[360px] shrink-0 bg-white rounded-2xl p-5 border-none'
