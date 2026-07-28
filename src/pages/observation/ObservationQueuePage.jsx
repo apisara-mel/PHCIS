@@ -556,7 +556,8 @@ export default function ObservationQueuePage() {
       {showVitalsModal && selectedPatientForVitals && createPortal(
         <div
           onClick={(e) => { if (e.target === e.currentTarget) setShowVitalsModal(false); }}
-          className='fixed inset-0 bg-black/50 z-[1400] flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in'
+          className='fixed inset-0 z-[1400] flex items-center justify-center p-4 animate-fade-in'
+          style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
           <div className='bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100'>
             <div className='bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>
@@ -698,7 +699,8 @@ export default function ObservationQueuePage() {
       {showAdmitModal && createPortal(
         <div
           onClick={(e) => { if (e.target === e.currentTarget) setShowAdmitModal(false); }}
-          className='fixed inset-0 bg-black/50 z-[1400] flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in'
+          className='fixed inset-0 z-[1400] flex items-center justify-center p-4 animate-fade-in'
+          style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
           <div className='bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-gray-100'>
             <div className='bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>

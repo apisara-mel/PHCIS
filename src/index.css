@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --surface-overlay-default: rgba(0, 0, 0, 0.5);
+}
+
 /* ─────────────────────────────────────────────────────────────
    APP / COMPONENT CHROME · MIH PHCIS
    Design tokens live in @mih/design-tokens (imported from main.jsx).
