@@ -165,8 +165,18 @@ export default function ObservationDetailPage() {
         </div>
       }
     >
-      {/* Patient Profile Header Card */}
-      <div className='bg-white rounded-2xl p-5 shadow-sm border border-gray-200 mb-6'>
+      <div
+        className='flex flex-col flex-1 min-w-0'
+        style={{
+          paddingTop: 'var(--dim-space-600, 24px)',
+          paddingLeft: 'var(--dim-space-600, 24px)',
+          paddingRight: 'var(--dim-space-600, 24px)',
+          paddingBottom: 'var(--dim-space-600, 24px)',
+          gap: 'var(--dim-space-600, 24px)',
+        }}
+      >
+        {/* Patient Profile Header Card */}
+        <div className='bg-white rounded-2xl p-5 shadow-sm border border-gray-200'>
         <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100'>
           <div className='flex items-center gap-3.5'>
             <div className='w-12 h-12 rounded-2xl bg-brand-700 text-white flex items-center justify-center font-bold text-xl shadow-sm shrink-0'>
@@ -722,6 +732,7 @@ export default function ObservationDetailPage() {
           </form>
         </div>
       )}
+      </div>
     </QueuePageShell>
   );
 }
