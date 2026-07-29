@@ -64,6 +64,16 @@ const NURSING_NOTE_SUGGESTIONS = [
   'ผู้ป่วยนอนหลับพักผ่อนได้ดี ไม่มีอาการปวดเพิ่มเติม',
 ];
 
+/* TOR 1.14.3 — บันทึกความเห็นของบุคลากรกลุ่มต่าง ๆ. No staff login/session
+   exists anywhere in this app, so which note types are selectable is
+   gated by a local mock "เข้าสู่ระบบในฐานะ" role toggle instead of a real
+   authenticated role — Progress Note is shared, Nurse/Doctor Note are
+   role-exclusive. */
+const NOTE_TYPES_BY_ROLE = {
+  nurse: ['บันทึกความคืบหน้าในการรักษา (Progress Note)', 'บันทึกการพยาบาล (Nurse Note)'],
+  doctor: ['บันทึกความคืบหน้าในการรักษา (Progress Note)', 'บันทึกของแพทย์ (Doctor Note)'],
+};
+
 /* Section order for the page-level step indicator — same StepProgress
    component used by the treatment/CPOE wizard (Figma node 2709:6562),
    so the observation record's 4 sections read the same way as any other
@@ -189,6 +199,10 @@ export default function ObservationDetailPage() {
 
   const [newOrderText, setNewOrderText] = useState('');
   const [newNursingNote, setNewNursingNote] = useState('');
+  /* Mock "logged in as" role — see NOTE_TYPES_BY_ROLE comment. */
+  const [currentUserRole, setCurrentUserRole] = useState('nurse');
+  const noteTypeOptions = NOTE_TYPES_BY_ROLE[currentUserRole];
+  const [noteType, setNoteType] = useState(noteTypeOptions[0]);
 
   const [dischargeForm, setDischargeForm] = useState({
     disposition: patient.dischargeSummary?.disposition || 'home',
@@ -419,6 +433,11 @@ export default function ObservationDetailPage() {
     },
   ];
 
+  const handleRoleChange = (role) => {
+    setCurrentUserRole(role);
+    setNoteType(NOTE_TYPES_BY_ROLE[role][0]);
+  };
+
   const handleAddNursingNote = (e) => {
     e.preventDefault();
     if (!newNursingNote.trim()) return;
@@ -428,6 +447,7 @@ export default function ObservationDetailPage() {
       time: nowStr,
       nurse: patient.nurseName,
       note: newNursingNote,
+      noteType,
     };
 
     setPatient((prev) => ({
@@ -951,9 +971,26 @@ export default function ObservationDetailPage() {
           >
             <h3 className='font-bold text-brand-600 text-sm mb-3 flex items-center gap-2'>
               <span className='material-symbols-outlined text-brand-600'>edit_note</span>
-              บันทึกทางการพยาบาลเพิ่มเติม (Focus Nursing Log)
+              บันทึกความเห็น
             </h3>
             <form onSubmit={handleAddNursingNote} className='space-y-3 text-xs'>
+              {/* Mock role gate (TOR 1.14.3) — no real staff login exists in
+                  this app, so "เข้าสู่ระบบในฐานะ" stands in for it and
+                  restricts which note type below can be selected. */}
+              <Select
+                label='เข้าสู่ระบบในฐานะ'
+                value={currentUserRole === 'nurse' ? 'พยาบาล' : 'แพทย์'}
+                onChange={(val) => handleRoleChange(val === 'พยาบาล' ? 'nurse' : 'doctor')}
+                options={['พยาบาล', 'แพทย์']}
+                size='sm'
+              />
+              <Select
+                label='ประเภทบันทึก'
+                value={noteType}
+                onChange={setNoteType}
+                options={noteTypeOptions}
+                size='sm'
+              />
               <SuggestibleTextarea
                 voice
                 placeholder='ระบุบันทึกทางการพยาบาล อาการเปลี่ยนแปลง การตอบสนองต่อการรักษา หรือการประเมินความเสี่ยง'
@@ -1030,6 +1067,11 @@ export default function ObservationDetailPage() {
                         <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>
                           บันทึกโดย: {note.nurse}
                         </span>
+                        {note.noteType && (
+                          <span style={{ color: 'var(--text-brandPrimary-default)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>
+                            · {note.noteType}
+                          </span>
+                        )}
                       </div>
                       <div
                         style={{
