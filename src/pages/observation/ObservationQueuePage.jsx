@@ -303,16 +303,10 @@ export default function ObservationQueuePage() {
 
   const handleOpenVitalsModal = (patient) => {
     setSelectedPatientForVitals(patient);
-    const latest = patient.vitalsTrend?.[patient.vitalsTrend.length - 1] || {};
-    setVitalsForm({
-      bpSys: latest.bpSys || 120,
-      bpDia: latest.bpDia || 80,
-      pulse: latest.pulse || 80,
-      temp: latest.temp || 36.6,
-      spo2: latest.spo2 || 98,
-      rr: latest.rr || 18,
-      note: '',
-    });
+    /* Blank fields — this logs a NEW timed vital-signs entry, so it must
+       not silently carry over the patient's last reading (that would let
+       a nurse save a stale duplicate without actually re-measuring). */
+    setVitalsForm({ bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '' });
     setShowVitalsModal(true);
   };
 
@@ -445,7 +439,7 @@ export default function ObservationQueuePage() {
         </div>
 
         {/* Action & View Mode Bar */}
-        <div className='flex items-center justify-between gap-4 pt-2 border-t border-ink-line'>
+        <div className='flex items-center justify-between gap-4 pt-2'>
           <div className='text-xs text-ink-tertiary font-medium flex items-center gap-2'>
             <span>รายการเตียงสังเกตอาการทั้งหมด ({filteredPatients.length} รายการ)</span>
           </div>
@@ -675,14 +669,16 @@ export default function ObservationQueuePage() {
                 <div className='pt-3 border-t border-ink-line grid grid-cols-2 gap-2'>
                   <NeutralSubdueButton
                     leadingIcon='add_chart'
-                    size='sm'
+                    size='lg'
+                    className='w-full'
                     onClick={() => handleOpenVitalsModal(patient)}
                   >
-                    วัด Vital Signs
+                    วัด Vital Signs ใหม่
                   </NeutralSubdueButton>
                   <BrandPrimaryButton
                     leadingIcon='clinical_notes'
-                    size='sm'
+                    size='lg'
+                    className='w-full'
                     onClick={() => history.push(`/observation/record/${patient.id}`)}
                   >
                     เปิดแฟ้มสังเกตอาการ
@@ -716,10 +712,13 @@ export default function ObservationQueuePage() {
           style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
           <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-2xl max-h-full overflow-hidden border border-ink-line flex flex-col'>
-            <div className='shrink-0 bg-brand-600 text-white px-6 py-4 flex items-center justify-between'>
+            <div
+              className='shrink-0 px-6 py-4 flex items-center justify-between border-b border-ink-line'
+              style={{ background: 'var(--surface-modal-default)' }}
+            >
               <div className='flex items-center gap-2'>
-                <span className='material-symbols-outlined text-2xl'>monitor_heart</span>
-                <h3 className='font-bold text-base'>วัด Vital Signs</h3>
+                <span className='material-symbols-outlined text-2xl' style={{ color: 'var(--brand-p700)' }}>monitor_heart</span>
+                <h3 className='font-bold text-base' style={{ color: 'var(--text-modal-text)' }}>วัด Vital Signs ใหม่</h3>
               </div>
               <BrandCircleIconButton
                 icon='close'
@@ -858,10 +857,13 @@ export default function ObservationQueuePage() {
           style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
           <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-ink-line'>
-            <div className='bg-brand-600 text-white px-6 py-4 flex items-center justify-between'>
+            <div
+              className='px-6 py-4 flex items-center justify-between border-b border-ink-line'
+              style={{ background: 'var(--surface-modal-default)' }}
+            >
               <div className='flex items-center gap-2'>
-                <span className='material-symbols-outlined text-2xl'>hotel</span>
-                <h3 className='font-bold text-base'>ลงทะเบียนรับผู้ป่วยเข้าเตียงสังเกตอาการ</h3>
+                <span className='material-symbols-outlined text-2xl' style={{ color: 'var(--brand-p700)' }}>hotel</span>
+                <h3 className='font-bold text-base' style={{ color: 'var(--text-modal-text)' }}>ลงทะเบียนรับผู้ป่วยเข้าเตียงสังเกตอาการ</h3>
               </div>
               <BrandCircleIconButton
                 icon='close'
