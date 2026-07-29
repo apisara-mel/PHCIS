@@ -4,7 +4,6 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import StatusBadge from '@/components/badge/StatusBadge';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
-import Textarea from '@/components/forms/Textarea';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import BrandButton from '@/components/button/BrandButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
@@ -42,6 +41,15 @@ const DISCHARGE_INSTRUCTIONS_SUGGESTIONS = [
   'ดื่มน้ำให้เพียงพอ หลีกเลี่ยงอาหารรสจัด และมาตามนัดติดตามอาการตามกำหนด',
   'หลีกเลี่ยงฝุ่น PM2.5 และควันบุหรี่ พ่นยาตามแพทย์สั่งสม่ำเสมอ หากเหนื่อยหอบเพิ่มให้รีบมาพบแพทย์',
   'เฝ้าระวังอาการเวียนศีรษะ หน้ามืด หรือใจสั่น หากเป็นซ้ำให้วัดความดันและมาพบแพทย์',
+];
+
+const NURSING_NOTE_SUGGESTIONS = [
+  'ผู้ป่วยรู้สึกตัวดี ไม่มีอาการแน่นหน้าอกเพิ่ม สัญญาณชีพคงที่',
+  'พ่นยาขยายหลอดลมตามแผนการรักษา ฟังเสียงปอด Wheezing ลดลง',
+  'ให้ออกซิเจน Cannula ตามคำสั่งแพทย์ ผู้ป่วยหายใจสะดวกขึ้น',
+  'ผู้ป่วยลุกนั่งได้ ทานอาหารอ่อนได้ ไม่มีอาการเวียนศีรษะ',
+  'เฝ้าระวังอาการใกล้ชิด วัดสัญญาณชีพทุก 30 นาที ตามคำสั่งแพทย์',
+  'ผู้ป่วยนอนหลับพักผ่อนได้ดี ไม่มีอาการปวดเพิ่มเติม',
 ];
 
 /* Section order for the page-level step indicator — same StepProgress
@@ -928,11 +936,14 @@ export default function ObservationDetailPage() {
               บันทึกทางการพยาบาลเพิ่มเติม (Focus Nursing Log)
             </h3>
             <form onSubmit={handleAddNursingNote} className='space-y-3 text-xs'>
-              <Textarea
-                rows={5}
+              <SuggestibleTextarea
+                voice
                 placeholder='ระบุบันทึกทางการพยาบาล อาการเปลี่ยนแปลง การตอบสนองต่อการรักษา หรือการประเมินความเสี่ยง'
                 value={newNursingNote}
-                onChange={(val) => setNewNursingNote(val)}
+                onChange={(e) => setNewNursingNote(e.target.value)}
+                suggestions={NURSING_NOTE_SUGGESTIONS}
+                minChars={3}
+                popoverAriaLabel='คำแนะนำบันทึกพยาบาล'
                 required
               />
               <div className='flex justify-end'>
@@ -1139,6 +1150,7 @@ export default function ObservationDetailPage() {
             {/* Doctor Discharge Note — same suggestion-popover pattern as
                 OPD screening (appears after 3 characters). */}
             <SuggestibleTextarea
+              voice
               label='2. สรุปความเห็นแพทย์ (Doctor Discharge Note)'
               rows={3}
               value={dischargeForm.doctorSummary}
@@ -1152,6 +1164,7 @@ export default function ObservationDetailPage() {
 
             {/* Discharge Advice */}
             <SuggestibleTextarea
+              voice
               label='คำแนะนำและข้อควรระวังเมื่อจำหน่าย (Discharge Instructions)'
               rows={3}
               placeholder='ระบุคำแนะนำการรับประทานยา การดูแลตนเองที่บ้าน หรือสัญญาณอันตรายที่ต้องกลับมาพบแพทย์'

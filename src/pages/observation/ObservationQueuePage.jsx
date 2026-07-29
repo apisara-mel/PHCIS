@@ -5,7 +5,6 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import StatusBadge from '@/components/badge/StatusBadge';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
-import Textarea from '@/components/forms/Textarea';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -20,6 +19,15 @@ import ViewToggle from '@/components/toggle/ViewToggle';
 import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 import { CHIEF_COMPLAINT_SUGGESTIONS } from '@/pages/opd/ScreeningPage';
+
+const VITALS_NOTE_SUGGESTIONS = [
+  'พ่นยาครบคอร์ส ผู้ป่วยหายใจสะดวกขึ้น',
+  'ผู้ป่วยลุกนั่งได้ดี ไม่มีอาการเวียนศีรษะ',
+  'มีอาการเวียนศีรษะเบาลง สัญญาณชีพคงที่',
+  'ผู้ป่วยรู้สึกตัวดี ไม่มีอาการแน่นหน้าอกเพิ่ม',
+  'วัดซ้ำหลังพักผู้ป่วย 15 นาที ค่าคงที่',
+  'ผู้ป่วยมีไข้ต่ำๆ เฝ้าระวังอาการต่อเนื่อง',
+];
 
 /* List-view columns — styled to match the OPD screening worklist table
    (shared <Table>, design tokens, StatusBadge) instead of a bespoke
@@ -790,12 +798,16 @@ export default function ObservationQueuePage() {
                 />
               </div>
 
-              <Textarea
+              <SuggestibleTextarea
+                voice
                 label='หมายเหตุเพิ่มเติม / อาการขณะวัด'
                 rows={2}
                 value={vitalsForm.note}
-                onChange={(val) => setVitalsForm({ ...vitalsForm, note: val })}
+                onChange={(e) => setVitalsForm({ ...vitalsForm, note: e.target.value })}
                 placeholder='เช่น พ่นยาครบคอร์ส, ผู้ป่วยลุกนั่งได้ดี, มีอาการเวียนศีรษะเบาลง'
+                suggestions={VITALS_NOTE_SUGGESTIONS}
+                minChars={3}
+                popoverAriaLabel='คำแนะนำหมายเหตุการวัดสัญญาณชีพ'
               />
 
               {/* Calculated Live EWS Badge */}
@@ -918,6 +930,7 @@ export default function ObservationQueuePage() {
                   Complaint)" field — reuses its suggestion list, appears
                   after 3 characters. */}
               <SuggestibleTextarea
+                voice
                 label='อาการสำคัญแรกรับ (Chief Complaint)'
                 rows={2}
                 placeholder='เช่น แน่นหน้าอก เวียนศีรษะ ปวดท้องรุนแรง มีไข้สูง'
