@@ -483,7 +483,7 @@ export default function ObservationDetailPage() {
 
   return (
     <QueuePageShell
-      activeKey='registration'
+      activeKey='observation'
       breadcrumb={['หน้าหลัก PHCIS', 'ห้องสังเกตอาการ', `แฟ้มสังเกตอาการ: ${patient.patientName}`]}
     >
       {/* Patient identity banner — same <PatientCard> aliased from OPD

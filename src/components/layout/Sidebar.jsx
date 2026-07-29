@@ -37,13 +37,8 @@ const NAV_FADE_BOTTOM =
 const ITEMS = [
   { key: 'dashboard', label: 'แดชบอร์ด',                  icon: 'bar_chart_4_bars', path: '/dashboard'   },
   { key: 'consent',   label: 'คลังแบบฟอร์ม',              icon: 'assignment_add',   path: '/forms'        },
-  {
-    key: 'registration', label: 'งานเวชระเบียน', icon: 'assignment',
-    subItems: [
-      { key: 'registration-queue', label: 'งานเวชระเบียน',      path: '/registration/queue' },
-      { key: 'observation',        label: 'ระบบสังเกตอาการ',    path: '/observation'        },
-    ],
-  },
+  { key: 'registration', label: 'งานเวชระเบียน',          icon: 'assignment',       path: '/registration/queue' },
+  { key: 'observation',   label: 'ระบบสังเกตอาการ (Observation)', icon: 'monitor_heart',  path: '/observation' },
   { key: 'opd',       label: 'ระบบงานผู้รับบริการนอก',    icon: 'face',             path: '/opd/queue'   },
   {
     key: 'treat', label: 'ระบบบันทึกการรักษา', icon: 'stethoscope',
