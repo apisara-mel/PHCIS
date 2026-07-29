@@ -129,7 +129,19 @@ export default function ObservationDetailPage() {
      just-submitted numbers on screen. */
   const [vitalFormResetKey, setVitalFormResetKey] = useState(0);
   const [vitalsPage, setVitalsPage] = useState(1);
+  const [ordersPage, setOrdersPage] = useState(1);
   const [hoveredDisposition, setHoveredDisposition] = useState(null);
+  /* VitalCard/PressureCard's `required` prop only renders the asterisk —
+     unlike InputField it never reaches the native <input>, so nothing
+     stops an all-empty submit. Track each field's validity explicitly
+     (same pattern as VitalsForm.jsx's vitalValidity) and gate the submit
+     button + handler on it, so a forgotten field can't silently get
+     recorded as a "normal" default reading. */
+  const [vitalFieldValidity, setVitalFieldValidity] = useState({});
+  const setVitalFieldValid = (field, valid) =>
+    setVitalFieldValidity((prev) => (prev[field] === valid ? prev : { ...prev, [field]: valid }));
+  const REQUIRED_VITAL_FIELDS = ['pressure', 'pulse', 'temp', 'spo2', 'rr'];
+  const isVitalFormValid = REQUIRED_VITAL_FIELDS.every((f) => vitalFieldValidity[f] === true);
 
   const [newOrderText, setNewOrderText] = useState('');
   const [newNursingNote, setNewNursingNote] = useState('');
@@ -156,8 +168,23 @@ export default function ObservationDetailPage() {
     vitalsPageClamped * VITALS_PAGE_SIZE,
   );
 
+  // STAT Order List pagination — same pattern/page size as the vitals table above
+  const ordersTotalPages = Math.max(1, Math.ceil(patient.statOrders.length / VITALS_PAGE_SIZE));
+  const ordersPageClamped = Math.min(ordersPage, ordersTotalPages);
+  const ordersRangeStart = patient.statOrders.length === 0 ? 0 : (ordersPageClamped - 1) * VITALS_PAGE_SIZE + 1;
+  const ordersRangeEnd = Math.min(ordersPageClamped * VITALS_PAGE_SIZE, patient.statOrders.length);
+  const pagedStatOrders = patient.statOrders.slice(
+    (ordersPageClamped - 1) * VITALS_PAGE_SIZE,
+    ordersPageClamped * VITALS_PAGE_SIZE,
+  );
+
   const handleAddVital = (e) => {
     e.preventDefault();
+    /* Guard against implicit form submission (pressing Enter inside a
+       VitalCard's number input submits the form even when the visible
+       button is disabled) — without this, an unmeasured field could
+       still slip through as a "normal" default reading. */
+    if (!isVitalFormValid) return;
     const nowStr = `${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')} น.`;
     const newLog = {
       time: nowStr,
@@ -177,6 +204,7 @@ export default function ObservationDetailPage() {
 
     setNewVital({ bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '' });
     setVitalFormResetKey((k) => k + 1);
+    setVitalFieldValidity({});
   };
 
   const handleAddOrder = (e) => {
@@ -333,8 +361,18 @@ export default function ObservationDetailPage() {
     setNewNursingNote('');
   };
 
+  /* referHospital uses the custom Select (button-based dropdown, no native
+     <select>), so its `required` prop only renders the asterisk — same
+     class of gap as VitalCard. Guard explicitly instead of relying on
+     native form validation. */
+  const REFER_HOSPITAL_PLACEHOLDER = '-- เลือกโรงพยาบาลส่งต่อ --';
+  const isReferHospitalMissing =
+    dischargeForm.disposition === 'refer' &&
+    (!dischargeForm.referHospital || dischargeForm.referHospital === REFER_HOSPITAL_PLACEHOLDER);
+
   const handleSaveDischarge = (e) => {
     e.preventDefault();
+    if (isReferHospitalMissing) return;
     setPatient((prev) => ({
       ...prev,
       status: dischargeForm.isDischarged ? 'discharged' : 'ready_discharge',
@@ -582,6 +620,7 @@ export default function ObservationDetailPage() {
                   sys={newVital.bpSys}
                   dia={newVital.bpDia}
                   onChange={({ sys, dia }) => setNewVital({ ...newVital, bpSys: sys, bpDia: dia })}
+                  onValidityChange={(v) => setVitalFieldValid('pressure', v)}
                 />
                 <VitalCard
                   label='ชีพจร'
@@ -589,6 +628,7 @@ export default function ObservationDetailPage() {
                   required
                   value={newVital.pulse}
                   onChange={(val) => setNewVital({ ...newVital, pulse: val })}
+                  onValidityChange={(v) => setVitalFieldValid('pulse', v)}
                   hint='ปกติ 60–100 ครั้ง/นาที'
                 />
                 <VitalCard
@@ -598,6 +638,7 @@ export default function ObservationDetailPage() {
                   step={0.1}
                   value={newVital.temp}
                   onChange={(val) => setNewVital({ ...newVital, temp: val })}
+                  onValidityChange={(v) => setVitalFieldValid('temp', v)}
                   hint='ปกติ 36.1–37.2 °C'
                 />
                 <VitalCard
@@ -606,6 +647,7 @@ export default function ObservationDetailPage() {
                   required
                   value={newVital.spo2}
                   onChange={(val) => setNewVital({ ...newVital, spo2: val })}
+                  onValidityChange={(v) => setVitalFieldValid('spo2', v)}
                   hint='ปกติ ≥ 95%'
                 />
                 <VitalCard
@@ -614,6 +656,7 @@ export default function ObservationDetailPage() {
                   required
                   value={newVital.rr}
                   onChange={(val) => setNewVital({ ...newVital, rr: val })}
+                  onValidityChange={(v) => setVitalFieldValid('rr', v)}
                   hint='ปกติ 12–20 ครั้ง/นาที'
                 />
               </div>
@@ -627,10 +670,15 @@ export default function ObservationDetailPage() {
                     size='sm'
                   />
                 </div>
-                <BrandPrimaryButton type='submit' leadingIcon='add' size='sm'>
+                <BrandPrimaryButton type='submit' leadingIcon='add' size='sm' disabled={!isVitalFormValid}>
                   บันทึก
                 </BrandPrimaryButton>
               </div>
+              {!isVitalFormValid && (
+                <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+                  กรุณากรอกค่าให้ครบทุกช่อง (ความดัน, ชีพจร, อุณหภูมิ, SpO2, อัตราการหายใจ) ก่อนบันทึก
+                </p>
+              )}
             </form>
           </div>
 
@@ -781,10 +829,28 @@ export default function ObservationDetailPage() {
             <div style={{ padding: 'var(--dim-space-400)' }}>
               <Table
                 columns={statOrderColumns}
-                rows={patient.statOrders}
+                rows={pagedStatOrders}
                 rowKey={(ord) => ord.id}
                 emptyMessage='ยังไม่มีคำสั่งการรักษาด่วน'
               />
+
+              {patient.statOrders.length > VITALS_PAGE_SIZE && (
+                <div
+                  className='flex items-center'
+                  style={{
+                    gap: 'var(--dim-space-200)',
+                    paddingTop: 'var(--dim-space-300)',
+                    marginTop: 'var(--dim-space-300)',
+                    borderTop: 'var(--dim-stroke-100) solid var(--border-table-default)',
+                  }}
+                >
+                  <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+                    แสดง {ordersRangeStart}–{ordersRangeEnd} จาก {patient.statOrders.length} รายการ
+                  </span>
+                  <div className='flex-1' />
+                  <Pagination currentPage={ordersPageClamped} pageCount={ordersTotalPages} onPageChange={setOrdersPage} />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -794,10 +860,11 @@ export default function ObservationDetailPage() {
           left-panel/right-content split: the add-note form is a fixed-width
           left panel, the activity log timeline fills the remaining width. */}
       {activeTab === 'notes' && (
-        <div className='flex items-stretch' style={{ gap: 'var(--dim-space-600)' }}>
-          {/* Add Nursing Note — left panel */}
+        <div className='flex flex-col lg:flex-row lg:items-stretch' style={{ gap: 'var(--dim-space-600)' }}>
+          {/* Add Nursing Note — left panel (full width until it collapses
+              back into the timeline above the lg breakpoint) */}
           <div
-            className='w-[360px] shrink-0 bg-white rounded-2xl p-5 border-none'
+            className='w-full lg:w-[360px] lg:shrink-0 bg-white rounded-2xl p-5 border-none'
             style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}
           >
             <h3 className='font-bold text-gray-900 text-sm mb-3 flex items-center gap-2'>
@@ -973,14 +1040,20 @@ export default function ObservationDetailPage() {
                   value={dischargeForm.referHospital}
                   onChange={(val) => setDischargeForm({ ...dischargeForm, referHospital: val })}
                   options={[
-                    '-- เลือกโรงพยาบาลส่งต่อ --',
+                    REFER_HOSPITAL_PLACEHOLDER,
                     'โรงพยาบาลตากสิน',
                     'โรงพยาบาลเจริญกรุงประชารักษ์',
                     'โรงพยาบาลกลาง',
                     'โรงพยาบาลศิริราช'
                   ]}
                   size='sm'
+                  required
                 />
+                {isReferHospitalMissing && (
+                  <p style={{ color: 'var(--text-danger-default)', fontSize: 'var(--type-size-xs)' }}>
+                    กรุณาเลือกโรงพยาบาลปลายทางก่อนบันทึก
+                  </p>
+                )}
               </div>
             )}
 
@@ -1028,6 +1101,7 @@ export default function ObservationDetailPage() {
               <BrandPrimaryButton
                 type='submit'
                 leadingIcon='check_circle'
+                disabled={isReferHospitalMissing}
               >
                 บันทึกการสรุปจำหน่าย
               </BrandPrimaryButton>

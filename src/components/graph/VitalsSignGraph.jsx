@@ -109,6 +109,25 @@ function xAtIndex(i, count) {
   return PAD_L + (count <= 1 ? 0 : (i / (count - 1)) * innerW);
 }
 
+/* X-axis label thinning — at CHART_W=1200 with 9px labels, more than
+   ~12 evenly-spaced ticks start to overlap (e.g. a multi-day inpatient
+   observation log can run to dozens of entries). Data points/markers
+   still render for every index (and stay hoverable); only the text
+   label underneath gets skipped for indices outside the thinned set.
+   Always keeps the first and last label so the axis range stays legible. */
+const MAX_X_LABELS = 12;
+function thinnedLabelIndices(count, max = MAX_X_LABELS) {
+  const indices = new Set();
+  if (count <= max) {
+    for (let i = 0; i < count; i += 1) indices.add(i);
+    return indices;
+  }
+  const step = Math.ceil((count - 1) / (max - 1));
+  for (let i = 0; i < count; i += step) indices.add(i);
+  indices.add(count - 1);
+  return indices;
+}
+
 /* Convert SVG mouse event → nearest visit index. Maps pointer x through the
    rendered SVG width into viewBox x (works for fluid width and fillHeight). */
 function useChartHover(count) {
@@ -235,6 +254,7 @@ const BloodPressureChart = ({
   const dbpPts = buildPoints(dbpValues, minY, maxY, viewBoxH);
   const sbpLine = sbpPts.map((p) => `${p.x},${p.y}`).join(' ');
   const dbpLine = dbpPts.map((p) => `${p.x},${p.y}`).join(' ');
+  const visibleLabelIndices = thinnedLabelIndices(xLabels.length);
 
   const gridY = ticks.map((tick) => {
     const t = (tick - minY) / (maxY - minY);
@@ -355,19 +375,22 @@ const BloodPressureChart = ({
           );
         })}
 
-        {/* X-axis date labels */}
+        {/* X-axis date labels — thinned when there are many points; every
+            data point marker above stays hoverable regardless. */}
         {xLabels.map((label, i) => (
-          <text
-            key={label}
-            x={xAtIndex(i, xLabels.length)}
-            y={viewBoxH - 12}
-            textAnchor='middle'
-            fill={hoverIdx === i ? 'var(--text-content-default)' : 'var(--text-chart-axis-label)'}
-            style={{ fontFamily: 'var(--type-family-body)', fontSize: 9, fontWeight: hoverIdx === i ? 600 : 400 }}
-            pointerEvents='none'
-          >
-            {label}
-          </text>
+          visibleLabelIndices.has(i) && (
+            <text
+              key={`${label}-${i}`}
+              x={xAtIndex(i, xLabels.length)}
+              y={viewBoxH - 12}
+              textAnchor='middle'
+              fill={hoverIdx === i ? 'var(--text-content-default)' : 'var(--text-chart-axis-label)'}
+              style={{ fontFamily: 'var(--type-family-body)', fontSize: 9, fontWeight: hoverIdx === i ? 600 : 400 }}
+              pointerEvents='none'
+            >
+              {label}
+            </text>
+          )
         ))}
       </svg>
 
@@ -392,6 +415,7 @@ const TimeSeriesChart = ({
   const pts = buildPoints(values, minY, maxY, viewBoxH);
   const line = pts.map((p) => `${p.x},${p.y}`).join(' ');
   const innerH = viewBoxH - PAD_T - PAD_B;
+  const visibleLabelIndices = thinnedLabelIndices(xLabels.length);
   const gridY = yTicks.map((tick) => {
     const t = (tick - minY) / (maxY - minY || 1);
     return PAD_T + (1 - t) * innerH;
@@ -488,18 +512,22 @@ const TimeSeriesChart = ({
           );
         })}
 
+        {/* X-axis labels — thinned when there are many points; every data
+            point marker above stays hoverable regardless. */}
         {xLabels.map((labelText, i) => (
-          <text
-            key={labelText}
-            x={xAtIndex(i, xLabels.length)}
-            y={viewBoxH - 12}
-            textAnchor='middle'
-            fill={hoverIdx === i ? 'var(--text-content-default)' : 'var(--text-chart-axis-label)'}
-            style={{ fontFamily: 'var(--type-family-body)', fontSize: 9, fontWeight: hoverIdx === i ? 600 : 400 }}
-            pointerEvents='none'
-          >
-            {labelText}
-          </text>
+          visibleLabelIndices.has(i) && (
+            <text
+              key={`${labelText}-${i}`}
+              x={xAtIndex(i, xLabels.length)}
+              y={viewBoxH - 12}
+              textAnchor='middle'
+              fill={hoverIdx === i ? 'var(--text-content-default)' : 'var(--text-chart-axis-label)'}
+              style={{ fontFamily: 'var(--type-family-body)', fontSize: 9, fontWeight: hoverIdx === i ? 600 : 400 }}
+              pointerEvents='none'
+            >
+              {labelText}
+            </text>
+          )
         ))}
       </svg>
 
