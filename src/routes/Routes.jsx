@@ -14,6 +14,9 @@ import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
 import AncQueuePage from '@/pages/treat/anc/AncQueuePage';
 import AncFormPage from '@/pages/treat/anc/AncFormPage';
+import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
+import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
+import LabQueuePage from '@/pages/lab/LabQueuePage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
@@ -172,6 +175,11 @@ export default function Routes() {
         {/* แผนกฝากครรภ์ (ANC) — TOR §1.10.7, first-visit MVP. */}
         <Route exact path='/treat/anc/queue'  component={AncQueuePage} />
         <Route exact path='/treat/anc/record' component={AncFormPage} />
+        <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
+        <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
+        <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
+        <Route exact path='/lab'              component={LabQueuePage} />
+        <Route exact path='/lab/queue'        component={LabQueuePage} />
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
