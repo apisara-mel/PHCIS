@@ -12,6 +12,8 @@ import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
+import AncQueuePage from '@/pages/treat/anc/AncQueuePage';
+import AncFormPage from '@/pages/treat/anc/AncFormPage';
 import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
 import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
 import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
@@ -20,6 +22,10 @@ import PharmacyStockPage from '@/pages/pharmacy/PharmacyStockPage';
 import PharmacyRequisitionPage from '@/pages/pharmacy/PharmacyRequisitionPage';
 import PharmacyHistoryPage from '@/pages/pharmacy/PharmacyHistoryPage';
 import PharmacyReportsPage from '@/pages/pharmacy/PharmacyReportsPage';
+import LabQueuePage from '@/pages/lab/LabQueuePage';
+import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
+import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
+import ObservationHistoryPage from '@/pages/observation/ObservationHistoryPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
 import FormsCategoryPage from '@/pages/forms/FormsCategoryPage';
 import FormDetailPage from '@/pages/forms/FormDetailPage';
@@ -62,6 +68,7 @@ import AssessUserCreatePage from '@/pages/assess/AssessUserCreatePage';
 import AssessUserDetailPage from '@/pages/assess/AssessUserDetailPage';
 import KioskPage from '@/pages/kiosk/KioskPage';
 import MobileTicketPage from '@/pages/kiosk/MobileTicketPage';
+import { TelemedCallProvider, TelemedRouteTrigger } from '@/components/telemed/TelemedCallProvider';
 import Spotlight from '@/components/util/Spotlight';
 import { MobileAppProvider } from '@/components/mobile/MobileShell';
 import MobileLoginPage from '@/pages/mobile/MobileLoginPage';
@@ -96,6 +103,10 @@ export default function Routes() {
       {/* Global deep-link highlighter for TOR Compliance Checklist URLs.
           Reads `?spotlight=<key>&label=<TOR-id>` from every page. */}
       <Spotlight />
+      {/* Telemedicine call lives ABOVE the Switch so the video call + its live
+          media streams survive route changes — the doctor can minimise the
+          call and keep recording in ระบบบันทึกการรักษา (TOR 1.13). */}
+      <TelemedCallProvider>
       <Switch>
         {/* Root = System Selection Hub (PHCIS-ALL · Figma node 2149:104090).
             Shown BEFORE entering any specific subsystem. Each card routes
@@ -168,6 +179,9 @@ export default function Routes() {
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        {/* แผนกฝากครรภ์ (ANC) — TOR §1.10.7, first-visit MVP. */}
+        <Route exact path='/treat/anc/queue'  component={AncQueuePage} />
+        <Route exact path='/treat/anc/record' component={AncFormPage} />
         <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
@@ -178,6 +192,11 @@ export default function Routes() {
         <Route exact path='/pharmacy/requisition'  component={PharmacyRequisitionPage} />
         <Route exact path='/pharmacy/history'      component={PharmacyHistoryPage} />
         <Route exact path='/pharmacy/reports'      component={PharmacyReportsPage} />
+        <Route exact path='/lab'              component={LabQueuePage} />
+        <Route exact path='/lab/queue'        component={LabQueuePage} />
+        <Route exact path='/observation'               component={ObservationQueuePage} />
+        <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
+        <Route exact path='/observation/history/:id'  component={ObservationHistoryPage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
         <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
         <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />
@@ -194,22 +213,31 @@ export default function Routes() {
         <Route exact path='/components'           component={ComponentsLibraryPage} />
         <Route exact path='/components/:slug'     component={ComponentsLibraryPage} />
 
-        {/* Kiosk landing — Step 0 of OPD flow (กดบัตรคิว). Standalone
-            1440×1462 touchscreen surface; NO sidebar/header chrome.
+        {/* Kiosk landing — Step 0 of OPD flow (กดบัตรคิว).
+            Canonical repo: namonlims/bma.kiosk (sibling app; open /Kiosk).
+            /kiosk remains here temporarily for hub demos. New kiosk work
+            lands in bma.kiosk.
             Mobile ticket page is the QR scan target — opens on visitor's
             phone after kiosk shows the QR. Supports image download. */}
         <Route exact path='/kiosk'                       component={KioskPage} />
         <Route exact path='/kiosk/ticket/:queueId'       component={MobileTicketPage} />
+
+        {/* ระบบ Telemedicine / RPM (TOR ข้อ 1.13) — หน้าวิดีโอคอลฝั่งแพทย์.
+            เปิดจากปุ่ม Telemedicine (floating) ในระบบบันทึกการรักษา.
+            Standalone full-screen surface — ไม่มี PHCIS sidebar chrome. */}
+        <Route exact path='/telemed'                     component={TelemedRouteTrigger} />
+        <Route exact path='/telemed/:visitId'            component={TelemedRouteTrigger} />
 
         {/* Legacy chrome-free preview sandboxes (kept for reference) */}
         <Route exact path='/preview/tabs'         component={TabsPreviewPage} />
         <Route exact path='/preview/cards'        component={CardsPreviewPage} />
         <Route exact path='/preview/body-record'  component={BodyRecordPreviewPage} />
 
-        {/* PHCIS Mobile app (TOR §4). Citizen-facing companion app rendered
-            inside a 402×874 iPhone 17 phone frame for desktop demo. All /m/* routes
-            share the same MobileAppProvider so auth + language state
-            survives navigation between screens.                            */}
+        {/* PHCIS Mobile app (TOR §4).
+            Canonical repo is now namonlims/bma.mobile (sibling app on :3001).
+            /m/* remains here temporarily for hub demos + because web badges
+            still import `@/components/mobile/figmaIcons`. Do not add new
+            mobile features here — land them in bma.mobile. */}
         <Route path='/m'>
           <MobileAppProvider>
             <Switch>
@@ -250,6 +278,7 @@ export default function Routes() {
           </MobileAppProvider>
         </Route>
       </Switch>
+      </TelemedCallProvider>
     </Router>
   );
 }

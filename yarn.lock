@@ -226,6 +226,10 @@
   dependencies:
     purgecss "^3.1.3"
 
+"@mih/design-tokens@file:../mih-design/packages/design-tokens":
+  version "1.0.0"
+  resolved "file:../mih-design/packages/design-tokens"
+
 "@nodelib/fs.scandir@2.1.4":
   version "2.1.4"
   resolved "https://registry.npmjs.org/@nodelib/fs.scandir/-/fs.scandir-2.1.4.tgz"

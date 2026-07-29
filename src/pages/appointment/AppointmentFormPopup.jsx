@@ -23,6 +23,8 @@ import { formatThaiBuddhistDate } from '@/data/registrationForm';
 import {
   DEFAULT_PATIENT_AVATAR,
   APPT_MIN_LEAD_MS,
+  ANY_DOCTOR_OPTION,
+  ANY_DOCTOR_VALUE,
   isoKey,
   parseDateKey,
   isAppointmentReadOnly,
@@ -30,6 +32,7 @@ import {
   getStaffScheduleSlots,
   timeToSlotRange,
   slotRangeToTime,
+  printAppointmentSlip,
   STAFF,
 } from './appointmentShared';
 import { doctorSelectOptions } from './appointmentDoctorRoster';
@@ -37,6 +40,7 @@ import {
   AppointmentReadOnlyCards,
   AppointmentReadOnlyStatusBadge,
 } from './AppointmentReadOnlyDetail';
+import { getResourcePattern } from './appointmentSettingsStore';
 
 /* MIH PHCIS · Appointment detail popup — Figma 73:15393 / 3:9730 / 29:13839 (past read-only). */
 
@@ -78,9 +82,12 @@ const CLINIC_OPTIONS = [
   { value: 'ทันตกรรม', label: 'ทันตกรรม (Dental Clinic)' },
 ];
 
-const TYPE_OPTIONS = [{ value: 'พบแพทย์', label: 'พบแพทย์' }];
+const TYPE_OPTIONS = [
+  { value: 'พบแพทย์', label: 'พบแพทย์' },
+  { value: 'เยี่ยมบ้าน', label: 'เยี่ยมบ้าน' },
+];
 
-const DOCTOR_OPTIONS = doctorSelectOptions(STAFF);
+const DOCTOR_OPTIONS = [ANY_DOCTOR_OPTION, ...doctorSelectOptions(STAFF)];
 
 const PRE_ORDER_OPTIONS = [
   { value: 'none', label: 'ไม่มีคำสั่งล่วงหน้า' },
@@ -90,6 +97,7 @@ const PRE_ORDER_OPTIONS = [
 const EXAM_MODE_OPTIONS = [
   { value: 'onsite', label: 'ตรวจที่โรงพยาบาล (Onsite)' },
   { value: 'telemedicine', label: 'ปรึกษาแพทย์ออนไลน์ (Telemedicine)' },
+  { value: 'homevisit', label: 'นัดหมายเยี่ยมบ้าน (Home visit)' },
 ];
 
 const ApptToolbarDivider = () => (
@@ -109,6 +117,7 @@ const ApptDetailToolbar = ({
   readOnly,
   onMedicalHistory,
   onAppointmentHistory,
+  onPrint,
 }) => (
   <div
     className='flex items-center shrink-0 flex-wrap justify-end'
@@ -134,7 +143,13 @@ const ApptDetailToolbar = ({
       ประวัติการนัด
     </BrandButton>
     <ApptToolbarDivider />
-    <BrandButton variant='fill' size='sm' leadingIcon='print' disabled={readOnly}>
+    <BrandButton
+      variant='fill'
+      size='sm'
+      leadingIcon='print'
+      disabled={readOnly && !onPrint}
+      onClick={onPrint}
+    >
       พิมพ์ใบนัด
     </BrandButton>
   </div>
@@ -238,17 +253,18 @@ function mapApptToForm(appt, slotPick, mode, staff) {
   return base;
 }
 
-function formToSavePayload(form) {
+function formToSavePayload(form, scheduleSlots = []) {
   const time = slotRangeToTime(form.slotRange);
   const examMode = form.examMode === 'telemedicine' ? 'tele' : form.examMode;
+  const slotMeta = scheduleSlots.find((s) => s.value === form.slotRange);
   return {
     patient: form.patient.trim(),
     hn: form.hn.trim(),
     rights: form.rights,
     patientAvatar: form.patientAvatar,
     clinic: form.clinic,
-    type: form.type,
-    doctor: form.doctor,
+    type: form.examMode === 'homevisit' ? 'เยี่ยมบ้าน' : form.type,
+    doctor: form.doctor || ANY_DOCTOR_VALUE,
     reason: form.reason,
     prep: form.prep,
     preOrder: form.preOrder,
@@ -256,6 +272,8 @@ function formToSavePayload(form) {
     examMode,
     date: form.date,
     time,
+    queueNo: slotMeta?.queueNo,
+    slotRange: form.slotRange,
   };
 }
 
@@ -415,11 +433,17 @@ const AppointmentFormPopup = ({
     };
   const readOnly = isAppointmentReadOnly(readOnlyAppt);
   const slotMinutes = getStaffSlotMinutes(staff);
+  const nestedPattern = staff?.id ? getResourcePattern(staff.id) : null;
 
   const scheduleSlots = useMemo(
     () => (form.date && staff ? getStaffScheduleSlots(staff, form.date) : []),
     [staff, form.date],
   );
+
+  const handlePrint = () => {
+    const payload = formToSavePayload(form, scheduleSlots);
+    printAppointmentSlip({ ...(initial || {}), ...payload });
+  };
 
   const bookedRanges = useMemo(() => {
     if (!form.date || !staff?.id) return new Set();
@@ -456,7 +480,7 @@ const AppointmentFormPopup = ({
         ? { label: 'ปิด', onClick: onClose }
         : {
           label: 'บันทึก',
-          onClick: () => onSave(formToSavePayload(form)),
+          onClick: () => onSave(formToSavePayload(form, scheduleSlots)),
           disabled: !canSave,
         }}
     >
@@ -477,6 +501,7 @@ const AppointmentFormPopup = ({
                   readOnly
                   onMedicalHistory={() => setMedicalHistoryOpen(true)}
                   onAppointmentHistory={() => setAppointmentHistoryOpen(true)}
+                  onPrint={handlePrint}
                 />
               </div>
             </div>
@@ -503,6 +528,7 @@ const AppointmentFormPopup = ({
               readOnly={false}
               onMedicalHistory={() => setMedicalHistoryOpen(true)}
               onAppointmentHistory={() => setAppointmentHistoryOpen(true)}
+              onPrint={handlePrint}
             />
           )}
         />
@@ -687,7 +713,9 @@ const AppointmentFormPopup = ({
                 }}
               >
                 {scheduleSlots.length > 0
-                  ? `ช่วงละ ${slotMinutes} นาที · ${scheduleSlots.length} slot`
+                  ? (nestedPattern
+                    ? `Slot ซ้อนชั้น · major ${nestedPattern.majorMinutes} น. / minor ${nestedPattern.minorMinutes} น. · ${scheduleSlots.length} คิว`
+                    : `ช่วงละ ${slotMinutes} นาที · ${scheduleSlots.length} slot`)
                   : 'ไม่มีตารางเวรในวันนี้'}
               </span>
               {scheduleSlots.length > 0 && (
@@ -712,7 +740,7 @@ const AppointmentFormPopup = ({
                         <Timeslot
                           key={slot.value}
                           size='sm'
-                          value={slot.value}
+                          value={slot.label || slot.value}
                           selected={form.slotRange === slot.value}
                           disabled={disabled}
                           disabledLabel={label}

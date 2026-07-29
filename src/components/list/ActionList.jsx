@@ -145,6 +145,7 @@ const ActionList = ({
   label = 'List',
   subtext,                       // string shown under the label when showSubtext
   leadingIcon,                   // material symbol name (16px)
+  image,                         // avatar photo URL — 24px circle, takes priority over leadingIcon
   leadingBadge,                  // { tone, label } — colorful pill before the text
   leadingBadge2,                 // { tone, label } — second colorful pill
   leadingBadge3,                 // { tone, label } — fixed 64 px column pill (Figma 382:14361)
@@ -229,7 +230,16 @@ const ActionList = ({
 
   const inner = (
     <>
-      {showLeadingIcon && leadingIcon && (
+      {showLeadingIcon && image && (
+        <span
+          className='shrink-0 inline-flex items-center justify-center overflow-hidden'
+          style={{ width: 24, height: 24, borderRadius: 'var(--dim-radius-full, 9999px)' }}
+          aria-hidden
+        >
+          <img src={image} alt='' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </span>
+      )}
+      {showLeadingIcon && leadingIcon && !image && (
         <Sym name={leadingIcon} size={16} color='currentColor' weight={wght} />
       )}
       {showLeadingBadge && leadingBadge && (

@@ -22,13 +22,13 @@ export const TREATMENT_STEPS = [
 
 export const TREATMENT_STEP_LABELS = TREATMENT_STEPS.map((s) => s.title);
 
-const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onNext, onSave, isLast }) => {
+const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, isLast }) => {
   /* Primary CTA label — Figma PHCIS pattern: "ถัดไป: [next step]" so the
      clinician sees where they're heading without re-reading the stepper.
      Last step swaps the forward label for the explicit commit action. */
   const nextStepLabel = isLast
     ? 'จบการบันทึก'
-    : `ถัดไป: ${TREATMENT_STEPS[stepIndex + 1].title}`;
+    : `ถัดไป: ${steps[stepIndex + 1].title}`;
 
   /* Footer chrome — Figma PHCIS | Medical-examination 330:42666.
      Aliases the brand-tinted footer treatment used across PHCIS pages:
@@ -81,15 +81,22 @@ const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onNext, onSave, isLast })
   );
 };
 
-const TreatmentFormShell = ({ stepIndex, onStepChange, completedSteps, children }) => {
+const TreatmentFormShell = ({
+  stepIndex, onStepChange, completedSteps, children,
+  /* Overridable for non-OPD sub-departments (e.g. ANC) that reuse this
+     shell with their own step titles + queue route — defaults keep OPD's
+     TreatmentFormPage behaviour unchanged. */
+  steps = TREATMENT_STEPS,
+  queuePath = '/treat/queue',
+}) => {
   const history = useHistory();
-  const isLast = stepIndex === TREATMENT_STEPS.length - 1;
+  const isLast = stepIndex === steps.length - 1;
   const handlePrev = () => {
-    if (stepIndex === 0) history.push('/treat/queue');
+    if (stepIndex === 0) history.push(queuePath);
     else onStepChange(stepIndex - 1);
   };
   const handleNext = () => {
-    if (isLast) history.push('/treat/queue');
+    if (isLast) history.push(queuePath);
     else onStepChange(stepIndex + 1);
   };
 
@@ -113,7 +120,7 @@ const TreatmentFormShell = ({ stepIndex, onStepChange, completedSteps, children 
           <div className='flex justify-center min-w-max overflow-x-auto'>
             <StepProgress
               framed
-              steps={TREATMENT_STEPS}
+              steps={steps}
               current={stepIndex}
               completedSteps={completedSteps}
               onStepClick={onStepChange}
@@ -138,7 +145,7 @@ const TreatmentFormShell = ({ stepIndex, onStepChange, completedSteps, children 
         </div>
       </div>
 
-      <Footer stepIndex={stepIndex} onPrev={handlePrev} onNext={handleNext} isLast={isLast} />
+      <Footer stepIndex={stepIndex} steps={steps} onPrev={handlePrev} onNext={handleNext} isLast={isLast} />
     </main>
   );
 };

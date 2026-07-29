@@ -37,7 +37,13 @@ const NAV_FADE_BOTTOM =
 const ITEMS = [
   { key: 'dashboard', label: 'แดชบอร์ด',                  icon: 'bar_chart_4_bars', path: '/dashboard'   },
   { key: 'consent',   label: 'คลังแบบฟอร์ม',              icon: 'assignment_add',   path: '/forms'        },
-  { key: 'registration', label: 'งานเวชระเบียน',          icon: 'assignment',       path: '/registration/queue' },
+  {
+    key: 'registration', label: 'งานเวชระเบียน', icon: 'assignment',
+    subItems: [
+      { key: 'registration-queue', label: 'งานเวชระเบียน',      path: '/registration/queue' },
+      { key: 'observation',        label: 'ระบบสังเกตอาการ',    path: '/observation'        },
+    ],
+  },
   { key: 'opd',       label: 'ระบบงานผู้รับบริการนอก',    icon: 'face',             path: '/opd/queue'   },
   {
     key: 'treat', label: 'ระบบบันทึกการรักษา', icon: 'stethoscope',
@@ -46,7 +52,7 @@ const ITEMS = [
       { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)' },
       { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์' },
       { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด' },
-      { key: 'anc',        label: 'แผนกฝากครรภ์' },
+      { key: 'anc',        label: 'แผนกฝากครรภ์',                          path: '/treat/anc/queue' },
       { key: 'wellness',   label: 'แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ' },
       { key: 'vaccine',    label: 'แผนกสร้างเสริมภูมิคุ้มกันโรค' },
       { key: 'dental',     label: 'แผนกทันตกรรม' },
@@ -55,7 +61,7 @@ const ITEMS = [
     ],
   },
   { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18                },
-  { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18                },
+  { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18, path: '/lab/queue' },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht'                                   },
   { key: 'appoint',   label: 'ระบบนัดหมาย',               icon: 'calendar_clock', path: '/appointment'       },

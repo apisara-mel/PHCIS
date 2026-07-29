@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
@@ -9,9 +10,11 @@ import { Reveal } from '@/components/graph/Charts';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import Pagination from '@/components/pagination/Pagination';
 import Badge from '@/components/badge/Badge';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
+import { ANC_PATIENTS } from '@/data/ancVisits';
 import {
   PopulationPyramidCard,
   OpdTypeLineCard,
@@ -33,6 +36,7 @@ import {
   CocCard,
   ConsentCard,
   DmComplicationsCard,
+  TelemedCallStatsCard,
 } from '@/components/graph/DashboardCards';
 
 const YEAR_OPTIONS = [
@@ -51,10 +55,11 @@ const DASHBOARD_OVERVIEW_CARDS = [
   { key: 'visits',  icon: 'clipboard-list', tone: 'brand',  value: '299,445',   label: 'การรับบริการสะสม (ครั้ง)',      subIcon: 'check-circle', sub: 'เฉลี่ย 820.40 ครั้ง/วัน', subTone: 'success' },
   { key: 'fee',     icon: 'baht',           tone: 'purple', value: '1,496,420', label: 'ค่าบริการสะสม (บาท)',           subIcon: 'file-text',    sub: 'รายรับ 0 บาท' },
   { key: 'units',   icon: 'building',       tone: 'orange', value: '69',        label: 'หน่วยบริการที่ส่งข้อมูล (แห่ง)' },
+  { key: 'telemed', icon: 'stethoscope',    tone: 'teal',   value: '167',       label: 'สาย Telemed ปีงบฯ (ครั้ง)', subIcon: 'history', sub: 'เฉลี่ย 18:42 นาที/สาย' },
 ];
 
-/* Card wrapper — used by the recent-patients table only. The chart cards
-   already ship with their own internal Card chrome. */
+/* Card wrapper — used by the recent-patients table and the ANC results
+   section. The chart cards already ship with their own internal Card chrome. */
 const Card = ({ title, icon, action, children, className = '', headerClassName = '' }) => (
   <section className={`bg-surface-card rounded-card shadow-card flex flex-col border-0 ${className}`}>
     {(title || icon || action) && (
@@ -73,6 +78,21 @@ const Card = ({ title, icon, action, children, className = '', headerClassName =
     )}
     <div className='flex-1 px-4 pb-4 pt-10 align-middle'>{children}</div>
   </section>
+);
+
+/* Plain stat tile — used by the ANC results section (TOR 1.20.7.7
+   "Dashboard ผลการฝากครรภ์"). Simpler than the chart cards since this is a
+   KPI summary, not a graph. */
+const StatTile = ({ label, value, tone }) => (
+  <div className='flex flex-col gap-1'>
+    <span
+      className='text-2xl font-bold tabular-nums'
+      style={{ color: tone === 'warning' ? 'var(--text-warning-default, #F46928)' : 'var(--text-brandPrimary-default, #007549)' }}
+    >
+      {value}
+    </span>
+    <span className='text-xs text-ink-tertiary'>{label}</span>
+  </div>
 );
 
 const RECENT_PATIENTS = [
@@ -107,6 +127,16 @@ const STATUS_TO_BADGE_STYLE = {
 const DashboardPage = () => {
   const [year, setYear] = useState('2569');
   const yearLabel = YEAR_OPTIONS.find((o) => o.value === year)?.label || `ปีงบประมาณ ${year}`;
+
+  /* ANC results summary (TOR 1.20.7.7 "Dashboard ผลการฝากครรภ์"). */
+  const ancStats = useMemo(() => ({
+    total:    ANC_PATIENTS.length,
+    first:    ANC_PATIENTS.filter((p) => p.visitType === 'first').length,
+    followup: ANC_PATIENTS.filter((p) => p.visitType === 'followup').length,
+    low:      ANC_PATIENTS.filter((p) => p.riskLevel === 'low').length,
+    intermediate: ANC_PATIENTS.filter((p) => p.riskLevel === 'intermediate').length,
+    high:     ANC_PATIENTS.filter((p) => p.riskLevel === 'high').length,
+  }), []);
 
   /* Recent patients table state */
   const [search, setSearch]   = useState('');
@@ -195,6 +225,33 @@ const DashboardPage = () => {
           <MonthlyVisitsCard title={`จำนวนผู้รับบริการ ${yearLabel}`} />
         </Reveal>
 
+        {/* — ANC results summary (TOR 1.20.7.7 "Dashboard ผลการฝากครรภ์") — */}
+        <Reveal>
+        <Card
+          title='ผลการฝากครรภ์ (ANC)'
+          icon='face'
+          action={
+            <Link to='/treat/anc/queue'>
+              <NeutralSubdueButton variant='outline' size='sm' trailingIcon='chevron_right'>
+                ดูทั้งหมด
+              </NeutralSubdueButton>
+            </Link>
+          }
+        >
+          <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+            <StatTile label='ฝากครรภ์ทั้งหมด' value={ancStats.total} />
+            <StatTile label='ฝากครรภ์ครั้งแรก' value={ancStats.first} />
+            <StatTile label='ตรวจติดตาม' value={ancStats.followup} />
+            <StatTile label='ความเสี่ยงสูง/ปานกลาง' value={ancStats.intermediate + ancStats.high} tone='warning' />
+          </div>
+          <div className='flex items-center gap-2 mt-4'>
+            <ColorfulBadge style='green' size='small' hierarchy='secondary'>ความเสี่ยงต่ำ {ancStats.low}</ColorfulBadge>
+            <ColorfulBadge style='yellow' size='small' hierarchy='secondary'>ความเสี่ยงปานกลาง {ancStats.intermediate}</ColorfulBadge>
+            <ColorfulBadge style='red' size='small' hierarchy='secondary'>ความเสี่ยงสูง {ancStats.high}</ColorfulBadge>
+          </div>
+        </Card>
+        </Reveal>
+
         {/* — Row 3 — */}
         <Reveal className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
           <Disease21GroupsCard title={`ผู้รับบริการตาม 21 กลุ่มโรค ${yearLabel}`} />
@@ -213,6 +270,11 @@ const DashboardPage = () => {
           <CocCard />
           <ConsentCard />
           <DmComplicationsCard />
+        </Reveal>
+
+        {/* — Row 5b: Telemedicine call stats (TOR 1.13.10) — */}
+        <Reveal className='grid grid-cols-1 gap-4'>
+          <TelemedCallStatsCard title={`สถิติการปรึกษาทางไกล (Telemedicine) ${yearLabel}`} />
         </Reveal>
 
         {/* — Row 6: recent patients table (search + sort + pagination) — */}

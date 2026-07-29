@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import AUDIT_NAV from '@/pages/audit/auditNav';
-import { LOG } from '@/pages/audit/auditData';
+import { getAuditLog, subscribeAuditLog } from '@/pages/audit/auditData';
 
 /* ระบบประวัติการใช้งาน · บันทึกการใช้งาน / History Log (Figma 0EDfjwf1 · 12:1624).
    Every action in the system is logged automatically. Reuses Table /
-   ColorfulBadge / FilterDropdown + design tokens. */
+   ColorfulBadge / FilterDropdown + design tokens.
+   Includes Telemedicine login / join / recording (TOR 1.13.11). */
 
 const breadcrumb = ['ประวัติการใช้งาน', 'บันทึกการใช้งาน'];
 
@@ -29,9 +30,27 @@ const Avatar = ({ name }) => (
   </span>
 );
 
+const matchesSystemFilter = (row, system) => {
+  if (!system) return true;
+  const mod = String(row.mod || '').toLowerCase();
+  if (system === 'telemed') return mod.includes('telemed');
+  if (system === 'opd') return mod.includes('opd') || mod.includes('cpoe') || mod.includes('ตรวจ');
+  if (system === 'pharm') return mod.includes('ยา');
+  if (system === 'finance') return mod.includes('การเงิน') || mod.includes('เคลม');
+  return true;
+};
+
 export default function AuditLogPage() {
   const [logScope, setLogScope] = useState('today');
   const [logSystem, setLogSystem] = useState('');
+  const [rows, setRows] = useState(() => getAuditLog());
+
+  useEffect(() => subscribeAuditLog(() => setRows(getAuditLog())), []);
+
+  const filtered = useMemo(
+    () => rows.filter((r) => matchesSystemFilter(r, logSystem)),
+    [rows, logSystem, logScope],
+  );
 
   const logCols = [
     { key: 'time', header: 'เวลา', width: 140, render: (r) => <span style={LABEL}>{r.time}</span> },
@@ -55,14 +74,25 @@ export default function AuditLogPage() {
           <div className='flex items-center justify-between flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <div className='flex flex-col'>
               <span style={H}>บันทึกการใช้งานล่าสุด (History Log)</span>
-              <span style={LABEL}>บันทึกทุกการกระทำในระบบ · เก็บย้อนหลัง 90 วัน</span>
+              <span style={LABEL}>บันทึกทุกการกระทำในระบบ · รวม Telemedicine · เก็บย้อนหลัง 90 วัน</span>
             </div>
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
               <FilterDropdown prefix='ช่วง:' options={[{ value: 'today', label: 'วันนี้' }, { value: '7', label: '7 วัน' }, { value: '30', label: '30 วัน' }]} value={logScope} onChange={setLogScope} />
-              <FilterDropdown prefix='ระบบ:' options={[{ value: '', label: 'ทุกระบบ' }, { value: 'opd', label: 'OPD' }, { value: 'pharm', label: 'ห้องยา' }, { value: 'finance', label: 'การเงิน' }]} value={logSystem} onChange={setLogSystem} />
+              <FilterDropdown
+                prefix='ระบบ:'
+                options={[
+                  { value: '', label: 'ทุกระบบ' },
+                  { value: 'telemed', label: 'Telemedicine' },
+                  { value: 'opd', label: 'OPD' },
+                  { value: 'pharm', label: 'ห้องยา' },
+                  { value: 'finance', label: 'การเงิน' },
+                ]}
+                value={logSystem}
+                onChange={setLogSystem}
+              />
             </div>
           </div>
-          <Table columns={logCols} rows={LOG} rowKey={(r, i) => `${r.time}-${i}`} />
+          <Table columns={logCols} rows={filtered} rowKey={(r, i) => `${r.time}-${r.action}-${i}`} />
         </section>
       </div>
     </QueuePageShell>

@@ -6,6 +6,12 @@ import {
   INITIAL_APPOINTMENTS as MOCK_APPOINTMENTS,
   SOMCHAI_AVATAR,
 } from './appointmentMockData';
+import {
+  getFacilityHolidayName,
+  getResourcePattern,
+  isFacilityHolidayDate,
+  isResourceClosedDate,
+} from './appointmentSettingsStore';
 
 export { APPOINTMENT_PATIENTS, APPOINTMENT_SEARCH_AVATARS } from './appointmentMockData';
 
@@ -37,6 +43,8 @@ export const STAFF_CLOSED_DATES = [
   '2026-06-23', '2026-06-24', '2026-06-25',
 ];
 
+export const ANY_DOCTOR_VALUE = 'ไม่ระบุแพทย์';
+export const ANY_DOCTOR_OPTION = { value: ANY_DOCTOR_VALUE, label: 'ไม่ระบุแพทย์' };
 export const MONTH_PREVIEW_SLOT_LIMIT = 5;
 
 export const APPT_MIN_LEAD_MS = 60 * 60 * 1000;
@@ -139,11 +147,15 @@ export const MONTH_PREVIEW_TIMES = TIME_SLOTS.filter(
   (t) => t >= '08:00' && t <= '09:15',
 ).slice(0, MONTH_PREVIEW_SLOT_LIMIT);
 
-export function isStaffClosedDay(dateKey) {
+export function isStaffClosedDay(dateKey, staffId) {
+  if (isResourceClosedDate(staffId, dateKey)) return true;
   return STAFF_CLOSED_DATES.includes(dateKey);
 }
 
 export function getNationalHoliday(dateKey) {
+  if (isFacilityHolidayDate(dateKey)) {
+    return { date: dateKey, name: getFacilityHolidayName(dateKey) || 'วันหยุดสถานพยาบาล' };
+  }
   return NATIONAL_HOLIDAYS.find((h) => h.date === dateKey) || null;
 }
 
@@ -230,15 +242,60 @@ const DEFAULT_WORK_HOURS = { start: '08:00', end: '16:00' };
 /** Working window for a calendar day (null when off duty). */
 export function getStaffWorkHours(staff, dateKey) {
   if (!staff || !dateKey) return DEFAULT_WORK_HOURS;
-  if (isStaffClosedDay(dateKey)) return null;
+  if (isStaffClosedDay(dateKey, staff.id)) return null;
   const day = parseDateKey(dateKey);
   const weekdayKey = WEEKDAY_KEYS[day.getDay()];
+
+  const pattern = getResourcePattern(staff.id);
+  if (pattern) {
+    if (pattern.weekdays?.length && !pattern.weekdays.includes(weekdayKey)) return null;
+    return { start: pattern.start, end: pattern.end, pattern };
+  }
+
   const daySched = staff.schedule?.[weekdayKey];
   if (daySched && daySched.on === false) return null;
   return {
     start: daySched?.start ?? staff.workHours?.start ?? DEFAULT_WORK_HOURS.start,
     end: daySched?.end ?? staff.workHours?.end ?? DEFAULT_WORK_HOURS.end,
   };
+}
+
+/**
+ * TOR 1.6.1.4 — nested major→minor slots with queue numbers.
+ * e.g. 09:00–12:00, major 60m, minor 6m, capacity 10 → queues 1–10, 11–20, 21–30.
+ */
+export function buildNestedSlotRanges({
+  start,
+  end,
+  majorMinutes = 60,
+  minorMinutes = 6,
+  capacityPerMajor = 10,
+}) {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  if (![sh, sm, eh, em].every(Number.isFinite)) return [];
+  const startTotal = sh * 60 + sm;
+  const endTotal = eh * 60 + em;
+  const slots = [];
+  let majorIndex = 0;
+  for (let majorStart = startTotal; majorStart + majorMinutes <= endTotal; majorStart += majorMinutes) {
+    const baseQueue = majorIndex * capacityPerMajor;
+    for (let i = 0; i < capacityPerMajor; i++) {
+      const t = majorStart + i * minorMinutes;
+      if (t + minorMinutes > majorStart + majorMinutes) break;
+      if (t + minorMinutes > endTotal) break;
+      const endM = t + minorMinutes;
+      const queueNo = baseQueue + i + 1;
+      slots.push({
+        value: `${pad2(Math.floor(t / 60))}:${pad2(t % 60)}-${pad2(Math.floor(endM / 60))}:${pad2(endM % 60)}`,
+        queueNo,
+        majorIndex,
+        label: `${pad2(Math.floor(t / 60))}:${pad2(t % 60)}–${pad2(Math.floor(endM / 60))}:${pad2(endM % 60)} · คิว ${queueNo}`,
+      });
+    }
+    majorIndex += 1;
+  }
+  return slots;
 }
 
 /** Build Timeslot range labels for one duty day, e.g. 08:00-08:15 (15 min). */
@@ -249,23 +306,75 @@ export function buildSlotRangesForWindow({ start, end, slotMinutes }) {
   const startTotal = sh * 60 + sm;
   const endTotal = eh * 60 + em;
   const slots = [];
+  let i = 0;
   for (let t = startTotal; t + slotMinutes <= endTotal; t += slotMinutes) {
-    const end = t + slotMinutes;
+    const endM = t + slotMinutes;
+    i += 1;
     slots.push({
-      value: `${pad2(Math.floor(t / 60))}:${pad2(t % 60)}-${pad2(Math.floor(end / 60))}:${pad2(end % 60)}`,
+      value: `${pad2(Math.floor(t / 60))}:${pad2(t % 60)}-${pad2(Math.floor(endM / 60))}:${pad2(endM % 60)}`,
+      queueNo: i,
+      label: `${pad2(Math.floor(t / 60))}:${pad2(t % 60)}-${pad2(Math.floor(endM / 60))}:${pad2(endM % 60)}`,
     });
   }
   return slots;
 }
 
-/** All bookable ranges for staff on `dateKey`, aligned to their slot duration. */
+/** All bookable ranges for staff on `dateKey`, aligned to nested TOR pattern when set. */
 export function getStaffScheduleSlots(staff, dateKey) {
   const hours = getStaffWorkHours(staff, dateKey);
   if (!hours) return [];
+  if (hours.pattern) {
+    return buildNestedSlotRanges({
+      start: hours.start,
+      end: hours.end,
+      majorMinutes: hours.pattern.majorMinutes,
+      minorMinutes: hours.pattern.minorMinutes,
+      capacityPerMajor: hours.pattern.capacityPerMajor,
+    });
+  }
   return buildSlotRangesForWindow({
-    ...hours,
+    start: hours.start,
+    end: hours.end,
     slotMinutes: getStaffSlotMinutes(staff),
   });
+}
+
+/** Earliest free slot across staff (TOR 1.6.2.1) within [fromDate, days]. */
+export function findEarliestFreeSlot({ staffList, appointments, resourceType, fromDate, days = 14 }) {
+  const start = fromDate ? parseDateKey(fromDate) : startOfLocalDay(new Date());
+  const pool = (staffList || []).filter((s) => {
+    if (!resourceType || resourceType === 'all') return true;
+    if (resourceType === 'dental') return s.dept === 'ทันตกรรม';
+    if (resourceType === 'internal') return s.dept === 'อายุรกรรม';
+    return true;
+  });
+  for (let d = 0; d < days; d++) {
+    const day = new Date(start);
+    day.setDate(start.getDate() + d);
+    const key = isoKey(day);
+    for (const staff of pool) {
+      if (isStaffClosedDay(key, staff.id)) continue;
+      const ranges = getStaffScheduleSlots(staff, key);
+      for (const slot of ranges) {
+        const time = slotRangeToTime(slot.value);
+        if (isSlotDisabled(key, time)) continue;
+        const taken = (appointments || []).some((a) => (
+          a.staffId === staff.id && a.date === key && a.time === time && a.status !== 'cancelled'
+        ));
+        if (!taken) {
+          return {
+            staff,
+            date: key,
+            time,
+            slotRange: slot.value,
+            queueNo: slot.queueNo,
+            label: slot.label || slot.value,
+          };
+        }
+      }
+    }
+  }
+  return null;
 }
 
 /** Map a stored start time (HH:MM) or range to a Timeslot label for `slotMinutes`. */
@@ -312,7 +421,50 @@ export function formatApptExamModeLabel(examMode) {
   if (examMode === 'tele' || examMode === 'telemedicine') {
     return 'ปรึกษาแพทย์ออนไลน์ (Telemedicine)';
   }
+  if (examMode === 'homevisit' || examMode === 'home') {
+    return 'นัดหมายเยี่ยมบ้าน (Home visit)';
+  }
   return 'ตรวจที่โรงพยาบาล (Onsite)';
+}
+
+/** Open print dialog for appointment slip + preparation (TOR 1.6.3.1). */
+export function printAppointmentSlip(appt) {
+  if (!appt) return;
+  const dateLabel = formatApptListDate(appt.date);
+  const mode = formatApptExamModeLabel(appt.examMode);
+  const prep = appt.prep || '—';
+  const reason = appt.reason || '—';
+  const queue = appt.queueNo != null ? `คิวที่ ${appt.queueNo}` : '';
+  const html = `<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"/><title>ใบนัดหมาย</title>
+<style>
+  body{font-family:Sarabun,sans-serif;padding:32px;color:#232B36}
+  h1{font-size:20px;color:#007549;margin:0 0 8px}
+  .meta{color:#858C92;font-size:12px;margin-bottom:24px}
+  table{width:100%;border-collapse:collapse}
+  td{padding:8px 4px;border-bottom:1px solid #E2E4E6;font-size:14px;vertical-align:top}
+  td:first-child{width:160px;color:#858C92}
+  .prep{margin-top:24px;padding:16px;background:#F4FBF8;border-radius:8px}
+  .prep h2{font-size:14px;margin:0 0 8px;color:#007549}
+  @media print{body{padding:0}}
+</style></head><body>
+  <h1>ใบนัดหมาย · สำนักอนามัย</h1>
+  <div class="meta">พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')} ${queue}</div>
+  <table>
+    <tr><td>ผู้ป่วย</td><td>${appt.patient || '—'} (HN ${appt.hn || '—'})</td></tr>
+    <tr><td>วัน–เวลานัด</td><td>${dateLabel} · ${appt.time || '—'}</td></tr>
+    <tr><td>คลินิก</td><td>${appt.clinic || '—'}</td></tr>
+    <tr><td>แพทย์</td><td>${appt.doctor || '—'}</td></tr>
+    <tr><td>รูปแบบ</td><td>${mode}</td></tr>
+    <tr><td>เหตุผลที่นัด</td><td>${reason}</td></tr>
+  </table>
+  <div class="prep"><h2>การเตรียมตัว</h2><div>${prep}</div></div>
+  <script>window.onload=function(){window.print();}</script>
+</body></html>`;
+  const w = window.open('', '_blank', 'noopener,noreferrer,width=720,height=900');
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }
 
 /** Read-only pre-order summary. */
