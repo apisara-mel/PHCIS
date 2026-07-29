@@ -21,6 +21,7 @@ import RegistrationEditHistoryPanel from '@/components/forms/RegistrationEditHis
      • Footer      : auto-save indicator + ยกเลิก / บันทึกร่าง / ถัดไป (or บันทึก) */
 
 export const REGISTRATION_STEP_LABELS = [
+  'แบบฟอร์มยินยอม',
   'ข้อมูลส่วนตัว',
   'ที่อยู่',
   'ข้อมูลการติดต่อ',

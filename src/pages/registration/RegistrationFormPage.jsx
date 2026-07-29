@@ -8,6 +8,7 @@ import FormShell from '@/templates/FormShell';
 import {
   Step1Personal, Step2Address, Step3Contact, Step4Rights, Step5Flags,
 } from '@/components/forms/RegistrationSteps';
+import RegistrationConsentStep from '@/components/forms/RegistrationConsentStep';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import {
   applySmartCardRead,
@@ -22,7 +23,9 @@ import {
 
 const breadcrumb = ['ระบบงานเวชระเบียน', 'ข้อมูลผู้รับบริการ'];
 
-const STEP_RENDERERS = [Step1Personal, Step2Address, Step3Contact, Step4Rights, Step5Flags];
+const STEP_RENDERERS = [
+  RegistrationConsentStep, Step1Personal, Step2Address, Step3Contact, Step4Rights, Step5Flags,
+];
 
 const RegistrationFormPage = () => {
   const { state: navState } = useLocation();
@@ -58,7 +61,7 @@ const RegistrationFormPage = () => {
           smartCardRead={form.idCardFromChip}
           completedSteps={completedSteps}
         >
-          <ActiveStep form={form} setForm={setForm} />
+          <ActiveStep form={form} setForm={setForm} patient={patient} />
         </FormShell>
         <Footer />
       </div>
