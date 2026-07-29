@@ -5,6 +5,8 @@
    - Observation bed Floor Map / Queue Management
    - Discharge summary & disposition (Discharge Home, Refer, Admit IPD, OPD) */
 
+import { PATIENT_PROFILES } from '@/data/patientProfiles';
+
 export const EWS_RISK_TIERS = {
   NORMAL: { level: 'low', label: 'ปกติ (EWS 0-1)', style: 'success', color: '#00875A' },
   WARNING: { level: 'medium', label: 'เฝ้าระวัง (EWS 2-4)', style: 'yellow', color: '#D97706' },
@@ -266,4 +268,172 @@ export const MOCK_OBSERVATION_PATIENTS = [
     nursingNotes: [],
     dischargeSummary: null,
   },
+  {
+    id: 'obs-007',
+    bedNo: 'เตียง 07',
+    bedType: 'เตียงไฟฟ้า (High Care)',
+    status: 'empty',
+    severity: 'normal',
+    patientName: '',
+    hn: '',
+    vn: '',
+    age: null,
+    gender: '',
+    admitTime: '',
+    durationMinutes: 0,
+    chiefComplaint: '',
+    diagnosis: '',
+    doctorName: '',
+    nurseName: '',
+    rights: '',
+    vitalsTrend: [],
+    statOrders: [],
+    nursingNotes: [],
+    dischargeSummary: null,
+  },
+  {
+    id: 'obs-008',
+    bedNo: 'เตียง 08',
+    bedType: 'เตียงกึ่งพิเศษ',
+    status: 'empty',
+    severity: 'normal',
+    patientName: '',
+    hn: '',
+    vn: '',
+    age: null,
+    gender: '',
+    admitTime: '',
+    durationMinutes: 0,
+    chiefComplaint: '',
+    diagnosis: '',
+    doctorName: '',
+    nurseName: '',
+    rights: '',
+    vitalsTrend: [],
+    statOrders: [],
+    nursingNotes: [],
+    dischargeSummary: null,
+  },
+  {
+    id: 'obs-009',
+    bedNo: 'เตียง 09',
+    bedType: 'เตียงพับได้ / Recliner',
+    status: 'empty',
+    severity: 'normal',
+    patientName: '',
+    hn: '',
+    vn: '',
+    age: null,
+    gender: '',
+    admitTime: '',
+    durationMinutes: 0,
+    chiefComplaint: '',
+    diagnosis: '',
+    doctorName: '',
+    nurseName: '',
+    rights: '',
+    vitalsTrend: [],
+    statOrders: [],
+    nursingNotes: [],
+    dischargeSummary: null,
+  },
+  {
+    id: 'obs-010',
+    bedNo: 'เตียง 10',
+    bedType: 'เตียงสามัญ',
+    status: 'empty',
+    severity: 'normal',
+    patientName: '',
+    hn: '',
+    vn: '',
+    age: null,
+    gender: '',
+    admitTime: '',
+    durationMinutes: 0,
+    chiefComplaint: '',
+    diagnosis: '',
+    doctorName: '',
+    nurseName: '',
+    rights: '',
+    vitalsTrend: [],
+    statOrders: [],
+    nursingNotes: [],
+    dischargeSummary: null,
+  },
 ];
+
+/* "รายการที่ส่งต่อแล้ว" (already referred/discharged) history — generated
+   rather than hand-authored so the queue's referred tab has enough rows
+   to exercise its filter tags (วันที่/เตียง/สถานะ/ผู้สั่ง/พยาบาลรับผู้ป่วย)
+   and pagination (40 rows / 20 per page). Spans the current + previous
+   two months so the "เดือนนี้" default date filter meaningfully narrows
+   the list instead of showing everything. Deterministic (index-based,
+   no Math.random) so the list is stable across reloads. */
+const REFERRED_BED_TYPES = ['เตียงไฟฟ้า (High Care)', 'เตียงกึ่งพิเศษ', 'เตียงพับได้ / Recliner', 'เตียงสามัญ', 'เตียงหมุนมือ'];
+const REFERRED_CASE_TEMPLATES = [
+  { chiefComplaint: 'แน่นหน้าอก หายใจไม่สะดวก', diagnosis: 'Acute Bronchospasm', doctorName: 'นพ. วรวิทย์ เกียรติเจริญ', nurseName: 'พว. สุภาพร ชัยมงคล' },
+  { chiefComplaint: 'เวียนศีรษะ ความดันสูง', diagnosis: 'Hypertensive Urgency', doctorName: 'พญ. ปรียาภรณ์ สุขสวัสดิ์', nurseName: 'พว. นิภา วงศ์สว่าง' },
+  { chiefComplaint: 'ไข้สูง ปวดศีรษะ อ่อนเพลีย', diagnosis: 'Acute Viral Infection', doctorName: 'พญ. นภัสสร สายชล', nurseName: 'พว. กัลยา จิตต์มั่น' },
+  { chiefComplaint: 'ปวดท้องรุนแรงบริเวณลิ้นปี่', diagnosis: 'Acute Gastritis', doctorName: 'นพ. วรวิทย์ เกียรติเจริญ', nurseName: 'พว. สุภาพร ชัยมงคล' },
+  { chiefComplaint: 'หายใจหอบเหนื่อย ไอมีเสมหะ', diagnosis: 'Acute Bronchitis', doctorName: 'พญ. ปรียาภรณ์ สุขสวัสดิ์', nurseName: 'พว. นิภา วงศ์สว่าง' },
+  { chiefComplaint: 'อาเจียน ถ่ายเหลว ซึมลง', diagnosis: 'Acute Gastroenteritis / Dehydration', doctorName: 'พญ. นภัสสร สายชล', nurseName: 'พว. กัลยา จิตต์มั่น' },
+  { chiefComplaint: 'ลื่นล้ม ปวดบวมข้อเท้า', diagnosis: 'Ankle Sprain, Observe for Fracture', doctorName: 'นพ. วรวิทย์ เกียรติเจริญ', nurseName: 'พว. นิภา วงศ์สว่าง' },
+  { chiefComplaint: 'ใจสั่น เหนื่อยง่าย', diagnosis: 'Palpitation, Observe IHD', doctorName: 'พญ. ปรียาภรณ์ สุขสวัสดิ์', nurseName: 'พว. กัลยา จิตต์มั่น' },
+];
+const REFERRED_RIGHTS = ['สิทธิบัตรทอง (NHSO)', 'สิทธิข้าราชการ (Direct Billing)', 'สิทธิประกันสังคม (SSO)', 'ชำระเงินเอง (Self Pay)'];
+const REFERRED_DISPOSITIONS = ['home', 'opd', 'refer'];
+const REFERRED_REFER_HOSPITALS = ['โรงพยาบาลตากสิน (กทม.)', 'โรงพยาบาลเจริญกรุงประชารักษ์', 'โรงพยาบาลกลาง'];
+
+const buildReferredMockPatients = (count) => Array.from({ length: count }, (_, i) => {
+  const profile = PATIENT_PROFILES[i % PATIENT_PROFILES.length];
+  const dx = REFERRED_CASE_TEMPLATES[i % REFERRED_CASE_TEMPLATES.length];
+  /* Spread across this month + the two before it (0 = เดือนนี้). */
+  const monthsAgo = i % 3;
+  const month = 6 - monthsAgo; // 6 = July (0-indexed) → May..July 2026
+  const day = 1 + (i % 27);
+  const admitDate = new Date(2026, month, day);
+  const yyyy = admitDate.getFullYear();
+  const mm = String(admitDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(admitDate.getDate()).padStart(2, '0');
+  const hour = 7 + (i % 12);
+  const ageYears = parseInt(profile.age, 10) || 30;
+  const disposition = REFERRED_DISPOSITIONS[i % REFERRED_DISPOSITIONS.length];
+  const status = i % 4 === 0 ? 'discharged' : 'ready_discharge';
+  const dischargeVitals = { bpSys: 120 + (i % 5), bpDia: 78 + (i % 4), pulse: 76 + (i % 8), temp: 36.6, spo2: 98, rr: 18 };
+
+  return {
+    id: `obs-ref-${String(i + 1).padStart(3, '0')}`,
+    bedNo: `เตียง ${String((i % 10) + 1).padStart(2, '0')}`,
+    bedType: REFERRED_BED_TYPES[i % REFERRED_BED_TYPES.length],
+    status,
+    severity: 'normal',
+    patientName: profile.fullName,
+    avatar: profile.avatarUrl,
+    hn: profile.hn,
+    vn: `VN${String(yyyy).slice(2)}${mm}${dd}-${String(100 + i)}`,
+    age: ageYears,
+    gender: profile.sex,
+    admitTime: `${yyyy}-${mm}-${dd} ${String(hour).padStart(2, '0')}:00 น.`,
+    durationMinutes: 120 + (i % 6) * 30,
+    chiefComplaint: dx.chiefComplaint,
+    diagnosis: dx.diagnosis,
+    doctorName: dx.doctorName,
+    nurseName: dx.nurseName,
+    rights: REFERRED_RIGHTS[i % REFERRED_RIGHTS.length],
+    vitalsTrend: [
+      { time: `${String(hour).padStart(2, '0')}:00 น.`, ...dischargeVitals, note: 'อาการคงที่ ประเมินพร้อมจำหน่าย', ews: 0 },
+    ],
+    statOrders: [],
+    nursingNotes: [],
+    dischargeSummary: {
+      disposition,
+      doctorSummary: 'ผู้ป่วยอาการคงที่ สัญญาณชีพปกติ อนุญาตจำหน่ายตามแผนการรักษา',
+      dischargeVitals,
+      dischargeAdvice: 'ปฏิบัติตามคำแนะนำแพทย์ หากมีอาการผิดปกติให้รีบมาพบแพทย์',
+      referHospital: disposition === 'refer' ? REFERRED_REFER_HOSPITALS[i % REFERRED_REFER_HOSPITALS.length] : '',
+      isDischarged: status === 'discharged',
+    },
+  };
+});
+
+MOCK_OBSERVATION_PATIENTS.push(...buildReferredMockPatients(40));
