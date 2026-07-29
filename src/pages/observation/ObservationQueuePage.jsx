@@ -701,6 +701,7 @@ export default function ObservationQueuePage() {
           columns={columns}
           rows={filteredPatients}
           rowKey={(patient) => patient.id}
+          stickyColCount={2}
           emptyMessage='ไม่พบข้อมูลเตียงสังเกตอาการ'
         />
       )}
@@ -715,10 +716,10 @@ export default function ObservationQueuePage() {
           style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
           <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-2xl max-h-full overflow-hidden border border-ink-line flex flex-col'>
-            <div className='shrink-0 bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>
+            <div className='shrink-0 bg-brand-600 text-white px-6 py-4 flex items-center justify-between'>
               <div className='flex items-center gap-2'>
                 <span className='material-symbols-outlined text-2xl'>monitor_heart</span>
-                <h3 className='font-bold text-base'>บันทึกสัญญาณชีพประจำช่วงเวลา</h3>
+                <h3 className='font-bold text-base'>วัด Vital Signs</h3>
               </div>
               <BrandCircleIconButton
                 icon='close'
@@ -857,7 +858,7 @@ export default function ObservationQueuePage() {
           style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
           <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-ink-line'>
-            <div className='bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>
+            <div className='bg-brand-600 text-white px-6 py-4 flex items-center justify-between'>
               <div className='flex items-center gap-2'>
                 <span className='material-symbols-outlined text-2xl'>hotel</span>
                 <h3 className='font-bold text-base'>ลงทะเบียนรับผู้ป่วยเข้าเตียงสังเกตอาการ</h3>
