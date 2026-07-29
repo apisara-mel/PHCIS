@@ -14,6 +14,7 @@ import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import Table, { EllipsisText } from '@/components/table/Table';
+import VitalCard, { PressureCard } from '@/components/card/VitalCard';
 import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 
@@ -220,6 +221,15 @@ export default function ObservationQueuePage() {
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [selectedPatientForVitals, setSelectedPatientForVitals] = useState(null);
   const [vitalsForm, setVitalsForm] = useState({ bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '' });
+  /* VitalCard/PressureCard's `required` prop only renders the asterisk —
+     unlike InputField it never reaches a native <input>, so nothing
+     blocks an all-empty submit on its own. Track each field's validity
+     explicitly (same pattern as ObservationDetailPage's Add Timed Vitals
+     form) and gate the submit button + handler on it. */
+  const [vitalsFieldValidity, setVitalsFieldValidity] = useState({});
+  const setVitalsFieldValid = (field, valid) =>
+    setVitalsFieldValidity((prev) => (prev[field] === valid ? prev : { ...prev, [field]: valid }));
+  const isVitalsFormValid = ['pressure', 'pulse', 'temp', 'spo2', 'rr'].every((f) => vitalsFieldValidity[f] === true);
 
   const [showAdmitModal, setShowAdmitModal] = useState(false);
   const [admitForm, setAdmitForm] = useState({
@@ -297,6 +307,9 @@ export default function ObservationQueuePage() {
   const handleSaveVitals = (e) => {
     e.preventDefault();
     if (!selectedPatientForVitals) return;
+    /* Guard against implicit submission (Enter inside a VitalCard number
+       input submits the form even when the visible button is disabled). */
+    if (!isVitalsFormValid) return;
 
     const nowStr = `${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')} น.`;
     const newVitalLog = {
@@ -678,7 +691,7 @@ export default function ObservationQueuePage() {
           className='fixed inset-0 z-[1400] flex items-center justify-center p-4 animate-fade-in'
           style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
-          <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-ink-line'>
+          <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden border border-ink-line'>
             <div className='bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>
               <div className='flex items-center gap-2'>
                 <span className='material-symbols-outlined text-2xl'>monitor_heart</span>
@@ -703,55 +716,52 @@ export default function ObservationQueuePage() {
                 <span className='text-xs text-brand-800 font-mono font-semibold'>HN: {selectedPatientForVitals.hn}</span>
               </div>
 
-              <div className='grid grid-cols-2 gap-4'>
-                <InputField
-                  label='ความดัน Systolic (mmHg)'
-                  type='number'
-                  value={vitalsForm.bpSys}
-                  onChange={(val) => setVitalsForm({ ...vitalsForm, bpSys: val })}
-                  size='sm'
-                  required
+              {/* Same VitalCard / PressureCard used by OPD screening's
+                  VitalsForm (and ObservationDetailPage's Add Timed Vitals)
+                  instead of plain InputFields. */}
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                <PressureCard
+                  sys={vitalsForm.bpSys}
+                  dia={vitalsForm.bpDia}
+                  onChange={({ sys, dia }) => setVitalsForm({ ...vitalsForm, bpSys: sys, bpDia: dia })}
+                  onValidityChange={(v) => setVitalsFieldValid('pressure', v)}
                 />
-                <InputField
-                  label='ความดัน Diastolic (mmHg)'
-                  type='number'
-                  value={vitalsForm.bpDia}
-                  onChange={(val) => setVitalsForm({ ...vitalsForm, bpDia: val })}
-                  size='sm'
+                <VitalCard
+                  label='ชีพจร'
+                  unit='ครั้ง/นาที'
                   required
-                />
-                <InputField
-                  label='ชีพจร Pulse (bpm)'
-                  type='number'
                   value={vitalsForm.pulse}
                   onChange={(val) => setVitalsForm({ ...vitalsForm, pulse: val })}
-                  size='sm'
-                  required
+                  onValidityChange={(v) => setVitalsFieldValid('pulse', v)}
+                  hint='ปกติ 60–100 ครั้ง/นาที'
                 />
-                <InputField
-                  label='อุณหภูมิ Temp (°C)'
-                  type='number'
-                  step='0.1'
+                <VitalCard
+                  label='อุณหภูมิ'
+                  unit='°C'
+                  required
+                  step={0.1}
                   value={vitalsForm.temp}
                   onChange={(val) => setVitalsForm({ ...vitalsForm, temp: val })}
-                  size='sm'
-                  required
+                  onValidityChange={(v) => setVitalsFieldValid('temp', v)}
+                  hint='ปกติ 36.1–37.2 °C'
                 />
-                <InputField
-                  label='ออกซิเจน SpO2 (%)'
-                  type='number'
+                <VitalCard
+                  label='SpO2'
+                  unit='%'
+                  required
                   value={vitalsForm.spo2}
                   onChange={(val) => setVitalsForm({ ...vitalsForm, spo2: val })}
-                  size='sm'
-                  required
+                  onValidityChange={(v) => setVitalsFieldValid('spo2', v)}
+                  hint='ปกติ ≥ 95%'
                 />
-                <InputField
-                  label='อัตราการหายใจ RR (bpm)'
-                  type='number'
+                <VitalCard
+                  label='อัตราการหายใจ'
+                  unit='ครั้ง/นาที'
+                  required
                   value={vitalsForm.rr}
                   onChange={(val) => setVitalsForm({ ...vitalsForm, rr: val })}
-                  size='sm'
-                  required
+                  onValidityChange={(v) => setVitalsFieldValid('rr', v)}
+                  hint='ปกติ 12–20 ครั้ง/นาที'
                 />
               </div>
 
@@ -775,21 +785,23 @@ export default function ObservationQueuePage() {
                     rr: Number(vitalsForm.rr),
                   });
                   return (
-                    <span
-                      className='px-3 py-1 rounded-lg font-bold font-mono text-xs shadow-2xs'
-                      style={{ backgroundColor: res.tier.color + '20', color: res.tier.color }}
-                    >
+                    <StatusBadge style={res.tier.style} size='small' showDot>
                       Score: {res.score} ({res.tier.label})
-                    </span>
+                    </StatusBadge>
                   );
                 })()}
               </div>
+              {!isVitalsFormValid && (
+                <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+                  กรุณากรอกค่าให้ครบทุกช่อง (ความดัน, ชีพจร, อุณหภูมิ, SpO2, อัตราการหายใจ) ก่อนบันทึก
+                </p>
+              )}
 
               <div className='pt-3 flex items-center justify-end gap-3 border-t border-ink-line'>
                 <NeutralSubdueButton type='button' onClick={() => setShowVitalsModal(false)}>
                   ยกเลิก
                 </NeutralSubdueButton>
-                <BrandPrimaryButton type='submit' leadingIcon='save'>
+                <BrandPrimaryButton type='submit' leadingIcon='save' disabled={!isVitalsFormValid}>
                   บันทึกสัญญาณชีพ
                 </BrandPrimaryButton>
               </div>
