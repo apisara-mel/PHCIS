@@ -14,6 +14,7 @@ import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import Table, { EllipsisText } from '@/components/table/Table';
 import VitalCard, { PressureCard } from '@/components/card/VitalCard';
+import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import ViewToggle from '@/components/toggle/ViewToggle';
 import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
@@ -702,13 +703,18 @@ export default function ObservationQueuePage() {
                 p-6, height capped by max-h-full above). */}
             <form onSubmit={handleSaveVitals} className='flex flex-col min-h-0 flex-1'>
             <div className='overflow-y-auto min-h-0 flex-1 p-6 space-y-4 text-xs text-ink-secondary'>
-              <div className='bg-brand-50 p-3 rounded-xl border border-brand-100 flex items-center justify-between'>
-                <div>
-                  <span className='font-bold text-ink text-sm'>{selectedPatientForVitals.patientName}</span>
-                  <span className='text-ink-tertiary ml-2'>({selectedPatientForVitals.bedNo})</span>
-                </div>
-                <span className='text-xs text-brand-800 font-mono font-semibold'>HN: {selectedPatientForVitals.hn}</span>
-              </div>
+              {/* Same patient summary card as ScreeningConfirmPopup — the
+                  "ยืนยันรับผู้ป่วย" popup shown when clicking a row on the
+                  OPD screening worklist (Figma node 145:6155). */}
+              <PatientSummaryCard
+                avatarUrl={selectedPatientForVitals.avatar || getPatientByHN(selectedPatientForVitals.hn)?.avatarUrl}
+                avatarAlt={selectedPatientForVitals.patientName}
+                cells={[
+                  { label: 'ชื่อ-นามสกุล ผู้ป่วย', value: selectedPatientForVitals.patientName },
+                  { label: 'HN (Hospital Number)', value: selectedPatientForVitals.hn },
+                  { label: 'เตียง', value: selectedPatientForVitals.bedNo },
+                ]}
+              />
 
               {/* Same VitalCard / PressureCard used by OPD screening's
                   VitalsForm (and ObservationDetailPage's Add Timed Vitals)
