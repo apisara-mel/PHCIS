@@ -9,12 +9,12 @@ import Textarea from '@/components/forms/Textarea';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import BrandIconButton from '@/components/button/BrandIconButton';
 import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import Table, { EllipsisText } from '@/components/table/Table';
 import VitalCard, { PressureCard } from '@/components/card/VitalCard';
+import ViewToggle from '@/components/toggle/ViewToggle';
 import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 
@@ -439,24 +439,13 @@ export default function ObservationQueuePage() {
           </div>
 
           <div className='flex items-center gap-3 shrink-0'>
-            <div className='inline-flex p-1 bg-ink-neutral rounded-xl border border-ink-line shadow-2xs gap-1'>
-              <BrandIconButton
-                icon='grid_view'
-                variant={viewMode === 'grid' ? 'fill' : 'ghost'}
-                size='sm'
-                onClick={() => setViewMode('grid')}
-                title='ผังเตียง (Grid View)'
-                aria-label='ผังเตียง'
-              />
-              <BrandIconButton
-                icon='view_list'
-                variant={viewMode === 'table' ? 'fill' : 'ghost'}
-                size='sm'
-                onClick={() => setViewMode('table')}
-                title='ตาราง (List View)'
-                aria-label='ตาราง'
-              />
-            </div>
+            {/* Same grid/list ViewToggle used by ConsentFormsPage (Figma
+                "Tab Bar / Pill" 291:113045 · 334:134446) instead of a
+                bespoke icon-button pair. */}
+            <ViewToggle
+              value={viewMode === 'table' ? 'list' : 'grid'}
+              onChange={(v) => setViewMode(v === 'list' ? 'table' : 'grid')}
+            />
           </div>
         </div>
 

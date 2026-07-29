@@ -13,6 +13,7 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import Icon from '@/components/icons/Icon';
+import ViewToggle from '@/components/toggle/ViewToggle';
 import {
   CONSENT_FORM_RECORDS, CONSENT_FORM_SUMMARY, CONSENT_FORM_TABS,
   CONSENT_FORM_STATUS, FORM_TYPE_TONE,
@@ -164,41 +165,6 @@ const ScopeCell = ({ row }) => (
     {row.moreCount > 0 && (
       <ScopePopover scopes={row.scopes} moreCount={row.moreCount} />
     )}
-  </div>
-);
-
-/* Grid / list view switch — Figma "Tab Bar / Pill" (291:113045 · 334:134446):
-   #e2f3eb pill track · p-4 · gap-2 · radius-full; each tab h-32 · px-12 py-6 ·
-   radius-full · 14px icon; active = white chip. */
-const ViewToggle = ({ value, onChange }) => (
-  <div
-    className='inline-flex items-start'
-    style={{ gap: 'var(--dim-space-050)', padding: 'var(--dim-space-100)', borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-brandPrimary-quaternary)' }}
-  >
-    {[['grid', 'grid_view'], ['list', 'format_list_bulleted']].map(([v, icon]) => {
-      const on = value === v;
-      return (
-        <button
-          key={v}
-          type='button'
-          onClick={() => onChange(v)}
-          aria-pressed={on}
-          aria-label={v === 'grid' ? 'มุมมองตาราง' : 'มุมมองรายการ'}
-          className='inline-flex items-center justify-center'
-          style={{
-            height: 32,
-            padding: 'var(--dim-space-150) var(--dim-space-300)',
-            borderRadius: 'var(--dim-radius-full)', border: 'none', outline: 'none', cursor: 'pointer',
-            background: on ? 'var(--surface-card-100)' : 'transparent',
-            color: on ? 'var(--text-brandPrimary-default)' : 'var(--text-content-tertiary)',
-            boxShadow: on ? 'var(--shadow-card)' : 'none',
-            transition: 'background-color 120ms ease, color 120ms ease',
-          }}
-        >
-          <Icon name={icon} size={14} />
-        </button>
-      );
-    })}
   </div>
 );
 
