@@ -6,6 +6,7 @@ import StatusBadge from '@/components/badge/StatusBadge';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import Textarea from '@/components/forms/Textarea';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -18,6 +19,7 @@ import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import ViewToggle from '@/components/toggle/ViewToggle';
 import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
+import { CHIEF_COMPLAINT_SUGGESTIONS } from '@/pages/opd/ScreeningPage';
 
 /* List-view columns — styled to match the OPD screening worklist table
    (shared <Table>, design tokens, StatusBadge) instead of a bespoke
@@ -912,12 +914,18 @@ export default function ObservationQueuePage() {
                 />
               </div>
 
-              <Textarea
+              {/* Same suggestion popover as OPD screening's "อาการ (Chief
+                  Complaint)" field — reuses its suggestion list, appears
+                  after 3 characters. */}
+              <SuggestibleTextarea
                 label='อาการสำคัญแรกรับ (Chief Complaint)'
                 rows={2}
                 placeholder='เช่น แน่นหน้าอก เวียนศีรษะ ปวดท้องรุนแรง มีไข้สูง'
                 value={admitForm.chiefComplaint}
-                onChange={(val) => setAdmitForm({ ...admitForm, chiefComplaint: val })}
+                onChange={(e) => setAdmitForm({ ...admitForm, chiefComplaint: e.target.value })}
+                suggestions={CHIEF_COMPLAINT_SUGGESTIONS}
+                minChars={3}
+                popoverAriaLabel='คำแนะนำอาการสำคัญ'
                 required
               />
 
