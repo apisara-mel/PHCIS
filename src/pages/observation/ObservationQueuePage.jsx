@@ -688,8 +688,13 @@ export default function ObservationQueuePage() {
                       <span className='material-symbols-outlined text-sm text-ink-quaternary'>schedule</span>
                       สังเกตอาการแล้ว (durationMinutes) <strong className='text-ink-secondary'>{Math.floor(patient.durationMinutes / 60)} ชม. {patient.durationMinutes % 60} นาที</strong>
                     </div>
-                    <div className='truncate' title={patient.doctorName}>
-                      ผู้สั่ง: {patient.doctorName}
+                    <div className='flex items-center gap-1 truncate' title={patient.doctorName}>
+                      <span className='material-symbols-outlined text-sm text-ink-quaternary'>stethoscope</span>
+                      ผู้สั่ง: <strong className='text-ink-secondary'>{patient.doctorName}</strong>
+                    </div>
+                    <div className='flex items-center gap-1 truncate' title={patient.nurseName}>
+                      <span className='material-symbols-outlined text-sm text-ink-quaternary'>badge</span>
+                      พยาบาลเจ้าของไข้: <strong className='text-ink-secondary'>{patient.nurseName || '-'}</strong>
                     </div>
                   </div>
                 </div>

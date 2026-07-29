@@ -20,6 +20,7 @@ import StepProgress from '@/components/step/StepProgress';
 import Footer from '@/components/layout/Footer';
 import SuccessToast from '@/components/toast/SuccessToast';
 import VitalCard, { PressureCard } from '@/components/card/VitalCard';
+import PatientCard from '@/components/card/PatientCard';
 
 /* Matches the OPD queue table's own page size (QueuePage.jsx PAGE_SIZE). */
 const VITALS_PAGE_SIZE = 20;
@@ -492,24 +493,49 @@ export default function ObservationDetailPage() {
      the in-progress entry is safe instead of performing a real save. */
   const handleSaveDraft = () => setDraftSavedToast(true);
 
+  /* Patient identity banner — aliases the same <PatientCard> used by OPD
+     screening (Figma 150:33649/343:5629) instead of a hand-rolled header,
+     mapped from the observation record's own fields onto PatientCard's
+     shape. Fields PatientCard doesn't track (nationalId/bloodType/address)
+     fall back to the shared patientProfiles.js lookup when the HN matches. */
+  const linkedProfile = getPatientByHN(patient.hn);
+  const patientCardProfile = {
+    fullName: patient.patientName,
+    englishName: linkedProfile?.englishName || '',
+    hn: patient.hn,
+    sex: patient.gender,
+    age: `${patient.age} ปี`,
+    nationalId: linkedProfile?.nationalId || '-',
+    bloodType: linkedProfile?.bloodType || '-',
+    patientType: 'ผู้ป่วยสังเกตอาการ',
+    doctor: patient.doctorName,
+    insurance: patient.rights,
+    address: linkedProfile?.address || '-',
+    avatarUrl: patient.avatar || linkedProfile?.avatarUrl || '/avatars/somchai-mock.png',
+    vip: false,
+  };
+
   return (
     <QueuePageShell
       activeKey='observation'
       breadcrumb={['หน้าหลัก PHCIS', 'ห้องสังเกตอาการ', `แฟ้มสังเกตอาการ: ${patient.patientName}`]}
-      title={`แฟ้มบันทึกสังเกตอาการ (Observation Record)`}
-      onBack={() => history.push('/observation')}
-      backLabel='กลับสู่ผังเตียง'
-      actions={
-        <div className='flex items-center gap-2'>
+    >
+      {/* Patient identity banner — same <PatientCard> aliased from OPD
+          screening, in the same top-of-page position; it owns its own
+          back/title/actions row so QueuePageShell's SubHeader is skipped
+          above (no title/onBack/actions passed) to avoid a duplicate bar. */}
+      <PatientCard
+        sticky
+        patient={patientCardProfile}
+        onBack={() => history.push('/observation')}
+        title='แฟ้มบันทึกสังเกตอาการ (Observation Record)'
+        actions={
           <NeutralSubdueButton variant='outline' size='md' leadingIcon='print' onClick={() => window.print()}>
             พิมพ์ใบสังเกตอาการ (Timed Sheet)
           </NeutralSubdueButton>
-          <BrandPrimaryButton size='md' leadingIcon='assignment_turned_in' onClick={() => setActiveTab('discharge')}>
-            สรุปการจำหน่าย
-          </BrandPrimaryButton>
-        </div>
-      }
-    >
+        }
+      />
+
       {/* Section step indicator — same StepProgress used by the CPOE
           treatment wizard, sticky in the same slot QueuePageShell's
           TabUnderline would otherwise occupy. */}
@@ -544,90 +570,41 @@ export default function ObservationDetailPage() {
           gap: 'var(--dim-space-600, 24px)',
         }}
       >
-        {/* Patient Profile Header Card */}
-        <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
-        <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100'>
-          <div className='flex items-center gap-3.5'>
-            <div className='relative shrink-0'>
-              <img
-                src={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl || '/avatars/somchai-mock.png'}
-                alt={patient.patientName}
-                className='w-14 h-14 rounded-full object-cover border-2 border-brand-100 shadow-sm'
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = '/avatars/somchai-mock.png';
-                }}
-              />
-              <span className='absolute -bottom-1 -right-1 bg-brand-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-2xs'>
-                {patient.bedNo.replace('เตียง ', '')}
-              </span>
-            </div>
-            <div>
-              <div className='flex items-center gap-3 mb-1'>
-                <h2 className='text-lg font-bold text-gray-900 leading-tight'>{patient.patientName}</h2>
-                <span className='px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-md text-xs font-semibold'>
-                  {patient.gender}, {patient.age} ปี
-                </span>
-                <StatusBadge
-                  style={
-                    patient.status === 'discharged'
-                      ? 'neutral'
-                      : patient.status === 'ready_discharge'
-                      ? 'success'
-                      : currentEws.score >= 3
-                      ? 'error'
-                      : 'info'
-                  }
-                  size='small'
-                  showDot
-                >
-                  {patient.status === 'discharged'
-                    ? 'จำหน่ายแล้ว'
-                    : patient.status === 'ready_discharge'
-                    ? 'พร้อมจำหน่าย'
-                    : 'กำลังสังเกตอาการ'}
-                </StatusBadge>
-              </div>
-              <div className='flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 font-mono'>
-                <span>HN: <strong className='text-gray-900'>{patient.hn}</strong></span>
-                <span>•</span>
-                <span>VN: <strong className='text-gray-900'>{patient.vn}</strong></span>
-                <span>•</span>
-                <span className='font-sans text-brand-800 font-semibold'>{patient.rights}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className='flex items-center gap-4 bg-brand-50/60 p-3 rounded-xl border border-brand-100 text-xs'>
-            <div>
-              <div className='text-gray-500 font-medium text-[11px] mb-0.5'>แพทย์ผู้ดูแล:</div>
-              <div className='font-bold text-gray-900'>{patient.doctorName}</div>
-            </div>
-            <div className='h-8 w-px bg-brand-200/60' />
-            <div>
-              <div className='text-gray-500 font-medium text-[11px] mb-0.5'>พยาบาลเจ้าของไข้:</div>
-              <div className='font-bold text-gray-900'>{patient.nurseName}</div>
-            </div>
-            <div className='h-8 w-px bg-brand-200/60' />
-            <div>
-              <div className='text-gray-500 font-medium text-[11px] mb-0.5'>เวลาเข้าเตียง:</div>
-              <div className='font-bold text-brand-900'>{patient.admitTime}</div>
-            </div>
-          </div>
+        {/* Observation Context Bar — bed/status/VN/nurse/admit-time aren't
+            part of PatientCard's own field set (that banner above already
+            covers name/HN/sex/age/insurance/doctor). Chief complaint and
+            diagnosis are intentionally left out here — not needed in the
+            Observation system yet. */}
+        <div
+          className='bg-white rounded-2xl p-4 border-none flex flex-wrap items-center gap-4 text-xs'
+          style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}
+        >
+          <span className='px-2.5 py-1 bg-brand-700 text-white rounded-md text-xs font-bold'>{patient.bedNo}</span>
+          <StatusBadge
+            style={
+              patient.status === 'discharged'
+                ? 'neutral'
+                : patient.status === 'ready_discharge'
+                ? 'success'
+                : currentEws.score >= 3
+                ? 'error'
+                : 'info'
+            }
+            size='small'
+            showDot
+          >
+            {patient.status === 'discharged'
+              ? 'จำหน่ายแล้ว'
+              : patient.status === 'ready_discharge'
+              ? 'พร้อมจำหน่าย'
+              : 'กำลังสังเกตอาการ'}
+          </StatusBadge>
+          <span className='text-gray-600 font-mono'>VN: <strong className='text-gray-900'>{patient.vn}</strong></span>
+          <div className='h-4 w-px bg-gray-200' />
+          <span className='text-gray-600'>พยาบาลเจ้าของไข้: <strong className='text-gray-900'>{patient.nurseName}</strong></span>
+          <div className='h-4 w-px bg-gray-200' />
+          <span className='text-gray-600'>เวลาเข้าเตียง: <strong className='text-brand-900'>{patient.admitTime}</strong></span>
         </div>
-
-        {/* Diagnosis & Chief Complaint Bar */}
-        <div className='pt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs'>
-          <div className='bg-gray-50 p-3 rounded-xl border border-gray-100'>
-            <span className='font-bold text-gray-500 block mb-0.5'>อาการสำคัญ (Chief Complaint):</span>
-            <span className='font-semibold text-gray-900'>{patient.chiefComplaint}</span>
-          </div>
-          <div className='bg-gray-50 p-3 rounded-xl border border-gray-100'>
-            <span className='font-bold text-gray-500 block mb-0.5'>การวินิจฉัย (Diagnosis):</span>
-            <span className='font-semibold text-brand-900 font-mono'>{patient.diagnosis}</span>
-          </div>
-        </div>
-      </div>
 
       {/* Tab 1: Timed Vital Signs & EWS Trend */}
       {activeTab === 'vitals' && (
@@ -637,10 +614,11 @@ export default function ObservationDetailPage() {
             <div className='flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-4 border-b border-gray-100 mb-4'>
               <div className='flex items-center gap-3'>
                 <div
-                  className='w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg text-white shadow-sm shrink-0 font-mono'
+                  className='w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white shadow-sm shrink-0 font-mono leading-none gap-0.5'
                   style={{ backgroundColor: currentEws.tier.color }}
                 >
-                  {currentEws.score}
+                  <span className='text-[10px] font-semibold opacity-90'>EWS</span>
+                  <span className='text-lg font-bold'>{currentEws.score}</span>
                 </div>
                 <div>
                   <h3 className='font-bold text-brand-600 text-sm flex items-center gap-2'>
@@ -653,7 +631,7 @@ export default function ObservationDetailPage() {
               </div>
 
               {/* Clinical Protocol Directive Alert */}
-              <div className='w-full lg:w-auto max-w-lg shrink-0'>
+              <div className='w-full lg:flex-1'>
                 <Alert
                   type={currentEws.score >= 5 ? 'error' : currentEws.score >= 2 ? 'warning' : 'success'}
                   title='แนวทางปฏิบัติทางคลินิกตาม EWS Score:'
