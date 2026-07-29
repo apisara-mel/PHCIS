@@ -1443,6 +1443,14 @@ const SPOTLIGHT = {
   '1.9.5.1':  'sidebar-treat',
 
   '1.10.2.1': 'sidebar-treat',
+  '1.10.7.1': 'sidebar-treat',
+  '1.10.7.2': 'sidebar-treat',
+  '1.10.7.3': 'sidebar-treat',
+  '1.10.7.4': 'sidebar-treat',
+  '1.10.7.5': 'sidebar-treat',
+  '1.10.7.6': 'sidebar-treat',
+  '1.10.7.7': 'sidebar-treat',
+  '1.10.7.8': 'sidebar-treat',
 
   '1.16.1.1': 'step-4',
   '1.16.1.2': 'step-4',
@@ -1471,6 +1479,7 @@ const SPOTLIGHT = {
   '1.20.1.6': 'sidebar-dashboard',
   '1.20.1.7': 'sidebar-dashboard',
   '1.20.1.9': 'sidebar-dashboard',
+  '1.20.7.7': 'sidebar-dashboard',
 
   /* ===== 4. Mobile Application (/m) ===== */
   '4.1.1.1':  'mobile-register-citizenid',
@@ -1727,6 +1736,16 @@ const IMPL = {
   /* ===== 1.10 Special clinics — most are stubs in Sidebar.jsx ===== */
   '1.10.2.1': {s:'partial', u:'/treat/record',  n:'Same patient UI applies to NCD via Treatment'},
 
+  /* ===== 1.10.7 งานฝากครรภ์ (ANC) — first-visit MVP, /treat/anc/* ===== */
+  '1.10.7.1': {s:'done',    u:'/treat/anc/record', n:'PatientCard — HN/ชื่อ/เพศ/อายุ/บัตรประชาชน/สิทธิ'},
+  '1.10.7.2': {s:'done',    u:'/treat/anc/queue',  n:'Queue table + summary cards + tabs, incl. แยก "นัดแล้วยังไม่มาติดต่อ" tab (legacy HCIS p.2-2/2-3) with ส่งตรวจ check-in action that moves the appointment into รอตรวจ'},
+  '1.10.7.3': {s:'done',    u:'/treat/anc/record', n:'Step 2 — live ผลการซักประวัติ badges (ST-5 stress score pp.40-41, 2Q + จำนวนปัจจัยเสี่ยง) + สัญญาณอันตราย checklist (7 referral triggers, pp.11-12) + smoking screen (p.46) with immediate-referral warning banner'},
+  '1.10.7.4': {s:'done',    u:'/treat/anc/record', n:'Step 1 — DragAndDrop document upload'},
+  '1.10.7.5': {s:'done',    u:'/treat/anc/record', n:'Step 6 — นัดหมาย + PCU/รพ. auto-routing + Telemedicine mode; Step 7 พิมพ์ใบฝากครรภ์'},
+  '1.10.7.6': {s:'done',    u:'/treat/anc/queue',  n:'Step 1 บันทึก (obstetric hx + สุขภาพสามี + ประวัติวัคซีน dT ก่อนตั้งครรภ์ + ประวัติเจ็บป่วยครอบครัว, legacy HCIS p.2-25) + Queue ยกเลิก/เปิดใช้งานทะเบียน (sessionStorage) + row click = แก้ไข'},
+  '1.10.7.7': {s:'done',    u:'/treat/anc/record', n:'EMR/CPOE/risk screening + Telemedicine start/end session workflow + external-result upload (DragAndDrop) + คำแนะนำ; Step 5 orders adapt by gestational-age tier (Lab#1 <12wk, Down-syndrome+2nd US 12-19wk, GCT/OGTT 20-27wk, Lab#2+vaccines 28wk+) — covers FigJam swimlanes A-E; Step 5 now also captures ผลตรวจ Lab จริง (หมู่เลือด/Rh/Hb/HCT/ปัสสาวะ/VDRL/Anti-HIV/HBsAg — not just which labs were ordered), matching the "การตรวจปัสสาวะ...ภาวะเสี่ยง" columns named in the TOR text; cross-department EMR/CPOE wiring is mock-only (frontend, no backend)'},
+  '1.10.7.8': {s:'done',    u:'/treat/anc/record', n:'Step 1 follow-up trend table — real visits saved via saveAncVisitRecord (sessionStorage) merged with mock history; columns now include ปัสสาวะ/ความเสี่ยง/ผล Lab (summarizeLabResults) alongside FHR/BP/น้ำหนัก, so "Lab ในช่วงเวลา" trends actual result values, not just order flags; note column summarizes tier-specific procedures via summarizeAncProcedures'},
+
   /* ===== 1.16 Kiosk — hub + queue + rights/payment mocks (Stitch) ===== */
   '1.16.1.1': {s:'partial', u:'/kiosk',         n:'Hub→ตรวจสอบสิทธิ์ + chip-read mock; ไม่ wire สปสช. จริง'},
   '1.16.1.2': {s:'partial', u:'/kiosk',         n:'RightsDetailScreen แสดงผล mock; ไม่ persist ประวัติเช็คสิทธิ์'},
@@ -1789,6 +1808,7 @@ const IMPL = {
   '1.20.1.6': {s:'done',    u:'/dashboard',     n:'Age pyramid'},
   '1.20.1.7': {s:'done',    u:'/dashboard',     n:'Disease bars/pie'},
   '1.20.1.9': {s:'done',    u:'/dashboard',     n:'Per-clinic comparison chart'},
+  '1.20.7.7': {s:'done',    u:'/dashboard',     n:'ผลการฝากครรภ์ (ANC) card — total/first-visit/follow-up + risk breakdown, ดูทั้งหมด → /treat/anc/queue'},
 
   /* ===== 4. Mobile Application (/m) ===== */
   '4.1.1.1':  {s:'done',    u:'/m/register', n:'13-digit citizen-ID step'},
