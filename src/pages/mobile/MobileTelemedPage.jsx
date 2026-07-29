@@ -1321,7 +1321,7 @@ const WaitingRoom = ({
 
 const VideoCall = ({
   doctorName, micOn, camOn, elapsed, chatBadge,
-  onMic, onCam, onShare, onChat, onEnd, chatOpen, chatProps,
+  onMic, onCam, onShare, onChat, onEnd, onMinimize, chatOpen, chatProps,
 }) => (
   <div
     className='flex flex-col'
@@ -1335,6 +1335,7 @@ const VideoCall = ({
     <div
       className='flex items-center justify-center shrink-0'
       style={{
+        position: 'relative',
         height: 'var(--dim-size-1500, 68px)',
         background: 'var(--surface-navigation-default)',
         boxShadow: 'var(--shadow-brand-drop-bottom-100)',
@@ -1346,6 +1347,25 @@ const VideoCall = ({
       }}
     >
       {doctorName}
+      <button
+        type='button'
+        aria-label='ย่อหน้าต่างวิดีโอคอล'
+        onClick={onMinimize}
+        className='inline-flex items-center justify-center'
+        style={{
+          position: 'absolute',
+          right: 'var(--dim-space-300, 12px)',
+          width: 'var(--dim-size-800, 40px)',
+          height: 'var(--dim-size-800, 40px)',
+          border: 0,
+          borderRadius: 'var(--dim-radius-full, 9999px)',
+          background: 'var(--surface-brandPrimaryButton-tertiary, #E2F3EB)',
+          color: 'var(--icon-brandPrimary-default, #007549)',
+          cursor: 'pointer',
+        }}
+      >
+        <Sym name='picture_in_picture_alt' size='var(--dim-size-400, 20px)' />
+      </button>
     </div>
 
     <div className='flex-1 relative overflow-hidden' style={{ background: 'var(--surface-neutral-tertiary, #27272A)' }}>
@@ -1439,10 +1459,31 @@ const VideoCall = ({
 
 const AudioCall = ({
   doctorName, specialty, micOn, camOn, elapsed, chatBadge,
-  onMic, onCam, onShare, onChat, onEnd, onBack, chatOpen, chatProps,
+  onMic, onCam, onShare, onChat, onEnd, onBack, onMinimize, chatOpen, chatProps,
 }) => (
   <div className='flex flex-col' style={{ height: '100%', minHeight: 0, position: 'relative', background: 'var(--surface-card-100)' }}>
     <MobileHeader title={doctorName} onBack={onBack} />
+    <button
+      type='button'
+      aria-label='ย่อหน้าต่างการโทร'
+      onClick={onMinimize}
+      className='inline-flex items-center justify-center'
+      style={{
+        position: 'absolute',
+        top: 'var(--dim-space-300, 12px)',
+        right: 'var(--dim-space-300, 12px)',
+        zIndex: 2,
+        width: 'var(--dim-size-800, 40px)',
+        height: 'var(--dim-size-800, 40px)',
+        border: 0,
+        borderRadius: 'var(--dim-radius-full, 9999px)',
+        background: 'var(--surface-brandPrimaryButton-tertiary, #E2F3EB)',
+        color: 'var(--icon-brandPrimary-default, #007549)',
+        cursor: 'pointer',
+      }}
+    >
+      <Sym name='picture_in_picture_alt' size='var(--dim-size-400, 20px)' />
+    </button>
     <div className='flex-1 flex flex-col items-center justify-center' style={{ gap: 'var(--dim-space-400, 16px)', padding: 'var(--dim-space-400, 16px)' }}>
       <span className='relative inline-flex items-center justify-center' style={{ width: 90, height: 90 }}>
         <span style={{ position: 'absolute', inset: 0, borderRadius: 'var(--dim-radius-full)', border: 'var(--dim-stroke-100) solid var(--border-info-quaternary, #DBEAFE)' }} />
@@ -1493,6 +1534,196 @@ const AudioCall = ({
     <ChatPanel open={chatOpen} {...chatProps} />
   </div>
 );
+
+const DraggableTelemedWindow = ({
+  boundaryRef,
+  doctorName,
+  camOn,
+  micOn,
+  elapsed,
+  onMic,
+  onExpand,
+  onEnd,
+}) => {
+  const panelRef = useRef(null);
+  const dragRef = useRef(null);
+  const [position, setPosition] = useState(null);
+
+  const beginDrag = (event) => {
+    const boundary = boundaryRef.current?.getBoundingClientRect();
+    const panel = panelRef.current?.getBoundingClientRect();
+    if (!boundary || !panel) return;
+
+    dragRef.current = {
+      offsetX: event.clientX - panel.left,
+      offsetY: event.clientY - panel.top,
+    };
+    setPosition({
+      x: panel.left - boundary.left,
+      y: panel.top - boundary.top,
+    });
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDrag = (event) => {
+    const drag = dragRef.current;
+    const boundary = boundaryRef.current?.getBoundingClientRect();
+    const panel = panelRef.current?.getBoundingClientRect();
+    if (!drag || !boundary || !panel) return;
+
+    const maxX = Math.max(0, boundary.width - panel.width);
+    const maxY = Math.max(0, boundary.height - panel.height);
+    setPosition({
+      x: Math.min(maxX, Math.max(0, event.clientX - boundary.left - drag.offsetX)),
+      y: Math.min(maxY, Math.max(0, event.clientY - boundary.top - drag.offsetY)),
+    });
+  };
+
+  const endDrag = (event) => {
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  return (
+    <section
+      ref={panelRef}
+      role='dialog'
+      aria-label={`สาย Telemedicine กับ ${doctorName}`}
+      style={{
+        position: 'absolute',
+        zIndex: 50,
+        width: 'var(--dim-size-2170, 177px)',
+        height: 'var(--dim-size-2300, 224px)',
+        ...(position
+          ? { left: position.x, top: position.y }
+          : {
+            right: 'var(--dim-space-400, 16px)',
+            bottom: 'var(--dim-space-400, 16px)',
+          }),
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
+        borderRadius: 'var(--dim-radius-500, 16px)',
+        background: 'var(--surface-camera-viewport, #111827)',
+        boxShadow: 'var(--shadow-brand-drop-bottom-300)',
+      }}
+    >
+      <div
+        className='flex items-center'
+        onPointerDown={beginDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onDoubleClick={onExpand}
+        style={{
+          height: 'var(--dim-size-800, 40px)',
+          flexShrink: 0,
+          gap: 'var(--dim-space-100, 4px)',
+          padding: '0 var(--dim-space-200, 8px)',
+          background: 'var(--surface-camera-viewport, #111827)',
+          color: 'var(--text-content-on-content, #FFFFFF)',
+          cursor: 'grab',
+          touchAction: 'none',
+          userSelect: 'none',
+        }}
+      >
+        <Sym name='drag_indicator' size='var(--dim-size-400, 20px)' />
+        <span style={{ flex: 1, fontSize: 'var(--type-size-xs, 12px)', lineHeight: 1.5 }}>
+          {formatElapsed(elapsed)}
+        </span>
+        <button
+          type='button'
+          aria-label='ขยายวิดีโอคอล'
+          onClick={onExpand}
+          className='inline-flex items-center justify-center'
+          style={{
+            width: 'var(--dim-size-700, 36px)',
+            height: 'var(--dim-size-700, 36px)',
+            border: 0,
+            borderRadius: 'var(--dim-radius-full, 9999px)',
+            background: 'transparent',
+            color: 'var(--text-content-on-content, #FFFFFF)',
+            cursor: 'pointer',
+          }}
+        >
+          <Sym name='open_in_full' size='var(--dim-size-300, 16px)' />
+        </button>
+      </div>
+
+      <div className='flex-1 relative overflow-hidden'>
+        {camOn ? (
+          <img
+            src='/illustration/mobile/doctor-h.png'
+            alt={doctorName}
+            draggable='false'
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <div
+            className='flex h-full flex-col items-center justify-center'
+            style={{
+              gap: 'var(--dim-space-200, 8px)',
+              color: 'var(--text-content-on-content, #FFFFFF)',
+            }}
+          >
+            <Sym name='account_circle' size='var(--dim-size-1000, 48px)' />
+            <span style={{ fontSize: 'var(--type-size-xs, 12px)' }}>โหมดเสียง</span>
+          </div>
+        )}
+        <div
+          className='flex items-center justify-center'
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            left: 0,
+            gap: 'var(--dim-space-300, 12px)',
+            padding: 'var(--dim-space-200, 8px)',
+            background: 'linear-gradient(180deg, transparent 0%, var(--surface-camera-viewport, #111827) 100%)',
+          }}
+        >
+          <button
+            type='button'
+            aria-label={micOn ? 'ปิดไมโครโฟน' : 'เปิดไมโครโฟน'}
+            onClick={onMic}
+            className='inline-flex items-center justify-center'
+            style={{
+              width: 'var(--dim-size-700, 36px)',
+              height: 'var(--dim-size-700, 36px)',
+              border: 0,
+              borderRadius: 'var(--dim-radius-full, 9999px)',
+              background: 'var(--surface-card-100, #FFFFFF)',
+              color: 'var(--text-content-default, #111314)',
+              cursor: 'pointer',
+            }}
+          >
+            <Sym name={micOn ? 'mic' : 'mic_off'} size='var(--dim-size-400, 20px)' />
+          </button>
+          <button
+            type='button'
+            aria-label='วางสาย'
+            onClick={onEnd}
+            className='inline-flex items-center justify-center'
+            style={{
+              width: 'var(--dim-size-700, 36px)',
+              height: 'var(--dim-size-700, 36px)',
+              border: 0,
+              borderRadius: 'var(--dim-radius-full, 9999px)',
+              background: 'var(--surface-danger-default, #EF4444)',
+              color: 'var(--text-content-on-content, #FFFFFF)',
+              cursor: 'pointer',
+            }}
+          >
+            <Sym name='call_end' size='var(--dim-size-400, 20px)' />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const DoneScreen = ({ doctorName, specialty, locationLabel, elapsed, onPay }) => (
   <div
@@ -1659,8 +1890,10 @@ const MobileTelemedInner = ({ onStepChange }) => {
   const [chat, setChat] = useState(MOCK_CHAT);
   const [input, setInput] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const scrollRef = useRef(null);
+  const callBoundaryRef = useRef(null);
 
   useEffect(() => {
     onStepChange?.(step);
@@ -1697,7 +1930,10 @@ const MobileTelemedInner = ({ onStepChange }) => {
     setInput('');
   };
 
-  const endCall = () => setReviewOpen(true);
+  const endCall = () => {
+    setMinimized(false);
+    setReviewOpen(true);
+  };
 
   const completeTelemed = () => {
     if (apt?.id) {
@@ -1866,6 +2102,10 @@ const MobileTelemedInner = ({ onStepChange }) => {
     onShare: () => window.alert('แชร์หน้าจอ — สาธิต'),
     onChat: openChat,
     onEnd: endCall,
+    onMinimize: () => {
+      setChatOpen(false);
+      setMinimized(true);
+    },
     chatOpen,
     chatProps,
   };
@@ -1873,10 +2113,64 @@ const MobileTelemedInner = ({ onStepChange }) => {
   return (
     /* Full-height flex column so the call fills the shell — a chain of min-height:100%
        against auto heights collapses (the video area would drop to 0px). */
-    <div className='flex flex-col' style={{ height: '100%', minHeight: 0, position: 'relative' }}>
-      {camOn
-        ? <VideoCall {...callShared} />
-        : <AudioCall {...callShared} onBack={() => setCamOn(true)} />}
+    <div
+      ref={callBoundaryRef}
+      className='flex flex-col'
+      style={{ height: '100%', minHeight: 0, position: 'relative', overflow: 'hidden' }}
+    >
+      {minimized ? (
+        <>
+          <div
+            className='flex h-full flex-col'
+            style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}
+          >
+            <MobileHeader title='Telemedicine' />
+            <div
+              className='flex flex-1 flex-col items-center justify-center'
+              style={{
+                gap: 'var(--dim-space-300, 12px)',
+                padding: 'var(--dim-space-600, 24px)',
+                textAlign: 'center',
+              }}
+            >
+              <MobileIconBadge icon='video_call' tone='green' size={48} iconSize={20} />
+              <p
+                style={{
+                  margin: 0,
+                  fontFamily: 'var(--type-family-heading-graphic2)',
+                  fontSize: 'var(--type-size-base, 16px)',
+                  color: 'var(--text-content-default, #111314)',
+                }}
+              >
+                สายวิดีโอคอลยังดำเนินอยู่
+              </p>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 'var(--type-size-sm, 14px)',
+                  color: 'var(--text-content-tertiary, #858C92)',
+                }}
+              >
+                ลากหน้าต่างเพื่อย้ายไปยังตำแหน่งที่ต้องการ
+              </p>
+            </div>
+          </div>
+          <DraggableTelemedWindow
+            boundaryRef={callBoundaryRef}
+            doctorName={doctorName}
+            camOn={camOn}
+            micOn={micOn}
+            elapsed={elapsed}
+            onMic={() => setMicOn((value) => !value)}
+            onExpand={() => setMinimized(false)}
+            onEnd={endCall}
+          />
+        </>
+      ) : (
+        camOn
+          ? <VideoCall {...callShared} />
+          : <AudioCall {...callShared} onBack={() => setCamOn(true)} />
+      )}
       <ReviewSheet
         open={reviewOpen}
         doctorName={doctorName}

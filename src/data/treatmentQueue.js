@@ -55,14 +55,20 @@ const buildVitals = (i) => {
   };
 };
 
-export const buildTreatmentQueueRoster = (total = 8) => {
+/* Demo offsets (minutes from now) for telemedicine rows — surfaces every
+   Figma 78:16524 badge state in the queue table at once:
+   early · countdown · due · overdue · expired. */
+const TELEMED_APPOINTMENT_OFFSETS_MIN = [45, 13, 0, -3, -45];
+
+export const buildTreatmentQueueRoster = (total = 15, baseTime = Date.now()) => {
   const rows = [];
+  let telemedIdx = 0;
   for (let i = 0; i < total; i += 1) {
     const profile = PATIENT_PROFILES[i % PATIENT_PROFILES.length];
     const typeKey = ['walkin', 'appointment', 'telemedicine'][i % 3];
     /* First in-progress row is VIP — matches QueueSubMenu Figma chip. */
     const isVip = i === 4;
-    rows.push({
+    const row = {
       id: `T-${String(i + 1).padStart(3, '0')}`,
       queue: `A${String(i + 1).padStart(3, '0')}`,
       hn: profile.hn,
@@ -75,7 +81,15 @@ export const buildTreatmentQueueRoster = (total = 8) => {
       waitMinutes: 12 + (i * 3) % 67,
       statusKey: seedStatus(i),
       vipBadge: isVip ? 'VIP / ผู้ป่วยพิเศษ' : undefined,
-    });
+    };
+    if (typeKey === 'telemedicine') {
+      const offsetMin = TELEMED_APPOINTMENT_OFFSETS_MIN[
+        telemedIdx % TELEMED_APPOINTMENT_OFFSETS_MIN.length
+      ];
+      telemedIdx += 1;
+      row.telemedAppointmentAt = new Date(baseTime + offsetMin * 60_000).toISOString();
+    }
+    rows.push(row);
   }
   return rows;
 };

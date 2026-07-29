@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+
+<html lang="th"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>HealthQuest เลือกบริการ</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow: hidden;
+      background-color: #f8f9ff;
+    }
+
+    .medical-glass {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .medical-shadow {
+      box-shadow: 0 10px 40px -10px rgba(5, 150, 105, 0.08);
+    }
+
+    .hover-card:active {
+      transform: scale(0.98);
+      transition: transform 0.15s ease-out;
+    }
+
+    .animate-pulse-slow {
+      animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+  </style>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-primary": "#ffffff",
+            "on-secondary": "#ffffff",
+            "primary-fixed": "#85f8c4",
+            "surface-bright": "#f8f9ff",
+            "on-secondary-fixed-variant": "#005236",
+            "inverse-primary": "#68dba9",
+            "on-tertiary-container": "#f5fff7",
+            "secondary": "#006c49",
+            "surface-container-highest": "#d3e4fe",
+            "on-background": "#0b1c30",
+            "surface-tint": "#006c4a",
+            "inverse-on-surface": "#eaf1ff",
+            "secondary-container": "#6cf8bb",
+            "on-error-container": "#93000a",
+            "on-surface": "#0b1c30",
+            "on-secondary-container": "#00714d",
+            "on-tertiary-fixed-variant": "#005137",
+            "primary": "#006948",
+            "secondary-fixed-dim": "#4edea3",
+            "tertiary-fixed": "#68fcbf",
+            "on-surface-variant": "#3d4a42",
+            "on-primary-fixed-variant": "#005137",
+            "surface-dim": "#cbdbf5",
+            "surface-container-high": "#dce9ff",
+            "surface-container-lowest": "#ffffff",
+            "error": "#ba1a1a",
+            "inverse-surface": "#213145",
+            "tertiary-container": "#00855d",
+            "outline": "#6d7a72",
+            "on-error": "#ffffff",
+            "surface-container-low": "#eff4ff",
+            "on-tertiary-fixed": "#002114",
+            "surface-container": "#e5eeff",
+            "primary-container": "#00855d",
+            "background": "#f8f9ff",
+            "surface": "#f8f9ff",
+            "secondary-fixed": "#6ffbbe",
+            "surface-variant": "#d3e4fe",
+            "on-tertiary": "#ffffff",
+            "on-secondary-fixed": "#002113",
+            "primary-fixed-dim": "#68dba9",
+            "outline-variant": "#bccac0",
+            "on-primary-fixed": "#002114",
+            "tertiary": "#006949",
+            "tertiary-fixed-dim": "#45dfa4",
+            "on-primary-container": "#f5fff7",
+            "error-container": "#ffdad6"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "stack-md": "32px",
+            "stack-lg": "64px",
+            "container-padding": "40px",
+            "element-gap": "24px",
+            "touch-target-min": "56px",
+            "stack-sm": "16px",
+            "unit": "8px"
+          },
+          "fontFamily": {
+            "display-lg": ["Plus Jakarta Sans"],
+            "body-md": ["Plus Jakarta Sans"],
+            "headline-lg": ["Plus Jakarta Sans"],
+            "label-lg": ["Plus Jakarta Sans"],
+            "body-lg": ["Plus Jakarta Sans"],
+            "label-sm": ["Plus Jakarta Sans"],
+            "headline-md": ["Plus Jakarta Sans"],
+            "display-md": ["Plus Jakarta Sans"]
+          },
+          "fontSize": {
+            "display-lg": ["48px", {"lineHeight": "60px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+            "headline-lg": ["30px", {"lineHeight": "38px", "fontWeight": "600"}],
+            "label-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+            "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "400"}],
+            "label-sm": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+            "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+            "display-md": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background min-h-screen text-on-surface">
+<!-- Background Decorative Element -->
+<div class="fixed inset-0 pointer-events-none z-0">
+<div class="absolute -top-24 -left-24 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
+<div class="absolute top-1/2 -right-24 w-64 h-64 bg-secondary/5 rounded-full blur-3xl"></div>
+</div>
+<!-- Header: TopAppBar Mapping -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-container-padding h-[80px] bg-surface/80 dark:bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 shadow-sm">
+<div class="flex items-center gap-stack-sm">
+<div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-white medical-shadow">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">health_and_safety</span>
+</div>
+<h1 class="font-display-md text-display-md text-primary tracking-tight">HealthQuest</h1>
+</div>
+<div class="flex items-center gap-element-gap">
+<div class="hidden md:flex items-center gap-4 text-on-surface-variant font-label-lg text-label-lg">
+<span class="material-symbols-outlined">language</span>
+<span>ไทย / English</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="schedule">schedule</span>
+<span class="material-symbols-outlined text-primary" data-icon="wifi">wifi</span>
+<span class="material-symbols-outlined text-primary" data-icon="battery_full">battery_full</span>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="relative z-10 pt-[120px] pb-[140px] px-container-padding max-w-[1440px] mx-auto min-h-screen flex flex-col justify-center">
+<!-- Welcome Text -->
+<div class="mb-stack-lg text-center">
+<h2 class="font-display-lg text-display-lg text-on-surface mb-2">ยินดีต้อนรับสู่ HealthQuest</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">กรุณาเลือกบริการที่ท่านต้องการทำรายการในวันนี้</p>
+<p class="font-headline-md text-headline-md text-primary mt-2">Please select your desired service</p>
+</div>
+<!-- Service Selection Grid: Bento Style -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-stack-md">
+<!-- Card 1: New Registration -->
+<button class="medical-glass medical-shadow rounded-3xl p-stack-md flex flex-col items-center text-center group hover:bg-primary-container/10 transition-all duration-300 hover-card border-2 border-transparent hover:border-primary/20">
+<div class="w-24 h-24 bg-primary-fixed-dim rounded-full flex items-center justify-center mb-stack-sm group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-primary text-[48px]" style="font-variation-settings: 'FILL' 1;">person_add</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">รับบริการใหม่</h3>
+<p class="font-headline-md text-headline-md text-primary">New Registration</p>
+<p class="font-body-md text-body-md text-on-surface-variant mt-4 opacity-70">สำหรับผู้ป่วยใหม่ หรือผู้ที่ไม่ได้นัดหมาย</p>
+</button>
+<!-- Card 2: Check Appointment -->
+<button class="medical-glass medical-shadow rounded-3xl p-stack-md flex flex-col items-center text-center group hover:bg-primary-container/10 transition-all duration-300 hover-card border-2 border-transparent hover:border-primary/20">
+<div class="w-24 h-24 bg-secondary-fixed rounded-full flex items-center justify-center mb-stack-sm group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-secondary text-[48px]" style="font-variation-settings: 'FILL' 1;">calendar_month</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">คิวนัดหมาย</h3>
+<p class="font-headline-md text-headline-md text-secondary">Check Appointment</p>
+<p class="font-body-md text-body-md text-on-surface-variant mt-4 opacity-70">ตรวจสอบเวลาและคิวการรักษาย้อนหลัง</p>
+</button>
+<!-- Card 3: Verify Eligibility -->
+<button class="medical-glass medical-shadow rounded-3xl p-stack-md flex flex-col items-center text-center group hover:bg-primary-container/10 transition-all duration-300 hover-card border-2 border-transparent hover:border-primary/20">
+<div class="w-24 h-24 bg-primary-fixed rounded-full flex items-center justify-center mb-stack-sm group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-primary text-[48px]" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">ตรวจสอบสิทธิ์</h3>
+<p class="font-headline-md text-headline-md text-primary">Verify Eligibility</p>
+<p class="font-body-md text-body-md text-on-surface-variant mt-4 opacity-70">ตรวจสอบสิทธิ์การรักษาและประกันสุขภาพ</p>
+</button>
+<!-- Card 4: Payment -->
+<button class="medical-glass medical-shadow rounded-3xl p-stack-md flex flex-col items-center text-center group hover:bg-primary-container/10 transition-all duration-300 hover-card border-2 border-transparent hover:border-primary/20">
+<div class="w-24 h-24 bg-secondary-fixed-dim rounded-full flex items-center justify-center mb-stack-sm group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-secondary text-[48px]" style="font-variation-settings: 'FILL' 1;">payments</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">ชำระเงิน</h3>
+<p class="font-headline-md text-headline-md text-secondary">Payment</p>
+<p class="font-body-md text-body-md text-on-surface-variant mt-4 opacity-70">ชำระค่าบริการทางการแพทย์และค่ายา</p>
+</button>
+</div>
+<!-- Help Prompt -->
+<div class="mt-stack-lg flex justify-center">
+<div class="medical-glass px-8 py-4 rounded-full flex items-center gap-4 text-on-surface-variant font-label-lg text-label-lg medical-shadow animate-pulse-slow">
+<span class="material-symbols-outlined text-primary">contact_support</span>
+<span>ต้องการความช่วยเหลือ? เจ้าหน้าที่ของเราพร้อมให้บริการท่าน</span>
+</div>
+</div>
+</main>
+<!-- Footer: BottomNavBar Mapping -->
+<footer class="fixed bottom-0 left-0 w-full z-50 flex justify-between items-center px-container-padding py-stack-sm h-[100px] bg-surface/90 backdrop-blur-2xl rounded-t-xl shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
+<!-- Left Section: Device Info -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-primary text-[18px]">terminal</span>
+<span class="font-bold">รหัสตู้ (Kiosk ID):</span>
+<span id="kiosk-id-val">HQ-BK-0082</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-primary text-[18px]">location_on</span>
+<span>โถงต้อนรับหลัก พื้นที่ B</span>
+</div>
+</div>
+<!-- Center Section: Time -->
+<div class="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
+<div class="text-primary font-display-md text-display-md leading-none" id="current-time">14:30</div>
+<div class="text-on-surface-variant font-label-sm text-label-sm" id="current-date">วันศุกร์ที่ 27 ตุลาคม 2566</div>
+</div>
+<!-- Right Section: Navigation / Help Buttons -->
+<div class="flex items-center gap-4">
+<button class="flex flex-row items-center justify-center gap-2 text-on-surface-variant px-8 py-4 hover:bg-secondary/5 transition-all active:translate-y-1">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+<span class="font-label-lg text-label-lg">ย้อนกลับ</span>
+</button>
+<button class="flex flex-row items-center justify-center gap-2 bg-secondary-container text-on-secondary-container rounded-full px-8 py-4 hover:bg-secondary/5 transition-all active:translate-y-1">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+<span class="font-label-lg text-label-lg">ช่วยเหลือ</span>
+</button>
+</div>
+</footer>
+<script>
+    // Real-time Clock in Thai locale
+    function updateClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('th-TH', { hour12: false, hour: '2-digit', minute: '2-digit' });
+      const dateStr = now.toLocaleDateString('th-TH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      
+      document.getElementById('current-time').textContent = timeStr;
+      document.getElementById('current-date').textContent = dateStr;
+    }
+    
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Interaction Feedback for Cards
+    document.querySelectorAll('.hover-card').forEach(card => {
+      card.addEventListener('click', () => {
+        // Mock transition effect
+        document.body.style.opacity = '0.5';
+        setTimeout(() => {
+          document.body.style.opacity = '1';
+        }, 300);
+      });
+    });
+  </script>
+</body></html>

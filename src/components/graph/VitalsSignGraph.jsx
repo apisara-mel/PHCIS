@@ -109,6 +109,25 @@ function xAtIndex(i, count) {
   return PAD_L + (count <= 1 ? 0 : (i / (count - 1)) * innerW);
 }
 
+/* X-axis label thinning — at CHART_W=1200 with 9px labels, more than
+   ~12 evenly-spaced ticks start to overlap (e.g. a multi-day inpatient
+   observation log can run to dozens of entries). Data points/markers
+   still render for every index (and stay hoverable); only the text
+   label underneath gets skipped for indices outside the thinned set.
+   Always keeps the first and last label so the axis range stays legible. */
+const MAX_X_LABELS = 12;
+function thinnedLabelIndices(count, max = MAX_X_LABELS) {
+  const indices = new Set();
+  if (count <= max) {
+    for (let i = 0; i < count; i += 1) indices.add(i);
+    return indices;
+  }
+  const step = Math.ceil((count - 1) / (max - 1));
+  for (let i = 0; i < count; i += step) indices.add(i);
+  indices.add(count - 1);
+  return indices;
+}
+
 /* Convert SVG mouse event → nearest visit index. Maps pointer x through the
    rendered SVG width into viewBox x (works for fluid width and fillHeight). */
 function useChartHover(count) {
@@ -217,25 +236,36 @@ const chartSvgStyle = (fillHeight) => ({
   ...(fillHeight ? { flex: '1 1 0', minHeight: 0, width: '100%' } : {}),
 });
 
-const BloodPressureChart = ({ fillHeight = false }) => {
+const BloodPressureChart = ({
+  fillHeight = false,
+  sbpValues = SBP,
+  dbpValues = DBP,
+  xLabels = VISIT_DATES,
+  minY = 60,
+  maxY = 140,
+  ticks = [140, 120, 100, 80, 60],
+  thresholds = [],
+}) => {
   const containerRef = useRef(null);
   const viewBoxH = useResponsiveViewBoxHeight(containerRef, fillHeight);
-  const minY = 60;
-  const maxY = 140;
-  const ticks = [140, 120, 100, 80, 60];
   const innerH = viewBoxH - PAD_T - PAD_B;
 
-  const sbpPts = buildPoints(SBP, minY, maxY, viewBoxH);
-  const dbpPts = buildPoints(DBP, minY, maxY, viewBoxH);
+  const sbpPts = buildPoints(sbpValues, minY, maxY, viewBoxH);
+  const dbpPts = buildPoints(dbpValues, minY, maxY, viewBoxH);
   const sbpLine = sbpPts.map((p) => `${p.x},${p.y}`).join(' ');
   const dbpLine = dbpPts.map((p) => `${p.x},${p.y}`).join(' ');
+  const visibleLabelIndices = thinnedLabelIndices(xLabels.length);
 
   const gridY = ticks.map((tick) => {
     const t = (tick - minY) / (maxY - minY);
     return PAD_T + (1 - t) * innerH;
   });
+  const thresholdY = thresholds.map((th) => ({
+    ...th,
+    y: PAD_T + (1 - (th.value - minY) / (maxY - minY || 1)) * innerH,
+  }));
 
-  const { hoverIdx, onMove, onLeave } = useChartHover(VISIT_DATES.length);
+  const { hoverIdx, onMove, onLeave } = useChartHover(xLabels.length);
 
   return (
     <div
@@ -288,11 +318,25 @@ const BloodPressureChart = ({ fillHeight = false }) => {
           );
         })}
 
+        {/* Clinical reference thresholds (e.g. hypertension band) */}
+        {thresholdY.map((th) => (
+          <line
+            key={th.value}
+            x1={PAD_L}
+            y1={th.y}
+            x2={CHART_W - PAD_R}
+            y2={th.y}
+            stroke={th.color}
+            strokeWidth={1}
+            strokeDasharray='4 3'
+          />
+        ))}
+
         {/* Hover crosshair */}
         {hoverIdx != null && (
           <line
-            x1={xAtIndex(hoverIdx, VISIT_DATES.length)}
-            x2={xAtIndex(hoverIdx, VISIT_DATES.length)}
+            x1={xAtIndex(hoverIdx, xLabels.length)}
+            x2={xAtIndex(hoverIdx, xLabels.length)}
             y1={PAD_T}
             y2={viewBoxH - PAD_B}
             stroke='var(--text-content-tertiary)'
@@ -313,7 +357,7 @@ const BloodPressureChart = ({ fillHeight = false }) => {
               {active && <circle cx={p.x} cy={p.y} r={10} fill='var(--stroke-chart-series-sbp)' opacity={0.18} />}
               <circle cx={p.x} cy={p.y} r={active ? 5.5 : 4} fill='var(--surface-tabpill-default)' stroke='var(--stroke-chart-series-sbp)' strokeWidth={active ? 2.5 : 2} />
               <text x={p.x} y={p.y - 10} textAnchor='middle' fill='var(--stroke-chart-series-sbp)' style={{ fontFamily: 'var(--type-family-body)', fontSize: 10, fontWeight: 600 }}>
-                {SBP[i]}
+                {sbpValues[i]}
               </text>
             </g>
           );
@@ -325,34 +369,37 @@ const BloodPressureChart = ({ fillHeight = false }) => {
               {active && <circle cx={p.x} cy={p.y} r={10} fill='var(--stroke-chart-series-dbp)' opacity={0.18} />}
               <circle cx={p.x} cy={p.y} r={active ? 5.5 : 4} fill='var(--surface-tabpill-default)' stroke='var(--stroke-chart-series-dbp)' strokeWidth={active ? 2.5 : 2} />
               <text x={p.x} y={p.y - 10} textAnchor='middle' fill='var(--stroke-chart-series-dbp)' style={{ fontFamily: 'var(--type-family-body)', fontSize: 10, fontWeight: 600 }}>
-                {DBP[i]}
+                {dbpValues[i]}
               </text>
             </g>
           );
         })}
 
-        {/* X-axis date labels */}
-        {VISIT_DATES.map((label, i) => (
-          <text
-            key={label}
-            x={xAtIndex(i, VISIT_DATES.length)}
-            y={viewBoxH - 12}
-            textAnchor='middle'
-            fill={hoverIdx === i ? 'var(--text-content-default)' : 'var(--text-chart-axis-label)'}
-            style={{ fontFamily: 'var(--type-family-body)', fontSize: 9, fontWeight: hoverIdx === i ? 600 : 400 }}
-            pointerEvents='none'
-          >
-            {label}
-          </text>
+        {/* X-axis date labels — thinned when there are many points; every
+            data point marker above stays hoverable regardless. */}
+        {xLabels.map((label, i) => (
+          visibleLabelIndices.has(i) && (
+            <text
+              key={`${label}-${i}`}
+              x={xAtIndex(i, xLabels.length)}
+              y={viewBoxH - 12}
+              textAnchor='middle'
+              fill={hoverIdx === i ? 'var(--text-content-default)' : 'var(--text-chart-axis-label)'}
+              style={{ fontFamily: 'var(--type-family-body)', fontSize: 9, fontWeight: hoverIdx === i ? 600 : 400 }}
+              pointerEvents='none'
+            >
+              {label}
+            </text>
+          )
         ))}
       </svg>
 
-      <ChartTooltip idx={hoverIdx} count={VISIT_DATES.length}>
+      <ChartTooltip idx={hoverIdx} count={xLabels.length}>
         {hoverIdx != null && (
           <>
-            <TooltipDate>{VISIT_DATES[hoverIdx]}</TooltipDate>
-            <TooltipRow color='var(--stroke-chart-series-sbp)' name='SBP' value={SBP[hoverIdx]} unit='mmHg' />
-            <TooltipRow color='var(--stroke-chart-series-dbp)' name='DBP' value={DBP[hoverIdx]} unit='mmHg' />
+            <TooltipDate>{xLabels[hoverIdx]}</TooltipDate>
+            <TooltipRow color='var(--stroke-chart-series-sbp)' name='SBP' value={sbpValues[hoverIdx]} unit='mmHg' />
+            <TooltipRow color='var(--stroke-chart-series-dbp)' name='DBP' value={dbpValues[hoverIdx]} unit='mmHg' />
           </>
         )}
       </ChartTooltip>
@@ -361,17 +408,22 @@ const BloodPressureChart = ({ fillHeight = false }) => {
 };
 
 const TimeSeriesChart = ({
-  values, minY, maxY, stroke, label, name, unit = '', yTicks, xLabels, fillHeight = false,
+  values, minY, maxY, stroke, label, name, unit = '', yTicks, xLabels, fillHeight = false, thresholds = [],
 }) => {
   const containerRef = useRef(null);
   const viewBoxH = useResponsiveViewBoxHeight(containerRef, fillHeight);
   const pts = buildPoints(values, minY, maxY, viewBoxH);
   const line = pts.map((p) => `${p.x},${p.y}`).join(' ');
   const innerH = viewBoxH - PAD_T - PAD_B;
+  const visibleLabelIndices = thinnedLabelIndices(xLabels.length);
   const gridY = yTicks.map((tick) => {
     const t = (tick - minY) / (maxY - minY || 1);
     return PAD_T + (1 - t) * innerH;
   });
+  const thresholdY = thresholds.map((th) => ({
+    ...th,
+    y: PAD_T + (1 - (th.value - minY) / (maxY - minY || 1)) * innerH,
+  }));
 
   const { hoverIdx, onMove, onLeave } = useChartHover(xLabels.length);
   const seriesName = name || (label || '').replace(/\s*\(.*\)\s*$/, '');
@@ -418,6 +470,19 @@ const TimeSeriesChart = ({
           );
         })}
 
+        {thresholdY.map((th) => (
+          <line
+            key={th.value}
+            x1={PAD_L}
+            y1={th.y}
+            x2={CHART_W - PAD_R}
+            y2={th.y}
+            stroke={th.color}
+            strokeWidth={1}
+            strokeDasharray='4 3'
+          />
+        ))}
+
         {hoverIdx != null && (
           <line
             x1={xAtIndex(hoverIdx, xLabels.length)}
@@ -447,18 +512,22 @@ const TimeSeriesChart = ({
           );
         })}
 
+        {/* X-axis labels — thinned when there are many points; every data
+            point marker above stays hoverable regardless. */}
         {xLabels.map((labelText, i) => (
-          <text
-            key={labelText}
-            x={xAtIndex(i, xLabels.length)}
-            y={viewBoxH - 12}
-            textAnchor='middle'
-            fill={hoverIdx === i ? 'var(--text-content-default)' : 'var(--text-chart-axis-label)'}
-            style={{ fontFamily: 'var(--type-family-body)', fontSize: 9, fontWeight: hoverIdx === i ? 600 : 400 }}
-            pointerEvents='none'
-          >
-            {labelText}
-          </text>
+          visibleLabelIndices.has(i) && (
+            <text
+              key={`${labelText}-${i}`}
+              x={xAtIndex(i, xLabels.length)}
+              y={viewBoxH - 12}
+              textAnchor='middle'
+              fill={hoverIdx === i ? 'var(--text-content-default)' : 'var(--text-chart-axis-label)'}
+              style={{ fontFamily: 'var(--type-family-body)', fontSize: 9, fontWeight: hoverIdx === i ? 600 : 400 }}
+              pointerEvents='none'
+            >
+              {labelText}
+            </text>
+          )
         ))}
       </svg>
 
@@ -669,4 +738,5 @@ const VitalsSignGraph = ({
   );
 };
 
+export { BloodPressureChart, TimeSeriesChart };
 export default VitalsSignGraph;

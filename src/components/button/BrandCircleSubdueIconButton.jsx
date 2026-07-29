@@ -8,7 +8,7 @@ import React, { useState } from 'react';
      • Outline — transparent surface + 1px brand-primary border.
 
    Variant matrix (per Figma):
-     Size:   xs (32) / sm (36) / md (40) / lg (44)
+     Size:   xs (32) / sm (36) / md (40) / lg (44) / xl (52, radius full)
      Style:  fill / outline
      State:  default / hover / active / focus / disabled
 
@@ -29,10 +29,11 @@ import React, { useState } from 'react';
    without setting `aria-pressed` — use for transient success (e.g. copy). */
 
 const SIZES = {
-  xs: { side: 'var(--dim-size-600)', icon: 'var(--dim-size-250, 14px)' },  /* 32 / 14 */
-  sm: { side: 'var(--dim-size-700)', icon: 'var(--dim-size-300, 16px)' },  /* 36 / 16 */
-  md: { side: 'var(--dim-size-800)', icon: 'var(--dim-size-400, 20px)' },  /* 40 / 20 */
-  lg: { side: 'var(--dim-size-900)', icon: 'var(--dim-size-400, 20px)' },  /* 44 / 20 */
+  xs: { side: 'var(--dim-size-600)',  icon: 'var(--dim-size-250, 14px)' },  /* 32 / 14 */
+  sm: { side: 'var(--dim-size-700)',  icon: 'var(--dim-size-300, 16px)' },  /* 36 / 16 */
+  md: { side: 'var(--dim-size-800)',  icon: 'var(--dim-size-400, 20px)' },  /* 40 / 20 */
+  lg: { side: 'var(--dim-size-900)',  icon: 'var(--dim-size-400, 20px)' },  /* 44 / 20 */
+  xl: { side: 'var(--dim-size-1100, 52px)', icon: 'var(--dim-size-400, 20px)' },  /* X Large — 52 / 20, radius full (Figma 2103:645) */
 };
 
 const Sym = ({ name, size, color, weight = 400, fill = 0 }) => (
@@ -116,6 +117,9 @@ const BrandCircleSubdueIconButton = React.forwardRef(function BrandCircleSubdueI
     type = 'button',
     variant = 'fill',
     size = 'md',
+    /** Override glyph color (e.g. `var(--icon-brandPrimaryButton-on-brand, #FFFFFF)`
+        when the button sits on a brand-colored surface, per Figma). */
+    iconColor,
     'aria-label': ariaLabel,
     className = '',
     style = {},
@@ -171,7 +175,7 @@ const BrandCircleSubdueIconButton = React.forwardRef(function BrandCircleSubdueI
         <Sym
           name={icon}
           size={dim.icon}
-          color={s.icon}
+          color={iconColor || s.icon}
           weight={isCheckGlyph ? 600 : 400}
           fill={isCheckGlyph ? 1 : 0}
         />

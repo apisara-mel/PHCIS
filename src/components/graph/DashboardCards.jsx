@@ -479,3 +479,68 @@ export const DmComplicationsCard = ({
     </div>
   </Card>
 );
+
+/* TOR 1.13.10 — telemed consult reporting: duration · call in/out · doctor volume. */
+export const DEFAULT_TELEMED_CALL_STATS = {
+  avgDuration: '18:42',
+  callsIn: '126',
+  callsOut: '41',
+  doctors: [
+    { name: 'พญ.สมหญิง รักษาดี', count: '48', share: 38 },
+    { name: 'นพ.ธนกร ใจดี',     count: '36', share: 29 },
+    { name: 'พญ.วราภรณ์ สุขใจ', count: '24', share: 19 },
+    { name: 'อื่นๆ',            count: '18', share: 14 },
+  ],
+  donut: [
+    { value: 126, color: '#14B8A6', label: 'สายเข้า' },
+    { value: 41,  color: '#6366F1', label: 'สายออก' },
+  ],
+};
+
+export const TelemedCallStatsCard = ({
+  avgDuration = DEFAULT_TELEMED_CALL_STATS.avgDuration,
+  callsIn = DEFAULT_TELEMED_CALL_STATS.callsIn,
+  callsOut = DEFAULT_TELEMED_CALL_STATS.callsOut,
+  doctors = DEFAULT_TELEMED_CALL_STATS.doctors,
+  donut = DEFAULT_TELEMED_CALL_STATS.donut,
+  title = 'สถิติการปรึกษาทางไกล (Telemedicine)',
+  className = '',
+}) => {
+  const [active, setActive] = useState(null);
+  const totalCalls = donut.reduce((sum, s) => sum + s.value, 0);
+  return (
+    <Card title={title} icon='stethoscope' className={className} headerClassName='border-b-0'>
+      <div className='flex flex-col gap-4'>
+        <div className='flex items-center gap-4 flex-wrap'>
+          <Donut
+            size={120}
+            thickness={20}
+            centerLabel={String(totalCalls)}
+            centerSub='สาย'
+            segments={donut}
+            activeIndex={active}
+            onSegmentClick={(i) => setActive((cur) => (cur === i ? null : i))}
+          />
+          <div className='flex flex-col gap-2 text-xs min-w-0 flex-1'>
+            <Stat color='#14B8A6' value={callsIn} label='สายเข้า (ครั้ง)' />
+            <Stat color='#6366F1' value={callsOut} label='สายออก (ครั้ง)' />
+            <Stat tone='brand' value={avgDuration} label='ระยะเวลาเฉลี่ย / สาย' />
+          </div>
+        </div>
+        <div className='grid grid-cols-2 sm:grid-cols-4 gap-2'>
+          {doctors.map((d, i) => (
+            <BigStat
+              key={d.name}
+              value={d.count}
+              label={d.name}
+              tone={i === 0 ? 'teal' : i === 1 ? 'indigo' : i === 2 ? 'brand' : 'info'}
+            />
+          ))}
+        </div>
+        <p className='text-[10px] text-ink-tertiary m-0'>
+          จำนวนสายที่แพทย์ให้คำปรึกษาทางไกล · ปีงบฯ ปัจจุบัน
+        </p>
+      </div>
+    </Card>
+  );
+};

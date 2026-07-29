@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+
+<html class="light" lang="th"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>HealthQuest - รายละเอียดการตรวจสอบสิทธิ์</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed": "#85f8c4",
+                    "surface-bright": "#f8f9ff",
+                    "on-secondary-fixed-variant": "#005236",
+                    "inverse-primary": "#68dba9",
+                    "on-tertiary-container": "#f5fff7",
+                    "secondary": "#006c49",
+                    "surface-container-highest": "#d3e4fe",
+                    "on-background": "#0b1c30",
+                    "surface-tint": "#006c4a",
+                    "inverse-on-surface": "#eaf1ff",
+                    "secondary-container": "#6cf8bb",
+                    "on-error-container": "#93000a",
+                    "on-surface": "#0b1c30",
+                    "on-secondary-container": "#00714d",
+                    "on-tertiary-fixed-variant": "#005137",
+                    "primary": "#006948",
+                    "secondary-fixed-dim": "#4edea3",
+                    "tertiary-fixed": "#68fcbf",
+                    "on-surface-variant": "#3d4a42",
+                    "on-primary-fixed-variant": "#005137",
+                    "surface-dim": "#cbdbf5",
+                    "surface-container-high": "#dce9ff",
+                    "surface-container-lowest": "#ffffff",
+                    "error": "#ba1a1a",
+                    "inverse-surface": "#213145",
+                    "tertiary-container": "#00855d",
+                    "outline": "#6d7a72",
+                    "on-error": "#ffffff",
+                    "surface-container-low": "#eff4ff",
+                    "on-tertiary-fixed": "#002114",
+                    "surface-container": "#e5eeff",
+                    "primary-container": "#00855d",
+                    "background": "#f8f9ff",
+                    "surface": "#f8f9ff",
+                    "secondary-fixed": "#6ffbbe",
+                    "surface-variant": "#d3e4fe",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed": "#002113",
+                    "primary-fixed-dim": "#68dba9",
+                    "outline-variant": "#bccac0",
+                    "on-primary-fixed": "#002114",
+                    "tertiary": "#006949",
+                    "tertiary-fixed-dim": "#45dfa4",
+                    "on-primary-container": "#f5fff7",
+                    "error-container": "#ffdad6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-md": "32px",
+                    "stack-lg": "64px",
+                    "container-padding": "40px",
+                    "element-gap": "24px",
+                    "touch-target-min": "56px",
+                    "stack-sm": "16px",
+                    "unit": "8px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "label-lg": ["Plus Jakarta Sans"],
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "label-sm": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "display-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "display-lg": ["48px", {"lineHeight": "60px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-lg": ["30px", {"lineHeight": "38px", "fontWeight": "600"}],
+                    "label-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "400"}],
+                    "label-sm": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "display-md": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8f9ff;
+            color: #0b1c30;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .medical-shadow {
+            box-shadow: 0 8px 30px rgba(5, 150, 105, 0.06);
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+
+        .active-glow {
+            box-shadow: 0 0 15px rgba(0, 105, 72, 0.2);
+        }
+        
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col pt-[80px] pb-[100px]">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-container-padding h-[80px] bg-surface/80 dark:bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 shadow-sm">
+<div class="flex items-center gap-4">
+<span class="font-display-md text-display-md text-primary tracking-tight">HealthQuest</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4 text-on-surface-variant">
+<span class="material-symbols-outlined text-2xl">schedule</span>
+<span class="material-symbols-outlined text-2xl">wifi</span>
+<span class="material-symbols-outlined text-2xl">battery_full</span>
+</div>
+</div>
+</header>
+<main class="flex-1 w-full max-w-[1440px] mx-auto px-container-padding py-stack-md">
+<!-- Eligibility Title Section -->
+<div class="mb-stack-md animate-in fade-in slide-in-from-bottom-4 duration-700">
+<h1 class="font-display-lg text-display-lg text-primary mb-2">สถานะการตรวจสอบสิทธิ์</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">โปรดยืนยันข้อมูลส่วนตัวและสถานะสิทธิประโยชน์ของคุณ</p>
+</div>
+<!-- Bento Layout -->
+<div class="bento-grid">
+<!-- Profile Card (Span 4) -->
+<div class="col-span-4 glass-panel rounded-3xl p-8 medical-shadow flex flex-col items-center text-center">
+<div class="relative mb-6">
+<div class="w-48 h-48 rounded-full border-4 border-primary/10 overflow-hidden active-glow">
+<img alt="รูปประจำตัวผู้ป่วย" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0uT1PNLQNk1nMGJ5GmJzR4qaTDeNJpfHIkZOkH2y-Fv2zNiGGbxr-ruRzKr1XqWV_g6rIfuQUQDBo3O2pdmVdjZTx-rYhyed47lmv4w5zb6LvUSPAeOgaKw8kuw3_embe3x2Zl1vNsgk9iS_SmaiuMOUOkOwwc6vwxViNiqtZ8W3LA1tekgV845FZQCOHYssUxKGuirHCRfDDGPh8zcdCFHX12b9B_9e_-yRYOHG-6fpde3TVT8kmsD5BWhWqSufXE5lSP8f-oqQ"/>
+</div>
+<div class="absolute bottom-2 right-2 bg-primary text-on-primary w-12 h-12 rounded-full flex items-center justify-center border-4 border-white">
+<span class="material-symbols-outlined">verified</span>
+</div>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-1">สมชาย มีความสุข</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">รหัสผู้ป่วย: HQ-992-301</p>
+<div class="w-full space-y-4 text-left pt-6 border-t border-outline-variant/30">
+<div class="flex justify-between items-center">
+<span class="font-label-lg text-label-lg text-on-surface-variant">วันเกิด</span>
+<span class="font-label-lg text-label-lg text-on-surface">15 พฤษภาคม 2521</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-label-lg text-label-lg text-on-surface-variant">หมู่เลือด</span>
+<span class="font-label-lg text-label-lg text-on-surface">โอ (O Positive)</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-label-lg text-label-lg text-on-surface-variant">ภาษา</span>
+<span class="font-label-lg text-label-lg text-on-surface">ไทย, อังกฤษ</span>
+</div>
+</div>
+</div>
+<!-- Status and Hospital Cluster (Span 8) -->
+<div class="col-span-8 grid grid-cols-1 gap-6">
+<!-- Benefit Status Banner -->
+<div class="bg-primary-container text-on-primary-container rounded-3xl p-8 flex justify-between items-center medical-shadow overflow-hidden relative">
+<div class="relative z-10">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-3xl">shield_person</span>
+<span class="font-label-lg text-label-lg opacity-90">สถานะประกันสังคม</span>
+</div>
+<div class="flex items-baseline gap-3">
+<h3 class="font-display-md text-display-md">มีสิทธิ์ใช้งาน</h3>
+<div class="bg-primary-fixed text-on-primary-fixed-variant px-4 py-1 rounded-full font-label-sm text-label-sm">ใช้ได้ถึงปี 2568</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-[120px] absolute -right-4 -bottom-4 opacity-10 rotate-12">check_circle</span>
+<button class="relative z-10 bg-white/20 backdrop-blur-md px-6 py-3 rounded-full font-label-lg text-label-lg border border-white/30 active:scale-95 transition-transform">
+                    ดูรายละเอียด
+                </button>
+</div>
+<!-- Secondary Info Row -->
+<div class="grid grid-cols-2 gap-6">
+<!-- Primary Hospital Card -->
+<div class="glass-panel rounded-3xl p-8 medical-shadow">
+<div class="flex items-center gap-4 mb-6">
+<div class="w-12 h-12 rounded-xl bg-secondary-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">local_hospital</span>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">โรงพยาบาลหลัก</p>
+<h4 class="font-headline-md text-headline-md text-on-surface">กรุงเทพทั่วไป</h4>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">เชื่อมโยงตั้งแต่ ม.ค. 2563 เป็นสถานพยาบาลหลักสำหรับการตรวจรักษาทั่วไปของคุณ</p>
+<div class="flex items-center gap-2 text-primary font-label-lg text-label-lg">
+<span class="material-symbols-outlined">call</span>
+<span>02-123-4567</span>
+</div>
+</div>
+<!-- Coverage Details -->
+<div class="glass-panel rounded-3xl p-8 medical-shadow">
+<div class="flex items-center gap-4 mb-6">
+<div class="w-12 h-12 rounded-xl bg-tertiary-fixed-dim flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">payments</span>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">ความคุ้มครอง</p>
+<h4 class="font-headline-md text-headline-md text-on-surface">คุ้มครองเต็มรูปแบบ</h4>
+</div>
+</div>
+<div class="space-y-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">check_small</span>
+<span class="font-body-md text-body-md">รวมค่ารักษาผู้ป่วยนอก (OPD)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">check_small</span>
+<span class="font-body-md text-body-md">รวมค่าห้องผู้ป่วยใน (IPD)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">check_small</span>
+<span class="font-body-md text-body-md">ค่าทันตกรรม (สูงสุด 900 บาท)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Call to Action Row -->
+<div class="flex gap-4">
+<button class="flex-1 bg-primary text-on-primary h-touch-target-min rounded-2xl flex items-center justify-center gap-3 font-headline-md text-headline-md medical-shadow active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined">how_to_reg</span>
+                    ยืนยันและเช็คอิน
+                </button>
+<button class="w-20 h-touch-target-min glass-panel text-on-surface-variant rounded-2xl flex items-center justify-center active:scale-95 transition-transform">
+<span class="material-symbols-outlined">print</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-between items-center px-container-padding py-stack-sm h-[100px] bg-surface/90 dark:bg-inverse-surface/90 backdrop-blur-2xl shadow-[0_-8px_30px_rgb(0,0,0,0.04)] rounded-t-xl">
+<button class="flex flex-row items-center justify-center gap-2 text-on-surface-variant px-8 py-4 hover:bg-secondary/5 transition-all active:translate-y-1">
+<span class="material-symbols-outlined">arrow_back</span>
+<span class="font-label-lg text-label-lg">ย้อนกลับ</span>
+</button>
+<div class="flex gap-4">
+<!-- Secondary Navigation Mock -->
+<button class="flex flex-row items-center justify-center gap-2 bg-secondary-container text-on-secondary-container rounded-full px-8 py-4 active:translate-y-1 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-label-lg text-label-lg">รายละเอียดโปรไฟล์</span>
+</button>
+</div>
+<button class="flex flex-row items-center justify-center gap-2 text-on-surface-variant px-8 py-4 hover:bg-secondary/5 transition-all active:translate-y-1">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-label-lg text-label-lg">ช่วยเหลือ</span>
+</button>
+</nav>
+<!-- Background Subtle Accents -->
+<div class="fixed top-0 right-0 -z-10 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full translate-x-1/2 -translate-y-1/2"></div>
+<div class="fixed bottom-0 left-0 -z-10 w-[400px] h-[400px] bg-secondary/5 blur-[100px] rounded-full -translate-x-1/2 translate-y-1/2"></div>
+<script>
+    // Micro-interactions for button presses
+    document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('touchstart', () => {
+            btn.classList.add('opacity-80');
+        });
+        btn.addEventListener('touchend', () => {
+            btn.classList.remove('opacity-80');
+        });
+    });
+
+    // Add subtle entrance animation to grid items
+    const items = document.querySelectorAll('.bento-grid > div');
+    items.forEach((item, index) => {
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(20px)';
+        item.style.transition = 'all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1)';
+        setTimeout(() => {
+            item.style.opacity = '1';
+            item.style.transform = 'translateY(0)';
+        }, 100 * (index + 1));
+    });
+</script>
+</body></html>
