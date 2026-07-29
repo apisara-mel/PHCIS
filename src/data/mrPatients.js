@@ -371,4 +371,21 @@ export const removeDrugAllergy = (hn, entryId) => {
   if (p.drugAllergies.length === 0) p.flags = { ...p.flags, allergyDrug: false };
 };
 
+/* §1.9.5.7 — "แสดง/บันทึก/ยกเลิก/แก้ไขข้อมูลเกี่ยวกับการแพ้ได้": edit an
+   existing allergy entry's symptom/severity in place, alongside add/remove
+   above (the drug/allergy-class name itself is left immutable — changing
+   WHAT the patient is allergic to should be a remove+add, not a silent
+   in-place rename). */
+export const updateDrugAllergy = (hn, entryId, { symptom, severity }) => {
+  const p = findMrPatientByHn(hn);
+  if (!p) return null;
+  let updated = null;
+  p.drugAllergies = p.drugAllergies.map((a) => {
+    if (a.id !== entryId) return a;
+    updated = { ...a, symptom, severity };
+    return updated;
+  });
+  return updated;
+};
+
 export const DEFAULT_MR_PATIENT = MR_PATIENTS[0];

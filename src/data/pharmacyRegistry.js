@@ -105,6 +105,10 @@ export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
   const avgPerMonth = 50 + (i % 10) * 20;
   return {
     id: `drug-${i + 1}`,
+    /* รหัสยา (ToR §1.9.5.1 / §1.9.10.1) — distinct from the internal
+       `id` (a React-key-style slug), this is the human-facing drug code
+       staff actually search/type, e.g. on a requisition or receiving form. */
+    code: `MED-${String(i + 1).padStart(4, '0')}`,
     name: opt.value,
     genericName,
     tradeName,
@@ -117,6 +121,12 @@ export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
       { id: `${i + 1}-p1`, effectiveFrom: '2026-01-01', effectiveTo: null, price: 1 + (i % 8) },
     ],
     active: true,
+    /* วันที่เริ่มจำหน่ายยาในสถานพยาบาล / วันที่ตัดรายการยาออกจากสถานพยาบาล
+       (ToR §1.9.10.1) — separate from the `active` toggle above: a drug
+       can be toggled inactive immediately, but this date range records
+       WHEN it was formally introduced/discontinued at this facility. */
+    activeFrom: '2026-01-01',
+    activeTo: null,
     manufacturer: MANUFACTURERS[i % MANUFACTURERS.length],
     distributor: DISTRIBUTORS[i % DISTRIBUTORS.length],
     usageRate: {

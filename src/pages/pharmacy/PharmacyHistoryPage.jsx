@@ -4,7 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
 import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
-import { PHARMACY_QUEUE, DISPENSE_STATUS } from '@/data/pharmacyQueue';
+import { PHARMACY_QUEUE, DISPENSE_STATUS, PAYMENT_STATUS } from '@/data/pharmacyQueue';
 
 /* ประวัติการรับยาและใบสั่งยา — consolidates two separate legacy screens
    (คู่มือระบบงานห้องจ่ายยาและบริหารเวชภัณฑ์ §2.1.5 "บันทึกข้อมูลการตัดจ่าย
@@ -27,6 +27,12 @@ const STATUS_PILL = {
   [DISPENSE_STATUS.NO_SHOW]:   { style: 'neutral', label: 'ไม่มารับยา'   },
   [DISPENSE_STATUS.PROBLEM]:   { style: 'error',   label: 'มีปัญหา'      },
   [DISPENSE_STATUS.CANCELLED]: { style: 'neutral', label: 'ยกเลิก'       },
+};
+
+const PAYMENT_STATUS_PILL = {
+  [PAYMENT_STATUS.NOT_APPLICABLE]: { style: 'neutral', label: 'ไม่มีค่าใช้จ่าย' },
+  [PAYMENT_STATUS.UNPAID]:         { style: 'error',   label: 'ค้างชำระ'       },
+  [PAYMENT_STATUS.PAID]:           { style: 'success', label: 'ชำระแล้ว'       },
 };
 
 const PharmacyHistoryPage = () => {
@@ -57,6 +63,7 @@ const PharmacyHistoryPage = () => {
     { key: 'items', label: 'รายการยา', width: 120, align: 'center', render: (r) => `${r.items.length} รายการ` },
     { key: 'issuedAt', label: 'เวลาสั่งยา', width: 100 },
     { key: 'dispensedAt', label: 'เวลาจ่ายยา', width: 110, render: (r) => r.dispensedAt || '—' },
+    { key: 'payment', label: 'การชำระเงิน', width: 130, render: (r) => <Badge style={PAYMENT_STATUS_PILL[r.paymentStatus].style} size='small'>{PAYMENT_STATUS_PILL[r.paymentStatus].label}</Badge> },
     { key: 'status', label: 'สถานะ', width: 130, render: (r) => <Badge style={STATUS_PILL[r.status].style} size='small'>{STATUS_PILL[r.status].label}</Badge> },
   ];
 

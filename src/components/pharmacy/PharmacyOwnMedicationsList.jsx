@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Icon from '@/components/icons/Icon';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
+import Badge from '@/components/badge/Badge';
 import { addOwnMedication, removeOwnMedication } from '@/data/pharmacyQueue';
 
 /* ยาที่ผู้รับบริการนำมาเอง (ToR §1.9.4.7 / §1.9.5) + feeds the Medication
@@ -21,12 +22,16 @@ const inputStyle = {
 const PharmacyOwnMedicationsList = ({ queueNo, row, onChange }) => {
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
+  /* §1.9.5.9 — "ทั้งยาที่มีและไม่มีในสำนักอนามัย": whether the brought-in
+     drug is one this health center itself stocks. */
+  const [inFormulary, setInFormulary] = useState(true);
 
   const handleAdd = () => {
     if (!name.trim()) return;
-    addOwnMedication(queueNo, name.trim(), note.trim());
+    addOwnMedication(queueNo, name.trim(), note.trim(), inFormulary);
     setName('');
     setNote('');
+    setInFormulary(true);
     onChange?.();
   };
 
@@ -47,8 +52,11 @@ const PharmacyOwnMedicationsList = ({ queueNo, row, onChange }) => {
           className='flex items-center w-full'
           style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-300)', background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-200)' }}
         >
-          <div className='flex-1 min-w-0 flex flex-col'>
-            <span className='text-sm font-medium' style={{ color: 'var(--text-content-default)' }}>{m.name}</span>
+          <div className='flex-1 min-w-0 flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+              <span className='text-sm font-medium' style={{ color: 'var(--text-content-default)' }}>{m.name}</span>
+              <Badge style={m.inFormulary ? 'success' : 'neutral'} size='small'>{m.inFormulary ? 'มีในสำนักอนามัย' : 'ไม่มีในสำนักอนามัย'}</Badge>
+            </div>
             {m.note && <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>{m.note}</span>}
           </div>
           <button
@@ -70,6 +78,13 @@ const PharmacyOwnMedicationsList = ({ queueNo, row, onChange }) => {
         <label className='flex flex-col flex-1 min-w-[200px]' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>หมายเหตุ</span>
           <input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder='เช่น รับประทานเองประจำ' />
+        </label>
+        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+          <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>มีในสำนักอนามัย</span>
+          <select value={inFormulary ? 'yes' : 'no'} onChange={(e) => setInFormulary(e.target.value === 'yes')} style={{ ...inputStyle, width: 'var(--dim-size-2100, 160px)', appearance: 'none' }}>
+            <option value='yes'>มีในสำนักอนามัย</option>
+            <option value='no'>ไม่มีในสำนักอนามัย</option>
+          </select>
         </label>
       </div>
       <BrandDashedAddButton onClick={handleAdd} disabled={!name.trim()}>เพิ่มรายการยา</BrandDashedAddButton>

@@ -22,6 +22,7 @@ import {
 
 const BLANK_DRUG = {
   id: 'new',
+  code: '',
   name: '',
   genericName: '',
   tradeName: '',
@@ -31,6 +32,8 @@ const BLANK_DRUG = {
   rightsEligible: [...RIGHTS_LIST],
   priceSchedule: [{ id: 'p-new-1', effectiveFrom: new Date().toISOString().slice(0, 10), effectiveTo: null, price: 0 }],
   active: true,
+  activeFrom: new Date().toISOString().slice(0, 10),
+  activeTo: null,
   replacementId: '',
   manufacturer: '',
   distributor: '',
@@ -124,6 +127,7 @@ const PharmacyRegistryEditPage = () => {
     priceSchedule: (base.priceSchedule || []).map((p) => ({ ...p })),
     usageRate: { ...(base.usageRate || BLANK_DRUG.usageRate) },
     disallowedChronicDiseases: [...(base.disallowedChronicDiseases || [])],
+    restrictedToDoctorGroup: base.restrictedToDoctorGroup || '',
   }));
 
   const setField = (key, v) => setForm((prev) => ({ ...prev, [key]: v }));
@@ -207,10 +211,27 @@ const PharmacyRegistryEditPage = () => {
               </label>
             }
           >
-            <div className='grid grid-cols-1 md:grid-cols-3 gap-3 w-full'>
+            <div className='grid grid-cols-1 md:grid-cols-4 gap-3 w-full'>
+              <TextField label='รหัสยา' value={form.code} onChange={(v) => setField('code', v)} placeholder='เช่น MED-0001' />
               <TextField label='ชื่อยา (แสดงในระบบ)' required value={form.name} onChange={(v) => setField('name', v)} placeholder='เช่น Paracetamol 500 mg' />
               <TextField label='ชื่อสามัญ (Generic name)' value={form.genericName} onChange={(v) => setField('genericName', v)} placeholder='เช่น Paracetamol' />
               <TextField label='ชื่อการค้า (Trade name)' value={form.tradeName} onChange={(v) => setField('tradeName', v)} placeholder='ถ้ามี' />
+            </div>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full'>
+              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                <span className='text-xs text-ink-secondary'>วันที่เริ่มจำหน่ายยาในสถานพยาบาล</span>
+                <input
+                  type='date' value={form.activeFrom || ''} onChange={(e) => setField('activeFrom', e.target.value)}
+                  style={{ width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none' }}
+                />
+              </label>
+              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                <span className='text-xs text-ink-secondary'>วันที่ตัดรายการยาออกจากสถานพยาบาล (ถ้ามี)</span>
+                <input
+                  type='date' value={form.activeTo || ''} onChange={(e) => setField('activeTo', e.target.value || null)}
+                  style={{ width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none' }}
+                />
+              </label>
             </div>
           </SectionCard>
 

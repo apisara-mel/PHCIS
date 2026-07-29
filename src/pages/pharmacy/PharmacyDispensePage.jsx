@@ -12,6 +12,7 @@ import Table, { EllipsisText as TableEllipsisText } from '@/components/table/Tab
 import Stepper from '@/components/stepper/Stepper';
 import PharmacyLabelPrint from '@/components/pharmacy/PharmacyLabelPrint';
 import PharmacyPrescriptionPrint from '@/components/pharmacy/PharmacyPrescriptionPrint';
+import PharmacyAuxLabelPrint from '@/components/pharmacy/PharmacyAuxLabelPrint';
 import { triggerPharmacyPrint } from '@/components/pharmacy/pharmacyPrintUtils';
 import PharmacyVerificationPanel from '@/components/pharmacy/PharmacyVerificationPanel';
 import PharmacyCounselingPanel from '@/components/pharmacy/PharmacyCounselingPanel';
@@ -19,6 +20,8 @@ import PharmacyDeliveryPanel from '@/components/pharmacy/PharmacyDeliveryPanel';
 import PharmacyOwnMedicationsList from '@/components/pharmacy/PharmacyOwnMedicationsList';
 import PharmacyAllergyEditor from '@/components/pharmacy/PharmacyAllergyEditor';
 import PharmacyMedicationEditor from '@/components/pharmacy/PharmacyMedicationEditor';
+import PharmacyVoiceSuggestInput from '@/components/pharmacy/PharmacyVoiceSuggestInput';
+import StepProgress from '@/components/step/StepProgress';
 import Checkbox from '@/components/checkbox/Checkbox';
 import Icon from '@/components/icons/Icon';
 import { DEFAULT_MR_PATIENT, findMrPatientByHn } from '@/data/mrPatients';
@@ -28,6 +31,7 @@ import {
   DISPENSE_STATUS,
   PHARMACY_QUEUE,
   QUEUE_TYPES,
+  PAYMENT_STATUS,
   checkAllergyConflicts,
   getStock,
   deductStock,
@@ -36,10 +40,16 @@ import {
   logMedError,
   toggleItemPrepared,
   setOutOfRightsDocAttached,
+  setPaymentStatus,
   addPharmacyItem,
   updatePharmacyItem,
   removePharmacyItem,
   appendPharmacistNote,
+  toggleAuxLabel,
+  AUX_LABEL_OPTIONS,
+  createRefillPlan,
+  markRefillVisitPickedUp,
+  getAllergySafeDrugs,
 } from '@/data/pharmacyQueue';
 import {
   checkDrugInteractions,
@@ -48,6 +58,7 @@ import {
   checkOutOfRights,
   checkDisallowedChronicDisease,
   checkDoctorGroupRestriction,
+  getRegistryDrug,
 } from '@/data/pharmacyRegistry';
 
 const breadcrumb = ['ระบบงานเภสัชกรรม', 'จ่ายยา'];
@@ -133,6 +144,47 @@ const toPatientCardShape = (mr) => ({
 
 const QUEUE_TYPE_LABEL = Object.fromEntries(QUEUE_TYPES.map((t) => [t.key, t.label]));
 
+/* Frequently-typed phrases per free-text field — surfaced as a
+   suggestion dropdown once 3+ characters are typed (see
+   PharmacyVoiceSuggestInput). Not pulled from any registry; these are
+   just the wording that recurs across real ห้องจ่ายยา exception
+   entries, so retyping the whole sentence isn't necessary every time. */
+const MED_ERROR_SUGGESTIONS = [
+  'จ่ายยาผิดขนาด',
+  'จ่ายยาผิดชนิด',
+  'จ่ายยาผิดคน',
+  'ฉลากยาไม่ตรงกับคำสั่งแพทย์',
+  'จำนวนยาที่จ่ายไม่ตรงกับใบสั่งยา',
+  'ลืมแจ้งข้อควรระวังการใช้ยา',
+];
+const NO_SHOW_SUGGESTIONS = [
+  'รอเกิน 3 วัน',
+  'ผู้ป่วยไม่สะดวกมารับยา',
+  'ผู้ป่วยเปลี่ยนใจไม่รับยา',
+  'ติดต่อผู้ป่วยไม่ได้',
+];
+const PROBLEM_SUGGESTIONS = [
+  'ลายมือแพทย์อ่านไม่ออก',
+  'คำสั่งยาไม่ครบถ้วน',
+  'ขนาดยาที่สั่งไม่เหมาะสมกับผู้ป่วย',
+  'ยาที่สั่งไม่มีในคลัง ต้องปรึกษาแพทย์เปลี่ยนยา',
+  'ข้อมูลผู้ป่วยไม่ตรงกับใบสั่งยา',
+];
+
+const formatThaiDate = (iso) => new Date(iso).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+const REFILL_VISIT_STATUS_PILL = {
+  due:        { style: 'warning', label: 'ถึงกำหนดรับยา' },
+  scheduled:  { style: 'neutral', label: 'รอกำหนด'       },
+  picked_up:  { style: 'success', label: 'รับยาแล้ว'     },
+};
+
+const PAYMENT_STATUS_PILL = {
+  [PAYMENT_STATUS.NOT_APPLICABLE]: { style: 'neutral', label: 'ไม่มีค่าใช้จ่าย' },
+  [PAYMENT_STATUS.UNPAID]:         { style: 'error',   label: 'ค้างชำระ'       },
+  [PAYMENT_STATUS.PAID]:           { style: 'success', label: 'ชำระแล้ว'       },
+};
+
 const PharmacyDispensePage = () => {
   const history = useHistory();
   const { state: navState } = useLocation();
@@ -144,12 +196,31 @@ const PharmacyDispensePage = () => {
   const [alertsOpen, setAlertsOpen] = useState({ allergy: true, interaction: true, duplicate: true, highAlert: true, watch: true, rights: true, orderChanged: true, disease: true, doctorGroup: true });
   const closeAlert = (key) => setAlertsOpen((s) => ({ ...s, [key]: false }));
 
+  /* Splits what used to be one long single-scroll page into 4 steps so the
+     pharmacist isn't scanning 9+ stacked sections at once (usability
+     feedback: the all-in-one-scroll layout "ดูแล้วงง"). Step 0 — the
+     medication list itself, the actual reason for this page — is the
+     default/first step per that same feedback (ข้อมูลประกอบการจ่ายยา +
+     รายการยาที่ต้องจ่าย must show at the top, not buried under the
+     review/alert sections). Uses the same `StepProgress` numbered-circle
+     component as the OPD screening flow (`src/pages/opd/ScreeningPage.jsx`)
+     — free navigation (`onStepClick` jumps to any step), not a gated
+     wizard, since dispensing isn't strictly linear (a pharmacist may need
+     to revisit "ตรวจสอบ / แพ้ยา" after starting "จัดยา"). */
+  const [currentStep, setCurrentStep] = useState(0);
+
   const [labelLang, setLabelLang] = useState('th');
   const [dispenseNow, setDispenseNow] = useState({});
   const [noShowOpen, setNoShowOpen] = useState(false);
   const [noShowReason, setNoShowReason] = useState('');
   const [problemOpen, setProblemOpen] = useState(false);
   const [problemReason, setProblemReason] = useState('');
+  /* Manual Med Error log (ToR §1.9.2.4 "การบันทึกหากมี Med Error") — a
+     direct entry point, distinct from the automatic entries `logMedError`
+     already writes as a side effect of "ส่งกลับแพทย์"/"แจ้งปัญหาใบยา". */
+  const [medErrorOpen, setMedErrorOpen] = useState(false);
+  const [medErrorText, setMedErrorText] = useState('');
+  const [medErrorSeverity, setMedErrorSeverity] = useState('medium');
   /* null = closed, 'new' = adding a line, an item id = editing that line —
      matches the legacy ห้องจ่ายยา screen's add/double-click-to-edit model. */
   const [editingItemId, setEditingItemId] = useState(null);
@@ -175,12 +246,36 @@ const PharmacyDispensePage = () => {
   const watch = mrPatient.specialWatch || {};
   const hasWatchFlag = watch.pregnant || watch.breastfeeding || watch.g6pd;
 
+  /* Badge count on the "ตรวจสอบ / แพ้ยา" tab — every distinct CDSS-style
+     check that's currently flagging something, so a pharmacist parked on
+     the "รายการยา" tab still sees at a glance that something needs review,
+     without the alert banners themselves needing to be on-screen. */
+  const reviewIssueCount =
+    conflicts.length + interactions.length + duplicates.length + highAlertItems.length
+    + diseaseConflicts.length + doctorRestricted.length + outOfRightsItems.length
+    + (hasWatchFlag ? 1 : 0);
+
+  const DISPENSE_STEPS = [
+    { title: 'รายการยา' },
+    { title: 'ตรวจสอบ / แพ้ยา', subtitle: reviewIssueCount > 0 ? `${reviewIssueCount} รายการ` : null },
+    { title: 'จัดยา' },
+    { title: 'ตรวจสอบคำสั่ง / คำแนะนำ / รับยา' },
+  ];
+
+  /* Allergy conflicts get their own explicit "แพ้ยา" badge directly on the
+     row (rather than the generic "?" mark below) so the pharmacist sees
+     which drug — and which allergy class — without opening the alert
+     banner above the table. */
+  const allergyConflictMap = useMemo(() => new Map(conflicts.map((c) => [c.item.id, c])), [conflicts]);
+
   /* Rows to mark with a "?" (legacy convention — คู่มือระบบงานห้องจ่ายยาฯ
      §2.1.1 "กรณีผู้ป่วยแพ้ยา" — a "?" appears in front of the drug row
-     that conflicts). Interaction/duplicate conflicts key off drug NAME
-     (not id), so every item sharing that name gets flagged too. */
+     that conflicts) for every OTHER conflict type — allergy conflicts are
+     called out via `allergyConflictMap` instead. Interaction/duplicate
+     conflicts key off drug NAME (not id), so every item sharing that name
+     gets flagged too. */
   const conflictItemIds = useMemo(() => {
-    const ids = new Set(conflicts.map((c) => c.item.id));
+    const ids = new Set();
     highAlertItems.forEach((i) => ids.add(i.id));
     diseaseConflicts.forEach((d) => ids.add(d.item.id));
     doctorRestricted.forEach((d) => ids.add(d.item.id));
@@ -190,7 +285,7 @@ const PharmacyDispensePage = () => {
     ]);
     row.items.forEach((it) => { if (flaggedNames.has(it.name)) ids.add(it.id); });
     return ids;
-  }, [conflicts, interactions, duplicates, highAlertItems, diseaseConflicts, doctorRestricted, row.items]);
+  }, [interactions, duplicates, highAlertItems, diseaseConflicts, doctorRestricted, row.items]);
 
   const itemsWithStock = row.items.map((item) => {
     const stockEntry = getStock(item.name);
@@ -198,33 +293,74 @@ const PharmacyDispensePage = () => {
     const qtyNow = dispenseNow[item.id] ?? remaining;
     const insufficient = !!stockEntry && qtyNow > stockEntry.stock;
     const unitPrice = stockEntry?.unitPrice ?? 0;
-    return { ...item, stockEntry, remaining, qtyNow, insufficient, unitPrice, subtotal: unitPrice * qtyNow };
+    const subtotal = unitPrice * qtyNow;
+    const drug = getRegistryDrug(item.name);
+    /* ราคาที่เบิกได้ (ToR §1.9.2.4) — claimable only when the drug is
+       eligible under the patient's rights; out-of-rights items are
+       ชำระเงินเอง (patient pays, nothing claimable). */
+    const claimable = drug?.rightsEligible.includes(mrPatient.rights) ? subtotal : 0;
+    const inFormulary = drug ? drug.classification === 'nlem' : true;
+    return { ...item, stockEntry, remaining, qtyNow, insufficient, unitPrice, subtotal, claimable, inFormulary };
   });
   const grandTotal = itemsWithStock.reduce((sum, i) => sum + i.subtotal, 0);
+  const claimableTotal = itemsWithStock.reduce((sum, i) => sum + i.claimable, 0);
+  const nlemTotal = itemsWithStock.filter((i) => i.inFormulary).reduce((sum, i) => sum + i.subtotal, 0);
+  const nonNlemTotal = grandTotal - nlemTotal;
   const hasInsufficientStock = itemsWithStock.some((i) => i.qtyNow > 0 && i.insufficient);
   const alreadyDispensed = row.status === DISPENSE_STATUS.DISPENSED;
-  const isTerminal = [DISPENSE_STATUS.DISPENSED, DISPENSE_STATUS.NO_SHOW, DISPENSE_STATUS.PROBLEM].includes(row.status);
+  const isTerminal = [DISPENSE_STATUS.DISPENSED, DISPENSE_STATUS.NO_SHOW, DISPENSE_STATUS.PROBLEM, DISPENSE_STATUS.CANCELLED].includes(row.status);
+
+  /* Inline "เปลี่ยนยา" column — lets the pharmacist swap a line's drug
+     directly from the table (no need to open the "แก้ไข" modal). The
+     `<select>` options are pre-filtered via `getAllergySafeDrugs`, so an
+     allergy-conflicting row can only be swapped to something safe. */
+  const handleQuickDrugChange = (item, newName) => {
+    if (!newName || newName === item.name) return;
+    const drug = getRegistryDrug(newName);
+    const oldName = item.name;
+    updatePharmacyItem(row.queueNo, item.id, {
+      name: newName,
+      unit: drug?.unit === 'capsule' ? 'แคปซูล' : 'เม็ด',
+    });
+    const conflict = allergyConflictMap.get(item.id);
+    appendPharmacistNote(
+      row.queueNo,
+      conflict
+        ? `เปลี่ยนยาเนื่องจากผู้ป่วยแพ้ยา: จาก "${oldName}" (แพ้กลุ่ม ${conflict.allergyClass}) เป็น "${newName}"`
+        : `เปลี่ยนยาจาก "${oldName}" เป็น "${newName}"`,
+    );
+    bump();
+  };
 
   const columns = [
+    { key: 'seq', label: 'ลำดับ', width: 50, align: 'center', sortable: false, render: (r, i) => i + 1 },
     { key: 'image', label: 'รูป', width: 60, sortable: false, render: (r) => <MedImageTile src={resolveMedicationImage(r.name)} alt={r.name} /> },
     {
       key: 'name', label: 'ชื่อยา', flex: true, minWidth: 200,
-      render: (r) => (
-        <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-          {conflictItemIds.has(r.id) && (
-            <span
-              aria-label='รายการนี้มีปัญหากับผู้ป่วย'
-              title='รายการนี้มีปัญหากับผู้ป่วย'
-              className='inline-flex items-center justify-center shrink-0'
-              style={{ width: 18, height: 18, borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-alert-error)', color: 'var(--text-alert-error)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-bold)' }}
-            >
-              ?
-            </span>
-          )}
-          <TableEllipsisText text={r.name} />
-          {r.source === 'remed' && <Badge style='info' size='small'>Re-med</Badge>}
-        </div>
-      ),
+      render: (r) => {
+        const allergyHit = allergyConflictMap.get(r.id);
+        return (
+          <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+            {allergyHit && (
+              <span title={`ผู้ป่วยแพ้ยากลุ่ม ${allergyHit.allergyClass} (${allergyHit.symptom})`}>
+                <Badge style='error' size='small'>แพ้ยา</Badge>
+              </span>
+            )}
+            {!allergyHit && conflictItemIds.has(r.id) && (
+              <span
+                aria-label='รายการนี้มีปัญหากับผู้ป่วย'
+                title='รายการนี้มีปัญหากับผู้ป่วย'
+                className='inline-flex items-center justify-center shrink-0'
+                style={{ width: 18, height: 18, borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-alert-error)', color: 'var(--text-alert-error)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-bold)' }}
+              >
+                ?
+              </span>
+            )}
+            <TableEllipsisText text={r.name} />
+            {r.source === 'remed' && <Badge style='info' size='small'>Re-med</Badge>}
+          </div>
+        );
+      },
     },
     { key: 'drugType', label: 'แหล่งยา', width: 90, align: 'center' },
     { key: 'dose', label: 'ขนาด/ความถี่', width: 200, render: (r) => `${r.dosePerTake} ${r.unit} · ${r.frequency} · ${r.when}` },
@@ -250,6 +386,33 @@ const PharmacyDispensePage = () => {
         : <span style={{ color: 'var(--text-content-tertiary)' }}>ไม่มีข้อมูล</span>,
     },
     { key: 'subtotal', label: 'ราคารวม', width: 90, align: 'center', render: (r) => `฿${r.subtotal.toLocaleString()}` },
+    { key: 'claimable', label: 'ราคาที่เบิกได้', width: 110, align: 'center', render: (r) => r.claimable > 0 ? `฿${r.claimable.toLocaleString()}` : <span style={{ color: 'var(--text-content-tertiary)' }}>เบิกไม่ได้</span> },
+    {
+      key: 'changeDrug', label: 'เปลี่ยนยา', width: 180, align: 'center', sortable: false,
+      render: (r) => (
+        <select
+          value={r.name}
+          disabled={isTerminal}
+          onChange={(e) => handleQuickDrugChange(r, e.target.value)}
+          aria-label={`เปลี่ยนยาแทน ${r.name}`}
+          style={{
+            width: '100%',
+            padding: 'var(--dim-space-150) var(--dim-space-200)',
+            background: 'var(--surface-input-default)',
+            border: 'var(--dim-stroke-100) solid var(--border-input-default)',
+            borderRadius: 'var(--dim-radius-200)',
+            fontSize: 'var(--type-size-xs)',
+            appearance: 'none',
+            cursor: isTerminal ? 'not-allowed' : 'pointer',
+            opacity: isTerminal ? 0.6 : 1,
+          }}
+        >
+          {getAllergySafeDrugs(mrPatient.drugAllergies, r.name).map((d) => (
+            <option key={d.id} value={d.name}>{d.name}</option>
+          ))}
+        </select>
+      ),
+    },
     {
       key: 'itemActions', label: 'แก้ไข', width: 90, align: 'center', sortable: false,
       render: (r) => (
@@ -323,6 +486,14 @@ const PharmacyDispensePage = () => {
     history.push({ pathname: '/treat/record', state: { hn: row.hn, name: patient.fullName } });
   };
 
+  const handleLogMedError = () => {
+    if (!medErrorText.trim()) return;
+    logMedError(row.queueNo, medErrorText.trim(), medErrorSeverity);
+    setMedErrorText('');
+    setMedErrorOpen(false);
+    bump();
+  };
+
   const handleNoShow = () => {
     if (!noShowReason.trim()) return;
     updatePharmacyRow(row.queueNo, { status: DISPENSE_STATUS.NO_SHOW, noShow: true, noShowReason: noShowReason.trim() });
@@ -340,6 +511,7 @@ const PharmacyDispensePage = () => {
     <>
     <PharmacyLabelPrint patientName={patient.fullName} hn={row.hn} items={row.items} lang={labelLang} />
     <PharmacyPrescriptionPrint patient={patient.fullName} hn={row.hn} diagnosis={row.diagnosis} doctor={patient.doctor} items={row.items} />
+    <PharmacyAuxLabelPrint items={row.items} />
     <div className='min-h-screen w-full flex mih-pharmacy-no-print' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
       <Sidebar activeKey='pharmacy' />
       <main className='flex-1 flex flex-col min-w-0'>
@@ -353,19 +525,65 @@ const PharmacyDispensePage = () => {
         />
         <div className='flex-1 flex flex-col' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
 
-          {/* Order context — queue type, diagnosis, vitals snapshot */}
+          {/* Order context — queue type, diagnosis, vitals snapshot, payment status */}
           <SectionCard>
-            <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300)' }}>
-              <Badge style='info' size='small'>{QUEUE_TYPE_LABEL[row.queueType]}</Badge>
-              <span className='text-sm' style={{ color: 'var(--text-content-default)' }}>
-                {row.diagnosis?.icd10} — {row.diagnosis?.name}
-              </span>
-              <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>
-                BP {row.vitalsSnapshot?.bp} · HR {row.vitalsSnapshot?.hr} · Temp {row.vitalsSnapshot?.temp}°C · น้ำหนัก {row.vitalsSnapshot?.weight} กก.
-              </span>
+            <div className='flex flex-wrap items-center justify-between w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300)' }}>
+                <Badge style='info' size='small'>{QUEUE_TYPE_LABEL[row.queueType]}</Badge>
+                <span className='text-sm' style={{ color: 'var(--text-content-default)' }}>
+                  {row.diagnosis?.icd10} — {row.diagnosis?.name}
+                </span>
+                <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>
+                  BP {row.vitalsSnapshot?.bp} · HR {row.vitalsSnapshot?.hr} · Temp {row.vitalsSnapshot?.temp}°C · น้ำหนัก {row.vitalsSnapshot?.weight} กก.
+                </span>
+              </div>
+              {/* Nurse Note (ToR §1.9.2.2) — nursing history captured before
+                  the doctor visit, shown read-only to pharmacy alongside vitals. */}
+              <div className='w-full text-xs' style={{ color: 'var(--text-content-secondary)' }}>
+                <span style={{ color: 'var(--text-content-tertiary)' }}>Nurse Note: </span>{row.nurseNote || 'ไม่มีข้อมูล'}
+              </div>
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                <Badge style={PAYMENT_STATUS_PILL[row.paymentStatus].style} size='small'>{PAYMENT_STATUS_PILL[row.paymentStatus].label}</Badge>
+                {row.paymentStatus === PAYMENT_STATUS.UNPAID && (
+                  <BrandSubdueButton variant='outline' size='sm' leadingIcon='payments' onClick={() => { setPaymentStatus(row.queueNo, PAYMENT_STATUS.PAID); bump(); }}>
+                    ยืนยันชำระเงินแล้ว
+                  </BrandSubdueButton>
+                )}
+              </div>
             </div>
           </SectionCard>
 
+          {row.orderChanged && alertsOpen.orderChanged && (
+            <Alert type='info' title='แพทย์แก้ไขคำสั่งใช้ยา' subtext={`${row.orderChanged.at} — ${row.orderChanged.note}`}
+              showDetail={false} showIndicator={false} showBadge={false} onClose={() => closeAlert('orderChanged')} style={{ maxWidth: '100%' }} />
+          )}
+          {/* ยกเลิกคำสั่งยา (ToR §1.9.2.10) — mirrors the orderChanged notice
+              above but for a full cancellation by the doctor. */}
+          {row.orderCancelled && (
+            <Alert type='error' title='แพทย์ยกเลิกคำสั่งใช้ยา' subtext={`${row.orderCancelled.at} — ${row.orderCancelled.note}`}
+              showDetail={false} showIndicator={false} showBadge={false} showCloseButton={false} style={{ maxWidth: '100%' }} />
+          )}
+          {isTerminal && (
+            <Alert
+              type={row.status === DISPENSE_STATUS.DISPENSED ? 'success' : row.status === DISPENSE_STATUS.NO_SHOW || row.status === DISPENSE_STATUS.CANCELLED ? 'warning' : 'error'}
+              title={row.status === DISPENSE_STATUS.DISPENSED ? 'จ่ายยาแล้ว' : row.status === DISPENSE_STATUS.NO_SHOW ? 'ผู้รับบริการไม่มารับยา' : row.status === DISPENSE_STATUS.CANCELLED ? 'ใบยาถูกยกเลิก' : 'ใบยามีปัญหา'}
+              subtext={row.status === DISPENSE_STATUS.DISPENSED ? `คิว ${row.queueNo} จ่ายยาเรียบร้อยแล้ว` : row.status === DISPENSE_STATUS.CANCELLED ? row.orderCancelled?.note : row.noShowReason || row.problemReason}
+              showCloseButton={false} style={{ maxWidth: '100%' }}
+            />
+          )}
+
+          {/* Splits the rest of the page into steps (see `DISPENSE_STEPS`) —
+              "รายการยา" first/default so the medication list is the first
+              thing the pharmacist sees, not the last of 9 stacked sections. */}
+          <StepProgress
+            framed
+            steps={DISPENSE_STEPS}
+            current={currentStep}
+            onStepClick={setCurrentStep}
+          />
+
+          {currentStep === 1 && (
+          <>
           {/* แพ้ยา — editable (ToR §1.9.2.2 / §1.9.5). Feeds `checkAllergyConflicts`
               directly below and `PatientCard`'s alert row above, both of which
               re-read `mrPatient.drugAllergies` fresh on every render. */}
@@ -445,19 +663,44 @@ const PharmacyDispensePage = () => {
               subtext={doctorRestricted.map((d) => `${d.item.name} — สั่งจ่ายได้เฉพาะกลุ่มแพทย์ "${d.group}" เท่านั้น กรุณายืนยันสิทธิ์แพทย์ผู้สั่งก่อนจ่าย`).join(' · ')}
               showDetail={false} showIndicator={false} showBadge={false} onClose={() => closeAlert('doctorGroup')} style={{ maxWidth: '100%' }} />
           )}
-          {row.orderChanged && alertsOpen.orderChanged && (
-            <Alert type='info' title='แพทย์แก้ไขคำสั่งใช้ยา' subtext={`${row.orderChanged.at} — ${row.orderChanged.note}`}
-              showDetail={false} showIndicator={false} showBadge={false} onClose={() => closeAlert('orderChanged')} style={{ maxWidth: '100%' }} />
+          {/* Exception actions — moved here (was its own section further down
+              the old single-scroll page) since reporting a no-show/problem
+              belongs with the rest of "ตรวจสอบ / แพ้ยา". */}
+          {!isTerminal && (
+            <SectionCard title='กรณีพิเศษ'>
+              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='person_off' onClick={() => setNoShowOpen((v) => !v)}>ผู้รับบริการไม่มารับยา</NeutralSubdueButton>
+                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='report' onClick={() => setProblemOpen((v) => !v)}>แจ้งปัญหาใบยา</NeutralSubdueButton>
+              </div>
+              {noShowOpen && (
+                <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
+                  <PharmacyVoiceSuggestInput
+                    value={noShowReason} onChange={setNoShowReason}
+                    placeholder='ระบุเหตุผล เช่น รอเกิน 3 วัน'
+                    suggestions={NO_SHOW_SUGGESTIONS}
+                    aria-label='เหตุผลที่ไม่มารับยา'
+                  />
+                  <BrandSubdueButton variant='outline' size='sm' disabled={!noShowReason.trim()} onClick={handleNoShow}>ยืนยัน</BrandSubdueButton>
+                </div>
+              )}
+              {problemOpen && (
+                <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
+                  <PharmacyVoiceSuggestInput
+                    value={problemReason} onChange={setProblemReason}
+                    placeholder='ระบุปัญหา เช่น ลายมือแพทย์อ่านไม่ออก'
+                    suggestions={PROBLEM_SUGGESTIONS}
+                    aria-label='ปัญหาใบยา'
+                  />
+                  <BrandSubdueButton variant='outline' size='sm' disabled={!problemReason.trim()} onClick={handleProblem}>ยืนยัน</BrandSubdueButton>
+                </div>
+              )}
+            </SectionCard>
           )}
-          {isTerminal && (
-            <Alert
-              type={row.status === DISPENSE_STATUS.DISPENSED ? 'success' : row.status === DISPENSE_STATUS.NO_SHOW ? 'warning' : 'error'}
-              title={row.status === DISPENSE_STATUS.DISPENSED ? 'จ่ายยาแล้ว' : row.status === DISPENSE_STATUS.NO_SHOW ? 'ผู้รับบริการไม่มารับยา' : 'ใบยามีปัญหา'}
-              subtext={row.status === DISPENSE_STATUS.DISPENSED ? `คิว ${row.queueNo} จ่ายยาเรียบร้อยแล้ว` : row.noShowReason || row.problemReason}
-              showCloseButton={false} style={{ maxWidth: '100%' }}
-            />
+          </>
           )}
 
+          {currentStep === 0 && (
+          <>
           {/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.4.2) — treatment history / consult
               history / lab / radiology / appointment. Lab/Radiology/Finance
               are themselves undeveloped stub modules elsewhere in this app
@@ -505,6 +748,7 @@ const PharmacyDispensePage = () => {
             {editingItemId && (
               <PharmacyMedicationEditor
                 item={editingItemId === 'new' ? null : row.items.find((it) => it.id === editingItemId)}
+                allergies={mrPatient.drugAllergies}
                 onCancel={() => { setEditingItemId(null); setAllergySwapConflict(null); }}
                 onSave={(patch) => {
                   if (editingItemId === 'new') {
@@ -525,12 +769,149 @@ const PharmacyDispensePage = () => {
                 }}
               />
             )}
-            <div className='flex items-center justify-end w-full' style={{ paddingTop: 'var(--dim-space-200)', borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)' }}>
+            <div className='flex items-center justify-end flex-wrap w-full' style={{ paddingTop: 'var(--dim-space-200)', borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)', gap: 'var(--dim-space-400)' }}>
+              <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>
+                ยาในบัญชี ฿{nlemTotal.toLocaleString()} · ยานอกบัญชี ฿{nonNlemTotal.toLocaleString()} · เบิกได้ ฿{claimableTotal.toLocaleString()}
+              </span>
               <span className='text-sm' style={{ color: 'var(--text-content-secondary)', marginRight: 'var(--dim-space-200)' }}>ยอดรวมทั้งใบสั่งยา</span>
               <span className='text-base font-bold' style={{ color: 'var(--text-content-default)' }}>฿{grandTotal.toLocaleString()}</span>
             </div>
+
+            {/* Med Error (ToR §1.9.2.4) — manual log entry. */}
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)', paddingTop: 'var(--dim-space-200)', borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)' }}>
+              <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                <span className='text-xs' style={{ color: 'var(--text-content-tertiary)', fontWeight: 'var(--type-weight-bold)' }}>Med Error</span>
+                {!isTerminal && (
+                  <NeutralSubdueButton variant='outline' size='sm' leadingIcon='error' onClick={() => setMedErrorOpen((v) => !v)}>
+                    บันทึก Med Error
+                  </NeutralSubdueButton>
+                )}
+              </div>
+              {medErrorOpen && (
+                <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                  <PharmacyVoiceSuggestInput
+                    value={medErrorText} onChange={setMedErrorText}
+                    placeholder='ระบุรายละเอียด Med Error'
+                    suggestions={MED_ERROR_SUGGESTIONS}
+                    aria-label='รายละเอียด Med Error'
+                  />
+                  <select
+                    value={medErrorSeverity} onChange={(e) => setMedErrorSeverity(e.target.value)}
+                    style={{ padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', appearance: 'none' }}
+                  >
+                    <option value='low'>ความรุนแรงต่ำ</option>
+                    <option value='medium'>ความรุนแรงปานกลาง</option>
+                    <option value='high'>ความรุนแรงสูง</option>
+                  </select>
+                  <BrandSubdueButton variant='outline' size='sm' disabled={!medErrorText.trim()} onClick={handleLogMedError}>บันทึก</BrandSubdueButton>
+                </div>
+              )}
+              {row.medErrors.length > 0 && (
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                  {row.medErrors.map((e) => (
+                    <div key={e.id} className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                      <span className='text-xs' style={{ color: 'var(--text-content-tertiary)', whiteSpace: 'nowrap' }}>{e.at} · {e.by}</span>
+                      <Badge style={e.severity === 'high' ? 'error' : e.severity === 'medium' ? 'warning' : 'neutral'} size='small'>
+                        {{ low: 'ต่ำ', medium: 'ปานกลาง', high: 'สูง' }[e.severity] || e.severity}
+                      </Badge>
+                      <span className='text-xs flex-1 min-w-0' style={{ color: 'var(--text-content-secondary)' }}>{e.description}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </SectionCard>
 
+          {/* ฉลากช่วย (ToR §1.9.2.11) — per-item auxiliary-label sticker
+              picker, separate from the main drug label. */}
+          <SectionCard
+            title='ฉลากช่วย (Auxiliary Label)'
+            action={
+              <BrandSubdueButton variant='outline' size='sm' leadingIcon='sticky_note_2' onClick={() => triggerPharmacyPrint('auxlabel')}>
+                พิมพ์ฉลากช่วย
+              </BrandSubdueButton>
+            }
+          >
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+              {row.items.map((item) => (
+                <div key={item.id} className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                  <span className='text-sm' style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>{item.name}</span>
+                  <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+                    {AUX_LABEL_OPTIONS.map((label) => {
+                      const active = (item.auxLabels || []).includes(label);
+                      return (
+                        <button
+                          key={label}
+                          type='button'
+                          disabled={isTerminal}
+                          onClick={() => { toggleAuxLabel(row.queueNo, item.id, label); bump(); }}
+                          style={{
+                            padding: '0 var(--dim-space-300)',
+                            height: 'var(--dim-size-600, 32px)',
+                            borderRadius: 'var(--dim-radius-full)',
+                            border: `var(--dim-stroke-100) solid ${active ? 'var(--border-brandPrimary-default)' : 'var(--border-card-default)'}`,
+                            background: active ? 'var(--surface-brandPrimary-quaternary)' : 'transparent',
+                            color: active ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
+                            fontSize: 'var(--type-size-xs)',
+                            cursor: isTerminal ? 'not-allowed' : 'pointer',
+                            opacity: isTerminal ? 0.6 : 1,
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+
+          {/* แบ่งจ่ายยาเป็นงวด (Refill — ToR §1.9.4.5) — split an item's
+              remaining quantity across future scheduled pickups instead of
+              handing it all out in one visit. */}
+          <SectionCard title='แบ่งจ่ายยาเป็นงวด (Refill)'>
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+              {row.items.map((item) => (
+                <div key={item.id} className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+                  <span className='text-sm' style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>{item.name}</span>
+                  {!item.refillPlan ? (
+                    <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                      <NeutralSubdueButton variant='outline' size='sm' leadingIcon='event_repeat' disabled={isTerminal} onClick={() => { createRefillPlan(row.queueNo, item.id, { visits: 2, intervalDays: 14 }); bump(); }}>
+                        แบ่งจ่าย 2 งวด (ทุก 14 วัน)
+                      </NeutralSubdueButton>
+                      <NeutralSubdueButton variant='outline' size='sm' leadingIcon='event_repeat' disabled={isTerminal} onClick={() => { createRefillPlan(row.queueNo, item.id, { visits: 3, intervalDays: 10 }); bump(); }}>
+                        แบ่งจ่าย 3 งวด (ทุก 10 วัน)
+                      </NeutralSubdueButton>
+                    </div>
+                  ) : (
+                    <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                      {item.refillPlan.visits.map((v) => (
+                        <div key={v.id} className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-200) var(--dim-space-300)', background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-200)' }}>
+                          <span className='text-xs' style={{ color: 'var(--text-content-secondary)' }}>
+                            งวดที่ {v.visitNo} · {formatThaiDate(v.scheduledDate)} · {v.quantity} {item.unit}
+                          </span>
+                          <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                            <Badge style={REFILL_VISIT_STATUS_PILL[v.status].style} size='small'>{REFILL_VISIT_STATUS_PILL[v.status].label}</Badge>
+                            {v.status === 'due' && v.visitNo > 1 && (
+                              <NeutralSubdueButton variant='outline' size='sm' onClick={() => { markRefillVisitPickedUp(row.queueNo, item.id, v.id); bump(); }}>
+                                บันทึกรับยาแล้ว
+                              </NeutralSubdueButton>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+          </>
+          )}
+
+          {currentStep === 2 && (
+          <>
           {/* จัดยา checklist (ToR §1.9.3 — บันทึกสถานะการจัด และตรวจสอบรายการยา
               ทีละรายการ ก่อนเปลี่ยนสถานะเป็น "จัดยาแล้ว") */}
           {!isTerminal && row.status !== DISPENSE_STATUS.WAITING && (
@@ -576,7 +957,13 @@ const PharmacyDispensePage = () => {
                 { key: 'note', label: 'หมายเหตุ', flex: true, minWidth: 200, render: (r) => r.note || '—' },
               ]}
               rows={[
-                ...row.items.map((it) => ({ id: `cur-${it.id}`, name: it.name, source: 'current', note: it.instructions })),
+                /* §1.9.5.6 — a Re-med carry-forward item dispensed at 0
+                   additional units this visit still gets a reconciliation
+                   line, with a note that reads as "continued", not "empty". */
+                ...row.items.map((it) => ({
+                  id: `cur-${it.id}`, name: it.name, source: 'current',
+                  note: it.source === 'remed' && it.quantity === 0 ? 'ต่อเนื่องจากรายการเดิม — ไม่มีการจ่ายเพิ่มครั้งนี้' : it.instructions,
+                })),
                 ...row.ownMedications.map((m) => ({ id: `own-${m.id}`, name: m.name, source: 'own', note: m.note })),
               ]}
               rowKey={(r) => r.id}
@@ -584,7 +971,11 @@ const PharmacyDispensePage = () => {
             />
             <PharmacyOwnMedicationsList queueNo={row.queueNo} row={row} onChange={bump} />
           </SectionCard>
+          </>
+          )}
 
+          {currentStep === 3 && (
+          <>
           <SectionCard title='ตรวจสอบคำสั่งใช้ยา'>
             <PharmacyVerificationPanel queueNo={row.queueNo} row={row} onChange={bump} />
           </SectionCard>
@@ -596,35 +987,7 @@ const PharmacyDispensePage = () => {
           <SectionCard title='การรับยา'>
             <PharmacyDeliveryPanel queueNo={row.queueNo} row={row} onChange={bump} />
           </SectionCard>
-
-          {/* Exception actions */}
-          {!isTerminal && (
-            <SectionCard title='กรณีพิเศษ'>
-              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='person_off' onClick={() => setNoShowOpen((v) => !v)}>ผู้รับบริการไม่มารับยา</NeutralSubdueButton>
-                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='report' onClick={() => setProblemOpen((v) => !v)}>แจ้งปัญหาใบยา</NeutralSubdueButton>
-              </div>
-              {noShowOpen && (
-                <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
-                  <input
-                    type='text' value={noShowReason} onChange={(e) => setNoShowReason(e.target.value)}
-                    placeholder='ระบุเหตุผล เช่น รอเกิน 3 วัน'
-                    style={{ flex: 1, minWidth: 'var(--dim-size-2280, 218px)', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)' }}
-                  />
-                  <BrandSubdueButton variant='outline' size='sm' disabled={!noShowReason.trim()} onClick={handleNoShow}>ยืนยัน</BrandSubdueButton>
-                </div>
-              )}
-              {problemOpen && (
-                <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
-                  <input
-                    type='text' value={problemReason} onChange={(e) => setProblemReason(e.target.value)}
-                    placeholder='ระบุปัญหา เช่น ลายมือแพทย์อ่านไม่ออก'
-                    style={{ flex: 1, minWidth: 'var(--dim-size-2280, 218px)', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)' }}
-                  />
-                  <BrandSubdueButton variant='outline' size='sm' disabled={!problemReason.trim()} onClick={handleProblem}>ยืนยัน</BrandSubdueButton>
-                </div>
-              )}
-            </SectionCard>
+          </>
           )}
         </div>
 

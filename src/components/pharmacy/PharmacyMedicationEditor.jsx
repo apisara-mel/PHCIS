@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import { DRUG_REGISTRY } from '@/data/pharmacyRegistry';
+import { getAllergySafeDrugs } from '@/data/pharmacyQueue';
 
 /* Add/edit a single medication line — the same screen-level capability
    the legacy ห้องจ่ายยา system offers (คู่มือระบบงานห้องจ่ายยาและบริหาร
@@ -26,7 +27,7 @@ const Field = ({ label, children }) => (
   </label>
 );
 
-const PharmacyMedicationEditor = ({ item, onSave, onCancel }) => {
+const PharmacyMedicationEditor = ({ item, allergies = [], onSave, onCancel }) => {
   const isNew = !item;
   const [name, setName] = useState(item?.name || '');
   const [dosePerTake, setDosePerTake] = useState(item?.dosePerTake || '1');
@@ -34,6 +35,19 @@ const PharmacyMedicationEditor = ({ item, onSave, onCancel }) => {
   const [when, setWhen] = useState(item?.when || '');
   const [quantity, setQuantity] = useState(item?.quantity || 1);
   const [instructions, setInstructions] = useState(item?.instructions || '');
+
+  /* Drugs whose pharmacological class matches one of the patient's known
+     allergies are hidden from the picker so the pharmacist can't
+     accidentally re-select an allergen while swapping a conflicting line.
+     The item's OWN original name stays visible even if it matches — this
+     form is also used for a plain dose/frequency edit, not just an
+     allergy swap, so the current drug must never vanish from its own
+     select. */
+  const selectableDrugs = useMemo(
+    () => getAllergySafeDrugs(allergies, item?.name),
+    [allergies, item],
+  );
+  const hiddenCount = DRUG_REGISTRY.length - selectableDrugs.length;
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -61,8 +75,13 @@ const PharmacyMedicationEditor = ({ item, onSave, onCancel }) => {
         <Field label='ชื่อยา'>
           <select value={name} onChange={(e) => setName(e.target.value)} style={{ ...inputStyle, appearance: 'none' }}>
             <option value=''>— เลือกยา —</option>
-            {DRUG_REGISTRY.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
+            {selectableDrugs.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
           </select>
+          {hiddenCount > 0 && (
+            <span className='text-xs' style={{ color: 'var(--text-alert-error)' }}>
+              ซ่อน {hiddenCount} รายการที่ผู้ป่วยมีประวัติแพ้
+            </span>
+          )}
         </Field>
         <Field label='ขนาดต่อครั้ง'>
           <input style={inputStyle} value={dosePerTake} onChange={(e) => setDosePerTake(e.target.value)} placeholder='เช่น 1' />

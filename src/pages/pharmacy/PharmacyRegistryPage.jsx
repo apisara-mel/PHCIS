@@ -9,7 +9,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { resolveHighAlertBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
-import { DRUG_REGISTRY, DRUG_CLASSIFICATIONS, currentPrice } from '@/data/pharmacyRegistry';
+import { DRUG_REGISTRY, DRUG_CLASSIFICATIONS, UNIT_TYPES, currentPrice } from '@/data/pharmacyRegistry';
 import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
 
 /* Drug Registry (ระบบทะเบียนยา — ToR §1.9.1) list page. Mirrors
@@ -90,7 +90,7 @@ const DrugRow = ({ drug, onEdit }) => (
         {!drug.active && <Badge style='neutral' size='small'>ปิดใช้งาน</Badge>}
       </div>
       <span className='text-xs text-ink-tertiary truncate'>
-        {drug.genericName}{drug.tradeName ? ` · ${drug.tradeName}` : ''}
+        {drug.code ? `${drug.code} · ` : ''}{drug.genericName}{drug.tradeName ? ` · ${drug.tradeName}` : ''}
       </span>
     </div>
 
@@ -137,6 +137,7 @@ const PharmacyRegistryPage = () => {
   const [classFilter, setClassFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [highAlertFilter, setHighAlertFilter] = useState('all');
+  const [unitFilter, setUnitFilter] = useState('all');
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -144,18 +145,24 @@ const PharmacyRegistryPage = () => {
       if (classFilter !== 'all' && d.classification !== classFilter) return false;
       if (statusFilter !== 'all' && (statusFilter === 'active') !== d.active) return false;
       if (highAlertFilter !== 'all' && (highAlertFilter === 'yes') !== d.highAlert) return false;
+      if (unitFilter !== 'all' && d.unit !== unitFilter) return false;
       if (!q) return true;
       return (
+        (d.code || '').toLowerCase().includes(q) ||
         d.name.toLowerCase().includes(q) ||
         d.genericName.toLowerCase().includes(q) ||
         d.tradeName.toLowerCase().includes(q)
       );
     });
-  }, [search, classFilter, statusFilter, highAlertFilter]);
+  }, [search, classFilter, statusFilter, highAlertFilter, unitFilter]);
 
   const classOptions = [{ value: 'all', label: 'ทุกประเภท' }, ...DRUG_CLASSIFICATIONS.map((c) => ({ value: c.key, label: c.label }))];
   const statusOptions = [{ value: 'all', label: 'ทุกสถานะ' }, { value: 'active', label: 'ใช้งาน' }, { value: 'inactive', label: 'ปิดใช้งาน' }];
   const highAlertOptions = [{ value: 'all', label: 'ทั้งหมด' }, { value: 'yes', label: 'High Alert' }, { value: 'no', label: 'ยาปกติ' }];
+  /* รูปแบบ (dosage form — ToR §1.9.5.1) — this data model's `unit` field
+     IS the dosage form (tablet/capsule/bottle/...), so the filter reuses
+     the same UNIT_TYPES catalog rather than inventing a parallel one. */
+  const unitOptions = [{ value: 'all', label: 'ทุกรูปแบบ' }, ...UNIT_TYPES.map((u) => ({ value: u.key, label: u.label }))];
 
   return (
     <div className='min-h-screen w-full flex bg-brand-50'>
@@ -205,7 +212,7 @@ const PharmacyRegistryPage = () => {
                   type='text'
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder='ค้นหาชื่อการค้า / ชื่อสามัญ'
+                  placeholder='ค้นหารหัสยา / ชื่อการค้า / ชื่อสามัญ'
                   className='flex-1 bg-transparent border-none outline-none text-sm'
                   style={{ color: 'var(--text-content-primary)' }}
                 />
@@ -216,13 +223,14 @@ const PharmacyRegistryPage = () => {
                 )}
               </div>
               <FilterSelect icon='category' label='ประเภท' value={classFilter} options={classOptions} onChange={setClassFilter} />
+              <FilterSelect icon='straighten' label='รูปแบบ' value={unitFilter} options={unitOptions} onChange={setUnitFilter} />
               <FilterSelect icon='toggle_on' label='สถานะ' value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
               <FilterSelect icon='warning' label='High Alert' value={highAlertFilter} options={highAlertOptions} onChange={setHighAlertFilter} />
-              {(search || classFilter !== 'all' || statusFilter !== 'all' || highAlertFilter !== 'all') && (
+              {(search || classFilter !== 'all' || statusFilter !== 'all' || highAlertFilter !== 'all' || unitFilter !== 'all') && (
                 <NeutralSubdueButton
                   variant='outline'
                   size='sm'
-                  onClick={() => { setSearch(''); setClassFilter('all'); setStatusFilter('all'); setHighAlertFilter('all'); }}
+                  onClick={() => { setSearch(''); setClassFilter('all'); setStatusFilter('all'); setHighAlertFilter('all'); setUnitFilter('all'); }}
                 >
                   ล้างตัวกรอง
                 </NeutralSubdueButton>

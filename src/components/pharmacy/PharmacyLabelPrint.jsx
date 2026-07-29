@@ -24,6 +24,7 @@ if (typeof document !== 'undefined' && !document.getElementById('mih-pharmacy-pr
       html:not([data-pharmacy-print-mode]) .mih-pharmacy-print-only.mih-pharmacy-print-label { display: block !important; }
       html[data-pharmacy-print-mode="label"] .mih-pharmacy-print-only.mih-pharmacy-print-label { display: block !important; }
       html[data-pharmacy-print-mode="prescription"] .mih-pharmacy-print-only.mih-pharmacy-print-prescription { display: block !important; }
+      html[data-pharmacy-print-mode="auxlabel"] .mih-pharmacy-print-only.mih-pharmacy-print-auxlabel { display: block !important; }
     }
   `;
   document.head.appendChild(css);
