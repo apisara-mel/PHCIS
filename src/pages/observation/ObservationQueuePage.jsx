@@ -688,11 +688,11 @@ export default function ObservationQueuePage() {
       {showVitalsModal && selectedPatientForVitals && createPortal(
         <div
           onClick={(e) => { if (e.target === e.currentTarget) setShowVitalsModal(false); }}
-          className='fixed inset-0 z-[1400] flex items-center justify-center p-4 animate-fade-in'
+          className='fixed inset-0 z-[1400] flex items-center justify-center p-6 animate-fade-in'
           style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
-          <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden border border-ink-line'>
-            <div className='bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>
+          <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-2xl max-h-full overflow-hidden border border-ink-line flex flex-col'>
+            <div className='shrink-0 bg-brand-800 text-white px-6 py-4 flex items-center justify-between'>
               <div className='flex items-center gap-2'>
                 <span className='material-symbols-outlined text-2xl'>monitor_heart</span>
                 <h3 className='font-bold text-base'>บันทึกสัญญาณชีพประจำช่วงเวลา</h3>
@@ -707,7 +707,12 @@ export default function ObservationQueuePage() {
               />
             </div>
 
-            <form onSubmit={handleSaveVitals} className='p-6 space-y-4 text-xs text-ink-secondary'>
+            {/* Scrollable body — header/footer stay pinned so only the
+                field content scrolls when the popup can't fit the
+                viewport (24px margin on every side via the overlay's
+                p-6, height capped by max-h-full above). */}
+            <form onSubmit={handleSaveVitals} className='flex flex-col min-h-0 flex-1'>
+            <div className='overflow-y-auto min-h-0 flex-1 p-6 space-y-4 text-xs text-ink-secondary'>
               <div className='bg-brand-50 p-3 rounded-xl border border-brand-100 flex items-center justify-between'>
                 <div>
                   <span className='font-bold text-ink text-sm'>{selectedPatientForVitals.patientName}</span>
@@ -796,15 +801,16 @@ export default function ObservationQueuePage() {
                   กรุณากรอกค่าให้ครบทุกช่อง (ความดัน, ชีพจร, อุณหภูมิ, SpO2, อัตราการหายใจ) ก่อนบันทึก
                 </p>
               )}
+            </div>
 
-              <div className='pt-3 flex items-center justify-end gap-3 border-t border-ink-line'>
-                <NeutralSubdueButton type='button' onClick={() => setShowVitalsModal(false)}>
-                  ยกเลิก
-                </NeutralSubdueButton>
-                <BrandPrimaryButton type='submit' leadingIcon='save' disabled={!isVitalsFormValid}>
-                  บันทึกสัญญาณชีพ
-                </BrandPrimaryButton>
-              </div>
+            <div className='shrink-0 px-6 py-4 flex items-center justify-end gap-3 border-t border-ink-line'>
+              <NeutralSubdueButton type='button' onClick={() => setShowVitalsModal(false)}>
+                ยกเลิก
+              </NeutralSubdueButton>
+              <BrandPrimaryButton type='submit' leadingIcon='save' disabled={!isVitalsFormValid}>
+                บันทึกสัญญาณชีพ
+              </BrandPrimaryButton>
+            </div>
             </form>
           </div>
         </div>,
