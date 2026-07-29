@@ -14,7 +14,7 @@ import TabPill, { TabBar } from '@/components/tab/TabPill';
 import { getPatientByHN } from '@/data/patientProfiles';
 import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
-import Table, { EllipsisText } from '@/components/table/Table';
+import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import StepProgress from '@/components/step/StepProgress';
 import Footer from '@/components/layout/Footer';
@@ -80,86 +80,6 @@ const NOTE_TYPES_BY_ROLE = {
    numbered-step flow in the app. */
 const OBSERVATION_STEP_KEYS = ['vitals', 'orders', 'notes', 'discharge'];
 
-/* Timed Vital Signs Sheet columns — styled to match the OPD screening
-   worklist table (shared <Table>, design tokens, StatusBadge for the
-   EWS score) instead of a bespoke Tailwind-gray <table>. */
-const VITALS_TABLE_COLUMNS = [
-  {
-    key: 'time',
-    label: 'เวลาบันทึก',
-    width: 96,
-    render: (log) => (
-      <span style={{ color: 'var(--text-brandPrimary-default, var(--brand-p700))', fontWeight: 'var(--type-weight-bold)' }}>
-        {log.time}
-      </span>
-    ),
-  },
-  {
-    key: 'bp',
-    label: 'ความดันโลหิต (mmHg)',
-    width: 168,
-    align: 'center',
-    sortable: false,
-    render: (log) => (
-      <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{log.bpSys}/{log.bpDia}</span>
-    ),
-  },
-  {
-    key: 'pulse',
-    label: 'ชีพจร (bpm)',
-    width: 112,
-    align: 'center',
-    sortable: false,
-    render: (log) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{log.pulse}</span>,
-  },
-  {
-    key: 'temp',
-    label: 'อุณหภูมิ (°C)',
-    width: 112,
-    align: 'center',
-    sortable: false,
-    render: (log) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{log.temp}</span>,
-  },
-  {
-    key: 'spo2',
-    label: 'SpO2 (%)',
-    width: 96,
-    align: 'center',
-    sortable: false,
-    render: (log) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{log.spo2}%</span>,
-  },
-  {
-    key: 'rr',
-    label: 'RR (bpm)',
-    width: 96,
-    align: 'center',
-    sortable: false,
-    render: (log) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{log.rr}</span>,
-  },
-  {
-    key: 'ews',
-    label: 'EWS Score',
-    width: 128,
-    align: 'center',
-    sortable: false,
-    render: (log) => {
-      const ewsRes = calculateEwsScore(log);
-      return (
-        <StatusBadge style={ewsRes.tier.style} size='small' showDot>
-          Score: {ewsRes.score}
-        </StatusBadge>
-      );
-    },
-  },
-  {
-    key: 'note',
-    label: 'หมายเหตุ / การประเมิน',
-    flex: true,
-    minWidth: 220,
-    sortable: false,
-    render: (log) => <EllipsisText text={log.note || '-'} />,
-  },
-];
 
 export default function ObservationDetailPage() {
   const { id } = useParams();
@@ -216,12 +136,40 @@ export default function ObservationDetailPage() {
   const latestVitals = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
   const currentEws = latestVitals ? calculateEwsScore(latestVitals) : { score: 0, tier: EWS_RISK_TIERS.NORMAL };
 
-  // Timed Vital Signs table pagination — same PAGE_SIZE/Pagination pattern as QueuePage.jsx
-  const vitalsTotalPages = Math.max(1, Math.ceil(patient.vitalsTrend.length / VITALS_PAGE_SIZE));
+  /* Observation Timeline — merges vitalsTrend + nursingNotes into one
+     chronological feed so every timestamp shows its vital signs AND
+     whatever personnel opinion was recorded at/around that time,
+     instead of living in two disconnected sections (a vitals table on
+     this step, a separate notes timeline on step 3). Vitals entries
+     bring their own embedded `note` (recorded at measurement time);
+     any nursingNotes entry sharing the same timestamp is folded into
+     the same row, everything else becomes a note-only row. Time
+     strings are zero-padded "HH:MM น." so plain string sort is
+     chronological. */
+  const observationTimeline = (() => {
+    const byTime = new Map();
+    patient.vitalsTrend.forEach((v) => {
+      byTime.set(v.time, {
+        time: v.time,
+        vitals: v,
+        opinions: v.note ? [{ text: v.note, author: patient.nurseName, noteType: null }] : [],
+      });
+    });
+    patient.nursingNotes.forEach((n) => {
+      const opinion = { text: n.note, author: n.nurse, noteType: n.noteType || null };
+      const existing = byTime.get(n.time);
+      if (existing) existing.opinions.push(opinion);
+      else byTime.set(n.time, { time: n.time, vitals: null, opinions: [opinion] });
+    });
+    return Array.from(byTime.values()).sort((a, b) => a.time.localeCompare(b.time));
+  })();
+
+  // Observation Timeline pagination — same PAGE_SIZE/Pagination pattern as QueuePage.jsx
+  const vitalsTotalPages = Math.max(1, Math.ceil(observationTimeline.length / VITALS_PAGE_SIZE));
   const vitalsPageClamped = Math.min(vitalsPage, vitalsTotalPages);
-  const vitalsRangeStart = patient.vitalsTrend.length === 0 ? 0 : (vitalsPageClamped - 1) * VITALS_PAGE_SIZE + 1;
-  const vitalsRangeEnd = Math.min(vitalsPageClamped * VITALS_PAGE_SIZE, patient.vitalsTrend.length);
-  const pagedVitalsTrend = patient.vitalsTrend.slice(
+  const vitalsRangeStart = observationTimeline.length === 0 ? 0 : (vitalsPageClamped - 1) * VITALS_PAGE_SIZE + 1;
+  const vitalsRangeEnd = Math.min(vitalsPageClamped * VITALS_PAGE_SIZE, observationTimeline.length);
+  const pagedTimeline = observationTimeline.slice(
     (vitalsPageClamped - 1) * VITALS_PAGE_SIZE,
     vitalsPageClamped * VITALS_PAGE_SIZE,
   );
@@ -781,9 +729,11 @@ export default function ObservationDetailPage() {
             </form>
           </div>
 
-          {/* Timed Vitals History Table — styled to match the OPD screening
-              worklist card: surface-card-100 body, brandPrimary-quaternary
-              header band, shared <Table> for header/row/cell chrome. */}
+          {/* Observation Timeline — merged vitalsTrend + nursingNotes feed
+              (see observationTimeline above), so every timestamp on this
+              landing view already shows both the vital signs AND whatever
+              personnel opinion was recorded then, instead of splitting
+              them across a table here and a separate log on step 3. */}
           <div
             style={{
               background: 'var(--surface-card-100)',
@@ -810,8 +760,8 @@ export default function ObservationDetailPage() {
                   fontSize: 'var(--type-size-sm)',
                 }}
               >
-                <span className='material-symbols-outlined' style={{ color: 'var(--icon-brandPrimary-default)' }}>table_chart</span>
-                ตารางบันทึกสัญญาณชีพตามเวลา (Timed Vital Signs Sheet)
+                <span className='material-symbols-outlined' style={{ color: 'var(--icon-brandPrimary-default)' }}>timeline</span>
+                ไทม์ไลน์การสังเกตอาการ (Observation Timeline)
               </h3>
               <span
                 style={{
@@ -821,21 +771,114 @@ export default function ObservationDetailPage() {
                   fontSize: 'var(--type-size-xs)',
                 }}
               >
-                บันทึกแล้ว {patient.vitalsTrend.length} รอบ
+                บันทึกแล้ว {observationTimeline.length} ช่วงเวลา
               </span>
             </div>
 
             <div style={{ padding: 'var(--dim-space-400)' }}>
-              <Table
-                columns={VITALS_TABLE_COLUMNS}
-                rows={pagedVitalsTrend}
-                rowKey={(log, idx) => `${log.time}-${idx}`}
-                emptyMessage='ยังไม่มีการบันทึกสัญญาณชีพ'
-              />
+              {pagedTimeline.length === 0 ? (
+                <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-sm)', textAlign: 'center', padding: 'var(--dim-space-600) 0' }}>
+                  ยังไม่มีการบันทึกสัญญาณชีพหรือความเห็น
+                </p>
+              ) : (
+                <div className='flex flex-col'>
+                  {pagedTimeline.map((entry, idx) => {
+                    const isLast = idx === pagedTimeline.length - 1;
+                    const ewsRes = entry.vitals ? calculateEwsScore(entry.vitals) : null;
+                    return (
+                      <div key={entry.time} className='flex' style={{ gap: 'var(--dim-space-300)' }}>
+                        <div className='flex flex-col items-center shrink-0' style={{ width: 'var(--dim-size-300, 16px)' }}>
+                          <span
+                            className='shrink-0 rounded-full'
+                            style={{
+                              width: 12,
+                              height: 12,
+                              background: 'var(--brand-p600)',
+                              border: 'var(--dim-stroke-200, 2px) solid var(--surface-card-100)',
+                              boxShadow: '0 0 0 2px var(--border-brandPrimary-quaternary)',
+                            }}
+                          />
+                          {!isLast && (
+                            <span
+                              className='flex-1'
+                              style={{ width: 2, background: 'var(--border-steps-default)', marginTop: 'var(--dim-space-100)' }}
+                            />
+                          )}
+                        </div>
+                        <div className='flex-1 min-w-0' style={{ paddingBottom: 'var(--dim-space-500, 20px)' }}>
+                          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-200)' }}>
+                            <span
+                              className='font-mono'
+                              style={{
+                                fontWeight: 'var(--type-weight-bold)',
+                                color: 'var(--text-brandPrimary-default)',
+                                background: 'var(--surface-brandPrimary-quaternary)',
+                                padding: 'var(--dim-space-050, 2px) var(--dim-space-200)',
+                                borderRadius: 'var(--dim-radius-150, 6px)',
+                                fontSize: 'var(--type-size-xs)',
+                              }}
+                            >
+                              {entry.time}
+                            </span>
+                            {ewsRes && (
+                              <StatusBadge style={ewsRes.tier.style} size='small' showDot>
+                                EWS: {ewsRes.score}
+                              </StatusBadge>
+                            )}
+                          </div>
 
-              {/* Pagination — only once the log actually spans more than one
-                  page, same PAGE_SIZE/Pagination pattern as QueuePage.jsx. */}
-              {patient.vitalsTrend.length > VITALS_PAGE_SIZE && (
+                          {entry.vitals && (
+                            <div
+                              className='grid grid-cols-2 sm:grid-cols-5'
+                              style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-200)' }}
+                            >
+                              {[
+                                ['ความดัน', `${entry.vitals.bpSys}/${entry.vitals.bpDia}`],
+                                ['ชีพจร', `${entry.vitals.pulse} bpm`],
+                                ['อุณหภูมิ', `${entry.vitals.temp}°C`],
+                                ['SpO2', `${entry.vitals.spo2}%`],
+                                ['RR', `${entry.vitals.rr} ครั้ง/นาที`],
+                              ].map(([label, value]) => (
+                                <div
+                                  key={label}
+                                  className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'
+                                >
+                                  <div className='text-[10px] text-ink-quaternary font-medium'>{label}</div>
+                                  <div className='font-bold text-brand-600 text-[11px]'>{value}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {entry.opinions.map((op, opIdx) => (
+                            <div
+                              key={opIdx}
+                              style={{
+                                background: 'var(--surface-neutral-quaternary)',
+                                border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+                                borderRadius: 'var(--dim-radius-300)',
+                                padding: 'var(--dim-space-300)',
+                                marginTop: opIdx > 0 ? 'var(--dim-space-200)' : 0,
+                              }}
+                            >
+                              <div style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>
+                                บันทึกโดย: {op.author}{op.noteType ? ` · ${op.noteType}` : ''}
+                              </div>
+                              <div style={{ color: 'var(--text-content-default)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)', lineHeight: 1.6 }}>
+                                {op.text}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pagination — only once the timeline actually spans more than
+                  one page, same PAGE_SIZE/Pagination pattern as QueuePage.jsx. */}
+              {observationTimeline.length > VITALS_PAGE_SIZE && (
                 <div
                   className='flex items-center'
                   style={{
@@ -846,7 +889,7 @@ export default function ObservationDetailPage() {
                   }}
                 >
                   <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-                    แสดง {vitalsRangeStart}–{vitalsRangeEnd} จาก {patient.vitalsTrend.length} รายการ
+                    แสดง {vitalsRangeStart}–{vitalsRangeEnd} จาก {observationTimeline.length} รายการ
                   </span>
                   <div className='flex-1' />
                   <Pagination currentPage={vitalsPageClamped} pageCount={vitalsTotalPages} onPageChange={setVitalsPage} />
