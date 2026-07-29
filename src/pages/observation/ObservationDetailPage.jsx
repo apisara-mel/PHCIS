@@ -17,6 +17,7 @@ import VitalTrendChart from '@/components/observation/VitalTrendChart';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import StepProgress from '@/components/step/StepProgress';
+import Footer from '@/components/layout/Footer';
 import VitalCard, { PressureCard } from '@/components/card/VitalCard';
 
 /* Matches the OPD queue table's own page size (QueuePage.jsx PAGE_SIZE). */
@@ -434,8 +435,7 @@ export default function ObservationDetailPage() {
     dischargeForm.disposition === 'refer' &&
     (!dischargeForm.referHospital || dischargeForm.referHospital === REFER_HOSPITAL_PLACEHOLDER);
 
-  const handleSaveDischarge = (e) => {
-    e.preventDefault();
+  const saveDischarge = () => {
     if (isReferHospitalMissing) return;
     setPatient((prev) => ({
       ...prev,
@@ -448,12 +448,33 @@ export default function ObservationDetailPage() {
     alert('บันทึกผลการสรุปจำหน่ายสังเกตอาการเรียบร้อยแล้ว!');
   };
 
+  const handleSaveDischarge = (e) => {
+    e.preventDefault();
+    saveDischarge();
+  };
+
   const observationSteps = [
     { title: 'แนวโน้มสัญญาณชีพตามเวลา' },
     { title: 'คำสั่งการรักษาด่วน/STAT' },
     { title: 'บันทึกทางการพยาบาล' },
     { title: 'สรุปผลสังเกตอาการ & จำหน่าย' },
   ];
+
+  /* Bottom CTA bar — same shared <Footer type='with BTN' sticky> pattern
+     as the OPD screening wizard, so every step (free-navigation dashboard
+     though these tabs are) ends in a consistent forward action. Final
+     step's primary button IS the discharge action instead of "ถัดไป". */
+  const currentStepIdx = OBSERVATION_STEP_KEYS.indexOf(activeTab);
+  const isFirstStep = currentStepIdx === 0;
+  const isLastStep = currentStepIdx === OBSERVATION_STEP_KEYS.length - 1;
+  const goPrevStep = () => setActiveTab(OBSERVATION_STEP_KEYS[Math.max(0, currentStepIdx - 1)]);
+  const goNextStep = () =>
+    setActiveTab(OBSERVATION_STEP_KEYS[Math.min(OBSERVATION_STEP_KEYS.length - 1, currentStepIdx + 1)]);
+  const footerPrimaryLabel = isLastStep ? 'จำหน่าย' : `ถัดไป: ${observationSteps[currentStepIdx + 1]?.title || ''}`;
+  const handleFooterPrimaryClick = () => {
+    if (isLastStep) saveDischarge();
+    else goNextStep();
+  };
 
   return (
     <QueuePageShell
@@ -1188,27 +1209,32 @@ export default function ObservationDetailPage() {
                 ยืนยันการจำหน่ายผู้ป่วยออกจากเตียงสังเกตอาการ (Discharge & Release Bed)
               </label>
             </div>
-
-            {/* Action Bar */}
-            <div className='pt-4 border-t border-gray-100 flex items-center justify-between'>
-              <NeutralSubdueButton
-                type='button'
-                onClick={() => history.push('/observation')}
-              >
-                ยกเลิก
-              </NeutralSubdueButton>
-              <BrandPrimaryButton
-                type='submit'
-                leadingIcon='check_circle'
-                disabled={isReferHospitalMissing}
-              >
-                บันทึกการสรุปจำหน่าย
-              </BrandPrimaryButton>
-            </div>
           </form>
         </div>
       )}
       </div>
+
+      {/* Bottom CTA bar — same shared <Footer type='with BTN' sticky> used by
+          the OPD screening wizard, so every step ends in a consistent
+          forward action instead of relying solely on the StepProgress
+          circles above. Final step's primary button performs the
+          discharge save (see saveDischarge) instead of advancing. */}
+      <Footer
+        type='with BTN'
+        sticky
+        showLegal={false}
+        showAutoSave={false}
+        showButton2={false}
+        showButton3={!isFirstStep}
+        button3Label='ย้อนกลับ'
+        button3Icon='arrow_back'
+        onButton3Click={goPrevStep}
+        showButton1
+        button1Label={footerPrimaryLabel}
+        button1TrailingIcon={isLastStep ? 'check_circle' : 'arrow_forward'}
+        button1Disabled={isLastStep && isReferHospitalMissing}
+        onButton1Click={handleFooterPrimaryClick}
+      />
     </QueuePageShell>
   );
 }
