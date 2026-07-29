@@ -37,7 +37,13 @@ const NAV_FADE_BOTTOM =
 const ITEMS = [
   { key: 'dashboard', label: 'แดชบอร์ด',                  icon: 'bar_chart_4_bars', path: '/dashboard'   },
   { key: 'consent',   label: 'คลังแบบฟอร์ม',              icon: 'assignment_add',   path: '/forms'        },
-  { key: 'registration', label: 'งานเวชระเบียน',          icon: 'assignment',       path: '/registration/queue' },
+  {
+    key: 'registration', label: 'งานเวชระเบียน', icon: 'assignment',
+    subItems: [
+      { key: 'registration-queue', label: 'งานเวชระเบียน',      path: '/registration/queue' },
+      { key: 'observation',        label: 'ระบบสังเกตอาการ',    path: '/observation'        },
+    ],
+  },
   { key: 'opd',       label: 'ระบบงานผู้รับบริการนอก',    icon: 'face',             path: '/opd/queue'   },
   {
     key: 'treat', label: 'ระบบบันทึกการรักษา', icon: 'stethoscope',
@@ -58,7 +64,6 @@ const ITEMS = [
   { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18                },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill'                                   },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht'                                   },
-  { key: 'observation', label: 'ระบบสังเกตอาการ',         icon: 'hotel',             path: '/observation'   },
   { key: 'appoint',   label: 'ระบบนัดหมาย',               icon: 'calendar_clock', path: '/appointment'       },
   /* 'ประวัติการใช้งาน' (log) และ 'ผู้ใช้และสิทธิ์การเข้าถึง' (users) ถูกย้ายไป
      แสดงเป็น "ระบบกลาง" บน System Hub แทน — จึงไม่อยู่ในเมนู PHCIS แล้ว. */

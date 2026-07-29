@@ -14,6 +14,7 @@ import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
+import ObservationHistoryPage from '@/pages/observation/ObservationHistoryPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
 import FormsCategoryPage from '@/pages/forms/FormsCategoryPage';
 import FormDetailPage from '@/pages/forms/FormDetailPage';
@@ -169,6 +170,7 @@ export default function Routes() {
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
+        <Route exact path='/observation/history/:id'  component={ObservationHistoryPage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
         <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
         <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />
