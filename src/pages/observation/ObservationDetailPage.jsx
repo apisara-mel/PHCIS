@@ -5,6 +5,7 @@ import StatusBadge from '@/components/badge/StatusBadge';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import Textarea from '@/components/forms/Textarea';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import BrandButton from '@/components/button/BrandButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -21,6 +22,27 @@ import VitalCard, { PressureCard } from '@/components/card/VitalCard';
 
 /* Matches the OPD queue table's own page size (QueuePage.jsx PAGE_SIZE). */
 const VITALS_PAGE_SIZE = 20;
+
+/* Suggestion popovers — same SuggestibleTextarea pattern as OPD screening's
+   CHIEF_COMPLAINT_SUGGESTIONS (minChars 3). No existing list fits a
+   discharge summary/instructions context, so these are new. */
+const DOCTOR_DISCHARGE_NOTE_SUGGESTIONS = [
+  'ผู้ป่วยอาการดีขึ้น สัญญาณชีพคงที่ ไม่มีภาวะแทรกซ้อน อนุญาตให้กลับบ้าน',
+  'ผู้ป่วยตอบสนองต่อการรักษาดี หายใจสะดวกขึ้น ฟังปอดปกติ อนุญาตให้กลับบ้านพร้อมยาประจำตัว',
+  'ผู้ป่วยไข้ลดลง สัญญาณชีพปกติ ไม่มีอาการซึม อนุญาตให้กลับบ้าน นัดติดตามอาการ',
+  'ผู้ป่วยความดันโลหิตคงที่ ไม่มีอาการเวียนศีรษะหรือหน้ามืด อนุญาตให้กลับบ้าน',
+  'สงสัยภาวะฉุกเฉิน อาการไม่ดีขึ้นหลังการรักษาเบื้องต้น พิจารณาส่งต่อโรงพยาบาลเพื่อตรวจเพิ่มเติม',
+  'ผู้ป่วยเด็กไข้ลดลง เล่นได้ปกติ ทานอาหารได้ อนุญาตให้กลับบ้านพร้อมยาลดไข้',
+];
+
+const DISCHARGE_INSTRUCTIONS_SUGGESTIONS = [
+  'รับประทานยาตามแพทย์สั่งให้ครบ หากมีอาการแพ้ยาให้หยุดยาและรีบมาพบแพทย์ทันที',
+  'พักผ่อนให้เพียงพอ งดกิจกรรมหนักอย่างน้อย 3-5 วัน หากอาการไม่ดีขึ้นให้กลับมาพบแพทย์',
+  'สังเกตอาการไข้สูง หายใจเหนื่อยหอบ หรือเจ็บหน้าอกเพิ่มขึ้น หากมีให้รีบมาโรงพยาบาลทันที',
+  'ดื่มน้ำให้เพียงพอ หลีกเลี่ยงอาหารรสจัด และมาตามนัดติดตามอาการตามกำหนด',
+  'หลีกเลี่ยงฝุ่น PM2.5 และควันบุหรี่ พ่นยาตามแพทย์สั่งสม่ำเสมอ หากเหนื่อยหอบเพิ่มให้รีบมาพบแพทย์',
+  'เฝ้าระวังอาการเวียนศีรษะ หน้ามืด หรือใจสั่น หากเป็นซ้ำให้วัดความดันและมาพบแพทย์',
+];
 
 /* Section order for the page-level step indicator — same StepProgress
    component used by the treatment/CPOE wizard (Figma node 2709:6562),
@@ -269,52 +291,75 @@ export default function ObservationDetailPage() {
   };
   const statOrderColumns = [
     {
-      key: 'status',
-      label: '',
-      width: 64,
-      align: 'center',
+      key: 'orderTime',
+      label: 'เวลาสั่งการ',
+      width: 100,
       sortable: false,
-      render: (ord) => {
-        const cfg = STAT_ORDER_STATUS_STYLE[ord.status];
-        return (
-          <span
-            className={ord.status === 'pending' ? 'animate-pulse' : undefined}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 'var(--dim-radius-400)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: cfg.bg,
-              color: cfg.color,
-            }}
-          >
-            <span className='material-symbols-outlined text-xl'>{cfg.icon}</span>
-          </span>
-        );
-      },
+      render: (ord) => (
+        <span style={{ color: 'var(--text-brandPrimary-default)', fontWeight: 'var(--type-weight-bold)' }}>
+          {ord.orderTime}
+        </span>
+      ),
     },
     {
       key: 'order',
       label: 'คำสั่งการรักษา',
       flex: true,
-      minWidth: 260,
+      minWidth: 240,
+      sortable: false,
+      render: (ord) => (
+        <span style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>{ord.orderText}</span>
+      ),
+    },
+    {
+      key: 'executedBy',
+      label: 'ผู้ดำเนินการ',
+      width: 160,
       sortable: false,
       render: (ord) => (
         <div>
-          <div style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>{ord.orderText}</div>
-          <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-            <span>เวลาสั่งการ: <strong style={{ color: 'var(--text-content-secondary)' }}>{ord.orderTime}</strong></span>
-            <span>•</span>
-            <span>ผู้ดำเนินการ: <strong style={{ color: 'var(--text-brandPrimary-default)' }}>{ord.executedBy}</strong> ({ord.executedTime})</span>
-          </div>
+          <div style={{ fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-secondary)' }}>{ord.executedBy}</div>
+          {ord.executedTime && ord.executedTime !== '-' && (
+            <div style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>{ord.executedTime}</div>
+          )}
         </div>
       ),
     },
     {
+      key: 'status',
+      label: 'สถานะ',
+      width: 150,
+      align: 'center',
+      sortable: false,
+      render: (ord) => {
+        const cfg = STAT_ORDER_STATUS_STYLE[ord.status];
+        const label = ord.status === 'completed' ? 'เสร็จสิ้น' : ord.status === 'in_progress' ? 'กำลังดำเนินการ' : 'รอดำเนินการ';
+        return (
+          <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-150)' }}>
+            <span
+              className={ord.status === 'pending' ? 'animate-pulse' : undefined}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 'var(--dim-radius-400)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: cfg.bg,
+                color: cfg.color,
+                flexShrink: 0,
+              }}
+            >
+              <span className='material-symbols-outlined text-base'>{cfg.icon}</span>
+            </span>
+            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary)' }}>{label}</span>
+          </div>
+        );
+      },
+    },
+    {
       key: 'actions',
-      label: '',
+      label: 'เครื่องมือ',
       width: 160,
       align: 'right',
       sortable: false,
@@ -788,7 +833,7 @@ export default function ObservationDetailPage() {
                   required
                 />
               </div>
-              <BrandPrimaryButton type='submit' leadingIcon='bolt' size='sm'>
+              <BrandPrimaryButton type='submit' leadingIcon='bolt' size='sm' disabled={!newOrderText.trim()}>
                 สั่งการ STAT
               </BrandPrimaryButton>
             </form>
@@ -891,7 +936,7 @@ export default function ObservationDetailPage() {
                 required
               />
               <div className='flex justify-end'>
-                <BrandPrimaryButton type='submit' leadingIcon='save' size='sm'>
+                <BrandPrimaryButton type='submit' leadingIcon='save' size='sm' disabled={!newNursingNote.trim()}>
                   บันทึกโน้ตพยาบาล
                 </BrandPrimaryButton>
               </div>
@@ -1091,23 +1136,30 @@ export default function ObservationDetailPage() {
               </div>
             )}
 
-            {/* Doctor Discharge Note */}
-            <Textarea
+            {/* Doctor Discharge Note — same suggestion-popover pattern as
+                OPD screening (appears after 3 characters). */}
+            <SuggestibleTextarea
               label='2. สรุปความเห็นแพทย์ (Doctor Discharge Note)'
               rows={3}
               value={dischargeForm.doctorSummary}
-              onChange={(val) => setDischargeForm({ ...dischargeForm, doctorSummary: val })}
+              onChange={(e) => setDischargeForm({ ...dischargeForm, doctorSummary: e.target.value })}
               placeholder='ระบุสรุปการรักษา ผลการติดตาม และเหตุผลในการจำหน่าย...'
+              suggestions={DOCTOR_DISCHARGE_NOTE_SUGGESTIONS}
+              minChars={3}
+              popoverAriaLabel='คำแนะนำสรุปความเห็นแพทย์'
               required
             />
 
             {/* Discharge Advice */}
-            <Textarea
+            <SuggestibleTextarea
               label='คำแนะนำและข้อควรระวังเมื่อจำหน่าย (Discharge Instructions)'
               rows={3}
               placeholder='ระบุคำแนะนำการรับประทานยา การดูแลตนเองที่บ้าน หรือสัญญาณอันตรายที่ต้องกลับมาพบแพทย์'
               value={dischargeForm.dischargeAdvice}
-              onChange={(val) => setDischargeForm({ ...dischargeForm, dischargeAdvice: val })}
+              onChange={(e) => setDischargeForm({ ...dischargeForm, dischargeAdvice: e.target.value })}
+              suggestions={DISCHARGE_INSTRUCTIONS_SUGGESTIONS}
+              minChars={3}
+              popoverAriaLabel='คำแนะนำการจำหน่าย'
             />
 
             {/* Checkbox Complete */}
