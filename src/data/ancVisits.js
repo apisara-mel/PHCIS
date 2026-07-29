@@ -235,22 +235,41 @@ export const resolveAncRiskLevel = (value) => ANC_RISK_LEVELS.find((r) => r.valu
     p.2-4/2-10, shows Rh/Hb/HCT/HBs/VDRL/HIV as editable result fields
     alongside the order). Kept to the labs both the manual and TOR name
     explicitly rather than mirroring every field in the legacy screen. */
+/* Categorical result values (blood group, reactive/non-reactive, etc.) get
+   a fixed `options` list so the field renders as a dropdown (Select)
+   instead of free text — there's only ever a handful of valid lab
+   results, and a dropdown stops "Positive" / "positive" / "+" typos from
+   fragmenting the trend data. Continuous numeric values (Hb, HCT, MCV)
+   have no `options` and stay as number inputs. */
+const BLOOD_GROUP_OPTIONS = ['A', 'B', 'AB', 'O'];
+const RH_OPTIONS = ['Positive', 'Negative'];
+const REACTIVE_OPTIONS = ['Non-reactive', 'Reactive'];
+const POS_NEG_OPTIONS = ['Negative', 'Positive'];
+const URINE_OPTIONS = ['ปกติ', 'ผิดปกติ'];
+/** MCV cutoff for thalassemia screening is 80 fL (official manual,
+    pp.25-27) — a normal/low dropdown is more clinically meaningful here
+    than requiring the exact lab number. */
+const MCV_OPTIONS = [
+  { value: 'normal', label: 'ปกติ (≥80 fL)' },
+  { value: 'low',    label: 'ต่ำกว่าเกณฑ์ (<80 fL)' },
+];
+
 export const ANC_LAB1_RESULT_FIELDS = [
-  { key: 'bloodGroup',    label: 'หมู่เลือด (ABO)', placeholder: 'เช่น O' },
-  { key: 'rh',            label: 'Rh',              placeholder: 'Positive / Negative' },
+  { key: 'bloodGroup',    label: 'หมู่เลือด (ABO)', placeholder: 'เลือกหมู่เลือด', options: BLOOD_GROUP_OPTIONS },
+  { key: 'rh',            label: 'Rh',              placeholder: 'เลือกผล Rh', options: RH_OPTIONS },
   { key: 'hb',            label: 'Hb (g%)',         placeholder: 'เช่น 11.5' },
   { key: 'hct',           label: 'HCT (%)',         placeholder: 'เช่น 34' },
-  { key: 'urineResult',   label: 'ผลตรวจปัสสาวะ',    placeholder: 'ปกติ / ผิดปกติ' },
-  { key: 'vdrlResult',    label: 'ผล VDRL/TPHA',    placeholder: 'Non-reactive / Reactive' },
-  { key: 'antiHivResult', label: 'ผล Anti-HIV',     placeholder: 'Negative / Positive' },
-  { key: 'hbsAgResult',   label: 'ผล HBsAg',        placeholder: 'Negative / Positive' },
+  { key: 'urineResult',   label: 'ผลตรวจปัสสาวะ',    placeholder: 'เลือกผลตรวจ', options: URINE_OPTIONS },
+  { key: 'vdrlResult',    label: 'ผล VDRL/TPHA',    placeholder: 'เลือกผล VDRL', options: REACTIVE_OPTIONS },
+  { key: 'antiHivResult', label: 'ผล Anti-HIV',     placeholder: 'เลือกผล Anti-HIV', options: POS_NEG_OPTIONS },
+  { key: 'hbsAgResult',   label: 'ผล HBsAg',        placeholder: 'เลือกผล HBsAg', options: POS_NEG_OPTIONS },
 ];
 
 export const ANC_LAB2_RESULT_FIELDS = [
   { key: 'hb2',            label: 'Hb (g%) ครั้งที่ 2', placeholder: 'เช่น 11.8' },
   { key: 'hct2',           label: 'HCT (%) ครั้งที่ 2', placeholder: 'เช่น 35' },
-  { key: 'vdrlResult2',    label: 'ผล VDRL ครั้งที่ 2', placeholder: 'Non-reactive / Reactive' },
-  { key: 'antiHivResult2', label: 'ผล Anti-HIV ครั้งที่ 2', placeholder: 'Negative / Positive' },
+  { key: 'vdrlResult2',    label: 'ผล VDRL ครั้งที่ 2', placeholder: 'เลือกผล VDRL', options: REACTIVE_OPTIONS },
+  { key: 'antiHivResult2', label: 'ผล Anti-HIV ครั้งที่ 2', placeholder: 'เลือกผล Anti-HIV', options: POS_NEG_OPTIONS },
 ];
 
 /** ตรวจทางห้องปฏิบัติการของสามี/คู่ — explicitly named in the national
@@ -258,11 +277,11 @@ export const ANC_LAB2_RESULT_FIELDS = [
     manual): CBC, MCV, DCIP, VDRL, Anti-HIV for the partner, alongside the
     couple's thalassemia/genetic-risk screening. */
 export const ANC_HUSBAND_LAB_FIELDS = [
-  { key: 'bloodGroup', label: 'หมู่เลือด (ABO) ของสามี/คู่', placeholder: 'เช่น O' },
-  { key: 'mcv',        label: 'MCV ของสามี/คู่',            placeholder: 'เช่น 82' },
-  { key: 'dcip',       label: 'ผล DCIP ของสามี/คู่',         placeholder: 'Positive / Negative' },
-  { key: 'vdrl',       label: 'ผล VDRL ของสามี/คู่',         placeholder: 'Non-reactive / Reactive' },
-  { key: 'antiHiv',    label: 'ผล Anti-HIV ของสามี/คู่',     placeholder: 'Negative / Positive' },
+  { key: 'bloodGroup', label: 'หมู่เลือด (ABO) ของสามี/คู่', placeholder: 'เลือกหมู่เลือด', options: BLOOD_GROUP_OPTIONS },
+  { key: 'mcv',        label: 'MCV ของสามี/คู่',            placeholder: 'เลือกผล MCV', options: MCV_OPTIONS },
+  { key: 'dcip',       label: 'ผล DCIP ของสามี/คู่',         placeholder: 'เลือกผล DCIP', options: RH_OPTIONS },
+  { key: 'vdrl',       label: 'ผล VDRL ของสามี/คู่',         placeholder: 'เลือกผล VDRL', options: REACTIVE_OPTIONS },
+  { key: 'antiHiv',    label: 'ผล Anti-HIV ของสามี/คู่',     placeholder: 'เลือกผล Anti-HIV', options: POS_NEG_OPTIONS },
 ];
 
 /** Compact one-line summary of whichever lab result fields have a value —
@@ -366,6 +385,24 @@ export const ANC_DELIVERY_MODE_OPTIONS = [
   { value: 'vaginal',   label: 'คลอดทางช่องคลอด (Vaginal delivery)' },
   { value: 'cesarean',  label: 'ผ่าตัดคลอด (Cesarean section)' },
   { value: 'undecided', label: 'ยังไม่ตัดสินใจ / ประเมินเมื่อใกล้คลอด' },
+];
+
+/** ลักษณะเต้านม — Step 1 intake breast exam finding. */
+export const ANC_BREAST_EXAM_OPTIONS = [
+  { value: 'normal',   label: 'ปกติทั้งสองข้าง' },
+  { value: 'flat',     label: 'หัวนมแบน' },
+  { value: 'inverted', label: 'หัวนมบอด' },
+  { value: 'mass',     label: 'มีก้อนที่เต้านม' },
+  { value: 'other',    label: 'อื่นๆ' },
+];
+
+/** สุขภาพของสามี — Step 1 intake note on the husband/partner's health. */
+export const ANC_SPOUSE_HEALTH_OPTIONS = [
+  { value: 'healthy',        label: 'แข็งแรงดี ไม่มีโรคประจำตัว' },
+  { value: 'chronicDisease', label: 'มีโรคประจำตัว' },
+  { value: 'smoker',         label: 'สูบบุหรี่' },
+  { value: 'alcohol',        label: 'ดื่มแอลกอฮอล์' },
+  { value: 'unknown',        label: 'ไม่ทราบข้อมูล' },
 ];
 
 /** Which later-visit swimlane applies to the CURRENT visit, driven by
