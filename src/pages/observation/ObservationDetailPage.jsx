@@ -466,10 +466,10 @@ export default function ObservationDetailPage() {
   };
 
   const observationSteps = [
-    { title: 'แนวโน้มสัญญาณชีพตามเวลา' },
+    { title: 'สัญญาณชีพตามเวลา' },
     { title: 'คำสั่งการรักษาด่วน/STAT' },
     { title: 'บันทึกทางการพยาบาล' },
-    { title: 'สรุปผลสังเกตอาการ & จำหน่าย' },
+    { title: 'สรุปผลสังเกตอาการ' },
   ];
 
   /* Bottom CTA bar — same shared <Footer type='with BTN' sticky> pattern
@@ -633,7 +633,7 @@ export default function ObservationDetailPage() {
               {/* Clinical Protocol Directive Alert */}
               <div className='w-full lg:flex-1'>
                 <Alert
-                  type={currentEws.score >= 5 ? 'error' : currentEws.score >= 2 ? 'warning' : 'success'}
+                  type={currentEws.score >= 5 ? 'error' : currentEws.score >= 2 ? 'warning' : 'info'}
                   title='แนวทางปฏิบัติทางคลินิกตาม EWS Score:'
                   subtext={
                     currentEws.score >= 5
