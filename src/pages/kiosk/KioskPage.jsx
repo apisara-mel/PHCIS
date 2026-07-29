@@ -9,13 +9,21 @@ import {
   callingNowFor,
   estimateWaitMinutes,
 } from '@/data/kioskMock';
+import HubScreen from '@/pages/kiosk/steps/HubScreen';
+import RightsDetailScreen from '@/pages/kiosk/steps/RightsDetailScreen';
+import PaymentChannelScreen from '@/pages/kiosk/steps/PaymentChannelScreen';
+import PaymentReceiptScreen from '@/pages/kiosk/steps/PaymentReceiptScreen';
 
 /* MIH PHCIS · KIOSK multi-step flow.
    Figma file `PlyfeAl2AdZtqZK7eZrxKg` · userflow doc `docs/kiosk-userflow.html`.
+   Stitch hub screens: docs/kiosk/stitch (service-select / rights / payment).
 
-   6-step state machine:
-     welcome → service → sub-service → appointment → verify → confirm → ticket
-   Skips `sub-service` when the picked service has no drill-down.
+   State machine:
+     welcome → hub
+       ├─ register     → service → sub-service? → appointment → verify → confirm → ticket
+       ├─ appointment  → appointment → verify → confirm → ticket
+       ├─ eligibility  → verify → rights → service → … → ticket
+       └─ payment      → payment-channel → payment-receipt
 
    Standalone surface — no Sidebar/Header chrome. Fixed canvas 1440×1462.
    All tokens alias design.md per CLAUDE.md (gradient is the documented
@@ -44,7 +52,7 @@ const Sym = ({ name, size = 24, color, fill = false }) => (
 /* ─── constants ─── */
 const FACILITY = { brand: 'สำนักอนามัย', branch: 'ศูนย์ 4 ดินแดง' };
 /* State-machine order (also listed inside `goBack` / `stepIndexFor`):
-   welcome → service → sub-service → appointment → verify → confirm → ticket */
+   welcome → hub → (intent branches) → … → ticket | payment-receipt */
 
 /* ─── time helpers ─── */
 const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
@@ -1078,17 +1086,21 @@ const TicketScreen = ({ queue, patient, service, subService, appointment, onDone
 };
 
 /* ─── Page (state machine) ─── */
+const EMPTY_FLOW = {
+  intent: null,
+  service: null,
+  subService: null,
+  hasAppointment: null,
+  patient: null,
+  appointment: null,
+  queue: null,
+  paymentChannel: null,
+};
+
 const KioskPage = () => {
   const [step, setStep] = useState('welcome');
   const [manualMode, setManualMode] = useState(false);
-  const [flow, setFlow] = useState({
-    service: null,
-    subService: null,
-    hasAppointment: null,
-    patient: null,
-    appointment: null,
-    queue: null,
-  });
+  const [flow, setFlow] = useState(EMPTY_FLOW);
   const [lang, setLang] = useState('th');
   const [now, setNow] = useState(() => new Date());
 
@@ -1101,14 +1113,72 @@ const KioskPage = () => {
   const reset = () => {
     setStep('welcome');
     setManualMode(false);
-    setFlow({ service: null, subService: null, hasAppointment: null, patient: null, appointment: null, queue: null });
+    setFlow(EMPTY_FLOW);
+  };
+
+  const pickHub = (svc) => {
+    setFlow((f) => ({ ...EMPTY_FLOW, intent: svc.intent }));
+    if (svc.intent === 'register') {
+      setStep('service');
+      return;
+    }
+    if (svc.intent === 'appointment') {
+      setStep('appointment');
+      return;
+    }
+    if (svc.intent === 'eligibility') {
+      setStep('verify');
+      return;
+    }
+    if (svc.intent === 'payment') {
+      setStep('payment-channel');
+    }
   };
 
   const goBack = () => {
-    const order = ['welcome', 'service', 'sub-service', 'appointment', 'verify', 'confirm', 'ticket'];
+    if (step === 'hub') return reset();
+
+    /* Payment branch */
+    if (flow.intent === 'payment') {
+      if (step === 'payment-channel') return setStep('hub');
+      if (step === 'payment-receipt') return setStep('payment-channel');
+    }
+
+    /* Eligibility: hub → verify → rights → service → [sub] → confirm → ticket */
+    if (flow.intent === 'eligibility') {
+      if (step === 'verify') {
+        if (manualMode) {
+          setManualMode(false);
+          return;
+        }
+        return setStep('hub');
+      }
+      if (step === 'rights') return setStep('verify');
+      if (step === 'service') return setStep('rights');
+      if (step === 'sub-service') return setStep('service');
+      if (step === 'confirm') {
+        if (flow.service?.drill && flow.subService) return setStep('sub-service');
+        return setStep('service');
+      }
+    }
+
+    /* Appointment: hub → appointment → verify → … */
+    if (flow.intent === 'appointment') {
+      if (step === 'appointment') return setStep('hub');
+      if (step === 'verify') {
+        if (manualMode) {
+          setManualMode(false);
+          return;
+        }
+        return setStep('appointment');
+      }
+    }
+
+    /* Register (and eligibility after service): classic queue order */
+    const order = ['hub', 'service', 'sub-service', 'appointment', 'verify', 'confirm', 'ticket'];
     const idx = order.indexOf(step);
-    if (idx <= 1) return reset();
-    // Skip sub-service step if current service has no drill-down
+    if (idx <= 0) return reset();
+    if (step === 'service') return setStep('hub');
     if (step === 'appointment' && !flow.service?.drill) {
       setStep('service');
       return;
@@ -1123,12 +1193,27 @@ const KioskPage = () => {
   const pickService = (key) => {
     const svc = SERVICES.find((s) => s.key === key);
     setFlow((f) => ({ ...f, service: svc, subService: null }));
-    setStep(svc.drill ? 'sub-service' : 'appointment');
+    if (svc.drill) {
+      setStep('sub-service');
+      return;
+    }
+    /* Eligibility already verified identity — skip re-verify */
+    if (flow.intent === 'eligibility' && flow.patient) {
+      setFlow((f) => ({ ...f, hasAppointment: false }));
+      setStep('confirm');
+      return;
+    }
+    setStep('appointment');
   };
 
   const pickSubService = (key) => {
     const sub = (SUB_SERVICES[flow.service.key] || []).find((s) => s.key === key);
     setFlow((f) => ({ ...f, subService: sub }));
+    if (flow.intent === 'eligibility' && flow.patient) {
+      setFlow((f) => ({ ...f, hasAppointment: false }));
+      setStep('confirm');
+      return;
+    }
     setStep('appointment');
   };
 
@@ -1140,34 +1225,85 @@ const KioskPage = () => {
   const onVerified = (patient) => {
     const subKey = flow.subService?.key;
     const appt = flow.hasAppointment ? findTodayAppointment(patient, subKey) : null;
-    setFlow((f) => ({ ...f, patient, appointment: appt }));
+    setFlow((f) => ({
+      ...f,
+      patient,
+      appointment: appt,
+      ...(flow.intent === 'appointment' && appt
+        ? {
+            service: SERVICES.find((s) => s.key === 'consultation') || f.service,
+            subService: {
+              key: appt.sub,
+              label: appt.subLabel,
+              queuePrefix: (appt.sub || 'A').charAt(0).toUpperCase(),
+            },
+          }
+        : {}),
+    }));
     setManualMode(false);
+    if (flow.intent === 'eligibility') {
+      setStep('rights');
+      return;
+    }
     setStep('confirm');
+  };
+
+  const onRightsConfirm = () => {
+    /* TOR 1.16.1.3 — pick department + queue after rights OK */
+    setStep('service');
   };
 
   const onConfirm = () => {
     const prefix = flow.subService?.queuePrefix || flow.service?.queuePrefix || 'Q';
-    const seed = `${flow.patient.hn}|${flow.subService?.key || flow.service?.key}`;
+    const seed = `${flow.patient.hn}|${flow.subService?.key || flow.service?.key || flow.intent}`;
     const number = generateQueueNumber(prefix, seed);
     setFlow((f) => ({ ...f, queue: { number } }));
     setStep('ticket');
   };
 
+  const onPaymentChannel = (channelKey) => {
+    setFlow((f) => ({ ...f, paymentChannel: channelKey }));
+    setStep('payment-receipt');
+  };
+
   /* Visible step index for the footer breadcrumb */
   const stepIndexFor = (s) => {
-    if (s === 'welcome') return -1;
+    if (s === 'welcome' || s === 'hub') return -1;
+    if (flow.intent === 'payment') {
+      return ['payment-channel', 'payment-receipt'].indexOf(s);
+    }
+    if (flow.intent === 'eligibility') {
+      /* verify → rights → service → [sub] → confirm → ticket */
+      const visible = ['verify', 'rights', 'service'];
+      if (flow.service?.drill) visible.push('sub-service');
+      visible.push('confirm', 'ticket');
+      return visible.indexOf(s);
+    }
+    if (flow.intent === 'appointment') {
+      return ['appointment', 'verify', 'confirm', 'ticket'].indexOf(s);
+    }
+    /* register */
     const visible = ['service'];
     if (flow.service?.drill) visible.push('sub-service');
     visible.push('appointment', 'verify', 'confirm', 'ticket');
     return visible.indexOf(s);
   };
-  const totalSteps = (flow.service?.drill ? 6 : 5);
+
+  const totalSteps = (() => {
+    if (flow.intent === 'payment') return 2;
+    if (flow.intent === 'appointment') return 4;
+    if (flow.intent === 'eligibility') return flow.service?.drill ? 6 : 5;
+    return flow.service?.drill ? 6 : 5;
+  })();
 
   /* Render current step */
   let content;
   switch (step) {
     case 'welcome':
-      content = <WelcomeScreen onStart={() => setStep('service')} />;
+      content = <WelcomeScreen onStart={() => setStep('hub')} />;
+      break;
+    case 'hub':
+      content = <HubScreen onPick={pickHub} />;
       break;
     case 'service':
       content = <ServiceScreen selected={flow.service?.key} onPick={pickService} />;
@@ -1182,6 +1318,27 @@ const KioskPage = () => {
       content = manualMode
         ? <ManualEntryScreen onVerified={onVerified} onCancel={() => setManualMode(false)} />
         : <VerifyScreen onVerified={onVerified} onManual={() => setManualMode(true)} />;
+      break;
+    case 'rights':
+      content = (
+        <RightsDetailScreen
+          patient={flow.patient}
+          onConfirm={onRightsConfirm}
+          onPrint={() => { /* mock print rights summary */ }}
+        />
+      );
+      break;
+    case 'payment-channel':
+      content = <PaymentChannelScreen onConfirm={onPaymentChannel} />;
+      break;
+    case 'payment-receipt':
+      content = (
+        <PaymentReceiptScreen
+          channelKey={flow.paymentChannel}
+          onBack={() => setStep('payment-channel')}
+          onDone={reset}
+        />
+      );
       break;
     case 'confirm':
       content = <ConfirmScreen
@@ -1209,7 +1366,7 @@ const KioskPage = () => {
   }
 
   const stepIndex = stepIndexFor(step);
-  const showFooter = step !== 'welcome' && step !== 'ticket';
+  const showFooter = step !== 'welcome' && step !== 'hub' && step !== 'ticket' && step !== 'payment-receipt';
 
   return (
     <div
@@ -1244,7 +1401,7 @@ const KioskPage = () => {
         <StepFooter
           stepIndex={stepIndex}
           totalSteps={totalSteps}
-          onBack={step !== 'service' ? goBack : reset}
+          onBack={goBack}
           onReset={reset}
         />
       )}

@@ -31,6 +31,7 @@ import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMoti
                          or any CSS width string (wins over `size` when set)
      • open / onClose
      • title / subtitle  required title; optional subtitle line
+     • leading           optional node left of title (e.g. back chevron)
      • children          body content
      • buttonLayout      'horizontal' | 'vertical'           (default: 'horizontal')
      • primaryAction     { label, onClick, disabled? }
@@ -204,6 +205,7 @@ const Popup = ({
   onClose,
   title,
   subtitle,
+  leading = null,
   size = 'default',
   width,
   buttonLayout = 'horizontal',
@@ -375,6 +377,7 @@ const Popup = ({
             background:    'var(--surface-modal-default)',
           }}
         >
+          {leading}
           <div
             className='flex-1 min-w-0 flex flex-col'
             style={{ gap: 'var(--dim-space-100)' }}

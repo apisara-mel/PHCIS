@@ -128,6 +128,7 @@ const AlertDialog = ({
   cancelLabel = 'ยกเลิก',
   confirmLabel = 'ตกลง',
   showCancel = true,
+  children = null,
   className = '',
 }) => {
   const dialogRef = useRef(null);
@@ -302,6 +303,8 @@ const AlertDialog = ({
             )}
           </div>
         )}
+
+        {children}
 
         {/* Actions row — Cancel (outline) + Primary (fill). Both buttons
             inherit size='lg' (h44) per Figma's 44px row. */}

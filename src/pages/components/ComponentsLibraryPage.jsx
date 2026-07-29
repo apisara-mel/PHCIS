@@ -86,6 +86,10 @@ import DangerSubdueIconButton from '@/components/button/DangerSubdueIconButton';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
+import DangerCircleIconButton from '@/components/button/DangerCircleIconButton';
+import DangerCircleSubdueIconButton from '@/components/button/DangerCircleSubdueIconButton';
+import BrandRadiusSubdueIconButton from '@/components/button/BrandRadiusSubdueIconButton';
+import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import BrandSubdueFloatButton from '@/components/button/BrandSubdueFloatButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import CheckboxBox from '@/components/checkbox/CheckboxBox';
@@ -3582,9 +3586,20 @@ const CIRCLE_ICON_STATE_COLS = [
   { key: 'disabled', label: 'Disabled', props: { disabled: true } },
 ];
 
-/* Circle Subdue is the only family with an XSmall (32) size — Figma
-   node 2103:645. Order matches Figma's Large → XSmall ladder. */
+/* Circle Icon Button sizes — spans XSmall (32) → X Large (52, radius full).
+   Shared by Brand (Figma 2103:548) and Danger (Figma 3853:1177). */
+const CIRCLE_ICON_SIZE_ROWS = [
+  { key: 'xl', label: 'X Large (52)' },
+  { key: 'lg', label: 'Large (44)'   },
+  { key: 'md', label: 'Medium (40)'  },
+  { key: 'sm', label: 'Small (36)'   },
+  { key: 'xs', label: 'XSmall (32)'  },
+];
+
+/* Circle Subdue spans XSmall (32) → X Large (52) — Figma node 2103:645.
+   Order matches Figma's X Large → XSmall ladder. */
 const CIRCLE_SUBDUE_SIZE_ROWS = [
+  { key: 'xl', label: 'X Large (52)' },
   { key: 'lg', label: 'Large (44)'   },
   { key: 'md', label: 'Medium (40)'  },
   { key: 'sm', label: 'Small (36)'   },
@@ -5227,15 +5242,15 @@ const BrandSubdueIconButtonDemo = () => (
 const BrandCircleIconButtonDemo = () => {
   const [selected, setSelected] = useState(false);
   return (
-    <Section title='BrandCircleIconButton' summary='Figma "Brand Circle Icon Button" (node 2103:548). Round (50%) brand icon button. Properties: Style (fill · outline · ghost) · State (default · hover · selected · focus · disabled) · Size (lg/md/sm). Tables below mirror the Figma variant matrix — each table is one Style, rows are sizes, columns are states.'>
+    <Section title='BrandCircleIconButton' summary='Figma "Brand Circle Icon Button" (node 2103:548). Round (50%) brand icon button. Properties: Style (fill · outline · ghost) · State (default · hover · selected · focus · disabled) · Size (xl 52 · lg 44 · md 40 · sm 36 · xs 32) — X Large is fully round (20px icon); XSmall is 32 with a 14px icon. Tables below mirror the Figma variant matrix — each table is one Style, rows are sizes, columns are states.'>
       <Variant label='Style · Fill' stack>
-        <ButtonIconStateTable Component={BrandCircleIconButton} variant='fill' icon='add' stateCols={CIRCLE_ICON_STATE_COLS} />
+        <ButtonIconStateTable Component={BrandCircleIconButton} variant='fill' icon='add' stateCols={CIRCLE_ICON_STATE_COLS} sizeRows={CIRCLE_ICON_SIZE_ROWS} />
       </Variant>
       <Variant label='Style · Outline' stack>
-        <ButtonIconStateTable Component={BrandCircleIconButton} variant='outline' icon='add' stateCols={CIRCLE_ICON_STATE_COLS} />
+        <ButtonIconStateTable Component={BrandCircleIconButton} variant='outline' icon='add' stateCols={CIRCLE_ICON_STATE_COLS} sizeRows={CIRCLE_ICON_SIZE_ROWS} />
       </Variant>
       <Variant label='Style · Ghost' stack>
-        <ButtonIconStateTable Component={BrandCircleIconButton} variant='ghost' icon='add' stateCols={CIRCLE_ICON_STATE_COLS} />
+        <ButtonIconStateTable Component={BrandCircleIconButton} variant='ghost' icon='add' stateCols={CIRCLE_ICON_STATE_COLS} sizeRows={CIRCLE_ICON_SIZE_ROWS} />
       </Variant>
       <Variant label='Interactive · selected toggle' stack>
         <BrandCircleIconButton
@@ -5272,7 +5287,7 @@ const BrandCircleIconButtonDemo = () => {
 };
 
 const BrandCircleSubdueIconButtonDemo = () => (
-  <Section title='BrandCircleSubdueIconButton' summary='Figma "Brand Circle Subdue Icon Button" (node 2103:645). Properties: Style (fill · outline) · State (default · hover · active · focus · disabled) · Size (lg · md · sm · **xs/XSmall**) — the only family with an XSmall size. Tables below mirror the Figma variant matrix — each table is one Style, rows are 4 sizes, columns are 5 states.'>
+  <Section title='BrandCircleSubdueIconButton' summary='Figma "Brand Circle Subdue Icon Button" (node 2103:645). Properties: Style (fill · outline) · State (default · hover · active · focus · disabled) · Size (xl 52 · lg · md · sm · **xs/XSmall 32**) — spans the widest ladder (XSmall → X Large); X Large is fully round. Tables below mirror the Figma variant matrix — each table is one Style, rows are 5 sizes, columns are 5 states.'>
     <Variant label='Style · Fill' stack>
       <ButtonIconStateTable Component={BrandCircleSubdueIconButton} variant='fill' icon='add' sizeRows={CIRCLE_SUBDUE_SIZE_ROWS} />
     </Variant>
@@ -5295,6 +5310,151 @@ const BrandCircleSubdueIconButtonDemo = () => (
         "Don't use XSmall for the main page action — promote to BrandIconButton lg.",
         "Don't ship without an `aria-label`.",
         "Don't use the `active` chrome to fake a destructive press — `active` is purely a toggle indicator.",
+      ]}
+    />
+  </Section>
+);
+
+const DangerCircleIconButtonDemo = () => {
+  const [selected, setSelected] = useState(false);
+  return (
+    <Section title='DangerCircleIconButton' summary='Figma "Danger Circle Icon Button" (node 3853:1177). Round (50%) destructive icon button — the danger (red) sibling of BrandCircleIconButton. Properties: Style (fill · outline · ghost) · State (default · hover · selected · focus · disabled) · Size (xl 52 · lg 44 · md 40 · sm 36 · xs 32) — X Large is fully round (20px icon); XSmall is 32 with a 14px icon. Tables below mirror the Figma variant matrix — each table is one Style, rows are sizes, columns are states.'>
+      <Variant label='Style · Fill' stack>
+        <ButtonIconStateTable Component={DangerCircleIconButton} variant='fill' icon='delete' stateCols={CIRCLE_ICON_STATE_COLS} sizeRows={CIRCLE_ICON_SIZE_ROWS} />
+      </Variant>
+      <Variant label='Style · Outline' stack>
+        <ButtonIconStateTable Component={DangerCircleIconButton} variant='outline' icon='delete' stateCols={CIRCLE_ICON_STATE_COLS} sizeRows={CIRCLE_ICON_SIZE_ROWS} />
+      </Variant>
+      <Variant label='Style · Ghost' stack>
+        <ButtonIconStateTable Component={DangerCircleIconButton} variant='ghost' icon='delete' stateCols={CIRCLE_ICON_STATE_COLS} sizeRows={CIRCLE_ICON_SIZE_ROWS} />
+      </Variant>
+      <Variant label='Interactive · selected toggle' stack>
+        <DangerCircleIconButton
+          variant='ghost'
+          icon='delete'
+          aria-label='Delete'
+          selected={selected}
+          onClick={() => setSelected((s) => !s)}
+        />
+        <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'ui-monospace, SFMono-Regular, monospace', fontSize: 'var(--type-size-xs)' }}>
+          selected = {String(selected)}
+        </span>
+      </Variant>
+      <Guidelines
+        behavior={[
+          'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+          'Icon-only — REQUIRES `aria-label`; the icon is `aria-hidden`.',
+          'Round (50%) shape + red palette — reads as a standalone destructive affordance.',
+          'Selected flips to danger tertiary surface + danger icon regardless of variant.',
+        ]}
+        dos={[
+          'Use for a single destructive tap in a card header or toolbar (delete, remove, discard).',
+          'Prefer Ghost / Outline for inline rows; reserve Fill for the primary destructive action.',
+          'Always confirm irreversible destructive actions (dialog / undo).',
+        ]}
+        donts={[
+          "Don't use for non-destructive actions — use BrandCircleIconButton.",
+          "Don't stack multiple danger buttons in a row.",
+          "Don't ship without an `aria-label`.",
+        ]}
+      />
+    </Section>
+  );
+};
+
+const DangerCircleSubdueIconButtonDemo = () => (
+  <Section title='DangerCircleSubdueIconButton' summary='Figma "Danger Circle Subdue Icon Button" (node 3853:1298). Low-emphasis destructive round icon button — the danger (red) sibling of BrandCircleSubdueIconButton. Properties: Style (fill · outline) · State (default · hover · active · focus · disabled) · Size (xl 52 · lg · md · sm · **xs/XSmall 32**) — spans the widest ladder (XSmall → X Large); X Large is fully round. Tables below mirror the Figma variant matrix — each table is one Style, rows are 5 sizes, columns are 5 states.'>
+    <Variant label='Style · Fill' stack>
+      <ButtonIconStateTable Component={DangerCircleSubdueIconButton} variant='fill' icon='delete' sizeRows={CIRCLE_SUBDUE_SIZE_ROWS} />
+    </Variant>
+    <Variant label='Style · Outline' stack>
+      <ButtonIconStateTable Component={DangerCircleSubdueIconButton} variant='outline' icon='delete' sizeRows={CIRCLE_SUBDUE_SIZE_ROWS} />
+    </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Icon-only — REQUIRES `aria-label`; the icon is `aria-hidden`.',
+        'Subdued red-tint surface (Fill) or transparent + red border (Outline) — for lower-emphasis destructive actions.',
+        '`active` (with `selected` legacy alias) is the toggle-on state — quaternary surface + 1 px border.',
+      ]}
+      dos={[
+        'Use XSmall for inline destructive row actions (remove attachment, delete list item).',
+        'Prefer over DangerCircleIconButton when the destructive action is secondary.',
+        'Pair with a Tooltip for ambiguous icons.',
+      ]}
+      donts={[
+        "Don't use XSmall for the main destructive action — promote to DangerCircleIconButton.",
+        "Don't ship without an `aria-label`.",
+        "Don't use the `active` chrome to fake a press — `active` is a toggle indicator.",
+      ]}
+    />
+  </Section>
+);
+
+const BrandRadiusSubdueIconButtonDemo = () => (
+  <Section title='BrandRadiusSubdueIconButton' summary='Figma "Brand Radius Subdue Icon Button" (node 3871:4640). Pill-shaped subdue brand button with a leading icon + trailing chevron — a compact icon dropdown trigger (distinct from the circle, icon-only BrandCircleSubdueIconButton). Properties: Style (fill · outline) · State (default · hover · active · focus · disabled) · Size (xl 52 · lg 44 · md 40 · sm 36 · xs 32). Radius is 24 except **xLarge** which is fully round. Tables below mirror the Figma variant matrix — each table is one Style, rows are 5 sizes, columns are 5 states.'>
+    <Variant label='Style · Fill' stack>
+      <ButtonIconStateTable Component={BrandRadiusSubdueIconButton} variant='fill' icon='image' sizeRows={CIRCLE_SUBDUE_SIZE_ROWS} />
+    </Variant>
+    <Variant label='Style · Outline' stack>
+      <ButtonIconStateTable Component={BrandRadiusSubdueIconButton} variant='outline' icon='image' sizeRows={CIRCLE_SUBDUE_SIZE_ROWS} />
+    </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Icon + chevron — REQUIRES `aria-label`; both glyphs are `aria-hidden`. `aria-haspopup="menu"` is set while the chevron shows.',
+        'Pill shape (radius 24, fully round at xLarge) — reads as a compact dropdown / picker trigger.',
+        '`active` (with `selected` legacy alias) is the open / pressed state — quaternary surface + 1 px border.',
+      ]}
+      dos={[
+        'Use as a compact icon-value dropdown trigger (e.g. filter, view-mode, layer picker).',
+        'Pair `active` with the open state of the menu it controls.',
+        'Set `chevron={false}` for a pill icon button without a dropdown affordance.',
+      ]}
+      donts={[
+        "Don't use for a single non-menu action — use BrandButton or a Circle Icon Button.",
+        "Don't ship without an `aria-label`.",
+        "Don't mix Fill and Outline in the same toolbar row.",
+      ]}
+    />
+  </Section>
+);
+
+const PhotoUploadFieldDemo = () => (
+  <Section title='PhotoUploadField' summary='Figma "Photo" (node 3420:2565 · Telemed 127:56901). Dashed-border photo / image upload dropzone for the form builder. 2 states: Default (border brand/p200 #C5EDDA) · Hover (border darkens to brand/p600 #08A768, fill holds). Icon (image 20) + centered label. Pass `label` to relabel ("ถ่ายรูป" / "อัปโหลดภาพ"), `onFiles` to wire a hidden file input (add `capture` for direct camera), or `fullWidth` to stretch. Table below mirrors the Figma variant matrix.'>
+    <Variant label='State matrix · Default · Hover'>
+      <div style={{ display: 'flex', gap: 'var(--dim-space-600, 24px)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-200, 8px)', alignItems: 'center' }}>
+          <PhotoUploadField label='ถ่ายรูป' />
+          <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>Default</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-200, 8px)', alignItems: 'center' }}>
+          <PhotoUploadField label='ถ่ายรูป' hovered />
+          <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>Hover</span>
+        </div>
+      </div>
+    </Variant>
+    <Variant label='Full-width (Telemed 127:56901 — “อัปโหลดภาพ”)' stack>
+      <div style={{ width: 320, maxWidth: '100%' }}>
+        <PhotoUploadField label='อัปโหลดภาพ' fullWidth />
+      </div>
+    </Variant>
+    <Guidelines
+      behavior={[
+        'Real <button> — keyboard focus, Enter / Space activation, aria-disabled honored on programmatic disable.',
+        'Hover darkens the dashed border to brand green (#08A768); the fill stays #F4FBF8.',
+        'Pass `onFiles(files)` to wire a hidden <input type="file"> — the button opens the picker; add `capture="environment"` to open the camera.',
+        'Icon + label are `aria-hidden`; the button takes its accessible name from `label` (or `aria-label`).',
+      ]}
+      dos={[
+        'Use inside a form-builder / registration form for a single photo or image upload slot.',
+        'Relabel via `label` — "ถ่ายรูป" for camera capture, "อัปโหลดภาพ" for file upload.',
+        'Use `fullWidth` when the field should fill a form column; keep the fixed 128×128 for a compact tile.',
+      ]}
+      donts={[
+        "Don't use for multi-file galleries without indicating count — this is a single dropzone tile.",
+        "Don't remove the dashed border — it signals an empty upload target.",
+        "Don't ship without a meaningful `label` / `aria-label`.",
       ]}
     />
   </Section>
@@ -8176,6 +8336,7 @@ const REGISTRY = [
   { group: 'button', items: [
     { slug: 'brand-circle-icon-button',         name: 'BrandCircleIconButton',         Demo: BrandCircleIconButtonDemo },
     { slug: 'brand-circle-subdue-icon-button',  name: 'BrandCircleSubdueIconButton',   Demo: BrandCircleSubdueIconButtonDemo },
+    { slug: 'brand-radius-subdue-icon-button',  name: 'BrandRadiusSubdueIconButton',   Demo: BrandRadiusSubdueIconButtonDemo },
     { slug: 'brand-icon-button',                name: 'BrandIconButton',               Demo: BrandIconButtonDemo },
     { slug: 'brand-button',                     name: 'BrandButton',                   Demo: BrandButtonDemo },
     { slug: 'brand-subdue-button',              name: 'BrandSubdueButton',             Demo: BrandSubdueButtonDemo },
@@ -8186,6 +8347,8 @@ const REGISTRY = [
     { slug: 'danger-icon-button',               name: 'DangerIconButton',              Demo: DangerIconButtonDemo },
     { slug: 'danger-subdue-button',             name: 'DangerSubdueButton',            Demo: DangerSubdueButtonDemo },
     { slug: 'danger-subdue-icon-button',        name: 'DangerSubdueIconButton',        Demo: DangerSubdueIconButtonDemo },
+    { slug: 'danger-circle-icon-button',        name: 'DangerCircleIconButton',        Demo: DangerCircleIconButtonDemo },
+    { slug: 'danger-circle-subdue-icon-button', name: 'DangerCircleSubdueIconButton',   Demo: DangerCircleSubdueIconButtonDemo },
     { slug: 'neutral-button',                   name: 'NeutralButton',                 Demo: NeutralButtonDemo },
     { slug: 'neutral-icon-button',              name: 'NeutralIconButton',             Demo: NeutralIconButtonDemo },
     { slug: 'neutral-subdue-button',            name: 'NeutralSubdueButton',           Demo: NeutralSubdueButtonDemo },
@@ -8306,6 +8469,7 @@ const REGISTRY = [
     ) },
   ]},
   { group: 'forms', items: [
+    { slug: 'photo-upload-field',          name: 'PhotoUploadField',                         Demo: PhotoUploadFieldDemo },
     { slug: 'input-field',                 name: 'InputField',                               Demo: InputFieldDemo },
     { slug: 'input-field-range',           name: 'InputFieldRange',                          Demo: InputFieldRangeDemo },
     { slug: 'input-field-slash',           name: 'InputFieldSlash',                          Demo: InputFieldSlashDemo },
