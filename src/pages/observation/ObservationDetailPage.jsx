@@ -45,6 +45,15 @@ const DISCHARGE_INSTRUCTIONS_SUGGESTIONS = [
   'เฝ้าระวังอาการเวียนศีรษะ หน้ามืด หรือใจสั่น หากเป็นซ้ำให้วัดความดันและมาพบแพทย์',
 ];
 
+const STAT_ORDER_SUGGESTIONS = [
+  'Berodual 1 respule Nebulizer Stat',
+  'Oxygen Cannula 3 LPM keep SpO2 > 95%',
+  'IV NSS 1,000 ml IV drip 80 ml/hr',
+  'Paracetamol 500 mg 1 tab Oral Stat for fever',
+  'Adrenaline 1:1000 0.3 mg IM Stat',
+  '12-lead EKG Stat',
+];
+
 const NURSING_NOTE_SUGGESTIONS = [
   'ผู้ป่วยรู้สึกตัวดี ไม่มีอาการแน่นหน้าอกเพิ่ม สัญญาณชีพคงที่',
   'พ่นยาขยายหลอดลมตามแผนการรักษา ฟังเสียงปอด Wheezing ลดลง',
@@ -634,7 +643,7 @@ export default function ObservationDetailPage() {
                   {currentEws.score}
                 </div>
                 <div>
-                  <h3 className='font-bold text-gray-900 text-sm flex items-center gap-2'>
+                  <h3 className='font-bold text-brand-600 text-sm flex items-center gap-2'>
                     คะแนนเตือนภัยล่วงหน้า (National Early Warning Score - EWS)
                   </h3>
                   <p className='text-xs font-semibold' style={{ color: currentEws.tier.color }}>
@@ -695,7 +704,7 @@ export default function ObservationDetailPage() {
 
           {/* Add Vital Form Card */}
           <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
-            <h3 className='font-bold text-gray-900 text-sm mb-4 flex items-center gap-2'>
+            <h3 className='font-bold text-brand-600 text-sm mb-4 flex items-center gap-2'>
               <span className='material-symbols-outlined text-brand-600'>add_chart</span>
               ลงบันทึกสัญญาณชีพประจำช่วงเวลา (Add Timed Vitals)
             </h3>
@@ -855,23 +864,26 @@ export default function ObservationDetailPage() {
         <div className='space-y-6'>
           {/* Add Stat Order Form */}
           <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
-            <h3 className='font-bold text-gray-900 text-sm mb-3 flex items-center gap-2'>
+            <h3 className='font-bold text-brand-600 text-sm mb-3 flex items-center gap-2'>
               <span className='material-symbols-outlined text-brand-600'>order_approve</span>
               เพิ่มคำสั่งการรักษาด่วน (Add STAT / Urgent Order)
             </h3>
-            <form onSubmit={handleAddOrder} className='flex items-end gap-3 text-xs'>
-              <div className='flex-1'>
-                <InputField
-                  placeholder='ระบุคำสั่งการรักษา STAT เช่น Berodual 1 respule Nebulizer Stat, Oxygen Cannula 3 LPM, IV NSS 1,000 ml'
-                  value={newOrderText}
-                  onChange={(val) => setNewOrderText(val)}
-                  size='sm'
-                  required
-                />
+            <form onSubmit={handleAddOrder} className='space-y-3 text-xs'>
+              <SuggestibleTextarea
+                voice
+                placeholder='ระบุคำสั่งการรักษา STAT เช่น Berodual 1 respule Nebulizer Stat, Oxygen Cannula 3 LPM, IV NSS 1,000 ml'
+                value={newOrderText}
+                onChange={(e) => setNewOrderText(e.target.value)}
+                suggestions={STAT_ORDER_SUGGESTIONS}
+                minChars={3}
+                popoverAriaLabel='คำแนะนำคำสั่งการรักษาด่วน'
+                required
+              />
+              <div className='flex justify-end'>
+                <BrandPrimaryButton type='submit' leadingIcon='bolt' size='sm' disabled={!newOrderText.trim()}>
+                  สั่งการ STAT
+                </BrandPrimaryButton>
               </div>
-              <BrandPrimaryButton type='submit' leadingIcon='bolt' size='sm' disabled={!newOrderText.trim()}>
-                สั่งการ STAT
-              </BrandPrimaryButton>
             </form>
           </div>
 
@@ -959,7 +971,7 @@ export default function ObservationDetailPage() {
             className='w-full lg:w-[360px] lg:shrink-0 bg-white rounded-2xl p-5 border-none'
             style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}
           >
-            <h3 className='font-bold text-gray-900 text-sm mb-3 flex items-center gap-2'>
+            <h3 className='font-bold text-brand-600 text-sm mb-3 flex items-center gap-2'>
               <span className='material-symbols-outlined text-brand-600'>edit_note</span>
               บันทึกทางการพยาบาลเพิ่มเติม (Focus Nursing Log)
             </h3>
@@ -984,7 +996,7 @@ export default function ObservationDetailPage() {
 
           {/* Nursing Notes Timeline — right content */}
           <div className='flex-1 min-w-0 bg-white rounded-2xl p-6 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
-            <h3 className='font-bold text-gray-900 text-sm mb-6 flex items-center gap-2 border-b border-gray-100 pb-3'>
+            <h3 className='font-bold text-brand-600 text-sm mb-6 flex items-center gap-2 border-b border-gray-100 pb-3'>
               <span className='material-symbols-outlined text-brand-600'>history</span>
               ประวัติการบันทึกทางการพยาบาล (Nursing Activity Log)
             </h3>
@@ -1090,7 +1102,7 @@ export default function ObservationDetailPage() {
       {/* Tab 4: Discharge Summary & Disposition */}
       {activeTab === 'discharge' && (
         <div className='bg-white rounded-2xl p-6 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
-          <h3 className='font-bold text-gray-900 text-sm mb-6 flex items-center gap-2 border-b border-gray-100 pb-3'>
+          <h3 className='font-bold text-brand-600 text-sm mb-6 flex items-center gap-2 border-b border-gray-100 pb-3'>
             <span className='material-symbols-outlined text-brand-600'>output</span>
             แบบฟอร์มสรุปการจำหน่ายผู้ป่วย (Discharge Summary & Disposition)
           </h3>
