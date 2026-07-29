@@ -12,6 +12,9 @@ import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
+import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
+import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
+import LabQueuePage from '@/pages/lab/LabQueuePage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
@@ -167,6 +170,11 @@ export default function Routes() {
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
+        <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
+        <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
+        <Route exact path='/lab'              component={LabQueuePage} />
+        <Route exact path='/lab/queue'        component={LabQueuePage} />
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
