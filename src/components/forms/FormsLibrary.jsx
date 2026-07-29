@@ -111,6 +111,9 @@ const FormCard = ({
   selected = false,
   onPreview,
   onEdit,
+  /** Label for the primary action button when `!isOpen` — defaults to the
+     OPD "ประเมิน" verb; Registration's consent step passes 'กรอกแบบฟอร์ม'. */
+  actionLabel = 'ประเมิน',
 }) => {
   const [hovered, setHovered] = useState(false);
   const cat = FORM_CATEGORIES[category] || FORM_CATEGORIES.document;
@@ -192,7 +195,7 @@ const FormCard = ({
             leadingIcon='edit'
             onClick={onEdit}
           >
-            ประเมิน
+            {actionLabel}
           </BrandButton>
         )}
       </div>
@@ -265,4 +268,5 @@ const FormsLibrary = () => {
   );
 };
 
+export { FormCard };
 export default FormsLibrary;

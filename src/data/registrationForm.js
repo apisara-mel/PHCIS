@@ -1,4 +1,11 @@
 import { getPatientByHN, getPatientDobByHN } from '@/data/patientProfiles';
+import { FORMS } from '@/data/formsLibrary';
+
+/** Registration-relevant consent forms — the "แบบฟอร์มยินยอม" step (Figma
+   PHCIS | Registration §Step1) asks for every catalog form in the `consent`
+   category, sourced from the same `formsLibrary.js` catalog OPD's
+   FormsLibrary reads from (single source of truth, no duplicated form data). */
+export const REGISTRATION_CONSENT_FORMS = FORMS.filter((f) => f.category === 'consent');
 
 /* Thai prefixes — longest match first (นางสาว before นาง). */
 const TH_PREFIXES_DESC = ['เด็กหญิง', 'เด็กชาย', 'นางสาว', 'นาย', 'นาง'];
@@ -59,8 +66,23 @@ export const EMPTY_ADDRESS = {
   pinSaved: false,
 };
 
+/** Consent-form status seed — every registration-relevant consent form
+   starts `pending` on first entry; a returning patient's mock record may
+   already carry `signed` entries (see `mrPatients.js`). */
+export const buildEmptyConsentRecords = () =>
+  REGISTRATION_CONSENT_FORMS.map((f) => ({
+    slug: f.slug,
+    title: f.name,
+    code: f.code,
+    status: 'pending',
+    signedAt: null,
+  }));
+
 /** First visit — all fields default / empty (placeholders only). */
 export const buildEmptyRegistrationForm = () => ({
+  // Step 0 — consent
+  consentRecords: buildEmptyConsentRecords(),
+
   // Step 1 — personal
   prefixTh: '',
   firstNameTh: '',
@@ -85,6 +107,11 @@ export const buildEmptyRegistrationForm = () => ({
   idCardPhoto: null,
   idCardFromChip: false,
   idCardAddress: '',
+
+  // Consents (การยินยอมเปิดเผยข้อมูล - default true 3 รายการ)
+  consentPersonal: true,
+  consentMedical: true,
+  consentBilling: true,
 
   // Step 2 — addresses
   addressRegistered: { ...EMPTY_ADDRESS },
@@ -326,6 +353,23 @@ const ADDRESS_REQUIRED_KEYS = ['zip', 'province', 'district'];
 const isAddressFilled = (addr) =>
   Boolean(addr) && ADDRESS_REQUIRED_KEYS.every((k) => nonEmpty(addr[k]));
 
+/** Derives the 3 Figma consent-status banners from `form.consentRecords`:
+   'none-signed' (ยังไม่เคยยินยอม) · 'partial' (มีบาง Form ที่ยังไม่ยินยอม /
+   หรืออัปเดท) · 'all-signed' (ไม่มี Form ที่ต้องขอยินยอมใหม่). */
+export const getConsentSummary = (consentRecords) => {
+  const records = Array.isArray(consentRecords) ? consentRecords : [];
+  const total = records.length;
+  const signedCount = records.filter((r) => r?.status === 'signed').length;
+  const pendingCount = total - signedCount;
+  let state = 'all-signed';
+  if (signedCount === 0 && total > 0) state = 'none-signed';
+  else if (pendingCount > 0) state = 'partial';
+  return { state, pendingCount, signedCount, total };
+};
+
+const isConsentStepComplete = (form) =>
+  getConsentSummary(form?.consentRecords).pendingCount === 0;
+
 const isStep1Complete = (form) => allFilled(form, STEP1_REQUIRED_KEYS);
 
 const isStep2Complete = (form) => {
@@ -360,6 +404,7 @@ const isStep5Complete = (form) => {
 };
 
 export const getRegistrationCompletedSteps = (form) => [
+  isConsentStepComplete(form),
   isStep1Complete(form),
   isStep2Complete(form),
   isStep3Complete(form),
