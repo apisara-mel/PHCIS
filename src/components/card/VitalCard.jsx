@@ -261,7 +261,7 @@ export const PressureCard = ({ sys = '128', dia = '80', step = 1, onChange, onVa
 
   return (
     <div className='bg-surface-card border border-ink-line rounded-card p-4 flex flex-col gap-1 w-full'>
-      <Header label='ความดัน' unit='mmHg' required badge={badge} />
+      <Header label='ความดัน (BP)' unit='mmHg' required badge={badge} />
       <div className='flex items-center gap-3 w-full flex-wrap'>
         <PressureValue
           value={s}

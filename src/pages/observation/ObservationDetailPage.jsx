@@ -682,7 +682,7 @@ export default function ObservationDetailPage() {
                     { key: 'bp', label: 'ความดัน (BP)' },
                     { key: 'pulse', label: 'ชีพจร (Pulse)' },
                     { key: 'spo2', label: 'SpO2' },
-                    { key: 'temp', label: 'อุณหภูมิ' },
+                    { key: 'temp', label: 'อุณหภูมิ (Temp)' },
                     { key: 'rr', label: 'หายใจ (RR)' },
                   ].map((param) => (
                     <TabPill
@@ -724,7 +724,7 @@ export default function ObservationDetailPage() {
                   onValidityChange={(v) => setVitalFieldValid('pressure', v)}
                 />
                 <VitalCard
-                  label='ชีพจร'
+                  label='ชีพจร (Pulse)'
                   unit='ครั้ง/นาที'
                   required
                   value={newVital.pulse}
@@ -733,7 +733,7 @@ export default function ObservationDetailPage() {
                   hint='ปกติ 60–100 ครั้ง/นาที'
                 />
                 <VitalCard
-                  label='อุณหภูมิ'
+                  label='อุณหภูมิ (Temp)'
                   unit='°C'
                   required
                   step={0.1}
@@ -743,7 +743,7 @@ export default function ObservationDetailPage() {
                   hint='ปกติ 36.1–37.2 °C'
                 />
                 <VitalCard
-                  label='SpO2'
+                  label='ออกซิเจนปลายนิ้ว (SpO2)'
                   unit='%'
                   required
                   value={newVital.spo2}
@@ -752,7 +752,7 @@ export default function ObservationDetailPage() {
                   hint='ปกติ ≥ 95%'
                 />
                 <VitalCard
-                  label='อัตราการหายใจ'
+                  label='อัตราการหายใจ (RR)'
                   unit='ครั้ง/นาที'
                   required
                   value={newVital.rr}

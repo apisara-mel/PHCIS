@@ -440,7 +440,7 @@ export default function ObservationQueuePage() {
 
         {/* Action & View Mode Bar */}
         <div className='flex items-center justify-between gap-4 pt-2'>
-          <div className='text-xs text-ink-tertiary font-medium flex items-center gap-2'>
+          <div className='text-ink-tertiary font-medium flex items-center gap-2' style={{ fontSize: 'var(--type-size-sm, 14px)' }}>
             <span>รายการเตียงสังเกตอาการทั้งหมด ({filteredPatients.length} รายการ)</span>
           </div>
 
@@ -591,9 +591,20 @@ export default function ObservationQueuePage() {
                     </StatusBadge>
                   </div>
 
-                  {/* Patient Primary Details */}
-                  <div className='mb-4'>
-                    <div className='flex items-center gap-2.5 mb-2'>
+                  {/* Patient Primary Details — same light-brand background
+                      as PatientSummaryCard (Figma 145:6155) so the patient
+                      identity block reads consistently across the popups
+                      and this worklist card. */}
+                  <div
+                    className='mb-4'
+                    style={{
+                      background: 'var(--surface-brandprimary-quaternary, #F4FBF8)',
+                      border: 'var(--dim-stroke-100, 1px) solid var(--border-brandprimary-quaternary, #E2F3EB)',
+                      borderRadius: 'var(--dim-radius-400)',
+                      padding: 'var(--dim-space-400, 16px)',
+                    }}
+                  >
+                    <div className='flex items-center gap-2.5'>
                       <img
                         src={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl || '/avatars/somchai-mock.png'}
                         alt={patient.patientName}
@@ -622,7 +633,7 @@ export default function ObservationQueuePage() {
                         </div>
                       </div>
                     </div>
-                    <div className='bg-ink-neutral p-2.5 rounded-lg border border-ink-line text-xs text-ink-secondary mb-3'>
+                    <div className='text-xs text-ink-secondary mt-3'>
                       <div className='text-ink-tertiary font-medium mb-0.5'>อาการสำคัญ / การวินิจฉัย:</div>
                       <div className='font-semibold text-ink line-clamp-2'>{patient.chiefComplaint}</div>
                     </div>
@@ -630,7 +641,7 @@ export default function ObservationQueuePage() {
 
                   {/* Vitals Trend Snapshot */}
                   {latestVitals && (
-                    <div className='bg-brand-50/50 rounded-xl p-3 border border-brand-200/60 mb-4'>
+                    <div className='bg-brand-50/50 rounded-xl p-3 mb-4'>
                       <div className='flex items-center justify-between text-xs mb-2'>
                         <span className='font-bold text-brand-800 flex items-center gap-1'>
                           <span className='material-symbols-outlined text-sm text-brand-600'>monitor_heart</span>
@@ -661,32 +672,30 @@ export default function ObservationQueuePage() {
                     </div>
                   )}
 
-                  {/* Start / End Time (TOR 1.14.1) */}
-                  <div className='flex items-center justify-between text-xs text-ink-tertiary mb-1 px-1'>
+                  {/* Start / End Time (TOR 1.14.1) + Duration + Doctor —
+                      single stacked column instead of a 2-column grid so
+                      every line reads top-to-bottom on narrow cards. */}
+                  <div className='flex flex-col text-ink-tertiary mb-4 px-1' style={{ gap: 'var(--dim-space-100, 4px)', fontSize: 'var(--type-size-sm, 14px)' }}>
                     <div className='flex items-center gap-1'>
                       <span className='material-symbols-outlined text-sm text-ink-quaternary'>play_circle</span>
-                      เวลาเริ่มต้น <strong className='text-ink-secondary'>{startTimeLabel}</strong>
+                      เวลาเริ่มต้น (admitTime) <strong className='text-ink-secondary'>{startTimeLabel}</strong>
                     </div>
                     <div className='flex items-center gap-1'>
                       <span className='material-symbols-outlined text-sm text-ink-quaternary'>stop_circle</span>
-                      เวลาสิ้นสุด <strong className='text-ink-secondary'>{endTimeLabel}</strong>
+                      เวลาสิ้นสุด (executedTime) <strong className='text-ink-secondary'>{endTimeLabel}</strong>
                     </div>
-                  </div>
-
-                  {/* Doctor & Admission Time */}
-                  <div className='flex items-center justify-between text-xs text-ink-tertiary mb-4 px-1'>
                     <div className='flex items-center gap-1'>
                       <span className='material-symbols-outlined text-sm text-ink-quaternary'>schedule</span>
-                      สังเกตอาการแล้ว <strong className='text-ink-secondary'>{Math.floor(patient.durationMinutes / 60)} ชม. {patient.durationMinutes % 60} นาที</strong>
+                      สังเกตอาการแล้ว (durationMinutes) <strong className='text-ink-secondary'>{Math.floor(patient.durationMinutes / 60)} ชม. {patient.durationMinutes % 60} นาที</strong>
                     </div>
-                    <div className='text-ink-secondary truncate max-w-[140px]' title={patient.doctorName}>
-                      {patient.doctorName}
+                    <div className='truncate' title={patient.doctorName}>
+                      ผู้สั่ง: {patient.doctorName}
                     </div>
                   </div>
                 </div>
 
                 {/* Card Actions */}
-                <div className='pt-3 border-t border-ink-line grid grid-cols-2 gap-2'>
+                <div className='pt-3 grid grid-cols-2 gap-2'>
                   <NeutralSubdueButton
                     leadingIcon='add_chart'
                     size='lg'
@@ -780,7 +789,7 @@ export default function ObservationQueuePage() {
                   onValidityChange={(v) => setVitalsFieldValid('pressure', v)}
                 />
                 <VitalCard
-                  label='ชีพจร'
+                  label='ชีพจร (Pulse)'
                   unit='ครั้ง/นาที'
                   required
                   value={vitalsForm.pulse}
@@ -789,7 +798,7 @@ export default function ObservationQueuePage() {
                   hint='ปกติ 60–100 ครั้ง/นาที'
                 />
                 <VitalCard
-                  label='อุณหภูมิ'
+                  label='อุณหภูมิ (Temp)'
                   unit='°C'
                   required
                   step={0.1}
@@ -799,7 +808,7 @@ export default function ObservationQueuePage() {
                   hint='ปกติ 36.1–37.2 °C'
                 />
                 <VitalCard
-                  label='SpO2'
+                  label='ออกซิเจนปลายนิ้ว (SpO2)'
                   unit='%'
                   required
                   value={vitalsForm.spo2}
@@ -808,7 +817,7 @@ export default function ObservationQueuePage() {
                   hint='ปกติ ≥ 95%'
                 />
                 <VitalCard
-                  label='อัตราการหายใจ'
+                  label='อัตราการหายใจ (RR)'
                   unit='ครั้ง/นาที'
                   required
                   value={vitalsForm.rr}

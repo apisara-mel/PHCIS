@@ -37,7 +37,7 @@ const SINGLE_SERIES_CONFIG = {
   pulse: {
     field: 'pulse',
     stroke: 'var(--text-colorfulbadge-orange)',
-    label: 'ชีพจร (Pulse Rate)',
+    label: 'ชีพจร (Pulse)',
     name: 'ชีพจร',
     unit: 'ครั้ง/นาที',
     floorMin: 50,
@@ -64,7 +64,7 @@ const SINGLE_SERIES_CONFIG = {
   temp: {
     field: 'temp',
     stroke: 'var(--brand-p500)',
-    label: 'อุณหภูมิร่างกาย (Temperature)',
+    label: 'อุณหภูมิร่างกาย (Temp)',
     name: 'อุณหภูมิ',
     unit: '°C',
     floorMin: 35.5,
@@ -76,7 +76,7 @@ const SINGLE_SERIES_CONFIG = {
   rr: {
     field: 'rr',
     stroke: 'var(--brand-p600)',
-    label: 'อัตราการหายใจ (Respiratory Rate)',
+    label: 'อัตราการหายใจ (RR)',
     name: 'อัตราการหายใจ',
     unit: 'ครั้ง/นาที',
     floorMin: 10,
