@@ -16,6 +16,12 @@ import AncQueuePage from '@/pages/treat/anc/AncQueuePage';
 import AncFormPage from '@/pages/treat/anc/AncFormPage';
 import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
 import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
+import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
+import PharmacyRegistryEditPage from '@/pages/pharmacy/PharmacyRegistryEditPage';
+import PharmacyStockPage from '@/pages/pharmacy/PharmacyStockPage';
+import PharmacyRequisitionPage from '@/pages/pharmacy/PharmacyRequisitionPage';
+import PharmacyHistoryPage from '@/pages/pharmacy/PharmacyHistoryPage';
+import PharmacyReportsPage from '@/pages/pharmacy/PharmacyReportsPage';
 import LabQueuePage from '@/pages/lab/LabQueuePage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
@@ -179,6 +185,13 @@ export default function Routes() {
         <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
+        <Route exact path='/pharmacy/registry'     component={PharmacyRegistryPage} />
+        <Route exact path='/pharmacy/registry/new' component={PharmacyRegistryEditPage} />
+        <Route exact path='/pharmacy/registry/:id' component={PharmacyRegistryEditPage} />
+        <Route exact path='/pharmacy/stock'        component={PharmacyStockPage} />
+        <Route exact path='/pharmacy/requisition'  component={PharmacyRequisitionPage} />
+        <Route exact path='/pharmacy/history'      component={PharmacyHistoryPage} />
+        <Route exact path='/pharmacy/reports'      component={PharmacyReportsPage} />
         <Route exact path='/lab'              component={LabQueuePage} />
         <Route exact path='/lab/queue'        component={LabQueuePage} />
         <Route exact path='/observation'               component={ObservationQueuePage} />
