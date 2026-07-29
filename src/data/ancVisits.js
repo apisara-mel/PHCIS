@@ -148,6 +148,61 @@ export const ANC_DANGER_SIGNS = [
   { key: 'palpitationFatigue', label: 'ใจสั่น เหนื่อยง่าย' },
 ];
 
+/** วัคซีนป้องกันโรคคอตีบ-บาดทะยัก (dT) ในหญิงตั้งครรภ์ — decision flowchart
+    pp.47-48 of the official manual ("รูปที่ 1 กำหนดการให้วัคซีนป้องกันโรค
+    คอตีบ-บาดทะยัก (dT) ในหญิงตั้งครรภ์"). `doseCountBefore` = doses
+    received before THIS pregnancy (0-3+); `lastDoseYearsAgo` = years since
+    the last dose (null if never vaccinated / unknown) — only meaningful
+    once `doseCountBefore >= 3`. Age-20 catch-up booster (a minor branch on
+    the same flowchart) is intentionally not modelled — this form doesn't
+    carry the patient's exact age as an integer. */
+export const getTetanusVaccinePlan = (doseCountBefore, lastDoseYearsAgo) => {
+  const doses = Number(doseCountBefore) || 0;
+  if (doses <= 0) {
+    return {
+      doseCount: 3,
+      label: 'ไม่มีประวัติ/ไม่ทราบ/ไม่แน่ใจ — ให้ dT 3 เข็ม (เข็มแรกทันที, เข็ม 2 ห่างเข็มแรก 1 เดือน, เข็ม 3 ห่างเข็ม 2 อีก 6 เดือน) จากนั้นนัดกระตุ้น 1 เข็มทุก 10 ปี',
+    };
+  }
+  if (doses === 1) {
+    return {
+      doseCount: 2,
+      label: 'เคยได้รับมาแล้ว 1 เข็ม — ให้ dT อีก 2 เข็ม (เข็มแรกห่างเข็มเดิม 1 เดือน, เข็ม 2 ห่างอีก 6 เดือน) จากนั้นนัดกระตุ้น 1 เข็มทุก 10 ปี',
+    };
+  }
+  if (doses === 2) {
+    return {
+      doseCount: 1,
+      label: 'เคยได้รับมาแล้ว 2 เข็ม — ให้ dT อีก 1 เข็ม (ห่างจากเข็มสุดท้าย 6 เดือน) จากนั้นนัดกระตุ้น 1 เข็มทุก 10 ปี',
+    };
+  }
+  // doses >= 3 (ครบ 3 เข็มแล้ว)
+  if (lastDoseYearsAgo == null || lastDoseYearsAgo > 10) {
+    return {
+      doseCount: 1,
+      label: 'เคยได้รับครบ 3 เข็มแล้ว เข็มสุดท้ายเกิน 10 ปี (หรือไม่ทราบ) — ให้ dT กระตุ้น 1 เข็ม จากนั้นนัดกระตุ้นทุก 10 ปี',
+    };
+  }
+  return {
+    doseCount: 0,
+    label: 'เคยได้รับครบ 3 เข็มแล้ว เข็มสุดท้ายไม่เกิน 10 ปี — ไม่ต้องฉีดในครรภ์นี้',
+  };
+};
+
+/** Maternal Oral Screening (MOS) tool, George et al. 2016 — p.53 of the
+    official manual. 2 questions; any "risk" answer → score ≥1 → refer to
+    dentist. Replaces a plain "checked/not checked" toggle with the actual
+    screening instrument the manual specifies. */
+export const ANC_ORAL_HEALTH_QUESTIONS = [
+  { key: 'symptoms', label: 'มีเหงือกบวม เลือดออกที่เหงือก ปวดฟัน มีปัญหาการกินอาหาร หรือปัญหาอื่นในช่องปากหรือไม่', riskAnswer: true },
+  { key: 'notVisited', label: 'ไม่ได้ไปพบทันตแพทย์ในช่วง 1 ปีที่ผ่านมา', riskAnswer: true },
+];
+
+export const interpretOralHealthScreen = (answers) => {
+  const score = ANC_ORAL_HEALTH_QUESTIONS.filter((q) => answers?.[q.key] === q.riskAnswer).length;
+  return { score, highRisk: score >= 1 };
+};
+
 /* ─── Step 3 — ตรวจร่างกาย ────────────────────────────────────────── */
 
 export const ANC_DEFAULT_VITALS = { bp: '110/70', hr: 82, temp: 36.7, rr: 18, spo2: 99, weight: 58, height: 160 };
@@ -198,6 +253,18 @@ export const ANC_LAB2_RESULT_FIELDS = [
   { key: 'antiHivResult2', label: 'ผล Anti-HIV ครั้งที่ 2', placeholder: 'Negative / Positive' },
 ];
 
+/** ตรวจทางห้องปฏิบัติการของสามี/คู่ — explicitly named in the national
+    "นโยบายการฝากครรภ์คุณภาพสำหรับประเทศไทย พ.ศ. 2565" (p.72, official
+    manual): CBC, MCV, DCIP, VDRL, Anti-HIV for the partner, alongside the
+    couple's thalassemia/genetic-risk screening. */
+export const ANC_HUSBAND_LAB_FIELDS = [
+  { key: 'bloodGroup', label: 'หมู่เลือด (ABO) ของสามี/คู่', placeholder: 'เช่น O' },
+  { key: 'mcv',        label: 'MCV ของสามี/คู่',            placeholder: 'เช่น 82' },
+  { key: 'dcip',       label: 'ผล DCIP ของสามี/คู่',         placeholder: 'Positive / Negative' },
+  { key: 'vdrl',       label: 'ผล VDRL ของสามี/คู่',         placeholder: 'Non-reactive / Reactive' },
+  { key: 'antiHiv',    label: 'ผล Anti-HIV ของสามี/คู่',     placeholder: 'Negative / Positive' },
+];
+
 /** Compact one-line summary of whichever lab result fields have a value —
     feeds the "ผล Lab" column of the follow-up trend table (TOR 1.10.7.8). */
 export const summarizeLabResults = (labResults) => {
@@ -232,6 +299,21 @@ export const ANC_LAB1_ORDERS = [
 export const ANC_SECOND_TRIMESTER_SCREENING = [
   { key: 'downSyndrome2', th: 'คัดกรองกลุ่มอาการดาวน์ (14-18 สัปดาห์)', en: 'Down syndrome screening' },
   { key: 'ultrasound2',   th: 'ตรวจ Ultrasound ครั้งที่ 2 (20 สัปดาห์)', en: '2nd ultrasound — confirm GA + fetal anomaly' },
+];
+
+/** Structured Ultrasound finding fields — pp.50-52 of the official manual
+    ("ตัวอย่างแบบบันทึกผลการตรวจครรภ์ด้วยคลื่นเสียงความถี่สูง"). Reused for
+    both the 20wk (2nd) and 34wk (3rd) ultrasound — a visit only has one
+    ultrasound tier active at a time (`getAncVisitTier`), so one shared
+    `ultrasoundResults` object is enough rather than duplicating per tier. */
+export const ANC_ULTRASOUND_RESULT_FIELDS = [
+  { key: 'numberOfFetus',    label: 'จำนวนทารก',              placeholder: 'เช่น 1' },
+  { key: 'presentation',     label: 'ท่าทารก',                 placeholder: 'Vertex / Breech / Transverse' },
+  { key: 'gaByUltrasound',   label: 'อายุครรภ์จาก Ultrasound', placeholder: 'เช่น 20 สัปดาห์' },
+  { key: 'fetalHeartMotion', label: 'การเต้นหัวใจทารก',        placeholder: 'Positive / Negative' },
+  { key: 'placentalSite',    label: 'ตำแหน่งรก',               placeholder: 'เช่น Anterior, Upper' },
+  { key: 'amnioticFluid',    label: 'ปริมาณน้ำคร่ำ',           placeholder: 'Normal / Increased / Decreased' },
+  { key: 'anomalies',        label: 'ความผิดปกติที่ตรวจพบ',    placeholder: 'ไม่พบ / ระบุ' },
 ];
 
 export const ANC_DIABETES_SCREENING = [
@@ -269,6 +351,23 @@ export const ANC_TERM_ASSESSMENT = [
   { key: 'deliveryPlan', th: 'ประเมินการคลอด',                        en: 'Delivery readiness assessment' },
 ];
 
+/** ตรวจประเมินด้านและหัวนม (breast/nipple assessment) — pp.64-66, done by
+    the 3rd trimester so inverted/flat nipples can be corrected (Hoffmann's
+    maneuver, breast shell, etc.) before delivery. */
+export const ANC_NIPPLE_ASSESSMENT_OPTIONS = [
+  { value: 'normal',   label: 'ปกติ' },
+  { value: 'flat',     label: 'หัวนมแบน' },
+  { value: 'inverted', label: 'หัวนมบอด' },
+];
+
+/** แผนการคลอด (คลอดธรรมชาติ / ผ่าตัดคลอด) — pp.59-60, decided together
+    with the attending doctor closer to term. */
+export const ANC_DELIVERY_MODE_OPTIONS = [
+  { value: 'vaginal',   label: 'คลอดทางช่องคลอด (Vaginal delivery)' },
+  { value: 'cesarean',  label: 'ผ่าตัดคลอด (Cesarean section)' },
+  { value: 'undecided', label: 'ยังไม่ตัดสินใจ / ประเมินเมื่อใกล้คลอด' },
+];
+
 /** Which later-visit swimlane applies to the CURRENT visit, driven by
     gestational age at the time of this visit (not the patient's overall
     history) — so re-opening the same form at a later gestational age
@@ -303,6 +402,16 @@ export const summarizeAncProcedures = (form) => {
   if (form.dentalCleaningDone) names.push('ขัดทำความสะอาดฟันแล้ว');
   if (form.dentalBrushingPractice) names.push('ฝึกแปรงฟันแบบลงมือปฏิบัติ');
   if (form.appointment?.kickCountEducation) names.push('สอนการนับลูกดิ้น');
+  if (form.motherChildHealthBookGiven) names.push('แจกสมุดบันทึกสุขภาพแม่และเด็ก');
+  if (Object.values(form.ultrasoundResults || {}).some(Boolean)) names.push('บันทึกผล Ultrasound');
+  if (form.nippleAssessment) {
+    const opt = ANC_NIPPLE_ASSESSMENT_OPTIONS.find((o) => o.value === form.nippleAssessment);
+    if (opt) names.push(`ตรวจหัวนม: ${opt.label}`);
+  }
+  if (form.plannedDeliveryMode) {
+    const opt = ANC_DELIVERY_MODE_OPTIONS.find((o) => o.value === form.plannedDeliveryMode);
+    if (opt) names.push(`แผนการคลอด: ${opt.label}`);
+  }
 
   return names.join(', ');
 };
@@ -392,6 +501,8 @@ export const DEFAULT_ANC_VISIT = {
   tetanusExempt: false,    // ไม่ต้องฉีดในครรภ์นี้ — เคยได้รับ dT/dT3 มาไม่เกิน 10 ปี
   familyIllnessHistory: {}, // ประวัติการเจ็บป่วยของครอบครัว
   familyIllnessOtherNote: '',
+  husbandLabResults: {},    // ตรวจทางห้องปฏิบัติการของสามี/คู่ — นโยบายฝากครรภ์คุณภาพ 2565 (p.72)
+  motherChildHealthBookGiven: false, // แจกสมุดบันทึกสุขภาพแม่และเด็ก (legacy p.2-25, p.72)
 
   // Step 2 — คัดกรองและซักประวัติ (TOR 1.10.7.3/.7)
   stressAnswers: {},       // ST-5 (0-3 per item)
@@ -406,7 +517,7 @@ export const DEFAULT_ANC_VISIT = {
   vitals: { ...ANC_DEFAULT_VITALS },
   fundusHeight: '',
   fetalHeartRate: '',
-  oralHealthChecked: false,
+  oralHealthAnswers: {},   // Maternal Oral Screening (MOS) tool, p.53 — 2Q, score ≥1 = refer dentist
 
   // Step 4 — วินิจฉัย (TOR 1.10.7.7)
   riskLevel: '',
@@ -425,6 +536,9 @@ export const DEFAULT_ANC_VISIT = {
   vaccines: {},                  // swimlane E — dT/Tdap/flu/Covid
   supplements: {},                // swimlane E — iron/folic acid/iodine/calcium
   termAssessment: {},             // swimlane E — 3rd ultrasound/NST/delivery plan
+  ultrasoundResults: {},           // structured Ultrasound findings (pp.50-52) — shared by ultrasound2/ultrasound3
+  nippleAssessment: '',            // ตรวจประเมินด้านและหัวนม (pp.64-66) — 'normal' | 'flat' | 'inverted'
+  plannedDeliveryMode: '',         // แผนการคลอด (pp.59-60) — 'vaginal' | 'cesarean' | 'undecided'
   dentalReferral: false,
   dentalCleaningDone: false,     // ขัดทำความสะอาดฟันแล้ว
   dentalBrushingPractice: false, // ฝึกแปรงฟันแบบลงมือปฏิบัติ
@@ -628,3 +742,74 @@ export const getAncQueueRows = () => {
     }));
   return [...ANC_PATIENTS, ...checkedInRows];
 };
+
+/* ─── SuggestibleTextarea word-lists ──────────────────────────────────
+   Autocomplete suggestions for every free-text note in the ANC flow
+   (voice input + typing suggestions, matching the pattern already used by
+   OPD's TreatmentSteps.jsx / DIAGNOSIS_SUGGESTIONS). Phrases are grounded
+   in the same official manual + legacy HCIS content the rest of this file
+   cites — not generic filler. */
+export const ANC_ILLNESS_HISTORY_SUGGESTIONS = [
+  'ไม่มีโรคประจำตัว',
+  'เป็นเบาหวานก่อนตั้งครรภ์ (Pre-existing DM)',
+  'ความดันโลหิตสูงเรื้อรัง (Chronic hypertension)',
+  'โรคไทรอยด์ (Thyroid disease)',
+  'โรคหัวใจ (Heart disease)',
+  'โรคไต (Kidney disease)',
+  'โรคหอบหืด (Asthma)',
+  'ภูมิแพ้ยา (Drug allergy)',
+  'เคยผ่าตัด (Previous surgery)',
+  'เคยแท้งบุตร (Previous miscarriage)',
+];
+
+export const ANC_CURRENT_PREGNANCY_SUGGESTIONS = [
+  'อาการแพ้ท้อง (Nausea/vomiting)',
+  'ทารกดิ้นดี รู้สึกได้สม่ำเสมอ',
+  'ลูกดิ้นน้อยลง',
+  'ปวดหลังส่วนล่าง',
+  'ตะคริวขา',
+  'บวมที่เท้า/ขา',
+  'มีตกขาวผิดปกติ',
+  'นอนไม่หลับ',
+  'ไม่พบอาการผิดปกติ',
+];
+
+export const ANC_RISK_SCREENING_SUGGESTIONS = [
+  'ไม่พบปัจจัยเสี่ยงเพิ่มเติมจากการซักประวัติ',
+  'มีประวัติครอบครัวเป็นเบาหวาน',
+  'มีประวัติครอบครัวความดันโลหิตสูง',
+  'กังวลเรื่องการตั้งครรภ์และการคลอด',
+  'ต้องการคำปรึกษาด้านจิตใจเพิ่มเติม',
+  'ให้คำแนะนำและติดตามอาการต่อเนื่อง',
+];
+
+export const ANC_DIAGNOSIS_SUGGESTIONS = [
+  'ครรภ์แรก ไม่พบภาวะเสี่ยง (G1, low risk)',
+  'ครรภ์ที่ 2 ไม่พบภาวะเสี่ยง',
+  'ภาวะเสี่ยงปานกลาง ต้องติดตามใกล้ชิด',
+  'ภาวะเสี่ยงสูง ส่งต่อ รพ.แม่ข่าย',
+  'ความดันโลหิตสูงขณะตั้งครรภ์ (Gestational hypertension)',
+  'เบาหวานขณะตั้งครรภ์ (Gestational diabetes)',
+  'โลหิตจางจากการขาดธาตุเหล็ก (Iron deficiency anemia)',
+  'ทารกโตช้าในครรภ์ (IUGR)',
+  'ครรภ์เป็นพิษ (Preeclampsia)',
+];
+
+export const ANC_EXTERNAL_EXAM_SUGGESTIONS = [
+  'ผล Ultrasound จากสถานพยาบาลอื่น ปกติ',
+  'ผล Lab จากสถานพยาบาลอื่น ปกติ',
+  'นำผลตรวจจากคลินิกเอกชนมาแสดง',
+  'ไม่มีผลการตรวจจากภายนอก',
+];
+
+export const ANC_ADVICE_SUGGESTIONS = [
+  'รับประทานยาเสริมธาตุเหล็กและกรดโฟลิกสม่ำเสมอ',
+  'สังเกตการดิ้นของทารกทุกวัน',
+  'มาพบแพทย์ก่อนนัดหากมีเลือดออกทางช่องคลอด',
+  'มาพบแพทย์ก่อนนัดหากปวดท้องรุนแรงหรือท้องแข็งถี่',
+  'มาพบแพทย์ก่อนนัดหากลูกดิ้นน้อยลง',
+  'พักผ่อนให้เพียงพอ หลีกเลี่ยงงานหนัก',
+  'งดสูบบุหรี่และเครื่องดื่มแอลกอฮอล์',
+  'มาตามนัดฝากครรภ์ครั้งถัดไป',
+  'แปรงฟันวันละ 2 ครั้ง ดูแลสุขภาพช่องปาก',
+];

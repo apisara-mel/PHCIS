@@ -103,6 +103,7 @@ const AncFormPage = () => {
           completedSteps={completedSteps}
           steps={ANC_STEPS}
           queuePath='/treat/anc/queue'
+          step0FlushLeft={false}
         >
           <ActiveStep
             form={form}
