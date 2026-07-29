@@ -713,7 +713,7 @@ export default function ObservationQueuePage() {
         >
           <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-2xl max-h-full overflow-hidden border border-ink-line flex flex-col'>
             <div
-              className='shrink-0 px-6 py-4 flex items-center justify-between border-b border-ink-line'
+              className='shrink-0 px-6 py-4 flex items-center justify-between'
               style={{ background: 'var(--surface-modal-default)' }}
             >
               <div className='flex items-center gap-2'>
@@ -858,7 +858,7 @@ export default function ObservationQueuePage() {
         >
           <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-ink-line'>
             <div
-              className='px-6 py-4 flex items-center justify-between border-b border-ink-line'
+              className='px-6 py-4 flex items-center justify-between'
               style={{ background: 'var(--surface-modal-default)' }}
             >
               <div className='flex items-center gap-2'>
