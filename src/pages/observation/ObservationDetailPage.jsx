@@ -18,6 +18,7 @@ import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import StepProgress from '@/components/step/StepProgress';
 import Footer from '@/components/layout/Footer';
+import SuccessToast from '@/components/toast/SuccessToast';
 import VitalCard, { PressureCard } from '@/components/card/VitalCard';
 
 /* Matches the OPD queue table's own page size (QueuePage.jsx PAGE_SIZE). */
@@ -163,6 +164,7 @@ export default function ObservationDetailPage() {
   const [ordersPage, setOrdersPage] = useState(1);
   const [notesPage, setNotesPage] = useState(1);
   const [hoveredDisposition, setHoveredDisposition] = useState(null);
+  const [draftSavedToast, setDraftSavedToast] = useState(false);
   /* VitalCard/PressureCard's `required` prop only renders the asterisk —
      unlike InputField it never reaches the native <input>, so nothing
      stops an all-empty submit. Track each field's validity explicitly
@@ -475,6 +477,11 @@ export default function ObservationDetailPage() {
     if (isLastStep) saveDischarge();
     else goNextStep();
   };
+  /* "บันทึกร่าง" — same decorative slot as the OPD screening footer.
+     Every field on this page already lives in React state as the user
+     types (no separate draft store to write to), so this just confirms
+     the in-progress entry is safe instead of performing a real save. */
+  const handleSaveDraft = () => setDraftSavedToast(true);
 
   return (
     <QueuePageShell
@@ -1224,7 +1231,10 @@ export default function ObservationDetailPage() {
         sticky
         showLegal={false}
         showAutoSave={false}
-        showButton2={false}
+        showButton2
+        button2Label='บันทึกร่าง'
+        button2Icon='save'
+        onButton2Click={handleSaveDraft}
         showButton3={!isFirstStep}
         button3Label='ย้อนกลับ'
         button3Icon='arrow_back'
@@ -1234,6 +1244,12 @@ export default function ObservationDetailPage() {
         button1TrailingIcon={isLastStep ? 'check_circle' : 'arrow_forward'}
         button1Disabled={isLastStep && isReferHospitalMissing}
         onButton1Click={handleFooterPrimaryClick}
+      />
+
+      <SuccessToast
+        open={draftSavedToast}
+        message='บันทึกร่างเรียบร้อยแล้ว'
+        onClose={() => setDraftSavedToast(false)}
       />
     </QueuePageShell>
   );
