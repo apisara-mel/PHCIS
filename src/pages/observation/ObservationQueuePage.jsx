@@ -160,11 +160,12 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
     sortable: false,
     render: (patient) => {
       if (patient.status === 'empty') return '-';
-      return (
-        <StatusBadge style={patient.status === 'ready_discharge' ? 'success' : 'info'} size='small'>
-          {patient.status === 'ready_discharge' ? 'พร้อมจำหน่าย' : 'สังเกตอาการ'}
-        </StatusBadge>
-      );
+      /* 'discharged' fell through to the 'observing' branch before this
+         fix, showing a misleading "สังเกตอาการ" badge for a patient
+         who has already left the bed. */
+      const style = patient.status === 'ready_discharge' ? 'success' : patient.status === 'discharged' ? 'neutral' : 'info';
+      const label = patient.status === 'ready_discharge' ? 'พร้อมจำหน่าย' : patient.status === 'discharged' ? 'จำหน่ายแล้ว' : 'สังเกตอาการ';
+      return <StatusBadge style={style} size='small'>{label}</StatusBadge>;
     },
   },
 ];
@@ -426,7 +427,7 @@ export default function ObservationQueuePage() {
         <div className='w-full flex items-start justify-center pt-2'>
           <PrimarySearch
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(val) => setSearchQuery(val)}
             placeholder='ค้นหาคิว / HN / ชื่อ-สกุลผู้ป่วย / เลขเตียง / แพทย์ผู้ดูแล...'
             width={640}
             emptyMessage='ไม่พบข้อมูลเตียงสังเกตอาการที่ค้นหา'
@@ -452,6 +453,21 @@ export default function ObservationQueuePage() {
 
       {/* Main Content Area */}
       {viewMode === 'grid' ? (
+        filteredPatients.length === 0 ? (
+          /* Table view already gets this via <Table emptyMessage>; the
+             grid view rendered nothing at all for a no-match search. */
+          <div
+            className='flex flex-col items-center justify-center text-center'
+            style={{ padding: 'var(--dim-space-900, 48px) 0', gap: 'var(--dim-space-200)' }}
+          >
+            <span className='material-symbols-outlined' style={{ fontSize: 40, color: 'var(--text-content-quaternary)' }}>
+              search_off
+            </span>
+            <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-sm)' }}>
+              ไม่พบข้อมูลเตียงสังเกตอาการที่ตรงกับเงื่อนไข
+            </p>
+          </div>
+        ) : (
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5'>
           {filteredPatients.map((patient) => {
             const isEmpty = patient.status === 'empty';
@@ -544,6 +560,8 @@ export default function ObservationQueuePage() {
                       style={
                         patient.status === 'ready_discharge'
                           ? 'success'
+                          : patient.status === 'discharged'
+                          ? 'neutral'
                           : ewsResult?.tier.level === 'high'
                           ? 'error'
                           : ewsResult?.tier.level === 'medium'
@@ -553,7 +571,11 @@ export default function ObservationQueuePage() {
                       size='small'
                       showDot
                     >
-                      {patient.status === 'ready_discharge' ? 'พร้อมจำหน่าย' : `กำลังเฝ้าระวัง (${ewsResult?.score ?? 0})`}
+                      {patient.status === 'ready_discharge'
+                        ? 'พร้อมจำหน่าย'
+                        : patient.status === 'discharged'
+                        ? 'จำหน่ายแล้ว'
+                        : `กำลังเฝ้าระวัง (${ewsResult?.score ?? 0})`}
                     </StatusBadge>
                   </div>
 
@@ -660,6 +682,7 @@ export default function ObservationQueuePage() {
             );
           })}
         </div>
+        )
       ) : (
         /* Table View — shared <Table> component (see OBSERVATION_QUEUE_BASE_COLUMNS
            above) instead of a bespoke Tailwind-gray <table>, matching the OPD

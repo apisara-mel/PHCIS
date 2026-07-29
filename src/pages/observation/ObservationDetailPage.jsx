@@ -130,6 +130,7 @@ export default function ObservationDetailPage() {
   const [vitalFormResetKey, setVitalFormResetKey] = useState(0);
   const [vitalsPage, setVitalsPage] = useState(1);
   const [ordersPage, setOrdersPage] = useState(1);
+  const [notesPage, setNotesPage] = useState(1);
   const [hoveredDisposition, setHoveredDisposition] = useState(null);
   /* VitalCard/PressureCard's `required` prop only renders the asterisk —
      unlike InputField it never reaches the native <input>, so nothing
@@ -176,6 +177,16 @@ export default function ObservationDetailPage() {
   const pagedStatOrders = patient.statOrders.slice(
     (ordersPageClamped - 1) * VITALS_PAGE_SIZE,
     ordersPageClamped * VITALS_PAGE_SIZE,
+  );
+
+  // Nursing Activity Log pagination — same pattern/page size as the tables above
+  const notesTotalPages = Math.max(1, Math.ceil(patient.nursingNotes.length / VITALS_PAGE_SIZE));
+  const notesPageClamped = Math.min(notesPage, notesTotalPages);
+  const notesRangeStart = patient.nursingNotes.length === 0 ? 0 : (notesPageClamped - 1) * VITALS_PAGE_SIZE + 1;
+  const notesRangeEnd = Math.min(notesPageClamped * VITALS_PAGE_SIZE, patient.nursingNotes.length);
+  const pagedNursingNotes = patient.nursingNotes.slice(
+    (notesPageClamped - 1) * VITALS_PAGE_SIZE,
+    notesPageClamped * VITALS_PAGE_SIZE,
   );
 
   const handleAddVital = (e) => {
@@ -900,8 +911,8 @@ export default function ObservationDetailPage() {
                 previous absolute-position + pseudo-element line, which
                 mispositioned the dot over the time chip. */}
             <div className='flex flex-col'>
-              {patient.nursingNotes.map((note, idx) => {
-                const isLast = idx === patient.nursingNotes.length - 1;
+              {pagedNursingNotes.map((note, idx) => {
+                const isLast = idx === pagedNursingNotes.length - 1;
                 return (
                   <div key={idx} className='flex' style={{ gap: 'var(--dim-space-300)' }}>
                     <div className='flex flex-col items-center shrink-0' style={{ width: 'var(--dim-size-300, 16px)' }}>
@@ -964,7 +975,30 @@ export default function ObservationDetailPage() {
                   </div>
                 );
               })}
+              {patient.nursingNotes.length === 0 && (
+                <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)', fontStyle: 'italic', textAlign: 'center' }}>
+                  ยังไม่มีบันทึกทางการพยาบาล
+                </p>
+              )}
             </div>
+
+            {patient.nursingNotes.length > VITALS_PAGE_SIZE && (
+              <div
+                className='flex items-center'
+                style={{
+                  gap: 'var(--dim-space-200)',
+                  paddingTop: 'var(--dim-space-300)',
+                  marginTop: 'var(--dim-space-300)',
+                  borderTop: 'var(--dim-stroke-100) solid var(--border-table-default)',
+                }}
+              >
+                <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+                  แสดง {notesRangeStart}–{notesRangeEnd} จาก {patient.nursingNotes.length} รายการ
+                </span>
+                <div className='flex-1' />
+                <Pagination currentPage={notesPageClamped} pageCount={notesTotalPages} onPageChange={setNotesPage} />
+              </div>
+            )}
           </div>
         </div>
       )}
