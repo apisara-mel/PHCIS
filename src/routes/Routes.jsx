@@ -12,6 +12,8 @@ import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
+import AncQueuePage from '@/pages/treat/anc/AncQueuePage';
+import AncFormPage from '@/pages/treat/anc/AncFormPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
 import FormsCategoryPage from '@/pages/forms/FormsCategoryPage';
 import FormDetailPage from '@/pages/forms/FormDetailPage';
@@ -160,6 +162,9 @@ export default function Routes() {
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        {/* แผนกฝากครรภ์ (ANC) — TOR §1.10.7, first-visit MVP. */}
+        <Route exact path='/treat/anc/queue'  component={AncQueuePage} />
+        <Route exact path='/treat/anc/record' component={AncFormPage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
         <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
         <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />
