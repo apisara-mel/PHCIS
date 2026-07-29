@@ -278,10 +278,10 @@ export default function ObservationQueuePage() {
   ];
 
   const tabs = [
-    { key: 'all', label: `ทั้งหมด (${totalBeds})` },
     { key: 'observing', label: `กำลังสังเกตอาการ (${occupiedCount})` },
     { key: 'ready_discharge', label: `พร้อมจำหน่าย (${readyDischargeCount})` },
     { key: 'empty', label: `เตียงว่าง (${emptyCount})` },
+    { key: 'all', label: `รายการที่สังเกตการณ์ทั้งหมด (${totalBeds})` },
   ];
 
   // Filter patients based on tab & search
@@ -477,6 +477,14 @@ export default function ObservationQueuePage() {
             const isEmpty = patient.status === 'empty';
             const latestVitals = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
             const ewsResult = latestVitals ? calculateEwsScore(latestVitals) : null;
+            /* เวลาเริ่มต้น / เวลาสิ้นสุด (TOR 1.14.1) — start time comes off
+               admitTime's "YYYY-MM-DD HH:MM น." string; end time only
+               exists once the patient has actually left observation (no
+               dedicated dischargeTime field yet, so the latest recorded
+               vitals reading is the closest real timestamp to it). */
+            const startTimeLabel = patient.admitTime ? patient.admitTime.split(' ').slice(1).join(' ') : '-';
+            const isFinishedObserving = patient.status === 'ready_discharge' || patient.status === 'discharged';
+            const endTimeLabel = isFinishedObserving ? (latestVitals?.time || '-') : '-';
 
             if (isEmpty) {
               return (
@@ -652,6 +660,18 @@ export default function ObservationQueuePage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Start / End Time (TOR 1.14.1) */}
+                  <div className='flex items-center justify-between text-xs text-ink-tertiary mb-1 px-1'>
+                    <div className='flex items-center gap-1'>
+                      <span className='material-symbols-outlined text-sm text-ink-quaternary'>play_circle</span>
+                      เวลาเริ่มต้น <strong className='text-ink-secondary'>{startTimeLabel}</strong>
+                    </div>
+                    <div className='flex items-center gap-1'>
+                      <span className='material-symbols-outlined text-sm text-ink-quaternary'>stop_circle</span>
+                      เวลาสิ้นสุด <strong className='text-ink-secondary'>{endTimeLabel}</strong>
+                    </div>
+                  </div>
 
                   {/* Doctor & Admission Time */}
                   <div className='flex items-center justify-between text-xs text-ink-tertiary mb-4 px-1'>
