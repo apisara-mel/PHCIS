@@ -12,6 +12,14 @@ import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
+import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
+import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
+import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
+import PharmacyRegistryEditPage from '@/pages/pharmacy/PharmacyRegistryEditPage';
+import PharmacyStockPage from '@/pages/pharmacy/PharmacyStockPage';
+import PharmacyRequisitionPage from '@/pages/pharmacy/PharmacyRequisitionPage';
+import PharmacyHistoryPage from '@/pages/pharmacy/PharmacyHistoryPage';
+import PharmacyReportsPage from '@/pages/pharmacy/PharmacyReportsPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
 import FormsCategoryPage from '@/pages/forms/FormsCategoryPage';
 import FormDetailPage from '@/pages/forms/FormDetailPage';
@@ -160,6 +168,16 @@ export default function Routes() {
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
+        <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
+        <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
+        <Route exact path='/pharmacy/registry'     component={PharmacyRegistryPage} />
+        <Route exact path='/pharmacy/registry/new' component={PharmacyRegistryEditPage} />
+        <Route exact path='/pharmacy/registry/:id' component={PharmacyRegistryEditPage} />
+        <Route exact path='/pharmacy/stock'        component={PharmacyStockPage} />
+        <Route exact path='/pharmacy/requisition'  component={PharmacyRequisitionPage} />
+        <Route exact path='/pharmacy/history'      component={PharmacyHistoryPage} />
+        <Route exact path='/pharmacy/reports'      component={PharmacyReportsPage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
         <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
         <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />
