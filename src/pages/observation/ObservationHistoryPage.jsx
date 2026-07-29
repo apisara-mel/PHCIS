@@ -108,7 +108,7 @@ export default function ObservationHistoryPage() {
 
   return (
     <QueuePageShell
-      activeKey='registration'
+      activeKey='observation'
       breadcrumb={['หน้าหลัก PHCIS', 'ห้องสังเกตอาการ', `ประวัติบันทึกการสังเกตอาการ: ${patient.patientName}`]}
     >
       <PatientCard
