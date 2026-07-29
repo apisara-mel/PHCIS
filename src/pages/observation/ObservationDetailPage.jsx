@@ -468,7 +468,7 @@ export default function ObservationDetailPage() {
   const observationSteps = [
     { title: 'สัญญาณชีพตามเวลา' },
     { title: 'คำสั่งการรักษาด่วน/STAT' },
-    { title: 'บันทึกทางการพยาบาล' },
+    { title: 'บันทึกความเห็น' },
     { title: 'สรุปผลสังเกตอาการ' },
   ];
 
