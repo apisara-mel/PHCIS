@@ -234,6 +234,7 @@ const Alert = ({
   iconName,
   iconSize = 'var(--dim-size-300, 16px)',
   iconWeight = 400,
+  iconFill = 0,            // 0 = outline (Figma default) · 1 = solid/filled
   titleStyle,
   subtextStyle,
   textGap = 'var(--dim-space-050, 2px)',
@@ -306,7 +307,7 @@ const Alert = ({
           className='shrink-0'
           style={{ width: iconSize, paddingTop: 'var(--dim-space-050, 2px)' }}
         >
-          <AlertIcon name={iconName || tone.icon} size={iconSize} color={tone.text} weight={iconWeight} />
+          <AlertIcon name={iconName || tone.icon} size={iconSize} color={tone.text} weight={iconWeight} fill={iconFill} />
         </div>
       )}
 

@@ -1,5 +1,10 @@
 import { getPatientByHN, getPatientDobByHN } from '@/data/patientProfiles';
 import { REGISTRATION_REQUIRED_CONSENT_IDS } from '@/data/registrationConsentForms';
+import { FORMS } from '@/data/formsLibrary';
+
+/** Catalog consent forms for RegistrationConsentStep (formsLibrary source).
+   Face-scan StepConsent uses `registrationConsentForms.js` instead. */
+export const REGISTRATION_CONSENT_FORMS = FORMS.filter((f) => f.category === 'consent');
 
 /* Thai prefixes — longest match first (นางสาว before นาง). */
 const TH_PREFIXES_DESC = ['เด็กหญิง', 'เด็กชาย', 'นางสาว', 'นาย', 'นาง'];
@@ -60,10 +65,24 @@ export const EMPTY_ADDRESS = {
   pinSaved: false,
 };
 
+/** Consent-form status seed — every registration-relevant consent form
+   starts `pending` on first entry; a returning patient's mock record may
+   already carry `signed` entries (see `mrPatients.js`). */
+export const buildEmptyConsentRecords = () =>
+  REGISTRATION_CONSENT_FORMS.map((f) => ({
+    slug: f.slug,
+    title: f.name,
+    code: f.code,
+    status: 'pending',
+    signedAt: null,
+  }));
+
 /** First visit — all fields default / empty (placeholders only). */
 export const buildEmptyRegistrationForm = () => ({
-  // Step 1 — consent (Figma 292:104252)
+  // Step 1 — consent (Figma 292:104252 · face-scan StepConsent)
   consentCompletedIds: [],
+  // Kept for RegistrationConsentStep / catalog-driven consent UI
+  consentRecords: buildEmptyConsentRecords(),
   // Step 2 — personal
   patientStatus: 'active',
   prefixTh: '',
@@ -92,6 +111,11 @@ export const buildEmptyRegistrationForm = () => ({
   /** Face-match result after FaceScanVerifyPopup (Figma 303:132573). */
   faceMatchScore: null,
   faceVerifiedAt: '',
+
+  // Consents (การยินยอมเปิดเผยข้อมูล - default true 3 รายการ)
+  consentPersonal: true,
+  consentMedical: true,
+  consentBilling: true,
 
   // Step 2 — addresses
   addressRegistered: { ...EMPTY_ADDRESS },
@@ -338,6 +362,19 @@ const isAddressFilled = (addr) =>
 const isStepConsentComplete = (form) => {
   const done = Array.isArray(form?.consentCompletedIds) ? form.consentCompletedIds : [];
   return STEP1_REQUIRED_CONSENT_IDS.every((id) => done.includes(id));
+};
+
+/** Derives the 3 Figma consent-status banners from `form.consentRecords`:
+   'none-signed' · 'partial' · 'all-signed'. Used by RegistrationConsentStep. */
+export const getConsentSummary = (consentRecords) => {
+  const records = Array.isArray(consentRecords) ? consentRecords : [];
+  const total = records.length;
+  const signedCount = records.filter((r) => r?.status === 'signed').length;
+  const pendingCount = total - signedCount;
+  let state = 'all-signed';
+  if (signedCount === 0 && total > 0) state = 'none-signed';
+  else if (pendingCount > 0) state = 'partial';
+  return { state, pendingCount, signedCount, total };
 };
 
 const isStepPersonalComplete = (form) => allFilled(form, STEP2_REQUIRED_KEYS);

@@ -1,0 +1,331 @@
+import React, { useMemo, useState } from 'react';
+import QueuePageShell from '@/templates/QueuePageShell';
+import Table from '@/components/table/Table';
+import Badge from '@/components/badge/Badge';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import {
+  MAIN_WAREHOUSE_STOCK,
+  SUB_PHARMACY_STOCK,
+  BORROW_RETURN_RECORDS,
+  BORROW_RETURN_TYPES,
+  confirmBorrowReturnRequest,
+  nearExpiryEntries,
+  WAREHOUSE_STATUS_OPTIONS,
+  WAREHOUSE_OPERATING_STATUS,
+  setWarehouseOperatingStatus,
+  reorderNeededEntries,
+  REQUISITION_TARGETS,
+} from '@/data/pharmacyQueue';
+import { DRUG_CLASSIFICATIONS, getRegistryDrug } from '@/data/pharmacyRegistry';
+import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
+
+/* คลังยาและเวชภัณฑ์ (ToR §1.9.8-1.9.9) — two-tier warehouse view: คลังยาใหญ่
+   (per-center bulk store) and คลังยาย่อย (counter stock dispensing draws
+   from), each showing near-expiry (3-6 month) items. Reached from the
+   System Hub's "คลังยาและเวชภัณฑ์" tile (previously a dead `route: null`
+   card, see systemCatalog.js) and from the Sidebar pharmacy sub-menu. */
+
+const breadcrumb = ['ระบบงานเภสัชกรรม', 'คลังยาและเวชภัณฑ์'];
+
+const TABS = [
+  { key: 'main', label: 'คลังยาใหญ่', icon: 'warehouse'     },
+  { key: 'sub',  label: 'คลังยาย่อย', icon: 'inventory_2'   },
+];
+
+const toRows = (stockMap) => Object.entries(stockMap).map(([name, entry]) => ({ name, ...entry }));
+
+const isNearExpiry = (expiryDate, monthsAhead = 6) => {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() + monthsAhead);
+  return expiryDate <= cutoff.toISOString().slice(0, 10);
+};
+
+const formatThaiDate = (iso) => new Date(iso).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+/* จุดสั่งซื้อ (reorder point — ToR §1.9.8.3 "รายการที่ต้องทำการเบิกกับกอง
+   เภสัชกรรมเพิ่มเติม... จะมีการอ้างอิงจากการตั้งค่า minimum ของยาและ
+   เวชภัณฑ์แต่ละรายการ") — flags stock below the registry's usageRate.reorderPoint. */
+const isBelowReorderPoint = (name, stock) => {
+  const reg = getRegistryDrug(name);
+  return !!reg && stock < reg.usageRate.reorderPoint;
+};
+
+const BASE_COLUMNS = [
+  { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220 },
+  { key: 'lot', label: 'Lot No.', width: 140 },
+  {
+    key: 'stock', label: 'คงคลัง', width: 150, align: 'center',
+    render: (r) => (
+      <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-050)' }}>
+        <span>{r.stock.toLocaleString()} {r.unit}</span>
+        {isBelowReorderPoint(r.name, r.stock) && <Badge style='error' size='small'>ต่ำกว่าจุดสั่งซื้อ</Badge>}
+      </div>
+    ),
+  },
+  { key: 'unitPrice', label: 'ราคา/หน่วย', width: 100, align: 'center', render: (r) => `฿${r.unitPrice}` },
+  {
+    key: 'expiryDate', label: 'วันหมดอายุ', width: 160,
+    render: (r) => (
+      <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+        <span>{formatThaiDate(r.expiryDate)}</span>
+        {isNearExpiry(r.expiryDate) && <Badge style='warning' size='small'>ใกล้หมดอายุ</Badge>}
+      </div>
+    ),
+  },
+];
+
+const MAIN_COLUMNS = [
+  ...BASE_COLUMNS,
+  { key: 'receivedFrom', label: 'รับจาก', width: 200 },
+  { key: 'receivedAt', label: 'วันที่รับเข้า', width: 120, render: (r) => formatThaiDate(r.receivedAt) },
+];
+
+const BORROW_RETURN_STATUS_PILL = {
+  pending:   { style: 'warning', label: 'รอดำเนินการ' },
+  completed: { style: 'success', label: 'เสร็จสิ้น'    },
+};
+
+const WAREHOUSE_STATUS_PILL = {
+  open:        { style: 'success', label: 'เปิดดำเนินการ' },
+  maintenance: { style: 'warning', label: 'ปิดปรับปรุง'    },
+  suspended:   { style: 'error',   label: 'ระงับชั่วคราว'  },
+};
+
+const REORDER_CHANNEL_LABEL = Object.fromEntries(REQUISITION_TARGETS.map((t) => [t.key, t.label]));
+const BORROW_RETURN_TYPE_LABEL = Object.fromEntries(BORROW_RETURN_TYPES.map((t) => [t.key, t.label]));
+
+const CLASSIFICATION_OPTIONS = [{ value: 'all', label: 'ทุกประเภทยา' }, ...DRUG_CLASSIFICATIONS.map((c) => ({ value: c.key, label: c.label }))];
+const EXPIRY_OPTIONS = [
+  { value: 'all', label: 'ทุกช่วงเวลาหมดอายุ' },
+  { value: '3',   label: 'หมดอายุภายใน 3 เดือน' },
+  { value: '6',   label: 'หมดอายุภายใน 6 เดือน' },
+  { value: '12',  label: 'หมดอายุภายใน 12 เดือน' },
+];
+
+const PharmacyStockPage = () => {
+  const [activeTab, setActiveTab] = useState('main');
+  const [search, setSearch] = useState('');
+  const [classificationFilter, setClassificationFilter] = useState('all');
+  const [expiryFilter, setExpiryFilter] = useState('all');
+  const [, forceRender] = useState(0);
+
+  const mainRows = useMemo(() => toRows(MAIN_WAREHOUSE_STOCK), []);
+  const subRows = useMemo(() => toRows(SUB_PHARMACY_STOCK), []);
+  const rows = activeTab === 'main' ? mainRows : subRows;
+  const columns = activeTab === 'main' ? MAIN_COLUMNS : BASE_COLUMNS;
+
+  const filteredRows = useMemo(() => {
+    let result = rows;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter((r) => r.name.toLowerCase().includes(q) || r.lot.toLowerCase().includes(q) || (getRegistryDrug(r.name)?.code || '').toLowerCase().includes(q));
+    }
+    if (classificationFilter !== 'all') {
+      result = result.filter((r) => getRegistryDrug(r.name)?.classification === classificationFilter);
+    }
+    if (expiryFilter !== 'all') {
+      result = result.filter((r) => isNearExpiry(r.expiryDate, Number(expiryFilter)));
+    }
+    return result;
+  }, [rows, search, classificationFilter, expiryFilter]);
+
+  const nearExpiryCount = useMemo(
+    () => nearExpiryEntries(activeTab === 'main' ? MAIN_WAREHOUSE_STOCK : SUB_PHARMACY_STOCK).length,
+    [activeTab],
+  );
+
+  const belowReorderCount = useMemo(
+    () => rows.filter((r) => isBelowReorderPoint(r.name, r.stock)).length,
+    [rows],
+  );
+
+  /* §1.9.8.1/§1.9.9.1 — editable operating status per warehouse tier. */
+  const operatingStatus = WAREHOUSE_OPERATING_STATUS[activeTab];
+  const handleChangeOperatingStatus = (status) => { setWarehouseOperatingStatus(activeTab, status); forceRender((n) => n + 1); };
+
+  /* §1.9.8.3/§1.9.9.3 — items below reorder point, split by requisition
+     channel (NLEM → กองเภสัชกรรม, non-NLEM → สปสช.). */
+  const reorderNeeded = useMemo(
+    () => reorderNeededEntries(activeTab === 'main' ? MAIN_WAREHOUSE_STOCK : SUB_PHARMACY_STOCK),
+    [activeTab],
+  );
+
+  const summaryCards = [
+    { key: 'total',      label: 'รายการยาทั้งหมด',       value: rows.length,       indicator: activeTab === 'main' ? 'คลังยาใหญ่' : 'คลังยาย่อย', color: 'brand',      icon: 'inventory_2' },
+    { key: 'nearExpiry',  label: 'ใกล้หมดอายุ (≤6 เดือน)', value: nearExpiryCount,   indicator: 'ควรเบิกจ่าย/ใช้ก่อน',                             color: 'inprogress', icon: 'schedule'    },
+    { key: 'belowReorder', label: 'ต่ำกว่าจุดสั่งซื้อ',    value: belowReorderCount, indicator: 'ควรเบิกเพิ่มเติม',                                 color: 'inprogress', icon: 'trending_down' },
+    { key: 'totalUnits',  label: 'จำนวนคงคลังรวม',        value: rows.reduce((s, r) => s + r.stock, 0).toLocaleString(), indicator: 'ทุกรายการ', color: 'positive',   icon: 'warehouse'   },
+  ];
+
+  return (
+    <QueuePageShell
+      activeKey='pharmacy'
+      breadcrumb={breadcrumb}
+      title='ระบบคลังยาและเวชภัณฑ์'
+      actions={<PharmacySubNav />}
+      summaryCards={summaryCards}
+      tabs={TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+    >
+      <div
+        className='flex flex-col flex-1 min-w-0'
+        style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}
+      >
+        <div
+          className='w-full flex flex-col'
+          style={{
+            background: 'var(--surface-card-100)',
+            borderRadius: 'var(--dim-radius-500)',
+            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+            boxShadow: 'var(--shadow-card-strong)',
+            padding: 'var(--dim-space-600)',
+            gap: 'var(--dim-space-400)',
+          }}
+        >
+          {/* §1.9.8.1/§1.9.9.1 — สถานะการทำงานของคลัง (editable, per tier). */}
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+            <span className='text-sm' style={{ color: 'var(--text-content-secondary)' }}>สถานะคลัง:</span>
+            <Badge style={WAREHOUSE_STATUS_PILL[operatingStatus.status].style} size='small'>
+              {WAREHOUSE_STATUS_PILL[operatingStatus.status].label}
+            </Badge>
+            <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>
+              อัปเดตล่าสุดโดย {operatingStatus.updatedBy} ({formatThaiDate(operatingStatus.updatedAt)})
+            </span>
+            <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+              {WAREHOUSE_STATUS_OPTIONS.filter((o) => o.key !== operatingStatus.status).map((o) => (
+                <NeutralSubdueButton key={o.key} size='sm' variant='outline' onClick={() => handleChangeOperatingStatus(o.key)}>
+                  {o.label}
+                </NeutralSubdueButton>
+              ))}
+            </div>
+          </div>
+          <input
+            type='text'
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder='ค้นหาชื่อยา / รหัสยา / Lot No.'
+            style={{
+              width: '100%', maxWidth: 'var(--dim-size-2600, 384px)', padding: 'var(--dim-space-150) var(--dim-space-300)',
+              background: 'var(--surface-input-default)',
+              border: 'var(--dim-stroke-100) solid var(--border-input-default)',
+              borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none',
+            }}
+          />
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+            <FilterDropdown prefix='ประเภทยา:' options={CLASSIFICATION_OPTIONS} value={classificationFilter} onChange={setClassificationFilter} />
+            <FilterDropdown prefix='วันหมดอายุ:' options={EXPIRY_OPTIONS} value={expiryFilter} onChange={setExpiryFilter} />
+          </div>
+          <Table columns={columns} rows={filteredRows} rowKey={(r) => r.name} stickyColCount={1} emptyMessage='ไม่พบรายการยาที่ตรงกับเงื่อนไข' />
+        </div>
+
+        {/* §1.9.8.3/§1.9.9.3 — รายการที่ต้องเบิกเพิ่มเติม, split by channel:
+            NLEM → กองเภสัชกรรม (the standard §1.9.6 requisition flow),
+            non-NLEM → สปสช. (extra funding request). */}
+        <div
+          className='w-full flex flex-col'
+          style={{
+            background: 'var(--surface-card-100)',
+            borderRadius: 'var(--dim-radius-500)',
+            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+            boxShadow: 'var(--shadow-card-strong)',
+            padding: 'var(--dim-space-600)',
+            gap: 'var(--dim-space-300)',
+          }}
+        >
+          <h2 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
+            รายการที่ต้องเบิกเพิ่มเติม
+          </h2>
+          <Table
+            columns={[
+              { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220 },
+              { key: 'stock', label: 'คงคลัง', width: 120, align: 'center', render: (r) => `${r.stock.toLocaleString()} ${r.unit}` },
+              { key: 'reorderPoint', label: 'จุดสั่งซื้อ', width: 120, align: 'center', render: (r) => r.reorderPoint.toLocaleString() },
+              { key: 'channel', label: 'เบิกจาก', width: 220, render: (r) => <Badge style='warning' size='small'>{REORDER_CHANNEL_LABEL[r.channel]}</Badge> },
+            ]}
+            rows={reorderNeeded}
+            rowKey={(r) => r.name}
+            emptyMessage='ไม่มีรายการที่ต่ำกว่าจุดสั่งซื้อ'
+          />
+        </div>
+
+        {activeTab === 'sub' && (
+          <>
+            {/* §1.9.9.4 — ผู้ส่งคำร้อง: requests THIS center made to others
+                (ยืม/คืน/แลกล็อต), with history. */}
+            <div
+              className='w-full flex flex-col'
+              style={{
+                background: 'var(--surface-card-100)',
+                borderRadius: 'var(--dim-radius-500)',
+                border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                boxShadow: 'var(--shadow-card-strong)',
+                padding: 'var(--dim-space-600)',
+                gap: 'var(--dim-space-300)',
+              }}
+            >
+              <h2 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
+                ผู้ส่งคำร้อง — ยืม/คืน/แลกล็อตยาที่ศูนย์นี้ร้องขอ
+              </h2>
+              <Table
+                columns={[
+                  { key: 'type', label: 'ประเภท', width: 110, render: (r) => <Badge style={r.type === 'borrow' ? 'info' : r.type === 'return' ? 'success' : 'warning'} size='small'>{BORROW_RETURN_TYPE_LABEL[r.type]}</Badge> },
+                  { key: 'drugName', label: 'ชื่อยา', flex: true, minWidth: 200 },
+                  { key: 'quantity', label: 'จำนวน', width: 120, align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
+                  { key: 'counterpartCenter', label: 'ศูนย์บริการคู่กรณี', flex: true, minWidth: 220 },
+                  { key: 'requestedAt', label: 'วันที่ทำรายการ', width: 140, render: (r) => formatThaiDate(r.requestedAt) },
+                  { key: 'status', label: 'สถานะ', width: 130, render: (r) => <Badge style={BORROW_RETURN_STATUS_PILL[r.status].style} size='small'>{BORROW_RETURN_STATUS_PILL[r.status].label}</Badge> },
+                ]}
+                rows={BORROW_RETURN_RECORDS.filter((r) => r.direction === 'outgoing')}
+                rowKey={(r) => r.id}
+                emptyMessage='ไม่มีรายการที่ส่งคำร้อง'
+              />
+            </div>
+
+            {/* §1.9.9.5 — ผู้รับคำร้อง: requests OTHER centers sent here;
+                pending ones can be confirmed. */}
+            <div
+              className='w-full flex flex-col'
+              style={{
+                background: 'var(--surface-card-100)',
+                borderRadius: 'var(--dim-radius-500)',
+                border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                boxShadow: 'var(--shadow-card-strong)',
+                padding: 'var(--dim-space-600)',
+                gap: 'var(--dim-space-300)',
+              }}
+            >
+              <h2 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
+                ผู้รับคำร้อง — คำร้องจากศูนย์อื่น
+              </h2>
+              <Table
+                columns={[
+                  { key: 'type', label: 'ประเภท', width: 110, render: (r) => <Badge style={r.type === 'borrow' ? 'info' : r.type === 'return' ? 'success' : 'warning'} size='small'>{BORROW_RETURN_TYPE_LABEL[r.type]}</Badge> },
+                  { key: 'drugName', label: 'ชื่อยา', flex: true, minWidth: 200 },
+                  { key: 'quantity', label: 'จำนวน', width: 120, align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
+                  { key: 'counterpartCenter', label: 'ศูนย์บริการคู่กรณี', flex: true, minWidth: 220 },
+                  { key: 'requestedAt', label: 'วันที่ทำรายการ', width: 140, render: (r) => formatThaiDate(r.requestedAt) },
+                  { key: 'status', label: 'สถานะ', width: 130, render: (r) => <Badge style={BORROW_RETURN_STATUS_PILL[r.status].style} size='small'>{BORROW_RETURN_STATUS_PILL[r.status].label}</Badge> },
+                  {
+                    key: 'itemActions', label: 'ดำเนินการ', width: 120, align: 'center', sortable: false,
+                    render: (r) => r.status === 'pending' ? (
+                      <NeutralSubdueButton size='sm' variant='outline' onClick={() => { confirmBorrowReturnRequest(r.id); forceRender((n) => n + 1); }}>
+                        ยืนยัน
+                      </NeutralSubdueButton>
+                    ) : '—',
+                  },
+                ]}
+                rows={BORROW_RETURN_RECORDS.filter((r) => r.direction === 'incoming')}
+                rowKey={(r) => r.id}
+                emptyMessage='ไม่มีคำร้องจากศูนย์อื่น'
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </QueuePageShell>
+  );
+};
+
+export default PharmacyStockPage;
