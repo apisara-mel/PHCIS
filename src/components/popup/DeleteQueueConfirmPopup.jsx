@@ -182,13 +182,15 @@ const DeleteQueueConfirmPopup = ({
   hn,
   patientName,
   avatarSrc,
+  title = 'ยืนยันการลบคิว',
+  subtitle = 'คิวนี้จะถูกนำออกจากรายการ และไม่สามารถย้อนกลับได้',
 }) => {
   return (
     <Popup
       open={open}
       onClose={onClose}
-      title='ยืนยันการลบคิว'
-      subtitle='คิวนี้จะถูกนำออกจากรายการ และไม่สามารถย้อนกลับได้'
+      title={title}
+      subtitle={subtitle}
       size='large'
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
       primaryAction={{

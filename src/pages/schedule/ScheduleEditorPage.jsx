@@ -820,10 +820,21 @@ function formatDatePill(key) {
 const PICKER_ANIM_MS = 300;
 const PICKER_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 
-const DutyPickerSheet = ({ open, variant = 'modal', targets, dayShifts, onSelect, onClear, onClose }) => {
+const DutyPickerSheet = ({
+  open,
+  variant = 'modal',
+  targets,
+  dayShifts,
+  /** TOR 1.6.1.6 — Day Off locked when any target day still has active appointments. */
+  hasActiveAppointments = false,
+  onSelect,
+  onClear,
+  onClose,
+}) => {
   /* Multi-select state per Figma 39:9542 — array of selected shift keys.
      Day Off ('dayoff') and the four work shifts are mutually exclusive:
      · Day Off disabled (cannot be clicked) when ANY shift is checked
+     · Day Off disabled when the day still has active appointment slots
      · Clicking a shift while Day Off is checked auto-clears Day Off */
   const [selectedShifts, setSelectedShifts] = useState([]);
 
@@ -849,9 +860,13 @@ const DutyPickerSheet = ({ open, variant = 'modal', targets, dayShifts, onSelect
     const allSame = first.length > 0 && sets.every(s =>
       s.length === first.length && s.every((v, i) => v === first[i])
     );
-    setSelectedShifts(allSame ? first : []);
+    const next = allSame ? first : [];
+    /* Never pre-select Day Off when active appointments still block it. */
+    setSelectedShifts(
+      hasActiveAppointments ? next.filter((k) => k !== 'dayoff') : next,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, hasActiveAppointments]);
 
   /* Mount + animation lifecycle:
      · open=true  → mount immediately, then flip `visible` to true on the
@@ -876,14 +891,20 @@ const DutyPickerSheet = ({ open, variant = 'modal', targets, dayShifts, onSelect
   const canSave = selectedShifts.length > 0;
   const hasShifts = selectedShifts.some(k => k !== 'dayoff');
 
-  /* Day Off disabled when any of the 4 work shifts is selected, per Figma
-     annotation. The 4 work shifts stay clickable when Day Off is selected
-     — clicking one auto-clears Day Off (asymmetric mutex). */
-  const isOptionDisabled = (key) => key === 'dayoff' && hasShifts;
+  /* Day Off disabled when:
+     · any work shift is selected (Figma asymmetric mutex), OR
+     · the day still has active appointment slots (cannot close the day). */
+  const isOptionDisabled = (key) => (
+    key === 'dayoff' && (hasShifts || hasActiveAppointments)
+  );
 
   const handleSave = () => {
     if (!canSave) return;
-    onSelect(selectedShifts.slice());
+    const next = hasActiveAppointments
+      ? selectedShifts.filter((k) => k !== 'dayoff')
+      : selectedShifts.slice();
+    if (next.length === 0) return;
+    onSelect(next);
   };
 
   const toggleShift = (key) => {
@@ -1098,12 +1119,19 @@ const DutyPickerSheet = ({ open, variant = 'modal', targets, dayShifts, onSelect
             {SHIFT_TYPES.map(s => {
               const checked = selectedShifts.includes(s.key);
               const rowDisabled = isOptionDisabled(s.key);
+              const dayOffBlockedByAppointments = (
+                s.key === 'dayoff' && hasActiveAppointments && !hasShifts
+              );
               return (
                 <PressableButton
                   key={s.key}
                   onClick={() => toggleShift(s.key)}
                   disabled={rowDisabled}
                   aria-pressed={checked}
+                  aria-disabled={rowDisabled || undefined}
+                  title={dayOffBlockedByAppointments
+                    ? 'ไม่สามารถตั้งวันหยุดได้ เนื่องจากยังมีนัดหมายที่ Active อยู่'
+                    : undefined}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1786,6 +1814,9 @@ const ScheduleEditorPage = () => {
      resolved targets array passed down to DutyPickerSheet. */
   const pickerOpen = pickerTarget !== null || (multiDay && selectedDays.length > 0);
   const pickerTargets = pickerTarget !== null ? pickerTarget : selectedDays;
+  const pickerHasActiveAppointments = (pickerTargets || []).some((key) => (
+    EXISTING_APPOINTMENTS.some((a) => a.cellKey === key)
+  ));
   const pickerVariant = multiDay && pickerTarget === null ? 'sheet' : 'modal';
 
   /* Success toast + navigation timing. After "บันทึก" we want the user
@@ -2323,6 +2354,7 @@ const ScheduleEditorPage = () => {
         variant={pickerVariant}
         targets={pickerTargets}
         dayShifts={dayShifts}
+        hasActiveAppointments={pickerHasActiveAppointments}
         onSelect={onPickerSelect}
         onClear={onPickerClear}
         onClose={onPickerClose}

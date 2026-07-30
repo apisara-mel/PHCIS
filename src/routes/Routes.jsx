@@ -10,8 +10,12 @@ import ScreeningPage from '@/pages/opd/ScreeningPage';
 import QueuePage from '@/pages/opd/QueuePage';
 import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
+import RegistrationConsentFillPage from '@/pages/registration/RegistrationConsentFillPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
+import AncQueuePage from '@/pages/treat/anc/AncQueuePage';
+import AncFormPage from '@/pages/treat/anc/AncFormPage';
+import LabQueuePage from '@/pages/lab/LabQueuePage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
 import ObservationHistoryPage from '@/pages/observation/ObservationHistoryPage';
@@ -165,9 +169,15 @@ export default function Routes() {
         <Route exact path='/registration'          component={RegistrationQueuePage} />
         <Route exact path='/registration/queue'    component={RegistrationQueuePage} />
         <Route exact path='/registration/register' component={RegistrationFormPage} />
+        <Route exact path='/registration/consent/:formId' component={RegistrationConsentFillPage} />
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        {/* แผนกฝากครรภ์ (ANC) — TOR §1.10.7, first-visit MVP. */}
+        <Route exact path='/treat/anc/queue'  component={AncQueuePage} />
+        <Route exact path='/treat/anc/record' component={AncFormPage} />
+        <Route exact path='/lab'              component={LabQueuePage} />
+        <Route exact path='/lab/queue'        component={LabQueuePage} />
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
         <Route exact path='/observation/history/:id'  component={ObservationHistoryPage} />

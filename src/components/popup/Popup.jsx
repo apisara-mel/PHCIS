@@ -314,6 +314,8 @@ const Popup = ({
         if (t.closest?.('.mih-diag-type-popover')) return;
         if (t.closest?.('.mih-suggestion-popover')) return;
         if (t.closest?.('.mih-select-popover')) return;
+        if (t.closest?.('.mih-datepicker-popover')) return;
+        if (t.closest?.('.mih-popover-in')) return;
         onClose();
       }}
       style={{

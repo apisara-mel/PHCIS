@@ -249,11 +249,23 @@ const DayCell = ({ date, state, cellStyleFor, onSelect, fullLabel }) => {
   const [hovered, setHovered] = useState(false);
   const visual = cellStyleFor(state, hovered);
   const clickable = state.kind !== 'disabled' && state.kind !== 'full';
+  const select = () => {
+    if (clickable && onSelect) onSelect(date);
+  };
   return (
     <button
       type='button'
       disabled={!clickable}
-      onClick={() => clickable && onSelect && onSelect(date)}
+      /* Prefer mousedown so the parent DatePicker can close before the
+         click falls through to the trigger (common inside Popup portals). */
+      onMouseDown={(e) => {
+        if (!clickable) return;
+        e.preventDefault();
+        select();
+      }}
+      onClick={(e) => {
+        e.preventDefault();
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className='flex items-center justify-center transition-colors'
