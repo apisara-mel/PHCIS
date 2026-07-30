@@ -1,11 +1,12 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import Popover from '@/components/popup/Popover';
 import ActionList from '@/components/list/ActionList';
 
 /* SubHeader "การนัดหมาย" split button — Figma PHCIS-ALL 2120:32577.
    BrandSubdue outline trigger opens a dropdown with:
-     • ดูการนัดหมาย   (calendar_month)
+     • ดูการนัดหมาย   (calendar_month) → /appointment (ระบบนัดหมาย)
      • เพิ่มการนัดหมาย (calendar_add_on) */
 
 const MENU_ITEMS = [
@@ -19,6 +20,7 @@ export default function AppointmentMenuButton({
   size = 'lg',
   className = '',
 }) {
+  const history = useHistory();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(null);
   const [menuWidth, setMenuWidth] = useState(null);
@@ -30,6 +32,11 @@ export default function AppointmentMenuButton({
   }, [open]);
 
   const close = () => setOpen(false);
+
+  const handleView = () => {
+    if (onView) onView();
+    else history.push('/appointment');
+  };
 
   return (
     <div className={`inline-flex shrink-0 ${className}`}>
@@ -76,7 +83,7 @@ export default function AppointmentMenuButton({
               showChevronRight={false}
               onClick={() => {
                 close();
-                if (item.key === 'view') onView?.();
+                if (item.key === 'view') handleView();
                 if (item.key === 'add') onAdd?.();
               }}
             />

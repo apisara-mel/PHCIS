@@ -10,6 +10,7 @@ import ScreeningPage from '@/pages/opd/ScreeningPage';
 import QueuePage from '@/pages/opd/QueuePage';
 import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
+import RegistrationConsentFillPage from '@/pages/registration/RegistrationConsentFillPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
 import AncQueuePage from '@/pages/treat/anc/AncQueuePage';
@@ -176,6 +177,7 @@ export default function Routes() {
         <Route exact path='/registration'          component={RegistrationQueuePage} />
         <Route exact path='/registration/queue'    component={RegistrationQueuePage} />
         <Route exact path='/registration/register' component={RegistrationFormPage} />
+        <Route exact path='/registration/consent/:formId' component={RegistrationConsentFillPage} />
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />

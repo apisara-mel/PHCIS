@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
@@ -6,25 +6,31 @@ import Footer from '@/components/layout/Footer';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import FormShell from '@/templates/FormShell';
 import {
-  Step1Personal, Step2Address, Step3Contact, Step4Rights, Step5Flags,
+  StepConsent, Step1Personal, Step2Address, Step3Contact, Step4Rights, Step5Flags,
 } from '@/components/forms/RegistrationSteps';
-import RegistrationConsentStep from '@/components/forms/RegistrationConsentStep';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import {
   applySmartCardRead,
   buildEmptyRegistrationForm,
   getRegistrationCompletedSteps,
+  loadRegistrationDraft,
+  saveRegistrationDraft,
 } from '@/data/registrationForm';
 
-/* MIH RegistrationFormPage — Figma 2373:119045..119049 / 204:14241.
-   First entry: empty default fields (placeholders only).
-   Queue row still supplies HN for the status bar; chip read prefills
-   personal data + ID-card mock on the right photo tile. */
+/* MIH RegistrationFormPage — Figma 292:104252 / 2373:119045..119049.
+   Step 1 = แบบฟอร์มยินยอม; Step 2 = ข้อมูลส่วนตัว (รวม สถานะผู้รับบริการ).
+   Queue row supplies HN for status badges; chip read prefills personal data.
+   Draft persists in sessionStorage so consent fill navigation keeps progress. */
 
 const breadcrumb = ['ระบบงานเวชระเบียน', 'ข้อมูลผู้รับบริการ'];
 
 const STEP_RENDERERS = [
-  RegistrationConsentStep, Step1Personal, Step2Address, Step3Contact, Step4Rights, Step5Flags,
+  StepConsent,
+  Step1Personal,
+  Step2Address,
+  Step3Contact,
+  Step4Rights,
+  Step5Flags,
 ];
 
 const RegistrationFormPage = () => {
@@ -34,11 +40,25 @@ const RegistrationFormPage = () => {
   }, [navState]);
 
   const [stepIndex, setStepIndex] = useState(0);
-  const [form, setForm] = useState(buildEmptyRegistrationForm);
+  const [form, setForm] = useState(() => loadRegistrationDraft() || buildEmptyRegistrationForm());
+
+  useEffect(() => {
+    saveRegistrationDraft(form);
+  }, [form]);
+
+  useEffect(() => {
+    const id = navState?.consentCompletedId;
+    if (!id) return;
+    setForm((s) => {
+      const prev = Array.isArray(s.consentCompletedIds) ? s.consentCompletedIds : [];
+      if (prev.includes(id)) return s;
+      return { ...s, consentCompletedIds: [...prev, id] };
+    });
+  }, [navState?.consentCompletedId]);
 
   const handleReadSmartCard = () => {
     setForm((prev) => applySmartCardRead(prev, patient));
-    setStepIndex(0);
+    setStepIndex(1);
   };
 
   const ActiveStep = STEP_RENDERERS[stepIndex];
@@ -54,7 +74,6 @@ const RegistrationFormPage = () => {
       <div className='flex-1 min-w-0 flex flex-col'>
         <Header breadcrumb={breadcrumb} />
         <FormShell
-          patient={patient}
           stepIndex={stepIndex}
           onStepChange={setStepIndex}
           onReadSmartCard={handleReadSmartCard}

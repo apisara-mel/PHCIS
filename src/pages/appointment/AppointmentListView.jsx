@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import PrimarySearch from '@/components/search/PrimarySearch';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
@@ -9,14 +9,22 @@ import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
 import StatusBadge from '@/components/badge/StatusBadge';
+import BrandButton from '@/components/button/BrandButton';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { DEFAULT_SEARCH_AVATARS } from '@/data/avatarAssets';
 import {
   DEFAULT_PATIENT_AVATAR,
   EMBEDDED_LIST_PAGE_SIZE,
+  getAppointmentDisplayStatus,
   getAppointmentStatusPresentation,
   formatApptListDate,
+  isAppointmentSlotPast,
   parseDateKey,
   PAGE_SIZE,
+  APPT_STATUS_CONFIRMED,
+  APPT_STATUS_PENDING,
+  APPT_STATUS_CANCELLED,
+  APPT_STATUS_NO_SHOW,
 } from './appointmentShared';
 
 /* MIH PHCIS · รายการนัดหมาย — Figma 46:11239 (root) / 58:19171 (embedded)
@@ -184,7 +192,7 @@ const renderTelemedicine = (row) => {
   );
 };
 
-/** Figma 58:19193 — ยืนยันแล้ว / เสร็จสิ้น / ไม่มาตามนัด */
+/** Figma 58:19193 — รอการยืนยัน / ยืนยันแล้ว / เสร็จสิ้น / ไม่มาตามนัด */
 const renderStatusBadge = (row) => {
   const { label, style } = getAppointmentStatusPresentation(row);
   return (
@@ -194,18 +202,51 @@ const renderStatusBadge = (row) => {
   );
 };
 
+const makeRenderConfirmAction = (onConfirm) => (row) => (
+  <BrandButton
+    variant='fill'
+    size='sm'
+    onClick={(e) => {
+      e.stopPropagation();
+      onConfirm?.(row);
+    }}
+  >
+    ยืนยัน
+  </BrandButton>
+);
+
+const makeRenderEditAction = (onEdit) => (row) => (
+  <BrandSubdueButton
+    variant='outline'
+    size='md'
+    leadingIcon='edit'
+    onClick={(e) => {
+      e.stopPropagation();
+      onEdit?.(row);
+    }}
+  >
+    แก้ไข
+  </BrandSubdueButton>
+);
+
 /** Figma 46:11239 (root) / 58:19171 (embedded) — appointment list columns. */
-const buildFigmaListColumns = ({ variant }) => {
+const buildFigmaListColumns = ({
+  variant,
+  showConfirmAction = false,
+  showEditAction = false,
+  onConfirmAppointment,
+  onEditAppointment,
+}) => {
   const isRoot = variant === 'root';
 
   const cols = [
     {
       key: 'date',
       header: 'วันที่',
-      width: isRoot ? 128 : 192,
+      width: isRoot ? 176 : 192,
       sortable: true,
       render: (row) => (
-        <span style={TEXT_CELL}>{formatApptListDate(row.date)}</span>
+        <span style={{ ...TEXT_CELL, whiteSpace: 'nowrap' }}>{formatApptListDate(row.date)}</span>
       ),
     },
     {
@@ -227,8 +268,7 @@ const buildFigmaListColumns = ({ variant }) => {
     {
       key: 'patient',
       header: isRoot ? 'ผู้รับบริการ' : 'ชื่อ-นามสกุล ผู้รับบริการ',
-      flex: true,
-      minWidth: isRoot ? undefined : 177,
+      width: isRoot ? 220 : 200,
       sortable: true,
       render: renderPatientCell,
     },
@@ -239,6 +279,7 @@ const buildFigmaListColumns = ({ variant }) => {
       key: 'doctor',
       header: 'แพทย์',
       flex: true,
+      minWidth: 200,
       sortable: true,
       render: (row) => (
         <span className='truncate' style={TEXT_CELL}>{row.doctor || '—'}</span>
@@ -250,8 +291,9 @@ const buildFigmaListColumns = ({ variant }) => {
     {
       key: 'type',
       header: 'ประเภท',
-      width: 96,
+      width: 112,
       sortable: false,
+      align: 'left',
       render: renderTypeBadge,
     },
     {
@@ -259,12 +301,24 @@ const buildFigmaListColumns = ({ variant }) => {
       header: 'Telemedicine',
       width: 128,
       sortable: false,
+      align: 'left',
       render: renderTelemedicine,
+    },
+    {
+      key: 'orderingUnit',
+      header: 'หน่วยงานที่สั่งนัด',
+      width: 192,
+      sortable: true,
+      render: (row) => (
+        <span className='truncate' style={TEXT_CELL}>
+          {row.orderingUnit || row.site || '—'}
+        </span>
+      ),
     },
     {
       key: 'clinic',
       header: 'แผนก',
-      width: 256,
+      width: 160,
       sortable: true,
       render: (row) => (
         <span className='truncate' style={TEXT_CELL}>{formatApptDeptLabel(row)}</span>
@@ -279,6 +333,24 @@ const buildFigmaListColumns = ({ variant }) => {
     },
   );
 
+  if (showConfirmAction) {
+    cols.push({
+      key: 'actions',
+      header: 'การดำเนินการ',
+      width: 120,
+      sortable: false,
+      render: makeRenderConfirmAction(onConfirmAppointment),
+    });
+  } else if (showEditAction) {
+    cols.push({
+      key: 'actions',
+      header: 'การดำเนินการ',
+      width: 140,
+      sortable: false,
+      render: makeRenderEditAction(onEditAppointment),
+    });
+  }
+
   return cols;
 };
 
@@ -287,18 +359,32 @@ const AppointmentListView = ({
   staff,
   staffId = null,
   onOpenDetail,
-  /** When true, render filters + table only (no outer card — parent owns chrome). */
+  onConfirmAppointment,
+  /**
+   * Status scope for root tabs:
+   *   'confirmed' — นัดหมายที่ยืนยันแล้ว
+   *   'pending'   — นัดหมายที่รอการยืนยัน
+   *   'all'       — นัดหมายทั้งหมด (รวมที่ผ่านมาแล้ว)
+   *   'cancelled' — นัดหมายที่ยกเลิก / ไม่มาตามนัด
+   */
+  statusFilter = 'all',
+  /** When true, render search + table only (no outer card — parent owns chrome). */
   embedded = false,
 }) => {
   const lockedDoctor = staffId != null;
   const listVariant = embedded ? 'embedded' : 'root';
   const pageSize = embedded ? EMBEDDED_LIST_PAGE_SIZE : PAGE_SIZE;
+  const includePast = statusFilter === 'all' || statusFilter === 'cancelled';
+  const showConfirmAction = statusFilter === 'pending' && typeof onConfirmAppointment === 'function';
+  const showEditAction = statusFilter === 'confirmed' && typeof onOpenDetail === 'function';
+  /** Status tabs already segment the list — don't also clamp to today by default. */
+  const defaultDateQuick = 'all';
 
   const [search, setSearch] = useState('');
   const [filterDoctor, setFilterDoctor] = useState('');
   const [filterExamMode, setFilterExamMode] = useState('');
   const [filterTime, setFilterTime] = useState('all');
-  const [dateValue, setDateValue] = useState({ quick: 'today' });
+  const [dateValue, setDateValue] = useState({ quick: defaultDateQuick });
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
 
@@ -316,6 +402,16 @@ const AppointmentListView = ({
 
     return appointments.filter((a) => {
       if (doctorFilter && String(a.staffId) !== doctorFilter) return false;
+
+      const displayStatus = getAppointmentDisplayStatus(a);
+      if (statusFilter === 'confirmed' && displayStatus !== APPT_STATUS_CONFIRMED) return false;
+      if (statusFilter === 'pending' && displayStatus !== APPT_STATUS_PENDING) return false;
+      if (
+        statusFilter === 'cancelled'
+        && displayStatus !== APPT_STATUS_CANCELLED
+        && displayStatus !== APPT_STATUS_NO_SHOW
+      ) return false;
+      if (!includePast && isAppointmentSlotPast(a)) return false;
 
       if (filterExamMode) {
         const mode = a.examMode === 'telemedicine' ? 'tele' : (a.examMode || 'onsite');
@@ -342,6 +438,8 @@ const AppointmentListView = ({
     appointments,
     lockedDoctor,
     staffId,
+    statusFilter,
+    includePast,
     filterDoctor,
     filterExamMode,
     filterTime,
@@ -385,23 +483,16 @@ const AppointmentListView = ({
   const rangeStart = sorted.length === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, sorted.length);
 
-  const isAllFilters = !filterDoctor
-    && !filterExamMode
-    && dateValue.quick === 'all'
-    && filterTime === 'all';
-
   const columns = useMemo(
-    () => buildFigmaListColumns({ variant: listVariant }),
-    [listVariant],
+    () => buildFigmaListColumns({
+      variant: listVariant,
+      showConfirmAction,
+      showEditAction,
+      onConfirmAppointment,
+      onEditAppointment: onOpenDetail,
+    }),
+    [listVariant, showConfirmAction, showEditAction, onConfirmAppointment, onOpenDetail],
   );
-
-  const resetAllFilters = () => {
-    setFilterDoctor('');
-    setFilterExamMode('');
-    setFilterTime('all');
-    setDateValue({ quick: 'all' });
-    setPage(1);
-  };
 
   const body = (
     <>
@@ -418,11 +509,6 @@ const AppointmentListView = ({
 
       <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
         <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-          <FilterTag
-            value='ทั้งหมด'
-            selected={isAllFilters}
-            onClick={resetAllFilters}
-          />
           {!lockedDoctor && (
             <FilterDropdown
               prefix='แพทย์:'
@@ -441,14 +527,14 @@ const AppointmentListView = ({
           <FilterDateTag
             prefix='วัน:'
             value={dateValue.quick === 'all' ? undefined : dateValue}
-            defaultQuick='today'
+            defaultQuick={defaultDateQuick}
             quickLabels={{
               today: 'วันนี้',
               yesterday: 'เมื่อวาน',
               thismonth: 'เดือนนี้',
               lastmonth: 'เดือนที่แล้ว',
             }}
-            placeholder='วันนี้'
+            placeholder='ทุกวัน'
             selectedWhen={(v) => v?.quick && v.quick !== 'all'}
             onChange={(v) => { setDateValue(v); setPage(1); }}
           />
@@ -467,6 +553,7 @@ const AppointmentListView = ({
           sortConfig={sortConfig}
           onSort={handleSort}
           onRowClick={onOpenDetail}
+          stickyColCount={4}
           emptyMessage='ไม่พบนัดหมาย'
           style={{
             maxHeight: TABLE_MAX_HEIGHT,

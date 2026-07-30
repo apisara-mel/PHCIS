@@ -38,12 +38,12 @@ const ITEMS = [
   { key: 'dashboard', label: 'แดชบอร์ด',                  icon: 'bar_chart_4_bars', path: '/dashboard'   },
   { key: 'consent',   label: 'คลังแบบฟอร์ม',              icon: 'assignment_add',   path: '/forms'        },
   { key: 'registration', label: 'งานเวชระเบียน',          icon: 'assignment',       path: '/registration/queue' },
-  { key: 'observation',   label: 'ระบบสังเกตอาการ (Observation)', icon: 'monitor_heart',  path: '/observation' },
+  { key: 'observation',   label: 'ระบบสังเกตอาการ', icon: 'monitor_heart',  path: '/observation' },
   { key: 'opd',       label: 'ระบบงานผู้รับบริการนอก',    icon: 'face',             path: '/opd/queue'   },
   {
     key: 'treat', label: 'ระบบบันทึกการรักษา', icon: 'stethoscope',
     subItems: [
-      { key: 'opd-treat',  label: 'ตรวจรักษาทั่วไป (OPD)',                    path: '/treat/queue' },
+      { key: 'opd-treat',  label: 'ตรวจรักษาทั่วไป',                    path: '/treat/queue' },
       { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)' },
       { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์' },
       { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด' },

@@ -170,15 +170,19 @@ export function isPastDate(dateKey) {
     < startOfLocalDay(new Date()).getTime();
 }
 
+export const APPT_STATUS_PENDING = 'pending';
 export const APPT_STATUS_CONFIRMED = 'confirmed';
 export const APPT_STATUS_COMPLETED = 'completed';
 export const APPT_STATUS_NO_SHOW = 'no_show';
+export const APPT_STATUS_CANCELLED = 'cancelled';
 
 /** List column + filters — Figma 58:19193 family. */
 export const APPT_STATUS_PRESENTATIONS = {
+  [APPT_STATUS_PENDING]: { label: 'รอการยืนยัน', style: 'warning' },
   [APPT_STATUS_CONFIRMED]: { label: 'ยืนยันแล้ว', style: 'info' },
   [APPT_STATUS_COMPLETED]: { label: 'เสร็จสิ้น', style: 'success' },
-  [APPT_STATUS_NO_SHOW]: { label: 'ไม่มาตามนัด', style: 'warning' },
+  [APPT_STATUS_NO_SHOW]: { label: 'ไม่มาตามนัด', style: 'yellow' },
+  [APPT_STATUS_CANCELLED]: { label: 'ยกเลิก', style: 'error' },
 };
 
 /** True when the appointment start time is before now (includes prior calendar days). */
@@ -199,9 +203,10 @@ export function getAppointmentDisplayStatus(appt) {
   if (!appt) return APPT_STATUS_CONFIRMED;
   const stored = appt.status;
   if (stored === APPT_STATUS_NO_SHOW) return APPT_STATUS_NO_SHOW;
-  if (stored === 'cancelled') return 'cancelled';
+  if (stored === APPT_STATUS_CANCELLED) return APPT_STATUS_CANCELLED;
   if (stored === APPT_STATUS_COMPLETED || stored === 'done') return APPT_STATUS_COMPLETED;
   if (isPastDate(appt.date) || isAppointmentSlotPast(appt)) return APPT_STATUS_COMPLETED;
+  if (stored === APPT_STATUS_PENDING) return APPT_STATUS_PENDING;
   return APPT_STATUS_CONFIRMED;
 }
 
@@ -215,11 +220,15 @@ export function isAppointmentCompleted(appt) {
   return getAppointmentDisplayStatus(appt) === APPT_STATUS_COMPLETED;
 }
 
-/** Figma 73:15735 — read-only detail when past slot, finished, or no-show. */
+/** Figma 73:15735 — read-only detail when past slot, finished, no-show, or cancelled. */
 export function isAppointmentReadOnly(appt) {
   if (!appt) return false;
   const status = getAppointmentDisplayStatus(appt);
-  return status === APPT_STATUS_COMPLETED || status === APPT_STATUS_NO_SHOW;
+  return (
+    status === APPT_STATUS_COMPLETED
+    || status === APPT_STATUS_NO_SHOW
+    || status === APPT_STATUS_CANCELLED
+  );
 }
 
 export function isSlotDisabled(dateKey, time) {
@@ -340,9 +349,21 @@ export function getStaffScheduleSlots(staff, dateKey) {
 }
 
 /** Earliest free slot across staff (TOR 1.6.2.1) within [fromDate, days]. */
-export function findEarliestFreeSlot({ staffList, appointments, resourceType, fromDate, days = 14 }) {
+export function findEarliestFreeSlot({
+  staffList,
+  appointments,
+  resourceType,
+  groupPolicy = '',
+  subDivision = '',
+  dept = '',
+  fromDate,
+  days = 14,
+}) {
   const start = fromDate ? parseDateKey(fromDate) : startOfLocalDay(new Date());
   const pool = (staffList || []).filter((s) => {
+    if (groupPolicy && s.groupPolicy !== groupPolicy) return false;
+    if (subDivision && s.subDivision !== subDivision) return false;
+    if (dept && s.dept !== dept) return false;
     if (!resourceType || resourceType === 'all') return true;
     if (resourceType === 'dental') return s.dept === 'ทันตกรรม';
     if (resourceType === 'internal') return s.dept === 'อายุรกรรม';

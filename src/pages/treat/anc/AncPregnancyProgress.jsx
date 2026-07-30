@@ -199,6 +199,7 @@ const AncPregnancyProgress = ({ form, cardPatient }) => {
           >
             <Tooltip
               position='top'
+              variant='light'
               maxWidth={280}
               className='w-full h-full'
               content={
