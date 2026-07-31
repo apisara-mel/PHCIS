@@ -6,13 +6,15 @@ import Footer from '@/components/layout/Footer';
 import Icon from '@/components/icons/Icon';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import SuccessToast from '@/components/toast/SuccessToast';
 import {
   DRUG_REGISTRY,
   DRUG_CLASSIFICATIONS,
   UNIT_TYPES,
   UNIT_CONVERSIONS,
   RIGHTS_LIST,
-  getRegistryDrug,
+  getRegistryDrugById,
+  upsertRegistryDrug,
 } from '@/data/pharmacyRegistry';
 
 /* Drug Registry add/edit page (ToR §1.9.1 + §1.9.10 settings). Mirrors
@@ -118,7 +120,7 @@ const PharmacyRegistryEditPage = () => {
   const { id } = useParams();
   const history = useHistory();
   const isNew = !id || id === 'new';
-  const existing = isNew ? null : getRegistryDrug(DRUG_REGISTRY.find((d) => d.id === id)?.name);
+  const existing = isNew ? null : getRegistryDrugById(id);
   const base = existing || BLANK_DRUG;
 
   const [form, setForm] = useState(() => ({
@@ -129,6 +131,7 @@ const PharmacyRegistryEditPage = () => {
     disallowedChronicDiseases: [...(base.disallowedChronicDiseases || [])],
     restrictedToDoctorGroup: base.restrictedToDoctorGroup || '',
   }));
+  const [saved, setSaved] = useState(false);
 
   const setField = (key, v) => setForm((prev) => ({ ...prev, [key]: v }));
   const setUsageRateField = (key, v) => setForm((prev) => ({ ...prev, usageRate: { ...prev.usageRate, [key]: Number(v) || 0 } }));
@@ -173,8 +176,10 @@ const PharmacyRegistryEditPage = () => {
   const replacementOptions = DRUG_REGISTRY.filter((d) => d.id !== form.id);
 
   const handleSave = () => {
-    /* Prototype only — no persistence, matches UserEditPage's own stub-save. */
-    history.push('/pharmacy/registry');
+    if (!form.name.trim()) return;
+    upsertRegistryDrug(form);
+    setSaved(true);
+    setTimeout(() => history.push('/pharmacy/registry'), 700);
   };
 
   return (
@@ -377,11 +382,12 @@ const PharmacyRegistryEditPage = () => {
               </span>
             </div>
             <NeutralSubdueButton variant='outline' size='md' onClick={() => history.push('/pharmacy/registry')}>ยกเลิก</NeutralSubdueButton>
-            <BrandButton size='md' leadingIcon='save' onClick={handleSave}>{isNew ? 'สร้างรายการยา' : 'บันทึกการเปลี่ยนแปลง'}</BrandButton>
+            <BrandButton size='md' leadingIcon='save' onClick={handleSave} disabled={!form.name.trim()}>{isNew ? 'สร้างรายการยา' : 'บันทึกการเปลี่ยนแปลง'}</BrandButton>
           </section>
         </div>
         <Footer copyright='© 2026 ศูนย์บริการสาธารณสุข สำนักอนามัย กรุงเทพมหานคร' />
       </main>
+      <SuccessToast open={saved} message={isNew ? 'สร้างรายการยาสำเร็จ' : 'บันทึกการเปลี่ยนแปลงสำเร็จ'} onClose={() => setSaved(false)} />
     </div>
   );
 };

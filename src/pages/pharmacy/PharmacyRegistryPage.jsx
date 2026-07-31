@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
@@ -9,7 +9,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { resolveHighAlertBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
-import { DRUG_REGISTRY, DRUG_CLASSIFICATIONS, UNIT_TYPES, currentPrice } from '@/data/pharmacyRegistry';
+import { DRUG_REGISTRY, DRUG_CLASSIFICATIONS, UNIT_TYPES, currentPrice, subscribeRegistry, setRegistryDrugActive } from '@/data/pharmacyRegistry';
 import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
 
 /* Drug Registry (ระบบทะเบียนยา — ToR §1.9.1) list page. Mirrors
@@ -61,7 +61,7 @@ const FilterSelect = ({ icon, label, value, options, onChange }) => (
 
 const classificationLabel = (key) => DRUG_CLASSIFICATIONS.find((c) => c.key === key)?.label || key;
 
-const DrugRow = ({ drug, onEdit }) => (
+const DrugRow = ({ drug, onEdit, onToggleActive }) => (
   <div
     role='button'
     tabIndex={0}
@@ -113,7 +113,20 @@ const DrugRow = ({ drug, onEdit }) => (
       </span>
     </div>
 
-    <div className='shrink-0 inline-flex items-center'>
+    <div className='shrink-0 inline-flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+      <button
+        type='button'
+        aria-label={drug.active ? 'ปิดใช้งานรายการยา' : 'เปิดใช้งานรายการยา'}
+        onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
+        className='inline-flex items-center justify-center'
+        style={{
+          width: 'var(--dim-size-700, 36px)', height: 'var(--dim-size-700, 36px)', borderRadius: 'var(--dim-radius-full)',
+          background: 'var(--surface-card-100)',
+          color: 'var(--text-content-tertiary)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', cursor: 'pointer',
+        }}
+      >
+        <Icon name={drug.active ? 'block' : 'check_circle'} size={18} />
+      </button>
       <button
         type='button'
         aria-label='แก้ไขรายการยา'
@@ -138,6 +151,13 @@ const PharmacyRegistryPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [highAlertFilter, setHighAlertFilter] = useState('all');
   const [unitFilter, setUnitFilter] = useState('all');
+  const [registryTick, setRegistryTick] = useState(0);
+
+  /* `DRUG_REGISTRY` is mutated in place by upsertRegistryDrug /
+     setRegistryDrugActive; subscribing + bumping a tick state forces this
+     page's `useMemo` to re-run so edits/toggles show up without a reload
+     (same pattern as AppointmentSettingsPanel.jsx's settings-store sync). */
+  useEffect(() => subscribeRegistry(() => setRegistryTick((t) => t + 1)), []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -154,7 +174,7 @@ const PharmacyRegistryPage = () => {
         d.tradeName.toLowerCase().includes(q)
       );
     });
-  }, [search, classFilter, statusFilter, highAlertFilter, unitFilter]);
+  }, [search, classFilter, statusFilter, highAlertFilter, unitFilter, registryTick]);
 
   const classOptions = [{ value: 'all', label: 'ทุกประเภท' }, ...DRUG_CLASSIFICATIONS.map((c) => ({ value: c.key, label: c.label }))];
   const statusOptions = [{ value: 'all', label: 'ทุกสถานะ' }, { value: 'active', label: 'ใช้งาน' }, { value: 'inactive', label: 'ปิดใช้งาน' }];
@@ -249,7 +269,12 @@ const PharmacyRegistryPage = () => {
               </div>
             ) : (
               filtered.map((d) => (
-                <DrugRow key={d.id} drug={d} onEdit={() => history.push(`/pharmacy/registry/${d.id}`)} />
+                <DrugRow
+                  key={d.id}
+                  drug={d}
+                  onEdit={() => history.push(`/pharmacy/registry/${d.id}`)}
+                  onToggleActive={() => setRegistryDrugActive(d.id, !d.active)}
+                />
               ))
             )}
           </section>

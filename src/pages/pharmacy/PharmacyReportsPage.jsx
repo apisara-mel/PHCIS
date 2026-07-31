@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
-import Popup from '@/components/popup/Popup';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
@@ -14,13 +13,54 @@ import { getRegistryDrug, currentPrice } from '@/data/pharmacyRegistry';
       queue item.
    2) สรุปการจ่ายยา — per-drug rollup (quantity prescribed vs. actually
       dispensed, and estimated value at the registry's current price).
-   This mock has only one day of seed data (PHARMACY_QUEUE resets on reload),
-   so the date-range picker in the legacy screen is represented as a
-   display-only "today" label rather than a live filter — there is no
-   multi-day dataset to filter against yet. Export is illustrative, matching
-   the same mocked-export + success-toast convention as ConsentReportPage. */
+   Both filter `PHARMACY_QUEUE` by its `issuedDate` field (from/to date
+   pickers, default = today) and export to a real downloaded CSV — the mock
+   only ever seeds one day of data (resets on reload), so a non-today range
+   just returns an empty table rather than fabricating extra days. */
 
 const breadcrumb = ['ระบบงานเภสัชกรรม', 'รายงาน'];
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const csvEscape = (v) => {
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+const toCsv = (columns, rows) => {
+  const header = columns.map((c) => csvEscape(c.label)).join(',');
+  const body = rows.map((r) => columns.map((c) => csvEscape((c.csv || c.render || ((row) => row[c.key]))(r))).join(','));
+  return [header, ...body].join('\r\n');
+};
+
+const downloadCsv = (filename, csvText) => {
+  const blob = new Blob([`\uFEFF${csvText}`], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
+const DATE_INPUT_STYLE = {
+  padding: 'var(--dim-space-150) var(--dim-space-300)',
+  background: 'var(--surface-input-default)',
+  border: 'var(--dim-stroke-100) solid var(--border-input-default)',
+  borderRadius: 'var(--dim-radius-200)',
+  fontSize: 'var(--type-size-sm)',
+  color: 'var(--text-content-primary)',
+};
+
+const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const formatIsoDateThai = (iso) => {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
+};
+const formatRangeLabel = (from, to) => (from === to ? `วันที่ ${formatIsoDateThai(from)}` : `${formatIsoDateThai(from)} – ${formatIsoDateThai(to)}`);
 
 const STATUS_PILL = {
   [DISPENSE_STATUS.WAITING]:   { style: 'warning', label: 'รอเรียก'      },
@@ -31,12 +71,6 @@ const STATUS_PILL = {
   [DISPENSE_STATUS.NO_SHOW]:   { style: 'neutral', label: 'ไม่มารับยา'   },
   [DISPENSE_STATUS.PROBLEM]:   { style: 'error',   label: 'มีปัญหา'      },
   [DISPENSE_STATUS.CANCELLED]: { style: 'neutral', label: 'ยกเลิก'       },
-};
-
-const todayThaiLabel = () => {
-  const d = new Date();
-  const TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-  return `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
 };
 
 const CARD = {
@@ -80,7 +114,7 @@ const STAT_TILE = (label, value) => (
 );
 
 const DETAIL_COLUMNS = [
-  { key: 'queueNo', label: 'เลขที่ใบสั่งยา', width: 130, render: (r) => <Badge style='success' size='small'>{r.queueNo}</Badge> },
+  { key: 'queueNo', label: 'เลขที่ใบสั่งยา', width: 130, render: (r) => <Badge style='success' size='small'>{r.queueNo}</Badge>, csv: (r) => r.queueNo },
   {
     key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
     render: (r) => (
@@ -89,27 +123,29 @@ const DETAIL_COLUMNS = [
         <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>HN {r.hn}</span>
       </div>
     ),
+    csv: (r) => `${r.patientName} (HN ${r.hn})`,
   },
   { key: 'items', label: 'รายการยา', flex: true, minWidth: 220, render: (r) => r.items.map((i) => i.name).join(', ') },
+  { key: 'issuedDate', label: 'วันที่สั่งยา', width: 110, render: (r) => formatIsoDateThai(r.issuedDate) },
   { key: 'issuedAt', label: 'เวลาสั่งยา', width: 100 },
   { key: 'dispensedAt', label: 'เวลาจ่ายยา', width: 110, render: (r) => r.dispensedAt || '—' },
   { key: 'verifiedBy', label: 'เภสัชกรผู้ตรวจสอบ', width: 180, render: (r) => r.verifiedBy || '—' },
-  { key: 'status', label: 'สถานะ', width: 130, render: (r) => <Badge style={STATUS_PILL[r.status].style} size='small'>{STATUS_PILL[r.status].label}</Badge> },
+  { key: 'status', label: 'สถานะ', width: 130, render: (r) => <Badge style={STATUS_PILL[r.status].style} size='small'>{STATUS_PILL[r.status].label}</Badge>, csv: (r) => STATUS_PILL[r.status].label },
 ];
 
 const SUMMARY_COLUMNS = [
   { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220 },
   { key: 'prescriptionCount', label: 'จำนวนใบสั่งยา', width: 130, align: 'center' },
-  { key: 'totalQuantity', label: 'จำนวนสั่ง', width: 110, align: 'center', render: (r) => `${r.totalQuantity.toLocaleString()} ${r.unit}` },
-  { key: 'totalDispensed', label: 'จำนวนจ่ายแล้ว', width: 130, align: 'center', render: (r) => `${r.totalDispensed.toLocaleString()} ${r.unit}` },
-  { key: 'totalValue', label: 'มูลค่ารวม (โดยประมาณ)', width: 160, align: 'right', render: (r) => `฿${r.totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}` },
+  { key: 'totalQuantity', label: 'จำนวนสั่ง', width: 110, align: 'center', render: (r) => `${r.totalQuantity.toLocaleString()} ${r.unit}`, csv: (r) => `${r.totalQuantity} ${r.unit}` },
+  { key: 'totalDispensed', label: 'จำนวนจ่ายแล้ว', width: 130, align: 'center', render: (r) => `${r.totalDispensed.toLocaleString()} ${r.unit}`, csv: (r) => `${r.totalDispensed} ${r.unit}` },
+  { key: 'totalValue', label: 'มูลค่ารวม (โดยประมาณ)', width: 160, align: 'right', render: (r) => `฿${r.totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, csv: (r) => r.totalValue.toFixed(2) },
 ];
 
-const buildDetailRows = () => PHARMACY_QUEUE;
+const buildDetailRows = (from, to) => PHARMACY_QUEUE.filter((r) => r.issuedDate >= from && r.issuedDate <= to);
 
-const buildSummaryRows = () => {
+const buildSummaryRows = (from, to) => {
   const byDrug = new Map();
-  PHARMACY_QUEUE.forEach((row) => {
+  PHARMACY_QUEUE.filter((r) => r.issuedDate >= from && r.issuedDate <= to).forEach((row) => {
     row.items.forEach((item) => {
       const entry = byDrug.get(item.name) || {
         name: item.name, unit: item.unit, prescriptionCount: 0, totalQuantity: 0, totalDispensed: 0, totalValue: 0,
@@ -124,35 +160,6 @@ const buildSummaryRows = () => {
   });
   return Array.from(byDrug.values()).sort((a, b) => b.totalQuantity - a.totalQuantity);
 };
-
-const EXPORT_FORMATS = [
-  { value: 'pdf',  label: 'PDF' },
-  { value: 'csv',  label: 'CSV' },
-  { value: 'xlsx', label: 'XLSX' },
-];
-
-const ExportPopup = ({ open, reportTitle, onClose, onExported }) => (
-  <Popup
-    open={open}
-    onClose={onClose}
-    title='นำส่งออกรายงาน'
-    subtitle={reportTitle}
-    tertiaryAction={{ label: 'ยกเลิก', onClick: onClose }}
-  >
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-        เลือกรูปแบบไฟล์ที่ต้องการนำส่งออก
-      </span>
-      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-        {EXPORT_FORMATS.map((f) => (
-          <NeutralSubdueButton key={f.value} leadingIcon='description' size='sm' onClick={() => { onExported(); onClose(); }}>
-            {f.label}
-          </NeutralSubdueButton>
-        ))}
-      </div>
-    </div>
-  </Popup>
-);
 
 const ReportCard = ({ title, subtitle, stats, columns, rows, emptyMessage, onExport }) => (
   <section className='w-full flex flex-col' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
@@ -172,14 +179,24 @@ const ReportCard = ({ title, subtitle, stats, columns, rows, emptyMessage, onExp
 );
 
 const PharmacyReportsPage = () => {
-  const [exportTarget, setExportTarget] = useState(null);
+  const [fromDate, setFromDate] = useState(todayIso);
+  const [toDate, setToDate] = useState(todayIso);
   const [exported, setExported] = useState(false);
 
-  const detailRows = useMemo(buildDetailRows, []);
-  const summaryRows = useMemo(buildSummaryRows, []);
+  const detailRows = useMemo(() => buildDetailRows(fromDate, toDate), [fromDate, toDate]);
+  const summaryRows = useMemo(() => buildSummaryRows(fromDate, toDate), [fromDate, toDate]);
 
   const dispensedCount = detailRows.filter((r) => r.status === DISPENSE_STATUS.DISPENSED || r.status === DISPENSE_STATUS.PARTIAL).length;
   const totalValue = summaryRows.reduce((s, r) => s + r.totalValue, 0);
+  const rangeLabel = formatRangeLabel(fromDate, toDate);
+
+  const handleExport = (title, columns, rows) => {
+    const filename = `${title.replace(/\s+/g, '-')}_${fromDate}_${toDate}.csv`;
+    downloadCsv(filename, toCsv(columns, rows));
+    setExported(true);
+  };
+
+  const resetToToday = () => { setFromDate(todayIso()); setToDate(todayIso()); };
 
   return (
     <QueuePageShell
@@ -189,9 +206,21 @@ const PharmacyReportsPage = () => {
       actions={<PharmacySubNav />}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
+        <section className='w-full flex flex-wrap items-end' style={{ ...CARD, gap: 'var(--dim-space-300)' }}>
+          <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+            <span style={CARD_SUBTITLE}>ตั้งแต่วันที่</span>
+            <input type='date' value={fromDate} max={toDate} onChange={(e) => setFromDate(e.target.value)} style={DATE_INPUT_STYLE} />
+          </label>
+          <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+            <span style={CARD_SUBTITLE}>ถึงวันที่</span>
+            <input type='date' value={toDate} min={fromDate} onChange={(e) => setToDate(e.target.value)} style={DATE_INPUT_STYLE} />
+          </label>
+          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='today' onClick={resetToToday}>วันนี้</NeutralSubdueButton>
+        </section>
+
         <ReportCard
           title='รายงานรายละเอียดใบสั่งยารายวัน'
-          subtitle={`วันที่ ${todayThaiLabel()} · ${detailRows.length} ใบสั่งยา`}
+          subtitle={`${rangeLabel} · ${detailRows.length} ใบสั่งยา`}
           stats={[
             ['ใบสั่งยาทั้งหมด', detailRows.length],
             ['จ่ายแล้ว/บางส่วน', dispensedCount],
@@ -199,30 +228,24 @@ const PharmacyReportsPage = () => {
           ]}
           columns={DETAIL_COLUMNS}
           rows={detailRows}
-          emptyMessage='ไม่มีใบสั่งยาในวันนี้'
-          onExport={() => setExportTarget('รายงานรายละเอียดใบสั่งยารายวัน')}
+          emptyMessage='ไม่มีใบสั่งยาในช่วงวันที่เลือก'
+          onExport={() => handleExport('รายงานรายละเอียดใบสั่งยารายวัน', DETAIL_COLUMNS, detailRows)}
         />
         <ReportCard
           title='รายงานสรุปการจ่ายยา'
-          subtitle={`วันที่ ${todayThaiLabel()} · สรุปตามรายการยา`}
+          subtitle={`${rangeLabel} · สรุปตามรายการยา`}
           stats={[
             ['รายการยาที่สั่ง', summaryRows.length],
             ['มูลค่ารวม (โดยประมาณ)', `฿${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`],
           ]}
           columns={SUMMARY_COLUMNS}
           rows={summaryRows}
-          emptyMessage='ไม่มีข้อมูลการจ่ายยาในวันนี้'
-          onExport={() => setExportTarget('รายงานสรุปการจ่ายยา')}
+          emptyMessage='ไม่มีข้อมูลการจ่ายยาในช่วงวันที่เลือก'
+          onExport={() => handleExport('รายงานสรุปการจ่ายยา', SUMMARY_COLUMNS, summaryRows)}
         />
       </div>
 
-      <ExportPopup
-        open={!!exportTarget}
-        reportTitle={exportTarget}
-        onClose={() => setExportTarget(null)}
-        onExported={() => setExported(true)}
-      />
-      <SuccessToast open={exported} message='นำส่งออกรายงานแล้ว' onClose={() => setExported(false)} />
+      <SuccessToast open={exported} message='ดาวน์โหลดรายงาน CSV แล้ว' onClose={() => setExported(false)} />
     </QueuePageShell>
   );
 };

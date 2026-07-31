@@ -141,6 +141,63 @@ export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
 });
 
 export const getRegistryDrug = (name) => DRUG_REGISTRY.find((d) => d.name === name) || null;
+export const getRegistryDrugById = (id) => DRUG_REGISTRY.find((d) => d.id === id) || null;
+
+/* Pub/sub so PharmacyRegistryPage's list re-renders after
+   PharmacyRegistryEditPage saves — same pattern as
+   `appointmentSettingsStore.js`'s `listeners`/`notify`/`subscribeApptSettings`.
+   `DRUG_REGISTRY` stays a plain mutable array (mutated in place, like
+   `pharmacyQueue.js`'s `PHARMACY_QUEUE`); this just adds the notification
+   layer on top so views know when to re-read it. */
+const registryListeners = new Set();
+const notifyRegistry = () => registryListeners.forEach((fn) => fn());
+export const subscribeRegistry = (fn) => {
+  registryListeners.add(fn);
+  return () => registryListeners.delete(fn);
+};
+
+let registrySeq = DRUG_REGISTRY.length;
+const nextDrugCode = () => {
+  const n = DRUG_REGISTRY.reduce((max, d) => {
+    const m = Number(String(d.code || '').replace(/^MED-/, ''));
+    return Number.isFinite(m) ? Math.max(max, m) : max;
+  }, 0);
+  return `MED-${String(n + 1).padStart(4, '0')}`;
+};
+
+/** Creates a new drug (no `id`/blank id) or saves changes to an existing one
+    (matched by `id`) in place, so `DRUG_REGISTRY` — and every page reading
+    it — reflects the edit immediately. Returns the saved row. */
+export const upsertRegistryDrug = (form) => {
+  const isNew = !form.id || form.id === 'new';
+  if (isNew) {
+    const row = {
+      ...form,
+      id: `drug-${++registrySeq}`,
+      code: form.code?.trim() || nextDrugCode(),
+      image: resolveMedicationImage(form.name, null),
+    };
+    DRUG_REGISTRY.push(row);
+    notifyRegistry();
+    return row;
+  }
+  const idx = DRUG_REGISTRY.findIndex((d) => d.id === form.id);
+  if (idx === -1) return null;
+  DRUG_REGISTRY[idx] = { ...DRUG_REGISTRY[idx], ...form };
+  notifyRegistry();
+  return DRUG_REGISTRY[idx];
+};
+
+/** Toggles/sets `active` on an existing drug (ToR §1.9.10.3 "ปิดรายการยา")
+    without a full edit-page round trip — e.g. a quick close/reopen action
+    from the registry list. */
+export const setRegistryDrugActive = (id, active) => {
+  const drug = getRegistryDrugById(id);
+  if (!drug) return null;
+  drug.active = active;
+  notifyRegistry();
+  return drug;
+};
 
 export const currentPrice = (drug, atDate = new Date()) => {
   if (!drug) return 0;

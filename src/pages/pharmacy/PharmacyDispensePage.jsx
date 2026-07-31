@@ -701,11 +701,12 @@ const PharmacyDispensePage = () => {
 
           {currentStep === 0 && (
           <>
-          {/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.4.2) — treatment history / consult
-              history / lab / radiology / appointment. Lab/Radiology/Finance
-              are themselves undeveloped stub modules elsewhere in this app
-              (docs/product-spec.md §10), so there's no live data to pull —
-              each row shows either the seeded illustrative example or "ไม่มีข้อมูล". */}
+          {/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.4.2) — treatment history / lab /
+              appointment are joined live per-HN from treatmentVisits.js /
+              labOrders.js / the appointment module (getPharmacySupportingInfo).
+              Consult history / radiology results have no HN-keyed module
+              anywhere in this app yet (docs/product-spec.md §10), so those two
+              stay as illustrative per-row overrides or "ไม่มีข้อมูล". */}
           <SectionCard title='ข้อมูลประกอบการจ่ายยา'>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full text-sm'>
               <div><span style={{ color: 'var(--text-content-tertiary)' }}>ประวัติการรักษา: </span>{row.supportingInfo.treatmentHistory || 'ไม่มีข้อมูล'}</div>

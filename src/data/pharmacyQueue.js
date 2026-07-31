@@ -12,6 +12,7 @@
 
 import { findMrPatientByHn } from '@/data/mrPatients';
 import { DRUG_REGISTRY } from '@/data/pharmacyRegistry';
+import { getPharmacySupportingInfo } from '@/data/pharmacySupportingInfo';
 
 export const DISPENSE_STATUS = {
   WAITING:   'waiting',
@@ -277,6 +278,21 @@ export const confirmBorrowReturnRequest = (id) => {
   const row = BORROW_RETURN_RECORDS.find((r) => r.id === id);
   if (!row) return null;
   row.status = 'completed';
+  return row;
+};
+
+let borrowReturnSeq = BORROW_RETURN_RECORDS.length;
+/* §1.9.9.4 — "ผู้ส่งคำร้อง" creating a NEW ยืม/คืน/แลกล็อต request to
+   another center (the create-side counterpart to `confirmBorrowReturnRequest`
+   above, which only handles the receiving side). Always `direction:
+   'outgoing'` since this center is the one sending the request. */
+export const createBorrowReturnRequest = ({ type, drugName, quantity, unit, counterpartCenter }) => {
+  const row = {
+    id: `br-${++borrowReturnSeq}`,
+    type, direction: 'outgoing', drugName, quantity: Number(quantity) || 0, unit, counterpartCenter,
+    requestedAt: TODAY, status: 'pending',
+  };
+  BORROW_RETURN_RECORDS.unshift(row);
   return row;
 };
 
@@ -679,35 +695,30 @@ const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
 
 const SEED = [...MANUAL_SEED, ...FILLER_SEED];
 
-/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.4.2) — ประวัติการรักษา/ส่งปรึกษา/ผลตรวจ Lab/
-   รังสีวิทยา/นัดหมาย. Like `SPECIAL_WATCH_OVERRIDES` in mrPatients.js, this is
-   an override map (keyed by queueNo) applied on top of an empty default, since
-   Lab/Radiology/Finance are themselves undeveloped stub modules elsewhere in
-   this app (see docs/product-spec.md §10) — there's no live cross-module data
-   to pull from, only illustrative examples on a couple of demo rows. */
+/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.4.2) — ประวัติการรักษา/ผลตรวจ Lab/นัดหมาย
+   are joined live from treatmentVisits.js/labOrders.js/the appointment module
+   via `getPharmacySupportingInfo` (src/data/pharmacySupportingInfo.js).
+   ประวัติส่งปรึกษา/ผลตรวจทางรังสีวิทยา have no HN-keyed module anywhere in
+   this app yet (both are themselves undeveloped stub modules — see
+   docs/product-spec.md §10), so those two stay as illustrative per-row
+   overrides applied on top of the live join, same pattern as
+   `SPECIAL_WATCH_OVERRIDES` in mrPatients.js. */
 const SUPPORTING_INFO_OVERRIDES = {
-  'P-012': {
-    treatmentHistory: 'เคยมารับการรักษาอาการคล้ายกันเมื่อ 3 เดือนก่อน (วินิจฉัย: J06.9)',
-    consultHistory: null,
-    labResults: null,
-    radiologyResults: null,
-    appointmentInfo: null,
-  },
   'P-018': {
-    treatmentHistory: 'ติดตามความดันโลหิตสูงต่อเนื่อง 2 ปี',
     consultHistory: 'ส่งปรึกษาอายุรกรรมโรคไต 2 สัปดาห์ก่อน (ประเมินการทำงานของไตก่อนเริ่ม Spironolactone)',
-    labResults: [{ test: 'Serum Potassium (K+)', result: '4.6 mEq/L', flag: 'normal' }, { test: 'Creatinine', result: '1.1 mg/dL', flag: 'normal' }],
     radiologyResults: null,
-    appointmentInfo: 'นัดติดตามความดันโลหิตและผลเลือด 26 สิงหาคม 2569',
   },
 };
-const EMPTY_SUPPORTING_INFO = { treatmentHistory: null, consultHistory: null, labResults: null, radiologyResults: null, appointmentInfo: null };
-
 export const PHARMACY_QUEUE = SEED.map((row) => ({
   ...row,
   patientName: patientName(row.hn),
+  /* วันที่ออกใบสั่งยา — the mock only carries one day of seed data (resets
+     on reload), so this is always "today"; kept as an explicit field
+     (rather than derived) so PharmacyReportsPage's date-range filter has a
+     real field to filter against once/if multi-day data exists. */
+  issuedDate: TODAY,
   outOfRightsDocAttached: false,
-  supportingInfo: SUPPORTING_INFO_OVERRIDES[row.queueNo] || EMPTY_SUPPORTING_INFO,
+  supportingInfo: getPharmacySupportingInfo(row.hn, SUPPORTING_INFO_OVERRIDES[row.queueNo]),
   items: row.items.map((it) => ({ ...it, prepared: false, auxLabels: AUX_LABEL_DEFAULTS[it.name] || [], refillPlan: null })),
 }));
 
@@ -928,6 +939,7 @@ export const sendPrescriptionToPharmacy = (visit) => {
     hn,
     patientName: patientName(hn),
     issuedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+    issuedDate: TODAY,
     status: DISPENSE_STATUS.WAITING,
     queueType: 'general',
     diagnosis: { icd10: principleDx?.code || '', name: principleDx?.name || '' },
@@ -943,7 +955,7 @@ export const sendPrescriptionToPharmacy = (visit) => {
     deliveryMethod: 'pickup', deliveryAddress: null,
     paymentStatus: PAYMENT_STATUS.NOT_APPLICABLE,
     outOfRightsDocAttached: false,
-    supportingInfo: EMPTY_SUPPORTING_INFO,
+    supportingInfo: getPharmacySupportingInfo(hn),
     ownMedications: [], medErrors: [],
     items: medications.map((m, i) => ({
       id: `item-cpoe-${queueNo}-${i}`,
