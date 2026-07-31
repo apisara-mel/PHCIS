@@ -17,6 +17,7 @@ import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
 import LabQueuePage from '@/pages/lab/LabQueuePage';
 import LabOrderPage from '@/pages/lab/LabOrderPage';
 import LabSetupPage from '@/pages/lab/LabSetupPage';
+import LabResultEntryPage from '@/pages/lab/LabResultEntryPage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
@@ -184,6 +185,7 @@ export default function Routes() {
         <Route exact path='/lab/queue'        component={LabQueuePage} />
         <Route exact path='/lab/order'        component={LabOrderPage} />
         <Route exact path='/lab/setup'        component={LabSetupPage} />
+        <Route exact path='/lab/result/:id'   component={LabResultEntryPage} />
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}

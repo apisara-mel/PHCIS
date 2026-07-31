@@ -318,6 +318,50 @@ const BULK_ORDERS = Array.from({ length: 42 }, (_, i) => {
 export const LAB_ORDERS = [...CURATED_ORDERS, ...BULK_ORDERS];
 
 /* ─────────────────────────────────────────────────────────────────────────
+   ORDER STORE
+
+   The worklist and the result-entry screen are separate routes, so entering
+   a result on one has to be visible when you navigate back to the other.
+   Same subscribe/notify shape as labCatalog.js's catalog store — module
+   state plus a version bump, deliberately minimal because there is no
+   backend behind any of this.
+
+   `LAB_ORDERS` is mutated in place rather than reassigned so modules that
+   captured the array at import time keep seeing the same list. */
+const orderListeners = new Set();
+
+export const subscribeOrders = (fn) => {
+  orderListeners.add(fn);
+  return () => orderListeners.delete(fn);
+};
+
+const notifyOrders = () => orderListeners.forEach((fn) => fn());
+
+export const getLabOrder = (id) => LAB_ORDERS.find((o) => o.id === id) ?? null;
+
+/* Patch one order row. Returns the updated row, or null if the id is
+   unknown. Callers pass only the fields they are changing. */
+export const updateLabOrder = (id, patch) => {
+  const idx = LAB_ORDERS.findIndex((o) => o.id === id);
+  if (idx < 0) return null;
+  LAB_ORDERS[idx] = { ...LAB_ORDERS[idx], ...patch };
+  notifyOrders();
+  return LAB_ORDERS[idx];
+};
+
+/* Removes an order row — TOR §1.15.4.9 "สามารถลบข้อมูลได้". Deleting a
+   REQUEST is legitimate (a doctor cancels an order before the specimen is
+   drawn); deleting a released RESULT is not, so the caller is expected to
+   gate this on status. */
+export const deleteLabOrder = (id) => {
+  const idx = LAB_ORDERS.findIndex((o) => o.id === id);
+  if (idx < 0) return false;
+  LAB_ORDERS.splice(idx, 1);
+  notifyOrders();
+  return true;
+};
+
+/* ─────────────────────────────────────────────────────────────────────────
    DERIVED VIEWS
 
    `withTestLabel` decorates a raw order row with everything the worklist

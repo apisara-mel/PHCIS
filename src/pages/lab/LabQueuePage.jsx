@@ -16,6 +16,7 @@ import { Icon } from '@/components/icons/Icon';
 import {
   LAB_ORDERS, LAB_STATUSES, LAB_URGENCIES, LAB_LOCATIONS,
   withTestLabel, labHistoryFor,
+  subscribeOrders, updateLabOrder, deleteLabOrder,
 } from '@/data/labOrders';
 import { LAB_GROUPS, LAB_TUBES, duplicateWarning } from '@/data/labCatalog';
 import LabDetailPanel from '@/pages/lab/LabDetailPanel';
@@ -53,8 +54,6 @@ const breadcrumb = ['งานชันสูตรโรค (Lab)'];
    neutral | info | success | warning | error | yellow. LAB_STATUSES already
    carries a `color` drawn from that set, so this is just a lookup. */
 const STATUS_STYLE = Object.fromEntries(LAB_STATUSES.map((s) => [s.key, s.color]));
-
-const ROWS = LAB_ORDERS.map(withTestLabel);
 
 const PAGE_SIZE = 20;
 
@@ -427,15 +426,26 @@ const buildColumns = (onAction, historyFor) => [
       </div>
     ),
   },
-  /* การจัดการ — "action ต่อ 1 แถว": พิมพ์ label · เก็บแล้ว · reject · เจาะซ้ำ.
-     Which of them apply depends on where the row sits in the pipeline: you
-     cannot mark a specimen collected before its label is printed, and you
-     cannot reject one that was never drawn. */
+  /* การจัดการ — "action ต่อ 1 แถว": พิมพ์ label · เก็บแล้ว · บันทึกผล · reject ·
+     เจาะซ้ำ · ลบ. Which of them apply depends on where the row sits in the
+     pipeline: you cannot mark a specimen collected before its label is
+     printed, and you cannot reject one that was never drawn. */
   {
-    key: 'actions', label: 'การจัดการ', width: 176, sortable: false, align: 'center',
+    key: 'actions', label: 'การจัดการ', width: 252, sortable: false, align: 'center',
     render: (row) => {
       const canCollect = row.status === 'requested' || row.status === 'collect';
       const canReject = row.status !== 'requested' && row.status !== 'reported';
+      /* Result entry opens once the specimen is actually in the lab. A
+         released result stays reachable so it can be AMENDED — the entry
+         screen switches itself into amendment mode (TOR §1.15.6.1). */
+      const canEnterResult = row.status === 'analysing' || row.status === 'external'
+        || row.status === 'approval' || row.status === 'reported';
+      /* §1.15.4.9 "สามารถลบข้อมูลได้" — deleting a REQUEST is legitimate (a
+         doctor cancels before the draw). Deleting a released RESULT is not:
+         the ward may already have acted on it, and the correct route is an
+         amended report, not erasure. Hence the gate rather than a bare
+         delete button. */
+      const canDelete = row.status !== 'reported';
       return (
         <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-100)' }}>
           <NeutralSubdueIconButton
@@ -456,6 +466,15 @@ const buildColumns = (onAction, historyFor) => [
             onClick={(e) => { e.stopPropagation(); onAction('collect', row); }}
           />
           <NeutralSubdueIconButton
+            icon='edit_note'
+            variant='outline'
+            size='sm'
+            disabled={!canEnterResult}
+            aria-label={`บันทึกผลตรวจ ${row.accessionNo}`}
+            title={row.status === 'reported' ? 'แก้ไขผล (ออกรายงานฉบับแก้ไข)' : 'บันทึกผลตรวจ'}
+            onClick={(e) => { e.stopPropagation(); onAction('result', row); }}
+          />
+          <NeutralSubdueIconButton
             icon='block'
             variant='outline'
             size='sm'
@@ -471,6 +490,15 @@ const buildColumns = (onAction, historyFor) => [
             aria-label={`สั่งเจาะซ้ำ ${row.accessionNo}`}
             title='เจาะซ้ำ'
             onClick={(e) => { e.stopPropagation(); onAction('redraw', row); }}
+          />
+          <NeutralSubdueIconButton
+            icon='delete'
+            variant='outline'
+            size='sm'
+            disabled={!canDelete}
+            aria-label={`ลบรายการขอตรวจ ${row.accessionNo}`}
+            title={canDelete ? 'ลบรายการขอตรวจ' : 'ลบไม่ได้ — รายงานผลไปแล้ว ให้ใช้การแก้ไขผลแทน'}
+            onClick={(e) => { e.stopPropagation(); onAction('delete', row); }}
           />
         </div>
       );
@@ -549,7 +577,20 @@ const LabQueuePage = () => {
      already active and the STAT row sits at the top of the list. */
   const [statFirst, setStatFirst] = useState(true);
   const [page, setPage] = useState(1);
-  const [liveRows, setLiveRows] = useState(ROWS);
+
+  /* Rows are derived from the shared order store, not held in local state.
+     Result entry happens on its own route (/lab/result/:id), so a result
+     saved there has to be visible the moment you come back here — a private
+     copy of the rows would show yesterday's status forever. Every mutation
+     on this page therefore goes through `updateLabOrder` and re-renders via
+     the version bump, which keeps exactly one source of truth. */
+  const [orderVersion, setOrderVersion] = useState(0);
+  useEffect(() => subscribeOrders(() => setOrderVersion((v) => v + 1)), []);
+  const liveRows = useMemo(
+    () => LAB_ORDERS.map(withTestLabel),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orderVersion],
+  );
 
   /* Barcode scan — the deck's primary action. There's no scanner hardware
      behind this frontend, so the button focuses the search box and puts it
@@ -603,8 +644,15 @@ const LabQueuePage = () => {
     if (kind === 'label') {
       /* Sticker printing (TOR §1.15.5) needs no confirmation — it's additive
          and re-printable. Marks the row labelled so "รอพิมพ์ label" clears. */
-      setLiveRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, labeled: true } : r)));
+      updateLabOrder(row.id, { labeled: true });
       logAudit('พิมพ์สติกเกอร์ติดหลอด', rowLabel(row));
+      return;
+    }
+    if (kind === 'result') {
+      /* Result entry is a full screen of its own (TOR §1.15.6.1) — it needs
+         room for one typed input per analyte plus the critical-value
+         notification block, which will not fit in a row action. */
+      history.push(`/lab/result/${row.id}`);
       return;
     }
     setPendingAction({ kind, row });
@@ -629,6 +677,13 @@ const LabQueuePage = () => {
       type: 'warning',
       describe: (row) => `ระบบจะออก Accession ใหม่สำหรับ ${row.testLabel} และส่งกลับไปยังขั้นตอนรอเก็บตัวอย่าง`,
     },
+    /* TOR §1.15.4.9 "สามารถลบข้อมูลได้". */
+    delete: {
+      title: 'ลบรายการขอตรวจนี้?',
+      confirmLabel: 'ลบรายการ',
+      type: 'warning',
+      describe: (row) => `รายการ ${row.testLabel} (${row.accessionNo}) ของ${row.confidential ? 'ผู้ป่วยปกปิด' : row.patient.fullName ?? row.patient.shortName} จะถูกลบออกจากรายการขอตรวจ และต้องแจ้ง${row.location}ให้ทราบ`,
+    },
   };
 
   const handleConfirmAction = () => {
@@ -636,22 +691,22 @@ const LabQueuePage = () => {
     const { kind, row } = pendingAction;
 
     if (kind === 'collect') {
-      setLiveRows((prev) => prev.map((r) => (
-        r.id === row.id ? { ...r, status: 'analysing', exception: undefined, labeled: true } : r
-      )));
+      updateLabOrder(row.id, { status: 'analysing', exception: undefined, labeled: true });
       logAudit('บันทึกเก็บ/รับตัวอย่าง', rowLabel(row));
     } else if (kind === 'reject') {
       /* A rejected specimen goes back to `collect` carrying the exception,
          rather than into a dead-end status — the team's flow re-draws it. */
-      setLiveRows((prev) => prev.map((r) => (
-        r.id === row.id ? { ...r, status: 'collect', exception: 'rejected', rejectReason: 'ปฏิเสธโดยเจ้าหน้าที่ห้องปฏิบัติการ' } : r
-      )));
+      updateLabOrder(row.id, { status: 'collect', exception: 'rejected', rejectReason: 'ปฏิเสธโดยเจ้าหน้าที่ห้องปฏิบัติการ' });
       logAudit('ปฏิเสธสิ่งส่งตรวจ', rowLabel(row));
     } else if (kind === 'redraw') {
-      setLiveRows((prev) => prev.map((r) => (
-        r.id === row.id ? { ...r, status: 'collect', exception: 'redraw', labeled: false, rejectReason: 'สั่งเจาะซ้ำโดยเจ้าหน้าที่ห้องปฏิบัติการ' } : r
-      )));
+      updateLabOrder(row.id, { status: 'collect', exception: 'redraw', labeled: false, rejectReason: 'สั่งเจาะซ้ำโดยเจ้าหน้าที่ห้องปฏิบัติการ' });
       logAudit('สั่งเจาะซ้ำ', rowLabel(row));
+    } else if (kind === 'delete') {
+      /* §1.15.4.9 — removes the request. Also drops it from the shared
+         order store so it stays gone when other lab screens re-read. */
+      deleteLabOrder(row.id);
+      setSelectedId((prev) => (prev === row.id ? null : prev));
+      logAudit('ลบรายการขอตรวจ', rowLabel(row));
     }
     setPendingAction(null);
   };

@@ -35,6 +35,13 @@ export const LAB_GROUPS = [
   { key: 'immunology',   code: 'IMMUNOLOGY',   thai: 'น้ำเหลืองวิทยา',   short: 'Sero' },
   { key: 'microbiology', code: 'MICROBIOLOGY', thai: 'จุลชีววิทยา',      short: 'Micro-bio' },
   { key: 'pathology',    code: 'PATHOLOGY',    thai: 'พยาธิวิทยา',      short: 'Path' },
+  /* สารเสพติด is NOT one of the seven groups on the MyHOSPITAL Setup
+     dropdown, but TOR §1.15.4.10 names it explicitly as one of the four
+     discipline tabs the order-request view must offer ("โลหิตวิทยา
+     น้ำเหลืองวิทยา จุลชีววิทยา และสารเสพติด"). Dropping it into MICROSCOPY —
+     which is where a urine drug screen is physically run — satisfied the
+     vendor screen but broke the TOR, so it is carried as its own group. */
+  { key: 'toxicology',   code: 'TOXICOLOGY',   thai: 'สารเสพติด',       short: 'Tox' },
 ];
 
 export const LAB_GROUP_LABEL = Object.fromEntries(
@@ -133,14 +140,23 @@ export const LAB_TESTS = [
     loinc: '58410-2',
     icd10tm: '0501201',
     opbkk: '30101',
-    /* นับเม็ดเลือดครบส่วน (Hb, Hct, WBC, Plt) — the four the team listed. */
+    /* นับเม็ดเลือดครบส่วน (Hb, Hct, WBC, Plt) — the four the team listed.
+
+       `criticalLow` / `criticalHigh` are PANIC values — TOR §1.15.3.2
+       "บันทึกค่าวิกฤต…ของผลตรวจ". Crossing one is not merely abnormal: it
+       obliges the lab to telephone the ordering doctor, which is what the
+       result-entry screen enforces before a result can be released.
+       Thresholds are the commonly used adult panic limits; a real
+       deployment tunes them per laboratory. */
     analytes: [
       { key: 'hb',  label: 'Hemoglobin (Hb)',  unit: 'g/dL',    normalRange: '12–17',
-        rangeBySex: { male: '13–17', female: '12–15' } },
+        rangeBySex: { male: '13–17', female: '12–15' }, criticalLow: 7, criticalHigh: 20 },
       { key: 'hct', label: 'Hematocrit (Hct)', unit: '%',       normalRange: '36–50',
-        rangeBySex: { male: '40–50', female: '36–44' } },
-      { key: 'wbc', label: 'White Blood Cell (WBC)', unit: '10³/µL', normalRange: '4.0–10.0' },
-      { key: 'plt', label: 'Platelet (Plt)',  unit: '10³/µL',  normalRange: '150–400' },
+        rangeBySex: { male: '40–50', female: '36–44' }, criticalLow: 20, criticalHigh: 60 },
+      { key: 'wbc', label: 'White Blood Cell (WBC)', unit: '10³/µL', normalRange: '4.0–10.0',
+        criticalLow: 1.5, criticalHigh: 30 },
+      { key: 'plt', label: 'Platelet (Plt)',  unit: '10³/µL',  normalRange: '150–400',
+        criticalLow: 20, criticalHigh: 1000 },
     ],
   },
   {
@@ -408,7 +424,8 @@ export const LAB_TESTS = [
     nameEn: 'Urine Drug Screen',
     nameFull: 'Amphetamine screening in urine',
     nameTh: 'ตรวจสารเสพติดในปัสสาวะ',
-    group: 'microscopy',
+    /* TOR §1.15.4.10's สารเสพติด tab — see the note on LAB_GROUPS. */
+    group: 'toxicology',
     tubeKey: 'urinecup',
     tubeCount: 1,
     fastingHours: 0,
