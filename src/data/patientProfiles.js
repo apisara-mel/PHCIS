@@ -35,7 +35,7 @@ export const PATIENT_PROFILES = [
     shortName:  'สมชาย มีสุข',
     fullName:   'นายสมชาย มีสุข',
     englishName:'Somchai Misuk',
-    hn:         '67-00001',
+    hn:         '67-00001', vn: '69-00001',
     sex:        'ชาย',
     age:        '42 ปี - 3 เดือน - 8 วัน',
     nationalId: '1369900526072',
@@ -51,7 +51,7 @@ export const PATIENT_PROFILES = [
     shortName:  'ดวงใจ พินิจ',
     fullName:   'นางสาวดวงใจ พินิจ',
     englishName:'Duangjai Pinit',
-    hn:         '67-00002',
+    hn:         '67-00002', vn: '69-00002',
     sex:        'หญิง',
     age:        '29 ปี - 5 เดือน - 22 วัน',
     nationalId: '3401200458931',
@@ -67,7 +67,7 @@ export const PATIENT_PROFILES = [
     shortName:  'ปริญญา รัตนา',
     fullName:   'นางปริญญา รัตนา',
     englishName:'Parinya Rattana',
-    hn:         '67-00003',
+    hn:         '67-00003', vn: '69-00003',
     sex:        'หญิง',
     age:        '54 ปี - 1 เดือน - 14 วัน',
     nationalId: '5670012380043',
@@ -83,7 +83,7 @@ export const PATIENT_PROFILES = [
     shortName:  'ภูริ ใจกล้า',
     fullName:   'นายภูริ ใจกล้า',
     englishName:'Phuri Jaikla',
-    hn:         '67-00004',
+    hn:         '67-00004', vn: '69-00004',
     sex:        'ชาย',
     age:        '21 ปี - 8 เดือน - 3 วัน',
     nationalId: '1100401273359',
@@ -99,7 +99,7 @@ export const PATIENT_PROFILES = [
     shortName:  'สุดา ปลอดโปร่ง',
     fullName:   'นางสุดา ปลอดโปร่ง',
     englishName:'Suda Plodprong',
-    hn:         '67-00005',
+    hn:         '67-00005', vn: '69-00005',
     sex:        'หญิง',
     age:        '67 ปี - 0 เดือน - 26 วัน',
     nationalId: '3550900192864',
@@ -115,7 +115,7 @@ export const PATIENT_PROFILES = [
     shortName:  'ศุภชัย แก้วใส',
     fullName:   'นายศุภชัย แก้วใส',
     englishName:'Suphachai Kaewsai',
-    hn:         '67-00006',
+    hn:         '67-00006', vn: '69-00006',
     sex:        'ชาย',
     age:        '38 ปี - 11 เดือน - 5 วัน',
     nationalId: '1809900647521',
@@ -134,7 +134,7 @@ export const PATIENT_PROFILES = [
      the patient's sex + age band. */
   {
     shortName: 'มาลี อ่อนน้อม', fullName: 'นางมาลี อ่อนน้อม', englishName: 'Malee On-nom',
-    hn: '67-00007', sex: 'หญิง', age: '45 ปี - 2 เดือน - 11 วัน',
+    hn: '67-00007', vn: '69-00007', sex: 'หญิง', age: '45 ปี - 2 เดือน - 11 วัน',
     nationalId: '3100501239876', bloodType: 'O', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.ปริยากร เจริญสุข', insurance: 'สิทธิประกันสังคม รพ.มงกุฎวัฒนะ',
     address: '67/13 ซ.รัชดาภิเษก 18 ห้วยขวาง กรุงเทพมหานคร 10310',
@@ -142,7 +142,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'ธนพร สุนทรา', fullName: 'นางสาวธนพร สุนทรา', englishName: 'Thanaporn Suntara',
-    hn: '67-00008', sex: 'หญิง', age: '31 ปี - 7 เดือน - 19 วัน',
+    hn: '67-00008', vn: '69-00008', sex: 'หญิง', age: '31 ปี - 7 เดือน - 19 วัน',
     nationalId: '1101400785632', bloodType: 'A', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ธนากร อินทรา', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
     address: '199 ซ.อ่อนนุช 17 สวนหลวง กรุงเทพมหานคร 10250',
@@ -150,7 +150,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'กิตติ ศรีสมบูรณ์', fullName: 'นายกิตติ ศรีสมบูรณ์', englishName: 'Kitti Srisomboon',
-    hn: '67-00009', sex: 'ชาย', age: '52 ปี - 6 เดือน - 2 วัน',
+    hn: '67-00009', vn: '69-00009', sex: 'ชาย', age: '52 ปี - 6 เดือน - 2 วัน',
     nationalId: '3550900462158', bloodType: 'B', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.ศิรินทร์ พัฒนกุล', insurance: 'สิทธิข้าราชการ กรมบัญชีกลาง',
     address: '88/3 ซ.สุขุมวิท 71 พระโขนง กรุงเทพมหานคร 10110',
@@ -158,7 +158,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'นพดล ช่วยเหลือ', fullName: 'นายนพดล ช่วยเหลือ', englishName: 'Nopadol Chuayluea',
-    hn: '67-00010', sex: 'ชาย', age: '35 ปี - 0 เดือน - 28 วัน',
+    hn: '67-00010', vn: '69-00010', sex: 'ชาย', age: '35 ปี - 0 เดือน - 28 วัน',
     nationalId: '1100600384912', bloodType: 'O', patientType: 'ผู้ป่วยใหม่',
     doctor: 'นพ.อภิชาติ พรหมสาร', insurance: 'ชำระเอง',
     address: '12/45 ซ.จรัญสนิทวงศ์ 13 บางพลัด กรุงเทพมหานคร 10700',
@@ -166,7 +166,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'อรอุมา ดวงสว่าง', fullName: 'นางอรอุมา ดวงสว่าง', englishName: 'Onuma Duangsawang',
-    hn: '67-00011', sex: 'หญิง', age: '48 ปี - 4 เดือน - 16 วัน',
+    hn: '67-00011', vn: '69-00011', sex: 'หญิง', age: '48 ปี - 4 เดือน - 16 วัน',
     nationalId: '3401200583926', bloodType: 'AB', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.พรพิมล สุขสำราญ', insurance: 'สิทธิประกันสังคม รพ.เปาโล พหลโยธิน',
     address: '54/9 ซ.วิภาวดี 22 จตุจักร กรุงเทพมหานคร 10900',
@@ -174,7 +174,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'วิชัย รุ่งเรือง', fullName: 'นายวิชัย รุ่งเรือง', englishName: 'Wichai Rungruang',
-    hn: '67-00012', sex: 'ชาย', age: '60 ปี - 9 เดือน - 4 วัน',
+    hn: '67-00012', vn: '69-00012', sex: 'ชาย', age: '60 ปี - 9 เดือน - 4 วัน',
     nationalId: '5670012584731', bloodType: 'A', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ปวิณ ราชาธิราช', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
     address: '321 ซ.ลาดพร้าว 101 บางกะปิ กรุงเทพมหานคร 10240',
@@ -182,7 +182,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'พิมพ์ใจ จันทรา', fullName: 'นางสาวพิมพ์ใจ จันทรา', englishName: 'Pimjai Janthra',
-    hn: '67-00013', sex: 'หญิง', age: '26 ปี - 11 เดือน - 7 วัน',
+    hn: '67-00013', vn: '69-00013', sex: 'หญิง', age: '26 ปี - 11 เดือน - 7 วัน',
     nationalId: '1809900739581', bloodType: 'O', patientType: 'ผู้ป่วยใหม่',
     doctor: 'พญ.ปริยากร เจริญสุข', insurance: 'สิทธิประกันสังคม รพ.เปาโลโชคชัย 4',
     address: '11/4 ซ.รัชดาภิเษก 7 ดินแดง กรุงเทพมหานคร 10400',
@@ -190,7 +190,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'ชัยวัฒน์ ก้องเกียรติ', fullName: 'นายชัยวัฒน์ ก้องเกียรติ', englishName: 'Chaiwat Kongkiat',
-    hn: '67-00014', sex: 'ชาย', age: '47 ปี - 1 เดือน - 25 วัน',
+    hn: '67-00014', vn: '69-00014', sex: 'ชาย', age: '47 ปี - 1 เดือน - 25 วัน',
     nationalId: '3100401872569', bloodType: 'B', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.สมหญิง รักษ์ดี', insurance: 'สิทธิประกันสังคม รพ.พระมงกุฎเกล้า',
     address: '99/12 ซ.พระราม 9 ซอย 32 ห้วยขวาง กรุงเทพมหานคร 10310',
@@ -198,7 +198,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'รัตนาภรณ์ ใสสะอาด', fullName: 'นางรัตนาภรณ์ ใสสะอาด', englishName: 'Rattanaporn Saisaard',
-    hn: '67-00015', sex: 'หญิง', age: '39 ปี - 8 เดือน - 13 วัน',
+    hn: '67-00015', vn: '69-00015', sex: 'หญิง', age: '39 ปี - 8 เดือน - 13 วัน',
     nationalId: '3550900237845', bloodType: 'A', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ณัฐวุฒิ บุญมี', insurance: 'สิทธิข้าราชการ กรมบัญชีกลาง',
     address: '7/26 ซ.บางขุนเทียน 15 บางขุนเทียน กรุงเทพมหานคร 10150',
@@ -206,7 +206,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'ปกรณ์ บุญพิทักษ์', fullName: 'นายปกรณ์ บุญพิทักษ์', englishName: 'Pakorn Boonpitak',
-    hn: '67-00016', sex: 'ชาย', age: '24 ปี - 3 เดือน - 9 วัน',
+    hn: '67-00016', vn: '69-00016', sex: 'ชาย', age: '24 ปี - 3 เดือน - 9 วัน',
     nationalId: '1100401473652', bloodType: 'O', patientType: 'ผู้ป่วยใหม่',
     doctor: 'นพ.ธนากร อินทรา', insurance: 'สิทธิประกันสังคม รพ.เกษมราษฎร์',
     address: '83 ซ.พหลโยธิน 60 สายไหม กรุงเทพมหานคร 10220',
@@ -214,7 +214,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'ภัคจิรา วงศ์อนันต์', fullName: 'นางภัคจิรา วงศ์อนันต์', englishName: 'Phakchira Wonganan',
-    hn: '67-00017', sex: 'หญิง', age: '41 ปี - 5 เดือน - 30 วัน',
+    hn: '67-00017', vn: '69-00017', sex: 'หญิง', age: '41 ปี - 5 เดือน - 30 วัน',
     nationalId: '3401200674923', bloodType: 'AB', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.วิภา สุขศรี', insurance: 'สิทธิประกันสังคม รพ.จุฬาลงกรณ์',
     address: '142/7 ซ.รามอินทรา 65 มีนบุรี กรุงเทพมหานคร 10510',
@@ -222,7 +222,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'ธีรเดช อัครพงศ์', fullName: 'นายธีรเดช อัครพงศ์', englishName: 'Theerdej Akarapong',
-    hn: '67-00018', sex: 'ชาย', age: '55 ปี - 10 เดือน - 6 วัน',
+    hn: '67-00018', vn: '69-00018', sex: 'ชาย', age: '55 ปี - 10 เดือน - 6 วัน',
     nationalId: '5670012467128', bloodType: 'A', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.ศิรินทร์ พัฒนกุล', insurance: 'ชำระเอง',
     address: '67 ซ.พระราม 4 ซอย 36 คลองเตย กรุงเทพมหานคร 10110',
@@ -230,7 +230,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'นันทิดา พรเลิศ', fullName: 'นางสาวนันทิดา พรเลิศ', englishName: 'Nantida Pornlert',
-    hn: '67-00019', sex: 'หญิง', age: '28 ปี - 2 เดือน - 21 วัน',
+    hn: '67-00019', vn: '69-00019', sex: 'หญิง', age: '28 ปี - 2 เดือน - 21 วัน',
     nationalId: '1809900472316', bloodType: 'B', patientType: 'ผู้ป่วยใหม่',
     doctor: 'นพ.อภิชาติ พรหมสาร', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
     address: '215/3 ซ.สาทร 11 สาทร กรุงเทพมหานคร 10120',
@@ -238,7 +238,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'กฤษดา ผ่องใส', fullName: 'นายกฤษดา ผ่องใส', englishName: 'Krisada Pongsai',
-    hn: '67-00020', sex: 'ชาย', age: '33 ปี - 6 เดือน - 14 วัน',
+    hn: '67-00020', vn: '69-00020', sex: 'ชาย', age: '33 ปี - 6 เดือน - 14 วัน',
     nationalId: '1100600296481', bloodType: 'O', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.พรพิมล สุขสำราญ', insurance: 'สิทธิประกันสังคม รพ.พระนั่งเกล้า (10686)',
     address: '155 ซ.สุขุมวิท 39 วัฒนา กรุงเทพมหานคร 10110',
@@ -246,7 +246,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'วรรณภา ทองดี', fullName: 'นางวรรณภา ทองดี', englishName: 'Wannapha Thongdee',
-    hn: '67-00021', sex: 'หญิง', age: '50 ปี - 11 เดือน - 1 วัน',
+    hn: '67-00021', vn: '69-00021', sex: 'หญิง', age: '50 ปี - 11 เดือน - 1 วัน',
     nationalId: '3100501736485', bloodType: 'A', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ปวิณ ราชาธิราช', insurance: 'สิทธิข้าราชการ กรมบัญชีกลาง',
     address: '36/22 ซ.นนทรี 4 ยานนาวา กรุงเทพมหานคร 10120',
@@ -254,7 +254,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'อนุชา สมบูรณ์ทรัพย์', fullName: 'นายอนุชา สมบูรณ์ทรัพย์', englishName: 'Anucha Somboonsap',
-    hn: '67-00022', sex: 'ชาย', age: '44 ปี - 0 เดือน - 17 วัน',
+    hn: '67-00022', vn: '69-00022', sex: 'ชาย', age: '44 ปี - 0 เดือน - 17 วัน',
     nationalId: '5670012849137', bloodType: 'AB', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.สมชาย ใจดี', insurance: 'สิทธิประกันสังคม รพ.พระมงกุฎเกล้า',
     address: '4/19 ซ.รัชดาภิเษก 26 ห้วยขวาง กรุงเทพมหานคร 10310',
@@ -262,7 +262,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'ภัทรานิษฐ์ บูรณะ', fullName: 'นางสาวภัทรานิษฐ์ บูรณะ', englishName: 'Patranit Burana',
-    hn: '67-00023', sex: 'หญิง', age: '36 ปี - 9 เดือน - 23 วัน',
+    hn: '67-00023', vn: '69-00023', sex: 'หญิง', age: '36 ปี - 9 เดือน - 23 วัน',
     nationalId: '3401200971563', bloodType: 'O', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.ปริยากร เจริญสุข', insurance: 'สิทธิประกันสังคม รพ.วชิรพยาบาล',
     address: '78/14 ซ.สรงประภา 7 ดอนเมือง กรุงเทพมหานคร 10210',
@@ -270,7 +270,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'เอกชัย พิทยาคม', fullName: 'นายเอกชัย พิทยาคม', englishName: 'Ekachai Pittayakom',
-    hn: '67-00024', sex: 'ชาย', age: '29 ปี - 5 เดือน - 12 วัน',
+    hn: '67-00024', vn: '69-00024', sex: 'ชาย', age: '29 ปี - 5 เดือน - 12 วัน',
     nationalId: '1101400485273', bloodType: 'A', patientType: 'ผู้ป่วยใหม่',
     doctor: 'พญ.สมหญิง รักษ์ดี', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
     address: '105 ซ.รามคำแหง 24 หัวหมาก บางกะปิ กรุงเทพมหานคร 10240',
@@ -278,7 +278,7 @@ export const PATIENT_PROFILES = [
   },
   {
     shortName: 'ภาสกร ชาญฉลาด', fullName: 'นายภาสกร ชาญฉลาด', englishName: 'Passakorn Chanchalad',
-    hn: '67-00025', sex: 'ชาย', age: '41 ปี - 7 เดือน - 8 วัน',
+    hn: '67-00025', vn: '69-00025', sex: 'ชาย', age: '41 ปี - 7 เดือน - 8 วัน',
     nationalId: '3100401273658', bloodType: 'B', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ณัฐวุฒิ บุญมี', insurance: 'สิทธิประกันสังคม รพ.สุขุมวิท',
     address: '90/8 ซ.ลาดพร้าว 71 วังทองหลาง กรุงเทพมหานคร 10310',
@@ -343,6 +343,15 @@ export const getPatientByHN = (hn) => {
   return PATIENT_PROFILES.find((p) => p.hn === hn)
     ?? PENDING_REGISTRATION_NO_PHOTO.find((p) => p.hn === hn);
 };
+
+/* VN (Visit Number) — single source of truth for both the OPD screening
+   queue (`pages/opd/QueuePage.jsx`) and the pharmacy queue
+   (`data/pharmacyQueue.js`), so the same patient always shows the same VN
+   on both screens instead of each page deriving its own number. Only
+   `PATIENT_PROFILES` carries a `vn` — `PENDING_REGISTRATION_NO_PHOTO`
+   patients haven't started a visit yet (still "รอลงทะเบียน"), so they
+   correctly have none. */
+export const getVnByHn = (hn) => PATIENT_PROFILES.find((p) => p.hn === hn)?.vn || '';
 
 /* Thai Buddhist DOB strings — MR rows for 67-00001…10, mock dates for the
    rest so registration queue วันเกิด cells align with screening ages. */

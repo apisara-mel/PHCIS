@@ -12,6 +12,8 @@
 
 import { findMrPatientByHn } from '@/data/mrPatients';
 import { DRUG_REGISTRY } from '@/data/pharmacyRegistry';
+import { getPharmacySupportingInfo } from '@/data/pharmacySupportingInfo';
+import { getVnByHn } from '@/data/patientProfiles';
 
 export const DISPENSE_STATUS = {
   WAITING:   'waiting',
@@ -277,6 +279,21 @@ export const confirmBorrowReturnRequest = (id) => {
   const row = BORROW_RETURN_RECORDS.find((r) => r.id === id);
   if (!row) return null;
   row.status = 'completed';
+  return row;
+};
+
+let borrowReturnSeq = BORROW_RETURN_RECORDS.length;
+/* §1.9.9.4 — "ผู้ส่งคำร้อง" creating a NEW ยืม/คืน/แลกล็อต request to
+   another center (the create-side counterpart to `confirmBorrowReturnRequest`
+   above, which only handles the receiving side). Always `direction:
+   'outgoing'` since this center is the one sending the request. */
+export const createBorrowReturnRequest = ({ type, drugName, quantity, unit, counterpartCenter }) => {
+  const row = {
+    id: `br-${++borrowReturnSeq}`,
+    type, direction: 'outgoing', drugName, quantity: Number(quantity) || 0, unit, counterpartCenter,
+    requestedAt: TODAY, status: 'pending',
+  };
+  BORROW_RETURN_RECORDS.unshift(row);
   return row;
 };
 
@@ -581,10 +598,13 @@ const MANUAL_SEED = [
   },
 ];
 
-/* Filler rows P-020..P-059 — pad the mock queue from 8 hand-authored rows
-   out to 48 total (48 ÷ PAGE_SIZE 20 = 3 pages), so the queue table's
+/* Filler rows P-020..P-079 — pad the mock queue from 8 hand-authored rows
+   out to 68 total (68 ÷ PAGE_SIZE 20 = 4 pages), so the queue table's
    pagination and new sort/filter controls have real depth to exercise.
-   Cycles through the 15 `mrPatients.js` HNs and a small rotation of
+   Sized so the default "รอเรียก" tab lands on ~32 rows (30 filler past
+   `SERVED_CUTOFF` + P-017/P-018 from the manual seed) — a morning-rush
+   backlog rather than a handful of rows.
+   Cycles through the 14 `mrPatients.js` HNs and a small rotation of
    diagnoses/drugs — only drug names already priced in `SUB_PHARMACY_STOCK`
    and classed in `DRUG_ALLERGY_CLASS`/registry, so stock figures and
    pricing on these rows stay real instead of falling back to "ไม่มีข้อมูล"
@@ -593,7 +613,7 @@ const MANUAL_SEED = [
 const FILLER_HNS = [
   '67-00001', '67-00002', '67-00003', '67-00004', '67-00005',
   '67-00006', '67-00007', '67-00008', '67-00009', '67-00010',
-  '67-00026', '67-00027', '67-00028', '67-00029', '67-00030',
+  '67-00026', '67-00027', '67-00028', '67-00029',
 ];
 const FILLER_DIAGNOSES = [
   { icd10: 'J06.9', name: 'การติดเชื้อทางเดินหายใจส่วนบนเฉียบพลัน' },
@@ -633,9 +653,9 @@ const SERVED_STATUS_CYCLE = [
 const FILLER_QUEUE_TYPES = ['general', 'general', 'general', 'urgent', 'few'];
 const FILLER_PAYMENTS = [PAYMENT_STATUS.NOT_APPLICABLE, PAYMENT_STATUS.NOT_APPLICABLE, PAYMENT_STATUS.UNPAID, PAYMENT_STATUS.PAID];
 
-const FILLER_COUNT = 40;
+const FILLER_COUNT = 60;
 const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
-  const n = i + 20; // continues P-012..P-019 → P-020..P-059
+  const n = i + 20; // continues P-012..P-019 → P-020..P-079
   const hn = FILLER_HNS[i % FILLER_HNS.length];
   const diagnosis = FILLER_DIAGNOSES[i % FILLER_DIAGNOSES.length];
   const drug = FILLER_DRUGS[i % FILLER_DRUGS.length];
@@ -644,8 +664,10 @@ const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
     : DISPENSE_STATUS.WAITING;
   const queueType = FILLER_QUEUE_TYPES[i % FILLER_QUEUE_TYPES.length];
   const paymentStatus = FILLER_PAYMENTS[i % FILLER_PAYMENTS.length];
-  const hour = 9 + Math.floor(i / 6);
-  const minute = (i % 6) * 10;
+  /* 8 rows per hour keeps all 60 filler prescriptions inside a plausible
+     09:00-16:49 clinic day instead of spilling past closing time. */
+  const hour = 9 + Math.floor(i / 8);
+  const minute = (i % 8) * 7;
   const issuedAt = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   const wasCalled = [DISPENSE_STATUS.CALLED, DISPENSE_STATUS.PREPARING, DISPENSE_STATUS.DISPENSED, DISPENSE_STATUS.PARTIAL].includes(status);
   const wasDispensed = status === DISPENSE_STATUS.DISPENSED;
@@ -679,37 +701,81 @@ const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
 
 const SEED = [...MANUAL_SEED, ...FILLER_SEED];
 
-/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.4.2) — ประวัติการรักษา/ส่งปรึกษา/ผลตรวจ Lab/
-   รังสีวิทยา/นัดหมาย. Like `SPECIAL_WATCH_OVERRIDES` in mrPatients.js, this is
-   an override map (keyed by queueNo) applied on top of an empty default, since
-   Lab/Radiology/Finance are themselves undeveloped stub modules elsewhere in
-   this app (see docs/product-spec.md §10) — there's no live cross-module data
-   to pull from, only illustrative examples on a couple of demo rows. */
+/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.4.2) — ประวัติการรักษา/ผลตรวจ Lab/นัดหมาย
+   are joined live from treatmentVisits.js/labOrders.js/the appointment module
+   via `getPharmacySupportingInfo` (src/data/pharmacySupportingInfo.js).
+   ประวัติส่งปรึกษา/ผลตรวจทางรังสีวิทยา have no HN-keyed module anywhere in
+   this app yet (both are themselves undeveloped stub modules — see
+   docs/product-spec.md §10), so those two stay as illustrative per-row
+   overrides applied on top of the live join, same pattern as
+   `SPECIAL_WATCH_OVERRIDES` in mrPatients.js. */
 const SUPPORTING_INFO_OVERRIDES = {
-  'P-012': {
-    treatmentHistory: 'เคยมารับการรักษาอาการคล้ายกันเมื่อ 3 เดือนก่อน (วินิจฉัย: J06.9)',
-    consultHistory: null,
-    labResults: null,
-    radiologyResults: null,
-    appointmentInfo: null,
-  },
   'P-018': {
-    treatmentHistory: 'ติดตามความดันโลหิตสูงต่อเนื่อง 2 ปี',
     consultHistory: 'ส่งปรึกษาอายุรกรรมโรคไต 2 สัปดาห์ก่อน (ประเมินการทำงานของไตก่อนเริ่ม Spironolactone)',
-    labResults: [{ test: 'Serum Potassium (K+)', result: '4.6 mEq/L', flag: 'normal' }, { test: 'Creatinine', result: '1.1 mg/dL', flag: 'normal' }],
     radiologyResults: null,
-    appointmentInfo: 'นัดติดตามความดันโลหิตและผลเลือด 26 สิงหาคม 2569',
   },
 };
-const EMPTY_SUPPORTING_INFO = { treatmentHistory: null, consultHistory: null, labResults: null, radiologyResults: null, appointmentInfo: null };
-
 export const PHARMACY_QUEUE = SEED.map((row) => ({
   ...row,
   patientName: patientName(row.hn),
+  /* VN (Visit Number) — same value the OPD screening queue shows for this
+     patient (both read `patientProfiles.js`'s `vn` field — see
+     `getVnByHn`'s doc comment). Empty string for the small number of
+     filler HNs (67-00026..29) that are still "รอลงทะเบียน" and have no
+     screening visit yet, same as the OPD queue would show for them. */
+  vn: getVnByHn(row.hn),
+  /* วันที่ออกใบสั่งยา — the mock only carries one day of seed data (resets
+     on reload), so this is always "today"; kept as an explicit field
+     (rather than derived) so PharmacyReportsPage's date-range filter has a
+     real field to filter against once/if multi-day data exists. */
+  issuedDate: TODAY,
   outOfRightsDocAttached: false,
-  supportingInfo: SUPPORTING_INFO_OVERRIDES[row.queueNo] || EMPTY_SUPPORTING_INFO,
+  supportingInfo: getPharmacySupportingInfo(row.hn, SUPPORTING_INFO_OVERRIDES[row.queueNo]),
   items: row.items.map((it) => ({ ...it, prepared: false, auxLabels: AUX_LABEL_DEFAULTS[it.name] || [], refillPlan: null })),
 }));
+
+/* §1.9.6.8 "สามารถดูสถิติการใช้ยาแต่ละประเภทได้" — `PHARMACY_QUEUE` above is
+   only ever "today" (resets on reload), so PharmacyReportsPage's date-range
+   filter had nothing to show for any other day. This backfills the past 6
+   days as already-closed (DISPENSED) records — kept in a separate array
+   rather than merged into `PHARMACY_QUEUE` itself, since that array also
+   backs the LIVE queue board (PharmacyQueuePage) and search (PharmacyHistoryPage),
+   neither of which should show old closed prescriptions mixed into "today".
+   PharmacyReportsPage is the only reader, via `PHARMACY_USAGE_HISTORY`.
+   Quantity is scaled per day by `DAILY_VOLUME_FACTOR` (not a flat repeat) so
+   a multi-day range in the report shows a real day-to-day usage trend. */
+const dayIso = (daysAgo) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+};
+const DAILY_VOLUME_FACTOR = [0.65, 0.85, 1.15, 0.95, 1.3, 0.75]; // days -1..-6, oldest last
+const HISTORY_VERIFIERS = [CURRENT_CLINICAL_PHARMACIST.name, CURRENT_DISPENSER.name];
+
+export const PHARMACY_USAGE_HISTORY = DAILY_VOLUME_FACTOR.flatMap((factor, dayIdx) => {
+  const daysAgo = dayIdx + 1;
+  const issuedDate = dayIso(daysAgo);
+  const rowsToday = Math.max(3, Math.round(FILLER_DRUGS.length * 2 * factor));
+  return Array.from({ length: rowsToday }, (_, i) => {
+    const hn = FILLER_HNS[(dayIdx * 7 + i) % FILLER_HNS.length];
+    const drug = FILLER_DRUGS[i % FILLER_DRUGS.length];
+    const quantity = Math.max(1, Math.round(drug.quantity * factor));
+    const hour = 8 + (i % 8);
+    const minute = (i % 6) * 10;
+    const issuedAt = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    return {
+      id: `ph-h${dayIdx}-${i}`, queueNo: `H-${daysAgo}-${String(i + 1).padStart(2, '0')}`,
+      hn, vn: getVnByHn(hn), patientName: patientName(hn), issuedAt, issuedDate,
+      dispensedAt: issuedAt, status: DISPENSE_STATUS.DISPENSED,
+      verifiedBy: HISTORY_VERIFIERS[i % HISTORY_VERIFIERS.length],
+      items: [{
+        id: `i-h${dayIdx}-${i}`, name: drug.name, dosePerTake: drug.dosePerTake, unit: drug.unit,
+        frequency: drug.frequency, when: drug.when, quantity, quantityDispensed: quantity,
+        instructions: drug.instructions, source: 'new', drugType: drug.drugType,
+      }],
+    };
+  });
+});
 
 export const findPharmacyRowByQueueNo = (queueNo) =>
   PHARMACY_QUEUE.find((r) => r.queueNo === queueNo) || null;
@@ -926,8 +992,10 @@ export const sendPrescriptionToPharmacy = (visit) => {
     id: `ph-${++pharmacyQueueSeq}`,
     queueNo,
     hn,
+    vn: getVnByHn(hn),
     patientName: patientName(hn),
     issuedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+    issuedDate: TODAY,
     status: DISPENSE_STATUS.WAITING,
     queueType: 'general',
     diagnosis: { icd10: principleDx?.code || '', name: principleDx?.name || '' },
@@ -943,7 +1011,7 @@ export const sendPrescriptionToPharmacy = (visit) => {
     deliveryMethod: 'pickup', deliveryAddress: null,
     paymentStatus: PAYMENT_STATUS.NOT_APPLICABLE,
     outOfRightsDocAttached: false,
-    supportingInfo: EMPTY_SUPPORTING_INFO,
+    supportingInfo: getPharmacySupportingInfo(hn),
     ownMedications: [], medErrors: [],
     items: medications.map((m, i) => ({
       id: `item-cpoe-${queueNo}-${i}`,

@@ -517,7 +517,6 @@ const PharmacyRequisitionPage = () => {
             style={{
               background: 'var(--surface-card-100)',
               borderRadius: 'var(--dim-radius-500)',
-              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
               boxShadow: 'var(--shadow-card-strong)',
               padding: 'var(--dim-space-600)',
               gap: 'var(--dim-space-400)',

@@ -3,6 +3,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header, { SubHeader } from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import TabUnderline from '@/components/tab/TabUnderline';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
 
@@ -12,7 +13,7 @@ import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
      1. Sidebar  +  Header (Topbar with breadcrumb)
      2. SubHeader: optional back button · title · optional action group
      3. SummaryCardsBar: optional row of status summary tiles
-     4. Sticky TabUnderline: optional tab strip pinned under the Topbar
+     4. Sticky tab strip: TabUnderline (default) or TabPill capsule bar
 
    The page body is rendered as `children` on the brand page background,
    so pages just declare their data and the body card.
@@ -29,7 +30,12 @@ import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
                             PHCIS_Header_Summary chrome (auto false if no SubHeader)
      headerInfo       — optional slot (Figma PHCIS_Header_Info) rendered in a white
                         panel flush under SubHeader — e.g. Appointment staff hero
-     tabs             — when set, renders the sticky <TabUnderline />
+     belowSummary     — optional slot rendered directly under the summary cards
+                        (or under SubHeader when there are no summary cards),
+                        above the sticky tab strip — e.g. a cross-module nav row
+     tabs             — when set, renders the sticky tab strip
+                        Array<{ key, label, icon? }>
+     tabVariant       — 'underline' (default, page-level) | 'pill' (capsule TabBar)
      activeTab        — controlled tab value
      onTabChange      — fired when the user changes tabs
      stickyTopOffset  — px offset under the Topbar (default 64 = h-16)
@@ -51,7 +57,9 @@ const QueuePageShell = ({
   summaryTitle,
   summaryFlushUnderSubHeader,
   headerInfo,
+  belowSummary,
   tabs,
+  tabVariant = 'underline',
   activeTab,
   onTabChange,
   stickyTopOffset = 64,
@@ -94,6 +102,26 @@ const QueuePageShell = ({
           />
         ) : null}
 
+        {belowSummary ? (
+          <div
+            className='w-full sticky'
+            style={{
+              top: `${stickyTopOffset}px`,
+              zIndex: 1100,
+              background: 'var(--surface-card-100)',
+              paddingTop: 'var(--dim-space-200)',
+              paddingBottom: 'var(--dim-space-0)',
+              paddingLeft: 'var(--dim-space-400)',
+              paddingRight: 'var(--dim-space-400)',
+              borderTop: 0,
+              borderBottom: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+              boxShadow: 'none',
+            }}
+          >
+            {belowSummary}
+          </div>
+        ) : null}
+
         {tabs ? (
           <div
             className='w-full sticky'
@@ -102,6 +130,7 @@ const QueuePageShell = ({
               zIndex: 1100,
               background: 'var(--surface-card-100)',
               paddingTop: 'var(--dim-space-200)',
+              paddingBottom: tabVariant === 'pill' ? 'var(--dim-space-200)' : undefined,
               paddingLeft: 'var(--dim-space-400)',
               paddingRight: 'var(--dim-space-400)',
               borderTop: 0,
@@ -109,12 +138,28 @@ const QueuePageShell = ({
               boxShadow: 'none',
             }}
           >
-            <TabUnderline
-              tabs={tabs}
-              value={activeTab}
-              onChange={onTabChange}
-              style={{ gap: 'var(--dim-space-0)' }}
-            />
+            {tabVariant === 'pill' ? (
+              <TabBar aria-label='กรองตามสถานะ'>
+                {tabs.map((t) => (
+                  <TabPill
+                    key={t.key}
+                    size='small'
+                    selected={activeTab === t.key}
+                    leadingIcon={t.icon || undefined}
+                    onClick={() => onTabChange?.(t.key)}
+                  >
+                    {t.label}
+                  </TabPill>
+                ))}
+              </TabBar>
+            ) : (
+              <TabUnderline
+                tabs={tabs}
+                value={activeTab}
+                onChange={onTabChange}
+                style={{ gap: 'var(--dim-space-0)' }}
+              />
+            )}
           </div>
         ) : null}
 

@@ -6,13 +6,15 @@ import Footer from '@/components/layout/Footer';
 import Icon from '@/components/icons/Icon';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import SuccessToast from '@/components/toast/SuccessToast';
 import {
   DRUG_REGISTRY,
   DRUG_CLASSIFICATIONS,
   UNIT_TYPES,
   UNIT_CONVERSIONS,
   RIGHTS_LIST,
-  getRegistryDrug,
+  getRegistryDrugById,
+  upsertRegistryDrug,
 } from '@/data/pharmacyRegistry';
 
 /* Drug Registry add/edit page (ToR §1.9.1 + §1.9.10 settings). Mirrors
@@ -27,6 +29,7 @@ const BLANK_DRUG = {
   genericName: '',
   tradeName: '',
   unit: 'tablet',
+  packSize: 100,
   classification: 'nlem',
   highAlert: false,
   rightsEligible: [...RIGHTS_LIST],
@@ -44,8 +47,8 @@ const BLANK_DRUG = {
 
 const SectionCard = ({ icon, title, subtitle, children, action }) => (
   <section
-    className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
-    style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
+    className='bg-surface-card rounded-card flex flex-col w-full'
+    style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)', boxShadow: 'var(--shadow-card-strong)' }}
   >
     <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
       <div
@@ -118,7 +121,7 @@ const PharmacyRegistryEditPage = () => {
   const { id } = useParams();
   const history = useHistory();
   const isNew = !id || id === 'new';
-  const existing = isNew ? null : getRegistryDrug(DRUG_REGISTRY.find((d) => d.id === id)?.name);
+  const existing = isNew ? null : getRegistryDrugById(id);
   const base = existing || BLANK_DRUG;
 
   const [form, setForm] = useState(() => ({
@@ -129,6 +132,7 @@ const PharmacyRegistryEditPage = () => {
     disallowedChronicDiseases: [...(base.disallowedChronicDiseases || [])],
     restrictedToDoctorGroup: base.restrictedToDoctorGroup || '',
   }));
+  const [saved, setSaved] = useState(false);
 
   const setField = (key, v) => setForm((prev) => ({ ...prev, [key]: v }));
   const setUsageRateField = (key, v) => setForm((prev) => ({ ...prev, usageRate: { ...prev.usageRate, [key]: Number(v) || 0 } }));
@@ -173,8 +177,10 @@ const PharmacyRegistryEditPage = () => {
   const replacementOptions = DRUG_REGISTRY.filter((d) => d.id !== form.id);
 
   const handleSave = () => {
-    /* Prototype only — no persistence, matches UserEditPage's own stub-save. */
-    history.push('/pharmacy/registry');
+    if (!form.name.trim()) return;
+    upsertRegistryDrug(form);
+    setSaved(true);
+    setTimeout(() => history.push('/pharmacy/registry'), 700);
   };
 
   return (
@@ -235,14 +241,30 @@ const PharmacyRegistryEditPage = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon='straighten' title='หน่วยนับและอัตราแปลง' subtitle='หน่วยจ่ายหลักของรายการยานี้ — รองรับมากกว่า 1 หน่วยผ่านตารางอัตราแปลงกลาง'>
+          <SectionCard icon='straighten' title='หน่วยนับและอัตราแปลง' subtitle='หน่วยจ่ายหลักของรายการยานี้ — พร้อมอัตราแปลงหน่วยเฉพาะของยารายการนี้'>
             <div className='grid w-full' style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 'var(--dim-space-300)' }}>
               {UNIT_TYPES.map((u) => (
                 <RadioCard key={u.key} icon='straighten' label={u.label} selected={form.unit === u.key} onSelect={() => setField('unit', u.key)} />
               ))}
             </div>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full'>
+              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                <span className='text-xs text-ink-secondary'>ขนาดบรรจุต่อกล่อง (1 กล่อง = ? {UNIT_TYPES.find((u) => u.key === form.unit)?.label})</span>
+                <input
+                  type='number' min='1' value={form.packSize || ''}
+                  onChange={(e) => setField('packSize', Number(e.target.value) || 0)}
+                  placeholder='เช่น 100'
+                  style={{ width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none' }}
+                />
+              </label>
+              <div className='flex flex-col justify-end' style={{ gap: 'var(--dim-space-150)' }}>
+                <span className='text-xs text-ink-tertiary'>
+                  อัตราแปลงของรายการนี้: 1 กล่อง = {form.packSize || 0} {UNIT_TYPES.find((u) => u.key === form.unit)?.label}
+                </span>
+              </div>
+            </div>
             <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150)' }}>
-              <span className='text-xs text-ink-tertiary'>ตารางอัตราแปลงหน่วย (ใช้ร่วมกันทั้งระบบ)</span>
+              <span className='text-xs text-ink-tertiary'>ตารางอัตราแปลงหน่วยอื่น ๆ (ใช้ร่วมกันทั้งระบบ — สำหรับหน่วยที่ไม่ใช่กล่อง/เม็ด-แคปซูล)</span>
               {UNIT_CONVERSIONS.map((c, i) => (
                 <span key={i} className='text-xs text-ink-secondary'>
                   1 {UNIT_TYPES.find((u) => u.key === c.fromUnit)?.label} = {c.factor} {UNIT_TYPES.find((u) => u.key === c.toUnit)?.label} ({c.note})
@@ -369,7 +391,7 @@ const PharmacyRegistryEditPage = () => {
             </SectionCard>
           )}
 
-          <section className='bg-surface-card rounded-card shadow-card flex flex-wrap items-center w-full sticky bottom-0' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)' }}>
+          <section className='bg-surface-card rounded-card flex flex-wrap items-center w-full sticky bottom-0' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)', boxShadow: 'var(--shadow-card-strong)' }}>
             <div className='flex-1 min-w-0 flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
               <span className='text-xs text-ink-tertiary'>
                 สรุป: <strong className='text-ink-secondary'>{DRUG_CLASSIFICATIONS.find((c) => c.key === form.classification)?.label}</strong>
@@ -377,11 +399,12 @@ const PharmacyRegistryEditPage = () => {
               </span>
             </div>
             <NeutralSubdueButton variant='outline' size='md' onClick={() => history.push('/pharmacy/registry')}>ยกเลิก</NeutralSubdueButton>
-            <BrandButton size='md' leadingIcon='save' onClick={handleSave}>{isNew ? 'สร้างรายการยา' : 'บันทึกการเปลี่ยนแปลง'}</BrandButton>
+            <BrandButton size='md' leadingIcon='save' onClick={handleSave} disabled={!form.name.trim()}>{isNew ? 'สร้างรายการยา' : 'บันทึกการเปลี่ยนแปลง'}</BrandButton>
           </section>
         </div>
         <Footer copyright='© 2026 ศูนย์บริการสาธารณสุข สำนักอนามัย กรุงเทพมหานคร' />
       </main>
+      <SuccessToast open={saved} message={isNew ? 'สร้างรายการยาสำเร็จ' : 'บันทึกการเปลี่ยนแปลงสำเร็จ'} onClose={() => setSaved(false)} />
     </div>
   );
 };

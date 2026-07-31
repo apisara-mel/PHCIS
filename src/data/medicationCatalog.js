@@ -62,6 +62,12 @@ export const MEDICATION_NAME_OPTIONS = [
   { value: 'Indapamide 1.5 mg',           image: FALLBACK_MED_IMG        },
   { value: 'Vitamin B Complex',           image: FALLBACK_MED_IMG        },
   { value: 'Folic Acid 5 mg',             image: FALLBACK_MED_IMG        },
+  /* Two genuinely controlled drugs (real Thai Narcotics/Psychotropic Substances
+     Act schedules, not fabricated) so pharmacyRegistry.js's "ยาเสพติดให้โทษ" /
+     "วัตถุออกฤทธิ์ต่อจิตและประสาท" classifications have a real seed row each
+     instead of sitting unused as selectable-but-empty categories. */
+  { value: 'Codeine Phosphate 30 mg',     image: FALLBACK_MED_IMG        },
+  { value: 'Diazepam 5 mg',               image: FALLBACK_MED_IMG        },
   /* Aliases for mock rows that omit the space before "mg". */
   { value: 'Paracetamol 500mg',           image: medImg('paracetamol')   },
   { value: 'Ibuprofen 400mg',             image: medImg('ibuprofen')     },

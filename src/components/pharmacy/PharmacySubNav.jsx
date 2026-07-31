@@ -1,52 +1,40 @@
 import React from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import TabUnderline from '@/components/tab/TabUnderline';
 
-/* Cross-links the pharmacy module's four pages (queue/registry/stock/
-   requisition). The Sidebar's `pharmacy` entry stays a flat item pointing
-   at the queue (matches the OPD/Registration/Treatment convention of one
-   direct-click destination per module) rather than growing a `subItems`
-   flyout — this row is the simpler, lower-risk way to make the other
-   three pages discoverable, per the plan's own fallback note. */
+/* Cross-links the pharmacy module pages. The Sidebar's `pharmacy` entry stays
+   a flat item pointing at the queue (matches the OPD/Registration/Treatment
+   convention of one direct-click destination per module). This row uses the
+   design-system TabUnderline (page-level nav) instead of pill chips. */
 
 const LINKS = [
-  { label: 'คิวจ่ายยา',           path: '/pharmacy/queue'       },
-  { label: 'ทะเบียนยา',           path: '/pharmacy/registry'    },
-  { label: 'คลังยาและเวชภัณฑ์',   path: '/pharmacy/stock'       },
-  { label: 'เบิกจ่าย/รับเข้าคลัง', path: '/pharmacy/requisition' },
-  { label: 'ประวัติการรับยา',     path: '/pharmacy/history'     },
-  { label: 'รายงาน',              path: '/pharmacy/reports'     },
+  { key: 'queue',       label: 'คิวจ่ายยา',           path: '/pharmacy/queue'       },
+  { key: 'registry',    label: 'ทะเบียนยา',           path: '/pharmacy/registry'    },
+  { key: 'stock',       label: 'คลังยาและเวชภัณฑ์',   path: '/pharmacy/stock'       },
+  { key: 'requisition', label: 'เบิกจ่าย/รับเข้าคลัง', path: '/pharmacy/requisition' },
+  { key: 'history',     label: 'ประวัติการรับยา',     path: '/pharmacy/history'     },
+  { key: 'reports',     label: 'รายงาน',              path: '/pharmacy/reports'     },
 ];
+
+const TABS = LINKS.map(({ key, label }) => ({ key, label }));
 
 const PharmacySubNav = () => {
   const history = useHistory();
   const location = useLocation();
+
+  const activeKey = LINKS.find((l) => location.pathname.startsWith(l.path))?.key
+    || LINKS[0].key;
+
   return (
-    <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-150)' }}>
-      {LINKS.map((l) => {
-        const active = location.pathname.startsWith(l.path);
-        return (
-          <button
-            key={l.path}
-            type='button'
-            onClick={() => history.push(l.path)}
-            className='inline-flex items-center'
-            style={{
-              height: 'var(--dim-size-600, 32px)',
-              padding: '0 var(--dim-space-300)',
-              borderRadius: 'var(--dim-radius-full)',
-              background: active ? 'var(--surface-brandPrimary-quaternary)' : 'transparent',
-              border: `var(--dim-stroke-100) solid ${active ? 'var(--border-brandPrimary-default)' : 'var(--border-card-default)'}`,
-              color: active ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
-              fontSize: 'var(--type-size-xs)',
-              fontWeight: active ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)',
-              cursor: 'pointer',
-            }}
-          >
-            {l.label}
-          </button>
-        );
-      })}
-    </div>
+    <TabUnderline
+      tabs={TABS}
+      value={activeKey}
+      onChange={(key) => {
+        const link = LINKS.find((l) => l.key === key);
+        if (link) history.push(link.path);
+      }}
+      style={{ gap: 'var(--dim-space-0)' }}
+    />
   );
 };
 
