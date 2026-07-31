@@ -16,6 +16,7 @@ import { Icon } from '@/components/icons/Icon';
 import {
   LAB_ORDERS, LAB_STATUSES, LAB_URGENCIES, LAB_LOCATIONS,
   LAB_STATUS_BY_KEY, LAB_URGENCY_BY_KEY,
+  LAB_REJECT_REASONS, LAB_REJECT_REASON_BY_KEY,
   withTestLabel, labHistoryFor,
   subscribeOrders, updateLabOrder, deleteLabOrder,
   dueAdvanceOrders, activateAdvanceOrder, cancelAdvanceOrder,
@@ -214,7 +215,24 @@ const formatAge = (mins) => {
 /* Table A from the team deck, in its order, minus การเตรียมตัว. `onAction`
    is the component's row-action closure, so columns are built inside the
    component via useMemo rather than declared at module scope. */
-const buildColumns = (onAction, historyFor) => [
+const buildColumns = (onAction, historyFor, selection) => [
+  /* Selection — first column so the eye lands on it before the row content,
+     the same place every mail client and file manager puts it. */
+  {
+    /* Table renders headers as plain text (see Table.jsx `title`), so the
+       select-all control lives in the toolbar rather than this header. */
+    key: 'select', label: '', width: 44, sortable: false, align: 'center',
+    render: (row) => (
+      <input
+        type='checkbox'
+        checked={selection.ids.includes(row.id)}
+        aria-label={`เลือก ${row.accessionNo}`}
+        onClick={(e) => e.stopPropagation()}
+        onChange={() => selection.toggle(row.id)}
+        style={{ width: 16, height: 16, accentColor: 'var(--surface-brandPrimary-default)', cursor: 'pointer' }}
+      />
+    ),
+  },
   /* คิว / ลำดับ — "เรียงลำดับเรียกผู้ป่วย". */
   {
     key: 'queueNo', label: 'คิว', width: 64, align: 'center',
@@ -440,7 +458,7 @@ const buildColumns = (onAction, historyFor) => [
      pipeline: you cannot mark a specimen collected before its label is
      printed, and you cannot reject one that was never drawn. */
   {
-    key: 'actions', label: 'การจัดการ', width: 252, sortable: false, align: 'center',
+    key: 'actions', label: 'การจัดการ', width: 212, sortable: false, align: 'center',
     render: (row) => {
       const canCollect = row.status === 'requested' || row.status === 'collect';
       const canReject = row.status !== 'requested' && row.status !== 'reported';
@@ -483,22 +501,19 @@ const buildColumns = (onAction, historyFor) => [
             title={row.status === 'reported' ? 'แก้ไขผล (ออกรายงานฉบับแก้ไข)' : 'บันทึกผลตรวจ'}
             onClick={(e) => { e.stopPropagation(); onAction('result', row); }}
           />
+          {/* One button, not two. Rejecting and re-drawing are the same
+              decision from the bench's point of view — "this specimen is no
+              good" — and which of the two follows depends on the REASON,
+              which the dialog asks for. Collapsing them also buys back the
+              column width that six icon buttons were eating. */}
           <NeutralSubdueIconButton
             icon='block'
             variant='outline'
             size='sm'
             disabled={!canReject}
-            aria-label={`ปฏิเสธสิ่งส่งตรวจ ${row.accessionNo}`}
-            title='ปฏิเสธสิ่งส่งตรวจ'
+            aria-label={`ปฏิเสธ/เจาะซ้ำ ${row.accessionNo}`}
+            title='ปฏิเสธสิ่งส่งตรวจ / สั่งเจาะซ้ำ'
             onClick={(e) => { e.stopPropagation(); onAction('reject', row); }}
-          />
-          <NeutralSubdueIconButton
-            icon='replay'
-            variant='outline'
-            size='sm'
-            aria-label={`สั่งเจาะซ้ำ ${row.accessionNo}`}
-            title='เจาะซ้ำ'
-            onClick={(e) => { e.stopPropagation(); onAction('redraw', row); }}
           />
           <NeutralSubdueIconButton
             icon='delete'
@@ -618,6 +633,12 @@ const LabQueuePage = () => {
   /* Rows handed to the print-only sticker sheet — set immediately before
      printing so one click prints one tube's label, not the whole table. */
   const [printRows, setPrintRows] = useState([]);
+  /* Rejection dialog — holds the row and the chosen reason. */
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  /* Bulk selection. A collection round is a dozen specimens; labelling them
+     one at a time meant a dozen clicks and a dozen print dialogs. */
+  const [selectedIds, setSelectedIds] = useState([]);
   const searchWrapRef = useRef(null);
   const handleScan = () => {
     setScanMode(true);
@@ -676,6 +697,13 @@ const LabQueuePage = () => {
       window.setTimeout(() => printLab('sticker'), 0);
       return;
     }
+    if (kind === 'reject') {
+      /* Rejection needs a reason, so it gets a purpose-built dialog rather
+         than the generic yes/no confirm. */
+      setRejectTarget(row);
+      setRejectReason('');
+      return;
+    }
     if (kind === 'result') {
       /* Result entry is a full screen of its own (TOR §1.15.6.1) — it needs
          room for one typed input per analyte plus the critical-value
@@ -693,18 +721,7 @@ const LabQueuePage = () => {
       type: 'info',
       describe: (row) => `ตัวอย่าง ${row.tubeLabel} ของ${row.confidential ? 'ผู้ป่วยปกปิด' : row.patient.fullName ?? row.patient.shortName} (${row.accessionNo}) จะถูกบันทึกว่าเก็บเรียบร้อยและส่งเข้าขั้นตอนกำลังตรวจ`,
     },
-    reject: {
-      title: 'ปฏิเสธสิ่งส่งตรวจนี้?',
-      confirmLabel: 'ปฏิเสธตัวอย่าง',
-      type: 'warning',
-      describe: (row) => `ตัวอย่าง ${row.accessionNo} (${row.testLabel}) จะถูกปฏิเสธและส่งกลับไปรอเก็บตัวอย่างใหม่ ต้องแจ้ง${row.location}ให้ทราบ`,
-    },
-    redraw: {
-      title: 'สั่งเจาะซ้ำ?',
-      confirmLabel: 'สั่งเจาะซ้ำ',
-      type: 'warning',
-      describe: (row) => `ระบบจะออก Accession ใหม่สำหรับ ${row.testLabel} และส่งกลับไปยังขั้นตอนรอเก็บตัวอย่าง`,
-    },
+
     /* TOR §1.15.4.9 "สามารถลบข้อมูลได้". */
     delete: {
       title: 'ลบรายการขอตรวจนี้?',
@@ -721,14 +738,6 @@ const LabQueuePage = () => {
     if (kind === 'collect') {
       updateLabOrder(row.id, { status: 'analysing', exception: undefined, labeled: true });
       logAudit('บันทึกเก็บ/รับตัวอย่าง', rowLabel(row));
-    } else if (kind === 'reject') {
-      /* A rejected specimen goes back to `collect` carrying the exception,
-         rather than into a dead-end status — the team's flow re-draws it. */
-      updateLabOrder(row.id, { status: 'collect', exception: 'rejected', rejectReason: 'ปฏิเสธโดยเจ้าหน้าที่ห้องปฏิบัติการ' });
-      logAudit('ปฏิเสธสิ่งส่งตรวจ', rowLabel(row));
-    } else if (kind === 'redraw') {
-      updateLabOrder(row.id, { status: 'collect', exception: 'redraw', labeled: false, rejectReason: 'สั่งเจาะซ้ำโดยเจ้าหน้าที่ห้องปฏิบัติการ' });
-      logAudit('สั่งเจาะซ้ำ', rowLabel(row));
     } else if (kind === 'delete') {
       /* §1.15.4.9 — removes the request. Also drops it from the shared
          order store so it stays gone when other lab screens re-read. */
@@ -739,6 +748,33 @@ const LabQueuePage = () => {
     setPendingAction(null);
   };
 
+  const handleConfirmReject = () => {
+    if (!rejectTarget || !rejectReason) return;
+    const reason = LAB_REJECT_REASON_BY_KEY[rejectReason];
+    /* A rejected specimen goes back to `collect` carrying the exception
+       rather than into a dead-end status — the team's flow re-draws it.
+       Whether it is flagged 'rejected' or 'redraw' follows from the reason:
+       an unusable specimen needs a new draw, a cancelled order does not. */
+    updateLabOrder(rejectTarget.id, {
+      status: 'collect',
+      exception: reason.redrawRequired ? 'redraw' : 'rejected',
+      rejectReason: reason.label,
+      /* An unlabelled or mislabelled tube must be re-drawn AND re-labelled;
+         it can never be salvaged by sticking a new label on the old tube. */
+      labeled: reason.patientSafety ? false : rejectTarget.labeled,
+    });
+    logAudit(reason.redrawRequired ? 'ปฏิเสธสิ่งส่งตรวจและสั่งเจาะซ้ำ' : 'ปฏิเสธสิ่งส่งตรวจ',
+      `${rowLabel(rejectTarget)} — ${reason.label}`);
+    setRejectTarget(null);
+    setRejectReason('');
+  };
+
+  /* ─── Bulk actions ─── */
+  const toggleSelect = (id) => setSelectedIds((prev) => (
+    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+  ));
+  const clearSelection = () => setSelectedIds([]);
+
   const handleRevealConfidential = (order) => {
     logAudit('ดูผลตรวจที่เป็นความลับ', `${order.testLabel} — HN ${order.patient.hn}`);
   };
@@ -748,7 +784,6 @@ const LabQueuePage = () => {
      history by HN. */
   const historyFor = useMemo(() => (row) => duplicateWarning(row.testId, labHistoryFor(row.patient.hn)), []);
 
-  const columns = useMemo(() => buildColumns(handleAction, historyFor), [historyFor]);
 
   const {
     history: searchHistory,
@@ -783,6 +818,38 @@ const LabQueuePage = () => {
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const columns = useMemo(
+    () => buildColumns(handleAction, historyFor, {
+      ids: selectedIds,
+      toggle: toggleSelect,
+      allOnPage: pageRows.length > 0 && pageRows.every((r) => selectedIds.includes(r.id)),
+      toggleAll: () => setSelectedIds((prev) => {
+        const pageIds = pageRows.map((r) => r.id);
+        const allOn = pageIds.every((id) => prev.includes(id));
+        return allOn ? prev.filter((id) => !pageIds.includes(id)) : [...new Set([...prev, ...pageIds])];
+      }),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [historyFor, selectedIds, pageRows],
+  );
+
+  /* Derived selection facts the bulk bar needs. Sticker count is by TUBE,
+     not by row — selecting a CBC and an HbA1c drawn into the same EDTA tube
+     is one label, and promising two would be wrong. */
+  const selectedRows = useMemo(
+    () => liveRows.filter((r) => selectedIds.includes(r.id)),
+    [liveRows, selectedIds],
+  );
+  const selectedTubeCount = useMemo(
+    () => new Set(selectedRows.map((r) => r.accessionNo)).size,
+    [selectedRows],
+  );
+  const selectedCollectable = useMemo(
+    () => selectedRows.filter((r) => r.status === 'requested' || r.status === 'collect'),
+    [selectedRows],
+  );
+  const allOnPageSelected = pageRows.length > 0 && pageRows.every((r) => selectedIds.includes(r.id));
+
   const rangeStart = sorted.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, sorted.length);
 
@@ -867,6 +934,115 @@ const LabQueuePage = () => {
         onCancel={closeAction}
         onConfirm={handleConfirmAction}
       />
+      {/* Rejection dialog — a reason is mandatory, because the reason is
+          what a lab's quality indicators are built from (a ward whose
+          specimens keep clotting needs retraining, not a note), and because
+          it decides whether a re-draw follows. */}
+      {rejectTarget && (
+        <div
+          role='dialog'
+          aria-modal='true'
+          aria-label='ปฏิเสธสิ่งส่งตรวจ'
+          className='fixed inset-0 flex items-center justify-center'
+          style={{ background: 'rgba(0,0,0,0.45)', zIndex: 60 }}
+          onClick={() => setRejectTarget(null)}
+        >
+          <div
+            className='flex flex-col'
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(560px, 92vw)',
+              maxHeight: '86vh',
+              overflowY: 'auto',
+              background: 'var(--surface-card-100)',
+              borderRadius: 'var(--dim-radius-500)',
+              boxShadow: 'var(--shadow-card-strong)',
+              paddingTop: 'var(--dim-space-600)',
+              paddingRight: 'var(--dim-space-600)',
+              paddingBottom: 'var(--dim-space-600)',
+              paddingLeft: 'var(--dim-space-600)',
+              gap: 'var(--dim-space-400)',
+            }}
+          >
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
+              <span style={{ fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-default)' }}>
+                ปฏิเสธสิ่งส่งตรวจ
+              </span>
+              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+                {rejectTarget.accessionNo} · {rejectTarget.testLabel} ·{' '}
+                {rejectTarget.confidential ? 'ผู้ป่วยปกปิด' : rejectTarget.patient.shortName}
+              </span>
+              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                ต้องระบุเหตุผล — ระบบจะแจ้ง{rejectTarget.location}และบันทึกไว้ในประวัติการดำเนินการ
+              </span>
+            </div>
+
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+              {LAB_REJECT_REASONS.map((r) => {
+                const on = rejectReason === r.key;
+                return (
+                  <button
+                    key={r.key}
+                    type='button'
+                    onClick={() => setRejectReason(r.key)}
+                    className='flex items-center w-full text-left'
+                    style={{
+                      gap: 'var(--dim-space-200)',
+                      paddingTop: 'var(--dim-space-250, 10px)',
+                      paddingRight: 'var(--dim-space-300)',
+                      paddingBottom: 'var(--dim-space-250, 10px)',
+                      paddingLeft: 'var(--dim-space-300)',
+                      background: on ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
+                      border: `var(--dim-stroke-100) solid ${on ? 'var(--border-brandPrimary-default)' : 'var(--border-card-default)'}`,
+                      borderRadius: 'var(--dim-radius-200)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Icon
+                      name={on ? 'radio_button_checked' : 'radio_button_unchecked'}
+                      size={16}
+                      style={{ color: on ? 'var(--text-brandPrimary-default)' : 'var(--text-content-tertiary)' }}
+                    />
+                    <span className='flex-1 min-w-0' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: on ? 'var(--text-brandPrimary-default)' : 'var(--text-content-primary)' }}>
+                      {r.label}
+                    </span>
+                    {/* An unlabelled or mislabelled tube is the one case that
+                        can never be fixed by relabelling — say so here, not
+                        after the fact. */}
+                    {r.patientSafety && (
+                      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-statusbadge-error, #B91C1C)' }}>
+                        ต้องทิ้งหลอดและเจาะใหม่
+                      </span>
+                    )}
+                    {!r.redrawRequired && (
+                      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                        ไม่ต้องเจาะซ้ำ
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+              <span style={{ flex: 1, fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                {rejectReason
+                  ? (LAB_REJECT_REASON_BY_KEY[rejectReason].redrawRequired
+                    ? 'ระบบจะส่งกลับไปยังขั้นตอนรอเก็บตัวอย่างเพื่อเจาะซ้ำ'
+                    : 'ระบบจะบันทึกการปฏิเสธโดยไม่สั่งเจาะซ้ำ')
+                  : 'เลือกเหตุผลก่อนจึงจะยืนยันได้'}
+              </span>
+              <NeutralSubdueButton variant='outline' size='md' onClick={() => setRejectTarget(null)}>
+                ยกเลิก
+              </NeutralSubdueButton>
+              <BrandPrimaryButton size='md' disabled={!rejectReason} onClick={handleConfirmReject}>
+                ยืนยันปฏิเสธ
+              </BrandPrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
       <QueuePageShell
         activeKey='lab'
         breadcrumb={breadcrumb}
@@ -1061,6 +1237,19 @@ const LabQueuePage = () => {
                 <NeutralSubdueButton
                   variant='outline'
                   size='sm'
+                  leadingIcon={allOnPageSelected ? 'check_box' : 'check_box_outline_blank'}
+                  onClick={() => setSelectedIds((prev) => {
+                    const pageIds = pageRows.map((r) => r.id);
+                    return allOnPageSelected
+                      ? prev.filter((id) => !pageIds.includes(id))
+                      : [...new Set([...prev, ...pageIds])];
+                  })}
+                >
+                  {allOnPageSelected ? 'ยกเลิกเลือกทั้งหน้า' : 'เลือกทั้งหน้า'}
+                </NeutralSubdueButton>
+                <NeutralSubdueButton
+                  variant='outline'
+                  size='sm'
                   leadingIcon='priority_high'
                   active={statFirst}
                   aria-pressed={statFirst}
@@ -1076,6 +1265,62 @@ const LabQueuePage = () => {
                     strip controls, not a separate filter dimension. */}
                 <FilterDropdown prefix='สถานะ:' options={STATUS_OPTIONS} value={activeTab} onChange={setActiveTab} />
               </OverflowFlexRow>
+
+              {/* Bulk action bar. Appears only when something is selected,
+                  so it costs nothing in the normal scanning case, and it is
+                  what turns a 12-specimen collection round from 12 clicks
+                  and 12 print dialogs into one of each. */}
+              {selectedIds.length > 0 && (
+                <div
+                  className='flex flex-wrap items-center w-full'
+                  style={{
+                    gap: 'var(--dim-space-300)',
+                    background: 'var(--surface-brandPrimary-quaternary)',
+                    borderRadius: 'var(--dim-radius-300)',
+                    border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-default)',
+                    paddingTop: 'var(--dim-space-300)',
+                    paddingRight: 'var(--dim-space-400)',
+                    paddingBottom: 'var(--dim-space-300)',
+                    paddingLeft: 'var(--dim-space-400)',
+                  }}
+                >
+                  <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-brandPrimary-default)' }}>
+                    เลือกไว้ {selectedIds.length} รายการ
+                    {selectedTubeCount !== selectedIds.length && ` · ${selectedTubeCount} หลอด`}
+                  </span>
+                  <NeutralSubdueButton
+                    variant='outline'
+                    size='sm'
+                    leadingIcon='print'
+                    onClick={() => {
+                      const rows = liveRows.filter((r) => selectedIds.includes(r.id));
+                      setPrintRows(rows);
+                      rows.forEach((r) => updateLabOrder(r.id, { labeled: true }));
+                      logAudit('พิมพ์สติกเกอร์ (หลายรายการ)', `${selectedTubeCount} หลอด · ${rows.length} รายการ`);
+                      window.setTimeout(() => printLab('sticker'), 0);
+                    }}
+                  >
+                    พิมพ์สติกเกอร์ {selectedTubeCount} หลอด
+                  </NeutralSubdueButton>
+                  <NeutralSubdueButton
+                    variant='outline'
+                    size='sm'
+                    leadingIcon='check'
+                    disabled={selectedCollectable.length === 0}
+                    onClick={() => {
+                      selectedCollectable.forEach((r) => updateLabOrder(r.id, { status: 'analysing', exception: undefined, labeled: true }));
+                      logAudit('บันทึกเก็บ/รับตัวอย่าง (หลายรายการ)', `${selectedCollectable.length} รายการ`);
+                      clearSelection();
+                    }}
+                  >
+                    เก็บแล้ว {selectedCollectable.length} รายการ
+                  </NeutralSubdueButton>
+                  <div className='flex-1' />
+                  <NeutralSubdueButton variant='outline' size='sm' onClick={clearSelection}>
+                    ล้างการเลือก
+                  </NeutralSubdueButton>
+                </div>
+              )}
 
               <Table
                 columns={columns}

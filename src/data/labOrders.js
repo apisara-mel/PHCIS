@@ -55,6 +55,37 @@ export const LAB_EXCEPTIONS = [
   { key: 'redraw',   label: 'เจาะซ้ำ',           icon: 'replay',   color: 'warning' },
 ];
 
+/* เหตุผลการปฏิเสธสิ่งส่งตรวจ — a rejection has to say WHY, and the reason is
+   not free text in practice: it is a fixed vocabulary because it feeds
+   quality indicators (a ward whose specimens keep clotting needs retraining,
+   not a strongly worded note). These are the standard pre-analytical
+   rejection causes.
+
+   `redrawRequired` marks the ones where the specimen is unusable and a new
+   draw is the only remedy — the UI uses it to preselect เจาะซ้ำ rather than
+   making the user decide twice.
+
+   `patientSafety` marks the two that are never salvageable by relabelling:
+   an unlabelled or mislabelled tube must be discarded and re-drawn, because
+   nobody can prove afterwards whose blood is in it. */
+export const LAB_REJECT_REASONS = [
+  { key: 'hemolysis',  label: 'เม็ดเลือดแดงแตก (Hemolysis)',        redrawRequired: true },
+  { key: 'clotted',    label: 'ตัวอย่างแข็งตัว (Clotted)',           redrawRequired: true },
+  { key: 'qns',        label: 'ปริมาณไม่พอ (QNS — Quantity Not Sufficient)', redrawRequired: true },
+  { key: 'wrongtube',  label: 'ใช้หลอดผิดชนิด',                      redrawRequired: true },
+  { key: 'unlabeled',  label: 'หลอดไม่มีสติกเกอร์ระบุตัวผู้ป่วย',      redrawRequired: true, patientSafety: true },
+  { key: 'mislabeled', label: 'สติกเกอร์ไม่ตรงกับผู้ป่วย',             redrawRequired: true, patientSafety: true },
+  { key: 'delayed',    label: 'ส่งถึงห้องปฏิบัติการช้าเกินเวลาที่กำหนด', redrawRequired: true },
+  { key: 'contaminated', label: 'ตัวอย่างปนเปื้อน',                   redrawRequired: true },
+  { key: 'nofasting',  label: 'ผู้ป่วยไม่ได้งดอาหารตามเงื่อนไข',       redrawRequired: true },
+  { key: 'duplicate',  label: 'สั่งซ้ำกับรายการที่ตรวจแล้ว',           redrawRequired: false },
+  { key: 'cancelled',  label: 'แพทย์ยกเลิกคำสั่งตรวจ',                redrawRequired: false },
+];
+
+export const LAB_REJECT_REASON_BY_KEY = Object.fromEntries(
+  LAB_REJECT_REASONS.map((r) => [r.key, r]),
+);
+
 /* ความเร่งด่วน — "STAT / ด่วน / Routine … STAT ต้องเด้งขึ้นบนสุด (สีแดง)".
    `rank` drives the STAT-ก่อน sort; `slaMinutes` drives the aging column
    the team justified with "ดู aging / SLA รอคิวนานเกินไหม". */
