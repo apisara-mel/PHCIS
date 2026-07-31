@@ -36,21 +36,32 @@ const PROGRAMS = [
   { key: 'anc-package', label: 'โปรแกรมฝากครรภ์ (ANC package)', basePrice: 3500 },
 ];
 
-const PricingSettingsSection = () => {
-  const [adjustments, setAdjustments] = useState(() => Object.fromEntries(
-    CATEGORY_LIST.map((c) => [c.key, Object.fromEntries(RIGHTS_LIST.map((r) => [r.key, 0]))]),
-  ));
-  const [orderSetPrices, setOrderSetPrices] = useState(() => Object.fromEntries(ORDER_SETS.map((o) => [o.key, o.basePrice])));
-  const [programPrices, setProgramPrices] = useState(() => Object.fromEntries(PROGRAMS.map((p) => [p.key, p.basePrice])));
-  const [saved, setSaved] = useState(false);
+export const emptyAdjustments = () => Object.fromEntries(
+  CATEGORY_LIST.map((c) => [c.key, Object.fromEntries(RIGHTS_LIST.map((r) => [r.key, 0]))]),
+);
 
-  const setCell = (categoryKey, rightsKey, value) => {
-    setSaved(false);
-    setAdjustments((prev) => ({
-      ...prev,
-      [categoryKey]: { ...prev[categoryKey], [rightsKey]: Number(value) || 0 },
-    }));
-  };
+export const defaultPricing = () => ({
+  adjustments: emptyAdjustments(),
+  orderSetPrices: Object.fromEntries(ORDER_SETS.map((o) => [o.key, o.basePrice])),
+  programPrices: Object.fromEntries(PROGRAMS.map((p) => [p.key, p.basePrice])),
+});
+
+/* Controlled by FinancePaymentPage — the settings have to outlive this
+   section's mount (the section switcher unmounts it) and, more importantly,
+   the checkout flow has to be able to read them (TOR §1.8.9.1). */
+const PricingSettingsSection = ({ value, onChange }) => {
+  const { adjustments, orderSetPrices, programPrices } = value;
+  const [saved, setSaved] = useState(false);
+  const patch = (next) => { setSaved(false); onChange({ ...value, ...next }); };
+  const setOrderSetPrices = (updater) => patch({ orderSetPrices: updater(orderSetPrices) });
+  const setProgramPrices = (updater) => patch({ programPrices: updater(programPrices) });
+
+  const setCell = (categoryKey, rightsKey, v) => patch({
+    adjustments: {
+      ...adjustments,
+      [categoryKey]: { ...adjustments[categoryKey], [rightsKey]: Number(v) || 0 },
+    },
+  });
 
   const columns = [
     {
@@ -96,7 +107,7 @@ const PricingSettingsSection = () => {
           showLabel={false}
           showHelperText={false}
           value={String(prices[row.key])}
-          onChange={(v) => { setSaved(false); setPrices((prev) => ({ ...prev, [row.key]: Number(v) || 0 })); }}
+          onChange={(v) => setPrices((prev) => ({ ...prev, [row.key]: Number(v) || 0 }))}
           style={{ width: 100 }}
           inputStyle={{ textAlign: 'right' }}
         />
@@ -109,6 +120,8 @@ const PricingSettingsSection = () => {
       <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>
           กำหนดส่วนปรับราคาขาย (%) ตามหมวดค่าใช้จ่าย × สิทธิการรักษา (Payer) — ค่าบวก = ปรับราคาขึ้น, ค่าลบ = ส่วนลดราคามาตรฐาน
+          <br />
+          ค่าที่ตั้งไว้จะถูกนำไปคิดราคาจริงในหน้า “คิวชำระเงิน” ทันที (ยังไม่กระทบใบเสร็จที่ออกไปแล้ว)
         </span>
         <Table columns={columns} rows={CATEGORY_LIST} rowKey={(row) => row.key} emptyMessage='ไม่มีหมวดค่าใช้จ่าย' />
       </div>

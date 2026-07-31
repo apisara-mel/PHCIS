@@ -167,19 +167,19 @@ const DonutWithLegend = ({ segments, total, centerSub }) => (
   </div>
 );
 
-const FinanceReportsSection = ({ queue = [] }) => {
+const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
   const [fiscalYear, setFiscalYear] = useState(FISCAL_YEARS[0].key);
   const [center, setCenter] = useState('all');
 
   const report = useMemo(
-    () => buildFinanceReport({ fiscalYear, center, queue }),
-    [fiscalYear, center, queue],
+    () => buildFinanceReport({ fiscalYear, center, queue, nhso }),
+    [fiscalYear, center, queue, nhso],
   );
 
   const {
     year, months, revenueMonthly, expenseMonthly,
     revenueTotal, expenseTotal, netTotal,
-    byChannel, byType, byExpense, budgetRows, budgetTotal, today,
+    byChannel, byType, byExpense, budgetRows, budgetTotal, today, nhsoApproved,
   } = report;
 
   /* §1.20.3.4 — one line per side, in พันบาท so the chart's own data
@@ -328,7 +328,9 @@ const FinanceReportsSection = ({ queue = [] }) => {
       <SectionBlock
         title='รายรับ'
         torId='TOR §1.20.3.1'
-        note={`ยอดรวม ${formatBaht(revenueTotal)}`}
+        note={nhsoApproved > 0
+          ? `ยอดรวม ${formatBaht(revenueTotal)} · รวมยอดอนุมัติจากไฟล์ สปสช. ${formatBaht(nhsoApproved)} (ช่องทางเครดิต)`
+          : `ยอดรวม ${formatBaht(revenueTotal)}`}
       >
         <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
           <ChartCard title='แยกตามช่องทางรับเงิน' caption='เงินสด / e-Payment / เครดิต / บริจาค' className='flex-1' >

@@ -168,7 +168,7 @@ const todayFromQueue = (queue = [], center = 'all') => {
 /* Returns everything the section renders for one (fiscalYear × center)
    selection. Pure — no dates read at call time, so the numbers are stable
    across reloads (the prototype's "today" is fixed at 31 ก.ค. 2569). */
-export const buildFinanceReport = ({ fiscalYear = '2569', center = 'all', queue = [] } = {}) => {
+export const buildFinanceReport = ({ fiscalYear = '2569', center = 'all', queue = [], nhso = [] } = {}) => {
   const year = FISCAL_YEARS.find((y) => y.key === fiscalYear) ?? FISCAL_YEARS[0];
   const keys = centerKeys(center);
   const months = FISCAL_MONTHS.slice(0, year.elapsed);
@@ -185,18 +185,36 @@ export const buildFinanceReport = ({ fiscalYear = '2569', center = 'all', queue 
     revenueMonthly[revenueMonthly.length - 1] += today.total;
   }
 
+  /* ยอดที่ สปสช. อนุมัติจากไฟล์ที่นำเข้า (TOR §1.8.6.7 → "ใช้เป็นข้อมูล
+     ประกอบการทำรายงานทางการเงิน"). เป็นเงินที่หน่วยบริการได้รับจริงแบบ
+     เครดิต จึงบวกเข้าช่องทาง "เครดิต" ของ §1.20.3.1 และเข้าเดือนล่าสุดของ
+     ปีงบที่กำลังเดิน — ปีที่ปิดแล้วไม่รับยอดใหม่ เช่นเดียวกับใบเสร็จ. */
+  const nhsoApproved = year.current
+    ? sum(nhso.filter((r) => r.status === 'approved').map((r) => r.approved || 0))
+    : 0;
+  if (nhsoApproved && revenueMonthly.length) {
+    revenueMonthly[revenueMonthly.length - 1] += nhsoApproved;
+  }
+
   const revenueTotal = sum(revenueMonthly);
   const expenseTotal = sum(expenseMonthly);
 
+  /* Everything that came from a real source (today's receipts + the สปสช.
+     statement) is placed at its actual channel; only the remaining mock
+     baseline is spread by the fixed ratios. */
+  const sourced = today.total + nhsoApproved;
+
   const byChannel = REVENUE_CHANNELS.map((c) => ({
     ...c,
-    /* Mock months follow the fixed ratio; today's real receipts are added
-       on top at their actual channel, so a cash-heavy day shows up. */
-    value: round((revenueTotal - today.total) * c.ratio) + (today.byChannel[c.key] || 0),
+    value: round((revenueTotal - sourced) * c.ratio)
+      + (today.byChannel[c.key] || 0)
+      + (c.key === 'credit' ? nhsoApproved : 0),
   }));
 
   const byType = REVENUE_TYPES.map((t) => ({
     ...t,
+    /* A statement line reimburses a whole visit, not a specific charge
+       category, so it follows the baseline mix rather than claiming a type. */
     value: round((revenueTotal - today.total) * t.ratio) + (today.byType[t.key] || 0),
   }));
 
@@ -244,6 +262,7 @@ export const buildFinanceReport = ({ fiscalYear = '2569', center = 'all', queue 
     budgetRows,
     budgetTotal,
     today,
+    nhsoApproved,
   };
 };
 

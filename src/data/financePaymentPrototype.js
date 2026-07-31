@@ -271,6 +271,36 @@ export const FINANCE_QUEUE = VISITS.map((v, idx) => {
 
 export const computeTotals = totalsOf;
 
+/* ราคาขายตาม Payer/สิทธิ — TOR §1.8.9.1. The pricing screen stores a percent
+   adjustment per (หมวดค่าใช้จ่าย × สิทธิ); this applies it to a visit's lines
+   at checkout so the setting is a real price rule rather than a config page
+   nothing reads. The rights group keeps covering the same *proportion* of
+   each line, so raising a price raises both the claim and the patient's
+   share rather than silently shifting cost onto one side. */
+export const applyPricing = (items, rightsKey, adjustments) => {
+  if (!adjustments) return items;
+  return items.map((item) => {
+    const pct = Number(adjustments?.[item.category]?.[rightsKey] ?? 0);
+    if (!pct) return item;
+    const ratio = item.amount > 0 ? item.covered / item.amount : 0;
+    const amount = money(item.amount * (1 + pct / 100));
+    const covered = money(amount * ratio);
+    return {
+      ...item,
+      amount,
+      covered,
+      patientPortion: amount - covered,
+      basePrice: item.basePrice ?? item.amount,
+      pricingPct: pct,
+    };
+  });
+};
+
+/* True when any cell of the matrix is non-zero — used to decide whether the
+   checkout screen should explain that prices were adjusted. */
+export const hasPricingAdjustment = (adjustments, rightsKey) =>
+  !!adjustments && Object.values(adjustments).some((byRights) => Number(byRights?.[rightsKey] ?? 0) !== 0);
+
 export const formatBaht = (n) =>
   `฿${Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 0 })}`;
 
@@ -290,6 +320,16 @@ export const formatTaxId = (id = '') => {
 export const timeToMinutes = (t) => {
   const [h, m] = String(t).split(':').map(Number);
   return h * 60 + m;
+};
+
+/* Sortable instant for a visit — Thai Buddhist date + "H:MM" collapsed into
+   one number. Needed wherever "ครั้งล่าสุด" is asked for (TOR §1.8.7.3):
+   picking the first row that matches an HN only happens to be the latest
+   while the mock holds one visit per patient. */
+export const visitInstant = (row) => {
+  const d = parseThaiBuddhistDate(row.visitDate);
+  if (!d) return 0;
+  return d.getTime() + timeToMinutes(row.visitTime) * 60000;
 };
 
 const startOfDay = (d) => {

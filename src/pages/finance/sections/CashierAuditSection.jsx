@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import Table from '@/components/table/Table';
 import InputField from '@/components/forms/InputField';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import { RIGHTS_GROUPS, formatBaht } from '@/data/financePaymentPrototype';
+import { RIGHTS_GROUPS, formatBaht, visitInstant } from '@/data/financePaymentPrototype';
 
 /* Audit cashier — TOR §1.5 (คู่มือ chapter อ้างอิง "Audit cashier"):
    ตรวจสอบยอดชำระแล้ว/ยอดค้างชำระ แยกตามสิทธิ, และค้นหาวันที่+สิทธิที่
@@ -40,10 +40,21 @@ const CashierAuditSection = ({ queue }) => {
     return byRights.filter((g) => g.rights.label.toLowerCase().includes(q) || g.rights.short.toLowerCase().includes(q));
   }, [byRights, rightsQuery]);
 
+  /* "วันที่และสิทธิที่มาใช้ครั้งล่าสุด" — TOR §1.8.7.3. Take the newest visit
+     among the matches, not whichever row happens to sit first in the queue:
+     one HN can hold several visits once this is wired to real data. */
   const lookupResult = useMemo(() => {
     const q = hn.trim();
     if (!q) return null;
-    return queue.find((r) => r.hn.includes(q) || r.patient.shortName.includes(q)) ?? 'not-found';
+    const matches = queue.filter((r) => r.hn.includes(q) || r.patient.shortName.includes(q));
+    if (matches.length === 0) return 'not-found';
+    return matches.reduce((latest, r) => (visitInstant(r) > visitInstant(latest) ? r : latest));
+  }, [queue, hn]);
+
+  const visitCount = useMemo(() => {
+    const q = hn.trim();
+    if (!q) return 0;
+    return queue.filter((r) => r.hn.includes(q) || r.patient.shortName.includes(q)).length;
   }, [queue, hn]);
 
   const columns = [
@@ -79,7 +90,10 @@ const CashierAuditSection = ({ queue }) => {
           >
             <div className='flex flex-col'>
               <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>{lookupResult.patient.shortName} · HN {lookupResult.hn}</span>
-              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>มาใช้บริการล่าสุด {lookupResult.visitDate} เวลา {lookupResult.visitTime}</span>
+              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+              มาใช้บริการล่าสุด {lookupResult.visitDate} เวลา {lookupResult.visitTime} น.
+              {visitCount > 1 && ` · พบ ${visitCount} ครั้งในระบบ`}
+            </span>
             </div>
             <ColorfulBadge badgeStyle={lookupResult.rights.badge} size='small'>{lookupResult.rights.label}</ColorfulBadge>
           </div>
