@@ -535,6 +535,28 @@ export const priorOrdersFor = (hn) => {
   return [...byOrder.values()].sort((a, b) => b.orderId.localeCompare(a.orderId));
 };
 
+/* Most recent RELEASED result for the same test on the same patient — the
+   input to a delta check on the result-entry screen.
+
+   A delta check is the single highest-value safety catch at result entry: a
+   value that swings wildly from the patient's last one is the classic
+   signature of a mislabelled or switched specimen, and it is far cheaper to
+   question before release than to retract afterwards. Only reported results
+   count, because an unapproved value is not yet a result. */
+export const previousResultFor = (hn, testId, excludeId) => {
+  const candidates = LAB_ORDERS.filter((o) => (
+    o.patient.hn === hn
+    && o.testId === testId
+    && o.status === 'reported'
+    && o.results
+    && o.id !== excludeId
+  ));
+  if (!candidates.length) return null;
+  /* No timestamps richer than 'HH:MM' exist in the mock, so the highest id
+     stands in for "most recent" — ids are issued in order. */
+  return candidates.sort((a, b) => b.id.localeCompare(a.id))[0];
+};
+
 /* ─────────────────────────────────────────────────────────────────────────
    ADVANCE ORDERS — TOR §1.15.4.7 / §1.15.4.8
 

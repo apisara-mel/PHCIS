@@ -333,6 +333,18 @@ const LabSetupPage = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [query, groupFilter, version]);
 
+  /* The edit form renders far below the catalog list, so opening it without
+     moving the viewport reads as "nothing happened". Scroll it into view on
+     the next frame, once the form has actually rendered. */
+  const editFormRef = React.useRef(null);
+  useEffect(() => {
+    if (!form || !editFormRef.current) return;
+    const id = window.requestAnimationFrame(() => {
+      editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [editingId]);
+
   const startEdit = (test) => {
     setEditingId(test.id);
     /* Deep-copy the analytes so editing the draft doesn't mutate the stored
@@ -613,7 +625,7 @@ const LabSetupPage = () => {
 
           {/* ─── Edit form ─── */}
           {form && (
-            <>
+            <div ref={editFormRef} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
               <SectionCard
                 icon='edit'
                 title={editingId === 'new' ? 'เพิ่มรายการตรวจใหม่' : `แก้ไข ${form.nameEn || form.code}`}
@@ -984,7 +996,7 @@ const LabSetupPage = () => {
                   บันทึกรายการตรวจ
                 </BrandButton>
               </section>
-            </>
+            </div>
           )}
         </div>
       </main>

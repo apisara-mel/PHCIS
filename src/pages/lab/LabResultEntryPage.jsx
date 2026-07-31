@@ -12,6 +12,7 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import {
   getLabOrder, updateLabOrder, subscribeOrders, withTestLabel, LAB_STATUS_BY_KEY,
+  previousResultFor,
 } from '@/data/labOrders';
 import { resolveAnalyteRange } from '@/data/labCatalog';
 import {
@@ -102,11 +103,40 @@ const STATUS_TONE = {
 /* One analyte input. The control rendered is decided by the analyte's
    resolved result type — this is §1.15.6.1's "ตามชนิดข้อมูลของผล Lab นั้น"
    made literal. */
-const AnalyteField = ({ test, analyte, value, onChange, row, patient, disabled }) => {
+const AnalyteField = ({ test, analyte, value, onChange, row, patient, disabled, previous, index }) => {
   const type = analyteResultType(test, analyte);
   const range = resolveAnalyteRange(analyte, patient);
   const tone = STATUS_TONE[row?.status ?? 'unknown'] ?? STATUS_TONE.unknown;
   const err = row?.validation?.ok === false && !row.validation.empty ? row.validation.error : null;
+
+  /* Delta check — how far this value has moved since the patient's last
+     released result. A large swing is the classic signature of a switched
+     or mislabelled specimen, so it is surfaced next to the input while the
+     technician can still act on it, not buried in a report afterwards.
+     20% is the conventional flag threshold for most chemistry analytes. */
+  const prevValue = previous?.[analyte.key];
+  let delta = null;
+  if (type === 'numeric' && prevValue != null && row?.validation?.ok) {
+    const now = Number(row.validation.value);
+    const before = Number(prevValue);
+    if (Number.isFinite(now) && Number.isFinite(before) && before !== 0) {
+      const pct = ((now - before) / Math.abs(before)) * 100;
+      delta = { pct, before, big: Math.abs(pct) >= 20 };
+    }
+  }
+
+  /* Keying a four-analyte panel should not need the mouse. Enter moves to
+     the next control in the form, matching how every lab data-entry system
+     the bench has used behaves. */
+  const handleKeyDown = (e) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    e.preventDefault();
+    const form = e.target.closest('.mih-lab-result-fields');
+    if (!form) return;
+    const fields = [...form.querySelectorAll('input:not([disabled]), select:not([disabled]), textarea:not([disabled])')];
+    const i = fields.indexOf(e.target);
+    if (i >= 0 && i < fields.length - 1) fields[i + 1].focus();
+  };
 
   return (
     <div
@@ -142,6 +172,7 @@ const AnalyteField = ({ test, analyte, value, onChange, row, patient, disabled }
           <select
             value={value ?? ''}
             onChange={(e) => onChange(e.target.value)}
+            onKeyDown={handleKeyDown}
             disabled={disabled}
             style={FIELD_STYLE}
             aria-label={analyte.label}
@@ -156,6 +187,7 @@ const AnalyteField = ({ test, analyte, value, onChange, row, patient, disabled }
               inputMode='decimal'
               value={value ?? ''}
               onChange={(e) => onChange(e.target.value)}
+              onKeyDown={handleKeyDown}
               disabled={disabled}
               placeholder='ตัวเลข'
               aria-label={analyte.label}
@@ -181,12 +213,36 @@ const AnalyteField = ({ test, analyte, value, onChange, row, patient, disabled }
         )}
       </div>
 
-      <div className='flex items-center' style={{ minWidth: 110, gap: 'var(--dim-space-150)', color: tone.text }}>
-        {tone.icon && row?.status !== 'unknown' && !err && (
-          <>
-            <Icon name={tone.icon} size={16} />
-            <span className='text-xs' style={{ fontWeight: 'var(--type-weight-medium)' }}>{tone.label}</span>
-          </>
+      <div className='flex flex-col' style={{ minWidth: 150, gap: 2 }}>
+        <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)', color: tone.text }}>
+          {tone.icon && row?.status !== 'unknown' && !err && (
+            <>
+              <Icon name={tone.icon} size={16} />
+              <span className='text-xs' style={{ fontWeight: 'var(--type-weight-medium)' }}>{tone.label}</span>
+            </>
+          )}
+        </span>
+        {/* Previous value is shown whether or not a new one has been keyed —
+            knowing where the patient was last time is useful context while
+            typing, not only after. */}
+        {prevValue != null && (
+          <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>
+            ครั้งก่อน {prevValue}{analyte.unit ? ` ${analyte.unit}` : ''}
+          </span>
+        )}
+        {delta && (
+          <span
+            className='inline-flex items-center text-xs'
+            style={{
+              gap: 4,
+              fontWeight: delta.big ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)',
+              color: delta.big ? 'var(--text-statusbadge-warning, #C2410C)' : 'var(--text-content-tertiary)',
+            }}
+          >
+            <Icon name={delta.pct > 0 ? 'arrow_upward' : 'arrow_downward'} size={12} />
+            {delta.pct > 0 ? '+' : ''}{delta.pct.toFixed(0)}%
+            {delta.big && ' — ต่างจากเดิมมาก ตรวจสอบว่าสลับตัวอย่างหรือไม่'}
+          </span>
         )}
       </div>
     </div>
@@ -234,6 +290,13 @@ const LabResultEntryPage = () => {
   const evalResult = useMemo(
     () => (order ? evaluateResult(order.testId, values, order.patient) : null),
     [order, values],
+  );
+
+  /* Patient's last released result for this same test — the delta-check
+     baseline shown beside each input. */
+  const previousResult = useMemo(
+    () => (order ? previousResultFor(order.patient.hn, order.testId, order.id) : null),
+    [order],
   );
 
   if (!order) {
@@ -418,8 +481,8 @@ const LabResultEntryPage = () => {
               )
             }
           >
-            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-              {(test?.analytes ?? []).map((a) => {
+            <div className='mih-lab-result-fields flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              {(test?.analytes ?? []).map((a, ai) => {
                 const row = evalResult?.rows.find((r) => r.analyte.key === a.key);
                 return (
                   <AnalyteField
@@ -430,6 +493,8 @@ const LabResultEntryPage = () => {
                     onChange={(v) => setValue(a.key, v)}
                     row={row}
                     patient={order.patient}
+                    previous={previousResult?.results ?? null}
+                    index={ai}
                     /* A derived value (eGFR) is computed, never keyed. */
                     disabled={a.derived}
                   />
