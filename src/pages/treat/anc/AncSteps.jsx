@@ -58,6 +58,16 @@ import {
   getNextAncAppointmentPlan,
   getAncVisitHistoryByHn,
   saveAncVisitRecord,
+  ANC_PERVISIT_RISK_FACTORS,
+  ANC_GDM_SCREENING_FACTORS,
+  interpretPerVisitRisk,
+  ANC_URINE_SUGAR_OPTIONS,
+  ANC_URINE_ALBUMIN_OPTIONS,
+  ANC_FUNDUS_LEVEL_OPTIONS,
+  ANC_PRESENTATION_OPTIONS,
+  ANC_DESCENT_OPTIONS,
+  ANC_FETAL_MOVEMENT_OPTIONS,
+  saveAncRegistration,
 } from '@/data/ancVisits';
 
 /* AncSteps — ANC (แผนกฝากครรภ์) form bodies, plugged into the shared
@@ -164,7 +174,25 @@ const STEP1_BASE_SECTIONS = [
   { key: 'documents',   label: 'เอกสารแนบ' },
 ];
 
-export const AncStep1History = ({ form, setForm, cardPatient }) => {
+/* Which Step-1 card each carried-forward registration field belongs to, so
+   the follow-up banner can name the sections that were pre-filled instead
+   of listing raw field keys. Fields that map to the same card collapse to
+   one label. */
+const CARRIED_FIELD_SECTION = {
+  illnessHistory: 'ประวัติเจ็บป่วย',
+  gravida: 'ประวัติสูติกรรม', para: 'ประวัติสูติกรรม', abortion: 'ประวัติสูติกรรม',
+  livingChildren: 'ประวัติสูติกรรม', lmp: 'ประวัติสูติกรรม', obstetricHistory: 'ประวัติสูติกรรม',
+  breastExamNote: 'เต้านม/สามี', spouseHealthNote: 'เต้านม/สามี',
+  husbandLabResults: 'Lab สามี/คู่',
+  tetanusDoseCount: 'วัคซีน dT', tetanusLastDoseYear: 'วัคซีน dT', tetanusExempt: 'วัคซีน dT',
+  familyIllnessHistory: 'ประวัติครอบครัว', familyIllnessOtherNote: 'ประวัติครอบครัว',
+  motherChildHealthBookGiven: 'วัคซีน dT',
+  riskFactors: 'ความเสี่ยงการตั้งครรภ์',
+  gdmScreeningFactors: 'คัดกรองเบาหวาน',
+  labResults: 'ผลตรวจ Lab',
+};
+
+export const AncStep1History = ({ form, setForm, cardPatient, visitNo = 1, isFollowUp = false, carriedFields = [] }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
   const toggleFamilyIllness = (key) => setForm((f) => ({
     ...f,
@@ -212,8 +240,46 @@ export const AncStep1History = ({ form, setForm, cardPatient }) => {
     ? [...STEP1_BASE_SECTIONS, { key: 'trend', label: 'ประวัติการฝากครรภ์' }]
     : STEP1_BASE_SECTIONS;
 
+  /* Distinct section names, in ANC_REGISTRATION_FIELDS order. */
+  const carriedSections = useMemo(() => {
+    const seen = [];
+    carriedFields.forEach((key) => {
+      const label = CARRIED_FIELD_SECTION[key];
+      if (label && !seen.includes(label)) seen.push(label);
+    });
+    return seen;
+  }, [carriedFields]);
+
   return (
     <StepCard>
+      {/* Follow-up visits (ตรวจครรภ์ครั้งที่ 2+) open with the pregnancy-level
+          ทะเบียนฝากครรภ์ already filled in from earlier visits — legacy HCIS
+          keeps that on its own screen (§2.2) and only ever asks for it once.
+          The banner names what was carried so the clinician knows which
+          answers are inherited (and still editable — TOR 1.10.7.6 "แก้ไข")
+          rather than freshly taken today. */}
+      {isFollowUp && carriedSections.length > 0 && (
+        <div
+          className='flex items-start gap-2 w-full'
+          style={{
+            paddingTop: 'var(--dim-space-300, 12px)',
+            paddingBottom: 'var(--dim-space-300, 12px)',
+            paddingLeft: 'var(--dim-space-400, 16px)',
+            paddingRight: 'var(--dim-space-400, 16px)',
+            borderRadius: 'var(--dim-radius-200, 8px)',
+            background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+            color: 'var(--text-brandPrimary-default, #007549)',
+            fontSize: 'var(--type-size-sm)',
+          }}
+        >
+          <Icon name='history' size={18} />
+          <span>
+            ตรวจครรภ์ครั้งที่ {visitNo} — ดึงข้อมูลทะเบียนฝากครรภ์จากครั้งก่อนหน้ามาให้แล้ว
+            ({carriedSections.join(', ')}) ตรวจสอบและแก้ไขได้หากมีการเปลี่ยนแปลง
+          </span>
+        </div>
+      )}
+
       <div className='flex items-center gap-2 flex-wrap'>
         {step1Sections.map((s) => (
           <TabCapsule
@@ -401,15 +467,22 @@ export const AncStep1History = ({ form, setForm, cardPatient }) => {
       {history.length > 0 && (
         <AssessmentCard ref={(el) => { sectionRefs.current.trend = el; }}>
           <TopicHeader icon='history'>การติดตามการฝากครรภ์ (ครั้งก่อนหน้า)</TopicHeader>
+          {/* Column set mirrors the legacy exam-history grid (p.2-10):
+              ครั้งที่ · วันที่ตรวจ · การตรวจปัสสาวะ · BP · มดลูก · ส่วนนำ ·
+              เสียงหัวใจเด็ก — plus the trending columns TOR 1.10.7.8 adds
+              (น้ำหนัก, ความเสี่ยง, ผล Lab). `visitNo` is backfilled from row
+              order for records saved before it was captured. */}
           <Table
             columns={[
+              { key: 'visitNo', label: 'ครั้งที่', width: 72, render: (r, i) => r.visitNo ?? (i + 1) },
               { key: 'date', label: 'วันที่', width: 128 },
               { key: 'gestWeeks', label: 'อายุครรภ์', width: 96, render: (r) => `${r.gestWeeks} สัปดาห์` },
               { key: 'fundusHeight', label: 'ยอดมดลูก', width: 112 },
+              { key: 'presentation', label: 'ส่วนนำ', width: 112, render: (r) => r.presentation || '-' },
               { key: 'fetalHeartRate', label: 'FHR', width: 96 },
               { key: 'bp', label: 'BP', width: 96 },
               { key: 'weight', label: 'น้ำหนัก', width: 96, render: (r) => `${r.weight} กก.` },
-              { key: 'urineResult', label: 'ปัสสาวะ', width: 112, render: (r) => r.urineResult || '-' },
+              { key: 'urineResult', label: 'ปัสสาวะ', width: 140, render: (r) => r.urineResult || '-' },
               {
                 key: 'riskLevel', label: 'ความเสี่ยง', width: 128,
                 render: (r) => resolveAncRiskLevel(r.riskLevel)?.label || '-',
@@ -418,7 +491,7 @@ export const AncStep1History = ({ form, setForm, cardPatient }) => {
               { key: 'note', label: 'บันทึก', flex: true, minWidth: 200 },
             ]}
             rows={history}
-            rowKey={(r) => `${r.date}-${r.gestWeeks}`}
+            rowKey={(r) => `${r.visitNo ?? ''}-${r.date}-${r.gestWeeks}`}
             emptyMessage='ไม่มีประวัติการฝากครรภ์ครั้งก่อนหน้า'
           />
         </AssessmentCard>
@@ -438,6 +511,8 @@ const ASSESSMENT_SECTIONS = [
   { key: 'stress',  label: 'ความเครียด (ST-5)' },
   { key: 'mental',  label: 'สุขภาพจิต (2Q)' },
   { key: 'risk',    label: 'ความเสี่ยงการตั้งครรภ์' },
+  { key: 'perVisitRisk', label: 'ภาวะเสี่ยงครั้งนี้' },
+  { key: 'gdm',     label: 'คัดกรองเบาหวาน' },
   { key: 'danger',  label: 'สัญญาณอันตราย' },
   { key: 'smoking', label: 'การสูบบุหรี่' },
 ];
@@ -466,6 +541,17 @@ export const AncStep2Screening = ({ form, setForm }) => {
     ...f,
     dangerSigns: { ...f.dangerSigns, [key]: !f.dangerSigns[key] },
   }));
+  const togglePerVisitRisk = (key) => setForm((f) => ({
+    ...f,
+    perVisitRiskFactors: { ...f.perVisitRiskFactors, [key]: !f.perVisitRiskFactors[key] },
+  }));
+  const toggleGdmFactor = (key) => setForm((f) => ({
+    ...f,
+    gdmScreeningFactors: { ...f.gdmScreeningFactors, [key]: !f.gdmScreeningFactors[key] },
+  }));
+
+  const perVisitRisk = interpretPerVisitRisk(form.perVisitRiskFactors);
+  const gdmFlaggedCount = Object.values(form.gdmScreeningFactors || {}).filter(Boolean).length;
 
   const stressAnsweredCount = Object.keys(form.stressAnswers).length;
   const anyMentalYes = Object.values(form.mentalHealthAnswers).some((v) => v === true);
@@ -589,6 +675,54 @@ export const AncStep2Screening = ({ form, setForm }) => {
         />
       </AssessmentCard>
 
+      {/* ภาวะเสี่ยงที่ต้องประเมิน "ทุกครั้งที่มีการให้บริการตรวจครรภ์" —
+          legacy p.2-13, items 8-20. Unlike the registration risk panel
+          above (history facts, carried forward), every item here is a
+          finding of TODAY's visit, so it starts blank at each follow-up
+          and any tick means "ต้องส่งต่อหรือรายงานแพทย์". */}
+      <AssessmentCard ref={(el) => { sectionRefs.current.perVisitRisk = el; }}>
+        <TopicHeader icon='clipboard-list'>ภาวะเสี่ยงที่ประเมินทุกครั้งที่ตรวจครรภ์</TopicHeader>
+        <div className='flex items-center gap-3 flex-wrap'>
+          {ANC_PERVISIT_RISK_FACTORS.map((rf) => (
+            <SelectableTag
+              key={rf.key}
+              label={rf.label}
+              size='lg'
+              selected={!!form.perVisitRiskFactors[rf.key]}
+              onClick={() => togglePerVisitRisk(rf.key)}
+            />
+          ))}
+        </div>
+        {perVisitRisk.mustRefer && (
+          <ColorfulBadge style='red' size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+            พบภาวะเสี่ยง {perVisitRisk.flagged.length} ข้อ — ต้องส่งต่อหรือรายงานแพทย์
+          </ColorfulBadge>
+        )}
+      </AssessmentCard>
+
+      {/* แบบคัดกรองเบาหวานในหญิงมีครรภ์ — legacy p.2-13, third panel. These
+          are history-based facts (carried forward), and a positive screen
+          is what justifies the GCT/OGTT orders Step 5 offers at 20-27wk. */}
+      <AssessmentCard ref={(el) => { sectionRefs.current.gdm = el; }}>
+        <TopicHeader icon='activity'>แบบคัดกรองเบาหวานในหญิงมีครรภ์</TopicHeader>
+        <div className='flex items-center gap-3 flex-wrap'>
+          {ANC_GDM_SCREENING_FACTORS.map((rf) => (
+            <SelectableTag
+              key={rf.key}
+              label={rf.label}
+              size='lg'
+              selected={!!form.gdmScreeningFactors[rf.key]}
+              onClick={() => toggleGdmFactor(rf.key)}
+            />
+          ))}
+        </div>
+        {gdmFlaggedCount > 0 && (
+          <ColorfulBadge style='yellow' size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+            พบปัจจัยเสี่ยงเบาหวาน {gdmFlaggedCount} ข้อ — ควรคัดกรองด้วย GCT (24-28 สัปดาห์) ในขั้นตอนสั่งการรักษา
+          </ColorfulBadge>
+        )}
+      </AssessmentCard>
+
       {/* สัญญาณอันตราย — exact referral triggers from the official manual
           pp.11-12. Any checked item is an immediate-referral situation,
           not a routine risk factor, so it gets its own red-flagged
@@ -659,6 +793,23 @@ export const AncStep2Screening = ({ form, setForm }) => {
 export const AncStep3Examination = ({ form, setForm }) => {
   const setVital = (key) => (value) => setForm((f) => ({ ...f, vitals: { ...f.vitals, [key]: value } }));
 
+  const gaByLmp = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
+
+  /* Anything past a Trace reading counts as positive for risk item 10 —
+     Trace alone is not actionable on its own per the dipstick convention. */
+  const POSITIVE_DIPSTICK = ['1+', '2+', '3+', '4+'];
+  const abnormalUrine = POSITIVE_DIPSTICK.includes(form.urineSugar)
+    || POSITIVE_DIPSTICK.includes(form.urineAlbumin);
+
+  /* Only flag a clinically meaningful gap. ±2 weeks is normal measurement
+     spread on fundal height; 3+ is what the legacy risk item is after. */
+  const gaMismatch = useMemo(() => {
+    const exam = Number(form.gaByExam);
+    if (!gaByLmp || !form.gaByExam || !Number.isFinite(exam)) return 0;
+    const diff = Math.abs(gaByLmp.weeks - exam);
+    return diff >= 3 ? diff : 0;
+  }, [gaByLmp, form.gaByExam]);
+
   return (
     <StepCard>
       <div className='flex flex-col gap-3'>
@@ -682,6 +833,38 @@ export const AncStep3Examination = ({ form, setForm }) => {
         </div>
       </div>
 
+      {/* ตรวจปัสสาวะ — the legacy exam screen (p.2-10) records Sugar and
+          Albumin as two separate dipstick grades, not one ปกติ/ผิดปกติ
+          flag; per-visit risk item 10 keys off either being positive. */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='biotech'>ตรวจปัสสาวะ (Urine dipstick)</TopicHeader>
+        <div className='flex items-start gap-4 w-full flex-wrap'>
+          <Field label='น้ำตาล (Sugar)'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.urineSugar}
+              onChange={(v) => setForm((f) => ({ ...f, urineSugar: v }))}
+              options={ANC_URINE_SUGAR_OPTIONS}
+              placeholder='เลือกผลตรวจน้ำตาล'
+            />
+          </Field>
+          <Field label='ไข่ขาว (Albumin)'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.urineAlbumin}
+              onChange={(v) => setForm((f) => ({ ...f, urineAlbumin: v }))}
+              options={ANC_URINE_ALBUMIN_OPTIONS}
+              placeholder='เลือกผลตรวจไข่ขาว'
+            />
+          </Field>
+        </div>
+        {abnormalUrine && (
+          <ColorfulBadge style='red' size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+            พบน้ำตาลและ/หรือไข่ขาวในปัสสาวะ — เข้าเกณฑ์ภาวะเสี่ยงที่ต้องรายงานแพทย์ (ข้อ 10)
+          </ColorfulBadge>
+        )}
+      </div>
+
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='activity'>ตรวจครรภ์</TopicHeader>
         <div className='flex items-start gap-4 w-full flex-wrap'>
@@ -693,6 +876,40 @@ export const AncStep3Examination = ({ form, setForm }) => {
               placeholder='เช่น 20'
             />
           </Field>
+          <Field label='ระดับมดลูก'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.fundusLevel}
+              onChange={(v) => setForm((f) => ({ ...f, fundusLevel: v }))}
+              options={ANC_FUNDUS_LEVEL_OPTIONS}
+              placeholder='เลือกระดับมดลูก'
+            />
+          </Field>
+          <Field label='ส่วนนำ (Presentation)'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.presentation}
+              onChange={(v) => setForm((f) => ({ ...f, presentation: v }))}
+              options={ANC_PRESENTATION_OPTIONS}
+              placeholder='เลือกส่วนนำ'
+            />
+          </Field>
+          <Field label='การลง (Descent)'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.descent}
+              onChange={(v) => setForm((f) => ({ ...f, descent: v }))}
+              options={ANC_DESCENT_OPTIONS}
+              placeholder='เลือกการลง'
+            />
+          </Field>
+          <Field label='ท่าเด็ก'>
+            <InputField
+              value={form.fetalPosition}
+              onChange={(v) => setForm((f) => ({ ...f, fetalPosition: v }))}
+              placeholder='เช่น LOA / ROA'
+            />
+          </Field>
           <Field label='อัตราการเต้นหัวใจทารก (FHR, bpm)'>
             <InputField
               value={form.fetalHeartRate}
@@ -701,7 +918,51 @@ export const AncStep3Examination = ({ form, setForm }) => {
               placeholder='เช่น 148'
             />
           </Field>
+          <Field label='เด็กดิ้น'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.fetalMovement}
+              onChange={(v) => setForm((f) => ({ ...f, fetalMovement: v }))}
+              options={ANC_FETAL_MOVEMENT_OPTIONS}
+              placeholder='เลือกการดิ้นของทารก'
+            />
+          </Field>
         </div>
+      </div>
+
+      {/* อายุครรภ์ 3 ทาง — the legacy screen (p.2-10) keeps LMP, ตรวจครรภ์
+          and อัลตราซาวด์ estimates side by side precisely because they
+          disagree; a gap between LMP and clinical exam IS per-visit risk
+          item 14 ("ขนาดของมดลูกไม่สัมพันธ์กับอายุครรภ์"), so the mismatch
+          is surfaced rather than left for the clinician to subtract. */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='clipboard'>อายุครรภ์ (เปรียบเทียบ 3 วิธี)</TopicHeader>
+        <div className='flex items-start gap-4 w-full flex-wrap'>
+          <Field label='จากการคำนวณ LMP (สัปดาห์)' hint={gaByLmp ? formatGestationalAge(gaByLmp) : 'ระบุ LMP ในขั้นตอนที่ 1'}>
+            <InputField value={gaByLmp ? String(gaByLmp.weeks) : ''} onChange={() => {}} disabled placeholder='—' />
+          </Field>
+          <Field label='จากการตรวจครรภ์ (สัปดาห์)'>
+            <InputField
+              value={form.gaByExam}
+              onChange={(v) => setForm((f) => ({ ...f, gaByExam: v }))}
+              type='number'
+              placeholder='เช่น 20'
+            />
+          </Field>
+          <Field label='จากการอัลตราซาวด์ (สัปดาห์)'>
+            <InputField
+              value={form.gaByUltrasoundWeeks}
+              onChange={(v) => setForm((f) => ({ ...f, gaByUltrasoundWeeks: v }))}
+              type='number'
+              placeholder='เช่น 20'
+            />
+          </Field>
+        </div>
+        {gaMismatch && (
+          <ColorfulBadge style='yellow' size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+            อายุครรภ์จากการตรวจครรภ์ต่างจาก LMP {gaMismatch} สัปดาห์ — พิจารณาภาวะเสี่ยงข้อ 14 (ขนาดมดลูกไม่สัมพันธ์กับอายุครรภ์)
+          </ColorfulBadge>
+        )}
       </div>
 
       <div className='flex flex-col gap-3'>
@@ -1134,7 +1395,7 @@ export const AncStep6Appointment = ({ form, setForm }) => {
 /* ── Step 7 — ใบฝากครรภ์ ───────────────────────────────────────────
    ANC-card + appointment-slip print preview (TOR 1.10.7.5/.6), same
    print-card shell shape as `Step7Certificate` in TreatmentSteps.jsx. */
-export const AncStep7Card = ({ form, setForm, patient, cardPatient }) => {
+export const AncStep7Card = ({ form, setForm, patient, cardPatient, visitNo = 1 }) => {
   const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
   const edc = useMemo(() => calculateEDC(form.lmp), [form.lmp]);
   const riskLevel = resolveAncRiskLevel(form.riskLevel);
@@ -1145,18 +1406,34 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient }) => {
        static mock rows. */
     /* `cardPatient.hn` (patientProfiles.js) is canonical — see
        AncStep1History for why `patient.hn` (MR roster) isn't safe here. */
+    /* Urine now comes from the two dipstick grades the legacy exam screen
+       records (p.2-10); the older single ปกติ/ผิดปกติ lab field is kept as
+       a fallback so visits saved before this change still read correctly. */
+    const urineParts = [
+      form.urineSugar ? `น้ำตาล ${form.urineSugar}` : '',
+      form.urineAlbumin ? `ไข่ขาว ${form.urineAlbumin}` : '',
+    ].filter(Boolean);
+
     saveAncVisitRecord(cardPatient?.hn, {
+      visitNo,
       date: formatAncDate(new Date()),
       gestWeeks: gestationalAge?.weeks ?? '-',
       fundusHeight: form.fundusHeight ? `${form.fundusHeight} ซม.` : '-',
+      presentation: ANC_PRESENTATION_OPTIONS.find((o) => o.value === form.presentation)?.label || '-',
       fetalHeartRate: form.fetalHeartRate ? `${form.fetalHeartRate} bpm` : '-',
       bp: form.vitals.bp,
       weight: form.vitals.weight,
-      urineResult: form.labResults?.urineResult || '-',
+      urineResult: urineParts.join(' · ') || form.labResults?.urineResult || '-',
       riskLevel: form.riskLevel || '-',
       labSummary: summarizeLabResults(form.labResults),
       note: summarizeAncProcedures(form) || form.diagnosisNote || form.currentPregnancyNote || '-',
     });
+
+    /* Persist the pregnancy-level ทะเบียนฝากครรภ์ (legacy §2.2) so the next
+       visit opens pre-filled instead of blank — this is what makes visit 2+
+       a follow-up rather than a second first-visit. Saved on confirm, the
+       same moment the visit itself becomes part of the record. */
+    saveAncRegistration(cardPatient?.hn, form);
     setForm((f) => ({
       ...f,
       cardConfirmed: true,
@@ -1193,6 +1470,7 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient }) => {
           <div className='grid grid-cols-2 gap-x-6 gap-y-2' style={{ fontSize: 'var(--type-size-sm)' }}>
             <span>HN: {cardPatient?.hn}</span>
             <span>ชื่อ-สกุล: {cardPatient?.fullName || patient?.name}</span>
+            <span>ตรวจครรภ์ครั้งที่: {visitNo}</span>
             <span>ครรภ์ที่ (G-P-A-L): {form.gravida || '—'}-{form.para || 0}-{form.abortion || 0}-{form.livingChildren || 0}</span>
             <span>LMP: {formatAncDate(form.lmp)}</span>
             <span>กำหนดคลอด (EDC): {formatAncDate(edc)}</span>

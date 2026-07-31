@@ -14,7 +14,7 @@ import {
 import AncPregnancyProgress from '@/pages/treat/anc/AncPregnancyProgress';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
-import { DEFAULT_ANC_VISIT, getAncCompletedSteps, getAncPatientByHn } from '@/data/ancVisits';
+import { buildAncVisitForm, getAncCompletedSteps, getAncPatientByHn } from '@/data/ancVisits';
 
 /* AncFormPage — บันทึกการรักษา แผนกฝากครรภ์ (ANC), first-visit MVP.
    Mirrors TreatmentFormPage.jsx: owns one form-state object across all
@@ -37,17 +37,6 @@ const ANC_STEPS = [
   { title: 'ใบฝากครรภ์', subtitle: 'ANC Card' },
 ];
 
-const buildInitialForm = (ancPatient) => {
-  if (!ancPatient) return { ...DEFAULT_ANC_VISIT };
-  return {
-    ...DEFAULT_ANC_VISIT,
-    gravida: String(ancPatient.gravida ?? ''),
-    para: String(ancPatient.para ?? ''),
-    lmp: ancPatient.lmp || '',
-    riskLevel: ancPatient.visitType === 'followup' ? ancPatient.riskLevel : '',
-  };
-};
-
 const STEP_RENDERERS = [
   AncStep1History, AncStep2Screening, AncStep3Examination, AncStep4Diagnosis,
   AncStep5Orders, AncStep6Appointment, AncStep7Card,
@@ -69,8 +58,17 @@ const AncFormPage = () => {
 
   const ancPatient = useMemo(() => (navState?.hn && getAncPatientByHn(navState.hn)) || null, [navState?.hn]);
 
+  /* One seed per mount. `cardPatient.hn` is the canonical HN (see
+     AncStep1History) — the registration + visit history are keyed by it, so
+     the follow-up carry-forward has to read from the same key Step 7
+     writes to, not the MR roster's HN. */
+  const seed = useMemo(
+    () => buildAncVisitForm(cardPatient?.hn, ancPatient),
+    [cardPatient?.hn, ancPatient],
+  );
+
   const [stepIndex, setStepIndex] = useState(0);
-  const [form, setForm] = useState(() => buildInitialForm(ancPatient));
+  const [form, setForm] = useState(() => seed.form);
 
   const ActiveStep = STEP_RENDERERS[stepIndex];
 
@@ -88,7 +86,7 @@ const AncFormPage = () => {
         <PatientCard
           sticky
           patient={cardPatient}
-          title='บันทึกฝากครรภ์'
+          title={`บันทึกฝากครรภ์ — ตรวจครรภ์ครั้งที่ ${seed.visitNo}`}
           onBack={() => history.push('/treat/anc/queue')}
           drugAllergies={patient.drugAllergies}
           chronicDiseases={patient.chronicDiseases}
@@ -110,6 +108,9 @@ const AncFormPage = () => {
             setForm={setForm}
             patient={patient}
             cardPatient={cardPatient}
+            visitNo={seed.visitNo}
+            isFollowUp={seed.isFollowUp}
+            carriedFields={seed.carriedFields}
           />
         </TreatmentFormShell>
         <Footer />
