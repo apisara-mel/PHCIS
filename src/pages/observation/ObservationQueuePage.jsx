@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import StatusBadge from '@/components/badge/StatusBadge';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Alert from '@/components/alert/Alert';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
@@ -101,31 +103,6 @@ const ER_TRANSFER_REASON_SUGGESTIONS = [
   'หายใจหอบเหนื่อยมากขึ้น ใช้กล้ามเนื้อช่วยหายใจ',
 ];
 
-/* Overstay / EWS Red Alert chip — one shared pill so the grid card, the
-   table row and the Full Capacity banner can't drift apart in tone.
-   `tone` maps to the colourful-badge token trio (design.md §4). */
-const AlertChip = ({ tone = 'red', icon, children }) => (
-  <span
-    className='inline-flex items-center whitespace-nowrap'
-    style={{
-      gap: 'var(--dim-space-100, 4px)',
-      paddingTop: 'var(--dim-space-050, 2px)',
-      paddingBottom: 'var(--dim-space-050, 2px)',
-      paddingLeft: 'var(--dim-space-200, 8px)',
-      paddingRight: 'var(--dim-space-200, 8px)',
-      borderRadius: 'var(--dim-radius-150, 6px)',
-      background: tone === 'red' ? 'var(--surface-colorfulbadge-red, #FEE2E2)' : 'var(--surface-colorfulbadge-orange, #FFEDD5)',
-      color: tone === 'red' ? 'var(--text-colorfulbadge-red, #B91C1C)' : 'var(--text-colorfulbadge-orange, #C2410C)',
-      border: `var(--dim-stroke-100, 1px) solid ${tone === 'red' ? 'var(--surface-colorfulbadge-red-bold, #EF4444)' : 'var(--surface-colorfulbadge-orange-bold, #F97316)'}`,
-      fontSize: 'var(--type-size-xs)',
-      fontWeight: 'var(--type-weight-bold)',
-    }}
-  >
-    {icon && <span className='material-symbols-outlined' style={{ fontSize: 14 }}>{icon}</span>}
-    {children}
-  </span>
-);
-
 /* A bed row only carries patient data while it is occupied — both an
    empty bed and one waiting to be cleaned render as "no patient". */
 const hasPatient = (patient) => patient.status !== 'empty' && patient.status !== BED_CLEANING_STATUS;
@@ -210,7 +187,7 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
           </div>
           {overstay && (
             <div style={{ marginTop: 'var(--dim-space-100, 4px)' }}>
-              <AlertChip tone='orange' icon='hourglass_top'>เกิน {OVERSTAY_LIMIT_MINUTES / 60} ชม.</AlertChip>
+              <ColorfulBadge width='hug' style='orange' icon='hourglass_top'>เกิน {OVERSTAY_LIMIT_MINUTES / 60} ชม.</ColorfulBadge>
             </div>
           )}
         </div>
@@ -294,7 +271,7 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
       return (
         <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <StatusBadge style={style} size='small'>{label}</StatusBadge>
-          {redAlert && <AlertChip tone='red' icon='emergency_home'>Code Red</AlertChip>}
+          {redAlert && <ColorfulBadge width='hug' style='red' icon='emergency_home'>Code Red</ColorfulBadge>}
         </div>
       );
     },
@@ -849,6 +826,13 @@ export default function ObservationQueuePage() {
      naming the destination), so an escalated patient lands in the
      "รายการที่ส่งต่อแล้ว" tab exactly like any other referral instead of
      inventing a fourth status the filters don't know about. */
+  /* Latest score for the patient being escalated — read by the Code Red
+     popup's own alert copy. */
+  const erTransferEws = (() => {
+    const lv = erTransferPatient?.vitalsTrend?.[erTransferPatient.vitalsTrend.length - 1];
+    return lv ? scorePatientVitals(erTransferPatient, lv).score : 0;
+  })();
+
   const handleConfirmErTransfer = () => {
     if (!erTransferPatient) return;
     const now = new Date();
@@ -1160,31 +1144,17 @@ export default function ObservationQueuePage() {
             any one row: every bed is taken, so the only way to place the
             next emergency patient is to register an extra bed. */}
         {isFullCapacity && (
-          <div
-            role='alert'
-            className='w-full flex flex-wrap items-center'
-            style={{
-              gap: 'var(--dim-space-300)',
-              background: 'var(--surface-colorfulbadge-red, #FEE2E2)',
-              border: 'var(--dim-stroke-100) solid var(--surface-colorfulbadge-red-bold, #EF4444)',
-              borderRadius: 'var(--dim-radius-400)',
-              paddingTop: 'var(--dim-space-400)',
-              paddingRight: 'var(--dim-space-500)',
-              paddingBottom: 'var(--dim-space-400)',
-              paddingLeft: 'var(--dim-space-500)',
-            }}
-          >
-            <span className='material-symbols-outlined' style={{ fontSize: 24, color: 'var(--text-colorfulbadge-red, #B91C1C)' }}>
-              do_not_disturb_on
-            </span>
-            <div className='flex-1 min-w-0'>
-              <div style={{ color: 'var(--text-colorfulbadge-red, #B91C1C)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>
-                เตียงเต็มทุกเตียง (Full Capacity)
-              </div>
-              <div style={{ color: 'var(--text-colorfulbadge-red, #B91C1C)', fontSize: 'var(--type-size-sm)' }}>
-                เตียงสังเกตอาการถูกครองครบทั้ง {totalBeds} เตียง — หากมีผู้ป่วยฉุกเฉินต้องการเตียงเพิ่ม ให้ลงทะเบียนเตียงเสริม ({nextBedNo})
-              </div>
-            </div>
+          <div className='w-full flex flex-wrap items-center' style={{ gap: 'var(--dim-space-400)' }}>
+            <Alert
+              type='error'
+              title='เตียงเต็มทุกเตียง (Full Capacity)'
+              subtext={`เตียงสังเกตอาการถูกครองครบทั้ง ${totalBeds} เตียง — หากมีผู้ป่วยฉุกเฉินต้องการเตียงเพิ่ม ให้ลงทะเบียนเตียงเสริม (${nextBedNo})`}
+              showCloseButton={false}
+              className='flex-1 min-w-0'
+              /* Alert caps itself at 768px; this banner is a full-width
+                 ward-level notice, so let it use the row it is given. */
+              style={{ maxWidth: '100%' }}
+            />
             <BrandPrimaryButton
               leadingIcon='add'
               onClick={() => {
@@ -1407,7 +1377,7 @@ export default function ObservationQueuePage() {
                   </h3>
                   {patient.isExtraBed && (
                     <div style={{ marginBottom: 'var(--dim-space-150, 6px)' }}>
-                      <AlertChip tone='orange' icon='airline_seat_flat'>เตียงเสริม (Extra Bed)</AlertChip>
+                      <ColorfulBadge width='hug' style='orange' icon='airline_seat_flat'>เตียงเสริม (Extra Bed)</ColorfulBadge>
                     </div>
                   )}
                   <p
@@ -1515,17 +1485,17 @@ export default function ObservationQueuePage() {
                   {(isRedAlert || overstay || patient.isExtraBed) && (
                     <div className='flex flex-wrap mb-3' style={{ gap: 'var(--dim-space-150, 6px)' }}>
                       {isRedAlert && (
-                        <AlertChip tone='red' icon='emergency_home'>
+                        <ColorfulBadge width='hug' style='red' icon='emergency_home'>
                           EWS Red Alert (EWS {ewsResult?.score}) — อาการทรุดลง
-                        </AlertChip>
+                        </ColorfulBadge>
                       )}
                       {overstay && (
-                        <AlertChip tone='orange' icon='hourglass_top'>
+                        <ColorfulBadge width='hug' style='orange' icon='hourglass_top'>
                           Overstay Warning (เกิน {OVERSTAY_LIMIT_MINUTES / 60} ชม.)
-                        </AlertChip>
+                        </ColorfulBadge>
                       )}
                       {patient.isExtraBed && (
-                        <AlertChip tone='orange' icon='airline_seat_flat'>เตียงเสริม (Extra Bed)</AlertChip>
+                        <ColorfulBadge width='hug' style='orange' icon='airline_seat_flat'>เตียงเสริม (Extra Bed)</ColorfulBadge>
                       )}
                     </div>
                   )}
@@ -2040,29 +2010,13 @@ export default function ObservationQueuePage() {
               ]}
             />
 
-            <div
-              role='alert'
-              style={{
-                background: 'var(--surface-colorfulbadge-red, #FEE2E2)',
-                border: 'var(--dim-stroke-100) solid var(--surface-colorfulbadge-red-bold, #EF4444)',
-                borderRadius: 'var(--dim-radius-300, 10px)',
-                paddingTop: 'var(--dim-space-300)',
-                paddingRight: 'var(--dim-space-300)',
-                paddingBottom: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-300)',
-                color: 'var(--text-colorfulbadge-red, #B91C1C)',
-                fontSize: 'var(--type-size-sm)',
-              }}
-            >
-              คะแนน EWS ล่าสุดคือ{' '}
-              <strong>
-                {(() => {
-                  const lv = erTransferPatient.vitalsTrend?.[erTransferPatient.vitalsTrend.length - 1];
-                  return lv ? scorePatientVitals(erTransferPatient, lv).score : 0;
-                })()}
-              </strong>{' '}
-              (เกณฑ์ Red Alert คือ ≥ {EWS_RED_ALERT_SCORE}) — ผู้ป่วยจะถูกย้ายออกจากเตียงสังเกตอาการและบันทึกเป็นการส่งต่อภายในไปยัง ห้องฉุกเฉิน (ER) ทันที
-            </div>
+            <Alert
+              type='error'
+              title={`คะแนน EWS ล่าสุดคือ ${erTransferEws} (เกณฑ์ Red Alert คือ ≥ ${EWS_RED_ALERT_SCORE})`}
+              subtext='ผู้ป่วยจะถูกย้ายออกจากเตียงสังเกตอาการและบันทึกเป็นการส่งต่อภายในไปยัง ห้องฉุกเฉิน (ER) ทันที'
+              showCloseButton={false}
+              style={{ maxWidth: '100%' }}
+            />
 
             <SuggestibleTextarea
               voice

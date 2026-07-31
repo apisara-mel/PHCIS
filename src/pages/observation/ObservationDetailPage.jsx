@@ -1365,23 +1365,13 @@ export default function ObservationDetailPage() {
 
         {isDama ? (
           <>
-            <div
-              role='alert'
-              style={{
-                background: 'var(--surface-colorfulbadge-red, #FEE2E2)',
-                border: 'var(--dim-stroke-100) solid var(--surface-colorfulbadge-red-bold, #EF4444)',
-                borderRadius: 'var(--dim-radius-300, 10px)',
-                paddingTop: 'var(--dim-space-300)',
-                paddingRight: 'var(--dim-space-300)',
-                paddingBottom: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-300)',
-                color: 'var(--text-colorfulbadge-red, #B91C1C)',
-                fontSize: 'var(--type-size-sm)',
-              }}
-            >
-              ผู้ป่วยขอกลับบ้านก่อนแพทย์อนุญาต — ต้องแนบใบยินยอมปฏิเสธการรักษา (DAMA Waiver Consent Form)
-              ที่ผู้ป่วยหรือญาติลงนามแล้ว และบันทึกเหตุผลไว้ในแฟ้มสังเกตอาการก่อนจึงจะจำหน่ายได้
-            </div>
+            <Alert
+              type='warning'
+              title='ผู้ป่วยขอกลับบ้านก่อนแพทย์อนุญาต'
+              subtext='ต้องแนบใบยินยอมปฏิเสธการรักษา (DAMA Waiver Consent Form) ที่ผู้ป่วยหรือญาติลงนามแล้ว และบันทึกเหตุผลไว้ในแฟ้มสังเกตอาการก่อนจึงจะจำหน่ายได้'
+              showCloseButton={false}
+              style={{ maxWidth: '100%' }}
+            />
 
             <div>
               <p className='font-medium mb-2' style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-xs)' }}>
@@ -1498,52 +1488,17 @@ export default function ObservationDetailPage() {
         secondaryAction={{ label: 'ยกเลิกคำสั่งที่ค้าง แล้วจำหน่าย', onClick: () => commitDischarge({ cancelPendingOrders: true }) }}
         primaryAction={{ label: 'ยืนยันจำหน่ายต่อ', onClick: () => commitDischarge({ cancelPendingOrders: false }) }}
       >
-        <div
-          role='alert'
-          style={{
-            background: 'var(--surface-colorfulbadge-red, #FEE2E2)',
-            border: 'var(--dim-stroke-100) solid var(--surface-colorfulbadge-red-bold, #EF4444)',
-            borderRadius: 'var(--dim-radius-300, 10px)',
-            paddingTop: 'var(--dim-space-300)',
-            paddingRight: 'var(--dim-space-300)',
-            paddingBottom: 'var(--dim-space-300)',
-            paddingLeft: 'var(--dim-space-300)',
-            color: 'var(--text-colorfulbadge-red, #B91C1C)',
-            fontSize: 'var(--type-size-sm)',
-          }}
-        >
-          ยังมีคำสั่งการรักษา STAT ค้างอยู่ <strong>{pendingStatOrders.length} รายการ</strong> ที่ยังไม่ได้ดำเนินการ
-          — คุณต้องการยกเลิกคำสั่งเหล่านี้ หรือยืนยันจำหน่ายต่อโดยคงคำสั่งไว้ในแฟ้ม?
-        </div>
-
-        <ul className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-          {pendingStatOrders.map((o) => (
-            <li
-              key={o.id}
-              className='flex items-start'
-              style={{
-                gap: 'var(--dim-space-200)',
-                background: 'var(--surface-neutral-quaternary)',
-                border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-                borderRadius: 'var(--dim-radius-300)',
-                paddingTop: 'var(--dim-space-300)',
-                paddingRight: 'var(--dim-space-300)',
-                paddingBottom: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-300)',
-              }}
-            >
-              <span className='material-symbols-outlined' style={{ fontSize: 18, color: 'var(--text-colorfulbadge-red, #B91C1C)' }}>bolt</span>
-              <div className='min-w-0'>
-                <div style={{ color: 'var(--text-content-default)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>
-                  {o.orderText}
-                </div>
-                <div style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
-                  สั่งเมื่อ {o.orderTime} · สถานะ: รอดำเนินการ
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <Alert
+          type='error'
+          title={`ยังมีคำสั่งการรักษา STAT ค้างอยู่ ${pendingStatOrders.length} รายการ ที่ยังไม่ได้ดำเนินการ`}
+          subtext='คุณต้องการยกเลิกคำสั่งเหล่านี้ หรือยืนยันจำหน่ายต่อโดยคงคำสั่งไว้ในแฟ้ม?'
+          /* The orders themselves are the alert's indicator list — Alert
+             already owns that slot, so they no longer need a hand-built
+             <ul> underneath. */
+          indicators={pendingStatOrders.map((o) => `${o.orderText} · สั่งเมื่อ ${o.orderTime}`)}
+          showCloseButton={false}
+          style={{ maxWidth: '100%' }}
+        />
       </Popup>
     </QueuePageShell>
   );

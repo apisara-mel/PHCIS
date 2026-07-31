@@ -4,6 +4,7 @@ import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import VitalCard, { PressureCard } from '@/components/card/VitalCard';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import StatusBadge from '@/components/badge/StatusBadge';
+import Alert from '@/components/alert/Alert';
 import { scorePatientVitals, getOutOfRangeVitals } from '@/data/observationMock';
 import { getPatientByHN } from '@/data/patientProfiles';
 
@@ -137,34 +138,15 @@ export default function AddVitalsModal({
       />
 
       {hasOutOfRange && (
-        <div
-          role='alert'
-          style={{
-            background: 'var(--surface-colorfulbadge-red, #FEE2E2)',
-            border: 'var(--dim-stroke-100) solid var(--surface-colorfulbadge-red-bold, #EF4444)',
-            borderRadius: 'var(--dim-radius-300, 10px)',
-            paddingTop: 'var(--dim-space-300)',
-            paddingRight: 'var(--dim-space-300)',
-            paddingBottom: 'var(--dim-space-300)',
-            paddingLeft: 'var(--dim-space-300)',
-          }}
-        >
-          <div className='flex items-center' style={{ gap: 'var(--dim-space-150)', marginBottom: 'var(--dim-space-150)' }}>
-            <span className='material-symbols-outlined' style={{ fontSize: 20, color: 'var(--text-colorfulbadge-red, #B91C1C)' }}>
-              error
-            </span>
-            <span style={{ color: 'var(--text-colorfulbadge-red, #B91C1C)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)' }}>
-              กรุณาตรวจสอบตัวเลขก่อนบันทึก — ค่าที่กรอกอยู่นอกช่วงที่เป็นไปได้
-            </span>
-          </div>
-          <ul style={{ color: 'var(--text-colorfulbadge-red, #B91C1C)', fontSize: 'var(--type-size-xs)', listStyle: 'disc', paddingLeft: 'var(--dim-space-500, 20px)' }}>
-            {outOfRange.map((f) => (
-              <li key={f.key}>
-                {f.label}: กรอก <strong>{f.value} {f.unit}</strong> — ค่าที่รับได้คือ {f.min}–{f.max} {f.unit}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <Alert
+          type='error'
+          title='กรุณาตรวจสอบตัวเลขก่อนบันทึก — ค่าที่กรอกอยู่นอกช่วงที่เป็นไปได้'
+          /* One indicator per offending field, so the nurse can see WHICH
+             number to re-check rather than just being told "invalid". */
+          indicators={outOfRange.map((f) => `${f.label}: กรอก ${f.value} ${f.unit} — ค่าที่รับได้คือ ${f.min}–${f.max} ${f.unit}`)}
+          showCloseButton={false}
+          style={{ maxWidth: '100%' }}
+        />
       )}
 
       <div className='p-3 bg-ink-neutral rounded-xl border border-ink-line flex items-center justify-between text-xs text-ink-secondary'>
