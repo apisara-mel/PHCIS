@@ -13,42 +13,345 @@ export const EWS_RISK_TIERS = {
   CRITICAL: { level: 'high', label: 'วิกฤต/ต้องติดตาม (EWS ≥5)', style: 'error', color: '#DE350B' },
 };
 
-/** Calculate National Early Warning Score (NEWS / EWS) based on vitals */
-export function calculateEwsScore({ bpSys, pulse, temp, spo2, rr }) {
+/* Which scale a score was calculated on. Surfaced alongside the number so
+   a clinician can tell at a glance that a child was scored on paediatric
+   thresholds, not adult ones (edge case #14). */
+export const EWS_SCALES = {
+  ADULT: { key: 'adult', label: 'NEWS (ผู้ใหญ่)', short: 'NEWS' },
+  PEDIATRIC: { key: 'pediatric', label: 'PEWS (เด็ก)', short: 'PEWS' },
+};
+
+/* Age at which the adult NEWS chart takes over from the paediatric one —
+   the usual cut-off used by Thai hospitals' paediatric early-warning
+   charts. */
+export const PEDIATRIC_MAX_AGE = 15;
+
+/* Normal ranges per paediatric age band (ปี). Children breathe faster and
+   run higher heart rates than adults at baseline, and their systolic BP
+   floor is much lower — scoring them on the adult chart flags healthy
+   vitals as critical, which both frightens staff and dilutes the alarm
+   that matters. */
+const PEDIATRIC_BANDS = [
+  { maxAge: 1,  rr: [30, 60], pulse: [110, 160], bpSysLow: 70 },
+  { maxAge: 4,  rr: [24, 40], pulse: [90, 150],  bpSysLow: 75 },
+  { maxAge: 11, rr: [18, 30], pulse: [70, 120],  bpSysLow: 80 },
+  { maxAge: 15, rr: [12, 20], pulse: [60, 100],  bpSysLow: 90 },
+];
+
+/* 0 inside the normal band, then 1 / 2 / 3 as the value drifts further
+   out, scaled to the width of the band itself so a narrow band (older
+   children) isn't punished more harshly than a wide one (infants). */
+const deviationScore = (value, [low, high]) => {
+  if (value >= low && value <= high) return 0;
+  const span = Math.max(1, high - low);
+  const distance = value < low ? low - value : value - high;
+  if (distance <= span * 0.2) return 1;
+  if (distance <= span * 0.5) return 2;
+  return 3;
+};
+
+/* SpO2 and temperature thresholds are shared — paediatric charts use
+   essentially the same cut-offs as the adult ones for both. */
+const scoreOxygen = (spo2) => (spo2 <= 91 ? 3 : spo2 <= 93 ? 2 : spo2 <= 95 ? 1 : 0);
+const scoreTemperature = (temp) => {
+  if (temp <= 35.0) return 3;
+  if (temp >= 39.1) return 2;
+  if ((temp >= 35.1 && temp <= 36.0) || (temp >= 38.1 && temp <= 39.0)) return 1;
+  return 0;
+};
+
+/** Calculate an Early Warning Score from a vitals reading.
+ *  Pass `age` (ปี) to get the paediatric (PEWS) chart for patients ≤ 15;
+ *  omit it and the adult NEWS chart is used, same as before. */
+export function calculateEwsScore({ bpSys, pulse, temp, spo2, rr, age }) {
+  const isPediatric = Number.isFinite(Number(age)) && Number(age) <= PEDIATRIC_MAX_AGE;
+  const scale = isPediatric ? EWS_SCALES.PEDIATRIC : EWS_SCALES.ADULT;
+  if (!bpSys || !pulse || !temp || !spo2 || !rr) {
+    return { score: 0, tier: EWS_RISK_TIERS.NORMAL, scale };
+  }
+
   let score = 0;
-  if (!bpSys || !pulse || !temp || !spo2 || !rr) return { score: 0, tier: EWS_RISK_TIERS.NORMAL };
 
-  // Respiratory Rate
-  if (rr <= 8 || rr >= 25) score += 3;
-  else if (rr >= 21 && rr <= 24) score += 2;
-  else if (rr >= 9 && rr <= 11) score += 1;
+  if (isPediatric) {
+    const band = PEDIATRIC_BANDS.find((b) => Number(age) <= b.maxAge) || PEDIATRIC_BANDS[PEDIATRIC_BANDS.length - 1];
+    score += deviationScore(rr, band.rr);
+    score += deviationScore(pulse, band.pulse);
+    /* Paediatric hypotension is a late, ominous sign — score the floor
+       hard and don't score the ceiling at all (high BP in a child is
+       rarely the acute problem the ward is watching for). */
+    if (bpSys < band.bpSysLow) score += 3;
+    else if (bpSys < band.bpSysLow * 1.1) score += 2;
+    else if (bpSys < band.bpSysLow * 1.2) score += 1;
+  } else {
+    // Respiratory Rate
+    if (rr <= 8 || rr >= 25) score += 3;
+    else if (rr >= 21 && rr <= 24) score += 2;
+    else if (rr >= 9 && rr <= 11) score += 1;
 
-  // Oxygen Saturation
-  if (spo2 <= 91) score += 3;
-  else if (spo2 >= 92 && spo2 <= 93) score += 2;
-  else if (spo2 >= 94 && spo2 <= 95) score += 1;
+    // Systolic BP
+    if (bpSys <= 90 || bpSys >= 220) score += 3;
+    else if (bpSys >= 91 && bpSys <= 100) score += 2;
+    else if (bpSys >= 101 && bpSys <= 110) score += 1;
 
-  // Systolic BP
-  if (bpSys <= 90 || bpSys >= 220) score += 3;
-  else if (bpSys >= 91 && bpSys <= 100) score += 2;
-  else if (bpSys >= 101 && bpSys <= 110) score += 1;
+    // Pulse Rate
+    if (pulse <= 40 || pulse >= 131) score += 3;
+    else if (pulse >= 111 && pulse <= 130) score += 2;
+    else if ((pulse >= 41 && pulse <= 50) || (pulse >= 91 && pulse <= 110)) score += 1;
+  }
 
-  // Pulse Rate
-  if (pulse <= 40 || pulse >= 131) score += 3;
-  else if (pulse >= 111 && pulse <= 130) score += 2;
-  else if (pulse >= 41 && pulse <= 50 || pulse >= 91 && pulse <= 110) score += 1;
-
-  // Temperature
-  if (temp <= 35.0) score += 3;
-  else if (temp >= 39.1) score += 2;
-  else if (temp >= 35.1 && temp <= 36.0 || temp >= 38.1 && temp <= 39.0) score += 1;
+  score += scoreOxygen(spo2);
+  score += scoreTemperature(temp);
 
   let tier = EWS_RISK_TIERS.NORMAL;
   if (score >= 5) tier = EWS_RISK_TIERS.CRITICAL;
   else if (score >= 2) tier = EWS_RISK_TIERS.WARNING;
 
-  return { score, tier };
+  return { score, tier, scale };
 }
+
+/** Score a reading against the patient it belongs to — the call every
+ *  screen should use, so the age-appropriate chart is never forgotten. */
+export const scorePatientVitals = (patient, vitals) =>
+  calculateEwsScore({ ...(vitals || {}), age: patient?.age });
+
+/* ── Clinical edge-case thresholds ─────────────────────────────────────
+   One home for every rule in docs/observation-use-cases.md §"กรณีขอบเขต
+   และข้อยกเว้นทางคลินิก", so the queue card, the vitals form and the
+   discharge flow all read the SAME number instead of each hard-coding
+   its own idea of "too long" / "too high" / "impossible". */
+
+/* #1 Rapid Deterioration — NEWS ≥ 5 is the score at which the national
+   protocol demands an urgent bedside response, so it's also the point
+   where the bed card goes into its red blinking alert state. */
+export const EWS_RED_ALERT_SCORE = 5;
+
+/* #2 Overstay — OPD-Observation / Day Bed standard stay is 6 hours;
+   past that the attending doctor has to re-evaluate for Admit / Refer. */
+export const OVERSTAY_LIMIT_MINUTES = 360;
+
+/* ── Timestamps ────────────────────────────────────────────────────────
+   Observation records carry two kinds of time string:
+     • full  — "YYYY-MM-DD HH:MM น."  (admitTime / dischargeTime)
+     • clock — "HH:MM น."             (vitals, notes, orders)
+   A clock string alone cannot be ordered across midnight, and a stay
+   longer than "now" cannot be derived from a stored number — hence the
+   helpers below (edge cases #12 · #13). */
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+export const formatObservationClock = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())} น.`;
+export const formatObservationDateTime = (d) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${formatObservationClock(d)}`;
+
+/** "YYYY-MM-DD HH:MM น." → Date (null when absent/unparseable). */
+export const parseObservationDateTime = (value) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})/.exec(String(value || '').trim());
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), 0, 0);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/** "HH:MM น." → minutes since midnight (null when unparseable). */
+export const parseClockMinutes = (value) => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(value || '').trim());
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+};
+
+/** Shift a clock string by ±minutes, wrapping around midnight. */
+export const shiftClock = (value, deltaMinutes) => {
+  const mins = parseClockMinutes(value);
+  if (mins == null) return value;
+  const next = ((mins + Math.round(deltaMinutes)) % 1440 + 1440) % 1440;
+  return `${pad2(Math.floor(next / 60))}:${pad2(next % 60)} น.`;
+};
+
+/** Rebuild absolute timestamps for a chronologically-authored list of
+ *  clock strings, rolling forward a day each time the clock goes
+ *  backwards — the only way "23:50 น." then "00:15 น." can sort right. */
+export const buildAbsoluteTimeline = (startDateTime, clockStrings = []) => {
+  const start = startDateTime instanceof Date ? startDateTime : parseObservationDateTime(startDateTime);
+  let cursor = start ? new Date(start) : null;
+  return clockStrings.map((clock) => {
+    const mins = parseClockMinutes(clock);
+    if (!cursor || mins == null) return cursor ? new Date(cursor) : null;
+    const candidate = new Date(cursor);
+    candidate.setHours(0, 0, 0, 0);
+    candidate.setMinutes(mins);
+    if (candidate < cursor) candidate.setDate(candidate.getDate() + 1);
+    cursor = candidate;
+    return new Date(candidate);
+  });
+};
+
+/** How long the patient has been (or was) on the bed, in minutes.
+ *  DERIVED — a stored number stops ticking the moment it is written, so
+ *  a freshly admitted patient would never reach the overstay threshold. */
+export const getObservationDurationMinutes = (patient, now = Date.now()) => {
+  const start = parseObservationDateTime(patient?.admitTime);
+  if (!start) return 0;
+  const end = parseObservationDateTime(patient?.dischargeTime) || new Date(now);
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+};
+
+/** "6 ชม. 35 นาที" */
+export const formatDurationThai = (minutes) =>
+  `${Math.floor((minutes || 0) / 60)} ชม. ${(minutes || 0) % 60} นาที`;
+
+export const isOverstay = (patient, now = Date.now()) =>
+  patient?.status === 'observing' && getObservationDurationMinutes(patient, now) > OVERSTAY_LIMIT_MINUTES;
+
+/** One chronological feed merging vitalsTrend + nursingNotes + statOrders,
+ *  newest first. Lives here rather than in a page because BOTH the live
+ *  record and the read-only history screen render it — and the two fixes
+ *  it encodes must not drift apart between them:
+ *
+ *    • ordering across midnight (edge case #12) — clock strings carry no
+ *      date, so absolute timestamps are rebuilt from admitTime;
+ *    • same-minute collisions (edge case #11) — keying rows on the clock
+ *      string alone made a second reading in the same minute overwrite
+ *      the first, silently losing it from the record.
+ */
+export const buildObservationTimeline = (patient) => {
+  const vitalsTrend = patient?.vitalsTrend || [];
+  const nursingNotes = patient?.nursingNotes || [];
+  const statOrders = patient?.statOrders || [];
+  const admitAt = parseObservationDateTime(patient?.admitTime);
+  const vitalsAt = buildAbsoluteTimeline(admitAt, vitalsTrend.map((v) => v.time));
+  const notesAt = buildAbsoluteTimeline(admitAt, nursingNotes.map((n) => n.time));
+  const ordersAt = buildAbsoluteTimeline(admitAt, statOrders.map((o) => o.orderTime));
+
+  const byKey = new Map();
+  const seenClock = new Map();
+  vitalsTrend.forEach((v, i) => {
+    const repeat = seenClock.get(v.time) || 0;
+    seenClock.set(v.time, repeat + 1);
+    const key = repeat === 0 ? v.time : `${v.time}#${repeat}`;
+    byKey.set(key, {
+      key,
+      time: v.time,
+      at: vitalsAt[i],
+      /* A same-minute repeat is a distinct measurement, not a correction
+         — surfaced so the reader isn't left wondering why one clock time
+         appears twice in the feed. */
+      repeatIndex: repeat,
+      vitals: v,
+      opinions: v.note ? [{ kind: 'note', text: v.note, author: patient?.nurseName, noteType: null }] : [],
+    });
+  });
+  nursingNotes.forEach((n, i) => {
+    const opinion = { kind: 'note', text: n.note, author: n.nurse, noteType: n.noteType || null };
+    const existing = byKey.get(n.time);
+    if (existing) existing.opinions.push(opinion);
+    else byKey.set(n.time, { key: n.time, time: n.time, at: notesAt[i], repeatIndex: 0, vitals: null, opinions: [opinion] });
+  });
+  statOrders.forEach((ord, i) => {
+    /* No dedicated "ordered by" field exists on statOrders (only
+       executedBy, filled once someone acts on it) — default to the
+       attending nurse, same fallback vitals' own embedded note uses. */
+    const opinion = { kind: 'order', text: ord.orderText, status: ord.status, author: patient?.nurseName };
+    const existing = byKey.get(ord.orderTime);
+    if (existing) existing.opinions.push(opinion);
+    else byKey.set(ord.orderTime, { key: ord.orderTime, time: ord.orderTime, at: ordersAt[i], repeatIndex: 0, vitals: null, opinions: [opinion] });
+  });
+
+  return Array.from(byKey.values()).sort((a, b) => {
+    if (a.at && b.at && a.at.getTime() !== b.at.getTime()) return b.at - a.at;
+    const byClock = b.time.localeCompare(a.time);
+    if (byClock !== 0) return byClock;
+    /* Same minute — the later of the two measurements is the newer one,
+       so it belongs above in a newest-first feed. */
+    return (b.repeatIndex || 0) - (a.repeatIndex || 0);
+  });
+};
+
+/** Which calendar day of the stay an entry falls on (0 = admission day)
+ *  — drives the "วันที่ 2 ของการสังเกตอาการ" marker on overnight stays. */
+export const observationDayOffset = (patient, entry) => {
+  const admit = parseObservationDateTime(patient?.admitTime);
+  if (!admit || !entry?.at) return 0;
+  const admitDay = new Date(admit);
+  admitDay.setHours(0, 0, 0, 0);
+  const entryDay = new Date(entry.at);
+  entryDay.setHours(0, 0, 0, 0);
+  return Math.round((entryDay.getTime() - admitDay.getTime()) / 86400000);
+};
+
+/* ── Bed lifecycle ─────────────────────────────────────────────────────
+   A bed row and a patient episode are the same object in this mock, so
+   discharging has to FORK them (edge case #9): the episode becomes an
+   immutable history row, and the physical bed slot goes back to the ward
+   as `cleaning` — never straight to `empty`, because linen still has to
+   be changed before the next patient can use it. */
+export const BED_CLEANING_STATUS = 'cleaning';
+
+/** Rows that are a real bed in the ward's inventory (history episodes
+ *  never occupied a slot of their own). */
+export const isPhysicalBed = (patient) =>
+  !!patient && !patient.id.startsWith('obs-ref-') && !patient.id.startsWith('obs-hist-');
+
+/** Beds that can accept a patient right now. */
+export const isBedAvailable = (patient) => patient?.status === 'empty';
+
+const BLANK_PATIENT_FIELDS = {
+  patientName: '', avatar: '', hn: '', vn: '', age: null, gender: '',
+  admitTime: '', dischargeTime: '', chiefComplaint: '', diagnosis: '',
+  doctorName: '', nurseName: '', rights: '',
+  vitalsTrend: [], statOrders: [], nursingNotes: [], dischargeSummary: null,
+};
+
+/** Fork a finished episode off its bed.
+ *  Returns `{ episode, bed }` — the immutable history row, and the same
+ *  bed slot emptied of patient data and put into cleaning. */
+export const splitEpisodeFromBed = (bed, { episodeId, dischargeTime, patch = {} } = {}) => ({
+  episode: {
+    ...bed,
+    ...patch,
+    id: episodeId || `obs-hist-${bed.id}-${bed.hn || 'x'}`,
+    dischargeTime: dischargeTime || bed.dischargeTime || '',
+  },
+  bed: {
+    id: bed.id,
+    bedNo: bed.bedNo,
+    bedType: bed.bedType,
+    bedPhotoId: bed.bedPhotoId,
+    isExtraBed: bed.isExtraBed,
+    severity: 'normal',
+    status: BED_CLEANING_STATUS,
+    ...BLANK_PATIENT_FIELDS,
+  },
+});
+
+/* #5 Out-of-bound vitals — these bounds mark a physiologically
+   IMPOSSIBLE reading (the mistyped "368 °C" / "1200/800 mmHg" the TOR
+   calls out), not a clinically abnormal one. Genuinely alarming values
+   (BP 220, Temp 41) stay inside the range on purpose: they must still be
+   recordable, and it's calculateEwsScore's job — not the form's — to
+   flag them. */
+export const VITAL_RANGES = {
+  bpSys: { label: 'ความดันตัวบน (BP Systolic)', unit: 'mmHg', min: 40, max: 300 },
+  bpDia: { label: 'ความดันตัวล่าง (BP Diastolic)', unit: 'mmHg', min: 20, max: 200 },
+  pulse: { label: 'ชีพจร (Pulse)', unit: 'ครั้ง/นาที', min: 20, max: 250 },
+  temp: { label: 'อุณหภูมิ (Temp)', unit: '°C', min: 30, max: 43 },
+  spo2: { label: 'ออกซิเจนปลายนิ้ว (SpO2)', unit: '%', min: 50, max: 100 },
+  rr: { label: 'อัตราการหายใจ (RR)', unit: 'ครั้ง/นาที', min: 4, max: 60 },
+};
+
+/* Blank fields return nothing — "not filled in yet" is the required-field
+   check's problem (VitalCard.onValidityChange), not a range violation. */
+export const getOutOfRangeVitals = (form = {}) =>
+  Object.entries(VITAL_RANGES).reduce((out, [key, range]) => {
+    const raw = form[key];
+    if (raw === '' || raw === null || raw === undefined) return out;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || (value >= range.min && value <= range.max)) return out;
+    return [...out, { key, value, ...range }];
+  }, []);
+
+/* #6 Discharge with unexecuted STAT orders — "pending" means nobody has
+   acted on the order yet ("in_progress" is already being carried out). */
+export const getPendingStatOrders = (patient) =>
+  (patient?.statOrders || []).filter((o) => o.status === 'pending');
 
 export const MOCK_OBSERVATION_PATIENTS = [
   {
@@ -64,7 +367,9 @@ export const MOCK_OBSERVATION_PATIENTS = [
     age: 58,
     gender: 'ชาย',
     admitTime: '2026-07-28 08:30 น.',
-    durationMinutes: 215, // 3h 35m
+    /* 6h 35m — deliberately past OVERSTAY_LIMIT_MINUTES so the queue's
+       Overstay Warning (edge case #2) has a live example to render. */
+    stayMinutes: 395,
     chiefComplaint: 'แน่นหน้าอก หายใจไม่สะดวก หลังออกกำลังกาย 1 ชม. ก่อนมา',
     diagnosis: 'Acute Bronchospasm / Observe IHD',
     doctorName: 'นพ. วรวิทย์ เกียรติเจริญ',
@@ -75,6 +380,8 @@ export const MOCK_OBSERVATION_PATIENTS = [
       { time: '09:00 น.', bpSys: 138, bpDia: 88, pulse: 96,  temp: 37.1, spo2: 96, rr: 22, note: 'หลังพ่นยา Berodual Neb 1 dose อาการดีขึ้น', ews: 2 },
       { time: '10:00 น.', bpSys: 132, bpDia: 84, pulse: 88,  temp: 36.9, spo2: 98, rr: 20, note: 'ผู้ป่วยรู้สึกตัวดี ไม่มีแน่นหน้าอกเพิ่ม', ews: 0 },
       { time: '11:30 น.', bpSys: 128, bpDia: 82, pulse: 82,  temp: 36.8, spo2: 98, rr: 18, note: 'สัญญาณชีพคงที่ พร้อมประเมินจำหน่าย', ews: 0 },
+      { time: '13:00 น.', bpSys: 130, bpDia: 84, pulse: 84,  temp: 36.9, spo2: 98, rr: 18, note: 'รอผล EKG Serial ครั้งที่ 2 ก่อนตัดสินใจจำหน่าย', ews: 0 },
+      { time: '15:00 น.', bpSys: 126, bpDia: 80, pulse: 80,  temp: 36.8, spo2: 99, rr: 18, note: 'ครองเตียงเกิน 6 ชม. รอแพทย์ประเมินซ้ำเพื่อตัดสินใจ Admit หรือจำหน่าย', ews: 0 },
     ],
     statOrders: [
       { id: 'ord-1', orderTime: '08:35 น.', orderText: 'Oxygen cannula 3 LPM keep SpO2 > 95%', status: 'completed', executedBy: 'พว. สุภาพร', executedTime: '08:37 น.' },
@@ -109,7 +416,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     age: 72,
     gender: 'หญิง',
     admitTime: '2026-07-28 09:45 น.',
-    durationMinutes: 140, // 2h 20m
+    stayMinutes: 140, // 2h 20m
     chiefComplaint: 'เวียนศีรษะ บ้านหมุน คลื่นไส้อาเจียน 3 ครั้ง ความดันสูง 180/105',
     diagnosis: 'Hypertensive Urgency / Acute Vertigo',
     doctorName: 'พญ. ปรียาภรณ์ สุขสวัสดิ์',
@@ -151,7 +458,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     age: 9,
     gender: 'ชาย',
     admitTime: '2026-07-28 07:15 น.',
-    durationMinutes: 290, // 4h 50m
+    stayMinutes: 290, // 4h 50m
     chiefComplaint: 'ไข้สูง 38.8 C ปวดศีรษะ อ่อนเพลีย ซดน้ำเกลือแร่ไม่ได้',
     diagnosis: 'Acute Viral Infection / Dehydration',
     doctorName: 'พญ. นภัสสร สายชล',
@@ -194,7 +501,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     age: 64,
     gender: 'ชาย',
     admitTime: '2026-07-28 11:00 น.',
-    durationMinutes: 65, // 1h 5m
+    stayMinutes: 65, // 1h 5m
     chiefComplaint: 'ปวดท้องรุนแรงบริเวณลิ้นปี่ ท้องอืด เหงื่อแตก อาเจียนเป็นเศษอาหาร',
     diagnosis: 'Acute Abdomen / Suspect Peptic Ulcer Perforation',
     doctorName: 'นพ. วรวิทย์ เกียรติเจริญ',
@@ -203,6 +510,10 @@ export const MOCK_OBSERVATION_PATIENTS = [
     vitalsTrend: [
       { time: '11:00 น.', bpSys: 96, bpDia: 60, pulse: 118, temp: 37.6, spo2: 95, rr: 24, note: 'ความดันตก ชีพจรเร็ว ปวดท้องมาก เฝ้าระวัง Shock', ews: 5 },
       { time: '11:30 น.', bpSys: 102, bpDia: 64, pulse: 110, temp: 37.5, spo2: 96, rr: 22, note: 'หลังให้ Acetar 1,000 ml IV load 200 ml/hr', ews: 3 },
+      /* Deterioration — pushes the calculated EWS back over the red-alert
+         line (≥ 5) so the queue card's Code Red state has a live example.
+         Clinically consistent with the suspected perforation below. */
+      { time: '12:00 น.', bpSys: 92, bpDia: 58, pulse: 116, temp: 37.6, spo2: 94, rr: 22, note: 'ความดันตกซ้ำ ชีพจรเร็วขึ้น ปวดท้องรุนแรงขึ้น เฝ้าระวังภาวะ Septic Shock', ews: 7, deteriorationEvent: true },
     ],
     statOrders: [
       { id: 'ord-41', orderTime: '11:05 น.', orderText: 'NPO (Halt oral intake & water)', status: 'completed', executedBy: 'พว. สุภาพร', executedTime: '11:05 น.' },
@@ -234,7 +545,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     age: null,
     gender: '',
     admitTime: '',
-    durationMinutes: 0,
+    stayMinutes: 0,
     chiefComplaint: '',
     diagnosis: '',
     doctorName: '',
@@ -257,7 +568,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     age: null,
     gender: '',
     admitTime: '',
-    durationMinutes: 0,
+    stayMinutes: 0,
     chiefComplaint: '',
     diagnosis: '',
     doctorName: '',
@@ -280,7 +591,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     age: null,
     gender: '',
     admitTime: '',
-    durationMinutes: 0,
+    stayMinutes: 0,
     chiefComplaint: '',
     diagnosis: '',
     doctorName: '',
@@ -303,7 +614,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     age: null,
     gender: '',
     admitTime: '',
-    durationMinutes: 0,
+    stayMinutes: 0,
     chiefComplaint: '',
     diagnosis: '',
     doctorName: '',
@@ -326,7 +637,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     age: null,
     gender: '',
     admitTime: '',
-    durationMinutes: 0,
+    stayMinutes: 0,
     chiefComplaint: '',
     diagnosis: '',
     doctorName: '',
@@ -349,7 +660,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     age: null,
     gender: '',
     admitTime: '',
-    durationMinutes: 0,
+    stayMinutes: 0,
     chiefComplaint: '',
     diagnosis: '',
     doctorName: '',
@@ -361,6 +672,127 @@ export const MOCK_OBSERVATION_PATIENTS = [
     dischargeSummary: null,
   },
 ];
+
+/* Beds 05–09 start occupied so the ward sits at exactly ONE free bed.
+   Edge case #4 (Full Capacity → ลงทะเบียนเตียงเสริม) is otherwise
+   unreachable without hand-admitting seven patients just to watch the
+   empty count reach zero — now a single admission gets you there. เตียง
+   10 deliberately stays empty so the empty-bed card keeps a live example.
+   Deterministic (index-based, no Math.random), same as the referred
+   history generator below. */
+const WARD_FILLER_CASES = [
+  {
+    admitHour: 9, admitMinute: 15, stayMinutes: 175,
+    chiefComplaint: 'หายใจหอบเหนื่อย ไอมีเสมหะเขียว 2 วัน',
+    diagnosis: 'Acute Bronchitis / Observe Pneumonia',
+    doctorName: 'พญ. ปรียาภรณ์ สุขสวัสดิ์', nurseName: 'พว. นิภา วงศ์สว่าง',
+    rights: 'สิทธิบัตรทอง (NHSO)',
+    vitals: [
+      { bpSys: 136, bpDia: 86, pulse: 98, temp: 37.8, spo2: 95, rr: 22, note: 'แรกรับ ให้ O2 Cannula 3 LPM และพ่นยาขยายหลอดลม' },
+      { bpSys: 130, bpDia: 82, pulse: 90, temp: 37.2, spo2: 97, rr: 20, note: 'หลังพ่นยา เสียง Wheezing ลดลง หายใจสะดวกขึ้น' },
+    ],
+    order: 'Berodual 1 respule + NSS 3 ml Nebulizer Stat',
+    nursingNote: 'รับผู้ป่วยนอนเตียงสังเกตอาการ จัดท่านั่งศีรษะสูง 45 องศา ติดตาม SpO2 ต่อเนื่อง',
+  },
+  {
+    admitHour: 10, admitMinute: 0, stayMinutes: 120,
+    chiefComplaint: 'อาเจียน ถ่ายเหลว 6 ครั้ง อ่อนเพลียมาก',
+    diagnosis: 'Acute Gastroenteritis / Mild Dehydration',
+    doctorName: 'พญ. นภัสสร สายชล', nurseName: 'พว. กัลยา จิตต์มั่น',
+    rights: 'สิทธิประกันสังคม (SSO)',
+    vitals: [
+      { bpSys: 104, bpDia: 66, pulse: 104, temp: 37.4, spo2: 98, rr: 20, note: 'แรกรับ ผิวแห้ง ตาลึก ให้สารน้ำทางหลอดเลือดดำ' },
+      { bpSys: 112, bpDia: 72, pulse: 92, temp: 37.0, spo2: 98, rr: 18, note: 'หลังให้ NSS 500 ml อาการอ่อนเพลียดีขึ้น ปัสสาวะออกดี' },
+    ],
+    order: 'NSS 1,000 ml IV drip 120 ml/hr + Ondansetron 4 mg IV Stat',
+    nursingNote: 'บันทึกจำนวนครั้งการถ่าย/อาเจียน และปริมาณปัสสาวะทุก 1 ชม.',
+  },
+  {
+    admitHour: 10, admitMinute: 30, stayMinutes: 95,
+    chiefComplaint: 'ผื่นลมพิษขึ้นทั้งตัว คันมาก หลังทานอาหารทะเล 30 นาที',
+    diagnosis: 'Acute Urticaria / Observe Anaphylaxis',
+    doctorName: 'นพ. วรวิทย์ เกียรติเจริญ', nurseName: 'พว. สุภาพร ชัยมงคล',
+    rights: 'ชำระเงินเอง (Self Pay)',
+    vitals: [
+      { bpSys: 118, bpDia: 74, pulse: 96, temp: 36.9, spo2: 98, rr: 20, note: 'แรกรับ ผื่นนูนแดงทั่วลำตัว ไม่มีเสียงหายใจผิดปกติ' },
+      { bpSys: 120, bpDia: 76, pulse: 84, temp: 36.8, spo2: 99, rr: 18, note: 'หลังให้ยาแก้แพ้ ผื่นจางลง ไม่มีอาการบวมริมฝีปาก/ลิ้น' },
+    ],
+    order: 'CPM 10 mg IV Stat, เฝ้าระวังภาวะ Anaphylaxis 2 ชม.',
+    nursingNote: 'เฝ้าระวังอาการแน่นหน้าอก หายใจลำบาก หรือบวมบริเวณใบหน้าอย่างใกล้ชิด',
+  },
+  {
+    admitHour: 8, admitMinute: 0, stayMinutes: 245,
+    chiefComplaint: 'ลื่นล้มในห้องน้ำ ศีรษะกระแทกพื้น ไม่หมดสติ',
+    diagnosis: 'Head Injury, Observe for Intracranial Hemorrhage',
+    doctorName: 'นพ. วรวิทย์ เกียรติเจริญ', nurseName: 'พว. นิภา วงศ์สว่าง',
+    rights: 'สิทธิข้าราชการ (Direct Billing)',
+    vitals: [
+      { bpSys: 142, bpDia: 88, pulse: 78, temp: 36.7, spo2: 98, rr: 18, note: 'แรกรับ E4V5M6 (GCS 15) รูม่านตาเท่ากัน ตอบสนองต่อแสงดี' },
+      { bpSys: 134, bpDia: 84, pulse: 74, temp: 36.6, spo2: 99, rr: 18, note: 'ประเมิน Neuro sign ครบ 4 ชม. ไม่มีอาเจียนพุ่งหรือซึมลง' },
+    ],
+    order: 'Neuro sign observation q 1 hr x 4, CT Brain Non-contrast',
+    nursingNote: 'ประเมินระดับความรู้สึกตัวและขนาดรูม่านตาทุก 1 ชม. ตามแผนการรักษา',
+  },
+  {
+    admitHour: 9, admitMinute: 30, stayMinutes: 160,
+    chiefComplaint: 'ใจสั่น เหนื่อยง่าย ชีพจรเต้นเร็วผิดปกติ',
+    diagnosis: 'Palpitation / Observe Arrhythmia',
+    doctorName: 'พญ. ปรียาภรณ์ สุขสวัสดิ์', nurseName: 'พว. กัลยา จิตต์มั่น',
+    rights: 'สิทธิบัตรทอง (NHSO)',
+    vitals: [
+      { bpSys: 128, bpDia: 80, pulse: 122, temp: 36.8, spo2: 97, rr: 20, note: 'แรกรับ ชีพจรเร็วสม่ำเสมอ ติด EKG Monitor ต่อเนื่อง' },
+      { bpSys: 124, bpDia: 78, pulse: 96, temp: 36.7, spo2: 98, rr: 18, note: 'หลังพักผู้ป่วย 1 ชม. ชีพจรลดลง ไม่มีอาการเจ็บหน้าอก' },
+    ],
+    order: 'EKG 12 leads Stat + Continuous Cardiac Monitoring',
+    nursingNote: 'ให้ผู้ป่วยนอนพัก งดคาเฟอีน ติดตามคลื่นไฟฟ้าหัวใจต่อเนื่อง',
+  },
+];
+
+WARD_FILLER_CASES.forEach((c, i) => {
+  const bed = MOCK_OBSERVATION_PATIENTS.find((p) => p.id === `obs-${String(i + 5).padStart(3, '0')}`);
+  if (!bed) return;
+  /* Offset by 4 so these don't reuse the same profiles the four
+     hand-authored beds above already show. */
+  const profile = PATIENT_PROFILES[(i + 4) % PATIENT_PROFILES.length];
+  const hhmm = (h, m) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} น.`;
+  const firstTime = hhmm(c.admitHour, c.admitMinute);
+  const secondTime = hhmm(c.admitHour + 1, c.admitMinute);
+  Object.assign(bed, {
+    status: 'observing',
+    severity: 'normal',
+    patientName: profile.fullName,
+    avatar: profile.avatarUrl,
+    hn: profile.hn,
+    vn: `VN670728-${200 + i}`,
+    age: parseInt(profile.age, 10) || 45,
+    gender: profile.sex,
+    admitTime: `2026-07-28 ${firstTime}`,
+    stayMinutes: c.stayMinutes,
+    chiefComplaint: c.chiefComplaint,
+    diagnosis: c.diagnosis,
+    doctorName: c.doctorName,
+    nurseName: c.nurseName,
+    rights: c.rights,
+    vitalsTrend: [
+      { time: firstTime, ...c.vitals[0] },
+      { time: secondTime, ...c.vitals[1] },
+    ],
+    statOrders: [
+      { id: `ord-f${i}1`, orderTime: firstTime, orderText: c.order, status: 'completed', executedBy: c.nurseName.replace(/\s\S+$/, ''), executedTime: secondTime },
+    ],
+    nursingNotes: [
+      { time: firstTime, nurse: c.nurseName.replace(/\s\S+$/, ''), note: c.nursingNote },
+    ],
+    dischargeSummary: {
+      disposition: 'home',
+      doctorSummary: '',
+      dischargeVitals: null,
+      dischargeAdvice: '',
+      referHospital: '',
+      isDischarged: false,
+    },
+  });
+});
 
 /* "รายการที่ส่งต่อแล้ว" (already referred/discharged) history — generated
    rather than hand-authored so the queue's referred tab has enough rows
@@ -414,7 +846,7 @@ const buildReferredMockPatients = (count) => Array.from({ length: count }, (_, i
     age: ageYears,
     gender: profile.sex,
     admitTime: `${yyyy}-${mm}-${dd} ${String(hour).padStart(2, '0')}:00 น.`,
-    durationMinutes: 120 + (i % 6) * 30,
+    stayMinutes: 120 + (i % 6) * 30,
     chiefComplaint: dx.chiefComplaint,
     diagnosis: dx.diagnosis,
     doctorName: dx.doctorName,
@@ -437,3 +869,68 @@ const buildReferredMockPatients = (count) => Array.from({ length: count }, (_, i
 });
 
 MOCK_OBSERVATION_PATIENTS.push(...buildReferredMockPatients(40));
+
+/* ── Timestamp rebasing ────────────────────────────────────────────────
+   Duration is DERIVED from admitTime → (dischargeTime | now), so the
+   literals above carry `stayMinutes` only as the demo's intended length
+   of stay. This pass turns that intent into real timestamps:
+
+     • active beds are re-based so the ward looks mid-shift RIGHT NOW —
+       and because duration is derived, every stay keeps ticking, which
+       is what makes the Overstay Warning reachable for a patient
+       admitted through the UI (edge case #13);
+     • finished episodes get a fixed dischargeTime, freezing their
+       duration at what it was when the patient left.
+
+   Re-basing moves admitTime, so each record's clock strings (vitals,
+   notes, orders) shift by the same delta — otherwise a bed admitted
+   "4 hours ago" would still show readings from 08:30. */
+const rebaseMockTimestamps = () => {
+  const now = new Date();
+  MOCK_OBSERVATION_PATIENTS.forEach((p) => {
+    const stay = p.stayMinutes || 0;
+
+    if (p.status === 'observing') {
+      const previousAdmit = parseObservationDateTime(p.admitTime);
+      const admit = new Date(now.getTime() - stay * 60000);
+      const delta = previousAdmit ? Math.round((admit.getTime() - previousAdmit.getTime()) / 60000) : 0;
+      p.admitTime = formatObservationDateTime(admit);
+      p.dischargeTime = '';
+      if (delta) {
+        p.vitalsTrend = p.vitalsTrend.map((v) => ({ ...v, time: shiftClock(v.time, delta) }));
+        p.nursingNotes = p.nursingNotes.map((n) => ({ ...n, time: shiftClock(n.time, delta) }));
+        p.statOrders = p.statOrders.map((o) => ({
+          ...o,
+          orderTime: shiftClock(o.orderTime, delta),
+          executedTime: o.executedTime === '-' ? o.executedTime : shiftClock(o.executedTime, delta),
+        }));
+      }
+      return;
+    }
+
+    const admit = parseObservationDateTime(p.admitTime);
+    if (admit && !p.dischargeTime) {
+      p.dischargeTime = formatObservationDateTime(new Date(admit.getTime() + stay * 60000));
+    }
+  });
+};
+rebaseMockTimestamps();
+
+/* เตียง 03's patient was already finished (ready_discharge) yet still sat
+   in the bed slot, so the ward showed 10 beds of which one was neither
+   occupied nor available — the exact symptom edge case #9 describes.
+   Fork it the same way a real discharge now does: the episode moves to
+   history, the bed comes back as `cleaning` and needs a staff action
+   before it can take the next patient. */
+const forkFinishedBed = (bedId) => {
+  const index = MOCK_OBSERVATION_PATIENTS.findIndex((p) => p.id === bedId);
+  if (index === -1) return;
+  const { episode, bed } = splitEpisodeFromBed(MOCK_OBSERVATION_PATIENTS[index], {
+    episodeId: `obs-hist-${bedId}`,
+    dischargeTime: MOCK_OBSERVATION_PATIENTS[index].dischargeTime,
+    patch: { status: 'discharged' },
+  });
+  MOCK_OBSERVATION_PATIENTS[index] = bed;
+  MOCK_OBSERVATION_PATIENTS.push(episode);
+};
+forkFinishedBed('obs-003');
