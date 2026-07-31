@@ -61,6 +61,7 @@ import {
   ANC_PERVISIT_RISK_FACTORS,
   ANC_GDM_SCREENING_FACTORS,
   interpretPerVisitRisk,
+  deriveAncRiskSuggestions,
   ANC_URINE_SUGAR_OPTIONS,
   ANC_URINE_ALBUMIN_OPTIONS,
   ANC_FUNDUS_LEVEL_OPTIONS,
@@ -192,7 +193,7 @@ const CARRIED_FIELD_SECTION = {
   labResults: 'ผลตรวจ Lab',
 };
 
-export const AncStep1History = ({ form, setForm, cardPatient, visitNo = 1, isFollowUp = false, carriedFields = [] }) => {
+export const AncStep1History = ({ form, setForm, cardPatient, ancHn, visitNo = 1, isFollowUp = false, carriedFields = [] }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
   const toggleFamilyIllness = (key) => setForm((f) => ({
     ...f,
@@ -208,11 +209,12 @@ export const AncStep1History = ({ form, setForm, cardPatient, visitNo = 1, isFol
     return Array.from({ length: 20 }, (_, i) => String(currentYearBE - i));
   }, []);
 
-  /* `cardPatient` (from patientProfiles.js via getPatientByHN) is the
-     canonical HN for this visit — `patient` (MR roster) doesn't have
-     entries for every ANC mock patient and would silently fall back to
-     DEFAULT_MR_PATIENT's HN, misattributing the follow-up trend. */
-  const history = useMemo(() => getAncVisitHistoryByHn(cardPatient?.hn), [cardPatient?.hn]);
+  /* `ancHn` (the HN the queue navigated with) keys the follow-up trend —
+     NOT `cardPatient.hn`, which silently degrades to DEFAULT_PATIENT for
+     any HN missing from patientProfiles (67-00027, 67-00029) and would
+     show one mother another mother's visit history. `cardPatient` is for
+     display only. See AncFormPage for the full reasoning. */
+  const history = useMemo(() => getAncVisitHistoryByHn(ancHn), [ancHn]);
 
   const addObstetricRow = () => setForm((f) => ({
     ...f,
@@ -553,6 +555,19 @@ export const AncStep2Screening = ({ form, setForm }) => {
   const perVisitRisk = interpretPerVisitRisk(form.perVisitRiskFactors);
   const gdmFlaggedCount = Object.values(form.gdmScreeningFactors || {}).filter(Boolean).length;
 
+  /* Risk items this visit's own measurements already imply but the
+     clinician hasn't ticked yet. Suggestions only — accepting them is an
+     explicit click, so the checklist stays the clinician's judgement. */
+  const riskSuggestions = useMemo(
+    () => deriveAncRiskSuggestions(form).filter((s) => !form.perVisitRiskFactors?.[s.key]),
+    [form],
+  );
+  const acceptAllSuggestions = () => setForm((f) => {
+    const next = { ...f.perVisitRiskFactors };
+    riskSuggestions.forEach((s) => { next[s.key] = true; });
+    return { ...f, perVisitRiskFactors: next };
+  });
+
   const stressAnsweredCount = Object.keys(form.stressAnswers).length;
   const anyMentalYes = Object.values(form.mentalHealthAnswers).some((v) => v === true);
   const answeredMentalCount = Object.keys(form.mentalHealthAnswers).length;
@@ -682,6 +697,58 @@ export const AncStep2Screening = ({ form, setForm }) => {
           and any tick means "ต้องส่งต่อหรือรายงานแพทย์". */}
       <AssessmentCard ref={(el) => { sectionRefs.current.perVisitRisk = el; }}>
         <TopicHeader icon='clipboard-list'>ภาวะเสี่ยงที่ประเมินทุกครั้งที่ตรวจครรภ์</TopicHeader>
+
+        {/* What the visit's own numbers already imply. Each row says WHY it
+            fired, so accepting is a judgement call on a stated reason
+            rather than trusting a black box. */}
+        {riskSuggestions.length > 0 && (
+          <div
+            className='flex flex-col gap-2 w-full'
+            style={{
+              paddingTop: 'var(--dim-space-300, 12px)',
+              paddingBottom: 'var(--dim-space-300, 12px)',
+              paddingLeft: 'var(--dim-space-400, 16px)',
+              paddingRight: 'var(--dim-space-400, 16px)',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              background: 'var(--surface-alert-warning, #FFF9F0)',
+            }}
+          >
+            <div className='flex items-center justify-between gap-3 flex-wrap'>
+              <span
+                className='flex items-center gap-2'
+                style={{ color: 'var(--text-warning-default, #C2410C)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}
+              >
+                <Icon name='activity' size={18} />
+                ระบบตรวจพบภาวะเสี่ยง {riskSuggestions.length} ข้อจากข้อมูลที่บันทึกไว้แล้ว
+              </span>
+              <BrandSubdueButton variant='fill' size='sm' leadingIcon='check' onClick={acceptAllSuggestions}>
+                เลือกทั้งหมด
+              </BrandSubdueButton>
+            </div>
+            <div className='flex flex-col gap-1'>
+              {riskSuggestions.map((s) => (
+                <button
+                  key={s.key}
+                  type='button'
+                  onClick={() => togglePerVisitRisk(s.key)}
+                  className='flex items-start gap-2 text-left w-full'
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    color: 'var(--text-content-default, #363B3F)',
+                    fontSize: 'var(--type-size-sm)',
+                  }}
+                >
+                  <Icon name='plus' size={16} />
+                  <span>{s.label} <span style={{ color: 'var(--text-content-tertiary, #858C92)' }}>— {s.reason}</span></span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className='flex items-center gap-3 flex-wrap'>
           {ANC_PERVISIT_RISK_FACTORS.map((rf) => (
             <SelectableTag
@@ -1395,7 +1462,7 @@ export const AncStep6Appointment = ({ form, setForm }) => {
 /* ── Step 7 — ใบฝากครรภ์ ───────────────────────────────────────────
    ANC-card + appointment-slip print preview (TOR 1.10.7.5/.6), same
    print-card shell shape as `Step7Certificate` in TreatmentSteps.jsx. */
-export const AncStep7Card = ({ form, setForm, patient, cardPatient, visitNo = 1 }) => {
+export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visitNo = 1 }) => {
   const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
   const edc = useMemo(() => calculateEDC(form.lmp), [form.lmp]);
   const riskLevel = resolveAncRiskLevel(form.riskLevel);
@@ -1414,7 +1481,7 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, visitNo = 1 
       form.urineAlbumin ? `ไข่ขาว ${form.urineAlbumin}` : '',
     ].filter(Boolean);
 
-    saveAncVisitRecord(cardPatient?.hn, {
+    saveAncVisitRecord(ancHn, {
       visitNo,
       date: formatAncDate(new Date()),
       gestWeeks: gestationalAge?.weeks ?? '-',
@@ -1433,7 +1500,7 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, visitNo = 1 
        visit opens pre-filled instead of blank — this is what makes visit 2+
        a follow-up rather than a second first-visit. Saved on confirm, the
        same moment the visit itself becomes part of the record. */
-    saveAncRegistration(cardPatient?.hn, form);
+    saveAncRegistration(ancHn, form);
     setForm((f) => ({
       ...f,
       cardConfirmed: true,

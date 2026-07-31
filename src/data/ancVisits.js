@@ -181,6 +181,90 @@ export const interpretPerVisitRisk = (perVisitRiskFactors) => {
   return { flagged, mustRefer: flagged.length > 0 };
 };
 
+/** Per-visit risk items the form can already work out for itself from data
+    the clinician has entered elsewhere in this visit (vitals, urine
+    dipstick, gestational age, ultrasound, lab results).
+
+    9 of the 13 items on the legacy checklist are pure restatements of a
+    number recorded two steps earlier — re-deriving them by hand is where a
+    referral gets missed on a busy clinic day. These are returned as
+    SUGGESTIONS, never auto-applied: the checklist is the clinician's
+    clinical judgement and a silent tick would misattribute it. The UI
+    offers them for one-click acceptance and says why each one fired.
+
+    Every threshold is the manual's own wording (p.2-13), including its
+    gestational-age qualifiers — item 16 only applies from 34 weeks and
+    item 20 from 32 weeks, so neither fires before then. */
+export const deriveAncRiskSuggestions = (form) => {
+  if (!form) return [];
+  const out = [];
+  const add = (key, reason) => {
+    const item = ANC_PERVISIT_RISK_FACTORS.find((rf) => rf.key === key);
+    if (item) out.push({ key, label: item.label, reason });
+  };
+
+  const ga = calculateGestationalAge(form.lmp);
+  const weeks = ga?.weeks;
+  const num = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  // ข้อ 11 — ความดันโลหิต 140/90 ขึ้นไป
+  const bpMatch = /^\s*(\d{2,3})\s*\/\s*(\d{2,3})\s*$/.exec(String(form.vitals?.bp ?? ''));
+  if (bpMatch) {
+    const [sys, dia] = [Number(bpMatch[1]), Number(bpMatch[2])];
+    if (sys >= 140 || dia >= 90) add('hypertension', `ความดันโลหิต ${sys}/${dia} mmHg`);
+  }
+
+  // ข้อ 10 — พบไข่ขาว และ/หรือน้ำตาลในปัสสาวะ
+  const POSITIVE = ['1+', '2+', '3+', '4+'];
+  const urineHits = [
+    POSITIVE.includes(form.urineSugar) ? `น้ำตาล ${form.urineSugar}` : '',
+    POSITIVE.includes(form.urineAlbumin) ? `ไข่ขาว ${form.urineAlbumin}` : '',
+  ].filter(Boolean);
+  if (urineHits.length) add('abnormalUrine', `ผลตรวจปัสสาวะ ${urineHits.join(' · ')}`);
+
+  // ข้อ 14 — ขนาดมดลูกไม่สัมพันธ์กับอายุครรภ์ (LMP vs การตรวจครรภ์)
+  const gaExam = num(form.gaByExam);
+  if (weeks != null && gaExam != null && Math.abs(weeks - gaExam) >= 3) {
+    add('fundusMismatch', `อายุครรภ์จาก LMP ${weeks} สัปดาห์ vs การตรวจครรภ์ ${gaExam} สัปดาห์`);
+  }
+
+  // ข้อ 8 — โลหิตจาง (Hb < 11 หรือ Hct < 33) จากผล Lab ครั้งที่ 1 หรือ 2
+  const hb = num(form.labResults?.hb2) ?? num(form.labResults?.hb);
+  const hct = num(form.labResults?.hct2) ?? num(form.labResults?.hct);
+  if ((hb != null && hb < 11) || (hct != null && hct < 33)) {
+    add('anemia', `ผล Lab ${hb != null ? `Hb ${hb} g%` : ''}${hb != null && hct != null ? ' · ' : ''}${hct != null ? `Hct ${hct}%` : ''}`);
+  }
+
+  // ข้อ 9 — VDRL ผลบวก
+  if (form.labResults?.vdrlResult === 'Reactive' || form.labResults?.vdrlResult2 === 'Reactive') {
+    add('vdrlPositive', 'ผล VDRL = Reactive');
+  }
+
+  // ข้อ 15 — ครรภ์แฝด (จำนวนทารกจาก Ultrasound)
+  const fetusCount = num(form.ultrasoundResults?.numberOfFetus);
+  if (fetusCount != null && fetusCount > 1) add('multiplePregnancy', `Ultrasound พบทารก ${fetusCount} คน`);
+
+  // ข้อ 16 — ท่าผิดปกติ ตั้งแต่ 34 สัปดาห์ขึ้นไป
+  if (weeks != null && weeks >= 34 && (form.presentation === 'breech' || form.presentation === 'transverse')) {
+    const label = ANC_PRESENTATION_OPTIONS.find((o) => o.value === form.presentation)?.label;
+    add('malpresentation', `${label} ที่อายุครรภ์ ${weeks} สัปดาห์`);
+  }
+
+  // ข้อ 18 — ตั้งครรภ์เกิน 40 สัปดาห์
+  if (weeks != null && weeks > 40) add('postTerm', `อายุครรภ์ ${weeks} สัปดาห์`);
+
+  // ข้อ 20 — เด็กดิ้นน้อย ตั้งแต่ 32 สัปดาห์ขึ้นไป
+  if (weeks != null && weeks >= 32 && (form.fetalMovement === 'reduced' || form.fetalMovement === 'absent')) {
+    const label = ANC_FETAL_MOVEMENT_OPTIONS.find((o) => o.value === form.fetalMovement)?.label;
+    add('reducedMovement', `บันทึกการดิ้นของทารก: ${label}`);
+  }
+
+  return out;
+};
+
 /* ─── Step 3 — per-visit exam findings (legacy p.2-10/2-11) ────────────
    The legacy "บันทึกการตรวจครรภ์" screen records urine sugar + albumin as
    separate dipstick grades (not one ปกติ/ผิดปกติ flag), and carries THREE

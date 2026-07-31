@@ -58,14 +58,17 @@ const AncFormPage = () => {
 
   const ancPatient = useMemo(() => (navState?.hn && getAncPatientByHn(navState.hn)) || null, [navState?.hn]);
 
-  /* One seed per mount. `cardPatient.hn` is the canonical HN (see
-     AncStep1History) — the registration + visit history are keyed by it, so
-     the follow-up carry-forward has to read from the same key Step 7
-     writes to, not the MR roster's HN. */
-  const seed = useMemo(
-    () => buildAncVisitForm(cardPatient?.hn, ancPatient),
-    [cardPatient?.hn, ancPatient],
-  );
+  /* The HN every ANC record (registration + visit history) is keyed by.
+     It MUST be the HN the queue navigated with, not `cardPatient.hn`:
+     `getPatientByHN` falls back to DEFAULT_PATIENT for any HN missing from
+     patientProfiles (67-00027 and 67-00029 are), which would silently file
+     several different mothers' pregnancies under HN 67-00001 and show each
+     of them the others' carried-forward history. `cardPatient` stays the
+     source for DISPLAY only. */
+  const ancHn = navState?.hn || cardPatient?.hn;
+
+  /* One seed per mount — reading the registration saved by earlier visits. */
+  const seed = useMemo(() => buildAncVisitForm(ancHn, ancPatient), [ancHn, ancPatient]);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [form, setForm] = useState(() => seed.form);
@@ -108,6 +111,7 @@ const AncFormPage = () => {
             setForm={setForm}
             patient={patient}
             cardPatient={cardPatient}
+            ancHn={ancHn}
             visitNo={seed.visitNo}
             isFollowUp={seed.isFollowUp}
             carriedFields={seed.carriedFields}
