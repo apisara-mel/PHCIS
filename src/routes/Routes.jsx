@@ -69,6 +69,7 @@ import AssessUserCreatePage from '@/pages/assess/AssessUserCreatePage';
 import AssessUserDetailPage from '@/pages/assess/AssessUserDetailPage';
 import KioskPage from '@/pages/kiosk/KioskPage';
 import MobileTicketPage from '@/pages/kiosk/MobileTicketPage';
+import FinancePaymentPage from '@/pages/finance/FinancePaymentPage';
 import { TelemedCallProvider, TelemedRouteTrigger } from '@/components/telemed/TelemedCallProvider';
 import Spotlight from '@/components/util/Spotlight';
 import { MobileAppProvider } from '@/components/mobile/MobileShell';
@@ -171,6 +172,7 @@ export default function Routes() {
         <Route exact path='/schedule'        component={SchedulePage} />
         <Route exact path='/schedule/:id'    component={ScheduleEditorPage} />
         <Route exact path='/dashboard'       component={DashboardPage} />
+        <Route exact path='/finance'          component={FinancePaymentPage} />
         <Route exact path='/opd'             component={QueuePage} />
         <Route exact path='/opd/queue'       component={QueuePage} />
         <Route exact path='/opd/screening'   component={ScreeningPage} />
