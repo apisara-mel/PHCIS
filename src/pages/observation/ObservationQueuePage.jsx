@@ -3,11 +3,14 @@ import { createPortal } from 'react-dom';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import StatusBadge from '@/components/badge/StatusBadge';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Alert from '@/components/alert/Alert';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import DangerButton from '@/components/button/DangerButton';
 import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
@@ -26,7 +29,22 @@ import InventoryCard from '@/components/card/InventoryCard';
 import { getPatientByHN, PATIENT_PROFILES } from '@/data/patientProfiles';
 import { USERS } from '@/data/usersAccess';
 import { STAFF_AVATARS } from '@/data/avatarAssets';
-import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
+import {
+  MOCK_OBSERVATION_PATIENTS,
+  EWS_RISK_TIERS,
+  EWS_RED_ALERT_SCORE,
+  OVERSTAY_LIMIT_MINUTES,
+  isOverstay,
+  getOutOfRangeVitals,
+  scorePatientVitals,
+  getObservationDurationMinutes,
+  formatDurationThai,
+  formatObservationDateTime,
+  isPhysicalBed,
+  isBedAvailable,
+  BED_CLEANING_STATUS,
+  splitEpisodeFromBed,
+} from '@/data/observationMock';
 import { CHIEF_COMPLAINT_SUGGESTIONS } from '@/pages/opd/ScreeningPage';
 import { MOCK_PATIENT_BEDS } from '@/data/mockPatientBeds';
 
@@ -74,6 +92,21 @@ const avatarForName = (name = '') => {
   return STAFF_AVATARS[hash % STAFF_AVATARS.length];
 };
 
+/* Quick-pick reasons for the Code Red transfer popup's note field —
+   same SuggestibleTextarea contract as every other clinician-typed field
+   on this page (never a bare textarea). */
+const ER_TRANSFER_REASON_SUGGESTIONS = [
+  'ความดันตก (BP < 90) ร่วมกับชีพจรเบาเร็ว สงสัยภาวะ Shock',
+  'SpO2 ลดต่ำกว่า 90% ทั้งที่ให้ออกซิเจนแล้ว',
+  'ระดับความรู้สึกตัวลดลง ปลุกตื่นยาก (GCS ลดลง)',
+  'เจ็บแน่นหน้าอกรุนแรงขึ้น สงสัยภาวะกล้ามเนื้อหัวใจขาดเลือด',
+  'หายใจหอบเหนื่อยมากขึ้น ใช้กล้ามเนื้อช่วยหายใจ',
+];
+
+/* A bed row only carries patient data while it is occupied — both an
+   empty bed and one waiting to be cleaned render as "no patient". */
+const hasPatient = (patient) => patient.status !== 'empty' && patient.status !== BED_CLEANING_STATUS;
+
 /* List-view columns — styled to match the OPD screening worklist table
    (shared <Table>, design tokens, StatusBadge) instead of a bespoke
    Tailwind-gray <table>. The "actions" column is bound to page-level
@@ -96,10 +129,10 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
     flex: true,
     minWidth: 200,
     render: (patient) => {
-      if (patient.status === 'empty') {
+      if (!hasPatient(patient)) {
         return (
           <span style={{ color: 'var(--text-content-tertiary)', fontStyle: 'italic' }}>
-            เตียงว่าง ({patient.bedType})
+            {patient.status === BED_CLEANING_STATUS ? 'รอทำความสะอาด' : 'เตียงว่าง'} ({patient.bedType})
           </span>
         );
       }
@@ -131,20 +164,32 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
     key: 'genderAge',
     label: 'เพศ / อายุ',
     width: 112,
-    render: (patient) => (patient.status === 'empty' ? '-' : `${patient.gender}, ${patient.age} ปี`),
+    render: (patient) => (!hasPatient(patient) ? '-' : `${patient.gender}, ${patient.age} ปี`),
   },
   {
     key: 'admitTime',
     label: 'เวลาเข้าเตียง',
     width: 140,
     render: (patient) => {
-      if (patient.status === 'empty') return '-';
+      if (!hasPatient(patient)) return '-';
+      const overstay = isOverstay(patient);
       return (
         <div>
           <div>{patient.admitTime}</div>
-          <div style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-            ({Math.floor(patient.durationMinutes / 60)} ชม. {patient.durationMinutes % 60} นาที)
+          <div
+            style={{
+              fontSize: 'var(--type-size-xs)',
+              color: overstay ? 'var(--text-colorfulbadge-orange, #C2410C)' : 'var(--text-content-tertiary)',
+              fontWeight: overstay ? 'var(--type-weight-bold)' : 'var(--type-weight-regular)',
+            }}
+          >
+            ({formatDurationThai(getObservationDurationMinutes(patient))})
           </div>
+          {overstay && (
+            <div style={{ marginTop: 'var(--dim-space-100, 4px)' }}>
+              <ColorfulBadge width='hug' style='orange' icon='hourglass_top'>เกิน {OVERSTAY_LIMIT_MINUTES / 60} ชม.</ColorfulBadge>
+            </div>
+          )}
         </div>
       );
     },
@@ -156,7 +201,7 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
     minWidth: 220,
     sortable: false,
     render: (patient) => {
-      if (patient.status === 'empty') return '-';
+      if (!hasPatient(patient)) return '-';
       return (
         <div className='min-w-0'>
           <EllipsisText text={patient.chiefComplaint} />
@@ -194,10 +239,10 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
     render: (patient) => {
       const latest = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
       if (!latest) return '-';
-      const ews = calculateEwsScore(latest);
+      const ews = scorePatientVitals(patient, latest);
       return (
         <StatusBadge style={ews.tier.style} size='small' showDot>
-          {ews.score} ({ews.tier.level.toUpperCase()})
+          {ews.score} ({ews.scale.short})
         </StatusBadge>
       );
     },
@@ -208,7 +253,11 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
     width: 128,
     align: 'center',
     render: (patient) => {
-      if (patient.status === 'empty') return '-';
+      if (!hasPatient(patient)) {
+        return patient.status === BED_CLEANING_STATUS
+          ? <StatusBadge style='warning' size='small'>รอทำความสะอาด</StatusBadge>
+          : '-';
+      }
       /* Only two status words surface anywhere in the UI now — matches
          the two-tab structure (กำลังสังเกตอาการ / รายการที่ส่งต่อแล้ว)
          instead of exposing ready_discharge vs. discharged as distinct
@@ -216,7 +265,15 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
       const isReferred = patient.status === 'ready_discharge' || patient.status === 'discharged';
       const style = isReferred ? 'success' : 'info';
       const label = isReferred ? 'ส่งต่อแล้ว' : 'กำลังสังเกตอาการ';
-      return <StatusBadge style={style} size='small'>{label}</StatusBadge>;
+      const latest = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
+      const redAlert =
+        patient.status === 'observing' && latest && scorePatientVitals(patient, latest).score >= EWS_RED_ALERT_SCORE;
+      return (
+        <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+          <StatusBadge style={style} size='small'>{label}</StatusBadge>
+          {redAlert && <ColorfulBadge width='hug' style='red' icon='emergency_home'>Code Red</ColorfulBadge>}
+        </div>
+      );
     },
   },
 ];
@@ -236,6 +293,18 @@ export default function ObservationQueuePage() {
         align: 'right',
         sortable: false,
         render: (patient) => {
+          if (patient.status === BED_CLEANING_STATUS) {
+            return (
+              <BrandSubdueButton
+                variant='outline'
+                leadingIcon='cleaning_services'
+                size='sm'
+                onClick={(e) => { e.stopPropagation(); handleFinishCleaning(patient.id); }}
+              >
+                ทำความสะอาดเสร็จ
+              </BrandSubdueButton>
+            );
+          }
           if (patient.status === 'empty') {
             return (
               <BrandSubdueButton
@@ -287,6 +356,20 @@ export default function ObservationQueuePage() {
   };
   const [allTabFilters, setAllTabFilters] = useState(DEFAULT_ALL_TAB_FILTERS);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
+  /* 'priority' = clinical triage order (see boardPriority), 'bed' = the
+     physical walking order a nurse uses when doing a round. */
+  const [boardSort, setBoardSort] = useState('priority');
+
+  /* Heartbeat. This board lives on a ward monitor for a whole shift, and
+     every duration on it is derived from admitTime at render time — so
+     without a periodic re-render the clock freezes at page load and the
+     6-hour overstay alert never fires on a screen nobody touches. The
+     tick value is deliberately never read; re-rendering IS the point. */
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setClockTick((n) => n + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
   const QUEUE_PAGE_SIZE = 20;
   const [queuePage, setQueuePage] = useState(1);
   /* Table-view header sorting — same sortConfig/handleSort/collator
@@ -333,8 +416,16 @@ export default function ObservationQueuePage() {
   const NEW_BED_FORM_DEFAULT = { bedTypeId: null, description: '' };
   const [newBedForm, setNewBedForm] = useState(NEW_BED_FORM_DEFAULT);
 
+  /* "ย้ายด่วนเข้าห้องฉุกเฉิน (Code Red)" — the EWS Red Alert shortcut
+     (edge case #1). Holds the patient being escalated (null = closed). */
+  const [erTransferPatient, setErTransferPatient] = useState(null);
+  const [erTransferReason, setErTransferReason] = useState('');
+
   const [admitForm, setAdmitForm] = useState({
-    bedId: 'obs-005',
+    /* Resolved to a genuinely free bed whenever the modal is opened
+       without one (see the header action) — a hard-coded id goes stale
+       the moment that bed is occupied. */
+    bedId: '',
     patientName: '',
     hn: '',
     vn: `VN${new Date().toISOString().slice(2,10).replace(/-/g,'')}-0${Math.floor(Math.random()*90+10)}`,
@@ -387,9 +478,13 @@ export default function ObservationQueuePage() {
   /* patients also carries 40 historical "รายการที่ส่งต่อแล้ว" mock records
      (id prefix obs-ref-) that were never a distinct physical bed slot, so
      patients.length would over-count the ward's real 10-bed inventory. */
-  const totalBeds = patients.filter((p) => !p.id.startsWith('obs-ref-')).length;
+  const totalBeds = patients.filter(isPhysicalBed).length;
   const occupiedCount = patients.filter((p) => p.status === 'observing').length;
-  const emptyCount = patients.filter((p) => p.status === 'empty').length;
+  const emptyCount = patients.filter(isBedAvailable).length;
+  /* Beds that are free of a patient but not yet usable — they must not
+     count as available, or Full Capacity would never fire while dirty
+     beds sit in the ward (edge case #9). */
+  const cleaningCount = patients.filter((p) => p.status === BED_CLEANING_STATUS).length;
   /* "พร้อมจำหน่าย" no longer owns a separate tab — those patients (plus
      anyone already fully discharged) now live under the "รายการที่ส่งต่อ
      แล้ว" tab, so the summary strip mirrors the same two-tab split
@@ -399,14 +494,57 @@ export default function ObservationQueuePage() {
     if (p.status === 'empty') return false;
     const latest = p.vitalsTrend?.[p.vitalsTrend.length - 1];
     if (!latest) return false;
-    return calculateEwsScore(latest).score >= 3;
+    return scorePatientVitals(p, latest).score >= 3;
   }).length;
+  /* Edge case #4 — "เตียงหลักถูกครองเต็มทั้งหมด (0 เตียงว่าง)". Only the
+     ward's physical beds count (obs-ref-* history rows were never a bed
+     slot), and the ward must actually HAVE beds for "full" to mean
+     anything. */
+  const isFullCapacity = totalBeds > 0 && emptyCount === 0;
+  /* Edge case #2 — how many current patients have outstayed the 6-hour
+     Day-Bed standard and need the attending doctor to re-evaluate. */
+  /* Wrapped, not passed by reference — Array.filter would hand the index
+     in as isOverstay's `now` argument and every stay would measure zero. */
+  const overstayCount = patients.filter((p) => isOverstay(p)).length;
+
+  /* What the ward has to act on right now, in the order it should be
+     acted on — feeds the attention bar above the board. Code Red first;
+     a patient can only appear once, under their most urgent reason. */
+  const attentionItems = patients
+    .filter((p) => p.status === 'observing')
+    .map((p) => {
+      const latest = p.vitalsTrend?.[p.vitalsTrend.length - 1];
+      const ews = latest ? scorePatientVitals(p, latest) : null;
+      if ((ews?.score ?? 0) >= EWS_RED_ALERT_SCORE) {
+        return { id: p.id, bedNo: p.bedNo, patientName: p.patientName, tone: 'red', icon: 'emergency_home', reason: `${ews.scale.short} ${ews.score} · อาการทรุดลง`, rank: 0 };
+      }
+      if (isOverstay(p)) {
+        return { id: p.id, bedNo: p.bedNo, patientName: p.patientName, tone: 'orange', icon: 'hourglass_top', reason: `ครองเตียง ${formatDurationThai(getObservationDurationMinutes(p))} · รอประเมินซ้ำ`, rank: 1 };
+      }
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.rank - b.rank);
 
   const summaryCards = [
     { key: 'total', label: 'เตียงทั้งหมด', value: `${totalBeds} เตียง`, indicator: 'พร้อมใช้งาน 24 ชม.', color: 'info', icon: 'hotel' },
     { key: 'observing', label: 'กำลังสังเกตอาการ', value: `${occupiedCount} ราย`, indicator: 'ครองเตียงสังเกตอาการ', color: 'info', icon: 'child_care' },
-    { key: 'empty', label: 'เตียงว่าง', value: `${emptyCount} เตียง`, indicator: 'พร้อมรับผู้ป่วยใหม่', color: 'positive', icon: 'meeting_room' },
+    /* Flips to a destructive "เตียงเต็ม" reading at 0 rather than quietly
+       showing "0 เตียง · พร้อมรับผู้ป่วยใหม่", which would read as fine. */
+    {
+      key: 'empty',
+      label: 'เตียงว่าง',
+      value: `${emptyCount} เตียง`,
+      indicator: isFullCapacity
+        ? 'เตียงเต็ม (Full Capacity)'
+        : cleaningCount > 0
+        ? `พร้อมรับผู้ป่วยใหม่ · รอทำความสะอาด ${cleaningCount} เตียง`
+        : 'พร้อมรับผู้ป่วยใหม่',
+      color: isFullCapacity ? 'destructive' : 'positive',
+      icon: isFullCapacity ? 'do_not_disturb_on' : 'meeting_room',
+    },
     { key: 'referred', label: 'รายการที่ส่งต่อแล้ว', value: `${referredCount} ราย`, indicator: 'จำหน่าย/ส่งต่อสำเร็จ', color: 'positive', icon: 'check_circle' },
+    { key: 'overstay', label: `ครองเตียงเกิน ${OVERSTAY_LIMIT_MINUTES / 60} ชม.`, value: `${overstayCount} ราย`, indicator: 'รอแพทย์ประเมินซ้ำ', color: 'inprogress', icon: 'hourglass_top' },
     { key: 'critical', label: 'เฝ้าระวังพิเศษ (EWS ≥3)', value: `${criticalCount} ราย`, indicator: 'ประเมินด่วนที่สุด', color: 'destructive', icon: 'warning' },
   ];
 
@@ -425,6 +563,7 @@ export default function ObservationQueuePage() {
     ready_discharge: 'ส่งต่อแล้ว',
     discharged: 'ส่งต่อแล้ว',
     empty: 'เตียงว่าง',
+    [BED_CLEANING_STATUS]: 'รอทำความสะอาด',
   };
 
   const uniqueSorted = (arr) => Array.from(new Set(arr.filter(Boolean))).sort();
@@ -509,7 +648,7 @@ export default function ObservationQueuePage() {
   // Filter patients based on tab & search
   const filteredPatients = patients.filter((p) => {
     if (activeTab === 'observing') {
-      if (!(p.status === 'observing' || p.status === 'empty')) return false;
+      if (!(p.status === 'observing' || p.status === 'empty' || p.status === BED_CLEANING_STATUS)) return false;
       if (allTabFilters.doctor !== 'all' && p.doctorName !== allTabFilters.doctor) return false;
       if (allTabFilters.nurse !== 'all' && p.nurseName !== allTabFilters.nurse) return false;
     }
@@ -537,8 +676,45 @@ export default function ObservationQueuePage() {
   /* Table-view header sorting (applies to both tabs' table view) — normalize
      each sortable column key to a comparable value, same shape as OPD
      QueuePage.jsx's own normalize/sortedRows. */
+  /* Board order is clinical triage, not bed numbering. A patient whose
+     EWS has just crossed the red line must not sit four screens down
+     because they happen to be lying in เตียง 09 — the order itself is
+     the ward's to-do list. Rank ascending = attend to first.
+       0  Code Red (EWS >= threshold)
+       1  overstayed the 6-hour standard
+       2  under observation (higher EWS first within the group)
+       3  waiting to be cleaned
+       4  free
+       5  already referred (the "ส่งต่อแล้ว" tab's own filters take over) */
+  const boardPriority = (patient) => {
+    if (patient.status === 'observing') {
+      const latest = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
+      const ews = latest ? scorePatientVitals(patient, latest).score : 0;
+      if (ews >= EWS_RED_ALERT_SCORE) return 0;
+      if (isOverstay(patient)) return 1;
+      /* Fraction keeps the sicker patient above the calmer one without
+         needing a second sort key. */
+      return 2 + (1 - Math.min(ews, 9) / 10);
+    }
+    if (patient.status === BED_CLEANING_STATUS) return 3;
+    if (patient.status === 'empty') return 4;
+    return 5;
+  };
+
   const sortedPatients = (() => {
-    if (!sortConfig.key) return filteredPatients;
+    if (!sortConfig.key) {
+      /* Explicit column sorting (table view) always wins; otherwise the
+         board follows whichever order the ward asked for. */
+      /* Scoped to the ward board — "รายการที่ส่งต่อแล้ว" is a history
+         list with its own filters, and silently re-ordering it from a
+         control that isn't visible on that tab would be a surprise. */
+      if (activeTab !== 'observing') return filteredPatients;
+      if (boardSort === 'bed') {
+        const bedCollator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' });
+        return [...filteredPatients].sort((a, b) => bedCollator.compare(a.bedNo || '', b.bedNo || ''));
+      }
+      return [...filteredPatients].sort((a, b) => boardPriority(a) - boardPriority(b));
+    }
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
     const collator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' });
     const normalize = (p, key) => {
@@ -547,7 +723,7 @@ export default function ObservationQueuePage() {
         case 'genderAge': return p.age ?? -1;
         case 'ews': {
           const latest = p.vitalsTrend?.[p.vitalsTrend.length - 1];
-          return latest ? calculateEwsScore(latest).score : -1;
+          return latest ? scorePatientVitals(p, latest).score : -1;
         }
         case 'status': return STATUS_LABELS[p.status] || p.status || '';
         default: return p[key] ?? '';
@@ -565,7 +741,7 @@ export default function ObservationQueuePage() {
      timeline. Mostly matters for "รายการที่ส่งต่อแล้ว" (40 mock rows);
      "กำลังสังเกตอาการ" never exceeds the physical bed count so it just
      always renders as a single page. */
-  useEffect(() => { setQueuePage(1); }, [activeTab, searchQuery, JSON.stringify(allTabFilters), sortConfig.key, sortConfig.direction]);
+  useEffect(() => { setQueuePage(1); }, [activeTab, searchQuery, JSON.stringify(allTabFilters), sortConfig.key, sortConfig.direction, boardSort]);
   const queueTotalPages = Math.max(1, Math.ceil(filteredPatients.length / QUEUE_PAGE_SIZE));
   const queuePageClamped = Math.min(queuePage, queueTotalPages);
   const pagedPatients = sortedPatients.slice(
@@ -590,6 +766,11 @@ export default function ObservationQueuePage() {
     /* Guard against implicit submission (Enter inside a VitalCard number
        input submits the form even when the visible button is disabled). */
     if (!isVitalsFormValid) return;
+    /* Out-of-bound range check (edge case #5). AddVitalsModal already
+       disables its own save button on this, but Enter inside a VitalCard
+       number input can still reach this handler — a physiologically
+       impossible reading must never make it into vitalsTrend. */
+    if (getOutOfRangeVitals(vitalsForm).length > 0) return;
 
     const nowStr = `${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')} น.`;
     const newVitalLog = {
@@ -603,12 +784,34 @@ export default function ObservationQueuePage() {
       note: vitalsForm.note || 'บันทึกสัญญาณชีพประจำช่วงเวลา',
     };
 
+    /* Deterioration Event (edge case #1) — when a freshly logged reading
+       is what pushes EWS over the red-alert line, the system writes the
+       event into the trend itself rather than relying on the nurse to
+       ALSO remember to record a note about the deterioration. Only fires
+       on the crossing, so a patient who stays critical across several
+       readings doesn't accumulate one event per measurement. */
+    const prevLatest = selectedPatientForVitals.vitalsTrend?.[selectedPatientForVitals.vitalsTrend.length - 1];
+    const prevScore = prevLatest ? scorePatientVitals(selectedPatientForVitals, prevLatest).score : 0;
+    const newScore = scorePatientVitals(selectedPatientForVitals, newVitalLog).score;
+    const isDeterioration = newScore >= EWS_RED_ALERT_SCORE && prevScore < EWS_RED_ALERT_SCORE;
+    if (isDeterioration) newVitalLog.deteriorationEvent = true;
+
     setPatients((prev) =>
       prev.map((p) => {
         if (p.id === selectedPatientForVitals.id) {
           return {
             ...p,
             vitalsTrend: [...p.vitalsTrend, newVitalLog],
+            nursingNotes: isDeterioration
+              ? [
+                  ...p.nursingNotes,
+                  {
+                    time: nowStr,
+                    nurse: p.nurseName,
+                    note: `Deterioration Event: คะแนน EWS พุ่งขึ้นเป็น ${newScore} (จากเดิม ${prevScore}) — ระบบบันทึกอัตโนมัติ ให้รายงานแพทย์ผู้ดูแลด่วนและพิจารณาย้ายเข้าห้องฉุกเฉิน`,
+                  },
+                ]
+              : p.nursingNotes,
           };
         }
         return p;
@@ -617,8 +820,83 @@ export default function ObservationQueuePage() {
     setShowVitalsModal(false);
   };
 
+  /* "ย้ายด่วนเข้าห้องฉุกเฉิน (Code Red)" — edge case #1's shortcut off the
+     red-alert bed card. Follows the same record shape ObservationDetail
+     Page's commitDischarge writes (status 'discharged' + a dischargeSummary
+     naming the destination), so an escalated patient lands in the
+     "รายการที่ส่งต่อแล้ว" tab exactly like any other referral instead of
+     inventing a fourth status the filters don't know about. */
+  /* Latest score for the patient being escalated — read by the Code Red
+     popup's own alert copy. */
+  const erTransferEws = (() => {
+    const lv = erTransferPatient?.vitalsTrend?.[erTransferPatient.vitalsTrend.length - 1];
+    return lv ? scorePatientVitals(erTransferPatient, lv).score : 0;
+  })();
+
+  const handleConfirmErTransfer = () => {
+    if (!erTransferPatient) return;
+    const now = new Date();
+    const nowClock = formatObservationDateTime(now).split(' ').slice(1).join(' ');
+    const latest = erTransferPatient.vitalsTrend?.[erTransferPatient.vitalsTrend.length - 1];
+    const score = latest ? scorePatientVitals(erTransferPatient, latest).score : 0;
+    const reason = erTransferReason.trim();
+
+    setPatients((prev) => {
+      const index = prev.findIndex((p) => p.id === erTransferPatient.id);
+      if (index === -1) return prev;
+      const current = prev[index];
+      /* Fork the episode off the bed (edge case #9) — the escalation
+         becomes a history row, and the physical bed comes straight back
+         to the ward as `cleaning` instead of staying occupied forever by
+         a patient who is no longer there. */
+      const { episode, bed } = splitEpisodeFromBed(
+        {
+          ...current,
+          nursingNotes: [
+            ...current.nursingNotes,
+            {
+              time: nowClock,
+              nurse: current.nurseName,
+              note: `Code Red — ย้ายด่วนเข้าห้องฉุกเฉิน (ER) ขณะ EWS ${score}${reason ? ` · ${reason}` : ''}`,
+            },
+          ],
+          dischargeSummary: {
+            ...(current.dischargeSummary || {}),
+            disposition: 'refer',
+            referScope: 'internal',
+            referDepartment: 'ห้องฉุกเฉิน (ER)',
+            referHospital: '',
+            doctorSummary: `ย้ายด่วนเข้าห้องฉุกเฉิน (Code Red) ขณะคะแนน EWS ${score}${reason ? ` · ${reason}` : ''}`,
+            dischargeVitals: latest ? { ...latest } : null,
+            isDischarged: true,
+          },
+        },
+        {
+          episodeId: `obs-hist-${current.id}-${now.getTime()}`,
+          dischargeTime: formatObservationDateTime(now),
+          patch: { status: 'discharged' },
+        },
+      );
+      const next = [...prev];
+      next[index] = bed;
+      next.push(episode);
+      return next;
+    });
+    setErTransferPatient(null);
+    setErTransferReason('');
+  };
+
+  /* Housekeeping has changed the linen — the bed rejoins the pool of
+     beds that can actually take a patient. */
+  const handleFinishCleaning = (bedId) =>
+    setPatients((prev) => prev.map((p) => (p.id === bedId ? { ...p, status: 'empty' } : p)));
+
   const handleAdmitSubmit = (e) => {
     e.preventDefault();
+    /* Never write a patient onto a bed that already holds one — the
+       admit form targets a bed by id, and an occupied target would
+       silently overwrite the record of whoever is lying in it. */
+    if (!isBedAvailable(patients.find((p) => p.id === admitForm.bedId))) return;
     const nowStr = `${new Date().getFullYear()}-${(new Date().getMonth()+1).toString().padStart(2,'0')}-${new Date().getDate().toString().padStart(2,'0')} ${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')} น.`;
 
     setPatients((prev) =>
@@ -634,7 +912,7 @@ export default function ObservationQueuePage() {
             gender: admitForm.gender,
             avatar: admitForm.avatar || '',
             admitTime: nowStr,
-            durationMinutes: 0,
+            dischargeTime: '',
             chiefComplaint: admitForm.chiefComplaint,
             diagnosis: admitForm.diagnosis || 'Observe Symptoms',
             doctorName: admitForm.doctorName,
@@ -664,26 +942,34 @@ export default function ObservationQueuePage() {
   };
 
   const selectedBed = patients.find((p) => p.id === admitForm.bedId);
+  const isSelectedBedFree = isBedAvailable(selectedBed);
+  const firstAvailableBedId = patients.find(isBedAvailable)?.id || '';
   /* Only empty beds are offered (plus whichever bed is currently targeted,
      so switching bed mid-pick still shows it) — occupied beds have no
      equivalent of BedSelectionPopup's own "disabled" state, so they're
      filtered out entirely instead of shown-but-unclickable. */
   const observationBedOptions = patients
-    .filter((p) => p.status === 'empty' || p.id === admitForm.bedId)
+    .filter((p) => isBedAvailable(p) || p.id === admitForm.bedId)
     .map((p) => ({
       id: p.id,
       code: p.bedNo,
       title: p.bedType,
-      description: p.status === 'empty' ? 'ว่าง พร้อมรับผู้ป่วย' : 'เตียงที่เลือกอยู่ในปัจจุบัน',
+      description: isBedAvailable(p) ? 'ว่าง พร้อมรับผู้ป่วย' : 'เตียงที่เลือกอยู่ในปัจจุบัน',
       imageSrc: resolveBedImage(p),
     }));
 
   /* "เลขเตียง" for a new bed is always "the next number after the last
      bed" — physical ward beds only (obs-ref-* history rows never held a
      real bed slot, so they don't count toward the sequence). */
-  const wardBedCount = patients.filter((p) => !p.id.startsWith('obs-ref-')).length;
+  const wardBedCount = patients.filter(isPhysicalBed).length;
   const nextBedNumber = wardBedCount + 1;
-  const nextBedNo = `เตียง ${String(nextBedNumber).padStart(2, '0')}`;
+  /* A bed registered while the ward is at Full Capacity is an EXTRA bed
+     (stretcher / recliner rolled in for an emergency), not a permanent
+     ward bed — it keeps the running number but carries the "-Extra"
+     suffix the TOR asks for ("เตียง 07-Extra"), so the roster still reads
+     at a glance which beds are the ward's real inventory. */
+  const isNextBedExtra = isFullCapacity;
+  const nextBedNo = `เตียง ${String(nextBedNumber).padStart(2, '0')}${isNextBedExtra ? '-Extra' : ''}`;
   const nextBedId = `obs-${String(nextBedNumber).padStart(3, '0')}`;
 
   const handleAddBed = () => {
@@ -696,6 +982,7 @@ export default function ObservationQueuePage() {
            uses bedPhotoId below to still find the right photo. */
         bedType: newBedForm.description.trim(),
         bedPhotoId: newBedForm.bedTypeId,
+        isExtraBed: isNextBedExtra,
         status: 'empty',
         severity: 'normal',
         patientName: '',
@@ -704,7 +991,7 @@ export default function ObservationQueuePage() {
         age: null,
         gender: '',
         admitTime: '',
-        durationMinutes: 0,
+        dischargeTime: '',
         chiefComplaint: '',
         diagnosis: '',
         doctorName: '',
@@ -734,6 +1021,11 @@ export default function ObservationQueuePage() {
       }}
       actions={
         <div className='flex items-center gap-2'>
+          {/* At Full Capacity the same action re-labels itself as the
+              TOR's "ลงทะเบียนเตียงเสริม" (edge case #4) — it's the same
+              add-a-bed flow, but the ward staff is now doing it because
+              every bed is taken, and the bed it creates is suffixed
+              "-Extra" accordingly. */}
           <BrandSubdueButton
             variant='outline'
             leadingIcon='add'
@@ -742,9 +1034,23 @@ export default function ObservationQueuePage() {
               setShowAddBedModal(true);
             }}
           >
-            เพิ่มเตียงใหม่เข้าระบบ
+            {isFullCapacity ? 'ลงทะเบียนเตียงเสริม (Extra Bed)' : 'เพิ่มเตียงใหม่เข้าระบบ'}
           </BrandSubdueButton>
-          <BrandPrimaryButton leadingIcon='add' onClick={() => { setPatientSearchQuery(''); setShowAdmitModal(true); }}>
+          <BrandPrimaryButton
+            leadingIcon='add'
+            onClick={() => {
+              setPatientSearchQuery('');
+              /* Opened without a bed in mind — land on a free one rather
+                 than whatever was targeted last time, which may since
+                 have been filled (admitting into it would overwrite the
+                 patient already there). */
+              setAdmitForm((prev) => ({
+                ...prev,
+                bedId: isBedAvailable(patients.find((p) => p.id === prev.bedId)) ? prev.bedId : (firstAvailableBedId || prev.bedId),
+              }));
+              setShowAdmitModal(true);
+            }}
+          >
             รับผู้ป่วยเข้าเตียงสังเกตอาการ
           </BrandPrimaryButton>
         </div>
@@ -761,6 +1067,106 @@ export default function ObservationQueuePage() {
           gap: 'var(--dim-space-600, 24px)',
         }}
       >
+        {/* Ward attention bar — the one thing this board is for. Ten beds
+            run to four screens of cards, so "who needs me right now" was
+            answerable only by scrolling and reading every card. This
+            answers it in one line, before anything else on the page, and
+            each entry goes straight to that patient's record.
+            Patient safety outranks logistics, so it sits above the Full
+            Capacity banner. Renders nothing when the ward is calm — an
+            alert bar that is always present stops being an alert. */}
+        {attentionItems.length > 0 && (
+          <div
+            className='w-full flex flex-wrap items-center'
+            style={{
+              gap: 'var(--dim-space-300)',
+              background: 'var(--surface-card-100)',
+              border: `var(--dim-stroke-200) solid ${attentionItems.some((i) => i.tone === 'red')
+                ? 'var(--surface-colorfulbadge-red-bold, #EF4444)'
+                : 'var(--surface-colorfulbadge-orange-bold, #F97316)'}`,
+              borderRadius: 'var(--dim-radius-400)',
+              paddingTop: 'var(--dim-space-400)',
+              paddingRight: 'var(--dim-space-500)',
+              paddingBottom: 'var(--dim-space-400)',
+              paddingLeft: 'var(--dim-space-500)',
+            }}
+          >
+            <span
+              className='inline-flex items-center shrink-0'
+              style={{ gap: 'var(--dim-space-200)', color: 'var(--text-content-default)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)' }}
+            >
+              <span className='material-symbols-outlined' style={{ fontSize: 20, color: 'var(--text-colorfulbadge-red, #B91C1C)' }}>
+                notification_important
+              </span>
+              ต้องดูแลด่วน ({attentionItems.length})
+            </span>
+            <div className='flex flex-wrap items-center flex-1 min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+              {attentionItems.map((item) => (
+                <button
+                  key={item.id}
+                  type='button'
+                  onClick={() => history.push(`/observation/record/${item.id}`)}
+                  className='mih-observation-focusable inline-flex items-center transition-colors'
+                  style={{
+                    gap: 'var(--dim-space-150)',
+                    paddingTop: 'var(--dim-space-200)',
+                    paddingBottom: 'var(--dim-space-200)',
+                    paddingLeft: 'var(--dim-space-300)',
+                    paddingRight: 'var(--dim-space-300)',
+                    borderRadius: 'var(--dim-radius-200, 8px)',
+                    background: item.tone === 'red'
+                      ? 'var(--surface-colorfulbadge-red, #FEE2E2)'
+                      : 'var(--surface-colorfulbadge-orange, #FFEDD5)',
+                    color: item.tone === 'red'
+                      ? 'var(--text-colorfulbadge-red, #B91C1C)'
+                      : 'var(--text-colorfulbadge-orange, #C2410C)',
+                    border: `var(--dim-stroke-100) solid ${item.tone === 'red'
+                      ? 'var(--surface-colorfulbadge-red-bold, #EF4444)'
+                      : 'var(--surface-colorfulbadge-orange-bold, #F97316)'}`,
+                    fontSize: 'var(--type-size-sm)',
+                    /* 44px — MIH minimum touch target (design.md --dim-size-900). */
+                    minHeight: 'var(--dim-size-900, 44px)',
+                  }}
+                >
+                  <span className='material-symbols-outlined' style={{ fontSize: 18 }}>{item.icon}</span>
+                  <strong>{item.bedNo}</strong>
+                  <span className='truncate' style={{ maxWidth: 180 }}>{item.patientName}</span>
+                  <span style={{ opacity: 0.85 }}>· {item.reason}</span>
+                  <span className='material-symbols-outlined' style={{ fontSize: 18 }}>chevron_right</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Full Capacity banner (edge case #4) — sits ABOVE the worklist
+            card because it's a ward-level condition, not a property of
+            any one row: every bed is taken, so the only way to place the
+            next emergency patient is to register an extra bed. */}
+        {isFullCapacity && (
+          <div className='w-full flex flex-wrap items-center' style={{ gap: 'var(--dim-space-400)' }}>
+            <Alert
+              type='error'
+              title='เตียงเต็มทุกเตียง (Full Capacity)'
+              subtext={`เตียงสังเกตอาการถูกครองครบทั้ง ${totalBeds} เตียง — หากมีผู้ป่วยฉุกเฉินต้องการเตียงเพิ่ม ให้ลงทะเบียนเตียงเสริม (${nextBedNo})`}
+              showCloseButton={false}
+              className='flex-1 min-w-0'
+              /* Alert caps itself at 768px; this banner is a full-width
+                 ward-level notice, so let it use the row it is given. */
+              style={{ maxWidth: '100%' }}
+            />
+            <BrandPrimaryButton
+              leadingIcon='add'
+              onClick={() => {
+                setNewBedForm(NEW_BED_FORM_DEFAULT);
+                setShowAddBedModal(true);
+              }}
+            >
+              ลงทะเบียนเตียงเสริม (Extra Bed / Stretcher)
+            </BrandPrimaryButton>
+          </div>
+        )}
+
         {/* Main White Body Card Surface (Matching Screening / OPD Queue Work List Page) */}
         <div
           className='w-full flex flex-col space-y-6'
@@ -831,6 +1237,20 @@ export default function ObservationQueuePage() {
             )}
             {activeTab === 'observing' && (
               <>
+                {/* The board's order is information, so it is a stated
+                    choice rather than a hidden default. "ความเร่งด่วน"
+                    is the working order; "เลขเตียง" is the walking order
+                    for a physical round. */}
+                <FilterDropdown
+                  prefix='เรียงตาม'
+                  leadingIcon='sort'
+                  options={[
+                    { value: 'priority', label: 'ความเร่งด่วน' },
+                    { value: 'bed', label: 'เลขเตียง' },
+                  ]}
+                  value={boardSort}
+                  onChange={setBoardSort}
+                />
                 <FilterDropdown
                   prefix='ผู้สั่ง'
                   leadingIcon='stethoscope'
@@ -877,30 +1297,63 @@ export default function ObservationQueuePage() {
         ) : (
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5'>
           {pagedPatients.map((patient) => {
-            const isEmpty = patient.status === 'empty';
+            const isCleaning = patient.status === BED_CLEANING_STATUS;
+            const isEmpty = patient.status === 'empty' || isCleaning;
             const latestVitals = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
-            const ewsResult = latestVitals ? calculateEwsScore(latestVitals) : null;
-            /* เวลาเริ่มต้น / เวลาสิ้นสุด (TOR 1.14.1) — start time comes off
-               admitTime's "YYYY-MM-DD HH:MM น." string; end time only
-               exists once the patient has actually left observation (no
-               dedicated dischargeTime field yet, so the latest recorded
-               vitals reading is the closest real timestamp to it). */
+            const ewsResult = latestVitals ? scorePatientVitals(patient, latestVitals) : null;
+            /* เวลาเริ่มต้น / เวลาสิ้นสุด (TOR 1.14.1) — both come off the
+               record's own full timestamps now, so a stay that crosses
+               midnight still reads correctly (edge case #12). */
             const startTimeLabel = patient.admitTime ? patient.admitTime.split(' ').slice(1).join(' ') : '-';
             const isFinishedObserving = patient.status === 'ready_discharge' || patient.status === 'discharged';
-            const endTimeLabel = isFinishedObserving ? (latestVitals?.time || '-') : '-';
+            const endTimeLabel = patient.dischargeTime
+              ? patient.dischargeTime.split(' ').slice(1).join(' ')
+              : isFinishedObserving ? (latestVitals?.time || '-') : '-';
+            /* Edge case #1 / #2 — both only apply to a patient still under
+               active observation; a referred record's last-recorded EWS or
+               total stay is history, not something to alarm about. */
+            const isRedAlert = patient.status === 'observing' && (ewsResult?.score ?? 0) >= EWS_RED_ALERT_SCORE;
+            const overstay = isOverstay(patient);
 
             if (isEmpty) {
               return (
                 <div
                   key={patient.id}
-                  className='rounded-2xl p-6 flex flex-col items-center justify-center min-h-[564px] text-center transition-all group cursor-pointer hover:shadow-[var(--shadow-card)]'
-                  style={{
-                    background: 'var(--surface-neutral-quaternary)',
-                    border: 'var(--dim-stroke-200) dashed var(--border-card-default)',
+                  /* A bed tile is an action, not a decoration — give it a
+                     real role, keyboard operation and a name so it can be
+                     reached without a mouse (WCAG 2.1.1 / 4.1.2). The
+                     button inside stays out of the tab order so the tile
+                     is a single stop, not two. */
+                  role={isCleaning ? undefined : 'button'}
+                  tabIndex={isCleaning ? undefined : 0}
+                  aria-label={isCleaning ? undefined : `รับผู้ป่วยเข้า ${patient.bedNo} (${patient.bedType})`}
+                  onKeyDown={(e) => {
+                    if (isCleaning) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setAdmitForm((prev) => ({ ...prev, bedId: patient.id }));
+                      setShowAdmitModal(true);
+                    }
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-brandPrimary-quaternary)'; e.currentTarget.style.borderColor = 'var(--border-brandPrimary-default)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-neutral-quaternary)'; e.currentTarget.style.borderColor = 'var(--border-card-default)'; }}
+                  className={`mih-observation-focusable rounded-2xl p-6 flex flex-col items-center justify-center min-h-[564px] text-center transition-all group hover:shadow-[var(--shadow-card)]${isCleaning ? '' : ' cursor-pointer'}`}
+                  style={{
+                    background: isCleaning ? 'var(--surface-colorfulbadge-orange, #FFEDD5)' : 'var(--surface-neutral-quaternary)',
+                    border: `var(--dim-stroke-200) dashed ${isCleaning ? 'var(--surface-colorfulbadge-orange-bold, #F97316)' : 'var(--border-card-default)'}`,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (isCleaning) return;
+                    e.currentTarget.style.background = 'var(--surface-brandPrimary-quaternary)';
+                    e.currentTarget.style.borderColor = 'var(--border-brandPrimary-default)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (isCleaning) return;
+                    e.currentTarget.style.background = 'var(--surface-neutral-quaternary)';
+                    e.currentTarget.style.borderColor = 'var(--border-card-default)';
+                  }}
                   onClick={() => {
+                    /* A dirty bed can't take a patient — housekeeping has
+                       to sign it off first (edge case #9). */
+                    if (isCleaning) return;
                     setAdmitForm((prev) => ({ ...prev, bedId: patient.id }));
                     setShowAdmitModal(true);
                   }}
@@ -922,17 +1375,39 @@ export default function ObservationQueuePage() {
                   <h3 style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)', fontSize: 'var(--type-size-base)', marginBottom: 'var(--dim-space-050, 2px)' }}>
                     {patient.bedNo}
                   </h3>
-                  <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)', marginBottom: 'var(--dim-space-400)' }}>
-                    {patient.bedType} (ว่าง)
-                  </p>
-                  <BrandPrimaryButton
-                    leadingIcon='person_add'
-                    size='lg'
-                    variant='outline'
-                    tabIndex={-1}
+                  {patient.isExtraBed && (
+                    <div style={{ marginBottom: 'var(--dim-space-150, 6px)' }}>
+                      <ColorfulBadge width='hug' style='orange' icon='airline_seat_flat'>เตียงเสริม (Extra Bed)</ColorfulBadge>
+                    </div>
+                  )}
+                  <p
+                    style={{
+                      color: isCleaning ? 'var(--text-colorfulbadge-orange, #C2410C)' : 'var(--text-content-tertiary)',
+                      fontSize: 'var(--type-size-xs)',
+                      marginBottom: 'var(--dim-space-400)',
+                    }}
                   >
-                    รับผู้ป่วยเข้าเตียง
-                  </BrandPrimaryButton>
+                    {patient.bedType} ({isCleaning ? 'รอทำความสะอาด' : 'ว่าง'})
+                  </p>
+                  {isCleaning ? (
+                    <BrandPrimaryButton
+                      leadingIcon='cleaning_services'
+                      size='lg'
+                      variant='outline'
+                      onClick={(e) => { e.stopPropagation(); handleFinishCleaning(patient.id); }}
+                    >
+                      ทำความสะอาดเสร็จ — เปิดใช้เตียง
+                    </BrandPrimaryButton>
+                  ) : (
+                    <BrandPrimaryButton
+                      leadingIcon='person_add'
+                      size='lg'
+                      variant='outline'
+                      tabIndex={-1}
+                    >
+                      รับผู้ป่วยเข้าเตียง
+                    </BrandPrimaryButton>
+                  )}
                 </div>
               );
             }
@@ -940,8 +1415,15 @@ export default function ObservationQueuePage() {
             return (
               <div
                 key={patient.id}
-                className='rounded-2xl p-5 transition-all flex flex-col justify-between relative overflow-hidden mih-summary-card'
-                style={{ background: 'var(--surface-card-100)', border: 'none', boxShadow: 'var(--shadow-card-strong)' }}
+                className={`rounded-2xl p-5 transition-all flex flex-col justify-between relative overflow-hidden mih-summary-card${isRedAlert ? ' mih-observation-card--alert-red' : ''}`}
+                style={{
+                  background: 'var(--surface-card-100)',
+                  /* Left undefined (not 'none') under red alert so the
+                     blinking border the CSS class owns isn't overridden
+                     by this inline rule — inline always wins. */
+                  border: isRedAlert ? undefined : 'none',
+                  boxShadow: 'var(--shadow-card-strong)',
+                }}
               >
                 {/* Status bar accent */}
                 <div
@@ -996,6 +1478,44 @@ export default function ObservationQueuePage() {
                         : `กำลังเฝ้าระวัง (${ewsResult?.score ?? 0})`}
                     </StatusBadge>
                   </div>
+
+                  {/* Clinical alert strip (edge cases #1 · #2 · #4) — the
+                      card's own status badge only reports EWS as a number,
+                      which doesn't tell the nurse WHAT to do about it. */}
+                  {(isRedAlert || overstay || patient.isExtraBed) && (
+                    <div className='flex flex-wrap mb-3' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                      {isRedAlert && (
+                        <ColorfulBadge width='hug' style='red' icon='emergency_home'>
+                          EWS Red Alert (EWS {ewsResult?.score}) — อาการทรุดลง
+                        </ColorfulBadge>
+                      )}
+                      {overstay && (
+                        <ColorfulBadge width='hug' style='orange' icon='hourglass_top'>
+                          Overstay Warning (เกิน {OVERSTAY_LIMIT_MINUTES / 60} ชม.)
+                        </ColorfulBadge>
+                      )}
+                      {patient.isExtraBed && (
+                        <ColorfulBadge width='hug' style='orange' icon='airline_seat_flat'>เตียงเสริม (Extra Bed)</ColorfulBadge>
+                      )}
+                    </div>
+                  )}
+                  {overstay && (
+                    <div
+                      className='mb-3'
+                      style={{
+                        background: 'var(--surface-colorfulbadge-orange, #FFEDD5)',
+                        borderRadius: 'var(--dim-radius-300)',
+                        paddingTop: 'var(--dim-space-200)',
+                        paddingRight: 'var(--dim-space-300)',
+                        paddingBottom: 'var(--dim-space-200)',
+                        paddingLeft: 'var(--dim-space-300)',
+                        color: 'var(--text-colorfulbadge-orange, #C2410C)',
+                        fontSize: 'var(--type-size-xs)',
+                      }}
+                    >
+                      แจ้งแพทย์ผู้ดูแลประเมินซ้ำ (Re-evaluate) เพื่อตัดสินใจ Admit IPD หรือส่งต่อ
+                    </div>
+                  )}
 
                   {/* Patient Primary Details — same light-brand background
                       as PatientSummaryCard (Figma 145:6155) so the patient
@@ -1058,7 +1578,7 @@ export default function ObservationQueuePage() {
                           สัญญาณชีพล่าสุด ({latestVitals.time})
                         </span>
                         <StatusBadge style={ewsResult.tier.style} size='small' showDot>
-                          EWS: {ewsResult.score}
+                          {ewsResult.scale.short}: {ewsResult.score}
                         </StatusBadge>
                       </div>
                       <div className='grid grid-cols-4 gap-2 text-left text-xs'>
@@ -1096,7 +1616,7 @@ export default function ObservationQueuePage() {
                     </div>
                     <div className='flex items-center gap-1'>
                       <span className='material-symbols-outlined text-sm text-ink-quaternary'>schedule</span>
-                      สังเกตอาการแล้ว (durationMinutes) <strong className='text-ink-secondary'>{Math.floor(patient.durationMinutes / 60)} ชม. {patient.durationMinutes % 60} นาที</strong>
+                      สังเกตอาการแล้ว <strong className='text-ink-secondary'>{formatDurationThai(getObservationDurationMinutes(patient))}</strong>
                     </div>
                     <div className='flex items-center gap-1 truncate' title={patient.doctorName}>
                       <span className='material-symbols-outlined text-sm text-ink-quaternary'>stethoscope</span>
@@ -1114,6 +1634,25 @@ export default function ObservationQueuePage() {
                     (which only makes sense mid-observation) drops out and
                     the remaining button reads as a history lookup instead
                     of an active-observation shortcut. */}
+                {isRedAlert && (
+                  /* Code Red shortcut (edge case #1) — full-width and
+                     above the routine actions so escalating is never the
+                     button a rushing nurse has to hunt for. */
+                  <div className='pt-3'>
+                    <DangerButton
+                      variant='fill'
+                      size='lg'
+                      leadingIcon='emergency_home'
+                      className='w-full'
+                      onClick={() => {
+                        setErTransferReason('');
+                        setErTransferPatient(patient);
+                      }}
+                    >
+                      ย้ายด่วนเข้าห้องฉุกเฉิน (Code Red)
+                    </DangerButton>
+                  </div>
+                )}
                 <div className={`pt-3 grid gap-2 ${isFinishedObserving ? 'grid-cols-1' : 'grid-cols-2'}`}>
                   {!isFinishedObserving && (
                     <BrandSubdueButton
@@ -1275,6 +1814,13 @@ export default function ObservationQueuePage() {
                   </div>
                   <span className='material-symbols-outlined text-ink-tertiary'>expand_more</span>
                 </button>
+                {!isSelectedBedFree && (
+                  <p style={{ marginTop: 'var(--dim-space-150)', color: 'var(--text-danger-default)', fontSize: 'var(--type-size-xs)' }}>
+                    {selectedBed?.status === BED_CLEANING_STATUS
+                      ? 'เตียงนี้รอทำความสะอาด — ต้องกด “ทำความสะอาดเสร็จ” ก่อนจึงจะรับผู้ป่วยเข้าเตียงได้'
+                      : 'เตียงนี้มีผู้ป่วยครองอยู่แล้ว — กรุณาเลือกเตียงว่าง'}
+                  </p>
+                )}
               </div>
 
               {/* Same suggestion popover as OPD screening's "อาการ (Chief
@@ -1316,7 +1862,7 @@ export default function ObservationQueuePage() {
                 <NeutralSubdueButton type='button' onClick={() => setShowAdmitModal(false)}>
                   ยกเลิก
                 </NeutralSubdueButton>
-                <BrandPrimaryButton type='submit' leadingIcon='check' disabled={!admitForm.hn}>
+                <BrandPrimaryButton type='submit' leadingIcon='check' disabled={!admitForm.hn || !isSelectedBedFree}>
                   ยืนยันครองเตียงสังเกตอาการ
                 </BrandPrimaryButton>
               </div>
@@ -1343,12 +1889,12 @@ export default function ObservationQueuePage() {
       <Popup
         open={showAddBedModal}
         onClose={() => setShowAddBedModal(false)}
-        title='เพิ่มเตียงสังเกตอาการใหม่'
+        title={isNextBedExtra ? 'ลงทะเบียนเตียงเสริม (Extra Bed / Stretcher)' : 'เพิ่มเตียงสังเกตอาการใหม่'}
         subtitle='เลือกรูปแบบเตียงและระบุคำอธิบาย ระบบจะกำหนดเลขเตียงให้อัตโนมัติ'
         size='large'
         tertiaryAction={{ label: 'ยกเลิก', onClick: () => setShowAddBedModal(false) }}
         primaryAction={{
-          label: 'เพิ่มเตียง',
+          label: isNextBedExtra ? 'ลงทะเบียนเตียงเสริม' : 'เพิ่มเตียง',
           onClick: handleAddBed,
           disabled: !newBedForm.bedTypeId || !newBedForm.description.trim(),
         }}
@@ -1409,6 +1955,24 @@ export default function ObservationQueuePage() {
             </div>
           </div>
 
+          {isNextBedExtra && (
+            <div
+              style={{
+                background: 'var(--surface-colorfulbadge-orange, #FFEDD5)',
+                borderRadius: 'var(--dim-radius-300)',
+                paddingTop: 'var(--dim-space-300)',
+                paddingRight: 'var(--dim-space-300)',
+                paddingBottom: 'var(--dim-space-300)',
+                paddingLeft: 'var(--dim-space-300)',
+                color: 'var(--text-colorfulbadge-orange, #C2410C)',
+                fontSize: 'var(--type-size-xs)',
+              }}
+            >
+              ขณะนี้เตียงหลักถูกครองเต็มทุกเตียง — เตียงที่เพิ่มนี้จะถูกบันทึกเป็น
+              <strong> เตียงเสริม (Extra Bed / Stretcher)</strong> และใช้เลขเตียง {nextBedNo}
+            </div>
+          )}
+
           <SuggestibleTextarea
             voice
             label='คำอธิบาย (Description)'
@@ -1418,6 +1982,55 @@ export default function ObservationQueuePage() {
             required
           />
         </div>
+      </Popup>
+
+      {/* "ย้ายด่วนเข้าห้องฉุกเฉิน (Code Red)" — edge case #1. Confirming
+          moves the patient out of active observation and records the
+          escalation (plus whatever deterioration the nurse describes)
+          into the observation record, so the ER receives WHY the patient
+          was upgraded, not just that they were. */}
+      <Popup
+        open={!!erTransferPatient}
+        onClose={() => setErTransferPatient(null)}
+        title='ย้ายด่วนเข้าห้องฉุกเฉิน (Code Red)'
+        leading={<span className='material-symbols-outlined text-2xl' style={{ color: 'var(--text-colorfulbadge-red, #B91C1C)' }}>emergency_home</span>}
+        size='large'
+        secondaryAction={{ label: 'ยกเลิก', onClick: () => setErTransferPatient(null) }}
+        primaryAction={{ label: 'ยืนยันย้ายเข้าห้องฉุกเฉิน', onClick: handleConfirmErTransfer }}
+      >
+        {erTransferPatient && (
+          <>
+            <PatientSummaryCard
+              avatarUrl={erTransferPatient.avatar || getPatientByHN(erTransferPatient.hn)?.avatarUrl}
+              avatarAlt={erTransferPatient.patientName}
+              cells={[
+                { label: 'ชื่อ-นามสกุล ผู้ป่วย', value: erTransferPatient.patientName },
+                { label: 'HN (Hospital Number)', value: erTransferPatient.hn },
+                { label: 'เตียง', value: erTransferPatient.bedNo },
+              ]}
+            />
+
+            <Alert
+              type='error'
+              title={`คะแนน EWS ล่าสุดคือ ${erTransferEws} (เกณฑ์ Red Alert คือ ≥ ${EWS_RED_ALERT_SCORE})`}
+              subtext='ผู้ป่วยจะถูกย้ายออกจากเตียงสังเกตอาการและบันทึกเป็นการส่งต่อภายในไปยัง ห้องฉุกเฉิน (ER) ทันที'
+              showCloseButton={false}
+              style={{ maxWidth: '100%' }}
+            />
+
+            <SuggestibleTextarea
+              voice
+              label='อาการที่ทรุดลง / เหตุผลการย้ายด่วน'
+              rows={3}
+              value={erTransferReason}
+              onChange={(e) => setErTransferReason(e.target.value)}
+              placeholder='เช่น ความดันตกร่วมกับชีพจรเบาเร็ว, SpO2 ลดต่ำกว่า 90%, ระดับความรู้สึกตัวลดลง'
+              suggestions={ER_TRANSFER_REASON_SUGGESTIONS}
+              minChars={3}
+              popoverAriaLabel='คำแนะนำเหตุผลการย้ายเข้าห้องฉุกเฉิน'
+            />
+          </>
+        )}
       </Popup>
     </QueuePageShell>
   );

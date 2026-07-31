@@ -12,7 +12,17 @@ import Popup from '@/components/popup/Popup';
 import Alert from '@/components/alert/Alert';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import { getPatientByHN } from '@/data/patientProfiles';
-import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
+import {
+  MOCK_OBSERVATION_PATIENTS,
+  EWS_RISK_TIERS,
+  EWS_RED_ALERT_SCORE,
+  getOutOfRangeVitals,
+  getPendingStatOrders,
+  scorePatientVitals,
+  buildObservationTimeline,
+  observationDayOffset,
+  formatObservationDateTime,
+} from '@/data/observationMock';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
 import Pagination from '@/components/pagination/Pagination';
 import StepProgress from '@/components/step/StepProgress';
@@ -44,6 +54,18 @@ const DISCHARGE_INSTRUCTIONS_SUGGESTIONS = [
   'ดื่มน้ำให้เพียงพอ หลีกเลี่ยงอาหารรสจัด และมาตามนัดติดตามอาการตามกำหนด',
   'หลีกเลี่ยงฝุ่น PM2.5 และควันบุหรี่ พ่นยาตามแพทย์สั่งสม่ำเสมอ หากเหนื่อยหอบเพิ่มให้รีบมาพบแพทย์',
   'เฝ้าระวังอาการเวียนศีรษะ หน้ามืด หรือใจสั่น หากเป็นซ้ำให้วัดความดันและมาพบแพทย์',
+];
+
+/* DAMA (Discharge Against Medical Advice) — the reasons a patient most
+   often gives for walking out of observation before the doctor allows
+   it. Same SuggestibleTextarea contract as every other clinician-typed
+   field on this page. */
+const DAMA_REASON_SUGGESTIONS = [
+  'ผู้ป่วยต้องการกลับไปดูแลครอบครัวที่บ้าน ไม่สามารถรอสังเกตอาการต่อได้',
+  'ผู้ป่วยปฏิเสธการนอนสังเกตอาการต่อ ยืนยันว่าอาการดีขึ้นแล้ว',
+  'ผู้ป่วยกังวลเรื่องค่าใช้จ่าย จึงขอกลับบ้านก่อนครบกำหนดสังเกตอาการ',
+  'ญาติผู้ป่วยขอรับกลับไปรักษาต่อที่โรงพยาบาลใกล้บ้าน',
+  'ผู้ป่วยติดภารกิจจำเป็น ขอกลับก่อนและรับทราบความเสี่ยงแล้ว',
 ];
 
 const STAT_ORDER_SUGGESTIONS = [
@@ -170,12 +192,25 @@ export default function ObservationDetailPage() {
      suggestion list (see STAT_ORDER_SUGGESTIONS / LAB_ORDER_SUGGESTIONS). */
   const [orderModalKind, setOrderModalKind] = useState(null);
   /* "ส่งต่อ" popup — asks from/to department before the discharge record
-     actually saves (see saveDischarge). 'internal' | 'external'. */
+     actually saves (see commitDischarge). 'internal' | 'external' | 'dama'.
+     'dama' is Discharge Against Medical Advice (edge case #3): the
+     patient is leaving of their own accord, so there IS no destination
+     to pick — instead the popup demands a signed waiver + a reason. */
   const [showReferModal, setShowReferModal] = useState(false);
   const [referScope, setReferScope] = useState('internal');
   const [referDepartment, setReferDepartment] = useState('');
+  const [damaReason, setDamaReason] = useState('');
+  /* Only the file NAME is kept — this is a mock with no upload backend,
+     and storing the File object would imply a persistence that isn't
+     there. Enough to prove the waiver was attached before discharge. */
+  const [damaConsentFileName, setDamaConsentFileName] = useState('');
+  /* Edge case #6 — second-stage confirmation shown when the clinician
+     tries to finish while STAT orders are still 'pending'. */
+  const [showPendingStatModal, setShowPendingStatModal] = useState(false);
   const [vitalsPage, setVitalsPage] = useState(1);
   const [draftSavedToast, setDraftSavedToast] = useState(false);
+  /* Message text, or '' when no toast is showing. */
+  const [saveToast, setSaveToast] = useState('');
   /* VitalCard/PressureCard's `required` prop only renders the asterisk —
      unlike InputField it never reaches the native <input>, so nothing
      stops an all-empty submit. Track each field's validity explicitly
@@ -202,7 +237,7 @@ export default function ObservationDetailPage() {
 
   // Calculate EWS for latest vitals
   const latestVitals = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
-  const currentEws = latestVitals ? calculateEwsScore(latestVitals) : { score: 0, tier: EWS_RISK_TIERS.NORMAL };
+  const currentEws = latestVitals ? scorePatientVitals(patient, latestVitals) : { score: 0, tier: EWS_RISK_TIERS.NORMAL, scale: null };
 
   /* Observation Timeline — merges vitalsTrend + nursingNotes + statOrders
      into one chronological feed so every timestamp shows its vital signs,
@@ -212,43 +247,40 @@ export default function ObservationDetailPage() {
      on step 3, an order list on step 2). Vitals entries bring their own
      embedded `note` (recorded at measurement time); any nursingNotes or
      statOrders entry sharing the same timestamp is folded into the same
-     row, everything else becomes its own row. Time strings are
-     zero-padded "HH:MM น." so plain string sort is chronological —
-     sorted newest-first so the most recent reading always surfaces at
-     the top of the feed. */
-  const observationTimeline = (() => {
-    const byTime = new Map();
-    patient.vitalsTrend.forEach((v) => {
-      byTime.set(v.time, {
-        time: v.time,
-        vitals: v,
-        opinions: v.note ? [{ kind: 'note', text: v.note, author: patient.nurseName, noteType: null }] : [],
-      });
-    });
-    patient.nursingNotes.forEach((n) => {
-      const opinion = { kind: 'note', text: n.note, author: n.nurse, noteType: n.noteType || null };
-      const existing = byTime.get(n.time);
-      if (existing) existing.opinions.push(opinion);
-      else byTime.set(n.time, { time: n.time, vitals: null, opinions: [opinion] });
-    });
-    patient.statOrders.forEach((ord) => {
-      /* No dedicated "ordered by" field exists on statOrders (only
-         executedBy, filled once someone acts on it) — default to the
-         attending nurse, same fallback vitals' own embedded note uses. */
-      const opinion = { kind: 'order', text: ord.orderText, status: ord.status, author: patient.nurseName };
-      const existing = byTime.get(ord.orderTime);
-      if (existing) existing.opinions.push(opinion);
-      else byTime.set(ord.orderTime, { time: ord.orderTime, vitals: null, opinions: [opinion] });
-    });
-    return Array.from(byTime.values()).sort((a, b) => b.time.localeCompare(a.time));
-  })();
+     row, everything else becomes its own row.
+
+     Two things the naive version got wrong:
+       • **Ordering (edge case #12).** "HH:MM น." carries no date, so a
+         stay that crosses midnight sorted 00:15 น. *below* 23:50 น.
+         Each source list is authored chronologically, so absolute
+         timestamps are rebuilt by rolling forward a day whenever the
+         clock goes backwards, anchored on admitTime — and the feed is
+         sorted on those, newest first.
+       • **Collisions (edge case #11).** Rows were keyed on the time
+         string alone, so a second reading taken in the same minute
+         silently REPLACED the first and the earlier vitals vanished
+         from the record. A repeated timestamp now gets its own row
+         (`14:32 น.#1`) instead of overwriting.  */
+  const observationTimeline = buildObservationTimeline(patient);
+
+  /* Day-1 / Day-2 marker for stays that run past midnight — without it
+     two rows reading "23:50 น." and "00:15 น." look out of order even
+     though they are sorted correctly. */
+  const dayOffsetOf = (entry) => observationDayOffset(patient, entry);
 
   /* Per-vitals-reading opinions, in the same order as patient.vitalsTrend
-     (chronological, matching the trend chart's x-axis) — looked up from
-     observationTimeline so the "ดูแบบกราฟ" popup's hover tooltip can show
-     every note recorded at that timestamp, not just the value. */
-  const trendNotesByTime = new Map(observationTimeline.map((e) => [e.time, e.opinions]));
-  const trendNotesByIndex = patient.vitalsTrend.map((v) => trendNotesByTime.get(v.time) ?? []);
+     (chronological, matching the trend chart's x-axis) — looked up by the
+     timeline's own row key so same-minute repeats keep their own notes
+     instead of all resolving to the first row. */
+  const timelineByKey = new Map(observationTimeline.map((e) => [e.key, e.opinions]));
+  const trendNotesByIndex = (() => {
+    const seen = new Map();
+    return patient.vitalsTrend.map((v) => {
+      const repeat = seen.get(v.time) || 0;
+      seen.set(v.time, repeat + 1);
+      return timelineByKey.get(repeat === 0 ? v.time : `${v.time}#${repeat}`) ?? [];
+    });
+  })();
 
   // Observation Timeline pagination — same PAGE_SIZE/Pagination pattern as QueuePage.jsx
   const vitalsTotalPages = Math.max(1, Math.ceil(observationTimeline.length / VITALS_PAGE_SIZE));
@@ -276,6 +308,10 @@ export default function ObservationDetailPage() {
        button is disabled) — without this, an unmeasured field could
        still slip through as a "normal" default reading. */
     if (!isVitalFormValid) return;
+    /* Out-of-bound range check (edge case #5) — AddVitalsModal already
+       disables its save button on this; repeated here because Enter
+       inside a VitalCard input reaches the handler regardless. */
+    if (getOutOfRangeVitals(newVital).length > 0) return;
     const nowStr = `${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')} น.`;
     const newLog = {
       time: nowStr,
@@ -288,9 +324,29 @@ export default function ObservationDetailPage() {
       note: newVital.note || 'บันทึกประจำช่วงเวลา',
     };
 
+    /* Deterioration Event (edge case #1) — same crossing-detection as
+       ObservationQueuePage's own vitals save: only the reading that
+       first pushes EWS over the red-alert line writes an event, so a
+       patient who stays critical doesn't log one per measurement. */
+    const prevLatest = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
+    const prevScore = prevLatest ? scorePatientVitals(patient, prevLatest).score : 0;
+    const newScore = scorePatientVitals(patient, newLog).score;
+    const isDeterioration = newScore >= EWS_RED_ALERT_SCORE && prevScore < EWS_RED_ALERT_SCORE;
+    if (isDeterioration) newLog.deteriorationEvent = true;
+
     setPatient((prev) => ({
       ...prev,
       vitalsTrend: [...prev.vitalsTrend, newLog],
+      nursingNotes: isDeterioration
+        ? [
+            ...prev.nursingNotes,
+            {
+              time: nowStr,
+              nurse: prev.nurseName,
+              note: `Deterioration Event: คะแนน EWS พุ่งขึ้นเป็น ${newScore} (จากเดิม ${prevScore}) — ระบบบันทึกอัตโนมัติ ให้รายงานแพทย์ผู้ดูแลด่วนและพิจารณาย้ายเข้าห้องฉุกเฉิน`,
+            },
+          ]
+        : prev.nursingNotes,
     }));
 
     setNewVital({ bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '' });
@@ -349,6 +405,11 @@ export default function ObservationDetailPage() {
     completed:   { bg: 'var(--surface-colorfulbadge-green)',  color: 'var(--text-colorfulbadge-green)',  icon: 'check_circle' },
     in_progress: { bg: 'var(--surface-colorfulbadge-orange)', color: 'var(--text-colorfulbadge-orange)', icon: 'hourglass_top' },
     pending:     { bg: 'var(--surface-colorfulbadge-red)',    color: 'var(--text-colorfulbadge-red)',    icon: 'error' },
+    /* Written by the discharge guard (edge case #6) when the clinician
+       chooses to void the outstanding STAT orders instead of executing
+       them — a voided order must stay visible in the timeline, never be
+       deleted from the record. */
+    cancelled:   { bg: 'var(--surface-neutral-quaternary)',   color: 'var(--text-content-tertiary)',     icon: 'cancel' },
   };
 
   const handleAddNursingNote = (e) => {
@@ -391,36 +452,88 @@ export default function ObservationDetailPage() {
      dropdown, no native <select>), so `required` only renders the
      asterisk — same gap as VitalCard. Guard explicitly instead of
      relying on native form validation. */
+  const isDama = referScope === 'dama';
   const isReferTargetMissing =
-    referScope === 'internal'
+    isDama
+      /* DAMA has no destination — what must be captured instead is the
+         signed waiver and the patient's stated reason (edge case #3). */
+      ? (!damaConsentFileName || !damaReason.trim())
+      : referScope === 'internal'
       ? (!referDepartment || referDepartment === REFER_DEPARTMENT_PLACEHOLDER)
       : (!dischargeForm.referHospital || dischargeForm.referHospital === EXTERNAL_REFER_HOSPITALS_PLACEHOLDER);
 
   /* SuggestibleTextarea's `required` prop is cosmetic only (asterisk) —
      same gap as VitalCard/Select — so the ส่งต่อ button gates on this
-     explicitly instead of relying on native form validation. */
-  const isDoctorSummaryMissing = !dischargeForm.doctorSummary.trim();
+     explicitly instead of relying on native form validation. A DAMA
+     discharge is exempt: the patient is leaving against advice, so the
+     reason field IS the clinical record and gets copied into
+     doctorSummary below rather than demanded a second time. */
+  const isDoctorSummaryMissing = !isDama && !dischargeForm.doctorSummary.trim();
 
-  const saveDischarge = () => {
+  /* Edge case #6 — STAT orders nobody has acted on yet. 'in_progress' is
+     already being carried out, so only 'pending' blocks. */
+  const pendingStatOrders = getPendingStatOrders(patient);
+
+  /* `cancelPendingOrders` comes from the pending-STAT confirmation
+     (edge case #6): true voids the outstanding orders as part of the
+     discharge, false lets them stand on the record as unexecuted. */
+  const commitDischarge = ({ cancelPendingOrders = false } = {}) => {
     if (isDoctorSummaryMissing || isReferTargetMissing) return;
+    const now = new Date();
+    const nowStr = formatObservationDateTime(now).split(' ').slice(1).join(' ');
     setPatient((prev) => ({
       ...prev,
       status: 'discharged',
+      /* Freezes the derived stay length at the moment the patient left
+         — without it the duration would keep counting forever. */
+      dischargeTime: formatObservationDateTime(now),
+      statOrders: cancelPendingOrders
+        ? prev.statOrders.map((o) => (o.status === 'pending' ? { ...o, status: 'cancelled', executedTime: nowStr } : o))
+        : prev.statOrders,
+      nursingNotes: isDama
+        ? [
+            ...prev.nursingNotes,
+            {
+              time: nowStr,
+              nurse: prev.nurseName,
+              note: `DAMA — ผู้ป่วยปฏิเสธการรักษาและขอกลับบ้านก่อนแพทย์อนุญาต · เหตุผล: ${damaReason.trim()} · แนบใบยินยอมปฏิเสธการรักษา: ${damaConsentFileName}`,
+            },
+          ]
+        : prev.nursingNotes,
       dischargeSummary: {
         ...dischargeForm,
+        /* DAMA is a disposition in its own right — not a referral, not a
+           routine discharge home — so downstream reports can count it. */
+        disposition: isDama ? 'dama' : 'refer',
         referScope,
         referDepartment: referScope === 'internal' ? referDepartment : '',
         referHospital: referScope === 'external' ? dischargeForm.referHospital : '',
+        doctorSummary: isDama
+          ? (dischargeForm.doctorSummary.trim() || `ผู้ป่วยปฏิเสธการรักษาและขอกลับบ้าน (DAMA) — ${damaReason.trim()}`)
+          : dischargeForm.doctorSummary,
+        damaReason: isDama ? damaReason.trim() : '',
+        damaConsentFileName: isDama ? damaConsentFileName : '',
         dischargeVitals: latestVitals ? { ...latestVitals } : null,
       },
     }));
+    setShowPendingStatModal(false);
     setShowReferModal(false);
-    alert('บันทึกผลการส่งต่อผู้ป่วยเรียบร้อยแล้ว!');
+    /* The design system's own toast, not window.alert — a native dialog
+       blocks the page until dismissed, which is the wrong interruption
+       for a save that already succeeded. */
+    setSaveToast(isDama ? 'บันทึกการจำหน่ายแบบปฏิเสธการรักษา (DAMA) แล้ว' : 'บันทึกการส่งต่อผู้ป่วยแล้ว');
   };
 
   const handleConfirmRefer = (e) => {
     e.preventDefault();
-    saveDischarge();
+    if (isDoctorSummaryMissing || isReferTargetMissing) return;
+    /* Edge case #6 — never discharge straight past unexecuted STAT
+       orders; make the clinician decide what happens to them first. */
+    if (pendingStatOrders.length > 0) {
+      setShowPendingStatModal(true);
+      return;
+    }
+    commitDischarge();
   };
 
   const observationSteps = [
@@ -448,6 +561,8 @@ export default function ObservationDetailPage() {
          a previous referral's target doesn't silently carry over. */
       setReferScope('internal');
       setReferDepartment('');
+      setDamaReason('');
+      setDamaConsentFileName('');
       setShowReferModal(true);
     } else {
       goNextStep();
@@ -723,9 +838,9 @@ export default function ObservationDetailPage() {
                 <div className='flex flex-col'>
                   {pagedTimeline.map((entry, idx) => {
                     const isLast = idx === pagedTimeline.length - 1;
-                    const ewsRes = entry.vitals ? calculateEwsScore(entry.vitals) : null;
+                    const ewsRes = entry.vitals ? scorePatientVitals(patient, entry.vitals) : null;
                     return (
-                      <div key={entry.time} className='flex' style={{ gap: 'var(--dim-space-300)' }}>
+                      <div key={entry.key} className='flex' style={{ gap: 'var(--dim-space-300)' }}>
                         <div className='flex flex-col items-center shrink-0' style={{ width: 'var(--dim-size-300, 16px)' }}>
                           <span
                             className='shrink-0 rounded-full'
@@ -759,9 +874,19 @@ export default function ObservationDetailPage() {
                             >
                               {entry.time}
                             </span>
+                            {dayOffsetOf(entry) > 0 && (
+                              <StatusBadge style='neutral' size='small'>
+                                วันที่ {dayOffsetOf(entry) + 1} ของการสังเกตอาการ
+                              </StatusBadge>
+                            )}
+                            {entry.repeatIndex > 0 && (
+                              <StatusBadge style='neutral' size='small'>
+                                วัดซ้ำครั้งที่ {entry.repeatIndex + 1} ในนาทีเดียวกัน
+                              </StatusBadge>
+                            )}
                             {ewsRes && (
                               <StatusBadge style={ewsRes.tier.style} size='small' showDot>
-                                EWS: {ewsRes.score}
+                                {ewsRes.scale.short}: {ewsRes.score}
                               </StatusBadge>
                             )}
                           </div>
@@ -792,7 +917,13 @@ export default function ObservationDetailPage() {
                           {entry.opinions.map((op, opIdx) => {
                             if (op.kind === 'order') {
                               const cfg = STAT_ORDER_STATUS_STYLE[op.status];
-                              const statusLabel = op.status === 'completed' ? 'เสร็จสิ้น' : op.status === 'in_progress' ? 'กำลังดำเนินการ' : 'รอดำเนินการ';
+                              const statusLabel = op.status === 'completed'
+                                ? 'เสร็จสิ้น'
+                                : op.status === 'in_progress'
+                                ? 'กำลังดำเนินการ'
+                                : op.status === 'cancelled'
+                                ? 'ยกเลิกก่อนจำหน่าย'
+                                : 'รอดำเนินการ';
                               return (
                                 <div
                                   key={opIdx}
@@ -932,7 +1063,7 @@ export default function ObservationDetailPage() {
           the OPD screening wizard, so every step ends in a consistent
           forward action instead of relying solely on the StepProgress
           circles above. Final step's primary button performs the
-          discharge save (see saveDischarge) instead of advancing. */}
+          discharge save (see commitDischarge) instead of advancing. */}
       <Footer
         type='with BTN'
         sticky
@@ -957,6 +1088,12 @@ export default function ObservationDetailPage() {
         open={draftSavedToast}
         message='บันทึกร่างเรียบร้อยแล้ว'
         onClose={() => setDraftSavedToast(false)}
+      />
+
+      <SuccessToast
+        open={!!saveToast}
+        message={saveToast}
+        onClose={() => setSaveToast('')}
       />
 
       <AddVitalsModal
@@ -1146,17 +1283,31 @@ export default function ObservationDetailPage() {
 
       {/* Modal: ส่งต่อผู้ป่วย — step 2's final CTA opens this instead of
           saving directly, so from/to department is captured before the
-          discharge record actually writes (see saveDischarge). Replaces
+          discharge record actually writes (see commitDischarge). Replaces
           the old inline 4-card disposition selector + conditional refer-
           hospital picker (removed — duplicated what this popup now owns). */}
       <Popup
         open={showReferModal}
         onClose={() => setShowReferModal(false)}
-        title='ส่งต่อผู้ป่วย'
-        leading={<span className='material-symbols-outlined text-2xl' style={{ color: 'var(--brand-p700)' }}>local_hospital</span>}
+        title={isDama ? 'จำหน่ายผู้ป่วยแบบปฏิเสธการรักษา (DAMA)' : 'ส่งต่อผู้ป่วย'}
+        leading={
+          <span
+            className='material-symbols-outlined text-2xl'
+            style={{ color: isDama ? 'var(--text-colorfulbadge-red, #B91C1C)' : 'var(--brand-p700)' }}
+          >
+            {isDama ? 'assignment_late' : 'local_hospital'}
+          </span>
+        }
         size='large'
         secondaryAction={{ label: 'ยกเลิก', onClick: () => setShowReferModal(false) }}
-        primaryAction={{ label: 'ยืนยันส่งต่อ', onClick: handleConfirmRefer, disabled: isReferTargetMissing }}
+        primaryAction={{
+          label: isDama ? 'ยืนยันจำหน่าย (DAMA)' : 'ยืนยันส่งต่อ',
+          onClick: handleConfirmRefer,
+          /* Also gates on the doctor summary — it was already required by
+             the save handler, so leaving the button enabled just made the
+             click silently do nothing. */
+          disabled: isReferTargetMissing || isDoctorSummaryMissing,
+        }}
       >
         <PatientSummaryCard
           avatarUrl={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl}
@@ -1197,10 +1348,100 @@ export default function ObservationDetailPage() {
             >
               ส่งต่อภายนอก
             </SelectableTag>
+            {/* Edge case #3 — DAMA sits alongside the two referral
+                targets because it's the same decision point ("where does
+                this patient go from here"), just an answer where the
+                patient, not the ward, picked the destination. */}
+            <SelectableTag
+              size='md'
+              selected={isDama}
+              onClick={() => setReferScope('dama')}
+              ariaLabel='ปฏิเสธการรักษา'
+            >
+              ปฏิเสธการรักษา (DAMA)
+            </SelectableTag>
           </div>
         </div>
 
-        {referScope === 'internal' ? (
+        {isDama ? (
+          <>
+            <Alert
+              type='warning'
+              title='ผู้ป่วยขอกลับบ้านก่อนแพทย์อนุญาต'
+              subtext='ต้องแนบใบยินยอมปฏิเสธการรักษา (DAMA Waiver Consent Form) ที่ผู้ป่วยหรือญาติลงนามแล้ว และบันทึกเหตุผลไว้ในแฟ้มสังเกตอาการก่อนจึงจะจำหน่ายได้'
+              showCloseButton={false}
+              style={{ maxWidth: '100%' }}
+            />
+
+            <div>
+              <p className='font-medium mb-2' style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-xs)' }}>
+                ใบยินยอมปฏิเสธการรักษา (DAMA Waiver Consent Form)
+                <span style={{ color: 'var(--text-input-require)' }}> *</span>
+              </p>
+              <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300)' }}>
+                {/* Native file input is visually hidden behind the design-
+                    system button — the browser's default "Choose file"
+                    chrome has no token equivalent. */}
+                <label>
+                  <input
+                    type='file'
+                    accept='image/*,application/pdf'
+                    className='sr-only'
+                    onChange={(e) => setDamaConsentFileName(e.target.files?.[0]?.name || '')}
+                  />
+                  <span
+                    className='inline-flex items-center cursor-pointer'
+                    style={{
+                      gap: 'var(--dim-space-200)',
+                      paddingTop: 'var(--dim-space-200)',
+                      paddingBottom: 'var(--dim-space-200)',
+                      paddingLeft: 'var(--dim-space-400)',
+                      paddingRight: 'var(--dim-space-400)',
+                      borderRadius: 'var(--dim-radius-200, 8px)',
+                      border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-default)',
+                      color: 'var(--text-brandPrimary-default)',
+                      fontSize: 'var(--type-size-sm)',
+                      fontWeight: 'var(--type-weight-medium)',
+                    }}
+                  >
+                    <span className='material-symbols-outlined' style={{ fontSize: 20 }}>upload_file</span>
+                    แนบไฟล์ใบยินยอม
+                  </span>
+                </label>
+                <span
+                  className='inline-flex items-center min-w-0'
+                  style={{
+                    gap: 'var(--dim-space-100)',
+                    color: damaConsentFileName ? 'var(--text-content-default)' : 'var(--text-content-tertiary)',
+                    fontSize: 'var(--type-size-xs)',
+                  }}
+                >
+                  {damaConsentFileName ? (
+                    <>
+                      <span className='material-symbols-outlined' style={{ fontSize: 16, color: 'var(--text-colorfulbadge-green)' }}>check_circle</span>
+                      <span className='truncate'>{damaConsentFileName}</span>
+                    </>
+                  ) : (
+                    'ยังไม่ได้แนบไฟล์ (รองรับรูปภาพหรือ PDF)'
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <SuggestibleTextarea
+              voice
+              label='เหตุผลการปฏิเสธการรักษา (DAMA Reason)'
+              rows={3}
+              value={damaReason}
+              onChange={(e) => setDamaReason(e.target.value)}
+              placeholder='เช่น ผู้ป่วยต้องการกลับไปดูแลครอบครัว, กังวลค่าใช้จ่าย, ยืนยันว่าอาการดีขึ้นแล้ว'
+              suggestions={DAMA_REASON_SUGGESTIONS}
+              minChars={3}
+              popoverAriaLabel='คำแนะนำเหตุผลการปฏิเสธการรักษา'
+              required
+            />
+          </>
+        ) : referScope === 'internal' ? (
           <Select
             label='แผนกปลายทาง'
             value={referDepartment || REFER_DEPARTMENT_PLACEHOLDER}
@@ -1221,9 +1462,43 @@ export default function ObservationDetailPage() {
         )}
         {isReferTargetMissing && (
           <p style={{ color: 'var(--text-danger-default)', fontSize: 'var(--type-size-xs)' }}>
-            กรุณาเลือก{referScope === 'internal' ? 'แผนกปลายทาง' : 'โรงพยาบาลปลายทาง'}ก่อนยืนยัน
+            {isDama
+              ? 'กรุณาแนบใบยินยอมปฏิเสธการรักษาและระบุเหตุผลก่อนยืนยันจำหน่าย'
+              : `กรุณาเลือก${referScope === 'internal' ? 'แผนกปลายทาง' : 'โรงพยาบาลปลายทาง'}ก่อนยืนยัน`}
           </p>
         )}
+        {isDoctorSummaryMissing && (
+          <p style={{ color: 'var(--text-danger-default)', fontSize: 'var(--type-size-xs)' }}>
+            กรุณากรอก “ความเห็นแพทย์ / สรุปผลการสังเกตอาการ” ในขั้นตอนสรุปผลก่อนยืนยันส่งต่อ
+          </p>
+        )}
+      </Popup>
+
+      {/* Discharge guard: unexecuted STAT orders (edge case #6) — fires
+          between "ยืนยันส่งต่อ" and the actual write, so the clinician has
+          to decide what happens to each outstanding order instead of
+          leaving it silently orphaned on a closed record. */}
+      <Popup
+        open={showPendingStatModal}
+        onClose={() => setShowPendingStatModal(false)}
+        title='ยังมีคำสั่งการรักษา STAT ค้างอยู่'
+        leading={<span className='material-symbols-outlined text-2xl' style={{ color: 'var(--text-colorfulbadge-red, #B91C1C)' }}>error</span>}
+        size='large'
+        tertiaryAction={{ label: 'กลับไปแก้ไข', onClick: () => setShowPendingStatModal(false) }}
+        secondaryAction={{ label: 'ยกเลิกคำสั่งที่ค้าง แล้วจำหน่าย', onClick: () => commitDischarge({ cancelPendingOrders: true }) }}
+        primaryAction={{ label: 'ยืนยันจำหน่ายต่อ', onClick: () => commitDischarge({ cancelPendingOrders: false }) }}
+      >
+        <Alert
+          type='error'
+          title={`ยังมีคำสั่งการรักษา STAT ค้างอยู่ ${pendingStatOrders.length} รายการ ที่ยังไม่ได้ดำเนินการ`}
+          subtext='คุณต้องการยกเลิกคำสั่งเหล่านี้ หรือยืนยันจำหน่ายต่อโดยคงคำสั่งไว้ในแฟ้ม?'
+          /* The orders themselves are the alert's indicator list — Alert
+             already owns that slot, so they no longer need a hand-built
+             <ul> underneath. */
+          indicators={pendingStatOrders.map((o) => `${o.orderText} · สั่งเมื่อ ${o.orderTime}`)}
+          showCloseButton={false}
+          style={{ maxWidth: '100%' }}
+        />
       </Popup>
     </QueuePageShell>
   );
