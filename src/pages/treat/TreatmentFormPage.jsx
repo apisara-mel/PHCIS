@@ -91,6 +91,12 @@ const buildInitialForm = (p) => ({
   orderCategory: 'medication',
   medications: [],
   labs: [],
+  /* X-ray orders — [{ examId, view, urgency }] written by Step5Orders'
+     xray tab (TOR §1.12.5.4). `examId` keys XRAY_EXAM_BY_ID
+     (xrayCatalog.js), `view` is one of that exam's ท่าถ่าย keys
+     (XRAY_VIEWS), `urgency` keys XRAY_URGENCIES. Mock-only on the
+     doctor's side: the order lives in this form state and is never
+     pushed into XRAY_ORDERS (the RIS worklist mock). */
   xrayOrders: [],
   procedureOrders: [],
   consultOrders: [],

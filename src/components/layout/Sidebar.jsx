@@ -54,7 +54,7 @@ const ITEMS = [
       { key: 'mental',     label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต' },
     ],
   },
-  { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18                },
+  { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18, path: '/xray/queue' },
   { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18                },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill'                                   },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht'                                   },

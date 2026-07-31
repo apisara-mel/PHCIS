@@ -12,6 +12,10 @@ import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
+import XrayQueuePage from '@/pages/xray/XrayQueuePage';
+import XrayOrderPage from '@/pages/xray/XrayOrderPage';
+import XrayResultPage from '@/pages/xray/XrayResultPage';
+import XraySetupPage from '@/pages/xray/XraySetupPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
 import FormsCategoryPage from '@/pages/forms/FormsCategoryPage';
 import FormDetailPage from '@/pages/forms/FormDetailPage';
@@ -21,6 +25,7 @@ import UserEditPage from '@/pages/users/UserEditPage';
 import TabsPreviewPage from '@/pages/preview/TabsPreviewPage';
 import CardsPreviewPage from '@/pages/preview/CardsPreviewPage';
 import BodyRecordPreviewPage from '@/pages/preview/BodyRecordPreviewPage';
+import XraySheetsPreviewPage from '@/pages/preview/XraySheetsPreviewPage';
 import ComponentsLibraryPage from '@/pages/components/ComponentsLibraryPage';
 import LoginPage from '@/pages/auth/LoginPage';
 import LoginVerifyPage from '@/pages/auth/LoginVerifyPage';
@@ -160,6 +165,18 @@ export default function Routes() {
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        {/* งานรังสีวินิจฉัย — Radiology Information System (TOR §1.12).
+            /xray/queue  = ลำดับการตรวจผู้ป่วย (worklist · the department's own
+                           screen; รับ/ปฏิเสธ Request → ถ่าย → บันทึกผล → ยืนยันผล)
+            /xray/order  = บันทึกส่งตรวจทางรังสีวิทยา (§1.12.5 + นัดหมาย §1.12.3)
+            /xray/result = บันทึก/ยืนยันผลการตรวจ (§1.12.6 — accepts ?xn=&mode=verify
+                           deep links from the worklist row actions)
+            /xray/setup  = ทะเบียนรายการตรวจ + Template ผลตรวจ (§1.12.4, §1.12.6.1/6.7) */}
+        <Route exact path='/xray'            component={XrayQueuePage} />
+        <Route exact path='/xray/queue'      component={XrayQueuePage} />
+        <Route exact path='/xray/order'      component={XrayOrderPage} />
+        <Route exact path='/xray/result'     component={XrayResultPage} />
+        <Route exact path='/xray/setup'      component={XraySetupPage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
         <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
         <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />
@@ -187,6 +204,10 @@ export default function Routes() {
         <Route exact path='/preview/tabs'         component={TabsPreviewPage} />
         <Route exact path='/preview/cards'        component={CardsPreviewPage} />
         <Route exact path='/preview/body-record'  component={BodyRecordPreviewPage} />
+        {/* เอกสารพิมพ์ของงานรังสีวินิจฉัย — ใบรายงานผล · ใบส่งตรวจ · ใบนัด ·
+            ฉลากติดซองฟิล์ม, all four on real mock orders so the paper can be
+            reviewed (and ⌘P-tested) without walking the RIS flows. */}
+        <Route exact path='/preview/xray-sheets'  component={XraySheetsPreviewPage} />
 
         {/* PHCIS Mobile app (TOR §4). Citizen-facing companion app rendered
             inside a 402×874 iPhone 17 phone frame for desktop demo. All /m/* routes
