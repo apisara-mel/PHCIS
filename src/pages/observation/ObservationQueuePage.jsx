@@ -431,7 +431,10 @@ export default function ObservationQueuePage() {
   const [erTransferReason, setErTransferReason] = useState('');
 
   const [admitForm, setAdmitForm] = useState({
-    bedId: 'obs-005',
+    /* Resolved to a genuinely free bed whenever the modal is opened
+       without one (see the header action) — a hard-coded id goes stale
+       the moment that bed is occupied. */
+    bedId: '',
     patientName: '',
     hn: '',
     vn: `VN${new Date().toISOString().slice(2,10).replace(/-/g,'')}-0${Math.floor(Math.random()*90+10)}`,
@@ -836,6 +839,10 @@ export default function ObservationQueuePage() {
 
   const handleAdmitSubmit = (e) => {
     e.preventDefault();
+    /* Never write a patient onto a bed that already holds one — the
+       admit form targets a bed by id, and an occupied target would
+       silently overwrite the record of whoever is lying in it. */
+    if (!isBedAvailable(patients.find((p) => p.id === admitForm.bedId))) return;
     const nowStr = `${new Date().getFullYear()}-${(new Date().getMonth()+1).toString().padStart(2,'0')}-${new Date().getDate().toString().padStart(2,'0')} ${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')} น.`;
 
     setPatients((prev) =>
@@ -881,6 +888,8 @@ export default function ObservationQueuePage() {
   };
 
   const selectedBed = patients.find((p) => p.id === admitForm.bedId);
+  const isSelectedBedFree = isBedAvailable(selectedBed);
+  const firstAvailableBedId = patients.find(isBedAvailable)?.id || '';
   /* Only empty beds are offered (plus whichever bed is currently targeted,
      so switching bed mid-pick still shows it) — occupied beds have no
      equivalent of BedSelectionPopup's own "disabled" state, so they're
@@ -973,7 +982,21 @@ export default function ObservationQueuePage() {
           >
             {isFullCapacity ? 'ลงทะเบียนเตียงเสริม (Extra Bed)' : 'เพิ่มเตียงใหม่เข้าระบบ'}
           </BrandSubdueButton>
-          <BrandPrimaryButton leadingIcon='add' onClick={() => { setPatientSearchQuery(''); setShowAdmitModal(true); }}>
+          <BrandPrimaryButton
+            leadingIcon='add'
+            onClick={() => {
+              setPatientSearchQuery('');
+              /* Opened without a bed in mind — land on a free one rather
+                 than whatever was targeted last time, which may since
+                 have been filled (admitting into it would overwrite the
+                 patient already there). */
+              setAdmitForm((prev) => ({
+                ...prev,
+                bedId: isBedAvailable(patients.find((p) => p.id === prev.bedId)) ? prev.bedId : (firstAvailableBedId || prev.bedId),
+              }));
+              setShowAdmitModal(true);
+            }}
+          >
             รับผู้ป่วยเข้าเตียงสังเกตอาการ
           </BrandPrimaryButton>
         </div>
@@ -1649,6 +1672,13 @@ export default function ObservationQueuePage() {
                   </div>
                   <span className='material-symbols-outlined text-ink-tertiary'>expand_more</span>
                 </button>
+                {!isSelectedBedFree && (
+                  <p style={{ marginTop: 'var(--dim-space-150)', color: 'var(--text-danger-default)', fontSize: 'var(--type-size-xs)' }}>
+                    {selectedBed?.status === BED_CLEANING_STATUS
+                      ? 'เตียงนี้รอทำความสะอาด — ต้องกด “ทำความสะอาดเสร็จ” ก่อนจึงจะรับผู้ป่วยเข้าเตียงได้'
+                      : 'เตียงนี้มีผู้ป่วยครองอยู่แล้ว — กรุณาเลือกเตียงว่าง'}
+                  </p>
+                )}
               </div>
 
               {/* Same suggestion popover as OPD screening's "อาการ (Chief
@@ -1690,7 +1720,7 @@ export default function ObservationQueuePage() {
                 <NeutralSubdueButton type='button' onClick={() => setShowAdmitModal(false)}>
                   ยกเลิก
                 </NeutralSubdueButton>
-                <BrandPrimaryButton type='submit' leadingIcon='check' disabled={!admitForm.hn}>
+                <BrandPrimaryButton type='submit' leadingIcon='check' disabled={!admitForm.hn || !isSelectedBedFree}>
                   ยืนยันครองเตียงสังเกตอาการ
                 </BrandPrimaryButton>
               </div>
