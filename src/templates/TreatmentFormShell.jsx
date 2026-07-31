@@ -88,6 +88,12 @@ const TreatmentFormShell = ({
      TreatmentFormPage behaviour unchanged. */
   steps = TREATMENT_STEPS,
   queuePath = '/treat/queue',
+  /* OPD's Step 1 brings its own ServiceDateList rail flush against the
+     card's left edge, so it opts out of the 24px body padding — that's an
+     OPD-specific layout quirk, not a general "step 1" rule. Sub-departments
+     without that rail (e.g. ANC) pass `step0FlushLeft={false}` to keep the
+     same 24px padding Step 1 gets in every other step. */
+  step0FlushLeft = true,
 }) => {
   const history = useHistory();
   const isLast = stepIndex === steps.length - 1;
@@ -130,9 +136,9 @@ const TreatmentFormShell = ({
               card's left edge, so it opts out of the 24px body padding.
               Steps 2–7 — Figma PHCIS treatment card body floor: min 640 px. */}
           <div
-            className={stepIndex === 0 ? undefined : 'flex flex-1 flex-col min-h-0'}
+            className={stepIndex === 0 && step0FlushLeft ? undefined : 'flex flex-1 flex-col min-h-0'}
             style={
-              stepIndex === 0
+              stepIndex === 0 && step0FlushLeft
                 ? undefined
                 : {
                     padding: 'var(--dim-space-600)',

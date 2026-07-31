@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
-import Textarea from '@/components/forms/Textarea';
+import Select from '@/components/forms/Select';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import DatePicker from '@/components/forms/DatePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
+import TabCapsule from '@/components/tab/TabCapsule';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -19,10 +21,13 @@ import {
   calculateEDC,
   ANC_STRESS_QUESTIONS,
   ANC_STRESS_SCALE,
-  interpretAncStressScore,
   ANC_MENTAL_HEALTH_QUESTIONS,
   ANC_SMOKING_STATUS,
   ANC_FAMILY_ILLNESS_HISTORY,
+  ANC_HUSBAND_LAB_FIELDS,
+  ANC_ORAL_HEALTH_QUESTIONS,
+  interpretOralHealthScreen,
+  getTetanusVaccinePlan,
   ANC_RISK_FACTORS,
   ANC_DANGER_SIGNS,
   ANC_RISK_LEVELS,
@@ -32,16 +37,37 @@ import {
   ANC_LAB2_RESULT_FIELDS,
   summarizeLabResults,
   ANC_SECOND_TRIMESTER_SCREENING,
+  ANC_ULTRASOUND_RESULT_FIELDS,
   ANC_DIABETES_SCREENING,
   ANC_LAB2_ORDERS,
   ANC_VACCINES,
   ANC_SUPPLEMENTS,
   ANC_TERM_ASSESSMENT,
+  ANC_NIPPLE_ASSESSMENT_OPTIONS,
+  ANC_DELIVERY_MODE_OPTIONS,
+  ANC_BREAST_EXAM_OPTIONS,
+  ANC_SPOUSE_HEALTH_OPTIONS,
+  ANC_ILLNESS_HISTORY_SUGGESTIONS,
+  ANC_CURRENT_PREGNANCY_SUGGESTIONS,
+  ANC_RISK_SCREENING_SUGGESTIONS,
+  ANC_DIAGNOSIS_SUGGESTIONS,
+  ANC_EXTERNAL_EXAM_SUGGESTIONS,
+  ANC_ADVICE_SUGGESTIONS,
   getAncVisitTier,
   summarizeAncProcedures,
   getNextAncAppointmentPlan,
   getAncVisitHistoryByHn,
   saveAncVisitRecord,
+  ANC_PERVISIT_RISK_FACTORS,
+  ANC_GDM_SCREENING_FACTORS,
+  interpretPerVisitRisk,
+  ANC_URINE_SUGAR_OPTIONS,
+  ANC_URINE_ALBUMIN_OPTIONS,
+  ANC_FUNDUS_LEVEL_OPTIONS,
+  ANC_PRESENTATION_OPTIONS,
+  ANC_DESCENT_OPTIONS,
+  ANC_FETAL_MOVEMENT_OPTIONS,
+  saveAncRegistration,
 } from '@/data/ancVisits';
 
 /* AncSteps — ANC (แผนกฝากครรภ์) form bodies, plugged into the shared
@@ -74,9 +100,58 @@ const Field = ({ label, required, children, hint }) => (
   </div>
 );
 
+/* Lab result value field — renders a dropdown (Select) for categorical
+   results (blood group, reactive/non-reactive, positive/negative) so a
+   handful of valid lab values can't fragment into typo'd free text, or a
+   plain number InputField for continuous values (Hb, HCT, MCV) that have
+   no `options` list. Shared by the husband/partner lab grid and both
+   Lab#1/Lab#2 ResultFieldsGrid instances in Step 5. */
+const LabResultField = ({ field, value, onChange }) => (
+  field.options ? (
+    <Select
+      showLabel={false}
+      searchable={false}
+      size='lg'
+      value={value || ''}
+      onChange={onChange}
+      options={field.options}
+      placeholder={field.placeholder}
+    />
+  ) : (
+    <InputField value={value || ''} onChange={onChange} placeholder={field.placeholder} />
+  )
+);
+
+/* 0..max (or min..max) as string options — obstetric counts (gravida/para/
+   abortion/living children) are always small non-negative integers, so a
+   dropdown removes the risk of a stray decimal/negative number entry. */
+const numberOptions = (max, min = 0) => Array.from({ length: max - min + 1 }, (_, i) => String(min + i));
+
 const StepCard = ({ children }) => (
   <section className='flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>{children}</section>
 );
+
+/* AssessmentCard — anchors each screening tool (ST-5, 2Q, risk factors,
+   danger signs, smoking) for the capsule tab row above to scroll to. No
+   card chrome at all — same flat "flex-col gap-3, no border/background"
+   convention OPD's ScreeningPage uses for its own sections (ระดับความเจ็บปวด,
+   ความเร่งด่วน, etc.) — only the scroll anchor is new, the visual style
+   matches ScreeningPage exactly. `scrollMarginTop` keeps the section's
+   heading clear of the sticky PatientCard header when a tab scrolls it
+   into view. */
+const AssessmentCard = React.forwardRef(({ children }, ref) => (
+  <div
+    ref={ref}
+    className='flex flex-col w-full'
+    style={{
+      gap: 'var(--dim-space-300, 12px)',
+      scrollMarginTop: 110,
+    }}
+  >
+    {children}
+  </div>
+));
+AssessmentCard.displayName = 'AssessmentCard';
 
 /* ── Step 1 — ประวัติการรักษา ──────────────────────────────────────
    Personal/illness history + obstetric registry fields (TOR 1.10.7.6):
@@ -84,7 +159,40 @@ const StepCard = ({ children }) => (
    gestational age, obstetric history rows, ลักษณะเต้านม, ข้อมูลการตั้ง
    ครรภ์ปัจจุบัน, สุขภาพของสามี. Also surfaces the read-only prior-visit
    trend (TOR 1.10.7.8) when the patient has follow-up history. */
-export const AncStep1History = ({ form, setForm, cardPatient }) => {
+/* Topics in Step 1 scroll into view when their capsule tab is clicked —
+   same pattern as Step 2's ASSESSMENT_SECTIONS. "trend" only appears when
+   the patient actually has follow-up history, so it's appended at
+   render time rather than listed here. */
+const STEP1_BASE_SECTIONS = [
+  { key: 'illness',     label: 'ประวัติเจ็บป่วย' },
+  { key: 'obstetric',   label: 'ประวัติสูติกรรม' },
+  { key: 'breastSpouse', label: 'เต้านม/สามี' },
+  { key: 'husbandLab',  label: 'Lab สามี/คู่' },
+  { key: 'vaccine',     label: 'วัคซีน dT' },
+  { key: 'familyIllness', label: 'ประวัติครอบครัว' },
+  { key: 'currentPregnancy', label: 'การตั้งครรภ์ปัจจุบัน' },
+  { key: 'documents',   label: 'เอกสารแนบ' },
+];
+
+/* Which Step-1 card each carried-forward registration field belongs to, so
+   the follow-up banner can name the sections that were pre-filled instead
+   of listing raw field keys. Fields that map to the same card collapse to
+   one label. */
+const CARRIED_FIELD_SECTION = {
+  illnessHistory: 'ประวัติเจ็บป่วย',
+  gravida: 'ประวัติสูติกรรม', para: 'ประวัติสูติกรรม', abortion: 'ประวัติสูติกรรม',
+  livingChildren: 'ประวัติสูติกรรม', lmp: 'ประวัติสูติกรรม', obstetricHistory: 'ประวัติสูติกรรม',
+  breastExamNote: 'เต้านม/สามี', spouseHealthNote: 'เต้านม/สามี',
+  husbandLabResults: 'Lab สามี/คู่',
+  tetanusDoseCount: 'วัคซีน dT', tetanusLastDoseYear: 'วัคซีน dT', tetanusExempt: 'วัคซีน dT',
+  familyIllnessHistory: 'ประวัติครอบครัว', familyIllnessOtherNote: 'ประวัติครอบครัว',
+  motherChildHealthBookGiven: 'วัคซีน dT',
+  riskFactors: 'ความเสี่ยงการตั้งครรภ์',
+  gdmScreeningFactors: 'คัดกรองเบาหวาน',
+  labResults: 'ผลตรวจ Lab',
+};
+
+export const AncStep1History = ({ form, setForm, cardPatient, visitNo = 1, isFollowUp = false, carriedFields = [] }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
   const toggleFamilyIllness = (key) => setForm((f) => ({
     ...f,
@@ -93,6 +201,12 @@ export const AncStep1History = ({ form, setForm, cardPatient }) => {
 
   const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
   const edc = useMemo(() => calculateEDC(form.lmp), [form.lmp]);
+  /* Last dT dose is always a recent year, not decades back — last 20 BE
+     years covers it without a free-text field. */
+  const tetanusYearOptions = useMemo(() => {
+    const currentYearBE = new Date().getFullYear() + 543;
+    return Array.from({ length: 20 }, (_, i) => String(currentYearBE - i));
+  }, []);
 
   /* `cardPatient` (from patientProfiles.js via getPatientByHN) is the
      canonical HN for this visit — `patient` (MR roster) doesn't have
@@ -116,33 +230,94 @@ export const AncStep1History = ({ form, setForm, cardPatient }) => {
     obstetricHistory: f.obstetricHistory.filter((row) => row.id !== id),
   }));
 
+  const [activeSection, setActiveSection] = useState('illness');
+  const sectionRefs = useRef({});
+  const jumpToSection = (key) => {
+    setActiveSection(key);
+    sectionRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const step1Sections = history.length > 0
+    ? [...STEP1_BASE_SECTIONS, { key: 'trend', label: 'ประวัติการฝากครรภ์' }]
+    : STEP1_BASE_SECTIONS;
+
+  /* Distinct section names, in ANC_REGISTRATION_FIELDS order. */
+  const carriedSections = useMemo(() => {
+    const seen = [];
+    carriedFields.forEach((key) => {
+      const label = CARRIED_FIELD_SECTION[key];
+      if (label && !seen.includes(label)) seen.push(label);
+    });
+    return seen;
+  }, [carriedFields]);
+
   return (
     <StepCard>
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='file-text'>ประวัติส่วนตัวและการเจ็บป่วย</TopicHeader>
-        <Textarea
-          label='ประวัติการเจ็บป่วย'
-          value={form.illnessHistory}
-          onChange={set('illnessHistory')}
-          placeholder='เช่น ไม่มีโรคประจำตัว / เป็นเบาหวานก่อนตั้งครรภ์'
-          showLabel={false}
-        />
+      {/* Follow-up visits (ตรวจครรภ์ครั้งที่ 2+) open with the pregnancy-level
+          ทะเบียนฝากครรภ์ already filled in from earlier visits — legacy HCIS
+          keeps that on its own screen (§2.2) and only ever asks for it once.
+          The banner names what was carried so the clinician knows which
+          answers are inherited (and still editable — TOR 1.10.7.6 "แก้ไข")
+          rather than freshly taken today. */}
+      {isFollowUp && carriedSections.length > 0 && (
+        <div
+          className='flex items-start gap-2 w-full'
+          style={{
+            paddingTop: 'var(--dim-space-300, 12px)',
+            paddingBottom: 'var(--dim-space-300, 12px)',
+            paddingLeft: 'var(--dim-space-400, 16px)',
+            paddingRight: 'var(--dim-space-400, 16px)',
+            borderRadius: 'var(--dim-radius-200, 8px)',
+            background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+            color: 'var(--text-brandPrimary-default, #007549)',
+            fontSize: 'var(--type-size-sm)',
+          }}
+        >
+          <Icon name='history' size={18} />
+          <span>
+            ตรวจครรภ์ครั้งที่ {visitNo} — ดึงข้อมูลทะเบียนฝากครรภ์จากครั้งก่อนหน้ามาให้แล้ว
+            ({carriedSections.join(', ')}) ตรวจสอบและแก้ไขได้หากมีการเปลี่ยนแปลง
+          </span>
+        </div>
+      )}
+
+      <div className='flex items-center gap-2 flex-wrap'>
+        {step1Sections.map((s) => (
+          <TabCapsule
+            key={s.key}
+            variant='filter'
+            label={s.label}
+            selected={activeSection === s.key}
+            onClick={() => jumpToSection(s.key)}
+          />
+        ))}
       </div>
 
-      <div className='flex flex-col gap-3'>
+      <AssessmentCard ref={(el) => { sectionRefs.current.illness = el; }}>
+        <TopicHeader icon='file-text'>ประวัติส่วนตัวและการเจ็บป่วย</TopicHeader>
+        <SuggestibleTextarea
+          voice
+          value={form.illnessHistory}
+          onChange={(e) => set('illnessHistory')(e.target.value)}
+          suggestions={ANC_ILLNESS_HISTORY_SUGGESTIONS}
+          minChars={3}
+          placeholder='เช่น ไม่มีโรคประจำตัว / เป็นเบาหวานก่อนตั้งครรภ์'
+        />
+      </AssessmentCard>
+
+      <AssessmentCard ref={(el) => { sectionRefs.current.obstetric = el; }}>
         <TopicHeader icon='clipboard'>ประวัติทางสูติกรรม</TopicHeader>
         <div className='flex items-start gap-4 w-full flex-wrap'>
           <Field label='ครรภ์ที่ (Gravida)' required>
-            <InputField value={form.gravida} onChange={set('gravida')} placeholder='เช่น 1' type='number' />
+            <Select showLabel={false} searchable={false} size='lg' value={form.gravida} onChange={set('gravida')} options={numberOptions(10, 1)} placeholder='เลือกครรภ์ที่' />
           </Field>
           <Field label='คลอดแล้ว (Para)'>
-            <InputField value={form.para} onChange={set('para')} placeholder='0' type='number' />
+            <Select showLabel={false} searchable={false} size='lg' value={form.para} onChange={set('para')} options={numberOptions(10)} placeholder='0' />
           </Field>
           <Field label='แท้ง (Abortion)'>
-            <InputField value={form.abortion} onChange={set('abortion')} placeholder='0' type='number' />
+            <Select showLabel={false} searchable={false} size='lg' value={form.abortion} onChange={set('abortion')} options={numberOptions(10)} placeholder='0' />
           </Field>
           <Field label='บุตรมีชีวิต (Living)'>
-            <InputField value={form.livingChildren} onChange={set('livingChildren')} placeholder='0' type='number' />
+            <Select showLabel={false} searchable={false} size='lg' value={form.livingChildren} onChange={set('livingChildren')} options={numberOptions(10)} placeholder='0' />
           </Field>
         </div>
 
@@ -183,25 +358,43 @@ export const AncStep1History = ({ form, setForm, cardPatient }) => {
           </div>
         )}
         <BrandDashedAddButton onClick={addObstetricRow}>เพิ่มประวัติการตั้งครรภ์ก่อนหน้า</BrandDashedAddButton>
-      </div>
+      </AssessmentCard>
 
-      <div className='flex items-start gap-4 w-full flex-wrap'>
-        <Field label='ลักษณะเต้านม'>
-          <InputField value={form.breastExamNote} onChange={set('breastExamNote')} placeholder='เช่น ปกติทั้งสองข้าง' />
-        </Field>
-        <Field label='สุขภาพของสามี'>
-          <InputField value={form.spouseHealthNote} onChange={set('spouseHealthNote')} placeholder='เช่น แข็งแรงดี ไม่มีโรคประจำตัว' />
-        </Field>
-      </div>
+      <AssessmentCard ref={(el) => { sectionRefs.current.breastSpouse = el; }}>
+        <TopicHeader icon='stethoscope'>ลักษณะเต้านมและสุขภาพของสามี</TopicHeader>
+        <div className='flex items-start gap-4 w-full flex-wrap'>
+          <Field label='ลักษณะเต้านม'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.breastExamNote} onChange={set('breastExamNote')} options={ANC_BREAST_EXAM_OPTIONS} placeholder='เลือกลักษณะเต้านม' />
+          </Field>
+          <Field label='สุขภาพของสามี'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.spouseHealthNote} onChange={set('spouseHealthNote')} options={ANC_SPOUSE_HEALTH_OPTIONS} placeholder='เลือกสุขภาพของสามี' />
+          </Field>
+        </div>
+      </AssessmentCard>
 
-      <div className='flex flex-col gap-3'>
+      <AssessmentCard ref={(el) => { sectionRefs.current.husbandLab = el; }}>
+        <TopicHeader icon='biotech'>ผลตรวจทางห้องปฏิบัติการของสามี/คู่</TopicHeader>
+        <div className='flex items-start gap-4 w-full flex-wrap'>
+          {ANC_HUSBAND_LAB_FIELDS.map((f) => (
+            <Field key={f.key} label={f.label}>
+              <LabResultField
+                field={f}
+                value={form.husbandLabResults[f.key]}
+                onChange={(v) => setForm((prev) => ({ ...prev, husbandLabResults: { ...prev.husbandLabResults, [f.key]: v } }))}
+              />
+            </Field>
+          ))}
+        </div>
+      </AssessmentCard>
+
+      <AssessmentCard ref={(el) => { sectionRefs.current.vaccine = el; }}>
         <TopicHeader icon='clipboard'>ประวัติการฉีดวัคซีนป้องกันโรคคอตีบ บาดทะยัก (dT)</TopicHeader>
         <div className='flex items-end gap-4 w-full flex-wrap'>
           <Field label='ก่อนตั้งครรภ์นี้เคยได้รับมาแล้ว (ครั้ง)'>
-            <InputField value={form.tetanusDoseCount} onChange={set('tetanusDoseCount')} placeholder='0' type='number' />
+            <Select showLabel={false} searchable={false} size='lg' value={form.tetanusDoseCount} onChange={set('tetanusDoseCount')} options={numberOptions(5)} placeholder='0' />
           </Field>
           <Field label='ครั้งสุดท้ายเมื่อปี พ.ศ.'>
-            <InputField value={form.tetanusLastDoseYear} onChange={set('tetanusLastDoseYear')} placeholder='เช่น 2567' />
+            <Select showLabel={false} searchable={false} size='lg' value={form.tetanusLastDoseYear} onChange={set('tetanusLastDoseYear')} options={tetanusYearOptions} placeholder='เลือกปี พ.ศ.' />
           </Field>
           <SelectableTag
             label='ไม่ต้องฉีดในครรภ์นี้ — เคยได้รับ dT/dT3 มาไม่เกิน 10 ปี'
@@ -210,58 +403,86 @@ export const AncStep1History = ({ form, setForm, cardPatient }) => {
             onClick={() => setForm((f) => ({ ...f, tetanusExempt: !f.tetanusExempt }))}
           />
         </div>
-      </div>
+        {form.tetanusDoseCount !== '' && (() => {
+          const currentYearBE = new Date().getFullYear() + 543;
+          const lastYear = Number(form.tetanusLastDoseYear);
+          const yearsAgo = form.tetanusLastDoseYear && Number.isFinite(lastYear) ? currentYearBE - lastYear : null;
+          const plan = getTetanusVaccinePlan(form.tetanusDoseCount, yearsAgo);
+          return (
+            <ColorfulBadge style={plan.doseCount === 0 ? 'green' : 'yellow'} size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+              คำแนะนำวัคซีน dT: {plan.label}
+            </ColorfulBadge>
+          );
+        })()}
+        <SelectableTag
+          label='แจกสมุดบันทึกสุขภาพแม่และเด็กแล้ว'
+          size='lg'
+          selected={form.motherChildHealthBookGiven}
+          onClick={() => setForm((f) => ({ ...f, motherChildHealthBookGiven: !f.motherChildHealthBookGiven }))}
+        />
+      </AssessmentCard>
 
-      <div className='flex flex-col gap-3'>
+      <AssessmentCard ref={(el) => { sectionRefs.current.familyIllness = el; }}>
         <TopicHeader icon='users'>ประวัติการเจ็บป่วยของครอบครัว</TopicHeader>
         <div className='flex flex-wrap gap-2'>
           {ANC_FAMILY_ILLNESS_HISTORY.map((item) => (
             <SelectableTag
               key={item.key}
               label={item.label}
+              size='lg'
               selected={!!form.familyIllnessHistory[item.key]}
               onClick={() => toggleFamilyIllness(item.key)}
             />
           ))}
         </div>
-        <InputField
+        <SuggestibleTextarea
+          voice
           value={form.familyIllnessOtherNote}
-          onChange={set('familyIllnessOtherNote')}
+          onChange={(e) => set('familyIllnessOtherNote')(e.target.value)}
           placeholder='อื่นๆ (ระบุ)'
         />
-      </div>
+      </AssessmentCard>
 
-      <div className='flex flex-col gap-3'>
+      <AssessmentCard ref={(el) => { sectionRefs.current.currentPregnancy = el; }}>
         <TopicHeader icon='activity'>ข้อมูลการตั้งครรภ์ปัจจุบัน</TopicHeader>
-        <Textarea
+        <SuggestibleTextarea
+          voice
           value={form.currentPregnancyNote}
-          onChange={set('currentPregnancyNote')}
+          onChange={(e) => set('currentPregnancyNote')(e.target.value)}
+          suggestions={ANC_CURRENT_PREGNANCY_SUGGESTIONS}
+          minChars={3}
           placeholder='เช่น อาการแพ้ท้อง, การเคลื่อนไหวของทารก, อาการผิดปกติที่พบ'
-          showLabel={false}
         />
-      </div>
+      </AssessmentCard>
 
-      <div className='flex flex-col gap-3'>
+      <AssessmentCard ref={(el) => { sectionRefs.current.documents = el; }}>
         <TopicHeader icon='file'>อัปโหลดเอกสาร</TopicHeader>
         <DragAndDrop
           value={form.documents}
           onChange={(files) => setForm((f) => ({ ...f, documents: files }))}
           accept='.png,.jpg,.jpeg,.pdf'
         />
-      </div>
+      </AssessmentCard>
 
       {history.length > 0 && (
-        <div className='flex flex-col gap-3'>
+        <AssessmentCard ref={(el) => { sectionRefs.current.trend = el; }}>
           <TopicHeader icon='history'>การติดตามการฝากครรภ์ (ครั้งก่อนหน้า)</TopicHeader>
+          {/* Column set mirrors the legacy exam-history grid (p.2-10):
+              ครั้งที่ · วันที่ตรวจ · การตรวจปัสสาวะ · BP · มดลูก · ส่วนนำ ·
+              เสียงหัวใจเด็ก — plus the trending columns TOR 1.10.7.8 adds
+              (น้ำหนัก, ความเสี่ยง, ผล Lab). `visitNo` is backfilled from row
+              order for records saved before it was captured. */}
           <Table
             columns={[
+              { key: 'visitNo', label: 'ครั้งที่', width: 72, render: (r, i) => r.visitNo ?? (i + 1) },
               { key: 'date', label: 'วันที่', width: 128 },
               { key: 'gestWeeks', label: 'อายุครรภ์', width: 96, render: (r) => `${r.gestWeeks} สัปดาห์` },
               { key: 'fundusHeight', label: 'ยอดมดลูก', width: 112 },
+              { key: 'presentation', label: 'ส่วนนำ', width: 112, render: (r) => r.presentation || '-' },
               { key: 'fetalHeartRate', label: 'FHR', width: 96 },
               { key: 'bp', label: 'BP', width: 96 },
               { key: 'weight', label: 'น้ำหนัก', width: 96, render: (r) => `${r.weight} กก.` },
-              { key: 'urineResult', label: 'ปัสสาวะ', width: 112, render: (r) => r.urineResult || '-' },
+              { key: 'urineResult', label: 'ปัสสาวะ', width: 140, render: (r) => r.urineResult || '-' },
               {
                 key: 'riskLevel', label: 'ความเสี่ยง', width: 128,
                 render: (r) => resolveAncRiskLevel(r.riskLevel)?.label || '-',
@@ -270,10 +491,10 @@ export const AncStep1History = ({ form, setForm, cardPatient }) => {
               { key: 'note', label: 'บันทึก', flex: true, minWidth: 200 },
             ]}
             rows={history}
-            rowKey={(r) => `${r.date}-${r.gestWeeks}`}
+            rowKey={(r) => `${r.visitNo ?? ''}-${r.date}-${r.gestWeeks}`}
             emptyMessage='ไม่มีประวัติการฝากครรภ์ครั้งก่อนหน้า'
           />
-        </div>
+        </AssessmentCard>
       )}
     </StepCard>
   );
@@ -282,7 +503,28 @@ export const AncStep1History = ({ form, setForm, cardPatient }) => {
 /* ── Step 2 — คัดกรองและซักประวัติ ─────────────────────────────────
    Mental-health screen (2Q, TOR 1.10.7.3) + pregnancy-risk screening
    checklist (TOR 1.10.7.7). */
+/* Each screening tool scrolls into view when its capsule tab is clicked —
+   `refs` map keys to the AssessmentCard DOM node, `activeKey` drives the
+   selected tab highlight (set on click; there's no scroll-spy since the
+   user only asked for click-to-jump, not scroll tracking). */
+const ASSESSMENT_SECTIONS = [
+  { key: 'stress',  label: 'ความเครียด (ST-5)' },
+  { key: 'mental',  label: 'สุขภาพจิต (2Q)' },
+  { key: 'risk',    label: 'ความเสี่ยงการตั้งครรภ์' },
+  { key: 'perVisitRisk', label: 'ภาวะเสี่ยงครั้งนี้' },
+  { key: 'gdm',     label: 'คัดกรองเบาหวาน' },
+  { key: 'danger',  label: 'สัญญาณอันตราย' },
+  { key: 'smoking', label: 'การสูบบุหรี่' },
+];
+
 export const AncStep2Screening = ({ form, setForm }) => {
+  const [activeSection, setActiveSection] = useState(ASSESSMENT_SECTIONS[0].key);
+  const sectionRefs = useRef({});
+  const jumpToSection = (key) => {
+    setActiveSection(key);
+    sectionRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const setStress = (key, value) => setForm((f) => ({
     ...f,
     stressAnswers: { ...f.stressAnswers, [key]: value },
@@ -299,44 +541,56 @@ export const AncStep2Screening = ({ form, setForm }) => {
     ...f,
     dangerSigns: { ...f.dangerSigns, [key]: !f.dangerSigns[key] },
   }));
+  const togglePerVisitRisk = (key) => setForm((f) => ({
+    ...f,
+    perVisitRiskFactors: { ...f.perVisitRiskFactors, [key]: !f.perVisitRiskFactors[key] },
+  }));
+  const toggleGdmFactor = (key) => setForm((f) => ({
+    ...f,
+    gdmScreeningFactors: { ...f.gdmScreeningFactors, [key]: !f.gdmScreeningFactors[key] },
+  }));
+
+  const perVisitRisk = interpretPerVisitRisk(form.perVisitRiskFactors);
+  const gdmFlaggedCount = Object.values(form.gdmScreeningFactors || {}).filter(Boolean).length;
 
   const stressAnsweredCount = Object.keys(form.stressAnswers).length;
-  const stressTotal = Object.values(form.stressAnswers).reduce((sum, v) => sum + (v || 0), 0);
-  const stressResult = stressAnsweredCount === ANC_STRESS_QUESTIONS.length ? interpretAncStressScore(stressTotal) : null;
-
   const anyMentalYes = Object.values(form.mentalHealthAnswers).some((v) => v === true);
   const answeredMentalCount = Object.keys(form.mentalHealthAnswers).length;
-  const flaggedRiskCount = Object.values(form.riskFactors).filter(Boolean).length;
   const flaggedDangerCount = Object.values(form.dangerSigns).filter(Boolean).length;
+
+  /* Leading check icon on a capsule tab (TabCapsule `type='success'`) only
+     where "done" is unambiguous — a fixed question count fully answered,
+     or a single-select field with a value. ความเสี่ยงการตั้งครรภ์ /
+     สัญญาณอันตราย are open checklists where "nothing selected" is itself a
+     common valid answer, indistinguishable from "not reviewed yet", so
+     they intentionally stay unmarked rather than show a misleading check. */
+  const SECTION_COMPLETE = {
+    stress: stressAnsweredCount === ANC_STRESS_QUESTIONS.length,
+    mental: answeredMentalCount === ANC_MENTAL_HEALTH_QUESTIONS.length,
+    smoking: !!form.smokingStatus,
+  };
 
   return (
     <StepCard>
-      {/* ผลการซักประวัติ — TOR 1.10.7.3. Computed live so the result of
-          this step is always visible, not just captured on save. */}
-      <div className='flex items-center gap-3 flex-wrap'>
-        {stressResult && (
-          <ColorfulBadge style={stressResult.level === 'high' ? 'red' : stressResult.level === 'suspect' ? 'yellow' : 'green'} size='small' hierarchy='secondary'>
-            ST-5: {stressResult.label} ({stressTotal}/15)
-          </ColorfulBadge>
-        )}
-        <ColorfulBadge style={answeredMentalCount === 0 ? 'grey' : anyMentalYes ? 'orange' : 'green'} size='small' hierarchy='secondary'>
-          {answeredMentalCount === 0
-            ? 'ยังไม่ได้ประเมินสุขภาพจิต'
-            : anyMentalYes ? 'ผล 2Q: พบความเสี่ยง' : 'ผล 2Q: ไม่พบความเสี่ยง'}
-        </ColorfulBadge>
-        <ColorfulBadge style={flaggedRiskCount === 0 ? 'green' : 'yellow'} size='small' hierarchy='secondary'>
-          {flaggedRiskCount === 0 ? 'ไม่พบปัจจัยเสี่ยงจากการซักประวัติ' : `พบปัจจัยเสี่ยง ${flaggedRiskCount} ข้อ`}
-        </ColorfulBadge>
-        {flaggedDangerCount > 0 && (
-          <ColorfulBadge style='red' size='small' hierarchy='secondary'>
-            พบสัญญาณอันตราย {flaggedDangerCount} ข้อ
-          </ColorfulBadge>
-        )}
+      {/* Capsule tabs — click jumps to that assessment's own card below;
+          a leading check appears once that assessment is answered. */}
+      <div className='flex items-center gap-2 flex-wrap'>
+        {ASSESSMENT_SECTIONS.map((s) => (
+          <TabCapsule
+            key={s.key}
+            variant='filter'
+            type={SECTION_COMPLETE[s.key] ? 'success' : 'default'}
+            showLeadingIcon={!!SECTION_COMPLETE[s.key]}
+            label={s.label}
+            selected={activeSection === s.key}
+            onClick={() => jumpToSection(s.key)}
+          />
+        ))}
       </div>
 
       {/* แบบประเมินความเครียด ST-5 (pp.40-41) — runs ahead of the 2Q per
           the manual's flowchart (pp.42-43). */}
-      <div className='flex flex-col gap-3'>
+      <AssessmentCard ref={(el) => { sectionRefs.current.stress = el; }}>
         <TopicHeader icon='activity'>แบบประเมินความเครียด (ST-5)</TopicHeader>
         <div className='flex flex-col gap-3'>
           {ANC_STRESS_QUESTIONS.map((q) => (
@@ -356,9 +610,9 @@ export const AncStep2Screening = ({ form, setForm }) => {
             </div>
           ))}
         </div>
-      </div>
+      </AssessmentCard>
 
-      <div className='flex flex-col gap-3'>
+      <AssessmentCard ref={(el) => { sectionRefs.current.mental = el; }}>
         <TopicHeader icon='meh'>แบบประเมินสุขภาพจิต (2Q)</TopicHeader>
         <div className='flex flex-col gap-3'>
           {ANC_MENTAL_HEALTH_QUESTIONS.map((q) => (
@@ -396,9 +650,9 @@ export const AncStep2Screening = ({ form, setForm }) => {
             พบผลบวก — ควรประเมินต่อด้วยแบบประเมิน 9Q / 8Q ฉบับเต็ม
           </div>
         )}
-      </div>
+      </AssessmentCard>
 
-      <div className='flex flex-col gap-3'>
+      <AssessmentCard ref={(el) => { sectionRefs.current.risk = el; }}>
         <TopicHeader icon='clipboard-list'>แบบประเมินความเสี่ยงการตั้งครรภ์</TopicHeader>
         <div className='flex items-center gap-3 flex-wrap'>
           {ANC_RISK_FACTORS.map((rf) => (
@@ -411,19 +665,69 @@ export const AncStep2Screening = ({ form, setForm }) => {
             />
           ))}
         </div>
-        <Textarea
-          label='บันทึกเพิ่มเติม'
+        <SuggestibleTextarea
+          voice
           value={form.riskScreeningNote}
-          onChange={(v) => setForm((f) => ({ ...f, riskScreeningNote: v }))}
+          onChange={(e) => setForm((f) => ({ ...f, riskScreeningNote: e.target.value }))}
+          suggestions={ANC_RISK_SCREENING_SUGGESTIONS}
+          minChars={3}
           placeholder='รายละเอียดเพิ่มเติมจากการคัดกรองความเสี่ยง'
         />
-      </div>
+      </AssessmentCard>
+
+      {/* ภาวะเสี่ยงที่ต้องประเมิน "ทุกครั้งที่มีการให้บริการตรวจครรภ์" —
+          legacy p.2-13, items 8-20. Unlike the registration risk panel
+          above (history facts, carried forward), every item here is a
+          finding of TODAY's visit, so it starts blank at each follow-up
+          and any tick means "ต้องส่งต่อหรือรายงานแพทย์". */}
+      <AssessmentCard ref={(el) => { sectionRefs.current.perVisitRisk = el; }}>
+        <TopicHeader icon='clipboard-list'>ภาวะเสี่ยงที่ประเมินทุกครั้งที่ตรวจครรภ์</TopicHeader>
+        <div className='flex items-center gap-3 flex-wrap'>
+          {ANC_PERVISIT_RISK_FACTORS.map((rf) => (
+            <SelectableTag
+              key={rf.key}
+              label={rf.label}
+              size='lg'
+              selected={!!form.perVisitRiskFactors[rf.key]}
+              onClick={() => togglePerVisitRisk(rf.key)}
+            />
+          ))}
+        </div>
+        {perVisitRisk.mustRefer && (
+          <ColorfulBadge style='red' size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+            พบภาวะเสี่ยง {perVisitRisk.flagged.length} ข้อ — ต้องส่งต่อหรือรายงานแพทย์
+          </ColorfulBadge>
+        )}
+      </AssessmentCard>
+
+      {/* แบบคัดกรองเบาหวานในหญิงมีครรภ์ — legacy p.2-13, third panel. These
+          are history-based facts (carried forward), and a positive screen
+          is what justifies the GCT/OGTT orders Step 5 offers at 20-27wk. */}
+      <AssessmentCard ref={(el) => { sectionRefs.current.gdm = el; }}>
+        <TopicHeader icon='activity'>แบบคัดกรองเบาหวานในหญิงมีครรภ์</TopicHeader>
+        <div className='flex items-center gap-3 flex-wrap'>
+          {ANC_GDM_SCREENING_FACTORS.map((rf) => (
+            <SelectableTag
+              key={rf.key}
+              label={rf.label}
+              size='lg'
+              selected={!!form.gdmScreeningFactors[rf.key]}
+              onClick={() => toggleGdmFactor(rf.key)}
+            />
+          ))}
+        </div>
+        {gdmFlaggedCount > 0 && (
+          <ColorfulBadge style='yellow' size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+            พบปัจจัยเสี่ยงเบาหวาน {gdmFlaggedCount} ข้อ — ควรคัดกรองด้วย GCT (24-28 สัปดาห์) ในขั้นตอนสั่งการรักษา
+          </ColorfulBadge>
+        )}
+      </AssessmentCard>
 
       {/* สัญญาณอันตราย — exact referral triggers from the official manual
           pp.11-12. Any checked item is an immediate-referral situation,
           not a routine risk factor, so it gets its own red-flagged
           section rather than living inside ANC_RISK_FACTORS. */}
-      <div className='flex flex-col gap-3'>
+      <AssessmentCard ref={(el) => { sectionRefs.current.danger = el; }}>
         <TopicHeader icon='activity'>สัญญาณอันตราย (ต้องส่งพบแพทย์ทันทีหากพบ)</TopicHeader>
         <div className='flex items-center gap-3 flex-wrap'>
           {ANC_DANGER_SIGNS.map((sign) => (
@@ -452,12 +756,12 @@ export const AncStep2Screening = ({ form, setForm }) => {
             พบสัญญาณอันตราย — ควรส่งพบแพทย์เพื่อประเมินและรักษาทันที
           </div>
         )}
-      </div>
+      </AssessmentCard>
 
       {/* การคัดกรองการสูบบุหรี่ (p.46) — screened every visit; brief-advice
           checkbox once flagged as a smoker. Full Varenicline/4A cessation
           protocol is a doctor-level treatment plan, out of scope here. */}
-      <div className='flex flex-col gap-3'>
+      <AssessmentCard ref={(el) => { sectionRefs.current.smoking = el; }}>
         <TopicHeader icon='activity'>การคัดกรองการสูบบุหรี่</TopicHeader>
         <div className='flex items-center gap-3 flex-wrap'>
           {ANC_SMOKING_STATUS.map((opt) => (
@@ -478,7 +782,7 @@ export const AncStep2Screening = ({ form, setForm }) => {
             />
           )}
         </div>
-      </div>
+      </AssessmentCard>
     </StepCard>
   );
 };
@@ -488,6 +792,23 @@ export const AncStep2Screening = ({ form, setForm }) => {
    fetal heart rate + oral-health check (TOR 1.10.7.7). */
 export const AncStep3Examination = ({ form, setForm }) => {
   const setVital = (key) => (value) => setForm((f) => ({ ...f, vitals: { ...f.vitals, [key]: value } }));
+
+  const gaByLmp = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
+
+  /* Anything past a Trace reading counts as positive for risk item 10 —
+     Trace alone is not actionable on its own per the dipstick convention. */
+  const POSITIVE_DIPSTICK = ['1+', '2+', '3+', '4+'];
+  const abnormalUrine = POSITIVE_DIPSTICK.includes(form.urineSugar)
+    || POSITIVE_DIPSTICK.includes(form.urineAlbumin);
+
+  /* Only flag a clinically meaningful gap. ±2 weeks is normal measurement
+     spread on fundal height; 3+ is what the legacy risk item is after. */
+  const gaMismatch = useMemo(() => {
+    const exam = Number(form.gaByExam);
+    if (!gaByLmp || !form.gaByExam || !Number.isFinite(exam)) return 0;
+    const diff = Math.abs(gaByLmp.weeks - exam);
+    return diff >= 3 ? diff : 0;
+  }, [gaByLmp, form.gaByExam]);
 
   return (
     <StepCard>
@@ -512,6 +833,38 @@ export const AncStep3Examination = ({ form, setForm }) => {
         </div>
       </div>
 
+      {/* ตรวจปัสสาวะ — the legacy exam screen (p.2-10) records Sugar and
+          Albumin as two separate dipstick grades, not one ปกติ/ผิดปกติ
+          flag; per-visit risk item 10 keys off either being positive. */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='biotech'>ตรวจปัสสาวะ (Urine dipstick)</TopicHeader>
+        <div className='flex items-start gap-4 w-full flex-wrap'>
+          <Field label='น้ำตาล (Sugar)'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.urineSugar}
+              onChange={(v) => setForm((f) => ({ ...f, urineSugar: v }))}
+              options={ANC_URINE_SUGAR_OPTIONS}
+              placeholder='เลือกผลตรวจน้ำตาล'
+            />
+          </Field>
+          <Field label='ไข่ขาว (Albumin)'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.urineAlbumin}
+              onChange={(v) => setForm((f) => ({ ...f, urineAlbumin: v }))}
+              options={ANC_URINE_ALBUMIN_OPTIONS}
+              placeholder='เลือกผลตรวจไข่ขาว'
+            />
+          </Field>
+        </div>
+        {abnormalUrine && (
+          <ColorfulBadge style='red' size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+            พบน้ำตาลและ/หรือไข่ขาวในปัสสาวะ — เข้าเกณฑ์ภาวะเสี่ยงที่ต้องรายงานแพทย์ (ข้อ 10)
+          </ColorfulBadge>
+        )}
+      </div>
+
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='activity'>ตรวจครรภ์</TopicHeader>
         <div className='flex items-start gap-4 w-full flex-wrap'>
@@ -523,6 +876,40 @@ export const AncStep3Examination = ({ form, setForm }) => {
               placeholder='เช่น 20'
             />
           </Field>
+          <Field label='ระดับมดลูก'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.fundusLevel}
+              onChange={(v) => setForm((f) => ({ ...f, fundusLevel: v }))}
+              options={ANC_FUNDUS_LEVEL_OPTIONS}
+              placeholder='เลือกระดับมดลูก'
+            />
+          </Field>
+          <Field label='ส่วนนำ (Presentation)'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.presentation}
+              onChange={(v) => setForm((f) => ({ ...f, presentation: v }))}
+              options={ANC_PRESENTATION_OPTIONS}
+              placeholder='เลือกส่วนนำ'
+            />
+          </Field>
+          <Field label='การลง (Descent)'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.descent}
+              onChange={(v) => setForm((f) => ({ ...f, descent: v }))}
+              options={ANC_DESCENT_OPTIONS}
+              placeholder='เลือกการลง'
+            />
+          </Field>
+          <Field label='ท่าเด็ก'>
+            <InputField
+              value={form.fetalPosition}
+              onChange={(v) => setForm((f) => ({ ...f, fetalPosition: v }))}
+              placeholder='เช่น LOA / ROA'
+            />
+          </Field>
           <Field label='อัตราการเต้นหัวใจทารก (FHR, bpm)'>
             <InputField
               value={form.fetalHeartRate}
@@ -531,15 +918,82 @@ export const AncStep3Examination = ({ form, setForm }) => {
               placeholder='เช่น 148'
             />
           </Field>
+          <Field label='เด็กดิ้น'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.fetalMovement}
+              onChange={(v) => setForm((f) => ({ ...f, fetalMovement: v }))}
+              options={ANC_FETAL_MOVEMENT_OPTIONS}
+              placeholder='เลือกการดิ้นของทารก'
+            />
+          </Field>
         </div>
-        <div className='flex items-center gap-3'>
-          <SelectableTag
-            label='ตรวจสุขภาพช่องปากแล้ว'
-            size='lg'
-            selected={form.oralHealthChecked}
-            onClick={() => setForm((f) => ({ ...f, oralHealthChecked: !f.oralHealthChecked }))}
-          />
+      </div>
+
+      {/* อายุครรภ์ 3 ทาง — the legacy screen (p.2-10) keeps LMP, ตรวจครรภ์
+          and อัลตราซาวด์ estimates side by side precisely because they
+          disagree; a gap between LMP and clinical exam IS per-visit risk
+          item 14 ("ขนาดของมดลูกไม่สัมพันธ์กับอายุครรภ์"), so the mismatch
+          is surfaced rather than left for the clinician to subtract. */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='clipboard'>อายุครรภ์ (เปรียบเทียบ 3 วิธี)</TopicHeader>
+        <div className='flex items-start gap-4 w-full flex-wrap'>
+          <Field label='จากการคำนวณ LMP (สัปดาห์)' hint={gaByLmp ? formatGestationalAge(gaByLmp) : 'ระบุ LMP ในขั้นตอนที่ 1'}>
+            <InputField value={gaByLmp ? String(gaByLmp.weeks) : ''} onChange={() => {}} disabled placeholder='—' />
+          </Field>
+          <Field label='จากการตรวจครรภ์ (สัปดาห์)'>
+            <InputField
+              value={form.gaByExam}
+              onChange={(v) => setForm((f) => ({ ...f, gaByExam: v }))}
+              type='number'
+              placeholder='เช่น 20'
+            />
+          </Field>
+          <Field label='จากการอัลตราซาวด์ (สัปดาห์)'>
+            <InputField
+              value={form.gaByUltrasoundWeeks}
+              onChange={(v) => setForm((f) => ({ ...f, gaByUltrasoundWeeks: v }))}
+              type='number'
+              placeholder='เช่น 20'
+            />
+          </Field>
         </div>
+        {gaMismatch && (
+          <ColorfulBadge style='yellow' size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+            อายุครรภ์จากการตรวจครรภ์ต่างจาก LMP {gaMismatch} สัปดาห์ — พิจารณาภาวะเสี่ยงข้อ 14 (ขนาดมดลูกไม่สัมพันธ์กับอายุครรภ์)
+          </ColorfulBadge>
+        )}
+      </div>
+
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='clipboard-list'>คัดกรองสุขภาพช่องปาก (Maternal Oral Screening)</TopicHeader>
+        <div className='flex flex-col gap-2'>
+          {ANC_ORAL_HEALTH_QUESTIONS.map((q) => (
+            <div key={q.key} className='flex items-center justify-between gap-4 w-full flex-wrap'>
+              <span className='text-sm' style={{ color: 'var(--text-content-default, #363B3F)' }}>{q.label}</span>
+              <div className='flex items-center gap-2 shrink-0'>
+                <SelectableTag
+                  label='ใช่'
+                  selected={form.oralHealthAnswers[q.key] === true}
+                  onClick={() => setForm((f) => ({ ...f, oralHealthAnswers: { ...f.oralHealthAnswers, [q.key]: true } }))}
+                />
+                <SelectableTag
+                  label='ไม่ใช่'
+                  selected={form.oralHealthAnswers[q.key] === false}
+                  onClick={() => setForm((f) => ({ ...f, oralHealthAnswers: { ...f.oralHealthAnswers, [q.key]: false } }))}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        {Object.keys(form.oralHealthAnswers).length === ANC_ORAL_HEALTH_QUESTIONS.length && (() => {
+          const result = interpretOralHealthScreen(form.oralHealthAnswers);
+          return (
+            <ColorfulBadge style={result.highRisk ? 'red' : 'green'} size='small' hierarchy='secondary'>
+              {result.highRisk ? `คะแนน ${result.score} — ควรส่งพบทันตแพทย์` : 'ไม่พบความเสี่ยงด้านสุขภาพช่องปาก'}
+            </ColorfulBadge>
+          );
+        })()}
       </div>
     </StepCard>
   );
@@ -604,21 +1058,25 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
 
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='file-text'>บันทึกวินิจฉัย</TopicHeader>
-        <Textarea
+        <SuggestibleTextarea
+          voice
           value={form.diagnosisNote}
-          onChange={(v) => setForm((f) => ({ ...f, diagnosisNote: v }))}
+          onChange={(e) => setForm((f) => ({ ...f, diagnosisNote: e.target.value }))}
+          suggestions={ANC_DIAGNOSIS_SUGGESTIONS}
+          minChars={3}
           placeholder='เช่น ครรภ์แรก อายุครรภ์ 8 สัปดาห์ ไม่พบภาวะเสี่ยง'
-          showLabel={false}
         />
       </div>
 
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='biotech'>ผลการตรวจครรภ์จากภายนอก</TopicHeader>
-        <Textarea
+        <SuggestibleTextarea
+          voice
           value={form.externalExamResults}
-          onChange={(v) => setForm((f) => ({ ...f, externalExamResults: v }))}
+          onChange={(e) => setForm((f) => ({ ...f, externalExamResults: e.target.value }))}
+          suggestions={ANC_EXTERNAL_EXAM_SUGGESTIONS}
+          minChars={3}
           placeholder='เช่น ผล Ultrasound / Lab จากสถานพยาบาลอื่นที่ผู้รับบริการนำมาแสดง'
-          showLabel={false}
         />
         <DragAndDrop
           size='sm'
@@ -630,11 +1088,13 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
 
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='clipboard'>คำแนะนำ</TopicHeader>
-        <Textarea
+        <SuggestibleTextarea
+          voice
           value={form.adviceNote}
-          onChange={(v) => setForm((f) => ({ ...f, adviceNote: v }))}
+          onChange={(e) => setForm((f) => ({ ...f, adviceNote: e.target.value }))}
+          suggestions={ANC_ADVICE_SUGGESTIONS}
+          minChars={3}
           placeholder='เช่น รับประทานยาเสริมธาตุเหล็ก, สังเกตการดิ้นของทารก, มาพบแพทย์ก่อนนัดหากมีเลือดออกทางช่องคลอด'
-          showLabel={false}
         />
       </div>
     </StepCard>
@@ -681,6 +1141,10 @@ export const AncStep5Orders = ({ form, setForm }) => {
     ...f,
     labResults: { ...f.labResults, [key]: value },
   }));
+  const setUltrasoundResult = (key) => (value) => setForm((f) => ({
+    ...f,
+    ultrasoundResults: { ...f.ultrasoundResults, [key]: value },
+  }));
 
   /* ผลตรวจ Lab (result VALUES, not just which labs were ordered) — TOR
      1.10.7.7 names "การตรวจปัสสาวะ" as an explicit exam-history column, and
@@ -692,10 +1156,39 @@ export const AncStep5Orders = ({ form, setForm }) => {
       <div className='flex items-start gap-4 w-full flex-wrap'>
         {fields.map((f) => (
           <Field key={f.key} label={f.label}>
-            <InputField value={form.labResults[f.key] || ''} onChange={setLabResult(f.key)} placeholder={f.placeholder} />
+            <LabResultField field={f} value={form.labResults[f.key]} onChange={setLabResult(f.key)} />
           </Field>
         ))}
       </div>
+    </div>
+  );
+
+  /* Structured Ultrasound findings (pp.50-52) — shared by the 20wk (2nd)
+     and 34wk (3rd) ultrasound, since only one tier is active per visit. */
+  const UltrasoundResultsGrid = () => (
+    <div className='flex flex-col gap-3'>
+      <TopicHeader icon='activity'>ผลตรวจ Ultrasound</TopicHeader>
+      <div className='flex items-start gap-4 w-full flex-wrap'>
+        {ANC_ULTRASOUND_RESULT_FIELDS.map((f) => (
+          <Field key={f.key} label={f.label}>
+            <InputField value={form.ultrasoundResults[f.key] || ''} onChange={setUltrasoundResult(f.key)} placeholder={f.placeholder} />
+          </Field>
+        ))}
+      </div>
+    </div>
+  );
+
+  const SingleChoiceChips = ({ options, value, onChange }) => (
+    <div className='flex items-center gap-3 flex-wrap'>
+      {options.map((opt) => (
+        <SelectableTag
+          key={opt.value}
+          label={opt.label}
+          size='lg'
+          selected={value === opt.value}
+          onClick={() => onChange(opt.value)}
+        />
+      ))}
     </div>
   );
 
@@ -708,7 +1201,10 @@ export const AncStep5Orders = ({ form, setForm }) => {
         </>
       )}
       {tier === 'secondTrimesterScreening' && (
-        <ChipGroup icon='biotech' title='คัดกรองไตรมาสที่ 2 (14-18 สัปดาห์)' items={ANC_SECOND_TRIMESTER_SCREENING} values={form.secondTrimesterScreening} onToggle={toggleScreening} />
+        <>
+          <ChipGroup icon='biotech' title='คัดกรองไตรมาสที่ 2 (14-18 สัปดาห์)' items={ANC_SECOND_TRIMESTER_SCREENING} values={form.secondTrimesterScreening} onToggle={toggleScreening} />
+          {form.secondTrimesterScreening.ultrasound2 && <UltrasoundResultsGrid />}
+        </>
       )}
       {tier === 'diabetesScreening' && (
         <ChipGroup icon='biotech' title='คัดกรองเบาหวานขณะตั้งครรภ์' items={ANC_DIABETES_SCREENING} values={form.diabetesScreening} onToggle={toggleDiabetes} />
@@ -720,6 +1216,23 @@ export const AncStep5Orders = ({ form, setForm }) => {
           <ChipGroup icon='clipboard' title='ฉีดวัคซีน' items={ANC_VACCINES} values={form.vaccines} onToggle={toggleVaccine} />
           <ChipGroup icon='clipboard' title='ยาเสริม (กินทุกวันตลอดการตั้งครรภ์)' items={ANC_SUPPLEMENTS} values={form.supplements} onToggle={toggleSupplement} />
           <ChipGroup icon='activity' title='ประเมินสุขภาพทารกในครรภ์และการคลอด' items={ANC_TERM_ASSESSMENT} values={form.termAssessment} onToggle={toggleTermAssessment} />
+          {form.termAssessment.ultrasound3 && <UltrasoundResultsGrid />}
+          <div className='flex flex-col gap-3'>
+            <TopicHeader icon='clipboard-list'>ตรวจประเมินด้านและหัวนม</TopicHeader>
+            <SingleChoiceChips
+              options={ANC_NIPPLE_ASSESSMENT_OPTIONS}
+              value={form.nippleAssessment}
+              onChange={(v) => setForm((f) => ({ ...f, nippleAssessment: v }))}
+            />
+          </div>
+          <div className='flex flex-col gap-3'>
+            <TopicHeader icon='clipboard-list'>แผนการคลอด</TopicHeader>
+            <SingleChoiceChips
+              options={ANC_DELIVERY_MODE_OPTIONS}
+              value={form.plannedDeliveryMode}
+              onChange={(v) => setForm((f) => ({ ...f, plannedDeliveryMode: v }))}
+            />
+          </div>
         </>
       )}
 
@@ -882,7 +1395,7 @@ export const AncStep6Appointment = ({ form, setForm }) => {
 /* ── Step 7 — ใบฝากครรภ์ ───────────────────────────────────────────
    ANC-card + appointment-slip print preview (TOR 1.10.7.5/.6), same
    print-card shell shape as `Step7Certificate` in TreatmentSteps.jsx. */
-export const AncStep7Card = ({ form, setForm, patient, cardPatient }) => {
+export const AncStep7Card = ({ form, setForm, patient, cardPatient, visitNo = 1 }) => {
   const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
   const edc = useMemo(() => calculateEDC(form.lmp), [form.lmp]);
   const riskLevel = resolveAncRiskLevel(form.riskLevel);
@@ -893,18 +1406,34 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient }) => {
        static mock rows. */
     /* `cardPatient.hn` (patientProfiles.js) is canonical — see
        AncStep1History for why `patient.hn` (MR roster) isn't safe here. */
+    /* Urine now comes from the two dipstick grades the legacy exam screen
+       records (p.2-10); the older single ปกติ/ผิดปกติ lab field is kept as
+       a fallback so visits saved before this change still read correctly. */
+    const urineParts = [
+      form.urineSugar ? `น้ำตาล ${form.urineSugar}` : '',
+      form.urineAlbumin ? `ไข่ขาว ${form.urineAlbumin}` : '',
+    ].filter(Boolean);
+
     saveAncVisitRecord(cardPatient?.hn, {
+      visitNo,
       date: formatAncDate(new Date()),
       gestWeeks: gestationalAge?.weeks ?? '-',
       fundusHeight: form.fundusHeight ? `${form.fundusHeight} ซม.` : '-',
+      presentation: ANC_PRESENTATION_OPTIONS.find((o) => o.value === form.presentation)?.label || '-',
       fetalHeartRate: form.fetalHeartRate ? `${form.fetalHeartRate} bpm` : '-',
       bp: form.vitals.bp,
       weight: form.vitals.weight,
-      urineResult: form.labResults?.urineResult || '-',
+      urineResult: urineParts.join(' · ') || form.labResults?.urineResult || '-',
       riskLevel: form.riskLevel || '-',
       labSummary: summarizeLabResults(form.labResults),
       note: summarizeAncProcedures(form) || form.diagnosisNote || form.currentPregnancyNote || '-',
     });
+
+    /* Persist the pregnancy-level ทะเบียนฝากครรภ์ (legacy §2.2) so the next
+       visit opens pre-filled instead of blank — this is what makes visit 2+
+       a follow-up rather than a second first-visit. Saved on confirm, the
+       same moment the visit itself becomes part of the record. */
+    saveAncRegistration(cardPatient?.hn, form);
     setForm((f) => ({
       ...f,
       cardConfirmed: true,
@@ -941,6 +1470,7 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient }) => {
           <div className='grid grid-cols-2 gap-x-6 gap-y-2' style={{ fontSize: 'var(--type-size-sm)' }}>
             <span>HN: {cardPatient?.hn}</span>
             <span>ชื่อ-สกุล: {cardPatient?.fullName || patient?.name}</span>
+            <span>ตรวจครรภ์ครั้งที่: {visitNo}</span>
             <span>ครรภ์ที่ (G-P-A-L): {form.gravida || '—'}-{form.para || 0}-{form.abortion || 0}-{form.livingChildren || 0}</span>
             <span>LMP: {formatAncDate(form.lmp)}</span>
             <span>กำหนดคลอด (EDC): {formatAncDate(edc)}</span>

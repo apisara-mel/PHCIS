@@ -286,58 +286,63 @@ export const PATIENT_PROFILES = [
   },
 ];
 
-/* Walk-ins awaiting first MR registration — no `avatarUrl` (new service
-   users have not uploaded a profile photo yet). Seeded as the first five
-   "รอลงทะเบียน" rows on RegistrationQueuePage (roster indices 6–10). */
+/* Walk-in ใหม่ที่ไม่เคยใช้บริการ — 4 คนในคิวรอลงทะเบียน
+   ใช้ New User avatar (Figma DS Foundation 3891:7747) ไม่มี HN จนกว่าจะลงทะเบียนสำเร็จ */
 export const PENDING_REGISTRATION_NO_PHOTO = [
   {
     shortName: 'ก้องภพ ศรีวงศ์', fullName: 'นายก้องภพ ศรีวงศ์', englishName: 'Kongphop Srivong',
-    hn: '67-00026', sex: 'ชาย', age: '34 ปี - 2 เดือน - 6 วัน',
-    nationalId: '1101200894521', bloodType: 'O', patientType: 'ผู้ใช้บริการใหม่',
-    doctor: '—', insurance: 'สิทธิประกันสังคม รพ.พระนั่งเกล้า (10686)',
+    hn: '', sex: 'ชาย', age: '34 ปี - 2 เดือน - 6 วัน',
+    nationalId: '1101200894521', phone: '081-902-1143', bloodType: 'O',
+    patientType: 'ผู้ใช้บริการใหม่', doctor: '—',
+    insurance: 'สิทธิประกันสังคม รพ.พระนั่งเกล้า (10686)',
+    rights: 'ประกันสังคม',
     address: '42/8 ซ.พระราม 2 ซอย 39 บางมด กรุงเทพมหานคร 10150',
     vip: false,
+    neverServed: true,
   },
   {
     shortName: 'จิราพร มณีโชติ', fullName: 'นางสาวจิราพร มณีโชติ', englishName: 'Jiraporn Maneechot',
-    hn: '67-00027', sex: 'หญิง', age: '22 ปี - 9 เดือน - 11 วัน',
-    nationalId: '1809900812364', bloodType: 'A', patientType: 'ผู้ใช้บริการใหม่',
-    doctor: '—', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
+    hn: '', sex: 'หญิง', age: '22 ปี - 9 เดือน - 11 วัน',
+    nationalId: '1809900812364', phone: '092-558-9034', bloodType: 'A',
+    patientType: 'ผู้ใช้บริการใหม่', doctor: '—',
+    insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
+    rights: 'บัตรทอง',
     address: '19/3 ซ.ลาดพร้าว 101 บางกะปิ กรุงเทพมหานคร 10240',
     vip: false,
+    neverServed: true,
   },
   {
     shortName: 'พงศ์ศักดิ์ แสงทอง', fullName: 'นายพงศ์ศักดิ์ แสงทอง', englishName: 'Pongsak Saengthong',
-    hn: '67-00028', sex: 'ชาย', age: '41 ปี - 0 เดือน - 19 วัน',
-    nationalId: '3100401928475', bloodType: 'B', patientType: 'ผู้ใช้บริการใหม่',
-    doctor: '—', insurance: 'ชำระเอง',
+    hn: '', sex: 'ชาย', age: '41 ปี - 0 เดือน - 19 วัน',
+    nationalId: '3100401928475', phone: '089-701-3382', bloodType: 'B',
+    patientType: 'ผู้ใช้บริการใหม่', doctor: '—',
+    insurance: 'ชำระเอง',
+    rights: 'ชำระเงินเอง',
     address: '7/11 ซ.จรัญสนิทวงศ์ 90 บางพลัด กรุงเทพมหานคร 10700',
     vip: false,
+    neverServed: true,
   },
   {
     shortName: 'อาทิตยา บุญเรือง', fullName: 'นางสาวอาทิตยา บุญเรือง', englishName: 'Arthiya Boonruang',
-    hn: '67-00029', sex: 'หญิง', age: '27 ปี - 4 เดือน - 2 วัน',
-    nationalId: '3401201029587', bloodType: 'O', patientType: 'ผู้ใช้บริการใหม่',
-    doctor: '—', insurance: 'สิทธิประกันสังคม รพ.เกษมราษฎร์',
+    hn: '', sex: 'หญิง', age: '27 ปี - 4 เดือน - 2 วัน',
+    nationalId: '3401201029587', phone: '063-884-1205', bloodType: 'O',
+    patientType: 'ผู้ใช้บริการใหม่', doctor: '—',
+    insurance: 'สิทธิประกันสังคม รพ.เกษมราษฎร์',
+    rights: 'ประกันสังคม',
     address: '63/5 ซ.รัชดาภิเษก 12 ดินแดง กรุงเทพมหานคร 10400',
     vip: false,
-  },
-  {
-    shortName: 'ศักดิ์สิทธิ์ คำแพง', fullName: 'นายศักดิ์สิทธิ์ คำแพง', englishName: 'Saksit Khamphaeng',
-    hn: '67-00030', sex: 'ชาย', age: '58 ปี - 7 เดือน - 24 วัน',
-    nationalId: '5670013012846', bloodType: 'A', patientType: 'ผู้ใช้บริการใหม่',
-    doctor: '—', insurance: 'สิทธิข้าราชการ กรมบัญชีกลาง',
-    address: '201 หมู่ 4 ต.บางพูน อ.เมืองนนทบุรี จ.นนทบุรี 11000',
-    vip: false,
+    neverServed: true,
   },
 ];
 
 export const getPatientByShortName = (shortName) =>
   PATIENT_PROFILES.find((p) => p.shortName === shortName);
 
-export const getPatientByHN = (hn) =>
-  PATIENT_PROFILES.find((p) => p.hn === hn)
-  ?? PENDING_REGISTRATION_NO_PHOTO.find((p) => p.hn === hn);
+export const getPatientByHN = (hn) => {
+  if (!hn) return undefined;
+  return PATIENT_PROFILES.find((p) => p.hn === hn)
+    ?? PENDING_REGISTRATION_NO_PHOTO.find((p) => p.hn === hn);
+};
 
 /* VN (Visit Number) — single source of truth for both the OPD screening
    queue (`pages/opd/QueuePage.jsx`) and the pharmacy queue
@@ -372,7 +377,6 @@ const EXTRA_DOB_BY_HN = {
   '67-00027': '2 กุมภาพันธ์ 2546',
   '67-00028': '19 มกราคม 2527',
   '67-00029': '6 กรกฎาคม 2541',
-  '67-00030': '30 สิงหาคม 2510',
 };
 
 export const getPatientDobByHN = (hn) =>

@@ -604,7 +604,7 @@ const MANUAL_SEED = [
    Sized so the default "รอเรียก" tab lands on ~32 rows (30 filler past
    `SERVED_CUTOFF` + P-017/P-018 from the manual seed) — a morning-rush
    backlog rather than a handful of rows.
-   Cycles through the 15 `mrPatients.js` HNs and a small rotation of
+   Cycles through the 14 `mrPatients.js` HNs and a small rotation of
    diagnoses/drugs — only drug names already priced in `SUB_PHARMACY_STOCK`
    and classed in `DRUG_ALLERGY_CLASS`/registry, so stock figures and
    pricing on these rows stay real instead of falling back to "ไม่มีข้อมูล"
@@ -613,7 +613,7 @@ const MANUAL_SEED = [
 const FILLER_HNS = [
   '67-00001', '67-00002', '67-00003', '67-00004', '67-00005',
   '67-00006', '67-00007', '67-00008', '67-00009', '67-00010',
-  '67-00026', '67-00027', '67-00028', '67-00029', '67-00030',
+  '67-00026', '67-00027', '67-00028', '67-00029',
 ];
 const FILLER_DIAGNOSES = [
   { icd10: 'J06.9', name: 'การติดเชื้อทางเดินหายใจส่วนบนเฉียบพลัน' },
@@ -721,7 +721,7 @@ export const PHARMACY_QUEUE = SEED.map((row) => ({
   /* VN (Visit Number) — same value the OPD screening queue shows for this
      patient (both read `patientProfiles.js`'s `vn` field — see
      `getVnByHn`'s doc comment). Empty string for the small number of
-     filler HNs (67-00026..30) that are still "รอลงทะเบียน" and have no
+     filler HNs (67-00026..29) that are still "รอลงทะเบียน" and have no
      screening visit yet, same as the OPD queue would show for them. */
   vn: getVnByHn(row.hn),
   /* วันที่ออกใบสั่งยา — the mock only carries one day of seed data (resets

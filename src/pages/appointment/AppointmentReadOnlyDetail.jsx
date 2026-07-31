@@ -8,6 +8,7 @@ import {
   formatApptPreOrderLabel,
   getAppointmentDisplayStatus,
   APPT_STATUS_NO_SHOW,
+  APPT_STATUS_CANCELLED,
   timeToSlotRange,
   SLOT_MINUTES,
 } from './appointmentShared';
@@ -57,6 +58,7 @@ export function toReadOnlyApptSource(source) {
     || (source.time ? timeToSlotRange(source.time, SLOT_MINUTES) : '');
   return {
     clinic: source.clinic,
+    orderingUnit: source.orderingUnit || source.site,
     type: source.type,
     doctor: source.doctor,
     reason: source.reason,
@@ -74,7 +76,11 @@ export function toReadOnlyApptSource(source) {
 
 export const AppointmentReadOnlyStatusBadge = ({ appt }) => {
   const status = getAppointmentDisplayStatus(appt);
-  const label = status === APPT_STATUS_NO_SHOW ? 'ไม่มาตามนัด' : 'นัดที่ผ่านมาแล้ว';
+  const label = status === APPT_STATUS_NO_SHOW
+    ? 'ไม่มาตามนัด'
+    : status === APPT_STATUS_CANCELLED
+      ? 'ยกเลิก'
+      : 'นัดที่ผ่านมาแล้ว';
   return (
     <ColorfulBadge
       style='grey'
@@ -99,10 +105,13 @@ export const AppointmentReadOnlyCards = ({ appt }) => {
     <>
       <ApptReadOnlyCard title='รายละเอียดการนัดหมาย'>
         <FieldGrid cols={2} rowGap='var(--dim-space-400)' columnGap='var(--dim-space-1200)'>
+          <ApptReadOnlyField label='หน่วยงานที่สั่งนัด' value={row.orderingUnit} />
           <ApptReadOnlyField label='คลินิก / หน่วยงานที่นัดตรวจ' value={row.clinic} />
-          <ApptReadOnlyField label='ลักษณะการนัดหมาย' value={row.type} />
         </FieldGrid>
-        <ApptReadOnlyField label='แพทย์ผู้ตรวจ' value={row.doctor} />
+        <FieldGrid cols={2} rowGap='var(--dim-space-400)' columnGap='var(--dim-space-1200)'>
+          <ApptReadOnlyField label='ลักษณะการนัดหมาย' value={row.type} />
+          <ApptReadOnlyField label='แพทย์ผู้ตรวจ' value={row.doctor} />
+        </FieldGrid>
         <FieldGrid cols={2} rowGap='var(--dim-space-400)' columnGap='var(--dim-space-1200)'>
           <ApptReadOnlyField label='เหตุผลการนัดหมาย / อาการเบื้องต้น' value={row.reason} />
           <ApptReadOnlyField label='การเตรียมตัวก่อนตรวจ' value={row.prep} />

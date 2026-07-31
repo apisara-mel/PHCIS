@@ -243,7 +243,7 @@ export const MR_PATIENTS = [
     drugAllergies: [],
     chronicDiseases: [],
   },
-  /* New walk-ins — รอลงทะเบียน, no profile photo yet (see PENDING_REGISTRATION_NO_PHOTO). */
+  /* New walk-ins — ไม่เคยใช้บริการ · รอลงทะเบียน (see PENDING_REGISTRATION_NO_PHOTO). */
   {
     hn: '67-00026',
     prefixTh: 'นาย', firstNameTh: 'ก้องภพ', lastNameTh: 'ศรีวงศ์',
@@ -307,23 +307,6 @@ export const MR_PATIENTS = [
     insurance: [{ type: 'ประกันสังคม', claimCode: '—', verified: false }],
     mobility: 'เดิน', flags: { vip: false, allergyDrug: false, allergyOther: false, chronic: false },
     drugAllergies: [], chronicDiseases: [],
-  },
-  {
-    hn: '67-00030',
-    prefixTh: 'นาย', firstNameTh: 'ศักดิ์สิทธิ์', lastNameTh: 'คำแพง',
-    prefixEn: 'Mr.', firstNameEn: 'Saksit', lastNameEn: 'Khamphaeng',
-    nationalId: '5-6701-30128-46-1',
-    dob: '30 สิงหาคม 2510', age: 58, gender: 'ชาย', genderIdentity: 'ชาย',
-    phone: '081-445-9021', altPhone: '02-589-4410', email: '',
-    rights: 'ข้าราชการ', status: 'pending', registeredOn: '—',
-    bloodType: 'A', education: 'ปริญญาตรี', occupation: 'ข้าราชการ',
-    marital: 'สมรส', spouseName: 'สุดา คำแพง',
-    address: { zip: '11000', province: 'นนทบุรี', district: 'เมืองนนทบุรี', subdistrict: 'บางพูน', road: 'ติวานนท์', moo: '4', houseNo: '201' },
-    emergency: [{ name: 'สุดา', last: 'คำแพง', relation: 'คู่สมรส', phone: '089-112-8803' }],
-    insurance: [{ type: 'ข้าราชการ', claimCode: '—', verified: false }],
-    mobility: 'เดิน', flags: { vip: false, allergyDrug: false, allergyOther: false, chronic: true },
-    drugAllergies: [],
-    chronicDiseases: [{ name: 'ความดันโลหิตสูง (HT)', severity: 'medium' }],
   },
 ];
 

@@ -1,8 +1,48 @@
 import React from 'react';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Tooltip from '@/components/tooltip/Tooltip';
 import {
   calculateGestationalAge, calculateEDC, formatAncDate, resolveAncRiskLevel,
 } from '@/data/ancVisits';
+
+/* Recommended activities per gestational-age band — same tier boundaries
+   as `getAncVisitTier` (ancVisits.js) and the official manual's trimester
+   activity table (pp.4-8), condensed to a hover suggestion rather than
+   every catalog item verbatim. */
+const PERIOD_SUGGESTIONS = [
+  {
+    from: 0, to: 12, label: 'ก่อน 12 สัปดาห์',
+    items: [
+      'Lab ครั้งที่ 1 (CBC/หมู่เลือด/VDRL/Anti-HIV/HBsAg)',
+      'ตรวจปัสสาวะ',
+      'คัดกรองดาวน์ซินโดรม + ธาลัสซีเมีย',
+    ],
+  },
+  {
+    from: 12, to: 20, label: '12-19 สัปดาห์',
+    items: [
+      'คัดกรองดาวน์ซินโดรม (14-18 สัปดาห์)',
+      'Ultrasound ครั้งที่ 2 (20 สัปดาห์)',
+    ],
+  },
+  {
+    from: 20, to: 28, label: '20-27 สัปดาห์',
+    items: [
+      'คัดกรองเบาหวาน GCT (24-28 สัปดาห์)',
+    ],
+  },
+  {
+    from: 28, to: 40, label: '28-40 สัปดาห์',
+    items: [
+      'Lab ครั้งที่ 2',
+      'ยืนยันเบาหวาน OGTT (30 สัปดาห์)',
+      'วัคซีน dT/Tdap, ไข้หวัดใหญ่, Covid-19',
+      'ยาเสริมธาตุเหล็ก/โฟลิก/ไอโอดีน/แคลเซียม',
+      'Ultrasound ครั้งที่ 3 (34 สัปดาห์)',
+      'NST + ตรวจน้ำคร่ำ (40 สัปดาห์)',
+    ],
+  },
+];
 
 /* AncPregnancyProgress — sits between PatientCard and the step shell on
    every ANC step, so gestational-age context (คิวคิ trimester 1/2/3, current
@@ -118,7 +158,65 @@ const AncPregnancyProgress = ({ form, cardPatient }) => {
               transition: 'width 300ms ease',
             }}
           />
+          {/* Thin weekly tick marks — a ruler reading of the 0-40 week
+              scale, on top of both the filled and unfilled portions.
+              `multiply` blend keeps them visible against the green fill
+              AND the light grey track without needing two tick colours. */}
+          {Array.from({ length: 39 }, (_, i) => i + 1).map((w) => (
+            <div
+              key={w}
+              className='absolute'
+              style={{
+                left: pctOf(w),
+                top: 0,
+                width: 1,
+                height: '100%',
+                background: 'rgba(0, 0, 0, 0.16)',
+                mixBlendMode: 'multiply',
+                transform: 'translateX(-50%)',
+                pointerEvents: 'none',
+              }}
+            />
+          ))}
         </div>
+
+        {/* Hover suggestion zones — one per gestational-age band, each
+            showing what should be checked/ordered during that period
+            (matches getAncVisitTier's boundaries). Spans the full row
+            height (not just the thin track) so the hit target is easy
+            to land on, not just an 8px-tall strip. */}
+        {PERIOD_SUGGESTIONS.map((p) => (
+          <div
+            key={p.label}
+            className='absolute'
+            style={{
+              left: pctOf(p.from),
+              width: `${((Math.min(p.to, 40) - p.from) / 40) * 100}%`,
+              top: 0,
+              height: 44,
+              cursor: 'help',
+            }}
+          >
+            <Tooltip
+              position='top'
+              variant='light'
+              maxWidth={280}
+              className='w-full h-full'
+              content={
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: 'var(--type-weight-bold, 700)', marginBottom: 4 }}>
+                    {p.label} — แนะนำตรวจ
+                  </div>
+                  {p.items.map((item) => (
+                    <div key={item}>• {item}</div>
+                  ))}
+                </div>
+              }
+            >
+              <div style={{ width: '100%', height: '100%' }} />
+            </Tooltip>
+          </div>
+        ))}
 
         <span style={{ ...tickLabelStyle, top: 36, left: pctOf(0) }}>ไตรมาส 1</span>
         <span style={{ ...tickLabelStyle, top: 36, left: pctOf(12), transform: 'translateX(-50%)' }}>12</span>

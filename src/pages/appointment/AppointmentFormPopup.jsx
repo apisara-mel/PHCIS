@@ -49,6 +49,7 @@ const BLANK_FORM = {
   hn: '',
   rights: 'ประกันสังคม',
   patientAvatar: DEFAULT_PATIENT_AVATAR,
+  orderingUnit: 'ศูนย์ 4 ดินแดง',
   clinic: 'คลินิกตรวจโรคทั่วไป',
   type: 'พบแพทย์',
   doctor: 'นพ. วันชัย อยู่เย็น',
@@ -66,6 +67,7 @@ const DEMO_PREFILL = {
   hn: '67-00001',
   rights: 'ประกันสังคม',
   patientAvatar: DEFAULT_PATIENT_AVATAR,
+  orderingUnit: 'ศูนย์ 4 ดินแดง',
   clinic: 'คลินิกตรวจโรคทั่วไป',
   type: 'พบแพทย์',
   doctor: 'นพ. วันชัย อยู่เย็น',
@@ -75,6 +77,17 @@ const DEMO_PREFILL = {
   preOrderNote: '',
   examMode: 'onsite',
 };
+
+const ORDERING_UNIT_OPTIONS = [
+  { value: 'ศูนย์ 4 ดินแดง', label: 'ศูนย์ 4 ดินแดง' },
+  { value: 'ศูนย์ 8 บางนา', label: 'ศูนย์ 8 บางนา' },
+  { value: 'OPD อายุรกรรม', label: 'OPD อายุรกรรม' },
+  { value: 'ห้องฉุกเฉิน', label: 'ห้องฉุกเฉิน' },
+  { value: 'คลินิกเวชศาสตร์ครอบครัว', label: 'คลินิกเวชศาสตร์ครอบครัว' },
+  { value: 'ทันตกรรม', label: 'ทันตกรรม' },
+  { value: 'กุมารเวช', label: 'กุมารเวช' },
+  { value: 'ศูนย์บริการสาธารณสุข 7', label: 'ศูนย์บริการสาธารณสุข 7' },
+];
 
 const CLINIC_OPTIONS = [
   { value: 'คลินิกตรวจโรคทั่วไป', label: 'คลินิกตรวจโรคทั่วไป (General Clinic)' },
@@ -219,6 +232,17 @@ const parseTimeslotStartOnDate = (slotValue, dayDate) => {
 
 function mapApptToForm(appt, slotPick, mode, staff) {
   const slotMinutes = getStaffSlotMinutes(staff);
+  const resolveRange = (...candidates) => {
+    for (const raw of candidates) {
+      if (!raw) continue;
+      const range = String(raw).includes('-')
+        ? String(raw).trim()
+        : timeToSlotRange(raw, slotMinutes);
+      if (range) return range;
+    }
+    return '';
+  };
+
   if (appt) {
     const examMode = appt.examMode === 'tele' ? 'telemedicine' : (appt.examMode || 'onsite');
     return {
@@ -228,6 +252,7 @@ function mapApptToForm(appt, slotPick, mode, staff) {
       rights: appt.rights || BLANK_FORM.rights,
       patientAvatar: appt.patientAvatar || DEFAULT_PATIENT_AVATAR,
       clinic: appt.clinic || BLANK_FORM.clinic,
+      orderingUnit: appt.orderingUnit || appt.site || BLANK_FORM.orderingUnit,
       type: appt.type || BLANK_FORM.type,
       doctor: appt.doctor || BLANK_FORM.doctor,
       reason: appt.reason || '',
@@ -235,8 +260,8 @@ function mapApptToForm(appt, slotPick, mode, staff) {
       preOrder: appt.preOrder || 'none',
       preOrderNote: appt.preOrderNote || '',
       examMode,
-      date: appt.date || '',
-      slotRange: timeToSlotRange(appt.time, slotMinutes),
+      date: appt.date || slotPick?.date || '',
+      slotRange: resolveRange(appt.slotRange, appt.time, slotPick?.time, slotPick?.slotRange),
       status: appt.status,
     };
   }
@@ -248,9 +273,30 @@ function mapApptToForm(appt, slotPick, mode, staff) {
   }
   if (slotPick?.date) {
     base.date = slotPick.date;
-    if (slotPick.time) base.slotRange = timeToSlotRange(slotPick.time, slotMinutes);
+    base.slotRange = resolveRange(slotPick.slotRange, slotPick.time);
   }
   return base;
+}
+
+/** Prefer an exact schedule slot value; fall back to matching by start time. */
+function alignSlotRangeToSchedule(rangeOrTime, scheduleSlots, slotMinutes) {
+  if (!rangeOrTime) return '';
+  const asRange = String(rangeOrTime).includes('-')
+    ? String(rangeOrTime).trim()
+    : timeToSlotRange(rangeOrTime, slotMinutes);
+  if (!asRange) return '';
+  if (!scheduleSlots?.length) return asRange;
+  const exact = scheduleSlots.find((s) => s.value === asRange);
+  if (exact) return exact.value;
+  const start = slotRangeToTime(asRange);
+  const byStart = scheduleSlots.find((s) => slotRangeToTime(s.value) === start);
+  return byStart?.value || asRange;
+}
+
+function isSameSlotRange(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return slotRangeToTime(a) === slotRangeToTime(b);
 }
 
 function formToSavePayload(form, scheduleSlots = []) {
@@ -263,6 +309,7 @@ function formToSavePayload(form, scheduleSlots = []) {
     rights: form.rights,
     patientAvatar: form.patientAvatar,
     clinic: form.clinic,
+    orderingUnit: form.orderingUnit,
     type: form.examMode === 'homevisit' ? 'เยี่ยมบ้าน' : form.type,
     doctor: form.doctor || ANY_DOCTOR_VALUE,
     reason: form.reason,
@@ -379,6 +426,7 @@ const AppointmentFormPopup = ({
   slotPick,
   appointments,
   staff,
+  forceReadOnly = false,
   onClose,
   onSave,
   onDelete,
@@ -410,6 +458,7 @@ const AppointmentFormPopup = ({
   const dirty = JSON.stringify(form) !== baseline;
   const formComplete = form.patient.trim()
     && form.hn.trim()
+    && form.orderingUnit
     && form.clinic
     && form.type
     && form.doctor
@@ -431,7 +480,7 @@ const AppointmentFormPopup = ({
       time: slotRangeToTime(form.slotRange),
       status: form.status,
     };
-  const readOnly = isAppointmentReadOnly(readOnlyAppt);
+  const readOnly = forceReadOnly || isAppointmentReadOnly(readOnlyAppt);
   const slotMinutes = getStaffSlotMinutes(staff);
   const nestedPattern = staff?.id ? getResourcePattern(staff.id) : null;
 
@@ -439,6 +488,31 @@ const AppointmentFormPopup = ({
     () => (form.date && staff ? getStaffScheduleSlots(staff, form.date) : []),
     [staff, form.date],
   );
+
+  /* Align stored appointment time to a real schedule chip once slots are known. */
+  useEffect(() => {
+    if (!open || !form.date || !scheduleSlots.length || !form.slotRange) return;
+    const aligned = alignSlotRangeToSchedule(form.slotRange, scheduleSlots, slotMinutes);
+    if (aligned && aligned !== form.slotRange) {
+      setForm((f) => (f.slotRange === aligned ? f : { ...f, slotRange: aligned }));
+    }
+  }, [open, form.date, form.slotRange, scheduleSlots, slotMinutes]);
+
+  const displaySlots = useMemo(() => {
+    if (!form.slotRange) return scheduleSlots;
+    if (scheduleSlots.some((s) => isSameSlotRange(s.value, form.slotRange))) {
+      return scheduleSlots;
+    }
+    /* Keep the booked time visible/selected even if outside today's duty window. */
+    const injected = {
+      value: form.slotRange,
+      label: form.slotRange,
+      queueNo: null,
+    };
+    return [...scheduleSlots, injected].sort(
+      (a, b) => slotRangeToTime(a.value).localeCompare(slotRangeToTime(b.value)),
+    );
+  }, [scheduleSlots, form.slotRange]);
 
   const handlePrint = () => {
     const payload = formToSavePayload(form, scheduleSlots);
@@ -449,13 +523,27 @@ const AppointmentFormPopup = ({
     if (!form.date || !staff?.id) return new Set();
     return new Set(
       appointments
-        .filter((a) => a.staffId === staff.id && a.date === form.date && a.id !== initial?.id)
-        .map((a) => timeToSlotRange(a.time, slotMinutes)),
+        .filter((a) => (
+          String(a.staffId) === String(staff.id)
+          && a.date === form.date
+          && a.id !== initial?.id
+        ))
+        .map((a) => alignSlotRangeToSchedule(
+          a.slotRange || a.time,
+          scheduleSlots,
+          slotMinutes,
+        )),
     );
-  }, [appointments, staff?.id, form.date, initial?.id, slotMinutes]);
+  }, [appointments, staff?.id, form.date, initial?.id, scheduleSlots, slotMinutes]);
 
   const slotDisabled = (slotValue) => {
-    if (bookedRanges.has(slotValue)) return { disabled: true, label: '(เต็ม)' };
+    if (isSameSlotRange(slotValue, form.slotRange)) {
+      return { disabled: false };
+    }
+    if (bookedRanges.has(slotValue)
+      || [...bookedRanges].some((r) => isSameSlotRange(r, slotValue))) {
+      return { disabled: true, label: '(เต็ม)' };
+    }
     if (!apptDay) return { disabled: false };
     const start = parseTimeslotStartOnDate(slotValue, apptDay);
     if (start && start.getTime() < Date.now() + APPT_MIN_LEAD_MS) {
@@ -541,6 +629,17 @@ const AppointmentFormPopup = ({
             rowGap='var(--dim-space-400)'
             columnGap='var(--dim-space-1200)'
           >
+            <Field label='หน่วยงานที่สั่งนัด' required>
+              <Select
+                size='large'
+                value={form.orderingUnit}
+                onChange={setField('orderingUnit')}
+                options={ORDERING_UNIT_OPTIONS}
+                placeholder='เลือกหน่วยงาน'
+                showLabel={false}
+                showHelperText={false}
+              />
+            </Field>
             <Field label='คลินิก / หน่วยงานที่นัดตรวจ' required>
               <Select
                 size='large'
@@ -572,7 +671,6 @@ const AppointmentFormPopup = ({
                 showHelperText={false}
               />
             </Field>
-            <div aria-hidden />
             <Field label='เหตุผลการนัดหมาย / อาการเบื้องต้น' required>
               <SuggestibleTextarea
                 voice
@@ -688,11 +786,15 @@ const AppointmentFormPopup = ({
                 leadingIcon='calendar_today'
                 value={apptDay}
                 format={formatThaiBuddhistDate}
-                onChange={(d) => setForm((f) => ({
-                  ...f,
-                  date: d ? isoKey(d) : '',
-                  slotRange: '',
-                }))}
+                onChange={(d) => setForm((f) => {
+                  const nextDate = d ? isoKey(d) : '';
+                  if (nextDate === f.date) return f;
+                  return {
+                    ...f,
+                    date: nextDate,
+                    slotRange: '',
+                  };
+                })}
                 placeholder='เลือกวันที่'
                 showLabel={false}
                 showHelperText={false}
@@ -712,13 +814,13 @@ const AppointmentFormPopup = ({
                   fontWeight: 'var(--type-weight-medium)',
                 }}
               >
-                {scheduleSlots.length > 0
+                {displaySlots.length > 0
                   ? (nestedPattern
-                    ? `Slot ซ้อนชั้น · major ${nestedPattern.majorMinutes} น. / minor ${nestedPattern.minorMinutes} น. · ${scheduleSlots.length} คิว`
-                    : `ช่วงละ ${slotMinutes} นาที · ${scheduleSlots.length} slot`)
+                    ? `Slot ซ้อนชั้น · major ${nestedPattern.majorMinutes} น. / minor ${nestedPattern.minorMinutes} น. · ${displaySlots.length} คิว`
+                    : `ช่วงละ ${slotMinutes} นาที · ${displaySlots.length} slot`)
                   : 'ไม่มีตารางเวรในวันนี้'}
               </span>
-              {scheduleSlots.length > 0 && (
+              {displaySlots.length > 0 && (
                 <div
                   style={{
                     padding: 'var(--dim-space-400)',
@@ -734,14 +836,14 @@ const AppointmentFormPopup = ({
                       gap: 'var(--dim-space-200)',
                     }}
                   >
-                    {scheduleSlots.map((slot) => {
+                    {displaySlots.map((slot) => {
                       const { disabled, label } = slotDisabled(slot.value);
                       return (
                         <Timeslot
                           key={slot.value}
                           size='sm'
                           value={slot.label || slot.value}
-                          selected={form.slotRange === slot.value}
+                          selected={isSameSlotRange(form.slotRange, slot.value)}
                           disabled={disabled}
                           disabledLabel={label}
                           onClick={() => setField('slotRange')(slot.value)}

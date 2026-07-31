@@ -722,7 +722,7 @@ export default function ObservationQueuePage() {
 
   return (
     <QueuePageShell
-      activeKey='registration'
+      activeKey='observation'
       breadcrumb={['หน้าหลัก PHCIS', 'ระบบสังเกตอาการ (Observation)']}
       title='ห้องเฝ้าสังเกตอาการ (Observation Unit)'
       summaryCards={summaryCards}
