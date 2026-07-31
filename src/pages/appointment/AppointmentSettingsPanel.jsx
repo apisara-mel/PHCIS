@@ -134,7 +134,7 @@ export default function AppointmentSettingsPanel({
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
       <section className='flex flex-col w-full' style={cardStyle}>
-        <span style={titleStyle}>ค้นหา Slot ว่างเร็วสุด (TOR 1.6.2.1)</span>
+        <span style={titleStyle}>ค้นหา Slot ว่างเร็วสุด</span>
         <span style={hintStyle}>เลือกประเภท Resource แล้วค้นหาวัน–เวลาที่ว่างเร็วที่สุด</span>
         <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
           <div style={{ minWidth: 220 }}>

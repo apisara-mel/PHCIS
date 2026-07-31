@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
+import { useTelemedCall } from '@/components/telemed/TelemedCallProvider';
 import {
   formatTelemedBadgeLabel,
   getTelemedAppointmentState,
@@ -9,7 +10,7 @@ import {
 /* Figma PHCIS | Telemed 78:16524 — telemedicine column badge states (70:7129):
    early (>15 min, blue icon) · countdown (≤15 min, blue pill)
    · due (teal pill + blink) · overdue (orange pill + blink) · expired (grey icon).
-   Click opens /telemed in a new browser tab. */
+   Click opens the Telemed consult as a full-screen overlay on the current page. */
 
 const BLINK_BORDER = {
   teal: 'var(--border-telemed-queue-teal-blink, rgba(209, 246, 238, 0.4))',
@@ -22,13 +23,12 @@ const ICON_BADGE_SIZE = {
   height: 'var(--dim-size-600, 32px)',
 };
 
-const linkStyle = {
+const buttonStyle = {
   display: 'inline-flex',
   border: 'none',
   padding: 0,
   background: 'transparent',
   cursor: 'pointer',
-  textDecoration: 'none',
   color: 'inherit',
 };
 
@@ -40,11 +40,8 @@ const disabledWrapStyle = {
   cursor: 'not-allowed',
 };
 
-const buildTelemedHref = (visitId) => (
-  visitId ? `/telemed/${encodeURIComponent(visitId)}` : '/telemed'
-);
-
 const TelemedicineQueueBadge = ({ appointmentAt, visitId, className = '' }) => {
+  const { start } = useTelemedCall();
   const [now, setNow] = useState(() => Date.now());
 
   const { state, minutesUntil, minutesPast } = getTelemedAppointmentState(appointmentAt, now);
@@ -113,18 +110,19 @@ const TelemedicineQueueBadge = ({ appointmentAt, visitId, className = '' }) => {
   }
 
   return (
-    <a
-      href={buildTelemedHref(visitId)}
-      target='_blank'
-      rel='noopener noreferrer'
+    <button
+      type='button'
       className={className}
-      style={linkStyle}
+      style={buttonStyle}
       aria-label={ariaLabel}
-      title='เปิด Telemedicine ในแท็บใหม่'
-      onClick={(e) => e.stopPropagation()}
+      title='เปิด Telemedicine'
+      onClick={(e) => {
+        e.stopPropagation();
+        start({ visitId });
+      }}
     >
       {badgeContent}
-    </a>
+    </button>
   );
 };
 

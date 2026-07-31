@@ -3366,10 +3366,14 @@ const FormShellDemo = () => {
   const [form, setForm] = useState({});
   const samplePatient = { hn: '650001234', name: 'สมชาย ใจดี', isNew: true, isActive: true };
   return (
-    <Section title='FormShell' summary='Full-page registration form chrome: SubHeader + status bar + 5-step Stepper + body + sticky footer with prev/next/save. Children render inside the body slot.'>
+    <Section title='FormShell' summary='Full-page registration form chrome: SubHeader + status bar + 6-step Stepper (consent first) + body + sticky footer.'>
       <Variant label='Interactive · click stepper or footer to navigate' stack>
         <div style={{ height: 700, overflow: 'auto', borderRadius: 'var(--dim-radius-300)', border: 'var(--dim-stroke-100) solid var(--border-card-default)' }}>
-          <FormShell patient={samplePatient} stepIndex={stepIndex} onStepChange={setStepIndex}>
+          <FormShell
+            patient={samplePatient}
+            stepIndex={stepIndex}
+            onStepChange={setStepIndex}
+          >
             <Step1Personal form={form} setForm={setForm} />
           </FormShell>
         </div>
@@ -3395,29 +3399,29 @@ const FormShellDemo = () => {
 const RegistrationStepsDemo = () => {
   const [form, setForm] = useState({});
   return (
-    <Section title='RegistrationSteps' summary='Per-step form bodies for the Registration (เวชระเบียน) workflow (5 steps · Figma 2373:119045..119049). Each step accepts (form, setForm) and is rendered inside FormShell. Demo shows Step1 (ข้อมูลส่วนตัว); the other 4 steps follow the same pattern.'>
-      <Variant label='Step 1 · ข้อมูลส่วนตัว' stack>
+    <Section title='RegistrationSteps' summary='Per-step form bodies for the Registration (เวชระเบียน) workflow (6 steps · Figma 292:104252 + 2373:119045..). Each step accepts (form, setForm) and is rendered inside FormShell. Demo shows Step 2 (ข้อมูลส่วนตัว).'>
+      <Variant label='Step 2 · ข้อมูลส่วนตัว' stack>
         <div style={{ width: '100%', maxHeight: 700, overflow: 'auto', padding: 'var(--dim-space-500)', background: 'var(--surface-page-default)', borderRadius: 'var(--dim-radius-300)' }}>
           <Step1Personal form={form} setForm={setForm} />
         </div>
       </Variant>
-      <Variant label='5 steps in the MR flow' stack>
+      <Variant label='6 steps in the MR flow' stack>
         <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-          ข้อมูลส่วนตัว · ที่อยู่ · ข้อมูลการติดต่อ · สิทธิการรักษา · หมายเหตุและ Flag
+          แบบฟอร์มยินยอม · ข้อมูลส่วนตัว · ที่อยู่ · ข้อมูลการติดต่อ · สิทธิการรักษา · หมายเหตุและ Flag
         </span>
       </Variant>
       <Guidelines
         behavior={[
           'Each `Step*` component is controlled via `{ form, setForm }` — the page owns the form state, the step is a thin presenter.',
-          'Step 1 honors chip-read locking (`form.idCardFromChip`) by disabling card-sourced fields.',
+          'Step 2 honors chip-read locking (`form.idCardFromChip`) by disabling card-sourced fields.',
         ]}
         dos={[
           'Use inside FormShell with `STEP_RENDERERS[stepIndex]` switch (see RegistrationFormPage).',
           'Wire `setForm` so each `<Field required>` change updates the form in one place.',
         ]}
         donts={[
-          "Don't render steps outside the FormShell — they need the surrounding chrome (StatusBar / Footer / step animation).",
-          "Don't fork the form shape per step — keep one shared `form` object across all 5 steps.",
+          "Don't render steps outside the FormShell — they need the surrounding chrome (Footer / step animation).",
+          "Don't fork the form shape per step — keep one shared `form` object across all 6 steps.",
         ]}
       />
     </Section>

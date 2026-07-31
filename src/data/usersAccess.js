@@ -125,8 +125,11 @@ export const FEATURE_GROUPS = [
     label: 'งานเภสัชกรรม',
     icon: 'pill',
     features: [
-      { key: 'pharm.dispense', label: 'จ่ายยา',                supportedLevels: ['view', 'edit'] },
-      { key: 'pharm.stock',    label: 'สต็อกยา / คงคลัง',       supportedLevels: ['view', 'edit'] },
+      { key: 'pharm.dispense',    label: 'จ่ายยา',                  supportedLevels: ['view', 'edit'] },
+      { key: 'pharm.stock',       label: 'สต็อกยา / คงคลัง',         supportedLevels: ['view', 'edit'] },
+      { key: 'pharm.registry',    label: 'ทะเบียนยา',                supportedLevels: ['view', 'edit'] },
+      { key: 'pharm.verify',      label: 'ตรวจสอบคำสั่งใช้ยา',       supportedLevels: ['view', 'edit'] },
+      { key: 'pharm.requisition', label: 'เบิกจ่าย/รับเข้าคลังยา',   supportedLevels: ['view', 'edit'] },
     ],
   },
   {
@@ -306,6 +309,8 @@ export const USERS = [
       'dashboard.overview': 'view',
       'pharm.dispense': 'edit',
       'pharm.stock': 'edit',
+      'pharm.registry': 'edit',
+      'pharm.verify': 'edit',
       'treat.prescribe': 'view',
       'forms.view': 'view',
     },
@@ -323,6 +328,8 @@ export const USERS = [
     features: {
       'pharm.dispense': 'edit',
       'pharm.stock': 'view',
+      'pharm.registry': 'view',
+      'pharm.requisition': 'edit',
     },
   },
   {

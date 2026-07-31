@@ -295,6 +295,7 @@ export const FilterDropdown = ({
               <ActionList
                 key={opt.value}
                 label={opt.label}
+                image={opt.image}
                 active={isSelected}
                 showCheck={isSelected}
                 /* Filter options are leaf actions (no submenu) — the

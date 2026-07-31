@@ -1,0 +1,126 @@
+name: Deploy to production
+
+# ทุกครั้งที่ merge เข้า main จะ build แล้ว rsync ขึ้น web root ของ
+# bma-health.mih.co.th (origin เป็น nginx, Cloudflare อยู่หน้าเป็น proxy)
+#
+# ต้องตั้งค่าใน repo settings ก่อนใช้งาน:
+#
+#   Secrets (Settings → Secrets and variables → Actions → Secrets)
+#     MIH_DESIGN_DEPLOY_KEY  private key ที่คู่กับ read-only deploy key บน namonlims/mih-design
+#     DEPLOY_SSH_KEY         private key ที่ public half อยู่ใน ~/.ssh/authorized_keys บนเซิร์ฟเวอร์
+#
+#   Variables (แท็บ Variables ข้าง ๆ กัน)
+#     DEPLOY_HOST            host หรือ IP ของเซิร์ฟเวอร์ (ต้องเป็น IP จริง ไม่ใช่ชื่อที่ผ่าน Cloudflare)
+#     DEPLOY_USER            ชื่อ user ที่ ssh เข้า
+#     DEPLOY_PATH            web root ที่ nginx เสิร์ฟ เช่น /var/www/bma-health
+#     DEPLOY_PORT            ssh port (ไม่ใส่ = 22)
+#     DEPLOY_URL             URL สำหรับตรวจหลัง deploy (ไม่ใส่ = https://bma-health.mih.co.th)
+#     DEPLOY_RSYNC_DELETE    ใส่ 'true' ถ้าต้องการลบไฟล์ส่วนเกินบนเซิร์ฟเวอร์ (ดู note ที่ step rsync)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# กัน deploy ซ้อนกันเวลา merge หลาย PR ติด ๆ กัน — ไม่ cancel ตัวที่กำลังวิ่ง
+# เพราะ rsync ที่ถูกฆ่ากลางทางจะทิ้ง web root ไว้ครึ่ง ๆ กลาง ๆ
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout bma.health
+        uses: actions/checkout@v4
+        with:
+          path: bma.health
+
+      # package.json ผูก "@mih/design-tokens": "file:../mih-design/packages/design-tokens"
+      # ไว้เป็น local path ดังนั้น repo mih-design ต้องถูกวางข้าง ๆ กันก่อน npm ci
+      - name: 'Checkout mih-design (sibling repo ที่ file: dependency ชี้ไปหา)'
+        uses: actions/checkout@v4
+        with:
+          repository: namonlims/mih-design
+          ssh-key: ${{ secrets.MIH_DESIGN_DEPLOY_KEY }}
+          path: mih-design
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: bma.health/package-lock.json
+
+      - name: npm ci
+        working-directory: bma.health
+        run: npm ci --no-audit --no-fund
+
+      - name: vite build
+        working-directory: bma.health
+        run: npm run build
+
+      - name: ตรวจว่า build ออกมามีของจริง
+        working-directory: bma.health
+        run: |
+          test -f dist/index.html || { echo "::error::ไม่มี dist/index.html — build ไม่สำเร็จ"; exit 1; }
+          ls dist/assets/index.*.js >/dev/null || { echo "::error::ไม่มี dist/assets/index.*.js"; exit 1; }
+          echo "bundle: $(basename dist/assets/index.*.js)"
+          du -sh dist
+
+      - name: เตรียม SSH key และ known_hosts
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+        run: |
+          test -n "$DEPLOY_HOST" || { echo "::error::ยังไม่ได้ตั้ง variable DEPLOY_HOST"; exit 1; }
+          test -n "$DEPLOY_SSH_KEY" || { echo "::error::ยังไม่ได้ตั้ง secret DEPLOY_SSH_KEY"; exit 1; }
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${DEPLOY_PORT:-22}" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          test -s ~/.ssh/known_hosts || { echo "::error::ssh-keyscan ไม่เจอ host key — เช็ค DEPLOY_HOST/DEPLOY_PORT และ firewall ว่าเปิดให้ GitHub runner เข้าไหม"; exit 1; }
+
+      # --delete ปิดไว้เป็นค่าเริ่มต้นโดยตั้งใจ: ถ้า DEPLOY_PATH ตั้งผิด มันจะลบของบน
+      # เซิร์ฟเวอร์ทิ้ง และการเก็บ asset hash เก่าไว้ยังช่วยคนที่เปิดหน้าเว็บค้างอยู่
+      # ไม่ให้ chunk หายกลางทาง เปิดใช้เมื่อมั่นใจ path แล้วด้วย var DEPLOY_RSYNC_DELETE=true
+      - name: rsync dist/ ขึ้นเซิร์ฟเวอร์
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+          RSYNC_DELETE: ${{ vars.DEPLOY_RSYNC_DELETE }}
+        run: |
+          test -n "$DEPLOY_USER" || { echo "::error::ยังไม่ได้ตั้ง variable DEPLOY_USER"; exit 1; }
+          test -n "$DEPLOY_PATH" || { echo "::error::ยังไม่ได้ตั้ง variable DEPLOY_PATH"; exit 1; }
+          DELETE_FLAG=""
+          if [ "$RSYNC_DELETE" = "true" ]; then DELETE_FLAG="--delete"; fi
+          rsync -rlptvz $DELETE_FLAG \
+            -e "ssh -p ${DEPLOY_PORT:-22} -o StrictHostKeyChecking=yes" \
+            bma.health/dist/ \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+
+      # ยืนยันว่าเว็บเสิร์ฟ bundle ตัวใหม่จริง ไม่ใช่แค่ rsync ผ่านแล้วจบ
+      # (เคสที่เจอมา: nginx ชี้ไปคนละ path หรือ Cloudflare cache HTML ค้าง)
+      - name: ตรวจว่าเว็บเสิร์ฟ bundle ตัวใหม่แล้ว
+        env:
+          DEPLOY_URL: ${{ vars.DEPLOY_URL }}
+        run: |
+          URL="${DEPLOY_URL:-https://bma-health.mih.co.th}"
+          EXPECTED="$(basename bma.health/dist/assets/index.*.js)"
+          echo "คาดว่าจะเจอ: $EXPECTED"
+          for i in 1 2 3 4 5 6; do
+            LIVE="$(curl -fsSL --max-time 30 "$URL" | grep -oE 'index\.[a-f0-9]+\.js' | head -1 || true)"
+            echo "  ครั้งที่ $i: เว็บเสิร์ฟ ${LIVE:-<ไม่เจอ>}"
+            if [ "$LIVE" = "$EXPECTED" ]; then
+              echo "✅ deploy สำเร็จ — เว็บเสิร์ฟ $EXPECTED"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::ไฟล์อัปโหลดขึ้นไปแล้วแต่เว็บยังเสิร์ฟ bundle เก่า — เช็ค nginx root ว่าตรงกับ DEPLOY_PATH ไหม หรือ purge Cloudflare cache"
+          exit 1

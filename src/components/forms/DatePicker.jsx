@@ -467,6 +467,9 @@ const DatePicker = React.forwardRef(function DatePicker(
             open={open && !disabled}
             onClose={() => setOpen(false)}
             anchorRef={triggerRef}
+            /* Same pattern as Select — portaled calendar must not count as
+               an outside click for ancestor Popup overlays. */
+            className='mih-datepicker-popover'
             style={{
               background: 'var(--surface-dropdown-default)',
               border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',

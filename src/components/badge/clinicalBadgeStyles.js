@@ -8,7 +8,7 @@
  * Tokens: `--surface-colorfulbadge-{style}` + `--text-colorfulbadge-{style}`.
  */
 
-/** @typedef {'severity'|'likelihood'|'treatmentStatus'} ClinicalBadgeKind */
+/** @typedef {'severity'|'likelihood'|'treatmentStatus'|'queueType'|'highAlert'} ClinicalBadgeKind */
 
 export const SEVERITY_COLORFUL_BADGE = {
   critical: 'red',
@@ -36,6 +36,19 @@ export const TREATMENT_STATUS_COLORFUL_BADGE = {
   new:           'grey',
   ongoing:       'orange',
   inactive:      'grey',
+};
+
+/* Pharmacy queue-type (ด่วน/ยานอก/ยาทั่วไป) + High Alert Drug — ToR §1.9.5 /
+   §1.9.1.5. Same map/resolver pattern as severity/likelihood above. */
+export const QUEUE_TYPE_COLORFUL_BADGE = {
+  urgent:   'red',
+  external: 'orange',
+  general:  'grey',
+};
+
+export const HIGH_ALERT_COLORFUL_BADGE = {
+  true:  'red',
+  false: 'grey',
 };
 
 const SEVERITY_LABEL = {
@@ -69,7 +82,22 @@ const TREATMENT_STATUS_LABEL = {
   'หยุด':                   'grey',
 };
 
+const QUEUE_TYPE_LABEL = {
+  ด่วน:      'red',
+  ยานอก:     'orange',
+  ยาทั่วไป:   'grey',
+};
+
 const VALUE_LABEL = {
+  queueType: {
+    urgent:   'ด่วน',
+    external: 'ยานอก',
+    general:  'ยาทั่วไป',
+  },
+  highAlert: {
+    true:  'High Alert',
+    false: 'ปกติ',
+  },
   severity: {
     critical: 'วิกฤต',
     high:     'รุนแรง',
@@ -100,6 +128,8 @@ const MAP_BY_KIND = {
   severity:        SEVERITY_COLORFUL_BADGE,
   likelihood:      LIKELIHOOD_COLORFUL_BADGE,
   treatmentStatus: TREATMENT_STATUS_COLORFUL_BADGE,
+  queueType:       QUEUE_TYPE_COLORFUL_BADGE,
+  highAlert:       HIGH_ALERT_COLORFUL_BADGE,
   /** @deprecated use `likelihood` — allergy ความน่าจะเป็น */
   status:          LIKELIHOOD_COLORFUL_BADGE,
 };
@@ -108,6 +138,7 @@ const LABEL_BY_KIND = {
   severity:        SEVERITY_LABEL,
   likelihood:      LIKELIHOOD_LABEL,
   treatmentStatus: TREATMENT_STATUS_LABEL,
+  queueType:       QUEUE_TYPE_LABEL,
   status:          LIKELIHOOD_LABEL,
 };
 
@@ -144,3 +175,9 @@ export const resolveLikelihoodBadgeStyle = (valueOrLabel) =>
 
 export const resolveTreatmentStatusBadgeStyle = (valueOrLabel) =>
   resolveClinicalBadgeStyle('treatmentStatus', valueOrLabel);
+
+export const resolveQueueTypeBadgeStyle = (valueOrLabel) =>
+  resolveClinicalBadgeStyle('queueType', valueOrLabel);
+
+export const resolveHighAlertBadgeStyle = (isHighAlert) =>
+  resolveClinicalBadgeStyle('highAlert', String(!!isHighAlert));

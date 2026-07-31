@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 
 import {
-  SectionTitle, SectionTitleIcon, TokenSvgIcon, SubCard, FieldGrid, Field,
+  SectionTitle, SectionTitleIcon, SubCard, FieldGrid, Field,
   AddRowButton, Sym,
 } from '@/components/forms/Fields';
 import InputField from '@/components/forms/InputField';
@@ -14,7 +15,12 @@ import RadioButton from '@/components/radio/RadioButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import Alert from '@/components/alert/Alert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
+import { REGISTRATION_PENDING_CONSENT_CARDS } from '@/data/registrationConsentForms';
+import { saveRegistrationDraft } from '@/data/registrationForm';
 import healthInsuranceAnim from '@/assets/illustrations/Girl finding health insurance online.json';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
@@ -22,6 +28,8 @@ import DeleteEmergencyContactConfirmPopup from '@/components/popup/DeleteEmergen
 import DeleteDrugAllergyConfirmPopup from '@/components/popup/DeleteDrugAllergyConfirmPopup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
+import FaceScanVerifyPopup from '@/components/popup/FaceScanVerifyPopup';
+import Popup from '@/components/popup/Popup';
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import {
   formatNationalId,
@@ -56,119 +64,361 @@ const SHOWS_SPOUSE_FIELDS = (marital) => marital === 'สมรส';
 /* Figma 2373:119045 — field rhythm inside step 1 body. */
 const STEP1_FIELD_GAP = 'var(--dim-space-600)';
 
-/* Photo cluster — Figma PHCIS-Registration 205:14733 · Profile 205:16735. */
+/* Photo cluster — Figma PHCIS-Registration 303:132572 · Profile 303:131528. */
 const PHOTO_CLUSTER_WIDTH = 384;
-const PHOTO_TILE_SIZE = 160;
-const PHOTO_TILE_COL_WIDTH = 164;
-const PHOTO_TILE_GAP = 'var(--dim-space-300)';
-const PHOTO_TILE_PLACEHOLDER_GRADIENT =
-  'linear-gradient(135.98deg, #D6E6FD 1.08%, #91BBFC 111.11%)';
-const PHOTO_PLACEHOLDER = '/illustration/avatar.jpg';
+const PHOTO_ZONE_SIZE = 160;
 
-/* Brand Subdue outline — Camera (205:16744) · Image (205:16745). */
 const ICON_CAMERA = '/icons/registration/camera.svg';
-const ICON_UPLOAD_IMAGE = '/icons/registration/upload-image.svg';
 const ICON_SECTION_PHONE = '/icons/registration/phone.svg';
 const ICON_SECTION_ALERT_TRIANGLE = '/icons/registration/alert-triangle.svg';
 
-const FigmaLeadingIcon = ({ src, size = 20 }) => (
-  <TokenSvgIcon src={src} size={size} />
-);
+/* สถานะผู้รับบริการ — moved into Step ข้อมูลส่วนตัว (was FormShell StatusBar). */
+const PATIENT_STATUS_TONES = {
+  active: {
+    tileBg:   'var(--surface-brandPrimary-quaternary)',
+    tileIcon: 'var(--icon-brandPrimary-default)',
+  },
+  inactive: {
+    tileBg:   'var(--surface-info-quaternary, #F0F6FF)',
+    tileIcon: 'var(--icon-info-default, #1d4ed8)',
+  },
+};
 
-/* PhotoTile — Figma 205:16737 / 205:16742 (160×160, radius-400, 48% placeholder). */
-const PhotoTile = ({ badge, imgSrc, imgObjectPosition = 'center' }) => {
-  const filled = !!imgSrc;
+const PatientStatusCircleIcon = ({ icon, tone = 'active' }) => {
+  const t = PATIENT_STATUS_TONES[tone] || PATIENT_STATUS_TONES.active;
   return (
-    <div
-      className='flex shrink-0 flex-col items-center'
+    <span
+      aria-hidden
+      className='inline-flex items-center justify-center shrink-0'
       style={{
-        gap: 'var(--dim-space-200)',
-        width: PHOTO_TILE_COL_WIDTH,
+        width: 36,
+        height: 36,
+        borderRadius: 'var(--dim-radius-full)',
+        background: t.tileBg,
+        color: t.tileIcon,
       }}
     >
-      <ColorfulBadge style='blue' size='small' width='hug'>
-        {badge}
-      </ColorfulBadge>
-      <div
-        className='flex items-center justify-center overflow-hidden shrink-0'
-        style={{
-          width: PHOTO_TILE_SIZE,
-          height: PHOTO_TILE_SIZE,
-          borderRadius: 'var(--dim-radius-400)',
-          background: filled ? undefined : PHOTO_TILE_PLACEHOLDER_GRADIENT,
-          opacity: filled ? 1 : 0.48,
-        }}
-      >
-        <img
-          src={imgSrc || PHOTO_PLACEHOLDER}
-          alt={badge}
+      <Sym name={icon} size={20} color='currentColor' />
+    </span>
+  );
+};
+
+const PatientStatusOption = ({ icon, label, tone = 'active', value, checked, onChange, name }) => (
+  <RadioButton
+    name={name}
+    value={value}
+    checked={checked}
+    onChange={onChange}
+    title={label}
+    circleIcon={<PatientStatusCircleIcon icon={icon} tone={tone} />}
+    showRadio={false}
+    showIcon={false}
+    showBadgeTitle={false}
+    showBadge={false}
+    showDescription={false}
+  />
+);
+
+const PatientStatusSection = ({
+  patientStatus = 'active',
+  onPatientStatusChange,
+  hn,
+  patientTypeLabel = 'ผู้ป่วยใหม่',
+}) => {
+  const setStatus = onPatientStatusChange || (() => {});
+  const hnLabel = hn || '—';
+  return (
+    <div
+      className='w-full flex flex-col'
+      style={{
+        gap: 'var(--dim-space-300)',
+        padding: 'var(--dim-space-600)',
+        borderRadius: 'var(--dim-radius-400)',
+        background: 'var(--surface-card-100)',
+        border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+        boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+      }}
+    >
+      <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)' }}>
+        <div
+          className='flex flex-1 items-center min-w-0'
           style={{
-            width: PHOTO_TILE_SIZE,
-            height: PHOTO_TILE_SIZE,
-            objectFit: 'cover',
-            objectPosition: imgObjectPosition,
-            display: 'block',
+            gap: 'var(--dim-space-200)',
+            padding: 'var(--dim-space-200) var(--dim-space-300)',
+            borderRadius: 'var(--dim-radius-400)',
+            background: 'var(--surface-topic-default, #FFFFFF)',
           }}
+        >
+          <Sym name='how_to_reg' size={20} color='var(--text-topic-primary-title, #007549)' />
+          <span style={{
+            color: 'var(--text-topic-primary-title, #007549)',
+            fontFamily: 'var(--type-family-heading-content)',
+            fontSize: 'var(--type-size-base)',
+            fontWeight: 'var(--type-weight-bold)',
+            lineHeight: 1.5,
+          }}>
+            สถานะผู้รับบริการ
+          </span>
+        </div>
+        <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <ColorfulBadge badgeStyle='teal' hierarchy='primary' size='default' width='hug'>
+            {patientTypeLabel}
+          </ColorfulBadge>
+          <ColorfulBadge badgeStyle='teal' hierarchy='secondary' size='default' width='hug'>
+            HN: {hnLabel}
+          </ColorfulBadge>
+        </div>
+      </div>
+      <div
+        role='radiogroup'
+        aria-label='สถานะผู้รับบริการ'
+        className='flex items-center flex-wrap'
+        style={{ gap: 'var(--dim-space-400)' }}
+      >
+        <PatientStatusOption
+          name='patient-active-status'
+          icon='sentiment_satisfied'
+          label='ยังคง Active'
+          tone='active'
+          value='active'
+          checked={patientStatus === 'active'}
+          onChange={setStatus}
+        />
+        <PatientStatusOption
+          name='patient-active-status'
+          icon='sentiment_calm'
+          label='ไม่ Active แล้ว'
+          tone='inactive'
+          value='inactive'
+          checked={patientStatus === 'inactive'}
+          onChange={setStatus}
         />
       </div>
     </div>
   );
 };
 
-/* PhotoCluster — Figma PHCIS-Registration 205:16735 (dashed Profile card).
-   Step 1 embed: 205:14733. Wraps two PhotoTile cards, a centered Brand
-   Subdue outline button row (205:16743 · 16744–16745), and a split
-   "วันที่อัปเดทล่าสุด" caption (205:16746).
+/* ─────────────────────────────────────────────────────────────
+   Step 1 — แบบฟอร์มยินยอม (Figma 292:104252 · Consent Pending)
+   ───────────────────────────────────────────────────────────── */
 
-   Interactions:
-     • ถ่ายรูป — phone/tablet: native OS camera (`<input capture>`).
-       Desktop: CameraCapturePopup with Continuity / USB phone only.
-     • อัปโหลดรูปภาพ — triggers a hidden <input type="file" accept="image/*">
-       so the OS-native file picker opens. The picked image is read as a
-       data URL and also lands in the hospital tile. */
+const PendingConsentFormCard = ({
+  categoryLabel,
+  categoryStyle,
+  version,
+  title,
+  code,
+  cover,
+  onPrint,
+  onFill,
+}) => (
+  <div
+    className='flex flex-1 min-w-0 flex-col'
+    style={{
+      flex: '1 1 280px',
+      maxWidth: '100%',
+      borderRadius: 'var(--dim-radius-400)',
+      background: 'var(--surface-card-100)',
+      border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+      overflow: 'hidden',
+    }}
+  >
+    <div
+      className='relative w-full shrink-0 overflow-hidden'
+      style={{ aspectRatio: '227 / 113' }}
+    >
+      <img
+        src={cover}
+        alt=''
+        className='absolute inset-0 h-full w-full object-cover object-center'
+        loading='lazy'
+        decoding='async'
+      />
+    </div>
+    <div
+      className='flex flex-col w-full'
+      style={{
+        gap: 6,
+        padding: 'var(--dim-space-400)',
+      }}
+    >
+      <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+        <ColorfulBadge
+          style={categoryStyle}
+          size='small'
+          hierarchy='secondary'
+          showDot={false}
+          showIcon={false}
+        >
+          {categoryLabel}
+        </ColorfulBadge>
+        <ColorfulBadge
+          style='magenta'
+          size='small'
+          hierarchy='secondary'
+          showDot={false}
+          showIcon={false}
+        >
+          {version}
+        </ColorfulBadge>
+      </div>
+      <p style={{
+        margin: 0,
+        color: 'var(--text-content-default)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        fontWeight: 'var(--type-weight-bold)',
+        lineHeight: 1.5,
+      }}>
+        {title}
+      </p>
+      <p style={{
+        margin: 0,
+        color: 'var(--text-content-tertiary)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        fontWeight: 'var(--type-weight-regular)',
+        lineHeight: 1.5,
+      }}>
+        {code}
+      </p>
+    </div>
+    <div
+      className='flex items-center justify-end w-full'
+      style={{
+        gap: 'var(--dim-space-200)',
+        padding: 'var(--dim-space-400)',
+        borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+      }}
+    >
+      <BrandSubdueIconButton
+        type='button'
+        size='sm'
+        variant='outline'
+        icon='print'
+        aria-label='พิมพ์แบบฟอร์ม'
+        onClick={onPrint}
+      />
+      <BrandButton
+        type='button'
+        size='sm'
+        variant='fill'
+        leadingIcon='edit'
+        onClick={onFill}
+      >
+        กรอกแบบฟอร์ม
+      </BrandButton>
+    </div>
+  </div>
+);
+
+/** Step 1 · แบบฟอร์มยินยอม — Figma Registration 292:104252.
+ *  กรอกแบบฟอร์ม → /registration/consent/:formId (Figma 298:81941). */
+export const StepConsent = ({ form, patient }) => {
+  const history = useHistory();
+  const location = useLocation();
+  const completed = Array.isArray(form?.consentCompletedIds) ? form.consentCompletedIds : [];
+  const pending = REGISTRATION_PENDING_CONSENT_CARDS.filter((f) => !completed.includes(f.id));
+  const pendingCount = pending.length;
+
+  const openFill = (formId) => {
+    saveRegistrationDraft(form);
+    history.push({
+      pathname: `/registration/consent/${formId}`,
+      state: {
+        patient: {
+          hn: patient?.hn,
+          prefixTh: patient?.prefixTh,
+          firstNameTh: patient?.firstNameTh,
+          lastNameTh: patient?.lastNameTh,
+          nationalId: patient?.nationalId,
+        },
+        returnState: location.state || { hn: patient?.hn },
+      },
+    });
+  };
+
+  return (
+    <>
+      <div className='flex w-full items-center' style={{ gap: 'var(--dim-space-300)' }}>
+        <div className='flex-1 min-w-0'>
+          <SectionTitle icon='assignment'>แบบฟอร์มที่ยังไม่ขอความยินยอม</SectionTitle>
+        </div>
+        <NeutralSubdueButton variant='outline' size='md'>
+          ขอถอนความยินยอม
+        </NeutralSubdueButton>
+      </div>
+
+      {pendingCount > 0 && (
+        <Alert
+          type='warning'
+          title={`มี ${pendingCount} แบบฟอร์มที่ยังไม่ได้รับการยินยอม`}
+          subtext='กรุณาให้ผู้รับบริการกรอกแบบฟอร์มยินยอมการเข้ารับบริการให้ครบถ้วน'
+          showCloseButton={false}
+          showBadge={false}
+          showIndicator={false}
+          style={{ maxWidth: 640, width: '100%' }}
+        />
+      )}
+
+      {pendingCount === 0 ? (
+        <Alert
+          type='success'
+          title='แบบฟอร์มยินยอมครบถ้วนแล้ว'
+          subtext='สามารถไปขั้นตอนถัดไปเพื่อกรอกข้อมูลส่วนตัวได้'
+          showCloseButton={false}
+          showBadge={false}
+          showIndicator={false}
+          style={{ maxWidth: 640, width: '100%' }}
+        />
+      ) : (
+        <div
+          className='flex w-full items-stretch flex-wrap'
+          style={{ gap: 'var(--dim-space-400)' }}
+        >
+          {pending.map((item) => (
+            <PendingConsentFormCard
+              key={item.id}
+              {...item}
+              onPrint={() => {}}
+              onFill={() => openFill(item.id)}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
+/* PhotoCluster — empty: Figma 303:132572 · verified: success strip ยืนยันตัวตนสำเร็จ
+   (แทนแถบ 96% / ความน่าเชื่อถือ). Tap empty → FaceScanVerifyPopup. */
+const FACE_VERIFIED_ID_FALLBACK = '/illustration/registration/face-verified-id.png';
+const ICON_COMPARE_PHOTOS = '/illustration/registration/compare-photos.svg';
+
 const PhotoCluster = ({
   hospitalPhoto,
   idCardPhoto,
-  idCardFromChip,
-  onHospitalPhotoChange,
-  lastUpdated = '20 กุมภาพันธ์ 2563',
+  faceMatchScore,
+  faceVerifiedAt,
+  onVerified,
+  patientName,
+  referencePhoto,
 }) => {
-  const fileInputRef = useRef(null);
-  const useNativeCapture = shouldUseNativeCameraInput();
-  const {
-    cameraInputId,
-    cameraInputRef,
-    cameraOpen,
-    openTakePhoto,
-    handleNativeInput,
-    handlePopupCapture,
-    closePopup,
-  } = useTakePhotoCapture(({ file, dataUrl }) => {
-    if (dataUrl) {
-      onHospitalPhotoChange?.(dataUrl);
-      return;
-    }
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') onHospitalPhotoChange?.(result);
-    };
-    reader.readAsDataURL(file);
-  });
+  const [scanOpen, setScanOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
 
-  const handleUploadClick = () => fileInputRef.current?.click();
+  const verified = faceMatchScore != null && faceMatchScore > 0;
+  /* Verified tile shows รูปบัตรประชาชน (chip / Figma mock). */
+  const idPhoto = idCardPhoto || FACE_VERIFIED_ID_FALLBACK;
+  const livePhoto = hospitalPhoto || idPhoto;
+  const updatedLabel = faceVerifiedAt
+    || (verified ? formatThaiBuddhistDate(new Date()) : '-');
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') onHospitalPhotoChange?.(result);
-    };
-    reader.readAsDataURL(file);
+  const openScan = () => setScanOpen(true);
+
+  const handleCapture = (dataUrl) => {
+    onVerified?.(dataUrl);
+    setScanOpen(false);
   };
 
   return (
@@ -178,84 +428,147 @@ const PhotoCluster = ({
         gap: 'var(--dim-space-400)',
         padding: 'var(--dim-space-600) var(--dim-space-0)',
         borderRadius: 'var(--dim-radius-400)',
-        background: 'var(--surface-card-200, #FDFDFD)',
+        background: 'var(--surface-card-100)',
         border: 'var(--dim-stroke-100) dashed var(--border-neutral-tertiary, #E2E4E6)',
       }}
     >
-      <div className='flex shrink-0 items-center' style={{ gap: PHOTO_TILE_GAP }}>
-        <PhotoTile badge='ถ่ายโดยโรงพยาบาล' imgSrc={hospitalPhoto} />
-        <PhotoTile
-          badge='รูปบัตรประชาชน'
-          imgSrc={idCardFromChip ? (idCardPhoto || ID_CARD_CHIP_PHOTO_MOCK) : idCardPhoto}
-          imgObjectPosition={idCardFromChip ? 'center 6%' : 'center'}
-        />
+      <div className='flex flex-col items-center w-full text-center' style={{ gap: 2 }}>
+        <span style={{
+          color: 'var(--text-topic-secondary-title, #007549)',
+          fontFamily: 'var(--type-family-heading-graphic2, var(--type-family-heading-content))',
+          fontSize: 'var(--type-size-base)',
+          fontWeight: 'var(--type-weight-regular)',
+          lineHeight: 1.5,
+          width: '100%',
+        }}>
+          ถ่ายรูปเพื่อยืนยันตัวตน
+        </span>
+        <span style={{
+          color: 'var(--text-topic-tertiary-subtext, #ADB2B7)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-xs)',
+          fontWeight: 'var(--type-weight-medium)',
+          lineHeight: 1.5,
+          width: '100%',
+        }}>
+          กรุณาถ่ายรูปผู้รับบริการเพื่อยืนยันตัวตน
+        </span>
       </div>
-      <div
-        className='flex w-full items-center justify-center'
-        style={{
-          gap: 'var(--dim-space-200)',
-          padding: 'var(--dim-space-0)',
-          borderRadius: 'var(--dim-radius-400)',
-          background: 'var(--surface-card-100)',
-        }}
-      >
-        {useNativeCapture ? (
-          <label
-            htmlFor={cameraInputId}
-            className='inline-flex w-fit shrink-0 cursor-pointer'
+
+      {verified ? (
+        <>
+          <div
+            className='relative shrink-0 overflow-hidden'
+            style={{
+              width: PHOTO_ZONE_SIZE,
+              height: PHOTO_ZONE_SIZE,
+              borderRadius: 'var(--dim-radius-500, 16px)',
+            }}
           >
-            <span className='inline-flex pointer-events-none'>
-              <BrandSubdueButton
-                variant='outline'
-                size='md'
-                leadingIconElement={<FigmaLeadingIcon src={ICON_CAMERA} size={16} />}
-                tabIndex={-1}
-                className='w-fit shrink-0 pointer-events-none'
-              >
-                ถ่ายรูป
-              </BrandSubdueButton>
+            <img
+              src={idPhoto}
+              alt='รูปบัตรประชาชน'
+              width={PHOTO_ZONE_SIZE}
+              height={PHOTO_ZONE_SIZE}
+              style={{
+                width: PHOTO_ZONE_SIZE,
+                height: PHOTO_ZONE_SIZE,
+                objectFit: 'cover',
+                objectPosition: 'center 6%',
+                display: 'block',
+                borderRadius: 'var(--dim-radius-500, 16px)',
+              }}
+            />
+          </div>
+
+          <div
+            className='flex items-center justify-center'
+            style={{
+              gap: 'var(--dim-space-200)',
+              minHeight: 40,
+              padding: 'var(--dim-space-200) var(--dim-space-400)',
+              borderRadius: 'var(--dim-radius-200)',
+              background: 'var(--surface-positive-quaternary, var(--surface-brandPrimary-quaternary, #E2F3EB))',
+              width: '100%',
+              maxWidth: 236,
+              boxSizing: 'border-box',
+            }}
+            role='status'
+            aria-label='ยืนยันตัวตนสำเร็จ'
+          >
+            <Sym
+              name='check_circle'
+              size={20}
+              color='var(--icon-positive-success, var(--icon-brandPrimary-default, #007549))'
+            />
+            <span style={{
+              color: 'var(--text-brandPrimary-default, #007549)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+              fontWeight: 'var(--type-weight-medium)',
+              lineHeight: 1.5,
+              whiteSpace: 'nowrap',
+            }}>
+              ยืนยันตัวตนสำเร็จ
             </span>
-          </label>
-        ) : (
+          </div>
+
           <BrandSubdueButton
+            type='button'
             variant='outline'
             size='md'
-            leadingIconElement={<FigmaLeadingIcon src={ICON_CAMERA} size={16} />}
-            onClick={openTakePhoto}
-            className='w-fit shrink-0'
+            leadingIconElement={(
+              <img
+                src={ICON_COMPARE_PHOTOS}
+                alt=''
+                width={20}
+                height={20}
+                style={{ width: 20, height: 20, display: 'block' }}
+              />
+            )}
+            onClick={() => setCompareOpen(true)}
           >
-            ถ่ายรูป
+            ดูภาพเปรียบเทียบ
           </BrandSubdueButton>
-        )}
-        <BrandSubdueButton
-          variant='outline'
-          size='md'
-          leadingIconElement={<FigmaLeadingIcon src={ICON_UPLOAD_IMAGE} size={16} />}
-          onClick={handleUploadClick}
-          className='w-fit shrink-0'
+        </>
+      ) : (
+        <button
+          type='button'
+          onClick={openScan}
+          className='flex flex-col items-center justify-center shrink-0 overflow-hidden'
+          style={{
+            width: PHOTO_ZONE_SIZE,
+            height: PHOTO_ZONE_SIZE,
+            padding: 'var(--dim-space-600)',
+            gap: 'var(--dim-space-200)',
+            borderRadius: 'var(--dim-radius-200)',
+            background: 'var(--surface-formbuilder-default, #F4FBF8)',
+            border: 'var(--dim-stroke-150, 1.5px) dashed var(--border-formbuilder-default, #C5EDDA)',
+            cursor: 'pointer',
+            boxSizing: 'border-box',
+          }}
+          aria-label='ถ่ายรูปเพื่อยืนยันตัวตน'
         >
-          อัปโหลดรูปภาพ
-        </BrandSubdueButton>
-      </div>
-      {useNativeCapture && (
-        <input
-          ref={cameraInputRef}
-          id={cameraInputId}
-          type='file'
-          accept='image/*'
-          capture='environment'
-          className='sr-only'
-          onChange={handleNativeInput}
-        />
+          <img
+            src={ICON_CAMERA}
+            alt=''
+            width={20}
+            height={20}
+            style={{ width: 20, height: 20, display: 'block' }}
+          />
+          <span style={{
+            color: 'var(--text-formbuilder-text, #007549)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-xs)',
+            fontWeight: 'var(--type-weight-medium)',
+            lineHeight: 1.5,
+            textAlign: 'center',
+          }}>
+            ถ่ายรูป
+          </span>
+        </button>
       )}
-      {/* Gallery picker — triggered by อัปโหลดรูปภาพ. */}
-      <input
-        ref={fileInputRef}
-        type='file'
-        accept='image/*'
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
+
       <div
         className='flex w-full items-center justify-center'
         style={{ gap: 'var(--dim-space-200)' }}
@@ -286,21 +599,82 @@ const PhotoCluster = ({
             fontWeight: 'var(--type-weight-regular)',
             lineHeight: 1.5,
             whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
           }}
         >
-          {lastUpdated}
+          {updatedLabel}
         </span>
       </div>
-      <CameraCapturePopup
-        open={cameraOpen}
-        onClose={closePopup}
-        onCapture={handlePopupCapture}
+
+      <FaceScanVerifyPopup
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onCapture={handleCapture}
+        patientName={patientName}
+        referencePhoto={referencePhoto || idCardPhoto || FACE_VERIFIED_ID_FALLBACK}
       />
+
+      <Popup
+        open={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        title='ภาพเปรียบเทียบ'
+        size='large'
+        actions={[]}
+      >
+        <div className='flex w-full items-start justify-center' style={{ gap: 'var(--dim-space-600)' }}>
+          <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)' }}>
+            <img
+              src={livePhoto}
+              alt='รูปที่สแกน'
+              width={200}
+              height={200}
+              style={{
+                width: 200,
+                height: 200,
+                objectFit: 'cover',
+                borderRadius: 'var(--dim-radius-400)',
+                display: 'block',
+              }}
+            />
+            <span style={{
+              color: 'var(--text-content-secondary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+            }}>
+              รูปที่สแกน
+            </span>
+          </div>
+          <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)' }}>
+            <img
+              src={idPhoto}
+              alt='รูปบัตรประชาชน'
+              width={200}
+              height={200}
+              style={{
+                width: 200,
+                height: 200,
+                objectFit: 'cover',
+                objectPosition: 'center 6%',
+                borderRadius: 'var(--dim-radius-400)',
+                display: 'block',
+              }}
+            />
+            <span style={{
+              color: 'var(--text-content-secondary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+            }}>
+              รูปบัตรประชาชน
+            </span>
+          </div>
+        </div>
+      </Popup>
     </div>
   );
 };
 
-export const Step1Personal = ({ form, setForm }) => {
+export const Step1Personal = ({ form, setForm, patient }) => {
   const set = (k) => (v) => setForm((s) => ({ ...s, [k]: v }));
   const handleMaritalChange = (marital) => {
     setForm((s) => ({
@@ -314,8 +688,18 @@ export const Step1Personal = ({ form, setForm }) => {
   /* Figma 101:12707 — chip-read locks card-sourced fields only. */
   const fromChip = !!form.idCardFromChip;
   const showSpouseFields = SHOWS_SPOUSE_FIELDS(form.marital);
+  const hn = form.hn || patient?.hn || '';
+  const patientTypeLabel = 'ผู้ป่วยใหม่';
+
   return (
-    <>
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
+      <PatientStatusSection
+        patientStatus={form.patientStatus || 'active'}
+        onPatientStatusChange={(v) => setForm((s) => ({ ...s, patientStatus: v }))}
+        hn={hn}
+        patientTypeLabel={patientTypeLabel}
+      />
+
       <div className='flex w-full' style={{ gap: 'var(--dim-space-1200)' }}>
         <div className='flex-1 flex flex-col' style={{ gap: STEP1_FIELD_GAP }}>
           <SectionTitle icon='face'>ข้อมูลส่วนตัว</SectionTitle>
@@ -513,17 +897,26 @@ export const Step1Personal = ({ form, setForm }) => {
           )}
         </div>
 
-        {/* Photo cluster — Figma PHCIS-Registration 205:16735 (384px Profile card). */}
+        {/* Photo cluster — Figma PHCIS-Registration 303:132572 · Profile 303:131528. */}
         <div className='flex flex-col shrink-0' style={{ width: PHOTO_CLUSTER_WIDTH }}>
           <PhotoCluster
             hospitalPhoto={form.hospitalPhoto}
             idCardPhoto={form.idCardPhoto}
-            idCardFromChip={form.idCardFromChip}
-            onHospitalPhotoChange={set('hospitalPhoto')}
+            faceMatchScore={form.faceMatchScore}
+            faceVerifiedAt={form.faceVerifiedAt}
+            patientName={[form.prefixTh, form.firstNameTh, form.lastNameTh].filter(Boolean).join(' ') || undefined}
+            referencePhoto={form.idCardPhoto || undefined}
+            onVerified={(dataUrl) => setForm((s) => ({
+              ...s,
+              hospitalPhoto: dataUrl,
+              idCardPhoto: s.idCardPhoto || ID_CARD_CHIP_PHOTO_MOCK,
+              faceMatchScore: 96,
+              faceVerifiedAt: formatThaiBuddhistDate(new Date()),
+            }))}
           />
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

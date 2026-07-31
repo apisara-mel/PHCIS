@@ -176,7 +176,7 @@ const ChartTooltip = ({ idx, count, children }) => {
         padding:       'var(--dim-space-200) var(--dim-space-300)',
         fontFamily:    'var(--type-family-body)',
         fontSize:      'var(--type-size-xs)',
-        whiteSpace:    'nowrap',
+        maxWidth: 260,
         zIndex: 2,
       }}
     >
@@ -192,6 +192,7 @@ const TooltipDate = ({ children }) => (
       fontSize:   10,
       lineHeight: 1.3,
       marginBottom: 'var(--dim-space-100)',
+      whiteSpace: 'nowrap',
     }}
   >
     {children}
@@ -199,13 +200,44 @@ const TooltipDate = ({ children }) => (
 );
 
 const TooltipRow = ({ color, name, value, unit }) => (
-  <div className='flex items-center' style={{ gap: 'var(--dim-space-200)', lineHeight: 1.4 }}>
+  <div className='flex items-center' style={{ gap: 'var(--dim-space-200)', lineHeight: 1.4, whiteSpace: 'nowrap' }}>
     <span style={{ width: 8, height: 8, borderRadius: 'var(--dim-radius-full)', background: color, flexShrink: 0 }} />
     <span style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>{name}</span>
     <span style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-bold)' }}>{value}</span>
     {unit && <span style={{ color: 'var(--text-content-tertiary)' }}>{unit}</span>}
   </div>
 );
+
+/* All personnel opinions recorded at the hovered timestamp — the vital's
+   own embedded note plus any nursing/doctor note sharing that time (same
+   merge ObservationDetailPage's Observation Timeline already computes).
+   Only rendered when a caller passes `notesByIndex` (opt-in), so OPD
+   screening's own VitalsSignGraph usage is unaffected. */
+const TooltipNotes = ({ notes }) => {
+  if (!notes || notes.length === 0) return null;
+  return (
+    <div
+      style={{
+        marginTop: 'var(--dim-space-200)',
+        paddingTop: 'var(--dim-space-200)',
+        borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+        whiteSpace: 'normal',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--dim-space-150)',
+      }}
+    >
+      {notes.map((op, i) => (
+        <div key={i}>
+          <div style={{ color: 'var(--text-content-tertiary)', fontSize: 10, fontWeight: 'var(--type-weight-medium)' }}>
+            {op.kind === 'order' ? 'คำสั่งการรักษา' : op.author}{op.noteType ? ` · ${op.noteType}` : ''}
+          </div>
+          <div style={{ color: 'var(--text-content-default)', fontSize: 11, lineHeight: 1.4 }}>{op.text}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const LegendSwatch = ({ color }) => (
   <span
@@ -245,6 +277,7 @@ const BloodPressureChart = ({
   maxY = 140,
   ticks = [140, 120, 100, 80, 60],
   thresholds = [],
+  notesByIndex,
 }) => {
   const containerRef = useRef(null);
   const viewBoxH = useResponsiveViewBoxHeight(containerRef, fillHeight);
@@ -400,6 +433,7 @@ const BloodPressureChart = ({
             <TooltipDate>{xLabels[hoverIdx]}</TooltipDate>
             <TooltipRow color='var(--stroke-chart-series-sbp)' name='SBP' value={sbpValues[hoverIdx]} unit='mmHg' />
             <TooltipRow color='var(--stroke-chart-series-dbp)' name='DBP' value={dbpValues[hoverIdx]} unit='mmHg' />
+            <TooltipNotes notes={notesByIndex?.[hoverIdx]} />
           </>
         )}
       </ChartTooltip>
@@ -409,6 +443,7 @@ const BloodPressureChart = ({
 
 const TimeSeriesChart = ({
   values, minY, maxY, stroke, label, name, unit = '', yTicks, xLabels, fillHeight = false, thresholds = [],
+  notesByIndex,
 }) => {
   const containerRef = useRef(null);
   const viewBoxH = useResponsiveViewBoxHeight(containerRef, fillHeight);
@@ -536,6 +571,7 @@ const TimeSeriesChart = ({
           <>
             <TooltipDate>{xLabels[hoverIdx]}</TooltipDate>
             <TooltipRow color={stroke} name={seriesName} value={values[hoverIdx]} unit={unit} />
+            <TooltipNotes notes={notesByIndex?.[hoverIdx]} />
           </>
         )}
       </ChartTooltip>

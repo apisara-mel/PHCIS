@@ -37,7 +37,7 @@ const SINGLE_SERIES_CONFIG = {
   pulse: {
     field: 'pulse',
     stroke: 'var(--text-colorfulbadge-orange)',
-    label: 'ชีพจร (Pulse Rate)',
+    label: 'ชีพจร (Pulse)',
     name: 'ชีพจร',
     unit: 'ครั้ง/นาที',
     floorMin: 50,
@@ -64,7 +64,7 @@ const SINGLE_SERIES_CONFIG = {
   temp: {
     field: 'temp',
     stroke: 'var(--brand-p500)',
-    label: 'อุณหภูมิร่างกาย (Temperature)',
+    label: 'อุณหภูมิร่างกาย (Temp)',
     name: 'อุณหภูมิ',
     unit: '°C',
     floorMin: 35.5,
@@ -76,7 +76,7 @@ const SINGLE_SERIES_CONFIG = {
   rr: {
     field: 'rr',
     stroke: 'var(--brand-p600)',
-    label: 'อัตราการหายใจ (Respiratory Rate)',
+    label: 'อัตราการหายใจ (RR)',
     name: 'อัตราการหายใจ',
     unit: 'ครั้ง/นาที',
     floorMin: 10,
@@ -90,12 +90,23 @@ const SINGLE_SERIES_CONFIG = {
   },
 };
 
-export default function VitalTrendChart({ data = [], parameter = 'bp' }) {
+/* `fillHeight` — used when this chart is the sole content of a container
+   with a real pixel height to fill (e.g. the "ดูแบบกราฟ" popup's body),
+   instead of the fixed COMPACT_CHART_HEIGHT sized for the inline card
+   embedded above the timeline.
+   `notes` — optional array parallel to `data`, each entry the list of
+   personnel opinions recorded at that timestamp (see ObservationDetailPage's
+   Observation Timeline merge) — shown in the hover tooltip alongside the
+   vital value so a reviewer doesn't have to cross-reference the timeline
+   for what happened around a given reading. */
+export default function VitalTrendChart({ data = [], parameter = 'bp', fillHeight = false, notes }) {
   if (!data || data.length === 0) {
     return <div className='text-xs text-gray-400 italic py-3 text-center'>ไม่มีข้อมูลสัญญาณชีพย้อนหลัง</div>;
   }
 
   const xLabels = data.map((d) => stripUnitSuffix(d.time));
+  const wrapperStyle = fillHeight ? { height: '100%' } : { height: COMPACT_CHART_HEIGHT };
+  const wrapperClassName = fillHeight ? 'h-full' : undefined;
 
   if (parameter === 'bp') {
     const sbpValues = data.map((d) => d.bpSys);
@@ -104,7 +115,7 @@ export default function VitalTrendChart({ data = [], parameter = 'bp' }) {
     const dataMax = Math.max(...sbpValues, 160) + 10;
     const ticks = niceTicks(dataMin, dataMax);
     return (
-      <div style={{ height: COMPACT_CHART_HEIGHT }}>
+      <div className={wrapperClassName} style={wrapperStyle}>
         <BloodPressureChart
           fillHeight
           sbpValues={sbpValues}
@@ -117,6 +128,7 @@ export default function VitalTrendChart({ data = [], parameter = 'bp' }) {
             { value: 140, color: 'var(--text-danger-default)' },
             { value: 90, color: 'var(--text-info-default)' },
           ]}
+          notesByIndex={notes}
         />
       </div>
     );
@@ -129,7 +141,7 @@ export default function VitalTrendChart({ data = [], parameter = 'bp' }) {
   const ticks = niceTicks(dataMin, dataMax);
 
   return (
-    <div style={{ height: COMPACT_CHART_HEIGHT }}>
+    <div className={wrapperClassName} style={wrapperStyle}>
       <TimeSeriesChart
         fillHeight
         values={values}

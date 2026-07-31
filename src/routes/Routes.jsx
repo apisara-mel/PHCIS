@@ -10,16 +10,26 @@ import ScreeningPage from '@/pages/opd/ScreeningPage';
 import QueuePage from '@/pages/opd/QueuePage';
 import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
+import RegistrationConsentFillPage from '@/pages/registration/RegistrationConsentFillPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
+import AncQueuePage from '@/pages/treat/anc/AncQueuePage';
+import AncFormPage from '@/pages/treat/anc/AncFormPage';
 import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
 import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
+import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
+import PharmacyRegistryEditPage from '@/pages/pharmacy/PharmacyRegistryEditPage';
+import PharmacyStockPage from '@/pages/pharmacy/PharmacyStockPage';
+import PharmacyRequisitionPage from '@/pages/pharmacy/PharmacyRequisitionPage';
+import PharmacyHistoryPage from '@/pages/pharmacy/PharmacyHistoryPage';
+import PharmacyReportsPage from '@/pages/pharmacy/PharmacyReportsPage';
 import LabQueuePage from '@/pages/lab/LabQueuePage';
 import LabOrderPage from '@/pages/lab/LabOrderPage';
 import LabSetupPage from '@/pages/lab/LabSetupPage';
 import LabResultEntryPage from '@/pages/lab/LabResultEntryPage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
+import ObservationHistoryPage from '@/pages/observation/ObservationHistoryPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
 import FormsCategoryPage from '@/pages/forms/FormsCategoryPage';
 import FormDetailPage from '@/pages/forms/FormDetailPage';
@@ -170,17 +180,30 @@ export default function Routes() {
         <Route exact path='/registration'          component={RegistrationQueuePage} />
         <Route exact path='/registration/queue'    component={RegistrationQueuePage} />
         <Route exact path='/registration/register' component={RegistrationFormPage} />
+        <Route exact path='/registration/consent/:formId' component={RegistrationConsentFillPage} />
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        {/* แผนกฝากครรภ์ (ANC) — TOR §1.10.7, first-visit MVP. */}
+        <Route exact path='/treat/anc/queue'  component={AncQueuePage} />
+        <Route exact path='/treat/anc/record' component={AncFormPage} />
         <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
-        {/* งานชันสูตรโรค (Lab · TOR ข้อ 1.15). Three screens, matching the
+        <Route exact path='/pharmacy/registry'     component={PharmacyRegistryPage} />
+        <Route exact path='/pharmacy/registry/new' component={PharmacyRegistryEditPage} />
+        <Route exact path='/pharmacy/registry/:id' component={PharmacyRegistryEditPage} />
+        <Route exact path='/pharmacy/stock'        component={PharmacyStockPage} />
+        <Route exact path='/pharmacy/requisition'  component={PharmacyRequisitionPage} />
+        <Route exact path='/pharmacy/history'      component={PharmacyHistoryPage} />
+        <Route exact path='/pharmacy/reports'      component={PharmacyReportsPage} />
+
+        {/* งานชันสูตรโรค (Lab · TOR ข้อ 1.15). Four screens, matching the
             flow the team laid out in Lab dicussion with team.pdf:
-              /lab/order — แพทย์/พยาบาลสั่งตรวจ ("รายชื่อแพทย์ order > Order")
-              /lab/queue — Worklist ของห้องปฏิบัติการ (6 ขั้นตอน)
-              /lab/setup — ตั้งค่าทะเบียนรายการตรวจ + รหัส TMLT */}
+              /lab/order       — แพทย์/พยาบาลสั่งตรวจ (1.15.4)
+              /lab/queue       — Worklist ของห้องปฏิบัติการ 6 ขั้นตอน (1.15.2)
+              /lab/result/:id  — บันทึกผล + ค่าวิกฤต (1.15.6)
+              /lab/setup       — ทะเบียนรายการตรวจ + รหัส TMLT (1.15.3) */}
         <Route exact path='/lab'              component={LabQueuePage} />
         <Route exact path='/lab/queue'        component={LabQueuePage} />
         <Route exact path='/lab/order'        component={LabOrderPage} />
@@ -188,6 +211,7 @@ export default function Routes() {
         <Route exact path='/lab/result/:id'   component={LabResultEntryPage} />
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
+        <Route exact path='/observation/history/:id'  component={ObservationHistoryPage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
         <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
         <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />

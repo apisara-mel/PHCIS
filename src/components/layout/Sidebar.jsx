@@ -38,15 +38,16 @@ const ITEMS = [
   { key: 'dashboard', label: 'แดชบอร์ด',                  icon: 'bar_chart_4_bars', path: '/dashboard'   },
   { key: 'consent',   label: 'คลังแบบฟอร์ม',              icon: 'assignment_add',   path: '/forms'        },
   { key: 'registration', label: 'งานเวชระเบียน',          icon: 'assignment',       path: '/registration/queue' },
+  { key: 'observation',   label: 'ระบบสังเกตอาการ', icon: 'monitor_heart',  path: '/observation' },
   { key: 'opd',       label: 'ระบบงานผู้รับบริการนอก',    icon: 'face',             path: '/opd/queue'   },
   {
     key: 'treat', label: 'ระบบบันทึกการรักษา', icon: 'stethoscope',
     subItems: [
-      { key: 'opd-treat',  label: 'ตรวจรักษาทั่วไป (OPD)',                    path: '/treat/queue' },
+      { key: 'opd-treat',  label: 'ตรวจรักษาทั่วไป',                    path: '/treat/queue' },
       { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)' },
       { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์' },
       { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด' },
-      { key: 'anc',        label: 'แผนกฝากครรภ์' },
+      { key: 'anc',        label: 'แผนกฝากครรภ์',                          path: '/treat/anc/queue' },
       { key: 'wellness',   label: 'แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ' },
       { key: 'vaccine',    label: 'แผนกสร้างเสริมภูมิคุ้มกันโรค' },
       { key: 'dental',     label: 'แผนกทันตกรรม' },
@@ -58,7 +59,6 @@ const ITEMS = [
   { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18, path: '/lab/queue' },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht'                                   },
-  { key: 'observation', label: 'ระบบสังเกตอาการ',         icon: 'hotel',             path: '/observation'   },
   { key: 'appoint',   label: 'ระบบนัดหมาย',               icon: 'calendar_clock', path: '/appointment'       },
   /* 'ประวัติการใช้งาน' (log) และ 'ผู้ใช้และสิทธิ์การเข้าถึง' (users) ถูกย้ายไป
      แสดงเป็น "ระบบกลาง" บน System Hub แทน — จึงไม่อยู่ในเมนู PHCIS แล้ว. */

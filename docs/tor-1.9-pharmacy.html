@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>TOR §1.9 ระบบงานเภสัชกรรม — Checklist</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #F4F5F5;
+    --surface: #FFFFFF;
+    --surface-2: #FAFAFA;
+    --surface-3: #F4F5F5;
+    --border: #E2E4E6;
+    --text: #171A1F;
+    --muted: #6E757C;
+    --brand: #007549;
+    --brand-700: #00563A;
+    --brand-soft: #F4FBF8;
+    --brand-mid: #C5EDDA;
+    --success: #08A768;
+    --successSoft: #DCFCE7;
+    --warn: #E0973C;
+    --warnSoft: #FDF1E0;
+    --warnBorder: #F7DEB5;
+    --shadow: 0 1px 3px rgba(15,23,42,.06), 0 4px 12px rgba(15,23,42,.04);
+    --radius: 12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Sarabun","Noto Sans Thai",system-ui,sans-serif;
+    font-size:14px;
+    line-height:1.55;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 28px 96px}
+
+  /* ── Hero ─────────────────────────────────────────────── */
+  .hero{
+    background:linear-gradient(135deg,#007549 0%,#00A86B 100%);
+    color:#FFFFFF;
+    border-radius:18px;
+    padding:30px 34px;
+    box-shadow:var(--shadow);
+  }
+  .hero .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+  .hero h1{margin:8px 0 0;font-size:27px;font-weight:800;letter-spacing:-.01em;line-height:1.25}
+  .hero .source{margin-top:12px;font-size:12.5px;opacity:.92}
+  .hero .source code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.26);
+    border-radius:6px;
+    padding:1px 7px;
+  }
+
+  /* ── Stat cards ───────────────────────────────────────── */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:20px 0}
+  .stat{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px 20px;
+    box-shadow:var(--shadow);
+  }
+  .stat .n{font-size:30px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+  .stat .l{font-size:12.5px;color:var(--muted);margin-top:4px}
+  .stat.total .n{color:var(--text)}
+  .stat.done  .n{color:var(--success)}
+  .stat.partial .n{color:var(--warn)}
+  .stat.pct   .n{color:var(--brand)}
+  .stat .bar{height:8px;border-radius:999px;background:var(--surface-3);overflow:hidden;margin-top:10px}
+  .stat .bar > span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--success) 0%,var(--brand) 100%)}
+
+  /* ── Blocker callout ─────────────────────────────────── */
+  .blockers{
+    background:var(--warnSoft);
+    border:1px solid var(--warnBorder);
+    border-left:4px solid var(--warn);
+    border-radius:var(--radius);
+    padding:18px 22px;
+    margin-bottom:22px;
+  }
+  .blockers h2{margin:0 0 10px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .blockers ul{margin:0;padding-left:20px}
+  .blockers li{margin-bottom:8px;font-size:13px}
+  .blockers li:last-child{margin-bottom:0}
+  .blockers li b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--brand-700);font-size:12.5px}
+  .blockers .ref{margin-top:12px;padding-top:10px;border-top:1px solid var(--warnBorder);font-size:12.5px;color:#8A6224}
+  .blockers .ref code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#FFFFFF;border:1px solid var(--warnBorder);border-radius:5px;padding:1px 6px}
+
+  /* ── Toolbar ─────────────────────────────────────────── */
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+  .toolbar input[type=search]{
+    flex:1;min-width:260px;padding:10px 14px;
+    border:1px solid var(--border);border-radius:10px;
+    font-family:inherit;font-size:14px;background:var(--surface);color:var(--text);
+  }
+  .toolbar input[type=search]:focus{outline:none;border-color:var(--brand-mid);box-shadow:0 0 0 3px var(--brand-soft)}
+  .toolbar button{
+    padding:9px 14px;border:1px solid var(--border);background:var(--surface);
+    border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:var(--text);
+  }
+  .toolbar button:hover:not(.active){background:var(--surface-2)}
+  .toolbar button.active{background:var(--brand);color:#FFFFFF;border-color:var(--brand)}
+
+  /* ── Section ─────────────────────────────────────────── */
+  section.grp{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    margin-bottom:18px;
+    overflow:hidden;
+  }
+  section.grp > header{
+    display:flex;align-items:center;gap:12px;
+    padding:16px 22px;
+    border-bottom:1px solid var(--border);
+    background:var(--surface-2);
+  }
+  section.grp > header .id{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12px;font-weight:700;color:var(--brand);
+    background:var(--brand-soft);border:1px solid var(--brand-mid);
+    border-radius:6px;padding:2px 8px;flex-shrink:0;
+  }
+  section.grp > header h2{margin:0;font-size:15.5px;font-weight:700;flex:1;min-width:0}
+  section.grp > header .count{
+    font-size:11px;font-weight:700;color:var(--muted);
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:999px;padding:2px 10px;font-variant-numeric:tabular-nums;
+  }
+  section.grp > header .score{
+    font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
+    border-radius:999px;padding:3px 11px;white-space:nowrap;
+  }
+  section.grp > header .score.all-done{background:var(--successSoft);color:var(--success);border:1px solid #BFF0D4}
+  section.grp > header .score.mixed{background:var(--warnSoft);color:var(--warn);border:1px solid var(--warnBorder)}
+
+  table{width:100%;border-collapse:collapse}
+  thead th{
+    text-align:left;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--muted);padding:10px 14px;background:var(--surface-2);border-bottom:1px solid var(--border);
+    white-space:nowrap;
+  }
+  thead th:first-child{padding-left:22px}
+  thead th:last-child{padding-right:22px}
+  tbody td{padding:12px 14px;border-bottom:1px solid var(--surface-3);vertical-align:top;font-size:13px}
+  tbody td:first-child{padding-left:22px}
+  tbody td:last-child{padding-right:22px}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:var(--surface-2)}
+
+  td.tor{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11.5px;color:var(--brand);font-weight:600;white-space:nowrap;width:76px;
+  }
+  td.req{min-width:260px}
+  td.st{width:104px}
+  td.ev{color:var(--muted);font-size:12.5px;min-width:260px}
+  td.ev code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11.5px;color:var(--brand-700);
+    background:var(--brand-soft);border:1px solid var(--brand-mid);
+    border-radius:5px;padding:1px 6px;white-space:nowrap;
+  }
+  td.ev .blocker-tag{
+    display:inline-block;margin-left:6px;padding:1px 7px;
+    background:var(--warnSoft);border:1px solid var(--warnBorder);border-radius:999px;
+    font-size:10.5px;font-weight:700;color:var(--warn);white-space:nowrap;
+  }
+
+  .chip{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:3px 10px;border-radius:999px;
+    font-size:11.5px;font-weight:700;white-space:nowrap;
+  }
+  .chip.done{background:var(--success);color:#FFFFFF}
+  .chip.partial{background:var(--warnSoft);color:var(--warn);border:1px solid var(--warnBorder)}
+
+  .hidden{display:none !important}
+  .empty{padding:20px 22px;color:var(--muted);font-size:13px}
+
+  footer.page-foot{margin-top:24px;font-size:12px;color:var(--muted);text-align:center}
+  footer.page-foot a{color:var(--brand);text-decoration:none}
+  footer.page-foot a:hover{text-decoration:underline}
+
+  @media (max-width:820px){
+    .wrap{padding:20px 14px 64px}
+    .hero{padding:24px 22px;border-radius:14px}
+    .hero h1{font-size:21px}
+    table{display:block;overflow-x:auto}
+  }
+  @media print{
+    body{background:#FFFFFF}
+    .toolbar{display:none}
+    .hero{background:none;color:var(--text);border:1px solid var(--border);box-shadow:none}
+    .hero .source code{background:none;border:0}
+    section.grp{box-shadow:none;page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow">TOR Compliance · ผนวก ก</div>
+    <h1>TOR §1.9 ระบบงานเภสัชกรรม — Checklist</h1>
+    <div class="source">
+      Source: <code>docs/tor-checklist.html</code> · branch <code>feature/Pharmacy</code> ·
+      repo <code>bma.health-pharmacy</code> · audited Jul 31, 2026
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat total"><div class="n" id="statTotal">0</div><div class="l">ข้อกำหนดทั้งหมด</div></div>
+    <div class="stat done"><div class="n" id="statDone">0</div><div class="l">ผ่านแล้ว (done)</div></div>
+    <div class="stat partial"><div class="n" id="statPartial">0</div><div class="l">ผ่านบางส่วน (partial)</div></div>
+    <div class="stat pct">
+      <div class="n" id="statPct">0%</div>
+      <div class="l">ความคืบหน้ารวม</div>
+      <div class="bar"><span id="statBar" style="width:0%"></span></div>
+    </div>
+  </div>
+
+  <div class="blockers">
+    <h2>⚠ 2 ข้อที่ยังติด blocker ภายนอก (บันทึกไว้ใน Obsidian แล้ว)</h2>
+    <ul>
+      <li><b>§1.9.4.2</b> — ข้อมูลผลตรวจทางรังสีวิทยา รอโมดูลรังสีวิทยา (<code>radiologyResults</code>) ที่ยังไม่มีในระบบ</li>
+      <li><b>§1.9.7.2</b> — การสแกนบาร์โค้ด/QR ตอนรับยาเข้าคลัง ต้องใช้ฮาร์ดแวร์สแกนเนอร์จริงถึงจะทดสอบ end-to-end ได้</li>
+    </ul>
+    <div class="ref">
+      รายละเอียดเต็ม: <code>tor-pharmacy-compliance.md</code> ใน MIH-Docs-Vault
+      (ลิงก์จาก <code>Home.md</code> และ <code>product-spec.md §10.1</code>)
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="ค้นหาข้อกำหนด / ไฟล์ / TOR id (เช่น Refill, PharmacyStockPage, 1.9.6)…" />
+    <button data-filter="all" class="active">ทั้งหมด</button>
+    <button data-filter="done">✓ ผ่านแล้ว</button>
+    <button data-filter="partial">– บางส่วน</button>
+    <button id="printBtn">⎙ Print / PDF</button>
+  </div>
+
+  <div id="content"></div>
+
+  <footer class="page-foot">
+    กลับไปที่ <a href="tor-checklist.html">TOR Compliance Checklist (ทุกระบบ)</a> ·
+    <a href="index.html">สารบัญเอกสาร</a>
+  </footer>
+
+</div>
+
+<script>
+/* ====== TOR §1.9 audit data ======
+   status: 'done' | 'partial'
+   ev:     หลักฐาน / เหตุผล (HTML — ใช้ <code> สำหรับชื่อไฟล์/ฟิลด์)
+   blocker: true → ติด blocker ภายนอก (แสดง tag ในคอลัมน์หลักฐาน)            */
+const GROUPS = [
+  {
+    id:'1.9.1', title:'ทะเบียนยาและเวชภัณฑ์',
+    items:[
+      {id:'1.9.1.1', status:'done',
+       req:'บันทึกข้อมูลทะเบียนยาและเวชภัณฑ์ได้ตามผู้ใช้งานกำหนด',
+       ev:'<code>PharmacyRegistryPage.jsx</code>, <code>PharmacyRegistryEditPage.jsx</code>'},
+      {id:'1.9.1.2', status:'done',
+       req:'รองรับหน่วยนับ (Unit of measurement) มากกว่า 1 หน่วย และแปลงหน่วยยาได้ เช่น จาก 1 ขวด เป็น 60 ซีซี',
+       ev:'<code>pharmacyRegistry.js</code> — <code>packSize</code> ต่อรายการยา + <code>convertPackToUnit()</code>; แก้ไขได้ใน <code>PharmacyRegistryEditPage.jsx</code>'},
+      {id:'1.9.1.3', status:'done',
+       req:'บันทึกการจัดกลุ่มยา เช่น บัญชียาหลักแห่งชาติ, วัตถุออกฤทธิ์ต่อจิตและประสาท',
+       ev:'<code>pharmacyRegistry.js</code> — <code>NARCOTIC_NAMES</code> / <code>PSYCHOTROPIC_NAMES</code> จัดกลุ่ม Codeine Phosphate 30 mg, Diazepam 5 mg'},
+      {id:'1.9.1.4', status:'done',
+       req:'บันทึกรายการที่เบิกได้/เบิกไม่ได้ตามสิทธิต่าง ๆ',
+       ev:'<code>pharmacyRegistry.js</code> — <code>claimEligibility</code> ต่อสิทธิการรักษา'},
+      {id:'1.9.1.5', status:'done',
+       req:'บันทึกรายการยาที่มีความเสี่ยงสูง (High Alert Drug)',
+       ev:'<code>pharmacyRegistry.js</code> — <code>highAlert</code> flag รวม narcotic/psychotropic'},
+      {id:'1.9.1.6', status:'done',
+       req:'ปรับราคายา/เวชภัณฑ์ล่วงหน้าได้ กำหนดวันเริ่มต้น-สิ้นสุด ตามสิทธิผู้ใช้งาน',
+       ev:'<code>PharmacyRegistryEditPage.jsx</code> — <code>priceEffectiveFrom</code> / <code>priceEffectiveTo</code>'},
+    ],
+  },
+  {
+    id:'1.9.2', title:'ใบสั่งยาจากแพทย์ / คัดกรอง',
+    items:[
+      {id:'1.9.2.1', status:'done',
+       req:'แสดงใบสั่งยาจากแพทย์ที่ส่งมาห้องยาได้',
+       ev:'<code>PharmacyQueuePage.jsx</code>'},
+      {id:'1.9.2.2', status:'done',
+       req:'แสดง Vital Signs / Nurse Note / แพ้ยา / โรคประจำตัว และบันทึก-แก้ไขข้อมูลแพ้ยาได้',
+       ev:'<code>pharmacySupportingInfo.js</code> ดึงจากประวัติผู้ป่วย'},
+      {id:'1.9.2.3', status:'done',
+       req:'แสดงสรุปผลการวินิจฉัยของการพบแพทย์ครั้งนั้น ๆ',
+       ev:'<code>pharmacySupportingInfo.js</code> — treatment visit summary'},
+      {id:'1.9.2.4', status:'done',
+       req:'แสดงรายการ GPO/GPU/TPU ชื่อยา จำนวน หน่วย เวลา ราคา รวมเงิน และบันทึก Med Error',
+       ev:'<code>PharmacyDispensePage.jsx</code>'},
+      {id:'1.9.2.5', status:'done',
+       req:'พิมพ์ฉลากยา พร้อมวิธีใช้ภาษาอังกฤษ/วิธีใช้พิเศษ',
+       ev:'<code>PharmacyLabelPrintPopup.jsx</code>'},
+      {id:'1.9.2.6', status:'done',
+       req:'แสดงรายการที่เป็นการสั่งยาตามรายการเดิม (Re-med)',
+       ev:'<code>pharmacyQueue.js</code> — <code>isRemed</code> flag'},
+      {id:'1.9.2.7', status:'done',
+       req:'บันทึกการคัดกรอง/ตรวจสอบคำสั่งใช้ยาโดยเภสัชกร พร้อมตรวจสอบผู้ดำเนินการ',
+       ev:'<code>PharmacyReviewPage.jsx</code> — <code>reviewedBy</code> audit trail'},
+      {id:'1.9.2.8', status:'done',
+       req:'บันทึกข้อมูลสื่อสารระหว่างเภสัชกรกับบุคลากรทางการแพทย์ (Pharmacist note)',
+       ev:'<code>PharmacyDispensePage.jsx</code> — <code>pharmacistNote</code> field'},
+      {id:'1.9.2.9', status:'done',
+       req:'ตรวจสอบ/แจ้งเตือนเมื่อสั่งยานอกสิทธิการรักษา และ/หรือต้องมีเอกสารประกอบ',
+       ev:'<code>PharmacyReviewPage.jsx</code> — claim eligibility warning'},
+      {id:'1.9.2.10', status:'done',
+       req:'แจ้งเตือนห้องยาเมื่อแพทย์แก้ไข/ยกเลิกคำสั่งยา วิธีใช้ จำนวนยา',
+       ev:'<code>PharmacyQueuePage.jsx</code> — order change badge'},
+      {id:'1.9.2.11', status:'done',
+       req:'พิมพ์ข้อมูลเพิ่มเติม วิธีใช้ยา ฉลากช่วย บนฉลาก',
+       ev:'<code>PharmacyLabelPrintPopup.jsx</code>'},
+      {id:'1.9.2.12', status:'done',
+       req:'พิมพ์ใบสั่งยาได้',
+       ev:'<code>PharmacyDispensePage.jsx</code> — ปุ่ม “พิมพ์ใบสั่งยา”'},
+    ],
+  },
+  {
+    id:'1.9.3', title:'สถานะการจัดยา',
+    items:[
+      {id:'1.9.3.1', status:'done',
+       req:'บันทึกสถานะการจัดยา และตรวจสอบรายการยาได้',
+       ev:'<code>PharmacyQueuePage.jsx</code> — สถานะ รอจัด / กำลังจัด / จัดแล้ว'},
+    ],
+  },
+  {
+    id:'1.9.4', title:'การจ่ายยาผู้รับบริการนอก',
+    items:[
+      {id:'1.9.4.1', status:'done',
+       req:'จ่ายยาผู้รับบริการนอก และบันทึกสถานะการจ่ายยาได้',
+       ev:'<code>PharmacyDispensePage.jsx</code>'},
+      {id:'1.9.4.2', status:'partial', blocker:true,
+       req:'แสดงข้อมูลประกอบการจ่ายยา: ประวัติการรักษา / ส่งปรึกษา / ผลแล็บ / ผลรังสีวิทยา / นัดหมาย',
+       ev:'<code>pharmacySupportingInfo.js</code> ดึงประวัติรักษา/แล็บ/นัดหมายได้ครบ — เหลือ <code>radiologyResults</code> รอโมดูลรังสีวิทยา (บันทึกใน <code>tor-pharmacy-compliance.md</code>)'},
+      {id:'1.9.4.3', status:'done',
+       req:'ตรวจสอบสถานะการรับยา ทั้งยังไม่มารับ/รับแล้ว',
+       ev:'<code>PharmacyQueuePage.jsx</code> — filter สถานะรับยา'},
+      {id:'1.9.4.4', status:'done',
+       req:'บันทึกคำแนะนำการใช้ยา และเรียกดูประวัติย้อนหลังได้',
+       ev:'<code>PharmacyDispensePage.jsx</code> — counseling log'},
+      {id:'1.9.4.5', status:'done',
+       req:'แบ่งจ่ายยาเป็นงวด (Refill) ได้',
+       ev:'<code>PharmacyDispensePage.jsx</code> — refill schedule'},
+      {id:'1.9.4.6', status:'done',
+       req:'บันทึกใบสั่งยาที่ไม่มารับยา และสถานะการไม่มารับยา',
+       ev:'<code>PharmacyQueuePage.jsx</code> — สถานะไม่มารับยา'},
+      {id:'1.9.4.7', status:'done',
+       req:'แสดงรายละเอียดสำคัญ: แพ้ยา ให้นมบุตร ตั้งครรภ์ G6PD และเฝ้าระวังพิเศษ',
+       ev:'<code>pharmacySupportingInfo.js</code> — clinical flags'},
+      {id:'1.9.4.8', status:'done',
+       req:'บันทึกข้อมูลการจัดส่งยาทางไปรษณีย์ได้',
+       ev:'<code>PharmacyDispensePage.jsx</code> — mail delivery section'},
+    ],
+  },
+  {
+    id:'1.9.5', title:'ค้นหา / สถานะใบยา',
+    items:[
+      {id:'1.9.5.1', status:'done',
+       req:'ค้นหายา/เวชภัณฑ์ ด้วยรหัส ชื่อการค้า ชื่อสามัญ ประเภท รูปแบบ',
+       ev:'<code>PharmacyRegistryPage.jsx</code> — search + filters'},
+      {id:'1.9.5.2', status:'done',
+       req:'แสดงสถานะใบยาในแต่ละขั้นตอน: จัดยา ตรวจสอบ จ่ายยา ชำระเงิน',
+       ev:'<code>PharmacyQueuePage.jsx</code> — status pipeline'},
+      {id:'1.9.5.3', status:'done',
+       req:'บันทึกข้อมูลกรณีใบยามีปัญหาได้',
+       ev:'<code>PharmacyReviewPage.jsx</code> — flag ปัญหาใบยา'},
+      {id:'1.9.5.4', status:'done',
+       req:'แยกประเภทคิวยา เช่น ด่วน / น้อย / ทั่วไป',
+       ev:'<code>PharmacyQueuePage.jsx</code> — queue type chip'},
+      {id:'1.9.5.5', status:'done',
+       req:'บันทึกการประสานรายการยาผู้รับบริการ (Medication Reconciliation)',
+       ev:'<code>PharmacyDispensePage.jsx</code> — reconciliation panel'},
+      {id:'1.9.5.6', status:'done',
+       req:'บันทึกรายการยา 0 หน่วย ในลักษณะ Medication Reconciliation กรณี Re-med',
+       ev:'<code>PharmacyDispensePage.jsx</code> — zero-qty re-med row'},
+      {id:'1.9.5.7', status:'done',
+       req:'แสดง/บันทึก/ยกเลิก/แก้ไขข้อมูลเกี่ยวกับการแพ้ยาได้',
+       ev:'<code>pharmacySupportingInfo.js</code> + <code>PharmacyDispensePage.jsx</code>'},
+      {id:'1.9.5.8', status:'done',
+       req:'พิมพ์ที่อยู่จัดส่งยาได้',
+       ev:'<code>PharmacyDispensePage.jsx</code> — ปุ่ม “พิมพ์ที่อยู่”'},
+      {id:'1.9.5.9', status:'done',
+       req:'บันทึกรายการยาที่ผู้รับบริการนำมาเอง ทั้งที่มีและไม่มีในสำนักอนามัย',
+       ev:'<code>PharmacyDispensePage.jsx</code> — own-medication list'},
+    ],
+  },
+  {
+    id:'1.9.6', title:'การเบิกยา / รายงาน',
+    items:[
+      {id:'1.9.6.1', status:'done',
+       req:'แสดง/บันทึก/ยกเลิก/แก้ไขข้อมูลเบิกจ่ายยาและเวชภัณฑ์',
+       ev:'<code>PharmacyRequisitionPage.jsx</code>'},
+      {id:'1.9.6.2', status:'done',
+       req:'แสดงครั้งที่เบิกอัตโนมัติ จากประวัติการเบิกครั้งก่อน',
+       ev:'<code>PharmacyRequisitionPage.jsx</code> — auto sequence number'},
+      {id:'1.9.6.3', status:'done',
+       req:'เลือกศูนย์บริการสาธารณสุขได้ ค่าตั้งต้นอิงบัญชีผู้ใช้งาน',
+       ev:'<code>PharmacyRequisitionPage.jsx</code> — facility default'},
+      {id:'1.9.6.4', status:'done',
+       req:'แสดงวันที่/เวลาอัตโนมัติ อิงเวลาดำเนินการจริง',
+       ev:'<code>PharmacyRequisitionPage.jsx</code>'},
+      {id:'1.9.6.5', status:'done',
+       req:'เลือกหน่วยงานที่ต้องการส่งคำร้องไป',
+       ev:'<code>PharmacyRequisitionPage.jsx</code> — target department'},
+      {id:'1.9.6.6', status:'done',
+       req:'แสดงรายละเอียดผู้ทำการเบิก: ชื่อ นามสกุล ตำแหน่ง',
+       ev:'<code>PharmacyRequisitionPage.jsx</code>'},
+      {id:'1.9.6.7', status:'done',
+       req:'เลือกประเภทที่ต้องการเบิกได้',
+       ev:'<code>PharmacyRequisitionPage.jsx</code> — requisition type'},
+      {id:'1.9.6.8', status:'done',
+       req:'ดูสถิติการใช้ยาแต่ละประเภทได้ (แนวโน้มหลายวัน)',
+       ev:'<code>pharmacyQueue.js</code> — <code>PHARMACY_USAGE_HISTORY</code> (ย้อนหลัง 6 วัน) + <code>PharmacyReportsPage.jsx</code> ปุ่ม “7 วันล่าสุด”'},
+      {id:'1.9.6.9', status:'done',
+       req:'แสดงรายการเบิก: ลำดับ รายการ บรรจุ เบิกครั้งที่/ครั้งสุดท้าย เหลือถึงวันเบิกใหม่ จำนวนขอเบิก/อนุมัติ หมายเหตุ เพิ่ม/ลบได้',
+       ev:'<code>PharmacyRequisitionPage.jsx</code> — editable line items'},
+      {id:'1.9.6.10', status:'done',
+       req:'พิมพ์ใบเบิกยาได้',
+       ev:'<code>PharmacyRequisitionPage.jsx</code> — ปุ่ม “พิมพ์ใบเบิก”'},
+    ],
+  },
+  {
+    id:'1.9.7', title:'การรับยาเข้าคลังใหญ่',
+    items:[
+      {id:'1.9.7.1', status:'done',
+       req:'แสดง/บันทึก/ยกเลิก/แก้ไขข้อมูลรับยาและเวชภัณฑ์เข้าคลังใหญ่',
+       ev:'<code>PharmacyReceivingPage.jsx</code>'},
+      {id:'1.9.7.2', status:'partial', blocker:true,
+       req:'แสดงข้อมูลเบื้องต้น: หน่วยงาน ประเภทการรับ เลขที่ใบรับ วันที่ซื้อ เลขที่ใบสั่งซื้อ วันที่ส่งของ เลขที่ใบส่งของ และสแกนข้อมูลเข้าระบบได้',
+       ev:'<code>PharmacyReceivingPage.jsx</code> บันทึกฟิลด์ครบทั้งหมด — เหลือการสแกนบาร์โค้ด/QR ที่ต้องต่อฮาร์ดแวร์สแกนเนอร์จริง (บันทึกใน <code>tor-pharmacy-compliance.md</code>)'},
+      {id:'1.9.7.3', status:'done',
+       req:'แสดงข้อมูล GPO/GPU/TPU ชื่อยา บรรจุ ปริมาณ หน่วย ราคาทุน/ขาย ราคาที่เบิกได้ วันหมดอายุ Lot no.',
+       ev:'<code>PharmacyReceivingPage.jsx</code> — line item table'},
+      {id:'1.9.7.4', status:'done',
+       req:'รับรายการจากหลายผู้ผลิตเข้าคลังใหญ่ของศูนย์บริการสาธารณสุขได้',
+       ev:'<code>PharmacyReceivingPage.jsx</code> — multi-supplier rows'},
+    ],
+  },
+  {
+    id:'1.9.8', title:'คลังยาศูนย์บริการสาธารณสุข',
+    items:[
+      {id:'1.9.8.1', status:'done',
+       req:'แสดง/บันทึก/ยกเลิก/แก้ไขข้อมูลสถานะการทำงานได้',
+       ev:'<code>PharmacyStockPage.jsx</code>'},
+      {id:'1.9.8.2', status:'done',
+       req:'ค้นหาผ่านประเภทยา ชื่อยา รหัสยา ยาหมดอายุภายใน (เดือน/ปี)',
+       ev:'<code>PharmacyStockPage.jsx</code> — search + expiry filter'},
+      {id:'1.9.8.3', status:'done',
+       req:'แสดงสถานะคลังปัจจุบัน ยาใกล้หมดอายุ 3-6 เดือน รายการต้องเบิกกองเภสัชกรรม/สปสช. เพิ่ม (อิง minimum stock อัตโนมัติ)',
+       ev:'<code>PharmacyStockPage.jsx</code> — auto-requisition เมื่อสต๊อกต่ำกว่า minimum'},
+    ],
+  },
+  {
+    id:'1.9.9', title:'การยืม-คืน / แลกล็อตยา',
+    items:[
+      {id:'1.9.9.1', status:'done',
+       req:'แสดง/บันทึก/ยกเลิก/แก้ไขข้อมูลสถานะการทำงานได้',
+       ev:'<code>PharmacyStockPage.jsx</code> — borrow/return module'},
+      {id:'1.9.9.2', status:'done',
+       req:'ค้นหาผ่านประเภทยา ชื่อยา รหัสยา ยาหมดอายุภายใน (เดือน/ปี)',
+       ev:'<code>PharmacyStockPage.jsx</code>'},
+      {id:'1.9.9.3', status:'done',
+       req:'แสดงข้อมูลสถานะคลังยาปัจจุบัน',
+       ev:'<code>PharmacyStockPage.jsx</code>'},
+      {id:'1.9.9.4', status:'done',
+       req:'แสดงรายการผู้ส่งคำร้อง + ประวัติ: แลกล็อต / ยืมยา / ยาที่ต้องคืน',
+       ev:'<code>PharmacyStockPage.jsx</code> — outgoing requests'},
+      {id:'1.9.9.5', status:'done',
+       req:'แสดงรายการผู้รับคำร้อง + ประวัติ: คำร้องแลกล็อต / คำร้องยืมยา / รายการที่ต้องได้รับคืน',
+       ev:'<code>PharmacyStockPage.jsx</code> — incoming requests'},
+    ],
+  },
+  {
+    id:'1.9.10', title:'ข้อมูลยาระดับสถานพยาบาล',
+    items:[
+      {id:'1.9.10.1', status:'done',
+       req:'บันทึก/แก้ไข/เพิ่มรายละเอียดยา: รหัส ชื่อทั่วไป ชื่อการค้า ราคาขาย วันเริ่ม-ตัดรายการยา',
+       ev:'<code>PharmacyRegistryEditPage.jsx</code>'},
+      {id:'1.9.10.2', status:'done',
+       req:'บันทึก/แก้ไขรายการยาของสถานพยาบาลและเงื่อนไขตามบัญชียาหลักแห่งชาติ',
+       ev:'<code>PharmacyRegistryEditPage.jsx</code> — NLEM classification'},
+      {id:'1.9.10.3', status:'done',
+       req:'ปิดรายการยา/เวชภัณฑ์ และตั้งค่ารายการทดแทนได้',
+       ev:'<code>PharmacyRegistryEditPage.jsx</code> — discontinue + substitute'},
+    ],
+  },
+  {
+    id:'1.9.11', title:'การเชื่อมต่อระบบอื่น',
+    items:[
+      {id:'1.9.11.1', status:'done',
+       req:'เชื่อมต่อกับระบบสั่งยา ระบบ CPOE และระบบเวชระเบียนอิเล็กทรอนิกส์ (EMR) ได้',
+       ev:'<code>pharmacySupportingInfo.js</code> เชื่อม treatment visit / lab / appointment modules ภายในระบบเดียวกัน'},
+    ],
+  },
+];
+
+const STATUS_LABEL = { done:'✓ ผ่านแล้ว', partial:'– บางส่วน' };
+
+function renderStats(){
+  const items = GROUPS.flatMap(g => g.items);
+  const done    = items.filter(i => i.status === 'done').length;
+  const partial = items.filter(i => i.status === 'partial').length;
+  const pct     = Math.round((done / items.length) * 100);
+  document.getElementById('statTotal').textContent   = items.length;
+  document.getElementById('statDone').textContent    = done;
+  document.getElementById('statPartial').textContent = partial;
+  document.getElementById('statPct').textContent     = pct + '%';
+  document.getElementById('statBar').style.width     = pct + '%';
+}
+
+function renderGroups(){
+  document.getElementById('content').innerHTML = GROUPS.map(g => {
+    const done = g.items.filter(i => i.status === 'done').length;
+    const all  = done === g.items.length;
+    const rows = g.items.map(i => `
+      <tr data-status="${i.status}" data-hay="${(i.id + ' ' + i.req + ' ' + i.ev).replace(/<[^>]+>/g,'').replace(/"/g,'&quot;').toLowerCase()}">
+        <td class="tor">${i.id}</td>
+        <td class="req">${i.req}</td>
+        <td class="st"><span class="chip ${i.status}">${STATUS_LABEL[i.status]}</span></td>
+        <td class="ev">${i.ev}${i.blocker ? '<span class="blocker-tag">blocker ภายนอก</span>' : ''}</td>
+      </tr>`).join('');
+    return `
+      <section class="grp" data-group="${g.id}">
+        <header>
+          <span class="id">${g.id}</span>
+          <h2>${g.title}</h2>
+          <span class="count">${g.items.length} ข้อ</span>
+          <span class="score ${all ? 'all-done' : 'mixed'}">${done}/${g.items.length} done</span>
+        </header>
+        <table>
+          <thead>
+            <tr><th>TOR</th><th>ข้อกำหนด</th><th>สถานะ</th><th>หลักฐาน / เหตุผล</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="empty hidden">ไม่พบข้อกำหนดที่ตรงกับเงื่อนไข</div>
+      </section>`;
+  }).join('');
+}
+
+let activeFilter = 'all';
+let query = '';
+
+function applyFilters(){
+  document.querySelectorAll('section.grp').forEach(sec => {
+    let visible = 0;
+    sec.querySelectorAll('tbody tr').forEach(tr => {
+      const okStatus = activeFilter === 'all' || tr.dataset.status === activeFilter;
+      const okQuery  = !query || tr.dataset.hay.includes(query);
+      const show = okStatus && okQuery;
+      tr.classList.toggle('hidden', !show);
+      if (show) visible++;
+    });
+    sec.querySelector('.empty').classList.toggle('hidden', visible > 0);
+    sec.classList.toggle('hidden', visible === 0 && (query !== '' || activeFilter !== 'all'));
+  });
+}
+
+renderStats();
+renderGroups();
+
+document.getElementById('search').addEventListener('input', e => {
+  query = e.target.value.trim().toLowerCase();
+  applyFilters();
+});
+
+document.querySelectorAll('.toolbar button[data-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.toolbar button[data-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    applyFilters();
+  });
+});
+
+document.getElementById('printBtn').addEventListener('click', () => window.print());
+</script>
+</body>
+</html>

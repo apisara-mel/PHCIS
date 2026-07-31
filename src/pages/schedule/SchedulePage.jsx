@@ -6,12 +6,14 @@ import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import TabUnderline from '@/components/tab/TabUnderline';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import StaffProfileAvatar from '@/components/appointment/StaffProfileAvatar';
 import { staffProfileSearchSrc } from '../appointment/appointmentStaffProfile';
 import { staffBadgeTone } from '../appointment/appointmentStaffRoster';
 import ScheduleSidebar from './ScheduleSidebar';
 import ScheduleHeader from './ScheduleHeader';
 import ScheduleFooter from './ScheduleFooter';
+import FacilityHolidayPopup from './FacilityHolidayPopup';
 import {
   STATUS_TABS,
   SCHEDULE_STATUS_META,
@@ -109,6 +111,7 @@ const SchedulePage = () => {
   /* Sort state per Figma 16:51201 — each column header carries a sort icon.
      First click → asc, second → desc, then cycle. */
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [holidayOpen, setHolidayOpen] = useState(false);
 
   const allRows = useMemo(() => buildScheduleStaff(), []);
 
@@ -226,18 +229,35 @@ const SchedulePage = () => {
             gap: 'var(--dim-space-400, 16px)',
           }}
         >
-          <h1
+          <div
             style={{
-              margin: 0,
-              fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
-              fontSize: 'var(--type-size-base, 16px)',
-              fontWeight: 'var(--type-weight-bold, 700)',
-              lineHeight: 1.5,
-              color: 'var(--text-topic-tertiary-title, #363B3F)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 'var(--dim-space-400, 16px)',
             }}
           >
-            จัดการตารางเวร
-          </h1>
+            <h1
+              style={{
+                margin: 0,
+                fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
+                fontSize: 'var(--type-size-base, 16px)',
+                fontWeight: 'var(--type-weight-bold, 700)',
+                lineHeight: 1.5,
+                color: 'var(--text-topic-tertiary-title, #363B3F)',
+              }}
+            >
+              จัดการตารางเวร
+            </h1>
+            <BrandSubdueButton
+              variant='outline'
+              size='lg'
+              leadingIcon='event_busy'
+              onClick={() => setHolidayOpen(true)}
+            >
+              ตั้งค่าวันหยุดสถานพยาบาล
+            </BrandSubdueButton>
+          </div>
 
           {/* Shared TabUnderline (Figma 16:52474) — sliding ink-bar +
               hover/press transforms + scaleX-from-centre underline anim.
@@ -330,6 +350,11 @@ const SchedulePage = () => {
             save/cancel actions, so only the legal row is shown. */}
         <ScheduleFooter />
       </div>
+
+      <FacilityHolidayPopup
+        open={holidayOpen}
+        onClose={() => setHolidayOpen(false)}
+      />
     </div>
   );
 };
