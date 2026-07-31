@@ -1,4 +1,4 @@
-import { PAYMENT_METHODS, CHARGE_CATEGORIES } from '@/data/financePaymentPrototype';
+import { PAYMENT_METHODS, CHARGE_CATEGORIES, netCollected } from '@/data/financePaymentPrototype';
 
 /* Mock data for รายงานการเงิน (src/pages/finance/sections/FinanceReportsSection.jsx)
    — TOR appendix ก §1.20.3:
@@ -130,12 +130,12 @@ const CENTER_OF = { 'ศูนย์ 8 บางนา': 'bangna', 'ศูนย
 const todayFromQueue = (queue = [], center = 'all') => {
   const keys = centerKeys(center);
   const paid = queue.filter((r) => r.status === 'paid' && keys.includes(CENTER_OF[r.center]));
-  const total = sum(paid.map((r) => r.amountReceived || 0));
+  const total = sum(paid.map(netCollected));
 
   const byChannel = Object.fromEntries(REVENUE_CHANNELS.map((c) => [c.key, 0]));
   paid.forEach((r) => {
     const channel = REVENUE_CHANNELS.find((c) => c.methods.includes(r.paymentMethod));
-    if (channel) byChannel[channel.key] += r.amountReceived || 0;
+    if (channel) byChannel[channel.key] += netCollected(r);
   });
 
   /* Charge lines are billed at full price; the receipt only collects the
@@ -144,10 +144,14 @@ const todayFromQueue = (queue = [], center = 'all') => {
      never exceeds what was actually received. */
   const byType = Object.fromEntries(REVENUE_TYPES.map((t) => [t.key, 0]));
   paid.forEach((r) => {
-    const charge = sum(r.items.map((i) => i.amount)) || 1;
-    r.items.forEach((item) => {
+    /* Only the lines this receipt actually settled (TOR §1.8.1.15 partial
+       payment) — falling back to every line for receipts issued before
+       `paidItemIds` was recorded. */
+    const settled = r.paidItemIds ? r.items.filter((i) => r.paidItemIds.includes(i.id)) : r.items;
+    const charge = sum(settled.map((i) => i.amount)) || 1;
+    settled.forEach((item) => {
       const type = REVENUE_TYPES.find((t) => t.categories.includes(item.category));
-      if (type) byType[type.key] += (item.amount / charge) * (r.amountReceived || 0);
+      if (type) byType[type.key] += (item.amount / charge) * netCollected(r);
     });
   });
 

@@ -41,6 +41,8 @@ import {
   computeTotals,
   formatBaht,
   formatTaxId,
+  thaiDate,
+  thaiTime,
 } from '@/data/financePaymentPrototype';
 
 /* งานการเงิน (Finance / Payment) — checkout screen per คู่มือระบบงานห้องเงิน
@@ -257,7 +259,12 @@ const ReceiptField = ({ label, value }) => (
    บันทึกรับเงินผู้ป่วย form above (that one collects the payment; this one
    documents it), so it gets its own layout instead of reusing the form. */
 const ReceiptDetail = ({ row }) => {
-  const { totalCharge, rightsCoverage } = computeTotals(row.items, false);
+  /* Print the lines this receipt actually settled. Seeded rows (and any
+     receipt paid before `paidItemIds` existed) fall back to every line. */
+  const receiptItems = row.paidItemIds
+    ? row.items.filter((i) => row.paidItemIds.includes(i.id))
+    : row.items;
+  const { totalCharge, rightsCoverage } = computeTotals(receiptItems, false);
   const deduction = rightsCoverage + (row.discount || 0);
   const netBeforeVat = totalCharge - deduction;
   const vat = Math.round(netBeforeVat * 0.07);
@@ -294,7 +301,7 @@ const ReceiptDetail = ({ row }) => {
           { key: 'label', label: 'รายการค่ารักษาพยาบาล', flex: true, minWidth: 200 },
           { key: 'amount', label: 'จำนวนเงิน (บาท)', width: 120, render: (item) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(item.amount)}</span> },
         ]}
-        rows={row.items}
+        rows={receiptItems}
         rowKey={(item) => item.id}
         emptyMessage='ไม่มีรายการค่ารักษาพยาบาล'
       />
@@ -354,7 +361,20 @@ const PaymentModal = ({ row, onClose, onVoid, onPay }) => {
   const [discountFlat, setDiscountFlat] = useState(row.discount ? String(row.discount) : '0');
   const [voiding, setVoiding] = useState(false);
 
-  const { totalCharge, rightsCoverage, amountDue } = computeTotals(row.items, false);
+  /* Totals follow the ticked lines — TOR §1.8.1.15 "เลือกชำระเงินรายการ
+     ร่วมจ่ายได้". Previously this read every line regardless of the
+     checkboxes, so unticking a charge changed nothing but the button's
+     disabled state.
+
+     Prototype scope: the unticked lines are simply not on this receipt.
+     The row still flips to `paid` rather than keeping the remainder as a
+     residual balance — real partial payment needs a per-line settlement
+     state this mock doesn't model. */
+  const selectedItems = useMemo(
+    () => row.items.filter((i) => selected.has(i.id)),
+    [row.items, selected],
+  );
+  const { totalCharge, rightsCoverage, amountDue } = computeTotals(selectedItems, false);
   const isReadOnly = row.status !== 'pending';
   const discountTypeOptions = discountKind === 'exempt' ? EXEMPTION_TYPES : DISCOUNT_TYPES;
   const discountAmount = isReadOnly
@@ -463,6 +483,11 @@ const PaymentModal = ({ row, onClose, onVoid, onPay }) => {
             discountAmount,
             discountKind,
             discountType,
+            /* Carry the settled lines + their computed net so the receipt
+               and the queue's ยอดชำระ match what was actually collected,
+               instead of re-deriving from every line on the visit. */
+            paidItemIds: selectedItems.map((i) => i.id),
+            netDue,
           });
           onClose();
         },
@@ -656,10 +681,11 @@ const FinancePaymentPage = () => {
     const nums = rows.map((r) => r.receiptNo && parseInt(r.receiptNo.split('-')[1], 10)).filter((n) => !Number.isNaN(n));
     return `RE69-${(nums.length ? Math.max(...nums) : 999) + 1}`;
   };
-  const handlePay = (rowId, { method, received, change, payerName, discountAmount, discountKind, discountType }) => {
+  const handlePay = (rowId, { method, received, change, payerName, discountAmount, discountKind, discountType, paidItemIds, netDue }) => {
     setQueue((prev) => prev.map((r) => {
       if (r.id !== rowId) return r;
       const receiptNo = r.receiptNo || nextReceiptNo(prev);
+      const paidOn = new Date();
       return {
         ...r,
         status: 'paid',
@@ -670,11 +696,16 @@ const FinancePaymentPage = () => {
         discount: discountAmount,
         discountKind,
         discountType,
-        amountDue: r.totalCharge - r.rightsCoverage - discountAmount,
+        paidItemIds,
+        amountDue: netDue,
         receiptNo,
+        /* Split out so ทะเบียนรายรับ can filter/sort on the date money was
+           received rather than the visit date (TOR §1.8.1.12/§1.8.5.3). */
+        paidDate: thaiDate(paidOn),
+        paidTime: thaiTime(paidOn),
         paidAt: nowThaiDateTime(),
         paymentRef: `REF-${method.toUpperCase()}-${receiptNo.split('-')[1]}`,
-        cashier: r.cashier || 'จนท.การเงิน (ผู้ใช้งานระบบ)',
+        cashier: r.cashier || CURRENT_FINANCE_USER.name,
       };
     }));
   };

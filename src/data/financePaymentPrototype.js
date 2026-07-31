@@ -175,6 +175,30 @@ const VISITS = [
   },
 ];
 
+/* Seed dates are derived from the clock, never hardcoded. A fixed
+   "29 กรกฎาคม 2569" drifts further from reality every day the prototype
+   sits unopened, and because the register/outstanding tabs default their
+   date chip to a *relative* range ("วันนี้" / "30 วันที่ผ่านมา"), a stale
+   seed silently filters every row out — the tab renders empty while the
+   summary cards above it still show money. Keep this relative. */
+export const thaiDate = (d) =>
+  d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+
+export const thaiTime = (d) =>
+  d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+const daysAgo = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+/* How many days before today each visit happened. Most sit on today so the
+   register's "วันนี้" default has something to show; two pending rows are
+   deliberately older so ยอดค้างชำระ exercises debt that crosses days. */
+const VISIT_DAYS_AGO = [0, 0, 0, 0, 0, 3, 0, 12];
+
 /* Queue rows — one per patient at the cashier counter. `status` +
    payment metadata mock the outcome of §2.1's checkout flow. */
 export const FINANCE_QUEUE = VISITS.map((v, idx) => {
@@ -189,6 +213,19 @@ export const FINANCE_QUEUE = VISITS.map((v, idx) => {
   const isVoided = idx === 3;
   const status = isVoided ? 'voided' : isPaid ? 'paid' : 'pending';
 
+  const visitTime = `${8 + (idx % 4)}:${(idx * 7) % 60 < 10 ? '0' : ''}${(idx * 7) % 60}`;
+  const visitDate = thaiDate(daysAgo(VISIT_DAYS_AGO[idx] ?? 0));
+
+  /* วันที่-เวลา *รับชำระเงิน* — a separate fact from the visit. Money is
+     collected after the visit (here: ~40 min later, and always today for
+     the seeded receipts so "ชำระแล้ววันนี้" and ทะเบียนรายรับ agree), so
+     ทะเบียนรายรับ must file a receipt under this date, not the visit's
+     (TOR §1.8.1.12 / §1.8.5.3). */
+  const paidClock = new Date();
+  paidClock.setHours(8 + (idx % 4), ((idx * 7) % 60) + 40 > 59 ? ((idx * 7) % 60) - 20 : ((idx * 7) % 60) + 40, 0, 0);
+  const paidDate = thaiDate(new Date());
+  const paidTime = thaiTime(paidClock);
+
   return {
     id: `fin-${v.hn}`,
     hn: v.hn,
@@ -198,8 +235,8 @@ export const FINANCE_QUEUE = VISITS.map((v, idx) => {
     rights,
     dept: v.dept,
     center: v.center,
-    visitDate: '29 กรกฎาคม 2569',
-    visitTime: `${8 + (idx % 4)}:${(idx * 7) % 60 < 10 ? '0' : ''}${(idx * 7) % 60}`,
+    visitDate,
+    visitTime,
     queueNo: `F${String(idx + 1).padStart(3, '0')}`,
     diagnosis: idx % 2 === 0 ? 'Follow-up (Z09)' : '',
     items,
@@ -217,7 +254,9 @@ export const FINANCE_QUEUE = VISITS.map((v, idx) => {
     amountReceived: (isPaid || isVoided) ? netDue : null,
     changeDue: 0,
     payerName: (isPaid || isVoided) ? patient.shortName : null,
-    paidAt: (isPaid || isVoided) ? `29 กรกฎาคม 2569 · ${8 + (idx % 4)}:${(idx * 7) % 60 < 10 ? '0' : ''}${(idx * 7) % 60} น.` : null,
+    paidDate: (isPaid || isVoided) ? paidDate : null,
+    paidTime: (isPaid || isVoided) ? paidTime : null,
+    paidAt: (isPaid || isVoided) ? `${paidDate} · ${paidTime} น.` : null,
     paymentRef: (isPaid || isVoided) ? `REF-${PAYMENT_METHODS[idx % PAYMENT_METHODS.length].key.toUpperCase()}-${1000 + idx}` : null,
     cashier: isPaid || isVoided ? 'จนท.การเงิน สมศรี' : null,
     voidReason: isVoided ? 'บันทึกรายการซ้ำ' : null,
@@ -291,6 +330,13 @@ export const matchesDateFilter = (thaiDateStr, filterValue) => {
   return true;
 };
 
+/* เงินที่เข้าลิ้นชักจริงของใบเสร็จหนึ่งใบ = เงินที่รับมา − เงินทอน.
+   `amountReceived` คือสิ่งที่ผู้ป่วยยื่นให้ ไม่ใช่รายรับ — จ่ายเงินสด ฿200
+   สำหรับยอด ฿107 แล้วทอน ฿93 ต้องลงทะเบียนรายรับเป็น ฿107 เท่านั้น
+   (ข้อมูล seed เดิมทอน 0 เสมอ ความต่างเลยไม่เคยโผล่จนกระทั่งมีการชำระจริง). */
+export const netCollected = (row) =>
+  Math.max(0, (row.amountReceived || 0) - (row.changeDue || 0));
+
 /* Daily revenue-register summary strip (TOR §1.5.5 "ทะเบียนรายรับ") —
    derived from the live queue (defaults to the FINANCE_QUEUE seed) so the
    summary cards stay in sync after a void. */
@@ -301,7 +347,7 @@ export const financeSummary = (queue = FINANCE_QUEUE) => {
   return {
     pendingCount: pending.length,
     paidCount: paid.length,
-    paidTotal: paid.reduce((s, r) => s + (r.amountReceived || 0), 0),
+    paidTotal: paid.reduce((s, r) => s + netCollected(r), 0),
     voidedCount: voided.length,
     outstandingTotal: pending.reduce((s, r) => s + r.amountDue, 0),
   };

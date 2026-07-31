@@ -95,7 +95,14 @@ const FollowUpForm = ({ row, onCancel, onConfirm }) => {
   );
 };
 
-const FILTER_DEFAULTS = { dept: 'all', claimStatus: 'all', dateValue: { quick: 'today' } };
+/* Outstanding debt is the one thing here that is NOT a per-day view — a
+   balance unpaid since last month is exactly what this screen exists to
+   chase. Defaulting the date chip to "วันนี้" hid every older row and left
+   the tab empty on open while the summary card above still showed a total
+   (TOR §1.8.6.1 / §1.8.6.6 both require the default view to show the
+   current full list). "30 วันที่ผ่านมา" keeps a bounded default without
+   amputating the backlog. */
+const FILTER_DEFAULTS = { dept: 'all', claimStatus: 'all', dateValue: { quick: '30days' } };
 
 const OutstandingSection = ({ queue, onFollowUp }) => {
   const [activeRow, setActiveRow] = useState(null);
