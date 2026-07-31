@@ -16,7 +16,7 @@ import {
   setStickerField, setPrintSetting, subscribePrintSettings,
 } from '@/data/labPrintSettings';
 import {
-  LAB_TESTS, LAB_GROUPS, LAB_TUBES, LAB_TUBE_LIST, LAB_RESULT_TYPES,
+  LAB_TESTS, LAB_GROUPS, LAB_TUBES, LAB_TUBE_LIST, LAB_RESULT_TYPES, LAB_RIGHTS,
   getTube, subscribeCatalog, upsertLabTest, setLabTestRetired,
 } from '@/data/labCatalog';
 
@@ -314,6 +314,9 @@ const LabSetupPage = () => {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(null);
   const [saved, setSaved] = useState(false);
+  /* Which analyte's reference/critical block is open — only one at a time,
+     since the block is tall and comparing two rarely helps. */
+  const [expandedAnalyte, setExpandedAnalyte] = useState(null);
 
   const setField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -780,8 +783,185 @@ const LabSetupPage = () => {
                           onClick={() => removeAnalyte(i)}
                         />
                       )}
+
+                      {/* TOR §1.15.3.2 — "สามารถบันทึกค่าวิกฤตและค่าอ้างอิงของ
+                          ผลตรวจแยกตามเพศ อายุ หรือตามที่ผู้ใช้งานกำหนดได้".
+                          Collapsed by default: most analytes use the flat
+                          ค่าปกติ above, and only the few that genuinely
+                          differ (Hb, Hct, Creatinine, HDL) need the split.
+                          Forcing every row to show six more inputs would
+                          bury the common case. */}
+                      <div style={{ flexBasis: '100%' }}>
+                        <NeutralSubdueButton
+                          variant='outline'
+                          size='sm'
+                          trailingIcon={expandedAnalyte === i ? 'expand_less' : 'expand_more'}
+                          onClick={() => setExpandedAnalyte(expandedAnalyte === i ? null : i)}
+                        >
+                          ค่าอ้างอิงแยกเพศ/อายุ และค่าวิกฤต
+                          {(a.rangeBySex || a.rangeByAge?.length || typeof a.criticalLow === 'number' || typeof a.criticalHigh === 'number')
+                            ? ' · ตั้งค่าไว้แล้ว' : ''}
+                        </NeutralSubdueButton>
+
+                        {expandedAnalyte === i && (
+                          <div
+                            className='flex flex-col'
+                            style={{
+                              gap: 'var(--dim-space-300)',
+                              marginTop: 'var(--dim-space-300)',
+                              paddingLeft: 'var(--dim-space-400)',
+                              borderLeft: 'var(--dim-stroke-100) solid var(--border-brandPrimary-secondary)',
+                            }}
+                          >
+                            {/* แยกตามเพศ */}
+                            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full'>
+                              <TextField
+                                label='ค่าปกติ — เพศชาย'
+                                value={a.rangeBySex?.male ?? ''}
+                                onChange={(v) => setAnalyte(i, 'rangeBySex', { ...(a.rangeBySex ?? {}), male: v })}
+                                placeholder='เช่น 13–17'
+                                hint='เว้นว่างหากไม่แยกตามเพศ'
+                              />
+                              <TextField
+                                label='ค่าปกติ — เพศหญิง'
+                                value={a.rangeBySex?.female ?? ''}
+                                onChange={(v) => setAnalyte(i, 'rangeBySex', { ...(a.rangeBySex ?? {}), female: v })}
+                                placeholder='เช่น 12–15'
+                              />
+                            </div>
+
+                            {/* แยกตามอายุ — ช่วงอายุเรียงจากน้อยไปมาก โดยช่วง
+                                สุดท้ายครอบคลุมอายุที่เหลือทั้งหมด */}
+                            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+                              <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+                                <span className='text-xs text-ink-secondary'>ค่าปกติแยกตามอายุ</span>
+                                <NeutralSubdueButton
+                                  variant='outline'
+                                  size='sm'
+                                  leadingIcon='add'
+                                  onClick={() => setAnalyte(i, 'rangeByAge', [...(a.rangeByAge ?? []), { maxAge: 18, range: '' }])}
+                                >
+                                  เพิ่มช่วงอายุ
+                                </NeutralSubdueButton>
+                              </div>
+                              {(a.rangeByAge ?? []).map((b, bi) => (
+                                <div key={bi} className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
+                                  <div style={{ flex: '0 1 150px' }}>
+                                    <NumberField
+                                      label={`ถึงอายุ (ปี)`}
+                                      value={Number.isFinite(b.maxAge) ? b.maxAge : 200}
+                                      onChange={(v) => setAnalyte(i, 'rangeByAge', a.rangeByAge.map((x, xi) => (xi === bi ? { ...x, maxAge: v } : x)))}
+                                    />
+                                  </div>
+                                  <div style={{ flex: '1 1 200px' }}>
+                                    <TextField
+                                      label='ค่าปกติในช่วงนี้'
+                                      value={b.range}
+                                      onChange={(v) => setAnalyte(i, 'rangeByAge', a.rangeByAge.map((x, xi) => (xi === bi ? { ...x, range: v } : x)))}
+                                      placeholder='เช่น 0.4–4.0'
+                                    />
+                                  </div>
+                                  <NeutralSubdueIconButton
+                                    icon='delete'
+                                    variant='outline'
+                                    size='sm'
+                                    aria-label={`ลบช่วงอายุที่ ${bi + 1}`}
+                                    onClick={() => setAnalyte(i, 'rangeByAge', a.rangeByAge.filter((_, xi) => xi !== bi))}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* ค่าวิกฤต — ไม่ใช่แค่ "ผิดปกติ" แต่คือค่าที่ต้อง
+                                โทรแจ้งแพทย์ หน้าบันทึกผลจะบล็อกการรายงานผลจน
+                                กว่าจะบันทึกการแจ้ง */}
+                            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full'>
+                              <TextField
+                                label='ค่าวิกฤต — ต่ำกว่าหรือเท่ากับ'
+                                value={a.criticalLow ?? ''}
+                                onChange={(v) => setAnalyte(i, 'criticalLow', v === '' ? undefined : Number(v))}
+                                placeholder='เช่น 2.5'
+                                hint='เว้นว่างหากไม่มีค่าวิกฤตด้านต่ำ'
+                              />
+                              <TextField
+                                label='ค่าวิกฤต — สูงกว่าหรือเท่ากับ'
+                                value={a.criticalHigh ?? ''}
+                                onChange={(v) => setAnalyte(i, 'criticalHigh', v === '' ? undefined : Number(v))}
+                                placeholder='เช่น 6.0'
+                              />
+                            </div>
+                            <span className='text-xs text-ink-tertiary'>
+                              ค่าที่ถึงเกณฑ์วิกฤตจะบังคับให้บันทึกการแจ้งแพทย์ (ผู้รับแจ้ง เวลา ผู้แจ้ง และ read-back) ก่อนจึงจะรายงานผลได้
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
+                </div>
+              </SectionCard>
+
+              {/* TOR §1.15.3.3 — "สามารถบันทึกราคาและการเบิกแยกตามสิทธิการ
+                  รักษาได้". Price and reimbursability are separate columns
+                  because they answer different questions: what the patient
+                  pays, and whether the หน่วยบริการ gets paid back. */}
+              <SectionCard
+                icon='payments'
+                title='ราคาและการเบิกแยกตามสิทธิการรักษา'
+                subtitle='กำหนดราคาต่อสิทธิ และระบุว่าสิทธินั้นเบิกคืนได้หรือไม่ — เว้นไว้เพื่อใช้ราคาขายตั้งต้น'
+              >
+                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                  {LAB_RIGHTS.map((r) => {
+                    const row = form.priceByRight?.[r.key] ?? { price: form.price, reimbursable: r.key !== 'selfpay' && r.key !== 'other' };
+                    const setRight = (patch) => setField('priceByRight', {
+                      ...(form.priceByRight ?? {}),
+                      [r.key]: { ...row, ...patch },
+                    });
+                    return (
+                      <div
+                        key={r.key}
+                        className='flex flex-wrap items-center w-full'
+                        style={{
+                          gap: 'var(--dim-space-400)',
+                          background: 'var(--surface-card-200)',
+                          borderRadius: 'var(--dim-radius-200)',
+                          border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+                          paddingTop: 'var(--dim-space-300)',
+                          paddingRight: 'var(--dim-space-400)',
+                          paddingBottom: 'var(--dim-space-300)',
+                          paddingLeft: 'var(--dim-space-400)',
+                        }}
+                      >
+                        <span className='text-sm font-bold text-ink' style={{ flex: '1 1 200px', minWidth: 160 }}>
+                          {r.label}
+                        </span>
+                        <label className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                          <span className='text-xs text-ink-secondary'>ราคา (บาท)</span>
+                          <input
+                            type='number'
+                            min='0'
+                            value={row.price ?? 0}
+                            onChange={(e) => setRight({ price: Number(e.target.value) })}
+                            style={{ ...FIELD_STYLE, width: 110 }}
+                          />
+                        </label>
+                        <label className='inline-flex items-center cursor-pointer' style={{ gap: 'var(--dim-space-200)' }}>
+                          <input
+                            type='checkbox'
+                            checked={!!row.reimbursable}
+                            onChange={(e) => setRight({ reimbursable: e.target.checked })}
+                            style={{ width: 'var(--dim-size-300, 16px)', height: 'var(--dim-size-300, 16px)', accentColor: 'var(--surface-brandPrimary-default)' }}
+                          />
+                          <span className='text-sm text-ink-secondary'>เบิกได้</span>
+                        </label>
+                        {!row.reimbursable && (
+                          <span className='text-xs' style={{ color: 'var(--text-statusbadge-warning, #C2410C)' }}>
+                            ผู้ป่วยสิทธินี้ต้องชำระเอง
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </SectionCard>
 

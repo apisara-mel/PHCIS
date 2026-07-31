@@ -92,6 +92,43 @@ export const LAB_TUBES = {
 
 export const LAB_TUBE_LIST = Object.values(LAB_TUBES);
 
+/* สิทธิการรักษา — TOR ภาคผนวก ก §1.15.3.3: "สามารถบันทึกราคาและการเบิกแยก
+   ตามสิทธิการรักษาได้". Two separate things per right, which is why the
+   clause names both:
+
+     `price`        what this right is charged (a UC patient and a self-pay
+                    patient are not billed the same for the same test)
+     `reimbursable` whether the scheme actually pays the หน่วยบริการ back —
+                    a test can be free to the patient AND unreimbursed,
+                    which is exactly the case the finance office needs to
+                    see before a doctor orders it.
+
+   The five schemes below are the ones this app already models elsewhere
+   (patientProfiles.js `insurance`, observationMock.js `rights`). */
+export const LAB_RIGHTS = [
+  { key: 'uc',       label: 'บัตรทอง (UC/NHSO)',        short: 'บัตรทอง' },
+  { key: 'sso',      label: 'ประกันสังคม (SSO)',         short: 'ประกันสังคม' },
+  { key: 'csmbs',    label: 'ข้าราชการ/รัฐวิสาหกิจ (CSMBS)', short: 'ข้าราชการ' },
+  { key: 'selfpay',  label: 'ชำระเงินเอง',                short: 'ชำระเอง' },
+  { key: 'other',    label: 'ประกันเอกชน / สิทธิอื่น',     short: 'อื่น ๆ' },
+];
+
+/* Default pricing applied to any test that has no explicit per-right table
+   — the list price for everyone, reimbursable under the public schemes.
+   `priceByRight` on a test overrides per scheme. */
+export const defaultRightPricing = (test) => Object.fromEntries(
+  LAB_RIGHTS.map((r) => [r.key, {
+    price: test?.price ?? 0,
+    reimbursable: r.key !== 'selfpay' && r.key !== 'other',
+  }]),
+);
+
+/* Resolves what a given right is charged and whether it is claimable. */
+export const resolveRightPricing = (test, rightKey) => {
+  const table = { ...defaultRightPricing(test), ...(test?.priceByRight ?? {}) };
+  return table[rightKey] ?? { price: test?.price ?? 0, reimbursable: false };
+};
+
 /* ประเภทการรายงานผล — the radio group in the MyHOSPITAL Setup form
    (IMG_3947/3948): จำนวน (ค่าปกติเป็นช่วง 2 ค่า) · ข้อความ · กำหนดเอง
    (an editable Negative / Trace / Positive value list). */
