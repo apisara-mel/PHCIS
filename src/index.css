@@ -328,6 +328,10 @@
   --surface-profile-avatar-default:   #CFE6F7;
   --surface-profile-avatar-secondary: #E7F1F8;
 
+  /* — Generic avatar chrome (design.md §6.11 table row 6416-6417) — */
+  --surface-avatar-default: #E2E4E6;   /* neutral/200 — fallback fill behind a portrait/initial */
+  --border-avatar:          #FFFFFF;   /* 2px ring around every avatar */
+
   /* — Vital sign chart-area (Figma PHCIS-ALL 2418:69815) — */
   --surface-chart-area:          #FEFEFE;                    /* chart-area fill */
   --text-chart-axis-label:       #A3ACB4;                    /* axis + date ticks */
