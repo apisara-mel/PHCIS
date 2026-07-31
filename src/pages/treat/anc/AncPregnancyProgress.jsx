@@ -3,6 +3,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Tooltip from '@/components/tooltip/Tooltip';
 import {
   calculateGestationalAge, calculateEDC, formatAncDate, resolveAncRiskLevel,
+  getAncVisitHistoryByHn,
 } from '@/data/ancVisits';
 
 /* Recommended activities per gestational-age band — same tier boundaries
@@ -68,7 +69,7 @@ const tickLabelStyle = {
   whiteSpace: 'nowrap',
 };
 
-const AncPregnancyProgress = ({ form, cardPatient }) => {
+const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
   const ga = calculateGestationalAge(form?.lmp);
   if (!ga) return null;
 
@@ -84,6 +85,29 @@ const AncPregnancyProgress = ({ form, cardPatient }) => {
   const gpaLabel = `G${form?.gravida || '-'} P${form?.para || '-'} A${form?.abortion || '0'}`;
   const gaLabel = `GA ${ga.weeks}${ga.days ? `+${ga.days}` : ''} สัปดาห์`;
 
+  /* Prior visits, placed on the timeline at the gestational age they
+     happened. This is the legacy exam grid's job (คู่มือระบบงานฝากครรภ์
+     p.2-10 lists every visit above the current one) expressed in the form
+     the record already has: a pregnancy IS a 40-week line, which is why
+     the paper สมุดฝากครรภ์ is laid out this way too. Each marker is
+     coloured by the risk recorded AT that visit, so the spine answers
+     "where are we, what has happened, was anything wrong" in one read. */
+  const priorVisits = (getAncVisitHistoryByHn(ancHn) || [])
+    .map((v, i) => ({ ...v, weeks: Number(v.gestWeeks), seq: v.visitNo ?? i + 1 }))
+    .filter((v) => Number.isFinite(v.weeks));
+
+  /* Everything that needs a decision today, gathered in one place instead
+     of scattered across the header, Step 2 and Step 3. Only rendered when
+     non-empty — an empty strip would train the eye to ignore the row. */
+  const alerts = [
+    dangerActive && { key: 'danger', tone: 'red', dot: true, label: 'พบสัญญาณอันตราย — ควรส่งต่อทันที' },
+    riskInfo && riskInfo.value !== 'low' && {
+      key: 'risk', tone: riskInfo.value === 'high' ? 'red' : 'yellow', label: riskInfo.label,
+    },
+    gdmConfirmed && { key: 'gdm', tone: 'red', label: 'เบาหวานขณะตั้งครรภ์ (GDM)' },
+    isMinor && { key: 'minor', tone: 'yellow', label: 'อายุ <18 → ยินยอมโดยผู้ปกครอง (PDPA)' },
+  ].filter(Boolean);
+
   return (
     <div
       className='w-full'
@@ -96,33 +120,31 @@ const AncPregnancyProgress = ({ form, cardPatient }) => {
         width: 'auto',
       }}
     >
-      {/* Badges — G/P/A · GA · minor-consent (PDPA) · risk level · danger signs · GDM */}
+      {/* Identity row — who and where in the pregnancy. Deliberately kept
+          neutral: alerts moved to their own strip below the spine so this
+          row never competes with them for attention. */}
       <div
         className='flex flex-wrap items-center'
         style={{ gap: 'var(--dim-space-200, 8px)', marginBottom: 'var(--dim-space-500, 20px)' }}
       >
         <ColorfulBadge style='green' width='hug'>{gpaLabel}</ColorfulBadge>
         <ColorfulBadge style='blue' width='hug'>{gaLabel}</ColorfulBadge>
-        {isMinor && (
-          <ColorfulBadge style='yellow' width='hug'>
-            อายุ &lt;18 → ยินยอมโดยผู้ปกครอง (PDPA)
-          </ColorfulBadge>
-        )}
-        {riskInfo && riskInfo.value !== 'low' && (
-          <ColorfulBadge style={riskInfo.value === 'high' ? 'red' : 'yellow'} width='hug'>
-            {riskInfo.label}
-          </ColorfulBadge>
-        )}
-        {dangerActive && (
-          <ColorfulBadge style='red' width='hug' showDot>พบสัญญาณอันตราย — ควรส่งต่อ</ColorfulBadge>
-        )}
-        {gdmConfirmed && (
-          <ColorfulBadge style='red' width='hug'>GDM+</ColorfulBadge>
+        {visitNo > 0 && (
+          <span
+            style={{
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs, 12px)',
+              color: 'var(--text-content-secondary, #636B72)',
+            }}
+          >
+            ตรวจครรภ์ครั้งที่ {visitNo}
+            {priorVisits.length > 0 && ` · มาแล้ว ${priorVisits.length} ครั้ง`}
+          </span>
         )}
       </div>
 
       {/* Trimester timeline — 0 to 40 weeks, marker at current GA */}
-      <div className='relative w-full' style={{ height: 44 }}>
+      <div className='relative w-full' style={{ height: 56 }}>
         <div
           className='absolute flex flex-col items-center'
           style={{ left: pctOf(gestWeeks), transform: 'translateX(-50%)', top: 0 }}
@@ -193,8 +215,9 @@ const AncPregnancyProgress = ({ form, cardPatient }) => {
               left: pctOf(p.from),
               width: `${((Math.min(p.to, 40) - p.from) / 40) * 100}%`,
               top: 0,
-              height: 44,
+              height: 40,
               cursor: 'help',
+              zIndex: 1,
             }}
           >
             <Tooltip
@@ -218,14 +241,83 @@ const AncPregnancyProgress = ({ form, cardPatient }) => {
           </div>
         ))}
 
-        <span style={{ ...tickLabelStyle, top: 36, left: pctOf(0) }}>ไตรมาส 1</span>
-        <span style={{ ...tickLabelStyle, top: 36, left: pctOf(12), transform: 'translateX(-50%)' }}>12</span>
-        <span style={{ ...tickLabelStyle, top: 36, left: pctOf(28), transform: 'translateX(-50%)' }}>28</span>
-        <span style={{ ...tickLabelStyle, top: 36, left: pctOf(30), transform: 'translateX(-50%)' }}>ไตรมาส 3</span>
-        <span style={{ ...tickLabelStyle, top: 36, left: pctOf(40), transform: 'translateX(-100%)' }}>
+        {/* Prior-visit markers. Sit above the period hover zones (z-index)
+            so the specific reading wins over the general band tooltip. */}
+        {priorVisits.map((v) => {
+          const tone = resolveAncRiskLevel(v.riskLevel)?.tone;
+          return (
+            <div
+              key={`${v.seq}-${v.date}`}
+              className='absolute'
+              style={{
+                left: pctOf(v.weeks),
+                top: 21,
+                transform: 'translateX(-50%)',
+                zIndex: 2,
+              }}
+            >
+              <Tooltip
+                position='top'
+                variant='light'
+                maxWidth={260}
+                content={
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 'var(--type-weight-bold, 700)', marginBottom: 4 }}>
+                      ครั้งที่ {v.seq} · {v.date} · {v.weeks} สัปดาห์
+                    </div>
+                    <div>BP {v.bp || '—'} · น้ำหนัก {v.weight ?? '—'} กก.</div>
+                    <div>ยอดมดลูก {v.fundusHeight || '—'} · FHR {v.fetalHeartRate || '—'}</div>
+                    <div>ปัสสาวะ {v.urineResult || '—'}</div>
+                    {v.note && v.note !== '-' && <div style={{ marginTop: 4 }}>{v.note}</div>}
+                  </div>
+                }
+              >
+                <div
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 'var(--dim-radius-full, 9999px)',
+                    background: tone?.fg || 'var(--text-content-tertiary, #858c92)',
+                    border: 'var(--dim-stroke-200, 2px) solid var(--surface-card-100, #FFFFFF)',
+                    cursor: 'help',
+                    boxSizing: 'content-box',
+                  }}
+                />
+              </Tooltip>
+            </div>
+          );
+        })}
+
+        <span style={{ ...tickLabelStyle, top: 40, left: pctOf(0) }}>ไตรมาส 1</span>
+        <span style={{ ...tickLabelStyle, top: 40, left: pctOf(12), transform: 'translateX(-50%)' }}>12</span>
+        <span style={{ ...tickLabelStyle, top: 40, left: pctOf(28), transform: 'translateX(-50%)' }}>28</span>
+        <span style={{ ...tickLabelStyle, top: 40, left: pctOf(30), transform: 'translateX(-50%)' }}>ไตรมาส 3</span>
+        <span style={{ ...tickLabelStyle, top: 40, left: pctOf(40), transform: 'translateX(-100%)' }}>
           ครบกำหนด {edc ? formatAncDate(edc) : '—'}
         </span>
       </div>
+
+      {/* The one loud element on the screen. Everything above is neutral so
+          that when this appears it is unmissable — the manual's rule is
+          "พบภาวะเสี่ยงข้อใดข้อหนึ่งต้องส่งต่อหรือรายงานแพทย์", which only
+          works if the clinician cannot scroll past it. */}
+      {alerts.length > 0 && (
+        <div
+          className='flex flex-wrap items-center'
+          style={{
+            gap: 'var(--dim-space-200, 8px)',
+            marginTop: 'var(--dim-space-400, 16px)',
+            paddingTop: 'var(--dim-space-400, 16px)',
+            borderTop: 'var(--dim-stroke-100, 1px) solid var(--border-neutralButton-tertiary, #E2E4E6)',
+          }}
+        >
+          {alerts.map((a) => (
+            <ColorfulBadge key={a.key} style={a.tone} width='hug' showDot={a.dot}>
+              {a.label}
+            </ColorfulBadge>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
