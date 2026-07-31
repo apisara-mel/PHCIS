@@ -13,6 +13,7 @@
 import { findMrPatientByHn } from '@/data/mrPatients';
 import { DRUG_REGISTRY } from '@/data/pharmacyRegistry';
 import { getPharmacySupportingInfo } from '@/data/pharmacySupportingInfo';
+import { getVnByHn } from '@/data/patientProfiles';
 
 export const DISPENSE_STATUS = {
   WAITING:   'waiting',
@@ -597,9 +598,12 @@ const MANUAL_SEED = [
   },
 ];
 
-/* Filler rows P-020..P-059 — pad the mock queue from 8 hand-authored rows
-   out to 48 total (48 ÷ PAGE_SIZE 20 = 3 pages), so the queue table's
+/* Filler rows P-020..P-079 — pad the mock queue from 8 hand-authored rows
+   out to 68 total (68 ÷ PAGE_SIZE 20 = 4 pages), so the queue table's
    pagination and new sort/filter controls have real depth to exercise.
+   Sized so the default "รอเรียก" tab lands on ~32 rows (30 filler past
+   `SERVED_CUTOFF` + P-017/P-018 from the manual seed) — a morning-rush
+   backlog rather than a handful of rows.
    Cycles through the 15 `mrPatients.js` HNs and a small rotation of
    diagnoses/drugs — only drug names already priced in `SUB_PHARMACY_STOCK`
    and classed in `DRUG_ALLERGY_CLASS`/registry, so stock figures and
@@ -649,9 +653,9 @@ const SERVED_STATUS_CYCLE = [
 const FILLER_QUEUE_TYPES = ['general', 'general', 'general', 'urgent', 'few'];
 const FILLER_PAYMENTS = [PAYMENT_STATUS.NOT_APPLICABLE, PAYMENT_STATUS.NOT_APPLICABLE, PAYMENT_STATUS.UNPAID, PAYMENT_STATUS.PAID];
 
-const FILLER_COUNT = 40;
+const FILLER_COUNT = 60;
 const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
-  const n = i + 20; // continues P-012..P-019 → P-020..P-059
+  const n = i + 20; // continues P-012..P-019 → P-020..P-079
   const hn = FILLER_HNS[i % FILLER_HNS.length];
   const diagnosis = FILLER_DIAGNOSES[i % FILLER_DIAGNOSES.length];
   const drug = FILLER_DRUGS[i % FILLER_DRUGS.length];
@@ -660,8 +664,10 @@ const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
     : DISPENSE_STATUS.WAITING;
   const queueType = FILLER_QUEUE_TYPES[i % FILLER_QUEUE_TYPES.length];
   const paymentStatus = FILLER_PAYMENTS[i % FILLER_PAYMENTS.length];
-  const hour = 9 + Math.floor(i / 6);
-  const minute = (i % 6) * 10;
+  /* 8 rows per hour keeps all 60 filler prescriptions inside a plausible
+     09:00-16:49 clinic day instead of spilling past closing time. */
+  const hour = 9 + Math.floor(i / 8);
+  const minute = (i % 8) * 7;
   const issuedAt = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   const wasCalled = [DISPENSE_STATUS.CALLED, DISPENSE_STATUS.PREPARING, DISPENSE_STATUS.DISPENSED, DISPENSE_STATUS.PARTIAL].includes(status);
   const wasDispensed = status === DISPENSE_STATUS.DISPENSED;
@@ -712,6 +718,12 @@ const SUPPORTING_INFO_OVERRIDES = {
 export const PHARMACY_QUEUE = SEED.map((row) => ({
   ...row,
   patientName: patientName(row.hn),
+  /* VN (Visit Number) — same value the OPD screening queue shows for this
+     patient (both read `patientProfiles.js`'s `vn` field — see
+     `getVnByHn`'s doc comment). Empty string for the small number of
+     filler HNs (67-00026..30) that are still "รอลงทะเบียน" and have no
+     screening visit yet, same as the OPD queue would show for them. */
+  vn: getVnByHn(row.hn),
   /* วันที่ออกใบสั่งยา — the mock only carries one day of seed data (resets
      on reload), so this is always "today"; kept as an explicit field
      (rather than derived) so PharmacyReportsPage's date-range filter has a
@@ -753,7 +765,7 @@ export const PHARMACY_USAGE_HISTORY = DAILY_VOLUME_FACTOR.flatMap((factor, dayId
     const issuedAt = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
     return {
       id: `ph-h${dayIdx}-${i}`, queueNo: `H-${daysAgo}-${String(i + 1).padStart(2, '0')}`,
-      hn, patientName: patientName(hn), issuedAt, issuedDate,
+      hn, vn: getVnByHn(hn), patientName: patientName(hn), issuedAt, issuedDate,
       dispensedAt: issuedAt, status: DISPENSE_STATUS.DISPENSED,
       verifiedBy: HISTORY_VERIFIERS[i % HISTORY_VERIFIERS.length],
       items: [{
@@ -980,6 +992,7 @@ export const sendPrescriptionToPharmacy = (visit) => {
     id: `ph-${++pharmacyQueueSeq}`,
     queueNo,
     hn,
+    vn: getVnByHn(hn),
     patientName: patientName(hn),
     issuedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
     issuedDate: TODAY,

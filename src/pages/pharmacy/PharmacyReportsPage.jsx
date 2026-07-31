@@ -79,7 +79,6 @@ const STATUS_PILL = {
 const CARD = {
   background: 'var(--surface-card-100)',
   borderRadius: 'var(--dim-radius-500)',
-  border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
   boxShadow: 'var(--shadow-card-strong)',
   padding: 'var(--dim-space-600)',
 };
@@ -107,7 +106,6 @@ const STAT_TILE = (label, value) => (
       padding: 'var(--dim-space-400)',
       borderRadius: 'var(--dim-radius-400)',
       background: 'var(--surface-brandPrimary-quaternary)',
-      border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
       gap: 'var(--dim-space-100)',
     }}
   >

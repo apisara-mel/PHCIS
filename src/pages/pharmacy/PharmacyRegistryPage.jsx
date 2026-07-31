@@ -192,8 +192,8 @@ const PharmacyRegistryPage = () => {
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           <PharmacySubNav />
           <section
-            className='bg-surface-card rounded-card shadow-card flex flex-col md:flex-row md:items-center w-full'
-            style={{ gap: 'var(--dim-space-400)', padding: 'var(--dim-space-600)' }}
+            className='bg-surface-card rounded-card flex flex-col md:flex-row md:items-center w-full'
+            style={{ gap: 'var(--dim-space-400)', padding: 'var(--dim-space-600)', boxShadow: 'var(--shadow-card-strong)' }}
           >
             <div
               className='shrink-0 inline-flex items-center justify-center'
@@ -219,8 +219,8 @@ const PharmacyRegistryPage = () => {
           </section>
 
           <section
-            className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
-            style={{ padding: 'var(--dim-space-500)', gap: 'var(--dim-space-300)' }}
+            className='bg-surface-card rounded-card flex flex-col w-full'
+            style={{ padding: 'var(--dim-space-500)', gap: 'var(--dim-space-300)', boxShadow: 'var(--shadow-card-strong)' }}
           >
             <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
               <div
@@ -263,7 +263,7 @@ const PharmacyRegistryPage = () => {
 
           <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
             {filtered.length === 0 ? (
-              <div className='bg-surface-card rounded-card shadow-card flex flex-col items-center text-center' style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-200)' }}>
+              <div className='bg-surface-card rounded-card flex flex-col items-center text-center' style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-200)', boxShadow: 'var(--shadow-card-strong)' }}>
                 <Icon name='search_off' size={32} />
                 <p className='text-sm text-ink-secondary'>ไม่พบรายการยาที่ตรงกับเงื่อนไข</p>
               </div>

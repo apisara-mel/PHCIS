@@ -47,8 +47,8 @@ const BLANK_DRUG = {
 
 const SectionCard = ({ icon, title, subtitle, children, action }) => (
   <section
-    className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
-    style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
+    className='bg-surface-card rounded-card flex flex-col w-full'
+    style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)', boxShadow: 'var(--shadow-card-strong)' }}
   >
     <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
       <div
@@ -391,7 +391,7 @@ const PharmacyRegistryEditPage = () => {
             </SectionCard>
           )}
 
-          <section className='bg-surface-card rounded-card shadow-card flex flex-wrap items-center w-full sticky bottom-0' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)' }}>
+          <section className='bg-surface-card rounded-card flex flex-wrap items-center w-full sticky bottom-0' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)', boxShadow: 'var(--shadow-card-strong)' }}>
             <div className='flex-1 min-w-0 flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
               <span className='text-xs text-ink-tertiary'>
                 สรุป: <strong className='text-ink-secondary'>{DRUG_CLASSIFICATIONS.find((c) => c.key === form.classification)?.label}</strong>
