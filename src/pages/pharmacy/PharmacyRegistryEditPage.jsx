@@ -29,6 +29,7 @@ const BLANK_DRUG = {
   genericName: '',
   tradeName: '',
   unit: 'tablet',
+  packSize: 100,
   classification: 'nlem',
   highAlert: false,
   rightsEligible: [...RIGHTS_LIST],
@@ -240,14 +241,30 @@ const PharmacyRegistryEditPage = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon='straighten' title='หน่วยนับและอัตราแปลง' subtitle='หน่วยจ่ายหลักของรายการยานี้ — รองรับมากกว่า 1 หน่วยผ่านตารางอัตราแปลงกลาง'>
+          <SectionCard icon='straighten' title='หน่วยนับและอัตราแปลง' subtitle='หน่วยจ่ายหลักของรายการยานี้ — พร้อมอัตราแปลงหน่วยเฉพาะของยารายการนี้'>
             <div className='grid w-full' style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 'var(--dim-space-300)' }}>
               {UNIT_TYPES.map((u) => (
                 <RadioCard key={u.key} icon='straighten' label={u.label} selected={form.unit === u.key} onSelect={() => setField('unit', u.key)} />
               ))}
             </div>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full'>
+              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                <span className='text-xs text-ink-secondary'>ขนาดบรรจุต่อกล่อง (1 กล่อง = ? {UNIT_TYPES.find((u) => u.key === form.unit)?.label})</span>
+                <input
+                  type='number' min='1' value={form.packSize || ''}
+                  onChange={(e) => setField('packSize', Number(e.target.value) || 0)}
+                  placeholder='เช่น 100'
+                  style={{ width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none' }}
+                />
+              </label>
+              <div className='flex flex-col justify-end' style={{ gap: 'var(--dim-space-150)' }}>
+                <span className='text-xs text-ink-tertiary'>
+                  อัตราแปลงของรายการนี้: 1 กล่อง = {form.packSize || 0} {UNIT_TYPES.find((u) => u.key === form.unit)?.label}
+                </span>
+              </div>
+            </div>
             <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150)' }}>
-              <span className='text-xs text-ink-tertiary'>ตารางอัตราแปลงหน่วย (ใช้ร่วมกันทั้งระบบ)</span>
+              <span className='text-xs text-ink-tertiary'>ตารางอัตราแปลงหน่วยอื่น ๆ (ใช้ร่วมกันทั้งระบบ — สำหรับหน่วยที่ไม่ใช่กล่อง/เม็ด-แคปซูล)</span>
               {UNIT_CONVERSIONS.map((c, i) => (
                 <span key={i} className='text-xs text-ink-secondary'>
                   1 {UNIT_TYPES.find((u) => u.key === c.fromUnit)?.label} = {c.factor} {UNIT_TYPES.find((u) => u.key === c.toUnit)?.label} ({c.note})

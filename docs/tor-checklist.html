@@ -1734,8 +1734,8 @@ const IMPL = {
      supersedes the old medicationCatalog-only partials below. See
      src/pages/pharmacy/*, src/data/pharmacyQueue.js, pharmacyRegistry.js. */
   '1.9.1.1':  {s:'done',    u:'/pharmacy/registry/new', n:'Add/edit drug form with real persistence (upsertRegistryDrug pub/sub) — code/generic/trade name, active-from/to dates'},
-  '1.9.1.2':  {s:'partial', u:'/pharmacy/registry/new', n:'UNIT_TYPES (7 units) + UNIT_CONVERSIONS table, but only 2 illustrative conversions, not a full per-drug table'},
-  '1.9.1.3':  {s:'partial', u:'/pharmacy/registry',     n:'DRUG_CLASSIFICATIONS has NLEM/non-NLEM/narcotic/วัตถุออกฤทธิ์ฯ, but no seed drug is actually classified narcotic/psychotropic'},
+  '1.9.1.2':  {s:'done',    u:'/pharmacy/registry/new', n:'Each drug carries its own real box→unit packSize (convertPackToUnit) — e.g. "1 กล่อง = 500 เม็ด" for this specific drug, editable per-row — plus a generic UNIT_CONVERSIONS fallback table for non-packSize pairs (ขวด/หลอด→มล.)'},
+  '1.9.1.3':  {s:'done',    u:'/pharmacy/registry',     n:'Codeine Phosphate 30 mg (ยาเสพติดให้โทษ ประเภท 2) and Diazepam 5 mg (วัตถุออกฤทธิ์ต่อจิตและประสาท ประเภท 4) seeded as real, correctly-classified narcotic/psychotropic rows — also auto-flagged High Alert'},
   '1.9.1.4':  {s:'done',    u:'/pharmacy/registry/new', n:'rightsEligible chips per drug + checkOutOfRights() flags dispense-time'},
   '1.9.1.5':  {s:'done',    u:'/pharmacy/registry/new', n:'highAlert toggle + checkHighAlert() badge on queue/dispense'},
   '1.9.1.6':  {s:'done',    u:'/pharmacy/registry/new', n:'priceSchedule[] with effectiveFrom/To + currentPrice() resolver'},
@@ -1781,7 +1781,7 @@ const IMPL = {
   '1.9.6.5':  {s:'done',    u:'/pharmacy/requisition', n:'targetUnit select — คลังยาใหญ่ศูนย์ / กองเภสัชกรรม / สปสช. (REQUISITION_TARGETS)'},
   '1.9.6.6':  {s:'done',    u:'/pharmacy/requisition', n:'requestedBy + requestedByPosition shown per line'},
   '1.9.6.7':  {s:'done',    u:'/pharmacy/requisition', n:'itemCategory — ยา/เวชภัณฑ์/ครุภัณฑ์ (REQUISITION_ITEM_CATEGORIES)'},
-  '1.9.6.8':  {s:'partial', u:'/pharmacy/reports',     n:'สรุปการจ่ายยา report aggregates quantity/value per drug, but only over the mock\'s single seeded day — no real multi-day usage trend'},
+  '1.9.6.8':  {s:'done',    u:'/pharmacy/reports',     n:'สรุปการจ่ายยา report aggregates quantity/value per drug over any picked date range; PHARMACY_USAGE_HISTORY backfills the past 6 days with day-varying volume so a real multi-day trend shows (พร้อมปุ่มลัด "7 วันล่าสุด")'},
   '1.9.6.9':  {s:'done',    u:'/pharmacy/requisition', n:'Multi-line requisition documents — add/remove lines, full column set incl. เบิกครั้งที่/เบิกครั้งสุดท้าย'},
   '1.9.6.10': {s:'done',    u:'/pharmacy/requisition', n:'PharmacyRequisitionPrint via window.print()'},
 

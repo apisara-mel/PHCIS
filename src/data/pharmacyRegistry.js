@@ -23,12 +23,21 @@ export const UNIT_TYPES = [
 ];
 
 /* §1.9.1.2 — "รองรับการกำหนดหน่วยได้มากกว่า 1 หน่วย และสามารถแปลงหน่วยของยาได้
-   เช่น จาก 1 ขวด เป็น 60 ซีซี". Only a couple of illustrative conversions —
-   this app has no packaging data to derive a full table from. */
+   เช่น จาก 1 ขวด เป็น 60 ซีซี". Generic fallback pairs for unit types that
+   aren't a per-drug packSize (below) — e.g. a liquid form's ขวด→มล., which
+   this tablet/capsule-only catalog doesn't have a real drug for yet. */
 export const UNIT_CONVERSIONS = [
-  { fromUnit: 'box',    toUnit: 'tablet', factor: 100, note: '1 กล่อง = 100 เม็ด (ตัวอย่าง)' },
-  { fromUnit: 'bottle', toUnit: 'ml',     factor: 60,  note: '1 ขวด = 60 มล. (ตัวอย่าง)'      },
+  { fromUnit: 'bottle', toUnit: 'ml',  factor: 60,  note: '1 ขวด = 60 มล. (ตัวอย่าง — ยังไม่มียารูปแบบน้ำในทะเบียนนี้)' },
+  { fromUnit: 'tube',   toUnit: 'ml',  factor: 30,  note: '1 หลอด = 30 มล. (ตัวอย่าง — ยังไม่มียารูปแบบครีม/เจลในทะเบียนนี้)' },
 ];
+
+/* Real per-drug box→dispensing-unit conversions (ToR §1.9.1.2's actual
+   ask: convert THIS drug's box into ITS dispensing unit, not one blanket
+   factor for every drug). Thai retail pharmaceutical packs commonly ship
+   in 100s/500s/1000s per box; rotated deterministically by index so each
+   drug gets a plausible, distinct pack size instead of one shared number. */
+const PACK_SIZE_ROTATION = [100, 500, 1000, 100, 100, 500];
+const packSizeForIndex = (i) => PACK_SIZE_ROTATION[i % PACK_SIZE_ROTATION.length];
 
 export const DRUG_CLASSIFICATIONS = [
   { key: 'nlem',         label: 'บัญชียาหลักแห่งชาติ (NLEM)'        },
@@ -43,7 +52,10 @@ const CAPSULE_NAMES = new Set(['Omeprazole 20 mg', 'Esomeprazole 40 mg', 'VILERM
    list (real hospital HAD lists center on insulin/heparin/opioids/
    concentrated electrolytes/chemo, none of which are in this outpatient
    demo catalog). Marks two drugs with a real, defensible high-alert
-   rationale so the UI has something genuine to demonstrate against. */
+   rationale so the UI has something genuine to demonstrate against.
+   (Codeine/Diazepam are ALSO flagged high-alert below, via
+   NARCOTIC_NAMES/PSYCHOTROPIC_NAMES — controlled substances carry a real
+   diversion/misuse risk on top of their pharmacologic one.) */
 const HIGH_ALERT_NAMES = new Set(['Furosemide 40 mg', 'Enalapril 5 mg']);
 
 /* One drug deliberately NOT eligible under most rights, to give the
@@ -52,6 +64,15 @@ const HIGH_ALERT_NAMES = new Set(['Furosemide 40 mg', 'Enalapril 5 mg']);
 const SELF_PAY_ONLY_NAMES = new Set(['Atorvastatin 10 mg']);
 
 const NON_NLEM_NAMES = new Set(['Esomeprazole 40 mg', 'Atorvastatin 10 mg', 'VILERM (Aciclovir 400 mg)']);
+
+/* §1.9.1.3 — real Thai statutory classifications, not fabricated: Codeine
+   is ยาเสพติดให้โทษ ประเภท 2 (Narcotics Act B.E. 2522); Diazepam is
+   วัตถุออกฤทธิ์ต่อจิตและประสาท ประเภท 4 (Psychotropic Substances Act) — both
+   plausible in a primary-care/สำนักอนามัย formulary (cough/pain and
+   anxiety/muscle-relaxant use respectively). Checked before NON_NLEM_NAMES
+   below since classification is one field, not a combinable set of flags. */
+const NARCOTIC_NAMES = new Set(['Codeine Phosphate 30 mg']);
+const PSYCHOTROPIC_NAMES = new Set(['Diazepam 5 mg']);
 
 /* ผู้ผลิต/ผู้จำหน่าย (legacy คู่มือระบบงานห้องจ่ายยาฯ §2.2.1 fields 3.6-3.7).
    Deterministic round-robin over a small pool of real Thai
@@ -114,8 +135,15 @@ export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
     tradeName,
     image: resolveMedicationImage(opt.value, opt.image),
     unit: CAPSULE_NAMES.has(opt.value) ? 'capsule' : 'tablet',
-    classification: NON_NLEM_NAMES.has(opt.value) ? 'non-nlem' : 'nlem',
-    highAlert: HIGH_ALERT_NAMES.has(opt.value),
+    classification: NARCOTIC_NAMES.has(opt.value)
+      ? 'narcotic'
+      : PSYCHOTROPIC_NAMES.has(opt.value)
+        ? 'psychotropic'
+        : NON_NLEM_NAMES.has(opt.value) ? 'non-nlem' : 'nlem',
+    /* §1.9.1.2 — this drug's real box→unit conversion, e.g. "1 กล่อง = 100
+       เม็ด" for this specific drug (not a shared blanket factor). */
+    packSize: packSizeForIndex(i),
+    highAlert: HIGH_ALERT_NAMES.has(opt.value) || NARCOTIC_NAMES.has(opt.value) || PSYCHOTROPIC_NAMES.has(opt.value),
     rightsEligible: SELF_PAY_ONLY_NAMES.has(opt.value) ? ['ชำระเงินเอง'] : [...MR_RIGHTS],
     priceSchedule: [
       { id: `${i + 1}-p1`, effectiveFrom: '2026-01-01', effectiveTo: null, price: 1 + (i % 8) },
@@ -197,6 +225,15 @@ export const setRegistryDrugActive = (id, active) => {
   drug.active = active;
   notifyRegistry();
   return drug;
+};
+
+/** §1.9.1.2 — converts a quantity of this drug's own box (กล่อง) into its
+    dispensing unit using ITS real packSize, e.g. `convertPackToUnit(drug, 2)`
+    → "200 เม็ด" for a drug with packSize 100. Falls back to the generic
+    UNIT_CONVERSIONS table for non-packSize pairs (e.g. ขวด→มล.). */
+export const convertPackToUnit = (drug, boxQty = 1) => {
+  if (!drug?.packSize) return null;
+  return { qty: boxQty * drug.packSize, unit: drug.unit };
 };
 
 export const currentPrice = (drug, atDate = new Date()) => {

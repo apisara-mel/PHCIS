@@ -124,7 +124,7 @@
   <div class="foot">
     <b>ที่มาข้อมูล.</b> ทุกตัวเลขดึงจาก status map ในไฟล์ <code>docs/tor-checklist.html</code>
     (id ของ TOR → <code>{s: done|partial|todo}</code>) — เป็นแหล่งความจริงเดียวกับ TOR Compliance Checklist
-    รวม 306 รายการที่ประเมินแล้ว (205 done · 101 partial) · denominator = จำนวน leaf item ทั้งหมดของแต่ละระบบตาม TOR<br>
+    รวม 306 รายการที่ประเมินแล้ว (208 done · 98 partial) · denominator = จำนวน leaf item ทั้งหมดของแต่ละระบบตาม TOR<br>
     <b>คอลัมน์ Figma.</b> <span class="chip yes" style="min-width:16px;height:16px">✓</span> = ทุกหน้าที่ vibe code แล้วมีต้นทางออกแบบใน Figma (โค้ดอ้าง Figma node id ทุกหน้า) ·
     <span class="chip part" style="min-width:16px;height:16px">◐</span> = ออกแบบบางส่วน ·
     <span class="chip no" style="min-width:16px;height:16px">—</span> = ยังไม่ได้ออกแบบ (ระบบที่ยังไม่เริ่ม)<br>
@@ -147,7 +147,7 @@ const WEB=[
   {tor:'1.6',  name:'ระบบจัดการตารางนัดหมาย (Appointments)', figma:'yes', done:3,partial:2, total:17, override:95, route:'/appointment', note:'สร้าง/ค้นหานัดหมาย · sync master schedule ยังไม่ครบ'},
   {tor:'1.7',  name:'สิทธิและการเบิกจ่าย', figma:'part', done:2,partial:1, total:29, outscope:true, route:'/users', note:'per-feature gate · ตรวจสอบ/ส่งเบิก/claim ยังไม่ทำ (นอกขอบเขตเฟสนี้)'},
   {tor:'1.8',  name:'ระบบงานการเงิน', figma:'no', done:0,partial:3, total:45, outscope:true, route:'—', note:'คำนวณค่าใช้จ่าย/ใบเสร็จ/ทะเบียนรายรับ — ยังไม่เริ่ม'},
-  {tor:'1.9',  name:'ระบบงานเภสัชกรรม (เว็บ)', figma:'no', done:57,partial:5, total:62, route:'/pharmacy/queue', note:'คิว/จ่ายยา/ทะเบียนยา (persist จริง)/คลัง (auto-reorder + ยืม-คืน-แลกล็อต)/เบิก-รับเข้าคลัง/รายงาน (CSV จริง) — ข้อมูลประกอบการจ่ายยา (ประวัติรักษา/ผล Lab/นัดหมาย) join จริงข้ามโมดูล; ประวัติส่งปรึกษา/ผลรังสีวิทยายังเป็น mock เพราะยังไม่มีโมดูลนั้นในระบบ'},
+  {tor:'1.9',  name:'ระบบงานเภสัชกรรม (เว็บ)', figma:'no', done:60,partial:2, total:62, route:'/pharmacy/queue', note:'คิว/จ่ายยา/ทะเบียนยา (persist จริง + อัตราแปลงหน่วยต่อรายการยา + จัดกลุ่มยาเสพติด/วัตถุออกฤทธิ์ฯ จริง)/คลัง (auto-reorder + ยืม-คืน-แลกล็อต)/เบิก-รับเข้าคลัง/รายงาน (CSV จริง + trend ย้อนหลัง 7 วัน) — ข้อมูลประกอบการจ่ายยา (ประวัติรักษา/ผล Lab/นัดหมาย) join จริงข้ามโมดูล; ประวัติส่งปรึกษา/ผลรังสีวิทยายังเป็น mock เพราะยังไม่มีโมดูลนั้นในระบบ; สแกนรับเข้าคลังยังเป็น text field ไม่ใช่กล้อง/บาร์โค้ดจริง'},
   {tor:'1.10', name:'คลินิกพิเศษ / กลุ่มโรคเฉพาะ', figma:'part', done:0,partial:1, total:84, override:10, route:'—', note:'ทันตกรรม/NCD/จิตเวช/วัณโรค/ANC ฯลฯ — เริ่มบางส่วน'},
   {tor:'1.16', name:'ระบบงานตู้ Kiosk', figma:'yes', done:1,partial:9, total:16, override:80, route:'/kiosk', note:'ออกคิว + ตั๋วคิว mobile · ตรวจสิทธิ สปสช./รับชำระ ยังไม่ครบ'},
   {tor:'1.17', name:'ระบบงานผู้ดูแลระบบ (User · Role · Admin)', figma:'yes', done:5,partial:4, total:14, override:90, route:'/admin · /users · /assess', note:'Figma เสร็จครบ 100% · เหลือแค่ vibe code — จัดการผู้ใช้/สิทธิ์ · หน่วยบริการ · โครงสร้างองค์กร'},

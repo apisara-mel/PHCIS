@@ -5,18 +5,21 @@ import Badge from '@/components/badge/Badge';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
-import { PHARMACY_QUEUE, DISPENSE_STATUS } from '@/data/pharmacyQueue';
+import { PHARMACY_QUEUE, PHARMACY_USAGE_HISTORY, DISPENSE_STATUS } from '@/data/pharmacyQueue';
 import { getRegistryDrug, currentPrice } from '@/data/pharmacyRegistry';
 
 /* รายงาน (ToR §1.9.11 / legacy manual §2.1.7 "รายงาน") — two report cards:
    1) รายละเอียดใบสั่งยารายวัน — every prescription issued today, one row per
       queue item.
    2) สรุปการจ่ายยา — per-drug rollup (quantity prescribed vs. actually
-      dispensed, and estimated value at the registry's current price).
-   Both filter `PHARMACY_QUEUE` by its `issuedDate` field (from/to date
-   pickers, default = today) and export to a real downloaded CSV — the mock
-   only ever seeds one day of data (resets on reload), so a non-today range
-   just returns an empty table rather than fabricating extra days. */
+      dispensed, and estimated value at the registry's current price),
+      i.e. ToR §1.9.6.8's "สถิติการใช้ยาแต่ละประเภท".
+   Both filter `[...PHARMACY_QUEUE, ...PHARMACY_USAGE_HISTORY]` by
+   `issuedDate` (from/to date pickers, default = today) and export to a real
+   downloaded CSV. `PHARMACY_USAGE_HISTORY` backfills the past 6 days as
+   closed records (see pharmacyQueue.js) so picking a multi-day range shows
+   a real day-to-day usage trend, not just today's single seeded day. */
+const REPORT_SOURCE_ROWS = [...PHARMACY_QUEUE, ...PHARMACY_USAGE_HISTORY];
 
 const breadcrumb = ['ระบบงานเภสัชกรรม', 'รายงาน'];
 
@@ -141,11 +144,11 @@ const SUMMARY_COLUMNS = [
   { key: 'totalValue', label: 'มูลค่ารวม (โดยประมาณ)', width: 160, align: 'right', render: (r) => `฿${r.totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, csv: (r) => r.totalValue.toFixed(2) },
 ];
 
-const buildDetailRows = (from, to) => PHARMACY_QUEUE.filter((r) => r.issuedDate >= from && r.issuedDate <= to);
+const buildDetailRows = (from, to) => REPORT_SOURCE_ROWS.filter((r) => r.issuedDate >= from && r.issuedDate <= to);
 
 const buildSummaryRows = (from, to) => {
   const byDrug = new Map();
-  PHARMACY_QUEUE.filter((r) => r.issuedDate >= from && r.issuedDate <= to).forEach((row) => {
+  REPORT_SOURCE_ROWS.filter((r) => r.issuedDate >= from && r.issuedDate <= to).forEach((row) => {
     row.items.forEach((item) => {
       const entry = byDrug.get(item.name) || {
         name: item.name, unit: item.unit, prescriptionCount: 0, totalQuantity: 0, totalDispensed: 0, totalValue: 0,
@@ -197,6 +200,12 @@ const PharmacyReportsPage = () => {
   };
 
   const resetToToday = () => { setFromDate(todayIso()); setToDate(todayIso()); };
+  const setLast7Days = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    setFromDate(d.toISOString().slice(0, 10));
+    setToDate(todayIso());
+  };
 
   return (
     <QueuePageShell
@@ -216,6 +225,7 @@ const PharmacyReportsPage = () => {
             <input type='date' value={toDate} min={fromDate} onChange={(e) => setToDate(e.target.value)} style={DATE_INPUT_STYLE} />
           </label>
           <NeutralSubdueButton variant='outline' size='sm' leadingIcon='today' onClick={resetToToday}>วันนี้</NeutralSubdueButton>
+          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='date_range' onClick={setLast7Days}>7 วันล่าสุด</NeutralSubdueButton>
         </section>
 
         <ReportCard

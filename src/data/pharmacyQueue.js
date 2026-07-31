@@ -722,6 +722,49 @@ export const PHARMACY_QUEUE = SEED.map((row) => ({
   items: row.items.map((it) => ({ ...it, prepared: false, auxLabels: AUX_LABEL_DEFAULTS[it.name] || [], refillPlan: null })),
 }));
 
+/* §1.9.6.8 "สามารถดูสถิติการใช้ยาแต่ละประเภทได้" — `PHARMACY_QUEUE` above is
+   only ever "today" (resets on reload), so PharmacyReportsPage's date-range
+   filter had nothing to show for any other day. This backfills the past 6
+   days as already-closed (DISPENSED) records — kept in a separate array
+   rather than merged into `PHARMACY_QUEUE` itself, since that array also
+   backs the LIVE queue board (PharmacyQueuePage) and search (PharmacyHistoryPage),
+   neither of which should show old closed prescriptions mixed into "today".
+   PharmacyReportsPage is the only reader, via `PHARMACY_USAGE_HISTORY`.
+   Quantity is scaled per day by `DAILY_VOLUME_FACTOR` (not a flat repeat) so
+   a multi-day range in the report shows a real day-to-day usage trend. */
+const dayIso = (daysAgo) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+};
+const DAILY_VOLUME_FACTOR = [0.65, 0.85, 1.15, 0.95, 1.3, 0.75]; // days -1..-6, oldest last
+const HISTORY_VERIFIERS = [CURRENT_CLINICAL_PHARMACIST.name, CURRENT_DISPENSER.name];
+
+export const PHARMACY_USAGE_HISTORY = DAILY_VOLUME_FACTOR.flatMap((factor, dayIdx) => {
+  const daysAgo = dayIdx + 1;
+  const issuedDate = dayIso(daysAgo);
+  const rowsToday = Math.max(3, Math.round(FILLER_DRUGS.length * 2 * factor));
+  return Array.from({ length: rowsToday }, (_, i) => {
+    const hn = FILLER_HNS[(dayIdx * 7 + i) % FILLER_HNS.length];
+    const drug = FILLER_DRUGS[i % FILLER_DRUGS.length];
+    const quantity = Math.max(1, Math.round(drug.quantity * factor));
+    const hour = 8 + (i % 8);
+    const minute = (i % 6) * 10;
+    const issuedAt = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    return {
+      id: `ph-h${dayIdx}-${i}`, queueNo: `H-${daysAgo}-${String(i + 1).padStart(2, '0')}`,
+      hn, patientName: patientName(hn), issuedAt, issuedDate,
+      dispensedAt: issuedAt, status: DISPENSE_STATUS.DISPENSED,
+      verifiedBy: HISTORY_VERIFIERS[i % HISTORY_VERIFIERS.length],
+      items: [{
+        id: `i-h${dayIdx}-${i}`, name: drug.name, dosePerTake: drug.dosePerTake, unit: drug.unit,
+        frequency: drug.frequency, when: drug.when, quantity, quantityDispensed: quantity,
+        instructions: drug.instructions, source: 'new', drugType: drug.drugType,
+      }],
+    };
+  });
+});
+
 export const findPharmacyRowByQueueNo = (queueNo) =>
   PHARMACY_QUEUE.find((r) => r.queueNo === queueNo) || null;
 
