@@ -15,12 +15,16 @@ import Pagination from '@/components/pagination/Pagination';
 import { Icon } from '@/components/icons/Icon';
 import {
   LAB_ORDERS, LAB_STATUSES, LAB_URGENCIES, LAB_LOCATIONS,
+  LAB_STATUS_BY_KEY, LAB_URGENCY_BY_KEY,
   withTestLabel, labHistoryFor,
   subscribeOrders, updateLabOrder, deleteLabOrder,
 } from '@/data/labOrders';
 import { LAB_GROUPS, LAB_TUBES, duplicateWarning } from '@/data/labCatalog';
 import LabDetailPanel from '@/pages/lab/LabDetailPanel';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
+import LabSpecimenLabel from '@/components/lab/LabSpecimenLabel';
+import LabCollectionReport from '@/components/lab/LabCollectionReport';
+import { printLab } from '@/data/labPrintSettings';
 
 /* งานชันสูตรโรค — Worklist. The lab's own working screen: every specimen
    the department owes somebody, from the moment a doctor's order lands to
@@ -597,6 +601,9 @@ const LabQueuePage = () => {
      in scan mode; a real HID barcode wedge types into the focused field and
      submits, which is exactly what PrimarySearch already handles. */
   const [scanMode, setScanMode] = useState(false);
+  /* Rows handed to the print-only sticker sheet — set immediately before
+     printing so one click prints one tube's label, not the whole table. */
+  const [printRows, setPrintRows] = useState([]);
   const searchWrapRef = useRef(null);
   const handleScan = () => {
     setScanMode(true);
@@ -642,10 +649,17 @@ const LabQueuePage = () => {
 
   const handleAction = (kind, row) => {
     if (kind === 'label') {
-      /* Sticker printing (TOR §1.15.5) needs no confirmation — it's additive
-         and re-printable. Marks the row labelled so "รอพิมพ์ label" clears. */
+      /* Sticker printing (TOR §1.15.5.1) needs no confirmation — it is
+         additive and re-printable. Every row sharing this accession prints
+         on ONE sticker, because one accession is one tube (§1.15.5.3): a
+         CBC and an HbA1c both drawn into the same EDTA tube must not
+         produce two labels for one physical tube. */
+      setPrintRows(liveRows.filter((r) => r.accessionNo === row.accessionNo));
       updateLabOrder(row.id, { labeled: true });
       logAudit('พิมพ์สติกเกอร์ติดหลอด', rowLabel(row));
+      /* Let the print-only sheet re-render with the new rows before the
+         browser snapshots the page. */
+      window.setTimeout(() => printLab('sticker'), 0);
       return;
     }
     if (kind === 'result') {
@@ -742,6 +756,15 @@ const LabQueuePage = () => {
   const sorted = useMemo(
     () => sortRows(filtered, sortConfig, statFirst).map((r, i) => ({ ...r, queueNo: i + 1 })),
     [filtered, sortConfig, statFirst],
+  );
+
+  /* The collection round only covers specimens not yet in the lab's hands —
+     printing a walking list that includes results already reported would
+     send someone to draw blood that is already on the analyser. Takes the
+     filtered view, so the toolbar's filters scope the printed sheet. */
+  const collectionRows = useMemo(
+    () => sorted.filter((r) => r.status === 'requested' || r.status === 'collect'),
+    [sorted],
   );
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
@@ -913,6 +936,24 @@ const LabQueuePage = () => {
               </div>
 
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
+                {/* §1.15.5.2 — the round sheet. Prints whatever the current
+                    filters have narrowed the list to, so "พิมพ์รายการเก็บ
+                    ตัวอย่างของ ER เฉพาะ STAT" is just filter-then-print
+                    rather than a separate report builder. Only rows still
+                    awaiting collection are worth walking to. */}
+                <NeutralSubdueButton
+                  variant='outline'
+                  size='sm'
+                  leadingIcon='print'
+                  disabled={collectionRows.length === 0}
+                  onClick={() => {
+                    setPrintRows(collectionRows);
+                    logAudit('พิมพ์รายการเก็บตัวอย่าง', `${collectionRows.length} รายการ`);
+                    window.setTimeout(() => printLab('collection'), 0);
+                  }}
+                >
+                  พิมพ์รายการเก็บตัวอย่าง ({collectionRows.length})
+                </NeutralSubdueButton>
                 {/* "STAT ก่อน" — the mockup renders it as a pressed pill
                     beside the filters, so it reads as a mode not a filter:
                     it re-orders the list, it doesn't remove rows. */}
@@ -1076,6 +1117,25 @@ const LabQueuePage = () => {
           </div>
         </div>
       </QueuePageShell>
+
+      {/* Print-only documents (TOR §1.15.5). Always mounted but hidden;
+          `printLab(mode)` sets the root attribute that decides which one
+          @media print reveals, so the sticker button and the round-sheet
+          button never print each other's content. Kept OUTSIDE
+          QueuePageShell so the print stylesheet's "hide everything except
+          the print root" rule has nothing of the app chrome to fight. */}
+      <div className='mih-lab-print-root'>
+        <LabSpecimenLabel rows={printRows} />
+        <LabCollectionReport
+          rows={printRows}
+          filterNote={[
+            activeTab !== 'all' && LAB_STATUS_BY_KEY[activeTab]?.label,
+            location !== 'all' && location,
+            urgency !== 'all' && LAB_URGENCY_BY_KEY[urgency]?.label,
+            group !== 'all' && LAB_GROUPS.find((g) => g.key === group)?.thai,
+          ].filter(Boolean).join(' · ') || null}
+        />
+      </div>
     </>
   );
 };

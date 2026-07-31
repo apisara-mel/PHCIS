@@ -9,6 +9,12 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
+import { SpecimenSticker, groupRowsByTube } from '@/components/lab/LabSpecimenLabel';
+import { LAB_ORDERS, withTestLabel } from '@/data/labOrders';
+import {
+  LAB_STICKER_FIELDS, getPrintSettings, isStickerFieldOn,
+  setStickerField, setPrintSetting, subscribePrintSettings,
+} from '@/data/labPrintSettings';
 import {
   LAB_TESTS, LAB_GROUPS, LAB_TUBES, LAB_TUBE_LIST, LAB_RESULT_TYPES,
   getTube, subscribeCatalog, upsertLabTest, setLabTestRetired,
@@ -287,6 +293,22 @@ const LabSetupPage = () => {
   const [version, setVersion] = useState(0);
   useEffect(() => subscribeCatalog(() => setVersion((v) => v + 1)), []);
 
+  /* Sticker settings live in their own store (labPrintSettings.js) because
+     the sticker layout is not a property of any one test. */
+  const [printVersion, setPrintVersion] = useState(0);
+  useEffect(() => subscribePrintSettings(() => setPrintVersion((v) => v + 1)), []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const printSettings = useMemo(() => getPrintSettings(), [printVersion]);
+
+  /* Preview uses a real order — the first one with more than one test on a
+     tube, so the preview exercises the multi-test case rather than the
+     easy one. */
+  const previewGroup = useMemo(() => {
+    const rows = LAB_ORDERS.map(withTestLabel);
+    const groups = groupRowsByTube(rows);
+    return groups.find((g) => g.rows.length > 1) ?? groups[0] ?? null;
+  }, []);
+
   const [query, setQuery] = useState('');
   const [groupFilter, setGroupFilter] = useState('all');
   const [editingId, setEditingId] = useState(null);
@@ -494,6 +516,96 @@ const LabSetupPage = () => {
                 );
               })}
             </div>
+          </SectionCard>
+
+          {/* ─── Sticker configuration ─── */}
+          {/* TOR §1.15.5.1 — "สามารถกำหนดข้อมูลบนสติกเกอร์ Lab ได้ตามเงื่อนไข
+              ที่สำนักอนามัยกำหนด". The field set is configuration, not a
+              fixed layout, so it lives here rather than in the sticker
+              component. Two fields are locked on: without an accession
+              barcode and a patient identifier a tube is untraceable, which
+              is a patient-safety failure rather than a formatting choice. */}
+          <SectionCard
+            icon='barcode'
+            title='ข้อมูลบนสติกเกอร์ Lab'
+            subtitle='เลือกว่าจะให้พิมพ์ข้อมูลใดลงบนสติกเกอร์ติดหลอด — รายการที่ล็อกไว้คือตัวระบุที่จำเป็นต่อความปลอดภัยผู้ป่วย'
+            action={<Badge style='neutral' size='small'>{printSettings.enabled.length} / {LAB_STICKER_FIELDS.length} รายการ</Badge>}
+          >
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-3 w-full'>
+              {LAB_STICKER_FIELDS.map((f) => {
+                const on = isStickerFieldOn(f.key);
+                return (
+                  <label
+                    key={f.key}
+                    className='flex items-start cursor-pointer'
+                    style={{
+                      gap: 'var(--dim-space-200)',
+                      background: on ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
+                      border: `var(--dim-stroke-100) solid ${on ? 'var(--border-brandPrimary-default)' : 'var(--border-card-default)'}`,
+                      borderRadius: 'var(--dim-radius-200)',
+                      paddingTop: 'var(--dim-space-300)',
+                      paddingRight: 'var(--dim-space-300)',
+                      paddingBottom: 'var(--dim-space-300)',
+                      paddingLeft: 'var(--dim-space-300)',
+                      cursor: f.required ? 'not-allowed' : 'pointer',
+                      opacity: f.required ? 0.85 : 1,
+                    }}
+                  >
+                    <input
+                      type='checkbox'
+                      checked={on}
+                      disabled={f.required}
+                      onChange={(e) => setStickerField(f.key, e.target.checked)}
+                      style={{ width: 'var(--dim-size-300, 16px)', height: 'var(--dim-size-300, 16px)', accentColor: 'var(--surface-brandPrimary-default)', marginTop: 2 }}
+                    />
+                    <span className='flex flex-col min-w-0'>
+                      <span className='text-sm' style={{ fontWeight: 'var(--type-weight-medium)', color: on ? 'var(--text-brandPrimary-default)' : 'var(--text-content-primary)' }}>
+                        {f.label}{f.required && ' 🔒'}
+                      </span>
+                      {f.hint && <span className='text-xs text-ink-tertiary'>{f.hint}</span>}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full'>
+              <TextField
+                label='ชื่อหน่วยบริการที่พิมพ์บนสติกเกอร์'
+                value={printSettings.siteName}
+                onChange={(v) => setPrintSetting('siteName', v)}
+              />
+              <NumberField
+                label='จำนวนสติกเกอร์ต่อหลอด'
+                suffix='ใบ · บางหน่วยติดทั้งหลอดและใบส่งตรวจ'
+                value={printSettings.copiesPerTube}
+                onChange={(v) => setPrintSetting('copiesPerTube', Math.max(1, v))}
+              />
+            </div>
+
+            {/* Live preview — the point of a configurable label is seeing
+                what the change did, and a sticker is small enough to show
+                inline. Uses a real worklist row so the preview reflects
+                actual data rather than lorem. */}
+            {previewGroup && (
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+                <span className='text-xs text-ink-secondary'>ตัวอย่างสติกเกอร์</span>
+                <div
+                  style={{
+                    background: '#FFFFFF',
+                    border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+                    borderRadius: 'var(--dim-radius-200)',
+                    paddingTop: 'var(--dim-space-400)',
+                    paddingRight: 'var(--dim-space-400)',
+                    paddingBottom: 'var(--dim-space-400)',
+                    paddingLeft: 'var(--dim-space-400)',
+                    overflowX: 'auto',
+                  }}
+                >
+                  <SpecimenSticker group={previewGroup} settings={printSettings} />
+                </div>
+              </div>
+            )}
           </SectionCard>
 
           {/* ─── Edit form ─── */}
