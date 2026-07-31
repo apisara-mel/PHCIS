@@ -4,7 +4,8 @@ import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import VitalCard, { PressureCard } from '@/components/card/VitalCard';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import StatusBadge from '@/components/badge/StatusBadge';
-import { calculateEwsScore } from '@/data/observationMock';
+import Alert from '@/components/alert/Alert';
+import { scorePatientVitals, getOutOfRangeVitals } from '@/data/observationMock';
 import { getPatientByHN } from '@/data/patientProfiles';
 
 export const VITALS_NOTE_SUGGESTIONS = [
@@ -37,13 +38,26 @@ export default function AddVitalsModal({
 }) {
   if (!patient) return null;
 
-  const ewsRes = calculateEwsScore({
+  /* Scored against the patient, not the numbers alone — a 9-year-old's
+     pulse of 118 is normal on the paediatric chart and alarming on the
+     adult one (edge case #14). */
+  const ewsRes = scorePatientVitals(patient, {
     bpSys: Number(form.bpSys),
     pulse: Number(form.pulse),
     temp: Number(form.temp),
     spo2: Number(form.spo2),
     rr: Number(form.rr),
   });
+
+  /* Out-of-bound Vital Sign Validation (docs/observation-use-cases.md
+     edge case #5) — a mistyped "368 °C" / "1200/800 mmHg" must never
+     reach the Timed Vitals table, because everything downstream (EWS
+     tier, trend graph, discharge vitals) would silently inherit the
+     typo. Blocks the save AND names each offending field with its
+     accepted range, so the nurse can see WHICH number to re-check
+     rather than just being told "invalid". */
+  const outOfRange = getOutOfRangeVitals(form);
+  const hasOutOfRange = outOfRange.length > 0;
 
   return (
     <Popup
@@ -53,7 +67,7 @@ export default function AddVitalsModal({
       leading={<span className='material-symbols-outlined text-2xl' style={{ color: 'var(--brand-p700)' }}>monitor_heart</span>}
       size='extraLarge'
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
-      primaryAction={{ label: 'บันทึกสัญญาณชีพ', onClick: onSubmit, disabled: !isFormValid }}
+      primaryAction={{ label: 'บันทึกสัญญาณชีพ', onClick: onSubmit, disabled: !isFormValid || hasOutOfRange }}
     >
       <PatientSummaryCard
         avatarUrl={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl}
@@ -123,8 +137,22 @@ export default function AddVitalsModal({
         popoverAriaLabel='คำแนะนำหมายเหตุการวัดสัญญาณชีพ'
       />
 
+      {hasOutOfRange && (
+        <Alert
+          type='error'
+          title='กรุณาตรวจสอบตัวเลขก่อนบันทึก — ค่าที่กรอกอยู่นอกช่วงที่เป็นไปได้'
+          /* One indicator per offending field, so the nurse can see WHICH
+             number to re-check rather than just being told "invalid". */
+          indicators={outOfRange.map((f) => `${f.label}: กรอก ${f.value} ${f.unit} — ค่าที่รับได้คือ ${f.min}–${f.max} ${f.unit}`)}
+          showCloseButton={false}
+          style={{ maxWidth: '100%' }}
+        />
+      )}
+
       <div className='p-3 bg-ink-neutral rounded-xl border border-ink-line flex items-center justify-between text-xs text-ink-secondary'>
-        <span className='font-semibold text-ink-secondary'>คะแนนเตือนภัยล่วงหน้า (EWS Calculated):</span>
+        <span className='font-semibold text-ink-secondary'>
+          คะแนนเตือนภัยล่วงหน้า — เกณฑ์ {ewsRes.scale.label}:
+        </span>
         <StatusBadge style={ewsRes.tier.style} size='small' showDot>
           Score: {ewsRes.score} ({ewsRes.tier.label})
         </StatusBadge>

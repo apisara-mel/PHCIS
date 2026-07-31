@@ -301,7 +301,11 @@ export const HBarList = ({ rows, valueLabel = 'คน', secondLabel = 'ครั
 };
 
 /* ── Vertical bars (grouped or stacked, N series across months) ─ */
-export const VBars = ({ months, series, height = 200, onMonthClick, activeMonth = null, stacked = false }) => {
+/* `barMaxWidth` only applies to the grouped (non-stacked) layout. The 10px
+   default is tuned for 12 monthly columns; callers plotting a handful of
+   categories should widen it, otherwise the per-bar value labels sit ~10px
+   apart and overlap each other. */
+export const VBars = ({ months, series, height = 200, onMonthClick, activeMonth = null, stacked = false, barMaxWidth = 10 }) => {
   const monthTotals = months.map((_, idx) => series.reduce((sum, s) => sum + s.values[idx], 0));
   const max = stacked
     ? Math.max(...monthTotals) || 1
@@ -377,8 +381,17 @@ export const VBars = ({ months, series, height = 200, onMonthClick, activeMonth 
                   series.map((s, si) => {
                     const v = s.values[idx];
                     const h = animated ? (v / max) * 100 : 0;
+                    /* The bar's `height: <pct>%` needs a resolved height on its
+                       wrapper — without one the percentage resolves against
+                       `auto` and every grouped bar collapses to 0 (the stacked
+                       branch above already sets height:100%). `items-end` keeps
+                       the bar on the baseline once it has a real height. */
                     return (
-                      <div key={si} className='relative flex-1 max-w-[10px] flex justify-center'>
+                      <div
+                        key={si}
+                        className='relative flex-1 flex justify-center items-end'
+                        style={{ height: '100%', maxWidth: barMaxWidth }}
+                      >
                         <div
                           className='w-full rounded-t-sm relative'
                           style={{
