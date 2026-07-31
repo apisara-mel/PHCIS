@@ -517,6 +517,18 @@ a:focus, a:focus-visible,
   }
 }
 
+/* Observation board — keyboard focus ring for the custom controls the
+   board adds (bed tiles, attention-bar entries). The global focus
+   suppressor above force-disables `outline`, so a custom control has to
+   own its focus state; box-shadow is the one property that survives it.
+   4px brand ring matches the design system's own focus treatment
+   (DangerButton FOCUS_OUTLINE = stroke-400). WCAG 2.4.7 / 2.4.11. */
+.mih-observation-focusable:focus-visible {
+  box-shadow:
+    0 0 0 var(--dim-stroke-400, 4px) var(--border-brandPrimary-tertiary),
+    0 0 0 calc(var(--dim-stroke-400, 4px) + var(--dim-stroke-100, 1px)) var(--border-brandPrimary-default) !important;
+}
+
 /* Observation bed card — EWS Red Alert (docs/observation-use-cases.md
    edge case #1: EWS ≥ 5 → "การ์ดเตียงเปลี่ยนเป็นสีแดงกระพริบ"). Same
    1.2s border+halo pulse as the telemed queue badge above, in the red

@@ -379,6 +379,20 @@ export default function ObservationQueuePage() {
   };
   const [allTabFilters, setAllTabFilters] = useState(DEFAULT_ALL_TAB_FILTERS);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
+  /* 'priority' = clinical triage order (see boardPriority), 'bed' = the
+     physical walking order a nurse uses when doing a round. */
+  const [boardSort, setBoardSort] = useState('priority');
+
+  /* Heartbeat. This board lives on a ward monitor for a whole shift, and
+     every duration on it is derived from admitTime at render time — so
+     without a periodic re-render the clock freezes at page load and the
+     6-hour overstay alert never fires on a screen nobody touches. The
+     tick value is deliberately never read; re-rendering IS the point. */
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setClockTick((n) => n + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
   const QUEUE_PAGE_SIZE = 20;
   const [queuePage, setQueuePage] = useState(1);
   /* Table-view header sorting — same sortConfig/handleSort/collator
@@ -515,6 +529,25 @@ export default function ObservationQueuePage() {
   /* Wrapped, not passed by reference — Array.filter would hand the index
      in as isOverstay's `now` argument and every stay would measure zero. */
   const overstayCount = patients.filter((p) => isOverstay(p)).length;
+
+  /* What the ward has to act on right now, in the order it should be
+     acted on — feeds the attention bar above the board. Code Red first;
+     a patient can only appear once, under their most urgent reason. */
+  const attentionItems = patients
+    .filter((p) => p.status === 'observing')
+    .map((p) => {
+      const latest = p.vitalsTrend?.[p.vitalsTrend.length - 1];
+      const ews = latest ? scorePatientVitals(p, latest) : null;
+      if ((ews?.score ?? 0) >= EWS_RED_ALERT_SCORE) {
+        return { id: p.id, bedNo: p.bedNo, patientName: p.patientName, tone: 'red', icon: 'emergency_home', reason: `${ews.scale.short} ${ews.score} · อาการทรุดลง`, rank: 0 };
+      }
+      if (isOverstay(p)) {
+        return { id: p.id, bedNo: p.bedNo, patientName: p.patientName, tone: 'orange', icon: 'hourglass_top', reason: `ครองเตียง ${formatDurationThai(getObservationDurationMinutes(p))} · รอประเมินซ้ำ`, rank: 1 };
+      }
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.rank - b.rank);
 
   const summaryCards = [
     { key: 'total', label: 'เตียงทั้งหมด', value: `${totalBeds} เตียง`, indicator: 'พร้อมใช้งาน 24 ชม.', color: 'info', icon: 'hotel' },
@@ -666,8 +699,45 @@ export default function ObservationQueuePage() {
   /* Table-view header sorting (applies to both tabs' table view) — normalize
      each sortable column key to a comparable value, same shape as OPD
      QueuePage.jsx's own normalize/sortedRows. */
+  /* Board order is clinical triage, not bed numbering. A patient whose
+     EWS has just crossed the red line must not sit four screens down
+     because they happen to be lying in เตียง 09 — the order itself is
+     the ward's to-do list. Rank ascending = attend to first.
+       0  Code Red (EWS >= threshold)
+       1  overstayed the 6-hour standard
+       2  under observation (higher EWS first within the group)
+       3  waiting to be cleaned
+       4  free
+       5  already referred (the "ส่งต่อแล้ว" tab's own filters take over) */
+  const boardPriority = (patient) => {
+    if (patient.status === 'observing') {
+      const latest = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
+      const ews = latest ? scorePatientVitals(patient, latest).score : 0;
+      if (ews >= EWS_RED_ALERT_SCORE) return 0;
+      if (isOverstay(patient)) return 1;
+      /* Fraction keeps the sicker patient above the calmer one without
+         needing a second sort key. */
+      return 2 + (1 - Math.min(ews, 9) / 10);
+    }
+    if (patient.status === BED_CLEANING_STATUS) return 3;
+    if (patient.status === 'empty') return 4;
+    return 5;
+  };
+
   const sortedPatients = (() => {
-    if (!sortConfig.key) return filteredPatients;
+    if (!sortConfig.key) {
+      /* Explicit column sorting (table view) always wins; otherwise the
+         board follows whichever order the ward asked for. */
+      /* Scoped to the ward board — "รายการที่ส่งต่อแล้ว" is a history
+         list with its own filters, and silently re-ordering it from a
+         control that isn't visible on that tab would be a surprise. */
+      if (activeTab !== 'observing') return filteredPatients;
+      if (boardSort === 'bed') {
+        const bedCollator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' });
+        return [...filteredPatients].sort((a, b) => bedCollator.compare(a.bedNo || '', b.bedNo || ''));
+      }
+      return [...filteredPatients].sort((a, b) => boardPriority(a) - boardPriority(b));
+    }
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
     const collator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' });
     const normalize = (p, key) => {
@@ -694,7 +764,7 @@ export default function ObservationQueuePage() {
      timeline. Mostly matters for "รายการที่ส่งต่อแล้ว" (40 mock rows);
      "กำลังสังเกตอาการ" never exceeds the physical bed count so it just
      always renders as a single page. */
-  useEffect(() => { setQueuePage(1); }, [activeTab, searchQuery, JSON.stringify(allTabFilters), sortConfig.key, sortConfig.direction]);
+  useEffect(() => { setQueuePage(1); }, [activeTab, searchQuery, JSON.stringify(allTabFilters), sortConfig.key, sortConfig.direction, boardSort]);
   const queueTotalPages = Math.max(1, Math.ceil(filteredPatients.length / QUEUE_PAGE_SIZE));
   const queuePageClamped = Math.min(queuePage, queueTotalPages);
   const pagedPatients = sortedPatients.slice(
@@ -1013,6 +1083,78 @@ export default function ObservationQueuePage() {
           gap: 'var(--dim-space-600, 24px)',
         }}
       >
+        {/* Ward attention bar — the one thing this board is for. Ten beds
+            run to four screens of cards, so "who needs me right now" was
+            answerable only by scrolling and reading every card. This
+            answers it in one line, before anything else on the page, and
+            each entry goes straight to that patient's record.
+            Patient safety outranks logistics, so it sits above the Full
+            Capacity banner. Renders nothing when the ward is calm — an
+            alert bar that is always present stops being an alert. */}
+        {attentionItems.length > 0 && (
+          <div
+            className='w-full flex flex-wrap items-center'
+            style={{
+              gap: 'var(--dim-space-300)',
+              background: 'var(--surface-card-100)',
+              border: `var(--dim-stroke-200) solid ${attentionItems.some((i) => i.tone === 'red')
+                ? 'var(--surface-colorfulbadge-red-bold, #EF4444)'
+                : 'var(--surface-colorfulbadge-orange-bold, #F97316)'}`,
+              borderRadius: 'var(--dim-radius-400)',
+              paddingTop: 'var(--dim-space-400)',
+              paddingRight: 'var(--dim-space-500)',
+              paddingBottom: 'var(--dim-space-400)',
+              paddingLeft: 'var(--dim-space-500)',
+            }}
+          >
+            <span
+              className='inline-flex items-center shrink-0'
+              style={{ gap: 'var(--dim-space-200)', color: 'var(--text-content-default)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)' }}
+            >
+              <span className='material-symbols-outlined' style={{ fontSize: 20, color: 'var(--text-colorfulbadge-red, #B91C1C)' }}>
+                notification_important
+              </span>
+              ต้องดูแลด่วน ({attentionItems.length})
+            </span>
+            <div className='flex flex-wrap items-center flex-1 min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+              {attentionItems.map((item) => (
+                <button
+                  key={item.id}
+                  type='button'
+                  onClick={() => history.push(`/observation/record/${item.id}`)}
+                  className='mih-observation-focusable inline-flex items-center transition-colors'
+                  style={{
+                    gap: 'var(--dim-space-150)',
+                    paddingTop: 'var(--dim-space-200)',
+                    paddingBottom: 'var(--dim-space-200)',
+                    paddingLeft: 'var(--dim-space-300)',
+                    paddingRight: 'var(--dim-space-300)',
+                    borderRadius: 'var(--dim-radius-200, 8px)',
+                    background: item.tone === 'red'
+                      ? 'var(--surface-colorfulbadge-red, #FEE2E2)'
+                      : 'var(--surface-colorfulbadge-orange, #FFEDD5)',
+                    color: item.tone === 'red'
+                      ? 'var(--text-colorfulbadge-red, #B91C1C)'
+                      : 'var(--text-colorfulbadge-orange, #C2410C)',
+                    border: `var(--dim-stroke-100) solid ${item.tone === 'red'
+                      ? 'var(--surface-colorfulbadge-red-bold, #EF4444)'
+                      : 'var(--surface-colorfulbadge-orange-bold, #F97316)'}`,
+                    fontSize: 'var(--type-size-sm)',
+                    /* 44px — MIH minimum touch target (design.md --dim-size-900). */
+                    minHeight: 'var(--dim-size-900, 44px)',
+                  }}
+                >
+                  <span className='material-symbols-outlined' style={{ fontSize: 18 }}>{item.icon}</span>
+                  <strong>{item.bedNo}</strong>
+                  <span className='truncate' style={{ maxWidth: 180 }}>{item.patientName}</span>
+                  <span style={{ opacity: 0.85 }}>· {item.reason}</span>
+                  <span className='material-symbols-outlined' style={{ fontSize: 18 }}>chevron_right</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Full Capacity banner (edge case #4) — sits ABOVE the worklist
             card because it's a ward-level condition, not a property of
             any one row: every bed is taken, so the only way to place the
@@ -1125,6 +1267,20 @@ export default function ObservationQueuePage() {
             )}
             {activeTab === 'observing' && (
               <>
+                {/* The board's order is information, so it is a stated
+                    choice rather than a hidden default. "ความเร่งด่วน"
+                    is the working order; "เลขเตียง" is the walking order
+                    for a physical round. */}
+                <FilterDropdown
+                  prefix='เรียงตาม'
+                  leadingIcon='sort'
+                  options={[
+                    { value: 'priority', label: 'ความเร่งด่วน' },
+                    { value: 'bed', label: 'เลขเตียง' },
+                  ]}
+                  value={boardSort}
+                  onChange={setBoardSort}
+                />
                 <FilterDropdown
                   prefix='ผู้สั่ง'
                   leadingIcon='stethoscope'
@@ -1193,7 +1349,23 @@ export default function ObservationQueuePage() {
               return (
                 <div
                   key={patient.id}
-                  className={`rounded-2xl p-6 flex flex-col items-center justify-center min-h-[564px] text-center transition-all group hover:shadow-[var(--shadow-card)]${isCleaning ? '' : ' cursor-pointer'}`}
+                  /* A bed tile is an action, not a decoration — give it a
+                     real role, keyboard operation and a name so it can be
+                     reached without a mouse (WCAG 2.1.1 / 4.1.2). The
+                     button inside stays out of the tab order so the tile
+                     is a single stop, not two. */
+                  role={isCleaning ? undefined : 'button'}
+                  tabIndex={isCleaning ? undefined : 0}
+                  aria-label={isCleaning ? undefined : `รับผู้ป่วยเข้า ${patient.bedNo} (${patient.bedType})`}
+                  onKeyDown={(e) => {
+                    if (isCleaning) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setAdmitForm((prev) => ({ ...prev, bedId: patient.id }));
+                      setShowAdmitModal(true);
+                    }
+                  }}
+                  className={`mih-observation-focusable rounded-2xl p-6 flex flex-col items-center justify-center min-h-[564px] text-center transition-all group hover:shadow-[var(--shadow-card)]${isCleaning ? '' : ' cursor-pointer'}`}
                   style={{
                     background: isCleaning ? 'var(--surface-colorfulbadge-orange, #FFEDD5)' : 'var(--surface-neutral-quaternary)',
                     border: `var(--dim-stroke-200) dashed ${isCleaning ? 'var(--surface-colorfulbadge-orange-bold, #F97316)' : 'var(--border-card-default)'}`,

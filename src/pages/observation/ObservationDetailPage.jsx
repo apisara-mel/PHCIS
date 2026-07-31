@@ -209,6 +209,8 @@ export default function ObservationDetailPage() {
   const [showPendingStatModal, setShowPendingStatModal] = useState(false);
   const [vitalsPage, setVitalsPage] = useState(1);
   const [draftSavedToast, setDraftSavedToast] = useState(false);
+  /* Message text, or '' when no toast is showing. */
+  const [saveToast, setSaveToast] = useState('');
   /* VitalCard/PressureCard's `required` prop only renders the asterisk —
      unlike InputField it never reaches the native <input>, so nothing
      stops an all-empty submit. Track each field's validity explicitly
@@ -516,7 +518,10 @@ export default function ObservationDetailPage() {
     }));
     setShowPendingStatModal(false);
     setShowReferModal(false);
-    alert(isDama ? 'บันทึกการจำหน่ายแบบปฏิเสธการรักษา (DAMA) เรียบร้อยแล้ว!' : 'บันทึกผลการส่งต่อผู้ป่วยเรียบร้อยแล้ว!');
+    /* The design system's own toast, not window.alert — a native dialog
+       blocks the page until dismissed, which is the wrong interruption
+       for a save that already succeeded. */
+    setSaveToast(isDama ? 'บันทึกการจำหน่ายแบบปฏิเสธการรักษา (DAMA) แล้ว' : 'บันทึกการส่งต่อผู้ป่วยแล้ว');
   };
 
   const handleConfirmRefer = (e) => {
@@ -1083,6 +1088,12 @@ export default function ObservationDetailPage() {
         open={draftSavedToast}
         message='บันทึกร่างเรียบร้อยแล้ว'
         onClose={() => setDraftSavedToast(false)}
+      />
+
+      <SuccessToast
+        open={!!saveToast}
+        message={saveToast}
+        onClose={() => setSaveToast('')}
       />
 
       <AddVitalsModal
