@@ -798,6 +798,11 @@ const FinancePaymentPage = () => {
       if (r.id !== rowId) return r;
       const receiptNo = r.receiptNo || nextReceiptNo(prev);
       const paidOn = new Date();
+      const billed = pricedItems || r.items;
+      const settled = new Set(paidItemIds || billed.map((i) => i.id));
+      const unpaid = billed.filter((i) => !settled.has(i.id));
+      const unpaidIds = unpaid.map((i) => i.id);
+      const residual = unpaid.reduce((s, i) => s + i.patientPortion, 0);
       return {
         ...r,
         status: 'paid',
@@ -810,6 +815,10 @@ const FinancePaymentPage = () => {
         discountType,
         lineDiscounts,
         paidItemIds,
+        /* Charges left unticked are not written off — they stay owed and
+           surface in ยอดค้างชำระ (TOR §1.8.1.15 → §1.8.6.1). */
+        unpaidItemIds: unpaidIds,
+        residualDue: residual,
         items: pricedItems || r.items,
         totalCharge: totalCharge ?? r.totalCharge,
         rightsCoverage: rightsCoverage ?? r.rightsCoverage,
@@ -1090,11 +1099,16 @@ const FinancePaymentPage = () => {
                   outstanding-balance count/total up front instead of only
                   inside the ยอดค้างชำระ tab, with a shortcut into that
                   section's follow-up flow. */}
-              {summary.pendingCount > 0 && (
+              {summary.pendingCount + summary.partialCount > 0 && (
                 <Alert
                   type='warning'
-                  title={`มีผู้รับบริการค้างชำระ ${summary.pendingCount} ราย`}
-                  subtext={`ยอดรวม ${formatBaht(summary.outstandingTotal)}`}
+                  /* Count and total must describe the same set — the total
+                     includes receipts settled only in part, so the count has
+                     to as well, or the banner contradicts itself. */
+                  title={`มีผู้รับบริการค้างชำระ ${summary.pendingCount + summary.partialCount} ราย`}
+                  subtext={summary.partialCount > 0
+                    ? `ยอดรวม ${formatBaht(summary.outstandingTotal)} · ในนี้ ${summary.partialCount} รายชำระบางส่วนแล้ว`
+                    : `ยอดรวม ${formatBaht(summary.outstandingTotal)}`}
                   detail={(
                     <div className='flex justify-end w-full'>
                       <BrandSubdueButton size='sm' onClick={() => setSection('outstanding')}>ดูรายการค้างชำระ</BrandSubdueButton>

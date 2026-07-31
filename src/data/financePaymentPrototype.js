@@ -377,6 +377,18 @@ export const matchesDateFilter = (thaiDateStr, filterValue) => {
 export const netCollected = (row) =>
   Math.max(0, (row.amountReceived || 0) - (row.changeDue || 0));
 
+/* ยอดที่ผู้ป่วยรายนี้ยังค้างอยู่ — TOR §1.8.1.15 lets a cashier settle only
+   some of a visit's charges, and §1.8.1.3/§1.8.6.1 then expect the rest to
+   show up as ยอดค้างชำระ. A row that was paid in part therefore still carries
+   a balance even though its status reads "ชำระแล้ว". */
+export const outstandingOf = (row) => {
+  if (row.status === 'pending') return row.amountDue;
+  if (row.status === 'paid') return row.residualDue || 0;
+  return 0; // ใบเสร็จที่ยกเลิกแล้วไม่ถือเป็นยอดค้าง จนกว่าจะออกใบใหม่
+};
+
+export const hasResidual = (row) => row.status === 'paid' && (row.residualDue || 0) > 0;
+
 /* Daily revenue-register summary strip (TOR §1.5.5 "ทะเบียนรายรับ") —
    derived from the live queue (defaults to the FINANCE_QUEUE seed) so the
    summary cards stay in sync after a void. */
@@ -384,11 +396,13 @@ export const financeSummary = (queue = FINANCE_QUEUE) => {
   const paid = queue.filter((r) => r.status === 'paid');
   const pending = queue.filter((r) => r.status === 'pending');
   const voided = queue.filter((r) => r.status === 'voided');
+  const partial = paid.filter(hasResidual);
   return {
     pendingCount: pending.length,
     paidCount: paid.length,
     paidTotal: paid.reduce((s, r) => s + netCollected(r), 0),
     voidedCount: voided.length,
-    outstandingTotal: pending.reduce((s, r) => s + r.amountDue, 0),
+    partialCount: partial.length,
+    outstandingTotal: queue.reduce((s, r) => s + outstandingOf(r), 0),
   };
 };

@@ -10,9 +10,10 @@ import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import FileUploadField from '@/components/forms/FileUploadField';
 import Popup from '@/components/popup/Popup';
 import { Icon } from '@/components/icons/Icon';
-import { formatBaht, timeToMinutes, matchesDateFilter } from '@/data/financePaymentPrototype';
+import { formatBaht, timeToMinutes, matchesDateFilter, outstandingOf, hasResidual } from '@/data/financePaymentPrototype';
 
 /* ยอดค้างชำระ (Outstanding Receivables) — TOR §1.5.6. Follow-up screen for
    receipts still sitting in "รอชำระเงิน" — records each contact attempt
@@ -43,9 +44,7 @@ const FollowUpForm = ({ row, onCancel, onConfirm }) => {
   const [docUrl, setDocUrl] = useState(null);
   const canConfirm = note.trim().length > 0 && signer.trim().length > 0;
 
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFile = (file) => {
     setDocName(file.name);
     setDocUrl(URL.createObjectURL(file));
   };
@@ -72,15 +71,14 @@ const FollowUpForm = ({ row, onCancel, onConfirm }) => {
         onChange={setClaimStatus}
         options={CLAIM_STATUSES.map((s) => ({ value: s.key, label: s.label }))}
       />
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
-        <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>เอกสารประกอบการเบิก</span>
-        <input type='file' onChange={handleFile} />
-        {docName && (
-          <a href={docUrl} target='_blank' rel='noreferrer' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-brandPrimary-default)' }}>
-            {docName}
-          </a>
-        )}
-      </div>
+      <FileUploadField
+        label='เอกสารประกอบการเบิก'
+        buttonLabel='แนบเอกสาร'
+        helperText='แนบใบเสร็จ/หนังสือรับรองสิทธิ เพื่อให้ผู้ตรวจสอบเปิดดูได้จากตารางติดตาม'
+        fileName={docName}
+        onFile={handleFile}
+        onClear={() => { setDocName(null); setDocUrl(null); }}
+      />
       <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-200)' }}>
         <NeutralSubdueButton size='sm' onClick={onCancel}>ยกเลิก</NeutralSubdueButton>
         <BrandSubdueButton
@@ -116,7 +114,9 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
   }, [queue]);
 
   const pendingRows = useMemo(() => {
-    let rows = queue.filter((r) => r.status === 'pending');
+    /* Not just status==='pending' — a receipt settled for only part of the
+       visit still owes the rest (TOR §1.8.1.15 → §1.8.6.1). */
+    let rows = queue.filter((r) => r.status === 'pending' || hasResidual(r));
     if (q.trim()) {
       const query = q.trim().toLowerCase();
       rows = rows.filter((r) => r.hn.toLowerCase().includes(query) || r.patient.shortName.toLowerCase().includes(query));
@@ -127,7 +127,7 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
     return rows.sort((a, b) => timeToMinutes(a.visitTime) - timeToMinutes(b.visitTime));
   }, [queue, q, filters]);
 
-  const outstandingTotal = pendingRows.reduce((s, r) => s + r.amountDue, 0);
+  const outstandingTotal = pendingRows.reduce((s, r) => s + outstandingOf(r), 0);
 
   const columns = [
     { key: 'queueNo', label: 'คิว', width: 80 },
@@ -152,7 +152,19 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
         </div>
       ),
     },
-    { key: 'amountDue', label: 'ยอดค้างชำระ', width: 120, render: (row) => <span style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-statusbadge-warning, #B25E09)' }}>{formatBaht(row.amountDue)}</span> },
+    {
+      key: 'amountDue', label: 'ยอดค้างชำระ', width: 150,
+      render: (row) => (
+        <div className='flex flex-col'>
+          <span style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-statusbadge-warning, #B25E09)' }}>{formatBaht(outstandingOf(row))}</span>
+          {hasResidual(row) && (
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+              ค้างบางส่วน · ใบเสร็จ {row.receiptNo}
+            </span>
+          )}
+        </div>
+      ),
+    },
     {
       key: 'claimStatus', label: 'สถานะการเบิกจ่าย', width: 150,
       render: (row) => (row.claimStatus

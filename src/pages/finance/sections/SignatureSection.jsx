@@ -6,6 +6,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import StatusBadge from '@/components/badge/StatusBadge';
 import Popup from '@/components/popup/Popup';
+import FileUploadField from '@/components/forms/FileUploadField';
 import { Icon } from '@/components/icons/Icon';
 
 /* ตรวจสอบใบเสร็จ - Signature — TOR §1.5.4. Attaches a signature to a
@@ -39,9 +40,10 @@ const SignForm = ({ row, onCancel, onConfirm }) => {
 
   const matches = SAVED_SIGNERS.filter((n) => n.toLowerCase().includes(q.trim().toLowerCase()));
 
-  const handleUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const [uploadName, setUploadName] = useState(null);
+
+  const handleUpload = (file) => {
+    setUploadName(file.name);
     const reader = new FileReader();
     reader.onload = () => setDataUrl(reader.result);
     reader.readAsDataURL(file);
@@ -104,7 +106,15 @@ const SignForm = ({ row, onCancel, onConfirm }) => {
 
       {mode === 'upload' && (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-          <input type='file' accept='image/*' onChange={handleUpload} />
+          <FileUploadField
+            label='อัปโหลดรูปลายเซ็น'
+            buttonLabel='เลือกรูปภาพ'
+            accept='image/*'
+            helperText='รองรับไฟล์รูปภาพ (PNG / JPG) — แนะนำพื้นหลังโปร่งใสหรือสีขาว'
+            fileName={uploadName}
+            onFile={handleUpload}
+            onClear={() => { setUploadName(null); setDataUrl(null); }}
+          />
           {dataUrl && <img src={dataUrl} alt='ลายเซ็นที่อัปโหลด' style={{ maxHeight: 120, objectFit: 'contain' }} />}
         </div>
       )}
