@@ -132,6 +132,96 @@ export const ANC_RISK_FACTORS = [
   { key: 'familyGenetic',  label: 'ครอบครัวมีประวัติโรคทางพันธุกรรม / ธาลัสซีเมีย' },
 ];
 
+/** ภาวะเสี่ยงที่ประเมิน "ทุกครั้งที่มีการให้บริการตรวจครรภ์" — legacy HCIS
+    ANC module (คู่มือระบบงานฝากครรภ์ p.2-13, §2.4 ภาวะเสี่ยงของหญิงมีครรภ์),
+    the right-hand panel headed "ใช้ทุกครั้งที่มีการให้บริการตรวจครรภ์"
+    (items 8-20). Distinct from `ANC_RISK_FACTORS`, which is the
+    once-per-registration history screen (the left-hand panel, items 1-7):
+    THIS list is re-answered at every follow-up visit because each item is a
+    finding of the visit in front of you, not a fact about the past.
+    Per the manual's step 2: "ถ้าพบภาวะเสี่ยงข้อใดข้อหนึ่งต้องส่งต่อหรือ
+    รายงานแพทย์". */
+export const ANC_PERVISIT_RISK_FACTORS = [
+  { key: 'anemia',            label: 'เป็นโรคโลหิตจาง (Hb < 11 gms. หรือ Hct. < 33%)' },
+  { key: 'vdrlPositive',      label: 'ตรวจ VDRL ได้ผลบวก' },
+  { key: 'abnormalUrine',     label: 'พบไข่ขาวในปัสสาวะ และ/หรือพบน้ำตาลในปัสสาวะ' },
+  { key: 'hypertension',      label: 'ความดันโลหิต 140/90 มิลลิเมตรปรอทหรือมากกว่า' },
+  { key: 'goitre',            label: 'คอพอก/ไทรอยด์โต' },
+  { key: 'heartDisease',      label: 'เป็นโรคหัวใจ หรือสงสัยว่าเป็นโรคหัวใจ' },
+  { key: 'fundusMismatch',    label: 'ขนาดของมดลูกไม่สัมพันธ์กับอายุครรภ์' },
+  { key: 'multiplePregnancy', label: 'ครรภ์แฝด' },
+  { key: 'malpresentation',   label: 'ทารกอยู่ในท่าผิดปกติ (ไม่ใช่ท่าศีรษะ) ตั้งแต่ 34 สัปดาห์ขึ้นไป' },
+  { key: 'bleeding',          label: 'เลือดออกขณะตั้งครรภ์' },
+  { key: 'postTerm',          label: 'ตั้งครรภ์เกิน 40 สัปดาห์' },
+  { key: 'weightGainAbnormal', label: 'น้ำหนักขึ้นน้อยกว่า 1 กก./เดือน หรือมากกว่า 4 กก./เดือน (ตั้งแต่ 24 สัปดาห์ขึ้นไป)' },
+  { key: 'reducedMovement',   label: 'เด็กดิ้นน้อยกว่า 10 ครั้ง/วัน ตั้งแต่ 32 สัปดาห์ขึ้นไป' },
+];
+
+/** แบบคัดกรองเบาหวานในหญิงมีครรภ์ — the third panel on the same legacy
+    screen (p.2-13). Any checked item flags the patient for the GCT/OGTT
+    pathway that `ANC_DIABETES_SCREENING` (Step 5, swimlane D) orders. */
+export const ANC_GDM_SCREENING_FACTORS = [
+  { key: 'firstPregnancyUnder20', label: 'ตั้งครรภ์แรกเมื่ออายุน้อยกว่า 20 ปี' },
+  { key: 'weightGainMismatch',    label: 'น้ำหนักตัวที่เพิ่มขึ้นไม่สมดุลกับอายุครรภ์' },
+  { key: 'priorGdm',              label: 'เคยเป็นโรคเบาหวานขณะตั้งครรภ์' },
+  { key: 'familyDiabetes',        label: 'มีประวัติพี่น้อง/ครอบครัวเป็นเบาหวาน' },
+  { key: 'ageOver30',             label: 'อายุ 30 ปีหรือมากกว่า' },
+  { key: 'macrosomia',            label: 'เคยคลอดบุตรน้ำหนักแรกเกิดตั้งแต่ 4 กิโลกรัมขึ้นไป' },
+  { key: 'priorAnomaly',          label: 'เคยคลอดบุตรที่มีความผิดปกติแต่กำเนิดโดยไม่ทราบสาเหตุ' },
+  { key: 'priorStillbirth',       label: 'เคยคลอดบุตรและทารกเสียชีวิตโดยไม่ทราบสาเหตุ' },
+];
+
+/** Manual p.2-13 step 2 — "ถ้าพบภาวะเสี่ยงข้อใดข้อหนึ่งต้องส่งต่อหรือรายงาน
+    แพทย์". Returns the labels actually flagged so the UI can name them
+    rather than just showing a count. */
+export const interpretPerVisitRisk = (perVisitRiskFactors) => {
+  const flagged = ANC_PERVISIT_RISK_FACTORS
+    .filter((rf) => perVisitRiskFactors?.[rf.key])
+    .map((rf) => rf.label);
+  return { flagged, mustRefer: flagged.length > 0 };
+};
+
+/* ─── Step 3 — per-visit exam findings (legacy p.2-10/2-11) ────────────
+   The legacy "บันทึกการตรวจครรภ์" screen records urine sugar + albumin as
+   separate dipstick grades (not one ปกติ/ผิดปกติ flag), and carries THREE
+   independent gestational-age estimates side by side — จากการคำนวณ LMP,
+   จากการตรวจครรภ์, จากการอัลตราซาวด์ — because they routinely disagree and
+   the discrepancy is itself the clinical signal (item 14 of the per-visit
+   risk list, "ขนาดของมดลูกไม่สัมพันธ์กับอายุครรภ์"). */
+const DIPSTICK_OPTIONS = ['Negative', 'Trace', '1+', '2+', '3+', '4+'];
+export const ANC_URINE_SUGAR_OPTIONS = DIPSTICK_OPTIONS;
+export const ANC_URINE_ALBUMIN_OPTIONS = DIPSTICK_OPTIONS;
+
+export const ANC_FUNDUS_LEVEL_OPTIONS = [
+  { value: 'notPalpable',    label: 'ยังคลำไม่ได้' },
+  { value: 'symphysis',      label: 'เหนือหัวหน่าว' },
+  { value: 'belowUmbilicus', label: 'ต่ำกว่าระดับสะดือ' },
+  { value: 'umbilicus',      label: 'ระดับสะดือ' },
+  { value: 'aboveUmbilicus', label: 'สูงกว่าระดับสะดือ' },
+  { value: 'xiphoid',        label: 'ระดับลิ้นปี่' },
+];
+
+export const ANC_PRESENTATION_OPTIONS = [
+  { value: 'vertex',     label: 'ท่าศีรษะ (Vertex)' },
+  { value: 'breech',     label: 'ท่าก้น (Breech)' },
+  { value: 'transverse', label: 'ท่าขวาง (Transverse)' },
+  { value: 'unclear',    label: 'ยังไม่แน่ชัด' },
+];
+
+/** การลง — whether the presenting part is still floating or engaged. */
+export const ANC_DESCENT_OPTIONS = [
+  { value: 'floating', label: 'ลอย (Floating)' },
+  { value: 'engaged',  label: 'ตรึง (Engaged)' },
+];
+
+/** เด็กดิ้น — the legacy screen's ปกติ / ดิ้นน้อย / ไม่ดิ้น radio. Feeds
+    per-visit risk item 20 (เด็กดิ้นน้อยกว่า 10 ครั้ง/วัน). */
+export const ANC_FETAL_MOVEMENT_OPTIONS = [
+  { value: 'normal',  label: 'ดิ้นดี ปกติ' },
+  { value: 'reduced', label: 'ดิ้นน้อยลง' },
+  { value: 'absent',  label: 'ไม่ดิ้น' },
+];
+
 /** สัญญาณอันตรายที่ต้องส่งพบแพทย์ทันที — the exact referral triggers from
     the official manual pp.11-12 ("ส่งต่อไปฝากครรภ์หรือรับการวินิจฉัยและ
     รักษาที่โรงพยาบาล เมื่อประเมินพบว่า..."): severe abdominal pain/
@@ -545,6 +635,8 @@ export const DEFAULT_ANC_VISIT = {
   stressAnswers: {},       // ST-5 (0-3 per item)
   mentalHealthAnswers: {},
   riskFactors: {},
+  perVisitRiskFactors: {},  // ประเมินทุกครั้งที่ตรวจครรภ์ (legacy p.2-13, items 8-20)
+  gdmScreeningFactors: {},  // แบบคัดกรองเบาหวานในหญิงมีครรภ์ (legacy p.2-13)
   dangerSigns: {},
   smokingStatus: '',       // 'nonSmoker' | 'smoker'
   smokingAdviceGiven: false,
@@ -554,6 +646,16 @@ export const DEFAULT_ANC_VISIT = {
   vitals: { ...ANC_DEFAULT_VITALS },
   fundusHeight: '',
   fetalHeartRate: '',
+  // Per-visit exam findings — legacy "บันทึกการตรวจครรภ์" (p.2-10/2-11)
+  urineSugar: '',
+  urineAlbumin: '',
+  gaByExam: '',            // อายุครรภ์จากการตรวจครรภ์ (สัปดาห์)
+  gaByUltrasoundWeeks: '', // อายุครรภ์จากการอัลตราซาวด์ (สัปดาห์)
+  fundusLevel: '',
+  presentation: '',
+  descent: '',
+  fetalPosition: '',       // ท่าเด็ก — free text, e.g. LOA / ROA
+  fetalMovement: '',
   oralHealthAnswers: {},   // Maternal Oral Screening (MOS) tool, p.53 — 2Q, score ≥1 = refer dentist
 
   // Step 4 — วินิจฉัย (TOR 1.10.7.7)
@@ -725,6 +827,103 @@ export const saveAncVisitRecord = (hn, record) => {
 export const getAncVisitHistoryByHn = (hn) => {
   const stored = readJson(VISIT_HISTORY_KEY, {});
   return [...(ANC_VISIT_HISTORY[hn] || []), ...(stored[hn] || [])];
+};
+
+/* ─── ทะเบียนฝากครรภ์ vs บันทึกการตรวจครรภ์ ────────────────────────────
+   The legacy HCIS ANC module keeps these as two separate screens — §2.2
+   "ประวัติการตั้งครรภ์" (opened once when the pregnancy is registered) and
+   §2.3 "บันทึกการตรวจครรภ์" (one row per visit, with the prior visits
+   listed in a grid above the form). This app collapses both into one
+   7-step form, so the same split has to live in the DATA instead: the
+   fields below are pregnancy-level facts that must be CARRIED FORWARD
+   into every follow-up visit rather than re-typed, while everything else
+   in `DEFAULT_ANC_VISIT` is per-visit and starts blank each time.
+
+   Kept deliberately narrow: a field belongs here only if re-entering it at
+   visit 5 would be re-stating a fact already established at visit 1
+   (obstetric history, husband's labs, dT history, blood group). Findings
+   that legitimately change between visits — vitals, fundal height, urine
+   dipstick, danger signs, this visit's orders — are NOT carried, because
+   pre-filling them would silently attribute last visit's findings to
+   today. */
+export const ANC_REGISTRATION_FIELDS = [
+  'illnessHistory',
+  'gravida', 'para', 'abortion', 'livingChildren', 'lmp',
+  'obstetricHistory',
+  'breastExamNote', 'spouseHealthNote',
+  'tetanusDoseCount', 'tetanusLastDoseYear', 'tetanusExempt',
+  'familyIllnessHistory', 'familyIllnessOtherNote',
+  'husbandLabResults',
+  'motherChildHealthBookGiven',
+  'riskFactors',          // once-per-registration panel (legacy p.2-13 items 1-7)
+  'gdmScreeningFactors',  // history-based GDM screen — facts, not findings
+  'labResults',           // cumulative: blood group/Rh established once, Hb/Hct keyed per panel
+];
+
+const REGISTRATION_KEY = 'mih:anc-registration';
+
+/** Saves (or updates — TOR 1.10.7.6 "แก้ไข") the pregnancy-level record so
+    the next visit opens pre-filled instead of blank. Merges rather than
+    replaces, so a visit that didn't touch a section can't blank it. */
+export const saveAncRegistration = (hn, form) => {
+  if (!hn || !form) return;
+  const store = readJson(REGISTRATION_KEY, {});
+  const prev = store[hn] || {};
+  const next = { ...prev };
+  ANC_REGISTRATION_FIELDS.forEach((key) => {
+    const value = form[key];
+    if (value === undefined) return;
+    /* Merge the keyed objects (lab results accumulate across visits — the
+       Lab #2 panel at 28wk must not erase the blood group from Lab #1). */
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      next[key] = { ...(prev[key] || {}), ...value };
+    } else {
+      next[key] = value;
+    }
+  });
+  store[hn] = next;
+  writeJson(REGISTRATION_KEY, store);
+};
+
+export const getAncRegistration = (hn) => (hn ? readJson(REGISTRATION_KEY, {})[hn] || null : null);
+
+/** ครั้งที่ — the legacy exam screen numbers every visit (p.2-10). Visit N
+    is "one more than the visits already on record". */
+export const getAncVisitNumber = (hn) => getAncVisitHistoryByHn(hn).length + 1;
+
+/** Seeds the form for a visit: empty defaults → the mock roster's known
+    facts → whatever a previous visit actually saved (which wins, since it
+    is the most recently confirmed clinician input).
+
+    `carriedFields` is returned alongside so the UI can tell the clinician
+    WHICH sections were pre-filled from earlier visits rather than silently
+    presenting stale data as if freshly entered. */
+export const buildAncVisitForm = (hn, ancPatient) => {
+  const form = { ...DEFAULT_ANC_VISIT };
+
+  if (ancPatient) {
+    form.gravida = String(ancPatient.gravida ?? '');
+    form.para = String(ancPatient.para ?? '');
+    form.lmp = ancPatient.lmp || '';
+    /* Risk level is a per-visit judgement (Step 4) — only a patient the
+       roster already flags as a follow-up carries one in. */
+    form.riskLevel = ancPatient.visitType === 'followup' ? (ancPatient.riskLevel || '') : '';
+  }
+
+  const registration = getAncRegistration(hn);
+  const carriedFields = [];
+  if (registration) {
+    ANC_REGISTRATION_FIELDS.forEach((key) => {
+      const value = registration[key];
+      if (value === undefined || value === '' || value === null) return;
+      if (Array.isArray(value) && value.length === 0) return;
+      if (!Array.isArray(value) && typeof value === 'object' && Object.keys(value).length === 0) return;
+      form[key] = value;
+      carriedFields.push(key);
+    });
+  }
+
+  return { form, carriedFields, visitNo: getAncVisitNumber(hn), isFollowUp: getAncVisitNumber(hn) > 1 };
 };
 
 /** Cancels an ANC registration (TOR 1.10.7.6 — "ยกเลิก") — reversible via
