@@ -8,49 +8,72 @@ import { Donut, HBarList, VBars, AreaLineChart } from '@/components/graph/Charts
 import { formatBaht } from '@/data/financePaymentPrototype';
 import {
   FISCAL_YEARS,
+  FISCAL_MONTHS,
   REPORT_CENTERS,
   buildFinanceReport,
-  toThousand,
   toMillion,
   formatPct,
 } from '@/data/financeReportsPrototype';
 
 /* รายงานการเงิน — TOR appendix ก §1.20.3.
 
-     §1.20.3.1 รายรับ            → ยอดรวม + โดนัทแยกช่องทาง (เงินสด/e-Payment/
-                                    เครดิต/บริจาค) + แท่งแยกหมวด (ค่ายา/ค่าบริการ/…)
-     §1.20.3.2 รายจ่าย           → ยอดรวม + โดนัท/แท่งแยกประเภท (เงินเดือน/
-                                    ค่าวัสดุ/ค่าสาธารณูปโภค/อื่น ๆ)
+     §1.20.3.1 รายรับ            → โดนัทแยกช่องทาง + แท่งแยกหมวด
+     §1.20.3.2 รายจ่าย           → แถบสัดส่วนเดียว + แท่งแยกประเภท
      §1.20.3.3 งบประมาณ         → กราฟแท่งงบได้รับ vs ใช้ไป + ตารางเปรียบเทียบ
      §1.20.3.4 ภาพรวมรายรับ-รายจ่าย → กราฟเส้น 12 เดือนงบประมาณ
 
-   Charts come from the shared src/components/graph/Charts.jsx primitives —
-   the same ones /dashboard uses — so this page reads as part of the same
-   reporting system rather than a second charting style. Series colours are
-   raw hex on purpose: chart data colours are the one thing the DS doesn't
-   tokenise, and DashboardCards.jsx already sets that precedent. Every
-   layout/typography/surface value below is a token.
+   อ่านโดยผู้อำนวยการศูนย์และหัวหน้าการเงิน เดือนละครั้ง แล้วพิมพ์เก็บเป็น
+   หลักฐานตอนตรวจรับ — คำถามจริงของเขาไม่ใช่ "รายรับเท่าไหร่" (ตัวเลขนั้นดูจาก
+   ทะเบียนรายรับก็ได้) แต่คือ **"ใช้งบเร็วหรือช้ากว่าที่ควร"** หน้านี้จึงเปิดด้วย
+   แถบจังหวะปีงบประมาณ ไม่ใช่แถว KPI
 
-   The current fiscal month folds in the live finance queue's paid receipts
-   (see buildFinanceReport), which is what makes ทะเบียนรายรับ and this
-   report agree on today's takings instead of drifting apart. */
+   Charts มาจาก src/components/graph/Charts.jsx ชุดเดียวกับ /dashboard สีของ
+   ชุดข้อมูลเป็น hex ตรงตามธรรมเนียมของ DashboardCards.jsx (สี data series เป็น
+   สิ่งเดียวที่ DS ไม่ได้ tokenise) — ค่าอื่นทั้งหมดอ้าง token
 
-/* formatBaht renders the ฿ first, so a negative lands as "฿-3,972,886".
-   Over-budget rows and a negative net read better with the sign in front. */
+   หน่วยเงิน: ตัวเลขที่คนอ่านเป็นเงินจริงใช้ "บาท" เสมอ (tile / ตาราง / legend)
+   ส่วน data label บนกราฟใช้ "ล้านบาท" เพราะ chart primitive พิมพ์ค่าดิบลงกล่อง
+   กว้าง 44px — สองหน่วยเท่านั้น และกำกับหน่วยไว้ทุกกราฟ */
+
+/* พิมพ์รายงาน — ปุ่มพิมพ์เดิมเรียก window.print() ทั้งหน้า ได้ sidebar + แท็บ +
+   ตัวกรองติดมาด้วย ซึ่งใช้เป็นเอกสารแนบไม่ได้ กฎด้านล่างซ่อนทุกอย่างนอกรายงาน
+   โดยไม่ต้องรู้ชื่อคลาสของ app chrome (ซึ่งจะพังทันทีที่ layout เปลี่ยน)
+   ฉีดครั้งเดียวตอนโหลดโมดูล ตามแพตเทิร์นเดียวกับ AISearch */
+const PRINT_STYLE_ID = 'mih-finance-report-print';
+if (typeof document !== 'undefined' && !document.getElementById(PRINT_STYLE_ID)) {
+  const style = document.createElement('style');
+  style.id = PRINT_STYLE_ID;
+  style.textContent = `
+@media print {
+  body * { visibility: hidden !important; }
+  .mih-finance-report, .mih-finance-report * { visibility: visible !important; }
+  .mih-finance-report {
+    position: absolute !important;
+    left: 0; top: 0; width: 100%;
+  }
+  .mih-finance-report__noprint { display: none !important; }
+  .mih-finance-report__printonly { display: block !important; }
+  .mih-finance-report__block { break-inside: avoid; }
+}
+/* หัวเรื่องรายงานมีไว้สำหรับกระดาษเท่านั้น — บนจอมี breadcrumb + แท็บบอกอยู่แล้ว
+   (เขียนเป็นคลาสแทน print: variant เพราะ Tailwind 2.1 ในโปรเจกต์นี้ไม่ได้เปิด
+   variant นั้นไว้ทุก utility) */
+.mih-finance-report__printonly { display: none; }`;
+  document.head.appendChild(style);
+}
+
+/* formatBaht วาง ฿ ไว้หน้าสุด ค่าติดลบเลยออกมาเป็น "฿-3,972,886" */
 const formatSignedBaht = (n) => (n < 0 ? `-${formatBaht(Math.abs(n))}` : formatBaht(n));
 
-const SectionBlock = ({ title, torId, note, action, children }) => (
-  <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
-    <div className='flex items-end justify-between' style={{ gap: 'var(--dim-space-300)' }}>
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
-        <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>
-          {title}
-        </span>
-        <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-          {note ? `${torId} · ${note}` : torId}
-        </span>
-      </div>
-      {action}
+const SectionBlock = ({ title, torId, note, children }) => (
+  <div className='flex flex-col mih-finance-report__block' style={{ gap: 'var(--dim-space-300)' }}>
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>
+        {title}
+      </span>
+      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+        {note ? `${torId} · ${note}` : torId}
+      </span>
     </div>
     {children}
   </div>
@@ -80,14 +103,11 @@ const ChartCard = ({ title, caption, children, className = '' }) => (
   </div>
 );
 
-/* Summary tile — same visual language as ทะเบียนรายรับ's per-method strip
-   (brand-tinted panel, label above value), with an optional accent colour
-   for the net/expense figures. */
 const StatTile = ({ label, value, sub, icon, accent, invert }) => (
   <div
     className='flex flex-col flex-1'
     style={{
-      minWidth: 190,
+      minWidth: 200,
       background: invert ? 'var(--surface-brandPrimary-default, #007549)' : 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
       borderRadius: 'var(--dim-radius-300)',
       paddingTop: 'var(--dim-space-300)',
@@ -133,37 +153,183 @@ const StatTile = ({ label, value, sub, icon, accent, invert }) => (
   </div>
 );
 
-/* Donut + legend pair — used for both the รายรับ channel split and the
-   รายจ่าย type split, so the two read as the same kind of answer. */
-const DonutWithLegend = ({ segments, total, centerSub }) => (
-  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-    <Donut
-      segments={segments}
-      size={168}
-      thickness={26}
-      centerLabel={`${toMillion(total)} ล้าน`}
-      centerSub={centerSub}
-    />
-    <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-      {segments.map((s) => {
-        const pct = total ? (s.value / total) * 100 : 0;
-        return (
-          <div key={s.key} className='flex items-center justify-between' style={{ gap: 'var(--dim-space-200)' }}>
-            <span
-              className='inline-flex items-center min-w-0'
-              style={{ gap: 'var(--dim-space-200)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}
-            >
-              <span className='shrink-0' style={{ width: 10, height: 10, borderRadius: 'var(--dim-radius-full)', background: s.color }} />
-              <span className='truncate'>{s.label}</span>
+/* ── แถบจังหวะปีงบประมาณ ────────────────────────────────────
+   ปีงบประมาณคือปฏิทิน ต.ค.→ก.ย. ไม่ใช่แถบความคืบหน้าเปล่าๆ รางด้านล่างจึงเป็น
+   ปีงบทั้งปี มีขีดเดือนกำกับ, แถบทึบคือ "งบที่ใช้ไป" และเส้นตั้งคือ "เวลาที่ผ่าน
+   ไปแล้ว" — ระยะห่างระหว่างสองอันนี้คือคำตอบที่ผู้อำนวยการต้องการ: ใช้งบเร็วหรือ
+   ช้ากว่าปฏิทิน ตัวเลข % ที่เคยเป็น tile ใบที่ 4 ย้ายมาอยู่ตรงนี้ทั้งหมด */
+const PacingBand = ({ year, budgetTotal }) => {
+  const timePct = year.current ? (year.elapsed / 12) * 100 : 100;
+  const usedPct = Math.min(100, budgetTotal.pct);
+  const drift = budgetTotal.pct - timePct;
+
+  const over = budgetTotal.pct > 100;
+  const ahead = drift > 5;
+  const tone = over ? 'error' : ahead ? 'warning' : 'success';
+  const fill = over
+    ? 'var(--surface-dangerButton-default, #B91C1C)'
+    : ahead
+      ? 'var(--text-statusbadge-warning, #C2410C)'
+      : 'var(--surface-brandPrimary-default, #007549)';
+
+  const verdict = over
+    ? 'ใช้งบเกินกรอบที่ได้รับแล้ว'
+    : !year.current
+      ? `สิ้นปีงบประมาณ · ใช้งบไป ${formatPct(budgetTotal.pct)} ของที่ได้รับ`
+      : ahead
+        ? `ใช้งบเร็วกว่าปฏิทิน ${formatPct(Math.abs(drift))}`
+        : drift < -5
+          ? `ใช้งบช้ากว่าปฏิทิน ${formatPct(Math.abs(drift))}`
+          : 'ใช้งบสอดคล้องกับเวลาที่ผ่านไป';
+
+  return (
+    <div
+      className='flex flex-col mih-finance-report__block'
+      style={{
+        gap: 'var(--dim-space-400)',
+        background: 'var(--surface-card-100, #FFFFFF)',
+        border: '1px solid var(--border-neutralButton-tertiary, #E2E4E6)',
+        borderRadius: 'var(--dim-radius-300)',
+        paddingTop: 'var(--dim-space-500)',
+        paddingRight: 'var(--dim-space-500)',
+        paddingBottom: 'var(--dim-space-500)',
+        paddingLeft: 'var(--dim-space-500)',
+      }}
+    >
+      <div className='flex items-end justify-between flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+            จังหวะการใช้งบ {year.label}
+          </span>
+          <span className='inline-flex items-baseline' style={{ gap: 'var(--dim-space-200)' }}>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xl)', fontWeight: 'var(--type-weight-bold)' }}>
+              {verdict}
             </span>
-            <span className='shrink-0 tabular-nums' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-              <strong>{formatBaht(s.value)}</strong>
-              <span style={{ color: 'var(--text-content-tertiary)' }}> · {formatPct(pct)}</span>
-            </span>
+            {/* เงียบตอนปกติ ดังตอนไม่ปกติ — ป้าย "ปกติ" ไม่ได้บอกอะไรที่ประโยคข้างหน้า
+                ยังไม่ได้บอก มันแค่เพิ่มสีให้หน้าจอ */}
+            {(over || ahead) && (
+              <StatusBadge style={tone} size='small'>{over ? 'เกินงบ' : 'เฝ้าระวัง'}</StatusBadge>
+            )}
+          </span>
+        </div>
+        <div className='flex flex-col items-end' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+          <span className='tabular-nums' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+            ใช้ไป <strong>{formatBaht(budgetTotal.used)}</strong> จาก {formatBaht(budgetTotal.allocated)}
+          </span>
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+            คงเหลือ {formatSignedBaht(budgetTotal.remaining)}
+          </span>
+        </div>
+      </div>
+
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+        <div className='relative w-full' style={{ height: 20 }}>
+          {/* ราง = ปีงบทั้งปี 12 เดือน */}
+          <div
+            className='absolute inset-0'
+            style={{ background: 'var(--surface-neutral-tertiary, #F4F5F5)', borderRadius: 'var(--dim-radius-full)', overflow: 'hidden' }}
+          >
+            <div
+              style={{
+                width: `${usedPct}%`,
+                height: '100%',
+                background: fill,
+                borderRadius: 'var(--dim-radius-full)',
+                transition: 'width 700ms cubic-bezier(0.22, 0.61, 0.36, 1)',
+              }}
+            />
           </div>
-        );
-      })}
+          {/* เส้นเวลา — ยืนอยู่ตรงเดือนปัจจุบันของปีงบ */}
+          {year.current && (
+            <div
+              className='absolute'
+              style={{
+                left: `${timePct}%`,
+                top: -6,
+                bottom: -6,
+                width: 'var(--dim-stroke-200, 2px)',
+                background: 'var(--text-content-default, #363B3F)',
+                transform: 'translateX(-1px)',
+              }}
+              aria-hidden
+            />
+          )}
+        </div>
+
+        {/* ขีดเดือน — บอกว่ารางนี้คือปฏิทินปีงบ ไม่ใช่ progress bar */}
+        <div className='flex w-full'>
+          {FISCAL_MONTHS.map((m, i) => (
+            <span
+              key={m}
+              className='flex-1 text-center'
+              style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+                color: year.current && i < year.elapsed ? 'var(--text-content-secondary)' : 'var(--text-content-tertiary)',
+                fontWeight: year.current && i === year.elapsed - 1 ? 'var(--type-weight-bold)' : 'var(--type-weight-regular)',
+              }}
+            >
+              {m}
+            </span>
+          ))}
+        </div>
+
+        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+          <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary)' }}>
+            <span style={{ width: 12, height: 8, borderRadius: 'var(--dim-radius-full)', background: fill }} />
+            งบที่ใช้ไป {formatPct(budgetTotal.pct)}
+          </span>
+          {year.current && (
+            <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary)' }}>
+              <span style={{ width: 'var(--dim-stroke-200, 2px)', height: 12, background: 'var(--text-content-default, #363B3F)' }} />
+              เวลาที่ผ่านไป {formatPct(timePct)} ({year.elapsed} จาก 12 เดือน)
+            </span>
+          )}
+        </div>
+      </div>
     </div>
+  );
+};
+
+/* Legend ที่ใช้ร่วมกันทั้งฝั่งรายรับและรายจ่าย — ตัวเลขเป็นบาทเสมอ */
+const ShareLegend = ({ segments, total }) => (
+  <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+    {segments.map((s) => {
+      const pct = total ? (s.value / total) * 100 : 0;
+      return (
+        <div key={s.key} className='flex items-center justify-between' style={{ gap: 'var(--dim-space-200)' }}>
+          <span
+            className='inline-flex items-center min-w-0'
+            style={{ gap: 'var(--dim-space-200)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}
+          >
+            <span className='shrink-0' style={{ width: 10, height: 10, borderRadius: 'var(--dim-radius-full)', background: s.color }} />
+            <span className='truncate'>{s.label}</span>
+          </span>
+          <span className='shrink-0 tabular-nums' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+            <strong>{formatBaht(s.value)}</strong>
+            <span style={{ color: 'var(--text-content-tertiary)' }}> · {formatPct(pct)}</span>
+          </span>
+        </div>
+      );
+    })}
+  </div>
+);
+
+/* รายรับมาจากหลายช่องทางที่แยกขาดจากกัน → โดนัท
+   รายจ่ายคือก้อนเดียวที่ถูกแบ่ง → แถบเดียว
+   สองรูปทรงต่างกันทำให้เงินเข้ากับเงินออกแยกออกจากกันได้ตั้งแต่ชายตามอง */
+const StackedShareBar = ({ segments, total }) => (
+  <div className='flex w-full' style={{ height: 28, borderRadius: 'var(--dim-radius-200)', overflow: 'hidden' }}>
+    {segments.map((s) => {
+      const pct = total ? (s.value / total) * 100 : 0;
+      return (
+        <div
+          key={s.key}
+          title={`${s.label} · ${formatBaht(s.value)}`}
+          style={{ width: `${pct}%`, background: s.color, transition: 'width 700ms cubic-bezier(0.22, 0.61, 0.36, 1)' }}
+        />
+      );
+    })}
   </div>
 );
 
@@ -182,15 +348,11 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
     byChannel, byType, byExpense, budgetRows, budgetTotal, today, nhsoApproved,
   } = report;
 
-  /* §1.20.3.4 — one line per side, in พันบาท so the chart's own data
-     labels stay legible (they are drawn inside a 44px SVG box). */
   const overviewSeries = [
-    { label: 'รายรับ',  color: '#14B8A6', values: revenueMonthly.map(toThousand) },
-    { label: 'รายจ่าย', color: '#F59E0B', values: expenseMonthly.map(toThousand) },
+    { label: 'รายรับ',  color: '#14B8A6', values: revenueMonthly.map(toMillion) },
+    { label: 'รายจ่าย', color: '#F59E0B', values: expenseMonthly.map(toMillion) },
   ];
 
-  /* §1.20.3.3 — grouped bars, in ล้านบาท. VBars takes any label array for
-     its x-axis, so the "months" here are the five budget หมวด. */
   const budgetSeries = [
     { label: 'งบได้รับ', color: '#6366F1', values: budgetRows.map((b) => toMillion(b.allocated)) },
     { label: 'ใช้ไป',    color: '#14B8A6', values: budgetRows.map((b) => toMillion(b.used)) },
@@ -199,15 +361,19 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
 
   const typeRows = byType.map((t) => ({
     label: t.label,
-    value: Math.round(toThousand(t.value)),
+    value: toMillion(t.value),
     second: Number((revenueTotal ? (t.value / revenueTotal) * 100 : 0).toFixed(1)),
   }));
 
   const expenseRows = byExpense.map((e) => ({
     label: e.label,
-    value: Math.round(toThousand(e.value)),
+    value: toMillion(e.value),
     second: Number((expenseTotal ? (e.value / expenseTotal) * 100 : 0).toFixed(1)),
   }));
+
+  /* เส้นเวลาเดียวกับแถบด้านบน วางทาบทุกหมวดงบ — หมวดไหนแท่งยาวเลยเส้นนี้
+     คือหมวดที่ใช้งบเร็วกว่าปฏิทิน ไม่ต้องคิดเลขเอง */
+  const timePct = year.current ? (year.elapsed / 12) * 100 : 100;
 
   const budgetColumns = [
     {
@@ -230,18 +396,37 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
       ),
     },
     {
-      key: 'pct', label: 'ใช้ไป (%)', width: 190,
+      key: 'pct', label: 'ใช้ไปเทียบปฏิทิน', width: 210,
+      /* `w-full` is load-bearing: the cell is a flex item that shrink-to-fits,
+         so without it this row sizes to the "77.8%" text (~42px) and the
+         flex-1 track collapses to zero width — the bar disappears entirely. */
       render: (b) => (
-        <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-          <span className='flex-1' style={{ height: 6, borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-neutral-tertiary, #F4F5F5)', overflow: 'hidden' }}>
+        <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+          <span className='relative flex-1' style={{ height: 8 }}>
             <span
-              className='block'
+              className='absolute inset-0'
+              style={{ borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-neutral-tertiary, #F4F5F5)', overflow: 'hidden' }}
+            >
+              <span
+                className='block'
+                style={{
+                  width: `${Math.min(100, b.pct)}%`,
+                  height: '100%',
+                  borderRadius: 'var(--dim-radius-full)',
+                  background: b.overBudget ? 'var(--surface-dangerButton-default, #B91C1C)' : b.color,
+                }}
+              />
+            </span>
+            <span
+              className='absolute'
               style={{
-                width: `${Math.min(100, b.pct)}%`,
-                height: '100%',
-                borderRadius: 'var(--dim-radius-full)',
-                background: b.overBudget ? 'var(--surface-dangerButton-default, #B91C1C)' : b.color,
+                left: `${timePct}%`,
+                top: -3,
+                bottom: -3,
+                width: 'var(--dim-stroke-100, 1px)',
+                background: 'var(--text-content-default, #363B3F)',
               }}
+              aria-hidden
             />
           </span>
           <span className='tabular-nums shrink-0' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{formatPct(b.pct)}</span>
@@ -265,10 +450,8 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
     : `${months[0]} – ${months[months.length - 1]} (เต็มปีงบประมาณ)`;
 
   return (
-    <div className='flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
-      {/* Filters — ปีงบประมาณ + ศูนย์บริการ, matching the filter-chip row
-          used by ทะเบียนรายรับ / ยอดค้างชำระ. */}
-      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+    <div className='flex flex-col mih-finance-report' style={{ gap: 'var(--dim-space-600)' }}>
+      <div className='flex items-center flex-wrap mih-finance-report__noprint' style={{ gap: 'var(--dim-space-200)' }}>
         <FilterDropdown
           prefix='ปีงบประมาณ:'
           options={FISCAL_YEARS.map((y) => ({ value: y.key, label: y.label }))}
@@ -288,18 +471,29 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
         <NeutralSubdueButton leadingIcon='print' onClick={() => window.print()}>พิมพ์รายงาน</NeutralSubdueButton>
       </div>
 
-      <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+      {/* หัวเรื่องของรายงาน — เห็นเฉพาะตอนพิมพ์ เพราะบนจอมี breadcrumb + แท็บบอกอยู่แล้ว */}
+      <div className='mih-finance-report__printonly'>
+        <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>
+          รายงานการเงิน {year.label} · {REPORT_CENTERS.find((c) => c.key === center)?.label} · {periodNote}
+        </span>
+      </div>
+
+      <PacingBand year={year} budgetTotal={budgetTotal} />
+
+      <div className='flex items-stretch flex-wrap mih-finance-report__block' style={{ gap: 'var(--dim-space-300)' }}>
         <StatTile
           icon='trending_up'
           label='รายรับรวม'
           value={formatBaht(revenueTotal)}
-          sub={year.current && today.count > 0 ? `รวมยอดรับวันนี้ ${formatBaht(today.total)} (${today.count} ใบเสร็จ)` : `เฉลี่ย ${formatBaht(Math.round(revenueTotal / months.length))}/เดือน`}
+          sub={year.current && today.count > 0
+            ? `รวมยอดรับวันนี้ ${formatBaht(today.total)} (${today.count} ใบเสร็จ)`
+            : `เฉลี่ย ${formatBaht(Math.round(revenueTotal / months.length))}/เดือน`}
         />
         <StatTile
           icon='trending_down'
           label='รายจ่ายรวม'
           value={formatBaht(expenseTotal)}
-          accent='var(--text-statusbadge-warning, #B25E09)'
+          accent='var(--text-statusbadge-warning, #C2410C)'
           sub={`เฉลี่ย ${formatBaht(Math.round(expenseTotal / months.length))}/เดือน`}
         />
         <StatTile
@@ -309,20 +503,7 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
           invert
           sub={`รายรับ − รายจ่าย · ${formatPct(revenueTotal ? (netTotal / revenueTotal) * 100 : 0)} ของรายรับ`}
         />
-        <StatTile
-          icon='savings'
-          label='ใช้งบประมาณไปแล้ว'
-          value={formatPct(budgetTotal.pct)}
-          sub={`${formatBaht(budgetTotal.used)} จาก ${formatBaht(budgetTotal.allocated)}`}
-        />
       </div>
-
-      {/* §1.20.3.4 */}
-      <SectionBlock title='ภาพรวมรายรับ-รายจ่าย' torId='TOR §1.20.3.4' note='รายเดือนตามปีงบประมาณ'>
-        <ChartCard title='รายรับเทียบรายจ่าย' caption='หน่วย: พันบาท'>
-          <AreaLineChart months={months} series={overviewSeries} height={300} />
-        </ChartCard>
-      </SectionBlock>
 
       {/* §1.20.3.1 */}
       <SectionBlock
@@ -333,37 +514,42 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
           : `ยอดรวม ${formatBaht(revenueTotal)}`}
       >
         <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-          <ChartCard title='แยกตามช่องทางรับเงิน' caption='เงินสด / e-Payment / เครดิต / บริจาค' className='flex-1' >
-            <DonutWithLegend segments={byChannel} total={revenueTotal} centerSub='รายรับรวม' />
+          <ChartCard title='แยกตามช่องทางรับเงิน' caption='เงินสด / e-Payment / เครดิต / บริจาค' className='flex-1'>
+            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+              <Donut segments={byChannel} size={168} thickness={26} centerLabel={`${byChannel.length} ช่องทาง`} centerSub='รายรับ' />
+              <ShareLegend segments={byChannel} total={revenueTotal} />
+            </div>
           </ChartCard>
-          <ChartCard title='แยกตามหมวดรายรับ' caption='หน่วย: พันบาท' className='flex-1'>
-            <HBarList rows={typeRows} valueLabel='พันบาท' secondLabel='%' />
+          <ChartCard title='แยกตามหมวดรายรับ' caption='หน่วย: ล้านบาท' className='flex-1'>
+            <HBarList rows={typeRows} valueLabel='ล้านบาท' secondLabel='%' />
           </ChartCard>
         </div>
       </SectionBlock>
 
       {/* §1.20.3.2 */}
-      <SectionBlock
-        title='รายจ่าย'
-        torId='TOR §1.20.3.2'
-        note={`ยอดรวม ${formatBaht(expenseTotal)}`}
-      >
+      <SectionBlock title='รายจ่าย' torId='TOR §1.20.3.2' note={`ยอดรวม ${formatBaht(expenseTotal)}`}>
         <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-          <ChartCard title='แยกตามประเภทรายจ่าย' caption='เงินเดือน / ค่าวัสดุ / ค่าสาธารณูปโภค / อื่น ๆ' className='flex-1'>
-            <DonutWithLegend segments={byExpense} total={expenseTotal} centerSub='รายจ่ายรวม' />
+          <ChartCard title='สัดส่วนรายจ่าย' caption='เงินเดือน / ค่าวัสดุ / ค่าสาธารณูปโภค / อื่น ๆ' className='flex-1'>
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+              <StackedShareBar segments={byExpense} total={expenseTotal} />
+              <ShareLegend segments={byExpense} total={expenseTotal} />
+            </div>
           </ChartCard>
-          <ChartCard title='สัดส่วนรายจ่าย' caption='หน่วย: พันบาท' className='flex-1'>
-            <HBarList rows={expenseRows} valueLabel='พันบาท' secondLabel='%' />
+          <ChartCard title='แยกตามประเภทรายจ่าย' caption='หน่วย: ล้านบาท' className='flex-1'>
+            <HBarList rows={expenseRows} valueLabel='ล้านบาท' secondLabel='%' />
           </ChartCard>
         </div>
       </SectionBlock>
 
+      {/* §1.20.3.4 */}
+      <SectionBlock title='ภาพรวมรายรับ-รายจ่าย' torId='TOR §1.20.3.4' note='รายเดือนตามปีงบประมาณ'>
+        <ChartCard title='รายรับเทียบรายจ่าย' caption='หน่วย: ล้านบาท'>
+          <AreaLineChart months={months} series={overviewSeries} height={300} />
+        </ChartCard>
+      </SectionBlock>
+
       {/* §1.20.3.3 */}
-      <SectionBlock
-        title='งบประมาณ'
-        torId='TOR §1.20.3.3'
-        note='เปรียบเทียบงบที่ได้รับกับงบที่ใช้ไป'
-      >
+      <SectionBlock title='งบประมาณ' torId='TOR §1.20.3.3' note='เปรียบเทียบงบที่ได้รับกับงบที่ใช้ไป'>
         <ChartCard title='งบได้รับ เทียบ ใช้ไป แยกตามหมวด' caption='หน่วย: ล้านบาท'>
           <VBars months={budgetLabels} series={budgetSeries} height={240} barMaxWidth={56} />
         </ChartCard>
@@ -394,7 +580,6 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
             ใช้ไป <strong>{formatBaht(budgetTotal.used)}</strong>
             <span style={{ color: 'var(--text-content-tertiary)' }}> · </span>
             คงเหลือ <strong>{formatSignedBaht(budgetTotal.remaining)}</strong>
-            <span style={{ color: 'var(--text-content-tertiary)' }}> · ใช้ไป {formatPct(budgetTotal.pct)}</span>
           </span>
         </div>
       </SectionBlock>
