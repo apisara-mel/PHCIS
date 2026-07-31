@@ -1,16 +1,21 @@
 name: Deploy to production
 
-# ทุกครั้งที่ merge เข้า main จะ build แล้ว rsync ขึ้น web root ของ
-# bma-health.mih.co.th (origin เป็น nginx, Cloudflare อยู่หน้าเป็น proxy)
+# ทุกครั้งที่ merge เข้า main จะ build แล้วอัปโหลด dist/ เป็น artifact เสมอ
+# (office-202 ดึง artifact ไป publish เองผ่าน Cloudflare Tunnel ได้) ส่วนการ
+# rsync ตรงขึ้นเซิร์ฟเวอร์จะทำก็ต่อเมื่อตั้งค่า DEPLOY_* ครบเท่านั้น —
+# ถ้ายังไม่ได้ตั้งจะ "ข้าม" ไม่ใช่ fail เพราะ 202 อยู่หลัง Cloudflare Tunnel
+# ที่ GitHub runner ssh เข้าไม่ได้อยู่แล้ว
 #
-# ต้องตั้งค่าใน repo settings ก่อนใช้งาน:
+# build ไม่ต้องใช้สิทธิ์อ่าน namonlims/mih-design แล้ว: design token ถูก
+# commit ไว้ที่ src/styles/tokens.css (อัปเดตด้วย `npm run tokens:pull`)
+#
+# ถ้าอยากให้ rsync ตรงขึ้นเซิร์ฟเวอร์ ตั้งค่าเพิ่มใน repo settings:
 #
 #   Secrets (Settings → Secrets and variables → Actions → Secrets)
-#     MIH_DESIGN_DEPLOY_KEY  private key ที่คู่กับ read-only deploy key บน namonlims/mih-design
 #     DEPLOY_SSH_KEY         private key ที่ public half อยู่ใน ~/.ssh/authorized_keys บนเซิร์ฟเวอร์
 #
 #   Variables (แท็บ Variables ข้าง ๆ กัน)
-#     DEPLOY_HOST            host หรือ IP ของเซิร์ฟเวอร์ (ต้องเป็น IP จริง ไม่ใช่ชื่อที่ผ่าน Cloudflare)
+#     DEPLOY_HOST            host หรือ IP ที่ GitHub runner ต่อถึง (ไม่ใช่ชื่อที่ผ่าน Cloudflare)
 #     DEPLOY_USER            ชื่อ user ที่ ssh เข้า
 #     DEPLOY_PATH            web root ที่ nginx เสิร์ฟ เช่น /var/www/bma-health
 #     DEPLOY_PORT            ssh port (ไม่ใส่ = 22)
@@ -21,6 +26,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 # กัน deploy ซ้อนกันเวลา merge หลาย PR ติด ๆ กัน — ไม่ cancel ตัวที่กำลังวิ่ง
 # เพราะ rsync ที่ถูกฆ่ากลางทางจะทิ้ง web root ไว้ครึ่ง ๆ กลาง ๆ
@@ -36,58 +44,85 @@ jobs:
     steps:
       - name: Checkout bma.health
         uses: actions/checkout@v4
-        with:
-          path: bma.health
-
-      # package.json ผูก "@mih/design-tokens": "file:../mih-design/packages/design-tokens"
-      # ไว้เป็น local path ดังนั้น repo mih-design ต้องถูกวางข้าง ๆ กันก่อน npm ci
-      - name: 'Checkout mih-design (sibling repo ที่ file: dependency ชี้ไปหา)'
-        uses: actions/checkout@v4
-        with:
-          repository: namonlims/mih-design
-          ssh-key: ${{ secrets.MIH_DESIGN_DEPLOY_KEY }}
-          path: mih-design
 
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: bma.health/package-lock.json
 
       - name: npm ci
-        working-directory: bma.health
         run: npm ci --no-audit --no-fund
 
       - name: vite build
-        working-directory: bma.health
         run: npm run build
 
       - name: ตรวจว่า build ออกมามีของจริง
-        working-directory: bma.health
         run: |
           test -f dist/index.html || { echo "::error::ไม่มี dist/index.html — build ไม่สำเร็จ"; exit 1; }
           ls dist/assets/index.*.js >/dev/null || { echo "::error::ไม่มี dist/assets/index.*.js"; exit 1; }
           echo "bundle: $(basename dist/assets/index.*.js)"
           du -sh dist
 
+      # อัปโหลดเสมอ ไม่ว่าจะ rsync ต่อได้หรือไม่ — นี่คือช่องทางที่ office-202
+      # ใช้ดึง build ไป publish เอง (ดึงผ่าน gh run download / GitHub API)
+      - name: อัปโหลด dist เป็น artifact ให้ office-202 มาดึง
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          retention-days: 14
+          if-no-files-found: error
+
+      # แยก config check ออกมาเพื่อให้เห็นในหน้า summary ว่า "ข้าม" เพราะอะไร
+      - name: เช็คว่าตั้งค่า rsync ครบไหม
+        id: cfg
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          MISSING=""
+          [ -n "$DEPLOY_HOST" ]    || MISSING="$MISSING DEPLOY_HOST"
+          [ -n "$DEPLOY_USER" ]    || MISSING="$MISSING DEPLOY_USER"
+          [ -n "$DEPLOY_PATH" ]    || MISSING="$MISSING DEPLOY_PATH"
+          [ -n "$DEPLOY_SSH_KEY" ] || MISSING="$MISSING DEPLOY_SSH_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ข้ามขั้นตอน rsync — ยังไม่ได้ตั้ง:$MISSING · ใช้ artifact dist-${{ github.sha }} แทนได้เลย"
+            {
+              echo "### ข้าม rsync ขึ้นเซิร์ฟเวอร์"
+              echo ""
+              echo "ยังไม่ได้ตั้ง:$MISSING"
+              echo ""
+              echo "ดึง build ไป publish เองด้วย:"
+              echo ''
+              echo '```sh'
+              echo "gh run download ${{ github.run_id }} -R ${{ github.repository }} -n dist-${{ github.sha }} -D dist"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: เตรียม SSH key และ known_hosts
+        if: steps.cfg.outputs.ready == 'true'
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
         run: |
-          test -n "$DEPLOY_HOST" || { echo "::error::ยังไม่ได้ตั้ง variable DEPLOY_HOST"; exit 1; }
-          test -n "$DEPLOY_SSH_KEY" || { echo "::error::ยังไม่ได้ตั้ง secret DEPLOY_SSH_KEY"; exit 1; }
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p "${DEPLOY_PORT:-22}" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          test -s ~/.ssh/known_hosts || { echo "::error::ssh-keyscan ไม่เจอ host key — เช็ค DEPLOY_HOST/DEPLOY_PORT และ firewall ว่าเปิดให้ GitHub runner เข้าไหม"; exit 1; }
+          test -s ~/.ssh/known_hosts || { echo "::error::ssh-keyscan ไม่เจอ host key — เช็ค DEPLOY_HOST/DEPLOY_PORT และ firewall ว่าเปิดให้ GitHub runner เข้าไหม (เครื่องหลัง Cloudflare Tunnel จะเข้าไม่ได้ ให้ใช้ artifact แทน)"; exit 1; }
 
       # --delete ปิดไว้เป็นค่าเริ่มต้นโดยตั้งใจ: ถ้า DEPLOY_PATH ตั้งผิด มันจะลบของบน
       # เซิร์ฟเวอร์ทิ้ง และการเก็บ asset hash เก่าไว้ยังช่วยคนที่เปิดหน้าเว็บค้างอยู่
       # ไม่ให้ chunk หายกลางทาง เปิดใช้เมื่อมั่นใจ path แล้วด้วย var DEPLOY_RSYNC_DELETE=true
       - name: rsync dist/ ขึ้นเซิร์ฟเวอร์
+        if: steps.cfg.outputs.ready == 'true'
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_USER: ${{ vars.DEPLOY_USER }}
@@ -95,23 +130,22 @@ jobs:
           DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
           RSYNC_DELETE: ${{ vars.DEPLOY_RSYNC_DELETE }}
         run: |
-          test -n "$DEPLOY_USER" || { echo "::error::ยังไม่ได้ตั้ง variable DEPLOY_USER"; exit 1; }
-          test -n "$DEPLOY_PATH" || { echo "::error::ยังไม่ได้ตั้ง variable DEPLOY_PATH"; exit 1; }
           DELETE_FLAG=""
           if [ "$RSYNC_DELETE" = "true" ]; then DELETE_FLAG="--delete"; fi
           rsync -rlptvz $DELETE_FLAG \
             -e "ssh -p ${DEPLOY_PORT:-22} -o StrictHostKeyChecking=yes" \
-            bma.health/dist/ \
+            dist/ \
             "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
 
       # ยืนยันว่าเว็บเสิร์ฟ bundle ตัวใหม่จริง ไม่ใช่แค่ rsync ผ่านแล้วจบ
       # (เคสที่เจอมา: nginx ชี้ไปคนละ path หรือ Cloudflare cache HTML ค้าง)
       - name: ตรวจว่าเว็บเสิร์ฟ bundle ตัวใหม่แล้ว
+        if: steps.cfg.outputs.ready == 'true'
         env:
           DEPLOY_URL: ${{ vars.DEPLOY_URL }}
         run: |
           URL="${DEPLOY_URL:-https://bma-health.mih.co.th}"
-          EXPECTED="$(basename bma.health/dist/assets/index.*.js)"
+          EXPECTED="$(basename dist/assets/index.*.js)"
           echo "คาดว่าจะเจอ: $EXPECTED"
           for i in 1 2 3 4 5 6; do
             LIVE="$(curl -fsSL --max-time 30 "$URL" | grep -oE 'index\.[a-f0-9]+\.js' | head -1 || true)"
