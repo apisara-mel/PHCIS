@@ -89,6 +89,38 @@ export const setPrintSetting = (key, value) => {
    one @media print reveals, so the two print buttons never print each
    other's content — same mechanism PharmacyLabelPrint.jsx uses for its
    label / prescription / aux-label split. */
+/* The print visibility switch. Injected here rather than in any one print
+   component because each lab print surface (sticker sheet, collection
+   report, patient report) can mount on its own route without the others —
+   and a page that renders a `.mih-lab-print-only` document without this
+   stylesheet shows it on screen. Idempotent, module-load, same pattern as
+   the chrome-free input styles elsewhere in the project. */
+if (typeof document !== 'undefined') {
+  /* Create-or-UPDATE, not create-if-missing. A create-if-missing guard goes
+     stale under HMR: the tag from the previous module generation survives,
+     the guard sees it and skips, and edits to these rules silently never
+     take effect. Rewriting textContent every evaluation is the pattern
+     CLAUDE.md calls for ("so HMR picks up edits without leaving a stale
+     <style> tag behind"). */
+  let el = document.getElementById('mih-lab-print-style');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'mih-lab-print-style';
+    document.head.appendChild(el);
+  }
+  el.textContent = `
+    .mih-lab-print-only { display: none; }
+    @media print {
+      body > *:not(.mih-lab-print-root) { display: none !important; }
+      .mih-lab-no-print { display: none !important; }
+      html[data-lab-print-mode="sticker"]    .mih-lab-print-only.mih-lab-print-sticker    { display: block !important; }
+      html[data-lab-print-mode="collection"] .mih-lab-print-only.mih-lab-print-collection { display: block !important; }
+      html[data-lab-print-mode="patient"]    .mih-lab-print-only.mih-lab-print-patient    { display: block !important; }
+      .mih-lab-sticker { break-inside: avoid; page-break-inside: avoid; }
+    }
+  `;
+}
+
 export const printLab = (mode) => {
   if (typeof document === 'undefined') return;
   document.documentElement.setAttribute('data-lab-print-mode', mode);

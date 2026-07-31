@@ -27,6 +27,7 @@ import LabQueuePage from '@/pages/lab/LabQueuePage';
 import LabOrderPage from '@/pages/lab/LabOrderPage';
 import LabSetupPage from '@/pages/lab/LabSetupPage';
 import LabResultEntryPage from '@/pages/lab/LabResultEntryPage';
+import LabReportPage from '@/pages/lab/LabReportPage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
 import ObservationHistoryPage from '@/pages/observation/ObservationHistoryPage';
@@ -209,6 +210,7 @@ export default function Routes() {
         <Route exact path='/lab/order'        component={LabOrderPage} />
         <Route exact path='/lab/setup'        component={LabSetupPage} />
         <Route exact path='/lab/result/:id'   component={LabResultEntryPage} />
+        <Route exact path='/lab/report/:orderId' component={LabReportPage} />
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
         <Route exact path='/observation/history/:id'  component={ObservationHistoryPage} />

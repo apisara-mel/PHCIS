@@ -17,22 +17,8 @@ import { isStickerFieldOn, getPrintSettings } from '@/data/labPrintSettings';
    which one is visible based on a root `data-lab-print-mode` attribute. No
    PDF or barcode library — `window.print()` and inline SVG. */
 
-if (typeof document !== 'undefined' && !document.getElementById('mih-lab-print-style')) {
-  const css = document.createElement('style');
-  css.id = 'mih-lab-print-style';
-  css.textContent = `
-    .mih-lab-print-only { display: none; }
-    @media print {
-      /* Hide the app entirely, then reveal only the requested document. */
-      body > *:not(.mih-lab-print-root) { display: none !important; }
-      .mih-lab-no-print { display: none !important; }
-      html[data-lab-print-mode="sticker"] .mih-lab-print-only.mih-lab-print-sticker { display: block !important; }
-      html[data-lab-print-mode="collection"] .mih-lab-print-only.mih-lab-print-collection { display: block !important; }
-      .mih-lab-sticker { break-inside: avoid; page-break-inside: avoid; }
-    }
-  `;
-  document.head.appendChild(css);
-}
+/* The print visibility stylesheet lives in labPrintSettings.js — see the
+   note there on why it is shared rather than per-component. */
 
 /* Sticker geometry — 50 × 25 mm is the common thermal specimen-label size
    that fits lengthwise on a 13 × 75 mm blood tube. Printed dimensions are

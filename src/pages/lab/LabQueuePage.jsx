@@ -458,7 +458,7 @@ const buildColumns = (onAction, historyFor, selection) => [
      pipeline: you cannot mark a specimen collected before its label is
      printed, and you cannot reject one that was never drawn. */
   {
-    key: 'actions', label: 'การจัดการ', width: 212, sortable: false, align: 'center',
+    key: 'actions', label: 'การจัดการ', width: 252, sortable: false, align: 'center',
     render: (row) => {
       const canCollect = row.status === 'requested' || row.status === 'collect';
       const canReject = row.status !== 'requested' && row.status !== 'reported';
@@ -514,6 +514,17 @@ const buildColumns = (onAction, historyFor, selection) => [
             aria-label={`ปฏิเสธ/เจาะซ้ำ ${row.accessionNo}`}
             title='ปฏิเสธสิ่งส่งตรวจ / สั่งเจาะซ้ำ'
             onClick={(e) => { e.stopPropagation(); onAction('reject', row); }}
+          />
+          {/* The patient's own sheet — only exists once a result has been
+              released, so it replaces nothing and appears only then. */}
+          <NeutralSubdueIconButton
+            icon='description'
+            variant='outline'
+            size='sm'
+            disabled={row.status !== 'reported'}
+            aria-label={`ใบรายงานผลสำหรับผู้ป่วย ${row.accessionNo}`}
+            title='ใบรายงานผลสำหรับผู้ป่วย'
+            onClick={(e) => { e.stopPropagation(); onAction('patientReport', row); }}
           />
           <NeutralSubdueIconButton
             icon='delete'
@@ -702,6 +713,10 @@ const LabQueuePage = () => {
          than the generic yes/no confirm. */
       setRejectTarget(row);
       setRejectReason('');
+      return;
+    }
+    if (kind === 'patientReport') {
+      history.push(`/lab/report/${row.orderId}`);
       return;
     }
     if (kind === 'result') {
