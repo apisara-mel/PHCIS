@@ -2,7 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Helmet } from 'react-helmet';
 
-import '@mih/design-tokens/tokens.css';
+/* Vendored mirror of @mih/design-tokens/tokens.css — refresh with
+   `npm run tokens:pull`. Imported from the repo (not the package) so the
+   build never depends on the private mih-design checkout being present. */
+import '@/styles/tokens.css';
 import '@/index.css';
 import App from '@/App';
 

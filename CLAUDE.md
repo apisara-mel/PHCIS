@@ -5,9 +5,17 @@
 **Every value — color, dimension, typography, shadow, border, radius, stroke,
 opacity, blur — that appears in any component, page, or new piece of
 "vibe code" MUST alias a token defined in [`design.md`](design.md) and exposed
-as a CSS custom property by [`@mih/design-tokens`](https://github.com/namonlims/mih-design)
-(imported in [`src/main.jsx`](src/main.jsx)). App chrome only lives in
+as a CSS custom property by [`@mih/design-tokens`](https://github.com/namonlims/mih-design).
+The tokens ship as a committed mirror at [`src/styles/tokens.css`](src/styles/tokens.css)
+(imported in [`src/main.jsx`](src/main.jsx)) — that file is **generated**, refresh it
+with `npm run tokens:pull` instead of editing it. App chrome only lives in
 [`src/index.css`](src/index.css) — do not add new `--*` token definitions there.**
+
+> The mirror is committed on purpose: `npm ci && npm run build` must succeed on
+> machines with no access to the private `mih-design` repo (the office-202 cron,
+> GitHub runners, a fresh clone). Never add `@mih/design-tokens` back as a
+> `file:../mih-design/...` dependency — that is what broke production builds for
+> 13 days in July 2026.
 
 **The only exception is gradients.** Use inline `linear-gradient(...)` /
 `radial-gradient(...)` directly. (Gradients aren't expressible as a single
@@ -44,8 +52,9 @@ token whose value matches what you actually want, OR add a new token to
    for color tokens — never use raw hex.
 3. **If Figma defines a value that isn't in design.md yet**, add the token to
    the **`mih-design`** repo (`packages/design-tokens`: `design.md` + `tokens.css`),
-   bump / reinstall `@mih/design-tokens`, then `npm run tokens:pull`. Do not
-   silently introduce a literal, and do not add new `--*` tokens in `src/index.css`.
+   then run `npm run tokens:pull` here and commit the refreshed
+   `src/styles/tokens.css` + `design.md`. Do not silently introduce a literal,
+   and do not add new `--*` tokens in `src/index.css`.
 4. **If the value isn't in Figma at all**, push back — values outside the design
    system are drift. Either it should be added to Figma + design.md, or the
    component should use the nearest existing token.
@@ -62,10 +71,10 @@ token whose value matches what you actually want, OR add a new token to
 
 ### When in doubt
 
-Grep [`node_modules/@mih/design-tokens/tokens.css`](node_modules/@mih/design-tokens/tokens.css)
-(or the sibling `mih-design/packages/design-tokens/tokens.css`) for an existing
-variable that matches what you want before introducing a literal. If nothing
-matches, that's a signal to add a token in **mih-design**, not to bypass the rule.
+Grep [`src/styles/tokens.css`](src/styles/tokens.css) for an existing variable that
+matches what you want before introducing a literal. If nothing matches, that's a
+signal to add a token in **mih-design** (then `npm run tokens:pull`), not to bypass
+the rule.
 
 ---
 
