@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Helmet } from 'react-helmet';
 
+import '@mih/design-tokens/tokens.css';
 import '@/index.css';
 import App from '@/App';
 

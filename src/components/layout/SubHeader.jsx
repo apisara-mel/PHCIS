@@ -20,6 +20,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 
    Props:
      title    — required label (rendered bold/heading family on the left)
+     afterTitle — optional node rendered immediately after the title (e.g. badges)
      onBack   — when provided, renders the Figma back button before the title
      backLabel — label of the back button (default 'กลับ')
      children — right-aligned action slot (gap-12 between siblings)
@@ -27,7 +28,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
        SummaryCardsBar can sit flush with no visible “top stroke” on the panel.
      hideBottomBorder — when true, omits only the 1px bottom border (keeps shadow). */
 
-const SubHeader = ({ title, onBack, backLabel = 'กลับ', children, flushSummaryCardsBelow = false, hideBottomBorder = false }) => (
+const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', children, flushSummaryCardsBelow = false, hideBottomBorder = false }) => (
   <div
     className='flex items-center w-full shrink-0'
     style={{
@@ -64,6 +65,7 @@ const SubHeader = ({ title, onBack, backLabel = 'กลับ', children, flushS
     }}>
       {title}
     </span>
+    {afterTitle}
     <div className='flex-1' />
     {children && (
       <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-300)' }}>

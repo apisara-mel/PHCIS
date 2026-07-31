@@ -2,15 +2,18 @@ import React, { useState } from 'react';
 
 /* MIH BrandCircleIconButton — Figma "Brand Circle Icon Button" (node 2103:548).
    Round (50%) variant of BrandIconButton: 3 styles (fill/outline/ghost) ×
-   3 sizes × 5 states (default/hover/active/focus/disabled) including a
+   5 sizes (xs 32 / sm 36 / md 40 / lg 44 / xl 52) × 5 states
+   (default/hover/active/focus/disabled) including a
    unique `selected` state — when selected, fill becomes brand-p100 with
    brand-p700 icon, regardless of variant.
    Tokens alias from design.md §4.5 — no hex literals.            */
 
 const SIZES = {
+  xs: { side: 'var(--dim-size-600, 32px)', icon: 'var(--dim-size-250, 14px)' },  /* XSmall — Figma 2103:548 (32 / icon 14) */
   sm: { side: 36, icon: 16 },
   md: { side: 40, icon: 20 },
   lg: { side: 44, icon: 20 },
+  xl: { side: 'var(--dim-size-1100, 52px)', icon: 20 },  /* X Large — Figma 3853:1018 (52 / icon 20, radius full) */
 };
 
 const Sym = ({ name, size, color }) => (

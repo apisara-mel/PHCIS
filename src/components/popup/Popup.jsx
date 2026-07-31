@@ -31,8 +31,9 @@ import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMoti
                          or any CSS width string (wins over `size` when set)
      • open / onClose
      • title / subtitle  required title; optional subtitle line
-     • onBack            shows a leading ‹ back button in the header (sub-screen step-back);
-                         does not replace onClose, which still closes the whole popup
+     • leading           optional node left of title (e.g. back chevron)
+     • onBack            shorthand for leading={<BackButton/>} — a ‹ step-back for a
+                         sub-screen; does not replace onClose, which still closes the popup
      • children          body content
      • buttonLayout      'horizontal' | 'vertical'           (default: 'horizontal')
      • primaryAction     { label, onClick, disabled? }
@@ -238,8 +239,9 @@ const Popup = ({
   onClose,
   title,
   subtitle,
-  /** Shows a leading ‹ back button in the header when set (e.g. a
-      sub-screen within the popup, like the void-receipt reason form
+  leading = null,
+  /** Shorthand for the commonest `leading` node: a ‹ back button for a
+      sub-screen within the popup (e.g. the void-receipt reason form
       stepping back to the receipt view). Does not replace onClose —
       the X still closes the whole popup. */
   onBack,
@@ -351,6 +353,8 @@ const Popup = ({
         if (t.closest?.('.mih-diag-type-popover')) return;
         if (t.closest?.('.mih-suggestion-popover')) return;
         if (t.closest?.('.mih-select-popover')) return;
+        if (t.closest?.('.mih-datepicker-popover')) return;
+        if (t.closest?.('.mih-popover-in')) return;
         onClose();
       }}
       style={{
@@ -414,7 +418,7 @@ const Popup = ({
             background:    'var(--surface-modal-default)',
           }}
         >
-          {onBack && <BackButton onClick={onBack} />}
+          {onBack ? <BackButton onClick={onBack} /> : leading}
           <div
             className='flex-1 min-w-0 flex flex-col'
             style={{ gap: 'var(--dim-space-100)' }}

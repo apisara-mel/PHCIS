@@ -22,13 +22,13 @@ export const TREATMENT_STEPS = [
 
 export const TREATMENT_STEP_LABELS = TREATMENT_STEPS.map((s) => s.title);
 
-const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onNext, onSave, isLast }) => {
+const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, isLast }) => {
   /* Primary CTA label — Figma PHCIS pattern: "ถัดไป: [next step]" so the
      clinician sees where they're heading without re-reading the stepper.
      Last step swaps the forward label for the explicit commit action. */
   const nextStepLabel = isLast
     ? 'จบการบันทึก'
-    : `ถัดไป: ${TREATMENT_STEPS[stepIndex + 1].title}`;
+    : `ถัดไป: ${steps[stepIndex + 1].title}`;
 
   /* Footer chrome — Figma PHCIS | Medical-examination 330:42666.
      Aliases the brand-tinted footer treatment used across PHCIS pages:
@@ -81,15 +81,28 @@ const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onNext, onSave, isLast })
   );
 };
 
-const TreatmentFormShell = ({ stepIndex, onStepChange, completedSteps, children }) => {
+const TreatmentFormShell = ({
+  stepIndex, onStepChange, completedSteps, children,
+  /* Overridable for non-OPD sub-departments (e.g. ANC) that reuse this
+     shell with their own step titles + queue route — defaults keep OPD's
+     TreatmentFormPage behaviour unchanged. */
+  steps = TREATMENT_STEPS,
+  queuePath = '/treat/queue',
+  /* OPD's Step 1 brings its own ServiceDateList rail flush against the
+     card's left edge, so it opts out of the 24px body padding — that's an
+     OPD-specific layout quirk, not a general "step 1" rule. Sub-departments
+     without that rail (e.g. ANC) pass `step0FlushLeft={false}` to keep the
+     same 24px padding Step 1 gets in every other step. */
+  step0FlushLeft = true,
+}) => {
   const history = useHistory();
-  const isLast = stepIndex === TREATMENT_STEPS.length - 1;
+  const isLast = stepIndex === steps.length - 1;
   const handlePrev = () => {
-    if (stepIndex === 0) history.push('/treat/queue');
+    if (stepIndex === 0) history.push(queuePath);
     else onStepChange(stepIndex - 1);
   };
   const handleNext = () => {
-    if (isLast) history.push('/treat/queue');
+    if (isLast) history.push(queuePath);
     else onStepChange(stepIndex + 1);
   };
 
@@ -113,7 +126,7 @@ const TreatmentFormShell = ({ stepIndex, onStepChange, completedSteps, children 
           <div className='flex justify-center min-w-max overflow-x-auto'>
             <StepProgress
               framed
-              steps={TREATMENT_STEPS}
+              steps={steps}
               current={stepIndex}
               completedSteps={completedSteps}
               onStepClick={onStepChange}
@@ -123,9 +136,9 @@ const TreatmentFormShell = ({ stepIndex, onStepChange, completedSteps, children 
               card's left edge, so it opts out of the 24px body padding.
               Steps 2–7 — Figma PHCIS treatment card body floor: min 640 px. */}
           <div
-            className={stepIndex === 0 ? undefined : 'flex flex-1 flex-col min-h-0'}
+            className={stepIndex === 0 && step0FlushLeft ? undefined : 'flex flex-1 flex-col min-h-0'}
             style={
-              stepIndex === 0
+              stepIndex === 0 && step0FlushLeft
                 ? undefined
                 : {
                     padding: 'var(--dim-space-600)',
@@ -138,7 +151,7 @@ const TreatmentFormShell = ({ stepIndex, onStepChange, completedSteps, children 
         </div>
       </div>
 
-      <Footer stepIndex={stepIndex} onPrev={handlePrev} onNext={handleNext} isLast={isLast} />
+      <Footer stepIndex={stepIndex} steps={steps} onPrev={handlePrev} onNext={handleNext} isLast={isLast} />
     </main>
   );
 };

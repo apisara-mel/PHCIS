@@ -973,7 +973,9 @@ Document every new node: `/* Figma node 1234:5678 */` + link in `design.md`.
 |------------|---------|----------|
 | **`ux-empty-loading-error`** | Empty states, skeletons, error banners — match `Step5Orders`, `StatusBadge` patterns | High |
 | **`ux-thai-clinical-copy`** | Thai labels, honorifics, HN/rights terminology, button verbs (บันทึก/ยกเลิก/ตกลง) | High |
-| **`ux-accessibility-mih`** | Contrast on semantic tokens, 44px touch, focus rings, `aria-*` on icon buttons | Medium |
+| **`ux-assessment`** | WCAG 2.2 AA, Nielsen heuristics, usability — [ux-assessment](../ux-assessment/SKILL.md) | High |
+| **`sync-mih-component`** | Figma DS → vibe code: rename layers, alias design.md tokens, create/update component + §6 + library demo — [sync-mih-component](../sync-mih-component/SKILL.md) | High |
+| **`health-office-kiosk`** | ตู้ Kiosk สำนักงานอนามัย — apply TOR §1.16 (+ related) onto `/kiosk` UI — [health-office-kiosk](../health-office-kiosk/SKILL.md) | High |
 | **`ux-responsive-platform`** | Desktop vs `/m` vs kiosk breakpoints from `design.md` §3 | Medium |
 | **`ux-figma-handoff`** | Spacing annotations, redlines, "spec frame" next to dev-ready screen | Medium |
 | **`ux-motion-feedback`** | `duration-150|200`, no bounce; toast/popup timing | Low |

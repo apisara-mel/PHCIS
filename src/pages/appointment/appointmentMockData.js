@@ -211,7 +211,11 @@ function doctorMeta(staffId) {
 function deriveAppointmentStatus(id, date, time, extras = {}) {
   if (extras.status) return extras.status;
   const today = mockTodayKey();
-  if (date > today) return 'confirmed';
+  if (date > today) {
+    const num = parseInt(String(id).replace(/\D/g, ''), 10) || 0;
+    /* ~1/3 of upcoming appointments await confirmation. */
+    return num % 3 === 0 ? 'pending' : 'confirmed';
+  }
 
   const slotPast = date < today || (() => {
     const [h, m] = time.split(':').map(Number);
@@ -224,12 +228,30 @@ function deriveAppointmentStatus(id, date, time, extras = {}) {
     const num = parseInt(String(id).replace(/\D/g, ''), 10) || 0;
     return num % 6 === 0 ? 'no_show' : 'completed';
   }
-  return 'confirmed';
+
+  const num = parseInt(String(id).replace(/\D/g, ''), 10) || 0;
+  return num % 3 === 0 ? 'pending' : 'confirmed';
 }
+
+/** TOR 1.6.1.2 — unit that placed the appointment order. */
+const ORDERING_UNITS = [
+  'ศูนย์ 4 ดินแดง',
+  'ศูนย์ 8 บางนา',
+  'OPD อายุรกรรม',
+  'ห้องฉุกเฉิน',
+  'คลินิกเวชศาสตร์ครอบครัว',
+  'ทันตกรรม',
+  'กุมารเวช',
+  'ศูนย์บริการสาธารณสุข 7',
+];
 
 function appt(id, hn, staffId, date, time, extras = {}) {
   const p = APPOINTMENT_PATIENTS[hn];
   const doc = doctorMeta(staffId);
+  const num = parseInt(String(id).replace(/\D/g, ''), 10) || 0;
+  const orderingUnit = extras.orderingUnit
+    || extras.site
+    || ORDERING_UNITS[num % ORDERING_UNITS.length];
   return {
     id,
     staffId,
@@ -245,6 +267,7 @@ function appt(id, hn, staffId, date, time, extras = {}) {
     type: extras.type ?? 'พบแพทย์',
     doctor: doc.doctor,
     examMode: extras.examMode ?? 'onsite',
+    orderingUnit,
     ...(extras.site ? { site: extras.site } : {}),
     ...(extras.reason ? { reason: extras.reason } : {}),
     ...(extras.prep ? { prep: extras.prep } : {}),
@@ -269,9 +292,20 @@ function mockYesterdayKey() {
   return mockTodayKey(d);
 }
 
+function mockOffsetKey(daysFromToday) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromToday);
+  return mockTodayKey(d);
+}
+
 /** Today — full-day schedule (เช้า / บ่าย / ดึก) across 25 doctors. */
 const TODAY = mockTodayKey();
 const YESTERDAY = mockYesterdayKey();
+const TOMORROW = mockOffsetKey(1);
+const IN_2_DAYS = mockOffsetKey(2);
+const IN_3_DAYS = mockOffsetKey(3);
+const IN_5_DAYS = mockOffsetKey(5);
+const IN_7_DAYS = mockOffsetKey(7);
 
 const TODAY_MORNING_TIMES = [
   '07:00', '07:15', '07:30', '07:45', '08:00', '08:15', '08:30', '08:45',
@@ -480,8 +514,205 @@ function buildLastMonthAppointments() {
 
 const LAST_MONTH_APPOINTMENTS = buildLastMonthAppointments();
 
+/** Dedicated pending queue — relative to today so the tab always has rows. */
+const PENDING_APPOINTMENTS = [
+  appt('A-P01', '67-00002', 1, TODAY, '14:00', {
+    status: 'pending',
+    reason: 'ขอนัดตรวจสุขภาพประจำปี (รอเจ้าหน้าที่ยืนยัน)',
+    prep: 'นำบัตรประชาชนและผลแลปล่าสุด',
+  }),
+  appt('A-P02', '67-00003', 3, TODAY, '15:30', {
+    status: 'pending',
+    reason: 'ขอนัดเจาะเลือดและตรวจแลป',
+    prep: 'งดอาหารอย่างน้อย 8 ชั่วโมง',
+  }),
+  appt('A-P03', '67-00004', 1, TODAY, '16:15', {
+    status: 'pending',
+    examMode: 'tele',
+    reason: 'ขอนัด Telemedicine ติดตามความดัน',
+    prep: 'เตรียมเครื่องวัดความดันที่บ้าน',
+  }),
+  appt('A-P04', '67-00005', 2, TODAY, '18:00', {
+    status: 'pending',
+    reason: 'ขอนัดขูดหินปูน',
+    prep: 'แปรงฟันก่อนมาพบแพทย์',
+  }),
+  appt('A-P05', '67-00006', 4, TOMORROW, '09:00', {
+    status: 'pending',
+    reason: 'ขอนัดฝากครรภ์ครั้งแรก',
+    prep: 'นำสมุดฝากครรภ์และบัตรประชาชน',
+  }),
+  appt('A-P06', '67-00007', 5, TOMORROW, '10:30', {
+    status: 'pending',
+    reason: 'ขอนัดปรึกษาก่อนผ่าตัดเล็ก',
+    prep: 'งดอาหารหลังเที่ยงคืน',
+  }),
+  appt('A-P07', '67-00008', 6, TOMORROW, '13:15', {
+    status: 'pending',
+    reason: 'ขอนัดตรวจสายตา',
+    prep: 'หยุดใส่คอนแทคเลนส์ 24 ชม.',
+  }),
+  appt('A-P08', '67-00009', 8, IN_2_DAYS, '08:30', {
+    status: 'pending',
+    examMode: 'tele',
+    reason: 'ขอนัดติดตามผล ECG ทางไกล',
+    prep: 'เตรียมรายการยาที่ใช้อยู่',
+  }),
+  appt('A-P09', '67-00010', 1, IN_2_DAYS, '11:00', {
+    status: 'pending',
+    reason: 'ขอนัดตรวจน้ำตาลและไขมัน',
+    prep: 'งดอาหาร 8 ชม. ก่อนเจาะเลือด',
+  }),
+  appt('A-P10', '67-00011', 9, IN_3_DAYS, '14:45', {
+    status: 'pending',
+    reason: 'ขอนัดอุดฟัน',
+    prep: 'แปรงฟันก่อนมาพบแพทย์',
+  }),
+  appt('A-P11', '67-00012', 17, IN_3_DAYS, '16:00', {
+    status: 'pending',
+    reason: 'ขอนัดตรวจสุขภาพจิต',
+    prep: 'นำรายการยาที่ใช้อยู่',
+  }),
+  appt('A-P12', '67-00013', 2, IN_5_DAYS, '09:15', {
+    status: 'pending',
+    reason: 'ขอนัดตรวจฟันเด็ก',
+    prep: 'แปรงฟันก่อนมาพบแพทย์',
+  }),
+  appt('A-P13', '67-00014', 1, IN_5_DAYS, '10:00', {
+    status: 'pending',
+    reason: 'ขอนัดติดตามความดันโลหิต',
+    prep: 'บันทึกค่าความดัน 7 วันย้อนหลัง',
+  }),
+  appt('A-P14', '67-00015', 3, IN_7_DAYS, '08:00', {
+    status: 'pending',
+    reason: 'ขอนัดฉีดวัคซีนตามอายุ',
+    prep: 'นำสมุดวัคซีน',
+  }),
+  appt('A-P15', '67-00001', 1, IN_7_DAYS, '08:15', {
+    status: 'pending',
+    ...SOMCHAI_FOLLOWUP,
+    reason: 'ขอนัดติดตามผลการรักษา (รอการยืนยัน)',
+    site: 'ศูนย์ 8 บางนา',
+  }),
+];
+
+/** Cancelled appointments — relative to today so the tab always has rows. */
+const CANCELLED_APPOINTMENTS = [
+  appt('A-C01', '67-00003', 1, YESTERDAY, '09:00', {
+    status: 'cancelled',
+    cancelReason: 'ผู้ป่วยขอยกเลิก',
+    reason: 'ติดตามความดันโลหิต (ยกเลิก)',
+    prep: 'บันทึกค่าความดัน 7 วันย้อนหลัง',
+  }),
+  appt('A-C02', '67-00004', 3, YESTERDAY, '14:30', {
+    status: 'cancelled',
+    cancelReason: 'แพทย์ไม่ว่าง / ปรับตาราง',
+    reason: 'เจาะเลือดและตรวจแลป (ยกเลิก)',
+    prep: 'งดอาหารอย่างน้อย 8 ชั่วโมง',
+  }),
+  appt('A-C03', '67-00005', 2, TODAY, '10:00', {
+    status: 'cancelled',
+    cancelReason: 'ผิดพลาดในการจอง',
+    reason: 'ขูดหินปูน (ยกเลิก)',
+    prep: 'แปรงฟันก่อนมาพบแพทย์',
+  }),
+  appt('A-C04', '67-00006', 4, TODAY, '11:30', {
+    status: 'cancelled',
+    cancelReason: 'ผู้ป่วยขอยกเลิก',
+    examMode: 'tele',
+    reason: 'Telemedicine ฝากครรภ์ (ยกเลิก)',
+    prep: 'เตรียมเครื่องวัดความดันที่บ้าน',
+  }),
+  appt('A-C05', '67-00007', 5, TOMORROW, '09:30', {
+    status: 'cancelled',
+    cancelReason: 'แพทย์ไม่ว่าง / ปรับตาราง',
+    reason: 'ปรึกษาก่อนผ่าตัดเล็ก (ยกเลิก)',
+    prep: 'งดอาหารหลังเที่ยงคืน',
+  }),
+  appt('A-C06', '67-00008', 6, TOMORROW, '15:00', {
+    status: 'cancelled',
+    cancelReason: 'ผู้ป่วยขอยกเลิก',
+    reason: 'ตรวจสายตา (ยกเลิก)',
+    prep: 'หยุดใส่คอนแทคเลนส์ 24 ชม.',
+  }),
+  appt('A-C07', '67-00009', 8, IN_2_DAYS, '08:00', {
+    status: 'cancelled',
+    cancelReason: 'อื่น ๆ',
+    examMode: 'tele',
+    reason: 'ติดตามผล ECG (ยกเลิก)',
+    prep: 'เตรียมรายการยาที่ใช้อยู่',
+  }),
+  appt('A-C08', '67-00010', 1, IN_3_DAYS, '13:00', {
+    status: 'cancelled',
+    cancelReason: 'ผิดพลาดในการจอง',
+    reason: 'ตรวจน้ำตาลและไขมัน (ยกเลิก)',
+    prep: 'งดอาหาร 8 ชม. ก่อนเจาะเลือด',
+  }),
+  appt('A-C09', '67-00001', 1, IN_5_DAYS, '08:15', {
+    status: 'cancelled',
+    cancelReason: 'ผู้ป่วยขอยกเลิก',
+    ...SOMCHAI_FOLLOWUP,
+    reason: 'ติดตามผลการรักษา (ยกเลิก)',
+    site: 'ศูนย์ 8 บางนา',
+  }),
+  appt('A-C10', '67-00012', 17, IN_7_DAYS, '16:30', {
+    status: 'cancelled',
+    cancelReason: 'แพทย์ไม่ว่าง / ปรับตาราง',
+    reason: 'ตรวจสุขภาพจิต (ยกเลิก)',
+    prep: 'นำรายการยาที่ใช้อยู่',
+  }),
+];
+
+/**
+ * Light future bookings — afternoon only — so earliest-slot search (TOR 1.6.2.1)
+ * still finds morning free slots for อายุรกรรม / ทันตกรรม / กุมารเวช demos.
+ */
+const EARLIEST_SLOT_DEMO_APPOINTMENTS = [
+  appt('A-E01', '67-00002', 1, TOMORROW, '13:00', {
+    reason: 'ตรวจติดตามความดันช่วงบ่าย',
+    prep: 'นำบันทึกความดัน 7 วัน',
+  }),
+  appt('A-E02', '67-00003', 1, TOMORROW, '14:00', {
+    reason: 'เจาะเลือดช่วงบ่าย',
+    prep: 'งดอาหาร 8 ชั่วโมง',
+  }),
+  appt('A-E03', '67-00005', 2, TOMORROW, '13:30', {
+    reason: 'ขูดหินปูนช่วงบ่าย',
+    prep: 'แปรงฟันก่อนมาพบแพทย์',
+  }),
+  appt('A-E04', '67-00006', 2, IN_2_DAYS, '15:00', {
+    reason: 'อุดฟัน',
+    prep: 'แปรงฟันก่อนมาพบแพทย์',
+  }),
+  appt('A-E05', '67-00007', 3, TOMORROW, '14:30', {
+    reason: 'ตรวจสุขภาพเด็กช่วงบ่าย',
+    prep: 'นำสมุดวัคซีน',
+  }),
+  appt('A-E06', '67-00008', 1, IN_2_DAYS, '13:15', {
+    reason: 'ติดตามเบาหวาน',
+    prep: 'นำผลแลปล่าสุด',
+  }),
+  appt('A-E07', '67-00009', 9, TOMORROW, '15:30', {
+    reason: 'ตรวจฟันเด็ก',
+    prep: 'แปรงฟันก่อนมาพบแพทย์',
+  }),
+  appt('A-E08', '67-00010', 15, IN_3_DAYS, '14:00', {
+    reason: 'ตรวจสุขภาพประจำปีช่วงบ่าย',
+    prep: 'นำบัตรประชาชน',
+  }),
+];
+
 /** ~70 interconnected appointments — today full-day, June 2026, and past history. */
 export const INITIAL_APPOINTMENTS = [
+  /* ── Pending confirmation queue (tab: นัดหมายที่รอการยืนยัน) ── */
+  ...PENDING_APPOINTMENTS,
+
+  /* ── Cancelled queue (tab: นัดหมายที่ยกเลิก) ── */
+  ...CANCELLED_APPOINTMENTS,
+
+  /* ── Earliest-slot demo (morning free for common filters) ── */
+  ...EARLIEST_SLOT_DEMO_APPOINTMENTS,
+
   /* ── Upcoming June — นายสมชาย มั่นใจดี recurring (นพ. วันชัย) ── */
   appt('A-001', '67-00001', 1, '2026-06-01', '08:15', { ...SOMCHAI_FOLLOWUP, site: 'ศูนย์ 8 บางนา' }),
   appt('A-002', '67-00001', 1, '2026-06-08', '08:15', SOMCHAI_FOLLOWUP),

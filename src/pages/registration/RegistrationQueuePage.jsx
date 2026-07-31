@@ -3,8 +3,7 @@ import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
-import FilterDateTag from '@/components/forms/FilterDateTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
@@ -14,16 +13,18 @@ import BrandIconButton from '@/components/button/BrandIconButton';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrivacyRevealPopup from '@/components/popup/PrivacyRevealPopup';
+import Tooltip from '@/components/tooltip/Tooltip';
 import { formatNationalId } from '@/data/registrationForm';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import { MR_PATIENTS } from '@/data/mrPatients';
 import {
   PATIENT_PROFILES,
   PENDING_REGISTRATION_NO_PHOTO,
   getPatientByHN,
-  getPatientDobByHN,
 } from '@/data/patientProfiles';
 import { buildRegistrationSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
+import { NEW_USER_AVATAR } from '@/data/avatarAssets';
 
 /* MIH RegistrationQueuePage — Figma node 2756:148259 / queue col 199:9243.
    Patient roster for the Medical Records (เวชระเบียน) workflow. Shares the
@@ -47,63 +48,79 @@ const SUMMARY_CARDS = [
   { key: 'done',         label: 'ซักประวัติเสร็จ',        value: 118, indicator: 'ทุกห้องรวมกัน',       color: 'positive',   icon: 'how_to_reg'      },
 ];
 
-/* Tab strip — Figma PHCIS-Registration 104:20512 (Tab Bar / Underline). */
+/* Tab strip — Figma Registration Dashboard 292:88376 (Tab Bar / Underline). */
 const TABS = [
-  { key: 'all',      label: 'ทั้งหมด',         icon: 'group',         count: 130 },
-  { key: 'pending',  label: 'รอลงทะเบียน',     icon: 'schedule',      count: 12  },
-  { key: 'progress', label: 'กำลังลงทะเบียน',   icon: 'assignment',    count: 2   },
-  { key: 'done',     label: 'ลงทะเบียนแล้ว',    icon: 'check_circle',  count: 2   },
-  { key: 'draft',    label: 'ที่ร่างไว้',        icon: 'save',          count: 6   },
+  { key: 'pending',   label: 'รอลงทะเบียน',          icon: 'schedule',      count: 0 },
+  { key: 'progress',  label: 'กำลังลงทะเบียน',        icon: 'assignment',    count: 0 },
+  { key: 'done',      label: 'ลงทะเบียนแล้ว',         icon: 'check_circle',  count: 0 },
+  { key: 'draft',     label: 'ที่ร่างไว้',             icon: 'save',          count: 0 },
+  { key: 'directory', label: 'รายชื่อผู้ป่วยทั้งหมด',  icon: 'group',         count: 0 },
 ];
 
-/* Filter axes — Figma 104:20512 collapses the OPD-style แผนก/แพทย์/ประเภท
-   triplet into a single `สถานะ` dropdown for the Registration queue.
-   The remaining axes (วัน / เวลา) keep the OPD queue's pattern. */
+/* Filter axes — Figma Register Home 331:147299:
+   สถานะ · ประเภท · สถานะการเข้าใช้บริการ */
 const FILTER_OPTIONS = {
-  /* Figma PHCIS-Registration — ตรวจเสร็จแล้ว → รอคัดกรอง → กำลังลงทะเบียน → รอลงทะเบียน */
+  /* Active/Inactive patient flag — Figma annotation 275:44876 (guide). */
   status: [
-    { value: 'all',       label: 'ทุกสถานะ'        },
-    { value: 'done',      label: 'ตรวจเสร็จแล้ว'   },
-    { value: 'screening', label: 'รอคัดกรอง'      },
-    { value: 'progress',  label: 'กำลังลงทะเบียน'  },
-    { value: 'pending',   label: 'รอลงทะเบียน'     },
-    { value: 'draft',     label: 'ที่ร่างไว้'      },
+    { value: 'all',      label: 'ทุกสถานะ'     },
+    { value: 'active',   label: 'ยังคง Active'  },
+    { value: 'inactive', label: 'ไม่ Active แล้ว' },
   ],
-  time: [
-    { value: 'all',       label: 'ทั้งวัน'                  },
-    { value: 'morning',   label: 'ช่วงเช้า (06:00–12:00)'    },
-    { value: 'afternoon', label: 'ช่วงบ่าย (12:00–18:00)'   },
+  type: [
+    { value: 'all',          label: 'ทุกประเภท'              },
+    { value: 'appointment',  label: 'นัดหมายล่วงหน้า'         },
+    { value: 'walkin',       label: 'ไม่ได้นัดหมาย'            },
+    { value: 'app',          label: 'ด้วยตนเองผ่าน Application' },
+  ],
+  /* Visit workflow — Figma annotation 331:149624–649 */
+  visitStatus: [
+    { value: 'all',      label: 'ทุกสถานะ'                         },
+    { value: 'pending',  label: 'รอลงทะเบียน'                       },
+    { value: 'progress', label: 'กำลังลงทะเบียน'                     },
+    { value: 'done',     label: 'ลงทะเบียนสำเร็จ และรอซักประวัติ'   },
+    { value: 'draft',    label: 'ที่ร่างไว้'                         },
   ],
 };
 const FILTER_DEFAULTS = {
   status: 'all',
-  /* Object shape for FilterDateTag + DateFilterPopup (same as OPD queue). */
-  dateValue: { quick: 'today' },
-  time: 'all',
+  type: 'all',
+  visitStatus: 'all',
 };
 
-/* Chip labels for quick keys not shown in DateFilterPopup sidebar. */
-const DATE_CHIP_LABELS = {
-  today:     'วันนี้',
-  yesterday: 'เมื่อวาน',
+/* การรับคิว — Figma Registration Dashboard cell values. */
+const QUEUE_CHANNEL_OPTIONS = [
+  'ผ่านตู้ Kiosk',
+  'รับกับเจ้าหน้าที่',
+  'กับเจ้าหน้าที่ ณ อนามัย',
+];
+const VISIT_TYPE_OPTIONS = [
+  'นัดหมายล่วงหน้า',
+  'ไม่ได้นัดหมาย',
+  'ด้วยตนเองผ่าน Application',
+];
+const VISIT_TYPE_TO_FILTER = {
+  'นัดหมายล่วงหน้า': 'appointment',
+  'ไม่ได้นัดหมาย': 'walkin',
+  'ด้วยตนเองผ่าน Application': 'app',
 };
 
-/* สถานะ column — Figma PHCIS-Registration ColorfulBadge (secondary / small):
-     101:7918 ตรวจเสร็จแล้ว (teal) · 104:17991 รอคัดกรอง (orange) ·
-     กำลังลงทะเบียน (blue) · 104:19593 รอลงทะเบียน (orange) */
+/* สถานะการเข้าใช้บริการ — Figma Registration Dashboard badges:
+     ลงทะเบียนสำเร็จ และรอซักประวัติ (teal) · กำลังลงทะเบียน (blue) ·
+     รอลงทะเบียน (orange). Annotation 331:149624–649. */
 const STATUS_TO_BADGE = {
-  done:       { tone: 'teal',   label: 'ตรวจเสร็จแล้ว'   },
-  screening:  { tone: 'orange', label: 'รอคัดกรอง'      },
+  done:       { tone: 'teal',   label: 'ลงทะเบียนสำเร็จ และรอซักประวัติ' },
   progress:   { tone: 'blue',   label: 'กำลังลงทะเบียน'  },
   pending:    { tone: 'orange', label: 'รอลงทะเบียน'    },
   draft:      { tone: 'grey',   label: 'ที่ร่างไว้'     },
-  /* Legacy MR_PATIENTS keys */
-  active:     { tone: 'teal',   label: 'ตรวจเสร็จแล้ว'   },
+  /* Legacy MR_PATIENTS keys → visit-status wording */
+  active:     { tone: 'teal',   label: 'ลงทะเบียนสำเร็จ และรอซักประวัติ' },
   inactive:   { tone: 'orange', label: 'รอลงทะเบียน'    },
 };
 
+/* Default sort is ตามลำดับคิว (Figma annotation 43:6234) — status order
+   only used when the user explicitly sorts the visit-status column. */
 const STATUS_SORT_ORDER = {
-  done: 0, screening: 1, progress: 2, pending: 3, draft: 4, active: 0, inactive: 3,
+  done: 0, progress: 1, pending: 2, draft: 3, active: 0, inactive: 2,
 };
 
 const StatusPill = ({ status }) => {
@@ -115,18 +132,8 @@ const StatusPill = ({ status }) => {
   );
 };
 
-const RIGHTS_TONE = {
-  'ประกันสังคม': 'blue',
-  'บัตรทอง':     'orange',
-  'ข้าราชการ':   'green',
-  'รัฐวิสาหกิจ': 'purple',
-  'ชำระเงินเอง': 'purple',
-};
-const RightsPill = ({ rights }) => (
-  <ColorfulBadge style={RIGHTS_TONE[rights] || 'grey'} size='small' hierarchy='secondary'>
-    {rights}
-  </ColorfulBadge>
-);
+/* Table avatar size — Figma Register Home UserA / New User = 36px. */
+const TABLE_AVATAR_SIZE = 36;
 
 /* Avatar — colored circle with first character of name (deterministic by HN). */
 const HUES = ['#F472B6', '#A78BFA', '#60A5FA', '#34D399', '#FBBF24', '#FB7185'];
@@ -138,7 +145,7 @@ const Avatar = ({ name, hn }) => {
     <span
       className='shrink-0 inline-flex items-center justify-center rounded-full'
       style={{
-        width: 32, height: 32,
+        width: TABLE_AVATAR_SIZE, height: TABLE_AVATAR_SIZE,
         background: bg,
         color: 'var(--text-content-on-content)',
         fontFamily: 'var(--type-family-body)',
@@ -151,6 +158,18 @@ const Avatar = ({ name, hn }) => {
   );
 };
 
+/* Figma "New User" avatar — MIH Design System Foundation 3891:7747
+   (#CFF5FF circle + person silhouette) for walk-in ที่ไม่เคยใช้บริการ */
+const NewUserAvatar = ({ size = TABLE_AVATAR_SIZE }) => (
+  <img
+    src={NEW_USER_AVATAR}
+    alt=''
+    className='shrink-0 rounded-full object-cover'
+    style={{ width: size, height: size }}
+    aria-hidden
+  />
+);
+
 const MR_BY_HN = Object.fromEntries(MR_PATIENTS.map((p) => [p.hn, p]));
 
 /* Queue pill — Figma PHCIS-Registration 199:9243 (teal ColorfulBadge). */
@@ -160,13 +179,40 @@ const renderQueue = (row) => (
   </ColorfulBadge>
 );
 
-/* Table column config — shared with EllipsisText fallback for unspecified cells. */
+/* Name display — show given name (+ title) in full; mask only นามสกุล
+   with `x` per character (e.g. "นายสมชาย มีสุข" → "นายสมชาย xxxx"). */
+const formatNameSurnameMasked = (fullName) => {
+  const s = String(fullName ?? '').trim();
+  if (!s) return '';
+  const parts = s.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return s;
+  const surname = parts[parts.length - 1];
+  const given = parts.slice(0, -1).join(' ');
+  return `${given} ${'x'.repeat(Math.max(surname.length, 1))}`;
+};
+
+/* Table column config — shared with EllipsisText fallback for unspecified cells.
+   ผู้รับบริการใหม่ (New User avatar): ชื่อ / ประเภท / อายุ / เลขบัตร / โทรศัพท์ = "—"
+   ผู้รับบริการเก่าในคิวรอลงทะเบียนมีข้อมูลครบ + รูปโปรไฟล์ */
+const EMPTY_PENDING = '—';
+
+/** Walk-in ใหม่ — New User avatar, no PII on the queue row yet. */
+const isNewPatientRow = (row) => Boolean(row?.neverServed || row?.noProfilePhoto);
+
+/** True walk-in with no identity on the queue row yet. */
+const isUnregistered = (row) => isNewPatientRow(row) || (!row.hn && !row.name);
+
 const renderName = (row) => {
+  if (isNewPatientRow(row) || !row.name) {
+    return (
+      <div className='flex items-center gap-2 min-w-0 flex-1'>
+        <NewUserAvatar />
+        <span className='truncate'>{EMPTY_PENDING}</span>
+      </div>
+    );
+  }
   const profile = getPatientByHN(row.hn);
-  /* No profile photo only for รอลงทะเบียน — other statuses keep portraits. */
-  const avatarUrl = row.status === 'pending' && row.noProfilePhoto
-    ? null
-    : profile?.avatarUrl;
+  const avatarUrl = profile?.avatarUrl;
   const avatarLabel = profile?.shortName ?? row.name;
   return (
     <div className='flex items-center gap-2 min-w-0 flex-1'>
@@ -175,26 +221,31 @@ const renderName = (row) => {
           src={avatarUrl}
           alt=''
           className='shrink-0 rounded-full object-cover'
-          style={{ width: 32, height: 32 }}
+          style={{ width: TABLE_AVATAR_SIZE, height: TABLE_AVATAR_SIZE }}
         />
       ) : (
         <Avatar name={avatarLabel} hn={row.hn} />
       )}
-      <span className='truncate'>{row.name}</span>
+      <span className='truncate'>{formatNameSurnameMasked(row.name)}</span>
     </div>
   );
 };
 
+const renderHn = (row) => (
+  <EllipsisText text={!row.hn ? EMPTY_PENDING : row.hn} />
+);
+
+const renderAge = (row) => (
+  <EllipsisText text={isNewPatientRow(row) || !row.age ? EMPTY_PENDING : String(row.age)} />
+);
+
+const renderVisitType = (row) => (
+  <EllipsisText text={isNewPatientRow(row) || !row.visitType ? EMPTY_PENDING : row.visitType} />
+);
+
 const renderStatus = (row) => <StatusPill status={row.status} />;
-const renderRights = (row) => <RightsPill rights={row.rights} />;
 
 /* Privacy — queue roster display formats (Figma / preview spec). */
-const formatDobMasked = (dob) => {
-  const m = String(dob ?? '').trim().match(/^(\d+)\s+(.+?)\s+(\d{4})$/u);
-  if (!m) return String(dob ?? '');
-  return `xx xxxx ${m[3]}`;
-};
-
 const formatNationalIdMasked = (nationalId) => {
   const digits = String(nationalId ?? '').replace(/\D/g, '');
   if (digits.length !== 13) return String(nationalId ?? '');
@@ -208,7 +259,6 @@ const formatPhoneMasked = (phone) => {
 };
 
 const PRIVACY_FIELD_LABELS = {
-  dob: 'วันเกิด',
   nationalId: 'เลขบัตรประชาชน',
   phone: 'โทรศัพท์',
 };
@@ -245,78 +295,104 @@ const PrivacyTableCell = ({
   </button>
 );
 
-/* Action cell — 3 โหมดตามสถานะ (Figma PHCIS-Registration):
-     · รอคัดกรอง / กำลังลงทะเบียน → 200:11828 Brand Icon quaternary
-     · รอลงทะเบียน            → 104:19594 Brand Icon fill (default)
-     · อื่นๆ                  → disabled */
+/* Action cell — โหมดตามสถานะ (Figma Registration Dashboard):
+     · กำลังลงทะเบียน → Brand Icon quaternary
+     · รอลงทะเบียน    → Brand Icon fill (default)
+     · พักคิว (flag)  → แถวยังอยู่ลิสเดิม · ปุ่ม play คืนคิว · เรียกคิวปิดชั่วคราว
+     · อื่นๆ           → disabled */
 const actionModeForStatus = (status) => {
-  if (status === 'screening' || status === 'progress') return 'quaternary';
+  if (status === 'progress') return 'quaternary';
   if (status === 'pending') return 'default';
   return 'disabled';
 };
 
-const makeRenderActions = ({ onCall }) => function ActionsCell(row) {
+const makeRenderActions = ({ onCall, onPause, onCancel }) => function ActionsCell(row) {
   const mode = actionModeForStatus(row.status);
   const enabled = mode !== 'disabled';
+  const isPaused = Boolean(row.paused);
+  const canCall = enabled && !isPaused;
   const callVariant = mode === 'default' ? 'fill' : mode === 'quaternary' ? 'quaternary' : 'ghost';
+  const pauseLabel = isPaused ? 'หยุดพักคิว' : 'พักคิว';
   return (
     <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-      <BrandIconButton
-        icon='volume_up'
-        size='sm'
-        variant={callVariant}
-        disabled={!enabled}
-        aria-label={enabled ? 'เรียกผู้รับบริการ' : 'ไม่สามารถเรียกผู้รับบริการได้'}
-        onClick={(e) => { e.stopPropagation(); onCall?.(row); }}
-      />
+      <Tooltip content='เรียกคิว' position='top' disabled={!canCall}>
+        <BrandIconButton
+          icon='volume_up'
+          size='sm'
+          variant={callVariant}
+          disabled={!canCall}
+          aria-label='เรียกคิว'
+          onClick={canCall
+            ? (e) => { e.stopPropagation(); onCall?.(row); }
+            : undefined}
+        />
+      </Tooltip>
+      <Tooltip content={pauseLabel} position='top' disabled={!enabled}>
+        <BrandIconButton
+          icon={isPaused ? 'play_arrow' : 'pause'}
+          size='sm'
+          variant='quaternary'
+          disabled={!enabled}
+          aria-label={pauseLabel}
+          onClick={enabled
+            ? (e) => { e.stopPropagation(); onPause?.(row); }
+            : undefined}
+        />
+      </Tooltip>
       <NeutralSubdueButton
         variant='outline'
         size='sm'
         disabled={!enabled}
-        aria-label='ยกเลิก'
-        onClick={(e) => e.stopPropagation()}
+        aria-label='ยกเลิกคิว'
+        onClick={enabled
+          ? (e) => { e.stopPropagation(); onCancel?.(row); }
+          : undefined}
       >
-        ยกเลิก
+        ยกเลิกคิว
       </NeutralSubdueButton>
     </div>
   );
 };
 
-/* Column config — Figma 104:20512. Every header gets an unfold_more sort
-   affordance (`sortable: true`); `flex` columns share the remaining width
-   after the fixed-width columns are laid out. Widths line up with the
-   Figma cell rhythm: HN/age 96 px, phone/rights 128 px, status 180 px,
-   national-id/actions 160 px, name 220 px, dob 240 px. */
-const buildColumns = ({ renderPrivacyCell }) => [
-  { key: 'queue',      header: 'คิว',               width: 80,  sortable: true, render: renderQueue },
-  { key: 'hn',         header: 'HN',                width: 96,  sortable: true },
-  { key: 'name',       header: 'ชื่อ-นามสกุล',       width: 220, sortable: true, render: renderName },
-  { key: 'dob',        header: 'วันเกิด',            width: 240, sortable: true, render: renderPrivacyCell('dob') },
-  { key: 'age',        header: 'อายุ',              width: 96,  sortable: true },
-  { key: 'nationalId', header: 'เลขบัตรประชาชน',     width: 220, sortable: true, render: renderPrivacyCell('nationalId') },
-  { key: 'phone',      header: 'โทรศัพท์',          width: 128, sortable: true, render: renderPrivacyCell('phone') },
-  { key: 'rights',     header: 'สิทธิการรักษา',      width: 128, sortable: true, render: renderRights },
-  { key: 'status',     header: 'สถานะ',             width: 180, sortable: true, render: renderStatus },
-  { key: 'actions',    header: 'การดำเนินการ',      width: 160, render: makeRenderActions({ onCall: () => {} }) },
-];
+/* Column config — Figma Registration Dashboard 292:88376 (queue tabs).
+   Tab "รายชื่อผู้ป่วยทั้งหมด" (Register Home 331:147299) omits คิว +
+   สถานะการเข้าใช้บริการ — patient directory, not today's visit queue.
+   Actions column is bound later with page-level onCall / onPause / onCancel. */
+const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause, onCancel }) => {
+  const cols = [
+    !isDirectory && { key: 'queue',        header: 'คิว',                    width: 80,  sortable: true, render: renderQueue },
+    { key: 'hn',           header: 'HN',                     width: 96,  sortable: true, render: renderHn },
+    { key: 'name',         header: 'ชื่อ-นามสกุล',            width: 220, sortable: true, render: renderName },
+    { key: 'queueChannel', header: 'การรับคิว',               width: 160, sortable: true },
+    { key: 'visitType',    header: 'ประเภท',                 width: 180, sortable: true, render: renderVisitType },
+    { key: 'age',          header: 'อายุ (ปี)',               width: 96,  sortable: true, render: renderAge },
+    { key: 'nationalId',   header: 'เลขบัตรประชาชน',          width: 180, sortable: true, render: renderPrivacyCell('nationalId') },
+    { key: 'phone',        header: 'โทรศัพท์',               width: 128, sortable: true, render: renderPrivacyCell('phone') },
+    !isDirectory && { key: 'status',       header: 'สถานะการเข้าใช้บริการ',    width: 240, sortable: true, render: renderStatus },
+    { key: 'actions',      header: 'การดำเนินการ',           width: 220, render: makeRenderActions({ onCall, onPause, onCancel }) },
+  ];
+  return cols.filter(Boolean);
+};
 
-/* SubHeader action group — per Figma 2756:148259 + dropdown 2120:32577. */
-const MR_ACTIONS = (
+/* SubHeader action group — Figma Registration Dashboard:
+   การนัดหมาย → เพิ่มคิว → อ่านบัตรสมาร์ทการ์ด.
+   เพิ่มคิว lands on ข้อมูลผู้รับบริการ (/registration/register). */
+const buildMrActions = ({ onAddQueue }) => (
   <>
     <AppointmentMenuButton />
+    <BrandPrimaryButton onClick={onAddQueue}>เพิ่มคิว</BrandPrimaryButton>
     <BrandPrimaryButton leadingIcon='credit_card'>อ่านบัตรสมาร์ทการ์ด</BrandPrimaryButton>
   </>
 );
 
 const PAGE_SIZE = 20;
 
-/* Demo distribution — ตรวจเสร็จแล้ว 2 · รอคัดกรอง 2 · กำลังลงทะเบียน 2 · รอลงทะเบียน … */
+/* Demo distribution — ลงทะเบียนสำเร็จ 2 · กำลังลงทะเบียน 2 · รอลงทะเบียน … */
 const seedRegistrationStatus = (i) => {
   if (i < 2) return 'done';
-  if (i < 4) return 'screening';
-  if (i < 6) return 'progress';
-  if (i < 18) return 'pending';
-  if (i < 24) return 'draft';
+  if (i < 4) return 'progress';
+  if (i < 16) return 'pending';
+  if (i < 22) return 'draft';
   return 'pending';
 };
 
@@ -329,31 +405,41 @@ const ageYearsOnly = (age) => {
 
 /* Build a 130-row roster — one PATIENT_PROFILES entry per index (same pool
    as OPD queue / Screening PatientCard), MR fields for phone/rights/status.
-   First five `pending` rows use PENDING_REGISTRATION_NO_PHOTO (new service
-   users with no profile photo yet). */
+   Most รอลงทะเบียน rows are ผู้รับบริการเก่า (full columns + profile photo).
+   Exactly 4 walk-in ใหม่ (PENDING_REGISTRATION_NO_PHOTO) — ไม่เคยใช้บริการ,
+   ไม่มี HN, ใช้ New User avatar (Figma DS 3891:7747). */
 const buildRoster = () => {
   const rows = [];
   let pendingNoPhotoIdx = 0;
   for (let i = 0; i < 130; i += 1) {
     const status = seedRegistrationStatus(i);
-    const usePendingNoPhoto = status === 'pending' && pendingNoPhotoIdx < PENDING_REGISTRATION_NO_PHOTO.length;
+    const usePendingNoPhoto = status === 'pending'
+      && pendingNoPhotoIdx < PENDING_REGISTRATION_NO_PHOTO.length;
     const profile = usePendingNoPhoto
       ? PENDING_REGISTRATION_NO_PHOTO[pendingNoPhotoIdx++]
       : PATIENT_PROFILES[i % PATIENT_PROFILES.length];
-    const mr = MR_BY_HN[profile.hn];
+    const neverServed = Boolean(usePendingNoPhoto || profile.neverServed);
+    const mr = profile.hn ? MR_BY_HN[profile.hn] : null;
     const fallbackMr = MR_PATIENTS[i % MR_PATIENTS.length];
     rows.push({
       id: `MR-${String(i + 1).padStart(3, '0')}`,
-      queue: `R${String(i + 1).padStart(3, '0')}`,
-      hn: profile.hn,
-      name: profile.fullName,
-      dob: getPatientDobByHN(profile.hn),
-      age: ageYearsOnly(profile.age),
-      nationalId: profile.nationalId,
-      phone: mr?.phone ?? fallbackMr.phone,
-      rights: mr?.rights ?? fallbackMr.rights,
+      queue: `A${String(i + 1).padStart(3, '0')}`,
+      hn: neverServed ? '' : profile.hn,
+      /* New patients: dash columns + New User avatar (no PII yet). */
+      name: neverServed ? '' : profile.fullName,
+      age: neverServed ? '' : ageYearsOnly(profile.age),
+      nationalId: neverServed ? '' : profile.nationalId,
+      phone: neverServed ? '' : (mr?.phone ?? fallbackMr.phone),
+      rights: neverServed
+        ? (profile.rights || fallbackMr.rights)
+        : (mr?.rights ?? fallbackMr.rights),
+      queueChannel: QUEUE_CHANNEL_OPTIONS[i % QUEUE_CHANNEL_OPTIONS.length],
+      visitType: neverServed ? '' : VISIT_TYPE_OPTIONS[i % VISIT_TYPE_OPTIONS.length],
+      /* Active flag — Figma annotation 275:44876 (≤ 2 ปี since last visit). */
+      patientStatus: neverServed ? 'inactive' : (i % 7 === 0 ? 'inactive' : 'active'),
       status,
-      noProfilePhoto: usePendingNoPhoto,
+      noProfilePhoto: neverServed,
+      neverServed,
     });
   }
   return rows;
@@ -370,7 +456,7 @@ const REGISTRATION_SEARCH_HISTORY_SEED = buildRegistrationSearchHistorySeed(
 
 const RegistrationQueuePage = () => {
   const history = useHistory();
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('pending');
   const [searchQ, setSearchQ] = useState('');
   const [page, setPage] = useState(1);
   const {
@@ -386,24 +472,24 @@ const RegistrationQueuePage = () => {
      suggestion list and the recent-search history items. */
   const registrationRowToSearchItem = (row) => ({
     id: row.id,
-    label: row.name,
-    sublabel: row.nationalId ? `เลขบัตร ${row.nationalId}` : (row.phone || ''),
-    value: row.name,
+    label: row.name || row.queue || 'รอลงทะเบียน',
+    sublabel: isNewPatientRow(row)
+      ? 'ผู้รับบริการใหม่'
+      : (row.nationalId
+        ? `เลขบัตร ${row.nationalId}`
+        : (row.phone || '')),
+    value: row.name || row.queue || '',
     badges: [
-      { label: row.queue, tone: 'teal'   },
-      { label: row.hn, tone: 'indigo' },
+      { label: row.queue, tone: 'teal' },
+      ...(row.hn ? [{ label: row.hn, tone: 'indigo' }] : []),
     ],
-    avatarSrc: row.status === 'pending' && row.noProfilePhoto
+    avatarSrc: isNewPatientRow(row)
       ? null
       : getPatientByHN(row.hn)?.avatarUrl,
   });
 
   const [filters, setFilters] = useState(FILTER_DEFAULTS);
   const setFilter = (key) => (val) => setFilters((f) => ({ ...f, [key]: val }));
-  const isAllDefault =
-    filters.status === FILTER_DEFAULTS.status &&
-    filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick &&
-    filters.time === FILTER_DEFAULTS.time;
 
   /* Mutable roster — drag-reorder in edit mode updates this array in place. */
   const [rows, setRows] = useState(() => buildRoster());
@@ -431,13 +517,18 @@ const RegistrationQueuePage = () => {
   }, [privacyRevealRequest]);
 
   const renderPrivacyCell = useCallback((field) => (row) => {
+    /* ผู้รับบริการใหม่ — dash, not a revealable mask. */
+    if (isNewPatientRow(row)) {
+      return <EllipsisText text={EMPTY_PENDING} />;
+    }
+    const raw = field === 'nationalId' ? row.nationalId : row.phone;
+    if (!raw) {
+      return <EllipsisText text={EMPTY_PENDING} />;
+    }
     const revealed = isPrivacyRevealed(row, field);
     let maskedText = '';
     let plainText = '';
-    if (field === 'dob') {
-      maskedText = formatDobMasked(row.dob);
-      plainText = String(row.dob ?? '');
-    } else if (field === 'nationalId') {
+    if (field === 'nationalId') {
       maskedText = formatNationalIdMasked(row.nationalId);
       plainText = formatNationalId(row.nationalId);
     } else {
@@ -455,9 +546,48 @@ const RegistrationQueuePage = () => {
     );
   }, [isPrivacyRevealed, requestPrivacyReveal]);
 
+  const isDirectoryTab = activeTab === 'directory';
+
+  /* Cancel-queue confirmation — set when user clicks ยกเลิกคิว. */
+  const [cancelCandidate, setCancelCandidate] = useState(null);
+  const handleAskCancel = useCallback((row) => setCancelCandidate(row), []);
+  const handleCloseCancel = useCallback(() => setCancelCandidate(null), []);
+  const handleConfirmCancel = useCallback(() => {
+    if (!cancelCandidate) return;
+    setRows((prev) => prev.filter((r) => r.id !== cancelCandidate.id));
+    setCancelCandidate(null);
+  }, [cancelCandidate]);
+
+  /* พักคิวชั่วคราว — แถวยังอยู่ลิสเดิม แค่สลับปุ่ม pause ↔ play. */
+  const handlePause = useCallback((row) => {
+    setRows((prev) => prev.map((r) => (
+      r.id === row.id ? { ...r, paused: !r.paused } : r
+    )));
+  }, []);
+
+  const tabsWithCounts = useMemo(() => {
+    const counts = {
+      pending: 0,
+      progress: 0,
+      done: 0,
+      draft: 0,
+      directory: rows.length,
+    };
+    for (const row of rows) {
+      if (counts[row.status] !== undefined) counts[row.status] += 1;
+    }
+    return TABS.map((tab) => ({ ...tab, count: counts[tab.key] ?? 0 }));
+  }, [rows]);
+
   const columns = useMemo(
-    () => buildColumns({ renderPrivacyCell }),
-    [renderPrivacyCell],
+    () => buildColumns({
+      renderPrivacyCell,
+      isDirectory: isDirectoryTab,
+      onCall: () => {},
+      onPause: handlePause,
+      onCancel: handleAskCancel,
+    }),
+    [renderPrivacyCell, isDirectoryTab, handlePause, handleAskCancel],
   );
 
   /* Edit-queue-order mode — toggled by "แก้ไขลำดับคิว". Rows show a drag
@@ -518,7 +648,7 @@ const RegistrationQueuePage = () => {
         ? (entry.avatarSrc ?? entry.avatarUrl ?? entry.src)
         : null;
       const row = resolveSearchRow(null, entry);
-      const src = directAvatar ?? (row && !(row.status === 'pending' && row.noProfilePhoto)
+      const src = directAvatar ?? (row && !row.noProfilePhoto
         ? getPatientByHN(row.hn)?.avatarUrl
         : null);
       const dedupeKey = row?.hn ?? directAvatar;
@@ -532,12 +662,18 @@ const RegistrationQueuePage = () => {
   const filtered = useMemo(() => {
     if (editMode) return rows;
     let r = rows;
-    if (activeTab !== 'all') {
-      const want = activeTab;
-      r = r.filter((row) => row.status === want);
+    /* Tab "รายชื่อผู้ป่วยทั้งหมด" shows the full directory (no visit-status filter). */
+    if (activeTab !== 'directory') {
+      r = r.filter((row) => row.status === activeTab);
     }
     if (filters.status !== 'all') {
-      r = r.filter((row) => row.status === filters.status);
+      r = r.filter((row) => row.patientStatus === filters.status);
+    }
+    if (filters.type !== 'all') {
+      r = r.filter((row) => VISIT_TYPE_TO_FILTER[row.visitType] === filters.type);
+    }
+    if (filters.visitStatus !== 'all') {
+      r = r.filter((row) => row.status === filters.visitStatus);
     }
     if (searchQ.trim()) {
       const q = searchQ.trim().toLowerCase();
@@ -552,7 +688,7 @@ const RegistrationQueuePage = () => {
       );
     }
     return r;
-  }, [rows, activeTab, searchQ, filters.status, editMode]);
+  }, [rows, activeTab, searchQ, filters.status, filters.type, filters.visitStatus, editMode]);
 
   /* Sort state — Figma 104:20512 puts an `unfold_more` affordance on every
      column header; Table is controlled so the page owns `sortConfig`. Click
@@ -575,16 +711,10 @@ const RegistrationQueuePage = () => {
   const sorted = useMemo(() => {
     if (editMode) return filtered;
     const { key, direction } = sortConfig;
-    /* Default ordering — สถานะก่อน (ตรวจเสร็จแล้ว → รอคัดกรอง → กำลังลงทะเบียน → รอลงทะเบียน),
-       then queue arrival id within the same status. */
+    /* Default ordering — ตามลำดับคิว (Figma annotation 43:6234). */
     const sign = direction === 'desc' ? -1 : 1;
-    const arrivalCompare = (a, b) => String(a.id).localeCompare(String(b.id));
-    const statusCompare = (a, b) => {
-      const byStatus = (STATUS_SORT_ORDER[a.status] ?? 99) - (STATUS_SORT_ORDER[b.status] ?? 99);
-      if (byStatus !== 0) return byStatus;
-      return arrivalCompare(a, b);
-    };
-    if (!key) return filtered.slice().sort(statusCompare);
+    const queueCompare = (a, b) => String(a.queue ?? '').localeCompare(String(b.queue ?? ''), 'th', { numeric: true });
+    if (!key) return filtered.slice().sort(queueCompare);
     const copy = filtered.slice();
     copy.sort((a, b) => {
       const av = a[key];
@@ -593,9 +723,9 @@ const RegistrationQueuePage = () => {
         ? (STATUS_SORT_ORDER[av] ?? 99) - (STATUS_SORT_ORDER[bv] ?? 99)
         : key === 'age'
           ? (Number(av) || 0) - (Number(bv) || 0)
-          : String(av ?? '').localeCompare(String(bv ?? ''), 'th');
+          : String(av ?? '').localeCompare(String(bv ?? ''), 'th', { numeric: true });
       if (primary !== 0) return sign * primary;
-      return arrivalCompare(a, b);
+      return queueCompare(a, b);
     });
     return copy;
   }, [filtered, sortConfig, editMode]);
@@ -615,9 +745,17 @@ const RegistrationQueuePage = () => {
 
   const handleRowClick = (row) => {
     if (editMode) return;
+    /* ผู้รับบริการเก่า / มี HN — prefill ฟอร์ม; walk-in ใหม่เปิดฟอร์มว่าง */
+    if (isUnregistered(row) || !row.hn) {
+      history.push({
+        pathname: '/registration/register',
+        state: { queue: row.queue },
+      });
+      return;
+    }
     history.push({
       pathname: '/registration/register',
-      state: { hn: row.hn },
+      state: { hn: row.hn, queue: row.queue },
     });
   };
 
@@ -625,13 +763,33 @@ const RegistrationQueuePage = () => {
      @/components/pagination — caller only passes currentPage / pageCount. */
 
   return (
+    <>
+    <DeleteQueueConfirmPopup
+      open={!!cancelCandidate}
+      onClose={handleCloseCancel}
+      onConfirm={handleConfirmCancel}
+      title='ยืนยันการยกเลิกคิว'
+      subtitle='คิวนี้จะถูกนำออกจากรายการ และไม่สามารถย้อนกลับได้'
+      queue={cancelCandidate?.queue}
+      hn={cancelCandidate?.hn || EMPTY_PENDING}
+      patientName={cancelCandidate?.name || EMPTY_PENDING}
+      avatarSrc={
+        !cancelCandidate
+          ? undefined
+          : (cancelCandidate.noProfilePhoto || isUnregistered(cancelCandidate)
+            ? NEW_USER_AVATAR
+            : (getPatientByHN(cancelCandidate.hn)?.avatarUrl || NEW_USER_AVATAR))
+      }
+    />
     <QueuePageShell
       activeKey='registration'
       breadcrumb={breadcrumb}
       title='ระบบงานเวชระเบียน'
-      actions={MR_ACTIONS}
+      actions={buildMrActions({
+        onAddQueue: () => history.push('/registration/register'),
+      })}
       summaryCards={SUMMARY_CARDS}
-      tabs={TABS}
+      tabs={tabsWithCounts}
       activeTab={activeTab}
       onTabChange={(key) => { setActiveTab(key); setPage(1); }}
     >
@@ -681,7 +839,7 @@ const RegistrationQueuePage = () => {
                   history={searchHistory}
                   onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
                   avatars={searchAvatars}
-                  placeholder='ค้นหา คิว / HN / เลขบัตร / ชื่อ-สกุล / โทรศัพท์'
+                  placeholder='ค้นหา HN / เลขบัตร / ชื่อ-สกุล / โทรศัพท์'
                   width={640}
                 />
               </div>
@@ -692,31 +850,14 @@ const RegistrationQueuePage = () => {
                 style={{ gap: 'var(--dim-space-300)' }}
               >
                 <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                  <FilterTag
-                    value='ทั้งหมด'
-                    selected={isAllDefault}
-                    onClick={() => setFilters(FILTER_DEFAULTS)}
-                  />
                   <FilterDropdown prefix='สถานะ :' options={FILTER_OPTIONS.status} value={filters.status} onChange={setFilter('status')} />
-                  {/* Vertical divider between the สถานะ chip and the date/time
-                      filters, per Figma 104:20512. */}
-                  <div
-                    aria-hidden
-                    style={{
-                      width: 1, height: 24, alignSelf: 'center', flexShrink: 0,
-                      background: 'var(--border-neutral-tertiary)',
-                      marginLeft: 'var(--dim-space-100)',
-                      marginRight: 'var(--dim-space-100)',
-                    }}
+                  <FilterDropdown prefix='ประเภท :' options={FILTER_OPTIONS.type} value={filters.type} onChange={setFilter('type')} />
+                  <FilterDropdown
+                    prefix='สถานะการเข้าใช้บริการ :'
+                    options={FILTER_OPTIONS.visitStatus}
+                    value={filters.visitStatus}
+                    onChange={setFilter('visitStatus')}
                   />
-                  <FilterDateTag
-                    prefix='วัน:'
-                    value={filters.dateValue}
-                    onChange={setFilter('dateValue')}
-                    defaultQuick={FILTER_DEFAULTS.dateValue.quick}
-                    quickLabels={DATE_CHIP_LABELS}
-                  />
-                  <FilterDropdown prefix='เวลา:'    options={FILTER_OPTIONS.time}       value={filters.time}       onChange={setFilter('time')} />
                 </OverflowFlexRow>
                 <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
                   <NeutralSubdueButton
@@ -739,17 +880,15 @@ const RegistrationQueuePage = () => {
                     variant='outline'
                     size='sm'
                     leadingIcon='person_add'
+                    onClick={() => history.push('/registration/register')}
                   >
                     เพิ่มผู้รับบริการใหม่
                   </BrandSubdueButton>
                 </div>
               </div>
 
-              {/* Patient table — mirrors the OPD Screening queue: the
-                  first three identity columns (คิว / HN / ชื่อ-นามสกุล)
-                  pin to the left while the rest of the row scrolls
-                  horizontally, so the doctor never loses sight of who
-                  the row is for. */}
+              {/* Patient table — queue tabs pin คิว / HN / ชื่อ; directory
+                  tab omits คิว so sticky pins HN / ชื่อ only. */}
               <Table
                 columns={columns}
                 rows={visibleRows}
@@ -757,7 +896,7 @@ const RegistrationQueuePage = () => {
                 sortConfig={sortConfig}
                 onSort={editMode ? undefined : handleSort}
                 onRowClick={editMode ? undefined : handleRowClick}
-                stickyColCount={3}
+                stickyColCount={isDirectoryTab ? 2 : 3}
                 editMode={editMode}
                 draggedIdx={draggedIdx}
                 overIdx={overIdx}
@@ -796,12 +935,13 @@ const RegistrationQueuePage = () => {
         fieldLabel={
           privacyRevealRequest
             ? PRIVACY_FIELD_LABELS[privacyRevealRequest.field]
-            : PRIVACY_FIELD_LABELS.dob
+            : PRIVACY_FIELD_LABELS.nationalId
         }
         onClose={() => setPrivacyRevealRequest(null)}
         onConfirm={handlePrivacyRevealConfirm}
       />
     </QueuePageShell>
+    </>
   );
 };
 

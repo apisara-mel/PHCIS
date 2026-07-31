@@ -1,4 +1,10 @@
 import { getPatientByHN, getPatientDobByHN } from '@/data/patientProfiles';
+import { REGISTRATION_REQUIRED_CONSENT_IDS } from '@/data/registrationConsentForms';
+import { FORMS } from '@/data/formsLibrary';
+
+/** Catalog consent forms for RegistrationConsentStep (formsLibrary source).
+   Face-scan StepConsent uses `registrationConsentForms.js` instead. */
+export const REGISTRATION_CONSENT_FORMS = FORMS.filter((f) => f.category === 'consent');
 
 /* Thai prefixes — longest match first (นางสาว before นาง). */
 const TH_PREFIXES_DESC = ['เด็กหญิง', 'เด็กชาย', 'นางสาว', 'นาย', 'นาง'];
@@ -59,9 +65,26 @@ export const EMPTY_ADDRESS = {
   pinSaved: false,
 };
 
+/** Consent-form status seed — every registration-relevant consent form
+   starts `pending` on first entry; a returning patient's mock record may
+   already carry `signed` entries (see `mrPatients.js`). */
+export const buildEmptyConsentRecords = () =>
+  REGISTRATION_CONSENT_FORMS.map((f) => ({
+    slug: f.slug,
+    title: f.name,
+    code: f.code,
+    status: 'pending',
+    signedAt: null,
+  }));
+
 /** First visit — all fields default / empty (placeholders only). */
 export const buildEmptyRegistrationForm = () => ({
-  // Step 1 — personal
+  // Step 1 — consent (Figma 292:104252 · face-scan StepConsent)
+  consentCompletedIds: [],
+  // Kept for RegistrationConsentStep / catalog-driven consent UI
+  consentRecords: buildEmptyConsentRecords(),
+  // Step 2 — personal
+  patientStatus: 'active',
   prefixTh: '',
   firstNameTh: '',
   lastNameTh: '',
@@ -85,6 +108,14 @@ export const buildEmptyRegistrationForm = () => ({
   idCardPhoto: null,
   idCardFromChip: false,
   idCardAddress: '',
+  /** Face-match result after FaceScanVerifyPopup (Figma 303:132573). */
+  faceMatchScore: null,
+  faceVerifiedAt: '',
+
+  // Consents (การยินยอมเปิดเผยข้อมูล - default true 3 รายการ)
+  consentPersonal: true,
+  consentMedical: true,
+  consentBilling: true,
 
   // Step 2 — addresses
   addressRegistered: { ...EMPTY_ADDRESS },
@@ -311,7 +342,9 @@ export const applySmartCardRead = (form, patient) => {
 const nonEmpty = (v) => String(v ?? '').trim() !== '';
 const allFilled = (form, keys) => keys.every((k) => nonEmpty(form?.[k]));
 
-const STEP1_REQUIRED_KEYS = [
+const STEP1_REQUIRED_CONSENT_IDS = REGISTRATION_REQUIRED_CONSENT_IDS;
+
+const STEP2_REQUIRED_KEYS = [
   'prefixTh', 'firstNameTh', 'lastNameTh',
   'prefixEn', 'firstNameEn', 'lastNameEn',
   'gender',
@@ -326,9 +359,27 @@ const ADDRESS_REQUIRED_KEYS = ['zip', 'province', 'district'];
 const isAddressFilled = (addr) =>
   Boolean(addr) && ADDRESS_REQUIRED_KEYS.every((k) => nonEmpty(addr[k]));
 
-const isStep1Complete = (form) => allFilled(form, STEP1_REQUIRED_KEYS);
+const isStepConsentComplete = (form) => {
+  const done = Array.isArray(form?.consentCompletedIds) ? form.consentCompletedIds : [];
+  return STEP1_REQUIRED_CONSENT_IDS.every((id) => done.includes(id));
+};
 
-const isStep2Complete = (form) => {
+/** Derives the 3 Figma consent-status banners from `form.consentRecords`:
+   'none-signed' · 'partial' · 'all-signed'. Used by RegistrationConsentStep. */
+export const getConsentSummary = (consentRecords) => {
+  const records = Array.isArray(consentRecords) ? consentRecords : [];
+  const total = records.length;
+  const signedCount = records.filter((r) => r?.status === 'signed').length;
+  const pendingCount = total - signedCount;
+  let state = 'all-signed';
+  if (signedCount === 0 && total > 0) state = 'none-signed';
+  else if (pendingCount > 0) state = 'partial';
+  return { state, pendingCount, signedCount, total };
+};
+
+const isStepPersonalComplete = (form) => allFilled(form, STEP2_REQUIRED_KEYS);
+
+const isStepAddressComplete = (form) => {
   if (!form) return false;
   if (!isAddressFilled(form.addressRegistered)) return false;
   const currentOk = form.useRegisteredForCurrent || isAddressFilled(form.addressCurrent);
@@ -340,19 +391,19 @@ const isEmergencyEntryFilled = (entry) =>
   nonEmpty(entry?.name) && nonEmpty(entry?.last)
   && nonEmpty(entry?.relation) && nonEmpty(entry?.phone);
 
-const isStep3Complete = (form) => {
+const isStepContactComplete = (form) => {
   if (!form) return false;
   if (!nonEmpty(form.phone)) return false;
   const list = Array.isArray(form.emergency) ? form.emergency : [];
   return list.some(isEmergencyEntryFilled);
 };
 
-/* Step 4 — completes once the user has run the rights lookup (Figma
+/* Step 5 — completes once the user has run the rights lookup (Figma
    214:21954 → 1:4150). Empty result groups still count as a confirmed
    lookup answer. */
-const isStep4Complete = (form) => Boolean(form?.rightsLookupDone);
+const isStepRightsComplete = (form) => Boolean(form?.rightsLookupDone);
 
-const isStep5Complete = (form) => {
+const isStepFlagsComplete = (form) => {
   if (!form) return false;
   if (!nonEmpty(form.mobility)) return false;
   if (form.mobility === 'other' && !nonEmpty(form.mobilityOther)) return false;
@@ -360,9 +411,44 @@ const isStep5Complete = (form) => {
 };
 
 export const getRegistrationCompletedSteps = (form) => [
-  isStep1Complete(form),
-  isStep2Complete(form),
-  isStep3Complete(form),
-  isStep4Complete(form),
-  isStep5Complete(form),
+  isStepConsentComplete(form),
+  isStepPersonalComplete(form),
+  isStepAddressComplete(form),
+  isStepContactComplete(form),
+  isStepRightsComplete(form),
+  isStepFlagsComplete(form),
 ];
+
+/* Persist draft across consent-fill navigation (Step 1 → fill page → back). */
+const REGISTRATION_DRAFT_KEY = 'mih.registration.draft';
+
+export const saveRegistrationDraft = (form) => {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.setItem(REGISTRATION_DRAFT_KEY, JSON.stringify(form));
+  } catch {
+    /* ignore quota / private mode */
+  }
+};
+
+export const loadRegistrationDraft = () => {
+  try {
+    if (typeof sessionStorage === 'undefined') return null;
+    const raw = sessionStorage.getItem(REGISTRATION_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+export const markRegistrationConsentCompleted = (id) => {
+  const draft = loadRegistrationDraft() || buildEmptyRegistrationForm();
+  const prev = Array.isArray(draft.consentCompletedIds) ? draft.consentCompletedIds : [];
+  if (!prev.includes(id)) {
+    draft.consentCompletedIds = [...prev, id];
+  }
+  saveRegistrationDraft(draft);
+  return draft;
+};

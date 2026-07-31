@@ -120,8 +120,13 @@ const PersonAvatar = ({ name = '', src }) => {
         width: 'var(--dim-size-800, 40px)',
         height: 'var(--dim-size-800, 40px)',
         borderRadius: 'var(--dim-radius-full, 9999px)',
-        border: 'var(--dim-stroke-200, 2px) solid var(--border-avatar)',
-        background: 'var(--surface-avatar-default)',
+        /* main ย้าย token ไป @mih/design-tokens แล้วดึงบล็อก :root ออกจาก
+           index.css — --surface-avatar-default / --border-avatar ที่เคยเพิ่มไว้
+           เองจึงไม่มีนิยามอีกต่อไป และ var() ที่หาไม่เจอจะเงียบ ไม่ error
+           ใช้ token ที่มีอยู่จริงในแพ็กเกจและมีค่าตรงกันแทน (neutral/200 กับขาว)
+           แทนที่จะเพิ่ม token ใหม่ใน index.css ซึ่ง CLAUDE.md ห้ามไว้ */
+        border: 'var(--dim-stroke-200, 2px) solid var(--surface-card-100, #FFFFFF)',
+        background: 'var(--surface-neutralButton-secondary, #E2E4E6)',
         color: 'var(--text-content-tertiary)',
         fontFamily: 'var(--type-family-body)',
         fontSize: 'var(--type-size-sm)',

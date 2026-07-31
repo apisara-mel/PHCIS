@@ -243,7 +243,7 @@ export const MR_PATIENTS = [
     drugAllergies: [],
     chronicDiseases: [],
   },
-  /* New walk-ins — รอลงทะเบียน, no profile photo yet (see PENDING_REGISTRATION_NO_PHOTO). */
+  /* New walk-ins — ไม่เคยใช้บริการ · รอลงทะเบียน (see PENDING_REGISTRATION_NO_PHOTO). */
   {
     hn: '67-00026',
     prefixTh: 'นาย', firstNameTh: 'ก้องภพ', lastNameTh: 'ศรีวงศ์',
@@ -308,26 +308,67 @@ export const MR_PATIENTS = [
     mobility: 'เดิน', flags: { vip: false, allergyDrug: false, allergyOther: false, chronic: false },
     drugAllergies: [], chronicDiseases: [],
   },
-  {
-    hn: '67-00030',
-    prefixTh: 'นาย', firstNameTh: 'ศักดิ์สิทธิ์', lastNameTh: 'คำแพง',
-    prefixEn: 'Mr.', firstNameEn: 'Saksit', lastNameEn: 'Khamphaeng',
-    nationalId: '5-6701-30128-46-1',
-    dob: '30 สิงหาคม 2510', age: 58, gender: 'ชาย', genderIdentity: 'ชาย',
-    phone: '081-445-9021', altPhone: '02-589-4410', email: '',
-    rights: 'ข้าราชการ', status: 'pending', registeredOn: '—',
-    bloodType: 'A', education: 'ปริญญาตรี', occupation: 'ข้าราชการ',
-    marital: 'สมรส', spouseName: 'สุดา คำแพง',
-    address: { zip: '11000', province: 'นนทบุรี', district: 'เมืองนนทบุรี', subdistrict: 'บางพูน', road: 'ติวานนท์', moo: '4', houseNo: '201' },
-    emergency: [{ name: 'สุดา', last: 'คำแพง', relation: 'คู่สมรส', phone: '089-112-8803' }],
-    insurance: [{ type: 'ข้าราชการ', claimCode: '—', verified: false }],
-    mobility: 'เดิน', flags: { vip: false, allergyDrug: false, allergyOther: false, chronic: true },
-    drugAllergies: [],
-    chronicDiseases: [{ name: 'ความดันโลหิตสูง (HT)', severity: 'medium' }],
-  },
 ];
+
+/* Special-watch flags (ToR §1.9.4.7 — เฝ้าระวังพิเศษ: ตั้งครรภ์ / ให้นมบุตร /
+   G6PD, on top of the existing drugAllergies list). Applied as a
+   post-process merge rather than editing every literal above, since none
+   of the existing mock patients needed these fields before pharmacy's
+   dispense-safety checks. G6PD is X-linked and more often clinically
+   significant in males, so the one demo flag goes on a male patient
+   rather than forcing an implausible pregnancy flag onto this roster's
+   older female patients. */
+const SPECIAL_WATCH_OVERRIDES = {
+  '67-00003': { g6pd: true },
+};
+MR_PATIENTS.forEach((p) => {
+  p.specialWatch = { pregnant: false, breastfeeding: false, g6pd: false, ...SPECIAL_WATCH_OVERRIDES[p.hn] };
+  /* Stable ids for the editable allergy list (ToR §1.9.2.2 / §1.9.5 —
+     "สามารถแสดง/บันทึก/ยกเลิก/แก้ไขข้อมูลเกี่ยวกับการแพ้ได้") — the source
+     literals above don't carry one since nothing needed to target a single
+     entry before pharmacy's editor. */
+  p.drugAllergies = p.drugAllergies.map((a, i) => ({ id: a.id || `da-${p.hn}-${i}`, ...a }));
+});
 
 export const findMrPatientByHn = (hn) =>
   MR_PATIENTS.find((p) => p.hn === hn) || null;
+
+/* Editable drug-allergy list mutators — module-level in-place mutation,
+   same convention as `pharmacyQueue.js`'s mutators (no backend, resets on
+   reload). Used by the pharmacy dispense page so a pharmacist can record
+   an allergy discovered/confirmed at the counter. */
+let allergySeq = 0;
+export const addDrugAllergy = (hn, { name, symptom = '', severity = 'medium' }) => {
+  const p = findMrPatientByHn(hn);
+  if (!p || !name?.trim()) return null;
+  const entry = { id: `da-new-${++allergySeq}`, name: name.trim(), symptom, severity };
+  p.drugAllergies = [...p.drugAllergies, entry];
+  p.flags = { ...p.flags, allergyDrug: true };
+  return entry;
+};
+
+export const removeDrugAllergy = (hn, entryId) => {
+  const p = findMrPatientByHn(hn);
+  if (!p) return;
+  p.drugAllergies = p.drugAllergies.filter((a) => a.id !== entryId);
+  if (p.drugAllergies.length === 0) p.flags = { ...p.flags, allergyDrug: false };
+};
+
+/* §1.9.5.7 — "แสดง/บันทึก/ยกเลิก/แก้ไขข้อมูลเกี่ยวกับการแพ้ได้": edit an
+   existing allergy entry's symptom/severity in place, alongside add/remove
+   above (the drug/allergy-class name itself is left immutable — changing
+   WHAT the patient is allergic to should be a remove+add, not a silent
+   in-place rename). */
+export const updateDrugAllergy = (hn, entryId, { symptom, severity }) => {
+  const p = findMrPatientByHn(hn);
+  if (!p) return null;
+  let updated = null;
+  p.drugAllergies = p.drugAllergies.map((a) => {
+    if (a.id !== entryId) return a;
+    updated = { ...a, symptom, severity };
+    return updated;
+  });
+  return updated;
+};
 
 export const DEFAULT_MR_PATIENT = MR_PATIENTS[0];

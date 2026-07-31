@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+
+<html class="light" lang="th"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>HealthQuest - เลือกช่องทางการชำระเงิน</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline-variant": "#bccac0",
+                    "on-secondary-container": "#00714d",
+                    "on-primary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "error": "#ba1a1a",
+                    "surface-container": "#e5eeff",
+                    "background": "#f8f9ff",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#002114",
+                    "surface-dim": "#cbdbf5",
+                    "surface-bright": "#f8f9ff",
+                    "secondary-fixed-dim": "#4edea3",
+                    "on-tertiary-fixed-variant": "#005137",
+                    "on-tertiary-container": "#f5fff7",
+                    "on-primary-fixed": "#002114",
+                    "surface": "#f8f9ff",
+                    "secondary-container": "#6cf8bb",
+                    "tertiary-fixed": "#68fcbf",
+                    "primary": "#006948",
+                    "surface-container-low": "#eff4ff",
+                    "inverse-surface": "#213145",
+                    "inverse-primary": "#68dba9",
+                    "inverse-on-surface": "#eaf1ff",
+                    "on-surface-variant": "#3d4a42",
+                    "surface-container-high": "#dce9ff",
+                    "primary-fixed": "#85f8c4",
+                    "surface-tint": "#006c4a",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed-dim": "#68dba9",
+                    "on-secondary-fixed": "#002113",
+                    "on-primary-container": "#f5fff7",
+                    "on-tertiary": "#ffffff",
+                    "surface-variant": "#d3e4fe",
+                    "on-secondary-fixed-variant": "#005236",
+                    "error-container": "#ffdad6",
+                    "secondary-fixed": "#6ffbbe",
+                    "on-surface": "#0b1c30",
+                    "on-primary-fixed-variant": "#005137",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed-dim": "#45dfa4",
+                    "outline": "#6d7a72",
+                    "on-background": "#0b1c30",
+                    "tertiary-container": "#00855d",
+                    "surface-container-highest": "#d3e4fe",
+                    "secondary": "#006c49",
+                    "primary-container": "#00855d",
+                    "tertiary": "#006949"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "element-gap": "24px",
+                    "stack-lg": "64px",
+                    "container-padding": "40px",
+                    "unit": "8px",
+                    "touch-target-min": "56px",
+                    "stack-sm": "16px",
+                    "stack-md": "32px"
+            },
+            "fontFamily": {
+                    "label-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "label-sm": ["Plus Jakarta Sans"],
+                    "display-md": ["Plus Jakarta Sans"],
+                    "body-lg": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "label-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-lg": ["30px", {"lineHeight": "38px", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "60px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-sm": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "display-md": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .medical-shadow {
+            box-shadow: 0 10px 40px -10px rgba(5, 150, 105, 0.08);
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        .payment-card-active {
+            border: 3px solid #006948;
+            background: #f5fff7;
+            box-shadow: 0 0 20px rgba(0, 105, 72, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen overflow-hidden flex flex-col">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-container-padding h-[80px] bg-surface/80 dark:bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 shadow-sm">
+<div class="flex items-center gap-4">
+<span class="font-display-md text-display-md text-primary dark:text-primary-fixed tracking-tight">HealthQuest</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary">schedule</span>
+<span class="material-symbols-outlined text-primary">wifi</span>
+<span class="material-symbols-outlined text-primary">battery_full</span>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-grow pt-[80px] pb-[100px] px-container-padding flex flex-col items-center justify-start max-w-7xl mx-auto w-full">
+<!-- Progress Stepper -->
+<div class="w-full max-w-4xl mt-stack-md flex items-center justify-between mb-stack-lg">
+<div class="flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold">1</div>
+<span class="font-label-sm text-label-sm text-on-surface">ลงทะเบียน</span>
+</div>
+<div class="flex-grow h-2 mx-4 bg-primary rounded-full"></div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold">2</div>
+<span class="font-label-sm text-label-sm text-on-surface">รายละเอียด</span>
+</div>
+<div class="flex-grow h-2 mx-4 bg-primary rounded-full"></div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-12 h-12 rounded-full ring-4 ring-primary-container bg-primary text-on-primary flex items-center justify-center font-bold scale-110">3</div>
+<span class="font-label-sm text-label-sm text-primary font-bold">ชำระเงิน</span>
+</div>
+<div class="flex-grow h-2 mx-4 bg-surface-container-highest rounded-full"></div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-bold">4</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">เสร็จสิ้น</span>
+</div>
+</div>
+<div class="w-full flex flex-col gap-stack-md">
+<!-- Header Section -->
+<div class="text-center">
+<h1 class="font-display-md text-display-md text-on-surface mb-2">เลือกช่องทางการชำระเงิน</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">โปรดเลือกช่องทางที่คุณสะดวกเพื่อดำเนินการต่อ</p>
+</div>
+<!-- Bento Layout for Payment & Summary -->
+<div class="grid grid-cols-12 gap-8 items-stretch">
+<!-- Payment Options Column -->
+<div class="col-span-12 lg:col-span-8 flex flex-col gap-element-gap">
+<!-- QR Code Option -->
+<button class="payment-option glass-panel p-6 rounded-xl flex items-center gap-6 text-left medical-shadow transition-all active:scale-95 group" onclick="selectPayment(this)">
+<div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-3xl">qr_code_2</span>
+</div>
+<div class="flex-grow">
+<h3 class="font-headline-md text-headline-md text-on-surface">คิวอาร์โค้ด / โมบายแบงก์กิ้ง</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">รองรับแอปพลิเคชันธนาคารชั้นนำผ่าน PromptPay</p>
+</div>
+<span class="material-symbols-outlined text-primary opacity-0 group-[.payment-card-active]:opacity-100 text-3xl">check_circle</span>
+</button>
+<!-- Card Option -->
+<button class="payment-option glass-panel p-6 rounded-xl flex items-center gap-6 text-left medical-shadow transition-all active:scale-95 group" onclick="selectPayment(this)">
+<div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-3xl">credit_card</span>
+</div>
+<div class="flex-grow">
+<h3 class="font-headline-md text-headline-md text-on-surface">บัตรเครดิต / บัตรเดบิต</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Visa, Mastercard, JCB และ UnionPay</p>
+</div>
+<span class="material-symbols-outlined text-primary opacity-0 group-[.payment-card-active]:opacity-100 text-3xl">check_circle</span>
+</button>
+<!-- Counter Option -->
+<button class="payment-option glass-panel p-6 rounded-xl flex items-center gap-6 text-left medical-shadow transition-all active:scale-95 group" onclick="selectPayment(this)">
+<div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-3xl">person_pin</span>
+</div>
+<div class="flex-grow">
+<h3 class="font-headline-md text-headline-md text-on-surface">เคาน์เตอร์เซอร์วิส</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">ชำระด้วยเงินสดหรือบัตรที่เคาน์เตอร์หลักของโรงพยาบาล</p>
+</div>
+<span class="material-symbols-outlined text-primary opacity-0 group-[.payment-card-active]:opacity-100 text-3xl">check_circle</span>
+</button>
+</div>
+<!-- Summary Panel -->
+<div class="col-span-12 lg:col-span-4">
+<div class="glass-panel p-stack-md rounded-xl medical-shadow flex flex-col h-full">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-stack-sm border-b border-outline-variant/30 pb-4">สรุปยอดชำระ</h3>
+<div class="flex-grow space-y-4 py-4">
+<div class="flex justify-between">
+<span class="font-body-md text-on-surface-variant">ค่าปรึกษาแพทย์</span>
+<span class="font-label-lg text-on-surface">1,500 บาท</span>
+</div>
+<div class="flex justify-between">
+<span class="font-body-md text-on-surface-variant">ค่าตรวจทางห้องปฏิบัติการ</span>
+<span class="font-label-lg text-on-surface">2,200 บาท</span>
+</div>
+<div class="flex justify-between">
+<span class="font-body-md text-on-surface-variant">ค่ายา (เบื้องต้น)</span>
+<span class="font-label-lg text-on-surface">550 บาท</span>
+</div>
+</div>
+<div class="mt-auto border-t-2 border-dashed border-outline-variant/50 pt-stack-sm mb-stack-md">
+<div class="flex justify-between items-end">
+<span class="font-body-lg text-body-lg text-on-surface-variant">ยอดรวมสุทธิ</span>
+<span class="font-display-md text-display-md text-primary">4,250 บาท</span>
+</div>
+</div>
+<button class="w-full h-touch-target-min rounded-xl bg-primary text-on-primary font-headline-md flex items-center justify-center gap-3 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed" disabled="" id="confirmBtn">
+                            ยืนยันการชำระเงิน
+                            <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-between items-center px-container-padding py-stack-sm h-[100px] bg-surface/90 dark:bg-inverse-surface/90 backdrop-blur-2xl shadow-[0_-8px_30px_rgb(0,0,0,0.04)] rounded-t-xl">
+<button class="flex flex-row items-center justify-center gap-2 text-on-surface-variant px-8 py-4 hover:bg-secondary/5 transition-all active:translate-y-1" onclick="history.back()">
+<span class="material-symbols-outlined">arrow_back</span>
+<span class="font-label-lg text-label-lg">ย้อนกลับ</span>
+</button>
+<div class="flex items-center gap-4">
+<button class="flex flex-row items-center justify-center gap-2 text-on-surface-variant px-8 py-4 hover:bg-secondary/5 transition-all active:translate-y-1">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-label-lg text-label-lg">ช่วยเหลือ</span>
+</button>
+</div>
+</nav>
+<!-- Interactive script -->
+<script>
+        function selectPayment(element) {
+            // Remove active class from all
+            document.querySelectorAll('.payment-option').forEach(opt => {
+                opt.classList.remove('payment-card-active');
+            });
+            
+            // Add active class to selected
+            element.classList.add('payment-card-active');
+            
+            // Enable primary button
+            const confirmBtn = document.getElementById('confirmBtn');
+            confirmBtn.disabled = false;
+            
+            // Add micro-interaction: Subtle scale pulse on selection
+            element.style.transform = 'scale(0.98)';
+            setTimeout(() => {
+                element.style.transform = 'scale(1)';
+            }, 150);
+        }
+
+        // Simple button click effect
+        document.getElementById('confirmBtn').addEventListener('click', function() {
+            this.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> กำลังดำเนินการ...';
+            setTimeout(() => {
+                alert('ระบบกำลังนำคุณไปยังหน้าชำระเงิน');
+                this.innerHTML = 'ยืนยันการชำระเงิน <span class="material-symbols-outlined">arrow_forward</span>';
+            }, 1500);
+        });
+    </script>
+</body></html>

@@ -1443,6 +1443,14 @@ const SPOTLIGHT = {
   '1.9.5.1':  'sidebar-treat',
 
   '1.10.2.1': 'sidebar-treat',
+  '1.10.7.1': 'sidebar-treat',
+  '1.10.7.2': 'sidebar-treat',
+  '1.10.7.3': 'sidebar-treat',
+  '1.10.7.4': 'sidebar-treat',
+  '1.10.7.5': 'sidebar-treat',
+  '1.10.7.6': 'sidebar-treat',
+  '1.10.7.7': 'sidebar-treat',
+  '1.10.7.8': 'sidebar-treat',
 
   '1.16.1.1': 'step-4',
   '1.16.1.2': 'step-4',
@@ -1471,6 +1479,7 @@ const SPOTLIGHT = {
   '1.20.1.6': 'sidebar-dashboard',
   '1.20.1.7': 'sidebar-dashboard',
   '1.20.1.9': 'sidebar-dashboard',
+  '1.20.7.7': 'sidebar-dashboard',
 
   /* ===== 4. Mobile Application (/m) ===== */
   '4.1.1.1':  'mobile-register-citizenid',
@@ -1526,27 +1535,35 @@ const SPOTLIGHT = {
 };
 
 const IMPL = {
-  /* ===== 1.1 Registration ===== */
+  /* ===== 1.1 Registration =====
+     Rechecked 2026-07-23 against Figma "PHCIS | Registration" (node 1:3827) TOR
+     annotation checklist (section 97:1782). "Figma ✓/✗" below = whether the
+     design frame's own TOR checkbox marks that requirement in-scope. */
   '1.1.1.1':  {s:'done',    u:'/registration/queue',    n:'Queue page · Active/Inactive badges'},
-  '1.1.1.3':  {s:'partial', u:'/registration/queue',    n:'PrimarySearch covers HN+ชื่อ; ยังไม่ครอบ Passport/โทรศัพท์'},
+  '1.1.1.2':  {s:'todo',                                 n:'สถานะมีชีวิตอยู่/เสียชีวิต — ไม่มีทั้งใน Figma (ไม่มี checkbox กำกับ) และในโค้ด · real gap, ต้องออกแบบใหม่'},
+  '1.1.1.3':  {s:'partial', u:'/registration/queue',    n:'PrimarySearch covers HN+ชื่อ; ยังไม่ครอบ Passport/โทรศัพท์ · Figma ก็ไม่มี search-by chip สำหรับ 2 ช่องนี้เช่นกัน'},
   '1.1.1.4':  {s:'done',    u:'/registration/register', n:'5-step form (Personal/Address/Contact/Rights/Flags) + auto HN'},
-  '1.1.1.5':  {s:'partial', u:'/registration/register', n:'Duplicate-name warning not yet hooked'},
+  '1.1.1.5':  {s:'partial', u:'/registration/register', n:'Duplicate-name warning not yet hooked · Figma ✗ (unchecked) — real design gap, ต้องออกแบบใหม่'},
   '1.1.1.6':  {s:'done',    u:'/registration/register', n:'แสดง/บันทึก/แก้ไข ครบ 5 step'},
   '1.1.1.7':  {s:'done',    u:'/registration/register', n:'Smart-card chip-read flow (อ่านบัตร)'},
   '1.1.1.8':  {s:'done',    u:'/registration/register', n:'Auto-fill จาก chip + แก้ไขเพิ่มเติม manual'},
-  '1.1.1.9':  {s:'partial', u:'/components/components-library', n:'Generic camera flow (CameraCapturePopup); ยังไม่มีปุ่มอัปโหลดในหน้า registration'},
-  '1.1.1.10': {s:'todo',                                 n:'พิมพ์บัตรผู้รับบริการ — ไม่มี print template'},
-  '1.1.1.11': {s:'todo',                                 n:'ใส่เฉพาะปีเกิด — DOB ปัจจุบันบังคับวัน+เดือน+ปี'},
+  '1.1.1.9':  {s:'partial', u:'/components/components-library', n:'Generic camera flow (CameraCapturePopup); ยังไม่มีปุ่มอัปโหลดในหน้า registration · Figma ✓ ครอบคลุมแล้ว — ต้อง wire เข้า flow'},
+  '1.1.1.10': {s:'todo',                                 n:'พิมพ์บัตรผู้รับบริการ — ไม่มี print template · Figma ✓ ครอบคลุมแล้ว — ต้อง build template'},
+  '1.1.1.11': {s:'todo',                                 n:'ใส่เฉพาะปีเกิด — DOB ปัจจุบันบังคับวัน+เดือน+ปี · Figma ✗ (unchecked) — real design gap'},
   '1.1.1.12': {s:'done',    u:'/registration/register', n:'Step 3 emergency contacts (array)'},
-  '1.1.1.13': {s:'partial', u:'/registration/register', n:'Step-validity gating; ไม่มี toast แจ้งเตือนแบบ explicit'},
-  '1.1.1.14': {s:'partial', u:'/registration/register', n:'Step 1 มีฟิลด์เกิด; ขาด แพทย์ผู้ออกใบรับรองการเกิด'},
-  '1.1.1.15': {s:'partial', u:'/registration/register', n:'RegistrationEditHistoryPanel แสดง audit ย้อนหลัง'},
+  '1.1.1.13': {s:'partial', u:'/registration/register', n:'Step-validity gating; ไม่มี toast แจ้งเตือนแบบ explicit · Figma ✓ ครอบคลุมแล้ว'},
+  '1.1.1.14': {s:'partial', u:'/registration/register', n:'Step 1 มีฟิลด์เกิด; ขาด แพทย์ผู้ออกใบรับรองการเกิด · Figma ✓ ครอบคลุมแล้ว'},
+  '1.1.1.15': {s:'partial', u:'/registration/register', n:'RegistrationEditHistoryPanel แสดง audit ย้อนหลัง · Figma ✓ ครอบคลุมแล้ว'},
   '1.1.1.16': {s:'done',    u:'/registration/register', n:'อายุ auto-calc จาก DOB (registrationForm.js)'},
-  '1.1.1.17': {s:'partial', u:'/components/address-map-block', n:'AddressMapBlock มีพิกัด + แผนที่'},
+  '1.1.1.17': {s:'partial', u:'/components/address-map-block', n:'AddressMapBlock มีพิกัด + แผนที่ · Figma ✓ ครอบคลุมแล้ว'},
   '1.1.1.18': {s:'done',    u:'/registration/queue',    n:'Active/Inactive status'},
   '1.1.1.19': {s:'done',    u:'/registration/register', n:'Step 5 Flags + VIP'},
-  '1.1.1.20': {s:'partial', u:'/registration/register', n:'HN auto-gen; 3-group split (ไทย/ต่างชาติ/ไม่มีเอกสาร) ไม่ชัดเจน'},
+  '1.1.1.20': {s:'partial', u:'/registration/register', n:'HN auto-gen; 3-group split (ไทย/ต่างชาติ/ไม่มีเอกสาร) ไม่ชัดเจน · Figma ✓ ครอบคลุมแล้ว'},
+  '1.1.2.1':  {s:'todo',                                 n:'เปิด Visit Number (VN) — ยังไม่มีในโค้ด · Figma ✗ (unchecked) — real design gap'},
+  '1.1.2.2':  {s:'todo',                                 n:'แจ้งเตือนยืนยันมาตามนัดผ่าน Mobile Application — ยังไม่มี · Figma ✗ (unchecked) — real design gap'},
   '1.1.2.3':  {s:'done',    u:'/registration/register', n:'Step 4 rights (SSO/Gold/CSMBS/Other)'},
+  '1.1.2.4':  {s:'todo',                                 n:'รับผู้ป่วยส่งต่อจากสถานพยาบาลอื่น — ยังไม่มีในโค้ด · Figma ✓ ครอบคลุมแล้ว — ต้อง build'},
+  '1.1.2.5':  {s:'todo',                                 n:'ระบุสภาพผู้รับบริการ (เดิน/รถเข็น/เปลนอน) — ยังไม่มีในโค้ด · Figma ✓ ครอบคลุมแล้ว — ต้อง build'},
   '1.1.3.1':  {s:'done',    u:'/registration/register', n:'Step 5 flag config'},
 
   /* ===== 1.2 OPD ===== */
@@ -1679,15 +1696,26 @@ const IMPL = {
   '1.5.11.4': {s:'partial', u:'/forms',         n:'Print uses browser'},
   '1.5.11.5': {s:'partial', u:'/forms',         n:'Signature canvas in FormFillPage'},
 
-  /* ===== 1.6 Appointments ===== */
-  '1.6.1.1':  {s:'done',    u:'/treat/record',  n:'Step 6 mode skip/schedule'},
-  '1.6.1.2':  {s:'done',    u:'/treat/record',  n:'Clinic/type/doctor/reason/preparation/date/timeslot'},
-  '1.6.1.3':  {s:'todo',                          n:'Resource schedule pattern — ไม่มี'},
-  '1.6.1.4':  {s:'partial', u:'/treat/record',  n:'APPT_TIMESLOTS grid'},
-  '1.6.2.2':  {s:'done',    u:'/treat/record',  n:'Doctor picker in Step 6'},
-  '1.6.2.6':  {s:'partial', u:'/treat/record',  n:'Confirm + cancel ใน Step 6'},
-  '1.6.3.1':  {s:'todo',                          n:'Print appointment slip — ไม่มี template'},
-  '1.6.4.1':  {s:'todo',                          n:'Holiday config — ไม่มี'},
+  /* ===== 1.6 Appointments =====
+     Re-audit 2026-07-29 (+ build): settings tab, nested slots, print slip,
+     home-visit, cancel audit, earliest-slot search. See Obsidian tor-appointment-compliance. */
+  '1.6.1.1':  {s:'done',    u:'/appointment',   n:'CRUD + doctor calendar on /appointment; also Step 6'},
+  '1.6.1.2':  {s:'partial', u:'/appointment',   n:'Core fields present; daily queue-capacity via pattern capacityPerMajor'},
+  '1.6.1.3':  {s:'done',    u:'/appointment',   n:'Settings tab — resource weekdays/hours/slot pattern/advance'},
+  '1.6.1.4':  {s:'done',    u:'/appointment',   n:'Nested major→minor slots + queue numbers when pattern saved'},
+  '1.6.1.5':  {s:'done',    u:'/appointment',   n:'Facility + resource holiday settings block booking'},
+  '1.6.1.6':  {s:'done',    u:'/appointment',   n:'Cancel day schedule only if no Active appointments'},
+  '1.6.2.1':  {s:'done',    u:'/appointment',   n:'Earliest free slot search by resource type'},
+  '1.6.2.2':  {s:'done',    u:'/appointment',   n:'Doctor picker web + Step 6 + mobile'},
+  '1.6.2.3':  {s:'done',    u:'/appointment',   n:'ไม่ระบุแพทย์ option on web form + mobile'},
+  '1.6.2.4':  {s:'done',    u:'/appointment',   n:'Home-visit exam mode on web; mobile list shows homevisit'},
+  '1.6.2.5':  {s:'partial', u:'/appointment',   n:'Type/clinic/mode options; full user-defined formats still thin'},
+  '1.6.2.6':  {s:'done',    u:'/appointment',   n:'Confirm/edit/cancel web + mobile reschedule/cancel'},
+  '1.6.2.7':  {s:'done',    u:'/appointment',   n:'Cancel reason + actor audit log in settings'},
+  '1.6.2.8':  {s:'partial', u:'/appointment',   n:'Calendar occupancy + queue labels; status API still mock'},
+  '1.6.3.1':  {s:'done',    u:'/appointment',   n:'printAppointmentSlip — slip + preparation'},
+  '1.6.4.1':  {s:'done',    u:'/appointment',   n:'Facility holiday settings on Settings tab'},
+  '1.6.4.2':  {s:'done',    u:'/appointment',   n:'Resource closed dates per doctor'},
 
   /* ===== 1.7 Rights & Claims ===== */
   '1.7.2.1':  {s:'partial', u:'/registration/register', n:'Step 4 — rights group activation'},
@@ -1742,20 +1770,102 @@ const IMPL = {
   '1.8.8.1':  {s:'done',    u:'/finance', n:'สถานะเตรียมยา column + เรียกคิว action on queue table'},
   '1.8.9.1':  {s:'done',    u:'/finance', n:'\u0e2b\u0e21\u0e27\u0e14\u00d7\u0e2a\u0e34\u0e17\u0e18\u0e34 % is applied to the visit\u2019s lines at checkout (badge + alert), frozen onto the receipt once paid'},
 
-  /* ===== 1.9 Pharmacy ===== */
-  '1.9.1.1':  {s:'partial', u:'/components/components-library', n:'medicationCatalog.js ~50 drugs'},
-  '1.9.5.1':  {s:'partial', u:'/components/components-library', n:'Medication search via AISearch'},
-  '1.9.10.1': {s:'partial', u:'/components/components-library', n:'medicationCatalog has rcode/name/price'},
+  /* ===== 1.9 Pharmacy (ระบบงานเภสัชกรรม) =====
+     Re-audit 2026-07-31 on feature/Pharmacy: full pharmacy module (queue,
+     dispense, registry, stock, requisition/receiving, reports, history) —
+     supersedes the old medicationCatalog-only partials below. See
+     src/pages/pharmacy/*, src/data/pharmacyQueue.js, pharmacyRegistry.js. */
+  '1.9.1.1':  {s:'done',    u:'/pharmacy/registry/new', n:'Add/edit drug form with real persistence (upsertRegistryDrug pub/sub) — code/generic/trade name, active-from/to dates'},
+  '1.9.1.2':  {s:'done',    u:'/pharmacy/registry/new', n:'Each drug carries its own real box→unit packSize (convertPackToUnit) — e.g. "1 กล่อง = 500 เม็ด" for this specific drug, editable per-row — plus a generic UNIT_CONVERSIONS fallback table for non-packSize pairs (ขวด/หลอด→มล.)'},
+  '1.9.1.3':  {s:'done',    u:'/pharmacy/registry',     n:'Codeine Phosphate 30 mg (ยาเสพติดให้โทษ ประเภท 2) and Diazepam 5 mg (วัตถุออกฤทธิ์ต่อจิตและประสาท ประเภท 4) seeded as real, correctly-classified narcotic/psychotropic rows — also auto-flagged High Alert'},
+  '1.9.1.4':  {s:'done',    u:'/pharmacy/registry/new', n:'rightsEligible chips per drug + checkOutOfRights() flags dispense-time'},
+  '1.9.1.5':  {s:'done',    u:'/pharmacy/registry/new', n:'highAlert toggle + checkHighAlert() badge on queue/dispense'},
+  '1.9.1.6':  {s:'done',    u:'/pharmacy/registry/new', n:'priceSchedule[] with effectiveFrom/To + currentPrice() resolver'},
 
+  '1.9.2.1':  {s:'done',    u:'/pharmacy/queue',    n:'sendPrescriptionToPharmacy() pushes CPOE orders from Treatment Step 5 straight into the queue'},
+  '1.9.2.2':  {s:'done',    u:'/pharmacy/dispense', n:'Vitals/nurse note/chronic disease shown; แพ้ยา editable via PharmacyAllergyEditor (feeds checkAllergyConflicts live)'},
+  '1.9.2.3':  {s:'done',    u:'/pharmacy/dispense', n:'Diagnosis (ICD-10 + name) summary on the dispense header'},
+  '1.9.2.4':  {s:'done',    u:'/pharmacy/dispense', n:'Full item table (drugType/qty/unit/price/subtotal/claimable) + manual Med Error log + NLEM vs non-NLEM totals'},
+  '1.9.2.5':  {s:'done',    u:'/pharmacy/dispense', n:'PharmacyLabelPrint — TH/EN language toggle for usage instructions'},
+  '1.9.2.6':  {s:'done',    u:'/pharmacy/dispense', n:'source:\'remed\' items get a Re-med badge'},
+  '1.9.2.7':  {s:'done',    u:'/pharmacy/dispense', n:'PharmacyVerificationPanel — verify + timestamped verificationLog (who/when)'},
+  '1.9.2.8':  {s:'done',    u:'/pharmacy/dispense', n:'Pharmacist note thread (appendPharmacistNote) in PharmacyVerificationPanel'},
+  '1.9.2.9':  {s:'done',    u:'/pharmacy/dispense', n:'checkOutOfRights() alert + "แนบเอกสารประกอบ" toggle (outOfRightsDocAttached)'},
+  '1.9.2.10': {s:'done',    u:'/pharmacy/dispense', n:'orderChanged/orderCancelled banners surface doctor edits/cancellations to pharmacy'},
+  '1.9.2.11': {s:'done',    u:'/pharmacy/dispense', n:'PharmacyAuxLabelPrint — per-item aux label selection + print'},
+  '1.9.2.12': {s:'done',    u:'/pharmacy/dispense', n:'PharmacyPrescriptionPrint — full prescription print'},
+
+  '1.9.3.1':  {s:'done',    u:'/pharmacy/dispense', n:'Per-item "prepared" checklist + จัดยา step/status before dispensing'},
+
+  '1.9.4.1':  {s:'done',    u:'/pharmacy/dispense', n:'Dispense action sets DISPENSE_STATUS.DISPENSED/PARTIAL + deducts SUB_PHARMACY_STOCK'},
+  '1.9.4.2':  {s:'partial', u:'/pharmacy/dispense', n:'getPharmacySupportingInfo() joins ประวัติการรักษา/ผลตรวจ Lab/นัดหมาย live from treatmentVisits.js/labOrders.js/appointment module; ประวัติส่งปรึกษา + ผลตรวจรังสีวิทยา stay illustrative overrides — no consult/radiology module exists anywhere in the app yet (product-spec.md §10)'},
+  '1.9.4.3':  {s:'done',    u:'/pharmacy/queue',    n:'Status tabs (รอเรียก/เรียกแล้ว/จ่ายแล้ว/ไม่มารับยา) + /pharmacy/history search by HN/queue/name'},
+  '1.9.4.4':  {s:'done',    u:'/pharmacy/dispense', n:'counselingLog records คำแนะนำการใช้ยา, shown per visit'},
+  '1.9.4.5':  {s:'done',    u:'/pharmacy/dispense', n:'createRefillPlan()/markRefillVisitPickedUp() — split an item into scheduled pickup visits'},
+  '1.9.4.6':  {s:'done',    u:'/pharmacy/dispense', n:'"ไม่มารับยา" flow — reason + noShow status'},
+  '1.9.4.7':  {s:'done',    u:'/pharmacy/dispense', n:'specialWatch banner (ตั้งครรภ์/ให้นมบุตร/G6PD) + allergy + chronic-disease checks'},
+  '1.9.4.8':  {s:'done',    u:'/pharmacy/dispense', n:'PharmacyDeliveryPanel — pickup vs. ไปรษณีย์ with full address form'},
+
+  '1.9.5.1':  {s:'done',    u:'/pharmacy/registry', n:'Search by รหัสยา/ชื่อการค้า/ชื่อสามัญ + ประเภท/รูปแบบ/สถานะ/High-Alert filters'},
+  '1.9.5.2':  {s:'done',    u:'/pharmacy/queue',    n:'Status badges across queue/dispense/history/payment'},
+  '1.9.5.3':  {s:'done',    u:'/pharmacy/dispense', n:'problemFlag/problemReason — "แจ้งปัญหาใบยา" action'},
+  '1.9.5.4':  {s:'done',    u:'/pharmacy/queue',    n:'QUEUE_TYPES (ด่วน/ยาน้อย/ยาทั่วไป) tab + filter'},
+  '1.9.5.5':  {s:'done',    u:'/pharmacy/dispense', n:'Medication Reconciliation table (current items + own meds, in/out of formulary)'},
+  '1.9.5.6':  {s:'done',    u:'/pharmacy/dispense', n:'0-qty Re-med items get an explicit "ต่อเนื่องจากรายการเดิม" reconciliation line'},
+  '1.9.5.7':  {s:'done',    u:'/pharmacy/dispense', n:'PharmacyAllergyEditor — add/remove/edit แพ้ยา, live-checked against the prescription'},
+  '1.9.5.8':  {s:'done',    u:'/pharmacy/dispense', n:'PharmacyDeliveryPanel address slip prints via the same print pipeline as labels'},
+  '1.9.5.9':  {s:'done',    u:'/pharmacy/dispense', n:'PharmacyOwnMedicationsList — patient-brought meds, flagged in/out of formulary'},
+
+  '1.9.6.1':  {s:'done',    u:'/pharmacy/requisition', n:'Create/edit/cancel requisition lines (createRequisition/updateRequisition/cancelRequisition)'},
+  '1.9.6.2':  {s:'done',    u:'/pharmacy/requisition', n:'previousRequestQty/previousRequestAt auto-filled from prior requests for the same drug'},
+  '1.9.6.3':  {s:'done',    u:'/pharmacy/requisition', n:'requestingCenter defaults from the signed-in center (DEFAULT_CLINIC_VALUE)'},
+  '1.9.6.4':  {s:'done',    u:'/pharmacy/requisition', n:'requestedAt auto-stamped at creation time'},
+  '1.9.6.5':  {s:'done',    u:'/pharmacy/requisition', n:'targetUnit select — คลังยาใหญ่ศูนย์ / กองเภสัชกรรม / สปสช. (REQUISITION_TARGETS)'},
+  '1.9.6.6':  {s:'done',    u:'/pharmacy/requisition', n:'requestedBy + requestedByPosition shown per line'},
+  '1.9.6.7':  {s:'done',    u:'/pharmacy/requisition', n:'itemCategory — ยา/เวชภัณฑ์/ครุภัณฑ์ (REQUISITION_ITEM_CATEGORIES)'},
+  '1.9.6.8':  {s:'done',    u:'/pharmacy/reports',     n:'สรุปการจ่ายยา report aggregates quantity/value per drug over any picked date range; PHARMACY_USAGE_HISTORY backfills the past 6 days with day-varying volume so a real multi-day trend shows (พร้อมปุ่มลัด "7 วันล่าสุด")'},
+  '1.9.6.9':  {s:'done',    u:'/pharmacy/requisition', n:'Multi-line requisition documents — add/remove lines, full column set incl. เบิกครั้งที่/เบิกครั้งสุดท้าย'},
+  '1.9.6.10': {s:'done',    u:'/pharmacy/requisition', n:'PharmacyRequisitionPrint via window.print()'},
+
+  '1.9.7.1':  {s:'done',    u:'/pharmacy/requisition', n:'รับเข้าคลังใหญ่ tab — createReceivingRecord/updateReceivingRecord/cancelReceivingRecord (cancel reverses the stock bump)'},
+  '1.9.7.2':  {s:'partial', u:'/pharmacy/requisition', n:'หน่วยงาน/ประเภทการรับ/เลขที่ใบรับ/PO/delivery-note fields exist; scanCode is a text field, not an actual barcode/camera scan'},
+  '1.9.7.3':  {s:'done',    u:'/pharmacy/requisition', n:'Per-line GPO/GPU/TPU (drugType), บรรจุ, ราคาทุน/ขาย/เบิกได้, วันหมดอายุ, Lot no.'},
+  '1.9.7.4':  {s:'done',    u:'/pharmacy/requisition', n:'Each receiving line carries its own receivedFrom — one document, multiple manufacturers'},
+
+  '1.9.8.1':  {s:'done',    u:'/pharmacy/stock', n:'WAREHOUSE_OPERATING_STATUS (main tier) — editable เปิดดำเนินการ/ปิดปรับปรุง/ระงับชั่วคราว, with actor + timestamp'},
+  '1.9.8.2':  {s:'done',    u:'/pharmacy/stock', n:'Search by ชื่อยา/รหัสยา/Lot + วันหมดอายุ filter (3/6/12 เดือน)'},
+  '1.9.8.3':  {s:'done',    u:'/pharmacy/stock', n:'Near-expiry (≤6 เดือน) + below-reorder-point tables, split by channel; "เบิกอัตโนมัติ" button files a real requisition to กองเภสัชกรรม or สปสช. per NLEM classification'},
+
+  '1.9.9.1':  {s:'done',    u:'/pharmacy/stock', n:'WAREHOUSE_OPERATING_STATUS (sub tier) — same editable status'},
+  '1.9.9.2':  {s:'done',    u:'/pharmacy/stock', n:'Same search/classification/expiry filters on the คลังยาย่อย tab'},
+  '1.9.9.3':  {s:'done',    u:'/pharmacy/stock', n:'Current sub-pharmacy stock table + summary cards'},
+  '1.9.9.4':  {s:'done',    u:'/pharmacy/stock', n:'ผู้ส่งคำร้อง table (ยืม/คืน/แลกล็อต history) + "สร้างคำร้อง" form creates a real outgoing request (createBorrowReturnRequest)'},
+  '1.9.9.5':  {s:'done',    u:'/pharmacy/stock', n:'ผู้รับคำร้อง table — "ยืนยัน" completes an incoming request (confirmBorrowReturnRequest)'},
+
+  '1.9.10.1': {s:'done',    u:'/pharmacy/registry/new', n:'Full add/edit/save (upsertRegistryDrug) — code/names/price/active-from-to dates'},
+  '1.9.10.2': {s:'done',    u:'/pharmacy/registry/new', n:'Classification (NLEM/non-NLEM/ฯลฯ) + rights-eligibility conditions per drug'},
+  '1.9.10.3': {s:'done',    u:'/pharmacy/registry', n:'Close/reopen toggle (setRegistryDrugActive) on the list + replacementId field in the edit form'},
+
+  '1.9.11.1': {s:'done',    u:'/pharmacy/queue', n:'sendPrescriptionToPharmacy() called from Treatment Step 5 (CPOE) — frontend-only mock wiring, no real backend integration (consistent with every other cross-module "connection" in this app)'},
   /* ===== 1.10 Special clinics — most are stubs in Sidebar.jsx ===== */
   '1.10.2.1': {s:'partial', u:'/treat/record',  n:'Same patient UI applies to NCD via Treatment'},
 
-  /* ===== 1.16 Kiosk — fully implemented v2 ===== */
-  '1.16.1.1': {s:'partial', u:'/kiosk',         n:'Chip-read simulation (Demo button); ไม่ wire กับ สปสช จริง'},
-  '1.16.1.2': {s:'partial', u:'/kiosk',         n:'Verify result mocked; ไม่ persist'},
-  '1.16.1.3': {s:'done',    u:'/kiosk',         n:'Verify→Confirm screen + service drill-down'},
-  '1.16.1.4': {s:'partial', u:'/kiosk',         n:'Walk-in branch → confirm screen'},
-  '1.16.1.5': {s:'partial', u:'/kiosk',         n:'Appointment branch reads mock kioskMock.PATIENTS appointments'},
+  /* ===== 1.10.7 งานฝากครรภ์ (ANC) — first-visit MVP, /treat/anc/* ===== */
+  '1.10.7.1': {s:'done',    u:'/treat/anc/record', n:'PatientCard — HN/ชื่อ/เพศ/อายุ/บัตรประชาชน/สิทธิ'},
+  '1.10.7.2': {s:'done',    u:'/treat/anc/queue',  n:'Queue table + summary cards + tabs, incl. แยก "นัดแล้วยังไม่มาติดต่อ" tab (legacy HCIS p.2-2/2-3) with ส่งตรวจ check-in action that moves the appointment into รอตรวจ'},
+  '1.10.7.3': {s:'done',    u:'/treat/anc/record', n:'Step 2 — live ผลการซักประวัติ badges (ST-5 stress score pp.40-41, 2Q + จำนวนปัจจัยเสี่ยง) + สัญญาณอันตราย checklist (7 referral triggers, pp.11-12) + smoking screen (p.46) with immediate-referral warning banner; each assessment (ST-5/2Q/risk factors/danger signs/smoking) now split into its own card with a capsule-tab row above that scrolls to the tapped card'},
+  '1.10.7.4': {s:'done',    u:'/treat/anc/record', n:'Step 1 — DragAndDrop document upload'},
+  '1.10.7.5': {s:'done',    u:'/treat/anc/record', n:'Step 6 — นัดหมาย + PCU/รพ. auto-routing + Telemedicine mode; Step 7 พิมพ์ใบฝากครรภ์'},
+  '1.10.7.6': {s:'done',    u:'/treat/anc/queue',  n:'Step 1 บันทึก (obstetric hx + สุขภาพสามี + ผลตรวจ Lab ของสามี/คู่ [CBC/MCV/DCIP/VDRL/Anti-HIV, นโยบายฝากครรภ์คุณภาพ 2565 p.72] + ประวัติวัคซีน dT ก่อนตั้งครรภ์ + ประวัติเจ็บป่วยครอบครัว + แจกสมุดบันทึกสุขภาพแม่และเด็ก) — now split into 8 separate cards (ประวัติเจ็บป่วย/ประวัติสูติกรรม/เต้านม-สามี/Lab สามี-คู่/วัคซีน dT/ประวัติครอบครัว/การตั้งครรภ์ปัจจุบัน/เอกสารแนบ, +ประวัติการฝากครรภ์เมื่อมี) with a capsule-tab row above that scrolls to the tapped card; + Queue ยกเลิก/เปิดใช้งานทะเบียน (sessionStorage) + row click = แก้ไข'},
+  '1.10.7.7': {s:'done',    u:'/treat/anc/record', n:'EMR/CPOE/risk screening + Telemedicine start/end session workflow + external-result upload (DragAndDrop) + คำแนะนำ; Step 5 orders adapt by gestational-age tier (Lab#1 <12wk, Down-syndrome+2nd US 12-19wk, GCT/OGTT 20-27wk, Lab#2+vaccines 28wk+) — covers FigJam swimlanes A-E; captures ผลตรวจ Lab จริง (หมู่เลือด/Rh/Hb/HCT/ปัสสาวะ/VDRL/Anti-HIV/HBsAg) + ผลตรวจ Ultrasound แบบมีโครงสร้าง (จำนวนทารก/ท่า/GA/FHR/รก/น้ำคร่ำ/ความผิดปกติ, pp.50-52) + วัคซีน dT คำนวณจำนวนเข็มที่ต้องให้อัตโนมัติตาม flowchart (pp.47-48) + คัดกรองสุขภาพช่องปากด้วย Maternal Oral Screening tool จริง (2Q, p.53) แทน checkbox เดี่ยว + ตรวจประเมินหัวนม (pp.64-66) + แผนการคลอด (pp.59-60); cross-department EMR/CPOE wiring is mock-only (frontend, no backend)'},
+  '1.10.7.8': {s:'done',    u:'/treat/anc/record', n:'Step 1 follow-up trend table — real visits saved via saveAncVisitRecord (sessionStorage) merged with mock history; columns now include ปัสสาวะ/ความเสี่ยง/ผล Lab (summarizeLabResults) alongside FHR/BP/น้ำหนัก, so "Lab ในช่วงเวลา" trends actual result values, not just order flags; note column summarizes tier-specific procedures via summarizeAncProcedures'},
+
+  /* ===== 1.16 Kiosk — hub + queue + rights/payment mocks (Stitch) ===== */
+  '1.16.1.1': {s:'partial', u:'/kiosk',         n:'Hub→ตรวจสอบสิทธิ์ + chip-read mock; ไม่ wire สปสช. จริง'},
+  '1.16.1.2': {s:'partial', u:'/kiosk',         n:'RightsDetailScreen แสดงผล mock; ไม่ persist ประวัติเช็คสิทธิ์'},
+  '1.16.1.3': {s:'done',    u:'/kiosk',         n:'หลัง rights → เลือกแผนก + ออกคิว'},
+  '1.16.1.4': {s:'partial', u:'/kiosk',         n:'Walk-in / ไม่มีประวัติ → confirm (ยังไม่แยกคิวเวชระเบียน)'},
+  '1.16.1.5': {s:'partial', u:'/kiosk',         n:'Hub→คิวนัดหมาย อ่าน appointments จาก kioskMock'},
   '1.16.1.6': {s:'todo',                          n:'Real card reader integration — ไม่มี (simulated)'},
   '1.16.1.7': {s:'todo',                          n:'Camera integration — ไม่มี'},
   '1.16.1.8': {s:'todo',                          n:'Barcode/QR reader — ไม่มี'},
@@ -1763,9 +1873,10 @@ const IMPL = {
   '1.16.1.10':{s:'partial', u:'/kiosk',         n:'Mock data shared with rest of app'},
   '1.16.1.11':{s:'todo',                          n:'Biometric — ไม่มี'},
   '1.16.2.1': {s:'todo',                          n:'ปิดสิทธิ สปสช — ไม่มี'},
-  '1.16.3.1': {s:'partial', u:'/kiosk/ticket/A-042?dept=OPD&name=Demo&hn=00012345&zone=โซน+B&calling=A-035&eta=15', n:'QR scan target + Canvas image save'},
-  '1.16.3.2': {s:'partial', u:'/kiosk',         n:'พิมพ์บัตรคิว = receipt-like print'},
-  '1.16.3.3': {s:'partial', u:'/kiosk/ticket/A-042?dept=OPD&name=Demo&hn=00012345&zone=โซน+B&calling=A-035&eta=15', n:'PNG download (e-Receipt analog)'},
+  '1.16.3.1': {s:'partial', u:'/kiosk',         n:'Hub→ชำระเงิน: เลือกช่องทาง + QR/EDC จำลอง (ไม่ต่อเครื่องจริง)'},
+  '1.16.3.2': {s:'partial', u:'/kiosk',         n:'PaymentReceiptScreen สรุปใบเสร็จ + พิมพ์บัตรคิว path'},
+  '1.16.3.3': {s:'partial', u:'/kiosk',         n:'e-Receipt mock บน payment-receipt; PNG ยังที่ /kiosk/ticket'},
+  '1.16.3.4': {s:'todo',                          n:'บัญชีเจ้าหนี้/ลูกหนี้ — ไม่มี'},
 
   /* ===== 1.17 Admin / Users ===== */
   '1.17.1.1': {s:'todo',                          n:'OIDC/SAML — ไม่มี (mock auth only)'},
@@ -1779,7 +1890,28 @@ const IMPL = {
   '1.17.5.1': {s:'partial', u:'/users/new',     n:'Username/email; ไม่มี QR scan / OTP'},
   '1.17.5.2': {s:'done',    u:'/users/new',     n:'Avatar + email + phone editable'},
   '1.17.5.4': {s:'todo',                          n:'Switch center context — ไม่มี'},
-  '1.17.5.5': {s:'todo',                          n:'Notification system — ไม่มี'},
+  /* ===== 1.14 Observation ===== */
+  /* ===== 1.13 Telemedicine (audit 2026-07-29 · Obsidian tor-telemedicine-compliance) ===== */
+  '1.13.1':  {s:'partial', u:'/treat', n:'Health tab vitals/allergies/chronic mock — no RPM assessment store'},
+  '1.13.2':  {s:'todo',    u:'/treat', n:'Assessment edit by role — not built'},
+  '1.13.3':  {s:'partial', u:'/treat', n:'Patient card + post-call → treatment/payment; API write-back mock'},
+  '1.13.4':  {s:'done',    u:'/treat', n:'Video/audio UI + getUserMedia/getDisplayMedia (signalling demo)'},
+  '1.13.5':  {s:'done',    u:'/telemed', n:'GIS assessment pin in health panel (AddressMapBlock read-only)'},
+  '1.13.6':  {s:'partial', u:'/treat', n:'In-call health panel; not full EMR'},
+  '1.13.7':  {s:'partial', u:'/m/telemed', n:'MobileTelemedPage AV+chat; session pairing mocked'},
+  '1.13.8':  {s:'partial', u:'/treat', n:'PDPA consent UX (mobile + recording popup); ops retention TBD'},
+  '1.13.9':  {s:'done',    u:'/treat', n:'TelemedRecordingConfirmPopup — record only after grant'},
+  '1.13.10': {s:'done',    u:'/dashboard', n:'TelemedCallStatsCard — duration, in/out, doctor volume'},
+  '1.13.11': {s:'done',    u:'/audit/log', n:'Telemed login/join/record → audit history (appendAuditEvent)'},
+
+  '1.14.1': {s:'done', u:'/observation/record/obs-001', n:'บันทึกวันที่ เวลาเริ่มต้นและเวลาจำหน่าย (admitTime, durationMinutes, executedTime)'},
+  '1.14.2': {s:'done', u:'/observation/record/obs-001', n:'บันทึก Timed Vital Signs (BP, Pulse, Temp, SpO2, RR) พร้อมคำนวณ EWS/NEWS Score และตารางย้อนหลัง'},
+  '1.14.3': {s:'done', u:'/observation/record/obs-001', n:'บันทึกความเห็นของบุคลากร (Progress Note, Nursing Log, Doctor Summary Note)'},
+  '1.14.4': {s:'done', u:'/observation/record/obs-001', n:'บันทึกหัตถการและกิจกรรมการพยาบาล (เช่น การพ่นยา, ให้ออกซิเจน, เช็ดตัวลดไข้)'},
+  '1.14.5': {s:'done', u:'/observation/record/obs-001', n:'สั่งยา STAT dose (เช่น Berodual Nebulizer, Paracetamol IV, Amlodipine Oral) พร้อมติดตามสถานะ'},
+  '1.14.6': {s:'done', u:'/observation/record/obs-001', n:'สั่ง Lab/EKG STAT (เช่น Stat CBC, Electrolyte, Amylase, EKG 12 leads)'},
+  '1.14.7': {s:'done', u:'/observation/record/obs-001', n:'สรุปผลการดูแลรักษา (Discharge Summary & Instructions)'},
+  '1.14.8': {s:'done', u:'/observation/record/obs-001', n:'บันทึกการส่งต่อโรงพยาบาล (E-Referral Disposition)'},
 
   /* ===== 1.20 Dashboard ===== */
   '1.20.1.1': {s:'done',    u:'/dashboard',     n:'KPI total patients'},
@@ -1794,6 +1926,7 @@ const IMPL = {
   '1.20.3.2': {s:'done',    u:'/finance',       n:'รายงานการเงิน tab: donut + แท่งรายจ่าย (เงินเดือน/ค่าวัสดุ/ค่าสาธารณูปโภค/อื่นๆ)'},
   '1.20.3.3': {s:'done',    u:'/finance',       n:'กราฟแท่งงบได้รับ vs ใช้ไป 5 หมวด + ตารางเปรียบเทียบ (คงเหลือ/%/เกินงบ) — ใช้ไปผูกกับยอดรายจ่ายจริงของปีงบ'},
   '1.20.3.4': {s:'done',    u:'/finance',       n:'กราฟเส้นรายรับ-รายจ่าย 12 เดือนงบประมาณ + ตัวกรองปีงบ 2566–2569 / ศูนย์บริการ'},
+  '1.20.7.7': {s:'done',    u:'/dashboard',     n:'ผลการฝากครรภ์ (ANC) card — total/first-visit/follow-up + risk breakdown, ดูทั้งหมด → /treat/anc/queue'},
 
   /* ===== 4. Mobile Application (/m) ===== */
   '4.1.1.1':  {s:'done',    u:'/m/register', n:'13-digit citizen-ID step'},
@@ -1815,11 +1948,11 @@ const IMPL = {
   '4.2.2':    {s:'done',    u:'/m/appointments/APT-2401', n:'Reschedule CTA reuses booking wizard'},
   '4.2.3':    {s:'done',    u:'/m/appointments/APT-2401', n:'Cancel button + confirm + status badge'},
   '4.2.4':    {s:'done',    u:'/m/appointments/APT-2401', n:'Detail card with date/center/clinic/doctor'},
-  '4.2.5':    {s:'partial', u:'/m/appointments/APT-2401', n:'Reminder banner — 1 day / 1 hour before'},
+  '4.2.5':    {s:'partial', u:'/m/appointments/APT-2401', n:'In-app banner only — not push/SMS/LINE'},
   '4.2.6.1':  {s:'done',    u:'/m/appointments', n:'Visit row with type badge'},
-  '4.2.6.2':  {s:'done',    u:'/m/appointments/APT-2403', n:'Home-visit row with staff phone'},
-  '4.2.6.3':  {s:'done',    u:'/m/appointments/APT-2402', n:'Video-call row + enter-room CTA links to /m/telemed'},
-  '4.2.6.4':  {s:'done',    u:'/m/book',     n:'Schedule grid per clinic+dept w/ slot picker'},
+  '4.2.6.2':  {s:'done',    u:'/m/appointments', n:'Home-visit in list filter + detail'},
+  '4.2.6.3':  {s:'done',    u:'/m/appointments/APT-2402', n:'Video-call row + enter-room CTA → /m/telemed'},
+  '4.2.6.4':  {s:'partial', u:'/m/book',     n:'Schedule grid mock; no real queue API link'},
   '4.3.1':    {s:'done',    u:'/m/telemed',  n:'Video tile + chat tab + composer'},
   '4.3.2':    {s:'partial', u:'/m/telemed',  n:'"Doctor shared a doc" panel under video tile'},
   '4.3.3':    {s:'partial', u:'/m/telemed',  n:'Mock chat messages reference Rx + lab share'},
