@@ -499,18 +499,17 @@ const PharmacyQueuePage = () => {
             ))}
           </TabBar>
 
-          {/* Search and filters share one row: both narrow the same list, and
-              splitting them across two bands pushed the table below the fold
-              for no gain. */}
-          <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <div className='w-full flex items-start justify-center'>
             <PrimarySearch
               value={searchQ}
               onChange={(v) => setSearchQ(v)}
               onSubmit={(v) => setSearchQ(v)}
               placeholder='ค้นหาคิว / HN / ชื่อ-สกุลผู้ป่วย'
-              width={360}
+              width={640}
             />
-            <div className='flex-1 min-w-0' />
+          </div>
+
+          <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <FilterDropdown
               prefix='ประเภทคิว:'
               options={queueTypeOptions}
