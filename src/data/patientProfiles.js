@@ -284,6 +284,29 @@ export const PATIENT_PROFILES = [
     address: '90/8 ซ.ลาดพร้าว 71 วังทองหลาง กรุงเทพมหานคร 10310',
     avatarUrl: '/avatars/mock-male-asian-a.png', vip: false,
   },
+  /* 67-00027 / 67-00029 — ANC follow-up patients (ancVisits.js
+     ANC_PATIENTS). The ANC queue referenced them but they had no profile
+     here, so `getPatientByHN` returned undefined and every ANC screen fell
+     back to DEFAULT_PATIENT — rendering a 42-year-old MALE patient card on
+     an antenatal record, and (before the `ancHn` fix in AncFormPage)
+     filing both mothers' pregnancy registrations under HN 67-00001.
+     Ages match EXTRA_DOB_BY_HN below (2546 / 2541). */
+  {
+    shortName: 'จิราพร มณีโชติ', fullName: 'นางสาวจิราพร มณีโชติ', englishName: 'Jiraporn Maneechot',
+    hn: '67-00027', vn: '69-00027', sex: 'หญิง', age: '23 ปี - 5 เดือน - 29 วัน',
+    nationalId: '1102003847561', bloodType: 'B', patientType: 'ผู้ป่วยเก่า',
+    doctor: 'พญ.สมหญิง รักษ์ดี', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
+    address: '45/9 ซ.เพชรบุรี 15 ราชเทวี กรุงเทพมหานคร 10400',
+    avatarUrl: PATIENT_MOCK_AVATARS[2], vip: false,
+  },
+  {
+    shortName: 'อาทิตยา บุญเรือง', fullName: 'นางสาวอาทิตยา บุญเรือง', englishName: 'Arthiya Boonruang',
+    hn: '67-00029', vn: '69-00029', sex: 'หญิง', age: '28 ปี - 0 เดือน - 25 วัน',
+    nationalId: '3401201029587', bloodType: 'O', patientType: 'ผู้ป่วยเก่า',
+    doctor: 'นพ.ณัฐวุฒิ บุญมี', insurance: 'สิทธิประกันสังคม รพ.เกษมราษฎร์',
+    address: '63/5 ซ.รัชดาภิเษก 12 ดินแดง กรุงเทพมหานคร 10400',
+    avatarUrl: PATIENT_MOCK_AVATARS[8], vip: false,
+  },
 ];
 
 /* Walk-in ใหม่ที่ไม่เคยใช้บริการ — 4 คนในคิวรอลงทะเบียน
