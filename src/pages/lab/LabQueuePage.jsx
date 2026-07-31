@@ -18,8 +18,9 @@ import {
   LAB_STATUS_BY_KEY, LAB_URGENCY_BY_KEY,
   withTestLabel, labHistoryFor,
   subscribeOrders, updateLabOrder, deleteLabOrder,
+  dueAdvanceOrders, activateAdvanceOrder, cancelAdvanceOrder,
 } from '@/data/labOrders';
-import { LAB_GROUPS, LAB_TUBES, duplicateWarning } from '@/data/labCatalog';
+import { LAB_GROUPS, LAB_TUBES, LAB_TEST_BY_ID, duplicateWarning } from '@/data/labCatalog';
 import LabDetailPanel from '@/pages/lab/LabDetailPanel';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import LabSpecimenLabel from '@/components/lab/LabSpecimenLabel';
@@ -53,6 +54,10 @@ import { printLab } from '@/data/labPrintSettings';
    group filter), §1.15.5 (สติกเกอร์/บาร์โค้ด → the label + scan actions). */
 
 const breadcrumb = ['งานชันสูตรโรค (Lab)'];
+
+/* The mock's "today", matching LabOrderPage — a real deployment reads the
+   clock; pinning it keeps the seeded advance orders reproducible. */
+const TODAY = '2026-07-31';
 
 /* StatusBadge only ships these style keys (see STYLES in StatusBadge.jsx):
    neutral | info | success | warning | error | yellow. LAB_STATUSES already
@@ -596,6 +601,15 @@ const LabQueuePage = () => {
     [orderVersion],
   );
 
+  /* §1.15.4.8 — advance orders whose date has arrived. Re-derived on the
+     same version bump, so activating one makes it disappear from the alert
+     and appear in the table in the same render. */
+  const dueAdvance = useMemo(
+    () => dueAdvanceOrders(TODAY),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orderVersion],
+  );
+
   /* Barcode scan — the deck's primary action. There's no scanner hardware
      behind this frontend, so the button focuses the search box and puts it
      in scan mode; a real HID barcode wedge types into the focused field and
@@ -873,6 +887,93 @@ const LabQueuePage = () => {
             gap: 'var(--dim-space-600)',
           }}
         >
+          {/* TOR §1.15.4.8 — "แจ้งเตือนรายการที่สั่งล่วงหน้าได้". Sits above
+              the table because it is work the lab does not yet know about:
+              these orders are invisible in every tab and count until someone
+              activates them, which is exactly why they need announcing.
+              §1.15.4.7's "ดึงข้อมูลมาใช้ได้เลยในวันที่ผู้รับบริการมา" is the
+              button — activation expands the advance order into real rows. */}
+          {dueAdvance.length > 0 && (
+            <div
+              className='w-full flex flex-col'
+              style={{
+                background: 'var(--surface-card-100)',
+                borderRadius: 'var(--dim-radius-500)',
+                border: 'var(--dim-stroke-100) solid var(--border-statusbadge-warning, #C2410C)',
+                boxShadow: 'var(--shadow-card)',
+                paddingTop: 'var(--dim-space-400)',
+                paddingRight: 'var(--dim-space-600)',
+                paddingBottom: 'var(--dim-space-400)',
+                paddingLeft: 'var(--dim-space-600)',
+                gap: 'var(--dim-space-300)',
+              }}
+            >
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)', color: 'var(--text-statusbadge-warning, #C2410C)' }}>
+                <Icon name='event_upcoming' size={18} />
+                <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-sm)' }}>
+                  มีคำสั่งตรวจล่วงหน้าถึงกำหนดแล้ว {dueAdvance.length} รายการ
+                </span>
+                <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                  — กด "ดึงมาใช้" เมื่อผู้ป่วยมาถึง เพื่อสร้างรายการขอตรวจและออก Accession
+                </span>
+              </div>
+              {dueAdvance.map((a) => (
+                <div
+                  key={a.id}
+                  className='flex flex-wrap items-center w-full'
+                  style={{
+                    gap: 'var(--dim-space-300)',
+                    background: 'var(--surface-card-200)',
+                    borderRadius: 'var(--dim-radius-200)',
+                    border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+                    paddingTop: 'var(--dim-space-300)',
+                    paddingRight: 'var(--dim-space-400)',
+                    paddingBottom: 'var(--dim-space-300)',
+                    paddingLeft: 'var(--dim-space-400)',
+                  }}
+                >
+                  <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)', minWidth: 150 }}>
+                    {a.patient.shortName}
+                  </span>
+                  <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)', minWidth: 110 }}>
+                    HN {a.patient.hn}
+                  </span>
+                  <span className='flex-1 min-w-0 flex flex-col'>
+                    <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+                      {a.testIds.map((t) => LAB_TEST_BY_ID[t]?.nameEn ?? t).join(' · ')}
+                    </span>
+                    <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                      นัด {a.scheduledFor} · {a.location} · {a.doctor}
+                      {a.note ? ` · ${a.note}` : ''}
+                    </span>
+                  </span>
+                  <NeutralSubdueButton
+                    variant='outline'
+                    size='sm'
+                    leadingIcon='download'
+                    onClick={() => {
+                      const created = activateAdvanceOrder(a.id);
+                      logAudit('ดึงคำสั่งตรวจล่วงหน้ามาใช้', `${a.patient.shortName} · ${created.length} รายการ (${a.id})`);
+                    }}
+                  >
+                    ดึงมาใช้
+                  </NeutralSubdueButton>
+                  <NeutralSubdueIconButton
+                    icon='delete'
+                    variant='outline'
+                    size='sm'
+                    aria-label={`ยกเลิกคำสั่งล่วงหน้า ${a.id}`}
+                    title='ยกเลิกคำสั่งล่วงหน้า'
+                    onClick={() => {
+                      cancelAdvanceOrder(a.id);
+                      logAudit('ยกเลิกคำสั่งตรวจล่วงหน้า', `${a.patient.shortName} (${a.id})`);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className='w-full flex' style={{ gap: 'var(--dim-space-400)' }}>
             <div
               className='flex flex-col flex-1 min-w-0'

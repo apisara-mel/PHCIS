@@ -471,6 +471,178 @@ export const LAB_HISTORY_BY_HN = {
 export const labHistoryFor = (hn) => LAB_HISTORY_BY_HN[hn] ?? [];
 
 /* ─────────────────────────────────────────────────────────────────────────
+   PRIOR-ORDER HISTORY — TOR §1.15.4.3
+
+   "สามารถแสดงประวัติการสั่ง Lab และเลือกสั่งตามประวัติเดิมได้."
+
+   Two halves. The first is a readable history, which means grouping by the
+   ORDER the doctor placed rather than listing loose test rows — "CBC +
+   Creatinine, 12 มิ.ย." is what someone recognises, not two separate lines.
+   The second half is re-ordering from it, which the order page turns into a
+   one-click action by handing the grouped testIds straight to the picker. */
+export const priorOrdersFor = (hn) => {
+  const rows = LAB_ORDERS.filter((o) => o.patient.hn === hn);
+  const byOrder = new Map();
+  rows.forEach((r) => {
+    if (!byOrder.has(r.orderId)) {
+      byOrder.set(r.orderId, {
+        orderId: r.orderId,
+        orderedAt: r.orderedAt,
+        doctor: r.doctor,
+        location: r.location,
+        urgency: r.urgency,
+        testIds: [],
+        rows: [],
+      });
+    }
+    const g = byOrder.get(r.orderId);
+    g.testIds.push(r.testId);
+    g.rows.push(r);
+  });
+  /* Most recent first — a doctor re-ordering almost always wants the last
+     set, not the first. */
+  return [...byOrder.values()].sort((a, b) => b.orderId.localeCompare(a.orderId));
+};
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ADVANCE ORDERS — TOR §1.15.4.7 / §1.15.4.8
+
+   §1.15.4.7 "สามารถสั่งตรวจทางห้องปฏิบัติการล่วงหน้าได้ และดึงข้อมูลมาใช้ได้เลย
+              ในวันที่ผู้รับบริการมา"
+   §1.15.4.8 "สามารถแจ้งเตือนรายการที่สั่งล่วงหน้าได้"
+
+   An advance order is deliberately NOT a worklist row. The lab must not see
+   it, count it in its queue, or try to draw it — the patient is not in the
+   building. It sits in its own list until the day arrives, and only then is
+   ACTIVATED into real order rows ("ดึงข้อมูลมาใช้ได้เลยในวันที่ผู้รับบริการมา").
+
+   `scheduledFor` is a plain ISO date string so nothing here needs a clock;
+   the caller passes today's date in, which also keeps the mock stable. */
+let advanceSeq = 0;
+
+export const LAB_ADVANCE_ORDERS = [
+  {
+    id: 'ADV-001',
+    patient: NAMED(3),
+    testIds: ['lab-hba1c', 'lab-creatinine'],
+    doctor: NAMED(3).doctor,
+    location: 'คลินิกเบาหวาน',
+    urgency: 'routine',
+    /* Dated in the past relative to the mock's "today" (2026-07-31) so the
+       due-alert has something to fire on out of the box. */
+    scheduledFor: '2026-07-31',
+    note: 'ติดตามระดับน้ำตาลสะสมทุก 3 เดือน — เจาะก่อนพบแพทย์',
+    createdAt: '2026-05-02',
+    activated: false,
+  },
+  {
+    id: 'ADV-002',
+    patient: NAMED(4),
+    testIds: ['lab-cbc', 'lab-abo'],
+    doctor: NAMED(4).doctor,
+    location: 'คลินิกฝากครรภ์ (ANC)',
+    urgency: 'routine',
+    scheduledFor: '2026-07-31',
+    note: 'ANC ครั้งที่ 2 — ตรวจตามชุดมาตรฐาน',
+    createdAt: '2026-06-18',
+    activated: false,
+  },
+  {
+    id: 'ADV-003',
+    patient: NAMED(2),
+    testIds: ['lab-lipid'],
+    doctor: NAMED(2).doctor,
+    location: 'OPD อายุรกรรม',
+    urgency: 'routine',
+    scheduledFor: '2026-09-15',
+    note: 'ประเมินผลหลังปรับยาลดไขมัน 6 สัปดาห์ · ต้องงดอาหาร 12 ชม.',
+    createdAt: '2026-07-20',
+    activated: false,
+  },
+];
+
+export const addAdvanceOrder = (order) => {
+  advanceSeq += 1;
+  const entry = {
+    id: `ADV-${String(100 + advanceSeq).padStart(3, '0')}`,
+    activated: false,
+    ...order,
+  };
+  LAB_ADVANCE_ORDERS.push(entry);
+  notifyOrders();
+  return entry;
+};
+
+export const cancelAdvanceOrder = (id) => {
+  const idx = LAB_ADVANCE_ORDERS.findIndex((a) => a.id === id);
+  if (idx < 0) return false;
+  LAB_ADVANCE_ORDERS.splice(idx, 1);
+  notifyOrders();
+  return true;
+};
+
+export const advanceOrdersFor = (hn) =>
+  LAB_ADVANCE_ORDERS.filter((a) => !a.activated && a.patient.hn === hn);
+
+/* §1.15.4.8 — what the worklist alerts on. Anything scheduled for today or
+   earlier is outstanding: an advance order whose date has passed without
+   the patient arriving is exactly the case worth surfacing, not hiding. */
+export const dueAdvanceOrders = (today) =>
+  LAB_ADVANCE_ORDERS.filter((a) => !a.activated && a.scheduledFor <= today);
+
+/* §1.15.4.7's second half — "ดึงข้อมูลมาใช้ได้เลยในวันที่ผู้รับบริการมา".
+   Expands one advance order into real worklist rows: one per test, grouped
+   into tubes so each tube gets its own accession, exactly as a same-day
+   order would. Returns the created rows. */
+export const activateAdvanceOrder = (id, { orderedAt = '08:00' } = {}) => {
+  const adv = LAB_ADVANCE_ORDERS.find((a) => a.id === id);
+  if (!adv || adv.activated) return [];
+
+  const orderId = `ORD-${900 + LAB_ADVANCE_ORDERS.indexOf(adv)}`;
+  /* One accession per distinct tube — the same rule as a walk-in order. */
+  const tubeToAccession = new Map();
+  let seq = 900;
+
+  const created = adv.testIds.map((testId, i) => {
+    const test = LAB_TEST_BY_ID[testId];
+    const tubeKey = test?.tubeKey ?? 'clot';
+    if (!tubeToAccession.has(tubeKey)) {
+      seq += 1;
+      tubeToAccession.set(tubeKey, accession(seq));
+    }
+    return {
+      id: `LAB-A${adv.id.replace('ADV-', '')}-${i + 1}`,
+      orderId,
+      accessionNo: tubeToAccession.get(tubeKey),
+      tubeSeq: 1,
+      patient: adv.patient,
+      testId,
+      doctor: adv.doctor,
+      location: adv.location,
+      orderedAt,
+      status: 'requested',
+      urgency: adv.urgency ?? 'routine',
+      critical: false,
+      abnormal: false,
+      labeled: false,
+      resultSummary: null,
+      results: null,
+      trend: null,
+      /* Kept on the row so the worklist can show that this order was placed
+         in advance rather than at the counter today. */
+      fromAdvanceOrder: adv.id,
+      advanceNote: adv.note,
+    };
+  });
+
+  LAB_ORDERS.push(...created);
+  adv.activated = true;
+  adv.activatedAt = orderedAt;
+  notifyOrders();
+  return created;
+};
+
+/* ─────────────────────────────────────────────────────────────────────────
    BACK-COMPAT SHIMS
 
    LabDetailPanel.jsx still imports `LAB_TEST_CATALOG` / `resolveReferenceRange`

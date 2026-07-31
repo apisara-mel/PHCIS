@@ -10,8 +10,15 @@ import SuccessToast from '@/components/toast/SuccessToast';
 import LabOrderPicker from '@/components/lab/LabOrderPicker';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
-import { LAB_LOCATIONS, LAB_URGENCIES, labHistoryFor } from '@/data/labOrders';
-import { summariseSelection } from '@/data/labCatalog';
+import {
+  LAB_LOCATIONS, LAB_URGENCIES, labHistoryFor,
+  priorOrdersFor, advanceOrdersFor, addAdvanceOrder,
+} from '@/data/labOrders';
+import { summariseSelection, LAB_TEST_BY_ID } from '@/data/labCatalog';
+
+/* The mock's "today". A real deployment reads the clock; pinning it keeps
+   the seeded advance orders reproducible across reloads. */
+const TODAY = '2026-07-31';
 
 /* สั่งตรวจทางห้องปฏิบัติการ — the ordering side of the lab module: a doctor
    or nurse picks the patient, the tests, and the urgency, and the request
@@ -137,6 +144,10 @@ const LabOrderPage = () => {
   const [note, setNote] = useState('');
   const [selected, setSelected] = useState([]);
   const [saved, setSaved] = useState(false);
+  const [savedMsg, setSavedMsg] = useState('');
+  /* §1.15.4.7 — order now vs order ahead of a future visit. */
+  const [isAdvance, setIsAdvance] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState('');
 
   const patient = PATIENT_PROFILES[patientIdx];
   /* Duplicate warnings are per-patient, so switching patient re-evaluates
@@ -144,13 +155,38 @@ const LabOrderPage = () => {
   const history_ = useMemo(() => labHistoryFor(patient.hn), [patient.hn]);
   const summary = useMemo(() => summariseSelection(selected), [selected]);
 
-  const canSubmit = selected.length > 0;
+  /* TOR §1.15.4.3 — prior orders for this patient, grouped the way the
+     doctor placed them, so "สั่งซ้ำตามประวัติเดิม" is one click. */
+  const priorOrders = useMemo(() => priorOrdersFor(patient.hn), [patient.hn]);
+  /* Advance orders already queued for this patient, so the same tests are
+     not booked twice. */
+  const pendingAdvance = useMemo(() => advanceOrdersFor(patient.hn), [patient.hn, saved]);
+
+  const canSubmit = selected.length > 0 && (!isAdvance || scheduledFor);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    /* No backend — the lab worklist reads from the static LAB_ORDERS mock,
-       so this confirms the order rather than persisting it. The shape it
-       would POST is exactly `summary.tests` × the header fields below. */
+    if (isAdvance) {
+      /* §1.15.4.7 — an advance order does NOT enter the lab's worklist. The
+         patient is not here; the lab must not queue, draw or count it. It
+         waits in its own list and is activated on the day they arrive. */
+      addAdvanceOrder({
+        patient,
+        testIds: [...selected],
+        doctor: patient.doctor,
+        location,
+        urgency,
+        scheduledFor,
+        note,
+        createdAt: TODAY,
+      });
+      setSavedMsg(`บันทึกคำสั่งล่วงหน้าสำหรับวันที่ ${scheduledFor} แล้ว — ระบบจะดึงมาใช้เมื่อผู้ป่วยมาถึง`);
+    } else {
+      /* No backend — the worklist reads the static LAB_ORDERS mock, so a
+         same-day order is confirmed rather than persisted. The shape it
+         would POST is `summary.tests` × the header fields above. */
+      setSavedMsg('ส่งคำขอตรวจไปยังห้องปฏิบัติการแล้ว');
+    }
     setSaved(true);
     setSelected([]);
   };
@@ -245,6 +281,121 @@ const LabOrderPage = () => {
           {/* ความเร่งด่วน — three levels per the team, each with the SLA the
               worklist's aging column measures against, so the person
               ordering can see what they are committing the lab to. */}
+          {/* TOR §1.15.4.3 — ประวัติการสั่ง Lab + สั่งตามประวัติเดิม.
+              Placed above the picker because re-ordering a previous set is
+              the faster path when it applies; picking tests one by one is
+              the fallback, not the default, for a follow-up visit. */}
+          {priorOrders.length > 0 && (
+            <SectionCard
+              icon='history'
+              title='ประวัติการสั่งตรวจของผู้ป่วยรายนี้'
+              subtitle='เลือก "สั่งซ้ำตามเดิม" เพื่อดึงรายการทั้งชุดมาใส่ในฟอร์ม แล้วปรับเพิ่ม-ลดได้'
+              action={<Badge style='neutral' size='small'>{priorOrders.length} ครั้ง</Badge>}
+            >
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                {priorOrders.slice(0, 5).map((o) => (
+                  <div
+                    key={o.orderId}
+                    className='flex flex-wrap items-center w-full'
+                    style={{
+                      gap: 'var(--dim-space-300)',
+                      background: 'var(--surface-card-200)',
+                      borderRadius: 'var(--dim-radius-200)',
+                      border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+                      paddingTop: 'var(--dim-space-300)',
+                      paddingRight: 'var(--dim-space-400)',
+                      paddingBottom: 'var(--dim-space-300)',
+                      paddingLeft: 'var(--dim-space-400)',
+                    }}
+                  >
+                    <span className='text-xs text-ink-tertiary' style={{ width: 84 }}>{o.orderId}</span>
+                    <span className='flex-1 min-w-0 flex flex-col'>
+                      <span className='text-sm text-ink'>
+                        {o.rows.map((r) => LAB_TEST_BY_ID[r.testId]?.nameEn ?? r.testId).join(' · ')}
+                      </span>
+                      <span className='text-xs text-ink-tertiary'>
+                        {o.location} · {o.doctor} · {o.orderedAt}
+                        {/* Whether the previous run was normal is what
+                            decides if repeating it is worth doing. */}
+                        {o.rows.some((r) => r.critical) && ' · เคยพบค่าวิกฤต'}
+                      </span>
+                    </span>
+                    <NeutralSubdueButton
+                      variant='outline'
+                      size='sm'
+                      leadingIcon='replay'
+                      onClick={() => setSelected([...new Set([...selected, ...o.testIds])])}
+                    >
+                      สั่งซ้ำตามเดิม
+                    </NeutralSubdueButton>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
+
+          {/* §1.15.4.7 — สั่งล่วงหน้า. A toggle rather than a separate screen:
+              everything else about the order (patient, tests, urgency) is
+              identical; only WHEN it reaches the lab differs. */}
+          <SectionCard
+            icon='event_upcoming'
+            title='เวลาที่ส่งคำขอ'
+            subtitle='สั่งสำหรับวันนี้ หรือสั่งล่วงหน้าไว้ให้ดึงมาใช้อัตโนมัติในวันที่ผู้ป่วยมาตามนัด'
+            action={pendingAdvance.length > 0 ? <Badge style='info' size='small'>มีคำสั่งล่วงหน้าค้าง {pendingAdvance.length}</Badge> : undefined}
+          >
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full'>
+              <RadioCard
+                label='สั่งสำหรับวันนี้'
+                sublabel='เข้าสู่ Worklist ของห้องปฏิบัติการทันที'
+                icon='bolt'
+                selected={!isAdvance}
+                onSelect={() => setIsAdvance(false)}
+              />
+              <RadioCard
+                label='สั่งล่วงหน้า'
+                sublabel='ยังไม่เข้า Worklist — ระบบจะดึงมาใช้ในวันที่ผู้ป่วยมา'
+                icon='event_upcoming'
+                selected={isAdvance}
+                onSelect={() => setIsAdvance(true)}
+              />
+            </div>
+            {isAdvance && (
+              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)', maxWidth: 260 }}>
+                <span className='text-xs text-ink-secondary'>
+                  วันที่นัดตรวจ <span style={{ color: 'var(--text-input-require)' }}>*</span>
+                </span>
+                <input
+                  type='date'
+                  value={scheduledFor}
+                  min={TODAY}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                  style={{
+                    width: '100%',
+                    paddingTop: 'var(--dim-space-150)',
+                    paddingRight: 'var(--dim-space-300)',
+                    paddingBottom: 'var(--dim-space-150)',
+                    paddingLeft: 'var(--dim-space-300)',
+                    background: 'var(--surface-input-default)',
+                    border: 'var(--dim-stroke-100) solid var(--border-input-default)',
+                    borderRadius: 'var(--dim-radius-200)',
+                    fontSize: 'var(--type-size-sm)',
+                    outline: 'none',
+                  }}
+                />
+              </label>
+            )}
+            {pendingAdvance.length > 0 && (
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                <span className='text-xs text-ink-secondary'>คำสั่งล่วงหน้าที่ยังไม่ถึงกำหนดของผู้ป่วยรายนี้</span>
+                {pendingAdvance.map((a) => (
+                  <span key={a.id} className='text-xs text-ink-tertiary'>
+                    {a.scheduledFor} · {a.testIds.map((t) => LAB_TEST_BY_ID[t]?.nameEn ?? t).join(', ')} · {a.location}
+                  </span>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
           <SectionCard
             icon='priority_high'
             title='ความเร่งด่วน'
@@ -377,17 +528,13 @@ const LabOrderPage = () => {
             <NeutralSubdueButton variant='outline' size='md' onClick={() => history.push('/lab/queue')}>
               ยกเลิก
             </NeutralSubdueButton>
-            <BrandButton size='md' leadingIcon='send' disabled={!canSubmit} onClick={handleSubmit}>
-              ส่งคำขอตรวจ
+            <BrandButton size='md' leadingIcon={isAdvance ? 'event_upcoming' : 'send'} disabled={!canSubmit} onClick={handleSubmit}>
+              {isAdvance ? 'บันทึกคำสั่งล่วงหน้า' : 'ส่งคำขอตรวจ'}
             </BrandButton>
           </section>
         </div>
       </main>
-      <SuccessToast
-        open={saved}
-        message='ส่งคำขอตรวจไปยังห้องปฏิบัติการแล้ว'
-        onClose={() => setSaved(false)}
-      />
+      <SuccessToast open={saved} message={savedMsg} onClose={() => setSaved(false)} />
     </div>
   );
 };
