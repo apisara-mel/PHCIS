@@ -3,7 +3,9 @@ import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
-import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import { buildDispenseStatusSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
+import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 import { PHARMACY_QUEUE, DISPENSE_STATUS, PAYMENT_STATUS } from '@/data/pharmacyQueue';
 
 /* ประวัติการรับยาและใบสั่งยา — consolidates two separate legacy screens
@@ -39,6 +41,11 @@ const PharmacyHistoryPage = () => {
   const history = useHistory();
   const [query, setQuery] = useState('');
 
+  const summaryCards = useMemo(
+    () => buildDispenseStatusSummaryCards(PHARMACY_QUEUE, { indicatorPrefix: 'ประวัติการรับยา' }),
+    [],
+  );
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -72,18 +79,14 @@ const PharmacyHistoryPage = () => {
       activeKey='pharmacy'
       breadcrumb={breadcrumb}
       title='ประวัติการรับยาและใบสั่งยา'
-      actions={<PharmacySubNav />}
+      summaryCards={summaryCards}
+      actions={<PharmacyAddDrugButton />}
+      belowSummary={<PharmacySubNav />}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
         <div
           className='w-full flex flex-col'
-          style={{
-            background: 'var(--surface-card-100)',
-            borderRadius: 'var(--dim-radius-500)',
-            boxShadow: 'var(--shadow-card-strong)',
-            padding: 'var(--dim-space-600)',
-            gap: 'var(--dim-space-400)',
-          }}
+          style={PHARMACY_WORKLIST_CARD_BODY}
         >
           <input
             type='text'

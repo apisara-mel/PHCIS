@@ -10,3 +10,6 @@ dist-ssr
 /tmp-*.png
 # Local agent session label (statusline)
 .cursor/feature-name
+
+# generated design-system site (npm run ds:build)
+dist-ds

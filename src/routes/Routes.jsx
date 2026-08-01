@@ -24,6 +24,10 @@ import PharmacyRequisitionPage from '@/pages/pharmacy/PharmacyRequisitionPage';
 import PharmacyHistoryPage from '@/pages/pharmacy/PharmacyHistoryPage';
 import PharmacyReportsPage from '@/pages/pharmacy/PharmacyReportsPage';
 import LabQueuePage from '@/pages/lab/LabQueuePage';
+import LabOrderPage from '@/pages/lab/LabOrderPage';
+import LabSetupPage from '@/pages/lab/LabSetupPage';
+import LabResultEntryPage from '@/pages/lab/LabResultEntryPage';
+import LabReportPage from '@/pages/lab/LabReportPage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
 import ObservationHistoryPage from '@/pages/observation/ObservationHistoryPage';
@@ -196,8 +200,19 @@ export default function Routes() {
         <Route exact path='/pharmacy/requisition'  component={PharmacyRequisitionPage} />
         <Route exact path='/pharmacy/history'      component={PharmacyHistoryPage} />
         <Route exact path='/pharmacy/reports'      component={PharmacyReportsPage} />
+
+        {/* งานชันสูตรโรค (Lab · TOR ข้อ 1.15). Four screens, matching the
+            flow the team laid out in Lab dicussion with team.pdf:
+              /lab/order       — แพทย์/พยาบาลสั่งตรวจ (1.15.4)
+              /lab/queue       — Worklist ของห้องปฏิบัติการ 6 ขั้นตอน (1.15.2)
+              /lab/result/:id  — บันทึกผล + ค่าวิกฤต (1.15.6)
+              /lab/setup       — ทะเบียนรายการตรวจ + รหัส TMLT (1.15.3) */}
         <Route exact path='/lab'              component={LabQueuePage} />
         <Route exact path='/lab/queue'        component={LabQueuePage} />
+        <Route exact path='/lab/order'        component={LabOrderPage} />
+        <Route exact path='/lab/setup'        component={LabSetupPage} />
+        <Route exact path='/lab/result/:id'   component={LabResultEntryPage} />
+        <Route exact path='/lab/report/:orderId' component={LabReportPage} />
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
         <Route exact path='/observation/history/:id'  component={ObservationHistoryPage} />

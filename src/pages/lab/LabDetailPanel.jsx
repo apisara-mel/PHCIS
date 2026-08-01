@@ -4,7 +4,9 @@ import Badge from '@/components/badge/Badge';
 import XCloseButton from '@/components/button/XCloseButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { Icon } from '@/components/icons/Icon';
-import { LAB_TEST_CATALOG, resolveReferenceRange } from '@/data/labOrders';
+import { LAB_STATUS_BY_KEY } from '@/data/labOrders';
+import { LAB_TEST_BY_ID, resolveAnalyteRange } from '@/data/labCatalog';
+import LabTubeDot from '@/pages/lab/LabTubeDot';
 
 /* Print scoping — TOR §1.15.6.3's print button used to call bare
    window.print(), which printed the whole app chrome (sidebar/header/
@@ -53,11 +55,9 @@ if (typeof document !== 'undefined') {
                  LabQueuePage), not the whole table — see that file's
                  comment on `orderSiblings` for why. */
 
-const STATUS_PILL_LABEL = {
-  collected:  'เก็บตัวอย่างแล้ว',
-  analysing:  'กำลังวิเคราะห์',
-  reported:   'รายงานผลแล้ว',
-};
+/* Status label comes from the single pipeline definition in labOrders.js so
+   this panel can never drift out of step with the worklist's tabs. */
+const statusLabel = (key) => LAB_STATUS_BY_KEY[key]?.label ?? key;
 
 const CHART_W = 420;
 const CHART_H = 160;
@@ -125,8 +125,12 @@ const LabDetailPanel = ({
       </div>
     );
   }
-  const test = LAB_TEST_CATALOG[order.testKey];
+  const test = LAB_TEST_BY_ID[order.testId] ?? null;
   const masked = order.confidential && !revealed;
+  /* "แพทย์จะดูได้ต่อเมื่อได้รับอนุมัติผล" — until a result is approved and
+     released it is not a result the ward may act on, so the panel says so
+     explicitly rather than showing a bare status word. */
+  const awaitingApproval = order.status === 'approval';
 
   return (
     <div className='flex-1 flex flex-col' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
@@ -189,12 +193,28 @@ const LabDetailPanel = ({
           </BrandSubdueButton>
         </div>
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
-          {order.patient.shortName} · HN {order.patient.hn} · สั่งโดย {order.doctor} · {order.orderedAt}
+          {order.confidential ? 'ผู้ป่วยปกปิด' : order.patient.shortName} · HN {order.confidential ? '•••••' : order.patient.hn} · สั่งโดย {order.doctor} · {order.orderedAt}
         </span>
-        {/* Specimen + price — TOR §1.15.4.9 "สิ่งส่งตรวจ...ราคา" */}
+        {/* Accession + จุดสั่ง — the two things anyone phoning the lab about
+            this specimen will be asked for. */}
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-          {order.specimen && <>สิ่งส่งตรวจ: {order.specimen} · </>}
-          ราคา: {order.price?.toLocaleString('th-TH')} บาท
+          Accession: {order.accessionNo} · จุดสั่ง: {order.location}
+          {test?.tmlt && <> · TMLT {test.tmlt}</>}
+        </span>
+        {/* Specimen + price — TOR §1.15.4.9 "สิ่งส่งตรวจ...ราคา". The tube is
+            shown as its cap-colour swatch, the same one the worklist row
+            renders, both resolved from the test's group. */}
+        <span
+          className='inline-flex items-center flex-wrap'
+          style={{ gap: 'var(--dim-space-150)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}
+        >
+          {order.tube && (
+            <>
+              <LabTubeDot tube={order.tube} count={order.tubeCount} size={8} />
+              <span>· {order.volumeMl} mL ·</span>
+            </>
+          )}
+          <span>ราคา: {order.price?.toLocaleString('th-TH')} บาท</span>
         </span>
         {/* Order-level total — TOR §1.15.4.9 "ข้อมูลยอดรวมทั้งหมด", scoped
             to this ONE order (orderId), same order the doctor placed
@@ -268,14 +288,82 @@ const LabDetailPanel = ({
           </span>
         ) : (
           <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>
-            รอผลตรวจ — สถานะปัจจุบัน: {STATUS_PILL_LABEL[order.status]}
+            {awaitingApproval
+              ? 'ผลตรวจเสร็จแล้ว รอผู้มีสิทธิ์รับรองผล — แพทย์จะดูผลได้เมื่อรับรองแล้ว'
+              : `รอผลตรวจ — สถานะปัจจุบัน: ${statusLabel(order.status)}`}
           </span>
         )}
-        {/* TOR §1.15.3.2 — reference range resolved per patient sex/age
-            (falls back to the flat range when a test has no split). */}
-        {!masked && resolveReferenceRange(test, order.patient) && (
+
+        {/* Per-analyte breakdown. A panel like CBC or Electrolytes reports
+            four values, each with its own unit and reference range, so a
+            single summary string cannot carry the result — the team's
+            two-level status ("status รวม และ status ย่อย") has a matching
+            two-level RESULT, and this is that second level.
+            TOR §1.15.3.2 — each range is resolved per patient sex/age. */}
+        {!masked && test?.analytes?.length > 0 && order.results && (
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)', marginTop: 'var(--dim-space-150)' }}>
+            {test.analytes.map((a) => {
+              const value = order.results[a.key];
+              if (value == null) return null;
+              const range = resolveAnalyteRange(a, order.patient);
+              return (
+                <div
+                  key={a.key}
+                  className='flex items-baseline justify-between'
+                  style={{ gap: 'var(--dim-space-200)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}
+                >
+                  <span className='min-w-0 truncate' style={{ color: 'var(--text-content-secondary)' }}>
+                    {a.label}
+                  </span>
+                  <span className='shrink-0' style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
+                    {value}{a.unit ? ` ${a.unit}` : ''}
+                    {range && (
+                      <span style={{ fontWeight: 'var(--type-weight-regular)', color: 'var(--text-content-quaternary)' }}>
+                        {' '}({range})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Reference range for a single-analyte test, where the breakdown
+            above would be a one-row table saying the same thing. */}
+        {!masked && !order.results && test?.analytes?.length === 1 && resolveAnalyteRange(test.analytes[0], order.patient) && (
           <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-quaternary)' }}>
-            ค่าปกติ: {resolveReferenceRange(test, order.patient)}{test.unit ? ` ${test.unit}` : ''}
+            ค่าปกติ: {resolveAnalyteRange(test.analytes[0], order.patient)}
+            {test.analytes[0].unit ? ` ${test.analytes[0].unit}` : ''}
+          </span>
+        )}
+
+        {/* Who released the result — the approval step the team insisted on
+            ("อนุมัติผล (ต้องมีคนอนุมัติผล)"). Without a named approver a
+            reported result has no accountable owner. */}
+        {!masked && order.approvedBy && (
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-quaternary)' }}>
+            รับรองผลโดย {order.approvedBy}{order.approvedAt ? ` · ${order.approvedAt}` : ''}
+          </span>
+        )}
+        {/* Bedside tests skip the bench entirely — "พยาบาลเจาะน้ำตาลปลายนิ้ว
+            บันทึกผลเองได้เลย" — so the performer is named instead. */}
+        {!masked && order.bedside && order.performedBy && (
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-quaternary)' }}>
+            ตรวจข้างเตียงและบันทึกผลโดย {order.performedBy}
+          </span>
+        )}
+        {/* Lab-out — the vendor manual's "ส่งตรวจภายนอก / lab-out upload". */}
+        {order.status === 'external' && order.externalLab && (
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-quaternary)' }}>
+            ส่งตรวจภายนอกที่ {order.externalLab}{order.sentOutAt ? ` · ${order.sentOutAt}` : ''}
+          </span>
+        )}
+        {/* Why a specimen was refused / re-drawn, so the ward isn't left
+            guessing when the result doesn't arrive. */}
+        {order.exception && order.rejectReason && (
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-statusbadge-error, #B91C1C)' }}>
+            {order.exception === 'rejected' ? 'ปฏิเสธสิ่งส่งตรวจ' : 'สั่งเจาะซ้ำ'}: {order.rejectReason}
           </span>
         )}
       </div>

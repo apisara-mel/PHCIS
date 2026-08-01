@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
@@ -15,8 +15,11 @@ import {
 } from '@/data/pharmacyQueue';
 import { DRUG_REGISTRY } from '@/data/pharmacyRegistry';
 import { CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE } from '@/components/layout/HeaderClinicContext';
-import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import PharmacyRequisitionPrint from '@/components/pharmacy/PharmacyRequisitionPrint';
+import { buildRequisitionSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
+import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 
 /* เบิกจ่ายยา/เวชภัณฑ์ + บันทึกรับยาเข้าคลังใหญ่ (ToR §1.9.6-1.9.7) — two-tab
    record list (เบิกจ่าย / รับเข้าคลังใหญ่) with a mock "new" action for
@@ -85,7 +88,7 @@ const NewRequisitionForm = ({ onCreate, onCancel }) => {
   });
 
   return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-200)' }}>
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', ...PHARMACY_NESTED_PANEL }}>
       <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
         <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span className='text-xs text-ink-tertiary'>ศูนย์บริการสาธารณสุขผู้ขอเบิก</span>
@@ -202,7 +205,7 @@ const NewReceivingForm = ({ onCreate, onCancel }) => {
   });
 
   return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-200)' }}>
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', ...PHARMACY_NESTED_PANEL }}>
       <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
         <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span className='text-xs text-ink-tertiary'>หน่วยงาน</span>
@@ -369,7 +372,7 @@ const RECEIVING_COLUMNS = [
 const PharmacyRequisitionPage = () => {
   const [activeTab, setActiveTab] = useState('requisition');
   const [showForm, setShowForm] = useState(false);
-  const [, forceRender] = useState(0);
+  const [renderTick, forceRender] = useState(0);
   const bump = () => forceRender((n) => n + 1);
 
   /* §1.9.6.1 — edit/cancel/approve an existing requisition line. Edit is
@@ -487,11 +490,20 @@ const PharmacyRequisitionPage = () => {
     },
   };
 
-  const summaryCards = [
-    { key: 'pending',   label: 'รอดำเนินการ',  value: REQUISITIONS.filter((r) => r.status === 'pending').length,  indicator: 'คำขอเบิกจ่าย', color: 'inprogress', icon: 'hourglass_top' },
-    { key: 'fulfilled', label: 'เบิกจ่ายแล้ว',  value: REQUISITIONS.filter((r) => r.status === 'fulfilled').length, indicator: 'เดือนนี้',     color: 'positive',   icon: 'move_down'     },
-    { key: 'received',  label: 'รับเข้าคลังใหญ่', value: RECEIVING_RECORDS.length,                                   indicator: 'รายการทั้งหมด', color: 'brand',      icon: 'move_up'       },
-  ];
+  const summaryCards = useMemo(
+    () => buildRequisitionSummaryCards(REQUISITIONS, RECEIVING_RECORDS),
+    [renderTick],
+  );
+
+  const tabCounts = useMemo(
+    () => ({ requisition: REQUISITIONS.length, receiving: RECEIVING_RECORDS.length }),
+    [renderTick],
+  );
+
+  const handleTabChange = (key) => {
+    setActiveTab(key);
+    setShowForm(false);
+  };
 
   return (
     <>
@@ -505,23 +517,35 @@ const PharmacyRequisitionPage = () => {
         activeKey='pharmacy'
         breadcrumb={breadcrumb}
         title='เบิกจ่ายยา/เวชภัณฑ์ และรับเข้าคลังใหญ่'
-        actions={<PharmacySubNav />}
         summaryCards={summaryCards}
-        tabs={TABS}
-        activeTab={activeTab}
-        onTabChange={(k) => { setActiveTab(k); setShowForm(false); }}
+        actions={<PharmacyAddDrugButton />}
+        belowSummary={<PharmacySubNav />}
       >
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
           <div
             className='w-full flex flex-col'
-            style={{
-              background: 'var(--surface-card-100)',
-              borderRadius: 'var(--dim-radius-500)',
-              boxShadow: 'var(--shadow-card-strong)',
-              padding: 'var(--dim-space-600)',
-              gap: 'var(--dim-space-400)',
-            }}
+            style={PHARMACY_WORKLIST_CARD_BODY}
           >
+            <TabBar aria-label='เลือกประเภทรายการ' align='center' className='self-center shrink-0 max-w-full'>
+              {TABS.map((t) => (
+                <TabPill
+                  key={t.key}
+                  size='large'
+                  selected={activeTab === t.key}
+                  leadingIcon={t.icon}
+                  onClick={() => handleTabChange(t.key)}
+                >
+                  {t.label}
+                  <span
+                    className='tabular-nums'
+                    style={{ marginLeft: 'var(--dim-space-200)', fontWeight: 'var(--type-weight-bold)' }}
+                  >
+                    {tabCounts[t.key]}
+                  </span>
+                </TabPill>
+              ))}
+            </TabBar>
+
             <div className='flex items-center justify-between'>
               <h2 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
                 {activeTab === 'requisition' ? 'รายการเบิกจ่ายยา/เวชภัณฑ์' : 'รายการรับยาเข้าคลังใหญ่'}

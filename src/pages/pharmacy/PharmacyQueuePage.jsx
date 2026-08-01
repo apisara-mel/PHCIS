@@ -10,9 +10,11 @@ import Badge from '@/components/badge/Badge';
 import { PHARMACY_QUEUE, DISPENSE_STATUS, QUEUE_TYPES, PAYMENT_STATUS, checkAllergyConflicts, updatePharmacyRow } from '@/data/pharmacyQueue';
 import { checkHighAlert } from '@/data/pharmacyRegistry';
 import { findMrPatientByHn } from '@/data/mrPatients';
-import { getPatientByHN } from '@/data/patientProfiles';
-import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
+import { buildDispenseStatusSummaryCards, countRows } from '@/pages/pharmacy/pharmacySummaryCards';
+import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
+import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatientAvatar';
 
 const breadcrumb = ['ระบบงานเภสัชกรรม'];
 
@@ -61,37 +63,7 @@ const PAYMENT_STATUS_PILL = {
 
 const Pill = ({ pill }) => <Badge style={pill.style} size='small'>{pill.label}</Badge>;
 
-/* Patient photo in front of the name — same fallback contract as
-   `MedImageTile` in PharmacyDispensePage.jsx (photo → initials-in-circle),
-   reusing that page's local-component convention rather than sharing one
-   across pharmacy pages. Photo comes from `patientProfiles.js` only (never
-   identity fields — see the note on `toPatientCardShape` in
-   PharmacyDispensePage.jsx for why that roster stays photo-only here). */
-const PatientAvatar = ({ name, avatarUrl }) => {
-  const [broken, setBroken] = useState(false);
-  const baseStyle = {
-    width: 'var(--dim-size-700, 36px)', height: 'var(--dim-size-700, 36px)',
-    borderRadius: 'var(--dim-radius-full)', flexShrink: 0,
-  };
-  if (avatarUrl && !broken) {
-    return (
-      <img
-        src={avatarUrl} alt={name} loading='lazy' onError={() => setBroken(true)}
-        style={{ ...baseStyle, objectFit: 'cover', border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)' }}
-      />
-    );
-  }
-  return (
-    <span
-      className='inline-flex items-center justify-center'
-      style={{ ...baseStyle, background: 'var(--surface-brandPrimary-quaternary)', color: 'var(--text-brandPrimary-default)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}
-      aria-hidden
-    >
-      {name?.trim().charAt(0) || '?'}
-    </span>
-  );
-};
-
+/* Patient photo — registration queue avatar contract (QueuePatientAvatar). */
 /* Allergy / High Alert flags for a row — shared by the table cell render
    AND the "แพ้ยา / High Alert" filter dropdown so both stay in sync on one
    computation instead of drifting. */
@@ -159,12 +131,20 @@ const BASE_COLUMNS = [
   { key: 'vn', label: 'VN', width: 112, render: (row) => row.vn || '-' },
   {
     key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
-    render: (row) => (
-      <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-        <PatientAvatar name={row.patientName} avatarUrl={getPatientByHN(row.hn)?.avatarUrl} />
-        <TableEllipsisText text={row.patientName} />
-      </div>
-    ),
+    render: (row) => {
+      const avatarProps = resolveQueuePatientAvatarProps({
+        hn: row.hn,
+        displayName: row.patientName,
+        /* No VN yet → same as registration "รอลงทะเบียน" rows: initials, not mock portrait. */
+        noProfilePhoto: !row.vn,
+      });
+      return (
+        <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <QueuePatientAvatar size={36} {...avatarProps} />
+          <TableEllipsisText text={row.patientName} />
+        </div>
+      );
+    },
   },
   { key: 'queueType', label: 'ประเภท', width: 100, render: (row) => <Pill pill={QUEUE_TYPE_PILL[row.queueType]} /> },
   { key: 'items', label: 'จำนวนรายการยา', width: 130, align: 'center', render: (row) => `${row.items.length} รายการ` },
@@ -191,56 +171,6 @@ const BASE_COLUMNS = [
 
 const PAGE_SIZE = 20;
 
-/* ── Per-tab summary cards ──────────────────────────────────────────────
-   The card row above the table follows the active tab: card 1 counts the
-   tab itself, cards 2-4 break that same subset down by whatever decides a
-   pharmacist's next action in that state. "ผู้รับบริการทั้งหมด" is the one
-   tab that keeps the whole-day overview, since there's no subset to
-   describe there. */
-const countRows = (rows, pred) => rows.filter(pred).length;
-
-const isUrgent = (r) => r.queueType === 'urgent';
-const isUnpaid = (r) => r.paymentStatus === PAYMENT_STATUS.UNPAID;
-const hasAlert = (r) => {
-  const { hasAllergy, hasHighAlert } = getAllergyFlags(r);
-  return hasAllergy || hasHighAlert;
-};
-const isFullyPrepared = (r) => r.items.length > 0 && r.items.every((it) => it.prepared);
-
-const TAB_CARD_COLOR = {
-  waiting:   'inprogress',
-  called:    'info',
-  preparing: 'info',
-  dispensed: 'positive',
-  problem:   'destructive',
-  no_show:   'brand',
-};
-
-/* Cards 2-4 for tabs with no state-specific breakdown — the three things
-   that reorder a pharmacist's queue no matter what status it's in. */
-const genericBreakdown = (tabRows) => [
-  { key: 'urgent', label: 'คิวด่วน',                   value: countRows(tabRows, isUrgent), indicator: 'ให้ลำดับก่อน',        color: 'destructive', icon: 'priority_high' },
-  { key: 'alert',  label: 'แจ้งเตือนแพ้ยา / High Alert', value: countRows(tabRows, hasAlert), indicator: 'ตรวจสอบก่อนจ่าย',     color: 'inprogress',  icon: 'warning'       },
-  { key: 'unpaid', label: 'ค้างชำระ',                   value: countRows(tabRows, isUnpaid), indicator: 'รอชำระที่การเงิน',     color: 'brand',       icon: 'payments'      },
-];
-
-const TAB_BREAKDOWN = {
-  called: (tabRows) => [
-    { key: 'unverified', label: 'รอตรวจสอบใบสั่งยา', value: countRows(tabRows, (r) => !r.verifiedBy), indicator: 'รอเภสัชกรตรวจสอบ', color: 'inprogress', icon: 'fact_check' },
-    ...genericBreakdown(tabRows).slice(0, 2),
-  ],
-  preparing: (tabRows) => [
-    { key: 'prepared',   label: 'จัดยาครบแล้ว',  value: countRows(tabRows, isFullyPrepared),          indicator: 'พร้อมจ่าย',        color: 'positive',   icon: 'inventory_2'     },
-    { key: 'inProgress', label: 'ยังจัดไม่ครบ',   value: countRows(tabRows, (r) => !isFullyPrepared(r)), indicator: 'กำลังจัดยา',      color: 'inprogress', icon: 'pending_actions' },
-    genericBreakdown(tabRows)[1],
-  ],
-  dispensed: (tabRows) => [
-    { key: 'full',       label: 'จ่ายครบ',        value: countRows(tabRows, (r) => r.status === DISPENSE_STATUS.DISPENSED), indicator: 'ปิดรายการแล้ว',   color: 'positive',   icon: 'check_circle'      },
-    { key: 'partial',    label: 'จ่ายบางส่วน',    value: countRows(tabRows, (r) => r.status === DISPENSE_STATUS.PARTIAL),   indicator: 'รอจ่ายส่วนที่เหลือ', color: 'inprogress', icon: 'hourglass_bottom'  },
-    { key: 'counseled',  label: 'ให้คำแนะนำแล้ว', value: countRows(tabRows, (r) => r.counselingLog?.length > 0),            indicator: 'บันทึกการให้คำแนะนำ', color: 'info',       icon: 'record_voice_over' },
-  ],
-};
-
 /* Empty state speaks in the tab's own voice. An empty "มีปัญหา" tab is good
    news, not a failed search — only say "ไม่พบ" when a filter is what's
    hiding the rows. */
@@ -258,33 +188,6 @@ const EMPTY_MESSAGE = {
    button would render disabled, so the column is dropped instead of showing a
    row of dead controls. */
 const ACTIONABLE_TABS = ['waiting', 'called', 'preparing', 'all'];
-
-const buildSummaryCards = ({ activeTab, tabRows, rows, lastCalled }) => {
-  const callingNow = lastCalled ? `กำลังเรียก ${lastCalled}` : null;
-
-  if (activeTab === 'all') {
-    return [
-      { key: 'total',     label: 'รายการยาทั้งหมดวันนี้', value: rows.length,                                                            indicator: callingNow || 'ยังไม่มีการเรียกคิว', color: 'brand',      icon: 'medication'    },
-      { key: 'waiting',   label: 'รอเรียก',               value: countRows(rows, (r) => r.status === DISPENSE_STATUS.WAITING),           indicator: 'รอจัดยา',                          color: 'inprogress', icon: 'hourglass_top' },
-      { key: 'called',    label: 'เรียกแล้ว',             value: countRows(rows, (r) => r.status === DISPENSE_STATUS.CALLED),            indicator: 'กำลังตรวจสอบ/จัดยา',               color: 'info',       icon: 'volume_up'     },
-      { key: 'dispensed', label: 'จ่ายแล้ว',              value: countRows(rows, (r) => r.status === DISPENSE_STATUS.DISPENSED),         indicator: 'เสร็จสิ้นวันนี้',                    color: 'positive',   icon: 'check_circle'  },
-    ];
-  }
-
-  const tab = TABS.find((t) => t.key === activeTab);
-  const breakdown = (TAB_BREAKDOWN[activeTab] || genericBreakdown)(tabRows);
-  return [
-    {
-      key: 'tabTotal',
-      label: tab?.label || 'รายการในแท็บนี้',
-      value: tabRows.length,
-      indicator: callingNow || `จากทั้งหมด ${rows.length} รายการวันนี้`,
-      color: TAB_CARD_COLOR[activeTab] || 'brand',
-      icon: tab?.icon || 'medication',
-    },
-    ...breakdown,
-  ];
-};
 
 const PharmacyQueuePage = () => {
   const history = useHistory();
@@ -402,19 +305,14 @@ const PharmacyQueuePage = () => {
   const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
 
-  /* Summary describes the TAB, not the search/filter narrowing below it —
-     the card row stays a stable read of the board while the pharmacist
-     types in the search box. `getAllergyFlags` walks every item of every
-     row, so this is memoised rather than recomputed each render. */
-  const tabRows = useMemo(() => {
-    const tabPred = TAB_STATUS_FILTER[activeTab];
-    return tabPred ? rows.filter(tabPred) : rows;
-  }, [rows, activeTab]);
-
-  const summaryCards = useMemo(
-    () => buildSummaryCards({ activeTab, tabRows, rows, lastCalled }),
-    [activeTab, tabRows, rows, lastCalled],
-  );
+  /* Summary cards mirror the six status tabs — fixed hierarchy, same counts
+     no matter which tab is selected (OPD QueuePage / Figma 115:35757 pattern). */
+  const summaryCards = useMemo(() => {
+    const indicator = lastCalled
+      ? `กำลังเรียก ${lastCalled}`
+      : `รวม ${rows.length} รายการวันนี้`;
+    return buildDispenseStatusSummaryCards(rows, { indicatorPrefix: indicator });
+  }, [rows, lastCalled]);
 
   /* Every tab carries its own count, so the pharmacist can see where the
      backlog is without clicking through all seven. */
@@ -455,6 +353,7 @@ const PharmacyQueuePage = () => {
       breadcrumb={breadcrumb}
       title='ระบบงานเภสัชกรรม'
       summaryCards={summaryCards}
+      actions={<PharmacyAddDrugButton />}
       belowSummary={<PharmacySubNav />}
     >
       <div
@@ -469,13 +368,7 @@ const PharmacyQueuePage = () => {
       >
         <div
           className='w-full flex flex-col'
-          style={{
-            background: 'var(--surface-card-100)',
-            borderRadius: 'var(--dim-radius-500)',
-            boxShadow: 'var(--shadow-card-strong)',
-            padding: 'var(--dim-space-600)',
-            gap: 'var(--dim-space-600)',
-          }}
+          style={PHARMACY_WORKLIST_CARD_BODY}
         >
           <TabBar aria-label='กรองตามสถานะ' align='center' className='self-center shrink-0 max-w-full'>
             {TABS.map((t) => (
@@ -499,18 +392,17 @@ const PharmacyQueuePage = () => {
             ))}
           </TabBar>
 
-          {/* Search and filters share one row: both narrow the same list, and
-              splitting them across two bands pushed the table below the fold
-              for no gain. */}
-          <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <div className='w-full flex items-start justify-center'>
             <PrimarySearch
               value={searchQ}
               onChange={(v) => setSearchQ(v)}
               onSubmit={(v) => setSearchQ(v)}
               placeholder='ค้นหาคิว / HN / ชื่อ-สกุลผู้ป่วย'
-              width={360}
+              width={640}
             />
-            <div className='flex-1 min-w-0' />
+          </div>
+
+          <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <FilterDropdown
               prefix='ประเภทคิว:'
               options={queueTypeOptions}

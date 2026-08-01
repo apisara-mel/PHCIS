@@ -21,6 +21,7 @@ import PharmacyOwnMedicationsList from '@/components/pharmacy/PharmacyOwnMedicat
 import PharmacyAllergyEditor from '@/components/pharmacy/PharmacyAllergyEditor';
 import PharmacyMedicationEditor from '@/components/pharmacy/PharmacyMedicationEditor';
 import PharmacyVoiceSuggestInput from '@/components/pharmacy/PharmacyVoiceSuggestInput';
+import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
 import StepProgress from '@/components/step/StepProgress';
 import Checkbox from '@/components/checkbox/Checkbox';
 import Icon from '@/components/icons/Icon';
@@ -89,9 +90,7 @@ const SectionCard = ({ title, action, children }) => (
   <div
     className='w-full flex flex-col'
     style={{
-      background: 'var(--surface-card-100)',
-      borderRadius: 'var(--dim-radius-500)',
-      boxShadow: 'var(--shadow-card-strong)',
+      ...PHARMACY_WORKLIST_CARD,
       padding: 'var(--dim-space-600)',
       gap: 'var(--dim-space-400)',
     }}
@@ -643,7 +642,11 @@ const PharmacyDispensePage = () => {
           {outOfRightsItems.length > 0 && (
             <div
               className='w-fit'
-              style={{ padding: 'var(--dim-space-300)', background: row.outOfRightsDocAttached ? 'var(--surface-alert-success)' : 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-200)' }}
+              style={{
+                ...PHARMACY_NESTED_PANEL,
+                padding: 'var(--dim-space-300)',
+                ...(row.outOfRightsDocAttached ? { background: 'var(--surface-alert-success)' } : null),
+              }}
             >
               <Checkbox
                 checked={!!row.outOfRightsDocAttached}
@@ -887,7 +890,7 @@ const PharmacyDispensePage = () => {
                   ) : (
                     <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
                       {item.refillPlan.visits.map((v) => (
-                        <div key={v.id} className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-200) var(--dim-space-300)', background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-200)' }}>
+                        <div key={v.id} className='flex items-center justify-between flex-wrap' style={{ ...PHARMACY_NESTED_PANEL, gap: 'var(--dim-space-200)', padding: 'var(--dim-space-200) var(--dim-space-300)' }}>
                           <span className='text-xs' style={{ color: 'var(--text-content-secondary)' }}>
                             งวดที่ {v.visitNo} · {formatThaiDate(v.scheduledDate)} · {v.quantity} {item.unit}
                           </span>
@@ -934,7 +937,7 @@ const PharmacyDispensePage = () => {
                   <div
                     key={item.id}
                     className='flex items-center w-full'
-                    style={{ padding: 'var(--dim-space-300)', background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-200)' }}
+                    style={{ ...PHARMACY_NESTED_PANEL, padding: 'var(--dim-space-300)' }}
                   >
                     <Checkbox
                       checked={!!item.prepared}
