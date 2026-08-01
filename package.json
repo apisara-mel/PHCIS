@@ -7,6 +7,7 @@
     "preview": "vite preview",
     "serve": "vite preview",
     "tokens:pull": "node scripts/pull-design-tokens.mjs",
+    "ds:build": "node ds-site/build.mjs",
     "tokens:sync": "node scripts/sync-design-md-from-figma-tokens.mjs",
     "tokens:sync:primitive": "node scripts/sync-design-md-from-figma-tokens.mjs primitive",
     "tokens:sync:brand": "node scripts/sync-design-md-from-figma-tokens.mjs brand",
