@@ -571,7 +571,8 @@ export default function ConsentReportPage() {
         onExported={() => setExported(true)}
       />
       {/* Success alert after export (Figma 358:131626 "Small Alert"). */}
-      <SuccessToast open={exported} message='นำส่งออกรายงานแล้ว' onClose={() => setExported(false)} />
+      {/* เก็บ log เมื่อ export — annotation 414:123633 (print ไม่เก็บ log) */}
+      <SuccessToast open={exported} message='นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล' onClose={() => setExported(false)} />
     </>
   );
 }

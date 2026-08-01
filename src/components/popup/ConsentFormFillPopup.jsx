@@ -3,7 +3,7 @@ import Popup from '@/components/popup/Popup';
 import { SectionTitle, Field, FieldGrid } from '@/components/forms/Fields';
 import InputField from '@/components/forms/InputField';
 import Checkbox from '@/components/checkbox/Checkbox';
-import Signature from '@/components/form-builder/Signature';
+import ESignatureField from '@/components/form-builder/ESignatureField';
 import Icon from '@/components/icons/Icon';
 
 /* Registration · "แบบฟอร์มยินยอม" step — fills one FORMS-library consent
@@ -113,7 +113,8 @@ const ConsentFormFillPopup = ({ open, form, patient, onClose, onConfirm }) => {
                         {f.label}
                         {f.required ? ' *' : ''}
                       </span>
-                      <Signature value={signature} onChange={setSignature} />
+                      {/* e-Signature 3 ช่องทาง — TOR 1.8.4.1–2 */}
+                      <ESignatureField value={signature || ''} onChange={(v) => setSignature(v || null)} />
                     </div>
                   );
                 }
