@@ -32,6 +32,8 @@ import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMoti
      • open / onClose
      • title / subtitle  required title; optional subtitle line
      • leading           optional node left of title (e.g. back chevron)
+     • onBack            shorthand for leading={<BackButton/>} — a ‹ step-back for a
+                         sub-screen; does not replace onClose, which still closes the popup
      • children          body content
      • buttonLayout      'horizontal' | 'vertical'           (default: 'horizontal')
      • primaryAction     { label, onClick, disabled? }
@@ -164,6 +166,38 @@ const CloseButton = ({ onClick }) => {
   );
 };
 
+/* Back (‹) icon button — same square-ghost treatment as CloseButton,
+   mirrored to sit at the START of the header when a Popup shows a
+   sub-screen it can step back out of (e.g. void-receipt reason form). */
+const BackButton = ({ onClick }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      type='button'
+      aria-label='ย้อนกลับ'
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className='shrink-0 flex items-center justify-center transition-colors duration-150 ease-out'
+      style={{
+        width: 'var(--dim-size-600, 32px)',
+        height: 'var(--dim-size-600, 32px)',
+        background: hovered
+          ? 'var(--surface-neutralbutton-quaternary-hover, #F4F5F5)'
+          : 'var(--surface-neutralbutton-quaternary, #F9FBFB)',
+        border: 'none',
+        borderRadius: 'var(--dim-radius-200, 8px)',
+        cursor: 'pointer',
+        color: hovered
+          ? 'var(--icon-neutralbutton-secondary, #636B72)'
+          : 'var(--icon-neutralbutton-default, #4D5358)',
+      }}
+    >
+      <Sym name='arrow_back' size={16} color='currentColor' />
+    </button>
+  );
+};
+
 /* Render a single footer action via the matching DS button.
    `kind` selects: tertiary → NeutralSubdueButton, secondary → BrandSubdueButton outline,
                   primary → BrandPrimaryButton.
@@ -206,6 +240,11 @@ const Popup = ({
   title,
   subtitle,
   leading = null,
+  /** Shorthand for the commonest `leading` node: a ‹ back button for a
+      sub-screen within the popup (e.g. the void-receipt reason form
+      stepping back to the receipt view). Does not replace onClose —
+      the X still closes the whole popup. */
+  onBack,
   size = 'default',
   width,
   buttonLayout = 'horizontal',
@@ -379,7 +418,7 @@ const Popup = ({
             background:    'var(--surface-modal-default)',
           }}
         >
-          {leading}
+          {onBack ? <BackButton onClick={onBack} /> : leading}
           <div
             className='flex-1 min-w-0 flex flex-col'
             style={{ gap: 'var(--dim-space-100)' }}

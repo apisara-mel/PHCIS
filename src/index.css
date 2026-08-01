@@ -517,6 +517,46 @@ a:focus, a:focus-visible,
   }
 }
 
+/* Observation board — keyboard focus ring for the custom controls the
+   board adds (bed tiles, attention-bar entries). The global focus
+   suppressor above force-disables `outline`, so a custom control has to
+   own its focus state; box-shadow is the one property that survives it.
+   4px brand ring matches the design system's own focus treatment
+   (DangerButton FOCUS_OUTLINE = stroke-400). WCAG 2.4.7 / 2.4.11. */
+.mih-observation-focusable:focus-visible {
+  box-shadow:
+    0 0 0 var(--dim-stroke-400, 4px) var(--border-brandPrimary-tertiary),
+    0 0 0 calc(var(--dim-stroke-400, 4px) + var(--dim-stroke-100, 1px)) var(--border-brandPrimary-default) !important;
+}
+
+/* Observation bed card — EWS Red Alert (docs/observation-use-cases.md
+   edge case #1: EWS ≥ 5 → "การ์ดเตียงเปลี่ยนเป็นสีแดงกระพริบ"). Same
+   1.2s border+halo pulse as the telemed queue badge above, in the red
+   colourful-badge tone. Reduced-motion falls back to a STATIC red border
+   rather than nothing — the alert itself must survive, only the blink
+   is the accessibility concession. */
+@keyframes mih-observation-card-blink-red {
+  0%, 100% {
+    border-color: var(--surface-colorfulbadge-red, #FEE2E2);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+  50% {
+    border-color: var(--surface-colorfulbadge-red-bold, #EF4444);
+    box-shadow: 0 0 0 var(--dim-space-100, 4px) rgba(239, 68, 68, 0.35);
+  }
+}
+.mih-observation-card--alert-red {
+  border-width: var(--dim-stroke-200, 2px);
+  border-style: solid;
+  animation: mih-observation-card-blink-red 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mih-observation-card--alert-red {
+    animation: none;
+    border-color: var(--surface-colorfulbadge-red-bold, #EF4444);
+  }
+}
+
 /* PHCIS Sign-in — Figma 79:15269 "Picture and card"
    Screen padding keeps the card off every viewport edge (incl. right).
    Two-column (illustration + card) only when ≥1280px so content never

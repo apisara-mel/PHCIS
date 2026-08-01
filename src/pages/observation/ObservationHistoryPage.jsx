@@ -11,7 +11,13 @@ import Footer from '@/components/layout/Footer';
 import Pagination from '@/components/pagination/Pagination';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
 import { getPatientByHN } from '@/data/patientProfiles';
-import { MOCK_OBSERVATION_PATIENTS, calculateEwsScore, EWS_RISK_TIERS } from '@/data/observationMock';
+import {
+  MOCK_OBSERVATION_PATIENTS,
+  EWS_RISK_TIERS,
+  scorePatientVitals,
+  buildObservationTimeline,
+  observationDayOffset,
+} from '@/data/observationMock';
 
 /* Read-only counterpart to ObservationDetailPage.jsx (แฟ้มบันทึกสังเกตอาการ) —
    reached only from the queue's "รายการที่ส่งต่อแล้ว" tab (patient.status
@@ -41,37 +47,26 @@ export default function ObservationHistoryPage() {
   const [selectedTrendParam, setSelectedTrendParam] = useState('bp');
 
   const latestVitals = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
-  const finalEws = latestVitals ? calculateEwsScore(latestVitals) : { score: 0, tier: EWS_RISK_TIERS.NORMAL };
+  const finalEws = latestVitals
+    ? scorePatientVitals(patient, latestVitals)
+    : { score: 0, tier: EWS_RISK_TIERS.NORMAL, scale: null };
 
-  /* Same vitalsTrend + nursingNotes + statOrders merge as
-     ObservationDetailPage's observationTimeline — a closed case's history
-     should read exactly like the live feed did. */
-  const observationTimeline = (() => {
-    const byTime = new Map();
-    patient.vitalsTrend.forEach((v) => {
-      byTime.set(v.time, {
-        time: v.time,
-        vitals: v,
-        opinions: v.note ? [{ kind: 'note', text: v.note, author: patient.nurseName, noteType: null }] : [],
-      });
+  /* Same merged feed the live record renders — built by the shared
+     buildObservationTimeline so a closed case reads exactly as it did
+     while open, and the midnight-ordering / same-minute-collision fixes
+     apply here too rather than being duplicated and drifting. */
+  const observationTimeline = buildObservationTimeline(patient);
+  const dayOffsetOf = (entry) => observationDayOffset(patient, entry);
+
+  const timelineByKey = new Map(observationTimeline.map((e) => [e.key, e.opinions]));
+  const trendNotesByIndex = (() => {
+    const seen = new Map();
+    return patient.vitalsTrend.map((v) => {
+      const repeat = seen.get(v.time) || 0;
+      seen.set(v.time, repeat + 1);
+      return timelineByKey.get(repeat === 0 ? v.time : `${v.time}#${repeat}`) ?? [];
     });
-    patient.nursingNotes.forEach((n) => {
-      const opinion = { kind: 'note', text: n.note, author: n.nurse, noteType: n.noteType || null };
-      const existing = byTime.get(n.time);
-      if (existing) existing.opinions.push(opinion);
-      else byTime.set(n.time, { time: n.time, vitals: null, opinions: [opinion] });
-    });
-    patient.statOrders.forEach((ord) => {
-      const opinion = { kind: 'order', text: ord.orderText, status: ord.status, author: patient.nurseName };
-      const existing = byTime.get(ord.orderTime);
-      if (existing) existing.opinions.push(opinion);
-      else byTime.set(ord.orderTime, { time: ord.orderTime, vitals: null, opinions: [opinion] });
-    });
-    return Array.from(byTime.values()).sort((a, b) => b.time.localeCompare(a.time));
   })();
-
-  const trendNotesByTime = new Map(observationTimeline.map((e) => [e.time, e.opinions]));
-  const trendNotesByIndex = patient.vitalsTrend.map((v) => trendNotesByTime.get(v.time) ?? []);
 
   const historyTotalPages = Math.max(1, Math.ceil(observationTimeline.length / HISTORY_PAGE_SIZE));
   const historyPageClamped = Math.min(historyPage, historyTotalPages);
@@ -237,9 +232,9 @@ export default function ObservationHistoryPage() {
               <div className='flex flex-col'>
                 {pagedTimeline.map((entry, idx) => {
                   const isLast = idx === pagedTimeline.length - 1;
-                  const ewsRes = entry.vitals ? calculateEwsScore(entry.vitals) : null;
+                  const ewsRes = entry.vitals ? scorePatientVitals(patient, entry.vitals) : null;
                   return (
-                    <div key={entry.time} className='flex' style={{ gap: 'var(--dim-space-300)' }}>
+                    <div key={entry.key} className='flex' style={{ gap: 'var(--dim-space-300)' }}>
                       <div className='flex flex-col items-center shrink-0' style={{ width: 'var(--dim-size-300, 16px)' }}>
                         <span
                           className='shrink-0 rounded-full'
@@ -273,9 +268,19 @@ export default function ObservationHistoryPage() {
                           >
                             {entry.time}
                           </span>
+                          {dayOffsetOf(entry) > 0 && (
+                            <StatusBadge style='neutral' size='small'>
+                              วันที่ {dayOffsetOf(entry) + 1} ของการสังเกตอาการ
+                            </StatusBadge>
+                          )}
+                          {entry.repeatIndex > 0 && (
+                            <StatusBadge style='neutral' size='small'>
+                              วัดซ้ำครั้งที่ {entry.repeatIndex + 1} ในนาทีเดียวกัน
+                            </StatusBadge>
+                          )}
                           {ewsRes && (
                             <StatusBadge style={ewsRes.tier.style} size='small' showDot>
-                              EWS: {ewsRes.score}
+                              {ewsRes.scale.short}: {ewsRes.score}
                             </StatusBadge>
                           )}
                         </div>
