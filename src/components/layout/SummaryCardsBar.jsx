@@ -228,8 +228,11 @@ const SummaryCardsBar = ({
   title,
   variant = 'panel',
   /* When true the bar sits flush under SubHeader (no top pad / shadow).
-     When false — Figma PHCIS_Header_Summary OPD band directly under Header. */
+     When false — Figma PHCIS_Header_Summary OPD band directly under Header.
+     When flush, pass bottomShadow=true on the last white chrome row so the
+     stack still casts design.md Brand Drop Shadow Bottom/100. */
   flushUnderSubHeader = true,
+  bottomShadow = false,
 }) => {
   if (variant === 'banner') {
     return (
@@ -254,7 +257,9 @@ const SummaryCardsBar = ({
         borderBottom: flushUnderSubHeader
           ? 'none'
           : 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-        boxShadow: flushUnderSubHeader ? 'none' : 'var(--shadow-header)',
+        boxShadow: flushUnderSubHeader
+          ? (bottomShadow ? 'var(--shadow-header)' : 'none')
+          : 'var(--shadow-header)',
         paddingTop: flushUnderSubHeader ? 'var(--dim-space-0)' : 'var(--dim-space-400)',
         paddingLeft: 'var(--dim-space-600)',
         paddingRight: 'var(--dim-space-600)',

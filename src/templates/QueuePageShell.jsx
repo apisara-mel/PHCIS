@@ -67,8 +67,15 @@ const QueuePageShell = ({
 }) => {
   const hasSubHeader = !!(title || onBack || actions);
   const hasHeaderInfo = !!headerInfo;
+  const hasBelowSummary = !!belowSummary;
+  const hasTabs = !!tabs;
   const summaryFlush = summaryFlushUnderSubHeader ?? hasSubHeader;
   const subHeaderFlushBelow = !!(summaryCards) || hasHeaderInfo;
+  /* design.md §6.19 · Brand Drop Shadow Bottom/100 → --shadow-header */
+  const headerDropShadow = 'var(--shadow-header)';
+  const summaryBottomShadow = !!(summaryCards) && summaryFlush && !hasBelowSummary && !hasTabs;
+  const belowSummaryBottomShadow = hasBelowSummary && !hasTabs;
+  const tabsBottomShadow = hasTabs;
 
   return (
   <div
@@ -77,7 +84,7 @@ const QueuePageShell = ({
   >
     <Sidebar activeKey={activeKey} items={sidebarItems} fallbackKey={sidebarFallbackKey} />
     <div className='flex-1 min-w-0 flex flex-col'>
-      <Header breadcrumb={breadcrumb} brandTitle={brandTitle} />
+      <Header breadcrumb={breadcrumb} brandTitle={brandTitle} standalone={!hasSubHeader} />
       <main className='flex-1 min-w-0 flex flex-col'>
         {(title || onBack || actions) ? (
           <SubHeader
@@ -99,6 +106,7 @@ const QueuePageShell = ({
             cards={summaryCards}
             title={summaryTitle}
             flushUnderSubHeader={summaryFlush}
+            bottomShadow={summaryBottomShadow}
           />
         ) : null}
 
@@ -114,8 +122,10 @@ const QueuePageShell = ({
               paddingLeft: 'var(--dim-space-400)',
               paddingRight: 'var(--dim-space-400)',
               borderTop: 0,
-              borderBottom: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-              boxShadow: 'none',
+              borderBottom: belowSummaryBottomShadow
+                ? 'none'
+                : 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+              boxShadow: belowSummaryBottomShadow ? headerDropShadow : 'none',
             }}
           >
             {belowSummary}
@@ -134,8 +144,10 @@ const QueuePageShell = ({
               paddingLeft: 'var(--dim-space-400)',
               paddingRight: 'var(--dim-space-400)',
               borderTop: 0,
-              borderBottom: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-              boxShadow: 'none',
+              borderBottom: tabsBottomShadow
+                ? 'none'
+                : 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+              boxShadow: tabsBottomShadow ? headerDropShadow : 'none',
             }}
           >
             {tabVariant === 'pill' ? (

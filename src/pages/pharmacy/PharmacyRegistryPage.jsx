@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Icon from '@/components/icons/Icon';
-import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { resolveHighAlertBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
 import { DRUG_REGISTRY, DRUG_CLASSIFICATIONS, UNIT_TYPES, currentPrice, subscribeRegistry, setRegistryDrugActive } from '@/data/pharmacyRegistry';
-import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import { buildRegistrySummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
+import { PHARMACY_LIST_ROW, PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 
 /* Drug Registry (ระบบทะเบียนยา — ToR §1.9.1) list page. Mirrors
    `UsersAccessPage.jsx`'s hero + filter-bar + row-card layout exactly —
@@ -59,15 +60,6 @@ const FilterSelect = ({ icon, label, value, options, onChange }) => (
 
 const classificationLabel = (key) => DRUG_CLASSIFICATIONS.find((c) => c.key === key)?.label || key;
 
-const countDrugs = (rows, pred) => rows.filter(pred).length;
-
-const buildRegistrySummaryCards = (registry) => [
-  { key: 'total',     label: 'รายการยาทั้งหมด', value: registry.length,                                      indicator: 'ทะเบียนยาและเวชภัณฑ์', color: 'brand',      icon: 'pill'          },
-  { key: 'active',    label: 'ใช้งานอยู่',       value: countDrugs(registry, (d) => d.active),                indicator: 'พร้อมจ่าย',            color: 'positive',   icon: 'check_circle'  },
-  { key: 'highAlert', label: 'High Alert',       value: countDrugs(registry, (d) => d.highAlert),             indicator: 'ต้องตรวจสอบพิเศษ',     color: 'destructive', icon: 'warning'       },
-  { key: 'nlem',      label: 'ยา NLEM',          value: countDrugs(registry, (d) => d.classification === 'nlem'), indicator: 'บัญชียาหลักแห่งชาติ', color: 'info',       icon: 'medication'    },
-];
-
 const DrugRow = ({ drug, onEdit, onToggleActive }) => (
   <div
     role='button'
@@ -78,9 +70,7 @@ const DrugRow = ({ drug, onEdit, onToggleActive }) => (
     style={{
       gap: 'var(--dim-space-400)',
       padding: 'var(--dim-space-400)',
-      background: 'var(--surface-card-100)',
-      border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-      borderRadius: 'var(--dim-radius-300)',
+      ...PHARMACY_LIST_ROW,
     }}
   >
     <div
@@ -129,7 +119,7 @@ const DrugRow = ({ drug, onEdit, onToggleActive }) => (
         style={{
           width: 'var(--dim-size-700, 36px)', height: 'var(--dim-size-700, 36px)', borderRadius: 'var(--dim-radius-full)',
           background: 'var(--surface-card-100)',
-          color: 'var(--text-content-tertiary)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', cursor: 'pointer',
+          color: 'var(--text-content-tertiary)', boxShadow: 'var(--shadow-card)', cursor: 'pointer',
         }}
       >
         <Icon name={drug.active ? 'block' : 'check_circle'} size={18} />
@@ -206,19 +196,15 @@ const PharmacyRegistryPage = () => {
     <QueuePageShell
       activeKey='pharmacy'
       breadcrumb={breadcrumb}
-      title='ทะเบียนยาและเวชภัณฑ์'
+      title='ทะเบียนยา'
       summaryCards={summaryCards}
+      actions={<PharmacyAddDrugButton />}
       belowSummary={<PharmacySubNav />}
-      actions={(
-        <BrandButton size='md' leadingIcon='add' onClick={() => history.push('/pharmacy/registry/new')}>
-          เพิ่มยาใหม่
-        </BrandButton>
-      )}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
           <section
             className='w-full flex flex-col'
-            style={{ background: 'var(--surface-card-100)', borderRadius: 'var(--dim-radius-500)', boxShadow: 'var(--shadow-card-strong)', padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
+            style={PHARMACY_WORKLIST_CARD_BODY}
           >
             <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
               <div

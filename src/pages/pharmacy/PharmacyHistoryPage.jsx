@@ -3,7 +3,9 @@ import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
-import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import { buildDispenseStatusSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
+import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 import { PHARMACY_QUEUE, DISPENSE_STATUS, PAYMENT_STATUS } from '@/data/pharmacyQueue';
 
 /* ประวัติการรับยาและใบสั่งยา — consolidates two separate legacy screens
@@ -35,21 +37,12 @@ const PAYMENT_STATUS_PILL = {
   [PAYMENT_STATUS.PAID]:           { style: 'success', label: 'ชำระแล้ว'       },
 };
 
-const countRows = (rows, pred) => rows.filter(pred).length;
-
-const buildHistorySummaryCards = (rows) => [
-  { key: 'total',     label: 'ใบสั่งยาทั้งหมด', value: rows.length,                                                                                    indicator: 'ประวัติการรับยา',     color: 'brand',      icon: 'description'     },
-  { key: 'dispensed', label: 'จ่ายแล้ว',         value: countRows(rows, (r) => r.status === DISPENSE_STATUS.DISPENSED),                               indicator: 'ปิดรายการแล้ว',       color: 'positive',   icon: 'check_circle'    },
-  { key: 'partial',   label: 'จ่ายบางส่วน',      value: countRows(rows, (r) => r.status === DISPENSE_STATUS.PARTIAL),                                 indicator: 'รอจ่ายส่วนที่เหลือ',   color: 'inprogress', icon: 'hourglass_bottom' },
-  { key: 'active',    label: 'รอดำเนินการ',      value: countRows(rows, (r) => [DISPENSE_STATUS.WAITING, DISPENSE_STATUS.CALLED, DISPENSE_STATUS.PREPARING].includes(r.status)), indicator: 'รอเรียก/จัดยา', color: 'info', icon: 'schedule' },
-];
-
 const PharmacyHistoryPage = () => {
   const history = useHistory();
   const [query, setQuery] = useState('');
 
   const summaryCards = useMemo(
-    () => buildHistorySummaryCards(PHARMACY_QUEUE),
+    () => buildDispenseStatusSummaryCards(PHARMACY_QUEUE, { indicatorPrefix: 'ประวัติการรับยา' }),
     [],
   );
 
@@ -87,18 +80,13 @@ const PharmacyHistoryPage = () => {
       breadcrumb={breadcrumb}
       title='ประวัติการรับยาและใบสั่งยา'
       summaryCards={summaryCards}
+      actions={<PharmacyAddDrugButton />}
       belowSummary={<PharmacySubNav />}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
         <div
           className='w-full flex flex-col'
-          style={{
-            background: 'var(--surface-card-100)',
-            borderRadius: 'var(--dim-radius-500)',
-            boxShadow: 'var(--shadow-card-strong)',
-            padding: 'var(--dim-space-600)',
-            gap: 'var(--dim-space-400)',
-          }}
+          style={PHARMACY_WORKLIST_CARD_BODY}
         >
           <input
             type='text'
