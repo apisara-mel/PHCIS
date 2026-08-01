@@ -1,0 +1,16 @@
+{
+  "default": {
+    "$type": "number",
+    "$value": 1536,
+    "$extensions": {
+      "com.figma.variableId": "VariableID:161:4",
+      "com.figma.scopes": [
+        "WIDTH_HEIGHT",
+        "FONT_VARIATIONS"
+      ]
+    }
+  },
+  "$extensions": {
+    "com.figma.modeName": "2xl"
+  }
+}

@@ -34,6 +34,9 @@ export const DEFAULT_SEARCH_AVATARS = [
   { src: '/avatars/patient-female-c.png' },
 ];
 
+/** Figma MIH Design System Foundation · New User · 3891:7747 */
+export const NEW_USER_AVATAR = '/avatars/new-user.svg';
+
 /** Doctor roster portraits — appointment scheduling mocks. */
 export const STAFF_AVATARS = [
   '/images/staff/doctors/doctor-portrait-01.png',

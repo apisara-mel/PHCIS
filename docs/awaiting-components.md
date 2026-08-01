@@ -1,31 +1,80 @@
-# Awaiting components
+# Awaiting Components — UI ที่ยังไม่มีใน MIH Design System
 
-Vibe-code components that do **not** exist in the MIH Design System yet.
+ทะเบียนของ UI ที่ **สร้างขึ้นใหม่ใน vibe code เพราะไม่มี component ใน design system รองรับ**
+ใช้ตอบคำถาม "component ไหนที่ยังไม่มีในระบบบ้าง" และเป็นคิวสำหรับตัดสินใจว่าจะยกขึ้น
+design system เมื่อไร
 
-Rule of the road: before building any new UI, search `src/components/` and
-[`design.md`](../design.md) first. If the thing genuinely isn't there, say so
-out loud ("ยังไม่มีใน DS"), build it locally, and register it here. Promote an
-entry into the design system (Figma + `design.md` §6 + `ComponentsLibraryPage`)
-once it has **≥2 call sites** — one use is a page detail, two is a pattern.
+**กติกา**
 
-| Component | Path | Used by | Sites | Status | Notes |
-|---|---|---|---|---|---|
-| `XrayReportSheet` | `src/components/xray/XrayReportSheet.jsx` | `/preview/xray-sheets`, `/xray/result`, `/xray/order` | 3 | **documented in DS** (design.md §6.35) · library demo pending | Printed paperwork of งานรังสีวินิจฉัย — 4 variants: `report` ใบรายงานผลการตรวจ (TOR §1.12.6.5) · `request` ใบส่งตรวจ · `appointment` ใบนัดตรวจ · `filmLabel` ฉลากติดซองฟิล์ม 70×40 mm. Replaced the local `ReportSheet` in XrayResultPage and the toast-only print modal in XrayOrderPage. `/preview/xray-sheets` is its living demo, so a `ComponentsLibraryPage` entry is duplicated effort until a second domain needs print sheets. |
-| `XrayOrderPicker` | `src/components/xray/XrayOrderPicker.jsx` | `/xray/order`, CPOE `TreatmentSteps.jsx` step 5 | 2 | **ready to promote** | Radiology exam picker (popup + embedded variants) with modality/region filters, ชุดรายการตรวจ, per-สิทธิ price/claim and the §1.12.5.9 duplicate-order warning. Already at 2 call sites — the LIS side (`LabOrderPicker`, other branch) is the same shape, so the DS component should probably be a generic `OrderPicker` with a catalog adapter. |
+1. ก่อนสร้าง UI ใหม่ ต้องค้น `src/components/` และ [`design.md`](design.md) ก่อนเสมอ —
+   ถ้ามีของเดิมให้ alias ไปใช้ ห้ามเขียนซ้ำ
+2. ถ้าไม่มีจริง สร้างใน vibe code ได้ แต่ **ต้องมาลงทะเบียนในไฟล์นี้**
+3. ยกขึ้น design system เมื่อมี **ผู้ใช้จริงตั้งแต่ 2 ที่ขึ้นไป** — ออกแบบจากเคสเดียว
+   มักได้ API ที่ผูกกับเคสนั้นเกินไป
+4. เมื่อยกขึ้น DS แล้ว ให้ย้ายรายการไปหัวข้อ "ยกขึ้น design system แล้ว" พร้อมใส่ชื่อ
+   component + node Figma
 
-## Notes on `XrayReportSheet`
+**สถานะ**
+`🕐 รอเคสที่ 2` · `📐 พร้อมออกแบบใน Figma` · `🚧 กำลังทำใน mih-design` · `✅ ยกขึ้น DS แล้ว`
 
-- **Deliberately not themed.** Paper has no dark mode; aliasing
-  `--surface-card-100` / `--text-content-default` would make the sheet print
-  near-blank under `[data-mode="dark"]`. Ink/paper/rule are pinned to the
-  light-mode values of the tokens they mirror.
-- **Token request for `@mih/design-tokens`** (propose, don't push — that repo
-  is read-only from here): a print medium set so the sheet can alias tokens
-  like everything else —
-  `--print-paper` `#FFFFFF`, `--print-ink` `#363B3F`,
-  `--print-ink-soft` `#636B72`, `--print-ink-muted` `#858C92`,
-  `--print-rule` `#E2E4E6`.
-- **Known gap:** the film label prints the XN as large letterspaced digits in
-  place of a real Code128 barcode. No barcode renderer exists on this branch
-  and adding a dependency was out of scope; the label is usable by eye until
-  one is added.
+---
+
+## รายการที่รออยู่
+
+### 1. Ward Attention Bar (แถบต้องดูแลด่วน) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/observation/ObservationQueuePage.jsx` (ระบบสังเกตอาการ) — 1 ที่ |
+| **หน้าที่** | แถบบนสุดของหน้าคิว บอกว่า "ตอนนี้ต้องจัดการใคร" โดยไม่ต้องเลื่อนอ่านทั้งหน้า แต่ละรายการกดแล้วพาไปยังเรคคอร์ดนั้นโดยตรง |
+| **ทำไมไม่มีของเดิมแทน** | `Alert` เป็นข้อความแจ้งเตือนแบบคงที่ ไม่ใช่รายการที่กดได้ · `ColorfulBadge` เป็นป้ายสถานะ ไม่ใช่ปุ่ม · ไม่มี component ไหนใน DS ที่เป็น "แถบรวมรายการที่ต้องลงมือทำ" |
+| **ปัญหาที่แก้** | หน้าคิวเตียงยาว 4.2 หน้าจอ คำถามที่พยาบาลเปิดหน้านี้มาถาม (ใครทรุด / ใครอยู่นานเกิน) เดิมตอบได้ด้วยการเลื่อนอ่านทีละการ์ด |
+| **โครงที่น่าจะเป็น** | `<AttentionBar title count>` + `<AttentionBar.Item tone icon label sublabel onClick>` — ตัว item จริง ๆ คือ ColorfulBadge ที่กดได้ (สูงอย่างน้อย 44px ตามเกณฑ์ touch target) |
+| **พฤติกรรมที่ต้องรักษาไว้** | ไม่ render อะไรเลยเมื่อไม่มีรายการ — แถบเตือนที่ขึ้นตลอดเวลาจะเลิกเป็นคำเตือน · โทนสีของกรอบตามรายการที่รุนแรงที่สุด · เรียงตามความเร่งด่วน |
+| **รอเคสอะไร** | ~~แผนกอื่นที่มีคิวยาวและมีเคสเร่งด่วน — เภสัชกรรม (ใบสั่งยาด่วน / แพ้ยา), Lab (ค่าวิกฤต critical value), X-Ray (อ่านผลด่วน), ANC (ครรภ์เสี่ยงสูง)~~ **เคสที่ 2 มาแล้ว:** `/xray/queue` (งานรังสีวินิจฉัย) มีทั้ง STAT ที่ต้องเด้งขึ้นบนสุด, "ผิดปกติเร่งด่วนวันนี้ — ต้องแจ้งแพทย์ผู้ส่งตรวจ" และแถวที่เกิน SLA — ตรงกับที่รอไว้ ตอนนี้ยกขึ้น DS ได้แล้วโดยออกแบบจาก 2 เคสพร้อมกัน (สังเกตอาการ + รังสี) แต่หน้ารังสียังใช้ summary card + badge อยู่ ยังไม่ได้ประกอบเป็นแถบ |
+| **บันทึกเมื่อ** | 31 ก.ค. 2569 |
+
+---
+
+### 2. XrayReportSheet (เอกสารพิมพ์ของงานรังสีวินิจฉัย) — 📐 พร้อมออกแบบใน Figma
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/xray/XrayResultPage.jsx` (ใบรายงานผล) · `src/pages/xray/XrayOrderPage.jsx` (ใบส่งตรวจ / ใบนัด / ฉลากซองฟิล์ม) · `src/pages/preview/XraySheetsPreviewPage.jsx` (`/preview/xray-sheets` — living demo) — **3 ที่** |
+| **หน้าที่** | กระดาษของงานรังสี 4 ฟอร์แมตจาก masthead ระบบเดียว: `report` ใบรายงานผลการตรวจ (TOR §1.12.6.5) · `request` ใบส่งตรวจ · `appointment` ใบนัด (ผู้ป่วยถือ) · `filmLabel` ฉลากติดซองฟิล์ม 70×40 mm |
+| **ทำไมไม่มีของเดิมแทน** | DS ไม่มี component สำหรับสื่อกระดาษเลย — `Card` เป็น surface บนจอที่มี shadow/radius ตามธีม, `Table` เป็นตารางบนจอ ไม่มีอะไรที่คุม `@page`, การไม่แบ่งหน้ากลางบล็อก, หรือลำดับสายตาแบบเอกสารราชการ |
+| **ปัญหาที่แก้** | ใบผลของระบบเดิมฝัง IMPRESSION ไว้ล่างสุดด้วยตัวขนาดเดียวกับทุกบรรทัด ทั้งที่เป็นบรรทัดเดียวที่แพทย์ผู้ส่งตรวจอ่านจริง · และใบที่ยังไม่ยืนยันผลหน้าตาเหมือนใบจริง |
+| **โครงที่น่าจะเป็น** | `<PrintSheet variant masthead identity>` + `<PrintSheet.Section eyebrow>` + `<PrintSheet.Stamp label emphasis>` + `<PrintSheet.SignatureLine role name license>` — ตัว domain (รังสี/แล็บ/ยา) ส่งแค่เนื้อหา |
+| **พฤติกรรมที่ต้องรักษาไว้** | ประเภทผลเป็น**กรอบเส้น ไม่ใช่ป้ายสี** (เครื่องพิมพ์ขาวดำ) · เร่งด่วน = เส้นคู่ + บรรทัดแจ้งแพทย์ · ยังไม่ยืนยันผล = ลายน้ำ ฉบับร่าง + footer เตือน · พิมพ์ประวัติการแก้ไขผลเสมอ (§1.12.6.3) · eyebrow เป็นตัวพิมพ์ใหญ่เฉพาะอังกฤษ · `break-inside: avoid` ทุกบล็อก |
+| **ต้องมี token ใหม่** | กระดาษไม่มี dark mode — ตอนนี้ตรึง ink/paper/rule เป็นค่า light ของ token ที่ mirror ไว้ ถ้ายกขึ้น DS ควรเพิ่ม `--print-paper` `--print-ink` `--print-ink-soft` `--print-ink-muted` `--print-rule` (ดู design.md §6.35) |
+| **ช่องว่างที่รู้อยู่** | ฉลากฟิล์มพิมพ์เลข XN ตัวใหญ่แทน Code128 จริง — ยังไม่มี barcode lib ในโปรเจกต์ |
+| **บันทึกเมื่อ** | 31 ก.ค. 2569 |
+
+---
+
+### 3. XrayOrderPicker (ตัวเลือกรายการตรวจ) — 📐 พร้อมออกแบบใน Figma
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/xray/XrayOrderPage.jsx` · CPOE `src/components/forms/TreatmentSteps.jsx` step 5 แท็บ X-ray / RIS — **2 ที่** |
+| **หน้าที่** | เลือกรายการตรวจจากทะเบียน: ค้นหา, กรองตามชนิดการตรวจ/ตำแหน่ง, ชุดรายการตรวจ, แสดงราคา + ยอดเบิกตามสิทธิ, เตือนสั่งซ้ำ (§1.12.5.9), รับได้ทั้งแบบ popup และ embedded |
+| **ทำไมไม่มีของเดิมแทน** | `Popup` + `PrimarySearch` + `Checkbox` มีอยู่แล้วและถูกใช้ประกอบ แต่ตัว "ตัวเลือกรายการจากทะเบียนที่มีราคา/สิทธิ/คำเตือน" ไม่มีใน DS |
+| **รอเคสอะไร** | ไม่ต้องรอแล้ว — ฝั่ง Lab (`src/components/lab/LabOrderPicker.jsx`) รูปร่างเดียวกัน ถ้ายกขึ้น DS ควรทำเป็น `OrderPicker` กลางที่รับ catalog adapter (`items`, `groups`, `priceFor`, `duplicateWarning`) แล้วให้ทั้งรังสีและแล็บเรียกใช้ ไม่ใช่ยก `XrayOrderPicker` ขึ้นตรง ๆ |
+| **บันทึกเมื่อ** | 31 ก.ค. 2569 |
+
+---
+
+## ยกขึ้น design system แล้ว
+
+*(ยังไม่มี)*
+
+---
+
+## เคยอยู่ในลิสต์แต่พบว่ามีของเดิมอยู่แล้ว
+
+บันทึกไว้กันสร้างซ้ำรอบสอง
+
+| สร้างเอง | ที่จริงมีอยู่แล้ว | ผลลัพธ์ |
+|---|---|---|
+| `AlertChip` — ป้ายสถานะสี red/orange + ไอคอน | **`ColorfulBadge`** (`src/components/badge/ColorfulBadge.jsx`) รับ `style` / `icon` / `fill` / `width` และใช้ token ชุด `--surface-colorfulbadge-*` ตัวเดียวกัน | alias ไปใช้ ColorfulBadge แล้ว (6 จุด) — ใส่ `width='hug'` เพราะค่าเริ่มต้น `cap` ตัดข้อความคลินิกเป็น "อาการทรุ…" |
+| `<div role="alert">` แต่งเอง 5 กล่อง | **`Alert`** (`src/components/alert/Alert.jsx` · Figma 297:59) มี `type` / `title` / `subtext` / `indicators` / `badges` / `detail` / ปุ่มปิด | alias ไปใช้ Alert แล้ว (5 จุด) — ลิสต์ย่อยใช้ `indicators` แทนการเขียน `<ul>` เอง |

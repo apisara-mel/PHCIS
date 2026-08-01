@@ -12,9 +12,11 @@ import {
   Step1History, Step2Screening, Step3Examination, Step4DoctorRecord,
   Step5Orders, Step6Appointment, Step7Certificate,
 } from '@/components/forms/TreatmentSteps';
+import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import { TREATMENT_QUEUE_ROWS, buildQueueSubMenuBuckets } from '@/data/treatmentQueue';
+import { sendPrescriptionToPharmacy } from '@/data/pharmacyQueue';
 import {
   TREATMENT_DEFAULT_VITALS,
   TREATMENT_DEFAULT_SYMPTOMS,
@@ -204,6 +206,27 @@ const TreatmentFormPage = () => {
     state: { hn: p.hn, queue: p.queue, name: p.name },
   });
 
+  /* ส่งยาไปห้องยา (ToR §1.9.11.1 — เชื่อมต่อกับระบบการสั่งยา/CPOE). Pushes
+     this visit's medication orders into the pharmacy dispensing queue —
+     the in-app stand-in for a CPOE→pharmacy message, since there's no
+     real backend here. Disabled while Step 5 has no medication rows yet
+     so it can't fire an empty prescription. */
+  const [pharmacySendToast, setPharmacySendToast] = useState(null);
+  const dismissPharmacySendToast = () => setPharmacySendToast(null);
+  const handleSendToPharmacy = () => {
+    const row = sendPrescriptionToPharmacy({
+      hn: patient.hn,
+      diagnoses: form.diagnoses,
+      medications: form.medications,
+      vitals: form.vitals,
+    });
+    setPharmacySendToast({
+      id: Date.now(),
+      variant: row ? 'success' : 'error',
+      message: row ? `ส่งใบสั่งยาไปห้องยาแล้ว (คิว ${row.queueNo})` : 'ส่งใบสั่งยาไม่สำเร็จ',
+    });
+  };
+
   return (
     <ClinicFilterProvider>
     <div className='flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
@@ -235,11 +258,20 @@ const TreatmentFormPage = () => {
           chronicDiseases={patient.chronicDiseases}
           actions={
             <>
+              <BrandSubdueButton
+                variant='outline'
+                leadingIcon='local_hospital'
+                disabled={form.medications.length === 0}
+                onClick={handleSendToPharmacy}
+              >
+                ส่งยาไปห้องยา
+              </BrandSubdueButton>
               <BrandSubdueButton variant='outline' leadingIcon='medication'>พิมพ์ใบสั่งยา</BrandSubdueButton>
               <BrandSubdueButton variant='fill' leadingIcon='credit_card'>พิมพ์ OPD Card</BrandSubdueButton>
             </>
           }
         />
+        <PhcisTopToast session={pharmacySendToast} onDismiss={dismissPharmacySendToast} />
         <TreatmentFormShell
           stepIndex={stepIndex}
           onStepChange={setStepIndex}

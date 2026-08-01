@@ -38,7 +38,7 @@ export const SYSTEM_CATALOG = [
     gridLabel: 'คลังยาและเวชภัณฑ์',
     desc: 'ระบบควบคุมและติดตามการเบิกจ่าย การจัดซื้อ และการคงคลังของยา วัสดุทางการแพทย์ และเวชภัณฑ์ต่างๆ',
     lastUsed: 'วันนี้, 08:30 น.',
-    route: null,
+    route: '/pharmacy/stock',
   },
   {
     key: 'schedule',

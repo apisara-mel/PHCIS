@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import TelemedicineQueueBadge from '@/components/telemed/TelemedicineQueueBadge';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
@@ -11,9 +12,12 @@ import BrandIconButton from '@/components/button/BrandIconButton';
 import Table, { EllipsisText as TableEllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
 import { PATIENT_PROFILES, getPatientByHN } from '@/data/patientProfiles';
-import { TREATMENT_QUEUE_ROWS, compareTreatmentQueueRows } from '@/data/treatmentQueue';
+import {
+  TREATMENT_QUEUE_ROWS,
+  TREATMENT_STATUS_SORT_ORDER,
+  compareTreatmentQueueRows,
+} from '@/data/treatmentQueue';
 import { buildTreatmentSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
 
 /* MIH TreatmentQueuePage — Figma PHCIS-ALL node 2760:140031.
@@ -238,8 +242,8 @@ const renderType = (row) => {
 };
 
 const renderTelemedicine = (row) => (
-  row.typeKey === 'telemedicine' ? (
-    <ColorfulIconBadge style='blue' size='medium' fill='default' icon='videocam' />
+  row.typeKey === 'telemedicine' && row.telemedAppointmentAt ? (
+    <TelemedicineQueueBadge appointmentAt={row.telemedAppointmentAt} visitId={row.id} />
   ) : null
 );
 
@@ -317,7 +321,7 @@ const BASE_COLUMNS = [
   { key: 'hn',           label: 'HN',               width: 96  },
   { key: 'name',         label: 'ชื่อ-นามสกุล',      flex: true, minWidth: 160, render: renderName },
   { key: 'type',         label: 'ประเภท',           width: 96,  render: renderType },
-  { key: 'telemedicine', label: 'Telemedicine',     width: 128, align: 'center', sortable: false, render: renderTelemedicine },
+  { key: 'telemedicine', label: 'Telemedicine',     width: 168, align: 'center', render: renderTelemedicine },
   { key: 'cc',           label: 'อาการสำคัญ (CC)',   width: 224, render: (row) => <TableEllipsisText text={row.cc} /> },
   { key: 'vitals',       label: 'Vitals',           width: 128, sortable: false, render: (row) => <VitalsCell vitals={row.vitals} /> },
   { key: 'room',         label: 'ห้อง',             width: 112, render: renderRoom },
@@ -335,6 +339,7 @@ const TreatmentQueuePage = () => {
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState(TREATMENT_QUEUE_ROWS);
   const [editMode, setEditMode] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [draggedIdx, setDraggedIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
   const {
@@ -363,6 +368,15 @@ const TreatmentQueuePage = () => {
   };
 
   const toggleEditMode = () => setEditMode((m) => !m);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
 
   const handleDragStart = (idx) => (e) => {
     setDraggedIdx(idx);
@@ -484,8 +498,39 @@ const TreatmentQueuePage = () => {
 
   const sortedRows = useMemo(() => {
     if (editMode) return filtered;
-    return filtered.slice().sort(compareTreatmentQueueRows);
-  }, [filtered, editMode]);
+    const sign = sortConfig.direction === 'desc' ? -1 : 1;
+    if (!sortConfig.key) {
+      return filtered.slice().sort(compareTreatmentQueueRows);
+    }
+    const normalize = (row, key) => {
+      switch (key) {
+        case 'type':
+          return TYPE_BADGE[row.typeKey]?.label || '';
+        case 'status':
+          return TREATMENT_STATUS_SORT_ORDER[row.statusKey] ?? 99;
+        case 'telemedicine':
+          return row.telemedAppointmentAt
+            ? new Date(row.telemedAppointmentAt).getTime()
+            : 0;
+        case 'wait':
+          return row.waitMinutes ?? 0;
+        default:
+          return row[key] ?? '';
+      }
+    };
+    const collator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' });
+    return filtered.slice().sort((a, b) => {
+      const av = normalize(a, sortConfig.key);
+      const bv = normalize(b, sortConfig.key);
+      const primary = sortConfig.key === 'status'
+        || sortConfig.key === 'telemedicine'
+        || sortConfig.key === 'wait'
+        ? (Number(av) || 0) - (Number(bv) || 0)
+        : collator.compare(String(av), String(bv));
+      if (primary !== 0) return sign * primary;
+      return compareTreatmentQueueRows(a, b);
+    });
+  }, [filtered, editMode, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
   const pageRows = editMode
@@ -538,7 +583,6 @@ const TreatmentQueuePage = () => {
           style={{
             background: 'var(--surface-card-100)',
             borderRadius: 'var(--dim-radius-500)',
-            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
             boxShadow: 'var(--shadow-card-strong)',
             padding: 'var(--dim-space-600)',
             gap: 'var(--dim-space-600)',
@@ -605,6 +649,8 @@ const TreatmentQueuePage = () => {
             columns={columns}
             rows={pageRows}
             rowKey={(row) => row.id}
+            sortConfig={sortConfig}
+            onSort={editMode ? undefined : handleSort}
             onRowClick={editMode ? undefined : handleRowClick}
             stickyColCount={3}
             stickyHeaderTop={113}

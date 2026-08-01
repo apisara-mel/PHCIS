@@ -189,7 +189,7 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
       }}
       {...rest}
     >
-      <div className='flex flex-col flex-1 min-w-0' style={{ lineHeight: 1.5 }}>
+      <div className='flex flex-col min-w-0' style={{ lineHeight: 1.5, flex: '0 1 auto' }}>
         <span
           title={typeof title === 'string' ? title : undefined}
           style={{

@@ -136,6 +136,7 @@ const VitalCard = ({
           <input
             type='number'
             min={0}
+            step={step}
             value={value}
             onChange={(e) => update(e.target.value)}
             className='flex-1 min-w-0 text-base font-bold bg-transparent border-0 focus:ring-0 px-0 leading-snug'
@@ -192,6 +193,7 @@ const PressureValue = ({ value, onChange, ariaLabel, danger, step, fmt }) => {
       <input
         type='number'
         min={0}
+        step={step}
         value={value}
         onChange={(e) => handleType(e.target.value)}
         aria-label={ariaLabel}
@@ -259,7 +261,7 @@ export const PressureCard = ({ sys = '128', dia = '80', step = 1, onChange, onVa
 
   return (
     <div className='bg-surface-card border border-ink-line rounded-card p-4 flex flex-col gap-1 w-full'>
-      <Header label='ความดัน' unit='mmHg' required badge={badge} />
+      <Header label='ความดัน (BP)' unit='mmHg' required badge={badge} />
       <div className='flex items-center gap-3 w-full flex-wrap'>
         <PressureValue
           value={s}

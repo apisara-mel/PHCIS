@@ -10,12 +10,31 @@ import ScreeningPage from '@/pages/opd/ScreeningPage';
 import QueuePage from '@/pages/opd/QueuePage';
 import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
+import RegistrationConsentFillPage from '@/pages/registration/RegistrationConsentFillPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
 import XrayQueuePage from '@/pages/xray/XrayQueuePage';
 import XrayOrderPage from '@/pages/xray/XrayOrderPage';
 import XrayResultPage from '@/pages/xray/XrayResultPage';
 import XraySetupPage from '@/pages/xray/XraySetupPage';
+import AncQueuePage from '@/pages/treat/anc/AncQueuePage';
+import AncFormPage from '@/pages/treat/anc/AncFormPage';
+import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
+import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
+import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
+import PharmacyRegistryEditPage from '@/pages/pharmacy/PharmacyRegistryEditPage';
+import PharmacyStockPage from '@/pages/pharmacy/PharmacyStockPage';
+import PharmacyRequisitionPage from '@/pages/pharmacy/PharmacyRequisitionPage';
+import PharmacyHistoryPage from '@/pages/pharmacy/PharmacyHistoryPage';
+import PharmacyReportsPage from '@/pages/pharmacy/PharmacyReportsPage';
+import LabQueuePage from '@/pages/lab/LabQueuePage';
+import LabOrderPage from '@/pages/lab/LabOrderPage';
+import LabSetupPage from '@/pages/lab/LabSetupPage';
+import LabResultEntryPage from '@/pages/lab/LabResultEntryPage';
+import LabReportPage from '@/pages/lab/LabReportPage';
+import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
+import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
+import ObservationHistoryPage from '@/pages/observation/ObservationHistoryPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
 import FormsCategoryPage from '@/pages/forms/FormsCategoryPage';
 import FormDetailPage from '@/pages/forms/FormDetailPage';
@@ -59,6 +78,8 @@ import AssessUserCreatePage from '@/pages/assess/AssessUserCreatePage';
 import AssessUserDetailPage from '@/pages/assess/AssessUserDetailPage';
 import KioskPage from '@/pages/kiosk/KioskPage';
 import MobileTicketPage from '@/pages/kiosk/MobileTicketPage';
+import FinancePaymentPage from '@/pages/finance/FinancePaymentPage';
+import { TelemedCallProvider, TelemedRouteTrigger } from '@/components/telemed/TelemedCallProvider';
 import Spotlight from '@/components/util/Spotlight';
 import { MobileAppProvider } from '@/components/mobile/MobileShell';
 import MobileLoginPage from '@/pages/mobile/MobileLoginPage';
@@ -93,6 +114,10 @@ export default function Routes() {
       {/* Global deep-link highlighter for TOR Compliance Checklist URLs.
           Reads `?spotlight=<key>&label=<TOR-id>` from every page. */}
       <Spotlight />
+      {/* Telemedicine call lives ABOVE the Switch so the video call + its live
+          media streams survive route changes — the doctor can minimise the
+          call and keep recording in ระบบบันทึกการรักษา (TOR 1.13). */}
+      <TelemedCallProvider>
       <Switch>
         {/* Root = System Selection Hub (PHCIS-ALL · Figma node 2149:104090).
             Shown BEFORE entering any specific subsystem. Each card routes
@@ -156,12 +181,14 @@ export default function Routes() {
         <Route exact path='/schedule'        component={SchedulePage} />
         <Route exact path='/schedule/:id'    component={ScheduleEditorPage} />
         <Route exact path='/dashboard'       component={DashboardPage} />
+        <Route exact path='/finance'          component={FinancePaymentPage} />
         <Route exact path='/opd'             component={QueuePage} />
         <Route exact path='/opd/queue'       component={QueuePage} />
         <Route exact path='/opd/screening'   component={ScreeningPage} />
         <Route exact path='/registration'          component={RegistrationQueuePage} />
         <Route exact path='/registration/queue'    component={RegistrationQueuePage} />
         <Route exact path='/registration/register' component={RegistrationFormPage} />
+        <Route exact path='/registration/consent/:formId' component={RegistrationConsentFillPage} />
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
@@ -177,6 +204,35 @@ export default function Routes() {
         <Route exact path='/xray/order'      component={XrayOrderPage} />
         <Route exact path='/xray/result'     component={XrayResultPage} />
         <Route exact path='/xray/setup'      component={XraySetupPage} />
+        {/* แผนกฝากครรภ์ (ANC) — TOR §1.10.7, first-visit MVP. */}
+        <Route exact path='/treat/anc/queue'  component={AncQueuePage} />
+        <Route exact path='/treat/anc/record' component={AncFormPage} />
+        <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
+        <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
+        <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
+        <Route exact path='/pharmacy/registry'     component={PharmacyRegistryPage} />
+        <Route exact path='/pharmacy/registry/new' component={PharmacyRegistryEditPage} />
+        <Route exact path='/pharmacy/registry/:id' component={PharmacyRegistryEditPage} />
+        <Route exact path='/pharmacy/stock'        component={PharmacyStockPage} />
+        <Route exact path='/pharmacy/requisition'  component={PharmacyRequisitionPage} />
+        <Route exact path='/pharmacy/history'      component={PharmacyHistoryPage} />
+        <Route exact path='/pharmacy/reports'      component={PharmacyReportsPage} />
+
+        {/* งานชันสูตรโรค (Lab · TOR ข้อ 1.15). Four screens, matching the
+            flow the team laid out in Lab dicussion with team.pdf:
+              /lab/order       — แพทย์/พยาบาลสั่งตรวจ (1.15.4)
+              /lab/queue       — Worklist ของห้องปฏิบัติการ 6 ขั้นตอน (1.15.2)
+              /lab/result/:id  — บันทึกผล + ค่าวิกฤต (1.15.6)
+              /lab/setup       — ทะเบียนรายการตรวจ + รหัส TMLT (1.15.3) */}
+        <Route exact path='/lab'              component={LabQueuePage} />
+        <Route exact path='/lab/queue'        component={LabQueuePage} />
+        <Route exact path='/lab/order'        component={LabOrderPage} />
+        <Route exact path='/lab/setup'        component={LabSetupPage} />
+        <Route exact path='/lab/result/:id'   component={LabResultEntryPage} />
+        <Route exact path='/lab/report/:orderId' component={LabReportPage} />
+        <Route exact path='/observation'               component={ObservationQueuePage} />
+        <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
+        <Route exact path='/observation/history/:id'  component={ObservationHistoryPage} />
         {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
         <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
         <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />
@@ -193,12 +249,20 @@ export default function Routes() {
         <Route exact path='/components'           component={ComponentsLibraryPage} />
         <Route exact path='/components/:slug'     component={ComponentsLibraryPage} />
 
-        {/* Kiosk landing — Step 0 of OPD flow (กดบัตรคิว). Standalone
-            1440×1462 touchscreen surface; NO sidebar/header chrome.
+        {/* Kiosk landing — Step 0 of OPD flow (กดบัตรคิว).
+            Canonical repo: namonlims/bma.kiosk (sibling app; open /Kiosk).
+            /kiosk remains here temporarily for hub demos. New kiosk work
+            lands in bma.kiosk.
             Mobile ticket page is the QR scan target — opens on visitor's
             phone after kiosk shows the QR. Supports image download. */}
         <Route exact path='/kiosk'                       component={KioskPage} />
         <Route exact path='/kiosk/ticket/:queueId'       component={MobileTicketPage} />
+
+        {/* ระบบ Telemedicine / RPM (TOR ข้อ 1.13) — หน้าวิดีโอคอลฝั่งแพทย์.
+            เปิดจากปุ่ม Telemedicine (floating) ในระบบบันทึกการรักษา.
+            Standalone full-screen surface — ไม่มี PHCIS sidebar chrome. */}
+        <Route exact path='/telemed'                     component={TelemedRouteTrigger} />
+        <Route exact path='/telemed/:visitId'            component={TelemedRouteTrigger} />
 
         {/* Legacy chrome-free preview sandboxes (kept for reference) */}
         <Route exact path='/preview/tabs'         component={TabsPreviewPage} />
@@ -209,10 +273,11 @@ export default function Routes() {
             reviewed (and ⌘P-tested) without walking the RIS flows. */}
         <Route exact path='/preview/xray-sheets'  component={XraySheetsPreviewPage} />
 
-        {/* PHCIS Mobile app (TOR §4). Citizen-facing companion app rendered
-            inside a 402×874 iPhone 17 phone frame for desktop demo. All /m/* routes
-            share the same MobileAppProvider so auth + language state
-            survives navigation between screens.                            */}
+        {/* PHCIS Mobile app (TOR §4).
+            Canonical repo is now namonlims/bma.mobile (sibling app on :3001).
+            /m/* remains here temporarily for hub demos + because web badges
+            still import `@/components/mobile/figmaIcons`. Do not add new
+            mobile features here — land them in bma.mobile. */}
         <Route path='/m'>
           <MobileAppProvider>
             <Switch>
@@ -253,6 +318,7 @@ export default function Routes() {
           </MobileAppProvider>
         </Route>
       </Switch>
+      </TelemedCallProvider>
     </Router>
   );
 }

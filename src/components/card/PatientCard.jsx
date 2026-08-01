@@ -101,6 +101,11 @@ const PatientCard = ({
   onBack,
   title = 'คัดกรองและซักประวัติ',
   actions,
+  /* Optional extra badges/pills (e.g. Observation's status/VN/nurse/
+     admit-time) rendered as a wrapped row below the identity fields —
+     fully caller-built JSX, same pattern as `actions`, so PatientCard
+     stays agnostic of which page is using it. */
+  tags,
   drugAllergies,
   chronicDiseases,
   /* Figma 343:5629 — compact / scrolled-up state. Single-row gradient
@@ -349,6 +354,18 @@ const PatientCard = ({
           </div>
         )}
       </div>
+
+      {/* Optional caller-supplied tag row (e.g. Observation's status/VN/
+          nurse/admit-time) — sits in the white area below the gradient,
+          same tier as the แพ้ยา/โรคประจำตัว row below. */}
+      {tags && (
+        <div
+          className='flex w-full flex-wrap items-center'
+          style={{ gap: 'var(--dim-space-200, 8px)', marginTop: 'var(--dim-space-300, 12px)' }}
+        >
+          {tags}
+        </div>
+      )}
 
       {/* Figma 150:33649 / 343:5629 — แพ้ยา + โรคประจำตัว row stays
          visible across all 7 treatment steps and across the parallax

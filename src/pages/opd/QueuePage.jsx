@@ -371,10 +371,11 @@ const INITIAL_ROWS = Array.from({ length: 25 }).map((_, i) => {
     queue: `A${String(i + 1).padStart(3, '0')}`,
     hn: profile.hn,
     /* VN (Visit Number) — per-visit identifier in Thai hospitals,
-       distinct from HN (lifetime patient id). Format mirrors the
-       Figma cell rhythm (`yy-#####`) with `yy` fixed to 69 for this
-       demo year and a zero-padded sequential body. */
-    vn: `69-${String(i + 1).padStart(5, '0')}`,
+       distinct from HN (lifetime patient id). Sourced from
+       `profile.vn` (patientProfiles.js) rather than derived here, so
+       this screening queue and the pharmacy dispensing queue always
+       show the identical VN for the same patient. */
+    vn: profile.vn,
     name: profile.shortName,
     doctor: profile.doctor,
     room: `ห้องตรวจที่ ${(i % 4) + 1}`,
@@ -726,7 +727,6 @@ const QueuePage = () => {
             style={{
               background: 'var(--surface-card-100)',
               borderRadius: 'var(--dim-radius-500)',
-              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
               boxShadow: 'var(--shadow-card-strong)',
               padding: 'var(--dim-space-600)',
               gap: 'var(--dim-space-600)',

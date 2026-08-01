@@ -8,3 +8,5 @@ dist-ssr
 /tmp-*.jpg
 /us-photo-*.jpg
 /tmp-*.png
+# Local agent session label (statusline)
+.cursor/feature-name

@@ -11,12 +11,18 @@ import { createPortal } from 'react-dom';
 
    Property panel (matches Figma 1:1):
      • Position    'top' | 'bottom' | 'left' | 'right'
+     • Variant     'brand' (default · dark brand surface) |
+                   'light' (white card · matches VitalsSignGraph hover)
 
-   Visual:
+   Visual (brand):
      • Bubble: brand-p700 surface, 8px padding, 8px radius, body4 text in
        neutral/50 (#F9FBFB), drop shadow.
      • Caret:  CSS-triangle pointing toward the anchor, flush against the
        bubble's edge so the two read as one shape.
+
+   Visual (light) — same tokens as ChartTooltip in VitalsSignGraph.jsx:
+     • surface/card/100 · border/popover/grey · shadow/dropdown ·
+       text/content/default
 
    Interactive behavior (Tooltip):
      • Opens on mouseenter / focusin of the wrapped child.
@@ -29,14 +35,22 @@ import { createPortal } from 'react-dom';
 
    Tokens alias from design.md; surface retints with [data-brand].        */
 
-const SURFACE = 'var(--surface-tooltip-default, var(--brand-p700, #007549))';
-const TEXT    = 'var(--text-tooltip-default, #F9FBFB)';
-
-/* Symmetric shadow — no Y-offset on the soft blur layer so the visual
-   weight reads identically whether the tooltip sits above or below the
-   anchor. (A Y-offset shadow makes the gap look "filled" above the bubble
-   and "open" below it.)                                                  */
-const SHADOW  = 'drop-shadow(0 0 1px rgba(15,23,42,0.18)) drop-shadow(0 4px 12px rgba(15,23,42,0.08))';
+const VARIANT_TOKENS = {
+  brand: {
+    surface: 'var(--surface-tooltip-default, var(--brand-p700, #007549))',
+    text:    'var(--text-tooltip-default, #F9FBFB)',
+    border:  'none',
+    shadow:  'drop-shadow(0 0 1px rgba(15,23,42,0.18)) drop-shadow(0 4px 12px rgba(15,23,42,0.08))',
+    shadowMode: 'filter',
+  },
+  light: {
+    surface: 'var(--surface-card-100)',
+    text:    'var(--text-content-default)',
+    border:  'var(--dim-stroke-100) solid var(--border-popover-grey)',
+    shadow:  'var(--shadow-dropdown)',
+    shadowMode: 'boxShadow',
+  },
+};
 
 const CARET_SIZE = 6;       /* px — half-width of the triangle base */
 const CARET_DEPTH = 6;      /* px — depth toward the anchor */
@@ -76,11 +90,12 @@ const usePrefersReducedMotion = () => {
   return reduced;
 };
 
-const Bubble = ({ children, maxWidth }) => (
+const Bubble = ({ children, maxWidth, tokens }) => (
   <div
     style={{
-      background: SURFACE,
-      color: TEXT,
+      background: tokens.surface,
+      color: tokens.text,
+      border: tokens.border,
       padding: 'var(--dim-space-200, 8px)',
       borderRadius: 'var(--dim-radius-200, 8px)',
       fontFamily: 'var(--type-family-body)',
@@ -96,9 +111,9 @@ const Bubble = ({ children, maxWidth }) => (
   </div>
 );
 
-const Caret = ({ direction }) => {
+const Caret = ({ direction, surface }) => {
   const transparent = `${CARET_SIZE}px solid transparent`;
-  const filled      = `${CARET_DEPTH}px solid ${SURFACE}`;
+  const filled      = `${CARET_DEPTH}px solid ${surface}`;
   let style;
   switch (direction) {
     case 'down':
@@ -131,6 +146,7 @@ const DIRECTION_FROM_POSITION = {
 export const TooltipBubble = React.forwardRef(function TooltipBubble(
   {
     position = 'top',
+    variant = 'brand',
     children = 'Tooltip text content',
     maxWidth = 160,
     className = '',
@@ -139,9 +155,13 @@ export const TooltipBubble = React.forwardRef(function TooltipBubble(
   },
   ref,
 ) {
+  const tokens = VARIANT_TOKENS[variant] || VARIANT_TOKENS.brand;
   const direction = DIRECTION_FROM_POSITION[position] || 'down';
   const isVertical = position === 'top' || position === 'bottom';
   const caretFirst = position === 'bottom' || position === 'right';
+  const shadowStyle = tokens.shadowMode === 'boxShadow'
+    ? { boxShadow: tokens.shadow }
+    : { filter: tokens.shadow };
 
   return (
     <div
@@ -152,15 +172,15 @@ export const TooltipBubble = React.forwardRef(function TooltipBubble(
         display: 'inline-flex',
         flexDirection: isVertical ? 'column' : 'row',
         alignItems: 'center',
-        filter: SHADOW,
         pointerEvents: 'none',
+        ...shadowStyle,
         ...style,
       }}
       {...rest}
     >
-      {caretFirst && <Caret direction={direction} />}
-      <Bubble maxWidth={maxWidth}>{children}</Bubble>
-      {!caretFirst && <Caret direction={direction} />}
+      {caretFirst && <Caret direction={direction} surface={tokens.surface} />}
+      <Bubble maxWidth={maxWidth} tokens={tokens}>{children}</Bubble>
+      {!caretFirst && <Caret direction={direction} surface={tokens.surface} />}
     </div>
   );
 });
@@ -171,6 +191,7 @@ export const TooltipBubble = React.forwardRef(function TooltipBubble(
 const Tooltip = ({
   content,
   position = 'top',
+  variant = 'brand',
   delay = 200,
   disabled = false,
   maxWidth = 240,
@@ -249,7 +270,7 @@ const Tooltip = ({
       window.removeEventListener('scroll', onChange, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, position, content]);
+  }, [mounted, position, content, variant]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -327,7 +348,7 @@ const Tooltip = ({
             willChange: 'opacity, transform',
           }}
         >
-          <TooltipBubble position={position} maxWidth={maxWidth}>
+          <TooltipBubble position={position} variant={variant} maxWidth={maxWidth}>
             {content}
           </TooltipBubble>
         </div>,

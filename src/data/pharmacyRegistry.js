@@ -1,0 +1,316 @@
+/* Pharmacy drug registry / formulary (ระบบทะเบียนยา — ToR §1.9.1) + the
+   CDSS-style prescribing checks the ToR describes for pharmacy (§1.5.4.18-21
+   / §1.9.2): drug interaction, duplicate-drug, and High Alert Drug.
+
+   Self-contained mock module, same convention as `pharmacyQueue.js` — no
+   backend, in-memory, resets on reload. Seeded from `medicationCatalog.js`'s
+   `MEDICATION_NAME_OPTIONS` (the app's one existing canonical drug-name
+   list) rather than inventing a third divergent catalog. */
+
+import { MEDICATION_NAME_OPTIONS, resolveMedicationImage } from '@/data/medicationCatalog';
+import { MR_RIGHTS } from '@/data/mrPatients';
+
+export const RIGHTS_LIST = MR_RIGHTS;
+
+export const UNIT_TYPES = [
+  { key: 'tablet',  label: 'เม็ด'                 },
+  { key: 'capsule', label: 'แคปซูล'                },
+  { key: 'bottle',  label: 'ขวด'                   },
+  { key: 'tube',    label: 'หลอด'                  },
+  { key: 'sachet',  label: 'ซอง'                   },
+  { key: 'ml',      label: 'มิลลิลิตร (มล.)'        },
+  { key: 'box',     label: 'กล่อง'                 },
+];
+
+/* §1.9.1.2 — "รองรับการกำหนดหน่วยได้มากกว่า 1 หน่วย และสามารถแปลงหน่วยของยาได้
+   เช่น จาก 1 ขวด เป็น 60 ซีซี". Generic fallback pairs for unit types that
+   aren't a per-drug packSize (below) — e.g. a liquid form's ขวด→มล., which
+   this tablet/capsule-only catalog doesn't have a real drug for yet. */
+export const UNIT_CONVERSIONS = [
+  { fromUnit: 'bottle', toUnit: 'ml',  factor: 60,  note: '1 ขวด = 60 มล. (ตัวอย่าง — ยังไม่มียารูปแบบน้ำในทะเบียนนี้)' },
+  { fromUnit: 'tube',   toUnit: 'ml',  factor: 30,  note: '1 หลอด = 30 มล. (ตัวอย่าง — ยังไม่มียารูปแบบครีม/เจลในทะเบียนนี้)' },
+];
+
+/* Real per-drug box→dispensing-unit conversions (ToR §1.9.1.2's actual
+   ask: convert THIS drug's box into ITS dispensing unit, not one blanket
+   factor for every drug). Thai retail pharmaceutical packs commonly ship
+   in 100s/500s/1000s per box; rotated deterministically by index so each
+   drug gets a plausible, distinct pack size instead of one shared number. */
+const PACK_SIZE_ROTATION = [100, 500, 1000, 100, 100, 500];
+const packSizeForIndex = (i) => PACK_SIZE_ROTATION[i % PACK_SIZE_ROTATION.length];
+
+export const DRUG_CLASSIFICATIONS = [
+  { key: 'nlem',         label: 'บัญชียาหลักแห่งชาติ (NLEM)'        },
+  { key: 'non-nlem',     label: 'ยานอกบัญชียาหลักแห่งชาติ'          },
+  { key: 'narcotic',     label: 'ยาเสพติดให้โทษ'                    },
+  { key: 'psychotropic', label: 'วัตถุออกฤทธิ์ต่อจิตและประสาท'       },
+];
+
+const CAPSULE_NAMES = new Set(['Omeprazole 20 mg', 'Esomeprazole 40 mg', 'VILERM (Aciclovir 400 mg)']);
+
+/* Illustrative flags only — NOT a clinically exhaustive High Alert Drug
+   list (real hospital HAD lists center on insulin/heparin/opioids/
+   concentrated electrolytes/chemo, none of which are in this outpatient
+   demo catalog). Marks two drugs with a real, defensible high-alert
+   rationale so the UI has something genuine to demonstrate against.
+   (Codeine/Diazepam are ALSO flagged high-alert below, via
+   NARCOTIC_NAMES/PSYCHOTROPIC_NAMES — controlled substances carry a real
+   diversion/misuse risk on top of their pharmacologic one.) */
+const HIGH_ALERT_NAMES = new Set(['Furosemide 40 mg', 'Enalapril 5 mg']);
+
+/* One drug deliberately NOT eligible under most rights, to give the
+   "สั่งยานอกสิทธิ" (out-of-rights) check in PharmacyDispensePage a real
+   case to flag. */
+const SELF_PAY_ONLY_NAMES = new Set(['Atorvastatin 10 mg']);
+
+const NON_NLEM_NAMES = new Set(['Esomeprazole 40 mg', 'Atorvastatin 10 mg', 'VILERM (Aciclovir 400 mg)']);
+
+/* §1.9.1.3 — real Thai statutory classifications, not fabricated: Codeine
+   is ยาเสพติดให้โทษ ประเภท 2 (Narcotics Act B.E. 2522); Diazepam is
+   วัตถุออกฤทธิ์ต่อจิตและประสาท ประเภท 4 (Psychotropic Substances Act) — both
+   plausible in a primary-care/สำนักอนามัย formulary (cough/pain and
+   anxiety/muscle-relaxant use respectively). Checked before NON_NLEM_NAMES
+   below since classification is one field, not a combinable set of flags. */
+const NARCOTIC_NAMES = new Set(['Codeine Phosphate 30 mg']);
+const PSYCHOTROPIC_NAMES = new Set(['Diazepam 5 mg']);
+
+/* ผู้ผลิต/ผู้จำหน่าย (legacy คู่มือระบบงานห้องจ่ายยาฯ §2.2.1 fields 3.6-3.7).
+   Deterministic round-robin over a small pool of real Thai
+   pharmaceutical manufacturers/distributors — illustrative assignment,
+   not sourced from actual product data. */
+const MANUFACTURERS = ['องค์การเภสัชกรรม (GPO)', 'บริษัท เบอร์ลินฟาร์มาซูติคอลอินดัสตรี้ จำกัด', 'บริษัท ที.แมน ฟาร์มา จำกัด', 'บริษัท สยามฟาร์มาซูติคอล จำกัด'];
+const DISTRIBUTORS = ['บริษัท ดีเคเอสเอช (ประเทศไทย) จำกัด', 'บริษัท ซิลลิค ฟาร์มา จำกัด', 'บริษัท เซ็นทรัลโพลีเทรดดิ้ง จำกัด'];
+
+/* โรคประจำตัวที่ไม่อนุญาตให้จ่าย (legacy §2.1.1 "กรณีผู้ป่วยมีโรคประจำตัว" —
+   คำเตือนเมื่อยาตัวที่สั่งตรงกับโรคประจำตัวที่ไม่อนุญาต). Real, defensible
+   contraindications only: NSAIDs worsen renal function and fluid
+   retention in CKD/heart-failure patients — matches
+   `mrPatients.js`'s `chronicDiseases[].name` vocabulary exactly. */
+const DISALLOWED_DISEASE_OVERRIDES = {
+  'Ibuprofen 400 mg': ['โรคไตเรื้อรัง ระยะ 3–4 (CKD)', 'หัวใจล้มเหลว'],
+  'Naproxen 250 mg':  ['โรคไตเรื้อรัง ระยะ 3–4 (CKD)', 'หัวใจล้มเหลว'],
+};
+
+/* กลุ่มแพทย์เฉพาะที่อนุญาตให้จ่าย (legacy §2.1.1 "กรณียามีผลกับแพทย์ที่สั่ง").
+   None of this outpatient catalog's drugs are genuinely
+   prescriber-restricted (no controlled substances) — one illustrative
+   example only, clearly flagged as such, so the restriction mechanism has
+   something real to demonstrate against without fabricating a clinical
+   rule for the rest of the catalog. */
+const DOCTOR_GROUP_RESTRICTION_OVERRIDES = {
+  'VILERM (Aciclovir 400 mg)': 'แพทย์ผิวหนัง / อายุรกรรม',
+};
+
+const parseTradeGeneric = (name) => {
+  const m = name.match(/^(.+?)\s*\(([^)]+)\)$/);
+  if (m) return { tradeName: m[1].trim(), genericName: m[2].trim() };
+  return { tradeName: '', genericName: name };
+};
+
+/* De-dupe the catalog's trailing "no-space-before-mg" alias entries
+   (e.g. 'Paracetamol 500mg' next to 'Paracetamol 500 mg') — the registry
+   only needs one canonical row per drug. */
+const seenNames = new Set();
+const CANONICAL_OPTIONS = MEDICATION_NAME_OPTIONS.filter((o) => {
+  const key = o.value.replace(/\s+/g, ' ').toLowerCase();
+  if (seenNames.has(key)) return false;
+  seenNames.add(key);
+  return true;
+});
+
+export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
+  const { tradeName, genericName } = parseTradeGeneric(opt.value);
+  /* อัตราการใช้เฉลี่ย + จุดสั่งซื้อ (legacy §2.2.1 field 3.11) — mock
+     figures derived deterministically from index so every drug has a
+     plausible, distinct usage-rate profile. */
+  const avgPerMonth = 50 + (i % 10) * 20;
+  return {
+    id: `drug-${i + 1}`,
+    /* รหัสยา (ToR §1.9.5.1 / §1.9.10.1) — distinct from the internal
+       `id` (a React-key-style slug), this is the human-facing drug code
+       staff actually search/type, e.g. on a requisition or receiving form. */
+    code: `MED-${String(i + 1).padStart(4, '0')}`,
+    name: opt.value,
+    genericName,
+    tradeName,
+    image: resolveMedicationImage(opt.value, opt.image),
+    unit: CAPSULE_NAMES.has(opt.value) ? 'capsule' : 'tablet',
+    classification: NARCOTIC_NAMES.has(opt.value)
+      ? 'narcotic'
+      : PSYCHOTROPIC_NAMES.has(opt.value)
+        ? 'psychotropic'
+        : NON_NLEM_NAMES.has(opt.value) ? 'non-nlem' : 'nlem',
+    /* §1.9.1.2 — this drug's real box→unit conversion, e.g. "1 กล่อง = 100
+       เม็ด" for this specific drug (not a shared blanket factor). */
+    packSize: packSizeForIndex(i),
+    highAlert: HIGH_ALERT_NAMES.has(opt.value) || NARCOTIC_NAMES.has(opt.value) || PSYCHOTROPIC_NAMES.has(opt.value),
+    rightsEligible: SELF_PAY_ONLY_NAMES.has(opt.value) ? ['ชำระเงินเอง'] : [...MR_RIGHTS],
+    priceSchedule: [
+      { id: `${i + 1}-p1`, effectiveFrom: '2026-01-01', effectiveTo: null, price: 1 + (i % 8) },
+    ],
+    active: true,
+    /* วันที่เริ่มจำหน่ายยาในสถานพยาบาล / วันที่ตัดรายการยาออกจากสถานพยาบาล
+       (ToR §1.9.10.1) — separate from the `active` toggle above: a drug
+       can be toggled inactive immediately, but this date range records
+       WHEN it was formally introduced/discontinued at this facility. */
+    activeFrom: '2026-01-01',
+    activeTo: null,
+    manufacturer: MANUFACTURERS[i % MANUFACTURERS.length],
+    distributor: DISTRIBUTORS[i % DISTRIBUTORS.length],
+    usageRate: {
+      avgPerMonth,
+      maxQty: avgPerMonth * 2,
+      minQty: Math.round(avgPerMonth * 0.5),
+      reorderPoint: Math.round(avgPerMonth * 0.75),
+    },
+    disallowedChronicDiseases: DISALLOWED_DISEASE_OVERRIDES[opt.value] || [],
+    restrictedToDoctorGroup: DOCTOR_GROUP_RESTRICTION_OVERRIDES[opt.value] || null,
+  };
+});
+
+export const getRegistryDrug = (name) => DRUG_REGISTRY.find((d) => d.name === name) || null;
+export const getRegistryDrugById = (id) => DRUG_REGISTRY.find((d) => d.id === id) || null;
+
+/* Pub/sub so PharmacyRegistryPage's list re-renders after
+   PharmacyRegistryEditPage saves — same pattern as
+   `appointmentSettingsStore.js`'s `listeners`/`notify`/`subscribeApptSettings`.
+   `DRUG_REGISTRY` stays a plain mutable array (mutated in place, like
+   `pharmacyQueue.js`'s `PHARMACY_QUEUE`); this just adds the notification
+   layer on top so views know when to re-read it. */
+const registryListeners = new Set();
+const notifyRegistry = () => registryListeners.forEach((fn) => fn());
+export const subscribeRegistry = (fn) => {
+  registryListeners.add(fn);
+  return () => registryListeners.delete(fn);
+};
+
+let registrySeq = DRUG_REGISTRY.length;
+const nextDrugCode = () => {
+  const n = DRUG_REGISTRY.reduce((max, d) => {
+    const m = Number(String(d.code || '').replace(/^MED-/, ''));
+    return Number.isFinite(m) ? Math.max(max, m) : max;
+  }, 0);
+  return `MED-${String(n + 1).padStart(4, '0')}`;
+};
+
+/** Creates a new drug (no `id`/blank id) or saves changes to an existing one
+    (matched by `id`) in place, so `DRUG_REGISTRY` — and every page reading
+    it — reflects the edit immediately. Returns the saved row. */
+export const upsertRegistryDrug = (form) => {
+  const isNew = !form.id || form.id === 'new';
+  if (isNew) {
+    const row = {
+      ...form,
+      id: `drug-${++registrySeq}`,
+      code: form.code?.trim() || nextDrugCode(),
+      image: resolveMedicationImage(form.name, null),
+    };
+    DRUG_REGISTRY.push(row);
+    notifyRegistry();
+    return row;
+  }
+  const idx = DRUG_REGISTRY.findIndex((d) => d.id === form.id);
+  if (idx === -1) return null;
+  DRUG_REGISTRY[idx] = { ...DRUG_REGISTRY[idx], ...form };
+  notifyRegistry();
+  return DRUG_REGISTRY[idx];
+};
+
+/** Toggles/sets `active` on an existing drug (ToR §1.9.10.3 "ปิดรายการยา")
+    without a full edit-page round trip — e.g. a quick close/reopen action
+    from the registry list. */
+export const setRegistryDrugActive = (id, active) => {
+  const drug = getRegistryDrugById(id);
+  if (!drug) return null;
+  drug.active = active;
+  notifyRegistry();
+  return drug;
+};
+
+/** §1.9.1.2 — converts a quantity of this drug's own box (กล่อง) into its
+    dispensing unit using ITS real packSize, e.g. `convertPackToUnit(drug, 2)`
+    → "200 เม็ด" for a drug with packSize 100. Falls back to the generic
+    UNIT_CONVERSIONS table for non-packSize pairs (e.g. ขวด→มล.). */
+export const convertPackToUnit = (drug, boxQty = 1) => {
+  if (!drug?.packSize) return null;
+  return { qty: boxQty * drug.packSize, unit: drug.unit };
+};
+
+export const currentPrice = (drug, atDate = new Date()) => {
+  if (!drug) return 0;
+  const iso = atDate.toISOString().slice(0, 10);
+  const row = drug.priceSchedule.find((p) => p.effectiveFrom <= iso && (!p.effectiveTo || p.effectiveTo >= iso));
+  return row?.price ?? drug.priceSchedule[drug.priceSchedule.length - 1]?.price ?? 0;
+};
+
+/* Real, pharmacologically-documented interaction pairs among drugs that
+   are actually in this catalog — not fabricated pairings. */
+export const DRUG_INTERACTIONS = [
+  {
+    a: 'Enalapril 5 mg', b: 'Spironolactone 25 mg',
+    description: 'ACE inhibitor + potassium-sparing diuretic — เสี่ยงภาวะโพแทสเซียมในเลือดสูง (hyperkalemia)',
+  },
+  {
+    a: 'Simvastatin 20 mg', b: 'Amlodipine 5 mg',
+    description: 'Amlodipine ยับยั้ง CYP3A4 ทำให้ระดับ Simvastatin สูงขึ้น เพิ่มความเสี่ยง myopathy — ควรจำกัดขนาด Simvastatin ไม่เกิน 20 มก./วัน',
+  },
+  {
+    a: 'Enalapril 5 mg', b: 'Losartan 50 mg',
+    description: 'ACE inhibitor + ARB (dual RAAS blockade) — ไม่แนะนำให้ใช้ร่วมกัน เสี่ยงไตวายและโพแทสเซียมสูง',
+  },
+];
+
+const norm = (name) => (name || '').trim().toLowerCase();
+
+/** Returns [{ a, b, description }] for every interacting pair found among `items`. */
+export const checkDrugInteractions = (items = []) => {
+  const names = new Set(items.map((it) => norm(it.name)));
+  return DRUG_INTERACTIONS.filter((pair) => names.has(norm(pair.a)) && names.has(norm(pair.b)));
+};
+
+/** Returns the duplicated drug names (same drug prescribed more than once). */
+export const checkDuplicateDrugs = (items = []) => {
+  const counts = new Map();
+  items.forEach((it) => {
+    const key = norm(it.name);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return items
+    .filter((it) => counts.get(norm(it.name)) > 1)
+    .filter((it, idx, arr) => arr.findIndex((x) => norm(x.name) === norm(it.name)) === idx)
+    .map((it) => it.name);
+};
+
+/** Returns the items whose registry entry is flagged High Alert. */
+export const checkHighAlert = (items = []) =>
+  items.filter((it) => getRegistryDrug(it.name)?.highAlert);
+
+/** Items whose registry rights-eligibility doesn't include the patient's `rights`. */
+export const checkOutOfRights = (patientRights, items = []) =>
+  items.filter((it) => {
+    const drug = getRegistryDrug(it.name);
+    return drug && !drug.rightsEligible.includes(patientRights);
+  });
+
+/* ToR-adjacent legacy checks (คู่มือระบบงานห้องจ่ายยาฯ §2.1.1 "กรณีผู้ป่วยมี
+   โรคประจำตัว" / "กรณียามีผลกับแพทย์ที่สั่ง"). */
+
+/** [{ item, disease }] for every item whose registry entry lists a chronic
+    disease the patient actually has. */
+export const checkDisallowedChronicDisease = (patient, items = []) => {
+  const patientDiseases = new Set((patient?.chronicDiseases || []).map((d) => d.name));
+  const hits = [];
+  items.forEach((item) => {
+    const drug = getRegistryDrug(item.name);
+    (drug?.disallowedChronicDiseases || []).forEach((disease) => {
+      if (patientDiseases.has(disease)) hits.push({ item, disease });
+    });
+  });
+  return hits;
+};
+
+/** Items restricted to a specific prescriber group, with that group's label. */
+export const checkDoctorGroupRestriction = (items = []) =>
+  items
+    .map((item) => ({ item, group: getRegistryDrug(item.name)?.restrictedToDoctorGroup }))
+    .filter((r) => r.group);

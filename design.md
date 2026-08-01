@@ -1,6 +1,10 @@
 # Design System Token Reference
 
-> Auto-generated from Figma Variable exports. Last updated: May 2026
+> **Canonical package:** [`@mih/design-tokens`](https://github.com/namonlims/mih-design) (`packages/design-tokens`).  
+> CSS custom properties ship from that package (`tokens.css`); this `design.md` is the human-readable mirror.  
+> Edit tokens in **mih-design**, then run `npm run tokens:pull` here to refresh this file.
+>
+> Auto-generated from Figma Variable exports. Last updated: July 2026 (§1–§4 synced from tokens/figma/ (primitive · brand · breakpoint · semantic))
 
 ## Token Architecture
 
@@ -116,6 +120,7 @@ non-invasive, and the design tokens-only rule in
 |---|---|---|---|
 | 1 · Primitives | MIH Foundation library | [`design.md` §1, §3](design.md) | [`src/index.css`](src/index.css) `:root` (top block) |
 | 2 · Semantic | MIH Foundation library | [`design.md` §4](design.md) | [`src/index.css`](src/index.css) `:root` (middle block) |
+| 2 · Semantic (import) | Figma W3C export drop zone | [`tokens/figma/`](tokens/figma/) `*.tokens.json` | — (run `npm run tokens:sync` → regenerates §1–§4) |
 | 3 · Component | Per-component Figma file | [`design.md` §5, §6](design.md) | [`src/index.css`](src/index.css) `:root` (bottom block) |
 | Mobile overlay | MIH Mobile section | [`design.md` §7](design.md) | [`src/index.css`](src/index.css) `--mobile-*` block |
 | Brand swap | (no Figma file — runtime override) | [`design.md` §2](design.md) | [`src/index.css`](src/index.css) `[data-brand="…"]` blocks |
@@ -129,6 +134,7 @@ Primitive tokens are the raw, mode-independent values. They are the source of tr
 ### 1a. Color Palettes
 
 Each palette has 11 steps (50 → 950). Values are in HEX.
+
 
 #### `emerald`
 
@@ -288,7 +294,7 @@ Each palette has 11 steps (50 → 950). Values are in HEX.
 | 700 | `#7E22CE` |
 | 800 | `#6B21A8` |
 | 900 | `#581C87` |
-| 950 | `#3B0764` |
+| 950 2 | `#3B0764` |
 
 #### `magenta`
 
@@ -373,10 +379,10 @@ Alpha-baked **background tint** primitives (Figma scope `EFFECT_COLOR`). Each is
 
 | Token | Hex | Opacity |
 |-------|-----|---------|
-| `color.bg.teal-400` | `#3EC3B2` | 20 % |
-| `color.bg.teal-600` | `#1B867D` | 20 % |
 | `color.bg.sky-cyan-400` | `#40AAF2` | 20 % |
 | `color.bg.sky-cyan-600` | `#0A73CB` | 20 % |
+| `color.bg.teal-400` | `#3EC3B2` | 20 % |
+| `color.bg.teal-600` | `#1B867D` | 20 % |
 
 Solid **sky-cyan/700** (`--color-sky-cyan-700 = #0859A8`) — the ศูนย์ number text
 inside the Clinic Card badge (Figma DS Card `E5DppVK8yi0EKJp1SUuKa9` 39:197); the
@@ -384,10 +390,10 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 
 ---
 
-
 ### 1a-2. Additional Color Palettes (from JSON)
 
 > Palettes below come from `primitive.tokens.json` and are addressable as primitives. Brand modes (§2) reach into a subset of these for their `primary`/`secondary` maps.
+
 
 #### `blue-serenity`
 
@@ -693,17 +699,12 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | 900 | `#7E5554` |
 | 950 | `#5E3C3C` |
 
-> **Note:** `soft-sky` has intentional repeats at 200/300 (`#D6ECFA`) and 500/600 (`#8EC4E5`) per the Figma export. Treat 300 and 600 as visual aliases.
-
----
-
-
 ### 1b. Typography
 
 #### Font Size (px)
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `typography.size.xxs` | `10` |
 | `typography.size.xs` | `12` |
 | `typography.size.sm` | `14` |
@@ -719,7 +720,7 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 #### Font Weight
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `typography.weight.thin` | `100` |
 | `typography.weight.light` | `300` |
 | `typography.weight.regular` | `400` |
@@ -729,7 +730,7 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 #### Letter Spacing
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `typography.letter-spacing.tighter` | `-2` |
 | `typography.letter-spacing.tight` | `-1.5` |
 | `typography.letter-spacing.normal` | `0` |
@@ -740,34 +741,32 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 #### Font Family
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `typography.family.heading-graphic` | `Sao Chingcha` |
 | `typography.family.heading-graphic2` | `Mitr` |
 | `typography.family.heading-content` | `Sarabun` |
 | `typography.family.body` | `Sarabun` |
 | `typography.family.ui` | `Sarabun` |
 
-> `heading-graphic` (Sao Chingcha) and `heading-graphic2` (Mitr — Google Fonts) are the two **brand display** typefaces; Mitr has broader weight coverage (200–900). Body / heading / UI use Sarabun.
-
 #### Font Style
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `typography.style.thin` | `Thin` |
 | `typography.style.light` | `Light` |
 | `typography.style.regular` | `Regular` |
 | `typography.style.medium` | `Medium` |
 | `typography.style.bold` | `Bold` |
 
+> `heading-graphic` (Sao Chingcha) and `heading-graphic2` (Mitr — Google Fonts) are the two **brand display** typefaces; Mitr has broader weight coverage (200–900). Body / heading / UI use Sarabun.
 
 ### 1c. Dimension
 
 #### Spacing (px)
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `dimension.space.0` | `0` |
-| `dimension.space.050` | `2` |
 | `dimension.space.100` | `4` |
 | `dimension.space.150` | `6` |
 | `dimension.space.200` | `8` |
@@ -779,6 +778,7 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | `dimension.space.1600` | `64` |
 | `dimension.space.2400` | `96` |
 | `dimension.space.4000` | `160` |
+| `dimension.space.050` | `2` |
 | `dimension.space.negative-100` | `-4` |
 | `dimension.space.negative-200` | `-8` |
 | `dimension.space.negative-300` | `-12` |
@@ -788,27 +788,23 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 #### Border Radius (px)
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `dimension.radius.0` | `0` |
 | `dimension.radius.100` | `4` |
 | `dimension.radius.150` | `6` |
 | `dimension.radius.200` | `8` |
 | `dimension.radius.300` | `10` |
 | `dimension.radius.400` | `12` |
-| `dimension.radius.450` | `14` |
 | `dimension.radius.500` | `16` |
-| `dimension.radius.550` | `22` |
 | `dimension.radius.600` | `24` |
-| `dimension.radius.700` | `38` |
-| `dimension.radius.1000` | `100` |
+| `dimension.radius.700` | `32` |
+| `dimension.radius.800` | `40` |
 | `dimension.radius.full` | `9999` |
-
-> `dimension.radius.1000` (100px) — success card top arch (Archive Mobile [178:122765](https://www.figma.com/design/4WXeI8fgBLQGgQ9VheM2yD/-Archive--Mobile-Application?node-id=178-122765)).
 
 #### Size Scale (px)
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `dimension.size.1` | `1` |
 | `dimension.size.50` | `4` |
 | `dimension.size.100` | `8` |
@@ -822,7 +818,6 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | `dimension.size.800` | `40` |
 | `dimension.size.900` | `44` |
 | `dimension.size.1000` | `48` |
-| `dimension.size.1050` | `50` |
 | `dimension.size.1100` | `52` |
 | `dimension.size.1200` | `56` |
 | `dimension.size.1300` | `60` |
@@ -830,21 +825,15 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | `dimension.size.1500` | `68` |
 | `dimension.size.1600` | `72` |
 | `dimension.size.1700` | `80` |
-| `dimension.size.1750` | `82` |
 | `dimension.size.1800` | `96` |
 | `dimension.size.1900` | `112` |
 | `dimension.size.2000` | `128` |
-| `dimension.size.2050` | `144` |
 | `dimension.size.2100` | `160` |
-| `dimension.size.2170` | `177` |
-| `dimension.size.2190` | `190` |
 | `dimension.size.2200` | `192` |
-| `dimension.size.2280` | `218` |
 | `dimension.size.2300` | `224` |
 | `dimension.size.2400` | `256` |
 | `dimension.size.2500` | `320` |
 | `dimension.size.2600` | `384` |
-| `dimension.size.2610` | `402` |
 | `dimension.size.2700` | `448` |
 | `dimension.size.2800` | `512` |
 | `dimension.size.2900` | `640` |
@@ -855,20 +844,20 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 #### Blur (px)
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `dimension.blur.100` | `4` |
 
 #### Depth / Z-index
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `dimension.depth.0` | `0` |
-| `dimension.depth.025` | `1` |
 | `dimension.depth.100` | `4` |
 | `dimension.depth.200` | `8` |
 | `dimension.depth.400` | `16` |
 | `dimension.depth.800` | `32` |
 | `dimension.depth.1200` | `48` |
+| `dimension.depth.025` | `1` |
 | `dimension.depth.negative-025` | `-1` |
 | `dimension.depth.negative-100` | `-4` |
 | `dimension.depth.negative-200` | `-8` |
@@ -879,7 +868,7 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 #### Stroke Width (px)
 
 | Token | Value |
-|-------|-------|
+| --- | --- |
 | `dimension.stroke.100` | `1` |
 | `dimension.stroke.150` | `1.5` |
 | `dimension.stroke.200` | `2` |
@@ -890,6 +879,8 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | `dimension.stroke.700` | `7` |
 | `dimension.stroke.800` | `8` |
 | `dimension.stroke.900` | `9` |
+
+> `dimension.radius.1000` (100px) — success card top arch (Archive Mobile [178:122765](https://www.figma.com/design/4WXeI8fgBLQGgQ9VheM2yD/-Archive--Mobile-Application?node-id=178-122765)).
 
 ### 1d. Effect Styles
 
@@ -935,6 +926,7 @@ Effect styles define shadows and blurs. Multi-layer effects are separated by `+`
 | `effect.blur.glass` | `background_blur 12px` |
 | `effect.indigo-drop-shadow-bottom.100` | `drop_shadow blur=4px x=0 y=1 #818CF814` |
 | `effect.indigo-drop-shadow-bottom.200` | `drop_shadow blur=4px x=0 y=1 #818CF814` + `drop_shadow blur=8px x=0 y=1 #818CF81A` |
+| `effect.telemed-fab-hover` (→ `--shadow-telemed-fab-hover`) | `drop_shadow blur=28px spread=-4 x=0 y=10 #7A4CE580` + `drop_shadow blur=12px x=0 y=4 #D833A152` — purple→magenta glow on the telemed floating CTA hover, matches its gradient |
 
 #### Motion tokens
 
@@ -1034,41 +1026,14 @@ function setBrand(mode) {
 |------|-----------------|-------------------|-------------|-------------|
 | `default` | `emerald` | `forest` | `#007549` | `#08A768` |
 | `blue-serenity` | `blue-serenity` | `blue-serenity` | `#6676E0` | `#7A8CF0` |
-| `cool-lavender` | `cool-lavender` | `cool-lavender` | `#3C1E80` | `#5230A0` |
 | `dusty-mauve` | `dusty-mauve` | `dusty-mauve` | `#664750` | `#7E5A60` |
 | `muted-teal` | `muted-teal` | `muted-teal` | `#486462` | `#5A7D7A` |
-| `pink` | `pink` | `red` | `#BE185D` | `#DB2777` |
-| `rose` | `rose` | `rose` | `#AB4548` | `#CC5E62` |
-| `sky-cyan` | `sky-cyan` | `sky-cyan` | `#0859A8` | `#0A73CB` |
-| `soft-peach` | `soft-peach` | `soft-peach` | `#9A2E10` | `#C04015` |
+| `rose-mist` | `rose-mist` | `rose-mist` | `#BC8584` | `#D49A99` |
+| `sakura` | `sakura` | `sakura` | `#D687A8` | `#E89DBA` |
+| `soft-lavender` | `soft-lavender` | `soft-lavender` | `#836FC0` | `#9D87D8` |
+| `soft-peach` | `soft-peach` | `soft-peach` | `#D0714D` | `#E88A66` |
+| `soft-sky` | `soft-sky` | `soft-sky` | `#5594C4` | `#8EC4E5` |
 | `warm-gray` | `warm-gray` | `warm-gray` | `#5C504A` | `#726760` |
-
-### Components Affected by Brand Mode
-
-All tokens that alias `Brand/primary/*` update when the mode changes:
-
-| Component | Token category | Brand step used |
-|-----------|---------------|-----------------|
-| Button (fill) | `surface/brandPrimaryButton/default` | primary/700 |
-| Button (fill hover) | `surface/brandPrimaryButton/default-hover` | primary/800 |
-| Button (subdue fill) | `surface/brandPrimaryButton/tertiary` | primary/100 |
-| Button (outline/ghost) | `text/brandPrimaryButton/default` | primary/700 |
-| Button focus ring | `border/brandPrimaryButton/tertiary` | primary/200 |
-| Form input border (hover/focus) | `border/input/hover` | primary/600 |
-| Form input glow | focus ring | primary/600 @ 14% |
-| Checkbox checked fill | `icon/brandPrimaryButton/default` | primary/700 |
-| Checkbox border hover | `border/input/hover` | primary/600 |
-| Step circle (Default) | `surface/steps/default` | primary/100 |
-| Step circle (Current) | `surface/steps/selected` | primary/700 |
-| Step ring (Current) | ring glow | primary/600 @ 15% |
-| Step connector line | `border/steps/default` | primary/200 |
-| Step title (hover/current) | `text/steps/title-hover` | primary/700 |
-| Calendar day hover | `surface/calendar/hover` | primary/100 |
-| Calendar day selected | `surface/calendar/selected` | primary/700 |
-| Timeslot selected | `surface/timeslot/selected` | primary/700 |
-| Search bar border | `border/primarySearch/default` | primary/600 |
-| Action list item hover | `surface/list/hover` | primary/50 |
-| Avatar online status | `surface/avatar/online` | primary/600 |
 
 ### Brand Color Values per Mode
 
@@ -1097,11 +1062,11 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | `brand.primaryBorder.400` | `#6AD6A5` | `15%` | `primaryBorder/400` |
 | `brand.primaryBorder.600` | `#08A768` | `15%` | `primaryBorder/600` |
 | `brand.PrimaryShadow.400` | `#6AD6A5` | `8%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.401` | `#6AD6A5` | `10%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.402` | `#6AD6A5` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#6AD6A5` | `10%` | `PrimaryShadow/401` |
+| `brand.PrimaryShadow.402` | `#6AD6A5` | `20%` | `PrimaryShadow/402` |
 | `brand.PrimaryShadow.600` | `#08A768` | `8%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.601` | `#08A768` | `10%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.602` | `#08A768` | `20%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#08A768` | `10%` | `PrimaryShadow/601` |
+| `brand.PrimaryShadow.602` | `#08A768` | `20%` | `PrimaryShadow/602` |
 | `brand.primaryText.300` | `#7DE0B3` | `50%` | `primaryText/300` |
 | `brand.primaryText.700` | `#007549` | `50%` | `primaryText/700` |
 
@@ -1126,11 +1091,11 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | `brand.primaryBorder.400` | `#A5B3FC` | `15%` | `primaryBorder/400` |
 | `brand.primaryBorder.600` | `#8EA0F8` | `15%` | `primaryBorder/600` |
 | `brand.PrimaryShadow.400` | `#A5B3FC` | `8%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.401` | `#A5B3FC` | `10%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.402` | `#A5B3FC` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#A5B3FC` | `10%` | `PrimaryShadow/401` |
+| `brand.PrimaryShadow.402` | `#A5B3FC` | `20%` | `PrimaryShadow/402` |
 | `brand.PrimaryShadow.600` | `#8EA0F8` | `8%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.601` | `#8EA0F8` | `10%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.602` | `#8EA0F8` | `20%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#8EA0F8` | `10%` | `PrimaryShadow/601` |
+| `brand.PrimaryShadow.602` | `#8EA0F8` | `20%` | `PrimaryShadow/602` |
 | `brand.primaryText.300` | `#BBC6FE` | `50%` | `primaryText/300` |
 | `brand.primaryText.700` | `#6676E0` | `50%` | `primaryText/700` |
 
@@ -1155,11 +1120,11 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | `brand.primaryBorder.400` | `#B58E94` | `15%` | `primaryBorder/400` |
 | `brand.primaryBorder.600` | `#7E5A60` | `15%` | `primaryBorder/600` |
 | `brand.PrimaryShadow.400` | `#B58E94` | `8%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.401` | `#B58E94` | `10%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.402` | `#B58E94` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#B58E94` | `10%` | `PrimaryShadow/401` |
+| `brand.PrimaryShadow.402` | `#B58E94` | `20%` | `PrimaryShadow/402` |
 | `brand.PrimaryShadow.600` | `#7E5A60` | `8%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.601` | `#7E5A60` | `10%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.602` | `#7E5A60` | `20%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#7E5A60` | `10%` | `PrimaryShadow/601` |
+| `brand.PrimaryShadow.602` | `#7E5A60` | `20%` | `PrimaryShadow/602` |
 | `brand.primaryText.300` | `#D0ADB2` | `50%` | `primaryText/300` |
 | `brand.primaryText.700` | `#664750` | `50%` | `primaryText/700` |
 
@@ -1184,11 +1149,11 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | `brand.primaryBorder.400` | `#7AABA8` | `15%` | `primaryBorder/400` |
 | `brand.primaryBorder.600` | `#6F9693` | `15%` | `primaryBorder/600` |
 | `brand.PrimaryShadow.400` | `#7AABA8` | `8%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.401` | `#7AABA8` | `10%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.402` | `#7AABA8` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#7AABA8` | `10%` | `PrimaryShadow/401` |
+| `brand.PrimaryShadow.402` | `#7AABA8` | `20%` | `PrimaryShadow/402` |
 | `brand.PrimaryShadow.600` | `#6F9693` | `8%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.601` | `#6F9693` | `10%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.602` | `#6F9693` | `20%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#6F9693` | `10%` | `PrimaryShadow/601` |
+| `brand.PrimaryShadow.602` | `#6F9693` | `20%` | `PrimaryShadow/602` |
 | `brand.primaryText.300` | `#8DC3C0` | `50%` | `primaryText/300` |
 | `brand.primaryText.700` | `#486462` | `50%` | `primaryText/700` |
 
@@ -1213,11 +1178,11 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | `brand.primaryBorder.400` | `#EEBFBE` | `15%` | `primaryBorder/400` |
 | `brand.primaryBorder.600` | `#D49A99` | `15%` | `primaryBorder/600` |
 | `brand.PrimaryShadow.400` | `#EEBFBE` | `8%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.401` | `#EEBFBE` | `10%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.402` | `#EEBFBE` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#EEBFBE` | `10%` | `PrimaryShadow/401` |
+| `brand.PrimaryShadow.402` | `#EEBFBE` | `20%` | `PrimaryShadow/402` |
 | `brand.PrimaryShadow.600` | `#D49A99` | `8%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.601` | `#D49A99` | `10%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.602` | `#D49A99` | `20%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#D49A99` | `10%` | `PrimaryShadow/601` |
+| `brand.PrimaryShadow.602` | `#D49A99` | `20%` | `PrimaryShadow/602` |
 | `brand.primaryText.300` | `#F4D0CF` | `50%` | `primaryText/300` |
 | `brand.primaryText.700` | `#BC8584` | `50%` | `primaryText/700` |
 
@@ -1242,11 +1207,11 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | `brand.primaryBorder.400` | `#FFC0D4` | `15%` | `primaryBorder/400` |
 | `brand.primaryBorder.600` | `#E89DBA` | `15%` | `primaryBorder/600` |
 | `brand.PrimaryShadow.400` | `#FFC0D4` | `8%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.401` | `#FFC0D4` | `10%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.402` | `#FFC0D4` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#FFC0D4` | `10%` | `PrimaryShadow/401` |
+| `brand.PrimaryShadow.402` | `#FFC0D4` | `20%` | `PrimaryShadow/402` |
 | `brand.PrimaryShadow.600` | `#E89DBA` | `8%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.601` | `#E89DBA` | `10%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.602` | `#E89DBA` | `20%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#E89DBA` | `10%` | `PrimaryShadow/601` |
+| `brand.PrimaryShadow.602` | `#E89DBA` | `20%` | `PrimaryShadow/602` |
 | `brand.primaryText.300` | `#F9A8D4` | `50%` | `primaryText/300` |
 | `brand.primaryText.700` | `#D687A8` | `50%` | `primaryText/700` |
 
@@ -1271,11 +1236,11 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | `brand.primaryBorder.400` | `#C5B2F5` | `15%` | `primaryBorder/400` |
 | `brand.primaryBorder.600` | `#9D87D8` | `15%` | `primaryBorder/600` |
 | `brand.PrimaryShadow.400` | `#C5B2F5` | `8%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.401` | `#C5B2F5` | `10%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.402` | `#C5B2F5` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#C5B2F5` | `10%` | `PrimaryShadow/401` |
+| `brand.PrimaryShadow.402` | `#C5B2F5` | `20%` | `PrimaryShadow/402` |
 | `brand.PrimaryShadow.600` | `#9D87D8` | `8%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.601` | `#9D87D8` | `10%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.602` | `#9D87D8` | `20%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#9D87D8` | `10%` | `PrimaryShadow/601` |
+| `brand.PrimaryShadow.602` | `#9D87D8` | `20%` | `PrimaryShadow/602` |
 | `brand.primaryText.300` | `#D6C6FA` | `50%` | `primaryText/300` |
 | `brand.primaryText.700` | `#836FC0` | `50%` | `primaryText/700` |
 
@@ -1300,11 +1265,11 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | `brand.primaryBorder.400` | `#FBBEA0` | `15%` | `primaryBorder/400` |
 | `brand.primaryBorder.600` | `#E88A66` | `15%` | `primaryBorder/600` |
 | `brand.PrimaryShadow.400` | `#FBBEA0` | `8%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.401` | `#FBBEA0` | `10%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.402` | `#FBBEA0` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#FBBEA0` | `10%` | `PrimaryShadow/401` |
+| `brand.PrimaryShadow.402` | `#FBBEA0` | `20%` | `PrimaryShadow/402` |
 | `brand.PrimaryShadow.600` | `#E88A66` | `8%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.601` | `#E88A66` | `10%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.602` | `#E88A66` | `20%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#E88A66` | `10%` | `PrimaryShadow/601` |
+| `brand.PrimaryShadow.602` | `#E88A66` | `20%` | `PrimaryShadow/602` |
 | `brand.primaryText.300` | `#FCD1B8` | `50%` | `primaryText/300` |
 | `brand.primaryText.700` | `#D0714D` | `50%` | `primaryText/700` |
 
@@ -1329,11 +1294,11 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | `brand.primaryBorder.400` | `#A8D3EE` | `15%` | `primaryBorder/400` |
 | `brand.primaryBorder.600` | `#8EC4E5` | `15%` | `primaryBorder/600` |
 | `brand.PrimaryShadow.400` | `#A8D3EE` | `8%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.401` | `#A8D3EE` | `10%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.402` | `#A8D3EE` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#A8D3EE` | `10%` | `PrimaryShadow/401` |
+| `brand.PrimaryShadow.402` | `#A8D3EE` | `20%` | `PrimaryShadow/402` |
 | `brand.PrimaryShadow.600` | `#8EC4E5` | `8%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.601` | `#8EC4E5` | `10%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.602` | `#8EC4E5` | `20%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#8EC4E5` | `10%` | `PrimaryShadow/601` |
+| `brand.PrimaryShadow.602` | `#8EC4E5` | `20%` | `PrimaryShadow/602` |
 | `brand.primaryText.300` | `#A8D3EE` | `50%` | `primaryText/300` |
 | `brand.primaryText.700` | `#5594C4` | `50%` | `primaryText/700` |
 
@@ -1358,11 +1323,11 @@ Each brand token step (`50`–`950`) resolves to the corresponding step in the m
 | `brand.primaryBorder.400` | `#A39A94` | `15%` | `primaryBorder/400` |
 | `brand.primaryBorder.600` | `#8A8078` | `15%` | `primaryBorder/600` |
 | `brand.PrimaryShadow.400` | `#A39A94` | `8%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.401` | `#A39A94` | `10%` | `PrimaryShadow/400` |
-| `brand.PrimaryShadow.402` | `#A39A94` | `20%` | `PrimaryShadow/400` |
+| `brand.PrimaryShadow.401` | `#A39A94` | `10%` | `PrimaryShadow/401` |
+| `brand.PrimaryShadow.402` | `#A39A94` | `20%` | `PrimaryShadow/402` |
 | `brand.PrimaryShadow.600` | `#8A8078` | `8%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.601` | `#8A8078` | `10%` | `PrimaryShadow/600` |
-| `brand.PrimaryShadow.602` | `#8A8078` | `20%` | `PrimaryShadow/600` |
+| `brand.PrimaryShadow.601` | `#8A8078` | `10%` | `PrimaryShadow/601` |
+| `brand.PrimaryShadow.602` | `#8A8078` | `20%` | `PrimaryShadow/602` |
 | `brand.primaryText.300` | `#BDB5AF` | `50%` | `primaryText/300` |
 | `brand.primaryText.700` | `#5C504A` | `50%` | `primaryText/700` |
 
@@ -1407,57 +1372,57 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `background.brandSecondary.secondary-hover` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
 | `background.brandSecondary.tertiary` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
 | `background.brandSecondary.tertiary-hover` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
-| `background.danger.default` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
-| `background.danger.default-hover` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `background.danger.secondary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `background.danger.secondary-hover` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `background.danger.tertiary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `background.danger.tertiary-hover` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `background.disabled.default` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `background.disabled.default-hover` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `background.disabled.secondary` | `#E2E4E6` | `#E2E4E6` | `Primitive/color/neutral/200` |
-| `background.disabled.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `background.disabled.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `background.disabled.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `background.info.default` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
-| `background.info.default-hover` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
-| `background.info.secondary` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `background.info.secondary-hover` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
-| `background.info.tertiary` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `background.info.tertiary-hover` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `background.positive.default` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `background.positive.default-hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `background.positive.secondary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `background.positive.secondary-hover` | `#91DFBB` | `#007549` | `Brand/primary/300` |
-| `background.positive.tertiary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `background.positive.tertiary-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `background.progress.default` | `#EAB308` | `#EAB308` | `Primitive/color/yellow/500` |
-| `background.progress.default-hover` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
-| `background.progress.secondary` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `background.progress.secondary-hover` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
-| `background.progress.tertiary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
-| `background.progress.tertiary-hover` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `background.warning.default` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
-| `background.warning.default-hover` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
-| `background.warning.secondary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `background.warning.secondary-hover` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
-| `background.warning.tertiary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `background.warning.tertiary-hover` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
 | `background.neutral.default` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
 | `background.neutral.default-hover` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `background.neutral.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `background.neutral.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
 | `background.neutral.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `background.neutral.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `background.overlay.default` | `#64748B @ 50%` | `#64748B @ 50%` |  |
-| `background.screen.default` | `#FFFFFF` | `#0F172A` | `Primitive/color/grey/50` |
-| `background.screen.disabled` | `#64748B` | `#94A3B8` | `Primitive/color/slate/500` |
+| `background.disabled.default` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `background.disabled.default-hover` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `background.disabled.secondary` | `#E2E4E6` | `#E2E4E6` | `Primitive/color/neutral/200` |
+| `background.disabled.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `background.disabled.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `background.disabled.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `background.positive.default` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `background.positive.default-hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `background.positive.secondary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `background.positive.secondary-hover` | `#91DFBB` | `#007549` | `Brand/primary/300` |
+| `background.positive.tertiary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `background.positive.tertiary-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `background.warning.default` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
+| `background.warning.default-hover` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
+| `background.warning.secondary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `background.warning.secondary-hover` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
+| `background.warning.tertiary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `background.warning.tertiary-hover` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `background.progress.default` | `#EAB308` | `#EAB308` | `Primitive/color/yellow/500` |
+| `background.progress.default-hover` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
+| `background.progress.secondary` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `background.progress.secondary-hover` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
+| `background.progress.tertiary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
+| `background.progress.tertiary-hover` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `background.danger.default` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
+| `background.danger.default-hover` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `background.danger.secondary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `background.danger.secondary-hover` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `background.danger.tertiary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `background.danger.tertiary-hover` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `background.info.default` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
+| `background.info.default-hover` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
+| `background.info.secondary` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
+| `background.info.secondary-hover` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
+| `background.info.tertiary` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `background.info.tertiary-hover` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
 | `background.screen.100` | `#F5F6FA` | `#0F172A` | `Primitive/color/slate/50` |
 | `background.screen.200` | `#F5F7F9` | `#1E293B` | `Primitive/color/slate/100` |
 | `background.screen.300` | `#E9EDF5` | `#334155` | `Primitive/color/slate/200` |
 | `background.screen.400` | `#CBD5E1` | `#475569` | `Primitive/color/slate/300` |
+| `background.screen.default` | `#FFFFFF` | `#0F172A` | `Primitive/color/grey/50` |
 | `background.screen.brand-100` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
 | `background.screen.brand-200` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `background.screen.disabled` | `#64748B` | `#94A3B8` | `Primitive/color/slate/500` |
+| `background.overlay.default` | `#64748B @ 50%` | `#64748B @ 50%` | `` |
 | `background.bg.teal-400` | `#3EC3B2 @ 20%` | `#1B867D @ 20%` | `Primitive/color/bg/teal-400` |
 | `background.bg.blue-400` | `#40AAF2 @ 20%` | `#0A73CB @ 20%` | `Primitive/color/bg/sky-cyan-400` |
 
@@ -1472,24 +1437,42 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.brandPrimary.tertiary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
 | `text.brandPrimary.quaternary` | `#91DFBB` | `#007549` | `Brand/primary/300` |
 | `text.brandPrimary.on-brand` | `#FFFFFF` | `#002318` | `Primitive/color/grey/50` |
-| `text.payment.total` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
 | `text.brandSecondary.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
 | `text.brandSecondary.secondary` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
 | `text.brandSecondary.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
 | `text.brandSecondary.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
 | `text.brandSecondary.on-default` | `#FFFFFF` | `#102310` | `Primitive/color/grey/50` |
-| `text.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.danger.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `text.danger.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
-| `text.danger.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `text.danger.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.neutral.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.neutral.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.neutral.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `text.neutral.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 | `text.disabled.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.disabled.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `text.disabled.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.disabled.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
 | `text.disabled.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.positive.secondary` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `text.positive.tertiary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
+| `text.positive.quaternary` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
+| `text.positive.on-positive` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `text.warning.secondary` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
+| `text.warning.tertiary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
+| `text.warning.quaternary` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
+| `text.warning.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `text.progress.secondary` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
+| `text.progress.tertiary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
+| `text.progress.quaternary` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
+| `text.progress.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.danger.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `text.danger.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
+| `text.danger.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `text.danger.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
 | `text.info.default` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `text.info.emphasis` | `#3B82F6` | `#BFDBFE` | `Primitive/color/blue/500` |
 | `text.info.secondary` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
 | `text.info.tertiary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
 | `text.info.quaternary` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
@@ -1509,76 +1492,13 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.pink.tertiary` | `#F472B6` | `#DB2777` | `Primitive/color/pink/400` |
 | `text.pink.quaternary` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
 | `text.pink.on-info` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `text.positive.secondary` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
-| `text.positive.tertiary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
-| `text.positive.quaternary` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
-| `text.positive.on-positive` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `text.progress.secondary` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
-| `text.progress.tertiary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
-| `text.progress.quaternary` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
-| `text.progress.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `text.warning.secondary` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
-| `text.warning.tertiary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
-| `text.warning.quaternary` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
-| `text.warning.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.neutral.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.neutral.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.neutral.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `text.neutral.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.accordion.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.accordion.collapsed` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.accordion.expanded` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.accordion.content` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.alert.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.alert.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `text.alert.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `text.alert.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `text.alertDialog.text` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.alertDialog.subtext` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `text.breadcrumb.pagename` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
 | `text.breadcrumb.current` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `text.calendar.date-default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.calendar.date-current` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.calendar.date-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.calendar.date-selected` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
-| `text.calendar.date-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
-| `text.calendar.month` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.calendar slot.date-default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.calendar slot.date-current` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.calendar slot.date-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.calendar slot.date-selected` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
-| `text.calendar slot.date-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
-| `text.calendar slot.slot-default` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `text.calendar slot.slot-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.calendar slot.slot-selected` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
-| `text.calendar slot.slot-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
-| `text.calendar slot.cta-default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `text.calendar slot.cta-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.calendar slot.cta-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
-| `text.calendar slot.month` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.calendar slot.text` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.colorfulBadge.badge-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.colorfulBadge.grey` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.colorfulBadge.green` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.colorfulBadge.blue` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `text.colorfulBadge.teal` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `text.colorfulBadge.yellow` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `text.colorfulBadge.orange` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `text.colorfulBadge.red` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.colorfulBadge.indigo` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `text.colorfulBadge.pink` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
-| `text.colorfulBadge.purple` | `#7E22CE` | `#D8B4FE` | `Primitive/color/purple/700` |
-| `text.colorfulBadge.megenta` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
 | `text.content.default` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
 | `text.content.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `text.content.tertiary` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
 | `text.content.quaternary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.content.on-content` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `labels.primary` | `#000000` | `#FFFFFF` | iOS system label / Home Indicator |
 | `text.input.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.input.hover` | `#ADB2B7` | `#C9CDD0` | `Primitive/color/neutral/400` |
 | `text.input.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
@@ -1589,22 +1509,6 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.input.helper` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.input.errorHelper` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
 | `text.input.require` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `text.disabled.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.disabled.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.list.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.list.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.list.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.list.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.list.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.list.subtext-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `text.modal.text` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.modal.content` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.modal.subtext` | `#ADB2B7` | `#ADB2B7` | `Primitive/color/neutral/400` |
-| `text.navigation.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.navigation.title` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.pagination.default` | `#4D5358` | `#E2E4E6` | `Primitive/color/neutral/700` |
-| `text.pagination.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.pagination.selected` | `#007549` | `#FFFFFF` | `Brand/primary/700` |
 | `text.primarySearch.default` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
 | `text.primarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.primarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
@@ -1613,43 +1517,129 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.brandPrimaryButton.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `text.brandPrimaryButton.tertiary` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `text.brandPrimaryButton.quaternary` | `#91DFBB` | `#007549` | `Brand/primary/300` |
+| `text.brandPrimaryButton.on-brand` | `#FFFFFF` | `#002318` | `Primitive/color/grey/50` |
+| `text.brandSecondaryButton.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
+| `text.brandSecondaryButton.secondary` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
+| `text.brandSecondaryButton.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
+| `text.brandSecondaryButton.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
+| `text.brandSecondaryButton.on-default` | `#FFFFFF` | `#102310` | `Primitive/color/grey/50` |
+| `text.disabledButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.disabledButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.disabledButton.tertiary` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
+| `text.disabledButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `text.disabledButton.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.dangerButton.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `text.dangerButton.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
+| `text.dangerButton.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `text.dangerButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.neutralButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.neutralButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.neutralButton.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.neutralButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `text.neutralButton.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.neutralTag.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.neutralTag.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.neutralTag.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.neutralTag.selected-hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.brandTag.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.brandTag.title` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.brandTag.hover` | `#007549` | `#C9CDD0` | `Brand/primary/700` |
+| `text.brandTag.selected` | `#007549` | `#C9CDD0` | `Brand/primary/700` |
+| `text.brandTag.selected-hover` | `#007549` | `#C9CDD0` | `Brand/primary/700` |
+| `text.statuslBadge.neutral` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.statuslBadge.brand` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.statuslBadge.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `text.statuslBadge.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.statuslBadge.warning` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `text.statuslBadge.in progress` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `text.statuslBadge.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.colorfulBadge.badge-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.colorfulBadge.grey` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.colorfulBadge.green` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.colorfulBadge.blue` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `text.colorfulBadge.teal` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.colorfulBadge.yellow` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `text.colorfulBadge.orange` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `text.colorfulBadge.red` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.colorfulBadge.indigo` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `text.colorfulBadge.pink` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
+| `text.colorfulBadge.megenta` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
+| `text.colorfulBadge.purple` | `#7E22CE` | `#D8B4FE` | `Primitive/color/purple/700` |
+| `text.pagination.default` | `#4D5358` | `#E2E4E6` | `Primitive/color/neutral/700` |
+| `text.pagination.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.pagination.selected` | `#007549` | `#FFFFFF` | `Brand/primary/700` |
+| `text.tooltip.tooltip-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.tabUnderline.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.tabUnderline.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `text.tabUnderline.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabUnderline.disabled` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
+| `text.tabPill.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabPill.subtext-default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.tabPill.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabPill.subtext-hover` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.tabPill.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabPill.selected-selected` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.tabPill.disabled` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `text.tabPill.selected-disabled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `text.tabCapsule.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.tabCapsule.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabCapsule.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.tabCapsule.disabled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `text.tabCapsule.inProgress` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.tabCapsule.success` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.timeslot.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.timeslot.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.timeslot.disabled` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `text.timeslot.selected` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `text.accordion.collapsed` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.accordion.expanded` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.accordion.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.accordion.content` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.alert.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `text.alert.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.alert.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `text.alert.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.alertDialog.text` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.alertDialog.subtext` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.calendar.date-default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.calendar.date-current` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar.date-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar.date-selected` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
+| `text.calendar.date-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
+| `text.calendar.month` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.calendar slot.date-default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.calendar slot.date-current` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.calendar slot.date-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar slot.date-selected` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `text.calendar slot.date-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
+| `text.calendar slot.month` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.calendar slot.slot-default` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `text.calendar slot.slot-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar slot.slot-selected` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
+| `text.calendar slot.slot-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
+| `text.calendar slot.text` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar slot.cta-default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `text.calendar slot.cta-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.calendar slot.cta-disabled` | `#CBD5E1` | `#334155` | `Primitive/color/slate/300` |
+| `text.list.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.list.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.list.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.list.subtext-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `text.list.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.list.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.modal.text` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.modal.subtext` | `#ADB2B7` | `#ADB2B7` | `Primitive/color/neutral/400` |
+| `text.modal.content` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `text.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.sideMenu.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `text.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.sideMenu.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `text.sideMenu.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.statuslBadge.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.statuslBadge.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `text.statuslBadge.warning` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `text.statuslBadge.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `text.statuslBadge.brand` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.statuslBadge.in progress` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `text.statuslBadge.neutral` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.steps.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.steps.success` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.steps.title` | `#007549 @ 50%` | `#7DE0B3 @ 50%` | `Brand/primaryText/700` |
-| `text.steps.select` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.steps.subtitle` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.steps.title-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.steps.title-select` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.steps.title-success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `text.tabCapsule.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.tabCapsule.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.tabCapsule.disabled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `text.tabCapsule.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.tabCapsule.inProgress` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.tabCapsule.success` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.tabPill.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.tabPill.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.tabPill.disabled` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `text.tabPill.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.tabUnderline.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.tabUnderline.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `text.tabUnderline.disabled` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
-| `text.tabUnderline.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.table.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.table.title` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
-| `text.table.footer` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
 | `text.topic.primary-title` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `text.topic.primary-subtext-default` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
 | `text.topic.primary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
@@ -1662,51 +1652,8 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.topic.tertiary-title` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
 | `text.topic.tertiary-subtext` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.topic.tertiary-subtext-on` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.tooltip.tooltip-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.brandPrimaryButton.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `text.brandPrimaryButton.tertiary` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `text.brandPrimaryButton.quaternary` | `#91DFBB` | `#007549` | `Brand/primary/300` |
-| `text.brandPrimaryButton.on-brand` | `#FFFFFF` | `#002318` | `Primitive/color/grey/50` |
-| `text.brandSecondaryButton.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
-| `text.brandSecondaryButton.secondary` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
-| `text.brandSecondaryButton.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
-| `text.brandSecondaryButton.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
-| `text.brandSecondaryButton.on-default` | `#FFFFFF` | `#102310` | `Primitive/color/grey/50` |
-| `text.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.dangerButton.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `text.dangerButton.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
-| `text.dangerButton.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `text.dangerButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `text.disabledButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.disabledButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.disabledButton.tertiary` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
-| `text.disabledButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `text.disabledButton.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.neutralButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.neutralButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.neutralButton.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.neutralButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `text.neutralButton.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `text.neutralTag.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.neutralTag.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.neutralTag.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.neutralTag.selected-hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.brandTag.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.brandTag.hover` | `#007549` | `#C9CDD0` | `Brand/primary/700` |
-| `text.brandTag.selected` | `#007549` | `#C9CDD0` | `Brand/primary/700` |
-| `text.brandTag.selected-hover` | `#007549` | `#C9CDD0` | `Brand/primary/700` |
-| `text.brandTag.title` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `text.timeslot.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.timeslot.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `text.timeslot.disabled` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `text.timeslot.selected` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `text.formBuilder.error` | `#DC2626` | `#FCA5A5` | `Primitive/color/red/600` |
-| `text.formBuilder.text` | `#007549` | `#54CF97` | `Brand/primary/700` |
-| `text.formBuilder.subtext` | `#858C92` | `#C9CDD0` | `Primitive/color/neutral/500` |
-| `text.statusSummaryCard.subtext` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
-| `text.statusSummaryCard.increase` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `text.statusSummaryCard.decrease` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.navigation.title` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.navigation.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
 | `text.statusSummaryCard.Info-number` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
 | `text.statusSummaryCard.Indigo-number` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `text.statusSummaryCard.lavender-number` | `#8A6CD8` | `#D0BEFF` | `Primitive/color/lavender/700` |
@@ -1715,9 +1662,9 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.statusSummaryCard.Lime-number` | `#6B8E26` | `#BDE36A` | `Primitive/color/lime/700` |
 | `text.statusSummaryCard.Inprogress-number` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
 | `text.statusSummaryCard.Destructive-number` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `text.categorySummaryCard.Title` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.categorySummaryCard.Subtext` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
-| `text.categorySummaryCard.Warning` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.statusSummaryCard.subtext` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
+| `text.statusSummaryCard.increase` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `text.statusSummaryCard.decrease` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `text.categorySummaryCard.A-number` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
 | `text.categorySummaryCard.B-number` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `text.categorySummaryCard.C-number` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
@@ -1726,6 +1673,23 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.categorySummaryCard.F-number` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
 | `text.categorySummaryCard.G-number` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
 | `text.categorySummaryCard.H-number` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `text.categorySummaryCard.Title` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.categorySummaryCard.Subtext` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
+| `text.categorySummaryCard.Warning` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `text.formBuilder.text` | `#007549` | `#54CF97` | `Brand/primary/700` |
+| `text.formBuilder.subtext` | `#858C92` | `#C9CDD0` | `Primitive/color/neutral/500` |
+| `text.formBuilder.error` | `#DC2626` | `#FCA5A5` | `Primitive/color/red/600` |
+| `text.steps.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.steps.select` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.steps.success` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `text.steps.title` | `#007549 @ 50%` | `#7DE0B3 @ 50%` | `Brand/primaryText/700` |
+| `text.steps.title-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.steps.title-select` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `text.steps.title-success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `text.steps.subtitle` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.table.title` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
+| `text.table.subtext` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `text.table.footer` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
 
 ### 4.3. `border`
 
@@ -1739,93 +1703,53 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `border.brandSecondary.secondary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
 | `border.brandSecondary.tertiary` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
 | `border.brandSecondary.quaternary` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
-| `border.danger.default` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `border.danger.secondary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
-| `border.danger.tertiary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `border.danger.quaternary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `border.disabled.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `border.disabled.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `border.disabled.tertiary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.disabled.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `border.info.default` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
-| `border.info.secondary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
-| `border.info.tertiary` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `border.info.quaternary` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `border.positive.default` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
-| `border.positive.secondary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
-| `border.positive.tertiary` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `border.positive.quaternary` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `border.progress.default` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
-| `border.progress.secondary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
-| `border.progress.tertiary` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `border.progress.quaternary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
-| `border.warning.default` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
-| `border.warning.secondary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
-| `border.warning.tertiary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `border.warning.quaternary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
 | `border.neutral.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `border.neutral.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `border.neutral.tertiary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.neutral.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `border.accordion.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `border.accordion.line` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.alert.error` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `border.alert.success` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `border.alert.warning` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `border.alert.info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `border.alertDialog.default` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.calendar slot.slot-default` | `#E2F3EB` | `#002318` | `Brand/primary/100` |
-| `border.calendar slot.slot-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.calendar slot.slot-selected` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `border.calendar slot.slot-disabled` | `#F5F7F9` | `#0F172A` | `Primitive/color/slate/100` |
-| `border.colorfulBadge.error` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `border.colorfulBadge.success` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `border.colorfulBadge.warning` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `border.colorfulBadge.warning2` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `border.colorfulBadge.info` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `border.colorfulBadge.brand` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.colorfulBadge.neutral` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.disabled.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `border.disabled.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `border.disabled.tertiary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.disabled.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `border.positive.default` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `border.positive.secondary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
+| `border.positive.tertiary` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `border.positive.quaternary` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `border.warning.default` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
+| `border.warning.secondary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
+| `border.warning.tertiary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `border.warning.quaternary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `border.progress.default` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
+| `border.progress.secondary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
+| `border.progress.tertiary` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `border.progress.quaternary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
+| `border.danger.default` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `border.danger.secondary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
+| `border.danger.tertiary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `border.danger.quaternary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `border.info.default` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
+| `border.info.secondary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
+| `border.info.tertiary` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
+| `border.info.quaternary` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
 | `border.input.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
 | `border.input.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.input.typing` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.input.filled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.input.error` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
 | `border.input.disabled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.modal.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `border.modal.secondary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
-| `border.modal.tertiary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.modal.quaternary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `border.modal.cardBorder` | `#F5F6FA` | `#004C31` | `Primitive/color/slate/50` |
-| `border.navigation.default` | `#F4F5F5` | `#4D5358` | `Primitive/color/neutral/100` |
 | `border.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.primarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.primarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `border.aiSearch.default` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
+| `border.aiSearch.hover` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `border.aiSearch.typing` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `border.aiSearch.filled` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
 | `border.secondarySearch.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
 | `border.secondarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.secondarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.secondarySearch.filled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `border.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `border.sideMenu.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `border.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `border.sideMenu.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `border.sideMenu.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `border.statusBadge.error` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `border.statusBadge.success` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `border.statusBadge.warning` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `border.statusBadge.warning2` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `border.statusBadge.info` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `border.statusBadge.brand` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.statusBadge.neutral` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.steps.default` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.tabCapsule.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `border.tabCapsule.hover` | `#C5EDDA` | `#007549` | `Brand/primary/200` |
-| `border.tabCapsule.disabled` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `border.tabCapsule.selected` | `#C5EDDA` | `#007549` | `Brand/primary/200` |
-| `border.tabCapsule.inProgress` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `border.tabCapsule.success` | `#E2E4E6` | `#24A899` | `Primitive/color/neutral/200` |
-| `border.table.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `border.table.line` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `border.image.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 | `border.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
 | `border.brandPrimaryButton.secondary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
@@ -1842,6 +1766,10 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `border.brandSecondaryButton.tertiary-hover` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
 | `border.brandSecondaryButton.quaternary` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
 | `border.brandSecondaryButton.quaternary-hover` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
+| `border.disabledButton.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `border.disabledButton.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `border.disabledButton.tertiary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.disabledButton.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `border.dangerButton.default` | `#DC2626` | `#FCA5A5` | `Primitive/color/red/600` |
 | `border.dangerButton.default-hover` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
 | `border.dangerButton.secondary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
@@ -1850,10 +1778,6 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `border.dangerButton.tertiary-hover` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
 | `border.dangerButton.quaternary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
 | `border.dangerButton.quaternary-hover` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `border.disabledButton.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `border.disabledButton.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `border.disabledButton.tertiary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.disabledButton.quaternary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `border.neutralButton.default` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `border.neutralButton.default-hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `border.neutralButton.secondary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
@@ -1864,47 +1788,87 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `border.neutralButton.quaternary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.neutralTag.default` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.neutralTag.default-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.neutralTag.quaternary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.neutralTag.selected` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.neutralTag.quaternary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.brandTag.default` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.brandTag.default-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.brandTag.quaternary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
 | `border.brandTag.selected` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `border.switch.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `border.switch.disabled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `border.timeslot.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `border.aiSearch.default` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
-| `border.aiSearch.hover` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `border.aiSearch.typing` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `border.aiSearch.filled` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
-| `border.image.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `border.card.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `border.card.brand-100` | `#C5EDDA` | `#4D5358` | `Primitive/color/emerald/200` |
-| `border.card.sakura-100` | `#FFE0EC` | `#D687A8` | `Primitive/color/sakura/200` |
-| `border.card.indigo-100` | `#E0E7FF` | `#4F46E5` | `Primitive/color/indigo/200` |
-| `border.card.blue-100` | `#BFDBFE` | `#1D4ED8` | `Primitive/color/blue/200` |
+| `border.brandTag.quaternary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.modal.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.modal.secondary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
+| `border.modal.tertiary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.modal.quaternary` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `border.modal.cardBorder` | `#F5F6FA` | `#004C31` | `Primitive/color/slate/50` |
+| `border.navigation.default` | `#F4F5F5` | `#4D5358` | `Primitive/color/neutral/100` |
+| `border.calendar slot.slot-default` | `#E2F3EB` | `#002318` | `Brand/primary/100` |
+| `border.calendar slot.slot-hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.calendar slot.slot-selected` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `border.calendar slot.slot-disabled` | `#F5F7F9` | `#0F172A` | `Primitive/color/slate/100` |
+| `border.statusBadge.brand` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.statusBadge.neutral` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.statusBadge.info` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
+| `border.statusBadge.success` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `border.statusBadge.warning` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `border.statusBadge.warning2` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `border.statusBadge.error` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `border.colorfulBadge.brand` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.colorfulBadge.neutral` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.colorfulBadge.info` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
+| `border.colorfulBadge.success` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `border.colorfulBadge.warning` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `border.colorfulBadge.warning2` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `border.colorfulBadge.error` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `border.popover.grey` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.tab.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.tab.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.tab.selected-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
 | `border.tab.line` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `border.accordion.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `border.accordion.line` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.alert.info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `border.alert.success` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `border.alert.warning` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `border.alert.error` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `border.alertDialog.default` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `border.sideMenu.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `border.sideMenu.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.sideMenu.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.timeslot.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
 | `border.pill.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.tabCapsule.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `border.tabCapsule.hover` | `#C5EDDA` | `#007549` | `Brand/primary/200` |
+| `border.tabCapsule.selected` | `#C5EDDA` | `#007549` | `Brand/primary/200` |
+| `border.tabCapsule.disabled` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `border.tabCapsule.inProgress` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `border.tabCapsule.success` | `#E2E4E6` | `#24A899` | `Primitive/color/neutral/200` |
+| `border.card.default` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `border.card.brand-100` | `#C5EDDA` | `#4D5358` | `Primitive/color/emerald/200` |
+| `border.card.indigo-100` | `#E0E7FF` | `#4F46E5` | `Primitive/color/indigo/200` |
+| `border.card.blue-100` | `#BFDBFE` | `#1D4ED8` | `Primitive/color/blue/200` |
+| `border.card.sakura-100` | `#FFE0EC` | `#D687A8` | `Primitive/color/sakura/200` |
+| `border.switch.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `border.switch.disabled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.formBuilder.default` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
 | `border.formBuilder.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.formBuilder.filled` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
 | `border.formBuilder.error` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `border.steps.default` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `border.table.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `border.table.line` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
 | `border.dropdown.default` | `#EBEBEB` | `#F4F4F4` | `Primitive/color/grey/600` |
 | `border.actionList.default` | `#EBEBEB` | `#F4F4F4` | `Primitive/color/grey/600` |
-| `border.slider.blue` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
-| `border.slider.teal` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `border.slider.orange` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
-| `border.slider.red` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
-| `border.slider.indigo` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
-| `border.slider.lavender` | `#C8B6FF` | `#C8B6FF` | `Primitive/color/lavender/500` |
-| `border.slider.lime` | `#A5CF4F` | `#A5CF4F` | `Primitive/color/lime/500` |
-| `border.slider.sakura` | `#F5AFCA` | `#F5AFCA` | `Primitive/color/sakura/500` |
 | `border.slider.primary` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
 | `border.slider.neutral` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `border.popover.grey` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `border.slider.blue` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
+| `border.slider.indigo` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
+| `border.slider.lavender` | `#C8B6FF` | `#C8B6FF` | `Primitive/color/lavender/500` |
+| `border.slider.teal` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `border.slider.lime` | `#A5CF4F` | `#A5CF4F` | `Primitive/color/lime/500` |
+| `border.slider.sakura` | `#F5AFCA` | `#F5AFCA` | `Primitive/color/sakura/500` |
+| `border.slider.orange` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
+| `border.slider.red` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
 
 ### 4.4. `icon`
 
@@ -1920,194 +1884,42 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `icon.brandSecondary.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
 | `icon.brandSecondary.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
 | `icon.brandSecondary.on-default` | `#FFFFFF` | `#102310` | `Primitive/color/grey/50` |
-| `icon.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.danger.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `icon.danger.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
-| `icon.danger.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `icon.danger.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.neutral.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `icon.neutral.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.neutral.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.neutral.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 | `icon.disabled.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `icon.disabled.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `icon.disabled.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `icon.disabled.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
 | `icon.disabled.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.info.default` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `icon.info.secondary` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
-| `icon.info.tertiary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
-| `icon.info.quaternary` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
-| `icon.info.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.navy.default` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `icon.navy.secondary` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
-| `icon.navy.tertiary` | `#A5B4FC` | `#6366F1` | `Primitive/color/indigo/400` |
-| `icon.navy.quaternary` | `#C7D2FE` | `#4F46E5` | `Primitive/color/indigo/300` |
-| `icon.navy.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.magenta.default` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
-| `icon.magenta.secondary` | `#A81BBD` | `#DC4CF2` | `Primitive/color/magenta/600` |
-| `icon.magenta.tertiary` | `#DC4CF2` | `#A81BBD` | `Primitive/color/magenta/400` |
-| `icon.magenta.quaternary` | `#EA78F9` | `#871598` | `Primitive/color/magenta/300` |
-| `icon.magenta.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.pink.default` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
-| `icon.pink.secondary` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
-| `icon.pink.tertiary` | `#F472B6` | `#DB2777` | `Primitive/color/pink/400` |
-| `icon.pink.quaternary` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
-| `icon.pink.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.step.accent` (`--icon-step-accent`) | `#FD879F` | `#FD879F` | coral accent in the two-tone care-journey step glyphs (Figma 371:45332 — `stepIcons.jsx`) |
 | `icon.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
 | `icon.positive.secondary` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
 | `icon.positive.tertiary` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
 | `icon.positive.quaternary` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
 | `icon.positive.on-brand` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
 | `icon.positive.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `icon.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `icon.progress.secondary` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
-| `icon.progress.tertiary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
-| `icon.progress.quaternary` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
-| `icon.progress.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
 | `icon.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
 | `icon.warning.secondary` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
 | `icon.warning.tertiary` | `#FB923C` | `#EA580C` | `Primitive/color/orange/400` |
 | `icon.warning.quaternary` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
 | `icon.warning.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.neutral.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `icon.neutral.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.neutral.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.neutral.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.accordion.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.accordion.collapsed` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.accordion.expanded` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.alert.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.alert.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.alert.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `icon.alert.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `icon.alertDialog.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.alertDialog.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.alertDialog.warning` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.alertDialog.info` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.calendar.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.calendar.selected` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.calendar slot.selected` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.colorfulBadge.badge-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.colorfulBadge.grey` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.colorfulBadge.green` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.colorfulBadge.blue` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `icon.colorfulBadge.teal` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.colorfulBadge.yellow` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `icon.colorfulBadge.orange` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `icon.colorfulBadge.red` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.colorfulBadge.indigo` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `icon.colorfulBadge.pink` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
-| `icon.colorfulBadge.purple` | `#7E22CE` | `#D8B4FE` | `Primitive/color/purple/700` |
-| `icon.colorfulBadge.megenta` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
-| `icon.input.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.input.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.input.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.input.filled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.input.error` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.input.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.list.secondary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.list.primary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.list.primary-default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.list.primary-selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.list.primary-selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.list.secondary-default` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `icon.list.secondary-selected` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `icon.list.secondary-selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.primarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.primarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.secondarySearch.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.sideMenu.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.sideMenu.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.sideMenu.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.statuslBadge.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.statuslBadge.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.statuslBadge.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `icon.statuslBadge.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `icon.statuslBadge.brand` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.statuslBadge.neutral` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.step.success-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.tabCapsule.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.tabCapsule.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.tabCapsule.disabled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.tabCapsule.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.tabCapsule.inProgress` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
-| `icon.tabCapsule.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `icon.tabPill.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.tabPill.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.tabPill.disabled` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `icon.tabPill.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.tabUnderline.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.tabUnderline.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.tabUnderline.disabled` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
-| `icon.tabUnderline.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.tabUnderline.selected-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
-| `icon.topic.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.topic.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.topic.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
-| `icon.brandPrimaryButton.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.brandPrimaryButton.secondary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.brandPrimaryButton.tertiary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
-| `icon.brandPrimaryButton.tertiary-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `icon.brandPrimaryButton.quaternary` | `#91DFBB` | `#007549` | `Brand/primary/300` |
-| `icon.brandPrimaryButton.quaternary-hover` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
-| `icon.brandPrimaryButton.on-brand` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.brandSecondaryButton.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
-| `icon.brandSecondaryButton.default-hover` | `#2E4F2C` | `#E1F0E0` | `Brand/secondary/800` |
-| `icon.brandSecondaryButton.secondary` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
-| `icon.brandSecondaryButton.secondary-hover` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
-| `icon.brandSecondaryButton.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
-| `icon.brandSecondaryButton.tertiary-hover` | `#53954E` | `#53954E` | `Brand/secondary/500` |
-| `icon.brandSecondaryButton.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
-| `icon.brandSecondaryButton.quaternary-hover` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
-| `icon.brandSecondaryButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.dangerButton.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `icon.dangerButton.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
-| `icon.dangerButton.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `icon.dangerButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
-| `icon.disablediconButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.disablediconButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `icon.disablediconButton.tertiary` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
-| `icon.disablediconButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.disablediconButton.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.neutralButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.neutralButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `icon.neutralButton.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.neutralButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.neutralButton.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `icon.brandTag.default` | `#007549` | `#08A768` | `Brand/primary/700` |
-| `icon.brandTag.hover` | `#007549` | `#08A768` | `Brand/primary/700` |
-| `icon.brandTag.selected` | `#007549` | `#08A768` | `Brand/primary/700` |
-| `icon.brandTag.selected-hover` | `#007549` | `#08A768` | `Brand/primary/700` |
-| `icon.brandTag.tailing` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.tag.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.tag.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.tag.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.tag.selected-hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.tag.tailing` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `icon.aiSearch.default` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
-| `icon.aiSearch.hover` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `icon.aiSearch.typing` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
-| `icon.aiSearch.filled` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
-| `icon.formBuilder.default` | `#007549` | `#CBD5E1` | `Brand/primary/700` |
-| `icon.formBuilder.error` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
-| `icon.formBuilder.content` | `#007549` | `#08A768` | `Brand/primary/700` |
-| `icon.formBuilder.iconBox-default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `icon.formBuilder.iconBox-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `icon.statusSummaryCard.Info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
-| `icon.statusSummaryCard.Positive` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `icon.statusSummaryCard.Inprogress` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `icon.statusSummaryCard.Destructive` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `icon.statusSummaryCard.increase` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.statusSummaryCard.decrease` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `icon.progress.secondary` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
+| `icon.progress.tertiary` | `#FACC15` | `#CA8A04` | `Primitive/color/yellow/400` |
+| `icon.progress.quaternary` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
+| `icon.progress.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.danger.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `icon.danger.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
+| `icon.danger.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `icon.danger.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.info.default` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `icon.info.secondary` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
+| `icon.info.tertiary` | `#60A5FA` | `#2563EB` | `Primitive/color/blue/400` |
+| `icon.info.quaternary` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
+| `icon.info.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
 | `icon.indigo.default` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `icon.indigo.secondary` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
 | `icon.indigo.tertiary` | `#A5B4FC` | `#6366F1` | `Primitive/color/indigo/400` |
@@ -2128,6 +1940,157 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `icon.sakura.tertiary` | `#FFC0D4` | `#E89DBA` | `Primitive/color/sakura/400` |
 | `icon.sakura.quaternary` | `#FFCFDF` | `#D687A8` | `Primitive/color/sakura/300` |
 | `icon.sakura.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.pink.default` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
+| `icon.pink.secondary` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
+| `icon.pink.tertiary` | `#F472B6` | `#DB2777` | `Primitive/color/pink/400` |
+| `icon.pink.quaternary` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
+| `icon.pink.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.navy.default` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `icon.navy.secondary` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
+| `icon.navy.tertiary` | `#A5B4FC` | `#6366F1` | `Primitive/color/indigo/400` |
+| `icon.navy.quaternary` | `#C7D2FE` | `#4F46E5` | `Primitive/color/indigo/300` |
+| `icon.navy.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.magenta.default` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
+| `icon.magenta.secondary` | `#A81BBD` | `#DC4CF2` | `Primitive/color/magenta/600` |
+| `icon.magenta.tertiary` | `#DC4CF2` | `#A81BBD` | `Primitive/color/magenta/400` |
+| `icon.magenta.quaternary` | `#EA78F9` | `#871598` | `Primitive/color/magenta/300` |
+| `icon.magenta.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.input.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.input.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.input.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.input.filled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.input.error` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.input.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.primarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.primarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.aiSearch.default` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
+| `icon.aiSearch.hover` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `icon.aiSearch.typing` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `icon.aiSearch.filled` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
+| `icon.secondarySearch.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
+| `icon.brandPrimaryButton.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.brandPrimaryButton.secondary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.brandPrimaryButton.tertiary` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
+| `icon.brandPrimaryButton.tertiary-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `icon.brandPrimaryButton.quaternary` | `#91DFBB` | `#007549` | `Brand/primary/300` |
+| `icon.brandPrimaryButton.quaternary-hover` | `#6AD6A5` | `#08A768` | `Brand/primary/400` |
+| `icon.brandPrimaryButton.on-brand` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.brandSecondaryButton.default` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
+| `icon.brandSecondaryButton.default-hover` | `#2E4F2C` | `#E1F0E0` | `Brand/secondary/800` |
+| `icon.brandSecondaryButton.secondary` | `#427C3D` | `#78B573` | `Brand/secondary/600` |
+| `icon.brandSecondaryButton.secondary-hover` | `#366233` | `#A7D2A3` | `Brand/secondary/700` |
+| `icon.brandSecondaryButton.tertiary` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
+| `icon.brandSecondaryButton.tertiary-hover` | `#53954E` | `#53954E` | `Brand/secondary/500` |
+| `icon.brandSecondaryButton.quaternary` | `#A7D2A3` | `#366233` | `Brand/secondary/300` |
+| `icon.brandSecondaryButton.quaternary-hover` | `#78B573` | `#427C3D` | `Brand/secondary/400` |
+| `icon.brandSecondaryButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.disablediconButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.disablediconButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `icon.disablediconButton.tertiary` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
+| `icon.disablediconButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.disablediconButton.on-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `icon.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.dangerButton.secondary` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `icon.dangerButton.tertiary` | `#F87171` | `#DC2626` | `Primitive/color/red/400` |
+| `icon.dangerButton.quaternary` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `icon.dangerButton.on-default` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
+| `icon.neutralButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.neutralButton.secondary` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+| `icon.neutralButton.tertiary` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.neutralButton.quaternary` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.neutralButton.on-neutral` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `icon.tag.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.tag.tailing` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.tag.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.tag.selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.tag.selected-hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.brandTag.default` | `#007549` | `#08A768` | `Brand/primary/700` |
+| `icon.brandTag.tailing` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.brandTag.hover` | `#007549` | `#08A768` | `Brand/primary/700` |
+| `icon.brandTag.selected` | `#007549` | `#08A768` | `Brand/primary/700` |
+| `icon.brandTag.selected-hover` | `#007549` | `#08A768` | `Brand/primary/700` |
+| `icon.colorfulBadge.badge-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `icon.colorfulBadge.grey` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.colorfulBadge.green` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.colorfulBadge.blue` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `icon.colorfulBadge.teal` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.colorfulBadge.yellow` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `icon.colorfulBadge.orange` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `icon.colorfulBadge.red` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.colorfulBadge.indigo` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
+| `icon.colorfulBadge.pink` | `#BE185D` | `#F9A8D4` | `Primitive/color/pink/700` |
+| `icon.colorfulBadge.megenta` | `#871598` | `#EA78F9` | `Primitive/color/magenta/700` |
+| `icon.colorfulBadge.purple` | `#7E22CE` | `#D8B4FE` | `Primitive/color/purple/700` |
+| `icon.statuslBadge.neutral` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.statuslBadge.brand` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.statuslBadge.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `icon.statuslBadge.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.statuslBadge.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `icon.statuslBadge.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.tabUnderline.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.tabUnderline.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.tabUnderline.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabUnderline.selected-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
+| `icon.tabUnderline.disabled` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
+| `icon.tabCapsule.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.tabCapsule.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabCapsule.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabCapsule.disabled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `icon.tabCapsule.inProgress` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
+| `icon.tabCapsule.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `icon.tabPill.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabPill.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabPill.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.tabPill.disabled` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `icon.accordion.collapsed` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.accordion.expanded` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.accordion.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.alert.info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `icon.alert.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.alert.warning` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `icon.alert.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.alertDialog.info` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.alertDialog.success` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.alertDialog.warning` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.alertDialog.error` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.calendar.selected` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.calendar.hover` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.calendar slot.selected` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `icon.list.primary-default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.list.primary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.list.primary-selected` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.list.primary-selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.list.secondary-default` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `icon.list.secondary-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.list.secondary-selected` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `icon.list.secondary-selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.sideMenu.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.sideMenu.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.sideMenu.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.sideMenu.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.sideMenu.selected-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.topic.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.topic.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.topic.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.statusSummaryCard.Info` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
+| `icon.statusSummaryCard.Positive` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `icon.statusSummaryCard.Inprogress` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `icon.statusSummaryCard.Destructive` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.statusSummaryCard.increase` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.statusSummaryCard.decrease` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `icon.formBuilder.default` | `#007549` | `#CBD5E1` | `Brand/primary/700` |
+| `icon.formBuilder.iconBox-default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `icon.formBuilder.content` | `#007549` | `#08A768` | `Brand/primary/700` |
+| `icon.formBuilder.iconBox-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `icon.formBuilder.error` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
+| `icon.step.success-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 
 ### 4.5. `surface`
 
@@ -2149,14 +2112,14 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.brandSecondary.tertiary-hover` | `#E1F0E0` | `#2E4F2C` | `Brand/secondary/200` |
 | `surface.brandSecondary.quaternary` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
 | `surface.brandSecondary.quaternary-hover` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
-| `surface.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
-| `surface.danger.default-hover` | `#991B1B` | `#FECACA` | `Primitive/color/red/800` |
-| `surface.danger.secondary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `surface.danger.secondary-hover` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
-| `surface.danger.tertiary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.danger.tertiary-hover` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `surface.danger.quaternary` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
-| `surface.danger.quaternary-hover` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `surface.neutral.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
+| `surface.neutral.secondary` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
+| `surface.neutral.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `surface.neutral.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `surface.neutral.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `surface.neutral.quaternary` | `#F9FBFB` | `#363B3F` | `Primitive/color/neutral/50` |
+| `surface.neutral.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `surface.disabled.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `surface.disabled.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
 | `surface.disabled.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
@@ -2165,6 +2128,38 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.disabled.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `surface.disabled.quaternary` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
 | `surface.disabled.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
+| `surface.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `surface.positive.default-hover` | `#195652` | `#A2EDDE` | `Primitive/color/teal/800` |
+| `surface.positive.secondary` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `surface.positive.secondary-hover` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
+| `surface.positive.tertiary` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.positive.tertiary-hover` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `surface.positive.quaternary` | `#F4FBFA` | `#082B2A` | `Primitive/color/teal/50` |
+| `surface.positive.quaternary-hover` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
+| `surface.warning.default-hover` | `#9A3412` | `#FED7AA` | `Primitive/color/orange/800` |
+| `surface.warning.secondary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `surface.warning.secondary-hover` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
+| `surface.warning.tertiary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.warning.tertiary-hover` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `surface.warning.quaternary` | `#FFF9F0` | `#431407` | `Primitive/color/orange/50` |
+| `surface.warning.quaternary-hover` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
+| `surface.progress.default-hover` | `#854D0E` | `#FEF08A` | `Primitive/color/yellow/800` |
+| `surface.progress.secondary` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `surface.progress.secondary-hover` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
+| `surface.progress.tertiary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
+| `surface.progress.tertiary-hover` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `surface.progress.quaternary` | `#FBFAF4` | `#422006` | `Primitive/color/yellow/50` |
+| `surface.progress.quaternary-hover` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
+| `surface.danger.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
+| `surface.danger.default-hover` | `#991B1B` | `#FECACA` | `Primitive/color/red/800` |
+| `surface.danger.secondary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `surface.danger.secondary-hover` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `surface.danger.tertiary` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.danger.tertiary-hover` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `surface.danger.quaternary` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
+| `surface.danger.quaternary-hover` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
 | `surface.info.default` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
 | `surface.info.default-hover` | `#1E40AF` | `#BFDBFE` | `Primitive/color/blue/800` |
 | `surface.info.secondary` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
@@ -2197,133 +2192,45 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.pink.tertiary-hover` | `#FBCFE8` | `#9D174D` | `Primitive/color/pink/200` |
 | `surface.pink.quaternary` | `#FBF4F8` | `#500724` | `Primitive/color/pink/50` |
 | `surface.pink.quaternary-hover` | `#FCE7F3` | `#831843` | `Primitive/color/pink/100` |
-| `surface.positive.default` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `surface.positive.default-hover` | `#195652` | `#A2EDDE` | `Primitive/color/teal/800` |
-| `surface.positive.secondary` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `surface.positive.secondary-hover` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
-| `surface.positive.tertiary` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.positive.tertiary-hover` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `surface.positive.quaternary` | `#F4FBFA` | `#082B2A` | `Primitive/color/teal/50` |
-| `surface.positive.quaternary-hover` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.progress.default` | `#A16207` | `#FDE047` | `Primitive/color/yellow/700` |
-| `surface.progress.default-hover` | `#854D0E` | `#FEF08A` | `Primitive/color/yellow/800` |
-| `surface.progress.secondary` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `surface.progress.secondary-hover` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
-| `surface.progress.tertiary` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
-| `surface.progress.tertiary-hover` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `surface.progress.quaternary` | `#FBFAF4` | `#422006` | `Primitive/color/yellow/50` |
-| `surface.progress.quaternary-hover` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
-| `surface.warning.default` | `#C2410C` | `#FDBA74` | `Primitive/color/orange/700` |
-| `surface.warning.default-hover` | `#9A3412` | `#FED7AA` | `Primitive/color/orange/800` |
-| `surface.warning.secondary` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `surface.warning.secondary-hover` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
-| `surface.warning.tertiary` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.warning.tertiary-hover` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `surface.warning.quaternary` | `#FFF9F0` | `#431407` | `Primitive/color/orange/50` |
-| `surface.warning.quaternary-hover` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.neutral.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `surface.neutral.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `surface.neutral.secondary` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `surface.neutral.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `surface.neutral.tertiary` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `surface.neutral.tertiary-hover` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `surface.neutral.quaternary` | `#F9FBFB` | `#363B3F` | `Primitive/color/neutral/50` |
-| `surface.neutral.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
-| `surface.accordion.disabled` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
-| `surface.accordion.collapsed` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.accordion.expanded` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.alert.error` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
-| `surface.alert.success` | `#F4FBFA` | `#082B2A` | `Primitive/color/teal/50` |
-| `surface.alert.warning` | `#FFF9F0` | `#431407` | `Primitive/color/orange/50` |
-| `surface.alert.info` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
-| `surface.alertDialog.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.calendar.date-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.calendar.date-current` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.calendar.date-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.calendar.date-selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `surface.calendar.date-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.calendar slot.date-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.calendar slot.date-current` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.calendar slot.date-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.calendar slot.date-selected` | `#007549` | `#08A768` | `Brand/primary/700` |
-| `surface.calendar slot.date-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.calendar slot.slot-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.calendar slot.slot-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.calendar slot.slot-selected` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `surface.calendar slot.slot-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.calendar slot.cta-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.calendar slot.cta-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.calendar slot.cta-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.colorfulBadge.grey` | `#F5F7F9` | `#0F172A` | `Primitive/color/slate/100` |
-| `surface.colorfulBadge.green` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.colorfulBadge.blue` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `surface.colorfulBadge.teal` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.colorfulBadge.yellow` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
-| `surface.colorfulBadge.orange` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.colorfulBadge.red` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.colorfulBadge.indigo` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
-| `surface.colorfulBadge.pink` | `#FCE7F3` | `#831843` | `Primitive/color/pink/100` |
-| `surface.colorfulBadge.purple` | `#F3E8FF` | `#581C87` | `Primitive/color/purple/100` |
-| `surface.colorfulBadge.megenta` | `#F9D6FE` | `#5A125F` | `Primitive/color/magenta/100` |
-| `surface.colorfulBadge.grey-bold` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `surface.colorfulBadge.green-bold` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `surface.colorfulBadge.blue-bold` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
-| `surface.colorfulBadge.teal-bold` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `surface.colorfulBadge.yellow-bold` | `#EAB308` | `#EAB308` | `Primitive/color/yellow/500` |
-| `surface.colorfulBadge.orange-bold` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
-| `surface.colorfulBadge.red-bold` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
-| `surface.colorfulBadge.indigo-bold` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
-| `surface.colorfulBadge.pink-bold` | `#EC4899` | `#EC4899` | `Primitive/color/pink/500` |
-| `surface.colorfulBadge.megenta-bold` | `#C926E0` | `#C926E0` | `Primitive/color/magenta/500` |
-| `surface.colorfulBadge.purple-bold` | `#A855F7` | `#A855F7` | `Primitive/color/purple/500` |
 | `surface.input.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
 | `surface.input.disabled` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
-| `surface.list.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.list.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.list.selected` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.list.selected-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.search.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
 | `surface.modal.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
 | `surface.modal.disabled` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `surface.navigation.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.pagination.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.pagination.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.pagination.selected` | `#E2F3EB` | `#007549` | `Brand/primary/100` |
-| `surface.sideMenu.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.sideMenu.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.sideMenu.disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.sideMenu.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.sideMenu.selected-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.statusBadge.error` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.statusBadge.success` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.statusBadge.warning` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.statusBadge.info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `surface.statusBadge.brand` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.statusBadge.neutral` | `#F5F7F9` | `#334155` | `Primitive/color/slate/100` |
-| `surface.steps.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.steps.hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `surface.steps.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `surface.steps.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `surface.steps.success-hover` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
-| `surface.tabCapsule.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.tabCapsule.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.tabCapsule.disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.tabCapsule.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.tabCapsule.success` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.tabPill.default` | `#FFFFFF` | `#363B3F` | `Primitive/color/grey/50` |
-| `surface.tabPill.hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `surface.tabPill.disabled` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.tabPill.selected` | `#FFFFFF` | `#363B3F` | `Primitive/color/grey/50` |
-| `surface.tabPill.background` | `#E2F3EB` | `#003322` | `Primitive/color/emerald/100` |
-| `surface.table.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.table.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.table.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.table.selected-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.table.header` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.table.footer` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.topic.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.topic.hover` | `#F4FBF8` | `#003322` | `Brand/primary/50` |
-| `surface.topic.disabled` | `#F9FBFB` | `#363B3F` | `Primitive/color/neutral/50` |
+| `surface.switch.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.switch.icon` | `#FFFFFF` | `#FFFFFF` | `Primitive/color/grey/50` |
+| `surface.switch.icon-disabled` | `#F4F5F5` | `#636B72` | `Primitive/color/neutral/100` |
+| `surface.switch.off` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `surface.switch.off-hover` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
+| `surface.switch.on` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `surface.switch.hover` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
+| `surface.switch.checkbox-dedault-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `surface.switch.on-hover` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
+| `surface.switch.checkbox` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `surface.switch.checkbox-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.switch.radio-dedault-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `surface.switch.radio` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `surface.switch.radio-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.switch.disabled` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `surface.switch.A` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
+| `surface.switch.B` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `surface.switch.C` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
+| `surface.switch.D` | `#F3ADFD` | `#6E1379` | `Primitive/color/magenta/200` |
+| `surface.switch.E` | `#E0E7FF` | `#4338CA` | `Primitive/color/indigo/200` |
+| `surface.switch.F` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
+| `surface.switch.G` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
+| `surface.switch.H` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
 | `surface.tooltip.default` | `#007549` | `#08A768` | `Brand/primary/700` |
+| `surface.tooltip.white` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.notification.default` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
+| `surface.navigation.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.card.100` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.card.200` | `#FDFDFD` | `#363B3F` | `Primitive/color/grey/100` |
+| `surface.card.300` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
+| `surface.card.brand-100` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.card.indigo-100` | `#F3F5FC` | `#1E1B4B` | `Primitive/color/indigo/50` |
+| `surface.card.sakura-200` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` |
+| `surface.card.blue-100` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
 | `surface.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `surface.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
 | `surface.brandPrimaryButton.secondary` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
@@ -2344,6 +2251,14 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.brandSecondarybutton.quaternary-hover` | `#EFF5EF` | `#274126` | `Brand/secondary/100` |
 | `surface.brandSecondarybutton.quinary` | `#FFFFFF` | `#020617` | `Primitive/color/grey/50` |
 | `surface.brandSecondarybutton.quinary-hover` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
+| `surface.disabledButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `surface.disabledButton.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
+| `surface.disabledButton.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `surface.disabledButton.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `surface.disabledButton.tertiary` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
+| `surface.disabledButton.tertiary-hover` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
+| `surface.disabledButton.quaternary` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
+| `surface.disabledButton.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `surface.dangerButton.default` | `#B91C1C` | `#FCA5A5` | `Primitive/color/red/700` |
 | `surface.dangerButton.default-hover` | `#991B1B` | `#FECACA` | `Primitive/color/red/800` |
 | `surface.dangerButton.secondary` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
@@ -2354,14 +2269,6 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.dangerButton.quaternary-hover` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
 | `surface.dangerButton.quinary` | `#FFFFFF` | `#DADADA` | `Primitive/color/grey/50` |
 | `surface.dangerButton.quinary-hover` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
-| `surface.disabledButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `surface.disabledButton.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
-| `surface.disabledButton.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `surface.disabledButton.secondary-hover` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
-| `surface.disabledButton.tertiary` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
-| `surface.disabledButton.tertiary-hover` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `surface.disabledButton.quaternary` | `#F9FBFB` | `#111314` | `Primitive/color/neutral/50` |
-| `surface.disabledButton.quaternary-hover` | `#F4F5F5` | `#222629` | `Primitive/color/neutral/100` |
 | `surface.neutralButton.default` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `surface.neutralButton.default-hover` | `#363B3F` | `#E2E4E6` | `Primitive/color/neutral/800` |
 | `surface.neutralButton.secondary` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
@@ -2380,50 +2287,102 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.brandTag.default-hover` | `#F4FBF8` | `#003322` | `Brand/primary/50` |
 | `surface.brandTag.selected` | `#F4FBF8` | `#003322` | `Brand/primary/50` |
 | `surface.brandTag.selected-hover` | `#E2F3EB` | `#004C31` | `Brand/primary/100` |
-| `surface.switch.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.switch.hover` | `#3EC3B2` | `#1B867D` | `Primitive/color/teal/400` |
-| `surface.switch.disabled` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `surface.switch.icon` | `#FFFFFF` | `#FFFFFF` | `Primitive/color/grey/50` |
-| `surface.switch.icon-disabled` | `#F4F5F5` | `#636B72` | `Primitive/color/neutral/100` |
-| `surface.switch.off` | `#E2E4E6` | `#4D5358` | `Primitive/color/neutral/200` |
-| `surface.switch.off-hover` | `#C9CDD0` | `#636B72` | `Primitive/color/neutral/300` |
-| `surface.switch.on` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
-| `surface.switch.on-hover` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
-| `surface.switch.checkbox` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `surface.switch.checkbox-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `surface.switch.checkbox-dedault-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `surface.switch.radio` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `surface.switch.radio-hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `surface.switch.radio-dedault-hover` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
-| `surface.switch.A` | `#BFDBFE` | `#1E40AF` | `Primitive/color/blue/200` |
-| `surface.switch.B` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
-| `surface.switch.C` | `#A2EDDE` | `#195652` | `Primitive/color/teal/200` |
-| `surface.switch.D` | `#F3ADFD` | `#6E1379` | `Primitive/color/magenta/200` |
-| `surface.switch.E` | `#E0E7FF` | `#4338CA` | `Primitive/color/indigo/200` |
-| `surface.switch.F` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
-| `surface.switch.G` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
-| `surface.switch.H` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
+| `surface.statusBadge.brand` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.statusBadge.neutral` | `#F5F7F9` | `#334155` | `Primitive/color/slate/100` |
+| `surface.statusBadge.info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `surface.statusBadge.success` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.statusBadge.warning` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.statusBadge.error` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.colorfulBadge.green-bold` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
+| `surface.colorfulBadge.green-medium` | `#91DFBB` | `#007549` | `Brand/primary/300` |
+| `surface.colorfulBadge.green` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.colorfulBadge.grey-bold` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `surface.colorfulBadge.grey-medium` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `surface.colorfulBadge.grey` | `#F5F7F9` | `#0F172A` | `Primitive/color/slate/100` |
+| `surface.colorfulBadge.blue-bold` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
+| `surface.colorfulBadge.blue-medium` | `#93C5FD` | `#1D4ED8` | `Primitive/color/blue/300` |
+| `surface.colorfulBadge.blue` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `surface.colorfulBadge.teal-bold` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.colorfulBadge.teal-medium` | `#6CDCCA` | `#196C65` | `Primitive/color/teal/300` |
+| `surface.colorfulBadge.teal` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.colorfulBadge.yellow-bold` | `#EAB308` | `#EAB308` | `Primitive/color/yellow/500` |
+| `surface.colorfulBadge.yellow-medium` | `#FDE047` | `#A16207` | `Primitive/color/yellow/300` |
+| `surface.colorfulBadge.yellow` | `#FEF9C3` | `#713F12` | `Primitive/color/yellow/100` |
+| `surface.colorfulBadge.orange-bold` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
+| `surface.colorfulBadge.orange-medium` | `#FDBA74` | `#C2410C` | `Primitive/color/orange/300` |
+| `surface.colorfulBadge.orange` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.colorfulBadge.red-bold` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
+| `surface.colorfulBadge.red-medium` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
+| `surface.colorfulBadge.red` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.colorfulBadge.indigo-bold` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
+| `surface.colorfulBadge.indigo-medium` | `#C7D2FE` | `#4F46E5` | `Primitive/color/indigo/300` |
+| `surface.colorfulBadge.indigo` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
+| `surface.colorfulBadge.pink-bold` | `#EC4899` | `#EC4899` | `Primitive/color/pink/500` |
+| `surface.colorfulBadge.pink-medium` | `#F9A8D4` | `#BE185D` | `Primitive/color/pink/300` |
+| `surface.colorfulBadge.pink` | `#FCE7F3` | `#831843` | `Primitive/color/pink/100` |
+| `surface.colorfulBadge.megenta-bold` | `#C926E0` | `#C926E0` | `Primitive/color/magenta/500` |
+| `surface.colorfulBadge.megenta-medium` | `#EA78F9` | `#871598` | `Primitive/color/magenta/300` |
+| `surface.colorfulBadge.megenta` | `#F9D6FE` | `#5A125F` | `Primitive/color/magenta/100` |
+| `surface.colorfulBadge.purple-bold` | `#A855F7` | `#A855F7` | `Primitive/color/purple/500` |
+| `surface.colorfulBadge.purple-medium` | `#D8B4FE` | `#7E22CE` | `Primitive/color/purple/300` |
+| `surface.colorfulBadge.purple` | `#F3E8FF` | `#581C87` | `Primitive/color/purple/100` |
+| `surface.pagination.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.pagination.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.pagination.selected` | `#E2F3EB` | `#007549` | `Brand/primary/100` |
+| `surface.list.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.list.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.list.selected` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.list.selected-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
 | `surface.timeslot.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 | `surface.timeslot.hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
-| `surface.timeslot.disabled` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
 | `surface.timeslot.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.timeslot.disabled` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
 | `surface.timeslot.box` | `#FAFCFA` | `#102310` | `Brand/secondary/50` |
-| `surface.card.100` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.card.200` | `#FDFDFD` | `#363B3F` | `Primitive/color/grey/100` |
-| `surface.card.300` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
-| `surface.card.brand-100` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.camera.viewport` | `#111827` | `#111827` | `Primitive/color/slate/900` |
-| `surface.card.sakura-200` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` |
-| `surface.card.indigo-100` | `#F3F5FC` | `#1E1B4B` | `Primitive/color/indigo/50` |
-| `surface.card.blue-100` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
-| `surface.card.skycyan-100` | `#F4F9FD` | `#081E40` | `Primitive/color/sky-cyan/50` |
-| `surface.notification.default` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
-| `surface.formBuilder.default` | `#F4FBF8` | `#E8E8E8` | `Brand/primary/50` |
-| `surface.formBuilder.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.formBuilder.filled` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
-| `surface.formBuilder.error` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
-| `surface.formBuilder.card` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
-| `surface.formBuilder.default-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.accordion.collapsed` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.accordion.expanded` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.accordion.disabled` | `#F4F5F5` | `#363B3F` | `Primitive/color/neutral/100` |
+| `surface.alert.info` | `#F0F6FF` | `#172554` | `Primitive/color/blue/50` |
+| `surface.alert.success` | `#F4FBFA` | `#082B2A` | `Primitive/color/teal/50` |
+| `surface.alert.warning` | `#FFF9F0` | `#431407` | `Primitive/color/orange/50` |
+| `surface.alert.error` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
+| `surface.smallAlert.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.smallAlert.error` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
+| `surface.alertDialog.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.calendar.date-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar.date-current` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.calendar.date-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.calendar.date-selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.calendar.date-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.date-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.date-current` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `surface.calendar slot.date-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.calendar slot.date-selected` | `#007549` | `#08A768` | `Brand/primary/700` |
+| `surface.calendar slot.date-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.slot-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.slot-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.calendar slot.slot-selected` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.calendar slot.slot-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.cta-default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.calendar slot.cta-hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.calendar slot.cta-disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.sideMenu.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.sideMenu.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.sideMenu.disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.sideMenu.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.sideMenu.selected-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.topic.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.topic.hover` | `#F4FBF8` | `#003322` | `Brand/primary/50` |
+| `surface.topic.disabled` | `#F9FBFB` | `#363B3F` | `Primitive/color/neutral/50` |
+| `surface.tabPill.default` | `#FFFFFF` | `#363B3F` | `Primitive/color/grey/50` |
+| `surface.tabPill.hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `surface.tabPill.selected` | `#FFFFFF` | `#363B3F` | `Primitive/color/grey/50` |
+| `surface.tabPill.disabled` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.tabPill.background` | `#E2F3EB` | `#003322` | `Primitive/color/emerald/100` |
+| `surface.tabCapsule.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.tabCapsule.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.tabCapsule.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.tabCapsule.disabled` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.tabCapsule.success` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 | `surface.statusSummaryCard.Info` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
 | `surface.statusSummaryCard.Indigo` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
 | `surface.statusSummaryCard.Sakura` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` |
@@ -2441,8 +2400,12 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.categorySummaryCard.F` | `#FECACA` | `#991B1B` | `Primitive/color/red/200` |
 | `surface.categorySummaryCard.G` | `#FEF08A` | `#854D0E` | `Primitive/color/yellow/200` |
 | `surface.categorySummaryCard.H` | `#FED7AA` | `#9A3412` | `Primitive/color/orange/200` |
-| `surface.dropdown.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.actionList.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.formBuilder.default` | `#F4FBF8` | `#E8E8E8` | `Brand/primary/50` |
+| `surface.formBuilder.default-on` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
+| `surface.formBuilder.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.formBuilder.filled` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.formBuilder.error` | `#FFF0F0` | `#450A0A` | `Primitive/color/red/50` |
+| `surface.formBuilder.card` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 | `surface.scrollBar.neutral-bar` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `surface.scrollBar.neutral-pill` | `#ADB2B7` | `#ADB2B7` | `Primitive/color/neutral/400` |
 | `surface.scrollBar.info-bar` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
@@ -2454,16 +2417,47 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.scrollBar.error-bar` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
 | `surface.scrollBar.error-pill` | `#FCA5A5` | `#B91C1C` | `Primitive/color/red/300` |
 | `surface.indicator.grey` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
-| `surface.indicator.green` | `#08A768` | `#6AD6A5` | `Primitive/color/emerald/600` |
 | `surface.indicator.blue` | `#2563EB` | `#60A5FA` | `Primitive/color/blue/600` |
-| `surface.indicator.teal` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
-| `surface.indicator.yellow` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
-| `surface.indicator.orange` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
-| `surface.indicator.red` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
 | `surface.indicator.indigo` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
-| `surface.indicator.magenta` | `#A81BBD` | `#DC4CF2` | `Primitive/color/magenta/600` |
+| `surface.indicator.teal` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `surface.indicator.green` | `#08A768` | `#6AD6A5` | `Primitive/color/emerald/600` |
+| `surface.indicator.orange` | `#EA580C` | `#FB923C` | `Primitive/color/orange/600` |
+| `surface.indicator.yellow` | `#CA8A04` | `#FACC15` | `Primitive/color/yellow/600` |
+| `surface.indicator.red` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
 | `surface.indicator.pink` | `#DB2777` | `#F472B6` | `Primitive/color/pink/600` |
 | `surface.indicator.purple` | `#9333EA` | `#C084FC` | `Primitive/color/purple/600` |
+| `surface.indicator.magenta` | `#A81BBD` | `#DC4CF2` | `Primitive/color/magenta/600` |
+| `surface.steps.default` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.steps.hover` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
+| `surface.steps.selected` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `surface.steps.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.steps.success-hover` | `#1B867D` | `#3EC3B2` | `Primitive/color/teal/600` |
+| `surface.table.header` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.table.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.table.hover` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.table.selected` | `#F4FBF8` | `#002318` | `Brand/primary/50` |
+| `surface.table.selected-hover` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.table.footer` | `#E2F3EB` | `#003322` | `Brand/primary/100` |
+| `surface.dropdown.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.actionList.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
+| `surface.progress Bar.neutral-bar` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
+| `surface.progress Bar.neutral-pill` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
+| `surface.progress Bar.blue-bar` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
+| `surface.progress Bar.blue-pill` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
+| `surface.progress Bar.indigo-bar` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
+| `surface.progress Bar.indigo-pill` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
+| `surface.progress Bar.lavender-bar` | `#EDE7FF` | `#4E3490` | `Primitive/color/lavender/100` |
+| `surface.progress Bar.lavender-pill` | `#C8B6FF` | `#C8B6FF` | `Primitive/color/lavender/500` |
+| `surface.progress Bar.teal-bar` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
+| `surface.progress Bar.teal-pill` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
+| `surface.progress Bar.lime-bar` | `#EAF7CC` | `#3B4E14` | `Primitive/color/lime/100` |
+| `surface.progress Bar.lime-pill` | `#A5CF4F` | `#A5CF4F` | `Primitive/color/lime/500` |
+| `surface.progress Bar.sakura-bar` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` |
+| `surface.progress Bar.sakura-pill` | `#F5AFCA` | `#F5AFCA` | `Primitive/color/sakura/500` |
+| `surface.progress Bar.orange-bar` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
+| `surface.progress Bar.orange-pill` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
+| `surface.progress Bar.red-bar` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
+| `surface.progress Bar.red-pill` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
 | `surface.slider.primary-bar` | `#C5EDDA` | `#004C31` | `Brand/primary/200` |
 | `surface.slider.primary-pill` | `#54CF97` | `#54CF97` | `Brand/primary/500` |
 | `surface.slider.neutral-bar` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
@@ -2484,30 +2478,6 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `surface.slider.orange-pill` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
 | `surface.slider.red-bar` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
 | `surface.slider.red-pill` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
-| `surface.progress Bar.neutral-bar` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
-| `surface.progress Bar.neutral-pill` | `#858C92` | `#858C92` | `Primitive/color/neutral/500` |
-| `surface.progress Bar.blue-bar` | `#DBEAFE` | `#1E3A8A` | `Primitive/color/blue/100` |
-| `surface.progress Bar.blue-pill` | `#3B82F6` | `#3B82F6` | `Primitive/color/blue/500` |
-| `surface.progress Bar.indigo-bar` | `#EEF2FF` | `#3730A3` | `Primitive/color/indigo/100` |
-| `surface.progress Bar.indigo-pill` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
-| `surface.progress Bar.lavender-bar` | `#EDE7FF` | `#4E3490` | `Primitive/color/lavender/100` |
-| `surface.progress Bar.lavender-pill` | `#C8B6FF` | `#C8B6FF` | `Primitive/color/lavender/500` |
-| `surface.progress Bar.teal-bar` | `#D1F6EE` | `#194845` | `Primitive/color/teal/100` |
-| `surface.progress Bar.teal-pill` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-| `surface.progress Bar.lime-bar` | `#EAF7CC` | `#3B4E14` | `Primitive/color/lime/100` |
-| `surface.progress Bar.lime-pill` | `#A5CF4F` | `#A5CF4F` | `Primitive/color/lime/500` |
-| `surface.progress Bar.sakura-bar` | `#FFEDF3` | `#A35C7C` | `Primitive/color/sakura/100` |
-| `surface.progress Bar.sakura-pill` | `#F5AFCA` | `#F5AFCA` | `Primitive/color/sakura/500` |
-| `surface.progress Bar.orange-bar` | `#FFEDD5` | `#7C2D12` | `Primitive/color/orange/100` |
-| `surface.progress Bar.orange-pill` | `#F97316` | `#F97316` | `Primitive/color/orange/500` |
-| `surface.progress Bar.red-bar` | `#FEE2E2` | `#7F1D1D` | `Primitive/color/red/100` |
-| `surface.progress Bar.red-pill` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
-| `surface.search.default` | `#FFFFFF` | `#222629` | `Primitive/color/grey/50` |
-| `surface.smallAlert.error` | `#EF4444` | `#EF4444` | `Primitive/color/red/500` |
-| `surface.smallAlert.success` | `#24A899` | `#24A899` | `Primitive/color/teal/500` |
-
-
----
 
 ### 4.6. `typography`
 
