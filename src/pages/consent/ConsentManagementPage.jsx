@@ -198,7 +198,15 @@ export default function ConsentManagementPage() {
       render: (r) => (
         <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
           <Initials name={r.name} />
-          <span className='truncate' style={TEXT_CELL}>{r.name}</span>
+          <div className='flex flex-col min-w-0'>
+            <span className='truncate' style={TEXT_CELL}>{r.name}</span>
+            {/* Edge ผู้เยาว์: แสดงผู้ปกครองผู้ลงนามแทนใต้ชื่อ */}
+            {r.guardian && (
+              <span className='truncate' style={{ ...MUTED_CELL, fontSize: 'var(--type-size-xs)' }}>
+                ผู้แทน: {r.guardian}
+              </span>
+            )}
+          </div>
         </div>
       ),
     },

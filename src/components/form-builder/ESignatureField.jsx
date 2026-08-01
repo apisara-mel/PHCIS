@@ -94,7 +94,9 @@ export default function ESignatureField({ value = '', onChange, signerName, heig
   const [tab, setTab] = useState('saved');
   const [savedId, setSavedId] = useState(null);
   const [uploadName, setUploadName] = useState('');
+  const [uploadError, setUploadError] = useState('');
   const fileRef = useRef(null);
+  const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
   const pickSaved = (sig) => {
     setSavedId(sig.id);
@@ -104,6 +106,18 @@ export default function ESignatureField({ value = '', onChange, signerName, heig
   const onUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    /* Edge DE7: ไฟล์ผิดชนิด/ใหญ่เกิน → แจ้ง error ชัดเจน ไม่รับไฟล์ */
+    if (!file.type.startsWith('image/')) {
+      setUploadError(`ไฟล์ "${file.name}" ไม่ใช่รูปภาพ — รองรับเฉพาะ PNG / JPG`);
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setUploadError(`ไฟล์ใหญ่เกิน 5 MB (${(file.size / 1024 / 1024).toFixed(1)} MB) — กรุณาย่อรูปก่อนอัปโหลด`);
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
+    setUploadError('');
     const reader = new FileReader();
     reader.onload = () => {
       setUploadName(file.name);
@@ -115,6 +129,7 @@ export default function ESignatureField({ value = '', onChange, signerName, heig
   const clearAll = () => {
     setSavedId(null);
     setUploadName('');
+    setUploadError('');
     if (fileRef.current) fileRef.current.value = '';
     onChange?.('');
   };
@@ -203,9 +218,24 @@ export default function ESignatureField({ value = '', onChange, signerName, heig
             >
               <Icon name='upload_file' size={20} />
               <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>
-                เลือกรูปลายเซ็นจากเครื่อง (PNG / JPG)
+                เลือกรูปลายเซ็นจากเครื่อง (PNG / JPG ไม่เกิน 5 MB)
               </span>
             </label>
+          )}
+          {uploadError && (
+            <span
+              role='alert'
+              className='inline-flex items-center'
+              style={{
+                gap: 'var(--dim-space-150)',
+                color: 'var(--text-colorfulbadge-red, #B91C1C)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+              }}
+            >
+              <Icon name='error' size={14} />
+              {uploadError}
+            </span>
           )}
         </div>
       )}

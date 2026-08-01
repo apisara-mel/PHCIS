@@ -93,6 +93,9 @@ export default function ConsentHistoryPopup({ open, onClose, record }) {
           <Initials name={record && record.name} />
           <InfoCol label='ชื่อ-นามสกุล ผู้ป่วย' value={(record && record.name) || '-'} />
           <InfoCol label='HN (Hospital Number)' value={(record && record.hn) || '-'} />
+          {record && record.guardian && (
+            <InfoCol label='ผู้แทนโดยชอบธรรม (กรณีผู้เยาว์)' value={record.guardian} />
+          )}
         </div>
 
         <Table
