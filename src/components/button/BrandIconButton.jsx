@@ -165,13 +165,17 @@ const BrandIconButton = React.forwardRef(function BrandIconButton(
       style={{
         width: dim.box, height: dim.box,
         borderRadius: 'var(--dim-radius-200)',
-        /* longhand, not the `border` / `background` shorthands — a React
-           inline SHORTHAND whose value contains var() is not replaced on
-           re-render: the CSSOM keeps the previous value, so a button that
-           switches variant while mounted (fill → quaternary when a queue is
-           called) keeps painting its old colour. Callers whose variant is
-           fixed at mount never see it, which is why /opd/queue looks right
-           and this only surfaced on the finance queue's call button. */
+        /* Longhand rather than the `border` shorthand — this codebase has a
+           standing problem with inline shorthands carrying var().
+
+           Note it does NOT make a mounted button repaint when its variant
+           changes: a node already holding a var()-based colour won't
+           recompute when the declaration starts referencing a different
+           var(), longhand or not (measured in Chrome — the inline value
+           reads back correctly, a forced reflow changes nothing, and a
+           freshly created element with the same declaration resolves fine).
+           Callers that flip variant at runtime have to remount the button;
+           see the `key` on the finance queue's call button. */
         ...splitBorder(s.border),
         backgroundColor: s.bg,
         outline: s.outline,
