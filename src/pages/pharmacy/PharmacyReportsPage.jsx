@@ -97,23 +97,6 @@ const CARD_SUBTITLE = {
   fontSize: 'var(--type-size-xs)',
 };
 
-const STAT_TILE = (label, value) => (
-  <div
-    key={label}
-    className='flex flex-col'
-    style={{
-      flex: '1 1 160px', minWidth: 160,
-      padding: 'var(--dim-space-400)',
-      borderRadius: 'var(--dim-radius-400)',
-      background: 'var(--surface-brandPrimary-quaternary)',
-      gap: 'var(--dim-space-100)',
-    }}
-  >
-    <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{label}</span>
-    <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-xl)' }}>{value}</span>
-  </div>
-);
-
 const DETAIL_COLUMNS = [
   { key: 'queueNo', label: 'เลขที่ใบสั่งยา', width: 130, render: (r) => <Badge style='success' size='small'>{r.queueNo}</Badge>, csv: (r) => r.queueNo },
   {
@@ -162,7 +145,7 @@ const buildSummaryRows = (from, to) => {
   return Array.from(byDrug.values()).sort((a, b) => b.totalQuantity - a.totalQuantity);
 };
 
-const ReportCard = ({ title, subtitle, stats, columns, rows, emptyMessage, onExport }) => (
+const ReportCard = ({ title, subtitle, columns, rows, emptyMessage, onExport }) => (
   <section className='w-full flex flex-col' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
     <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-400)' }}>
       <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
@@ -171,9 +154,6 @@ const ReportCard = ({ title, subtitle, stats, columns, rows, emptyMessage, onExp
       </div>
       <div className='flex-1' />
       <NeutralSubdueButton leadingIcon='ios_share' size='sm' onClick={onExport}>นำส่งออกรายงาน</NeutralSubdueButton>
-    </div>
-    <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-      {stats.map(([label, value]) => STAT_TILE(label, value))}
     </div>
     <Table columns={columns} rows={rows} rowKey={(r) => r.id || r.name} emptyMessage={emptyMessage} />
   </section>
@@ -190,6 +170,13 @@ const PharmacyReportsPage = () => {
   const dispensedCount = detailRows.filter((r) => r.status === DISPENSE_STATUS.DISPENSED || r.status === DISPENSE_STATUS.PARTIAL).length;
   const totalValue = summaryRows.reduce((s, r) => s + r.totalValue, 0);
   const rangeLabel = formatRangeLabel(fromDate, toDate);
+
+  const summaryCards = useMemo(() => [
+    { key: 'prescriptions', label: 'ใบสั่งยาในช่วงที่เลือก', value: detailRows.length, indicator: rangeLabel, color: 'brand', icon: 'description' },
+    { key: 'dispensed',     label: 'จ่ายแล้ว/บางส่วน',       value: dispensedCount,   indicator: 'ปิดรายการแล้ว', color: 'positive', icon: 'check_circle' },
+    { key: 'pending',       label: 'รอดำเนินการ',            value: detailRows.length - dispensedCount, indicator: 'ยังไม่จ่ายครบ', color: 'inprogress', icon: 'hourglass_top' },
+    { key: 'drugTypes',     label: 'รายการยาที่สั่ง',         value: summaryRows.length, indicator: `มูลค่ารวม ~฿${totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: 'info', icon: 'medication' },
+  ], [detailRows.length, dispensedCount, summaryRows.length, totalValue, rangeLabel]);
 
   const handleExport = (title, columns, rows) => {
     const filename = `${title.replace(/\s+/g, '-')}_${fromDate}_${toDate}.csv`;
@@ -210,7 +197,8 @@ const PharmacyReportsPage = () => {
       activeKey='pharmacy'
       breadcrumb={breadcrumb}
       title='รายงานระบบงานเภสัชกรรม'
-      actions={<PharmacySubNav />}
+      summaryCards={summaryCards}
+      belowSummary={<PharmacySubNav />}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
         <section className='w-full flex flex-wrap items-end' style={{ ...CARD, gap: 'var(--dim-space-300)' }}>
@@ -229,11 +217,6 @@ const PharmacyReportsPage = () => {
         <ReportCard
           title='รายงานรายละเอียดใบสั่งยารายวัน'
           subtitle={`${rangeLabel} · ${detailRows.length} ใบสั่งยา`}
-          stats={[
-            ['ใบสั่งยาทั้งหมด', detailRows.length],
-            ['จ่ายแล้ว/บางส่วน', dispensedCount],
-            ['รอดำเนินการ', detailRows.length - dispensedCount],
-          ]}
           columns={DETAIL_COLUMNS}
           rows={detailRows}
           emptyMessage='ไม่มีใบสั่งยาในช่วงวันที่เลือก'
@@ -242,10 +225,6 @@ const PharmacyReportsPage = () => {
         <ReportCard
           title='รายงานสรุปการจ่ายยา'
           subtitle={`${rangeLabel} · สรุปตามรายการยา`}
-          stats={[
-            ['รายการยาที่สั่ง', summaryRows.length],
-            ['มูลค่ารวม (โดยประมาณ)', `฿${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`],
-          ]}
           columns={SUMMARY_COLUMNS}
           rows={summaryRows}
           emptyMessage='ไม่มีข้อมูลการจ่ายยาในช่วงวันที่เลือก'

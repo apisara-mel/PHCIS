@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
@@ -366,10 +366,30 @@ const RECEIVING_COLUMNS = [
   { key: 'status', label: 'สถานะ', width: 120, render: (r) => r.status === 'cancelled' ? <Badge style='error' size='small'>{RECEIVING_STATUS_PILL.cancelled.label}</Badge> : <Badge style='success' size='small'>รับเข้าแล้ว</Badge>, print: (r) => r.status === 'cancelled' ? RECEIVING_STATUS_PILL.cancelled.label : 'รับเข้าแล้ว' },
 ];
 
+const countRows = (rows, pred) => rows.filter(pred).length;
+
+const buildRequisitionSummaryCards = (activeTab, requisitions, receiving) => {
+  if (activeTab === 'receiving') {
+    const totalQty = receiving.reduce((s, r) => s + r.quantity, 0);
+    return [
+      { key: 'total',     label: 'รายการรับเข้าคลัง', value: receiving.length,                                      indicator: 'คลังยาใหญ่',              color: 'brand',      icon: 'move_up'       },
+      { key: 'purchase',  label: 'จัดซื้อ',            value: countRows(receiving, (r) => r.receivingType === 'purchase'),  indicator: 'รับจาก GPO/จัดซื้อ', color: 'positive',   icon: 'shopping_cart' },
+      { key: 'transfer',  label: 'โอนจากหน่วยงานอื่น', value: countRows(receiving, (r) => r.receivingType === 'transfer'), indicator: 'รับโอนย้าย',           color: 'info',       icon: 'swap_horiz'    },
+      { key: 'totalQty',  label: 'จำนวนรับรวม',         value: totalQty.toLocaleString(),                               indicator: 'ทุกรายการ',              color: 'inprogress', icon: 'inventory_2'   },
+    ];
+  }
+  return [
+    { key: 'total',     label: 'คำขอเบิกทั้งหมด',  value: requisitions.length,                                      indicator: 'เบิกจ่ายยา/เวชภัณฑ์', color: 'brand',      icon: 'move_down'     },
+    { key: 'pending',   label: 'รอดำเนินการ',      value: countRows(requisitions, (r) => r.status === 'pending'),   indicator: 'รออนุมัติ',            color: 'inprogress', icon: 'hourglass_top' },
+    { key: 'approved',  label: 'อนุมัติแล้ว',       value: countRows(requisitions, (r) => r.status === 'approved'),  indicator: 'รอเบิกจ่าย',           color: 'info',       icon: 'task_alt'      },
+    { key: 'fulfilled', label: 'เบิกจ่ายแล้ว',      value: countRows(requisitions, (r) => r.status === 'fulfilled'), indicator: 'ปิดรายการแล้ว',         color: 'positive',   icon: 'check_circle'  },
+  ];
+};
+
 const PharmacyRequisitionPage = () => {
   const [activeTab, setActiveTab] = useState('requisition');
   const [showForm, setShowForm] = useState(false);
-  const [, forceRender] = useState(0);
+  const [renderTick, forceRender] = useState(0);
   const bump = () => forceRender((n) => n + 1);
 
   /* §1.9.6.1 — edit/cancel/approve an existing requisition line. Edit is
@@ -487,11 +507,10 @@ const PharmacyRequisitionPage = () => {
     },
   };
 
-  const summaryCards = [
-    { key: 'pending',   label: 'รอดำเนินการ',  value: REQUISITIONS.filter((r) => r.status === 'pending').length,  indicator: 'คำขอเบิกจ่าย', color: 'inprogress', icon: 'hourglass_top' },
-    { key: 'fulfilled', label: 'เบิกจ่ายแล้ว',  value: REQUISITIONS.filter((r) => r.status === 'fulfilled').length, indicator: 'เดือนนี้',     color: 'positive',   icon: 'move_down'     },
-    { key: 'received',  label: 'รับเข้าคลังใหญ่', value: RECEIVING_RECORDS.length,                                   indicator: 'รายการทั้งหมด', color: 'brand',      icon: 'move_up'       },
-  ];
+  const summaryCards = useMemo(
+    () => buildRequisitionSummaryCards(activeTab, REQUISITIONS, RECEIVING_RECORDS),
+    [activeTab, renderTick],
+  );
 
   return (
     <>
@@ -505,8 +524,8 @@ const PharmacyRequisitionPage = () => {
         activeKey='pharmacy'
         breadcrumb={breadcrumb}
         title='เบิกจ่ายยา/เวชภัณฑ์ และรับเข้าคลังใหญ่'
-        actions={<PharmacySubNav />}
         summaryCards={summaryCards}
+        belowSummary={<PharmacySubNav />}
         tabs={TABS}
         activeTab={activeTab}
         onTabChange={(k) => { setActiveTab(k); setShowForm(false); }}
