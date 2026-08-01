@@ -25,6 +25,7 @@ import {
 } from '@/data/patientProfiles';
 import { buildRegistrationSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
 import { NEW_USER_AVATAR } from '@/data/avatarAssets';
+import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 
 /* MIH RegistrationQueuePage — Figma node 2756:148259 / queue col 199:9243.
    Patient roster for the Medical Records (เวชระเบียน) workflow. Shares the
@@ -135,41 +136,6 @@ const StatusPill = ({ status }) => {
 /* Table avatar size — Figma Register Home UserA / New User = 36px. */
 const TABLE_AVATAR_SIZE = 36;
 
-/* Avatar — colored circle with first character of name (deterministic by HN). */
-const HUES = ['#F472B6', '#A78BFA', '#60A5FA', '#34D399', '#FBBF24', '#FB7185'];
-const Avatar = ({ name, hn }) => {
-  const seed = hn ? parseInt(hn.replace(/\D/g, ''), 10) : 0;
-  const bg = HUES[seed % HUES.length];
-  const ch = (name || '?').trim().charAt(0);
-  return (
-    <span
-      className='shrink-0 inline-flex items-center justify-center rounded-full'
-      style={{
-        width: TABLE_AVATAR_SIZE, height: TABLE_AVATAR_SIZE,
-        background: bg,
-        color: 'var(--text-content-on-content)',
-        fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
-        fontWeight: 'var(--type-weight-medium)',
-      }}
-    >
-      {ch}
-    </span>
-  );
-};
-
-/* Figma "New User" avatar — MIH Design System Foundation 3891:7747
-   (#CFF5FF circle + person silhouette) for walk-in ที่ไม่เคยใช้บริการ */
-const NewUserAvatar = ({ size = TABLE_AVATAR_SIZE }) => (
-  <img
-    src={NEW_USER_AVATAR}
-    alt=''
-    className='shrink-0 rounded-full object-cover'
-    style={{ width: size, height: size }}
-    aria-hidden
-  />
-);
-
 const MR_BY_HN = Object.fromEntries(MR_PATIENTS.map((p) => [p.hn, p]));
 
 /* Queue pill — Figma PHCIS-Registration 199:9243 (teal ColorfulBadge). */
@@ -206,7 +172,7 @@ const renderName = (row) => {
   if (isNewPatientRow(row) || !row.name) {
     return (
       <div className='flex items-center gap-2 min-w-0 flex-1'>
-        <NewUserAvatar />
+        <QueuePatientAvatar newUser size={TABLE_AVATAR_SIZE} />
         <span className='truncate'>{EMPTY_PENDING}</span>
       </div>
     );
@@ -216,16 +182,12 @@ const renderName = (row) => {
   const avatarLabel = profile?.shortName ?? row.name;
   return (
     <div className='flex items-center gap-2 min-w-0 flex-1'>
-      {avatarUrl ? (
-        <img
-          src={avatarUrl}
-          alt=''
-          className='shrink-0 rounded-full object-cover'
-          style={{ width: TABLE_AVATAR_SIZE, height: TABLE_AVATAR_SIZE }}
-        />
-      ) : (
-        <Avatar name={avatarLabel} hn={row.hn} />
-      )}
+      <QueuePatientAvatar
+        name={avatarLabel}
+        hn={row.hn}
+        avatarUrl={avatarUrl}
+        size={TABLE_AVATAR_SIZE}
+      />
       <span className='truncate'>{formatNameSurnameMasked(row.name)}</span>
     </div>
   );

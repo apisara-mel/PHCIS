@@ -1089,6 +1089,21 @@
     if (h) h.classList.add('active-section');
   }
 
+  /* ── Scroll the spec pane to a heading.
+       design.md renders to ~900 KB of HTML whose tables / code blocks keep
+       reflowing for several frames after innerHTML lands — a single
+       scrollIntoView() therefore aims at a position that no longer exists and
+       leaves the reader in the wrong section (most visibly on first load from
+       a #deep-link). Re-assert the position a few times, then stop so the
+       user's own scrolling is never fought. */
+  function scrollToAnchor(id, attempt = 0) {
+    const h = document.getElementById(id);
+    if (!h) return;
+    h.scrollIntoView({ behavior: attempt === 0 ? 'smooth' : 'auto', block: 'start' });
+    highlightSection(id);
+    if (attempt < 3) setTimeout(() => scrollToAnchor(id, attempt + 1), 200);
+  }
+
   /* ── Choose entry → update topbar, scroll, iframe. */
   function selectEntry(e) {
     activeEntry = e;
@@ -1145,11 +1160,7 @@
 
     /* Scroll spec pane to the section */
     if (e.anchor) {
-      const h = document.getElementById(e.anchor);
-      if (h) {
-        h.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        highlightSection(e.anchor);
-      }
+      scrollToAnchor(e.anchor);
     } else if (e.kind === 'component' && currentTab === 'spec') {
       /* Component without a design.md anchor — switch to live tab */
       setTab('live');

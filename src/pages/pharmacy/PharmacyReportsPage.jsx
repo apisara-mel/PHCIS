@@ -4,7 +4,9 @@ import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import { buildReportsSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
+import { PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
 import { PHARMACY_QUEUE, PHARMACY_USAGE_HISTORY, DISPENSE_STATUS } from '@/data/pharmacyQueue';
 import { getRegistryDrug, currentPrice } from '@/data/pharmacyRegistry';
 
@@ -77,9 +79,7 @@ const STATUS_PILL = {
 };
 
 const CARD = {
-  background: 'var(--surface-card-100)',
-  borderRadius: 'var(--dim-radius-500)',
-  boxShadow: 'var(--shadow-card-strong)',
+  ...PHARMACY_WORKLIST_CARD,
   padding: 'var(--dim-space-600)',
 };
 
@@ -171,12 +171,10 @@ const PharmacyReportsPage = () => {
   const totalValue = summaryRows.reduce((s, r) => s + r.totalValue, 0);
   const rangeLabel = formatRangeLabel(fromDate, toDate);
 
-  const summaryCards = useMemo(() => [
-    { key: 'prescriptions', label: 'ใบสั่งยาในช่วงที่เลือก', value: detailRows.length, indicator: rangeLabel, color: 'brand', icon: 'description' },
-    { key: 'dispensed',     label: 'จ่ายแล้ว/บางส่วน',       value: dispensedCount,   indicator: 'ปิดรายการแล้ว', color: 'positive', icon: 'check_circle' },
-    { key: 'pending',       label: 'รอดำเนินการ',            value: detailRows.length - dispensedCount, indicator: 'ยังไม่จ่ายครบ', color: 'inprogress', icon: 'hourglass_top' },
-    { key: 'drugTypes',     label: 'รายการยาที่สั่ง',         value: summaryRows.length, indicator: `มูลค่ารวม ~฿${totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: 'info', icon: 'medication' },
-  ], [detailRows.length, dispensedCount, summaryRows.length, totalValue, rangeLabel]);
+  const summaryCards = useMemo(
+    () => buildReportsSummaryCards({ detailRows, summaryRows, dispensedCount, totalValue, rangeLabel }),
+    [detailRows, summaryRows, dispensedCount, totalValue, rangeLabel],
+  );
 
   const handleExport = (title, columns, rows) => {
     const filename = `${title.replace(/\s+/g, '-')}_${fromDate}_${toDate}.csv`;
@@ -198,6 +196,7 @@ const PharmacyReportsPage = () => {
       breadcrumb={breadcrumb}
       title='รายงานระบบงานเภสัชกรรม'
       summaryCards={summaryCards}
+      actions={<PharmacyAddDrugButton />}
       belowSummary={<PharmacySubNav />}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>

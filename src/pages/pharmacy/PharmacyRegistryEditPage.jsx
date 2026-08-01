@@ -16,6 +16,7 @@ import {
   getRegistryDrugById,
   upsertRegistryDrug,
 } from '@/data/pharmacyRegistry';
+import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
 
 /* Drug Registry add/edit page (ToR §1.9.1 + §1.9.10 settings). Mirrors
    `UserEditPage.jsx`'s SectionCard / radio-card / chip-multiselect /
@@ -47,8 +48,8 @@ const BLANK_DRUG = {
 
 const SectionCard = ({ icon, title, subtitle, children, action }) => (
   <section
-    className='bg-surface-card rounded-card flex flex-col w-full'
-    style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)', boxShadow: 'var(--shadow-card-strong)' }}
+    className='flex flex-col w-full'
+    style={{ ...PHARMACY_WORKLIST_CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
   >
     <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
       <div
@@ -281,7 +282,12 @@ const PharmacyRegistryEditPage = () => {
             </div>
             <label
               className='inline-flex items-center cursor-pointer w-fit'
-              style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-300)', background: form.highAlert ? 'var(--surface-alert-warning)' : 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-200)' }}
+              style={{
+                ...PHARMACY_NESTED_PANEL,
+                gap: 'var(--dim-space-200)',
+                padding: 'var(--dim-space-300)',
+                ...(form.highAlert ? { background: 'var(--surface-alert-warning)' } : null),
+              }}
             >
               <input
                 type='checkbox'
@@ -355,7 +361,7 @@ const PharmacyRegistryEditPage = () => {
           }>
             <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
               {form.priceSchedule.map((p, i) => (
-                <div key={p.id} className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-300)', background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-200)' }}>
+                <div key={p.id} className='flex flex-wrap items-center w-full' style={{ ...PHARMACY_NESTED_PANEL, gap: 'var(--dim-space-300)', padding: 'var(--dim-space-300)' }}>
                   <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                     <span className='text-xs text-ink-tertiary'>เริ่มมีผล</span>
                     <input type='date' value={p.effectiveFrom} onChange={(e) => updatePriceRow(i, 'effectiveFrom', e.target.value)} style={{ padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)' }} />
@@ -391,7 +397,7 @@ const PharmacyRegistryEditPage = () => {
             </SectionCard>
           )}
 
-          <section className='bg-surface-card rounded-card flex flex-wrap items-center w-full sticky bottom-0' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)', boxShadow: 'var(--shadow-card-strong)' }}>
+          <section className='flex flex-wrap items-center w-full sticky bottom-0' style={{ ...PHARMACY_WORKLIST_CARD, gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)' }}>
             <div className='flex-1 min-w-0 flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
               <span className='text-xs text-ink-tertiary'>
                 สรุป: <strong className='text-ink-secondary'>{DRUG_CLASSIFICATIONS.find((c) => c.key === form.classification)?.label}</strong>

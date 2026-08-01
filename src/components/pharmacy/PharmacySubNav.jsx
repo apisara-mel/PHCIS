@@ -1,6 +1,7 @@
 import React from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import TabUnderline from '@/components/tab/TabUnderline';
+import BrandButton from '@/components/button/BrandButton';
 
 /* Cross-links the pharmacy module pages. The Sidebar's `pharmacy` entry stays
    a flat item pointing at the queue (matches the OPD/Registration/Treatment
@@ -17,6 +18,19 @@ const LINKS = [
 ];
 
 const TABS = LINKS.map(({ key, label }) => ({ key, label }));
+
+/** Primary action — same SubHeader slot on every pharmacy list page. */
+export const PharmacyAddDrugButton = () => {
+  const history = useHistory();
+  const { pathname } = useLocation();
+  if (pathname === '/pharmacy/registry/new') return null;
+
+  return (
+    <BrandButton size='md' leadingIcon='add' onClick={() => history.push('/pharmacy/registry/new')}>
+      เพิ่มยาใหม่
+    </BrandButton>
+  );
+};
 
 const PharmacySubNav = () => {
   const history = useHistory();
