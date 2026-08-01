@@ -1048,6 +1048,15 @@ const FinancePaymentPage = () => {
               กับ OPD ทั้งตัวคอมโพเนนต์ ไอคอน และสีที่สื่อความหมาย */}
           {row.status === 'pending' && (
             <BrandIconButton
+              /* Remount on variant change. A node that already holds a
+                 var()-based colour does not recompute when the declaration
+                 starts referencing a different var() — verified in Chrome:
+                 the inline value reads back correctly, a forced reflow
+                 changes nothing, yet a freshly created element with the
+                 identical declaration resolves fine. Every other caller sets
+                 its variant once at mount and never sees this; this button
+                 flips fill → quaternary on click, so it needs a new node. */
+              key={`call-${row.id}-${row.pharmacyStatus !== 'ready' ? 'off' : calledQueue.has(row.id) ? 'called' : 'ready'}`}
               icon='volume_up'
               size='sm'
               variant={row.pharmacyStatus !== 'ready'
