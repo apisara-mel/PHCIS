@@ -3,6 +3,7 @@ import Popup from '@/components/popup/Popup';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
+import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import { CONSENT_TYPE_TONE, CONSENT_STATUS } from '@/data/consentRecords';
 
 /* MIH ConsentHistoryPopup — Figma "PHCIS | Consent" Popup ExtraLarge
@@ -101,6 +102,15 @@ export default function ConsentHistoryPopup({ open, onClose, record }) {
           emptyMessage='ยังไม่มีประวัติความยินยอม'
           emptySubtext='เมื่อผู้ป่วยให้หรือถอนความยินยอม รายการจะปรากฏที่นี่'
         />
+
+        {/* Audit trail ของรายการนี้ — TOR 1.4.3.16 */}
+        {record && (
+          <ConsentAuditBar
+            recordedBy={record.requester || '-'}
+            recordedAt={record.createdDate || '-'}
+            editedAt={record.signedDate && record.signedDate !== '-' ? record.signedDate : undefined}
+          />
+        )}
       </div>
     </Popup>
   );

@@ -14,6 +14,9 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import ConsentHistoryPopup from '@/components/popup/ConsentHistoryPopup';
+import Checkbox from '@/components/checkbox/Checkbox';
+import CheckboxBox from '@/components/checkbox/CheckboxBox';
+import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import {
   CONSENT_RECORDS, CONSENT_SUMMARY, CONSENT_TABS,
   CONSENT_STATUS, CONSENT_TYPE_TONE, CONSENT_CONFIRM,
@@ -72,8 +75,13 @@ export default function ConsentManagementPage() {
   const [filterDate, setFilterDate] = useState('');
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  const [dialog, setDialog] = useState(null);      // { record, confirmKey }
+  const [dialog, setDialog] = useState(null);      // { record | bulkIds, confirmKey }
   const [historyRecord, setHistoryRecord] = useState(null);
+  /* Bulk-select mode — Figma 297:128439 (แท็บรอลงนาม): chip "เลือก" เปิด
+     คอลัมน์ checkbox เพื่อดำเนินการหลายรายการพร้อมกัน */
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [toast, setToast] = useState(null);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:consent');
 
@@ -216,6 +224,79 @@ export default function ConsentManagementPage() {
 
   const confirm = dialog ? CONSENT_CONFIRM[dialog.confirmKey] : null;
 
+  /* ── Bulk-select helpers ────────────────────────────────────────── */
+  /* Bulk CTA ต่อแท็บ (แท็บ all ไม่มี bulk action — สถานะปนกัน) */
+  const BULK_ACTION_BY_TAB = {
+    pending:   { label: 'ยกเลิกคำขอ', kind: 'outline', confirm: 'cancel' },
+    consented: { label: 'เพิกถอน',    kind: 'outline', confirm: 'revoke' },
+    rejected:  { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' },
+    expiring:  { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' },
+    expired:   { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' },
+  };
+  const bulkAction = BULK_ACTION_BY_TAB[activeTab] || null;
+
+  const toggleSelectMode = () => {
+    setSelectMode((v) => !v);
+    setSelectedIds(new Set());
+  };
+  const toggleRow = (id) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const pageAllSelected = pageRows.length > 0 && pageRows.every((r) => selectedIds.has(r.id));
+  const togglePageAll = () => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (pageAllSelected) pageRows.forEach((r) => next.delete(r.id));
+    else pageRows.forEach((r) => next.add(r.id));
+    return next;
+  });
+
+  const runDialogConfirm = () => {
+    if (dialog?.bulkIds) {
+      setToast({
+        id: Date.now(),
+        variant: 'success',
+        message: `${confirm?.title || 'ดำเนินการ'}สำเร็จ ${dialog.bulkIds.length} รายการ`,
+      });
+      setSelectedIds(new Set());
+    }
+    setDialog(null);
+  };
+
+  /* เก็บ log เมื่อ export (annotation 414:123633 — print ไม่เก็บ log) */
+  const handleExport = () => {
+    setToast({
+      id: Date.now(),
+      variant: 'success',
+      message: 'นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล',
+    });
+  };
+
+  const selectColumn = {
+    key: '_select',
+    header: (
+      <Checkbox
+        checked={pageAllSelected}
+        onChange={togglePageAll}
+        aria-label='เลือกทั้งหมดในหน้านี้'
+      />
+    ),
+    width: 52,
+    render: (r) => (
+      <Checkbox
+        checked={selectedIds.has(r.id)}
+        onChange={() => toggleRow(r.id)}
+        aria-label={`เลือก ${r.name}`}
+      />
+    ),
+  };
+  /* ในโหมดเลือก: เพิ่มคอลัมน์ checkbox และซ่อนคอลัมน์การดำเนินการรายแถว
+     (ตาม Figma แท็บรอลงนาม) */
+  const displayColumns = selectMode
+    ? [selectColumn, ...columns.filter((c) => c.key !== 'action')]
+    : columns;
+
   return (
     <>
       <QueuePageShell
@@ -276,6 +357,30 @@ export default function ConsentManagementPage() {
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
               <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
                 <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+                  {/* Chip "เลือก" — เปิด/ปิดโหมดเลือกหลายรายการ (Figma 297:128439) */}
+                  <button
+                    type='button'
+                    onClick={toggleSelectMode}
+                    aria-pressed={selectMode}
+                    className='inline-flex items-center'
+                    style={{
+                      gap: 'var(--dim-space-150)',
+                      padding: 'var(--dim-space-150) var(--dim-space-300)',
+                      background: selectMode ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
+                      border: selectMode
+                        ? 'var(--dim-stroke-100) solid var(--border-brandPrimary-default)'
+                        : 'var(--dim-stroke-100) solid var(--border-card-default)',
+                      borderRadius: 'var(--dim-radius-full)',
+                      color: selectMode ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-sm)',
+                      fontWeight: selectMode ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <CheckboxBox checked={selectMode} />
+                    เลือก
+                  </button>
                   <FilterTag value='ทั้งหมด' selected={isAllFilters} onClick={resetFilters} />
                   <FilterDropdown prefix='ประเภท:' options={typeOptions} value={filterType} onChange={(v) => { setFilterType(v); setPage(1); }} />
                   <FilterDropdown prefix='ช่องทาง:' options={channelOptions} value={filterChannel} onChange={(v) => { setFilterChannel(v); setPage(1); }} />
@@ -284,7 +389,7 @@ export default function ConsentManagementPage() {
                 </div>
                 <div className='flex-1' />
                 <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
+                  <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
                     นำส่งออกรายงาน
                   </NeutralSubdueButton>
                   <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
@@ -293,8 +398,44 @@ export default function ConsentManagementPage() {
                 </div>
               </div>
 
+              {/* Bulk bar — แสดงเมื่อเลือกอย่างน้อย 1 รายการ */}
+              {selectMode && selectedIds.size > 0 && (
+                <div
+                  className='flex items-center flex-wrap w-full'
+                  style={{
+                    gap: 'var(--dim-space-300)',
+                    padding: 'var(--dim-space-200) var(--dim-space-400)',
+                    background: 'var(--surface-brandPrimary-quaternary)',
+                    border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-tertiary, #9ADBBF)',
+                    borderRadius: 'var(--dim-radius-300)',
+                  }}
+                >
+                  <span style={{ flex: 1, color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>
+                    เลือกแล้ว {selectedIds.size} รายการ
+                  </span>
+                  <NeutralSubdueButton size='sm' onClick={() => setSelectedIds(new Set())}>
+                    ยกเลิกการเลือก
+                  </NeutralSubdueButton>
+                  {bulkAction ? (
+                    bulkAction.kind === 'brand' ? (
+                      <BrandButton variant='fill' size='sm' onClick={() => setDialog({ bulkIds: [...selectedIds], confirmKey: bulkAction.confirm })}>
+                        {bulkAction.label} ({selectedIds.size})
+                      </BrandButton>
+                    ) : (
+                      <NeutralButton variant='outline' size='sm' onClick={() => setDialog({ bulkIds: [...selectedIds], confirmKey: bulkAction.confirm })}>
+                        {bulkAction.label} ({selectedIds.size})
+                      </NeutralButton>
+                    )
+                  ) : (
+                    <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+                      เลือกแท็บสถานะเพื่อดำเนินการหลายรายการพร้อมกัน
+                    </span>
+                  )}
+                </div>
+              )}
+
               <Table
-                columns={columns}
+                columns={displayColumns}
                 rows={pageRows}
                 rowKey={(row) => row.id}
                 sortConfig={sortConfig}
@@ -324,7 +465,7 @@ export default function ConsentManagementPage() {
         description={confirm ? confirm.description : ''}
         confirmLabel={confirm ? confirm.confirmLabel : 'ตกลง'}
         cancelLabel='ยกเลิก'
-        onConfirm={() => setDialog(null)}
+        onConfirm={runDialogConfirm}
         onCancel={() => setDialog(null)}
         onClose={() => setDialog(null)}
       />
@@ -335,6 +476,8 @@ export default function ConsentManagementPage() {
         record={historyRecord}
         onClose={() => setHistoryRecord(null)}
       />
+
+      <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
     </>
   );
 }
