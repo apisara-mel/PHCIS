@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import Sidebar from '@/components/layout/Sidebar';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
+import QueuePageShell from '@/templates/QueuePageShell';
 import Icon from '@/components/icons/Icon';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -60,6 +58,15 @@ const FilterSelect = ({ icon, label, value, options, onChange }) => (
 );
 
 const classificationLabel = (key) => DRUG_CLASSIFICATIONS.find((c) => c.key === key)?.label || key;
+
+const countDrugs = (rows, pred) => rows.filter(pred).length;
+
+const buildRegistrySummaryCards = (registry) => [
+  { key: 'total',     label: 'รายการยาทั้งหมด', value: registry.length,                                      indicator: 'ทะเบียนยาและเวชภัณฑ์', color: 'brand',      icon: 'pill'          },
+  { key: 'active',    label: 'ใช้งานอยู่',       value: countDrugs(registry, (d) => d.active),                indicator: 'พร้อมจ่าย',            color: 'positive',   icon: 'check_circle'  },
+  { key: 'highAlert', label: 'High Alert',       value: countDrugs(registry, (d) => d.highAlert),             indicator: 'ต้องตรวจสอบพิเศษ',     color: 'destructive', icon: 'warning'       },
+  { key: 'nlem',      label: 'ยา NLEM',          value: countDrugs(registry, (d) => d.classification === 'nlem'), indicator: 'บัญชียาหลักแห่งชาติ', color: 'info',       icon: 'medication'    },
+];
 
 const DrugRow = ({ drug, onEdit, onToggleActive }) => (
   <div
@@ -184,43 +191,34 @@ const PharmacyRegistryPage = () => {
      the same UNIT_TYPES catalog rather than inventing a parallel one. */
   const unitOptions = [{ value: 'all', label: 'ทุกรูปแบบ' }, ...UNIT_TYPES.map((u) => ({ value: u.key, label: u.label }))];
 
-  return (
-    <div className='min-h-screen w-full flex bg-brand-50'>
-      <Sidebar activeKey='pharmacy' />
-      <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={breadcrumb} />
-        <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
-          <PharmacySubNav />
-          <section
-            className='bg-surface-card rounded-card flex flex-col md:flex-row md:items-center w-full'
-            style={{ gap: 'var(--dim-space-400)', padding: 'var(--dim-space-600)', boxShadow: 'var(--shadow-card-strong)' }}
-          >
-            <div
-              className='shrink-0 inline-flex items-center justify-center'
-              style={{ width: 'var(--dim-size-1200, 56px)', height: 'var(--dim-size-1200, 56px)', borderRadius: 'var(--dim-radius-500)', background: 'var(--surface-brandPrimary-quaternary)', color: 'var(--text-brandPrimary-default)' }}
-            >
-              <Icon name='pill' size={28} />
-            </div>
-            <div className='flex-1 min-w-0 flex flex-col gap-1'>
-              <h1 className='text-lg font-bold text-ink'>ทะเบียนยาและเวชภัณฑ์</h1>
-              <p className='text-sm text-ink-secondary'>
-                กำหนดหน่วยนับ การจัดกลุ่มยา สิทธิที่เบิกได้ ราคา และรายการยาเสี่ยงสูง (High Alert Drug)
-              </p>
-              <p className='text-xs text-ink-tertiary'>
-                ทั้งหมด <strong className='text-ink-secondary'>{DRUG_REGISTRY.length}</strong> รายการ ·
-                ใช้งานอยู่ <strong className='text-ink-secondary'>{DRUG_REGISTRY.filter((d) => d.active).length}</strong> รายการ
-              </p>
-            </div>
-            <div className='shrink-0'>
-              <BrandButton size='md' leadingIcon='add' onClick={() => history.push('/pharmacy/registry/new')}>
-                เพิ่มยาใหม่
-              </BrandButton>
-            </div>
-          </section>
+  const summaryCards = useMemo(
+    () => buildRegistrySummaryCards(DRUG_REGISTRY),
+    [registryTick],
+  );
 
+  const filtersActive = search.trim() !== ''
+    || classFilter !== 'all'
+    || statusFilter !== 'all'
+    || highAlertFilter !== 'all'
+    || unitFilter !== 'all';
+
+  return (
+    <QueuePageShell
+      activeKey='pharmacy'
+      breadcrumb={breadcrumb}
+      title='ทะเบียนยาและเวชภัณฑ์'
+      summaryCards={summaryCards}
+      belowSummary={<PharmacySubNav />}
+      actions={(
+        <BrandButton size='md' leadingIcon='add' onClick={() => history.push('/pharmacy/registry/new')}>
+          เพิ่มยาใหม่
+        </BrandButton>
+      )}
+    >
+      <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
           <section
-            className='bg-surface-card rounded-card flex flex-col w-full'
-            style={{ padding: 'var(--dim-space-500)', gap: 'var(--dim-space-300)', boxShadow: 'var(--shadow-card-strong)' }}
+            className='w-full flex flex-col'
+            style={{ background: 'var(--surface-card-100)', borderRadius: 'var(--dim-radius-500)', boxShadow: 'var(--shadow-card-strong)', padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
           >
             <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
               <div
@@ -246,7 +244,7 @@ const PharmacyRegistryPage = () => {
               <FilterSelect icon='straighten' label='รูปแบบ' value={unitFilter} options={unitOptions} onChange={setUnitFilter} />
               <FilterSelect icon='toggle_on' label='สถานะ' value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
               <FilterSelect icon='warning' label='High Alert' value={highAlertFilter} options={highAlertOptions} onChange={setHighAlertFilter} />
-              {(search || classFilter !== 'all' || statusFilter !== 'all' || highAlertFilter !== 'all' || unitFilter !== 'all') && (
+              {filtersActive && (
                 <NeutralSubdueButton
                   variant='outline'
                   size='sm'
@@ -259,29 +257,26 @@ const PharmacyRegistryPage = () => {
             <div className='text-xs text-ink-tertiary'>
               พบ <strong className='text-ink-secondary'>{filtered.length}</strong> รายการ จาก {DRUG_REGISTRY.length} รายการ
             </div>
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              {filtered.length === 0 ? (
+                <div className='flex flex-col items-center text-center' style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-200)' }}>
+                  <Icon name='search_off' size={32} />
+                  <p className='text-sm text-ink-secondary'>ไม่พบรายการยาที่ตรงกับเงื่อนไข</p>
+                </div>
+              ) : (
+                filtered.map((d) => (
+                  <DrugRow
+                    key={d.id}
+                    drug={d}
+                    onEdit={() => history.push(`/pharmacy/registry/${d.id}`)}
+                    onToggleActive={() => setRegistryDrugActive(d.id, !d.active)}
+                  />
+                ))
+              )}
+            </div>
           </section>
-
-          <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-            {filtered.length === 0 ? (
-              <div className='bg-surface-card rounded-card flex flex-col items-center text-center' style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-200)', boxShadow: 'var(--shadow-card-strong)' }}>
-                <Icon name='search_off' size={32} />
-                <p className='text-sm text-ink-secondary'>ไม่พบรายการยาที่ตรงกับเงื่อนไข</p>
-              </div>
-            ) : (
-              filtered.map((d) => (
-                <DrugRow
-                  key={d.id}
-                  drug={d}
-                  onEdit={() => history.push(`/pharmacy/registry/${d.id}`)}
-                  onToggleActive={() => setRegistryDrugActive(d.id, !d.active)}
-                />
-              ))
-            )}
-          </section>
-        </div>
-        <Footer copyright='© 2026 ศูนย์บริการสาธารณสุข สำนักอนามัย กรุงเทพมหานคร' />
-      </main>
-    </div>
+      </div>
+    </QueuePageShell>
   );
 };
 

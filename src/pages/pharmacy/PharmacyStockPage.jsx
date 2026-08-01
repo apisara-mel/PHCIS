@@ -214,20 +214,20 @@ const PharmacyStockPage = () => {
     forceRender((n) => n + 1);
   };
 
-  const summaryCards = [
-    { key: 'total',      label: 'รายการยาทั้งหมด',       value: rows.length,       indicator: activeTab === 'main' ? 'คลังยาใหญ่' : 'คลังยาย่อย', color: 'brand',      icon: 'inventory_2' },
+  const summaryCards = useMemo(() => [
+    { key: 'total',      label: 'รายการยาทั้งหมด',       value: rows.length,       indicator: activeTab === 'main' ? 'คลังยาใหญ่' : 'คลังยาย่อย', color: 'brand',      icon: activeTab === 'main' ? 'warehouse' : 'inventory_2' },
     { key: 'nearExpiry',  label: 'ใกล้หมดอายุ (≤6 เดือน)', value: nearExpiryCount,   indicator: 'ควรเบิกจ่าย/ใช้ก่อน',                             color: 'inprogress', icon: 'schedule'    },
-    { key: 'belowReorder', label: 'ต่ำกว่าจุดสั่งซื้อ',    value: belowReorderCount, indicator: 'ควรเบิกเพิ่มเติม',                                 color: 'inprogress', icon: 'trending_down' },
-    { key: 'totalUnits',  label: 'จำนวนคงคลังรวม',        value: rows.reduce((s, r) => s + r.stock, 0).toLocaleString(), indicator: 'ทุกรายการ', color: 'positive',   icon: 'warehouse'   },
-  ];
+    { key: 'belowReorder', label: 'ต่ำกว่าจุดสั่งซื้อ',    value: belowReorderCount, indicator: 'ควรเบิกเพิ่มเติม',                                 color: 'destructive', icon: 'trending_down' },
+    { key: 'totalUnits',  label: 'จำนวนคงคลังรวม',        value: rows.reduce((s, r) => s + r.stock, 0).toLocaleString(), indicator: 'ทุกรายการ', color: 'positive',   icon: 'inventory'   },
+  ], [activeTab, rows, nearExpiryCount, belowReorderCount]);
 
   return (
     <QueuePageShell
       activeKey='pharmacy'
       breadcrumb={breadcrumb}
       title='ระบบคลังยาและเวชภัณฑ์'
-      actions={<PharmacySubNav />}
       summaryCards={summaryCards}
+      belowSummary={<PharmacySubNav />}
       tabs={TABS}
       activeTab={activeTab}
       onTabChange={setActiveTab}
