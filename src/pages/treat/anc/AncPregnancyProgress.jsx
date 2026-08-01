@@ -129,7 +129,10 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
       >
         <ColorfulBadge style='green' width='hug'>{gpaLabel}</ColorfulBadge>
         <ColorfulBadge style='blue' width='hug'>{gaLabel}</ColorfulBadge>
-        {visitNo > 0 && (
+        {/* Labels the markers on the spine. The visit number itself is
+            already in the page title, so repeating it here would be a
+            second answer to a question the header has answered. */}
+        {priorVisits.length > 0 && (
           <span
             style={{
               fontFamily: 'var(--type-family-body)',
@@ -137,8 +140,7 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
               color: 'var(--text-content-secondary, #636B72)',
             }}
           >
-            ตรวจครรภ์ครั้งที่ {visitNo}
-            {priorVisits.length > 0 && ` · มาแล้ว ${priorVisits.length} ครั้ง`}
+            ฝากครรภ์มาแล้ว {priorVisits.length} ครั้ง — ชี้ที่จุดบนเส้นเพื่อดูผลตรวจครั้งนั้น
           </span>
         )}
       </div>
@@ -256,8 +258,11 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
                 zIndex: 2,
               }}
             >
+              {/* Opens downward: the markers sit directly beneath the
+                  sticky PatientCard, and a top-positioned tooltip collides
+                  with it — the header's text shows through the panel. */}
               <Tooltip
-                position='top'
+                position='bottom'
                 variant='light'
                 maxWidth={260}
                 content={
