@@ -1263,7 +1263,8 @@
 
   /* — Shadows · Brand Drop Shadow Bottom (PHCIS Figma) ──────
      Bottom/200 = 2 layers (4px @ /600) + (8px @ /601) → cards
-     Bottom/100 = 1 layer  (4px @ /600)                → header bar (--shadow-header) */
+     Bottom/100 = 1 layer  (4px @ /600)                → header bar
+                                                         (--shadow-header) */
   --shadow-card:
     0px 1px 4px var(--PrimaryShadow-600),
     0px 1px 8px var(--PrimaryShadow-601);
@@ -1275,8 +1276,11 @@
   --shadow-card-hover:
     0px 1px 4px var(--PrimaryShadow-600),
     0px 1px 8px var(--PrimaryShadow-601);
-  /* Header / SubHeader bar — Figma Brand Drop Shadow Bottom/100
-     (effect.brand-drop-shadow-bottom.100 · design.md §6.19.3). */
+  /* Header / SubHeader bar — Figma "Brand Drop Shadow Bottom/100"
+     (effect.brand-drop-shadow-bottom.100 · design.md §6.19.3). Aliased, not
+     restated: the old literal used PrimaryShadow/602 (0.12 alpha), which no
+     Figma effect defines, so the bar sat a shade heavier than every other
+     brand-tinted lift on the page. */
   --shadow-header: var(--shadow-brand-drop-bottom-100);
   /* Telemed floating CTA — purple→magenta glow on hover, matching its
      gradient (#7A4CE5 / #D833A1). Decorative elevation for the FAB only. */
