@@ -6,6 +6,10 @@ import Footer from '@/components/layout/Footer';
 import Icon from '@/components/icons/Icon';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import ESignatureField from '@/components/form-builder/ESignatureField';
+import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
+import NeutralButton from '@/components/button/NeutralButton';
+import AlertDialog from '@/components/popup/AlertDialog';
 import {
   getFormBySlug,
   getCategory,
@@ -209,58 +213,9 @@ const SliderRenderer = ({ value, onChange }) => {
   );
 };
 
+/* ลายเซ็นจริง 3 ช่องทาง (TOR 1.8.4.1–2): เลือกที่บันทึก / วาดใหม่ / อัปโหลด. */
 const SignatureRenderer = ({ value, onChange }) => (
-  <div
-    className='flex flex-col w-full'
-    style={{
-      gap: 'var(--dim-space-200)',
-      padding: 'var(--dim-space-400)',
-      background: 'var(--surface-card-100)',
-      border: 'var(--dim-stroke-200) dashed var(--border-card-default)',
-      borderRadius: 'var(--dim-radius-200)',
-      minHeight: 120,
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'var(--text-content-tertiary)',
-    }}
-  >
-    {value ? (
-      <>
-        <div className='inline-flex items-center gap-2 text-sm' style={{ color: 'var(--text-brandPrimary-default)' }}>
-          <Icon name='check' size={16} />
-          ลงนามแล้ว
-        </div>
-        <button
-          type='button'
-          onClick={() => onChange('')}
-          className='text-xs underline'
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-content-secondary)' }}
-        >
-          ล้างลายเซ็น
-        </button>
-      </>
-    ) : (
-      <>
-        <Icon name='edit' size={24} />
-        <span className='text-sm'>คลิกเพื่อลงนาม (ตัวอย่างจำลอง)</span>
-        <button
-          type='button'
-          onClick={() => onChange('signed')}
-          className='text-sm'
-          style={{
-            padding: '6px 14px',
-            background: 'var(--surface-brandPrimary-default)',
-            color: 'var(--text-brandPrimary-on-brand, #FFFFFF)',
-            border: 'none',
-            borderRadius: 'var(--dim-radius-full)',
-            cursor: 'pointer',
-          }}
-        >
-          ลงนาม
-        </button>
-      </>
-    )}
-  </div>
+  <ESignatureField value={typeof value === 'string' ? value : ''} onChange={onChange} />
 );
 
 const renderField = (field, key, value, onChange) => {
@@ -363,8 +318,36 @@ const FormFillPage = () => {
 
   const [values, setValues] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  /* Edge case (pages-prompt หน้า 4): ผู้ป่วยเลือก "ไม่ยินยอม" ได้ —
+     confirm ก่อน แล้วบันทึกสถานะ declined (audit ยังเก็บครบ ไม่ลบคำขอ) */
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declined, setDeclined] = useState(false);
 
   const setValue = (key, v) => setValues((prev) => ({ ...prev, [key]: v }));
+
+  /* Validation (TOR 1.4.9.1 + spec): ช่อง required (รวม signature) ว่าง
+     → block submit พร้อมบอกจำนวนที่เหลือ */
+  const missingRequired = useMemo(() => {
+    if (!form) return [];
+    const out = [];
+    form.sections.forEach((section, si) => {
+      (section.fields || []).forEach((f, fi) => {
+        if (!f.required) return;
+        const v = values[`s${si}-f${fi}`];
+        const empty = v === undefined || v === null || v === '' || v === false;
+        if (empty) out.push(f.label);
+      });
+    });
+    return out;
+  }, [form, values]);
+
+  /* รหัสอ้างอิงของการส่ง (mock — deterministic ต่อฟอร์ม/วัน) */
+  const refCode = useMemo(() => {
+    const seed = `${slug}-${new Date().toDateString()}`;
+    let h = 0;
+    for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) % 100000;
+    return `CST-${String(h).padStart(5, '0')}`;
+  }, [slug]);
 
   if (!form) {
     return (
@@ -391,7 +374,7 @@ const FormFillPage = () => {
         <Header breadcrumb={breadcrumb} />
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           {/* Back link — staff only */}
-          {role === 'staff' && !submitted && (
+          {role === 'staff' && !submitted && !declined && (
             <div>
               <button
                 type='button'
@@ -406,7 +389,7 @@ const FormFillPage = () => {
           )}
 
           {/* Mode banner */}
-          {!submitted && (
+          {!submitted && !declined && (
             <section
               className='flex items-center w-full'
               style={{
@@ -438,7 +421,7 @@ const FormFillPage = () => {
           )}
 
           {/* Hero */}
-          {!submitted && (
+          {!submitted && !declined && (
             <section
               className='bg-surface-card rounded-card shadow-card flex items-start w-full'
               style={{ gap: 'var(--dim-space-400)', padding: 'var(--dim-space-500)' }}
@@ -467,10 +450,72 @@ const FormFillPage = () => {
             </section>
           )}
 
-          {submitted ? (
+          {declined ? (
+            /* Edge case: ผู้ป่วยไม่ยินยอม — คำขอถูกบันทึกเป็น declined
+               (ไม่ลบ audit, Reconsent ได้ภายหลังจาก worklist) */
             <section
               className='bg-surface-card rounded-card shadow-card flex flex-col items-center w-full text-center'
-              style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-400)' }}
+              style={{ padding: 'var(--dim-space-600, 24px)', gap: 'var(--dim-space-400)' }}
+            >
+              <div
+                className='inline-flex items-center justify-center'
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 'var(--dim-radius-full)',
+                  background: 'var(--surface-colorfulbadge-red, #FDEBEC)',
+                  color: 'var(--text-colorfulbadge-red, #B91C1C)',
+                }}
+              >
+                <Icon name='do_not_disturb_on' size={36} />
+              </div>
+              <h2 className='text-lg font-bold text-ink'>บันทึกการไม่ยินยอมแล้ว</h2>
+              <p className='text-sm text-ink-secondary' style={{ maxWidth: 440 }}>
+                ระบบบันทึกว่าท่านเลือก<strong className='mx-1 text-ink'>ไม่ยินยอม</strong>
+                สำหรับ {form.name} — การตัดสินใจนี้ไม่กระทบสิทธิการรับบริการอื่น ๆ
+                และท่านสามารถให้ความยินยอมใหม่ได้ทุกเมื่อที่จุดบริการ
+              </p>
+              <span
+                className='inline-flex items-center'
+                style={{
+                  gap: 'var(--dim-space-150)',
+                  padding: 'var(--dim-space-150) var(--dim-space-400)',
+                  borderRadius: 'var(--dim-radius-full)',
+                  background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+                  border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+                  color: 'var(--text-content-secondary)',
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm)',
+                }}
+              >
+                รหัสอ้างอิง
+                <strong style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-bold)' }}>{refCode}</strong>
+              </span>
+              <div className='w-full' style={{ maxWidth: 560 }}>
+                <ConsentAuditBar
+                  recordedBy={role === 'staff' ? 'พญ.สมหญิง รักษ์ดี' : 'ผู้รับบริการ (ผ่าน QR)'}
+                  recordedAt={new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' })}
+                />
+              </div>
+              <div className='flex flex-wrap items-center justify-center' style={{ gap: 'var(--dim-space-300)' }}>
+                <NeutralSubdueButton
+                  variant='outline'
+                  size='sm'
+                  onClick={() => { setDeclined(false); setValues({}); }}
+                >
+                  เปลี่ยนใจ — กรอกแบบฟอร์มใหม่
+                </NeutralSubdueButton>
+                {role === 'staff' && (
+                  <BrandButton size='md' onClick={() => history.push('/forms')}>
+                    กลับไปคลังแบบฟอร์ม
+                  </BrandButton>
+                )}
+              </div>
+            </section>
+          ) : submitted ? (
+            <section
+              className='bg-surface-card rounded-card shadow-card flex flex-col items-center w-full text-center'
+              style={{ padding: 'var(--dim-space-600, 24px)', gap: 'var(--dim-space-400)' }}
             >
               <div
                 className='inline-flex items-center justify-center'
@@ -484,12 +529,38 @@ const FormFillPage = () => {
               >
                 <Icon name='check' size={36} />
               </div>
-              <h2 className='text-lg font-bold text-ink'>บันทึกแบบฟอร์มสำเร็จ</h2>
+              <h2 className='text-lg font-bold text-ink'>
+                {role === 'patient' ? 'ส่งความยินยอมสำเร็จ' : 'บันทึกแบบฟอร์มสำเร็จ'}
+              </h2>
               <p className='text-sm text-ink-secondary' style={{ maxWidth: 420 }}>
                 ขอบคุณที่กรอกข้อมูล ระบบได้บันทึก
                 <strong className='mx-1 text-ink'>{form.name}</strong>
                 เข้าระบบเรียบร้อย (Prototype — ไม่ได้บันทึกจริง)
               </p>
+              {/* รหัสอ้างอิงการส่ง — spec หน้า 4 (QR patient success) */}
+              <span
+                className='inline-flex items-center'
+                style={{
+                  gap: 'var(--dim-space-150)',
+                  padding: 'var(--dim-space-150) var(--dim-space-400)',
+                  borderRadius: 'var(--dim-radius-full)',
+                  background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+                  border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+                  color: 'var(--text-content-secondary)',
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm)',
+                }}
+              >
+                รหัสอ้างอิง
+                <strong style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-bold)' }}>{refCode}</strong>
+              </span>
+              {/* Audit trail ต่อการบันทึก — TOR 1.4.3.16 */}
+              <div className='w-full' style={{ maxWidth: 560 }}>
+                <ConsentAuditBar
+                  recordedBy={role === 'staff' ? 'พญ.สมหญิง รักษ์ดี' : 'ผู้รับบริการ (ลงนามผ่าน QR)'}
+                  recordedAt={new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' })}
+                />
+              </div>
               <div className='flex flex-wrap items-center justify-center' style={{ gap: 'var(--dim-space-300)' }}>
                 <NeutralSubdueButton
                   variant='outline'
@@ -525,9 +596,25 @@ const FormFillPage = () => {
 
               {/* Footer actions */}
               <section
-                className='bg-surface-card rounded-card shadow-card flex flex-wrap items-center justify-end w-full'
+                className='bg-surface-card rounded-card shadow-card flex flex-wrap items-center w-full'
                 style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)' }}
               >
+                {/* Validation hint — required ว่างกี่ช่อง (block submit) */}
+                {missingRequired.length > 0 && (
+                  <span
+                    className='inline-flex items-center'
+                    style={{
+                      gap: 'var(--dim-space-150)',
+                      color: 'var(--text-colorfulbadge-orange, #B45309)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-sm)',
+                    }}
+                  >
+                    <Icon name='error' size={16} />
+                    ต้องกรอกอีก {missingRequired.length} ช่องที่มีเครื่องหมาย *
+                  </span>
+                )}
+                <div className='flex-1' />
                 {role === 'staff' && (
                   <NeutralSubdueButton
                     variant='outline'
@@ -537,12 +624,23 @@ const FormFillPage = () => {
                     ยกเลิก
                   </NeutralSubdueButton>
                 )}
+                {/* Decline path — ผู้ป่วยปฏิเสธได้เสมอ (ไม่ต้องกรอกครบ) */}
+                {role === 'patient' && (
+                  <NeutralButton
+                    variant='outline'
+                    size='md'
+                    onClick={() => setDeclineOpen(true)}
+                  >
+                    ไม่ยินยอม
+                  </NeutralButton>
+                )}
                 <BrandButton
                   size='md'
                   leadingIcon='save'
-                  onClick={() => setSubmitted(true)}
+                  disabled={missingRequired.length > 0}
+                  onClick={() => { if (missingRequired.length === 0) setSubmitted(true); }}
                 >
-                  บันทึกแบบฟอร์ม
+                  {role === 'patient' ? 'ยืนยันส่ง' : 'บันทึกแบบฟอร์ม'}
                 </BrandButton>
               </section>
             </>
@@ -550,6 +648,19 @@ const FormFillPage = () => {
         </div>
         <Footer copyright='© 2026 ศูนย์การพยาบาลคุณภาพ ดินแดง กรุงเทพมหานคร' />
       </main>
+
+      {/* Confirm ก่อนบันทึกไม่ยินยอม — กันกดพลาด (Nielsen #5) */}
+      <AlertDialog
+        open={declineOpen}
+        type='warning'
+        title='ยืนยันการไม่ยินยอม'
+        description={`ท่านกำลังเลือก "ไม่ยินยอม" สำหรับ ${form.name} — การตัดสินใจนี้ไม่กระทบสิทธิการรับบริการอื่น ๆ และเปลี่ยนใจให้ความยินยอมใหม่ได้ทุกเมื่อ`}
+        confirmLabel='ยืนยันไม่ยินยอม'
+        cancelLabel='กลับไปกรอกต่อ'
+        onConfirm={() => { setDeclineOpen(false); setDeclined(true); }}
+        onCancel={() => setDeclineOpen(false)}
+        onClose={() => setDeclineOpen(false)}
+      />
     </div>
   );
 };

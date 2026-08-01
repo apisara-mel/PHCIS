@@ -412,6 +412,28 @@ export default function PersonalDataConsentEditPopup({
                           {item.footnote}
                         </p>
                       )}
+                      {/* Edge EE1: ไม่ยินยอม → ยังรับบริการได้ตามปกติ
+                          แต่การเปิดเผย/ส่งต่อข้อมูลต้องขออนุญาตรายครั้ง */}
+                      {(item.key === 'access' ? consentAccess : consentDisclose) === 'no' && (
+                        <div
+                          role='status'
+                          className='flex items-start w-full'
+                          style={{
+                            gap: 'var(--dim-space-200)',
+                            padding: 'var(--dim-space-300)',
+                            borderRadius: 'var(--dim-radius-300)',
+                            background: 'var(--surface-colorfulbadge-orange, #FFEDD5)',
+                            color: 'var(--text-colorfulbadge-orange, #B45309)',
+                          }}
+                        >
+                          <Icon name='info' size={16} style={{ marginTop: 2, flexShrink: 0 }} />
+                          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', lineHeight: 1.6 }}>
+                            การไม่ยินยอมข้อนี้<strong>ไม่กระทบการเข้ารับการรักษา</strong> —
+                            ท่านยังรับบริการได้ตามปกติ แต่การเปิดเผยหรือส่งต่อข้อมูลไปหน่วยงานอื่น
+                            จะต้องขออนุญาตจากท่านเป็นรายครั้ง
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

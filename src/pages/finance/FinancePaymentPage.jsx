@@ -16,6 +16,7 @@ import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import DangerSubdueButton from '@/components/button/DangerSubdueButton';
+import BrandIconButton from '@/components/button/BrandIconButton';
 import SelectableCardButton from '@/components/button/SelectableCardButton';
 import { Icon } from '@/components/icons/Icon';
 import RevenueRegisterSection from '@/pages/finance/sections/RevenueRegisterSection';
@@ -1037,18 +1038,30 @@ const FinancePaymentPage = () => {
       key: 'action', label: '', width: 200, sortable: false,
       render: (row) => (
         <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-150)' }}>
-          {row.status === 'pending' && row.pharmacyStatus === 'ready' && (
-            calledQueue.has(row.id)
-              ? <StatusBadge style='info' size='small'>เรียกคิวแล้ว</StatusBadge>
-              : (
-                <NeutralSubdueButton
-                  size='sm'
-                  leadingIcon='campaign'
-                  onClick={(e) => { e.stopPropagation(); setCalledQueue((prev) => new Set(prev).add(row.id)); }}
-                >
-                  เรียกคิว
-                </NeutralSubdueButton>
-              )
+          {/* เรียกคิว — ใช้ตัวเดียวกับหน้าคิว OPD (src/pages/opd/QueuePage.jsx
+              `makeRenderActions`): BrandIconButton ไอคอน `volume_up` แบบไอคอน
+              ล้วน แล้วเข้ารหัสสถานะด้วย variant ไม่ใช่สลับเป็น badge
+                fill        เรียกได้ (ยาพร้อมแล้ว ยังไม่ได้เรียก)
+                quaternary  เรียกไปแล้ว — ยังกดซ้ำได้ เพราะคนไข้ไม่มาตามเรียกรอบแรกเป็นเรื่องปกติ
+                disabled    ห้องยายังจัดยาไม่เสร็จ
+              เดิมหน้านี้ใช้ NeutralSubdueButton + ไอคอน `campaign` ซึ่งไม่ตรง
+              กับ OPD ทั้งตัวคอมโพเนนต์ ไอคอน และสีที่สื่อความหมาย */}
+          {row.status === 'pending' && (
+            <BrandIconButton
+              icon='volume_up'
+              size='sm'
+              variant={row.pharmacyStatus !== 'ready'
+                ? 'ghost'
+                : calledQueue.has(row.id) ? 'quaternary' : 'fill'}
+              disabled={row.pharmacyStatus !== 'ready'}
+              aria-label={row.pharmacyStatus !== 'ready'
+                ? 'ยังจัดยาไม่เสร็จ'
+                : calledQueue.has(row.id) ? 'เรียกคิวซ้ำ' : 'เรียกคิว'}
+              title={row.pharmacyStatus !== 'ready'
+                ? 'ห้องยายังจัดยาไม่เสร็จ'
+                : calledQueue.has(row.id) ? 'เรียกคิวแล้ว — กดเพื่อเรียกซ้ำ' : 'เรียกคิวมาชำระเงิน'}
+              onClick={(e) => { e.stopPropagation(); setCalledQueue((prev) => new Set(prev).add(row.id)); }}
+            />
           )}
           {row.status === 'pending'
             ? <BrandSubdueButton size='sm' onClick={(e) => { e.stopPropagation(); setActiveRow(row); }}>ชำระเงิน</BrandSubdueButton>

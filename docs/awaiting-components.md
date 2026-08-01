@@ -64,6 +64,32 @@ design system เมื่อไร
 
 ---
 
+### 2. ESignatureField (ลายเซ็นอิเล็กทรอนิกส์ 3 ช่องทาง) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/forms/FormFillPage.jsx` (คลังแบบฟอร์ม — signature field) · `src/components/popup/ConsentFormFillPopup.jsx` (ลงทะเบียน — PDPA/ยินยอม) — 2 ที่ แต่เป็น flow เดียวกัน (การเซ็นใบยินยอม) จึงยังนับเป็นเคสเดียว |
+| **หน้าที่** | ให้ผู้ลงนามเลือกช่องทางลายเซ็นตาม TOR 1.8.4.1–1.8.4.2: เลือกลายเซ็นที่บันทึกไว้ / วาดใหม่ (canvas `Signature` เดิม) / อัปโหลดรูป — ทุกช่องทางจบที่ `onChange(dataUrl)` เดียวกัน |
+| **ทำไมไม่มีของเดิมแทน** | `Signature` (form-builder) มีเฉพาะช่องทาง "วาด" — ไม่มี saved-signature picker และไม่มี upload ที่ไหนในระบบ |
+| **โครง API** | `<ESignatureField value onChange signerName height>` — tab state ภายใน, ลายเซ็นที่บันทึกเป็น mock 2 รายการ |
+| **รอเคสอะไร** | ระบบอื่นที่ต้องเซ็น: การเงิน (ใบเสร็จ), Lab (ผู้รายงานผล), ใบรับรองแพทย์ — เคสที่ 2 เมื่อไรยกขึ้น DS พร้อม Figma variant ครบ 3 แท็บ |
+| **บันทึกเมื่อ** | 2 ส.ค. 2569 |
+
+---
+
+### 3. ConsentAuditBar (แถบ audit trail ต่อการบันทึก) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/components/popup/ConsentHistoryPopup.jsx` · `src/pages/consent/ConsentFormViewPage.jsx` · `src/pages/forms/FormFillPage.jsx` (success state) |
+| **หน้าที่** | แสดง ผู้บันทึก · เวลาบันทึก · เวลาแก้ไขล่าสุด + ปุ่ม "ทำเครื่องหมายข้อมูลผิด" (เก็บเวลาที่ระบุข้อมูลผิด) ตาม TOR 1.4.3.16 |
+| **ทำไมไม่มีของเดิมแทน** | `RegistrationEditHistoryPanel` เป็นตารางประวัติเต็ม (แสดง diff เก่า/ใหม่) — หนักเกินไปสำหรับจุดที่ต้องการแค่บรรทัด audit เดียวท้าย card |
+| **โครง API** | `<ConsentAuditBar recordedBy recordedAt editedAt flaggedAt onFlag>` — confirm ผ่าน `AlertDialog` ก่อน mark เสมอ, ข้อมูลเดิมไม่ถูกลบ |
+| **รอเคสอะไร** | ทุกจุดบันทึกทางคลินิกที่ TOR 1.4.3.16 ครอบคลุม (OPD screening, CPOE, เภสัช) — เคสที่ 2 เมื่อไรควรยกขึ้น DS เป็น `AuditBar` กลาง |
+| **บันทึกเมื่อ** | 2 ส.ค. 2569 |
+
+---
+
 ## ยกขึ้น design system แล้ว
 
 *(ยังไม่มี)*

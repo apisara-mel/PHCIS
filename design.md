@@ -9599,7 +9599,7 @@ The Header is a 64 px fixed top bar. Left zone: Brand Subdue Icon Button (40 px)
 |---|---|---|---|
 | Bar background | `surface/navigation/default` | `#FFFFFF` | `--surface-navigation-default` |
 | Bottom border | `border/brandsecondary/quaternary` | `#EFF5EF` | `--border-brandsecondary-quaternary` |
-| Drop shadow | `PrimaryShadow/600` | `rgba(8,167,104,0.08)` | — |
+| Drop shadow | `effect/brand-drop-shadow-bottom/100` → `PrimaryShadow/600` | `rgba(8,167,104,0.08)` | `--shadow-header` (aliases `--shadow-brand-drop-bottom-100`) |
 | Apps button BG | `surface/brandprimarybutton/tertiary` | `#E2F3EB` | `--surface-brandprimarybutton-tertiary` |
 | Program name | `text/navigation/title` | `#007549` | `--text-navigation-title` |
 | Breadcrumb page links | `text/breadcrumb/pagename` | `#858C92` | — |

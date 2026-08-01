@@ -23,7 +23,10 @@ import {
 } from '@/data/pharmacyQueue';
 import { DRUG_CLASSIFICATIONS, getRegistryDrug } from '@/data/pharmacyRegistry';
 import { DEFAULT_CLINIC_VALUE, CLINIC_OPTIONS } from '@/components/layout/HeaderClinicContext';
-import PharmacySubNav from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
+import { buildStockSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
+import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD, PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 
 /* คลังยาและเวชภัณฑ์ (ToR §1.9.8-1.9.9) — two-tier warehouse view: คลังยาใหญ่
    (per-center bulk store) and คลังยาย่อย (counter stock dispensing draws
@@ -157,14 +160,16 @@ const PharmacyStockPage = () => {
     return result;
   }, [rows, search, classificationFilter, expiryFilter]);
 
-  const nearExpiryCount = useMemo(
-    () => nearExpiryEntries(activeTab === 'main' ? MAIN_WAREHOUSE_STOCK : SUB_PHARMACY_STOCK).length,
-    [activeTab],
-  );
+  const nearExpiryMain = useMemo(() => nearExpiryEntries(MAIN_WAREHOUSE_STOCK).length, []);
+  const nearExpirySub = useMemo(() => nearExpiryEntries(SUB_PHARMACY_STOCK).length, []);
 
-  const belowReorderCount = useMemo(
-    () => rows.filter((r) => isBelowReorderPoint(r.name, r.stock)).length,
-    [rows],
+  const belowReorderMain = useMemo(
+    () => mainRows.filter((r) => isBelowReorderPoint(r.name, r.stock)).length,
+    [mainRows],
+  );
+  const belowReorderSub = useMemo(
+    () => subRows.filter((r) => isBelowReorderPoint(r.name, r.stock)).length,
+    [subRows],
   );
 
   /* §1.9.8.1/§1.9.9.1 — editable operating status per warehouse tier. */
@@ -214,23 +219,28 @@ const PharmacyStockPage = () => {
     forceRender((n) => n + 1);
   };
 
-  const summaryCards = [
-    { key: 'total',      label: 'รายการยาทั้งหมด',       value: rows.length,       indicator: activeTab === 'main' ? 'คลังยาใหญ่' : 'คลังยาย่อย', color: 'brand',      icon: 'inventory_2' },
-    { key: 'nearExpiry',  label: 'ใกล้หมดอายุ (≤6 เดือน)', value: nearExpiryCount,   indicator: 'ควรเบิกจ่าย/ใช้ก่อน',                             color: 'inprogress', icon: 'schedule'    },
-    { key: 'belowReorder', label: 'ต่ำกว่าจุดสั่งซื้อ',    value: belowReorderCount, indicator: 'ควรเบิกเพิ่มเติม',                                 color: 'inprogress', icon: 'trending_down' },
-    { key: 'totalUnits',  label: 'จำนวนคงคลังรวม',        value: rows.reduce((s, r) => s + r.stock, 0).toLocaleString(), indicator: 'ทุกรายการ', color: 'positive',   icon: 'warehouse'   },
-  ];
+  const summaryCards = useMemo(
+    () => buildStockSummaryCards({
+      mainRows,
+      subRows,
+      nearExpiryMain,
+      nearExpirySub,
+      belowReorderMain,
+      belowReorderSub,
+    }),
+    [mainRows, subRows, nearExpiryMain, nearExpirySub, belowReorderMain, belowReorderSub],
+  );
+
+  const tabCounts = useMemo(() => ({ main: mainRows.length, sub: subRows.length }), [mainRows.length, subRows.length]);
 
   return (
     <QueuePageShell
       activeKey='pharmacy'
       breadcrumb={breadcrumb}
       title='ระบบคลังยาและเวชภัณฑ์'
-      actions={<PharmacySubNav />}
       summaryCards={summaryCards}
-      tabs={TABS}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
+      actions={<PharmacyAddDrugButton />}
+      belowSummary={<PharmacySubNav />}
     >
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -238,14 +248,28 @@ const PharmacyStockPage = () => {
       >
         <div
           className='w-full flex flex-col'
-          style={{
-            background: 'var(--surface-card-100)',
-            borderRadius: 'var(--dim-radius-500)',
-            boxShadow: 'var(--shadow-card-strong)',
-            padding: 'var(--dim-space-600)',
-            gap: 'var(--dim-space-400)',
-          }}
+          style={PHARMACY_WORKLIST_CARD_BODY}
         >
+          <TabBar aria-label='เลือกคลังยา' align='center' className='self-center shrink-0 max-w-full'>
+            {TABS.map((t) => (
+              <TabPill
+                key={t.key}
+                size='large'
+                selected={activeTab === t.key}
+                leadingIcon={t.icon}
+                onClick={() => setActiveTab(t.key)}
+              >
+                {t.label}
+                <span
+                  className='tabular-nums'
+                  style={{ marginLeft: 'var(--dim-space-200)', fontWeight: 'var(--type-weight-bold)' }}
+                >
+                  {tabCounts[t.key]}
+                </span>
+              </TabPill>
+            ))}
+          </TabBar>
+
           {/* §1.9.8.1/§1.9.9.1 — สถานะการทำงานของคลัง (editable, per tier). */}
           <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
             <span className='text-sm' style={{ color: 'var(--text-content-secondary)' }}>สถานะคลัง:</span>
@@ -287,13 +311,7 @@ const PharmacyStockPage = () => {
             non-NLEM → สปสช. (extra funding request). */}
         <div
           className='w-full flex flex-col'
-          style={{
-            background: 'var(--surface-card-100)',
-            borderRadius: 'var(--dim-radius-500)',
-            boxShadow: 'var(--shadow-card-strong)',
-            padding: 'var(--dim-space-600)',
-            gap: 'var(--dim-space-300)',
-          }}
+          style={{ ...PHARMACY_WORKLIST_CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}
         >
           <h2 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
             รายการที่ต้องเบิกเพิ่มเติม
@@ -325,13 +343,7 @@ const PharmacyStockPage = () => {
                 (ยืม/คืน/แลกล็อต), with history. */}
             <div
               className='w-full flex flex-col'
-              style={{
-                background: 'var(--surface-card-100)',
-                borderRadius: 'var(--dim-radius-500)',
-                boxShadow: 'var(--shadow-card-strong)',
-                padding: 'var(--dim-space-600)',
-                gap: 'var(--dim-space-300)',
-              }}
+              style={{ ...PHARMACY_WORKLIST_CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}
             >
               <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
                 <h2 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
@@ -343,7 +355,7 @@ const PharmacyStockPage = () => {
               </div>
 
               {showNewRequestForm && (
-                <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', background: 'var(--surface-card-200)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-300)' }}>
+                <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', ...PHARMACY_NESTED_PANEL }}>
                   <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
                     <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>ประเภท</span>
                     <select value={newRequest.type} onChange={(e) => setNewRequest((p) => ({ ...p, type: e.target.value }))} style={{ ...INPUT_STYLE, appearance: 'none' }}>
@@ -390,13 +402,7 @@ const PharmacyStockPage = () => {
                 pending ones can be confirmed. */}
             <div
               className='w-full flex flex-col'
-              style={{
-                background: 'var(--surface-card-100)',
-                borderRadius: 'var(--dim-radius-500)',
-                boxShadow: 'var(--shadow-card-strong)',
-                padding: 'var(--dim-space-600)',
-                gap: 'var(--dim-space-300)',
-              }}
+              style={{ ...PHARMACY_WORKLIST_CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}
             >
               <h2 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
                 ผู้รับคำร้อง — คำร้องจากศูนย์อื่น

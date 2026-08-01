@@ -1,13 +1,16 @@
 name: Deploy to production
 
-# ทุกครั้งที่ merge เข้า main จะ build แล้วอัปโหลด dist/ เป็น artifact เสมอ
-# (office-202 ดึง artifact ไป publish เองผ่าน Cloudflare Tunnel ได้) ส่วนการ
-# rsync ตรงขึ้นเซิร์ฟเวอร์จะทำก็ต่อเมื่อตั้งค่า DEPLOY_* ครบเท่านั้น —
-# ถ้ายังไม่ได้ตั้งจะ "ข้าม" ไม่ใช่ fail เพราะ 202 อยู่หลัง Cloudflare Tunnel
-# ที่ GitHub runner ssh เข้าไม่ได้อยู่แล้ว
+# Publish ขึ้น UAT (https://bma-health.mih.co.th) เฉพาะเมื่อสั่งเองเท่านั้น —
+# merge เข้า main ไม่ trigger workflow นี้อีกต่อไป เพื่อให้ทีมรวมโค้ดบน main ได้
+# โดยที่หน้าเว็บจริง (มีคนอื่นดูอยู่) ยังไม่เปลี่ยนจนกว่าจะ publish
 #
-# build ไม่ต้องใช้สิทธิ์อ่าน namonlims/mih-design แล้ว: design token ถูก
-# commit ไว้ที่ src/styles/tokens.css (อัปเดตด้วย `npm run tokens:pull`)
+# วิธี publish:
+#   gh workflow run "Deploy to production" --ref main
+#   หรือ GitHub → Actions → Deploy to production → Run workflow (branch: main)
+#
+# หลัง Actions สำเร็จ office-202 ดึง artifact dist-<sha> ไปเสิร์ฟผ่าน Cloudflare
+# Tunnel (ปกติ ~3–5 นาที) ส่วน rsync ตรงขึ้นเซิร์ฟเวอร์ทำก็ต่อเมื่อตั้ง DEPLOY_*
+# ครบเท่านั้น — ถ้ายังไม่ได้ตั้งจะ "ข้าม" ไม่ fail
 #
 # ถ้าอยากให้ rsync ตรงขึ้นเซิร์ฟเวอร์ ตั้งค่าเพิ่มใน repo settings:
 #
@@ -23,15 +26,18 @@ name: Deploy to production
 #     DEPLOY_RSYNC_DELETE    ใส่ 'true' ถ้าต้องการลบไฟล์ส่วนเกินบนเซิร์ฟเวอร์ (ดู note ที่ step rsync)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      note:
+        description: 'เหตุผล/หมายเหตุ (optional) — แสดงใน Actions summary'
+        required: false
+        type: string
 
 permissions:
   contents: read
 
-# กัน deploy ซ้อนกันเวลา merge หลาย PR ติด ๆ กัน — ไม่ cancel ตัวที่กำลังวิ่ง
-# เพราะ rsync ที่ถูกฆ่ากลางทางจะทิ้ง web root ไว้ครึ่ง ๆ กลาง ๆ
+# กัน publish ซ้อนกัน — ไม่ cancel ตัวที่กำลังวิ่ง เพราะ rsync/artifact ที่ค้างกลางทาง
+# จะทิ้ง web root ไว้ครึ่ง ๆ
 concurrency:
   group: deploy-production
   cancel-in-progress: false
@@ -44,6 +50,20 @@ jobs:
     steps:
       - name: Checkout bma.health
         uses: actions/checkout@v4
+
+      - name: บันทึกว่าเป็น manual publish
+        run: |
+          {
+            echo "### Manual publish → UAT"
+            echo ""
+            echo "- **ref:** \`${{ github.ref_name }}\` @ \`${{ github.sha }}\`"
+            echo "- **ผู้สั่ง:** \`${{ github.actor }}\`"
+            if [ -n "${{ github.event.inputs.note }}" ]; then
+              echo "- **หมายเหตุ:** ${{ github.event.inputs.note }}"
+            fi
+            echo ""
+            echo "merge เข้า \`main\` ไม่ trigger workflow นี้ — รอบนี้สั่ง publish เอง"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-node@v4
         with:
@@ -98,6 +118,7 @@ jobs:
               echo "ดึง build ไป publish เองด้วย:"
               echo ''
               echo '```sh'
+              echo "gh workflow run \"Deploy to production\" --ref main"
               echo "gh run download ${{ github.run_id }} -R ${{ github.repository }} -n dist-${{ github.sha }} -D dist"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"

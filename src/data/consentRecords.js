@@ -24,6 +24,9 @@ export const CONSENT_STATUS = {
   'ถอนความยินยอม':    { tone: 'red',    tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' } },
   'ใกล้หมดอายุ':       { tone: 'yellow', tab: 'expiring',  action: { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' } },
   'หมดอายุ':          { tone: 'red',    tab: 'expired',   action: { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' } },
+  /* Edge case (Figma note 312:97428): เทมเพลตออกเวอร์ชันใหม่หลังผู้ป่วย
+     เซ็นไปแล้ว → ฉบับเดิมเป็น superseded ต้องส่งขอเซ็นใหม่ */
+  'มีเวอร์ชันใหม่':     { tone: 'blue',   tab: 'pending',   action: { label: 'ส่งเซ็นเวอร์ชันใหม่', kind: 'brand', confirm: 'reconsent' } },
 };
 
 /* ── Tabs (Figma TabUnderline) ──────────────────────────────────────── */
@@ -133,6 +136,26 @@ export const CONSENT_RECORDS = [
     id: 16, hn: '67-00016', name: 'จิราพร แก้วใส', type: 'การรักษา', version: 'V 1.1',
     status: 'ยินยอมแล้ว', signChannel: 'Mobile App', requester: 'ลดา ดีงาม',
     createdDate: '11 มีนาคม 2569', signedDate: '11 มีนาคม 2569', withdrawnDate: '-', history: [],
+  },
+  /* Edge: เซ็น V 1.0 ไปแล้ว → เทมเพลตอัปเดตเป็น V 2.0 → superseded ต้องเซ็นใหม่ */
+  {
+    id: 17, hn: '67-00017', name: 'พิมพ์ลดา ศรีสุข', type: 'ผ่าตัด', version: 'V 1.0 → V 2.0',
+    status: 'มีเวอร์ชันใหม่', signChannel: 'ที่ศูนย์บริการ', requester: 'ลดา ดีงาม',
+    createdDate: '8 มีนาคม 2569', signedDate: '9 มีนาคม 2569', withdrawnDate: '-',
+    history: [
+      { date: '9 มีนาคม 2569',  formCode: 'PH-004', formName: 'ใบยินยอมผ่าตัด / หัตถการ (Surgical / Procedure Consent)', type: 'ผ่าตัด', version: 'V 1.0', status: 'ยินยอมแล้ว',    channel: 'ที่ศูนย์บริการ' },
+      { date: '28 มีนาคม 2569', formCode: 'PH-004', formName: 'ใบยินยอมผ่าตัด / หัตถการ (Surgical / Procedure Consent)', type: 'ผ่าตัด', version: 'V 2.0', status: 'มีเวอร์ชันใหม่', channel: '-' },
+    ],
+  },
+  /* Edge: ผู้เยาว์ — ผู้ปกครองลงนามแทน (guardian consent) */
+  {
+    id: 18, hn: '67-00018', name: 'ด.ญ.ณิชา วงศ์สว่าง', type: 'การรักษา', version: 'V 1.2',
+    status: 'ยินยอมแล้ว', signChannel: 'ที่ศูนย์บริการ', requester: 'นที ทองคำ',
+    guardian: 'นางสาวสุภาพร วงศ์สว่าง (มารดา)',
+    createdDate: '18 มีนาคม 2569', signedDate: '18 มีนาคม 2569', withdrawnDate: '-',
+    history: [
+      { date: '18 มีนาคม 2569', formCode: 'PH-016', formName: 'ใบยินยอมการรักษาผู้เยาว์ (โดยผู้ปกครอง)', type: 'การรักษา', version: 'V 1.2', status: 'ยินยอมแล้ว', channel: 'ที่ศูนย์บริการ' },
+    ],
   },
 ];
 
