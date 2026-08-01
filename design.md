@@ -12655,6 +12655,63 @@ Stacks a second elevation layer on hover: `0 1px 2px rgba(0,0,0,0.18), 0 2px 4px
 
 ---
 
+### 6.35 Print sheet — เอกสารพิมพ์ (งานรังสีวินิจฉัย)
+
+**Source:** [src/components/xray/XrayReportSheet.jsx](src/components/xray/XrayReportSheet.jsx) ·
+**Living demo:** [`/preview/xray-sheets`](src/pages/preview/XraySheetsPreviewPage.jsx) ·
+**Call sites:** `/xray/result` (ใบรายงานผล) · `/xray/order` (ใบส่งตรวจ · ใบนัด · ฉลากซองฟิล์ม)
+
+One masthead system, four paper formats via `variant`:
+
+| `variant` | Document | TOR / source |
+|---|---|---|
+| `report` | ใบรายงานผลการตรวจทางรังสีวิทยา | §1.12.6.5 |
+| `request` | ใบส่งตรวจทางรังสีวิทยา | legacy manual §2.1 item 11 |
+| `appointment` | ใบนัดตรวจทางรังสีวิทยา (ผู้ป่วยถือ) | §2.1 item 11 |
+| `filmLabel` | ฉลากติดซองฟิล์ม (70×40 mm) | §2.1 item 11 |
+
+Design rules that other print sheets should follow:
+
+- **Impression is the hero, not the letterhead.** Ink spine (`--dim-stroke-200`) + two type
+  steps above FINDINGS. The clinician's job on a report is to find the impression, so nothing
+  else on the page competes with it.
+- **Classification is ruled, never coloured.** ประเภทผลตรวจ prints as a bordered stamp;
+  ผิดปกติเร่งด่วน upgrades to a `3px double` rule plus an escalation line. These sheets print on
+  mono lasers — a coloured pill carries no information there (also satisfies the
+  "status never by colour alone" gate).
+- **Eyebrows are Latin uppercase only** (`--type-size-xxs` · `--type-weight-bold` ·
+  `letter-spacing: 0.14em`). Never uppercase Thai.
+- **Unverified reports self-declare.** A `reported`-but-not-`verified` row prints a rotated
+  ฉบับร่าง · DRAFT ghost plus a footer disclaimer (§1.12.6.3), and any amendment history is
+  printed, never hidden.
+- **No sequence markers.** A report is not a numbered process; `01 / 02 / 03` would encode
+  something untrue.
+
+#### Requested tokens — print medium
+
+Paper has no dark mode: aliasing `--surface-card-100` / `--text-content-default` makes a sheet
+print near-blank under `[data-mode="dark"]`. The component therefore pins ink and paper to the
+**light-mode values of the tokens it mirrors** and documents the exception inline. To remove that
+exception, `@mih/design-tokens` needs a print set:
+
+| Token | Value | Mirrors |
+|---|---|---|
+| `--print-paper` | `#FFFFFF` | `--surface-card-100` (light) |
+| `--print-ink` | `#363B3F` | `--text-content-default` (light) |
+| `--print-ink-soft` | `#636B72` | `--text-content-secondary` |
+| `--print-ink-muted` | `#858C92` | `--text-content-tertiary` |
+| `--print-rule` | `#E2E4E6` | `--border-neutral-tertiary` |
+
+Everything else in the sheet (space, radius, stroke, type size/weight/family) already aliases
+tokens. Millimetre values (`@page size: A4`, the 70×40 mm label) are medium geometry, not style —
+they have no token scale and should not get one.
+
+**Print scoping** stays with the host page (`.mih-xrayresult-print-area` /
+`.mih-xrayorder-print-area` visibility trick); the component only owns `@page`, print typography
+and `break-inside: avoid` on each block so an impression never starts on page 2.
+
+---
+
 ### 6.34 Table — Composable Atoms (Figma "MIH Design System · Table")
 
 **Source:** [src/components/table/Table.jsx](src/components/table/Table.jsx)
