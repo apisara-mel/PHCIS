@@ -109,6 +109,20 @@ const resolveStyles = ({ variant, isHover, active, focused, disabled }) => {
   };
 };
 
+/* `resolveStyles` hands back a `border` shorthand string; split it into
+   longhands so re-renders actually replace it (see the style block below).
+   'none' means no border at all. */
+const splitBorder = (border) => {
+  if (!border || border === 'none') return { borderWidth: 0, borderStyle: 'none', borderColor: 'transparent' };
+  const i = border.indexOf(' solid ');
+  if (i === -1) return { border };
+  return {
+    borderWidth: border.slice(0, i),
+    borderStyle: 'solid',
+    borderColor: border.slice(i + ' solid '.length),
+  };
+};
+
 const BrandIconButton = React.forwardRef(function BrandIconButton(
   {
     icon,
@@ -151,7 +165,15 @@ const BrandIconButton = React.forwardRef(function BrandIconButton(
       style={{
         width: dim.box, height: dim.box,
         borderRadius: 'var(--dim-radius-200)',
-        border: s.border, background: s.bg,
+        /* longhand, not the `border` / `background` shorthands — a React
+           inline SHORTHAND whose value contains var() is not replaced on
+           re-render: the CSSOM keeps the previous value, so a button that
+           switches variant while mounted (fill → quaternary when a queue is
+           called) keeps painting its old colour. Callers whose variant is
+           fixed at mount never see it, which is why /opd/queue looks right
+           and this only surfaced on the finance queue's call button. */
+        ...splitBorder(s.border),
+        backgroundColor: s.bg,
         outline: s.outline,
         outlineOffset: 0,
         boxShadow: s.shadow,
