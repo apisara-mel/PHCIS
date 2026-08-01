@@ -455,7 +455,7 @@ const FormFillPage = () => {
                (ไม่ลบ audit, Reconsent ได้ภายหลังจาก worklist) */
             <section
               className='bg-surface-card rounded-card shadow-card flex flex-col items-center w-full text-center'
-              style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-400)' }}
+              style={{ padding: 'var(--dim-space-600, 24px)', gap: 'var(--dim-space-400)' }}
             >
               <div
                 className='inline-flex items-center justify-center'
@@ -515,7 +515,7 @@ const FormFillPage = () => {
           ) : submitted ? (
             <section
               className='bg-surface-card rounded-card shadow-card flex flex-col items-center w-full text-center'
-              style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-400)' }}
+              style={{ padding: 'var(--dim-space-600, 24px)', gap: 'var(--dim-space-400)' }}
             >
               <div
                 className='inline-flex items-center justify-center'
