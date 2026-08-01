@@ -113,6 +113,29 @@ import {
   CERT_LICENSE_OPTIONS,
   resolveDiagnosisType,
 } from '@/data/treatmentVisits';
+/* Step 5 · X-ray category (TOR §1.12.5.4) — the same RIS picker + catalog
+   the X-ray order screen uses, so the doctor's CPOE and the radiology
+   worklist speak one vocabulary (exam ids, ท่าถ่าย keys, สิทธิ math).
+   `Badge` carries the picker's attribute chips (สารทึบรังสี / ส่งตรวจ
+   ภายนอก) into the order table so the safety context follows the row. */
+import XrayOrderPicker from '@/components/xray/XrayOrderPicker';
+import Badge from '@/components/badge/Badge';
+import {
+  XRAY_EXAM_BY_ID,
+  XRAY_VIEWS,
+  getRegion,
+  claimFor,
+  summariseSelection,
+  duplicateWarning,
+} from '@/data/xrayCatalog';
+import {
+  XRAY_URGENCIES,
+  xrayHistoryFor,
+  /* Doctor-side view of this patient's radiology reports — see
+     `XrayHistoryTabPanel` (TOR §1.12.6.4). */
+  XRAY_ORDERS,
+  withExamLabel,
+} from '@/data/xrayOrders';
 import DatePickerRange from '@/components/forms/DatePickerRange';
 import FormBuilderSignature from '@/components/form-builder/Signature';
 import DoctorProfileAvatar, { DOCTOR_PROFILE_AVATAR_SRC } from '@/components/layout/DoctorProfileAvatar';
@@ -138,6 +161,12 @@ const HISTORY_TABS = [
   'ผลการตรวจร่างกาย',
   'ผลการวินิจฉัย',
 ];
+
+/* The X-ray capsule is the one HISTORY_TABS entry with a real data source
+   behind it (the RIS worklist), so it renders its own panel instead of the
+   default vitals summary — see `XrayHistoryTabPanel`. The remaining
+   capsules still all show the same summary; that predates the RIS module. */
+const HISTORY_TAB_XRAY = 'ผลการ X-ray / RIS';
 
 
 const ValueText = ({ children }) => (
@@ -395,6 +424,99 @@ const ChronicDiseaseCard = ({ index, entry }) => (
   </HistoryInnerCard>
 );
 
+/* ผลการ X-ray / RIS — the doctor-side view of this patient's radiology
+   reports (TOR §1.12.6.4 "ดูผลเอกซเรย์ย้อนหลังได้", read from the CPOE
+   record instead of making the doctor open the RIS worklist).
+
+   Only รายงานผลแล้ว / ยืนยันผลแล้ว rows appear: a study that has not been
+   read yet carries no result, and showing it here would imply otherwise.
+   ยืนยันผลแล้ว is the clinically citable state, so an unverified report is
+   labelled as such rather than silently mixed in. Newest first — the most
+   recent film is what the doctor is comparing against. */
+const XrayHistoryTabPanel = ({ patient }) => {
+  const rows = useMemo(() => {
+    const hn = patient?.hn;
+    if (!hn) return [];
+    return XRAY_ORDERS
+      .filter((o) => o.hn === hn && (o.status === 'verified' || o.status === 'reported'))
+      .map(withExamLabel)
+      .sort((a, b) => String(b.verifiedAt || b.reportedAt || '')
+        .localeCompare(String(a.verifiedAt || a.reportedAt || '')));
+  }, [patient?.hn]);
+
+  if (rows.length === 0) {
+    return (
+      <SummaryPanel title='ผลการตรวจทางรังสีวิทยา'>
+        <span style={{
+          color: 'var(--text-content-tertiary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+        }}>
+          ไม่พบผลการตรวจทางรังสีวิทยาของผู้รับบริการรายนี้
+        </span>
+      </SummaryPanel>
+    );
+  }
+
+  return (
+    <SummaryPanel title={`ผลการตรวจทางรังสีวิทยา (${rows.length} รายการ)`}>
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        {rows.map((r) => (
+          <div
+            key={r.id}
+            className='flex flex-col w-full'
+            style={{
+              gap: 'var(--dim-space-200)',
+              paddingTop: 'var(--dim-space-400)',
+              paddingRight: 'var(--dim-space-400)',
+              paddingBottom: 'var(--dim-space-400)',
+              paddingLeft: 'var(--dim-space-400)',
+              borderRadius: 'var(--dim-radius-400)',
+              border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+              background: 'var(--surface-card-100)',
+            }}
+          >
+            <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-200)' }}>
+              <span style={{
+                color: 'var(--text-content-default)',
+                fontFamily: 'var(--type-family-heading-content)',
+                fontWeight: 'var(--type-weight-bold)',
+                fontSize: 'var(--type-size-sm)',
+              }}>
+                {r.examLabel}
+              </span>
+              {/* ประเภทผลตรวจ (TOR §1.12.6.9) — text + colour, never colour alone. */}
+              <StatusBadge style={r.resultTypeColor || 'neutral'} size='small'>
+                {r.resultTypeLabel || 'ยังไม่ระบุประเภทผล'}
+              </StatusBadge>
+              {r.status === 'reported' ? (
+                <StatusBadge style='warning' size='small'>รอยืนยันผล</StatusBadge>
+              ) : null}
+            </div>
+
+            <div className='flex items-center flex-wrap w-full' style={{
+              gap: 'var(--dim-space-300)',
+              color: 'var(--text-content-tertiary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+            }}>
+              <span>เลข XN {r.xn}</span>
+              <span>{r.modalityLabel}</span>
+              <span>{r.regionLabel}</span>
+              <span>อ่านผล {r.verifiedAt || r.reportedAt}</span>
+              <span>โดย {r.radiologist || '—'}</span>
+            </div>
+
+            {r.impression ? (
+              <HistoryInfoText label='Impression' value={r.impression} />
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </SummaryPanel>
+  );
+};
+
 /* Same read-only medical-history chrome as Step 1 — reused by Step 6
    "ประวัติการรักษา" modal (Figma PHCIS | Appointment 4034:3723). */
 export const MedicalHistoryReadOnlyLayout = ({ patient, hideSectionTitle = false, independentScroll = false }) => {
@@ -492,6 +614,10 @@ export const MedicalHistoryReadOnlyLayout = ({ patient, hideSectionTitle = false
           background: 'var(--border-neutral-tertiary, var(--border-card-default))',
         }} />
 
+        {HISTORY_TABS[activeTab] === HISTORY_TAB_XRAY ? (
+          <XrayHistoryTabPanel patient={patient} />
+        ) : (
+        <>
         <VitalsSignHorizontalPanel
           key={selected.date}
           layout='tablet'
@@ -527,6 +653,8 @@ export const MedicalHistoryReadOnlyLayout = ({ patient, hideSectionTitle = false
             ))}
           </div>
         </SummaryPanel>
+        </>
+        )}
       </section>
     </div>
   );
@@ -1880,6 +2008,180 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
   },
 ];
 
+/* ── Step 5 · X-ray order table (TOR §1.12.5.4) ──────────────────────────
+   Column set is the TOR list verbatim — ความเร่งด่วน · รายการตรวจ ·
+   ตำแหน่งที่ตรวจ · ท่าถ่าย · ราคา · ยอดที่เบิกได้ · ผู้ป่วยจ่าย · ลบ —
+   the same table XrayOrderPage renders, re-expressed through the shared
+   <Table> component this step already uses for medications so both
+   categories read as one surface. Money resolves through
+   `claimFor(exam, rightKey)` because an X-ray exam reimburses differently
+   per สิทธิ (TOR §1.12.4.2), unlike the flat medication ราคารวม column. */
+
+const XRAY_VIEW_BY_KEY = Object.fromEntries(XRAY_VIEWS.map((v) => [v.key, v]));
+
+/* Thai-locale money formatter — same helper the RIS order surfaces use. */
+const bahtText = (n) => (n ?? 0).toLocaleString('th-TH');
+
+/* สิทธิ label (MR roster's Thai `rights` string) → claimByRight key.
+   The MR registration issues Thai labels while the X-ray catalog keys its
+   reimbursement table by fund code (TOR §1.12.4.2); anything the roster
+   knows but the catalog doesn't (รัฐวิสาหกิจ, ประกันชีวิต AIA) falls back
+   to CASH — ชำระเอง — so the ผู้ป่วยจ่าย column never under-promises. */
+const XRAY_RIGHT_KEY_BY_MR_RIGHT = {
+  'บัตรทอง':       'UCS',
+  'ประกันสังคม':    'SSS',
+  'ข้าราชการ':      'OFC',
+  'ข้าราชการ กทม.': 'BMA',
+  'ชำระเงินเอง':    'CASH',
+};
+
+/* Modalities that do NOT ionise — everything else (xr/fl/mg/ct/bd/dn)
+   carries radiation dose, which is what makes the pregnancy screening
+   (§1.12.5.3) and the duplicate gate (§1.12.5.9) matter on this tab. */
+const XRAY_NON_IONIZING = new Set(['us', 'mri']);
+
+/* Chrome-free inline select for the ความเร่งด่วน / ท่าถ่าย cells — the
+   same bordered-select idiom XrayOrderPicker's region filter uses (its
+   own border + radius from tokens, native chrome suppressed via
+   `outline: none`), sized down to sit inside a 40-px table row. */
+const xrayCellSelectStyle = {
+  width: '100%',
+  paddingTop: 'var(--dim-space-100, 4px)',
+  paddingRight: 'var(--dim-space-200, 8px)',
+  paddingBottom: 'var(--dim-space-100, 4px)',
+  paddingLeft: 'var(--dim-space-200, 8px)',
+  background: 'var(--surface-input-default)',
+  border: 'var(--dim-stroke-100, 1px) solid var(--border-input-default)',
+  borderRadius: 'var(--dim-radius-200, 8px)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-xs)',
+  color: 'var(--text-content-secondary)',
+  outline: 'none',
+};
+
+/* X-ray-table columns — same factory pattern as `buildMedTableColumns`
+   so every cell renderer closes over the current updateRow / removeRow
+   callbacks. `rightKey` is per-patient (สิทธิ) and changes only with the
+   open visit, so it rides in as a factory argument too. Rows are
+   `{ examId, view, urgency }`; everything display-worthy dereferences
+   through XRAY_EXAM_BY_ID at render time so a catalog edit (Setup page)
+   reflects here without migrating stored rows. */
+const buildXrayTableColumns = ({ updateRow, removeRow, rightKey }) => [
+  { key: 'urgency', header: 'ความเร่งด่วน', width: 168,
+    /* §1.12.5.4 lists ความเร่งด่วน first; editable per row because one
+       visit can mix a STAT portable chest with a routine follow-up film. */
+    render: (row, idx) => (
+      <select
+        value={row.urgency}
+        onChange={(e) => updateRow(idx, { urgency: e.target.value })}
+        aria-label={`ความเร่งด่วนของ ${XRAY_EXAM_BY_ID[row.examId]?.name ?? row.examId}`}
+        style={xrayCellSelectStyle}
+      >
+        {XRAY_URGENCIES.map((u) => (
+          <option key={u.key} value={u.key}>{u.thai}</option>
+        ))}
+      </select>
+    ),
+  },
+  { key: 'exam', header: 'รายการตรวจ', width: 288,
+    /* ชื่อไทย + code/ชื่ออังกฤษ subtext — the same identity pair the RIS
+       worklist columns show, plus the safety badges (สารทึบรังสี /
+       ส่งตรวจภายนอก) so the row itself explains any alert above it. */
+    render: (row) => {
+      const exam = XRAY_EXAM_BY_ID[row.examId];
+      if (!exam) return row.examId;
+      return (
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+          <span className='inline-flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+            <span style={{
+              fontFamily: 'var(--type-family-body)',
+              fontWeight: 'var(--type-weight-medium)',
+              fontSize: 'var(--type-size-sm)',
+              color: 'var(--text-content-default)',
+            }}>
+              {exam.name}
+            </span>
+            {exam.referralOnly && <Badge style='info' size='small'>ส่งตรวจภายนอก</Badge>}
+            {exam.contrast && <Badge style='warning' size='small'>สารทึบรังสี</Badge>}
+          </span>
+          <span style={{
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-xs)',
+            color: 'var(--text-content-tertiary)',
+          }}>
+            {exam.code} · {exam.nameEn}
+          </span>
+        </div>
+      );
+    },
+  },
+  { key: 'region', header: 'ตำแหน่งที่ตรวจ', width: 176,
+    /* §1.12.5.4 — ตำแหน่งที่ตรวจ is its own column, sourced from the
+       exam's first-class `region` key, never parsed out of the name. */
+    render: (row) => getRegion(XRAY_EXAM_BY_ID[row.examId])?.thai ?? '—',
+  },
+  { key: 'view', header: 'ท่าถ่าย', width: 200,
+    /* Per-row select over THIS exam's registered views — ใบฉายรังสี
+       prints one line per exposure, so the doctor narrows the ท่า here
+       instead of free-texting it (legacy §2.1 item 11 vocabulary). */
+    render: (row, idx) => {
+      const exam = XRAY_EXAM_BY_ID[row.examId];
+      const views = exam?.views ?? [];
+      if (views.length === 0) return '—';
+      return (
+        <select
+          value={row.view}
+          onChange={(e) => updateRow(idx, { view: e.target.value })}
+          aria-label={`ท่าถ่ายของ ${exam?.name ?? row.examId}`}
+          style={xrayCellSelectStyle}
+        >
+          {views.map((k) => (
+            <option key={k} value={k}>{XRAY_VIEW_BY_KEY[k]?.thai ?? k}</option>
+          ))}
+        </select>
+      );
+    },
+  },
+  /* Money trio — §1.12.4.2: ราคา is flat, เบิกได้ is per-สิทธิ, and a
+     positive ผู้ป่วยจ่าย is the partial-claim case the สปสช. reviewers
+     probe (e.g. อัลตราซาวด์ under UCS/SSS). Warning-toned when > 0 so
+     the doctor can flag the copay at the desk, matching XrayOrderPage. */
+  { key: 'price', header: 'ราคา (บาท)', width: 112, align: 'center',
+    render: (row) => bahtText(claimFor(XRAY_EXAM_BY_ID[row.examId], rightKey).price),
+  },
+  { key: 'claim', header: 'ยอดที่เบิกได้ (บาท)', width: 136, align: 'center',
+    render: (row) => bahtText(claimFor(XRAY_EXAM_BY_ID[row.examId], rightKey).claim),
+  },
+  { key: 'patientPay', header: 'ผู้ป่วยจ่าย (บาท)', width: 128, align: 'center',
+    render: (row) => {
+      const { patientPay } = claimFor(XRAY_EXAM_BY_ID[row.examId], rightKey);
+      return (
+        <span style={{
+          color: patientPay > 0
+            ? 'var(--text-statusbadge-warning, #C2410C)'
+            : 'var(--text-content-default)',
+        }}>
+          {bahtText(patientPay)}
+        </span>
+      );
+    },
+  },
+  { key: 'actions', header: 'ลบ', width: 80, align: 'center',
+    /* Direct remove, no confirm dialog — parity with XrayOrderPage's row
+       delete: unlike a medication row (dose/frequency worth protecting),
+       an un-submitted exam line is one checkbox away in the picker. */
+    render: (row, idx) => (
+      <NeutralSubdueIconButton
+        variant='outline'
+        size='sm'
+        icon='delete'
+        aria-label={`ลบ ${XRAY_EXAM_BY_ID[row.examId]?.name ?? row.examId}`}
+        onClick={() => removeRow(idx)}
+      />
+    ),
+  },
+];
+
 /* Disease-specific "frequently-ordered" card — Figma PHCIS|CPOE 266:26956.
    Bordered shell (1 px brand-quaternary border · 12 px radius · 24 px
    padding) containing:
@@ -2076,7 +2378,22 @@ const ORDER_EMPTY_STATE_TEXT = {
   consult:    { title: 'ยังไม่มีรายการขอปรึกษา',          subtitle: 'กรุณาขอปรึกษา',       addLabel: 'ขอปรึกษา'    },
 };
 
-export const Step5Orders = ({ form, setForm }) => {
+/* Per-category populated-table copy — sibling of ORDER_EMPTY_STATE_TEXT
+   above so the title/subtitle pair lives in one lookup instead of
+   conditionals sprinkled through the JSX. The medication strings are the
+   pre-existing hardcoded copy verbatim (Figma 2508:98437 — do not touch,
+   /treat/record is a live demoed screen); only medication + xray tables
+   can currently populate, but all five keys exist so a future lab /
+   procedure / consult table slots in without touching the JSX again. */
+const ORDER_TABLE_TEXT = {
+  medication: { title: 'รายการยาที่สั่ง',                  subtitle: 'กด " + " เพื่อเพิ่มยารายการใหม่เข้าใน Order' },
+  lab:        { title: 'รายการแล็บที่สั่ง',                 subtitle: 'กด " + " เพื่อเพิ่มรายการตรวจเข้าใน Order' },
+  xray:       { title: 'รายการตรวจทางรังสีวิทยาที่สั่ง',     subtitle: 'กด " + " เพื่อเพิ่มรายการตรวจเข้าใน Order' },
+  procedure:  { title: 'รายการหัตถการที่สั่ง',              subtitle: 'กด " + " เพื่อเพิ่มรายการหัตถการเข้าใน Order' },
+  consult:    { title: 'รายการขอปรึกษา',                   subtitle: 'กด " + " เพื่อเพิ่มรายการขอปรึกษาเข้าใน Order' },
+};
+
+export const Step5Orders = ({ form, setForm, patient }) => {
   const setCategory = (key) => setForm((s) => ({ ...s, orderCategory: key }));
   const dismissAlert = () => setForm((s) => ({ ...s, showAllergyAlert: false }));
 
@@ -2272,8 +2589,111 @@ export const Step5Orders = ({ form, setForm }) => {
     [],
   );
 
+  /* ── X-ray category (TOR §1.12.5.4) ──────────────────────────────────
+     "เพิ่ม X-ray" opens the shared RIS picker (XrayOrderPicker, popup
+     variant — no router hooks, safe inside this form) instead of the
+     medication popup. Selection persists into `form.xrayOrders` as
+     `[{ examId, view, urgency }]` — mock-only on the doctor's side; the
+     RIS worklist mock (XRAY_ORDERS) is never written to from here. */
+  const [xrayPickerOpen, setXrayPickerOpen] = useState(false);
+  const openAddXray = () => setXrayPickerOpen(true);
+  /* A refused (level 'block') add — defence-in-depth roll-up surfaced as
+     a destructive banner above the table. The picker itself already
+     refuses blocked exams (it receives the same history), but the gate
+     is re-run on every add here because what it protects is radiation
+     dose, not money: a second identical film inside ~10% of the repeat
+     window re-irradiates the patient (TOR §1.12.5.9). */
+  const [xrayBlockNotice, setXrayBlockNotice] = useState(null);
+
+  /* Prior imaging for THIS patient — feeds the picker's inline warnings
+     and the add-gate below (same shape §1.12.5.7 / §1.12.5.9 share). */
+  const xrayHistory = useMemo(() => xrayHistoryFor(patient?.hn), [patient?.hn]);
+  /* สิทธิ from the MR roster's Thai label → claimByRight fund key
+     (TOR §1.12.4.2). Unknown / missing right ⇒ CASH (ชำระเอง). */
+  const xrayRightKey = XRAY_RIGHT_KEY_BY_MR_RIGHT[patient?.rights] ?? 'CASH';
+
+  /* Commit from the picker — reconcile its examId[] against the current
+     rows so per-row edits (ท่าถ่าย / ความเร่งด่วน) survive a reopen:
+     retained ids keep their row object, dropped ids fall away, new ids
+     enter with the exam's first registered view + routine urgency. Each
+     NEW id re-runs duplicateWarning: 'block' is refused (banner explains
+     days-ago vs window), 'warn' proceeds — the roll-up Alert above the
+     table keeps it visible (TOR §1.12.5.9). */
+  const commitXraySelection = (nextIds) => {
+    const prevById = Object.fromEntries(form.xrayOrders.map((o) => [o.examId, o]));
+    const next = [];
+    let refused = null;
+    nextIds.forEach((id) => {
+      if (prevById[id]) { next.push(prevById[id]); return; }
+      const w = duplicateWarning(id, xrayHistory);
+      if (w?.level === 'block') { refused = { examId: id, warning: w }; return; }
+      const exam = XRAY_EXAM_BY_ID[id];
+      next.push({ examId: id, view: exam?.views?.[0] ?? '', urgency: 'routine' });
+    });
+    setXrayBlockNotice(refused);
+    setForm((s) => ({ ...s, xrayOrders: next }));
+  };
+
+  /* Same in-place patch / remove idiom as updateMed / removeMed above —
+     the inline ท่าถ่าย + ความเร่งด่วน selects and the row delete keep
+     `form.xrayOrders` as the single source of truth. */
+  const updateXrayRow = (idx, patch) => setForm((s) => ({
+    ...s,
+    xrayOrders: s.xrayOrders.map((row, i) => (i === idx ? { ...row, ...patch } : row)),
+  }));
+  const removeXrayRow = (idx) => setForm((s) => ({
+    ...s,
+    xrayOrders: s.xrayOrders.filter((_, i) => i !== idx),
+  }));
+
+  /* Column factory — same stable-setter argument as the medication
+     `columns` memo above; `xrayRightKey` is the only render-time input
+     and it only changes with the open visit's patient. */
+  const xrayColumns = useMemo(
+    () => buildXrayTableColumns({
+      updateRow: updateXrayRow,
+      removeRow: removeXrayRow,
+      rightKey: xrayRightKey,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [xrayRightKey],
+  );
+
+  /* ── Clinical safety derivations (TOR §1.12.5.3 / §1.12.5.9) ─────────
+     Carried over from the RIS order screen so the doctor sees the same
+     gates the radiology desk would raise, at the moment of ordering. */
+  const xrayExamsInOrder = form.xrayOrders
+    .map((o) => XRAY_EXAM_BY_ID[o.examId])
+    .filter(Boolean);
+  const xrayContrastExams = xrayExamsInOrder.filter((e) => e.contrast);
+  /* แจ้งเตือนแพ้สารทึบรังสี — recorded drug allergy × a contrast exam.
+     Destructive tone on purpose: iodinated-contrast anaphylaxis is the
+     death-on-the-table scenario (§1.12.5.3). */
+  const xrayContrastAllergyDanger = xrayContrastExams.length > 0
+    && ((patient?.drugAllergies?.length ?? 0) > 0 || patient?.flags?.allergyDrug);
+  /* ตั้งครรภ์ — female patient + an IONISING exam flagged femaleScreening
+     (abdomen/pelvis radiography, mammography). US/MRI don't irradiate,
+     so they never trip this (§1.12.5.3). */
+  const xrayPregnancyWatch = patient?.gender === 'หญิง'
+    && xrayExamsInOrder.some((e) => e.femaleScreening && !XRAY_NON_IONIZING.has(e.modality));
+  /* Warn-level repeats among the CHOSEN rows — ordering anyway is allowed
+     for 'warn' (§1.12.5.9 only refuses 'block'), so this informs for as
+     long as the row stays in the order, not just at add time. */
+  const xrayDupWarns = form.xrayOrders
+    .map((o) => ({ id: o.examId, warning: duplicateWarning(o.examId, xrayHistory) }))
+    .filter((x) => x.warning?.level === 'warn');
+  /* Totals footer — §1.12.5.4 "ข้อมูลยอดรวมทั้งหมด", per-สิทธิ split. */
+  const xraySummary = summariseSelection(form.xrayOrders.map((o) => o.examId), xrayRightKey);
+
   const activeCategory = form.orderCategory || 'medication';
-  const rows = activeCategory === 'medication' ? form.medications : [];
+  /* `medication` and `xray` are the two categories with a real table on
+     this branch; the other three stay empty-state-only (their pickers
+     don't exist yet — do not invent them here). */
+  const rows = activeCategory === 'medication'
+    ? form.medications
+    : activeCategory === 'xray'
+      ? form.xrayOrders
+      : [];
 
   return (
     <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
@@ -2377,7 +2797,15 @@ export const Step5Orders = ({ form, setForm }) => {
               >
                 Re-Diagnosis
               </BrandButton>
-              <BrandPrimaryButton leadingIcon='add' onClick={openAddMed}>
+              {/* The add CTA dispatches per category: xray opens the RIS
+                  picker (this was the bug — "เพิ่ม X-ray" used to open the
+                  medication popup); medication keeps openAddMed; the other
+                  three categories keep today's behaviour untouched until
+                  their pickers exist on this branch. */}
+              <BrandPrimaryButton
+                leadingIcon='add'
+                onClick={activeCategory === 'xray' ? openAddXray : openAddMed}
+              >
                 {ORDER_EMPTY_STATE_TEXT[activeCategory].addLabel}
               </BrandPrimaryButton>
             </div>
@@ -2393,14 +2821,17 @@ export const Step5Orders = ({ form, setForm }) => {
                   fontWeight: 'var(--type-weight-bold)',
                   fontSize: 'var(--type-size-base)',
                 }}>
-                  รายการยาที่สั่ง
+                  {/* Per-category copy from ORDER_TABLE_TEXT — medication
+                      keeps its original strings verbatim, xray reads
+                      'รายการตรวจทางรังสีวิทยาที่สั่ง' (TOR §1.12.5.4). */}
+                  {ORDER_TABLE_TEXT[activeCategory].title}
                 </span>
                 <span style={{
                   color: 'var(--text-content-tertiary)',
                   fontFamily: 'var(--type-family-body)',
                   fontSize: 'var(--type-size-xs)',
                 }}>
-                  กด " + " เพื่อเพิ่มยารายการใหม่เข้าใน Order
+                  {ORDER_TABLE_TEXT[activeCategory].subtitle}
                 </span>
               </div>
               {/* Title-row action cluster — Figma PHCIS|CPOE 200:18623.
@@ -2414,6 +2845,16 @@ export const Step5Orders = ({ form, setForm }) => {
                   visually away from the destructive-free "add new" CTA
                   on the right, matching the design's clear primary /
                   secondary split. */}
+              {/* The whole cluster is medication-vocabulary (ยาทั้งหมด /
+                  Re-Diagnosis / เพิ่มยา), so the xray table swaps it for
+                  its single "เพิ่ม X-ray" CTA opening the RIS picker —
+                  a branch, not a rewrite, so the medication path stays
+                  byte-identical (live demoed screen). */}
+              {activeCategory === 'xray' ? (
+                <BrandPrimaryButton leadingIcon='add' onClick={openAddXray}>
+                  {ORDER_EMPTY_STATE_TEXT.xray.addLabel}
+                </BrandPrimaryButton>
+              ) : (
               <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
                 <BrandButton
                   variant='outline'
@@ -2441,14 +2882,20 @@ export const Step5Orders = ({ form, setForm }) => {
                 </BrandButton>
                 <BrandPrimaryButton leadingIcon='add' onClick={openAddMed}>เพิ่มยา</BrandPrimaryButton>
               </div>
+              )}
             </div>
 
             {/* Drug-allergy cross-class warning (Figma 2508:98442) — dismissible.
                 Only renders alongside an active order list per the user
                 spec ("เพิ่มแล้วจะแสดงเป็น table เหมือนเดิม และ alert
                 เตือนเกี่ยวการแพ้ยา"). Hidden while the empty state is
-                showing so the placeholder reads cleanly. */}
-            {form.showAllergyAlert && (
+                showing so the placeholder reads cleanly. Gated to the
+                medication category: cross-class DRUG allergy copy makes
+                no sense above the X-ray table (which raises its own
+                contrast / pregnancy gates below), and before this branch
+                existed the alert could only ever co-render with
+                medication rows anyway — so today's behaviour holds. */}
+            {activeCategory === 'medication' && form.showAllergyAlert && (
               <Alert
                 type='warning'
                 title='ความเสี่ยงการแพ้ยาข้ามกลุ่ม'
@@ -2461,22 +2908,133 @@ export const Step5Orders = ({ form, setForm }) => {
               />
             )}
 
+            {/* ── X-ray safety rail (TOR §1.12.5.3 / §1.12.5.9) ──────────
+                Carried over from the RIS order screen so the same gates
+                fire at the doctor's desk. Order: refused-add (block) →
+                contrast allergy → pregnancy screening → warn-level
+                repeats — most severe first, all above the table they
+                explain. */}
+            {activeCategory === 'xray' && xrayBlockNotice && (
+              /* The refused add — §1.12.5.9 'block'. The reason and the
+                 days-ago must be shown: "the computer said no" without
+                 the dose rationale teaches users to distrust the gate. */
+              <Alert
+                type='destructive'
+                iconName='block'
+                title='ไม่สามารถเพิ่มรายการได้ — สั่งซ้ำเร็วเกินไป'
+                subtext={`${xrayBlockNotice.warning.message} · ${XRAY_EXAM_BY_ID[xrayBlockNotice.examId]?.name ?? ''} ตรวจล่าสุด ${xrayBlockNotice.warning.daysAgo} วันก่อน (เกณฑ์ ${xrayBlockNotice.warning.windowDays} วัน)${xrayBlockNotice.warning.resultSummary ? ` · ผลเดิม: ${xrayBlockNotice.warning.resultSummary}` : ''} — ผู้ป่วยจะได้รับปริมาณรังสีซ้ำโดยไม่จำเป็น หากจำเป็นทางคลินิกให้ปรึกษารังสีแพทย์`}
+                showBadge={false}
+                showIndicator={false}
+                showDetail={false}
+                onClose={() => setXrayBlockNotice(null)}
+              />
+            )}
+            {activeCategory === 'xray' && xrayContrastAllergyDanger && (
+              /* แจ้งเตือนแพ้สารทึบรังสี — same destructive alert as
+                 XrayOrderPage: recorded drug allergy × contrast exam
+                 (§1.12.5.3). Exams and allergens are named so the doctor
+                 knows exactly which row tripped the alarm. */
+              <Alert
+                type='destructive'
+                iconName='warning'
+                iconFill={1}
+                title='แจ้งเตือนแพ้สารทึบรังสี — ผู้ป่วยมีประวัติการแพ้ และรายการที่เลือกใช้สารทึบรังสี'
+                subtext={`รายการที่ใช้สารทึบรังสี: ${xrayContrastExams.map((e) => e.name).join(' · ')} · สารที่แพ้: ${(patient?.drugAllergies ?? []).map((a) => a.name).join(', ') || 'ดูประวัติการแพ้ยา'} — ปรึกษารังสีแพทย์ก่อนส่งตรวจ และพิจารณา premedication หรือเปลี่ยนวิธีตรวจ`}
+                showBadge={false}
+                showIndicator={false}
+                showDetail={false}
+              />
+            )}
+            {activeCategory === 'xray' && xrayPregnancyWatch && (
+              /* ตั้งครรภ์ — §1.12.5.3: female patient + ionising exam
+                 flagged femaleScreening. The CPOE step has no LMP form
+                 (that intake lives on the RIS order screen), so this
+                 warns the doctor to ask before the beam, not after. */
+              <Alert
+                type='warning'
+                iconName='pregnant_woman'
+                title='ซักประวัติประจำเดือน / การตั้งครรภ์ก่อนส่งตรวจ'
+                subtext='ผู้ป่วยหญิง และรายการที่เลือกมีการฉายรังสีบริเวณช่องท้อง/เชิงกราน หรือเป็นแมมโมแกรม — กรุณาสอบถาม LMP และสถานะการตั้งครรภ์ก่อนส่งตรวจ หากตั้งครรภ์ให้ปรึกษารังสีแพทย์ หรือพิจารณาอัลตราซาวด์แทน'
+                showBadge={false}
+                showIndicator={false}
+                showDetail={false}
+              />
+            )}
+            {activeCategory === 'xray' && xrayDupWarns.length > 0 && (
+              /* Warn-level repeats — ordering anyway is allowed
+                 (§1.12.5.9 only refuses 'block'), so this informs for as
+                 long as the rows stay in the order. */
+              <Alert
+                type='warning'
+                iconName='content_copy'
+                title={`มี ${xrayDupWarns.length} รายการที่เพิ่งตรวจไปไม่นาน`}
+                subtext={xrayDupWarns
+                  .map(({ id, warning }) => `${XRAY_EXAM_BY_ID[id]?.name ?? id} (${warning.daysAgo} วันก่อน · เกณฑ์ ${warning.windowDays} วัน)`)
+                  .join(' · ')}
+                showBadge={false}
+                showIndicator={false}
+                showDetail={false}
+              />
+            )}
+
             {/* Medication order table (Figma 2508:98443).
                 `stickyColCount={2}` pins รูป (68 px) + ชื่อยา (256 px) to the
                 left edge so they remain visible while the other 17 columns
                 scroll horizontally. The Table component handles the
                 sticky-positioning, drop-shadow, and z-index stacking
-                internally — see `stickyLeft` / `stickyShadow` in Table.jsx. */}
+                internally — see `stickyLeft` / `stickyShadow` in Table.jsx.
+                The xray category reuses the same <Table> with its own
+                column set (TOR §1.12.5.4) — no sticky columns (8 columns
+                fit most laptop widths) and examId as the row key because
+                xray rows carry no synthetic `id`. */}
             <Table
-              columns={columns}
+              columns={activeCategory === 'xray' ? xrayColumns : columns}
               rows={rows}
-              stickyColCount={2}
+              rowKey={activeCategory === 'xray' ? (row) => row.examId : undefined}
+              stickyColCount={activeCategory === 'xray' ? 0 : 2}
               emptyMessage={
                 activeCategory === 'medication'
                   ? 'ยังไม่มีรายการยา คลิก "เพิ่มยา" หรือเลือกจาก "Often order" ด้านล่าง'
                   : 'ยังไม่มีรายการในหมวดนี้ — สลับไปแท็บ "ยา" เพื่อดูตัวอย่าง'
               }
             />
+
+            {/* §1.12.5.4 "ข้อมูลยอดรวมทั้งหมด" — the totals strip under the
+                xray table (the legacy screen's "รวมเงินทั้งหมด" line),
+                split per-สิทธิ. Styled with the Table system's footer
+                tokens (FooterCell in Table.jsx uses the same pair) so it
+                reads as the table's own tfoot even though the shared
+                <Table> has no footer slot. */}
+            {activeCategory === 'xray' && (
+              <div
+                className='flex items-center justify-end flex-wrap w-full'
+                style={{
+                  gap: 'var(--dim-space-600)',
+                  background: 'var(--surface-table-footer, var(--brand-p100, #E2F3EB))',
+                  borderRadius: 'var(--dim-radius-200, 8px)',
+                  paddingTop: 'var(--dim-space-300, 12px)',
+                  paddingRight: 'var(--dim-space-400, 16px)',
+                  paddingBottom: 'var(--dim-space-300, 12px)',
+                  paddingLeft: 'var(--dim-space-400, 16px)',
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm)',
+                  fontWeight: 'var(--type-weight-bold)',
+                  color: 'var(--text-table-footer, var(--brand-p800, #004C31))',
+                }}
+              >
+                <span>รวมทั้งหมด ({xraySummary.count} รายการ) {bahtText(xraySummary.total)} บาท</span>
+                <span>รวมเบิกได้ {bahtText(xraySummary.claimTotal)} บาท</span>
+                <span
+                  style={{
+                    color: xraySummary.patientPay > 0
+                      ? 'var(--text-statusbadge-warning, #C2410C)'
+                      : 'var(--text-table-footer, var(--brand-p800, #004C31))',
+                  }}
+                >
+                  รวมผู้ป่วยจ่าย {bahtText(xraySummary.patientPay)} บาท
+                </span>
+              </div>
+            )}
           </>
         )}
 
@@ -2492,6 +3050,14 @@ export const Step5Orders = ({ form, setForm }) => {
           doctor still confirms วิธีใช้ / หน่วย / ความถี่ / เวลา /
           การใช้ / คำเตือน before the row commits — same surface as the
           "เพิ่มยา" CTA, just with the name field already filled. */}
+      {/* Medication-only surface. Its chips are ชื่อยา and its CTA seeds
+          AddMedicationPopup, so it would be nonsense under the X-ray / แล็บ /
+          หัตถการ / ปรึกษา tabs — a doctor on the X-ray tab must not be
+          offered Amlodipine. Gated once the category tabs became
+          functional (TOR §1.12.5.1 put a real ordering surface behind the
+          X-ray tab). A frequent-exam roster for รังสีวิทยา would go here
+          when the catalog grows usage stats. */}
+      {activeCategory === 'medication' ? (
       <FrequentOrdersCard
         onInsertChip={openAddMedFromChip}
         /* Feed the current medication-row names so chips already in
@@ -2502,6 +3068,7 @@ export const Step5Orders = ({ form, setForm }) => {
            seeds into the popup's `ชื่อยา` field. */
         selectedLabels={form.medications.map((m) => m.name)}
       />
+      ) : null}
 
       {/* Re-Medicine popup (Figma 200:23111). Mounted at the section
           root so it portals outside the page's flex tree but still
@@ -2513,6 +3080,28 @@ export const Step5Orders = ({ form, setForm }) => {
         onClose={() => setReMedicineOpen(false)}
         onConfirm={appendPastMedications}
         items={PAST_VISIT_MEDICATIONS}
+      />
+
+      {/* X-ray order picker (popup variant) — the same
+          "เลือกรายการตรวจทางรังสีวิทยา" control the RIS order screen
+          mounts, opened from every "เพิ่ม X-ray" CTA (TOR §1.12.5.4).
+          Controlled: `value` mirrors form.xrayOrders' examIds so the
+          picker reopens with the current order ticked, and
+          `commitXraySelection` reconciles every change back into the
+          form (keeping per-row ท่าถ่าย / ความเร่งด่วน edits, re-running
+          the §1.12.5.9 duplicate gate on each add). `history` +
+          `rightKey` give it the same repeat warnings and per-สิทธิ money
+          the RIS screen shows. The MR roster has no `fullName`, so the
+          composed display name rides in as one for the picker's summary
+          line. */}
+      <XrayOrderPicker
+        open={xrayPickerOpen}
+        onClose={() => setXrayPickerOpen(false)}
+        value={form.xrayOrders.map((o) => o.examId)}
+        onChange={commitXraySelection}
+        patient={patient ? { ...patient, fullName: patient.name } : null}
+        rightKey={xrayRightKey}
+        history={xrayHistory}
       />
 
       {/* AddMedicationPopup — shared add/edit surface (Figma

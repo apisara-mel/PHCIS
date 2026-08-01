@@ -97,7 +97,7 @@ const AncFormPage = () => {
             <BrandSubdueButton variant='fill' leadingIcon='credit_card'>พิมพ์บัตรฝากครรภ์</BrandSubdueButton>
           }
         />
-        <AncPregnancyProgress form={form} cardPatient={cardPatient} />
+        <AncPregnancyProgress form={form} cardPatient={cardPatient} ancHn={ancHn} visitNo={seed.visitNo} />
         <TreatmentFormShell
           stepIndex={stepIndex}
           onStepChange={setStepIndex}
