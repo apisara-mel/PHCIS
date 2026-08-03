@@ -149,35 +149,9 @@ export const CONSENT_REPORTS = [
       })),
     },
   },
-  {
-    key: 'access-log',
-    title: 'รายงาน Log การเข้าถึงข้อมูลส่วนบุคคล',
-    subtitle: 'Audit Log ทุกการเข้าถึงข้อมูลส่วนบุคคล พร้อม IP Address และ Session ID',
-    chips: ['ผู้ใช้', 'IP Address', 'ช่วงเวลา', 'ประเภท action'],
-    stats: [
-      { icon: 'groups', tone: 'info', value: '4,821', label: 'log entries' },
-    ],
-    bars: [
-      { name: 'VIEW', tone: 'info', base: [280, 360, 330, 310, 240] },
-      { name: 'EXPORT / UPDATE', tone: 'teal', base: [70, 96, 84, 78, 60] },
-      { name: 'DELETE', tone: 'orange', base: [18, 12, 24, 16, 10] },
-    ],
-    table: {
-      columns: [
-        { key: 'user', header: 'ผู้ใช้', width: 190 },
-        { key: 'ip', header: 'IP Address', width: 150 },
-        { key: 'action', header: 'ประเภท action', width: 150, kind: 'badge' },
-        { key: 'datetime', header: 'วันเวลา', width: 170 },
-      ],
-      rows: seq((i) => ({
-        user: STAFF[i % STAFF.length],
-        ip: `10.12.${(i % 6) + 4}.${((i * 11) % 200) + 1}`,
-        action: i % 6 === 5 ? 'DELETE' : i % 3 === 0 ? 'EXPORT' : 'VIEW',
-        datetime: `${dtTH(i)}:${String((i * 13) % 60).padStart(2, '0')}`,
-        _iso: isoOf(i),
-      })),
-    },
-  },
 ];
+
+/** รายงานที่แสดงใน Consent dashboard (ไม่รวม access-log — ย้ายไป /audit/pii-access) */
+export const CONSENT_DASHBOARD_REPORTS = CONSENT_REPORTS.filter((r) => r.key !== 'access-log');
 
 export default CONSENT_REPORTS;

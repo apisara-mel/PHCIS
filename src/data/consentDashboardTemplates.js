@@ -47,7 +47,6 @@ const STANDARD_TEMPLATE = {
   widgets: [
     { id: 'w1', type: 'stat',  title: 'Consent ทั้งหมด',        dataset: 'summary' },
     { id: 'w2', type: 'donut', title: 'สัดส่วนการยินยอม',        dataset: 'records' },
-    { id: 'w3', type: 'bars',  title: 'แนวโน้มการยินยอมรายเดือน', dataset: 'reports' },
     { id: 'w4', type: 'table', title: 'รายการ Consent ล่าสุด',   dataset: 'records' },
   ],
 };

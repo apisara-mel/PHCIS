@@ -13,9 +13,8 @@ import FilterTag from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import DateFilterPopup from '@/components/popup/DateFilterPopup';
 import SuccessToast from '@/components/toast/SuccessToast';
-import ConsentHistoryPopup from '@/components/popup/ConsentHistoryPopup';
-import { CONSENT_REPORTS } from '@/data/consentReports';
-import { DEFAULT_SERVICE_CENTER_CHANNEL } from '@/data/consentChannels';
+import { openConsentHistoryTab } from '@/data/consentPatientHistory';
+import { CONSENT_DASHBOARD_REPORTS } from '@/data/consentReports';
 import { ExportFormatPopup, DateInputBox, buildReportTableColumns } from '@/pages/consent/consentExportPopup';
 
 /* PHCIS | Consent — สถิติและรายงาน (Figma node 358:113804).
@@ -69,6 +68,7 @@ const SCALE_BY_QUICK = {
   'last-6m': 6,
 };
 const scaleForQuick = (q) => SCALE_BY_QUICK[q] ?? 1;
+export { scaleForQuick };
 const scaleStatValue = (v, f) => (isPercent(v) ? v : Math.round(parseStatNum(v) * f).toLocaleString());
 
 /* Audit action / role → tone (access-times popup). */
@@ -353,7 +353,7 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
 /* ตัวคูณต่อ period ของการ์ด 16.1 (ฐานข้อมูล = รายเดือน) */
 const PERIOD_FACTOR = { 'รายวัน': 1 / 30, 'รายสัปดาห์': 7 / 30, 'รายเดือน': 1, 'รายปี': 12 };
 
-const ReportCard = ({ report, onExport, onView, scale = 1 }) => {
+export function ReportCard({ report, onExport, onView, scale = 1 }) {
   /* ด.1.1.16.1 — ชิป รายวัน/สัปดาห์/เดือน/ปี กรอง stats + bars จริง
      (สลับชุด label แกน x ตาม period) เฉพาะรายงานที่ selectable. */
   const [cardPeriod, setCardPeriod] = useState('รายเดือน');
@@ -466,37 +466,34 @@ const ReportCard = ({ report, onExport, onView, scale = 1 }) => {
   );
 };
 
-export function ConsentReportSections() {
-  const [exportReport, setExportReport] = useState(null);
-  const [viewReport, setViewReport] = useState(null);
+export function ConsentReportSections({
+  pageDate: pageDateProp,
+  onPageDateChange,
+  hideToolbar = false,
+  exportReport: exportReportProp,
+  onExportReportChange,
+  viewReport: viewReportProp,
+  onViewReportChange,
+  reports = CONSENT_DASHBOARD_REPORTS,
+  excludeKeys = [],
+}) {
+  const [exportReportInternal, setExportReportInternal] = useState(null);
+  const [viewReportInternal, setViewReportInternal] = useState(null);
   const [exported, setExported] = useState(false);
-  const [pageDate, setPageDate] = useState({ quick: 'thismonth' }); // "วัน: เดือนนี้"
-  /* ด.1.1.16.2 — คลิกแถวรายบุคคล → ConsentHistoryPopup ของ HN นั้น */
-  const [historyFor, setHistoryFor] = useState(null);
+  const [pageDateInternal, setPageDateInternal] = useState({ quick: 'thismonth' });
+  const pageDate = pageDateProp ?? pageDateInternal;
+  const setPageDate = onPageDateChange ?? setPageDateInternal;
+  const exportReport = exportReportProp ?? exportReportInternal;
+  const setExportReport = onExportReportChange ?? setExportReportInternal;
+  const viewReport = viewReportProp ?? viewReportInternal;
+  const setViewReport = onViewReportChange ?? setViewReportInternal;
+  /* ด.1.1.16.2 — คลิกแถวรายบุคคล → ประวัติความยินยอม (แท็บใหม่) */
   /* ด.1.1.16.4 — คลิกแถวผู้มีสิทธิ → วันเวลาการเข้าถึงรายครั้ง */
   const [accessTimesFor, setAccessTimesFor] = useState(null);
 
   const handleReportRowClick = (report, row) => {
     if (report.key === 'personal-consent' && row.hn) {
-      /* สร้าง record เทียบเท่า consentRecords จากแถวรายงาน (mock) */
-      setHistoryFor({
-        name: row.name,
-        hn: row.hn,
-        type: row.type,
-        version: 'V 1.0',
-        status: row.status === 'ยินยอม' ? 'ยินยอมแล้ว' : 'ปฏิเสธ',
-        history: [
-          {
-            date: '5 มิ.ย. 2569',
-            formCode: 'PH-001',
-            formName: `ใบยินยอมประเภท${row.type}`,
-            type: row.type,
-            version: 'V 1.0',
-            status: row.status === 'ยินยอม' ? 'ยินยอมแล้ว' : 'ปฏิเสธ',
-            channel: DEFAULT_SERVICE_CENTER_CHANNEL,
-          },
-        ],
-      });
+      openConsentHistoryTab(row.hn);
     } else if (report.key === 'access-rights' && row.accessTimes) {
       setAccessTimesFor(row);
     }
@@ -504,25 +501,29 @@ export function ConsentReportSections() {
   return (
     <>
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-        {/* toolbar (Figma 399:125271) — date-range filter + export-all */}
-        <section
-          className='w-full flex items-center justify-between flex-wrap'
-          style={{
-            gap: 'var(--dim-space-300)',
-            background: 'var(--surface-card-100)',
-            borderRadius: 'var(--dim-radius-500)',
-            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-            boxShadow: 'var(--shadow-card)',
-            padding: 'var(--dim-space-300) var(--dim-space-400)',
-          }}
-        >
-          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thismonth' />
-          <NeutralSubdueButton leadingIcon='ios_share' size='md' onClick={() => setExportReport({ key: 'all', title: 'รายงานทั้งหมด' })}>
-            นำส่งออกรายงานทั้งหมด
-          </NeutralSubdueButton>
-        </section>
+        {!hideToolbar && (
+          <section
+            className='w-full flex items-center justify-between flex-wrap'
+            style={{
+              gap: 'var(--dim-space-300)',
+              background: 'var(--surface-card-100)',
+              borderRadius: 'var(--dim-radius-500)',
+              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+              boxShadow: 'var(--shadow-card)',
+              padding: 'var(--dim-space-300) var(--dim-space-400)',
+            }}
+          >
+            <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thismonth' />
+            <NeutralSubdueButton leadingIcon='ios_share' size='md' onClick={() => setExportReport({ key: 'all', title: 'รายงานทั้งหมด' })}>
+              นำส่งออกรายงานทั้งหมด
+            </NeutralSubdueButton>
+          </section>
+        )}
 
-        {CONSENT_REPORTS.map((r) => (
+        {(excludeKeys.length
+          ? reports.filter((r) => !excludeKeys.includes(r.key))
+          : reports
+        ).map((r) => (
           <ReportCard key={r.key} report={r} scale={scaleForQuick(pageDate.quick)} onExport={setExportReport} onView={setViewReport} />
         ))}
       </div>
@@ -541,13 +542,6 @@ export function ConsentReportSections() {
         report={exportReport}
         onClose={() => setExportReport(null)}
         onExported={() => setExported(true)}
-      />
-
-      {/* ด.1.1.16.2 — ประวัติความยินยอมรายบุคคล (ยินยอม/ไม่ยินยอมเรื่องใดบ้าง) */}
-      <ConsentHistoryPopup
-        open={!!historyFor}
-        record={historyFor}
-        onClose={() => setHistoryFor(null)}
       />
 
       {/* ด.1.1.16.4 — วันเวลาการเข้าถึงรายครั้งของผู้มีสิทธิ */}

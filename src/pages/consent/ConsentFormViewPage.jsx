@@ -15,6 +15,8 @@ import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersion
 import { CONSENT_FORM_RECORDS, FORM_TYPE_TONE } from '@/data/consentFormRecords';
 import { buildWizardPrefillFromRecord } from '@/data/consentFormWizardContent';
 import { logExport } from '@/data/consentWorkflowStore';
+import { downloadConsentFormPdf } from '@/data/consentFormDownload';
+import { ConsentFormSharePopup } from '@/pages/consent/ConsentFormSharePopup';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — ดูแบบฟอร์มความยินยอม (Figma 302:143587).
@@ -78,6 +80,7 @@ export default function ConsentFormViewPage() {
   const [toast, setToast] = useState(null);
   const [versionOpen, setVersionOpen] = useState(false);
   const [bumpOpen, setBumpOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const record = useMemo(
     () => CONSENT_FORM_RECORDS.find((r) => String(r.id) === String(id)) || CONSENT_FORM_RECORDS[0],
@@ -94,9 +97,14 @@ export default function ConsentFormViewPage() {
   };
 
   /* ด.1.1.15 — ดาวน์โหลด PDF เพื่อพิมพ์ให้ลงนามก่อนให้สิทธิเข้าถึง (เก็บ log). */
-  const handleDownloadPdf = () => {
-    logExport({ source: `${record.code} ${record.name}`, format: 'pdf' });
-    setToast({ id: Date.now(), variant: 'success', message: `ดาวน์โหลด ${record.code}.pdf แล้ว — ระบบบันทึก log การส่งออกข้อมูล` });
+  const handleDownloadPdf = async () => {
+    try {
+      const filename = await downloadConsentFormPdf(record);
+      logExport({ source: `${record.code} ${record.name}`, format: 'pdf' });
+      setToast({ id: Date.now(), variant: 'success', message: `ดาวน์โหลด ${filename} แล้ว — ระบบบันทึก log การส่งออกข้อมูล` });
+    } catch {
+      setToast({ id: Date.now(), variant: 'error', message: 'ไม่สามารถดาวน์โหลด PDF ได้ — ลองใหม่อีกครั้ง' });
+    }
   };
 
   /* พิมพ์ — ไม่เก็บ log ตาม annotation. */
@@ -193,6 +201,9 @@ export default function ConsentFormViewPage() {
             <NeutralSubdueButton variant='outline' size='md' leadingIcon='print' onClick={handlePrint}>
               พิมพ์
             </NeutralSubdueButton>
+            <NeutralSubdueButton variant='outline' size='md' leadingIcon='ios_share' onClick={() => setShareOpen(true)}>
+              ส่งออก
+            </NeutralSubdueButton>
             <NeutralSubdueButton variant='outline' size='md' leadingIcon='download' onClick={handleDownloadPdf}>
               ดาวน์โหลด PDF
             </NeutralSubdueButton>
@@ -243,6 +254,15 @@ export default function ConsentFormViewPage() {
         onConfirm={() => { setBumpOpen(false); goCreateVersion(); }}
         onCancel={() => setBumpOpen(false)}
         onClose={() => setBumpOpen(false)}
+      />
+
+      <ConsentFormSharePopup
+        open={shareOpen}
+        record={record}
+        onClose={() => setShareOpen(false)}
+        onShared={({ email }) => {
+          setToast({ id: Date.now(), variant: 'success', message: `ส่งออก ${record.code} ไปยัง ${email} แล้ว — ระบบบันทึก log การส่งออกข้อมูล` });
+        }}
       />
 
       <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
