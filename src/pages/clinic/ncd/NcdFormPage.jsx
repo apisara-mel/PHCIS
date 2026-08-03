@@ -1,0 +1,361 @@
+import React, { useMemo, useState } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
+import Sidebar from '@/components/layout/Sidebar';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
+import Icon from '@/components/icons/Icon';
+import PatientCard from '@/components/card/PatientCard';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Popup from '@/components/popup/Popup';
+import Textarea from '@/components/forms/Textarea';
+import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
+import TreatmentFormShell from '@/templates/TreatmentFormShell';
+import {
+  NcdStep1History, NcdStep2Assessment, NcdStep3Examination,
+  NcdStep4Diagnosis, NcdStep5Attachments, NcdStep6Appointment,
+  validateNcdAppointment,
+} from '@/pages/clinic/ncd/NcdSteps';
+import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
+import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
+import {
+  DEFAULT_NCD_VISIT,
+  getNcdCompletedSteps,
+  getNcdPatientByHn,
+  getNcdRegistrationByHn,
+  getNcdCancellation,
+  getNcdVisitStatus,
+  setNcdVisitStatus,
+  saveNcdVisitRecord,
+  resolveNcdGroup,
+  canEditNcd,
+  NCD_CURRENT_USER,
+} from '@/data/ncdVisits';
+
+/* NcdFormPage — บันทึกการตรวจรักษาโรคเฉพาะ NCD (TOR 1.10.2.1/.3/.4/.5/.7)
+   at /clinic/ncd/record. Mirrors AncFormPage: one form-state object across
+   the 6 steps in NcdSteps.jsx via the shared TreatmentFormShell, seeded from
+   queue nav state. The record supports the full TOR quartet:
+
+     • แสดง   — the form itself (+ read-only mode when สิทธิ์ผู้ใช้ไม่พอ)
+     • บันทึก — ร่าง (returns the queue row to ที่ร่างไว้) + ยืนยัน
+                (validates วินิจฉัย + นัดหมาย, appends to the follow-up
+                trend, audit-stamps ผู้บันทึก + เวลา)
+     • แก้ไข — reopening a draft/done visit edits the same form state
+     • ยกเลิก — reason-required popup; the cancellation + reason + ผู้ยกเลิก
+                stay in sessionStorage as the visit's audit trail
+
+   Telemedicine visits show the videocam entry banner: joining/leaving the
+   consult is an inline state flip (ANC Step-6 pattern — the shared web call
+   room is TelemedConsultPage's overlay, reported in the manifest as a mock
+   integration), and leaving never touches the form state. */
+
+const breadcrumb = ['ระบบบันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
+
+const NCD_STEPS = [
+  { title: 'ผลการซักประวัติ', subtitle: 'Medical History' },
+  { title: 'ประเมิน NCD', subtitle: 'NCD Assessment' },
+  { title: 'ตรวจร่างกาย', subtitle: 'Physical Examination' },
+  { title: 'วินิจฉัย + สั่งการรักษา', subtitle: 'Diagnosis & Orders' },
+  { title: 'เอกสารแนบ', subtitle: 'Attachments' },
+  { title: 'นัดหมาย', subtitle: 'Appointment' },
+];
+
+const formatAuditTime = (d) => new Intl.DateTimeFormat('th-TH-u-ca-buddhist', {
+  day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+}).format(d);
+
+const Banner = ({ tone = 'warning', icon, children, action }) => {
+  const palette = tone === 'danger'
+    ? { bg: 'var(--surface-danger-quaternary, #FFF0F0)', fg: 'var(--text-danger-default, #C72121)' }
+    : tone === 'info'
+      ? { bg: 'var(--surface-brandPrimary-quaternary, #F4FBF8)', fg: 'var(--text-brandPrimary-default, #007549)' }
+      : { bg: 'var(--surface-alert-warning, #FFF9F0)', fg: 'var(--text-warning-default, #C2410C)' };
+  return (
+    <div
+      className='flex items-center flex-wrap'
+      style={{
+        gap: 'var(--dim-space-300)',
+        paddingTop: 'var(--dim-space-300)',
+        paddingBottom: 'var(--dim-space-300)',
+        paddingLeft: 'var(--dim-space-400)',
+        paddingRight: 'var(--dim-space-400)',
+        borderRadius: 'var(--dim-radius-200)',
+        background: palette.bg,
+        color: palette.fg,
+        fontSize: 'var(--type-size-sm)',
+      }}
+    >
+      <Icon name={icon} size={18} />
+      <span className='flex-1 min-w-0'>{children}</span>
+      {action}
+    </div>
+  );
+};
+
+const NcdFormPage = () => {
+  const history = useHistory();
+  const { state: navState } = useLocation();
+  const canEdit = canEditNcd();
+
+  /* MR-shape identity for the step bodies (drugAllergies / rights / …). */
+  const patient = useMemo(() => {
+    const p = (navState && findMrPatientByHn(navState.hn)) || DEFAULT_MR_PATIENT;
+    return { ...p, queue: navState?.queue, name: navState?.name || `${p.firstNameTh} ${p.lastNameTh}` };
+  }, [navState]);
+
+  /* PatientCard-shape identity (HN ชื่อ-สกุล เพศ อายุ บัตรประชาชน สิทธิ —
+     TOR 1.10.2.1's identity set). Display only — records key off `ncdHn`
+     (the HN the queue navigated with), same reasoning as AncFormPage. */
+  const cardPatient = useMemo(
+    () => (navState?.hn && getPatientByHN(navState.hn)) || DEFAULT_PATIENT,
+    [navState?.hn],
+  );
+  const ncdHn = navState?.hn || cardPatient?.hn;
+
+  const queueRow = useMemo(() => getNcdPatientByHn(ncdHn), [ncdHn]);
+  const registration = useMemo(() => getNcdRegistrationByHn(ncdHn), [ncdHn]);
+  const registryCancellation = useMemo(() => getNcdCancellation(ncdHn), [ncdHn]);
+  const diseaseGroups = registration?.diseaseGroups || queueRow?.diseaseGroups || [];
+
+  const [stepIndex, setStepIndex] = useState(0);
+  const [form, setForm] = useState(() => ({
+    ...DEFAULT_NCD_VISIT,
+    icd10: registration?.icd10 || '',
+    controlStatus: registration?.severity || '',
+    activeTemplate: (registration?.diseaseGroups || queueRow?.diseaseGroups || [])[0] || '',
+  }));
+
+  /* บันทึกร่าง / ยืนยัน / ยกเลิก state — audit copy shown in Step 6 and the
+     cancelled banner. Seeded from sessionStorage so reopening a cancelled
+     visit still shows who cancelled it and why. */
+  const [saveState, setSaveState] = useState(() => {
+    const status = getNcdVisitStatus(ncdHn);
+    return status?.statusKey === 'cancelled'
+      ? { cancelled: status }
+      : {};
+  });
+  const [confirmError, setConfirmError] = useState('');
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelError, setCancelError] = useState('');
+
+  /* Telemedicine join state — flipping in/out of the consult keeps `form`
+     untouched (spec edge case "declining/leaving returns to the form
+     without losing form state"). */
+  const [telemedStatus, setTelemedStatus] = useState('none');
+
+  const completedSteps = useMemo(
+    () => getNcdCompletedSteps(form, stepIndex),
+    [form, stepIndex],
+  );
+
+  const handleSaveDraft = () => {
+    setNcdVisitStatus(ncdHn, 'draft');
+    setSaveState((s) => ({ ...s, draftAt: formatAuditTime(new Date()), by: NCD_CURRENT_USER.name }));
+    setConfirmError('');
+  };
+
+  const handleConfirm = () => {
+    /* Confirm gate — วินิจฉัย + ICD-10 required (spec edge case), then the
+       appointment rules (past date / slot conflict) if one is being made. */
+    if (!form.diagnosisNote.trim() || !form.icd10) {
+      setConfirmError('ยืนยันไม่ได้ — ต้องระบุวินิจฉัยและรหัส ICD-10 ในขั้นตอนที่ 4 ก่อน');
+      return;
+    }
+    const apptError = validateNcdAppointment(form.appointment);
+    if (apptError) {
+      setConfirmError(apptError);
+      return;
+    }
+    setConfirmError('');
+    const now = new Date();
+    saveNcdVisitRecord(ncdHn, {
+      date: now.toISOString().slice(0, 10),
+      type: form.appointment.mode === 'telemedicine' || telemedStatus !== 'none' ? 'Telemedicine' : 'ตรวจตามนัด',
+      bp: form.vitals.bp || null,
+      sbp: Number(String(form.vitals.bp || '').split('/')[0]) || null,
+      dbp: Number(String(form.vitals.bp || '').split('/')[1]) || null,
+      pulse: Number(form.vitals.hr) || null,
+      weight: Number(form.vitals.weight) || null,
+      fbs: form.fbs !== '' ? Number(form.fbs) : null,
+      hba1c: null,
+      ldl: null,
+      egfr: null,
+      pefr: form.pefr !== '' ? Number(form.pefr) : null,
+      spo2: Number(form.vitals.spo2) || null,
+      exam: form.physicalExamNote || form.footExam || form.lungSound || '-',
+      dental: null,
+      xray: form.xrayOrders.length > 0 ? `สั่งตรวจ X-ray ${form.xrayOrders.length} รายการ` : null,
+      note: form.diagnosisNote,
+    });
+    setNcdVisitStatus(ncdHn, 'done');
+    setSaveState((s) => ({ ...s, confirmedAt: formatAuditTime(now), by: NCD_CURRENT_USER.name }));
+  };
+
+  const confirmCancelVisit = () => {
+    if (!cancelReason.trim()) {
+      setCancelError('ต้องระบุเหตุผลการยกเลิกก่อนยืนยัน');
+      return;
+    }
+    setNcdVisitStatus(ncdHn, 'cancelled', { reason: cancelReason.trim() });
+    setCancelOpen(false);
+    setSaveState((s) => ({
+      ...s,
+      cancelled: { by: NCD_CURRENT_USER.name, at: new Date().toISOString(), reason: cancelReason.trim() },
+    }));
+  };
+
+  const stepProps = {
+    form,
+    setForm,
+    patient,
+    diseaseGroups,
+    readOnly: !canEdit,
+    rightsExpired: !!queueRow?.rightsExpired,
+    saveState,
+    confirmError,
+    onSaveDraft: handleSaveDraft,
+    onConfirm: handleConfirm,
+  };
+
+  const STEP_RENDERERS = [
+    NcdStep1History, NcdStep2Assessment, NcdStep3Examination,
+    NcdStep4Diagnosis, NcdStep5Attachments, NcdStep6Appointment,
+  ];
+  const ActiveStep = STEP_RENDERERS[stepIndex];
+
+  const groupBadges = diseaseGroups.map((key) => {
+    const g = resolveNcdGroup(key);
+    return g ? <ColorfulBadge key={key} style={g.badge} size='small' hierarchy='secondary'>{g.short}</ColorfulBadge> : null;
+  });
+
+  return (
+    <ClinicFilterProvider>
+    <div className='flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
+      <Sidebar activeKey='treat' />
+      <div className='flex-1 min-w-0 flex flex-col'>
+        <Header breadcrumb={breadcrumb} />
+
+        {/* ยกเลิกการบันทึก — reason required, audit kept */}
+        <Popup
+          open={cancelOpen}
+          onClose={() => setCancelOpen(false)}
+          title='ยกเลิกการบันทึกการตรวจรักษา'
+          subtitle={`${cardPatient?.fullName || patient.name} · HN: ${ncdHn}`}
+          tertiaryAction={{ label: 'ปิด', onClick: () => setCancelOpen(false) }}
+          primaryAction={{ label: 'ยืนยันยกเลิกการบันทึก', onClick: confirmCancelVisit, tone: 'danger' }}
+        >
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+            <Textarea
+              label='เหตุผลการยกเลิก'
+              required
+              value={cancelReason}
+              onChange={(v) => { setCancelReason(v); if (cancelError) setCancelError(''); }}
+              placeholder='เช่น ผู้รับบริการขอยุติการตรวจ / บันทึกผิดคน'
+            />
+            {cancelError && (
+              <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)', color: 'var(--text-danger-default, #C72121)', fontSize: 'var(--type-size-sm)' }}>
+                <Icon name='error' size={14} />
+                {cancelError}
+              </span>
+            )}
+          </div>
+        </Popup>
+
+        <PatientCard
+          sticky
+          patient={cardPatient}
+          title='บันทึกการตรวจรักษาโรคเฉพาะ (NCD)'
+          onBack={() => history.push('/clinic/ncd')}
+          drugAllergies={patient.drugAllergies}
+          chronicDiseases={patient.chronicDiseases}
+          actions={
+            <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+              {groupBadges}
+              <BrandSubdueButton variant='outline' leadingIcon='print' onClick={() => window.print()}>
+                พิมพ์สรุปการตรวจ
+              </BrandSubdueButton>
+              {canEdit && !saveState.cancelled && (
+                <NeutralSubdueButton leadingIcon='block' onClick={() => { setCancelReason(''); setCancelError(''); setCancelOpen(true); }}>
+                  ยกเลิกการบันทึก
+                </NeutralSubdueButton>
+              )}
+            </div>
+          }
+        />
+
+        {/* Context banners — rights / read-only / registry-cancelled /
+            visit-cancelled / telemedicine. Non-blocking by design (manual
+            ch.2: rights re-check happens before CPOE, not before triage). */}
+        <div className='flex flex-col' style={{
+          gap: 'var(--dim-space-200)',
+          paddingTop: 'var(--dim-space-300)',
+          paddingLeft: 'var(--dim-space-600)',
+          paddingRight: 'var(--dim-space-600)',
+        }}>
+          {queueRow?.rightsExpired && (
+            <Banner tone='warning' icon='shield_question'>
+              สิทธิการรักษาหมดอายุ / ชำระเอง — แนะนำตรวจสอบสิทธิอีกครั้งก่อนสั่งยาและส่งตรวจ (ขั้นตอนที่ 4)
+            </Banner>
+          )}
+          {!canEdit && (
+            <Banner tone='warning' icon='visibility'>
+              สิทธิ์ของคุณดูได้อย่างเดียว — แบบฟอร์มถูกปิดการแก้ไข และปุ่มบันทึก/ยืนยัน/ยกเลิกถูกซ่อน
+            </Banner>
+          )}
+          {registryCancellation && (
+            <Banner tone='danger' icon='block'>
+              ผู้รับบริการถูกยกเลิกทะเบียนโรคเฉพาะแล้ว ({registryCancellation.reason}) —
+              เปิดใช้งานได้อีกครั้งที่หน้าทะเบียน
+            </Banner>
+          )}
+          {saveState.cancelled && (
+            <Banner tone='danger' icon='block'>
+              การบันทึกครั้งนี้ถูกยกเลิก · ผู้ยกเลิก {saveState.cancelled.by || NCD_CURRENT_USER.name}
+              {saveState.cancelled.at ? ` · ${formatAuditTime(new Date(saveState.cancelled.at))}` : ''}
+              {saveState.cancelled.reason ? ` · เหตุผล: ${saveState.cancelled.reason}` : ''}
+            </Banner>
+          )}
+          {queueRow?.telemedicine && (
+            <Banner
+              tone='info'
+              icon='videocam'
+              action={
+                telemedStatus === 'started' ? (
+                  <NeutralSubdueButton size='sm' leadingIcon='call_end' onClick={() => setTelemedStatus('completed')}>
+                    ออกจากการปรึกษา
+                  </NeutralSubdueButton>
+                ) : telemedStatus === 'completed' ? (
+                  <ColorfulBadge style='green' size='small' hierarchy='secondary'>ปรึกษาเสร็จสิ้นแล้ว</ColorfulBadge>
+                ) : (
+                  <BrandSubdueButton variant='fill' size='sm' leadingIcon='videocam' onClick={() => setTelemedStatus('started')}>
+                    เข้าร่วมการปรึกษา
+                  </BrandSubdueButton>
+                )
+              }
+            >
+              วิสิตนี้เป็นการปรึกษาผ่าน Telemedicine — เข้าร่วม/ออกจากการปรึกษาได้โดยไม่กระทบข้อมูลในแบบฟอร์ม
+            </Banner>
+          )}
+        </div>
+
+        <TreatmentFormShell
+          stepIndex={stepIndex}
+          onStepChange={setStepIndex}
+          completedSteps={completedSteps}
+          steps={NCD_STEPS}
+          queuePath='/clinic/ncd'
+          step0FlushLeft
+        >
+          <ActiveStep {...stepProps} />
+        </TreatmentFormShell>
+        <Footer />
+      </div>
+    </div>
+    </ClinicFilterProvider>
+  );
+};
+
+export default NcdFormPage;
