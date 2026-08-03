@@ -17,7 +17,7 @@ const STAGES = [
   { key: 'submitted', label: 'ส่งแบบฟอร์มยินยอมสำเร็จ' },
 ];
 
-const ConsentQrSendPopup = ({ open, form, onClose, onSubmitted }) => {
+const ConsentQrSendPopup = ({ open, form, token, onClose, onSubmitted }) => {
   const [stageIndex, setStageIndex] = useState(0);
 
   useEffect(() => {
@@ -94,6 +94,14 @@ const ConsentQrSendPopup = ({ open, form, onClose, onSubmitted }) => {
         >
           ให้ผู้รับบริการใช้กล้องมือถือสแกน QR นี้เพื่อเปิดแบบฟอร์มยินยอมและลงลายเซ็นด้วยตนเอง
         </p>
+        {token && form?.slug && (
+          <p
+            className='text-xs text-center break-all'
+            style={{ color: 'var(--text-content-tertiary)', maxWidth: 360, fontFamily: 'monospace' }}
+          >
+            {`/forms/${form.slug}/fill?role=patient&token=${token}`}
+          </p>
+        )}
       </div>
     </Popup>
   );

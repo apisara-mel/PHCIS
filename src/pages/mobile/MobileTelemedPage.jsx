@@ -18,6 +18,9 @@ import StatusBadge from '@/components/badge/StatusBadge';
 import MobileIconBadge from '@/components/mobile/MobileIconBadge';
 import { CURRENT_USER } from '@/data/mobileMock';
 import { usePhcisLink, updateAppointment } from '@/data/phcisLink';
+import { linkTelemedRecordingConsent } from '@/data/consentWorkflowStore';
+
+const MOBILE_PATIENT_HN = CURRENT_USER.centers?.[0]?.hn || '67-004321';
 
 /* BMA Health · Telemed — Figma Mobile Application 2042:26776
    Flow: รอพบแพทย์ → วิดีโอ/เสียง → ให้คะแนน → สำเร็จ → ชำระเงิน */
@@ -116,7 +119,7 @@ const CallControls = ({
   </div>
 );
 
-const SoundBars = () => {
+const SoundBars = ({ active = true }) => {
   const heights = [
     'var(--dim-size-200, 12px)',
     'calc(var(--dim-size-300, 16px) + var(--dim-space-050, 2px))',
@@ -134,6 +137,7 @@ const SoundBars = () => {
       style={{
         gap: 'var(--dim-space-100, 4px)',
         height: 'var(--dim-size-700, 36px)',
+        opacity: active ? 1 : 0.25,
       }}
     >
       {heights.map((h, i) => (
@@ -144,7 +148,7 @@ const SoundBars = () => {
             height: h,
             borderRadius: 'var(--dim-radius-150, 6px)',
             background: 'var(--surface-info-default, #3B82F6)',
-            animation: `mih-telemed-bar 0.9s ease-in-out ${i * 0.08}s infinite alternate`,
+            animation: active ? `mih-telemed-bar 0.9s ease-in-out ${i * 0.08}s infinite alternate` : 'none',
           }}
         />
       ))}
@@ -634,7 +638,7 @@ const CancelAppointmentPopup = ({ onConfirm, onClose }) => (
   </div>
 );
 
-const PdpaConsent = ({ onAccept, onCancel }) => (
+const PdpaConsent = ({ onAccept, onDeclineRecording, onCancel, reconsent = false }) => (
   <div
     className='flex flex-col'
     style={{
@@ -715,9 +719,15 @@ const PdpaConsent = ({ onAccept, onCancel }) => (
               color: 'var(--text-content-tertiary, #858C92)',
             }}
           >
-            การสนทนานี้อาจถูกบันทึกภาพและเสียงเพื่อใช้เป็น
-            <br aria-hidden />
-            หลักฐานทางการแพทย์และพัฒนาคุณภาพการบริการ
+            {reconsent
+              ? 'การเปิดไมโครโฟนหรือกล้องจำเป็นต้องได้รับความยินยอมในการบันทึกภาพและเสียงก่อน'
+              : (
+                <>
+                  การสนทนานี้อาจถูกบันทึกภาพและเสียงเพื่อใช้เป็น
+                  <br aria-hidden />
+                  หลักฐานทางการแพทย์และพัฒนาคุณภาพการบริการ
+                </>
+              )}
           </p>
         </div>
 
@@ -751,9 +761,16 @@ const PdpaConsent = ({ onAccept, onCancel }) => (
       <BrandButton size='Large' onClick={onAccept}>
         ข้าพเจ้ายินยอมให้บันทึกภาพและเสียง
       </BrandButton>
-      <BrandButton size='Medium' variant='Ghost' onClick={onCancel}>
-        ยกเลิก
-      </BrandButton>
+      {!reconsent && onDeclineRecording && (
+        <BrandButton size='Medium' variant='Ghost' onClick={onDeclineRecording}>
+          ไม่ยินยอมการบันทึก แต่ดำเนินการต่อ
+        </BrandButton>
+      )}
+      {reconsent && (
+        <BrandButton size='Medium' variant='Ghost' onClick={onCancel}>
+          ยกเลิก
+        </BrandButton>
+      )}
     </footer>
   </div>
 );
@@ -803,10 +820,23 @@ const SelfCameraView = ({ active = true, mirrored = true, fallbackSrc = '/illust
 const ReadinessCheck = ({
   micOn,
   camOn,
+  recordingConsented,
   onCancel,
   onContinue,
   onRetest,
-}) => (
+}) => {
+  const deviceBadge = (on) => {
+    if (!recordingConsented) {
+      return { style: 'warning', label: 'ปิด — ไม่ยินยอมบันทึก' };
+    }
+    return on
+      ? { style: 'success', label: 'พร้อมใช้งาน' }
+      : { style: 'error', label: 'ไม่พร้อมใช้งาน' };
+  };
+  const camBadge = deviceBadge(camOn);
+  const micBadge = deviceBadge(micOn);
+
+  return (
   <div
     className='flex flex-col'
     style={{ height: '100%', minHeight: 0, background: 'var(--background-screen-brand-100, #F4FBF8)' }}
@@ -907,8 +937,8 @@ const ReadinessCheck = ({
             >
               กล้องวิดีโอ
             </p>
-            <StatusBadge style={camOn ? 'success' : 'error'} size='small'>
-              {camOn ? 'พร้อมใช้งาน' : 'ไม่พร้อมใช้งาน'}
+            <StatusBadge style={camBadge.style} size='small'>
+              {camBadge.label}
             </StatusBadge>
           </div>
           <div
@@ -944,12 +974,34 @@ const ReadinessCheck = ({
             >
               ไมโครโฟน
             </p>
-            <StatusBadge style={micOn ? 'success' : 'error'} size='small'>
-              {micOn ? 'พร้อมใช้งาน' : 'ไม่พร้อมใช้งาน'}
+            <StatusBadge style={micBadge.style} size='small'>
+              {micBadge.label}
             </StatusBadge>
           </div>
-          <SoundBars />
+          <SoundBars active={micOn && recordingConsented} />
         </div>
+
+        {!recordingConsented && (
+          <div style={{ width: '100%', padding: '0 var(--dim-space-400, 16px) var(--dim-space-200, 8px)' }}>
+            <Alert
+              type='info'
+              title='คุณเลือกไม่ยินยอมการบันทึก — ไมโครโฟนและกล้องจะปิดอยู่จนกว่าจะให้ความยินยอม'
+              showSubtext={false}
+              showDetail={false}
+              showBadge={false}
+              showIndicator={false}
+              showCloseButton={false}
+              iconName='shield'
+              iconSize={16}
+              titleStyle={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs, 12px)',
+                fontWeight: 'var(--type-weight-medium, 500)',
+                lineHeight: 1.5,
+              }}
+            />
+          </div>
+        )}
 
         <div style={{ width: '100%', padding: '0 var(--dim-space-400, 16px)' }}>
           <Alert
@@ -1008,7 +1060,8 @@ const ReadinessCheck = ({
       </div>
     </footer>
   </div>
-);
+  );
+};
 
 const WaitingRoom = ({
   doctorName,
@@ -1320,7 +1373,7 @@ const WaitingRoom = ({
 };
 
 const VideoCall = ({
-  doctorName, micOn, camOn, elapsed, chatBadge,
+  doctorName, micOn, camOn, elapsed, chatBadge, recordingConsented,
   onMic, onCam, onShare, onChat, onEnd, onMinimize, chatOpen, chatProps,
 }) => (
   <div
@@ -1388,7 +1441,7 @@ const VideoCall = ({
           background: 'radial-gradient(120% 90% at 50% 38%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.28) 100%)',
         }}
       />
-      {/* LIVE pill — top-left */}
+      {/* LIVE / no-recording pill — top-left */}
       <div
         className='inline-flex items-center'
         style={{
@@ -1404,20 +1457,29 @@ const VideoCall = ({
           fontFamily: 'var(--type-family-body)',
           fontSize: 'var(--type-size-xs, 12px)',
           fontWeight: 'var(--type-weight-medium, 500)',
-          letterSpacing: '0.04em',
+          letterSpacing: recordingConsented ? '0.04em' : 'normal',
         }}
       >
-        <span
-          aria-hidden
-          style={{
-            width: 'var(--dim-space-150, 6px)',
-            height: 'var(--dim-space-150, 6px)',
-            borderRadius: 'var(--dim-radius-full, 9999px)',
-            background: 'var(--surface-danger-default, #EF4444)',
-            animation: 'mih-telemed-livedot 1.4s ease-in-out infinite',
-          }}
-        />
-        LIVE
+        {recordingConsented ? (
+          <>
+            <span
+              aria-hidden
+              style={{
+                width: 'var(--dim-space-150, 6px)',
+                height: 'var(--dim-space-150, 6px)',
+                borderRadius: 'var(--dim-radius-full, 9999px)',
+                background: 'var(--surface-danger-default, #EF4444)',
+                animation: 'mih-telemed-livedot 1.4s ease-in-out infinite',
+              }}
+            />
+            LIVE
+          </>
+        ) : (
+          <>
+            <Sym name='shield' size={12} />
+            ไม่บันทึก
+          </>
+        )}
       </div>
       <div
         style={{
@@ -1458,7 +1520,7 @@ const VideoCall = ({
 );
 
 const AudioCall = ({
-  doctorName, specialty, micOn, camOn, elapsed, chatBadge,
+  doctorName, specialty, micOn, camOn, elapsed, chatBadge, recordingConsented,
   onMic, onCam, onShare, onChat, onEnd, onBack, onMinimize, chatOpen, chatProps,
 }) => (
   <div className='flex flex-col' style={{ height: '100%', minHeight: 0, position: 'relative', background: 'var(--surface-card-100)' }}>
@@ -1497,7 +1559,11 @@ const AudioCall = ({
         </span>
       </span>
 
-      <StatusBadge style='info' size='small' showDot>โหมดเสียง (สัญญาณอินเทอร์เน็ตต่ำ)</StatusBadge>
+      <StatusBadge style={recordingConsented ? 'info' : 'warning'} size='small' showDot={recordingConsented}>
+        {recordingConsented
+          ? 'โหมดเสียง (สัญญาณอินเทอร์เน็ตต่ำ)'
+          : 'ไม่ยินยอมบันทึก — ไมค์/กล้องปิด'}
+      </StatusBadge>
 
       <div className='flex flex-col items-center' style={{ gap: 6 }}>
         <p style={{
@@ -1518,7 +1584,7 @@ const AudioCall = ({
       <p style={{ margin: 0, fontSize: 'var(--type-size-xl, 20px)', color: 'var(--text-content-default)' }}>
         {formatElapsed(elapsed)}
       </p>
-      <SoundBars />
+      <SoundBars active={micOn && recordingConsented} />
     </div>
 
     <CallControls
@@ -1881,6 +1947,10 @@ const MobileTelemedInner = ({ onStepChange }) => {
     ? requestedStage
     : 'consent';
   const [step, setStep] = useState(initialStep); /* consent | cameraPermission | micPermission | check | wait | call | done */
+  const [recordingConsented, setRecordingConsented] = useState(false);
+  const [consentMode, setConsentMode] = useState('initial'); /* initial | reconsent */
+  const [pendingDevice, setPendingDevice] = useState(null); /* mic | cam */
+  const [resumeStep, setResumeStep] = useState(null);
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [waitSec, setWaitSec] = useState(225);
@@ -1997,11 +2067,59 @@ const MobileTelemedInner = ({ onStepChange }) => {
     setStep('micPermission');
   };
 
+  const acceptRecordingConsent = () => {
+    setRecordingConsented(true);
+    linkTelemedRecordingConsent(MOBILE_PATIENT_HN, { consented: true, channel: 'Mobile App' });
+    setConsentMode('initial');
+    if (consentMode === 'reconsent' && resumeStep) {
+      if (pendingDevice === 'mic') setMicOn(true);
+      if (pendingDevice === 'cam') setCamOn(true);
+      setPendingDevice(null);
+      setStep(resumeStep);
+      setResumeStep(null);
+      return;
+    }
+    setPendingDevice(null);
+    setStep('cameraPermission');
+  };
+
+  const declineRecordingConsent = () => {
+    setRecordingConsented(false);
+    linkTelemedRecordingConsent(MOBILE_PATIENT_HN, { consented: false, channel: 'Mobile App' });
+    setMicOn(false);
+    setCamOn(false);
+    setConsentMode('initial');
+    setPendingDevice(null);
+    setResumeStep(null);
+    setStep('check');
+  };
+
+  const cancelReconsent = () => {
+    setConsentMode('initial');
+    setPendingDevice(null);
+    setStep(resumeStep || 'wait');
+    setResumeStep(null);
+  };
+
+  const requestDeviceToggle = (device) => {
+    if (!recordingConsented) {
+      setConsentMode('reconsent');
+      setPendingDevice(device);
+      setResumeStep(step);
+      setStep('consent');
+      return;
+    }
+    if (device === 'mic') setMicOn((value) => !value);
+    if (device === 'cam') setCamOn((value) => !value);
+  };
+
   if (step === 'consent') {
     return (
       <PdpaConsent
-        onAccept={() => setStep('cameraPermission')}
-        onCancel={closeTelemed}
+        reconsent={consentMode === 'reconsent'}
+        onAccept={acceptRecordingConsent}
+        onDeclineRecording={declineRecordingConsent}
+        onCancel={consentMode === 'reconsent' ? cancelReconsent : closeTelemed}
       />
     );
   }
@@ -2045,11 +2163,14 @@ const MobileTelemedInner = ({ onStepChange }) => {
       <ReadinessCheck
         micOn={micOn}
         camOn={camOn}
+        recordingConsented={recordingConsented}
         onCancel={closeTelemed}
         onContinue={() => setStep('wait')}
         onRetest={() => {
-          setMicOn(true);
-          setCamOn(true);
+          if (recordingConsented) {
+            setMicOn(true);
+            setCamOn(true);
+          }
         }}
       />
     );
@@ -2064,8 +2185,8 @@ const MobileTelemedInner = ({ onStepChange }) => {
           waitSec={waitSec}
           micOn={micOn}
           camOn={camOn}
-          onToggleMic={() => setMicOn((value) => !value)}
-          onToggleCam={() => setCamOn((value) => !value)}
+          onToggleMic={() => requestDeviceToggle('mic')}
+          onToggleCam={() => requestDeviceToggle('cam')}
           onCancel={() => setCancelConfirmOpen(true)}
         />
         {cancelConfirmOpen && (
@@ -2097,8 +2218,9 @@ const MobileTelemedInner = ({ onStepChange }) => {
     camOn,
     elapsed,
     chatBadge,
-    onMic: () => setMicOn((v) => !v),
-    onCam: () => setCamOn((v) => !v),
+    recordingConsented,
+    onMic: () => requestDeviceToggle('mic'),
+    onCam: () => requestDeviceToggle('cam'),
     onShare: () => window.alert('แชร์หน้าจอ — สาธิต'),
     onChat: openChat,
     onEnd: endCall,
@@ -2161,7 +2283,7 @@ const MobileTelemedInner = ({ onStepChange }) => {
             camOn={camOn}
             micOn={micOn}
             elapsed={elapsed}
-            onMic={() => setMicOn((value) => !value)}
+            onMic={() => requestDeviceToggle('mic')}
             onExpand={() => setMinimized(false)}
             onEnd={endCall}
           />
@@ -2169,7 +2291,7 @@ const MobileTelemedInner = ({ onStepChange }) => {
       ) : (
         camOn
           ? <VideoCall {...callShared} />
-          : <AudioCall {...callShared} onBack={() => setCamOn(true)} />
+          : <AudioCall {...callShared} onBack={() => requestDeviceToggle('cam')} />
       )}
       <ReviewSheet
         open={reviewOpen}

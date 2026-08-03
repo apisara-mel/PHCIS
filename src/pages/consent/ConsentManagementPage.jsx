@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import Select from '@/components/forms/Select';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -14,7 +15,6 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import ConsentHistoryPopup from '@/components/popup/ConsentHistoryPopup';
-import Checkbox from '@/components/checkbox/Checkbox';
 import CheckboxBox from '@/components/checkbox/CheckboxBox';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import PersonalDataConsentEditPopup from '@/components/forms/PersonalDataConsentEditPopup';
@@ -24,7 +24,28 @@ import {
   CONSENT_RECORDS, CONSENT_SUMMARY, CONSENT_TABS,
   CONSENT_STATUS, CONSENT_TYPE_TONE, CONSENT_CONFIRM,
 } from '@/data/consentRecords';
-import { isTypeSuperseded } from '@/data/consentWorkflowStore';
+import {
+  applySupersededTypesToRecords,
+  cancelConsentRequest,
+  createSignToken,
+  completeConsentSigning,
+  getConsentRecords,
+  isTypeSuperseded,
+  listSupersededTypes,
+  logExport,
+  patchConsentRecord,
+  setConsentRecords,
+  subscribeConsentStore,
+} from '@/data/consentWorkflowStore';
+import {
+  canCreateConsentRequest,
+  canExportConsent,
+  canManageConsent,
+  canRevokeConsent,
+  CONSENT_ROLES,
+  getConsentRole,
+  setConsentRole,
+} from '@/data/consentPermissions';
 import {
   CreateConsentRequestPopup, ReconsentPopup, PaperConsentRecordPopup,
   STAFF_NAME, todayThai,
@@ -41,6 +62,28 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
 
 const PAGE_SIZE = 10;
 const breadcrumb = ['จัดการความยินยอม'];
+
+/* แท็บที่ tab กรองสถานะอยู่แล้ว — ซ่อน filter chip "สถานะ" */
+const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'consented', 'rejected', 'expiring']);
+
+/* Checkbox ในคอลัมน์เลือก — กัน click ไปเปิดแถว + ไม่มี label โผล่ใน header */
+const TableSelectCheckbox = ({ checked, label, onChange }) => (
+  <label
+    className='inline-flex items-center justify-center'
+    onClick={(e) => e.stopPropagation()}
+    onKeyDown={(e) => e.stopPropagation()}
+    style={{ cursor: 'pointer' }}
+  >
+    <input
+      type='checkbox'
+      className='sr-only'
+      checked={checked}
+      aria-label={label}
+      onChange={(e) => onChange?.(e.target.checked)}
+    />
+    <CheckboxBox checked={checked} />
+  </label>
+);
 
 const TEXT_CELL = {
   color: 'var(--text-content-default)',
@@ -78,11 +121,12 @@ export default function ConsentManagementPage() {
   /* ── Worklist rows เป็น state จริง (mock mutate ใน session) ──────────
      ด.1.1.5: record ที่เซ็นเทมเพลตซึ่งถูกเผยแพร่เวอร์ชันใหม่ไปแล้ว (store
      ข้ามหน้า) โผล่มาเป็นสถานะ "มีเวอร์ชันใหม่" ตั้งแต่โหลดหน้า. */
-  const [rows, setRows] = useState(() => CONSENT_RECORDS.map((r) => (
-    r.status === 'ยินยอมแล้ว' && isTypeSuperseded(r.type)
-      ? { ...r, status: 'มีเวอร์ชันใหม่' }
-      : { ...r }
-  )));
+  const loadRows = () => applySupersededTypesToRecords(new Set(listSupersededTypes()));
+  const [rows, setRows] = useState(loadRows);
+  const [consentRole, setConsentRoleState] = useState(getConsentRole);
+  useEffect(() => subscribeConsentStore(() => setRows(loadRows())), []);
+  const canManage = canManageConsent();
+  const canRevoke = canRevokeConsent();
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -178,7 +222,8 @@ export default function ConsentManagementPage() {
   const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
-  const isAllFilters = !filterType && !filterChannel && !filterStatus && !filterDate;
+  const hideStatusFilter = STATUS_FILTER_HIDDEN_TABS.has(activeTab);
+  const isAllFilters = !filterType && !filterChannel && (!filterStatus || hideStatusFilter) && !filterDate;
 
   const resetFilters = () => {
     setFilterType(''); setFilterChannel(''); setFilterStatus(''); setFilterDate(''); setPage(1);
@@ -191,8 +236,7 @@ export default function ConsentManagementPage() {
   };
 
   /* ── Mock mutations (session-only — ไม่ persist) ────────────────── */
-  const patchRow = (id, patch) =>
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const patchRow = (id, patch) => patchConsentRecord(id, patch);
   const nextId = () => rows.reduce((m, r) => Math.max(m, r.id), 0) + 1;
   const dueInDays = (days) => {
     const d = new Date(Date.now() + days * 86400000);
@@ -205,7 +249,7 @@ export default function ConsentManagementPage() {
      ใหม่ "รอลงนาม" เวอร์ชันล่าสุดพร้อมช่องทาง/วันครบกำหนด. */
   const runReconsent = (record, { channel, dueDate, latestVersion }) => {
     const id = nextId();
-    setRows((prev) => prev
+    const next = getConsentRecords()
       .map((r) => (r.id === record.id ? { ...r, status: 'หมดอายุ-Reconsent', pendingReconsent: true } : r))
       .concat([{
         id,
@@ -223,7 +267,8 @@ export default function ConsentManagementPage() {
         dueDate,
         guardian: record.guardian,
         history: [...(record.history || [])],
-      }]));
+      }]);
+    setConsentRecords(next);
     pushToast(`สร้างคำขอ Re-Consent ของ ${record.name} แล้ว — รอลงนามผ่าน${channel} ภายใน ${dueDate}`);
   };
 
@@ -247,6 +292,7 @@ export default function ConsentManagementPage() {
     const reconsentBlocked = isReconsent && row.pendingReconsent;
     const fireAction = () => {
       if (!action) return;
+      if (action.confirm === 'revoke' && !canRevoke) return;
       if (action.confirm === 'revoke') setVerifyFor({ next: 'revoke', record: row });
       else if (action.confirm === 'reconsent') setReconsentFor(row);
       else setDialog({ record: row, confirmKey: action.confirm });
@@ -391,14 +437,16 @@ export default function ConsentManagementPage() {
     if (dialog.bulkIds) {
       const ids = new Set(dialog.bulkIds);
       if (dialog.confirmKey === 'cancel') {
-        setRows((prev) => prev.map((r) => (ids.has(r.id) ? { ...r, status: 'ยกเลิกคำขอ' } : r)));
+        dialog.bulkIds.forEach((id) => cancelConsentRequest(id));
       } else if (dialog.confirmKey === 'revoke') {
-        setRows((prev) => prev.map((r) => (ids.has(r.id) ? { ...r, status: 'ถอนความยินยอม', withdrawnDate: todayThai() } : r)));
+        setConsentRecords(getConsentRecords().map((r) => (
+          ids.has(r.id) ? { ...r, status: 'ถอนความยินยอม', withdrawnDate: todayThai() } : r
+        )));
       } else if (dialog.confirmKey === 'reconsent') {
         /* Bulk reconsent — ช่องทางเริ่มต้นที่ศูนย์บริการ ครบกำหนดใน 30 วัน */
         const targets = rows.filter((r) => ids.has(r.id) && !r.pendingReconsent);
-        setRows((prev) => {
-          let id = prev.reduce((m, r) => Math.max(m, r.id), 0);
+        {
+          let id = getConsentRecords().reduce((m, r) => Math.max(m, r.id), 0);
           const spawned = targets.map((t) => {
             id += 1;
             return {
@@ -409,16 +457,18 @@ export default function ConsentManagementPage() {
               history: [...(t.history || [])],
             };
           });
-          return prev
-            .map((r) => (ids.has(r.id) ? { ...r, status: 'หมดอายุ-Reconsent', pendingReconsent: true } : r))
-            .concat(spawned);
-        });
+          setConsentRecords(
+            getConsentRecords()
+              .map((r) => (ids.has(r.id) ? { ...r, status: 'หมดอายุ-Reconsent', pendingReconsent: true } : r))
+              .concat(spawned),
+          );
+        }
       }
       pushToast(`${confirm?.title || 'ดำเนินการ'}สำเร็จ ${dialog.bulkIds.length} รายการ${auditNote}`);
       setSelectedIds(new Set());
     } else if (dialog.record) {
       if (dialog.confirmKey === 'cancel') {
-        patchRow(dialog.record.id, { status: 'ยกเลิกคำขอ' });
+        cancelConsentRequest(dialog.record.id);
         pushToast(`ยกเลิกคำขอความยินยอมของ ${dialog.record.name} แล้ว — ประวัติยังอยู่ครบ`);
       } else if (dialog.confirmKey === 'revoke') {
         patchRow(dialog.record.id, { status: 'ถอนความยินยอม', withdrawnDate: todayThai() });
@@ -431,6 +481,8 @@ export default function ConsentManagementPage() {
 
   /* เก็บ log เมื่อ export (annotation 414:123633 — print ไม่เก็บ log) */
   const handleExport = () => {
+    if (!canExportConsent()) return;
+    logExport({ source: 'consent-worklist', format: 'CSV' });
     setToast({
       id: Date.now(),
       variant: 'success',
@@ -440,19 +492,21 @@ export default function ConsentManagementPage() {
 
   const selectColumn = {
     key: '_select',
-    header: (
-      <Checkbox
+    width: 52,
+    sortable: false,
+    align: 'center',
+    label: (
+      <TableSelectCheckbox
         checked={pageAllSelected}
-        onChange={togglePageAll}
-        aria-label='เลือกทั้งหมดในหน้านี้'
+        label='เลือกทั้งหมดในหน้านี้'
+        onChange={() => togglePageAll()}
       />
     ),
-    width: 52,
     render: (r) => (
-      <Checkbox
+      <TableSelectCheckbox
         checked={selectedIds.has(r.id)}
+        label={`เลือก ${r.name}`}
         onChange={() => toggleRow(r.id)}
-        aria-label={`เลือก ${r.name}`}
       />
     ),
   };
@@ -472,25 +526,40 @@ export default function ConsentManagementPage() {
         breadcrumb={breadcrumb}
         title='จัดการความยินยอม'
         actions={(
-          <BrandButton
-            variant='outline'
-            size='md'
-            trailingIcon='chevron_right'
-            onClick={() => navigate.push('/forms')}
-          >
-            ดูแบบฟอร์มความยินยอมทั้งหมด
-          </BrandButton>
+          <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+            <div style={{ minWidth: 140 }}>
+              <Select
+                showLabel={false}
+                options={CONSENT_ROLES.map((r) => ({ value: r, label: r }))}
+                value={consentRole}
+                onChange={(v) => { setConsentRole(v); setConsentRoleState(v); }}
+                searchable={false}
+              />
+            </div>
+            <BrandButton
+              variant='outline'
+              size='md'
+              trailingIcon='chevron_right'
+              onClick={() => navigate.push('/forms')}
+            >
+              ดูแบบฟอร์มความยินยอมทั้งหมด
+            </BrandButton>
+          </div>
         )}
         headerInfo={(
           <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
             {CONSENT_SUMMARY.map((c) => (
-              <SummaryCard key={c.key} card={c} variant='panel' hover />
+              <SummaryCard key={c.key} card={c} variant='panel' />
             ))}
           </section>
         )}
         tabs={tabs}
         activeTab={activeTab}
-        onTabChange={(key) => { setActiveTab(key); setPage(1); }}
+        onTabChange={(key) => {
+          setActiveTab(key);
+          setPage(1);
+          if (STATUS_FILTER_HIDDEN_TABS.has(key)) setFilterStatus('');
+        }}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -523,47 +592,43 @@ export default function ConsentManagementPage() {
               <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
                 <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
                   {/* Chip "เลือก" — เปิด/ปิดโหมดเลือกหลายรายการ (Figma 297:128439) */}
-                  <button
-                    type='button'
+                  <FilterTag
+                    variant={selectMode ? 'brand' : 'neutral'}
+                    size='sm'
+                    selected={selectMode}
                     onClick={toggleSelectMode}
-                    aria-pressed={selectMode}
-                    className='inline-flex items-center'
-                    style={{
-                      gap: 'var(--dim-space-150)',
-                      padding: 'var(--dim-space-150) var(--dim-space-300)',
-                      background: selectMode ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
-                      border: selectMode
-                        ? 'var(--dim-stroke-100) solid var(--border-brandPrimary-default)'
-                        : 'var(--dim-stroke-100) solid var(--border-card-default)',
-                      borderRadius: 'var(--dim-radius-full)',
-                      color: selectMode ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
-                      fontFamily: 'var(--type-family-body)',
-                      fontSize: 'var(--type-size-sm)',
-                      fontWeight: selectMode ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <CheckboxBox checked={selectMode} />
-                    เลือก
-                  </button>
+                    showTailingIcon={false}
+                    showTitle={false}
+                    leadingIcon={<CheckboxBox checked={selectMode} />}
+                    value='เลือก'
+                  />
                   <FilterTag value='ทั้งหมด' selected={isAllFilters} onClick={resetFilters} />
                   <FilterDropdown prefix='ประเภท:' options={typeOptions} value={filterType} onChange={(v) => { setFilterType(v); setPage(1); }} />
                   <FilterDropdown prefix='ช่องทาง:' options={channelOptions} value={filterChannel} onChange={(v) => { setFilterChannel(v); setPage(1); }} />
-                  <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
+                  {!hideStatusFilter && (
+                    <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
+                  )}
                   <FilterDropdown prefix='วันที่:' options={dateOptions} value={filterDate} onChange={(v) => { setFilterDate(v); setPage(1); }} />
                 </div>
                 <div className='flex-1' />
                 <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
-                    นำส่งออกรายงาน
-                  </NeutralSubdueButton>
-                  <BrandButton variant='outline' size='sm' leadingIcon='note_add' onClick={() => navigate.push('/consent/forms/new')}>
-                    สร้างแบบฟอร์มใหม่
-                  </BrandButton>
-                  {/* ด.1.1.4 — workflow สร้างคำขอความยินยอม */}
-                  <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={() => setCreateOpen(true)}>
-                    สร้างคำขอความยินยอม
-                  </BrandButton>
+                  {canExportConsent() && (
+                    <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
+                      นำส่งออกรายงาน
+                    </NeutralSubdueButton>
+                  )}
+                  {canManage && (
+                    <>
+                      <BrandButton variant='outline' size='sm' leadingIcon='note_add' onClick={() => navigate.push('/consent/forms/new')}>
+                        สร้างแบบฟอร์มใหม่
+                      </BrandButton>
+                      {canCreateConsentRequest() && (
+                        <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={() => setCreateOpen(true)}>
+                          สร้างคำขอความยินยอม
+                        </BrandButton>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -676,10 +741,11 @@ export default function ConsentManagementPage() {
             guardian: patient.guardian,
             history: [],
           };
-          setRows((prev) => [...prev, rec]);
+          setConsentRecords([...getConsentRecords(), rec]);
           setCreateOpen(false);
           if (channel === 'QR Code') {
-            setQrFollowup({ recordId: id, form: { name: template.name, slug: template.code } });
+            const token = createSignToken(id);
+            setQrFollowup({ recordId: id, form: { name: template.name, slug: template.code }, token });
           }
           pushToast(`สร้างคำขอความยินยอม ${template.code} ให้ ${patient.name} แล้ว — ลงนามผ่าน${channel} ภายใน ${dueDate}`);
         }}
@@ -745,12 +811,13 @@ export default function ConsentManagementPage() {
       <ConsentQrSendPopup
         open={!!qrFollowup}
         form={qrFollowup?.form}
+        token={qrFollowup?.token}
         onClose={() => setQrFollowup(null)}
         onSubmitted={() => {
           const f = qrFollowup;
           setQrFollowup(null);
           if (f) {
-            patchRow(f.recordId, { status: 'ยินยอมแล้ว', signChannel: 'QR Code', signedDate: todayThai() });
+            completeConsentSigning(f.recordId, { outcome: 'signed', channel: 'QR Code' });
             pushToast('ผู้รับบริการลงนามผ่าน QR สำเร็จ — สถานะเปลี่ยนเป็น "ยินยอมแล้ว"');
           }
         }}

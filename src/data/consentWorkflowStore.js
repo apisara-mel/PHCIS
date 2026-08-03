@@ -1,32 +1,272 @@
-/* PHCIS | Consent — module-level MOCK store เชื่อม state ข้ามหน้าใน session
-   เดียว (ไม่ persist — refresh แล้วหาย, ตั้งใจ เพราะทั้งระบบเป็น mock local).
+/* PHCIS | Consent — persisted mock store (localStorage) + pub/sub.
+   Connects consent worklist, form fill, OPD, CPOE, Telemed, and mobile flows. */
 
-   ใช้เชื่อม 2 เหตุการณ์ตาม TOR ผนวก ด:
-     • ด.1.1.5  เผยแพร่เทมเพลตเวอร์ชันใหม่ → record ที่เซ็นเวอร์ชันเก่าใน
-                worklist (/consent) กลายเป็นสถานะ "มีเวอร์ชันใหม่"
-     • ด.1.1.16 เก็บ log การ export รายงาน (print ไม่เก็บ — annotation
-                414:123633)
+import { CONSENT_RECORDS as SEED_RECORDS } from '@/data/consentRecords';
 
-   ไม่แตะ global state กลาง — เป็นแค่ตัวแปร module + getter/setter ธรรมดา. */
+const STORAGE_KEY = 'mih:consent-workflow';
+const SIGN_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
-/* ── เทมเพลตที่ถูก bump เวอร์ชัน (คีย์ = ประเภท Consent ภาษาไทย) ────────── */
-const supersededTypes = new Set();
+const listeners = new Set();
 
-export const markTypeSuperseded = (type) => {
-  if (type) supersededTypes.add(type);
+const canPersist = () => typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+
+const defaultState = () => ({
+  records: SEED_RECORDS.map((r) => ({ ...r, history: [...(r.history || [])] })),
+  supersededTypes: [],
+  exportLog: [],
+  signTokens: {},
+  formDrafts: {},
+  telemedRecording: {},
+});
+
+const readState = () => {
+  if (!canPersist()) return defaultState();
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    return {
+      ...defaultState(),
+      ...parsed,
+      records: Array.isArray(parsed.records) && parsed.records.length
+        ? parsed.records
+        : defaultState().records,
+    };
+  } catch {
+    return defaultState();
+  }
 };
-export const isTypeSuperseded = (type) => supersededTypes.has(type);
-export const listSupersededTypes = () => [...supersededTypes];
 
-/* ── Log การส่งออกข้อมูล (ด.1.1.16 / TOR 1.4.3.16) ─────────────────────── */
-const exportLog = [];
+let state = readState();
 
+const persist = () => {
+  if (canPersist()) localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  listeners.forEach((fn) => fn());
+};
+
+export const subscribeConsentStore = (fn) => {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+};
+
+export const resetConsentStore = () => {
+  state = defaultState();
+  persist();
+};
+
+/* ── Records ─────────────────────────────────────────────────────── */
+export const getConsentRecords = () => state.records.map((r) => ({
+  ...r,
+  history: [...(r.history || [])],
+}));
+
+export const setConsentRecords = (records) => {
+  state.records = records.map((r) => ({ ...r, history: [...(r.history || [])] }));
+  persist();
+};
+
+export const patchConsentRecord = (id, patch) => {
+  state.records = state.records.map((r) => (r.id === id ? { ...r, ...patch } : r));
+  persist();
+};
+
+export const addConsentRecord = (record) => {
+  state.records = [...state.records, { ...record, history: record.history || [] }];
+  persist();
+  return record;
+};
+
+export const nextConsentRecordId = () =>
+  state.records.reduce((m, r) => Math.max(m, r.id), 0) + 1;
+
+export const applySupersededTypesToRecords = (supersededSet) =>
+  getConsentRecords().map((r) => (
+    r.status === 'ยินยอมแล้ว' && supersededSet.has(r.type)
+      ? { ...r, status: 'มีเวอร์ชันใหม่' }
+      : r
+  ));
+
+/* ── Template version bump (ด.1.1.5) ─────────────────────────────── */
+export const markTypeSuperseded = (type) => {
+  if (!type) return;
+  if (!state.supersededTypes.includes(type)) state.supersededTypes.push(type);
+  state.records = state.records.map((r) => (
+    r.status === 'ยินยอมแล้ว' && r.type === type
+      ? { ...r, status: 'มีเวอร์ชันใหม่' }
+      : r
+  ));
+  persist();
+};
+
+export const isTypeSuperseded = (type) => state.supersededTypes.includes(type);
+export const listSupersededTypes = () => [...state.supersededTypes];
+
+/* ── Export log (ด.1.1.16) ───────────────────────────────────────── */
 export const logExport = ({ source, format, by = 'ลดา ดีงาม' }) => {
-  exportLog.push({
+  state.exportLog.push({
     source,
     format: format || '-',
     by,
     at: new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }),
   });
+  persist();
 };
-export const listExportLog = () => [...exportLog];
+
+export const listExportLog = () => [...state.exportLog];
+
+/* ── Form-fill drafts (offline) ────────────────────────────────────── */
+const draftKey = (slug, role, requestId) => `fill:${slug}:${role}:${requestId || 'anon'}`;
+
+export const saveFormDraft = (slug, role, requestId, values) => {
+  const key = draftKey(slug, role, requestId);
+  state.formDrafts[key] = { values, savedAt: Date.now() };
+  persist();
+};
+
+export const loadFormDraft = (slug, role, requestId) => {
+  const entry = state.formDrafts[draftKey(slug, role, requestId)];
+  return entry ? { ...entry } : null;
+};
+
+export const clearFormDraft = (slug, role, requestId) => {
+  delete state.formDrafts[draftKey(slug, role, requestId)];
+  persist();
+};
+
+/* ── Sign tokens (QR / Mobile link) ──────────────────────────────── */
+export const createSignToken = (recordId, ttlMs = SIGN_TOKEN_TTL_MS) => {
+  const token = `cs-${recordId}-${Date.now().toString(36)}`;
+  state.signTokens[token] = {
+    recordId,
+    expiresAt: Date.now() + ttlMs,
+    cancelled: false,
+  };
+  persist();
+  return token;
+};
+
+export const getSignTokenMeta = (token) => state.signTokens[token] || null;
+
+export const validateSignToken = (token) => {
+  const meta = getSignTokenMeta(token);
+  if (!meta) return { ok: false, reason: 'invalid' };
+  if (meta.cancelled) return { ok: false, reason: 'cancelled' };
+  if (Date.now() > meta.expiresAt) return { ok: false, reason: 'expired' };
+  const record = state.records.find((r) => r.id === meta.recordId);
+  if (!record) return { ok: false, reason: 'missing' };
+  if (record.status === 'ยกเลิกคำขอ') return { ok: false, reason: 'cancelled' };
+  return { ok: true, recordId: meta.recordId, record };
+};
+
+export const cancelConsentRequest = (recordId) => {
+  patchConsentRecord(recordId, { status: 'ยกเลิกคำขอ' });
+  Object.keys(state.signTokens).forEach((tok) => {
+    if (state.signTokens[tok].recordId === recordId) state.signTokens[tok].cancelled = true;
+  });
+  persist();
+};
+
+const todayThai = () =>
+  new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+
+export const completeConsentSigning = (recordId, { outcome = 'signed', channel = 'QR Code' } = {}) => {
+  const record = state.records.find((r) => r.id === recordId);
+  if (!record) return null;
+  const now = todayThai();
+  const patch = outcome === 'declined'
+    ? { status: 'ปฏิเสธ', signChannel: channel, signedDate: now }
+    : { status: 'ยินยอมแล้ว', signChannel: channel, signedDate: now };
+  const historyEntry = {
+    date: now,
+    formCode: record.type,
+    formName: record.type,
+    type: record.type,
+    version: record.version,
+    status: patch.status,
+    channel,
+  };
+  patchConsentRecord(recordId, {
+    ...patch,
+    history: [...(record.history || []), historyEntry],
+  });
+  return getConsentRecords().find((r) => r.id === recordId);
+};
+
+/* ── Integration queries ───────────────────────────────────────────── */
+export const getConsentForPatient = (hn, type) => {
+  const matches = getConsentRecords().filter((r) => r.hn === hn && (!type || r.type === type));
+  return matches.sort((a, b) => b.id - a.id)[0] || null;
+};
+
+export const hasActiveConsent = (hn, type) => {
+  const rec = getConsentForPatient(hn, type);
+  return rec?.status === 'ยินยอมแล้ว';
+};
+
+export const getOpdConsentSummary = (hn) => {
+  const recs = getConsentRecords().filter((r) => r.hn === hn);
+  const signed = recs.filter((r) => r.status === 'ยินยอมแล้ว').length;
+  const pending = recs.filter((r) => ['รอลงนาม', 'อยู่ระหว่างลงนาม', 'มีเวอร์ชันใหม่'].includes(r.status)).length;
+  const blocked = recs.some((r) => ['ถอนความยินยอม', 'ปฏิเสธ'].includes(r.status));
+  return { signed, pending, blocked, total: recs.length };
+};
+
+export const gateCpoeOrder = (hn, { orderKind = 'medication' } = {}) => {
+  if (orderKind === 'research') {
+    const ok = hasActiveConsent(hn, 'การวิจัย');
+    return ok
+      ? { allowed: true }
+      : { allowed: false, reason: 'ต้องมีความยินยอม "การวิจัย" ที่สถานะยินยอมแล้วก่อนสั่งการรักษา', consentType: 'การวิจัย' };
+  }
+  if (orderKind === 'surgery') {
+    const ok = hasActiveConsent(hn, 'ผ่าตัด');
+    return ok
+      ? { allowed: true }
+      : { allowed: false, reason: 'ต้องมีความยินยอม "ผ่าตัด" ที่สถานะยินยอมแล้วก่อนสั่งหัตถการ', consentType: 'ผ่าตัด' };
+  }
+  const pdpa = hasActiveConsent(hn, 'PDPA') || hasActiveConsent(hn, 'การรักษา');
+  return pdpa
+    ? { allowed: true }
+    : { allowed: false, reason: 'ต้องมีความยินยอม PDPA/การรักษาก่อนส่งใบสั่งยา', consentType: 'PDPA' };
+};
+
+export const gateMobileEdocument = (requestType) => {
+  const DEMO_HN = '67-00008';
+  if (requestType === 'medrecord') {
+    const ok = hasActiveConsent(DEMO_HN, 'PDPA');
+    return ok
+      ? { allowed: true }
+      : { allowed: false, reason: 'ต้องให้ความยินยอม PDPA (ข้อ 5.1) ก่อนขอประวัติการรักษา e-Document' };
+  }
+  if (requestType === 'cert') {
+    return { allowed: true };
+  }
+  return { allowed: true };
+};
+
+/* ── Telemed recording consent (TOR 1.13.8) ────────────────────────── */
+export const linkTelemedRecordingConsent = (hn, { consented, channel = 'Mobile App' } = {}) => {
+  state.telemedRecording[hn] = { consented: !!consented, channel, at: Date.now() };
+  const existing = getConsentForPatient(hn, 'PDPA');
+  if (consented && existing && existing.status !== 'ยินยอมแล้ว') {
+    completeConsentSigning(existing.id, { outcome: 'signed', channel });
+  } else if (consented && !existing) {
+    addConsentRecord({
+      id: nextConsentRecordId(),
+      hn,
+      name: hn,
+      type: 'PDPA',
+      version: 'V 1.0',
+      status: 'ยินยอมแล้ว',
+      signChannel: channel,
+      requester: 'Telemed',
+      createdDate: todayThai(),
+      signedDate: todayThai(),
+      withdrawnDate: '-',
+      history: [],
+    });
+  }
+  persist();
+};
+
+export const getTelemedRecordingConsent = (hn) => state.telemedRecording[hn] || { consented: false };

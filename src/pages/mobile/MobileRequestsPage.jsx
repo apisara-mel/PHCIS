@@ -11,6 +11,7 @@ import {
   Sym,
 } from '@/components/mobile/MobileShell';
 import { REQUEST_TYPES, REQUESTS_HISTORY, findRequestType } from '@/data/mobileMock';
+import { gateMobileEdocument } from '@/data/consentWorkflowStore';
 import MobileIconBadge from '@/components/mobile/MobileIconBadge';
 
 /* MIH PHCIS Mobile · Send Requests — TOR §4.8.
@@ -30,9 +31,16 @@ const MobileRequestsInner = () => {
   const [qty, setQty] = useState('1');
   const [items, setItems] = useState(REQUESTS_HISTORY);
   const [submitted, setSubmitted] = useState(false);
+  const [consentBlock, setConsentBlock] = useState(null);
 
   const submit = (e) => {
     e.preventDefault();
+    const gate = gateMobileEdocument(picked.key);
+    if (!gate.allowed) {
+      setConsentBlock(gate.reason);
+      return;
+    }
+    setConsentBlock(null);
     const id = `REQ-${Math.floor(Math.random() * 9000 + 1000)}`;
     setItems([
       { id, type: picked.key, date: new Date().toLocaleDateString('th-TH'), status: 'submitted', statusLabel: 'รอเจ้าหน้าที่รับเรื่อง', note: note || '—' },
@@ -130,6 +138,13 @@ const MobileRequestsInner = () => {
             </div>
 
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-300, 12px)' }}>
+              {consentBlock && (
+                <MobileCard style={{ background: 'var(--surface-warning-quaternary, #FFFBEB)', borderColor: 'var(--border-warning-default, #D97706)' }}>
+                  <p style={{ margin: 0, fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-warning-default, #B45309)', fontWeight: 700 }}>
+                    {consentBlock}
+                  </p>
+                </MobileCard>
+              )}
               {picked.key === 'diapers' && (
                 <MobileField label='จำนวน (แพ็ก)' required>
                   <MobileInput inputMode='numeric' value={qty} onChange={(e) => setQty(e.target.value.replace(/\D/g, ''))} />

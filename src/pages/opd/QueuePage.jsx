@@ -15,6 +15,7 @@ import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import { PATIENT_PROFILES, getPatientByHN } from '@/data/patientProfiles';
 import { applyOpdScreeningDrafts } from '@/data/opdScreeningDrafts';
+import { getOpdConsentSummary } from '@/data/consentWorkflowStore';
 import { buildOpdSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
 
 /* Topbar breadcrumb tailored for the OPD Queue page. */
@@ -205,6 +206,14 @@ const makeRenderActions = ({ onCall, onDelete }) => function ActionsCell(row) {
    the only dynamic column is "การดำเนินการ" because its renderer needs
    access to the page-level `onDelete` callback. Callers in the component
    memo-ise the final list with their bound handlers. */
+const renderConsent = (row) => {
+  const { signed, pending, blocked } = getOpdConsentSummary(row.hn);
+  if (blocked) return <Pill pill={{ style: 'error', label: 'ปฏิเสธ/ถอน' }} />;
+  if (pending > 0) return <Pill pill={{ style: 'warning', label: `รอลงนาม ${pending}` }} />;
+  if (signed > 0) return <Pill pill={{ style: 'success', label: `ยินยอม ${signed}` }} />;
+  return <Pill pill={{ style: 'neutral', label: 'ยังไม่มี' }} />;
+};
+
 const BASE_COLUMNS = [
   { key: 'queue',        label: 'คิว',          width: 80,  render: renderQueue },
   { key: 'hn',           label: 'HN',           width: 96  },
@@ -218,6 +227,7 @@ const BASE_COLUMNS = [
   { key: 'time',         label: 'เวลา',         width: 80  },
   { key: 'dept',         label: 'แผนก',         width: 256 },
   { key: 'room',         label: 'ห้อง',         width: 112 },
+  { key: 'consent',      label: 'ความยินยอม',   width: 120, sortable: false, render: renderConsent },
   { key: 'status',       label: 'สถานะ',        width: 128, render: (row) => <Pill pill={STATUS_PILL[row.statusKey]} /> },
 ];
 
