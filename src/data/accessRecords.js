@@ -23,11 +23,11 @@ export const ACCESS_TABS = [
 
 /* tone = ColorfulBadge style · tab = which tab it falls under · canApprove /
    canReject = whether the ✓ / ✗ action button is enabled for that status
-   (Figma: pending=both, approved=reject only, rejected=approve only,
+   (Figma: pending=both, approved=neither action, rejected=approve only,
    expired=neither → buttons hidden). */
 export const ACCESS_STATUS = {
   'รออนุมัติ':   { tone: 'orange', tab: 'pending',  canApprove: true,  canReject: true },
-  'อนุมัติแล้ว': { tone: 'green',  tab: 'approved', canApprove: false, canReject: true },
+  'อนุมัติแล้ว': { tone: 'green',  tab: 'approved', canApprove: false, canReject: false },
   'ปฏิเสธ':      { tone: 'red',    tab: 'rejected', canApprove: true,  canReject: false },
   'หมดอายุ':     { tone: 'grey',   tab: 'expired',  canApprove: false, canReject: false },
 };

@@ -19,7 +19,7 @@ import {
   ACCESS_RECORDS, ACCESS_SUMMARY, ACCESS_TABS, ACCESS_STATUS,
   thaiDateOfIso, daysLeftOfIso,
 } from '@/data/accessRecords';
-import { ScanImportPopup, ApprovePeriodPopup, AccessDetailPopup } from '@/pages/consent/accessPopups';
+import { ScanImportPopup, ApprovePeriodPopup, EditPeriodPopup, AccessDetailPopup } from '@/pages/consent/accessPopups';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — จัดการสิทธิ์การเข้าถึงแบบฟอร์ม (Figma node 363:122327).
@@ -174,6 +174,7 @@ export default function AccessManagementPage() {
   /* ด.1.1.17 workflow */
   const [scanOpen, setScanOpen] = useState(false);        // 17.1 สแกนนำเข้า
   const [approveFor, setApproveFor] = useState(null);     // 17.2 อนุมัติ + ช่วงเวลา
+  const [editPeriodFor, setEditPeriodFor] = useState(null); // admin แก้ไขช่วงเวลาสิทธิ
   const [detailFor, setDetailFor] = useState(null);       // detail + audit
   const [toggleFor, setToggleFor] = useState(null);       // 17.3 confirm Active switch
   const [verifyFor, setVerifyFor] = useState(null);       // ด.1.1.1 gate ก่อนอนุมัติ
@@ -269,6 +270,7 @@ export default function AccessManagementPage() {
      (ด.1.1.1) แล้วจึงระบุช่วงเวลาสิทธิ (ด.1.1.17.2). */
   const renderAction = (row) => {
     const meta = ACCESS_STATUS[row.status] || {};
+    const showApproveReject = meta.canApprove || meta.canReject || row.status === 'อนุมัติแล้ว';
     return (
       <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-150)' }}>
         <NeutralSubdueIconButton
@@ -279,7 +281,7 @@ export default function AccessManagementPage() {
           title='รายละเอียด / audit'
           onClick={() => setDetailFor(row)}
         />
-        {(meta.canApprove || meta.canReject) && (
+        {showApproveReject && (
           <>
             <NeutralSubdueIconButton
               icon='check'
@@ -296,7 +298,7 @@ export default function AccessManagementPage() {
               size='sm'
               disabled={!meta.canReject}
               aria-label='ปฏิเสธคำขอ'
-              title='ปฏิเสธ'
+              title={meta.canReject ? 'ปฏิเสธ' : 'ปฏิเสธ (ไม่สามารถปฏิเสธหลังอนุมัติแล้ว)'}
               onClick={() => meta.canReject && setDialog({ record: row, kind: 'reject' })}
             />
           </>
@@ -324,15 +326,32 @@ export default function AccessManagementPage() {
     );
   };
 
-  /* ด.1.1.17.2 — คอลัมน์ช่วงเวลาสิทธิ + วันคงเหลือ */
+  /* ด.1.1.17.2 — คอลัมน์ช่วงเวลาสิทธิ + วันคงเหลือ (admin คลิกแก้ไขได้) */
   const renderPeriod = (row) => {
+    const editable = row.periodStart && (row.status === 'อนุมัติแล้ว' || row.status === 'หมดอายุ');
     if (!row.periodStart) return <StackCell top={row.period} bottom='ยังไม่กำหนดช่วงสิทธิ' />;
     const left = daysLeftOfIso(row.periodEnd);
+    const top = `${thaiDateOfIso(row.periodStart)} – ${thaiDateOfIso(row.periodEnd)}`;
+    const bottom = left != null && left >= 0 ? `เหลืออีก ${left} วัน` : 'หมดช่วงเวลาแล้ว';
+    if (!editable) return <StackCell top={top} bottom={bottom} />;
     return (
-      <StackCell
-        top={`${thaiDateOfIso(row.periodStart)} – ${thaiDateOfIso(row.periodEnd)}`}
-        bottom={left != null && left >= 0 ? `เหลืออีก ${left} วัน` : 'หมดช่วงเวลาแล้ว'}
-      />
+      <button
+        type='button'
+        onClick={() => setEditPeriodFor(row)}
+        title='คลิกเพื่อแก้ไขช่วงเวลาสิทธิ'
+        className='flex flex-col min-w-0 text-left'
+        style={{
+          gap: 'var(--dim-space-0)',
+          background: 'transparent',
+          border: 'none',
+          outline: 'none',
+          cursor: 'pointer',
+          padding: 0,
+        }}
+      >
+        <span className='truncate' style={{ ...TEXT_CELL, color: 'var(--text-brandPrimary-default)', textDecoration: 'underline', textUnderlineOffset: 2 }}>{top}</span>
+        <span className='truncate' style={{ ...MUTED_CELL, fontSize: 'var(--type-size-xs)' }}>{bottom} · แก้ไข</span>
+      </button>
     );
   };
 
@@ -509,6 +528,34 @@ export default function AccessManagementPage() {
             });
             pushToast(`อนุมัติ ${rec.reqNo} แล้ว — สิทธิ Active ${thaiDateOfIso(periodStart)} ถึง ${thaiDateOfIso(periodEnd)}`);
           }
+        }}
+      />
+
+      {/* admin แก้ไขช่วงเวลาสิทธิ — คลิกคอลัมน์ช่วงเวลา */}
+      <EditPeriodPopup
+        open={!!editPeriodFor}
+        record={editPeriodFor}
+        thaiDateOfIso={thaiDateOfIso}
+        onClose={() => setEditPeriodFor(null)}
+        onSave={({ periodStart, periodEnd }) => {
+          const rec = editPeriodFor;
+          setEditPeriodFor(null);
+          if (!rec) return;
+          const stillValid = (daysLeftOfIso(periodEnd) ?? -1) >= 0;
+          patchRow(rec.id, {
+            periodStart,
+            periodEnd,
+            ...(stillValid && rec.status === 'หมดอายุ'
+              ? { status: 'อนุมัติแล้ว', active: true, expiredByPeriod: false }
+              : {}),
+            audit: {
+              ...(rec.audit || {}),
+              by: 'ลดา ดีงาม',
+              at: rec.audit?.at || nowThai(),
+              editedAt: nowThai(),
+            },
+          });
+          pushToast(`แก้ไขช่วงเวลาสิทธิ ${rec.reqNo} แล้ว — ${thaiDateOfIso(periodStart)} ถึง ${thaiDateOfIso(periodEnd)}`);
         }}
       />
 
