@@ -17,7 +17,8 @@ export const ACCESS_TABS = [
   { value: 'pending',  label: 'รออนุมัติ',   icon: 'schedule' },
   { value: 'approved', label: 'อนุมัติแล้ว',  icon: 'how_to_reg' },
   { value: 'rejected', label: 'ปฏิเสธ',     icon: 'person_cancel' },
-  { value: 'expired',  label: 'หมดอายุ',    icon: 'hourglass_disabled' },
+  /* ด.1.1.17.2 — สิทธิตามช่วงเวลา: หมดช่วงเวลาแล้วสถานะเป็น Inactive อัตโนมัติ */
+  { value: 'expired',  label: 'หมดช่วงเวลา', icon: 'hourglass_disabled' },
 ];
 
 /* tone = ColorfulBadge style · tab = which tab it falls under · canApprove /
@@ -51,11 +52,33 @@ const STAT = [
 ];
 const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน'];
 
+/* ── ช่วงเวลาสิทธิ (ด.1.1.17.2) ────────────────────────────────────────
+   periodStart / periodEnd เป็น ISO เทียบกับ "วันนี้" จริง เพื่อให้เห็นทั้ง
+   สิทธิที่ยัง Active (วันคงเหลือ > 0) และสิทธิที่หมดช่วงเวลาแล้ว. */
+const DAY_MS = 86400000;
+const isoShift = (days) => new Date(Date.now() + days * DAY_MS).toISOString().slice(0, 10);
+export const thaiDateOfIso = (iso) => {
+  if (!iso) return '-';
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+export const daysLeftOfIso = (iso) => {
+  if (!iso) return null;
+  const end = new Date(`${iso}T23:59:59`).getTime();
+  return Math.ceil((end - Date.now()) / DAY_MS);
+};
+
 export const ACCESS_RECORDS = Array.from({ length: 24 }, (_, i) => {
   const n = i + 1;
   const day = (n % 27) + 1;
   const month = MONTHS[i % MONTHS.length];
   const file = FILES[i % FILES.length];
+  const status = STAT[i % STAT.length];
+  /* อนุมัติแล้ว: สลับช่วงเวลาที่ยังไม่หมด (Active) / ใกล้หมด — หมดอายุ: ช่วงในอดีต */
+  const approved = status === 'อนุมัติแล้ว';
+  const expired = status === 'หมดอายุ';
+  const periodStart = approved ? isoShift(-10 - (i % 5)) : expired ? isoShift(-40) : null;
+  const periodEnd = approved ? isoShift(3 + (i % 4) * 9) : expired ? isoShift(-3 - (i % 4)) : null;
   return {
     id: n,
     reqNo: `REQ-2569-${String(40 + n).padStart(4, '0')}`,
@@ -69,6 +92,13 @@ export const ACCESS_RECORDS = Array.from({ length: 24 }, (_, i) => {
     periodDays: `${(i % 3) * 5 + 5} วัน`,
     file: file[0],
     fileSize: file[1],
-    status: STAT[i % STAT.length],
+    status,
+    /* ด.1.1.17.2 + 17.3 */
+    periodStart,
+    periodEnd,
+    active: approved,
+    audit: approved
+      ? { by: 'ลดา ดีงาม', at: `${day} ${month} 2569 · 10:2${i % 10}` }
+      : null,
   };
 });

@@ -12,7 +12,14 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import Popup from '@/components/popup/Popup';
-import { ACCESS_RECORDS, ACCESS_SUMMARY, ACCESS_TABS, ACCESS_STATUS } from '@/data/accessRecords';
+import Switch from '@/components/switch/Switch';
+import PhcisTopToast from '@/components/alert/PhcisTopToast';
+import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerifyPopup';
+import {
+  ACCESS_RECORDS, ACCESS_SUMMARY, ACCESS_TABS, ACCESS_STATUS,
+  thaiDateOfIso, daysLeftOfIso,
+} from '@/data/accessRecords';
+import { ScanImportPopup, ApprovePeriodPopup, AccessDetailPopup } from '@/pages/consent/accessPopups';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — จัดการสิทธิ์การเข้าถึง (Figma node 363:122327).
@@ -142,8 +149,18 @@ const DocPreview = ({ row }) => (
   </div>
 );
 
+/* ด.1.1.17.2 — หมดช่วงเวลา → Inactive อัตโนมัติ + ย้ายไปแท็บหมดช่วงเวลา */
+const autoExpire = (r) => {
+  if (r.status === 'อนุมัติแล้ว' && r.periodEnd && (daysLeftOfIso(r.periodEnd) ?? 1) < 0) {
+    return { ...r, status: 'หมดอายุ', active: false, expiredByPeriod: true };
+  }
+  return { ...r };
+};
+
 export default function AccessManagementPage() {
   const navigate = useHistory();
+  /* rows เป็น state จริง (mock mutate ใน session) */
+  const [rows, setRows] = useState(() => ACCESS_RECORDS.map(autoExpire));
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [filterRequester, setFilterRequester] = useState('');
@@ -152,8 +169,19 @@ export default function AccessManagementPage() {
   const [filterDate, setFilterDate] = useState('');
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  const [dialog, setDialog] = useState(null); // { record, kind: 'approve' | 'reject' }
+  const [dialog, setDialog] = useState(null); // { record, kind: 'reject' }
   const [previewFile, setPreviewFile] = useState(null); // row whose attached doc is open
+  /* ด.1.1.17 workflow */
+  const [scanOpen, setScanOpen] = useState(false);        // 17.1 สแกนนำเข้า
+  const [approveFor, setApproveFor] = useState(null);     // 17.2 อนุมัติ + ช่วงเวลา
+  const [detailFor, setDetailFor] = useState(null);       // detail + audit
+  const [toggleFor, setToggleFor] = useState(null);       // 17.3 confirm Active switch
+  const [verifyFor, setVerifyFor] = useState(null);       // ด.1.1.1 gate ก่อนอนุมัติ
+  const [toast, setToast] = useState(null);
+
+  const patchRow = (id, patch) => setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const pushToast = (message) => setToast({ id: Date.now(), variant: 'success', message });
+  const nowThai = () => new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' });
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:access');
 
@@ -162,18 +190,18 @@ export default function AccessManagementPage() {
     label: t.label,
     icon: t.icon,
     count: t.value === 'all'
-      ? ACCESS_RECORDS.length
-      : ACCESS_RECORDS.filter((r) => (ACCESS_STATUS[r.status] || {}).tab === t.value).length,
-  })), []);
+      ? rows.length
+      : rows.filter((r) => (ACCESS_STATUS[r.status] || {}).tab === t.value).length,
+  })), [rows]);
 
   const requesterOptions = useMemo(() => [
     { value: '', label: 'ทุกคน' },
-    ...[...new Set(ACCESS_RECORDS.map((r) => r.name))].map((n) => ({ value: n, label: n })),
-  ], []);
+    ...[...new Set(rows.map((r) => r.name))].map((n) => ({ value: n, label: n })),
+  ], [rows]);
   const purposeOptions = useMemo(() => [
     { value: '', label: 'ทุกวัตถุประสงค์' },
-    ...[...new Set(ACCESS_RECORDS.map((r) => r.purpose))].map((p) => ({ value: p, label: p })),
-  ], []);
+    ...[...new Set(rows.map((r) => r.purpose))].map((p) => ({ value: p, label: p })),
+  ], [rows]);
   const statusOptions = useMemo(() => [
     { value: '', label: 'ทุกสถานะ' },
     ...Object.keys(ACCESS_STATUS).map((s) => ({ value: s, label: s })),
@@ -187,7 +215,7 @@ export default function AccessManagementPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return ACCESS_RECORDS.filter((r) => {
+    return rows.filter((r) => {
       const meta = ACCESS_STATUS[r.status] || {};
       return (
         (activeTab === 'all' || meta.tab === activeTab) &&
@@ -197,7 +225,7 @@ export default function AccessManagementPage() {
         (!q || r.reqNo.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.empCode.toLowerCase().includes(q))
       );
     });
-  }, [activeTab, search, filterRequester, filterPurpose, filterStatus]);
+  }, [rows, activeTab, search, filterRequester, filterPurpose, filterStatus]);
 
   const handleSort = (key) => setSortConfig((prev) => (
     prev.key === key
@@ -236,34 +264,75 @@ export default function AccessManagementPage() {
   };
 
   /* Status-dependent action column — ✓ approve / ✗ reject, one disabled per
-     status (Figma 363:122327). */
+     status (Figma 363:122327) + ปุ่มดูรายละเอียด (audit).
+     อนุมัติ = ให้สิทธิแทนเจ้าของข้อมูล → ผ่าน ConsentIdentityVerifyPopup ก่อน
+     (ด.1.1.1) แล้วจึงระบุช่วงเวลาสิทธิ (ด.1.1.17.2). */
   const renderAction = (row) => {
     const meta = ACCESS_STATUS[row.status] || {};
-    /* No actionable CTA (e.g. หมดอายุ) → hide the buttons entirely. */
-    if (!meta.canApprove && !meta.canReject) {
-      return <span style={MUTED_CELL}>-</span>;
-    }
     return (
       <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-150)' }}>
         <NeutralSubdueIconButton
-          icon='check'
+          icon='visibility'
           variant='outline'
           size='sm'
-          disabled={!meta.canApprove}
-          aria-label='อนุมัติคำขอ'
-          title='อนุมัติ'
-          onClick={() => meta.canApprove && setDialog({ record: row, kind: 'approve' })}
+          aria-label='ดูรายละเอียดและ audit'
+          title='รายละเอียด / audit'
+          onClick={() => setDetailFor(row)}
         />
-        <NeutralSubdueIconButton
-          icon='close'
-          variant='outline'
-          size='sm'
-          disabled={!meta.canReject}
-          aria-label='ปฏิเสธคำขอ'
-          title='ปฏิเสธ'
-          onClick={() => meta.canReject && setDialog({ record: row, kind: 'reject' })}
-        />
+        {(meta.canApprove || meta.canReject) && (
+          <>
+            <NeutralSubdueIconButton
+              icon='check'
+              variant='outline'
+              size='sm'
+              disabled={!meta.canApprove}
+              aria-label='อนุมัติคำขอ'
+              title='อนุมัติ (ระบุช่วงเวลาสิทธิ)'
+              onClick={() => meta.canApprove && setVerifyFor(row)}
+            />
+            <NeutralSubdueIconButton
+              icon='close'
+              variant='outline'
+              size='sm'
+              disabled={!meta.canReject}
+              aria-label='ปฏิเสธคำขอ'
+              title='ปฏิเสธ'
+              onClick={() => meta.canReject && setDialog({ record: row, kind: 'reject' })}
+            />
+          </>
+        )}
       </div>
+    );
+  };
+
+  /* ด.1.1.17.3 — คอลัมน์ Active: Switch เปิด/ปิดการให้สิทธิตามเอกสาร */
+  const renderActive = (row) => {
+    if (row.status !== 'อนุมัติแล้ว' && row.status !== 'หมดอายุ') {
+      return <span style={MUTED_CELL}>-</span>;
+    }
+    /* หมดช่วงเวลา → ห้าม re-activate จนกว่าจะตั้งช่วงใหม่ (อนุมัติใหม่) */
+    const periodOver = row.periodEnd && (daysLeftOfIso(row.periodEnd) ?? 1) < 0;
+    return (
+      <span title={periodOver ? 'หมดช่วงเวลาแล้ว — ต้องอนุมัติพร้อมตั้งช่วงเวลาใหม่ก่อนจึงเปิดได้' : (row.active ? 'ปิดการให้สิทธิ' : 'เปิดการให้สิทธิ')}>
+        <Switch
+          checked={!!row.active}
+          disabled={periodOver}
+          onChange={() => !periodOver && setToggleFor(row)}
+          aria-label={`สถานะ Active ของ ${row.reqNo}`}
+        />
+      </span>
+    );
+  };
+
+  /* ด.1.1.17.2 — คอลัมน์ช่วงเวลาสิทธิ + วันคงเหลือ */
+  const renderPeriod = (row) => {
+    if (!row.periodStart) return <StackCell top={row.period} bottom='ยังไม่กำหนดช่วงสิทธิ' />;
+    const left = daysLeftOfIso(row.periodEnd);
+    return (
+      <StackCell
+        top={`${thaiDateOfIso(row.periodStart)} – ${thaiDateOfIso(row.periodEnd)}`}
+        bottom={left != null && left >= 0 ? `เหลืออีก ${left} วัน` : 'หมดช่วงเวลาแล้ว'}
+      />
     );
   };
 
@@ -282,16 +351,23 @@ export default function AccessManagementPage() {
     { key: 'createdDate', header: 'วันที่สร้างคำขอ', width: 160, sortable: true, render: (r) => <StackCell top={r.createdDate} bottom={r.createdTime} /> },
     { key: 'hn', header: 'HN ผู้รับบริการ', width: 140, render: (r) => <Cell value={r.hn} /> },
     { key: 'purpose', header: 'วัตถุประสงค์', width: 170, render: (r) => <Cell value={r.purpose} /> },
-    { key: 'period', header: 'ช่วงเวลาที่ขอ', width: 180, render: (r) => <StackCell top={r.period} bottom={r.periodDays} /> },
+    { key: 'period', header: 'ช่วงเวลาสิทธิ (เริ่ม-สิ้นสุด)', width: 230, render: renderPeriod },
     { key: 'file', header: 'แบบฟอร์มขอเข้าถึงข้อมูล', width: 200, render: (r) => <FileCell name={r.file} size={r.fileSize} onClick={() => setPreviewFile(r)} /> },
     {
-      key: 'status', header: 'สถานะ', width: 130, sortable: true,
-      render: (r) => <ColorfulBadge style={(ACCESS_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>,
+      key: 'status', header: 'สถานะ', width: 140, sortable: true,
+      render: (r) => (
+        <div className='flex flex-col items-start' style={{ gap: 'var(--dim-space-050)' }}>
+          <ColorfulBadge style={(ACCESS_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>
+          {r.expiredByPeriod && (
+            <span style={{ ...MUTED_CELL, fontSize: 'var(--type-size-xs)' }}>Inactive อัตโนมัติ (หมดช่วงเวลา)</span>
+          )}
+        </div>
+      ),
     },
-    { key: 'action', header: 'การจัดการ', width: 120, render: renderAction },
+    /* ด.1.1.17.3 — เปิด/ปิดการให้สิทธิตามที่ระบุในเอกสาร */
+    { key: 'active', header: 'Active', width: 90, render: renderActive },
+    { key: 'action', header: 'การจัดการ', width: 150, render: renderAction },
   ], []);
-
-  const isApprove = dialog && dialog.kind === 'approve';
 
   return (
     <>
@@ -347,9 +423,13 @@ export default function AccessManagementPage() {
                   <FilterDropdown prefix='วันที่สร้าง:' options={dateOptions} value={filterDate} onChange={(v) => { setFilterDate(v); setPage(1); }} />
                 </div>
                 <div className='flex-1' />
-                <div className='flex items-center shrink-0'>
+                <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
                   <BrandButton variant='outline' size='sm' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
                     สร้างแบบฟอร์มใหม่
+                  </BrandButton>
+                  {/* ด.1.1.17.1 — สแกนแบบฟอร์มขอเข้าถึงข้อมูลนำเข้าระบบ */}
+                  <BrandButton variant='fill' size='sm' leadingIcon='document_scanner' onClick={() => setScanOpen(true)}>
+                    สแกนแบบฟอร์มนำเข้า
                   </BrandButton>
                 </div>
               </div>
@@ -377,21 +457,126 @@ export default function AccessManagementPage() {
         </div>
       </QueuePageShell>
 
+      {/* ปฏิเสธคำขอ — confirm แล้ว mutate จริง (mock) */}
       <AlertDialog
         open={!!dialog}
-        type={isApprove ? 'success' : 'warning'}
-        title={isApprove ? 'อนุมัติคำขอเข้าถึงข้อมูล?' : 'ปฏิเสธคำขอเข้าถึงข้อมูล?'}
-        description={
-          dialog
-            ? `${isApprove ? 'ยืนยันอนุมัติ' : 'ยืนยันปฏิเสธ'}คำขอ ${dialog.record.reqNo} ของ ${dialog.record.name}`
-            : ''
-        }
-        confirmLabel={isApprove ? 'อนุมัติ' : 'ปฏิเสธ'}
+        type='warning'
+        title='ปฏิเสธคำขอเข้าถึงข้อมูล?'
+        description={dialog ? `ยืนยันปฏิเสธคำขอ ${dialog.record.reqNo} ของ ${dialog.record.name}` : ''}
+        confirmLabel='ปฏิเสธ'
         cancelLabel='ยกเลิก'
-        onConfirm={() => setDialog(null)}
+        onConfirm={() => {
+          if (dialog) {
+            patchRow(dialog.record.id, { status: 'ปฏิเสธ', active: false, audit: { by: 'ลดา ดีงาม', at: nowThai() } });
+            pushToast(`ปฏิเสธคำขอ ${dialog.record.reqNo} แล้ว — บันทึกผู้ทำและเวลาใน audit`);
+          }
+          setDialog(null);
+        }}
         onCancel={() => setDialog(null)}
         onClose={() => setDialog(null)}
       />
+
+      {/* ด.1.1.1 — พิสูจน์ตัวตนก่อนอนุมัติสิทธิแทนเจ้าของข้อมูล */}
+      <ConsentIdentityVerifyPopup
+        open={!!verifyFor}
+        onClose={() => setVerifyFor(null)}
+        onVerified={() => {
+          const rec = verifyFor;
+          setVerifyFor(null);
+          if (rec) setApproveFor(rec);
+        }}
+        actionLabel='อนุมัติสิทธิเข้าถึงข้อมูลผู้รับบริการ'
+        patientName={verifyFor ? `ผู้รับบริการ HN ${verifyFor.hn}` : undefined}
+        hn={verifyFor?.hn}
+      />
+
+      {/* ด.1.1.17.2 — อนุมัติพร้อมระบุช่วงเวลาสิทธิ */}
+      <ApprovePeriodPopup
+        open={!!approveFor}
+        record={approveFor}
+        onClose={() => setApproveFor(null)}
+        onApprove={({ periodStart, periodEnd }) => {
+          const rec = approveFor;
+          setApproveFor(null);
+          if (rec) {
+            patchRow(rec.id, {
+              status: 'อนุมัติแล้ว',
+              active: true,
+              periodStart,
+              periodEnd,
+              expiredByPeriod: false,
+              audit: { by: 'ลดา ดีงาม', at: nowThai() },
+            });
+            pushToast(`อนุมัติ ${rec.reqNo} แล้ว — สิทธิ Active ${thaiDateOfIso(periodStart)} ถึง ${thaiDateOfIso(periodEnd)}`);
+          }
+        }}
+      />
+
+      {/* ด.1.1.17.3 — ยืนยันเปิด/ปิด Active (destructive เมื่อปิดสิทธิที่ใช้อยู่) */}
+      <AlertDialog
+        open={!!toggleFor}
+        type={toggleFor && toggleFor.active ? 'destructive' : 'info'}
+        title={toggleFor && toggleFor.active ? 'ปิดการให้สิทธิ (Inactive)?' : 'เปิดการให้สิทธิ (Active)?'}
+        description={toggleFor
+          ? `${toggleFor.reqNo} ของ ${toggleFor.name} — ${toggleFor.active
+            ? 'สิทธินี้กำลังใช้งานอยู่ การปิดจะมีผลทันที และบันทึกผู้ทำ/เวลาไว้ใน audit (ไม่มีการลบประวัติ)'
+            : 'เปิดการให้สิทธิตามช่วงเวลาที่ระบุไว้ในเอกสาร'}`
+          : ''}
+        confirmLabel={toggleFor && toggleFor.active ? 'ปิดสิทธิ' : 'เปิดสิทธิ'}
+        cancelLabel='ยกเลิก'
+        onConfirm={() => {
+          if (toggleFor) {
+            const next = !toggleFor.active;
+            patchRow(toggleFor.id, { active: next, audit: { by: 'ลดา ดีงาม', at: nowThai() } });
+            pushToast(`${next ? 'เปิด' : 'ปิด'}การให้สิทธิ ${toggleFor.reqNo} แล้ว — บันทึก audit ผู้ทำ/เวลา`);
+          }
+          setToggleFor(null);
+        }}
+        onCancel={() => setToggleFor(null)}
+        onClose={() => setToggleFor(null)}
+      />
+
+      {/* ด.1.1.17.1 — สแกนแบบฟอร์มนำเข้า → คำขอใหม่พร้อมไฟล์แนบ */}
+      <ScanImportPopup
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onImported={({ name, empCode, unit, hn, purpose, scopes, fileName }) => {
+          setScanOpen(false);
+          const id = rows.reduce((m, r) => Math.max(m, r.id), 0) + 1;
+          setRows((prev) => [...prev, {
+            id,
+            reqNo: `REQ-2569-${String(40 + id).padStart(4, '0')}`,
+            name,
+            empCode: empCode || '-',
+            unit,
+            createdDate: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }),
+            createdTime: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+            hn,
+            purpose,
+            scopes,
+            period: '-',
+            periodDays: '-',
+            file: fileName || 'scanned-form.pdf',
+            fileSize: '1.2 MB',
+            status: 'รออนุมัติ',
+            periodStart: null,
+            periodEnd: null,
+            active: false,
+            audit: { by: 'ลดา ดีงาม', at: nowThai() },
+          }]);
+          pushToast(`นำเข้าคำขอจากเอกสารสแกนของ ${name} แล้ว — สถานะรออนุมัติ`);
+        }}
+      />
+
+      {/* รายละเอียด + audit */}
+      <AccessDetailPopup
+        open={!!detailFor}
+        record={detailFor}
+        onClose={() => setDetailFor(null)}
+        thaiDateOfIso={thaiDateOfIso}
+      />
+
+      <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
 
       {/* Attached-document preview (Figma DataCell click annotation) */}
       <Popup

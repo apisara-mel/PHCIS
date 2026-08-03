@@ -9,11 +9,14 @@
    forms library (/forms) — so creating a form never leaves the consent
    system. */
 export const CONSENT_NAV = [
-  { key: 'consent-dashboard', label: 'แดชบอร์ด',           icon: 'bar_chart_4_bars',     path: '/consent' },
+  /* ด.1.1.12 — แดชบอร์ดมีหน้าจริงของตัวเองแล้ว (เดิมชี้ /consent) */
+  { key: 'consent-dashboard', label: 'แดชบอร์ด',           icon: 'bar_chart_4_bars',     path: '/consent/dashboard' },
   { key: 'consent-manage',    label: 'จัดการความยินยอม',    icon: 'assignment_turned_in', path: '/consent' },
   { key: 'consent-forms',     label: 'แบบฟอร์มความยินยอม',  icon: 'folder_open',          path: '/consent/forms' },
   { key: 'consent-new',       label: 'สร้างแบบฟอร์มใหม่',   icon: 'note_add',             path: '/consent/forms/new' },
   { key: 'consent-access',    label: 'จัดการสิทธิ์การเข้าถึง', icon: 'lock',               path: '/consent/access' },
+  /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม */
+  { key: 'consent-access-rights', label: 'สิทธิเข้าถึงตามความยินยอม', icon: 'verified_user', path: '/consent/access/rights' },
   { key: 'consent-report',    label: 'สถิติและรายงาน',       icon: 'pie_chart',           path: '/consent/report' },
 ];
 

@@ -27,7 +27,19 @@ export const CONSENT_STATUS = {
   /* Edge case (Figma note 312:97428): เทมเพลตออกเวอร์ชันใหม่หลังผู้ป่วย
      เซ็นไปแล้ว → ฉบับเดิมเป็น superseded ต้องส่งขอเซ็นใหม่ */
   'มีเวอร์ชันใหม่':     { tone: 'blue',   tab: 'pending',   action: { label: 'ส่งเซ็นเวอร์ชันใหม่', kind: 'brand', confirm: 'reconsent' } },
+  /* ด.1.1.7 — Re-Consent ครบวงจร: record เดิมที่มีคำขอ reconsent เกิดขึ้นแล้ว
+     ย้ายมาสถานะนี้ (ไม่ hard delete — ประวัติคงอยู่) ไม่มี CTA ต่อ */
+  'หมดอายุ-Reconsent': { tone: 'grey',   tab: 'expired',   action: null },
+  /* ด.1.1.4 — เจ้าหน้าที่ยกเลิกคำขอที่ยังไม่ลงนาม (audit คงอยู่) */
+  'ยกเลิกคำขอ':        { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
 };
+
+/* ── ช่องทางลงนาม (ด.1.1.6 — หลายช่องทาง) ──────────────────────────────── */
+export const CONSENT_CHANNEL_OPTIONS = [
+  { value: 'ที่ศูนย์บริการ', label: 'ที่ศูนย์บริการ', icon: 'local_hospital', hint: 'เจ้าหน้าที่บันทึกให้ที่เคาน์เตอร์' },
+  { value: 'Mobile App',    label: 'Mobile App',    icon: 'smartphone',      hint: 'ส่งคำขอไปที่แอปผู้รับบริการ' },
+  { value: 'QR Code',       label: 'QR Code',       icon: 'qr_code_2',       hint: 'แสดง QR ให้สแกนลงนามบนมือถือ' },
+];
 
 /* ── Tabs (Figma TabUnderline) ──────────────────────────────────────── */
 export const CONSENT_TABS = [
@@ -116,11 +128,14 @@ export const CONSENT_RECORDS = [
     id: 12, hn: '67-00012', name: 'ดวงใจ พิทักษ์', type: 'ผ่าตัด', version: 'V 1.2',
     status: 'ใกล้หมดอายุ', signChannel: 'ที่ศูนย์บริการ', requester: 'ลดา ดีงาม',
     createdDate: '20 มีนาคม 2568', signedDate: '21 มีนาคม 2568', withdrawnDate: '-', history: [],
+    /* ด.1.1.7 — countdown "อีก X วัน" บนแท็บใกล้หมดอายุ */
+    expiresInDays: 14,
   },
   {
     id: 13, hn: '67-00013', name: 'วีรชัย กล้าหาญ', type: 'การวิจัย', version: 'V 2.1',
     status: 'ใกล้หมดอายุ', signChannel: 'Mobile App', requester: 'นที ทองคำ',
     createdDate: '25 มีนาคม 2568', signedDate: '26 มีนาคม 2568', withdrawnDate: '-', history: [],
+    expiresInDays: 21,
   },
   {
     id: 14, hn: '67-00014', name: 'นภัสสร บุญมา', type: 'การรักษา', version: 'V 1.0',

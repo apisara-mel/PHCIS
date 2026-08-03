@@ -14,10 +14,14 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import Icon from '@/components/icons/Icon';
 import ViewToggle from '@/components/toggle/ViewToggle';
+import AlertDialog from '@/components/popup/AlertDialog';
+import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import {
   CONSENT_FORM_RECORDS, CONSENT_FORM_SUMMARY, CONSENT_FORM_TABS,
   CONSENT_FORM_STATUS, FORM_TYPE_TONE,
 } from '@/data/consentFormRecords';
+import { logExport } from '@/data/consentWorkflowStore';
+import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — แบบฟอร์มความยินยอม (Figma 291:113045 · flow 277:150901).
@@ -244,7 +248,7 @@ const GroupSection = ({ type, rows, onView, onEdit, onSeeAll, cardStyle }) => (
     </div>
     <div className='mih-grid-row' style={{ display: 'flex', gap: 'var(--dim-space-400)', overflowX: 'auto', paddingBottom: 'var(--dim-space-100)' }}>
       {rows.map((r) => (
-        <FormGridCard key={r.id} row={r} onView={() => onView(r)} onEdit={onEdit} />
+        <FormGridCard key={r.id} row={r} onView={() => onView(r)} onEdit={() => onEdit(r)} />
       ))}
     </div>
   </section>
@@ -264,6 +268,10 @@ export default function ConsentFormsPage() {
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  /* ด.1.1.5 Version Control + ด.1.1.15 ดาวน์โหลด PDF */
+  const [versionFor, setVersionFor] = useState(null);   // record → VersionHistoryPopup
+  const [bumpFor, setBumpFor] = useState(null);         // published record → บังคับ bump
+  const [toast, setToast] = useState(null);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:consent-forms');
 
@@ -371,11 +379,39 @@ export default function ConsentFormsPage() {
     setSearch(q); setPage(1);
   };
 
+  /* ด.1.1.5 — สร้างเวอร์ชันใหม่: prefill wizard เดิม + bump (ห้ามแก้ทับ) */
+  const goCreateVersion = (row) => {
+    navigate.push('/consent/forms/new', {
+      prefill: {
+        name: row.name,
+        code: row.code,
+        typeLabel: row.type,
+        version: bumpVersion(row.version),
+        supersedeType: row.type,
+        fromVersion: row.version,
+      },
+    });
+  };
+
+  /* แก้ไข: เทมเพลตที่เผยแพร่แล้วบังคับ bump — ร่าง/รอตรวจสอบแก้ตรงได้ */
+  const handleEdit = (row) => {
+    if (row.status === 'เผยแพร่') setBumpFor(row);
+    else navigate.push('/consent/forms/new', { prefill: { name: row.name, code: row.code, typeLabel: row.type, version: row.version } });
+  };
+
+  /* ด.1.1.15 — ดาวน์โหลด PDF เพื่อพิมพ์ให้ลงนาม (export → เก็บ log) */
+  const handleDownloadPdf = (row) => {
+    logExport({ source: `${row.code} ${row.name}`, format: 'pdf' });
+    setToast({ id: Date.now(), variant: 'success', message: `ดาวน์โหลด ${row.code}.pdf แล้ว — ระบบบันทึก log การส่งออกข้อมูล` });
+  };
+
   const renderAction = (row) => (
     <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-150)' }}>
       <NeutralSubdueIconButton icon='visibility' variant='outline' size='sm' aria-label='ดูแบบฟอร์ม' title='ดูแบบฟอร์ม' onClick={() => navigate.push(`/consent/forms/${row.id}/view`)} />
-      <NeutralSubdueIconButton icon='print' variant='outline' size='sm' aria-label='พิมพ์' title='พิมพ์' />
-      <NeutralSubdueButton leadingIcon='edit' size='sm' onClick={() => navigate.push('/consent/forms/new')}>แก้ไข</NeutralSubdueButton>
+      <NeutralSubdueIconButton icon='history' variant='outline' size='sm' aria-label='ประวัติเวอร์ชัน' title='ประวัติเวอร์ชัน (Version Control)' onClick={() => setVersionFor(row)} />
+      <NeutralSubdueIconButton icon='download' variant='outline' size='sm' aria-label='ดาวน์โหลด PDF' title='ดาวน์โหลด PDF (เก็บ log)' onClick={() => handleDownloadPdf(row)} />
+      <NeutralSubdueIconButton icon='print' variant='outline' size='sm' aria-label='พิมพ์' title='พิมพ์ (ไม่เก็บ log)' onClick={() => window.print?.()} />
+      <NeutralSubdueButton leadingIcon='edit' size='sm' onClick={() => handleEdit(row)}>แก้ไข</NeutralSubdueButton>
     </div>
   );
 
@@ -406,6 +442,7 @@ export default function ConsentFormsPage() {
   ], []);
 
   return (
+    <>
     <QueuePageShell
       activeKey='consent-forms'
       sidebarItems={CONSENT_NAV}
@@ -524,12 +561,36 @@ export default function ConsentFormsPage() {
               rows={g.rows}
               cardStyle={CARD_STYLE}
               onView={(r) => navigate.push(`/consent/forms/${r.id}/view`)}
-              onEdit={() => navigate.push('/consent/forms/new')}
+              onEdit={handleEdit}
               onSeeAll={() => { setFilterType(g.type); setPage(1); }}
             />
           ))
         )}
       </div>
     </QueuePageShell>
+
+    {/* ด.1.1.5 — timeline เวอร์ชัน + สร้างเวอร์ชันใหม่ */}
+    <VersionHistoryPopup
+      open={!!versionFor}
+      record={versionFor}
+      onClose={() => setVersionFor(null)}
+      onCreateVersion={(row) => { setVersionFor(null); goCreateVersion(row); }}
+    />
+
+    {/* แก้ไขเทมเพลตที่เผยแพร่แล้ว → บังคับ bump เวอร์ชัน (ห้ามแก้ทับ) */}
+    <AlertDialog
+      open={!!bumpFor}
+      type='warning'
+      title='แบบฟอร์มนี้เผยแพร่แล้ว'
+      description={bumpFor ? `${bumpFor.code} (${bumpFor.version}) แก้ทับไม่ได้ — ระบบจะสร้างเวอร์ชันใหม่ ${bumpVersion(bumpFor.version)} ให้แก้ไขแทน และเก็บเวอร์ชันเดิมเป็น read-only` : ''}
+      confirmLabel='สร้างเวอร์ชันใหม่'
+      cancelLabel='ยกเลิก'
+      onConfirm={() => { const row = bumpFor; setBumpFor(null); if (row) goCreateVersion(row); }}
+      onCancel={() => setBumpFor(null)}
+      onClose={() => setBumpFor(null)}
+    />
+
+    <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
+    </>
   );
 }

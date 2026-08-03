@@ -26,13 +26,16 @@ const DATA_TYPES = ['ประวัติการรักษา', 'ผลต�
 const ROLES = ['Admin', 'Editor', 'Viewer'];
 const DEPTS = ['อายุรกรรม', 'ผู้ป่วยนอก', 'เภสัชกรรม', 'ศัลยกรรม', 'ทันตกรรม', 'ส่งเสริมสุขภาพ', 'สุขภาพจิต'];
 
-const N = 20;
+/* 44 แถวต่อรายงาน (ด.1.1.16 — ให้ตาราง "ดูรายงาน" มี pagination เห็นจริง) */
+const N = 44;
 const seq = (fn) => Array.from({ length: N }, (_, i) => fn(i));
 const HN = (i) => `HN-4802${String(21 + i).padStart(2, '0')}`;
 const consentStatus = (i) => (i % 4 === 2 ? 'ไม่ยินยอม' : 'ยินยอม');           // ~25% ไม่ยินยอม
 const exportStatus = (i) => (i % 5 === 2 ? 'ถูกปฏิเสธ' : i % 5 === 4 ? 'รอตรวจสอบ' : 'สำเร็จ');
 const dateTH = (i) => `${1 + (i % 12)} มิ.ย. 2569`;
 const dtTH = (i) => `${1 + (i % 12)} มิ.ย. 2569 ${String(8 + (i % 9)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}`;
+/* ISO ประกบวันที่ไทย — ใช้กรองช่วงวันที่ในตาราง "ดูรายงาน" (มิ.ย. 2569 = 2026-06) */
+const isoOf = (i) => `2026-06-${String(1 + (i % 12)).padStart(2, '0')}`;
 
 export const CONSENT_REPORTS = [
   {
@@ -58,7 +61,7 @@ export const CONSENT_REPORTS = [
         { key: 'status', header: 'สถานะ', width: 130, kind: 'status' },
         { key: 'date', header: 'วันที่', width: 150 },
       ],
-      rows: seq((i) => ({ patient: PATIENTS[i], hn: HN(i), type: TYPES[i % TYPES.length], status: consentStatus(i), date: dateTH(i) })),
+      rows: seq((i) => ({ patient: PATIENTS[i % PATIENTS.length], hn: HN(i), type: TYPES[i % TYPES.length], status: consentStatus(i), date: dateTH(i), _iso: isoOf(i) })),
     },
   },
   {
@@ -82,7 +85,8 @@ export const CONSENT_REPORTS = [
         { key: 'status', header: 'สถานะ', width: 130, kind: 'status' },
         { key: 'period', header: 'ช่วงเวลา', width: 170 },
       ],
-      rows: seq((i) => ({ patient: `${PATIENTS[i]} · ${HN(i)}`, type: TYPES[i % TYPES.length], status: consentStatus(i), period: '01–12 มิ.ย. 2569' })),
+      /* 16.2 — คลิกแถวเปิด ConsentHistoryPopup ของ HN นั้น (hn/name แยกไว้ให้หน้าใช้) */
+      rows: seq((i) => ({ patient: `${PATIENTS[i % PATIENTS.length]} · ${HN(i)}`, name: PATIENTS[i % PATIENTS.length], hn: HN(i), type: TYPES[i % TYPES.length], status: consentStatus(i), period: '01–12 มิ.ย. 2569', _iso: isoOf(i) })),
     },
   },
   {
@@ -107,7 +111,7 @@ export const CONSENT_REPORTS = [
         { key: 'status', header: 'สถานะ', width: 130, kind: 'status' },
         { key: 'datetime', header: 'วันเวลา', width: 170 },
       ],
-      rows: seq((i) => ({ actor: STAFF[i % STAFF.length], unit: UNITS[i % UNITS.length], dataType: DATA_TYPES[i % DATA_TYPES.length], status: exportStatus(i), datetime: dtTH(i) })),
+      rows: seq((i) => ({ actor: STAFF[i % STAFF.length], unit: UNITS[i % UNITS.length], dataType: DATA_TYPES[i % DATA_TYPES.length], status: exportStatus(i), datetime: dtTH(i), _iso: isoOf(i) })),
     },
   },
   {
@@ -130,7 +134,19 @@ export const CONSENT_REPORTS = [
         { key: 'dept', header: 'แผนก', width: 170 },
         { key: 'lastAccess', header: 'วันเวลาเข้าถึงล่าสุด', width: 190 },
       ],
-      rows: seq((i) => ({ user: STAFF[i % STAFF.length], role: ROLES[i % ROLES.length], dept: DEPTS[i % DEPTS.length], lastAccess: dtTH(i) })),
+      /* 16.4 — วันเวลาการเข้าถึง "รายครั้ง" (ไม่ใช่แค่ล่าสุด): คลิกแถวเปิดรายการ accessTimes */
+      rows: seq((i) => ({
+        user: STAFF[i % STAFF.length],
+        role: ROLES[i % ROLES.length],
+        dept: DEPTS[i % DEPTS.length],
+        lastAccess: dtTH(i),
+        _iso: isoOf(i),
+        accessTimes: Array.from({ length: 3 + (i % 3) }, (_, k) => ({
+          datetime: `${1 + ((i + k) % 12)} มิ.ย. 2569 ${String(8 + ((i + k * 3) % 9)).padStart(2, '0')}:${String((i * 7 + k * 13) % 60).padStart(2, '0')}`,
+          action: k % 3 === 2 ? 'EXPORT' : 'VIEW',
+          target: `${DATA_TYPES[(i + k) % DATA_TYPES.length]} · ${HN(i + k)}`,
+        })),
+      })),
     },
   },
   {
@@ -158,6 +174,7 @@ export const CONSENT_REPORTS = [
         ip: `10.12.${(i % 6) + 4}.${((i * 11) % 200) + 1}`,
         action: i % 6 === 5 ? 'DELETE' : i % 3 === 0 ? 'EXPORT' : 'VIEW',
         datetime: `${dtTH(i)}:${String((i * 13) % 60).padStart(2, '0')}`,
+        _iso: isoOf(i),
       })),
     },
   },

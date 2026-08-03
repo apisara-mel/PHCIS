@@ -8,9 +8,12 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Popup from '@/components/popup/Popup';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
+import AlertDialog from '@/components/popup/AlertDialog';
 import { FakeQR } from '@/pages/mobile/MobileRegisterPage';
 import { StepReview } from '@/pages/consent/CreateConsentFormPage';
+import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import { CONSENT_FORM_RECORDS, FORM_TYPE_TONE } from '@/data/consentFormRecords';
+import { logExport } from '@/data/consentWorkflowStore';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — ดูแบบฟอร์มความยินยอม (Figma 302:143587).
@@ -72,6 +75,8 @@ export default function ConsentFormViewPage() {
   const { id } = useParams();
   const [qrOpen, setQrOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [versionOpen, setVersionOpen] = useState(false);
+  const [bumpOpen, setBumpOpen] = useState(false);
 
   const record = useMemo(
     () => CONSENT_FORM_RECORDS.find((r) => String(r.id) === String(id)) || CONSENT_FORM_RECORDS[0],
@@ -83,11 +88,36 @@ export default function ConsentFormViewPage() {
 
   /* บันทึกผ่านคอมพิวเตอร์ = export → เก็บ log (annotation 414:123633). */
   const handleExport = () => {
+    logExport({ source: `${record.code} ${record.name}`, format: 'file' });
     setToast({ id: Date.now(), variant: 'success', message: `บันทึกไฟล์ ${record.code} แล้ว — ระบบบันทึก log การส่งออกข้อมูล` });
+  };
+
+  /* ด.1.1.15 — ดาวน์โหลด PDF เพื่อพิมพ์ให้ลงนามก่อนให้สิทธิเข้าถึง (เก็บ log). */
+  const handleDownloadPdf = () => {
+    logExport({ source: `${record.code} ${record.name}`, format: 'pdf' });
+    setToast({ id: Date.now(), variant: 'success', message: `ดาวน์โหลด ${record.code}.pdf แล้ว — ระบบบันทึก log การส่งออกข้อมูล` });
   };
 
   /* พิมพ์ — ไม่เก็บ log ตาม annotation. */
   const handlePrint = () => window.print?.();
+
+  /* ด.1.1.5 — สร้างเวอร์ชันใหม่จาก wizard เดิม (prefill + bump, ห้ามแก้ทับ) */
+  const goCreateVersion = () => {
+    history.push('/consent/forms/new', {
+      prefill: {
+        name: record.name,
+        code: record.code,
+        typeLabel: record.type,
+        version: bumpVersion(record.version),
+        supersedeType: record.type,
+        fromVersion: record.version,
+      },
+    });
+  };
+  const handleEdit = () => {
+    if (record.status === 'เผยแพร่') setBumpOpen(true);
+    else history.push('/consent/forms/new', { prefill: { name: record.name, code: record.code, typeLabel: record.type, version: record.version } });
+  };
 
   return (
     <>
@@ -158,11 +188,17 @@ export default function ConsentFormViewPage() {
               </span>
             </span>
             <div className='flex-1' />
-            <NeutralButton variant='outline' size='md' leadingIcon='edit' onClick={() => history.push('/consent/forms/new')}>
+            <NeutralSubdueButton variant='outline' size='md' leadingIcon='history' onClick={() => setVersionOpen(true)}>
+              ประวัติเวอร์ชัน
+            </NeutralSubdueButton>
+            <NeutralButton variant='outline' size='md' leadingIcon='edit' onClick={handleEdit}>
               แก้ไข
             </NeutralButton>
             <NeutralSubdueButton variant='outline' size='md' leadingIcon='print' onClick={handlePrint}>
               พิมพ์
+            </NeutralSubdueButton>
+            <NeutralSubdueButton variant='outline' size='md' leadingIcon='download' onClick={handleDownloadPdf}>
+              ดาวน์โหลด PDF
             </NeutralSubdueButton>
             <NeutralSubdueButton variant='outline' size='md' leadingIcon='computer' onClick={handleExport}>
               บันทึกผ่านคอมพิวเตอร์
@@ -193,6 +229,25 @@ export default function ConsentFormViewPage() {
           </p>
         </div>
       </Popup>
+
+      {/* ด.1.1.5 — timeline เวอร์ชัน */}
+      <VersionHistoryPopup
+        open={versionOpen}
+        record={record}
+        onClose={() => setVersionOpen(false)}
+        onCreateVersion={() => { setVersionOpen(false); goCreateVersion(); }}
+      />
+      <AlertDialog
+        open={bumpOpen}
+        type='warning'
+        title='แบบฟอร์มนี้เผยแพร่แล้ว'
+        description={`${record.code} (${record.version}) แก้ทับไม่ได้ — ระบบจะสร้างเวอร์ชันใหม่ ${bumpVersion(record.version)} ให้แก้ไขแทน`}
+        confirmLabel='สร้างเวอร์ชันใหม่'
+        cancelLabel='ยกเลิก'
+        onConfirm={() => { setBumpOpen(false); goCreateVersion(); }}
+        onCancel={() => setBumpOpen(false)}
+        onClose={() => setBumpOpen(false)}
+      />
 
       <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
     </>

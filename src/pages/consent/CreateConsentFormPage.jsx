@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import StepProgress from '@/components/step/StepProgress';
 import Icon from '@/components/icons/Icon';
@@ -16,6 +16,7 @@ import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIc
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import AlertDialog from '@/components/popup/AlertDialog';
 import SuccessScreen from '@/components/layout/SuccessScreen';
+import { markTypeSuperseded } from '@/data/consentWorkflowStore';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — สร้างแบบฟอร์มใหม่ (Figma node 294:124265, steps
@@ -259,8 +260,29 @@ const DETAIL_HINTS = [
 ];
 const NAME_HINTS = ['ใบยินยอมรับการรักษาทั่วไป (General Consent for Treatment)', 'ใบยินยอมการผ่าตัด', 'ใบยินยอมเข้าร่วมการวิจัย'];
 
+/* ด.1.1.13 — field type ต่อข้อความยินยอม (form builder) */
+const FIELD_TYPE_OPTIONS = [
+  { value: 'boolean',  label: 'ยินยอม / ไม่ยินยอม (Boolean)' },
+  { value: 'checkbox', label: 'Checkbox รับทราบ' },
+  { value: 'text',     label: 'ข้อความสั้น (Text)' },
+  { value: 'textarea', label: 'ข้อความยาว (Textarea)' },
+  { value: 'date',     label: 'วันที่ (Date)' },
+  { value: 'number',   label: 'ตัวเลข (Number)' },
+];
+
+/* แผนที่ประเภทไทย (registry) → ค่า TYPE_OPTIONS ของ wizard — ใช้ตอน prefill
+   จาก "สร้างเวอร์ชันใหม่" (ด.1.1.5) */
+const TYPE_THAI_TO_VALUE = {
+  'การวิจัย': 'research',
+  'บันทึกภาพ/สื่อ': 'media',
+  'การรักษา': 'treatment',
+  'ผ่าตัด': 'surgical',
+  'วัคซีน': 'vaccine',
+  'PDPA': 'data',
+};
+
 let SECTION_SEQ = 2;
-const makeSection = () => ({ id: `cs-${SECTION_SEQ++}`, title: '', detail: '' });
+const makeSection = () => ({ id: `cs-${SECTION_SEQ++}`, title: '', detail: '', fieldType: 'boolean' });
 
 /* ── Small presentational helpers ───────────────────────────────────── */
 const SectionCard = ({ children, style }) => (
@@ -586,6 +608,9 @@ const CheckboxRow = ({ fields, value, onToggle }) => (
 /* ── Page ───────────────────────────────────────────────────────────── */
 export default function CreateConsentFormPage() {
   const history = useHistory();
+  const location = useLocation();
+  /* ด.1.1.5 — prefill จาก "สร้างเวอร์ชันใหม่" / "แก้ไข" (route state) */
+  const prefill = (location.state && location.state.prefill) || null;
   const [step, setStep] = useState(0);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [published, setPublished] = useState(false);
@@ -619,6 +644,17 @@ export default function CreateConsentFormPage() {
       return next;
     });
 
+  /* Prefill ครั้งเดียวตอน mount (สร้างเวอร์ชันใหม่ — ด.1.1.5): ชื่อ/รหัส/
+     ประเภทเดิม + เวอร์ชันที่ bump แล้ว. ทุก field แก้ต่อได้. */
+  useEffect(() => {
+    if (!prefill) return;
+    if (prefill.name) { setName(prefill.name); setDocTitle(prefill.name); }
+    if (prefill.code) setCode(prefill.code);
+    if (prefill.typeLabel && TYPE_THAI_TO_VALUE[prefill.typeLabel]) setType(TYPE_THAI_TO_VALUE[prefill.typeLabel]);
+    if (prefill.version) setVersion(prefill.version);
+    setTtl((prev) => prev || '30');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* Select a แม่แบบ → pre-fill Step 1 + Step 2 (still fully editable).
      'blank' resets to an empty form. (Figma 350:130188.) */
   const applyTemplate = (key) => {
@@ -647,7 +683,12 @@ export default function CreateConsentFormPage() {
 
   const goNext = () => {
     if (step < 2) { setStep(step + 1); window.scrollTo?.({ top: 0 }); }
-    else setPublished(true);
+    else {
+      /* เผยแพร่เวอร์ชันใหม่ → record ที่เซ็นเวอร์ชันเก่าใน worklist กลายเป็น
+         "มีเวอร์ชันใหม่" (เชื่อมผ่าน consentWorkflowStore — mock, ด.1.1.5) */
+      if (prefill && prefill.supersedeType) markTypeSuperseded(prefill.supersedeType);
+      setPublished(true);
+    }
   };
 
   const updateSection = (id, patch) =>
@@ -679,9 +720,17 @@ export default function CreateConsentFormPage() {
              own title sits top-left, above the stepper. PageHeaderInfoPanel is
              already the white card, so StepProgress is unframed here. */
           <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-400)' }}>
-            <h1 style={{ color: 'var(--text-topic-tertiary-title)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-regular, 400)', lineHeight: 1.4 }}>
-              สร้างแบบฟอร์มใหม่
-            </h1>
+            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+              <h1 style={{ color: 'var(--text-topic-tertiary-title)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-regular, 400)', lineHeight: 1.4 }}>
+                สร้างแบบฟอร์มใหม่
+              </h1>
+              {/* ด.1.1.5 — โหมดสร้างเวอร์ชันใหม่ (bump จากเวอร์ชันเดิม) */}
+              {prefill && prefill.fromVersion && (
+                <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
+                  สร้างเวอร์ชันใหม่จาก {prefill.fromVersion} → {prefill.version}
+                </ColorfulBadge>
+              )}
+            </div>
             <StepProgress
               steps={STEPS}
               current={step}
@@ -904,6 +953,8 @@ function StepContent(props) {
     signatures, toggleSignature, note, setNote,
     requireGuardian, setRequireGuardian, allowESign, setAllowESign,
   } = props;
+  /* ลิงก์ไป Dashboard Builder (ด.1.1.13) */
+  const builderHistory = useHistory();
   /* Drag-to-reorder consent clauses (HTML5 DnD). A card becomes draggable only
      while its grab handle is held, so typing/selecting inside the fields is
      never hijacked by a drag. */
@@ -971,6 +1022,14 @@ function StepContent(props) {
                 placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
                 suggestions={DETAIL_HINTS} minChars={3} height={120}
               />
+              {/* ด.1.1.13 — เลือก field type ของคำตอบต่อข้อ */}
+              <Select
+                label='รูปแบบคำตอบของข้อนี้ (Field Type)'
+                options={FIELD_TYPE_OPTIONS}
+                value={s.fieldType || 'boolean'}
+                onChange={(v) => updateSection(s.id, { fieldType: v })}
+                searchable={false}
+              />
             </div>
           ))}
           <BrandDashedAddButton icon='add' onClick={addSection}>เพิ่มข้อความ</BrandDashedAddButton>
@@ -993,6 +1052,19 @@ function StepContent(props) {
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400) var(--dim-space-600)' }}>
           <Checkbox checked={requireGuardian} onChange={setRequireGuardian} label='สำหรับผู้ป่วย / จำเป็นต้องกรอกผู้ปกครอง' />
           <Checkbox checked={allowESign} onChange={setAllowESign} label='อนุญาตให้ใช้ e-Signature' />
+        </div>
+      </SectionCard>
+
+      {/* ด.1.1.13 — เครื่องมือสร้าง "หน้าจอรายงาน" อยู่ที่ Dashboard Builder */}
+      <SectionCard>
+        <ColumnHeading>หน้าจอรายงานของแบบฟอร์มนี้</ColumnHeading>
+        <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.6 }}>
+          สร้างหน้าจอสรุปผล/รายงานของแบบฟอร์ม (widget สถิติ · กราฟ · ตาราง) ได้จากเครื่องมือ Dashboard Builder — บันทึกเป็น template แล้วตั้งเป็นค่าเริ่มต้นของเมนูแดชบอร์ดได้
+        </span>
+        <div>
+          <BrandSubdueButton variant='outline' size='md' leadingIcon='dashboard_customize' onClick={() => builderHistory.push('/consent/dashboard/builder')}>
+            เปิด Dashboard Builder
+          </BrandSubdueButton>
         </div>
       </SectionCard>
     </>
