@@ -9,7 +9,8 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
-import { CONSENT_RECORDS, CONSENT_CHANNEL_OPTIONS, CONSENT_TYPE_TONE } from '@/data/consentRecords';
+import { CONSENT_CHANNEL_OPTIONS, CONSENT_TYPE_TONE } from '@/data/consentRecords';
+import { getConsentRecords } from '@/data/consentWorkflowStore';
 import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRecords';
 
 /* Helper popups ของ ConsentManagementPage — แตกไฟล์ตาม playbook (ห้ามรื้อ /
@@ -98,7 +99,7 @@ export const ChannelTiles = ({ value, onChange }) => (
 /* ── รายชื่อผู้ป่วย (unique จาก worklist) ─────────────────────────────── */
 const PATIENT_POOL = (() => {
   const seen = new Set();
-  return CONSENT_RECORDS.filter((r) => {
+  return getConsentRecords().filter((r) => {
     if (seen.has(r.hn)) return false;
     seen.add(r.hn);
     return true;

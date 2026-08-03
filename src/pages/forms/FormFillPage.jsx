@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useHistory } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
@@ -15,6 +15,13 @@ import {
   getCategory,
   CATEGORY_PALETTE,
 } from '@/data/formsLibrary';
+import {
+  clearFormDraft,
+  completeConsentSigning,
+  loadFormDraft,
+  saveFormDraft,
+  validateSignToken,
+} from '@/data/consentWorkflowStore';
 
 /* คลังแบบฟอร์ม — Fill page.
 
@@ -316,12 +323,57 @@ const FormFillPage = () => {
     return p === 'patient' ? 'patient' : 'staff';
   }, []);
 
+  const queryMeta = useMemo(() => {
+    if (typeof window === 'undefined') return { token: null, requestId: null };
+    const params = new URLSearchParams(window.location.search);
+    return {
+      token: params.get('token'),
+      requestId: params.get('request') ? Number(params.get('request')) : null,
+    };
+  }, []);
+
+  const tokenCheck = useMemo(() => {
+    if (!queryMeta.token) return { ok: true, recordId: queryMeta.requestId };
+    return validateSignToken(queryMeta.token);
+  }, [queryMeta]);
+
+  const requestId = tokenCheck.ok ? (tokenCheck.recordId || queryMeta.requestId) : null;
+
+  const tokenBlockReason = useMemo(() => {
+    if (role !== 'patient' || tokenCheck.ok) return null;
+    if (tokenCheck.reason === 'expired') return 'ลิงก์ QR หมดอายุแล้ว — ขอลิงก์ใหม่จากเจ้าหน้าที่';
+    if (tokenCheck.reason === 'cancelled') return 'คำขอความยินยอมนี้ถูกยกเลิกแล้ว';
+    return 'ลิงก์ไม่ถูกต้อง — ตรวจสอบ QR หรือขอลิงก์ใหม่';
+  }, [role, tokenCheck]);
+
   const [values, setValues] = useState({});
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   /* Edge case (pages-prompt หน้า 4): ผู้ป่วยเลือก "ไม่ยินยอม" ได้ —
      confirm ก่อน แล้วบันทึกสถานะ declined (audit ยังเก็บครบ ไม่ลบคำขอ) */
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declined, setDeclined] = useState(false);
+
+  useEffect(() => {
+    if (!form || draftLoaded || tokenBlockReason) return;
+    const draft = loadFormDraft(slug, role, requestId);
+    if (draft?.values) setValues(draft.values);
+    setDraftLoaded(true);
+  }, [form, slug, role, requestId, draftLoaded, tokenBlockReason]);
+
+  useEffect(() => {
+    if (!form || tokenBlockReason || submitted || declined) return;
+    saveFormDraft(slug, role, requestId, values);
+  }, [values, form, slug, role, requestId, tokenBlockReason, submitted, declined]);
+
+  const signChannel = role === 'patient' ? 'QR Code' : 'ที่ศูนย์บริการ';
+
+  const finishSigning = (outcome) => {
+    if (requestId) {
+      completeConsentSigning(requestId, { outcome, channel: signChannel });
+      clearFormDraft(slug, role, requestId);
+    }
+  };
 
   const setValue = (key, v) => setValues((prev) => ({ ...prev, [key]: v }));
 
@@ -363,6 +415,23 @@ const FormFillPage = () => {
     );
   }
 
+  if (tokenBlockReason) {
+    return (
+      <div className='min-h-screen w-full flex bg-brand-50'>
+        <Sidebar activeKey='consent' />
+        <main className='flex-1 flex flex-col min-w-0'>
+          <Header breadcrumb={[form.name]} />
+          <div className='flex flex-1 flex-col items-center justify-center p-6' style={{ gap: 'var(--dim-space-300)' }}>
+            <Icon name='link_off' size={40} color='var(--text-danger-default)' />
+            <p style={{ margin: 0, fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-secondary)', textAlign: 'center' }}>
+              {tokenBlockReason}
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   const breadcrumb = role === 'patient'
     ? [form.name]
     : ['คลังแบบฟอร์ม', category?.label || '', form.name, 'กรอกแบบฟอร์ม'].filter(Boolean);
@@ -386,6 +455,24 @@ const FormFillPage = () => {
                 กลับไปยังหน้ารายละเอียดแบบฟอร์ม
               </button>
             </div>
+          )}
+
+          {!submitted && !declined && draftLoaded && role === 'patient' && (
+            <section
+              className='flex items-center w-full'
+              style={{
+                gap: 'var(--dim-space-200)',
+                padding: 'var(--dim-space-300) var(--dim-space-400)',
+                borderRadius: 'var(--dim-radius-200)',
+                background: 'var(--surface-neutral-quaternary)',
+                color: 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+              }}
+            >
+              <Icon name='cloud_done' size={16} />
+              บันทึกแบบร่างอัตโนมัติ — กลับมากรอกต่อได้แม้ออฟไลน์ชั่วคราว
+            </section>
           )}
 
           {/* Mode banner */}
@@ -638,7 +725,12 @@ const FormFillPage = () => {
                   size='md'
                   leadingIcon='save'
                   disabled={missingRequired.length > 0}
-                  onClick={() => { if (missingRequired.length === 0) setSubmitted(true); }}
+                  onClick={() => {
+                    if (missingRequired.length === 0) {
+                      finishSigning('signed');
+                      setSubmitted(true);
+                    }
+                  }}
                 >
                   {role === 'patient' ? 'ยืนยันส่ง' : 'บันทึกแบบฟอร์ม'}
                 </BrandButton>
@@ -657,7 +749,7 @@ const FormFillPage = () => {
         description={`ท่านกำลังเลือก "ไม่ยินยอม" สำหรับ ${form.name} — การตัดสินใจนี้ไม่กระทบสิทธิการรับบริการอื่น ๆ และเปลี่ยนใจให้ความยินยอมใหม่ได้ทุกเมื่อ`}
         confirmLabel='ยืนยันไม่ยินยอม'
         cancelLabel='กลับไปกรอกต่อ'
-        onConfirm={() => { setDeclineOpen(false); setDeclined(true); }}
+        onConfirm={() => { setDeclineOpen(false); finishSigning('declined'); setDeclined(true); }}
         onCancel={() => setDeclineOpen(false)}
         onClose={() => setDeclineOpen(false)}
       />

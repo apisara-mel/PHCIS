@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
@@ -14,7 +14,11 @@ import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerifyPopup';
 import Icon from '@/components/icons/Icon';
-import { CONSENT_RECORDS, CONSENT_TYPE_TONE } from '@/data/consentRecords';
+import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
+import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
+import {
+  CONSENT_ROLES, getConsentRole, setConsentRole, canManageConsent,
+} from '@/data/consentPermissions';
 import {
   CONSENT_LEVELS, LEVEL_BY_KEY, DATA_CATEGORIES, MATRIX_ROLES,
   LEVEL_DEFAULT_MATRIX, TYPE_TO_LEVEL, RIGHTS_HISTORY_SEED, RIGHTS_OVERRIDE_SEED,
@@ -78,9 +82,11 @@ const levelOfPatient = (records) => {
 };
 
 export default function ConsentAccessRightsPage() {
-  /* mock บทบาทผู้ใช้ปัจจุบัน — ไว้ทดสอบ state ด.1.1.14 (Viewer = read-only) */
-  const [myRole, setMyRole] = useState('Admin');
-  const canManage = myRole !== 'Viewer';
+  const [consentRecords, setConsentRecordsState] = useState(getConsentRecords);
+  useEffect(() => subscribeConsentStore(() => setConsentRecordsState(getConsentRecords())), []);
+
+  const [myRole, setMyRoleState] = useState(getConsentRole);
+  const canManage = canManageConsent();
 
   const [search, setSearch] = useState('');
   const [selectedHn, setSelectedHn] = useState(null);
@@ -111,8 +117,8 @@ export default function ConsentAccessRightsPage() {
   const pushToast = (message) => setToast({ id: Date.now(), variant: 'success', message });
 
   const patientRecords = useMemo(
-    () => (selectedHn ? CONSENT_RECORDS.filter((r) => r.hn === selectedHn) : []),
-    [selectedHn],
+    () => (selectedHn ? consentRecords.filter((r) => r.hn === selectedHn) : []),
+    [selectedHn, consentRecords],
   );
   const patient = patientRecords[0] || null;
   const levelKey = useMemo(() => levelOfPatient(patientRecords), [patientRecords]);
@@ -125,7 +131,7 @@ export default function ConsentAccessRightsPage() {
     const q = (value || '').trim();
     if (!q) { setSelectedHn(null); setNotFound(false); return; }
     pushHistory({ label: q, value: q });
-    const hit = CONSENT_RECORDS.find((r) =>
+    const hit = consentRecords.find((r) =>
       r.hn.toLowerCase() === q.toLowerCase() || r.hn.toLowerCase().includes(q.toLowerCase()) || r.name.includes(q));
     if (hit) { setSelectedHn(hit.hn); setNotFound(false); } else { setSelectedHn(null); setNotFound(true); }
   };
@@ -241,9 +247,9 @@ export default function ConsentAccessRightsPage() {
             <div style={{ minWidth: 140 }}>
               <Select
                 showLabel={false}
-                options={MATRIX_ROLES.map((r) => ({ value: r.key, label: r.key }))}
+                options={CONSENT_ROLES.map((r) => ({ value: r, label: r }))}
                 value={myRole}
-                onChange={setMyRole}
+                onChange={(v) => { setConsentRole(v); setMyRoleState(v); }}
                 searchable={false}
               />
             </div>

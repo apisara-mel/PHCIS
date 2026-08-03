@@ -17,6 +17,8 @@ import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import { TREATMENT_QUEUE_ROWS, buildQueueSubMenuBuckets } from '@/data/treatmentQueue';
 import { sendPrescriptionToPharmacy } from '@/data/pharmacyQueue';
+import { gateCpoeOrder } from '@/data/consentWorkflowStore';
+import AlertDialog from '@/components/popup/AlertDialog';
 import {
   TREATMENT_DEFAULT_VITALS,
   TREATMENT_DEFAULT_SYMPTOMS,
@@ -212,8 +214,14 @@ const TreatmentFormPage = () => {
      real backend here. Disabled while Step 5 has no medication rows yet
      so it can't fire an empty prescription. */
   const [pharmacySendToast, setPharmacySendToast] = useState(null);
+  const [consentGateOpen, setConsentGateOpen] = useState(null);
   const dismissPharmacySendToast = () => setPharmacySendToast(null);
   const handleSendToPharmacy = () => {
+    const gate = gateCpoeOrder(patient.hn, { orderKind: 'medication' });
+    if (!gate.allowed) {
+      setConsentGateOpen(gate);
+      return;
+    }
     const row = sendPrescriptionToPharmacy({
       hn: patient.hn,
       diagnoses: form.diagnoses,
@@ -272,6 +280,17 @@ const TreatmentFormPage = () => {
           }
         />
         <PhcisTopToast session={pharmacySendToast} onDismiss={dismissPharmacySendToast} />
+        <AlertDialog
+          open={!!consentGateOpen}
+          type='warning'
+          title='ต้องมีความยินยอมก่อนส่งใบสั่งยา'
+          description={consentGateOpen?.reason || 'ผู้ป่วยยังไม่มีความยินยอมที่จำเป็น'}
+          confirmLabel='ไปจัดการความยินยอม'
+          cancelLabel='ปิด'
+          onConfirm={() => { setConsentGateOpen(null); history.push('/consent'); }}
+          onCancel={() => setConsentGateOpen(null)}
+          onClose={() => setConsentGateOpen(null)}
+        />
         <TreatmentFormShell
           stepIndex={stepIndex}
           onStepChange={setStepIndex}
