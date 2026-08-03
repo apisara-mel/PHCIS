@@ -63,6 +63,27 @@
 
 → PR "feat(clinics,checkup): คลินิกพิเศษชุด 2 + ตรวจสุขภาพ + เยี่ยมบ้าน — TOR §1.10, §1.11, §1.18, §1.19" + merge
 
+## Wave C — Consent Management ให้จบ (แทรกก่อนกลับไป Wave 1 — คำสั่ง user 3 ส.ค. ~18:20)
+
+รันเดี่ยว (โมดูลเดียว ไม่ชนใคร) ด้วย build-tor-wave args:
+
+```json
+[
+  {"id":"ด.1.1","name":"Consent Management ผนวก ด (ปิดให้ครบ 18 ข้อ)","route":"/consent","dir":"src/pages/consent","notes":"รันเดี่ยว แก้ได้ทั้ง src/pages/consent, src/pages/users, src/pages/forms, src/components/popup/Consent* ที่เกี่ยว โฟกัส: ด.1.1.12 template สร้าง dashboard, ด.1.1.17 จัดการการเข้าถึง (สแกนแบบฟอร์ม/สิทธิตามช่วงเวลา/Active), ด.1.1.18 สิทธิเข้าถึงตามระดับความยินยอม + ไล่ปิด partial 11 ข้อ (รายงาน 16.1–16.5 ที่เป็น stub, Re-Consent flow, version control, ช่องทางลงนาม) อ่าน ~/MIH-Docs-Vault/tor-consent-compliance.md + consent-management-ui-*.md ก่อน"}
+]
+```
+
+## Wave R — Registration + OPD (แทรกหลัง Wave C ก่อนกลับ Wave 1 — คำสั่ง user 3 ส.ค. ~23:15)
+
+สองโมดูลรันขนานกันได้ (คนละ dir) ด้วย build-tor-wave args:
+
+```json
+[
+  {"id":"1.1","name":"ระบบงานเวชระเบียน (Registration) — ปิด gap","route":"/registration","dir":"src/pages/registration","manual":"คู่มือระบบเวชระเบียน.pdf","notes":"เก็บเฉพาะข้อ todo 7 + partial 8 จาก node scripts/tor-gap-report.mjs --section 1.1 — ระบบเดิมสร้างแล้ว (RegistrationQueuePage/FormPage/ConsentFillPage + RegistrationSteps ใน src/components/forms) ต่อยอดของเดิม ห้ามรื้อ อนุญาตแก้ src/pages/registration + src/components/forms/RegistrationSteps + src/data/mrPatients.js,registrationForm.js"},
+  {"id":"1.2","name":"ระบบงานผู้รับบริการนอก (OPD) — ปิด gap","route":"/opd","dir":"src/pages/opd","manual":"คู่มือระบบคลินิกตรวจรักษา.pdf","notes":"เก็บเฉพาะข้อ todo 6 + partial 7 จาก node scripts/tor-gap-report.mjs --section 1.2 — ระบบเดิมสร้างแล้ว (QueuePage 946 + ScreeningPage 979) ต่อยอดของเดิม ห้ามรื้อ อนุญาตแก้ src/pages/opd + src/data/opdScreeningDrafts.js"}
+]
+```
+
 ## Wave 3 — เก็บ gap ระบบเดิม (Day 2 เช้า)
 
 โมดูลใน wave นี้แก้ไฟล์เดิมของระบบตัวเองได้ (ยังห้ามแตะ shared files เหมือนเดิม)
@@ -73,7 +94,7 @@
   {"id":"1.7","name":"สิทธิและการเบิกจ่าย + Claim","route":"/rights","dir":"src/pages/rights","notes":"1.7.3 ส่งเบิก + 1.7.4 Claim 12 ข้อ + 1.7.5 ตั้งค่า — pattern ตาราง+รายละเอียดแบบ finance; เช็คสิทธิ สปสช. mock online"},
   {"id":"1.3","name":"ระบบคิว: เรียกคิว/จอแสดงผล/ตั้งค่า","route":"/queue-center","dir":"src/pages/queue-center","notes":"1.3.3 เรียกคิว, 1.3.4 จอแสดงผล (display screen แยก route เต็มจอ), 1.3.5 เสร็จสิ้น, 1.3.6, 1.3.7 — reuse pattern จาก finance เรียกคิว PR#33"},
   {"id":"1.20","name":"รายงาน/Dashboard ที่เหลือ","route":"/dashboard","dir":"src/pages/dashboard","notes":"1.20.5 ผู้รับบริการ, 1.20.6 เภสัช, 1.20.7 คลินิกพิเศษ 11 ข้อ, 1.20.8 ตรวจสุขภาพ, 1.20.10 ผู้บริหาร — reuse graph cards ทั้งหมดใน src/components/graph"},
-  {"id":"1.4","name":"EMR + Admin เศษที่เหลือ","route":"/treat/record","dir":"src/pages","notes":"เฉพาะข้อ todo ใน 1.4.3/1.4.6/1.4.7 + §1.17 admin 5 ข้อ + §1.1/§1.2 เศษ — โมดูลนี้กระจายหลาย dir ให้ระวังไม่ชนโมดูลอื่นใน wave"},
+  {"id":"1.4","name":"EMR + Admin เศษที่เหลือ","route":"/treat/record","dir":"src/pages","notes":"เฉพาะข้อ todo ใน 1.4.3/1.4.6/1.4.7 + §1.17 admin 5 ข้อ + §1.1/§1.2 เศษ — โมดูลนี้กระจายหลาย dir ให้ระวังไม่ชนโมดูลอื่นใน wave; อีกงาน: §1.15 LIS สร้างเสร็จแล้ว (PR #18, src/pages/lab) แต่ checklist ยังโชว์ todo 22 ข้อ → audit หน้าจริงแล้วอัปเดตสถานะให้ตรงความจริง"},
   {"id":"1.16","name":"Kiosk + Telemed + Mobile เศษ","route":"/kiosk","dir":"src/pages/kiosk","extraSections":["1.13"],"notes":"kiosk: ปิดสิทธิ 1.16.2, e-Receipt 1.16.3.3, biometric mock 1.16.1.11; telemed: 1.13.5 mock GIS, PDPA partials; mobile §4 partial ที่เหลือ (แก้ใน src/pages/mobile ของ repo นี้ — sync ไป bma.mobile ทีหลัง)"}
 ]
 ```

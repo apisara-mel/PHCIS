@@ -12,7 +12,9 @@ export const meta = {
 }
 
 const PLAYBOOK = 'docs/tor-wave-playbook.md'
-const focus = args && Array.isArray(args.sections) && args.sections.length ? args.sections : null
+let auditArgs = args
+if (typeof auditArgs === 'string') auditArgs = JSON.parse(auditArgs)
+const focus = auditArgs && Array.isArray(auditArgs.sections) && auditArgs.sections.length ? auditArgs.sections : null
 
 const FINDINGS_SCHEMA = {
   type: 'object',

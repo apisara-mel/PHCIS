@@ -12,10 +12,10 @@ import { fileURLToPath } from 'url';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const html = readFileSync(join(repoRoot, 'docs/tor-checklist.html'), 'utf8');
 
-const nodes = [...html.matchAll(/\{id:'([0-9.]+)',level:(\d+),(?:title|text):'((?:[^'\\]|\\.)*)'/g)]
+const nodes = [...html.matchAll(/\{id:'([^']+)',level:(\d+),(?:title|text):'((?:[^'\\]|\\.)*)'/g)]
   .map((m) => ({ id: m[1], level: +m[2], text: m[3].replace(/\\'/g, "'") }));
 const status = {};
-for (const m of html.matchAll(/'([0-9.]+)':\s*\{\s*s:\s*'(done|partial|todo)'((?:[^}\\]|\\.)*)\}/g)) {
+for (const m of html.matchAll(/'([^'\s]+)':\s*\{\s*s:\s*'(done|partial|todo)'((?:[^}\\]|\\.)*)\}/g)) {
   const note = /n:\s*'((?:[^'\\]|\\.)*)'/.exec(m[3]);
   const url = /u:\s*'((?:[^'\\]|\\.)*)'/.exec(m[3]);
   status[m[1]] = { s: m[2], n: note ? note[1] : '', u: url ? url[1] : '' };

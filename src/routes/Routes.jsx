@@ -56,6 +56,8 @@ import AccessManagementPage from '@/pages/consent/AccessManagementPage';
 import ConsentReportPage from '@/pages/consent/ConsentReportPage';
 import ConsentFormsPage from '@/pages/consent/ConsentFormsPage';
 import ConsentFormViewPage from '@/pages/consent/ConsentFormViewPage';
+import ConsentDashboardPage from '@/pages/consent/ConsentDashboardPage';
+import ConsentAccessRightsPage from '@/pages/consent/ConsentAccessRightsPage';
 import SystemStaffPage from '@/pages/system/SystemStaffPage';
 import SystemStaffDetailPage from '@/pages/system/SystemStaffDetailPage';
 import SystemStaffAddPage from '@/pages/system/SystemStaffAddPage';
@@ -136,6 +138,10 @@ export default function Routes() {
         <Route exact path='/login/success'   component={LoginSuccessPage} />
         {/* ระบบจัดการความยินยอม (Consent Management · Figma "PHCIS | Consent" 1:4) */}
         <Route exact path='/consent'              component={ConsentManagementPage} />
+        {/* แดชบอร์ดความยินยอม + Dashboard Builder (ด.1.1.12) — หน้าเดียว อ่าน
+            sub-path เองว่าเปิดโหมด builder (/consent/dashboard/builder). */}
+        <Route exact path='/consent/dashboard'          component={ConsentDashboardPage} />
+        <Route exact path='/consent/dashboard/builder'  component={ConsentDashboardPage} />
         {/* สร้างแบบฟอร์มใหม่ — 3-step wizard, stays INSIDE the consent system
             (own consent side menu) instead of bouncing to /forms (PHCIS). */}
         {/* แบบฟอร์มความยินยอม — consent-form template registry (Figma 291:113045). */}
@@ -143,6 +149,9 @@ export default function Routes() {
         <Route exact path='/consent/forms/new'    component={CreateConsentFormPage} />
         {/* ดูแบบฟอร์ม — read-only Step-3 preview of an existing form (Figma 336:170901). */}
         <Route exact path='/consent/forms/:id/view' component={ConsentFormViewPage} />
+        {/* สิทธิเข้าถึงตามความยินยอม — consent-level × data-category matrix
+            (ด.1.1.18). ต้อง exact + มาก่อน /consent/access กันเส้นทางชนกัน. */}
+        <Route exact path='/consent/access/rights' component={ConsentAccessRightsPage} />
         {/* จัดการสิทธิ์การเข้าถึง — access-request registry (Figma 363:122327). */}
         <Route exact path='/consent/access'       component={AccessManagementPage} />
         {/* สถิติและรายงาน — consent reports dashboard (Figma 358:113804). */}

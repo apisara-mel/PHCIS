@@ -12,7 +12,8 @@ export const meta = {
   ],
 }
 
-const modules = args
+let modules = args
+if (typeof modules === 'string') modules = JSON.parse(modules)
 if (!Array.isArray(modules) || modules.length === 0) {
   throw new Error('args must be a JSON array of module descriptors — see docs/tor-sprint-plan-2026-08.md')
 }

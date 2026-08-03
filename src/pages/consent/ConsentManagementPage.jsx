@@ -17,10 +17,18 @@ import ConsentHistoryPopup from '@/components/popup/ConsentHistoryPopup';
 import Checkbox from '@/components/checkbox/Checkbox';
 import CheckboxBox from '@/components/checkbox/CheckboxBox';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
+import PersonalDataConsentEditPopup from '@/components/forms/PersonalDataConsentEditPopup';
+import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerifyPopup';
+import ConsentQrSendPopup from '@/components/popup/ConsentQrSendPopup';
 import {
   CONSENT_RECORDS, CONSENT_SUMMARY, CONSENT_TABS,
   CONSENT_STATUS, CONSENT_TYPE_TONE, CONSENT_CONFIRM,
 } from '@/data/consentRecords';
+import { isTypeSuperseded } from '@/data/consentWorkflowStore';
+import {
+  CreateConsentRequestPopup, ReconsentPopup, PaperConsentRecordPopup,
+  STAFF_NAME, todayThai,
+} from '@/pages/consent/consentWorkflowPopups';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — ระบบจัดการความยินยอม (Figma node 1:4).
@@ -67,6 +75,14 @@ const Initials = ({ name }) => (
 
 export default function ConsentManagementPage() {
   const navigate = useHistory();
+  /* ── Worklist rows เป็น state จริง (mock mutate ใน session) ──────────
+     ด.1.1.5: record ที่เซ็นเทมเพลตซึ่งถูกเผยแพร่เวอร์ชันใหม่ไปแล้ว (store
+     ข้ามหน้า) โผล่มาเป็นสถานะ "มีเวอร์ชันใหม่" ตั้งแต่โหลดหน้า. */
+  const [rows, setRows] = useState(() => CONSENT_RECORDS.map((r) => (
+    r.status === 'ยินยอมแล้ว' && isTypeSuperseded(r.type)
+      ? { ...r, status: 'มีเวอร์ชันใหม่' }
+      : { ...r }
+  )));
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -77,6 +93,15 @@ export default function ConsentManagementPage() {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [dialog, setDialog] = useState(null);      // { record | bulkIds, confirmKey }
   const [historyRecord, setHistoryRecord] = useState(null);
+  /* ── Workflow popups (ด.1.1.4 / ด.1.1.7 / ด.1.1.8 / ด.1.1.1 / ด.1.1.2) ── */
+  const [createOpen, setCreateOpen] = useState(false);
+  const [reconsentFor, setReconsentFor] = useState(null);        // record | { bulkIds }
+  const [paperFor, setPaperFor] = useState(null);                // record
+  const [editFor, setEditFor] = useState(null);                  // signed record → PersonalDataConsentEditPopup
+  const [qrFollowup, setQrFollowup] = useState(null);            // { recordId, form }
+  /* Identity gate — { next: 'revoke'|'paper'|'edit'|'bulk-revoke', record?, bulkIds? } */
+  const [verifyFor, setVerifyFor] = useState(null);
+  const [verifiedAudit, setVerifiedAudit] = useState(null);
   /* Bulk-select mode — Figma 297:128439 (แท็บรอลงนาม): chip "เลือก" เปิด
      คอลัมน์ checkbox เพื่อดำเนินการหลายรายการพร้อมกัน */
   const [selectMode, setSelectMode] = useState(false);
@@ -91,19 +116,19 @@ export default function ConsentManagementPage() {
     label: t.label,
     icon: t.icon,
     count: t.value === 'all'
-      ? CONSENT_RECORDS.length
-      : CONSENT_RECORDS.filter((r) => (CONSENT_STATUS[r.status] || {}).tab === t.value).length,
-  })), []);
+      ? rows.length
+      : rows.filter((r) => (CONSENT_STATUS[r.status] || {}).tab === t.value).length,
+  })), [rows]);
 
   const typeOptions = useMemo(() => [
     { value: '', label: 'ทั้งหมด' },
-    ...[...new Set(CONSENT_RECORDS.map((r) => r.type))].map((t) => ({ value: t, label: t })),
-  ], []);
+    ...[...new Set(rows.map((r) => r.type))].map((t) => ({ value: t, label: t })),
+  ], [rows]);
   const channelOptions = useMemo(() => [
     { value: '', label: 'ทุกช่องทาง' },
-    ...[...new Set(CONSENT_RECORDS.map((r) => r.signChannel).filter((c) => c && c !== '-'))]
+    ...[...new Set(rows.map((r) => r.signChannel).filter((c) => c && c !== '-'))]
       .map((c) => ({ value: c, label: c })),
-  ], []);
+  ], [rows]);
   const statusOptions = useMemo(() => [
     { value: '', label: 'ทุกสถานะ' },
     ...Object.keys(CONSENT_STATUS).map((s) => ({ value: s, label: s })),
@@ -117,7 +142,7 @@ export default function ConsentManagementPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return CONSENT_RECORDS.filter((r) => {
+    return rows.filter((r) => {
       const meta = CONSENT_STATUS[r.status] || {};
       return (
         (activeTab === 'all' || meta.tab === activeTab) &&
@@ -127,7 +152,7 @@ export default function ConsentManagementPage() {
         (!q || r.name.toLowerCase().includes(q) || r.hn.toLowerCase().includes(q))
       );
     });
-  }, [activeTab, search, filterType, filterChannel, filterStatus]);
+  }, [rows, activeTab, search, filterType, filterChannel, filterStatus]);
 
   const handleSort = (key) => setSortConfig((prev) => (
     prev.key === key
@@ -165,11 +190,69 @@ export default function ConsentManagementPage() {
     setSearch(q); setPage(1);
   };
 
+  /* ── Mock mutations (session-only — ไม่ persist) ────────────────── */
+  const patchRow = (id, patch) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const nextId = () => rows.reduce((m, r) => Math.max(m, r.id), 0) + 1;
+  const dueInDays = (days) => {
+    const d = new Date(Date.now() + days * 86400000);
+    return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+  const pushToast = (message, variant = 'success') =>
+    setToast({ id: Date.now(), variant, message });
+
+  /* Re-Consent จริง (ด.1.1.7): record เดิม → "หมดอายุ-Reconsent" + เกิด record
+     ใหม่ "รอลงนาม" เวอร์ชันล่าสุดพร้อมช่องทาง/วันครบกำหนด. */
+  const runReconsent = (record, { channel, dueDate, latestVersion }) => {
+    const id = nextId();
+    setRows((prev) => prev
+      .map((r) => (r.id === record.id ? { ...r, status: 'หมดอายุ-Reconsent', pendingReconsent: true } : r))
+      .concat([{
+        id,
+        hn: record.hn,
+        name: record.name,
+        type: record.type,
+        version: latestVersion || record.version,
+        status: 'รอลงนาม',
+        signChannel: '-',
+        requestChannel: channel,
+        requester: STAFF_NAME,
+        createdDate: todayThai(),
+        signedDate: '-',
+        withdrawnDate: '-',
+        dueDate,
+        guardian: record.guardian,
+        history: [...(record.history || [])],
+      }]));
+    pushToast(`สร้างคำขอ Re-Consent ของ ${record.name} แล้ว — รอลงนามผ่าน${channel} ภายใน ${dueDate}`);
+  };
+
+  /* ด.1.1.1 — ผ่านการพิสูจน์ตัวตนแล้วค่อยปล่อย action ที่ทำแทนเจ้าของข้อมูล */
+  const handleVerified = (audit) => {
+    const v = verifyFor;
+    setVerifyFor(null);
+    setVerifiedAudit(audit);
+    if (!v) return;
+    if (v.next === 'revoke') setDialog({ record: v.record, confirmKey: 'revoke' });
+    else if (v.next === 'bulk-revoke') setDialog({ bulkIds: v.bulkIds, confirmKey: 'revoke' });
+    else if (v.next === 'paper') setPaperFor(v.record);
+    else if (v.next === 'edit') setEditFor(v.record);
+  };
+
   /* ── Status-dependent action column ─────────────────────────────── */
   const renderAction = (row) => {
     const action = (CONSENT_STATUS[row.status] || {}).action;
+    const isReconsent = action && action.confirm === 'reconsent';
+    /* Edge: มีคำขอ reconsent ค้างอยู่แล้ว → ปุ่ม disabled + tooltip */
+    const reconsentBlocked = isReconsent && row.pendingReconsent;
+    const fireAction = () => {
+      if (!action) return;
+      if (action.confirm === 'revoke') setVerifyFor({ next: 'revoke', record: row });
+      else if (action.confirm === 'reconsent') setReconsentFor(row);
+      else setDialog({ record: row, confirmKey: action.confirm });
+    };
     return (
-      <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-200)' }}>
+      <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-150)' }}>
         <NeutralSubdueIconButton
           icon='history'
           variant='outline'
@@ -178,15 +261,39 @@ export default function ConsentManagementPage() {
           title='ประวัติความยินยอม'
           onClick={() => setHistoryRecord(row)}
         />
-        {action && (action.kind === 'brand' ? (
-          <BrandButton variant='fill' size='sm' onClick={() => setDialog({ record: row, confirmKey: action.confirm })}>
-            {action.label}
-          </BrandButton>
-        ) : (
-          <NeutralButton variant='outline' size='sm' onClick={() => setDialog({ record: row, confirmKey: action.confirm })}>
-            {action.label}
-          </NeutralButton>
-        ))}
+        {/* ด.1.1.8 — บันทึกให้/เพิกถอนจากเอกสารกระดาษ (ผ่าน identity verify) */}
+        <NeutralSubdueIconButton
+          icon='upload_file'
+          variant='outline'
+          size='sm'
+          aria-label='บันทึกจากเอกสารกระดาษ'
+          title='บันทึกจากเอกสาร'
+          onClick={() => setVerifyFor({ next: 'paper', record: row })}
+        />
+        {/* ด.1.1.2 — แถว signed แก้ไข/เพิกถอนรายข้อ 5.1/5.2 (ผ่าน verify) */}
+        {row.status === 'ยินยอมแล้ว' && (
+          <NeutralSubdueIconButton
+            icon='edit'
+            variant='outline'
+            size='sm'
+            aria-label='แก้ไขความยินยอมรายข้อ'
+            title='แก้ไขความยินยอม (5.1 / 5.2)'
+            onClick={() => setVerifyFor({ next: 'edit', record: row })}
+          />
+        )}
+        {action && (
+          <span title={reconsentBlocked ? 'มีคำขอรอลงนามอยู่แล้ว' : undefined}>
+            {action.kind === 'brand' ? (
+              <BrandButton variant='fill' size='sm' disabled={reconsentBlocked} onClick={fireAction}>
+                {action.label}
+              </BrandButton>
+            ) : (
+              <NeutralButton variant='outline' size='sm' disabled={reconsentBlocked} onClick={fireAction}>
+                {action.label}
+              </NeutralButton>
+            )}
+          </span>
+        )}
       </div>
     );
   };
@@ -220,7 +327,22 @@ export default function ConsentManagementPage() {
     },
     {
       key: 'status', header: 'สถานะ', width: 160, sortable: true,
-      render: (r) => <ColorfulBadge style={(CONSENT_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>,
+      render: (r) => (
+        <div className='flex flex-col items-start' style={{ gap: 'var(--dim-space-050)' }}>
+          <ColorfulBadge style={(CONSENT_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>
+          {/* ด.1.1.7 — countdown บนแท็บใกล้หมดอายุ */}
+          {r.expiresInDays != null && (CONSENT_STATUS[r.status] || {}).tab === 'expiring' && (
+            <span style={{ color: 'var(--text-danger-default, #B91C1C)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', lineHeight: 1.4 }}>
+              อีก {r.expiresInDays} วัน
+            </span>
+          )}
+          {r.dueDate && r.status === 'รอลงนาม' && (
+            <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', lineHeight: 1.4 }}>
+              ครบกำหนด {r.dueDate}
+            </span>
+          )}
+        </div>
+      ),
     },
     { key: 'signChannel', header: 'ช่องทางที่ลงนาม', width: 150, render: (r) => <Cell value={r.signChannel} /> },
     { key: 'requester', header: 'ผู้สร้างคำขอ', width: 140, render: (r) => <Cell value={r.requester} /> },
@@ -260,16 +382,51 @@ export default function ConsentManagementPage() {
     return next;
   });
 
+  /* ยืนยันแล้ว mutate state จริง (mock) — ครบ "แสดง/บันทึก/ยกเลิก/แก้ไข" */
   const runDialogConfirm = () => {
-    if (dialog?.bulkIds) {
-      setToast({
-        id: Date.now(),
-        variant: 'success',
-        message: `${confirm?.title || 'ดำเนินการ'}สำเร็จ ${dialog.bulkIds.length} รายการ`,
-      });
+    if (!dialog) return;
+    const auditNote = verifiedAudit
+      ? ` (พิสูจน์ตัวตนโดย ${verifiedAudit.method === 'otp' ? 'OTP' : 'เอกสาร'} · ${verifiedAudit.verifiedAt})`
+      : '';
+    if (dialog.bulkIds) {
+      const ids = new Set(dialog.bulkIds);
+      if (dialog.confirmKey === 'cancel') {
+        setRows((prev) => prev.map((r) => (ids.has(r.id) ? { ...r, status: 'ยกเลิกคำขอ' } : r)));
+      } else if (dialog.confirmKey === 'revoke') {
+        setRows((prev) => prev.map((r) => (ids.has(r.id) ? { ...r, status: 'ถอนความยินยอม', withdrawnDate: todayThai() } : r)));
+      } else if (dialog.confirmKey === 'reconsent') {
+        /* Bulk reconsent — ช่องทางเริ่มต้นที่ศูนย์บริการ ครบกำหนดใน 30 วัน */
+        const targets = rows.filter((r) => ids.has(r.id) && !r.pendingReconsent);
+        setRows((prev) => {
+          let id = prev.reduce((m, r) => Math.max(m, r.id), 0);
+          const spawned = targets.map((t) => {
+            id += 1;
+            return {
+              id, hn: t.hn, name: t.name, type: t.type, version: t.version,
+              status: 'รอลงนาม', signChannel: '-', requestChannel: 'ที่ศูนย์บริการ',
+              requester: STAFF_NAME, createdDate: todayThai(), signedDate: '-',
+              withdrawnDate: '-', dueDate: dueInDays(30), guardian: t.guardian,
+              history: [...(t.history || [])],
+            };
+          });
+          return prev
+            .map((r) => (ids.has(r.id) ? { ...r, status: 'หมดอายุ-Reconsent', pendingReconsent: true } : r))
+            .concat(spawned);
+        });
+      }
+      pushToast(`${confirm?.title || 'ดำเนินการ'}สำเร็จ ${dialog.bulkIds.length} รายการ${auditNote}`);
       setSelectedIds(new Set());
+    } else if (dialog.record) {
+      if (dialog.confirmKey === 'cancel') {
+        patchRow(dialog.record.id, { status: 'ยกเลิกคำขอ' });
+        pushToast(`ยกเลิกคำขอความยินยอมของ ${dialog.record.name} แล้ว — ประวัติยังอยู่ครบ`);
+      } else if (dialog.confirmKey === 'revoke') {
+        patchRow(dialog.record.id, { status: 'ถอนความยินยอม', withdrawnDate: todayThai() });
+        pushToast(`เพิกถอนความยินยอมของ ${dialog.record.name} แล้ว${auditNote}`);
+      }
     }
     setDialog(null);
+    setVerifiedAudit(null);
   };
 
   /* เก็บ log เมื่อ export (annotation 414:123633 — print ไม่เก็บ log) */
@@ -400,8 +557,12 @@ export default function ConsentManagementPage() {
                   <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
                     นำส่งออกรายงาน
                   </NeutralSubdueButton>
-                  <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
+                  <BrandButton variant='outline' size='sm' leadingIcon='note_add' onClick={() => navigate.push('/consent/forms/new')}>
                     สร้างแบบฟอร์มใหม่
+                  </BrandButton>
+                  {/* ด.1.1.4 — workflow สร้างคำขอความยินยอม */}
+                  <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={() => setCreateOpen(true)}>
+                    สร้างคำขอความยินยอม
                   </BrandButton>
                 </div>
               </div>
@@ -430,7 +591,14 @@ export default function ConsentManagementPage() {
                         {bulkAction.label} ({selectedIds.size})
                       </BrandButton>
                     ) : (
-                      <NeutralButton variant='outline' size='sm' onClick={() => setDialog({ bulkIds: [...selectedIds], confirmKey: bulkAction.confirm })}>
+                      /* bulk เพิกถอน = ทำแทนเจ้าของข้อมูล → ผ่าน identity verify ก่อน (ด.1.1.1) */
+                      <NeutralButton
+                        variant='outline'
+                        size='sm'
+                        onClick={() => (bulkAction.confirm === 'revoke'
+                          ? setVerifyFor({ next: 'bulk-revoke', bulkIds: [...selectedIds] })
+                          : setDialog({ bulkIds: [...selectedIds], confirmKey: bulkAction.confirm }))}
+                      >
                         {bulkAction.label} ({selectedIds.size})
                       </NeutralButton>
                     )
@@ -483,6 +651,109 @@ export default function ConsentManagementPage() {
         open={!!historyRecord}
         record={historyRecord}
         onClose={() => setHistoryRecord(null)}
+      />
+
+      {/* ด.1.1.4 / ด.1.1.6 — workflow สร้างคำขอความยินยอม */}
+      <CreateConsentRequestPopup
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreate={({ patient, template, channel, dueDate }) => {
+          const id = nextId();
+          const rec = {
+            id,
+            hn: patient.hn,
+            name: patient.name,
+            type: template.type,
+            version: template.version,
+            status: 'รอลงนาม',
+            signChannel: '-',
+            requestChannel: channel,
+            requester: STAFF_NAME,
+            createdDate: todayThai(),
+            signedDate: '-',
+            withdrawnDate: '-',
+            dueDate,
+            guardian: patient.guardian,
+            history: [],
+          };
+          setRows((prev) => [...prev, rec]);
+          setCreateOpen(false);
+          if (channel === 'QR Code') {
+            setQrFollowup({ recordId: id, form: { name: template.name, slug: template.code } });
+          }
+          pushToast(`สร้างคำขอความยินยอม ${template.code} ให้ ${patient.name} แล้ว — ลงนามผ่าน${channel} ภายใน ${dueDate}`);
+        }}
+      />
+
+      {/* ด.1.1.7 — Re-Consent เลือกช่องทาง + วันครบกำหนด */}
+      <ReconsentPopup
+        open={!!reconsentFor}
+        record={reconsentFor}
+        onClose={() => setReconsentFor(null)}
+        onConfirm={(payload) => {
+          const rec = reconsentFor;
+          setReconsentFor(null);
+          if (rec) runReconsent(rec, payload);
+        }}
+      />
+
+      {/* ด.1.1.8 — บันทึกให้/เพิกถอนจากเอกสารกระดาษ */}
+      <PaperConsentRecordPopup
+        open={!!paperFor}
+        record={paperFor}
+        onClose={() => setPaperFor(null)}
+        onSave={({ mode, fileName, effectiveDate, reason }) => {
+          const rec = paperFor;
+          setPaperFor(null);
+          if (rec) {
+            if (mode === 'revoke') {
+              patchRow(rec.id, { status: 'ถอนความยินยอม', withdrawnDate: effectiveDate });
+            } else {
+              patchRow(rec.id, { status: 'ยินยอมแล้ว', signChannel: 'ที่ศูนย์บริการ', signedDate: effectiveDate });
+            }
+            pushToast(`บันทึกจากเอกสาร (${fileName}) ของ ${rec.name} แล้ว · เหตุผล: ${reason.slice(0, 40)}${reason.length > 40 ? '…' : ''}`);
+          }
+        }}
+      />
+
+      {/* ด.1.1.1 — พิสูจน์ตัวตนเจ้าของข้อมูลก่อน action แทนเจ้าของข้อมูล */}
+      <ConsentIdentityVerifyPopup
+        open={!!verifyFor}
+        onClose={() => setVerifyFor(null)}
+        onVerified={handleVerified}
+        actionLabel={
+          verifyFor?.next === 'paper' ? 'บันทึกจากเอกสารกระดาษ'
+            : verifyFor?.next === 'edit' ? 'แก้ไขความยินยอมรายข้อ'
+              : 'เพิกถอนความยินยอม'
+        }
+        patientName={verifyFor?.record?.name}
+        hn={verifyFor?.record?.hn}
+      />
+
+      {/* ด.1.1.2 — แก้ไข/เพิกถอนรายข้อ 5.1/5.2 ของแถวที่ลงนามแล้ว */}
+      <PersonalDataConsentEditPopup
+        open={!!editFor}
+        onClose={() => setEditFor(null)}
+        onConfirm={() => {
+          const rec = editFor;
+          setEditFor(null);
+          if (rec) pushToast(`บันทึกการแก้ไขความยินยอมรายข้อของ ${rec.name} แล้ว — เก็บ audit trail ครบ`);
+        }}
+      />
+
+      {/* ด.1.1.6 — ช่องทาง QR: reuse ConsentQrSendPopup แล้ว mock ลงนามสำเร็จ */}
+      <ConsentQrSendPopup
+        open={!!qrFollowup}
+        form={qrFollowup?.form}
+        onClose={() => setQrFollowup(null)}
+        onSubmitted={() => {
+          const f = qrFollowup;
+          setQrFollowup(null);
+          if (f) {
+            patchRow(f.recordId, { status: 'ยินยอมแล้ว', signChannel: 'QR Code', signedDate: todayThai() });
+            pushToast('ผู้รับบริการลงนามผ่าน QR สำเร็จ — สถานะเปลี่ยนเป็น "ยินยอมแล้ว"');
+          }
+        }}
       />
 
       <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />

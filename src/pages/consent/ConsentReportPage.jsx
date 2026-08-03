@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Popup from '@/components/popup/Popup';
 import Table from '@/components/table/Table';
+import Pagination from '@/components/pagination/Pagination';
+import InputField from '@/components/forms/InputField';
 import Icon from '@/components/icons/Icon';
 import { Donut, VBars } from '@/components/graph/Charts';
 import FilterTag from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import DateFilterPopup from '@/components/popup/DateFilterPopup';
 import SuccessToast from '@/components/toast/SuccessToast';
+import ConsentHistoryPopup from '@/components/popup/ConsentHistoryPopup';
 import { CONSENT_REPORTS } from '@/data/consentReports';
+import { logExport } from '@/data/consentWorkflowStore';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — สถิติและรายงาน (Figma node 358:113804).
@@ -150,26 +154,81 @@ const DateInputBox = ({ placeholder, value, onClick }) => (
   </button>
 );
 
-/* Export popup — Figma "นำออกรายงาน" (399:124481): a required date range +
-   a file-format radio group; "นำออกรายงาน" stays disabled until both are set. */
+/* Export popup — Figma "นำออกรายงาน" (399:124481) ต่อยอดตาม ด.1.1.16:
+   print-preview เอกสารหัวกระดาษสำนักอนามัย + ตารางตัวอย่าง → เลือกช่วงวันที่ +
+   รูปแบบไฟล์ → ยืนยันนำออก (เก็บ log). ปุ่ม "พิมพ์" แยกต่างหาก — ไม่เก็บ log
+   (annotation 414:123633). */
 const ExportFormatPopup = ({ open, report, onClose, onExported }) => {
   const [format, setFormat] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   useEffect(() => { if (open) { setFormat(null); setStartDate(''); setEndDate(''); } }, [open]);
   const ready = !!format && !!startDate && !!endDate;
-  const confirm = () => { if (!ready) return; onClose(); if (onExported) onExported(format); };
+  const confirm = () => {
+    if (!ready) return;
+    logExport({ source: report ? report.title : 'รายงาน consent', format });
+    onClose();
+    if (onExported) onExported(format);
+  };
+  const previewCols = report && report.table ? reportColumns(report.table.columns) : [];
+  const previewRows = report && report.table ? report.table.rows.slice(0, 5).map((r, i) => ({ ...r, _id: i })) : [];
   return (
     <Popup
       open={open}
       onClose={onClose}
-      size='large'
+      size='extraLarge'
       title='นำออกรายงาน'
-      subtitle='กรุณาเลือกรูปแบบไฟล์และช่วงวันที่ที่ต้องการนำออกรายงาน'
-      primaryAction={{ label: 'นำออกรายงาน', onClick: confirm, disabled: !ready }}
+      subtitle='ตรวจตัวอย่างเอกสาร เลือกช่วงวันที่และรูปแบบไฟล์ แล้วยืนยันนำออก (ระบบเก็บ log การส่งออก)'
+      primaryAction={{ label: 'ยืนยันนำออกรายงาน', onClick: confirm, disabled: !ready }}
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
+      tertiaryAction={{ label: 'พิมพ์ (ไม่เก็บ log)', onClick: () => window.print?.() }}
     >
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+        {/* print-preview — หัวกระดาษสำนักอนามัย + ตารางตัวอย่าง */}
+        <div
+          className='flex justify-center w-full'
+          style={{
+            background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+            paddingTop: 'var(--dim-space-500)', paddingRight: 'var(--dim-space-500)',
+            paddingBottom: 'var(--dim-space-500)', paddingLeft: 'var(--dim-space-500)',
+            borderRadius: 'var(--dim-radius-400)',
+            maxHeight: '38vh', overflowY: 'auto',
+          }}
+        >
+          <div
+            className='flex flex-col w-full'
+            style={{
+              maxWidth: 720,
+              background: 'var(--surface-card-100)',
+              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+              borderRadius: 'var(--dim-radius-300)',
+              boxShadow: 'var(--shadow-card)',
+              paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)',
+              paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
+              gap: 'var(--dim-space-400)',
+            }}
+          >
+            <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-050)' }}>
+              <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)' }}>
+                สำนักอนามัย กรุงเทพมหานคร
+              </span>
+              <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>
+                {report ? report.title : 'รายงาน'}
+              </span>
+              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+                ช่วงวันที่ {startDate || '—'} ถึง {endDate || '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)
+              </span>
+            </div>
+            {previewRows.length > 0 ? (
+              <Table columns={previewCols} rows={previewRows} rowKey={(r) => r._id} />
+            ) : (
+              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', textAlign: 'center' }}>
+                รวมทุกรายงานในระบบ — ตัวอย่างตารางแสดงเมื่อเลือกรายงานเฉพาะหัวข้อ
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* date range (required) */}
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
           <span style={SECTION_LABEL}>
@@ -183,7 +242,7 @@ const ExportFormatPopup = ({ open, report, onClose, onExported }) => {
         </div>
         {/* file format */}
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-          <span style={SECTION_LABEL}>เลือกรูปแบบไฟล์</span>
+          <span style={SECTION_LABEL}>เลือกรูปแบบไฟล์ (PDF / CSV / XLSX)</span>
           <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
             {FORMATS.map((f) => (
               <RadioPill key={f.value} label={f.label} selected={format === f.value} onClick={() => setFormat(f.value)} />
@@ -320,21 +379,47 @@ const CHART_TITLE = {
    ผู้รับบริการ for the report topic. The FilterTag row picks the time unit; the
    body re-groups into one table per bucket (day / week / month / year).
    "นำส่งออกรายงาน" reuses the shared export-format popup. */
-const ReportTablePopup = ({ open, report, onClose, onExport }) => {
+const POPUP_PAGE_SIZE = 10;
+
+const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
   const [period, setPeriod] = useState('รายเดือน');
   const [dateOpen, setDateOpen] = useState(false);
+  /* ด.1.1.16 — search + pagination ในตาราง "ดูรายงาน" */
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
   // Date range form (Figma 401:124365). Defaults to the current year → all units.
   const [dateRange, setDateRange] = useState(() => {
     const y = new Date().getFullYear();
     return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
   });
+  useEffect(() => { if (open) { setQuery(''); setPage(1); } }, [open, report]);
   const sr = rangeRank(dateRange);
   // If the chosen date range is narrower than the active period unit, fall
   // back to the widest unit that still fits the range.
   useEffect(() => {
     if (REPORT_PERIODS.indexOf(period) > sr) setPeriod(REPORT_PERIODS[sr]);
   }, [sr]); // eslint-disable-line react-hooks/exhaustive-deps
-  const rows = report && report.table ? report.table.rows.map((r, i) => ({ ...r, _id: i })) : [];
+  const allRows = report && report.table ? report.table.rows.map((r, i) => ({ ...r, _id: i })) : [];
+  /* กรองด้วยคำค้น (ทุกคอลัมน์ข้อความ) + ช่วงวันที่ (_iso ประกบวันที่ไทย) */
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const startIso = dateRange.start ? new Date(dateRange.start).toISOString().slice(0, 10) : null;
+    const endIso = dateRange.end ? new Date(dateRange.end).toISOString().slice(0, 10) : null;
+    return allRows.filter((r) => {
+      if (q) {
+        const hay = Object.entries(r)
+          .filter(([k, v]) => k !== '_id' && (typeof v === 'string'))
+          .map(([, v]) => v.toLowerCase()).join(' ');
+        if (!hay.includes(q)) return false;
+      }
+      if (r._iso && startIso && endIso && (r._iso < startIso || r._iso > endIso)) return false;
+      return true;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report, query, dateRange, open]);
+  const pageCount = Math.max(1, Math.ceil(rows.length / POPUP_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = rows.slice((safePage - 1) * POPUP_PAGE_SIZE, safePage * POPUP_PAGE_SIZE);
   const columns = report && report.table ? reportColumns(report.table.columns) : [];
 
   // Pie of the report's numeric stats (skip percentage values) — dashboard palette.
@@ -403,10 +488,21 @@ const ReportTablePopup = ({ open, report, onClose, onExport }) => {
     >
       {report && report.table && (
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-          {/* filter row (Figma 395:127874) — range form + time-unit chips +
-             export-all button on the right. */}
+          {/* filter row (Figma 395:127874) — search + range form + time-unit
+             chips + export button on the right (ด.1.1.16). */}
           <div className='flex items-center justify-between flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+              <div style={{ flex: '0 1 240px', minWidth: 200 }}>
+                <InputField
+                  showLabel={false}
+                  showHelperText={false}
+                  leadingIcon='search'
+                  value={query}
+                  onChange={(v) => { setQuery(v); setPage(1); }}
+                  placeholder='ค้นหาในรายงาน...'
+                  size='md'
+                />
+              </div>
               <div className='flex items-center' style={{ gap: 'var(--dim-space-200)', flex: '0 1 340px' }}>
                 <DateInputBox placeholder='วันเริ่มต้น' value={fmtThaiDate(dateRange.start)} onClick={() => setDateOpen(true)} />
                 <span style={{ color: 'var(--text-content-tertiary)' }}>-</span>
@@ -423,17 +519,27 @@ const ReportTablePopup = ({ open, report, onClose, onExport }) => {
             </NeutralSubdueButton>
           </div>
 
-          {/* one heading per period bucket; charts sit under the first group */}
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)', maxHeight: '58vh', overflowY: 'auto' }}>
-            {periodBuckets(period).map((bucket, gi) => (
-              <div key={bucket} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-                <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', lineHeight: 1.4 }}>
-                  {bucket}
+            {chartsBlock}
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', lineHeight: 1.4 }}>
+                รายการ ({period}) {report.key === 'personal-consent' ? '— คลิกแถวเพื่อดูประวัติความยินยอมรายบุคคล' : report.key === 'access-rights' ? '— คลิกแถวเพื่อดูวันเวลาการเข้าถึงรายครั้ง' : ''}
+              </span>
+              <Table
+                columns={columns}
+                rows={pageRows}
+                rowKey={(r) => r._id}
+                onRowClick={onRowClick ? (row) => onRowClick(report, row) : undefined}
+                emptyMessage='ไม่พบข้อมูลในช่วง/คำค้นนี้'
+                emptySubtext='ลองล้างคำค้นหรือขยายช่วงวันที่'
+              />
+              <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)' }}>
+                <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
+                  แสดง {rows.length === 0 ? 0 : (safePage - 1) * POPUP_PAGE_SIZE + 1}-{Math.min(safePage * POPUP_PAGE_SIZE, rows.length)} จาก {rows.length} รายการ
                 </span>
-                {gi === 0 && chartsBlock}
-                <Table columns={columns} rows={rows} rowKey={(r) => r._id} />
+                <Pagination currentPage={safePage} pageCount={pageCount} onPageChange={setPage} />
               </div>
-            ))}
+            </div>
           </div>
         </div>
       )}
@@ -451,14 +557,28 @@ const ReportTablePopup = ({ open, report, onClose, onExport }) => {
   );
 };
 
+/* ตัวคูณต่อ period ของการ์ด 16.1 (ฐานข้อมูล = รายเดือน) */
+const PERIOD_FACTOR = { 'รายวัน': 1 / 30, 'รายสัปดาห์': 7 / 30, 'รายเดือน': 1, 'รายปี': 12 };
+
 const ReportCard = ({ report, onExport, onView, scale = 1 }) => {
+  /* ด.1.1.16.1 — ชิป รายวัน/สัปดาห์/เดือน/ปี กรอง stats + bars จริง
+     (สลับชุด label แกน x ตาม period) เฉพาะรายงานที่ selectable. */
+  const [cardPeriod, setCardPeriod] = useState('รายเดือน');
+  const isPeriodCard = !!report.selectable;
+  const effScale = scale * (isPeriodCard ? (PERIOD_FACTOR[cardPeriod] || 1) : 1);
   /* Donut of the numeric stats (skip percentage/single-value reports) — dashboard palette.
-     Values scale with the page "วัน:" scope. */
+     Values scale with the page "วัน:" scope + period chip. */
   const segments = report.stats
     .filter((s) => !isPercent(s.value))
-    .map((s, i) => ({ value: Math.round(parseStatNum(s.value) * scale), color: PIE_PALETTE[i % PIE_PALETTE.length], label: s.label }));
+    .map((s, i) => ({ value: Math.round(parseStatNum(s.value) * effScale), color: PIE_PALETTE[i % PIE_PALETTE.length], label: s.label }));
   const showPie = segments.length >= 2;
   const total = segments.reduce((a, s) => a + s.value, 0);
+  const cardBarLabels = periodBarLabels(cardPeriod);
+  const cardBarSeries = (report.bars || []).map((b, si) => ({
+    name: b.name,
+    color: PIE_PALETTE[si % PIE_PALETTE.length],
+    values: cardBarLabels.map((_, i) => Math.max(1, Math.round(b.base[i % b.base.length] * (PERIOD_FACTOR[cardPeriod] || 1)))),
+  }));
   return (
     <section
       className='w-full flex flex-col'
@@ -488,11 +608,16 @@ const ReportCard = ({ report, onExport, onView, scale = 1 }) => {
         </div>
       </div>
 
-      {/* dimension badges — display only (Figma "Status Badge / Neutral") */}
+      {/* dimension chips — การ์ด 16.1: ชิปกดได้จริง (กรอง stats+bars) ·
+          การ์ดอื่น: display only ตามเดิม */}
       <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
-        {report.chips.map((c) => (
-          <ColorfulBadge key={c} style='grey' size='small' hierarchy='secondary' width='hug'>{c}</ColorfulBadge>
-        ))}
+        {isPeriodCard
+          ? report.chips.map((c) => (
+            <FilterTag key={c} value={c} selected={cardPeriod === c} onClick={() => setCardPeriod(c)} />
+          ))
+          : report.chips.map((c) => (
+            <ColorfulBadge key={c} style='grey' size='small' hierarchy='secondary' width='hug'>{c}</ColorfulBadge>
+          ))}
       </div>
 
       {/* pie chart (left) + stat cards (right) — Figma 358:113494. */}
@@ -513,10 +638,37 @@ const ReportCard = ({ report, onExport, onView, scale = 1 }) => {
         )}
         <div className='flex items-stretch flex-wrap flex-1' style={{ gap: 'var(--dim-space-400)', minWidth: 'min(100%, 360px)' }}>
           {report.stats.map((s) => (
-            <SummaryCard key={s.label} card={statCard({ ...s, value: scaleStatValue(s.value, scale) })} variant='panel' />
+            <SummaryCard key={s.label} card={statCard({ ...s, value: scaleStatValue(s.value, effScale) })} variant='panel' />
           ))}
         </div>
       </div>
+
+      {/* ด.1.1.16.1 — bars เปรียบเทียบตาม period ที่เลือก (แกน x สลับชุด label) */}
+      {isPeriodCard && cardBarSeries.length > 0 && (
+        <div
+          className='flex flex-col'
+          style={{
+            gap: 'var(--dim-space-300)',
+            padding: 'var(--dim-space-400)',
+            borderRadius: 'var(--dim-radius-400)',
+            background: 'var(--surface-card-100)',
+            border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+          }}
+        >
+          <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)', lineHeight: 1.4 }}>
+            จำนวน/สัดส่วนการให้ความยินยอม — {cardPeriod}
+          </span>
+          <VBars months={cardBarLabels} series={cardBarSeries} height={170} />
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+            {cardBarSeries.map((s) => (
+              <div key={s.name} className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+                <span aria-hidden style={{ width: 10, height: 10, borderRadius: 'var(--dim-radius-100)', background: s.color }} />
+                <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{s.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 };
@@ -526,6 +678,36 @@ export default function ConsentReportPage() {
   const [viewReport, setViewReport] = useState(null);
   const [exported, setExported] = useState(false);
   const [pageDate, setPageDate] = useState({ quick: 'thismonth' }); // "วัน: เดือนนี้"
+  /* ด.1.1.16.2 — คลิกแถวรายบุคคล → ConsentHistoryPopup ของ HN นั้น */
+  const [historyFor, setHistoryFor] = useState(null);
+  /* ด.1.1.16.4 — คลิกแถวผู้มีสิทธิ → วันเวลาการเข้าถึงรายครั้ง */
+  const [accessTimesFor, setAccessTimesFor] = useState(null);
+
+  const handleReportRowClick = (report, row) => {
+    if (report.key === 'personal-consent' && row.hn) {
+      /* สร้าง record เทียบเท่า consentRecords จากแถวรายงาน (mock) */
+      setHistoryFor({
+        name: row.name,
+        hn: row.hn,
+        type: row.type,
+        version: 'V 1.0',
+        status: row.status === 'ยินยอม' ? 'ยินยอมแล้ว' : 'ปฏิเสธ',
+        history: [
+          {
+            date: '5 มิ.ย. 2569',
+            formCode: 'PH-001',
+            formName: `ใบยินยอมประเภท${row.type}`,
+            type: row.type,
+            version: 'V 1.0',
+            status: row.status === 'ยินยอม' ? 'ยินยอมแล้ว' : 'ปฏิเสธ',
+            channel: 'ที่ศูนย์บริการ',
+          },
+        ],
+      });
+    } else if (report.key === 'access-rights' && row.accessTimes) {
+      setAccessTimesFor(row);
+    }
+  };
   return (
     <>
       <QueuePageShell
@@ -563,13 +745,48 @@ export default function ConsentReportPage() {
 
       {/* Table popup first, export popup last so the format chooser layers on
           top of the table popup when opened from inside it. */}
-      <ReportTablePopup open={!!viewReport} report={viewReport} onClose={() => setViewReport(null)} onExport={setExportReport} />
+      <ReportTablePopup
+        open={!!viewReport}
+        report={viewReport}
+        onClose={() => setViewReport(null)}
+        onExport={setExportReport}
+        onRowClick={handleReportRowClick}
+      />
       <ExportFormatPopup
         open={!!exportReport}
         report={exportReport}
         onClose={() => setExportReport(null)}
         onExported={() => setExported(true)}
       />
+
+      {/* ด.1.1.16.2 — ประวัติความยินยอมรายบุคคล (ยินยอม/ไม่ยินยอมเรื่องใดบ้าง) */}
+      <ConsentHistoryPopup
+        open={!!historyFor}
+        record={historyFor}
+        onClose={() => setHistoryFor(null)}
+      />
+
+      {/* ด.1.1.16.4 — วันเวลาการเข้าถึงรายครั้งของผู้มีสิทธิ */}
+      <Popup
+        open={!!accessTimesFor}
+        onClose={() => setAccessTimesFor(null)}
+        size='large'
+        title='วันเวลาการเข้าถึงรายครั้ง'
+        subtitle={accessTimesFor ? `${accessTimesFor.user} · ${accessTimesFor.role} · ${accessTimesFor.dept}` : undefined}
+        primaryAction={{ label: 'ปิด', onClick: () => setAccessTimesFor(null) }}
+      >
+        {accessTimesFor && (
+          <Table
+            columns={[
+              { key: 'datetime', header: 'วันเวลาที่เข้าถึง', width: 200, render: (r) => <span style={CELL_TEXT}>{r.datetime}</span> },
+              { key: 'action', header: 'ประเภท action', width: 140, render: (r) => <ColorfulBadge style={BADGE_TONE[r.action] || 'blue'} size='small' hierarchy='secondary' width='hug'>{r.action}</ColorfulBadge> },
+              { key: 'target', header: 'ข้อมูลที่เข้าถึง', width: 240, render: (r) => <span style={CELL_TEXT}>{r.target}</span> },
+            ]}
+            rows={accessTimesFor.accessTimes.map((t, i) => ({ ...t, _id: i }))}
+            rowKey={(r) => r._id}
+          />
+        )}
+      </Popup>
       {/* Success alert after export (Figma 358:131626 "Small Alert"). */}
       {/* เก็บ log เมื่อ export — annotation 414:123633 (print ไม่เก็บ log) */}
       <SuccessToast open={exported} message='นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล' onClose={() => setExported(false)} />

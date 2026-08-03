@@ -2015,24 +2015,24 @@ const IMPL = {
   '4.12.3':   {s:'done',    u:'/m/payment/INV-2569-001', n:'Credit/debit card form + QR code option'},
 
   /* ===== ผนวก ด — Consent Management ===== */
-  'ด.1.1.1':  {s:'partial', u:'/login',   n:'พิสูจน์ตัวตน — Thai ID + OTP ในหน้า Sign-in (/login, /login/verify)'},
-  'ด.1.1.2':  {s:'partial', u:'/consent', n:'หน้าจอบันทึก/แก้ไขความยินยอม + PersonalDataConsentEditPopup'},
+  'ด.1.1.1':  {s:'done',    u:'/consent', n:'ConsentIdentityVerifyPopup บังคับก่อนเพิกถอน/บันทึกจากเอกสาร/แก้ไข/อนุมัติสิทธิ/เพิ่ม-ยกเลิกสิทธิ (2 เส้นทาง: บัตร 13 หลัก+OTP, เอกสาร+ความสัมพันธ์ผู้แทน) — การพิสูจน์จริง (DOPA/ThaID) เป็นงาน backend, OTP เป็น mock'},
+  'ด.1.1.2':  {s:'done',    u:'/consent', n:'แถว signed มีปุ่มแก้ไข → PersonalDataConsentEditPopup รายข้อ 5.1/5.2 ผ่าน identity verify + audit'},
   'ด.1.1.3':  {s:'done',    u:'/consent', n:'ตารางสถานะ + ConsentHistoryPopup เก็บสถานะ/ประวัติ'},
-  'ด.1.1.4':  {s:'partial', u:'/consent', n:'Workflow คำขอความยินยอม (สร้าง/ยกเลิก/Reconsent)'},
-  'ด.1.1.5':  {s:'partial', u:'/consent', n:'คอลัมน์เวอร์ชั่น (V1.0 / V2.1) — version control แสดงผล'},
-  'ด.1.1.6':  {s:'partial', u:'/consent', n:'คอลัมน์ช่องทางที่ลงนาม (ศูนย์บริการ / Mobile App / QR)'},
-  'ด.1.1.7':  {s:'partial', u:'/consent', n:'Re-Consent — ปุ่ม Reconsent + แท็บใกล้หมดอายุ/หมดอายุ'},
-  'ด.1.1.8':  {s:'partial', u:'/consent', n:'เจ้าหน้าที่ ยกเลิกคำขอ / เพิกถอน จาก action column'},
+  'ด.1.1.4':  {s:'done',    u:'/consent', n:'workflow สร้างคำขอครบ: เลือกผู้ป่วย(ค้น HN)/เทมเพลตเวอร์ชันล่าสุด/ช่องทาง/วันครบกำหนด → record รอลงนาม; ยกเลิกคำขอ/เพิกถอน mutate state จริง (mock session)'},
+  'ด.1.1.5':  {s:'done',    u:'/consent/forms', n:'VersionHistoryPopup timeline + สร้างเวอร์ชันใหม่ (prefill+bump ผ่าน wizard, ห้ามแก้ทับเทมเพลตเผยแพร่) + เผยแพร่แล้ว record เก่าใน worklist เป็น \'มีเวอร์ชันใหม่\' ผ่าน consentWorkflowStore (mock ไม่ persist)'},
+  'ด.1.1.6':  {s:'done',    u:'/consent', n:'เลือกช่องทางตอนสร้างคำขอ/Reconsent: ศูนย์บริการ / Mobile App / QR (QR reuse ConsentQrSendPopup แล้ว mock ลงนามสำเร็จ)'},
+  'ด.1.1.7':  {s:'done',    u:'/consent', n:'Re-Consent ครบวงจร: confirm → record เดิม \'หมดอายุ-Reconsent\' + record ใหม่รอลงนามเวอร์ชันล่าสุด+ช่องทาง+วันครบ; countdown \'อีก X วัน\' แท็บใกล้หมดอายุ; คำขอค้าง → ปุ่ม disabled + tooltip'},
+  'ด.1.1.8':  {s:'done',    u:'/consent', n:'PaperConsentRecordPopup: บันทึกให้/เพิกถอนจากเอกสารกระดาษ — แนบสแกน (validate ชนิด/ขนาด) + วันที่มีผล + เหตุผล (SuggestibleTextarea voice) + ConsentAuditBar'},
   'ด.1.1.9':  {s:'done',    u:'/consent', n:'Dashboard — การ์ดสรุป 6 ใบ + สถานะ + ประวัติ'},
   'ด.1.1.10': {s:'done',    u:'/consent', n:'ConsentHistoryPopup: ให้/ไม่ให้/ถอน · ช่องทาง · วันเวลา · เวอร์ชัน'},
   'ด.1.1.11': {s:'done',    u:'/consent', n:'หน้าจอผู้ดูแลระบบจัดการความยินยอม (ConsentManagementPage)'},
-  'ด.1.1.12': {s:'todo',                  n:'Template/builder สำหรับสร้าง Dashboard — ยังไม่มี'},
-  'ด.1.1.13': {s:'partial', u:'/forms',   n:'คลังแบบฟอร์ม + form builder (ปุ่ม สร้างแบบฟอร์มใหม่)'},
-  'ด.1.1.14': {s:'partial', u:'/users',   n:'เรียกดูตามสิทธิ — role-based access (/users)'},
-  'ด.1.1.15': {s:'partial', u:'/forms',   n:'ดาวน์โหลด/พิมพ์เอกสารยินยอม + ลายเซ็น ใน FormFillPage'},
-  'ด.1.1.16': {s:'partial', u:'/consent', n:'นำส่งออกรายงาน (ปุ่ม export) — รายงาน 16.1–16.5 ยังเป็น stub'},
-  'ด.1.1.17': {s:'todo',    u:'/users',   n:'จัดการการเข้าถึง (สแกนแบบฟอร์ม / สิทธิตามช่วงเวลา / Active) — ยังไม่มี'},
-  'ด.1.1.18': {s:'todo',    u:'/users',   n:'สิทธิเข้าถึงตามระดับความยินยอม + เพิ่ม/ยกเลิก — ยังไม่มี'},
+  'ด.1.1.12': {s:'done',    u:'/consent/dashboard', n:'หน้าแดชบอร์ดจริง + builder (/consent/dashboard/builder): layout 2/3/4 โซน, widget palette 4 ชนิดผูก dataset consent จริง, จัดลำดับปุ่มขึ้น/ลง, บันทึก/ร่าง/ตั้งค่าเริ่มต้น, จัดการ template (ลบ default → สลับกลับมาตรฐาน); template store เป็น mock session เดียว'},
+  'ด.1.1.13': {s:'done',    u:'/consent/forms/new', n:'Step 2 เพิ่ม field type ต่อข้อ (boolean/checkbox/text/textarea/date/number) + ลิงก์สร้างหน้าจอรายงานไป Dashboard Builder'},
+  'ด.1.1.14': {s:'done',    u:'/consent/access/rights', n:'role-based: Viewer เห็น read-only — ปุ่มเพิ่ม/ยกเลิก/จัดการซ่อนทั้งหมด + banner สิทธิไม่พอ; บทบาทปัจจุบันเป็น mock switcher (role จริงมาจากระบบ /users เมื่อต่อ backend)'},
+  'ด.1.1.15': {s:'done',    u:'/consent/forms', n:'ปุ่มดาวน์โหลด PDF ใน action column + หน้า view (export เก็บ log ผ่าน consentWorkflowStore) — พิมพ์แยกไม่เก็บ log ตาม annotation 414:123633'},
+  'ด.1.1.16': {s:'done',    u:'/consent/report', n:'16.1 ชิป รายวัน/สัปดาห์/เดือน/ปี กรอง stats+bars จริง (สลับ label แกน x); 16.2 คลิกแถว → ConsentHistoryPopup ของ HN; 16.4 คลิกแถว → วันเวลาเข้าถึงรายครั้ง; ตาราง ดูรายงาน มี search+date filter+pagination (44 แถว); export → print-preview หัวกระดาษสำนักอนามัย → PDF/CSV/XLSX + toast เก็บ log, ปุ่มพิมพ์แยกไม่เก็บ log'},
+  'ด.1.1.17': {s:'done',    u:'/consent/access', n:'17.1 สแกนแบบฟอร์มนำเข้า (FileUploadField+CameraCapturePopup, validate ชนิด/10MB, mock-OCR prefill — ภาพอ่านไม่ได้ให้กรอกเอง); 17.2 อนุมัติต้องระบุช่วงเวลา (DatePickerRange validate สิ้นสุด≥เริ่ม, คอลัมน์ช่วง+วันคงเหลือ, หมดช่วง → Inactive อัตโนมัติ+แท็บหมดช่วงเวลา, ห้าม re-activate โดยไม่ตั้งช่วงใหม่); 17.3 คอลัมน์ Active Switch ผ่าน confirm + audit ผู้ทำ/เวลา; อนุมัติผ่าน identity verify'},
+  'ด.1.1.18': {s:'done',    u:'/consent/access/rights', n:'matrix ระดับความยินยอม (จาก consent record จริง) × 5 หมวดข้อมูล HCIS × Admin/Editor/Viewer พร้อมสถานะเข้าถึงได้/ไม่ได้; เพิ่มสิทธิ (หมวด+บทบาท+ช่วงเวลา+อ้างเอกสารยินยอม) / ยกเลิกสิทธิ ผ่าน verify+confirm; timeline ประวัติ + audit; ผู้ป่วยไม่มี consent → ทุกหมวดปิด + banner'},
 };
 
 /* ====== Runtime ====== */
@@ -2051,35 +2051,20 @@ let filter='all';
 let searchTerm='';
 
 /* Supplementary AI seed — systems built AFTER the IMPL map was written, so
-   they aren't in it. ระบบจัดการความยินยอม (Consent · prefix ด) shipped 6 pages
-   (/consent, /consent/forms, /consent/forms/new, /consent/forms/:id/view,
-   /consent/access, /consent/report) + the doc-template form builder.
-   Mapped to the ผนวก ด requirements: done = built UI, partial = built but
-   shallow, (omitted = still todo, e.g. multi-channel ด.1.1.6, re-consent ด.1.1.7). */
+   they aren't in it. (Wave ด.1.1 · ส.ค. 2026: the IMPL map above now carries
+   the full up-to-date Consent statuses, so the old ด.1.1.* overrides were
+   removed — only entries the IMPL map already agrees with remain.) */
 const EXTRA_AI={
-  'ด.1.1.1':'partial', // identity proofing — ThaiID/OTP auth exists, owner-binding not explicit
-  'ด.1.1.2':'done',    // record/change consent — ConsentManagementPage
   'ด.1.1.3':'done',    // store status + history
-  'ด.1.1.4':'done',    // consent-request management process
-  'ด.1.1.5':'partial', // form Version Control — CreateConsentFormPage
-  'ด.1.1.8':'partial', // staff records change from signed/revoked doc
   'ด.1.1.9':'done',    // overview Dashboard (status + history)
-  'ด.1.1.10':'partial',// history detail (channel/timestamp/form version)
   'ด.1.1.11':'done',   // Consent Management admin screen
-  'ด.1.1.12':'partial',// Dashboard template
-  'ด.1.1.13':'done',   // form + report builder tool (CreateConsentForm + doc-template)
-  'ด.1.1.14':'done',   // view by permission — AccessManagementPage
-  'ด.1.1.15':'partial',// download consent doc to sign — ConsentFormViewPage
-  'ด.1.1.16':'done',   // export/print reports — ConsentReportPage
-  'ด.1.1.17':'partial',// access management (scan form / time-bound / active)
-  'ด.1.1.18':'partial',// access rights by consent level (add/revoke)
 };
 
 /* Recheck flag — bump to re-apply the seed for ALL visitors (old localStorage
    included) on their next page load. Seed puts the AI/vibe-code assessment
    (IMPL done/partial + EXTRA_AI) into the AI column so "what's already built"
    is filled in, while the Manual column stays blank for a human to verify. */
-const SEED_FLAG='phcis_tor_recheck_v5_nomobile';
+const SEED_FLAG='phcis_tor_recheck_v6_consent_d';
 /* Systems intentionally left UNCHECKED in the AI seed (not vibe-coded yet). */
 const AI_SKIP_PREFIX=['4.'];   // 4 · Mobile Application
 const loadStore=()=>{

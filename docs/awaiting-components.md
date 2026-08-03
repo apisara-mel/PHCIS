@@ -90,6 +90,20 @@ design system เมื่อไร
 
 ---
 
+### 4. ConsentIdentityVerifyPopup (พิสูจน์ตัวตนเจ้าของข้อมูลก่อนทำแทน) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/consent/ConsentManagementPage.jsx` · `src/pages/consent/AccessManagementPage.jsx` · `src/pages/consent/ConsentAccessRightsPage.jsx` — 3 ที่ แต่ทั้งหมดอยู่ในระบบ Consent (flow เดียวกัน: เจ้าหน้าที่ทำ action แทนเจ้าของข้อมูล) จึงยังนับเป็นเคสเดียว |
+| **หน้าที่** | บังคับพิสูจน์ตัวตน "เจ้าของข้อมูลส่วนบุคคล" ก่อนทุก action ที่เจ้าหน้าที่ทำแทน (เพิกถอน / บันทึกจากเอกสาร / แก้ไขความยินยอม / อนุมัติสิทธิ / เพิ่ม-ยกเลิกสิทธิ) ตาม TOR ด.1.1.1 — 2 เส้นทางเป็นแท็บ: (๑) เลขบัตร 13 หลัก ตรวจ checksum + OTP mock (นับถอยหลัง/ส่งใหม่/ผิดเกิน 3 ครั้ง → lock ชั่วคราวแล้วเสนอเส้นทางเอกสาร) · (๒) แนบเอกสารยืนยันตัวตน + ระบุความสัมพันธ์กรณีผู้แทน/ผู้เยาว์ |
+| **ทำไมไม่มีของเดิมแทน** | `/login` มี Thai ID + OTP แต่เป็นหน้า auth เต็มจอของ "ผู้ใช้ระบบ" ไม่ใช่ popup ในเนื้องานสำหรับพิสูจน์ตัวตน "เจ้าของข้อมูล" ระหว่าง action · DS มี `Popup` / `OtpInput` / `FileUploadField` เป็นชิ้นส่วน แต่ไม่มี component ที่ประกอบเป็น identity-verify gate |
+| **โครง API** | `<ConsentIdentityVerifyPopup open onClose onVerified actionLabel patientName hn>` — ผ่านแล้วเรียก `onVerified({ method, citizenId, relationship, verifiedBy, verifiedAt })` ให้ผู้เรียกเก็บ audit ต่อ (TOR 1.4.3.16) |
+| **พฤติกรรมที่ต้องรักษาไว้** | การพิสูจน์จริง (DOPA/ThaID) เป็นงาน backend — ตัวนี้เป็น mock ระดับ UI · ผิด OTP เกิน 3 ครั้งต้องเสนอเส้นทางเอกสาร ไม่ใช่ปิดตาย · เส้นทางเอกสารต้องบังคับความสัมพันธ์ผู้แทนสอดคล้อง guardian record เดิม |
+| **รอเคสอะไร** | ระบบอื่นที่เจ้าหน้าที่ทำ action แทนประชาชน เช่น เวชระเบียน (แก้ข้อมูลแทน), การเงิน (มอบอำนาจรับเงินคืน), เยี่ยมบ้าน — เคสที่ 2 เมื่อไรควรยกขึ้น DS เป็น `IdentityVerifyPopup` กลางที่รับ `actionLabel` + adapter การพิสูจน์ |
+| **บันทึกเมื่อ** | 3 ส.ค. 2569 |
+
+---
+
 ## ยกขึ้น design system แล้ว
 
 *(ยังไม่มี)*
