@@ -21,10 +21,10 @@ import {
   CONSENT_LEVELS, LEVEL_BY_KEY, DATA_CATEGORIES, MATRIX_ROLES,
   LEVEL_DEFAULT_MATRIX, TYPE_TO_LEVEL, RIGHTS_HISTORY_SEED, RIGHTS_OVERRIDE_SEED,
 } from '@/data/consentAccessLevels';
-import CONSENT_NAV from '@/pages/consent/consentNav';
+import SYSTEM_NAV from '@/pages/system/systemNav';
 
-/* PHCIS | Consent — สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม
-   (TOR ด.1.1.18 + ด.1.1.14) — route /consent/access/rights.
+/* PHCIS | สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม
+   (TOR ด.1.1.18 + ด.1.1.14) — /assess/consent-access-rights (จัดการระบบ).
 
    ค้นผู้ป่วย (HN) → แสดงระดับความยินยอมที่ลงนาม (จาก consent record จริงของ
    worklist) และ matrix สิทธิ: แถว = หมวดข้อมูล (ศัพท์ HCIS — ชุดเดียวกับ
@@ -38,7 +38,14 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
    จากอีเมลที่ login (mock session). ข้อมูลทั้งหมด mock local. */
 
 const STAFF_NAME = 'ลดา ดีงาม';
-const breadcrumb = ['จัดการสิทธิ์การเข้าถึงแบบฟอร์ม', 'สิทธิเข้าถึงตามความยินยอม'];
+
+const SHELL = {
+  sidebarItems: SYSTEM_NAV,
+  sidebarFallbackKey: 'system-consent-access-rights',
+  brandTitle: 'จัดการระบบ',
+  breadcrumb: ['จัดการระบบ', 'สิทธิเข้าถึงตามความยินยอม'],
+  activeKey: 'system-consent-access-rights',
+};
 
 const BODY_TEXT = {
   color: 'var(--text-content-secondary)',
@@ -232,11 +239,11 @@ export default function ConsentAccessRightsPage() {
   return (
     <>
       <QueuePageShell
-        activeKey='consent-access-rights'
-        sidebarItems={CONSENT_NAV}
-        sidebarFallbackKey='consent-access-rights'
-        brandTitle='ระบบจัดการความยินยอม'
-        breadcrumb={breadcrumb}
+        activeKey={SHELL.activeKey}
+        sidebarItems={SHELL.sidebarItems}
+        sidebarFallbackKey={SHELL.sidebarFallbackKey}
+        brandTitle={SHELL.brandTitle}
+        breadcrumb={SHELL.breadcrumb}
         title='สิทธิเข้าถึงตามความยินยอม'
       >
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>

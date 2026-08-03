@@ -1,13 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
-import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
-import FileUploadField from '@/components/forms/FileUploadField';
 import DatePickerRange from '@/components/forms/DatePickerRange';
+import PhotoUploadField from '@/components/forms/PhotoUploadField';
+import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
-import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
 
@@ -72,9 +71,9 @@ const OCR_RESULT = {
 /* ══ 17.1 — สแกนแบบฟอร์มนำเข้า ══════════════════════════════════════════ */
 export function ScanImportPopup({ open, onClose, onImported }) {
   const [phase, setPhase] = useState('upload');         // upload | reading | review
+  const [uploadFiles, setUploadFiles] = useState([]);
   const [fileName, setFileName] = useState(null);
   const [fileError, setFileError] = useState('');
-  const [cameraOpen, setCameraOpen] = useState(false);
   const [ocrFailed, setOcrFailed] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   /* review fields (แก้ไขได้ทุกช่องก่อนบันทึก) */
@@ -94,7 +93,7 @@ export function ScanImportPopup({ open, onClose, onImported }) {
   useEffect(() => {
     if (!open) { clearOcrTimer(); return; }
     clearOcrTimer();
-    setPhase('upload'); setFileName(null); setFileError(''); setCameraOpen(false);
+    setPhase('upload'); setUploadFiles([]); setFileName(null); setFileError('');
     setOcrFailed(false); setConfirmDiscard(false);
     setName(''); setEmpCode(''); setUnit(''); setHn(''); setPurpose(''); setScopes([]);
   }, [open]);
@@ -102,19 +101,31 @@ export function ScanImportPopup({ open, onClose, onImported }) {
   /* unmount (เช่นเปลี่ยน route ระหว่าง phase 'reading') → clear เสมอ */
   useEffect(() => clearOcrTimer, []);
 
-  const handleFile = (file) => {
-    const okType = /\.(pdf|jpe?g|png)$/i.test(file.name);
+  const ingestFile = (file) => {
+    const okType = /\.(pdf|jpe?g|png)$/i.test(file.name) || (file.type && /^(image\/(jpeg|png)|application\/pdf)$/i.test(file.type));
     if (!okType) { setFileError('รองรับเฉพาะไฟล์ PDF, JPG หรือ PNG'); return; }
     if (file.size > 10 * 1024 * 1024) { setFileError('ไฟล์ต้องไม่เกิน 10 MB'); return; }
     setFileError('');
+    setUploadFiles([file]);
     setFileName(file.name);
-    runOcr(file.name, /\.pdf$/i.test(file.name));
+    runOcr(file.name, /\.pdf$/i.test(file.name) || file.type === 'application/pdf');
   };
 
-  const handleCameraCapture = () => {
-    setCameraOpen(false);
-    setFileName('camera-scan.png');
-    runOcr('camera-scan.png', false);
+  const handleUploadChange = (files) => {
+    if (!files || files.length === 0) {
+      clearOcrTimer();
+      setUploadFiles([]);
+      setFileName(null);
+      setPhase('upload');
+      return;
+    }
+    ingestFile(files[0]);
+  };
+
+  const handleCameraFiles = (fileList) => {
+    const file = fileList?.[0];
+    if (!file) return;
+    ingestFile(file);
   };
 
   /* mock-OCR อ่านเอกสาร ~1.2 วิ */
@@ -163,20 +174,32 @@ export function ScanImportPopup({ open, onClose, onImported }) {
           {/* จังหวะ 1 — เอกสาร */}
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
             <span style={LABEL_TEXT}>1. เอกสารแบบฟอร์ม <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span></span>
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-              <FileUploadField
-                accept='.pdf,.jpg,.jpeg,.png'
-                buttonLabel='อัปโหลดไฟล์สแกน'
-                fileName={fileName}
-                onFile={handleFile}
-                onClear={() => { clearOcrTimer(); setFileName(null); setPhase('upload'); }}
+            <div className='flex items-start flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              <div className='flex flex-col min-w-0' style={{ flex: '1 1 280px', gap: 'var(--dim-space-200)' }}>
+                <DragAndDrop
+                  value={uploadFiles}
+                  onChange={handleUploadChange}
+                  onError={({ message }) => setFileError(message || 'ไฟล์ไม่ถูกต้อง')}
+                  accept='.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf'
+                  multiple={false}
+                  preview
+                  title='ลากและวางไฟล์สแกน หรือคลิกเพื่ออัปโหลด'
+                  helper='PDF, JPG หรือ PNG ขนาดไม่เกิน 10 MB'
+                  ctaLabel='เลือกไฟล์สแกน'
+                  error={!!fileError}
+                />
+              </div>
+              <PhotoUploadField
+                label='ถ่ายภาพเอกสาร'
+                icon='photo_camera'
+                capture='environment'
+                accept='image/*'
+                onFiles={handleCameraFiles}
+                aria-label='ถ่ายภาพเอกสารด้วยกล้อง'
               />
-              <NeutralSubdueButton size='sm' leadingIcon='photo_camera' onClick={() => setCameraOpen(true)}>
-                ถ่ายภาพเอกสาร
-              </NeutralSubdueButton>
             </div>
             <span style={{ ...BODY_TEXT, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
-              PDF, JPG หรือ PNG ขนาดไม่เกิน 10 MB — ไฟล์ PDF ระบบอ่านข้อมูลอัตโนมัติได้แม่นยำที่สุด
+              ใช้ Form Builder DragAndDrop + Photo — ไฟล์ PDF ระบบอ่านข้อมูลอัตโนมัติ (OCR) ได้แม่นยำที่สุด
             </span>
             {fileError && <span style={ERROR_TEXT}>{fileError}</span>}
           </div>
@@ -226,13 +249,6 @@ export function ScanImportPopup({ open, onClose, onImported }) {
         </div>
       </Popup>
 
-      {/* ถ่ายภาพเอกสารด้วยกล้อง (reuse CameraCapturePopup เดิม) */}
-      <CameraCapturePopup
-        open={cameraOpen}
-        onClose={() => setCameraOpen(false)}
-        onCapture={handleCameraCapture}
-      />
-
       <AlertDialog
         open={confirmDiscard}
         type='warning'
@@ -245,6 +261,50 @@ export function ScanImportPopup({ open, onClose, onImported }) {
         onClose={() => setConfirmDiscard(false)}
       />
     </>
+  );
+}
+
+/* ══ 17.2 — แก้ไขช่วงเวลาสิทธิ (admin คลิกคอลัมน์) ═══════════════════════ */
+export function EditPeriodPopup({ open, record, onClose, onSave, thaiDateOfIso }) {
+  const [range, setRange] = useState(['', '']);
+
+  useEffect(() => {
+    if (!open || !record) return;
+    setRange([record.periodStart || '', record.periodEnd || '']);
+  }, [open, record]);
+
+  const [startIso, endIso] = range;
+  const invalidOrder = !!startIso && !!endIso && endIso < startIso;
+  const ready = !!startIso && !!endIso && !invalidOrder;
+
+  return (
+    <Popup
+      open={open}
+      onClose={onClose}
+      size='default'
+      title='แก้ไขช่วงเวลาสิทธิ'
+      subtitle={record ? `${record.reqNo} · ${record.name} · HN ${record.hn}` : undefined}
+      primaryAction={{ label: 'บันทึกช่วงเวลา', onClick: () => ready && onSave({ periodStart: startIso, periodEnd: endIso }), disabled: !ready }}
+      secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
+    >
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+        <span style={BODY_TEXT}>
+          กำหนดวันเริ่มต้นและวันสิ้นสุดของสิทธิเข้าถึงข้อมูล — การเปลี่ยนแปลงจะบันทึกใน audit
+        </span>
+        <DatePickerRange
+          label='ช่วงเวลาสิทธิ (เริ่มต้น - สิ้นสุด)'
+          required
+          value={range}
+          onChange={setRange}
+          format={isoFormat}
+          parse={isoParse}
+          error={invalidOrder ? 'วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น' : undefined}
+          helperText={invalidOrder ? 'วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น' : (record?.periodStart
+            ? `ปัจจุบัน: ${thaiDateOfIso(record.periodStart)} – ${thaiDateOfIso(record.periodEnd)}`
+            : 'เลือกวันเริ่มต้นและวันสิ้นสุด')}
+        />
+      </div>
+    </Popup>
   );
 }
 

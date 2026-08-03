@@ -57,7 +57,6 @@ import ConsentReportPage from '@/pages/consent/ConsentReportPage';
 import ConsentFormsPage from '@/pages/consent/ConsentFormsPage';
 import ConsentFormViewPage from '@/pages/consent/ConsentFormViewPage';
 import ConsentDashboardPage from '@/pages/consent/ConsentDashboardPage';
-import ConsentAccessRightsPage from '@/pages/consent/ConsentAccessRightsPage';
 import ConsentHistoryPage from '@/pages/consent/ConsentHistoryPage';
 import SystemStaffPage from '@/pages/system/SystemStaffPage';
 import SystemStaffDetailPage from '@/pages/system/SystemStaffDetailPage';
@@ -77,6 +76,7 @@ import PositionPage from '@/pages/assess/PositionPage';
 import AccessControlPage from '@/pages/assess/AccessControlPage';
 import AccessControlCreatePage from '@/pages/assess/AccessControlCreatePage';
 import AccessControlDetailPage from '@/pages/assess/AccessControlDetailPage';
+import SystemConsentAccessRightsPage from '@/pages/assess/SystemConsentAccessRightsPage';
 import AssessUserPage from '@/pages/assess/AssessUserPage';
 import AssessUserCreatePage from '@/pages/assess/AssessUserCreatePage';
 import AssessUserDetailPage from '@/pages/assess/AssessUserDetailPage';
@@ -151,9 +151,8 @@ export default function Routes() {
         <Route exact path='/consent/forms/:id/view' component={ConsentFormViewPage} />
         {/* ประวัติความยินยอมรายบุคคล — Timeline เปิดแท็บใหม่จาก worklist / รายงาน */}
         <Route exact path='/consent/history/:hn' component={ConsentHistoryPage} />
-        {/* สิทธิเข้าถึงตามความยินยอม — consent-level × data-category matrix
-            (ด.1.1.18). ต้อง exact + มาก่อน /consent/access กันเส้นทางชนกัน. */}
-        <Route exact path='/consent/access/rights' component={ConsentAccessRightsPage} />
+        {/* ด.1.1.18 — ย้ายไปจัดการระบบ · redirect จาก URL เดิม */}
+        <Redirect exact from='/consent/access/rights' to='/assess/consent-access-rights' />
         {/* จัดการสิทธิ์การเข้าถึง — access-request registry (Figma 363:122327). */}
         <Route exact path='/consent/access'       component={AccessManagementPage} />
         {/* สถิติและรายงาน — consent reports dashboard (Figma 358:113804). */}
@@ -183,6 +182,8 @@ export default function Routes() {
         <Route exact path='/assess/access-control/:id/edit' component={AccessControlCreatePage} />
         <Route exact path='/assess/access-control/:id' component={AccessControlDetailPage} />
         <Route exact path='/assess/access-control' component={AccessControlPage} />
+        {/* ด.1.1.18 — สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม (จัดการระบบ) */}
+        <Route exact path='/assess/consent-access-rights' component={SystemConsentAccessRightsPage} />
         <Route exact path='/assess/users/new' component={AssessUserCreatePage} />
         <Route exact path='/assess/users/:id/edit' component={AssessUserCreatePage} />
         <Route exact path='/assess/users/:id' component={AssessUserDetailPage} />
