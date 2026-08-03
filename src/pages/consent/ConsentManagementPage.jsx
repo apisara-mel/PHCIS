@@ -5,6 +5,7 @@ import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import Select from '@/components/forms/Select';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -14,7 +15,6 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import ConsentHistoryPopup from '@/components/popup/ConsentHistoryPopup';
-import Checkbox from '@/components/checkbox/Checkbox';
 import CheckboxBox from '@/components/checkbox/CheckboxBox';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import PersonalDataConsentEditPopup from '@/components/forms/PersonalDataConsentEditPopup';
@@ -62,6 +62,28 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
 
 const PAGE_SIZE = 10;
 const breadcrumb = ['จัดการความยินยอม'];
+
+/* แท็บที่ tab กรองสถานะอยู่แล้ว — ซ่อน filter chip "สถานะ" */
+const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'consented', 'rejected', 'expiring']);
+
+/* Checkbox ในคอลัมน์เลือก — กัน click ไปเปิดแถว + ไม่มี label โผล่ใน header */
+const TableSelectCheckbox = ({ checked, label, onChange }) => (
+  <label
+    className='inline-flex items-center justify-center'
+    onClick={(e) => e.stopPropagation()}
+    onKeyDown={(e) => e.stopPropagation()}
+    style={{ cursor: 'pointer' }}
+  >
+    <input
+      type='checkbox'
+      className='sr-only'
+      checked={checked}
+      aria-label={label}
+      onChange={(e) => onChange?.(e.target.checked)}
+    />
+    <CheckboxBox checked={checked} />
+  </label>
+);
 
 const TEXT_CELL = {
   color: 'var(--text-content-default)',
@@ -200,7 +222,8 @@ export default function ConsentManagementPage() {
   const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
-  const isAllFilters = !filterType && !filterChannel && !filterStatus && !filterDate;
+  const hideStatusFilter = STATUS_FILTER_HIDDEN_TABS.has(activeTab);
+  const isAllFilters = !filterType && !filterChannel && (!filterStatus || hideStatusFilter) && !filterDate;
 
   const resetFilters = () => {
     setFilterType(''); setFilterChannel(''); setFilterStatus(''); setFilterDate(''); setPage(1);
@@ -469,19 +492,21 @@ export default function ConsentManagementPage() {
 
   const selectColumn = {
     key: '_select',
-    header: (
-      <Checkbox
+    width: 52,
+    sortable: false,
+    align: 'center',
+    label: (
+      <TableSelectCheckbox
         checked={pageAllSelected}
-        onChange={togglePageAll}
-        aria-label='เลือกทั้งหมดในหน้านี้'
+        label='เลือกทั้งหมดในหน้านี้'
+        onChange={() => togglePageAll()}
       />
     ),
-    width: 52,
     render: (r) => (
-      <Checkbox
+      <TableSelectCheckbox
         checked={selectedIds.has(r.id)}
+        label={`เลือก ${r.name}`}
         onChange={() => toggleRow(r.id)}
-        aria-label={`เลือก ${r.name}`}
       />
     ),
   };
@@ -502,20 +527,15 @@ export default function ConsentManagementPage() {
         title='จัดการความยินยอม'
         actions={(
           <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-            <select
-              aria-label='บทบาท Consent (mock ABAC)'
-              value={consentRole}
-              onChange={(e) => { setConsentRole(e.target.value); setConsentRoleState(e.target.value); }}
-              style={{
-                padding: 'var(--dim-space-150) var(--dim-space-300)',
-                borderRadius: 'var(--dim-radius-200)',
-                border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-                fontFamily: 'var(--type-family-body)',
-                fontSize: 'var(--type-size-sm)',
-              }}
-            >
-              {CONSENT_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
+            <div style={{ minWidth: 140 }}>
+              <Select
+                showLabel={false}
+                options={CONSENT_ROLES.map((r) => ({ value: r, label: r }))}
+                value={consentRole}
+                onChange={(v) => { setConsentRole(v); setConsentRoleState(v); }}
+                searchable={false}
+              />
+            </div>
             <BrandButton
               variant='outline'
               size='md'
@@ -529,13 +549,17 @@ export default function ConsentManagementPage() {
         headerInfo={(
           <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
             {CONSENT_SUMMARY.map((c) => (
-              <SummaryCard key={c.key} card={c} variant='panel' hover />
+              <SummaryCard key={c.key} card={c} variant='panel' />
             ))}
           </section>
         )}
         tabs={tabs}
         activeTab={activeTab}
-        onTabChange={(key) => { setActiveTab(key); setPage(1); }}
+        onTabChange={(key) => {
+          setActiveTab(key);
+          setPage(1);
+          if (STATUS_FILTER_HIDDEN_TABS.has(key)) setFilterStatus('');
+        }}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -568,33 +592,22 @@ export default function ConsentManagementPage() {
               <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
                 <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
                   {/* Chip "เลือก" — เปิด/ปิดโหมดเลือกหลายรายการ (Figma 297:128439) */}
-                  <button
-                    type='button'
+                  <FilterTag
+                    variant={selectMode ? 'brand' : 'neutral'}
+                    size='sm'
+                    selected={selectMode}
                     onClick={toggleSelectMode}
-                    aria-pressed={selectMode}
-                    className='inline-flex items-center'
-                    style={{
-                      gap: 'var(--dim-space-150)',
-                      padding: 'var(--dim-space-150) var(--dim-space-300)',
-                      background: selectMode ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
-                      border: selectMode
-                        ? 'var(--dim-stroke-100) solid var(--border-brandPrimary-default)'
-                        : 'var(--dim-stroke-100) solid var(--border-card-default)',
-                      borderRadius: 'var(--dim-radius-full)',
-                      color: selectMode ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
-                      fontFamily: 'var(--type-family-body)',
-                      fontSize: 'var(--type-size-sm)',
-                      fontWeight: selectMode ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <CheckboxBox checked={selectMode} />
-                    เลือก
-                  </button>
+                    showTailingIcon={false}
+                    showTitle={false}
+                    leadingIcon={<CheckboxBox checked={selectMode} />}
+                    value='เลือก'
+                  />
                   <FilterTag value='ทั้งหมด' selected={isAllFilters} onClick={resetFilters} />
                   <FilterDropdown prefix='ประเภท:' options={typeOptions} value={filterType} onChange={(v) => { setFilterType(v); setPage(1); }} />
                   <FilterDropdown prefix='ช่องทาง:' options={channelOptions} value={filterChannel} onChange={(v) => { setFilterChannel(v); setPage(1); }} />
-                  <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
+                  {!hideStatusFilter && (
+                    <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
+                  )}
                   <FilterDropdown prefix='วันที่:' options={dateOptions} value={filterDate} onChange={(v) => { setFilterDate(v); setPage(1); }} />
                 </div>
                 <div className='flex-1' />

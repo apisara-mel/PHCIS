@@ -43,12 +43,12 @@ export const CONSENT_CHANNEL_OPTIONS = [
 
 /* ── Tabs (Figma TabUnderline) ──────────────────────────────────────── */
 export const CONSENT_TABS = [
-  { value: 'all',       label: 'ทั้งหมด',          icon: 'list' },
   { value: 'pending',   label: 'รอลงนาม',          icon: 'schedule' },
   { value: 'consented', label: 'ยินยอมแล้ว',        icon: 'verified' },
   { value: 'rejected',  label: 'ปฏิเสธ / เพิกถอน',  icon: 'do_not_disturb_on' },
   { value: 'expiring',  label: 'ใกล้หมดอายุ',       icon: 'hourglass_top' },
   { value: 'expired',   label: 'หมดอายุ',           icon: 'hourglass_disabled' },
+  { value: 'all',       label: 'ความยินยอมทั้งหมด',  icon: 'list' },
 ];
 
 /* ── Confirm-dialog copy per action kind (AlertDialog) ──────────────── */
