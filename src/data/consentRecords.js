@@ -5,6 +5,12 @@
 
    No API — all values are local mock rows. UI copy is Thai. */
 
+import {
+  DEFAULT_SERVICE_CENTER_CHANNEL,
+  MOBILE_APP_CHANNEL,
+} from '@/data/consentChannels';
+import { resolveConsentFormForWorklistType } from '@/data/consentFormRecords';
+
 /* ── Consent type → ColorfulBadge tone (Figma type pills) ───────────── */
 export const CONSENT_TYPE_TONE = {
   'ผ่าตัด':    'blue',
@@ -12,13 +18,16 @@ export const CONSENT_TYPE_TONE = {
   'การวิจัย':  'purple',
   'เลือด':     'red',
   'PDPA':      'indigo',
+  'เบิกจ่าย':  'magenta',
 };
 
 /* ── Status meta — badge tone + which tab it belongs under + the action
    CTA shown in the "การดำเนินการ" column for that status. ──────────── */
 export const CONSENT_STATUS = {
-  'รอลงนาม':          { tone: 'orange', tab: 'pending',   action: { label: 'ยกเลิกคำขอ', kind: 'outline', confirm: 'cancel' } },
-  'อยู่ระหว่างลงนาม':  { tone: 'orange', tab: 'pending',   action: { label: 'ยกเลิกคำขอ', kind: 'outline', confirm: 'cancel' } },
+  'รอลงนาม':          { tone: 'orange', tab: 'pending',   action: { label: 'ยกเลิกคำขอ', kind: 'subdued', confirm: 'cancel' } },
+  'อยู่ระหว่างลงนาม':  { tone: 'orange', tab: 'pending',   action: { label: 'ยกเลิกคำขอ', kind: 'subdued', confirm: 'cancel' } },
+  /* ผู้รับบริการ request เพิกถอนผ่าน Mobile App / ที่ศูนย์ — รอเจ้าหน้าที่ดำเนินการ */
+  'ขอเพิกถอน':        { tone: 'red',    tab: 'pending',   action: { label: 'ดำเนินการเพิกถอน', kind: 'brand', confirm: 'revoke' } },
   'ยินยอมแล้ว':        { tone: 'green',  tab: 'consented', action: { label: 'เพิกถอน',    kind: 'outline', confirm: 'revoke' } },
   'ปฏิเสธ':           { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' } },
   'ถอนความยินยอม':    { tone: 'red',    tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' } },
@@ -34,16 +43,18 @@ export const CONSENT_STATUS = {
   'ยกเลิกคำขอ':        { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
 };
 
-/* ── ช่องทางลงนาม (ด.1.1.6 — หลายช่องทาง) ──────────────────────────────── */
-export const CONSENT_CHANNEL_OPTIONS = [
-  { value: 'ที่ศูนย์บริการ', label: 'ที่ศูนย์บริการ', icon: 'local_hospital', hint: 'เจ้าหน้าที่บันทึกให้ที่เคาน์เตอร์' },
-  { value: 'Mobile App',    label: 'Mobile App',    icon: 'smartphone',      hint: 'ส่งคำขอไปที่แอปผู้รับบริการ' },
-  { value: 'QR Code',       label: 'QR Code',       icon: 'qr_code_2',       hint: 'แสดง QR ให้สแกนลงนามบนมือถือ' },
-];
+/* ── ช่องทางลงนาม (ด.1.1.6) — re-export จาก consentChannels.js ─────────── */
+export {
+  CONSENT_CHANNEL_OPTIONS,
+  DEFAULT_SERVICE_CENTER_CHANNEL,
+  MOBILE_APP_CHANNEL,
+  formatServiceCenterChannel,
+  getConsentChannelOptions,
+} from '@/data/consentChannels';
 
 /* ── Tabs (Figma TabUnderline) ──────────────────────────────────────── */
 export const CONSENT_TABS = [
-  { value: 'pending',   label: 'รอลงนาม',          icon: 'schedule' },
+  { value: 'pending',   label: 'รอดำเนินการ',      icon: 'pending_actions' },
   { value: 'consented', label: 'ยินยอมแล้ว',        icon: 'verified' },
   { value: 'rejected',  label: 'ปฏิเสธ / เพิกถอน',  icon: 'do_not_disturb_on' },
   { value: 'expiring',  label: 'ใกล้หมดอายุ',       icon: 'hourglass_top' },
@@ -58,121 +69,185 @@ export const CONSENT_CONFIRM = {
   reconsent: { type: 'info',        title: 'ส่งคำขอความยินยอมใหม่',     description: 'ระบบจะสร้างคำขอความยินยอมฉบับใหม่และแจ้งผู้ป่วยให้ลงนามอีกครั้ง', confirmLabel: 'ส่งคำขอ' },
 };
 
-const CHANNELS = ['ที่ศูนย์บริการ', 'Mobile App', 'QR Code', '-'];
+const CONSENT_TYPES = ['ผ่าตัด', 'การรักษา', 'การวิจัย', 'เลือด', 'PDPA', 'เบิกจ่าย'];
+const REQUESTERS = ['ลดา ดีงาม', 'นที ทองคำ'];
+const MOCK_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน'];
 
-/* ── Records ────────────────────────────────────────────────────────── */
-export const CONSENT_RECORDS = [
-  {
-    id: 1, hn: '67-00001', name: 'สมชาย มั่นใจดี', type: 'ผ่าตัด', version: 'V 1.0',
-    status: 'รอลงนาม', signChannel: '-', requester: 'ลดา ดีงาม',
-    createdDate: '20 มีนาคม 2569', signedDate: '-', withdrawnDate: '-',
+/** 32 rows — one rotation covering every CONSENT_STATUS (pagination demo at PAGE_SIZE 10). */
+const MOCK_STATUS_ROTATION = [
+  'รอลงนาม', 'รอลงนาม', 'ขอเพิกถอน', 'ขอเพิกถอน',
+  'อยู่ระหว่างลงนาม', 'อยู่ระหว่างลงนาม', 'อยู่ระหว่างลงนาม',
+  'ยินยอมแล้ว', 'ยินยอมแล้ว', 'ยินยอมแล้ว', 'ยินยอมแล้ว', 'ยินยอมแล้ว', 'ยินยอมแล้ว',
+  'ปฏิเสธ', 'ปฏิเสธ', 'ปฏิเสธ',
+  'ถอนความยินยอม', 'ถอนความยินยอม', 'ถอนความยินยอม',
+  'ใกล้หมดอายุ', 'ใกล้หมดอายุ', 'ใกล้หมดอายุ',
+  'หมดอายุ', 'หมดอายุ', 'หมดอายุ',
+  'มีเวอร์ชันใหม่', 'มีเวอร์ชันใหม่',
+  'หมดอายุ-Reconsent', 'หมดอายุ-Reconsent',
+  'ยกเลิกคำขอ', 'ยกเลิกคำขอ', 'ยกเลิกคำขอ',
+];
+
+/** HN + seed name — aligned with MR / screening roster (enriched again at render). */
+const MOCK_PATIENTS = [
+  { hn: '67-00001', name: 'สมชาย มั่นใจดี' },
+  { hn: '67-00002', name: 'สมหญิง มีสุข' },
+  { hn: '67-00003', name: 'วีระ ดีงาม' },
+  { hn: '67-00004', name: 'ทักษพร ขำใจ' },
+  { hn: '67-00005', name: 'สุวัฒน์ จิรพัฒนกุล' },
+  { hn: '67-00006', name: 'ปรียา สุพรรณ' },
+  { hn: '67-00007', name: 'ธนาพล วศ์กุล' },
+  { hn: '67-00008', name: 'มาลีรัตน์ ธนาวัตน' },
+  { hn: '67-00009', name: 'น้ำใส โพธิ์' },
+  { hn: '67-00010', name: 'นภา มนตรา' },
+  { hn: '67-00011', name: 'อรอุมา ดวงสว่าง' },
+  { hn: '67-00012', name: 'วิชัย รุ่งเรือง' },
+  { hn: '67-00013', name: 'พิมพ์ใจ จันทรา' },
+  { hn: '67-00014', name: 'ชัยวัฒน์ ก้องเกียรติ' },
+  { hn: '67-00015', name: 'รัตนาภรณ์ ใสสะอาด' },
+  { hn: '67-00016', name: 'ปกรณ์ บุญพิทักษ์' },
+  { hn: '67-00017', name: 'ภัคจิรา วงศ์อนันต์' },
+  { hn: '67-00018', name: 'ด.ญ.ณิชา วงศ์สว่าง' },
+  { hn: '67-00019', name: 'นันทิดา พรเลิศ' },
+  { hn: '67-00020', name: 'กฤษดา ผ่องใส' },
+  { hn: '67-00021', name: 'วรรณภา ทองดี' },
+  { hn: '67-00022', name: 'อนุชา สมบูรณ์ทรัพย์' },
+  { hn: '67-00023', name: 'ภัทรานิษฐ์ บูรณะ' },
+  { hn: '67-00024', name: 'เอกชัย พิทยาคม' },
+  { hn: '67-00025', name: 'ภาสกร ชาญฉลาด' },
+  { hn: '67-00027', name: 'จิราพร มณีโชติ' },
+  { hn: '67-00029', name: 'อาทิตยา บุญเรือง' },
+  { hn: '67-00006', name: 'ปรียา สุพรรณ' },
+  { hn: '67-00008', name: 'มาลีรัตน์ ธนาวัตน' },
+  { hn: '67-00012', name: 'วิชัย รุ่งเรือง' },
+  { hn: '67-00015', name: 'รัตนาภรณ์ ใสสะอาด' },
+  { hn: '67-00020', name: 'กฤษดา ผ่องใส' },
+];
+
+const signChannelForStatus = (status, id) => {
+  if (status === 'รอลงนาม' || status === 'ยกเลิกคำขอ') return '-';
+  if (status === 'ขอเพิกถอน') return id % 2 === 0 ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
+  if (status === 'อยู่ระหว่างลงนาม') return id % 2 === 0 ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
+  if (status === 'มีเวอร์ชันใหม่') return DEFAULT_SERVICE_CENTER_CHANNEL;
+  if (status === 'หมดอายุ-Reconsent') return '-';
+  return id % 2 === 0 ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
+};
+
+const buildConsentMockRecords = () => MOCK_STATUS_ROTATION.map((status, index) => {
+  const id = index + 1;
+  const patient = MOCK_PATIENTS[index];
+  const type = CONSENT_TYPES[index % CONSENT_TYPES.length];
+  const day = (index % 27) + 1;
+  const month = MOCK_MONTHS[index % MOCK_MONTHS.length];
+  const createdDate = `${day} ${month} 2569`;
+  const signed = ['ยินยอมแล้ว', 'ใกล้หมดอายุ', 'หมดอายุ', 'มีเวอร์ชันใหม่', 'หมดอายุ-Reconsent'].includes(status);
+  const withdrawn = ['ถอนความยินยอม'].includes(status);
+  const signedDate = signed ? `${Math.min(day + 1, 28)} ${month} 2569` : '-';
+  const withdrawnDate = withdrawn ? `${Math.min(day + 3, 28)} ${month} 2569` : '-';
+  const signChannel = signChannelForStatus(status, id);
+  const { formCode, formName } = resolveConsentFormForWorklistType(type);
+
+  const record = {
+    id,
+    hn: patient.hn,
+    name: patient.name,
+    type,
+    formCode,
+    formName,
+    version: type === 'การวิจัย' ? 'V 2.1' : `V 1.${index % 3}`,
+    status,
+    signChannel,
+    requester: REQUESTERS[index % REQUESTERS.length],
+    createdDate,
+    signedDate,
+    withdrawnDate,
+    history: [],
+  };
+
+  if (status === 'ใกล้หมดอายุ') {
+    record.expiresInDays = 7 + (index % 21);
+    record.createdDate = `${day} ${month} 2568`;
+    record.signedDate = `${Math.min(day + 1, 28)} ${month} 2568`;
+  }
+  if (status === 'หมดอายุ' || status === 'หมดอายุ-Reconsent') {
+    record.createdDate = `${day} ${month} 2568`;
+    record.signedDate = `${Math.min(day + 1, 28)} ${month} 2568`;
+  }
+  if (status === 'หมดอายุ-Reconsent') {
+    record.pendingReconsent = true;
+  }
+  if (status === 'รอลงนาม' && id % 2 === 0) {
+    record.dueDate = `${Math.min(day + 14, 28)} ${MOCK_MONTHS[(index + 1) % MOCK_MONTHS.length]} 2569`;
+  }
+  if (status === 'ขอเพิกถอน') {
+    record.createdDate = `${Math.max(day - 30, 1)} ${MOCK_MONTHS[(index + MOCK_MONTHS.length - 1) % MOCK_MONTHS.length]} 2568`;
+    record.signedDate = `${Math.max(day - 28, 1)} ${MOCK_MONTHS[(index + MOCK_MONTHS.length - 1) % MOCK_MONTHS.length]} 2568`;
+    record.revokeRequestedDate = `${day} ${month} 2569`;
+    record.revokeRequestChannel = id % 2 === 0 ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
+  }
+
+  return record;
+});
+
+/** Edge-case overlays — history, guardian, superseded version narrative. */
+const CONSENT_RECORD_OVERRIDES = {
+  1: {
     history: [
-      { date: '6 พฤษภาคม 2569', formCode: 'PH-001', formName: 'ใบยินยอมเข้ารับการผ่าตัด', type: 'ผ่าตัด', version: 'V 1.0', status: 'ยินยอมแล้ว', channel: 'ที่ศูนย์บริการ' },
+      { date: '6 พฤษภาคม 2569', formCode: 'PH-001', formName: 'ใบยินยอมเข้ารับการผ่าตัด', type: 'ผ่าตัด', version: 'V 1.0', status: 'ยินยอมแล้ว', channel: DEFAULT_SERVICE_CENTER_CHANNEL },
     ],
   },
-  {
-    id: 2, hn: '67-00002', name: 'สมชาย มีสุข', type: 'การรักษา', version: 'V 1.0',
-    status: 'รอลงนาม', signChannel: '-', requester: 'ลดา ดีงาม',
-    createdDate: '20 มีนาคม 2569', signedDate: '-', withdrawnDate: '-', history: [],
-  },
-  {
-    id: 3, hn: '67-00003', name: 'วิไล ดีงาม', type: 'การวิจัย', version: 'V 2.1',
-    status: 'รอลงนาม', signChannel: '-', requester: 'ลดา ดีงาม',
-    createdDate: '20 มีนาคม 2569', signedDate: '-', withdrawnDate: '-', history: [],
-  },
-  {
-    id: 4, hn: '67-00004', name: 'ประสงค์ ใจเย็น', type: 'การรักษา', version: 'V 1.0',
-    status: 'อยู่ระหว่างลงนาม', signChannel: 'Mobile App', requester: 'ลดา ดีงาม',
-    createdDate: '19 มีนาคม 2569', signedDate: '-', withdrawnDate: '-', history: [],
-  },
-  {
-    id: 5, hn: '67-00005', name: 'กนกพร แสงทอง', type: 'ผ่าตัด', version: 'V 1.2',
-    status: 'อยู่ระหว่างลงนาม', signChannel: 'QR Code', requester: 'นที ทองคำ',
-    createdDate: '19 มีนาคม 2569', signedDate: '-', withdrawnDate: '-', history: [],
-  },
-  {
-    id: 6, hn: '67-00006', name: 'ธวัช พงษ์ไพร', type: 'การวิจัย', version: 'V 2.1',
-    status: 'ถอนความยินยอม', signChannel: 'Mobile App', requester: 'ลดา ดีงาม',
-    createdDate: '2 มีนาคม 2569', signedDate: '4 มีนาคม 2569', withdrawnDate: '18 มีนาคม 2569',
+  6: {
+    status: 'ถอนความยินยอม',
+    signChannel: MOBILE_APP_CHANNEL,
+    type: 'การวิจัย',
+    formCode: 'PH-001',
+    formName: 'ใบยินยอมเข้าร่วมโครงการวิจัย (Research Consent / ICF)',
+    version: 'V 2.1',
+    createdDate: '2 มีนาคม 2569',
+    signedDate: '4 มีนาคม 2569',
+    withdrawnDate: '18 มีนาคม 2569',
     history: [
-      { date: '4 มีนาคม 2569',  formCode: 'PH-014', formName: 'ใบยินยอมเข้าร่วมโครงการวิจัย (Research Consent / ICF)', type: 'การวิจัย', version: 'V 2.1', status: 'ยินยอมแล้ว',     channel: 'Mobile App' },
-      { date: '18 มีนาคม 2569', formCode: 'PH-014', formName: 'ใบยินยอมเข้าร่วมโครงการวิจัย (Research Consent / ICF)', type: 'การวิจัย', version: 'V 2.1', status: 'ถอนความยินยอม', channel: 'Mobile App' },
+      { date: '4 มีนาคม 2569', formCode: 'PH-014', formName: 'ใบยินยอมเข้าร่วมโครงการวิจัย (Research Consent / ICF)', type: 'การวิจัย', version: 'V 2.1', status: 'ยินยอมแล้ว', channel: MOBILE_APP_CHANNEL },
+      { date: '18 มีนาคม 2569', formCode: 'PH-014', formName: 'ใบยินยอมเข้าร่วมโครงการวิจัย (Research Consent / ICF)', type: 'การวิจัย', version: 'V 2.1', status: 'ถอนความยินยอม', channel: MOBILE_APP_CHANNEL },
     ],
   },
-  {
-    id: 7, hn: '67-00007', name: 'อารยา สุขสันต์', type: 'การรักษา', version: 'V 1.0',
-    status: 'ถอนความยินยอม', signChannel: 'ที่ศูนย์บริการ', requester: 'นที ทองคำ',
-    createdDate: '1 มีนาคม 2569', signedDate: '3 มีนาคม 2569', withdrawnDate: '17 มีนาคม 2569', history: [],
-  },
-  {
-    id: 8, hn: '67-00008', name: 'เมธาวี รุ่งเรือง', type: 'ผ่าตัด', version: 'V 1.0',
-    status: 'ยินยอมแล้ว', signChannel: 'ที่ศูนย์บริการ', requester: 'ลดา ดีงาม',
-    createdDate: '15 มีนาคม 2569', signedDate: '16 มีนาคม 2569', withdrawnDate: '-', history: [],
-  },
-  {
-    id: 9, hn: '67-00009', name: 'ชัยวัฒน์ ภักดี', type: 'การรักษา', version: 'V 1.1',
-    status: 'ยินยอมแล้ว', signChannel: 'Mobile App', requester: 'นที ทองคำ',
-    createdDate: '14 มีนาคม 2569', signedDate: '14 มีนาคม 2569', withdrawnDate: '-', history: [],
-  },
-  {
-    id: 10, hn: '67-00010', name: 'ปรารถนา ทองดี', type: 'การวิจัย', version: 'V 2.0',
-    status: 'ยินยอมแล้ว', signChannel: 'QR Code', requester: 'ลดา ดีงาม',
-    createdDate: '12 มีนาคม 2569', signedDate: '13 มีนาคม 2569', withdrawnDate: '-', history: [],
-  },
-  {
-    id: 11, hn: '67-00011', name: 'สุริยา แจ่มใส', type: 'การรักษา', version: 'V 1.0',
-    status: 'ปฏิเสธ', signChannel: 'ที่ศูนย์บริการ', requester: 'นที ทองคำ',
-    createdDate: '10 มีนาคม 2569', signedDate: '-', withdrawnDate: '-', history: [],
-  },
-  {
-    id: 12, hn: '67-00012', name: 'ดวงใจ พิทักษ์', type: 'ผ่าตัด', version: 'V 1.2',
-    status: 'ใกล้หมดอายุ', signChannel: 'ที่ศูนย์บริการ', requester: 'ลดา ดีงาม',
-    createdDate: '20 มีนาคม 2568', signedDate: '21 มีนาคม 2568', withdrawnDate: '-', history: [],
-    /* ด.1.1.7 — countdown "อีก X วัน" บนแท็บใกล้หมดอายุ */
-    expiresInDays: 14,
-  },
-  {
-    id: 13, hn: '67-00013', name: 'วีรชัย กล้าหาญ', type: 'การวิจัย', version: 'V 2.1',
-    status: 'ใกล้หมดอายุ', signChannel: 'Mobile App', requester: 'นที ทองคำ',
-    createdDate: '25 มีนาคม 2568', signedDate: '26 มีนาคม 2568', withdrawnDate: '-', history: [],
-    expiresInDays: 21,
-  },
-  {
-    id: 14, hn: '67-00014', name: 'นภัสสร บุญมา', type: 'การรักษา', version: 'V 1.0',
-    status: 'หมดอายุ', signChannel: 'ที่ศูนย์บริการ', requester: 'ลดา ดีงาม',
-    createdDate: '1 มกราคม 2568', signedDate: '2 มกราคม 2568', withdrawnDate: '-', history: [],
-  },
-  {
-    id: 15, hn: '67-00015', name: 'อนุชา เพชรงาม', type: 'ผ่าตัด', version: 'V 1.0',
-    status: 'หมดอายุ', signChannel: 'QR Code', requester: 'นที ทองคำ',
-    createdDate: '5 กุมภาพันธ์ 2568', signedDate: '6 กุมภาพันธ์ 2568', withdrawnDate: '-', history: [],
-  },
-  {
-    id: 16, hn: '67-00016', name: 'จิราพร แก้วใส', type: 'การรักษา', version: 'V 1.1',
-    status: 'ยินยอมแล้ว', signChannel: 'Mobile App', requester: 'ลดา ดีงาม',
-    createdDate: '11 มีนาคม 2569', signedDate: '11 มีนาคม 2569', withdrawnDate: '-', history: [],
-  },
-  /* Edge: เซ็น V 1.0 ไปแล้ว → เทมเพลตอัปเดตเป็น V 2.0 → superseded ต้องเซ็นใหม่ */
-  {
-    id: 17, hn: '67-00017', name: 'พิมพ์ลดา ศรีสุข', type: 'ผ่าตัด', version: 'V 1.0 → V 2.0',
-    status: 'มีเวอร์ชันใหม่', signChannel: 'ที่ศูนย์บริการ', requester: 'ลดา ดีงาม',
-    createdDate: '8 มีนาคม 2569', signedDate: '9 มีนาคม 2569', withdrawnDate: '-',
+  17: {
+    status: 'มีเวอร์ชันใหม่',
+    type: 'ผ่าตัด',
+    formCode: 'PH-004',
+    formName: 'ใบยินยอมผ่าตัด / หัตถการ (Surgical / Procedure Consent)',
+    version: 'V 1.0 → V 2.0',
+    signChannel: DEFAULT_SERVICE_CENTER_CHANNEL,
+    createdDate: '8 มีนาคม 2569',
+    signedDate: '9 มีนาคม 2569',
     history: [
-      { date: '9 มีนาคม 2569',  formCode: 'PH-004', formName: 'ใบยินยอมผ่าตัด / หัตถการ (Surgical / Procedure Consent)', type: 'ผ่าตัด', version: 'V 1.0', status: 'ยินยอมแล้ว',    channel: 'ที่ศูนย์บริการ' },
+      { date: '9 มีนาคม 2569', formCode: 'PH-004', formName: 'ใบยินยอมผ่าตัด / หัตถการ (Surgical / Procedure Consent)', type: 'ผ่าตัด', version: 'V 1.0', status: 'ยินยอมแล้ว', channel: DEFAULT_SERVICE_CENTER_CHANNEL },
       { date: '28 มีนาคม 2569', formCode: 'PH-004', formName: 'ใบยินยอมผ่าตัด / หัตถการ (Surgical / Procedure Consent)', type: 'ผ่าตัด', version: 'V 2.0', status: 'มีเวอร์ชันใหม่', channel: '-' },
     ],
   },
-  /* Edge: ผู้เยาว์ — ผู้ปกครองลงนามแทน (guardian consent) */
-  {
-    id: 18, hn: '67-00018', name: 'ด.ญ.ณิชา วงศ์สว่าง', type: 'การรักษา', version: 'V 1.2',
-    status: 'ยินยอมแล้ว', signChannel: 'ที่ศูนย์บริการ', requester: 'นที ทองคำ',
+  18: {
+    status: 'ยินยอมแล้ว',
+    signChannel: DEFAULT_SERVICE_CENTER_CHANNEL,
+    name: 'ด.ญ.ณิชา วงศ์สว่าง',
+    type: 'การรักษา',
+    formCode: 'PH-012',
+    formName: 'ใบยินยอมอนามัยโรงเรียน',
+    version: 'V 1.2',
+    createdDate: '18 มีนาคม 2569',
+    signedDate: '18 มีนาคม 2569',
     guardian: 'นางสาวสุภาพร วงศ์สว่าง (มารดา)',
-    createdDate: '18 มีนาคม 2569', signedDate: '18 มีนาคม 2569', withdrawnDate: '-',
     history: [
-      { date: '18 มีนาคม 2569', formCode: 'PH-016', formName: 'ใบยินยอมการรักษาผู้เยาว์ (โดยผู้ปกครอง)', type: 'การรักษา', version: 'V 1.2', status: 'ยินยอมแล้ว', channel: 'ที่ศูนย์บริการ' },
+      { date: '18 มีนาคม 2569', formCode: 'PH-016', formName: 'ใบยินยอมการรักษาผู้เยาว์ (โดยผู้ปกครอง)', type: 'การรักษา', version: 'V 1.2', status: 'ยินยอมแล้ว', channel: DEFAULT_SERVICE_CENTER_CHANNEL },
     ],
   },
-];
+};
+
+/* ── Records (32 rows — pagination @ 10/page) ───────────────────────── */
+export const CONSENT_RECORDS = buildConsentMockRecords().map((row) => ({
+  ...row,
+  ...(CONSENT_RECORD_OVERRIDES[row.id] || {}),
+  history: CONSENT_RECORD_OVERRIDES[row.id]?.history ?? row.history,
+}));
+
 
 /* ── Summary stat cards (Figma banner cards) ────────────────────────── */
 /* Exported Figma glyph SVGs (node 297:83830) — recoloured per card via MaskIcon.
@@ -202,7 +277,7 @@ export const CONSENT_SUMMARY = [
     key: 'pending', iconSvg: `${ICON}/clock.svg`,
     tileBg: 'var(--surface-statussummarycard-inprogress, #FFEDD5)',
     iconInk: 'var(--text-statussummarycard-inprogress-number, #C2410C)',
-    value: '96', label: 'รอลงนาม',
+    value: '96', label: 'รอดำเนินการ',
     indicator: '7.5% ของทั้งหมด', indicatorIcon: null,
   },
   {

@@ -5,6 +5,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { SubHeader } from '@/components/layout/Header';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
+import { DEFAULT_SERVICE_CENTER_CHANNEL } from '@/data/consentChannels';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandButton from '@/components/button/BrandButton';
@@ -20,6 +21,7 @@ import {
   loadRegistrationDraft,
   markRegistrationConsentCompleted,
 } from '@/data/registrationForm';
+import { recordMrConsentSigning } from '@/data/consentWorkflowStore';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 
 /* MIH RegistrationConsentFillPage — Figma PHCIS-Registration 295:41105
@@ -187,6 +189,17 @@ const RegistrationConsentFillPage = () => {
 
   const handleSave = () => {
     if (!canSave) return;
+    const outcome = Object.values(answers).some((a) => a === 'no') ? 'declined' : 'signed';
+    recordMrConsentSigning({
+      hn: hn || patientHint.hn,
+      name: fullName,
+      formId: meta.id,
+      formTitle: meta.title,
+      type: meta.categoryLabel,
+      version: meta.version,
+      channel: DEFAULT_SERVICE_CENTER_CHANNEL,
+      outcome,
+    });
     markRegistrationConsentCompleted(meta.id);
     history.push({
       pathname: '/registration/register',

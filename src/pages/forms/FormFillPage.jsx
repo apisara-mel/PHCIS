@@ -22,6 +22,7 @@ import {
   saveFormDraft,
   validateSignToken,
 } from '@/data/consentWorkflowStore';
+import { DEFAULT_SERVICE_CENTER_CHANNEL, MOBILE_APP_CHANNEL } from '@/data/consentChannels';
 
 /* คลังแบบฟอร์ม — Fill page.
 
@@ -366,7 +367,7 @@ const FormFillPage = () => {
     saveFormDraft(slug, role, requestId, values);
   }, [values, form, slug, role, requestId, tokenBlockReason, submitted, declined]);
 
-  const signChannel = role === 'patient' ? 'QR Code' : 'ที่ศูนย์บริการ';
+  const signChannel = role === 'patient' ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
 
   const finishSigning = (outcome) => {
     if (requestId) {

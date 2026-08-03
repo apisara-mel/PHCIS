@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import QueuePageShell from '@/templates/QueuePageShell';
+import { Redirect } from 'react-router-dom';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -15,15 +15,13 @@ import DateFilterPopup from '@/components/popup/DateFilterPopup';
 import SuccessToast from '@/components/toast/SuccessToast';
 import ConsentHistoryPopup from '@/components/popup/ConsentHistoryPopup';
 import { CONSENT_REPORTS } from '@/data/consentReports';
-import { logExport } from '@/data/consentWorkflowStore';
-import CONSENT_NAV from '@/pages/consent/consentNav';
+import { DEFAULT_SERVICE_CENTER_CHANNEL } from '@/data/consentChannels';
+import { ExportFormatPopup, DateInputBox, buildReportTableColumns } from '@/pages/consent/consentExportPopup';
 
 /* PHCIS | Consent — สถิติและรายงาน (Figma node 358:113804).
    A stack of report cards, each with a title + subtitle, filter chips, a row
    of stat cards (icon tile + value + label), and view / export actions.
    All values alias design.md tokens; UI copy is Thai; data is local mock. */
-
-const breadcrumb = ['สถิติและรายงาน'];
 
 /* Map a stat's tone → SummaryCard panel-card props. info / positive use the
    statussummarycard token pair; danger overrides the tile + ink explicitly
@@ -73,195 +71,7 @@ const SCALE_BY_QUICK = {
 const scaleForQuick = (q) => SCALE_BY_QUICK[q] ?? 1;
 const scaleStatValue = (v, f) => (isPercent(v) ? v : Math.round(parseStatNum(v) * f).toLocaleString());
 
-const FORMATS = [
-  { value: 'pdf',  label: 'PDF' },
-  { value: 'csv',  label: 'CSV' },
-  { value: 'xlsx', label: 'XLSX' },
-];
-
-const SECTION_LABEL = {
-  color: 'var(--text-content-default)',
-  fontFamily: 'var(--type-family-heading-graphic2)',
-  fontSize: 'var(--type-size-sm)',
-  lineHeight: 1.5,
-};
-
-/* Radio button card — Figma Design-System "Radio Button" states (2250:8270):
-   default (white · grey border) · hover (brand border) · selected (brand
-   border + tinted surface + brand text) · disabled (muted, non-interactive). */
-const RadioPill = ({ label, selected, onClick, disabled = false }) => {
-  const [hover, setHover] = useState(false);
-  const border = disabled
-    ? 'var(--border-neutralbutton-tertiary, #E2E4E6)'
-    : (selected || hover) ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-neutralbutton-tertiary, #E2E4E6)';
-  const background = selected ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-neutralbutton-quinary, #FFFFFF)';
-  const color = disabled
-    ? 'var(--text-disabledbutton-tertiary, #ADB2B7)'
-    : selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-default)';
-  return (
-    <button
-      type='button'
-      onClick={disabled ? undefined : onClick}
-      onMouseEnter={() => !disabled && setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      aria-pressed={selected}
-      aria-disabled={disabled}
-      disabled={disabled}
-      className='inline-flex items-center justify-center'
-      style={{
-        minHeight: 56,
-        minWidth: 64,
-        padding: 'var(--dim-space-200) var(--dim-space-400)',
-        borderRadius: 'var(--dim-radius-200)',
-        border: `var(--dim-stroke-100) solid ${border}`,
-        background,
-        color,
-        fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        outline: 'none',
-        transition: 'border-color 120ms ease, background-color 120ms ease, color 120ms ease',
-      }}
-    >
-      {label}
-    </button>
-  );
-};
-
-/* Date input box (Figma 399:124481) — calendar icon + value/placeholder.
-   Clicking fills a sample date so the mock feels live. */
-const DateInputBox = ({ placeholder, value, onClick }) => (
-  <button
-    type='button'
-    onClick={onClick}
-    className='flex items-center text-left'
-    style={{
-      flex: '1 1 0',
-      gap: 'var(--dim-space-200)',
-      minHeight: 44,
-      padding: 'var(--dim-space-200) var(--dim-space-300)',
-      borderRadius: 'var(--dim-radius-200)',
-      border: 'var(--dim-stroke-100) solid var(--border-neutralbutton-tertiary, #E2E4E6)',
-      background: 'var(--surface-card-100)',
-      cursor: 'pointer',
-      outline: 'none',
-    }}
-  >
-    <Icon name='calendar_today' size={18} style={{ color: 'var(--text-content-tertiary)' }} />
-    <span style={{ color: value ? 'var(--text-content-default)' : 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-      {value || placeholder}
-    </span>
-  </button>
-);
-
-/* Export popup — Figma "นำออกรายงาน" (399:124481) ต่อยอดตาม ด.1.1.16:
-   print-preview เอกสารหัวกระดาษสำนักอนามัย + ตารางตัวอย่าง → เลือกช่วงวันที่ +
-   รูปแบบไฟล์ → ยืนยันนำออก (เก็บ log). ปุ่ม "พิมพ์" แยกต่างหาก — ไม่เก็บ log
-   (annotation 414:123633). */
-const ExportFormatPopup = ({ open, report, onClose, onExported }) => {
-  const [format, setFormat] = useState(null);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  useEffect(() => { if (open) { setFormat(null); setStartDate(''); setEndDate(''); } }, [open]);
-  const ready = !!format && !!startDate && !!endDate;
-  const confirm = () => {
-    if (!ready) return;
-    logExport({ source: report ? report.title : 'รายงาน consent', format });
-    onClose();
-    if (onExported) onExported(format);
-  };
-  const previewCols = report && report.table ? reportColumns(report.table.columns) : [];
-  const previewRows = report && report.table ? report.table.rows.slice(0, 5).map((r, i) => ({ ...r, _id: i })) : [];
-  return (
-    <Popup
-      open={open}
-      onClose={onClose}
-      size='extraLarge'
-      title='นำออกรายงาน'
-      subtitle='ตรวจตัวอย่างเอกสาร เลือกช่วงวันที่และรูปแบบไฟล์ แล้วยืนยันนำออก (ระบบเก็บ log การส่งออก)'
-      primaryAction={{ label: 'ยืนยันนำออกรายงาน', onClick: confirm, disabled: !ready }}
-      secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
-      tertiaryAction={{ label: 'พิมพ์ (ไม่เก็บ log)', onClick: () => window.print?.() }}
-    >
-      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-        {/* print-preview — หัวกระดาษสำนักอนามัย + ตารางตัวอย่าง */}
-        <div
-          className='flex justify-center w-full'
-          style={{
-            background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-            paddingTop: 'var(--dim-space-500)', paddingRight: 'var(--dim-space-500)',
-            paddingBottom: 'var(--dim-space-500)', paddingLeft: 'var(--dim-space-500)',
-            borderRadius: 'var(--dim-radius-400)',
-            maxHeight: '38vh', overflowY: 'auto',
-          }}
-        >
-          <div
-            className='flex flex-col w-full'
-            style={{
-              maxWidth: 720,
-              background: 'var(--surface-card-100)',
-              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-              borderRadius: 'var(--dim-radius-300)',
-              boxShadow: 'var(--shadow-card)',
-              paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)',
-              paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
-              gap: 'var(--dim-space-400)',
-            }}
-          >
-            <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-050)' }}>
-              <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)' }}>
-                สำนักอนามัย กรุงเทพมหานคร
-              </span>
-              <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>
-                {report ? report.title : 'รายงาน'}
-              </span>
-              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-                ช่วงวันที่ {startDate || '—'} ถึง {endDate || '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)
-              </span>
-            </div>
-            {previewRows.length > 0 ? (
-              <Table columns={previewCols} rows={previewRows} rowKey={(r) => r._id} />
-            ) : (
-              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', textAlign: 'center' }}>
-                รวมทุกรายงานในระบบ — ตัวอย่างตารางแสดงเมื่อเลือกรายงานเฉพาะหัวข้อ
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* date range (required) */}
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-          <span style={SECTION_LABEL}>
-            เลือกช่วงวันที่ <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
-          </span>
-          <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-            <DateInputBox placeholder='วันเริ่มต้น' value={startDate} onClick={() => setStartDate('1 มิถุนายน 2569')} />
-            <span style={{ color: 'var(--text-content-tertiary)' }}>-</span>
-            <DateInputBox placeholder='วันสิ้นสุด' value={endDate} onClick={() => setEndDate('12 มิถุนายน 2569')} />
-          </div>
-        </div>
-        {/* file format */}
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-          <span style={SECTION_LABEL}>เลือกรูปแบบไฟล์ (PDF / CSV / XLSX)</span>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-            {FORMATS.map((f) => (
-              <RadioPill key={f.value} label={f.label} selected={format === f.value} onClick={() => setFormat(f.value)} />
-            ))}
-          </div>
-        </div>
-      </div>
-    </Popup>
-  );
-};
-
-/* View-report graph popup — turns each report's stats into a donut + legend. */
-/* Status word → ColorfulBadge tone (consent outcome / export result). */
-const STATUS_TONE = {
-  'ยินยอม': 'green', 'สำเร็จ': 'green', 'อนุมัติ': 'green', 'ใช้งาน': 'green',
-  'ปฏิเสธ': 'red', 'ถอน': 'red', 'ไม่ยินยอม': 'red', 'ถูกปฏิเสธ': 'red', 'ล้มเหลว': 'red',
-  'รอตรวจสอบ': 'yellow', 'รอดำเนินการ': 'yellow',
-};
-/* Audit action / role → tone. */
+/* Audit action / role → tone (access-times popup). */
 const BADGE_TONE = {
   VIEW: 'blue', EXPORT: 'purple', UPDATE: 'orange', DELETE: 'red',
   Admin: 'purple', Editor: 'blue', Viewer: 'grey',
@@ -272,23 +82,6 @@ const CELL_TEXT = {
   fontSize: 'var(--type-size-sm)',
   lineHeight: 1.5,
 };
-
-/* Build a Table column config from a report.table column descriptor. */
-const reportColumns = (cols) => cols.map((c) => ({
-  key: c.key,
-  header: c.header,
-  width: c.width,
-  render: (r) => {
-    const v = r[c.key];
-    if (c.kind === 'status') {
-      return <ColorfulBadge style={STATUS_TONE[v] || 'grey'} size='small' hierarchy='secondary' width='hug'>{v}</ColorfulBadge>;
-    }
-    if (c.kind === 'badge') {
-      return <ColorfulBadge style={BADGE_TONE[v] || 'blue'} size='small' hierarchy='secondary' width='hug'>{v}</ColorfulBadge>;
-    }
-    return <span style={CELL_TEXT}>{v}</span>;
-  },
-}));
 
 /* Time-range buckets for the report table (Figma filter chips). The index is
    the unit rank: รายวัน=0 · รายสัปดาห์=1 · รายเดือน=2 · รายปี=3. */
@@ -420,7 +213,7 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
   const pageCount = Math.max(1, Math.ceil(rows.length / POPUP_PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageRows = rows.slice((safePage - 1) * POPUP_PAGE_SIZE, safePage * POPUP_PAGE_SIZE);
-  const columns = report && report.table ? reportColumns(report.table.columns) : [];
+  const columns = report && report.table ? buildReportTableColumns(report.table.columns) : [];
 
   // Pie of the report's numeric stats (skip percentage values) — dashboard palette.
   const pieSegments = report
@@ -673,7 +466,7 @@ const ReportCard = ({ report, onExport, onView, scale = 1 }) => {
   );
 };
 
-export default function ConsentReportPage() {
+export function ConsentReportSections() {
   const [exportReport, setExportReport] = useState(null);
   const [viewReport, setViewReport] = useState(null);
   const [exported, setExported] = useState(false);
@@ -700,7 +493,7 @@ export default function ConsentReportPage() {
             type: row.type,
             version: 'V 1.0',
             status: row.status === 'ยินยอม' ? 'ยินยอมแล้ว' : 'ปฏิเสธ',
-            channel: 'ที่ศูนย์บริการ',
+            channel: DEFAULT_SERVICE_CENTER_CHANNEL,
           },
         ],
       });
@@ -710,38 +503,29 @@ export default function ConsentReportPage() {
   };
   return (
     <>
-      <QueuePageShell
-        activeKey='consent-report'
-        sidebarItems={CONSENT_NAV}
-        sidebarFallbackKey='consent-report'
-        brandTitle='ระบบจัดการความยินยอม'
-        breadcrumb={breadcrumb}
-        title='สถิติและรายงาน'
-      >
-        <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
-          {/* toolbar (Figma 399:125271) — date-range filter + export-all */}
-          <section
-            className='w-full flex items-center justify-between flex-wrap'
-            style={{
-              gap: 'var(--dim-space-300)',
-              background: 'var(--surface-card-100)',
-              borderRadius: 'var(--dim-radius-500)',
-              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-              boxShadow: 'var(--shadow-card)',
-              padding: 'var(--dim-space-300) var(--dim-space-400)',
-            }}
-          >
-            <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thismonth' />
-            <NeutralSubdueButton leadingIcon='ios_share' size='md' onClick={() => setExportReport({ key: 'all', title: 'รายงานทั้งหมด' })}>
-              นำส่งออกรายงานทั้งหมด
-            </NeutralSubdueButton>
-          </section>
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+        {/* toolbar (Figma 399:125271) — date-range filter + export-all */}
+        <section
+          className='w-full flex items-center justify-between flex-wrap'
+          style={{
+            gap: 'var(--dim-space-300)',
+            background: 'var(--surface-card-100)',
+            borderRadius: 'var(--dim-radius-500)',
+            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+            boxShadow: 'var(--shadow-card)',
+            padding: 'var(--dim-space-300) var(--dim-space-400)',
+          }}
+        >
+          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thismonth' />
+          <NeutralSubdueButton leadingIcon='ios_share' size='md' onClick={() => setExportReport({ key: 'all', title: 'รายงานทั้งหมด' })}>
+            นำส่งออกรายงานทั้งหมด
+          </NeutralSubdueButton>
+        </section>
 
-          {CONSENT_REPORTS.map((r) => (
-            <ReportCard key={r.key} report={r} scale={scaleForQuick(pageDate.quick)} onExport={setExportReport} onView={setViewReport} />
-          ))}
-        </div>
-      </QueuePageShell>
+        {CONSENT_REPORTS.map((r) => (
+          <ReportCard key={r.key} report={r} scale={scaleForQuick(pageDate.quick)} onExport={setExportReport} onView={setViewReport} />
+        ))}
+      </div>
 
       {/* Table popup first, export popup last so the format chooser layers on
           top of the table popup when opened from inside it. */}
@@ -792,4 +576,9 @@ export default function ConsentReportPage() {
       <SuccessToast open={exported} message='นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล' onClose={() => setExported(false)} />
     </>
   );
+}
+
+/** @deprecated ใช้ /consent/dashboard — redirect สำหรับ bookmark เก่า */
+export default function ConsentReportPage() {
+  return <Redirect to='/consent/dashboard' />;
 }

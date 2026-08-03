@@ -17,7 +17,6 @@ export const CONSENT_NAV = [
   { key: 'consent-access',    label: 'จัดการสิทธิ์การเข้าถึง', icon: 'lock',               path: '/consent/access' },
   /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม */
   { key: 'consent-access-rights', label: 'สิทธิเข้าถึงตามความยินยอม', icon: 'verified_user', path: '/consent/access/rights' },
-  { key: 'consent-report',    label: 'สถิติและรายงาน',       icon: 'pie_chart',           path: '/consent/report' },
 ];
 
 export default CONSENT_NAV;

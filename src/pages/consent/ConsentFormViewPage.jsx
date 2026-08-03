@@ -13,6 +13,7 @@ import { FakeQR } from '@/pages/mobile/MobileRegisterPage';
 import { StepReview } from '@/pages/consent/CreateConsentFormPage';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import { CONSENT_FORM_RECORDS, FORM_TYPE_TONE } from '@/data/consentFormRecords';
+import { buildWizardPrefillFromRecord } from '@/data/consentFormWizardContent';
 import { logExport } from '@/data/consentWorkflowStore';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
@@ -104,19 +105,14 @@ export default function ConsentFormViewPage() {
   /* ด.1.1.5 — สร้างเวอร์ชันใหม่จาก wizard เดิม (prefill + bump, ห้ามแก้ทับ) */
   const goCreateVersion = () => {
     history.push('/consent/forms/new', {
-      prefill: {
-        name: record.name,
-        code: record.code,
-        typeLabel: record.type,
-        version: bumpVersion(record.version),
-        supersedeType: record.type,
-        fromVersion: record.version,
-      },
+      prefill: buildWizardPrefillFromRecord(record, { newVersion: true }),
     });
   };
   const handleEdit = () => {
     if (record.status === 'เผยแพร่') setBumpOpen(true);
-    else history.push('/consent/forms/new', { prefill: { name: record.name, code: record.code, typeLabel: record.type, version: record.version } });
+    else history.push('/consent/forms/new', {
+      prefill: buildWizardPrefillFromRecord(record, { newVersion: false }),
+    });
   };
 
   return (

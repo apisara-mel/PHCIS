@@ -6,6 +6,7 @@ import Checkbox from '@/components/checkbox/Checkbox';
 import BrandButton from '@/components/button/BrandButton';
 import { Sym } from '@/components/forms/_inputBox';
 import { FakeQR } from '@/pages/mobile/MobileRegisterPage';
+import { setSessionEmail } from '@/data/phcisSession';
 /* PHCIS Sign-in — Figma "PHCIS-Signin" Bg + login card (nodes 32:2131 / 40:10656).
    First screen of the auth flow (1st/2nd-time user). Two-column layout:
    isometric healthcare illustration on the left, brand seal + sign-in card
@@ -249,7 +250,8 @@ export default function LoginPage() {
 
   const goToOtp = (e) => {
     e && e.preventDefault();
-    /* Real auth wiring lands here; the flow continues to OTP verification. */
+    /* Persist login identity for ABAC (Consent, etc.) — production uses auth token. */
+    setSessionEmail(username);
     history.push('/login/verify');
   };
 

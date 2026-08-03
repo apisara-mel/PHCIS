@@ -55,6 +55,9 @@ const FORMS = [
 const VERSIONS = ['V 1.2', 'V 1.0', 'V 2.1', 'V 1.1', 'V 1.3', 'V 2.0'];
 const STAT = ['เผยแพร่', 'เผยแพร่', 'เผยแพร่', 'เผยแพร่', 'ไม่เผยแพร่', 'ร่าง', 'รอตรวจสอบ'];
 
+/** 28 rows — pagination demo at PAGE_SIZE 20 (page 1: 20 · page 2: 8). */
+const MOCK_FORM_COUNT = 28;
+
 /* Extra Group Policy / สาขาย่อย / แผนก scopes a form can ALSO apply to.
    The cell shows the primary scope inline + "+N เพิ่มเติม"; clicking the hint
    opens a popover (Figma 291:254663) listing every scope as a badge triplet. */
@@ -66,9 +69,10 @@ const EXTRA_SCOPE_POOL = [
   { group: 'พยาบาล',  subBranch: 'พยาบาลวิชาชีพ',     dept: 'ส่งเสริมสุขภาพ' },
 ];
 
-export const CONSENT_FORM_RECORDS = FORMS.map((f, i) => {
+export const CONSENT_FORM_RECORDS = Array.from({ length: MOCK_FORM_COUNT }, (_, i) => {
+  const f = FORMS[i % FORMS.length];
   const primary = { group: f.group, subBranch: f.subBranch, dept: f.dept };
-  const extraCount = i % 3; // 0, 1, 2 — some rows have no "+N เพิ่มเติม"
+  const extraCount = i % 3;
   const extras = Array.from({ length: extraCount }, (_, k) =>
     EXTRA_SCOPE_POOL[(i + k) % EXTRA_SCOPE_POOL.length]);
   const scopes = [primary, ...extras];
@@ -88,5 +92,33 @@ export const CONSENT_FORM_RECORDS = FORMS.map((f, i) => {
     status: STAT[i % STAT.length],
   };
 });
+
+/** Worklist type (จัดการความยินยอม) → canonical template code in this registry. */
+const WORKLIST_TYPE_FORM_CODE = {
+  'ผ่าตัด': 'PH-004',
+  'การรักษา': 'PH-003',
+  'การวิจัย': 'PH-001',
+  'เลือด': 'PH-006',
+  'PDPA': 'PH-009',
+  'เบิกจ่าย': 'PH-003',
+};
+
+const formByCode = (code) => CONSENT_FORM_RECORDS.find((f) => f.code === code) || null;
+
+/** Resolve { formCode, formName } from worklist consent type — names match แบบฟอร์มความยินยอม. */
+export const resolveConsentFormForWorklistType = (type) => {
+  const coded = WORKLIST_TYPE_FORM_CODE[type];
+  const hit = coded ? formByCode(coded) : null;
+  if (hit) return { formCode: hit.code, formName: hit.name };
+  const byType = CONSENT_FORM_RECORDS.find((f) => f.type === type);
+  if (byType) return { formCode: byType.code, formName: byType.name };
+  return { formCode: '-', formName: '-' };
+};
+
+/** From a selected template row (create / reconsent popup). */
+export const resolveConsentFormFromTemplate = (template) => {
+  if (template?.code && template?.name) return { formCode: template.code, formName: template.name };
+  return resolveConsentFormForWorklistType(template?.type);
+};
 
 export default CONSENT_FORM_RECORDS;

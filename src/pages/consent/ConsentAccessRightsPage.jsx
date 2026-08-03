@@ -16,9 +16,7 @@ import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerify
 import Icon from '@/components/icons/Icon';
 import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
-import {
-  CONSENT_ROLES, getConsentRole, setConsentRole, canManageConsent,
-} from '@/data/consentPermissions';
+import { canManageConsent } from '@/data/consentPermissions';
 import {
   CONSENT_LEVELS, LEVEL_BY_KEY, DATA_CATEGORIES, MATRIX_ROLES,
   LEVEL_DEFAULT_MATRIX, TYPE_TO_LEVEL, RIGHTS_HISTORY_SEED, RIGHTS_OVERRIDE_SEED,
@@ -36,8 +34,8 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
    ประวัติการเพิ่ม/ยกเลิกสิทธิ.
 
    ด.1.1.14: ผู้ใช้ role Viewer เห็น read-only — ปุ่มเพิ่ม/ยกเลิกถูก "ซ่อน"
-   ทั้งหมด (ไม่ใช่แค่ disabled) + banner สิทธิไม่พอ. mock ตัวสลับบทบาทไว้ให้
-   ทดสอบ state. ข้อมูลทั้งหมด mock local (session เดียว). */
+   ทั้งหมด (ไม่ใช่แค่ disabled) + banner สิทธิไม่พอ. บทบาทปัจจุบัน derive
+   จากอีเมลที่ login (mock session). ข้อมูลทั้งหมด mock local. */
 
 const STAFF_NAME = 'ลดา ดีงาม';
 const breadcrumb = ['จัดการสิทธิ์การเข้าถึง', 'สิทธิเข้าถึงตามความยินยอม'];
@@ -85,7 +83,6 @@ export default function ConsentAccessRightsPage() {
   const [consentRecords, setConsentRecordsState] = useState(getConsentRecords);
   useEffect(() => subscribeConsentStore(() => setConsentRecordsState(getConsentRecords())), []);
 
-  const [myRole, setMyRoleState] = useState(getConsentRole);
   const canManage = canManageConsent();
 
   const [search, setSearch] = useState('');
@@ -241,20 +238,6 @@ export default function ConsentAccessRightsPage() {
         brandTitle='ระบบจัดการความยินยอม'
         breadcrumb={breadcrumb}
         title='สิทธิเข้าถึงตามความยินยอม'
-        actions={(
-          <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={MUTED_XS}>สิทธิ์ของฉัน (mock):</span>
-            <div style={{ minWidth: 140 }}>
-              <Select
-                showLabel={false}
-                options={CONSENT_ROLES.map((r) => ({ value: r, label: r }))}
-                value={myRole}
-                onChange={(v) => { setConsentRole(v); setMyRoleState(v); }}
-                searchable={false}
-              />
-            </div>
-          </div>
-        )}
       >
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
           {/* ด.1.1.14 — Viewer read-only banner (ปุ่มจัดการถูกซ่อนทั้งหมด) */}
