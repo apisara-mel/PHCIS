@@ -58,6 +58,7 @@ import ConsentFormsPage from '@/pages/consent/ConsentFormsPage';
 import ConsentFormViewPage from '@/pages/consent/ConsentFormViewPage';
 import ConsentDashboardPage from '@/pages/consent/ConsentDashboardPage';
 import ConsentAccessRightsPage from '@/pages/consent/ConsentAccessRightsPage';
+import ConsentHistoryPage from '@/pages/consent/ConsentHistoryPage';
 import SystemStaffPage from '@/pages/system/SystemStaffPage';
 import SystemStaffDetailPage from '@/pages/system/SystemStaffDetailPage';
 import SystemStaffAddPage from '@/pages/system/SystemStaffAddPage';
@@ -68,6 +69,7 @@ import SystemCentersPage from '@/pages/system/SystemCentersPage';
 import AddCenterPage from '@/pages/system/AddCenterPage';
 import AuditOverviewPage from '@/pages/audit/AuditOverviewPage';
 import AuditLogPage from '@/pages/audit/AuditLogPage';
+import AuditPiiAccessLogPage from '@/pages/audit/AuditPiiAccessLogPage';
 import CreateDocTemplatePage from '@/pages/doc-template/CreateDocTemplatePage';
 import GroupPolicyPage from '@/pages/assess/GroupPolicyPage';
 import DepartmentPage from '@/pages/assess/DepartmentPage';
@@ -138,10 +140,8 @@ export default function Routes() {
         <Route exact path='/login/success'   component={LoginSuccessPage} />
         {/* ระบบจัดการความยินยอม (Consent Management · Figma "PHCIS | Consent" 1:4) */}
         <Route exact path='/consent'              component={ConsentManagementPage} />
-        {/* แดชบอร์ดความยินยอม + Dashboard Builder (ด.1.1.12) — หน้าเดียว อ่าน
-            sub-path เองว่าเปิดโหมด builder (/consent/dashboard/builder). */}
-        <Route exact path='/consent/dashboard'          component={ConsentDashboardPage} />
-        <Route exact path='/consent/dashboard/builder'  component={ConsentDashboardPage} />
+        {/* แดชบอร์ดความยินยอม (ด.1.1.12) */}
+        <Route exact path='/consent/dashboard' component={ConsentDashboardPage} />
         {/* สร้างแบบฟอร์มใหม่ — 3-step wizard, stays INSIDE the consent system
             (own consent side menu) instead of bouncing to /forms (PHCIS). */}
         {/* แบบฟอร์มความยินยอม — consent-form template registry (Figma 291:113045). */}
@@ -149,6 +149,8 @@ export default function Routes() {
         <Route exact path='/consent/forms/new'    component={CreateConsentFormPage} />
         {/* ดูแบบฟอร์ม — read-only Step-3 preview of an existing form (Figma 336:170901). */}
         <Route exact path='/consent/forms/:id/view' component={ConsentFormViewPage} />
+        {/* ประวัติความยินยอมรายบุคคล — Timeline เปิดแท็บใหม่จาก worklist / รายงาน */}
+        <Route exact path='/consent/history/:hn' component={ConsentHistoryPage} />
         {/* สิทธิเข้าถึงตามความยินยอม — consent-level × data-category matrix
             (ด.1.1.18). ต้อง exact + มาก่อน /consent/access กันเส้นทางชนกัน. */}
         <Route exact path='/consent/access/rights' component={ConsentAccessRightsPage} />
@@ -172,6 +174,7 @@ export default function Routes() {
             usage overview + history log. Top-level system, reached from the Hub. */}
         <Route exact path='/audit'           component={AuditOverviewPage} />
         <Route exact path='/audit/log'       component={AuditLogPage} />
+        <Route exact path='/audit/pii-access' component={AuditPiiAccessLogPage} />
         {/* PHCIS | Assess-control — Group Policy (Figma 4D3nTx53 · 3:18430). */}
         <Route exact path='/assess/group-policy' component={GroupPolicyPage} />
         <Route exact path='/assess/departments'   component={DepartmentPage} />

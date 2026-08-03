@@ -38,7 +38,7 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
    จากอีเมลที่ login (mock session). ข้อมูลทั้งหมด mock local. */
 
 const STAFF_NAME = 'ลดา ดีงาม';
-const breadcrumb = ['จัดการสิทธิ์การเข้าถึง', 'สิทธิเข้าถึงตามความยินยอม'];
+const breadcrumb = ['จัดการสิทธิ์การเข้าถึงแบบฟอร์ม', 'สิทธิเข้าถึงตามความยินยอม'];
 
 const BODY_TEXT = {
   color: 'var(--text-content-secondary)',

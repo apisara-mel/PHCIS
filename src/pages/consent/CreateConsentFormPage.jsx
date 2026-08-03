@@ -1021,8 +1021,6 @@ function StepContent(props) {
     signatures, toggleSignature, note, setNote,
     requireGuardian, setRequireGuardian, allowESign, setAllowESign,
   } = props;
-  /* ลิงก์ไป Dashboard Builder (ด.1.1.13) */
-  const builderHistory = useHistory();
   /* Drag-to-reorder consent clauses (HTML5 DnD). A card becomes draggable only
      while its grab handle is held, so typing/selecting inside the fields is
      never hijacked by a drag. */
@@ -1120,19 +1118,6 @@ function StepContent(props) {
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400) var(--dim-space-600)' }}>
           <Checkbox checked={requireGuardian} onChange={setRequireGuardian} label='สำหรับผู้ป่วย / จำเป็นต้องกรอกผู้ปกครอง' />
           <Checkbox checked={allowESign} onChange={setAllowESign} label='อนุญาตให้ใช้ e-Signature' />
-        </div>
-      </SectionCard>
-
-      {/* ด.1.1.13 — เครื่องมือสร้าง "หน้าจอรายงาน" อยู่ที่ Dashboard Builder */}
-      <SectionCard>
-        <ColumnHeading>หน้าจอรายงานของแบบฟอร์มนี้</ColumnHeading>
-        <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.6 }}>
-          สร้างหน้าจอสรุปผล/รายงานของแบบฟอร์ม (widget สถิติ · กราฟ · ตาราง) ได้จากเครื่องมือ Dashboard Builder — บันทึกเป็น template แล้วตั้งเป็นค่าเริ่มต้นของเมนูแดชบอร์ดได้
-        </span>
-        <div>
-          <BrandSubdueButton variant='outline' size='md' leadingIcon='dashboard_customize' onClick={() => builderHistory.push('/consent/dashboard/builder')}>
-            เปิด Dashboard Builder
-          </BrandSubdueButton>
         </div>
       </SectionCard>
     </>

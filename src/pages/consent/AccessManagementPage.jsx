@@ -22,7 +22,7 @@ import {
 import { ScanImportPopup, ApprovePeriodPopup, AccessDetailPopup } from '@/pages/consent/accessPopups';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
-/* PHCIS | Consent — จัดการสิทธิ์การเข้าถึง (Figma node 363:122327).
+/* PHCIS | Consent — จัดการสิทธิ์การเข้าถึงแบบฟอร์ม (Figma node 363:122327).
    Access-request registry: summary cards · tabs · search · filters · table
    with a STATUS-DEPENDENT action column (✓ approve / ✗ reject, one disabled
    per status) and per-action confirm AlertDialogs. Mirrors the consent
@@ -30,7 +30,7 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
    All values alias design.md tokens; UI copy is Thai; data is local mock. */
 
 const PAGE_SIZE = 10;
-const breadcrumb = ['จัดการสิทธิ์การเข้าถึง'];
+const breadcrumb = ['จัดการสิทธิ์การเข้าถึงแบบฟอร์ม'];
 
 const TEXT_CELL = {
   color: 'var(--text-content-default)',
@@ -377,7 +377,7 @@ export default function AccessManagementPage() {
         sidebarFallbackKey='consent-access'
         brandTitle='ระบบจัดการความยินยอม'
         breadcrumb={breadcrumb}
-        title='จัดการสิทธิ์การเข้าถึง'
+        title='จัดการสิทธิ์การเข้าถึงแบบฟอร์ม'
         headerInfo={(
           <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
             {ACCESS_SUMMARY.map((c) => (

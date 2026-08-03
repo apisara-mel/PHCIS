@@ -14,7 +14,7 @@ export const CONSENT_NAV = [
   { key: 'consent-manage',    label: 'จัดการความยินยอม',    icon: 'assignment_turned_in', path: '/consent' },
   { key: 'consent-forms',     label: 'แบบฟอร์มความยินยอม',  icon: 'folder_open',          path: '/consent/forms' },
   { key: 'consent-new',       label: 'สร้างแบบฟอร์มใหม่',   icon: 'note_add',             path: '/consent/forms/new' },
-  { key: 'consent-access',    label: 'จัดการสิทธิ์การเข้าถึง', icon: 'lock',               path: '/consent/access' },
+  { key: 'consent-access',    label: 'จัดการสิทธิ์การเข้าถึงแบบฟอร์ม', icon: 'lock', path: '/consent/access' },
   /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม */
   { key: 'consent-access-rights', label: 'สิทธิเข้าถึงตามความยินยอม', icon: 'verified_user', path: '/consent/access/rights' },
 ];

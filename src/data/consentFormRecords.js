@@ -69,6 +69,11 @@ const EXTRA_SCOPE_POOL = [
   { group: 'พยาบาล',  subBranch: 'พยาบาลวิชาชีพ',     dept: 'ส่งเสริมสุขภาพ' },
 ];
 
+const THAI_MONTHS_FULL = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+];
+
 export const CONSENT_FORM_RECORDS = Array.from({ length: MOCK_FORM_COUNT }, (_, i) => {
   const f = FORMS[i % FORMS.length];
   const primary = { group: f.group, subBranch: f.subBranch, dept: f.dept };
@@ -76,6 +81,9 @@ export const CONSENT_FORM_RECORDS = Array.from({ length: MOCK_FORM_COUNT }, (_, 
   const extras = Array.from({ length: extraCount }, (_, k) =>
     EXTRA_SCOPE_POOL[(i + k) % EXTRA_SCOPE_POOL.length]);
   const scopes = [primary, ...extras];
+  const day = (i % 28) + 1;
+  const month = THAI_MONTHS_FULL[i % 12];
+  const year = 2569;
   return {
     id: i + 1,
     code: `PH-${String(i + 1).padStart(3, '0')}`,
@@ -87,6 +95,7 @@ export const CONSENT_FORM_RECORDS = Array.from({ length: MOCK_FORM_COUNT }, (_, 
     dept: f.dept,
     scopes,
     moreCount: extras.length,
+    createdDate: `${day} ${month} ${year}`,
     updatedDate: '20 พฤศจิกายน 2530',
     creator: 'ลดา ดีงาม',
     status: STAT[i % STAT.length],

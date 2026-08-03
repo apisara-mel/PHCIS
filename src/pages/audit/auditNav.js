@@ -6,6 +6,7 @@
 export const AUDIT_NAV = [
   { key: 'audit-overview', label: 'ภาพรวมการใช้งาน', icon: 'bar_chart_4_bars', path: '/audit' },
   { key: 'audit-log',      label: 'บันทึกการใช้งาน',  icon: 'history',          path: '/audit/log' },
+  { key: 'audit-pii',      label: 'Log ข้อมูลส่วนบุคคล', icon: 'lock_person', path: '/audit/pii-access' },
 ];
 
 export default AUDIT_NAV;

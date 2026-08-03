@@ -13,7 +13,6 @@ import NeutralButton from '@/components/button/NeutralButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import AlertDialog from '@/components/popup/AlertDialog';
-import ConsentHistoryPopup from '@/components/popup/ConsentHistoryPopup';
 import CheckboxBox from '@/components/checkbox/CheckboxBox';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import SuccessToast from '@/components/toast/SuccessToast';
@@ -53,6 +52,7 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 import { enrichConsentRow } from '@/data/consentPatientDisplay';
 import { resolveConsentFormFromTemplate } from '@/data/consentFormRecords';
+import { openConsentHistoryTab } from '@/data/consentPatientHistory';
 
 /* PHCIS | Consent — ระบบจัดการความยินยอม (Figma node 1:4).
    Consent registry: summary cards · tabs · search · filters · table with a
@@ -123,7 +123,6 @@ export default function ConsentManagementPage() {
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [dialog, setDialog] = useState(null);      // { record | bulkIds, confirmKey }
-  const [historyRecord, setHistoryRecord] = useState(null);
   /* ── Workflow popups (ด.1.1.4 / ด.1.1.7 / ด.1.1.8 / ด.1.1.1 / ด.1.1.2) ── */
   const [createOpen, setCreateOpen] = useState(false);
   const [reconsentFor, setReconsentFor] = useState(null);        // record | { bulkIds }
@@ -295,7 +294,7 @@ export default function ConsentManagementPage() {
           size='sm'
           aria-label='ดูประวัติความยินยอม'
           title='ประวัติความยินยอม'
-          onClick={() => setHistoryRecord(row)}
+          onClick={() => openConsentHistoryTab(row.hn)}
         />
         {/* ด.1.1.8 — บันทึกให้/เพิกถอนจากเอกสารกระดาษ (ผ่าน identity verify) */}
         <NeutralSubdueIconButton
@@ -533,16 +532,16 @@ export default function ConsentManagementPage() {
         brandTitle='ระบบจัดการความยินยอม'
         breadcrumb={breadcrumb}
         title='จัดการความยินยอม'
-        actions={(
+        actions={canManage ? (
           <BrandButton
-            variant='outline'
+            variant='fill'
             size='md'
-            trailingIcon='chevron_right'
-            onClick={() => navigate.push('/forms')}
+            leadingIcon='note_add'
+            onClick={() => navigate.push('/consent/forms/new')}
           >
-            ดูแบบฟอร์มความยินยอมทั้งหมด
+            สร้างแบบฟอร์มใหม่
           </BrandButton>
-        )}
+        ) : undefined}
         headerInfo={(
           <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
             {CONSENT_SUMMARY.map((c) => (
@@ -613,17 +612,10 @@ export default function ConsentManagementPage() {
                       นำส่งออกรายงาน
                     </NeutralSubdueButton>
                   )}
-                  {canManage && (
-                    <>
-                      <BrandButton variant='outline' size='sm' leadingIcon='note_add' onClick={() => navigate.push('/consent/forms/new')}>
-                        สร้างแบบฟอร์มใหม่
-                      </BrandButton>
-                      {canCreateConsentRequest() && (
-                        <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={() => setCreateOpen(true)}>
-                          สร้างคำขอความยินยอม
-                        </BrandButton>
-                      )}
-                    </>
+                  {canCreateConsentRequest() && (
+                    <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={() => setCreateOpen(true)}>
+                      สร้างคำขอความยินยอม
+                    </BrandButton>
                   )}
                 </div>
               </div>
@@ -717,13 +709,6 @@ export default function ConsentManagementPage() {
         onConfirm={runDialogConfirm}
         onCancel={() => setDialog(null)}
         onClose={() => setDialog(null)}
-      />
-
-      {/* Consent history */}
-      <ConsentHistoryPopup
-        open={!!historyRecord}
-        record={historyRecord}
-        onClose={() => setHistoryRecord(null)}
       />
 
       {/* ด.1.1.4 / ด.1.1.6 — workflow สร้างคำขอความยินยอม */}
