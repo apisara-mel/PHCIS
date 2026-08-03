@@ -24,6 +24,7 @@ import {
   setDefaultDashboardTemplate, saveDashboardTemplate, deleteDashboardTemplate,
 } from '@/data/consentDashboardTemplates';
 import CONSENT_NAV from '@/pages/consent/consentNav';
+import { ConsentReportSections } from '@/pages/consent/ConsentReportPage';
 
 /* PHCIS | Consent — แดชบอร์ด + Dashboard Builder (TOR ด.1.1.12 + ด.1.1.9).
 
@@ -80,7 +81,7 @@ const parseStatNum = (v) => Number(String(v).replace(/[^0-9.]/g, '')) || 0;
 const donutSegments = () => {
   const buckets = [
     { label: 'ยินยอมแล้ว', match: ['ยินยอมแล้ว'] },
-    { label: 'รอลงนาม', match: ['รอลงนาม', 'อยู่ระหว่างลงนาม', 'มีเวอร์ชันใหม่'] },
+    { label: 'รอดำเนินการ', match: ['รอลงนาม', 'อยู่ระหว่างลงนาม', 'มีเวอร์ชันใหม่', 'ขอเพิกถอน'] },
     { label: 'ปฏิเสธ / ถอน', match: ['ปฏิเสธ', 'ถอนความยินยอม', 'ยกเลิกคำขอ'] },
     { label: 'หมดอายุ / ใกล้หมด', match: ['หมดอายุ', 'ใกล้หมดอายุ', 'หมดอายุ-Reconsent'] },
   ];
@@ -241,6 +242,11 @@ function DashboardView() {
             ))}
           </div>
         )}
+
+        <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-400)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>
+          <h2 style={TITLE_TEXT}>สถิติและรายงาน</h2>
+          <ConsentReportSections />
+        </section>
       </div>
     </QueuePageShell>
   );

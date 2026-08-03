@@ -424,6 +424,16 @@ const CARD_BASIS = '0 0 calc((100% - 4 * var(--dim-space-300)) / 5)';
      • Arrow click slides exactly one view with smooth scroll.
      • Hovering near the left/right edge auto-slides continuously.
    Children are the flex items (cards). Arrows disable at either end. */
+/* Horizontal track padding so card box-shadows are not clipped by overflow-x. */
+const CAROUSEL_SHADOW_PAD = {
+  paddingTop: 'var(--dim-space-300)',
+  paddingBottom: 'calc(var(--dim-space-800) + var(--dim-space-300))',
+  paddingInline: 'var(--dim-space-100)',
+  marginTop: 'calc(-1 * var(--dim-space-300))',
+  marginBottom: 'calc(-1 * (var(--dim-space-800) + var(--dim-space-300)))',
+  marginInline: 'calc(-1 * var(--dim-space-100))',
+};
+
 function CardCarousel({ children }) {
   const trackRef = useRef(null);
   const hoverDir = useRef(0);
@@ -481,8 +491,8 @@ function CardCarousel({ children }) {
         onScroll={updateEdges}
         onMouseMove={onMove}
         onMouseLeave={stopHoverSlide}
-        className='flex w-full mih-tpl-track'
-        style={{ gap: 'var(--dim-space-300)', overflowX: 'auto' }}
+        className='flex w-full min-w-0 mih-tpl-track'
+        style={{ gap: 'var(--dim-space-300)', overflowX: 'auto', ...CAROUSEL_SHADOW_PAD }}
       >
         {children}
       </div>
@@ -613,6 +623,8 @@ export default function CreateConsentFormPage() {
   const prefill = (location.state && location.state.prefill) || null;
   const [step, setStep] = useState(0);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmPublish, setConfirmPublish] = useState(false);
+  const [publishVersion, setPublishVersion] = useState('');
   const [published, setPublished] = useState(false);
 
   /* Step 1 */
@@ -644,15 +656,36 @@ export default function CreateConsentFormPage() {
       return next;
     });
 
-  /* Prefill ครั้งเดียวตอน mount (สร้างเวอร์ชันใหม่ — ด.1.1.5): ชื่อ/รหัส/
-     ประเภทเดิม + เวอร์ชันที่ bump แล้ว. ทุก field แก้ต่อได้. */
+  /* Prefill ครั้งเดียวตอน mount — แก้ไข / สร้างเวอร์ชันใหม่: โหลดทุก field
+     ที่เคยกรอก (Step 1 + Step 2) ให้แก้ต่อได้ทั้งหมด (ด.1.1.5). */
   useEffect(() => {
     if (!prefill) return;
-    if (prefill.name) { setName(prefill.name); setDocTitle(prefill.name); }
+    if (prefill.name) { setName(prefill.name); setDocTitle(prefill.docTitle || prefill.name); }
     if (prefill.code) setCode(prefill.code);
-    if (prefill.typeLabel && TYPE_THAI_TO_VALUE[prefill.typeLabel]) setType(TYPE_THAI_TO_VALUE[prefill.typeLabel]);
+    if (prefill.type) setType(prefill.type);
+    else if (prefill.typeLabel && TYPE_THAI_TO_VALUE[prefill.typeLabel]) setType(TYPE_THAI_TO_VALUE[prefill.typeLabel]);
     if (prefill.version) setVersion(prefill.version);
-    setTtl((prev) => prev || '30');
+    if (prefill.ttl) setTtl(prefill.ttl);
+    else setTtl((prev) => prev || '30');
+    if (prefill.template) setTemplate(prefill.template);
+    if (prefill.cover != null) setCover(prefill.cover);
+    if (prefill.groupPolicy?.length) setGroupPolicy(prefill.groupPolicy);
+    if (prefill.subBranch?.length) setSubBranch(prefill.subBranch);
+    if (prefill.dept?.length) setDept(prefill.dept);
+    if (prefill.position?.length) setPosition(prefill.position);
+    if (prefill.patientFields?.length) setPatientFields(new Set(prefill.patientFields));
+    if (prefill.sections?.length) {
+      setSections(prefill.sections.map((s, i) => ({
+        id: s.id || `cs-prefill-${i}`,
+        title: s.title || '',
+        detail: s.detail || '',
+        fieldType: s.fieldType || 'boolean',
+      })));
+    }
+    if (prefill.signatures?.length) setSignatures(new Set(prefill.signatures));
+    if (prefill.note != null) setNote(prefill.note);
+    if (prefill.requireGuardian != null) setRequireGuardian(prefill.requireGuardian);
+    if (prefill.allowESign != null) setAllowESign(prefill.allowESign);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Select a แม่แบบ → pre-fill Step 1 + Step 2 (still fully editable).
@@ -681,13 +714,20 @@ export default function CreateConsentFormPage() {
   const completedSteps = [Boolean(step1Valid), Boolean(step2Valid), false];
   const canAdvance = step === 0 ? step1Valid : step === 1 ? step2Valid : true;
 
+  const doPublish = (confirmedVersion) => {
+    if (confirmedVersion) setVersion(confirmedVersion);
+    if (prefill && prefill.supersedeType) markTypeSuperseded(prefill.supersedeType);
+    setConfirmPublish(false);
+    setPublished(true);
+  };
+
   const goNext = () => {
     if (step < 2) { setStep(step + 1); window.scrollTo?.({ top: 0 }); }
-    else {
-      /* เผยแพร่เวอร์ชันใหม่ → record ที่เซ็นเวอร์ชันเก่าใน worklist กลายเป็น
-         "มีเวอร์ชันใหม่" (เชื่อมผ่าน consentWorkflowStore — mock, ด.1.1.5) */
-      if (prefill && prefill.supersedeType) markTypeSuperseded(prefill.supersedeType);
-      setPublished(true);
+    else if (prefill?.fromVersion) {
+      setPublishVersion(version.trim());
+      setConfirmPublish(true);
+    } else {
+      doPublish();
     }
   };
 
@@ -812,6 +852,34 @@ export default function CreateConsentFormPage() {
         onCancel={() => setConfirmCancel(false)}
         onClose={() => setConfirmCancel(false)}
       />
+
+      {/* ด.1.1.5 — ยืนยันเวอร์ชันใหม่ก่อนเผยแพร่ */}
+      <AlertDialog
+        open={confirmPublish}
+        type='info'
+        title='ยืนยันเผยแพร่เวอร์ชันใหม่'
+        description={
+          prefill?.fromVersion
+            ? `แบบฟอร์ม ${code || prefill.code} จะเผยแพร่เป็นเวอร์ชันใหม่แทน ${prefill.fromVersion} — ตรวจสอบเลขเวอร์ชันก่อนยืนยัน`
+            : 'ตรวจสอบเลขเวอร์ชันก่อนเผยแพร่'
+        }
+        confirmLabel='เผยแพร่เวอร์ชันนี้'
+        cancelLabel='ยกเลิก'
+        onConfirm={() => doPublish(publishVersion.trim())}
+        onCancel={() => setConfirmPublish(false)}
+        onClose={() => setConfirmPublish(false)}
+      >
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', marginTop: 'var(--dim-space-300)' }}>
+          <InputField
+            label='เวอร์ชั่นใหม่'
+            required
+            value={publishVersion}
+            onChange={setPublishVersion}
+            placeholder='V 2.0'
+            helperText={prefill?.fromVersion ? `เวอร์ชันเดิม: ${prefill.fromVersion}` : undefined}
+          />
+        </div>
+      </AlertDialog>
 
       {published && (
         <SuccessScreen

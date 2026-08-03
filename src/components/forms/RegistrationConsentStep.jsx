@@ -5,6 +5,8 @@ import { FormCard } from '@/components/forms/FormsLibrary';
 import ConsentFormFillPopup from '@/components/popup/ConsentFormFillPopup';
 import ConsentQrSendPopup from '@/components/popup/ConsentQrSendPopup';
 import { REGISTRATION_CONSENT_FORMS, getConsentSummary } from '@/data/registrationForm';
+import { consentTypeFromMrForm, recordMrConsentSigning } from '@/data/consentWorkflowStore';
+import { DEFAULT_SERVICE_CENTER_CHANNEL, MOBILE_APP_CHANNEL } from '@/data/consentChannels';
 
 /* Registration Step 0 — "แบบฟอร์มยินยอม" (Figma PHCIS | Registration ·
    node 292:104252 "Step 1 - Patient Record (Consent Pending)"). Three list
@@ -40,11 +42,31 @@ const RegistrationConsentStep = ({ form, setForm, patient }) => {
   const summary = getConsentSummary(records);
   const banner = summary.total > 0 ? BANNER_COPY[summary.state] : null;
 
-  const markSigned = ({ slug, signedAt }) => {
+  const patientDisplayName = [patient?.prefixTh, patient?.firstNameTh, patient?.lastNameTh]
+    .filter(Boolean)
+    .join(' ')
+    || patient?.fullName
+    || '';
+
+  const markSigned = ({ slug, channel = DEFAULT_SERVICE_CENTER_CHANNEL }) => {
+    const catalog = findCatalogForm(slug);
+    if (patient?.hn && patientDisplayName) {
+      recordMrConsentSigning({
+        hn: patient.hn,
+        name: patientDisplayName,
+        formCode: slug,
+        formId: catalog?.code,
+        formTitle: catalog?.name || catalog?.title,
+        type: consentTypeFromMrForm({ slug }),
+        version: catalog?.version,
+        channel,
+        outcome: 'signed',
+      });
+    }
     setForm((s) => ({
       ...s,
       consentRecords: (s.consentRecords || []).map((r) =>
-        r.slug === slug ? { ...r, status: 'signed', signedAt } : r,
+        r.slug === slug ? { ...r, status: 'signed', signedAt: new Date().toISOString() } : r,
       ),
     }));
   };
@@ -158,14 +180,14 @@ const RegistrationConsentStep = ({ form, setForm, patient }) => {
         form={findCatalogForm(fillSlug)}
         patient={patient}
         onClose={() => setFillSlug(null)}
-        onConfirm={(payload) => { markSigned(payload); setFillSlug(null); }}
+        onConfirm={(payload) => { markSigned({ ...payload, channel: DEFAULT_SERVICE_CENTER_CHANNEL }); setFillSlug(null); }}
       />
 
       <ConsentQrSendPopup
         open={Boolean(qrSlug)}
         form={findCatalogForm(qrSlug)}
         onClose={() => setQrSlug(null)}
-        onSubmitted={(payload) => { markSigned(payload); setQrSlug(null); }}
+        onSubmitted={(payload) => { markSigned({ ...payload, channel: MOBILE_APP_CHANNEL }); setQrSlug(null); }}
       />
     </div>
   );

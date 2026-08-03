@@ -9,8 +9,11 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
-import { CONSENT_CHANNEL_OPTIONS, CONSENT_TYPE_TONE } from '@/data/consentRecords';
+import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
+import { getConsentChannelOptions } from '@/data/consentChannels';
+import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
 import { getConsentRecords } from '@/data/consentWorkflowStore';
+import { resolveConsentPatient } from '@/data/consentPatientDisplay';
 import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRecords';
 
 /* Helper popups ของ ConsentManagementPage — แตกไฟล์ตาม playbook (ห้ามรื้อ /
@@ -18,7 +21,7 @@ import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRec
 
      • CreateConsentRequestPopup — ด.1.1.4 + ด.1.1.6 workflow สร้างคำขอ
        ความยินยอม: เลือกผู้ป่วย (ค้น HN) → เทมเพลต+เวอร์ชันล่าสุด → ช่องทาง
-       ลงนาม (ศูนย์บริการ / Mobile App / QR) → วันครบกำหนด
+       ลงนาม (ที่ศูนย์บริการ · Mobile App) → วันครบกำหนด
      • ReconsentPopup — ด.1.1.7 Re-Consent ครบวงจร: เลือกช่องทาง + วันครบ
        ก่อนสร้าง record รอลงนามเวอร์ชันล่าสุด
      • PaperConsentRecordPopup — ด.1.1.8 เจ้าหน้าที่บันทึกให้/เพิกถอนจาก
@@ -57,10 +60,15 @@ const ERROR_TEXT = {
   lineHeight: 1.5,
 };
 
-/* ── ช่องทางลงนาม — radio tiles (ด.1.1.6) ─────────────────────────────── */
-export const ChannelTiles = ({ value, onChange }) => (
+/* ── ช่องทางลงนาม — radio tiles (ด.1.1.6 · 2 ช่องทาง) ───────────────────── */
+export const ChannelTiles = ({ value, onChange, clinicValue }) => {
+  const clinicCtx = useClinicFilter();
+  const resolvedClinic = clinicValue ?? clinicCtx?.clinic;
+  const options = useMemo(() => getConsentChannelOptions(resolvedClinic), [resolvedClinic]);
+
+  return (
   <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
-    {CONSENT_CHANNEL_OPTIONS.map((c) => {
+    {options.map((c) => {
       const selected = value === c.value;
       return (
         <button
@@ -94,7 +102,8 @@ export const ChannelTiles = ({ value, onChange }) => (
       );
     })}
   </div>
-);
+  );
+};
 
 /* ── รายชื่อผู้ป่วย (unique จาก worklist) ─────────────────────────────── */
 const PATIENT_POOL = (() => {
@@ -103,7 +112,10 @@ const PATIENT_POOL = (() => {
     if (seen.has(r.hn)) return false;
     seen.add(r.hn);
     return true;
-  }).map((r) => ({ hn: r.hn, name: r.name, guardian: r.guardian }));
+  }).map((r) => {
+    const patient = resolveConsentPatient(r.hn, r.name);
+    return { hn: r.hn, name: patient.name, guardian: r.guardian };
+  });
 })();
 
 /* เทมเพลตที่เผยแพร่แล้วเท่านั้น + เวอร์ชันล่าสุดของแต่ละใบ */

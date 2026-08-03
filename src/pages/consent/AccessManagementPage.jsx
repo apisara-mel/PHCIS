@@ -381,7 +381,7 @@ export default function AccessManagementPage() {
         headerInfo={(
           <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
             {ACCESS_SUMMARY.map((c) => (
-              <SummaryCard key={c.key} card={c} variant='panel' hover />
+              <SummaryCard key={c.key} card={c} variant='panel' />
             ))}
           </section>
         )}

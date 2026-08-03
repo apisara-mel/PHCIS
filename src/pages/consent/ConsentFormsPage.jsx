@@ -21,6 +21,7 @@ import {
   CONSENT_FORM_STATUS, FORM_TYPE_TONE,
 } from '@/data/consentFormRecords';
 import { logExport } from '@/data/consentWorkflowStore';
+import { buildWizardPrefillFromRecord } from '@/data/consentFormWizardContent';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
@@ -29,7 +30,7 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
    table with view / print / edit actions. Mirrors the consent registry page
    so the system stays consistent. Tokens aliased; copy Thai; data mock. */
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 const breadcrumb = ['แบบฟอร์มความยินยอม'];
 const GROUP_TONE = { 'แพทย์': 'green', 'พยาบาล': 'purple', 'เภสัชกร': 'teal', 'นักเทคนิคการแพทย์': 'blue' };
 
@@ -382,21 +383,16 @@ export default function ConsentFormsPage() {
   /* ด.1.1.5 — สร้างเวอร์ชันใหม่: prefill wizard เดิม + bump (ห้ามแก้ทับ) */
   const goCreateVersion = (row) => {
     navigate.push('/consent/forms/new', {
-      prefill: {
-        name: row.name,
-        code: row.code,
-        typeLabel: row.type,
-        version: bumpVersion(row.version),
-        supersedeType: row.type,
-        fromVersion: row.version,
-      },
+      prefill: buildWizardPrefillFromRecord(row, { newVersion: true }),
     });
   };
 
   /* แก้ไข: เทมเพลตที่เผยแพร่แล้วบังคับ bump — ร่าง/รอตรวจสอบแก้ตรงได้ */
   const handleEdit = (row) => {
     if (row.status === 'เผยแพร่') setBumpFor(row);
-    else navigate.push('/consent/forms/new', { prefill: { name: row.name, code: row.code, typeLabel: row.type, version: row.version } });
+    else navigate.push('/consent/forms/new', {
+      prefill: buildWizardPrefillFromRecord(row, { newVersion: false }),
+    });
   };
 
   /* ด.1.1.15 — ดาวน์โหลด PDF เพื่อพิมพ์ให้ลงนาม (export → เก็บ log) */
@@ -458,7 +454,7 @@ export default function ConsentFormsPage() {
       headerInfo={(
         <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
           {CONSENT_FORM_SUMMARY.map((c) => (
-            <SummaryCard key={c.key} card={c} variant='panel' hover />
+            <SummaryCard key={c.key} card={c} variant='panel' />
           ))}
         </section>
       )}
@@ -545,7 +541,9 @@ export default function ConsentFormsPage() {
               <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
                 แสดง {rangeStart}-{rangeEnd} จาก {sorted.length} รายการ
               </span>
-              <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
+              {totalPages > 1 && (
+                <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
+              )}
             </div>
           </section>
         ) : grouped.length === 0 ? (

@@ -5,7 +5,6 @@ import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
-import Select from '@/components/forms/Select';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -17,9 +16,11 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import ConsentHistoryPopup from '@/components/popup/ConsentHistoryPopup';
 import CheckboxBox from '@/components/checkbox/CheckboxBox';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
+import SuccessToast from '@/components/toast/SuccessToast';
 import PersonalDataConsentEditPopup from '@/components/forms/PersonalDataConsentEditPopup';
 import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerifyPopup';
-import ConsentQrSendPopup from '@/components/popup/ConsentQrSendPopup';
+import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
+import { formatServiceCenterChannel } from '@/data/consentChannels';
 import {
   CONSENT_RECORDS, CONSENT_SUMMARY, CONSENT_TABS,
   CONSENT_STATUS, CONSENT_TYPE_TONE, CONSENT_CONFIRM,
@@ -27,30 +28,31 @@ import {
 import {
   applySupersededTypesToRecords,
   cancelConsentRequest,
-  createSignToken,
-  completeConsentSigning,
   getConsentRecords,
   isTypeSuperseded,
   listSupersededTypes,
-  logExport,
   patchConsentRecord,
   setConsentRecords,
   subscribeConsentStore,
 } from '@/data/consentWorkflowStore';
 import {
+  ExportFormatPopup,
+  buildWorklistExportReport,
+} from '@/pages/consent/consentExportPopup';
+import {
   canCreateConsentRequest,
   canExportConsent,
   canManageConsent,
   canRevokeConsent,
-  CONSENT_ROLES,
-  getConsentRole,
-  setConsentRole,
 } from '@/data/consentPermissions';
 import {
   CreateConsentRequestPopup, ReconsentPopup, PaperConsentRecordPopup,
   STAFF_NAME, todayThai,
 } from '@/pages/consent/consentWorkflowPopups';
 import CONSENT_NAV from '@/pages/consent/consentNav';
+import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
+import { enrichConsentRow } from '@/data/consentPatientDisplay';
+import { resolveConsentFormFromTemplate } from '@/data/consentFormRecords';
 
 /* PHCIS | Consent — ระบบจัดการความยินยอม (Figma node 1:4).
    Consent registry: summary cards · tabs · search · filters · table with a
@@ -99,31 +101,16 @@ const Cell = ({ value }) =>
     ? <span style={TEXT_CELL}>{value}</span>
     : <span style={MUTED_CELL}>-</span>;
 
-const Initials = ({ name }) => (
-  <span
-    className='inline-flex items-center justify-center shrink-0'
-    style={{
-      width: 'var(--dim-size-700, 36px)', height: 'var(--dim-size-700, 36px)',
-      borderRadius: 'var(--dim-radius-600)',
-      background: 'var(--surface-brandPrimary-quaternary)',
-      color: 'var(--text-brandPrimary-default)',
-      fontFamily: 'var(--type-family-heading-graphic2)',
-      fontSize: 'var(--type-size-sm)', lineHeight: 1,
-    }}
-    aria-hidden
-  >
-    {(name || '?').trim().charAt(0)}
-  </span>
-);
-
 export default function ConsentManagementPage() {
   const navigate = useHistory();
+  const { clinic } = useClinicFilter() || {};
+  const serviceCenterChannel = formatServiceCenterChannel(clinic);
   /* ── Worklist rows เป็น state จริง (mock mutate ใน session) ──────────
      ด.1.1.5: record ที่เซ็นเทมเพลตซึ่งถูกเผยแพร่เวอร์ชันใหม่ไปแล้ว (store
      ข้ามหน้า) โผล่มาเป็นสถานะ "มีเวอร์ชันใหม่" ตั้งแต่โหลดหน้า. */
-  const loadRows = () => applySupersededTypesToRecords(new Set(listSupersededTypes()));
+  const loadRows = () => applySupersededTypesToRecords(new Set(listSupersededTypes()))
+    .map(enrichConsentRow);
   const [rows, setRows] = useState(loadRows);
-  const [consentRole, setConsentRoleState] = useState(getConsentRole);
   useEffect(() => subscribeConsentStore(() => setRows(loadRows())), []);
   const canManage = canManageConsent();
   const canRevoke = canRevokeConsent();
@@ -142,7 +129,6 @@ export default function ConsentManagementPage() {
   const [reconsentFor, setReconsentFor] = useState(null);        // record | { bulkIds }
   const [paperFor, setPaperFor] = useState(null);                // record
   const [editFor, setEditFor] = useState(null);                  // signed record → PersonalDataConsentEditPopup
-  const [qrFollowup, setQrFollowup] = useState(null);            // { recordId, form }
   /* Identity gate — { next: 'revoke'|'paper'|'edit'|'bulk-revoke', record?, bulkIds? } */
   const [verifyFor, setVerifyFor] = useState(null);
   const [verifiedAudit, setVerifiedAudit] = useState(null);
@@ -151,6 +137,8 @@ export default function ConsentManagementPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [toast, setToast] = useState(null);
+  const [exportReport, setExportReport] = useState(null);
+  const [exportDone, setExportDone] = useState(false);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:consent');
 
@@ -256,6 +244,8 @@ export default function ConsentManagementPage() {
         hn: record.hn,
         name: record.name,
         type: record.type,
+        formCode: record.formCode,
+        formName: record.formName,
         version: latestVersion || record.version,
         status: 'รอลงนาม',
         signChannel: '-',
@@ -333,6 +323,10 @@ export default function ConsentManagementPage() {
               <BrandButton variant='fill' size='sm' disabled={reconsentBlocked} onClick={fireAction}>
                 {action.label}
               </BrandButton>
+            ) : action.kind === 'subdued' ? (
+              <NeutralSubdueButton variant='outline' size='sm' disabled={reconsentBlocked} onClick={fireAction}>
+                {action.label}
+              </NeutralSubdueButton>
             ) : (
               <NeutralButton variant='outline' size='sm' disabled={reconsentBlocked} onClick={fireAction}>
                 {action.label}
@@ -350,7 +344,12 @@ export default function ConsentManagementPage() {
       key: 'name', header: 'ชื่อ-นามสกุล', width: 220, sortable: true,
       render: (r) => (
         <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
-          <Initials name={r.name} />
+          <QueuePatientAvatar
+            hn={r.hn}
+            name={r.name}
+            avatarUrl={r.avatarUrl}
+            size={36}
+          />
           <div className='flex flex-col min-w-0'>
             <span className='truncate' style={TEXT_CELL}>{r.name}</span>
             {/* Edge ผู้เยาว์: แสดงผู้ปกครองผู้ลงนามแทนใต้ชื่อ */}
@@ -361,6 +360,14 @@ export default function ConsentManagementPage() {
             )}
           </div>
         </div>
+      ),
+    },
+    {
+      key: 'formName', header: 'ชื่อแบบฟอร์ม', width: 280, sortable: true,
+      render: (r) => (
+        <span className='truncate block min-w-0' style={TEXT_CELL} title={r.formName}>
+          {r.formName || '-'}
+        </span>
       ),
     },
     {
@@ -387,6 +394,12 @@ export default function ConsentManagementPage() {
               ครบกำหนด {r.dueDate}
             </span>
           )}
+          {r.revokeRequestedDate && r.status === 'ขอเพิกถอน' && (
+            <span style={{ color: 'var(--text-danger-default, #B91C1C)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', lineHeight: 1.4 }}>
+              ขอเพิกถอน {r.revokeRequestedDate}
+              {r.revokeRequestChannel ? ` · ${r.revokeRequestChannel}` : ''}
+            </span>
+          )}
         </div>
       ),
     },
@@ -403,11 +416,11 @@ export default function ConsentManagementPage() {
   /* ── Bulk-select helpers ────────────────────────────────────────── */
   /* Bulk CTA ต่อแท็บ (แท็บ all ไม่มี bulk action — สถานะปนกัน) */
   const BULK_ACTION_BY_TAB = {
-    pending:   { label: 'ยกเลิกคำขอ', kind: 'outline', confirm: 'cancel' },
-    consented: { label: 'เพิกถอน',    kind: 'outline', confirm: 'revoke' },
-    rejected:  { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' },
-    expiring:  { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' },
-    expired:   { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' },
+    pending:   { label: 'ยกเลิกคำขอ', confirm: 'cancel' },
+    consented: { label: 'เพิกถอน',    confirm: 'revoke' },
+    rejected:  { label: 'Reconsent',  confirm: 'reconsent' },
+    expiring:  { label: 'Reconsent',  confirm: 'reconsent' },
+    expired:   { label: 'Reconsent',  confirm: 'reconsent' },
   };
   const bulkAction = BULK_ACTION_BY_TAB[activeTab] || null;
 
@@ -451,7 +464,8 @@ export default function ConsentManagementPage() {
             id += 1;
             return {
               id, hn: t.hn, name: t.name, type: t.type, version: t.version,
-              status: 'รอลงนาม', signChannel: '-', requestChannel: 'ที่ศูนย์บริการ',
+              formCode: t.formCode, formName: t.formName,
+              status: 'รอลงนาม', signChannel: '-', requestChannel: serviceCenterChannel,
               requester: STAFF_NAME, createdDate: todayThai(), signedDate: '-',
               withdrawnDate: '-', dueDate: dueInDays(30), guardian: t.guardian,
               history: [...(t.history || [])],
@@ -479,15 +493,9 @@ export default function ConsentManagementPage() {
     setVerifiedAudit(null);
   };
 
-  /* เก็บ log เมื่อ export (annotation 414:123633 — print ไม่เก็บ log) */
   const handleExport = () => {
     if (!canExportConsent()) return;
-    logExport({ source: 'consent-worklist', format: 'CSV' });
-    setToast({
-      id: Date.now(),
-      variant: 'success',
-      message: 'นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล',
-    });
+    setExportReport(buildWorklistExportReport(filtered));
   };
 
   const selectColumn = {
@@ -526,25 +534,14 @@ export default function ConsentManagementPage() {
         breadcrumb={breadcrumb}
         title='จัดการความยินยอม'
         actions={(
-          <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-            <div style={{ minWidth: 140 }}>
-              <Select
-                showLabel={false}
-                options={CONSENT_ROLES.map((r) => ({ value: r, label: r }))}
-                value={consentRole}
-                onChange={(v) => { setConsentRole(v); setConsentRoleState(v); }}
-                searchable={false}
-              />
-            </div>
-            <BrandButton
-              variant='outline'
-              size='md'
-              trailingIcon='chevron_right'
-              onClick={() => navigate.push('/forms')}
-            >
-              ดูแบบฟอร์มความยินยอมทั้งหมด
-            </BrandButton>
-          </div>
+          <BrandButton
+            variant='outline'
+            size='md'
+            trailingIcon='chevron_right'
+            onClick={() => navigate.push('/forms')}
+          >
+            ดูแบบฟอร์มความยินยอมทั้งหมด
+          </BrandButton>
         )}
         headerInfo={(
           <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
@@ -594,7 +591,6 @@ export default function ConsentManagementPage() {
                   {/* Chip "เลือก" — เปิด/ปิดโหมดเลือกหลายรายการ (Figma 297:128439) */}
                   <FilterTag
                     variant={selectMode ? 'brand' : 'neutral'}
-                    size='sm'
                     selected={selectMode}
                     onClick={toggleSelectMode}
                     showTailingIcon={false}
@@ -635,8 +631,11 @@ export default function ConsentManagementPage() {
               {/* Bulk bar — แสดงเมื่อเลือกอย่างน้อย 1 รายการ */}
               {selectMode && selectedIds.size > 0 && (
                 <div
-                  className='flex items-center flex-wrap w-full'
+                  className='w-full items-center'
                   style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto 1fr',
+                    alignItems: 'center',
                     gap: 'var(--dim-space-300)',
                     padding: 'var(--dim-space-200) var(--dim-space-400)',
                     background: 'var(--surface-brandPrimary-quaternary)',
@@ -644,34 +643,43 @@ export default function ConsentManagementPage() {
                     borderRadius: 'var(--dim-radius-300)',
                   }}
                 >
-                  <span style={{ flex: 1, color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>
+                  <BrandButton variant='outline' size='sm' onClick={() => setSelectedIds(new Set())}>
+                    ยกเลิกการเลือก
+                  </BrandButton>
+                  <span
+                    className='whitespace-nowrap text-center'
+                    style={{
+                      color: 'var(--text-brandPrimary-default)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-sm)',
+                      fontWeight: 'var(--type-weight-medium)',
+                    }}
+                  >
                     เลือกแล้ว {selectedIds.size} รายการ
                   </span>
-                  <NeutralSubdueButton size='sm' onClick={() => setSelectedIds(new Set())}>
-                    ยกเลิกการเลือก
-                  </NeutralSubdueButton>
-                  {bulkAction ? (
-                    bulkAction.kind === 'brand' ? (
-                      <BrandButton variant='fill' size='sm' onClick={() => setDialog({ bulkIds: [...selectedIds], confirmKey: bulkAction.confirm })}>
-                        {bulkAction.label} ({selectedIds.size})
-                      </BrandButton>
-                    ) : (
-                      /* bulk เพิกถอน = ทำแทนเจ้าของข้อมูล → ผ่าน identity verify ก่อน (ด.1.1.1) */
-                      <NeutralButton
-                        variant='outline'
-                        size='sm'
-                        onClick={() => (bulkAction.confirm === 'revoke'
-                          ? setVerifyFor({ next: 'bulk-revoke', bulkIds: [...selectedIds] })
-                          : setDialog({ bulkIds: [...selectedIds], confirmKey: bulkAction.confirm }))}
-                      >
-                        {bulkAction.label} ({selectedIds.size})
-                      </NeutralButton>
-                    )
-                  ) : (
-                    <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-                      เลือกแท็บสถานะเพื่อดำเนินการหลายรายการพร้อมกัน
-                    </span>
-                  )}
+                  <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-200)' }}>
+                    {bulkAction ? (
+                      bulkAction.confirm === 'cancel' ? (
+                        <NeutralSubdueButton
+                          variant='outline'
+                          size='sm'
+                          onClick={() => setDialog({ bulkIds: [...selectedIds], confirmKey: bulkAction.confirm })}
+                        >
+                          {bulkAction.label} ({selectedIds.size})
+                        </NeutralSubdueButton>
+                      ) : (
+                        <BrandButton
+                          variant='outline'
+                          size='sm'
+                          onClick={() => (bulkAction.confirm === 'revoke'
+                            ? setVerifyFor({ next: 'bulk-revoke', bulkIds: [...selectedIds] })
+                            : setDialog({ bulkIds: [...selectedIds], confirmKey: bulkAction.confirm }))}
+                        >
+                          {bulkAction.label} ({selectedIds.size})
+                        </BrandButton>
+                      )
+                    ) : null}
+                  </div>
                 </div>
               )}
 
@@ -724,11 +732,14 @@ export default function ConsentManagementPage() {
         onClose={() => setCreateOpen(false)}
         onCreate={({ patient, template, channel, dueDate }) => {
           const id = nextId();
+          const { formCode, formName } = resolveConsentFormFromTemplate(template);
           const rec = {
             id,
             hn: patient.hn,
             name: patient.name,
             type: template.type,
+            formCode,
+            formName,
             version: template.version,
             status: 'รอลงนาม',
             signChannel: '-',
@@ -743,10 +754,6 @@ export default function ConsentManagementPage() {
           };
           setConsentRecords([...getConsentRecords(), rec]);
           setCreateOpen(false);
-          if (channel === 'QR Code') {
-            const token = createSignToken(id);
-            setQrFollowup({ recordId: id, form: { name: template.name, slug: template.code }, token });
-          }
           pushToast(`สร้างคำขอความยินยอม ${template.code} ให้ ${patient.name} แล้ว — ลงนามผ่าน${channel} ภายใน ${dueDate}`);
         }}
       />
@@ -775,7 +782,7 @@ export default function ConsentManagementPage() {
             if (mode === 'revoke') {
               patchRow(rec.id, { status: 'ถอนความยินยอม', withdrawnDate: effectiveDate });
             } else {
-              patchRow(rec.id, { status: 'ยินยอมแล้ว', signChannel: 'ที่ศูนย์บริการ', signedDate: effectiveDate });
+              patchRow(rec.id, { status: 'ยินยอมแล้ว', signChannel: serviceCenterChannel, signedDate: effectiveDate });
             }
             pushToast(`บันทึกจากเอกสาร (${fileName}) ของ ${rec.name} แล้ว · เหตุผล: ${reason.slice(0, 40)}${reason.length > 40 ? '…' : ''}`);
           }
@@ -807,23 +814,19 @@ export default function ConsentManagementPage() {
         }}
       />
 
-      {/* ด.1.1.6 — ช่องทาง QR: reuse ConsentQrSendPopup แล้ว mock ลงนามสำเร็จ */}
-      <ConsentQrSendPopup
-        open={!!qrFollowup}
-        form={qrFollowup?.form}
-        token={qrFollowup?.token}
-        onClose={() => setQrFollowup(null)}
-        onSubmitted={() => {
-          const f = qrFollowup;
-          setQrFollowup(null);
-          if (f) {
-            completeConsentSigning(f.recordId, { outcome: 'signed', channel: 'QR Code' });
-            pushToast('ผู้รับบริการลงนามผ่าน QR สำเร็จ — สถานะเปลี่ยนเป็น "ยินยอมแล้ว"');
-          }
-        }}
-      />
-
       <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
+
+      <ExportFormatPopup
+        open={!!exportReport}
+        report={exportReport}
+        onClose={() => setExportReport(null)}
+        onExported={() => setExportDone(true)}
+      />
+      <SuccessToast
+        open={exportDone}
+        message='นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล'
+        onClose={() => setExportDone(false)}
+      />
     </>
   );
 }
