@@ -150,3 +150,51 @@ export function loadDemoCenters() {
   writeCenters(DEMO_CENTERS);
   return DEMO_CENTERS;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   TOR §1.17.5.4 — ศูนย์บริการที่กำลังให้บริการ (active center)
+   ══════════════════════════════════════════════════════════════════════
+   แหล่งความจริงของ "ศูนย์ที่กำลังให้บริการ" คือ `useClinicFilter()` ใน
+   src/components/layout/HeaderClinicContext.jsx (69 ศูนย์, mount ไว้ที่
+   App.jsx และ Header/Sidebar consume อยู่แล้ว). ส่วนนี้ทำหน้าที่แค่
+   **persist + broadcast** ค่านั้น เพื่อให้รีเฟรชแล้วศูนย์ที่เลือกยังอยู่ —
+   ห้ามสร้าง state ศูนย์ชุดที่สาม ไม่งั้น Header กับ /users จะโชว์คนละศูนย์.
+
+   คู่มือระบบสารสนเทศส่วนกลาง (MIS/EIS) หน้า 1-4 ระบุกติกา scope ไว้ตรง ๆ ว่า
+   "ศูนย์บริการสาธารณสุขจะสามารถดูข้อมูลได้เฉพาะข้อมูลของศูนย์ฯ ตัวเองเท่านั้น"
+   → การสลับศูนย์ = สลับ scope ข้อมูล (คิว/รายงาน/แจ้งเตือน/หัวกระดาษพิมพ์)
+   ไม่ใช่แค่เปลี่ยน label. */
+
+export const ACTIVE_CENTER_KEY = 'mih:active-center';
+
+const activeCenterListeners = new Set();
+
+/** อ่านศูนย์ที่ค้างไว้จากรอบก่อน (null = ยังไม่เคยเลือก → ใช้ค่า default ของ context). */
+export function readActiveCenter() {
+  try {
+    const raw = localStorage.getItem(ACTIVE_CENTER_KEY);
+    return raw ? String(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** จำศูนย์ที่กำลังให้บริการไว้ข้ามการรีเฟรช. */
+export function writeActiveCenter(value) {
+  try {
+    localStorage.setItem(ACTIVE_CENTER_KEY, String(value));
+  } catch { /* โหมด private / storage เต็ม — ข้ามไป ไม่ให้หน้าจอพัง */ }
+  activeCenterListeners.forEach((fn) => { try { fn(value); } catch { /* ignore */ } });
+}
+
+export function subscribeActiveCenter(fn) {
+  activeCenterListeners.add(fn);
+  return () => activeCenterListeners.delete(fn);
+}
+
+/** รายละเอียดศูนย์จากทะเบียน (ถ้ามี) — ใช้เติมเบอร์/ที่อยู่บนป๊อปอัปสลับศูนย์. */
+export function findCenterDetail(centerValue) {
+  const code = String(centerValue || '').replace('hc-', '');
+  const all = [...readCenters(), ...DEMO_CENTERS];
+  return all.find((c) => String(c.code) === code) || null;
+}

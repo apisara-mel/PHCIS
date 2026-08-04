@@ -13,8 +13,18 @@ const STAFF_ORG_POOL = [
   { group: 'แพทย์', subBranch: 'ทันตแพทย์', dept: 'ทันตกรรม' },
   { group: 'พยาบาล', subBranch: 'พยาบาลเวชปฏิบัติ', dept: 'ผู้ป่วยใน' },
   { group: 'นักเทคนิคการแพทย์', subBranch: 'เทคนิคการแพทย์', dept: 'ห้องปฏิบัติการ' },
-  { group: 'แพทย์', subBranch: 'แพทย์ทั่วไป', dept: 'ผู้ป่วยนอก' },
+  { group: 'แพทย์', subBranch: 'แพทย์ทั่วไป', dept: 'เวชศาสตร์ฉุกเฉิน' },
   { group: 'พยาบาล', subBranch: 'ห้องฉุกเฉิน', dept: 'พยาบาลวิชาชีพ' },
+  { group: 'แพทย์', subBranch: 'ศัลยแพทย์', dept: 'ศัลยกรรม' },
+  { group: 'แพทย์', subBranch: 'กุมารแพทย์', dept: 'กุมารเวชกรรม' },
+  { group: 'แพทย์', subBranch: 'สูตินรีแพทย์', dept: 'สูตินรีเวช' },
+  { group: 'แพทย์', subBranch: 'ออร์โธปิดิกส์', dept: 'ออร์โธปิดิกส์' },
+  { group: 'แพทย์', subBranch: 'โสต ศอ นาสิก', dept: 'หู คอ จมูก' },
+  { group: 'แพทย์', subBranch: 'จักษุแพทย์', dept: 'จักษุวิทยา' },
+  { group: 'แพทย์', subBranch: 'จิตแพทย์', dept: 'จิตเวช' },
+  { group: 'นักเทคนิคการแพทย์', subBranch: 'รังสีเทคนิค', dept: 'รังสีวิทยา' },
+  { group: 'พยาบาล', subBranch: 'พยาบาลวิสัญญี', dept: 'วิสัญญีวิทยา' },
+  { group: 'เภสัชกร', subBranch: 'เภสัชกรโรงพยาบาล', dept: 'คลังยา' },
 ];
 
 /** Profile photo keyed to Group Policy (staff portrait pool). */
@@ -90,7 +100,10 @@ const FILES = [
   ['consent.pdf', '15 KB'], ['request-access.pdf', '22 KB'],
   ['medical-record.pdf', '48 KB'], ['referral.pdf', '12 KB'],
 ];
-const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน'];
+const MONTHS = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+];
 
 /* ── ช่วงเวลาสิทธิ (ด.1.1.17.2) ────────────────────────────────────────
    periodStart / periodEnd เป็น ISO เทียบกับ "วันนี้" จริง เพื่อให้เห็นทั้ง
@@ -122,7 +135,8 @@ export const ACCESS_RECORDS = Array.from({ length: PER_TAB * TAB_STATUSES.length
   const formOnly = i % 4 === 0;
   const hn = formOnly ? '-' : `67-${String(1 + n).padStart(5, '0')}`;
   const patient = formOnly ? null : resolveConsentPatient(hn);
-  const org = accessOrgOfIndex(i);
+  /* stride 5 — เดือนเดียวกันได้หลายกลุ่มวิชาชีพ (pie ไม่พังตอน filter รายเดือน) */
+  const org = accessOrgOfIndex(i * 5);
   return {
     id: n,
     reqNo: `REQ-2569-${String(40 + n).padStart(4, '0')}`,

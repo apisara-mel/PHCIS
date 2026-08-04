@@ -178,3 +178,149 @@ export const searchConsentPatients = (query, records = getConsentRecords()) => {
   });
   return [...byHn.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'th'));
 };
+
+/* ── เปรียบเทียบให้ / ไม่ให้ความยินยอม (worklist icon → popup) ───────── */
+
+const CONSENTED_LIKE = new Set([
+  'ยินยอมแล้ว', 'ใกล้หมดอายุ', 'หมดอายุ', 'หมดอายุ-Reconsent', 'มีเวอร์ชันใหม่',
+]);
+const DECLINED_LIKE = new Set([
+  'ปฏิเสธ', 'ถอนความยินยอม', 'ยกเลิกคำขอ', 'ไม่ยินยอม',
+]);
+const PENDING_LIKE = new Set(['รอลงนาม', 'อยู่ระหว่างลงนาม', 'ขอเพิกถอน']);
+
+const historyShowsConsent = (history = []) => history.some((h) => (
+  h.action === 'ให้ความยินยอม'
+  || h.toStatus === 'ยินยอมแล้ว'
+  || CONSENTED_LIKE.has(h.toStatus)
+  || CONSENTED_LIKE.has(h.fromStatus)
+));
+
+const historyShowsDecline = (history = []) => history.some((h) => (
+  h.action === 'ไม่ให้ความยินยอม'
+  || h.action === 'ถอนความยินยอม'
+  || DECLINED_LIKE.has(h.toStatus)
+));
+
+const isReconsentSent = (record) => {
+  if (record.pendingReconsent) return true;
+  if (record.status === 'หมดอายุ-Reconsent') return true;
+  if (record.status === 'มีเวอร์ชันใหม่') return true;
+  const history = record.history || [];
+  if (PENDING_LIKE.has(record.status) && historyShowsConsent(history)) return true;
+  /* สร้างคำขอใหม่หลังสถานะหมดอายุ / ใกล้หมด / ปฏิเสธ / ถอน */
+  return history.some((h) => (
+    h.action === 'สร้างคำขอ'
+    && (CONSENTED_LIKE.has(h.fromStatus) || DECLINED_LIKE.has(h.fromStatus) || h.fromStatus === 'มีเวอร์ชันใหม่')
+  ));
+};
+
+/**
+ * จัดกลุ่มแบบฟอร์มของผู้ป่วยตามผลลัพธ์ล่าสุด
+ * ซ้าย = ให้ความยินยอม · ขวา = ไม่ให้ความยินยอม
+ * ติด badge เมื่อมีการส่งคำขอ Reconsent แล้ว
+ *
+ * ถ้ายังไม่มีรายการฝั่งไม่ยินยอม — เติม mock เพื่อให้เปรียบเทียบครบทั้งสองฝั่ง
+ */
+const DEMO_DECLINED_FORMS = [
+  {
+    formCode: 'PH-003',
+    formName: 'ใบยินยอมการรักษาทั่วไป (General Treatment Consent)',
+    type: 'การรักษา',
+    version: 'V 1.2',
+    status: 'ปฏิเสธ',
+  },
+  {
+    formCode: 'PH-006',
+    formName: 'ใบยินยอมรับ/ให้เลือดและส่วนประกอบของเลือด',
+    type: 'เลือด',
+    version: 'V 1.0',
+    status: 'ถอนความยินยอม',
+  },
+  {
+    formCode: 'PH-012',
+    formName: 'ใบยินยอมเบิกจ่ายสิทธิ / ใช้สิทธิการรักษา',
+    type: 'เบิกจ่าย',
+    version: 'V 1.1',
+    status: 'ปฏิเสธ',
+  },
+];
+
+export const buildConsentCompareGroups = (hn, records = getConsentRecords()) => {
+  const patientRecords = records.filter((r) => r.hn === hn);
+  if (patientRecords.length === 0) {
+    return { patient: null, consented: [], declined: [] };
+  }
+
+  const patient = {
+    hn,
+    name: patientRecords[0].name,
+    guardian: patientRecords.find((r) => r.guardian)?.guardian || null,
+  };
+
+  /* รวมแถวซ้ำของแบบฟอร์มเดียวกัน — ใช้แถวล่าสุด (id สูงสุด) เป็นตัวแทน */
+  const byForm = new Map();
+  patientRecords.forEach((r) => {
+    const key = r.formCode || `${r.type}::${r.formName}`;
+    const prev = byForm.get(key);
+    if (!prev || Number(r.id) >= Number(prev.id)) byForm.set(key, r);
+  });
+
+  const consented = [];
+  const declined = [];
+
+  byForm.forEach((r) => {
+    const history = r.history || [];
+    const reconsentSent = isReconsentSent(r);
+    const item = {
+      id: r.id,
+      formCode: r.formCode || '-',
+      formName: r.formName || '-',
+      type: r.type,
+      version: r.version,
+      status: r.status,
+      signedDate: r.signedDate,
+      createdDate: r.createdDate,
+      reconsentSent,
+    };
+
+    if (CONSENTED_LIKE.has(r.status) || (PENDING_LIKE.has(r.status) && historyShowsConsent(history))) {
+      consented.push(item);
+      return;
+    }
+    if (DECLINED_LIKE.has(r.status) || (PENDING_LIKE.has(r.status) && historyShowsDecline(history))) {
+      declined.push(item);
+      return;
+    }
+    /* คำขอใหม่ที่ยังไม่เคยมีผล — ไม่จัดเข้ากลุ่มเปรียบเทียบ */
+  });
+
+  /* Mock ฝั่งไม่ยินยอม — ไม่ซ้ำแบบฟอร์มที่อยู่ฝั่งยินยอมแล้ว */
+  if (declined.length === 0) {
+    const taken = new Set(consented.map((c) => c.formCode));
+    DEMO_DECLINED_FORMS
+      .filter((f) => !taken.has(f.formCode))
+      .slice(0, 2)
+      .forEach((f, i) => {
+        declined.push({
+          id: `mock-declined-${hn}-${i}`,
+          formCode: f.formCode,
+          formName: f.formName,
+          type: f.type,
+          version: f.version,
+          status: f.status,
+          signedDate: '-',
+          createdDate: patientRecords[0].createdDate || '-',
+          reconsentSent: i === 1, /* แถวที่สองโชว์ badge Reconsent เป็นตัวอย่าง */
+        });
+      });
+  }
+
+  const byName = (a, b) => String(a.formName).localeCompare(String(b.formName), 'th');
+  return {
+    patient,
+    consented: consented.sort(byName),
+    declined: declined.sort(byName),
+  };
+};
+

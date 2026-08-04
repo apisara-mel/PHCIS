@@ -3,7 +3,6 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import FilterDateTag from '@/components/forms/FilterDateTag';
-import Icon from '@/components/icons/Icon';
 import { Donut, HBarList } from '@/components/graph/Charts';
 import { QUICK_OPTIONS } from '@/components/popup/DateFilterPopup';
 import {
@@ -11,10 +10,10 @@ import {
   CONSENT_TYPES,
   buildConsentSummaryFromRows,
 } from '@/data/consentRecords';
+import { PHCIS_CHART, PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import CONSENT_NAV from '@/pages/consent/consentNav';
-import { ConsentReportSections, ReportCard, scaleForQuick } from '@/pages/consent/ConsentReportPage';
-import { CONSENT_DASHBOARD_REPORTS } from '@/data/consentReports';
+import { ConsentReportSections, ReportCard, reportsForDateFilter } from '@/pages/consent/ConsentReportPage';
 
 /* PHCIS | Consent — แดชบอร์ด (TOR ด.1.1.12 + ด.1.1.9).
    โครงสร้างที่สแกนง่าย:
@@ -22,13 +21,14 @@ import { CONSENT_DASHBOARD_REPORTS } from '@/data/consentReports';
      2) Donut สัดส่วนสถานะ (ส่วนของทั้งหมด) + HBar ตามประเภท
      3) การ์ดรายงาน — ใช้ chart ที่เหมาะกับชนิดข้อมูล (ไม่บังคับ pie) */
 
+/* สถานะ → PHCIS dashboard series (design.md aliases) */
 const STATUS_PALETTE = {
-  'ยินยอมแล้ว': 'var(--text-colorfulbadge-green, #007549)',
-  'รอดำเนินการ': 'var(--text-colorfulbadge-orange, #C2410C)',
-  'ปฏิเสธ / ถอน': 'var(--text-colorfulbadge-red, #B91C1C)',
-  'หมดอายุ / ใกล้หมด': 'var(--text-colorfulbadge-blue, #1D4ED8)',
+  'ยินยอมแล้ว': PHCIS_CHART.teal,
+  'รอดำเนินการ': PHCIS_CHART.yellow,
+  'ปฏิเสธ / ถอน': PHCIS_CHART.pink,
+  'หมดอายุ / ใกล้หมด': PHCIS_CHART.indigo,
 };
-const FALLBACK_PALETTE = ['#14B8A6', '#EC4899', '#6366F1', '#F59E0B'];
+const FALLBACK_PALETTE = PHCIS_CHART_PALETTE;
 
 const CARD_STYLE = {
   background: 'var(--surface-card-100)',
@@ -117,11 +117,11 @@ export default function ConsentDashboardPage() {
   const [exportReport, setExportReport] = useState(null);
   const [viewReport, setViewReport] = useState(null);
 
+  const periodReports = useMemo(() => reportsForDateFilter(pageDate), [pageDate]);
   const consentStatsReport = useMemo(
-    () => CONSENT_DASHBOARD_REPORTS.find((r) => r.key === 'consent-stats'),
-    [],
+    () => periodReports.find((r) => r.key === 'consent-stats'),
+    [periodReports],
   );
-  const dateScale = scaleForQuick(pageDate.quick);
   const periodLabel = periodLabelOf(pageDate);
 
   const filteredRecords = useMemo(
@@ -170,11 +170,7 @@ export default function ConsentDashboardPage() {
         {/* 1) KPI จาก worklist ตามช่วงวัน */}
         <section className='flex flex-col w-full' style={{ ...CARD_STYLE, gap: 'var(--dim-space-300)' }}>
           <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-            <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-              <Icon name='analytics' size={18} color='var(--text-brandPrimary-default)' />
-              <h2 style={TITLE_TEXT}>สรุปความยินยอม · {periodLabel}</h2>
-            </div>
-            <span style={MUTED_XS}>นับจากเมนูจัดการความยินยอม · วันที่สร้างคำขอ</span>
+            <h2 style={TITLE_TEXT}>สรุปความยินยอม</h2>
           </div>
           <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
             {kpiCards.map((card) => (
@@ -185,38 +181,38 @@ export default function ConsentDashboardPage() {
 
         {/* 2) Donut + HBar รวมในการ์ดเดียว — pattern เดียวกับรายงานสัดส่วน */}
         <section className='flex flex-col w-full' style={{ ...CARD_STYLE, gap: 'var(--dim-space-400)' }}>
-          <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-            <Icon name='data_usage' size={18} color='var(--text-brandPrimary-default)' />
-            <h2 style={TITLE_TEXT}>สัดส่วนตามสถานะ</h2>
-          </div>
+          <h2 style={TITLE_TEXT}>สัดส่วนตามสถานะ</h2>
           <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
             <div
-              className='flex flex-col shrink-0'
+              className='flex flex-col'
               style={{
                 gap: 'var(--dim-space-300)',
-                minWidth: 260,
-                flex: '0 1 360px',
+                flex: '1 1 400px',
+                minWidth: 360,
+                maxWidth: 480,
                 padding: 'var(--dim-space-400)',
                 borderRadius: 'var(--dim-radius-400)',
                 background: 'var(--surface-card-100)',
                 border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                boxSizing: 'border-box',
+                justifyContent: 'center',
               }}
             >
               {statusSegments.length === 0 ? (
                 <span style={MUTED_XS}>ไม่มีรายการในช่วงที่เลือก</span>
               ) : (
                 <div
-                  className='flex items-center justify-center flex-wrap'
-                  style={{ gap: 'var(--dim-space-400)' }}
+                  className='flex items-center justify-center w-full'
+                  style={{ gap: 'var(--dim-space-400)', flex: 1 }}
                 >
                   <Donut
                     segments={statusSegments}
                     size={200}
-                    thickness={28}
+                    thickness={16}
                     centerLabel={statusTotal.toLocaleString('th-TH')}
                     centerSub='รายการ'
                   />
-                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
                     {statusSegments.map((s) => (
                       <div
                         key={s.label}
@@ -251,17 +247,27 @@ export default function ConsentDashboardPage() {
               style={{
                 gap: 'var(--dim-space-300)',
                 flex: '1 1 320px',
+                minWidth: 320,
                 padding: 'var(--dim-space-400)',
                 borderRadius: 'var(--dim-radius-400)',
                 background: 'var(--surface-card-100)',
                 border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                boxSizing: 'border-box',
               }}
             >
               <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                  <Icon name='bar_chart' size={18} color='var(--text-brandPrimary-default)' />
-                  <h2 style={TITLE_TEXT}>จำนวนตามประเภท Consent</h2>
-                </div>
+                <h2
+                  style={{
+                    color: 'var(--text-content-default)',
+                    fontFamily: 'var(--type-family-heading-graphic2)',
+                    fontSize: 'var(--type-size-sm)',
+                    fontWeight: 'var(--type-weight-regular, 400)',
+                    lineHeight: 1.4,
+                    margin: 0,
+                  }}
+                >
+                  จำนวนตามประเภท Consent
+                </h2>
                 <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
                   {STATUS_BUCKETS.map((b) => (
                     <span key={b.label} className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)' }}>
@@ -291,7 +297,7 @@ export default function ConsentDashboardPage() {
         {consentStatsReport && (
           <ReportCard
             report={consentStatsReport}
-            scale={dateScale}
+            scale={1}
             onExport={setExportReport}
             onView={setViewReport}
           />
@@ -301,11 +307,12 @@ export default function ConsentDashboardPage() {
           pageDate={pageDate}
           onPageDateChange={setPageDate}
           hideToolbar
+          reports={periodReports}
           exportReport={exportReport}
           onExportReportChange={setExportReport}
           viewReport={viewReport}
           onViewReportChange={setViewReport}
-          excludeKeys={['consent-stats']}
+          excludeKeys={['consent-stats', 'personal-consent']}
         />
       </div>
     </QueuePageShell>

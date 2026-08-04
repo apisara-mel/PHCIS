@@ -42,6 +42,7 @@ import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMoti
      • actions           full action array override [{ key, kind, label, onClick, disabled }]
                          kind: 'primary' | 'secondary' | 'tertiary'
      • footer            full custom footer JSX override
+     • headerTrailing    optional JSX rendered before the header X     (default: null)
      • showCloseButton   show the X close button in the header        (default: true)
      • closeOnEscape     close the dialog when Escape is pressed       (default: true)
 
@@ -278,6 +279,7 @@ const Popup = ({
   /** When false, the X icon in the header is hidden. Footer + overlay
       remain the only ways to close. Used by hardened forms (e.g.
       AddMedicationPopup) to prevent an accidental discard. */
+  headerTrailing = null,
   showCloseButton = true,
   /** When false, pressing Escape does not call onClose. Mirrors
       `showCloseButton` for the same hardened-dismissal use case. */
@@ -493,7 +495,15 @@ const Popup = ({
               </p>
             )}
           </div>
-          {showCloseButton && <CloseButton onClick={requestClose} />}
+          {(headerTrailing || showCloseButton) && (
+            <div
+              className='inline-flex shrink-0 items-center'
+              style={{ gap: 'var(--dim-space-200)' }}
+            >
+              {headerTrailing}
+              {showCloseButton && <CloseButton onClick={requestClose} />}
+            </div>
+          )}
         </div>
 
         {/* Body — outer segment fixes flex height; inner owns vertical scroll

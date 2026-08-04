@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import Table, { EllipsisText } from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import DatePicker from '@/components/forms/DatePicker';
+import Checkbox from '@/components/checkbox/Checkbox';
+import CheckboxGroup from '@/components/checkbox/CheckboxGroup';
 import { formatThaiBuddhistDate } from '@/data/registrationForm';
 import { logExport } from '@/data/consentWorkflowStore';
+import { CONSENT_DASHBOARD_REPORTS } from '@/data/consentReports';
 
 /* PHCIS | Consent — shared export popup (Figma 399:124481 / ด.1.1.16).
    Every "นำส่งออกรายงาน" action in the consent module opens this popup:
@@ -19,6 +22,12 @@ const FORMATS = [
   { value: 'xlsx', label: 'XLSX' },
 ];
 
+/** หัวข้อรายงานที่เลือกได้ตอนนำออกจากแดชบอร์ด / รายงานทั้งหมด */
+export const CONSENT_EXPORT_TOPICS = CONSENT_DASHBOARD_REPORTS.map((r) => ({
+  value: r.key,
+  label: r.title,
+}));
+
 const SECTION_LABEL = {
   color: 'var(--text-content-default)',
   fontFamily: 'var(--type-family-heading-graphic2)',
@@ -27,8 +36,8 @@ const SECTION_LABEL = {
 };
 
 const STATUS_TONE = {
-  'ยินยอม': 'green', 'สำเร็จ': 'green', 'อนุมัติ': 'green', 'ใช้งาน': 'green', 'ยินยอมแล้ว': 'green', 'เผยแพร่': 'green',
-  'ปฏิเสธ': 'red', 'ถอน': 'red', 'ไม่ยินยอม': 'red', 'ถูกปฏิเสธ': 'red', 'ล้มเหลว': 'red', 'ปฏิเสธ/เพิกถอน': 'red', 'ไม่เผยแพร่': 'red',
+  'ยินยอม': 'green', 'ให้ความยินยอม': 'green', 'สำเร็จ': 'green', 'อนุมัติ': 'green', 'ใช้งาน': 'green', 'ยินยอมแล้ว': 'green', 'เผยแพร่': 'green',
+  'ปฏิเสธ': 'red', 'ถอน': 'red', 'ไม่ยินยอม': 'red', 'ไม่ให้ความยินยอม': 'red', 'ถูกปฏิเสธ': 'red', 'ล้มเหลว': 'red', 'ปฏิเสธ/เพิกถอน': 'red', 'ไม่เผยแพร่': 'red',
   'รอตรวจสอบ': 'yellow', 'รอดำเนินการ': 'yellow', 'รอลงนาม': 'yellow', 'ขอเพิกถอน': 'red', 'หมดอายุ-Reconsent': 'yellow',
   'มีเวอร์ชันใหม่': 'orange', 'ร่าง': 'grey', 'หมดอายุ': 'grey',
 };
@@ -140,6 +149,7 @@ const RadioPill = ({ label, selected, onClick, disabled = false }) => {
 
 /** Compact date field — opens Calendar dropdown (MIH DatePicker). */
 export const DateInputBox = ({
+  label,
   placeholder = 'เลือกวันที่',
   value = null,
   onChange,
@@ -161,41 +171,134 @@ export const DateInputBox = ({
       minDate={minDate}
       format={formatThaiBuddhistDate}
       placeholder={placeholder}
+      label={label || placeholder}
       leadingIcon='calendar_today'
-      showFieldName={false}
-      showLabel={false}
+      showFieldName={!!label}
+      showLabel={!!label}
       showHelperText={false}
       showLeadingIcon
     />
   </div>
 );
 
-export function ExportFormatPopup({ open, report, onClose, onExported }) {
+export function ExportFormatPopup({
+  open,
+  report,
+  reportsCatalog = CONSENT_DASHBOARD_REPORTS,
+  topics = CONSENT_EXPORT_TOPICS,
+  onClose,
+  onExported,
+}) {
   const [format, setFormat] = useState(null);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  useEffect(() => { if (open) { setFormat(null); setStartDate(null); setEndDate(null); } }, [open]);
-  const ready = !!format && !!startDate && !!endDate;
+  const [selectedTopics, setSelectedTopics] = useState([]);
+
+  const topicKeys = useMemo(() => topics.map((t) => t.value), [topics]);
+  /* เลือกหัวข้อได้เมื่อนำออกแบบรวม (key=all) — รายงานเดี่ยว / worklist ไม่โชว์ picker */
+  const showTopicPicker = !report?.key || report.key === 'all';
+
+  useEffect(() => {
+    if (!open) return;
+    setFormat(null);
+    setStartDate(null);
+    setEndDate(null);
+    if (showTopicPicker) {
+      setSelectedTopics([...topicKeys]);
+    } else if (report?.key) {
+      setSelectedTopics([report.key]);
+    } else {
+      setSelectedTopics([]);
+    }
+  }, [open, showTopicPicker, report?.key, topicKeys]);
+
+  const allSelected = topicKeys.length > 0 && topicKeys.every((k) => selectedTopics.includes(k));
+  const someSelected = showTopicPicker ? selectedTopics.length > 0 : true;
+
+  const toggleAll = (checked) => {
+    setSelectedTopics(checked ? [...topicKeys] : []);
+  };
+
+  const ready = !!format && !!startDate && !!endDate && someSelected;
+
+  const selectedReports = useMemo(() => {
+    const catalog = Array.isArray(reportsCatalog) ? reportsCatalog : [];
+    return selectedTopics
+      .map((key) => catalog.find((r) => r.key === key) || topics.find((t) => t.value === key))
+      .filter(Boolean)
+      .map((r) => (r.title ? r : { key: r.value, title: r.label }));
+  }, [selectedTopics, reportsCatalog, topics]);
+
+  const previewReport = useMemo(() => {
+    if (!showTopicPicker && report?.table) return report;
+    if (selectedTopics.length === 1) {
+      const key = selectedTopics[0];
+      const fromCatalog = (reportsCatalog || []).find((r) => r.key === key);
+      if (fromCatalog) return fromCatalog;
+      if (report?.key === key && report.table) return report;
+    }
+    return null;
+  }, [selectedTopics, reportsCatalog, report, showTopicPicker]);
+
+  const previewTitle = (() => {
+    if (!showTopicPicker) return report?.title || 'รายงาน';
+    if (selectedTopics.length === 0) return 'ยังไม่ได้เลือกรายงาน';
+    if (allSelected) return 'รายงานทั้งหมด';
+    if (selectedTopics.length === 1) {
+      return selectedReports[0]?.title || report?.title || 'รายงาน';
+    }
+    return `รายงานที่เลือก (${selectedTopics.length} หัวข้อ)`;
+  })();
+
   const confirm = () => {
     if (!ready) return;
-    logExport({ source: report ? report.title : 'รายงาน consent', format });
+    const topicLabels = selectedReports.map((r) => r.title).join(', ');
+    logExport({
+      source: topicLabels || (report ? report.title : 'รายงาน consent'),
+      format,
+      topics: selectedTopics,
+    });
     onClose();
-    if (onExported) onExported(format);
+    if (onExported) onExported(format, { topics: selectedTopics });
   };
-  const previewCols = report && report.table ? buildReportTableColumns(report.table.columns) : [];
-  const previewRows = report && report.table ? report.table.rows.slice(0, 5).map((r, i) => ({ ...r, _id: i })) : [];
+
+  const previewCols = previewReport?.table ? buildReportTableColumns(previewReport.table.columns) : [];
+  const previewRows = previewReport?.table
+    ? previewReport.table.rows.slice(0, 5).map((r, i) => ({ ...r, _id: i }))
+    : [];
+
   return (
     <Popup
       open={open}
       onClose={onClose}
       size='extraLarge'
       title='นำออกรายงาน'
-      subtitle='ตรวจตัวอย่างเอกสาร เลือกช่วงวันที่และรูปแบบไฟล์ แล้วยืนยันนำออก (ระบบเก็บ log การส่งออก)'
+      subtitle='เลือกหัวข้อรายงาน ช่วงวันที่ และรูปแบบไฟล์ แล้วยืนยันนำออก (ระบบเก็บ log การส่งออก)'
       primaryAction={{ label: 'ยืนยันนำออกรายงาน', onClick: confirm, disabled: !ready }}
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
       tertiaryAction={{ label: 'พิมพ์ (ไม่เก็บ log)', onClick: () => window.print?.() }}
     >
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+        {showTopicPicker && (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            <span style={SECTION_LABEL}>
+              เลือกหัวข้อรายงาน <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
+            </span>
+            <Checkbox
+              label='เลือกทั้งหมด'
+              checked={allSelected}
+              onChange={toggleAll}
+            />
+            <CheckboxGroup
+              options={topics}
+              value={selectedTopics}
+              onChange={setSelectedTopics}
+              name='consent-export-topics'
+              error={!someSelected ? 'เลือกอย่างน้อย 1 หัวข้อรายงาน' : undefined}
+            />
+          </div>
+        )}
+
         {/* เลือกวันที่ + รูปแบบไฟล์ — บรรทัดเดียวกัน อยู่เหนือตัวอย่างเอกสาร */}
         <div
           className='flex items-end flex-wrap w-full'
@@ -273,18 +376,27 @@ export function ExportFormatPopup({ open, report, onClose, onExported }) {
               <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)' }}>
                 สำนักอนามัย กรุงเทพมหานคร
               </span>
-              <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>
-                {report ? report.title : 'รายงาน'}
+              <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', textAlign: 'center' }}>
+                {previewTitle}
               </span>
+              {selectedTopics.length > 1 && !allSelected && (
+                <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', textAlign: 'center' }}>
+                  {selectedReports.map((r) => r.title).join(' · ')}
+                </span>
+              )}
               <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', textAlign: 'center' }}>
-                ช่วงวันที่ {startDate || '—'} ถึง {endDate || '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)
+                ช่วงวันที่ {startDate ? formatThaiBuddhistDate(startDate) : '—'} ถึง {endDate ? formatThaiBuddhistDate(endDate) : '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)
               </span>
             </div>
             {previewRows.length > 0 ? (
               <Table columns={previewCols} rows={previewRows} rowKey={(r) => r._id} />
             ) : (
               <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', textAlign: 'center' }}>
-                รวมทุกรายงานในระบบ — ตัวอย่างตารางแสดงเมื่อเลือกรายงานเฉพาะหัวข้อ
+                {selectedTopics.length === 0
+                  ? 'เลือกหัวข้อรายงานด้านบนเพื่อดูตัวอย่าง'
+                  : selectedTopics.length === 1
+                    ? 'ตัวอย่างตารางจะแสดงเมื่อรายงานมีข้อมูลในช่วงที่เลือก'
+                    : 'รวมรายงานที่เลือก — ตัวอย่างตารางแสดงเมื่อเลือกเพียง 1 หัวข้อ'}
               </span>
             )}
           </div>

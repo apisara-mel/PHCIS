@@ -175,7 +175,7 @@ const manifests = (
           `- Cover every state and edge case in the spec; every "แสดง/บันทึก/ยกเลิก/แก้ไข" TOR leaf gets all four actions.\n` +
           `- Reuse existing components; anything genuinely new goes in your module dir and is reported in newComponents (do NOT edit awaiting-components.md yourself).\n` +
           `When done, verify each created file parses (node --check is not valid for JSX — instead re-read your files for balanced JSX and correct imports), then return the integration manifest (playbook §7) as structured output. checklistUpdates must be honest — partial with a note beats fake done.`,
-        { label: `build:${m.id}`, phase: 'Build', schema: MANIFEST_SCHEMA }
+        { label: `build:${m.id}`, phase: 'Build', schema: MANIFEST_SCHEMA, model: 'opus' }
       )
   )
 ).filter(Boolean)

@@ -74,6 +74,11 @@ import FormDetailPage from '@/pages/forms/FormDetailPage';
 import FormFillPage from '@/pages/forms/FormFillPage';
 import UsersAccessPage from '@/pages/users/UsersAccessPage';
 import UserEditPage from '@/pages/users/UserEditPage';
+import DirectoryServicePage from '@/pages/users/DirectoryServicePage';
+import DrugOrderRoutingPage from '@/pages/users/DrugOrderRoutingPage';
+import UserUsageReportPage from '@/pages/users/UserUsageReportPage';
+import NotificationCenterPage from '@/pages/users/NotificationCenterPage';
+import UserSchedulePage from '@/pages/users/UserSchedulePage';
 import TabsPreviewPage from '@/pages/preview/TabsPreviewPage';
 import CardsPreviewPage from '@/pages/preview/CardsPreviewPage';
 import BodyRecordPreviewPage from '@/pages/preview/BodyRecordPreviewPage';
@@ -428,6 +433,13 @@ export default function Routes() {
         {/* ผู้ใช้และสิทธิ์การเข้าถึง — admin manages users + role/sub-role/department/features */}
         <Route exact path='/users'             component={UsersAccessPage} />
         <Route exact path='/users/new'         component={UserEditPage} />
+        {/* TOR §1.17 — admin sub-modules. Must precede '/users/:id' so the
+            literal segments aren't swallowed by the :id param. */}
+        <Route exact path='/users/directory-service' component={DirectoryServicePage} />
+        <Route exact path='/users/drug-routing'      component={DrugOrderRoutingPage} />
+        <Route exact path='/users/reports'           component={UserUsageReportPage} />
+        <Route exact path='/users/notifications'     component={NotificationCenterPage} />
+        <Route exact path='/users/:id/schedule' component={UserSchedulePage} />
         <Route exact path='/users/:id'         component={UserEditPage} />
         {/* Standalone component library — separate from PHCIS chrome */}
         <Route exact path='/components'           component={ComponentsLibraryPage} />
