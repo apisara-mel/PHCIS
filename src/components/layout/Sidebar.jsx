@@ -32,27 +32,61 @@ const NAV_FADE_BOTTOM =
 //
 // `subItems` (optional) — list of sub-departments rendered in a
 // <SideSubMenu> panel to the right of the rail when this primary menu
-// is clicked (Figma "Show SideSubMenu" node 299:4913). Currently the
-// only menu wired with sub-departments is `treat`.
+// is clicked (Figma "Show SideSubMenu" node 299:4913). Menus wired with
+// sub-departments: `opd` (หน้าจอย่อยของงานผู้รับบริการนอก), `queue-center`
+// (หน้าจอย่อยของระบบบริหารจัดการคิว) and `treat`.
 const ITEMS = [
   { key: 'dashboard', label: 'แดชบอร์ด',                  icon: 'bar_chart_4_bars', path: '/dashboard'   },
   { key: 'consent',   label: 'คลังแบบฟอร์ม',              icon: 'assignment_add',   path: '/forms'        },
   { key: 'registration', label: 'งานเวชระเบียน',          icon: 'assignment',       path: '/registration/queue' },
   { key: 'observation',   label: 'ระบบสังเกตอาการ', icon: 'monitor_heart',  path: '/observation' },
-  { key: 'opd',       label: 'ระบบงานผู้รับบริการนอก',    icon: 'face',             path: '/opd/queue'   },
+  /* ระบบงานผู้รับบริการนอก — เดิมเป็นเมนูเดี่ยวชี้ /opd/queue. TOR §1.2.1
+     (Request Walk-in + Slot), §1.2.3.6 (รง.506) และ §1.2.7 (ตั้งค่าห้องตรวจ/
+     โควตา) เพิ่มหน้าจอเข้ามาอีก 3 หน้า จึงเปลี่ยนเป็นเมนูที่มี subItems
+     แบบเดียวกับ `treat` — รายการแรกยังเป็นคิวผู้รับบริการเหมือนเดิม.
+     (SideSubMenu รับเฉพาะ { key, label, path } — ไม่มีช่องไอคอน; ไอคอนที่
+     builder เสนอไว้ outbox / meeting_room / coronavirus จึงยังไม่ถูกใช้
+     จนกว่าเมนูย่อยจะรองรับไอคอน) */
+  {
+    key: 'opd', label: 'ระบบงานผู้รับบริการนอก', icon: 'face', path: '/opd/queue',
+    subItems: [
+      { key: 'opd-queue',     label: 'คิวผู้รับบริการนอก',            path: '/opd/queue'       },
+      { key: 'opd-screening', label: 'คัดกรองและซักประวัติ',          path: '/opd/screening'   },
+      { key: 'opd-requests',  label: 'คำขอ Walk-in ตามแผนก',          path: '/opd/requests'    },
+      { key: 'opd-rooms',     label: 'ตั้งค่าห้องตรวจและโควตา',       path: '/opd/room-config' },
+      { key: 'opd-rg506',     label: 'รายงานเฝ้าระวังโรค รง.506',     path: '/opd/rg506'       },
+    ],
+  },
+  /* ระบบบริหารจัดการคิว — TOR §1.3. ระบบคิวกลางของศูนย์ (คนละตัวกับคิว
+     ผู้รับบริการนอกใน `opd` ซึ่งเป็นคิวของแผนกเดียว) รวมคอนโซลเรียกคิว
+     การออกคิว การเชื่อมข้อมูล การตั้งค่า และจอแสดงผล.
+     `activeKey='queue-center'` ที่ทุกหน้าในโมดูลส่งมาผูกกับ key นี้.
+     (เหมือน `opd`/`treat` — SideSubMenu รับเฉพาะ { key, label, path } ไอคอน
+     ที่ builder เสนอไว้ confirmation_number / hub / settings / tv จึงยังไม่ถูกใช้) */
+  {
+    key: 'queue-center', label: 'ระบบบริหารจัดการคิว', icon: 'campaign', path: '/queue-center',
+    subItems: [
+      { key: 'qc-console',     label: 'จัดการคิวและเรียกคิว',     path: '/queue-center'             },
+      { key: 'qc-issue',       label: 'การออกคิว',                path: '/queue-center/issue'       },
+      { key: 'qc-integration', label: 'การเชื่อมต่อข้อมูลคิว',    path: '/queue-center/integration' },
+      { key: 'qc-settings',    label: 'ตั้งค่าระบบคิว',           path: '/queue-center/settings'    },
+      { key: 'qc-display',     label: 'จอแสดงผลการเรียกคิว',      path: '/queue-center/display'     },
+    ],
+  },
   {
     key: 'treat', label: 'ระบบบันทึกการรักษา', icon: 'stethoscope',
     subItems: [
       { key: 'opd-treat',  label: 'ตรวจรักษาทั่วไป',                    path: '/treat/queue' },
       { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)' },
-      { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์' },
-      { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด' },
+      { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์', path: '/clinic/hiv-sti' },
+      { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด',   path: '/clinic/addiction' },
       { key: 'anc',        label: 'แผนกฝากครรภ์',                          path: '/treat/anc/queue' },
+      { key: 'ncd',        label: 'แผนกโรคเรื้อรัง (NCD)',                  path: '/clinic/ncd' },
       { key: 'wellness',   label: 'แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ' },
       { key: 'vaccine',    label: 'แผนกสร้างเสริมภูมิคุ้มกันโรค' },
-      { key: 'dental',     label: 'แผนกทันตกรรม' },
-      { key: 'tb',         label: 'แผนกวัณโรค' },
-      { key: 'mental',     label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต' },
+      { key: 'dental',     label: 'แผนกทันตกรรม',                          path: '/clinic/dental' },
+      { key: 'tb',         label: 'แผนกวัณโรค',                            path: '/clinic/tb' },
+      { key: 'mental',     label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต',        path: '/clinic/mental-health' },
     ],
   },
   { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18, path: '/xray/queue' },
