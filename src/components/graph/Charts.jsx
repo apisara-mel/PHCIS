@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import MihTooltip from '@/components/tooltip/Tooltip';
 
 /**
  * SVG chart primitives — all colors flow through MIH design tokens
@@ -53,7 +54,7 @@ export const Reveal = ({ children, delay = 0, threshold = 0.15, className = '' }
   );
 };
 
-/* ── Tooltip primitive (Figma Indicator / status summary card) ─ */
+/* ── Tooltip primitive — matches VitalsSignGraph ChartTooltip (light popover) */
 const Tooltip = ({ x, y, children, anchor = 'top' }) => {
   if (x == null || y == null) return null;
   const transform = anchor === 'top'
@@ -61,15 +62,20 @@ const Tooltip = ({ x, y, children, anchor = 'top' }) => {
     : 'translate(-50%, 8px)';
   return (
     <div
-      /* borderColor inline — Tailwind v2.1 JIT parses `border-[var(...)]` as
-         border-width, so the class can't tint this hairline. */
-      className='pointer-events-none absolute z-20 px-3 py-2.5 rounded-card text-xs text-ink-secondary shadow-card border flex flex-col gap-1 leading-snug'
+      className='pointer-events-none absolute z-20 flex flex-col leading-snug'
       style={{
         left: x,
         top: y,
         transform,
         background: 'var(--surface-card-100)',
-        borderColor: 'var(--border-brandPrimary-quaternary)',
+        border: 'var(--dim-stroke-100) solid var(--border-popover-grey)',
+        borderRadius: 'var(--dim-radius-200, 8px)',
+        boxShadow: 'var(--shadow-dropdown)',
+        padding: 'var(--dim-space-200) var(--dim-space-300)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-xs)',
+        color: 'var(--text-content-default)',
+        gap: 'var(--dim-space-100)',
         width: 'max-content',
         maxWidth: 'min(18rem, calc(100vw - 2rem))',
       }}
@@ -78,6 +84,28 @@ const Tooltip = ({ x, y, children, anchor = 'top' }) => {
     </div>
   );
 };
+
+const TooltipCaption = ({ children }) => (
+  <div
+    style={{
+      color: 'var(--text-content-tertiary)',
+      fontSize: 10,
+      lineHeight: 1.3,
+      marginBottom: 'var(--dim-space-050)',
+      whiteSpace: 'nowrap',
+    }}
+  >
+    {children}
+  </div>
+);
+
+const TooltipRow = ({ color, label, value }) => (
+  <div className='flex items-center' style={{ gap: 'var(--dim-space-200)', lineHeight: 1.4, whiteSpace: 'nowrap' }}>
+    <span style={{ width: 8, height: 8, borderRadius: 'var(--dim-radius-full)', background: color, flexShrink: 0 }} />
+    <span style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>{label}</span>
+    <span style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-bold)' }}>{value}</span>
+  </div>
+);
 
 /* ── Donut ─────────────────────────────────────────────────── */
 /* Build an annular-wedge SVG path (clean filled segment, no stroke). */
@@ -113,9 +141,9 @@ export const Donut = ({
   const hasTriple = !!(centerLabel && centerSub && centerExtra);
   const hasPair = !!(centerLabel && centerSub) && !centerExtra;
   /* ตัวเลขกลางสเกลตามขนาดรูใน — เด่นชัดบน donut ใหญ่ */
-  const centerLabelSize = Math.max(16, Math.round(rIn * 0.52));
-  const centerSubSize = Math.max(10, Math.round(rIn * 0.18));
-  const centerExtraSize = Math.max(9, Math.round(rIn * 0.15));
+  const centerLabelSize = Math.max(14, Math.round(rIn * 0.34));
+  const centerSubSize = Math.max(10, Math.round(rIn * 0.15));
+  const centerExtraSize = Math.max(9, Math.round(rIn * 0.13));
 
   /* Sweep-in animation — runs once when the donut enters the viewport.
    * Animates `progress` 0→1 with ease-out, clipping each wedge's end angle. */
@@ -245,7 +273,11 @@ export const Donut = ({
               <text
                 x='50%' y='36%'
                 textAnchor='middle' dominantBaseline='middle'
-                style={{ fontSize: 9, fill: 'var(--text-content-secondary)' }}
+                style={{
+                  fontSize: centerSubSize,
+                  fontFamily: 'var(--type-family-body)',
+                  fill: 'var(--text-content-secondary)',
+                }}
               >
                 {focusedSeg.label.length > 14 ? `${focusedSeg.label.slice(0, 13)}…` : focusedSeg.label}
               </text>
@@ -253,15 +285,23 @@ export const Donut = ({
             <text
               x='50%' y='52%'
               textAnchor='middle' dominantBaseline='middle'
-              className='font-bold'
-              style={{ fontSize: 14, fill: 'var(--text-content-default)' }}
+              style={{
+                fontSize: centerLabelSize,
+                fontFamily: 'var(--type-family-heading-graphic2)',
+                fontWeight: 'var(--type-weight-regular, 400)',
+                fill: 'var(--text-content-default)',
+              }}
             >
               {focusedSeg.value.toLocaleString()}
             </text>
             <text
               x='50%' y='66%'
               textAnchor='middle' dominantBaseline='middle'
-              style={{ fontSize: 9, fill: 'var(--text-content-tertiary)' }}
+              style={{
+                fontSize: centerExtraSize,
+                fontFamily: 'var(--type-family-body)',
+                fill: 'var(--text-content-tertiary)',
+              }}
             >
               {(focusedSeg.value / total * 100).toFixed(1)}%
             </text>
@@ -275,11 +315,29 @@ export const Donut = ({
 /* ── Horizontal bar list (used in ranking widgets) ─────────── */
 /* Optional `segments` on a row: [{ value, color, label }] — stacked
    proportions inside one track (e.g. ยินยอม / ไม่ยินยอม). Track width
-   still scales to the row's `value` vs the list max. */
-export const HBarList = ({ rows, valueLabel = 'คน', secondLabel = 'ครั้ง', activeIndex = null, onRowClick }) => {
+   still scales to the row's `value` vs the list max.
+   Each segment is hoverable and shows its value in a tooltip. */
+export const HBarList = ({
+  rows,
+  valueLabel = 'คน',
+  secondLabel = 'ครั้ง',
+  activeIndex = null,
+  onRowClick,
+  /* จำกัดความสูงให้เห็นประมาณ N แถว แล้ว scroll แนวตั้ง (เช่น 6.5) */
+  maxVisibleRows,
+}) => {
   const max = Math.max(...rows.map((r) => r.value)) || 1;
+  const [hoverSeg, setHoverSeg] = useState(null); /* { row, seg } | null */
+  const scrollStyle = maxVisibleRows != null && maxVisibleRows > 0
+    ? {
+        maxHeight: `calc(${maxVisibleRows} * (var(--dim-size-1000, 48px) + var(--dim-space-150, 6px)))`,
+        overflowY: 'auto',
+        paddingRight: 'var(--dim-space-100, 4px)',
+        overscrollBehavior: 'contain',
+      }
+    : undefined;
   return (
-    <div className='flex flex-col gap-1.5'>
+    <div className='flex flex-col gap-1.5' style={scrollStyle}>
       {rows.map((r, i) => {
         const isActive = activeIndex === i;
         const clickable = !!onRowClick;
@@ -312,37 +370,70 @@ export const HBarList = ({ rows, valueLabel = 'คน', secondLabel = 'ครั
             <div className='flex-1 min-w-0'>
               <div className={`truncate ${isActive ? 'font-bold text-brand-500' : 'text-ink'}`}>{r.label}</div>
               <div
-                className='h-1.5 mt-0.5 rounded-full overflow-hidden flex'
+                className='mt-0.5 flex items-center'
                 style={{
                   width: `${(r.value / max) * 100}%`,
-                  background: 'var(--brand-p100)',
+                  height: 'var(--dim-space-300, 12px)',
                   maxWidth: '100%',
+                  background: segments && segments.length > 0 ? 'transparent' : 'var(--brand-p100)',
+                  borderRadius: 'var(--dim-radius-full)',
                 }}
               >
                 {segments && segments.length > 0 ? (
-                  segments.map((s, si) => (
-                    <div
-                      key={si}
-                      className='h-full transition-all'
-                      style={{
-                        width: `${(Number(s.value) / segmentTotal) * 100}%`,
-                        background: s.color || (isActive ? 'var(--brand-p700)' : 'var(--brand-p400)'),
-                        borderRadius: si === 0 && si === segments.length - 1
-                          ? 'var(--dim-radius-full)'
-                          : si === 0
-                            ? 'var(--dim-radius-full) 0 0 var(--dim-radius-full)'
-                            : si === segments.length - 1
-                              ? '0 var(--dim-radius-full) var(--dim-radius-full) 0'
-                              : 0,
-                      }}
-                      title={s.label ? `${s.label}: ${Number(s.value).toLocaleString()}` : undefined}
-                    />
-                  ))
+                  segments.map((s, si) => {
+                    const isHovered = hoverSeg?.row === i && hoverSeg?.seg === si;
+                    const valueText = Number(s.value).toLocaleString();
+                    const tipText = s.label ? `${s.label} · ${valueText}` : valueText;
+                    const radius = si === 0 && si === segments.length - 1
+                      ? 'var(--dim-radius-full)'
+                      : si === 0
+                        ? 'var(--dim-radius-full) 0 0 var(--dim-radius-full)'
+                        : si === segments.length - 1
+                          ? '0 var(--dim-radius-full) var(--dim-radius-full) 0'
+                          : 0;
+                    return (
+                      <div
+                        key={si}
+                        className='relative h-full'
+                        style={{
+                          width: `${(Number(s.value) / segmentTotal) * 100}%`,
+                          minWidth: Number(s.value) > 0 ? 2 : 0,
+                          opacity: hoverSeg?.row === i && !isHovered ? 0.45 : 1,
+                          transition: 'opacity .12s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.stopPropagation();
+                          setHoverSeg({ row: i, seg: si });
+                        }}
+                        onMouseLeave={() => setHoverSeg(null)}
+                      >
+                        <MihTooltip content={tipText} position='top' delay={80} variant='light' className='block w-full h-full'>
+                          <div
+                            className='relative w-full h-full'
+                            style={{ cursor: 'pointer' }}
+                            aria-label={tipText}
+                          >
+                            <div
+                              className='absolute left-0 right-0'
+                              style={{
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                height: 'var(--dim-space-150, 6px)',
+                                background: s.color || (isActive ? 'var(--brand-p700)' : 'var(--brand-p400)'),
+                                borderRadius: radius,
+                              }}
+                            />
+                          </div>
+                        </MihTooltip>
+                      </div>
+                    );
+                  })
                 ) : (
                   <div
                     className='h-full rounded-full transition-all'
                     style={{
                       width: '100%',
+                      height: 'var(--dim-space-150, 6px)',
                       background: isActive ? 'var(--brand-p700)' : 'var(--brand-p400)',
                     }}
                   />
@@ -485,13 +576,9 @@ export const VBars = ({ months, series, height = 200, onMonthClick, activeMonth 
       </div>
       {hover != null && (
         <Tooltip x={`${((hover + 0.5) / months.length) * 100}%`} y={0}>
-          <div className='font-bold'>{months[hover]}</div>
+          <TooltipCaption>{months[hover]}</TooltipCaption>
           {series.map((s, i) => (
-            <div key={i} className='flex items-start gap-2'>
-              <span className='w-3 h-3 rounded-full shrink-0 mt-0.5' style={{ background: s.color }} />
-              <span className='min-w-0'>{s.label}</span>
-              <span className='tabular-nums font-bold shrink-0 pl-1.5 text-right'>{s.values[hover]}</span>
-            </div>
+            <TooltipRow key={i} color={s.color} label={s.label} value={s.values[hover]} />
           ))}
         </Tooltip>
       )}
@@ -644,13 +731,9 @@ export const LineChart = ({ months, series, height = 180, onMonthClick, activeMo
 
       {hover != null && (
         <Tooltip x={`${((hover + 0.5) / months.length) * 100}%`} y={padding.top}>
-          <div className='font-bold'>{months[hover]}</div>
+          <TooltipCaption>{months[hover]}</TooltipCaption>
           {series.map((s, i) => (
-            <div key={i} className='flex items-start gap-2'>
-              <span className='w-3 h-3 rounded-full shrink-0 mt-0.5' style={{ background: s.color }} />
-              <span className='min-w-0'>{s.label}</span>
-              <span className='tabular-nums font-bold shrink-0 pl-1.5 text-right'>{s.values[hover].toLocaleString()}</span>
-            </div>
+            <TooltipRow key={i} color={s.color} label={s.label} value={s.values[hover].toLocaleString()} />
           ))}
         </Tooltip>
       )}
@@ -1075,13 +1158,9 @@ export const AreaLineChart = ({ months, series, height = 280, valueLabels = true
           x={`calc(${(xPos(hover) / W) * 100}% )`}
           y={`${(padding.top / H) * 100}%`}
         >
-          <div className='font-bold'>{months[hover]}</div>
+          <TooltipCaption>{months[hover]}</TooltipCaption>
           {series.map((s, i) => (
-            <div key={i} className='flex items-start gap-2'>
-              <span className='w-3 h-3 rounded-full shrink-0 mt-0.5' style={{ background: s.color }} />
-              <span className='min-w-0'>{s.label}</span>
-              <span className='tabular-nums font-bold shrink-0 pl-1.5 text-right'>{s.values[hover].toLocaleString()}</span>
-            </div>
+            <TooltipRow key={i} color={s.color} label={s.label} value={s.values[hover].toLocaleString()} />
           ))}
         </Tooltip>
       )}
@@ -1196,10 +1275,10 @@ export const Pie = ({ slices, size = 240, activeIndex = null, onSliceClick }) =>
       </svg>
       {hover != null && (
         <Tooltip x={cx} y={4}>
-          <span className='whitespace-nowrap'>
-            <strong className='font-bold'>{slices[hover].label}</strong>
+          <span className='whitespace-nowrap' style={{ color: 'var(--text-content-default)' }}>
+            <span style={{ fontWeight: 'var(--type-weight-medium)' }}>{slices[hover].label}</span>
             {' · '}
-            <span className='tabular-nums font-bold'>{slices[hover].value.toFixed(1)}%</span>
+            <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{slices[hover].value.toFixed(1)}%</span>
           </span>
         </Tooltip>
       )}

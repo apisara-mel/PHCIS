@@ -440,3 +440,303 @@ export const countAccess = (features = {}) => {
   }
   return { view, edit, total: view + edit };
 };
+
+/* ══════════════════════════════════════════════════════════════════════
+   TOR §1.17.1.3 — User Attribute ครบชุด
+   ══════════════════════════════════════════════════════════════════════
+   ข้อกำหนดระบุ attribute ที่ระบบต้องเก็บ/รับจาก Directory Service ไว้ 8 ตัว:
+   Department · Department-Code · รหัสวิชาชีพ · Given Name · Last Name ·
+   Email · Title · Active. ส่วนล่างนี้เติม attribute ทั้ง 8 (พร้อมข้อมูล
+   ประกอบที่งานจริงต้องใช้ — เบอร์ติดต่อ, ศูนย์ที่สังกัด, ศูนย์ที่สลับไปได้,
+   แหล่งบัญชี Local/IdP, ช่องทางเข้าสู่ระบบ) ลงบน USERS เดิม "ในที่" เพื่อไม่
+   ให้ importer เดิม (UsersAccessPage / UserEditPage) เห็นข้อมูลคนละชุด. */
+
+/** คำนำหน้า (TOR: Title) — ใช้ทั้งในฟอร์มและ mapping ฝั่ง IdP. */
+export const TITLES = [
+  { key: 'md',        label: 'นพ.',   full: 'นายแพทย์' },
+  { key: 'md-f',      label: 'พญ.',   full: 'แพทย์หญิง' },
+  { key: 'rn',        label: 'พว.',   full: 'พยาบาลวิชาชีพ' },
+  { key: 'pharm-m',   label: 'ภก.',   full: 'เภสัชกรชาย' },
+  { key: 'pharm-f',   label: 'ภญ.',   full: 'เภสัชกรหญิง' },
+  { key: 'dds',       label: 'ทพ.',   full: 'ทันตแพทย์' },
+  { key: 'mr',        label: 'นาย',   full: 'นาย' },
+  { key: 'mrs',       label: 'นาง',   full: 'นาง' },
+  { key: 'ms',        label: 'นางสาว', full: 'นางสาว' },
+];
+
+export const getTitle = (key) => TITLES.find((t) => t.key === key);
+
+/** ประเภทใบอนุญาต/รหัสวิชาชีพ — บังคับเฉพาะบทบาทวิชาชีพ. */
+export const LICENSE_TYPES = [
+  { key: 'md',     label: 'ใบอนุญาตประกอบวิชาชีพเวชกรรม (ว.)',        prefix: 'ว.',  roles: ['doctor'] },
+  { key: 'rn',     label: 'ใบอนุญาตประกอบวิชาชีพการพยาบาล (พย.)',     prefix: 'พย.', roles: ['nurse'] },
+  { key: 'pharm',  label: 'ใบอนุญาตประกอบวิชาชีพเภสัชกรรม (ภ.)',      prefix: 'ภ.',  roles: ['pharmacist'] },
+  { key: 'mt',     label: 'ใบอนุญาตประกอบวิชาชีพเทคนิคการแพทย์ (ท.น.)', prefix: 'ท.น.', roles: ['lab-tech'] },
+  { key: 'dds',    label: 'ใบอนุญาตประกอบวิชาชีพทันตกรรม (ท.)',        prefix: 'ท.',  roles: ['doctor'] },
+  { key: 'none',   label: 'ไม่ต้องใช้ใบอนุญาต',                        prefix: '',    roles: ['registrar', 'admin'] },
+];
+
+/** บทบาทที่ TOR ถือว่าเป็น "วิชาชีพ" — รหัสวิชาชีพเป็นฟิลด์บังคับ. */
+export const PROFESSIONAL_ROLES = ['doctor', 'nurse', 'pharmacist', 'lab-tech'];
+
+/** Department-Code ตามผังรหัสหน่วยงานของสำนักอนามัย (mock ที่สอดคล้องกัน). */
+export const DEPARTMENT_CODES = {
+  opd:          'DEP-OPD-01',
+  registration: 'DEP-REG-02',
+  pharmacy:     'DEP-PHA-03',
+  lab:          'DEP-LAB-04',
+  radiology:    'DEP-RAD-05',
+  family:       'DEP-FAM-06',
+  std:          'DEP-STD-07',
+  drug:         'DEP-DRG-08',
+  anc:          'DEP-ANC-09',
+  wellness:     'DEP-WEL-10',
+  vaccine:      'DEP-VAC-11',
+  dental:       'DEP-DEN-12',
+  tb:           'DEP-TB-13',
+  mental:       'DEP-MEN-14',
+};
+
+export const departmentCodeOf = (deptKey) => DEPARTMENT_CODES[deptKey] || '';
+
+/** รหัสหน่วยงานที่คาดหวังจากชุดแผนกที่เลือก (ตัวแรกเป็นค่า auto-fill). */
+export const expectedDepartmentCodes = (deptKeys = []) =>
+  deptKeys.map(departmentCodeOf).filter(Boolean);
+
+/** แหล่งที่มาของบัญชี — Local (สร้างในระบบ) หรือ IdP (sync จาก Directory Service). */
+export const ACCOUNT_SOURCES = [
+  { key: 'local', label: 'สร้างในระบบ (Local)',          icon: 'person' },
+  { key: 'idp',   label: 'Directory Service (IdP)',      icon: 'hub' },
+];
+
+/** ช่องทางเข้าสู่ระบบรายบุคคล (TOR 1.17.5.1). */
+export const LOGIN_CHANNELS = [
+  { key: 'password', label: 'ชื่อผู้ใช้ + รหัสผ่าน', icon: 'password',   desc: 'เข้าสู่ระบบด้วยบัญชีผู้ใช้และรหัสผ่านของ PHCIS' },
+  { key: 'qr',       label: 'สแกน QR ประจำตัว',      icon: 'qr_code_2',  desc: 'สแกน QR จากหน้าเข้าสู่ระบบ — QR หมดอายุใน 1 นาทีและออกใหม่อัตโนมัติ' },
+  { key: 'otp-sms',  label: 'OTP ทาง SMS',           icon: 'sms',        desc: 'ส่งรหัส 6 หลักไปยังเบอร์ที่ลงทะเบียนไว้ (หมดอายุ 5 นาที)' },
+  { key: 'otp-mail', label: 'OTP ทางอีเมล',          icon: 'mail',       desc: 'ส่งรหัส 6 หลักไปยังอีเมลของผู้ใช้ (หมดอายุ 5 นาที)' },
+];
+
+/** ป้ายกำกับ attribute ตาม TOR — ใช้ร่วมกับตาราง mapping ของ Directory Service. */
+export const USER_ATTRIBUTES = [
+  { key: 'title',          label: 'คำนำหน้า (Title)',            torLabel: 'Title',           required: true },
+  { key: 'givenName',      label: 'ชื่อ (Given Name)',            torLabel: 'Given Name',      required: true },
+  { key: 'lastName',       label: 'นามสกุล (Last Name)',          torLabel: 'Last Name',       required: true },
+  { key: 'email',          label: 'อีเมล (Email)',                torLabel: 'Email',           required: true },
+  { key: 'department',     label: 'แผนก (Department)',            torLabel: 'Department',      required: true },
+  { key: 'departmentCode', label: 'รหัสแผนก (Department-Code)',   torLabel: 'Department-Code', required: true },
+  { key: 'licenseNo',      label: 'รหัสวิชาชีพ',                  torLabel: 'รหัสวิชาชีพ',      required: true },
+  { key: 'active',         label: 'สถานะใช้งาน (Active)',         torLabel: 'Active',          required: true },
+];
+
+/* ── Healthcare Service (TOR 1.17.3) ─────────────────────────────────────
+   หน่วยบริการภายในศูนย์ — ทั้งคลินิก (ต้นทางคำสั่งยา) และห้องยา/ห้องเจาะเลือด/
+   ห้องชำระเงิน (ปลายทาง). `serviceType` ใช้จัดกลุ่มในหน้า routing. */
+export const SERVICE_TYPES = ['OPD', 'ห้องยา', 'ห้องเจาะเลือด', 'ห้องชำระเงิน'];
+
+export const HEALTHCARE_SERVICES = [
+  /* คลินิก (ต้นทาง) */
+  { id: 'hs-opd',      name: 'คลินิกผู้ป่วยนอกทั่วไป',        serviceType: 'OPD', kind: 'clinic',   department: 'opd',      room: 'ห้องตรวจ 1-4', hours: '08:00-16:00', active: true },
+  { id: 'hs-anc',      name: 'คลินิกฝากครรภ์',                serviceType: 'OPD', kind: 'clinic',   department: 'anc',      room: 'ห้องตรวจ 5',   hours: '08:00-12:00', active: true },
+  { id: 'hs-wellcare', name: 'คลินิกส่งเสริมสุขภาพ',          serviceType: 'OPD', kind: 'clinic',   department: 'wellness', room: 'ห้องตรวจ 6',   hours: '08:00-16:00', active: true },
+  { id: 'hs-ncd',      name: 'คลินิกโรคเรื้อรัง (NCD)',       serviceType: 'OPD', kind: 'clinic',   department: 'opd',      room: 'ห้องตรวจ 7',   hours: '08:00-12:00', active: true },
+  { id: 'hs-tb',       name: 'คลินิกวัณโรค',                  serviceType: 'OPD', kind: 'clinic',   department: 'tb',       room: 'อาคาร 2 ชั้น 1', hours: '08:00-12:00', active: true },
+  { id: 'hs-std',      name: 'คลินิกโรคติดต่อทางเพศสัมพันธ์', serviceType: 'OPD', kind: 'clinic',   department: 'std',      room: 'อาคาร 2 ชั้น 2', hours: '13:00-16:00', active: true },
+  { id: 'hs-mental',   name: 'คลินิกสุขภาพจิต',               serviceType: 'OPD', kind: 'clinic',   department: 'mental',   room: 'อาคาร 3 ชั้น 2', hours: '08:00-16:00', active: true },
+  { id: 'hs-drug',     name: 'คลินิกบำบัดสารเสพติด',          serviceType: 'OPD', kind: 'clinic',   department: 'drug',     room: 'อาคาร 3 ชั้น 3', hours: '08:00-16:00', active: true },
+  { id: 'hs-dental',   name: 'คลินิกทันตกรรม',                serviceType: 'OPD', kind: 'clinic',   department: 'dental',   room: 'ห้องทันตกรรม',  hours: '08:00-16:00', active: true },
+  { id: 'hs-vaccine',  name: 'คลินิกสร้างเสริมภูมิคุ้มกัน',    serviceType: 'OPD', kind: 'clinic',   department: 'vaccine',  room: 'ห้องฉีดวัคซีน', hours: '08:00-12:00', active: true },
+  { id: 'hs-family',   name: 'คลินิกวางแผนครอบครัว',          serviceType: 'OPD', kind: 'clinic',   department: 'family',   room: 'ห้องตรวจ 8',   hours: '13:00-16:00', active: true },
+  { id: 'hs-er',       name: 'ห้องอุบัติเหตุ-ฉุกเฉิน',        serviceType: 'OPD', kind: 'clinic',   department: 'opd',      room: 'ห้อง ER',      hours: '24 ชั่วโมง',  active: true },
+  /* ห้องยา (ปลายทาง) */
+  { id: 'hs-pharm-1',  name: 'ห้องยาผู้ป่วยนอก (ห้องยา 1)',   serviceType: 'ห้องยา', kind: 'pharmacy', department: 'pharmacy', room: 'ชั้น 1',  hours: '08:00-16:00', active: true },
+  { id: 'hs-pharm-2',  name: 'ห้องยานอกเวลา (ห้องยา 2)',      serviceType: 'ห้องยา', kind: 'pharmacy', department: 'pharmacy', room: 'ชั้น 1',  hours: '16:00-20:00', active: true },
+  { id: 'hs-pharm-nar', name: 'ห้องยาควบคุมพิเศษ/เสพติด',     serviceType: 'ห้องยา', kind: 'pharmacy', department: 'pharmacy', room: 'ชั้น 2 (ห้องมั่นคง)', hours: '08:00-16:00', active: true },
+  { id: 'hs-pharm-cold', name: 'ห้องยาเย็น (Cold chain)',     serviceType: 'ห้องยา', kind: 'pharmacy', department: 'pharmacy', room: 'ชั้น 2',  hours: '08:00-16:00', active: true },
+  { id: 'hs-pharm-dent', name: 'ห้องยาทันตกรรม',              serviceType: 'ห้องยา', kind: 'pharmacy', department: 'pharmacy', room: 'ห้องทันตกรรม', hours: '08:00-16:00', active: false },
+  /* หน่วยบริการอื่นที่อ้างถึงในเส้นทางบริการ */
+  { id: 'hs-phlebo',   name: 'ห้องเจาะเลือด',                 serviceType: 'ห้องเจาะเลือด', kind: 'support', department: 'lab',        room: 'ชั้น 1', hours: '07:00-12:00', active: true },
+  { id: 'hs-cashier',  name: 'ห้องชำระเงิน',                  serviceType: 'ห้องชำระเงิน',  kind: 'support', department: 'registration', room: 'ชั้น 1', hours: '08:00-16:00', active: true },
+];
+
+export const getHealthcareService = (id) => HEALTHCARE_SERVICES.find((s) => s.id === id);
+export const clinicServices = () => HEALTHCARE_SERVICES.filter((s) => s.kind === 'clinic');
+export const pharmacyServices = () => HEALTHCARE_SERVICES.filter((s) => s.kind === 'pharmacy');
+
+/* ── เติม attribute ลง USERS เดิม (mutate in place) ─────────────────────── */
+
+const splitThaiName = (full) => {
+  const raw = String(full || '').trim();
+  const title = TITLES
+    .slice()
+    .sort((a, b) => b.label.length - a.label.length)
+    .find((t) => raw.startsWith(t.label));
+  const rest = title ? raw.slice(title.label.length).trim() : raw;
+  const [given, ...tail] = rest.split(/\s+/);
+  return {
+    titleKey: title?.key || 'mr',
+    givenName: given || '',
+    lastName: tail.join(' '),
+  };
+};
+
+/* ข้อมูลเสริมรายคน — เบอร์ติดต่อ, ศูนย์สังกัด, ศูนย์ที่สลับไปได้, แหล่งบัญชี,
+   ใบอนุญาต, ช่องทางเข้าสู่ระบบ. ค่า `hc-N` ตรงกับ CLINIC_OPTIONS ของ
+   HeaderClinicContext (69 ศูนย์) — ห้ามตั้ง state ศูนย์ชุดใหม่. */
+const ATTRIBUTE_SEED = {
+  'u-001': { phone: '08-1234-5678', homeCenter: 'hc-4',  centers: ['hc-4', 'hc-25'], source: 'idp',   licenseType: 'md',    licenseNo: 'ว.28451', channels: ['password', 'qr', 'otp-sms'] },
+  'u-002': { phone: '08-9876-5432', homeCenter: 'hc-4',  centers: ['hc-4'],          source: 'idp',   licenseType: 'md',    licenseNo: 'ว.31207', channels: ['password', 'otp-mail'] },
+  'u-003': { phone: '08-2233-4455', homeCenter: 'hc-25', centers: ['hc-25', 'hc-4'], source: 'idp',   licenseType: 'md',    licenseNo: 'ว.29118', channels: ['password', 'qr'] },
+  'u-004': { phone: '08-5566-7788', homeCenter: 'hc-4',  centers: ['hc-4'],          source: 'local', licenseType: 'rn',    licenseNo: 'พย.45120', channels: ['password', 'qr', 'otp-sms'] },
+  'u-005': { phone: '08-4433-2211', homeCenter: 'hc-4',  centers: ['hc-4', 'hc-15'], source: 'local', licenseType: 'rn',    licenseNo: 'พย.46781', channels: ['password', 'otp-sms'] },
+  'u-006': { phone: '08-7788-9900', homeCenter: 'hc-15', centers: ['hc-15'],         source: 'local', licenseType: 'rn',    licenseNo: 'พย.44902', channels: ['password'] },
+  'u-007': { phone: '08-1122-3344', homeCenter: 'hc-4',  centers: ['hc-4'],          source: 'idp',   licenseType: 'pharm', licenseNo: 'ภ.18442', channels: ['password', 'qr'] },
+  'u-008': { phone: '08-6677-8899', homeCenter: 'hc-4',  centers: ['hc-4', 'hc-25'], source: 'local', licenseType: 'pharm', licenseNo: 'ภ.19075', channels: ['password'] },
+  'u-009': { phone: '08-3344-5566', homeCenter: 'hc-4',  centers: ['hc-4'],          source: 'local', licenseType: 'none',  licenseNo: '',        channels: ['password', 'qr'] },
+  'u-010': { phone: '08-9900-1122', homeCenter: 'hc-4',  centers: ['hc-4'],          source: 'local', licenseType: 'none',  licenseNo: '',        channels: ['password'] },
+  'u-011': { phone: '08-5544-3322', homeCenter: 'hc-4',  centers: ['hc-4'],          source: 'idp',   licenseType: 'mt',    licenseNo: 'ท.น.9921', channels: ['password', 'otp-mail'] },
+  'u-012': { phone: '08-1000-2000', homeCenter: 'hc-4',  centers: ['hc-4', 'hc-25', 'hc-15', 'hc-3'], source: 'local', licenseType: 'none', licenseNo: '', channels: ['password', 'qr', 'otp-sms', 'otp-mail'] },
+};
+
+/** ฟิลด์ที่ sync มาจาก IdP → แสดงเป็น read-only บนหน้าแก้ไขผู้ใช้. */
+export const IDP_MANAGED_FIELDS = ['titleKey', 'givenName', 'lastName', 'email', 'departments', 'departmentCode', 'licenseNo', 'status'];
+
+USERS.forEach((u) => {
+  const parsed = splitThaiName(u.name);
+  const seed = ATTRIBUTE_SEED[u.id] || {};
+  Object.assign(u, {
+    titleKey: u.titleKey ?? parsed.titleKey,
+    givenName: u.givenName ?? parsed.givenName,
+    lastName: u.lastName ?? parsed.lastName,
+    phone: u.phone ?? seed.phone ?? '',
+    departmentCode: u.departmentCode ?? departmentCodeOf(u.departments?.[0]),
+    licenseType: u.licenseType ?? seed.licenseType ?? 'none',
+    licenseNo: u.licenseNo ?? seed.licenseNo ?? '',
+    homeCenter: u.homeCenter ?? seed.homeCenter ?? 'hc-4',
+    centers: u.centers ?? seed.centers ?? ['hc-4'],
+    source: u.source ?? seed.source ?? 'local',
+    loginChannels: u.loginChannels ?? seed.channels ?? ['password'],
+    updatedBy: u.updatedBy ?? 'นายวรพล รัศมีพร',
+    updatedAt: u.updatedAt ?? '14 พ.ค. 2569 09:55',
+  });
+});
+
+/** ประกอบชื่อเต็มจาก Title + Given + Last (TOR 1.17.1.3). */
+export const composeUserName = ({ titleKey, givenName, lastName }) =>
+  [getTitle(titleKey)?.label, givenName, lastName].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+
+/* ── Mutable roster store (แสดง / บันทึก / ยกเลิก / แก้ไข ครบ 4) ────────── */
+
+const userListeners = new Set();
+const notifyUsers = () => userListeners.forEach((fn) => { try { fn(); } catch { /* ignore */ } });
+
+export const subscribeUsers = (fn) => {
+  userListeners.add(fn);
+  return () => userListeners.delete(fn);
+};
+
+export const getUsers = () => USERS.slice();
+
+export const isEmailTaken = (email, exceptId = null) => {
+  const norm = String(email || '').trim().toLowerCase();
+  if (!norm) return false;
+  return USERS.some((u) => u.id !== exceptId && String(u.email).toLowerCase() === norm);
+};
+
+export const isLicenseTaken = (licenseNo, exceptId = null) => {
+  const norm = String(licenseNo || '').trim();
+  if (!norm) return false;
+  return USERS.some((u) => u.id !== exceptId && String(u.licenseNo || '').trim() === norm);
+};
+
+export const countActiveAdmins = () =>
+  USERS.filter((u) => u.role === 'admin' && u.status === 'active').length;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * ตรวจ attribute ตาม TOR 1.17.1.3 + edge case ที่สเปกกำหนด.
+ * @returns {{ [field: string]: string }} map ของ field → ข้อความ error
+ */
+export const validateUserForm = (form, { exceptId = null, currentUserId = null } = {}) => {
+  const errors = {};
+  if (!String(form.givenName || '').trim()) errors.givenName = 'กรุณากรอกชื่อ';
+  if (!String(form.lastName || '').trim()) errors.lastName = 'กรุณากรอกนามสกุล';
+
+  const email = String(form.email || '').trim();
+  if (!email) errors.email = 'กรุณากรอกอีเมล';
+  else if (!EMAIL_RE.test(email)) errors.email = 'รูปแบบอีเมลไม่ถูกต้อง (ตัวอย่าง name@phcis.bma.go.th)';
+  else if (isEmailTaken(email, exceptId)) errors.email = 'อีเมลนี้ถูกใช้กับบัญชีอื่นแล้ว';
+
+  if (!(form.departments || []).length) errors.departments = 'เลือกอย่างน้อย 1 แผนก';
+  else {
+    const allowed = expectedDepartmentCodes(form.departments);
+    const code = String(form.departmentCode || '').trim();
+    if (!code) errors.departmentCode = 'กรุณากรอกรหัสแผนก (Department-Code)';
+    else if (!allowed.includes(code)) {
+      errors.departmentCode = `รหัสแผนกไม่ตรงกับแผนกที่เลือก — ที่ถูกต้องคือ ${allowed.join(' / ')}`;
+    }
+  }
+
+  if (PROFESSIONAL_ROLES.includes(form.role)) {
+    const lic = String(form.licenseNo || '').trim();
+    const type = LICENSE_TYPES.find((t) => t.key === form.licenseType);
+    if (!lic) errors.licenseNo = 'บทบาทวิชาชีพต้องระบุรหัสวิชาชีพ';
+    else if (type && type.prefix && !lic.startsWith(type.prefix)) {
+      errors.licenseNo = `รูปแบบไม่ถูกต้อง — ต้องขึ้นต้นด้วย "${type.prefix}"`;
+    } else if (isLicenseTaken(lic, exceptId)) {
+      errors.licenseNo = 'รหัสวิชาชีพนี้ถูกใช้กับบัญชีอื่นแล้ว';
+    }
+  }
+
+  if (!(form.centers || []).length) errors.centers = 'เลือกอย่างน้อย 1 ศูนย์บริการ';
+  if (!(form.loginChannels || []).length) errors.loginChannels = 'ต้องเปิดช่องทางเข้าสู่ระบบอย่างน้อย 1 ช่องทาง';
+
+  if (form.status !== 'active' && exceptId) {
+    if (exceptId === currentUserId) errors.status = 'ปิดการใช้งานบัญชีของตัวเองไม่ได้';
+    else {
+      const target = getUserById(exceptId);
+      if (target?.role === 'admin' && target.status === 'active' && countActiveAdmins() <= 1) {
+        errors.status = 'ปิดไม่ได้ — เป็นผู้ดูแลระบบที่ยังใช้งานอยู่คนสุดท้าย';
+      }
+    }
+  }
+  return errors;
+};
+
+const nowStamp = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear() + 543} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/** บันทึกการแก้ไขผู้ใช้ (TOR "บันทึก/แก้ไข"). */
+export const updateUser = (id, patch, actor = 'ผู้ดูแลระบบ') => {
+  const target = getUserById(id);
+  if (!target) return null;
+  Object.assign(target, patch, { updatedBy: actor, updatedAt: nowStamp() });
+  target.name = composeUserName(target) || target.name;
+  notifyUsers();
+  return target;
+};
+
+/** สร้างผู้ใช้ใหม่ (ผ่านการยืนยัน OTP แล้ว — TOR 1.17.4.1). */
+export const createUser = (payload, actor = 'ผู้ดูแลระบบ') => {
+  const nextNum = USERS.reduce((max, u) => Math.max(max, Number(String(u.id).replace('u-', '')) || 0), 0) + 1;
+  const row = {
+    ...payload,
+    id: `u-${String(nextNum).padStart(3, '0')}`,
+    name: composeUserName(payload),
+    avatarUrl: payload.avatarUrl || STAFF_AVATARS[nextNum % STAFF_AVATARS.length],
+    lastActive: '—',
+    updatedBy: actor,
+    updatedAt: nowStamp(),
+  };
+  USERS.push(row);
+  notifyUsers();
+  return row;
+};
+
+/** เปิด/ปิดบัญชี (TOR Active attribute). */
+export const setUserActive = (id, active, actor = 'ผู้ดูแลระบบ') =>
+  updateUser(id, { status: active ? 'active' : 'inactive' }, actor);

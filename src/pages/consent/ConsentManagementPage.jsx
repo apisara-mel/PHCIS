@@ -59,6 +59,7 @@ import { enrichConsentRow } from '@/data/consentPatientDisplay';
 import { resolveConsentFormFromTemplate } from '@/data/consentFormRecords';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import ConsentHistoryPopup from '@/pages/consent/ConsentHistoryPopup';
+import ConsentComparePopup from '@/pages/consent/ConsentComparePopup';
 
 /* PHCIS | Consent — ระบบจัดการความยินยอม (Figma node 1:4).
    Consent registry: summary cards · tabs · search · filters · table with a
@@ -132,6 +133,7 @@ export default function ConsentManagementPage() {
   /* ── Workflow popups (ด.1.1.4 / ด.1.1.7 / ด.1.1.8 / ด.1.1.1 / ด.1.1.2) ── */
   const [createOpen, setCreateOpen] = useState(false);
   const [historyPopup, setHistoryPopup] = useState(null); /* null | { hn?: string } */
+  const [compareFor, setCompareFor] = useState(null); /* null | { hn, name } */
   const [reconsentFor, setReconsentFor] = useState(null);        // record
   const [paperFor, setPaperFor] = useState(null);                // record
   const [editFor, setEditFor] = useState(null);                  // signed record → PersonalDataConsentEditPopup
@@ -338,6 +340,14 @@ export default function ConsentManagementPage() {
     };
     return (
       <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-150)' }}>
+        <NeutralSubdueIconButton
+          icon='compare_arrows'
+          variant='outline'
+          size='sm'
+          aria-label='เปรียบเทียบการให้ความยินยอม'
+          title='เปรียบเทียบให้ / ไม่ให้ความยินยอม'
+          onClick={() => setCompareFor({ hn: row.hn, name: row.name })}
+        />
         <NeutralSubdueIconButton
           icon='history'
           variant='outline'
@@ -694,6 +704,12 @@ export default function ConsentManagementPage() {
         open={!!historyPopup}
         onClose={() => setHistoryPopup(null)}
         initialHn={historyPopup?.hn || null}
+      />
+
+      <ConsentComparePopup
+        open={!!compareFor}
+        onClose={() => setCompareFor(null)}
+        hn={compareFor?.hn || null}
       />
 
       {/* Per-status confirm dialog */}
