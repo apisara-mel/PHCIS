@@ -321,8 +321,31 @@ export const MR_PATIENTS = [
 const SPECIAL_WATCH_OVERRIDES = {
   '67-00003': { g6pd: true },
 };
+
+/* TOR §1.1.1.3 — passport search axis. Applied as a post-process merge
+   (same pattern as SPECIAL_WATCH_OVERRIDES) so existing literals stay
+   untouched. Thai nationals may carry a Thai passport; 67-00008 doubles
+   as the foreign-document demo (HN group 2) on the registration form. */
+const PASSPORT_OVERRIDES = {
+  '67-00001': 'AA1204577',
+  '67-00007': 'AB0871542',
+  '67-00008': 'MJ0455812',
+  '67-00027': 'AC5518290',
+};
+
+/* TOR §1.1.1.2 — สถานะการมีชีวิต (alive | deceased + วันที่เสียชีวิต).
+   One deceased demo record so the directory badge / filter / disabled
+   queue actions are visible without hand-editing state. */
+const LIFE_STATUS_OVERRIDES = {
+  '67-00009': { lifeStatus: 'deceased', deceasedDate: '18 มิถุนายน 2569' },
+};
+
 MR_PATIENTS.forEach((p) => {
   p.specialWatch = { pregnant: false, breastfeeding: false, g6pd: false, ...SPECIAL_WATCH_OVERRIDES[p.hn] };
+  p.passportNo = p.passportNo ?? PASSPORT_OVERRIDES[p.hn] ?? '';
+  const life = LIFE_STATUS_OVERRIDES[p.hn];
+  p.lifeStatus = p.lifeStatus ?? life?.lifeStatus ?? 'alive';
+  p.deceasedDate = p.deceasedDate ?? life?.deceasedDate ?? '';
   /* Stable ids for the editable allergy list (ToR §1.9.2.2 / §1.9.5 —
      "สามารถแสดง/บันทึก/ยกเลิก/แก้ไขข้อมูลเกี่ยวกับการแพ้ได้") — the source
      literals above don't carry one since nothing needed to target a single
