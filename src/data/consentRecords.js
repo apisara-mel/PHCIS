@@ -134,11 +134,11 @@ const MOCK_PATIENTS = [
   { hn: '67-00025', name: 'ภาสกร ชาญฉลาด' },
   { hn: '67-00027', name: 'จิราพร มณีโชติ' },
   { hn: '67-00029', name: 'อาทิตยา บุญเรือง' },
-  { hn: '67-00006', name: 'ปรียา สุพรรณ' },
-  { hn: '67-00008', name: 'มาลีรัตน์ ธนาวัตน' },
-  { hn: '67-00012', name: 'วิชัย รุ่งเรือง' },
-  { hn: '67-00015', name: 'รัตนาภรณ์ ใสสะอาด' },
-  { hn: '67-00020', name: 'กฤษดา ผ่องใส' },
+  { hn: '67-00030', name: 'กมลชนก อรุณรุ่ง' },
+  { hn: '67-00031', name: 'ธีรพงศ์ สุขสำราญ' },
+  { hn: '67-00032', name: 'ศิริพร แก้วมณี' },
+  { hn: '67-00033', name: 'พงศ์พัฒน์ เรืองรอง' },
+  { hn: '67-00034', name: 'อลิสา จันทร์เพ็ญ' },
 ];
 
 const signChannelForStatus = (status, id) => {
@@ -173,10 +173,8 @@ const buildConsentMockRecords = () => {
   const withdrawnDate = withdrawn ? `${Math.min(day + 3, 28)} ${month} ${year}` : '-';
   const signChannel = signChannelForStatus(status, id);
   const { formCode, formName } = resolveConsentFormForWorklistType(type);
-  /* HN ไม่ซ้ำเมื่อวนผู้ป่วยซ้ำ — ต่อท้ายรอบ */
-  const cycle = Math.floor(index / MOCK_PATIENTS.length);
-  const hn = cycle === 0 ? patient.hn : `${patient.hn}-${cycle + 1}`;
-  const name = cycle === 0 ? patient.name : `${patient.name} (${cycle + 1})`;
+  /* ชื่อซ้ำได้เมื่อคนละคำขอ — ไม่ต่อท้าย (2) / ไม่สร้าง HN ปลอม */
+  const { hn, name } = patient;
 
   const record = {
     id,

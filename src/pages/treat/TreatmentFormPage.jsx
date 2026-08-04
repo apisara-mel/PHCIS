@@ -10,10 +10,17 @@ import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
 import {
   Step1History, Step2Screening, Step3Examination, Step4DoctorRecord,
-  Step5Orders, Step6Appointment, Step7Certificate,
+  Step5Orders, Step6Appointment,
 } from '@/components/forms/TreatmentSteps';
+import SoapNotePanel from '@/pages/treat/panels/SoapNotePanel';
+import CpoeDocumentsStep from '@/pages/treat/panels/CpoeDocumentsStep';
+import {
+  CPOE_TREATMENT_STEPS, getCpoeCompletedSteps, cpoeStepIndex, CPOE_STEP_DOCUMENTS,
+} from '@/pages/treat/cpoeSteps';
+import { blankSoap } from '@/data/treatmentSoap';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import TreatmentSafetyRail from '@/pages/treat/panels/TreatmentSafetyRail';
+import { GuardedAction } from '@/pages/treat/panels/panelHooks';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import { TREATMENT_QUEUE_ROWS, buildQueueSubMenuBuckets } from '@/data/treatmentQueue';
@@ -158,12 +165,50 @@ const buildInitialForm = (p) => ({
   visitAttachments: [],
   patientAdvice: '',
   externalCauseDraft: '',
+
+  /* ── CPOE §1.5 (TOR wave) ───────────────────────────────────
+     `soap` คือร่าง SOAP Note ของ step 4 — เก็บไว้บน form เดียวกันเพื่อให้
+     auto-save ข้าม step ได้เอง (เปลี่ยน step แล้วกลับมาข้อความไม่หาย).
+     `patientAdviceTopics` แยกคำแนะนำ 6 หัวข้อตาม TOR §1.5.4.10.
+     `labRequest` คือหัวใบขอตรวจ (คู่มือ §2.8), `procedureOrders` /
+     `nursingActivities` คือบันทึกหัตถการ (§2.4), `cdssDismissed` เก็บ
+     คำเตือนที่กด "รับทราบ" แล้วเพื่อไม่ให้เด้งซ้ำใน visit เดียวกัน. */
+  soap: blankSoap(),
+  patientAdviceTopics: {},
+  continueOrder: false,
+  labRequest: {},
+  nursingActivities: {},
+  nursingOther: '',
+  cdssDismissed: {},
+  radiologistDecisions: {},
+  xrayAcknowledged: {},
+  /* ใบสั่งยาอื่นของ HN นี้ในวันเดียวกัน — ป้อนให้ CDSS ตรวจ "ซ้ำภายในวันเดียวกัน"
+     (§1.5.1.9). ในระบบจริงมาจาก API; ที่นี่เป็น mock ที่สมจริง */
+  sameDayPrescriptions: [
+    { name: 'Paracetamol 500 mg', clinic: 'ห้องฉุกเฉิน', at: '08:12' },
+  ],
 });
 
+/* Step 8 ห่อ Step7Certificate เดิมไว้ทั้งดุ้น (การ์ดใบรับรองแพทย์ทำงาน
+   เหมือนเดิมทุกประการ) แล้วเติมศูนย์พิมพ์เอกสาร / เทมเพลตใบคำขอ /
+   ใบรับรองภาษาอังกฤษ / แบบฟอร์มยินยอม ต่อท้าย */
 const STEP_RENDERERS = [
-  Step1History, Step2Screening, Step3Examination, Step4DoctorRecord,
-  Step5Orders, Step6Appointment, Step7Certificate,
+  Step1History, Step2Screening, Step3Examination,
+  SoapNotePanel,
+  Step4DoctorRecord, Step5Orders, Step6Appointment, CpoeDocumentsStep,
 ];
+
+/* index ของแต่ละ step ให้ panel ใช้กระโดดข้าม step โดยไม่ต้องรู้ตัวเลข */
+const CPOE_STEP_INDEXES = {
+  history: cpoeStepIndex('history'),
+  screening: cpoeStepIndex('screening'),
+  examination: cpoeStepIndex('examination'),
+  soap: cpoeStepIndex('soap'),
+  diagnosis: cpoeStepIndex('diagnosis'),
+  orders: cpoeStepIndex('orders'),
+  appointment: cpoeStepIndex('appointment'),
+  documents: cpoeStepIndex('documents'),
+};
 
 const TreatmentFormPage = () => {
   const history = useHistory();
@@ -189,8 +234,10 @@ const TreatmentFormPage = () => {
   const [form, setForm] = useState(() => buildInitialForm(patient));
 
   const ActiveStep = STEP_RENDERERS[stepIndex];
+  /* 8 ช่องตามลำดับ CPOE (แทรก SOAP ที่ step 4) — ห้ามใช้ตัวเดิม 7 ช่อง
+     ไม่งั้น StepProgress ติ๊กถูก/ผิดเลื่อนทั้งแถว */
   const completedSteps = useMemo(
-    () => getTreatmentCompletedSteps(form, stepIndex),
+    () => getCpoeCompletedSteps(form, stepIndex),
     [form, stepIndex],
   );
 
@@ -231,7 +278,22 @@ const TreatmentFormPage = () => {
   const [pharmacySendToast, setPharmacySendToast] = useState(null);
   const [consentGateOpen, setConsentGateOpen] = useState(null);
   const dismissPharmacySendToast = () => setPharmacySendToast(null);
+
+  /* §1.5.4.17 / §1.5.4.18–.21 — สองคำสัญญาบนหน้าจอที่ต้องบังคับใช้จริง:
+     (1) med-rec ยังประสานไม่ครบ  (2) มีคำเตือน CDSS ระดับ "บล็อก"
+     MedicationCdssPanel ยกสถานะขึ้นมาไว้ที่ form.cpoeSendBlocked แล้ว */
+  const medRecPending = Number(form.medRecPending || 0);
+  const sendBlockReason = form.cpoeSendBlocked
+    ? `ใบสั่งยาถูกกันไว้ — ${form.cpoeSendBlockReason || 'มีคำเตือน CDSS ระดับบล็อก'}`
+    : medRecPending > 0
+      ? `ยังประสานรายการยาเดิมไม่ครบ ${medRecPending} รายการ — ต้องระบุการตัดสินใจให้ครบก่อนส่งใบสั่งยา`
+      : form.medications.length === 0
+        ? 'ยังไม่มีรายการยาในใบสั่งยานี้'
+        : '';
+  const canSendToPharmacy = !sendBlockReason;
+
   const handleSendToPharmacy = () => {
+    if (!canSendToPharmacy) return;
     const gate = gateCpoeOrder(patient.hn, { orderKind: 'medication' });
     if (!gate.allowed) {
       setConsentGateOpen(gate);
@@ -281,15 +343,25 @@ const TreatmentFormPage = () => {
           chronicDiseases={patient.chronicDiseases}
           actions={
             <>
+              <GuardedAction allowed={canSendToPharmacy} reason={sendBlockReason}>
+                <BrandSubdueButton
+                  variant='outline'
+                  leadingIcon='local_hospital'
+                  onClick={handleSendToPharmacy}
+                >
+                  ส่งยาไปห้องยา
+                </BrandSubdueButton>
+              </GuardedAction>
+              {/* CPOE §1.5.10.1 — เดิมปุ่มนี้ยังไม่ผูก sheet จริง ตอนนี้พาไป
+                  ศูนย์พิมพ์เอกสาร (step 8) ที่ต่อ PharmacyPrescriptionPrint
+                  ไว้แล้ว พร้อม preview ก่อนพิมพ์ */}
               <BrandSubdueButton
                 variant='outline'
-                leadingIcon='local_hospital'
-                disabled={form.medications.length === 0}
-                onClick={handleSendToPharmacy}
+                leadingIcon='medication'
+                onClick={() => setStepIndex(CPOE_STEP_DOCUMENTS)}
               >
-                ส่งยาไปห้องยา
+                พิมพ์ใบสั่งยา
               </BrandSubdueButton>
-              <BrandSubdueButton variant='outline' leadingIcon='medication'>พิมพ์ใบสั่งยา</BrandSubdueButton>
               <BrandSubdueButton variant='fill' leadingIcon='credit_card'>พิมพ์ OPD Card</BrandSubdueButton>
             </>
           }
@@ -310,7 +382,12 @@ const TreatmentFormPage = () => {
           onCancel={() => setConsentGateOpen(null)}
           onClose={() => setConsentGateOpen(null)}
         />
+        {/* CPOE §1.5 — ส่ง `steps` 8 ขั้นเข้า shell เอง. ห้ามแก้
+            TREATMENT_STEPS ที่เป็น default ของ shell เพราะคลินิกอื่น
+            (ANC / NCD / HIV-STI / Mental Health / Addiction / Dental)
+            ใช้ค่าเดิมอยู่ */}
         <TreatmentFormShell
+          steps={CPOE_TREATMENT_STEPS}
           stepIndex={stepIndex}
           onStepChange={setStepIndex}
           completedSteps={completedSteps}
@@ -325,12 +402,15 @@ const TreatmentFormPage = () => {
               CTA and the populated-state "แก้ไข" header button to send
               the doctor back to Step 3 (Physical Examination) where the
               live editors live. Step 1/2/5/6/7 simply ignore the prop. */}
+          {/* `stepIndexes` ให้ SOAP panel (และ panel อื่นในอนาคต) กระโดด
+              ข้าม step ด้วย key แทน magic number ที่เลื่อนไปแล้ว */}
           <ActiveStep
             form={form}
             setForm={setForm}
             patient={patient}
             cardPatient={cardPatient}
             onStepChange={setStepIndex}
+            stepIndexes={CPOE_STEP_INDEXES}
           />
         </TreatmentFormShell>
         <Footer />

@@ -7,7 +7,7 @@ import { resolveConsentPatient } from '@/data/consentPatientDisplay';
 import { resolveConsentFormForWorklistType } from '@/data/consentFormRecords';
 
 const STORAGE_KEY = 'mih:consent-workflow';
-const SEED_VERSION = 7; /* bump when CONSENT_RECORDS row count / shape changes */
+const SEED_VERSION = 8; /* bump when CONSENT_RECORDS row count / shape changes */
 const SIGN_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
 const listeners = new Set();
