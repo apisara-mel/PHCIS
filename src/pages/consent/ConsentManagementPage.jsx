@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
-import QueuePageShell from '@/templates/QueuePageShell';
+import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
-import Table from '@/components/table/Table';
+import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
@@ -13,7 +12,6 @@ import NeutralButton from '@/components/button/NeutralButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import AlertDialog from '@/components/popup/AlertDialog';
-import CheckboxBox from '@/components/checkbox/CheckboxBox';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import SuccessToast from '@/components/toast/SuccessToast';
 import PersonalDataConsentEditPopup from '@/components/forms/PersonalDataConsentEditPopup';
@@ -21,7 +19,7 @@ import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerify
 import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import { formatServiceCenterChannel } from '@/data/consentChannels';
 import {
-  CONSENT_RECORDS, CONSENT_SUMMARY, CONSENT_TABS,
+  CONSENT_TABS, buildConsentSummary,
   CONSENT_STATUS, CONSENT_TYPE_TONE, CONSENT_CONFIRM,
 } from '@/data/consentRecords';
 import {
@@ -34,6 +32,11 @@ import {
   setConsentRecords,
   subscribeConsentStore,
 } from '@/data/consentWorkflowStore';
+import {
+  CONSENT_PATIENT_SEARCH_POOL,
+  consentPatientSearchHistorySeed,
+  toConsentPatientSearchItem,
+} from '@/data/consentPatientSearch';
 import {
   ExportFormatPopup,
   buildWorklistExportReport,
@@ -52,7 +55,7 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 import { enrichConsentRow } from '@/data/consentPatientDisplay';
 import { resolveConsentFormFromTemplate } from '@/data/consentFormRecords';
-import { openConsentHistoryTab } from '@/data/consentPatientHistory';
+import { openConsentHistoryTab, openConsentHistorySearchTab } from '@/data/consentPatientHistory';
 
 /* PHCIS | Consent — ระบบจัดการความยินยอม (Figma node 1:4).
    Consent registry: summary cards · tabs · search · filters · table with a
@@ -62,30 +65,13 @@ import { openConsentHistoryTab } from '@/data/consentPatientHistory';
 
    All values alias design.md tokens; UI copy is Thai; data is local mock. */
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 const breadcrumb = ['จัดการความยินยอม'];
 
 /* แท็บที่ tab กรองสถานะอยู่แล้ว — ซ่อน filter chip "สถานะ" */
-const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'consented', 'rejected', 'expiring']);
-
-/* Checkbox ในคอลัมน์เลือก — กัน click ไปเปิดแถว + ไม่มี label โผล่ใน header */
-const TableSelectCheckbox = ({ checked, label, onChange }) => (
-  <label
-    className='inline-flex items-center justify-center'
-    onClick={(e) => e.stopPropagation()}
-    onKeyDown={(e) => e.stopPropagation()}
-    style={{ cursor: 'pointer' }}
-  >
-    <input
-      type='checkbox'
-      className='sr-only'
-      checked={checked}
-      aria-label={label}
-      onChange={(e) => onChange?.(e.target.checked)}
-    />
-    <CheckboxBox checked={checked} />
-  </label>
-);
+const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'consented', 'rejected', 'expiring', 'expired']);
+/* แท็บหมดอายุ — ไม่แสดง filter chips (ประเภท / ช่องทาง / สถานะ / วันที่) */
+const FILTERS_HIDDEN_TABS = new Set(['expired']);
 
 const TEXT_CELL = {
   color: 'var(--text-content-default)',
@@ -102,7 +88,6 @@ const Cell = ({ value }) =>
     : <span style={MUTED_CELL}>-</span>;
 
 export default function ConsentManagementPage() {
-  const navigate = useHistory();
   const { clinic } = useClinicFilter() || {};
   const serviceCenterChannel = formatServiceCenterChannel(clinic);
   /* ── Worklist rows เป็น state จริง (mock mutate ใน session) ──────────
@@ -114,7 +99,7 @@ export default function ConsentManagementPage() {
   useEffect(() => subscribeConsentStore(() => setRows(loadRows())), []);
   const canManage = canManageConsent();
   const canRevoke = canRevokeConsent();
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('pending');
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterChannel, setFilterChannel] = useState('');
@@ -122,26 +107,51 @@ export default function ConsentManagementPage() {
   const [filterDate, setFilterDate] = useState('');
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  const [dialog, setDialog] = useState(null);      // { record | bulkIds, confirmKey }
+  const [dialog, setDialog] = useState(null);      // { record, confirmKey }
   /* ── Workflow popups (ด.1.1.4 / ด.1.1.7 / ด.1.1.8 / ด.1.1.1 / ด.1.1.2) ── */
   const [createOpen, setCreateOpen] = useState(false);
-  const [reconsentFor, setReconsentFor] = useState(null);        // record | { bulkIds }
+  const [reconsentFor, setReconsentFor] = useState(null);        // record
   const [paperFor, setPaperFor] = useState(null);                // record
   const [editFor, setEditFor] = useState(null);                  // signed record → PersonalDataConsentEditPopup
-  /* Identity gate — { next: 'revoke'|'paper'|'edit'|'bulk-revoke', record?, bulkIds? } */
+  /* Identity gate — { next: 'revoke'|'paper'|'edit', record } */
   const [verifyFor, setVerifyFor] = useState(null);
   const [verifiedAudit, setVerifiedAudit] = useState(null);
-  /* Bulk-select mode — Figma 297:128439 (แท็บรอลงนาม): chip "เลือก" เปิด
-     คอลัมน์ checkbox เพื่อดำเนินการหลายรายการพร้อมกัน */
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [toast, setToast] = useState(null);
   const [exportReport, setExportReport] = useState(null);
   const [exportDone, setExportDone] = useState(false);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
-    useSearchHistory('mih:primarysearch-history:consent');
+    useSearchHistory('mih:primarysearch-history:consent', {
+      seedIfEmpty: consentPatientSearchHistorySeed(4),
+    });
 
-  /* ── Tabs with live counts ──────────────────────────────────────── */
+  const searchSuggestions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    const seen = new Set();
+    return rows
+      .filter((r) => {
+        if (!r?.hn || seen.has(r.hn)) return false;
+        const hay = `${r.hn} ${r.name} ${r.formName || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+        seen.add(r.hn);
+        return true;
+      })
+      .slice(0, 8)
+      .map((r) => {
+        const pool = CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === r.hn);
+        return pool
+          ? toConsentPatientSearchItem(pool)
+          : {
+            id: r.hn,
+            label: r.name,
+            value: r.name,
+            sublabel: r.formName || undefined,
+            badges: [{ label: r.hn, tone: 'indigo' }],
+          };
+      });
+  }, [search, rows]);
+
+  /* ── Tabs with live counts (ทั้งระบบ) · Summary = เดือนนี้เท่านั้น ── */
   const tabs = useMemo(() => CONSENT_TABS.map((t) => ({
     key: t.value,
     label: t.label,
@@ -150,6 +160,8 @@ export default function ConsentManagementPage() {
       ? rows.length
       : rows.filter((r) => (CONSENT_STATUS[r.status] || {}).tab === t.value).length,
   })), [rows]);
+
+  const summaryCards = useMemo(() => buildConsentSummary(rows), [rows]);
 
   const typeOptions = useMemo(() => [
     { value: '', label: 'ทั้งหมด' },
@@ -210,25 +222,22 @@ export default function ConsentManagementPage() {
   const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
   const hideStatusFilter = STATUS_FILTER_HIDDEN_TABS.has(activeTab);
+  const hideFilters = FILTERS_HIDDEN_TABS.has(activeTab);
   const isAllFilters = !filterType && !filterChannel && (!filterStatus || hideStatusFilter) && !filterDate;
 
   const resetFilters = () => {
     setFilterType(''); setFilterChannel(''); setFilterStatus(''); setFilterDate(''); setPage(1);
   };
 
-  const handleSubmit = (value) => {
-    const q = (value || '').trim();
-    if (q) pushHistory({ label: q, value: q });
+  const handleSubmit = (value, item) => {
+    const q = (item?.value || item?.label || value || '').trim();
+    if (q) pushHistory(item?.badges ? item : { label: q, value: q });
     setSearch(q); setPage(1);
   };
 
   /* ── Mock mutations (session-only — ไม่ persist) ────────────────── */
   const patchRow = (id, patch) => patchConsentRecord(id, patch);
   const nextId = () => rows.reduce((m, r) => Math.max(m, r.id), 0) + 1;
-  const dueInDays = (days) => {
-    const d = new Date(Date.now() + days * 86400000);
-    return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
-  };
   const pushToast = (message, variant = 'success') =>
     setToast({ id: Date.now(), variant, message });
 
@@ -268,7 +277,6 @@ export default function ConsentManagementPage() {
     setVerifiedAudit(audit);
     if (!v) return;
     if (v.next === 'revoke') setDialog({ record: v.record, confirmKey: 'revoke' });
-    else if (v.next === 'bulk-revoke') setDialog({ bulkIds: v.bulkIds, confirmKey: 'revoke' });
     else if (v.next === 'paper') setPaperFor(v.record);
     else if (v.next === 'edit') setEditFor(v.record);
   };
@@ -362,11 +370,11 @@ export default function ConsentManagementPage() {
       ),
     },
     {
-      key: 'formName', header: 'ชื่อแบบฟอร์ม', width: 280, sortable: true,
+      key: 'formName', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 420, sortable: true,
       render: (r) => (
-        <span className='truncate block min-w-0' style={TEXT_CELL} title={r.formName}>
-          {r.formName || '-'}
-        </span>
+        <div className='min-w-0 w-full' style={TEXT_CELL}>
+          <EllipsisText text={r.formName || '-'} />
+        </div>
       ),
     },
     {
@@ -412,81 +420,18 @@ export default function ConsentManagementPage() {
 
   const confirm = dialog ? CONSENT_CONFIRM[dialog.confirmKey] : null;
 
-  /* ── Bulk-select helpers ────────────────────────────────────────── */
-  /* Bulk CTA ต่อแท็บ (แท็บ all ไม่มี bulk action — สถานะปนกัน) */
-  const BULK_ACTION_BY_TAB = {
-    pending:   { label: 'ยกเลิกคำขอ', confirm: 'cancel' },
-    consented: { label: 'เพิกถอน',    confirm: 'revoke' },
-    rejected:  { label: 'Reconsent',  confirm: 'reconsent' },
-    expiring:  { label: 'Reconsent',  confirm: 'reconsent' },
-    expired:   { label: 'Reconsent',  confirm: 'reconsent' },
-  };
-  const bulkAction = BULK_ACTION_BY_TAB[activeTab] || null;
-
-  const toggleSelectMode = () => {
-    setSelectMode((v) => !v);
-    setSelectedIds(new Set());
-  };
-  const toggleRow = (id) => setSelectedIds((prev) => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
-  const pageAllSelected = pageRows.length > 0 && pageRows.every((r) => selectedIds.has(r.id));
-  const togglePageAll = () => setSelectedIds((prev) => {
-    const next = new Set(prev);
-    if (pageAllSelected) pageRows.forEach((r) => next.delete(r.id));
-    else pageRows.forEach((r) => next.add(r.id));
-    return next;
-  });
-
   /* ยืนยันแล้ว mutate state จริง (mock) — ครบ "แสดง/บันทึก/ยกเลิก/แก้ไข" */
   const runDialogConfirm = () => {
-    if (!dialog) return;
+    if (!dialog?.record) return;
     const auditNote = verifiedAudit
       ? ` (พิสูจน์ตัวตนโดย ${verifiedAudit.method === 'otp' ? 'OTP' : 'เอกสาร'} · ${verifiedAudit.verifiedAt})`
       : '';
-    if (dialog.bulkIds) {
-      const ids = new Set(dialog.bulkIds);
-      if (dialog.confirmKey === 'cancel') {
-        dialog.bulkIds.forEach((id) => cancelConsentRequest(id));
-      } else if (dialog.confirmKey === 'revoke') {
-        setConsentRecords(getConsentRecords().map((r) => (
-          ids.has(r.id) ? { ...r, status: 'ถอนความยินยอม', withdrawnDate: todayThai() } : r
-        )));
-      } else if (dialog.confirmKey === 'reconsent') {
-        /* Bulk reconsent — ช่องทางเริ่มต้นที่ศูนย์บริการ ครบกำหนดใน 30 วัน */
-        const targets = rows.filter((r) => ids.has(r.id) && !r.pendingReconsent);
-        {
-          let id = getConsentRecords().reduce((m, r) => Math.max(m, r.id), 0);
-          const spawned = targets.map((t) => {
-            id += 1;
-            return {
-              id, hn: t.hn, name: t.name, type: t.type, version: t.version,
-              formCode: t.formCode, formName: t.formName,
-              status: 'รอลงนาม', signChannel: '-', requestChannel: serviceCenterChannel,
-              requester: STAFF_NAME, createdDate: todayThai(), signedDate: '-',
-              withdrawnDate: '-', dueDate: dueInDays(30), guardian: t.guardian,
-              history: [...(t.history || [])],
-            };
-          });
-          setConsentRecords(
-            getConsentRecords()
-              .map((r) => (ids.has(r.id) ? { ...r, status: 'หมดอายุ-Reconsent', pendingReconsent: true } : r))
-              .concat(spawned),
-          );
-        }
-      }
-      pushToast(`${confirm?.title || 'ดำเนินการ'}สำเร็จ ${dialog.bulkIds.length} รายการ${auditNote}`);
-      setSelectedIds(new Set());
-    } else if (dialog.record) {
-      if (dialog.confirmKey === 'cancel') {
-        cancelConsentRequest(dialog.record.id);
-        pushToast(`ยกเลิกคำขอความยินยอมของ ${dialog.record.name} แล้ว — ประวัติยังอยู่ครบ`);
-      } else if (dialog.confirmKey === 'revoke') {
-        patchRow(dialog.record.id, { status: 'ถอนความยินยอม', withdrawnDate: todayThai() });
-        pushToast(`เพิกถอนความยินยอมของ ${dialog.record.name} แล้ว${auditNote}`);
-      }
+    if (dialog.confirmKey === 'cancel') {
+      cancelConsentRequest(dialog.record.id);
+      pushToast(`ยกเลิกคำขอความยินยอมของ ${dialog.record.name} แล้ว — ประวัติยังอยู่ครบ`);
+    } else if (dialog.confirmKey === 'revoke') {
+      patchRow(dialog.record.id, { status: 'ถอนความยินยอม', withdrawnDate: todayThai() });
+      pushToast(`เพิกถอนความยินยอมของ ${dialog.record.name} แล้ว${auditNote}`);
     }
     setDialog(null);
     setVerifiedAudit(null);
@@ -497,32 +442,6 @@ export default function ConsentManagementPage() {
     setExportReport(buildWorklistExportReport(filtered));
   };
 
-  const selectColumn = {
-    key: '_select',
-    width: 52,
-    sortable: false,
-    align: 'center',
-    label: (
-      <TableSelectCheckbox
-        checked={pageAllSelected}
-        label='เลือกทั้งหมดในหน้านี้'
-        onChange={() => togglePageAll()}
-      />
-    ),
-    render: (r) => (
-      <TableSelectCheckbox
-        checked={selectedIds.has(r.id)}
-        label={`เลือก ${r.name}`}
-        onChange={() => toggleRow(r.id)}
-      />
-    ),
-  };
-  /* ในโหมดเลือก: เพิ่มคอลัมน์ checkbox และซ่อนคอลัมน์การดำเนินการรายแถว
-     (ตาม Figma แท็บรอลงนาม) */
-  const displayColumns = selectMode
-    ? [selectColumn, ...columns.filter((c) => c.key !== 'action')]
-    : columns;
-
   return (
     <>
       <QueuePageShell
@@ -532,19 +451,26 @@ export default function ConsentManagementPage() {
         brandTitle='ระบบจัดการความยินยอม'
         breadcrumb={breadcrumb}
         title='จัดการความยินยอม'
-        actions={canManage ? (
-          <BrandButton
-            variant='fill'
-            size='md'
-            leadingIcon='note_add'
-            onClick={() => navigate.push('/consent/forms/new')}
-          >
-            สร้างแบบฟอร์มใหม่
-          </BrandButton>
-        ) : undefined}
+        actions={(
+          <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+            <NeutralSubdueButton
+              variant='outline'
+              size='md'
+              leadingIcon='history'
+              onClick={openConsentHistorySearchTab}
+            >
+              ดูประวัติความยินยอม
+            </NeutralSubdueButton>
+            {canCreateConsentRequest() && (
+              <BrandButton variant='fill' size='md' leadingIcon='add' onClick={() => setCreateOpen(true)}>
+                สร้างคำขอความยินยอม
+              </BrandButton>
+            )}
+          </div>
+        )}
         headerInfo={(
           <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-            {CONSENT_SUMMARY.map((c) => (
+            {summaryCards.map((c) => (
               <SummaryCard key={c.key} card={c} variant='panel' />
             ))}
           </section>
@@ -555,6 +481,11 @@ export default function ConsentManagementPage() {
           setActiveTab(key);
           setPage(1);
           if (STATUS_FILTER_HIDDEN_TABS.has(key)) setFilterStatus('');
+          if (FILTERS_HIDDEN_TABS.has(key)) {
+            setFilterType('');
+            setFilterChannel('');
+            setFilterDate('');
+          }
         }}
       >
         <div
@@ -577,8 +508,9 @@ export default function ConsentManagementPage() {
                 value={search}
                 onChange={(v) => { setSearch(v); setPage(1); }}
                 onSubmit={handleSubmit}
-                placeholder='ค้นหาชื่อผู้ป่วย, HN...'
+                placeholder='ค้นหา HN / เลขบัตร / Passport / ชื่อ-สกุล / โทรศัพท์'
                 width={640}
+                suggestions={searchSuggestions}
                 history={searchHistory}
                 onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
               />
@@ -587,111 +519,46 @@ export default function ConsentManagementPage() {
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
               <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
                 <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  {/* Chip "เลือก" — เปิด/ปิดโหมดเลือกหลายรายการ (Figma 297:128439) */}
-                  <FilterTag
-                    variant={selectMode ? 'brand' : 'neutral'}
-                    selected={selectMode}
-                    onClick={toggleSelectMode}
-                    showTailingIcon={false}
-                    showTitle={false}
-                    leadingIcon={<CheckboxBox checked={selectMode} />}
-                    value='เลือก'
-                  />
-                  <FilterTag value='ทั้งหมด' selected={isAllFilters} onClick={resetFilters} />
-                  <FilterDropdown prefix='ประเภท:' options={typeOptions} value={filterType} onChange={(v) => { setFilterType(v); setPage(1); }} />
-                  <FilterDropdown prefix='ช่องทาง:' options={channelOptions} value={filterChannel} onChange={(v) => { setFilterChannel(v); setPage(1); }} />
-                  {!hideStatusFilter && (
-                    <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
+                  {!hideFilters && (
+                    <>
+                      <FilterTag value='ทั้งหมด' selected={isAllFilters} onClick={resetFilters} />
+                      <FilterDropdown prefix='ประเภท:' options={typeOptions} value={filterType} onChange={(v) => { setFilterType(v); setPage(1); }} />
+                      <FilterDropdown prefix='ช่องทาง:' options={channelOptions} value={filterChannel} onChange={(v) => { setFilterChannel(v); setPage(1); }} />
+                      {!hideStatusFilter && (
+                        <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
+                      )}
+                      <FilterDropdown prefix='วันที่:' options={dateOptions} value={filterDate} onChange={(v) => { setFilterDate(v); setPage(1); }} />
+                    </>
                   )}
-                  <FilterDropdown prefix='วันที่:' options={dateOptions} value={filterDate} onChange={(v) => { setFilterDate(v); setPage(1); }} />
                 </div>
                 <div className='flex-1' />
-                <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  {canExportConsent() && (
-                    <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
-                      นำส่งออกรายงาน
-                    </NeutralSubdueButton>
-                  )}
-                  {canCreateConsentRequest() && (
-                    <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={() => setCreateOpen(true)}>
-                      สร้างคำขอความยินยอม
-                    </BrandButton>
-                  )}
-                </div>
+                {canExportConsent() && (
+                  <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
+                    นำส่งออกรายงาน
+                  </NeutralSubdueButton>
+                )}
               </div>
 
-              {/* Bulk bar — แสดงเมื่อเลือกอย่างน้อย 1 รายการ */}
-              {selectMode && selectedIds.size > 0 && (
-                <div
-                  className='w-full items-center'
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr auto 1fr',
-                    alignItems: 'center',
-                    gap: 'var(--dim-space-300)',
-                    padding: 'var(--dim-space-200) var(--dim-space-400)',
-                    background: 'var(--surface-brandPrimary-quaternary)',
-                    border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-tertiary, #9ADBBF)',
-                    borderRadius: 'var(--dim-radius-300)',
-                  }}
-                >
-                  <BrandButton variant='outline' size='sm' onClick={() => setSelectedIds(new Set())}>
-                    ยกเลิกการเลือก
-                  </BrandButton>
-                  <span
-                    className='whitespace-nowrap text-center'
-                    style={{
-                      color: 'var(--text-brandPrimary-default)',
-                      fontFamily: 'var(--type-family-body)',
-                      fontSize: 'var(--type-size-sm)',
-                      fontWeight: 'var(--type-weight-medium)',
-                    }}
-                  >
-                    เลือกแล้ว {selectedIds.size} รายการ
-                  </span>
-                  <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-200)' }}>
-                    {bulkAction ? (
-                      bulkAction.confirm === 'cancel' ? (
-                        <NeutralSubdueButton
-                          variant='outline'
-                          size='sm'
-                          onClick={() => setDialog({ bulkIds: [...selectedIds], confirmKey: bulkAction.confirm })}
-                        >
-                          {bulkAction.label} ({selectedIds.size})
-                        </NeutralSubdueButton>
-                      ) : (
-                        <BrandButton
-                          variant='outline'
-                          size='sm'
-                          onClick={() => (bulkAction.confirm === 'revoke'
-                            ? setVerifyFor({ next: 'bulk-revoke', bulkIds: [...selectedIds] })
-                            : setDialog({ bulkIds: [...selectedIds], confirmKey: bulkAction.confirm }))}
-                        >
-                          {bulkAction.label} ({selectedIds.size})
-                        </BrandButton>
-                      )
-                    ) : null}
-                  </div>
-                </div>
-              )}
-
               <Table
-                columns={displayColumns}
+                columns={columns}
                 rows={pageRows}
                 rowKey={(row) => row.id}
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 stickyColCount={2}
+                /* Page scroll + sticky header ใต้ SubHeader/tabs — เหมือนแบบฟอร์มความยินยอม */
+                stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
                 emptyMessage='ไม่พบรายการความยินยอม'
                 emptySubtext='ลองปรับตัวกรองหรือคำค้นหา'
-                style={{ maxHeight: 604, overflow: 'auto' }}
               />
 
               <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)', paddingTop: 'var(--dim-space-400)' }}>
                 <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
                   แสดง {rangeStart}-{rangeEnd} จาก {sorted.length} รายการ
                 </span>
-                <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
+                {totalPages > 1 && (
+                  <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
+                )}
               </div>
             </div>
           </section>

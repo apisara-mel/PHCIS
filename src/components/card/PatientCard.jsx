@@ -123,6 +123,9 @@ const PatientCard = ({
      `compact` directly to force a static state (Components Library). */
   sticky = false,
   stickyTop = 64,
+  /* Render only the teal identity strip (no back/title chrome). Use when
+     the host page already owns SubHeader via QueuePageShell. */
+  embedded = false,
 }) => {
   const history = useHistory();
   const [imgError, setImgError] = useState(false);
@@ -169,15 +172,17 @@ const PatientCard = ({
   const T = '300ms cubic-bezier(0.4, 0, 0.2, 1)';
 
   const cardStyle = {
-    paddingTop: 'var(--dim-space-400, 16px)',
+    paddingTop: embedded ? 0 : 'var(--dim-space-400, 16px)',
     /* Compact bottom space:
        • With alert row → 0 here (the alert row owns its 16 px pb).
        • Without alert row → 16 px here so the sticky bar still has the
          Figma 343:5629 breathing room above page content (the OPD
          ScreeningPage header has no alert row). */
-    paddingBottom: compact
-      ? (showAlertRow ? 0 : 'var(--dim-space-400, 16px)')
-      : 'var(--dim-space-600, 24px)',
+    paddingBottom: embedded
+      ? 0
+      : compact
+        ? (showAlertRow ? 0 : 'var(--dim-space-400, 16px)')
+        : 'var(--dim-space-600, 24px)',
     transition: `padding-bottom ${T}`,
     ...(sticky
       ? {
@@ -199,13 +204,17 @@ const PatientCard = ({
          under the app header. Rendered only in sticky mode. */}
       {sticky && <div ref={sentinelRef} aria-hidden style={{ height: 1 }} />}
     <div
-      className='w-full bg-surface-card px-6 border-b border-brand-200 shadow-card'
+      className={embedded
+        ? 'w-full'
+        : 'w-full bg-surface-card px-6 border-b border-brand-200 shadow-card'}
       style={cardStyle}
     >
       {/* Top row (back · title · actions). Figma 343:5629 drops this row
           entirely in the stuck/compact state, so we collapse height +
           fade in lockstep to keep the parallax smooth. `aria-hidden` and
-          `pointer-events: none` lock the buttons out while invisible. */}
+          `pointer-events: none` lock the buttons out while invisible.
+          `embedded` skips this chrome when QueuePageShell owns the title. */}
+      {!embedded && (
       <div
         aria-hidden={compact}
         style={{
@@ -237,6 +246,7 @@ const PatientCard = ({
           <div className='ml-auto flex items-center gap-2'>{actions}</div>
         )}
       </div>
+      )}
 
       {/* Patient info gradient card — compact (Figma 343:5629 mini) or
           full (Figma 150:33649). Compact: single row, 44px avatar, 24h

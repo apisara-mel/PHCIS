@@ -18,6 +18,12 @@ import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import { canManageConsent } from '@/data/consentPermissions';
 import {
+  CONSENT_PATIENT_SEARCH_POOL,
+  consentPatientSearchHistorySeed,
+  consentPatientSearchSuggestions,
+  toConsentPatientSearchItem,
+} from '@/data/consentPatientSearch';
+import {
   CONSENT_LEVELS, LEVEL_BY_KEY, DATA_CATEGORIES, MATRIX_ROLES,
   LEVEL_DEFAULT_MATRIX, TYPE_TO_LEVEL, RIGHTS_HISTORY_SEED, RIGHTS_OVERRIDE_SEED,
 } from '@/data/consentAccessLevels';
@@ -110,7 +116,14 @@ export default function ConsentAccessRightsPage() {
   const [pendingRevoke, setPendingRevoke] = useState(null);
   const [toast, setToast] = useState(null);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
-    useSearchHistory('mih:primarysearch-history:consent-rights');
+    useSearchHistory('mih:primarysearch-history:consent-rights', {
+      seedIfEmpty: consentPatientSearchHistorySeed(4),
+    });
+
+  const searchSuggestions = useMemo(
+    () => consentPatientSearchSuggestions(search),
+    [search],
+  );
 
   /* grant popup fields */
   const [gCategory, setGCategory] = useState('');
@@ -131,13 +144,31 @@ export default function ConsentAccessRightsPage() {
     .filter((r) => ['ยินยอมแล้ว', 'มีเวอร์ชันใหม่', 'ใกล้หมดอายุ'].includes(r.status))
     .map((r) => ({ value: `${r.type} ${r.version}`, label: `${r.type} · ${r.version} (ลงนาม ${r.signedDate})` })), [patientRecords]);
 
-  const handleSubmit = (value) => {
+  const handleSubmit = (value, item) => {
     const q = (value || '').trim();
     if (!q) { setSelectedHn(null); setNotFound(false); return; }
-    pushHistory({ label: q, value: q });
-    const hit = consentRecords.find((r) =>
-      r.hn.toLowerCase() === q.toLowerCase() || r.hn.toLowerCase().includes(q.toLowerCase()) || r.name.includes(q));
-    if (hit) { setSelectedHn(hit.hn); setNotFound(false); } else { setSelectedHn(null); setNotFound(true); }
+    const fromItem = item?.id && CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === item.id);
+    const hit = fromItem
+      || consentRecords.find((r) =>
+        r.hn.toLowerCase() === q.toLowerCase()
+        || r.hn.toLowerCase().includes(q.toLowerCase())
+        || r.name.includes(q))
+      || CONSENT_PATIENT_SEARCH_POOL.find((p) =>
+        p.hn.toLowerCase() === q.toLowerCase()
+        || p.label.includes(q)
+        || p.name.includes(q));
+    if (hit) {
+      const hn = hit.hn;
+      const pool = CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === hn);
+      pushHistory(pool ? toConsentPatientSearchItem(pool) : { label: q, value: q });
+      setSelectedHn(hn);
+      setNotFound(false);
+      setSearch('');
+    } else {
+      pushHistory({ label: q, value: q });
+      setSelectedHn(null);
+      setNotFound(true);
+    }
   };
 
   /* สิทธิ effective = ค่า default ตามระดับความยินยอม ± overrides */
@@ -272,8 +303,9 @@ export default function ConsentAccessRightsPage() {
               value={search}
               onChange={setSearch}
               onSubmit={handleSubmit}
-              placeholder='ค้นหาผู้ป่วยด้วย HN เช่น 67-00008 หรือชื่อ...'
+              placeholder='ค้นหา HN / เลขบัตร / Passport / ชื่อ-สกุล / โทรศัพท์'
               width={640}
+              suggestions={searchSuggestions}
               history={searchHistory}
               onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
             />

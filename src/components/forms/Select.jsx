@@ -219,15 +219,46 @@ const DropdownRow = ({ label, subtext, icon, image, colorfulBadgeStyle, badge, s
           )}
         </>
       ) : hasPrefixBadge ? (
-        /* Prefix-badge variant — Figma 4025:14538 advance-order picker.
-           Small category pill BEFORE the item label so each row reads
-           as "[Lab] · ความสมบูรณ์ของเม็ดเลือด (CBC)" etc. The selected
-           tick still renders on the right when picked. */
+        /* Prefix-badge + optional two-line label/subtext — same shape as
+           PrimarySearch SuggestionRow (Figma 3345:2981): HN indigo pill
+           + name + "เลขบัตร …" for patient pickers. */
         <>
           <ColorfulBadge style={badge.style} size='small' hierarchy='secondary'>
             {badge.label}
           </ColorfulBadge>
-          <span style={dropdownRowLabelStyle}>{label}</span>
+          {subtext ? (
+            <span
+              className='flex-1 min-w-0'
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+            >
+              <span style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm, 14px)',
+                fontWeight: 'var(--type-weight-regular, 400)',
+                lineHeight: 1.5,
+                color: 'inherit',
+                width: '100%',
+              }}
+              >
+                {label}
+              </span>
+              <span style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs, 12px)',
+                fontWeight: 'var(--type-weight-regular, 400)',
+                lineHeight: 1.5,
+                color: tinted
+                  ? 'var(--text-list-subtext-hover, #54CF97)'
+                  : 'var(--text-list-subtext, #858C92)',
+                width: '100%',
+              }}
+              >
+                {subtext}
+              </span>
+            </span>
+          ) : (
+            <span style={dropdownRowLabelStyle}>{label}</span>
+          )}
           {selected && (
             <span
               className='shrink-0 inline-flex items-center justify-center'
@@ -584,7 +615,10 @@ const Select = React.forwardRef(function Select(
     return options.filter((o) => {
       const lbl = (o.label ?? (typeof o === 'string' ? o : '')) + '';
       const val = (o.value ?? o) + '';
-      return lbl.toLowerCase().includes(q) || val.toLowerCase().includes(q);
+      const sub = (o.subtext ?? '') + '';
+      const badgeLbl = (o.badge?.label ?? '') + '';
+      const hay = `${lbl} ${val} ${sub} ${badgeLbl}`.toLowerCase();
+      return hay.includes(q);
     });
   })();
 

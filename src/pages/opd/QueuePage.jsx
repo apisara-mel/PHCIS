@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useHistory, useLocation } from 'react-router-dom';
-import QueuePageShell from '@/templates/QueuePageShell';
+import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
@@ -1128,7 +1128,7 @@ const QueuePage = () => {
               /* Pin the header row below the sticky chrome stacked
                  above: Header 64 + tab strip 49 (8 pad + 40 tab + 1 border)
                  = 113. Mirrors how Pagination uses sticky `bottom: 0`. */
-              stickyHeaderTop={113}
+              stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
               emptyMessage='ไม่พบคิวที่ตรงกับเงื่อนไข'
             />
             </div>

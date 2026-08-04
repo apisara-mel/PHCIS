@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import QueuePageShell from '@/templates/QueuePageShell';
+import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import { FilterDropdown } from '@/components/forms/FilterTag';
@@ -989,7 +989,7 @@ const RegistrationQueuePage = () => {
                 onDrop={handleDrop}
                 onDragEnd={handleDragEnd}
                 /* Header pins below app Header 64 + tab strip 49 = 113. */
-                stickyHeaderTop={113}
+                stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
                 emptyMessage='ไม่พบผู้รับบริการ'
               />
 

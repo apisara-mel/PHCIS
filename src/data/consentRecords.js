@@ -105,8 +105,9 @@ const MOCK_STATUS_ROTATION = Object.values(TAB_STATUS_POOLS).flatMap((pool) =>
   Array.from({ length: PER_TAB_COUNT }, (_, i) => pool[i % pool.length]),
 );
 
-/** HN + seed name — aligned with MR / screening roster (enriched again at render). */
-const MOCK_PATIENTS = [
+/** HN + seed name — aligned with MR / screening roster (enriched again at render).
+    Exported for consent access-request patient picker (searchable Select). */
+export const MOCK_PATIENTS = [
   { hn: '67-00001', name: 'สมชาย มั่นใจดี' },
   { hn: '67-00002', name: 'สมหญิง มีสุข' },
   { hn: '67-00003', name: 'วีระ ดีงาม' },

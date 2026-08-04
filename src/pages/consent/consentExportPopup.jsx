@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Popup from '@/components/popup/Popup';
-import Table from '@/components/table/Table';
+import Table, { EllipsisText } from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
 import { logExport } from '@/data/consentWorkflowStore';
@@ -9,6 +9,8 @@ import { logExport } from '@/data/consentWorkflowStore';
    Every "นำส่งออกรายงาน" action in the consent module opens this popup:
    print-preview → date range → PDF/CSV/XLSX → confirm (logs export).
    "พิมพ์" is separate and does not log (annotation 414:123633). */
+
+const OFFICE_HEALTH_LOGO = '/images/office-health-logo.png';
 
 const FORMATS = [
   { value: 'pdf', label: 'PDF' },
@@ -46,6 +48,8 @@ export const buildReportTableColumns = (cols) => cols.map((c) => ({
   key: c.key,
   header: c.header,
   width: c.width,
+  flex: c.flex,
+  minWidth: c.minWidth,
   render: (r) => {
     const v = r[c.key];
     if (c.kind === 'status') {
@@ -54,6 +58,13 @@ export const buildReportTableColumns = (cols) => cols.map((c) => ({
     if (c.kind === 'badge') {
       return <ColorfulBadge style={BADGE_TONE[v] || 'blue'} size='small' hierarchy='secondary' width='hug'>{v}</ColorfulBadge>;
     }
+    if (c.kind === 'ellipsis' || c.key === 'formName') {
+      return (
+        <div className='min-w-0 w-full' style={CELL_TEXT}>
+          <EllipsisText text={v == null || v === '' ? '-' : String(v)} />
+        </div>
+      );
+    }
     return <span style={CELL_TEXT}>{v}</span>;
   },
 }));
@@ -61,7 +72,7 @@ export const buildReportTableColumns = (cols) => cols.map((c) => ({
 const WORKLIST_EXPORT_COLUMNS = [
   { key: 'hn', header: 'HN', width: 110 },
   { key: 'name', header: 'ชื่อ-นามสกุล', width: 220 },
-  { key: 'formName', header: 'ชื่อแบบฟอร์ม', width: 280 },
+  { key: 'formName', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 360, kind: 'ellipsis' },
   { key: 'type', header: 'ประเภท Consent', width: 150, kind: 'badge' },
   { key: 'status', header: 'สถานะ', width: 160, kind: 'status' },
   { key: 'signChannel', header: 'ช่องทางที่ลงนาม', width: 150 },
@@ -174,6 +185,31 @@ export function ExportFormatPopup({ open, report, onClose, onExported }) {
       tertiaryAction={{ label: 'พิมพ์ (ไม่เก็บ log)', onClick: () => window.print?.() }}
     >
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+        {/* เลือกวันที่ + รูปแบบไฟล์ — บรรทัดเดียวกัน อยู่เหนือตัวอย่างเอกสาร */}
+        <div
+          className='flex items-end flex-wrap w-full'
+          style={{ gap: 'var(--dim-space-400)' }}
+        >
+          <div className='flex flex-col min-w-0' style={{ flex: '1 1 280px', gap: 'var(--dim-space-200)' }}>
+            <span style={SECTION_LABEL}>
+              เลือกช่วงวันที่ <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
+            </span>
+            <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+              <DateInputBox placeholder='วันเริ่มต้น' value={startDate} onClick={() => setStartDate('1 มิถุนายน 2569')} />
+              <span style={{ color: 'var(--text-content-tertiary)' }}>-</span>
+              <DateInputBox placeholder='วันสิ้นสุด' value={endDate} onClick={() => setEndDate('12 มิถุนายน 2569')} />
+            </div>
+          </div>
+          <div className='flex flex-col shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+            <span style={SECTION_LABEL}>เลือกรูปแบบไฟล์</span>
+            <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+              {FORMATS.map((f) => (
+                <RadioPill key={f.value} label={f.label} selected={format === f.value} onClick={() => setFormat(f.value)} />
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div
           className='flex justify-center w-full'
           style={{
@@ -181,13 +217,15 @@ export function ExportFormatPopup({ open, report, onClose, onExported }) {
             paddingTop: 'var(--dim-space-500)', paddingRight: 'var(--dim-space-500)',
             paddingBottom: 'var(--dim-space-500)', paddingLeft: 'var(--dim-space-500)',
             borderRadius: 'var(--dim-radius-400)',
-            maxHeight: '38vh', overflowY: 'auto',
+            width: '100%',
+            minHeight: 'min(52vh, 560px)',
           }}
         >
           <div
             className='flex flex-col w-full'
             style={{
-              maxWidth: 720,
+              width: '100%',
+              maxWidth: '100%',
               background: 'var(--surface-card-100)',
               border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
               borderRadius: 'var(--dim-radius-300)',
@@ -197,14 +235,25 @@ export function ExportFormatPopup({ open, report, onClose, onExported }) {
               gap: 'var(--dim-space-400)',
             }}
           >
-            <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-050)' }}>
+            <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)' }}>
+              <img
+                src={OFFICE_HEALTH_LOGO}
+                alt='ตราสัญลักษณ์สำนักอนามัย กรุงเทพมหานคร'
+                style={{
+                  width: 'var(--dim-size-1600, 72px)',
+                  height: 'var(--dim-size-1600, 72px)',
+                  objectFit: 'cover',
+                  borderRadius: 'var(--dim-radius-full)',
+                  flexShrink: 0,
+                }}
+              />
               <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)' }}>
                 สำนักอนามัย กรุงเทพมหานคร
               </span>
               <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>
                 {report ? report.title : 'รายงาน'}
               </span>
-              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', textAlign: 'center' }}>
                 ช่วงวันที่ {startDate || '—'} ถึง {endDate || '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)
               </span>
             </div>
@@ -215,25 +264,6 @@ export function ExportFormatPopup({ open, report, onClose, onExported }) {
                 รวมทุกรายงานในระบบ — ตัวอย่างตารางแสดงเมื่อเลือกรายงานเฉพาะหัวข้อ
               </span>
             )}
-          </div>
-        </div>
-
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-          <span style={SECTION_LABEL}>
-            เลือกช่วงวันที่ <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
-          </span>
-          <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-            <DateInputBox placeholder='วันเริ่มต้น' value={startDate} onClick={() => setStartDate('1 มิถุนายน 2569')} />
-            <span style={{ color: 'var(--text-content-tertiary)' }}>-</span>
-            <DateInputBox placeholder='วันสิ้นสุด' value={endDate} onClick={() => setEndDate('12 มิถุนายน 2569')} />
-          </div>
-        </div>
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-          <span style={SECTION_LABEL}>เลือกรูปแบบไฟล์ (PDF / CSV / XLSX)</span>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-            {FORMATS.map((f) => (
-              <RadioPill key={f.value} label={f.label} selected={format === f.value} onClick={() => setFormat(f.value)} />
-            ))}
           </div>
         </div>
       </div>

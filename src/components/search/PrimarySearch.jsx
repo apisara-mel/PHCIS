@@ -322,11 +322,11 @@ const PrimarySearch = ({
   /* Optional — when provided, renders a "ล้าง" affordance on the history
      header so users can wipe their recent searches. */
   onHistoryClear,
-  /* On focus, scroll the viewport so the search bar sits this many pixels
-     below the top edge — guarantees the recent-search dropdown (up to
-     ~10 rows · ~580 px tall) fits in a single viewport without manual
-     scrolling. Default 120 leaves room for an app header / tab strip
-     sticking above; set to `null` to disable the auto-scroll entirely. */
+  /* On focus, scroll only when needed so the recent-search dropdown fits.
+     Prefer `--mih-queue-sticky-under-tabs` (QueuePageShell) so the bar lands
+     just under Topbar + SubHeader + tabs — not underneath them (default
+     120px was too aggressive on consent / queue pages). Set to `null` to
+     disable auto-scroll entirely. */
   scrollOffsetTop = 120,
   state: stateProp,                /* force visual state: 'default' | 'hover' | 'typing' | 'filled' */
   className = '',
@@ -354,21 +354,47 @@ const PrimarySearch = ({
     return () => document.removeEventListener('mousedown', onDocDown);
   }, [focused]);
 
-  /* Scroll the search bar near the top of the viewport on focus so the
-     recent-search dropdown (up to 10 rows · ~580 px tall) fits without
-     manual scrolling. No-op when the bar is already in the target band
-     (within 8 px of `scrollOffsetTop`). */
+  /* Keep the search bar reachable under sticky chrome and leave room for
+     the history / suggestion dropdown. Skip scrolling when already fine. */
   useEffect(() => {
     if (!focused) return undefined;
     if (scrollOffsetTop == null) return undefined;
     if (typeof window === 'undefined') return undefined;
     const el = wrapRef.current;
     if (!el) return undefined;
-    /* Defer to the next frame so the focus animation + dropdown mount
-       run first; the scroll then carries the dropdown into view. */
+
+    const STICKY_GAP = 12;
+    const DROPDOWN_MIN_SPACE = 280;
+
+    const readStickyUnderTabsPx = () => {
+      const raw = getComputedStyle(document.documentElement)
+        .getPropertyValue('--mih-queue-sticky-under-tabs')
+        .trim();
+      if (!raw) return null;
+      const n = parseFloat(raw);
+      return Number.isFinite(n) ? n : null;
+    };
+
     const raf = requestAnimationFrame(() => {
+      const stickyPx = readStickyUnderTabsPx();
+      const offset = stickyPx != null
+        ? stickyPx + STICKY_GAP
+        : (Number(scrollOffsetTop) || 120);
+
       const rect = el.getBoundingClientRect();
-      const target = Math.max(0, window.scrollY + rect.top - scrollOffsetTop);
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const obscuredByChrome = rect.top < offset - 8;
+      const needsRoomForDropdown = spaceBelow < DROPDOWN_MIN_SPACE;
+
+      if (!obscuredByChrome && !needsRoomForDropdown) return;
+
+      if (!obscuredByChrome && needsRoomForDropdown) {
+        const deficit = DROPDOWN_MIN_SPACE - spaceBelow;
+        window.scrollTo({ top: window.scrollY + deficit, behavior: 'smooth' });
+        return;
+      }
+
+      const target = Math.max(0, window.scrollY + rect.top - offset);
       if (Math.abs(target - window.scrollY) <= 8) return;
       window.scrollTo({ top: target, behavior: 'smooth' });
     });

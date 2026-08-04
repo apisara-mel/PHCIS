@@ -1,25 +1,25 @@
-import React, { useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
-import QueuePageShell from '@/templates/QueuePageShell';
+import React, { useEffect, useMemo, useState } from 'react';
+import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
-import Table from '@/components/table/Table';
+import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import Popup from '@/components/popup/Popup';
 import Switch from '@/components/switch/Switch';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerifyPopup';
+import StaffProfileAvatar from '@/components/appointment/StaffProfileAvatar';
 import {
   ACCESS_RECORDS, ACCESS_SUMMARY, ACCESS_TABS, ACCESS_STATUS,
-  thaiDateOfIso, daysLeftOfIso,
+  thaiDateOfIso, daysLeftOfIso, consumeAccessImports, accessPatientLabel,
+  accessAvatarForGroup,
 } from '@/data/accessRecords';
-import { ScanImportPopup, ApprovePeriodPopup, EditPeriodPopup, AccessDetailPopup } from '@/pages/consent/accessPopups';
+import { ApprovePeriodPopup, EditPeriodPopup, AccessDetailPopup } from '@/pages/consent/accessPopups';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — จัดการสิทธิ์การเข้าถึงแบบฟอร์ม (Figma node 363:122327).
@@ -31,6 +31,10 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
 
 const PAGE_SIZE = 10;
 const breadcrumb = ['จัดการสิทธิ์การเข้าถึงแบบฟอร์ม'];
+const GROUP_TONE = { 'แพทย์': 'green', 'พยาบาล': 'purple', 'เภสัชกร': 'teal', 'นักเทคนิคการแพทย์': 'blue' };
+
+/* แท็บที่กรองสถานะอยู่แล้ว — ซ่อน filter chip "สถานะ" */
+const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'approved', 'rejected', 'expired']);
 
 const TEXT_CELL = {
   color: 'var(--text-content-default)',
@@ -54,21 +58,33 @@ const StackCell = ({ top, bottom }) => (
   </div>
 );
 
-const Initials = ({ name }) => (
-  <span
-    className='inline-flex items-center justify-center shrink-0'
-    style={{
-      width: 'var(--dim-size-700, 36px)', height: 'var(--dim-size-700, 36px)',
-      borderRadius: 'var(--dim-radius-600)',
-      background: 'var(--surface-brandPrimary-quaternary)',
-      color: 'var(--text-brandPrimary-default)',
-      fontFamily: 'var(--type-family-heading-graphic2)',
-      fontSize: 'var(--type-size-sm)', lineHeight: 1,
+/* Staff photo — keyed to Group Policy via row.avatarSrc (fallback by group). */
+const RequesterAvatar = ({ row }) => (
+  <StaffProfileAvatar
+    staff={{
+      name: row.name,
+      avatarSrc: row.avatarSrc || accessAvatarForGroup(row.group, row.id || 0),
     }}
-    aria-hidden
-  >
-    {(name || '?').trim().charAt(0)}
-  </span>
+    size={36}
+    alt={row.name}
+  />
+);
+
+/* Group Policy · สาขาย่อย · แผนก — same badge pattern as ConsentFormsPage. */
+const ScopeCell = ({ row }) => (
+  <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
+    {row.group ? (
+      <ColorfulBadge style={GROUP_TONE[row.group] || 'grey'} size='small' hierarchy='secondary' width='hug'>
+        {row.group}
+      </ColorfulBadge>
+    ) : null}
+    {row.subBranch ? (
+      <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
+        {row.subBranch}
+      </ColorfulBadge>
+    ) : null}
+    {row.dept ? <span style={MUTED_CELL}>{row.dept}</span> : <span style={MUTED_CELL}>-</span>}
+  </div>
 );
 
 /* File chip — exported Figma PDF glyph + filename over its size. The whole
@@ -138,7 +154,14 @@ const DocPreview = ({ row }) => (
         <DocRow label='เลขที่คำขอ' value={row.reqNo} />
         <DocRow label='ผู้ขอ (เจ้าหน้าที่)' value={row.name} />
         <DocRow label='รหัสพนักงาน' value={row.empCode} />
-        <DocRow label='HN ผู้รับบริการ' value={row.hn} />
+        <DocRow
+          label='Group Policy / สาขาย่อย / แผนก'
+          value={[row.group, row.subBranch, row.dept].filter(Boolean).join(' · ') || '-'}
+        />
+        <DocRow label='ประเภทการขอ' value={row.accessTypeLabel || '-'} />
+        <DocRow label='แบบฟอร์มความยินยอม' value={row.formName ? `${row.formCode ? `${row.formCode} · ` : ''}${row.formName}` : '-'} />
+        <DocRow label='เหตุผลที่ขอ' value={row.reason || '-'} />
+        <DocRow label='ผู้รับบริการ' value={accessPatientLabel(row)} />
         <DocRow label='วัตถุประสงค์' value={row.purpose} />
         <DocRow label='ช่วงเวลาที่ขอเข้าถึง' value={`${row.period} (${row.periodDays})`} />
       </div>
@@ -158,10 +181,12 @@ const autoExpire = (r) => {
 };
 
 export default function AccessManagementPage() {
-  const navigate = useHistory();
   /* rows เป็น state จริง (mock mutate ใน session) */
-  const [rows, setRows] = useState(() => ACCESS_RECORDS.map(autoExpire));
-  const [activeTab, setActiveTab] = useState('all');
+  const [rows, setRows] = useState(() => [
+    ...ACCESS_RECORDS.map(autoExpire),
+    ...consumeAccessImports().map(autoExpire),
+  ]);
+  const [activeTab, setActiveTab] = useState('pending');
   const [search, setSearch] = useState('');
   const [filterRequester, setFilterRequester] = useState('');
   const [filterPurpose, setFilterPurpose] = useState('');
@@ -171,8 +196,7 @@ export default function AccessManagementPage() {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [dialog, setDialog] = useState(null); // { record, kind: 'reject' }
   const [previewFile, setPreviewFile] = useState(null); // row whose attached doc is open
-  /* ด.1.1.17 workflow */
-  const [scanOpen, setScanOpen] = useState(false);        // 17.1 สแกนนำเข้า
+  /* ด.1.1.17 workflow — ขอสิทธิ์ย้ายไปปุ่มที่แบบฟอร์มความยินยอม */
   const [approveFor, setApproveFor] = useState(null);     // 17.2 อนุมัติ + ช่วงเวลา
   const [editPeriodFor, setEditPeriodFor] = useState(null); // admin แก้ไขช่วงเวลาสิทธิ
   const [detailFor, setDetailFor] = useState(null);       // detail + audit
@@ -185,6 +209,29 @@ export default function AccessManagementPage() {
   const nowThai = () => new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' });
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:access');
+
+  const searchSuggestions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return rows
+      .filter((r) => `${r.reqNo} ${r.name} ${r.empCode} ${r.hn} ${r.patientName || ''} ${r.purpose || ''}`.toLowerCase().includes(q))
+      .slice(0, 8)
+      .map((r) => ({
+        id: String(r.id),
+        label: r.name,
+        value: r.reqNo,
+        sublabel: [r.reqNo, r.hn && r.hn !== '-' ? `HN ${r.hn}` : '', r.purpose].filter(Boolean).join(' · '),
+        badges: [{ label: r.reqNo, tone: 'teal' }],
+      }));
+  }, [search, rows]);
+
+  /* รับคำขอที่สร้างจากหน้าแบบฟอร์มความยินยอม ขณะที่หน้านี้ยัง mount อยู่ */
+  useEffect(() => {
+    const pending = consumeAccessImports();
+    if (pending.length === 0) return undefined;
+    setRows((prev) => [...prev, ...pending.map(autoExpire)]);
+    return undefined;
+  }, []);
 
   const tabs = useMemo(() => ACCESS_TABS.map((t) => ({
     key: t.value,
@@ -252,15 +299,15 @@ export default function AccessManagementPage() {
   const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
-  const isAllFilters = !filterRequester && !filterPurpose && !filterStatus && !filterDate;
+  const isAllFilters = !filterRequester && !filterPurpose && (!filterStatus || STATUS_FILTER_HIDDEN_TABS.has(activeTab)) && !filterDate;
 
   const resetFilters = () => {
     setFilterRequester(''); setFilterPurpose(''); setFilterStatus(''); setFilterDate(''); setPage(1);
   };
 
-  const handleSubmit = (value) => {
-    const q = (value || '').trim();
-    if (q) pushHistory({ label: q, value: q });
+  const handleSubmit = (value, item) => {
+    const q = (item?.value || item?.label || value || '').trim();
+    if (q) pushHistory(item?.badges ? item : { label: q, value: q });
     setSearch(q); setPage(1);
   };
 
@@ -361,15 +408,36 @@ export default function AccessManagementPage() {
       key: 'name', header: 'ผู้ขอ (เจ้าหน้าที่)', width: 220, sortable: true,
       render: (r) => (
         <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
-          <Initials name={r.name} />
+          <RequesterAvatar row={r} />
           <span className='truncate' style={TEXT_CELL}>{r.name}</span>
         </div>
       ),
     },
     { key: 'empCode', header: 'รหัสพนักงาน', width: 130, sortable: true, render: (r) => <Cell value={r.empCode} /> },
+    {
+      key: 'group', header: 'Group Policy / สาขาย่อย / แผนก', width: 320,
+      render: (r) => <ScopeCell row={r} />,
+    },
     { key: 'createdDate', header: 'วันที่สร้างคำขอ', width: 160, sortable: true, render: (r) => <StackCell top={r.createdDate} bottom={r.createdTime} /> },
-    { key: 'hn', header: 'HN ผู้รับบริการ', width: 140, render: (r) => <Cell value={r.hn} /> },
-    { key: 'purpose', header: 'วัตถุประสงค์', width: 170, render: (r) => <Cell value={r.purpose} /> },
+    { key: 'hn', header: 'ผู้รับบริการ', width: 220, render: (r) => <Cell value={accessPatientLabel(r)} /> },
+    {
+      key: 'accessType', header: 'ประเภทการขอ', width: 220,
+      render: (r) => <Cell value={r.accessTypeLabel || (r.accessType === 'form' ? 'ขอเข้าถึงแบบฟอร์มความยินยอม' : 'ขอเข้าถึงข้อมูลความยินยอมของผู้รับบริการ')} />,
+    },
+    {
+      key: 'formName', header: 'แบบฟอร์มความยินยอม', flex: true, minWidth: 360,
+      render: (r) => {
+        const label = r.formName
+          ? `${r.formCode ? `${r.formCode} · ` : ''}${r.formName}`
+          : '-';
+        return (
+          <div className='min-w-0 w-full' style={TEXT_CELL}>
+            <EllipsisText text={label} />
+          </div>
+        );
+      },
+    },
+    { key: 'reason', header: 'เหตุผลที่ขอ', width: 200, render: (r) => <Cell value={r.reason} /> },
     { key: 'period', header: 'ช่วงเวลาสิทธิ (เริ่ม-สิ้นสุด)', width: 230, render: renderPeriod },
     { key: 'file', header: 'แบบฟอร์มขอเข้าถึงข้อมูล', width: 200, render: (r) => <FileCell name={r.file} size={r.fileSize} onClick={() => setPreviewFile(r)} /> },
     {
@@ -406,7 +474,11 @@ export default function AccessManagementPage() {
         )}
         tabs={tabs}
         activeTab={activeTab}
-        onTabChange={(key) => { setActiveTab(key); setPage(1); }}
+        onTabChange={(key) => {
+          setActiveTab(key);
+          setPage(1);
+          if (STATUS_FILTER_HIDDEN_TABS.has(key)) setFilterStatus('');
+        }}
       >
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)' }}>
           <section
@@ -425,8 +497,9 @@ export default function AccessManagementPage() {
                 value={search}
                 onChange={(v) => { setSearch(v); setPage(1); }}
                 onSubmit={handleSubmit}
-                placeholder='ค้นหาเลขที่คำขอ / ชื่อเจ้าหน้าที่...'
+                placeholder='ค้นหาเลขที่คำขอ / ชื่อเจ้าหน้าที่ / HN...'
                 width={640}
+                suggestions={searchSuggestions}
                 history={searchHistory}
                 onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
               />
@@ -438,18 +511,10 @@ export default function AccessManagementPage() {
                   <FilterTag value='ทั้งหมด' selected={isAllFilters} onClick={resetFilters} />
                   <FilterDropdown prefix='ผู้ขอ:' options={requesterOptions} value={filterRequester} onChange={(v) => { setFilterRequester(v); setPage(1); }} />
                   <FilterDropdown prefix='วัตถุประสงค์:' options={purposeOptions} value={filterPurpose} onChange={(v) => { setFilterPurpose(v); setPage(1); }} />
-                  <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
+                  {!STATUS_FILTER_HIDDEN_TABS.has(activeTab) && (
+                    <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
+                  )}
                   <FilterDropdown prefix='วันที่สร้าง:' options={dateOptions} value={filterDate} onChange={(v) => { setFilterDate(v); setPage(1); }} />
-                </div>
-                <div className='flex-1' />
-                <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  <BrandButton variant='outline' size='sm' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
-                    สร้างแบบฟอร์มใหม่
-                  </BrandButton>
-                  {/* ด.1.1.17.1 — สแกนแบบฟอร์มขอเข้าถึงข้อมูลนำเข้าระบบ */}
-                  <BrandButton variant='fill' size='sm' leadingIcon='document_scanner' onClick={() => setScanOpen(true)}>
-                    สแกนแบบฟอร์มนำเข้า
-                  </BrandButton>
                 </div>
               </div>
 
@@ -460,9 +525,9 @@ export default function AccessManagementPage() {
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 stickyColCount={2}
+                stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
                 emptyMessage='ไม่พบคำขอสิทธิ์การเข้าถึง'
                 emptySubtext='ลองปรับตัวกรองหรือคำค้นหา'
-                style={{ maxHeight: 604, overflow: 'auto' }}
               />
 
               <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)', paddingTop: 'var(--dim-space-400)' }}>
@@ -505,7 +570,9 @@ export default function AccessManagementPage() {
           if (rec) setApproveFor(rec);
         }}
         actionLabel='อนุมัติสิทธิเข้าถึงข้อมูลผู้รับบริการ'
-        patientName={verifyFor ? `ผู้รับบริการ HN ${verifyFor.hn}` : undefined}
+        patientName={verifyFor ? (verifyFor.patientName
+          ? `${verifyFor.patientName} · HN ${verifyFor.hn}`
+          : `ผู้รับบริการ HN ${verifyFor.hn}`) : undefined}
         hn={verifyFor?.hn}
       />
 
@@ -581,38 +648,6 @@ export default function AccessManagementPage() {
         }}
         onCancel={() => setToggleFor(null)}
         onClose={() => setToggleFor(null)}
-      />
-
-      {/* ด.1.1.17.1 — สแกนแบบฟอร์มนำเข้า → คำขอใหม่พร้อมไฟล์แนบ */}
-      <ScanImportPopup
-        open={scanOpen}
-        onClose={() => setScanOpen(false)}
-        onImported={({ name, empCode, unit, hn, purpose, scopes, fileName }) => {
-          setScanOpen(false);
-          const id = rows.reduce((m, r) => Math.max(m, r.id), 0) + 1;
-          setRows((prev) => [...prev, {
-            id,
-            reqNo: `REQ-2569-${String(40 + id).padStart(4, '0')}`,
-            name,
-            empCode: empCode || '-',
-            unit,
-            createdDate: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }),
-            createdTime: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-            hn,
-            purpose,
-            scopes,
-            period: '-',
-            periodDays: '-',
-            file: fileName || 'scanned-form.pdf',
-            fileSize: '1.2 MB',
-            status: 'รออนุมัติ',
-            periodStart: null,
-            periodEnd: null,
-            active: false,
-            audit: { by: 'ลดา ดีงาม', at: nowThai() },
-          }]);
-          pushToast(`นำเข้าคำขอจากเอกสารสแกนของ ${name} แล้ว — สถานะรออนุมัติ`);
-        }}
       />
 
       {/* รายละเอียด + audit */}

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useHistory } from 'react-router-dom';
-import QueuePageShell from '@/templates/QueuePageShell';
+import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
@@ -482,7 +482,7 @@ const AddictionQueuePage = () => {
                 onSort={handleSort}
                 onRowClick={handleRowClick}
                 stickyColCount={3}
-                stickyHeaderTop={113}
+                stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
                 emptyMessage={searchQ.trim() ? 'ไม่พบรายการที่ตรงกับคำค้นหา' : 'ยังไม่มีคิวผู้รับบริการวันนี้'}
               />
 

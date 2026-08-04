@@ -178,15 +178,7 @@ export default function ConsentDashboardPage() {
       )}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
-        {consentStatsReport && (
-          <ReportCard
-            report={consentStatsReport}
-            scale={dateScale}
-            onExport={setExportReport}
-            onView={setViewReport}
-          />
-        )}
-
+        {/* Consent ทั้งหมด + สัดส่วนการยินยอม อยู่บนสุด */}
         {widgets.length === 0 ? (
           <section className='flex flex-col items-center justify-center' style={{ ...CARD_STYLE, minHeight: 220, gap: 'var(--dim-space-300)' }}>
             <Icon name='dashboard' size={32} color='var(--text-content-tertiary)' />
@@ -218,6 +210,15 @@ export default function ConsentDashboardPage() {
               </section>
             ))}
           </div>
+        )}
+
+        {consentStatsReport && (
+          <ReportCard
+            report={consentStatsReport}
+            scale={dateScale}
+            onExport={setExportReport}
+            onView={setViewReport}
+          />
         )}
 
         <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-400)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>

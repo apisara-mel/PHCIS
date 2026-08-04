@@ -6,7 +6,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Popup from '@/components/popup/Popup';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
-import InputField from '@/components/forms/InputField';
+import PrimarySearch from '@/components/search/PrimarySearch';
 import Icon from '@/components/icons/Icon';
 import { Donut, VBars } from '@/components/graph/Charts';
 import FilterTag from '@/components/forms/FilterTag';
@@ -285,15 +285,32 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
              chips + export button on the right (ด.1.1.16). */}
           <div className='flex items-center justify-between flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-              <div style={{ flex: '0 1 240px', minWidth: 200 }}>
-                <InputField
-                  showLabel={false}
-                  showHelperText={false}
-                  leadingIcon='search'
+              <div style={{ flex: '0 1 360px', minWidth: 240, position: 'relative', zIndex: 2 }}>
+                <PrimarySearch
                   value={query}
                   onChange={(v) => { setQuery(v); setPage(1); }}
+                  onSubmit={(v) => { setQuery((v || '').trim()); setPage(1); }}
                   placeholder='ค้นหาในรายงาน...'
-                  size='md'
+                  width={360}
+                  suggestions={allRows
+                    .filter((r) => {
+                      const q = query.trim().toLowerCase();
+                      if (!q) return false;
+                      const hay = Object.entries(r)
+                        .filter(([k, v]) => k !== '_id' && typeof v === 'string')
+                        .map(([, v]) => v.toLowerCase()).join(' ');
+                      return hay.includes(q);
+                    })
+                    .slice(0, 6)
+                    .map((r, i) => ({
+                      id: String(r._id ?? i),
+                      label: r.name || r.patient || r.hn || Object.values(r).find((v) => typeof v === 'string') || '—',
+                      value: r.name || r.patient || r.hn || '',
+                      sublabel: [r.hn, r.status, r.type].filter(Boolean).join(' · ') || undefined,
+                    }))}
+                  history={[]}
+                  historyEmptyMessage={null}
+                  scrollOffsetTop={null}
                 />
               </div>
               <div className='flex items-center' style={{ gap: 'var(--dim-space-200)', flex: '0 1 340px' }}>
