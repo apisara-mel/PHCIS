@@ -71,21 +71,39 @@ export const CONSENT_CONFIRM = {
 
 const CONSENT_TYPES = ['ผ่าตัด', 'การรักษา', 'การวิจัย', 'เลือด', 'PDPA', 'เบิกจ่าย'];
 const REQUESTERS = ['ลดา ดีงาม', 'นที ทองคำ'];
-const MOCK_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน'];
-
-/** 32 rows — one rotation covering every CONSENT_STATUS (pagination demo at PAGE_SIZE 10). */
-const MOCK_STATUS_ROTATION = [
-  'รอลงนาม', 'รอลงนาม', 'ขอเพิกถอน', 'ขอเพิกถอน',
-  'อยู่ระหว่างลงนาม', 'อยู่ระหว่างลงนาม', 'อยู่ระหว่างลงนาม',
-  'ยินยอมแล้ว', 'ยินยอมแล้ว', 'ยินยอมแล้ว', 'ยินยอมแล้ว', 'ยินยอมแล้ว', 'ยินยอมแล้ว',
-  'ปฏิเสธ', 'ปฏิเสธ', 'ปฏิเสธ',
-  'ถอนความยินยอม', 'ถอนความยินยอม', 'ถอนความยินยอม',
-  'ใกล้หมดอายุ', 'ใกล้หมดอายุ', 'ใกล้หมดอายุ',
-  'หมดอายุ', 'หมดอายุ', 'หมดอายุ',
-  'มีเวอร์ชันใหม่', 'มีเวอร์ชันใหม่',
-  'หมดอายุ-Reconsent', 'หมดอายุ-Reconsent',
-  'ยกเลิกคำขอ', 'ยกเลิกคำขอ', 'ยกเลิกคำขอ',
+const THAI_MONTHS_FULL = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
 ];
+
+/** เดือน/ปีปัจจุบันตามปฏิทินไทย (พ.ศ.) — summary นับเฉพาะเดือนนี้ */
+export const getConsentCalendarNow = (now = new Date()) => ({
+  month: THAI_MONTHS_FULL[now.getMonth()],
+  year: now.getFullYear() + 543,
+});
+
+/** วันที่ไทย เช่น "6 พฤษภาคม 2569" อยู่ในเดือนปัจจุบันหรือไม่ */
+export const isConsentDateThisMonth = (dateStr, now = new Date()) => {
+  if (!dateStr || dateStr === '-') return false;
+  const { month, year } = getConsentCalendarNow(now);
+  return String(dateStr).includes(month) && String(dateStr).includes(String(year));
+};
+
+/** 36 รายการต่อแท็บ (>32) — pagination demo ที่ PAGE_SIZE 20 */
+const PER_TAB_COUNT = 36;
+
+const TAB_STATUS_POOLS = {
+  pending:   ['รอลงนาม', 'อยู่ระหว่างลงนาม', 'ขอเพิกถอน', 'มีเวอร์ชันใหม่'],
+  consented: ['ยินยอมแล้ว'],
+  rejected:  ['ปฏิเสธ', 'ถอนความยินยอม', 'ยกเลิกคำขอ'],
+  expiring:  ['ใกล้หมดอายุ'],
+  expired:   ['หมดอายุ', 'หมดอายุ-Reconsent'],
+};
+
+/** สถานะเรียงตามแท็บ — 36 × 5 = 180 rows */
+const MOCK_STATUS_ROTATION = Object.values(TAB_STATUS_POOLS).flatMap((pool) =>
+  Array.from({ length: PER_TAB_COUNT }, (_, i) => pool[i % pool.length]),
+);
 
 /** HN + seed name — aligned with MR / screening roster (enriched again at render). */
 const MOCK_PATIENTS = [
@@ -132,24 +150,38 @@ const signChannelForStatus = (status, id) => {
   return id % 2 === 0 ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
 };
 
-const buildConsentMockRecords = () => MOCK_STATUS_ROTATION.map((status, index) => {
+const buildConsentMockRecords = () => {
+  const { month: thisMonth, year: thisYear } = getConsentCalendarNow();
+  /* เดือนก่อนหน้า + ปีก่อน — ให้ยอดทั้งระบบ > ยอดเดือนนี้ใน summary */
+  const prevMonthIdx = (new Date().getMonth() + 11) % 12;
+  const prevMonth = THAI_MONTHS_FULL[prevMonthIdx];
+  const prevYear = prevMonthIdx === 11 ? thisYear - 1 : thisYear;
+
+  return MOCK_STATUS_ROTATION.map((status, index) => {
   const id = index + 1;
-  const patient = MOCK_PATIENTS[index];
+  const patient = MOCK_PATIENTS[index % MOCK_PATIENTS.length];
   const type = CONSENT_TYPES[index % CONSENT_TYPES.length];
   const day = (index % 27) + 1;
-  const month = MOCK_MONTHS[index % MOCK_MONTHS.length];
-  const createdDate = `${day} ${month} 2569`;
+  /* ~2 ใน 3 เป็นเดือนนี้ · ที่เหลือเดือน/ปีก่อน เพื่อให้ tab ทั้งหมด > summary เดือนนี้ */
+  const inThisMonth = index % 3 !== 0;
+  const month = inThisMonth ? thisMonth : prevMonth;
+  const year = inThisMonth ? thisYear : (index % 6 === 0 ? thisYear - 1 : prevYear);
+  const createdDate = `${day} ${month} ${year}`;
   const signed = ['ยินยอมแล้ว', 'ใกล้หมดอายุ', 'หมดอายุ', 'มีเวอร์ชันใหม่', 'หมดอายุ-Reconsent'].includes(status);
   const withdrawn = ['ถอนความยินยอม'].includes(status);
-  const signedDate = signed ? `${Math.min(day + 1, 28)} ${month} 2569` : '-';
-  const withdrawnDate = withdrawn ? `${Math.min(day + 3, 28)} ${month} 2569` : '-';
+  const signedDate = signed ? `${Math.min(day + 1, 28)} ${month} ${year}` : '-';
+  const withdrawnDate = withdrawn ? `${Math.min(day + 3, 28)} ${month} ${year}` : '-';
   const signChannel = signChannelForStatus(status, id);
   const { formCode, formName } = resolveConsentFormForWorklistType(type);
+  /* HN ไม่ซ้ำเมื่อวนผู้ป่วยซ้ำ — ต่อท้ายรอบ */
+  const cycle = Math.floor(index / MOCK_PATIENTS.length);
+  const hn = cycle === 0 ? patient.hn : `${patient.hn}-${cycle + 1}`;
+  const name = cycle === 0 ? patient.name : `${patient.name} (${cycle + 1})`;
 
   const record = {
     id,
-    hn: patient.hn,
-    name: patient.name,
+    hn,
+    name,
     type,
     formCode,
     formName,
@@ -165,28 +197,42 @@ const buildConsentMockRecords = () => MOCK_STATUS_ROTATION.map((status, index) =
 
   if (status === 'ใกล้หมดอายุ') {
     record.expiresInDays = 7 + (index % 21);
-    record.createdDate = `${day} ${month} 2568`;
-    record.signedDate = `${Math.min(day + 1, 28)} ${month} 2568`;
+    /* ใกล้หมดอายุ — ลงนามปีก่อน แต่ยังนับใน worklist; ถ้าอยากให้อยู่ summary เดือนนี้ให้ created เป็นเดือนนี้ */
+    if (inThisMonth) {
+      record.createdDate = `${day} ${thisMonth} ${thisYear}`;
+      record.signedDate = `${Math.min(day + 1, 28)} ${prevMonth} ${prevYear}`;
+    } else {
+      record.createdDate = `${day} ${prevMonth} ${thisYear - 1}`;
+      record.signedDate = `${Math.min(day + 1, 28)} ${prevMonth} ${thisYear - 1}`;
+    }
   }
   if (status === 'หมดอายุ' || status === 'หมดอายุ-Reconsent') {
-    record.createdDate = `${day} ${month} 2568`;
-    record.signedDate = `${Math.min(day + 1, 28)} ${month} 2568`;
+    if (inThisMonth) {
+      record.createdDate = `${day} ${thisMonth} ${thisYear}`;
+      record.signedDate = `${Math.min(day + 1, 28)} ${prevMonth} ${prevYear}`;
+    } else {
+      record.createdDate = `${day} ${prevMonth} ${thisYear - 1}`;
+      record.signedDate = `${Math.min(day + 1, 28)} ${prevMonth} ${thisYear - 1}`;
+    }
   }
   if (status === 'หมดอายุ-Reconsent') {
     record.pendingReconsent = true;
   }
   if (status === 'รอลงนาม' && id % 2 === 0) {
-    record.dueDate = `${Math.min(day + 14, 28)} ${MOCK_MONTHS[(index + 1) % MOCK_MONTHS.length]} 2569`;
+    record.dueDate = `${Math.min(day + 14, 28)} ${month} ${year}`;
   }
   if (status === 'ขอเพิกถอน') {
-    record.createdDate = `${Math.max(day - 30, 1)} ${MOCK_MONTHS[(index + MOCK_MONTHS.length - 1) % MOCK_MONTHS.length]} 2568`;
-    record.signedDate = `${Math.max(day - 28, 1)} ${MOCK_MONTHS[(index + MOCK_MONTHS.length - 1) % MOCK_MONTHS.length]} 2568`;
-    record.revokeRequestedDate = `${day} ${month} 2569`;
+    record.createdDate = inThisMonth
+      ? `${Math.max(day - 5, 1)} ${thisMonth} ${thisYear}`
+      : `${Math.max(day - 5, 1)} ${prevMonth} ${prevYear}`;
+    record.signedDate = `${Math.max(day - 28, 1)} ${prevMonth} ${prevYear}`;
+    record.revokeRequestedDate = createdDate;
     record.revokeRequestChannel = id % 2 === 0 ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
   }
 
   return record;
-});
+  });
+};
 
 /** Edge-case overlays — history, guardian, superseded version narrative. */
 const CONSENT_RECORD_OVERRIDES = {
@@ -313,7 +359,7 @@ const CONSENT_RECORD_OVERRIDES = {
   },
 };
 
-/* ── Records (32 rows — pagination @ 10/page) ───────────────────────── */
+/* ── Records (36 ต่อแท็บ × 5 = 180 — pagination @ 20/page) ───────────── */
 export const CONSENT_RECORDS = buildConsentMockRecords().map((row) => ({
   ...row,
   ...(CONSENT_RECORD_OVERRIDES[row.id] || {}),
@@ -321,56 +367,93 @@ export const CONSENT_RECORDS = buildConsentMockRecords().map((row) => ({
 }));
 
 
-/* ── Summary stat cards (Figma banner cards) ────────────────────────── */
-/* Exported Figma glyph SVGs (node 297:83830) — recoloured per card via MaskIcon.
-   See public/illustration/consent/. */
+/* ── Summary stat cards (Figma banner cards) — ค่าตัวเลขนับจาก rows เดือนนี้ ── */
 const ICON = '/illustration/consent';
 
-export const CONSENT_SUMMARY = [
-  /* Status Summary Card_Horizontal tones — Figma PHCIS | Consent 297:83830.
-     Panel cards (border-card-default), glyphs are exact Figma SVG exports.
-     The first card carries a trending indicator glyph; the rest show a plain
-     "% ของทั้งหมด" line. */
+const SUMMARY_CARD_META = [
   {
     key: 'total', iconSvg: `${ICON}/clipboard-list.svg`,
     tileBg: 'var(--surface-statussummarycard-info, #DBEAFE)',
     iconInk: 'var(--text-statussummarycard-info-number, #1D4ED8)',
-    value: '1,284', label: 'Consent ทั้งหมด',
-    indicator: '12% จากเดือนที่แล้ว', indicatorIconSvg: `${ICON}/trending-up.svg`,
+    label: 'ความยินยอมทั้งหมด',
+    indicatorIconSvg: `${ICON}/trending-up.svg`,
   },
   {
     key: 'consented', iconSvg: `${ICON}/check-circle.svg`,
     tileBg: 'var(--surface-statussummarycard-positive, #D1F6EE)',
     iconInk: 'var(--text-statussummarycard-positive-number, #196C65)',
-    value: '1,156', label: 'ยินยอมแล้ว',
-    indicator: '90.0% ของทั้งหมด', indicatorIcon: null,
+    label: 'ยินยอมแล้ว',
+    indicatorIcon: null,
   },
   {
     key: 'pending', iconSvg: `${ICON}/clock.svg`,
     tileBg: 'var(--surface-statussummarycard-inprogress, #FFEDD5)',
     iconInk: 'var(--text-statussummarycard-inprogress-number, #C2410C)',
-    value: '96', label: 'รอดำเนินการ',
-    indicator: '7.5% ของทั้งหมด', indicatorIcon: null,
+    label: 'รอดำเนินการ',
+    indicatorIcon: null,
   },
   {
     key: 'rejected', iconSvg: `${ICON}/inbox-text-dontshare.svg`,
     tileBg: 'var(--surface-danger-tertiary, #FEE2E2)',
     iconInk: 'var(--text-danger-default, #B91C1C)',
-    value: '32', label: 'ปฏิเสธ / ถอน',
-    indicator: '2.5% ของทั้งหมด', indicatorIcon: null,
+    label: 'ปฏิเสธ / ถอน',
+    indicatorIcon: null,
   },
   {
     key: 'expiring', iconSvg: `${ICON}/wait.svg`,
     tileBg: 'var(--surface-info-tertiary, #DBEAFE)',
     iconInk: 'var(--text-info-default, #1D4ED8)',
-    value: '20', label: 'ใกล้หมดอายุ',
-    indicator: '1.8% ของทั้งหมด', indicatorIcon: null,
+    label: 'ใกล้หมดอายุ',
+    indicatorIcon: null,
   },
   {
     key: 'expired', iconSvg: `${ICON}/hourglass-disabled.svg`,
     tileBg: 'var(--surface-neutral-tertiary, #F4F5F5)',
     iconInk: 'var(--text-neutral-default, #4D5358)',
-    value: '44', label: 'หมดอายุ',
-    indicator: '3% ของทั้งหมด', indicatorIcon: null,
+    label: 'หมดอายุ',
+    indicatorIcon: null,
   },
 ];
+
+const fmtCount = (n) => Number(n || 0).toLocaleString('th-TH');
+const pctOf = (part, whole) => (whole > 0 ? `${((part / whole) * 100).toFixed(1)}% ของเดือนนี้` : '0% ของเดือนนี้');
+
+/**
+ * Summary = สถิติเดือนนี้เท่านั้น (จาก createdDate)
+ * ต้องสัมพันธ์กับจำนวนในแต่ละ tab ของตาราง — และยอดทั้งระบบ (tab ทั้งหมด)
+ * ต้องมากกว่ายอด "ความยินยอมทั้งหมด" ใน summary (เดือนนี้)
+ */
+export const buildConsentSummary = (rows = [], now = new Date()) => {
+  const thisMonthRows = rows.filter((r) => isConsentDateThisMonth(r.createdDate, now));
+  const monthTotal = thisMonthRows.length;
+  const allTimeTotal = rows.length;
+  const countTab = (tab) => thisMonthRows.filter((r) => (CONSENT_STATUS[r.status] || {}).tab === tab).length;
+
+  const counts = {
+    total: monthTotal,
+    consented: countTab('consented'),
+    pending: countTab('pending'),
+    rejected: countTab('rejected'),
+    expiring: countTab('expiring'),
+    expired: countTab('expired'),
+  };
+
+  return SUMMARY_CARD_META.map((meta) => {
+    const value = counts[meta.key] ?? 0;
+    if (meta.key === 'total') {
+      return {
+        ...meta,
+        value: fmtCount(value),
+        indicator: `เดือนนี้ · จากทั้งหมด ${fmtCount(allTimeTotal)} รายการ`,
+      };
+    }
+    return {
+      ...meta,
+      value: fmtCount(value),
+      indicator: pctOf(value, monthTotal),
+    };
+  });
+};
+
+/** Snapshot จาก mock เริ่มต้น — หน้าจัดการความยินยอมควรใช้ buildConsentSummary(rows) แบบ live */
+export const CONSENT_SUMMARY = buildConsentSummary(CONSENT_RECORDS);

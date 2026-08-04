@@ -119,6 +119,14 @@
 ]
 ```
 
+## Wave T — Telemedicine §1.13 + Mobile §4.3 (ต่อจาก Wave A — คำสั่ง user 4 ส.ค. ~17:50)
+
+```json
+[
+  {"id":"1.13","name":"Telemedicine + ตรวจผู้รับบริการระยะไกล (RPM)","route":"/telemed","dir":"src/pages/telemed","extraSections":["4.3"],"notes":"§1.13 done 5 / partial 5 / todo 1 + §4.3 mobile partial 3 — ปิดให้ครบ: 1.13.5 GIS แสดงตำแหน่งผู้รับบริการ (todo — ใช้ mock map แบบเดียวกับ AddressMapBlock), PDPA recording consent (1.13.8/1.13.9 — ผูกกับระบบ consent ที่เพิ่งทำเสร็จ ผนวก ด), รายงานสถิติการโทร, log การเข้าใช้งาน, การเชื่อมกับ PHCIS/EMR ระหว่างสาย, RPM รับค่าจากอุปกรณ์ ระบบเดิมสร้างแล้ว (TelemedConsultPage 3057 บรรทัด + components/telemed + TelemedCallProvider) ต่อยอด ห้ามรื้อ อนุญาตแก้ src/pages/telemed, src/components/telemed, src/pages/mobile/MobileTelemedPage.jsx, src/utils/telemed*.js อ่าน ~/MIH-Docs-Vault/tor-telemedicine-compliance.md + คู่มือ Telemed/ตัวอย่างคู่มือ Telamed.pdf ก่อน"}
+]
+```
+
 ## Wave 3 — เก็บ gap ระบบเดิม (Day 2 เช้า)
 
 โมดูลใน wave นี้แก้ไฟล์เดิมของระบบตัวเองได้ (ยังห้ามแตะ shared files เหมือนเดิม)

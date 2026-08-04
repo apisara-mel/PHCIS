@@ -289,6 +289,65 @@ design system เมื่อไร
 
 ---
 
+### 18. panelKit / panelHooks (ชุดกติกาซ้ำของแฟ้มเวชระเบียน — `GuardedAction` · `ReasonDialog` · `MaskedValue` · `AccessDeniedPanel` · `PanelAlert` · `CountLabel` · `useTreatmentAccess` · `useTreatmentStore` · `paginate`) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/treat/panels/panelHooks.jsx` (+ `panelKit.jsx` ที่มาก่อน) → panel ทั้ง 11 ตัวใต้ `src/pages/treat/panels/` · `src/pages/treat/ReferralRegisterPage.jsx` · `src/pages/treat/TreatmentInterfacesPage.jsx` — **13 ที่ แต่ทั้งหมดอยู่ในโมดูล §1.4 เดียวกัน จึงยังนับเป็นเคสเดียว** |
+| **หน้าที่** | รวมกติกาที่ TOR §1.4 บังคับซ้ำทุกหน้าไว้ที่เดียว: (ก) `GuardedAction` — ปุ่มที่ต้อง **disable + บอกเหตุผล** เมื่อสิทธิ์ไม่พอ ห้ามซ่อนเงียบ · (ข) `ReasonDialog` — กล่องที่บังคับกรอกเหตุผลก่อนยกเลิก/แก้สถานะ · (ค) `MaskedValue` — ปิดบังค่าเป็น `••••` + ปุ่มขอเปิดดูที่บันทึก access log (§1.4.2) · (ง) `useTreatmentAccess` 4 โหมด · (จ) `useTreatmentStore` subscribe + `useEffect` (React 17 — **ห้าม** `useSyncExternalStore`) · (ฉ) `AccessDeniedPanel` / `PanelAlert` / `CountLabel` / `paginate` |
+| **ทำไมไม่มีของเดิมแทน** | DS มี `AlertDialog` / `Tooltip` / `SuggestibleTextarea` / `Pagination` เป็นชิ้นส่วนแยกกัน แต่ไม่มีตัวประกอบสำเร็จรูปของกติกาทั้งสาม — ถ้าไม่รวมไว้ที่เดียวต้องเขียนซ้ำ 11 รอบและกติกาจะเพี้ยนกันเอง |
+| **เกี่ยวกับรายการที่ 15** | `MaskedValue` คือ **เคสที่ 2 ของ `MaskedIdentifier`** (รายการ 15, `/queue-center` คอลัมน์ HN) — สัญญาเดียวกัน (ปิดบัง → กดเปิด → เขียน log เสมอ) ต่างกันแค่ตัวนี้บังคับกรอกเหตุผล ≥10 ตัวอักษรก่อนเปิด · **ถึงเกณฑ์ยกขึ้น DS แล้ว** ควรทำเป็น `MaskedValue` ตัวเดียวที่รับ `requireReason` แล้วให้ทั้งสองที่เรียกใช้ |
+| **โครง API** | `<GuardedAction can reasonWhenDenied>{btn}</GuardedAction>` · `<ReasonDialog open title minChars onConfirm onClose>` · `<MaskedValue value requireReason onReveal>` · `useTreatmentAccess(feature) → { canView, canEdit, canManage }` · `useTreatmentStore(store, selector)` |
+| **พฤติกรรมที่ต้องรักษาไว้** | ปุ่มที่สิทธิ์ไม่พอ **ต้อง disable พร้อมเหตุผลผ่าน Tooltip** ห้ามซ่อน (ผู้ใช้ต้องรู้ว่ามีฟังก์ชันนี้อยู่แต่ตัวเองไม่มีสิทธิ์) · ทุกการเปิดดูค่าที่ปิดบังต้องเขียน access log เสมอ ไม่มีทางลัดข้าม · `useTreatmentStore` ต้องคง subscribe + `useEffect` ไว้ตราบที่โปรเจกต์ยังเป็น React 17 |
+| **รอเคสอะไร** | โมดูลอื่นที่มีกติกาสิทธิ์+เหตุผล+ข้อมูลลับชุดเดียวกัน — เภสัชกรรม (ยาเสพติด/วัตถุออกฤทธิ์), การเงิน (ยกเลิกใบเสร็จ), เวชระเบียน (แก้ข้อมูลย้อนหลัง), Consent · เคสที่ 2 เมื่อไรควรยกขึ้น DS เป็นตระกูล `Guarded*` / `Masked*` คู่กับ `AuditBar` (รายการ 3) |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 19. GrowthChart (กราฟการเจริญเติบโตพร้อมแถบเปอร์เซ็นไทล์) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/treat/panels/VaccineGrowthPanel.jsx` (`/treat/record` Step 1 → แท็บวัคซีนและกราฟการเจริญเติบโต) — 1 ที่ |
+| **หน้าที่** | TOR 1.4.3.10 — กราฟ 0–18 ปี เลือก น้ำหนัก / ส่วนสูง / เส้นรอบศีรษะ / BMI แยกตามเพศ โดยพล็อตค่าที่วัดจริงทับ **แถบเปอร์เซ็นไทล์** (polygon ระหว่าง p3–p97 / p10–p90 / p25–p75) |
+| **ทำไมไม่มีของเดิมแทน** | `Charts.jsx` / `BigCharts.jsx` / `VitalTrendChart` รองรับเส้นแนวโน้มธรรมดา แต่ไม่มีตัวไหนวาดแถบเปอร์เซ็นไทล์ซ้อนใต้จุดที่วัดจริงได้ · เป็น `<svg>` ของข้อมูลสถิติ ไม่ใช่ไอคอน จึงไม่ขัดกฎ icon ของ CLAUDE.md |
+| **โครง API** | `<GrowthChart points bands metric sex ageRange />` — `bands[i] = { label:'p3–p97', lower:[…], upper:[…] }`, `points[i] = { ageMonths, value }` |
+| **พฤติกรรมที่ต้องรักษาไว้** | จุดเดียวไม่ลากเส้น · ค่าที่หายไประหว่างทางต้อง **ข้ามจุด ไม่ลากทะลุ** (ไม่งั้นอ่านเป็นการเติบโตที่ไม่มีจริง) · อายุเกิน 18 ปีขึ้น state เฉพาะ ไม่ใช่กราฟว่าง · BMI ที่ขาดค่าต้องบอกว่าขาดอะไร |
+| **ช่องว่างที่รู้อยู่** | **แถบ percentile เป็นชุดค่าประมาณ ยังไม่ใช่ dataset ทางการของสมาคมต่อมไร้ท่อเด็กและวัยรุ่นไทย** ที่ TOR อ้างถึง — ต้องเปลี่ยนชุดข้อมูลก่อนใช้จริง |
+| **รอเคสอะไร** | คลินิกที่ติดตามการเจริญเติบโต — ANC (กราฟน้ำหนักมารดา / การเจริญเติบโตของทารกในครรภ์), คลินิกเด็กดี/วัคซีน, สุขภาพนักเรียน · ถ้ามีเคสที่ 2 ควรยกขึ้น DS **พร้อมกับรายการ 20 (TrendLine)** เป็น component เดียวที่รับ `bands` เป็น optional |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 20. TrendLine (sparkline ผลแล็บที่ระบายสีจุดตาม flag) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/treat/panels/LabRadiologyResultsPanel.jsx` (`/treat/record` Step 1 → แท็บผลตรวจแล็บ โหมดเปรียบเทียบช่วงเวลา) — 1 ที่ |
+| **หน้าที่** | TOR 1.4.3.12 — sparkline ขนาดเล็กต่อ analyte ที่เลือก ระบายสีจุดตาม flag ปกติ / H / L / critical เทียบค่าปกติของรายการนั้น |
+| **ทำไมไม่มีของเดิมแทน** | `VitalTrendChart` วาดเส้นสีเดียวและถือว่าทุกค่าเป็นตัวเลข — ตัวนี้ต้องระบายสีรายจุดตาม flag และต้อง **ข้ามค่าที่เป็นข้อความ** (ผลเพาะเชื้อ) โดยไม่วาดกราฟเลย |
+| **โครง API** | `<TrendLine series unit />` — `series[i] = { at, value, flag: 'normal'|'high'|'low'|'critical' }`, ค่าที่ไม่ใช่ตัวเลขส่ง `value: null` แล้วผู้เรียกแสดงเป็นข้อความแทน |
+| **พฤติกรรมที่ต้องรักษาไว้** | น้อยกว่า 2 ครั้งต้องบอกว่า "ต้องมีอย่างน้อย 2 ครั้ง" ไม่ใช่วาดกราฟจุดเดียว · ค่าวิกฤตต้องเด่นกว่า H/L (คนละสี ไม่ใช่แค่เข้มกว่า) · ค่าที่เป็นข้อความไม่วาดกราฟ |
+| **รอเคสอะไร** | ไม่ต้องรอนาน — `/lab/report/:orderId` และหน้า trend ของ `/m/records` เป็นเคสที่รู้อยู่แล้ว · เมื่อยกขึ้น DS ควรรวมกับรายการ 19 (GrowthChart) เป็น component เดียว แล้วให้ `bands` / `flag` เป็น optional prop |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 21. ReferralPrintSheet (ใบส่งตัวผู้รับบริการตามแบบ ศบส.) — 📐 พร้อมออกแบบใน Figma
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/treat/ReferralPrintSheet.jsx` → `src/pages/treat/ReferralRegisterPage.jsx` (`/treat/refer` — ตัวอย่างในหน้า + เป้าหมายของ `window.print()`) — 1 ที่ |
+| **หน้าที่** | TOR 1.4.6.1 — ใบส่งตัวตามแบบ ศบส. (คู่มือ HCIS §2.5.1): masthead ศูนย์บริการ + 3 บล็อกข้อมูล (ผู้รับบริการ+ที่อยู่+สิทธิ / ต้นทาง-ปลายทาง-ศบส.ที่เรียกเก็บ / ประวัติ-อาการ-ผลตรวจ-การรักษาที่ให้แล้ว-เหตุผลส่งต่อ) + ช่องลายเซ็น 2 ช่อง |
+| **ทำไมไม่มีของเดิมแทน** | เหตุผลเดียวกับรายการ 2 และ 6 — DS ไม่มี component สำหรับสื่อกระดาษเลย · ทำตาม pattern `@media print` ของ `XrayReportSheet` แต่เป็นคนละแบบฟอร์ม จึง **คัดลอก pattern ไม่ใช่ alias component** |
+| **เกี่ยวกับรายการที่ 2** | นี่คือ **เคสที่ 6 ของ `PrintSheet`** (ต่อจากรังสี 4 แบบ + เวชระเบียน 2 แบบในรายการ 6) — สื่อกระดาษมี 3 โดเมนแล้ว ควรยก `PrintSheet` กลางขึ้น DS ก่อนที่จะมีใบที่ 7 แล้วให้ใบส่งตัวเรียก `variant='referral'` |
+| **โครง API** | `<PrintSheet variant='referral' masthead identity>` + `<PrintSheet.Section eyebrow>` + `<PrintSheet.SignatureLine role name license>` — ตัวโดเมนส่งแค่เนื้อหา |
+| **พฤติกรรมที่ต้องรักษาไว้** | นับ `printCount` + เขียน audit ทุกครั้งที่พิมพ์ (ไม่ใช่แค่เปิด preview) · ใบที่ยังเป็นร่างต้องแยกออกจากใบที่ส่งแล้วบนกระดาษ · `break-inside: avoid` ทุกบล็อก |
+| **ช่องว่างที่รู้อยู่** | **ยังไม่ได้ทดสอบพิมพ์จริงบน Chrome + Safari** — verify ด้วย build แบบ headless เท่านั้น · ไม่มี PDF engine (พิมพ์ผ่าน `@media print` เท่านั้น) |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
 ## ยกขึ้น design system แล้ว
 
 *(ยังไม่มี)*

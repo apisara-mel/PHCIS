@@ -17,6 +17,8 @@ import RegistrationVisitOpenPage from '@/pages/registration/RegistrationVisitOpe
 import RegistrationConsentFillPage from '@/pages/registration/RegistrationConsentFillPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
+import ReferralRegisterPage from '@/pages/treat/ReferralRegisterPage';
+import TreatmentInterfacesPage from '@/pages/treat/TreatmentInterfacesPage';
 import XrayQueuePage from '@/pages/xray/XrayQueuePage';
 import XrayOrderPage from '@/pages/xray/XrayOrderPage';
 import XrayResultPage from '@/pages/xray/XrayResultPage';
@@ -180,7 +182,8 @@ export default function Routes() {
         <Route exact path='/consent/forms/new'    component={CreateConsentFormPage} />
         {/* ดูแบบฟอร์ม — read-only Step-3 preview of an existing form (Figma 336:170901). */}
         <Route exact path='/consent/forms/:id/view' component={ConsentFormViewPage} />
-        {/* ประวัติความยินยอมรายบุคคล — Timeline เปิดแท็บใหม่จาก worklist / รายงาน */}
+        {/* ประวัติความยินยอม — ค้นหาชื่อ/HN แล้วเปิด Timeline (แท็บใหม่จาก worklist) */}
+        <Route exact path='/consent/history' component={ConsentHistoryPage} />
         <Route exact path='/consent/history/:hn' component={ConsentHistoryPage} />
         {/* ด.1.1.18 — ย้ายไปจัดการระบบ · redirect จาก URL เดิม */}
         <Redirect exact from='/consent/access/rights' to='/assess/consent-access-rights' />
@@ -276,6 +279,18 @@ export default function Routes() {
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        {/* แฟ้มเวชระเบียนอิเล็กทรอนิกส์ · หน้าจอระดับโมดูล (TOR §1.4)
+            /treat/refer      = ทะเบียนการส่งต่อผู้รับบริการ 2 ทิศทาง (ส่งต่อออก /
+                                รับเข้า) + ฟอร์มตามแบบ ศบส. + พิมพ์ใบส่งตัว
+                                (§1.4.3.14 / §1.4.11.1 / §1.4.6.1). ปุ่ม
+                                "แบบฟอร์มส่งตัว" ในศูนย์เอกสาร Step 7 deep-link มาที่นี่
+            /treat/interfaces = สถานะการเชื่อมต่อระบบภายนอก LIS / PACS / เกตเวย์
+                                อุปกรณ์ / Telemedicine (§1.4.7.2–.5 / §1.4.3.23).
+                                กระดิ่งผลแล็บบนแถบเฝ้าระวังของ /treat/record ชี้มาที่นี่
+            ทั้งสองหน้าใช้ Sidebar activeKey='treat' — อยู่ใต้เมนูย่อยของ
+            ระบบบันทึกการรักษา ไม่ใช่เมนูระดับบนของตัวเอง. */}
+        <Route exact path='/treat/refer'      component={ReferralRegisterPage} />
+        <Route exact path='/treat/interfaces' component={TreatmentInterfacesPage} />
         {/* งานรังสีวินิจฉัย — Radiology Information System (TOR §1.12).
             /xray/queue  = ลำดับการตรวจผู้ป่วย (worklist · the department's own
                            screen; รับ/ปฏิเสธ Request → ถ่าย → บันทึกผล → ยืนยันผล)

@@ -1,0 +1,770 @@
+import React, { useMemo, useState } from 'react';
+import { useHistory } from 'react-router-dom';
+import QueuePageShell from '@/templates/QueuePageShell';
+import Table from '@/components/table/Table';
+import StatusBadge from '@/components/badge/StatusBadge';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Checkbox from '@/components/checkbox/Checkbox';
+import Select from '@/components/forms/Select';
+import InputField from '@/components/forms/InputField';
+import Tooltip from '@/components/tooltip/Tooltip';
+import BrandButton from '@/components/button/BrandButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import AlertDialog from '@/components/popup/AlertDialog';
+import PhcisTopToast from '@/components/alert/PhcisTopToast';
+import {
+  PanelCard, PanelEmptyState, Sym, InfoPair,
+  PANEL_LABEL_STYLE, PANEL_VALUE_STYLE,
+} from '@/pages/treat/panels/panelKit';
+import {
+  useTreatmentAccess, useTreatmentStore, GuardedAction, AccessDeniedPanel,
+  ReasonDialog, PanelAlert, CountLabel,
+} from '@/pages/treat/panels/panelHooks';
+import {
+  interfaceStatusMeta, subscribeInterfaces, getInterfaces, retryInterface,
+  inboundStatusMeta, subscribeInbound, getInboundResults,
+  importInboundResult, flagInboundMismatch,
+  subscribeLabNotifications, getLabNotifications, acknowledgeLabNotification,
+  getLabSubscriptions, toggleLabSubscription,
+  PACS_STUDIES, openPacsStudy, openPacsReport, isInterfaceUp,
+  getDevices, buildDeviceVitalPatch, logDevicePull,
+  queueDeviceVitalPatch, overwrittenVitalFields, vitalFieldLabel,
+  telemedStateMeta, subscribeTelemedSessions, getTelemedSessions,
+  startTelemedSession, setTelemedState,
+} from '@/data/treatmentInterfaces';
+import { TREATMENT_QUEUE_ROWS } from '@/data/treatmentQueue';
+
+/* PHCIS | EMR §1.4.7.2 – §1.4.7.5 / §1.4.3.23 — สถานะการเชื่อมต่อระบบภายนอก.
+
+   ประกาศตรงไปตรงมา: หน้านี้เป็น **interface monitor + mock feed**
+   ไม่ใช่ engine จริง — ระบบยังไม่มี HL7 v2.5.1 parser, DICOMweb client,
+   MQTT broker หรือ WebRTC media server ในตัว. สิ่งที่หน้านี้ทำได้จริงคือ
+   แสดงสถานะ, จัดคิวรายการที่รอนำเข้า, บังคับกติกาความปลอดภัย
+   (ห้าม auto-merge เมื่อ HN ไม่ตรง / ต้องรับทราบค่าวิกฤตก่อนนำเข้า /
+   ต้องยืนยันก่อนเขียนทับค่าที่กรอกมือ) และบันทึกทุกอย่างลง audit. */
+
+const breadcrumb = ['ระบบบันทึกการรักษา', 'สถานะการเชื่อมต่อระบบภายนอก'];
+
+const TABS = [
+  { key: 'status',   label: 'สถานะการเชื่อมต่อ' },
+  { key: 'inbound',  label: 'ผลขาเข้าจาก LIS' },
+  { key: 'notify',   label: 'การแจ้งเตือนผลแล็บ' },
+  { key: 'pacs',     label: 'ภาพใน PACS' },
+  { key: 'device',   label: 'อุปกรณ์วัดค่า' },
+  { key: 'telemed',  label: 'ปรึกษาทางไกล' },
+];
+
+/* ── การ์ดสถานะต่อระบบ ─────────────────────────────────────── */
+
+const InterfaceCard = ({ iface, retrying, onRetry, canEdit }) => {
+  const meta = interfaceStatusMeta(iface.status);
+  return (
+    <div
+      className='flex flex-col min-w-0'
+      style={{
+        gap: 'var(--dim-space-200, 8px)',
+        flex: '1 1 320px',
+        minWidth: 320,
+        borderRadius: 'var(--dim-radius-300, 10px)',
+        border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
+        background: 'var(--surface-card-100)',
+        paddingTop: 'var(--dim-space-400, 16px)',
+        paddingRight: 'var(--dim-space-400, 16px)',
+        paddingBottom: 'var(--dim-space-400, 16px)',
+        paddingLeft: 'var(--dim-space-400, 16px)',
+      }}
+    >
+      <div className='flex flex-wrap items-start justify-between w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <span className='inline-flex items-center min-w-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          <Sym name={iface.icon} size={20} color='var(--icon-brandPrimary-default, #007549)' />
+          <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>{iface.label}</span>
+        </span>
+        <StatusBadge style={meta.badge} size='small'>{meta.label}</StatusBadge>
+      </div>
+
+      <InfoPair label='ปลายทาง (endpoint)' value={iface.endpoint} minWidth={0} />
+      <InfoPair label='โพรโทคอล' value={iface.protocol} minWidth={0} />
+
+      <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        <InfoPair label='ซิงก์ล่าสุด' value={iface.lastSyncAt} minWidth={150} />
+        <InfoPair label='ค้างอยู่' value={`${iface.pending || 0} รายการ`} minWidth={110} />
+      </div>
+
+      {iface.status === 'down' ? (
+        <PanelAlert tone='error' icon='cloud_off' title='ขาดการเชื่อมต่อ'>
+          เริ่มขาดการเชื่อมต่อตั้งแต่ {iface.downSince || 'ไม่ทราบเวลา'} — ฟังก์ชันที่ต้องพึ่งระบบนี้จะถูกล็อกไว้พร้อมเหตุผล
+        </PanelAlert>
+      ) : null}
+
+      <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <GuardedAction allowed={canEdit}>
+          <NeutralSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon={retrying === 'trying' ? 'sync' : retrying === 'ok' ? 'check' : retrying === 'fail' ? 'error' : 'refresh'}
+            disabled={retrying === 'trying'}
+            onClick={onRetry}
+          >
+            {retrying === 'trying' ? 'กำลังลองเชื่อมต่อ…'
+              : retrying === 'ok' ? 'เชื่อมต่อสำเร็จ'
+                : retrying === 'fail' ? 'ลองใหม่ไม่สำเร็จ — ลองอีกครั้ง'
+                  : 'ลองเชื่อมต่อใหม่'}
+          </NeutralSubdueButton>
+        </GuardedAction>
+      </div>
+    </div>
+  );
+};
+
+/* ── หน้าเพจ ─────────────────────────────────────────────────── */
+
+const TreatmentInterfacesPage = () => {
+  const history = useHistory();
+  const access = useTreatmentAccess();
+
+  const [interfaces] = useTreatmentStore(subscribeInterfaces, getInterfaces);
+  const [inbound] = useTreatmentStore(subscribeInbound, getInboundResults);
+  const [notifications] = useTreatmentStore(subscribeLabNotifications, getLabNotifications);
+  const [sessions] = useTreatmentStore(subscribeTelemedSessions, getTelemedSessions);
+
+  const [tab, setTab] = useState('status');
+  const [retryState, setRetryState] = useState({});
+  const [toast, setToast] = useState(null);
+  const [flagTarget, setFlagTarget] = useState(null);
+  const [criticalGuard, setCriticalGuard] = useState(null);
+  const [deviceTarget, setDeviceTarget] = useState(null);
+  const [subs, setSubs] = useState(() => getLabSubscriptions());
+  const [pacsResult, setPacsResult] = useState(null);
+  const [telemedStart, setTelemedStart] = useState(false);
+  const [telemedHn, setTelemedHn] = useState('');
+  const [telemedTouched, setTelemedTouched] = useState(false);
+  const [recordConsent, setRecordConsent] = useState(false);
+  const [consentName, setConsentName] = useState('');
+  const [reportTarget, setReportTarget] = useState(null);
+
+  const showToast = (variant, message) => setToast({ id: Date.now(), variant, message });
+
+  const devices = useMemo(() => getDevices(), []);
+  const studies = PACS_STUDIES;
+  const pacsUp = isInterfaceUp('pacs');
+
+  /* ผู้รับบริการที่เลือกเปิดห้องสนทนาได้ = คิวตรวจรักษาของวันนี้
+     (ห้าม hard-code คนไข้ — session ที่ผูกผิดคนคือ wrong-patient record) */
+  const telemedPatients = useMemo(() => {
+    const seen = new Set();
+    return TREATMENT_QUEUE_ROWS.filter((r) => {
+      if (!r.hn || seen.has(r.hn)) return false;
+      seen.add(r.hn);
+      return true;
+    }).map((r) => ({ value: r.hn, label: `${r.name} (HN ${r.hn})`, name: r.name }));
+  }, []);
+
+  const telemedPatient = telemedPatients.find((p) => p.value === telemedHn) || null;
+
+  const resetTelemedDialog = () => {
+    setTelemedStart(false); setTelemedHn(''); setTelemedTouched(false);
+    setRecordConsent(false); setConsentName('');
+  };
+
+  const summaryCards = useMemo(() => {
+    const pendingInbound = inbound.filter((r) => r.status === 'pending').length;
+    const mismatch = inbound.filter((r) => r.status === 'mismatch').length;
+    const unread = notifications.filter((n) => !n.acknowledgedAt).length;
+    return [
+      { key: 'up',       label: 'เชื่อมต่อปกติ',   value: interfaces.filter((i) => i.status === 'up').length,       indicator: `จาก ${interfaces.length} ระบบ`, color: 'positive',    icon: 'cloud_done' },
+      { key: 'degraded', label: 'ตอบสนองช้า',      value: interfaces.filter((i) => i.status === 'degraded').length, indicator: 'ต้องเฝ้าระวัง',      color: 'inprogress',  icon: 'cloud_sync' },
+      { key: 'down',     label: 'ขาดการเชื่อมต่อ', value: interfaces.filter((i) => i.status === 'down').length,     indicator: 'ฟังก์ชันถูกล็อก',    color: 'destructive', icon: 'cloud_off' },
+      { key: 'pending',  label: 'ผลรอนำเข้า',      value: pendingInbound,                                           indicator: 'จาก LIS',            color: 'info',        icon: 'inbox' },
+      { key: 'mismatch', label: 'HN ไม่ตรง',       value: mismatch,                                                 indicator: 'ห้ามนำเข้าอัตโนมัติ', color: 'destructive', icon: 'person_alert' },
+      { key: 'unread',   label: 'ยังไม่รับทราบ',   value: unread,                                                   indicator: 'การแจ้งเตือนผลแล็บ', color: 'brand',       icon: 'notifications_active' },
+    ];
+  }, [interfaces, inbound, notifications]);
+
+  const doRetry = (iface) => {
+    setRetryState((s) => ({ ...s, [iface.key]: 'trying' }));
+    /* ไม่มี backend จริง — จำลองผลลัพธ์ผ่าน retryInterface() ของ store */
+    window.setTimeout(() => {
+      const res = retryInterface(iface.key);
+      const ok = res && (res.status === 'up' || res.ok);
+      setRetryState((s) => ({ ...s, [iface.key]: ok ? 'ok' : 'fail' }));
+      showToast(ok ? 'success' : 'error',
+        ok ? `เชื่อมต่อ ${iface.label} สำเร็จ` : `ยังเชื่อมต่อ ${iface.label} ไม่ได้ — ลองอีกครั้งหรือแจ้งผู้ดูแลระบบ`);
+    }, 700);
+  };
+
+  /* การรับทราบค่าวิกฤตต้องจับคู่ด้วย hn + ชื่อการตรวจ — ไม่งั้นผู้ป่วยสองราย
+     ที่มีค่าวิกฤตรายการเดียวกัน (เช่น Creatinine) จะถูกเคลียร์ข้ามคนกัน */
+  const findUnackedNotification = (row) => notifications.find(
+    (n) => n.hn === row.hn && n.testName === row.testName && !n.acknowledgedAt,
+  );
+
+  const doImport = (row) => {
+    if (row.critical && findUnackedNotification(row)) {
+      setCriticalGuard(row);
+      return;
+    }
+    importInboundResult(row.id);
+    showToast('success', `นำเข้าผล ${row.testName} เข้าสู่เวชระเบียนแล้ว`);
+  };
+
+  /* หน้านี้เป็น interface monitor ไม่มีฟอร์มสัญญาณชีพให้เขียนลงตรง ๆ —
+     จึงจัดคิว patch ไว้ให้หน้าบันทึกการรักษาหยิบไปใช้ และรายงานตามจริง
+     ว่า "จัดคิวไว้" ไม่ใช่ "เขียนลงแล้ว" */
+  const doPullDevice = (device) => {
+    const patch = buildDeviceVitalPatch(device);
+    const fields = Object.keys(patch);
+    /* ยังไม่มีค่าปลายทางให้เทียบในหน้านี้ → ไม่มีการเขียนทับใด ๆ เกิดขึ้นจริง */
+    const overwritten = overwrittenVitalFields(patch, {});
+    queueDeviceVitalPatch({ hn: device.hn || '', device, patch });
+    logDevicePull({ hn: device.hn || '', device, fields, overwritten, applied: false });
+    setDeviceTarget(null);
+    showToast(
+      'success',
+      `จัดคิวค่าจาก ${device.name} ไว้แล้ว — ช่อง ${fields.map(vitalFieldLabel).join(' · ')} จะถูกเขียนเมื่อเปิดสัญญาณชีพของ visit ที่เกี่ยวข้อง`,
+    );
+  };
+
+  if (!access.canView) {
+    return (
+      <QueuePageShell activeKey='treat' breadcrumb={breadcrumb} title='สถานะการเชื่อมต่อระบบภายนอก'>
+        <div style={{ paddingTop: 'var(--dim-space-600, 24px)', paddingRight: 'var(--dim-space-600, 24px)', paddingBottom: 'var(--dim-space-600, 24px)', paddingLeft: 'var(--dim-space-600, 24px)' }}>
+          <AccessDeniedPanel what='สถานะการเชื่อมต่อระบบภายนอก' onBack={() => history.push('/treat/queue')} />
+        </div>
+      </QueuePageShell>
+    );
+  }
+
+  const inboundColumns = [
+    {
+      key: 'patient', header: 'ผู้รับบริการ', width: 220,
+      render: (row) => (
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+          <span style={PANEL_VALUE_STYLE}>{row.patientName}</span>
+          <span style={PANEL_LABEL_STYLE}>HN {row.hn}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'testName', header: 'รายการตรวจ', flex: 1,
+      render: (row) => (
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+          <span className='inline-flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <span style={PANEL_VALUE_STYLE}>{row.testName}</span>
+            {row.critical ? <StatusBadge style='error' size='small' icon='priority_high'>ค่าวิกฤต</StatusBadge> : null}
+          </span>
+          <span style={PANEL_LABEL_STYLE}>{row.result}</span>
+          {row.note ? <span style={{ ...PANEL_LABEL_STYLE, color: 'var(--text-colorfulbadge-yellow, #A16207)' }}>{row.note}</span> : null}
+        </div>
+      ),
+    },
+    { key: 'resultedAt', header: 'เวลารายงานผล', width: 160 },
+    {
+      key: 'status', header: 'สถานะ', width: 140,
+      render: (row) => {
+        const meta = inboundStatusMeta(row.status);
+        return <StatusBadge style={meta.badge} size='small'>{meta.label}</StatusBadge>;
+      },
+    },
+    {
+      key: 'actions', header: '', width: 200,
+      render: (row) => {
+        if (row.status === 'imported') return <span style={PANEL_LABEL_STYLE}>นำเข้าแล้ว</span>;
+        /* HN ไม่ตรง — ห้ามมีปุ่มนำเข้าเลย มีได้แค่ปุ่ม flag */
+        if (row.status === 'mismatch') {
+          return (
+            <GuardedAction allowed={access.canEdit}>
+              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='flag' onClick={() => setFlagTarget(row)}>
+                ตีกลับ / แจ้งห้องแล็บ
+              </NeutralSubdueButton>
+            </GuardedAction>
+          );
+        }
+        return (
+          <GuardedAction allowed={access.canEdit}>
+            <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={() => doImport(row)}>
+              นำเข้าสู่ visit
+            </NeutralSubdueButton>
+          </GuardedAction>
+        );
+      },
+    },
+  ];
+
+  return (
+    <QueuePageShell
+      activeKey='treat'
+      breadcrumb={breadcrumb}
+      title='สถานะการเชื่อมต่อระบบภายนอก'
+      onBack={() => history.push('/treat/queue')}
+      backLabel='กลับไปหน้าคิว'
+      summaryCards={summaryCards}
+      tabs={TABS}
+      activeTab={tab}
+      onTabChange={setTab}
+    >
+      <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
+
+      <div
+        className='flex flex-col flex-1 min-w-0'
+        style={{ paddingTop: 'var(--dim-space-600, 24px)', paddingRight: 'var(--dim-space-600, 24px)', paddingBottom: 'var(--dim-space-600, 24px)', paddingLeft: 'var(--dim-space-600, 24px)', gap: 'var(--dim-space-400, 16px)' }}
+      >
+        <PanelAlert tone='warning' icon='engineering' title='หน้านี้เป็นตัวติดตามสถานะ ไม่ใช่ตัวรับส่งข้อมูลจริง'>
+          ระบบยังไม่มี HL7 v2.5.1 engine, DICOMweb client, MQTT broker หรือ WebRTC media server ในตัว —
+          ข้อมูลที่แสดงเป็นชุดจำลองที่จัดรูปแบบตามข้อกำหนดไว้ล่วงหน้า เพื่อให้ตรวจสอบกติกาการทำงาน
+          (สิทธิ์ · การรับทราบค่าวิกฤต · การกัน auto-merge · การบันทึก audit) ได้ครบก่อนต่อระบบจริง
+        </PanelAlert>
+
+        {tab === 'status' ? (
+          <PanelCard title='การเชื่อมต่อทั้ง 4 เส้นทาง' subtitle='LIS · PACS · เกตเวย์อุปกรณ์วัดค่า · ระบบปรึกษาทางไกล'>
+            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              {interfaces.map((i) => (
+                <InterfaceCard
+                  key={i.key}
+                  iface={i}
+                  retrying={retryState[i.key]}
+                  canEdit={access.canEdit}
+                  onRetry={() => doRetry(i)}
+                />
+              ))}
+            </div>
+          </PanelCard>
+        ) : null}
+
+        {tab === 'inbound' ? (
+          <PanelCard
+            title='กล่องข้อความขาเข้าจาก LIS'
+            subtitle='ผลตรวจที่รอนำเข้า · ค่าวิกฤตที่ต้องรับทราบก่อน · แถวที่ HN ไม่ตรงซึ่งห้ามนำเข้าอัตโนมัติ'
+            action={<CountLabel n={inbound.length} />}
+          >
+            {inbound.some((r) => r.status === 'mismatch') ? (
+              <PanelAlert tone='error' icon='person_alert' title='พบผลที่ HN ไม่ตรงกับใบสั่งตรวจ'>
+                ระบบไม่มีปุ่มนำเข้าให้แถวเหล่านี้โดยเจตนา — การรวมข้อมูลผู้ป่วยผิดคนเป็นความเสี่ยงร้ายแรง
+                ทำได้เพียงตีกลับพร้อมเหตุผลเพื่อให้ห้องปฏิบัติการแก้ไขต้นทาง
+              </PanelAlert>
+            ) : null}
+
+            {inbound.length === 0 ? (
+              <PanelEmptyState
+                icon='mark_email_read'
+                title='ไม่มีผลตรวจค้างในกล่องขาเข้า'
+                subtitle='ผลที่ห้องปฏิบัติการส่งมาทั้งหมดถูกนำเข้าเวชระเบียนเรียบร้อยแล้ว'
+              />
+            ) : (
+              <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+                <Table columns={inboundColumns} rows={inbound} rowKey={(r) => r.id} />
+              </div>
+            )}
+          </PanelCard>
+        ) : null}
+
+        {tab === 'notify' ? (
+          <>
+            <PanelCard
+              title='การแจ้งเตือนเมื่อผลแล็บเสร็จ'
+              subtitle='รายการนี้เป็นต้นทางของกระดิ่งบนแถบเฝ้าระวังในหน้าบันทึกการรักษา'
+              action={<CountLabel n={notifications.length} />}
+            >
+              {notifications.length === 0 ? (
+                <PanelEmptyState icon='notifications_off' title='ยังไม่มีการแจ้งเตือนผลแล็บ' subtitle='เมื่อห้องปฏิบัติการรายงานผล ระบบจะแจ้งเตือนผู้รับผิดชอบทันที' />
+              ) : (
+                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  {notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className='flex flex-wrap items-center justify-between w-full'
+                      style={{
+                        gap: 'var(--dim-space-200, 8px)',
+                        borderRadius: 'var(--dim-radius-300, 10px)',
+                        border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
+                        paddingTop: 'var(--dim-space-300, 12px)',
+                        paddingRight: 'var(--dim-space-300, 12px)',
+                        paddingBottom: 'var(--dim-space-300, 12px)',
+                        paddingLeft: 'var(--dim-space-300, 12px)',
+                      }}
+                    >
+                      <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                        <span className='inline-flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                          <span style={PANEL_VALUE_STYLE}>{n.testName}</span>
+                          {n.critical ? <StatusBadge style='error' size='small' icon='priority_high'>ค่าวิกฤต</StatusBadge> : null}
+                        </span>
+                        <span style={PANEL_LABEL_STYLE}>{n.patientName} (HN {n.hn}) · ผลเสร็จ {n.completedAt}</span>
+                        <span style={PANEL_LABEL_STYLE}>
+                          แจ้งไปยัง {n.recipient} เมื่อ {n.notifiedAt}
+                          {n.acknowledgedAt ? ` · รับทราบเมื่อ ${n.acknowledgedAt}` : ''}
+                        </span>
+                      </div>
+                      {n.acknowledgedAt ? (
+                        <StatusBadge style='success' size='small' icon='check'>รับทราบแล้ว</StatusBadge>
+                      ) : (
+                        <GuardedAction allowed={access.canEdit}>
+                          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='check' onClick={() => acknowledgeLabNotification(n.id)}>
+                            รับทราบ
+                          </NeutralSubdueButton>
+                        </GuardedAction>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </PanelCard>
+
+            <PanelCard title='ตั้งค่าผู้รับการแจ้งเตือน' subtitle='กำหนดว่าใครได้รับ ช่องทางใด และรับเฉพาะค่าวิกฤตหรือไม่'>
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                {subs.map((s) => (
+                  <div
+                    key={s.id}
+                    className='flex flex-wrap items-center justify-between w-full'
+                    style={{
+                      gap: 'var(--dim-space-200, 8px)',
+                      borderRadius: 'var(--dim-radius-300, 10px)',
+                      border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
+                      paddingTop: 'var(--dim-space-200, 8px)',
+                      paddingRight: 'var(--dim-space-300, 12px)',
+                      paddingBottom: 'var(--dim-space-200, 8px)',
+                      paddingLeft: 'var(--dim-space-300, 12px)',
+                    }}
+                  >
+                    <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                      <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                        <ColorfulBadge style='grey' size='small' width='hug'>{s.scope}</ColorfulBadge>
+                        <span style={PANEL_VALUE_STYLE}>{s.name}</span>
+                      </span>
+                      <span style={PANEL_LABEL_STYLE}>
+                        ช่องทาง: {s.channel}{s.criticalOnly ? ' · เฉพาะค่าวิกฤต' : ''}
+                      </span>
+                    </div>
+                    <Checkbox
+                      checked={s.enabled}
+                      disabled={!access.canEdit}
+                      onChange={() => {
+                        toggleLabSubscription(s.id, !s.enabled);
+                        setSubs(getLabSubscriptions());
+                      }}
+                      label={s.enabled ? 'เปิดรับการแจ้งเตือน' : 'ปิดรับการแจ้งเตือน'}
+                    />
+                  </div>
+                ))}
+              </div>
+            </PanelCard>
+          </>
+        ) : null}
+
+        {tab === 'pacs' ? (
+          <PanelCard
+            title='รายการภาพใน PACS'
+            subtitle='DICOMweb (WADO-RS / QIDO-RS) — การเปิดภาพถูกล็อกเมื่อการเชื่อมต่อขาด'
+            action={<CountLabel n={studies.length} />}
+          >
+            {!pacsUp ? (
+              <PanelAlert tone='error' icon='cloud_off' title='PACS ขาดการเชื่อมต่อ'>
+                ปุ่มเปิดภาพถูกปิดไว้ทั้งหมดพร้อมเหตุผล — รายงานผลที่ดึงมาแล้วยังอ่านได้จากหน้าบันทึกการรักษา
+              </PanelAlert>
+            ) : null}
+            <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+              <Table
+                columns={[
+                  { key: 'accession', header: 'Accession No.', width: 180 },
+                  { key: 'hn', header: 'HN', width: 110 },
+                  { key: 'examType', header: 'รายการตรวจ', flex: 1 },
+                  { key: 'studyDate', header: 'วันเวลาที่ถ่าย', width: 180 },
+                  { key: 'images', header: 'จำนวนภาพ', width: 110, render: (r) => `${r.images} ภาพ` },
+                  {
+                    key: 'status', header: 'สถานะ', width: 150,
+                    render: (r) => (
+                      <ColorfulBadge style={r.status === 'พร้อมดูภาพ' ? 'teal' : 'yellow'} size='small' width='hug'>
+                        {r.status}
+                      </ColorfulBadge>
+                    ),
+                  },
+                  {
+                    key: 'actions', header: '', width: 260,
+                    render: (r) => (
+                      <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                        <NeutralSubdueButton
+                          variant='outline' size='sm' leadingIcon='description'
+                          onClick={() => setReportTarget(openPacsReport(r))}
+                        >
+                          ใบรายงานผล
+                        </NeutralSubdueButton>
+                        {pacsUp ? (
+                          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='image' onClick={() => setPacsResult(openPacsStudy(r))}>
+                            เปิดภาพ
+                          </NeutralSubdueButton>
+                        ) : (
+                          <Tooltip content='PACS ขาดการเชื่อมต่อ — เปิดภาพไม่ได้ในขณะนี้' position='top'>
+                            <span style={{ display: 'inline-flex', cursor: 'not-allowed' }}>
+                              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='image' disabled>
+                                เปิดภาพ
+                              </NeutralSubdueButton>
+                            </span>
+                          </Tooltip>
+                        )}
+                      </div>
+                    ),
+                  },
+                ]}
+                rows={studies}
+                rowKey={(r) => r.id}
+              />
+            </div>
+          </PanelCard>
+        ) : null}
+
+        {tab === 'device' ? (
+          <PanelCard
+            title='อุปกรณ์วัดค่าทางการแพทย์'
+            subtitle='ดึงค่าที่อุปกรณ์วัดได้เข้าสู่สัญญาณชีพ — ถ้าค่าปลายทางถูกกรอกด้วยมือไว้แล้ว ต้องยืนยันก่อนเขียนทับ'
+            action={<CountLabel n={devices.length} unit='เครื่อง' />}
+          >
+            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              {devices.map((d) => (
+                <div
+                  key={d.id}
+                  className='flex flex-col min-w-0'
+                  style={{
+                    gap: 'var(--dim-space-200, 8px)',
+                    flex: '1 1 300px',
+                    minWidth: 300,
+                    borderRadius: 'var(--dim-radius-300, 10px)',
+                    border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
+                    paddingTop: 'var(--dim-space-300, 12px)',
+                    paddingRight: 'var(--dim-space-300, 12px)',
+                    paddingBottom: 'var(--dim-space-300, 12px)',
+                    paddingLeft: 'var(--dim-space-300, 12px)',
+                  }}
+                >
+                  <div className='flex flex-wrap items-start justify-between w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>{d.name}</span>
+                    <StatusBadge style={d.online ? 'success' : 'warning'} size='small'>
+                      {d.online ? 'พร้อมใช้งาน' : 'ตรวจสอบก่อนใช้'}
+                    </StatusBadge>
+                  </div>
+                  <span style={PANEL_LABEL_STYLE}>{d.code} · {d.room}</span>
+                  {!d.online ? <span style={{ ...PANEL_LABEL_STYLE, color: 'var(--text-colorfulbadge-yellow, #A16207)' }}>{d.status}</span> : null}
+                  <InfoPair label='ค่าที่อ่านได้ล่าสุด' value={d.readingLabel} minWidth={0} />
+                  <InfoPair label='เวลาที่อ่าน' value={d.readAt} minWidth={0} />
+                  <GuardedAction allowed={access.canEdit && d.online}>
+                    <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={() => setDeviceTarget(d)}>
+                      ดึงค่าเข้าสัญญาณชีพ
+                    </NeutralSubdueButton>
+                  </GuardedAction>
+                </div>
+              ))}
+            </div>
+          </PanelCard>
+        ) : null}
+
+        {tab === 'telemed' ? (
+          <PanelCard
+            title='การปรึกษาทางไกลของวันนี้'
+            subtitle='WebRTC — การบันทึกภาพ/เสียงต้องได้รับความยินยอมและบันทึกผู้ให้ความยินยอมเสมอ'
+            action={
+              <>
+                <CountLabel n={sessions.length} unit='ครั้ง' />
+                <GuardedAction allowed={access.canEdit}>
+                  <BrandButton variant='fill' size='sm' leadingIcon='video_call' onClick={() => setTelemedStart(true)}>
+                    เริ่มการปรึกษาใหม่
+                  </BrandButton>
+                </GuardedAction>
+              </>
+            }
+          >
+            {sessions.length === 0 ? (
+              <PanelEmptyState icon='videocam_off' title='ยังไม่มีการปรึกษาทางไกลในวันนี้' subtitle='กด "เริ่มการปรึกษาใหม่" เพื่อเปิดห้องสนทนากับผู้รับบริการ' />
+            ) : (
+              <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+                <Table
+                  columns={[
+                    {
+                      key: 'patientName', header: 'ผู้รับบริการ', width: 220,
+                      render: (r) => (
+                        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                          <span style={PANEL_VALUE_STYLE}>{r.patientName}</span>
+                          <span style={PANEL_LABEL_STYLE}>HN {r.hn}</span>
+                        </div>
+                      ),
+                    },
+                    {
+                      key: 'state', header: 'สถานะ', width: 180,
+                      render: (r) => {
+                        const meta = telemedStateMeta(r.state);
+                        return <StatusBadge style={meta.badge} size='small'>{meta.label}</StatusBadge>;
+                      },
+                    },
+                    { key: 'startedAt', header: 'เริ่ม', width: 170 },
+                    { key: 'endedAt', header: 'สิ้นสุด', width: 170, render: (r) => r.endedAt || '—' },
+                    { key: 'participants', header: 'ผู้เข้าร่วม', flex: 1 },
+                    {
+                      key: 'recording', header: 'การบันทึก', width: 250,
+                      render: (r) => (r.recording ? (
+                        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                          <StatusBadge style='info' size='small' icon='videocam'>บันทึกภาพ/เสียง</StatusBadge>
+                          <span style={PANEL_LABEL_STYLE}>ยินยอมโดย {r.consentBy} ({r.consentAt})</span>
+                        </div>
+                      ) : <span style={PANEL_LABEL_STYLE}>ไม่บันทึก</span>),
+                    },
+                    {
+                      key: 'actions', header: '', width: 200,
+                      render: (r) => (r.state === 'waiting' || r.state === 'active' ? (
+                        <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                          <GuardedAction allowed={access.canEdit}>
+                            <NeutralSubdueButton variant='outline' size='sm' leadingIcon='call_end' onClick={() => setTelemedState(r.id, 'ended')}>
+                              จบการสนทนา
+                            </NeutralSubdueButton>
+                          </GuardedAction>
+                          {r.state === 'waiting' ? (
+                            <GuardedAction allowed={access.canEdit}>
+                              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='person_off' onClick={() => setTelemedState(r.id, 'noshow')}>
+                                ไม่เข้าห้อง
+                              </NeutralSubdueButton>
+                            </GuardedAction>
+                          ) : null}
+                        </div>
+                      ) : <span style={PANEL_LABEL_STYLE}>—</span>),
+                    },
+                  ]}
+                  rows={sessions}
+                  rowKey={(r) => r.id}
+                />
+              </div>
+            )}
+          </PanelCard>
+        ) : null}
+      </div>
+
+      {/* ตีกลับผลที่ HN ไม่ตรง */}
+      <ReasonDialog
+        open={!!flagTarget}
+        type='destructive'
+        title='ตีกลับผลตรวจที่ HN ไม่ตรง'
+        description={flagTarget ? `${flagTarget.testName} — ระบุ HN ${flagTarget.hn} (${flagTarget.patientName}) ซึ่งไม่ตรงกับใบสั่งตรวจ ระบบจะแจ้งกลับห้องปฏิบัติการโดยไม่รวมข้อมูลเข้าเวชระเบียนใด ๆ` : ''}
+        confirmLabel='ตีกลับพร้อมเหตุผล'
+        suggestions={[
+          'HN ในข้อความไม่ตรงกับใบสั่งตรวจ ขอให้ห้องปฏิบัติการตรวจสอบต้นทาง',
+          'ชื่อผู้รับบริการใกล้เคียงกันแต่คนละราย — เสี่ยงต่อการรวมข้อมูลผิดคน',
+          'ไม่พบใบสั่งตรวจที่ตรงกับผลนี้ในระบบ',
+        ]}
+        onConfirm={(reason) => {
+          flagInboundMismatch(flagTarget.id, reason);
+          setFlagTarget(null);
+          showToast('success', 'ตีกลับผลตรวจและบันทึกเหตุผลเรียบร้อย');
+        }}
+        onClose={() => setFlagTarget(null)}
+      />
+
+      {/* ต้องรับทราบค่าวิกฤตก่อนนำเข้า */}
+      <AlertDialog
+        open={!!criticalGuard}
+        type='warning'
+        title='ต้องรับทราบค่าวิกฤตก่อนนำเข้า'
+        description={criticalGuard ? `${criticalGuard.testName} — ${criticalGuard.result}\n\nระบบกำหนดให้ผู้รับผิดชอบกดรับทราบค่าวิกฤตก่อน จึงจะนำผลเข้าเวชระเบียนได้ เพื่อให้มีร่องรอยว่าใครทราบเมื่อไร` : ''}
+        confirmLabel='รับทราบและนำเข้า'
+        cancelLabel='ยังไม่นำเข้า'
+        onConfirm={() => {
+          const notif = findUnackedNotification(criticalGuard);
+          if (notif) acknowledgeLabNotification(notif.id);
+          importInboundResult(criticalGuard.id);
+          setCriticalGuard(null);
+          showToast('success', 'รับทราบค่าวิกฤตและนำเข้าผลเรียบร้อย');
+        }}
+        onCancel={() => setCriticalGuard(null)}
+        onClose={() => setCriticalGuard(null)}
+      />
+
+      {/* ยืนยันก่อนดึงค่า — บอกตามจริงว่าหน้านี้ทำได้แค่จัดคิว */}
+      <AlertDialog
+        open={!!deviceTarget}
+        type='warning'
+        title='ดึงค่าจากอุปกรณ์เข้าสัญญาณชีพ'
+        description={deviceTarget ? `${deviceTarget.name} (${deviceTarget.code}) — ${deviceTarget.readingLabel}\n\nหน้านี้ไม่ได้เปิดฟอร์มสัญญาณชีพของ visit ใด ระบบจึง "จัดคิว" ค่าไว้ให้หน้าบันทึกการรักษาหยิบไปเขียน — และจะขอยืนยันอีกครั้งที่นั่นถ้าช่องปลายทางมีค่าที่กรอกด้วยมืออยู่แล้ว พร้อมบันทึกว่าเขียนทับค่าใด` : ''}
+        confirmLabel='จัดคิวค่าจากอุปกรณ์'
+        cancelLabel='ยกเลิก'
+        onConfirm={() => doPullDevice(deviceTarget)}
+        onCancel={() => setDeviceTarget(null)}
+        onClose={() => setDeviceTarget(null)}
+      />
+
+      {/* ใบรายงานผลจาก PACS — อ่านได้แม้การเชื่อมต่อขาด */}
+      <AlertDialog
+        open={!!reportTarget}
+        type={reportTarget?.ok ? 'info' : 'warning'}
+        title={reportTarget?.title || 'ใบรายงานผล'}
+        description={reportTarget?.message || ''}
+        confirmLabel='ปิด'
+        showCancel={false}
+        onConfirm={() => setReportTarget(null)}
+        onClose={() => setReportTarget(null)}
+      />
+
+      <AlertDialog
+        open={!!pacsResult}
+        type={pacsResult?.ok ? 'success' : 'warning'}
+        title={pacsResult?.ok ? 'เปิดภาพใน PACS' : 'เปิดภาพไม่สำเร็จ'}
+        description={pacsResult?.message || 'ส่งคำขอเปิดภาพไปยัง PACS แล้ว และบันทึกการเข้าถึงไว้ในประวัติ'}
+        confirmLabel='ตกลง'
+        showCancel={false}
+        onConfirm={() => setPacsResult(null)}
+        onClose={() => setPacsResult(null)}
+      />
+
+      {/* เริ่ม session ใหม่ + ความยินยอมการบันทึก */}
+      <AlertDialog
+        open={telemedStart}
+        type='info'
+        title='เริ่มการปรึกษาทางไกล'
+        description='เลือกผู้รับบริการที่จะเปิดห้องสนทนาให้ถูกคนก่อนเสมอ — ทุก session ถูกบันทึกลง audit ผูกกับ HN ที่เลือก. หากต้องการบันทึกภาพ/เสียง ต้องได้รับความยินยอมและระบุผู้ให้ความยินยอมด้วย'
+        confirmLabel='เริ่มห้องสนทนา'
+        cancelLabel='ยกเลิก'
+        onConfirm={() => {
+          setTelemedTouched(true);
+          if (!telemedPatient) {
+            showToast('error', 'ต้องเลือกผู้รับบริการก่อนเปิดห้องสนทนา');
+            return;
+          }
+          const res = startTelemedSession({
+            hn: telemedPatient.value,
+            patientName: telemedPatient.name,
+            recording: recordConsent,
+            consentBy: recordConsent ? consentName.trim() : '',
+          });
+          if (!res.ok) { showToast('error', res.message); return; }
+          resetTelemedDialog();
+          showToast('success', `เปิดห้องสนทนากับ ${telemedPatient.name} (HN ${telemedPatient.value}) แล้ว — สถานะ: รอผู้รับบริการเข้าห้อง`);
+        }}
+        onCancel={resetTelemedDialog}
+        onClose={resetTelemedDialog}
+      >
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <Select
+            label='ผู้รับบริการ'
+            required
+            value={telemedHn}
+            onChange={(v) => { setTelemedHn(v); setTelemedTouched(false); }}
+            options={telemedPatients.map((p) => ({ value: p.value, label: p.label }))}
+            placeholder='เลือกผู้รับบริการจากคิวตรวจรักษา'
+            error={telemedTouched && !telemedPatient ? 'ต้องเลือกผู้รับบริการก่อนเปิดห้องสนทนา' : undefined}
+          />
+          <Checkbox
+            checked={recordConsent}
+            onChange={() => setRecordConsent((v) => !v)}
+            label='บันทึกภาพ/เสียงของการสนทนานี้'
+            description='ต้องแจ้งผู้รับบริการและได้รับความยินยอมก่อนเริ่มบันทึกทุกครั้ง'
+          />
+          {recordConsent ? (
+            <InputField
+              label='ผู้ให้ความยินยอม'
+              required
+              value={consentName}
+              onChange={setConsentName}
+              showLeadingIcon={false}
+              placeholder='เช่น ผู้รับบริการยินยอมด้วยวาจา'
+              error={consentName.trim() ? undefined : 'ต้องระบุผู้ให้ความยินยอมก่อน จึงจะเริ่มการบันทึกได้'}
+            />
+          ) : null}
+        </div>
+      </AlertDialog>
+    </QueuePageShell>
+  );
+};
+
+export default TreatmentInterfacesPage;
