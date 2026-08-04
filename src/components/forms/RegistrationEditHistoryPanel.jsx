@@ -1,6 +1,7 @@
 import React from 'react';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import { getRegistrationAuditEntries } from '@/data/registrationForm';
 
 /* MIH RegistrationEditHistoryPanel — second sub-tab of the Registration
    form (Figma 2373:119045 "ประวัติการแก้ไขข้อมูล"). Read-only audit log
@@ -20,9 +21,21 @@ const STEP_TONE = {
   ติดต่อ:  'blue',
   สิทธิ:   'orange',
   Flag:    'pink',
+  เวชระเบียน: 'indigo',
 };
 
 const EDIT_HISTORY_MOCK = [
+  /* TOR 1.1.1.15 — legacy "บันทึกการแก้ไขชื่อสกุล" (manual §2.3): typed
+     ชื่อ-สกุล change record with ค่าเดิม → ค่าใหม่ + ผู้บันทึก + วันเวลา. */
+  {
+    id: 'e-009',
+    changedAt: '12 มิถุนายน 2569 · 10:04',
+    changedBy: 'น.ส.พิมพ์ใจ ลงทะเบียน',
+    step: 'ส่วนตัว',
+    field: 'ชื่อ-นามสกุล',
+    oldValue: 'นางสาวทักษพร ศรีสมบูรณ์',
+    newValue: 'นางทักษพร ขำใจ (สมรส — เปลี่ยนคำนำหน้าและนามสกุล)',
+  },
   {
     id: 'e-008',
     changedAt: '6 พฤษภาคม 2569 · 09:21',
@@ -140,40 +153,47 @@ const COLUMNS = [
   { key: 'newValue',  label: 'ค่าใหม่',  flex: 1, minWidth: 200, sortable: false, render: renderNewValue },
 ];
 
-const RegistrationEditHistoryPanel = () => (
-  <div
-    className='flex flex-col w-full'
-    style={{
-      borderRadius: 'var(--dim-radius-500)',
-      background: 'var(--surface-card-100)',
-      boxShadow: 'var(--shadow-brand-drop-bottom-200)',
-      padding: 'var(--dim-space-600)',
-      gap: 'var(--dim-space-400)',
-    }}
-  >
-    <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <span style={{
-        color: 'var(--text-content-default)',
-        fontFamily: 'var(--type-family-heading-content)',
-        fontWeight: 'var(--type-weight-bold)',
-        fontSize: 'var(--type-size-base)',
-      }}>
-        ประวัติการแก้ไขข้อมูล
-      </span>
-      <span style={{
-        color: 'var(--text-content-tertiary)',
-        fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
-      }}>
-        {EDIT_HISTORY_MOCK.length} รายการ · เรียงจากใหม่ไปเก่า
-      </span>
+const RegistrationEditHistoryPanel = () => {
+  /* TOR 1.1.1.15 / 1.1.1.5 — live session entries (สถานะการมีชีวิต,
+     ยืนยันชื่อซ้ำ, ฯลฯ from registrationForm.appendRegistrationAudit)
+     merge in front of the historical mock, newest-first. Read at render:
+     the panel remounts on tab switch so fresh entries always appear. */
+  const rows = [...getRegistrationAuditEntries(), ...EDIT_HISTORY_MOCK];
+  return (
+    <div
+      className='flex flex-col w-full'
+      style={{
+        borderRadius: 'var(--dim-radius-500)',
+        background: 'var(--surface-card-100)',
+        boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+        padding: 'var(--dim-space-600)',
+        gap: 'var(--dim-space-400)',
+      }}
+    >
+      <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        <span style={{
+          color: 'var(--text-content-default)',
+          fontFamily: 'var(--type-family-heading-content)',
+          fontWeight: 'var(--type-weight-bold)',
+          fontSize: 'var(--type-size-base)',
+        }}>
+          ประวัติการแก้ไขข้อมูล
+        </span>
+        <span style={{
+          color: 'var(--text-content-tertiary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+        }}>
+          {rows.length} รายการ · เรียงจากใหม่ไปเก่า
+        </span>
+      </div>
+      <Table
+        columns={COLUMNS}
+        rows={rows}
+        emptyMessage='ยังไม่มีประวัติการแก้ไขข้อมูล'
+      />
     </div>
-    <Table
-      columns={COLUMNS}
-      rows={EDIT_HISTORY_MOCK}
-      emptyMessage='ยังไม่มีประวัติการแก้ไขข้อมูล'
-    />
-  </div>
-);
+  );
+};
 
 export default RegistrationEditHistoryPanel;

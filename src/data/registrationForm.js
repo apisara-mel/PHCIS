@@ -85,6 +85,19 @@ export const buildEmptyRegistrationForm = () => ({
   consentRecords: buildEmptyConsentRecords(),
   // Step 2 — personal
   patientStatus: 'active',
+  /* TOR 1.1.1.2 — สถานะการมีชีวิต บนทะเบียนผู้รับบริการ */
+  lifeStatus: 'alive',
+  deceasedDate: '',
+  /* TOR 1.1.1.20 — กลุ่มการออกเลข HN (3 กลุ่ม) */
+  hnGroup: 'thai-cid',
+  passportNo: '',
+  /* TOR 1.1.1.11 — ไม่ทราบวันเดือนปีเกิด → เก็บเฉพาะปีเกิด (พ.ศ.) */
+  dobUnknown: false,
+  birthYearBE: '',
+  /* TOR 1.1.1.14 — ข้อมูลการเกิด (ใบรับรองการเกิด) */
+  birthCertDoctor: '',
+  birthTime: '',
+  birthPlace: '',
   prefixTh: '',
   firstNameTh: '',
   lastNameTh: '',
@@ -377,7 +390,113 @@ export const getConsentSummary = (consentRecords) => {
   return { state, pendingCount, signedCount, total };
 };
 
-const isStepPersonalComplete = (form) => allFilled(form, STEP2_REQUIRED_KEYS);
+/* ── TOR 1.1.1.13 — แจ้งเตือนข้อมูลไม่ครบ (รายชื่อ field + step) ─────────
+   Single source for both the step-progress check mark and the explicit
+   missing-field toast/panel, so the two can never disagree. */
+
+/** Thai characters (for the foreign-document EN-name block — TOR 1.1.1.20). */
+export const hasThaiCharacters = (value) => /[฀-๿]/.test(String(value ?? ''));
+
+const currentBuddhistYear = () => new Date().getFullYear() + 543;
+
+/** ปีเกิด พ.ศ. validation — ปีอนาคต/อายุติดลบ → error string, else ''. */
+export const getBirthYearError = (birthYearBE) => {
+  const s = String(birthYearBE ?? '').trim();
+  if (!s) return '';
+  const y = Number(s);
+  if (!Number.isFinite(y) || s.length !== 4) return 'กรอกปี พ.ศ. 4 หลัก';
+  if (y > currentBuddhistYear()) return 'ปีเกิดอยู่ในอนาคต';
+  if (currentBuddhistYear() - y > 130) return 'อายุเกิน 130 ปี — ตรวจสอบปีเกิด';
+  return '';
+};
+
+/** อายุ (ปี) → ปีเกิด พ.ศ. (legacy "กรอกอายุแทน" back-computation, manual ch.2). */
+export const ageToBirthYearBE = (ageYears) => {
+  const n = Number(String(ageYears ?? '').trim());
+  if (!Number.isFinite(n) || n < 0 || n > 130) return '';
+  return String(currentBuddhistYear() - Math.floor(n));
+};
+
+/* TOR 1.1.1.20 — HN 3 กลุ่ม */
+export const HN_GROUPS = [
+  {
+    key: 'thai-cid',
+    label: 'คนไทย มีเลขบัตรประชาชน 13 หลัก',
+    hint: 'ออก HN อัตโนมัติจากเลขบัตรประชาชน',
+    prefix: '',
+  },
+  {
+    key: 'foreign-doc',
+    label: 'ชาวต่างชาติ มีเอกสารยืนยันตัวตน (Passport)',
+    hint: 'ต้องกรอกเลข Passport และชื่อภาษาอังกฤษ (ห้ามอักษรไทย)',
+    prefix: 'F',
+  },
+  {
+    key: 'no-doc',
+    label: 'ไม่มีเอกสารยืนยันตัวตน',
+    hint: 'ออก HN ชั่วคราว — ช่องเลขบัตรประชาชนถูกปิด',
+    prefix: 'T',
+  },
+];
+
+/** HN preview per group — mock running number with the group prefix. */
+export const buildHnPreview = (form) => {
+  const be2 = String(currentBuddhistYear() % 100).padStart(2, '0');
+  const group = HN_GROUPS.find((g) => g.key === (form?.hnGroup || 'thai-cid')) || HN_GROUPS[0];
+  if (group.key === 'thai-cid') {
+    const digits = String(form?.nationalId ?? '').replace(/\D/g, '');
+    if (digits.length !== 13) return `${be2}-กำหนดจากเลขบัตร 13 หลัก`;
+    return `${be2}-1${digits.slice(9, 13)}`;
+  }
+  return `${group.prefix}${be2}-10236`;
+};
+
+const STEP2_FIELD_LABELS = {
+  prefixTh: 'คำนำหน้า (ไทย)',
+  firstNameTh: 'ชื่อ (ไทย)',
+  lastNameTh: 'นามสกุล (ไทย)',
+  prefixEn: 'Prefix (EN)',
+  firstNameEn: 'ชื่อ (อังกฤษ)',
+  lastNameEn: 'นามสกุล (อังกฤษ)',
+  gender: 'เพศกำเนิด',
+  nationalId: 'เลขบัตรประชาชน',
+  idIssueDate: 'วันออกบัตร',
+  idExpiryDate: 'วันหมดอายุบัตร',
+  dob: 'วันเดือนปีเกิด',
+  education: 'การศึกษา',
+  occupation: 'อาชีพ',
+};
+
+/** Missing required fields on Step ข้อมูลส่วนตัว, TOR-1.1-aware
+   (hnGroup / dobUnknown / lifeStatus rules). Returns Thai field labels. */
+export const getPersonalMissingFields = (form) => {
+  const missing = [];
+  const idRequired = (form?.hnGroup || 'thai-cid') === 'thai-cid';
+  STEP2_REQUIRED_KEYS.forEach((k) => {
+    if (k === 'dob') return; /* handled below */
+    if (!idRequired && (k === 'nationalId' || k === 'idIssueDate' || k === 'idExpiryDate')) return;
+    if (!nonEmpty(form?.[k])) missing.push(STEP2_FIELD_LABELS[k] || k);
+  });
+  if (form?.dobUnknown) {
+    if (!nonEmpty(form?.birthYearBE) || getBirthYearError(form?.birthYearBE)) {
+      missing.push('ปีเกิด (พ.ศ.)');
+    }
+  } else if (!nonEmpty(form?.dob)) {
+    missing.push(STEP2_FIELD_LABELS.dob);
+  }
+  if (form?.hnGroup === 'foreign-doc') {
+    if (!nonEmpty(form?.passportNo)) missing.push('เลขที่ Passport');
+    if (hasThaiCharacters(form?.firstNameEn) || hasThaiCharacters(form?.lastNameEn)) {
+      missing.push('ชื่อภาษาอังกฤษ (ห้ามอักษรไทย)');
+    }
+  }
+  if (form?.lifeStatus === 'deceased' && !nonEmpty(form?.deceasedDate)) {
+    missing.push('วันที่เสียชีวิต');
+  }
+  return missing;
+};
+
+const isStepPersonalComplete = (form) => getPersonalMissingFields(form).length === 0;
 
 const isStepAddressComplete = (form) => {
   if (!form) return false;
@@ -419,6 +538,100 @@ export const getRegistrationCompletedSteps = (form) => [
   isStepFlagsComplete(form),
 ];
 
+/* TOR 1.1.1.13 — per-step missing-field report for the explicit error
+   toast + clickable jump panel. Index matches STEP_RENDERERS order. */
+const STEP_MISSING_BUILDERS = [
+  (form) => (isStepConsentComplete(form) ? [] : ['แบบฟอร์มยินยอมที่ยังไม่ได้กรอก']),
+  (form) => getPersonalMissingFields(form),
+  (form) => {
+    const missing = [];
+    if (!isAddressFilled(form?.addressRegistered)) missing.push('ที่อยู่ตามทะเบียนบ้าน (รหัสไปรษณีย์ / จังหวัด / เขต)');
+    if (!form?.useRegisteredForCurrent && !isAddressFilled(form?.addressCurrent)) missing.push('ที่อยู่ปัจจุบัน');
+    if (!form?.useRegisteredForContact && !isAddressFilled(form?.addressContact)) missing.push('ที่อยู่ติดต่อได้');
+    return missing;
+  },
+  (form) => {
+    const missing = [];
+    if (!nonEmpty(form?.phone)) missing.push('โทรศัพท์มือถือ');
+    const list = Array.isArray(form?.emergency) ? form.emergency : [];
+    if (!list.some(isEmergencyEntryFilled)) missing.push('ผู้ติดต่อฉุกเฉิน (อย่างน้อย 1 ราย)');
+    return missing;
+  },
+  (form) => (isStepRightsComplete(form) ? [] : ['ตรวจสอบสิทธิการรักษา']),
+  (form) => {
+    const missing = [];
+    if (!nonEmpty(form?.mobility)) missing.push('การเคลื่อนไหวของผู้รับบริการ');
+    else if (form?.mobility === 'other' && !nonEmpty(form?.mobilityOther)) missing.push('รายละเอียดการเคลื่อนไหว (อื่นๆ)');
+    return missing;
+  },
+];
+
+export const REGISTRATION_STEP_NAMES = [
+  'แบบฟอร์มยินยอม',
+  'ข้อมูลส่วนตัว',
+  'ที่อยู่',
+  'ข้อมูลการติดต่อ',
+  'สิทธิการรักษา',
+  'หมายเหตุและ Flag',
+];
+
+/** Missing fields for one step — `[ 'ชื่อ (ไทย)', … ]`. */
+export const getStepMissingFields = (form, stepIndex) => {
+  const builder = STEP_MISSING_BUILDERS[stepIndex];
+  return builder ? builder(form) : [];
+};
+
+/** Full report — `[ { stepIndex, stepLabel, fields } ]`, incomplete steps only. */
+export const getRegistrationMissingReport = (form) =>
+  STEP_MISSING_BUILDERS
+    .map((builder, stepIndex) => ({
+      stepIndex,
+      stepLabel: REGISTRATION_STEP_NAMES[stepIndex],
+      fields: builder(form),
+    }))
+    .filter((r) => r.fields.length > 0);
+
+/* ── TOR 1.1.1.15 / 1.1.1.5 — audit trail ของการแก้ไขทะเบียน ──────────
+   Session-scoped store rendered by RegistrationEditHistoryPanel (merged
+   above its historical mock). Typed change records: หมวด (step) + รายการ
+   (field) + ค่าเดิม → ค่าใหม่ + ผู้บันทึก + วันเวลา. Also carries the
+   duplicate-name confirmation entries (ผู้ยืนยัน + HN ที่ชนทุกครั้ง). */
+
+export const REGISTRATION_AUDIT_USER = 'น.ส.พิมพ์ใจ ลงทะเบียน';
+
+const REGISTRATION_AUDIT_ENTRIES = [];
+let auditSeq = 0;
+
+const nowAuditLabel = () => {
+  const d = new Date();
+  const th = formatThaiBuddhistDate(d);
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${th} · ${hm}`;
+};
+
+export const appendRegistrationAudit = ({
+  step = 'ส่วนตัว',
+  field,
+  oldValue = '—',
+  newValue = '—',
+  changedBy = REGISTRATION_AUDIT_USER,
+}) => {
+  const entry = {
+    id: `audit-live-${++auditSeq}`,
+    changedAt: nowAuditLabel(),
+    changedBy,
+    step,
+    field: field || 'ข้อมูลทะเบียน',
+    oldValue,
+    newValue,
+  };
+  REGISTRATION_AUDIT_ENTRIES.unshift(entry);
+  return entry;
+};
+
+/** Newest-first live entries (session only — resets on reload). */
+export const getRegistrationAuditEntries = () => [...REGISTRATION_AUDIT_ENTRIES];
+
 /* Persist draft across consent-fill navigation (Step 1 → fill page → back). */
 const REGISTRATION_DRAFT_KEY = 'mih.registration.draft';
 
@@ -437,9 +650,22 @@ export const loadRegistrationDraft = () => {
     const raw = sessionStorage.getItem(REGISTRATION_DRAFT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    if (!parsed || typeof parsed !== 'object') return null;
+    /* Draft compatibility — older drafts in sessionStorage predate the
+       TOR-1.1 fields (lifeStatus / hnGroup / dobUnknown / …). Merging over
+       a fresh empty form guarantees every new field has its default. */
+    return { ...buildEmptyRegistrationForm(), ...parsed };
   } catch {
     return null;
+  }
+};
+
+export const clearRegistrationDraft = () => {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.removeItem(REGISTRATION_DRAFT_KEY);
+  } catch {
+    /* ignore */
   }
 };
 

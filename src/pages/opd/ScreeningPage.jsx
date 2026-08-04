@@ -5,10 +5,13 @@ import Header from '@/components/layout/Header';
 import PatientCard from '@/components/card/PatientCard';
 import StepProgress from '@/components/step/StepProgress';
 import { useStepDirection } from '@/components/step/stepTransition';
-import VitalsForm from '@/components/forms/VitalsForm';
 import AllergyForm from '@/components/forms/AllergyForm';
+import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
 import ScreeningStep4 from '@/pages/opd/ScreeningStep4';
-import FormsLibrary from '@/components/forms/FormsLibrary';
+import ScreeningStep5 from '@/pages/opd/ScreeningStep5';
+import AlertDialog from '@/components/popup/AlertDialog';
+import Popup from '@/components/popup/Popup';
+import Dropdown from '@/components/forms/Dropdown';
 import Textarea from '@/components/forms/Textarea';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Icon from '@/components/icons/Icon';
@@ -25,7 +28,16 @@ import {
   getPatientByHN,
   getPatientByShortName,
 } from '@/data/patientProfiles';
-import { saveOpdScreeningDraft } from '@/data/opdScreeningDrafts';
+import {
+  saveOpdScreeningDraft,
+  getScreeningRounds,
+  appendScreeningRound,
+  getScreeningRoundCount,
+  ensureSeedRound,
+  stampStationTime,
+  isScreeningCompleted,
+} from '@/data/opdScreeningDrafts';
+import { addWalkinRequest, WALKIN_DEPARTMENTS } from '@/data/opdWalkinRequests';
 
 const STEPS = [
   'สัญญาณชีพ',
@@ -73,35 +85,37 @@ const PAIN_LEVELS = [
   { key: 'agony',  label: 'ทรมาน',    icon: 'sentiment_stressed',       tone: 'red'    },
 ];
 
-/* Pain tone tokens — Figma alias mapping (each `surface-{tone}-quaternary`
-   pairs with the corresponding `text-{tone}-default`). Fallback hexes
-   mirror the Figma swatches verbatim so the colour resolves even before
-   the semantic vars are registered in `index.css`:
+/* Pain tone tokens — every pair below aliases a variable that is actually
+   emitted by `src/styles/tokens.css`, with a fallback equal to the token's
+   real value (CLAUDE.md). NOTE for mih-design: design.md documents a
+   `surface.{info,warning,progress}.quaternary` + `text.progress.default`
+   family that the generated tokens.css does NOT emit; until it does, the
+   alert-surface aliases below are the closest real tokens.
      • brandPrimary → green   (#F4FBF8 / brand-p700 #007549)
-     • info         → blue    (#F0F6FF / #2580EA)
-     • progress     → yellow  (#FBFAF4 / #F0C03D)
-     • warning      → orange  (#FFF9F0 / #F46928)
-     • danger       → red     (#FFF0F0 / #C72121)                       */
+     • alert-info   → blue    (#F0F6FF / #1D4ED8)
+     • colorfulbadge-yellow → yellow (#FEF9C3 / #A16207)
+     • alert-warning → orange (#FFF9F0 / #C2410C)
+     • danger       → red     (#FFF0F0 / #B91C1C)                       */
 const PAIN_TONE_TOKENS = {
   green:  {
     bg: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
     fg: 'var(--text-brandPrimary-default, #007549)',
   },
   blue:   {
-    bg: 'var(--surface-info-quaternary, #F0F6FF)',
-    fg: 'var(--text-info-default, #2580EA)',
+    bg: 'var(--surface-alert-info, #F0F6FF)',
+    fg: 'var(--text-info-default, #1D4ED8)',
   },
   yellow: {
-    bg: 'var(--surface-progress-quaternary, #FBFAF4)',
-    fg: 'var(--text-progress-default, #F0C03D)',
+    bg: 'var(--surface-colorfulbadge-yellow, #FEF9C3)',
+    fg: 'var(--text-colorfulbadge-yellow, #A16207)',
   },
   orange: {
-    bg: 'var(--surface-warning-quaternary, #FFF9F0)',
-    fg: 'var(--text-warning-default, #F46928)',
+    bg: 'var(--surface-alert-warning, #FFF9F0)',
+    fg: 'var(--text-warning-default, #C2410C)',
   },
   red:    {
     bg: 'var(--surface-danger-quaternary, #FFF0F0)',
-    fg: 'var(--text-danger-default, #C72121)',
+    fg: 'var(--text-danger-default, #B91C1C)',
   },
 };
 
@@ -692,12 +706,15 @@ const SymptomStep = ({ onValidityChange }) => {
   );
 };
 
+/* Step bodies — steps 1/4/5 are OPD sibling wrappers (ScreeningStep1/4/5)
+   that add TOR 1.2.2.3/1.2.2.4/1.2.2.6/1.2.3.4 on top of the shared DS
+   forms without touching them (playbook §4 + "ห้ามรื้อ" note). */
 const STEP_COMPONENTS = [
-  VitalsForm,
+  ScreeningStep1,
   SymptomStep,
   AllergyForm,
   ScreeningStep4,
-  FormsLibrary,
+  ScreeningStep5,
 ];
 
 const ScreeningPage = () => {
@@ -707,8 +724,11 @@ const ScreeningPage = () => {
   /* Step-content slide animation (forward / backward). Shared with
      FormShell so the OPD Screening flow matches Registration's UX. */
   const stepDirection = useStepDirection(current);
+  /* TOR 1.2.1.3 → 1.2.1.4 — the last step completes the screening by
+     forwarding the patient to a destination department, which is what
+     PRODUCES the Walk-in Request row consumed by /opd/requests. */
   const nextStepLabel = isLast
-    ? 'บันทึกข้อมูลผู้ป่วย'
+    ? 'ส่งต่อไปยังแผนก'
     : `ถัดไป: ${STEPS[current + 1]}`;
 
   /* Look up the selected patient from QueuePage's <Link state={...}>.
@@ -726,6 +746,102 @@ const ScreeningPage = () => {
     setConfirmOpen(false);
     history.push('/opd/queue');
   };
+
+  /* ── TOR 1.2.2.2 — re-screen (คัดกรองซ้ำ) vs read-only ────────────────
+     Opening a คัดกรองแล้ว row (QueuePage passes statusKey in Link state)
+     offers อ่านอย่างเดียว vs คัดกรองซ้ำ. Re-screen creates round N+1;
+     earlier rounds render in a read-only history strip. Round storage is
+     append-only (opdScreeningDrafts round store). */
+  /* Shared predicate with QueuePage's actionModeForOpdStatus — 'screened' AND
+     'done' both mean the screening round is complete, so both must offer the
+     อ่านอย่างเดียว / คัดกรองซ้ำ choice. Guarding on 'screened' alone dropped
+     'done' rows straight into an editable flow with no round history and no
+     re-screen record. */
+  const alreadyScreened = isScreeningCompleted(navState?.statusKey);
+  const [modeChoiceOpen, setModeChoiceOpen] = useState(false);
+  const [readOnlyMode, setReadOnlyMode] = useState(false);
+  const [rescreenActive, setRescreenActive] = useState(false);
+  const [rounds, setRounds] = useState([]);
+  const [staleAlertOpen, setStaleAlertOpen] = useState(false);
+  const roundCountAtOpenRef = useRef(0);
+
+  const handleConfirmEntry = () => {
+    setConfirmOpen(false);
+    if (alreadyScreened && patient.hn) {
+      ensureSeedRound(patient.hn);
+      const list = getScreeningRounds(patient.hn);
+      setRounds(list);
+      roundCountAtOpenRef.current = list.length;
+      setModeChoiceOpen(true);
+    }
+  };
+
+  const chooseReadOnly = () => {
+    setModeChoiceOpen(false);
+    setReadOnlyMode(true);
+  };
+
+  const chooseRescreen = () => {
+    /* Concurrency/staleness — another tab may have appended a newer round
+       since this record was opened. Detect and offer reload. */
+    if (patient.hn && getScreeningRoundCount(patient.hn) !== roundCountAtOpenRef.current) {
+      setModeChoiceOpen(false);
+      setStaleAlertOpen(true);
+      return;
+    }
+    setModeChoiceOpen(false);
+    setRescreenActive(true);
+  };
+
+  const reloadRounds = () => {
+    const list = getScreeningRounds(patient.hn);
+    setRounds(list);
+    roundCountAtOpenRef.current = list.length;
+    setStaleAlertOpen(false);
+    setModeChoiceOpen(true);
+  };
+
+  /* ── TOR 1.2.1.3 → 1.2.1.4 — ส่งต่อไปยังแผนก ──────────────────────────
+     Completing the screening forwards the patient to a destination
+     department. That creates the Walk-in Request row the department board
+     (/opd/requests) works from, where staff assign a doctor slot and the
+     exam queue number is issued. */
+  const [forwardOpen, setForwardOpen] = useState(false);
+  const [forwardDept, setForwardDept] = useState('');
+  const [forwardEsi, setForwardEsi] = useState('4');
+  const [forwardDone, setForwardDone] = useState(null);
+
+  const submitForward = () => {
+    if (!forwardDept) return;
+    const created = addWalkinRequest({
+      hn: patient.hn,
+      name: patient.shortName || navState?.name || patient.name,
+      complaint: `ส่งต่อจากจุดคัดกรอง (คิว ${navState?.queue || '-'})`,
+      esi: Number(forwardEsi),
+      dept: forwardDept,
+      requestedBy: 'พว.กานดา ศรีวิไล',
+    });
+    setForwardOpen(false);
+    setForwardDone(created);
+  };
+
+  /* ── TOR 1.2.3.4 — per-station enter/leave stamps ─────────────────────
+     Every step change closes the previous station entry and opens the next
+     one in the sessionStorage store; ScreeningStep5 renders the audit
+     table. Skipped in read-only mode (no service is being delivered). */
+  const prevStepRef = useRef(null);
+  useEffect(() => {
+    if (confirmOpen || readOnlyMode || !patient.hn) return;
+    const provider = 'พว.กานดา ศรีวิไล';
+    const stationOf = (idx) => `จุดคัดกรอง — ${STEPS[idx]}`;
+    if (prevStepRef.current !== null && prevStepRef.current !== current) {
+      stampStationTime(patient.hn, stationOf(prevStepRef.current), provider); // close
+    }
+    if (prevStepRef.current !== current) {
+      stampStationTime(patient.hn, stationOf(current), provider); // open
+      prevStepRef.current = current;
+    }
+  }, [current, confirmOpen, readOnlyMode, patient.hn]);
 
   const goNext = () => setCurrent((c) => Math.min(STEPS.length - 1, c + 1));
   const goPrev = () => setCurrent((c) => Math.max(0, c - 1));
@@ -832,10 +948,18 @@ const ScreeningPage = () => {
       name: patient.shortName || navState?.name,
       queue: navState?.queue,
     });
+    /* Re-screen — persist the new round (append-only) with its audit stamp
+       so the round-history strip shows it on the next open (TOR 1.2.2.2). */
+    if (rescreenActive && patient.hn) {
+      appendScreeningRound(patient.hn, {
+        by: 'พว.กานดา ศรีวิไล',
+        summary: `คัดกรองซ้ำรอบที่ ${rounds.length + 1} — บันทึกร่างระหว่างดำเนินการ`,
+      });
+    }
     clearDirty();
     setUnsavedOpen(false);
     history.push('/opd/queue', { activeTab: 'progress', focusDrafts: true });
-  }, [clearDirty, history, navState?.name, navState?.queue, patient.hn, patient.shortName]);
+  }, [clearDirty, history, navState?.name, navState?.queue, patient.hn, patient.shortName, rescreenActive, rounds.length]);
 
   const handleDiscardAndLeave = useCallback(() => {
     clearDirty();
@@ -848,8 +972,103 @@ const ScreeningPage = () => {
     <ScreeningConfirmPopup
       open={confirmOpen}
       patient={patient}
-      onConfirm={() => setConfirmOpen(false)}
+      onConfirm={handleConfirmEntry}
       onCancel={handleCancelEntry}
+    />
+    {/* TOR 1.2.2.2 — อ่านอย่างเดียว vs คัดกรองซ้ำ on a screened record */}
+    <AlertDialog
+      open={modeChoiceOpen}
+      onClose={chooseReadOnly}
+      onCancel={chooseReadOnly}
+      onConfirm={chooseRescreen}
+      type='info'
+      title='ผู้ป่วยรายนี้คัดกรองแล้ว'
+      description={`มีประวัติการคัดกรอง ${rounds.length} รอบ — ต้องการเปิดอ่านอย่างเดียว หรือเริ่มคัดกรองซ้ำเป็นรอบที่ ${rounds.length + 1}?`}
+      cancelLabel='อ่านอย่างเดียว'
+      confirmLabel='คัดกรองซ้ำ (รอบใหม่)'
+    />
+    {/* Stale-round guard — record was re-opened in another tab */}
+    <AlertDialog
+      open={staleAlertOpen}
+      onClose={() => setStaleAlertOpen(false)}
+      onCancel={() => setStaleAlertOpen(false)}
+      onConfirm={reloadRounds}
+      type='warning'
+      title='พบรอบคัดกรองใหม่กว่า'
+      description='ระเบียนนี้ถูกเปิดคัดกรองซ้ำจากแท็บ/เครื่องอื่นหลังจากที่คุณเปิดหน้า — โหลดประวัติรอบล่าสุดก่อนเริ่มรอบใหม่'
+      cancelLabel='ปิด'
+      confirmLabel='โหลดรอบล่าสุด'
+    />
+    {/* TOR 1.2.1.3 → 1.2.1.4 — ส่งต่อไปยังแผนก (creates the walk-in request) */}
+    <Popup
+      open={forwardOpen}
+      onClose={() => setForwardOpen(false)}
+      title='ส่งต่อไปยังแผนก'
+      subtitle={`${patient.shortName || navState?.name || ''} · คิว ${navState?.queue || '-'} — ระบบจะสร้างคำขอ Walk-in ให้แผนกปลายทาง`}
+      secondaryAction={{ label: 'ยกเลิก', onClick: () => setForwardOpen(false) }}
+      primaryAction={{ label: 'ส่งคำขอ', disabled: !forwardDept, onClick: submitForward }}
+    >
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+          <span
+            style={{
+              color: 'var(--text-content-default, #363B3F)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+              fontWeight: 'var(--type-weight-medium)',
+            }}
+          >
+            แผนกปลายทาง *
+          </span>
+          <Dropdown
+            value={forwardDept}
+            onChange={setForwardDept}
+            options={WALKIN_DEPARTMENTS.map((d) => ({ value: d, label: d }))}
+            placeholder='เลือกแผนกที่จะส่งต่อ'
+          />
+        </div>
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+          <span
+            style={{
+              color: 'var(--text-content-default, #363B3F)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+              fontWeight: 'var(--type-weight-medium)',
+            }}
+          >
+            ระดับความเร่งด่วน (ESI)
+          </span>
+          <Dropdown
+            value={forwardEsi}
+            onChange={setForwardEsi}
+            options={[
+              { value: '1', label: 'ESI 1 — วิกฤต ต้องช่วยชีวิตทันที' },
+              { value: '2', label: 'ESI 2 — ฉุกเฉินเร่งด่วน' },
+              { value: '3', label: 'ESI 3 — เร่งด่วน' },
+              { value: '4', label: 'ESI 4 — กึ่งเร่งด่วน' },
+              { value: '5', label: 'ESI 5 — ไม่เร่งด่วน' },
+            ]}
+          />
+        </div>
+      </div>
+    </Popup>
+    <AlertDialog
+      open={!!forwardDone}
+      onClose={() => setForwardDone(null)}
+      onConfirm={() => {
+        const dept = forwardDone?.dept;
+        setForwardDone(null);
+        clearDirty();
+        history.push('/opd/requests', { dept });
+      }}
+      onCancel={() => { setForwardDone(null); clearDirty(); history.push('/opd/queue'); }}
+      type='success'
+      title='ส่งคำขอไปยังแผนกแล้ว'
+      description={forwardDone
+        ? `สร้างคำขอ ${forwardDone.requestQueue} ให้แผนก${forwardDone.dept} เวลา ${forwardDone.requestedAt} น. (ผู้บันทึก ${forwardDone.requestedBy}) — รอเจ้าหน้าที่แผนกให้ Slot แพทย์`
+        : ''}
+      cancelLabel='กลับหน้าคิว OPD'
+      confirmLabel='ไปที่บอร์ดคำขอ Walk-in'
     />
     <UnsavedChangesPopup
       open={unsavedOpen}
@@ -889,7 +1108,108 @@ const ScreeningPage = () => {
             belt-and-braces guard against any future event source we
             haven't anticipated.                                     */}
         <div className='p-3 md:p-6 flex-1'>
-          <div className='bg-surface-card rounded-card shadow-card overflow-hidden'>
+          {/* Read-only banner (TOR 1.2.2.2 — อ่านอย่างเดียว mode) */}
+          {readOnlyMode && (
+            <div
+              className='flex items-center'
+              style={{
+                gap: 'var(--dim-space-200)',
+                marginBottom: 'var(--dim-space-300)',
+                paddingTop: 'var(--dim-space-300)',
+                paddingBottom: 'var(--dim-space-300)',
+                paddingLeft: 'var(--dim-space-400)',
+                paddingRight: 'var(--dim-space-400)',
+                background: 'var(--surface-alert-info, #F0F6FF)',
+                borderRadius: 'var(--dim-radius-400, 12px)',
+              }}
+            >
+              <Icon name='visibility' size={18} style={{ color: 'var(--text-info-default, #1D4ED8)' }} />
+              <span
+                style={{
+                  color: 'var(--text-info-default, #1D4ED8)',
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm)',
+                  fontWeight: 'var(--type-weight-medium)',
+                }}
+              >
+                โหมดอ่านอย่างเดียว — บันทึกการคัดกรองรอบก่อนหน้าแก้ไขไม่ได้ (เริ่ม “คัดกรองซ้ำ” จากหน้าคิวหากต้องการรอบใหม่)
+              </span>
+            </div>
+          )}
+
+          {/* Round-history strip (TOR 1.2.2.2) — read-only, append-only */}
+          {(readOnlyMode || rescreenActive) && rounds.length > 0 && (
+            <div
+              className='flex flex-col'
+              style={{
+                gap: 'var(--dim-space-200)',
+                marginBottom: 'var(--dim-space-300)',
+                paddingTop: 'var(--dim-space-300)',
+                paddingBottom: 'var(--dim-space-300)',
+                paddingLeft: 'var(--dim-space-400)',
+                paddingRight: 'var(--dim-space-400)',
+                background: 'var(--surface-card-100, #FFFFFF)',
+                borderRadius: 'var(--dim-radius-400, 12px)',
+                border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+              }}
+            >
+              <span
+                style={{
+                  color: 'var(--text-content-default, #363B3F)',
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm)',
+                  fontWeight: 'var(--type-weight-bold)',
+                }}
+              >
+                ประวัติรอบคัดกรอง ({rounds.length} รอบ)
+                {rescreenActive && ` — กำลังคัดกรองรอบที่ ${rounds.length + 1}`}
+              </span>
+              {rounds.map((r) => (
+                <span
+                  key={r.round}
+                  className='inline-flex items-center flex-wrap'
+                  style={{
+                    gap: 'var(--dim-space-200)',
+                    color: 'var(--text-content-secondary, #636B72)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-xs)',
+                  }}
+                >
+                  <ColorfulBadge style='teal' size='small' hierarchy='secondary'>{`รอบที่ ${r.round}`}</ColorfulBadge>
+                  {r.at} น. · {r.by} · {r.summary || 'ไม่มีสรุป'}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* TOR 1.2.2.2 อ่านอย่างเดียว — a REAL <fieldset disabled> wrapper.
+              `pointer-events: none` blocks the mouse but leaves every input in
+              the tab order and fully editable from the keyboard, and
+              `aria-disabled` on a container is advisory only (no browser
+              honours it for descendant form controls). A disabled fieldset is
+              the one mechanism that removes all descendants from the tab order
+              AND blocks input everywhere; React 17 has no `inert`. The
+              pointer-events/opacity pair stays for the visual cue and to stop
+              non-form affordances (chips, step clicks) from reacting. */}
+          <fieldset
+            disabled={readOnlyMode}
+            className='bg-surface-card rounded-card shadow-card overflow-hidden'
+            style={{
+              borderWidth: 0,
+              borderStyle: 'none',
+              paddingTop: 'var(--dim-space-0, 0px)',
+              paddingRight: 'var(--dim-space-0, 0px)',
+              paddingBottom: 'var(--dim-space-0, 0px)',
+              paddingLeft: 'var(--dim-space-0, 0px)',
+              marginTop: 'var(--dim-space-0, 0px)',
+              marginRight: 'var(--dim-space-0, 0px)',
+              marginBottom: 'var(--dim-space-0, 0px)',
+              marginLeft: 'var(--dim-space-0, 0px)',
+              minWidth: 0,
+              ...(readOnlyMode ? { pointerEvents: 'none', opacity: 0.72 } : null),
+            }}
+            aria-disabled={readOnlyMode || undefined}
+          >
             <StepProgress
               framed
               steps={STEPS}
@@ -930,10 +1250,13 @@ const ScreeningPage = () => {
                     protocol — VitalsForm wires it; steps that haven't
                     adopted it ignore the prop and the gate falls back to
                     dirty tracking (see `currentStepValid` above).      */}
-                <StepBody onValidityChange={(v) => setStepValid(current, v)} />
+                <StepBody
+                  onValidityChange={(v) => setStepValid(current, v)}
+                  patient={patient}
+                />
               </div>
             </div>
-          </div>
+          </fieldset>
         </div>
         <Footer
           type='with BTN'
@@ -947,7 +1270,7 @@ const ScreeningPage = () => {
              otherwise clicking it would persist a blank draft and create
              an empty row in the Queue page's draft section.            */
           showButton2
-          button2Disabled={!anyDirty}
+          button2Disabled={!anyDirty || readOnlyMode}
           button2Label='บันทึกร่าง'
           button2Icon='save'
           showButton1
@@ -955,7 +1278,7 @@ const ScreeningPage = () => {
           /* Forward action — icon goes on the trailing side per Figma
              "Brand Button" (PHCIS frame 2745:104612 footer). Matches the
              pattern used by FormShell / TreatmentFormShell. */
-          button1TrailingIcon={isLast ? 'check' : 'arrow_forward'}
+          button1TrailingIcon={isLast ? 'move_down' : 'arrow_forward'}
           /* Two-tier gate, in priority order:
                1. Steps that have adopted the explicit `onValidityChange`
                   protocol (VitalsForm, SymptomStep, HistoryListForm via
@@ -966,8 +1289,11 @@ const ScreeningPage = () => {
              `currentStepValid` collapses both into one boolean.
              Final "บันทึกข้อมูลผู้ป่วย" step still hard-disables (no step
              beyond).                                                  */
-          button1Disabled={isLast || !currentStepValid}
-          onButton1Click={goNext}
+          /* On the last step the gate flips from "no step beyond" to the
+             forward action: read-only records can't forward, everything
+             else can (TOR 1.2.1.3 → 1.2.1.4). */
+          button1Disabled={readOnlyMode || (!isLast && !currentStepValid)}
+          onButton1Click={isLast ? () => setForwardOpen(true) : goNext}
           copyright='© 2026 ศูนย์การพยาบาลคุณภาพ ดินแดง กรุงเทพมหานคร'
         />
       </main>

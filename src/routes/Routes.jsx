@@ -8,8 +8,12 @@ import SchedulePage from '@/pages/schedule/SchedulePage';
 import ScheduleEditorPage from '@/pages/schedule/ScheduleEditorPage';
 import ScreeningPage from '@/pages/opd/ScreeningPage';
 import QueuePage from '@/pages/opd/QueuePage';
+import OpdWalkinRequestPage from '@/pages/opd/OpdWalkinRequestPage';
+import OpdRoomConfigPage from '@/pages/opd/OpdRoomConfigPage';
+import OpdRg506Page from '@/pages/opd/OpdRg506Page';
 import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
+import RegistrationVisitOpenPage from '@/pages/registration/RegistrationVisitOpenPage';
 import RegistrationConsentFillPage from '@/pages/registration/RegistrationConsentFillPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
@@ -198,9 +202,23 @@ export default function Routes() {
         <Route exact path='/opd'             component={QueuePage} />
         <Route exact path='/opd/queue'       component={QueuePage} />
         <Route exact path='/opd/screening'   component={ScreeningPage} />
+        {/* ระบบบริหารจัดการก่อนตรวจ + การตั้งค่า (TOR §1.2.1 / §1.2.3.6 / §1.2.7)
+            /opd/requests    = รายการ Request Walk-in แยกตามแผนก + ให้ Slot แพทย์
+                               + ออกคิวตรวจตาม Slot (1.2.1.4–1.2.1.6)
+            /opd/room-config = ตั้งค่าห้องตรวจ/แพทย์ประจำห้อง + โควตารับผู้รับบริการ
+                               ต่อหน่วยบริการ (1.2.7.1–1.2.7.2) — ป้อนโควตาให้หน้า
+                               /opd/requests ใช้กั้นการให้ Slot
+            /opd/rg506       = แบบรายงานเฝ้าระวังโรค รง.506 → EPI-NET (1.2.3.6) */}
+        <Route exact path='/opd/requests'    component={OpdWalkinRequestPage} />
+        <Route exact path='/opd/room-config' component={OpdRoomConfigPage} />
+        <Route exact path='/opd/rg506'       component={OpdRg506Page} />
         <Route exact path='/registration'          component={RegistrationQueuePage} />
         <Route exact path='/registration/queue'    component={RegistrationQueuePage} />
         <Route exact path='/registration/register' component={RegistrationFormPage} />
+        {/* การบันทึกการมาสถานพยาบาล — เปิด Visit Number (TOR §1.1.2).
+            Sub-flow ของงานเวชระเบียน (เข้าจาก row action ของหน้าคิว หรือหลัง
+            บันทึกทะเบียนสำเร็จ) จึงไม่มีเมนูของตัวเอง เช่นเดียวกับ /registration/register. */}
+        <Route exact path='/registration/visit'    component={RegistrationVisitOpenPage} />
         <Route exact path='/registration/consent/:formId' component={RegistrationConsentFillPage} />
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />

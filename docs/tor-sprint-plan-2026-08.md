@@ -84,6 +84,25 @@
 ]
 ```
 
+## Wave Q — ระบบบริหารจัดการคิว §1.3 (แทรกหลัง Wave R — คำสั่ง user 4 ส.ค. ~11:40)
+
+แยกเป็น 2 โมดูลรันขนาน (คนละ dir — จอ TV มีดีไซน์ Figma เฉพาะ):
+
+```json
+[
+  {"id":"1.3","name":"ระบบบริหารจัดการคิว (ฝั่งเจ้าหน้าที่)","route":"/queue-center","dir":"src/pages/queue-center","notes":"todo 16 + partial 5 — ยังไม่มีโมดูลคิวกลาง สร้างใหม่: 1.3.1 จัดการคิว (จัดลำดับ/พัก/โอนจุดบริการ), 1.3.2 การออกคิว (บัตรคิว/barcode/พิมพ์ซ้ำ), 1.3.3 การเรียกคิว (เรียก/เรียกซ้ำ/ข้าม), 1.3.5 การเสร็จสิ้นคิว, 1.3.6 การเชื่อมต่อข้อมูล (ผูก OPD/registration/finance/pharmacy queue ที่มีอยู่), 1.3.7 ตั้งค่า (ผังจุดบริการ/รูปแบบรหัสคิว/เสียงเรียก) ห้ามสร้างจอ TV (อีกโมดูลทำ) แต่ต้องสร้าง src/data/queueCenterStore.js เป็น store กลางที่จอ TV จะ import ด้วย — export: currentByStation, nextQueues, passedNumbers, remainingCount, announcements reuse pattern ปุ่มเรียกคิวจาก finance (PR#33) + QueuePageShell ห้ามแตะ src/pages/opd, src/pages/registration"},
+  {"id":"1.3.4","name":"จอ TV แสดงผลการเรียกคิว (Figma)","route":"/queue-center/display","dir":"src/pages/queue-display","notes":"TOR §1.3.4 — สร้าง 3 เลย์เอาต์จาก Figma file tobdR9prwt00v4X3aSMsxF: TV1 hall node 129:62395, TV2 station node 129:62394, TV3 finance node 129:62393 บังคับ: อ่าน docs/queue-tv-design-spec.md ก่อน แล้วโหลด guidance ผ่าน ReadMcpResourceTool (server 'claude.ai Figma', uri skill://figma/figma-design-to-code/SKILL.md) แล้วเรียก mcp__claude_ai_Figma__get_design_context ทั้ง 3 node ด้วยตัวเอง (skillNames resource:figma-design-to-code) ก่อนเขียนโค้ด — ดาวน์โหลด asset โลโก้/ไอคอนจริงมาใช้ ห้ามวาด SVG เอง หน้าจอต้อง standalone ไม่มี sidebar/header ของแอป (ดู pattern /kiosk) สเกลเต็มจอทุกอัตราส่วน นาฬิกาเดินจริง คิวอัปเดตอัตโนมัติจาก src/data/queueCenterStore.js (ถ้ายังไม่มีให้ใช้ mock ของตัวเองใน src/data/queueDisplayMock.js แล้วรายงานใน notes) ห้ามแตะ src/pages/queue-center (อีกโมดูลทำอยู่)"}
+]
+```
+
+## Wave E — EMR §1.4 (ต่อจาก Wave Q)
+
+```json
+[
+  {"id":"1.4","name":"ระบบบันทึกข้อมูลอิเล็กทรอนิกส์ทางการแพทย์ (EMR)","route":"/treat/record","dir":"src/pages/treat","notes":"todo 14 + partial 16 จาก node scripts/tor-gap-report.mjs --section 1.4 — โฟกัส 1.4.3 ข้อมูลการรักษา (todo 8), 1.4.6 การจัดการเอกสาร, 1.4.7 การเชื่อมต่อ (todo 4), 1.4.2 ข้อมูลลับ, 1.4.4 Note, 1.4.11 ระบบเดิมสร้างแล้ว (TreatmentFormPage + TreatmentSteps + components/examination) ต่อยอด ห้ามรื้อ อนุญาตแก้ src/pages/treat, src/components/forms/TreatmentSteps, src/components/examination, src/data/treatmentVisits.js ห้ามแตะ src/pages/treat/anc (ANC done แล้ว) และ src/pages/clinic/*"}
+]
+```
+
 ## Wave 3 — เก็บ gap ระบบเดิม (Day 2 เช้า)
 
 โมดูลใน wave นี้แก้ไฟล์เดิมของระบบตัวเองได้ (ยังห้ามแตะ shared files เหมือนเดิม)

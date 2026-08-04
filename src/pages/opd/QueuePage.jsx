@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
@@ -14,7 +14,12 @@ import Badge from '@/components/badge/Badge';
 import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import { PATIENT_PROFILES, getPatientByHN } from '@/data/patientProfiles';
-import { applyOpdScreeningDrafts } from '@/data/opdScreeningDrafts';
+import { applyOpdScreeningDrafts, isScreeningCompleted } from '@/data/opdScreeningDrafts';
+import OpdDischargePopup from '@/pages/opd/OpdDischargePopup';
+import { addWalkinRequest } from '@/data/opdWalkinRequests';
+/* READ-ONLY import from the appointment system (TOR 1.2.1.2) — never
+   modified here; consumed defensively (see TODAY_MASTER_APPOINTMENTS). */
+import { INITIAL_APPOINTMENTS } from '@/pages/appointment/appointmentMockData';
 import { getOpdConsentSummary } from '@/data/consentWorkflowStore';
 import { buildOpdSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
 
@@ -133,7 +138,7 @@ const renderName = (row, idx, { editMode }) => (
       <Link
         to={{
           pathname: '/opd/screening',
-          state: { hn: row.hn, queue: row.queue, name: row.name },
+          state: { hn: row.hn, queue: row.queue, name: row.name, statusKey: row.statusKey },
         }}
         className='min-w-0 flex-1 truncate hover:underline'
         style={{
@@ -169,14 +174,33 @@ const renderTelemedicine = (row) => (
      · รอคัดกรอง (ที่เหลือ) → 119:57381 fill default */
 const actionModeForOpdStatus = (statusKey) => {
   if (statusKey === 'examined') return 'disabled';
-  if (statusKey === 'done' || statusKey === 'screened') return 'quaternary';
+  if (isScreeningCompleted(statusKey)) return 'quaternary';
   return 'default';
 };
 
-const makeRenderActions = ({ onCall, onDelete }) => function ActionsCell(row) {
+const makeRenderActions = ({ onCall, onDelete, onDischarge }) => function ActionsCell(row) {
   const mode = actionModeForOpdStatus(row.statusKey);
   const enabled = mode !== 'disabled';
   const callVariant = mode === 'default' ? 'fill' : mode === 'quaternary' ? 'quaternary' : 'ghost';
+  /* ตรวจเสร็จแล้ว rows swap the call/cancel pair for จำหน่าย/ส่งต่อ
+     (TOR 1.2.6.1 fallback mount — canonical mount is /treat/record). */
+  if (row.statusKey === 'examined') {
+    return (
+      <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+        <NeutralSubdueButton
+          variant='outline'
+          size='sm'
+          disabled={!!row.disposition}
+          aria-label={row.disposition ? 'จำหน่ายแล้ว' : 'จำหน่าย/ส่งต่อ'}
+          onClick={row.disposition
+            ? undefined
+            : (e) => { e.stopPropagation(); onDischarge?.(row); }}
+        >
+          {row.disposition ? 'จำหน่ายแล้ว' : 'จำหน่าย/ส่งต่อ'}
+        </NeutralSubdueButton>
+      </div>
+    );
+  }
   return (
     <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
       <BrandIconButton
@@ -273,6 +297,88 @@ const CONTACT_PILL = {
   contacted:    { style: 'info',    label: 'ติดต่อแล้ว'   },
   notContacted: { style: 'warning', label: 'ยังไม่ติดต่อ' },
   noAnswer:     { style: 'error',   label: 'ไม่รับสาย'    },
+};
+
+/* ── TOR 1.2.1.2 — appointment master-schedule sync ────────────────────
+   Today's appointment rows come from the REAL appointment master schedule
+   (src/pages/appointment/appointmentMockData.js, read-only). Defensive:
+   any shape change in that module degrades to the static queue rows
+   instead of crashing the OPD queue. */
+const todayLocalKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const TODAY_MASTER_APPOINTMENTS = (() => {
+  try {
+    return (INITIAL_APPOINTMENTS || [])
+      .filter((a) => a && a.date === todayLocalKey() && typeof a.time === 'string')
+      .sort((a, b) => a.time.localeCompare(b.time));
+  } catch {
+    return [];
+  }
+})();
+
+/* มาไม่ตรงนัด boundary: arrival exactly at slot end (slot + grace) still
+   counts as ตามนัด; only past the grace flips the badge. */
+const APPT_GRACE_MINUTES = 30;
+const timeToMinutes = (t = '') => {
+  const [h, m] = String(t).split(':').map(Number);
+  return (Number.isNaN(h) ? 0 : h) * 60 + (Number.isNaN(m) ? 0 : m);
+};
+const nowHHMM = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+const arrivalStatusFor = (slotTime, arrivedAt) => {
+  if (!arrivedAt) return 'notArrived';
+  return timeToMinutes(arrivedAt) <= timeToMinutes(slotTime) + APPT_GRACE_MINUTES
+    ? 'onTime'
+    : 'late';
+};
+const ARRIVAL_PILL = {
+  onTime:      { style: 'success', label: 'มาตามนัด'     },
+  late:        { style: 'warning', label: 'มาไม่ตรงนัด'  },
+  notArrived:  { style: 'neutral', label: 'ยังไม่มา'     },
+};
+
+/* นัดหมาย cell — slot time from the master schedule + arrival badge +
+   "รับลงทะเบียน" on a not-yet-arrived appointment row (stamps arrival). */
+const makeRenderAppointment = ({ onRegister }) => function AppointmentCell(row) {
+  if (!row.apptTime) {
+    return (
+      <span style={{ color: 'var(--text-content-quaternary, #ADB2B7)', fontSize: 'var(--type-size-sm)' }}>—</span>
+    );
+  }
+  const status = arrivalStatusFor(row.apptTime, row.arrivedAt);
+  return (
+    <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+      <span
+        style={{
+          color: 'var(--text-content-secondary, #636B72)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+          whiteSpace: 'nowrap',
+        }}
+        title={row.apptSource === 'master'
+          ? 'สล็อตจากตารางนัดหมายแพทย์ (ระบบนัดหมาย)'
+          : 'สล็อตจากคิวนัดของหน่วยบริการ (ไม่มีในตารางนัดหมายแพทย์วันนี้)'}
+      >
+        {row.apptTime} น.
+      </span>
+      <Pill pill={ARRIVAL_PILL[status]} />
+      {status === 'notArrived' && (
+        <NeutralSubdueButton
+          variant='outline'
+          size='sm'
+          aria-label='รับลงทะเบียน (บันทึกเวลามาถึง)'
+          onClick={(e) => { e.stopPropagation(); onRegister?.(row); }}
+        >
+          รับลงทะเบียน
+        </NeutralSubdueButton>
+      )}
+    </div>
+  );
 };
 
 const QUEUE_BADGE = { style: 'success' };
@@ -399,9 +505,47 @@ const INITIAL_ROWS = Array.from({ length: 25 }).map((_, i) => {
   };
 });
 
+/* Merge the master schedule into the queue's นัดหมาย rows (TOR 1.2.1.2):
+   each appointment/telemedicine row adopts ITS OWN patient's slot from
+   today's appointment schedule. The join is on `hn` — never on position —
+   because attaching whichever appointment happens to come next in time
+   order would show one patient an appointment time, an arrival badge and a
+   doctor belonging to somebody else (chart-crossing). Rows already past the
+   screening stage are treated as arrived (arrival = their queue time) so the
+   badge derives มาตามนัด / มาไม่ตรงนัด from slot + grace; waiting rows start
+   ยังไม่มา until "รับลงทะเบียน" stamps the arrival. A row with no matching
+   appointment stays exactly as it was. */
+const INITIAL_ROWS_SYNCED = INITIAL_ROWS.map((row) => {
+  if (row.typeKey === 'walkin') return row;
+  const appt = TODAY_MASTER_APPOINTMENTS.find((a) => a.hn === row.hn);
+  if (appt) {
+    return {
+      ...row,
+      apptId: appt.id || null,
+      apptSource: 'master',
+      apptTime: appt.time,
+      /* Only adopt the doctor when the matched appointment is genuinely this
+         patient's — otherwise keep the assigned doctor from patientProfiles. */
+      doctor: appt.doctor || row.doctor,
+      arrivedAt: row.statusKey === 'waiting' ? null : row.time,
+    };
+  }
+  /* No entry in the master schedule for THIS patient → the row keeps its own
+     local OPD booking (its queue slot + its own doctor). Marked `local` so the
+     cell can say where the slot came from; we never borrow another patient's
+     appointment just to fill the column. */
+  return {
+    ...row,
+    apptId: null,
+    apptSource: 'local',
+    apptTime: row.time,
+    arrivedAt: row.statusKey === 'waiting' ? null : row.time,
+  };
+});
+
 /* Demo recent-search rows — Figma PHCIS-OPD 290:48930 (shown when history is empty). */
 const OPD_SEARCH_HISTORY_SEED = buildOpdSearchHistorySeed(
-  applyOpdScreeningDrafts(INITIAL_ROWS),
+  applyOpdScreeningDrafts(INITIAL_ROWS_SYNCED),
 );
 
 /* ── Page ─────────────────────────────────────────────────── */
@@ -410,7 +554,9 @@ const QueuePage = () => {
   const { state: navState } = useLocation();
   const handleRowClick = (row) => history.push({
     pathname: '/opd/screening',
-    state: { hn: row.hn, queue: row.queue, name: row.name },
+    /* statusKey rides along so ScreeningPage can offer อ่านอย่างเดียว vs
+       คัดกรองซ้ำ on a คัดกรองแล้ว row (TOR 1.2.2.2). */
+    state: { hn: row.hn, queue: row.queue, name: row.name, statusKey: row.statusKey },
   });
 
   const [activeTab, setActiveTab] = useState(navState?.activeTab || 'all');
@@ -439,7 +585,7 @@ const QueuePage = () => {
      enabled, rows show a drag handle, become draggable, and can be reordered
      via native HTML5 drag-and-drop. Filters/search are bypassed in edit mode
      so reordering operates on the full underlying queue. */
-  const [rows, setRows] = useState(() => applyOpdScreeningDrafts(INITIAL_ROWS));
+  const [rows, setRows] = useState(() => applyOpdScreeningDrafts(INITIAL_ROWS_SYNCED));
 
   /* Live suggestion list — derived from `rows` whenever the user types.
      Matches against queue / HN / patient name / doctor name (the four
@@ -546,21 +692,63 @@ const QueuePage = () => {
     setDeleteCandidate(null);
   };
 
-  /* Final column list — actions column is bound to the page-level
-     handlers so each cell can stop propagation + open the confirm popup
-     against the right row. */
+  /* TOR 1.2.1.2 — "รับลงทะเบียน" on an arrived appointment row: stamps
+     the arrival time; the badge derives ตามนัด/ไม่ตรงนัด from slot+grace.
+     Arrivals past the grace window also enter the walk-in request path
+     (TOR spec: late arrivals route through /opd/requests, not the slot). */
+  const handleRegisterArrival = useCallback((row) => {
+    const arrivedAt = nowHHMM();
+    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, arrivedAt } : r)));
+    if (arrivalStatusFor(row.apptTime, arrivedAt) === 'late') {
+      addWalkinRequest({
+        hn: row.hn,
+        name: row.name,
+        complaint: `มาไม่ตรงนัด (นัด ${row.apptTime} น. มาถึง ${arrivedAt} น.) — จัดคิวผ่านคำขอ Walk-in`,
+        esi: 4,
+        dept: row.dept,
+        requestedBy: 'จนท.สมพร ทองดี',
+      });
+    }
+  }, []);
+
+  /* TOR 1.2.6.1 — จำหน่าย/ส่งต่อ on ตรวจเสร็จแล้ว rows (fallback mount). */
+  const [dischargeRow, setDischargeRow] = useState(null);
+  const handleDischargeConfirm = useCallback((result) => {
+    setRows((prev) => prev.map((r) => (
+      r.id === dischargeRow?.id ? { ...r, disposition: result } : r
+    )));
+    setDischargeRow(null);
+  }, [dischargeRow]);
+
+  /* Final column list — actions + นัดหมาย columns are bound to the
+     page-level handlers so each cell can stop propagation and act on the
+     right row. นัดหมาย sits after เวลา so slot vs arrival read together. */
   const columns = useMemo(
-    () => [
-      ...BASE_COLUMNS,
-      {
-        key: 'actions',
-        label: 'การดำเนินการ',
-        width: 160,
+    () => {
+      const base = [...BASE_COLUMNS];
+      const timeIdx = base.findIndex((c) => c.key === 'time');
+      base.splice(timeIdx + 1, 0, {
+        key: 'appt',
+        label: 'นัดหมาย (ตารางแพทย์)',
+        width: 264,
         sortable: false,
-        render: makeRenderActions({ onDelete: handleAskDelete }),
-      },
-    ],
-    [],
+        render: makeRenderAppointment({ onRegister: handleRegisterArrival }),
+      });
+      return [
+        ...base,
+        {
+          key: 'actions',
+          label: 'การดำเนินการ',
+          width: 176,
+          sortable: false,
+          render: makeRenderActions({
+            onDelete: handleAskDelete,
+            onDischarge: (row) => setDischargeRow(row),
+          }),
+        },
+      ];
+    },
+    [handleRegisterArrival],
   );
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [editMode, setEditMode] = useState(false);
@@ -709,6 +897,24 @@ const QueuePage = () => {
       hn={deleteCandidate?.hn}
       patientName={deleteCandidate?.name}
       avatarSrc={getPatientByHN(deleteCandidate?.hn)?.avatarUrl}
+    />
+    {/* TOR 1.2.6.1 — จำหน่าย/ส่งต่อ (fallback mount on ตรวจเสร็จแล้ว rows) */}
+    <OpdDischargePopup
+      open={!!dischargeRow}
+      onClose={() => setDischargeRow(null)}
+      patient={dischargeRow ? {
+        hn: dischargeRow.hn,
+        name: dischargeRow.name,
+        rights: getPatientByHN(dischargeRow.hn)?.insurance
+          || getPatientByHN(dischargeRow.hn)?.rights,
+      } : {}}
+      onConfirm={handleDischargeConfirm}
+      /* TOR 1.2.6.1 home-discharge leg — deep-link the follow-up visit into
+         the appointment system with the patient already carried over. */
+      onScheduleAppointment={(p) => history.push({
+        pathname: '/appointment',
+        state: { hn: p?.hn || dischargeRow?.hn, name: p?.name || dischargeRow?.name },
+      })}
     />
     <QueuePageShell
       activeKey='opd'

@@ -14,10 +14,17 @@ import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrivacyRevealPopup from '@/components/popup/PrivacyRevealPopup';
 import Tooltip from '@/components/tooltip/Tooltip';
+import Icon from '@/components/icons/Icon';
 import { formatNationalId } from '@/data/registrationForm';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import StatusBadge from '@/components/badge/StatusBadge';
+import Popover from '@/components/popup/Popover';
+import SuccessToast from '@/components/toast/SuccessToast';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
-import { MR_PATIENTS } from '@/data/mrPatients';
+import { MR_PATIENTS, findMrPatientByHn } from '@/data/mrPatients';
+import { MOBILE_PUSH_LOG, pushArrivalConfirmation } from '@/data/registrationVisits';
+import QueueTicketPrintPopup from './QueueTicketPrintPopup';
+import PatientCardPrintPopup, { buildOpdCardFromMr } from './PatientCardPrintPopup';
 import {
   PATIENT_PROFILES,
   PENDING_REGISTRATION_NO_PHOTO,
@@ -81,11 +88,18 @@ const FILTER_OPTIONS = {
     { value: 'done',     label: 'ลงทะเบียนสำเร็จ และรอซักประวัติ'   },
     { value: 'draft',    label: 'ที่ร่างไว้'                         },
   ],
+  /* TOR 1.1.1.2 — สถานะการมีชีวิต */
+  life: [
+    { value: 'all',      label: 'ทั้งหมด'   },
+    { value: 'alive',    label: 'มีชีวิตอยู่' },
+    { value: 'deceased', label: 'เสียชีวิต'  },
+  ],
 };
 const FILTER_DEFAULTS = {
   status: 'all',
   type: 'all',
   visitStatus: 'all',
+  life: 'all',
 };
 
 /* การรับคิว — Figma Registration Dashboard cell values. */
@@ -189,6 +203,12 @@ const renderName = (row) => {
         size={TABLE_AVATAR_SIZE}
       />
       <span className='truncate'>{formatNameSurnameMasked(row.name)}</span>
+      {/* TOR 1.1.1.2 — dark-grey StatusBadge on deceased rows (directory + queue) */}
+      {row.lifeStatus === 'deceased' && (
+        <StatusBadge style='neutral' size='small' showDot>
+          เสียชีวิต
+        </StatusBadge>
+      )}
     </div>
   );
 };
@@ -212,6 +232,15 @@ const formatNationalIdMasked = (nationalId) => {
   const digits = String(nationalId ?? '').replace(/\D/g, '');
   if (digits.length !== 13) return String(nationalId ?? '');
   return `x-xxxx-xx-xx${digits[7]}-${digits.slice(-3)}`;
+};
+
+/* TOR 1.1.1.3 + §1.4.2 — Passport เป็นเอกสารระบุตัวตนเช่นเดียวกับเลขบัตร
+   ประชาชน จึงต้อง mask ทุกที่ที่แสดงนอกหน้าทะเบียน (รวม sublabel ของ
+   suggestion list ที่ค้นเจอด้วย Passport). */
+const formatPassportMasked = (passportNo) => {
+  const s = String(passportNo ?? '').trim();
+  if (s.length < 4) return s;
+  return `${s.slice(0, 2)}${'x'.repeat(Math.max(s.length - 4, 1))}${s.slice(-2)}`;
 };
 
 const formatPhoneMasked = (phone) => {
@@ -268,16 +297,22 @@ const actionModeForStatus = (status) => {
   return 'disabled';
 };
 
-const makeRenderActions = ({ onCall, onPause, onCancel }) => function ActionsCell(row) {
+const makeRenderActions = ({ onCall, onPause, onCancel, onMore }) => function ActionsCell(row) {
   const mode = actionModeForStatus(row.status);
-  const enabled = mode !== 'disabled';
+  /* TOR 1.1.1.2 — แถวผู้เสียชีวิต: ปิดเรียกคิว/พักคิว (และเปิด Visit ผ่านเมนู) */
+  const deceased = row.lifeStatus === 'deceased';
+  const enabled = mode !== 'disabled' && !deceased;
   const isPaused = Boolean(row.paused);
   const canCall = enabled && !isPaused;
   const callVariant = mode === 'default' ? 'fill' : mode === 'quaternary' ? 'quaternary' : 'ghost';
   const pauseLabel = isPaused ? 'หยุดพักคิว' : 'พักคิว';
   return (
     <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-      <Tooltip content='เรียกคิว' position='top' disabled={!canCall}>
+      <Tooltip
+        content={deceased ? 'ผู้รับบริการเสียชีวิต — เรียกคิวไม่ได้' : 'เรียกคิว'}
+        position='top'
+        disabled={!canCall && !deceased}
+      >
         <BrandIconButton
           icon='volume_up'
           size='sm'
@@ -304,14 +339,28 @@ const makeRenderActions = ({ onCall, onPause, onCancel }) => function ActionsCel
       <NeutralSubdueButton
         variant='outline'
         size='sm'
-        disabled={!enabled}
+        disabled={mode === 'disabled'}
         aria-label='ยกเลิกคิว'
-        onClick={enabled
+        onClick={mode !== 'disabled'
           ? (e) => { e.stopPropagation(); onCancel?.(row); }
           : undefined}
       >
         ยกเลิกคิว
       </NeutralSubdueButton>
+      {/* Row overflow — ส่งตรวจ · พิมพ์บัตรคิว (Kiosk ขัดข้อง) · ยืนยันการมา ·
+          พิมพ์บัตรผู้รับบริการ (TOR 1.1.1.9 / 1.1.1.10 / 1.1.2.2) */}
+      <Tooltip content='ตัวเลือกเพิ่มเติม' position='top'>
+        <BrandIconButton
+          icon='more_vert'
+          size='sm'
+          variant='quaternary'
+          aria-label='ตัวเลือกเพิ่มเติม'
+          onClick={(e) => {
+            e.stopPropagation();
+            onMore?.(row, e.currentTarget);
+          }}
+        />
+      </Tooltip>
     </div>
   );
 };
@@ -320,7 +369,7 @@ const makeRenderActions = ({ onCall, onPause, onCancel }) => function ActionsCel
    Tab "รายชื่อผู้ป่วยทั้งหมด" (Register Home 331:147299) omits คิว +
    สถานะการเข้าใช้บริการ — patient directory, not today's visit queue.
    Actions column is bound later with page-level onCall / onPause / onCancel. */
-const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause, onCancel }) => {
+const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause, onCancel, onMore }) => {
   const cols = [
     !isDirectory && { key: 'queue',        header: 'คิว',                    width: 80,  sortable: true, render: renderQueue },
     { key: 'hn',           header: 'HN',                     width: 96,  sortable: true, render: renderHn },
@@ -331,7 +380,7 @@ const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause,
     { key: 'nationalId',   header: 'เลขบัตรประชาชน',          width: 180, sortable: true, render: renderPrivacyCell('nationalId') },
     { key: 'phone',        header: 'โทรศัพท์',               width: 128, sortable: true, render: renderPrivacyCell('phone') },
     !isDirectory && { key: 'status',       header: 'สถานะการเข้าใช้บริการ',    width: 240, sortable: true, render: renderStatus },
-    { key: 'actions',      header: 'การดำเนินการ',           width: 220, render: makeRenderActions({ onCall, onPause, onCancel }) },
+    { key: 'actions',      header: 'การดำเนินการ',           width: 260, render: makeRenderActions({ onCall, onPause, onCancel, onMore }) },
   ];
   return cols.filter(Boolean);
 };
@@ -391,6 +440,12 @@ const buildRoster = () => {
       name: neverServed ? '' : profile.fullName,
       age: neverServed ? '' : ageYearsOnly(profile.age),
       nationalId: neverServed ? '' : profile.nationalId,
+      /* TOR 1.1.1.3 — passport search axis (derived from MR row; profiles
+         file stays untouched per module scope). */
+      passportNo: neverServed ? '' : (mr?.passportNo ?? ''),
+      /* TOR 1.1.1.2 — สถานะการมีชีวิต */
+      lifeStatus: neverServed ? 'alive' : (mr?.lifeStatus ?? 'alive'),
+      deceasedDate: neverServed ? '' : (mr?.deceasedDate ?? ''),
       phone: neverServed ? '' : (mr?.phone ?? fallbackMr.phone),
       rights: neverServed
         ? (profile.rights || fallbackMr.rights)
@@ -435,11 +490,17 @@ const RegistrationQueuePage = () => {
   const registrationRowToSearchItem = (row) => ({
     id: row.id,
     label: row.name || row.queue || 'รอลงทะเบียน',
+    /* TOR 1.1.1.3 — sublabel surfaces every search axis: เลขบัตร ·
+       Passport · โทรศัพท์ so a passport/phone hit is legible in the list.
+       §1.4.2 — ค่าที่แสดงถูก mask เหมือนคอลัมน์ในตาราง (การเปิดเผยค่าเต็ม
+       ต้องผ่าน PrivacyRevealPopup ที่แถวของตารางเท่านั้น). */
     sublabel: isNewPatientRow(row)
       ? 'ผู้รับบริการใหม่'
-      : (row.nationalId
-        ? `เลขบัตร ${row.nationalId}`
-        : (row.phone || '')),
+      : [
+        row.nationalId ? `เลขบัตร ${formatNationalIdMasked(row.nationalId)}` : '',
+        row.passportNo ? `Passport ${formatPassportMasked(row.passportNo)}` : '',
+        row.phone ? `โทร ${formatPhoneMasked(row.phone)}` : '',
+      ].filter(Boolean).join(' · '),
     value: row.name || row.queue || '',
     badges: [
       { label: row.queue, tone: 'teal' },
@@ -527,6 +588,43 @@ const RegistrationQueuePage = () => {
     )));
   }, []);
 
+  /* ── Row overflow menu — ส่งตรวจ / พิมพ์บัตรคิว / ยืนยันการมา / OPD Card ── */
+  const [rowMenu, setRowMenu] = useState(null); /* { row } — anchor kept in a ref */
+  const rowMenuAnchorRef = React.useRef(null);
+  const handleOpenRowMenu = useCallback((row, anchorEl) => {
+    rowMenuAnchorRef.current = anchorEl;
+    setRowMenu((prev) => (prev?.row?.id === row.id ? null : { row }));
+  }, []);
+  const closeRowMenu = useCallback(() => setRowMenu(null), []);
+
+  /* TOR 1.1.1.9 — พิมพ์บัตรคิวสำรอง (Kiosk ขัดข้อง) */
+  const [ticketRow, setTicketRow] = useState(null);
+  /* TOR 1.1.1.10 — OPD Card จาก directory row */
+  const [opdCard, setOpdCard] = useState(null);
+  /* TOR 1.1.2.2 — mock mobile push + log popover */
+  const [pushLogVersion, setPushLogVersion] = useState(0);
+  const [pushLogOpen, setPushLogOpen] = useState(false);
+  const pushLogAnchorRef = React.useRef(null);
+  const [successToast, setSuccessToast] = useState('');
+
+  const handleConfirmArrival = useCallback((row) => {
+    pushArrivalConfirmation({
+      hn: row.hn,
+      patientName: row.name,
+      queue: row.queue,
+      message: 'ยืนยันการมาตามนัดหมายวันนี้',
+    });
+    setPushLogVersion((v) => v + 1);
+    setSuccessToast('ส่งการแจ้งเตือนยืนยันการมาตามนัดผ่าน Mobile Application แล้ว');
+  }, []);
+
+  const handleOpenVisit = useCallback((row) => {
+    history.push({
+      pathname: '/registration/visit',
+      state: { hn: row.hn, queue: row.queue },
+    });
+  }, [history]);
+
   const tabsWithCounts = useMemo(() => {
     const counts = {
       pending: 0,
@@ -548,8 +646,9 @@ const RegistrationQueuePage = () => {
       onCall: () => {},
       onPause: handlePause,
       onCancel: handleAskCancel,
+      onMore: handleOpenRowMenu,
     }),
-    [renderPrivacyCell, isDirectoryTab, handlePause, handleAskCancel],
+    [renderPrivacyCell, isDirectoryTab, handlePause, handleAskCancel, handleOpenRowMenu],
   );
 
   /* Edit-queue-order mode — toggled by "แก้ไขลำดับคิว". Rows show a drag
@@ -595,7 +694,7 @@ const RegistrationQueuePage = () => {
     const q = (query ?? item?.value ?? item?.label ?? '').toString().trim().toLowerCase();
     if (!q) return null;
     return rows.find((row) =>
-      [row.queue, row.id, row.hn, row.name, row.nationalId, row.phone]
+      [row.queue, row.id, row.hn, row.name, row.nationalId, row.passportNo, row.phone]
         .some((f) => f && String(f).toLowerCase().includes(q)),
     ) ?? null;
   };
@@ -637,6 +736,10 @@ const RegistrationQueuePage = () => {
     if (filters.visitStatus !== 'all') {
       r = r.filter((row) => row.status === filters.visitStatus);
     }
+    /* TOR 1.1.1.2 — filter สถานะชีวิต */
+    if (filters.life !== 'all') {
+      r = r.filter((row) => (row.lifeStatus || 'alive') === filters.life);
+    }
     if (searchQ.trim()) {
       const q = searchQ.trim().toLowerCase();
       const qDigits = q.replace(/\D/g, '');
@@ -645,12 +748,14 @@ const RegistrationQueuePage = () => {
         row.hn.toLowerCase().includes(q) ||
         row.name.toLowerCase().includes(q) ||
         (row.phone && row.phone.toLowerCase().includes(q)) ||
+        /* TOR 1.1.1.3 — passport axis */
+        (row.passportNo && row.passportNo.toLowerCase().includes(q)) ||
         (qDigits && row.nationalId
           && row.nationalId.replace(/\D/g, '').includes(qDigits)),
       );
     }
     return r;
-  }, [rows, activeTab, searchQ, filters.status, filters.type, filters.visitStatus, editMode]);
+  }, [rows, activeTab, searchQ, filters.status, filters.type, filters.visitStatus, filters.life, editMode]);
 
   /* Sort state — Figma 104:20512 puts an `unfold_more` affordance on every
      column header; Table is controlled so the page owns `sortConfig`. Click
@@ -793,7 +898,7 @@ const RegistrationQueuePage = () => {
                     const q = searchQ.trim().toLowerCase();
                     if (!q) return [];
                     return rows
-                      .filter((row) => [row.queue, row.id, row.hn, row.name, row.nationalId, row.phone]
+                      .filter((row) => [row.queue, row.id, row.hn, row.name, row.nationalId, row.passportNo, row.phone]
                         .some((f) => f && String(f).toLowerCase().includes(q)))
                       .slice(0, 8)
                       .map(registrationRowToSearchItem);
@@ -801,7 +906,7 @@ const RegistrationQueuePage = () => {
                   history={searchHistory}
                   onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
                   avatars={searchAvatars}
-                  placeholder='ค้นหา HN / เลขบัตร / ชื่อ-สกุล / โทรศัพท์'
+                  placeholder='ค้นหา HN / เลขบัตร / Passport / ชื่อ-สกุล / โทรศัพท์'
                   width={640}
                 />
               </div>
@@ -820,8 +925,25 @@ const RegistrationQueuePage = () => {
                     value={filters.visitStatus}
                     onChange={setFilter('visitStatus')}
                   />
+                  <FilterDropdown
+                    prefix='สถานะชีวิต :'
+                    options={FILTER_OPTIONS.life}
+                    value={filters.life}
+                    onChange={setFilter('life')}
+                  />
                 </OverflowFlexRow>
                 <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+                  {/* TOR 1.1.2.2 — mock mobile-app notification log */}
+                  <span ref={pushLogAnchorRef} className='inline-flex'>
+                    <NeutralSubdueButton
+                      leadingIcon='notifications'
+                      collapseLabelBelow='lg'
+                      accessibilityLabel='การแจ้งเตือน Mobile App'
+                      onClick={() => setPushLogOpen((o) => !o)}
+                    >
+                      {`แจ้งเตือน App (${MOBILE_PUSH_LOG.length})`}
+                    </NeutralSubdueButton>
+                  </span>
                   <NeutralSubdueButton
                     leadingIcon={editMode ? 'check' : 'format_list_bulleted'}
                     collapseLabelBelow='lg'
@@ -871,6 +993,32 @@ const RegistrationQueuePage = () => {
                 emptyMessage='ไม่พบผู้รับบริการ'
               />
 
+              {/* ค้นหาไม่พบ — CTA เพิ่มผู้รับบริการใหม่ (edge case 1.1.1.3) */}
+              {sorted.length === 0 && (
+                <div
+                  className='w-full flex flex-col items-center'
+                  style={{ gap: 'var(--dim-space-200)', paddingTop: 'var(--dim-space-200)', paddingBottom: 'var(--dim-space-200)' }}
+                >
+                  <span style={{
+                    color: 'var(--text-content-tertiary)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-sm)',
+                  }}>
+                    {searchQ.trim()
+                      ? `ไม่พบผู้รับบริการที่ตรงกับ "${searchQ.trim()}"`
+                      : 'ไม่มีรายการในมุมมองนี้'}
+                  </span>
+                  <BrandSubdueButton
+                    variant='outline'
+                    size='sm'
+                    leadingIcon='person_add'
+                    onClick={() => history.push('/registration/register')}
+                  >
+                    เพิ่มผู้รับบริการใหม่
+                  </BrandSubdueButton>
+                </div>
+              )}
+
               {/* Pagination — sits inside the card; brand-quaternary divider
                   matches the OPD pagination contract. */}
               <div
@@ -901,6 +1049,208 @@ const RegistrationQueuePage = () => {
         }
         onClose={() => setPrivacyRevealRequest(null)}
         onConfirm={handlePrivacyRevealConfirm}
+      />
+
+      {/* Row overflow menu — anchored Popover */}
+      <Popover
+        open={!!rowMenu}
+        onClose={closeRowMenu}
+        anchorRef={rowMenuAnchorRef}
+        style={{ zIndex: 1600 }}
+      >
+        {rowMenu && (
+          <div
+            className='flex flex-col'
+            style={{
+              minWidth: 260,
+              background: 'var(--surface-card-100, #FFFFFF)',
+              borderRadius: 'var(--dim-radius-300, 10px)',
+              border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+              boxShadow: 'var(--shadow-drop-bottom-400)',
+              paddingTop: 'var(--dim-space-100, 4px)',
+              paddingBottom: 'var(--dim-space-100, 4px)',
+            }}
+          >
+            {[
+              {
+                key: 'visit',
+                label: 'ส่งตรวจ (เปิด Visit)',
+                icon: 'stethoscope',
+                disabled: !rowMenu.row.hn || rowMenu.row.lifeStatus === 'deceased',
+                hint: rowMenu.row.lifeStatus === 'deceased'
+                  ? 'ผู้รับบริการเสียชีวิต — เปิด Visit ไม่ได้'
+                  : (!rowMenu.row.hn ? 'ต้องลงทะเบียนก่อน' : ''),
+                onClick: () => { closeRowMenu(); handleOpenVisit(rowMenu.row); },
+              },
+              {
+                key: 'ticket',
+                label: 'พิมพ์บัตรคิว (Kiosk ขัดข้อง)',
+                icon: 'print',
+                disabled: false,
+                hint: '',
+                onClick: () => { closeRowMenu(); setTicketRow(rowMenu.row); },
+              },
+              ...(rowMenu.row.visitType === 'นัดหมายล่วงหน้า' ? [{
+                key: 'arrival',
+                label: 'ยืนยันการมา (แจ้งเตือนผ่าน App)',
+                icon: 'notifications_active',
+                disabled: rowMenu.row.lifeStatus === 'deceased',
+                hint: 'Mock — ไม่มี push จริง',
+                onClick: () => { closeRowMenu(); handleConfirmArrival(rowMenu.row); },
+              }] : []),
+              ...(rowMenu.row.hn ? [{
+                key: 'opd-card',
+                label: 'พิมพ์บัตรผู้รับบริการ (OPD Card)',
+                icon: 'badge',
+                disabled: false,
+                hint: '',
+                onClick: () => {
+                  closeRowMenu();
+                  setOpdCard(buildOpdCardFromMr(findMrPatientByHn(rowMenu.row.hn)) || null);
+                },
+              }] : []),
+            ].map((item) => (
+              <button
+                key={item.key}
+                type='button'
+                disabled={item.disabled}
+                onClick={item.disabled ? undefined : item.onClick}
+                className='flex items-center w-full text-left'
+                style={{
+                  gap: 'var(--dim-space-200, 8px)',
+                  paddingTop: 'var(--dim-space-200, 8px)',
+                  paddingBottom: 'var(--dim-space-200, 8px)',
+                  paddingLeft: 'var(--dim-space-300, 12px)',
+                  paddingRight: 'var(--dim-space-300, 12px)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: item.disabled ? 'not-allowed' : 'pointer',
+                  opacity: item.disabled ? 0.45 : 1,
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm, 14px)',
+                  color: 'var(--text-content-default, #363B3F)',
+                }}
+              >
+                <Icon name={item.icon} size={18} />
+                <span className='flex-1 min-w-0'>
+                  {item.label}
+                  {item.hint && (
+                    <span style={{
+                      display: 'block',
+                      fontSize: 'var(--type-size-xs, 12px)',
+                      color: 'var(--text-content-tertiary, #858C92)',
+                    }}>
+                      {item.hint}
+                    </span>
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </Popover>
+
+      {/* TOR 1.1.2.2 — mock mobile-app push log */}
+      <Popover
+        open={pushLogOpen}
+        onClose={() => setPushLogOpen(false)}
+        anchorRef={pushLogAnchorRef}
+        style={{ zIndex: 1600 }}
+      >
+        <div
+          key={pushLogVersion}
+          className='flex flex-col'
+          style={{
+            width: 360,
+            maxHeight: 420,
+            overflowY: 'auto',
+            background: 'var(--surface-card-100, #FFFFFF)',
+            borderRadius: 'var(--dim-radius-300, 10px)',
+            border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+            boxShadow: 'var(--shadow-drop-bottom-400)',
+            padding: 'var(--dim-space-300, 12px)',
+            gap: 'var(--dim-space-200, 8px)',
+          }}
+        >
+          <span style={{
+            fontFamily: 'var(--type-family-heading-content)',
+            fontSize: 'var(--type-size-sm, 14px)',
+            fontWeight: 'var(--type-weight-bold, 700)',
+            color: 'var(--text-content-default, #363B3F)',
+          }}>
+            การแจ้งเตือนผ่าน Mobile Application (จำลอง)
+          </span>
+          {MOBILE_PUSH_LOG.length === 0 ? (
+            <span style={{
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm, 14px)',
+              color: 'var(--text-content-tertiary, #858C92)',
+            }}>
+              ยังไม่มีการแจ้งเตือน
+            </span>
+          ) : MOBILE_PUSH_LOG.map((entry) => (
+            <div
+              key={entry.id}
+              className='flex flex-col'
+              style={{
+                gap: 2,
+                paddingTop: 'var(--dim-space-200, 8px)',
+                paddingBottom: 'var(--dim-space-200, 8px)',
+                paddingLeft: 'var(--dim-space-300, 12px)',
+                paddingRight: 'var(--dim-space-300, 12px)',
+                borderRadius: 'var(--dim-radius-200, 8px)',
+                background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+              }}
+            >
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                <ColorfulBadge style='teal' size='small' hierarchy='secondary'>{entry.queue || '—'}</ColorfulBadge>
+                <span style={{
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm, 14px)',
+                  fontWeight: 'var(--type-weight-medium, 500)',
+                  color: 'var(--text-content-default, #363B3F)',
+                }}>
+                  {entry.patientName || entry.hn}
+                </span>
+                <div className='flex-1' />
+                <span style={{
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-xs, 12px)',
+                  color: 'var(--text-content-tertiary, #858C92)',
+                }}>
+                  {entry.sentAt}
+                </span>
+              </div>
+              <span style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs, 12px)',
+                color: 'var(--text-content-secondary, #636B72)',
+              }}>
+                {entry.message} · ช่องทาง: {entry.channel}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Popover>
+
+      {/* TOR 1.1.1.9 — บัตรคิวสำรอง */}
+      <QueueTicketPrintPopup
+        open={!!ticketRow}
+        onClose={() => setTicketRow(null)}
+        row={ticketRow}
+      />
+
+      {/* TOR 1.1.1.10 — OPD Card จาก directory */}
+      <PatientCardPrintPopup
+        open={!!opdCard}
+        onClose={() => setOpdCard(null)}
+        card={opdCard}
+      />
+
+      <SuccessToast
+        open={!!successToast}
+        message={successToast}
+        onClose={() => setSuccessToast('')}
       />
     </QueuePageShell>
     </>

@@ -30,6 +30,8 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
 import FaceScanVerifyPopup from '@/components/popup/FaceScanVerifyPopup';
 import Popup from '@/components/popup/Popup';
+import AlertDialog from '@/components/popup/AlertDialog';
+import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import {
   formatNationalId,
@@ -38,6 +40,12 @@ import {
   ID_CARD_CHIP_PHOTO_MOCK,
   MOBILITY_OTHER_SUGGESTIONS,
   buildMockRightsGroups,
+  HN_GROUPS,
+  buildHnPreview,
+  hasThaiCharacters,
+  getBirthYearError,
+  ageToBirthYearBE,
+  appendRegistrationAudit,
 } from '@/data/registrationForm';
 import { MR_GENDERS, MR_GENDER_IDENTITIES } from '@/data/mrPatients';
 import useTakePhotoCapture from '@/hooks/useTakePhotoCapture';
@@ -119,14 +127,39 @@ const PatientStatusOption = ({ icon, label, tone = 'active', value, checked, onC
   />
 );
 
+/* หัวข้อย่อยใน card สถานะผู้รับบริการ (สถานะการมีชีวิต / กลุ่มการออกเลข HN). */
+const PatientStatusSubTitle = ({ children }) => (
+  <span style={{
+    color: 'var(--text-content-secondary, #636B72)',
+    fontFamily: 'var(--type-family-body)',
+    fontSize: 'var(--type-size-sm)',
+    fontWeight: 'var(--type-weight-medium)',
+    lineHeight: 1.5,
+  }}>
+    {children}
+  </span>
+);
+
 const PatientStatusSection = ({
   patientStatus = 'active',
   onPatientStatusChange,
   hn,
   patientTypeLabel = 'ผู้ป่วยใหม่',
+  /* TOR 1.1.1.2 — สถานะการมีชีวิต (record side). Optional: old callers
+     without these props render exactly the original card. */
+  lifeStatus,
+  onLifeStatusChange,
+  deceasedDate,
+  onDeceasedDateChange,
+  /* TOR 1.1.1.20 — กลุ่มการออกเลข HN (3 กลุ่ม) + HN preview. */
+  hnGroup,
+  onHnGroupChange,
+  hnPreview,
 }) => {
   const setStatus = onPatientStatusChange || (() => {});
   const hnLabel = hn || '—';
+  const showLifeStatus = typeof onLifeStatusChange === 'function';
+  const showHnGroup = typeof onHnGroupChange === 'function';
   return (
     <div
       className='w-full flex flex-col'
@@ -194,6 +227,115 @@ const PatientStatusSection = ({
           onChange={setStatus}
         />
       </div>
+
+      {/* TOR 1.1.1.2 — สถานะการมีชีวิต + วันที่เสียชีวิต (บังคับเมื่อเสียชีวิต) */}
+      {showLifeStatus && (
+        <div
+          className='flex flex-col w-full'
+          style={{
+            gap: 'var(--dim-space-300)',
+            borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+            paddingTop: 'var(--dim-space-300)',
+          }}
+        >
+          <PatientStatusSubTitle>สถานะการมีชีวิต</PatientStatusSubTitle>
+          <div
+            role='radiogroup'
+            aria-label='สถานะการมีชีวิต'
+            className='flex items-center flex-wrap'
+            style={{ gap: 'var(--dim-space-400)' }}
+          >
+            <PatientStatusOption
+              name='patient-life-status'
+              icon='favorite'
+              label='มีชีวิตอยู่'
+              tone='active'
+              value='alive'
+              checked={(lifeStatus || 'alive') === 'alive'}
+              onChange={onLifeStatusChange}
+            />
+            <PatientStatusOption
+              name='patient-life-status'
+              icon='heart_broken'
+              label='เสียชีวิต'
+              tone='inactive'
+              value='deceased'
+              checked={lifeStatus === 'deceased'}
+              onChange={onLifeStatusChange}
+            />
+          </div>
+          {lifeStatus === 'deceased' && (
+            <FieldGrid cols={3} rowGap='var(--dim-space-300)' columnGap='var(--dim-space-300)'>
+              <Field label='วันที่เสียชีวิต' required>
+                <DatePicker
+                  size='lg'
+                  value={parseThaiBuddhistDate(deceasedDate)}
+                  onChange={(d) => onDeceasedDateChange?.(d ? formatThaiBuddhistDate(d) : '')}
+                  format={formatThaiBuddhistDate}
+                  placeholder='วว/ดด/ปปปป'
+                  showLabel={false}
+                  showHelperText={false}
+                />
+              </Field>
+            </FieldGrid>
+          )}
+          {lifeStatus === 'deceased' && (
+            <Alert
+              type='warning'
+              title='ทะเบียนนี้ถูกระบุสถานะ "เสียชีวิต"'
+              subtext='แถวของผู้รับบริการรายนี้จะไม่สามารถเรียกคิว พักคิว หรือเปิด Visit (ส่งตรวจ) ได้ · การเปลี่ยนสถานะถูกบันทึกลงประวัติการแก้ไขข้อมูล'
+              showCloseButton={false}
+              showBadge={false}
+              showIndicator={false}
+              style={{ width: '100%' }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* TOR 1.1.1.20 — กลุ่มการออกเลข HN (3 กลุ่ม) + HN preview */}
+      {showHnGroup && (
+        <div
+          className='flex flex-col w-full'
+          style={{
+            gap: 'var(--dim-space-300)',
+            borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+            paddingTop: 'var(--dim-space-300)',
+          }}
+        >
+          <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+            <PatientStatusSubTitle>กลุ่มการออกเลข HN</PatientStatusSubTitle>
+            <div className='flex-1' />
+            {hnPreview && (
+              <ColorfulBadge style='indigo' size='small' hierarchy='secondary'>
+                HN ที่จะได้รับ: {hnPreview}
+              </ColorfulBadge>
+            )}
+          </div>
+          <div
+            role='radiogroup'
+            aria-label='กลุ่มการออกเลข HN'
+            className='flex items-stretch flex-wrap'
+            style={{ gap: 'var(--dim-space-300)' }}
+          >
+            {HN_GROUPS.map((g) => (
+              <RadioButton
+                key={g.key}
+                name='patient-hn-group'
+                value={g.key}
+                checked={(hnGroup || 'thai-cid') === g.key}
+                onChange={onHnGroupChange}
+                title={g.label}
+                description={g.hint}
+                showCircleIcon={false}
+                showIcon={false}
+                showBadge={false}
+                showBadgeTitle={false}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -674,7 +816,7 @@ const PhotoCluster = ({
   );
 };
 
-export const Step1Personal = ({ form, setForm, patient }) => {
+export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
   const set = (k) => (v) => setForm((s) => ({ ...s, [k]: v }));
   const handleMaritalChange = (marital) => {
     setForm((s) => ({
@@ -691,6 +833,102 @@ export const Step1Personal = ({ form, setForm, patient }) => {
   const hn = form.hn || patient?.hn || '';
   const patientTypeLabel = 'ผู้ป่วยใหม่';
 
+  /* ── TOR 1.1.1.2 — สถานะการมีชีวิต + audit ทุกการสลับ alive↔deceased ── */
+  const handleLifeStatusChange = (next) => {
+    setForm((s) => {
+      if ((s.lifeStatus || 'alive') === next) return s;
+      appendRegistrationAudit({
+        step: 'ส่วนตัว',
+        field: 'สถานะการมีชีวิต',
+        oldValue: (s.lifeStatus || 'alive') === 'alive' ? 'มีชีวิตอยู่' : 'เสียชีวิต',
+        newValue: next === 'alive' ? 'มีชีวิตอยู่' : 'เสียชีวิต',
+      });
+      return {
+        ...s,
+        lifeStatus: next,
+        deceasedDate: next === 'deceased' ? s.deceasedDate : '',
+      };
+    });
+  };
+
+  /* ── TOR 1.1.1.20 — สลับกลุ่ม HN หลังกรอกแล้วต้อง confirm ก่อนล้าง field ── */
+  const [hnGroupSwitchTarget, setHnGroupSwitchTarget] = useState(null);
+  const applyHnGroup = (nextGroup) => {
+    setForm((s) => ({
+      ...s,
+      hnGroup: nextGroup,
+      /* Clear only the fields that no longer apply to the new group. */
+      ...(nextGroup === 'thai-cid' ? { passportNo: '' } : {}),
+      ...(nextGroup === 'foreign-doc' ? { nationalId: '', idIssueDate: '', idExpiryDate: '' } : {}),
+      ...(nextGroup === 'no-doc' ? { nationalId: '', idIssueDate: '', idExpiryDate: '', passportNo: '' } : {}),
+    }));
+  };
+  const handleHnGroupChange = (nextGroup) => {
+    if ((form.hnGroup || 'thai-cid') === nextGroup) return;
+    const hasTyped = [form.nationalId, form.passportNo, form.idIssueDate, form.idExpiryDate]
+      .some((v) => String(v ?? '').trim() !== '');
+    if (hasTyped) setHnGroupSwitchTarget(nextGroup);
+    else applyHnGroup(nextGroup);
+  };
+  const isForeignDoc = form.hnGroup === 'foreign-doc';
+  const isNoDoc = form.hnGroup === 'no-doc';
+  const enFirstNameError = isForeignDoc && hasThaiCharacters(form.firstNameEn)
+    ? 'ห้ามใช้อักษรไทย — กรอกชื่อเป็นภาษาอังกฤษตามเอกสาร' : '';
+  const enLastNameError = isForeignDoc && hasThaiCharacters(form.lastNameEn)
+    ? 'ห้ามใช้อักษรไทย — กรอกนามสกุลเป็นภาษาอังกฤษตามเอกสาร' : '';
+
+  /* ── TOR 1.1.1.11 — ไม่ทราบวันเกิด → ปีเกิด พ.ศ. อย่างเดียว / กรอกอายุแทน ── */
+  const birthYearError = getBirthYearError(form.birthYearBE);
+  const currentBE = new Date().getFullYear() + 543;
+  const ageFromYear = !birthYearError && String(form.birthYearBE || '').length === 4
+    ? `${currentBE - Number(form.birthYearBE)} ปี`
+    : '';
+  const handleDobUnknownToggle = (checked) => {
+    setForm((s) => ({
+      ...s,
+      dobUnknown: checked,
+      /* ติ๊กออก → กลับมาบังคับวันเดือนปีเต็มตามเดิม */
+      ...(checked ? { dob: '' } : { birthYearBE: '' }),
+    }));
+  };
+
+  /* ── TOR 1.1.1.9 — ถ่ายรูป (กล้อง) / อัปโหลดรูป wired to the photo cluster ── */
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [retakeConfirmOpen, setRetakeConfirmOpen] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+  const applyPatientPhoto = (dataUrl) => {
+    setPhotoError('');
+    setForm((s) => ({
+      ...s,
+      hospitalPhoto: dataUrl,
+      idCardPhoto: s.idCardPhoto || ID_CARD_CHIP_PHOTO_MOCK,
+      faceMatchScore: s.faceMatchScore || 96,
+      faceVerifiedAt: formatThaiBuddhistDate(new Date()),
+    }));
+  };
+  const handleOpenCamera = () => {
+    /* ถ่ายใหม่ทับรูปเดิมต้อง confirm (edge case 1.1.1.9). */
+    if (form.hospitalPhoto) setRetakeConfirmOpen(true);
+    else setCameraOpen(true);
+  };
+  const handleUploadFiles = (files) => {
+    const file = files && files[0];
+    if (!file) return;
+    if (!/^image\//.test(file.type)) {
+      setPhotoError('ไฟล์ต้องเป็นรูปภาพ (JPG / PNG) เท่านั้น');
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setPhotoError('ไฟล์ใหญ่เกิน 5 MB — เลือกรูปที่เล็กกว่านี้');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => applyPatientPhoto(String(reader.result));
+    reader.onerror = () => setPhotoError('อ่านไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
       <PatientStatusSection
@@ -698,12 +936,22 @@ export const Step1Personal = ({ form, setForm, patient }) => {
         onPatientStatusChange={(v) => setForm((s) => ({ ...s, patientStatus: v }))}
         hn={hn}
         patientTypeLabel={patientTypeLabel}
+        lifeStatus={form.lifeStatus || 'alive'}
+        onLifeStatusChange={handleLifeStatusChange}
+        deceasedDate={form.deceasedDate}
+        onDeceasedDateChange={(v) => setForm((s) => ({ ...s, deceasedDate: v }))}
+        hnGroup={form.hnGroup || 'thai-cid'}
+        onHnGroupChange={handleHnGroupChange}
+        hnPreview={hn ? '' : buildHnPreview(form)}
       />
 
       <div className='flex w-full' style={{ gap: 'var(--dim-space-1200)' }}>
         <div className='flex-1 flex flex-col' style={{ gap: STEP1_FIELD_GAP }}>
           <SectionTitle icon='face'>ข้อมูลส่วนตัว</SectionTitle>
 
+          {/* TOR 1.1.1.5 — blur บนชื่อ-นามสกุลไทย → ตรวจชื่อซ้ำกับ MR_PATIENTS
+              (host หน้า form ส่ง onNameBlurCheck เข้ามา; step อื่นไม่ส่งก็ไม่ตรวจ) */}
+          <div onBlurCapture={() => onNameBlurCheck?.()}>
           <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
             <Field label='คำนำหน้า' required>
               <Select
@@ -732,6 +980,7 @@ export const Step1Personal = ({ form, setForm, patient }) => {
               />
             </Field>
           </FieldGrid>
+          </div>
 
           <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
             <Field label='Prefix' required>
@@ -750,6 +999,9 @@ export const Step1Personal = ({ form, setForm, patient }) => {
                 onChange={set('firstNameEn')}
                 placeholder='First name'
                 showLabel={false}
+                error={enFirstNameError}
+                showHelperText={!!enFirstNameError}
+                helperText={enFirstNameError}
               />
             </Field>
             <Field label='นามสกุล' required>
@@ -758,9 +1010,26 @@ export const Step1Personal = ({ form, setForm, patient }) => {
                 onChange={set('lastNameEn')}
                 placeholder='Last name'
                 showLabel={false}
+                error={enLastNameError}
+                showHelperText={!!enLastNameError}
+                helperText={enLastNameError}
               />
             </Field>
           </FieldGrid>
+
+          {/* TOR 1.1.1.20 กลุ่ม 2 — ชาวต่างชาติ: เลข Passport บังคับ */}
+          {isForeignDoc && (
+            <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
+              <Field label='เลขที่ Passport' required>
+                <InputField
+                  value={form.passportNo}
+                  onChange={(v) => set('passportNo')(String(v ?? '').toUpperCase())}
+                  placeholder='เช่น MJ0455812'
+                  maxLength={12}
+                />
+              </Field>
+            </FieldGrid>
+          )}
 
           {/* Figma 205:14733 — เพศกำเนิด aligns with คำนำหน้า col; เพศสภาพ with ชื่อ. */}
           <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
@@ -784,12 +1053,16 @@ export const Step1Personal = ({ form, setForm, patient }) => {
           </FieldGrid>
 
           <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
-            <Field label='เลขบัตรประชาชน' required>
+            <Field
+              label='เลขบัตรประชาชน'
+              required={!isForeignDoc && !isNoDoc}
+              hint={isNoDoc ? 'กลุ่มไม่มีเอกสาร — ออก HN ชั่วคราว ไม่ต้องกรอกเลขบัตร' : undefined}
+            >
               <InputField
                 value={form.nationalId}
                 onChange={(v) => set('nationalId')(formatNationalId(v))}
-                placeholder='เลขบัตรประชาชน'
-                disabled={fromChip}
+                placeholder={isNoDoc ? 'ไม่ต้องกรอก (HN ชั่วคราว)' : 'เลขบัตรประชาชน'}
+                disabled={fromChip || isNoDoc}
                 maxLength={17}
                 inputMode='numeric'
               />
@@ -820,27 +1093,106 @@ export const Step1Personal = ({ form, setForm, patient }) => {
             </Field>
           </FieldGrid>
 
+          {/* TOR 1.1.1.11 — ไม่ทราบวันเกิด: DatePicker ↔ ปีเกิด (พ.ศ.) / กรอกอายุแทน */}
+          {form.dobUnknown ? (
+            <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
+              <Field label='ปีเกิด (พ.ศ.)' required>
+                <InputField
+                  value={form.birthYearBE}
+                  onChange={(v) => set('birthYearBE')(String(v ?? '').replace(/\D/g, '').slice(0, 4))}
+                  placeholder='เช่น 2498'
+                  inputMode='numeric'
+                  maxLength={4}
+                  error={birthYearError}
+                  showHelperText={!!birthYearError}
+                  helperText={birthYearError}
+                />
+              </Field>
+              <Field label='กรอกอายุแทน (ปี)' hint='ระบบคำนวณปีเกิดย้อนกลับให้ (ตามระบบเดิม)'>
+                <InputField
+                  value={ageFromYear ? String(currentBE - Number(form.birthYearBE)) : ''}
+                  onChange={(v) => set('birthYearBE')(ageToBirthYearBE(v))}
+                  placeholder='เช่น 71'
+                  inputMode='numeric'
+                  maxLength={3}
+                />
+              </Field>
+              <Field label='อายุ'>
+                <InputField value={ageFromYear} onChange={() => {}} placeholder='NN ปี' disabled />
+              </Field>
+            </FieldGrid>
+          ) : (
+            <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
+              <Field label='วันเดือนปีเกิด' required>
+                <DatePicker
+                  size='lg'
+                  value={parseThaiBuddhistDate(form.dob)}
+                  onChange={(d) => set('dob')(d ? formatThaiBuddhistDate(d) : '')}
+                  format={formatThaiBuddhistDate}
+                  placeholder='วว/ดด/ปปปป'
+                  showLabel={false}
+                  showHelperText={false}
+                />
+              </Field>
+              <Field label='อายุ (ปี เดือน วัน)'>
+                <InputField value={form.ageDisplay} onChange={set('ageDisplay')} placeholder='36 ปี - 7 เดือน - 11 วัน' disabled />
+              </Field>
+              <Field label='หมู่เลือด'>
+                <Select
+                  value={form.bloodType}
+                  onChange={set('bloodType')}
+                  options={BLOOD_TYPES}
+                  placeholder='เลือกหมู่เลือด'
+                />
+              </Field>
+            </FieldGrid>
+          )}
+
+          <CheckboxButton
+            checked={!!form.dobUnknown}
+            onChange={handleDobUnknownToggle}
+            label='ไม่ทราบวันเกิด (เก็บเฉพาะปีเกิด พ.ศ.)'
+            border
+            showCircleIcon={false}
+            showIcon={false}
+            className='shrink-0'
+            style={{ width: 'fit-content', alignSelf: 'flex-start' }}
+          />
+
+          {form.dobUnknown && (
+            <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
+              <Field label='หมู่เลือด'>
+                <Select
+                  value={form.bloodType}
+                  onChange={set('bloodType')}
+                  options={BLOOD_TYPES}
+                  placeholder='เลือกหมู่เลือด'
+                />
+              </Field>
+            </FieldGrid>
+          )}
+
+          {/* TOR 1.1.1.14 — ข้อมูลการเกิด (ใบรับรองการเกิด) */}
           <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
-            <Field label='วันเดือนปีเกิด' required>
-              <DatePicker
-                size='lg'
-                value={parseThaiBuddhistDate(form.dob)}
-                onChange={(d) => set('dob')(d ? formatThaiBuddhistDate(d) : '')}
-                format={formatThaiBuddhistDate}
-                placeholder='วว/ดด/ปปปป'
-                showLabel={false}
-                showHelperText={false}
+            <Field label='แพทย์ผู้ออกใบรับรองการเกิด'>
+              <InputField
+                value={form.birthCertDoctor}
+                onChange={set('birthCertDoctor')}
+                placeholder='เช่น นพ.ประวิทย์ ชาญเวชกิจ'
               />
             </Field>
-            <Field label='อายุ (ปี เดือน วัน)'>
-              <InputField value={form.ageDisplay} onChange={set('ageDisplay')} placeholder='36 ปี - 7 เดือน - 11 วัน' disabled />
+            <Field label='เวลาเกิด'>
+              <InputField
+                value={form.birthTime}
+                onChange={set('birthTime')}
+                placeholder='เช่น 07:45 น.'
+              />
             </Field>
-            <Field label='หมู่เลือด'>
-              <Select
-                value={form.bloodType}
-                onChange={set('bloodType')}
-                options={BLOOD_TYPES}
-                placeholder='เลือกหมู่เลือด'
+            <Field label='สถานที่เกิด'>
+              <InputField
+                value={form.birthPlace}
+                onChange={set('birthPlace')}
+                placeholder='เช่น โรงพยาบาลกลาง กรุงเทพมหานคร'
               />
             </Field>
           </FieldGrid>
@@ -898,7 +1250,7 @@ export const Step1Personal = ({ form, setForm, patient }) => {
         </div>
 
         {/* Photo cluster — Figma PHCIS-Registration 303:132572 · Profile 303:131528. */}
-        <div className='flex flex-col shrink-0' style={{ width: PHOTO_CLUSTER_WIDTH }}>
+        <div className='flex flex-col shrink-0' style={{ width: PHOTO_CLUSTER_WIDTH, gap: 'var(--dim-space-300)' }}>
           <PhotoCluster
             hospitalPhoto={form.hospitalPhoto}
             idCardPhoto={form.idCardPhoto}
@@ -914,8 +1266,84 @@ export const Step1Personal = ({ form, setForm, patient }) => {
               faceVerifiedAt: formatThaiBuddhistDate(new Date()),
             }))}
           />
+
+          {/* TOR 1.1.1.9 — ปุ่มถ่ายรูป (CameraCapturePopup) + อัปโหลดรูป
+              (PhotoUploadField). อัปโหลดคือ fallback เมื่อ browser ปฏิเสธกล้อง */}
+          <div className='flex w-full items-stretch' style={{ gap: 'var(--dim-space-200)' }}>
+            <BrandSubdueButton
+              type='button'
+              variant='outline'
+              size='md'
+              leadingIcon='photo_camera'
+              onClick={handleOpenCamera}
+              style={{ flex: 1 }}
+            >
+              ถ่ายรูป (กล้อง)
+            </BrandSubdueButton>
+            <PhotoUploadField
+              label='อัปโหลดรูปภาพ'
+              icon='image'
+              accept='image/*'
+              onFiles={handleUploadFiles}
+              fullWidth
+              style={{ flex: 1 }}
+            />
+          </div>
+          {photoError && (
+            <span
+              role='alert'
+              style={{
+                color: 'var(--text-danger-secondary, #DC2626)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+                lineHeight: 1.5,
+              }}
+            >
+              {photoError}
+            </span>
+          )}
         </div>
       </div>
+
+      <CameraCapturePopup
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={(dataUrl) => applyPatientPhoto(dataUrl)}
+      />
+
+      {/* ถ่ายใหม่ทับรูปเดิม — ต้องยืนยันก่อน */}
+      <AlertDialog
+        open={retakeConfirmOpen}
+        onClose={() => setRetakeConfirmOpen(false)}
+        onCancel={() => setRetakeConfirmOpen(false)}
+        onConfirm={() => {
+          setRetakeConfirmOpen(false);
+          setCameraOpen(true);
+        }}
+        type='warning'
+        alignment='center'
+        title='ถ่ายรูปใหม่ทับรูปเดิม ?'
+        description='รูปยืนยันตัวตนปัจจุบันจะถูกแทนที่ด้วยรูปที่ถ่ายใหม่'
+        cancelLabel='ยกเลิก'
+        confirmLabel='ถ่ายรูปใหม่'
+      />
+
+      {/* TOR 1.1.1.20 — สลับกลุ่ม HN หลังกรอกข้อมูลแล้ว: ยืนยันก่อนล้าง field */}
+      <AlertDialog
+        open={!!hnGroupSwitchTarget}
+        onClose={() => setHnGroupSwitchTarget(null)}
+        onCancel={() => setHnGroupSwitchTarget(null)}
+        onConfirm={() => {
+          applyHnGroup(hnGroupSwitchTarget);
+          setHnGroupSwitchTarget(null);
+        }}
+        type='warning'
+        alignment='center'
+        title='เปลี่ยนกลุ่มการออกเลข HN ?'
+        description='ข้อมูลเอกสารที่ไม่เกี่ยวข้องกับกลุ่มใหม่ (เลขบัตรประชาชน / Passport / วันออก-หมดอายุบัตร) จะถูกล้างออกจากฟอร์ม'
+        cancelLabel='ยกเลิก'
+        confirmLabel='เปลี่ยนกลุ่ม'
+      />
     </div>
   );
 };
