@@ -1,6 +1,10 @@
 import { findMrPatientByHn } from '@/data/mrPatients';
 import { getPatientByHN } from '@/data/patientProfiles';
-import { PATIENT_AVATAR_POOL } from '@/data/avatarAssets';
+import {
+  CHILD_AVATAR_BOY,
+  CHILD_AVATAR_GIRL,
+  PATIENT_AVATAR_POOL,
+} from '@/data/avatarAssets';
 import { resolveConsentFormForWorklistType } from '@/data/consentFormRecords';
 
 /** Short name from MR registration roster (first + last, no prefix). */
@@ -22,28 +26,42 @@ const pickPoolAvatar = (seed) => {
   return PATIENT_AVATAR_POOL[idx];
 };
 
+/** ด.ช. / ด.ญ. / เด็กชาย / เด็กหญิง — ใช้รูปเด็กตามเพศ ไม่ดึงรูปผู้ใหญ่จาก profile */
+export const isConsentMinorName = (name = '') =>
+  /(ด\.ช\.|ด\.ญ\.|เด็กชาย|เด็กหญิง)/u.test(String(name || ''));
+
+export const isConsentMinorGirlName = (name = '') =>
+  /(ด\.ญ\.|เด็กหญิง)/u.test(String(name || ''));
+
+export const childAvatarForName = (name = '') =>
+  (isConsentMinorGirlName(name) ? CHILD_AVATAR_GIRL : CHILD_AVATAR_BOY);
+
 /** Portrait + display name shared with registration queue and OPD screening.
     Always resolves a photo URL so consent worklist rows never show initials-only. */
 export const resolveConsentPatient = (hn, fallbackName = '') => {
   const hnTrim = String(hn || '').trim();
   const lookupHn = baseConsentHn(hnTrim);
   const fallback = String(fallbackName || '').trim();
-  const isMinorLabel = /^(ด\.ช\.|ด\.ญ\.|เด็กชาย|เด็กหญิง)/u.test(fallback);
   const mr = lookupHn ? findMrPatientByHn(lookupHn) : null;
   const profile = lookupHn ? getPatientByHN(lookupHn) : null;
-  const name = isMinorLabel
+
+  const rosterName = mrPatientShortName(mr) || profile?.shortName || '';
+  const candidateName = fallback || rosterName;
+  const minor = isConsentMinorName(fallback) || isConsentMinorName(candidateName);
+
+  /* ชื่อเด็กจาก worklist มาก่อน — อย่าแทนด้วยชื่อผู้ใหญ่ที่ชน HN ใน roster */
+  const name = minor && isConsentMinorName(fallback)
     ? fallback
-    : (mrPatientShortName(mr) || profile?.shortName || fallback);
-  let avatarUrl = profile?.avatarUrl;
-  if (isMinorLabel) {
-    avatarUrl = /ด\.ญ\.|เด็กหญิง/u.test(fallback)
-      ? '/avatars/patient-female-a.png'
-      : '/avatars/mock-male-asian-b.png';
+    : (minor ? candidateName : (rosterName || fallback));
+
+  let avatarUrl;
+  if (minor) {
+    avatarUrl = childAvatarForName(name || fallback);
+  } else {
+    avatarUrl = profile?.avatarUrl || pickPoolAvatar(lookupHn || hnTrim || name);
   }
-  if (!avatarUrl) {
-    avatarUrl = pickPoolAvatar(lookupHn || hnTrim || name);
-  }
-  return { hn: hnTrim, name, avatarUrl };
+
+  return { hn: hnTrim, name, avatarUrl, isMinor: minor };
 };
 
 /** Attach resolved name + avatar + form label for consent worklist rendering. */
@@ -61,33 +79,37 @@ export const enrichConsentRow = (row) => {
   };
 };
 
-/** PatientCard shape — screening roster first, consent avatar fallback. */
+/** PatientCard shape — screening roster first, consent avatar fallback.
+    Display name + avatar follow resolveConsentPatient (same as worklist table). */
 export const resolveConsentPatientCard = (hn, fallbackName = '') => {
   const resolved = resolveConsentPatient(hn, fallbackName);
+  const displayName = resolved.name || fallbackName || '—';
   const profile = getPatientByHN(baseConsentHn(hn));
-  if (profile) {
+  if (profile && !resolved.isMinor) {
     return {
       ...profile,
       hn: resolved.hn || profile.hn,
-      avatarUrl: profile.avatarUrl || resolved.avatarUrl,
-      shortName: resolved.name || profile.shortName,
-      fullName: profile.fullName || resolved.name || fallbackName,
+      avatarUrl: resolved.avatarUrl,
+      shortName: displayName,
+      fullName: displayName,
     };
   }
   return {
     hn: resolved.hn || hn,
-    shortName: resolved.name || fallbackName,
-    fullName: resolved.name || fallbackName,
+    shortName: displayName,
+    fullName: displayName,
     englishName: '',
     avatarUrl: resolved.avatarUrl,
-    sex: '—',
-    age: '—',
-    nationalId: '—',
-    bloodType: '—',
-    patientType: '—',
-    doctor: '—',
-    insurance: '—',
-    address: '—',
+    sex: resolved.isMinor
+      ? (isConsentMinorGirlName(displayName) ? 'หญิง' : 'ชาย')
+      : (profile?.sex || '—'),
+    age: resolved.isMinor ? '—' : (profile?.age || '—'),
+    nationalId: profile && !resolved.isMinor ? (profile.nationalId || '—') : '—',
+    bloodType: profile && !resolved.isMinor ? (profile.bloodType || '—') : '—',
+    patientType: profile && !resolved.isMinor ? (profile.patientType || '—') : '—',
+    doctor: profile && !resolved.isMinor ? (profile.doctor || '—') : '—',
+    insurance: profile && !resolved.isMinor ? (profile.insurance || '—') : '—',
+    address: profile && !resolved.isMinor ? (profile.address || '—') : '—',
     vip: false,
   };
 };

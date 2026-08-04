@@ -12,6 +12,7 @@ import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import emptyHistoryAnim from '@/assets/illustrations/disease-history.json';
+import ConsentSignedFormViewPopup from '@/pages/consent/ConsentSignedFormViewPopup';
 import { CONSENT_TYPE_TONE, CONSENT_STATUS } from '@/data/consentRecords';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import {
@@ -186,9 +187,10 @@ const eventIconFg = (tone) => {
   return 'var(--text-statussummarycard-info-number, #1D4ED8)';
 };
 
-function TimelineEventCard({ ev, showConnector }) {
+function TimelineEventCard({ ev, showConnector, onOpen }) {
   const meta = CONSENT_HISTORY_ACTIONS[ev.action] || { tone: 'grey', icon: 'info' };
   const statusTone = (CONSENT_STATUS[ev.toStatus] || {}).tone || ACTION_BADGE_TONE[meta.tone] || 'grey';
+  const canView = Boolean(onOpen);
   return (
     <div className='flex items-stretch' style={{ gap: 'var(--dim-space-300)' }}>
       <div className='flex flex-col items-center' style={{ width: 24, flexShrink: 0 }}>
@@ -218,24 +220,45 @@ function TimelineEventCard({ ev, showConnector }) {
           />
         )}
       </div>
-      <div
-        className='flex flex-col flex-1 min-w-0'
+      <button
+        type='button'
+        onClick={canView ? () => onOpen(ev) : undefined}
+        className='flex flex-col flex-1 min-w-0 text-left'
         style={{
           ...EVENT_CARD_STYLE,
           gap: 'var(--dim-space-150)',
           marginBottom: showConnector ? 'var(--dim-space-300)' : 0,
+          cursor: canView ? 'pointer' : 'default',
+          font: 'inherit',
+          color: 'inherit',
+          transition: 'border-color 120ms ease, box-shadow 120ms ease',
+        }}
+        onMouseEnter={(e) => {
+          if (!canView) return;
+          e.currentTarget.style.borderColor = 'var(--border-brandPrimary-secondary)';
+          e.currentTarget.style.boxShadow = 'var(--shadow-card)';
+        }}
+        onMouseLeave={(e) => {
+          if (!canView) return;
+          e.currentTarget.style.borderColor = '';
+          e.currentTarget.style.boxShadow = '';
         }}
       >
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
-          <ColorfulBadge style={ACTION_BADGE_TONE[meta.tone] || 'grey'} size='small' hierarchy='secondary' width='hug'>
-            {ev.action}
-          </ColorfulBadge>
-          <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{ev.formCode}</ColorfulBadge>
-          <ColorfulBadge style={CONSENT_TYPE_TONE[ev.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>
-            {ev.type}
-          </ColorfulBadge>
-          <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{ev.version}</ColorfulBadge>
-          <ColorfulBadge style={statusTone} size='small' hierarchy='secondary' width='hug'>{ev.toStatus}</ColorfulBadge>
+        <div className='flex items-start justify-between w-full' style={{ gap: 'var(--dim-space-200)' }}>
+          <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
+            <ColorfulBadge style={ACTION_BADGE_TONE[meta.tone] || 'grey'} size='small' hierarchy='secondary' width='hug'>
+              {ev.action}
+            </ColorfulBadge>
+            <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{ev.formCode}</ColorfulBadge>
+            <ColorfulBadge style={CONSENT_TYPE_TONE[ev.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>
+              {ev.type}
+            </ColorfulBadge>
+            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{ev.version}</ColorfulBadge>
+            <ColorfulBadge style={statusTone} size='small' hierarchy='secondary' width='hug'>{ev.toStatus}</ColorfulBadge>
+          </div>
+          {canView && (
+            <Icon name='chevron_right' size={20} color='var(--text-content-tertiary)' />
+          )}
         </div>
         <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
           {ev.formName}
@@ -243,7 +266,12 @@ function TimelineEventCard({ ev, showConnector }) {
         <span style={BODY_TEXT}>การเปลี่ยนแปลง: {ev.changeDetail}</span>
         <span style={MUTED_XS}>ช่องทาง: {ev.channel}</span>
         <span style={MUTED_XS}>วันเวลา: {ev.dateTime}</span>
-      </div>
+        {canView && (
+          <span style={{ ...MUTED_XS, color: 'var(--text-brandPrimary-default)' }}>
+            กดเพื่อดูแบบฟอร์มความยินยอม
+          </span>
+        )}
+      </button>
     </div>
   );
 }
@@ -361,6 +389,7 @@ function ConsentHistorySearch({ records }) {
 function ConsentHistoryTimeline({ hn, records }) {
   const [actionFilter, setActionFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState({ quick: 'thisyear' });
+  const [viewEvent, setViewEvent] = useState(null);
 
   const { patient, events } = useMemo(
     () => buildPatientConsentTimeline(hn, records),
@@ -445,6 +474,7 @@ function ConsentHistoryTimeline({ hn, records }) {
                       key={ev.id}
                       ev={ev}
                       showConnector={i < group.events.length - 1}
+                      onOpen={setViewEvent}
                     />
                   ))}
                 </div>
@@ -453,6 +483,14 @@ function ConsentHistoryTimeline({ hn, records }) {
           </div>
         )}
       </section>
+
+      <ConsentSignedFormViewPopup
+        open={!!viewEvent}
+        onClose={() => setViewEvent(null)}
+        event={viewEvent}
+        patientHn={patient.hn || hn}
+        patientName={patient.name || ''}
+      />
     </div>
   );
 }
@@ -489,7 +527,7 @@ export default function ConsentHistoryPage() {
             avatarAlt={timelinePatientCard.fullName || timelinePatientCard.shortName || ''}
             cells={[
               {
-                label: 'ชื่อ-นามสกุล ผู้ป่วย',
+                label: 'ชื่อ-นามสกุล ผู้รับบริการ',
                 value: timelinePatientCard.fullName || timelinePatientCard.shortName || '—',
               },
               {

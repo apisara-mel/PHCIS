@@ -22,6 +22,25 @@ import TelemedJoinRequestPopup from '@/components/telemed/TelemedJoinRequestPopu
 import DraggablePip from '@/components/telemed/DraggablePip';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import { appendAuditEvent } from '@/pages/audit/auditData';
+/* ── ส่วนต่อยอด TOR §1.13.1/.2/.6 + §4.3.3 (เพิ่มเข้ามาแบบ additive) ── */
+import TelemedEmrPanel from '@/components/telemed/TelemedEmrPanel';
+import TelemedOrderStrip from '@/components/telemed/TelemedOrderStrip';
+import {
+  getTelemedVisitByHn,
+  addTelemedOrder,
+  cancelTelemedOrder,
+  addTelemedEvidence,
+  setTelemedServiceWindow,
+  subscribeTelemedVisits,
+  formatClock as formatVisitClock,
+} from '@/data/telemedVisits';
+import { canRecordCall, attachRecording } from '@/data/telemedConsent';
+import {
+  getAssessmentByVisit,
+  makeBlankAssessment,
+  saveAssessment,
+} from '@/data/telemedAssessments';
+import { TELEMED_DEFAULT_ROLE, telemedActor } from '@/utils/telemedAccess';
 
 /*
   ระบบ Telemedicine / RPM (TOR ข้อ 1.13) — ฝั่งแพทย์ (PHCIS web).
@@ -652,8 +671,15 @@ const DevicePickerPill = ({ icon, value, options, onChange, ariaLabel }) => {
    the Brand Circle Subdue Icon Button (outline); End Call uses the Danger
    Circle Icon Button (fill). `highlight` maps to the button's Active chrome
    for engaged toggles (sharing / chat open / recording). */
-const ControlBtn = ({ icon, label, onClick, highlight = false, danger, mutedDanger, badge }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--dim-space-100, 4px)' }}>
+const ControlBtn = ({ icon, label, onClick, highlight = false, danger, mutedDanger, badge, disabled = false, title }) => (
+  <div
+    title={title}
+    style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--dim-space-100, 4px)',
+      opacity: disabled ? 0.45 : 1,
+      pointerEvents: disabled ? 'none' : 'auto',
+    }}
+  >
     <div style={{ position: 'relative' }}>
       {danger ? (
         <DangerCircleIconButton variant='fill' size='lg' icon={icon} aria-label={label} onClick={onClick} />
@@ -863,6 +889,29 @@ const DataRow = ({ label, value, tone }) => (
   </div>
 );
 
+/* แสดงแทนแผง EMR / คำสั่ง เมื่อไม่พบ visit ที่ผูกกับผู้รับบริการบนจอนี้ —
+   กันไม่ให้ fallback ไปหยิบเวชระเบียน/คำสั่งของผู้ป่วยรายอื่นมาแสดง */
+const NoVisitNotice = ({ text }) => (
+  <div style={{
+    borderRadius: 'var(--dim-radius-300, 10px)',
+    border: 'var(--dim-stroke-100, 1px) solid var(--border-alert-warning, #FFEDD5)',
+    background: 'var(--surface-alert-warning, #FFF9F0)',
+    paddingTop: 'var(--dim-space-300, 12px)',
+    paddingBottom: 'var(--dim-space-300, 12px)',
+    paddingLeft: 'var(--dim-space-400, 16px)',
+    paddingRight: 'var(--dim-space-400, 16px)',
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 'var(--dim-space-200, 8px)',
+  }}
+  >
+    <Sym name='info' size={18} color='var(--text-alert-warning, #C2410C)' />
+    <span style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-alert-warning, #C2410C)', lineHeight: 1.6, fontFamily: 'var(--type-family-body, sans-serif)' }}>
+      {text}
+    </span>
+  </div>
+);
+
 const SectionTitle = ({ icon, children, right }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--dim-space-200, 8px)', marginBottom: 'var(--dim-space-200, 8px)' }}>
     {icon && <Sym name={icon} size={18} fill={1} color='var(--icon-brandPrimary-default, #007549)' />}
@@ -933,6 +982,10 @@ const DocumentPage = ({ doc }) => (
 const RIGHT_TABS = [
   { key: 'docs', label: 'เอกสาร', icon: 'description' },
   { key: 'health', label: 'ข้อมูลสุขภาพ', icon: 'ecg_heart' },
+  /* TOR §1.13.1/.2/.6 — EMR จาก PHCIS + แผงประเมินในสาย (ตามสิทธิ์) */
+  { key: 'emr', label: 'EMR / ประเมิน', icon: 'clinical_notes' },
+  /* TOR §4.3.3 — สั่งยา / LAB / X-ray / ปรึกษา / ส่งต่อ ระหว่างสาย */
+  { key: 'orders', label: 'คำสั่ง', icon: 'prescriptions' },
   { key: 'chat', label: 'แชท', icon: 'chat' },
 ];
 
@@ -1165,10 +1218,35 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setChat((c) => [...c, { id: Date.now(), me: true, file: { name: file.name, size: file.size }, t: 'ตอนนี้' }]);
   };
 
+  /* ── ต่อยอด: ผูก visit + ทะเบียนความยินยอมจริง (TOR §1.13.8/.9) ──────
+     สายผูกกับ "ผู้รับบริการที่แสดงอยู่บนจอนี้" (PATIENT.hn) เท่านั้น —
+     เดิมเลือกรายการแรกที่สถานะ inprogress/waiting ทำให้ EMR / คำสั่ง /
+     ทะเบียนความยินยอมเป็นของคนอื่น (ข้อมูลผู้ป่วยข้ามคน). ถ้าไม่มี visit
+     ที่ตรง HN → ไม่แสดงข้อมูลใคร แต่ขึ้นสถานะ "ไม่พบรายการปรึกษา". */
+  const [visitTick, setVisitTick] = useState(0);
+  useEffect(() => subscribeTelemedVisits(() => setVisitTick((t) => t + 1)), []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const activeVisit = React.useMemo(() => getTelemedVisitByHn(PATIENT.hn) || null, [visitTick]);
+  const noVisitNotice = `ไม่พบรายการปรึกษาของผู้รับบริการรายนี้ (HN ${PATIENT.hn}) — สร้างรายการที่หน้าห้องตรวจทางไกลก่อน`;
+  const recordability = React.useMemo(
+    () => (activeVisit ? canRecordCall(activeVisit.id) : { allowed: false, reason: noVisitNotice }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeVisit, visitTick],
+  );
+  const telemedRole = TELEMED_DEFAULT_ROLE;
+
   const toggleRecord = () => {
     if (recording) {
       setRecording(false);
+      if (activeVisit && recordability.consent) {
+        attachRecording(recordability.consent.key, null, telemedActor(telemedRole));
+      }
       appendAuditEvent({ user: DOCTOR.name, action: 'หยุดบันทึกวิดีโอ' });
+      return;
+    }
+    /* ไม่มีความยินยอมในทะเบียน → ปุ่มถูก disable อยู่แล้ว กันไว้อีกชั้น */
+    if (!recordability.allowed) {
+      appendAuditEvent({ user: DOCTOR.name, action: `พยายามบันทึกสายโดยไม่มีความยินยอม — ${recordability.reason}`, ok: false });
       return;
     }
     if (consent === 'granted') {
@@ -1184,7 +1262,45 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setConsentModal(false);
     appendAuditEvent({ user: DOCTOR.name, action: 'ยินยอมบันทึกวิดีโอ + เริ่มบันทึก' });
   };
-  const denyConsent = () => { setConsentModal(false); };
+  const denyConsent = () => {
+    setConsentModal(false);
+    setConsent('denied');
+    setRecording(false);
+    appendAuditEvent({ user: DOCTOR.name, action: 'ผู้รับบริการปฏิเสธการบันทึกสาย — หยุดบันทึกทันที', ok: false });
+  };
+
+  /* ผู้รับบริการเพิกถอนกลางสาย (ทะเบียนเปลี่ยนสถานะ) → หยุดบันทึกทันที */
+  useEffect(() => {
+    if (recording && !recordability.allowed) {
+      setRecording(false);
+      appendAuditEvent({
+        user: DOCTOR.name,
+        action: `หยุดบันทึกอัตโนมัติ — ${recordability.reason} (แจ้งทุกฝ่ายในสาย · ไฟล์เข้าคิวลบตาม retention)`,
+        ok: false,
+      });
+    }
+  }, [recordability.allowed, recording, recordability.reason]);
+
+  /* บันทึกเวลาเริ่ม-สิ้นสุดการให้บริการลง visit (คู่มือ 5.3.5) */
+  const [serviceStamped, setServiceStamped] = useState(false);
+  const stampServiceStart = () => {
+    if (!activeVisit || serviceStamped) return;
+    setTelemedServiceWindow(activeVisit.id, { startedAt: new Date().toISOString() }, telemedActor(telemedRole));
+    setServiceStamped(true);
+  };
+  const stampServiceEnd = () => {
+    if (!activeVisit) return;
+    setTelemedServiceWindow(activeVisit.id, { endedAt: new Date().toISOString() }, telemedActor(telemedRole));
+  };
+  const uploadEvidence = () => {
+    if (!activeVisit) return;
+    addTelemedEvidence(
+      activeVisit.id,
+      { name: `telemed-call-${Date.now()}.png`, type: 'image/png', sizeMb: 0.6 },
+      telemedActor(telemedRole),
+    );
+    appendAuditEvent({ user: DOCTOR.name, action: 'อัพโหลดภาพหลักฐานการให้บริการ' });
+  };
 
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [layoutOpen, setLayoutOpen] = useState(false);
@@ -2694,6 +2810,112 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
               </div>
             )}
 
+            {/* ── TOR §1.13.1/.2/.6 — EMR จาก PHCIS + แผงประเมินในสาย ── */}
+            {rightTab === 'emr' && (activeVisit ? (
+              <TelemedEmrPanel
+                hn={activeVisit.hn}
+                patientName={activeVisit.name}
+                visitId={activeVisit.id}
+                role={telemedRole}
+                gis={ASSESSMENT_GIS}
+                onOpenTreatmentRecord={() => history.push('/treat/record')}
+                onSaveAssessment={(payload) => {
+                  const base = getAssessmentByVisit(activeVisit.id) || makeBlankAssessment(activeVisit);
+                  saveAssessment({
+                    ...base,
+                    vitals: {
+                      ...base.vitals,
+                      bpSys: payload.bpSys,
+                      bpDia: payload.bpDia,
+                      pulse: payload.pulse,
+                      o2sat: payload.o2sat,
+                      temp: payload.temp,
+                      dtx: payload.dtx,
+                    },
+                    assessment: {
+                      ...base.assessment,
+                      symptoms: payload.symptoms,
+                      diagnosis: payload.diagnosis,
+                      severity: payload.severity,
+                    },
+                    plan: { ...base.plan, treatmentPlan: payload.plan },
+                  }, telemedActor(telemedRole), { final: false });
+                  appendAuditEvent({ user: DOCTOR.name, action: `บันทึกการประเมินระหว่างสาย · ${activeVisit.name}` });
+                }}
+              />
+            ) : (
+              <div style={{ paddingTop: 'var(--dim-space-400, 16px)', paddingBottom: 'var(--dim-space-400, 16px)', paddingLeft: 'var(--dim-space-400, 16px)', paddingRight: 'var(--dim-space-400, 16px)' }}>
+                <NoVisitNotice text={noVisitNotice} />
+              </div>
+            ))}
+
+            {/* ── TOR §4.3.3 — คำสั่งการรักษาระหว่างสาย + หลักฐานการให้บริการ ── */}
+            {rightTab === 'orders' && (
+              <div style={{ paddingTop: 'var(--dim-space-400, 16px)', paddingBottom: 'var(--dim-space-400, 16px)', paddingLeft: 'var(--dim-space-400, 16px)', paddingRight: 'var(--dim-space-400, 16px)', display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-400, 16px)' }}>
+                {!activeVisit && <NoVisitNotice text={noVisitNotice} />}
+                {activeVisit && (
+                <TelemedOrderStrip
+                  compact
+                  orders={activeVisit.orders || []}
+                  role={telemedRole}
+                  onAddOrder={(order) => {
+                    addTelemedOrder(activeVisit.id, { ...order, by: telemedActor(telemedRole) }, telemedActor(telemedRole));
+                    appendAuditEvent({ user: DOCTOR.name, action: `สั่งการรักษาระหว่างสาย · ${order.label}` });
+                  }}
+                  onCancelOrder={(orderId, reason) => {
+                    cancelTelemedOrder(activeVisit.id, orderId, reason, telemedActor(telemedRole));
+                    appendAuditEvent({ user: DOCTOR.name, action: `ยกเลิกคำสั่งการรักษา · ${reason}`, ok: false });
+                  }}
+                />
+                )}
+
+                {activeVisit && (
+                <div style={boxStyle}>
+                  <SectionTitle icon='photo_camera'>หลักฐานการให้บริการ</SectionTitle>
+                  <p style={{ marginTop: 0, marginRight: 0, marginBottom: 'var(--dim-space-200, 8px)', marginLeft: 0, fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858C92)', lineHeight: 1.5 }}>
+                    ต้องมีภาพหลักฐานและเวลาเริ่ม-สิ้นสุดการให้บริการจึงจะเบิกจ่ายได้ (คู่มือ 5.3.5)
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--dim-space-200, 8px)' }}>
+                    <button type='button' onClick={uploadEvidence} style={chipBtnStyle}>
+                      <Sym name='photo_camera' size={16} /> อัพโหลดภาพหน้าจอ
+                    </button>
+                    <button type='button' onClick={stampServiceStart} style={chipBtnStyle}>
+                      <Sym name='play_arrow' size={16} /> บันทึกเวลาเริ่ม
+                    </button>
+                    <button type='button' onClick={stampServiceEnd} style={chipBtnStyle}>
+                      <Sym name='stop' size={16} /> บันทึกเวลาสิ้นสุด
+                    </button>
+                  </div>
+                  <div style={{ marginTop: 'var(--dim-space-300, 12px)', display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-100, 4px)' }}>
+                    <DataRow label='เวลาเริ่มให้บริการ' value={activeVisit?.startedAt ? formatVisitClock(activeVisit.startedAt) : 'ยังไม่บันทึก'} />
+                    <DataRow label='เวลาสิ้นสุด' value={activeVisit?.endedAt ? formatVisitClock(activeVisit.endedAt) : 'ยังไม่บันทึก'} />
+                    <DataRow
+                      label='ไฟล์หลักฐาน'
+                      value={`${activeVisit.evidence?.length || 0} ไฟล์`}
+                      tone={activeVisit.evidence?.length ? undefined : 'warn'}
+                    />
+                  </div>
+                </div>
+                )}
+
+                {activeVisit && (
+                <div style={boxStyle}>
+                  <SectionTitle icon='verified_user'>สถานะความยินยอมของสายนี้</SectionTitle>
+                  <DataRow
+                    label='บันทึกสาย'
+                    value={recordability.allowed ? 'บันทึกได้' : 'บันทึกไม่ได้'}
+                    tone={recordability.allowed ? undefined : 'danger'}
+                  />
+                  {!recordability.allowed && (
+                    <p style={{ marginTop: 'var(--dim-space-150, 6px)', marginRight: 0, marginBottom: 0, marginLeft: 0, fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-alert-error, #B91C1C)', lineHeight: 1.5 }}>
+                      {recordability.reason} — จัดการได้ที่ทะเบียนความยินยอม (/telemed/consent)
+                    </p>
+                  )}
+                </div>
+                )}
+              </div>
+            )}
+
             {rightTab === 'chat' && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--surface-card-100, #FFFFFF)' }}>
                 <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-400, 16px)' }}>
@@ -2843,7 +3065,17 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
         <ControlBtn icon='chat' label='แชท' highlight={rightTab === 'chat'} badge={chatBadge} onClick={() => setRightTab('chat')} />
         <ControlBtn icon='dashboard' label='เลย์เอาต์' highlight={layoutOpen || videoLayout !== 'auto'} onClick={() => setLayoutOpen(true)} />
         <ControlBtn icon={speakerOn ? 'volume_up' : 'volume_off'} label={speakerOn ? 'ปิดลำโพง' : 'เปิดลำโพง'} mutedDanger={!speakerOn} onClick={() => setSpeakerOn((v) => !v)} />
-        <ControlBtn icon='radio_button_checked' label={recording ? 'หยุดบันทึก' : 'บันทึกสาย'} highlight={recording} onClick={toggleRecord} />
+        {/* TOR §1.13.8/.9 — ไม่มีความยินยอมในทะเบียน = ปุ่มถูกปิดตั้งแต่ต้น */}
+        <ControlBtn
+          icon='radio_button_checked'
+          label={recording ? 'หยุดบันทึก' : 'บันทึกสาย'}
+          highlight={recording}
+          disabled={!recording && !recordability.allowed}
+          title={recordability.allowed ? undefined : recordability.reason}
+          onClick={toggleRecord}
+        />
+        <ControlBtn icon='clinical_notes' label='EMR / ประเมิน' highlight={rightTab === 'emr'} onClick={() => setRightTab('emr')} />
+        <ControlBtn icon='prescriptions' label='คำสั่ง' highlight={rightTab === 'orders'} onClick={() => setRightTab('orders')} />
         <ControlBtn icon='call_end' label='วางสาย' danger onClick={requestLeave} />
       </footer>
 

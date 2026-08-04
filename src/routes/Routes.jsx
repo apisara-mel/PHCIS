@@ -124,6 +124,11 @@ import KioskPage from '@/pages/kiosk/KioskPage';
 import MobileTicketPage from '@/pages/kiosk/MobileTicketPage';
 import FinancePaymentPage from '@/pages/finance/FinancePaymentPage';
 import { TelemedCallProvider, TelemedRouteTrigger } from '@/components/telemed/TelemedCallProvider';
+import TelemedWorklistPage from '@/pages/telemed/TelemedWorklistPage';
+import TelemedRpmBoardPage from '@/pages/telemed/TelemedRpmBoardPage';
+import TelemedConsentPage from '@/pages/telemed/TelemedConsentPage';
+import TelemedReportPage from '@/pages/telemed/TelemedReportPage';
+import TelemedAssessmentPage from '@/pages/telemed/TelemedAssessmentPage';
 import Spotlight from '@/components/util/Spotlight';
 import { MobileAppProvider } from '@/components/mobile/MobileShell';
 import MobileLoginPage from '@/pages/mobile/MobileLoginPage';
@@ -424,6 +429,15 @@ export default function Routes() {
             เปิดจากปุ่ม Telemedicine (floating) ในระบบบันทึกการรักษา.
             Standalone full-screen surface — ไม่มี PHCIS sidebar chrome. */}
         <Route exact path='/telemed'                     component={TelemedRouteTrigger} />
+        {/* หน้าจัดการของโมดูล Telemedicine (worklist / RPM / PDPA consent /
+            รายงาน) ต้องอยู่ **เหนือ** /telemed/:visitId ไม่งั้น param route
+            จะกลืนทุก path แล้วเปิดสายทันที. /telemed/assessment/:visitId
+            เป็น 3 ส่วนจึงไม่ชนกับ :visitId */}
+        <Route exact path='/telemed/worklist'            component={TelemedWorklistPage} />
+        <Route exact path='/telemed/rpm'                 component={TelemedRpmBoardPage} />
+        <Route exact path='/telemed/consent'             component={TelemedConsentPage} />
+        <Route exact path='/telemed/reports'             component={TelemedReportPage} />
+        <Route exact path='/telemed/assessment/:visitId' component={TelemedAssessmentPage} />
         <Route exact path='/telemed/:visitId'            component={TelemedRouteTrigger} />
 
         {/* Legacy chrome-free preview sandboxes (kept for reference) */}

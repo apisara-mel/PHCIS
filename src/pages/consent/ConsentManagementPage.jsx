@@ -3,11 +3,12 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralButton from '@/components/button/NeutralButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
@@ -82,6 +83,24 @@ const TEXT_CELL = {
 };
 const MUTED_CELL = { ...TEXT_CELL, color: 'var(--text-content-tertiary)' };
 
+const THAI_MONTHS = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+];
+
+/** "2 มีนาคม 2569" → sort key (CE ms); invalid → 0 */
+const thaiDateSortKey = (raw) => {
+  const s = String(raw || '').trim();
+  if (!s || s === '-') return 0;
+  const monthIdx = THAI_MONTHS.findIndex((m) => s.includes(m));
+  const yearMatch = s.match(/(25\d{2}|20\d{2})/);
+  const dayMatch = s.match(/^(\d{1,2})\s/);
+  if (monthIdx < 0 || !yearMatch || !dayMatch) return 0;
+  let year = Number(yearMatch[1]);
+  if (year >= 2400) year -= 543;
+  return new Date(year, monthIdx, Number(dayMatch[1])).getTime() || 0;
+};
+
 const Cell = ({ value }) =>
   value && value !== '-'
     ? <span style={TEXT_CELL}>{value}</span>
@@ -106,7 +125,7 @@ export default function ConsentManagementPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [page, setPage] = useState(1);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'createdDate', direction: 'asc' });
   const [dialog, setDialog] = useState(null);      // { record, confirmKey }
   /* ── Workflow popups (ด.1.1.4 / ด.1.1.7 / ด.1.1.8 / ด.1.1.1 / ด.1.1.2) ── */
   const [createOpen, setCreateOpen] = useState(false);
@@ -223,11 +242,6 @@ export default function ConsentManagementPage() {
   const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
   const hideStatusFilter = STATUS_FILTER_HIDDEN_TABS.has(activeTab);
   const hideFilters = FILTERS_HIDDEN_TABS.has(activeTab);
-  const isAllFilters = !filterType && !filterChannel && (!filterStatus || hideStatusFilter) && !filterDate;
-
-  const resetFilters = () => {
-    setFilterType(''); setFilterChannel(''); setFilterStatus(''); setFilterDate(''); setPage(1);
-  };
 
   const handleSubmit = (value, item) => {
     const q = (item?.value || item?.label || value || '').trim();
@@ -241,33 +255,46 @@ export default function ConsentManagementPage() {
   const pushToast = (message, variant = 'success') =>
     setToast({ id: Date.now(), variant, message });
 
-  /* Re-Consent จริง (ด.1.1.7): record เดิม → "หมดอายุ-Reconsent" + เกิด record
-     ใหม่ "รอลงนาม" เวอร์ชันล่าสุดพร้อมช่องทาง/วันครบกำหนด. */
+  /* Re-Consent (ด.1.1.7): อัปเดตแถวเดิม → «รอลงนาม» แล้วไปแท็บรอดำเนินการ
+     (ชื่อ/HN/แบบฟอร์มคงที่จากแถวตาราง — ไม่สร้างแถวซ้ำ) */
   const runReconsent = (record, { channel, dueDate, latestVersion }) => {
-    const id = nextId();
-    const next = getConsentRecords()
-      .map((r) => (r.id === record.id ? { ...r, status: 'หมดอายุ-Reconsent', pendingReconsent: true } : r))
-      .concat([{
-        id,
-        hn: record.hn,
-        name: record.name,
-        type: record.type,
-        formCode: record.formCode,
-        formName: record.formName,
-        version: latestVersion || record.version,
-        status: 'รอลงนาม',
-        signChannel: '-',
-        requestChannel: channel,
-        requester: STAFF_NAME,
-        createdDate: todayThai(),
-        signedDate: '-',
-        withdrawnDate: '-',
-        dueDate,
-        guardian: record.guardian,
-        history: [...(record.history || [])],
-      }]);
+    const prevStatus = record.status === 'หมดอายุ-Reconsent' ? 'หมดอายุ' : record.status;
+    const next = getConsentRecords().map((r) => (
+      r.id !== record.id
+        ? r
+        : {
+            ...r,
+            status: 'รอลงนาม',
+            version: latestVersion || r.version,
+            signChannel: '-',
+            requestChannel: channel,
+            requester: STAFF_NAME,
+            createdDate: todayThai(),
+            signedDate: '-',
+            withdrawnDate: '-',
+            dueDate,
+            pendingReconsent: false,
+            history: [
+              ...(r.history || []),
+              {
+                date: todayThai(),
+                action: 'สร้างคำขอ',
+                fromStatus: prevStatus,
+                toStatus: 'รอลงนาม',
+                formCode: r.formCode,
+                formName: r.formName,
+                type: r.type,
+                version: latestVersion || r.version,
+                channel,
+                status: 'รอลงนาม',
+              },
+            ],
+          }
+    ));
     setConsentRecords(next);
-    pushToast(`สร้างคำขอ Re-Consent ของ ${record.name} แล้ว — รอลงนามผ่าน${channel} ภายใน ${dueDate}`);
+    setActiveTab('pending');
+    setPage(1);
+    pushToast(`สร้างคำขอ ReConsent ของ ${record.name} แล้ว`);
   };
 
   /* ด.1.1.1 — ผ่านการพิสูจน์ตัวตนแล้วค่อยปล่อย action ที่ทำแทนเจ้าของข้อมูล */
@@ -284,9 +311,6 @@ export default function ConsentManagementPage() {
   /* ── Status-dependent action column ─────────────────────────────── */
   const renderAction = (row) => {
     const action = (CONSENT_STATUS[row.status] || {}).action;
-    const isReconsent = action && action.confirm === 'reconsent';
-    /* Edge: มีคำขอ reconsent ค้างอยู่แล้ว → ปุ่ม disabled + tooltip */
-    const reconsentBlocked = isReconsent && row.pendingReconsent;
     const fireAction = () => {
       if (!action) return;
       if (action.confirm === 'revoke' && !canRevoke) return;
@@ -325,21 +349,23 @@ export default function ConsentManagementPage() {
           />
         )}
         {action && (
-          <span title={reconsentBlocked ? 'มีคำขอรอลงนามอยู่แล้ว' : undefined}>
-            {action.kind === 'brand' ? (
-              <BrandButton variant='fill' size='sm' disabled={reconsentBlocked} onClick={fireAction}>
-                {action.label}
-              </BrandButton>
-            ) : action.kind === 'subdued' ? (
-              <NeutralSubdueButton variant='outline' size='sm' disabled={reconsentBlocked} onClick={fireAction}>
-                {action.label}
-              </NeutralSubdueButton>
-            ) : (
-              <NeutralButton variant='outline' size='sm' disabled={reconsentBlocked} onClick={fireAction}>
-                {action.label}
-              </NeutralButton>
-            )}
-          </span>
+          action.kind === 'brand' ? (
+            <BrandButton variant='fill' size='sm' onClick={fireAction}>
+              {action.label}
+            </BrandButton>
+          ) : action.kind === 'brandSubdue' ? (
+            <BrandSubdueButton variant='outline' size='sm' onClick={fireAction}>
+              {action.label}
+            </BrandSubdueButton>
+          ) : action.kind === 'subdued' ? (
+            <NeutralSubdueButton variant='outline' size='sm' onClick={fireAction}>
+              {action.label}
+            </NeutralSubdueButton>
+          ) : (
+            <NeutralButton variant='outline' size='sm' onClick={fireAction}>
+              {action.label}
+            </NeutralButton>
+          )
         )}
       </div>
     );
@@ -389,7 +415,9 @@ export default function ConsentManagementPage() {
       key: 'status', header: 'สถานะ', width: 160, sortable: true,
       render: (r) => (
         <div className='flex flex-col items-start' style={{ gap: 'var(--dim-space-050)' }}>
-          <ColorfulBadge style={(CONSENT_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>
+          <ColorfulBadge style={(CONSENT_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>
+            {(CONSENT_STATUS[r.status] || {}).label || r.status}
+          </ColorfulBadge>
           {/* ด.1.1.7 — countdown บนแท็บใกล้หมดอายุ */}
           {r.expiresInDays != null && (CONSENT_STATUS[r.status] || {}).tab === 'expiring' && (
             <span style={{ color: 'var(--text-danger-default, #B91C1C)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', lineHeight: 1.4 }}>
@@ -428,7 +456,7 @@ export default function ConsentManagementPage() {
     { key: 'createdDate', header: 'วันที่สร้างคำขอ/Reconsent', width: 210, sortable: true, render: (r) => <Cell value={r.createdDate} /> },
     { key: 'signedDate', header: 'วันที่ลงนาม', width: 150, render: (r) => <Cell value={r.signedDate} /> },
     { key: 'withdrawnDate', header: 'วันที่ถอนความยินยอม', width: 180, render: (r) => <Cell value={r.withdrawnDate} /> },
-    { key: 'action', header: 'การดำเนินการ', width: 210, render: renderAction },
+    { key: 'action', header: 'การดำเนินการ', width: 280, render: renderAction },
   ], []);
 
   const confirm = dialog ? CONSENT_CONFIRM[dialog.confirmKey] : null;
@@ -534,7 +562,6 @@ export default function ConsentManagementPage() {
                 <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
                   {!hideFilters && (
                     <>
-                      <FilterTag value='ทั้งหมด' selected={isAllFilters} onClick={resetFilters} />
                       <FilterDropdown prefix='ประเภท:' options={typeOptions} value={filterType} onChange={(v) => { setFilterType(v); setPage(1); }} />
                       <FilterDropdown prefix='ช่องทาง:' options={channelOptions} value={filterChannel} onChange={(v) => { setFilterChannel(v); setPage(1); }} />
                       {!hideStatusFilter && (

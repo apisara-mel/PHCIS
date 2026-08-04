@@ -137,6 +137,16 @@
 ]
 ```
 
+## Wave M — ระบบงานผู้ดูแลระบบ §1.17 (ต่อจาก Wave L — คำสั่ง user 5 ส.ค. ~00:00)
+
+สถานะ: done 5 / partial 4 / todo 5
+
+```json
+[
+  {"id":"1.17","name":"ระบบงานผู้ดูแลระบบ (Admin)","route":"/users","dir":"src/pages/users","notes":"todo 5 + partial 4 — ปิดให้ครบ: **1.17.1.1 Directory Service (OIDC/SAML)** สร้างหน้าตั้งค่าการเชื่อมต่อ IdP (provider, client id, endpoints, attribute mapping, ทดสอบการเชื่อมต่อ, สถานะ sync) แบบ UI + mock; **1.17.3 Routing คำสั่งยาระหว่างคลินิกกับห้องยา** — ตารางกติกา clinic→pharmacy พร้อมลำดับความสำคัญ/เงื่อนไข/fallback และตรวจกติกาซ้อนทับ; **1.17.5.3 บันทึกตารางการทำงานของผู้ใช้** (เชื่อมกับ /schedule ที่มีอยู่แบบอ่านอย่างเดียว ห้ามแก้ src/pages/schedule); **1.17.5.4 สลับศูนย์บริการที่กำลังให้บริการ** — center switcher ใน profile menu + ผลต่อ context ทั้งระบบ; **1.17.5.5 ระบบแจ้งเตือน** — ศูนย์รวมการแจ้งเตือน (รับส่งตัว/รับผล/ส่งตรวจ/ค่าวิกฤต) + ตั้งค่าช่องทางรายบุคคล; partial: 1.17.1.3 User Attribute ครบตาม TOR (Department, Department-Code, รหัสวิชาชีพ, Given/Last Name, Email, Title, Active), 1.17.4.1 OTP ยืนยันตัวตนตอนลงทะเบียน (mock อีเมล+SMS), 1.17.4.3 รายงานการใช้งาน + export XLS/PDF, 1.17.5.1 เข้าสู่ระบบหลายช่องทาง (QR scan + OTP) ระบบเดิม: src/pages/users (UsersAccessPage 466, UserEditPage 606), src/pages/system (centers/staff/roles), src/pages/assess (group policy/dept/position/ACL), src/pages/audit ต่อยอด ห้ามรื้อ อนุญาตแก้ src/pages/users, src/pages/system, src/pages/assess, src/pages/audit, src/data/usersAccess.js + centerStore.js + auditData.js ห้ามแตะ src/pages/schedule, src/pages/telemed, src/pages/lab, src/pages/clinic/*, src/pages/appointment"}
+]
+```
+
 ## Wave 3 — เก็บ gap ระบบเดิม (Day 2 เช้า)
 
 โมดูลใน wave นี้แก้ไฟล์เดิมของระบบตัวเองได้ (ยังห้ามแตะ shared files เหมือนเดิม)

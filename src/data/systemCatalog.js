@@ -90,7 +90,9 @@ export const SYSTEM_CATALOG = [
 /* ตั้งใจไม่อยู่ในแคตตาล็อกนี้ — /kiosk, /m (mobile), /telemed และ
    /queue-center (ระบบบริหารจัดการคิว + จอ TV, TOR §1.3):
    ทั้งหมดเป็น sub-system **ภายใน** PHCIS ไม่ใช่ระบบระดับเดียวกับ PHCIS จึงเข้า
-   ผ่านเมนู Sidebar ของ PHCIS แทน (queue-center อยู่ใน ITEMS ของ Sidebar.jsx).
+   ผ่านเมนู Sidebar ของ PHCIS แทน (queue-center และ telemed อยู่ใน ITEMS ของ
+   Sidebar.jsx — telemed เป็นเมนูที่มี subItems: worklist / RPM / consent /
+   reports โดยรายการหลักชี้ /telemed/worklist ไม่ใช่ /telemed ที่เปิดสายทันที).
    อีกสองเหตุผลเชิงกลไก: ทุกรายการที่นี่ต้องมีภาพประกอบใน public/illustration/hub/
    ซึ่งยังไม่มีของคิว และ SYSTEM_CATALOG_ROWS ข้างล่างตัดเป็น 3×3 พอดี — รายการ
    ที่ 10 ขึ้นไปจะไม่ถูก render เลย. ถ้าจะเพิ่มจริงต้องแก้ทั้ง grid และเพิ่ม asset. */

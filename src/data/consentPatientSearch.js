@@ -24,19 +24,21 @@ const digitsOnly = (s) => String(s || '').replace(/\D/g, '');
 /** Resolve display fields for a consent-directory HN. */
 export const resolveConsentSearchPatient = (hn, fallbackName = '') => {
   const p = resolveConsentPatient(hn, fallbackName);
-  const profile = getPatientByHN(p.hn);
-  const mr = findMrPatientByHn(p.hn);
-  const label = profile?.fullName
-    || (mr ? `${mr.prefixTh || ''}${mr.firstNameTh} ${mr.lastNameTh}`.trim() : p.name);
+  const profile = p.isMinor ? null : getPatientByHN(p.hn);
+  const mr = p.isMinor ? null : findMrPatientByHn(p.hn);
+  const label = p.isMinor
+    ? p.name
+    : (profile?.fullName
+      || (mr ? `${mr.prefixTh || ''}${mr.firstNameTh} ${mr.lastNameTh}`.trim() : p.name));
   const nationalId = digitsOnly(profile?.nationalId || mr?.nationalId);
   const phone = profile?.phone || mr?.phone || '';
   return {
     hn: p.hn,
-    name: profile?.shortName || p.name,
+    name: p.name,
     label,
     nationalId,
     phone,
-    avatarUrl: profile?.avatarUrl || p.avatarUrl,
+    avatarUrl: p.avatarUrl,
   };
 };
 
