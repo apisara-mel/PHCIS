@@ -64,6 +64,15 @@ import ProblemListPanel from '@/pages/treat/panels/ProblemListPanel';
 import DiagnosisCodingPanel from '@/pages/treat/panels/DiagnosisCodingPanel';
 import ClinicalNotesPanel from '@/pages/treat/panels/ClinicalNotesPanel';
 import MedRecPanel from '@/pages/treat/panels/MedRecPanel';
+/* CPOE §1.5 — panel ของหมวดสั่งการรักษาแยกเป็นไฟล์ละหมวดใน
+   src/pages/treat/panels/ (pattern เดียวกับ MedRecPanel) เพื่อไม่ให้
+   ไฟล์นี้บวมต่อ. ทุก panel อ่าน `form` แบบ optional-chaining ทั้งหมด
+   เพราะ NcdSteps.jsx ส่ง form คนละรูปเข้ามาที่ Step5Orders เดียวกัน. */
+import MedicationCdssPanel from '@/pages/treat/panels/MedicationCdssPanel';
+import LabOrderPanel from '@/pages/treat/panels/LabOrderPanel';
+import RadiologyOrderPanel from '@/pages/treat/panels/RadiologyOrderPanel';
+import ProcedureOrderPanel from '@/pages/treat/panels/ProcedureOrderPanel';
+import ConsultComposerPanel from '@/pages/treat/panels/ConsultComposerPanel';
 import DocumentCenterPanel from '@/pages/treat/panels/DocumentCenterPanel';
 import AISearch from '@/components/search/AISearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
@@ -554,6 +563,11 @@ const XrayHistoryTabPanel = ({ patient }) => {
 export const MedicalHistoryReadOnlyLayout = ({
   patient, hideSectionTitle = false, independentScroll = false,
   form = null, setForm = null, onStepChange = null,
+  /* CPOE §1.5 — /treat/record มี 8 ขั้นแล้ว (แทรก SOAP Note) ทำให้ index
+     ของ "สั่งการรักษา" เลื่อนจาก 4 → 5. ผู้เรียกที่ส่ง `stepIndexes` มา
+     (TreatmentFormPage) จะได้ index ที่ถูกต้อง ส่วนคลินิกอื่นที่ยังใช้ 7 ขั้น
+     (NCD ฯลฯ) ไม่ส่งมา จึง fallback เป็นค่าคงที่เดิม — พฤติกรรมไม่เปลี่ยน */
+  stepIndexes = null,
 }) => {
   const visits = useMemo(() => findVisitDetailsByHn(patient?.hn), [patient?.hn]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -654,7 +668,9 @@ export const MedicalHistoryReadOnlyLayout = ({
         ) : HISTORY_TABS[activeTab] === HISTORY_TAB_LABRAD ? (
           <LabRadiologyResultsPanel
             patient={patient}
-            onGoToOrders={onStepChange ? () => onStepChange(STEP_ORDERS_INDEX) : undefined}
+            onGoToOrders={onStepChange
+              ? () => onStepChange(stepIndexes?.orders ?? STEP_ORDERS_INDEX)
+              : undefined}
           />
         ) : HISTORY_TABS[activeTab] === HISTORY_TAB_VACCINE ? (
           <VaccineGrowthPanel patient={patient} form={form || {}} />
@@ -704,12 +720,13 @@ export const MedicalHistoryReadOnlyLayout = ({
   );
 };
 
-export const Step1History = ({ patient, form, setForm, onStepChange }) => (
+export const Step1History = ({ patient, form, setForm, onStepChange, stepIndexes }) => (
   <MedicalHistoryReadOnlyLayout
     patient={patient}
     form={form}
     setForm={setForm}
     onStepChange={onStepChange}
+    stepIndexes={stepIndexes}
   />
 );
 
@@ -2458,7 +2475,17 @@ const ORDER_TABLE_TEXT = {
   consult:    { title: 'รายการขอปรึกษา',                   subtitle: 'กด " + " เพื่อเพิ่มรายการขอปรึกษาเข้าใน Order' },
 };
 
-export const Step5Orders = ({ form, setForm, patient }) => {
+/* CPOE §1.5 — หมวดที่มี panel เต็มรูปของตัวเองแล้ว (แทน empty state เดิม
+   ที่ไม่มี picker). `medication` และ `xray` ยังใช้ตาราง/ปุ่มเดิมทั้งหมด
+   แล้วเสริม panel ต่อท้าย จึงไม่อยู่ในชุดนี้. */
+const CPOE_PANEL_CATEGORIES = new Set(['lab', 'procedure', 'consult']);
+
+/* `onStepChange` / `stepIndexes` ถูกส่งมาจาก TreatmentFormPage อยู่แล้ว —
+   รับไว้เพื่อให้สัญญาณ §1.5.4.15 มีปุ่ม "ไปแนบเอกสาร" ที่กระโดดไปขั้นเอกสาร
+   ได้จริง. ผู้เรียกที่ไม่มีขั้นเอกสาร (ไม่ส่ง stepIndexes) จะไม่เห็นปุ่มนี้ */
+export const Step5Orders = ({
+  form, setForm, patient, cardPatient, onStepChange = null, stepIndexes = null,
+}) => {
   const setCategory = (key) => setForm((s) => ({ ...s, orderCategory: key }));
   const dismissAlert = () => setForm((s) => ({ ...s, showAllergyAlert: false }));
 
@@ -2827,6 +2854,21 @@ export const Step5Orders = ({ form, setForm, patient }) => {
             จึงลัดออกก่อนถึง empty-state/ตารางของ 5 หมวดเดิม */}
         {activeCategory === MEDREC_CATEGORY ? (
           <MedRecPanel form={form} setForm={setForm} patient={patient} />
+        ) : CPOE_PANEL_CATEGORIES.has(activeCategory) ? (
+          /* CPOE §1.5.2 / §1.5.5 / §1.5.6 — สามหมวดนี้เดิมมีแต่ empty state
+             (ยังไม่มี picker) ตอนนี้มี panel เต็มรูปของตัวเองแล้ว ซึ่งมี
+             empty state ของตัวเองด้วยคำเดียวกับ ORDER_EMPTY_STATE_TEXT */
+          <>
+            {activeCategory === 'lab'
+              ? <LabOrderPanel form={form} setForm={setForm} patient={patient} />
+              : null}
+            {activeCategory === 'procedure'
+              ? <ProcedureOrderPanel form={form} setForm={setForm} patient={patient} />
+              : null}
+            {activeCategory === 'consult'
+              ? <ConsultComposerPanel form={form} setForm={setForm} patient={patient} cardPatient={cardPatient} />
+              : null}
+          </>
         ) : (
         <>
 
@@ -3121,6 +3163,27 @@ export const Step5Orders = ({ form, setForm, patient }) => {
             )}
           </>
         )}
+
+        {/* CPOE §1.5.4 — แถบ CDSS + ตารางรายละเอียดคำสั่งยา (ราคา/สิทธิ/
+            หยุดยา/ยกเลิก/ชุดยาของฉัน/วิธีใช้ยาแบบละเอียด). ต่อท้ายตารางเดิม
+            แบบ additive — ตารางยาเดิมและปุ่มทุกตัวยังทำงานเหมือนเดิม */}
+        {activeCategory === 'medication' ? (
+          <MedicationCdssPanel
+            form={form}
+            setForm={setForm}
+            patient={patient}
+            onGoToMedRec={() => setCategory(MEDREC_CATEGORY)}
+            onGoToDocuments={onStepChange && stepIndexes?.documents != null
+              ? () => onStepChange(stepIndexes.documents)
+              : undefined}
+          />
+        ) : null}
+
+        {/* CPOE §1.5.3 — Note ต่อรายการ · ข้อเสนอแก้ไขจากรังสีแพทย์ ·
+            สถานะและผลตรวจ · ผลผิดปกติที่ต้องรับทราบ */}
+        {activeCategory === 'xray' ? (
+          <RadiologyOrderPanel form={form} setForm={setForm} patient={patient} />
+        ) : null}
         </>
         )}
 
@@ -4346,7 +4409,7 @@ const CertDiagnosisFilledState = ({ form, primaryDx }) => {
   );
 };
 
-export const Step7Certificate = ({ form, setForm, patient, onStepChange }) => {
+export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepIndexes }) => {
   const set = (k) => (v) => setForm((s) => ({ ...s, [k]: v }));
   const setRange = ([a, b]) => setForm((s) => ({ ...s, startDate: a, endDate: b }));
   const handleCertSignatureChange = (dataUrl) => {
@@ -4373,7 +4436,9 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange }) => {
       return { ...s, restDays: pillValue, startDate, endDate };
     });
   };
-  const goToDiagnosisStep = () => onStepChange?.(STEP_DOCTOR_RECORD_INDEX);
+  /* index ของขั้น "วินิจฉัย" เลื่อน 3 → 4 บน /treat/record หลังแทรก SOAP
+     ผู้เรียกที่ไม่ส่ง stepIndexes (คลินิก 7 ขั้น) ยังได้ค่าเดิม */
+  const goToDiagnosisStep = () => onStepChange?.(stepIndexes?.diagnosis ?? STEP_DOCTOR_RECORD_INDEX);
 
   const issueYes = form.certIssue === 'yes';
   const primaryDx = (form.diagnoses || [])[0];

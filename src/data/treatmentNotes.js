@@ -146,13 +146,15 @@ export const noteDisplayBody = (note) => {
 };
 
 export const addTreatmentNote = ({
-  hn, visitId = 'v-current', type = 'doctor', body = '',
+  hn, visitId = 'v-current', type = 'doctor', body = '', structured = null,
   confidential = false, author = CURRENT_CLINICIAN.name, authorRole = CURRENT_CLINICIAN.role,
 }) => {
   const note = {
     id: uid(), hn, visitId, type, body,
-    /* Wave S จะเขียนค่าจริงลงช่องนี้ — wave ปัจจุบันเว้น null ตาม contract */
-    structured: null,
+    /* Wave S (CPOE §1.5 — SoapNotePanel) เขียน { s, o, a, p } ลงช่องนี้.
+       ผู้เรียกที่ไม่ส่งมาได้ null เหมือนเดิม จึงไม่กระทบ caller เดิม —
+       ทุกจุดแสดงผลอ่านผ่าน noteDisplayBody() ซึ่งรองรับทั้งสองรูปแบบ */
+    structured: structured || null,
     author, authorRole, recordedAt: stampNow(),
     amendedAt: '', cancelledAt: '', cancelReason: '', erroneousAt: '', confidential,
   };

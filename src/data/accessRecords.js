@@ -102,3 +102,40 @@ export const ACCESS_RECORDS = Array.from({ length: 24 }, (_, i) => {
       : null,
   };
 });
+
+/* Session imports from แบบฟอร์มความยินยอม → ขอสิทธิ์ (ด.1.1.17.1).
+   AccessManagementPage consumes on mount so the worklist stays in sync. */
+let SESSION_ACCESS_IMPORTS = [];
+
+export const enqueueAccessImport = (payload) => {
+  const id = Date.now();
+  const rec = {
+    id,
+    reqNo: `REQ-2569-${String((id % 9000) + 1000).padStart(4, '0')}`,
+    name: payload.name || '-',
+    empCode: payload.empCode || '-',
+    unit: payload.unit || '-',
+    createdDate: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }),
+    createdTime: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+    hn: payload.hn || '-',
+    purpose: payload.purpose || '-',
+    scopes: payload.scopes || [],
+    period: '-',
+    periodDays: '-',
+    file: payload.fileName || 'scanned-form.pdf',
+    fileSize: '1.2 MB',
+    status: 'รออนุมัติ',
+    periodStart: null,
+    periodEnd: null,
+    active: false,
+    audit: { by: 'ลดา ดีงาม', at: new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }) },
+  };
+  SESSION_ACCESS_IMPORTS = [...SESSION_ACCESS_IMPORTS, rec];
+  return rec;
+};
+
+export const consumeAccessImports = () => {
+  const pending = SESSION_ACCESS_IMPORTS;
+  SESSION_ACCESS_IMPORTS = [];
+  return pending;
+};

@@ -127,6 +127,16 @@
 ]
 ```
 
+## Wave L — ระบบงานห้องปฏิบัติการ LIS §1.15 (ต่อจาก Wave T — คำสั่ง user 4 ส.ค. ~20:00)
+
+หมายเหตุ: §1.14 Observation done 100% แล้ว (8/8) ไม่ต้องทำซ้ำ · §1.15 checklist โชว์ todo 22 แต่โค้ดมีอยู่จริง 4,297 บรรทัด (PR#18) → **ต้อง audit หน้าจริงก่อน แล้วอัปเดตสถานะให้ตรง แล้วปิดเฉพาะที่ขาดจริง**
+
+```json
+[
+  {"id":"1.15","name":"ระบบงานห้องปฏิบัติการ (LIS)","route":"/lab","dir":"src/pages/lab","manual":"คู่มือระบบชันสูตรโรค.pdf","notes":"checklist โชว์ todo 22 ทั้งหมดแต่โค้ดมีอยู่แล้ว (LabQueuePage 1512, LabSetupPage 1008, LabResultEntryPage 671, LabOrderPage 542, LabReportPage 118, LabDetailPanel 393) — ขั้นตอนบังคับ: (1) รัน node scripts/tor-gap-report.mjs --section 1.15 อ่านข้อความ TOR ทุกข้อ (2) เปิดโค้ดหน้าจริงทั้ง 6 ไฟล์ ตรวจว่าข้อไหนทำแล้ว → รายงาน checklistUpdates เป็น done พร้อม note ที่อ้างอิงโค้ดจริง (3) ข้อที่ยังขาดจริงค่อยสร้าง/ต่อยอด โฟกัสที่มักขาด: 1.15.3 พิมพ์สติกเกอร์ Lab + barcode หลอด, การรับสิ่งส่งตรวจ (specimen receive/reject พร้อมเหตุผล), ค่าวิกฤต critical value ต้องแจ้งและกดรับทราบ, ผลย้อนหลัง/เปรียบเทียบ, การส่งตรวจภายนอก (send-out lab), QC/สอบเทียบเครื่อง, การเชื่อมต่อ LIS analyzer, TMLT mapping (ดู ~/MIH-Docs-Vault/Kaebrain/Links.md → TMLT Browser) อ่าน ~/MIH-Docs-Vault/Kaebrain/คู่มือการใช้งาน - Lab.pdf + คู่มือระบบชันสูตรโรค.pdf ก่อน ต่อยอดของเดิม ห้ามรื้อ ห้ามแตะ src/pages/treat, src/pages/xray, src/pages/clinic/*"}
+]
+```
+
 ## Wave 3 — เก็บ gap ระบบเดิม (Day 2 เช้า)
 
 โมดูลใน wave นี้แก้ไฟล์เดิมของระบบตัวเองได้ (ยังห้ามแตะ shared files เหมือนเดิม)

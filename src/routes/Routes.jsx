@@ -19,6 +19,8 @@ import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
 import ReferralRegisterPage from '@/pages/treat/ReferralRegisterPage';
 import TreatmentInterfacesPage from '@/pages/treat/TreatmentInterfacesPage';
+import ConsultRegisterPage from '@/pages/treat/ConsultRegisterPage';
+import OrderSetSettingsPage from '@/pages/treat/OrderSetSettingsPage';
 import XrayQueuePage from '@/pages/xray/XrayQueuePage';
 import XrayOrderPage from '@/pages/xray/XrayOrderPage';
 import XrayResultPage from '@/pages/xray/XrayResultPage';
@@ -75,6 +77,7 @@ import LoginSetPasswordPage from '@/pages/auth/LoginSetPasswordPage';
 import LoginSuccessPage from '@/pages/auth/LoginSuccessPage';
 import ConsentManagementPage from '@/pages/consent/ConsentManagementPage';
 import CreateConsentFormPage from '@/pages/consent/CreateConsentFormPage';
+import RequestFormAccessPage from '@/pages/consent/RequestFormAccessPage';
 import AccessManagementPage from '@/pages/consent/AccessManagementPage';
 import ConsentReportPage from '@/pages/consent/ConsentReportPage';
 import ConsentFormsPage from '@/pages/consent/ConsentFormsPage';
@@ -180,6 +183,7 @@ export default function Routes() {
         {/* แบบฟอร์มความยินยอม — consent-form template registry (Figma 291:113045). */}
         <Route exact path='/consent/forms'        component={ConsentFormsPage} />
         <Route exact path='/consent/forms/new'    component={CreateConsentFormPage} />
+        <Route exact path='/consent/forms/request-access' component={RequestFormAccessPage} />
         {/* ดูแบบฟอร์ม — read-only Step-3 preview of an existing form (Figma 336:170901). */}
         <Route exact path='/consent/forms/:id/view' component={ConsentFormViewPage} />
         {/* ประวัติความยินยอม — ค้นหาชื่อ/HN แล้วเปิด Timeline (แท็บใหม่จาก worklist) */}
@@ -291,6 +295,17 @@ export default function Routes() {
             ระบบบันทึกการรักษา ไม่ใช่เมนูระดับบนของตัวเอง. */}
         <Route exact path='/treat/refer'      component={ReferralRegisterPage} />
         <Route exact path='/treat/interfaces' component={TreatmentInterfacesPage} />
+        {/* การสั่งการรักษาโดยแพทย์ · หน้าจอระดับโมดูล (TOR §1.5)
+            /treat/consult    = ทะเบียนการส่งปรึกษาแพทย์ (§1.5.6.1 / §1.5.6.7) —
+                                หัวฟอร์ม auto-fill เลขที่คำขอ/ผู้ขอ/หน่วยงาน +
+                                พิมพ์ใบส่งปรึกษา A4 ผ่าน ConsultPrintSheet
+            /treat/order-sets = ตั้งค่าชุดคำสั่ง + ทะเบียนรายการสั่งการรักษา
+                                (§1.5.1.8 / §1.5.7.1 / §1.5.9.1–.4) — ชุดยา
+                                รายแพทย์/ใช้ร่วม, ราคามีวันที่มีผล, เกณฑ์ CDSS
+            ทั้งสองหน้าใช้ Sidebar activeKey='treat' — เป็นเมนูย่อยของ
+            ระบบบันทึกการรักษา เช่นเดียวกับ /treat/refer และ /treat/interfaces. */}
+        <Route exact path='/treat/consult'    component={ConsultRegisterPage} />
+        <Route exact path='/treat/order-sets' component={OrderSetSettingsPage} />
         {/* งานรังสีวินิจฉัย — Radiology Information System (TOR §1.12).
             /xray/queue  = ลำดับการตรวจผู้ป่วย (worklist · the department's own
                            screen; รับ/ปฏิเสธ Request → ถ่าย → บันทึกผล → ยืนยันผล)
