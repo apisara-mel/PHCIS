@@ -219,3 +219,15 @@ export const REGISTRATION_PENDING_CONSENT_CARDS = Object.values(REGISTRATION_CON
 
 export const getRegistrationConsentForm = (id) =>
   REGISTRATION_CONSENT_FORMS[id] || REGISTRATION_CONSENT_FORMS['PD-1011'];
+
+/** Map consent worklist / timeline event → registration disclosure form id.
+    Prefers PD-1011 / TX-1011 / CL-1011 codes; falls back by type; else PD-1011. */
+export const resolveRegistrationConsentFormId = ({ formCode, type } = {}) => {
+  const code = String(formCode || '').trim();
+  if (REGISTRATION_CONSENT_FORMS[code]) return code;
+  const t = String(type || '').trim();
+  if (t === 'PDPA' || /PDPA|ส่วนบุคคล/i.test(code)) return 'PD-1011';
+  if (t === 'การรักษา' || /รักษา/i.test(t)) return 'TX-1011';
+  if (t === 'เบิกจ่าย' || /เบิก/i.test(t)) return 'CL-1011';
+  return 'PD-1011';
+};

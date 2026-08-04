@@ -27,6 +27,10 @@ export const PATIENT_AVATAR_POOL = [
   '/avatars/patient-male-e.png',
 ];
 
+/** Consent / MR minors — แยกจาก adult pool ตามคำนำหน้า ด.ช./ด.ญ./เด็กชาย/เด็กหญิง */
+export const CHILD_AVATAR_GIRL = '/avatars/patient-child-girl.png';
+export const CHILD_AVATAR_BOY = '/avatars/patient-child-boy.png';
+
 /** PrimarySearch recent-search avatar pile — aligned with appointment mock patients. */
 export const DEFAULT_SEARCH_AVATARS = [
   { src: '/avatars/somchai-mock.png' },

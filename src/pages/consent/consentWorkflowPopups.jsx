@@ -396,11 +396,17 @@ export function ReconsentPopup({ open, record, onClose, onConfirm }) {
     [record],
   );
 
+  /* ชื่อ/HN ใน popup ต้องตรงกับแถวตาราง (enrichConsentRow) */
+  const displayName = record?.name || patientCard?.fullName || patientCard?.shortName || '—';
+  const displayHn = record?.hn || patientCard?.hn || '—';
+  const displayAvatar = record?.avatarUrl || patientCard?.avatarUrl;
+
   const displayVersion = latest?.version || record?.version || '—';
   const formTitle = record
     ? [record.formCode, record.formName || record.type].filter(Boolean).join(' · ')
     : '—';
   const statusMeta = (record && CONSENT_STATUS[record.status]) || {};
+  const statusLabel = statusMeta.label || record?.status || '—';
 
   const dirty = !!dueDate;
   const ready = !!dueDate;
@@ -417,10 +423,10 @@ export function ReconsentPopup({ open, record, onClose, onConfirm }) {
         open={open}
         onClose={requestClose}
         size='large'
-        title='Reconsent (ส่งคำขอความยินยอมใหม่)'
-        subtitle={record ? `${record.name} · HN ${record.hn}` : undefined}
+        title='Reconsent'
+        subtitle='ส่งคำขอความยินยอมใหม่'
         primaryAction={{
-          label: 'สร้างคำขอ Re-Consent',
+          label: 'สร้างคำขอ Reconsent',
           onClick: () => ready && onConfirm({
             channel: MOBILE_APP_CHANNEL,
             dueDate: thaiDateFormat(dueDate),
@@ -431,18 +437,18 @@ export function ReconsentPopup({ open, record, onClose, onConfirm }) {
         secondaryAction={{ label: 'ยกเลิก', onClick: requestClose }}
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-          {patientCard ? (
+          {record ? (
             <PatientSummaryCard
-              avatarUrl={patientCard.avatarUrl}
-              avatarAlt={patientCard.fullName || patientCard.shortName || ''}
+              avatarUrl={displayAvatar}
+              avatarAlt={displayName}
               cells={[
                 {
-                  label: 'ชื่อ-นามสกุล ผู้ป่วย',
-                  value: patientCard.fullName || patientCard.shortName || '—',
+                  label: 'ชื่อ-นามสกุล ผู้รับบริการ',
+                  value: displayName,
                 },
                 {
                   label: 'HN (Hospital Number)',
-                  value: patientCard.hn || '—',
+                  value: displayHn,
                 },
               ]}
             />
@@ -491,7 +497,7 @@ export function ReconsentPopup({ open, record, onClose, onConfirm }) {
                   hierarchy='secondary'
                   width='hug'
                 >
-                  {record.status || '—'}
+                  {statusLabel}
                 </ColorfulBadge>
               </MetaRow>
             </div>

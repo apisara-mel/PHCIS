@@ -128,6 +128,25 @@ const ITEMS = [
       { key: 'appt-settings',  label: 'ตั้งค่าระบบนัดหมาย',       path: '/appointment/settings'  },
     ],
   },
+  /* ระบบ Telemedicine / RPM — TOR §1.13 + §4.3. เดิมเข้าได้เฉพาะปุ่มลอยใน
+     ระบบบันทึกการรักษา (/telemed เปิดสายทันทีผ่าน TelemedRouteTrigger) wave นี้
+     เพิ่มหน้าจัดการระดับโมดูล 4 หน้า จึงต้องมีเมนูจริง.
+     รายการแรกชี้ /telemed/worklist **ห้ามชี้ /telemed** เพราะ path นั้นเปิด
+     วิดีโอคอลทันที. เหตุผลที่ไม่อยู่ใน SYSTEM_CATALOG เหมือน queue-center/
+     appointment: Telemedicine เป็น sub-system ภายใน PHCIS และแคตตาล็อกนั้น
+     ตัด grid 3×3 พอดี (รายการที่ 10 จะไม่ถูก render) + ยังไม่มี asset ใน
+     public/illustration/hub/. (SideSubMenu รับเฉพาะ { key, label, path } —
+     ไอคอนที่ builder เสนอ video_call / monitor_heart / verified_user /
+     bar_chart จึงยังไม่ถูกใช้ในเมนูย่อย) */
+  {
+    key: 'telemed', label: 'ระบบ Telemedicine', icon: 'video_call', path: '/telemed',
+    subItems: [
+      { key: 'tm-worklist', label: 'หน้าห้องตรวจทางไกล',                        path: '/telemed/worklist' },
+      { key: 'tm-rpm',      label: 'กระดานติดตามค่าจากอุปกรณ์ที่บ้าน (RPM)',     path: '/telemed/rpm'      },
+      { key: 'tm-consent',  label: 'ทะเบียนความยินยอม PDPA (Telemedicine)',     path: '/telemed/consent'  },
+      { key: 'tm-reports',  label: 'รายงานสถิติ + บันทึกการเข้าใช้งาน',           path: '/telemed/reports'  },
+    ],
+  },
   /* 'ประวัติการใช้งาน' (log) และ 'ผู้ใช้และสิทธิ์การเข้าถึง' (users) ถูกย้ายไป
      แสดงเป็น "ระบบกลาง" บน System Hub แทน — จึงไม่อยู่ในเมนู PHCIS แล้ว. */
 ];

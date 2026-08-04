@@ -29,19 +29,25 @@ export const CONSENT_STATUS = {
   'อยู่ระหว่างลงนาม':  { tone: 'orange', tab: 'pending',   action: { label: 'ยกเลิกคำขอ', kind: 'subdued', confirm: 'cancel' } },
   /* ผู้รับบริการ request เพิกถอนผ่าน Mobile App / ที่ศูนย์ — รอเจ้าหน้าที่ดำเนินการ */
   'ขอเพิกถอน':        { tone: 'red',    tab: 'pending',   action: { label: 'ดำเนินการเพิกถอน', kind: 'brand', confirm: 'revoke' } },
-  'ยินยอมแล้ว':        { tone: 'green',  tab: 'consented', action: { label: 'เพิกถอน',    kind: 'outline', confirm: 'revoke' } },
-  'ปฏิเสธ':           { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' } },
-  'ถอนความยินยอม':    { tone: 'red',    tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' } },
-  'ใกล้หมดอายุ':       { tone: 'yellow', tab: 'expiring',  action: { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' } },
-  'หมดอายุ':          { tone: 'red',    tab: 'expired',   action: { label: 'Reconsent',  kind: 'brand',   confirm: 'reconsent' } },
+  'ยินยอมแล้ว':        { tone: 'green',  tab: 'consented', action: { label: 'เพิกถอน',    kind: 'brandSubdue', confirm: 'revoke' } },
+  'ปฏิเสธ':           { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brandSubdue', confirm: 'reconsent' } },
+  'ถอนความยินยอม':    { tone: 'red',    tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brandSubdue', confirm: 'reconsent' } },
+  'ใกล้หมดอายุ':       { tone: 'yellow', tab: 'expiring',  action: { label: 'Reconsent',  kind: 'brandSubdue', confirm: 'reconsent' } },
+  'หมดอายุ':          { tone: 'red',    tab: 'expired',   action: { label: 'Reconsent',  kind: 'brandSubdue', confirm: 'reconsent' } },
   /* Edge case (Figma note 312:97428): เทมเพลตออกเวอร์ชันใหม่หลังผู้ป่วย
      เซ็นไปแล้ว → ฉบับเดิมเป็น superseded ต้องส่งขอเซ็นใหม่ */
   'มีเวอร์ชันใหม่':     { tone: 'blue',   tab: 'pending',   action: { label: 'ส่งเซ็นเวอร์ชันใหม่', kind: 'brand', confirm: 'reconsent' } },
   /* ด.1.1.7 — Re-Consent ครบวงจร: record เดิมที่มีคำขอ reconsent เกิดขึ้นแล้ว
-     ย้ายมาสถานะนี้ (ไม่ hard delete — ประวัติคงอยู่) ไม่มี CTA ต่อ */
-  'หมดอายุ-Reconsent': { tone: 'grey',   tab: 'expired',   action: null },
+     ย้ายมาสถานะนี้ (ไม่ hard delete — ประวัติคงอยู่)
+     แสดง badge เป็น «หมดอายุ» และยังมี CTA Reconsent เหมือนแถวหมดอายุอื่น */
+  'หมดอายุ-Reconsent': {
+    tone: 'red',
+    tab: 'expired',
+    label: 'หมดอายุ',
+    action: { label: 'Reconsent', kind: 'brandSubdue', confirm: 'reconsent' },
+  },
   /* ด.1.1.4 — เจ้าหน้าที่ยกเลิกคำขอที่ยังไม่ลงนาม (audit คงอยู่) */
-  'ยกเลิกคำขอ':        { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
+  'ยกเลิกคำขอ':        { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent', kind: 'brandSubdue', confirm: 'reconsent' } },
 };
 
 /* ── ช่องทางลงนาม (ด.1.1.6) — re-export จาก consentChannels.js ─────────── */

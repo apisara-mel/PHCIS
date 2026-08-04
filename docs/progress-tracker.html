@@ -171,7 +171,11 @@ const WEB=[
   // — ระบบ TOR ที่ยังไม่เริ่ม (เว็บ) —
   {tor:'1.11', name:'ระบบสร้างเสริมภูมิคุ้มกันโรค (Immunization)', figma:'no', done:0,partial:0, total:6,  route:'—', note:'', notstarted:true},
   {tor:'1.12', name:'Radiology Information System (RIS)', figma:'no', done:0,partial:0, total:23, route:'—', note:'', notstarted:true},
-  {tor:'1.13', name:'Telemedicine + ตรวจระยะไกล (RPM) — เว็บ', figma:'no', done:0,partial:0, total:11, route:'—', note:'', notstarted:true},
+  /* 1.13 — นับใหม่ 4 ส.ค. 2569 (wave Telemedicine) ให้ตรง status map ใน
+     tor-checklist.html: done 6 ข้อ (1.13.1 .2 .4 .8 .9 .10) · partial 5 ข้อ
+     (1.13.3 ไม่มี API write-back · 1.13.5 mock map · 1.13.6 mock EMR ·
+     1.13.7 signalling mock · 1.13.11 audit ไม่ persist) */
+  {tor:'1.13', name:'Telemedicine + ตรวจระยะไกล (RPM) — เว็บ', figma:'no', done:6,partial:5, total:11, route:'/telemed/worklist · /telemed/rpm · /telemed/consent · /telemed/reports', note:'หน้าห้องตรวจทางไกล · กระดาน RPM · ทะเบียนความยินยอม PDPA · รายงานสถิติ + บันทึกการเข้าใช้งาน · ประเมินระหว่างสาย (role gate 7 บทบาท) — เชื่อม PHCIS/EMR/แผนที่ยังเป็น mock, audit ไม่ persist', notstarted:false},
   {tor:'1.14', name:'ระบบสังเกตอาการ (Observation)', figma:'no', done:8,  partial:0, total:8,  route:'/observation', note:'เสร็จสมบูรณ์ 100% (8/8)', notstarted:false},
   {tor:'1.15', name:'ระบบงานห้องปฏิบัติการ (LIS)', figma:'no', done:0,partial:0, total:22, route:'—', note:'', notstarted:true},
   {tor:'1.18', name:'ระบบการเยี่ยมบ้าน (Home Visit)', figma:'no', done:0,partial:0, total:10, route:'—', note:'', notstarted:true},
@@ -185,7 +189,10 @@ const MOB=[
   /* 4.2 — นับใหม่ 4 ส.ค. 2569 ให้ตรง status map: 4.2.5 (แจ้งเตือนก่อนถึงวันนัด)
      และ 4.2.6.4 (เชื่อมคิวผ่าน API) เป็น partial ทั้งคู่ → 7/2/9 ไม่ใช่ 8/1/9 */
   {tor:'4.2',  name:'นัดหมาย (จอง/ดู/เตือน)', figma:'yes', done:7,partial:2, total:9, route:'/m/appointments · /m/book · /appointment/requests · /appointment/settings', note:'wizard จองบริการ · รายการนัด · แจ้งเตือน · wave 2026-08 (ฝั่งเว็บ): กล่องรับนัดหมายรับคำขอจาก mobile/LINE/โทรศัพท์/เคาน์เตอร์ แล้วยืนยันเป็นนัดจริงพร้อมเลขคิว + appointmentNotifyStore เก็บข้อความขาออกทุกฉบับพร้อมปุ่มส่งซ้ำ — ยังเป็น mock ทั้งคู่ (ไม่มี provider Push/LINE/SMS จริง, เชื่อมคิวเป็นลิงก์อ่านอย่างเดียวไป /queue-center/issue)'},
-  {tor:'4.3',  name:'Telemedicine (วิดีโอคอล)', figma:'yes', done:2,partial:3, total:5, route:'/m/telemed', note:'ห้องวิดีโอ · flow ก่อน/หลังสาย ยังไม่ครบ'},
+  /* 4.3 — นับใหม่ 4 ส.ค. 2569 (wave Telemedicine): 4.3.2 (ตัวดูเอกสารที่แชร์)
+     และ 4.3.5 (แจ้งเตือนก่อนถึงคิว) ขึ้นเป็น done → 4/1/5 · เหลือ 4.3.3 partial
+     เพราะแคตตาล็อกคำสั่งยังไม่เชื่อม medicationCatalog / labCatalog / xray กลาง */
+  {tor:'4.3',  name:'Telemedicine (วิดีโอคอล)', figma:'yes', done:4,partial:1, total:5, route:'/m/telemed', note:'ห้องวิดีโอ + แชท · bottom sheet 4 แท็บ (แจ้งเตือนคิว T-60/T-15/T-5 · เอกสารที่แชร์ซูม/บันทึกได้ · คำสั่งแพทย์กดรับทราบ→ชำระเงิน/รับยา · ส่งค่าอุปกรณ์ที่บ้าน) — signalling ข้ามแอปยัง mock'},
   {tor:'4.4',  name:'ดูผลการรักษาและผลตรวจ', figma:'yes', done:3,partial:0, total:3, route:'/m/records', note:'ผลตรวจ/ผลแล็บ/ใบสั่งยา'},
   {tor:'4.5',  name:'ข้อมูลส่วนบุคคล (Profile · QR · Vitals)', figma:'yes', done:4,partial:0, total:4, route:'/m/profile', note:'โปรไฟล์ · QR ประจำตัว · สัญญาณชีพ'},
   {tor:'4.6',  name:'ประวัติการรักษา (Visit history)', figma:'yes', done:5,partial:0, total:5, route:'/m/visit · /m/records', note:'timeline การเข้ารับบริการ'},

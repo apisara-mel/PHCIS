@@ -19,8 +19,31 @@ import MobileIconBadge from '@/components/mobile/MobileIconBadge';
 import { CURRENT_USER } from '@/data/mobileMock';
 import { usePhcisLink, updateAppointment } from '@/data/phcisLink';
 import { linkTelemedRecordingConsent } from '@/data/consentWorkflowStore';
+/* ── ส่วนต่อยอด TOR §4.3.2 / §4.3.3 / §4.3.5 + §1.13.1 (เพิ่มแบบ additive) ── */
+import MobileInputField from '@/components/mobile/InputField';
+import {
+  getTelemedVisits,
+  subscribeTelemedVisits,
+  formatClock as formatVisitClock,
+  TELEMED_ORDER_KIND,
+} from '@/data/telemedVisits';
+import {
+  getRpmPatientByHn,
+  addRpmReading,
+  validateReadingValues,
+  softWarnings as rpmSoftWarnings,
+  evaluateRpmPatient,
+  getRpmReadings,
+  RPM_PARAM_META,
+  DTX_MEAL_STATE,
+} from '@/data/telemedRpm';
+import { canRecordCall } from '@/data/telemedConsent';
 
 const MOBILE_PATIENT_HN = CURRENT_USER.centers?.[0]?.hn || '67-004321';
+
+/* ผู้รับบริการสาธิตของฝั่งมือถือ — ผูกกับ visit/RPM ชุดเดียวกับฝั่ง web
+   เพื่อให้ "คำสั่งแพทย์ในสายนี้" และ "ค่าที่ส่งจากอุปกรณ์" ตรงกันทั้งสองฝั่ง */
+const MOBILE_LINKED_HN = '67-00007';
 
 /* BMA Health · Telemed — Figma Mobile Application 2042:26776
    Flow: รอพบแพทย์ → วิดีโอ/เสียง → ให้คะแนน → สำเร็จ → ชำระเงิน */
@@ -1927,6 +1950,554 @@ const DoneScreen = ({ doctorName, specialty, locationLabel, elapsed, onPay }) =>
 
 /* ─── Page ──────────────────────────────────────────────────────────── */
 
+/* ══════════════════════════════════════════════════════════════════════
+   ส่วนต่อยอดฝั่งผู้รับบริการ (TOR §4.3.2 / §4.3.3 / §4.3.5 + §1.13.1)
+   ทั้งหมดอยู่ในชีทเดียว เปิดจากปุ่มลอย เพื่อไม่แตะ flow เดิม
+   (PdpaConsent → ReadinessCheck → WaitingRoom → VideoCall → DoneScreen)
+   ══════════════════════════════════════════════════════════════════════ */
+
+const EXTRA_TABS = [
+  { key: 'queue',   label: 'แจ้งเตือนคิว',  icon: 'notifications_active' },
+  { key: 'docs',    label: 'เอกสารที่แชร์', icon: 'description' },
+  { key: 'orders',  label: 'คำสั่งแพทย์',   icon: 'prescriptions' },
+  { key: 'device',  label: 'ส่งค่าอุปกรณ์', icon: 'monitor_heart' },
+];
+
+/* เอกสารที่แพทย์แชร์ในสายนี้ (§4.3.2) — จำลองสถานะโหลด/ล้มเหลว/ลิงก์หมดอายุ */
+const SHARED_DOCS = [
+  { id: 'SD-1', name: 'ผลตรวจเลือด CBC + BUN/Cr.pdf', kind: 'pdf',   size: '412 KB', state: 'ready',   at: '10:12', downloadable: true },
+  { id: 'SD-2', name: 'ฟิล์ม X-ray ทรวงอก (PA).jpg',   kind: 'image', size: '2.1 MB', state: 'loading', at: '10:18', downloadable: true },
+  { id: 'SD-3', name: 'ใบสรุปการให้บริการทางไกล.pdf',  kind: 'pdf',   size: '188 KB', state: 'error',   at: '10:24', downloadable: true },
+  { id: 'SD-4', name: 'ผลตรวจ HbA1c (ย้อนหลัง).pdf',   kind: 'pdf',   size: '96 KB',  state: 'expired', at: 'เมื่อวาน', downloadable: false },
+];
+
+const DOC_STATE_META = {
+  ready:   { label: 'พร้อมเปิด',        tone: 'success' },
+  loading: { label: 'กำลังโหลด…',       tone: 'info' },
+  error:   { label: 'โหลดไม่สำเร็จ',     tone: 'error' },
+  expired: { label: 'ลิงก์หมดอายุ',      tone: 'warning' },
+};
+
+const sheetCardStyle = {
+  width: '100%',
+  borderRadius: 'var(--dim-radius-500, 16px)',
+  background: 'var(--surface-card-100, #FFFFFF)',
+  border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+  paddingTop: 'var(--dim-space-400, 16px)',
+  paddingBottom: 'var(--dim-space-400, 16px)',
+  paddingLeft: 'var(--dim-space-400, 16px)',
+  paddingRight: 'var(--dim-space-400, 16px)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 'var(--dim-space-200, 8px)',
+};
+
+const sheetTitleStyle = {
+  margin: 0,
+  fontFamily: 'var(--type-family-heading-graphic2)',
+  fontSize: 'var(--type-size-base, 16px)',
+  color: 'var(--text-content-default, #111314)',
+};
+
+const sheetBodyStyle = {
+  margin: 0,
+  fontSize: 'var(--type-size-sm, 14px)',
+  lineHeight: 1.6,
+  color: 'var(--text-content-secondary, #636B72)',
+};
+
+const EmptyRow = ({ icon, text }) => (
+  <div
+    className='flex flex-col items-center'
+    style={{
+      gap: 'var(--dim-space-150, 6px)',
+      paddingTop: 'var(--dim-space-600, 24px)',
+      paddingBottom: 'var(--dim-space-600, 24px)',
+      textAlign: 'center',
+    }}
+  >
+    <Sym name={icon} size={28} color='var(--text-content-quaternary, #ADB2B7)' />
+    <span style={{ fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-tertiary, #858C92)' }}>{text}</span>
+  </div>
+);
+
+/* (1) แจ้งเตือนก่อนถึงคิวนัด — T-60 / T-15 / T-5 (§4.3.5) */
+const QueueReminderTab = ({ visit, notificationsAllowed, onToggleNotifications, onReschedule, onEnterWaitingRoom }) => {
+  const minutesUntil = visit?.appointmentAt
+    ? Math.round((new Date(visit.appointmentAt).getTime() - Date.now()) / 60000)
+    : null;
+  const stage = minutesUntil == null ? null
+    : minutesUntil > 60 ? 'early'
+      : minutesUntil > 15 ? 't60'
+        : minutesUntil > 5 ? 't15'
+          : minutesUntil > 0 ? 't5'
+            : 'due';
+  const stageCopy = {
+    early: 'ยังไม่ถึงเวลานัด ระบบจะเตือนอีกครั้งก่อนถึงคิว 60 นาที',
+    t60:   'อีกไม่ถึง 1 ชั่วโมงจะถึงคิวของคุณ — เตรียมกล้อง ไมค์ และสัญญาณอินเทอร์เน็ต',
+    t15:   'อีกไม่ถึง 15 นาที — แนะนำเข้าห้องรอเพื่อทดสอบกล้องและไมโครโฟน',
+    t5:    'อีกไม่ถึง 5 นาที — กรุณาเข้าห้องรอตอนนี้',
+    due:   'ถึงเวลานัดแล้ว — แพทย์อาจกำลังให้บริการผู้รับบริการรายก่อนหน้า',
+  };
+
+  return (
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+      {!visit ? (
+        <EmptyRow icon='event_busy' text='ยังไม่มีนัดปรึกษาทางไกลที่กำลังจะถึง' />
+      ) : (
+        <>
+          <div style={sheetCardStyle}>
+            <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <MobileIconBadge icon='event_available' tone='green' size={40} iconSize={18} />
+              <div className='flex-1 min-w-0'>
+                <h3 style={sheetTitleStyle}>{`นัดเวลา ${formatVisitClock(visit.appointmentAt)}`}</h3>
+                <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>
+                  {`${visit.doctor} · ${visit.department}`}
+                </p>
+              </div>
+              <StatusBadge style={stage === 'due' ? 'warning' : 'success'} size='small' showDot>
+                {stage === 'due' ? 'ถึงเวลาแล้ว' : `อีก ${Math.max(0, minutesUntil)} นาที`}
+              </StatusBadge>
+            </div>
+            <p style={sheetBodyStyle}>{stageCopy[stage]}</p>
+            <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>
+              {`ลำดับคิวของคุณ: ${visit.queue} · เวลารอโดยประมาณ ${Math.max(0, minutesUntil ?? 0)} นาที`}
+            </p>
+            {visit.notifications?.length > 0 && (
+              <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>
+                {`เจ้าหน้าที่ส่งข้อความแจ้งเตือนแล้ว ${visit.notifications.length} ครั้ง · ล่าสุด ${formatVisitClock(visit.notifications[visit.notifications.length - 1].at)}`}
+              </p>
+            )}
+          </div>
+
+          {!notificationsAllowed && (
+            <Alert
+              type='warning'
+              title='คุณปิดการแจ้งเตือนของแอปไว้'
+              subtext='เปิดการแจ้งเตือนเพื่อไม่พลาดคิว — หรือเข้าห้องรอไว้ล่วงหน้าได้เลย'
+            />
+          )}
+
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <BrandButton size='lg' leadingIcon='meeting_room' onClick={onEnterWaitingRoom}>
+              เข้าห้องรอตอนนี้
+            </BrandButton>
+            <BrandSubdueButton size='lg' variant='outline' leadingIcon='event_repeat' onClick={onReschedule}>
+              ขอเลื่อนนัด
+            </BrandSubdueButton>
+            <NeutralSubdueButton size='lg' variant='outline' leadingIcon={notificationsAllowed ? 'notifications_off' : 'notifications_active'} onClick={onToggleNotifications}>
+              {notificationsAllowed ? 'ปิดการแจ้งเตือน' : 'เปิดการแจ้งเตือน'}
+            </NeutralSubdueButton>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+/* (2) ตัวดูเอกสารที่แพทย์แชร์ (§4.3.2) */
+const SharedDocsTab = ({ docs, canDownload, onRetry, openDoc, setOpenDoc, zoom, setZoom }) => (
+  <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+    {openDoc ? (
+      <div style={sheetCardStyle}>
+        <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          <BrandCircleSubdueIconButton size='sm' icon='arrow_back' aria-label='กลับไปรายการเอกสาร' onClick={() => setOpenDoc(null)} />
+          <h3 style={{ ...sheetTitleStyle, flex: 1, minWidth: 0 }}>{openDoc.name}</h3>
+        </div>
+        <div
+          style={{
+            width: '100%',
+            height: 260,
+            overflow: 'auto',
+            borderRadius: 'var(--dim-radius-400, 12px)',
+            background: 'var(--surface-neutral-tertiary, #F4F5F5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'center center',
+              transition: 'transform 160ms ease',
+              paddingTop: 'var(--dim-space-400, 16px)',
+              paddingBottom: 'var(--dim-space-400, 16px)',
+              paddingLeft: 'var(--dim-space-400, 16px)',
+              paddingRight: 'var(--dim-space-400, 16px)',
+              textAlign: 'center',
+            }}
+          >
+            <Sym name={openDoc.kind === 'pdf' ? 'picture_as_pdf' : 'image'} size={64} color='var(--icon-content-tertiary, #858C92)' />
+            <p style={{ ...sheetBodyStyle, marginTop: 'var(--dim-space-200, 8px)' }}>
+              {`ตัวอย่างเอกสาร (สาธิต) · ${openDoc.size}`}
+            </p>
+          </div>
+        </div>
+        <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          <NeutralSubdueButton fullWidth={false} size='md' variant='outline' leadingIcon='zoom_out' onClick={() => setZoom((z) => Math.max(0.6, Math.round((z - 0.2) * 10) / 10))}>
+            ย่อ
+          </NeutralSubdueButton>
+          <NeutralSubdueButton fullWidth={false} size='md' variant='outline' leadingIcon='zoom_in' onClick={() => setZoom((z) => Math.min(2.4, Math.round((z + 0.2) * 10) / 10))}>
+            ขยาย
+          </NeutralSubdueButton>
+          <BrandSubdueButton
+            fullWidth={false}
+            size='md'
+            variant='outline'
+            leadingIcon='download'
+            disabled={!canDownload || !openDoc.downloadable}
+            title={!canDownload ? 'คุณยังไม่ได้ยินยอมให้บันทึกเอกสารลงเครื่อง' : undefined}
+            onClick={() => window.alert('บันทึกเอกสารลงเครื่อง — สาธิต')}
+          >
+            บันทึกลงเครื่อง
+          </BrandSubdueButton>
+        </div>
+        {!canDownload && (
+          <p style={{ ...sheetBodyStyle, color: 'var(--text-alert-warning, #C2410C)', fontSize: 'var(--type-size-xs, 12px)' }}>
+            ดูได้แต่บันทึกลงเครื่องไม่ได้ — คุณยังไม่ได้ยินยอมให้ดาวน์โหลดเอกสารทางการแพทย์
+          </p>
+        )}
+      </div>
+    ) : docs.length === 0 ? (
+      <EmptyRow icon='folder_off' text='แพทย์ยังไม่ได้แชร์เอกสารในสายนี้' />
+    ) : (
+      docs.map((d) => {
+        const meta = DOC_STATE_META[d.state];
+        return (
+          <div key={d.id} style={sheetCardStyle}>
+            <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <MobileIconBadge icon={d.kind === 'pdf' ? 'picture_as_pdf' : 'image'} tone={d.kind === 'pdf' ? 'pink' : 'blue'} size={40} iconSize={18} />
+              <div className='flex-1 min-w-0'>
+                <h3 style={{ ...sheetTitleStyle, fontSize: 'var(--type-size-sm, 14px)' }}>{d.name}</h3>
+                <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>{`${d.size} · แชร์เมื่อ ${d.at}`}</p>
+              </div>
+              <StatusBadge style={meta.tone} size='small'>{meta.label}</StatusBadge>
+            </div>
+            <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <BrandSubdueButton
+                fullWidth={false}
+                size='md'
+                variant='outline'
+                leadingIcon='visibility'
+                disabled={d.state !== 'ready'}
+                title={d.state !== 'ready' ? meta.label : undefined}
+                onClick={() => { setOpenDoc(d); setZoom(1); }}
+              >
+                เปิดดู
+              </BrandSubdueButton>
+              {(d.state === 'error' || d.state === 'expired') && (
+                <NeutralSubdueButton fullWidth={false} size='md' variant='outline' leadingIcon='refresh' onClick={() => onRetry(d.id)}>
+                  ลองใหม่
+                </NeutralSubdueButton>
+              )}
+            </div>
+          </div>
+        );
+      })
+    )}
+  </div>
+);
+
+/* (3) คำสั่งแพทย์ในสายนี้ (§4.3.3 ต่อ §4.3.4) */
+const DoctorOrdersTab = ({ orders, acknowledged, onAcknowledge, onPay, onPickup }) => (
+  <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+    {orders.length === 0 ? (
+      <EmptyRow icon='prescriptions' text='แพทย์ยังไม่ได้สั่งการรักษาในสายนี้' />
+    ) : (
+      <>
+        {orders.map((o) => {
+          const cancelled = o.status === 'cancelled';
+          const meta = TELEMED_ORDER_KIND[o.kind] || { label: 'คำสั่ง', icon: 'note' };
+          return (
+            <div key={o.id} style={{ ...sheetCardStyle, opacity: cancelled ? 0.7 : 1 }}>
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                <MobileIconBadge icon={meta.icon} tone={cancelled ? 'yellow' : 'green'} size={40} iconSize={18} />
+                <div className='flex-1 min-w-0'>
+                  <h3 style={{ ...sheetTitleStyle, fontSize: 'var(--type-size-sm, 14px)', textDecoration: cancelled ? 'line-through' : 'none' }}>
+                    {o.label}
+                  </h3>
+                  <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>{o.detail}</p>
+                </div>
+                <StatusBadge style={cancelled ? 'error' : acknowledged.includes(o.id) ? 'success' : 'info'} size='small'>
+                  {cancelled ? 'ยกเลิกโดยแพทย์' : acknowledged.includes(o.id) ? 'รับทราบแล้ว' : meta.label}
+                </StatusBadge>
+              </div>
+              <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>
+                {`ผู้สั่ง ${o.by || '—'} · ${formatVisitClock(o.at)}`}
+                {cancelled && o.cancelReason ? ` · เหตุผล: ${o.cancelReason}` : ''}
+              </p>
+              {!cancelled && !acknowledged.includes(o.id) && (
+                <BrandSubdueButton size='md' variant='outline' leadingIcon='check' onClick={() => onAcknowledge(o.id)}>
+                  รับทราบคำสั่งนี้
+                </BrandSubdueButton>
+              )}
+            </div>
+          );
+        })}
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          <BrandButton size='lg' leadingIcon='payments' onClick={onPay}>
+            ไปชำระเงิน
+          </BrandButton>
+          <BrandSubdueButton size='lg' variant='outline' leadingIcon='local_shipping' onClick={onPickup}>
+            เลือกวิธีรับยา
+          </BrandSubdueButton>
+        </div>
+      </>
+    )}
+  </div>
+);
+
+/* (4) ส่งค่าจากอุปกรณ์ที่บ้าน (§1.13.1) */
+const DEVICE_FIELDS = ['bpSys', 'bpDia', 'dtx', 'temp', 'o2sat', 'weight'];
+
+const HomeDeviceTab = ({
+  rpmPatient, values, setValues, meal, setMeal, errors, warns,
+  syncing, onSync, onSubmit, lastSubmitAt, confirmRepeat, alerts,
+}) => (
+  <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+    {!rpmPatient ? (
+      <EmptyRow icon='monitor_heart' text='คุณยังไม่ได้ลงทะเบียนอุปกรณ์วัดที่บ้าน — ติดต่อเจ้าหน้าที่ที่ศูนย์บริการ' />
+    ) : (
+      <>
+        <div style={sheetCardStyle}>
+          <h3 style={sheetTitleStyle}>อุปกรณ์ที่เชื่อมไว้</h3>
+          {rpmPatient.devices.map((d) => (
+            <div key={d.serial} className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <Sym name={d.online ? 'bluetooth_connected' : 'bluetooth_disabled'} size={18} color={d.online ? 'var(--icon-brandPrimary-default, #007549)' : 'var(--icon-content-tertiary, #858C92)'} />
+              <span className='flex-1 min-w-0' style={{ fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-default, #111314)' }}>
+                {d.model}
+              </span>
+              <StatusBadge style={d.online ? (d.battery <= 20 ? 'warning' : 'success') : 'neutral'} size='small'>
+                {d.online ? `แบต ${d.battery}%` : 'ออฟไลน์'}
+              </StatusBadge>
+            </div>
+          ))}
+          <BrandSubdueButton size='md' variant='outline' leadingIcon='sync' disabled={syncing} onClick={onSync}>
+            {syncing ? 'กำลังเชื่อมต่ออุปกรณ์…' : 'ซิงก์ค่าจากอุปกรณ์ (Bluetooth)'}
+          </BrandSubdueButton>
+        </div>
+
+        {alerts.length > 0 && (
+          <Alert
+            type='warning'
+            title='ค่าล่าสุดของคุณเกินเกณฑ์เฝ้าระวัง'
+            subtext={alerts.map((a) => a.detail).join(' · ')}
+          />
+        )}
+
+        <div style={sheetCardStyle}>
+          <h3 style={sheetTitleStyle}>กรอกค่าด้วยตนเอง</h3>
+          <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>
+            ค่าที่คุณส่งเองจะถูกระบุว่า &quot;ผู้ป่วยส่งเอง&quot; และจะไม่ทับค่าที่มาจากอุปกรณ์
+          </p>
+          {DEVICE_FIELDS.map((k) => (
+            <MobileInputField
+              key={k}
+              label={`${RPM_PARAM_META[k].label} (${RPM_PARAM_META[k].unit})`}
+              value={values[k]}
+              onChange={(e) => setValues((s) => ({ ...s, [k]: e.target.value }))}
+              placeholder='—'
+              inputMode='decimal'
+              error={errors[k]}
+              helperText={errors[k]}
+              showHelperText={Boolean(errors[k])}
+            />
+          ))}
+          {values.dtx !== '' && (
+            <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              {DTX_MEAL_STATE.map((m) => (
+                <NeutralSubdueButton
+                  key={m.value}
+                  fullWidth={false}
+                  size='sm'
+                  variant={meal === m.value ? 'fill' : 'outline'}
+                  onClick={() => setMeal(m.value)}
+                >
+                  {m.label}
+                </NeutralSubdueButton>
+              ))}
+            </div>
+          )}
+          {warns.map((w) => (
+            <p key={w} style={{ ...sheetBodyStyle, color: 'var(--text-alert-warning, #C2410C)', fontSize: 'var(--type-size-xs, 12px)' }}>{w}</p>
+          ))}
+          {errors._form && (
+            <p style={{ ...sheetBodyStyle, color: 'var(--text-alert-error, #B91C1C)', fontSize: 'var(--type-size-xs, 12px)' }}>{errors._form}</p>
+          )}
+          {lastSubmitAt && (
+            <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>
+              {`ส่งค่าล่าสุดเมื่อ ${formatVisitClock(lastSubmitAt)}`}
+            </p>
+          )}
+          <BrandButton size='lg' leadingIcon='send' onClick={onSubmit}>
+            {confirmRepeat ? 'ยืนยันส่งซ้ำอีกครั้ง' : 'ส่งค่าเข้าระบบ'}
+          </BrandButton>
+          {confirmRepeat && (
+            <p style={{ ...sheetBodyStyle, color: 'var(--text-alert-warning, #C2410C)', fontSize: 'var(--type-size-xs, 12px)' }}>
+              คุณเพิ่งส่งค่าไปเมื่อไม่ถึง 5 นาทีที่แล้ว — กดอีกครั้งเพื่อยืนยันส่งซ้ำ
+            </p>
+          )}
+        </div>
+      </>
+    )}
+  </div>
+);
+
+const TelemedExtrasSheet = ({ open, onClose, tab, onTabChange, children }) => {
+  if (!open) return null;
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 40,
+        background: 'var(--background-overlay-default, rgba(100,116,139,0.5))',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+      }}
+      onClick={onClose}
+      role='presentation'
+    >
+      <div
+        role='dialog'
+        aria-label='ข้อมูลเพิ่มเติมของการปรึกษาทางไกล'
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxHeight: '86%',
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'var(--background-screen-brand-100, #F4FBF8)',
+          borderTopLeftRadius: 'var(--dim-radius-600, 24px)',
+          borderTopRightRadius: 'var(--dim-radius-600, 24px)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          className='flex items-center'
+          style={{
+            gap: 'var(--dim-space-200, 8px)',
+            paddingTop: 'var(--dim-space-300, 12px)',
+            paddingBottom: 'var(--dim-space-200, 8px)',
+            paddingLeft: 'var(--dim-space-400, 16px)',
+            paddingRight: 'var(--dim-space-400, 16px)',
+            background: 'var(--surface-navigation-default, #FFFFFF)',
+            borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+          }}
+        >
+          <h2 style={{ ...sheetTitleStyle, flex: 1 }}>ข้อมูลการปรึกษาทางไกล</h2>
+          <BrandCircleSubdueIconButton size='sm' icon='close' aria-label='ปิด' onClick={onClose} />
+        </div>
+
+        <div
+          className='flex'
+          style={{
+            gap: 'var(--dim-space-100, 4px)',
+            paddingTop: 'var(--dim-space-200, 8px)',
+            paddingBottom: 'var(--dim-space-200, 8px)',
+            paddingLeft: 'var(--dim-space-300, 12px)',
+            paddingRight: 'var(--dim-space-300, 12px)',
+            overflowX: 'auto',
+            background: 'var(--surface-navigation-default, #FFFFFF)',
+          }}
+        >
+          {EXTRA_TABS.map((t) => {
+            const on = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                type='button'
+                onClick={() => onTabChange(t.key)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 'var(--dim-space-100, 4px)',
+                  paddingTop: 'var(--dim-space-200, 8px)',
+                  paddingBottom: 'var(--dim-space-200, 8px)',
+                  paddingLeft: 'var(--dim-space-300, 12px)',
+                  paddingRight: 'var(--dim-space-300, 12px)',
+                  borderRadius: 'var(--dim-radius-full, 9999px)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  fontFamily: 'inherit',
+                  fontSize: 'var(--type-size-sm, 14px)',
+                  background: on ? 'var(--surface-brandPrimary-quaternary, #F4FBF8)' : 'transparent',
+                  color: on ? 'var(--text-brandPrimary-default, #007549)' : 'var(--text-content-secondary, #636B72)',
+                }}
+              >
+                <Sym name={t.icon} size={16} color={on ? 'var(--icon-brandPrimary-default, #007549)' : 'var(--icon-content-tertiary, #858C92)'} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div
+          className='flex-1 min-h-0 overflow-y-auto'
+          style={{
+            paddingTop: 'var(--dim-space-400, 16px)',
+            paddingBottom: 'var(--dim-space-600, 24px)',
+            paddingLeft: 'var(--dim-space-400, 16px)',
+            paddingRight: 'var(--dim-space-400, 16px)',
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ExtrasFab = ({ onClick, badge }) => (
+  <button
+    type='button'
+    onClick={onClick}
+    aria-label='เปิดข้อมูลการปรึกษาทางไกล'
+    style={{
+      position: 'absolute',
+      right: 'var(--dim-space-400, 16px)',
+      bottom: 'calc(var(--dim-size-2000, 128px) + var(--dim-space-200, 8px))',
+      zIndex: 30,
+      width: 'var(--dim-size-1100, 52px)',
+      height: 'var(--dim-size-1100, 52px)',
+      borderRadius: 'var(--dim-radius-full, 9999px)',
+      border: 'none',
+      cursor: 'pointer',
+      background: 'var(--surface-brandPrimary-default, #007549)',
+      boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}
+  >
+    <Sym name='medical_information' size={24} color='var(--text-brandPrimary-on-brand, #FFFFFF)' />
+    {badge > 0 && (
+      <span
+        style={{
+          position: 'absolute',
+          top: 2,
+          right: 2,
+          minWidth: 18,
+          height: 18,
+          paddingLeft: 4,
+          paddingRight: 4,
+          borderRadius: 'var(--dim-radius-full, 9999px)',
+          background: 'var(--surface-dangerButton-default, #D04949)',
+          color: 'var(--text-brandPrimary-on-brand, #FFFFFF)',
+          fontSize: 'var(--type-size-xxs, 10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {badge}
+      </span>
+    )}
+  </button>
+);
+
 const MobileTelemedInner = ({ onStepChange }) => {
   const history = useHistory();
   const { search } = useLocation();
@@ -1964,6 +2535,160 @@ const MobileTelemedInner = ({ onStepChange }) => {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const scrollRef = useRef(null);
   const callBoundaryRef = useRef(null);
+
+  /* ── ส่วนต่อยอด: แจ้งเตือนคิว · เอกสารที่แชร์ · คำสั่งแพทย์ · ส่งค่าอุปกรณ์ ── */
+  const [extrasOpen, setExtrasOpen] = useState(false);
+  const [extrasTab, setExtrasTab] = useState('queue');
+  const [visitTick, setVisitTick] = useState(0);
+  const [notificationsAllowed, setNotificationsAllowed] = useState(true);
+  const [docs, setDocs] = useState(SHARED_DOCS);
+  const [openDoc, setOpenDoc] = useState(null);
+  const [docZoom, setDocZoom] = useState(1);
+  const [ackOrders, setAckOrders] = useState([]);
+  const [deviceValues, setDeviceValues] = useState({ bpSys: '', bpDia: '', dtx: '', temp: '', o2sat: '', weight: '' });
+  const [deviceMeal, setDeviceMeal] = useState('fasting');
+  const [deviceErrors, setDeviceErrors] = useState({});
+  const [syncing, setSyncing] = useState(false);
+  const [lastSubmitAt, setLastSubmitAt] = useState(null);
+  const [confirmRepeat, setConfirmRepeat] = useState(false);
+
+  useEffect(() => subscribeTelemedVisits(() => setVisitTick((t) => t + 1)), []);
+
+  /* ผูกกับ HN ของเจ้าของเครื่องเท่านั้น — ห้าม fallback ไปหยิบรายการของคนอื่น
+     (ถ้ารายการถูกยกเลิก ผู้ใช้ต้องเห็น "ไม่มีรายการ" ไม่ใช่คำสั่งของผู้ป่วยรายอื่น) */
+  const linkedVisit = useMemo(
+    () => getTelemedVisits().find((v) => v.hn === MOBILE_LINKED_HN && v.status !== 'cancelled') || null,
+    [visitTick],
+  );
+
+  const rpmPatient = useMemo(() => getRpmPatientByHn(linkedVisit?.hn || MOBILE_LINKED_HN), [linkedVisit, visitTick]);
+
+  const rpmAlerts = useMemo(() => {
+    if (!rpmPatient) return [];
+    return evaluateRpmPatient(rpmPatient, getRpmReadings(rpmPatient.id)).alerts.filter((a) => a.level === 'critical');
+  }, [rpmPatient, visitTick]);
+
+  /* ยินยอมให้บันทึก = ยินยอมให้บันทึกเอกสารลงเครื่องด้วย (อ่านจากทะเบียนกลาง) */
+  const downloadAllowed = useMemo(() => {
+    if (!linkedVisit) return recordingConsented;
+    return recordingConsented && canRecordCall(linkedVisit.id).allowed;
+  }, [linkedVisit, recordingConsented, visitTick]);
+
+  const liveOrders = linkedVisit?.orders || [];
+  const pendingOrderCount = liveOrders.filter((o) => o.status !== 'cancelled' && !ackOrders.includes(o.id)).length;
+
+  const retryDoc = (id) => {
+    setDocs((list) => list.map((d) => (d.id === id ? { ...d, state: 'loading' } : d)));
+    window.setTimeout(() => {
+      setDocs((list) => list.map((d) => (d.id === id ? { ...d, state: 'ready' } : d)));
+    }, 1200);
+  };
+
+  const syncDevice = () => {
+    setSyncing(true);
+    window.setTimeout(() => {
+      setSyncing(false);
+      const latest = rpmPatient ? getRpmReadings(rpmPatient.id)[0] : null;
+      if (latest) {
+        setDeviceValues((s) => ({
+          ...s,
+          bpSys: latest.bpSys != null ? String(latest.bpSys) : s.bpSys,
+          bpDia: latest.bpDia != null ? String(latest.bpDia) : s.bpDia,
+          dtx: latest.dtx != null ? String(latest.dtx) : s.dtx,
+          o2sat: latest.o2sat != null ? String(latest.o2sat) : s.o2sat,
+        }));
+      }
+    }, 1400);
+  };
+
+  const submitDeviceValues = () => {
+    const values = Object.keys(deviceValues).reduce((acc, k) => {
+      if (deviceValues[k] !== '') acc[k] = deviceValues[k];
+      return acc;
+    }, {});
+    if (Object.keys(values).length === 0) {
+      setDeviceErrors({ _form: 'กรอกค่าอย่างน้อย 1 รายการก่อนส่ง' });
+      return;
+    }
+    const errs = validateReadingValues(values);
+    if (Object.keys(errs).length) { setDeviceErrors(errs); return; }
+    if (lastSubmitAt && Date.now() - new Date(lastSubmitAt).getTime() < 5 * 60_000 && !confirmRepeat) {
+      setConfirmRepeat(true);
+      setDeviceErrors({});
+      return;
+    }
+    if (!rpmPatient) { setDeviceErrors({ _form: 'ยังไม่ได้ลงทะเบียนอุปกรณ์กับศูนย์บริการ' }); return; }
+    addRpmReading(rpmPatient.id, values, {
+      source: 'self',
+      actor: CURRENT_USER?.name || 'ผู้รับบริการ',
+      meal: values.dtx ? deviceMeal : undefined,
+      note: 'ส่งจากแอปผู้รับบริการ',
+    });
+    setLastSubmitAt(new Date().toISOString());
+    setConfirmRepeat(false);
+    setDeviceErrors({});
+    setDeviceValues({ bpSys: '', bpDia: '', dtx: '', temp: '', o2sat: '', weight: '' });
+  };
+
+  const extrasBody = (
+    extrasTab === 'queue' ? (
+      <QueueReminderTab
+        visit={linkedVisit}
+        notificationsAllowed={notificationsAllowed}
+        onToggleNotifications={() => setNotificationsAllowed((v) => !v)}
+        onReschedule={() => history.push(apt ? `/m/appointments/${apt.id}` : '/m/appointments')}
+        onEnterWaitingRoom={() => { setExtrasOpen(false); setStep('wait'); }}
+      />
+    ) : extrasTab === 'docs' ? (
+      <SharedDocsTab
+        docs={docs}
+        canDownload={downloadAllowed}
+        onRetry={retryDoc}
+        openDoc={openDoc}
+        setOpenDoc={setOpenDoc}
+        zoom={docZoom}
+        setZoom={setDocZoom}
+      />
+    ) : extrasTab === 'orders' ? (
+      <DoctorOrdersTab
+        orders={liveOrders}
+        acknowledged={ackOrders}
+        onAcknowledge={(id) => setAckOrders((s) => (s.includes(id) ? s : [...s, id]))}
+        onPay={() => history.push('/m/payment')}
+        onPickup={() => history.push('/m/pharmacy/preparing')}
+      />
+    ) : (
+      <HomeDeviceTab
+        rpmPatient={rpmPatient}
+        values={deviceValues}
+        setValues={(updater) => { setDeviceValues(updater); setDeviceErrors({}); setConfirmRepeat(false); }}
+        meal={deviceMeal}
+        setMeal={setDeviceMeal}
+        errors={deviceErrors}
+        warns={rpmSoftWarnings(deviceValues)}
+        syncing={syncing}
+        onSync={syncDevice}
+        onSubmit={submitDeviceValues}
+        lastSubmitAt={lastSubmitAt}
+        confirmRepeat={confirmRepeat}
+        alerts={rpmAlerts}
+      />
+    )
+  );
+
+  const extrasOverlay = (
+    <>
+      <ExtrasFab onClick={() => setExtrasOpen(true)} badge={pendingOrderCount} />
+      <TelemedExtrasSheet
+        open={extrasOpen}
+        onClose={() => { setExtrasOpen(false); setOpenDoc(null); }}
+        tab={extrasTab}
+        onTabChange={(t) => { setExtrasTab(t); setOpenDoc(null); }}
+      >
+        {extrasBody}
+      </TelemedExtrasSheet>
+    </>
+  );
 
   useEffect(() => {
     onStepChange?.(step);
@@ -2195,19 +2920,23 @@ const MobileTelemedInner = ({ onStepChange }) => {
             onClose={() => setCancelConfirmOpen(false)}
           />
         )}
+        {extrasOverlay}
       </div>
     );
   }
 
   if (step === 'done') {
     return (
-      <DoneScreen
-        doctorName={doctorName}
-        specialty={specialty}
-        locationLabel={locationLabel}
-        elapsed={elapsed}
-        onPay={() => history.push('/m/pharmacy/preparing')}
-      />
+      <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
+        <DoneScreen
+          doctorName={doctorName}
+          specialty={specialty}
+          locationLabel={locationLabel}
+          elapsed={elapsed}
+          onPay={() => history.push('/m/pharmacy/preparing')}
+        />
+        {extrasOverlay}
+      </div>
     );
   }
 
@@ -2303,6 +3032,7 @@ const MobileTelemedInner = ({ onStepChange }) => {
         }}
         onSubmit={submitReview}
       />
+      {!chatOpen && extrasOverlay}
     </div>
   );
 };
