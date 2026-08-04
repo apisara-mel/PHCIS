@@ -1,21 +1,79 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
+import PrimarySearch from '@/components/search/PrimarySearch';
+import useSearchHistory from '@/components/search/useSearchHistory';
+import FilterTag from '@/components/forms/FilterTag';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
+import PatientCard from '@/components/card/PatientCard';
 import { CONSENT_TYPE_TONE, CONSENT_STATUS } from '@/data/consentRecords';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import {
   buildPatientConsentTimeline,
+  searchConsentPatients,
   CONSENT_HISTORY_ACTIONS,
 } from '@/data/consentPatientHistory';
+import { resolveConsentPatient } from '@/data/consentPatientDisplay';
+import {
+  CONSENT_PATIENT_SEARCH_POOL,
+  consentPatientSearchHistorySeed,
+  consentPatientSearchSuggestions,
+  toConsentPatientSearchItem,
+} from '@/data/consentPatientSearch';
+import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — ประวัติความยินยอมรายบุคคล (Timeline · new tab).
-   รวมทุกเหตุการณ์ให้/ไม่ให้/ถอน/แก้ไข จากทุกคำขอของผู้ป่วย HN เดียวกัน. */
+   /consent/history          → ค้นหาชื่อ / HN แล้วเลือกผู้ป่วย
+   /consent/history/:hn      → Timeline รวมทุกเหตุการณ์ของ HN นั้น
+   Timeline: การ์ดรายเหตุการณ์ · จัดกลุ่มรายเดือน (เดือนล่าสุดบนสุด) · FilterTag */
 
-const breadcrumb = ['จัดการความยินยอม', 'ประวัติความยินยอม'];
+const breadcrumbSearch = ['จัดการความยินยอม', 'ประวัติความยินยอม'];
+const breadcrumbTimeline = ['จัดการความยินยอม', 'Timeline การเปลี่ยนแปลงความยินยอม'];
+
+/** Strip mock cycle suffix (`67-00001-2` → `67-00001`) for profile lookup. */
+const baseConsentHn = (hn) => {
+  const raw = String(hn || '').trim();
+  const m = raw.match(/^(\d{2}-\d{5})(?:-\d+)?$/);
+  return m ? m[1] : raw;
+};
+
+/** PatientCard profile — screening roster first, consent avatar fallback. */
+const resolveTimelinePatientCard = (hn, fallbackName) => {
+  const resolved = resolveConsentPatient(hn, fallbackName);
+  const profile = getPatientByHN(baseConsentHn(hn));
+  if (profile) {
+    return {
+      ...profile,
+      hn: resolved.hn || profile.hn,
+      avatarUrl: profile.avatarUrl || resolved.avatarUrl,
+    };
+  }
+  return {
+    ...DEFAULT_PATIENT,
+    hn: resolved.hn || hn,
+    shortName: resolved.name || fallbackName,
+    fullName: resolved.name || fallbackName,
+    englishName: '',
+    avatarUrl: resolved.avatarUrl,
+    sex: '—',
+    age: '—',
+    nationalId: '—',
+    bloodType: '—',
+    patientType: '—',
+    doctor: '—',
+    insurance: '—',
+    address: '—',
+    vip: false,
+  };
+};
+
+const THAI_MONTHS = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+];
 
 const BODY_TEXT = {
   color: 'var(--text-content-secondary)',
@@ -31,6 +89,13 @@ const TITLE_TEXT = {
   lineHeight: 1.4,
 };
 const MUTED_XS = { ...BODY_TEXT, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' };
+const MONTH_HEADING = {
+  color: 'var(--text-content-default)',
+  fontFamily: 'var(--type-family-heading-content)',
+  fontSize: 'var(--type-size-sm)',
+  fontWeight: 'var(--type-weight-bold)',
+  lineHeight: 1.5,
+};
 
 const CARD_STYLE = {
   background: 'var(--surface-card-100)',
@@ -40,6 +105,14 @@ const CARD_STYLE = {
   padding: 'var(--dim-space-600)',
 };
 
+const EVENT_CARD_STYLE = {
+  background: 'var(--surface-card-100)',
+  borderRadius: 'var(--dim-radius-400)',
+  border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+  boxShadow: 'var(--shadow-card)',
+  padding: 'var(--dim-space-400)',
+};
+
 const ACTION_BADGE_TONE = {
   green: 'green',
   red: 'red',
@@ -47,16 +120,349 @@ const ACTION_BADGE_TONE = {
   blue: 'blue',
 };
 
-export default function ConsentHistoryPage() {
-  const { hn: hnParam } = useParams();
-  const hn = decodeURIComponent(hnParam || '');
-  const [records, setRecords] = useState(getConsentRecords);
-  useEffect(() => subscribeConsentStore(() => setRecords(getConsentRecords())), []);
+const ACTION_FILTERS = [
+  { key: 'all', label: 'ทั้งหมด' },
+  { key: 'สร้างคำขอ', label: 'สร้างคำขอ' },
+  { key: 'ให้ความยินยอม', label: 'ให้ความยินยอม' },
+  { key: 'ไม่ให้ความยินยอม', label: 'ไม่ให้ความยินยอม' },
+  { key: 'ถอนความยินยอม', label: 'ถอนความยินยอม' },
+  { key: 'แก้ไขความยินยอม', label: 'แก้ไขความยินยอม' },
+  { key: 'มีเวอร์ชันใหม่', label: 'มีเวอร์ชันใหม่' },
+];
+
+const SORT_FILTERS = [
+  { key: 'newest', label: 'ใหม่ → เก่า' },
+  { key: 'oldest', label: 'เก่า → ใหม่' },
+];
+
+/** แปลง "4 มีนาคม 2569 · 11:20" → { monthLabel, sortKey, instant } */
+const parseThaiDateTime = (dateTime) => {
+  const raw = String(dateTime || '').trim();
+  const monthIdx = THAI_MONTHS.findIndex((m) => raw.includes(m));
+  const yearMatch = raw.match(/(25\d{2}|20\d{2})/);
+  const dayMatch = raw.match(/^(\d{1,2})\s/);
+  const timeMatch = raw.match(/(\d{1,2}:\d{2})/);
+  const year = yearMatch ? Number(yearMatch[1]) : 0;
+  const month = monthIdx >= 0 ? monthIdx : 0;
+  const day = dayMatch ? Number(dayMatch[1]) : 0;
+  const [hh = 0, mm = 0] = (timeMatch?.[1] || '0:0').split(':').map(Number);
+  const buddhistYear = year >= 2400 ? year : year > 0 ? year + 543 : 0;
+  const monthLabel = monthIdx >= 0 && buddhistYear
+    ? `${THAI_MONTHS[monthIdx]} ${buddhistYear}`
+    : 'ไม่ระบุเดือน';
+  const sortKey = buddhistYear * 100 + month;
+  const instant = buddhistYear * 1e10 + month * 1e8 + day * 1e6 + hh * 100 + mm;
+  return { monthLabel, sortKey, instant };
+};
+
+const groupEventsByMonth = (events, sortDir) => {
+  const map = new Map();
+  events.forEach((ev) => {
+    const meta = parseThaiDateTime(ev.dateTime);
+    const enriched = { ...ev, _monthLabel: meta.monthLabel, _monthSort: meta.sortKey, _instant: meta.instant };
+    if (!map.has(meta.monthLabel)) {
+      map.set(meta.monthLabel, { label: meta.monthLabel, sortKey: meta.sortKey, events: [] });
+    }
+    map.get(meta.monthLabel).events.push(enriched);
+  });
+  const groups = [...map.values()];
+  groups.forEach((g) => {
+    g.events.sort((a, b) => (sortDir === 'oldest' ? a._instant - b._instant : b._instant - a._instant));
+  });
+  groups.sort((a, b) => (sortDir === 'oldest' ? a.sortKey - b.sortKey : b.sortKey - a.sortKey));
+  return groups;
+};
+
+const eventIconBg = (tone) => {
+  if (tone === 'green') return 'var(--surface-statussummarycard-positive, #D1F6EE)';
+  if (tone === 'red') return 'var(--surface-statussummarycard-destructive, #FEE2E2)';
+  if (tone === 'yellow') return 'var(--surface-statussummarycard-inprogress, #FFEDD5)';
+  return 'var(--surface-statussummarycard-info, #DBEAFE)';
+};
+
+const eventIconFg = (tone) => {
+  if (tone === 'green') return 'var(--text-statussummarycard-positive-number, #196C65)';
+  if (tone === 'red') return 'var(--text-statussummarycard-destructive-number, #B91C1C)';
+  if (tone === 'yellow') return 'var(--text-statussummarycard-inprogress-number, #C2410C)';
+  return 'var(--text-statussummarycard-info-number, #1D4ED8)';
+};
+
+function TimelineEventCard({ ev, showConnector }) {
+  const meta = CONSENT_HISTORY_ACTIONS[ev.action] || { tone: 'grey', icon: 'info' };
+  const statusTone = (CONSENT_STATUS[ev.toStatus] || {}).tone || ACTION_BADGE_TONE[meta.tone] || 'grey';
+  return (
+    <div className='flex items-stretch' style={{ gap: 'var(--dim-space-300)' }}>
+      <div className='flex flex-col items-center' style={{ width: 24, flexShrink: 0 }}>
+        <span
+          aria-hidden
+          className='inline-flex items-center justify-center'
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 'var(--dim-radius-full)',
+            background: eventIconBg(meta.tone),
+            color: eventIconFg(meta.tone),
+            flexShrink: 0,
+          }}
+        >
+          <Icon name={meta.icon} size={14} />
+        </span>
+        {showConnector && (
+          <span
+            aria-hidden
+            style={{
+              width: 'var(--dim-stroke-100)',
+              flex: 1,
+              minHeight: 'var(--dim-space-400)',
+              background: 'var(--border-neutral-tertiary)',
+            }}
+          />
+        )}
+      </div>
+      <div
+        className='flex flex-col flex-1 min-w-0'
+        style={{
+          ...EVENT_CARD_STYLE,
+          gap: 'var(--dim-space-150)',
+          marginBottom: showConnector ? 'var(--dim-space-300)' : 0,
+        }}
+      >
+        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+          <ColorfulBadge style={ACTION_BADGE_TONE[meta.tone] || 'grey'} size='small' hierarchy='secondary' width='hug'>
+            {ev.action}
+          </ColorfulBadge>
+          <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{ev.formCode}</ColorfulBadge>
+          <ColorfulBadge style={CONSENT_TYPE_TONE[ev.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>
+            {ev.type}
+          </ColorfulBadge>
+          <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{ev.version}</ColorfulBadge>
+          <ColorfulBadge style={statusTone} size='small' hierarchy='secondary' width='hug'>{ev.toStatus}</ColorfulBadge>
+        </div>
+        <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
+          {ev.formName}
+        </span>
+        <span style={BODY_TEXT}>การเปลี่ยนแปลง: {ev.changeDetail}</span>
+        <span style={MUTED_XS}>ช่องทาง: {ev.channel}</span>
+        <span style={MUTED_XS}>วันเวลา: {ev.dateTime}</span>
+      </div>
+    </div>
+  );
+}
+
+function ConsentHistorySearch({ records }) {
+  const navigate = useHistory();
+  const [search, setSearch] = useState('');
+  const { history: searchHistory, push: pushHistory, clear: clearHistory } =
+    useSearchHistory('mih:primarysearch-history:consent-history', {
+      seedIfEmpty: consentPatientSearchHistorySeed(4),
+    });
+
+  const results = useMemo(
+    () => searchConsentPatients(search, records),
+    [search, records],
+  );
+
+  const searchSuggestions = useMemo(
+    () => consentPatientSearchSuggestions(search),
+    [search],
+  );
+
+  const handleSubmit = (value, item) => {
+    const q = (item?.value || item?.label || value || '').trim();
+    if (!q) return;
+    const pool = item?.id
+      ? CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === item.id)
+      : null;
+    pushHistory(pool ? toConsentPatientSearchItem(pool) : (item || { label: q, value: q }));
+    setSearch(q);
+  };
+
+  return (
+    <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
+      <section className='w-full flex flex-col' style={{ ...CARD_STYLE, gap: 'var(--dim-space-600)' }}>
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+          <h2 style={TITLE_TEXT}>ค้นหาประวัติความยินยอม</h2>
+          <p style={MUTED_XS}>ค้นหาด้วยชื่อผู้รับบริการ หรือเลข HN แล้วคลิกชื่อเพื่อดู Timeline</p>
+        </div>
+        <div className='w-full flex items-start justify-center'>
+          <PrimarySearch
+            value={search}
+            onChange={setSearch}
+            onSubmit={handleSubmit}
+            placeholder='ค้นหา HN / เลขบัตร / Passport / ชื่อ-สกุล / โทรศัพท์'
+            width={640}
+            suggestions={searchSuggestions}
+            history={searchHistory}
+            onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+          />
+        </div>
+
+        {!search.trim() ? (
+          <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-600)' }}>
+            <Icon name='person_search' size={32} color='var(--text-content-tertiary)' />
+            <span style={BODY_TEXT}>พิมพ์ชื่อหรือ HN เพื่อค้นหา</span>
+          </div>
+        ) : results.length === 0 ? (
+          <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-600)' }}>
+            <span style={BODY_TEXT}>ไม่พบผู้รับบริการที่ตรงกับ “{search.trim()}”</span>
+          </div>
+        ) : (
+          <ul className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)', listStyle: 'none', margin: 0, padding: 0 }}>
+            {results.map((p) => (
+              <li key={p.hn}>
+                <button
+                  type='button'
+                  onClick={() => navigate.push(`/consent/history/${encodeURIComponent(p.hn)}`)}
+                  className='w-full flex items-center text-left'
+                  style={{
+                    gap: 'var(--dim-space-400)',
+                    padding: 'var(--dim-space-400)',
+                    borderRadius: 'var(--dim-radius-400)',
+                    border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                    background: 'var(--surface-card-100)',
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  <QueuePatientAvatar
+                    hn={p.hn}
+                    name={p.name}
+                    avatarUrl={resolveConsentPatient(p.hn, p.name).avatarUrl}
+                    size={40}
+                  />
+                  <div className='flex flex-col min-w-0 flex-1' style={{ gap: 'var(--dim-space-050)' }}>
+                    <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
+                      {p.name}
+                    </span>
+                    <span style={MUTED_XS}>HN {p.hn} · {p.formCount} รายการความยินยอม</span>
+                  </div>
+                  <Icon name='chevron_right' size={20} color='var(--text-content-tertiary)' />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function ConsentHistoryTimeline({ hn, records }) {
+  const [actionFilter, setActionFilter] = useState('all');
+  const [sortDir, setSortDir] = useState('newest');
 
   const { patient, events } = useMemo(
     () => buildPatientConsentTimeline(hn, records),
     [hn, records],
   );
+
+  const filtered = useMemo(() => {
+    if (actionFilter === 'all') return events;
+    return events.filter((e) => e.action === actionFilter);
+  }, [events, actionFilter]);
+
+  const monthGroups = useMemo(
+    () => groupEventsByMonth(filtered, sortDir),
+    [filtered, sortDir],
+  );
+
+  const actionCounts = useMemo(() => {
+    const counts = { all: events.length };
+    ACTION_FILTERS.forEach((f) => {
+      if (f.key === 'all') return;
+      counts[f.key] = events.filter((e) => e.action === f.key).length;
+    });
+    return counts;
+  }, [events]);
+
+  const patientCard = useMemo(
+    () => (patient ? resolveTimelinePatientCard(patient.hn, patient.name) : null),
+    [patient],
+  );
+
+  if (!patient) {
+    return (
+      <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
+        <section style={CARD_STYLE}>
+          <span style={BODY_TEXT}>ไม่พบประวัติความยินยอมของ HN {hn || '—'}</span>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
+      <PatientCard embedded patient={patientCard} />
+
+      <section className='w-full flex flex-col' style={{ ...CARD_STYLE, gap: 'var(--dim-space-400)' }}>
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+          <p style={MUTED_XS}>
+            รวมทุกแบบฟอร์มและทุกเหตุการณ์ — จัดกลุ่มรายเดือน (เดือนล่าสุดอยู่บนสุด)
+          </p>
+        </div>
+
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+            <span style={MUTED_XS}>ประเภทเหตุการณ์</span>
+            {ACTION_FILTERS.map((f) => {
+              const count = actionCounts[f.key] ?? 0;
+              if (f.key !== 'all' && count === 0) return null;
+              return (
+                <FilterTag
+                  key={f.key}
+                  value={f.key === 'all' ? f.label : `${f.label} (${count})`}
+                  selected={actionFilter === f.key}
+                  onClick={() => setActionFilter(f.key)}
+                />
+              );
+            })}
+          </div>
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+            <span style={MUTED_XS}>เรียงลำดับ</span>
+            {SORT_FILTERS.map((f) => (
+              <FilterTag
+                key={f.key}
+                value={f.label}
+                selected={sortDir === f.key}
+                onClick={() => setSortDir(f.key)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <span style={BODY_TEXT}>ไม่พบเหตุการณ์ตามตัวกรองที่เลือก</span>
+        ) : (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
+            {monthGroups.map((group) => (
+              <div key={group.label} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                  <span style={MONTH_HEADING}>{group.label}</span>
+                  <span style={MUTED_XS}>{group.events.length} รายการ</span>
+                </div>
+                <div className='flex flex-col w-full'>
+                  {group.events.map((ev, i) => (
+                    <TimelineEventCard
+                      key={ev.id}
+                      ev={ev}
+                      showConnector={i < group.events.length - 1}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+export default function ConsentHistoryPage() {
+  const { hn: hnParam } = useParams();
+  const hn = hnParam ? decodeURIComponent(hnParam) : '';
+  const [records, setRecords] = useState(getConsentRecords);
+  useEffect(() => subscribeConsentStore(() => setRecords(getConsentRecords())), []);
 
   return (
     <QueuePageShell
@@ -64,137 +470,12 @@ export default function ConsentHistoryPage() {
       sidebarItems={CONSENT_NAV}
       sidebarFallbackKey='consent-manage'
       brandTitle='ระบบจัดการความยินยอม'
-      breadcrumb={breadcrumb}
-      title='ประวัติความยินยอม'
-      subtitle={patient ? `${patient.name} · HN ${patient.hn}` : `HN ${hn}`}
+      breadcrumb={hn ? breadcrumbTimeline : breadcrumbSearch}
+      title={hn ? 'Timeline การเปลี่ยนแปลงความยินยอม' : 'ประวัติความยินยอม'}
     >
-      <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
-        {!patient ? (
-          <section style={CARD_STYLE}>
-            <span style={BODY_TEXT}>ไม่พบประวัติความยินยอมของ HN {hn || '—'}</span>
-          </section>
-        ) : (
-          <>
-            <section
-              className='flex items-center flex-wrap'
-              style={{
-                ...CARD_STYLE,
-                gap: 'var(--dim-space-400)',
-                background: 'var(--surface-brandPrimary-quaternary)',
-              }}
-            >
-              <QueuePatientAvatar hn={patient.hn} name={patient.name} size={48} />
-              <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
-                <span style={MUTED_XS}>ชื่อ-นามสกุล ผู้ป่วย</span>
-                <span style={{ ...TITLE_TEXT, color: 'var(--text-content-default)' }}>{patient.name}</span>
-              </div>
-              <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
-                <span style={MUTED_XS}>HN</span>
-                <span style={{ ...TITLE_TEXT, color: 'var(--text-content-default)' }}>{patient.hn}</span>
-              </div>
-              {patient.guardian && (
-                <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
-                  <span style={MUTED_XS}>ผู้แทนโดยชอบธรรม</span>
-                  <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)' }}>{patient.guardian}</span>
-                </div>
-              )}
-            </section>
-
-            <section className='w-full flex flex-col' style={{ ...CARD_STYLE, gap: 'var(--dim-space-400)' }}>
-              <h2 style={TITLE_TEXT}>Timeline การเปลี่ยนแปลงความยินยอม</h2>
-              <p style={MUTED_XS}>
-                รวมทุกแบบฟอร์มและทุกเหตุการณ์ — การให้ ไม่ให้ ถอน และแก้ไขความยินยอม
-              </p>
-
-              {events.length === 0 ? (
-                <span style={BODY_TEXT}>ยังไม่มีประวัติความยินยอม</span>
-              ) : (
-                <div className='flex flex-col w-full'>
-                  {events.map((ev, i) => {
-                    const meta = CONSENT_HISTORY_ACTIONS[ev.action] || { tone: 'grey', icon: 'info' };
-                    const statusTone = (CONSENT_STATUS[ev.toStatus] || {}).tone || ACTION_BADGE_TONE[meta.tone] || 'grey';
-                    return (
-                      <div key={ev.id} className='flex items-stretch' style={{ gap: 'var(--dim-space-300)' }}>
-                        <div className='flex flex-col items-center' style={{ width: 24, flexShrink: 0 }}>
-                          <span
-                            aria-hidden
-                            className='inline-flex items-center justify-center'
-                            style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: 'var(--dim-radius-full)',
-                              background: meta.tone === 'green'
-                                ? 'var(--surface-statussummarycard-positive, #D1F6EE)'
-                                : meta.tone === 'red'
-                                  ? 'var(--surface-danger-tertiary, #FEE2E2)'
-                                  : meta.tone === 'yellow'
-                                    ? 'var(--surface-statussummarycard-inprogress, #FFEDD5)'
-                                    : 'var(--surface-statussummarycard-info, #DBEAFE)',
-                              color: 'var(--text-brandPrimary-default)',
-                              flexShrink: 0,
-                            }}
-                          >
-                            <Icon name={meta.icon} size={14} />
-                          </span>
-                          {i < events.length - 1 && (
-                            <span
-                              aria-hidden
-                              style={{
-                                width: 'var(--dim-stroke-100)',
-                                flex: 1,
-                                minHeight: 'var(--dim-space-400)',
-                                background: 'var(--border-neutral-tertiary)',
-                              }}
-                            />
-                          )}
-                        </div>
-                        <div
-                          className='flex flex-col flex-1 min-w-0'
-                          style={{ gap: 'var(--dim-space-150)', paddingBottom: 'var(--dim-space-500)' }}
-                        >
-                          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
-                            <ColorfulBadge
-                              style={ACTION_BADGE_TONE[meta.tone] || 'grey'}
-                              size='small'
-                              hierarchy='secondary'
-                              width='hug'
-                            >
-                              {ev.action}
-                            </ColorfulBadge>
-                            <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{ev.formCode}</ColorfulBadge>
-                            <ColorfulBadge
-                              style={CONSENT_TYPE_TONE[ev.type] || 'grey'}
-                              size='small'
-                              hierarchy='secondary'
-                              width='hug'
-                            >
-                              {ev.type}
-                            </ColorfulBadge>
-                            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{ev.version}</ColorfulBadge>
-                            <ColorfulBadge style={statusTone} size='small' hierarchy='secondary' width='hug'>{ev.toStatus}</ColorfulBadge>
-                          </div>
-                          <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
-                            {ev.formName}
-                          </span>
-                          <span style={BODY_TEXT}>
-                            การเปลี่ยนแปลง: {ev.changeDetail}
-                          </span>
-                          <span style={MUTED_XS}>
-                            ช่องทาง: {ev.channel}
-                          </span>
-                          <span style={MUTED_XS}>
-                            วันเวลา: {ev.dateTime}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          </>
-        )}
-      </div>
+      {hn
+        ? <ConsentHistoryTimeline hn={hn} records={records} />
+        : <ConsentHistorySearch records={records} />}
     </QueuePageShell>
   );
 }

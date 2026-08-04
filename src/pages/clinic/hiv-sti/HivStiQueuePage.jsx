@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import QueuePageShell from '@/templates/QueuePageShell';
+import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
@@ -506,7 +506,7 @@ const HivStiQueuePage = () => {
                   onSort={handleSort}
                   onRowClick={openRecord}
                   stickyColCount={3}
-                  stickyHeaderTop={113}
+                  stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
                   emptyMessage='ไม่พบรายการ'
                 />
 

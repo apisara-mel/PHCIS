@@ -40,6 +40,8 @@ const Header = ({
   standalone = true,
   merged = false,
   flushShadow = 'none',
+  /* เมื่อ true — ยุบความสูงเป็น 0 (scroll auto-hide จาก QueuePageShell) */
+  collapsed = false,
 }) => {
   const isHub = variant === 'hub';
   const clinicCtx = useClinicFilter();
@@ -68,13 +70,22 @@ const Header = ({
 
   return (
     <header
-      className='sticky top-0 z-[1200] h-16 w-full text-[color:var(--border-brandPrimary-quaternary)] flex items-center gap-3 md:gap-8 px-3 md:px-6'
+      className='sticky top-0 z-[1200] w-full text-[color:var(--border-brandPrimary-quaternary)] flex items-center gap-3 md:gap-8 px-3 md:px-6'
+      aria-hidden={collapsed || undefined}
       style={{
+        height: collapsed ? 0 : 'var(--dim-size-1400, 64px)',
+        minHeight: collapsed ? 0 : 'var(--dim-size-1400, 64px)',
+        paddingTop: collapsed ? 0 : undefined,
+        paddingBottom: collapsed ? 0 : undefined,
+        overflow: 'hidden',
+        opacity: collapsed ? 0 : 1,
+        pointerEvents: collapsed ? 'none' : 'auto',
         background: 'var(--surface-navigation-default)',
-        borderBottom:
-          'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-        boxShadow: barShadow,
-        transition:   'box-shadow 200ms ease, border-color 200ms ease',
+        borderBottom: collapsed
+          ? 'none'
+          : 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+        boxShadow: collapsed ? 'none' : barShadow,
+        transition: 'height 200ms ease, min-height 200ms ease, opacity 160ms ease, box-shadow 200ms ease, border-color 200ms ease',
       }}
     >
     {!isHub && (

@@ -1,12 +1,11 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useHistory } from 'react-router-dom';
-import QueuePageShell from '@/templates/QueuePageShell';
+import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterDateTag from '@/components/forms/FilterDateTag';
-import Table from '@/components/table/Table';
+import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
@@ -23,13 +22,12 @@ import {
 import { logExport } from '@/data/consentWorkflowStore';
 import { downloadConsentFormPdf } from '@/data/consentFormDownload';
 import { buildWizardPrefillFromRecord } from '@/data/consentFormWizardContent';
-import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import { ConsentFormSharePopup } from '@/pages/consent/ConsentFormSharePopup';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — แบบฟอร์มความยินยอม (Figma 291:113045 · flow 277:150901).
-   Consent-form TEMPLATE registry: summary cards · tabs · search · filters ·
+   Consent-form TEMPLATE registry: summary cards · tabs · search ·
    table with view / print / edit actions. Mirrors the consent registry page
    so the system stays consistent. Tokens aliased; copy Thai; data mock. */
 
@@ -54,6 +52,14 @@ const CARD_STYLE = {
   border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
   boxShadow: 'var(--shadow-card)',
   padding: 'var(--dim-space-600)',
+};
+/* Grid group ภายในการ์ดหลัก — ไม่ซ้อนการ์ดขาวอีกชั้น */
+const GROUP_INSET_STYLE = {
+  background: 'transparent',
+  borderRadius: 0,
+  border: 'none',
+  boxShadow: 'none',
+  padding: 0,
 };
 
 const Cell = ({ value }) =>
@@ -260,9 +266,8 @@ const GroupSection = ({ type, rows, onView, onEdit, onSeeAll, cardStyle }) => (
 
 export default function ConsentFormsPage() {
   const navigate = useHistory();
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('review');
   const [search, setSearch] = useState('');
-  const [dateValue, setDateValue] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -273,6 +278,21 @@ export default function ConsentFormsPage() {
   const [toast, setToast] = useState(null);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:consent-forms');
+
+  const searchSuggestions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return CONSENT_FORM_RECORDS
+      .filter((r) => `${r.code} ${r.name} ${r.group || ''} ${r.type || ''}`.toLowerCase().includes(q))
+      .slice(0, 8)
+      .map((r) => ({
+        id: String(r.id),
+        label: r.name,
+        value: r.name,
+        sublabel: [r.code, r.type, r.group].filter(Boolean).join(' · '),
+        badges: [{ label: r.code, tone: 'teal' }],
+      }));
+  }, [search]);
 
   const tabs = useMemo(() => CONSENT_FORM_TABS.map((t) => ({
     key: t.value,
@@ -287,14 +307,12 @@ export default function ConsentFormsPage() {
     const q = search.trim().toLowerCase();
     return CONSENT_FORM_RECORDS.filter((r) => {
       const meta = CONSENT_FORM_STATUS[r.status] || {};
-      const dateField = r.createdDate || r.updatedDate;
       return (
         (activeTab === 'all' || meta.tab === activeTab) &&
-        (!dateValue || matchesDateFilter(dateField, dateValue)) &&
-        (!q || r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q))
+        (!q || r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || (r.group || '').toLowerCase().includes(q))
       );
     });
-  }, [activeTab, search, dateValue]);
+  }, [activeTab, search]);
 
   const handleSort = (key) => setSortConfig((prev) => (
     prev.key === key
@@ -331,9 +349,9 @@ export default function ConsentFormsPage() {
   const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
 
-  const handleSubmit = (value) => {
-    const q = (value || '').trim();
-    if (q) pushHistory({ label: q, value: q });
+  const handleSubmit = (value, item) => {
+    const q = (item?.value || item?.label || value || '').trim();
+    if (q) pushHistory(item?.badges ? item : { label: q, value: q });
     setSearch(q); setPage(1);
   };
 
@@ -374,13 +392,16 @@ export default function ConsentFormsPage() {
     </div>
   );
 
-  /* Column widths per Figma 291:113045 HeaderCell w-[...]:
-     128 · 384 · 160 · 96 · 384 · 160 · 128 · 128 · 224. */
+  /* Column widths — ชื่อแบบฟอร์ม flex so long TH/EN titles aren't clipped. */
   const columns = useMemo(() => [
     { key: 'code', header: 'รหัสแบบฟอร์ม', width: 128, sortable: true, render: (r) => <Cell value={r.code} /> },
     {
-      key: 'name', header: 'ชื่อแบบฟอร์ม', width: 384, sortable: true,
-      render: (r) => <span className='truncate' style={TEXT_CELL} title={r.name}>{r.name}</span>,
+      key: 'name', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 420, sortable: true,
+      render: (r) => (
+        <div className='min-w-0 w-full' style={TEXT_CELL}>
+          <EllipsisText text={r.name || '-'} />
+        </div>
+      ),
     },
     {
       key: 'type', header: 'ประเภท', width: 160, sortable: true,
@@ -410,8 +431,8 @@ export default function ConsentFormsPage() {
       breadcrumb={breadcrumb}
       title='แบบฟอร์มความยินยอม'
       actions={(
-        <BrandButton variant='outline' size='md' trailingIcon='chevron_right' onClick={() => navigate.push('/forms')}>
-          ดูฟอร์มทั้งหมด
+        <BrandButton variant='fill' size='md' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
+          สร้างแบบฟอร์มใหม่
         </BrandButton>
       )}
       headerInfo={(
@@ -423,98 +444,76 @@ export default function ConsentFormsPage() {
       )}
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={(key) => { setActiveTab(key); setPage(1); }}
+      onTabChange={(key) => {
+        setActiveTab(key);
+        setPage(1);
+      }}
     >
-      {/* Content area — Figma Consent_form_all_List: p-24, gap-16 between the
-          search/filter card and the table card. */}
-      <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
-        {/* ── Search + filter card (Figma 334:125619 · p-24 · gap-24 · r-16) ── */}
-        <section
-          className='w-full flex flex-col items-center'
-          style={{
-            background: 'var(--surface-card-100)',
-            borderRadius: 'var(--dim-radius-500)',
-            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-            boxShadow: 'var(--shadow-card)',
-            padding: 'var(--dim-space-600)',
-            gap: 'var(--dim-space-600)',
-          }}
-        >
+      {/* Content — search + view toggle + table อยู่การ์ดขาวใบเดียว */}
+      <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)' }}>
+        <section className='w-full flex flex-col' style={{ ...CARD_STYLE, gap: 'var(--dim-space-600)' }}>
           <div className='w-full flex items-start justify-center'>
             <PrimarySearch
               value={search}
               onChange={(v) => { setSearch(v); setPage(1); }}
               onSubmit={handleSubmit}
-              placeholder='ค้นหาชื่อแบบฟอร์ม / กลุ่มงาน...'
+              placeholder='ค้นหาชื่อแบบฟอร์ม / รหัส / กลุ่มงาน...'
               width={640}
+              suggestions={searchSuggestions}
               history={searchHistory}
               onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
             />
           </div>
 
-          {/* Filter row — วันที่สร้าง (DateFilterPopup) + มุมมอง + สร้างแบบฟอร์ม */}
-          <div className='w-full flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-            <FilterDateTag
-              prefix='วันที่สร้าง:'
-              value={dateValue}
-              onChange={(v) => { setDateValue(v); setPage(1); }}
-            />
-            <div className='flex-1' />
-            <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-400)' }}>
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>มุมมอง</span>
-                <ViewToggle value={viewMode} onChange={setViewMode} />
-              </div>
-              <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
-                สร้างแบบฟอร์มใหม่
-              </BrandButton>
-            </div>
+          <div className='w-full flex items-center justify-end' style={{ gap: 'var(--dim-space-200)' }}>
+            <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>มุมมอง</span>
+            <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
-        </section>
 
-        {viewMode === 'list' ? (
-          /* ── Table card (Figma 7:13056 · p-24 · r-16) ── */
-          <section className='w-full flex flex-col' style={CARD_STYLE}>
-            <Table
-              columns={columns}
-              rows={pageRows}
-              rowKey={(row) => row.id}
-              sortConfig={sortConfig}
-              onSort={handleSort}
-              stickyColCount={2}
-              emptyMessage='ไม่พบแบบฟอร์มความยินยอม'
-              emptySubtext='ลองปรับตัวกรองหรือคำค้นหา'
-              style={{ maxHeight: 604, overflow: 'auto' }}
-            />
-
-            {/* Pagination (Figma 1:2651 · gap-24 · py-16) */}
-            <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)', paddingTop: 'var(--dim-space-400)' }}>
-              <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
-                แสดง {rangeStart}-{rangeEnd} จาก {sorted.length} รายการ
-              </span>
-              {totalPages > 1 && (
-                <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
-              )}
+          {viewMode === 'list' ? (
+            <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+              <Table
+                columns={columns}
+                rows={pageRows}
+                rowKey={(row) => row.id}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                stickyColCount={2}
+                /* Pin under sticky SubHeader + tabs — offset tracks Topbar
+                   auto-hide via --mih-queue-sticky-under-tabs (QueuePageShell). */
+                stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+                emptyMessage='ไม่พบแบบฟอร์มความยินยอม'
+                emptySubtext='ลองปรับคำค้นหาหรือเปลี่ยนแท็บ'
+              />
+              <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)', paddingTop: 'var(--dim-space-400)' }}>
+                <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
+                  แสดง {rangeStart}-{rangeEnd} จาก {sorted.length} รายการ
+                </span>
+                {totalPages > 1 && (
+                  <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
+                )}
+              </div>
             </div>
-          </section>
-        ) : grouped.length === 0 ? (
-          <section className='w-full flex flex-col items-center justify-center' style={{ ...CARD_STYLE, minHeight: 200 }}>
-            <span style={{ ...MUTED_CELL }}>ไม่พบแบบฟอร์มความยินยอม</span>
-          </section>
-        ) : (
-          /* ── Grid view — one white card per Consent type (Figma 336:170901) ── */
-          grouped.map((g) => (
-            <GroupSection
-              key={g.type}
-              type={g.type}
-              rows={g.rows}
-              cardStyle={CARD_STYLE}
-              onView={(r) => navigate.push(`/consent/forms/${r.id}/view`)}
-              onEdit={handleEdit}
-              onSeeAll={() => { setViewMode('list'); setPage(1); }}
-            />
-          ))
-        )}
+          ) : grouped.length === 0 ? (
+            <div className='w-full flex flex-col items-center justify-center' style={{ minHeight: 200 }}>
+              <span style={{ ...MUTED_CELL }}>ไม่พบแบบฟอร์มความยินยอม</span>
+            </div>
+          ) : (
+            <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
+              {grouped.map((g) => (
+                <GroupSection
+                  key={g.type}
+                  type={g.type}
+                  rows={g.rows}
+                  cardStyle={GROUP_INSET_STYLE}
+                  onView={(r) => navigate.push(`/consent/forms/${r.id}/view`)}
+                  onEdit={handleEdit}
+                  onSeeAll={() => { setViewMode('list'); setPage(1); }}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </QueuePageShell>
 

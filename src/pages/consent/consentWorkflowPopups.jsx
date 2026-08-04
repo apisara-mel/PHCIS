@@ -9,11 +9,20 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
+import PrimarySearch from '@/components/search/PrimarySearch';
+import useSearchHistory from '@/components/search/useSearchHistory';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import { getConsentChannelOptions } from '@/data/consentChannels';
 import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
 import { getConsentRecords } from '@/data/consentWorkflowStore';
 import { resolveConsentPatient } from '@/data/consentPatientDisplay';
+import {
+  CONSENT_PATIENT_SEARCH_POOL,
+  consentPatientSearchHistorySeed,
+  consentPatientSearchSuggestions,
+  toConsentPatientSearchItem,
+} from '@/data/consentPatientSearch';
 import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRecords';
 
 /* Helper popups ของ ConsentManagementPage — แตกไฟล์ตาม playbook (ห้ามรื้อ /
@@ -118,6 +127,9 @@ const PATIENT_POOL = (() => {
   });
 })();
 
+const CREATE_REQUEST_SEARCH_HISTORY_KEY = 'mih:primarysearch-history:consent-create-request';
+const CREATE_REQUEST_SEARCH_SEED = consentPatientSearchHistorySeed(4);
+
 /* เทมเพลตที่เผยแพร่แล้วเท่านั้น + เวอร์ชันล่าสุดของแต่ละใบ */
 const TEMPLATE_OPTIONS = CONSENT_FORM_RECORDS
   .filter((r) => (CONSENT_FORM_STATUS[r.status] || {}).tab === 'published')
@@ -132,6 +144,13 @@ export function CreateConsentRequestPopup({ open, onClose, onCreate }) {
   const [dueDate, setDueDate] = useState(null);
   const [touched, setTouched] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const {
+    history: searchHistory,
+    push: pushHistory,
+    clear: clearHistory,
+  } = useSearchHistory(CREATE_REQUEST_SEARCH_HISTORY_KEY, {
+    seedIfEmpty: CREATE_REQUEST_SEARCH_SEED,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -139,11 +158,10 @@ export function CreateConsentRequestPopup({ open, onClose, onCreate }) {
     setDueDate(null); setTouched(false); setConfirmDiscard(false);
   }, [open]);
 
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return PATIENT_POOL.filter((p) => p.hn.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)).slice(0, 6);
-  }, [query]);
+  const suggestions = useMemo(
+    () => consentPatientSearchSuggestions(query),
+    [query],
+  );
 
   const template = TEMPLATE_OPTIONS.find((t) => t.value === templateId)?.record || null;
   const dirty = touched && (query || patient || templateId || channel || dueDate);
@@ -152,6 +170,19 @@ export function CreateConsentRequestPopup({ open, onClose, onCreate }) {
   const requestClose = () => {
     if (dirty) setConfirmDiscard(true);
     else onClose();
+  };
+
+  const pickPatient = (p, item) => {
+    if (!p) return;
+    const fromPool = PATIENT_POOL.find((x) => x.hn === p.hn);
+    setPatient({
+      hn: p.hn,
+      name: p.name || p.label,
+      guardian: fromPool?.guardian || null,
+    });
+    setQuery('');
+    setTouched(true);
+    pushHistory(item || toConsentPatientSearchItem(p));
   };
 
   const create = () => {
@@ -191,57 +222,44 @@ export function CreateConsentRequestPopup({ open, onClose, onCreate }) {
                   borderRadius: 'var(--dim-radius-300)',
                 }}
               >
-                <Icon name='person' size={18} color='var(--text-brandPrimary-default)' />
+                <ColorfulBadge style='indigo' size='small' hierarchy='secondary'>{patient.hn}</ColorfulBadge>
                 <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)', flex: 1 }}>
-                  <span style={{ fontWeight: 'var(--type-weight-medium)' }}>{patient.name}</span> · HN {patient.hn}
+                  <span style={{ fontWeight: 'var(--type-weight-medium)' }}>{patient.name}</span>
                   {patient.guardian ? ` · ผู้แทน: ${patient.guardian}` : ''}
                 </span>
-                <button
-                  type='button'
+                <NeutralSubdueButton
+                  variant='outline'
+                  size='sm'
+                  leadingIcon='close'
                   onClick={() => { setPatient(null); setQuery(''); }}
-                  aria-label='เปลี่ยนผู้ป่วย'
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-content-tertiary)', padding: 0 }}
                 >
-                  <Icon name='close' size={16} />
-                </button>
+                  เปลี่ยน
+                </NeutralSubdueButton>
               </div>
             ) : (
-              <>
-                <InputField
-                  showLabel={false}
+              <div className='w-full flex items-start justify-center'>
+                <PrimarySearch
                   value={query}
                   onChange={(v) => { setQuery(v); setTouched(true); }}
-                  placeholder='ค้นหาด้วย HN หรือชื่อผู้ป่วย เช่น 67-00008'
-                  leadingIcon='search'
+                  onSubmit={(label, item) => {
+                    const found = (item?.id && CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === item.id))
+                      || CONSENT_PATIENT_SEARCH_POOL.find((p) =>
+                        p.label === label || p.name === label || p.hn === label)
+                      || (() => {
+                        const hit = PATIENT_POOL.find((p) => p.hn === label || p.name === label);
+                        return hit ? CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === hit.hn) : null;
+                      })();
+                    if (found) pickPatient(found, item);
+                    else setQuery(label);
+                  }}
+                  suggestions={suggestions}
+                  history={searchHistory}
+                  onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+                  placeholder='ค้นหา HN / เลขบัตร / Passport / ชื่อ-สกุล / โทรศัพท์'
+                  width={640}
+                  scrollOffsetTop={null}
                 />
-                {query.trim() && matches.length === 0 && (
-                  <span style={ERROR_TEXT}>ไม่พบผู้ป่วย — ตรวจสอบ HN หรือชื่ออีกครั้ง</span>
-                )}
-                {matches.length > 0 && (
-                  <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-100)' }}>
-                    {matches.map((p) => (
-                      <button
-                        key={p.hn}
-                        type='button'
-                        onClick={() => setPatient(p)}
-                        className='flex items-center text-left w-full'
-                        style={{
-                          gap: 'var(--dim-space-300)',
-                          paddingTop: 'var(--dim-space-200)', paddingRight: 'var(--dim-space-300)',
-                          paddingBottom: 'var(--dim-space-200)', paddingLeft: 'var(--dim-space-300)',
-                          background: 'var(--surface-card-100)',
-                          border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-                          borderRadius: 'var(--dim-radius-200)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Icon name='person' size={16} color='var(--text-content-tertiary)' />
-                        <span style={BODY_TEXT}>{p.name} · HN {p.hn}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
+              </div>
             )}
           </div>
 

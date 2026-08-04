@@ -755,10 +755,12 @@ export default function CreateConsentFormPage() {
         sidebarFallbackKey='consent-new'
         brandTitle='ระบบจัดการความยินยอม'
         breadcrumb={breadcrumb}
+        stickyHeaderInfo
         headerInfo={(
           /* Figma "PHCIS_Header_Summary Card Consent" (350:129658): the card's
              own title sits top-left, above the stepper. PageHeaderInfoPanel is
-             already the white card, so StepProgress is unframed here. */
+             already the white card, so StepProgress is unframed here.
+             stickyHeaderInfo — แถบชื่อ + stepper ติดค้างตอนเลื่อนหน้า. */
           <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-400)' }}>
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
               <h1 style={{ color: 'var(--text-topic-tertiary-title)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-regular, 400)', lineHeight: 1.4 }}>

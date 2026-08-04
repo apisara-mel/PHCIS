@@ -73,10 +73,25 @@ const ITEMS = [
       { key: 'qc-display',     label: 'จอแสดงผลการเรียกคิว',      path: '/queue-center/display'     },
     ],
   },
+  /* ระบบบันทึกการรักษา — สองรายการแรกเป็นหน้าจอ "ระดับโมดูล" ของแฟ้ม
+     เวชระเบียนอิเล็กทรอนิกส์ (TOR §1.4) ไม่ใช่แผนก จึงวางไว้เหนือรายการแผนก:
+       /treat/refer      = ทะเบียนการส่งต่อผู้รับบริการ (§1.4.3.14 / §1.4.11.1)
+       /treat/interfaces = สถานะการเชื่อมต่อระบบภายนอก LIS/PACS/อุปกรณ์/Telemed
+                           (§1.4.7.2–.5 / §1.4.3.23)
+       /treat/consult    = ทะเบียนการส่งปรึกษาแพทย์ (§1.5.6.1 / §1.5.6.7)
+       /treat/order-sets = ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา
+                           (§1.5.1.8 / §1.5.7.1 / §1.5.9.1–.4)
+     (เหมือน `opd`/`queue-center` — SideSubMenu รับเฉพาะ { key, label, path }
+     ไอคอนที่ builder เสนอไว้ send / lan / forum / tune จึงยังไม่ถูกใช้จนกว่า
+     เมนูย่อยจะรองรับไอคอน) */
   {
     key: 'treat', label: 'ระบบบันทึกการรักษา', icon: 'stethoscope',
     subItems: [
       { key: 'opd-treat',  label: 'ตรวจรักษาทั่วไป',                    path: '/treat/queue' },
+      { key: 'refer',      label: 'ทะเบียนการส่งต่อผู้รับบริการ',          path: '/treat/refer' },
+      { key: 'consult',    label: 'ทะเบียนการส่งปรึกษาแพทย์',             path: '/treat/consult' },
+      { key: 'order-sets', label: 'ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา',   path: '/treat/order-sets' },
+      { key: 'interfaces', label: 'สถานะการเชื่อมต่อระบบภายนอก',         path: '/treat/interfaces' },
       { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)' },
       { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์', path: '/clinic/hiv-sti' },
       { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด',   path: '/clinic/addiction' },

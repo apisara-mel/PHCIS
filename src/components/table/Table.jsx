@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Switch       from '@/components/switch/Switch';
 import Checkbox     from '@/components/checkbox/Checkbox';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -71,11 +72,16 @@ const Sym = ({ name, size = 14, color }) => (
    `fill` (default true) — add `flex-1` so the cell grows like a table column.
    Set `fill={false}` for inline flex rows (e.g. Header breadcrumb) where each
    segment should only use natural width up to remaining space, not split the
-   row equally between segments. */
+   row equally between segments.
+
+   Tooltip portals to document.body (fixed) so table `overflow-x: auto`
+   never clips the full name. */
 export const EllipsisText = ({ text, className = '', fill = true }) => {
   const ref = useRef(null);
+  const wrapRef = useRef(null);
   const [isOverflow, setIsOverflow] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
   useEffect(() => {
     const check = () => {
       if (!ref.current) return;
@@ -85,30 +91,53 @@ export const EllipsisText = ({ text, className = '', fill = true }) => {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, [text]);
+  useLayoutEffect(() => {
+    if (!hovered || !isOverflow || !wrapRef.current) return undefined;
+    const place = () => {
+      const r = wrapRef.current.getBoundingClientRect();
+      setCoords({ top: r.bottom + 4, left: r.left });
+    };
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [hovered, isOverflow, text]);
   return (
     <span
+      ref={wrapRef}
       className={`relative block min-w-0 ${fill ? 'flex-1' : ''}`.trim()}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <span ref={ref} className={`truncate block ${className}`}>{text}</span>
-      {hovered && isOverflow && (
+      {hovered && isOverflow && typeof document !== 'undefined' && createPortal(
         <span
           className='pointer-events-none'
           style={{
-            position: 'absolute', left: 'var(--dim-space-0)', top: 'calc(100% + 4px)', zIndex: 1200,
-            maxWidth: 480, whiteSpace: 'normal', overflowWrap: 'break-word',
-            padding: '6px 8px', borderRadius: 'var(--dim-radius-150, 6px)',
+            position: 'fixed',
+            left: coords.left,
+            top: coords.top,
+            zIndex: 'var(--sm-z-tooltip, 1300)',
+            maxWidth: 480,
+            whiteSpace: 'normal',
+            overflowWrap: 'break-word',
+            padding: 'var(--dim-space-150, 6px) var(--dim-space-200, 8px)',
+            borderRadius: 'var(--dim-radius-150, 6px)',
             background: 'var(--surface-dropdown-default)',
             color: 'var(--text-list-default)',
             border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',
             boxShadow: 'var(--shadow-dropdown)',
+            fontFamily: 'var(--type-family-body)',
             fontSize: 'var(--type-size-sm)',
             lineHeight: 1.5,
           }}
         >
           {text}
-        </span>
+        </span>,
+        document.body,
       )}
     </span>
   );
@@ -892,10 +921,10 @@ const Table = ({
   /* Pin the header row to the page scroll instead of the table's own
      overflow box (Pagination already does this at `bottom: 0`). Pass the
      cumulative height of any sticky chrome stacked above the table — e.g.
-     app Header 64 + sticky tab strip 49 = 113 for queue pages. Default
-     `null` keeps the legacy behavior (header sticks inside the table
-     wrapper only) so existing Table usages in forms / popups don't
-     regress. Set to `0` to opt in to page-scroll sticky without an offset. */
+     `QUEUE_STICKY_UNDER_TABS` (CSS var that tracks Topbar auto-hide) or a
+     number like 113. Default `null` keeps the legacy behavior (header
+     sticks inside the table wrapper only). Set to `0` to opt in to
+     page-scroll sticky without an offset. Accepts a CSS length string. */
   stickyHeaderTop = null,
 
   /* Empty state. `emptyMessage` is the primary line (title). `emptySubtext`
@@ -1134,13 +1163,14 @@ const Table = ({
           style={{
             position: 'sticky',
             top: stickyHeaderTop,
-            zIndex: 50,
+            zIndex: 1050,
             /* Clip the translated row so it doesn't bleed past the
                table's left/right edges. This `overflow: hidden` is on
                the STICKY element itself, which doesn't affect its own
                sticky positioning — only its ancestors do. */
             overflow: 'hidden',
             background: 'var(--surface-table-header)',
+            transition: 'top 200ms ease',
           }}
         >
           <div
@@ -1210,7 +1240,11 @@ const Table = ({
         <div
           className='flex w-full items-center sticky top-0'
           style={{
-            zIndex: 10,
+            /* Must sit above body sticky-left cells (z ≤ 21). Those cells
+               create their own stacking contexts as siblings of this row;
+               if this row stays at z-index 10 they paint over the header
+               while scrolling and the header looks like it vanished. */
+            zIndex: 40,
             minHeight: 44,
             background: 'var(--surface-table-header)',
           }}

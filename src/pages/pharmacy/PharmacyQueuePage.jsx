@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import QueuePageShell from '@/templates/QueuePageShell';
+import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import BrandIconButton from '@/components/button/BrandIconButton';
@@ -454,7 +454,7 @@ const PharmacyQueuePage = () => {
               onSort={handleSort}
               stickyColCount={2}
               onRowClick={handleRowClick}
-              stickyHeaderTop={113}
+              stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
               emptyMessage={filtersActive
                 ? 'ไม่พบรายการที่ตรงกับตัวกรอง'
                 : EMPTY_MESSAGE[activeTab] || 'ยังไม่มีรายการ'}

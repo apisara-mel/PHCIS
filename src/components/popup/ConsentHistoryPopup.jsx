@@ -1,6 +1,6 @@
 import React from 'react';
 import Popup from '@/components/popup/Popup';
-import Table from '@/components/table/Table';
+import Table, { EllipsisText } from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
@@ -24,7 +24,14 @@ const HISTORY_COLUMNS = [
     key: 'formCode', header: 'รหัสแบบฟอร์ม', width: 150,
     render: (r) => <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{r.formCode}</ColorfulBadge>,
   },
-  { key: 'formName', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 280, render: (r) => <span style={TEXT_CELL}>{r.formName}</span> },
+  {
+    key: 'formName', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 360,
+    render: (r) => (
+      <div className='min-w-0 w-full' style={TEXT_CELL}>
+        <EllipsisText text={r.formName || '-'} />
+      </div>
+    ),
+  },
   {
     key: 'type', header: 'ประเภท', width: 120,
     render: (r) => <ColorfulBadge style={CONSENT_TYPE_TONE[r.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.type}</ColorfulBadge>,
