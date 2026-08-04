@@ -8,6 +8,7 @@
 import {
   DEFAULT_SERVICE_CENTER_CHANNEL,
   MOBILE_APP_CHANNEL,
+  consentSignChannelOfIndex,
 } from '@/data/consentChannels';
 import { resolveConsentFormForWorklistType } from '@/data/consentFormRecords';
 
@@ -50,6 +51,8 @@ export {
   MOBILE_APP_CHANNEL,
   formatServiceCenterChannel,
   getConsentChannelOptions,
+  SERVICE_CENTER_CHANNEL_POOL,
+  consentSignChannelOfIndex,
 } from '@/data/consentChannels';
 
 /* ── Tabs (Figma TabUnderline) ──────────────────────────────────────── */
@@ -142,14 +145,8 @@ export const MOCK_PATIENTS = [
   { hn: '67-00034', name: 'อลิสา จันทร์เพ็ญ' },
 ];
 
-const signChannelForStatus = (status, id) => {
-  if (status === 'รอลงนาม' || status === 'ยกเลิกคำขอ') return '-';
-  if (status === 'ขอเพิกถอน') return id % 2 === 0 ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
-  if (status === 'อยู่ระหว่างลงนาม') return id % 2 === 0 ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
-  if (status === 'มีเวอร์ชันใหม่') return DEFAULT_SERVICE_CENTER_CHANNEL;
-  if (status === 'หมดอายุ-Reconsent') return '-';
-  return id % 2 === 0 ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
-};
+/* ช่องทางลงนาม — เฉพาะ Mobile App หรือที่ศูนย์บริการ (ไม่มี "-") */
+const signChannelForStatus = (_status, id) => consentSignChannelOfIndex(id);
 
 const buildConsentMockRecords = () => {
   const { month: thisMonth, year: thisYear } = getConsentCalendarNow();
@@ -226,7 +223,7 @@ const buildConsentMockRecords = () => {
       : `${Math.max(day - 5, 1)} ${prevMonth} ${prevYear}`;
     record.signedDate = `${Math.max(day - 28, 1)} ${prevMonth} ${prevYear}`;
     record.revokeRequestedDate = createdDate;
-    record.revokeRequestChannel = id % 2 === 0 ? MOBILE_APP_CHANNEL : DEFAULT_SERVICE_CENTER_CHANNEL;
+    record.revokeRequestChannel = consentSignChannelOfIndex(id + 1);
   }
 
   return record;
@@ -325,7 +322,7 @@ const CONSENT_RECORD_OVERRIDES = {
         type: 'ผ่าตัด',
         version: 'V 2.0',
         status: 'มีเวอร์ชันใหม่',
-        channel: '-',
+        channel: DEFAULT_SERVICE_CENTER_CHANNEL,
       },
     ],
   },

@@ -154,3 +154,15 @@ export const buildWizardPrefillFromRecord = (record, { newVersion = false } = {}
     isNewVersion: newVersion,
   };
 };
+
+/** Open create/edit wizard in a new browser tab (query carries form id). */
+export const openConsentFormWizardTab = (record, { newVersion = false } = {}) => {
+  if (typeof window === 'undefined' || !record?.id) return;
+  const q = new URLSearchParams({ editId: String(record.id) });
+  if (newVersion) q.set('newVersion', '1');
+  window.open(
+    `${window.location.origin}/consent/forms/new?${q.toString()}`,
+    '_blank',
+    'noopener,noreferrer',
+  );
+};

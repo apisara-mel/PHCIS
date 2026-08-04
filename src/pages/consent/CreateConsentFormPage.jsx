@@ -15,8 +15,11 @@ import DangerSubdueIconButton from '@/components/button/DangerSubdueIconButton';
 import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import AlertDialog from '@/components/popup/AlertDialog';
+import Popup from '@/components/popup/Popup';
 import SuccessScreen from '@/components/layout/SuccessScreen';
 import { markTypeSuperseded } from '@/data/consentWorkflowStore';
+import { getConsentFormById } from '@/data/consentFormRecords';
+import { buildWizardPrefillFromRecord } from '@/data/consentFormWizardContent';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — สร้างแบบฟอร์มใหม่ (Figma node 294:124265, steps
@@ -619,8 +622,16 @@ const CheckboxRow = ({ fields, value, onToggle }) => (
 export default function CreateConsentFormPage() {
   const history = useHistory();
   const location = useLocation();
-  /* ด.1.1.5 — prefill จาก "สร้างเวอร์ชันใหม่" / "แก้ไข" (route state) */
-  const prefill = (location.state && location.state.prefill) || null;
+  /* ด.1.1.5 — prefill จาก route state หรือ ?editId= (แท็บใหม่จากปุ่มแก้ไข) */
+  const prefill = useMemo(() => {
+    if (location.state && location.state.prefill) return location.state.prefill;
+    const params = new URLSearchParams(location.search || '');
+    const editId = params.get('editId');
+    if (!editId) return null;
+    const record = getConsentFormById(editId);
+    if (!record) return null;
+    return buildWizardPrefillFromRecord(record, { newVersion: params.get('newVersion') === '1' });
+  }, [location.state, location.search]);
   const [step, setStep] = useState(0);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmPublish, setConfirmPublish] = useState(false);
@@ -1328,5 +1339,246 @@ export function StepReview({ name, code, type, version, ttl, docTitle, sections,
         </span>
       </SectionCard>
     </div>
+  );
+}
+
+/* ── Edit / new-version wizard as Popup (แบบฟอร์มความยินยอม → แก้ไข) ── */
+export function ConsentFormEditPopup({ open, record, newVersion = false, onClose, onPublished }) {
+  const prefill = useMemo(
+    () => (record ? buildWizardPrefillFromRecord(record, { newVersion }) : null),
+    [record, newVersion],
+  );
+
+  const [step, setStep] = useState(0);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmPublish, setConfirmPublish] = useState(false);
+  const [publishVersion, setPublishVersion] = useState('');
+
+  const [template, setTemplate] = useState('blank');
+  const [cover, setCover] = useState(0);
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [type, setType] = useState('');
+  const [version, setVersion] = useState('');
+  const [ttl, setTtl] = useState('');
+  const [groupPolicy, setGroupPolicy] = useState([]);
+  const [subBranch, setSubBranch] = useState([]);
+  const [dept, setDept] = useState([]);
+  const [position, setPosition] = useState([]);
+
+  const [docTitle, setDocTitle] = useState('');
+  const [patientFields, setPatientFields] = useState(() => new Set(['name', 'hn', 'doctor']));
+  const [sections, setSections] = useState(() => [makeSection(), makeSection()]);
+  const [signatures, setSignatures] = useState(() => new Set(['patient', 'doctor']));
+  const [note, setNote] = useState('');
+  const [requireGuardian, setRequireGuardian] = useState(false);
+  const [allowESign, setAllowESign] = useState(true);
+
+  const toggleIn = (setter) => (key) =>
+    setter((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+
+  /* Reset + prefill whenever popup opens for a record */
+  useEffect(() => {
+    if (!open || !prefill) return;
+    setStep(0);
+    setConfirmCancel(false);
+    setConfirmPublish(false);
+    setPublishVersion('');
+    if (prefill.name) { setName(prefill.name); setDocTitle(prefill.docTitle || prefill.name); }
+    if (prefill.code) setCode(prefill.code);
+    if (prefill.type) setType(prefill.type);
+    else if (prefill.typeLabel && TYPE_THAI_TO_VALUE[prefill.typeLabel]) setType(TYPE_THAI_TO_VALUE[prefill.typeLabel]);
+    if (prefill.version) setVersion(prefill.version);
+    if (prefill.ttl) setTtl(prefill.ttl);
+    else setTtl((prev) => prev || '30');
+    if (prefill.template) setTemplate(prefill.template);
+    if (prefill.cover != null) setCover(prefill.cover);
+    if (prefill.groupPolicy?.length) setGroupPolicy(prefill.groupPolicy);
+    if (prefill.subBranch?.length) setSubBranch(prefill.subBranch);
+    if (prefill.dept?.length) setDept(prefill.dept);
+    if (prefill.position?.length) setPosition(prefill.position);
+    if (prefill.patientFields?.length) setPatientFields(new Set(prefill.patientFields));
+    if (prefill.sections?.length) {
+      setSections(prefill.sections.map((s, i) => ({
+        id: s.id || `cs-edit-${i}`,
+        title: s.title || '',
+        detail: s.detail || '',
+        fieldType: s.fieldType || 'boolean',
+      })));
+    }
+    if (prefill.signatures?.length) setSignatures(new Set(prefill.signatures));
+    if (prefill.note != null) setNote(prefill.note);
+    if (prefill.requireGuardian != null) setRequireGuardian(prefill.requireGuardian);
+    if (prefill.allowESign != null) setAllowESign(prefill.allowESign);
+  }, [open, prefill]);
+
+  const applyTemplate = (key) => {
+    setTemplate(key);
+    if (key === 'blank' || !TEMPLATE_PREFILL[key]) {
+      setName(''); setType(''); setVersion(''); setTtl('');
+      setDocTitle(''); setRequireGuardian(false);
+      setSections([makeSection(), makeSection()]);
+      return;
+    }
+    const p = TEMPLATE_PREFILL[key];
+    setName(p.name);
+    setType(key);
+    setVersion(p.version);
+    setTtl(p.ttl);
+    setDocTitle(p.name);
+    setRequireGuardian(!!p.requireGuardian);
+    setSections([...p.leadClauses, ...COMMON_CLAUSES].map((c) => ({ ...makeSection(), ...c })));
+  };
+
+  const step1Valid = name.trim() && code.trim() && type && version.trim() && ttl && groupPolicy.length && subBranch.length && dept.length && position.length;
+  const step2Valid = sections.some((s) => s.title.trim() && s.detail.trim());
+  const completedSteps = [Boolean(step1Valid), Boolean(step2Valid), false];
+  const canAdvance = step === 0 ? step1Valid : step === 1 ? step2Valid : true;
+
+  const doPublish = (confirmedVersion) => {
+    if (confirmedVersion) setVersion(confirmedVersion);
+    if (prefill && prefill.supersedeType) markTypeSuperseded(prefill.supersedeType);
+    setConfirmPublish(false);
+    onPublished?.({ name, code, version: confirmedVersion || version, newVersion });
+    onClose?.();
+  };
+
+  const goNext = () => {
+    if (step < 2) setStep(step + 1);
+    else if (prefill?.fromVersion) {
+      setPublishVersion(version.trim());
+      setConfirmPublish(true);
+    } else {
+      doPublish();
+    }
+  };
+
+  const updateSection = (id, patch) =>
+    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const removeSection = (id) =>
+    setSections((prev) => (prev.length > 1 ? prev.filter((s) => s.id !== id) : prev));
+  const reorderSections = (from, to) =>
+    setSections((prev) => {
+      if (from == null || to == null || from === to || from < 0 || to < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+
+  const nextLabel = step === 0 ? 'ถัดไป: เนื้อหาเอกสาร' : step === 1 ? 'ถัดไป: ตรวจสอบและเผยแพร่' : 'เผยแพร่';
+  const title = newVersion ? 'สร้างเวอร์ชันใหม่' : 'แก้ไขแบบฟอร์มความยินยอม';
+  const subtitle = record
+    ? `${record.code} · ${record.name}${prefill?.fromVersion ? ` · จาก ${prefill.fromVersion}` : ''}`
+    : undefined;
+
+  const requestClose = () => setConfirmCancel(true);
+
+  return (
+    <>
+      <Popup
+        open={open}
+        onClose={requestClose}
+        size='extraLarge'
+        title={title}
+        subtitle={subtitle}
+        showCloseButton
+        closeOnEscape={false}
+        tertiaryAction={{ label: 'ยกเลิก', onClick: requestClose }}
+        secondaryAction={step > 0 ? { label: 'ย้อนกลับ', onClick: () => setStep(step - 1) } : undefined}
+        primaryAction={{ label: nextLabel, onClick: goNext, disabled: !canAdvance }}
+      >
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)', minHeight: 0 }}>
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+            {prefill?.fromVersion && (
+              <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
+                สร้างเวอร์ชันใหม่จาก {prefill.fromVersion} → {prefill.version}
+              </ColorfulBadge>
+            )}
+          </div>
+          <StepProgress
+            steps={STEPS}
+            current={step}
+            completedSteps={completedSteps}
+            onStepClick={(idx) => { if (idx < step || completedSteps[idx - 1]) setStep(idx); }}
+            className='w-full justify-center'
+          />
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+            {step === 0 && (
+              <StepBasics
+                template={template} setTemplate={setTemplate} applyTemplate={applyTemplate}
+                cover={cover} setCover={setCover}
+                name={name} setName={setName} code={code} setCode={setCode}
+                type={type} setType={setType} version={version} setVersion={setVersion} ttl={ttl} setTtl={setTtl}
+                groupPolicy={groupPolicy} setGroupPolicy={setGroupPolicy}
+                subBranch={subBranch} setSubBranch={setSubBranch} dept={dept} setDept={setDept}
+                position={position} setPosition={setPosition}
+              />
+            )}
+            {step === 1 && (
+              <StepContent
+                patientFields={patientFields} togglePatient={toggleIn(setPatientFields)}
+                sections={sections} updateSection={updateSection} removeSection={removeSection}
+                reorderSections={reorderSections}
+                addSection={() => setSections((p) => [...p, makeSection()])}
+                signatures={signatures} toggleSignature={toggleIn(setSignatures)}
+                note={note} setNote={setNote}
+                requireGuardian={requireGuardian} setRequireGuardian={setRequireGuardian}
+                allowESign={allowESign} setAllowESign={setAllowESign}
+              />
+            )}
+            {step === 2 && (
+              <StepReview
+                name={name} code={code} type={type} version={version} ttl={ttl}
+                docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
+              />
+            )}
+          </div>
+        </div>
+      </Popup>
+
+      <AlertDialog
+        open={confirmCancel}
+        type='warning'
+        title='ยกเลิกการแก้ไขแบบฟอร์ม?'
+        description='ข้อมูลที่ยังไม่ได้บันทึกจะหายไป ต้องการปิดหน้าต่างนี้หรือไม่'
+        confirmLabel='ปิดหน้าต่าง'
+        cancelLabel='ทำต่อ'
+        onConfirm={() => { setConfirmCancel(false); onClose?.(); }}
+        onCancel={() => setConfirmCancel(false)}
+        onClose={() => setConfirmCancel(false)}
+      />
+
+      <AlertDialog
+        open={confirmPublish}
+        type='info'
+        title='ยืนยันเผยแพร่เวอร์ชันใหม่'
+        description={
+          prefill?.fromVersion
+            ? `แบบฟอร์ม ${code || prefill.code} จะเผยแพร่เป็นเวอร์ชันใหม่แทน ${prefill.fromVersion} — ตรวจสอบเลขเวอร์ชันก่อนยืนยัน`
+            : 'ตรวจสอบเลขเวอร์ชันก่อนเผยแพร่'
+        }
+        confirmLabel='เผยแพร่เวอร์ชันนี้'
+        cancelLabel='ยกเลิก'
+        onConfirm={() => doPublish(publishVersion.trim())}
+        onCancel={() => setConfirmPublish(false)}
+        onClose={() => setConfirmPublish(false)}
+      >
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', marginTop: 'var(--dim-space-300)' }}>
+          <InputField
+            label='เวอร์ชั่นใหม่'
+            required
+            value={publishVersion}
+            onChange={setPublishVersion}
+            placeholder='V 2.0'
+            helperText={prefill?.fromVersion ? `เวอร์ชันเดิม: ${prefill.fromVersion}` : undefined}
+          />
+        </div>
+      </AlertDialog>
+    </>
   );
 }

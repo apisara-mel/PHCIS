@@ -36,13 +36,17 @@ export const accessAvatarForGroup = (group, seed = 0) => {
 
 export const accessOrgOfIndex = (i) => STAFF_ORG_POOL[i % STAFF_ORG_POOL.length];
 
+/* 32 รายการต่อแท็บสถานะ (รออนุมัติ / อนุมัติแล้ว / ปฏิเสธ / หมดอายุ) */
+const PER_TAB = 32;
+const TAB_STATUSES = ['รออนุมัติ', 'อนุมัติแล้ว', 'ปฏิเสธ', 'หมดอายุ'];
+
 /* Four header summary cards. info/positive use the statussummarycard token
    pair; danger/neutral override with explicit tile + ink (no token pair). */
 export const ACCESS_SUMMARY = [
-  { key: 'pending',  icon: 'assignment',         color: 'info',     value: '255', label: 'คำขอรอการอนุมัติ' },
-  { key: 'active',   icon: 'verified_user',      color: 'positive', value: '42',  label: 'สิทธิ์ที่อนุมัติแล้วและ Active อยู่' },
-  { key: 'rejected', icon: 'cancel',             value: '6',  label: 'ปฏิเสธ',  tileBg: 'var(--surface-danger-tertiary, #FEE2E2)',  iconInk: 'var(--text-danger-default, #B91C1C)' },
-  { key: 'expired',  icon: 'hourglass_disabled', value: '10', label: 'หมดอายุ', tileBg: 'var(--surface-neutral-tertiary, #F4F5F5)', iconInk: 'var(--text-neutral-default, #4D5358)' },
+  { key: 'pending',  icon: 'assignment',         color: 'info',     value: String(PER_TAB), label: 'คำขอรอการอนุมัติ' },
+  { key: 'active',   icon: 'verified_user',      color: 'positive', value: String(PER_TAB), label: 'สิทธิ์ที่อนุมัติแล้วและ Active อยู่' },
+  { key: 'rejected', icon: 'cancel',             value: String(PER_TAB), label: 'ปฏิเสธ',  tileBg: 'var(--surface-danger-tertiary, #FEE2E2)',  iconInk: 'var(--text-danger-default, #B91C1C)' },
+  { key: 'expired',  icon: 'hourglass_disabled', value: String(PER_TAB), label: 'หมดอายุ', tileBg: 'var(--surface-neutral-tertiary, #F4F5F5)', iconInk: 'var(--text-neutral-default, #4D5358)' },
 ];
 
 /* Each status owns its own tab (Figma 363:120109): 4 status tabs + all last. */
@@ -86,11 +90,6 @@ const FILES = [
   ['consent.pdf', '15 KB'], ['request-access.pdf', '22 KB'],
   ['medical-record.pdf', '48 KB'], ['referral.pdf', '12 KB'],
 ];
-const STAT = [
-  'รออนุมัติ', 'รออนุมัติ', 'รออนุมัติ', 'รออนุมัติ',
-  'อนุมัติแล้ว', 'อนุมัติแล้ว', 'อนุมัติแล้ว', 'อนุมัติแล้ว',
-  'ปฏิเสธ', 'ปฏิเสธ', 'หมดอายุ', 'หมดอายุ',
-];
 const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน'];
 
 /* ── ช่วงเวลาสิทธิ (ด.1.1.17.2) ────────────────────────────────────────
@@ -109,12 +108,12 @@ export const daysLeftOfIso = (iso) => {
   return Math.ceil((end - Date.now()) / DAY_MS);
 };
 
-export const ACCESS_RECORDS = Array.from({ length: 24 }, (_, i) => {
+export const ACCESS_RECORDS = Array.from({ length: PER_TAB * TAB_STATUSES.length }, (_, i) => {
   const n = i + 1;
   const day = (n % 27) + 1;
   const month = MONTHS[i % MONTHS.length];
   const file = FILES[i % FILES.length];
-  const status = STAT[i % STAT.length];
+  const status = TAB_STATUSES[Math.floor(i / PER_TAB)];
   /* อนุมัติแล้ว: สลับช่วงเวลาที่ยังไม่หมด (Active) / ใกล้หมด — หมดอายุ: ช่วงในอดีต */
   const approved = status === 'อนุมัติแล้ว';
   const expired = status === 'หมดอายุ';

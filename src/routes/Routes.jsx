@@ -4,6 +4,10 @@ import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-d
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import SystemHubPage from '@/pages/hub/SystemHubPage';
 import AppointmentPage from '@/pages/appointment/AppointmentPage';
+import AppointmentRequestInboxPage from '@/pages/appointment/AppointmentRequestInboxPage';
+import AppointmentRecurringPage from '@/pages/appointment/AppointmentRecurringPage';
+import AppointmentTypeCatalogPage from '@/pages/appointment/AppointmentTypeCatalogPage';
+import AppointmentSettingsPage from '@/pages/appointment/AppointmentSettingsPage';
 import SchedulePage from '@/pages/schedule/SchedulePage';
 import ScheduleEditorPage from '@/pages/schedule/ScheduleEditorPage';
 import ScreeningPage from '@/pages/opd/ScreeningPage';
@@ -226,6 +230,25 @@ export default function Routes() {
         <Route exact path='/assess/users/:id/edit' component={AssessUserCreatePage} />
         <Route exact path='/assess/users/:id' component={AssessUserDetailPage} />
         <Route exact path='/assess/users' component={AssessUserPage} />
+        {/* ระบบจัดการตารางนัดหมาย (TOR §1.6) — หน้าหลักคือปฏิทิน/ตารางนัด, อีก 4
+            หน้าเป็นหน้าจอระดับโมดูลที่เข้าจากเมนูย่อย "ระบบนัดหมาย" ของ Sidebar
+            (activeKey='appoint' ทุกหน้า):
+              /appointment/requests  = กล่องรับนัดหมาย — คำขอนัดจาก mobile/LINE/
+                                       โทรศัพท์/เคาน์เตอร์ + ยืนยัน/ปฏิเสธ/เสนอเวลาใหม่
+                                       พร้อมตรวจการชนทรัพยากร (§1.6.1.5 / §1.6.2.3 / §1.6.2.6)
+              /appointment/recurring = นัดต่อเนื่อง/นัดกลุ่ม + พิมพ์ใบนัดทั้งชุด (§1.6.3.1)
+              /appointment/types     = ทะเบียนรูปแบบการนัดหมายที่ผู้ใช้กำหนดเอง (§1.6.2.5)
+              /appointment/settings  = ตั้งค่าระบบนัดหมาย — mount AppointmentSettingsPanel
+                                       (รูปแบบตาราง Resource · วันหยุด · โควตาคิวรายวัน ·
+                                       ประวัติการยกเลิก · บันทึกการแจ้งเตือน)
+                                       §1.6.1.3 / §1.6.1.6 / §1.6.2.1 / §1.6.2.7 / §1.6.4.1–.2
+            หมายเหตุ: ก่อน wave นี้ AppointmentSettingsPanel.jsx เป็นไฟล์กำพร้า
+            (ไม่มีไฟล์ไหน import) — เจ็ดข้อ TOR ข้างบนจึงไม่มีทางเข้าใน UI จริง.
+            ห้ามลบ route /appointment/settings โดยไม่ย้าย panel ไปที่อื่นก่อน. */}
+        <Route exact path='/appointment/requests'  component={AppointmentRequestInboxPage} />
+        <Route exact path='/appointment/recurring' component={AppointmentRecurringPage} />
+        <Route exact path='/appointment/types'     component={AppointmentTypeCatalogPage} />
+        <Route exact path='/appointment/settings'  component={AppointmentSettingsPage} />
         <Route exact path='/appointment'     component={AppointmentPage} />
         {/* ระบบจัดการตารางเวร (Schedule Management) — TOP-LEVEL system, sibling of PHCIS.
             Figma PHCIS-ALL · entered from hub card 2149:104214. No PhcisChrome — owns its shell. */}
