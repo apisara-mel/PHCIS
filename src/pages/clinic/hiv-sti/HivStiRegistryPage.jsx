@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Icon from '@/components/icons/Icon';
 import Table from '@/components/table/Table';
@@ -82,6 +83,7 @@ const ARV_BADGE_STYLE = {
 };
 
 const HivStiRegistryPage = () => {
+  const history = useHistory();
   const [searchQ, setSearchQ] = useState('');
   const [keyPopFilter, setKeyPopFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -252,10 +254,31 @@ const HivStiRegistryPage = () => {
   };
 
   const renderActions = (row) => {
-    if (readOnlyRole) return null;
     const cancellation = getHivStiRegistryCancellation(row.hn);
+    /* ติดตามการดูแล (1.10.6.8) เป็นการ "ดู" ข้อมูล — จึงยังกดได้แม้สิทธิ
+       เป็น read-only แต่ซ่อนสำหรับทะเบียนที่ยกเลิกไปแล้ว */
+    const followUpButton = cancellation ? null : (
+      <NeutralSubdueButton
+        size='sm'
+        leadingIcon='monitoring'
+        onClick={(e) => {
+          e.stopPropagation();
+          history.push({ pathname: '/clinic/hiv-sti/follow-up', state: { hn: row.hn } });
+        }}
+      >
+        ติดตามการดูแล
+      </NeutralSubdueButton>
+    );
+    if (readOnlyRole) {
+      return followUpButton && (
+        <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          {followUpButton}
+        </div>
+      );
+    }
     return (
-      <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        {followUpButton}
         {!cancellation && (
           <BrandSubdueButton
             variant='outline'
@@ -313,7 +336,7 @@ const HivStiRegistryPage = () => {
       </div>
     ) },
     { key: 'status',        label: 'สถานะทะเบียน',      width: 200, render: renderStatus },
-    { key: 'actions',       label: 'การดำเนินการ',       width: 210, sortable: false, render: renderActions },
+    { key: 'actions',       label: 'การดำเนินการ',       width: 340, sortable: false, render: renderActions },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick, readOnlyRole]);
 

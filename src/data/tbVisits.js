@@ -18,6 +18,17 @@ export const canEditTb = () => {
   try { return sessionStorage.getItem(ROLE_KEY) !== '1'; } catch { return true; }
 };
 
+/* Setter คู่กับ canEditTb — ให้หน้าทะเบียนสลับโหมด "สิทธิ์ดูได้อย่างเดียว"
+   ได้เพื่อสาธิต/ตรวจรับ (สัญญาเดียวกับ setMentalHealthRights ของสุขภาพจิต).
+   `readOnly === true` = ผู้ใช้ไม่มีสิทธิแก้ไขคลินิกวัณโรค. */
+export const setTbClinicReadOnly = (readOnly) => {
+  try {
+    if (readOnly) sessionStorage.setItem(ROLE_KEY, '1');
+    else sessionStorage.removeItem(ROLE_KEY);
+  } catch { /* mock only */ }
+  return !readOnly;
+};
+
 /* ชื่อผู้ป่วยแบบปกปิด (§1.4.2) — 'นายกิตติ ศรีสมบูรณ์' → 'นายกิ*** ศ***' */
 export const maskTbName = (name = '') => {
   const parts = String(name).trim().split(/\s+/);
@@ -227,4 +238,68 @@ export const TB_FOLLOWUP_SUGGESTIONS = [
 
 export const TB_CONTACT_RELATIONS = [
   'คู่สมรส', 'บุตร', 'บิดา/มารดา', 'พี่น้อง', 'ญาติร่วมบ้าน', 'เพื่อนร่วมงาน', 'เพื่อนร่วมห้องพัก', 'อื่น ๆ',
+];
+
+export const TB_SCREENING_SUGGESTIONS = [
+  'ผู้สัมผัสร่วมบ้านของผู้ป่วยวัณโรคเสมหะพบเชื้อ — คัดกรองตามรอบ 6 เดือน',
+  'ไม่มีอาการสงสัยวัณโรค ผล CXR ปกติ — นัดคัดกรองซ้ำปีหน้า',
+  'มีอาการไอเรื้อรัง ส่งเสมหะ AFB 2 ครั้ง และ GeneXpert แล้ว รอผล',
+  'ผล GeneXpert พบเชื้อ MTB — ส่งพบแพทย์เพื่อขึ้นทะเบียนรักษาทันที',
+  'ปฏิเสธการเก็บเสมหะในวันนี้ — นัดใหม่สัปดาห์หน้า',
+];
+
+/* ── เอกสารแนบระหว่างการรักษา (TOR §1.10.4.4) ─────────────────────── */
+
+export const TB_DOC_TYPES = [
+  { value: 'cxr',      label: 'ฟิล์ม/ผลอ่าน CXR' },
+  { value: 'lab',      label: 'ใบรายงานผล LAB (AFB / Culture / DST)' },
+  { value: 'consent',  label: 'ใบยินยอมรับการรักษา' },
+  { value: 'referral', label: 'ใบส่งต่อ / ใบตอบกลับ' },
+  { value: 'dotCard',  label: 'บัตรบันทึกการกินยา (DOT card)' },
+  { value: 'other',    label: 'เอกสารอื่น ๆ' },
+];
+
+export const TB_UPLOAD_ACCEPT = '.pdf,.jpg,.jpeg,.png';
+export const TB_UPLOAD_MAX_MB = 10;
+
+/* คืนข้อความ error ระดับ field (null = ผ่าน) — ห้ามใช้ alert (spec edge). */
+export const validateTbUpload = (file) => {
+  if (!file) return 'ยังไม่ได้เลือกไฟล์';
+  const name = String(file.name || '').toLowerCase();
+  const okExt = TB_UPLOAD_ACCEPT.split(',').some((ext) => name.endsWith(ext.trim()));
+  if (!okExt) return `ชนิดไฟล์ไม่รองรับ — อนุญาตเฉพาะ ${TB_UPLOAD_ACCEPT}`;
+  const sizeMb = (file.size || 0) / (1024 * 1024);
+  if (sizeMb > TB_UPLOAD_MAX_MB) return `ไฟล์ใหญ่เกิน ${TB_UPLOAD_MAX_MB} MB (ไฟล์นี้ ${sizeMb.toFixed(1)} MB)`;
+  return null;
+};
+
+export const resolveTbDocType = (value) => TB_DOC_TYPES.find((d) => d.value === value) || null;
+
+/* ── DOT observer / VOT (TOR §1.10.4.7) ───────────────────────────── */
+
+export const TB_OBSERVER_NAME_SUGGESTIONS = [
+  'อสส.สมพร ใจดี (ศูนย์บริการสาธารณสุข 21)',
+  'พว.อรทัย แก้วประเสริฐ (VOT)',
+  'ญาติผู้ดูแล — ระบุชื่อและความสัมพันธ์',
+];
+
+export const TB_DOT_EDIT_REASON_SUGGESTIONS = [
+  'ผู้กำกับแจ้งข้อมูลย้อนหลังหลังออกเยี่ยมบ้าน',
+  'บันทึกสถานะผิด — แก้ให้ตรงกับสมุดบันทึกการกินยา',
+  'ระบบขัดข้องในวันนั้น จึงบันทึกย้อนหลัง',
+  'ผู้ป่วยนำหลักฐานการกินยามาแสดงในวันถัดมา',
+];
+
+export const TB_NO_APPOINTMENT_SUGGESTIONS = [
+  'ครบการรักษาแล้ว — เตรียมปิดทะเบียนในนัดครั้งนี้',
+  'ส่งต่อไปรักษาต่อที่สถานพยาบาลอื่น',
+  'ผู้รับบริการย้ายภูมิลำเนา — โอนทะเบียนออก',
+  'รอผลตรวจยืนยันก่อนกำหนดนัดครั้งถัดไป',
+];
+
+export const TB_PRIOR_TREATMENT_SUGGESTIONS = [
+  'ไม่เคยรักษาวัณโรคมาก่อน',
+  'เคยรักษาหาย (Cured) จากทะเบียนเดิม — กลับเป็นซ้ำ',
+  'ขาดยาจากทะเบียนเดิมนานเกิน 2 เดือน — ขึ้นทะเบียนใหม่เป็น TAD',
+  'เคยรักษา CAT-1 แล้วผล DST พบดื้อยา Isoniazid + Rifampicin',
 ];

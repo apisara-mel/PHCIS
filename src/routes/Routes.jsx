@@ -34,6 +34,7 @@ import AncFormPage from '@/pages/treat/anc/AncFormPage';
 /* คลินิกเฉพาะทาง (TOR §1.10.1–.6) — แต่ละโมดูลอยู่ใน src/pages/clinic/<slug>
    และเข้าถึงผ่านเมนูย่อยของ "ระบบบันทึกการรักษา" (Sidebar key `treat`). */
 import DentalQueuePage from '@/pages/clinic/dental/DentalQueuePage';
+import DentalFormPage from '@/pages/clinic/dental/DentalFormPage';
 import NcdQueuePage from '@/pages/clinic/ncd/NcdQueuePage';
 import NcdFormPage from '@/pages/clinic/ncd/NcdFormPage';
 import NcdRegistryPage from '@/pages/clinic/ncd/NcdRegistryPage';
@@ -43,11 +44,19 @@ import MentalHealthFormPage from '@/pages/clinic/mental-health/MentalHealthFormP
 import MentalHealthRegistryPage from '@/pages/clinic/mental-health/MentalHealthRegistryPage';
 import MentalHealthFollowUpPage from '@/pages/clinic/mental-health/MentalHealthFollowUpPage';
 import TbQueuePage from '@/pages/clinic/tb/TbQueuePage';
+import TbFormPage from '@/pages/clinic/tb/TbFormPage';
+import TbRegistryPage from '@/pages/clinic/tb/TbRegistryPage';
+import TbFollowUpPage from '@/pages/clinic/tb/TbFollowUpPage';
+import TbScreeningPage from '@/pages/clinic/tb/TbScreeningPage';
 import AddictionQueuePage from '@/pages/clinic/addiction/AddictionQueuePage';
 import AddictionFormPage from '@/pages/clinic/addiction/AddictionFormPage';
+import AddictionRegistryPage from '@/pages/clinic/addiction/AddictionRegistryPage';
+import AddictionFollowUpPage from '@/pages/clinic/addiction/AddictionFollowUpPage';
+import AddictionCommunityPage from '@/pages/clinic/addiction/AddictionCommunityPage';
 import HivStiQueuePage from '@/pages/clinic/hiv-sti/HivStiQueuePage';
 import HivStiFormPage from '@/pages/clinic/hiv-sti/HivStiFormPage';
 import HivStiRegistryPage from '@/pages/clinic/hiv-sti/HivStiRegistryPage';
+import HivStiFollowUpPage from '@/pages/clinic/hiv-sti/HivStiFollowUpPage';
 import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
 import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
 import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
@@ -366,9 +375,12 @@ export default function Routes() {
               /clinic/<slug>/follow-up  = การติดตามการดูแลต่อเนื่อง
             ทุกหน้าใช้ Sidebar activeKey='treat' จึงอยู่ใต้เมนูย่อยของ
             ระบบบันทึกการรักษา ไม่ใช่เมนูระดับบนของตัวเอง.
-            หน้าที่ยังไม่มีในโมดูล (เช่น /clinic/tb/record · /clinic/dental/record)
-            ยังไม่ผูก route — โมดูลนั้นต้องส่งไฟล์หน้าจอมาก่อน. */}
+            ทุกคลินิกมีหน้า record แล้ว. ตัวสะกดของ path ต่างกันตามที่โมดูล
+            push จริง — NCD ใช้ `/clinic/ncd/followup` (ไม่มีขีด) ส่วนคลินิก
+            อื่นใช้ `/clinic/<slug>/follow-up` (มีขีด) — ห้ามแก้ให้เหมือนกัน
+            โดยไม่แก้ปุ่มในหน้าคิว/ทะเบียนของโมดูลนั้นพร้อมกัน ไม่งั้น 404. */}
         <Route exact path='/clinic/dental'              component={DentalQueuePage} />
+        <Route exact path='/clinic/dental/record'       component={DentalFormPage} />
         <Route exact path='/clinic/ncd'                 component={NcdQueuePage} />
         <Route exact path='/clinic/ncd/record'          component={NcdFormPage} />
         <Route exact path='/clinic/ncd/registry'        component={NcdRegistryPage} />
@@ -378,11 +390,19 @@ export default function Routes() {
         <Route exact path='/clinic/mental-health/registry'  component={MentalHealthRegistryPage} />
         <Route exact path='/clinic/mental-health/follow-up' component={MentalHealthFollowUpPage} />
         <Route exact path='/clinic/tb'                  component={TbQueuePage} />
+        <Route exact path='/clinic/tb/record'           component={TbFormPage} />
+        <Route exact path='/clinic/tb/registry'         component={TbRegistryPage} />
+        <Route exact path='/clinic/tb/follow-up'        component={TbFollowUpPage} />
+        <Route exact path='/clinic/tb/screening'        component={TbScreeningPage} />
         <Route exact path='/clinic/addiction'           component={AddictionQueuePage} />
         <Route exact path='/clinic/addiction/record'    component={AddictionFormPage} />
+        <Route exact path='/clinic/addiction/registry'  component={AddictionRegistryPage} />
+        <Route exact path='/clinic/addiction/follow-up' component={AddictionFollowUpPage} />
+        <Route exact path='/clinic/addiction/community' component={AddictionCommunityPage} />
         <Route exact path='/clinic/hiv-sti'             component={HivStiQueuePage} />
         <Route exact path='/clinic/hiv-sti/record'      component={HivStiFormPage} />
         <Route exact path='/clinic/hiv-sti/registry'    component={HivStiRegistryPage} />
+        <Route exact path='/clinic/hiv-sti/follow-up'   component={HivStiFollowUpPage} />
         <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />

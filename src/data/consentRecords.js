@@ -25,15 +25,15 @@ export const CONSENT_TYPE_TONE = {
 /* ── Status meta — badge tone + which tab it belongs under + the action
    CTA shown in the "การดำเนินการ" column for that status. ──────────── */
 export const CONSENT_STATUS = {
-  'รอลงนาม':          { tone: 'orange', tab: 'pending',   action: { label: 'ยกเลิกคำขอ', kind: 'subdued', confirm: 'cancel' } },
-  'อยู่ระหว่างลงนาม':  { tone: 'orange', tab: 'pending',   action: { label: 'ยกเลิกคำขอ', kind: 'subdued', confirm: 'cancel' } },
+  'รอลงนาม':          { tone: 'orange', tab: 'sent',      action: { label: 'ยกเลิกคำขอ', kind: 'brandSubdue', confirm: 'cancel' } },
+  'อยู่ระหว่างลงนาม':  { tone: 'orange', tab: 'sent',      action: { label: 'ยกเลิกคำขอ', kind: 'brandSubdue', confirm: 'cancel' } },
   /* ผู้รับบริการ request เพิกถอนผ่าน Mobile App / ที่ศูนย์ — รอเจ้าหน้าที่ดำเนินการ */
   'ขอเพิกถอน':        { tone: 'red',    tab: 'pending',   action: { label: 'ดำเนินการเพิกถอน', kind: 'brand', confirm: 'revoke' } },
   'ยินยอมแล้ว':        { tone: 'green',  tab: 'consented', action: { label: 'เพิกถอน',    kind: 'brandSubdue', confirm: 'revoke' } },
-  'ปฏิเสธ':           { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brandSubdue', confirm: 'reconsent' } },
-  'ถอนความยินยอม':    { tone: 'red',    tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brandSubdue', confirm: 'reconsent' } },
-  'ใกล้หมดอายุ':       { tone: 'yellow', tab: 'expiring',  action: { label: 'Reconsent',  kind: 'brandSubdue', confirm: 'reconsent' } },
-  'หมดอายุ':          { tone: 'red',    tab: 'expired',   action: { label: 'Reconsent',  kind: 'brandSubdue', confirm: 'reconsent' } },
+  'ปฏิเสธ':           { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
+  'ถอนความยินยอม':    { tone: 'red',    tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
+  'ใกล้หมดอายุ':       { tone: 'yellow', tab: 'expiring',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
+  'หมดอายุ':          { tone: 'red',    tab: 'expired',   action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
   /* Edge case (Figma note 312:97428): เทมเพลตออกเวอร์ชันใหม่หลังผู้ป่วย
      เซ็นไปแล้ว → ฉบับเดิมเป็น superseded ต้องส่งขอเซ็นใหม่ */
   'มีเวอร์ชันใหม่':     { tone: 'blue',   tab: 'pending',   action: { label: 'ส่งเซ็นเวอร์ชันใหม่', kind: 'brand', confirm: 'reconsent' } },
@@ -44,10 +44,10 @@ export const CONSENT_STATUS = {
     tone: 'red',
     tab: 'expired',
     label: 'หมดอายุ',
-    action: { label: 'Reconsent', kind: 'brandSubdue', confirm: 'reconsent' },
+    action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' },
   },
   /* ด.1.1.4 — เจ้าหน้าที่ยกเลิกคำขอที่ยังไม่ลงนาม (audit คงอยู่) */
-  'ยกเลิกคำขอ':        { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent', kind: 'brandSubdue', confirm: 'reconsent' } },
+  'ยกเลิกคำขอ':        { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
 };
 
 /* ── ช่องทางลงนาม (ด.1.1.6) — re-export จาก consentChannels.js ─────────── */
@@ -64,12 +64,42 @@ export {
 /* ── Tabs (Figma TabUnderline) ──────────────────────────────────────── */
 export const CONSENT_TABS = [
   { value: 'pending',   label: 'รอดำเนินการ',      icon: 'pending_actions' },
+  { value: 'sent',      label: 'ส่งคำขอแล้ว',        icon: 'send' },
   { value: 'consented', label: 'ยินยอมแล้ว',        icon: 'verified' },
   { value: 'rejected',  label: 'ปฏิเสธ / เพิกถอน',  icon: 'do_not_disturb_on' },
   { value: 'expiring',  label: 'ใกล้หมดอายุ',       icon: 'hourglass_top' },
   { value: 'expired',   label: 'หมดอายุ',           icon: 'hourglass_disabled' },
   { value: 'all',       label: 'ความยินยอมทั้งหมด',  icon: 'list' },
 ];
+
+/** แท็บรอดำเนินการ — รวมรายการที่หมดอายุ / ใกล้หมดอายุ ≤ 30 วัน (TOR worklist) */
+export const PENDING_EXPIRY_WINDOW_DAYS = 30;
+
+export const EXPIRED_CONSENT_STATUSES = ['หมดอายุ', 'หมดอายุ-Reconsent'];
+
+export const isConsentExpiringWithinDays = (record, withinDays = PENDING_EXPIRY_WINDOW_DAYS) => {
+  if (!record) return false;
+  if (record.status === 'ใกล้หมดอายุ') return true;
+  if (record.expiresInDays == null) return false;
+  return record.expiresInDays <= withinDays;
+};
+
+export const isConsentExpired = (record) => EXPIRED_CONSENT_STATUSES.includes(record?.status);
+
+/** อยู่ในแท็บรอดำเนินการ — สถานะรอ action + หมดอายุ + ใกล้หมดอายุ ≤ 30 วัน */
+export const isConsentPendingWorklist = (record) => {
+  const meta = CONSENT_STATUS[record?.status] || {};
+  if (meta.tab === 'pending') return true;
+  if (isConsentExpired(record)) return true;
+  if (isConsentExpiringWithinDays(record)) return true;
+  return false;
+};
+
+export const matchesConsentWorklistTab = (record, tab) => {
+  if (tab === 'all') return true;
+  if (tab === 'pending') return isConsentPendingWorklist(record);
+  return (CONSENT_STATUS[record?.status] || {}).tab === tab;
+};
 
 /* ── Confirm-dialog copy per action kind (AlertDialog) ──────────────── */
 export const CONSENT_CONFIRM = {
@@ -103,14 +133,15 @@ export const isConsentDateThisMonth = (dateStr, now = new Date()) => {
 const PER_TAB_COUNT = 36;
 
 const TAB_STATUS_POOLS = {
-  pending:   ['รอลงนาม', 'อยู่ระหว่างลงนาม', 'ขอเพิกถอน', 'มีเวอร์ชันใหม่'],
+  pending:   ['ขอเพิกถอน', 'มีเวอร์ชันใหม่'],
+  sent:      ['รอลงนาม', 'อยู่ระหว่างลงนาม'],
   consented: ['ยินยอมแล้ว'],
   rejected:  ['ปฏิเสธ', 'ถอนความยินยอม', 'ยกเลิกคำขอ'],
   expiring:  ['ใกล้หมดอายุ'],
   expired:   ['หมดอายุ', 'หมดอายุ-Reconsent'],
 };
 
-/** สถานะเรียงตามแท็บ — 36 × 5 = 180 rows */
+/** สถานะเรียงตามแท็บ — 36 × 6 = 216 rows */
 const MOCK_STATUS_ROTATION = Object.values(TAB_STATUS_POOLS).flatMap((pool) =>
   Array.from({ length: PER_TAB_COUNT }, (_, i) => pool[i % pool.length]),
 );
@@ -248,7 +279,8 @@ const buildConsentMockRecords = () => {
       ? `${Math.max(day - 5, 1)} ${thisMonth} ${thisYear}`
       : `${Math.max(day - 5, 1)} ${prevMonth} ${prevYear}`;
     record.signedDate = `${Math.max(day - 28, 1)} ${prevMonth} ${prevYear}`;
-    record.revokeRequestedDate = createdDate;
+    /* วันที่สร้างคำขอเพิกถอน = วันที่แสดงใต้ badge ในคอลัมน์สถานะ */
+    record.revokeRequestedDate = record.createdDate;
     record.revokeRequestChannel = consentSignChannelOfIndex(id + 1);
   }
 
@@ -381,7 +413,7 @@ const CONSENT_RECORD_OVERRIDES = {
   },
 };
 
-/* ── Records (36 ต่อแท็บ × 5 = 180 — pagination @ 20/page) ───────────── */
+/* ── Records (36 ต่อแท็บ × 6 = 216 — pagination @ 20/page) ───────────── */
 export const CONSENT_RECORDS = buildConsentMockRecords().map((row) => ({
   ...row,
   ...(CONSENT_RECORD_OVERRIDES[row.id] || {}),

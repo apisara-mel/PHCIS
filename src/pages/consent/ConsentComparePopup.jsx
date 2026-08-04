@@ -10,7 +10,7 @@ import { buildConsentCompareGroups } from '@/data/consentPatientHistory';
 import { resolveConsentPatientCard } from '@/data/consentPatientDisplay';
 import { CONSENT_TYPE_TONE, CONSENT_STATUS } from '@/data/consentRecords';
 import { PHCIS_CHART } from '@/data/phcisChartPalette';
-import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
+import { buildConsentCompareExportReport, ExportFormatPopup } from '@/pages/consent/consentExportPopup';
 
 /* PHCIS | Consent — เปรียบเทียบแบบฟอร์มที่ให้ / ไม่ให้ความยินยอม
    เปิดจาก icon button ใน worklist จัดการความยินยอม */
@@ -135,44 +135,7 @@ const ConsentComparePopup = ({ open, onClose, hn = null }) => {
     return resolveConsentPatientCard(groups.patient.hn, groups.patient.name);
   }, [groups.patient]);
 
-  const exportReport = useMemo(() => {
-    if (!groups.patient) return null;
-    const rows = [
-      ...groups.consented.map((item) => ({
-        formName: item.formName,
-        formCode: item.formCode,
-        type: item.type,
-        version: item.version,
-        outcome: 'ให้ความยินยอม',
-        status: (CONSENT_STATUS[item.status] || {}).label || item.status,
-        reconsent: item.reconsentSent ? 'ส่ง Reconsent แล้ว' : '-',
-      })),
-      ...groups.declined.map((item) => ({
-        formName: item.formName,
-        formCode: item.formCode,
-        type: item.type,
-        version: item.version,
-        outcome: 'ไม่ให้ความยินยอม',
-        status: (CONSENT_STATUS[item.status] || {}).label || item.status,
-        reconsent: item.reconsentSent ? 'ส่ง Reconsent แล้ว' : '-',
-      })),
-    ];
-    return {
-      key: 'consent-compare',
-      title: `เปรียบเทียบความยินยอม · ${groups.patient.name} · ${groups.patient.hn}`,
-      table: {
-        columns: [
-          { key: 'formName', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 280, kind: 'ellipsis' },
-          { key: 'formCode', header: 'รหัส', width: 100 },
-          { key: 'type', header: 'ประเภท', width: 120, kind: 'badge' },
-          { key: 'outcome', header: 'ผลลัพธ์', width: 150, kind: 'status' },
-          { key: 'status', header: 'สถานะ', width: 140, kind: 'status' },
-          { key: 'reconsent', header: 'Reconsent', width: 140 },
-        ],
-        rows,
-      },
-    };
-  }, [groups]);
+  const exportReport = useMemo(() => buildConsentCompareExportReport(groups), [groups]);
 
   const canExport = exportReport && (groups.consented.length + groups.declined.length) > 0;
 

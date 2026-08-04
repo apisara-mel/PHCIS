@@ -9,7 +9,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Popup from '@/components/popup/Popup';
-import Textarea from '@/components/forms/Textarea';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
 import {
@@ -19,6 +19,11 @@ import {
 } from '@/pages/clinic/ncd/NcdSteps';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
+/* IMPORT-ONLY cross-module hand-off: the /appointment system owns these —
+   this page never edits appointment-module files, it only appends/updates
+   its own row through the public store (playbook §4). */
+import { addExtraAppointments, updateExtraAppointment } from '@/pages/appointment/appointmentExtraStore';
+import { APPT_STATUS_CONFIRMED, APPT_STATUS_CANCELLED } from '@/pages/appointment/appointmentShared';
 import {
   DEFAULT_NCD_VISIT,
   getNcdCompletedSteps,
@@ -28,9 +33,17 @@ import {
   getNcdVisitStatus,
   setNcdVisitStatus,
   saveNcdVisitRecord,
+  getNcdAppointment,
+  saveNcdAppointment,
+  cancelNcdAppointment,
+  isNcdSlotBooked,
+  ncdSlotRange,
   resolveNcdGroup,
   canEditNcd,
   NCD_CURRENT_USER,
+  NCD_VISIT_CANCEL_SUGGESTIONS,
+  NCD_APPOINTMENT_CANCEL_SUGGESTIONS,
+  formatNcdDate,
 } from '@/data/ncdVisits';
 
 /* NcdFormPage — บันทึกการตรวจรักษาโรคเฉพาะ NCD (TOR 1.10.2.1/.3/.4/.5/.7)
@@ -65,6 +78,8 @@ const NCD_STEPS = [
 const formatAuditTime = (d) => new Intl.DateTimeFormat('th-TH-u-ca-buddhist', {
   day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
 }).format(d);
+
+const formatNcdApptLabel = (a) => `${formatNcdDate(a?.date)}${a?.time ? ` · ${a.time} น.` : ''}`;
 
 const Banner = ({ tone = 'warning', icon, children, action }) => {
   const palette = tone === 'danger'
@@ -141,6 +156,23 @@ const NcdFormPage = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
 
+  /* One stable record id per open form — ยืนยัน twice (or ยืนยัน → แก้ไข →
+     ยืนยัน) UPDATES the same follow-up row instead of appending a duplicate
+     visit to the trend (spec edge case DOUBLE CONFIRM). */
+  const [recordId] = useState(() => `V-NCD-${ncdHn || 'unknown'}-${Date.now()}`);
+
+  /* ── นัดหมาย (TOR 1.10.2.5) — the saved booking + its edit/cancel state.
+     Seeded from sessionStorage so reopening the record shows the booking
+     that ยืนยัน created, including a cancelled one with its audit. */
+  const [savedAppt, setSavedAppt] = useState(() => getNcdAppointment(ncdHn));
+  const [apptEditing, setApptEditing] = useState(false);
+  const [apptSnapshot, setApptSnapshot] = useState(null);
+  const [apptSaveError, setApptSaveError] = useState('');
+  const [apptCancelOpen, setApptCancelOpen] = useState(false);
+  const [apptCancelReason, setApptCancelReason] = useState('');
+  const [apptCancelError, setApptCancelError] = useState('');
+  const [apptDiscardOpen, setApptDiscardOpen] = useState(false);
+
   /* Telemedicine join state — flipping in/out of the consult keeps `form`
      untouched (spec edge case "declining/leaving returns to the form
      without losing form state"). */
@@ -157,6 +189,70 @@ const NcdFormPage = () => {
     setConfirmError('');
   };
 
+  const apptDoctor = registration?.doctor || queueRow?.doctor || '';
+
+  /* บันทึกนัดหมาย (TOR 1.10.2.5) — writes BOTH sides of the hand-off:
+       • ncdVisits sessionStorage — the module's own record, so Step 6 can
+         แสดง / แก้ไข / ยกเลิก it and the queue's "นัดแล้วยังไม่มาติดต่อ"
+         tab can pick it up (E4)
+       • appointmentExtraStore — the /appointment system's public store, so
+         the booking appears on the shared list/calendar with the exact row
+         contract AppointmentRequestInboxPage writes (namespaced id so it can
+         never collide with an 'A-<n>' inbox row)
+     Returns an error string, or '' on success. */
+  const persistAppointment = () => {
+    if (!canEdit) return '';
+    if (form.appointment.skipped || !form.appointment.date) return '';
+    /* Re-validate the slot AT SAVE TIME — a slot that was free while typing
+       can be taken before ยืนยัน (spec edge case). */
+    if (form.appointment.time && isNcdSlotBooked(form.appointment.date, form.appointment.time, ncdHn)) {
+      return 'ช่วงเวลานี้เพิ่งถูกจอง — เลือกเวลาอื่น';
+    }
+    const record = saveNcdAppointment(ncdHn, {
+      date: form.appointment.date,
+      time: form.appointment.time,
+      mode: form.appointment.mode || 'onsite',
+      note: form.appointment.note || '',
+      doctor: apptDoctor,
+      patient: cardPatient?.fullName || patient.name,
+      diseaseGroups,
+      diagnosis: form.diagnosisNote,
+    });
+    if (!record) return 'บันทึกนัดหมายไม่สำเร็จ — ลองอีกครั้ง';
+
+    const row = {
+      id: record.id,
+      staffId: null,
+      date: record.date,
+      time: record.time,
+      slotRange: ncdSlotRange(record.time),
+      status: APPT_STATUS_CONFIRMED,
+      patient: record.patient,
+      patientAvatar: cardPatient?.avatarUrl,
+      hn: ncdHn,
+      rights: cardPatient?.insurance,
+      clinic: 'NCD',
+      dept: 'NCD',
+      type: 'พบแพทย์',
+      doctor: apptDoctor,
+      examMode: record.mode === 'telemedicine' ? 'telemedicine' : 'onsite',
+      orderingUnit: 'คลินิกโรคเฉพาะ NCD',
+      reason: form.diagnosisNote,
+      prep: record.note,
+      createdBy: NCD_CURRENT_USER.name,
+      /* Re-booking after a ยกเลิก clears the old cancel audit on the mirror
+         row too — updateExtraAppointment merges, so stale fields would
+         otherwise survive onto an active appointment. */
+      cancelReason: null,
+      cancelledBy: null,
+      cancelledAt: null,
+    };
+    /* Existing row is UPDATED by its stable id — never appended twice. */
+    if (!updateExtraAppointment(record.id, row)) addExtraAppointments([row]);
+    setSavedAppt(record);
+    return '';
+  };
+
   const handleConfirm = () => {
     /* Confirm gate — วินิจฉัย + ICD-10 required (spec edge case), then the
        appointment rules (past date / slot conflict) if one is being made. */
@@ -164,14 +260,20 @@ const NcdFormPage = () => {
       setConfirmError('ยืนยันไม่ได้ — ต้องระบุวินิจฉัยและรหัส ICD-10 ในขั้นตอนที่ 4 ก่อน');
       return;
     }
-    const apptError = validateNcdAppointment(form.appointment);
+    const apptError = validateNcdAppointment(form.appointment, ncdHn);
     if (apptError) {
       setConfirmError(apptError);
+      return;
+    }
+    const persistError = persistAppointment();
+    if (persistError) {
+      setConfirmError(persistError);
       return;
     }
     setConfirmError('');
     const now = new Date();
     saveNcdVisitRecord(ncdHn, {
+      recordId,
       date: now.toISOString().slice(0, 10),
       type: form.appointment.mode === 'telemedicine' || telemedStatus !== 'none' ? 'Telemedicine' : 'ตรวจตามนัด',
       bp: form.vitals.bp || null,
@@ -189,9 +291,29 @@ const NcdFormPage = () => {
       dental: null,
       xray: form.xrayOrders.length > 0 ? `สั่งตรวจ X-ray ${form.xrayOrders.length} รายการ` : null,
       note: form.diagnosisNote,
+      /* TOR 1.10.2.4 — the documents attached during this visit travel with
+         the record so the follow-up drill-in can list them (metadata only —
+         the mock never retains a File/blob). */
+      attachments: form.attachments.map((a) => ({
+        id: a.id, name: a.name, type: a.type, sizeLabel: a.sizeLabel, addedAt: a.addedAt,
+      })),
     });
     setNcdVisitStatus(ncdHn, 'done');
     setSaveState((s) => ({ ...s, confirmedAt: formatAuditTime(now), by: NCD_CURRENT_USER.name }));
+  };
+
+  /* แก้ไขบันทึกที่ยืนยันแล้ว (TOR 1.10.2.7 "แก้ไข") — reopen as a draft; the
+     next ยืนยัน updates the SAME follow-up row via `recordId`, so editing a
+     confirmed visit never duplicates it in the trend. */
+  const handleReopenRecord = () => {
+    setNcdVisitStatus(ncdHn, 'draft');
+    setSaveState((s) => ({
+      ...s,
+      confirmedAt: undefined,
+      reopenedAt: formatAuditTime(new Date()),
+      by: NCD_CURRENT_USER.name,
+    }));
+    setConfirmError('');
   };
 
   const confirmCancelVisit = () => {
@@ -207,6 +329,82 @@ const NcdFormPage = () => {
     }));
   };
 
+  /* ── นัดหมาย: แก้ไข / ยกเลิก / นัดใหม่ (TOR 1.10.2.5) ─────────────── */
+
+  const startEditAppointment = () => {
+    setApptSnapshot(form.appointment);
+    setApptSaveError('');
+    setApptEditing(true);
+  };
+
+  const saveAppointmentEdit = () => {
+    /* ไม่นัดครั้งถัดไป while editing a saved booking = ยกเลิกนัด — force the
+       reason-required path instead of silently dropping the row. */
+    if (form.appointment.skipped || !form.appointment.date) {
+      setApptSaveError('ต้องระบุวันนัดหมาย — หากต้องการยุติการนัด ให้ใช้ปุ่ม “ยกเลิกนัดหมาย”');
+      return;
+    }
+    const err = validateNcdAppointment(form.appointment, ncdHn) || persistAppointment();
+    if (err) {
+      setApptSaveError(err);
+      return;
+    }
+    setApptSaveError('');
+    setApptSnapshot(null);
+    setApptEditing(false);
+  };
+
+  const apptDirty = () =>
+    !!apptSnapshot && JSON.stringify(apptSnapshot) !== JSON.stringify(form.appointment);
+
+  const requestDiscardAppointmentEdit = () => {
+    if (apptDirty()) {
+      setApptDiscardOpen(true);
+      return;
+    }
+    setApptEditing(false);
+    setApptSaveError('');
+  };
+
+  /* ปิด/ยกเลิกการแก้ไข must leave the SAVED booking untouched — restore the
+     snapshot and never write to appointmentExtraStore. */
+  const confirmDiscardAppointmentEdit = () => {
+    if (apptSnapshot) setForm((f) => ({ ...f, appointment: apptSnapshot }));
+    setApptSnapshot(null);
+    setApptEditing(false);
+    setApptSaveError('');
+    setApptDiscardOpen(false);
+  };
+
+  const confirmCancelAppointment = () => {
+    if (!apptCancelReason.trim()) {
+      setApptCancelError('ต้องระบุเหตุผลการยกเลิกนัดหมายก่อนยืนยัน');
+      return;
+    }
+    const record = cancelNcdAppointment(ncdHn, apptCancelReason.trim());
+    if (record) {
+      /* Flip the /appointment mirror to ยกเลิก — the row stays on the shared
+         list with its cancel audit; it is never deleted. */
+      updateExtraAppointment(record.id, {
+        status: APPT_STATUS_CANCELLED,
+        cancelReason: record.cancelReason,
+        cancelledBy: record.cancelledBy,
+        cancelledAt: record.cancelledAt,
+      });
+      setSavedAppt(record);
+    }
+    setApptCancelOpen(false);
+    setApptEditing(false);
+    setApptSnapshot(null);
+  };
+
+  const rebookAppointment = () => {
+    setForm((f) => ({ ...f, appointment: { ...f.appointment, skipped: false } }));
+    setApptSnapshot(form.appointment);
+    setApptSaveError('');
+    setApptEditing(true);
+  };
+
   const stepProps = {
     form,
     setForm,
@@ -218,6 +416,17 @@ const NcdFormPage = () => {
     confirmError,
     onSaveDraft: handleSaveDraft,
     onConfirm: handleConfirm,
+    onReopenRecord: handleReopenRecord,
+    ncdHn,
+    savedAppointment: savedAppt,
+    apptEditing,
+    apptSaveError,
+    registryCancelled: !!registryCancellation,
+    onEditAppointment: startEditAppointment,
+    onSaveAppointmentEdit: saveAppointmentEdit,
+    onDiscardAppointmentEdit: requestDiscardAppointmentEdit,
+    onCancelAppointment: () => { setApptCancelReason(''); setApptCancelError(''); setApptCancelOpen(true); },
+    onRebookAppointment: rebookAppointment,
   };
 
   const STEP_RENDERERS = [
@@ -248,11 +457,14 @@ const NcdFormPage = () => {
           primaryAction={{ label: 'ยืนยันยกเลิกการบันทึก', onClick: confirmCancelVisit, tone: 'danger' }}
         >
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-            <Textarea
+            <SuggestibleTextarea
+              voice
               label='เหตุผลการยกเลิก'
               required
               value={cancelReason}
-              onChange={(v) => { setCancelReason(v); if (cancelError) setCancelError(''); }}
+              onChange={(e) => { setCancelReason(e.target.value); if (cancelError) setCancelError(''); }}
+              suggestions={NCD_VISIT_CANCEL_SUGGESTIONS}
+              minChars={2}
               placeholder='เช่น ผู้รับบริการขอยุติการตรวจ / บันทึกผิดคน'
             />
             {cancelError && (
@@ -263,6 +475,50 @@ const NcdFormPage = () => {
             )}
           </div>
         </Popup>
+
+        {/* ยกเลิกนัดหมาย — same contract as every other ยกเลิก in the module:
+            reason required, ผู้ยกเลิก + เวลา stamped, row kept visible. */}
+        <Popup
+          open={apptCancelOpen}
+          onClose={() => setApptCancelOpen(false)}
+          title='ยกเลิกนัดหมายติดตาม'
+          subtitle={savedAppt ? `${formatNcdApptLabel(savedAppt)} · HN: ${ncdHn}` : ''}
+          tertiaryAction={{ label: 'ปิด', onClick: () => setApptCancelOpen(false) }}
+          primaryAction={{ label: 'ยืนยันยกเลิกนัดหมาย', onClick: confirmCancelAppointment, tone: 'danger' }}
+        >
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+            <SuggestibleTextarea
+              voice
+              label='เหตุผลการยกเลิกนัดหมาย'
+              required
+              value={apptCancelReason}
+              onChange={(e) => { setApptCancelReason(e.target.value); if (apptCancelError) setApptCancelError(''); }}
+              suggestions={NCD_APPOINTMENT_CANCEL_SUGGESTIONS}
+              minChars={2}
+              placeholder='เช่น ผู้รับบริการขอเลื่อนนัด / บันทึกนัดหมายผิดวัน'
+            />
+            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+              นัดหมายจะถูกทำเครื่องหมาย “ยกเลิก” ทั้งในคลินิก NCD และในระบบนัดหมาย — ไม่ถูกลบออกจากประวัติ
+            </span>
+            {apptCancelError && (
+              <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)', color: 'var(--text-danger-default, #C72121)', fontSize: 'var(--type-size-sm)' }}>
+                <Icon name='error' size={14} />
+                {apptCancelError}
+              </span>
+            )}
+          </div>
+        </Popup>
+
+        {/* ทิ้งการแก้ไขนัดหมาย — dirty-check discard, same pattern as the
+            registry edit popup. */}
+        <Popup
+          open={apptDiscardOpen}
+          onClose={() => setApptDiscardOpen(false)}
+          title='ทิ้งการแก้ไขนัดหมาย?'
+          subtitle='ข้อมูลนัดหมายที่แก้ไขค้างไว้จะไม่ถูกบันทึก และนัดหมายเดิมจะยังคงอยู่ตามเดิม'
+          tertiaryAction={{ label: 'แก้ไขต่อ', onClick: () => setApptDiscardOpen(false) }}
+          primaryAction={{ label: 'ทิ้งการแก้ไข', onClick: confirmDiscardAppointmentEdit, tone: 'danger' }}
+        />
 
         <PatientCard
           sticky

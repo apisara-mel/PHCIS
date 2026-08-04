@@ -32,6 +32,9 @@ import {
   hasMentalHealthRights,
   setMentalHealthRights,
   formatMhDate,
+  formatMhDateTime,
+  logMhPrint,
+  getMhPrintLog,
 } from '@/data/mentalHealthClinic';
 
 /* MentalHealthFollowUpPage — ติดตามการดูแลผู้รับบริการโรคเฉพาะ (สุขภาพจิต,
@@ -171,6 +174,8 @@ const MentalHealthFollowUpPage = () => {
   const [assessmentPage, setAssessmentPage] = useState(1);
   /* Re-render hook for the §1.4.2 rights demo toggle (sessionStorage). */
   const [, setRightsTick] = useState(0);
+  /* Re-render hook for the print audit log (sessionStorage). */
+  const [printTick, setPrintTick] = useState(0);
 
   const {
     history: searchHistory,
@@ -298,6 +303,22 @@ const MentalHealthFollowUpPage = () => {
     setRightsTick((t) => t + 1);
   };
 
+  /* พิมพ์สรุปการติดตาม (playbook §5 การพิมพ์เอกสาร) — ใช้ audit log ตัว
+     เดียวกับหน้าบันทึกสุขภาพจิต (ผู้พิมพ์ + เวลา). */
+  const printLog = useMemo(
+    () => (selectedHn ? getMhPrintLog(selectedHn) : []),
+    [selectedHn, printTick],
+  );
+
+  const hasPrintableData = assessments.length > 0 || labs.length > 0 || events.length > 0;
+  const canPrint = !!selectedHn && !!registration && canRead && hasPrintableData;
+
+  const printSummary = () => {
+    if (!selectedHn) return;
+    logMhPrint(selectedHn, `สรุปการติดตามการดูแล (${formatMhDate(range.from)} – ${formatMhDate(range.to)})`);
+    setPrintTick((t) => t + 1);
+  };
+
   const assessmentColumns = [
     { key: 'date', label: 'วันที่ประเมิน', width: 130, render: (r) => formatMhDate(r.date) },
     {
@@ -349,6 +370,13 @@ const MentalHealthFollowUpPage = () => {
           >
             {canRead ? 'สิทธิ: เข้าถึงได้' : 'สิทธิ: ถูกจำกัด'}
           </NeutralSubdueButton>
+          {/* พิมพ์อยู่ท้ายหน้าเป็นหลัก (ดูก่อนพิมพ์) — ปุ่มบนนี้เป็นทางลัด
+              เฉพาะตอนที่มีข้อมูลให้พิมพ์จริง จึงไม่รกเมื่อยังไม่ได้เลือกคน */}
+          {canPrint && (
+            <BrandSubdueButton variant='outline' leadingIcon='print' onClick={printSummary}>
+              พิมพ์สรุปการติดตาม
+            </BrandSubdueButton>
+          )}
           <BrandSubdueButton
             variant='outline'
             leadingIcon='contact_page'
@@ -639,6 +667,47 @@ const MentalHealthFollowUpPage = () => {
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+                </SectionCard>
+
+                {/* ── พิมพ์เอกสาร (playbook §5) ─────────────────────── */}
+                <SectionCard
+                  icon='print'
+                  title='พิมพ์เอกสาร'
+                  aside={(
+                    <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                      บันทึกผู้พิมพ์และเวลาทุกครั้ง (ข้อมูลลับ §1.4.2)
+                    </span>
+                  )}
+                >
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                    <BrandSubdueButton
+                      variant='outline'
+                      leadingIcon='print'
+                      disabled={!hasPrintableData}
+                      onClick={printSummary}
+                    >
+                      พิมพ์สรุปการติดตาม
+                    </BrandSubdueButton>
+                    <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary, #636B72)' }}>
+                      ช่วง {formatMhDate(range.from)} – {formatMhDate(range.to)} ·
+                      ประเมิน {assessments.length} ครั้ง · แลป {labs.length} รายการ ·
+                      เหตุการณ์ {eventsSorted.length} รายการ
+                    </span>
+                  </div>
+                  {!hasPrintableData && (
+                    <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                      ไม่มีข้อมูลในช่วงที่เลือก — ปรับช่วงเวลาก่อนพิมพ์
+                    </span>
+                  )}
+                  {printLog.length > 0 && (
+                    <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                      {printLog.map((e, i) => (
+                        <span key={`${e.at}-${i}`} style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                          พิมพ์{e.docType} โดย {e.by} · {formatMhDateTime(e.at)}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </SectionCard>

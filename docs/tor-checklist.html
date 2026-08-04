@@ -2058,17 +2058,20 @@ const IMPL = {
   '1.16.3.4': {s:'todo',                          n:'บัญชีเจ้าหนี้/ลูกหนี้ — ไม่มี'},
 
   /* ===== 1.17 Admin / Users ===== */
-  '1.17.1.1': {s:'todo',                          n:'OIDC/SAML — ไม่มี (mock auth only)'},
-  '1.17.1.2': {s:'done',    u:'/users',         n:'Role + sub-role catalog'},
-  '1.17.1.3': {s:'partial', u:'/users',         n:'User shape: id/email/name/role/subRole/departments[]/features{}'},
+  '1.17.1.1': {s:'done',    u:'/users/directory-service', n:'DirectoryServicePage — OIDC/SAML provider, endpoints, attribute mapping, ทดสอบการเชื่อมต่อ, สถานะ sync (mock)'},
+  '1.17.1.2': {s:'done',    u:'/users',         n:'Role + sub-role catalog; group→role mapping ใน Directory Service'},
+  '1.17.1.3': {s:'done',    u:'/users/:id',     n:'User attribute ครบตาม TOR: Department, Department-Code, รหัสวิชาชีพ, Given/Last Name, Email, Title, Active'},
   '1.17.2.1': {s:'done',    u:'/users',         n:'Departments + features matrix'},
   '1.17.2.2': {s:'done',    u:'/users',         n:'FEATURE_GROUPS + supportedLevels'},
-  '1.17.4.1': {s:'partial', u:'/users/new',     n:'Create user form (no real OTP)'},
+  '1.17.3':   {s:'done',    u:'/users/drug-routing', n:'DrugOrderRoutingPage — กติกา clinic→ห้องยา, ลำดับความสำคัญ/เงื่อนไข/fallback + ตรวจกติกาซ้อนทับ'},
+  '1.17.4.1': {s:'done',    u:'/users/new',     n:'ลงทะเบียน + ยืนยัน OTP อีเมล/SMS (mock) + hook ฐานข้อมูล HR'},
   '1.17.4.2': {s:'done',    u:'/users',         n:'Edit + role/sub-role/dept/features + status'},
-  '1.17.4.3': {s:'partial', u:'/users',         n:'countAccess(user) summary; ไม่มี export'},
-  '1.17.5.1': {s:'partial', u:'/users/new',     n:'Username/email; ไม่มี QR scan / OTP'},
+  '1.17.4.3': {s:'done',    u:'/users/reports', n:'UserUsageReportPage — ยอดผู้ใช้รายเดือน, ช่วงเวลา, ระยะเวลาเฉลี่ย, ปริมาณต่อฟังก์ชัน, History Log + export XLS/PDF'},
+  '1.17.5.1': {s:'done',    u:'/users/:id',     n:'UserLoginTab — Username/Password + QR scan + OTP'},
   '1.17.5.2': {s:'done',    u:'/users/new',     n:'Avatar + email + phone editable'},
-  '1.17.5.4': {s:'todo',                          n:'Switch center context — ไม่มี'},
+  '1.17.5.3': {s:'done',    u:'/users/:id/schedule', n:'UserSchedulePage — ตารางเวรรายบุคคล (อ่านจาก /schedule)'},
+  '1.17.5.4': {s:'done',    u:'/users',         n:'CenterSwitcherPopup — สลับศูนย์บริการที่กำลังให้บริการ + เตือนงานค้าง'},
+  '1.17.5.5': {s:'done',    u:'/users/notifications', n:'NotificationCenterPage — รับส่งตัว/รับผล/ส่งตรวจ/ค่าวิกฤต + ตั้งค่าช่องทางรายบุคคล (UserNotifyTab)'},
   /* ===== 1.14 Observation ===== */
   /* ===== 1.13 Telemedicine (audit 2026-07-29 · Obsidian tor-telemedicine-compliance) ===== */
   '1.13.1':  {s:'done', u:'/telemed/assessment/TMV-003', n:'คลังการประเมิน (telemedAssessments.js) + กระดาน RPM รับค่าจากอุปกรณ์ที่บ้าน + แผงประเมินในสาย; แยกที่มา device/self/staff ชัดทั้งใน UI และ data model'},

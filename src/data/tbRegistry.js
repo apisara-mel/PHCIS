@@ -456,6 +456,54 @@ export const registerTbPatient = ({ hn, patientType, registeredDate, diseaseSite
   return { ok: true, record };
 };
 
+/* แก้ไขหัวทะเบียน (TOR §1.10.4.6 คำกริยา "แก้ไข") — ประเภทผู้ป่วย /
+   วันขึ้นทะเบียน / วันเริ่มยา / ชนิดวัณโรค / ตำแหน่งนอกปอด / แพทย์ /
+   ประวัติการรักษาเดิม. Guarded by isTbRegistryReadOnly เหมือน addTbRow;
+   ทุกครั้งลง audit พร้อมรายการ field ที่เปลี่ยน. */
+const REGISTRY_FIELD_LABELS = {
+  patientType: 'ประเภทผู้ป่วย',
+  diseaseSite: 'ชนิดวัณโรค',
+  epSite: 'ตำแหน่งนอกปอด',
+  registeredDate: 'วันที่ขึ้นทะเบียน',
+  treatmentStartDate: 'วันที่เริ่มการรักษา',
+  doctor: 'แพทย์ผู้ดูแล',
+  priorTreatment: 'ประวัติการรักษาเดิม',
+  treatmentMonth: 'เดือนที่รักษา',
+  weightKg: 'น้ำหนัก (กก.)',
+};
+
+export const updateTbRegistration = (id, patch, by) => {
+  const record = getTbRegistryById(id);
+  if (!record || !patch || isTbRegistryReadOnly(record)) return false;
+  const changed = Object.keys(patch)
+    .filter((k) => Object.prototype.hasOwnProperty.call(REGISTRY_FIELD_LABELS, k))
+    .filter((k) => String(record[k] ?? '') !== String(patch[k] ?? ''));
+  if (changed.length === 0) return false;
+  changed.forEach((k) => { record[k] = patch[k]; });
+  appendTbAudit(
+    record,
+    'แก้ไขทะเบียน',
+    changed.map((k) => `${REGISTRY_FIELD_LABELS[k]} → ${patch[k] || '—'}`).join(' · '),
+    by,
+  );
+  return true;
+};
+
+/* ผลถ่ายภาพรังสีทรวงอก (แท็บการวินิจฉัยของระบบเดิม) — เก็บแยกจาก
+   updateTbRegistration เพราะเป็น object ({date, result, abnormal}). */
+export const setTbCxr = (id, cxr, by) => {
+  const record = getTbRegistryById(id);
+  if (!record || isTbRegistryReadOnly(record)) return false;
+  record.cxr = cxr ? { date: cxr.date || '', result: cxr.result || '', abnormal: !!cxr.abnormal } : null;
+  appendTbAudit(
+    record,
+    'บันทึกผล CXR',
+    cxr ? `${formatTbDate(cxr.date)} — ${cxr.result || '—'}${cxr.abnormal ? ' (ผิดปกติ)' : ''}` : 'ล้างผล CXR',
+    by,
+  );
+  return true;
+};
+
 /* ยกเลิกทะเบียน (ต้องมีเหตุผล — แถวยังอยู่ให้เห็นเป็น "ยกเลิก"). */
 export const cancelTbRegistration = (id, reason, by) => {
   const record = getTbRegistryById(id);

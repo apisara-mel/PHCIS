@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Popup from '@/components/popup/Popup';
+import Popover from '@/components/popup/Popover';
 import AlertDialog from '@/components/popup/AlertDialog';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -10,8 +11,13 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
-import PrimarySearch from '@/components/search/PrimarySearch';
+import SecondarySearch from '@/components/search/SecondarySearch';
+import {
+  SectionHeader as SearchSectionHeader,
+  SuggestionRow as SearchSuggestionRow,
+} from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
+import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
@@ -23,6 +29,7 @@ import {
   CONSENT_PATIENT_SEARCH_POOL,
   consentPatientSearchHistorySeed,
   consentPatientSearchSuggestions,
+  resolveConsentSearchPatient,
   toConsentPatientSearchItem,
 } from '@/data/consentPatientSearch';
 import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRecords';
@@ -69,6 +76,20 @@ const ERROR_TEXT = {
   fontFamily: 'var(--type-family-body)',
   fontSize: 'var(--type-size-xs)',
   lineHeight: 1.5,
+};
+
+const SEARCH_POPOVER_CHROME = {
+  maxHeight: 'min(480px, calc(100vh - 64px))',
+  background: 'var(--surface-dropdown-default)',
+  border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',
+  borderRadius: 'var(--dim-radius-500)',
+  boxShadow: 'var(--shadow-dropdown)',
+  padding: 'var(--dim-space-100)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 'var(--dim-space-0)',
+  overflow: 'hidden',
+  zIndex: 'var(--sm-z-modal-popover, 1450)',
 };
 
 /* ── ช่องทางลงนาม — radio tiles (ด.1.1.6 · 2 ช่องทาง) ───────────────────── */
@@ -164,20 +185,40 @@ const PATIENT_POOL = (() => {
 const CREATE_REQUEST_SEARCH_HISTORY_KEY = 'mih:primarysearch-history:consent-create-request';
 const CREATE_REQUEST_SEARCH_SEED = consentPatientSearchHistorySeed(4);
 
-/* เทมเพลตที่เผยแพร่แล้วเท่านั้น + เวอร์ชันล่าสุดของแต่ละใบ */
+const resolveConsentPatientPick = (label, item) => (
+  (item?.id && CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === item.id))
+  || CONSENT_PATIENT_SEARCH_POOL.find((p) =>
+    p.label === label || p.name === label || p.hn === label)
+  || (() => {
+    const hit = PATIENT_POOL.find((p) => p.hn === label || p.name === label);
+    return hit ? CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === hit.hn) : null;
+  })()
+);
+
+/* แบบฟอร์มที่เผยแพร่แล้ว — dropdown เลือกจาก registry (แบบฟอร์มที่เคยสร้าง) */
 const TEMPLATE_OPTIONS = CONSENT_FORM_RECORDS
   .filter((r) => (CONSENT_FORM_STATUS[r.status] || {}).tab === 'published')
-  .map((r) => ({ value: String(r.id), label: `${r.code} · ${r.name} (${r.version})`, record: r }));
+  .map((r) => ({
+    value: String(r.id),
+    label: r.name,
+    code: r.code,
+    name: r.name,
+    badge: { style: 'teal', label: r.code },
+    subtext: `${r.type} · ${r.version}`,
+    record: r,
+  }));
 
 /* ══ 1) สร้างคำขอความยินยอม (ด.1.1.4 / ด.1.1.6) ══════════════════════════ */
 export function CreateConsentRequestPopup({ open, onClose, onCreate }) {
   const [query, setQuery] = useState('');
   const [patient, setPatient] = useState(null);
   const [templateId, setTemplateId] = useState('');
-  const [channel, setChannel] = useState('');
   const [dueDate, setDueDate] = useState(null);
   const [touched, setTouched] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchPopoverWidth, setSearchPopoverWidth] = useState(null);
+  const searchBoxRef = useRef(null);
   const {
     history: searchHistory,
     push: pushHistory,
@@ -188,9 +229,20 @@ export function CreateConsentRequestPopup({ open, onClose, onCreate }) {
 
   useEffect(() => {
     if (!open) return;
-    setQuery(''); setPatient(null); setTemplateId(''); setChannel('');
-    setDueDate(null); setTouched(false); setConfirmDiscard(false);
+    setQuery(''); setPatient(null); setTemplateId('');
+    setDueDate(null); setTouched(false); setConfirmDiscard(false); setSearchOpen(false);
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!searchOpen) return undefined;
+    const measure = () => {
+      const width = searchBoxRef.current?.getBoundingClientRect().width;
+      if (width) setSearchPopoverWidth(width);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [searchOpen]);
 
   const suggestions = useMemo(
     () => consentPatientSearchSuggestions(query),
@@ -198,8 +250,8 @@ export function CreateConsentRequestPopup({ open, onClose, onCreate }) {
   );
 
   const template = TEMPLATE_OPTIONS.find((t) => t.value === templateId)?.record || null;
-  const dirty = touched && (query || patient || templateId || channel || dueDate);
-  const ready = !!patient && !!template && !!channel && !!dueDate;
+  const dirty = touched && (query || patient || templateId || dueDate);
+  const ready = !!patient && !!template && !!dueDate;
 
   const requestClose = () => {
     if (dirty) setConfirmDiscard(true);
@@ -208,23 +260,45 @@ export function CreateConsentRequestPopup({ open, onClose, onCreate }) {
 
   const pickPatient = (p, item) => {
     if (!p) return;
+    const resolved = resolveConsentSearchPatient(p.hn, p.name || p.label);
     const fromPool = PATIENT_POOL.find((x) => x.hn === p.hn);
     setPatient({
-      hn: p.hn,
-      name: p.name || p.label,
+      hn: resolved.hn,
+      name: resolved.label || resolved.name,
       guardian: fromPool?.guardian || null,
     });
     setQuery('');
     setTouched(true);
-    pushHistory(item || toConsentPatientSearchItem(p));
+    pushHistory(item || toConsentPatientSearchItem(resolved));
   };
+
+  const clearPatient = () => {
+    setPatient(null);
+    setQuery('');
+  };
+
+  const submitPatientSearch = (label, item) => {
+    const found = resolveConsentPatientPick(label, item)
+      || (suggestions[0]?.id
+        ? CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === suggestions[0].id)
+        : null);
+    if (found) pickPatient(found, item || suggestions[0]);
+    else setQuery(label);
+    setSearchOpen(false);
+  };
+
+  const pickSearchItem = (item) => {
+    submitPatientSearch(item.value ?? item.label ?? '', item);
+  };
+
+  const showSuggestions = query.trim().length > 0;
+  const historyItems = !showSuggestions ? searchHistory : [];
 
   const create = () => {
     if (!ready) return;
     onCreate({
       patient,
       template,
-      channel,
       dueDate: thaiDateFormat(dueDate),
     });
   };
@@ -235,107 +309,180 @@ export function CreateConsentRequestPopup({ open, onClose, onCreate }) {
         open={open}
         onClose={requestClose}
         size='large'
+        height={560}
         title='สร้างคำขอความยินยอม'
-        subtitle='เลือกผู้ป่วย เทมเพลต ช่องทางลงนาม และวันครบกำหนด — ระบบจะสร้างรายการสถานะ "รอลงนาม"'
         primaryAction={{ label: 'สร้างคำขอ', onClick: create, disabled: !ready }}
         secondaryAction={{ label: 'ยกเลิก', onClick: requestClose }}
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
           {/* 1. ผู้ป่วย */}
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={LABEL_TEXT}>1. ผู้ป่วย <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span></span>
-            {patient ? (
-              <div
-                className='flex items-center w-full'
-                style={{
-                  gap: 'var(--dim-space-300)',
-                  paddingTop: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-400)',
-                  paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-400)',
-                  background: 'var(--surface-brandPrimary-quaternary)',
-                  border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-                  borderRadius: 'var(--dim-radius-300)',
-                }}
+          {patient ? (
+            <div
+              className='flex items-center w-full'
+              style={{
+                gap: 'var(--dim-space-300)',
+                paddingTop: 'var(--dim-space-300)',
+                paddingRight: 'var(--dim-space-400)',
+                paddingBottom: 'var(--dim-space-300)',
+                paddingLeft: 'var(--dim-space-400)',
+                background: 'var(--surface-brandPrimary-quaternary)',
+                border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                borderRadius: 'var(--dim-radius-300)',
+              }}
+            >
+              <ColorfulBadge style='indigo' size='small' hierarchy='secondary'>{patient.hn}</ColorfulBadge>
+              <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)', flex: 1 }}>
+                <span style={{ fontWeight: 'var(--type-weight-medium)' }}>{patient.name}</span>
+                {patient.guardian ? ` · ผู้แทน: ${patient.guardian}` : ''}
+              </span>
+              <BrandButton
+                variant='outline'
+                size='sm'
+                leadingIcon='change_circle'
+                onClick={clearPatient}
               >
-                <ColorfulBadge style='indigo' size='small' hierarchy='secondary'>{patient.hn}</ColorfulBadge>
-                <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)', flex: 1 }}>
-                  <span style={{ fontWeight: 'var(--type-weight-medium)' }}>{patient.name}</span>
-                  {patient.guardian ? ` · ผู้แทน: ${patient.guardian}` : ''}
-                </span>
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='close'
-                  onClick={() => { setPatient(null); setQuery(''); }}
-                >
-                  เปลี่ยน
-                </NeutralSubdueButton>
-              </div>
-            ) : (
-              <div className='w-full flex items-start justify-center'>
-                <PrimarySearch
+                เปลี่ยน
+              </BrandButton>
+            </div>
+          ) : (
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+              <span style={LABEL_TEXT}>ผู้ป่วย <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span></span>
+              <div ref={searchBoxRef} className='relative w-full'>
+                <SecondarySearch
                   value={query}
-                  onChange={(v) => { setQuery(v); setTouched(true); }}
-                  onSubmit={(label, item) => {
-                    const found = (item?.id && CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === item.id))
-                      || CONSENT_PATIENT_SEARCH_POOL.find((p) =>
-                        p.label === label || p.name === label || p.hn === label)
-                      || (() => {
-                        const hit = PATIENT_POOL.find((p) => p.hn === label || p.name === label);
-                        return hit ? CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === hit.hn) : null;
-                      })();
-                    if (found) pickPatient(found, item);
-                    else setQuery(label);
+                  onChange={(v) => {
+                    setQuery(v ?? '');
+                    setTouched(true);
+                    setSearchOpen(true);
                   }}
-                  suggestions={suggestions}
-                  history={searchHistory}
-                  onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+                  onSubmit={(label) => submitPatientSearch(label, showSuggestions ? suggestions[0] : historyItems[0])}
+                  onFocus={() => setSearchOpen(true)}
                   placeholder='ค้นหา HN / เลขบัตร / Passport / ชื่อ-สกุล / โทรศัพท์'
-                  width={640}
-                  scrollOffsetTop={null}
+                  className='w-full'
+                  style={{ width: '100%', maxWidth: 'none' }}
                 />
+                <Popover
+                  open={searchOpen}
+                  onClose={() => setSearchOpen(false)}
+                  anchorRef={searchBoxRef}
+                  className='mih-search-popover'
+                  style={{
+                    ...SEARCH_POPOVER_CHROME,
+                    width: searchPopoverWidth ?? undefined,
+                    minWidth: searchPopoverWidth ?? 200,
+                    maxWidth: searchPopoverWidth ?? undefined,
+                  }}
+                >
+                  <div
+                    className='scrollbar-thin flex flex-col w-full'
+                    style={{
+                      flex: '1 1 auto',
+                      minHeight: 0,
+                      maxHeight: 'min(480px, calc(100vh - 64px))',
+                      overflowY: 'auto',
+                      overflowX: 'hidden',
+                    }}
+                  >
+                    {showSuggestions ? (
+                      suggestions.length > 0 ? (
+                        suggestions.map((item) => (
+                          <SearchSuggestionRow
+                            key={item.id || item.label}
+                            item={item}
+                            onPick={pickSearchItem}
+                          />
+                        ))
+                      ) : (
+                        <div
+                          style={{
+                            padding: 'var(--dim-space-300)',
+                            color: 'var(--text-content-tertiary)',
+                            fontFamily: 'var(--type-family-body)',
+                            fontSize: 'var(--type-size-sm)',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          ไม่พบรายการที่ค้นหา
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <SearchSectionHeader
+                          title='ค้นหาล่าสุด'
+                          trailing={searchHistory.length > 0 ? (
+                            <NeutralSubdueButton
+                              variant='outline'
+                              size='sm'
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={clearHistory}
+                              className='shrink-0'
+                            >
+                              ล้างประวัติ
+                            </NeutralSubdueButton>
+                          ) : null}
+                        />
+                        {historyItems.length > 0 ? (
+                          historyItems.map((item) => (
+                            <SearchSuggestionRow
+                              key={item.id || item.label || item.value}
+                              item={item}
+                              onPick={pickSearchItem}
+                            />
+                          ))
+                        ) : (
+                          <div
+                            style={{
+                              padding: 'var(--dim-space-300)',
+                              color: 'var(--text-content-tertiary)',
+                              fontFamily: 'var(--type-family-body)',
+                              fontSize: 'var(--type-size-sm)',
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            ยังไม่มีประวัติการค้นหา
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </Popover>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* 2. เทมเพลต + เวอร์ชันล่าสุด */}
+          {/* 2. เลือกแบบฟอร์ม */}
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
             <Select
-              label='2. เทมเพลตความยินยอม (เวอร์ชันล่าสุดที่เผยแพร่)'
+              label='เลือกแบบฟอร์มความยินยอม'
               required
               options={TEMPLATE_OPTIONS}
               value={templateId}
               onChange={(v) => { setTemplateId(v); setTouched(true); }}
               placeholder='เลือกแบบฟอร์มความยินยอม'
+              searchable
             />
             {template && (
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
                 <ColorfulBadge style={CONSENT_TYPE_TONE[template.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>{template.type}</ColorfulBadge>
                 <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{template.version}</ColorfulBadge>
-                <span style={{ ...BODY_TEXT, fontSize: 'var(--type-size-xs)' }}>ใช้เวอร์ชันล่าสุดโดยอัตโนมัติ (Version Control — ด.1.1.5)</span>
               </div>
             )}
           </div>
 
-          {/* 3. ช่องทางลงนาม */}
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={LABEL_TEXT}>3. ช่องทางลงนาม <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span></span>
-            <ChannelTiles value={channel} onChange={(v) => { setChannel(v); setTouched(true); }} />
-          </div>
-
-          {/* 4. วันครบกำหนด — ห้ามย้อนหลัง */}
+          {/* 3. วันครบกำหนด — ห้ามย้อนหลัง */}
           <DatePicker
-            label='4. วันครบกำหนดลงนาม'
+            label='วันครบกำหนดลงนาม'
             required
             value={dueDate}
             onChange={(d) => { setDueDate(d); setTouched(true); }}
             format={thaiDateFormat}
             minDate={new Date()}
             placeholder='เลือกวันครบกำหนด'
-            helperText='เลือกได้เฉพาะวันนี้เป็นต้นไป — วันย้อนหลังถูกปิดไว้'
+            helperText='เลือกได้เฉพาะวันนี้เป็นต้นไป'
           />
 
           {!ready && touched && (
-            <span style={ERROR_TEXT}>กรอกให้ครบ: ผู้ป่วย · เทมเพลต · ช่องทาง · วันครบกำหนด จึงจะสร้างคำขอได้</span>
+            <span style={ERROR_TEXT}>กรอกให้ครบ: ผู้ป่วย · แบบฟอร์ม · วันครบกำหนด จึงจะสร้างคำขอได้</span>
           )}
         </div>
       </Popup>

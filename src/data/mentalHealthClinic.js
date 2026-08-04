@@ -39,6 +39,7 @@ const K = {
   drafts: 'mih:mh:drafts',
   rights: 'mih:mh:rights',
   printLog: 'mih:mh:print-log',
+  appointments: 'mih:mh:appointments',
 };
 
 /* ── Date helpers ──────────────────────────────────────────────────── */
@@ -193,7 +194,23 @@ export const checkInMhAppointment = (hn) => {
 
 export const getMhScheduledNotArrived = () => {
   const checked = readJson(K.checkedIn, []);
-  return MH_SCHEDULED_TODAY.filter((r) => !checked.includes(r.hn));
+  const seeded = MH_SCHEDULED_TODAY.filter((r) => !checked.includes(r.hn));
+  /* นัดหมายที่บันทึกจากขั้นตอนที่ 6 ของใบบันทึกสุขภาพจิต จะโผล่ที่แท็บนี้
+     ในวันที่ถึงกำหนดนัด (TOR 1.10.3.5 — นัดต้องมองเห็นนอกใบบันทึก). */
+  const today = new Date().toISOString().slice(0, 10);
+  const booked = getAllMhAppointments()
+    .filter((a) => a.date === today && !checked.includes(a.hn))
+    .filter((a) => !seeded.some((s) => s.hn === a.hn))
+    .map((a) => ({
+      hn: a.hn, name: a.name, sex: a.sex, age: a.age, cid: a.cid,
+      insurance: a.insurance, mhNumber: a.mhNumber,
+      appointmentTime: a.time || '—',
+      chiefComplaint: `${resolveMhAppointmentType(a.type)}${a.note ? ` — ${a.note}` : ''}`,
+      last9Q: 0, last8Q: 0,
+      doctor: a.doctor || '—', clinic: 'สุขภาพจิต', visitType: 'followup',
+      fromVisitRecord: true, bookedBy: a.bookedBy, bookedAt: a.bookedAt,
+    }));
+  return [...seeded, ...booked];
 };
 
 export const getMhQueueRows = () => {
@@ -719,6 +736,57 @@ export const MH_APPOINTMENT_TYPES = [
   { value: 'telemed', label: 'นัด Telemedicine' },
 ];
 
+export const resolveMhAppointmentType = (value) =>
+  MH_APPOINTMENT_TYPES.find((t) => t.value === value)?.label || 'นัดหมายติดตามอาการ';
+
+/* นัดหมายที่บันทึกแล้ว — a นัดหมาย written in step 6 must be observable
+   OUTSIDE the visit record (playbook §5): it lands on the done queue row
+   as "นัดถัดไป", on the queue's "นัดแล้วยังไม่มาติดต่อ" tab on the day it
+   falls due, and on the follow-up timeline as an "นัด" event.
+   One visit owns exactly ONE นัดครั้งถัดไป, so re-saving the record
+   (แก้ไข / ยกเลิกนัด) replaces — or clears — what was stored. */
+const findMhPerson = (hn) =>
+  MH_QUEUE_PATIENTS.find((r) => r.hn === hn)
+  || MH_SCHEDULED_TODAY.find((r) => r.hn === hn)
+  || null;
+
+export const saveMhAppointment = (hn, appointment, meta = {}) => {
+  if (!hn) return null;
+  const all = readJson(K.appointments, {});
+  if (!appointment || !appointment.date || appointment.cancelled) {
+    delete all[hn];
+    writeJson(K.appointments, all);
+    return null;
+  }
+  const p = findMhPerson(hn) || {};
+  const entry = {
+    hn,
+    name: p.name || meta.name || '—',
+    sex: p.sex || '—',
+    age: p.age || '—',
+    cid: p.cid || '—',
+    insurance: p.insurance || '—',
+    mhNumber: p.mhNumber || '',
+    date: appointment.date,
+    time: appointment.time || '',
+    type: appointment.type || '',
+    note: appointment.note || '',
+    doctor: meta.doctor || p.doctor || '',
+    bookedBy: MH_CURRENT_USER,
+    bookedAt: new Date().toISOString(),
+  };
+  all[hn] = entry;
+  writeJson(K.appointments, all);
+  return entry;
+};
+
+export const getMhNextAppointment = (hn) => readJson(K.appointments, {})[hn] || null;
+export const getMhAppointments = (hn) => {
+  const entry = readJson(K.appointments, {})[hn];
+  return entry ? [entry] : [];
+};
+const getAllMhAppointments = () => Object.values(readJson(K.appointments, {}));
+
 /* ── Visit record + draft (TOR 1.10.3.7 แสดง/บันทึก/ยกเลิก/แก้ไข) ─── */
 export const DEFAULT_MH_VISIT = {
   /* step 1 */
@@ -750,6 +818,8 @@ export const saveMhVisitRecord = (hn, record) => {
   const list = all[hn] || [];
   all[hn] = [...list, { ...record, savedBy: MH_CURRENT_USER, savedAt: new Date().toISOString() }];
   writeJson(K.visits, all);
+  /* นัดหมายในขั้นตอนที่ 6 ต้องมองเห็นนอกใบบันทึกด้วย (TOR 1.10.3.5) */
+  saveMhAppointment(hn, record?.appointment, { doctor: record?.doctor });
 };
 
 export const getMhVisitRecords = (hn) => readJson(K.visits, {})[hn] || [];
@@ -880,8 +950,18 @@ export const getMhAssessmentHistory = (hn, from, to) =>
 export const getMhLabResults = (hn, from, to) =>
   (MH_LAB_RESULTS[hn] || []).filter((r) => inRange(r.date, from, to));
 
-export const getMhVisitEvents = (hn, from, to) =>
-  (MH_VISIT_EVENTS[hn] || []).filter((r) => inRange(r.date, from, to));
+/* Timeline = seeded care events + นัดหมายที่บันทึกจากใบบันทึกสุขภาพจิต
+   (ลงวันที่ที่บันทึกนัด — เนื้อหาบอกวันนัดจริง) */
+export const getMhVisitEvents = (hn, from, to) => {
+  const booked = getMhAppointments(hn).map((a) => ({
+    date: (a.bookedAt || '').slice(0, 10) || a.date,
+    type: 'appointment',
+    title: `บันทึกนัดหมาย — ${resolveMhAppointmentType(a.type)}`,
+    detail: `นัดวันที่ ${formatMhDate(a.date)}${a.time ? ` เวลา ${a.time} น.` : ''}${a.note ? ` · ${a.note}` : ''}`,
+    by: a.bookedBy,
+  }));
+  return [...(MH_VISIT_EVENTS[hn] || []), ...booked].filter((r) => inRange(r.date, from, to));
+};
 
 /* ── Print log (playbook §5 — พิมพ์เอกสารต้องมี audit) ─────────────── */
 export const logMhPrint = (hn, docType) => {

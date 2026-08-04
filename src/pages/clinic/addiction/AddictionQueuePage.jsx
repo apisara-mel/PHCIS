@@ -380,6 +380,34 @@ const AddictionQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      title='คลินิกบำบัดสารเสพติด'
+      /* Sidebar only carries /clinic/addiction — these three actions are the
+         ONLY way into the registry / follow-up / community screens. */
+      actions={(
+        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <BrandSubdueButton
+            variant='outline'
+            leadingIcon='contact_page'
+            onClick={() => history.push('/clinic/addiction/registry')}
+          >
+            ทะเบียนผู้ติดสารเสพติด
+          </BrandSubdueButton>
+          <BrandSubdueButton
+            variant='outline'
+            leadingIcon='monitoring'
+            onClick={() => history.push('/clinic/addiction/follow-up')}
+          >
+            ติดตามการดูแล
+          </BrandSubdueButton>
+          <BrandSubdueButton
+            variant='outline'
+            leadingIcon='diversity_3'
+            onClick={() => history.push('/clinic/addiction/community')}
+          >
+            CBTx &amp; HR ชุมชน
+          </BrandSubdueButton>
+        </div>
+      )}
       summaryTitle={SUMMARY_TITLE}
       summaryCards={summaryCards}
       tabs={tabs}

@@ -25,7 +25,9 @@ import {
   getMhQueueCancellation,
   resolveMhWatchLevel,
   hasMentalHealthRights,
+  formatMhDate,
   formatMhDateTime,
+  getMhNextAppointment,
 } from '@/data/mentalHealthClinic';
 
 /* MentalHealthQueuePage — คิวคลินิกสุขภาพจิต (TOR 1.10.3.1 / 1.10.3.2).
@@ -344,7 +346,18 @@ const MentalHealthQueuePage = () => {
       );
     }
     const badge = STATUS_BADGE[row.statusKey] || STATUS_BADGE.waiting;
-    return <ColorfulBadge style={badge.style} size='small' hierarchy='secondary'>{badge.label}</ColorfulBadge>;
+    /* นัดหมายที่บันทึกในขั้นตอนที่ 6 ต้องมองเห็นได้จากหน้าคิว (TOR 1.10.3.5) */
+    const next = getMhNextAppointment(row.hn);
+    return (
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+        <ColorfulBadge style={badge.style} size='small' hierarchy='secondary'>{badge.label}</ColorfulBadge>
+        {next && (
+          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+            นัดถัดไป {formatMhDate(next.date)}{next.time ? ` ${next.time} น.` : ''}
+          </span>
+        )}
+      </div>
+    );
   };
 
   const renderActions = (row) => {
@@ -401,7 +414,20 @@ const MentalHealthQueuePage = () => {
   const scheduledColumns = useMemo(() => ([
     { key: 'appointmentTime', label: 'เวลานัด',      width: 90 },
     { key: 'hn',              label: 'HN',           width: 96 },
-    { key: 'name',            label: 'ชื่อ-นามสกุล',  flex: true, minWidth: 160 },
+    {
+      key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160,
+      render: (r) => (
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+          <span>{r.name}</span>
+          {/* นัดที่บันทึกจากใบบันทึกสุขภาพจิต — แยกจากนัดที่ตั้งไว้ล่วงหน้า */}
+          {r.fromVisitRecord && (
+            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+              นัดจากใบบันทึกการตรวจ{r.bookedBy ? ` · โดย ${r.bookedBy}` : ''}
+            </span>
+          )}
+        </div>
+      ),
+    },
     { key: 'cid',             label: 'เลขบัตรประชาชน', width: 140 },
     { key: 'insurance',       label: 'สิทธิ',         width: 150 },
     { key: 'mhNumber',        label: 'เลขที่สุขภาพจิต', width: 120, render: (r) => r.mhNumber || '—' },

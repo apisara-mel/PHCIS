@@ -52,6 +52,39 @@ import {
 
 const breadcrumb = ['ระบบบันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
 
+/* The registry's filter-bar search is a wrapper-owned-border control: the
+   surrounding div draws the border/background, so the native <input> inside
+   must be completely chrome-free. Tailwind's `border-none outline-none` is
+   NOT enough — Webkit still paints thin vertical edges at the input bounds
+   and its own focus ring (CLAUDE.md "No browser-default input chrome").
+   Idempotent module-load injection so HMR never leaves a stale <style>. */
+if (typeof document !== 'undefined') {
+  const styleId = 'mih-ncd-registry-search-style';
+  const css = `
+.mih-ncd-registry-search-input,
+.mih-ncd-registry-search-input:focus,
+.mih-ncd-registry-search-input:focus-visible {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+.mih-ncd-registry-search-input::placeholder {
+  color: var(--text-primarysearch-default, #ADB2B7);
+  opacity: 1;
+}
+`;
+  let el = document.getElementById(styleId);
+  if (!el) {
+    el = document.createElement('style');
+    el.id = styleId;
+    document.head.appendChild(el);
+  }
+  if (el.textContent !== css) el.textContent = css;
+}
+
 const EMPTY_DRAFT = {
   hn: '',
   name: '',
@@ -639,7 +672,7 @@ const NcdRegistryPage = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder='ค้นหา HN / ชื่อ-สกุล / ICD-10 / แพทย์'
-                className='flex-1 bg-transparent border-none outline-none text-sm'
+                className='mih-ncd-registry-search-input flex-1 text-sm'
                 style={{ color: 'var(--text-content-primary)' }}
               />
               {search && (

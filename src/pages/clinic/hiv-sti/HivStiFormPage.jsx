@@ -21,7 +21,14 @@ import {
   getHivStiPatientByHn,
   getHivStiDraft,
   saveHivStiDraft,
+  clearHivStiDraft,
+  saveHivStiVisitRecord,
   getHivStiVisitNumber,
+  hivStiNowStamp,
+  formatHivStiDate,
+  HIV_STI_CURRENT_STAFF,
+  HIV_STI_APPOINTMENT_TYPES,
+  HIV_TEST_RESULT_OPTIONS,
   canEditHivSti,
 } from '@/data/hivStiVisits';
 
@@ -138,6 +145,53 @@ const HivStiFormPage = () => {
     leaveTo(pendingLocationRef.current);
   };
 
+  /* ── ปิดงาน: ยืนยันบันทึกการรักษา (TOR 1.10.6.7 / .5) ─────────────
+     TreatmentFormShell's "จบการบันทึก" only pushes back to the queue —
+     it does not persist. Persisting has to happen here, in module scope
+     (playbook §4 forbids editing the shared template), otherwise the
+     visit never reaches the timeline, the draft stays parked in the
+     queue's "ที่ร่างไว้" tab forever, and the dirty guard fires on exit. */
+  const buildVisitSummary = (f) => {
+    const parts = [];
+    if (f.hivTestResult) {
+      const label = HIV_TEST_RESULT_OPTIONS.find((o) => o.value === f.hivTestResult)?.label;
+      if (label) parts.push(`ผลตรวจ HIV: ${label}`);
+    }
+    if ((f.diagnoses || []).length) parts.push((f.diagnoses || []).map((d) => d.name || d.code).join(', '));
+    if (f.pepPrescribed) parts.push('สั่งยา PEP');
+    if (f.prepPrescribed) parts.push('สั่งยา PrEP');
+    if ((f.medications || []).length) parts.push(`สั่งยา ${(f.medications || []).length} รายการ`);
+    if (f.telemedStatus === 'completed') parts.push('ปรึกษาทางไกลเสร็จสิ้น');
+    return parts.length ? parts.join(' · ') : 'บันทึกการรักษาคลินิก HIV/STI';
+  };
+
+  const handleConfirmRecord = () => {
+    const f = formRef.current;
+    const stamp = hivStiNowStamp();
+    const apptType = HIV_STI_APPOINTMENT_TYPES.find((t) => t.value === f.appointment?.type)?.label || '';
+    saveHivStiVisitRecord(hn, {
+      visitNo,
+      date: formatHivStiDate(new Date()),
+      chiefComplaint: f.chiefComplaint || '—',
+      summary: buildVisitSummary(f),
+      doctor: f.examiningDoctor || '—',
+      appointment: f.appointment?.confirmed
+        ? `${apptType} · ${formatHivStiDate(f.appointment.date)}`
+        : '',
+    });
+    clearHivStiDraft(hn);
+    const confirmed = {
+      ...f,
+      recordConfirmed: true,
+      recordConfirmedAt: stamp,
+      recordConfirmedBy: HIV_STI_CURRENT_STAFF.name,
+    };
+    formRef.current = confirmed;
+    setForm(confirmed);
+    allowLeaveRef.current = true;
+    history.push(QUEUE_PATH);
+  };
+
   const ActiveStep = STEP_RENDERERS[stepIndex];
   const completedSteps = useMemo(() => getHivStiCompletedSteps(form), [form]);
 
@@ -224,6 +278,7 @@ const HivStiFormPage = () => {
                   clinicPatient={clinicPatient}
                   visitNo={visitNo}
                   readOnly={readOnly}
+                  onConfirmRecord={handleConfirmRecord}
                 />
               </div>
             </TreatmentFormShell>
