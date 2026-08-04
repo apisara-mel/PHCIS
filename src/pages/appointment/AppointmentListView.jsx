@@ -26,6 +26,12 @@ import {
   APPT_STATUS_CANCELLED,
   APPT_STATUS_NO_SHOW,
 } from './appointmentShared';
+import { HCIS_STATUS_FILTER_OPTIONS, toHcisStatus } from './appointmentHcisMasters';
+import {
+  AVAILABILITY,
+  countActiveAppointmentsOnDate,
+  evaluateDayAvailability,
+} from './appointmentSettingsStore';
 
 /* MIH PHCIS · รายการนัดหมาย — Figma 46:11239 (root) / 58:19171 (embedded)
    Flat table with filters — all doctors or scoped to one staffId. */
@@ -51,6 +57,13 @@ const EXAM_MODE_OPTIONS = [
   { value: '', label: 'ทั้งหมด' },
   { value: 'onsite', label: 'ตรวจที่โรงพยาบาล' },
   { value: 'tele', label: 'Telemedicine' },
+];
+
+/* TOR 1.6.2.8 — กรองตามความพร้อมรับนัดของวันนั้น (Available / Non-available). */
+const AVAILABILITY_FILTER_OPTIONS = [
+  { value: '', label: 'ทุกความพร้อมรับนัด' },
+  { value: 'available', label: 'Available (วันที่ยังรับนัดได้)' },
+  { value: 'nonavailable', label: 'Non-available (เต็ม/วันหยุด/นอกช่วง)' },
 ];
 
 const FILTER_DIVIDER = (
@@ -202,6 +215,16 @@ const renderStatusBadge = (row) => {
   );
 };
 
+/** HCIS §2.3 — "สถานะการนัด" แบบมีรหัส (2 = ยังไม่ได้ลงทะเบียนตรวจรักษา ฯลฯ). */
+const renderHcisStatusBadge = (row) => {
+  const hcis = toHcisStatus(row, getAppointmentDisplayStatus(row));
+  return (
+    <StatusBadge style={hcis.style} size='small' showDot={false}>
+      {`${hcis.code} · ${hcis.label}`}
+    </StatusBadge>
+  );
+};
+
 const makeRenderConfirmAction = (onConfirm) => (row) => (
   <BrandButton
     variant='fill'
@@ -331,6 +354,13 @@ const buildFigmaListColumns = ({
       sortable: false,
       render: renderStatusBadge,
     },
+    {
+      key: 'hcisStatus',
+      header: 'สถานะการนัด (HCIS)',
+      width: 246,
+      sortable: false,
+      render: renderHcisStatusBadge,
+    },
   );
 
   if (showConfirmAction) {
@@ -384,6 +414,8 @@ const AppointmentListView = ({
   const [filterDoctor, setFilterDoctor] = useState('');
   const [filterExamMode, setFilterExamMode] = useState('');
   const [filterTime, setFilterTime] = useState('all');
+  const [filterHcis, setFilterHcis] = useState('');
+  const [filterAvailability, setFilterAvailability] = useState('');
   const [dateValue, setDateValue] = useState({ quick: defaultDateQuick });
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
@@ -395,6 +427,18 @@ const AppointmentListView = ({
   }, [staff]);
 
   const dateBounds = useMemo(() => resolveDateBounds(dateValue), [dateValue]);
+
+  /** Available / Non-available ของแต่ละวัน — คำนวณครั้งเดียวต่อวันที่ (TOR 1.6.2.8). */
+  const availabilityByDate = useMemo(() => {
+    if (!filterAvailability) return null;
+    const map = {};
+    [...new Set(appointments.map((a) => a.date))].forEach((dateKey) => {
+      if (!dateKey) return;
+      const booked = countActiveAppointmentsOnDate(appointments, dateKey);
+      map[dateKey] = evaluateDayAvailability({ dateKey, bookedCount: booked });
+    });
+    return map;
+  }, [appointments, filterAvailability]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -425,6 +469,15 @@ const AppointmentListView = ({
 
       if (!matchesTimeFilter(a.time, filterTime)) return false;
 
+      if (filterHcis && toHcisStatus(a, displayStatus).key !== filterHcis) return false;
+
+      if (filterAvailability && availabilityByDate) {
+        const verdict = availabilityByDate[a.date];
+        const isAvailable = verdict?.status === AVAILABILITY.AVAILABLE;
+        if (filterAvailability === 'available' && !isAvailable) return false;
+        if (filterAvailability === 'nonavailable' && isAvailable) return false;
+      }
+
       if (!q) return true;
       const searchFields = [
         a.patient,
@@ -443,6 +496,9 @@ const AppointmentListView = ({
     filterDoctor,
     filterExamMode,
     filterTime,
+    filterHcis,
+    filterAvailability,
+    availabilityByDate,
     dateBounds,
     search,
     listVariant,
@@ -544,6 +600,38 @@ const AppointmentListView = ({
             value={filterTime}
             onChange={(v) => { setFilterTime(v); setPage(1); }}
           />
+          <FilterDropdown
+            prefix='สถานะการนัด:'
+            options={HCIS_STATUS_FILTER_OPTIONS}
+            value={filterHcis}
+            onChange={(v) => { setFilterHcis(v); setPage(1); }}
+          />
+          <FilterDropdown
+            prefix='รับนัด:'
+            options={AVAILABILITY_FILTER_OPTIONS}
+            value={filterAvailability}
+            onChange={(v) => { setFilterAvailability(v); setPage(1); }}
+          />
+          {(search || filterDoctor || filterExamMode || filterHcis || filterAvailability
+            || filterTime !== 'all' || (dateValue.quick && dateValue.quick !== 'all')) ? (
+              <BrandSubdueButton
+                variant='outline'
+                size='sm'
+                leadingIcon='filter_alt_off'
+                onClick={() => {
+                  setSearch('');
+                  setFilterDoctor('');
+                  setFilterExamMode('');
+                  setFilterTime('all');
+                  setFilterHcis('');
+                  setFilterAvailability('');
+                  setDateValue({ quick: defaultDateQuick });
+                  setPage(1);
+                }}
+              >
+                ล้างตัวกรอง
+              </BrandSubdueButton>
+            ) : null}
         </OverflowFlexRow>
 
         <Table
@@ -554,7 +642,15 @@ const AppointmentListView = ({
           onSort={handleSort}
           onRowClick={onOpenDetail}
           stickyColCount={4}
-          emptyMessage='ไม่พบนัดหมาย'
+          emptyMessage={search
+            ? `ไม่พบนัดหมายที่ตรงกับ “${search}”`
+            : statusFilter === 'pending' ? 'ยังไม่มีนัดหมายที่รอการยืนยัน'
+              : statusFilter === 'cancelled' ? 'ยังไม่มีนัดหมายที่ยกเลิกหรือไม่มาตามนัด'
+                : statusFilter === 'confirmed' ? 'ยังไม่มีนัดหมายที่ยืนยันแล้ว'
+                  : 'ยังไม่มีนัดหมายในระบบ'}
+          emptySubtext={search || filterHcis || filterAvailability
+            ? 'ลองล้างตัวกรองแล้วค้นหาใหม่อีกครั้ง'
+            : null}
           style={{
             maxHeight: TABLE_MAX_HEIGHT,
             overflow: 'auto',

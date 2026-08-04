@@ -108,7 +108,26 @@ const ITEMS = [
   { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18, path: '/lab/queue' },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht',      path: '/finance'           },
-  { key: 'appoint',   label: 'ระบบนัดหมาย',               icon: 'calendar_clock', path: '/appointment'       },
+  /* ระบบนัดหมาย — TOR §1.6. เดิมเป็นเมนูเดี่ยวชี้ /appointment. wave นี้เพิ่ม
+     หน้าจอระดับโมดูลอีก 4 หน้า (กล่องรับนัด · นัดต่อเนื่อง · รูปแบบการนัดหมาย ·
+     ตั้งค่า) จึงเปลี่ยนเป็นเมนูที่มี subItems แบบเดียวกับ `opd`/`queue-center` —
+     รายการแรกยังเป็นตารางนัดหมายเหมือนเดิม.
+     "ตั้งค่าระบบนัดหมาย" อยู่ที่นี่ ไม่ใช่ใน SYSTEM_CATALOG: แคตตาล็อกนั้นเป็น
+     ระบบ **ระดับเดียวกับ PHCIS** และถูกตัดเป็น grid 3×3 พอดี (รายการที่ 10
+     จะไม่ถูก render) — ระบบนัดหมายเป็น sub-system ภายใน PHCIS.
+     (เหมือน `opd`/`treat` — SideSubMenu รับเฉพาะ { key, label, path } ไอคอนที่
+     builder เสนอไว้ inbox / event_repeat / category / tune จึงยังไม่ถูกใช้
+     จนกว่าเมนูย่อยจะรองรับไอคอน) */
+  {
+    key: 'appoint', label: 'ระบบนัดหมาย', icon: 'calendar_clock', path: '/appointment',
+    subItems: [
+      { key: 'appt-board',     label: 'ตารางนัดหมาย',           path: '/appointment'           },
+      { key: 'appt-requests',  label: 'รับนัดหมาย',              path: '/appointment/requests'  },
+      { key: 'appt-recurring', label: 'นัดต่อเนื่องและนัดกลุ่ม',  path: '/appointment/recurring' },
+      { key: 'appt-types',     label: 'รูปแบบการนัดหมาย',        path: '/appointment/types'     },
+      { key: 'appt-settings',  label: 'ตั้งค่าระบบนัดหมาย',       path: '/appointment/settings'  },
+    ],
+  },
   /* 'ประวัติการใช้งาน' (log) และ 'ผู้ใช้และสิทธิ์การเข้าถึง' (users) ถูกย้ายไป
      แสดงเป็น "ระบบกลาง" บน System Hub แทน — จึงไม่อยู่ในเมนู PHCIS แล้ว. */
 ];

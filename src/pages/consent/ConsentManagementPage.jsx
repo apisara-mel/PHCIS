@@ -410,7 +410,20 @@ export default function ConsentManagementPage() {
         </div>
       ),
     },
-    { key: 'signChannel', header: 'ช่องทางที่ลงนาม', width: 150, render: (r) => <Cell value={r.signChannel} /> },
+    { key: 'signChannel', header: 'ช่องทางที่ลงนาม', width: 320, render: (r) => (
+      <span
+        className='block whitespace-nowrap'
+        style={{
+          color: 'var(--text-content-default)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+          fontWeight: 'var(--type-weight-regular)',
+          lineHeight: 1.5,
+        }}
+      >
+        {r.signChannel && r.signChannel !== '-' ? r.signChannel : 'Mobile App'}
+      </span>
+    ) },
     { key: 'requester', header: 'ผู้สร้างคำขอ', width: 140, render: (r) => <Cell value={r.requester} /> },
     { key: 'createdDate', header: 'วันที่สร้างคำขอ/Reconsent', width: 210, sortable: true, render: (r) => <Cell value={r.createdDate} /> },
     { key: 'signedDate', header: 'วันที่ลงนาม', width: 150, render: (r) => <Cell value={r.signedDate} /> },

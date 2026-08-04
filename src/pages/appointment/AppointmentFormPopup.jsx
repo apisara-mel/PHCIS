@@ -6,6 +6,7 @@ import Topic from '@/components/topic/Topic';
 import Timeslot from '@/components/timeslot/Timeslot';
 import Select from '@/components/forms/Select';
 import DatePicker from '@/components/forms/DatePicker';
+import InputField from '@/components/forms/InputField';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import { Field, FieldGrid } from '@/components/forms/Fields';
 import { Sym } from '@/components/forms/_inputBox';
@@ -41,6 +42,15 @@ import {
   AppointmentReadOnlyStatusBadge,
 } from './AppointmentReadOnlyDetail';
 import { getResourcePattern } from './appointmentSettingsStore';
+import { getApptTypeOptions } from './appointmentTypeCatalog';
+import { APPT_DX_ICD10, APPT_PURPOSE_MASTER } from './appointmentHcisMasters';
+
+/** HCIS §2.3 "วันเวลาที่สั่งนัด" — auto, read-only. */
+const orderedAtStamp = (() => {
+  const d = new Date();
+  const p2 = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+})();
 
 /* MIH PHCIS · Appointment detail popup — Figma 73:15393 / 3:9730 / 29:13839 (past read-only). */
 
@@ -95,10 +105,28 @@ const CLINIC_OPTIONS = [
   { value: 'ทันตกรรม', label: 'ทันตกรรม (Dental Clinic)' },
 ];
 
+/** Legacy fallback — used when the user-defined catalog (TOR 1.6.2.5) is empty. */
 const TYPE_OPTIONS = [
   { value: 'พบแพทย์', label: 'พบแพทย์' },
   { value: 'เยี่ยมบ้าน', label: 'เยี่ยมบ้าน' },
 ];
+
+/**
+ * TOR 1.6.2.5 — ลักษณะการนัดหมายอ่านจากทะเบียน "รูปแบบการนัดหมาย" ที่เจ้าหน้าที่
+ * กำหนดเอง (/appointment/types) โดยยังคงค่าดั้งเดิมไว้เสมอ เพื่อไม่ให้ฟอร์มเดิม
+ * และนัดที่บันทึกไว้แล้ว (รวมถึง /treat/record ขั้นตอนที่ 6) พัง.
+ */
+function buildTypeOptions(currentValue) {
+  const catalog = getApptTypeOptions();
+  const merged = [...TYPE_OPTIONS];
+  catalog.forEach((opt) => {
+    if (!merged.some((m) => m.value === opt.value)) merged.push(opt);
+  });
+  if (currentValue && !merged.some((m) => m.value === currentValue)) {
+    merged.push({ value: currentValue, label: currentValue });
+  }
+  return merged;
+}
 
 const DOCTOR_OPTIONS = [ANY_DOCTOR_OPTION, ...doctorSelectOptions(STAFF)];
 
@@ -629,6 +657,17 @@ const AppointmentFormPopup = ({
             rowGap='var(--dim-space-400)'
             columnGap='var(--dim-space-1200)'
           >
+            {/* HCIS §2.3 — "วันเวลาที่สั่งนัด" ระบบเติมให้อัตโนมัติ แก้ไขไม่ได้ */}
+            <Field label='วันเวลาที่สั่งนัด (ระบบบันทึกอัตโนมัติ)'>
+              <InputField
+                size='large'
+                value={form.orderedAt || orderedAtStamp}
+                disabled
+                showLabel={false}
+                showHelperText={false}
+                leadingIcon='schedule'
+              />
+            </Field>
             <Field label='หน่วยงานที่สั่งนัด' required>
               <Select
                 size='large'
@@ -636,6 +675,32 @@ const AppointmentFormPopup = ({
                 onChange={setField('orderingUnit')}
                 options={ORDERING_UNIT_OPTIONS}
                 placeholder='เลือกหน่วยงาน'
+                showLabel={false}
+                showHelperText={false}
+              />
+            </Field>
+            {/* HCIS §2.3 — "นัดมาเพื่อ" + "โรคที่นัดมาตรวจ (ICD-10)" master list มีรหัส */}
+            <Field label='นัดมาเพื่อ (รหัสตาม HCIS)' required>
+              <Select
+                size='large'
+                value={form.purposeCode || 'P01'}
+                onChange={setField('purposeCode')}
+                options={APPT_PURPOSE_MASTER.map((p) => ({ value: p.code, label: `${p.code} · ${p.label}` }))}
+                placeholder='เลือกวัตถุประสงค์การนัด'
+                showLabel={false}
+                showHelperText={false}
+              />
+            </Field>
+            <Field label='โรคที่นัดมาตรวจ (ICD-10)'>
+              <Select
+                size='large'
+                value={form.dxCode || ''}
+                onChange={setField('dxCode')}
+                options={[
+                  { value: '', label: 'ไม่ระบุ' },
+                  ...APPT_DX_ICD10.map((d) => ({ value: d.code, label: `${d.code} · ${d.label}` })),
+                ]}
+                placeholder='ค้นหารหัส ICD-10 หรือชื่อโรค'
                 showLabel={false}
                 showHelperText={false}
               />
@@ -656,7 +721,7 @@ const AppointmentFormPopup = ({
                 size='large'
                 value={form.type}
                 onChange={setField('type')}
-                options={TYPE_OPTIONS}
+                options={buildTypeOptions(form.type)}
                 showLabel={false}
                 showHelperText={false}
               />

@@ -1633,7 +1633,7 @@ const IMPL = {
   '1.3.1.5':  {s:'done',    u:'/queue-center',  n:'ยกเลิกคิวบังคับกรอกเหตุผล แล้วแถวยังอยู่ในตาราง (จาง+ขีดฆ่า) พร้อมเหตุผลและผู้ยกเลิก ตามพฤติกรรมคู่มือ HCIS §2.2 — ไม่ลบทิ้ง · จงใจไม่มี undo เพราะคู่มือเดิมกำหนดให้ยกเลิกแล้วเป็น record ปิด'},
   '1.3.2.1':  {s:'done',    u:'/queue-center/issue', n:'ออกคิวหน้าเคาน์เตอร์แยกตามจุดบริการจากผังจุดบริการที่ตั้งค่าได้ (เวชระเบียน / คัดกรอง / ตรวจ OPD / การเงิน / ห้องยา ฯลฯ) · รูปแบบรหัสคิว prefix + จำนวนหลัก ตั้งค่าได้ที่ /queue-center/settings · ออกคิวซ้ำจุดเดิมขึ้นคำเตือนแล้วออกต่อได้พร้อมเหตุผล'},
   '1.3.2.2':  {s:'done',    u:'/queue-center/settings', n:'ประเภทคิว CRUD (ด่วน / ทั่วไป / นัดหมาย ฯลฯ) — สีป้ายและน้ำหนักลำดับมีผลกับการจัดคิวจริง ไม่ใช่แค่ป้ายสี · เลือกประเภทคิวและความเร่งด่วนตอนออกคิวที่ /queue-center/issue'},
-  '1.3.2.3':  {s:'done',    u:'/queue-center/integration', n:'กติกาจัดลำดับตามช่วงเวลานัด + ขนาดรอบ + สวิตช์ ผู้มีนัดในรอบเดียวกันถูกจัดไว้ก่อน Walk-in + เกณฑ์สายเกินกำหนดนับเป็น Walk-in พร้อมพรีวิวลำดับผลลัพธ์สด — ผู้ที่นัดทีหลังแต่มารับคิวก่อนจะได้ลำดับตามช่วงเวลาที่นัดไว้'},
+  '1.3.2.3':  {s:'done',    u:'/queue-center/integration', n:'กติกาจัดลำดับตามช่วงเวลานัด + ขนาดรอบ + สวิตช์ ผู้มีนัดในรอบเดียวกันถูกจัดไว้ก่อน Walk-in + เกณฑ์สายเกินกำหนดนับเป็น Walk-in พร้อมพรีวิวลำดับผลลัพธ์สด — ผู้ที่นัดทีหลังแต่มารับคิวก่อนจะได้ลำดับตามช่วงเวลาที่นัดไว้ · wave 2026-08: /appointment เพิ่มแท็บ "ยังไม่มาติดต่อวันนี้" ที่ derive จากข้อมูลของโมดูลนัดหมายเอง และแสดง queueCenterStore.getAppointmentsNotArrived() เป็นแผงอ้างอิง read-only ที่ติดป้ายว่าเป็นคนละชุดข้อมูล — ยังไม่มีการ join หรือเขียนกลับข้ามสองโมดูล'},
   '1.3.2.4':  {s:'done',    u:'/queue-center/integration', n:'กติกาแทรก Walk-in เลือกได้ระหว่าง เรียงตามเวลามาก่อน-หลัง กับ สลับตามความเร่งด่วน พร้อมพรีวิวลำดับผลลัพธ์สด · ฝั่งออกคิวเลือกความเร่งด่วนรายคิวได้ที่ /queue-center/issue และแทรกคิวรายแถวได้ที่ /queue-center'},
   '1.3.2.5':  {s:'done',    u:'/queue-center/issue', n:'บัตรคิว: โลโก้+ชื่อศูนย์ · รหัสคิวตัวใหญ่ · ชื่อ-นามสกุล · HN + Barcode128 · จุดบริการ/โซน/ชั้น · ข้อความขั้นตอนการรับบริการ · เวลาออกคิว · จำนวนคิวรออยู่ข้างหน้า · QR ชี้ /queue-center/display/online (หน้าติดตามสถานะสด — integrator เปลี่ยนปลายทางจาก /kiosk/ticket ตอนเชื่อมสองโมดูลเข้าด้วยกัน) · พิมพ์ซ้ำบังคับเหตุผล จำกัด 3 ครั้ง และนับจำนวน · QR encoder เขียนเองตาม ISO/IEC 18004 เพราะห้ามเพิ่ม dependency'},
   '1.3.2.6':  {s:'done',    u:'/queue-center',  n:'เลือกจุดบริการปลายทางตอนออกคิว + โอนจุดบริการรายแถวและจากแผง Now-serving (ออกรหัสคิวใหม่ตามปลายทาง บังคับกรอกเหตุผล) · ผังจุดบริการ CRUD (รหัส/ชื่อ/โซน/ชั้น/ระบบต้นทาง/จอที่ผูก/ลำดับ/เปิด-ปิด) อยู่ที่ /queue-center/settings · ของเดิมที่ /kiosk (6 services + 12 sub-services) ยังอยู่'},
@@ -1710,7 +1710,10 @@ const IMPL = {
   '1.4.10.10':{s:'done',    u:'/treat/record',  n:'Orders display'},
   '1.4.10.11':{s:'partial', u:'/treat/record',  n:'ทะเบียน e-Document ครบ: เลขที่/ชนิด/ผู้ออก/วันเวลา/สถานะ/จำนวนครั้งที่พิมพ์/พิมพ์ซ้ำ/ยกเลิกพร้อมเหตุผล/สลับข้อมูลลับ/pagination · **ยังไม่มีลายเซ็นดิจิทัลเชิงรหัส (digital signature)** — มีแค่ลายเซ็นวาดมือแบบ base64'},
   '1.4.11.1': {s:'done',    u:'/treat/refer',   n:'ฟอร์มครบตามแบบ ศบส. (คู่มือ HCIS §2.5.1/§2.10.2): ข้อมูลผู้รับบริการ+ที่อยู่+สิทธิ, ต้นทาง/ปลายทาง/ศบส.ที่เรียกเก็บ, ประวัติ/อาการ/ผลตรวจ/การรักษาที่ให้แล้ว/เหตุผลส่งต่อ, หมายเหตุโรคติดต่อ, วันหมดอายุ · action ครบ บันทึกร่าง/ส่ง/แก้ไข/ยกเลิกพร้อมเหตุผล/พิมพ์ · กันไว้: ข้อมูลไม่ครบส่งไม่ได้แต่ร่างได้, ยกเลิกใบที่ส่งแล้วเตือนว่าปลายทางอาจได้รับแล้ว, ใบหมดอายุขึ้นป้าย, สิทธิหมดอายุเตือนไม่บล็อก, ออกจากฟอร์มโดยไม่บันทึกมี UnsavedChangesPopup'},
-  '1.4.12.1': {s:'done',    u:'/treat/record',  n:'Step 6 appointment'},
+  /* คงสถานะ done: ข้อกำหนดคือ "สามารถแสดงข้อมูลการนัดหมาย" ซึ่ง Step 6 ของ /treat/record
+     ทำได้อยู่แล้ว. ส่วนที่ยังไม่ครบเป็น "ส่วนขยาย" ของ wave 2026-08 (นัดต่อเนื่องจาก
+     คำสั่ง CPOE) ไม่ใช่ตัวข้อกำหนด — จดไว้ใน n: เพื่อไม่ให้หาย. */
+  '1.4.12.1': {s:'done',    u:'/treat/record',  n:'Step 6 appointment · ค้างไว้ (wave 2026-08): appointmentRequestStore.ingestContinuationRequest() + seed คำสั่งนัดต่อเนื่อง mock (CPOE-2026-08-0417) + UI "ใช้คำสั่งนี้" ที่ /appointment/recurring พร้อมแล้ว แต่ยังไม่มีใครเรียก — ต้องเรียกจาก save path ของ CPOE/SOAP ใน src/components/forms/TreatmentSteps.jsx (อยู่นอก write scope ของ wave นี้)'},
 
   /* ===== 1.5 CPOE =====
      Re-audit + build 2026-08-04 (Wave S · CPOE 8 ขั้น): SOAP Note step,
@@ -1803,23 +1806,27 @@ const IMPL = {
   /* ===== 1.6 Appointments =====
      Re-audit 2026-07-29 (+ build): settings tab, nested slots, print slip,
      home-visit, cancel audit, earliest-slot search. See Obsidian tor-appointment-compliance. */
-  '1.6.1.1':  {s:'done',    u:'/appointment',   n:'CRUD + doctor calendar on /appointment; also Step 6'},
-  '1.6.1.2':  {s:'partial', u:'/appointment',   n:'Core fields present; daily queue-capacity via pattern capacityPerMajor'},
-  '1.6.1.3':  {s:'done',    u:'/appointment',   n:'Settings tab — resource weekdays/hours/slot pattern/advance'},
-  '1.6.1.4':  {s:'done',    u:'/appointment',   n:'Nested major→minor slots + queue numbers when pattern saved'},
-  '1.6.1.5':  {s:'done',    u:'/appointment',   n:'Facility + resource holiday settings block booking'},
-  '1.6.1.6':  {s:'done',    u:'/appointment',   n:'Cancel day schedule only if no Active appointments'},
-  '1.6.2.1':  {s:'done',    u:'/appointment',   n:'Earliest free slot search by resource type'},
-  '1.6.2.2':  {s:'done',    u:'/appointment',   n:'Doctor picker web + Step 6 + mobile'},
-  '1.6.2.3':  {s:'done',    u:'/appointment',   n:'ไม่ระบุแพทย์ option on web form + mobile'},
-  '1.6.2.4':  {s:'done',    u:'/appointment',   n:'Home-visit exam mode on web; mobile list shows homevisit'},
-  '1.6.2.5':  {s:'partial', u:'/appointment',   n:'Type/clinic/mode options; full user-defined formats still thin'},
-  '1.6.2.6':  {s:'done',    u:'/appointment',   n:'Confirm/edit/cancel web + mobile reschedule/cancel'},
-  '1.6.2.7':  {s:'done',    u:'/appointment',   n:'Cancel reason + actor audit log in settings'},
-  '1.6.2.8':  {s:'partial', u:'/appointment',   n:'Calendar occupancy + queue labels; status API still mock'},
-  '1.6.3.1':  {s:'done',    u:'/appointment',   n:'printAppointmentSlip — slip + preparation'},
-  '1.6.4.1':  {s:'done',    u:'/appointment',   n:'Facility holiday settings on Settings tab'},
-  '1.6.4.2':  {s:'done',    u:'/appointment',   n:'Resource closed dates per doctor'},
+  /* Wave 2026-08-03: AppointmentSettingsPanel.jsx เคยเป็นไฟล์กำพร้า (ไม่มีไฟล์ไหน
+     import) — 1.6.1.3 / .1.5 / .1.6 / .2.1 / .2.7 / .4.1 / .4.2 จึงเคยติด ✅ ทั้งที่
+     ไม่มีทางเข้าใน UI จริง. ตอนนี้ panel ถูก mount ที่ /appointment/settings แท็บแรก
+     และ route ถูกผูกใน Routes.jsx แล้ว — ถ้าลบ route นั้นทิ้ง ทั้ง 7 ข้อกลับไป unreachable. */
+  '1.6.1.1':  {s:'done',    u:'/appointment',            n:'CRUD + ปฏิทิน + ตารางแพทย์เดิม; wave 2026-08 เพิ่มคอลัมน์ "สถานะการนัด (HCIS)" แบบมีรหัส + บันทึกไม่มาตามนัด; also Step 6'},
+  '1.6.1.2':  {s:'done',    u:'/appointment/settings',   n:'ปิด partial: โควตาคิวรายวัน override ต่อวัน (guard โควตาใหม่ ≥ ที่จองแล้ว, 0 = ปิดรับนัดต้องยืนยันซ้ำ) + ตาราง 30 วัน + ฟิลด์ HCIS ที่ขาดใน AppointmentFormPopup (วันเวลาที่สั่งนัด auto read-only · นัดมาเพื่อ coded master · โรคที่นัดมาตรวจ ICD-10)'},
+  '1.6.1.3':  {s:'done',    u:'/appointment/settings',   n:'Settings tab — resource weekdays/hours/slot pattern/advance; แก้ BLOCKER: panel เคยไม่ถูก import จากไฟล์ใดเลย ตอนนี้ mount ที่ /appointment/settings แท็บแรก'},
+  '1.6.1.4':  {s:'done',    u:'/appointment',            n:'Nested major→minor slots + queue numbers; buildNestedSlotRanges เดิมไม่ถูกแตะ และถูกใช้ต่อในป๊อปอัปรับนัดหมาย + นัดต่อเนื่อง'},
+  '1.6.1.5':  {s:'done',    u:'/appointment/requests',   n:'AppointmentConflictPanel บล็อกการยืนยัน (ไม่ใช่แค่เตือน) เมื่อชนวันหยุดสถานพยาบาล / วันหยุด Resource / นอกช่วง advanceDays'},
+  '1.6.1.6':  {s:'done',    u:'/appointment/settings',   n:'แท็บ "ยกเลิกตารางทั้งวัน" เรียก canCancelDaySchedule() → disable ปุ่มพร้อมข้อความ "มีนัดหมาย Active คงเหลือ N รายการ" + ลิสต์นัดที่ค้าง + ลิงก์ไปจัดการ'},
+  '1.6.2.1':  {s:'done',    u:'/appointment/settings',   n:'findEarliestFreeSlot เข้าถึงได้ 3 จุด: panel ตั้งค่า · ปุ่มในป๊อปอัปตัดสินใจคำขอ · ปุ่ม "เลื่อนไป Slot ว่าง" ราย occurrence ในหน้านัดต่อเนื่อง'},
+  '1.6.2.2':  {s:'done',    u:'/appointment',            n:'Doctor picker web + Step 6 + mobile'},
+  '1.6.2.3':  {s:'done',    u:'/appointment/requests',   n:'คำขอแบบ "ไม่ระบุแพทย์" ถูกบล็อกไม่ให้ยืนยันจนกว่าจะเลือกแพทย์จริง แล้วตรวจ conflict กับแพทย์ที่เลือก; ตัวเลือกบนฟอร์มเว็บ + mobile ยังเหมือนเดิม'},
+  '1.6.2.4':  {s:'done',    u:'/appointment/types',      n:'โหมดเยี่ยมบ้าน/Telemedicine เป็นคุณสมบัติของรูปแบบการนัดหมาย (STD-HOME/STD-TELE) + examMode ในฟอร์มเดิม; ยังไม่มีหน้าวางแผนเส้นทางเยี่ยมบ้านแยก'},
+  '1.6.2.5':  {s:'done',    u:'/appointment/types',      n:'ปิด partial: ทะเบียนรูปแบบการนัดหมายที่ผู้ใช้กำหนดเอง (รหัส/ชื่อ/คลินิก/ความยาว Slot/โหมด/รับอัตโนมัติ/ต้องใช้ห้องตรวจ/recurrence เริ่มต้น/นัดมาเพื่อ/ข้อความเตรียมตัว/เปิด-ปิดใช้งาน); AppointmentFormPopup อ่านจาก catalog แบบ fallback (catalog ว่าง = ค่าคงที่เดิม)'},
+  '1.6.2.6':  {s:'done',    u:'/appointment/requests',   n:'ยืนยัน / ปฏิเสธ (บังคับเหตุผลจาก master, "อื่น ๆ" ต้องหมายเหตุ ≥10 ตัวอักษร) / เสนอเวลาใหม่ / เลื่อน / ยกเลิก ครบ พร้อมตรวจซ้ำ ณ เวลากดยืนยัน (จับเคสคำขอ 2 ใบชน slot เดียวกัน)'},
+  '1.6.2.7':  {s:'done',    u:'/appointment/settings',   n:'แท็บประวัติการยกเลิก: filter ช่วงวันที่ + ค้นหา HN + พิมพ์/ส่งออก; ทุก action (ยกเลิก/ปฏิเสธคำขอ/ไม่มาตามนัด/แก้โควตา/เพิ่ม-ลบวันหยุด) append ผู้ดำเนินการ+เวลา+ค่าก่อน→หลัง อัตโนมัติ (ผู้ยกเลิกพิมพ์เองไม่ได้ ตาม HCIS)'},
+  '1.6.2.8':  {s:'done',    u:'/appointment',            n:'ปิด partial: แถบความจุคิวรายวัน 14 วัน (จำนวนที่นัด/โควตา + Available/Non-available พร้อมเหตุผล) + ตัวกรอง "รับนัด" ในตาราง + แท็บ "ยังไม่มาติดต่อวันนี้" + บันทึกไม่มาตามนัดผ่าน AlertDialog พร้อมเหตุผลและเวลา'},
+  '1.6.3.1':  {s:'done',    u:'/appointment/recurring',  n:'printAppointmentSlipBatch() พิมพ์ใบนัดทั้งชุด (นัดต่อเนื่อง/นัดกลุ่ม) ในเอกสารเดียว + ข้อความเตรียมตัวจากรูปแบบการนัดหมาย; ปุ่มพิมพ์ปิดเมื่อสถานะยกเลิก/ไม่มาตามนัด ตาม isAppointmentReadOnly'},
+  '1.6.4.1':  {s:'done',    u:'/appointment/settings',   n:'แท็บวันหยุดสถานพยาบาล + เตือนจำนวนนัดที่กระทบก่อนบันทึก + ตัวเลือก "แจ้งเตือนผู้รับบริการทุกคนของวันนั้น" (เขียน push log)'},
+  '1.6.4.2':  {s:'done',    u:'/appointment/settings',   n:'วันหยุดของ Resource รายแพทย์ อยู่ใน AppointmentSettingsPanel ที่ตอนนี้ mount จริงแล้ว'},
 
   /* ===== 1.7 Rights & Claims ===== */
   '1.7.2.1':  {s:'partial', u:'/registration/register', n:'Step 4 — rights group activation'},
@@ -2085,11 +2092,11 @@ const IMPL = {
   '4.2.2':    {s:'done',    u:'/m/appointments/APT-2401', n:'Reschedule CTA reuses booking wizard'},
   '4.2.3':    {s:'done',    u:'/m/appointments/APT-2401', n:'Cancel button + confirm + status badge'},
   '4.2.4':    {s:'done',    u:'/m/appointments/APT-2401', n:'Detail card with date/center/clinic/doctor'},
-  '4.2.5':    {s:'partial', u:'/m/appointments/APT-2401', n:'In-app banner only — not push/SMS/LINE'},
+  '4.2.5':    {s:'partial', u:'/appointment/settings', n:'In-app banner only — not push/SMS/LINE. wave 2026-08: appointmentNotifyStore บันทึกข้อความขาออกทุกฉบับ (ยืนยัน/ปฏิเสธ/เลื่อน/เตือน/วันหยุด/ไม่มาตามนัด) พร้อมเคส "ส่งไม่สำเร็จ" + ปุ่มส่งซ้ำ + badge เตือน ดูที่แท็บบันทึกการแจ้งเตือน — ยัง mock ล้วน ไม่มี provider Push/LINE/SMS จริง ห้ามอัปเป็น done'},
   '4.2.6.1':  {s:'done',    u:'/m/appointments', n:'Visit row with type badge'},
   '4.2.6.2':  {s:'done',    u:'/m/appointments', n:'Home-visit in list filter + detail'},
   '4.2.6.3':  {s:'done',    u:'/m/appointments/APT-2402', n:'Video-call row + enter-room CTA → /m/telemed'},
-  '4.2.6.4':  {s:'partial', u:'/m/book',     n:'Schedule grid mock; no real queue API link'},
+  '4.2.6.4':  {s:'partial', u:'/appointment/requests', n:'Schedule grid mock; no real queue API link. wave 2026-08: กล่องรับนัดหมายรองรับคำขอจาก mobile/LINE/โทรศัพท์/เคาน์เตอร์ และยืนยันแล้วสร้างนัดจริงพร้อมเลขคิวจาก nested slot — แต่การเชื่อมคิวยังเป็นลิงก์อ่านอย่างเดียวไป /queue-center/issue ไม่ใช่ API'},
   '4.3.1':    {s:'done',    u:'/m/telemed',  n:'Video tile + chat tab + composer'},
   '4.3.2':    {s:'partial', u:'/m/telemed',  n:'"Doctor shared a doc" panel under video tile'},
   '4.3.3':    {s:'partial', u:'/m/telemed',  n:'Mock chat messages reference Rx + lab share'},

@@ -21,9 +21,9 @@ import {
 } from '@/data/consentFormRecords';
 import { logExport } from '@/data/consentWorkflowStore';
 import { downloadConsentFormPdf } from '@/data/consentFormDownload';
-import { buildWizardPrefillFromRecord } from '@/data/consentFormWizardContent';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import { ConsentFormSharePopup } from '@/pages/consent/ConsentFormSharePopup';
+import { ConsentFormEditPopup } from '@/pages/consent/CreateConsentFormPage';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — แบบฟอร์มความยินยอม (Figma 291:113045 · flow 277:150901).
@@ -44,22 +44,13 @@ const TEXT_CELL = {
 };
 const MUTED_CELL = { ...TEXT_CELL, color: 'var(--text-content-tertiary)' };
 
-/* White content card — shared by the table card and each grid group card
-   (Figma p-24 · r-16 · 1px brand-quaternary border · card shadow). */
+/* White content card — table card + each grid group (Figma p-24 · r-16). */
 const CARD_STYLE = {
   background: 'var(--surface-card-100)',
   borderRadius: 'var(--dim-radius-500)',
   border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
   boxShadow: 'var(--shadow-card)',
   padding: 'var(--dim-space-600)',
-};
-/* Grid group ภายในการ์ดหลัก — ไม่ซ้อนการ์ดขาวอีกชั้น */
-const GROUP_INSET_STYLE = {
-  background: 'transparent',
-  borderRadius: 0,
-  border: 'none',
-  boxShadow: 'none',
-  padding: 0,
 };
 
 const Cell = ({ value }) =>
@@ -275,6 +266,7 @@ export default function ConsentFormsPage() {
   const [versionFor, setVersionFor] = useState(null);   // record → VersionHistoryPopup
   const [bumpFor, setBumpFor] = useState(null);         // published record → บังคับ bump
   const [shareFor, setShareFor] = useState(null);       // record → ConsentFormSharePopup
+  const [editFor, setEditFor] = useState(null);         // { record, newVersion } → ConsentFormEditPopup
   const [toast, setToast] = useState(null);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:consent-forms');
@@ -355,19 +347,15 @@ export default function ConsentFormsPage() {
     setSearch(q); setPage(1);
   };
 
-  /* ด.1.1.5 — สร้างเวอร์ชันใหม่: prefill wizard เดิม + bump (ห้ามแก้ทับ) */
+  /* ด.1.1.5 — สร้างเวอร์ชันใหม่: เปิด wizard ใน popup (prefill + bump) */
   const goCreateVersion = (row) => {
-    navigate.push('/consent/forms/new', {
-      prefill: buildWizardPrefillFromRecord(row, { newVersion: true }),
-    });
+    setEditFor({ record: row, newVersion: true });
   };
 
-  /* แก้ไข: เทมเพลตที่เผยแพร่แล้วบังคับ bump — ร่าง/รอตรวจสอบแก้ตรงได้ */
+  /* แก้ไข: เทมเพลตที่เผยแพร่แล้วบังคับ bump — ร่าง/รอตรวจสอบแก้ตรงได้ — เปิด popup */
   const handleEdit = (row) => {
     if (row.status === 'เผยแพร่') setBumpFor(row);
-    else navigate.push('/consent/forms/new', {
-      prefill: buildWizardPrefillFromRecord(row, { newVersion: false }),
-    });
+    else setEditFor({ record: row, newVersion: false });
   };
 
   /* ด.1.1.15 — ดาวน์โหลด PDF เพื่อพิมพ์ให้ลงนาม (export → เก็บ log) */
@@ -505,7 +493,7 @@ export default function ConsentFormsPage() {
                   key={g.type}
                   type={g.type}
                   rows={g.rows}
-                  cardStyle={GROUP_INSET_STYLE}
+                  cardStyle={CARD_STYLE}
                   onView={(r) => navigate.push(`/consent/forms/${r.id}/view`)}
                   onEdit={handleEdit}
                   onSeeAll={() => { setViewMode('list'); setPage(1); }}
@@ -523,6 +511,23 @@ export default function ConsentFormsPage() {
       record={versionFor}
       onClose={() => setVersionFor(null)}
       onCreateVersion={(row) => { setVersionFor(null); goCreateVersion(row); }}
+    />
+
+    {/* แก้ไข / สร้างเวอร์ชันใหม่ — wizard ใน popup (ไม่เปิดแท็บใหม่) */}
+    <ConsentFormEditPopup
+      open={!!editFor}
+      record={editFor?.record || null}
+      newVersion={!!editFor?.newVersion}
+      onClose={() => setEditFor(null)}
+      onPublished={({ code, version: ver, newVersion }) => {
+        setToast({
+          id: Date.now(),
+          variant: 'success',
+          message: newVersion
+            ? `เผยแพร่ ${code} เวอร์ชัน ${ver} แล้ว`
+            : `บันทึกการแก้ไข ${code} แล้ว`,
+        });
+      }}
     />
 
     {/* แก้ไขเทมเพลตที่เผยแพร่แล้ว → บังคับ bump เวอร์ชัน (ห้ามแก้ทับ) */}

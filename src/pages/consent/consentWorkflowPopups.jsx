@@ -12,11 +12,12 @@ import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
-import { getConsentChannelOptions } from '@/data/consentChannels';
-import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
+import { getConsentChannelOptions, MOBILE_APP_CHANNEL } from '@/data/consentChannels';
+import { CONSENT_TYPE_TONE, CONSENT_STATUS } from '@/data/consentRecords';
 import { getConsentRecords } from '@/data/consentWorkflowStore';
-import { resolveConsentPatient } from '@/data/consentPatientDisplay';
+import { resolveConsentPatient, resolveConsentPatientCard } from '@/data/consentPatientDisplay';
 import {
   CONSENT_PATIENT_SEARCH_POOL,
   consentPatientSearchHistorySeed,
@@ -70,6 +71,39 @@ const ERROR_TEXT = {
 };
 
 /* ── ช่องทางลงนาม — radio tiles (ด.1.1.6 · 2 ช่องทาง) ───────────────────── */
+/* Hover / selected-hover via CSS so border + surface update without layout shift. */
+if (typeof document !== 'undefined' && !document.getElementById('mih-consent-channel-tile-style')) {
+  const s = document.createElement('style');
+  s.id = 'mih-consent-channel-tile-style';
+  s.textContent = `
+.mih-consent-channel-tile {
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, color 120ms ease;
+}
+.mih-consent-channel-tile:hover {
+  border-color: var(--border-brandPrimary-tertiary, #C5EDDA) !important;
+  background: var(--surface-brandPrimary-quaternary, #F4FBF8) !important;
+  box-shadow: var(--shadow-card-hover, 0 4px 12px rgba(0, 117, 73, 0.12)) !important;
+}
+.mih-consent-channel-tile:hover .mih-consent-channel-tile-title {
+  color: var(--text-brandPrimary-default, #007549) !important;
+}
+.mih-consent-channel-tile:hover .mih-consent-channel-tile-icon {
+  color: var(--text-brandPrimary-default, #007549) !important;
+}
+.mih-consent-channel-tile[aria-pressed="true"]:hover {
+  border-color: var(--border-brandPrimary-default, #007549) !important;
+  background: var(--surface-brandPrimary-quaternary-hover, #E2F3EB) !important;
+  box-shadow: inset 0 0 0 var(--dim-stroke-100) var(--border-brandPrimary-default, #007549),
+    var(--shadow-card-hover, 0 4px 12px rgba(0, 117, 73, 0.12)) !important;
+}
+.mih-consent-channel-tile:focus-visible {
+  outline: var(--dim-stroke-200) solid var(--border-brandPrimary-default, #007549);
+  outline-offset: 2px;
+}
+`;
+  document.head.appendChild(s);
+}
+
 export const ChannelTiles = ({ value, onChange, clinicValue }) => {
   const clinicCtx = useClinicFilter();
   const resolvedClinic = clinicValue ?? clinicCtx?.clinic;
@@ -85,7 +119,7 @@ export const ChannelTiles = ({ value, onChange, clinicValue }) => {
           type='button'
           aria-pressed={selected}
           onClick={() => onChange(c.value)}
-          className='flex flex-col items-start text-left'
+          className='mih-consent-channel-tile flex flex-col items-start text-left'
           style={{
             flex: '1 1 160px',
             gap: 'var(--dim-space-150)',
@@ -99,12 +133,11 @@ export const ChannelTiles = ({ value, onChange, clinicValue }) => {
             boxShadow: selected ? 'inset 0 0 0 var(--dim-stroke-100) var(--border-brandPrimary-default, #007549)' : 'none',
             cursor: 'pointer',
             outline: 'none',
-            transition: 'border-color 120ms ease, background-color 120ms ease',
           }}
         >
-          <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)', color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-default)' }}>
+          <span className='mih-consent-channel-tile-icon inline-flex items-center' style={{ gap: 'var(--dim-space-150)', color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-default)' }}>
             <Icon name={c.icon} size={18} />
-            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>{c.label}</span>
+            <span className='mih-consent-channel-tile-title' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-default)' }}>{c.label}</span>
           </span>
           <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', lineHeight: 1.4 }}>{c.hint}</span>
         </button>
@@ -321,15 +354,35 @@ export function CreateConsentRequestPopup({ open, onClose, onCreate }) {
   );
 }
 
+const MetaRow = ({ label, children }) => (
+  <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
+    <span
+      style={{
+        width: 140,
+        flexShrink: 0,
+        color: 'var(--text-content-tertiary)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        lineHeight: 1.5,
+        paddingTop: 2,
+      }}
+    >
+      {label}
+    </span>
+    <div className='flex items-center flex-wrap min-w-0 flex-1' style={{ gap: 'var(--dim-space-150)' }}>
+      {children}
+    </div>
+  </div>
+);
+
 /* ══ 2) Re-Consent (ด.1.1.7) ═════════════════════════════════════════════ */
 export function ReconsentPopup({ open, record, onClose, onConfirm }) {
-  const [channel, setChannel] = useState('');
   const [dueDate, setDueDate] = useState(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setChannel(''); setDueDate(null); setConfirmDiscard(false);
+    setDueDate(null); setConfirmDiscard(false);
   }, [open]);
 
   /* เวอร์ชันล่าสุดของเทมเพลตประเภทเดียวกัน (ถ้าเจอ) */
@@ -338,8 +391,19 @@ export function ReconsentPopup({ open, record, onClose, onConfirm }) {
     return CONSENT_FORM_RECORDS.find((f) => f.type === record.type && (CONSENT_FORM_STATUS[f.status] || {}).tab === 'published') || null;
   }, [record]);
 
-  const dirty = !!channel || !!dueDate;
-  const ready = !!channel && !!dueDate;
+  const patientCard = useMemo(
+    () => (record ? resolveConsentPatientCard(record.hn, record.name) : null),
+    [record],
+  );
+
+  const displayVersion = latest?.version || record?.version || '—';
+  const formTitle = record
+    ? [record.formCode, record.formName || record.type].filter(Boolean).join(' · ')
+    : '—';
+  const statusMeta = (record && CONSENT_STATUS[record.status]) || {};
+
+  const dirty = !!dueDate;
+  const ready = !!dueDate;
 
   /* guard "ละทิ้งการแก้ไข?" — pattern เดียวกับ CreateConsentRequestPopup */
   const requestClose = () => {
@@ -353,25 +417,86 @@ export function ReconsentPopup({ open, record, onClose, onConfirm }) {
         open={open}
         onClose={requestClose}
         size='large'
-        title='ส่งคำขอความยินยอมใหม่ (Re-Consent)'
-        subtitle={record ? `${record.name} · HN ${record.hn} · ${record.type}` : undefined}
+        title='Reconsent (ส่งคำขอความยินยอมใหม่)'
+        subtitle={record ? `${record.name} · HN ${record.hn}` : undefined}
         primaryAction={{
           label: 'สร้างคำขอ Re-Consent',
-          onClick: () => ready && onConfirm({ channel, dueDate: thaiDateFormat(dueDate), latestVersion: latest ? latest.version : record?.version }),
+          onClick: () => ready && onConfirm({
+            channel: MOBILE_APP_CHANNEL,
+            dueDate: thaiDateFormat(dueDate),
+            latestVersion: latest ? latest.version : record?.version,
+          }),
           disabled: !ready,
         }}
         secondaryAction={{ label: 'ยกเลิก', onClick: requestClose }}
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-          <span style={BODY_TEXT}>
-            record เดิมจะย้ายเป็นสถานะ <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>หมดอายุ-Reconsent</ColorfulBadge>{' '}
-            และระบบจะสร้างรายการใหม่สถานะ &ldquo;รอลงนาม&rdquo; ด้วยเวอร์ชันล่าสุด{' '}
-            {latest ? <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{latest.version}</ColorfulBadge> : null}
-          </span>
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={LABEL_TEXT}>ช่องทางลงนาม <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span></span>
-            <ChannelTiles value={channel} onChange={setChannel} />
-          </div>
+          {patientCard ? (
+            <PatientSummaryCard
+              avatarUrl={patientCard.avatarUrl}
+              avatarAlt={patientCard.fullName || patientCard.shortName || ''}
+              cells={[
+                {
+                  label: 'ชื่อ-นามสกุล ผู้ป่วย',
+                  value: patientCard.fullName || patientCard.shortName || '—',
+                },
+                {
+                  label: 'HN (Hospital Number)',
+                  value: patientCard.hn || '—',
+                },
+              ]}
+            />
+          ) : null}
+
+          {record ? (
+            <div
+              className='flex flex-col w-full'
+              style={{
+                gap: 'var(--dim-space-300)',
+                padding: 'var(--dim-space-400)',
+                borderRadius: 'var(--dim-radius-400)',
+                border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                background: 'var(--surface-card-100)',
+              }}
+            >
+              <MetaRow label='ชื่อแบบฟอร์ม'>
+                <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
+                  {formTitle}
+                </span>
+              </MetaRow>
+              <MetaRow label='ประเภท Consent'>
+                <ColorfulBadge
+                  style={CONSENT_TYPE_TONE[record.type] || 'grey'}
+                  size='small'
+                  hierarchy='secondary'
+                  width='hug'
+                >
+                  {record.type || '—'}
+                </ColorfulBadge>
+              </MetaRow>
+              <MetaRow label='เวอร์ชั่น'>
+                <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
+                  {displayVersion}
+                </ColorfulBadge>
+                {latest?.version && record.version && latest.version !== record.version ? (
+                  <span style={{ ...BODY_TEXT, fontSize: 'var(--type-size-xs)' }}>
+                    จาก {record.version} → เวอร์ชันล่าสุด
+                  </span>
+                ) : null}
+              </MetaRow>
+              <MetaRow label='สถานะ'>
+                <ColorfulBadge
+                  style={statusMeta.tone || 'grey'}
+                  size='small'
+                  hierarchy='secondary'
+                  width='hug'
+                >
+                  {record.status || '—'}
+                </ColorfulBadge>
+              </MetaRow>
+            </div>
+          ) : null}
+
           <DatePicker
             label='วันครบกำหนดลงนาม'
             required
@@ -388,7 +513,7 @@ export function ReconsentPopup({ open, record, onClose, onConfirm }) {
         open={confirmDiscard}
         type='warning'
         title='ละทิ้งการแก้ไข?'
-        description='ช่องทางลงนามและวันครบกำหนดที่เลือกไว้จะไม่ถูกบันทึก'
+        description='วันครบกำหนดที่เลือกไว้จะไม่ถูกบันทึก'
         confirmLabel='ละทิ้ง'
         cancelLabel='กรอกต่อ'
         onConfirm={() => { setConfirmDiscard(false); onClose(); }}

@@ -488,6 +488,54 @@ export function printAppointmentSlip(appt) {
   w.document.close();
 }
 
+/**
+ * TOR 1.6.3.1 — พิมพ์ใบนัดหลายใบในเอกสารเดียว (นัดต่อเนื่องทั้งชุด / นัดกลุ่ม /
+ * รายการที่ยังไม่มาติดต่อ) แทนการเปิดหน้าต่างพิมพ์ทีละใบ.
+ */
+export function printAppointmentSlipBatch(appts, { heading = 'ใบนัดหมาย' } = {}) {
+  const rows = (appts || []).filter(Boolean);
+  if (!rows.length) return;
+  if (rows.length === 1) {
+    printAppointmentSlip(rows[0]);
+    return;
+  }
+  const slips = rows.map((appt, i) => `
+    <section class="slip">
+      <h1>${heading} · สำนักอนามัย</h1>
+      <div class="meta">ใบที่ ${i + 1} จาก ${rows.length}${appt.seriesSeq ? ` · ครั้งที่ ${appt.seriesSeq}/${appt.seriesTotal || rows.length}` : ''}${appt.queueNo != null ? ` · คิวที่ ${appt.queueNo}` : ''}</div>
+      <table>
+        <tr><td>ผู้ป่วย</td><td>${appt.patient || '—'} (HN ${appt.hn || '—'})</td></tr>
+        <tr><td>วัน–เวลานัด</td><td>${formatApptListDate(appt.date)} · ${appt.time || '—'}</td></tr>
+        <tr><td>คลินิก</td><td>${appt.clinic || '—'}</td></tr>
+        <tr><td>แพทย์</td><td>${appt.doctor || '—'}</td></tr>
+        <tr><td>รูปแบบ</td><td>${formatApptExamModeLabel(appt.examMode)}</td></tr>
+        <tr><td>เหตุผลที่นัด</td><td>${appt.reason || '—'}</td></tr>
+      </table>
+      <div class="prep"><h2>การเตรียมตัว</h2><div>${appt.prep || '—'}</div></div>
+    </section>`).join('');
+  const html = `<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"/><title>${heading} (${rows.length} ใบ)</title>
+<style>
+  body{font-family:Sarabun,sans-serif;padding:32px;color:#232B36}
+  .slip{page-break-after:always;margin-bottom:32px}
+  .slip:last-child{page-break-after:auto}
+  h1{font-size:20px;color:#007549;margin:0 0 8px}
+  .meta{color:#858C92;font-size:12px;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse}
+  td{padding:8px 4px;border-bottom:1px solid #E2E4E6;font-size:14px;vertical-align:top}
+  td:first-child{width:160px;color:#858C92}
+  .prep{margin-top:16px;padding:16px;background:#F4FBF8;border-radius:8px}
+  .prep h2{font-size:14px;margin:0 0 8px;color:#007549}
+  @media print{body{padding:0}}
+</style></head><body>${slips}
+<script>window.onload=function(){window.print();}</script>
+</body></html>`;
+  const w = window.open('', '_blank', 'noopener,noreferrer,width=820,height=1000');
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
 /** Read-only pre-order summary. */
 export function formatApptPreOrderLabel(appt) {
   if (appt?.preOrder === 'has' || appt?.advance === 'has') return 'มีคำสั่งล่วงหน้า';

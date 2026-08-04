@@ -348,6 +348,105 @@ design system เมื่อไร
 
 ---
 
+### 22. AppointmentConflictPanel (แผงตรวจการชนทรัพยากรของนัดหมาย) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/appointment/AppointmentRequestDecisionPopup.jsx` · `src/pages/appointment/AppointmentRecurringPage.jsx` (ผ่าน `evaluateAppointmentConflicts`) · `src/pages/appointment/AppointmentRequestInboxPage.jsx` (re-check ตอนกดยืนยัน) — 3 ที่ แต่เป็นโมดูลนัดหมายทั้งหมด จึงยังนับเป็นเคสเดียว |
+| **หน้าที่** | ตรวจ + แสดงเหตุผลที่ "นัดวันเวลานี้ไม่ได้" ครบทุกแกน: แพทย์ซ้อน · ห้องตรวจซ้อน · โควตาคลินิก · โควตาคิวรายวัน · วันหยุดสถานพยาบาล/Resource · นอกช่วงรับนัดล่วงหน้า (`advanceDays`) · สิทธิหมดอายุ — พร้อมทางออก (ค้น Slot ว่างที่เร็วที่สุด / เสนอเวลาใหม่) |
+| **ทำไมไม่มีของเดิมแทน** | ประกอบจาก `StatusBadge` + `BrandSubdueButton` เดิมทั้งหมด ไม่ได้สร้าง visual ใหม่ — แต่ตัว "แผงสรุปผลการตรวจกฎหลายชั้นที่แยก block/warn แล้วเสนอ next action" ไม่มีใน DS · `Alert` เป็นข้อความก้อนเดียว ไม่แยกระดับความรุนแรงต่อรายการและไม่มีปุ่มแก้ |
+| **โครง API** | `evaluateAppointmentConflicts({ date, time, staffId, doctor, clinic, appointments, ignoreAppointmentId, patientCount, rightsExpiry, needsRoom }) → result` แล้ว `<AppointmentConflictPanel result date time onFindEarliest onPropose compact />` · `CONFLICT_SEVERITY = { BLOCK, WARN }` |
+| **พฤติกรรมที่ต้องรักษาไว้** | `BLOCK` ต้อง **ปิดปุ่มยืนยันจริง** ไม่ใช่แค่เตือน (TOR §1.6.1.5) · ต้อง re-evaluate ณ เวลากดยืนยันอีกรอบ ไม่ใช่ตอนเปิดป๊อปอัป — จับเคสคำขอ 2 ใบแย่ง slot เดียวกัน · `result === null` ไม่ render อะไรเลย |
+| **รอเคสอะไร** | โมดูลอื่นที่จองทรัพยากรแบบมีโควตา + วันหยุด: `/opd/requests` (ให้ Slot แพทย์ Walk-in), `/xray/order` (นัดตรวจรังสี §1.12.3), `/schedule` (จัดเวรชนวันลา) — เมื่อมีเคสที่ 2 ควรยกเป็น `ResourceConflictPanel` กลางที่รับ rule adapter ไม่ใช่ยกตัวนี้ตรง ๆ |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 23. AppointmentRequestDecisionPopup (ป๊อปอัปตัดสินใจคำขอนัด 3 ทาง) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/appointment/AppointmentRequestInboxPage.jsx` (`/appointment/requests`) — 1 ที่ |
+| **หน้าที่** | หน้าจอเดียวที่เจ้าหน้าที่ตัดสินคำขอนัดจาก mobile/LINE/โทรศัพท์/เคาน์เตอร์: **ยืนยัน** / **ปฏิเสธ** (บังคับเหตุผลจาก master, "อื่น ๆ" ต้องหมายเหตุ ≥10 ตัวอักษร) / **เสนอเวลาใหม่** — โดยเห็นข้อมูลผู้รับบริการ + ผลตรวจการชน + Slot ว่างในจอเดียว |
+| **ทำไมไม่มีของเดิมแทน** | ห่อของเดิมทั้งหมด (`Popup` + `PatientCard` + `SuggestibleTextarea` + `Timeslot` + รายการ 22) — แต่ DS ไม่มี pattern "ป๊อปอัปตัดสินใจหลายทางที่แต่ละทางเปลี่ยนชุดฟิลด์ที่ต้องกรอกและเงื่อนไข validate" · `AlertDialog` เป็นยืนยัน/ยกเลิก 2 ทางเท่านั้น |
+| **โครง API** | `<AppointmentRequestDecisionPopup open request appointments canManage onClose onConfirm onReject onPropose onFindEarliest />` — decision state (`confirm` \| `reject` \| `propose`) อยู่ภายใน |
+| **พฤติกรรมที่ต้องรักษาไว้** | เปลี่ยนทางเลือกแล้วต้องล้าง error ของทางเดิม แต่ **ไม่ล้างค่าที่กรอกไว้** · คำขอ "ไม่ระบุแพทย์" ยืนยันไม่ได้จนกว่าจะเลือกแพทย์จริง (§1.6.2.3) · `canManage=false` → read-only ทั้งใบ ไม่ใช่ซ่อนป๊อปอัป |
+| **รอเคสอะไร** | คิวคำขอที่ต้องอนุมัติแบบเดียวกัน: `/consent/access` (คำขอสิทธิเข้าถึง) · `/opd/requests` (คำขอ Walk-in) · `/pharmacy/requisition` (ใบเบิก) — เคสที่ 2 คือเมื่อหน้าใดหน้าหนึ่งต้องการ 3 ทางเลือกพร้อม validate ต่างกัน |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 24. AppointmentRecurrenceBuilder (ตัวสร้างกติกานัดซ้ำ) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/appointment/AppointmentRecurringPage.jsx` (`/appointment/recurring`) — 1 ที่ |
+| **หน้าที่** | ประกอบกติกานัดต่อเนื่อง: ทุก N วัน / ทุกสัปดาห์ (เลือกวันในสัปดาห์) · จำนวนครั้ง หรือ จบเมื่อถึงวันที่ · พรีวิววันที่ที่จะเกิดจริงก่อนบันทึก |
+| **ทำไมไม่มีของเดิมแทน** | ประกอบจาก `Select` · `DatePicker` · `InputField` · `Fields` เดิม — แต่ DS ไม่มี "ตัวแก้ recurrence rule" เลย และตรรกะ `buildOccurrenceDates` / `validateRecurrence` เป็นของที่ต้องแชร์ ไม่ใช่ของหน้าจอ |
+| **โครง API** | `<AppointmentRecurrenceBuilder value onChange disabled />` + helper ที่ export คู่กัน: `DEFAULT_RECURRENCE` · `validateRecurrence(cfg)` · `buildOccurrenceDates(cfg)` · `describeRecurrence(cfg)` · `RECURRENCE_MODES` / `END_MODES` / `INTERVAL_PRESETS` / `WEEKDAY_OPTIONS` · ขอบเขต `RECURRENCE_MIN/MAX_INTERVAL` (1–180 วัน), `RECURRENCE_MIN/MAX_COUNT` (1–52 ครั้ง) |
+| **พฤติกรรมที่ต้องรักษาไว้** | เพดาน 52 ครั้ง / 180 วัน กันสร้างนัดหลุด · `buildOccurrenceDates` ต้อง pure (หน้าอื่นเรียกเพื่อพรีวิวโดยไม่บันทึก) · โหมดรายสัปดาห์ที่ไม่ติ๊กวันใดเลย = invalid ไม่ใช่ "ทุกวัน" |
+| **รอเคสอะไร** | ของอื่นที่เกิดซ้ำตามกติกา: `/schedule` (รูปแบบเวรประจำสัปดาห์) · `/pharmacy/registry` (ยาที่ต้องรับซ้ำ) · `/clinic/ncd/followup` (ตารางติดตามโรคเรื้อรัง) — เคสที่ 2 ควรยกเป็น `RecurrenceBuilder` กลางที่ไม่ผูกคำว่า "นัด" |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 25. AppointmentNotifyLogTable (ตารางบันทึกการแจ้งเตือนขาออก) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/appointment/AppointmentSettingsPage.jsx` แท็บ "บันทึกการแจ้งเตือน" (`/appointment/settings`) — 1 ที่ |
+| **หน้าที่** | ทะเบียนข้อความขาออกทุกฉบับ (push / LINE / SMS) พร้อมสถานะส่งสำเร็จ-ไม่สำเร็จ · ปุ่มส่งซ้ำรายแถว · ค้นหา + กรองช่องทาง/สถานะ · พิมพ์/ส่งออก |
+| **ทำไมไม่มีของเดิมแทน** | ประกอบจาก `Table` + `Pagination` + `PrimarySearch` + `FilterTag` เดิม — แต่ "ตาราง outbound message log ที่มี retry ต่อแถว" ไม่มีใน DS และจะซ้ำทันทีที่ระบบอื่นเริ่มส่งข้อความ |
+| **โครง API** | `<AppointmentNotifyLogTable canManage />` (อ่านจาก `appointmentNotifyStore` เอง) + `printNotifyLog(rows)` · ถ้ายกขึ้น DS ต้องเปลี่ยนเป็น `<MessageLogTable rows onRetry channels />` ที่รับข้อมูลจากภายนอกแทนการอ่าน store ตรง |
+| **พฤติกรรมที่ต้องรักษาไว้** | แถวที่ส่งไม่สำเร็จต้องเด้งเป็น badge เตือนบนหน้าหลักด้วย ไม่ใช่ซ่อนอยู่ในแท็บ · ส่งซ้ำต้อง **append แถวใหม่** ไม่ทับของเดิม (log ต้องเป็น append-only) · `canManage=false` → ยังดูได้แต่กดส่งซ้ำไม่ได้ |
+| **รอเคสอะไร** | ระบบอื่นที่ส่งข้อความออก: แจ้งผลแล็บวิกฤต (§1.15.6) · แจ้งเตือนคิว (`/queue-center`) · แจ้งเตือนยาใกล้หมดอายุ — เคสที่ 2 ยกเป็น `MessageLogTable` กลาง |
+| **ช่องว่างที่รู้อยู่** | mock ล้วน — ไม่มี provider Push/LINE/SMS จริง (TOR 4.2.5 ยังเป็น `partial`) |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 26. AppointmentCapacityBar (แถบความจุคิวรายวัน + Available/Non-available) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/appointment/AppointmentPage.jsx` (slot `belowSummary` ของ `/appointment`) — 1 ที่ |
+| **หน้าที่** | TOR §1.6.2.8 — แถบ 14 วันข้างหน้า บอกจำนวนที่นัดแล้ว/โควตา + ป้าย Available / Non-available พร้อม**เหตุผล**ที่ไม่ว่าง (เต็มโควตา / วันหยุด / ปิดรับนัด) กดเลือกวันแล้วกรองตารางตาม |
+| **ทำไมไม่มีของเดิมแทน** | ประกอบจาก `StatusBadge` + `NeutralSubdueButton` เดิม — DS ไม่มี "แถบเลือกวันที่พร้อมตัวชี้วัดความจุ" · `SummaryCardsBar` เป็นตัวเลขสรุปนิ่ง ไม่ใช่ตัวเลือกช่วงวัน · `DatePicker` เลือกวันได้แต่ไม่บอกว่าวันไหนเต็ม |
+| **โครง API** | `<AppointmentCapacityBar appointments staffId days={14} selectedDate onSelectDate onOpenSettings />` |
+| **พฤติกรรมที่ต้องรักษาไว้** | Non-available ต้องบอกเหตุผลเสมอ ไม่ใช่แค่ป้ายแดง (ผู้ใช้ต้องรู้ว่าแก้ที่ไหน → `onOpenSettings`) · โควตา 0 = ปิดรับนัด ต่างจากโควตาเต็ม · re-render เมื่อ store โควตาเปลี่ยน (React 17 subscribe + `setTick`) |
+| **รอเคสอะไร** | หน้าที่ต้องเลือกวันโดยเห็นความจุก่อน: `/opd/room-config` (โควตาต่อหน่วยบริการ) · `/xray/order` (นัดตรวจรังสี) · `/m/book` (ฝั่งผู้รับบริการ) — เคสที่ 2 ยกเป็น `CapacityDateStrip` กลาง |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 27. AppointmentNotArrivedView (มุมมองนัดวันนี้ที่ยังไม่มาติดต่อ) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/appointment/AppointmentPage.jsx` แท็บ "ยังไม่มาติดต่อวันนี้" (`/appointment`) — 1 ที่ |
+| **หน้าที่** | รายการนัดของวันนี้ที่ยังไม่มีการมาติดต่อ + บันทึก "ไม่มาตามนัด" พร้อมเหตุผลและเวลา (เขียน audit) + แผงอ้างอิง read-only จากศูนย์บริหารคิว |
+| **ทำไมไม่มีของเดิมแทน** | ประกอบจาก `Table` + `AlertDialog` + `Select` เดิม — แต่ "มุมมองรายการที่ควรเกิดแต่ยังไม่เกิด + ปุ่มปิดสถานะพร้อมเหตุผลบังคับ" ไม่มีใน DS |
+| **โครง API** | `selectNotArrivedToday(appointments) → rows` (pure) + `<AppointmentNotArrivedView appointments canManage onMarkNoShow onOpenDetail />` |
+| **พฤติกรรมที่ต้องรักษาไว้** | ตารางหลัก derive จากข้อมูลของโมดูลนัดหมายเอง · แผง `queueCenterStore.getAppointmentsNotArrived()` เป็น **read-only ที่ติดป้ายว่าเป็นคนละชุดข้อมูล** ห้าม join หรือเขียนกลับ (mock 5 แถว ไม่มีฟิลด์ `date`, HN/แพทย์คนละชุดกับ `INITIAL_APPOINTMENTS`) · เหตุผลไม่มาตามนัดเป็น master ไม่ใช่ free text ล้วน |
+| **รอเคสอะไร** | หน้าอื่นที่มี "รายการค้างของวันนี้" ที่ต้องปิดพร้อมเหตุผล: `/lab/queue` (สั่งตรวจแล้วไม่มาเจาะ) · `/pharmacy/queue` (จ่ายยาแล้วไม่มารับ) · `/xray/queue` (นัดถ่ายแล้วไม่มา) — เคสที่ 2 ยกเป็น `NoShowWorklist` กลาง |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 28. AppointmentMoreMenu (เมนู "เพิ่มเติม" ยุบทางเข้ารอง) — 🚧 ควรทำเป็น Menu/Popover จริงใน DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/appointment/AppointmentPage.jsx` (action bar ของ `/appointment`) — 1 ที่ |
+| **หน้าที่** | ยุบทางเข้ารอง 3 ทาง (นัดต่อเนื่อง · รูปแบบการนัดหมาย · ตั้งค่าระบบนัดหมาย) ไว้ปุ่มเดียว เพื่อให้ action bar เหลือ CTA หลักชุดเดียว |
+| **ทำไมไม่มีของเดิมแทน** | `design.md` §6 ไม่มี dropdown-menu กลาง — มีแต่ `OverflowFlexRow` ที่ซ่อนรายการ**ตามความกว้างที่เหลือ** ซึ่งเป็นคนละพฤติกรรม (ยุบโดยตั้งใจ vs ยุบเพราะพื้นที่ไม่พอ) · ตัวนี้ประกอบจาก `NeutralSubdueButton` + `ActionList` เดิม ไม่ได้สร้าง visual ใหม่ |
+| **โครง API** | ตอนนี้ `<AppointmentMoreMenu items label='เพิ่มเติม' />` — **ถ้ายกขึ้น DS ห้ามยกตัวนี้ตรง ๆ** ควรทำเป็น `Menu` / `Popover` จริงที่มี focus trap · ปิดด้วย `Esc` · `aria-expanded` / `aria-controls` · วางตำแหน่งแบบหลบขอบจอ ซึ่งตัวปัจจุบันยังไม่มีครบ |
+| **พฤติกรรมที่ต้องรักษาไว้** | รายการในเมนูต้องเป็น**ทางเข้ารอง**เท่านั้น — CTA หลัก (คำขอนัด N · ตารางเวรแพทย์ · +สร้างนัด) ห้ามยุบเข้ามา · ทุกปลายทางต้องเข้าถึงได้จากเมนู Sidebar ด้วย ไม่ใช่ทางนี้ทางเดียว |
+| **รอเคสอะไร** | ไม่ต้องรอเคสที่ 2 ในแง่ความต้องการ — action bar ที่ล้นมีทั่วระบบ (`/treat/record`, `/pharmacy/dispense`, `/queue-center`) สิ่งที่รอคือ**การออกแบบ `Menu` ใน Figma** ให้ครบ state + a11y ก่อน แล้วค่อยให้ทุกที่ alias |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
 ## ยกขึ้น design system แล้ว
 
 *(ยังไม่มี)*

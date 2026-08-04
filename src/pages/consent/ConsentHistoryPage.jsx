@@ -6,8 +6,12 @@ import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag from '@/components/forms/FilterTag';
+import FilterDateTag from '@/components/forms/FilterDateTag';
+import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
-import PatientCard from '@/components/card/PatientCard';
+import PatientSummaryCard from '@/components/card/PatientSummaryCard';
+import LottieIllustration from '@/components/illustrations/LottieIllustration';
+import emptyHistoryAnim from '@/assets/illustrations/disease-history.json';
 import { CONSENT_TYPE_TONE, CONSENT_STATUS } from '@/data/consentRecords';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import {
@@ -15,14 +19,14 @@ import {
   searchConsentPatients,
   CONSENT_HISTORY_ACTIONS,
 } from '@/data/consentPatientHistory';
-import { resolveConsentPatient } from '@/data/consentPatientDisplay';
+import { resolveConsentPatient, resolveConsentPatientCard } from '@/data/consentPatientDisplay';
 import {
   CONSENT_PATIENT_SEARCH_POOL,
   consentPatientSearchHistorySeed,
   consentPatientSearchSuggestions,
+  filterConsentPatientSearch,
   toConsentPatientSearchItem,
 } from '@/data/consentPatientSearch';
-import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — ประวัติความยินยอมรายบุคคล (Timeline · new tab).
@@ -32,43 +36,6 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
 
 const breadcrumbSearch = ['จัดการความยินยอม', 'ประวัติความยินยอม'];
 const breadcrumbTimeline = ['จัดการความยินยอม', 'Timeline การเปลี่ยนแปลงความยินยอม'];
-
-/** Strip mock cycle suffix (`67-00001-2` → `67-00001`) for profile lookup. */
-const baseConsentHn = (hn) => {
-  const raw = String(hn || '').trim();
-  const m = raw.match(/^(\d{2}-\d{5})(?:-\d+)?$/);
-  return m ? m[1] : raw;
-};
-
-/** PatientCard profile — screening roster first, consent avatar fallback. */
-const resolveTimelinePatientCard = (hn, fallbackName) => {
-  const resolved = resolveConsentPatient(hn, fallbackName);
-  const profile = getPatientByHN(baseConsentHn(hn));
-  if (profile) {
-    return {
-      ...profile,
-      hn: resolved.hn || profile.hn,
-      avatarUrl: profile.avatarUrl || resolved.avatarUrl,
-    };
-  }
-  return {
-    ...DEFAULT_PATIENT,
-    hn: resolved.hn || hn,
-    shortName: resolved.name || fallbackName,
-    fullName: resolved.name || fallbackName,
-    englishName: '',
-    avatarUrl: resolved.avatarUrl,
-    sex: '—',
-    age: '—',
-    nationalId: '—',
-    bloodType: '—',
-    patientType: '—',
-    doctor: '—',
-    insurance: '—',
-    address: '—',
-    vip: false,
-  };
-};
 
 const THAI_MONTHS = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -121,18 +88,12 @@ const ACTION_BADGE_TONE = {
 };
 
 const ACTION_FILTERS = [
-  { key: 'all', label: 'ทั้งหมด' },
   { key: 'สร้างคำขอ', label: 'สร้างคำขอ' },
   { key: 'ให้ความยินยอม', label: 'ให้ความยินยอม' },
   { key: 'ไม่ให้ความยินยอม', label: 'ไม่ให้ความยินยอม' },
   { key: 'ถอนความยินยอม', label: 'ถอนความยินยอม' },
   { key: 'แก้ไขความยินยอม', label: 'แก้ไขความยินยอม' },
   { key: 'มีเวอร์ชันใหม่', label: 'มีเวอร์ชันใหม่' },
-];
-
-const SORT_FILTERS = [
-  { key: 'newest', label: 'ใหม่ → เก่า' },
-  { key: 'oldest', label: 'เก่า → ใหม่' },
 ];
 
 /** แปลง "4 มีนาคม 2569 · 11:20" → { monthLabel, sortKey, instant } */
@@ -155,7 +116,45 @@ const parseThaiDateTime = (dateTime) => {
   return { monthLabel, sortKey, instant };
 };
 
-const groupEventsByMonth = (events, sortDir) => {
+/** Thai display date → local calendar Date at start of day (for FilterDateTag). */
+const toEventCalendarDate = (dateTime) => {
+  const raw = String(dateTime || '').trim();
+  const monthIdx = THAI_MONTHS.findIndex((m) => raw.includes(m));
+  const yearMatch = raw.match(/(25\d{2}|20\d{2})/);
+  const dayMatch = raw.match(/^(\d{1,2})\s/);
+  if (monthIdx < 0 || !yearMatch || !dayMatch) return null;
+  let year = Number(yearMatch[1]);
+  if (year >= 2400) year -= 543;
+  const d = new Date(year, monthIdx, Number(dayMatch[1]));
+  d.setHours(0, 0, 0, 0);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const resolveDateFilterRange = (value) => {
+  if (!value?.quick) return null;
+  if (value.quick === 'custom') {
+    if (value.tab === 'single' && value.single) return { start: value.single, end: value.single };
+    if (value.tab === 'range' && value.range?.start && value.range?.end) return value.range;
+    return null;
+  }
+  const single = computeQuickSingle(value.quick);
+  if (single) return { start: single, end: single };
+  return computeQuickRange(value.quick);
+};
+
+const matchesDateFilter = (dateTime, value) => {
+  const range = resolveDateFilterRange(value);
+  if (!range?.start || !range?.end) return true;
+  const d = toEventCalendarDate(dateTime);
+  if (!d) return false;
+  const start = new Date(range.start);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(range.end);
+  end.setHours(23, 59, 59, 999);
+  return d >= start && d <= end;
+};
+
+const groupEventsByMonth = (events) => {
   const map = new Map();
   events.forEach((ev) => {
     const meta = parseThaiDateTime(ev.dateTime);
@@ -167,9 +166,9 @@ const groupEventsByMonth = (events, sortDir) => {
   });
   const groups = [...map.values()];
   groups.forEach((g) => {
-    g.events.sort((a, b) => (sortDir === 'oldest' ? a._instant - b._instant : b._instant - a._instant));
+    g.events.sort((a, b) => b._instant - a._instant);
   });
-  groups.sort((a, b) => (sortDir === 'oldest' ? a.sortKey - b.sortKey : b.sortKey - a.sortKey));
+  groups.sort((a, b) => b.sortKey - a.sortKey);
   return groups;
 };
 
@@ -270,10 +269,22 @@ function ConsentHistorySearch({ records }) {
   const handleSubmit = (value, item) => {
     const q = (item?.value || item?.label || value || '').trim();
     if (!q) return;
-    const pool = item?.id
-      ? CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === item.id)
+
+    /* Resolve HN: suggestion/history id → pool match → first search hit */
+    const hn = item?.id
+      || filterConsentPatientSearch(q)[0]?.hn
+      || searchConsentPatients(q, records)[0]?.hn
+      || null;
+
+    const pool = hn
+      ? CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === hn)
       : null;
     pushHistory(pool ? toConsentPatientSearchItem(pool) : (item || { label: q, value: q }));
+
+    if (hn) {
+      navigate.push(`/consent/history/${encodeURIComponent(hn)}`);
+      return;
+    }
     setSearch(q);
   };
 
@@ -282,9 +293,13 @@ function ConsentHistorySearch({ records }) {
       <section className='w-full flex flex-col' style={{ ...CARD_STYLE, gap: 'var(--dim-space-600)' }}>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
           <h2 style={TITLE_TEXT}>ค้นหาประวัติความยินยอม</h2>
-          <p style={MUTED_XS}>ค้นหาด้วยชื่อผู้รับบริการ หรือเลข HN แล้วคลิกชื่อเพื่อดู Timeline</p>
         </div>
-        <div className='w-full flex items-start justify-center'>
+
+        <div className='w-full flex flex-col items-center' style={{ gap: 'var(--dim-space-400)' }}>
+          <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)' }}>
+            <LottieIllustration animationData={emptyHistoryAnim} size={160} />
+            <span style={{ ...TITLE_TEXT, textAlign: 'center' }}>พิมพ์ชื่อหรือ HN เพื่อค้นหา</span>
+          </div>
           <PrimarySearch
             value={search}
             onChange={setSearch}
@@ -297,16 +312,12 @@ function ConsentHistorySearch({ records }) {
           />
         </div>
 
-        {!search.trim() ? (
-          <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-600)' }}>
-            <Icon name='person_search' size={32} color='var(--text-content-tertiary)' />
-            <span style={BODY_TEXT}>พิมพ์ชื่อหรือ HN เพื่อค้นหา</span>
-          </div>
-        ) : results.length === 0 ? (
+        {search.trim() && results.length === 0 && (
           <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-600)' }}>
             <span style={BODY_TEXT}>ไม่พบผู้รับบริการที่ตรงกับ “{search.trim()}”</span>
           </div>
-        ) : (
+        )}
+        {search.trim() && results.length > 0 && (
           <ul className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)', listStyle: 'none', margin: 0, padding: 0 }}>
             {results.map((p) => (
               <li key={p.hn}>
@@ -349,36 +360,40 @@ function ConsentHistorySearch({ records }) {
 
 function ConsentHistoryTimeline({ hn, records }) {
   const [actionFilter, setActionFilter] = useState('all');
-  const [sortDir, setSortDir] = useState('newest');
+  const [dateFilter, setDateFilter] = useState({ quick: 'thisyear' });
 
   const { patient, events } = useMemo(
     () => buildPatientConsentTimeline(hn, records),
     [hn, records],
   );
 
+  const dateFiltered = useMemo(
+    () => events.filter((e) => matchesDateFilter(e.dateTime, dateFilter)),
+    [events, dateFilter],
+  );
+
   const filtered = useMemo(() => {
-    if (actionFilter === 'all') return events;
-    return events.filter((e) => e.action === actionFilter);
-  }, [events, actionFilter]);
+    if (actionFilter === 'all') return dateFiltered;
+    return dateFiltered.filter((e) => e.action === actionFilter);
+  }, [dateFiltered, actionFilter]);
 
   const monthGroups = useMemo(
-    () => groupEventsByMonth(filtered, sortDir),
-    [filtered, sortDir],
+    () => groupEventsByMonth(filtered),
+    [filtered],
   );
 
   const actionCounts = useMemo(() => {
-    const counts = { all: events.length };
+    const counts = {};
     ACTION_FILTERS.forEach((f) => {
-      if (f.key === 'all') return;
-      counts[f.key] = events.filter((e) => e.action === f.key).length;
+      counts[f.key] = dateFiltered.filter((e) => e.action === f.key).length;
     });
     return counts;
-  }, [events]);
+  }, [dateFiltered]);
 
-  const patientCard = useMemo(
-    () => (patient ? resolveTimelinePatientCard(patient.hn, patient.name) : null),
-    [patient],
-  );
+  useEffect(() => {
+    if (actionFilter === 'all') return;
+    if ((actionCounts[actionFilter] ?? 0) === 0) setActionFilter('all');
+  }, [actionCounts, actionFilter]);
 
   if (!patient) {
     return (
@@ -392,42 +407,26 @@ function ConsentHistoryTimeline({ hn, records }) {
 
   return (
     <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
-      <PatientCard embedded patient={patientCard} />
-
       <section className='w-full flex flex-col' style={{ ...CARD_STYLE, gap: 'var(--dim-space-400)' }}>
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-          <p style={MUTED_XS}>
-            รวมทุกแบบฟอร์มและทุกเหตุการณ์ — จัดกลุ่มรายเดือน (เดือนล่าสุดอยู่บนสุด)
-          </p>
-        </div>
-
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={MUTED_XS}>ประเภทเหตุการณ์</span>
-            {ACTION_FILTERS.map((f) => {
-              const count = actionCounts[f.key] ?? 0;
-              if (f.key !== 'all' && count === 0) return null;
-              return (
-                <FilterTag
-                  key={f.key}
-                  value={f.key === 'all' ? f.label : `${f.label} (${count})`}
-                  selected={actionFilter === f.key}
-                  onClick={() => setActionFilter(f.key)}
-                />
-              );
-            })}
-          </div>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={MUTED_XS}>เรียงลำดับ</span>
-            {SORT_FILTERS.map((f) => (
+        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+          <FilterDateTag
+            prefix='วันที่:'
+            value={dateFilter}
+            onChange={setDateFilter}
+            defaultQuick='thisyear'
+          />
+          {ACTION_FILTERS.map((f) => {
+            const count = actionCounts[f.key] ?? 0;
+            if (count === 0) return null;
+            return (
               <FilterTag
                 key={f.key}
-                value={f.label}
-                selected={sortDir === f.key}
-                onClick={() => setSortDir(f.key)}
+                value={`${f.label} (${count})`}
+                selected={actionFilter === f.key}
+                onClick={() => setActionFilter((prev) => (prev === f.key ? 'all' : f.key))}
               />
-            ))}
-          </div>
+            );
+          })}
         </div>
 
         {filtered.length === 0 ? (
@@ -459,10 +458,18 @@ function ConsentHistoryTimeline({ hn, records }) {
 }
 
 export default function ConsentHistoryPage() {
+  const history = useHistory();
   const { hn: hnParam } = useParams();
   const hn = hnParam ? decodeURIComponent(hnParam) : '';
   const [records, setRecords] = useState(getConsentRecords);
   useEffect(() => subscribeConsentStore(() => setRecords(getConsentRecords())), []);
+
+  /* PatientSummaryCard in white header band — avatar · ชื่อ · HN only (PHCIS). */
+  const timelinePatientCard = useMemo(() => {
+    if (!hn) return null;
+    const { patient } = buildPatientConsentTimeline(hn, records);
+    return patient ? resolveConsentPatientCard(patient.hn, patient.name) : null;
+  }, [hn, records]);
 
   return (
     <QueuePageShell
@@ -472,6 +479,27 @@ export default function ConsentHistoryPage() {
       brandTitle='ระบบจัดการความยินยอม'
       breadcrumb={hn ? breadcrumbTimeline : breadcrumbSearch}
       title={hn ? 'Timeline การเปลี่ยนแปลงความยินยอม' : 'ประวัติความยินยอม'}
+      onBack={hn ? () => history.push('/consent/history') : undefined}
+      stickyHeaderInfo={!!timelinePatientCard}
+      headerInfo={
+        timelinePatientCard ? (
+          <PatientSummaryCard
+            variant='gradient'
+            avatarUrl={timelinePatientCard.avatarUrl}
+            avatarAlt={timelinePatientCard.fullName || timelinePatientCard.shortName || ''}
+            cells={[
+              {
+                label: 'ชื่อ-นามสกุล ผู้ป่วย',
+                value: timelinePatientCard.fullName || timelinePatientCard.shortName || '—',
+              },
+              {
+                label: 'HN (Hospital Number)',
+                value: timelinePatientCard.hn || '—',
+              },
+            ]}
+          />
+        ) : undefined
+      }
     >
       {hn
         ? <ConsentHistoryTimeline hn={hn} records={records} />

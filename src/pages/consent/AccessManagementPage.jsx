@@ -29,7 +29,7 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
    registry page (ConsentManagementPage) so the system stays consistent.
    All values alias design.md tokens; UI copy is Thai; data is local mock. */
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 const breadcrumb = ['จัดการสิทธิ์การเข้าถึงแบบฟอร์ม'];
 const GROUP_TONE = { 'แพทย์': 'green', 'พยาบาล': 'purple', 'เภสัชกร': 'teal', 'นักเทคนิคการแพทย์': 'blue' };
 
@@ -534,7 +534,9 @@ export default function AccessManagementPage() {
                 <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
                   แสดง {rangeStart}-{rangeEnd} จาก {sorted.length} รายการ
                 </span>
-                <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
+                {sorted.length > PAGE_SIZE && (
+                  <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
+                )}
               </div>
             </div>
           </section>

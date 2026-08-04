@@ -60,3 +60,34 @@ export const enrichConsentRow = (row) => {
     formName: form.formName,
   };
 };
+
+/** PatientCard shape — screening roster first, consent avatar fallback. */
+export const resolveConsentPatientCard = (hn, fallbackName = '') => {
+  const resolved = resolveConsentPatient(hn, fallbackName);
+  const profile = getPatientByHN(baseConsentHn(hn));
+  if (profile) {
+    return {
+      ...profile,
+      hn: resolved.hn || profile.hn,
+      avatarUrl: profile.avatarUrl || resolved.avatarUrl,
+      shortName: resolved.name || profile.shortName,
+      fullName: profile.fullName || resolved.name || fallbackName,
+    };
+  }
+  return {
+    hn: resolved.hn || hn,
+    shortName: resolved.name || fallbackName,
+    fullName: resolved.name || fallbackName,
+    englishName: '',
+    avatarUrl: resolved.avatarUrl,
+    sex: '—',
+    age: '—',
+    nationalId: '—',
+    bloodType: '—',
+    patientType: '—',
+    doctor: '—',
+    insurance: '—',
+    address: '—',
+    vip: false,
+  };
+};

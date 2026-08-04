@@ -1,6 +1,7 @@
 /* PHCIS | Consent — aggregate patient consent history for timeline view. */
 
 import { getConsentRecords } from '@/data/consentWorkflowStore';
+import { MOBILE_APP_CHANNEL } from '@/data/consentChannels';
 
 export const CONSENT_HISTORY_ACTIONS = {
   'สร้างคำขอ': { tone: 'blue', icon: 'add' },
@@ -41,7 +42,7 @@ const normalizeEntry = (entry, record, index, historyList) => {
     formName: entry.formName || record.formName,
     type: entry.type || record.type,
     version: entry.version || record.version,
-    channel: entry.channel || record.signChannel || record.requestChannel || '-',
+    channel: entry.channel || record.signChannel || record.requestChannel || MOBILE_APP_CHANNEL,
     dateTime: entry.dateTime || entry.date,
     changeDetail: entry.changeDetail || changeDetail(action, prevStatus, toStatus, entry.version || record.version),
     recordId: record.id,
@@ -63,7 +64,7 @@ const synthesizeFromRecord = (record) => {
       action: 'สร้างคำขอ',
       fromStatus: '—',
       toStatus: 'รอลงนาม',
-      channel: record.requestChannel || '-',
+      channel: record.requestChannel || record.signChannel || MOBILE_APP_CHANNEL,
       dateTime: record.createdDate,
       changeDetail: '— → รอลงนาม',
     });
@@ -76,7 +77,7 @@ const synthesizeFromRecord = (record) => {
       action: rejected ? 'ไม่ให้ความยินยอม' : 'ให้ความยินยอม',
       fromStatus: 'รอลงนาม',
       toStatus: rejected ? 'ปฏิเสธ' : 'ยินยอมแล้ว',
-      channel: record.signChannel || record.requestChannel || '-',
+      channel: record.signChannel || record.requestChannel || MOBILE_APP_CHANNEL,
       dateTime: record.signedDate,
       changeDetail: rejected ? 'รอลงนาม → ปฏิเสธ' : 'รอลงนาม → ยินยอมแล้ว',
     });
@@ -88,7 +89,7 @@ const synthesizeFromRecord = (record) => {
       action: 'ถอนความยินยอม',
       fromStatus: 'ยินยอมแล้ว',
       toStatus: 'ถอนความยินยอม',
-      channel: record.revokeRequestChannel || record.signChannel || '-',
+      channel: record.revokeRequestChannel || record.signChannel || MOBILE_APP_CHANNEL,
       dateTime: record.withdrawnDate,
       changeDetail: 'ยินยอมแล้ว → ถอนความยินยอม',
     });
@@ -100,7 +101,7 @@ const synthesizeFromRecord = (record) => {
       action: 'มีเวอร์ชันใหม่',
       fromStatus: 'ยินยอมแล้ว',
       toStatus: 'มีเวอร์ชันใหม่',
-      channel: '-',
+      channel: record.signChannel || MOBILE_APP_CHANNEL,
       dateTime: record.createdDate,
       changeDetail: changeDetail('มีเวอร์ชันใหม่', 'ยินยอมแล้ว', 'มีเวอร์ชันใหม่', record.version),
     });

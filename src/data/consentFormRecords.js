@@ -126,6 +126,13 @@ const WORKLIST_TYPE_FORM_CODE = {
 
 const formByCode = (code) => CONSENT_FORM_RECORDS.find((f) => f.code === code) || null;
 
+/** Lookup registry row by id (edit / new-version tab). */
+export const getConsentFormById = (id) => {
+  if (id == null || id === '') return null;
+  const n = Number(id);
+  return CONSENT_FORM_RECORDS.find((f) => f.id === n || String(f.id) === String(id)) || null;
+};
+
 /** Resolve { formCode, formName } from worklist consent type — names match แบบฟอร์มความยินยอม. */
 export const resolveConsentFormForWorklistType = (type) => {
   const coded = WORKLIST_TYPE_FORM_CODE[type];
