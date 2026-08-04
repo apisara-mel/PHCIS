@@ -1,157 +1,347 @@
 /* PHCIS | Consent — สถิติและรายงาน (Figma 358:113804).
-   Report cards: each has a title + subtitle, a row of filter chips, a row of
-   stat cards (icon tile + value + label), and view/export actions. Local mock.
+   ตัวเลข/แถวตาราง/ชุดกราฟ ดึงจาก mock ที่ใช้ในเมนูจริง
+   (CONSENT_RECORDS · ACCESS_RECORDS · CONSENT_FORM_RECORDS)
+   ไม่สร้างชุดตัวเลขลอย ๆ ที่ไม่สัมพันธ์กับ worklist.
 
-   stat.tone: 'positive' (green) / 'danger' (red) / 'info' (blue).
+   chart:
+     'donut' — สัดส่วนส่วนของทั้งหมด (เช่น ยินยอม vs ปฏิเสธ)
+     'hbar'  — อันดับตามหมวด (ประเภท / แผนก / สถานะ)
+     'bars'  — แนวโน้มตามเวลา (ใช้ร่วมกับ selectable period chips)
+     'none'  — แสดงเฉพาะ SummaryCard ไม่มีกราฟสัดส่วน */
 
-   `table`: the detail rows shown when "ดูรายงาน" is pressed (Figma 358:113494) —
-   the list of users / ผู้รับบริการ related to that report topic. Columns mirror
-   the report's filter chips. column.kind: 'status' | 'badge' | undefined(text).
-   Each table mocks 20 rows so the charts show a clear distribution. */
+import { parseThaiBuddhistDate } from '@/data/registrationForm';
+import { CONSENT_RECORDS, CONSENT_STATUS } from '@/data/consentRecords';
+import { ACCESS_RECORDS } from '@/data/accessRecords';
+import { CONSENT_FORM_RECORDS } from '@/data/consentFormRecords';
 
-/* ── shared mock pools ─────────────────────────────────────────────── */
-const PATIENTS = [
-  'สมชาย ใจดี', 'มาลี ศรีสุข', 'ประเสริฐ วงศ์ทอง', 'อรุณี แสงเดือน', 'วิชัย รุ่งเรือง',
-  'สุดารัตน์ พงษ์ไพร', 'ธนา มั่นคง', 'กนกพร สุขใจ', 'อนุชา ทองคำ', 'ปิยะ วัฒนชัย',
-  'วราภรณ์ ดีเลิศ', 'สมศักดิ์ ทองดี', 'ชนิดา ผ่องใส', 'มานพ เกษมสุข', 'ศิริพร บุญมา',
-  'เอกชัย รักไทย', 'นภา จันทร์เพ็ญ', 'ดวงใจ แก้วใส', 'ภานุ ศรีสมบัติ', 'รัตนา พูนผล',
-];
-const STAFF = [
-  'นพ.สมศักดิ์ ทองดี', 'พว.สุชาดา แก้วมณี', 'นพ.อนุชา ศรีวิไล', 'ภก.วราภรณ์ ดีเลิศ',
-  'ทพ.ชนิดา ผ่องใส', 'พว.มานพ เกษมสุข', 'นพ.ปิยะ วัฒนชัย', 'ภก.รัตนา พูนผล',
-];
-const TYPES = ['การรักษา', 'ผ่าตัด', 'การวิจัย', 'วัคซีน', 'บันทึกภาพ/สื่อ', 'PDPA'];
-const UNITS = ['รพ.ราชวิถี', 'สสจ. กรุงเทพฯ', 'รพ.จุฬาลงกรณ์', 'รพ.ศิริราช', 'สปสช. เขต 13', 'รพ.ตำรวจ', 'รพ.รามาธิบดี', 'สสอ. เขตดินแดง'];
+const fmt = (n) => Number(n || 0).toLocaleString('th-TH');
+
+const toIso = (thaiDate) => {
+  const d = parseThaiBuddhistDate(thaiDate);
+  if (!d) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const countBy = (rows, getKey) => {
+  const map = new Map();
+  rows.forEach((r) => {
+    const k = getKey(r);
+    if (!k) return;
+    map.set(k, (map.get(k) || 0) + 1);
+  });
+  return [...map.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+};
+
+/* เดือนปฏิทิน (0–11) จาก createdDate — ใช้ทำแนวโน้ม VBars */
+const monthHistogram = (rows, predicate = () => true) => {
+  const buckets = Array.from({ length: 12 }, () => 0);
+  rows.forEach((r) => {
+    if (!predicate(r)) return;
+    const d = parseThaiBuddhistDate(r.createdDate);
+    if (!d) return;
+    buckets[d.getMonth()] += 1;
+  });
+  /* ถ้าเดือนไหนเป็น 0 ทั้งปี → ใส่ค่าเล็กน้อยเพื่อให้กราฟไม่ว่าง (mock) */
+  const hasAny = buckets.some((n) => n > 0);
+  if (!hasAny) return buckets.map((_, i) => (i % 3 === 0 ? 2 : 1));
+  return buckets.map((n) => Math.max(n, 0));
+};
+
+const tabOf = (r) => (CONSENT_STATUS[r.status] || {}).tab;
+
+const isConsentedOutcome = (r) => ['consented', 'expiring', 'expired'].includes(tabOf(r));
+const isRejectedOutcome = (r) => tabOf(r) === 'rejected';
+
+/** สถานะรายงานรายบุคคล — ย่อจากสถานะ worklist ให้สแกนง่าย */
+const reportStatusOf = (r) => {
+  if (isConsentedOutcome(r)) return 'ยินยอม';
+  if (isRejectedOutcome(r)) return 'ไม่ยินยอม';
+  return 'รอดำเนินการ';
+};
+
 const DATA_TYPES = ['ประวัติการรักษา', 'ผลตรวจ Lab', 'ภาพรังสี', 'ใบสั่งยา', 'ข้อมูลสิทธิ'];
-const ROLES = ['Admin', 'Editor', 'Viewer'];
-const DEPTS = ['อายุรกรรม', 'ผู้ป่วยนอก', 'เภสัชกรรม', 'ศัลยกรรม', 'ทันตกรรม', 'ส่งเสริมสุขภาพ', 'สุขภาพจิต'];
 
-/* 44 แถวต่อรายงาน (ด.1.1.16 — ให้ตาราง "ดูรายงาน" มี pagination เห็นจริง) */
-const N = 44;
-const seq = (fn) => Array.from({ length: N }, (_, i) => fn(i));
-const HN = (i) => `HN-4802${String(21 + i).padStart(2, '0')}`;
-const consentStatus = (i) => (i % 4 === 2 ? 'ไม่ยินยอม' : 'ยินยอม');           // ~25% ไม่ยินยอม
-const exportStatus = (i) => (i % 5 === 2 ? 'ถูกปฏิเสธ' : i % 5 === 4 ? 'รอตรวจสอบ' : 'สำเร็จ');
-const dateTH = (i) => `${1 + (i % 12)} มิ.ย. 2569`;
-const dtTH = (i) => `${1 + (i % 12)} มิ.ย. 2569 ${String(8 + (i % 9)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}`;
-/* ISO ประกบวันที่ไทย — ใช้กรองช่วงวันที่ในตาราง "ดูรายงาน" (มิ.ย. 2569 = 2026-06) */
-const isoOf = (i) => `2026-06-${String(1 + (i % 12)).padStart(2, '0')}`;
+const HBAR_SEG_CONSENT = 'var(--text-colorfulbadge-green, #007549)';
+const HBAR_SEG_DECLINE = 'var(--text-colorfulbadge-red, #B91C1C)';
 
-export const CONSENT_REPORTS = [
-  {
+/** แถบตามประเภท — แบ่งยินยอม / ไม่ยินยอม ในเส้นเดียวกัน */
+const typeHbarFrom = (records) => {
+  const map = new Map();
+  records.forEach((r) => {
+    const cur = map.get(r.type) || { label: r.type, value: 0, consented: 0, declined: 0 };
+    cur.value += 1;
+    if (isConsentedOutcome(r)) cur.consented += 1;
+    else cur.declined += 1;
+    map.set(r.type, cur);
+  });
+  return [...map.values()]
+    .map((row) => ({
+      label: row.label,
+      value: row.value,
+      segments: [
+        { value: row.consented, color: HBAR_SEG_CONSENT, label: 'ยินยอม' },
+        { value: row.declined, color: HBAR_SEG_DECLINE, label: 'ไม่ยินยอม' },
+      ],
+    }))
+    .sort((a, b) => b.value - a.value);
+};
+
+/* ── รายงาน 16.1 — สถิติยินยอม / ไม่ยินยอม จาก worklist ─────────────── */
+const buildConsentStatsReport = (records) => {
+  const consented = records.filter(isConsentedOutcome);
+  const rejected = records.filter(isRejectedOutcome);
+  const consentBars = monthHistogram(records, isConsentedOutcome);
+  const rejectBars = monthHistogram(records, isRejectedOutcome);
+
+  return {
     key: 'consent-stats',
-    title: 'สถิติการให้ความยินยอม / ไม่ให้ความยินยอม',
-    subtitle: 'จำนวนและร้อยละ แบ่งตามช่วงเวลา รายวัน รายสัปดาห์ รายเดือน และรายปี',
+    title: 'สัดส่วนการให้ความยินยอม / ไม่ให้ความยินยอม',
+    subtitle: 'นับจากรายการในเมนูจัดการความยินยอม ตามวันที่สร้างคำขอ',
     selectable: true,
+    chart: 'donut',
     chips: ['รายวัน', 'รายสัปดาห์', 'รายเดือน', 'รายปี'],
-    stats: [
-      { icon: 'check_circle',   tone: 'positive', value: '1,156', label: 'ยินยอมแล้ว' },
-      { icon: 'cancel',         tone: 'danger',   value: '328',   label: 'ปฏิเสธ / ถอน' },
-      { icon: 'hourglass_empty', tone: 'info',    value: '77.9%', label: 'อัตรา' },
-    ],
+    stats: [],
+    /* Donut = ส่วนของผลลัพธ์ที่ตัดสินแล้วเท่านั้น (ไม่รวมรอดำเนินการ) */
+    donut: [
+      { label: 'ยินยอม', value: consented.length, tone: 'positive' },
+      { label: 'ปฏิเสธ / ถอน', value: rejected.length, tone: 'danger' },
+    ].filter((s) => s.value > 0),
     bars: [
-      { name: 'ยินยอม', tone: 'positive', base: [640, 1180, 860, 990, 720] },
-      { name: 'ไม่ยินยอม', tone: 'danger', base: [190, 72, 140, 110, 205] },
+      { name: 'ยินยอม', tone: 'positive', base: consentBars },
+      { name: 'ไม่ยินยอม', tone: 'danger', base: rejectBars },
+    ],
+    hbar: typeHbarFrom(records),
+    hbarTitle: 'จำนวนตามประเภท Consent',
+    hbarValueLabel: 'รายการ',
+    hbarLegend: [
+      { label: 'ยินยอม', color: HBAR_SEG_CONSENT },
+      { label: 'ไม่ยินยอม', color: HBAR_SEG_DECLINE },
     ],
     table: {
       columns: [
         { key: 'patient', header: 'ชื่อ-สกุล', width: 200 },
         { key: 'hn', header: 'HN', width: 120 },
-        { key: 'type', header: 'ประเภท Consent', width: 200, kind: 'badge' },
+        { key: 'type', header: 'ประเภท Consent', width: 160, kind: 'badge' },
         { key: 'status', header: 'สถานะ', width: 130, kind: 'status' },
-        { key: 'date', header: 'วันที่', width: 150 },
+        { key: 'date', header: 'วันที่สร้าง', width: 170 },
       ],
-      rows: seq((i) => ({ patient: PATIENTS[i % PATIENTS.length], hn: HN(i), type: TYPES[i % TYPES.length], status: consentStatus(i), date: dateTH(i), _iso: isoOf(i) })),
+      rows: records.map((r) => ({
+        patient: r.name,
+        hn: r.hn,
+        type: r.type,
+        status: reportStatusOf(r),
+        date: r.createdDate,
+        _iso: toIso(r.createdDate),
+      })),
     },
-  },
-  {
+  };
+};
+
+/* ── รายงาน 16.2 — รายบุคคล ─────────────────────────────────────────── */
+const buildPersonalConsentReport = (records) => {
+  const uniqueHn = new Set(records.map((r) => r.hn)).size;
+  const consented = records.filter(isConsentedOutcome).length;
+  const rejected = records.filter(isRejectedOutcome).length;
+  const byType = countBy(records, (r) => r.type);
+
+  return {
     key: 'personal-consent',
     title: 'รายงานความยินยอมรายบุคคล',
-    subtitle: 'ผู้รับบริการรายไหน ให้ความยินยอมเรื่องใดบ้าง และไม่ให้ความยินยอมเรื่องใดบ้าง',
+    subtitle: 'ผู้รับบริการแต่ละคนให้ / ไม่ให้ความยินยอมเรื่องใดบ้าง — จาก worklist',
     chips: ['ชื่อ / HN', 'ประเภท Consent', 'สถานะ', 'ช่วงเวลา'],
+    chart: 'hbar',
     stats: [
-      { icon: 'groups',       tone: 'info',     value: '248',   label: 'ผู้รับบริการ' },
-      { icon: 'check_circle', tone: 'positive', value: '1,156', label: 'ยินยอมแล้ว' },
-      { icon: 'cancel',       tone: 'danger',   value: '328',   label: 'ไม่ยินยอม' },
+      { icon: 'groups', tone: 'info', value: fmt(uniqueHn), label: 'ผู้รับบริการ' },
+      { icon: 'check_circle', tone: 'positive', value: fmt(consented), label: 'รายการยินยอม' },
+      { icon: 'cancel', tone: 'danger', value: fmt(rejected), label: 'รายการไม่ยินยอม' },
     ],
     bars: [
-      { name: 'ยินยอม', tone: 'positive', base: [380, 520, 470, 410, 360] },
-      { name: 'ไม่ยินยอม', tone: 'danger', base: [110, 78, 132, 96, 124] },
+      { name: 'ยินยอม', tone: 'positive', base: monthHistogram(records, isConsentedOutcome) },
+      { name: 'ไม่ยินยอม', tone: 'danger', base: monthHistogram(records, isRejectedOutcome) },
     ],
+    hbar: byType,
+    hbarTitle: 'จำนวนรายการตามประเภท',
+    hbarValueLabel: 'รายการ',
     table: {
       columns: [
         { key: 'patient', header: 'ชื่อ / HN', width: 220 },
-        { key: 'type', header: 'ประเภท Consent', width: 200, kind: 'badge' },
+        { key: 'type', header: 'ประเภท Consent', width: 160, kind: 'badge' },
         { key: 'status', header: 'สถานะ', width: 130, kind: 'status' },
-        { key: 'period', header: 'ช่วงเวลา', width: 170 },
+        { key: 'period', header: 'วันที่สร้าง', width: 170 },
       ],
-      /* 16.2 — คลิกแถวเปิด ConsentHistoryPopup ของ HN นั้น (hn/name แยกไว้ให้หน้าใช้) */
-      rows: seq((i) => ({ patient: `${PATIENTS[i % PATIENTS.length]} · ${HN(i)}`, name: PATIENTS[i % PATIENTS.length], hn: HN(i), type: TYPES[i % TYPES.length], status: consentStatus(i), period: '01–12 มิ.ย. 2569', _iso: isoOf(i) })),
+      rows: records.map((r) => ({
+        patient: `${r.name} · ${r.hn}`,
+        name: r.name,
+        hn: r.hn,
+        type: r.type,
+        status: reportStatusOf(r),
+        period: r.createdDate,
+        _iso: toIso(r.createdDate),
+      })),
     },
-  },
-  {
+  };
+};
+
+/* ── รายงาน 16.3 — ส่งออกนอกหน่วยงาน (จากคำขอเข้าถึงที่อนุมัติแล้ว) ── */
+const buildExportExternalReport = (accessRows) => {
+  /* ใช้คำขอเข้าถึงที่อนุมัติ / หมดอายุ เป็น proxy ของการส่งออก-เข้าถึงจากนอก */
+  const exported = accessRows.filter((r) => r.status === 'อนุมัติแล้ว' || r.status === 'หมดอายุ');
+  const denied = accessRows.filter((r) => r.status === 'ปฏิเสธ');
+  const pending = accessRows.filter((r) => r.status === 'รออนุมัติ');
+  const units = new Set(exported.map((r) => r.dept));
+  const byPurpose = countBy(exported, (r) => r.purpose);
+
+  const statusOfExport = (r) => {
+    if (r.status === 'อนุมัติแล้ว') return 'สำเร็จ';
+    if (r.status === 'ปฏิเสธ') return 'ถูกปฏิเสธ';
+    if (r.status === 'รออนุมัติ') return 'รอตรวจสอบ';
+    return 'หมดอายุ';
+  };
+
+  return {
     key: 'export-external',
     title: 'รายงานการส่งออกข้อมูลนอกหน่วยงาน',
-    subtitle: 'บันทึกการแสดงผล การส่งออก และการเข้าถึงข้อมูลจากภายนอกหน่วยงาน',
+    subtitle: 'อิงคำขอสิทธิ์เข้าถึงจากเมนูจัดการสิทธิ์ — หน่วยงาน / วัตถุประสงค์ / สถานะ',
     chips: ['หน่วยงาน', 'ช่วงเวลา', 'สถานะ', 'ประเภทข้อมูล'],
+    chart: 'hbar',
     stats: [
-      { icon: 'ios_share',   tone: 'danger', value: '64', label: 'ครั้งส่งออก' },
-      { icon: 'open_in_new', tone: 'danger', value: '48', label: 'ครั้งเข้าถึงจากนอกหน่วยงาน' },
-      { icon: 'groups',      tone: 'info',   value: '8',  label: 'หน่วยงาน' },
+      { icon: 'ios_share', tone: 'danger', value: fmt(exported.length), label: 'ครั้งส่งออก / เข้าถึง' },
+      { icon: 'cancel', tone: 'danger', value: fmt(denied.length), label: 'ถูกปฏิเสธ' },
+      { icon: 'schedule', tone: 'info', value: fmt(pending.length), label: 'รอตรวจสอบ' },
+      { icon: 'groups', tone: 'info', value: fmt(units.size), label: 'แผนกที่เกี่ยวข้อง' },
     ],
     bars: [
-      { name: 'สำเร็จ', tone: 'positive', base: [16, 24, 19, 21, 14] },
-      { name: 'ถูกปฏิเสธ', tone: 'danger', base: [4, 2, 6, 3, 5] },
+      { name: 'สำเร็จ', tone: 'positive', base: [exported.length, Math.max(1, Math.round(exported.length * 0.9)), Math.max(1, Math.round(exported.length * 1.1)), exported.length, Math.max(1, Math.round(exported.length * 0.85))] },
+      { name: 'ถูกปฏิเสธ', tone: 'danger', base: [denied.length, Math.max(0, denied.length - 1), denied.length, Math.max(1, denied.length - 2), denied.length] },
     ],
+    hbar: byPurpose.slice(0, 8),
+    hbarTitle: 'วัตถุประสงค์การเข้าถึง (ที่อนุมัติแล้ว)',
+    hbarValueLabel: 'ครั้ง',
     table: {
       columns: [
         { key: 'actor', header: 'ผู้ดำเนินการ', width: 180 },
-        { key: 'unit', header: 'หน่วยงานปลายทาง', width: 200 },
+        { key: 'unit', header: 'แผนก', width: 160 },
         { key: 'dataType', header: 'ประเภทข้อมูล', width: 170, kind: 'badge' },
         { key: 'status', header: 'สถานะ', width: 130, kind: 'status' },
         { key: 'datetime', header: 'วันเวลา', width: 170 },
       ],
-      rows: seq((i) => ({ actor: STAFF[i % STAFF.length], unit: UNITS[i % UNITS.length], dataType: DATA_TYPES[i % DATA_TYPES.length], status: exportStatus(i), datetime: dtTH(i), _iso: isoOf(i) })),
+      rows: accessRows.map((r, i) => ({
+        actor: r.name,
+        unit: r.dept,
+        dataType: DATA_TYPES[i % DATA_TYPES.length],
+        status: statusOfExport(r),
+        datetime: `${r.createdDate} ${r.createdTime || ''}`.trim(),
+        _iso: toIso(r.createdDate),
+      })),
     },
-  },
-  {
+  };
+};
+
+/* ── รายงาน 16.4 — ผู้มีสิทธิ์เข้าถึง (จาก ACCESS_RECORDS ที่อนุมัติ) ── */
+const buildAccessRightsReport = (accessRows) => {
+  const active = accessRows.filter((r) => r.status === 'อนุมัติแล้ว');
+  const byDept = countBy(active, (r) => r.dept);
+  const byRole = countBy(active, (r) => r.group);
+  const accessTimesSeed = (r, i) => Array.from({ length: 2 + (i % 3) }, (_, k) => ({
+    datetime: `${r.createdDate} · ${String(8 + ((i + k) % 9)).padStart(2, '0')}:${String((i * 7 + k * 13) % 60).padStart(2, '0')}`,
+    action: k % 3 === 2 ? 'EXPORT' : 'VIEW',
+    target: `${r.formName || 'ข้อมูลความยินยอม'} · ${r.hn !== '-' ? r.hn : r.formCode}`,
+  }));
+
+  return {
     key: 'access-rights',
     title: 'รายงานผู้มีสิทธิ์เข้าถึงข้อมูลบุคคล',
-    subtitle: 'ใครบ้างที่มีสิทธิ์เข้าถึงข้อมูลส่วนบุคคล พร้อมวันเวลาการเข้าถึง',
+    subtitle: 'จากสิทธิ์ที่อนุมัติแล้วในเมนูจัดการสิทธิ์การเข้าถึง',
     chips: ['ชื่อผู้ใช้', 'บทบาท', 'วันเวลา', 'แผนก'],
+    chart: 'hbar',
     stats: [
-      { icon: 'groups',       tone: 'info',     value: '24',  label: 'ผู้มีสิทธิ์' },
-      { icon: 'groups',       tone: 'info',     value: '542', label: 'ครั้งเข้าถึง' },
-      { icon: 'check_circle', tone: 'positive', value: '3',   label: 'Roles' },
+      { icon: 'groups', tone: 'info', value: fmt(active.length), label: 'ผู้มีสิทธิ์ (Active)' },
+      { icon: 'apartment', tone: 'info', value: fmt(byDept.length), label: 'แผนก' },
+      { icon: 'work', tone: 'positive', value: fmt(byRole.length), label: 'กลุ่มวิชาชีพ' },
     ],
     bars: [
-      { name: 'ครั้งเข้าถึง', tone: 'info', base: [142, 210, 186, 168, 124] },
+      { name: 'ครั้งเข้าถึง', tone: 'info', base: byDept.slice(0, 5).map((d) => d.value * (3 + (d.value % 4))) },
     ],
+    hbar: byDept,
+    hbarTitle: 'จำนวนผู้มีสิทธิ์ตามแผนก',
+    hbarValueLabel: 'คน',
     table: {
       columns: [
         { key: 'user', header: 'ชื่อผู้ใช้', width: 200 },
-        { key: 'role', header: 'บทบาท', width: 150, kind: 'badge' },
+        { key: 'role', header: 'กลุ่ม', width: 150, kind: 'badge' },
         { key: 'dept', header: 'แผนก', width: 170 },
         { key: 'lastAccess', header: 'วันเวลาเข้าถึงล่าสุด', width: 190 },
       ],
-      /* 16.4 — วันเวลาการเข้าถึง "รายครั้ง" (ไม่ใช่แค่ล่าสุด): คลิกแถวเปิดรายการ accessTimes */
-      rows: seq((i) => ({
-        user: STAFF[i % STAFF.length],
-        role: ROLES[i % ROLES.length],
-        dept: DEPTS[i % DEPTS.length],
-        lastAccess: dtTH(i),
-        _iso: isoOf(i),
-        accessTimes: Array.from({ length: 3 + (i % 3) }, (_, k) => ({
-          datetime: `${1 + ((i + k) % 12)} มิ.ย. 2569 ${String(8 + ((i + k * 3) % 9)).padStart(2, '0')}:${String((i * 7 + k * 13) % 60).padStart(2, '0')}`,
-          action: k % 3 === 2 ? 'EXPORT' : 'VIEW',
-          target: `${DATA_TYPES[(i + k) % DATA_TYPES.length]} · ${HN(i + k)}`,
-        })),
+      rows: active.map((r, i) => ({
+        user: r.name,
+        role: r.group,
+        dept: r.dept,
+        lastAccess: `${r.createdDate} · ${r.createdTime || '09:00'}`,
+        _iso: toIso(r.createdDate),
+        accessTimes: accessTimesSeed(r, i),
       })),
     },
-  },
-];
+  };
+};
 
-/** รายงานที่แสดงใน Consent dashboard (ไม่รวม access-log — ย้ายไป /audit/pii-access) */
+/* ── รายงานเสริม — สถานะแบบฟอร์ม (จากเมนูแบบฟอร์ม) ─────────────────── */
+const buildFormRegistryReport = (forms) => {
+  const byStatus = countBy(forms, (r) => r.status);
+  const byType = countBy(forms, (r) => r.type);
+  const published = forms.filter((r) => r.status === 'เผยแพร่').length;
+
+  return {
+    key: 'form-registry',
+    title: 'สถานะแบบฟอร์มความยินยอม',
+    subtitle: 'สรุปจากเมนูแบบฟอร์มความยินยอม — เผยแพร่ / รอตรวจ / ร่าง',
+    chips: ['สถานะ', 'ประเภท', 'แผนก'],
+    chart: 'hbar',
+    stats: [
+      { icon: 'assignment', tone: 'info', value: fmt(forms.length), label: 'แบบฟอร์มทั้งหมด' },
+      { icon: 'check_circle', tone: 'positive', value: fmt(published), label: 'เผยแพร่แล้ว' },
+      { icon: 'category', tone: 'info', value: fmt(byType.length), label: 'ประเภท' },
+    ],
+    hbar: byStatus,
+    hbarTitle: 'จำนวนแบบฟอร์มตามสถานะ',
+    hbarValueLabel: 'ฉบับ',
+    table: {
+      columns: [
+        { key: 'name', header: 'ชื่อแบบฟอร์ม', width: 280 },
+        { key: 'type', header: 'ประเภท', width: 140, kind: 'badge' },
+        { key: 'status', header: 'สถานะ', width: 130, kind: 'status' },
+        { key: 'dept', header: 'แผนก', width: 160 },
+      ],
+      rows: forms.slice(0, 60).map((r) => ({
+        name: r.name,
+        type: r.type,
+        status: r.status,
+        dept: r.dept,
+        _iso: toIso(r.updatedDate || r.createdDate),
+      })),
+    },
+  };
+};
+
+export const buildConsentReports = ({
+  records = CONSENT_RECORDS,
+  access = ACCESS_RECORDS,
+  forms = CONSENT_FORM_RECORDS,
+} = {}) => ([
+  buildConsentStatsReport(records),
+  buildPersonalConsentReport(records),
+  buildExportExternalReport(access),
+  buildAccessRightsReport(access),
+  buildFormRegistryReport(forms),
+]);
+
+export const CONSENT_REPORTS = buildConsentReports();
+
+/** รายงานบนแดชบอร์ด — ไม่รวม access-log (ย้ายไป /audit/pii-access) */
 export const CONSENT_DASHBOARD_REPORTS = CONSENT_REPORTS.filter((r) => r.key !== 'access-log');
 
 export default CONSENT_REPORTS;

@@ -4,6 +4,7 @@ import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import FilterDateTag from '@/components/forms/FilterDateTag';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -19,6 +20,7 @@ import {
   thaiDateOfIso, daysLeftOfIso, consumeAccessImports, accessPatientLabel,
   accessAvatarForGroup,
 } from '@/data/accessRecords';
+import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { ApprovePeriodPopup, EditPeriodPopup, AccessDetailPopup } from '@/pages/consent/accessPopups';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
@@ -191,7 +193,7 @@ export default function AccessManagementPage() {
   const [filterRequester, setFilterRequester] = useState('');
   const [filterPurpose, setFilterPurpose] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterDate, setFilterDate] = useState('');
+  const [filterDate, setFilterDate] = useState({ quick: 'thisyear' });
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [dialog, setDialog] = useState(null); // { record, kind: 'reject' }
@@ -254,12 +256,6 @@ export default function AccessManagementPage() {
     { value: '', label: 'ทุกสถานะ' },
     ...Object.keys(ACCESS_STATUS).map((s) => ({ value: s, label: s })),
   ], []);
-  const dateOptions = [
-    { value: '', label: 'ทุกวัน' },
-    { value: 'today', label: 'วันนี้' },
-    { value: '7', label: '7 วันล่าสุด' },
-    { value: '30', label: '30 วันล่าสุด' },
-  ];
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -270,10 +266,11 @@ export default function AccessManagementPage() {
         (!filterRequester || r.name === filterRequester) &&
         (!filterPurpose || r.purpose === filterPurpose) &&
         (!filterStatus || r.status === filterStatus) &&
+        matchesDateFilter(r.createdDate, filterDate) &&
         (!q || r.reqNo.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.empCode.toLowerCase().includes(q))
       );
     });
-  }, [rows, activeTab, search, filterRequester, filterPurpose, filterStatus]);
+  }, [rows, activeTab, search, filterRequester, filterPurpose, filterStatus, filterDate]);
 
   const handleSort = (key) => setSortConfig((prev) => (
     prev.key === key
@@ -299,10 +296,13 @@ export default function AccessManagementPage() {
   const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
-  const isAllFilters = !filterRequester && !filterPurpose && (!filterStatus || STATUS_FILTER_HIDDEN_TABS.has(activeTab)) && !filterDate;
+  const isAllFilters = !filterRequester && !filterPurpose
+    && (!filterStatus || STATUS_FILTER_HIDDEN_TABS.has(activeTab))
+    && (!filterDate || filterDate.quick === 'thisyear');
 
   const resetFilters = () => {
-    setFilterRequester(''); setFilterPurpose(''); setFilterStatus(''); setFilterDate(''); setPage(1);
+    setFilterRequester(''); setFilterPurpose(''); setFilterStatus('');
+    setFilterDate({ quick: 'thisyear' }); setPage(1);
   };
 
   const handleSubmit = (value, item) => {
@@ -514,7 +514,12 @@ export default function AccessManagementPage() {
                   {!STATUS_FILTER_HIDDEN_TABS.has(activeTab) && (
                     <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
                   )}
-                  <FilterDropdown prefix='วันที่สร้าง:' options={dateOptions} value={filterDate} onChange={(v) => { setFilterDate(v); setPage(1); }} />
+                  <FilterDateTag
+                    prefix='วันที่:'
+                    value={filterDate}
+                    onChange={(v) => { setFilterDate(v); setPage(1); }}
+                    defaultQuick='thisyear'
+                  />
                 </div>
               </div>
 

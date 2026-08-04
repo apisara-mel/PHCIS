@@ -105,7 +105,28 @@ const ITEMS = [
     ],
   },
   { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18, path: '/xray/queue' },
-  { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',   iconSize: 18, path: '/lab/queue' },
+  /* ห้องปฏิบัติการ — TOR §1.15. เดิมเป็นเมนูเดี่ยวชี้ /lab/queue. wave นี้เพิ่ม
+     หน้าจอระดับโมดูลอีก 3 หน้า (สถานีรับสิ่งส่งตรวจ §1.15.4.5 · ส่งตรวจภายนอก
+     §1.15.6.2 · เชื่อมต่อ LIS/เครื่องตรวจวิเคราะห์ §1.15.1) จึงเปลี่ยนเป็นเมนู
+     ที่มี subItems แบบเดียวกับ `opd`/`appoint` — รายการแรกยังเป็นคิวห้องปฏิบัติการ
+     เหมือนเดิม และ `key` ยังเป็น 'lab' ทุกหน้าใน src/pages/lab ส่ง
+     `activeKey='lab'` มาเหมือนเดิมจึงไม่ต้องแก้หน้าใดเลย.
+     /lab/history/:hn (ใบสรุปผลย้อนหลังรายคน) ไม่อยู่ในเมนูโดยตั้งใจ — เป็น route
+     ที่ต้องมี HN จึงเข้าจากแถวผู้รับบริการในคิว/ใบผล ไม่ใช่จาก sidebar.
+     (เหมือน `opd`/`treat` — SideSubMenu รับเฉพาะ { key, label, path } ไอคอนที่
+     builder เสนอไว้ inventory_2 / send / lan จึงยังไม่ถูกใช้จนกว่าเมนูย่อยจะ
+     รองรับไอคอน) */
+  {
+    key: 'lab', label: 'ห้องปฏิบัติการ', icon: 'biotech', iconSize: 18, path: '/lab/queue',
+    subItems: [
+      { key: 'lab-queue',     label: 'คิวห้องปฏิบัติการ',                 path: '/lab/queue'     },
+      { key: 'lab-order',     label: 'บันทึกส่งตรวจ',                     path: '/lab/order'     },
+      { key: 'lab-receive',   label: 'สถานีรับสิ่งส่งตรวจ',                path: '/lab/receive'   },
+      { key: 'lab-send-out',  label: 'ส่งตรวจภายนอก (Lab-out)',           path: '/lab/send-out'  },
+      { key: 'lab-interface', label: 'เชื่อมต่อ LIS และเครื่องตรวจวิเคราะห์', path: '/lab/interface' },
+      { key: 'lab-setup',     label: 'ทะเบียนรายการตรวจ',                 path: '/lab/setup'     },
+    ],
+  },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht',      path: '/finance'           },
   /* ระบบนัดหมาย — TOR §1.6. เดิมเป็นเมนูเดี่ยวชี้ /appointment. wave นี้เพิ่ม

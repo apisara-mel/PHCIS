@@ -79,6 +79,7 @@ export const CONSENT_CONFIRM = {
 };
 
 const CONSENT_TYPES = ['ผ่าตัด', 'การรักษา', 'การวิจัย', 'เลือด', 'PDPA', 'เบิกจ่าย'];
+export { CONSENT_TYPES };
 const REQUESTERS = ['ลดา ดีงาม', 'นที ทองคำ'];
 const THAI_MONTHS_FULL = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -166,15 +167,20 @@ const buildConsentMockRecords = () => {
   const patient = MOCK_PATIENTS[index % MOCK_PATIENTS.length];
   const type = CONSENT_TYPES[index % CONSENT_TYPES.length];
   const day = (index % 27) + 1;
-  /* ~2 ใน 3 เป็นเดือนนี้ · ที่เหลือเดือน/ปีก่อน เพื่อให้ tab ทั้งหมด > summary เดือนนี้ */
-  const inThisMonth = index % 3 !== 0;
+  /* ~2 ใน 3 เป็นเดือนนี้ — สลับตาม (type + cycle) เพื่อไม่ให้บางประเภทหายจากเดือนนี้ */
+  const typeIdx = index % CONSENT_TYPES.length;
+  const cycle = Math.floor(index / CONSENT_TYPES.length);
+  const inThisMonth = (typeIdx + cycle) % 3 !== 0;
   const month = inThisMonth ? thisMonth : prevMonth;
   const year = inThisMonth ? thisYear : (index % 6 === 0 ? thisYear - 1 : prevYear);
   const createdDate = `${day} ${month} ${year}`;
-  const signed = ['ยินยอมแล้ว', 'ใกล้หมดอายุ', 'หมดอายุ', 'มีเวอร์ชันใหม่', 'หมดอายุ-Reconsent'].includes(status);
-  const withdrawn = ['ถอนความยินยอม'].includes(status);
+  const signed = ['ยินยอมแล้ว', 'ใกล้หมดอายุ', 'หมดอายุ', 'มีเวอร์ชันใหม่', 'หมดอายุ-Reconsent', 'ถอนความยินยอม', 'ปฏิเสธ'].includes(status);
+  const onRejectedTab = ['ถอนความยินยอม', 'ปฏิเสธ', 'ยกเลิกคำขอ'].includes(status);
   const signedDate = signed ? `${Math.min(day + 1, 28)} ${month} ${year}` : '-';
-  const withdrawnDate = withdrawn ? `${Math.min(day + 3, 28)} ${month} ${year}` : '-';
+  /* แท็บปฏิเสธ/เพิกถอน — mock วันที่ถอนครบทุกแถว (รวมปฏิเสธ · ยกเลิกคำขอ) */
+  const withdrawnDate = onRejectedTab
+    ? `${Math.min(day + 3 + (index % 5), 28)} ${month} ${year}`
+    : '-';
   const signChannel = signChannelForStatus(status, id);
   const { formCode, formName } = resolveConsentFormForWorklistType(type);
   /* ชื่อซ้ำได้เมื่อคนละคำขอ — ไม่ต่อท้าย (2) / ไม่สร้าง HN ปลอม */
@@ -197,6 +203,20 @@ const buildConsentMockRecords = () => {
     history: [],
   };
 
+  if (status === 'ถอนความยินยอม') {
+    /* ลงนามก่อนแล้วถอนภายหลัง */
+    const signDay = Math.min(day + 1, 26);
+    const withdrawDay = Math.min(signDay + 2 + (index % 5), 28);
+    record.signedDate = `${signDay} ${month} ${year}`;
+    record.withdrawnDate = `${withdrawDay} ${month} ${year}`;
+  }
+  if (status === 'ปฏิเสธ') {
+    record.signedDate = `${Math.min(day + 1, 28)} ${month} ${year}`;
+  }
+  if (status === 'ยกเลิกคำขอ') {
+    /* ยังไม่ลงนาม — ใช้วันที่ยกเลิกในคอลัมน์วันที่ถอนเพื่อ mock ครบแถว */
+    record.signedDate = '-';
+  }
   if (status === 'ใกล้หมดอายุ') {
     record.expiresInDays = 7 + (index % 21);
     /* ใกล้หมดอายุ — ลงนามปีก่อน แต่ยังนับใน worklist; ถ้าอยากให้อยู่ summary เดือนนี้ให้ created เป็นเดือนนี้ */
@@ -418,21 +438,25 @@ const SUMMARY_CARD_META = [
 ];
 
 const fmtCount = (n) => Number(n || 0).toLocaleString('th-TH');
-const pctOf = (part, whole) => (whole > 0 ? `${((part / whole) * 100).toFixed(1)}% ของเดือนนี้` : '0% ของเดือนนี้');
+const pctOf = (part, whole, periodLabel = 'เดือนนี้') => (
+  whole > 0
+    ? `${((part / whole) * 100).toFixed(1)}% ของ${periodLabel}`
+    : `0% ของ${periodLabel}`
+);
 
 /**
- * Summary = สถิติเดือนนี้เท่านั้น (จาก createdDate)
- * ต้องสัมพันธ์กับจำนวนในแต่ละ tab ของตาราง — และยอดทั้งระบบ (tab ทั้งหมด)
- * ต้องมากกว่ายอด "ความยินยอมทั้งหมด" ใน summary (เดือนนี้)
+ * สรุปจากชุด rows ที่กรองช่วงเวลาแล้ว (เช่น ตาม FilterDateTag)
+ * allTimeTotal = ยอดทั้งระบบ (ไม่กรอง) สำหรับข้อความ "จากทั้งหมด …"
  */
-export const buildConsentSummary = (rows = [], now = new Date()) => {
-  const thisMonthRows = rows.filter((r) => isConsentDateThisMonth(r.createdDate, now));
-  const monthTotal = thisMonthRows.length;
-  const allTimeTotal = rows.length;
-  const countTab = (tab) => thisMonthRows.filter((r) => (CONSENT_STATUS[r.status] || {}).tab === tab).length;
+export const buildConsentSummaryFromRows = (
+  scopedRows = [],
+  { allTimeTotal = scopedRows.length, periodLabel = 'เดือนนี้' } = {},
+) => {
+  const periodTotal = scopedRows.length;
+  const countTab = (tab) => scopedRows.filter((r) => (CONSENT_STATUS[r.status] || {}).tab === tab).length;
 
   const counts = {
-    total: monthTotal,
+    total: periodTotal,
     consented: countTab('consented'),
     pending: countTab('pending'),
     rejected: countTab('rejected'),
@@ -446,14 +470,27 @@ export const buildConsentSummary = (rows = [], now = new Date()) => {
       return {
         ...meta,
         value: fmtCount(value),
-        indicator: `เดือนนี้ · จากทั้งหมด ${fmtCount(allTimeTotal)} รายการ`,
+        indicator: `${periodLabel} · จากทั้งหมด ${fmtCount(allTimeTotal)} รายการ`,
       };
     }
     return {
       ...meta,
       value: fmtCount(value),
-      indicator: pctOf(value, monthTotal),
+      indicator: pctOf(value, periodTotal, periodLabel),
     };
+  });
+};
+
+/**
+ * Summary = สถิติเดือนนี้เท่านั้น (จาก createdDate)
+ * ต้องสัมพันธ์กับจำนวนในแต่ละ tab ของตาราง — และยอดทั้งระบบ (tab ทั้งหมด)
+ * ต้องมากกว่ายอด "ความยินยอมทั้งหมด" ใน summary (เดือนนี้)
+ */
+export const buildConsentSummary = (rows = [], now = new Date()) => {
+  const thisMonthRows = rows.filter((r) => isConsentDateThisMonth(r.createdDate, now));
+  return buildConsentSummaryFromRows(thisMonthRows, {
+    allTimeTotal: rows.length,
+    periodLabel: 'เดือนนี้',
   });
 };
 

@@ -137,8 +137,10 @@ export const buildPatientConsentTimeline = (hn, records = getConsentRecords()) =
 
 export const openConsentHistoryTab = (hn) => {
   if (typeof window === 'undefined' || !hn) return;
+  const from = `${window.location.pathname}${window.location.search}`;
+  const qs = from && from !== '/' ? `?from=${encodeURIComponent(from)}` : '';
   window.open(
-    `${window.location.origin}/consent/history/${encodeURIComponent(hn)}`,
+    `${window.location.origin}/consent/history/${encodeURIComponent(hn)}${qs}`,
     '_blank',
     'noopener,noreferrer',
   );
@@ -147,8 +149,10 @@ export const openConsentHistoryTab = (hn) => {
 /** เปิดแท็บค้นหาประวัติความยินยอม (ชื่อ / HN) แล้วเลือกผู้ป่วยดู timeline */
 export const openConsentHistorySearchTab = () => {
   if (typeof window === 'undefined') return;
+  const from = `${window.location.pathname}${window.location.search}`;
+  const qs = from && from !== '/' ? `?from=${encodeURIComponent(from)}` : '';
   window.open(
-    `${window.location.origin}/consent/history`,
+    `${window.location.origin}/consent/history${qs}`,
     '_blank',
     'noopener,noreferrer',
   );

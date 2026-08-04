@@ -53,7 +53,23 @@ export const LAB_STATUS_BY_KEY = Object.fromEntries(LAB_STATUSES.map((s) => [s.k
 export const LAB_EXCEPTIONS = [
   { key: 'rejected', label: 'ปฏิเสธสิ่งส่งตรวจ', icon: 'block',    color: 'error' },
   { key: 'redraw',   label: 'เจาะซ้ำ',           icon: 'replay',   color: 'warning' },
+  /* Added for the receiving station (src/data/labReceive.js), which
+     reproduces the legacy manual's four-way disposition รับ / ปฏิเสธ / รอ /
+     ตรวจเพิ่ม. "รอ" is neither an acceptance nor a refusal: the specimen is
+     physically at the counter but cannot move on yet (a missing form, a
+     second tube not drawn, the ward not answering). Modelling it as a
+     rejection would wrongly trigger a re-draw; modelling it as an
+     acceptance would hide work that is genuinely stuck.
+
+     Added, never repurposed — 'rejected' and 'redraw' keep the exact
+     meaning LabQueuePage/LabDetailPanel already branch on. */
+  { key: 'hold',     label: 'รอที่จุดรับตัวอย่าง', icon: 'pause_circle', color: 'warning' },
+  { key: 'addon',    label: 'ขอตรวจเพิ่ม',        icon: 'add_circle',   color: 'info' },
 ];
+
+export const LAB_EXCEPTION_BY_KEY = Object.fromEntries(
+  LAB_EXCEPTIONS.map((e) => [e.key, e]),
+);
 
 /* เหตุผลการปฏิเสธสิ่งส่งตรวจ — a rejection has to say WHY, and the reason is
    not free text in practice: it is a fixed vocabulary because it feeds

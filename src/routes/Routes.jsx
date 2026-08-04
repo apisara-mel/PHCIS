@@ -61,6 +61,10 @@ import LabOrderPage from '@/pages/lab/LabOrderPage';
 import LabSetupPage from '@/pages/lab/LabSetupPage';
 import LabResultEntryPage from '@/pages/lab/LabResultEntryPage';
 import LabReportPage from '@/pages/lab/LabReportPage';
+import LabReceivePage from '@/pages/lab/LabReceivePage';
+import LabSendOutPage from '@/pages/lab/LabSendOutPage';
+import LabInterfacePage from '@/pages/lab/LabInterfacePage';
+import LabPatientHistoryPage from '@/pages/lab/LabPatientHistoryPage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
 import ObservationHistoryPage from '@/pages/observation/ObservationHistoryPage';
@@ -385,18 +389,31 @@ export default function Routes() {
         <Route exact path='/pharmacy/history'      component={PharmacyHistoryPage} />
         <Route exact path='/pharmacy/reports'      component={PharmacyReportsPage} />
 
-        {/* งานชันสูตรโรค (Lab · TOR ข้อ 1.15). Four screens, matching the
+        {/* งานชันสูตรโรค (Lab · TOR ข้อ 1.15). Eight screens, matching the
             flow the team laid out in Lab dicussion with team.pdf:
               /lab/order       — แพทย์/พยาบาลสั่งตรวจ (1.15.4)
               /lab/queue       — Worklist ของห้องปฏิบัติการ 6 ขั้นตอน (1.15.2)
+              /lab/receive     — สถานีรับสิ่งส่งตรวจ 3 ขั้น (1.15.4.5)
+              /lab/send-out    — ส่งตรวจภายนอก + รับผลกลับ (1.15.6.2)
+              /lab/interface   — เชื่อมต่อ LIS + เครื่องตรวจวิเคราะห์ (1.15.1, partial)
               /lab/result/:id  — บันทึกผล + ค่าวิกฤต (1.15.6)
-              /lab/setup       — ทะเบียนรายการตรวจ + รหัส TMLT (1.15.3) */}
+              /lab/report/:orderId — ใบผลตรวจรายครั้ง (1.15.6.3)
+              /lab/history/:hn — ใบสรุปผลย้อนหลังข้ามครั้ง (1.15.4.3 / 1.15.6.3)
+              /lab/setup       — ทะเบียนรายการตรวจ + รหัส TMLT (1.15.3)
+            ลำดับสำคัญ: route แบบ static ทั้งหมดต้องอยู่**เหนือ** route ที่มี
+            param (`/lab/result/:id`, `/lab/report/:orderId`, `/lab/history/:hn`)
+            เพราะ <Switch> จับตัวแรกที่ match — ถ้าสลับที่ /lab/receive จะถูก
+            `/lab/result/:id` กลืนไปก่อน. เพิ่ม route ใหม่ให้ต่อท้ายกลุ่ม static. */}
         <Route exact path='/lab'              component={LabQueuePage} />
         <Route exact path='/lab/queue'        component={LabQueuePage} />
         <Route exact path='/lab/order'        component={LabOrderPage} />
         <Route exact path='/lab/setup'        component={LabSetupPage} />
+        <Route exact path='/lab/receive'      component={LabReceivePage} />
+        <Route exact path='/lab/send-out'     component={LabSendOutPage} />
+        <Route exact path='/lab/interface'    component={LabInterfacePage} />
         <Route exact path='/lab/result/:id'   component={LabResultEntryPage} />
         <Route exact path='/lab/report/:orderId' component={LabReportPage} />
+        <Route exact path='/lab/history/:hn'  component={LabPatientHistoryPage} />
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
         <Route exact path='/observation/history/:id'  component={ObservationHistoryPage} />

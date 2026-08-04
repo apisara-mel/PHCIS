@@ -116,6 +116,12 @@ if (typeof document !== 'undefined') {
       html[data-lab-print-mode="sticker"]    .mih-lab-print-only.mih-lab-print-sticker    { display: block !important; }
       html[data-lab-print-mode="collection"] .mih-lab-print-only.mih-lab-print-collection { display: block !important; }
       html[data-lab-print-mode="patient"]    .mih-lab-print-only.mih-lab-print-patient    { display: block !important; }
+      /* Added with the send-out station and the cumulative history sheet.
+         Both follow the same rule as the three above: the on-screen preview
+         and the paper render from ONE component, and the mode attribute
+         decides which of the page's print-only documents is revealed. */
+      html[data-lab-print-mode="manifest"]   .mih-lab-print-only.mih-lab-print-manifest   { display: block !important; }
+      html[data-lab-print-mode="cumulative"] .mih-lab-print-only.mih-lab-print-cumulative { display: block !important; }
       .mih-lab-sticker { break-inside: avoid; page-break-inside: avoid; }
     }
   `;
