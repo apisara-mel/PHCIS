@@ -54,6 +54,17 @@ import firstaidKitAnim from '@/assets/illustrations/Firstaid Kit.json';
 import doctorAiAnim from '@/assets/illustrations/Aijson.json';
 import ExamSupportList from '@/components/examination/ExamSupportList';
 import ExamNotesPanel from '@/components/examination/ExamNotesPanel';
+/* EMR §1.4 panels — แต่ละอันเป็นไฟล์ของตัวเองใน src/pages/treat/panels/
+   เพื่อไม่ให้ไฟล์นี้ (ใหญ่อยู่แล้ว) โตต่อและกัน conflict ระหว่าง agent */
+import LabRadiologyResultsPanel from '@/pages/treat/panels/LabRadiologyResultsPanel';
+import VaccineGrowthPanel from '@/pages/treat/panels/VaccineGrowthPanel';
+import AuditConfidentialPanel from '@/pages/treat/panels/AuditConfidentialPanel';
+import VisitAttachmentsPanel from '@/pages/treat/panels/VisitAttachmentsPanel';
+import ProblemListPanel from '@/pages/treat/panels/ProblemListPanel';
+import DiagnosisCodingPanel from '@/pages/treat/panels/DiagnosisCodingPanel';
+import ClinicalNotesPanel from '@/pages/treat/panels/ClinicalNotesPanel';
+import MedRecPanel from '@/pages/treat/panels/MedRecPanel';
+import DocumentCenterPanel from '@/pages/treat/panels/DocumentCenterPanel';
 import AISearch from '@/components/search/AISearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import ReDiagnosisPopup from '@/components/popup/ReDiagnosisPopup';
@@ -160,6 +171,11 @@ const HISTORY_TABS = [
   'ผลการ X-ray / RIS',
   'ผลการตรวจร่างกาย',
   'ผลการวินิจฉัย',
+  /* EMR §1.4 — แท็บที่เพิ่มในเวฟ TOR §1.4. แต่ละแท็บมี panel เป็นไฟล์ของ
+     ตัวเองใน src/pages/treat/panels/ เพื่อไม่ให้ไฟล์นี้บวมต่อ */
+  'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)',
+  'วัคซีนและกราฟการเจริญเติบโต',
+  'ประวัติการบันทึก แก้ไข และข้อมูลลับ',
 ];
 
 /* The X-ray capsule is the one HISTORY_TABS entry with a real data source
@@ -167,6 +183,19 @@ const HISTORY_TABS = [
    default vitals summary — see `XrayHistoryTabPanel`. The remaining
    capsules still all show the same summary; that predates the RIS module. */
 const HISTORY_TAB_XRAY = 'ผลการ X-ray / RIS';
+
+/* EMR §1.4 tab → panel component (ไฟล์แยกใน src/pages/treat/panels/) */
+const HISTORY_TAB_LABRAD  = 'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)';
+const HISTORY_TAB_VACCINE = 'วัคซีนและกราฟการเจริญเติบโต';
+const HISTORY_TAB_AUDIT   = 'ประวัติการบันทึก แก้ไข และข้อมูลลับ';
+
+/* Step 5 "สั่งการรักษา" อยู่ที่ index 4 ใน STEP_RENDERERS — ใช้โดย CTA
+   ของ empty state ในแท็บผลแล็บ ("ไปสั่งตรวจ") */
+const STEP_ORDERS_INDEX = 4;
+
+/* คีย์แท็บที่ 6 ของ Step 5 — ไม่อยู่ใน TREATMENT_ORDER_CATEGORIES เพราะ
+   ORDER_EMPTY_STATE_TEXT / ORDER_TABLE_TEXT map ตาม 5 คีย์เดิม */
+const MEDREC_CATEGORY = 'medrec';
 
 
 const ValueText = ({ children }) => (
@@ -519,7 +548,13 @@ const XrayHistoryTabPanel = ({ patient }) => {
 
 /* Same read-only medical-history chrome as Step 1 — reused by Step 6
    "ประวัติการรักษา" modal (Figma PHCIS | Appointment 4034:3723). */
-export const MedicalHistoryReadOnlyLayout = ({ patient, hideSectionTitle = false, independentScroll = false }) => {
+/* `form` / `setForm` / `onStepChange` เป็น optional เพื่อความเข้ากันได้ย้อนหลัง:
+   Step 6 และ ANC เรียก layout นี้โดยไม่ส่ง form มา — แท็บ EMR §1.4 ที่ต้องใช้
+   form จะ fallback เป็น object ว่างแทนที่จะพัง */
+export const MedicalHistoryReadOnlyLayout = ({
+  patient, hideSectionTitle = false, independentScroll = false,
+  form = null, setForm = null, onStepChange = null,
+}) => {
   const visits = useMemo(() => findVisitDetailsByHn(patient?.hn), [patient?.hn]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
@@ -616,6 +651,15 @@ export const MedicalHistoryReadOnlyLayout = ({ patient, hideSectionTitle = false
 
         {HISTORY_TABS[activeTab] === HISTORY_TAB_XRAY ? (
           <XrayHistoryTabPanel patient={patient} />
+        ) : HISTORY_TABS[activeTab] === HISTORY_TAB_LABRAD ? (
+          <LabRadiologyResultsPanel
+            patient={patient}
+            onGoToOrders={onStepChange ? () => onStepChange(STEP_ORDERS_INDEX) : undefined}
+          />
+        ) : HISTORY_TABS[activeTab] === HISTORY_TAB_VACCINE ? (
+          <VaccineGrowthPanel patient={patient} form={form || {}} />
+        ) : HISTORY_TABS[activeTab] === HISTORY_TAB_AUDIT ? (
+          <AuditConfidentialPanel patient={patient} form={form || {}} />
         ) : (
         <>
         <VitalsSignHorizontalPanel
@@ -660,8 +704,13 @@ export const MedicalHistoryReadOnlyLayout = ({ patient, hideSectionTitle = false
   );
 };
 
-export const Step1History = ({ patient }) => (
-  <MedicalHistoryReadOnlyLayout patient={patient} />
+export const Step1History = ({ patient, form, setForm, onStepChange }) => (
+  <MedicalHistoryReadOnlyLayout
+    patient={patient}
+    form={form}
+    setForm={setForm}
+    onStepChange={onStepChange}
+  />
 );
 
 /* ─────────────────────────────────────────────────────────────
@@ -855,7 +904,7 @@ const TREATMENT_PANEL_TITLE_STYLE = {
    · บันทึกการตรวจ 150:36350 (grey panel)
    ───────────────────────────────────────────────────────────── */
 
-export const Step3Examination = ({ form, setForm }) => {
+export const Step3Examination = ({ form, setForm, patient }) => {
   const set = (k) => (v) => setForm((s) => ({ ...s, [k]: v }));
 
   const handleCopyFromNurse = (key) => {
@@ -942,6 +991,10 @@ export const Step3Examination = ({ form, setForm }) => {
             examAttachments: (s.examAttachments || []).filter((f) => f.id !== id),
           }))}
         />
+
+        {/* EMR §1.4.3.22 / §1.4.6.5 — ไฟล์แนบ multimedia พร้อมโควตาจริง
+            (10 MB/ไฟล์ · 50 MB/visit). อยู่คนละไฟล์: panels/VisitAttachmentsPanel */}
+        <VisitAttachmentsPanel form={form} setForm={setForm} patient={patient} />
       </div>
     </section>
   );
@@ -1282,7 +1335,7 @@ const ICD_TABLE_COLUMNS = [
 const STEP_EXAMINATION_INDEX = 2;
 const STEP_DOCTOR_RECORD_INDEX = 3;
 
-export const Step4DoctorRecord = ({ form, setForm, onStepChange }) => {
+export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient }) => {
   /* Navigate back to the Physical Examination step. Both the empty
      state CTA and the populated-state "แก้ไข" header button use this
      — they share the same intent (send the doctor to Step 3 where the
@@ -1762,6 +1815,18 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange }) => {
             เพิ่มรหัสการวินิจฉัย
           </BrandButton>
         </div>
+        </div>
+
+        {/* EMR §1.4 — บล็อกที่เพิ่มใต้ตาราง ICD เดิม (ไฟล์แยกทั้งหมด):
+              • DiagnosisCodingPanel — SNOMED-CT + cross-map + 4 ประเภทวินิจฉัย
+              • ProblemListPanel     — รายการโรคที่รักษาอยู่ (§1.4.3.8/9)
+              • ClinicalNotesPanel   — Note 5 ประเภท (§1.4.4.1/2)
+            ช่อง Doctor Note เดิมด้านบนยังอยู่ครบและเป็นค่าเริ่มต้นของ
+            note ประเภท "แพทย์" */}
+        <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
+          <DiagnosisCodingPanel form={form} setForm={setForm} patient={patient} />
+          <ProblemListPanel form={form} patient={patient} />
+          <ClinicalNotesPanel form={form} setForm={setForm} patient={patient} />
         </div>
       </div>
 
@@ -2735,6 +2800,18 @@ export const Step5Orders = ({ form, setForm, patient }) => {
               onClick={() => setCategory(cat.key)}
             />
           ))}
+          {/* EMR §1.4.3.5/§1.4.3.6 — แท็บที่ 6. เก็บไว้นอก
+              TREATMENT_ORDER_CATEGORIES โดยตั้งใจ เพราะ
+              ORDER_EMPTY_STATE_TEXT / ORDER_TABLE_TEXT map ตาม 5 คีย์เดิม
+              การเพิ่มคีย์เข้าไปจะทำให้ lookup เดิมพัง */}
+          <TabCapsule
+            variant='filter'
+            label={`ประสานรายการยาเดิม${form.medRecPending ? ` (${form.medRecPending})` : ''}`}
+            selected={activeCategory === MEDREC_CATEGORY}
+            showLeadingIcon={false}
+            showTrailingIcon={false}
+            onClick={() => setCategory(MEDREC_CATEGORY)}
+          />
         </div>
 
         <div
@@ -2745,6 +2822,13 @@ export const Step5Orders = ({ form, setForm, patient }) => {
           }}
           aria-hidden
         />
+
+        {/* EMR §1.4 — แท็บประสานรายการยาเดิมมี body ของตัวเอง (ไฟล์แยก)
+            จึงลัดออกก่อนถึง empty-state/ตารางของ 5 หมวดเดิม */}
+        {activeCategory === MEDREC_CATEGORY ? (
+          <MedRecPanel form={form} setForm={setForm} patient={patient} />
+        ) : (
+        <>
 
         {/* Empty state (Figma PHCIS|CPOE 269:32427) — when no item has been
             recorded for the active category, the title row + allergy
@@ -3036,6 +3120,8 @@ export const Step5Orders = ({ form, setForm, patient }) => {
               </div>
             )}
           </>
+        )}
+        </>
         )}
 
       </div>
@@ -4642,6 +4728,15 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange }) => {
           </div>
         </div>
       )}
+
+      {/* EMR §1.4.6.x — ศูนย์เอกสารและ e-Document (ไฟล์แยก).
+          การ์ดใบรับรองแพทย์ + ลายเซ็นด้านบนยังทำงานเหมือนเดิมทุกอย่าง
+          (state ชุด certIssue/certType/certNo/restDays/certSignature/
+          certSignedAt ไม่ถูกแตะ) — ส่วนนี้เพิ่มแบบเอกสารที่เหลือ
+          คำแนะนำสำหรับผู้รับบริการ และทะเบียนเอกสารที่ออกไปแล้ว */}
+      <div className='w-full min-w-0' style={{ marginTop: 'var(--dim-space-600)' }}>
+        <DocumentCenterPanel form={form} setForm={setForm} patient={patient} />
+      </div>
     </section>
   );
 };

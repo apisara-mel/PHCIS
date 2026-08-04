@@ -142,3 +142,34 @@ export const openConsentHistoryTab = (hn) => {
     'noopener,noreferrer',
   );
 };
+
+/** เปิดแท็บค้นหาประวัติความยินยอม (ชื่อ / HN) แล้วเลือกผู้ป่วยดู timeline */
+export const openConsentHistorySearchTab = () => {
+  if (typeof window === 'undefined') return;
+  window.open(
+    `${window.location.origin}/consent/history`,
+    '_blank',
+    'noopener,noreferrer',
+  );
+};
+
+/** ค้นหาผู้ป่วยจากรายการ consent (unique ตาม HN) — ชื่อหรือ HN */
+export const searchConsentPatients = (query, records = getConsentRecords()) => {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return [];
+  const byHn = new Map();
+  records.forEach((r) => {
+    if (!r?.hn || byHn.has(r.hn)) return;
+    const name = String(r.name || '');
+    const hn = String(r.hn);
+    if (name.toLowerCase().includes(q) || hn.toLowerCase().includes(q)) {
+      byHn.set(r.hn, {
+        hn: r.hn,
+        name: r.name,
+        guardian: r.guardian || null,
+        formCount: records.filter((x) => x.hn === r.hn).length,
+      });
+    }
+  });
+  return [...byHn.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'th'));
+};

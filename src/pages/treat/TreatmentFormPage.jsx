@@ -13,6 +13,7 @@ import {
   Step5Orders, Step6Appointment, Step7Certificate,
 } from '@/components/forms/TreatmentSteps';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
+import TreatmentSafetyRail from '@/pages/treat/panels/TreatmentSafetyRail';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import { TREATMENT_QUEUE_ROWS, buildQueueSubMenuBuckets } from '@/data/treatmentQueue';
@@ -143,6 +144,20 @@ const buildInitialForm = (p) => ({
   certSignature: '',
   /* Set when the clinician taps ยืนยันลายเซ็น (formatCertSignedAt). */
   certSignedAt: '',
+
+  /* ── EMR §1.4 (TOR wave) ────────────────────────────────────
+     visitId ผูก note / audit / เอกสาร เข้ากับการตรวจครั้งนี้.
+     medRecDispositions เก็บการตัดสินใจของ Medication Reconciliation
+     ต่อแถว ({ [rowKey]: { disposition, reason } }) และ medRecPending
+     คือจำนวนแถวที่ยังไม่ระบุ — ใช้เตือนตอนออกจาก Step 5.
+     visitAttachments คือไฟล์แนบ multimedia ของ visit (โควตา 50 MB).
+     patientAdvice คือคำแนะนำที่พิมพ์ลง Clinical Summary (§1.4.10.9). */
+  visitId: 'v-2569-05-06',
+  medRecDispositions: {},
+  medRecPending: 0,
+  visitAttachments: [],
+  patientAdvice: '',
+  externalCauseDraft: '',
 });
 
 const STEP_RENDERERS = [
@@ -279,6 +294,10 @@ const TreatmentFormPage = () => {
             </>
           }
         />
+        {/* EMR §1.4.3.21 — แถบเฝ้าระวังคลินิก. TOR ระบุว่าข้อมูลการแพ้ต้อง
+            เห็น "บนหน้าจอระหว่างการตรวจรักษา" แถบนี้จึง sticky อยู่ทุก step
+            ใต้ PatientCard และไม่แตะ step body เลย */}
+        <TreatmentSafetyRail patient={patient} form={form} />
         <PhcisTopToast session={pharmacySendToast} onDismiss={dismissPharmacySendToast} />
         <AlertDialog
           open={!!consentGateOpen}

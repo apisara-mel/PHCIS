@@ -56,7 +56,7 @@ export const SYSTEM_CATALOG = [
     gridLabel: 'จัดการความยินยอม',
     desc: 'จัดการความยินยอมทั้งหมด กำหนด แก้ไข และติดตามสถานะ รอลงนาม ยินยอมแล้ว ปฏิเสธ และหมดอายุ',
     lastUsed: 'วันนี้, 08:30 น.',
-    route: '/consent',
+    route: '/consent/dashboard',
   },
   {
     key: 'doc-template',

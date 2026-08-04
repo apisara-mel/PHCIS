@@ -11,14 +11,14 @@ export const ACCESS_SUMMARY = [
   { key: 'expired',  icon: 'hourglass_disabled', value: '10', label: 'หมดอายุ', tileBg: 'var(--surface-neutral-tertiary, #F4F5F5)', iconInk: 'var(--text-neutral-default, #4D5358)' },
 ];
 
-/* Each status owns its own tab (Figma 363:120109): ทั้งหมด + 4 status tabs. */
+/* Each status owns its own tab (Figma 363:120109): 4 status tabs + all last. */
 export const ACCESS_TABS = [
-  { value: 'all',      label: 'ทั้งหมด',    icon: 'group' },
   { value: 'pending',  label: 'รออนุมัติ',   icon: 'schedule' },
   { value: 'approved', label: 'อนุมัติแล้ว',  icon: 'how_to_reg' },
   { value: 'rejected', label: 'ปฏิเสธ',     icon: 'person_cancel' },
   /* ด.1.1.17.2 — สิทธิตามช่วงเวลา: หมดช่วงเวลาแล้วสถานะเป็น Inactive อัตโนมัติ */
-  { value: 'expired',  label: 'หมดช่วงเวลา', icon: 'hourglass_disabled' },
+  { value: 'expired',  label: 'หมดอายุ', icon: 'hourglass_disabled' },
+  { value: 'all',      label: 'สิทธิ์การเข้าถึงแบบฟอร์มทั้งหมด', icon: 'group' },
 ];
 
 /* tone = ColorfulBadge style · tab = which tab it falls under · canApprove /
