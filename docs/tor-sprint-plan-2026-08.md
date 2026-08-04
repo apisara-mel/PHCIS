@@ -103,6 +103,22 @@
 ]
 ```
 
+## Wave S — บันทึกข้อมูลการรักษา CPOE §1.5 + SOAP (ต่อจาก Wave E — คำสั่ง user 4 ส.ค. ~13:20)
+
+```json
+[
+  {"id":"1.5","name":"ระบบบันทึกข้อมูลการรักษา (CPOE) + SOAP Note","route":"/treat/record","dir":"src/pages/treat","notes":"todo 42 + partial 19 — ก้อนใหญ่ ทำตามลำดับความสำคัญ: 1.5.4 สั่งยา (todo 14 — DI/แพ้ยา/ซ้ำซ้อน/ขนาดตามน้ำหนัก/ยาเสพติด/high alert), 1.5.2 สั่ง LAB (todo 8), 1.5.3 สั่ง Radiology (todo 6), 1.5.6 ส่งปรึกษาแพทย์ Internal Consult (todo 4 + partial 3 — ยังไม่มี module เลย สร้าง /treat/consult), 1.5.8 Refer (todo 3 — สร้าง /treat/refer), 1.5.5 หัตถการ, 1.5.1 general order, 1.5.7 order set, 1.5.9 ตั้งค่า, 1.5.10 พิมพ์เอกสาร, 1.5.11 e-Document **เพิ่ม SOAP Note เป็น step แรกของการบันทึกการรักษา** (Subjective/Objective/Assessment/Plan) — S ดึงอาการสำคัญ+ซักประวัติจาก OPD screening, O ดึง vital signs + ผลตรวจร่างกาย, A ผูกกับ Diagnosis (ICD-10) ที่มีอยู่, P ผูกกับ order ทุกชนิดในหน้าเดียวกัน แต่ละช่องใช้ SuggestibleTextarea voice + suggestions + minChars และมี template SOAP ให้เลือก + ประวัติ SOAP ครั้งก่อนแบบ copy-forward ระบบเดิมสร้างแล้ว (TreatmentFormPage + TreatmentSteps + components/examination + components/popup/*Diagnosis*/*Medication*) ต่อยอด ห้ามรื้อ ห้ามแตะ src/pages/treat/anc, src/pages/clinic/*"}
+]
+```
+
+## Wave A — ระบบรับนัดหมาย Appointment §1.6 (ต่อจาก Wave S)
+
+```json
+[
+  {"id":"1.6","name":"ระบบจัดการตารางนัดหมาย (Appointment)","route":"/appointment","dir":"src/pages/appointment","notes":"§1.6 done 14 / partial 3 (91%) — ปิด partial ที่เหลือให้ครบ 100% แล้วขยายฝั่ง 'รับนัดหมาย': รับนัดจากคำขอผู้รับบริการ (mobile §4.2 ยิงคำขอเข้ามา), ยืนยัน/ปฏิเสธ/เลื่อนนัด พร้อมเหตุผล + แจ้งเตือนกลับ, นัดต่อเนื่องจากหน้าการรักษา (§1.4.12), นัดกลุ่ม/นัดซ้ำ (recurring), การจัดสรร resource ห้องตรวจ+แพทย์ซ้ำซ้อน ต้องเช็คก่อนยืนยัน รวมข้อ 1.6 ทั้งหมดที่ยัง partial ต่อยอด AppointmentPage/CalendarView/ListView/FormPopup ที่มีอยู่ ห้ามรื้อ อ่าน ~/MIH-Docs-Vault/tor-appointment-compliance.md ก่อน ห้ามแตะ src/pages/schedule (คนละระบบ — Schedule Mgmt อยู่ระดับเดียวกับ PHCIS)"}
+]
+```
+
 ## Wave 3 — เก็บ gap ระบบเดิม (Day 2 เช้า)
 
 โมดูลใน wave นี้แก้ไฟล์เดิมของระบบตัวเองได้ (ยังห้ามแตะ shared files เหมือนเดิม)

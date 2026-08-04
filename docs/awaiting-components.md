@@ -218,6 +218,77 @@ design system เมื่อไร
 
 ---
 
+### 13. QueueQrCode (ตัวสร้าง QR Code ในโปรเจกต์) — 📐 พร้อมออกแบบใน Figma
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/queue-center/QueueQrCode.jsx` → ใช้ผ่าน `QueueTicket` ซึ่ง render อยู่ที่ `/queue-center` · `/queue-center/issue` (บัตรจริง + พรีวิว) · `/queue-center/settings` (พรีวิวสด) — **1 โมดูล 3 หน้า** |
+| **หน้าที่** | encode ข้อความเป็น QR ตาม ISO/IEC 18004 แล้ววาดเป็น `<svg>` — Byte mode UTF-8, EC level L, version 1–6 (สูงสุด 134 ไบต์), mask 0 · ใช้บนบัตรคิวเพื่อให้ผู้รับบริการสแกนไปหน้าติดตามคิวออนไลน์ (TOR 1.3.2.5) |
+| **ทำไมไม่มีของเดิมแทน** | repo มี `Barcode128` (Code 128 เชิงเส้น) แต่ **ไม่มีตัวสร้าง QR ที่ใช้ซ้ำได้เลย** — ที่อื่น (`/kiosk`, `/forms/:slug`, `/m/profile/qr`) วาดเป็น placeholder ตาราง · playbook ห้ามเพิ่ม dependency (`qrcode` / `qrcode.react`) จึง encode เองในไฟล์นี้ |
+| **โครง API** | `<QueueQrCode value size />` — ระยะยาวควรเป็น `<QrCode value size level='L' />` ใน DS คู่กับ `Barcode128` เป็นตระกูล `code/*` เดียวกัน |
+| **พฤติกรรมที่ต้องรักษาไว้** | เป็น `<svg>` ล้วน (ต้องพิมพ์คมบนเครื่องพิมพ์ความร้อน 72 mm) · ข้อความยาวเกิน version 6 ต้อง degrade อย่างชัดเจน ไม่ใช่วาด QR ที่สแกนไม่ออก |
+| **ที่ verify แล้ว** | builder ตรวจด้วย script แยก: format bits ตรงมาตรฐาน L/mask0 (`111011111000100`) และจำนวนโมดูลข้อมูลว่างตรงสเปกทุกเวอร์ชัน v1–v6 (208/359/567/807/1079/1383) · **ยังไม่ได้สแกนด้วยมือถือจริง** — ต้องทดสอบก่อน PR |
+| **รอเคสอะไร** | ไม่ต้องรอ — **เคสที่ 2–4 มีอยู่แล้วในโค้ดแต่ยังเป็น placeholder** (`/kiosk` QR บัตรคิว, `/forms/:slug` QR แชร์ฟอร์ม, `/m/profile/qr` QR ผู้รับบริการ) ยกขึ้น DS แล้วเปลี่ยน placeholder ทั้ง 3 จุดได้ทันที |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 14. StationChipBar (แถบชิปจุดบริการพร้อมตัวนับ + จุดเตือน SLA) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/queue-center/queueCenterShared.jsx` → `QueueCenterConsolePage` (`/queue-center`) — 1 ที่ |
+| **หน้าที่** | แถบเลือกจุดบริการที่แต่ละชิปพก **จำนวนคิวคงเหลือ** และ **จุดเตือนสีมุมขวาบน** เมื่อจุดนั้นมีคิวเกินเกณฑ์ SLA ที่ตั้งไว้ที่ `/queue-center/settings` |
+| **ทำไมไม่มีของเดิมแทน** | `FilterTag` / `TabPill` ของ DS เป็นตัวกรอง/แท็บล้วน ไม่มีช่อง badge นับ และไม่มีจุดเตือนมุมขวาบน · ประกอบจากปุ่ม + token ล้วน ไม่มี component เทียบเท่า |
+| **โครง API** | `<StationChipBar stations activeId onChange counts alerts />` — `counts[stationId] = number`, `alerts[stationId] = 'warn' \| 'danger' \| null` |
+| **พฤติกรรมที่ต้องรักษาไว้** | ตัวนับต้องเป็นจำนวน**คงเหลือ** ไม่ใช่จำนวนทั้งหมด (เจ้าหน้าที่ถามว่าเหลือเท่าไร) · จุดเตือนต้องมาจากเกณฑ์จริง ไม่ใช่ค่าคงที่ |
+| **ช่องว่างที่รู้อยู่** | เดิมตั้งใจให้ sticky แต่ `QueuePageShell` วาง slot `belowSummary` กับแถบแท็บที่ `top` เดียวกัน แถบแท็บจะทับ — จึงย้ายไปไว้ต้นเนื้อหาหน้าแทน (เลื่อนหายตามปกติ) ถ้าจะแก้จริงต้องให้ shell รับ offset แยกสองค่า |
+| **รอเคสอะไร** | หน้าคิวอื่นที่มีหลายจุด/หลายห้องและมีเกณฑ์เวลารอ — `/pharmacy/queue` (จุดจ่ายยาย่อย), `/lab/queue` (สถานีวิเคราะห์), `/xray/queue` (ห้องถ่าย), `/observation` (โซนเตียง) — เคสที่ 2 เมื่อไรควรยกขึ้น DS เป็น `ChipBar` ที่รับ `badge` + `dot` |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 15. MaskedIdentifier (เซลล์ปกปิด HN / เลขบัตรในตาราง) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/queue-center/queueCenterShared.jsx` → `QueueCenterConsolePage` (`/queue-center` คอลัมน์ HN) — 1 ที่ |
+| **หน้าที่** | TOR 1.4.2 — แสดง HN/เลขบัตรแบบปกปิดจนกว่าผู้ใช้จะกดเปิด และบันทึก log การเข้าถึงทุกครั้งที่เปิดดู |
+| **ทำไมไม่มีของเดิมแทน** | DS มี `PrivacyRevealPopup` ซึ่งเป็น **dialog เต็มกล่อง** — หนักเกินไปสำหรับเซลล์ในตารางที่ต้องเปิดดูทีละแถวเร็ว ๆ · ไม่มีเซลล์ปกปิดสำหรับตารางใน DS |
+| **โครง API** | `<MaskedIdentifier value maskedValue onReveal revealedBy />` — `onReveal` คืน `{ value, revealedBy, revealedAt, context }` ให้ผู้เรียกเขียน log เอง (แบบเดียวกับ `ConsentAuditBar`) |
+| **พฤติกรรมที่ต้องรักษาไว้** | เปิดแล้วต้อง log **เสมอ** ไม่มีทางลัดข้าม · ปกปิดกลับได้เอง ไม่ใช่เปิดแล้วเปิดค้างทั้งตาราง · ค่าที่ปกปิดต้องยังค้นหาเจอด้วย `PrimarySearch` (ไม่งั้นเจ้าหน้าที่ทำงานไม่ได้) |
+| **รอเคสอะไร** | ตารางอื่นที่โชว์ข้อมูลระบุตัวบุคคล — `/audit/pii-access`, `/registration/queue`, `/consent/access`, `/opd/requests` (การวินิจฉัยที่ mask อยู่แล้วแต่เขียนเอง) — เคสที่ 2 เมื่อไรควรยกขึ้น DS คู่กับ `PrivacyRevealPopup` เป็นตระกูลเดียวกัน |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 16. ชุดจอ TV เรียกคิว — `QueueTvFrame` · `QueueCallCard` · `BigQueueNumber` · `PassedNumbersBlock` · `AnnouncementMarquee` — 📐 พร้อมออกแบบใน Figma
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/components/queue-display/` ทั้งหมด · `QueueTvFrame` → 3 จอ (`/queue-center/display/hall` · `/station` · `/finance`) · `QueueCallCard` → hall (3 คอลัมน์) + finance (2 คอลัมน์) · `BigQueueNumber` → `QueueCallCard` + station (`variant='hero'`) · `PassedNumbersBlock` → `QueueCallCard` (`variant='card'`) + station (`variant='bar'`) · `AnnouncementMarquee` → `QueueTvFrame` |
+| **หน้าที่** | TOR 1.3.4.1 — พื้นผิวจอ TV เต็มหน้าจอตาม Figma (TV1 129:62395 · TV2 129:62394 · TV3 129:62393): โครงจอ (โลโก้+นาฬิกา / เนื้อหา / แถบประกาศ / overlay heartbeat+สถานะเสียง) · การ์ดคิวต่อจุดบริการ · กล่องเลขคิวขนาด display · บล็อกหมายเลขที่เรียกผ่านไปแล้ว · แถบประกาศวิ่ง |
+| **ทำไมไม่มีของเดิมแทน** | DS ทั้งชุดออกแบบมาสำหรับหน้าจอทำงานระยะ 60 ซม. ไม่มีอะไรรองรับ **surface ระยะ 5–10 เมตร**: ไม่มี full-bleed TV frame, ไม่มี marquee/ticker, type ramp หยุดที่ `--type-size-6xl` 60px แต่จอต้องการ 88 / 112 / 320px · `ColorfulBadge` ของ DS ถูกใช้ภายใน `QueueCallCard` แล้ว |
+| **โครง API** | `<QueueTvFrame masthead clock announcement audioState stale>` + `<QueueCallCard station current next remaining passed accent>` + `<BigQueueNumber value variant='card'\|'hero'>` + `<PassedNumbersBlock numbers variant='card'\|'bar'>` + `<AnnouncementMarquee text>` |
+| **พฤติกรรมที่ต้องรักษาไว้** | สเกล contain จาก canvas 1920×1270 ด้วย transform scale — ต้องพอดีทุกอัตราส่วนโดยไม่ crop · `BigQueueNumber` ย่อตามความยาวเลขอัตโนมัติ · `AnnouncementMarquee` **วัดความกว้างจริงก่อน** ตัดสินว่าจะวิ่งหรือจัดกึ่งกลางนิ่ง (ข้อความสั้นที่วิ่งอ่านยากกว่าเดิม) · `PassedNumbersBlock` ซ่อนทั้งบล็อกเมื่อว่าง และ auto-scroll เมื่อเกิน 4 ใบ · timer / marquee / wakeLock / subscribe ต้อง clear ครบใน cleanup (จอเปิดค้าง 12 ชม.) · ห้ามแสดงชื่อ/HN บนจอสาธารณะ |
+| **ต้องมี token ใหม่** | เสนอเข้า `mih-design`: `--dim-stroke-600: 6px` (กรอบกล่องเลข TV1/TV3 — ตอนนี้ถอยไปใช้ `--dim-stroke-500` 5px), `--type-weight-extrabold: 800`, type step เหนือ 6xl (88 / 112 / 320px — ตอนนี้เขียนเป็น `calc()` ที่ alias `--type-size-6xl`), `blue/400 #60A5FA` + `pink/400 #F472B6` (ตอนนี้ใช้ `*-bold` ที่เข้มกว่า Figma) · ฟอนต์ Inter Extra Bold ที่ Figma ใช้ **ไม่ได้โหลดใน index.html เลย** ตัวเลขจึงเป็น Sarabun 700 |
+| **รอเคสอะไร** | ไม่ต้องรอเคสที่ 2 ในความหมายปกติ — นี่คือ **สื่อคนละประเภท** (จอสาธารณะ) แบบเดียวกับที่ `PrintSheet` เป็นสื่อกระดาษ ควรตั้งเป็นตระกูล `Display*` / `Tv*` ใน DS ตั้งแต่ต้น พร้อมกันกับตอนตัดสินเรื่อง token ข้างบน |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
+### 17. Figma display glyphs (ClockGlyph24/32 · Volume2Glyph · TriangleAlertGlyph · RowDivider · AnamaiLogo) — 🚧 ควรกลืนเข้า `Icon.jsx` แทน
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/components/queue-display/queueDisplayUi.jsx` (จอ TV ทั้ง 3 จอ) — SVG ที่ export จาก Figma เก็บใน `src/assets/queue-display/` แล้ว recolour ด้วย CSS mask (pattern เดียวกับ `MaskIcon` ใน `SummaryCardsBar`) |
+| **ทำไมไม่มีของเดิมแทน** | `Icon.jsx` **ไม่มี** glyph `volume-2` และ `triangle-alert` (ตรวจ `iconMap` แล้ว 52 case — มี `clock` อยู่แล้ว แต่ builder วาดใหม่เพราะต้องการเข็มขนาดจอ 32px ตาม Figma) และ repo ไม่ได้ติดตั้ง `lucide-react` — ตาม CLAUDE.md ลำดับคือ Figma → Lucide ซึ่งทั้งสองทางตันในตอนนี้ · โลโก้กรมอนามัยเป็น asset ของหน่วยงาน ไม่ใช่ไอคอน |
+| **สิ่งที่ควรทำ (ไม่ใช่ยกขึ้น DS เป็น component ใหม่)** | เพิ่ม `volume_up` และ `warning` เข้า `iconMap` ของ `src/components/icons/Icon.jsx` ตามชื่อ Material Symbols · `clock` มีอยู่แล้ว ให้ `ClockGlyph24/32` อ้าง `<Icon name='clock'>` แทนการเก็บ SVG ซ้ำ — **นี่เป็นงานตามมาที่ควรทำก่อน PR ปิด wave** ไม่ใช่ component ที่รอเคสที่ 2 |
+| **ข้อควรระวัง** | ไม่ใช่ inline `<svg>` ในคอมโพเนนต์ (ผิด CLAUDE.md) แต่เป็นไฟล์ asset + CSS mask ซึ่งอยู่ก้ำกึ่ง — ถ้าไม่กลืนเข้า `Icon.jsx` เร็ว ๆ จะกลายเป็นแหล่งไอคอนที่สองของโปรเจกต์ |
+| **บันทึกเมื่อ** | 4 ส.ค. 2569 |
+
+---
+
 ## ยกขึ้น design system แล้ว
 
 *(ยังไม่มี)*

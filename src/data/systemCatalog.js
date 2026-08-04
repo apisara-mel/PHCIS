@@ -87,6 +87,14 @@ export const SYSTEM_CATALOG = [
   },
 ];
 
+/* ตั้งใจไม่อยู่ในแคตตาล็อกนี้ — /kiosk, /m (mobile), /telemed และ
+   /queue-center (ระบบบริหารจัดการคิว + จอ TV, TOR §1.3):
+   ทั้งหมดเป็น sub-system **ภายใน** PHCIS ไม่ใช่ระบบระดับเดียวกับ PHCIS จึงเข้า
+   ผ่านเมนู Sidebar ของ PHCIS แทน (queue-center อยู่ใน ITEMS ของ Sidebar.jsx).
+   อีกสองเหตุผลเชิงกลไก: ทุกรายการที่นี่ต้องมีภาพประกอบใน public/illustration/hub/
+   ซึ่งยังไม่มีของคิว และ SYSTEM_CATALOG_ROWS ข้างล่างตัดเป็น 3×3 พอดี — รายการ
+   ที่ 10 ขึ้นไปจะไม่ถูก render เลย. ถ้าจะเพิ่มจริงต้องแก้ทั้ง grid และเพิ่ม asset. */
+
 /** 3×3 rows for hub grid + apps-grid overlay (Figma 359:129936). */
 export const SYSTEM_CATALOG_ROWS = [
   SYSTEM_CATALOG.slice(0, 3),

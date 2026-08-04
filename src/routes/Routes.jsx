@@ -23,6 +23,23 @@ import XrayResultPage from '@/pages/xray/XrayResultPage';
 import XraySetupPage from '@/pages/xray/XraySetupPage';
 import AncQueuePage from '@/pages/treat/anc/AncQueuePage';
 import AncFormPage from '@/pages/treat/anc/AncFormPage';
+/* คลินิกเฉพาะทาง (TOR §1.10.1–.6) — แต่ละโมดูลอยู่ใน src/pages/clinic/<slug>
+   และเข้าถึงผ่านเมนูย่อยของ "ระบบบันทึกการรักษา" (Sidebar key `treat`). */
+import DentalQueuePage from '@/pages/clinic/dental/DentalQueuePage';
+import NcdQueuePage from '@/pages/clinic/ncd/NcdQueuePage';
+import NcdFormPage from '@/pages/clinic/ncd/NcdFormPage';
+import NcdRegistryPage from '@/pages/clinic/ncd/NcdRegistryPage';
+import NcdFollowUpPage from '@/pages/clinic/ncd/NcdFollowUpPage';
+import MentalHealthQueuePage from '@/pages/clinic/mental-health/MentalHealthQueuePage';
+import MentalHealthFormPage from '@/pages/clinic/mental-health/MentalHealthFormPage';
+import MentalHealthRegistryPage from '@/pages/clinic/mental-health/MentalHealthRegistryPage';
+import MentalHealthFollowUpPage from '@/pages/clinic/mental-health/MentalHealthFollowUpPage';
+import TbQueuePage from '@/pages/clinic/tb/TbQueuePage';
+import AddictionQueuePage from '@/pages/clinic/addiction/AddictionQueuePage';
+import AddictionFormPage from '@/pages/clinic/addiction/AddictionFormPage';
+import HivStiQueuePage from '@/pages/clinic/hiv-sti/HivStiQueuePage';
+import HivStiFormPage from '@/pages/clinic/hiv-sti/HivStiFormPage';
+import HivStiRegistryPage from '@/pages/clinic/hiv-sti/HivStiRegistryPage';
 import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
 import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
 import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
@@ -84,6 +101,16 @@ import SystemConsentAccessRightsPage from '@/pages/assess/SystemConsentAccessRig
 import AssessUserPage from '@/pages/assess/AssessUserPage';
 import AssessUserCreatePage from '@/pages/assess/AssessUserCreatePage';
 import AssessUserDetailPage from '@/pages/assess/AssessUserDetailPage';
+import QueueCenterConsolePage from '@/pages/queue-center/QueueCenterConsolePage';
+import QueueIssuePage from '@/pages/queue-center/QueueIssuePage';
+import QueueIntegrationPage from '@/pages/queue-center/QueueIntegrationPage';
+import QueueSettingsPage from '@/pages/queue-center/QueueSettingsPage';
+import QueueDisplayLauncherPage from '@/pages/queue-display/QueueDisplayLauncherPage';
+import HallDisplayPage from '@/pages/queue-display/HallDisplayPage';
+import StationDisplayPage from '@/pages/queue-display/StationDisplayPage';
+import FinanceDisplayPage from '@/pages/queue-display/FinanceDisplayPage';
+import QueueAnnouncerConsolePage from '@/pages/queue-display/QueueAnnouncerConsolePage';
+import QueueStatusOnlinePage from '@/pages/queue-display/QueueStatusOnlinePage';
 import KioskPage from '@/pages/kiosk/KioskPage';
 import MobileTicketPage from '@/pages/kiosk/MobileTicketPage';
 import FinancePaymentPage from '@/pages/finance/FinancePaymentPage';
@@ -212,6 +239,32 @@ export default function Routes() {
         <Route exact path='/opd/requests'    component={OpdWalkinRequestPage} />
         <Route exact path='/opd/room-config' component={OpdRoomConfigPage} />
         <Route exact path='/opd/rg506'       component={OpdRg506Page} />
+        {/* ระบบบริหารจัดการคิว (TOR §1.3) — ระบบคิวกลางของศูนย์บริการ.
+            แหล่งข้อมูลเดียวคือ `src/data/queueCenterStore.js` (คิวของ
+            /opd/queue · /registration/queue · /pharmacy/queue · /finance
+            ยังเป็น mock ของหน้านั้น ๆ เอง — ตัวเลขจึงไม่ตรงกัน 100%)
+              /queue-center             = คอนโซลจัดการ+เรียกคิว (1.3.1 / 1.3.3 / 1.3.5)
+              /queue-center/issue       = ออกคิว + บัตรคิว + ประวัติออกคิววันนี้ (1.3.2)
+              /queue-center/integration = เชื่อมข้อมูลนัดหมาย / สถานะเตรียมยา (1.3.6)
+              /queue-center/settings    = จุดบริการ · ประเภทคิว · SLA · ข้อความบัตร (1.3.7)
+            จอแสดงผล (1.3.4) — 4 หน้าแรกเป็น full-screen surface ไม่มี sidebar/header
+            เหมือน /kiosk, ส่วน /console เป็นหน้าเจ้าหน้าที่ที่ใช้ PhcisChrome ปกติ:
+              /queue-center/display          = ตัวเลือกจอ + เปิด/ทดสอบเสียง + QR หน้าติดตามคิว
+              /queue-center/display/hall     = TV1 จอโถงรวม 3 คอลัมน์
+              /queue-center/display/station  = TV2 จอประจำจุดบริการ (?room=st-opd|OPD|ชื่อไทย)
+              /queue-center/display/finance  = TV3 จอการเงิน + ห้องยา
+              /queue-center/display/console  = คอนโซลผู้ประกาศ (เรียกซ้ำ / มาแล้ว / ไม่มา / undo)
+              /queue-center/display/online   = หน้าติดตามคิวบนมือถือของผู้รับบริการ (?q=A-042) */}
+        <Route exact path='/queue-center'                  component={QueueCenterConsolePage} />
+        <Route exact path='/queue-center/issue'            component={QueueIssuePage} />
+        <Route exact path='/queue-center/integration'      component={QueueIntegrationPage} />
+        <Route exact path='/queue-center/settings'         component={QueueSettingsPage} />
+        <Route exact path='/queue-center/display'          component={QueueDisplayLauncherPage} />
+        <Route exact path='/queue-center/display/hall'     component={HallDisplayPage} />
+        <Route exact path='/queue-center/display/station'  component={StationDisplayPage} />
+        <Route exact path='/queue-center/display/finance'  component={FinanceDisplayPage} />
+        <Route exact path='/queue-center/display/console'  component={QueueAnnouncerConsolePage} />
+        <Route exact path='/queue-center/display/online'   component={QueueStatusOnlinePage} />
         <Route exact path='/registration'          component={RegistrationQueuePage} />
         <Route exact path='/registration/queue'    component={RegistrationQueuePage} />
         <Route exact path='/registration/register' component={RegistrationFormPage} />
@@ -238,6 +291,31 @@ export default function Routes() {
         {/* แผนกฝากครรภ์ (ANC) — TOR §1.10.7, first-visit MVP. */}
         <Route exact path='/treat/anc/queue'  component={AncQueuePage} />
         <Route exact path='/treat/anc/record' component={AncFormPage} />
+        {/* คลินิกเฉพาะทาง (TOR §1.10) — ทุกโมดูลใช้ pattern เดียวกับ ANC:
+              /clinic/<slug>            = คิวผู้รับบริการของคลินิก
+              /clinic/<slug>/record     = แบบฟอร์มบันทึกการรักษา (deep link
+                                          ด้วย location.state { hn, queue })
+              /clinic/<slug>/registry   = ทะเบียนผู้รับบริการระดับคลินิก
+              /clinic/<slug>/follow-up  = การติดตามการดูแลต่อเนื่อง
+            ทุกหน้าใช้ Sidebar activeKey='treat' จึงอยู่ใต้เมนูย่อยของ
+            ระบบบันทึกการรักษา ไม่ใช่เมนูระดับบนของตัวเอง.
+            หน้าที่ยังไม่มีในโมดูล (เช่น /clinic/tb/record · /clinic/dental/record)
+            ยังไม่ผูก route — โมดูลนั้นต้องส่งไฟล์หน้าจอมาก่อน. */}
+        <Route exact path='/clinic/dental'              component={DentalQueuePage} />
+        <Route exact path='/clinic/ncd'                 component={NcdQueuePage} />
+        <Route exact path='/clinic/ncd/record'          component={NcdFormPage} />
+        <Route exact path='/clinic/ncd/registry'        component={NcdRegistryPage} />
+        <Route exact path='/clinic/ncd/followup'        component={NcdFollowUpPage} />
+        <Route exact path='/clinic/mental-health'           component={MentalHealthQueuePage} />
+        <Route exact path='/clinic/mental-health/record'    component={MentalHealthFormPage} />
+        <Route exact path='/clinic/mental-health/registry'  component={MentalHealthRegistryPage} />
+        <Route exact path='/clinic/mental-health/follow-up' component={MentalHealthFollowUpPage} />
+        <Route exact path='/clinic/tb'                  component={TbQueuePage} />
+        <Route exact path='/clinic/addiction'           component={AddictionQueuePage} />
+        <Route exact path='/clinic/addiction/record'    component={AddictionFormPage} />
+        <Route exact path='/clinic/hiv-sti'             component={HivStiQueuePage} />
+        <Route exact path='/clinic/hiv-sti/record'      component={HivStiFormPage} />
+        <Route exact path='/clinic/hiv-sti/registry'    component={HivStiRegistryPage} />
         <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
