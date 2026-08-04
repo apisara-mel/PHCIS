@@ -657,4 +657,5 @@ const PrimarySearch = ({
   );
 };
 
+export { SuggestionRow, DropdownPanel, SectionHeader };
 export default PrimarySearch;

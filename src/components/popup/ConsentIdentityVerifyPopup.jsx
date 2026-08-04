@@ -387,10 +387,12 @@ export default function ConsentIdentityVerifyPopup({
 
         {tab === 'otp' ? (
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <span style={BODY_TEXT}>
-              สำหรับเจ้าของข้อมูลที่มีมือถือลงทะเบียน หากไม่มี ให้ใช้แท็บ
-              &ldquo;เอกสารยืนยันตัวตน&rdquo;
-            </span>
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-100)', textAlign: 'center' }}>
+              <span style={BODY_TEXT}>สำหรับเจ้าของข้อมูลที่มีมือถือลงทะเบียน</span>
+              <span style={BODY_TEXT}>
+                หากไม่มี ให้ใช้แท็บ &ldquo;เอกสารยืนยันตัวตน&rdquo;
+              </span>
+            </div>
             <InputField
               label='เลขบัตรประชาชนเจ้าของข้อมูล (13 หลัก)'
               required

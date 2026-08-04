@@ -5,7 +5,6 @@ import Select from '@/components/forms/Select';
 import DatePicker from '@/components/forms/DatePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
 import FileUploadField from '@/components/forms/FileUploadField';
-import Textarea from '@/components/forms/Textarea';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
@@ -38,6 +37,9 @@ import {
   TB_APPOINTMENT_SUGGESTIONS,
   TB_OVERRIDE_SUGGESTIONS,
   TB_DOT_NOTE_SUGGESTIONS,
+  TB_DOT_EDIT_REASON_SUGGESTIONS,
+  TB_NO_APPOINTMENT_SUGGESTIONS,
+  TB_PRIOR_TREATMENT_SUGGESTIONS,
   TB_OBSERVER_NAME_SUGGESTIONS,
   TB_CURRENT_USER,
 } from '@/data/tbVisits';
@@ -462,15 +464,15 @@ export const TbStep3Diagnosis = ({
                 />
               </Field>
             </div>
-            <Field label='ประวัติการรักษาวัณโรคเดิม' flex={false}>
-              <Textarea
-                showLabel={false}
-                showHelperText={false}
-                value={regDraft.priorTreatment}
-                onChange={(v) => setRegDraft((d) => ({ ...d, priorTreatment: v }))}
-                placeholder='เช่น ไม่เคยรักษาวัณโรคมาก่อน / เคยรักษาหายจากทะเบียน 18/2565'
-              />
-            </Field>
+            <SuggestibleTextarea
+              label='ประวัติการรักษาวัณโรคเดิม'
+              voice
+              value={regDraft.priorTreatment}
+              onChange={(e) => setRegDraft((d) => ({ ...d, priorTreatment: e.target.value }))}
+              suggestions={TB_PRIOR_TREATMENT_SUGGESTIONS}
+              minChars={3}
+              placeholder='เช่น ไม่เคยรักษาวัณโรคมาก่อน / เคยรักษาหายจากทะเบียน 18/2565'
+            />
 
             {registerError === 'duplicate' && duplicateExisting ? (
               <Banner
@@ -614,12 +616,14 @@ export const TbStep4Orders = ({
             placeholder='เช่น กินยาต่อหน้า อสส. ครบถ้วน ไม่มีอาการข้างเคียง'
           />
           {dayTarget?.entry && (
-            <Textarea
+            <SuggestibleTextarea
               label='เหตุผลการแก้ไขย้อนหลัง'
               required
-              showHelperText={false}
+              voice
               value={dayDraft.editReason}
-              onChange={(v) => { setDayDraft((d) => ({ ...d, editReason: v })); setDayError(''); }}
+              onChange={(e) => { setDayDraft((d) => ({ ...d, editReason: e.target.value })); setDayError(''); }}
+              suggestions={TB_DOT_EDIT_REASON_SUGGESTIONS}
+              minChars={2}
               placeholder='วันนี้มีบันทึกอยู่แล้ว — ต้องระบุเหตุผลที่แก้ไข'
             />
           )}
@@ -1013,16 +1017,17 @@ export const TbStep6Appointment = ({
         </div>
 
         {appt.skipped ? (
-          <Field label='เหตุผลที่ไม่นัดครั้งถัดไป' required flex={false}>
-            <Textarea
-              showLabel={false}
-              showHelperText={false}
-              value={appt.note}
-              onChange={(v) => setAppt('note')(v)}
-              placeholder='เช่น ครบการรักษา — เตรียมปิดทะเบียน / ส่งต่อสถานพยาบาลอื่น'
-              disabled={readOnly}
-            />
-          </Field>
+          <SuggestibleTextarea
+            label='เหตุผลที่ไม่นัดครั้งถัดไป'
+            required
+            voice
+            value={appt.note}
+            onChange={(e) => setAppt('note')(e.target.value)}
+            suggestions={TB_NO_APPOINTMENT_SUGGESTIONS}
+            minChars={2}
+            placeholder='เช่น ครบการรักษา — เตรียมปิดทะเบียน / ส่งต่อสถานพยาบาลอื่น'
+            disabled={readOnly}
+          />
         ) : (
           <>
             <div className='flex items-start flex-wrap w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>

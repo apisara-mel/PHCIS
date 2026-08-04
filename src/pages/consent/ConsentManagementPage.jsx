@@ -19,7 +19,7 @@ import SuccessToast from '@/components/toast/SuccessToast';
 import PersonalDataConsentEditPopup from '@/components/forms/PersonalDataConsentEditPopup';
 import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerifyPopup';
 import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
-import { formatServiceCenterChannel } from '@/data/consentChannels';
+import { formatServiceCenterChannel, MOBILE_APP_CHANNEL } from '@/data/consentChannels';
 import {
   CONSENT_TABS, buildConsentSummary, matchesConsentWorklistTab,
   CONSENT_STATUS, CONSENT_TYPE_TONE, CONSENT_CONFIRM,
@@ -338,7 +338,14 @@ export default function ConsentManagementPage() {
       else setDialog({ record: row, confirmKey: action.confirm });
     };
     return (
-      <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-150)' }}>
+      <div
+        className='flex items-center justify-end'
+        style={{
+          gap: 'var(--dim-space-400, 16px)',
+          paddingRight: 'var(--dim-space-400, 16px)',
+        }}
+      >
+        <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
         <NeutralSubdueIconButton
           icon='compare_arrows'
           variant='outline'
@@ -375,6 +382,7 @@ export default function ConsentManagementPage() {
             onClick={() => setVerifyFor({ next: 'edit', record: row })}
           />
         )}
+        </div>
         {action && (
           action.kind === 'brand' ? (
             <BrandSubdueButton variant='fill' size='sm' onClick={fireAction}>
@@ -523,9 +531,9 @@ export default function ConsentManagementPage() {
     if (activeTab === 'consented') {
       return [colSignedDate, colHn, colName, ...mid, colCreatedDate, colWithdrawn, colAction];
     }
-    /* ปฏิเสธ / เพิกถอน: วันที่ถอน + วันที่ลงนามขึ้นก่อน · วันที่สร้างอยู่หลังผู้สร้างคำขอ */
+    /* ปฏิเสธ / เพิกถอน: วันที่ถอนขึ้นก่อน · วันที่ลงนามอยู่หลังวันที่สร้างคำขอ */
     if (activeTab === 'rejected') {
-      return [colWithdrawn, colSignedDate, colHn, colName, ...mid, colCreatedDate, colAction];
+      return [colWithdrawn, colHn, colName, ...mid, colCreatedDate, colSignedDate, colAction];
     }
     /* ใกล้หมดอายุ: จำนวนวันที่เหลือขึ้นก่อน · วันที่สร้างอยู่หลังผู้สร้างคำขอ */
     if (activeTab === 'expiring') {
@@ -689,7 +697,7 @@ export default function ConsentManagementPage() {
                   activeTab === 'expired' || activeTab === 'all'
                     ? 2
                     : activeTab === 'rejected'
-                      ? 4
+                      ? 3
                       : 3
                 }
                 /* Page scroll + sticky header ใต้ SubHeader/tabs — เหมือนแบบฟอร์มความยินยอม */
@@ -740,7 +748,7 @@ export default function ConsentManagementPage() {
       <CreateConsentRequestPopup
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreate={({ patient, template, channel, dueDate }) => {
+        onCreate={({ patient, template, dueDate }) => {
           const id = nextId();
           const { formCode, formName } = resolveConsentFormFromTemplate(template);
           const rec = {
@@ -753,7 +761,7 @@ export default function ConsentManagementPage() {
             version: template.version,
             status: 'รอลงนาม',
             signChannel: '-',
-            requestChannel: channel,
+            requestChannel: MOBILE_APP_CHANNEL,
             requester: STAFF_NAME,
             createdDate: todayThai(),
             signedDate: '-',
@@ -766,7 +774,7 @@ export default function ConsentManagementPage() {
           setCreateOpen(false);
           setActiveTab('sent');
           setPage(1);
-          pushToast(`สร้างคำขอความยินยอม ${template.code} ให้ ${patient.name} แล้ว — ลงนามผ่าน${channel} ภายใน ${dueDate}`);
+          pushToast(`สร้างคำขอความยินยอม ${template.code} ให้ ${patient.name} แล้ว — ครบกำหนด ${dueDate}`);
         }}
       />
 

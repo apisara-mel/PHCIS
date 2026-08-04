@@ -136,8 +136,12 @@ const TbFormPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [registration, tick],
   );
+  /* สำเนาตื้นโดยตั้งใจ: getDotLog คืน object เดิมที่ถูก mutate in place
+     ทุกครั้ง ถ้าไม่ copy identity จะไม่เปลี่ยน แล้ว useMemo ของ
+     DotCalendarLog / computeDotAdherence จะไม่คำนวณใหม่หลังบันทึก DOT
+     (อาการ "บันทึกแล้วหน้าจอไม่เปลี่ยน"). */
   const dotLog = useMemo(
-    () => (registration ? getDotLog(registration.id) : {}),
+    () => (registration ? { ...getDotLog(registration.id) } : {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [registration, tick],
   );

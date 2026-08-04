@@ -250,8 +250,10 @@ const TbFollowUpPage = () => {
     [record, range, tick],
   );
 
+  /* สำเนาตื้น — getDotLog คืน object เดิมที่ถูก mutate in place; ถ้าไม่ copy
+     memo ของกราฟ %DOT จะไม่คำนวณใหม่เมื่อมีการบันทึก DOT จากหน้าอื่น. */
   const dotLog = useMemo(
-    () => (record ? getDotLog(record.id) : {}),
+    () => (record ? { ...getDotLog(record.id) } : {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [record, tick],
   );
