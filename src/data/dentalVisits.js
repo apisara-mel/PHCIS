@@ -266,12 +266,100 @@ export const COMPLETED_DENTAL_VISITS = {
   },
 };
 
-/* ─── Re-Diagnosis source — การวินิจฉัยจาก visit ก่อนหน้า ──────────────── */
+/* ─── Re-Diagnosis source — การวินิจฉัยจาก visit ก่อนหน้า ────────────────
+   Legacy list kept for callers that don't scope by HN. */
 export const DENTAL_PAST_DIAGNOSES = [
   { id: 'past-1', date: '14 พ.ค. 2569', code: 'K05.1', name: 'เหงือกอักเสบเรื้อรัง (Chronic gingivitis)' },
   { id: 'past-2', date: '14 พ.ค. 2569', code: 'K03.6', name: 'คราบหินน้ำลายเกาะฟัน (Deposits on teeth)' },
   { id: 'past-3', date: '9 ธ.ค. 2568', code: 'K02.1', name: 'ฟันผุลุกลามถึงเนื้อฟัน (Caries of dentine)' },
 ];
+
+/* Per-HN Re-Diagnosis source. HNs that are genuinely first-visit (เด็กมา
+   เคลือบฟลูออไรด์ครั้งแรก ฯลฯ) map to an empty array on purpose so the
+   Re-Diagnosis CTA renders disabled + tooltip instead of an empty popup
+   (spec edge case). */
+export const DENTAL_PAST_DIAGNOSES_BY_HN = {
+  '67-00002': DENTAL_PAST_DIAGNOSES,
+  '67-00003': [
+    { id: 'past-3a', date: '2 ก.พ. 2569', code: 'K05.3', name: 'ปริทันต์อักเสบเรื้อรัง (Chronic periodontitis)' },
+    { id: 'past-3b', date: '2 ก.พ. 2569', code: 'K03.6', name: 'คราบหินน้ำลายเกาะฟัน (Deposits on teeth)' },
+  ],
+  '67-00004': [
+    { id: 'past-4a', date: '18 มิ.ย. 2569', code: 'K01.1', name: 'ฟันคุด (Impacted teeth)' },
+  ],
+  '67-00005': [
+    { id: 'past-5a', date: '30 ม.ค. 2569', code: 'K05.1', name: 'เหงือกอักเสบเรื้อรัง (Chronic gingivitis)' },
+  ],
+  '67-00006': [
+    { id: 'past-6a', date: '11 ก.ค. 2569', code: 'S02.5', name: 'ฟันหัก (Fracture of tooth)' },
+  ],
+  '67-00007': [
+    { id: 'past-7a', date: '5 มี.ค. 2569', code: 'K02.1', name: 'ฟันผุลุกลามถึงเนื้อฟัน (Caries of dentine)' },
+  ],
+  '67-00008': [],
+  '67-00009': [
+    { id: 'past-9a', date: '21 เม.ย. 2569', code: 'K08.3', name: 'รากฟันค้าง (Retained dental root)' },
+  ],
+};
+export const getDentalPastDiagnoses = (hn) => DENTAL_PAST_DIAGNOSES_BY_HN[hn] || [];
+
+/* ─── ประวัติย้อนหลังต่อซี่ (TOR 1.10.1.2 "ประวัติการให้บริการของซี่ฟัน") ──
+   Legacy สมุดทันตกรรม keeps a per-tooth ledger so the dentist sees what
+   was done to #46 two years ago before re-opening it. Derived here as a
+   flat mock ledger keyed by HN → toothId (FDI). DentalStep2 filters it
+   with the tooth the clinician just clicked. */
+export const DENTAL_TOOTH_HISTORY = {
+  '67-00002': {
+    46: [
+      { id: 'th-1', date: '9 ธ.ค. 2568', procedure: 'อุดฟันด้วยคอมโพสิต (ต่อด้าน)', surfaces: ['O'], material: 'composite', dentist: 'ทพญ.ปวีณา ทองใบ', note: 'อุดด้านบดเคี้ยว ผุตื้น' },
+      { id: 'th-2', date: '14 พ.ค. 2569', procedure: 'ถ่ายภาพรังสีรอบปลายราก (Periapical film)', surfaces: [], material: 'none', dentist: 'ทพญ.ปวีณา ทองใบ', note: 'ไม่พบรอยโรครอบปลายราก' },
+    ],
+    36: [
+      { id: 'th-3', date: '9 ธ.ค. 2568', procedure: 'อุดฟันด้วยอมัลกัม (ต่อด้าน)', surfaces: ['O', 'D'], material: 'amalgam', dentist: 'ทพ.ศุภกร วัฒนชัย', note: 'วัสดุยังอยู่ในสภาพดี' },
+    ],
+    16: [
+      { id: 'th-4', date: '20 ส.ค. 2567', procedure: 'เคลือบหลุมร่องฟัน (Sealant)', surfaces: ['O'], material: 'sealant', dentist: 'ทพญ.กมลชนก ศรีสุวรรณ', note: '' },
+    ],
+  },
+  '67-00003': {
+    31: [
+      { id: 'th-5', date: '2 ก.พ. 2569', procedure: 'ขูดหินน้ำลายทั้งปาก (Full-mouth scaling)', surfaces: [], material: 'none', dentist: 'ทพญ.ปวีณา ทองใบ', note: 'ร่องลึกปริทันต์ 4 มม. ด้านลิ้น' },
+    ],
+    41: [
+      { id: 'th-6', date: '2 ก.พ. 2569', procedure: 'ขูดหินน้ำลายทั้งปาก (Full-mouth scaling)', surfaces: [], material: 'none', dentist: 'ทพญ.ปวีณา ทองใบ', note: 'เลือดออกขณะตรวจ (BOP +)' },
+    ],
+  },
+  '67-00004': {
+    38: [
+      { id: 'th-7', date: '18 มิ.ย. 2569', procedure: 'ถ่ายภาพรังสีรอบปลายราก (Periapical film)', surfaces: [], material: 'none', dentist: 'ทพ.ศุภกร วัฒนชัย', note: 'ฟันคุดเอียง mesioangular นัดผ่าออก' },
+    ],
+    37: [
+      { id: 'th-8', date: '18 มิ.ย. 2569', procedure: 'อุดฟันชั่วคราว (Temporary filling)', surfaces: ['D'], material: 'temp', dentist: 'ทพ.ศุภกร วัฒนชัย', note: 'รอผ่าฟันคุด #38 ก่อนอุดถาวร' },
+    ],
+  },
+  '67-00005': {
+    26: [
+      { id: 'th-9', date: '30 ม.ค. 2569', procedure: 'อุดฟันด้วยคอมโพสิต (ต่อด้าน)', surfaces: ['M', 'O'], material: 'composite', dentist: 'ทพญ.กมลชนก ศรีสุวรรณ', note: '' },
+    ],
+  },
+  '67-00007': {
+    27: [
+      { id: 'th-10', date: '5 มี.ค. 2569', procedure: 'อุดฟันด้วยกลาสไอโอโนเมอร์', surfaces: ['B'], material: 'gi', dentist: 'ทพญ.ปวีณา ทองใบ', note: 'ฟันสึกคอฟัน เสียวฟัน' },
+    ],
+  },
+  '67-00009': {
+    47: [
+      { id: 'th-11', date: '21 เม.ย. 2569', procedure: 'ถอนฟันแท้', surfaces: [], material: 'none', dentist: 'ทพ.ศุภกร วัฒนชัย', note: 'ตัวฟันแตก เหลือรากค้าง 1 ราก' },
+    ],
+  },
+};
+
+export const getDentalToothHistory = (hn, toothId) =>
+  (DENTAL_TOOTH_HISTORY[hn] || {})[Number(toothId)] || [];
+
+/* ซี่ที่เคยมีประวัติ — Step 2 ใช้ติดจุดเล็ก ๆ ในรายการ ไม่ต้องกดเข้าไปดูก่อน */
+export const getDentalTeethWithHistory = (hn) =>
+  Object.keys(DENTAL_TOOTH_HISTORY[hn] || {}).map(Number);
 
 /* ─── Saved records (in-session) + reopen audit ──────────────────────── */
 export const saveDentalVisitRecord = (hn, payload) => {
@@ -335,6 +423,13 @@ export const DENTAL_TOOTH_NOTE_SUGGESTIONS = [
   'มีหินน้ำลายเกาะหนาด้านลิ้น',
   'ฟันตายสีคล้ำ รอประเมินรักษาคลองรากฟัน',
 ];
+export const DENTAL_CANCEL_REASON_SUGGESTIONS = [
+  'ผู้รับบริการขอยุติการรักษากลางคัน',
+  'ส่งตรวจผิดคลินิก — ย้ายไปคลินิกทั่วไป',
+  'บันทึกผิดคน (HN ไม่ตรงกับผู้รับบริการ)',
+  'ผู้รับบริการมีความดันโลหิตสูงเกินเกณฑ์ เลื่อนการทำหัตถการ',
+  'เครื่องมือ/ยูนิตทำฟันขัดข้อง นัดใหม่',
+];
 export const DENTAL_REOPEN_REASON_SUGGESTIONS = [
   'แก้ไขตำแหน่งฟันที่บันทึกผิดซี่',
   'เพิ่มหัตถการที่ยังไม่ได้ลงบันทึก',
@@ -361,6 +456,20 @@ export const DENTAL_SCREENING_VITALS = {
    Includes the OPD keys the reused Step5Orders / Step6Appointment /
    Step7Certificate read (orderCategory…, appointment, cert*) so those
    components work wholesale — see TreatmentFormPage.buildInitialForm. */
+/* visitId ที่ผูก audit / e-Document / Medication Reconciliation เข้ากับ
+   การตรวจครั้งนี้. MedRecPanel + DocumentCenterPanel อ่าน `form.visitId`
+   เพื่อ scope session ของตัวเอง — ถ้าไม่ใส่ ทุก HN จะไปใช้ 'v-current'
+   ก้อนเดียวกันแล้ว audit ข้ามคนไข้ (risk ที่ระบุไว้ใน spec). */
+export const dentalVisitIdOf = (hn) => `dental-${hn || 'unknown'}-${new Date().toISOString().slice(0, 10)}`;
+
+/* Vitals ในรูปแบบที่ ConsultComposerPanel / MedicationCdssPanel อ่าน
+   (bp / hr / temp / rr / weight / height) — map จาก DENTAL_SCREENING_VITALS
+   ก้อนเดียวกับที่ Step 1 โชว์ เพื่อไม่ให้ตัวเลขสองที่ขัดกัน. */
+const dentalVitalsObject = () => DENTAL_SCREENING_VITALS.values.reduce(
+  (acc, v) => ({ ...acc, [v.key]: v.key === 'bp' ? v.value : Number(v.value) }),
+  {},
+);
+
 export const buildDentalVisitForm = (hn, { defaultAppointment = {} } = {}) => {
   const saved = getSavedDentalVisit(hn);
   const base = {
@@ -403,6 +512,30 @@ export const buildDentalVisitForm = (hn, { defaultAppointment = {} } = {}) => {
     certSignerLicense: 'TH-00012345',
     certSignature: '',
     certSignedAt: '',
+    /* ── คีย์ที่คอมโพเนนต์กลางของ OPD อ่าน (ห้ามตัดออก) ──────────────
+       Step5Orders → LabOrderPanel / ProcedureOrderPanel /
+       ConsultComposerPanel / MedRecPanel / MedicationCdssPanel และ
+       Step7Certificate → DocumentCenterPanel. ทุกตัวใช้ optional
+       chaining แต่การ seed ไว้ทำให้ตาราง/แบนเนอร์แสดงผลถูกต้องตั้งแต่
+       เฟรมแรก และทำให้ audit ผูกกับ visit ของ HN นี้จริง ๆ */
+    visitId: dentalVisitIdOf(hn),
+    vitals: dentalVitalsObject(),
+    doctorExam: '',
+    doctorOrderNote: '',
+    medRecDispositions: {},
+    medRecPending: 0,
+    visitAttachments: [],
+    patientAdvice: '',
+    patientAdviceTopics: {},
+    externalCauseDraft: '',
+    continueOrder: false,
+    labRequest: {},
+    nursingActivities: {},
+    nursingOther: '',
+    cdssDismissed: {},
+    radiologistDecisions: {},
+    xrayAcknowledged: {},
+    sameDayPrescriptions: [],
   };
   if (!saved) return { form: base, isCompleted: false, saved: null };
   return {
@@ -414,9 +547,14 @@ export const buildDentalVisitForm = (hn, { defaultAppointment = {} } = {}) => {
       dentition: saved.dentition ?? base.dentition,
       toothMarks: saved.toothMarks ?? base.toothMarks,
       otherServices: saved.otherServices ?? base.otherServices,
+      annotationMarkers: saved.annotationMarkers ?? base.annotationMarkers,
+      annotationDrawings: saved.annotationDrawings ?? base.annotationDrawings,
+      diagnosisNote: saved.diagnosisNote ?? base.diagnosisNote,
       diagnoses: saved.diagnoses ?? base.diagnoses,
       procedures: saved.procedures ?? base.procedures,
       consumables: saved.consumables ?? base.consumables,
+      appointment: saved.appointment ?? base.appointment,
+      certIssue: saved.certIssue ?? base.certIssue,
     },
     isCompleted: true,
     saved,

@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -30,6 +31,7 @@ import {
   NCD_DIAGNOSIS_SUGGESTIONS,
   NCD_ADVICE_SUGGESTIONS,
   formatNcdDate,
+  formatNcdDateTime,
 } from '@/data/ncdVisits';
 
 /* NcdSteps — step bodies for บันทึกการตรวจรักษาโรคเฉพาะ NCD (TOR
@@ -686,114 +688,259 @@ const APPOINTMENT_NOTE_SUGGESTIONS = [
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 /** Appointment validation shared with the confirm gate on NcdFormPage —
-    returns '' when valid (or explicitly skipped / left blank). */
-export const validateNcdAppointment = (appointment) => {
+    returns '' when valid (or explicitly skipped / left blank). `exceptHn`
+    lets a patient re-save their OWN booking onto the slot it already holds. */
+export const validateNcdAppointment = (appointment, exceptHn) => {
   if (appointment.skipped || !appointment.date) return '';
   if (appointment.date < todayIso()) return 'ไม่สามารถบันทึกนัดหมายย้อนหลังได้ — เลือกวันที่ตั้งแต่วันนี้เป็นต้นไป';
-  if (appointment.time && isNcdSlotBooked(appointment.date, appointment.time)) {
+  if (appointment.time && isNcdSlotBooked(appointment.date, appointment.time, exceptHn)) {
     return `ช่วงเวลา ${appointment.time} น. ของวันที่เลือกมีนัดหมายเต็มแล้ว — เลือกเวลาอื่น`;
   }
   return '';
 };
 
+/* Saved-appointment summary strip (TOR 1.10.2.5 "แสดง") — what the booking
+   became after ยืนยัน, with its audit stamp, plus the แก้ไข / ยกเลิก entry
+   points and the cross-link into the /appointment system where the same row
+   now lives. A cancelled booking is kept visible in red, never removed. */
+const SavedAppointmentStrip = ({ appt, readOnly, onEdit, onCancel, onRebook }) => {
+  const cancelled = appt.status === 'cancelled';
+  return (
+    <div
+      className='flex flex-col w-full'
+      style={{
+        gap: 'var(--dim-space-200)',
+        paddingTop: 'var(--dim-space-400)',
+        paddingBottom: 'var(--dim-space-400)',
+        paddingLeft: 'var(--dim-space-400)',
+        paddingRight: 'var(--dim-space-400)',
+        borderRadius: 'var(--dim-radius-300)',
+        border: `var(--dim-stroke-100) solid ${cancelled
+          ? 'var(--border-danger-default, #E58585)'
+          : 'var(--border-brandPrimary-quaternary)'}`,
+        background: cancelled
+          ? 'var(--surface-danger-quaternary, #FFF0F0)'
+          : 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+      }}
+    >
+      <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+        <Icon name={cancelled ? 'block' : 'event_available'} size={20} />
+        <span style={{ fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>
+          {formatNcdDate(appt.date)}{appt.time ? ` · ${appt.time} น.` : ''}
+        </span>
+        {appt.mode === 'telemedicine'
+          ? <ColorfulBadge style='blue' size='small' hierarchy='secondary'>Telemedicine</ColorfulBadge>
+          : <ColorfulBadge style='teal' size='small' hierarchy='secondary'>ที่คลินิก NCD</ColorfulBadge>}
+        {cancelled
+          ? <ColorfulBadge style='red' size='small' hierarchy='secondary'>ยกเลิกนัดหมายแล้ว</ColorfulBadge>
+          : <ColorfulBadge style='green' size='small' hierarchy='secondary'>บันทึกนัดหมายแล้ว</ColorfulBadge>}
+        <div className='flex-1' />
+        <Link
+          to='/appointment'
+          className='inline-flex items-center hover:underline'
+          style={{
+            gap: 'var(--dim-space-100)',
+            fontSize: 'var(--type-size-sm)',
+            color: 'var(--text-brandPrimary-default, #007549)',
+            textDecoration: 'none',
+          }}
+        >
+          <Icon name='open_in_new' size={16} />
+          เปิดในระบบนัดหมาย
+        </Link>
+      </div>
+
+      <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+        แพทย์ผู้ดูแล {appt.doctor || '—'} · รหัสนัดหมาย {appt.id}
+        {appt.note ? ` · เตรียมตัว: ${appt.note}` : ''}
+      </span>
+
+      <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+        ผู้บันทึก {appt.createdBy} · {formatNcdDateTime(appt.createdAt)}
+        {appt.updatedAt ? ` · แก้ไขล่าสุดโดย ${appt.updatedBy} · ${formatNcdDateTime(appt.updatedAt)}` : ''}
+      </span>
+
+      {cancelled && (
+        <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-danger-default, #C72121)' }}>
+          ผู้ยกเลิก {appt.cancelledBy} · {formatNcdDateTime(appt.cancelledAt)} · เหตุผล: {appt.cancelReason}
+        </span>
+      )}
+
+      {!readOnly && (
+        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+          {cancelled ? (
+            <BrandSubdueButton variant='outline' size='sm' leadingIcon='event_available' onClick={onRebook}>
+              นัดหมายใหม่
+            </BrandSubdueButton>
+          ) : (
+            <>
+              <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' onClick={onEdit}>
+                แก้ไขนัดหมาย
+              </BrandSubdueButton>
+              <NeutralSubdueButton size='sm' leadingIcon='block' onClick={onCancel}>
+                ยกเลิกนัดหมาย
+              </NeutralSubdueButton>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const NcdStep6Appointment = ({
   form, setForm, readOnly = false,
   saveState, confirmError,
-  onSaveDraft, onConfirm,
+  onSaveDraft, onConfirm, onReopenRecord,
+  /* TOR 1.10.2.5 — persistence + the แสดง/แก้ไข/ยกเลิก actions live on
+     NcdFormPage (it owns the sessionStorage + /appointment writes); this
+     step only renders them. */
+  ncdHn,
+  savedAppointment = null,
+  apptEditing = false,
+  apptSaveError = '',
+  registryCancelled = false,
+  onEditAppointment,
+  onSaveAppointmentEdit,
+  onDiscardAppointmentEdit,
+  onCancelAppointment,
+  onRebookAppointment,
 }) => {
   const setAppt = (key) => (value) => {
     if (readOnly) return;
     setForm((f) => ({ ...f, appointment: { ...f.appointment, [key]: value } }));
   };
 
-  const apptError = validateNcdAppointment(form.appointment);
+  const apptError = validateNcdAppointment(form.appointment, ncdHn);
   const slotHint = form.appointment.date && !form.appointment.skipped
-    ? NCD_APPOINTMENT_TIMES.filter((t) => !isNcdSlotBooked(form.appointment.date, t)).length
+    ? NCD_APPOINTMENT_TIMES.filter((t) => !isNcdSlotBooked(form.appointment.date, t, ncdHn)).length
     : null;
+
+  /* Once the visit is confirmed the booking is a saved record — the fields
+     collapse into the summary strip until แก้ไขนัดหมาย reopens them. */
+  const showFields = !savedAppointment || apptEditing;
 
   return (
     <StepCard>
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='calendar'>นัดหมายติดตามครั้งถัดไป</TopicHeader>
 
-        <SelectableTag
-          label='ไม่นัดหมายครั้งถัดไป (สิ้นสุดการติดตาม / นัดผ่านช่องทางอื่น)'
-          size='lg'
-          selected={!!form.appointment.skipped}
-          onClick={() => {
-            if (readOnly) return;
-            setForm((f) => ({
-              ...f,
-              appointment: { ...f.appointment, skipped: !f.appointment.skipped },
-            }));
-          }}
-        />
+        {registryCancelled && (
+          <WarningNote icon='shield_question'>
+            ทะเบียนโรคเฉพาะของผู้รับบริการรายนี้ถูกยกเลิกแล้ว — ยังบันทึกนัดหมายได้
+            แต่ควรเปิดใช้งานทะเบียนอีกครั้งที่หน้าทะเบียนก่อนนัดติดตาม
+          </WarningNote>
+        )}
 
-        {!form.appointment.skipped && (
+        {savedAppointment && (
+          <SavedAppointmentStrip
+            appt={savedAppointment}
+            readOnly={readOnly}
+            onEdit={onEditAppointment}
+            onCancel={onCancelAppointment}
+            onRebook={onRebookAppointment}
+          />
+        )}
+
+        {showFields && (
           <>
-            <div className='flex items-start gap-4 w-full flex-wrap'>
-              <Field
-                label='วันนัดหมาย'
-                hint={slotHint != null ? `มีช่วงเวลาว่าง ${slotHint} ช่วงในวันที่เลือก` : 'เลือกวันที่ตั้งแต่วันนี้เป็นต้นไป'}
-              >
-                <DatePicker
-                  value={form.appointment.date ? new Date(form.appointment.date) : null}
-                  onChange={(d) => setAppt('date')(d ? d.toISOString().slice(0, 10) : '')}
-                  placeholder='เลือกวันที่'
-                  showLabel={false}
-                  disabled={readOnly}
-                />
-              </Field>
-              <Field label='เวลานัดหมาย'>
-                <Select
-                  showLabel={false}
-                  searchable={false}
-                  size='lg'
-                  disabled={readOnly}
-                  value={form.appointment.time}
-                  onChange={(v) => setAppt('time')(v)}
-                  options={NCD_APPOINTMENT_TIMES.map((t) => ({
-                    value: t,
-                    label: form.appointment.date && isNcdSlotBooked(form.appointment.date, t) ? `${t} น. (เต็ม)` : `${t} น.`,
-                  }))}
-                  placeholder='เลือกเวลา'
-                />
-              </Field>
-            </div>
-            {apptError && <ErrorNote>{apptError}</ErrorNote>}
-
-            <Field label='รูปแบบการนัดหมาย'>
-              <div className='flex items-center gap-2 flex-wrap'>
-                <SelectableTag
-                  label='เข้ารับบริการที่คลินิก'
-                  size='lg'
-                  selected={form.appointment.mode !== 'telemedicine'}
-                  onClick={() => {
-                    if (readOnly) return;
-                    setForm((f) => ({ ...f, appointment: { ...f.appointment, mode: 'onsite', telemedStatus: 'none' } }));
-                  }}
-                />
-                <SelectableTag
-                  label='ปรึกษาผ่าน Telemedicine'
-                  size='lg'
-                  selected={form.appointment.mode === 'telemedicine'}
-                  onClick={() => setAppt('mode')('telemedicine')}
-                />
-                {form.appointment.mode === 'telemedicine' && (
-                  <ColorfulIconBadge style='blue' size='medium' fill='default' icon='videocam' />
-                )}
-              </div>
-            </Field>
-
-            <SuggestibleTextarea
-              voice
-              disabled={readOnly}
-              value={form.appointment.note}
-              onChange={(e) => { if (!readOnly) setForm((f) => ({ ...f, appointment: { ...f.appointment, note: e.target.value } })); }}
-              suggestions={APPOINTMENT_NOTE_SUGGESTIONS}
-              minChars={3}
-              placeholder='คำแนะนำการเตรียมตัวก่อนมาตามนัด เช่น งดน้ำงดอาหาร 8 ชม.'
+            <SelectableTag
+              label='ไม่นัดหมายครั้งถัดไป (สิ้นสุดการติดตาม / นัดผ่านช่องทางอื่น)'
+              size='lg'
+              selected={!!form.appointment.skipped}
+              onClick={() => {
+                if (readOnly) return;
+                setForm((f) => ({
+                  ...f,
+                  appointment: { ...f.appointment, skipped: !f.appointment.skipped },
+                }));
+              }}
             />
+
+            {!form.appointment.skipped && (
+              <>
+                <div className='flex items-start gap-4 w-full flex-wrap'>
+                  <Field
+                    label='วันนัดหมาย'
+                    hint={slotHint != null ? `มีช่วงเวลาว่าง ${slotHint} ช่วงในวันที่เลือก` : 'เลือกวันที่ตั้งแต่วันนี้เป็นต้นไป'}
+                  >
+                    <DatePicker
+                      value={form.appointment.date ? new Date(form.appointment.date) : null}
+                      onChange={(d) => setAppt('date')(d ? d.toISOString().slice(0, 10) : '')}
+                      placeholder='เลือกวันที่'
+                      showLabel={false}
+                      disabled={readOnly}
+                    />
+                  </Field>
+                  <Field label='เวลานัดหมาย'>
+                    <Select
+                      showLabel={false}
+                      searchable={false}
+                      size='lg'
+                      disabled={readOnly}
+                      value={form.appointment.time}
+                      onChange={(v) => setAppt('time')(v)}
+                      options={NCD_APPOINTMENT_TIMES.map((t) => ({
+                        value: t,
+                        label: form.appointment.date && isNcdSlotBooked(form.appointment.date, t, ncdHn) ? `${t} น. (เต็ม)` : `${t} น.`,
+                      }))}
+                      placeholder='เลือกเวลา'
+                    />
+                  </Field>
+                </div>
+                {apptError && <ErrorNote>{apptError}</ErrorNote>}
+
+                <Field label='รูปแบบการนัดหมาย'>
+                  <div className='flex items-center gap-2 flex-wrap'>
+                    <SelectableTag
+                      label='เข้ารับบริการที่คลินิก'
+                      size='lg'
+                      selected={form.appointment.mode !== 'telemedicine'}
+                      onClick={() => {
+                        if (readOnly) return;
+                        setForm((f) => ({ ...f, appointment: { ...f.appointment, mode: 'onsite', telemedStatus: 'none' } }));
+                      }}
+                    />
+                    <SelectableTag
+                      label='ปรึกษาผ่าน Telemedicine'
+                      size='lg'
+                      selected={form.appointment.mode === 'telemedicine'}
+                      onClick={() => setAppt('mode')('telemedicine')}
+                    />
+                    {form.appointment.mode === 'telemedicine' && (
+                      <ColorfulIconBadge style='blue' size='medium' fill='default' icon='videocam' />
+                    )}
+                  </div>
+                </Field>
+
+                <SuggestibleTextarea
+                  voice
+                  disabled={readOnly}
+                  value={form.appointment.note}
+                  onChange={(e) => { if (!readOnly) setForm((f) => ({ ...f, appointment: { ...f.appointment, note: e.target.value } })); }}
+                  suggestions={APPOINTMENT_NOTE_SUGGESTIONS}
+                  minChars={3}
+                  placeholder='คำแนะนำการเตรียมตัวก่อนมาตามนัด เช่น งดน้ำงดอาหาร 8 ชม.'
+                />
+              </>
+            )}
+
+            {/* แก้ไขนัดหมาย mode — save / discard for the ALREADY SAVED row.
+                Before ยืนยัน these fields are still just form state, so no
+                extra buttons are shown (ยืนยัน is what persists them). */}
+            {apptEditing && !readOnly && (
+              <>
+                {apptSaveError && <ErrorNote>{apptSaveError}</ErrorNote>}
+                <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                  <BrandPrimaryButton size='sm' trailingIcon='check' onClick={onSaveAppointmentEdit}>
+                    บันทึกการแก้ไขนัดหมาย
+                  </BrandPrimaryButton>
+                  <NeutralSubdueButton size='sm' leadingIcon='close' onClick={onDiscardAppointmentEdit}>
+                    ยกเลิกการแก้ไข
+                  </NeutralSubdueButton>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
@@ -822,9 +969,22 @@ export const NcdStep6Appointment = ({
         {confirmError && <ErrorNote>{confirmError}</ErrorNote>}
 
         {saveState?.confirmedAt ? (
-          <div className='flex items-center gap-2' style={{ color: 'var(--text-brandPrimary-default, #007549)', fontSize: 'var(--type-size-sm)' }}>
-            <Icon name='check-circle' size={18} />
-            ยืนยันการบันทึกแล้ว · ผู้บันทึก {saveState.by} · {saveState.confirmedAt}
+          /* TOR 1.10.2.7 "แก้ไข" — a confirmed record can be reopened and
+             saved again; the follow-up row is keyed by a stable recordId so
+             re-confirming UPDATES it instead of adding a duplicate visit. */
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+            <span
+              className='inline-flex items-center gap-2'
+              style={{ color: 'var(--text-brandPrimary-default, #007549)', fontSize: 'var(--type-size-sm)' }}
+            >
+              <Icon name='check-circle' size={18} />
+              ยืนยันการบันทึกแล้ว · ผู้บันทึก {saveState.by} · {saveState.confirmedAt}
+            </span>
+            {!readOnly && (
+              <NeutralSubdueButton size='sm' leadingIcon='edit' onClick={onReopenRecord}>
+                แก้ไขบันทึกการตรวจรักษา
+              </NeutralSubdueButton>
+            )}
           </div>
         ) : readOnly ? (
           <WarningNote icon='visibility'>สิทธิ์ของคุณดูได้อย่างเดียว — ไม่สามารถบันทึกหรือยืนยันได้</WarningNote>
@@ -839,6 +999,11 @@ export const NcdStep6Appointment = ({
             {saveState?.draftAt && (
               <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
                 บันทึกร่างล่าสุด {saveState.draftAt}
+              </span>
+            )}
+            {saveState?.reopenedAt && (
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                เปิดแก้ไขโดย {saveState.by} · {saveState.reopenedAt} — ยืนยันอีกครั้งเพื่อบันทึกทับรายการเดิม
               </span>
             )}
           </div>

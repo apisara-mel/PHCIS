@@ -944,6 +944,11 @@ const Table = ({
   loading = false,
   skeletonRows = 5,
 
+  /* Extra inset at the far-right edge of the scrollable table content
+     (header + body). Useful when the last column's action buttons sit
+     flush against the table border at scroll end. */
+  trailingInset = null,
+
   className = '',
   style = {},
 }) => {
@@ -989,6 +994,8 @@ const Table = ({
   const totalMinWidth = columns.reduce(
     (s, c) => s + colWidthPx(c), 0,
   ) + (editMode ? DRAG_COL_W : 0);
+
+  const trailingInsetStyle = trailingInset ? { paddingRight: trailingInset } : null;
 
   const isSortable = (c) => c.sortable !== false && !!onSort;
 
@@ -1181,6 +1188,7 @@ const Table = ({
               transform: `translate3d(${-scrollX}px, 0, 0)`,
               willChange: 'transform',
               position: 'relative',
+              ...trailingInsetStyle,
             }}
           >
             {/* Sticky-column backdrop — page-sticky mode counter-translates
@@ -1215,7 +1223,7 @@ const Table = ({
         </div>
 
         <div ref={bodyRef} style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: totalMinWidth }}>
+          <div style={{ minWidth: totalMinWidth, ...trailingInsetStyle }}>
             {rowsAndEmpty}
           </div>
         </div>
@@ -1236,7 +1244,7 @@ const Table = ({
         ...style,
       }}
     >
-      <div style={{ minWidth: totalMinWidth }}>
+      <div style={{ minWidth: totalMinWidth, ...trailingInsetStyle }}>
         <div
           className='flex w-full items-center sticky top-0'
           style={{

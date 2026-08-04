@@ -225,6 +225,7 @@ const CHECKED_IN_KEY        = 'mih:ncd-checked-in-today';     // hn -> true
 const VISIT_STATUS_KEY      = 'mih:ncd-visit-status';         // hn -> { statusKey, by, at, reason? }
 const VISIT_HISTORY_KEY     = 'mih:ncd-visit-history';        // hn -> [records]
 const USER_ROLE_KEY         = 'mih:ncd-user-role';            // 'edit' (default) | 'view'
+const APPOINTMENT_KEY       = 'mih:ncd-appointments';         // hn -> appointment record (TOR 1.10.2.5)
 
 /* สิทธิ์ผู้ใช้ — read-only mode (playbook §5 "สิทธิไม่พอ"). Defaults to full
    edit rights; set sessionStorage['mih:ncd-user-role']='view' to exercise
@@ -300,6 +301,79 @@ export const reactivateNcdRegistration = (hn) => {
 
 export const getNcdCancellation = (hn) => readJson(CANCELLED_KEY, {})[hn] || null;
 
+/* ── นัดหมายติดตาม (TOR 1.10.2.5) — แสดง / บันทึก / แก้ไข / ยกเลิก ────
+   The Step-6 appointment used to live only in the record's React state, so
+   ยืนยัน threw it away. It now persists here (one active booking per HN —
+   re-confirming the same visit UPDATES the row, never appends a second one)
+   and the record page mirrors the same row into the /appointment system via
+   its public `appointmentExtraStore`, so a booking made in the clinic is
+   visible in both places and can be แก้ไข / ยกเลิก afterwards. */
+
+export const NCD_SLOT_MINUTES = 30;
+
+/** '09:00' → '09:00-09:30' — the slotRange field the /appointment calendar
+    expects on every row. */
+export const ncdSlotRange = (time) => {
+  if (!time || !/^\d{1,2}:\d{2}$/.test(time)) return '';
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + NCD_SLOT_MINUTES;
+  const eh = String(Math.floor(total / 60) % 24).padStart(2, '0');
+  const em = String(total % 60).padStart(2, '0');
+  return `${time}-${eh}:${em}`;
+};
+
+export const getNcdAppointment = (hn) => (hn ? readJson(APPOINTMENT_KEY, {})[hn] || null : null);
+
+/** Every appointment booked from the record this session (cancelled ones
+    included when `includeCancelled` — the cancel audit must stay visible). */
+export const getNcdBookedAppointments = (includeCancelled = false) =>
+  Object.values(readJson(APPOINTMENT_KEY, {}))
+    .filter((a) => includeCancelled || a.status !== 'cancelled')
+    .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+
+/** บันทึก/แก้ไขนัดหมาย — first write stamps ผู้บันทึก + เวลา, later writes
+    keep the original id + createdBy and stamp ผู้แก้ไข + เวลา instead. */
+export const saveNcdAppointment = (hn, appt) => {
+  if (!hn) return null;
+  const store = readJson(APPOINTMENT_KEY, {});
+  const prev = store[hn];
+  const now = new Date().toISOString();
+  const record = {
+    ...(prev || {}),
+    ...appt,
+    hn,
+    id: prev?.id || `A-NCD-${hn}-${Date.now()}`,
+    status: 'active',
+    createdBy: prev?.createdBy || NCD_CURRENT_USER.name,
+    createdAt: prev?.createdAt || now,
+    ...(prev ? { updatedBy: NCD_CURRENT_USER.name, updatedAt: now } : {}),
+    /* re-booking after a cancellation clears the old cancel audit */
+    cancelledBy: undefined, cancelledAt: undefined, cancelReason: undefined,
+  };
+  store[hn] = record;
+  writeJson(APPOINTMENT_KEY, store);
+  return record;
+};
+
+/** ยกเลิกนัดหมาย — reason required, row KEPT (never deleted) so the audit
+    trail survives; the /appointment mirror is flipped to `cancelled` too. */
+export const cancelNcdAppointment = (hn, reason) => {
+  if (!hn) return null;
+  const store = readJson(APPOINTMENT_KEY, {});
+  const prev = store[hn];
+  if (!prev) return null;
+  const record = {
+    ...prev,
+    status: 'cancelled',
+    cancelReason: reason || 'ไม่ระบุเหตุผล',
+    cancelledBy: NCD_CURRENT_USER.name,
+    cancelledAt: new Date().toISOString(),
+  };
+  store[hn] = record;
+  writeJson(APPOINTMENT_KEY, store);
+  return record;
+};
+
 /* ── Queue check-in + per-visit status (draft / done / cancelled) ── */
 
 export const checkInNcdAppointment = (hn) => {
@@ -309,9 +383,35 @@ export const checkInNcdAppointment = (hn) => {
   writeJson(CHECKED_IN_KEY, store);
 };
 
+/** Appointments booked from the record whose วันนัด is today, shaped like a
+    NCD_SCHEDULED_TODAY row so the queue's "นัดแล้วยังไม่มาติดต่อ" tab can
+    render and ส่งตรวจ them exactly the same way (E4 — closes the
+    book → arrive → ส่งตรวจ loop inside the module). */
+export const getNcdBookedScheduledToday = () => {
+  const today = new Date().toISOString().slice(0, 10);
+  return getNcdBookedAppointments()
+    .filter((a) => a.date === today)
+    .map((a) => ({
+      hn: a.hn,
+      name: a.patient || a.hn,
+      doctor: a.doctor || '—',
+      appointmentTime: a.time || '—',
+      clinic: a.mode === 'telemedicine' ? 'Telemedicine' : 'NCD',
+      diseaseGroups: a.diseaseGroups || [],
+      visitType: 'followup',
+      fromRecord: true,
+    }));
+};
+
 export const getNcdScheduledNotArrived = () => {
   const checkedIn = readJson(CHECKED_IN_KEY, {});
-  return NCD_SCHEDULED_TODAY.filter((p) => !checkedIn[p.hn]);
+  const seen = new Set();
+  return [...NCD_SCHEDULED_TODAY, ...getNcdBookedScheduledToday()]
+    .filter((p) => {
+      if (checkedIn[p.hn] || seen.has(p.hn)) return false;
+      seen.add(p.hn);
+      return true;
+    });
 };
 
 /** Overrides today's queue status for a patient — บันทึกร่าง returns the row
@@ -328,8 +428,16 @@ export const getNcdVisitStatus = (hn) => readJson(VISIT_STATUS_KEY, {})[hn] || n
 export const getNcdQueueRows = () => {
   const checkedIn = readJson(CHECKED_IN_KEY, {});
   const statusStore = readJson(VISIT_STATUS_KEY, {});
-  const checkedInRows = NCD_SCHEDULED_TODAY
-    .filter((p) => checkedIn[p.hn])
+  const alreadyQueued = new Set(NCD_PATIENTS.map((p) => p.hn));
+  const seen = new Set();
+  const checkedInRows = [...NCD_SCHEDULED_TODAY, ...getNcdBookedScheduledToday()]
+    .filter((p) => {
+      /* A patient can be booked from the record AND already sitting in
+         today's static queue — never emit the row twice. */
+      if (!checkedIn[p.hn] || alreadyQueued.has(p.hn) || seen.has(p.hn)) return false;
+      seen.add(p.hn);
+      return true;
+    })
     .map((p, idx) => ({
       ...p,
       queue: `W-${String(idx + 1).padStart(3, '0')}`,
@@ -345,10 +453,18 @@ export const getNcdQueueRows = () => {
 
 /* ── Visit records — การติดตามการดูแล (TOR 1.10.2.8) ─────────────── */
 
+/** Upserts by `record.recordId` — the record page keeps ONE id per open
+    form, so pressing ยืนยัน twice (or ยืนยัน → แก้ไข → ยืนยัน) updates the
+    same follow-up row instead of appending a duplicate visit. Records
+    without an id keep the old append behaviour. */
 export const saveNcdVisitRecord = (hn, record) => {
   if (!hn) return;
   const store = readJson(VISIT_HISTORY_KEY, {});
-  store[hn] = [...(store[hn] || []), record];
+  const list = store[hn] || [];
+  const idx = record?.recordId ? list.findIndex((r) => r.recordId === record.recordId) : -1;
+  store[hn] = idx >= 0
+    ? list.map((r, i) => (i === idx ? { ...r, ...record } : r))
+    : [...list, record];
   writeJson(VISIT_HISTORY_KEY, store);
 };
 
@@ -567,8 +683,16 @@ export const NCD_BOOKED_SLOTS = [
   { date: '2026-08-17', time: '13:00' },
 ];
 
-export const isNcdSlotBooked = (dateIso, time) =>
-  NCD_BOOKED_SLOTS.some((s) => s.date === dateIso && s.time === time);
+/** A slot is taken when the static roster holds it OR another patient has
+    an active booking on it. `exceptHn` excludes the patient being edited so
+    re-saving their own appointment never collides with itself. */
+export const isNcdSlotBooked = (dateIso, time, exceptHn) => {
+  if (!dateIso || !time) return false;
+  if (NCD_BOOKED_SLOTS.some((s) => s.date === dateIso && s.time === time)) return true;
+  return getNcdBookedAppointments().some(
+    (a) => a.date === dateIso && a.time === time && a.hn !== exceptHn,
+  );
+};
 
 /* ─── SuggestibleTextarea word-lists ─────────────────────────────── */
 
@@ -636,6 +760,23 @@ export const NCD_DIAGNOSIS_SUGGESTIONS = [
   'ถุงลมโป่งพอง อาการคงที่ (Stable COPD)',
   'เบาหวานร่วมกับความดันโลหิตสูง (DM with HT)',
   'สงสัยภาวะแทรกซ้อนทางไต — ส่งตรวจเพิ่มเติม',
+];
+
+export const NCD_VISIT_CANCEL_SUGGESTIONS = [
+  'ผู้รับบริการขอยุติการตรวจกลางคัน',
+  'บันทึกผิดคน — เปิดผิด HN',
+  'ผู้รับบริการถูกส่งต่อไปห้องฉุกเฉิน',
+  'ระบบบันทึกซ้ำ — ใช้บันทึกอีกใบแทน',
+  'ผู้รับบริการกลับก่อนพบแพทย์',
+];
+
+export const NCD_APPOINTMENT_CANCEL_SUGGESTIONS = [
+  'ผู้รับบริการขอเลื่อนนัด — จะติดต่อกลับเพื่อนัดใหม่',
+  'ผู้รับบริการย้ายไปรับบริการที่หน่วยบริการอื่น',
+  'แพทย์ผู้ดูแลติดราชการในวันดังกล่าว',
+  'บันทึกนัดหมายผิดคน / ผิดวัน',
+  'ผู้รับบริการนอนโรงพยาบาลในช่วงวันนัด',
+  'ยกเลิกตามการยกเลิกทะเบียนโรคเฉพาะ',
 ];
 
 export const NCD_ADVICE_SUGGESTIONS = [

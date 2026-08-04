@@ -8,6 +8,9 @@ import CheckboxGroup from '@/components/checkbox/CheckboxGroup';
 import { formatThaiBuddhistDate } from '@/data/registrationForm';
 import { logExport } from '@/data/consentWorkflowStore';
 import { CONSENT_DASHBOARD_REPORTS } from '@/data/consentReports';
+import { CONSENT_STATUS, CONSENT_TYPE_TONE } from '@/data/consentRecords';
+import { PHCIS_CHART } from '@/data/phcisChartPalette';
+import Icon from '@/components/icons/Icon';
 
 /* PHCIS | Consent — shared export popup (Figma 399:124481 / ด.1.1.16).
    Every "นำส่งออกรายงาน" action in the consent module opens this popup:
@@ -108,6 +111,171 @@ export const buildWorklistExportReport = (rows) => ({
   },
 });
 
+const COMPARE_EXPORT_COLUMNS = [
+  { key: 'outcome', header: 'ผลลัพธ์', width: 150, kind: 'status' },
+  { key: 'formName', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 280, kind: 'ellipsis' },
+  { key: 'formCode', header: 'รหัส', width: 100 },
+  { key: 'version', header: 'เวอร์ชัน', width: 100 },
+  { key: 'type', header: 'ประเภท', width: 120, kind: 'badge' },
+  { key: 'status', header: 'สถานะ', width: 140, kind: 'status' },
+  { key: 'reconsent', header: 'Reconsent', width: 140 },
+];
+
+const compareExportRow = (item, outcome) => ({
+  outcome,
+  formName: item.formName,
+  formCode: item.formCode,
+  version: item.version,
+  type: item.type,
+  status: (CONSENT_STATUS[item.status] || {}).label || item.status,
+  reconsent: item.reconsentSent ? 'ส่ง Reconsent แล้ว' : '-',
+});
+
+/** Build export payload for compare popup — mirrors on-screen two-column layout. */
+export const buildConsentCompareExportReport = (groups) => {
+  if (!groups?.patient) return null;
+  const { patient, consented = [], declined = [] } = groups;
+  const rows = [
+    ...consented.map((item) => compareExportRow(item, 'ให้ความยินยอม')),
+    ...declined.map((item) => compareExportRow(item, 'ไม่ให้ความยินยอม')),
+  ];
+  return {
+    key: 'consent-compare',
+    snapshot: true,
+    title: `เปรียบเทียบการให้ความยินยอม · ${patient.name} · ${patient.hn}`,
+    patient,
+    compare: { consented, declined },
+    table: {
+      columns: COMPARE_EXPORT_COLUMNS,
+      rows,
+    },
+  };
+};
+
+const COMPARE_MUTED = {
+  color: 'var(--text-content-tertiary)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-xs)',
+  lineHeight: 1.5,
+};
+const COMPARE_BODY = {
+  color: 'var(--text-content-default)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  lineHeight: 1.5,
+};
+const COMPARE_COLUMN = {
+  flex: '1 1 240px',
+  minWidth: 220,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 'var(--dim-space-300)',
+  padding: 'var(--dim-space-300)',
+  borderRadius: 'var(--dim-radius-300)',
+  background: 'var(--surface-card-200)',
+  border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+  boxSizing: 'border-box',
+};
+
+const CompareExportFormRow = ({ item }) => {
+  const statusTone = (CONSENT_STATUS[item.status] || {}).tone || 'grey';
+  const statusLabel = (CONSENT_STATUS[item.status] || {}).label || item.status;
+  return (
+    <div
+      className='flex flex-col w-full'
+      style={{
+        gap: 'var(--dim-space-150)',
+        padding: 'var(--dim-space-300)',
+        borderRadius: 'var(--dim-radius-200)',
+        background: 'var(--surface-card-100)',
+        border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #E2E4E6)',
+      }}
+    >
+      <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+        <span className='truncate' style={COMPARE_BODY}>{item.formName}</span>
+        <span style={COMPARE_MUTED}>{item.formCode} · {item.version}</span>
+      </div>
+      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+        <ColorfulBadge style={CONSENT_TYPE_TONE[item.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>
+          {item.type}
+        </ColorfulBadge>
+        <ColorfulBadge style={statusTone} size='small' hierarchy='secondary' width='hug'>
+          {statusLabel}
+        </ColorfulBadge>
+        {item.reconsentSent && (
+          <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>
+            ส่ง Reconsent แล้ว
+          </ColorfulBadge>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const CompareExportColumn = ({ title, icon, tone, items, emptyLabel }) => {
+  const accent = tone === 'teal' ? PHCIS_CHART.teal : PHCIS_CHART.pink;
+  return (
+    <div style={COMPARE_COLUMN}>
+      <div className='flex items-center justify-between' style={{ gap: 'var(--dim-space-200)' }}>
+        <div className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+          <Icon name={icon} size={18} color={accent} />
+          <span style={{ ...COMPARE_BODY, color: accent, fontWeight: 'var(--type-weight-medium)' }}>{title}</span>
+        </div>
+        <span style={COMPARE_MUTED}>{items.length} รายการ</span>
+      </div>
+      {items.length === 0 ? (
+        <span style={COMPARE_MUTED}>{emptyLabel}</span>
+      ) : (
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+          {items.map((item) => (
+            <CompareExportFormRow key={item.id} item={item} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CompareExportPreview = ({ patient, compare }) => (
+  <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+    <div
+      className='flex flex-wrap w-full'
+      style={{
+        gap: 'var(--dim-space-400)',
+        padding: 'var(--dim-space-300)',
+        borderRadius: 'var(--dim-radius-300)',
+        background: 'var(--surface-brandPrimary-quaternary)',
+        border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+      }}
+    >
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)', minWidth: 200 }}>
+        <span style={COMPARE_MUTED}>ชื่อ-นามสกุล ผู้รับบริการ</span>
+        <span style={COMPARE_BODY}>{patient.name || '—'}</span>
+      </div>
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)', minWidth: 140 }}>
+        <span style={COMPARE_MUTED}>HN (Hospital Number)</span>
+        <span style={COMPARE_BODY}>{patient.hn || '—'}</span>
+      </div>
+    </div>
+    <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+      <CompareExportColumn
+        title='ให้ความยินยอม'
+        icon='check_circle'
+        tone='teal'
+        items={compare.consented}
+        emptyLabel='ยังไม่มีแบบฟอร์มที่ให้ความยินยอม'
+      />
+      <CompareExportColumn
+        title='ไม่ให้ความยินยอม'
+        icon='cancel'
+        tone='pink'
+        items={compare.declined}
+        emptyLabel='ยังไม่มีแบบฟอร์มที่ไม่ให้ความยินยอม'
+      />
+    </div>
+  </div>
+);
+
 const RadioPill = ({ label, selected, onClick, disabled = false }) => {
   const [hover, setHover] = useState(false);
   const border = disabled
@@ -128,15 +296,16 @@ const RadioPill = ({ label, selected, onClick, disabled = false }) => {
       disabled={disabled}
       className='inline-flex items-center justify-center'
       style={{
-        minHeight: 56,
-        minWidth: 64,
-        padding: 'var(--dim-space-200) var(--dim-space-400)',
+        height: 'var(--dim-size-800, 40px)',
+        minWidth: 'var(--dim-size-800, 40px)',
+        padding: '0 var(--dim-space-400)',
         borderRadius: 'var(--dim-radius-200)',
         border: `var(--dim-stroke-100) solid ${border}`,
         background,
         color,
         fontFamily: 'var(--type-family-body)',
         fontSize: 'var(--type-size-sm)',
+        boxSizing: 'border-box',
         cursor: disabled ? 'not-allowed' : 'pointer',
         outline: 'none',
         transition: 'border-color 120ms ease, background-color 120ms ease, color 120ms ease',
@@ -197,6 +366,8 @@ export function ExportFormatPopup({
   const topicKeys = useMemo(() => topics.map((t) => t.value), [topics]);
   /* เลือกหัวข้อได้เมื่อนำออกแบบรวม (key=all) — รายงานเดี่ยว / worklist ไม่โชว์ picker */
   const showTopicPicker = !report?.key || report.key === 'all';
+  const isCompareExport = report?.key === 'consent-compare';
+  const isSnapshotExport = !!report?.snapshot;
 
   useEffect(() => {
     if (!open) return;
@@ -219,7 +390,9 @@ export function ExportFormatPopup({
     setSelectedTopics(checked ? [...topicKeys] : []);
   };
 
-  const ready = !!format && !!startDate && !!endDate && someSelected;
+  const ready = isSnapshotExport
+    ? !!format && someSelected && (report?.table?.rows?.length > 0)
+    : !!format && !!startDate && !!endDate && someSelected;
 
   const selectedReports = useMemo(() => {
     const catalog = Array.isArray(reportsCatalog) ? reportsCatalog : [];
@@ -252,14 +425,16 @@ export function ExportFormatPopup({
 
   const confirm = () => {
     if (!ready) return;
-    const topicLabels = selectedReports.map((r) => r.title).join(', ');
+    const topicLabels = isCompareExport
+      ? (report?.title || 'เปรียบเทียบการให้ความยินยอม')
+      : selectedReports.map((r) => r.title).join(', ');
     logExport({
       source: topicLabels || (report ? report.title : 'รายงาน consent'),
       format,
       topics: selectedTopics,
     });
     onClose();
-    if (onExported) onExported(format, { topics: selectedTopics });
+    if (onExported) onExported(format, { topics: selectedTopics, report });
   };
 
   const previewCols = previewReport?.table ? buildReportTableColumns(previewReport.table.columns) : [];
@@ -273,10 +448,14 @@ export function ExportFormatPopup({
       onClose={onClose}
       size='extraLarge'
       title='นำออกรายงาน'
-      subtitle='เลือกหัวข้อรายงาน ช่วงวันที่ และรูปแบบไฟล์ แล้วยืนยันนำออก (ระบบเก็บ log การส่งออก)'
+      subtitle={
+        isCompareExport
+          ? 'รายงานเปรียบเทียบความยินยอมของผู้รับบริการรายนี้ — เลือกรูปแบบไฟล์แล้วยืนยันนำออก'
+          : 'เลือกหัวข้อรายงาน ช่วงวันที่ และรูปแบบไฟล์ แล้วยืนยันนำออก (ระบบเก็บ log การส่งออก)'
+      }
       primaryAction={{ label: 'ยืนยันนำออกรายงาน', onClick: confirm, disabled: !ready }}
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
-      tertiaryAction={{ label: 'พิมพ์ (ไม่เก็บ log)', onClick: () => window.print?.() }}
+      tertiaryAction={{ label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() }}
     >
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
         {showTopicPicker && (
@@ -299,33 +478,34 @@ export function ExportFormatPopup({
           </div>
         )}
 
-        {/* เลือกวันที่ + รูปแบบไฟล์ — บรรทัดเดียวกัน อยู่เหนือตัวอย่างเอกสาร */}
         <div
           className='flex items-end flex-wrap w-full'
-          style={{ gap: 'var(--dim-space-400)' }}
+          style={{ gap: 'var(--dim-space-1200, 48px)' }}
         >
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={SECTION_LABEL}>
-              เลือกช่วงวันที่ <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
-            </span>
-            <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-              <DateInputBox
-                placeholder='วันเริ่มต้น'
-                value={startDate}
-                onChange={(d) => {
-                  setStartDate(d);
-                  if (endDate && d && endDate.getTime() < d.getTime()) setEndDate(null);
-                }}
-              />
-              <span style={{ color: 'var(--text-content-tertiary)', flexShrink: 0 }}>-</span>
-              <DateInputBox
-                placeholder='วันสิ้นสุด'
-                value={endDate}
-                onChange={setEndDate}
-                minDate={startDate || undefined}
-              />
+          {!isSnapshotExport && (
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+              <span style={SECTION_LABEL}>
+                เลือกช่วงวันที่ <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
+              </span>
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                <DateInputBox
+                  placeholder='วันเริ่มต้น'
+                  value={startDate}
+                  onChange={(d) => {
+                    setStartDate(d);
+                    if (endDate && d && endDate.getTime() < d.getTime()) setEndDate(null);
+                  }}
+                />
+                <span style={{ color: 'var(--text-content-tertiary)', flexShrink: 0 }}>-</span>
+                <DateInputBox
+                  placeholder='วันสิ้นสุด'
+                  value={endDate}
+                  onChange={setEndDate}
+                  minDate={startDate || undefined}
+                />
+              </div>
             </div>
-          </div>
+          )}
           <div className='flex flex-col shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
             <span style={SECTION_LABEL}>เลือกรูปแบบไฟล์</span>
             <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
@@ -385,10 +565,14 @@ export function ExportFormatPopup({
                 </span>
               )}
               <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', textAlign: 'center' }}>
-                ช่วงวันที่ {startDate ? formatThaiBuddhistDate(startDate) : '—'} ถึง {endDate ? formatThaiBuddhistDate(endDate) : '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)
+                {isCompareExport
+                  ? `ผู้รับบริการ ${report?.patient?.name || '—'} · HN ${report?.patient?.hn || '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)`
+                  : `ช่วงวันที่ ${startDate ? formatThaiBuddhistDate(startDate) : '—'} ถึง ${endDate ? formatThaiBuddhistDate(endDate) : '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)`}
               </span>
             </div>
-            {previewRows.length > 0 ? (
+            {isCompareExport && report?.compare ? (
+              <CompareExportPreview patient={report.patient} compare={report.compare} />
+            ) : previewRows.length > 0 ? (
               <Table columns={previewCols} rows={previewRows} rowKey={(r) => r._id} />
             ) : (
               <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', textAlign: 'center' }}>

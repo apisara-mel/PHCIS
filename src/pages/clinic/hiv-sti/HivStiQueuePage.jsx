@@ -11,7 +11,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
+import TelemedicineQueueBadge from '@/components/telemed/TelemedicineQueueBadge';
 import Icon from '@/components/icons/Icon';
 import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatientAvatar';
 import {
@@ -133,8 +133,13 @@ const renderClientType = (row) => {
   return <ColorfulBadge style={badge.style} size='small' hierarchy='secondary'>{badge.label}</ColorfulBadge>;
 };
 
+/* Telemedicine (TOR 1.10.6.7) — a real affordance, not decoration: the
+   badge counts down to the appointment and opens the consult overlay via
+   the global TelemedCallProvider, same as MentalHealthQueuePage. */
 const renderTelemedicine = (row) => (
-  row.telemedicine ? <ColorfulIconBadge style='blue' size='medium' fill='default' icon='videocam' /> : null
+  row.telemedicine
+    ? <TelemedicineQueueBadge appointmentAt={row.telemedAppointmentAt} visitId={row.hn} />
+    : null
 );
 
 const queueRowToSearchItem = (row) => ({
@@ -306,25 +311,40 @@ const HivStiQueuePage = () => {
     return <ColorfulBadge style={badge.style} size='small' hierarchy='secondary'>{badge.label}</ColorfulBadge>;
   };
 
+  /* เปิดหน้าติดตามการดูแลของรายนี้โดยตรง (navState.hn → detail state) */
+  const openFollowUp = (row) => history.push({
+    pathname: '/clinic/hiv-sti/follow-up',
+    state: { hn: row.hn },
+  });
+
   const renderActions = (row) => (
-    row.statusKey === 'done' ? (
+    <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+      {row.statusKey === 'done' ? (
+        <NeutralSubdueButton
+          size='sm'
+          leadingIcon='visibility'
+          onClick={(e) => { e.stopPropagation(); openRecord(row); }}
+        >
+          ดูบันทึก
+        </NeutralSubdueButton>
+      ) : (
+        <BrandSubdueButton
+          variant='outline'
+          size='sm'
+          leadingIcon={row.statusKey === 'draft' ? 'edit_note' : 'assignment'}
+          onClick={(e) => { e.stopPropagation(); openRecord(row); }}
+        >
+          {row.statusKey === 'draft' ? 'ทำต่อจากร่าง' : 'เปิดบันทึก'}
+        </BrandSubdueButton>
+      )}
       <NeutralSubdueButton
         size='sm'
-        leadingIcon='visibility'
-        onClick={(e) => { e.stopPropagation(); openRecord(row); }}
+        leadingIcon='monitoring'
+        onClick={(e) => { e.stopPropagation(); openFollowUp(row); }}
       >
-        ดูบันทึก (อ่านอย่างเดียว)
+        ติดตาม
       </NeutralSubdueButton>
-    ) : (
-      <BrandSubdueButton
-        variant='outline'
-        size='sm'
-        leadingIcon={row.statusKey === 'draft' ? 'edit_note' : 'assignment'}
-        onClick={(e) => { e.stopPropagation(); openRecord(row); }}
-      >
-        {row.statusKey === 'draft' ? 'ทำต่อจากร่าง' : 'เปิดบันทึก'}
-      </BrandSubdueButton>
-    )
+    </div>
   );
 
   const columns = useMemo(() => ([
@@ -338,7 +358,7 @@ const HivStiQueuePage = () => {
     { key: 'doctor',     label: 'แพทย์ผู้ตรวจ',    flex: true, minWidth: 140 },
     { key: 'wait',       label: 'รอนาน',          width: 96,  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',     label: 'สถานะ',          width: 128, render: renderStatus },
-    { key: 'actions',    label: 'การดำเนินการ',    width: 190, sortable: false, render: renderActions },
+    { key: 'actions',    label: 'การดำเนินการ',    width: 290, sortable: false, render: renderActions },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
@@ -440,6 +460,25 @@ const HivStiQueuePage = () => {
                 />
                 <FilterDropdown prefix='เวลา:' options={FILTER_OPTIONS.time} value={filters.time} onChange={setFilter('time')} />
               </OverflowFlexRow>
+              {/* Cross-page entries — ทะเบียนผู้รับบริการ (1.10.6.6) และ
+                  ติดตามการดูแล (1.10.6.8) อยู่ในโมดูลเดียวกัน */}
+              <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                <NeutralSubdueButton
+                  size='sm'
+                  leadingIcon='badge'
+                  onClick={() => history.push('/clinic/hiv-sti/registry')}
+                >
+                  ทะเบียนผู้รับบริการ
+                </NeutralSubdueButton>
+                <BrandSubdueButton
+                  variant='outline'
+                  size='sm'
+                  leadingIcon='monitoring'
+                  onClick={() => history.push('/clinic/hiv-sti/follow-up')}
+                >
+                  ติดตามการดูแล
+                </BrandSubdueButton>
+              </div>
             </div>
 
             {activeTab === 'scheduled' ? (

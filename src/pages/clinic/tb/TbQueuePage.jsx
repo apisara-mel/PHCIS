@@ -305,6 +305,9 @@ const TbQueuePage = () => {
           <BrandSubdueButton variant='outline' size='md' leadingIcon='clinical_notes' onClick={() => history.push('/clinic/tb/registry')}>
             ทะเบียนวัณโรค
           </BrandSubdueButton>
+          <BrandSubdueButton variant='outline' size='md' leadingIcon='monitoring' onClick={() => history.push('/clinic/tb/follow-up')}>
+            ติดตามการดูแล
+          </BrandSubdueButton>
           <BrandSubdueButton variant='outline' size='md' leadingIcon='person_search' onClick={() => history.push('/clinic/tb/screening')}>
             คัดกรองกลุ่มเสี่ยง
           </BrandSubdueButton>

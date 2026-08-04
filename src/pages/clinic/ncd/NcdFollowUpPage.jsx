@@ -13,7 +13,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import VitalSignTimelineCard from '@/components/card/VitalSignTimelineCard';
-import VitalsSignGraphDialog from '@/components/vitals/VitalsSignGraphDialog';
+import NcdTrendSection from '@/pages/clinic/ncd/NcdTrendSection';
 import {
   DmControlGaugeCard,
   HtControlGaugeCard,
@@ -28,6 +28,7 @@ import {
   getNcdCancellation,
   getNcdFollowUpVisits,
   getNcdVisitCount,
+  getNcdAppointment,
   computeNcdControlStats,
 } from '@/data/ncdVisits';
 
@@ -39,19 +40,22 @@ import {
      • ตารางข้อมูล — one row per visit × ตรวจร่างกาย / ทันตกรรม / Lab (FBS,
        HbA1c, LDL, eGFR) / X-ray, "—" wherever a visit never had that exam,
        paginated with the ANC snap-back contract
-     • แผนภูมิ/กราฟ — DmControlGaugeCard / HtControlGaugeCard /
+     • แผนภูมิ — DmControlGaugeCard / HtControlGaugeCard /
        DmComplicationsCard prop-overridden from their population-level
        ปีงบฯ 2569 defaults to THIS patient's period stats (title, value,
        label, sub all per-patient so the card can't be misread as a
-       dashboard stat), a PEFR SingleGaugeCard for asthma/COPD, plus the
-       visit-by-visit trend rail of VitalSignTimelineCard and the shared
-       VitalsSignGraphDialog "ดูแบบกราฟ" popup
+       dashboard stat) + a PEFR SingleGaugeCard for asthma/COPD
+     • กราฟ — NcdTrendSection: real per-metric line charts over the SAME
+       `visits` array (น้ำตาล / ความดัน / ไขมัน-ไต / ปอด / น้ำหนัก), plus the
+       visit-by-visit rail of VitalSignTimelineCard for the per-visit detail
 
    Edge cases from the spec: no data in the selected range shows placeholder
    text instead of misleading gauges/trends; a single visit renders the
-   table + gauges but withholds the trend rail; the dental / X-ray columns
-   show "—" when never examined (dental rows are static mocks — NOT imported
-   from the sibling dental module, playbook §4 file-scope rule). */
+   table + gauges but withholds the trend rail and prints the lone value
+   instead of a chart axis; a metric the patient has no results for says so
+   instead of drawing a flat zero line; the dental / X-ray columns show "—"
+   when never examined (dental rows are static mocks — NOT imported from the
+   sibling dental module, playbook §4 file-scope rule). */
 
 const breadcrumb = ['ระบบบันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
 
@@ -94,6 +98,10 @@ const isAbnormalVisit = (v) =>
   || (v.spo2 != null && v.spo2 < 95);
 
 const dash = (v, unit = '') => (v == null || v === '' ? '—' : `${v}${unit}`);
+
+/* Whole-phrase screening markers — see the dmScreening comment below. */
+const FOOT_MARKERS = ['ตรวจเท้า', 'ที่เท้า', 'ปลายเท้า', 'หลังเท้า', 'monofilament'];
+const EYE_MARKERS = ['ตรวจตา', 'ตรวจจอประสาทตา', 'จอประสาทตา', 'ตาประจำปี', 'DR'];
 
 const SectionHeader = ({ icon, children, action }) => (
   <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
@@ -171,6 +179,9 @@ const NcdFollowUpPage = () => {
   const registration = registryRows.find((r) => r.hn === hn) || null;
   const cancellation = hn ? getNcdCancellation(hn) : null;
   const profile = hn ? getPatientByHN(hn) : null;
+  /* นัดหมายครั้งถัดไป booked from the record (TOR 1.10.2.5 "แสดง" outside the
+     record itself) — cancelled bookings still show, flagged, never hidden. */
+  const nextAppt = hn ? getNcdAppointment(hn) : null;
 
   /* ช่วงเวลา — quick ranges map to [from, to]; "ทั้งหมด" leaves both open;
      กำหนดเอง reads the DatePickerRange pair (either side may stay open). */
@@ -195,12 +206,17 @@ const NcdFollowUpPage = () => {
   const hasResp = diseaseGroups.includes('asthma') || diseaseGroups.includes('copd');
 
   /* Complication-screening coverage (DM) — share of the period's visits
-     where the foot / retina exam was documented. Static Thai exam notes in
-     the mock dataset carry the เท้า / ตา keywords. */
+     where the foot / retina exam was documented.
+
+     Matched on WHOLE clinical phrases, never on the bare syllables. 'ตา' is a
+     two-character Thai substring that also appears inside ordinary words
+     ('ตามนัด', 'ตาราง'), so `includes('ตา')` counted "ปรึกษาทางไกล — ทบทวน…
+     ตามนัด" as an eye screening and overstated the coverage gauge. */
   const dmScreening = useMemo(() => {
     if (!visits.length) return { foot: 0, eye: 0 };
-    const foot = visits.filter((v) => (v.exam || '').includes('เท้า')).length;
-    const eye = visits.filter((v) => (v.exam || '').includes('ตา')).length;
+    const matches = (text, markers) => markers.some((m) => (text || '').includes(m));
+    const foot = visits.filter((v) => matches(v.exam, FOOT_MARKERS)).length;
+    const eye = visits.filter((v) => matches(v.exam, EYE_MARKERS)).length;
     return {
       foot: Math.round((foot / visits.length) * 100),
       eye: Math.round((eye / visits.length) * 100),
@@ -317,6 +333,15 @@ const NcdFollowUpPage = () => {
     { key: 'dental', label: 'การตรวจทันตกรรม', flex: true, minWidth: 150, render: (v) => <span className='truncate block'>{dash(v.dental)}</span> },
     { key: 'xray',   label: 'X-ray',           flex: true, minWidth: 150, render: (v) => <span className='truncate block'>{dash(v.xray)}</span> },
     {
+      key: 'attachments', label: 'เอกสารแนบ', width: 104, sortable: false,
+      render: (v) => ((v.attachments || []).length === 0 ? '—' : (
+        <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)' }}>
+          <Icon name='attach_file' size={14} />
+          {v.attachments.length} ไฟล์
+        </span>
+      )),
+    },
+    {
       key: 'detail', label: '', width: 120, sortable: false,
       render: (v) => (
         <NeutralSubdueButton size='sm' leadingIcon='visibility' onClick={(e) => { e.stopPropagation(); setDetailVisit(v); }}>
@@ -389,6 +414,34 @@ const NcdFollowUpPage = () => {
               <span><strong>การตรวจทันตกรรม:</strong> {detailVisit.dental || '— ไม่มีการตรวจทันตกรรมในวิสิตนี้'}</span>
               <span><strong>X-ray:</strong> {detailVisit.xray || '— ไม่มีการตรวจ X-ray ในวิสิตนี้'}</span>
               <span><strong>บันทึกแพทย์:</strong> {dash(detailVisit.note)}</span>
+            </div>
+
+            {/* เอกสารแนบระหว่างการรักษา (TOR 1.10.2.4) — metadata carried by
+                the visit record; the mock never retains the file itself, so
+                this is a readable index, not a document viewer. */}
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+              <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>
+                เอกสารแนบระหว่างการรักษา
+              </span>
+              {(detailVisit.attachments || []).length === 0 ? (
+                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>
+                  — ไม่มีเอกสารแนบในวิสิตนี้
+                </span>
+              ) : (
+                detailVisit.attachments.map((att) => (
+                  <span
+                    key={att.id}
+                    className='inline-flex items-center'
+                    style={{ gap: 'var(--dim-space-200)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}
+                  >
+                    <Icon name={att.type === 'pdf' ? 'picture_as_pdf' : 'image'} size={16} />
+                    {att.name}
+                    <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                      {att.sizeLabel} · แนบเมื่อ {formatNcdDate(att.addedAt)}
+                    </span>
+                  </span>
+                ))
+              )}
             </div>
             {isAbnormalVisit(detailVisit) && (
               <ColorfulBadge style='red' size='small' hierarchy='secondary' width='hug'>
@@ -510,6 +563,24 @@ const NcdFollowUpPage = () => {
                   เปิดบันทึกการตรวจรักษา
                 </BrandSubdueButton>
               </div>
+
+              {nextAppt && (
+                <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                  <Icon name={nextAppt.status === 'cancelled' ? 'block' : 'event_available'} size={16} />
+                  <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+                    นัดหมายครั้งถัดไป {formatNcdDate(nextAppt.date)}
+                    {nextAppt.time ? ` · ${nextAppt.time} น.` : ''}
+                    {nextAppt.mode === 'telemedicine' ? ' · Telemedicine' : ''}
+                  </span>
+                  {nextAppt.status === 'cancelled'
+                    ? <ColorfulBadge style='red' size='small' hierarchy='secondary'>ยกเลิกนัดหมายแล้ว</ColorfulBadge>
+                    : <ColorfulBadge style='green' size='small' hierarchy='secondary'>ยืนยันแล้ว</ColorfulBadge>}
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                    บันทึกโดย {nextAppt.createdBy}
+                    {nextAppt.status === 'cancelled' && nextAppt.cancelReason ? ` · เหตุผลที่ยกเลิก: ${nextAppt.cancelReason}` : ''}
+                  </span>
+                </div>
+              )}
 
               {!registration && (
                 <div
@@ -644,13 +715,27 @@ const NcdFollowUpPage = () => {
                 )}
               </div>
 
+              {/* กราฟต่อเนื่องในช่วงเวลา (TOR 1.10.2.8 "กราฟ") — driven by the
+                  SAME `visits` array as the table and the gauges, so the three
+                  views of the period can never disagree. (This replaced the
+                  shared VitalsSignGraphDialog, which takes no data props and
+                  rendered a static demo series on a per-patient page.) */}
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                <SectionHeader icon='monitoring'>
+                  แนวโน้มต่อเนื่องในช่วงเวลา (กราฟผลตรวจรายครั้ง)
+                </SectionHeader>
+                <NcdTrendSection
+                  visits={visits}
+                  diseaseGroups={diseaseGroups}
+                  selectedVisitIdx={selectedVisitIdx}
+                  onSelectVisit={(idx, visit) => { setSelectedVisitIdx(idx); setDetailVisit(visit); }}
+                />
+              </div>
+
               {/* เส้นแนวโน้ม — visit-by-visit timeline rail */}
               <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-                <SectionHeader
-                  icon='monitoring'
-                  action={<VitalsSignGraphDialog title='กราฟแนวโน้มสัญญาณชีพ' subtitle={`${profile?.fullName || registration?.name || ''} · HN ${hn}`} />}
-                >
-                  แนวโน้มตามครั้งที่รับบริการ
+                <SectionHeader icon='clipboard'>
+                  แนวโน้มตามครั้งที่รับบริการ (สรุปรายวิสิต)
                 </SectionHeader>
                 {visits.length === 0 ? (
                   <EmptyRangeCard>ยังไม่มีข้อมูลในช่วงเวลาที่เลือก</EmptyRangeCard>

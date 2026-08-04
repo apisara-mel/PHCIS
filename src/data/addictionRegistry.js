@@ -121,6 +121,23 @@ const REGISTRY_SEED = [
     note: 'ส่งตัวจากศาลเยาวชนฯ เข้าบำบัดแบบสมัครใจ',
     recordedBy: 'นพ.ปกรณ์ จิตอาสา', recordedAt: '1 สิงหาคม 2569 10:30',
   },
+  {
+    id: 'reg-009', hn: '67-00020', name: 'อนุชา สายน้ำผึ้ง', age: 24, gender: 'ชาย',
+    mainSubstance: 'กัญชา', secondarySubstance: 'ยาบ้า (Methamphetamine)', useMethod: 'สูบ',
+    program: 'matrix', registeredDate: '2025-12-02', screeningScore: 8, severity: 'medium',
+    status: 'dischargedFollow', therapist: 'พว.กรรณิการ์ แสงอรุณ',
+    dischargedDate: '2026-05-30', dischargeReason: 'ครบโปรแกรมการบำบัด',
+    note: 'ครบ 16 ครั้ง จำหน่ายเพื่อติดตามผล — ยังไม่มีการติดตามหลังจำหน่าย',
+    recordedBy: 'พว.กรรณิการ์ แสงอรุณ', recordedAt: '2 ธันวาคม 2568 09:15',
+  },
+  {
+    id: 'reg-010', hn: '67-00018', name: 'สมบัติ เจริญสุข', age: 55, gender: 'ชาย',
+    mainSubstance: 'เฮโรอีน', secondarySubstance: 'ยานอนหลับ/ยากล่อมประสาท', useMethod: 'ฉีด',
+    program: 'methadone', registeredDate: '2024-09-16', screeningScore: 19, severity: 'high',
+    status: 'treating', therapist: 'นพ.ปกรณ์ จิตอาสา',
+    note: 'IDU Care ต่อเนื่อง 58 ครั้ง — เมทาโดน 80 mg รายวัน คุมอาการถอนได้ดี',
+    recordedBy: 'นพ.ปกรณ์ จิตอาสา', recordedAt: '16 กันยายน 2567 08:50',
+  },
 ];
 
 const REGISTRY_OVERLAY_KEY = 'mih:addiction:registry-overlay';
@@ -221,6 +238,12 @@ const FOLLOWUP_SEED = {
     { no: 1, date: '2026-07-04', method: 'center', result: 'relapsed',  by: 'พว.กรรณิการ์ แสงอรุณ', note: 'ยอมรับใช้ซ้ำ 1 ครั้ง ให้เทคนิคจัดการความอยาก' },
     { no: 2, date: '2026-07-18', method: 'center', result: 'abstinent', by: 'พว.กรรณิการ์ แสงอรุณ', note: 'ปัสสาวะไม่พบสาร 2 สัปดาห์ติดต่อกัน' },
   ],
+  '67-00010': [
+    { no: 1, date: '2026-06-15', method: 'center',    result: 'abstinent', by: 'นพ.ปกรณ์ จิตอาสา', note: 'รับเมทาโดนต่อเนื่อง ไม่มีอาการถอน' },
+    { no: 2, date: '2026-07-15', method: 'center',    result: 'abstinent', by: 'นพ.ปกรณ์ จิตอาสา', note: 'สุ่มตรวจปัสสาวะไม่พบ Opiates · ตรวจ LFT ตาม สยส.2' },
+    { no: 3, date: '2026-07-29', method: 'phone',     result: 'missed',    by: 'อสส.ประยูร มั่นคง', note: 'โทรไม่ติด 2 ครั้ง ประสาน อสส. ลงเยี่ยมบ้าน' },
+    { no: 4, date: '2026-08-01', method: 'homeVisit', result: 'abstinent', by: 'อสส.ประยูร มั่นคง', note: 'พบที่บ้าน ยังรับยาตามนัด ไม่พบอุปกรณ์ฉีด' },
+  ],
 };
 
 const FOLLOWUP_OVERLAY_KEY = 'mih:addiction:followups';
@@ -318,20 +341,54 @@ export const ADDICTION_MED_HISTORY = {
   ],
   '67-00017': [
     { date: '2026-06-16', item: 'หมากฝรั่งนิโคติน', dose: 'เคี้ยวเมื่อมีอาการอยาก', qty: '30 ชิ้น' },
+    { date: '2026-07-14', item: 'หมากฝรั่งนิโคติน', dose: 'เคี้ยวเมื่อมีอาการอยาก', qty: '30 ชิ้น' },
+  ],
+  '67-00013': [
+    { date: '2026-07-24', item: 'วิตามินบีรวม', dose: '1x2 หลังอาหาร', qty: '60 เม็ด' },
+    { date: '2026-07-24', item: 'ไดอาซีแพม (ลดอาการถอน)', dose: '2 mg ก่อนนอน 5 วัน', qty: '5 เม็ด' },
+  ],
+  '67-00014': [
+    { date: '2026-06-20', item: 'วิตามินบีรวม', dose: '1x2 หลังอาหาร', qty: '60 เม็ด' },
+    { date: '2026-07-25', item: 'วิตามินบีรวม', dose: '1x2 หลังอาหาร', qty: '60 เม็ด' },
+  ],
+  '67-00018': [
+    { date: '2026-08-03', item: 'เมทาโดน (Methadone) ชนิดน้ำ', dose: '80 mg รายวัน (สยส.3)', qty: '1 ครั้ง' },
+    { date: '2026-08-02', item: 'เมทาโดน (Methadone) ชนิดน้ำ', dose: '80 mg รายวัน (สยส.3)', qty: '1 ครั้ง' },
+    { date: '2026-07-20', item: 'วิตามินบีรวม', dose: '1x2 หลังอาหาร', qty: '60 เม็ด' },
+  ],
+  '67-00019': [
+    { date: '2026-05-20', item: 'วิตามินบีรวม', dose: '1x3 หลังอาหาร', qty: '90 เม็ด' },
+  ],
+  '67-00020': [
+    { date: '2026-05-16', item: 'วิตามินบีรวม', dose: '1x2 หลังอาหาร', qty: '30 เม็ด' },
   ],
 };
 
 /** ผล Lab ในช่วงเวลา — urine screens ฯลฯ (manual สยส.2). */
 export const ADDICTION_LAB_HISTORY = {
   '67-00009': [
+    { date: '2026-06-27', test: 'Urine Methamphetamine', result: 'พบสาร (Positive)', abnormal: true },
     { date: '2026-07-04', test: 'Urine Methamphetamine', result: 'พบสาร (Positive)', abnormal: true },
     { date: '2026-07-11', test: 'Urine Methamphetamine', result: 'ไม่พบสาร (Negative)', abnormal: false },
     { date: '2026-07-18', test: 'Urine Methamphetamine', result: 'ไม่พบสาร (Negative)', abnormal: false },
+    { date: '2026-07-25', test: 'Urine Methamphetamine', result: 'ไม่พบสาร (Negative)', abnormal: false },
+    { date: '2026-07-25', test: 'LFT (การทำงานของตับ)', result: 'ปกติ', abnormal: false },
   ],
   '67-00010': [
-    { date: '2026-07-31', test: 'Urine Opiates', result: 'ไม่พบสาร (Negative)', abnormal: false },
+    { date: '2026-06-15', test: 'Urine Opiates', result: 'พบสาร (Positive)', abnormal: true },
     { date: '2026-07-15', test: 'LFT (การทำงานของตับ)', result: 'AST 42 / ALT 48 — สูงเล็กน้อย', abnormal: true },
     { date: '2026-07-15', test: 'Anti-HIV (สมัครใจ)', result: 'Non-reactive', abnormal: false },
+    { date: '2026-07-15', test: 'Urine Opiates', result: 'ไม่พบสาร (Negative)', abnormal: false },
+    { date: '2026-07-31', test: 'Urine Opiates', result: 'ไม่พบสาร (Negative)', abnormal: false },
+  ],
+  '67-00014': [
+    { date: '2026-06-20', test: 'Urine Methamphetamine', result: 'ไม่พบสาร (Negative)', abnormal: false },
+    { date: '2026-07-04', test: 'Urine Methamphetamine', result: 'ไม่พบสาร (Negative)', abnormal: false },
+    { date: '2026-07-25', test: 'Urine Methamphetamine', result: 'ไม่พบสาร (Negative)', abnormal: false },
+  ],
+  '67-00018': [
+    { date: '2026-07-20', test: 'Urine Opiates', result: 'ไม่พบสาร (Negative)', abnormal: false },
+    { date: '2026-07-20', test: 'ไวรัสตับอักเสบบี (HBsAg)', result: 'Positive — ส่งต่อคลินิกโรคตับ', abnormal: true },
   ],
   '67-00019': [
     { date: '2026-05-20', test: 'LFT (การทำงานของตับ)', result: 'ปกติ', abnormal: false },
@@ -345,6 +402,12 @@ export const ADDICTION_XRAY_HISTORY = {
   ],
   '67-00009': [
     { date: '2026-06-27', exam: 'Chest X-Ray (แรกรับ)', result: 'ปกติ' },
+  ],
+  '67-00018': [
+    { date: '2026-07-20', exam: 'Chest X-Ray (ประจำปีตาม สยส.2)', result: 'พบฝ้าที่ปอดกลีบบนขวา — ส่งตรวจเสมหะหาวัณโรค' },
+  ],
+  '67-00014': [
+    { date: '2026-05-08', exam: 'Chest X-Ray (แรกรับ)', result: 'ไม่พบความผิดปกติ' },
   ],
 };
 
@@ -404,6 +467,38 @@ const COMMUNITY_SEED = [
     houseLocation: null,
     note: 'เยาวชนส่งตัวจากศาล — รอปักหมุดตำแหน่งบ้านหลังเยี่ยมครั้งแรก',
     recordedBy: 'นพ.ปกรณ์ จิตอาสา', recordedAt: '1 สิงหาคม 2569 11:00',
+  },
+  {
+    id: 'hr-002', hn: '67-00018', patientName: 'สมบัติ เจริญสุข',
+    community: 'ชุมชนซอยวัดใหม่ยายนุ้ย', district: 'เขตบางกอกใหญ่',
+    careType: 'hr', responsible: 'อสส.ประยูร มั่นคง', status: 'active',
+    houseLocation: { lat: 13.7535, lng: 100.4801, pinSaved: true },
+    note: 'ผล HBsAg บวก — ให้ความรู้เรื่องการป้องกันการแพร่เชื้อ แจกอุปกรณ์สะอาด',
+    recordedBy: 'นพ.ปกรณ์ จิตอาสา', recordedAt: '22 กรกฎาคม 2569 15:10',
+  },
+  {
+    id: 'cbtx-003', hn: '67-00014', patientName: 'อำนาจ รักษาดี',
+    community: 'ชุมชนคลองบางหลวง', district: 'เขตภาษีเจริญ',
+    careType: 'cbtx', responsible: 'อสส.วันเพ็ญ ใจบุญ', status: 'monitoring',
+    houseLocation: { lat: 13.7367, lng: 100.4694, pinSaved: true },
+    note: 'ครบ 12/16 ครั้ง ชุมชนตั้งกลุ่มเพื่อนช่วยเพื่อน ติดตามเดือนละครั้ง',
+    recordedBy: 'พว.กรรณิการ์ แสงอรุณ', recordedAt: '18 กรกฎาคม 2569 13:40',
+  },
+  {
+    id: 'cbtx-004', hn: '67-00020', patientName: 'อนุชา สายน้ำผึ้ง',
+    community: 'ชุมชนสมเด็จย่า', district: 'เขตคลองสาน',
+    careType: 'cbtx', responsible: 'อสส.สมหญิง แข็งขัน', status: 'closed',
+    houseLocation: { lat: 13.7301, lng: 100.5102, pinSaved: true },
+    note: 'ยุติการดูแลเมื่อผู้รับบริการย้ายไปทำงานต่างจังหวัด — ส่งต่อ รพ.สต. ปลายทาง',
+    recordedBy: 'พว.กรรณิการ์ แสงอรุณ', recordedAt: '30 พฤษภาคม 2569 16:05',
+  },
+  {
+    id: 'hr-003', hn: '67-00013', patientName: 'มะลิวัลย์ พึ่งตนเอง',
+    community: 'ชุมชนตรอกข้าวเม่า', district: 'เขตบางกอกน้อย',
+    careType: 'hr', responsible: 'อสส.สมหญิง แข็งขัน', status: 'active',
+    houseLocation: null,
+    note: 'ดื่มสุราทุกวัน ให้ความรู้ลดอันตรายจากการดื่ม — นัดเยี่ยมบ้านเพื่อปักหมุดตำแหน่ง',
+    recordedBy: 'พว.สุภาพร ใจดี', recordedAt: '28 กรกฎาคม 2569 09:35',
   },
 ];
 

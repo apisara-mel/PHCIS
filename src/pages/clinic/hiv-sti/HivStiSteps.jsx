@@ -9,6 +9,7 @@ import FileUploadField from '@/components/forms/FileUploadField';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import { useTelemedCall } from '@/components/telemed/TelemedCallProvider';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
 import AddDiagnosisPopup from '@/components/popup/AddDiagnosisPopup';
@@ -638,9 +639,12 @@ const HIV_STI_XRAY_ORDERS = [
   'Chest X-ray (PA) — คัดกรองวัณโรค',
 ];
 
-export const HivStiStep5Orders = ({ form, setForm, readOnly }) => {
+export const HivStiStep5Orders = ({ form, setForm, clinicPatient, readOnly }) => {
   const [medOpen, setMedOpen] = useState(false);
   const [removeMed, setRemoveMed] = useState(null);
+  const telemed = useTelemedCall();
+  /* ปรึกษาทางไกลแสดงเฉพาะเมื่อวิสิตนี้ถูกทำเครื่องหมาย telemedicine จากคิว */
+  const isTelemedVisit = !!clinicPatient?.telemedicine;
 
   const toggleArray = (key, value) => setForm((f) => {
     const current = f[key] || [];
@@ -828,6 +832,69 @@ export const HivStiStep5Orders = ({ form, setForm, readOnly }) => {
           </>
         )}
       </div>
+
+      {/* ── ปรึกษาทางไกล (Telemedicine) — ข้อ Telemedicine ของ 1.10.6.7 ──
+          แสดงเฉพาะวิสิตที่เป็นการปรึกษาทางไกล ใช้ overlay กลางจาก
+          TelemedCallProvider (Routes.jsx) ไม่สร้างกลไกใหม่ */}
+      {isTelemedVisit && (
+        <div className='flex flex-col gap-3'>
+          <TopicHeader icon='videocam'>ปรึกษาทางไกล (Telemedicine)</TopicHeader>
+          <div className='flex items-center gap-3 flex-wrap'>
+            {form.telemedStatus === 'completed' ? (
+              <ColorfulBadge style='green' size='small' hierarchy='secondary'>ปรึกษาทางไกลเสร็จสิ้นแล้ว</ColorfulBadge>
+            ) : form.telemedStatus === 'started' ? (
+              <>
+                <ColorfulBadge style='blue' size='small' hierarchy='secondary'>กำลังปรึกษาทางไกล</ColorfulBadge>
+                <BrandSubdueButton
+                  variant='outline'
+                  size='md'
+                  leadingIcon='videocam'
+                  disabled={readOnly}
+                  onClick={() => telemed.start()}
+                >
+                  กลับเข้าห้องปรึกษา
+                </BrandSubdueButton>
+                <NeutralSubdueButton
+                  size='md'
+                  leadingIcon='call_end'
+                  onClick={() => { if (!readOnly) setForm((f) => ({ ...f, telemedStatus: 'completed' })); }}
+                >
+                  บันทึกจบการปรึกษา
+                </NeutralSubdueButton>
+              </>
+            ) : (
+              <>
+                <ColorfulBadge style='grey' size='small' hierarchy='secondary'>ยังไม่เริ่มการปรึกษา</ColorfulBadge>
+                <BrandSubdueButton
+                  variant='fill'
+                  size='md'
+                  leadingIcon='videocam'
+                  disabled={readOnly}
+                  onClick={() => {
+                    telemed.start();
+                    setForm((f) => ({ ...f, telemedStatus: 'started' }));
+                  }}
+                >
+                  เข้าห้องปรึกษาทางไกล
+                </BrandSubdueButton>
+              </>
+            )}
+          </div>
+          <SuggestibleTextarea
+            voice
+            value={form.telemedNote}
+            onChange={(e) => setForm((f) => ({ ...f, telemedNote: e.target.value }))}
+            suggestions={HIV_STI_TELEMED_NOTE_SUGGESTIONS}
+            minChars={3}
+            placeholder='สรุปการปรึกษาทางไกล (ไม่ระบุผลการตรวจในช่องทางที่ผู้อื่นเห็นได้)'
+            disabled={readOnly}
+          />
+          <NoticeBand tone='info' icon='shield_person'>
+            การปรึกษาทางไกลของคลินิกนี้เป็นข้อมูลลับ §1.4.2 — ห้ามบันทึกภาพหน้าจอ
+            และให้ยืนยันตัวตนผู้รับบริการก่อนเปิดเผยผลการตรวจทุกครั้ง
+          </NoticeBand>
+        </div>
+      )}
     </StepCard>
   );
 };
@@ -987,9 +1054,13 @@ export const HivStiStep6Education = ({ form, setForm, readOnly }) => {
 
 /* ── Step 7 — นัดหมาย (ใบนัดใช้ข้อความกลางเสมอ · §1.4.2) ──────────── */
 
-export const HivStiStep7Appointment = ({ form, setForm, readOnly }) => {
+export const HivStiStep7Appointment = ({ form, setForm, readOnly, onConfirmRecord }) => {
   const [error, setError] = useState('');
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [confirmRecordOpen, setConfirmRecordOpen] = useState(false);
   const appt = form.appointment || { type: '', date: '', note: '' };
+  const booked = !!appt.confirmed;
+  const locked = readOnly || booked;
   const setAppt = (key) => (value) => setForm((f) => ({
     ...f,
     appointment: { ...(f.appointment || {}), [key]: value },
@@ -998,15 +1069,78 @@ export const HivStiStep7Appointment = ({ form, setForm, readOnly }) => {
   const isPast = !!appt.date && appt.date < todayIsoDate();
   const typeLabel = HIV_STI_APPOINTMENT_TYPES.find((t) => t.value === appt.type)?.label || '';
 
-  const validate = () => {
+  /* บันทึกนัดหมาย — validate ก่อน แล้วจึงยืนยันเป็นนัดจริง (stamp ผู้บันทึก) */
+  const saveAppointment = () => {
     if (!appt.type) { setError('ต้องเลือกประเภทการนัดหมายก่อน'); return; }
     if (!appt.date) { setError('ต้องเลือกวันนัดหมายก่อน'); return; }
     if (isPast) { setError('ไม่สามารถนัดหมายย้อนหลังได้ — โปรดเลือกวันที่ตั้งแต่วันนี้เป็นต้นไป'); return; }
+    setError('');
+    setForm((f) => ({
+      ...f,
+      appointment: {
+        ...(f.appointment || {}),
+        confirmed: true,
+        confirmedAt: hivStiNowStamp(),
+        confirmedBy: HIV_STI_CURRENT_STAFF.name,
+      },
+      appointmentCancelled: null,
+    }));
+  };
+
+  /* แก้ไขนัดหมาย — ปลดล็อกกลับเข้าโหมดกรอก (ยังคงค่าที่บันทึกไว้) */
+  const editAppointment = () => {
+    setError('');
+    setForm((f) => ({ ...f, appointment: { ...(f.appointment || {}), confirmed: false } }));
+  };
+
+  /* ยกเลิกนัดหมาย — ล้างนัดแล้วเก็บ stamp ผู้ยกเลิก + เวลาไว้ในบันทึก */
+  const confirmCancelAppointment = () => {
+    setForm((f) => ({
+      ...f,
+      appointmentCancelled: {
+        type: f.appointment?.type || '',
+        date: f.appointment?.date || '',
+        at: hivStiNowStamp(),
+        by: HIV_STI_CURRENT_STAFF.name,
+      },
+      appointment: { type: '', date: '', note: '', confirmed: false, confirmedAt: '', confirmedBy: '' },
+    }));
+    setCancelOpen(false);
     setError('');
   };
 
   return (
     <StepCard>
+      <Popup
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        title='ยกเลิกนัดหมาย'
+        subtitle={appt.date ? `${typeLabel || 'นัดหมาย'} · ${formatHivStiDate(appt.date)}` : ''}
+        tertiaryAction={{ label: 'ไม่ยกเลิก', onClick: () => setCancelOpen(false) }}
+        primaryAction={{ label: 'ยืนยันยกเลิกนัด', onClick: confirmCancelAppointment, tone: 'danger' }}
+      >
+        <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+          ระบบจะลบนัดหมายนี้ออกจากบันทึกและเก็บชื่อผู้ยกเลิกกับเวลาไว้ในระบบ — บันทึกนัดใหม่ได้ทันที
+        </span>
+      </Popup>
+
+      <Popup
+        open={confirmRecordOpen}
+        onClose={() => setConfirmRecordOpen(false)}
+        title='ยืนยันบันทึกการรักษา'
+        subtitle='บันทึกการมารับบริการครั้งนี้เข้าประวัติผู้รับบริการ'
+        tertiaryAction={{ label: 'กลับไปตรวจทาน', onClick: () => setConfirmRecordOpen(false) }}
+        primaryAction={{
+          label: 'ยืนยันบันทึก',
+          onClick: () => { setConfirmRecordOpen(false); onConfirmRecord && onConfirmRecord(); },
+        }}
+      >
+        <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+          ระบบจะบันทึกการรักษาครั้งนี้ต่อท้ายประวัติผู้รับบริการ ล้างร่างที่ค้างไว้
+          และประทับชื่อผู้บันทึกกับเวลา จากนั้นกลับไปยังหน้าคิว
+        </span>
+      </Popup>
+
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='calendar'>นัดหมายครั้งถัดไป</TopicHeader>
         <div className='flex items-start gap-4 w-full flex-wrap'>
@@ -1017,7 +1151,7 @@ export const HivStiStep7Appointment = ({ form, setForm, readOnly }) => {
               onChange={(v) => { setAppt('type')(v); setError(''); }}
               options={HIV_STI_APPOINTMENT_TYPES}
               placeholder='เลือกประเภทการนัดหมาย'
-              disabled={readOnly}
+              disabled={locked}
             />
           </Field>
           <Field label='วันนัดหมาย' required hint='เลือกวันที่ตั้งแต่วันนี้เป็นต้นไป'>
@@ -1026,7 +1160,7 @@ export const HivStiStep7Appointment = ({ form, setForm, readOnly }) => {
               onChange={(d) => { setAppt('date')(isoFromDate(d)); setError(''); }}
               placeholder='เลือกวันที่'
               showLabel={false}
-              disabled={readOnly}
+              disabled={locked}
             />
           </Field>
         </div>
@@ -1054,16 +1188,38 @@ export const HivStiStep7Appointment = ({ form, setForm, readOnly }) => {
           suggestions={HIV_STI_APPOINTMENT_NOTE_SUGGESTIONS}
           minChars={3}
           placeholder='คำแนะนำที่จะพิมพ์ลงใบนัด (ใช้ข้อความกลาง ไม่ระบุผลการตรวจ)'
-          disabled={readOnly}
+          disabled={locked}
         />
 
         {error && <NoticeBand tone='danger' icon='error'>{error}</NoticeBand>}
+
+        {/* แถบปฏิบัติการนัดหมาย — ครบ 4 กริยาตาม TOR 1.10.6.5
+            (แสดง = สรุปนัดด้านล่าง · บันทึก · แก้ไข · ยกเลิก) */}
         {!readOnly && (
           <div className='flex items-center gap-3 flex-wrap'>
-            <BrandSubdueButton variant='outline' size='md' leadingIcon='event_available' onClick={validate}>
-              ตรวจสอบนัดหมาย
-            </BrandSubdueButton>
+            {!booked ? (
+              <BrandSubdueButton variant='fill' size='md' leadingIcon='event_available' onClick={saveAppointment}>
+                บันทึกนัดหมาย
+              </BrandSubdueButton>
+            ) : (
+              <>
+                <BrandSubdueButton variant='outline' size='md' leadingIcon='edit_calendar' onClick={editAppointment}>
+                  แก้ไขนัดหมาย
+                </BrandSubdueButton>
+                <NeutralSubdueButton size='md' leadingIcon='event_busy' onClick={() => setCancelOpen(true)}>
+                  ยกเลิกนัดหมาย
+                </NeutralSubdueButton>
+              </>
+            )}
           </div>
+        )}
+
+        {form.appointmentCancelled && (
+          <NoticeBand tone='warning' icon='event_busy'>
+            {`ยกเลิกนัด ${HIV_STI_APPOINTMENT_TYPES.find((t) => t.value === form.appointmentCancelled.type)?.label || 'นัดหมาย'}`
+              + ` วันที่ ${formatHivStiDate(form.appointmentCancelled.date)}`
+              + ` โดย ${form.appointmentCancelled.by} · ${form.appointmentCancelled.at}`}
+          </NoticeBand>
         )}
       </div>
 
@@ -1071,11 +1227,21 @@ export const HivStiStep7Appointment = ({ form, setForm, readOnly }) => {
         <div className='flex flex-col gap-3'>
           <TopicHeader icon='event_available'>สรุปนัดหมาย</TopicHeader>
           <InfoPanel>
-            <span style={{ fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-default, #363B3F)' }}>
-              {typeLabel || 'นัดหมาย'} · วันที่ {formatHivStiDate(appt.date)}
-            </span>
+            <div className='flex items-center gap-3 flex-wrap'>
+              <span style={{ fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-default, #363B3F)' }}>
+                {typeLabel || 'นัดหมาย'} · วันที่ {formatHivStiDate(appt.date)}
+              </span>
+              <ColorfulBadge style={booked ? 'green' : 'yellow'} size='small' hierarchy='secondary'>
+                {booked ? 'บันทึกนัดแล้ว' : 'ยังไม่บันทึกนัด'}
+              </ColorfulBadge>
+            </div>
             {appt.note && (
               <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>{appt.note}</span>
+            )}
+            {booked && appt.confirmedAt && (
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                {`บันทึกโดย ${appt.confirmedBy} · ${appt.confirmedAt}`}
+              </span>
             )}
             <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
               ใบนัดที่พิมพ์จะระบุเพียง "คลินิกเวชกรรม" ตามข้อกำหนดข้อมูลลับ §1.4.2 — ไม่ระบุชื่อคลินิกหรือผลการตรวจ
@@ -1101,6 +1267,44 @@ export const HivStiStep7Appointment = ({ form, setForm, readOnly }) => {
           </NoticeBand>
         )}
       </div>
+
+      {/* ── ปิดงาน — ยืนยันบันทึกการรักษา (TOR 1.10.6.7) ──────────────
+          เดิม "จบการบันทึก" ของ TreatmentFormShell แค่ push กลับหน้าคิว
+          ทำให้บันทึกไม่ลงประวัติ ร่างค้าง และ dirty-guard เด้ง — ปุ่มนี้
+          เป็นทางปิดงานจริงในขอบเขตโมดูล (ไม่แก้ template กลาง) */}
+      {!readOnly && (
+        <div className='flex flex-col gap-3'>
+          <TopicHeader icon='task_alt'>ปิดการบันทึกการรักษา</TopicHeader>
+          {form.recordConfirmed ? (
+            <InfoPanel>
+              <span style={{ fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-default, #363B3F)' }}>
+                บันทึกการรักษาครั้งนี้เรียบร้อยแล้ว
+              </span>
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                {`บันทึกโดย ${form.recordConfirmedBy || HIV_STI_CURRENT_STAFF.name} · ${form.recordConfirmedAt}`}
+              </span>
+            </InfoPanel>
+          ) : (
+            <>
+              {!appt.confirmed && (
+                <NoticeBand tone='warning' icon='warning'>
+                  ยังไม่ได้บันทึกนัดหมายครั้งถัดไป — ปิดบันทึกได้ แต่ผู้รับบริการจะไม่เข้าสู่ระบบติดตามการดูแล
+                </NoticeBand>
+              )}
+              <div className='flex items-center gap-3 flex-wrap'>
+                <BrandSubdueButton
+                  variant='fill'
+                  size='md'
+                  leadingIcon='task_alt'
+                  onClick={() => setConfirmRecordOpen(true)}
+                >
+                  ยืนยันบันทึกการรักษา
+                </BrandSubdueButton>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </StepCard>
   );
 };

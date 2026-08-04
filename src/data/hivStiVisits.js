@@ -36,6 +36,25 @@ export const formatHivStiDate = (v) => {
   }).format(d);
 };
 
+/** ISO (YYYY-MM-DD) n วันจากวันนี้ — ใช้กับ "นัดครั้งถัดไป" และวันเริ่มยา PEP
+    เพื่อให้สถานะ มาตามนัด / ครบกำหนดวันนี้ / ผิดนัด และตัวนับ 28 วัน
+    ยังอ่านได้จริงไม่ว่าจะเปิดระบบวันไหน (ข้อมูลย้อนหลังยังคงเป็นวันที่ตายตัว). */
+export const hivStiIsoOffsetDays = (n = 0) => {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+export const hivStiTodayIso = () => hivStiIsoOffsetDays(0);
+
+/** ISO datetime ของเวลานัด telemedicine วันนี้ (ใช้กับ TelemedicineQueueBadge). */
+const todayAtHivSti = (hour, minute = 0) => {
+  const d = new Date();
+  d.setHours(hour, minute, 0, 0);
+  return d.toISOString();
+};
+
 /* ─── PII masking (§1.4.2) ────────────────────────────────────────── */
 
 /** 'นางสาวพิมพ์ชนก แก้วกาญจน์' → 'พ. แก้วxxx' style ชื่อย่อ — keeps the
@@ -305,6 +324,16 @@ export const HIV_STI_APPOINTMENT_NOTE_SUGGESTIONS = [
   'แนะนำชวนคู่มาตรวจเลือดพร้อมกันในนัดครั้งถัดไป',
 ];
 
+/* สรุปการปรึกษาทางไกล (Telemedicine — ข้อ Telemedicine ของ TOR 1.10.6.7) */
+export const HIV_STI_TELEMED_NOTE_SUGGESTIONS = [
+  'ยืนยันตัวตนผู้รับบริการก่อนเริ่มปรึกษาแล้ว',
+  'ปรึกษาเรื่องผลข้างเคียงของยา — อาการดีขึ้น ไม่ต้องปรับสูตรยา',
+  'ผู้รับบริการอยู่ในที่ส่วนตัว ยินยอมให้ปรึกษาผ่านวิดีโอ',
+  'ประเมินการกินยาต่อเนื่อง (Adherence) — กินครบตามสั่ง',
+  'นัดมารับยาที่ศูนย์ฯ ในครั้งถัดไป / ประสานส่งยาทางไปรษณีย์',
+  'สัญญาณภาพ-เสียงไม่เสถียร — นัดปรึกษาซ้ำ',
+];
+
 /* เหตุผลที่กินยา PEP ไม่ครบ 28 วัน (บันทึกผลการติดตาม TOR 1.10.6.8) */
 export const PEP_INCOMPLETE_REASON_SUGGESTIONS = [
   'มีผลข้างเคียงจากยา (คลื่นไส้/อาเจียน) — หยุดยาเอง',
@@ -360,16 +389,24 @@ export const DEFAULT_HIV_STI_VISIT = {
   pepStartDate: '',
   prepPrescribed: false,
   prepRegimen: '',
+  /* step 5 — Telemedicine (แสดงเฉพาะวิสิตที่เป็นการปรึกษาทางไกล) */
+  telemedStatus: '',                // '' | 'started' | 'completed'
+  telemedNote: '',
   /* step 6 — สุขศึกษา + เอกสารแนบ */
   educationTopics: {},
   educationNote: '',
   condomCount: '',
   attachments: [],                  // [{name,type,docType,sizeLabel}]
-  /* step 7 — นัดหมาย */
-  appointment: { type: '', date: '', note: '' },
+  /* step 7 — นัดหมาย (ครบ 4 กริยา: แสดง/บันทึก/ยกเลิก/แก้ไข) */
+  appointment: {
+    type: '', date: '', note: '',
+    confirmed: false, confirmedAt: '', confirmedBy: '',
+  },
+  appointmentCancelled: null,       // { type, date, at, by } ของนัดที่ถูกยกเลิก
   printNeutralSlip: true,           // เอกสารพิมพ์ใช้ข้อความกลาง — ไม่ระบุผล HIV
   recordConfirmed: false,
   recordConfirmedAt: '',
+  recordConfirmedBy: '',
 };
 
 /** Step-completion booleans for StepProgress — same contract as
@@ -399,7 +436,8 @@ export const HIV_STI_PATIENTS = [
   {
     hn: '67-00010', name: 'นายกิตติพงศ์ แสงอรุณ', uic: 'UIC-2534-03-08', nationalId: '1103700456212', phone: '0898765432',
     doctor: 'นพ.วีรพล ชัยวัฒน์', queue: 'H-002', room: 'STI1', statusKey: 'progress', waitMinutes: 3,
-    clientType: 'new', keyPopulation: 'msm', arvStatus: 'na', visitReason: 'ขอตรวจ HIV โดยสมัครใจ (VCT)', telemedicine: true,
+    clientType: 'new', keyPopulation: 'msm', arvStatus: 'na', visitReason: 'ขอตรวจ HIV โดยสมัครใจ (VCT)',
+    telemedicine: true, telemedAppointmentAt: todayAtHivSti(10, 30),
   },
   {
     hn: '67-00015', name: 'นางสาววราภรณ์ ศรีสุวรรณ', uic: 'UIC-2529-11-22', nationalId: '3100201893344', phone: '0865551234',
@@ -505,52 +543,92 @@ export const HIV_STI_VISIT_HISTORY = {
 };
 
 /* ─── การติดตามการดูแล (TOR 1.10.6.8) ─────────────────────────────── */
+
+/* ค่าผลตรวจที่ยังไม่รายงาน — ต้องไม่ถูกนับเป็นจุดในกราฟและไม่ถือเป็น
+   "ผลล่าสุด" (edge case จริงในข้อมูล: 2 รายมี VDRL รอผล). */
+export const HIV_STI_PENDING_RESULT = 'รอผล';
+
+/** ค่าที่ต่ำกว่า limit of detection ของเครื่องตรวจ Viral load —
+    ต้องแสดงเป็น "Undetectable" ไม่ใช่ 0 (ตีความผิดทางคลินิก). */
+export const HIV_STI_VL_LOD = 20;
+
+/** '58,000' → 58000 · '<20' → 19 (ใต้ LOD) · 'รอผล' / '—' → null */
+export const parseHivStiNumber = (raw) => {
+  if (raw == null) return null;
+  const text = String(raw).trim();
+  if (!text || text === '—' || text === HIV_STI_PENDING_RESULT) return null;
+  const cleaned = text.replace(/,/g, '');
+  if (/^</.test(cleaned)) {
+    const bound = Number(cleaned.replace(/^</, ''));
+    return Number.isNaN(bound) ? null : Math.max(0, bound - 1);
+  }
+  const n = Number(cleaned);
+  return Number.isNaN(n) ? null : n;
+};
+
+/** true เมื่อค่า Viral load อยู่ใต้ limit of detection (แสดงป้าย Undetectable) */
+export const isHivStiUndetectable = (raw) => {
+  const n = parseHivStiNumber(raw);
+  return n != null && n < HIV_STI_VL_LOD;
+};
+
+export const isHivStiPending = (raw) => String(raw || '').trim() === HIV_STI_PENDING_RESULT;
+
 export const HIV_STI_FOLLOW_UPS = [
   {
     hn: '67-00009', name: 'นายสมยศ พงษ์พานิช', uic: 'UIC-2517-09-14', track: 'ARV',
-    status: 'onSchedule', nextDate: '2026-08-10', overdueDays: 0,
+    nextDate: hivStiIsoOffsetDays(5), nextType: 'arv',
     labTrend: [
-      { date: '12 ม.ค. 2569', cd4: '285', viralLoad: '58,000', vdrl: 'Non-reactive' },
-      { date: '11 พ.ค. 2569', cd4: '412', viralLoad: '42', vdrl: '—' },
+      { dateIso: '2026-01-12', date: '12 ม.ค. 2569', cd4: '285', viralLoad: '58,000', vdrl: 'Non-reactive', note: 'Baseline ก่อนเริ่ม ARV' },
+      { dateIso: '2026-05-11', date: '11 พ.ค. 2569', cd4: '412', viralLoad: '42', vdrl: '—', note: 'เดือนที่ 4 หลังเริ่มยา' },
+      { dateIso: '2026-07-10', date: '10 ก.ค. 2569', cd4: '505', viralLoad: '<20', vdrl: '—', note: 'กดไวรัสได้ — Adherence ดี' },
     ],
-    xray: { date: '12 ม.ค. 2569', exam: 'Chest X-ray (PA)', result: 'ไม่พบ active pulmonary TB' },
+    xray: [
+      { dateIso: '2026-01-12', date: '12 ม.ค. 2569', exam: 'Chest X-ray (PA)', result: 'ไม่พบ active pulmonary TB' },
+      { dateIso: '2026-07-10', date: '10 ก.ค. 2569', exam: 'Chest X-ray (PA)', result: 'ปกติ เทียบกับฟิล์มเดิมไม่เปลี่ยนแปลง' },
+    ],
     vitalsTrend: [
-      { date: '12 ม.ค. 2569', bp: '118/76', weight: '54' },
-      { date: '11 พ.ค. 2569', bp: '120/78', weight: '58' },
+      { dateIso: '2026-01-12', date: '12 ม.ค. 2569', bp: '118/76', pulse: '82', temp: '36.8', weight: '54' },
+      { dateIso: '2026-05-11', date: '11 พ.ค. 2569', bp: '120/78', pulse: '78', temp: '36.6', weight: '58' },
+      { dateIso: '2026-07-10', date: '10 ก.ค. 2569', bp: '116/74', pulse: '76', temp: '36.5', weight: '60' },
     ],
   },
   {
     hn: '67-00025', name: 'นายภูวดล จันทร์เพ็ญ', uic: 'UIC-2538-02-27', track: 'PEP',
-    status: 'due', nextDate: '2026-08-03', overdueDays: 0,
-    pep: { regimen: 'TDF/3TC + DTG (สูตรแนะนำ)', startDate: '2026-07-07', completed: null, reason: '' },
+    nextDate: hivStiIsoOffsetDays(0), nextType: 'pep28',
+    pep: { regimen: 'TDF/3TC + DTG (สูตรแนะนำ)', startDate: hivStiIsoOffsetDays(-27) },
     labTrend: [
-      { date: '7 ก.ค. 2569', cd4: '—', viralLoad: '—', vdrl: 'Non-reactive' },
+      { dateIso: hivStiIsoOffsetDays(-27), date: formatHivStiDate(hivStiIsoOffsetDays(-27)), cd4: '—', viralLoad: '—', vdrl: 'Non-reactive', note: 'Baseline ก่อนเริ่ม PEP' },
     ],
-    vitalsTrend: [{ date: '7 ก.ค. 2569', bp: '122/80', weight: '67' }],
+    xray: [],
+    vitalsTrend: [{ dateIso: hivStiIsoOffsetDays(-27), date: formatHivStiDate(hivStiIsoOffsetDays(-27)), bp: '122/80', pulse: '84', temp: '36.7', weight: '67' }],
   },
   {
     hn: '67-00020', name: 'นายอนุชา ทองคำ', uic: 'UIC-2536-06-19', track: 'PrEP',
-    status: 'onSchedule', nextDate: '2026-11-02', overdueDays: 0,
+    nextDate: hivStiIsoOffsetDays(89), nextType: 'prep',
     labTrend: [
-      { date: '3 ก.พ. 2569', cd4: '—', viralLoad: '—', vdrl: 'Non-reactive' },
-      { date: '4 พ.ค. 2569', cd4: '—', viralLoad: '—', vdrl: 'รอผล' },
+      { dateIso: '2026-02-03', date: '3 ก.พ. 2569', cd4: '—', viralLoad: '—', vdrl: 'Non-reactive', note: 'ตรวจก่อนเริ่ม PrEP · Cr ปกติ' },
+      { dateIso: '2026-05-04', date: '4 พ.ค. 2569', cd4: '—', viralLoad: '—', vdrl: HIV_STI_PENDING_RESULT, note: 'ส่งตรวจซ้ำเดือนที่ 3' },
     ],
-    vitalsTrend: [{ date: '4 พ.ค. 2569', bp: '116/74', weight: '70' }],
+    xray: [],
+    vitalsTrend: [{ dateIso: '2026-05-04', date: '4 พ.ค. 2569', bp: '116/74', pulse: '72', temp: '36.4', weight: '70' }],
   },
   {
     hn: '67-00023', name: 'นางสาวปาริชาติ อินทร์แก้ว', uic: 'UIC-2532-04-05', track: 'STI',
-    status: 'missed', nextDate: '2026-07-20', overdueDays: 14,
+    nextDate: hivStiIsoOffsetDays(-14), nextType: 'sti',
     labTrend: [
-      { date: '18 มี.ค. 2569', cd4: '—', viralLoad: '—', vdrl: 'Reactive 1:8' },
-      { date: '20 มิ.ย. 2569', cd4: '—', viralLoad: '—', vdrl: 'Reactive 1:2' },
+      { dateIso: '2026-03-18', date: '18 มี.ค. 2569', cd4: '—', viralLoad: '—', vdrl: 'Reactive 1:8', note: 'เริ่ม Benzathine penicillin เข็มที่ 1' },
+      { dateIso: '2026-06-20', date: '20 มิ.ย. 2569', cd4: '—', viralLoad: '—', vdrl: 'Reactive 1:2', note: 'Titer ลดลง — ตอบสนองต่อการรักษา' },
     ],
-    vitalsTrend: [{ date: '18 มี.ค. 2569', bp: '110/70', weight: '52' }],
+    xray: [],
+    vitalsTrend: [{ dateIso: '2026-03-18', date: '18 มี.ค. 2569', bp: '110/70', pulse: '80', temp: '36.9', weight: '52' }],
   },
   {
     hn: '67-00010', name: 'นายกิตติพงศ์ แสงอรุณ', uic: 'UIC-2534-03-08', track: 'VCT',
-    status: 'onSchedule', nextDate: '2026-09-01', overdueDays: 0,
-    labTrend: [{ date: '2 ส.ค. 2569', cd4: '—', viralLoad: '—', vdrl: 'รอผล' }],
-    vitalsTrend: [{ date: '2 ส.ค. 2569', bp: '119/75', weight: '63' }],
+    nextDate: hivStiIsoOffsetDays(27), nextType: 'result',
+    labTrend: [{ dateIso: '2026-08-02', date: '2 ส.ค. 2569', cd4: '—', viralLoad: '—', vdrl: HIV_STI_PENDING_RESULT, note: 'ตรวจครั้งแรก — รอผลยืนยัน' }],
+    xray: [],
+    vitalsTrend: [{ dateIso: '2026-08-02', date: '2 ส.ค. 2569', bp: '119/75', pulse: '74', temp: '36.6', weight: '63' }],
   },
 ];
 
@@ -559,11 +637,108 @@ export const HIV_STI_TRACK_LABELS = {
   VCT: 'นัดฟังผล VCT', STI: 'ติดตามผลการรักษา STI',
 };
 
+export const HIV_STI_TRACK_BADGE = {
+  ARV: 'teal', PEP: 'orange', PrEP: 'blue', VCT: 'indigo', STI: 'purple',
+};
+
 export const HIV_STI_FOLLOWUP_STATUS = {
   onSchedule: { label: 'มาตามนัด', style: 'green' },
   due:        { label: 'ครบกำหนดวันนี้', style: 'yellow' },
   missed:     { label: 'ผิดนัด', style: 'red' },
 };
+
+/** สถานะนัดคำนวณจากวันนัดจริงเทียบวันนี้ — ไม่ hard-code ไว้ใน mock
+    เพื่อให้สถานะยังถูกต้องหลังเจ้าหน้าที่บันทึกนัดครั้งถัดไปใหม่ */
+export const resolveHivStiFollowUpStatus = (nextDateIso) => {
+  if (!nextDateIso) return { status: 'onSchedule', overdueDays: 0 };
+  const today = hivStiTodayIso();
+  if (nextDateIso === today) return { status: 'due', overdueDays: 0 };
+  if (nextDateIso > today) return { status: 'onSchedule', overdueDays: 0 };
+  const days = Math.round((new Date(`${today}T12:00:00`) - new Date(`${nextDateIso}T12:00:00`)) / 86400000);
+  return { status: 'missed', overdueDays: Math.max(1, days) };
+};
+
+/* ─── ช่องทางติดตามผู้ผิดนัด (TOR 1.10.6.8) ────────────────────────── */
+export const HIV_STI_FOLLOWUP_CHANNELS = [
+  { value: 'phone',     label: 'โทรศัพท์ติดตาม' },
+  { value: 'visit',     label: 'เยี่ยมบ้าน / ลงพื้นที่' },
+  { value: 'consented', label: 'ช่องทางที่ผู้รับบริการยินยอมไว้' },
+  { value: 'cbo',       label: 'ประสานองค์กรภาคประชาสังคม (CBO)' },
+];
+
+export const resolveHivStiFollowUpChannel = (value) =>
+  HIV_STI_FOLLOWUP_CHANNELS.find((c) => c.value === value)?.label || '—';
+
+/* ─── ประวัติการได้รับยาต้านไวรัส (คู่มือ HCIS §2.16) ────────────────
+   Mock ในโมดูลตัวเอง — ห้ามดึงจาก src/data ของโมดูลเภสัช/แล็บ เพราะจะทำให้
+   ข้อมูลลับ HIV รั่วออกนอก gate §1.4.2 (playbook §4 file scope). */
+export const HIV_STI_ARV_REGIMENS = [
+  'TDF/3TC/DTG (สูตรพื้นฐานผู้ใหญ่)',
+  'TDF/FTC/EFV',
+  'ABC/3TC + DTG',
+  'TDF/3TC + LPV/r',
+];
+
+const HIV_STI_DRUG_HISTORY = {
+  '67-00009': [
+    { dateIso: '2026-01-12', time: '10:24', category: 'ARV', drug: 'TDF/3TC/DTG (สูตรพื้นฐานผู้ใหญ่)', quantity: '30 เม็ด', prescriptionNo: 'RX69-000412', usage: 'รับประทานวันละ 1 เม็ด ก่อนนอน' },
+    { dateIso: '2026-02-09', time: '09:48', category: 'ARV', drug: 'TDF/3TC/DTG (สูตรพื้นฐานผู้ใหญ่)', quantity: '90 เม็ด', prescriptionNo: 'RX69-001188', usage: 'รับประทานวันละ 1 เม็ด ก่อนนอน' },
+    { dateIso: '2026-05-11', time: '11:02', category: 'ARV', drug: 'TDF/3TC/DTG (สูตรพื้นฐานผู้ใหญ่)', quantity: '90 เม็ด', prescriptionNo: 'RX69-003021', usage: 'รับประทานวันละ 1 เม็ด ก่อนนอน' },
+    { dateIso: '2026-07-10', time: '10:15', category: 'ARV', drug: 'TDF/3TC/DTG (สูตรพื้นฐานผู้ใหญ่)', quantity: '90 เม็ด', prescriptionNo: 'RX69-004510', usage: 'รับประทานวันละ 1 เม็ด ก่อนนอน' },
+  ],
+  '67-00020': [
+    { dateIso: '2026-02-03', time: '13:20', category: 'PrEP', drug: 'TDF/FTC วันละ 1 เม็ด (Daily PrEP)', quantity: '30 เม็ด', prescriptionNo: 'RX69-000731', usage: 'รับประทานวันละ 1 เม็ด เวลาเดิมทุกวัน' },
+    { dateIso: '2026-05-04', time: '14:05', category: 'PrEP', drug: 'TDF/FTC วันละ 1 เม็ด (Daily PrEP)', quantity: '90 เม็ด', prescriptionNo: 'RX69-002877', usage: 'รับประทานวันละ 1 เม็ด เวลาเดิมทุกวัน' },
+  ],
+  '67-00025': [
+    { dateIso: hivStiIsoOffsetDays(-27), time: '16:40', category: 'PEP', drug: 'TDF/3TC + DTG (สูตรแนะนำ)', quantity: '28 เม็ด', prescriptionNo: 'RX69-004902', usage: 'รับประทานวันละ 1 เม็ด ให้ครบ 28 วัน' },
+  ],
+  '67-00023': [
+    { dateIso: '2026-03-18', time: '10:36', category: 'STI', drug: 'Benzathine penicillin G 2.4 MU', quantity: '1 ขวด', prescriptionNo: 'RX69-001904', usage: 'ฉีดเข้ากล้ามครั้งเดียว (เข็มที่ 1)' },
+    { dateIso: '2026-03-25', time: '10:11', category: 'STI', drug: 'Benzathine penicillin G 2.4 MU', quantity: '1 ขวด', prescriptionNo: 'RX69-002033', usage: 'ฉีดเข้ากล้ามครั้งเดียว (เข็มที่ 2)' },
+  ],
+};
+
+const inHivStiRange = (iso, fromIso, toIso) => {
+  if (!iso) return false;
+  if (fromIso && iso < fromIso) return false;
+  if (toIso && iso > toIso) return false;
+  return true;
+};
+
+const followUpBase = (hn) => HIV_STI_FOLLOW_UPS.find((r) => r.hn === hn) || null;
+
+/** ประวัติการได้รับยา (§2.16) เรียงใหม่→เก่า, กรองตามช่วงเวลาที่เลือก */
+export const getHivStiArvHistory = (hn, fromIso = null, toIso = null) =>
+  (HIV_STI_DRUG_HISTORY[hn] || [])
+    .filter((r) => inHivStiRange(r.dateIso, fromIso, toIso))
+    .slice()
+    .sort((a, b) => (a.dateIso < b.dateIso ? 1 : -1));
+
+/** สูตรยาปัจจุบัน = รายการยาต้านไวรัสล่าสุดที่จ่ายจริง (ไม่ hard-code) */
+export const getHivStiCurrentRegimen = (hn) => {
+  const rows = getHivStiArvHistory(hn);
+  return rows.length ? rows[0] : null;
+};
+
+/** ผล Lab ในช่วงเวลา (เรียงเก่า→ใหม่ ให้กราฟไล่ตามเวลา) */
+export const filterHivStiLabTrend = (hn, fromIso = null, toIso = null) =>
+  (followUpBase(hn)?.labTrend || [])
+    .filter((r) => inHivStiRange(r.dateIso, fromIso, toIso))
+    .slice()
+    .sort((a, b) => (a.dateIso < b.dateIso ? -1 : 1));
+
+export const filterHivStiVitalsTrend = (hn, fromIso = null, toIso = null) =>
+  (followUpBase(hn)?.vitalsTrend || [])
+    .filter((r) => inHivStiRange(r.dateIso, fromIso, toIso))
+    .slice()
+    .sort((a, b) => (a.dateIso < b.dateIso ? -1 : 1));
+
+export const filterHivStiXray = (hn, fromIso = null, toIso = null) =>
+  (followUpBase(hn)?.xray || [])
+    .filter((r) => inHivStiRange(r.dateIso, fromIso, toIso))
+    .slice()
+    .sort((a, b) => (a.dateIso < b.dateIso ? 1 : -1));
 
 /* ─── Session-scoped stores ───────────────────────────────────────── */
 
@@ -720,21 +895,120 @@ export const getHivStiVisitNumber = (hn) => getHivStiVisitHistoryByHn(hn).length
 const PEP_OUTCOME_KEY = 'mih:hivsti-pep-outcomes';
 const NEXT_FU_KEY = 'mih:hivsti-next-followups';
 
+/** บันทึก/แก้ไขผลการกินยา PEP ครบ 28 วัน — บันทึกซ้ำถือเป็นการแก้ไข
+    และทับ stamp ผู้แก้ไข+เวลาใหม่โดยยังเก็บผู้บันทึกครั้งแรกไว้ (audit) */
 export const savePepOutcome = (hn, { completed, reason }) => {
   if (!hn) return;
   const store = readJson(PEP_OUTCOME_KEY, {});
-  store[hn] = { completed, reason: reason || '', at: hivStiNowStamp(), by: HIV_STI_CURRENT_STAFF.name };
+  const prev = store[hn] || null;
+  store[hn] = prev
+    ? {
+      ...prev,
+      completed,
+      reason: reason || '',
+      editedAt: hivStiNowStamp(),
+      editedBy: HIV_STI_CURRENT_STAFF.name,
+    }
+    : {
+      completed,
+      reason: reason || '',
+      at: hivStiNowStamp(),
+      by: HIV_STI_CURRENT_STAFF.name,
+    };
   writeJson(PEP_OUTCOME_KEY, store);
 };
 export const getPepOutcome = (hn) => readJson(PEP_OUTCOME_KEY, {})[hn] || null;
 
+/** ยกเลิกผลการติดตาม PEP ที่บันทึกไว้ (กลับสู่สถานะยังไม่สรุปผล) */
+export const clearPepOutcome = (hn) => {
+  const store = readJson(PEP_OUTCOME_KEY, {});
+  delete store[hn];
+  writeJson(PEP_OUTCOME_KEY, store);
+};
+
 export const saveNextFollowUp = (hn, { date, type }) => {
   if (!hn) return;
   const store = readJson(NEXT_FU_KEY, {});
-  store[hn] = { date, type, at: hivStiNowStamp(), by: HIV_STI_CURRENT_STAFF.name };
+  const prev = store[hn] || null;
+  store[hn] = prev
+    ? { ...prev, date, type, editedAt: hivStiNowStamp(), editedBy: HIV_STI_CURRENT_STAFF.name }
+    : { date, type, at: hivStiNowStamp(), by: HIV_STI_CURRENT_STAFF.name };
   writeJson(NEXT_FU_KEY, store);
 };
 export const getNextFollowUp = (hn) => readJson(NEXT_FU_KEY, {})[hn] || null;
+
+/** ยกเลิกนัดติดตามครั้งถัดไปที่บันทึกไว้ — กลับไปใช้วันนัดเดิมของระบบ */
+export const clearNextFollowUp = (hn) => {
+  const store = readJson(NEXT_FU_KEY, {});
+  delete store[hn];
+  writeJson(NEXT_FU_KEY, store);
+};
+
+/* ─── บันทึกการติดตามผู้ผิดนัด (โทร / เยี่ยม) ─────────────────────────
+   เก็บครบ 4 กริยา: แสดง (get) · บันทึก (save) · แก้ไข (update) ·
+   ยกเลิก (cancel — soft-cancel เพื่อคง audit trail ของผู้บันทึกเดิม) */
+const FU_CONTACT_KEY = 'mih:hivsti-followup-contacts';
+
+export const getHivStiFollowUpContacts = (hn) => readJson(FU_CONTACT_KEY, {})[hn] || [];
+
+export const saveHivStiFollowUpContact = (hn, { channel, note }) => {
+  if (!hn) return null;
+  const store = readJson(FU_CONTACT_KEY, {});
+  const entry = {
+    id: `fu-${Date.now()}`,
+    channel,
+    note: note || '',
+    at: hivStiNowStamp(),
+    by: HIV_STI_CURRENT_STAFF.name,
+    cancelled: null,
+  };
+  store[hn] = [entry, ...(store[hn] || [])];
+  writeJson(FU_CONTACT_KEY, store);
+  return entry;
+};
+
+export const updateHivStiFollowUpContact = (hn, id, { channel, note }) => {
+  const store = readJson(FU_CONTACT_KEY, {});
+  store[hn] = (store[hn] || []).map((c) => (c.id === id
+    ? { ...c, channel, note: note || '', editedAt: hivStiNowStamp(), editedBy: HIV_STI_CURRENT_STAFF.name }
+    : c));
+  writeJson(FU_CONTACT_KEY, store);
+};
+
+export const cancelHivStiFollowUpContact = (hn, id, reason) => {
+  const store = readJson(FU_CONTACT_KEY, {});
+  store[hn] = (store[hn] || []).map((c) => (c.id === id
+    ? { ...c, cancelled: { reason: reason || 'ไม่ระบุเหตุผล', at: hivStiNowStamp(), by: HIV_STI_CURRENT_STAFF.name } }
+    : c));
+  writeJson(FU_CONTACT_KEY, store);
+};
+
+/* ─── Worklist การติดตาม (base + สิ่งที่ session บันทึกทับ) ──────────── */
+
+/** แถวของหน้าติดตามการดูแล — รวม base mock กับนัดครั้งถัดไป / ผล PEP /
+    บันทึกการติดตาม ที่เจ้าหน้าที่บันทึกไว้ใน session แล้วคำนวณสถานะใหม่ */
+export const getHivStiFollowUpRows = () => HIV_STI_FOLLOW_UPS.map((row) => {
+  const saved = getNextFollowUp(row.hn);
+  const nextDate = saved?.date || row.nextDate;
+  const nextType = saved?.type || row.nextType || '';
+  const { status, overdueDays } = resolveHivStiFollowUpStatus(nextDate);
+  const pepOutcome = row.pep ? getPepOutcome(row.hn) : null;
+  const contacts = getHivStiFollowUpContacts(row.hn).filter((c) => !c.cancelled);
+  return {
+    ...row,
+    nextDate,
+    nextType,
+    nextFollowUpSaved: saved || null,
+    status,
+    overdueDays,
+    pepOutcome,
+    pepPending: !!row.pep && !pepOutcome,
+    contactCount: contacts.length,
+    cancelledRegistry: getHivStiRegistryCancellation(row.hn),
+  };
+});
+
+export const getHivStiFollowUpByHn = (hn) => getHivStiFollowUpRows().find((r) => r.hn === hn) || null;
 
 /* สิทธิผู้ใช้ (mock) — role ไม่มีสิทธิคลินิก HIV/STI เห็น read-only
    toggle ได้จาก sessionStorage เพื่อทดสอบ banner (ไม่มี UI สลับ role จริง) */

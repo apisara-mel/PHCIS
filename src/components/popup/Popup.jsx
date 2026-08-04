@@ -224,7 +224,12 @@ const FooterButton = ({ kind, action, fullWidth }) => {
   };
   if (kind === 'tertiary') {
     return (
-      <NeutralSubdueButton {...common} size='md'>
+      <NeutralSubdueButton
+        {...common}
+        size='md'
+        leadingIcon={action.leadingIcon}
+        variant={action.variant}
+      >
         {action.label}
       </NeutralSubdueButton>
     );

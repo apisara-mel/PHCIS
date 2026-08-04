@@ -13,6 +13,10 @@ import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
 import { getPatientByHN } from '@/data/patientProfiles';
+/* IMPORT-ONLY: the /appointment system's public store. Subscribing (never
+   polling — React 17, so no useSyncExternalStore) keeps this worklist in
+   step when a booking is made or cancelled elsewhere in the SPA. */
+import { subscribeExtraAppointments } from '@/pages/appointment/appointmentExtraStore';
 import {
   NCD_DISEASE_GROUPS,
   resolveNcdGroup,
@@ -180,6 +184,11 @@ const NcdQueuePage = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const scheduledNotArrived = useMemo(() => getNcdScheduledNotArrived(), [tick]);
   const tabs = useMemo(() => buildTabs(rows, scheduledNotArrived.length), [rows, scheduledNotArrived]);
+
+  /* E4 — a follow-up booked from the record lands in "นัดแล้วยังไม่มาติดต่อ"
+     as soon as the /appointment store notifies, closing the
+     จอง → มาถึง → ส่งตรวจ loop without leaving the module. */
+  useEffect(() => subscribeExtraAppointments(() => setTick((t) => t + 1)), []);
 
   const handleCheckIn = (hn) => {
     checkInNcdAppointment(hn);
@@ -368,6 +377,12 @@ const NcdQueuePage = () => {
     { key: 'group',           label: 'กลุ่มโรค',      width: 136, render: renderGroups },
     { key: 'clinic',          label: 'คลินิก',        width: 96 },
     { key: 'doctor',          label: 'แพทย์ผู้ดูแล',  flex: true, minWidth: 140 },
+    {
+      key: 'source', label: 'ที่มาของนัด', width: 156, sortable: false,
+      render: (row) => (row.fromRecord
+        ? <ColorfulBadge style='teal' size='small' hierarchy='secondary'>นัดจากบันทึกการตรวจ</ColorfulBadge>
+        : <ColorfulBadge style='grey' size='small' hierarchy='secondary'>นัดล่วงหน้า</ColorfulBadge>),
+    },
     {
       key: 'checkin', label: 'การดำเนินการ', width: 140, sortable: false,
       render: (row) => (

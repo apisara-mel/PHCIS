@@ -13,8 +13,11 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import Popup from '@/components/popup/Popup';
+import { ConfidentialMask } from '@/pages/clinic/mental-health/MentalHealthSteps';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
+  hasMentalHealthRights,
+  setMentalHealthRights,
   MH_ISSUED_AT_OPTIONS,
   resolveMhIssuedAt,
   EMPTY_MH_FAMILY,
@@ -37,10 +40,43 @@ import {
               (field stays read-only/blank before save, manual §2.3)
      แก้ไข  — row action opens the same form prefilled
      ยกเลิก — reason popup + audit line; cancelled rows stay visible
-              greyed with ยกเลิกโดย/เมื่อ/เหตุผล + เปิดใช้งาน reactivate. */
+              greyed with ยกเลิกโดย/เมื่อ/เหตุผล + เปิดใช้งาน reactivate.
+
+   ข้อมูลลับ §1.4.2 — a mental-health registration is confidential in the
+   same way the visit record is: without the mental-health-clinic right
+   เลขที่สุขภาพจิต / ที่อยู่ / ประวัติครอบครัว are masked and every write
+   action (บันทึก / แก้ไข / ยกเลิก / เปิดใช้งาน) is disabled. Same gate
+   (hasMentalHealthRights) the queue, record and follow-up pages use. */
 
 const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสุขภาพจิต', 'ทะเบียนสุขภาพจิต'];
 const PAGE_SIZE = 10;
+const MASKED = '••••••••';
+
+/* No-browser-chrome rule (CLAUDE.md) — the search wrapper owns the border,
+   so the native input must not paint its own edges/ring in any browser.
+   Idempotent module-load injection so HMR never leaves a stale tag. */
+const SEARCH_INPUT_CLASS = 'mih-mh-registry-search-input';
+if (typeof document !== 'undefined' && !document.getElementById('mih-mh-registry-search-style')) {
+  const style = document.createElement('style');
+  style.id = 'mih-mh-registry-search-style';
+  style.textContent = `
+.${SEARCH_INPUT_CLASS},
+.${SEARCH_INPUT_CLASS}:focus,
+.${SEARCH_INPUT_CLASS}:focus-visible {
+  caret-color: transparent;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+.${SEARCH_INPUT_CLASS}::placeholder {
+  color: var(--text-input-placeholder, #ADB2B7);
+  opacity: 1;
+}`;
+  document.head.appendChild(style);
+}
 
 const SectionHeader = ({ icon, children }) => (
   <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
@@ -103,6 +139,14 @@ const MentalHealthRegistryPage = () => {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
+  /* Re-render hook for the §1.4.2 rights demo toggle (sessionStorage). */
+  const [, setRightsTick] = useState(0);
+
+  const canRead = hasMentalHealthRights();
+  const toggleRightsDemo = () => {
+    setMentalHealthRights(!hasMentalHealthRights());
+    setRightsTick((t) => t + 1);
+  };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const rows = useMemo(() => getMhRegistryRows(), [tick]);
@@ -146,12 +190,15 @@ const MentalHealthRegistryPage = () => {
 
   /* ── form open / close ─────────────────────────────────────────── */
   const openCreate = () => {
+    if (!canRead) return; /* §1.4.2 — no write without the right */
     setForm(EMPTY_FORM);
     setErrors({});
     setSavedBanner(null);
     setEditing('new');
   };
 
+  /* Opening a row without the right is allowed but lands in a fully masked,
+     read-only state (the list itself is not secret — its contents are). */
   const openEdit = (row) => {
     setForm({
       id: row.id,
@@ -208,6 +255,7 @@ const MentalHealthRegistryPage = () => {
   );
 
   const save = () => {
+    if (!canRead) return; /* §1.4.2 — write blocked without the right */
     const nextErrors = {};
     if (!form.hn) nextErrors.hn = 'กรุณาเลือกผู้รับบริการ';
     if (!form.issuedAt) nextErrors.issuedAt = 'กรุณาเลือกสถานที่ออกทะเบียน';
@@ -239,11 +287,13 @@ const MentalHealthRegistryPage = () => {
 
   /* ── ยกเลิก / เปิดใช้งาน ───────────────────────────────────────── */
   const openCancel = (row) => {
+    if (!canRead) return;
     setCancelReason('');
     setCancelError('');
     setCancelTarget(row);
   };
   const confirmCancel = () => {
+    if (!canRead) return;
     if (!cancelReason.trim()) {
       setCancelError('กรุณาระบุเหตุผลการยกเลิกทะเบียน');
       return;
@@ -253,6 +303,7 @@ const MentalHealthRegistryPage = () => {
     setTick((t) => t + 1);
   };
   const reactivate = (row) => {
+    if (!canRead) return;
     reactivateMhRegistration(row.id);
     setTick((t) => t + 1);
   };
@@ -264,8 +315,11 @@ const MentalHealthRegistryPage = () => {
     {
       key: 'mhNumber', label: 'เลขที่สุขภาพจิต', width: 130,
       render: (r) => (
-        <span style={r.status === 'cancelled' ? cancelledText : { fontWeight: 'var(--type-weight-medium)' }}>
-          {r.mhNumber}
+        <span
+          style={r.status === 'cancelled' ? cancelledText : { fontWeight: 'var(--type-weight-medium)' }}
+          title={canRead ? undefined : 'ข้อมูลลับ §1.4.2 — สิทธิไม่เพียงพอ'}
+        >
+          {canRead ? r.mhNumber : MASKED}
         </span>
       ),
     },
@@ -301,7 +355,10 @@ const MentalHealthRegistryPage = () => {
       key: 'actions', label: 'การดำเนินการ', width: 210, sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {r.status === 'cancelled' ? (
+          {!canRead ? (
+            /* §1.4.2 — ทุกการเขียนถูกปิด แสดงเฉพาะสถานะสิทธิ */
+            <ColorfulBadge style='grey' size='small' hierarchy='secondary'>สิทธิไม่เพียงพอ</ColorfulBadge>
+          ) : r.status === 'cancelled' ? (
             <BrandSubdueButton
               variant='outline' size='sm' leadingIcon='restart_alt'
               onClick={(e) => { e.stopPropagation(); reactivate(r); }}
@@ -328,7 +385,7 @@ const MentalHealthRegistryPage = () => {
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick]);
+  ]), [tick, canRead]);
 
   const issuedAtOptions = [{ value: 'all', label: 'ทุกสถานที่' }, ...MH_ISSUED_AT_OPTIONS];
   const statusOptions = [
@@ -347,9 +404,22 @@ const MentalHealthRegistryPage = () => {
       onBack={() => history.push('/clinic/mental-health')}
       backLabel='กลับหน้าคิว'
       actions={(
-        <BrandSubdueButton variant='fill' leadingIcon='person_add' onClick={openCreate}>
-          ลงทะเบียนสุขภาพจิตใหม่
-        </BrandSubdueButton>
+        <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <ColorfulBadge style='red' size='small' hierarchy='secondary'>ข้อมูลลับ §1.4.2</ColorfulBadge>
+          {/* Demo toggle for the สิทธิไม่พอ masked state (mock-only —
+              real RBAC arrives with §1.4.2 / §1.20). */}
+          <NeutralSubdueButton
+            size='sm'
+            leadingIcon={canRead ? 'lock_open' : 'lock'}
+            onClick={toggleRightsDemo}
+            title='สลับสิทธิการเข้าถึงข้อมูลลับ (สำหรับทดสอบ)'
+          >
+            {canRead ? 'สิทธิ: เข้าถึงได้' : 'สิทธิ: ถูกจำกัด'}
+          </NeutralSubdueButton>
+          <BrandSubdueButton variant='fill' leadingIcon='person_add' onClick={openCreate} disabled={!canRead}>
+            ลงทะเบียนสุขภาพจิตใหม่
+          </BrandSubdueButton>
+        </div>
       )}
       summaryCards={summaryCards}
     >
@@ -372,6 +442,32 @@ const MentalHealthRegistryPage = () => {
       </Popup>
 
       <div className='flex flex-col flex-1 min-w-0' style={{ paddingTop: 'var(--dim-space-600, 24px)', paddingBottom: 'var(--dim-space-600, 24px)', paddingLeft: 'var(--dim-space-600, 24px)', paddingRight: 'var(--dim-space-600, 24px)', gap: 'var(--dim-space-600, 24px)' }}>
+
+        {/* สิทธิไม่เพียงพอ (§1.4.2) — list stays visible, contents masked,
+            ทุกการเขียนถูกปิด */}
+        {!canRead && (
+          <div
+            className='flex items-center w-full'
+            style={{
+              gap: 'var(--dim-space-200, 8px)',
+              paddingTop: 'var(--dim-space-300, 12px)',
+              paddingBottom: 'var(--dim-space-300, 12px)',
+              paddingLeft: 'var(--dim-space-400, 16px)',
+              paddingRight: 'var(--dim-space-400, 16px)',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              background: 'var(--surface-warning-quaternary, #FFF9F0)',
+              color: 'var(--text-warning-default, #C2410C)',
+              fontSize: 'var(--type-size-sm)',
+            }}
+          >
+            <Icon name='lock' size={18} />
+            <span>
+              บัญชีนี้ไม่มีสิทธิเข้าถึงข้อมูลลับของงานสุขภาพจิต (§1.4.2) —
+              เลขที่สุขภาพจิต ที่อยู่ และประวัติครอบครัวถูกปกปิด และไม่สามารถ
+              บันทึก / แก้ไข / ยกเลิกทะเบียนได้
+            </span>
+          </div>
+        )}
 
         {/* Post-save confirmation — surfaces the auto-run เลขที่สุขภาพจิต
             the moment it exists (it is blank before save, manual §2.3). */}
@@ -426,7 +522,9 @@ const MentalHealthRegistryPage = () => {
           >
             <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
               <h1 className='text-base font-bold' style={{ color: 'var(--text-content-default, #363B3F)' }}>
-                {editing === 'new' ? 'ลงทะเบียนสุขภาพจิตใหม่' : `แก้ไขทะเบียน ${form.mhNumber}`}
+                {editing === 'new'
+                  ? 'ลงทะเบียนสุขภาพจิตใหม่'
+                  : `${canRead ? 'แก้ไขทะเบียน' : 'ทะเบียน'} ${canRead ? form.mhNumber : MASKED}`}
               </h1>
               <div className='flex-1' />
               <NeutralSubdueButton size='sm' leadingIcon='close' onClick={closeForm}>ปิดแบบฟอร์ม</NeutralSubdueButton>
@@ -438,13 +536,14 @@ const MentalHealthRegistryPage = () => {
                 label='เลขที่สุขภาพจิต'
                 hint={form.mhNumber ? undefined : 'ระบบจะออกเลขที่ให้อัตโนมัติ (Run number) เมื่อบันทึกสำเร็จ'}
               >
-                <InputField value={form.mhNumber} onChange={() => {}} disabled placeholder='ออกให้อัตโนมัติเมื่อบันทึก' />
+                <InputField value={canRead ? form.mhNumber : MASKED} onChange={() => {}} disabled placeholder='ออกให้อัตโนมัติเมื่อบันทึก' />
               </Field>
               <Field label='ออกที่' required hint={errors.issuedAt}>
                 <Select
                   showLabel={false}
                   searchable={false}
                   size='lg'
+                  disabled={!canRead}
                   value={form.issuedAt}
                   onChange={setField('issuedAt')}
                   options={MH_ISSUED_AT_OPTIONS}
@@ -499,6 +598,14 @@ const MentalHealthRegistryPage = () => {
               )}
             </div>
 
+            {/* §2-4 ที่อยู่ + ประวัติครอบครัว — ข้อมูลลับ §1.4.2 */}
+            {!canRead ? (
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                <SectionHeader icon='lock'>ที่อยู่และประวัติครอบครัว</SectionHeader>
+                <ConfidentialMask what='ที่อยู่ปัจจุบัน ที่อยู่ตามทะเบียนบ้าน และประวัติครอบครัวของทะเบียนสุขภาพจิต' />
+              </div>
+            ) : (
+            <>
             {/* §2 ที่อยู่ปัจจุบัน */}
             <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
               <SectionHeader icon='home'>ที่อยู่ปัจจุบัน</SectionHeader>
@@ -567,11 +674,15 @@ const MentalHealthRegistryPage = () => {
                 </div>
               ))}
             </div>
+            </>
+            )}
 
             <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
               <div className='flex-1' />
-              <NeutralSubdueButton size='lg' onClick={closeForm}>ยกเลิก</NeutralSubdueButton>
-              <BrandSubdueButton variant='fill' size='lg' leadingIcon='save' onClick={save}>
+              <NeutralSubdueButton size='lg' onClick={closeForm}>
+                {canRead ? 'ยกเลิก' : 'ปิด'}
+              </NeutralSubdueButton>
+              <BrandSubdueButton variant='fill' size='lg' leadingIcon='save' onClick={save} disabled={!canRead}>
                 {editing === 'new' ? 'บันทึกและออกเลขที่สุขภาพจิต' : 'บันทึกการแก้ไข'}
               </BrandSubdueButton>
             </div>
@@ -613,7 +724,7 @@ const MentalHealthRegistryPage = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder='ค้นหาเลขที่สุขภาพจิต / HN / ชื่อ-สกุล'
-                className='flex-1 bg-transparent border-none outline-none text-sm'
+                className={`${SEARCH_INPUT_CLASS} flex-1 text-sm`}
                 style={{ color: 'var(--text-content-primary)' }}
               />
               {search && (
