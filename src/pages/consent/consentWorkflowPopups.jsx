@@ -5,6 +5,7 @@ import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import DatePicker from '@/components/forms/DatePicker';
 import FileUploadField from '@/components/forms/FileUploadField';
+import { UploadProgressBox, useSmoothUploadProgress } from '@/components/forms/UploadProgressBar';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -544,6 +545,8 @@ const REASON_HINTS = [
 export function PaperConsentRecordPopup({ open, record, onClose, onSave }) {
   const [mode, setMode] = useState('grant');
   const [fileName, setFileName] = useState(null);
+  const [pendingName, setPendingName] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [fileError, setFileError] = useState('');
   const [effectiveDate, setEffectiveDate] = useState(null);
   const [reason, setReason] = useState('');
@@ -551,16 +554,27 @@ export function PaperConsentRecordPopup({ open, record, onClose, onSave }) {
 
   useEffect(() => {
     if (!open) return;
-    setMode('grant'); setFileName(null); setFileError('');
-    setEffectiveDate(null); setReason(''); setConfirmDiscard(false);
+    setMode('grant'); setFileName(null); setPendingName(null); setUploading(false);
+    setFileError(''); setEffectiveDate(null); setReason(''); setConfirmDiscard(false);
   }, [open]);
+
+  const uploadProgress = useSmoothUploadProgress({
+    active: uploading,
+    durationMs: 1100,
+    onDone: () => {
+      setFileName(pendingName);
+      setPendingName(null);
+      setUploading(false);
+    },
+  });
 
   const handleFile = (file) => {
     const okType = /\.(pdf|jpe?g|png)$/i.test(file.name);
     if (!okType) { setFileError('รองรับเฉพาะไฟล์ PDF, JPG หรือ PNG'); setFileName(null); return; }
     if (file.size > 10 * 1024 * 1024) { setFileError('ไฟล์ต้องไม่เกิน 10 MB'); setFileName(null); return; }
     setFileError('');
-    setFileName(file.name);
+    setPendingName(file.name);
+    setUploading(true);
   };
 
   const dirty = fileName || effectiveDate || reason.trim();
@@ -628,8 +642,16 @@ export function PaperConsentRecordPopup({ open, record, onClose, onSave }) {
             buttonLabel='เลือกไฟล์สแกน'
             fileName={fileName}
             onFile={handleFile}
-            onClear={() => setFileName(null)}
+            onClear={() => { setFileName(null); setPendingName(null); setUploading(false); }}
+            disabled={uploading}
           />
+          {uploading && (
+            <UploadProgressBox
+              progress={uploadProgress}
+              label='กำลังอัปโหลดไฟล์…'
+              fileName={pendingName || undefined}
+            />
+          )}
           {fileError && <span style={ERROR_TEXT}>{fileError}</span>}
 
           <DatePicker

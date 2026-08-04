@@ -8,10 +8,9 @@ import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import Icon from '@/components/icons/Icon';
-import { Donut, VBars } from '@/components/graph/Charts';
+import { Donut, VBars, HBarList } from '@/components/graph/Charts';
 import FilterTag from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
-import DateFilterPopup from '@/components/popup/DateFilterPopup';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { openConsentHistoryTab } from '@/data/consentPatientHistory';
 import { CONSENT_DASHBOARD_REPORTS } from '@/data/consentReports';
@@ -114,8 +113,6 @@ const spanRank = (dv) => {
 };
 
 /* Thai date label + range→unit-rank for the report popup's range form. */
-const TH_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const fmtThaiDate = (d) => (d ? `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}` : '');
 const rangeRank = (r) => {
   if (!r || !r.start || !r.end) return 3;
   const a = new Date(r.start).setHours(0, 0, 0, 0);
@@ -176,7 +173,6 @@ const POPUP_PAGE_SIZE = 10;
 
 const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
   const [period, setPeriod] = useState('รายเดือน');
-  const [dateOpen, setDateOpen] = useState(false);
   /* ด.1.1.16 — search + pagination ในตาราง "ดูรายงาน" */
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -215,58 +211,105 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
   const pageRows = rows.slice((safePage - 1) * POPUP_PAGE_SIZE, safePage * POPUP_PAGE_SIZE);
   const columns = report && report.table ? buildReportTableColumns(report.table.columns) : [];
 
-  // Pie of the report's numeric stats (skip percentage values) — dashboard palette.
-  const pieSegments = report
-    ? report.stats.filter((s) => !isPercent(s.value)).map((s, i) => ({
-        value: parseStatNum(s.value), color: PIE_PALETTE[i % PIE_PALETTE.length], label: s.label,
+  /* กราฟใน popup: ใช้ chart type ของรายงาน — donut เฉพาะส่วนของทั้งหมด ·
+     hbar สำหรับอันดับหมวด · bars สำหรับแนวโน้มตาม period */
+  const chartKind = report?.chart || 'none';
+  const pieSegments = report?.donut?.length
+    ? report.donut.map((s, i) => ({
+        value: s.value,
+        color: TONE_COLOR[s.tone] || PIE_PALETTE[i % PIE_PALETTE.length],
+        label: s.label,
       }))
     : [];
   const pieTotal = pieSegments.reduce((a, s) => a + s.value, 0);
-  const showPie = pieSegments.length >= 2;
-  // Comparison bar chart across the selected period's buckets — topic-specific
-  // series per report (consent vs export vs access-log all differ).
+  const consentValue = pieSegments.find((s) => s.label === 'ยินยอม')?.value || 0;
+  const consentRatePct = pieTotal ? Math.round((consentValue / pieTotal) * 100) : 0;
+  const showPie = chartKind === 'donut' && pieSegments.length >= 2;
+  const hbarRows = report?.hbar || [];
+  const showHbar = (chartKind === 'hbar' || chartKind === 'donut') && hbarRows.length > 0;
   const barLabels = periodBarLabels(period);
-  const barConfig = (report && report.bars) || [
-    { name: 'ยินยอม', tone: 'positive', base: [620, 1156, 845, 990, 730] },
-    { name: 'ไม่ยินยอม', tone: 'danger', base: [180, 64, 132, 96, 210] },
-  ];
+  const barConfig = (report && report.bars) || [];
   const barSeries = barConfig.map((b, si) => ({
     name: b.name,
-    color: PIE_PALETTE[si % PIE_PALETTE.length],
+    color: BAR_TONE[b.tone] || PIE_PALETTE[si % PIE_PALETTE.length],
     values: barLabels.map((_, i) => b.base[i % b.base.length]),
   }));
+  const showBars = barSeries.length > 0;
 
   const chartsBlock = (
-    <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
-      {showPie && (
-        <div style={{ ...CHART_CARD, minWidth: 240 }}>
-          <span style={CHART_TITLE}>สัดส่วนภาพรวม</span>
-          <div className='flex items-center justify-center'>
-            <Donut segments={pieSegments} size={160} thickness={24} centerLabel={pieTotal.toLocaleString()} centerSub='รวม' />
-          </div>
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
-            {pieSegments.map((s) => (
-              <div key={s.label} className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                <span aria-hidden style={{ width: 10, height: 10, borderRadius: 'var(--dim-radius-full)', background: s.color, flexShrink: 0 }} />
-                <span className='truncate' style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{s.label}</span>
-                <span style={{ color: s.color, fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-xs)' }}>{s.value.toLocaleString()}</span>
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+      {(showPie || showHbar) && (
+        <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          {showPie && (
+            <div style={{ ...CHART_CARD, minWidth: 240 }}>
+              <span style={CHART_TITLE}>สัดส่วนผลลัพธ์ที่ตัดสินแล้ว</span>
+              <div className='flex items-center justify-center'>
+                <Donut
+                  segments={pieSegments}
+                  size={160}
+                  thickness={24}
+                  centerLabel={`${consentRatePct}%`}
+                  centerSub='อัตรายินยอม'
+                  centerExtra={`${pieTotal.toLocaleString()} รายการ`}
+                />
+              </div>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
+                {pieSegments.map((s) => (
+                  <div key={s.label} className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                    <span aria-hidden style={{ width: 10, height: 10, borderRadius: 'var(--dim-radius-full)', background: s.color, flexShrink: 0 }} />
+                    <span className='truncate' style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{s.label}</span>
+                    <span style={{ color: s.color, fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-xs)' }}>
+                      {s.value.toLocaleString()} · {pieTotal ? `${((s.value / pieTotal) * 100).toFixed(0)}%` : '0%'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {showHbar && (
+            <div style={{ ...CHART_CARD, flex: '1 1 280px', minWidth: 260 }}>
+              <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                <span style={CHART_TITLE}>{report.hbarTitle || 'อันดับตามหมวด'}</span>
+                {(report.hbarLegend || []).length > 0 && (
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                    {report.hbarLegend.map((item) => (
+                      <span key={item.label} className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)' }}>
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 'var(--dim-radius-full)',
+                            background: item.color,
+                          }}
+                        />
+                        <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+                          {item.label}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <HBarList rows={hbarRows} valueLabel={report.hbarValueLabel || 'รายการ'} />
+            </div>
+          )}
+        </div>
+      )}
+      {showBars && (
+        <div style={{ ...CHART_CARD, width: '100%' }}>
+          <span style={CHART_TITLE}>แนวโน้มตาม{period}</span>
+          <VBars months={barLabels} series={barSeries} height={200} barMaxWidth={barLabels.length <= 7 ? 36 : 16} />
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+            {barSeries.map((s) => (
+              <div key={s.name} className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+                <span aria-hidden style={{ width: 10, height: 10, borderRadius: 'var(--dim-radius-100)', background: s.color }} />
+                <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{s.name}</span>
               </div>
             ))}
           </div>
         </div>
       )}
-      <div style={{ ...CHART_CARD, flex: '1 1 0', minWidth: 320 }}>
-        <span style={CHART_TITLE}>เปรียบเทียบ{period}</span>
-        <VBars months={barLabels} series={barSeries} height={200} />
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-          {barSeries.map((s) => (
-            <div key={s.name} className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-              <span aria-hidden style={{ width: 10, height: 10, borderRadius: 'var(--dim-radius-100)', background: s.color }} />
-              <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{s.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 
@@ -313,10 +356,24 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
                   scrollOffsetTop={null}
                 />
               </div>
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)', flex: '0 1 340px' }}>
-                <DateInputBox placeholder='วันเริ่มต้น' value={fmtThaiDate(dateRange.start)} onClick={() => setDateOpen(true)} />
-                <span style={{ color: 'var(--text-content-tertiary)' }}>-</span>
-                <DateInputBox placeholder='วันสิ้นสุด' value={fmtThaiDate(dateRange.end)} onClick={() => setDateOpen(true)} />
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                <DateInputBox
+                  placeholder='วันเริ่มต้น'
+                  value={dateRange.start}
+                  onChange={(d) => {
+                    setDateRange((prev) => ({
+                      start: d,
+                      end: prev.end && d && prev.end.getTime() < d.getTime() ? d : prev.end,
+                    }));
+                  }}
+                />
+                <span style={{ color: 'var(--text-content-tertiary)', flexShrink: 0 }}>-</span>
+                <DateInputBox
+                  placeholder='วันสิ้นสุด'
+                  value={dateRange.end}
+                  onChange={(d) => setDateRange((prev) => ({ ...prev, end: d }))}
+                  minDate={dateRange.start || undefined}
+                />
               </div>
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
                 {REPORT_PERIODS.map((p, i) => (
@@ -353,16 +410,6 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
           </div>
         </div>
       )}
-      {/* Shared PHCIS date picker drives the range form (range tab). */}
-      <DateFilterPopup
-        open={dateOpen}
-        initialTab='range'
-        onClose={() => setDateOpen(false)}
-        onApply={({ tab, range, single }) => {
-          if (tab === 'range' && range) setDateRange({ start: range.start, end: range.end });
-          else if (single) setDateRange({ start: single, end: single });
-        }}
-      />
     </Popup>
   );
 };
@@ -371,24 +418,49 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
 const PERIOD_FACTOR = { 'รายวัน': 1 / 30, 'รายสัปดาห์': 7 / 30, 'รายเดือน': 1, 'รายปี': 12 };
 
 export function ReportCard({ report, onExport, onView, scale = 1 }) {
-  /* ด.1.1.16.1 — ชิป รายวัน/สัปดาห์/เดือน/ปี กรอง stats + bars จริง
+  /* ด.1.1.16.1 — ชิป รายวัน/สัปดาห์/เดือน/ปี อยู่กับกราฟแท่ง
      (สลับชุด label แกน x ตาม period) เฉพาะรายงานที่ selectable. */
   const [cardPeriod, setCardPeriod] = useState('รายเดือน');
   const isPeriodCard = !!report.selectable;
-  const effScale = scale * (isPeriodCard ? (PERIOD_FACTOR[cardPeriod] || 1) : 1);
-  /* Donut of the numeric stats (skip percentage/single-value reports) — dashboard palette.
-     Values scale with the page "วัน:" scope + period chip. */
-  const segments = report.stats
-    .filter((s) => !isPercent(s.value))
-    .map((s, i) => ({ value: Math.round(parseStatNum(s.value) * effScale), color: PIE_PALETTE[i % PIE_PALETTE.length], label: s.label }));
-  const showPie = segments.length >= 2;
-  const total = segments.reduce((a, s) => a + s.value, 0);
+  const periodMul = isPeriodCard ? (PERIOD_FACTOR[cardPeriod] || 1) : 1;
+  const chartKind = report.chart || 'none';
+
+  /* Donut / HBar ไม่ผูกกับชิปช่วงเวลา — ชิปมีผลเฉพาะกราฟแท่งด้านล่าง */
+  const scaledDonut = chartKind === 'donut'
+    ? (report.donut || []).map((s, i) => ({
+        value: Math.max(0, Math.round(s.value * scale)),
+        color: TONE_COLOR[s.tone] || PIE_PALETTE[i % PIE_PALETTE.length],
+        label: s.label,
+      })).filter((s) => s.value > 0)
+    : [];
+  const showPie = scaledDonut.length >= 2;
+  const pieTotal = scaledDonut.reduce((a, s) => a + s.value, 0);
+  const consentValue = scaledDonut.find((s) => s.label === 'ยินยอม')?.value || 0;
+  const consentRatePct = pieTotal ? Math.round((consentValue / pieTotal) * 100) : 0;
+
+  const hbarRows = (report.hbar || []).map((r) => ({
+    ...r,
+    value: Math.max(0, Math.round(r.value * scale)),
+    segments: Array.isArray(r.segments)
+      ? r.segments.map((s) => ({
+        ...s,
+        value: Math.max(0, Math.round(Number(s.value || 0) * scale)),
+      }))
+      : r.segments,
+  }));
+  const showHbar = hbarRows.length > 0 && (chartKind === 'hbar' || chartKind === 'donut');
+  const hbarLegend = report.hbarLegend || [];
+
   const cardBarLabels = periodBarLabels(cardPeriod);
   const cardBarSeries = (report.bars || []).map((b, si) => ({
     name: b.name,
-    color: PIE_PALETTE[si % PIE_PALETTE.length],
-    values: cardBarLabels.map((_, i) => Math.max(1, Math.round(b.base[i % b.base.length] * (PERIOD_FACTOR[cardPeriod] || 1)))),
+    color: BAR_TONE[b.tone] || PIE_PALETTE[si % PIE_PALETTE.length],
+    values: cardBarLabels.map((_, i) => Math.max(0, Math.round(
+      (b.base[i % b.base.length] || 0) * periodMul,
+    ))),
   }));
+  const showBars = isPeriodCard && cardBarSeries.length > 0;
+
   return (
     <section
       className='w-full flex flex-col'
@@ -401,7 +473,6 @@ export function ReportCard({ report, onExport, onView, scale = 1 }) {
         gap: 'var(--dim-space-400)',
       }}
     >
-      {/* header: title + subtitle · actions */}
       <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-400)' }}>
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
           <h2 style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-regular, 400)', lineHeight: 1.4 }}>
@@ -418,70 +489,148 @@ export function ReportCard({ report, onExport, onView, scale = 1 }) {
         </div>
       </div>
 
-      {/* dimension chips — การ์ด 16.1: ชิปกดได้จริง (กรอง stats+bars) ·
-          การ์ดอื่น: display only ตามเดิม */}
-      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
-        {isPeriodCard
-          ? report.chips.map((c) => (
-            <FilterTag key={c} value={c} selected={cardPeriod === c} onClick={() => setCardPeriod(c)} />
-          ))
-          : report.chips.map((c) => (
+      {!isPeriodCard && (report.chips || []).length > 0 && (
+        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+          {report.chips.map((c) => (
             <ColorfulBadge key={c} style='grey' size='small' hierarchy='secondary' width='hug'>{c}</ColorfulBadge>
           ))}
-      </div>
+        </div>
+      )}
 
-      {/* pie chart (left) + stat cards (right) — Figma 358:113494. */}
-      <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-        {showPie && (
-          <div
-            className='flex items-center justify-center shrink-0'
-            style={{
-              minWidth: 180,
-              padding: 'var(--dim-space-400)',
-              borderRadius: 'var(--dim-radius-400)',
-              background: 'var(--surface-card-100)',
-              border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-            }}
-          >
-            <Donut segments={segments} size={140} thickness={22} centerLabel={total.toLocaleString()} centerSub='รวม' />
-          </div>
-        )}
-        <div className='flex items-stretch flex-wrap flex-1' style={{ gap: 'var(--dim-space-400)', minWidth: 'min(100%, 360px)' }}>
+      {(report.stats || []).length > 0 && (
+        <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)', minWidth: 'min(100%, 360px)' }}>
           {report.stats.map((s) => (
-            <SummaryCard key={s.label} card={statCard({ ...s, value: scaleStatValue(s.value, effScale) })} variant='panel' />
+            <SummaryCard key={s.label} card={statCard({ ...s, value: scaleStatValue(s.value, scale) })} variant='panel' />
           ))}
         </div>
-      </div>
+      )}
 
-      {/* ด.1.1.16.1 — bars เปรียบเทียบตาม period ที่เลือก (แกน x สลับชุด label) */}
-      {isPeriodCard && cardBarSeries.length > 0 && (
-        <div
-          className='flex flex-col'
-          style={{
-            gap: 'var(--dim-space-300)',
-            padding: 'var(--dim-space-400)',
-            borderRadius: 'var(--dim-radius-400)',
-            background: 'var(--surface-card-100)',
-            border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-          }}
-        >
-          <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)', lineHeight: 1.4 }}>
-            จำนวน/สัดส่วนการให้ความยินยอม — {cardPeriod}
-          </span>
-          <VBars months={cardBarLabels} series={cardBarSeries} height={170} />
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-            {cardBarSeries.map((s) => (
-              <div key={s.name} className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-                <span aria-hidden style={{ width: 10, height: 10, borderRadius: 'var(--dim-radius-100)', background: s.color }} />
-                <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{s.name}</span>
+      {(showPie || showHbar || showBars) && (
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          {(showPie || showHbar) && (
+            <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+              {showPie && (
+                <div
+                  className='flex flex-col shrink-0'
+                  style={{
+                    gap: 'var(--dim-space-300)',
+                    minWidth: 220,
+                    padding: 'var(--dim-space-400)',
+                    borderRadius: 'var(--dim-radius-400)',
+                    background: 'var(--surface-card-100)',
+                    border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                  }}
+                >
+                  <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)', lineHeight: 1.4 }}>
+                    สัดส่วนผลลัพธ์ที่ตัดสินแล้ว
+                  </span>
+                  <div className='flex items-center' style={{ gap: 'var(--dim-space-400)' }}>
+                    <Donut
+                      segments={scaledDonut}
+                      size={140}
+                      thickness={22}
+                      centerLabel={`${consentRatePct}%`}
+                      centerSub='อัตรายินยอม'
+                      centerExtra={`${pieTotal.toLocaleString()} รายการ`}
+                    />
+                    <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
+                      {scaledDonut.map((s) => (
+                        <div key={s.label} className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+                          <span aria-hidden style={{ width: 10, height: 10, borderRadius: 'var(--dim-radius-full)', background: s.color, flexShrink: 0 }} />
+                          <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{s.label}</span>
+                          <span style={{ color: s.color, fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+                            {s.value.toLocaleString()} · {pieTotal ? `${((s.value / pieTotal) * 100).toFixed(0)}%` : '0%'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {showHbar && (
+                <div
+                  className='flex flex-col flex-1 min-w-0'
+                  style={{
+                    gap: 'var(--dim-space-300)',
+                    flex: '1 1 280px',
+                    padding: 'var(--dim-space-400)',
+                    borderRadius: 'var(--dim-radius-400)',
+                    background: 'var(--surface-card-100)',
+                    border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                  }}
+                >
+                  <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                    <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)', lineHeight: 1.4 }}>
+                      {report.hbarTitle || 'อันดับตามหมวด'}
+                    </span>
+                    {hbarLegend.length > 0 && (
+                      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                        {hbarLegend.map((item) => (
+                          <span key={item.label} className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)' }}>
+                            <span
+                              aria-hidden
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 'var(--dim-radius-full)',
+                                background: item.color,
+                              }}
+                            />
+                            <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+                              {item.label}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <HBarList rows={hbarRows} valueLabel={report.hbarValueLabel || 'รายการ'} />
+                </div>
+              )}
+            </div>
+          )}
+          {showBars && (
+            <div
+              className='flex flex-col w-full'
+              style={{
+                gap: 'var(--dim-space-300)',
+                padding: 'var(--dim-space-400)',
+                borderRadius: 'var(--dim-radius-400)',
+                background: 'var(--surface-card-100)',
+                border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+              }}
+            >
+              <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+                <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)', lineHeight: 1.4 }}>
+                  จำนวนการให้ความยินยอม — {cardPeriod}
+                </span>
+                <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+                  {(report.chips || []).map((c) => (
+                    <FilterTag key={c} value={c} selected={cardPeriod === c} onClick={() => setCardPeriod(c)} />
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
+              <VBars
+                months={cardBarLabels}
+                series={cardBarSeries}
+                height={200}
+                barMaxWidth={cardBarLabels.length <= 7 ? 36 : cardBarLabels.length <= 12 ? 16 : 28}
+              />
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+                {cardBarSeries.map((s) => (
+                  <div key={s.name} className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+                    <span aria-hidden style={{ width: 10, height: 10, borderRadius: 'var(--dim-radius-100)', background: s.color }} />
+                    <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{s.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>
   );
-};
+}
 
 export function ConsentReportSections({
   pageDate: pageDateProp,

@@ -50,6 +50,11 @@ import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMoti
      • .mih-popup-overlay + .mih-popup-dialog — data-state visible|hidden
      • Tokens: --motion-duration-modal, --motion-panel-offset-y, etc.
 
+   Nested popups:
+     • Open instances push onto an internal stack; the top layer gets a higher
+       z-index and is the only one that responds to Escape / overlay click /
+       header X. Closing the top layer leaves parent popups open.
+
    Note on dismissal hardening — set both flags to false to force the
    user to either click the primary footer action or click outside the
    dialog (overlay) to close. AddMedicationPopup uses this combo so an
@@ -108,6 +113,12 @@ const VIEWPORT_MAX_HEIGHT = 1024;
 let bodyScrollLockCount = 0;
 let bodyScrollLockSavedOverflow = '';
 let bodyScrollLockSavedPaddingRight = '';
+
+/** Open popup stack (top = last). Escape / overlay only dismiss the top layer;
+    each layer gets a higher z-index so nested dialogs fully cover parents. */
+const popupStack = [];
+const BASE_MODAL_Z = 1400;
+const MODAL_Z_STEP = 20;
 
 const lockBodyScroll = () => {
   bodyScrollLockCount += 1;
@@ -273,16 +284,38 @@ const Popup = ({
   closeOnEscape = true,
 }) => {
   const dialogRef = useRef(null);
+  const stackIdRef = useRef(null);
+  if (stackIdRef.current == null) {
+    stackIdRef.current = `popup-${Math.random().toString(36).slice(2)}`;
+  }
+  const stackId = stackIdRef.current;
   const { mounted, motionState } = useModalMotion(open, MODAL_MOTION_MS);
+  const [stackDepth, setStackDepth] = useState(0);
+
+  useEffect(() => {
+    if (!mounted) return undefined;
+    popupStack.push(stackId);
+    setStackDepth(popupStack.length - 1);
+    return () => {
+      const idx = popupStack.indexOf(stackId);
+      if (idx >= 0) popupStack.splice(idx, 1);
+    };
+  }, [mounted, stackId]);
+
+  const isTopPopup = () => popupStack.length === 0
+    || popupStack[popupStack.length - 1] === stackId;
 
   useEffect(() => {
     if (!open || !closeOnEscape) return undefined;
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose && onClose();
+      if (e.key !== 'Escape') return;
+      if (!isTopPopup()) return;
+      e.stopPropagation();
+      onClose && onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose, closeOnEscape]);
+  }, [open, onClose, closeOnEscape, stackId]);
 
   useEffect(() => {
     if (!mounted) return undefined;
@@ -331,6 +364,13 @@ const Popup = ({
 
   const hasFooter = footer || resolvedActions.length > 0;
   const isVertical = buttonLayout === 'vertical';
+  const layerZIndex = BASE_MODAL_Z + stackDepth * MODAL_Z_STEP;
+
+  const requestClose = () => {
+    if (!onClose) return;
+    if (!isTopPopup()) return;
+    onClose();
+  };
 
   const overlay = (
     <div
@@ -339,6 +379,7 @@ const Popup = ({
       data-state={motionState}
       onMouseDown={(e) => {
         if (!open || !onClose) return;
+        if (!isTopPopup()) return;
         const t = e.target instanceof Element ? e.target : e.target?.parentElement;
         if (!t) return;
         /* Clicks on the panel (header/body/footer) stay open. */
@@ -360,7 +401,7 @@ const Popup = ({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 'var(--sm-z-modal, 1400)',
+        zIndex: layerZIndex,
         background: 'var(--surface-overlay-default)',
         display: 'flex',
         alignItems: 'center',
@@ -452,7 +493,7 @@ const Popup = ({
               </p>
             )}
           </div>
-          {showCloseButton && <CloseButton onClick={onClose} />}
+          {showCloseButton && <CloseButton onClick={requestClose} />}
         </div>
 
         {/* Body — outer segment fixes flex height; inner owns vertical scroll

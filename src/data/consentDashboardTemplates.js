@@ -12,10 +12,11 @@ export const DASHBOARD_LAYOUTS = [
 
 /* ── Widget palette — ผูก dataset consent ─────────────────────────────── */
 export const WIDGET_TYPES = [
-  { key: 'stat',  label: 'การ์ดสถิติ',            icon: 'analytics',    description: 'ตัวเลขสรุปจาก summary consent' },
-  { key: 'donut', label: 'สัดส่วนการยินยอม',       icon: 'data_usage',   description: 'Donut ยินยอม / ปฏิเสธ / รอลงนาม' },
-  { key: 'bars',  label: 'แนวโน้มรายเดือน',        icon: 'bar_chart',    description: 'กราฟแท่งจำนวน consent ต่อเดือน' },
-  { key: 'table', label: 'รายการล่าสุด',           icon: 'table_rows',   description: 'ตาราง consent record ล่าสุด' },
+  { key: 'overview', label: 'สัดส่วนการยินยอม',    icon: 'data_usage',   description: 'Donut สัดส่วนสถานะความยินยอม ตามช่วงวันที่' },
+  { key: 'stat',     label: 'การ์ดสถิติ',            icon: 'analytics',    description: 'ตัวเลขสรุปจาก summary consent' },
+  { key: 'donut',    label: 'สัดส่วนการยินยอม',       icon: 'data_usage',   description: 'Donut ยินยอม / ปฏิเสธ / รอลงนาม' },
+  { key: 'bars',     label: 'แนวโน้มรายเดือน',        icon: 'bar_chart',    description: 'กราฟแท่งจำนวน consent ต่อเดือน' },
+  { key: 'table',    label: 'รายการล่าสุด',           icon: 'table_rows',   description: 'ตาราง consent record ล่าสุด' },
 ];
 
 /* dataset ที่ widget เลือกผูกได้ (มาจาก mock consent จริงของระบบ) */
@@ -28,10 +29,11 @@ export const WIDGET_DATASETS = [
 /* dataset ที่แต่ละ widget type ผูกแล้วมีผลต่อการ render จริง — Select ใน
    builder เสนอเฉพาะรายการนี้ (กัน dead control) ตัวแรกคือค่าเริ่มต้น */
 export const WIDGET_TYPE_DATASETS = {
-  stat:  ['summary', 'reports'],
-  donut: ['records', 'reports'],
-  bars:  ['reports', 'records'],
-  table: ['records', 'reports'],
+  overview: ['summary', 'records'],
+  stat:     ['summary', 'reports'],
+  donut:    ['records', 'reports'],
+  bars:     ['reports', 'records'],
+  table:    ['records', 'reports'],
 };
 
 let TEMPLATE_SEQ = 3;
@@ -45,9 +47,7 @@ const STANDARD_TEMPLATE = {
   updatedAt: '1 สิงหาคม 2569',
   updatedBy: 'ระบบ',
   widgets: [
-    { id: 'w1', type: 'stat',  title: 'Consent ทั้งหมด',        dataset: 'summary' },
-    { id: 'w2', type: 'donut', title: 'สัดส่วนการยินยอม',        dataset: 'records' },
-    { id: 'w4', type: 'table', title: 'รายการ Consent ล่าสุด',   dataset: 'records' },
+    { id: 'w1', type: 'overview', title: 'สัดส่วนการยินยอม', dataset: 'records' },
   ],
 };
 

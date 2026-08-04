@@ -2004,6 +2004,41 @@ const IMPL = {
   '1.12.6.8': {s:'partial', u:'/xray/queue',  n:'กรองตามชนิดการตรวจ/ประเภทผล/ผู้อ่านผล + ค้นคำในผลตรวจ; ตัวกรองช่วงเวลายังไม่ subset mock (ข้อมูลเป็นวันเดียว)'},
   '1.12.6.9': {s:'done',    u:'/xray/result', n:'ปกติ / ผิดปกติ / ผิดปกติเร่งด่วน / ไม่ชัดเจน — เร่งด่วนต้องยืนยันก่อนบันทึก'},
 
+  /* ===== 1.15 ระบบงานห้องปฏิบัติการ (LIS) — wave 2026-08 =====
+     Screens: /lab/queue (worklist 6 ขั้น) · /lab/order (บันทึกส่งตรวจ) ·
+     /lab/receive (สถานีรับสิ่งส่งตรวจ 3 ขั้น) · /lab/send-out (ส่งตรวจภายนอก +
+     รับผลกลับ) · /lab/interface (ตั้งค่า LIS + เครื่องตรวจวิเคราะห์ + TMLT
+     mapping + คิวข้อความ) · /lab/result/:id (บันทึก/รับรองผล) ·
+     /lab/report/:orderId (ใบผลรายครั้ง) · /lab/history/:hn (ใบสรุปผลย้อนหลัง).
+     Data: labCatalog.js · labOrders.js · labResults.js · labReceive.js ·
+     labSendOuts.js · labInterfaces.js · labAudit.js · labCritical.js ·
+     labQc.js · labCumulative.js · labPrintSettings.js.
+     20 ข้อจาก 22 มีอยู่ในโค้ดตั้งแต่ก่อน wave นี้แล้ว (checklist โชว์ ❌ ทั้งหมด
+     เพราะไม่เคยมีใครลง IMPL) — wave นี้ตรวจโค้ดจริงทีละบรรทัดแล้วบันทึกสถานะ
+     พร้อมเพิ่ม 4 หน้าจอใหม่แบบ additive. */
+  '1.15.1':   {s:'partial', u:'/lab/interface', n:'แท็บตั้งค่า LIS (Host/Port/Database/User/Password/protocol จาก LIS_PROTOCOLS/endpoint/รหัสหน่วยบริการ) + ปุ่มทดสอบการเชื่อมต่อที่ gate ปุ่มบันทึก (แก้ฟิลด์ใดก็ล้างผลทดสอบ) · ทะเบียนเครื่องตรวจ 5 เครื่อง + ประเภทการรายงานผล Normal/Manual/Automatic · ตารางจับคู่รหัส ↔ TMLT · คิวข้อความ ORM/ORU · QC gate — partial อย่างซื่อสัตย์: ไม่มี backend / ไม่มี HL7 v2.5.1 parser / ไม่มี ASTM E1381-E1394 driver / ไม่มี socket, transport เป็น mock ทั้งหมด และหน้าจอประกาศข้อจำกัดนี้เองด้วย Information banner'},
+  '1.15.2':   {s:'done',    u:'/lab/queue',     n:'LabQueuePage สร้าง 6 แท็บคิวจาก LAB_STATUSES (labOrders.js:38) + summary cards + pagination 20 แถว · เพิ่มใหม่ใน wave นี้: /lab/receive คิวรอรับ 3 ขั้นตอนจาก LAB_RECEIVE_STAGES และ /lab/send-out คิวรอส่ง/รอผลกลับ'},
+  '1.15.3.1': {s:'done',    u:'/lab/setup',     n:'LabSetupPage — catalog list + create/edit หน้าเดียว (pattern PharmacyRegistry), ITEM vs PANEL, 8 กลุ่มตรวจ, upsertLabTest/setLabTestRetired (labCatalog.js:507/519), retire แทน delete'},
+  '1.15.3.2': {s:'done',    u:'/lab/setup',     n:'ค่าอ้างอิงแยกตามเพศ (rangeBySex) และช่วงอายุ (rangeByAge) ต่อ analyte + ค่าวิกฤต criticalLow/criticalHigh (LabSetupPage.jsx:887–908) พร้อมข้อความว่าค่าวิกฤตบล็อกการรายงานผลจนกว่าจะบันทึกการแจ้งแพทย์ · resolver จริงคือ resolveAnalyteRange (labCatalog.js:536) ที่ LabDetailPanel / LabResultEntryPage / ใบสรุปผลย้อนหลัง /lab/history/:hn ใช้ร่วมกัน'},
+  '1.15.3.3': {s:'done',    u:'/lab/setup',     n:'section ราคาและการเบิกแยกตามสิทธิการรักษา (LabSetupPage.jsx:916+) วนตาม LAB_RIGHTS (labCatalog.js:108) มีทั้งราคาต่อสิทธิและ flag เบิกได้/ไม่ได้ · resolveRightPricing labCatalog.js:127'},
+  '1.15.4.1': {s:'done',    u:'/lab/order',     n:'LabOrderPage — LabOrderPicker basket + canSubmit (LabOrderPage.jsx:165) บังคับเลือกรายการ, handleSubmit สร้าง order rows + ออก Accession ต่อหลอด'},
+  '1.15.4.2': {s:'done',    u:'/lab/setup',     n:'gate บันทึกที่ LabSetupPage.jsx:993 บังคับรหัสรายการ + ชื่อ EN/TH + รหัส TMLT ก่อนบันทึก (นี่คือ "ข้อมูลที่จำเป็น เช่น Lab Code") · ฝั่งสั่งตรวจบังคับจุดสั่ง + แพทย์ผู้สั่งก่อน submit'},
+  '1.15.4.3': {s:'done',    u:'/lab/order',     n:'priorOrdersFor (labOrders.js:530) จัดกลุ่มประวัติตาม order + ปุ่มสั่งซ้ำหนึ่งคลิก (LabOrderPage.jsx:160) · เพิ่มใหม่: /lab/history/:hn แสดงผลข้ามครั้งเป็นตารางเปรียบเทียบ analyte × วันที่ (เดิมมีแค่ sparkline 6 จุดใน drawer)'},
+  '1.15.4.4': {s:'done',    u:'/lab/order',     n:'duplicateWarning (labCatalog.js:611) + repeatWindowDays ต่อรายการ (labCatalog.js:607) เตือนที่ตัวเลือกใน LabOrderPicker เมื่อสั่งซ้ำภายในระยะเวลาที่กำหนด'},
+  '1.15.4.5': {s:'done',    u:'/lab/receive',   n:'worklist ติดตามสถานะ 6 ขั้น + LabDetailPanel แสดงผล · เพิ่มใหม่: สถานีรับสิ่งส่งตรวจบันทึกสถานะการรับ 3 ขั้น (รับคำขอ/รับเบื้องต้น/รับที่งาน) ผ่าน applyReceipt/amendReceipt/cancelReceipt และ /lab/send-out ติดตาม ส่งแล้ว→เกินกำหนด→รับผลกลับ พร้อมนับวันค้างจาก outstandingDays()'},
+  '1.15.4.6': {s:'done',    u:'/lab/queue',     n:'LabDetailPanel.jsx:158 alert "ผลผิดปกติ (Abnormal)" คนละโทนกับค่าวิกฤต · classifyAnalyte (labResults.js:124) แยก critical/abnormal/normal · เพิ่มใหม่: ตารางผลย้อนหลังที่ /lab/history/:hn ตีธง H/L + ตัวหนา + ไอคอนเตือนต่อ cell และ toggle "เฉพาะค่าผิดปกติ"'},
+  '1.15.4.7': {s:'done',    u:'/lab/order',     n:'toggle สั่งล่วงหน้า (advanceOrdersFor/addAdvanceOrder, labOrders.js:592+) — advance order ไม่เข้า worklist จนถึงวันนัด แล้ว activateAdvanceOrder (labOrders.js:666) ดึงมาสร้างเป็น order rows จริงในวันที่ผู้ป่วยมา'},
+  '1.15.4.8': {s:'done',    u:'/lab/queue',     n:'แบนเนอร์แจ้งเตือนคำสั่งล่วงหน้าถึงกำหนดที่ LabQueuePage.jsx:1104 (dueAdvance.length > 0) จาก dueAdvanceOrders(TODAY) พร้อมปุ่ม "ดึงมาใช้" และ "ยกเลิก"'},
+  '1.15.4.9': {s:'done',    u:'/lab/queue',     n:'คอลัมน์ ความเร่งด่วน / ชุดตรวจ / สิ่งส่งตรวจ+หลอด / ปริมาตร / ราคา ครบ · ยอดรวมต่อ order ที่ LabQueuePage.jsx:911 (orderTotal) และแสดงซ้ำใน LabDetailPanel · ลบรายการผ่าน deleteLabOrder (LabQueuePage.jsx:776) พร้อม AlertDialog ยืนยัน'},
+  '1.15.4.10':{s:'done',    u:'/lab/queue',     n:'FilterDropdown กลุ่มตรวจ ครอบคลุมทั้ง 4 สาขาที่ TOR ระบุ เพราะ labCatalog.js:44 แยก toxicology (สารเสพติด) เป็นกลุ่มของตัวเองแทนที่จะยัดลง MICROSCOPY — โลหิตวิทยา/น้ำเหลืองวิทยา/จุลชีววิทยา/สารเสพติด มีครบใน LAB_GROUPS'},
+  '1.15.5.1': {s:'done',    u:'/lab/setup',     n:'ตัวออกแบบฟิลด์บนสติกเกอร์ (LabSetupPage.jsx:537) หลังบ้านคือ LAB_STICKER_FIELDS (labPrintSettings.js:17) โดย barcode/ชื่อ/HN บังคับเปิดตลอด + live preview SpecimenSticker · พิมพ์จริงจาก row action "พิมพ์ label" (LabQueuePage.jsx:714) ผ่าน printLab("sticker")'},
+  '1.15.5.2': {s:'done',    u:'/lab/queue',     n:'LabCollectionReport พิมพ์รายการเก็บตัวอย่างตามตัวกรองปัจจุบัน (ปุ่มที่ LabQueuePage.jsx:1310) จัดกลุ่มตามจุดสั่ง เรียง STAT ก่อน มีช่องติ๊กและช่องเวลาให้กรอกมือ'},
+  '1.15.5.3': {s:'done',    u:'/lab/queue',     n:'barcode เป็นของจริง: components/lab/Barcode128.jsx (Code128 encoder) เรนเดอร์ใน LabSpecimenLabel.jsx:112 และ groupRowsByTube ออกสติกเกอร์ 1 ใบต่อ 1 หลอด — CBC กับ HbA1c ที่เจาะหลอด EDTA เดียวกันได้สติกเกอร์ใบเดียว'},
+  '1.15.6.1': {s:'done',    u:'/lab/result/LAB-0001', n:'LabResultEntryPage เรนเดอร์ input ต่อ analyte ตามชนิดผล (analyteResultType, labResults.js:28) และ validateAnalyteValue (labResults.js:56) ปฏิเสธค่าที่ผิดชนิด/นอกช่วงที่เป็นไปได้ · delta-check ≥20% เตือน "ตรวจสอบว่าสลับตัวอย่างหรือไม่" · เพิ่มใหม่: บันทึก/รับรองผลเขียน appendLabAudit(scope:"result")'},
+  '1.15.6.2': {s:'done',    u:'/lab/send-out',  n:'ปิดครบทั้งสองครึ่งแล้ว: เดิมมีแค่ครึ่งหลัง (ช่องเลขที่อ้างอิงหน่วยงานภายนอกที่ LabResultEntryPage.jsx:496 สำหรับ order สถานะ external) แต่ไม่มีอะไรทำให้ order เข้าสถานะนั้นได้ — externalLab/sentOutAt เป็นฟิลด์ seed อย่างเดียว · สร้าง LabSendOutPage: เลือกหลายรายการ → เลือกหน่วยงานจาก LAB_EXTERNAL_LABS + เหตุผล + ผู้นำส่ง + วันคาดว่าจะได้ผล (คำนวณจาก turnaroundDays) → confirmSendOut() พลิกสถานะเป็น external + ออกเลขใบนำส่ง + พิมพ์ manifest · ยกเลิกการส่งต้องมีเหตุผลและคืนสถานะเดิม · บันทึกรับผลกลับแล้ว deep-link ไปหน้าบันทึกผล'},
+  '1.15.6.3': {s:'done',    u:'/lab/report/ORD-241', n:'LabReportPage แสดง preview A4 และพิมพ์จาก LabPatientReport component เดียวกัน (preview กับกระดาษไม่มีทางเพี้ยน) และปิดปุ่มพิมพ์พร้อมข้อความอธิบายเมื่อยังไม่มีผลที่รับรอง · เพิ่มใหม่: พิมพ์ใบสรุปผลย้อนหลัง (cumulative) จาก /lab/history/:hn ผ่าน printLab("cumulative")'},
+  '1.15.6.4': {s:'done',    u:'/lab/history/67-00001', n:'confidential มาจาก catalog (withTestLabel) · worklist ปิดบังชื่อ+HN และตัดออกจาก free-text search · LabDetailPanel เปิดดูได้ต้องกดและบันทึก audit · LabResultEntryPage ปิดบังผู้ป่วยจากผู้บันทึกผล · เพิ่มใหม่: ตารางผลย้อนหลังปิดบังค่าเป็น •••• จนกว่าจะยืนยันตัวตนผ่าน PrivacyRevealPopup แล้วเขียน appendLabAudit(scope:"confidential") · ใบนำส่งภายนอกพิมพ์เฉพาะชื่อกลุ่มตรวจ ไม่พิมพ์ชื่อรายการ/ชื่อผู้ป่วย'},
+
   /* ===== 1.16 Kiosk — hub + queue + rights/payment mocks (Stitch) ===== */
   '1.16.1.1': {s:'partial', u:'/kiosk',         n:'Hub→ตรวจสอบสิทธิ์ + chip-read mock; ไม่ wire สปสช. จริง'},
   '1.16.1.2': {s:'partial', u:'/kiosk',         n:'RightsDetailScreen แสดงผล mock; ไม่ persist ประวัติเช็คสิทธิ์'},

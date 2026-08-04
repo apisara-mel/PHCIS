@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
@@ -7,6 +7,7 @@ import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
@@ -192,8 +193,8 @@ function TimelineEventCard({ ev, showConnector, onOpen }) {
   const statusTone = (CONSENT_STATUS[ev.toStatus] || {}).tone || ACTION_BADGE_TONE[meta.tone] || 'grey';
   const canView = Boolean(onOpen);
   return (
-    <div className='flex items-stretch' style={{ gap: 'var(--dim-space-300)' }}>
-      <div className='flex flex-col items-center' style={{ width: 24, flexShrink: 0 }}>
+    <>
+      <div className='flex flex-col items-center h-full' style={{ width: 24 }}>
         <span
           aria-hidden
           className='inline-flex items-center justify-center'
@@ -220,45 +221,26 @@ function TimelineEventCard({ ev, showConnector, onOpen }) {
           />
         )}
       </div>
-      <button
-        type='button'
-        onClick={canView ? () => onOpen(ev) : undefined}
-        className='flex flex-col flex-1 min-w-0 text-left'
+      <div
+        className='flex flex-col min-w-0 text-left'
         style={{
           ...EVENT_CARD_STYLE,
           gap: 'var(--dim-space-150)',
           marginBottom: showConnector ? 'var(--dim-space-300)' : 0,
-          cursor: canView ? 'pointer' : 'default',
-          font: 'inherit',
-          color: 'inherit',
-          transition: 'border-color 120ms ease, box-shadow 120ms ease',
-        }}
-        onMouseEnter={(e) => {
-          if (!canView) return;
-          e.currentTarget.style.borderColor = 'var(--border-brandPrimary-secondary)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-card)';
-        }}
-        onMouseLeave={(e) => {
-          if (!canView) return;
-          e.currentTarget.style.borderColor = '';
-          e.currentTarget.style.boxShadow = '';
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
-        <div className='flex items-start justify-between w-full' style={{ gap: 'var(--dim-space-200)' }}>
-          <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
-            <ColorfulBadge style={ACTION_BADGE_TONE[meta.tone] || 'grey'} size='small' hierarchy='secondary' width='hug'>
-              {ev.action}
-            </ColorfulBadge>
-            <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{ev.formCode}</ColorfulBadge>
-            <ColorfulBadge style={CONSENT_TYPE_TONE[ev.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>
-              {ev.type}
-            </ColorfulBadge>
-            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{ev.version}</ColorfulBadge>
-            <ColorfulBadge style={statusTone} size='small' hierarchy='secondary' width='hug'>{ev.toStatus}</ColorfulBadge>
-          </div>
-          {canView && (
-            <Icon name='chevron_right' size={20} color='var(--text-content-tertiary)' />
-          )}
+        <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
+          <ColorfulBadge style={ACTION_BADGE_TONE[meta.tone] || 'grey'} size='small' hierarchy='secondary' width='hug'>
+            {ev.action}
+          </ColorfulBadge>
+          <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{ev.formCode}</ColorfulBadge>
+          <ColorfulBadge style={CONSENT_TYPE_TONE[ev.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>
+            {ev.type}
+          </ColorfulBadge>
+          <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{ev.version}</ColorfulBadge>
+          <ColorfulBadge style={statusTone} size='small' hierarchy='secondary' width='hug'>{ev.toStatus}</ColorfulBadge>
         </div>
         <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
           {ev.formName}
@@ -267,17 +249,25 @@ function TimelineEventCard({ ev, showConnector, onOpen }) {
         <span style={MUTED_XS}>ช่องทาง: {ev.channel}</span>
         <span style={MUTED_XS}>วันเวลา: {ev.dateTime}</span>
         {canView && (
-          <span style={{ ...MUTED_XS, color: 'var(--text-brandPrimary-default)' }}>
-            กดเพื่อดูแบบฟอร์มความยินยอม
-          </span>
+          <div style={{ paddingTop: 'var(--dim-space-100)' }}>
+            <BrandSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon='visibility'
+              onClick={() => onOpen(ev)}
+            >
+              ดูแบบฟอร์มความยินยอม
+            </BrandSubdueButton>
+          </div>
         )}
-      </button>
-    </div>
+      </div>
+    </>
   );
 }
 
-function ConsentHistorySearch({ records }) {
+function ConsentHistorySearch({ records, onSelectHn, embedded = false }) {
   const navigate = useHistory();
+  const location = useLocation();
   const [search, setSearch] = useState('');
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:consent-history', {
@@ -293,6 +283,18 @@ function ConsentHistorySearch({ records }) {
     () => consentPatientSearchSuggestions(search),
     [search],
   );
+
+  const goToTimeline = (hn) => {
+    if (!hn) return;
+    if (typeof onSelectHn === 'function') {
+      onSelectHn(hn);
+      return;
+    }
+    navigate.push({
+      pathname: `/consent/history/${encodeURIComponent(hn)}`,
+      search: location.search,
+    });
+  };
 
   const handleSubmit = (value, item) => {
     const q = (item?.value || item?.label || value || '').trim();
@@ -310,14 +312,20 @@ function ConsentHistorySearch({ records }) {
     pushHistory(pool ? toConsentPatientSearchItem(pool) : (item || { label: q, value: q }));
 
     if (hn) {
-      navigate.push(`/consent/history/${encodeURIComponent(hn)}`);
+      goToTimeline(hn);
       return;
     }
     setSearch(q);
   };
 
   return (
-    <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
+    <div
+      className='flex flex-col flex-1 min-w-0'
+      style={{
+        padding: embedded ? 0 : 'var(--dim-space-600)',
+        gap: 'var(--dim-space-400)',
+      }}
+    >
       <section className='w-full flex flex-col' style={{ ...CARD_STYLE, gap: 'var(--dim-space-600)' }}>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
           <h2 style={TITLE_TEXT}>ค้นหาประวัติความยินยอม</h2>
@@ -351,7 +359,7 @@ function ConsentHistorySearch({ records }) {
               <li key={p.hn}>
                 <button
                   type='button'
-                  onClick={() => navigate.push(`/consent/history/${encodeURIComponent(p.hn)}`)}
+                  onClick={() => goToTimeline(p.hn)}
                   className='w-full flex items-center text-left'
                   style={{
                     gap: 'var(--dim-space-400)',
@@ -386,7 +394,7 @@ function ConsentHistorySearch({ records }) {
   );
 }
 
-function ConsentHistoryTimeline({ hn, records }) {
+function ConsentHistoryTimeline({ hn, records, embedded = false }) {
   const [actionFilter, setActionFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState({ quick: 'thisyear' });
   const [viewEvent, setViewEvent] = useState(null);
@@ -426,7 +434,13 @@ function ConsentHistoryTimeline({ hn, records }) {
 
   if (!patient) {
     return (
-      <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
+      <div
+        className='flex flex-col flex-1 min-w-0'
+        style={{
+          padding: embedded ? 0 : 'var(--dim-space-600)',
+          gap: 'var(--dim-space-400)',
+        }}
+      >
         <section style={CARD_STYLE}>
           <span style={BODY_TEXT}>ไม่พบประวัติความยินยอมของ HN {hn || '—'}</span>
         </section>
@@ -435,7 +449,13 @@ function ConsentHistoryTimeline({ hn, records }) {
   }
 
   return (
-    <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
+    <div
+      className='flex flex-col flex-1 min-w-0'
+      style={{
+        padding: embedded ? 0 : 'var(--dim-space-600)',
+        gap: 'var(--dim-space-400)',
+      }}
+    >
       <section className='w-full flex flex-col' style={{ ...CARD_STYLE, gap: 'var(--dim-space-400)' }}>
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
           <FilterDateTag
@@ -468,7 +488,16 @@ function ConsentHistoryTimeline({ hn, records }) {
                   <span style={MONTH_HEADING}>{group.label}</span>
                   <span style={MUTED_XS}>{group.events.length} รายการ</span>
                 </div>
-                <div className='flex flex-col w-full'>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '24px max-content',
+                    columnGap: 'var(--dim-space-300)',
+                    width: 'max-content',
+                    maxWidth: '100%',
+                    alignItems: 'stretch',
+                  }}
+                >
                   {group.events.map((ev, i) => (
                     <TimelineEventCard
                       key={ev.id}
@@ -495,8 +524,11 @@ function ConsentHistoryTimeline({ hn, records }) {
   );
 }
 
+export { ConsentHistorySearch, ConsentHistoryTimeline };
+
 export default function ConsentHistoryPage() {
   const history = useHistory();
+  const location = useLocation();
   const { hn: hnParam } = useParams();
   const hn = hnParam ? decodeURIComponent(hnParam) : '';
   const [records, setRecords] = useState(getConsentRecords);
@@ -509,6 +541,26 @@ export default function ConsentHistoryPage() {
     return patient ? resolveConsentPatientCard(patient.hn, patient.name) : null;
   }, [hn, records]);
 
+  const handleBack = () => {
+    const fromRaw = new URLSearchParams(location.search).get('from') || location.state?.from;
+    const from = typeof fromRaw === 'string' ? fromRaw.trim() : '';
+    /* กลับไปหน้าต้นทางที่เปิดประวัติมา (เช่น worklist /consent) */
+    if (from.startsWith('/') && !from.startsWith('//') && !from.startsWith('/consent/history')) {
+      history.push(from);
+      return;
+    }
+    if (hn) {
+      /* Timeline → หน้าค้นหา (คง ?from= ไว้ให้กลับ worklist ได้ต่อ) */
+      history.push({ pathname: '/consent/history', search: location.search });
+      return;
+    }
+    if (history.length > 1) {
+      history.goBack();
+      return;
+    }
+    history.push('/consent');
+  };
+
   return (
     <QueuePageShell
       activeKey='consent-manage'
@@ -517,7 +569,7 @@ export default function ConsentHistoryPage() {
       brandTitle='ระบบจัดการความยินยอม'
       breadcrumb={hn ? breadcrumbTimeline : breadcrumbSearch}
       title={hn ? 'Timeline การเปลี่ยนแปลงความยินยอม' : 'ประวัติความยินยอม'}
-      onBack={hn ? () => history.push('/consent/history') : undefined}
+      onBack={handleBack}
       stickyHeaderInfo={!!timelinePatientCard}
       headerInfo={
         timelinePatientCard ? (

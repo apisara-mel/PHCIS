@@ -5,6 +5,8 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import FilterDateTag from '@/components/forms/FilterDateTag';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -21,9 +23,10 @@ import {
 } from '@/data/consentFormRecords';
 import { logExport } from '@/data/consentWorkflowStore';
 import { downloadConsentFormPdf } from '@/data/consentFormDownload';
+import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
-import { ConsentFormSharePopup } from '@/pages/consent/ConsentFormSharePopup';
 import { ConsentFormEditPopup } from '@/pages/consent/CreateConsentFormPage';
+import { ConsentFormViewPopup } from '@/pages/consent/ConsentFormViewPopup';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — แบบฟอร์มความยินยอม (Figma 291:113045 · flow 277:150901).
@@ -259,14 +262,21 @@ export default function ConsentFormsPage() {
   const navigate = useHistory();
   const [activeTab, setActiveTab] = useState('review');
   const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterGroup, setFilterGroup] = useState('');
+  const [filterSubBranch, setFilterSubBranch] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+  const [filterCreator, setFilterCreator] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterDate, setFilterDate] = useState({ quick: 'thisyear' });
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   /* ด.1.1.5 Version Control + ด.1.1.15 ดาวน์โหลด PDF */
   const [versionFor, setVersionFor] = useState(null);   // record → VersionHistoryPopup
   const [bumpFor, setBumpFor] = useState(null);         // published record → บังคับ bump
-  const [shareFor, setShareFor] = useState(null);       // record → ConsentFormSharePopup
   const [editFor, setEditFor] = useState(null);         // { record, newVersion } → ConsentFormEditPopup
+  const [viewFor, setViewFor] = useState(null);         // record → ConsentFormViewPopup
   const [toast, setToast] = useState(null);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:consent-forms');
@@ -295,16 +305,48 @@ export default function ConsentFormsPage() {
       : CONSENT_FORM_RECORDS.filter((r) => (CONSENT_FORM_STATUS[r.status] || {}).tab === t.value).length,
   })), []);
 
+  const typeOptions = useMemo(() => [
+    { value: '', label: 'ทุกประเภท' },
+    ...[...new Set(CONSENT_FORM_RECORDS.map((r) => r.type))].map((t) => ({ value: t, label: t })),
+  ], []);
+  const groupOptions = useMemo(() => [
+    { value: '', label: 'ทุกกลุ่ม' },
+    ...[...new Set(CONSENT_FORM_RECORDS.map((r) => r.group))].map((g) => ({ value: g, label: g })),
+  ], []);
+  const subBranchOptions = useMemo(() => [
+    { value: '', label: 'ทุกสาขาย่อย' },
+    ...[...new Set(CONSENT_FORM_RECORDS.map((r) => r.subBranch))].map((s) => ({ value: s, label: s })),
+  ], []);
+  const deptOptions = useMemo(() => [
+    { value: '', label: 'ทุกแผนก' },
+    ...[...new Set(CONSENT_FORM_RECORDS.map((r) => r.dept))].map((d) => ({ value: d, label: d })),
+  ], []);
+  const statusOptions = useMemo(() => [
+    { value: '', label: 'ทุกสถานะ' },
+    ...Object.keys(CONSENT_FORM_STATUS).map((s) => ({ value: s, label: s })),
+  ], []);
+  const creatorOptions = useMemo(() => [
+    { value: '', label: 'ทุกคน' },
+    ...[...new Set(CONSENT_FORM_RECORDS.map((r) => r.creator))].map((c) => ({ value: c, label: c })),
+  ], []);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return CONSENT_FORM_RECORDS.filter((r) => {
       const meta = CONSENT_FORM_STATUS[r.status] || {};
       return (
         (activeTab === 'all' || meta.tab === activeTab) &&
+        (!filterType || r.type === filterType) &&
+        (!filterGroup || r.group === filterGroup) &&
+        (!filterSubBranch || r.subBranch === filterSubBranch) &&
+        (!filterDept || r.dept === filterDept) &&
+        (!filterStatus || r.status === filterStatus) &&
+        (!filterCreator || r.creator === filterCreator) &&
+        matchesDateFilter(r.createdDate, filterDate) &&
         (!q || r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || (r.group || '').toLowerCase().includes(q))
       );
     });
-  }, [activeTab, search]);
+  }, [activeTab, search, filterType, filterGroup, filterSubBranch, filterDept, filterStatus, filterCreator, filterDate]);
 
   const handleSort = (key) => setSortConfig((prev) => (
     prev.key === key
@@ -371,8 +413,8 @@ export default function ConsentFormsPage() {
 
   const renderAction = (row) => (
     <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-150)' }}>
-      <NeutralSubdueIconButton icon='visibility' variant='outline' size='sm' aria-label='ดูแบบฟอร์ม' title='ดูแบบฟอร์ม' onClick={() => navigate.push(`/consent/forms/${row.id}/view`)} />
-      <NeutralSubdueIconButton icon='ios_share' variant='outline' size='sm' aria-label='ส่งออกแบบฟอร์ม' title='ส่งออกแบบฟอร์ม (อีเมล)' onClick={() => setShareFor(row)} />
+      <NeutralSubdueIconButton icon='visibility' variant='outline' size='sm' aria-label='ดูแบบฟอร์ม' title='ดูแบบฟอร์ม' onClick={() => setViewFor(row)} />
+      {/* แชร์/ส่งออกทางอีเมล — ซ่อนไว้จนกว่าฟีเจอร์จะเผยแพร่ */}
       <NeutralSubdueIconButton icon='history' variant='outline' size='sm' aria-label='ประวัติเวอร์ชัน' title='ประวัติเวอร์ชัน (Version Control)' onClick={() => setVersionFor(row)} />
       <NeutralSubdueIconButton icon='download' variant='outline' size='sm' aria-label='ดาวน์โหลด PDF' title='ดาวน์โหลด PDF (เก็บ log)' onClick={() => handleDownloadPdf(row)} />
       <NeutralSubdueIconButton icon='print' variant='outline' size='sm' aria-label='พิมพ์' title='พิมพ์ (ไม่เก็บ log)' onClick={() => window.print?.()} />
@@ -435,6 +477,7 @@ export default function ConsentFormsPage() {
       onTabChange={(key) => {
         setActiveTab(key);
         setPage(1);
+        if (key !== 'all') setFilterStatus('');
       }}
     >
       {/* Content — search + view toggle + table อยู่การ์ดขาวใบเดียว */}
@@ -453,9 +496,27 @@ export default function ConsentFormsPage() {
             />
           </div>
 
-          <div className='w-full flex items-center justify-end' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>มุมมอง</span>
-            <ViewToggle value={viewMode} onChange={setViewMode} />
+          <div className='w-full flex items-start' style={{ gap: 'var(--dim-space-300)' }}>
+            <div className='flex items-center flex-wrap min-w-0 flex-1' style={{ gap: 'var(--dim-space-200)' }}>
+              <FilterDropdown prefix='ประเภท:' options={typeOptions} value={filterType} onChange={(v) => { setFilterType(v); setPage(1); }} />
+              <FilterDropdown prefix='Group Policy:' options={groupOptions} value={filterGroup} onChange={(v) => { setFilterGroup(v); setPage(1); }} />
+              <FilterDropdown prefix='สาขาย่อย:' options={subBranchOptions} value={filterSubBranch} onChange={(v) => { setFilterSubBranch(v); setPage(1); }} />
+              <FilterDropdown prefix='แผนก:' options={deptOptions} value={filterDept} onChange={(v) => { setFilterDept(v); setPage(1); }} />
+              <FilterDropdown prefix='ผู้สร้าง:' options={creatorOptions} value={filterCreator} onChange={(v) => { setFilterCreator(v); setPage(1); }} />
+              {activeTab === 'all' && (
+                <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
+              )}
+              <FilterDateTag
+                prefix='วันที่:'
+                value={filterDate}
+                onChange={(v) => { setFilterDate(v); setPage(1); }}
+                defaultQuick='thisyear'
+              />
+            </div>
+            <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>มุมมอง</span>
+              <ViewToggle value={viewMode} onChange={setViewMode} />
+            </div>
           </div>
 
           {viewMode === 'list' ? (
@@ -494,7 +555,7 @@ export default function ConsentFormsPage() {
                   type={g.type}
                   rows={g.rows}
                   cardStyle={CARD_STYLE}
-                  onView={(r) => navigate.push(`/consent/forms/${r.id}/view`)}
+                  onView={(r) => setViewFor(r)}
                   onEdit={handleEdit}
                   onSeeAll={() => { setViewMode('list'); setPage(1); }}
                 />
@@ -504,6 +565,13 @@ export default function ConsentFormsPage() {
         </section>
       </div>
     </QueuePageShell>
+
+    <ConsentFormViewPopup
+      open={!!viewFor}
+      record={viewFor}
+      onClose={() => setViewFor(null)}
+      onToast={setToast}
+    />
 
     {/* ด.1.1.5 — timeline เวอร์ชัน + สร้างเวอร์ชันใหม่ */}
     <VersionHistoryPopup
@@ -541,15 +609,6 @@ export default function ConsentFormsPage() {
       onConfirm={() => { const row = bumpFor; setBumpFor(null); if (row) goCreateVersion(row); }}
       onCancel={() => setBumpFor(null)}
       onClose={() => setBumpFor(null)}
-    />
-
-    <ConsentFormSharePopup
-      open={!!shareFor}
-      record={shareFor}
-      onClose={() => setShareFor(null)}
-      onShared={({ email, record: row }) => {
-        setToast({ id: Date.now(), variant: 'success', message: `ส่งออก ${row.code} ไปยัง ${email} แล้ว — ระบบบันทึก log การส่งออกข้อมูล` });
-      }}
     />
 
     <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />

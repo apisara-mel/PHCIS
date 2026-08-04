@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import Table, { EllipsisText } from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import Icon from '@/components/icons/Icon';
+import DatePicker from '@/components/forms/DatePicker';
+import { formatThaiBuddhistDate } from '@/data/registrationForm';
 import { logExport } from '@/data/consentWorkflowStore';
 
 /* PHCIS | Consent — shared export popup (Figma 399:124481 / ด.1.1.16).
@@ -26,15 +27,18 @@ const SECTION_LABEL = {
 };
 
 const STATUS_TONE = {
-  'ยินยอม': 'green', 'สำเร็จ': 'green', 'อนุมัติ': 'green', 'ใช้งาน': 'green', 'ยินยอมแล้ว': 'green',
-  'ปฏิเสธ': 'red', 'ถอน': 'red', 'ไม่ยินยอม': 'red', 'ถูกปฏิเสธ': 'red', 'ล้มเหลว': 'red', 'ปฏิเสธ/เพิกถอน': 'red',
+  'ยินยอม': 'green', 'สำเร็จ': 'green', 'อนุมัติ': 'green', 'ใช้งาน': 'green', 'ยินยอมแล้ว': 'green', 'เผยแพร่': 'green',
+  'ปฏิเสธ': 'red', 'ถอน': 'red', 'ไม่ยินยอม': 'red', 'ถูกปฏิเสธ': 'red', 'ล้มเหลว': 'red', 'ปฏิเสธ/เพิกถอน': 'red', 'ไม่เผยแพร่': 'red',
   'รอตรวจสอบ': 'yellow', 'รอดำเนินการ': 'yellow', 'รอลงนาม': 'yellow', 'ขอเพิกถอน': 'red', 'หมดอายุ-Reconsent': 'yellow',
-  'มีเวอร์ชันใหม่': 'orange',
+  'มีเวอร์ชันใหม่': 'orange', 'ร่าง': 'grey', 'หมดอายุ': 'grey',
 };
 
 const BADGE_TONE = {
   VIEW: 'blue', EXPORT: 'purple', UPDATE: 'orange', DELETE: 'red',
   Admin: 'purple', Editor: 'blue', Viewer: 'grey',
+  'แพทย์': 'blue', 'พยาบาล': 'teal', 'เภสัชกร': 'purple', 'นักเทคนิคการแพทย์': 'indigo',
+  'ผ่าตัด': 'blue', 'การรักษา': 'green', 'การวิจัย': 'purple', 'เลือด': 'red', 'PDPA': 'indigo', 'เบิกจ่าย': 'magenta',
+  'วัคซีน': 'teal', 'บันทึกภาพ/สื่อ': 'blue',
 };
 
 const CELL_TEXT = {
@@ -134,36 +138,43 @@ const RadioPill = ({ label, selected, onClick, disabled = false }) => {
   );
 };
 
-/** Date range field used in export popup and report-table filters. */
-export const DateInputBox = ({ placeholder, value, onClick }) => (
-  <button
-    type='button'
-    onClick={onClick}
-    className='flex items-center text-left'
+/** Compact date field — opens Calendar dropdown (MIH DatePicker). */
+export const DateInputBox = ({
+  placeholder = 'เลือกวันที่',
+  value = null,
+  onChange,
+  minDate,
+  style = {},
+}) => (
+  <div
     style={{
-      flex: '1 1 0',
-      gap: 'var(--dim-space-200)',
-      minHeight: 44,
-      padding: 'var(--dim-space-200) var(--dim-space-300)',
-      borderRadius: 'var(--dim-radius-200)',
-      border: 'var(--dim-stroke-100) solid var(--border-neutralbutton-tertiary, #E2E4E6)',
-      background: 'var(--surface-card-100)',
-      cursor: 'pointer',
-      outline: 'none',
+      width: 'var(--dim-size-2280, 218px)',
+      maxWidth: '100%',
+      flex: '0 0 auto',
+      ...style,
     }}
   >
-    <Icon name='calendar_today' size={18} style={{ color: 'var(--text-content-tertiary)' }} />
-    <span style={{ color: value ? 'var(--text-content-default)' : 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-      {value || placeholder}
-    </span>
-  </button>
+    <DatePicker
+      size='md'
+      value={value}
+      onChange={onChange}
+      minDate={minDate}
+      format={formatThaiBuddhistDate}
+      placeholder={placeholder}
+      leadingIcon='calendar_today'
+      showFieldName={false}
+      showLabel={false}
+      showHelperText={false}
+      showLeadingIcon
+    />
+  </div>
 );
 
 export function ExportFormatPopup({ open, report, onClose, onExported }) {
   const [format, setFormat] = useState(null);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  useEffect(() => { if (open) { setFormat(null); setStartDate(''); setEndDate(''); } }, [open]);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  useEffect(() => { if (open) { setFormat(null); setStartDate(null); setEndDate(null); } }, [open]);
   const ready = !!format && !!startDate && !!endDate;
   const confirm = () => {
     if (!ready) return;
@@ -190,14 +201,26 @@ export function ExportFormatPopup({ open, report, onClose, onExported }) {
           className='flex items-end flex-wrap w-full'
           style={{ gap: 'var(--dim-space-400)' }}
         >
-          <div className='flex flex-col min-w-0' style={{ flex: '1 1 280px', gap: 'var(--dim-space-200)' }}>
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
             <span style={SECTION_LABEL}>
               เลือกช่วงวันที่ <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
             </span>
-            <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-              <DateInputBox placeholder='วันเริ่มต้น' value={startDate} onClick={() => setStartDate('1 มิถุนายน 2569')} />
-              <span style={{ color: 'var(--text-content-tertiary)' }}>-</span>
-              <DateInputBox placeholder='วันสิ้นสุด' value={endDate} onClick={() => setEndDate('12 มิถุนายน 2569')} />
+            <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+              <DateInputBox
+                placeholder='วันเริ่มต้น'
+                value={startDate}
+                onChange={(d) => {
+                  setStartDate(d);
+                  if (endDate && d && endDate.getTime() < d.getTime()) setEndDate(null);
+                }}
+              />
+              <span style={{ color: 'var(--text-content-tertiary)', flexShrink: 0 }}>-</span>
+              <DateInputBox
+                placeholder='วันสิ้นสุด'
+                value={endDate}
+                onChange={setEndDate}
+                minDate={startDate || undefined}
+              />
             </div>
           </div>
           <div className='flex flex-col shrink-0' style={{ gap: 'var(--dim-space-200)' }}>

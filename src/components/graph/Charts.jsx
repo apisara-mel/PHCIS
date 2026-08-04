@@ -99,6 +99,7 @@ export const Donut = ({
   thickness = 16,
   centerLabel,
   centerSub,
+  centerExtra,        // optional third line (e.g. total count under rate)
   activeIndex = null,
   onSegmentClick,
 }) => {
@@ -109,6 +110,12 @@ export const Donut = ({
   const rIn  = rOut - thickness;         /* inner radius */
   const focused = hover != null ? hover : activeIndex;
   const focusedSeg = focused != null ? segments[focused] : null;
+  const hasTriple = !!(centerLabel && centerSub && centerExtra);
+  const hasPair = !!(centerLabel && centerSub) && !centerExtra;
+  /* ตัวเลขกลางสเกลตามขนาดรูใน — เด่นชัดบน donut ใหญ่ */
+  const centerLabelSize = Math.max(16, Math.round(rIn * 0.52));
+  const centerSubSize = Math.max(10, Math.round(rIn * 0.18));
+  const centerExtraSize = Math.max(9, Math.round(rIn * 0.15));
 
   /* Sweep-in animation — runs once when the donut enters the viewport.
    * Animates `progress` 0→1 with ease-out, clipping each wedge's end angle. */
@@ -188,24 +195,47 @@ export const Donut = ({
             />
           );
         })}
-        {/* Default center (label + sub) — shown when nothing is hovered/active */}
+        {/* Default center (label + sub [+ extra]) — shown when nothing is hovered/active */}
         {!focusedSeg && centerLabel && (
           <text
-            x='50%' y={centerSub ? '46%' : '50%'}
+            x='50%'
+            y={hasTriple ? '38%' : hasPair ? '46%' : '50%'}
             textAnchor='middle' dominantBaseline='middle'
-            className='font-bold'
-            style={{ fontSize: 16, fill: 'var(--text-content-default)' }}
+            style={{
+              fontSize: centerLabelSize,
+              fontFamily: 'var(--type-family-heading-graphic2)',
+              fontWeight: 'var(--type-weight-regular, 400)',
+              fill: 'var(--text-content-default)',
+            }}
           >
             {centerLabel}
           </text>
         )}
         {!focusedSeg && centerSub && (
           <text
-            x='50%' y='62%'
+            x='50%'
+            y={hasTriple ? '54%' : '64%'}
             textAnchor='middle' dominantBaseline='middle'
-            style={{ fontSize: 10, fill: 'var(--text-content-tertiary)' }}
+            style={{
+              fontSize: centerSubSize,
+              fontFamily: 'var(--type-family-body)',
+              fill: 'var(--text-content-tertiary)',
+            }}
           >
             {centerSub}
+          </text>
+        )}
+        {!focusedSeg && centerExtra && (
+          <text
+            x='50%' y='68%'
+            textAnchor='middle' dominantBaseline='middle'
+            style={{
+              fontSize: centerExtraSize,
+              fontFamily: 'var(--type-family-body)',
+              fill: 'var(--text-content-tertiary)',
+            }}
+          >
+            {centerExtra}
           </text>
         )}
         {/* Hover/active center — segment label + value + pct, all inside hole */}
@@ -243,6 +273,9 @@ export const Donut = ({
 };
 
 /* ── Horizontal bar list (used in ranking widgets) ─────────── */
+/* Optional `segments` on a row: [{ value, color, label }] — stacked
+   proportions inside one track (e.g. ยินยอม / ไม่ยินยอม). Track width
+   still scales to the row's `value` vs the list max. */
 export const HBarList = ({ rows, valueLabel = 'คน', secondLabel = 'ครั้ง', activeIndex = null, onRowClick }) => {
   const max = Math.max(...rows.map((r) => r.value)) || 1;
   return (
@@ -250,6 +283,12 @@ export const HBarList = ({ rows, valueLabel = 'คน', secondLabel = 'ครั
       {rows.map((r, i) => {
         const isActive = activeIndex === i;
         const clickable = !!onRowClick;
+        const segments = Array.isArray(r.segments)
+          ? r.segments.filter((s) => s && Number(s.value) > 0)
+          : null;
+        const segmentTotal = segments
+          ? segments.reduce((sum, s) => sum + Number(s.value || 0), 0) || 1
+          : 0;
         return (
           <div
             key={i}
@@ -273,16 +312,41 @@ export const HBarList = ({ rows, valueLabel = 'คน', secondLabel = 'ครั
             <div className='flex-1 min-w-0'>
               <div className={`truncate ${isActive ? 'font-bold text-brand-500' : 'text-ink'}`}>{r.label}</div>
               <div
-                className='h-1 mt-0.5 rounded-full overflow-hidden'
-                style={{ background: 'var(--brand-p100)' }}
+                className='h-1.5 mt-0.5 rounded-full overflow-hidden flex'
+                style={{
+                  width: `${(r.value / max) * 100}%`,
+                  background: 'var(--brand-p100)',
+                  maxWidth: '100%',
+                }}
               >
-                <div
-                  className='h-full rounded-full transition-all'
-                  style={{
-                    width: `${(r.value / max) * 100}%`,
-                    background: isActive ? 'var(--brand-p700)' : 'var(--brand-p400)',
-                  }}
-                />
+                {segments && segments.length > 0 ? (
+                  segments.map((s, si) => (
+                    <div
+                      key={si}
+                      className='h-full transition-all'
+                      style={{
+                        width: `${(Number(s.value) / segmentTotal) * 100}%`,
+                        background: s.color || (isActive ? 'var(--brand-p700)' : 'var(--brand-p400)'),
+                        borderRadius: si === 0 && si === segments.length - 1
+                          ? 'var(--dim-radius-full)'
+                          : si === 0
+                            ? 'var(--dim-radius-full) 0 0 var(--dim-radius-full)'
+                            : si === segments.length - 1
+                              ? '0 var(--dim-radius-full) var(--dim-radius-full) 0'
+                              : 0,
+                      }}
+                      title={s.label ? `${s.label}: ${Number(s.value).toLocaleString()}` : undefined}
+                    />
+                  ))
+                ) : (
+                  <div
+                    className='h-full rounded-full transition-all'
+                    style={{
+                      width: '100%',
+                      background: isActive ? 'var(--brand-p700)' : 'var(--brand-p400)',
+                    }}
+                  />
+                )}
               </div>
             </div>
             <span className='text-ink-secondary text-xs whitespace-nowrap tabular-nums'>

@@ -8,11 +8,7 @@ import Signature from '@/components/form-builder/Signature';
 import {
   PERSONAL_DATA_CONSENT_SECTIONS,
 } from '@/data/personalDataConsentForm';
-
-/** Mock stroke for read-only "signed" row — SVG data URL (FormBuilder Signature `value`). */
-const DEMO_SIGNED_SIGNATURE_DATA_URL = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 72" width="280" height="72"><path d="M14 48c22-34 58-44 96-38 30 4 52 16 74 34 10 8 20 8 28-4" fill="none" stroke="#007549" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-)}`;
+import { DEMO_SIGNED_SIGNATURE_DATA_URL } from '@/data/mockSignature';
 
 const PREFIX_OPTS = ['นาย', 'นาง', 'นางสาว', 'เด็กชาย', 'เด็กหญิง'].map((p) => ({
   value: p,

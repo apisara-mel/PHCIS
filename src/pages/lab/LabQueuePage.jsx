@@ -26,7 +26,10 @@ import LabDetailPanel from '@/pages/lab/LabDetailPanel';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import LabSpecimenLabel from '@/components/lab/LabSpecimenLabel';
 import LabCollectionReport from '@/components/lab/LabCollectionReport';
+import LabCriticalLogPanel from '@/components/lab/LabCriticalLogPanel';
 import { printLab } from '@/data/labPrintSettings';
+import { LAB_AUDIT, LAB_AUDIT_SCOPES, appendLabAudit, subscribeLabAudit } from '@/data/labAudit';
+import { summariseCritical, subscribeCritical } from '@/data/labCritical';
 
 /* งานชันสูตรโรค — Worklist. The lab's own working screen: every specimen
    the department owes somebody, from the moment a doctor's order lands to
@@ -671,25 +674,39 @@ const LabQueuePage = () => {
   /* Audit trail — no auth context exists anywhere in this frontend-only app
      yet (Sidebar's user footer is placeholder text, not a real auth
      object), so CURRENT_ACTOR stands in for whoever a real auth layer would
-     resolve. Local to this page: src/pages/audit/auditData.js's `LOG` is
-     presentational mock data with no shared append API. Specimen state
-     changes, confidential reveals and label prints are exactly what a real
-     lab audit log has to capture. */
+     resolve.
+
+     MIGRATED from a page-local `logAudit` + `auditSeq` pair to the shared
+     appender in src/data/labAudit.js. When this was the only lab screen that
+     changed anything, a local list was honest. It is now one of six —
+     receiving, send-out, QC override, LIS credential changes and inbound
+     message import all mutate specimen or result state — and a drawer that
+     shows only this page's actions while calling itself "ประวัติการดำเนินการ"
+     reads as complete while missing the riskiest ones. Every lab screen now
+     writes to the same store and this drawer renders all of it. */
   const CURRENT_ACTOR = 'เจ้าหน้าที่ห้องปฏิบัติการ';
-  const [auditLog, setAuditLog] = useState([]);
+  const [auditVersion, setAuditVersion] = useState(0);
+  useEffect(() => subscribeLabAudit(() => setAuditVersion((v) => v + 1)), []);
+  const auditLog = useMemo(() => LAB_AUDIT.slice(0, 40), [auditVersion]);
   const [auditLogOpen, setAuditLogOpen] = useState(false);
-  const auditSeq = useRef(0);
-  const logAudit = (action, detail) => {
-    auditSeq.current += 1;
-    const entry = {
-      id: `AUD-${auditSeq.current}`,
-      time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      actor: CURRENT_ACTOR,
-      action,
-      detail,
-    };
-    setAuditLog((prev) => [entry, ...prev].slice(0, 20));
-  };
+  const logAudit = (action, detail, extra) => appendLabAudit({
+    actor: CURRENT_ACTOR,
+    action,
+    detail,
+    scope: extra?.scope ?? 'specimen',
+    before: extra?.before,
+    after: extra?.after,
+  });
+
+  /* ทะเบียนค่าวิกฤต drawer — the doctor-acknowledgement half of the
+     critical-value loop (src/data/labCritical.js). Opened from the toolbar
+     rather than from the ค่าวิกฤต summary card, because SummaryCardsBar is a
+     shared layout component with no onClick contract and this module must
+     not change it. */
+  const [criticalOpen, setCriticalOpen] = useState(false);
+  const [criticalVersion, setCriticalVersion] = useState(0);
+  useEffect(() => subscribeCritical(() => setCriticalVersion((v) => v + 1)), []);
+  const criticalSummary = useMemo(() => summariseCritical(), [criticalVersion]);
 
   const rowLabel = (row) => `${row.testLabel} · ${row.accessionNo} — ${row.confidential ? 'ผู้ป่วยปกปิด' : row.patient.shortName}`;
 
@@ -791,7 +808,7 @@ const LabQueuePage = () => {
   const clearSelection = () => setSelectedIds([]);
 
   const handleRevealConfidential = (order) => {
-    logAudit('ดูผลตรวจที่เป็นความลับ', `${order.testLabel} — HN ${order.patient.hn}`);
+    logAudit('ดูผลตรวจที่เป็นความลับ', `${order.testLabel} — HN ${order.patient.hn}`, { scope: 'confidential' });
   };
 
   /* Duplicate-order lookup for the table's เตือนสั่งซ้ำ glyph — the same
@@ -1227,6 +1244,59 @@ const LabQueuePage = () => {
                 />
               </div>
 
+              {/* The rest of the module. The receiving station, the send-out
+                  station, the LIS interface and the cumulative sheet are all
+                  steps of the same specimen's journey, so they are reachable
+                  from the worklist rather than only from the system hub. */}
+              <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงลิงก์ที่ซ่อน'>
+                <NeutralSubdueButton
+                  variant='outline'
+                  size='sm'
+                  leadingIcon='inventory_2'
+                  onClick={() => history.push('/lab/receive')}
+                >
+                  ไปสถานีรับสิ่งส่งตรวจ
+                </NeutralSubdueButton>
+                <NeutralSubdueButton
+                  variant='outline'
+                  size='sm'
+                  leadingIcon='send'
+                  onClick={() => history.push('/lab/send-out')}
+                >
+                  ส่งตรวจภายนอก
+                </NeutralSubdueButton>
+                <NeutralSubdueButton
+                  variant='outline'
+                  size='sm'
+                  leadingIcon='lan'
+                  onClick={() => history.push('/lab/interface')}
+                >
+                  เชื่อมต่อ LIS
+                </NeutralSubdueButton>
+                <NeutralSubdueButton
+                  variant='outline'
+                  size='sm'
+                  leadingIcon='history'
+                  disabled={!selected}
+                  title={selected ? 'ดูผลย้อนหลังของผู้ป่วยที่เลือก' : 'เลือกรายการในตารางก่อนจึงจะดูผลย้อนหลังได้'}
+                  onClick={() => selected && history.push(`/lab/history/${selected.patient.hn}`)}
+                >
+                  ประวัติผล / เปรียบเทียบ
+                </NeutralSubdueButton>
+                {/* ทะเบียนค่าวิกฤต — the acknowledgement register. Destructive
+                    styling only when something is genuinely open past the
+                    30-minute window, so the colour keeps meaning something. */}
+                <NeutralSubdueButton
+                  variant='outline'
+                  size='sm'
+                  leadingIcon={criticalSummary.escalated > 0 ? 'running_with_errors' : 'warning'}
+                  active={criticalSummary.escalated > 0}
+                  onClick={() => setCriticalOpen(true)}
+                >
+                  ทะเบียนค่าวิกฤต ({criticalSummary.open} รอรับทราบ)
+                </NeutralSubdueButton>
+              </OverflowFlexRow>
+
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
                 {/* §1.15.5.2 — the round sheet. Prints whatever the current
                     filters have narrowed the list to, so "พิมพ์รายการเก็บ
@@ -1422,10 +1492,12 @@ const LabQueuePage = () => {
             </div>
           </div>
 
-          {/* Audit trail — specimen state changes, label prints and
-              confidential reveals: the actions a real lab audit log cares
-              about most. See CURRENT_ACTOR/logAudit above for why this is
-              local-only rather than wired to src/pages/audit's shared log. */}
+          {/* Audit trail — now the WHOLE module's trail, not just this
+              page's: receiving, send-out, QC, LIS credential changes,
+              message import/bounce, critical acknowledgement and
+              confidential reveals all append to the same store
+              (src/data/labAudit.js). Still not wired to src/pages/audit's
+              `LOG`, which is presentational mock data with no append API. */}
           <div
             className='w-full flex flex-col'
             style={{
@@ -1444,7 +1516,7 @@ const LabQueuePage = () => {
               onClick={() => setAuditLogOpen((v) => !v)}
               className='self-start'
             >
-              ประวัติการดำเนินการ{auditLog.length > 0 ? ` (${auditLog.length})` : ''}
+              ประวัติการดำเนินการทั้งงานชันสูตรโรค{auditLog.length > 0 ? ` (${auditLog.length})` : ''}
             </NeutralSubdueButton>
             {auditLogOpen && (
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
@@ -1459,12 +1531,19 @@ const LabQueuePage = () => {
                       className='flex items-start'
                       style={{ gap: 'var(--dim-space-300)', paddingBottom: 'var(--dim-space-200)', borderBottom: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)' }}
                     >
-                      <span style={{ flexShrink: 0, width: 72, fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-                        {entry.time}
+                      <span style={{ flexShrink: 0, width: 110, fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                        {entry.at}
+                        <br />
+                        {entry.date}
                       </span>
                       <div className='flex flex-col min-w-0'>
-                        <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
-                          {entry.actor} — {entry.action}
+                        <span className='inline-flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+                          <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+                            {entry.actor} — {entry.action}
+                          </span>
+                          <Badge style='neutral' size='small'>
+                            {LAB_AUDIT_SCOPES.find((s) => s.key === entry.scope)?.label ?? entry.scope}
+                          </Badge>
                         </span>
                         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary)' }}>
                           {entry.detail}
@@ -1485,6 +1564,15 @@ const LabQueuePage = () => {
           button never print each other's content. Kept OUTSIDE
           QueuePageShell so the print stylesheet's "hide everything except
           the print root" rule has nothing of the app chrome to fight. */}
+      {/* ทะเบียนค่าวิกฤต — opened from the toolbar. Mounted here so the
+          drawer's own AlertDialog stacks above the worklist rather than
+          inside the scrolling content card. */}
+      <LabCriticalLogPanel
+        open={criticalOpen}
+        onClose={() => setCriticalOpen(false)}
+        onOpenResult={(record) => { setCriticalOpen(false); history.push(`/lab/result/${record.rowId}`); }}
+      />
+
       <div className='mih-lab-print-root'>
         <LabSpecimenLabel rows={printRows} />
         <LabCollectionReport

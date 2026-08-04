@@ -5,6 +5,11 @@ import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import PhotoUploadField from '@/components/forms/PhotoUploadField';
+import {
+  UploadProgressBox,
+  UploadEvidenceCard,
+  useSmoothUploadProgress,
+} from '@/components/forms/UploadProgressBar';
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -148,7 +153,7 @@ export default function AccessRequestForm({
   const [reason, setReason] = useState('');
   const [reasonDetail, setReasonDetail] = useState('');
   const [patientQuery, setPatientQuery] = useState('');
-  const ocrTimerRef = useRef(null);
+  const ocrResultRef = useRef({ readable: false });
   const {
     history: patientSearchHistory,
     push: pushPatientHistory,
@@ -157,14 +162,42 @@ export default function AccessRequestForm({
     seedIfEmpty: PATIENT_SEARCH_HISTORY_SEED,
   });
 
-  const clearOcrTimer = () => {
-    if (ocrTimerRef.current) {
-      clearTimeout(ocrTimerRef.current);
-      ocrTimerRef.current = null;
+  const applyOcrResult = (readable) => {
+    if (readable) {
+      setOcrFailed(false);
+      setName(OCR_RESULT.name);
+      setEmpCode(OCR_RESULT.empCode);
+      setUnit(OCR_RESULT.unit);
+      setHn(OCR_RESULT.hn);
+      setPatientQuery('');
+      setPurpose(OCR_RESULT.purpose);
+      setScopes(OCR_RESULT.scopes);
+      setAccessType(OCR_RESULT.accessType);
+      setFormId(OCR_RESULT.formId);
+      setReason(OCR_RESULT.reason);
+      setReasonDetail('');
+    } else {
+      setOcrFailed(true);
+      setName('');
+      setEmpCode('');
+      setUnit('');
+      setHn('');
+      setPatientQuery('');
+      setPurpose('');
+      setScopes([]);
+      setAccessType('');
+      setFormId('');
+      setReason('');
+      setReasonDetail('');
     }
+    setPhase('review');
   };
 
-  useEffect(() => clearOcrTimer, []);
+  const uploadProgress = useSmoothUploadProgress({
+    active: phase === 'reading',
+    durationMs: 1600,
+    onDone: () => applyOcrResult(ocrResultRef.current.readable),
+  });
 
   const ingestFile = (file) => {
     const okType = /\.(pdf|jpe?g|png)$/i.test(file.name)
@@ -178,14 +211,16 @@ export default function AccessRequestForm({
   };
 
   const handleUploadChange = (files) => {
-    if (!files || files.length === 0) {
-      clearOcrTimer();
-      setUploadFiles([]);
-      setFileName(null);
-      setPhase('upload');
-      return;
-    }
+    if (!files || files.length === 0) return;
     ingestFile(files[0]);
+  };
+
+  const clearEvidence = () => {
+    setUploadFiles([]);
+    setFileName(null);
+    setFileError('');
+    setOcrFailed(false);
+    setPhase('upload');
   };
 
   const handleCameraCapture = (dataUrl) => {
@@ -202,40 +237,9 @@ export default function AccessRequestForm({
     ingestFile(file);
   };
 
-  const runOcr = (fname, readable) => {
-    clearOcrTimer();
+  const runOcr = (_fname, readable) => {
+    ocrResultRef.current = { readable: !!readable };
     setPhase('reading');
-    ocrTimerRef.current = setTimeout(() => {
-      ocrTimerRef.current = null;
-      if (readable) {
-        setOcrFailed(false);
-        setName(OCR_RESULT.name);
-        setEmpCode(OCR_RESULT.empCode);
-        setUnit(OCR_RESULT.unit);
-        setHn(OCR_RESULT.hn);
-        setPatientQuery('');
-        setPurpose(OCR_RESULT.purpose);
-        setScopes(OCR_RESULT.scopes);
-        setAccessType(OCR_RESULT.accessType);
-        setFormId(OCR_RESULT.formId);
-        setReason(OCR_RESULT.reason);
-        setReasonDetail('');
-      } else {
-        setOcrFailed(true);
-        setName('');
-        setEmpCode('');
-        setUnit('');
-        setHn('');
-        setPatientQuery('');
-        setPurpose('');
-        setScopes([]);
-        setAccessType('');
-        setFormId('');
-        setReason('');
-        setReasonDetail('');
-      }
-      setPhase('review');
-    }, 1200);
   };
 
   const needsPatient = accessType === 'patient_consent';
@@ -467,50 +471,84 @@ export default function AccessRequestForm({
           )}
         </div>
 
-        <div className='flex items-stretch w-full' style={{ gap: 'var(--dim-space-400)' }}>
-          <div className='flex min-w-0' style={{ flex: '1 1 0' }}>
-            <DragAndDrop
-              value={uploadFiles}
-              onChange={handleUploadChange}
-              onError={({ message }) => setFileError(message || 'ไฟล์ไม่ถูกต้อง')}
-              accept='.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf'
-              multiple={false}
-              preview
-              size='sm'
-              title='ลากและวางไฟล์ หรือคลิกเพื่ออัปโหลด'
-              helper=''
-              ctaLabel='เลือกไฟล์'
-              error={!!fileError}
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+          <span style={LABEL_TEXT}>อัปโหลดหลักฐานเพื่อสิทธิการเข้าถึงแบบฟอร์ม</span>
+          <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+            <div
+              className='flex min-w-0'
               style={{
-                flex: 1,
+                flex: '0 1 var(--dim-size-2600, 384px)',
                 width: '100%',
-                minHeight: 'var(--dim-size-2000, 128px)',
+                maxWidth: 'var(--dim-size-2600, 384px)',
+              }}
+            >
+              <DragAndDrop
+                value={[]}
+                onChange={handleUploadChange}
+                onError={({ message }) => setFileError(message || 'ไฟล์ไม่ถูกต้อง')}
+                accept='.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf'
+                multiple={false}
+                preview={false}
+                size='sm'
+                title='ลากและวางไฟล์ หรือคลิกเพื่ออัปโหลด'
+                helper=''
+                ctaLabel='เลือกไฟล์'
+                error={!!fileError}
+                disabled={phase === 'reading'}
+                style={{
+                  flex: 1,
+                  width: '100%',
+                  minHeight: 'var(--dim-size-2000, 128px)',
+                  height: 'var(--dim-size-2000, 128px)',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <PhotoUploadField
+              label='สแกนเอกสาร'
+              icon='document_scanner'
+              onClick={() => phase !== 'reading' && setCameraOpen(true)}
+              disabled={phase === 'reading'}
+              aria-label='สแกนเอกสารด้วยกล้อง'
+              style={{
+                width: 'var(--dim-size-2000, 128px)',
                 height: 'var(--dim-size-2000, 128px)',
+                flexShrink: 0,
+                boxSizing: 'border-box',
+              }}
+            />
+            <PhotoUploadField
+              label='ถ่ายภาพเอกสาร'
+              icon='photo_camera'
+              onClick={() => phase !== 'reading' && setCameraOpen(true)}
+              disabled={phase === 'reading'}
+              aria-label='ถ่ายภาพเอกสารด้วยกล้อง'
+              style={{
+                width: 'var(--dim-size-2000, 128px)',
+                height: 'var(--dim-size-2000, 128px)',
+                flexShrink: 0,
                 boxSizing: 'border-box',
               }}
             />
           </div>
-          <PhotoUploadField
-            label='ถ่ายภาพเอกสาร'
-            icon='photo_camera'
-            onClick={() => setCameraOpen(true)}
-            aria-label='ถ่ายภาพเอกสารด้วยกล้อง'
-            style={{
-              width: 'var(--dim-size-2000, 128px)',
-              height: 'var(--dim-size-2000, 128px)',
-              flexShrink: 0,
-              boxSizing: 'border-box',
-            }}
-          />
+
+          {phase === 'reading' && (
+            <UploadProgressBox
+              progress={uploadProgress}
+              label='กำลังอัปโหลดและอ่านเอกสาร…'
+              fileName={fileName || undefined}
+            />
+          )}
+
+          {phase === 'review' && uploadFiles[0] && (
+            <UploadEvidenceCard
+              file={uploadFiles[0]}
+              onRemove={clearEvidence}
+              label='หลักฐานที่แนบ'
+            />
+          )}
         </div>
         {fileError && <span style={ERROR_TEXT}>{fileError}</span>}
-
-        {phase === 'reading' && (
-          <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-            <Icon name='document_scanner' size={18} color='var(--text-brandPrimary-default)' />
-            <span style={BODY_TEXT}>กำลังอ่านข้อมูลจากเอกสาร (OCR)…</span>
-          </div>
-        )}
 
         {phase === 'review' && (
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>

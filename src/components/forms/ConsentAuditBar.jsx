@@ -3,6 +3,7 @@ import Icon from '@/components/icons/Icon';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import NeutralButton from '@/components/button/NeutralButton';
 import AlertDialog from '@/components/popup/AlertDialog';
+import { StaffAvatar } from '@/components/appointment/StaffProfileAvatar';
 
 /* Audit bar — TOR 1.4.3.16: ทุกจุดบันทึก/แก้ไขแบบฟอร์มต้องแสดง ผู้บันทึก ·
    เวลาบันทึก · เวลาแก้ไขล่าสุด และให้ "ทำเครื่องหมายข้อมูลผิด" ได้
@@ -10,7 +11,9 @@ import AlertDialog from '@/components/popup/AlertDialog';
 
    แสดงเป็นแถบเดียววางท้าย card/หน้า — pattern เดียวกับ
    RegistrationEditHistoryPanel แต่ย่อเหลือบรรทัดเดียว + ปุ่ม mark-wrong.
-   ยังไม่มีใน MIH DS — ลงทะเบียนใน docs/awaiting-components.md. */
+   ยังไม่มีใน MIH DS — ลงทะเบียนใน docs/awaiting-components.md.
+
+   โหมดดูแบบฟอร์ม (popup): hide icon / timestamps / flag แล้วโชว์ avatar + Group Policy */
 
 const LINE = {
   color: 'var(--text-content-secondary)',
@@ -19,14 +22,36 @@ const LINE = {
   lineHeight: 1.5,
 };
 
+const GROUP_TONE = {
+  แพทย์: 'blue',
+  พยาบาล: 'magenta',
+  เภสัชกร: 'teal',
+};
+
 /**
  * @param {string} recordedBy — ผู้บันทึก
- * @param {string} recordedAt — เวลาบันทึก เช่น '6 พฤษภาคม 2569 · 09:21'
- * @param {string} editedAt   — เวลาแก้ไขล่าสุด (optional)
- * @param {string} flaggedAt  — เวลาที่ถูกทำเครื่องหมายข้อมูลผิด (controlled, optional)
- * @param {Function} onFlag   — เรียกเมื่อยืนยันทำเครื่องหมายข้อมูลผิด
+ * @param {string} [recordedAt] — เวลาบันทึก เช่น '6 พฤษภาคม 2569 · 09:21'
+ * @param {string} [editedAt]   — เวลาแก้ไขล่าสุด
+ * @param {string} [flaggedAt]  — เวลาที่ถูกทำเครื่องหมายข้อมูลผิด (controlled)
+ * @param {Function} [onFlag]   — เรียกเมื่อยืนยันทำเครื่องหมายข้อมูลผิด
+ * @param {boolean} [showIcon=true]
+ * @param {boolean} [showTimestamps=true]
+ * @param {boolean} [showFlag=true]
+ * @param {string} [avatarSrc] — รูปโปรไฟล์เจ้าหน้าที่
+ * @param {string} [groupPolicy] — Group Policy ของเจ้าหน้าที่
  */
-export default function ConsentAuditBar({ recordedBy, recordedAt, editedAt, flaggedAt, onFlag }) {
+export default function ConsentAuditBar({
+  recordedBy,
+  recordedAt,
+  editedAt,
+  flaggedAt,
+  onFlag,
+  showIcon = true,
+  showTimestamps = true,
+  showFlag = true,
+  avatarSrc,
+  groupPolicy,
+}) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [localFlaggedAt, setLocalFlaggedAt] = useState(null);
   const flagged = flaggedAt || localFlaggedAt;
@@ -50,35 +75,62 @@ export default function ConsentAuditBar({ recordedBy, recordedAt, editedAt, flag
           borderRadius: 'var(--dim-radius-300)',
         }}
       >
-        <Icon name='history' size={18} color='var(--text-content-tertiary)' />
-        <span style={{ ...LINE, flex: 1, minWidth: 200 }}>
-          บันทึกโดย{' '}
-          <span style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>{recordedBy}</span>
-          {' '}· {recordedAt}
-          {editedAt ? <> · แก้ไขล่าสุด {editedAt}</> : null}
+        {avatarSrc ? (
+          <StaffAvatar name={recordedBy} src={avatarSrc} size={32} />
+        ) : showIcon ? (
+          <Icon name='history' size={18} color='var(--text-content-tertiary)' />
+        ) : null}
+
+        <span
+          className='inline-flex items-center flex-wrap min-w-0'
+          style={{ ...LINE, flex: 1, gap: 'var(--dim-space-200)', minWidth: 200 }}
+        >
+          <span>
+            บันทึกโดย{' '}
+            <span style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
+              {recordedBy}
+            </span>
+            {showTimestamps && recordedAt ? <> · {recordedAt}</> : null}
+            {showTimestamps && editedAt ? <> · แก้ไขล่าสุด {editedAt}</> : null}
+          </span>
+          {groupPolicy ? (
+            <ColorfulBadge
+              style={GROUP_TONE[groupPolicy] || 'grey'}
+              size='small'
+              hierarchy='secondary'
+              width='hug'
+            >
+              {groupPolicy}
+            </ColorfulBadge>
+          ) : null}
         </span>
-        {flagged ? (
-          <ColorfulBadge style='red' size='small' hierarchy='secondary' width='hug' showIcon icon='flag'>
-            ทำเครื่องหมายข้อมูลผิดแล้ว · {flagged}
-          </ColorfulBadge>
-        ) : (
-          <NeutralButton variant='outline' size='sm' leadingIcon='flag' onClick={() => setConfirmOpen(true)}>
-            ทำเครื่องหมายข้อมูลผิด
-          </NeutralButton>
-        )}
+
+        {showFlag ? (
+          flagged ? (
+            <ColorfulBadge style='red' size='small' hierarchy='secondary' width='hug' showIcon icon='flag'>
+              ทำเครื่องหมายข้อมูลผิดแล้ว · {flagged}
+            </ColorfulBadge>
+          ) : (
+            <NeutralButton variant='outline' size='sm' leadingIcon='flag' onClick={() => setConfirmOpen(true)}>
+              ทำเครื่องหมายข้อมูลผิด
+            </NeutralButton>
+          )
+        ) : null}
       </div>
 
-      <AlertDialog
-        open={confirmOpen}
-        type='warning'
-        title='ทำเครื่องหมายข้อมูลผิด'
-        description='ระบบจะบันทึกเวลาที่ระบุว่าข้อมูลผิดไว้ในประวัติการแก้ไข (audit trail) และแจ้งผู้เกี่ยวข้องให้ตรวจสอบ — ข้อมูลเดิมจะไม่ถูกลบ'
-        confirmLabel='ยืนยันทำเครื่องหมาย'
-        cancelLabel='ยกเลิก'
-        onConfirm={confirmFlag}
-        onCancel={() => setConfirmOpen(false)}
-        onClose={() => setConfirmOpen(false)}
-      />
+      {showFlag ? (
+        <AlertDialog
+          open={confirmOpen}
+          type='warning'
+          title='ทำเครื่องหมายข้อมูลผิด'
+          description='ระบบจะบันทึกเวลาที่ระบุว่าข้อมูลผิดไว้ในประวัติการแก้ไข (audit trail) และแจ้งผู้เกี่ยวข้องให้ตรวจสอบ — ข้อมูลเดิมจะไม่ถูกลบ'
+          confirmLabel='ยืนยันทำเครื่องหมาย'
+          cancelLabel='ยกเลิก'
+          onConfirm={confirmFlag}
+          onCancel={() => setConfirmOpen(false)}
+          onClose={() => setConfirmOpen(false)}
+        />
+      ) : null}
     </>
   );
 }

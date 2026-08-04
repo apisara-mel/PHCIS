@@ -6,13 +6,6 @@ import { logExport } from '@/data/consentWorkflowStore';
 /* PHCIS | Consent — แชร์แบบฟอร์มความยินยอมทางอีเมล (ด.1.1.x).
    กด "ส่งออก" → กรอกอีเมลผู้รับ → ยืนยัน → ระบบบันทึก log การส่งออก. */
 
-const BODY_TEXT = {
-  color: 'var(--text-content-secondary)',
-  fontFamily: 'var(--type-family-body)',
-  fontSize: 'var(--type-size-sm)',
-  lineHeight: 1.6,
-};
-
 const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim());
 
 export function ConsentFormSharePopup({ open, record, onClose, onShared }) {
@@ -52,9 +45,6 @@ export function ConsentFormSharePopup({ open, record, onClose, onShared }) {
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
     >
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-        <span style={BODY_TEXT}>
-          กรอกอีเมลผู้รับเพื่อส่งลิงก์แบบฟอร์มความยินยอม — ระบบจะบันทึก log การส่งออกข้อมูลเมื่อยืนยัน
-        </span>
         <InputField
           label='อีเมลผู้รับ'
           required

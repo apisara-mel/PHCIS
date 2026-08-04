@@ -3,7 +3,7 @@ import Popup from '@/components/popup/Popup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import InputField from '@/components/forms/InputField';
 import RadioButton from '@/components/radio/RadioButton';
-import Icon from '@/components/icons/Icon';
+import Signature from '@/components/form-builder/Signature';
 import {
   getRegistrationConsentForm,
   resolveRegistrationConsentFormId,
@@ -11,6 +11,7 @@ import {
 import { findMrPatientByHn } from '@/data/mrPatients';
 import { formatNationalId } from '@/data/registrationForm';
 import { resolveConsentPatient } from '@/data/consentPatientDisplay';
+import { DEMO_SIGNED_SIGNATURE_DATA_URL } from '@/data/mockSignature';
 
 /* MIH ConsentSignedFormViewPopup — read-only view of a signed consent
    using the MR registration template (ใบยินยอมเปิดเผยข้อมูลส่วนบุคคล
@@ -248,41 +249,65 @@ const ConsentSignedFormViewPopup = ({
         <section className='flex flex-col' style={{ ...sectionCardStyle, gap: 'var(--dim-space-300)' }}>
           <h2 style={sectionTitleStyle}>ลายมือชื่อ</h2>
           <div
-            className='flex items-center w-full'
-            style={{
-              gap: 'var(--dim-space-300)',
-              padding: 'var(--dim-space-400)',
-              borderRadius: 'var(--dim-radius-400)',
-              border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-              background: 'var(--surface-card-200, #FDFDFD)',
-              color: 'var(--text-content-secondary)',
-            }}
+            className='flex flex-col items-center w-full min-w-0'
+            style={{ gap: 'var(--dim-space-150)' }}
           >
-            <Icon name='draw' size={20} color='var(--text-brandPrimary-default)' />
-            <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
+            <div className='w-full max-w-[323px]'>
+              <Signature
+                value={DEMO_SIGNED_SIGNATURE_DATA_URL}
+                onChange={() => {}}
+                disabled
+                height={94}
+                showFooter={false}
+              />
+            </div>
+            <span
+              style={{
+                fontFamily: 'var(--type-family-heading-content)',
+                fontSize: 'var(--type-size-sm)',
+                fontWeight: 'var(--type-weight-bold)',
+                color: 'var(--text-content-default)',
+                lineHeight: 1.5,
+                textAlign: 'center',
+              }}
+            >
+              {patientFields.fullName}
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+                color: 'var(--text-content-secondary)',
+                lineHeight: 1.5,
+                textAlign: 'center',
+              }}
+            >
+              วันเวลา: {event.dateTime || '—'} · ช่องทาง: {event.channel || '—'}
+            </span>
+            {clauseValue !== 'yes' && (
               <span
                 style={{
                   fontFamily: 'var(--type-family-body)',
-                  fontSize: 'var(--type-size-sm)',
-                  fontWeight: 'var(--type-weight-bold)',
-                  color: 'var(--text-content-default)',
+                  fontSize: 'var(--type-size-xs)',
+                  color: 'var(--text-content-secondary)',
+                  lineHeight: 1.5,
+                  textAlign: 'center',
                 }}
               >
-                {clauseValue === 'yes' ? 'ลงนามแล้ว' : 'บันทึกคำตอบแล้ว (ไม่ยินยอม / ถอน)'}
+                บันทึกคำตอบแล้ว (ไม่ยินยอม / ถอน)
               </span>
-              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-                วันเวลา: {event.dateTime || '—'} · ช่องทาง: {event.channel || '—'}
-              </span>
-            </div>
+            )}
           </div>
           {meta.signatureNote && (
             <p
               style={{
                 margin: 0,
+                width: '100%',
                 color: 'var(--text-content-secondary)',
                 fontFamily: 'var(--type-family-body)',
                 fontSize: 'var(--type-size-sm)',
                 lineHeight: 1.5,
+                textAlign: 'center',
               }}
             >
               {meta.signatureNote}

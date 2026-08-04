@@ -18,6 +18,8 @@ import { resolveAnalyteRange } from '@/data/labCatalog';
 import {
   analyteResultType, evaluateResult, blankNotify, isNotifyComplete, makeAmendment,
 } from '@/data/labResults';
+import { appendLabAudit } from '@/data/labAudit';
+import { openCriticalRecord } from '@/data/labCritical';
 
 /* บันทึกผลตรวจทางห้องปฏิบัติการ — TOR ภาคผนวก ก §1.15.6.
 
@@ -362,6 +364,13 @@ const LabResultEntryPage = () => {
 
   const handleSave = () => {
     updateLabOrder(order.id, buildPatch('approval'));
+    appendLabAudit({
+      actor: CURRENT_ACTOR,
+      scope: 'result',
+      action: 'บันทึกผลตรวจ (รอรับรองผล)',
+      detail: `${order.testLabel} · ${order.accessionNo} — ${evalResult?.summary ?? ''}`,
+      after: { status: 'approval' },
+    });
     setSavedMsg('บันทึกผลแล้ว — รอผู้มีสิทธิ์รับรองผล');
     setSaved(true);
   };
@@ -372,6 +381,34 @@ const LabResultEntryPage = () => {
       approvedBy: CURRENT_ACTOR,
       approvedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
     });
+    appendLabAudit({
+      actor: CURRENT_ACTOR,
+      scope: 'result',
+      action: alreadyReleased ? 'ออกรายงานผลฉบับแก้ไข (Amended)' : 'รับรองและรายงานผล',
+      detail: `${order.testLabel} · ${order.accessionNo} — ${evalResult?.summary ?? ''}`
+        + (alreadyReleased && amendReason.trim() ? ` (เหตุผลแก้ไข: ${amendReason.trim()})` : ''),
+      before: alreadyReleased ? { results: order.results } : null,
+      after: { status: 'reported', results: { ...values } },
+    });
+
+    /* Releasing a CRITICAL result opens an item in the ทะเบียนค่าวิกฤต
+       register (src/data/labCritical.js) that stays open until a named
+       person acknowledges it. The lab half of the loop is already enforced
+       above — the notify block blocks this button until ผู้รับแจ้ง, เวลา,
+       ผู้แจ้ง and read-back are recorded. This is the clinical half: without
+       it, "we called someone" is the end of the trail, and nobody can tell
+       afterwards whether the message ever reached a decision-maker. */
+    if (hasCritical) {
+      openCriticalRecord({
+        row: order,
+        valueSummary: evalResult.critical
+          .map((r) => `${r.analyte.label} = ${r.raw}${r.analyte.unit ? ` ${r.analyte.unit}` : ''}`)
+          .join(' · '),
+        notifyRecord: notify,
+        actor: CURRENT_ACTOR,
+      });
+    }
+
     setConfirmRelease(false);
     setSavedMsg(alreadyReleased ? 'ออกรายงานผลฉบับแก้ไขแล้ว' : 'รับรองและรายงานผลแล้ว');
     setSaved(true);
