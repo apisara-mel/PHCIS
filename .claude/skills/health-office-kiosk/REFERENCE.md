@@ -55,8 +55,8 @@ welcome → service → sub-service → appointment → verify → confirm → t
 
 Routes:
 
-- `/kiosk` — `KioskPage.jsx`
-- `/kiosk/ticket/:queueId` — `MobileTicketPage.jsx`
+- **Production:** https://bma-kiosk.mih.co.th/Kiosk/01-select-service — `bma.kiosk` repo
+- **This monorepo:** `/kiosk` → redirect production · `/kiosk/ticket/:queueId` → `/queue-center/display/online?q=…`
 
 ## UX rules for สำนักงานอนามัย kiosk
 

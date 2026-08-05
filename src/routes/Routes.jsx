@@ -138,8 +138,7 @@ import StationDisplayPage from '@/pages/queue-display/StationDisplayPage';
 import FinanceDisplayPage from '@/pages/queue-display/FinanceDisplayPage';
 import QueueAnnouncerConsolePage from '@/pages/queue-display/QueueAnnouncerConsolePage';
 import QueueStatusOnlinePage from '@/pages/queue-display/QueueStatusOnlinePage';
-import KioskPage from '@/pages/kiosk/KioskPage';
-import MobileTicketPage from '@/pages/kiosk/MobileTicketPage';
+import { KioskExternalRedirect, KioskTicketRedirect } from '@/pages/kiosk/KioskRedirects';
 import FinancePaymentPage from '@/pages/finance/FinancePaymentPage';
 import { TelemedCallProvider, TelemedRouteTrigger } from '@/components/telemed/TelemedCallProvider';
 import TelemedWorklistPage from '@/pages/telemed/TelemedWorklistPage';
@@ -465,14 +464,11 @@ export default function Routes() {
         <Route exact path='/components'           component={ComponentsLibraryPage} />
         <Route exact path='/components/:slug'     component={ComponentsLibraryPage} />
 
-        {/* Kiosk landing — Step 0 of OPD flow (กดบัตรคิว).
-            Canonical repo: namonlims/bma.kiosk (sibling app; open /Kiosk).
-            /kiosk remains here temporarily for hub demos. New kiosk work
-            lands in bma.kiosk.
-            Mobile ticket page is the QR scan target — opens on visitor's
-            phone after kiosk shows the QR. Supports image download. */}
-        <Route exact path='/kiosk'                       component={KioskPage} />
-        <Route exact path='/kiosk/ticket/:queueId'       component={MobileTicketPage} />
+        {/* Kiosk — canonical app: https://bma-kiosk.mih.co.th/Kiosk/
+            Repo: namonlims/bma.kiosk (sibling ../bma.kiosk).
+            /kiosk redirects out; legacy QR /kiosk/ticket/:id → live queue status. */}
+        <Route exact path='/kiosk'                       component={KioskExternalRedirect} />
+        <Route exact path='/kiosk/ticket/:queueId'       component={KioskTicketRedirect} />
 
         {/* ระบบ Telemedicine / RPM (TOR ข้อ 1.13) — หน้าวิดีโอคอลฝั่งแพทย์.
             เปิดจากปุ่ม Telemedicine (floating) ในระบบบันทึกการรักษา.

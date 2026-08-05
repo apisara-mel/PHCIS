@@ -3,17 +3,17 @@ name: health-office-kiosk
 description: >-
   Builds or updates the สำนักงานอนามัย / สำนักอนามัย self-service kiosk UI
   by applying TOR requirements (esp. §1.16 Kiosk + related queue/rights items)
-  onto the existing /kiosk flow. Use when the user asks for kiosk UI, ตู้
-  Kiosk, กดบัตรคิว, สปสช. rights check at kiosk, EDC payment kiosk, walk-in
-  vs appointment kiosk screens, or TOR-driven kiosk features for the health
-  office.
+  onto the bma.kiosk app (production https://bma-kiosk.mih.co.th). Use when
+  the user asks for kiosk UI, ตู้ Kiosk, กดบัตรคิว, สปสช. rights check at
+  kiosk, EDC payment kiosk, walk-in vs appointment kiosk screens, or
+  TOR-driven kiosk features for the health office.
 ---
 
 # Health Office Kiosk UI (TOR-driven)
 
-Build or extend the **ตู้ Kiosk** for สำนักงานอนามัย / สำนักอนามัย by treating **TOR** as the requirement source of truth, then mapping each TOR leaf into screens, states, and vibe-code on `/kiosk`.
+Build or extend the **ตู้ Kiosk** for สำนักงานอนามัย / สำนักอนามัย by treating **TOR** as the requirement source of truth, then mapping each TOR leaf into screens, states, and vibe-code in the **`bma.kiosk`** repo (sibling `../bma.kiosk`, deployed at https://bma-kiosk.mih.co.th/Kiosk/).
 
-Do **not** invent features outside TOR without labelling them `นอกขอบเขต / Phase 2`. Prefer extending [`KioskPage.jsx`](../../../src/pages/kiosk/KioskPage.jsx) + [`kioskMock.js`](../../../src/data/kioskMock.js) over a parallel kiosk app.
+Do **not** invent features outside TOR without labelling them `นอกขอบเขต / Phase 2`. Do **not** add kiosk UI back into this monorepo — `/kiosk` here only redirects to production.
 
 ## Source of truth (read first)
 
@@ -22,10 +22,10 @@ Do **not** invent features outside TOR without labelling them `นอกขอ�
 | [`docs/tor-checklist.html`](../../../docs/tor-checklist.html) | Canonical TOR tree — search `1.16`, statuses `done`/`partial`/`todo` |
 | [`docs/progress-tracker.html`](../../../docs/progress-tracker.html) | Feature vs TOR coverage for ระบบงานตู้ Kiosk |
 | [`docs/product-spec.md`](../../../docs/product-spec.md) §10.8 | State machine, layout, tokens, use cases |
-| [`docs/kiosk-userflow.html`](../../../docs/kiosk-userflow.html) | Screen mockups + 7 use cases |
-| [`src/pages/kiosk/KioskPage.jsx`](../../../src/pages/kiosk/KioskPage.jsx) | Live multi-step UI |
-| [`src/pages/kiosk/MobileTicketPage.jsx`](../../../src/pages/kiosk/MobileTicketPage.jsx) | `/kiosk/ticket/:queueId` |
-| [`src/data/kioskMock.js`](../../../src/data/kioskMock.js) | SERVICES · PATIENTS · queue helpers |
+| [`docs/kiosk-userflow.html`](../../../docs/kiosk-userflow.html) | Legacy screen mockups (reference only) |
+| **`../bma.kiosk/src/pagesRegistry.tsx`** | Canonical Figma screens · `01-select-service` … `15-*` |
+| **`../bma.kiosk/src/flow.ts`** | `flow` query param · `useFlowNav` · idle reset |
+| [`docs/kiosk-split.md`](../../../docs/kiosk-split.md) | Production URL + redirect rules in this repo |
 | [REFERENCE.md](REFERENCE.md) | TOR ID → screen matrix + UX rules |
 
 Figma (when available): PHCIS \| KIOSK · file `PlyfeAl2AdZtqZK7eZrxKg` · see product-spec §10.8.
@@ -41,7 +41,7 @@ screens: service-select · rights-detail · payment-channel · payment-receipt (
 4. **Touch-first** — targets ≥ `--dim-size-900` (44px), prefer larger kiosk hit areas (cards ~120px+ height). Idle timeout → reset to welcome.
 5. **Standalone chrome** — no staff Sidebar/Header; fixed kiosk canvas (1440×1462 pattern) unless user asks for responsive.
 
-Companions: [drawing-ui-on-figma](../drawing-ui-on-figma/SKILL.md) · [sync-mih-component](../sync-mih-component/SKILL.md) · [ux-assessment](../ux-assessment/SKILL.md) · [prototype-from-figma](../prototype-from-figma/SKILL.md).
+Companions: [drawing-ui-on-figma](../drawing-ui-on-figma/SKILL.md) · [sync-mih-component](../sync-mih-component/SKILL.md) · [ux-assessment](../ux-assessment/SKILL.md) · [prototype-from-figma](../prototype-from-figma/SKILL.md) · **`kiosk-360-face-scan`** in [namonlims/claude-skills](https://github.com/namonlims/claude-skills/tree/main/kiosk-360-face-scan) (archived 360° head-pose scan — remove when switching to simple photo).
 
 ## Workflow checklist
 
@@ -51,7 +51,7 @@ Health-office kiosk UI:
 - [ ] 2. Gap — compare to progress-tracker / existing KioskPage steps
 - [ ] 3. Traceability — TOR ID → step → UI state → acceptance
 - [ ] 4. Design — PHCIS-ALL / KIOSK Figma or extend kiosk-userflow patterns
-- [ ] 5. Implement — KioskPage / MobileTicketPage / kioskMock (tokens-only)
+- [ ] 5. Implement — `../bma.kiosk/src/pages/*.tsx` + `flow.ts` (match Figma tokens)
 - [ ] 6. Docs — product-spec §10.8, kiosk-userflow, tor-checklist status
 - [ ] 7. Verify — primary TOR paths + idle/error/manual-ID use cases
 ```
