@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
-import Header from '@/components/layout/Header';
+import Header, { SubHeader } from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Icon from '@/components/icons/Icon';
 import PatientCard from '@/components/card/PatientCard';
@@ -262,7 +262,8 @@ const DentalFormPage = () => {
       <div className='flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
         <Sidebar activeKey='treat' />
         <div className='flex-1 min-w-0 flex flex-col'>
-          <Header breadcrumb={breadcrumb} />
+          <Header breadcrumb={breadcrumb} standalone={false} />
+          <SubHeader title='บันทึกทันตกรรม (Dental Record)' hideBottomBorder />
 
           {/* ยกเลิกการบันทึก — เหตุผลบังคับ + audit ผู้ยกเลิก/เวลา */}
           <Popup
@@ -357,7 +358,6 @@ const DentalFormPage = () => {
             sticky
             patient={cardPatient}
             title='บันทึกทันตกรรม (Dental Record)'
-            onBack={() => history.push('/clinic/dental')}
             drugAllergies={patient.drugAllergies}
             chronicDiseases={patient.chronicDiseases}
             tags={queueRow ? (
@@ -492,6 +492,7 @@ const DentalFormPage = () => {
             </div>
           ) : (
             <TreatmentFormShell
+              morphTitle='ทันตกรรม'
               stepIndex={stepIndex}
               onStepChange={setStepIndex}
               completedSteps={completedSteps}

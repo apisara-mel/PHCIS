@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import ActionList from '@/components/list/ActionList';
+import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 
 /* All visual values are aliased from design.md via the
    `--dim-*` / `--type-*` mirrors declared in src/index.css. Menu rows
@@ -130,7 +131,7 @@ const ProfilePopover = ({ open, anchorRect, anchorRef, onClose, onSelect }) => {
               lineHeight: 1.5,
             }}
           >
-            พญ.สมหญิง รักษ์ดี
+            {PHCIS_CURRENT_USER.displayName}
           </span>
           <span
             className='truncate'
@@ -141,7 +142,7 @@ const ProfilePopover = ({ open, anchorRect, anchorRef, onClose, onSelect }) => {
               lineHeight: 1.5,
             }}
           >
-            อายุรกรรม
+            {PHCIS_CURRENT_USER.department}
           </span>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
-import Header from '@/components/layout/Header';
+import Header, { SubHeader } from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -200,7 +200,11 @@ const HivStiFormPage = () => {
       <div className='flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
         <Sidebar activeKey='treat' />
         <div className='flex-1 min-w-0 flex flex-col'>
-          <Header breadcrumb={breadcrumb} />
+          <Header breadcrumb={breadcrumb} standalone={false} />
+          <SubHeader
+            title={`บันทึกงาน HIV/STI — ครั้งที่ ${visitNo}${clinicPatient?.uic ? ` · ${clinicPatient.uic}` : ''}`}
+            hideBottomBorder
+          />
           <HivStiConfidentialGate>
             <UnsavedChangesPopup
               open={unsavedOpen}
@@ -213,7 +217,6 @@ const HivStiFormPage = () => {
               sticky
               patient={cardPatient}
               title={`บันทึกงาน HIV/STI — ครั้งที่ ${visitNo}${clinicPatient?.uic ? ` · ${clinicPatient.uic}` : ''}`}
-              onBack={() => history.push(QUEUE_PATH)}
               drugAllergies={mrPatient.drugAllergies}
               chronicDiseases={mrPatient.chronicDiseases}
               actions={
@@ -260,6 +263,7 @@ const HivStiFormPage = () => {
             )}
 
             <TreatmentFormShell
+              morphTitle='HIV/STI'
               stepIndex={stepIndex}
               onStepChange={setStepIndex}
               completedSteps={completedSteps}

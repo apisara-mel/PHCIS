@@ -27,6 +27,7 @@ import {
   getAncScheduledNotArrived,
   checkInAncAppointment,
 } from '@/data/ancVisits';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* AncQueuePage — คิวฝากครรภ์ (ANC queue), TOR 1.10.7.1/1.10.7.2/1.10.7.6.
    Search box + filter row + column-header sort + pagination all mirror
@@ -117,14 +118,11 @@ const renderQueue = (row) => (
 );
 
 const renderName = (row) => (
-  <Link
-    to={{ pathname: '/treat/anc/record', state: { hn: row.hn, queue: row.queue, name: row.name } }}
-    className='min-w-0 flex-1 truncate hover:underline'
-    style={{ color: 'var(--text-neutral-default)', fontWeight: 'var(--type-weight-medium)', textDecoration: 'none' }}
-    onClick={(e) => e.stopPropagation()}
-  >
-    {row.name}
-  </Link>
+  <MaskedWorklistName
+    name={row.name}
+    recordKey={row.hn || row.queue}
+    linkTo={{ pathname: '/treat/anc/record', state: { hn: row.hn, queue: row.queue, name: row.name } }}
+  />
 );
 
 const renderGestationalAge = (row) => {

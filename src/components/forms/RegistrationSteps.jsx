@@ -355,10 +355,8 @@ const PendingConsentFormCard = ({
   onFill,
 }) => (
   <div
-    className='flex flex-1 min-w-0 flex-col'
+    className='flex w-full min-w-0 flex-col h-full'
     style={{
-      flex: '1 1 280px',
-      maxWidth: '100%',
       borderRadius: 'var(--dim-radius-400)',
       background: 'var(--surface-card-100)',
       border: 'var(--dim-stroke-100) solid var(--border-card-default)',
@@ -367,7 +365,10 @@ const PendingConsentFormCard = ({
   >
     <div
       className='relative w-full shrink-0 overflow-hidden'
-      style={{ aspectRatio: '227 / 113' }}
+      style={{
+        aspectRatio: '227 / 113',
+        background: 'var(--surface-info-tertiary, #DBEAFE)',
+      }}
     >
       <img
         src={cover}
@@ -515,7 +516,7 @@ export const StepConsent = ({ form, patient }) => {
         />
       ) : (
         <div
-          className='flex w-full items-stretch flex-wrap'
+          className='grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 min-[1366px]:grid-cols-5 items-stretch'
           style={{ gap: 'var(--dim-space-400)' }}
         >
           {pending.map((item) => (

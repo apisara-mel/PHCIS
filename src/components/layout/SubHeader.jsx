@@ -1,5 +1,11 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import CreateConsentRequestHeaderAction from '@/components/consent/CreateConsentRequestHeaderAction';
+import { canCreateConsentRequest } from '@/data/consentPermissions';
+import { shouldShowCreateConsentRequestAction } from '@/data/consentRequestActionVisibility';
+import { morphSubHeaderPaddingStyle, morphTitleStyle } from '@/components/layout/headerMorphStyles';
+import { MIH_CHROME_MORPH_SUBHEADER } from '@/components/layout/wizardChromeMorphStyles';
 
 /* MIH SubHeader — design-system page sub-header.
    Shares the SAME 1px brand-quaternary bottom border and brand-tinted
@@ -28,15 +34,19 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
        SummaryCardsBar can sit flush with no visible “top stroke” on the panel.
      hideBottomBorder — when true, omits only the 1px bottom border (keeps shadow). */
 
-const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', children, flushSummaryCardsBelow = false, hideBottomBorder = false }) => (
+const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', children, flushSummaryCardsBelow = false, hideBottomBorder = false }) => {
+  const { pathname } = useLocation();
+  const showConsentAction = canCreateConsentRequest() && shouldShowCreateConsentRequestAction(pathname);
+  const hasActions = children || showConsentAction;
+
+  return (
   <div
-    className='flex items-center w-full shrink-0'
+    className={`flex items-center w-full shrink-0 ${MIH_CHROME_MORPH_SUBHEADER}`}
     style={{
       gap: 'var(--dim-space-400)',
       paddingLeft: 'var(--dim-space-600)',
       paddingRight: 'var(--dim-space-600)',
-      paddingTop: 'var(--dim-space-400)',
-      paddingBottom: 'var(--dim-space-400)',
+      ...morphSubHeaderPaddingStyle,
       background: 'var(--surface-navigation-default)',
       /* Same chrome as layout/Header — see index.css §header */
       borderBottom: flushSummaryCardsBelow || hideBottomBorder
@@ -60,19 +70,21 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
       color: 'var(--text-content-default)',
       fontFamily: 'var(--type-family-heading-content)',
       fontWeight: 'var(--type-weight-bold)',
-      fontSize: 'var(--type-size-base)',
       lineHeight: 1.5,
+      ...morphTitleStyle,
     }}>
       {title}
     </span>
     {afterTitle}
     <div className='flex-1' />
-    {children && (
-      <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-300)' }}>
+    {hasActions && (
+      <div className='flex items-center shrink-0 flex-wrap justify-end' style={{ gap: 'var(--dim-space-300)' }}>
+        {showConsentAction && <CreateConsentRequestHeaderAction />}
         {children}
       </div>
     )}
   </div>
-);
+  );
+};
 
 export default SubHeader;

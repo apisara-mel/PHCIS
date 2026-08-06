@@ -653,9 +653,9 @@ const TbRegistryPage = () => {
   /* ── ส่งออก Smart TB (CSV — legacy §2.4 parity) ────────────────── */
 
   const exportSmartTb = () => {
-    const header = ['เลขทะเบียน', 'ปีงบ', 'HN', 'ชื่อ-สกุล', 'ประเภทผู้ป่วย', 'ชนิดวัณโรค', 'วันขึ้นทะเบียน', 'วันเริ่มยา', 'สูตรยา', 'แพทย์', 'สถานะ'];
+    const header = ['เลขทะเบียน', 'ปีงบ', 'HN', 'ประเภทผู้ป่วย', 'ชนิดวัณโรค', 'วันขึ้นทะเบียน', 'วันเริ่มยา', 'สูตรยา', 'แพทย์', 'สถานะ'];
     const lines = filtered.map((r) => ([
-      r.regNo, r.fiscalYear, r.hn, displayName(r),
+      r.regNo, r.fiscalYear, r.hn,
       resolveTbPatientType(r.patientType)?.label || '',
       TB_DISEASE_SITES.find((s) => s.value === r.diseaseSite)?.label || '',
       r.registeredDate, r.treatmentStartDate || '',

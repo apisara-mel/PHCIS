@@ -2,18 +2,88 @@
    Consent-form TEMPLATE registry: summary cards · tabs · status meta · rows.
    Local mock; UI copy is Thai. */
 
-/* แต่ละแท็บต้องมี >32 รายการ เพื่อ demo pagination ที่ PAGE_SIZE 20
-   (หน้า 1 = 20 · หน้า 2 = ส่วนที่เหลือ) */
-const PER_TAB_COUNT = 36;
-const MOCK_FORM_COUNT = PER_TAB_COUNT * 4; // review + published + unpublished + draft
+import {
+  buildConsentScopeCatalog,
+  positionsForConsentFormRecord,
+  scopesForConsentFormRecord,
+} from '@/data/consentFormScopes';
 
-export const CONSENT_FORM_SUMMARY = [
-  { key: 'total',       icon: 'assignment',  color: 'info',       value: String(MOCK_FORM_COUNT), label: 'แบบฟอร์มทั้งหมด', indicator: 'เพิ่มขึ้น 3 จากเดือนที่แล้ว' },
-  { key: 'review',      icon: 'fact_check',   color: 'info',       value: String(PER_TAB_COUNT),   label: 'รอตรวจสอบ',      indicator: 'Pending review', indicatorIcon: null },
-  { key: 'published',   icon: 'check_circle', color: 'positive',   value: String(PER_TAB_COUNT),  label: 'เผยแพร่',        indicator: `${Math.round((PER_TAB_COUNT / MOCK_FORM_COUNT) * 100)}% ของทั้งหมด`,  indicatorIcon: null },
-  { key: 'unpublished', icon: 'unpublished',  color: 'inprogress', value: String(PER_TAB_COUNT),   label: 'ไม่เผยแพร่',     indicator: `${Math.round((PER_TAB_COUNT / MOCK_FORM_COUNT) * 100)}% ของทั้งหมด`,  indicatorIcon: null },
-  { key: 'draft',       icon: 'draft',        value: String(PER_TAB_COUNT),  label: 'ที่ร่างไว้',  indicator: `${Math.round((PER_TAB_COUNT / MOCK_FORM_COUNT) * 100)}% ของทั้งหมด`, indicatorIcon: null, tileBg: 'var(--surface-neutral-tertiary, #F4F5F5)', iconInk: 'var(--text-neutral-default, #4D5358)' },
+/* สัดส่วนสถานะ mock ให้ summary / แท็บดูสมจริง (รวม 152 แบบฟอร์ม · แต่ละแท็บ ≥33) */
+const FORM_STATUS_PLAN = [
+  { status: 'เผยแพร่', count: 62 },
+  { status: 'ร่าง', count: 41 },
+  { status: 'รอตรวจสอบ', count: 28 },
+  { status: 'ไม่เผยแพร่', count: 21 },
 ];
+const MOCK_FORM_COUNT = FORM_STATUS_PLAN.reduce((sum, p) => sum + p.count, 0);
+
+const THAI_MONTHS_FULL = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+];
+
+const CONSENT_FORM_SUMMARY_META = [
+  { key: 'total', icon: 'assignment', color: 'info', label: 'แบบฟอร์มทั้งหมด' },
+  { key: 'review', icon: 'fact_check', color: 'info', label: 'รอตรวจสอบ' },
+  { key: 'published', icon: 'check_circle', color: 'positive', label: 'เผยแพร่' },
+  { key: 'unpublished', icon: 'unpublished', color: 'inprogress', label: 'ไม่เผยแพร่' },
+  {
+    key: 'draft',
+    icon: 'draft',
+    label: 'ที่ร่างไว้',
+    tileBg: 'var(--surface-neutral-tertiary, #F4F5F5)',
+    iconInk: 'var(--text-neutral-default, #4D5358)',
+  },
+];
+
+const FORM_SUMMARY_STATUS_KEY = {
+  review: 'รอตรวจสอบ',
+  published: 'เผยแพร่',
+  unpublished: 'ไม่เผยแพร่',
+  draft: 'ร่าง',
+};
+
+const fmtFormCount = (n) => Number(n || 0).toLocaleString('th-TH');
+const pctOfForms = (part, whole) => (
+  whole > 0
+    ? `${((part / whole) * 100).toFixed(1)}% ของทั้งหมด`
+    : '0% ของทั้งหมด'
+);
+
+/** สรุป summary cards จาก registry rows — ตัวเลขและ % สัมพันธ์กับข้อมูลจริง */
+export const buildConsentFormSummary = (records = []) => {
+  const total = records.length;
+  const countStatus = (status) => records.filter((r) => r.status === status).length;
+  const thisMonthIdx = new Date().getMonth();
+  const prevMonthIdx = (thisMonthIdx + 11) % 12;
+  const thisMonth = THAI_MONTHS_FULL[thisMonthIdx];
+  const prevMonth = THAI_MONTHS_FULL[prevMonthIdx];
+  const thisMoTotal = records.filter((r) => String(r.createdDate).includes(thisMonth)).length;
+  const prevMoTotal = records.filter((r) => String(r.createdDate).includes(prevMonth)).length;
+  const momDelta = thisMoTotal - prevMoTotal;
+  const totalIndicator = momDelta > 0
+    ? { indicator: `เพิ่มขึ้น ${momDelta} จากเดือนที่แล้ว`, indicatorIcon: 'trending_up' }
+    : momDelta < 0
+      ? { indicator: `ลดลง ${Math.abs(momDelta)} จากเดือนที่แล้ว`, indicatorIcon: 'trending_down' }
+      : { indicator: 'เท่าเดิมจากเดือนที่แล้ว', indicatorIcon: null };
+
+  return CONSENT_FORM_SUMMARY_META.map((meta) => {
+    if (meta.key === 'total') {
+      return { ...meta, value: fmtFormCount(total), ...totalIndicator };
+    }
+    const status = FORM_SUMMARY_STATUS_KEY[meta.key];
+    const value = countStatus(status);
+    return {
+      ...meta,
+      value: fmtFormCount(value),
+      indicator: pctOfForms(value, total),
+      indicatorIcon: null,
+    };
+  });
+};
+
+/** Snapshot — หน้าแบบฟอร์มควรใช้ buildConsentFormSummary(records) แบบ live */
+export let CONSENT_FORM_SUMMARY = [];
 
 /* Tab icons per Figma 291:113045: clipboard-list · inbox_text_share ·
    inbox_text_dontshare · Save (floppy). All resolve via the <Icon> adapter. */
@@ -32,17 +102,12 @@ export const CONSENT_FORM_STATUS = {
   'ร่าง':       { tone: 'grey',  tab: 'draft' },
 };
 
-/* ประเภท Consent → ColorfulBadge tone. */
+/* ประเภท Consent — ระบบจัดการความยินยอมรองรับเฉพาะการเปิดเผยข้อมูล (PDPA) */
 export const FORM_TYPE_TONE = {
-  'การวิจัย':     'purple',
-  'บันทึกภาพ/สื่อ': 'blue',
-  'การรักษา':     'green',
-  'ผ่าตัด':       'purple',
-  'วัคซีน':       'teal',
-  'PDPA':         'blue',
+  'PDPA': 'blue',
 };
 
-const FORMS = [
+const ALL_FORM_TEMPLATES = [
   { name: 'ใบยินยอมเข้าร่วมโครงการวิจัย (Research Consent / ICF)', type: 'การวิจัย', group: 'พยาบาล', subBranch: 'พยาบาลวิชาชีพ', dept: 'ผู้ป่วยนอก' },
   { name: 'ใบยินยอมถ่ายภาพ / บันทึกวิดีโอเพื่อการศึกษา', type: 'บันทึกภาพ/สื่อ', group: 'พยาบาล', subBranch: 'ห้องฉุกเฉิน', dept: 'พยาบาลวิชาชีพ' },
   { name: 'ใบยินยอมรับการรักษาทั่วไป (General Consent for Treatment)', type: 'การรักษา', group: 'แพทย์', subBranch: 'ทันตแพทย์', dept: 'ทันตกรรม' },
@@ -195,42 +260,37 @@ const FORMS = [
   { name: 'ใบยินยอมใช้ข้อมูลเพื่อเชื่อมต่อ Health ID', type: 'PDPA', group: 'พยาบาล', subBranch: 'พยาบาลวิชาชีพ', dept: 'ผู้ป่วยนอก' },
 ];
 
+/** แม่แบบทางการแพทย์ — ย้ายไปคลังเอกสาร e-document (ไม่ใช่ Consent PDPA) */
+export const EDOCUMENT_FORM_TEMPLATES = ALL_FORM_TEMPLATES.filter((f) => f.type !== 'PDPA');
+
+/** เฉพาะความยินยอมเปิดเผยข้อมูล — ใช้ในระบบจัดการความยินยอม */
+const FORMS = ALL_FORM_TEMPLATES.filter((f) => f.type === 'PDPA');
+
 const VERSIONS = ['V 1.2', 'V 1.0', 'V 2.1', 'V 1.1', 'V 1.3', 'V 2.0'];
 const CREATORS = ['ลดา ดีงาม', 'สมชาย มั่นใจดี', 'พิมพ์ชนก ทองดี', 'กมลวรรณ พูนสุข'];
 
-/* สถานะเรียงตามแท็บ — 36 รอตรวจสอบ · 36 เผยแพร่ · 36 ไม่เผยแพร่ · 36 ร่าง */
-const TAB_STATUSES = [
-  ...Array.from({ length: PER_TAB_COUNT }, () => 'รอตรวจสอบ'),
-  ...Array.from({ length: PER_TAB_COUNT }, () => 'เผยแพร่'),
-  ...Array.from({ length: PER_TAB_COUNT }, () => 'ไม่เผยแพร่'),
-  ...Array.from({ length: PER_TAB_COUNT }, () => 'ร่าง'),
-];
+/* สถานะเรียงตามแท็บ — สัดส่วนจาก FORM_STATUS_PLAN */
+const TAB_STATUSES = FORM_STATUS_PLAN.flatMap(({ status, count }) =>
+  Array.from({ length: count }, () => status),
+);
 
-/* Extra Group Policy / สาขาย่อย / แผนก scopes a form can ALSO apply to.
-   The cell shows the primary scope inline + "+N เพิ่มเติม"; clicking the hint
-   opens a popover (Figma 291:254663) listing every scope as a badge triplet. */
-const EXTRA_SCOPE_POOL = [
-  { group: 'แพทย์',   subBranch: 'แพทย์เฉพาะทาง',   dept: 'อายุรกรรม' },
-  { group: 'พยาบาล',  subBranch: 'พยาบาลเวชปฏิบัติ', dept: 'ผู้ป่วยใน' },
-  { group: 'เภสัชกร', subBranch: 'เภสัชกรคลินิก',    dept: 'เภสัชกรรม' },
-  { group: 'แพทย์',   subBranch: 'ทันตแพทย์',        dept: 'ทันตกรรม' },
-  { group: 'พยาบาล',  subBranch: 'พยาบาลวิชาชีพ',     dept: 'ส่งเสริมสุขภาพ' },
-];
-
-const THAI_MONTHS_FULL = [
-  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
-];
+const SCOPE_CATALOG = buildConsentScopeCatalog();
 
 export const CONSENT_FORM_RECORDS = Array.from({ length: MOCK_FORM_COUNT }, (_, i) => {
   const f = FORMS[i % FORMS.length];
-  const primary = { group: f.group, subBranch: f.subBranch, dept: f.dept };
-  const extraCount = i % 3;
-  const extras = Array.from({ length: extraCount }, (_, k) =>
-    EXTRA_SCOPE_POOL[(i + k) % EXTRA_SCOPE_POOL.length]);
-  const scopes = [primary, ...extras];
+  const scopes = scopesForConsentFormRecord(i, SCOPE_CATALOG);
+  const positions = positionsForConsentFormRecord(i);
+  const primary = scopes[0];
   const day = (i % 28) + 1;
-  const month = THAI_MONTHS_FULL[i % 12];
+  const thisMonthIdx = new Date().getMonth();
+  const prevMonthIdx = (thisMonthIdx + 11) % 12;
+  /* ~45% เดือนนี้ · ~20% เดือนที่แล้ว · ที่เหลือกระจาย — ให้ MoM บนการ์ดรวมดูสมจริง */
+  const monthIdx = i % 20 < 9
+    ? thisMonthIdx
+    : i % 20 < 13
+      ? prevMonthIdx
+      : i % 12;
+  const month = THAI_MONTHS_FULL[monthIdx];
   const year = 2569;
   return {
     id: i + 1,
@@ -238,11 +298,12 @@ export const CONSENT_FORM_RECORDS = Array.from({ length: MOCK_FORM_COUNT }, (_, 
     name: f.name,
     type: f.type,
     version: VERSIONS[i % VERSIONS.length],
-    group: f.group,
-    subBranch: f.subBranch,
-    dept: f.dept,
+    group: primary.group,
+    subBranch: primary.subBranch,
+    dept: primary.dept,
     scopes,
-    moreCount: extras.length,
+    positions,
+    moreCount: Math.max(0, scopes.length - 1),
     createdDate: `${day} ${month} ${year}`,
     updatedDate: `${((i * 3) % 28) + 1} ${THAI_MONTHS_FULL[(i + 3) % 12]} ${year}`,
     creator: CREATORS[i % CREATORS.length],
@@ -250,17 +311,129 @@ export const CONSENT_FORM_RECORDS = Array.from({ length: MOCK_FORM_COUNT }, (_, 
   };
 });
 
+CONSENT_FORM_SUMMARY = buildConsentFormSummary(CONSENT_FORM_RECORDS);
+
+export const CONSENT_FORM_SCOPE_CATALOG = SCOPE_CATALOG;
+
+/** Unique PDPA form names — autocomplete on create/edit wizard (≥3 chars). */
+export const CONSENT_FORM_NAME_SUGGESTIONS = [...new Set([
+  ...FORMS.map((f) => f.name),
+  ...CONSENT_FORM_RECORDS.map((r) => r.name),
+])].sort((a, b) => a.localeCompare(b, 'th'));
+
+/** Filtered name suggestions for the create-form name field. */
+export const getConsentFormNameSuggestions = ({
+  query = '',
+  records = CONSENT_FORM_RECORDS,
+  minChars = 3,
+  catalog = CONSENT_FORM_NAME_SUGGESTIONS,
+} = {}) => {
+  const q = String(query || '').trim();
+  if (q.length < minChars) return [];
+  const lq = q.toLowerCase();
+  const pool = [...new Set([
+    ...catalog,
+    ...records.map((r) => r.name).filter(Boolean),
+  ])];
+  return pool
+    .filter((name) => String(name).toLowerCase().includes(lq))
+    .slice(0, 10);
+};
+
 /** Worklist type (จัดการความยินยอม) → canonical template code in this registry. */
 const WORKLIST_TYPE_FORM_CODE = {
-  'ผ่าตัด': 'PH-004',
-  'การรักษา': 'PH-003',
-  'การวิจัย': 'PH-001',
-  'เลือด': 'PH-006',
   'PDPA': 'PH-009',
-  'เบิกจ่าย': 'PH-003',
+  'เบิกจ่าย': 'PH-009',
+};
+
+const PH_CODE_RE = /^PH-(\d+)$/i;
+
+/** Parse `PH-012` → 12; returns null when not a PH-### code. */
+export const parseConsentFormCodeNum = (code) => {
+  const m = PH_CODE_RE.exec(String(code || '').trim());
+  return m ? Number(m[1]) : null;
+};
+
+/** Format numeric suffix as canonical registry code (`PH-001`). */
+export const formatConsentFormCode = (n) => `PH-${String(Math.max(0, Number(n) || 0)).padStart(3, '0')}`;
+
+/** Next unused code continuing from the highest `PH-###` in the registry. */
+export const getNextConsentFormCode = (records = CONSENT_FORM_RECORDS) => {
+  const nums = records
+    .map((r) => parseConsentFormCodeNum(r.code))
+    .filter((n) => n != null);
+  const max = nums.length ? Math.max(...nums) : 0;
+  return formatConsentFormCode(max + 1);
+};
+
+/** Inline suggestions for the create-form code field — next sequential code only. */
+export const getConsentFormCodeSuggestions = ({
+  query = '',
+  records = CONSENT_FORM_RECORDS,
+} = {}) => {
+  const q = String(query || '').trim().toLowerCase();
+  const nextCode = getNextConsentFormCode(records);
+  if (!q || nextCode.toLowerCase().includes(q)) {
+    return [{ code: nextCode, kind: 'next' }];
+  }
+  return [];
+};
+
+const VERSION_RE = /V\s*(\d+)\.(\d+)/i;
+
+/** Parse `V 1.2` → { major, minor }; null when invalid. */
+export const parseConsentFormVersion = (version) => {
+  const m = VERSION_RE.exec(String(version || '').trim());
+  return m ? { major: Number(m[1]), minor: Number(m[2]) } : null;
+};
+
+export const formatConsentFormVersion = (major, minor) => `V ${major}.${minor}`;
+
+/** Default first version for a brand-new form code. */
+export const getDefaultConsentFormVersion = () => 'V 1.0';
+
+/** Next version continuing from registry rows that share the same form code. */
+export const getNextConsentFormVersionForCode = (code, records = CONSENT_FORM_RECORDS) => {
+  const trimmed = String(code || '').trim();
+  const matches = trimmed
+    ? records.filter((r) => String(r.code || '').trim() === trimmed)
+    : [];
+  if (!matches.length) return getDefaultConsentFormVersion();
+
+  let maxMajor = 1;
+  let maxMinor = 0;
+  matches.forEach((r) => {
+    const parsed = parseConsentFormVersion(r.version);
+    if (!parsed) return;
+    if (
+      parsed.major > maxMajor
+      || (parsed.major === maxMajor && parsed.minor > maxMinor)
+    ) {
+      maxMajor = parsed.major;
+      maxMinor = parsed.minor;
+    }
+  });
+  return formatConsentFormVersion(maxMajor, maxMinor + 1);
+};
+
+/** Inline suggestions for the create-form version field. */
+export const getConsentFormVersionSuggestions = ({
+  query = '',
+  code = '',
+  records = CONSENT_FORM_RECORDS,
+} = {}) => {
+  const q = String(query || '').trim().toLowerCase();
+  const suggested = getNextConsentFormVersionForCode(code, records);
+  if (!q || suggested.toLowerCase().includes(q)) {
+    return [{ version: suggested }];
+  }
+  return [];
 };
 
 const formByCode = (code) => CONSENT_FORM_RECORDS.find((f) => f.code === code) || null;
+
+/** Lookup registry row by form code (view popup / access worklist). */
+export const getConsentFormByCode = (code) => formByCode(code);
 
 /** Lookup registry row by id (edit / new-version tab). */
 export const getConsentFormById = (id) => {

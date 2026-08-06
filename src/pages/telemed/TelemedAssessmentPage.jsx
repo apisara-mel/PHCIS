@@ -4,7 +4,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
-import StepProgress from '@/components/step/StepProgress';
+import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import TabUnderline from '@/components/tab/TabUnderline';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -984,7 +984,6 @@ const TelemedAssessmentPage = () => {
           sticky
           patient={cardPatient}
           title='บันทึกการประเมินทางไกล (Telemedicine)'
-          onBack={handleBack}
           actions={(
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
               <RoleSwitcher role={role} onChange={setRole} />
@@ -1102,21 +1101,23 @@ const TelemedAssessmentPage = () => {
             <TabUnderline tabs={ASSESSMENT_TABS.map((t) => ({ key: t.key, label: t.label, icon: t.icon }))} value={tab} onChange={setTab} />
           </div>
 
+          {tab === 'current' && (
+            <RecordWizardMorphBand
+              title='ประเมินผู้ป่วย Telemedicine'
+              steps={ASSESSMENT_STEPS}
+              current={stepIndex}
+              completedSteps={completedSteps}
+              onStepClick={setStepIndex}
+              stickyTop={MORPH_STICKY_BELOW_PATIENT}
+            />
+          )}
+
           <div
             className='flex-1 flex flex-col min-h-0'
             style={{ paddingTop: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
           >
             {tab === 'current' ? (
               <div className='flex flex-col w-full flex-1 min-h-0' style={cardStyle}>
-                <div className='flex justify-center min-w-max overflow-x-auto'>
-                  <StepProgress
-                    framed
-                    steps={ASSESSMENT_STEPS}
-                    current={stepIndex}
-                    completedSteps={completedSteps}
-                    onStepClick={setStepIndex}
-                  />
-                </div>
                 <div
                   className='flex flex-1 flex-col min-h-0'
                   style={{ paddingTop: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)' }}
@@ -1153,8 +1154,16 @@ const TelemedAssessmentPage = () => {
                 zIndex: 60,
               }}
             >
+              <NeutralSubdueButton
+                size='lg'
+                leadingIcon={stepIndex === 0 ? undefined : 'arrow_back'}
+                onClick={() => (stepIndex === 0 ? handleBack() : setStepIndex(stepIndex - 1))}
+                className='shrink-0'
+              >
+                {stepIndex === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}
+              </NeutralSubdueButton>
               <span
-                className='inline-flex items-center'
+                className='inline-flex items-center min-w-0'
                 style={{
                   gap: 'var(--dim-space-200)',
                   color: 'var(--text-content-secondary)',
@@ -1162,16 +1171,13 @@ const TelemedAssessmentPage = () => {
                   fontSize: 'var(--type-size-sm)',
                 }}
               >
-                <span style={{ width: 'var(--dim-space-150, 6px)', height: 'var(--dim-space-150, 6px)', borderRadius: 'var(--dim-radius-full)', background: 'var(--text-brandPrimary-default)' }} />
+                <span style={{ width: 'var(--dim-space-150, 6px)', height: 'var(--dim-space-150, 6px)', borderRadius: 'var(--dim-radius-full)', background: 'var(--text-brandPrimary-default)', flexShrink: 0 }} />
                 {stored
                   ? `${stored.status === 'final' ? 'บันทึกสมบูรณ์' : 'ร่างแบบฟอร์ม'} · แก้ไขล่าสุด ${stored.updatedBy || stored.createdBy} ${formatClock(stored.updatedAt || stored.createdAt)}`
                   : 'ยังไม่เคยบันทึก'}
                 {dirty ? ' · มีการแก้ไขที่ยังไม่บันทึก' : ''}
               </span>
               <div className='flex-1' />
-              <NeutralSubdueButton size='lg' onClick={() => (stepIndex === 0 ? handleBack() : setStepIndex(stepIndex - 1))}>
-                {stepIndex === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}
-              </NeutralSubdueButton>
               <BrandSubdueButton
                 variant='outline'
                 size='lg'

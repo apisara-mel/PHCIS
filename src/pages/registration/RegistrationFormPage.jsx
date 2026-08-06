@@ -3,6 +3,7 @@ import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import QueueSubMenu from '@/components/layout/QueueSubMenu';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import FormShell from '@/templates/FormShell';
 import Alert from '@/components/alert/Alert';
@@ -21,7 +22,6 @@ import {
   clearRegistrationDraft,
   getRegistrationCompletedSteps,
   getRegistrationMissingReport,
-  getStepMissingFields,
   REGISTRATION_STEP_NAMES,
   appendRegistrationAudit,
   REGISTRATION_AUDIT_USER,
@@ -30,6 +30,11 @@ import {
 } from '@/data/registrationForm';
 import DuplicatePatientWarningPopup from './DuplicatePatientWarningPopup';
 import PatientCardPrintPopup, { buildOpdCardFromForm } from './PatientCardPrintPopup';
+import {
+  buildRegistrationQueueSubMenuBuckets,
+  REGISTRATION_QUEUE_ROWS,
+  REGISTRATION_QUEUE_SUBMENU_LABELS,
+} from '@/data/registrationQueue';
 
 /* MIH RegistrationFormPage — Figma 292:104252 / 2373:119045..119049.
    Step 1 = แบบฟอร์มยินยอม; Step 2 = ข้อมูลส่วนตัว (รวม สถานะผู้รับบริการ).
@@ -47,7 +52,7 @@ import PatientCardPrintPopup, { buildOpdCardFromForm } from './PatientCardPrintP
    · ออกจากฟอร์มที่แก้ไขค้าง → UnsavedChangesPopup (history.block guard —
      FormShell เป็นเจ้าของปุ่ม จึงดักที่ history + click-capture แทน) */
 
-const breadcrumb = ['ระบบงานเวชระเบียน', 'ข้อมูลผู้รับบริการ'];
+const breadcrumb = ['ระบบงานเวชระเบียน', 'ลงทะเบียนผู้รับบริการ'];
 
 const STEP_RENDERERS = [
   StepConsent,
@@ -161,34 +166,9 @@ const RegistrationFormPage = () => {
     if (matches.length) openDupPopup(matches, null);
   };
 
-  /* ── step advance with validation ───────────────────────────────── */
+  /* ── step navigation — free jump; validation only on final submit ── */
   const handleStepChange = (next) => {
     if (next === stepIndex) return;
-    if (next < stepIndex) {
-      setMissingReport(null);
-      setStepIndex(next);
-      return;
-    }
-    const missing = getStepMissingFields(form, stepIndex);
-    if (missing.length > 0) {
-      setMissingReport([{
-        stepIndex,
-        stepLabel: REGISTRATION_STEP_NAMES[stepIndex],
-        fields: missing,
-      }]);
-      showToast('error', `ข้อมูลไม่ครบ (${REGISTRATION_STEP_NAMES[stepIndex]}): ${missing.join(' · ')}`);
-      return;
-    }
-    if (stepIndex === 1) {
-      const matches = unconfirmedDuplicates();
-      if (matches.length) {
-        openDupPopup(matches, () => {
-          setMissingReport(null);
-          setStepIndex(next);
-        });
-        return;
-      }
-    }
     setMissingReport(null);
     setStepIndex(next);
   };
@@ -288,6 +268,32 @@ const RegistrationFormPage = () => {
   const ActiveStep = STEP_RENDERERS[stepIndex];
   const completedSteps = useMemo(() => getRegistrationCompletedSteps(form), [form]);
 
+  /* QueueSubMenu buckets — same roster as RegistrationQueuePage so the
+     side panel counts stay in sync with the full เวชระเบียน queue. */
+  const queueBuckets = useMemo(() => {
+    const raw = buildRegistrationQueueSubMenuBuckets(REGISTRATION_QUEUE_ROWS);
+    const map = (rows) => rows.map((r) => ({
+      id: r.id,
+      hn: r.hn,
+      name: r.name || r.queue || 'ผู้รับบริการใหม่',
+      queue: r.queue,
+      badge: r.vipBadge,
+    }));
+    return {
+      done:       { items: map(raw.done.items),       total: raw.done.total       },
+      draft:      { items: map(raw.draft.items),      total: raw.draft.total      },
+      inProgress: { items: map(raw.inProgress.items), total: raw.inProgress.total },
+      waiting:    { items: map(raw.waiting.items),    total: raw.waiting.total    },
+    };
+  }, []);
+
+  const goToPatientRegister = (p) => {
+    history.push({
+      pathname: '/registration/register',
+      state: { hn: p.hn || undefined, queue: p.queue },
+    });
+  };
+
   return (
     <ClinicFilterProvider>
     <div
@@ -296,14 +302,25 @@ const RegistrationFormPage = () => {
       onClickCapture={handleClickCapture}
     >
       <Sidebar activeKey='registration' />
+      {/* QueueSubMenu — Figma "Sub Menu B" (same pattern as TreatmentFormPage).
+          Lets staff glance at the rest of the MR queue without leaving the
+          open registration form. "ดูทั้งหมด" jumps to /registration/queue. */}
+      <QueueSubMenu
+        queue={queueBuckets}
+        sectionLabels={REGISTRATION_QUEUE_SUBMENU_LABELS}
+        onViewAll={() => history.push('/registration/queue')}
+        onPickPatient={goToPatientRegister}
+      />
       <div className='flex-1 min-w-0 flex flex-col'>
-        <Header breadcrumb={breadcrumb} />
+        <Header breadcrumb={breadcrumb} standalone={false} />
         <FormShell
           stepIndex={stepIndex}
           onStepChange={handleStepChange}
           onReadSmartCard={handleReadSmartCard}
           smartCardRead={form.idCardFromChip}
           completedSteps={completedSteps}
+          onSubmit={handleSaveAttempt}
+          onSaveDraft={() => showToast('success', 'บันทึกร่างแล้ว')}
         >
           {/* 1.1.1.13 — clickable missing-field panel (คลิก jump ไป step) */}
           {missingReport && missingReport.length > 0 && (

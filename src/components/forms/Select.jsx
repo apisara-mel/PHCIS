@@ -617,7 +617,10 @@ const Select = React.forwardRef(function Select(
       const val = (o.value ?? o) + '';
       const sub = (o.subtext ?? '') + '';
       const badgeLbl = (o.badge?.label ?? '') + '';
-      const hay = `${lbl} ${val} ${sub} ${badgeLbl}`.toLowerCase();
+      const suffixLbl = (o.suffixBadge?.label ?? '') + '';
+      const code = (o.code ?? '') + '';
+      const name = (o.name ?? '') + '';
+      const hay = `${lbl} ${val} ${sub} ${badgeLbl} ${suffixLbl} ${code} ${name}`.toLowerCase();
       return hay.includes(q);
     });
   })();
@@ -793,6 +796,17 @@ const Select = React.forwardRef(function Select(
             >
               {triggerText}
             </span>
+          )}
+          {selected?.suffixBadge?.style && selected?.suffixBadge?.label && !(searchable && open) && (
+            <ColorfulBadge
+              style={selected.suffixBadge.style}
+              size='small'
+              hierarchy='secondary'
+              width='hug'
+              className='shrink-0'
+            >
+              {selected.suffixBadge.label}
+            </ColorfulBadge>
           )}
           <span
             className='inline-flex items-center justify-center shrink-0 transition-transform duration-200 ease-out'

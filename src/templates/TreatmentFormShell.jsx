@@ -1,14 +1,14 @@
 import React from 'react';
 import { useHistory } from 'react-router-dom';
-import StepProgress from '@/components/step/StepProgress';
+import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
+import { MIH_CHROME_MORPH_FOOTER } from '@/components/layout/wizardChromeMorphStyles';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 
 /* MIH TreatmentFormShell — Figma PHCIS | Medical-examination 317:29773.
-   Unified step card: white surface, no outer border, Brand Drop Shadow
-   Bottom/200. StepProgress (framed) + body + sticky footer.
-   Header + PatientCard live on TreatmentFormPage. */
+   RecordWizardMorphBand (scroll-morph stepper) + unified step card body +
+   sticky footer. Header + PatientCard live on the parent form page. */
 
 export const TREATMENT_STEPS = [
   { title: 'ประวัติการรักษา', subtitle: 'Medical History' },
@@ -43,7 +43,7 @@ const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, is
      #007549 text) per Figma — not NeutralSubdue. Same pattern as
      FormShell's footer so the two shells render identical action bars. */
   return (
-    <div className='flex items-center w-full' style={{
+    <div className={`flex items-center w-full ${MIH_CHROME_MORPH_FOOTER}`} style={{
       gap: 'var(--dim-space-300)',
       padding: 'var(--dim-space-400) var(--dim-space-600)',
       borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
@@ -52,7 +52,15 @@ const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, is
       position: 'sticky',
       bottom: 'var(--dim-space-0)',
     }}>
-      <span className='inline-flex items-center' style={{
+      <NeutralSubdueButton
+        size='lg'
+        leadingIcon={stepIndex === 0 ? undefined : 'arrow_back'}
+        onClick={onPrev}
+        className='shrink-0'
+      >
+        {stepIndex === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}
+      </NeutralSubdueButton>
+      <span className='inline-flex items-center min-w-0' style={{
         gap: 'var(--dim-space-200)',
         color: 'var(--text-content-secondary)',
         fontFamily: 'var(--type-family-body)',
@@ -61,6 +69,7 @@ const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, is
         <span style={{
           width: 6, height: 6, borderRadius: 'var(--dim-radius-full)',
           background: 'var(--text-brandPrimary-default)',
+          flexShrink: 0,
         }} />
         ร่างแบบฟอร์ม (บันทึกล่าสุด: {lastSavedMin} นาทีที่แล้ว)
       </span>
@@ -68,9 +77,6 @@ const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, is
       {/* All three buttons render at h44 (size='lg') per Figma 330:42666 —
           smaller md (36 px) sizes break the action-row rhythm against
           the 44 px primary CTA. */}
-      <NeutralSubdueButton size='lg' onClick={onPrev}>
-        {stepIndex === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}
-      </NeutralSubdueButton>
       <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' onClick={onSave}>
         บันทึกร่าง
       </BrandSubdueButton>
@@ -88,18 +94,28 @@ const TreatmentFormShell = ({
      TreatmentFormPage behaviour unchanged. */
   steps = TREATMENT_STEPS,
   queuePath = '/treat/queue',
+  morphTitle,
+  morphStickyTop = MORPH_STICKY_BELOW_PATIENT,
   /* OPD's Step 1 brings its own ServiceDateList rail flush against the
      card's left edge, so it opts out of the 24px body padding — that's an
      OPD-specific layout quirk, not a general "step 1" rule. Sub-departments
      without that rail (e.g. ANC) pass `step0FlushLeft={false}` to keep the
      same 24px padding Step 1 gets in every other step. */
   step0FlushLeft = true,
+  /** Optional leave handler for step 0 (ยกเลิก) — e.g. unsaved-changes guard. */
+  onLeave,
 }) => {
   const history = useHistory();
   const isLast = stepIndex === steps.length - 1;
+  const stepTitle = typeof steps[stepIndex] === 'string'
+    ? steps[stepIndex]
+    : steps[stepIndex]?.title;
+  const headerTitle = morphTitle ?? stepTitle ?? 'บันทึกการรักษา';
   const handlePrev = () => {
-    if (stepIndex === 0) history.push(queuePath);
-    else onStepChange(stepIndex - 1);
+    if (stepIndex === 0) {
+      if (onLeave) onLeave();
+      else history.push(queuePath);
+    } else onStepChange(stepIndex - 1);
   };
   const handleNext = () => {
     if (isLast) history.push(queuePath);
@@ -110,6 +126,14 @@ const TreatmentFormShell = ({
     <main className='flex-1 min-w-0 flex flex-col' style={{
       background: 'var(--background-screen-brand-100, #F4FBF8)',
     }}>
+      <RecordWizardMorphBand
+        title={headerTitle}
+        steps={steps}
+        current={stepIndex}
+        completedSteps={completedSteps}
+        onStepClick={onStepChange}
+        stickyTop={morphStickyTop}
+      />
       <div className='flex-1 flex flex-col min-h-0' style={{
         padding: 'var(--dim-space-600)',
         gap: 'var(--dim-space-400)',
@@ -123,15 +147,6 @@ const TreatmentFormShell = ({
             overflow: 'hidden',
           }}
         >
-          <div className='flex justify-center min-w-max overflow-x-auto'>
-            <StepProgress
-              framed
-              steps={steps}
-              current={stepIndex}
-              completedSteps={completedSteps}
-              onStepClick={onStepChange}
-            />
-          </div>
           {/* Step 1 brings its own ServiceDateList rail flush against the
               card's left edge, so it opts out of the 24px body padding.
               Steps 2–7 — Figma PHCIS treatment card body floor: min 640 px. */}

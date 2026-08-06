@@ -928,9 +928,15 @@ The other 9 are stubs with intended scope:
 
 ---
 
-## 10.8 `/kiosk` — Step 0 of OPD flow (multi-step v2)
+## 10.8 Kiosk — Step 0 of OPD flow
 
-> **Routes:** [`/kiosk`](../src/pages/kiosk/KioskPage.jsx) · [`/kiosk/ticket/:queueId`](../src/pages/kiosk/MobileTicketPage.jsx)
+> **Canonical app (Aug 2026):** https://bma-kiosk.mih.co.th/Kiosk/ · repo `namonlims/bma.kiosk` (`../bma.kiosk`)
+> **This monorepo:** `/kiosk` redirects to production · `/kiosk/ticket/:queueId` → `/queue-center/display/online?q=…`
+> See [docs/kiosk-split.md](./kiosk-split.md)
+
+> **Legacy (removed):** in-repo `KioskPage.jsx` / Stitch hub — section below kept for historical reference only.
+
+> **Routes (legacy):** ~~`/kiosk`~~ · ~~`/kiosk/ticket/:queueId`~~
 > **Standalone** — no Sidebar / Header chrome · **Fixed canvas** 1440 × 1462 px
 > **Figma:** PHCIS | KIOSK · file `PlyfeAl2AdZtqZK7eZrxKg` · node `4002:928`
 > **Stitch refs:** [docs/kiosk/stitch](./kiosk/stitch/) — hub / rights / payment (TOR §1.16)

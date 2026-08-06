@@ -1,42 +1,21 @@
 import React, { useRef, useState } from 'react';
+import { Icon } from '@/components/icons/Icon';
 
 /* SecondarySearch — Figma MIH DS Foundation 305:43
-   Sizes  : 'default' (40px) · 'small' (36px)
-   States : default (placeholder) · hover (brand border + ring)
-            typing (focus, brand border + ring) · filled (neutral border + clear)
-   All colors / dimensions / typography aliased from design.md via the
-   dash-named CSS variables declared in src/index.css. */
+   Sizes  : 'default' (40px · body4 14px) · 'small' (36px · caption1 12px)
+   States : default · hover · focus · typing · filled — same color matrix as
+            Primary Search (2056:4246); compact 8 px radius shell only.
+   All colors / dimensions / typography aliased from design.md via tokens.css. */
 
 const SIZE = {
-  default: { h: 40, fontSize: 'var(--type-size-base)' /* 16 */ },
-  small:   { h: 36, fontSize: 'var(--type-size-sm)'   /* 14 */ },
+  default: { h: 40, fontSize: 'var(--type-size-sm, 14px)' /* body4 */ },
+  small:   { h: 36, fontSize: 'var(--type-size-xs, 12px)' /* caption1 */ },
 };
-
-const Sym = ({ name, size = 16, color }) => (
-  <span
-    className='material-symbols-outlined'
-    style={{
-      fontFamily: 'Material Symbols Outlined',
-      fontSize: size,
-      color,
-      lineHeight: 1,
-      display: 'inline-flex',
-    }}
-    aria-hidden
-  >
-    {name}
-  </span>
-);
 
 /* XButton — Figma node 3345:2713 / 3345:2721 ("X Button · info").
    32×32 pill that clears the input. Default = brand-quaternary surface
    with 24 px radius; hover = brand-quaternary-hover surface with the
-   radius easing into a perfect circle (9999 px). The morph happens via
-   one shared transition so the rounding + tint feel cohesive.
-   Background  : surface/brandprimary/quaternary       → brand/p50  (brand-aware)
-   Bg (hover)  : surface/brandprimary/quaternary-hover → brand/p100 (brand-aware)
-   Radius      : dimension/radius/600 (24)   → dimension/radius/full (9999) on hover
-   Icon        : 16 px `close`, color text/brandPrimary/default (brand/p700) */
+   radius easing into a perfect circle (9999 px). */
 const XButton = ({ onClick }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -63,7 +42,7 @@ const XButton = ({ onClick }) => {
           'background-color 150ms ease-out, border-radius 200ms ease-out, color 150ms ease-out',
       }}
     >
-      <Sym name='close' size={16} color='currentColor' />
+      <Icon name='close' size={16} style={{ color: 'currentColor' }} />
     </button>
   );
 };
@@ -75,7 +54,8 @@ const SecondarySearch = ({
   onSubmit,
   placeholder = 'Search...',
   size = 'default',
-  state: stateProp,                /* force visual state: 'default' | 'hover' | 'typing' | 'filled' */
+  state: stateProp,                /* force: 'default' | 'hover' | 'focus' | 'typing' | 'filled' */
+  fullWidth = false,
   className = '',
   style = {},
   ...rest
@@ -102,39 +82,39 @@ const SecondarySearch = ({
     if (e.key === 'Escape' && v) handleClear();
   };
 
-  // Resolve visual state (focused first; then hover; else value/empty). `stateProp` overrides for demos.
+  /* 5-state resolver — mirrors PrimarySearch (2056:4246):
+       focused + empty   → focus
+       focused + value   → typing
+       blurred  + value  → filled */
   const filled = !!v;
   const computedState = focused
-    ? 'typing'
+    ? (filled ? 'typing' : 'focus')
     : hover
     ? 'hover'
     : filled
     ? 'filled'
     : 'default';
-  const state = stateProp || computedState;
+  const forcedState = String(stateProp || '').toLowerCase();
+  const state = forcedState === 'pressed' ? 'hover' : (forcedState || computedState);
 
-  const isBrandBorder = state === 'typing' || state === 'hover';
-  const showClear     = filled && (state === 'typing' || state === 'filled' || state === 'hover');
+  const showClear = filled && (state === 'typing' || state === 'filled' || state === 'hover');
   const dim = SIZE[size] || SIZE.default;
 
-  // Color of left search icon: brand on hover/typing, neutral otherwise.
-  const iconColor =
-    state === 'typing' ? 'var(--text-secondarysearch-typing)' :
-    state === 'hover'  ? 'var(--text-secondarysearch-hover)'  :
-    state === 'filled' ? 'var(--text-secondarysearch-filled)' :
-                          'var(--text-secondarysearch-default)';
+  const iconColor  = `var(--icon-secondarysearch-${state})`;
+  const inputColor = `var(--text-secondarysearch-${state})`;
+  const stretch = fullWidth || style.width === '100%' || /\bw-full\b/.test(className);
 
   return (
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={() => inputRef.current && inputRef.current.focus()}
-      className={`relative inline-flex items-center cursor-text ${className}`}
+      className={`relative ${stretch ? 'flex' : 'inline-flex'} items-center cursor-text ${className}`}
       style={{
         height:       dim.h,
-        minWidth:     224,
-        maxWidth:     448,
-        width:        320,
+        minWidth:     stretch ? 0 : 224,
+        maxWidth:     stretch ? 'none' : 448,
+        width:        stretch ? '100%' : 320,
         gap:          'var(--dim-space-200)',
         paddingLeft:  'var(--dim-space-300)',
         paddingRight: 'var(--dim-space-300)',
@@ -143,27 +123,23 @@ const SecondarySearch = ({
         borderRadius: 'var(--dim-radius-200)',
         background:   'var(--surface-search-default)',
         borderStyle:  'solid',
-        borderWidth:  isBrandBorder ? 'var(--dim-stroke-200)' : 'var(--dim-stroke-100)',
-        borderColor:  isBrandBorder
-          ? `var(--border-secondarysearch-${state})`
-          : `var(--border-secondarysearch-${state})`,
-        boxShadow:    isBrandBorder ? '0 0 0 4px var(--ring-secondarysearch)' : 'none',
+        borderWidth:  'var(--dim-stroke-200)',
+        borderColor:  `var(--border-secondarysearch-${state})`,
+        boxShadow:    'var(--shadow-secondarysearch, var(--shadow-primarysearch))',
         boxSizing:    'border-box',
         transition:   'border-color 120ms ease, box-shadow 120ms ease',
         ...style,
       }}
       {...rest}
     >
-      {/* Leading search icon */}
       <span
         aria-hidden
         className='inline-flex items-center justify-center shrink-0'
         style={{ width: 'var(--dim-size-300)', height: 'var(--dim-size-300)' }}
       >
-        <Sym name='search' size={16} color={iconColor} />
+        <Icon name='search' size={16} style={{ color: iconColor }} />
       </span>
 
-      {/* Input */}
       <input
         ref={inputRef}
         type='search'
@@ -182,15 +158,11 @@ const SecondarySearch = ({
           outline: 'none',
           boxShadow: 'none',
           WebkitAppearance: 'none',
-          color: filled
-            ? `var(--text-secondarysearch-${focused ? 'typing' : 'filled'})`
-            : 'var(--text-secondarysearch-typing)',
+          color: inputColor,
+          '--secondarysearch-input-color': inputColor,
         }}
       />
 
-      {/* Clear (X) — visible when filled. Figma node 3345:2713 / 3345:2721
-          ("X Button · info"). See <XButton /> definition above for the
-          full hover-state spec (24→full radius, brand-quaternary tint). */}
       {showClear && <XButton onClick={handleClear} />}
     </div>
   );

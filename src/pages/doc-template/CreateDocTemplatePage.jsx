@@ -10,11 +10,13 @@ import { FormBuilderProvider, useFormBuilderContext } from '@/components/form-bu
 import useFormBuilder from '@/hooks/useFormBuilder';
 import { formatLastSaved } from '@/utils/formBuilderModel';
 import SuccessScreen from '@/components/layout/SuccessScreen';
+import { MIH_CHROME_MORPH_FOOTER } from '@/components/layout/wizardChromeMorphStyles';
+import EDOCUMENT_NAV, { EDOCUMENT_BRAND_TITLE } from '@/pages/forms/edocumentNav';
 
 /* PHCIS | Assess-control — สร้างแบบฟอร์มใหม่ (Figma 0EDfjwf1 · 26:1747).
    Interactive form builder: palette drag/click · canvas reorder · live preview. */
 
-const breadcrumb = ['คลังแบบฟอร์ม', 'สร้างแบบฟอร์มใหม่'];
+const breadcrumb = ['คลังเอกสาร e-document', 'สร้างเอกสาร e-document ใหม่'];
 
 const COVER_CARD = {
   background: 'var(--surface-card-100)',
@@ -55,7 +57,7 @@ function CreateDocTemplatePageInner() {
         title={publishResult?.formName
           ? `คุณเผยแพร่แบบฟอร์ม “${publishResult.formName}” สำเร็จ`
           : 'คุณเผยแพร่แบบฟอร์มสำเร็จ'}
-        buttonLabel='คลังแบบฟอร์ม'
+        buttonLabel='คลังเอกสาร e-document'
         lottieSize={256}
         onDone={() => history.push('/forms')}
       />
@@ -64,10 +66,12 @@ function CreateDocTemplatePageInner() {
 
   return (
     <QueuePageShell
-      activeKey='consent'
-      brandTitle='ระบบ PHCIS'
+      activeKey='edocument-new'
+      sidebarItems={EDOCUMENT_NAV}
+      sidebarFallbackKey='edocument-dashboard'
+      brandTitle={EDOCUMENT_BRAND_TITLE}
       breadcrumb={breadcrumb}
-      title='สร้างแบบฟอร์มใหม่'
+      title='สร้างเอกสาร e-document ใหม่'
       onBack={() => history.push('/forms')}
       actions={(
         <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
@@ -98,7 +102,7 @@ function CreateDocTemplatePageInner() {
         <FormBuilderWorkspace />
 
         <div
-          className='sticky bottom-0 z-10 flex items-center w-full'
+          className={`sticky bottom-0 z-10 flex items-center w-full ${MIH_CHROME_MORPH_FOOTER}`}
           style={{
             background: 'var(--surface-navigation-default)',
             borderTop: 'var(--dim-stroke-100) solid var(--border-brandSecondary-quaternary)',

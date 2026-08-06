@@ -7,23 +7,7 @@ import { SYSTEM_CATALOG_ROWS } from '@/data/systemCatalog';
 import HubSidebar from './HubSidebar';
 import HubCard from './HubCard';
 import DoctorProfileAvatar from '@/components/layout/DoctorProfileAvatar';
-
-/* MIH PHCIS · System Selection Hub
-   Figma: PHCIS-Signin · node 21:1875.
-   Landing page before entering any PHCIS subsystem — slim sidebar, gradient
-   screen, greeting header with hero illustration, 3-column hub card grid, legal
-   footer. Cards are fully clickable (no separate CTA button). */
-
-const CURRENT_USER = {
-  displayName: 'พญ.สมหญิง รักษ์ดี',
-  displayNameEn: 'Somying Rakdee',
-  /* Figma 43:11139 user-info banner chips */
-  meta: [
-    { label: 'Group Policy', value: 'แพทย์' },
-    { label: 'สาขาย่อย', value: 'ทันตแพทย์' },
-    { label: 'แผนก', value: 'ทันตกรรม' },
-  ],
-};
+import { PHCIS_CURRENT_USER, PHCIS_CURRENT_USER_HUB_META } from '@/data/phcisCurrentUser';
 
 const THAI_DAYS = ['วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์'];
 const THAI_MONTHS = [
@@ -132,21 +116,21 @@ const SystemHubPage = () => {
                   lineHeight: 0,
                 }}
               >
-                <DoctorProfileAvatar size={64} alt={CURRENT_USER.displayName} />
+                <DoctorProfileAvatar size={64} alt={PHCIS_CURRENT_USER.displayName} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                 <span style={{ color: 'var(--text-content-on-content, #FFFFFF)', fontFamily: 'var(--type-family-heading-graphic2, var(--type-family-body))', fontSize: 'var(--type-size-base, 16px)', lineHeight: 1.5 }}>
-                  {CURRENT_USER.displayName}
+                  {PHCIS_CURRENT_USER.displayName}
                 </span>
                 <span style={{ color: 'var(--text-content-on-content, #FFFFFF)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm, 14px)', lineHeight: 1.5, opacity: 0.85 }}>
-                  {CURRENT_USER.displayNameEn}
+                  {PHCIS_CURRENT_USER.displayNameEn}
                 </span>
               </div>
 
               <div aria-hidden style={{ width: 'var(--dim-stroke-100, 1px)', alignSelf: 'stretch', background: 'var(--border-table-line, #F4FBF8)', opacity: 0.5, margin: 'var(--dim-space-200, 8px) 0' }} />
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--dim-space-600, 24px)', flexWrap: 'wrap', flex: '1 1 0', minWidth: 0 }}>
-                {CURRENT_USER.meta.map((m) => (
+                {PHCIS_CURRENT_USER_HUB_META.map((m) => (
                   <div key={m.label} style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ color: 'var(--text-content-on-content, #FFFFFF)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs, 12px)', lineHeight: 1.5, opacity: 0.8 }}>
                       {m.label}

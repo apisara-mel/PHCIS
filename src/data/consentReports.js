@@ -10,7 +10,7 @@
      'none'  — แสดงเฉพาะ SummaryCard ไม่มีกราฟสัดส่วน */
 
 import { parseThaiBuddhistDate } from '@/data/registrationForm';
-import { CONSENT_RECORDS, CONSENT_STATUS } from '@/data/consentRecords';
+import { CONSENT_RECORDS, CONSENT_STATUS, CONSENT_TYPES } from '@/data/consentRecords';
 import { ACCESS_RECORDS } from '@/data/accessRecords';
 import { CONSENT_FORM_RECORDS } from '@/data/consentFormRecords';
 import { PHCIS_CHART, PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
@@ -82,7 +82,19 @@ const monthHistogram = (rows, predicate = () => true) => {
 /**
  * แปลงชุด base รายเดือน (ยาว 12) → ค่าแกน x ตามชิปช่วงเวลา
  * ผลรวมช่วงรายเดือน = ปี · รายวัน/สัปดาห์ ≈ ค่าเฉลี่ยเดือน · รายปีปีล่าสุด = ยอดปี
+ * ปีงบประมาณ = 12 เดือน ต.ค.→ก.ย. (1 ต.ค. – 30 ก.ย.)
  */
+export const FISCAL_MONTH_SHORT_LABELS = [
+  'ต.ค.', 'พ.ย.', 'ธ.ค.', 'ม.ค.', 'ก.พ.', 'มี.ค.',
+  'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.',
+];
+
+/** จัดเรียงยอดรายเดือนปฏิทิน (ม.ค.→ธ.ค.) เป็นลำดับปีงบประมาณ (ต.ค.→ก.ย.) */
+export const calendarMonthsToFiscalOrder = (months = []) => {
+  const src = Array.from({ length: 12 }, (_, i) => Math.max(0, Number(months[i]) || 0));
+  return Array.from({ length: 12 }, (_, i) => src[(9 + i) % 12]);
+};
+
 export const periodValuesFromYearBase = (base = [], period = 'รายเดือน') => {
   const months = Array.from({ length: 12 }, (_, i) => Math.max(0, Number(base[i]) || 0));
   const yearTotal = months.reduce((a, b) => a + b, 0);
@@ -95,6 +107,8 @@ export const periodValuesFromYearBase = (base = [], period = 'รายเดื
     case 'รายปี':
       /* 5 ปีล่าสุด — ปีปัจจุบัน = ยอดทั้งปี · ปีก่อน ๆ สเกลลง */
       return [0.68, 0.78, 0.88, 0.95, 1].map((w) => Math.max(0, Math.round(yearTotal * w)));
+    case 'ปีงบประมาณ':
+      return calendarMonthsToFiscalOrder(months);
     case 'รายเดือน':
     default:
       return months;
@@ -117,6 +131,62 @@ const DATA_TYPES = ['ประวัติการรักษา', 'ผลต�
 
 const HBAR_SEG_CONSENT = PHCIS_CHART.teal;
 const HBAR_SEG_DECLINE = PHCIS_CHART.pink;
+
+/** 5 สถานะบนแดชบอร์ด — donut + แถบตามประเภท (shared กับ ConsentDashboardPage) */
+export const CONSENT_STATUS_BUCKETS = [
+  { label: 'ยินยอมแล้ว', match: ['ยินยอมแล้ว'], tone: 'positive', color: PHCIS_CHART.teal },
+  { label: 'รอลงนาม', match: ['รอลงนาม', 'อยู่ระหว่างลงนาม'], tone: 'warning', color: PHCIS_CHART.orange },
+  { label: 'รอดำเนินการ', match: ['ขอเพิกถอน'], tone: 'warning', color: PHCIS_CHART.yellow },
+  { label: 'ปฏิเสธ / ถอน', match: ['ปฏิเสธ', 'ถอนความยินยอม', 'ยกเลิกคำขอ'], tone: 'danger', color: PHCIS_CHART.pink },
+  { label: 'หมดอายุ / ใกล้หมด', match: ['หมดอายุ', 'ใกล้หมดอายุ', 'หมดอายุ-Reconsent'], tone: 'info', color: PHCIS_CHART.indigo },
+];
+
+export const bucketOfConsentStatus = (status) => {
+  const hit = CONSENT_STATUS_BUCKETS.find((b) => b.match.includes(status));
+  return hit ? hit.label : null;
+};
+
+export const consentStatusSegmentsFrom = (records) => CONSENT_STATUS_BUCKETS.map((b, i) => ({
+  label: b.label,
+  color: b.color || PHCIS_CHART_PALETTE[i % PHCIS_CHART_PALETTE.length],
+  tone: b.tone,
+  value: records.filter((r) => b.match.includes(r.status)).length,
+})).filter((s) => s.value > 0);
+
+export const consentTypeStatusBarsFrom = (records) => {
+  const map = new Map(
+    CONSENT_TYPES.map((type) => [type, {
+      label: type,
+      value: 0,
+      counts: Object.fromEntries(CONSENT_STATUS_BUCKETS.map((b) => [b.label, 0])),
+    }]),
+  );
+  records.forEach((r) => {
+    const row = map.get(r.type) || {
+      label: r.type,
+      value: 0,
+      counts: Object.fromEntries(CONSENT_STATUS_BUCKETS.map((b) => [b.label, 0])),
+    };
+    row.value += 1;
+    const bucket = bucketOfConsentStatus(r.status);
+    if (bucket) row.counts[bucket] += 1;
+    map.set(r.type, row);
+  });
+  return CONSENT_TYPES
+    .map((type) => map.get(type))
+    .filter((row) => row && row.value > 0)
+    .map((row) => ({
+      label: row.label,
+      value: row.value,
+      segments: CONSENT_STATUS_BUCKETS.map((b) => ({
+        value: row.counts[b.label] || 0,
+        color: b.color,
+        label: b.label,
+      })),
+    }))
+    .sort((a, b) => b.value - a.value);
+};
+
 const EXPORT_STATUS_SEGMENTS = [
   { key: 'success', label: 'สำเร็จ', color: PHCIS_CHART.teal },
   { key: 'expired', label: 'หมดอายุ', color: PHCIS_CHART.indigo },
@@ -214,6 +284,43 @@ const typeHbarFrom = (records) => {
     .sort((a, b) => b.value - a.value);
 };
 
+/* ── แดชบอร์ด — สัดส่วนตามสถานะ (donut 5 สถานะ + แถบตามประเภท) ───────── */
+const buildConsentStatusShareReport = (records) => {
+  const segments = consentStatusSegmentsFrom(records);
+  return {
+    key: 'consent-status-share',
+    title: 'สัดส่วนตามสถานะ',
+    subtitle: 'นับจากรายการในเมนูจัดการความยินยอม ตามวันที่สร้างคำขอ',
+    selectable: false,
+    chart: 'donut',
+    donutCenterMode: 'total',
+    donutCenterSub: 'รายการ',
+    chips: [],
+    stats: [],
+    donut: segments.map(({ label, value, tone }) => ({ label, value, tone })),
+    hbar: consentTypeStatusBarsFrom(records),
+    hbarTitle: 'จำนวนตามวัตถุการเปิดเผยข้อมูล',
+    hbarValueLabel: 'รายการ',
+    hbarLegend: CONSENT_STATUS_BUCKETS.map((b) => ({ label: b.label, color: b.color })),
+    table: {
+      columns: [
+        { key: 'hn', header: 'HN', width: 120 },
+        { key: 'type', header: 'ประเภท', width: 120, kind: 'badge' },
+        { key: 'status', header: 'สถานะ', width: 180, kind: 'status' },
+        { key: 'date', header: 'วันที่สร้าง', width: 170 },
+      ],
+      rows: records.map((r) => ({
+        hn: r.hn,
+        type: r.type,
+        status: r.status,
+        date: r.createdDate,
+        _iso: toIso(r.createdDate),
+      })),
+    },
+    pageSize: 40,
+  };
+};
+
 /* ── รายงาน 16.1 — สถิติยินยอม / ไม่ยินยอม จาก worklist ─────────────── */
 const buildConsentStatsReport = (records) => {
   const consentBars = monthHistogram(records, isConsentedOutcome);
@@ -228,7 +335,7 @@ const buildConsentStatsReport = (records) => {
     subtitle: 'นับจากรายการในเมนูจัดการความยินยอม ตามวันที่สร้างคำขอ',
     selectable: true,
     chart: 'donut',
-    chips: ['รายวัน', 'รายสัปดาห์', 'รายเดือน', 'รายปี'],
+    chips: ['รายวัน', 'รายสัปดาห์', 'รายเดือน', 'รายปี', 'ปีงบประมาณ'],
     stats: [],
     /* Donut = ส่วนของผลลัพธ์ที่ตัดสินแล้วเท่านั้น (ไม่รวมรอดำเนินการ) */
     donut: [
@@ -240,7 +347,7 @@ const buildConsentStatsReport = (records) => {
       { name: 'ไม่ยินยอม', tone: 'danger', base: rejectBars },
     ],
     hbar: typeHbarFrom(records),
-    hbarTitle: 'จำนวนตามประเภท Consent',
+    hbarTitle: 'จำนวนตามวัตถุการเปิดเผยข้อมูล',
     hbarValueLabel: 'รายการ',
     hbarLegend: [
       { label: 'ยินยอม', color: HBAR_SEG_CONSENT },
@@ -248,9 +355,7 @@ const buildConsentStatsReport = (records) => {
     ],
     table: {
       columns: [
-        { key: 'patient', header: 'ชื่อ-สกุล', width: 200 },
         { key: 'hn', header: 'HN', width: 120 },
-        { key: 'type', header: 'ประเภท Consent', width: 160, kind: 'badge' },
         { key: 'status', header: 'สถานะ', width: 160, kind: 'status' },
         { key: 'date', header: 'วันที่สร้าง', width: 170 },
       ],
@@ -258,9 +363,7 @@ const buildConsentStatsReport = (records) => {
       rows: records
         .filter((r) => isConsentedOutcome(r) || isRejectedOutcome(r))
         .map((r) => ({
-          patient: r.name,
           hn: r.hn,
-          type: r.type,
           status: reportStatusOf(r),
           date: r.createdDate,
           _iso: toIso(r.createdDate),
@@ -529,6 +632,7 @@ export const buildConsentReports = ({
   access = ACCESS_RECORDS,
   forms = CONSENT_FORM_RECORDS,
 } = {}) => ([
+  buildConsentStatusShareReport(records),
   buildConsentStatsReport(records),
   buildExportExternalReport(access),
   buildAccessRightsReport(access),

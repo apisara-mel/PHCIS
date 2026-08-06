@@ -18,6 +18,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import Popup from '@/components/popup/Popup';
 import Icon from '@/components/icons/Icon';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 import QueueTicket, { QueueTicketPrintRoot } from './QueueTicket';
 import { QueueReasonPopup, QueueTicketPopup } from './QueueCenterPopups';
@@ -350,7 +351,13 @@ const QueueIssuePage = () => {
 
   const historyColumns = [
     { key: 'code', label: 'รหัสคิว', width: 108, render: (r) => <QueueCodeCell queue={r} /> },
-    { key: 'patient', label: 'ผู้รับบริการ', flex: true, minWidth: 180, render: (r) => r.patient?.name || 'ผู้รับบริการไม่ระบุตัวตน' },
+    { key: 'patient', label: 'ผู้รับบริการ', flex: true, minWidth: 180, render: (r) => (
+      <MaskedWorklistName
+        name={r.patient?.name}
+        recordKey={r.id || r.patient?.hn}
+        emptyLabel='ผู้รับบริการไม่ระบุตัวตน'
+      />
+    ) },
     { key: 'station', label: 'จุดบริการ', width: 190, render: (r) => getStation(r.stationId)?.label || '—' },
     { key: 'issuedAt', label: 'เวลาออกคิว', width: 116, render: (r) => `${formatClock(r.issuedAt)} น.` },
     { key: 'entryChannel', label: 'แหล่งที่มา', width: 150, render: (r) => ENTRY_CHANNELS.find((c) => c.key === r.entryChannel)?.label || '—' },

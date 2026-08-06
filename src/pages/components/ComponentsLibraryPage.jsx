@@ -114,7 +114,12 @@ import InputFieldSlashComp from '@/components/forms/InputFieldSlash';
 import InputFieldRangeComp from '@/components/forms/InputFieldRange';
 import TextareaComp from '@/components/forms/Textarea';
 import SuggestibleTextareaComp from '@/components/forms/SuggestibleTextarea';
-import VoiceTextareaComp, { VOICE_TEXTAREA_LANGUAGE_OPTIONS } from '@/components/forms/VoiceTextarea';
+import VoiceTextareaComp, {
+  VOICE_TEXTAREA_HEIGHT,
+  VOICE_TEXTAREA_HEIGHT_TALL,
+  VOICE_TEXTAREA_LANGUAGE_OPTIONS,
+  VOICE_TEXTAREA_MIN_HEIGHT,
+} from '@/components/forms/VoiceTextarea';
 import {
   CHIEF_COMPLAINT_SUGGESTIONS,
   PRESENT_ILLNESS_SUGGESTIONS,
@@ -814,10 +819,11 @@ const AISearchDemo = () => {
 const SecondarySearchDemo = () => {
   const [v, setV] = useState('');
   return (
-    <Section title='SecondarySearch' summary='Compact search input (Figma 305:43) for inline filters. 2 sizes (default 40 / small 36) × 4 states (default · hover · typing · filled). Brand-tinted border + ring on hover/typing; neutral border on filled with a clear X. Pass `state` to force the visual state. Table below mirrors the Figma variant matrix — rows are sizes, columns are states.'>
-      <Variant label='State matrix · 2 sizes × 4 states' stack>
+    <Section title='SecondarySearch' summary='Compact search input (Figma 305:43) for inline filters and popups. 2 sizes (default 40 / small 36) × 5 states (default · hover · focus · typing · filled). Typography: default = body4 14px · small = caption1 12px. Color matrix matches Primary Search — brand border + drop shadow on every state; compact 8 px radius shell with clear X when filled. Pass `state` to force the visual state.'>
+      <Variant label='State matrix · 2 sizes × 5 states' stack>
         <SearchStateTable
           Component={SecondarySearch}
+          states={SECONDARY_SEARCH_STATE_COLS}
           sizes={[
             { key: 'default', label: 'Default (40)' },
             { key: 'small',   label: 'Small (36)'   },
@@ -2951,12 +2957,12 @@ const HeaderDemo = () => (
   <Section title='Header' summary='Top-level page Header (sticky top bar). Lives in layout/Header.jsx and is the canonical entry point for the page header — every page imports it from this module so the border + shadow contract stays consistent.'>
     <Variant label='Default (breadcrumb defaults to OPD)' stack>
       <div style={{ width: '100%', position: 'relative', overflow: 'hidden', borderRadius: 'var(--dim-radius-300)' }}>
-        <HeaderChrome />
+        <HeaderChrome autoHide={false} />
       </div>
     </Variant>
     <Variant label='Custom breadcrumb' stack>
       <div style={{ width: '100%', position: 'relative', overflow: 'hidden', borderRadius: 'var(--dim-radius-300)' }}>
-        <HeaderChrome breadcrumb={['ระบบงานเวชระเบียน', 'รายการผู้รับบริการ']} />
+        <HeaderChrome autoHide={false} breadcrumb={['ระบบงานเวชระเบียน', 'รายการผู้รับบริการ']} />
       </div>
     </Variant>
     <Guidelines
@@ -3366,7 +3372,7 @@ const FormShellDemo = () => {
   const [form, setForm] = useState({});
   const samplePatient = { hn: '650001234', name: 'สมชาย ใจดี', isNew: true, isActive: true };
   return (
-    <Section title='FormShell' summary='Full-page registration form chrome: SubHeader + status bar + 6-step Stepper (consent first) + body + sticky footer.'>
+    <Section title='FormShell' summary='Full-page registration form chrome: SubHeader (ประวัติการแก้ไข popup · บัตรคิว · …) + 6-step Stepper + body + sticky footer.'>
       <Variant label='Interactive · click stepper or footer to navigate' stack>
         <div style={{ height: 700, overflow: 'auto', borderRadius: 'var(--dim-radius-300)', border: 'var(--dim-stroke-100) solid var(--border-card-default)' }}>
           <FormShell
@@ -6624,7 +6630,7 @@ const FieldStateTable = ({
 
 /* ── Search state-matrix table ──────────────────────────
    Mirrors FieldStateTable for the two Search variants in the DS:
-     SecondarySearch — 4 states (default · hover · typing · filled)
+     SecondarySearch — 5 states (default · hover · focus · typing · filled)
      PrimarySearch   — 5 states (default · hover · focus · typing · filled)
                         per Figma 2056:4246
    Each cell forces its state via the `state` prop on the underlying
@@ -6633,6 +6639,7 @@ const FieldStateTable = ({
 const SECONDARY_SEARCH_STATE_COLS = [
   { key: 'default', label: 'Default', props: {} },
   { key: 'hover',   label: 'Hover',   props: { state: 'hover' } },
+  { key: 'focus',   label: 'Focus',   props: { state: 'focus' } },
   { key: 'typing',  label: 'Typing',  props: { state: 'typing' } },
   { key: 'filled',  label: 'Filled',  props: { state: 'filled' } },
 ];
@@ -6644,7 +6651,7 @@ const PRIMARY_SEARCH_STATE_COLS = [
   { key: 'filled',  label: 'Filled',  props: { state: 'filled' } },
 ];
 /* Back-compat default — callers that don't pass `states` get the
-   4-column SecondarySearch matrix. */
+   5-column SecondarySearch matrix (same states as PrimarySearch). */
 const SEARCH_STATE_COLS = SECONDARY_SEARCH_STATE_COLS;
 
 const SearchStateTable = ({
@@ -6878,7 +6885,7 @@ const InputFieldRangeDemo = () => (
 );
 
 const VoiceTextareaDemo = () => (
-  <Section title='VoiceTextarea' summary='Multiline input with a bottom toolbar holding a language tag + brand mic button (Figma 3280:3970). Type or click the mic to dictate. 5 states (default · hover · filled · error · disabled) inherited from the shared resolveBox. Tables below mirror the Figma variant matrix.'>
+  <Section title='VoiceTextarea' summary={`Multiline input with a bottom toolbar holding a language tag + brand mic button (Figma 3280:3970). Default outer height ${VOICE_TEXTAREA_HEIGHT}px (--dim-size-2000); tall variant ${VOICE_TEXTAREA_HEIGHT_TALL}px (--dim-size-2100) for body-mark editor. Type or click the mic to dictate. 5 states (default · hover · filled · error · disabled) inherited from the shared resolveBox. Tables below mirror the Figma variant matrix.`}>
     <Variant label='State matrix · 5 states' stack>
       <FieldStateTable
         Component={VoiceTextareaComp}
@@ -6891,6 +6898,7 @@ const VoiceTextareaDemo = () => (
     <Guidelines
       behavior={[
         'Low-level multiline + mic primitive. Web SpeechRecognition + mic permission via getUserMedia — requires HTTPS / localhost.',
+        `Default box height ${VOICE_TEXTAREA_HEIGHT}px (min ${VOICE_TEXTAREA_MIN_HEIGHT}px). Pass height={VOICE_TEXTAREA_HEIGHT_TALL} for Figma tall / body-mark variant.`,
         'Toolbar at bottom holds the language tag + brand mic button.',
       ]}
       dos={[
@@ -7555,6 +7563,24 @@ const TooltipDemo = () => (
         </Tooltip>
       </div>
     </Variant>
+    <Variant label='Light · multi-line detail popover (badge hover)' stack>
+      <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-400) 0' }}>
+        <Tooltip
+          variant='light'
+          position='bottom'
+          maxWidth={320}
+          content='ผื่น Stevens-Johnson Syndrome (SJS) หรือผื่นแดงทั่วตัว, ไข้, ตุ่มน้ำพอง'
+        >
+          <span className='inline-flex cursor-default rounded-full px-3 py-1 text-sm font-medium'
+            style={{
+              background: 'var(--surface-dangerButton-quaternary, #FFF0F0)',
+              color: 'var(--text-danger-default, #B91C1C)',
+            }}>
+            Penicillin
+          </span>
+        </Tooltip>
+      </div>
+    </Variant>
     <Guidelines
       behavior={[
         'Opens on mouseenter / focusin after a 200 ms delay (debounce — prevents flashes on rapid cursor passes).',
@@ -7564,7 +7590,8 @@ const TooltipDemo = () => (
       ]}
       dos={[
         'Wrap interactive controls (icon buttons, chips) when the label would otherwise be missing or truncated.',
-        'Keep `content` to one short line; the bubble uses whiteSpace: nowrap and a maxWidth clamp.',
+        'Keep brand `content` to one short line; the bubble uses whiteSpace: nowrap and a maxWidth clamp.',
+        'Use variant="light" for badge/chip detail — long copy wraps at maxWidth (default 320 px) with left-aligned text.',
         'Prefer position="top" for toolbar icons; position="right" for trailing affordances inside lists.',
       ]}
       donts={[

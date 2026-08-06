@@ -13,10 +13,11 @@ import {
   getCategory,
   getFormsByCategory,
 } from '@/data/formsLibrary';
+import EDOCUMENT_NAV, { EDOCUMENT_BRAND_TITLE } from '@/pages/forms/edocumentNav';
 
-/* คลังแบบฟอร์ม → category drill-down (Figma 14:79835).
+/* คลังเอกสาร e-document → category drill-down (Figma 14:79835).
    Routed at `/forms/category/:categoryKey`. Renders:
-     • breadcrumb: คลังแบบฟอร์ม > [category label]
+     • breadcrumb: คลังเอกสาร e-document > [category label]
      • page title + form count
      • search bar (filters by form name / summary)
      • category filter tabs (TabPill row, "ทั้งหมด" + each FORM_CATEGORY)
@@ -159,8 +160,8 @@ const FormsCategoryPage = () => {
   };
 
   const breadcrumb = activeCategory
-    ? ['คลังแบบฟอร์ม', activeCategory.label]
-    : ['คลังแบบฟอร์ม', 'ทั้งหมด'];
+    ? ['คลังเอกสาร e-document', activeCategory.label]
+    : ['คลังเอกสาร e-document', 'ทั้งหมด'];
 
   const title = activeCategory ? activeCategory.label : 'แบบฟอร์มทั้งหมด';
   const description = activeCategory
@@ -169,9 +170,13 @@ const FormsCategoryPage = () => {
 
   return (
     <div className='min-h-screen w-full flex bg-brand-50'>
-      <Sidebar activeKey='consent' />
+      <Sidebar
+        activeKey='edocument-catalog'
+        items={EDOCUMENT_NAV}
+        fallbackKey='edocument-dashboard'
+      />
       <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={breadcrumb} />
+        <Header breadcrumb={breadcrumb} brandTitle={EDOCUMENT_BRAND_TITLE} />
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           {/* Hero */}
           <section
@@ -192,7 +197,7 @@ const FormsCategoryPage = () => {
                   color: 'var(--text-content-secondary)',
                   cursor: 'pointer',
                 }}
-                aria-label='กลับไปคลังแบบฟอร์ม'
+                aria-label='กลับไปคลังเอกสาร e-document'
               >
                 <Icon name='chevron-left' size={18} />
               </button>

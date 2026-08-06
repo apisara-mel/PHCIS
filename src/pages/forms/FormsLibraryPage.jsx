@@ -21,8 +21,9 @@ import {
   FORM_CATALOG_CATEGORY_BADGE,
   catalogVersionPill,
 } from '@/data/formsLibrary';
+import EDOCUMENT_NAV, { EDOCUMENT_BRAND_TITLE } from '@/pages/forms/edocumentNav';
 
-const breadcrumb = ['คลังแบบฟอร์ม'];
+const breadcrumb = ['คลังเอกสาร e-document'];
 
 /** Deterministic mock dimensions for PHCIS Forms toolbar filters (`14:46491`). */
 const U32 = (s) => {
@@ -303,9 +304,13 @@ const FormsLibraryPage = () => {
 
   return (
     <div className='min-h-screen w-full flex bg-brand-50'>
-      <Sidebar activeKey='consent' />
+      <Sidebar
+        activeKey='edocument-catalog'
+        items={EDOCUMENT_NAV}
+        fallbackKey='edocument-dashboard'
+      />
       <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={breadcrumb} />
+        <Header breadcrumb={breadcrumb} brandTitle={EDOCUMENT_BRAND_TITLE} />
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           {/* Search + filter toolbar — PHCIS | Forms */}
           <section

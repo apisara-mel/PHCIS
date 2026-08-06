@@ -15,13 +15,16 @@ import { openConsentHistoryTab } from '@/data/consentPatientHistory';
 import {
   buildConsentReports,
   periodValuesFromYearBase,
+  FISCAL_MONTH_SHORT_LABELS,
 } from '@/data/consentReports';
 import { PHCIS_CHART_PALETTE, PHCIS_CHART_TONE } from '@/data/phcisChartPalette';
 import { CONSENT_RECORDS } from '@/data/consentRecords';
 import { ACCESS_RECORDS } from '@/data/accessRecords';
 import { CONSENT_FORM_RECORDS } from '@/data/consentFormRecords';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
-import { ExportFormatPopup, DateInputBox, buildReportTableColumns } from '@/pages/consent/consentExportPopup';
+import { ExportFormatPopup, DateInputBox, buildReportTableColumns, ExportFormatFormBody, useExportFormatState } from '@/pages/consent/consentExportPopup';
+import { sanitizeExportReportMeta } from '@/utils/exportPiiSanitize';
+import { useNestedPopupPanel } from '@/components/popup/useNestedPopupPanel';
 
 /* PHCIS | Consent — สถิติและรายงาน (Figma node 358:113804).
    A stack of report cards, each with a title + subtitle, filter chips, a row
@@ -80,8 +83,15 @@ const CELL_TEXT = {
 };
 
 /* Time-range buckets for the report table (Figma filter chips). The index is
-   the unit rank: รายวัน=0 · รายสัปดาห์=1 · รายเดือน=2 · รายปี=3. */
-const REPORT_PERIODS = ['รายวัน', 'รายสัปดาห์', 'รายเดือน', 'รายปี'];
+   the unit rank: รายวัน=0 · รายสัปดาห์=1 · รายเดือน=2 · รายปี/ปีงบประมาณ=3. */
+const REPORT_PERIODS = ['รายวัน', 'รายสัปดาห์', 'รายเดือน', 'รายปี', 'ปีงบประมาณ'];
+const PERIOD_RANK = {
+  'รายวัน': 0,
+  'รายสัปดาห์': 1,
+  'รายเดือน': 2,
+  'รายปี': 3,
+  'ปีงบประมาณ': 3,
+};
 
 /* Span rank (0..3) of a DateFilterPopup quick-key — how wide the selected
    "วัน:" range is. Used to disable period units larger than the range
@@ -128,6 +138,7 @@ const periodBuckets = (period) => {
     case 'รายวัน':     return ['1 มิถุนายน 2569', '2 มิถุนายน 2569', '3 มิถุนายน 2569'];
     case 'รายสัปดาห์': return ['สัปดาห์ที่ 1 (1–7 มิ.ย.)', 'สัปดาห์ที่ 2 (8–14 มิ.ย.)', 'สัปดาห์ที่ 3 (15–21 มิ.ย.)'];
     case 'รายปี':      return ['ปี 2567', 'ปี 2568', 'ปี 2569'];
+    case 'ปีงบประมาณ': return ['ตุลาคม', 'พฤศจิกายน', 'ธันวาคม', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม'];
     case 'รายเดือน':
     default:           return ['มกราคม', 'กุมภาพันธ์', 'มีนาคม'];
   }
@@ -140,6 +151,7 @@ const periodBarLabels = (period) => {
     case 'รายวัน':     return ['1', '2', '3', '4', '5', '6', '7'].map((d) => `${d} มิ.ย.`);
     case 'รายสัปดาห์': return ['สัปดาห์ 1', 'สัปดาห์ 2', 'สัปดาห์ 3', 'สัปดาห์ 4'];
     case 'รายปี':      return ['2565', '2566', '2567', '2568', '2569'];
+    case 'ปีงบประมาณ': return FISCAL_MONTH_SHORT_LABELS;
     case 'รายเดือน':
     default:           return ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
   }
@@ -149,22 +161,48 @@ const periodBarLabels = (period) => {
    "นำส่งออกรายงาน" reuses the shared export-format popup. */
 const DEFAULT_POPUP_PAGE_SIZE = 40;
 
-const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
+const ReportTablePopup = ({ open, report, onClose, reportsCatalog, onExported, onOpenHistory }) => {
   const [period, setPeriod] = useState('รายเดือน');
-  /* ด.1.1.16 — pagination ในตาราง "ดูรายงาน" */
   const [page, setPage] = useState(1);
+  const [accessTimesFor, setAccessTimesFor] = useState(null);
+  const panels = useNestedPopupPanel(0);
+  const isExportPanel = panels.step === 1;
+  const isAccessPanel = panels.step === 2;
   // Date range form (Figma 401:124365). Defaults to the current year → all units.
   const [dateRange, setDateRange] = useState(() => {
     const y = new Date().getFullYear();
     return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
   });
-  useEffect(() => { if (open) { setPage(1); } }, [open, report]);
+  useEffect(() => {
+    if (open) {
+      setPage(1);
+      panels.reset();
+      setAccessTimesFor(null);
+    }
+  }, [open, report]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const exportReportSanitized = useMemo(
+    () => sanitizeExportReportMeta(report),
+    [report],
+  );
+
+  const exportForm = useExportFormatState({
+    open: open && isExportPanel,
+    report: exportReportSanitized,
+    reportsCatalog,
+    onClose: () => panels.goBack(0),
+    onExported: (format, meta) => {
+      panels.goBack(0);
+      onExported?.(format, meta);
+    },
+  });
+
   const pageSize = Number(report?.pageSize) > 0 ? Number(report.pageSize) : DEFAULT_POPUP_PAGE_SIZE;
   const sr = rangeRank(dateRange);
   // If the chosen date range is narrower than the active period unit, fall
   // back to the widest unit that still fits the range.
   useEffect(() => {
-    if (REPORT_PERIODS.indexOf(period) > sr) setPeriod(REPORT_PERIODS[sr]);
+    if ((PERIOD_RANK[period] ?? 3) > sr) setPeriod(REPORT_PERIODS[sr]);
   }, [sr]); // eslint-disable-line react-hooks/exhaustive-deps
   const allRows = report && report.table ? report.table.rows.map((r, i) => ({ ...r, _id: i })) : [];
   /* กรองด้วยช่วงวันที่ (_iso ประกบวันที่ไทย) */
@@ -182,18 +220,80 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
   const pageRows = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
   const columns = report && report.table ? buildReportTableColumns(report.table.columns) : [];
 
+  const handleBack = () => {
+    if (isAccessPanel || isExportPanel) {
+      panels.goBack(0);
+      if (isAccessPanel) setAccessTimesFor(null);
+      return;
+    }
+    onClose?.();
+  };
+
+  const handleRowClick = (row) => {
+    if (!report) return;
+    if (report.key === 'personal-consent' && row.hn) {
+      onOpenHistory?.(row.hn);
+      return;
+    }
+    if (report.key === 'access-rights' && row.accessTimes) {
+      setAccessTimesFor(row);
+      panels.goTo(2);
+    }
+  };
+
+  const popupTitle = isExportPanel
+    ? exportForm.title
+    : isAccessPanel
+      ? 'วันเวลาการเข้าถึงรายครั้ง'
+      : (report ? report.title : 'รายงาน');
+
+  const popupSubtitle = isExportPanel
+    ? exportForm.subtitle
+    : isAccessPanel && accessTimesFor
+      ? `${accessTimesFor.user} · ${accessTimesFor.role} · ${accessTimesFor.dept}`
+      : (report ? report.subtitle : undefined);
+
   return (
     <Popup
       open={open}
       onClose={onClose}
       size='extraLarge'
-      title={report ? report.title : 'รายงาน'}
-      subtitle={report ? report.subtitle : undefined}
-      primaryAction={{ label: 'ปิด', onClick: onClose }}
+      title={popupTitle}
+      subtitle={popupSubtitle}
+      onBack={(isExportPanel || isAccessPanel) ? handleBack : undefined}
+      primaryAction={
+        isExportPanel
+          ? exportForm.primaryAction
+          : isAccessPanel
+            ? { label: 'ปิด', onClick: handleBack }
+            : { label: 'ปิด', onClick: onClose }
+      }
+      secondaryAction={isExportPanel ? exportForm.secondaryAction : undefined}
+      tertiaryAction={isExportPanel ? exportForm.tertiaryAction : undefined}
     >
-      {report && report.table && (
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-          {/* filter row — ช่วงวันที่ + ชิปหน่วยเวลา + นำส่งออก */}
+      {isExportPanel ? (
+        <div key='export' data-direction={panels.direction} className='mih-step-content flex flex-col w-full min-w-0'>
+          <ExportFormatFormBody form={exportForm} />
+        </div>
+      ) : isAccessPanel && accessTimesFor ? (
+        <div key='access-times' data-direction={panels.direction} className='mih-step-content flex flex-col w-full min-w-0'>
+          <Table
+            columns={[
+              { key: 'datetime', header: 'วันเวลาที่เข้าถึง', width: 200, render: (r) => <span style={CELL_TEXT}>{r.datetime}</span> },
+              { key: 'action', header: 'ประเภท action', width: 140, render: (r) => <ColorfulBadge style={BADGE_TONE[r.action] || 'blue'} size='small' hierarchy='secondary' width='hug'>{r.action}</ColorfulBadge> },
+              { key: 'target', header: 'ข้อมูลที่เข้าถึง', width: 240, render: (r) => <span style={CELL_TEXT}>{r.target}</span> },
+            ]}
+            rows={accessTimesFor.accessTimes.map((t, i) => ({ ...t, _id: i }))}
+            rowKey={(r) => r._id}
+          />
+        </div>
+      ) : report && report.table ? (
+        <div
+          key='table'
+          data-direction={panels.direction}
+          className='mih-step-content flex flex-col w-full min-w-0'
+          style={{ gap: 'var(--dim-space-400)' }}
+        >
           <div className='flex items-center justify-between flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
               <div className='flex items-end' style={{ gap: 'var(--dim-space-200)' }}>
@@ -218,12 +318,18 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
                 />
               </div>
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
-                {REPORT_PERIODS.map((p, i) => (
-                  <FilterTag key={p} value={p} selected={period === p} disabled={i > sr} onClick={() => setPeriod(p)} />
+                {REPORT_PERIODS.map((p) => (
+                  <FilterTag
+                    key={p}
+                    value={p}
+                    selected={period === p}
+                    disabled={(PERIOD_RANK[p] ?? 3) > sr}
+                    onClick={() => setPeriod(p)}
+                  />
                 ))}
               </div>
             </div>
-            <NeutralSubdueButton leadingIcon='ios_share' size='sm' onClick={() => report && onExport(report)}>
+            <NeutralSubdueButton leadingIcon='ios_share' size='sm' onClick={() => panels.goTo(1)}>
               นำส่งออกรายงาน
             </NeutralSubdueButton>
           </div>
@@ -236,7 +342,7 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
               columns={columns}
               rows={pageRows}
               rowKey={(r) => r._id}
-              onRowClick={onRowClick ? (row) => onRowClick(report, row) : undefined}
+              onRowClick={handleRowClick}
               emptyMessage='ไม่พบข้อมูลในช่วง/คำค้นนี้'
               emptySubtext='ลองล้างคำค้นหรือขยายช่วงวันที่'
             />
@@ -248,7 +354,7 @@ const ReportTablePopup = ({ open, report, onClose, onExport, onRowClick }) => {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </Popup>
   );
 };
@@ -503,9 +609,6 @@ export function ConsentReportSections({
   const setExportReport = onExportReportChange ?? setExportReportInternal;
   const viewReport = viewReportProp ?? viewReportInternal;
   const setViewReport = onViewReportChange ?? setViewReportInternal;
-  /* ด.1.1.16.2 — คลิกแถวรายบุคคล → ประวัติความยินยอม (แท็บใหม่) */
-  /* ด.1.1.16.4 — คลิกแถวผู้มีสิทธิ → วันเวลาการเข้าถึงรายครั้ง */
-  const [accessTimesFor, setAccessTimesFor] = useState(null);
 
   /* ตัวเลขล้อตาม FilterDateTag — rebuild จากแถวที่อยู่ในช่วงวัน */
   const reports = useMemo(
@@ -513,13 +616,6 @@ export function ConsentReportSections({
     [reportsProp, pageDate],
   );
 
-  const handleReportRowClick = (report, row) => {
-    if (report.key === 'personal-consent' && row.hn) {
-      openConsentHistoryTab(row.hn);
-    } else if (report.key === 'access-rights' && row.accessTimes) {
-      setAccessTimesFor(row);
-    }
-  };
   return (
     <>
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
@@ -550,44 +646,22 @@ export function ConsentReportSections({
         ))}
       </div>
 
-      {/* Table popup first, export popup last so the format chooser layers on
-          top of the table popup when opened from inside it. */}
       <ReportTablePopup
         open={!!viewReport}
         report={viewReport}
         onClose={() => setViewReport(null)}
-        onExport={setExportReport}
-        onRowClick={handleReportRowClick}
+        reportsCatalog={reports}
+        onExported={() => setExported(true)}
+        onOpenHistory={openConsentHistoryTab}
       />
       <ExportFormatPopup
-        open={!!exportReport}
+        open={!!exportReport && !viewReport}
         report={exportReport}
         reportsCatalog={reports}
         onClose={() => setExportReport(null)}
         onExported={() => setExported(true)}
       />
 
-      {/* ด.1.1.16.4 — วันเวลาการเข้าถึงรายครั้งของผู้มีสิทธิ */}
-      <Popup
-        open={!!accessTimesFor}
-        onClose={() => setAccessTimesFor(null)}
-        size='large'
-        title='วันเวลาการเข้าถึงรายครั้ง'
-        subtitle={accessTimesFor ? `${accessTimesFor.user} · ${accessTimesFor.role} · ${accessTimesFor.dept}` : undefined}
-        primaryAction={{ label: 'ปิด', onClick: () => setAccessTimesFor(null) }}
-      >
-        {accessTimesFor && (
-          <Table
-            columns={[
-              { key: 'datetime', header: 'วันเวลาที่เข้าถึง', width: 200, render: (r) => <span style={CELL_TEXT}>{r.datetime}</span> },
-              { key: 'action', header: 'ประเภท action', width: 140, render: (r) => <ColorfulBadge style={BADGE_TONE[r.action] || 'blue'} size='small' hierarchy='secondary' width='hug'>{r.action}</ColorfulBadge> },
-              { key: 'target', header: 'ข้อมูลที่เข้าถึง', width: 240, render: (r) => <span style={CELL_TEXT}>{r.target}</span> },
-            ]}
-            rows={accessTimesFor.accessTimes.map((t, i) => ({ ...t, _id: i }))}
-            rowKey={(r) => r._id}
-          />
-        )}
-      </Popup>
       {/* Success alert after export (Figma 358:131626 "Small Alert"). */}
       {/* เก็บ log เมื่อ export — annotation 414:123633 (print ไม่เก็บ log) */}
       <SuccessToast open={exported} message='นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล' onClose={() => setExported(false)} />

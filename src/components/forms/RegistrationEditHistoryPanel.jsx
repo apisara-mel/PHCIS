@@ -3,14 +3,10 @@ import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { getRegistrationAuditEntries } from '@/data/registrationForm';
 
-/* MIH RegistrationEditHistoryPanel — second sub-tab of the Registration
-   form (Figma 2373:119045 "ประวัติการแก้ไขข้อมูล"). Read-only audit log
-   of every field change on the current patient record. Each row pairs
-   the OLD value (struck-through, muted) with the NEW value (default
-   color) so the receptionist can see exactly what shifted.
-
-   Mock dataset only — in production this hooks into an audit-trail
-   endpoint keyed by HN. Fields are listed newest-first. */
+/* MIH RegistrationEditHistoryPanel — audit log for the Registration
+   form (Figma 2373:119045 "ประวัติการแก้ไขข้อมูล"). Opened from the
+   SubHeader action button as a popup (formerly a second sub-tab).
+   Read-only: each row pairs OLD (struck-through) with NEW value. */
 
 /* Map each registration step to a ColorfulBadge tone so the หมวด column
    reads as a categorised tag rather than a plain string. Tones mirror
@@ -110,6 +106,11 @@ const EDIT_HISTORY_MOCK = [
   },
 ];
 
+export const getRegistrationEditHistoryRows = () => [
+  ...getRegistrationAuditEntries(),
+  ...EDIT_HISTORY_MOCK,
+];
+
 const renderStep = (row) => (
   <ColorfulBadge style={STEP_TONE[row.step] || 'grey'} size='small' hierarchy='secondary'>
     {row.step}
@@ -153,12 +154,21 @@ const COLUMNS = [
   { key: 'newValue',  label: 'ค่าใหม่',  flex: 1, minWidth: 200, sortable: false, render: renderNewValue },
 ];
 
-const RegistrationEditHistoryPanel = () => {
-  /* TOR 1.1.1.15 / 1.1.1.5 — live session entries (สถานะการมีชีวิต,
-     ยืนยันชื่อซ้ำ, ฯลฯ from registrationForm.appendRegistrationAudit)
-     merge in front of the historical mock, newest-first. Read at render:
-     the panel remounts on tab switch so fresh entries always appear. */
-  const rows = [...getRegistrationAuditEntries(), ...EDIT_HISTORY_MOCK];
+const RegistrationEditHistoryPanel = ({ embedded = false }) => {
+  /* TOR 1.1.1.15 / 1.1.1.5 — live session entries merge in front of mock,
+     newest-first. Re-read on each open so fresh audit rows appear. */
+  const rows = getRegistrationEditHistoryRows();
+
+  if (embedded) {
+    return (
+      <Table
+        columns={COLUMNS}
+        rows={rows}
+        emptyMessage='ยังไม่มีประวัติการแก้ไขข้อมูล'
+      />
+    );
+  }
+
   return (
     <div
       className='flex flex-col w-full'

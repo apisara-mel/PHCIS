@@ -12,8 +12,9 @@ import XCloseButton from '@/components/button/XCloseButton';
 import StaffProfileAvatar from '@/components/appointment/StaffProfileAvatar';
 import { THAI_MONTHS, CAL_DAY_HEADERS_LONG, buildMonthGrid } from '../appointment/appointmentShared';
 import SuccessToast from '@/components/toast/SuccessToast';
+import Header from '@/components/layout/Header';
+import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import ScheduleSidebar from './ScheduleSidebar';
-import ScheduleHeader from './ScheduleHeader';
 import ScheduleFooter from './ScheduleFooter';
 import { buildScheduleStaff } from './scheduleStaff';
 
@@ -1866,6 +1867,7 @@ const ScheduleEditorPage = () => {
   if (!staff) return null;
 
   return (
+    <ClinicFilterProvider>
     <div
       style={{
         minHeight: '100vh',
@@ -1887,7 +1889,11 @@ const ScheduleEditorPage = () => {
         flexDirection: 'column',
         alignItems: 'stretch',
       }}>
-        <ScheduleHeader />
+        <Header
+          brandTitle='ระบบจัดตารางเวร'
+          breadcrumb={['จัดการตารางเวร', 'แก้ไขตารางเวร']}
+          standalone={false}
+        />
 
         {/* Combined hero panel (Figma 21:12395) — back-row + hero gradient
             sit INSIDE one white panel with shared bottom border + shadow. */}
@@ -2360,6 +2366,7 @@ const ScheduleEditorPage = () => {
         onClose={onPickerClose}
       />
     </div>
+    </ClinicFilterProvider>
   );
 };
 

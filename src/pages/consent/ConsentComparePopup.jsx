@@ -5,15 +5,20 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
+import { useNestedPopupPanel } from '@/components/popup/useNestedPopupPanel';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import { buildConsentCompareGroups } from '@/data/consentPatientHistory';
 import { resolveConsentPatientCard } from '@/data/consentPatientDisplay';
 import { CONSENT_TYPE_TONE, CONSENT_STATUS } from '@/data/consentRecords';
 import { PHCIS_CHART } from '@/data/phcisChartPalette';
-import { buildConsentCompareExportReport, ExportFormatPopup } from '@/pages/consent/consentExportPopup';
+import {
+  buildConsentCompareExportReport,
+  ExportFormatFormBody,
+  useExportFormatState,
+} from '@/pages/consent/consentExportPopup';
 
 /* PHCIS | Consent — เปรียบเทียบแบบฟอร์มที่ให้ / ไม่ให้ความยินยอม
-   เปิดจาก icon button ใน worklist จัดการความยินยอม */
+   เปิดจาก icon button ใน worklist จัดการความยินยอม · นำออกรายงาน = nested drill-down */
 
 const TITLE = {
   color: 'var(--text-content-default)',
@@ -113,17 +118,17 @@ const GroupColumn = ({ title, icon, tone, items, emptyLabel }) => {
 
 const ConsentComparePopup = ({ open, onClose, hn = null }) => {
   const [records, setRecords] = useState(getConsentRecords);
-  const [exportOpen, setExportOpen] = useState(false);
   const [exportDone, setExportDone] = useState(false);
+  const panels = useNestedPopupPanel(0);
 
   useEffect(() => subscribeConsentStore(() => setRecords(getConsentRecords())), []);
 
   useEffect(() => {
     if (!open) {
-      setExportOpen(false);
+      panels.reset();
       setExportDone(false);
     }
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const groups = useMemo(
     () => (hn ? buildConsentCompareGroups(hn, records) : { patient: null, consented: [], declined: [] }),
@@ -136,8 +141,26 @@ const ConsentComparePopup = ({ open, onClose, hn = null }) => {
   }, [groups.patient]);
 
   const exportReport = useMemo(() => buildConsentCompareExportReport(groups), [groups]);
-
   const canExport = exportReport && (groups.consented.length + groups.declined.length) > 0;
+  const isExportPanel = panels.step === 1;
+
+  const exportForm = useExportFormatState({
+    open: open && isExportPanel,
+    report: exportReport,
+    onClose: () => panels.goBack(0),
+    onExported: () => {
+      panels.goBack(0);
+      setExportDone(true);
+    },
+  });
+
+  const handleBack = () => {
+    if (isExportPanel) {
+      panels.goBack(0);
+      return;
+    }
+    onClose?.();
+  };
 
   return (
     <>
@@ -145,68 +168,85 @@ const ConsentComparePopup = ({ open, onClose, hn = null }) => {
         open={open}
         onClose={onClose}
         size='extraLarge'
-        title='เปรียบเทียบการให้ความยินยอม'
-        subtitle='แบบฟอร์มที่ให้ความยินยอม และแบบฟอร์มที่ไม่ให้ความยินยอม ของผู้รับบริการรายนี้'
-        headerTrailing={(
+        title={isExportPanel ? exportForm.title : 'เปรียบเทียบการให้ความยินยอม'}
+        subtitle={
+          isExportPanel
+            ? exportForm.subtitle
+            : 'แบบฟอร์มที่ให้ความยินยอม และแบบฟอร์มที่ไม่ให้ความยินยอม ของผู้รับบริการรายนี้'
+        }
+        onBack={isExportPanel ? handleBack : undefined}
+        headerTrailing={!isExportPanel ? (
           <NeutralSubdueButton
             variant='outline'
             size='md'
             leadingIcon='ios_share'
             disabled={!canExport}
-            onClick={() => setExportOpen(true)}
+            onClick={() => panels.goTo(1)}
           >
             นำส่งออกรายงาน
           </NeutralSubdueButton>
-        )}
-        secondaryAction={{ label: 'ปิด', onClick: onClose }}
+        ) : undefined}
+        primaryAction={isExportPanel ? exportForm.primaryAction : undefined}
+        secondaryAction={
+          isExportPanel
+            ? exportForm.secondaryAction
+            : { label: 'ปิด', onClick: onClose }
+        }
+        tertiaryAction={isExportPanel ? exportForm.tertiaryAction : undefined}
       >
-        <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
-          {patientCard && (
-            <PatientSummaryCard
-              variant='gradient'
-              avatarUrl={patientCard.avatarUrl}
-              avatarAlt={patientCard.fullName || patientCard.shortName || ''}
-              cells={[
-                {
-                  label: 'ชื่อ-นามสกุล ผู้รับบริการ',
-                  value: patientCard.fullName || patientCard.shortName || '—',
-                },
-                {
-                  label: 'HN (Hospital Number)',
-                  value: patientCard.hn || '—',
-                },
-              ]}
-            />
-          )}
-
-          <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <GroupColumn
-              title='ให้ความยินยอม'
-              icon='check_circle'
-              tone='teal'
-              items={groups.consented}
-              emptyLabel='ยังไม่มีแบบฟอร์มที่ให้ความยินยอม'
-            />
-            <GroupColumn
-              title='ไม่ให้ความยินยอม'
-              icon='cancel'
-              tone='pink'
-              items={groups.declined}
-              emptyLabel='ยังไม่มีแบบฟอร์มที่ไม่ให้ความยินยอม'
-            />
+        {isExportPanel ? (
+          <div
+            key='export'
+            data-direction={panels.direction}
+            className='mih-step-content flex flex-col w-full min-w-0'
+          >
+            <ExportFormatFormBody form={exportForm} />
           </div>
-        </div>
+        ) : (
+          <div
+            key='compare'
+            data-direction={panels.direction}
+            className='mih-step-content flex flex-col w-full min-w-0'
+            style={{ gap: 'var(--dim-space-400)' }}
+          >
+            {patientCard && (
+              <PatientSummaryCard
+                variant='gradient'
+                avatarUrl={patientCard.avatarUrl}
+                avatarAlt={patientCard.fullName || patientCard.shortName || ''}
+                cells={[
+                  {
+                    label: 'ชื่อ-นามสกุล ผู้รับบริการ',
+                    value: patientCard.fullName || patientCard.shortName || '—',
+                  },
+                  {
+                    label: 'HN (Hospital Number)',
+                    value: patientCard.hn || '—',
+                  },
+                ]}
+              />
+            )}
+
+            <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              <GroupColumn
+                title='ให้ความยินยอม'
+                icon='check_circle'
+                tone='teal'
+                items={groups.consented}
+                emptyLabel='ยังไม่มีแบบฟอร์มที่ให้ความยินยอม'
+              />
+              <GroupColumn
+                title='ไม่ให้ความยินยอม'
+                icon='cancel'
+                tone='pink'
+                items={groups.declined}
+                emptyLabel='ยังไม่มีแบบฟอร์มที่ไม่ให้ความยินยอม'
+              />
+            </div>
+          </div>
+        )}
       </Popup>
 
-      <ExportFormatPopup
-        open={exportOpen}
-        report={exportReport}
-        onClose={() => setExportOpen(false)}
-        onExported={() => {
-          setExportOpen(false);
-          setExportDone(true);
-        }}
-      />
       <SuccessToast
         open={exportDone}
         message='นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล'

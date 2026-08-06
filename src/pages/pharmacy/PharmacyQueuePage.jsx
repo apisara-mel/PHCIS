@@ -15,6 +15,7 @@ import TabPill, { TabBar } from '@/components/tab/TabPill';
 import { buildDispenseStatusSummaryCards, countRows } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatientAvatar';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 const breadcrumb = ['ระบบงานเภสัชกรรม'];
 
@@ -141,7 +142,11 @@ const BASE_COLUMNS = [
       return (
         <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
           <QueuePatientAvatar size={36} {...avatarProps} />
-          <TableEllipsisText text={row.patientName} />
+          <MaskedWorklistName
+            name={row.patientName}
+            recordKey={row.hn || row.queueNo}
+            className='min-w-0 truncate flex-1'
+          />
         </div>
       );
     },

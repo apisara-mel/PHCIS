@@ -3,10 +3,15 @@ import { useHistory, useLocation } from 'react-router-dom';
 import SidebarProfileMenu from '@/components/layout/SidebarProfileMenu';
 import SideSubMenu from '@/components/layout/SideSubMenu';
 import Icon from '@/components/icons/Icon';
+import LabNotificationCountBadge from '@/components/badge/LabNotificationCountBadge';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
+import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import FontSizeControls from '@/components/layout/FontSizeControls';
 import DoctorProfileAvatar from '@/components/layout/DoctorProfileAvatar';
+import {
+  subscribeLabNotifications, unreadLabNotificationCount,
+} from '@/data/treatmentInterfaces';
 
 const OFFICE_HEALTH_LOGO = '/images/office-health-logo.png';
 
@@ -26,6 +31,34 @@ const NAV_FADE_TOP =
 const NAV_FADE_BOTTOM =
   'linear-gradient(to top, var(--PrimaryShadow-602) 0%, var(--PrimaryShadow-600) 50%, transparent 100%)';
 
+/* Primary nav + notification labels — match SideSubMenu item text (design.md §6.31.3). */
+const SIDEMENU_LABEL_SIZE = 'var(--type-size-base, 16px)';
+
+/* แผนกย่อยในระบบบันทึกการรักษา — แชร์กับเมนูคัดกรองและซักประวัติ */
+const TREAT_MODULE_SUBITEMS = [
+  { key: 'consult',    label: 'ทะเบียนการส่งปรึกษาแพทย์',             path: '/treat/consult' },
+  { key: 'order-sets', label: 'ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา',   path: '/treat/order-sets' },
+  { key: 'interfaces', label: 'สถานะการเชื่อมต่อระบบภายนอก',         path: '/treat/interfaces' },
+];
+
+const TREAT_DEPARTMENT_SUBITEMS = [
+  { key: 'opd-treat',  label: 'แผนกผู้ป่วยนอก (OPD)',              path: '/treat/queue' },
+  { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)' },
+  { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์', path: '/clinic/hiv-sti' },
+  { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด',   path: '/clinic/addiction' },
+  { key: 'anc',        label: 'แผนกฝากครรภ์',                          path: '/treat/anc/queue' },
+  { key: 'ncd',        label: 'แผนกโรคเรื้อรัง (NCD)',                  path: '/clinic/ncd' },
+  { key: 'wellness',   label: 'แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ' },
+  { key: 'vaccine',    label: 'แผนกสร้างเสริมภูมิคุ้มกันโรค' },
+  { key: 'dental',     label: 'แผนกทันตกรรม',                          path: '/clinic/dental' },
+  { key: 'tb',         label: 'แผนกวัณโรค',                            path: '/clinic/tb' },
+  { key: 'mental',     label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต',        path: '/clinic/mental-health' },
+];
+
+const OPD_CORE_SUBITEMS = [
+  { key: 'opd-queue',     label: 'แผนกผู้ป่วยนอก (OPD)',          path: '/opd/queue' },
+];
+
 // Icon names = Material Symbols Outlined glyphs (loaded in index.html).
 // Mapped from Figma SideMenu (node 1:2363, PHCIS · Open=Yes) —
 // shell border + nav items + bottom user area.
@@ -37,25 +70,48 @@ const NAV_FADE_BOTTOM =
 // (หน้าจอย่อยของระบบบริหารจัดการคิว) and `treat`.
 const ITEMS = [
   { key: 'dashboard', label: 'แดชบอร์ด',                  icon: 'bar_chart_4_bars', path: '/dashboard'   },
-  { key: 'consent',   label: 'คลังแบบฟอร์ม',              icon: 'assignment_add',   path: '/forms'        },
+  /* คลังเอกสาร e-document เป็นระบบระดับ Hub (systemCatalog doc-template) —
+     เมนูของตัวเองผ่าน EDOCUMENT_NAV ไม่ใช่รายการใน PHCIS rail นี้. */
   { key: 'registration', label: 'งานเวชระเบียน',          icon: 'assignment',       path: '/registration/queue' },
   { key: 'observation',   label: 'ระบบสังเกตอาการ', icon: 'monitor_heart',  path: '/observation' },
-  /* ระบบงานผู้รับบริการนอก — เดิมเป็นเมนูเดี่ยวชี้ /opd/queue. TOR §1.2.1
-     (Request Walk-in + Slot), §1.2.3.6 (รง.506) และ §1.2.7 (ตั้งค่าห้องตรวจ/
-     โควตา) เพิ่มหน้าจอเข้ามาอีก 3 หน้า จึงเปลี่ยนเป็นเมนูที่มี subItems
-     แบบเดียวกับ `treat` — รายการแรกยังเป็นคิวผู้รับบริการเหมือนเดิม.
-     (SideSubMenu รับเฉพาะ { key, label, path } — ไม่มีช่องไอคอน; ไอคอนที่
-     builder เสนอไว้ outbox / meeting_room / coronavirus จึงยังไม่ถูกใช้
-     จนกว่าเมนูย่อยจะรองรับไอคอน) */
+  /* คัดกรองและซักประวัติ — เดิมชื่อ "ระบบงานผู้รับบริการนอก" (TOR §1.2.2).
+     งาน OPD (คิว) อยู่เป็นเมนูย่อยภายใต้โมดูลนี้; รง.506 เป็นเมนูหลักแยก · §1.2.7 อยู่ที่
+     ระบบจัดการระบบ (systemNav). `key` ยังเป็น `opd` เพื่อให้ทุกหน้าใน
+     /opd/* ส่ง activeKey='opd' ได้โดยไม่ต้องแก้. */
   {
-    key: 'opd', label: 'ระบบงานผู้รับบริการนอก', icon: 'face', path: '/opd/queue',
+    key: 'opd', label: 'คัดกรองและซักประวัติ', icon: 'clinical_notes', path: '/opd/screening',
     subItems: [
-      { key: 'opd-queue',     label: 'คิวผู้รับบริการนอก',            path: '/opd/queue'       },
-      { key: 'opd-screening', label: 'คัดกรองและซักประวัติ',          path: '/opd/screening'   },
-      { key: 'opd-requests',  label: 'คำขอ Walk-in ตามแผนก',          path: '/opd/requests'    },
-      { key: 'opd-rooms',     label: 'ตั้งค่าห้องตรวจและโควตา',       path: '/opd/room-config' },
-      { key: 'opd-rg506',     label: 'รายงานเฝ้าระวังโรค รง.506',     path: '/opd/rg506'       },
+      ...OPD_CORE_SUBITEMS,
+      ...TREAT_DEPARTMENT_SUBITEMS.slice(1),
     ],
+  },
+  /* ระบบบันทึกการรักษา · รังสี · แล็บ · เภสัช — วางถัดจากคัดกรองและซักประวัติ
+     (workflow หลังคัดกรอง → ตรวจรักษา → สั่งตรวจ/รังสี/จ่ายยา). */
+  {
+    key: 'treat', label: 'ระบบบันทึกการรักษา', icon: 'stethoscope',
+    subItems: [
+      TREAT_DEPARTMENT_SUBITEMS[0],
+      ...TREAT_MODULE_SUBITEMS,
+      ...TREAT_DEPARTMENT_SUBITEMS.slice(1),
+    ],
+  },
+  { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18, path: '/xray/queue' },
+  {
+    key: 'lab', label: 'ห้องปฏิบัติการ', icon: 'biotech', iconSize: 18, path: '/lab/queue',
+    subItems: [
+      { key: 'lab-queue',     label: 'คิวห้องปฏิบัติการ',                 path: '/lab/queue'     },
+      { key: 'lab-order',     label: 'บันทึกส่งตรวจ',                     path: '/lab/order'     },
+      { key: 'lab-receive',   label: 'สถานีรับสิ่งส่งตรวจ',                path: '/lab/receive'   },
+      { key: 'lab-send-out',  label: 'ส่งตรวจภายนอก (Lab-out)',           path: '/lab/send-out'  },
+      { key: 'lab-interface', label: 'เชื่อมต่อ LIS และเครื่องตรวจวิเคราะห์', path: '/lab/interface' },
+      { key: 'lab-setup',     label: 'ทะเบียนรายการตรวจ',                 path: '/lab/setup'     },
+    ],
+  },
+  { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
+  /* รายงานเฝ้าระวังโรค รง.506 — TOR §1.2.3.6 (EPI-NET). เดิมเป็น submenu ใต้
+     คัดกรองและซักประวัติ; ยกเป็นเมนูหลักใน rail. Route ยังอยู่ที่ /opd/rg506. */
+  {
+    key: 'opd-rg506', label: 'รายงานเฝ้าระวังโรค รง.506', icon: 'coronavirus', path: '/opd/rg506',
   },
   /* ระบบบริหารจัดการคิว — TOR §1.3. ระบบคิวกลางของศูนย์ (คนละตัวกับคิว
      ผู้รับบริการนอกใน `opd` ซึ่งเป็นคิวของแผนกเดียว) รวมคอนโซลเรียกคิว
@@ -73,61 +129,11 @@ const ITEMS = [
       { key: 'qc-display',     label: 'จอแสดงผลการเรียกคิว',      path: '/queue-center/display'     },
     ],
   },
-  /* ระบบบันทึกการรักษา — สองรายการแรกเป็นหน้าจอ "ระดับโมดูล" ของแฟ้ม
-     เวชระเบียนอิเล็กทรอนิกส์ (TOR §1.4) ไม่ใช่แผนก จึงวางไว้เหนือรายการแผนก:
-       /treat/refer      = ทะเบียนการส่งต่อผู้รับบริการ (§1.4.3.14 / §1.4.11.1)
-       /treat/interfaces = สถานะการเชื่อมต่อระบบภายนอก LIS/PACS/อุปกรณ์/Telemed
-                           (§1.4.7.2–.5 / §1.4.3.23)
-       /treat/consult    = ทะเบียนการส่งปรึกษาแพทย์ (§1.5.6.1 / §1.5.6.7)
-       /treat/order-sets = ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา
-                           (§1.5.1.8 / §1.5.7.1 / §1.5.9.1–.4)
-     (เหมือน `opd`/`queue-center` — SideSubMenu รับเฉพาะ { key, label, path }
-     ไอคอนที่ builder เสนอไว้ send / lan / forum / tune จึงยังไม่ถูกใช้จนกว่า
-     เมนูย่อยจะรองรับไอคอน) */
+  /* ทะเบียนการส่งต่อผู้รับบริการ — TOR §1.4.3.14 / §1.4.11.1. เดิมเป็น submenu
+     ใต้ระบบบันทึกการรักษา; ยกเป็นเมนูหลักใน rail. Route ยังอยู่ที่ /treat/refer. */
   {
-    key: 'treat', label: 'ระบบบันทึกการรักษา', icon: 'stethoscope',
-    subItems: [
-      { key: 'opd-treat',  label: 'ตรวจรักษาทั่วไป',                    path: '/treat/queue' },
-      { key: 'refer',      label: 'ทะเบียนการส่งต่อผู้รับบริการ',          path: '/treat/refer' },
-      { key: 'consult',    label: 'ทะเบียนการส่งปรึกษาแพทย์',             path: '/treat/consult' },
-      { key: 'order-sets', label: 'ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา',   path: '/treat/order-sets' },
-      { key: 'interfaces', label: 'สถานะการเชื่อมต่อระบบภายนอก',         path: '/treat/interfaces' },
-      { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)' },
-      { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์', path: '/clinic/hiv-sti' },
-      { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด',   path: '/clinic/addiction' },
-      { key: 'anc',        label: 'แผนกฝากครรภ์',                          path: '/treat/anc/queue' },
-      { key: 'ncd',        label: 'แผนกโรคเรื้อรัง (NCD)',                  path: '/clinic/ncd' },
-      { key: 'wellness',   label: 'แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ' },
-      { key: 'vaccine',    label: 'แผนกสร้างเสริมภูมิคุ้มกันโรค' },
-      { key: 'dental',     label: 'แผนกทันตกรรม',                          path: '/clinic/dental' },
-      { key: 'tb',         label: 'แผนกวัณโรค',                            path: '/clinic/tb' },
-      { key: 'mental',     label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต',        path: '/clinic/mental-health' },
-    ],
+    key: 'refer', label: 'ทะเบียนการส่งต่อผู้รับบริการ', icon: 'send', path: '/treat/refer',
   },
-  { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18, path: '/xray/queue' },
-  /* ห้องปฏิบัติการ — TOR §1.15. เดิมเป็นเมนูเดี่ยวชี้ /lab/queue. wave นี้เพิ่ม
-     หน้าจอระดับโมดูลอีก 3 หน้า (สถานีรับสิ่งส่งตรวจ §1.15.4.5 · ส่งตรวจภายนอก
-     §1.15.6.2 · เชื่อมต่อ LIS/เครื่องตรวจวิเคราะห์ §1.15.1) จึงเปลี่ยนเป็นเมนู
-     ที่มี subItems แบบเดียวกับ `opd`/`appoint` — รายการแรกยังเป็นคิวห้องปฏิบัติการ
-     เหมือนเดิม และ `key` ยังเป็น 'lab' ทุกหน้าใน src/pages/lab ส่ง
-     `activeKey='lab'` มาเหมือนเดิมจึงไม่ต้องแก้หน้าใดเลย.
-     /lab/history/:hn (ใบสรุปผลย้อนหลังรายคน) ไม่อยู่ในเมนูโดยตั้งใจ — เป็น route
-     ที่ต้องมี HN จึงเข้าจากแถวผู้รับบริการในคิว/ใบผล ไม่ใช่จาก sidebar.
-     (เหมือน `opd`/`treat` — SideSubMenu รับเฉพาะ { key, label, path } ไอคอนที่
-     builder เสนอไว้ inventory_2 / send / lan จึงยังไม่ถูกใช้จนกว่าเมนูย่อยจะ
-     รองรับไอคอน) */
-  {
-    key: 'lab', label: 'ห้องปฏิบัติการ', icon: 'biotech', iconSize: 18, path: '/lab/queue',
-    subItems: [
-      { key: 'lab-queue',     label: 'คิวห้องปฏิบัติการ',                 path: '/lab/queue'     },
-      { key: 'lab-order',     label: 'บันทึกส่งตรวจ',                     path: '/lab/order'     },
-      { key: 'lab-receive',   label: 'สถานีรับสิ่งส่งตรวจ',                path: '/lab/receive'   },
-      { key: 'lab-send-out',  label: 'ส่งตรวจภายนอก (Lab-out)',           path: '/lab/send-out'  },
-      { key: 'lab-interface', label: 'เชื่อมต่อ LIS และเครื่องตรวจวิเคราะห์', path: '/lab/interface' },
-      { key: 'lab-setup',     label: 'ทะเบียนรายการตรวจ',                 path: '/lab/setup'     },
-    ],
-  },
-  { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht',      path: '/finance'           },
   /* ระบบนัดหมาย — TOR §1.6. เดิมเป็นเมนูเดี่ยวชี้ /appointment. wave นี้เพิ่ม
      หน้าจอระดับโมดูลอีก 4 หน้า (กล่องรับนัด · นัดต่อเนื่อง · รูปแบบการนัดหมาย ·
@@ -200,7 +206,16 @@ const Sym = ({ name, size = 20, color, className = '' }) => {
    separate top-level system (e.g. Consent Management — Figma PHCIS|Consent
    Side Menu 270:95324) reuses the exact same shell/header/footer with its
    own menu. `fallbackKey` is the derived-active key when no path matches. */
-const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackKey = 'opd' }) => {
+const Sidebar = ({
+  activeKey,
+  defaultSubmenuKey = null,
+  items = ITEMS,
+  fallbackKey = 'opd',
+  /** Override open rail width — e.g. Consent nav uses 400px for long Thai labels. */
+  openWidth,
+  /** Allow nav labels to wrap to multiple lines instead of clipping. */
+  wrapLabels = false,
+}) => {
   const history = useHistory();
   const location = useLocation();
   const clinicFilter = useClinicFilter();
@@ -245,6 +260,14 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
   }, []);
   // Close drawer when crossing back to desktop
   useEffect(() => { if (!isMobile) setMobileOpen(false); }, [isMobile]);
+
+  /* §1.4.7.2 — ตัวนับผลแล็บที่ยังไม่รับทราบ (ทั้งระบบ) สำหรับเมนูบันทึกการรักษา */
+  const [labUnreadCount, setLabUnreadCount] = useState(() => unreadLabNotificationCount());
+  useEffect(() => {
+    const refresh = () => setLabUnreadCount(unreadLabNotificationCount());
+    refresh();
+    return subscribeLabNotifications(refresh);
+  }, []);
 
   // SideSubMenu — open when a primary menu with `subItems` is clicked.
   // submenuKey       = source of truth (which primary menu owns the panel)
@@ -367,6 +390,16 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
   // changes apply globally and the menu stays identical across systems.
 
   const ease = 'opacity 160ms ease, max-width 220ms ease';
+  const widthOpen = openWidth || 'var(--sm-width-open)';
+  const labelReserve = wrapLabels ? '68px' : '100px';
+  const itemRowHeight = 'var(--dim-size-1000, 48px)';
+  const itemRowPadY = 'var(--dim-space-200, 8px)';
+  const itemRowPadL = 'calc(var(--sm-space-600, 24px) - var(--sm-stroke-400, 4px))';
+  const itemRowPadR = 'var(--sm-space-600, 24px)';
+  const navListGap = 'var(--dim-space-150, 6px)';
+  const navListPadY = 'var(--dim-space-400, 16px)';
+  const collapsedPlainPad = 'calc((var(--sm-width-closed, 64px) - 16px) / 2)';
+  const collapsedAvatarPad = 'calc((var(--sm-width-closed, 64px) - 40px) / 2)';
 
   return (
     <>
@@ -401,9 +434,10 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
       onMouseEnter={() => !isMobile && setHovered(true)}
       onMouseLeave={() => !isMobile && setHovered(false)}
       style={{
+        ...(openWidth ? { '--sm-width-open': openWidth } : null),
         width: isMobile
-          ? 'var(--sm-width-open)'
-          : expanded ? 'var(--sm-width-open)' : 'var(--sm-width-closed)',
+          ? widthOpen
+          : expanded ? widthOpen : 'var(--sm-width-closed)',
         background: 'var(--surface-navigation-default)',
         /* Figma Design Template 1:2447 — SideMenu shell:
              border-r  = border/brandprimary/quaternary @ stroke/100
@@ -462,12 +496,6 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
             style={{ color: 'var(--text-brand-name)' }}
           >
             สำนักอนามัย
-          </div>
-          <div
-            className='text-xs whitespace-nowrap'
-            style={{ color: 'var(--text-brand-sub)' }}
-          >
-            ศูนย์ 4 ดินแดง
           </div>
         </div>
         <button
@@ -531,7 +559,12 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
       <nav
         ref={navScrollRef}
         onScroll={updateNavScrollShadow}
-        className='flex-1 min-h-0 flex flex-col gap-1.5 py-4 overflow-y-auto overflow-x-hidden scrollbar-thin'
+        className='flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden scrollbar-thin'
+        style={{
+          gap: navListGap,
+          paddingTop: navListPadY,
+          paddingBottom: navListPadY,
+        }}
       >
         {items.map((it) => {
           // While a sub-menu panel is open the owning primary menu wins the
@@ -566,45 +599,70 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivate(); } }}
               onMouseEnter={() => setHoverItem(it.key)}
               onMouseLeave={() => setHoverItem(null)}
-              className='cursor-pointer flex items-center w-full shrink-0'
+              className={`cursor-pointer flex w-full shrink-0 ${wrapLabels && expanded ? 'items-start' : 'items-center'}`}
               style={{
-                minHeight: 48,
+                height: itemRowHeight,
+                minHeight: itemRowHeight,
+                boxSizing: 'border-box',
                 gap: expanded ? 'var(--sm-space-300)' : 0,
                 justifyContent: expanded ? 'flex-start' : 'center',
-                paddingTop: 'var(--dim-space-200)',
-                paddingBottom: 'var(--dim-space-200)',
+                paddingTop: itemRowPadY,
+                paddingBottom: itemRowPadY,
                 // The 4px left border is always present but transparent when
                 // not active — keeps the icon column stable across the
                 // hover/active transition (no width shift on state change).
-                paddingLeft: 'var(--dim-space-500)',
-                paddingRight: active && expanded ? 'var(--sm-space-300)' : 'var(--sm-space-600)',
+                paddingLeft: itemRowPadL,
+                paddingRight: expanded ? 'var(--sm-space-300)' : itemRowPadR,
                 borderLeft: `var(--sm-stroke-400) solid ${active ? 'var(--border-sidemenu-active)' : 'transparent'}`,
                 background: tinted ? 'var(--surface-sidemenu-active)' : 'transparent',
                 borderRadius: active ? 0 : 'var(--sm-radius-100)',
                 transition: 'background 200ms cubic-bezier(0.32, 0.72, 0, 1), border-color 200ms cubic-bezier(0.32, 0.72, 0, 1)',
               }}
             >
-              <Sym name={it.icon} size={it.iconSize ?? 16} color={itemColor} />
+              <Sym
+                name={it.icon}
+                size={it.iconSize ?? 16}
+                color={itemColor}
+                style={wrapLabels && expanded ? { marginTop: 'var(--dim-space-100, 4px)', flexShrink: 0 } : undefined}
+              />
               <span
-                className='flex-1 min-w-0 text-base whitespace-nowrap overflow-hidden'
+                className={`min-w-0 ${expanded ? 'flex-1' : 'shrink-0'} ${wrapLabels ? '' : 'whitespace-nowrap overflow-hidden text-ellipsis'} ${expanded && it.key === 'treat' && labUnreadCount > 0 ? 'inline-flex items-center' : ''}`}
                 style={{
+                  fontSize: SIDEMENU_LABEL_SIZE,
+                  fontWeight: 'var(--type-weight-medium, 500)',
                   color: itemColor,
                   opacity: expanded ? 1 : 0,
-                  maxWidth: expanded ? 'calc(var(--sm-width-open) - 100px)' : 0,
+                  width: expanded ? undefined : 0,
+                  flex: expanded ? undefined : '0 0 0',
+                  maxWidth: expanded ? `calc(var(--sm-width-open) - ${labelReserve})` : 0,
                   pointerEvents: expanded ? 'auto' : 'none',
                   transition: ease,
+                  overflow: expanded ? (wrapLabels ? undefined : 'hidden') : 'hidden',
+                  textOverflow: expanded && !wrapLabels ? 'ellipsis' : undefined,
+                  ...(wrapLabels && expanded ? { whiteSpace: 'normal', lineHeight: 1.4 } : null),
+                  ...(expanded && it.key === 'treat' && labUnreadCount > 0
+                    ? { gap: 'var(--dim-space-150, 6px)' }
+                    : null),
                 }}
               >
-                {it.label}
+                <span className={expanded && it.key === 'treat' && labUnreadCount > 0 ? 'min-w-0 truncate' : undefined}>
+                  {it.label}
+                </span>
+                {expanded && it.key === 'treat' && (
+                  <LabNotificationCountBadge count={labUnreadCount} />
+                )}
               </span>
               {active && (
                 <span
                   className='shrink-0 overflow-hidden flex items-center justify-center'
                   style={{
-                    width: 20, height: 20,
+                    width: expanded ? 20 : 0,
+                    height: expanded ? 20 : 0,
+                    minWidth: expanded ? undefined : 0,
                     opacity: expanded ? 1 : 0,
                     maxWidth: expanded ? 24 : 0,
                     transition: ease,
+                    ...(wrapLabels && expanded ? { marginTop: 'var(--dim-space-100, 4px)' } : null),
                   }}
                 >
                   <Sym name='chevron_right' size={20} color='var(--text-sidemenu-selected)' />
@@ -640,15 +698,23 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
       </div>
 
       {/* ── Bottom: Notification + User ─────────────────────── */}
-      <div className='flex flex-col gap-2 shrink-0'>
+      <div
+        className='flex flex-col shrink-0'
+        style={{ gap: navListGap }}
+      >
         {/* Notification */}
         <div
           className='cursor-pointer flex items-center w-full'
           style={{
-            minHeight: 48,
+            height: itemRowHeight,
+            minHeight: itemRowHeight,
+            boxSizing: 'border-box',
             gap: expanded ? 'var(--sm-space-300)' : 0,
             justifyContent: expanded ? 'flex-start' : 'center',
-            padding: '8px var(--sm-space-600)',
+            paddingTop: itemRowPadY,
+            paddingBottom: itemRowPadY,
+            paddingLeft: expanded ? 'var(--sm-space-600)' : collapsedPlainPad,
+            paddingRight: expanded ? 'var(--sm-space-600)' : collapsedPlainPad,
             borderRadius: 'var(--sm-radius-100)',
             transition: 'background .12s',
           }}
@@ -669,10 +735,14 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
             />
           </span>
           <span
-            className='flex-1 min-w-0 text-base whitespace-nowrap overflow-hidden'
+            className={`min-w-0 whitespace-nowrap overflow-hidden ${expanded ? 'flex-1' : 'shrink-0'}`}
             style={{
+              fontSize: SIDEMENU_LABEL_SIZE,
+              fontWeight: 'var(--type-weight-medium, 500)',
               color: 'var(--text-sidemenu-default)',
               opacity: expanded ? 1 : 0,
+              width: expanded ? undefined : 0,
+              flex: expanded ? undefined : '0 0 0',
               maxWidth: expanded ? 'calc(var(--sm-width-open) - 100px)' : 0,
               transition: ease,
             }}
@@ -707,8 +777,13 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
           onMouseLeave={() => setUserHover(false)}
           className='flex items-center cursor-pointer overflow-hidden shrink-0'
           style={{
-            height: 56,
-            padding: '8px var(--sm-space-300)',
+            height: expanded ? 'var(--dim-size-1200, 56px)' : itemRowHeight,
+            minHeight: itemRowHeight,
+            boxSizing: 'border-box',
+            paddingTop: itemRowPadY,
+            paddingBottom: itemRowPadY,
+            paddingLeft: expanded ? 'var(--sm-space-300)' : collapsedAvatarPad,
+            paddingRight: expanded ? 'var(--sm-space-300)' : collapsedAvatarPad,
             gap: expanded ? 'var(--sm-space-300)' : 0,
             justifyContent: expanded ? 'flex-start' : 'center',
             borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
@@ -718,11 +793,14 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
         >
           <DoctorProfileAvatar className='shrink-0' />
           <div
-            className='flex-1 min-w-0 flex flex-col overflow-hidden'
+            className={`min-w-0 flex flex-col overflow-hidden ${expanded ? 'flex-1' : 'shrink-0'}`}
             style={{
               opacity: expanded ? 1 : 0,
+              width: expanded ? undefined : 0,
+              flex: expanded ? undefined : '0 0 0',
               maxWidth: expanded ? 'calc(var(--sm-width-open) - 116px)' : 0,
               transition: ease,
+              overflow: expanded ? undefined : 'hidden',
             }}
           >
             <div
@@ -734,13 +812,13 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
                 transition: 'color .12s',
               }}
             >
-              พญ.สมหญิง รักษ์ดี
+              {PHCIS_CURRENT_USER.displayName}
             </div>
             <div
               className='text-xs whitespace-nowrap overflow-hidden'
               style={{ color: 'var(--text-content-tertiary)' }}
             >
-              อายุรกรรม
+              {PHCIS_CURRENT_USER.department}
             </div>
           </div>
           <button
@@ -768,7 +846,13 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
       <SideSubMenu
         ref={submenuRef}
         header={renderSubmenu.label}
-        items={renderSubmenu.subItems}
+        headerBadgeCount={0}
+        items={renderSubmenu.subItems.map((sub) => ({
+          ...sub,
+          badgeCount: renderSubmenuKey === 'treat' && sub.key === 'opd-treat'
+            ? labUnreadCount
+            : 0,
+        }))}
         selectedKey={submenuItem}
         onSelect={(k) => {
           setSubmenuItem(k);
@@ -784,7 +868,7 @@ const Sidebar = ({ activeKey, defaultSubmenuKey = null, items = ITEMS, fallbackK
           position: 'fixed',
           top: 'var(--dim-space-0)',
           bottom: 'var(--dim-space-0)',
-          left: 'var(--sm-width-open)',
+          left: widthOpen,
           /* SideSubMenu's internal nav already scrolls when items overflow
              the panel height (short viewport). */
           zIndex: 'calc(var(--sm-z-overlay) - 1)',

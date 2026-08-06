@@ -106,7 +106,7 @@ const SuccessTick = () => (
     style={{
       width: 18,
       height: 18,
-      borderRadius: 'var(--dim-radius-150, 6px)',
+      borderRadius: 'var(--dim-radius-full, 9999px)',
       background: 'var(--icon-positive-success)',
       color: 'var(--text-positive-success-tick)',
     }}

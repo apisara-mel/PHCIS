@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
-import Header from '@/components/layout/Header';
+import Header, { SubHeader } from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -337,7 +337,8 @@ const TbFormPage = () => {
       <div className='flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
         <Sidebar activeKey='treat' />
         <div className='flex-1 min-w-0 flex flex-col'>
-          <Header breadcrumb={breadcrumb} />
+          <Header breadcrumb={breadcrumb} standalone={false} />
+          <SubHeader title='บันทึกการตรวจรักษาคลินิกวัณโรค' hideBottomBorder />
 
           {/* ยกเลิกการบันทึก — บังคับเหตุผล, เก็บ audit */}
           <Popup
@@ -378,7 +379,6 @@ const TbFormPage = () => {
             sticky
             patient={cardPatient}
             title='บันทึกการตรวจรักษาคลินิกวัณโรค'
-            onBack={requestLeave}
             drugAllergies={drugAllergies}
             chronicDiseases={chronicDiseases}
             actions={(
@@ -463,12 +463,14 @@ const TbFormPage = () => {
           </div>
 
           <TreatmentFormShell
+            morphTitle='วัณโรค'
             stepIndex={stepIndex}
             onStepChange={setStepIndex}
             completedSteps={completedSteps}
             steps={TB_STEPS}
             queuePath='/clinic/tb'
             step0FlushLeft={false}
+            onLeave={requestLeave}
           >
             <ActiveStep {...stepProps} />
           </TreatmentFormShell>

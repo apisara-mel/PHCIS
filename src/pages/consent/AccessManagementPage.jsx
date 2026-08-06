@@ -5,7 +5,7 @@ import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
-import Table, { EllipsisText } from '@/components/table/Table';
+import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
@@ -13,16 +13,18 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import Popup from '@/components/popup/Popup';
 import Switch from '@/components/switch/Switch';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
-import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerifyPopup';
 import StaffProfileAvatar from '@/components/appointment/StaffProfileAvatar';
 import {
-  ACCESS_RECORDS, ACCESS_SUMMARY, ACCESS_TABS, ACCESS_STATUS,
-  thaiDateOfIso, daysLeftOfIso, consumeAccessImports, accessPatientLabel,
+  ACCESS_RECORDS, buildAccessSummary, ACCESS_TABS, ACCESS_STATUS,
+  thaiDateOfIso, daysLeftOfIso, formatAccessCreatedTime, consumeAccessImports, accessPatientLabel,
   accessAvatarForGroup,
 } from '@/data/accessRecords';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { ApprovePeriodPopup, EditPeriodPopup, AccessDetailPopup } from '@/pages/consent/accessPopups';
+import { ConsentFormViewPopup } from '@/pages/consent/ConsentFormViewPopup';
+import { getConsentFormByCode } from '@/data/consentFormRecords';
 import CONSENT_NAV from '@/pages/consent/consentNav';
+import { ACCESS_TYPE_DISPLAY_LABEL } from '@/pages/consent/AccessRequestForm';
 
 /* PHCIS | Consent — จัดการสิทธิ์การเข้าถึงแบบฟอร์ม (Figma node 363:122327).
    Access-request registry: summary cards · tabs · search · filters · table
@@ -60,6 +62,80 @@ const StackCell = ({ top, bottom }) => (
   </div>
 );
 
+/* ผู้รับบริการ — ชื่อ · HN คนละบรรทัด */
+const PatientCell = ({ row }) => {
+  if (!row?.hn || row.hn === '-') return <span style={MUTED_CELL}>-</span>;
+  if (row.patientName) {
+    return <StackCell top={row.patientName} bottom={`HN ${row.hn}`} />;
+  }
+  return <Cell value={`HN ${row.hn}`} />;
+};
+
+/* แบบฟอร์มความยินยอม — ชื่อ · PH-xxx · คลิกเปิด ConsentFormViewPopup (เดียวกับเมนูแบบฟอร์ม) */
+const FormCell = ({ row, onClick }) => {
+  if (!row?.formName) return <span style={MUTED_CELL}>-</span>;
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      title='ดูแบบฟอร์มความยินยอม'
+      className='flex flex-col min-w-0 text-left'
+      style={{ background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, gap: 'var(--dim-space-0)' }}
+    >
+      <span
+        className='truncate'
+        style={{
+          ...TEXT_CELL,
+          color: hover ? 'var(--text-brandPrimary-default)' : TEXT_CELL.color,
+          textDecoration: hover ? 'underline' : 'none',
+          textUnderlineOffset: 2,
+          transition: 'color 120ms ease',
+        }}
+      >
+        {row.formName}
+      </span>
+      {row.formCode ? (
+        <span
+          className='truncate'
+          style={{
+            ...MUTED_CELL,
+            fontSize: 'var(--type-size-xs)',
+            color: hover ? 'var(--text-brandPrimary-default)' : MUTED_CELL.color,
+          }}
+        >
+          {row.formCode}
+        </span>
+      ) : null}
+    </button>
+  );
+};
+
+const resolveAccessFormViewRecord = (row) => {
+  if (!row?.formCode) return null;
+  const hit = getConsentFormByCode(row.formCode);
+  if (hit) return hit;
+  if (!row.formName) return null;
+  return {
+    id: `access-form-${row.id}`,
+    code: row.formCode,
+    name: row.formName,
+    version: 'V 1.0',
+    type: 'การรักษา',
+    status: 'เผยแพร่',
+    group: row.group,
+    scopes: [{
+      group: row.group || '-',
+      subBranch: row.subBranch || '-',
+      dept: row.dept || '-',
+    }],
+    creator: row.name,
+    updatedDate: row.createdDate || '-',
+  };
+};
+
 /* Staff photo — keyed to Group Policy via row.avatarSrc (fallback by group). */
 const RequesterAvatar = ({ row }) => (
   <StaffProfileAvatar
@@ -72,9 +148,9 @@ const RequesterAvatar = ({ row }) => (
   />
 );
 
-/* Group Policy · สาขาย่อย · แผนก — same badge pattern as ConsentFormsPage. */
+/* Group Policy · สาขาย่อย · แผนก — badges บรรทัดเดียว (ไม่ wrap) */
 const ScopeCell = ({ row }) => (
-  <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
+  <div className='flex items-center flex-nowrap min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
     {row.group ? (
       <ColorfulBadge style={GROUP_TONE[row.group] || 'grey'} size='small' hierarchy='secondary' width='hug'>
         {row.group}
@@ -85,7 +161,11 @@ const ScopeCell = ({ row }) => (
         {row.subBranch}
       </ColorfulBadge>
     ) : null}
-    {row.dept ? <span style={MUTED_CELL}>{row.dept}</span> : <span style={MUTED_CELL}>-</span>}
+    {row.dept ? (
+      <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+        {row.dept}
+      </ColorfulBadge>
+    ) : null}
   </div>
 );
 
@@ -163,6 +243,7 @@ const DocPreview = ({ row }) => (
         <DocRow label='ประเภทการขอ' value={row.accessTypeLabel || '-'} />
         <DocRow label='แบบฟอร์มความยินยอม' value={row.formName ? `${row.formCode ? `${row.formCode} · ` : ''}${row.formName}` : '-'} />
         <DocRow label='เหตุผลที่ขอ' value={row.reason || '-'} />
+        {row.note ? <DocRow label='บันทึกเพิ่มเติม' value={row.note} /> : null}
         <DocRow label='ผู้รับบริการ' value={accessPatientLabel(row)} />
         <DocRow label='วัตถุประสงค์' value={row.purpose} />
         <DocRow label='ช่วงเวลาที่ขอเข้าถึง' value={`${row.period} (${row.periodDays})`} />
@@ -198,13 +279,15 @@ export default function AccessManagementPage() {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [dialog, setDialog] = useState(null); // { record, kind: 'reject' }
   const [previewFile, setPreviewFile] = useState(null); // row whose attached doc is open
+  const [formViewFor, setFormViewFor] = useState(null); // consent form → ConsentFormViewPopup
   /* ด.1.1.17 workflow — ขอสิทธิ์ย้ายไปปุ่มที่แบบฟอร์มความยินยอม */
   const [approveFor, setApproveFor] = useState(null);     // 17.2 อนุมัติ + ช่วงเวลา
   const [editPeriodFor, setEditPeriodFor] = useState(null); // admin แก้ไขช่วงเวลาสิทธิ
   const [detailFor, setDetailFor] = useState(null);       // detail + audit
   const [toggleFor, setToggleFor] = useState(null);       // 17.3 confirm Active switch
-  const [verifyFor, setVerifyFor] = useState(null);       // ด.1.1.1 gate ก่อนอนุมัติ
   const [toast, setToast] = useState(null);
+
+  const handleApproveRequest = (row) => setApproveFor(row);
 
   const patchRow = (id, patch) => setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const pushToast = (message) => setToast({ id: Date.now(), variant: 'success', message });
@@ -234,6 +317,8 @@ export default function AccessManagementPage() {
     setRows((prev) => [...prev, ...pending.map(autoExpire)]);
     return undefined;
   }, []);
+
+  const summaryCards = useMemo(() => buildAccessSummary(rows), [rows]);
 
   const tabs = useMemo(() => ACCESS_TABS.map((t) => ({
     key: t.value,
@@ -313,8 +398,7 @@ export default function AccessManagementPage() {
 
   /* Status-dependent action column — ✓ approve / ✗ reject, one disabled per
      status (Figma 363:122327) + ปุ่มดูรายละเอียด (audit).
-     อนุมัติ = ให้สิทธิแทนเจ้าของข้อมูล → ผ่าน ConsentIdentityVerifyPopup ก่อน
-     (ด.1.1.1) แล้วจึงระบุช่วงเวลาสิทธิ (ด.1.1.17.2). */
+     อนุมัติ → ApprovePeriodPopup ระบุช่วงเวลาเข้าถึง (ด.1.1.17.2). */
   const renderAction = (row) => {
     const meta = ACCESS_STATUS[row.status] || {};
     const showApproveReject = meta.canApprove || meta.canReject || row.status === 'อนุมัติแล้ว';
@@ -337,7 +421,7 @@ export default function AccessManagementPage() {
               disabled={!meta.canApprove}
               aria-label='อนุมัติคำขอ'
               title='อนุมัติ (ระบุช่วงเวลาสิทธิ)'
-              onClick={() => meta.canApprove && setVerifyFor(row)}
+              onClick={() => meta.canApprove && handleApproveRequest(row)}
             />
             <NeutralSubdueIconButton
               icon='close'
@@ -415,31 +499,35 @@ export default function AccessManagementPage() {
     },
     { key: 'empCode', header: 'รหัสพนักงาน', width: 130, sortable: true, render: (r) => <Cell value={r.empCode} /> },
     {
-      key: 'group', header: 'Group Policy / สาขาย่อย / แผนก', width: 320,
+      key: 'group', header: 'Group Policy / สาขาย่อย / แผนก', width: 400,
       render: (r) => <ScopeCell row={r} />,
     },
-    { key: 'createdDate', header: 'วันที่สร้างคำขอ', width: 160, sortable: true, render: (r) => <StackCell top={r.createdDate} bottom={r.createdTime} /> },
-    { key: 'hn', header: 'ผู้รับบริการ', width: 220, render: (r) => <Cell value={accessPatientLabel(r)} /> },
+    { key: 'createdDate', header: 'วันที่สร้างคำขอ', width: 160, sortable: true, render: (r) => <StackCell top={r.createdDate} bottom={formatAccessCreatedTime(r.createdTime)} /> },
+    { key: 'hn', header: 'ผู้รับบริการ', width: 220, render: (r) => <PatientCell row={r} /> },
     {
-      key: 'accessType', header: 'ประเภทการขอ', width: 220,
-      render: (r) => <Cell value={r.accessTypeLabel || (r.accessType === 'form' ? 'ขอเข้าถึงแบบฟอร์มความยินยอม' : 'ขอเข้าถึงข้อมูลความยินยอมของผู้รับบริการ')} />,
+      key: 'accessType', header: 'ประเภทการขอ', width: 280,
+      render: (r) => {
+        const value = r.accessTypeLabel || ACCESS_TYPE_DISPLAY_LABEL[r.accessType];
+        return value && value !== '-'
+          ? <span className='block truncate min-w-0' style={TEXT_CELL}>{value}</span>
+          : <span style={MUTED_CELL}>-</span>;
+      },
     },
     {
       key: 'formName', header: 'แบบฟอร์มความยินยอม', flex: true, minWidth: 360,
-      render: (r) => {
-        const label = r.formName
-          ? `${r.formCode ? `${r.formCode} · ` : ''}${r.formName}`
-          : '-';
-        return (
-          <div className='min-w-0 w-full' style={TEXT_CELL}>
-            <EllipsisText text={label} />
-          </div>
-        );
-      },
+      render: (r) => (
+        <FormCell
+          row={r}
+          onClick={() => {
+            const rec = resolveAccessFormViewRecord(r);
+            if (rec) setFormViewFor(rec);
+          }}
+        />
+      ),
     },
-    { key: 'reason', header: 'เหตุผลที่ขอ', width: 200, render: (r) => <Cell value={r.reason} /> },
+    { key: 'reason', header: 'เหตุผลที่ขอ', width: 240, render: (r) => <Cell value={r.reason} /> },
     { key: 'period', header: 'ช่วงเวลาสิทธิ (เริ่ม-สิ้นสุด)', width: 230, render: renderPeriod },
-    { key: 'file', header: 'แบบฟอร์มขอเข้าถึงข้อมูล', width: 200, render: (r) => <FileCell name={r.file} size={r.fileSize} onClick={() => setPreviewFile(r)} /> },
+    { key: 'file', header: 'หลักฐาน', width: 200, render: (r) => <FileCell name={r.file} size={r.fileSize} onClick={() => setPreviewFile(r)} /> },
     {
       key: 'status', header: 'สถานะ', width: 140, sortable: true,
       render: (r) => (
@@ -467,7 +555,7 @@ export default function AccessManagementPage() {
         title='จัดการสิทธิ์การเข้าถึงแบบฟอร์ม'
         headerInfo={(
           <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-            {ACCESS_SUMMARY.map((c) => (
+            {summaryCards.map((c) => (
               <SummaryCard key={c.key} card={c} variant='panel' />
             ))}
           </section>
@@ -552,35 +640,19 @@ export default function AccessManagementPage() {
       <AlertDialog
         open={!!dialog}
         type='warning'
-        title='ปฏิเสธคำขอเข้าถึงข้อมูล?'
+        title='ยืนยันการปฏิเสธคำขอเข้าถึงข้อมูล'
         description={dialog ? `ยืนยันปฏิเสธคำขอ ${dialog.record.reqNo} ของ ${dialog.record.name}` : ''}
-        confirmLabel='ปฏิเสธ'
+        confirmLabel='ยืนยัน'
         cancelLabel='ยกเลิก'
         onConfirm={() => {
           if (dialog) {
             patchRow(dialog.record.id, { status: 'ปฏิเสธ', active: false, audit: { by: 'ลดา ดีงาม', at: nowThai() } });
-            pushToast(`ปฏิเสธคำขอ ${dialog.record.reqNo} แล้ว — บันทึกผู้ทำและเวลาใน audit`);
+            pushToast('ปฏิเสธคำขอแล้ว');
           }
           setDialog(null);
         }}
         onCancel={() => setDialog(null)}
         onClose={() => setDialog(null)}
-      />
-
-      {/* ด.1.1.1 — พิสูจน์ตัวตนก่อนอนุมัติสิทธิแทนเจ้าของข้อมูล */}
-      <ConsentIdentityVerifyPopup
-        open={!!verifyFor}
-        onClose={() => setVerifyFor(null)}
-        onVerified={() => {
-          const rec = verifyFor;
-          setVerifyFor(null);
-          if (rec) setApproveFor(rec);
-        }}
-        actionLabel='อนุมัติสิทธิเข้าถึงข้อมูลผู้รับบริการ'
-        patientName={verifyFor ? (verifyFor.patientName
-          ? `${verifyFor.patientName} · HN ${verifyFor.hn}`
-          : `ผู้รับบริการ HN ${verifyFor.hn}`) : undefined}
-        hn={verifyFor?.hn}
       />
 
       {/* ด.1.1.17.2 — อนุมัติพร้อมระบุช่วงเวลาสิทธิ */}
@@ -600,7 +672,7 @@ export default function AccessManagementPage() {
               expiredByPeriod: false,
               audit: { by: 'ลดา ดีงาม', at: nowThai() },
             });
-            pushToast(`อนุมัติ ${rec.reqNo} แล้ว — สิทธิ Active ${thaiDateOfIso(periodStart)} ถึง ${thaiDateOfIso(periodEnd)}`);
+            pushToast('อนุมัติแล้ว');
           }
         }}
       />
@@ -663,9 +735,19 @@ export default function AccessManagementPage() {
         record={detailFor}
         onClose={() => setDetailFor(null)}
         thaiDateOfIso={thaiDateOfIso}
+        onApprove={(row) => handleApproveRequest(row)}
+        onReject={(row) => setDialog({ record: row, kind: 'reject' })}
       />
 
       <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
+
+      <ConsentFormViewPopup
+        open={!!formViewFor}
+        record={formViewFor}
+        onClose={() => setFormViewFor(null)}
+        onToast={setToast}
+        showAuditBar={false}
+      />
 
       {/* Attached-document preview (Figma DataCell click annotation) */}
       <Popup

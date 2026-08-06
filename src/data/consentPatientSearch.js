@@ -5,7 +5,7 @@ import { findMrPatientByHn } from '@/data/mrPatients';
 
 /* Shared patient-search rows for consent PrimarySearch — same shape as
    Registration / PHCIS OPD (Figma 3345:2981): teal visit pill + indigo HN
-   + full name + masked เลขบัตร / โทร. */
+   + full name (ไม่แสดงเลขบัตร/โทรใน dropdown — ค้นหาด้วยได้แต่ซ่อนใน UI). */
 
 export const formatNationalIdMasked = (nationalId) => {
   const digits = String(nationalId ?? '').replace(/\D/g, '');
@@ -42,17 +42,13 @@ export const resolveConsentSearchPatient = (hn, fallbackName = '') => {
   };
 };
 
-/** PrimarySearch suggestion / history row (queue pill + HN + name + PII). */
+/** PrimarySearch suggestion / history row (queue pill + HN + name). */
 export const toConsentPatientSearchItem = (patient, { queue } = {}) => {
   const visit = queue || patient.queue;
   return {
     id: patient.hn,
     label: patient.label || patient.name,
     value: patient.label || patient.name,
-    sublabel: [
-      patient.nationalId ? `เลขบัตร ${formatNationalIdMasked(patient.nationalId)}` : '',
-      patient.phone ? `โทร ${formatPhoneMasked(patient.phone)}` : '',
-    ].filter(Boolean).join(' · ') || undefined,
     badges: [
       ...(visit ? [{ label: visit, tone: 'teal' }] : []),
       { label: patient.hn, tone: 'indigo' },

@@ -56,7 +56,7 @@ export function printNotifyLog(rows) {
     <tr>
       <td>${r.at}</td><td>${notifyChannelLabel(r.channel)}</td>
       <td>${notifyKindLabel(r.kind)}</td>
-      <td>${r.patient} (HN ${r.hn})</td>
+      <td>${r.hn}</td>
       <td>${r.title}<br/><span class="sub">${r.body}</span></td>
       <td>${r.status === NOTIFY_STATUS.SENT ? 'ส่งสำเร็จ' : `ส่งไม่สำเร็จ — ${r.failReason || ''}`}</td>
       <td>${r.actor}</td>
@@ -75,7 +75,7 @@ export function printNotifyLog(rows) {
 <h1>บันทึกการแจ้งเตือนผู้รับบริการ (ระบบนัดหมาย)</h1>
 <div class="meta">พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')} · ${(rows || []).length} รายการ · ข้อมูลจำลอง (mock) ยังไม่เชื่อมผู้ให้บริการ push จริง</div>
 <table><thead><tr>
-<th>เวลา</th><th>ช่องทาง</th><th>ประเภท</th><th>ผู้รับบริการ</th><th>ข้อความ</th><th>สถานะ</th><th>ผู้ดำเนินการ</th>
+<th>เวลา</th><th>ช่องทาง</th><th>ประเภท</th><th>HN</th><th>ข้อความ</th><th>สถานะ</th><th>ผู้ดำเนินการ</th>
 </tr></thead><tbody>${body}</tbody></table>
 </body></html>`;
   const w = window.open('', '_blank', 'noopener,noreferrer,width=1024,height=800');

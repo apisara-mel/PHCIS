@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import SelectableOptionCard from '@/components/card/SelectableOptionCard';
 import OtpInput from '@/components/forms/OtpInput';
 import BrandButton from '@/components/button/BrandButton';
@@ -41,6 +41,9 @@ const formatCountdown = (s) => {
 
 export default function LoginVerifyPage() {
   const history = useHistory();
+  const location = useLocation();
+  /** มาจาก "ลืมรหัสผ่าน?" ใน PrivacyRevealPopup — ไม่ให้ย้อนกลับ login */
+  const hideChannelBack = location.state?.from === 'privacy-reveal';
   const [step, setStep] = useState('channel'); // 'channel' | 'code'
   /* The chosen delivery channel — drives the OTP-step copy. There is no
      "ถัดไป" button: picking a method (the card or the "หรือ" alternate) goes
@@ -197,17 +200,19 @@ export default function LoginVerifyPage() {
                 </BrandButton>
               </div>
             </div>
-            {/* Back — Neutral Ghost Large with chevron per Figma 42:8722. */}
-            <div className='flex justify-center'>
-              <NeutralButton
-                variant='ghost'
-                size='lg'
-                leadingIcon='chevron_left'
-                onClick={() => history.push('/login')}
-              >
-                ย้อนกลับ
-              </NeutralButton>
-            </div>
+            {/* Back — ซ่อนเมื่อมาจาก popup ยืนยันตัวตน (ลืมรหัสผ่าน) */}
+            {!hideChannelBack && (
+              <div className='flex justify-center'>
+                <NeutralButton
+                  variant='ghost'
+                  size='lg'
+                  leadingIcon='chevron_left'
+                  onClick={() => history.push('/login')}
+                >
+                  ย้อนกลับ
+                </NeutralButton>
+              </div>
+            )}
           </>
         ) : (
           <>

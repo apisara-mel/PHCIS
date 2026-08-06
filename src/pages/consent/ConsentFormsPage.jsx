@@ -1,6 +1,5 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { useHistory } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
@@ -18,15 +17,22 @@ import ViewToggle from '@/components/toggle/ViewToggle';
 import AlertDialog from '@/components/popup/AlertDialog';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import {
-  CONSENT_FORM_RECORDS, CONSENT_FORM_SUMMARY, CONSENT_FORM_TABS,
-  CONSENT_FORM_STATUS, FORM_TYPE_TONE,
+  CONSENT_FORM_RECORDS, buildConsentFormSummary, CONSENT_FORM_TABS,
+  CONSENT_FORM_STATUS,
 } from '@/data/consentFormRecords';
+import {
+  CONSENT_FORM_DRAFTS_EVENT,
+  getMergedConsentFormRecords,
+} from '@/data/consentFormDraftStore';
 import { logExport } from '@/data/consentWorkflowStore';
 import { downloadConsentFormPdf } from '@/data/consentFormDownload';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import { ConsentFormEditPopup } from '@/pages/consent/CreateConsentFormPage';
 import { ConsentFormViewPopup } from '@/pages/consent/ConsentFormViewPopup';
+import FormScopeViewPopup from '@/components/consent/FormScopeViewPopup';
+import FormPositionViewPopup from '@/components/consent/FormPositionViewPopup';
+import { CONSENT_SCOPE_DEPTS, CONSENT_SCOPE_TREE } from '@/data/consentFormScopes';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — แบบฟอร์มความยินยอม (Figma 291:113045 · flow 277:150901).
@@ -36,7 +42,33 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
 
 const PAGE_SIZE = 20;
 const breadcrumb = ['แบบฟอร์มความยินยอม'];
-const GROUP_TONE = { 'แพทย์': 'green', 'พยาบาล': 'purple', 'เภสัชกร': 'teal', 'นักเทคนิคการแพทย์': 'blue' };
+
+const recordScopes = (row) => (
+  row.scopes?.length
+    ? row.scopes
+    : [{ group: row.group, subBranch: row.subBranch, dept: row.dept }]
+);
+
+const DRAFT_TAB_SORT = { key: 'updatedDate', direction: 'desc' };
+
+/** Sort key for แท็บที่ร่างไว้ — user drafts use ISO `draftSavedAt`. */
+const consentFormUpdatedAtMs = (row) => {
+  if (row.draftSavedAt) {
+    const t = Date.parse(row.draftSavedAt);
+    if (!Number.isNaN(t)) return t;
+  }
+  return typeof row.id === 'number' ? row.id : 0;
+};
+
+const sortRowsByUpdatedDate = (rows, direction = 'desc') => {
+  const sign = direction === 'desc' ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const ta = consentFormUpdatedAtMs(a);
+    const tb = consentFormUpdatedAtMs(b);
+    if (ta !== tb) return sign * (ta - tb);
+    return sign * ((b.id ?? 0) - (a.id ?? 0));
+  });
+};
 
 const TEXT_CELL = {
   color: 'var(--text-content-default)',
@@ -61,123 +93,32 @@ const Cell = ({ value }) =>
     ? <span style={TEXT_CELL}>{value}</span>
     : <span style={MUTED_CELL}>-</span>;
 
-/* One Group Policy · สาขาย่อย · แผนก triplet — Figma popover "Group"
-   (291:254663): magenta badge · dot · blue badge · dot · grey badge. */
-const ScopeTripletRow = ({ scope }) => (
-  <div className='flex items-center' style={{ gap: 'var(--dim-space-100)' }}>
-    <ColorfulBadge style='magenta' size='small' hierarchy='secondary' width='hug'>{scope.group}</ColorfulBadge>
-    <span style={{ color: 'var(--text-content-quaternary)', fontSize: 'var(--type-size-xs)', lineHeight: 1.5 }}>•</span>
-    <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{scope.subBranch}</ColorfulBadge>
-    <span style={{ color: 'var(--text-content-quaternary)', fontSize: 'var(--type-size-xs)', lineHeight: 1.5 }}>•</span>
-    <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{scope.dept}</ColorfulBadge>
-  </div>
+/* Group Policy — เปิด popup ดูรายละเอียด */
+const ScopeCell = ({ row, onView }) => (
+  <NeutralSubdueButton
+    leadingIcon='groups'
+    variant='outline'
+    size='sm'
+    onClick={() => onView(row)}
+  >
+    ดู Group policy
+  </NeutralSubdueButton>
 );
 
-/* "+N เพิ่มเติม" hint → floating popover listing every scope as a triplet.
-   Figma 291:254663: white card · p-12 · radius-8 · Drop Shadow Bottom/400.
-   Rendered via portal + fixed positioning so the scrolling/overflow table
-   container never clips it. */
-const ScopePopover = ({ scopes, moreCount }) => {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState(null);
-  const btnRef = useRef(null);
-  const popRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDoc = (e) => {
-      if (popRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return;
-      setOpen(false);
-    };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    const onScroll = () => setOpen(false);
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onScroll);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onScroll);
-    };
-  }, [open]);
-
-  const toggle = () => {
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 6, left: r.left });
-    }
-    setOpen((v) => !v);
-  };
-
-  return (
-    <>
-      <button
-        ref={btnRef}
-        type='button'
-        onClick={toggle}
-        aria-haspopup='dialog'
-        aria-expanded={open}
-        style={{
-          ...MUTED_CELL,
-          fontSize: 'var(--type-size-xs)',
-          background: 'none',
-          border: 0,
-          padding: 0,
-          cursor: 'pointer',
-          textAlign: 'left',
-          color: open ? 'var(--text-brandPrimary-default)' : 'var(--text-content-tertiary)',
-          transition: 'color 120ms ease',
-        }}
-      >
-        +{moreCount} เพิ่มเติม
-      </button>
-      {open && pos && createPortal(
-        <div
-          ref={popRef}
-          role='dialog'
-          aria-label='ขอบเขตการใช้งานแบบฟอร์ม'
-          style={{
-            position: 'fixed',
-            top: pos.top,
-            left: pos.left,
-            zIndex: 'var(--sm-z-overlay, 40)',
-            background: 'var(--surface-card-100, #FFFFFF)',
-            borderRadius: 'var(--dim-radius-200)',
-            boxShadow: 'var(--shadow-dropdown)',
-            padding: 'var(--dim-space-300)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--dim-space-200)',
-            maxWidth: 380,
-          }}
-        >
-          {scopes.map((s, i) => <ScopeTripletRow key={i} scope={s} />)}
-        </div>,
-        document.body,
-      )}
-    </>
-  );
-};
-
-/* Group Policy · สาขาย่อย · แผนก cell — primary scope inline (group + subBranch
-   badge, plain dept) + a "+N เพิ่มเติม" popover trigger when there are more. */
-const ScopeCell = ({ row }) => (
-  <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
-    <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100)' }}>
-      <ColorfulBadge style={GROUP_TONE[row.group] || 'grey'} size='small' hierarchy='secondary' width='hug'>{row.group}</ColorfulBadge>
-      <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{row.subBranch}</ColorfulBadge>
-      <span style={{ ...MUTED_CELL }}>{row.dept}</span>
-    </div>
-    {row.moreCount > 0 && (
-      <ScopePopover scopes={row.scopes} moreCount={row.moreCount} />
-    )}
-  </div>
+/* ตำแหน่งที่มีสิทธิเข้าถึงได้ — เปิด popup ดู/แก้ไข */
+const PositionCell = ({ row, onView }) => (
+  <NeutralSubdueButton
+    leadingIcon='badge'
+    variant='outline'
+    size='sm'
+    onClick={() => onView(row)}
+  >
+    ดูตำแหน่ง
+  </NeutralSubdueButton>
 );
 
 /* Cover illustration baked from Figma (PHCIS | Consent 356:111486). */
-const GRID_COVER = '/illustration/consent/form-cover-01.svg';
+const GRID_COVER = '/illustration/consent/form-cover-01.png';
 
 /* Hide the grid carousel rows' scrollbars (idempotent module-load injection). */
 if (typeof document !== 'undefined' && !document.getElementById('mih-grid-row-style')) {
@@ -199,7 +140,6 @@ const FormGridCard = ({ row, onView, onEdit }) => (
     </div>
     <div className='flex flex-col' style={{ padding: 'var(--dim-space-400)', gap: 'var(--dim-space-300)' }}>
       <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100)' }}>
-        <ColorfulBadge style={FORM_TYPE_TONE[row.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>{row.type}</ColorfulBadge>
         <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>{row.version.replace(/^V\s*/, '')}</ColorfulBadge>
       </div>
       <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
@@ -215,15 +155,8 @@ const FormGridCard = ({ row, onView, onEdit }) => (
   </div>
 );
 
-/* Subtitle copy per Consent type (Figma group header). */
-const TYPE_SUBTITLE = {
-  'การวิจัย': 'หนังสือยินยอมสำหรับการเข้าร่วมโครงการวิจัยในมนุษย์',
-  'บันทึกภาพ/สื่อ': 'หนังสือยินยอมการบันทึกภาพและสื่อเพื่อการศึกษา',
-  'การรักษา': 'หนังสือยินยอมสำหรับการรักษาและบริการทางการแพทย์',
-  'ผ่าตัด': 'หนังสือยินยอมสำหรับการรักษาและหัตถการทางการแพทย์',
-  'วัคซีน': 'หนังสือยินยอมสำหรับการรับวัคซีนและการสร้างเสริมภูมิคุ้มกัน',
-  'PDPA': 'หนังสือยินยอมการเปิดเผยและคุ้มครองข้อมูลส่วนบุคคล',
-};
+/* Subtitle copy for grid group header. */
+const GROUP_SUBTITLE = 'หนังสือยินยอมเปิดเผยข้อมูลส่วนบุคคล (PDPA)';
 
 /* One Consent-type group — white card with a header (icon · title · type badge ·
    count · subtitle · ดูทั้งหมด) and a horizontal carousel of form cards. */
@@ -240,12 +173,12 @@ const GroupSection = ({ type, rows, onView, onEdit, onSeeAll, cardStyle }) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
           <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
             <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', lineHeight: 1.4 }}>
-              แบบฟอร์มยินยอมประเภท{type}
+              แบบฟอร์มยินยอมเปิดเผยข้อมูล
             </span>
-            <ColorfulBadge style={FORM_TYPE_TONE[type] || 'grey'} size='small' hierarchy='secondary' width='hug'>{type}</ColorfulBadge>
+            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>PDPA</ColorfulBadge>
             <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>{rows.length} แบบฟอร์ม</ColorfulBadge>
           </div>
-          <span className='truncate' style={{ ...MUTED_CELL }}>{TYPE_SUBTITLE[type] || 'หนังสือยินยอมสำหรับบริการทางการแพทย์'}</span>
+          <span className='truncate' style={{ ...MUTED_CELL }}>{GROUP_SUBTITLE}</span>
         </div>
       </div>
       <NeutralSubdueButton trailingIcon='chevron_right' size='sm' onClick={onSeeAll}>ดูทั้งหมด</NeutralSubdueButton>
@@ -260,31 +193,71 @@ const GroupSection = ({ type, rows, onView, onEdit, onSeeAll, cardStyle }) => (
 
 export default function ConsentFormsPage() {
   const navigate = useHistory();
-  const [activeTab, setActiveTab] = useState('review');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = new URLSearchParams(location.search || '').get('tab');
+    return tab && CONSENT_FORM_TABS.some((t) => t.value === tab) ? tab : 'review';
+  });
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('');
   const [filterGroup, setFilterGroup] = useState('');
   const [filterSubBranch, setFilterSubBranch] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterCreator, setFilterCreator] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterDate, setFilterDate] = useState({ quick: 'thisyear' });
+  const [filterDate, setFilterDate] = useState({ quick: 'thismonth' });
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [page, setPage] = useState(1);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState(() => {
+    const tab = new URLSearchParams(location.search || '').get('tab');
+    return tab === 'draft' ? DRAFT_TAB_SORT : { key: null, direction: 'asc' };
+  });
   /* ด.1.1.5 Version Control + ด.1.1.15 ดาวน์โหลด PDF */
   const [versionFor, setVersionFor] = useState(null);   // record → VersionHistoryPopup
   const [bumpFor, setBumpFor] = useState(null);         // published record → บังคับ bump
   const [editFor, setEditFor] = useState(null);         // { record, newVersion } → ConsentFormEditPopup
   const [viewFor, setViewFor] = useState(null);         // record → ConsentFormViewPopup
+  const [scopeViewFor, setScopeViewFor] = useState(null); // record → FormScopeViewPopup
+  const [positionViewFor, setPositionViewFor] = useState(null); // record → FormPositionViewPopup
+  const [scopeSaveRev, setScopeSaveRev] = useState(0);
+  const [positionSaveRev, setPositionSaveRev] = useState(0);
   const [toast, setToast] = useState(null);
+  const [draftRev, setDraftRev] = useState(0);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:consent-forms');
+
+  useEffect(() => {
+    const refresh = () => setDraftRev((v) => v + 1);
+    window.addEventListener('storage', refresh);
+    window.addEventListener(CONSENT_FORM_DRAFTS_EVENT, refresh);
+    return () => {
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener(CONSENT_FORM_DRAFTS_EVENT, refresh);
+    };
+  }, []);
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search || '').get('tab');
+    if (tab && CONSENT_FORM_TABS.some((t) => t.value === tab)) {
+      setActiveTab(tab);
+      setPage(1);
+      if (tab === 'draft') setSortConfig(DRAFT_TAB_SORT);
+    }
+  }, [location.search]);
+
+  const allRecords = useMemo(
+    () => getMergedConsentFormRecords(CONSENT_FORM_RECORDS),
+    [draftRev],
+  );
+
+  const summaryCards = useMemo(
+    () => buildConsentFormSummary(allRecords),
+    [allRecords],
+  );
 
   const searchSuggestions = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return [];
-    return CONSENT_FORM_RECORDS
+    return allRecords
       .filter((r) => `${r.code} ${r.name} ${r.group || ''} ${r.type || ''}`.toLowerCase().includes(q))
       .slice(0, 8)
       .map((r) => ({
@@ -294,32 +267,28 @@ export default function ConsentFormsPage() {
         sublabel: [r.code, r.type, r.group].filter(Boolean).join(' · '),
         badges: [{ label: r.code, tone: 'teal' }],
       }));
-  }, [search]);
+  }, [search, allRecords]);
 
   const tabs = useMemo(() => CONSENT_FORM_TABS.map((t) => ({
     key: t.value,
     label: t.label,
     icon: t.icon,
     count: t.value === 'all'
-      ? CONSENT_FORM_RECORDS.length
-      : CONSENT_FORM_RECORDS.filter((r) => (CONSENT_FORM_STATUS[r.status] || {}).tab === t.value).length,
-  })), []);
+      ? allRecords.length
+      : allRecords.filter((r) => (CONSENT_FORM_STATUS[r.status] || {}).tab === t.value).length,
+  })), [allRecords]);
 
-  const typeOptions = useMemo(() => [
-    { value: '', label: 'ทุกประเภท' },
-    ...[...new Set(CONSENT_FORM_RECORDS.map((r) => r.type))].map((t) => ({ value: t, label: t })),
-  ], []);
   const groupOptions = useMemo(() => [
     { value: '', label: 'ทุกกลุ่ม' },
-    ...[...new Set(CONSENT_FORM_RECORDS.map((r) => r.group))].map((g) => ({ value: g, label: g })),
+    ...CONSENT_SCOPE_TREE.map((g) => ({ value: g.group, label: g.group })),
   ], []);
   const subBranchOptions = useMemo(() => [
     { value: '', label: 'ทุกสาขาย่อย' },
-    ...[...new Set(CONSENT_FORM_RECORDS.map((r) => r.subBranch))].map((s) => ({ value: s, label: s })),
+    ...CONSENT_SCOPE_TREE.flatMap((g) => g.subBranches.map((s) => ({ value: s, label: s }))),
   ], []);
   const deptOptions = useMemo(() => [
     { value: '', label: 'ทุกแผนก' },
-    ...[...new Set(CONSENT_FORM_RECORDS.map((r) => r.dept))].map((d) => ({ value: d, label: d })),
+    ...CONSENT_SCOPE_DEPTS.map((d) => ({ value: d, label: d })),
   ], []);
   const statusOptions = useMemo(() => [
     { value: '', label: 'ทุกสถานะ' },
@@ -327,26 +296,55 @@ export default function ConsentFormsPage() {
   ], []);
   const creatorOptions = useMemo(() => [
     { value: '', label: 'ทุกคน' },
-    ...[...new Set(CONSENT_FORM_RECORDS.map((r) => r.creator))].map((c) => ({ value: c, label: c })),
-  ], []);
+    ...[...new Set(allRecords.map((r) => r.creator))].map((c) => ({ value: c, label: c })),
+  ], [allRecords]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return CONSENT_FORM_RECORDS.filter((r) => {
+    return allRecords.filter((r) => {
       const meta = CONSENT_FORM_STATUS[r.status] || {};
+      const scopes = recordScopes(r);
       return (
         (activeTab === 'all' || meta.tab === activeTab) &&
-        (!filterType || r.type === filterType) &&
-        (!filterGroup || r.group === filterGroup) &&
-        (!filterSubBranch || r.subBranch === filterSubBranch) &&
-        (!filterDept || r.dept === filterDept) &&
+        (!filterGroup || scopes.some((s) => s.group === filterGroup)) &&
+        (!filterSubBranch || scopes.some((s) => s.subBranch === filterSubBranch)) &&
+        (!filterDept || scopes.some((s) => s.dept === filterDept)) &&
         (!filterStatus || r.status === filterStatus) &&
         (!filterCreator || r.creator === filterCreator) &&
         matchesDateFilter(r.createdDate, filterDate) &&
         (!q || r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || (r.group || '').toLowerCase().includes(q))
       );
     });
-  }, [activeTab, search, filterType, filterGroup, filterSubBranch, filterDept, filterStatus, filterCreator, filterDate]);
+  }, [activeTab, search, filterGroup, filterSubBranch, filterDept, filterStatus, filterCreator, filterDate, scopeSaveRev, positionSaveRev, allRecords]);
+
+  const handleScopeSave = (row, scopes) => {
+    const primary = scopes[0];
+    Object.assign(row, {
+      scopes,
+      group: primary?.group ?? row.group,
+      subBranch: primary?.subBranch ?? row.subBranch,
+      dept: primary?.dept ?? row.dept,
+      moreCount: Math.max(0, scopes.length - 1),
+    });
+    setScopeViewFor({ ...row, scopes });
+    setScopeSaveRev((v) => v + 1);
+    setToast({
+      id: Date.now(),
+      variant: 'success',
+      message: 'บันทึก Group Policy / สาขาย่อย / แผนก ที่เข้าถึงได้แล้ว',
+    });
+  };
+
+  const handlePositionSave = (row, positions) => {
+    Object.assign(row, { positions: [...positions] });
+    setPositionViewFor({ ...row, positions: [...positions] });
+    setPositionSaveRev((v) => v + 1);
+    setToast({
+      id: Date.now(),
+      variant: 'success',
+      message: 'บันทึกตำแหน่งที่มีสิทธิเข้าถึงได้แล้ว',
+    });
+  };
 
   const handleSort = (key) => setSortConfig((prev) => (
     prev.key === key
@@ -358,6 +356,11 @@ export default function ConsentFormsPage() {
     const { key, direction } = sortConfig;
     const sign = direction === 'desc' ? -1 : 1;
     const copy = filtered.slice();
+
+    if (activeTab === 'draft' && (!key || key === 'updatedDate')) {
+      return sortRowsByUpdatedDate(copy, key ? direction : 'desc');
+    }
+
     if (!key) return copy.sort((a, b) => a.id - b.id);
     copy.sort((a, b) => {
       const av = String(a[key] ?? ''); const bv = String(b[key] ?? '');
@@ -365,17 +368,12 @@ export default function ConsentFormsPage() {
       return primary !== 0 ? sign * primary : a.id - b.id;
     });
     return copy;
-  }, [filtered, sortConfig]);
+  }, [filtered, sortConfig, activeTab]);
 
-  /* Grid mode groups the FULL filtered list by Consent type (Figma 336:170901). */
-  const grouped = useMemo(() => {
-    const map = new Map();
-    sorted.forEach((r) => {
-      if (!map.has(r.type)) map.set(r.type, []);
-      map.get(r.type).push(r);
-    });
-    return [...map.entries()].map(([type, rows]) => ({ type, rows }));
-  }, [sorted]);
+  /* Grid mode — แบบฟอร์ม PDPA ทั้งหมดใน carousel เดียว */
+  const grouped = useMemo(() => (
+    sorted.length ? [{ type: 'PDPA', rows: sorted }] : []
+  ), [sorted]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -396,6 +394,10 @@ export default function ConsentFormsPage() {
 
   /* แก้ไข: เทมเพลตที่เผยแพร่แล้วบังคับ bump — ร่าง/รอตรวจสอบแก้ตรงได้ — เปิด popup */
   const handleEdit = (row) => {
+    if (row.isUserDraft) {
+      navigate.push(`/consent/forms/new?draftId=${row.id}`);
+      return;
+    }
     if (row.status === 'เผยแพร่') setBumpFor(row);
     else setEditFor({ record: row, newVersion: false });
   };
@@ -412,44 +414,69 @@ export default function ConsentFormsPage() {
   };
 
   const renderAction = (row) => (
-    <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-150)' }}>
+    <div
+      className='flex items-center justify-end flex-nowrap shrink-0'
+      style={{ gap: 'var(--dim-space-150)' }}
+    >
       <NeutralSubdueIconButton icon='visibility' variant='outline' size='sm' aria-label='ดูแบบฟอร์ม' title='ดูแบบฟอร์ม' onClick={() => setViewFor(row)} />
       {/* แชร์/ส่งออกทางอีเมล — ซ่อนไว้จนกว่าฟีเจอร์จะเผยแพร่ */}
       <NeutralSubdueIconButton icon='history' variant='outline' size='sm' aria-label='ประวัติเวอร์ชัน' title='ประวัติเวอร์ชัน (Version Control)' onClick={() => setVersionFor(row)} />
       <NeutralSubdueIconButton icon='download' variant='outline' size='sm' aria-label='ดาวน์โหลด PDF' title='ดาวน์โหลด PDF (เก็บ log)' onClick={() => handleDownloadPdf(row)} />
       <NeutralSubdueIconButton icon='print' variant='outline' size='sm' aria-label='พิมพ์' title='พิมพ์ (ไม่เก็บ log)' onClick={() => window.print?.()} />
-      <NeutralSubdueButton leadingIcon='edit' size='sm' onClick={() => handleEdit(row)}>แก้ไข</NeutralSubdueButton>
+      <NeutralSubdueButton leadingIcon='edit' size='sm' className='shrink-0' onClick={() => handleEdit(row)}>แก้ไข</NeutralSubdueButton>
     </div>
   );
 
-  /* Column widths — ชื่อแบบฟอร์ม flex so long TH/EN titles aren't clipped. */
-  const columns = useMemo(() => [
-    { key: 'code', header: 'รหัสแบบฟอร์ม', width: 128, sortable: true, render: (r) => <Cell value={r.code} /> },
-    {
-      key: 'name', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 420, sortable: true,
-      render: (r) => (
-        <div className='min-w-0 w-full' style={TEXT_CELL}>
-          <EllipsisText text={r.name || '-'} />
-        </div>
-      ),
-    },
-    {
-      key: 'type', header: 'ประเภท', width: 160, sortable: true,
-      render: (r) => <ColorfulBadge style={FORM_TYPE_TONE[r.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.type}</ColorfulBadge>,
-    },
-    {
-      key: 'version', header: 'เวอร์ชั่น', width: 96,
-      render: (r) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{r.version}</ColorfulBadge>,
-    },
-    { key: 'group', header: 'Group Policy / สาขาย่อย / แผนก', width: 384, render: (r) => <ScopeCell row={r} /> },
-    { key: 'updatedDate', header: 'วันที่อัปเดตล่าสุด', width: 160, sortable: true, render: (r) => <Cell value={r.updatedDate} /> },
-    { key: 'creator', header: 'ผู้สร้าง', width: 128, render: (r) => <Cell value={r.creator} /> },
-    {
-      key: 'status', header: 'สถานะ', width: 128, sortable: true,
-      render: (r) => <ColorfulBadge style={(CONSENT_FORM_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>,
-    },
-    { key: 'action', header: 'การดำเนินการ', width: 224, render: renderAction },
-  ], []);
+  /* Column widths — ชื่อแบบฟอร์ม fixed; EllipsisText + tooltip สำหรับชื่อยาว.
+     แท็บ "ที่ร่างไว้" — วันที่อัปเดตล่าสุดอยู่คอลัมน์แรก. */
+  const columns = useMemo(() => {
+    const updatedDateCol = {
+      key: 'updatedDate',
+      header: 'วันที่อัปเดตล่าสุด',
+      width: 160,
+      sortable: true,
+      render: (r) => <Cell value={r.updatedDate} />,
+    };
+    const leading = [
+      { key: 'code', header: 'รหัสแบบฟอร์ม', width: 128, sortable: true, render: (r) => <Cell value={r.code} /> },
+      {
+        key: 'name', header: 'ชื่อแบบฟอร์ม', width: 400, sortable: true,
+        render: (r) => (
+          <div className='min-w-0 w-full' style={TEXT_CELL}>
+            <EllipsisText text={r.name || '-'} />
+          </div>
+        ),
+      },
+      {
+        key: 'version', header: 'เวอร์ชั่น', width: 96,
+        render: (r) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{r.version}</ColorfulBadge>,
+      },
+      {
+        key: 'group',
+        header: 'Group Policy / สาขาย่อย / แผนก ที่เข้าถึงได้',
+        width: 280,
+        render: (r) => <ScopeCell row={r} onView={setScopeViewFor} />,
+      },
+      {
+        key: 'positions',
+        header: 'ตำแหน่งที่มีสิทธิเข้าถึงได้',
+        width: 220,
+        render: (r) => <PositionCell row={r} onView={setPositionViewFor} />,
+      },
+    ];
+    const trailing = [
+      { key: 'creator', header: 'ผู้สร้าง', width: 128, render: (r) => <Cell value={r.creator} /> },
+      {
+        key: 'status', header: 'สถานะ', width: 128, sortable: true,
+        render: (r) => <ColorfulBadge style={(CONSENT_FORM_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>,
+      },
+      { key: 'action', header: 'การดำเนินการ', width: 304, minWidth: 304, render: renderAction },
+    ];
+    if (activeTab === 'draft') {
+      return [updatedDateCol, ...leading, ...trailing];
+    }
+    return [...leading, updatedDateCol, ...trailing];
+  }, [activeTab]);
 
   return (
     <>
@@ -467,7 +494,7 @@ export default function ConsentFormsPage() {
       )}
       headerInfo={(
         <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-          {CONSENT_FORM_SUMMARY.map((c) => (
+          {summaryCards.map((c) => (
             <SummaryCard key={c.key} card={c} variant='panel' />
           ))}
         </section>
@@ -477,6 +504,8 @@ export default function ConsentFormsPage() {
       onTabChange={(key) => {
         setActiveTab(key);
         setPage(1);
+        if (key === 'draft') setSortConfig(DRAFT_TAB_SORT);
+        else if (sortConfig.key === 'updatedDate') setSortConfig({ key: null, direction: 'asc' });
         if (key !== 'all') setFilterStatus('');
       }}
     >
@@ -498,7 +527,6 @@ export default function ConsentFormsPage() {
 
           <div className='w-full flex items-start' style={{ gap: 'var(--dim-space-300)' }}>
             <div className='flex items-center flex-wrap min-w-0 flex-1' style={{ gap: 'var(--dim-space-200)' }}>
-              <FilterDropdown prefix='ประเภท:' options={typeOptions} value={filterType} onChange={(v) => { setFilterType(v); setPage(1); }} />
               <FilterDropdown prefix='Group Policy:' options={groupOptions} value={filterGroup} onChange={(v) => { setFilterGroup(v); setPage(1); }} />
               <FilterDropdown prefix='สาขาย่อย:' options={subBranchOptions} value={filterSubBranch} onChange={(v) => { setFilterSubBranch(v); setPage(1); }} />
               <FilterDropdown prefix='แผนก:' options={deptOptions} value={filterDept} onChange={(v) => { setFilterDept(v); setPage(1); }} />
@@ -528,6 +556,7 @@ export default function ConsentFormsPage() {
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 stickyColCount={2}
+                trailingInset='var(--dim-space-400, 16px)'
                 /* Pin under sticky SubHeader + tabs — offset tracks Topbar
                    auto-hide via --mih-queue-sticky-under-tabs (QueuePageShell). */
                 stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
@@ -573,16 +602,33 @@ export default function ConsentFormsPage() {
       onToast={setToast}
     />
 
+    <FormScopeViewPopup
+      open={!!scopeViewFor}
+      record={scopeViewFor}
+      onClose={() => setScopeViewFor(null)}
+      onSave={handleScopeSave}
+    />
+
+    <FormPositionViewPopup
+      open={!!positionViewFor}
+      record={positionViewFor}
+      onClose={() => setPositionViewFor(null)}
+      onSave={handlePositionSave}
+    />
+
     {/* ด.1.1.5 — timeline เวอร์ชัน + สร้างเวอร์ชันใหม่ */}
     <VersionHistoryPopup
       open={!!versionFor}
       record={versionFor}
       onClose={() => setVersionFor(null)}
       onCreateVersion={(row) => { setVersionFor(null); goCreateVersion(row); }}
+      onRestoreVersion={() => setVersionFor(null)}
+      onToast={setToast}
     />
 
     {/* แก้ไข / สร้างเวอร์ชันใหม่ — wizard ใน popup (ไม่เปิดแท็บใหม่) */}
     <ConsentFormEditPopup
+      key={editFor ? `${editFor.record.id}-${editFor.newVersion ? 'nv' : 'edit'}` : 'closed'}
       open={!!editFor}
       record={editFor?.record || null}
       newVersion={!!editFor?.newVersion}
@@ -593,7 +639,7 @@ export default function ConsentFormsPage() {
           variant: 'success',
           message: newVersion
             ? `เผยแพร่ ${code} เวอร์ชัน ${ver} แล้ว`
-            : `บันทึกการแก้ไข ${code} แล้ว`,
+            : `บันทึกการแก้ไข ${code} แล้ว (เวอร์ชัน ${ver})`,
         });
       }}
     />

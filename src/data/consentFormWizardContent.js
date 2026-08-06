@@ -2,43 +2,12 @@
    creating a new version (ด.1.1.5). Registry rows in consentFormRecords.js
    carry list metadata only; full Step 1–2 state lives here per form id. */
 
-import { bumpVersion } from '@/pages/consent/consentVersionHistory';
-
-const GROUP_LABEL_TO_VALUE = {
-  แพทย์: 'doctor',
-  พยาบาล: 'nurse',
-  เภสัชกร: 'pharmacist',
-};
-
-const SUB_BRANCH_LABEL_TO_VALUE = {
-  'แพทย์ทั่วไป': 'gp',
-  'แพทย์เฉพาะทาง': 'specialist',
-  ทันตแพทย์: 'dentist',
-  'แพทย์แผนไทย': 'thai-med',
-  'พยาบาลวิชาชีพ': 'rn',
-  'ห้องฉุกเฉิน': 'er-nurse',
-  'พยาบาลเวชปฏิบัติ': 'np',
-  'เภสัชกรคลินิก': 'clin-pharm',
-};
-
-const DEPT_LABEL_TO_VALUE = {
-  'ผู้ป่วยนอก': 'opd',
-  'พยาบาลวิชาชีพ': 'nursing',
-  ทันตกรรม: 'dental',
-  'แพทย์แผนไทย': 'thai-med',
-  อายุรแพทย์: 'opd',
-  เภสัชกรรม: 'pharmacy',
-  'ส่งเสริมสุขภาพ': 'promotion',
-  'สุขภาพจิต': 'mental',
-};
+import { resolveNextConsentFormVersion } from '@/data/consentFormVersion';
+import { stripConsentScopes } from '@/data/consentFormScopes';
 
 const TYPE_TO_TEMPLATE = {
-  'การวิจัย': 'research',
-  'บันทึกภาพ/สื่อ': 'media',
-  'การรักษา': 'treatment',
-  'ผ่าตัด': 'surgical',
-  วัคซีน: 'vaccine',
   PDPA: 'data',
+  'เบิกจ่าย': 'data',
 };
 
 const COMMON_CLAUSES = [
@@ -95,11 +64,8 @@ const TTL_BY_TYPE = {
   vaccine: '90',
 };
 
-const mapLabels = (labels, table) =>
-  [...new Set((labels || []).map((l) => table[l]).filter(Boolean))];
-
 const buildSections = (record) => {
-  const templateKey = TYPE_TO_TEMPLATE[record.type] || 'treatment';
+  const templateKey = TYPE_TO_TEMPLATE[record.type] || 'data';
   const lead = LEAD_BY_TYPE[templateKey] || DEFAULT_LEAD;
   return [...lead, ...COMMON_CLAUSES].map((c, i) => ({
     id: `cs-${record.id}-${i}`,
@@ -112,11 +78,10 @@ const buildSections = (record) => {
 /** Full Step 1–2 wizard state derived from a registry row. */
 export const buildWizardDraftFromRecord = (record) => {
   if (!record) return null;
-  const templateKey = TYPE_TO_TEMPLATE[record.type] || 'treatment';
-  const scopes = record.scopes || [{ group: record.group, subBranch: record.subBranch, dept: record.dept }];
-  const groupPolicy = mapLabels(scopes.map((s) => s.group), GROUP_LABEL_TO_VALUE);
-  const subBranch = mapLabels(scopes.map((s) => s.subBranch), SUB_BRANCH_LABEL_TO_VALUE);
-  const dept = mapLabels(scopes.map((s) => s.dept), DEPT_LABEL_TO_VALUE);
+  const templateKey = TYPE_TO_TEMPLATE[record.type] || 'data';
+  const scopes = stripConsentScopes(
+    record.scopes || [{ group: record.group, subBranch: record.subBranch, dept: record.dept }],
+  );
 
   return {
     template: templateKey,
@@ -127,16 +92,14 @@ export const buildWizardDraftFromRecord = (record) => {
     typeLabel: record.type,
     version: record.version,
     ttl: TTL_BY_TYPE[templateKey] || '30',
-    groupPolicy: groupPolicy.length ? groupPolicy : ['nurse'],
-    subBranch: subBranch.length ? subBranch : ['rn'],
-    dept: dept.length ? dept : ['opd'],
+    accessScopes: scopes,
     position: ['practitioner', 'dept-head'],
     docTitle: record.name,
     patientFields: ['name', 'hn', 'doctor', 'birth'],
     sections: buildSections(record),
-    signatures: record.type === 'การวิจัย' ? ['patient', 'doctor', 'witness'] : ['patient', 'doctor'],
+    signatures: ['patient', 'doctor'],
     note: 'เอกสารนี้มีอายุตามที่ระบุในอายุการใช้งาน นับจากวันที่ลงนาม',
-    requireGuardian: record.type === 'การรักษา' && record.name.includes('โรงเรียน'),
+    requireGuardian: false,
     allowESign: true,
   };
 };
@@ -149,7 +112,9 @@ export const buildWizardPrefillFromRecord = (record, { newVersion = false } = {}
     ...draft,
     supersedeType: newVersion ? record.type : undefined,
     fromVersion: newVersion ? record.version : undefined,
-    version: newVersion ? bumpVersion(record.version) : record.version,
+    version: newVersion
+      ? resolveNextConsentFormVersion({ mode: 'major', fromVersion: record.version })
+      : record.version,
     sourceFormId: record.id,
     isNewVersion: newVersion,
   };

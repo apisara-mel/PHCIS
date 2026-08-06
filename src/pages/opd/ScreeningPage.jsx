@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
-import Header from '@/components/layout/Header';
+import Header, { SubHeader } from '@/components/layout/Header';
 import PatientCard from '@/components/card/PatientCard';
-import StepProgress from '@/components/step/StepProgress';
+import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import { useStepDirection } from '@/components/step/stepTransition';
 import AllergyForm from '@/components/forms/AllergyForm';
 import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
@@ -1079,34 +1079,18 @@ const ScreeningPage = () => {
     <div className='min-h-screen w-full flex bg-brand-50'>
       <Sidebar activeKey='opd' />
       <main className='flex-1 flex flex-col min-w-0'>
-        <Header />
-        <PatientCard sticky patient={patient} onBack={handleBack} />
-        {/* User-gesture dirty proxy — scoped to the StepBody subtree
-            so StepProgress's step-navigation buttons do NOT leak
-            through and false-positive the dirty flag (which would
-            enable the "ถัดไป" button before any real user input).
-
-            We listen on `onKeyDown` and `onPointerDown` instead of
-            `onInput` / `onChange` / `onClick` because:
-              • `keydown` and `pointerdown` originate ONLY from real
-                user input devices. They never fire from React mount,
-                programmatic state updates, browser autofill, or
-                `dispatchEvent` calls from third-party libraries.
-              • `input` / `change` events, by contrast, are routinely
-                dispatched by autofill engines and some controlled-
-                input libraries on mount — which previously kept the
-                footer's Next button enabled before the clinician had
-                touched anything.
-
-            For pointer presses we additionally require an ancestor
-            with `aria-pressed` so only SelectableCardButton-style
-            chips (Pain / Triage / Care orders / Cert) flip the flag.
-            Voice mic, expand chevrons, etc. do NOT carry aria-pressed
-            and therefore stay invisible to the dirty proxy.
-
-            `markDirty` itself also checks `event.isTrusted` as a
-            belt-and-braces guard against any future event source we
-            haven't anticipated.                                     */}
+        <Header standalone={false} />
+        <SubHeader title='คัดกรองและซักประวัติ' hideBottomBorder />
+        <PatientCard sticky patient={patient} embedded />
+        <RecordWizardMorphBand
+          title='คัดกรองและซักประวัติ'
+          hideTitle
+          steps={STEPS}
+          current={current}
+          completedSteps={completedSteps}
+          onStepClick={setCurrent}
+          stickyTop={MORPH_STICKY_BELOW_PATIENT}
+        />
         <div className='p-3 md:p-6 flex-1'>
           {/* Read-only banner (TOR 1.2.2.2 — อ่านอย่างเดียว mode) */}
           {readOnlyMode && (
@@ -1210,13 +1194,6 @@ const ScreeningPage = () => {
             }}
             aria-disabled={readOnlyMode || undefined}
           >
-            <StepProgress
-              framed
-              steps={STEPS}
-              current={current}
-              completedSteps={completedSteps}
-              onStepClick={setCurrent}
-            />
             <div
               onKeyDown={markDirty}
               onPointerDown={(e) => {
@@ -1263,7 +1240,9 @@ const ScreeningPage = () => {
           sticky
           showAutoSave
           autoSaveText='ร่างแบบฟอร์ม (บันทึกล่าสุด: 2 นาทีที่แล้ว)'
-          showButton3 button3Label='ยกเลิก'         onButton3Click={goPrev}
+          showButton3
+          button3Label={current === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}
+          onButton3Click={current === 0 ? handleBack : goPrev}
           /* "บันทึกร่าง" is ALWAYS visible so its location is discoverable
              and the footer doesn't reflow on first edit. We disable it
              instead until ANY step has been touched (`anyDirty`) —

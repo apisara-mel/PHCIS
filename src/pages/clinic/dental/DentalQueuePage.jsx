@@ -26,6 +26,7 @@ import {
   getDentalScheduledNotArrived,
   checkInDentalAppointment,
 } from '@/data/dentalVisits';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* DentalQueuePage — คิวทันตกรรม (TOR 1.10.1.1), /clinic/dental.
    Mirrors the ANC queue page (AncQueuePage.jsx) near-verbatim — same
@@ -114,14 +115,12 @@ const renderQueue = (row) => (
 
 const renderName = (row) => (
   <span className='inline-flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
-    <Link
-      to={{ pathname: '/clinic/dental/record', state: { hn: row.hn, queue: row.queue, name: row.name } }}
-      className='min-w-0 truncate hover:underline'
-      style={{ color: 'var(--text-neutral-default)', fontWeight: 'var(--type-weight-medium)', textDecoration: 'none' }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {row.name}
-    </Link>
+    <MaskedWorklistName
+      name={row.name}
+      recordKey={row.hn || row.queue}
+      linkTo={{ pathname: '/clinic/dental/record', state: { hn: row.hn, queue: row.queue, name: row.name } }}
+      className='min-w-0 truncate'
+    />
     {/* ข้อมูลลับ flag (§1.4.2) — the record page shows the confidential
         banner / locked no-rights card; the queue only flags the row. */}
     {row.confidential && (

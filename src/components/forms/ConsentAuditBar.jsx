@@ -37,6 +37,7 @@ const GROUP_TONE = {
  * @param {boolean} [showIcon=true]
  * @param {boolean} [showTimestamps=true]
  * @param {boolean} [showFlag=true]
+ * @param {boolean} [showRecordedByLabel=true] — แสดงคำนำหน้า "บันทึกโดย"
  * @param {string} [avatarSrc] — รูปโปรไฟล์เจ้าหน้าที่
  * @param {string} [groupPolicy] — Group Policy ของเจ้าหน้าที่
  */
@@ -49,6 +50,7 @@ export default function ConsentAuditBar({
   showIcon = true,
   showTimestamps = true,
   showFlag = true,
+  showRecordedByLabel = true,
   avatarSrc,
   groupPolicy,
 }) {
@@ -86,7 +88,7 @@ export default function ConsentAuditBar({
           style={{ ...LINE, flex: 1, gap: 'var(--dim-space-200)', minWidth: 200 }}
         >
           <span>
-            บันทึกโดย{' '}
+            {showRecordedByLabel ? <>บันทึกโดย{' '}</> : null}
             <span style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
               {recordedBy}
             </span>

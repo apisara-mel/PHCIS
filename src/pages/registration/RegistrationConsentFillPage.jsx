@@ -28,7 +28,7 @@ import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
    (PHCIS_Registration_Step01_Consent). Two-column shell: form max 640px +
    QR / Patient View panel 448px. Content from PD-1011 / TX-1011 / CL-1011. */
 
-const breadcrumb = ['ระบบงานเวชระเบียน', 'ข้อมูลผู้รับบริการ'];
+const breadcrumb = ['ระบบงานเวชระเบียน', 'ลงทะเบียนผู้รับบริการ'];
 
 const QR_SCAN_ILLUSTRATION = '/illustration/registration/consent-qr-scan.png';
 
@@ -221,10 +221,17 @@ const RegistrationConsentFillPage = () => {
       >
         <Sidebar activeKey='registration' />
         <div className='flex-1 min-w-0 flex flex-col'>
-          <Header breadcrumb={breadcrumb} />
+          <Header breadcrumb={breadcrumb} standalone={false} />
+          <div
+            className='w-full sticky'
+            style={{
+              top: 'var(--mih-topbar-offset, var(--dim-size-1400, 64px))',
+              zIndex: 1101,
+              background: 'var(--surface-navigation-default)',
+            }}
+          >
           <SubHeader
             title={meta.title}
-            onBack={goBack}
             hideBottomBorder
             afterTitle={(
               <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
@@ -256,6 +263,7 @@ const RegistrationConsentFillPage = () => {
               อ่านบัตรสมาร์ทการ์ด
             </BrandPrimaryButton>
           </SubHeader>
+          </div>
 
           <div
             className='flex-1 flex flex-col min-w-0 w-full'

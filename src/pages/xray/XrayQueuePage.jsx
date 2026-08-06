@@ -23,6 +23,7 @@ import {
 import { XRAY_MODALITIES, XRAY_VIEWS, duplicateWarning } from '@/data/xrayCatalog';
 import { XRAY_RADIOLOGISTS, XRAY_RADIOGRAPHERS } from '@/data/xrayResultTemplates';
 import XrayDetailPanel from '@/pages/xray/XrayDetailPanel';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* งานรังสีวินิจฉัย (X-ray) — ลำดับการตรวจผู้ป่วย. The radiology
    department's own working screen: every request the department owes
@@ -571,7 +572,11 @@ const buildColumns = (onAction, dupFor) => [
       <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
         <PatientAvatar patient={row.patient} />
         <div className='flex flex-col min-w-0'>
-          <EllipsisText text={row.patient.shortName} />
+          <MaskedWorklistName
+            name={row.patient.shortName}
+            recordKey={row.hn || row.patient?.hn}
+            className='min-w-0 truncate'
+          />
           <span style={subText}>HN {row.hn} · {row.vn}</span>
         </div>
       </div>

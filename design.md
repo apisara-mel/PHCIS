@@ -1511,9 +1511,11 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.input.require` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
 | `text.primarySearch.default` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
 | `text.primarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `text.primarySearch.focus` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
 | `text.primarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.primarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.secondarySearch.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `text.secondarySearch.focus` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
@@ -1739,16 +1741,18 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `border.input.disabled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.primarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `border.primarySearch.focus` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.primarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.aiSearch.default` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
 | `border.aiSearch.hover` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `border.aiSearch.typing` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `border.aiSearch.filled` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
-| `border.secondarySearch.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `border.secondarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `border.secondarySearch.focus` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.secondarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.secondarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `border.secondarySearch.filled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
+| `border.secondarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.image.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 | `border.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
@@ -1963,16 +1967,18 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `icon.input.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `icon.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `icon.primarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.primarySearch.focus` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `icon.primarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `icon.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `icon.aiSearch.default` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
 | `icon.aiSearch.hover` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `icon.aiSearch.typing` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `icon.aiSearch.filled` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
-| `icon.secondarySearch.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `icon.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `icon.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.secondarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.secondarySearch.focus` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.secondarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.secondarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
+| `icon.secondarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `icon.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `icon.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
 | `icon.brandPrimaryButton.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
@@ -5774,7 +5780,21 @@ Box container border (brand-responsive):
 | Font Weight | `typograpphy/weight/regular` | 400 (Regular) |
 | Font Size | `typograpphy/size/sm` | 14px |
 | Line Height | — | 1.5 |
-| Text Align | — | center |
+| Text Align | — | center (brand) · left (light, multi-line) |
+
+#### 6.8.4a Light variant — multi-line popover
+
+Used for contextual detail on badges/chips (e.g. แพ้ยา · โรคประจำตัว in `PatientCard`). Same white-card tokens as chart hover popovers — **no caret**.
+
+| Property | Rule |
+|----------|------|
+| Variant | `light` on `<Tooltip>` / `<TooltipBubble>` |
+| `maxWidth` | default **320 px** (override per surface) |
+| Wrap | auto — `whiteSpace: normal`, `overflowWrap: break-word`, `wordBreak: break-word` |
+| Align | `text-align: left` inside the bubble |
+| Brand default | stays **single-line** (`whiteSpace: nowrap`, centered) for icon-button hints |
+
+Pass explicit `wrap={false}` on light tooltips only when a one-line clamp is intentional.
 
 #### 6.8.5 Positions & Arrow Rules
 
@@ -7868,7 +7888,7 @@ The Search component ships in **two variants**:
 | Variant | Description | Height | Radius | Figma Node |
 |---------|-------------|--------|--------|------------|
 | **Primary Search** | Full-width pill with brand border. **5 states** — Default · Hover · Focus · Typing · Filled. Typing adds X + submit controls. | `56px` | `9999px` | `2056:4246` |
-| **Secondary Search** | Compact inline input with neutral border, focus ring, clear button | `40px` / `36px` (SM) | `8px` | `305:43` |
+| **Secondary Search** | Compact inline input. **Same 5-state color matrix as Primary Search** (brand border + drop shadow on every state); `40px` / `36px` (SM) height, `8px` radius, clear X when filled. | `40px` / `36px` (SM) | `8px` | `305:43` |
 
 ---
 
@@ -7880,24 +7900,35 @@ All tokens follow the standard 2-layer alias chain:
 Semantic token                      →  Primitive / Brand     →  Resolved value
 ────────────────────────────────────────────────────────────────────────────────
 border/primarySearch/default        →  primary/600           →  var(--border-primarySearch-default)  #08A768
+border/primarySearch/focus          →  primary/600           →  var(--border-primarySearch-focus)    #08A768
 border/primarySearch/hover          →  primary/700           →  var(--border-primarySearch-hover)    #007549
 border/primarySearch/typing         →  primary/700           →  var(--border-primarySearch-typing)   #007549
 border/primarySearch/filled         →  primary/600           →  var(--border-primarySearch-filled)   #08A768
 
-border/secondarySearch/default      →  neutral/300           →  #C9CDD0  (fixed)
-border/secondarySearch/hover        →  primary/600           →  var(--em600)  #08A768  ← not 700
-border/secondarySearch/typing       →  primary/600           →  var(--em600)  #08A768  ← not 700
-border/secondarySearch/filled       →  neutral/300           →  #C9CDD0  (fixed)
-
 text/primarySearch/default          →  neutral/400           →  #ADB2B7  (placeholder)
-text/primarySearch/hover            →  neutral/700           →  #4D5358  (placeholder, hover)
+text/primarySearch/focus            →  neutral/400           →  #ADB2B7  (placeholder, focused empty)
+text/primarySearch/hover            →  neutral/700           →  #4D5358
 text/primarySearch/typing           →  neutral/700           →  #4D5358  (active typed text)
 text/primarySearch/filled           →  neutral/700           →  #4D5358  (value text)
 
 icon/primarySearch/default          →  primary/600           →  #08A768
+icon/primarySearch/focus            →  primary/600           →  #08A768
 icon/primarySearch/hover            →  primary/700           →  #007549
-icon/secondarySearch/default        →  neutral/400           →  #ADB2B7
-icon/secondarySearch/typing         →  neutral/700           →  #4D5358
+icon/primarySearch/typing           →  primary/700           →  #007549
+icon/primarySearch/filled           →  primary/600           →  #08A768
+
+border/secondarySearch/default      →  primary/600           →  var(--border-secondarySearch-default)  #08A768
+border/secondarySearch/focus        →  primary/600           →  var(--border-secondarySearch-focus)    #08A768
+border/secondarySearch/hover        →  primary/700           →  var(--border-secondarySearch-hover)    #007549
+border/secondarySearch/typing       →  primary/700           →  var(--border-secondarySearch-typing)   #007549
+border/secondarySearch/filled       →  primary/600           →  var(--border-secondarySearch-filled)   #08A768
+
+text/secondarySearch/*              →  (same per-state values as primarySearch text/*)
+
+icon/secondarySearch/*              →  (same per-state values as primarySearch icon/*)
+
+shadow/primarySearch                →  PrimaryShadow/600+601 →  var(--shadow-primarySearch)
+shadow/secondarySearch              →  shadow/primarySearch  →  var(--shadow-secondarySearch)
 
 surface/search/default              →  grey/50               →  #FFFFFF  (shared)
 surface/brandPrimaryButton/default  →  emerald/700           →  #007549  (typing button)
@@ -8079,37 +8110,37 @@ The same `<SuggestionRow>` supports a richer layout used in the **recent-search*
 
 #### 6.17.5 Secondary Search — Color Tokens
 
+> **Color parity with Primary Search:** Secondary Search reuses the same per-state border, text, icon, and shadow values as Primary Search (§6.17.1). Only shell dimensions differ (40/36 px height, 8 px radius, no submit button).
+
 | Property | Semantic Token | Primitive / Brand | Light Mode |
 |----------|---------------|-------------------|------------|
 | Background | `surface/search/default` | `grey/50` | `#FFFFFF` |
-| Border — Default | `border/secondarySearch/default` | `neutral/300` | `#C9CDD0` |
-| Border — Hover | `border/secondarySearch/hover` | `primary/600` | `var(--em600)` |
-| Border — Typing | `border/secondarySearch/typing` | `primary/600` | `var(--em600)` |
-| Border — Filled | `border/secondarySearch/filled` | `neutral/300` | `#C9CDD0` |
-| Focus ring (Hover/Typing) | `primaryBorder/600` | brand primitive | `rgba(8,167,104,0.15)` |
+| Border — Default | `border/secondarySearch/default` | `primary/600` | `var(--border-secondarySearch-default)` |
+| Border — Hover | `border/secondarySearch/hover` | `primary/700` | `var(--border-secondarySearch-hover)` |
+| Border — Focus | `border/secondarySearch/focus` (aliases `default`) | `primary/600` | `var(--border-secondarySearch-focus)` |
+| Border — Typing | `border/secondarySearch/typing` | `primary/700` | `var(--border-secondarySearch-typing)` |
+| Border — Filled | `border/secondarySearch/filled` | `primary/600` | `var(--border-secondarySearch-filled)` |
+| Drop shadow (all states) | `shadow/secondarySearch` | aliases `shadow/primarySearch` | `var(--shadow-secondarySearch)` |
 
-**Focus ring detail — effect token `input/100`:**
-```
-DROP_SHADOW · color: primaryBorder/600  →  rgba(8,167,104,0.15)
-             offset: (0, 0) · radius: 0 · spread: 4px
-```
-CSS: `box-shadow: 0 0 0 4px rgba(8,167,104,0.15);`
-
-**Text tokens:**
+**Text tokens** — identical per-state values to Primary Search (§6.17.1):
 
 | State | Semantic Token | Primitive | Value |
 |-------|---------------|-----------|-------|
 | Default | `text/secondarySearch/default` | `neutral/400` | `#ADB2B7` |
 | Hover | `text/secondarySearch/hover` | `neutral/700` | `#4D5358` |
+| Focus | `text/secondarySearch/focus` (aliases `default`) | `neutral/400` | `#ADB2B7` |
 | Typing | `text/secondarySearch/typing` | `neutral/700` | `#4D5358` |
 | Filled | `text/secondarySearch/filled` | `neutral/700` | `#4D5358` |
 
-**Icon tokens:**
+**Icon tokens** — identical per-state values to Primary Search (§6.17.1):
 
 | State | Semantic Token | Primitive | Value |
 |-------|---------------|-----------|-------|
-| Default | `icon/secondarySearch/default` | `neutral/400` | `#ADB2B7` |
-| Typing | `icon/secondarySearch/typing` | `neutral/700` | `#4D5358` |
+| Default | `icon/secondarySearch/default` | `primary/600` | `#08A768` |
+| Hover | `icon/secondarySearch/hover` | `primary/700` | `#007549` |
+| Focus | `icon/secondarySearch/focus` | `primary/600` | `#08A768` |
+| Typing | `icon/secondarySearch/typing` | `primary/700` | `#007549` |
+| Filled | `icon/secondarySearch/filled` | `primary/600` | `#08A768` |
 | Icon size | *(fixed)* | — | `16px` |
 
 ---
@@ -8120,15 +8151,16 @@ CSS: `box-shadow: 0 0 0 4px rgba(8,167,104,0.15);`
 |----------|---------------|----------------|
 | Height — Default size | `dimension/size/800` | `40px` |
 | Height — Small size | `dimension/size/700` | `36px` |
-| Border-width — Default / Filled | `dimension/stroke/100` | `1px` |
-| Border-width — Hover / Typing | `dimension/stroke/200` | `2px` |
+| Border-width (all states) | `dimension/stroke/200` | `2px` |
 | Border-radius | `dimension/radius/200` | `8px` |
 | Padding | `dimension/space/300` | `12px` |
 | Gap | `dimension/space/200` | `8px` |
+| Input text — Default size | `typography/body4` → `typography/size/sm` | `14px` · lh 1.5 |
+| Input text — Small size | `typography/caption1` → `typography/size/xs` | `12px` · lh 1.5 |
 | Min-width | `dimension/size/2300` | `224px` |
 | Max-width | `dimension/size/2700` | `448px` |
 
-> **Border-width toggle:** Secondary Search switches between `1px` (Default/Filled) and `2px` (Hover/Typing) using `dimension/stroke/100` and `dimension/stroke/200` respectively. This is the only component where border-width changes per state.
+> **State resolver:** Same 5-state auto-resolver as Primary Search — `focused + empty → focus`, `focused + value → typing`, `blurred + value → filled`. Pass `state` to force a variant in the component library matrix.
 
 ##### Clear (X) Button — Figma 3345:2713 / 3345:2721
 
@@ -8253,17 +8285,19 @@ Two-layer drop stacked the same way as Brand Drop Shadow Bottom/200, but with th
 |-------|-------------|-----------|-------------|------------|------------|
 | Default | `border/primarySearch/default` | `emerald/600` | `2px` | `icon/primarySearch/default` | `#08A768` |
 | Hover | `border/primarySearch/hover` | `emerald/700` | `2px` | `icon/primarySearch/hover` | `#007549` |
+| Focus | `border/primarySearch/focus` | `emerald/600` | `2px` | `icon/primarySearch/focus` | `#08A768` |
 | Typing | `border/primarySearch/typing` | `emerald/700` | `2px` | `icon/primarySearch/typing` | `#007549` |
 | Filled | `border/primarySearch/filled` | `emerald/600` | `2px` | `icon/primarySearch/filled` | `#08A768` |
 
-**Secondary Search:**
+**Secondary Search** (same colors; compact shell):
 
-| State | Border Token | Primitive | Border-width | Focus Ring |
-|-------|-------------|-----------|-------------|------------|
-| Default | `border/secondarySearch/default` | `neutral/300` | `1px` | — |
-| Hover | `border/secondarySearch/hover` | `emerald/700` | `2px` | `primaryBorder/600` · 4px |
-| Typing | `border/secondarySearch/typing` | `emerald/700` | `2px` | `primaryBorder/600` · 4px |
-| Filled | `border/secondarySearch/filled` | `neutral/300` | `1px` | — |
+| State | Border Token | Primitive | Border-width | Shadow | Icon Token |
+|-------|-------------|-----------|-------------|--------|------------|
+| Default | `border/secondarySearch/default` | `emerald/600` | `2px` | `shadow/secondarySearch` | `icon/secondarySearch/default` |
+| Hover | `border/secondarySearch/hover` | `emerald/700` | `2px` | `shadow/secondarySearch` | `icon/secondarySearch/hover` |
+| Focus | `border/secondarySearch/focus` | `emerald/600` | `2px` | `shadow/secondarySearch` | `icon/secondarySearch/focus` |
+| Typing | `border/secondarySearch/typing` | `emerald/700` | `2px` | `shadow/secondarySearch` | `icon/secondarySearch/typing` |
+| Filled | `border/secondarySearch/filled` | `emerald/600` | `2px` | `shadow/secondarySearch` | `icon/secondarySearch/filled` |
 
 **AI Search** (indigo-themed Doctor AI panel — Figma 156:27359):
 
@@ -8359,7 +8393,8 @@ Two-layer drop stacked the same way as Brand Drop Shadow Bottom/200, but with th
 |---------|---------|-----------------|---------|
 | Primary | Input text | `body4` | Sarabun · Regular · 14px · lh 1.5 |
 | Primary | Caption ("ค้นหาล่าสุด") | `caption1` | Sarabun · Regular · 12px · lh 1.5 |
-| Secondary | Input text | `body3` | Sarabun · Regular · 16px · lh 1.5 |
+| Secondary — Default (40px) | Input text | `body4` | Sarabun · Regular · 14px · lh 1.5 |
+| Secondary — Small (36px) | Input text | `caption1` | Sarabun · Regular · 12px · lh 1.5 |
 
 ---
 
@@ -9554,6 +9589,21 @@ The Header is a 64 px fixed top bar. Left zone: Brand Subdue Icon Button (40 px)
 | `system` | enum | `Default` · `Community` · `PHCIS` · `Pharmacy` · `School` · `Veterinary` | `Default` |
 | `withBtn` | boolean | `true` · `false` | `false` |
 | `showSelection` | boolean | `true` · `false` | `true` |
+
+### 6.19.1a Scroll auto-hide (app-wide)
+
+Implemented in `HeaderAutoHideProvider` + `useHeaderAutoHide.js` — same behaviour as Consent / `QueuePageShell`.
+
+| Rule | Value |
+|------|-------|
+| Scroll down (Δ > 12 px) | Header collapses to 0 height |
+| Scroll up (Δ < −12 px) | Header returns |
+| Near top (`scrollY ≤ 24 px`) | Always visible |
+| Route change | Reset to visible |
+| CSS var | `--mih-topbar-offset` → `64px` or `0px` for sticky descendants |
+| Sticky helpers | `MIH_TOPBAR_OFFSET`, `MIH_STICKY_BELOW_PATIENT` in `useHeaderAutoHide.js` |
+
+`<Header autoHide={false} />` disables for component-library demos.
 
 ---
 
@@ -12188,7 +12238,8 @@ A central reference for *behavior, accessibility, and usage rules* across recent
 
 **Do**
 - Wrap interactive controls (icon buttons, chips) when the label would otherwise be missing or truncated.
-- Keep `content` to one short line; the bubble uses `whiteSpace: nowrap` and a `maxWidth` clamp.
+- Keep **brand** `content` to one short line — the bubble uses `whiteSpace: nowrap` and a `maxWidth` clamp.
+- Use **`variant="light"`** for badge/chip detail popovers; long copy wraps at `maxWidth` (default 320 px) instead of overflowing horizontally.
 - Prefer `position="top"` for toolbar icons; `position="right"` for trailing affordances inside lists.
 
 **Don't**

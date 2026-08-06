@@ -9,21 +9,19 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import { FakeQR } from '@/pages/mobile/MobileRegisterPage';
 import { StepReview } from '@/pages/consent/CreateConsentFormPage';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
-import { FORM_TYPE_TONE } from '@/data/consentFormRecords';
 import { logExport } from '@/data/consentWorkflowStore';
 import { downloadConsentFormPdf } from '@/data/consentFormDownload';
 
 /* PHCIS | Consent — ดูแบบฟอร์มความยินยอม ใน Popup (Figma 302:143587).
    เปิดจากปุ่ม visibility ในเมนูแบบฟอร์มความยินยอม แทนการนำทางเต็มหน้า. */
 
-const TYPE_VALUE = {
-  'การวิจัย': 'research',
-  'บันทึกภาพ/สื่อ': 'media',
-  'การรักษา': 'treatment',
-  'ผ่าตัด': 'surgical',
-  'วัคซีน': 'vaccine',
-  'PDPA': 'data',
+
+/** หมายเหตุท้ายเอกสาร (mock) — PDPA เท่านั้น */
+const CONSENT_FORM_VIEW_NOTES = {
+  PDPA: 'ข้อมูลส่วนบุคคลจะถูกเก็บรักษาและใช้เฉพาะตามวัตถุประสงค์ที่ระบุในแบบฟอร์มเท่านั้น',
 };
+
+const consentFormViewNote = () => CONSENT_FORM_VIEW_NOTES.PDPA;
 
 const PREVIEW_SECTIONS = [
   { id: 's1', title: 'วัตถุประสงค์ของการให้ความยินยอม', detail: 'ข้าพเจ้าได้รับคำอธิบายถึงวัตถุประสงค์ ขั้นตอน ประโยชน์ และความเสี่ยงที่อาจเกิดขึ้นจากการรักษา/หัตถการนี้จากแพทย์ผู้ดูแลอย่างครบถ้วนแล้ว' },
@@ -51,7 +49,7 @@ const META_LABEL = {
   lineHeight: 1.4,
 };
 
-const MetaCell = ({ label, children }) => (
+const MetaCell = ({ label, children, stack = false }) => (
   <div
     className='flex flex-col'
     style={{
@@ -63,7 +61,12 @@ const MetaCell = ({ label, children }) => (
     }}
   >
     <span style={META_LABEL}>{label}</span>
-    <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100)' }}>{children}</div>
+    <div
+      className={stack ? 'flex flex-col w-full min-w-0' : 'flex items-center flex-wrap'}
+      style={{ gap: 'var(--dim-space-100)' }}
+    >
+      {children}
+    </div>
   </div>
 );
 
@@ -74,15 +77,13 @@ export function ConsentFormViewBody({
   onCreateVersion,
   onToast,
   showActions = true,
+  showAuditBar = true,
 }) {
   const [qrOpen, setQrOpen] = useState(false);
   const [versionOpen, setVersionOpen] = useState(false);
   const [bumpOpen, setBumpOpen] = useState(false);
 
   if (!record) return null;
-
-  const scopeChips = record.scopes?.[0] || { group: '-', subBranch: '-', dept: '-' };
-  const moreCount = Math.max(0, (record.scopes?.length || 1) - 1);
 
   const handleExport = () => {
     logExport({ source: `${record.code} ${record.name}`, format: 'file' });
@@ -114,16 +115,8 @@ export function ConsentFormViewBody({
     <>
       <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
         <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-          <MetaCell label='ผู้ที่มีสิทธิ์เข้าถึง'>
-            <ColorfulBadge style='magenta' size='small' hierarchy='secondary' width='hug'>{scopeChips.group}</ColorfulBadge>
-            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{scopeChips.subBranch}</ColorfulBadge>
-            <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{scopeChips.dept}</ColorfulBadge>
-            {moreCount > 0 && (
-              <span style={{ ...META_LABEL, whiteSpace: 'nowrap' }}>+{moreCount} เพิ่มเติม</span>
-            )}
-          </MetaCell>
-          <MetaCell label='ประเภท'>
-            <ColorfulBadge style={FORM_TYPE_TONE[record.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>{record.type}</ColorfulBadge>
+          <MetaCell label='รหัสแบบฟอร์ม'>
+            <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>{record.code || '—'}</ColorfulBadge>
           </MetaCell>
           <MetaCell label='เวอร์ชั่น'>
             <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{record.version}</ColorfulBadge>
@@ -134,14 +127,15 @@ export function ConsentFormViewBody({
           name={record.name}
           docTitle={record.name}
           code={record.code}
-          type={TYPE_VALUE[record.type] || 'general'}
+          type='data'
           version={record.version}
-          ttl='30'
           sections={PREVIEW_SECTIONS}
           patientFields={PATIENT_FIELD_KEYS}
           allowESign
+          note={consentFormViewNote()}
         />
 
+        {showAuditBar && (
         <ConsentAuditBar
           recordedBy={record.creator}
           {...(showActions
@@ -155,8 +149,10 @@ export function ConsentFormViewBody({
               showIcon: false,
               showTimestamps: false,
               showFlag: false,
+              showRecordedByLabel: false,
             })}
         />
+        )}
 
         {showActions && (
           <section
@@ -225,6 +221,8 @@ export function ConsentFormViewBody({
             record={record}
             onClose={() => setVersionOpen(false)}
             onCreateVersion={() => { setVersionOpen(false); goCreateVersion(); }}
+            onRestoreVersion={() => setVersionOpen(false)}
+            onToast={onToast}
           />
           <AlertDialog
             open={bumpOpen}
@@ -248,6 +246,7 @@ export function ConsentFormViewPopup({
   record,
   onClose,
   onToast,
+  showAuditBar = false,
 }) {
   return (
     <Popup
@@ -255,14 +254,17 @@ export function ConsentFormViewPopup({
       onClose={onClose}
       size='extraLarge'
       title={record?.name || 'ดูแบบฟอร์มความยินยอม'}
-      subtitle={record ? `${record.code} · ${record.version}` : undefined}
-      secondaryAction={{ label: 'ปิด', onClick: onClose }}
+      actions={[
+        { key: 'print', kind: 'secondary', label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() },
+        { key: 'close', kind: 'secondary', label: 'ปิด', onClick: onClose },
+      ]}
     >
       {record && (
         <ConsentFormViewBody
           record={record}
           onToast={onToast}
           showActions={false}
+          showAuditBar={showAuditBar}
         />
       )}
     </Popup>

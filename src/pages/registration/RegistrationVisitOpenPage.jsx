@@ -555,7 +555,7 @@ const RegistrationVisitOpenPage = () => {
       >
         <Sidebar activeKey='registration' />
         <div className='flex-1 min-w-0 flex flex-col'>
-          <Header breadcrumb={breadcrumb} />
+          <Header breadcrumb={breadcrumb} standalone={false} />
 
           <PatientCard
             sticky

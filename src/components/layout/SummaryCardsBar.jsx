@@ -212,15 +212,17 @@ const BannerSummaryCard = ({ card }) => {
 export const SummaryCard = ({ card, variant = 'panel', hover = false }) =>
   variant === 'banner' ? <BannerSummaryCard card={card} /> : <PanelSummaryCard card={card} hover={hover} />;
 
-/* Panel title — Figma PHCIS-ALL 2760:140031 · Topic tertiary (16px bold). */
+/* Panel title — Figma PHCIS-ALL 2760:140031 · Topic tertiary (16px bold).
+   Shrinks with `--header-morph` like SubHeader titles. */
 const PANEL_TITLE_STYLE = {
   color: 'var(--text-topic-tertiary-title)',
   fontFamily: 'var(--type-family-heading-content)',
-  fontSize: 'var(--type-size-base)',
   fontWeight: 'var(--type-weight-bold)',
-  lineHeight: 1.5,
   margin: 'var(--dim-space-0)',
   width: '100%',
+  fontSize:
+    'calc(var(--type-size-base) + (var(--type-size-xs) - var(--type-size-base)) * var(--header-morph, 0))',
+  lineHeight: 'calc(1.5 + (1.3 - 1.5) * var(--header-morph, 0))',
 };
 
 const SummaryCardsBar = ({

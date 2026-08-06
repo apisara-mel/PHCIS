@@ -1,12 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { MaterialSymbol } from '@/components/icons/Icon';
 import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import DangerButton from '@/components/button/DangerButton';
 import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMotion';
 
-/* MIH AlertDialog — Figma "Alert Dialog" (MIH DS · Popup node 1:1159).
+/* MIH AlertDialog — Figma "Alert Dialog" (MIH DS · Popup node 1:1159 ·
+   Warning Center instance 1:1187).
    Compact confirmation modal for critical actions. Distinct from <Popup>
    (header+body+footer chrome) — AlertDialog is a borderless centered card
    with a tone icon, title, supporting text, and a 2-button action row.
@@ -46,7 +48,7 @@ import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMoti
      icon/alert/warning              → --icon-alertdialog-warning
      icon/alert/error                → --icon-alertdialog-destructive
 
-   Tone icons (Material Symbols, filled):
+   Tone icons (Material Symbols Outlined):
      info        → 'info'
      success     → 'check_circle'
      warning     → 'warning'
@@ -60,23 +62,6 @@ import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMoti
                    Use this when the cancel button has different intent
                    from the dismiss action (e.g. UnsavedChanges where
                    cancel = "discard" but Esc/backdrop = "stay").        */
-
-const Sym = ({ name, size = 24, color, fill = 1, weight = 500 }) => (
-  <span
-    className='material-symbols-outlined'
-    style={{
-      fontFamily: 'Material Symbols Outlined',
-      fontSize: size,
-      color,
-      lineHeight: 1,
-      display: 'inline-flex',
-      fontVariationSettings: `'FILL' ${fill}, 'wght' ${weight}, 'GRAD' 0, 'opsz' 24`,
-    }}
-    aria-hidden
-  >
-    {name}
-  </span>
-);
 
 /* Per-type icon + tone color (Figma `icon/alertDialog/*` family). Tone
    color drives ONLY the icon — action buttons swap component family
@@ -130,6 +115,8 @@ const AlertDialog = ({
   showCancel = true,
   children = null,
   className = '',
+  /** Override card width — number → px (clamped to viewport gutter). Default: 448 center / 320 left. */
+  width: widthProp,
 }) => {
   const dialogRef = useRef(null);
   const { mounted, motionState } = useModalMotion(open, MODAL_MOTION_MS);
@@ -164,8 +151,11 @@ const AlertDialog = ({
   /* Card width — Figma 448 (Center) / 320 (Left). On narrow viewports
      clamp by 24px gutter (--dim-space-600) each side so the card never
      touches the edge. */
-  const width = isCenter ? 448 : 320;
-  const dialogWidth = `min(${width}px, calc(100vw - 2 * var(--dim-space-600, 24px)))`;
+  const defaultWidth = isCenter ? 448 : 320;
+  const resolvedWidth = widthProp ?? defaultWidth;
+  const dialogWidth = typeof resolvedWidth === 'number'
+    ? `min(${resolvedWidth}px, calc(100vw - 2 * var(--dim-space-600, 24px)))`
+    : resolvedWidth;
 
   /* Buttons: Center → flex-1 share row width; Left → shrink-fit. */
   const actionFillClass = isCenter ? 'flex-1 min-w-0' : 'shrink-0';
@@ -185,7 +175,8 @@ const AlertDialog = ({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 'var(--sm-z-modal, 1400)',
+        /* Above stacked <Popup> layers (--sm-z-modal 1400 + step 20). */
+        zIndex: 'var(--sm-z-alertdialog, 1500)',
         background: 'var(--surface-overlay-default)',
         display: 'flex',
         alignItems: 'center',
@@ -224,7 +215,7 @@ const AlertDialog = ({
             className='flex flex-col items-center w-full'
             style={{ gap: 'var(--dim-space-300, 12px)' }}
           >
-            <Sym name={spec.icon} size={32} color={spec.tone} />
+            <MaterialSymbol name={spec.icon} size={32} color={spec.tone} fill={0} weight={400} />
             <div
               className='flex flex-col items-center w-full text-center'
               style={{ gap: 'var(--dim-space-200, 8px)' }}
@@ -269,7 +260,7 @@ const AlertDialog = ({
               className='flex items-start w-full'
               style={{ gap: 'var(--dim-space-300, 12px)' }}
             >
-              <Sym name={spec.icon} size={24} color={spec.tone} />
+              <MaterialSymbol name={spec.icon} size={24} color={spec.tone} fill={0} weight={400} />
               {title && (
                 <p
                   id='mih-alertdialog-title'

@@ -1130,17 +1130,26 @@
   --icon-aiSearch-typing:    var(--color-indigo-700);
   --icon-aiSearch-filled:    var(--color-indigo-600);
 
-  /* Secondary Search (per Figma MIH DS Foundation 305:43) */
+  /* Secondary Search (per Figma MIH DS Foundation 305:43)
+     Color + focus-state matrix aliases Primary Search (2056:4246) —
+     compact 40/36 px shell only; border/icon/text/shadow tokens match. */
   --surface-search-default:           #FFFFFF;
-  --border-secondarysearch-default:   #C9CDD0;
-  --border-secondarysearch-filled:    #C9CDD0;
-  --border-secondarysearch-hover:     var(--brand-p700);  /* brand-aware */
+  --border-secondarysearch-default:   var(--brand-p600);
+  --border-secondarysearch-focus:     var(--border-secondarysearch-default);
+  --border-secondarysearch-hover:     var(--brand-p700);
   --border-secondarysearch-typing:    var(--brand-p700);
+  --border-secondarysearch-filled:    var(--brand-p600);
   --text-secondarysearch-default:     #ADB2B7;            /* placeholder */
+  --text-secondarysearch-focus:       var(--text-secondarysearch-default);
   --text-secondarysearch-hover:       #4D5358;
   --text-secondarysearch-typing:      #4D5358;
   --text-secondarysearch-filled:      #4D5358;
-  --ring-secondarysearch:             rgb(var(--brand-p600-rgb) / 0.15); /* effect/input/100 = primaryborder/600 */
+  --icon-secondarysearch-default:     var(--brand-p600);
+  --icon-secondarysearch-focus:       var(--brand-p600);
+  --icon-secondarysearch-hover:       var(--brand-p700);
+  --icon-secondarysearch-typing:      var(--brand-p700);
+  --icon-secondarysearch-filled:      var(--brand-p600);
+  --shadow-secondarysearch:           var(--shadow-primarysearch);
 
   /* Settings modal — surfaces, borders, text, mode-icon backdrops */
   --surface-modal-default:           #FFFFFF;
@@ -2051,12 +2060,21 @@
   --icon-primarysearch-focus: var(--brand-p400);
   --icon-primarysearch-typing: var(--brand-p300);
   --icon-primarysearch-filled: var(--brand-p400);
-  --border-secondarysearch-default: var(--d-border-2);
-  --border-secondarysearch-filled: var(--d-border-2);
+  --border-secondarysearch-default: var(--brand-p400);
+  --border-secondarysearch-focus: var(--border-secondarysearch-default);
+  --border-secondarysearch-hover: var(--brand-p300);
+  --border-secondarysearch-typing: var(--brand-p300);
+  --border-secondarysearch-filled: var(--brand-p400);
   --text-secondarysearch-default: var(--d-text-3);
+  --text-secondarysearch-focus: var(--d-text-3);
   --text-secondarysearch-hover: var(--d-text-1);
   --text-secondarysearch-typing: var(--d-text-1);
   --text-secondarysearch-filled: var(--d-text-1);
+  --icon-secondarysearch-default: var(--brand-p400);
+  --icon-secondarysearch-focus: var(--brand-p400);
+  --icon-secondarysearch-hover: var(--brand-p300);
+  --icon-secondarysearch-typing: var(--brand-p300);
+  --icon-secondarysearch-filled: var(--brand-p400);
   --border-popover-grey: var(--d-border-2);
   --border-neutralbutton-tertiary: var(--d-border-2);
   --border-neutralbutton-tertiary-hover: var(--d-border-2);

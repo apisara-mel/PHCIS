@@ -19,7 +19,6 @@ import {
 } from '@/pages/treat/cpoeSteps';
 import { blankSoap } from '@/data/treatmentSoap';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
-import TreatmentSafetyRail from '@/pages/treat/panels/TreatmentSafetyRail';
 import { GuardedAction } from '@/pages/treat/panels/panelHooks';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
@@ -338,7 +337,6 @@ const TreatmentFormPage = () => {
           sticky
           patient={cardPatient}
           title='บันทึกการรักษา'
-          onBack={() => history.push('/treat/queue')}
           drugAllergies={patient.drugAllergies}
           chronicDiseases={patient.chronicDiseases}
           actions={
@@ -366,10 +364,6 @@ const TreatmentFormPage = () => {
             </>
           }
         />
-        {/* EMR §1.4.3.21 — แถบเฝ้าระวังคลินิก. TOR ระบุว่าข้อมูลการแพ้ต้อง
-            เห็น "บนหน้าจอระหว่างการตรวจรักษา" แถบนี้จึง sticky อยู่ทุก step
-            ใต้ PatientCard และไม่แตะ step body เลย */}
-        <TreatmentSafetyRail patient={patient} form={form} />
         <PhcisTopToast session={pharmacySendToast} onDismiss={dismissPharmacySendToast} />
         <AlertDialog
           open={!!consentGateOpen}
@@ -391,6 +385,7 @@ const TreatmentFormPage = () => {
           stepIndex={stepIndex}
           onStepChange={setStepIndex}
           completedSteps={completedSteps}
+          morphTitle='ตรวจรักษาทั่วไป (OPD)'
         >
           {/* `cardPatient` mirrors what the sticky PatientCard header
               renders (fullName / insurance), so Step 6's mini patient

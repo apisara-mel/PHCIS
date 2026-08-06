@@ -30,6 +30,7 @@ import LabCriticalLogPanel from '@/components/lab/LabCriticalLogPanel';
 import { printLab } from '@/data/labPrintSettings';
 import { LAB_AUDIT, LAB_AUDIT_SCOPES, appendLabAudit, subscribeLabAudit } from '@/data/labAudit';
 import { summariseCritical, subscribeCritical } from '@/data/labCritical';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* งานชันสูตรโรค — Worklist. The lab's own working screen: every specimen
    the department owes somebody, from the moment a doctor's order lands to
@@ -287,7 +288,15 @@ const buildColumns = (onAction, historyFor, selection) => [
         <PatientAvatar patient={row.patient} masked={row.confidential} />
         <div className='flex flex-col min-w-0'>
           <span className='inline-flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
-            <EllipsisText text={row.confidential ? 'ปกปิด (VCT)' : row.patient.shortName} />
+            {row.confidential ? (
+              <EllipsisText text='ปกปิด (VCT)' />
+            ) : (
+              <MaskedWorklistName
+                name={row.patient.shortName}
+                recordKey={row.patient.hn || row.hn}
+                className='min-w-0 truncate'
+              />
+            )}
             {row.confidential && (
               <span className='shrink-0' title='ผลตรวจเป็นความลับ' style={{ color: 'var(--text-content-quaternary)' }}>
                 <Icon name='lock' size={14} />

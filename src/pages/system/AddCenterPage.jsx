@@ -13,7 +13,7 @@ import DeleteCenterContactConfirmPopup from '@/components/popup/DeleteCenterCont
 import Icon from '@/components/icons/Icon';
 import Topic from '@/components/topic/Topic';
 import Information from '@/components/information/Information';
-import StepProgress from '@/components/step/StepProgress';
+import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout/WizardMorphHeader';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import {
   readCenters,
@@ -200,14 +200,20 @@ export default function AddCenterPage() {
       sidebarFallbackKey='system-centers'
       brandTitle='ระบบ PHCIS'
       breadcrumb={breadcrumb}
-      title='เพิ่มศูนย์บริการ'
-      onBack={cancel}
+      {...WIZARD_MORPH_SHELL_PROPS}
+      headerInfo={(
+        <WizardMorphHeader
+          title='เพิ่มศูนย์บริการ'
+          steps={STEPS.map((s) => s.label)}
+          current={idx}
+          onStepClick={(i) => { if (i < idx) setStep(STEPS[i].key); }}
+        />
+      )}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-600, 24px)' }}>
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
-        {/* Card = framed StepProgress (top, with bottom divider) + content card (Figma 3:598). */}
+        {/* Content card — stepper lives in WizardMorphHeader (sticky morph band). */}
         <section className='flex flex-col w-full overflow-hidden' style={{ background: 'var(--surface-card-100)', borderRadius: 'var(--dim-radius-500)', border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)', boxShadow: 'var(--shadow-card)' }}>
-          <StepProgress steps={STEPS.map((s) => s.label)} current={idx} framed onStepClick={(i) => { if (i < idx) setStep(STEPS[i].key); }} />
           <div className='flex flex-col' style={{ padding: 'var(--dim-space-600)' }}>
 
           {/* STEP 1 — center info (Figma 3:598) */}

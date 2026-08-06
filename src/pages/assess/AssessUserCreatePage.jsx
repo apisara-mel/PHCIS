@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout/WizardMorphHeader';
 import Select from '@/components/forms/Select';
 import InputField from '@/components/forms/InputField';
 import Icon from '@/components/icons/Icon';
@@ -91,67 +92,6 @@ const VALUE = {
   lineHeight: 1.5,
 };
 
-const Stepper = ({ step }) => {
-  const idx = STEPS.findIndex((s) => s.key === step);
-  return (
-    <div className='flex items-start w-full' style={{ paddingBottom: 'var(--dim-space-200)' }}>
-      {STEPS.map((s, i) => {
-        const done = i < idx;
-        const active = i === idx;
-        const on = done || active;
-        return (
-          <React.Fragment key={s.key}>
-            <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-150)', width: 160, flexShrink: 0 }}>
-              <span
-                className='inline-flex items-center justify-center'
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 'var(--dim-radius-full)',
-                  background: done
-                    ? 'var(--surface-steps-success, #24A899)'
-                    : active
-                      ? 'var(--surface-steps-selected, #007549)'
-                      : 'var(--surface-steps-default, #E2F3EB)',
-                  color: active ? 'var(--text-steps-select, #FFFFFF)' : 'var(--text-steps-default, #007549)',
-                  fontFamily: 'var(--type-family-heading-graphic2)',
-                  fontSize: 'var(--type-size-sm)',
-                  border: active ? 'var(--dim-stroke-400) solid var(--primaryborder-600, rgba(8,167,104,0.15))' : 'none',
-                }}
-              >
-                {done ? <Icon name='check' size={16} color='var(--text-steps-select, #FFFFFF)' /> : s.n}
-              </span>
-              <span style={{
-                fontFamily: done ? 'var(--type-family-body)' : active ? 'var(--type-family-heading-graphic2)' : 'var(--type-family-body)',
-                fontSize: 'var(--type-size-sm)',
-                color: done
-                  ? 'var(--text-steps-title-success, #196C65)'
-                  : active
-                    ? 'var(--text-steps-title-select, #007549)'
-                    : 'var(--text-steps-title, rgba(0,117,73,0.5))',
-                textAlign: 'center',
-              }}
-              >
-                {s.label}
-              </span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <span style={{
-                flex: 1,
-                height: 'var(--dim-stroke-150)',
-                background: i < idx ? 'var(--surface-brandPrimary-default, #007549)' : 'var(--border-steps-default, #C5EDDA)',
-                marginTop: 14,
-                borderRadius: 999,
-              }}
-              />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-};
-
 function TopicHeader({ icon, title, subtitle }) {
   return (
     <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-200)' }}>
@@ -180,6 +120,7 @@ export default function AssessUserCreatePage() {
   const existing = useMemo(() => (id ? findAssessUser(id) : null), [id]);
 
   const [step, setStep] = useState('personal');
+  const stepIndex = STEPS.findIndex((s) => s.key === step);
   const [personal, setPersonal] = useState({
     title: '', firstName: '', lastName: '', prefixEn: '', nameEn: '', surnameEn: '',
     gender: '', nationalId: '', licenseNo: '', birthDate: '', age: '', phone: '', email: '',
@@ -335,14 +276,17 @@ export default function AssessUserCreatePage() {
         sidebarFallbackKey='system-staff'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
-        title='บุคลากร'
-        onBack={isEdit ? () => navigate.push(`/assess/users/${id}`) : () => navigate.push('/assess/users')}
+        {...WIZARD_MORPH_SHELL_PROPS}
+        headerInfo={(
+          <WizardMorphHeader
+            title={isEdit ? 'แก้ไขบุคลากร' : 'สร้างบุคลากร'}
+            steps={STEPS.map((s) => s.label)}
+            current={stepIndex}
+            onStepClick={(i) => { if (i < stepIndex) setStep(STEPS[i].key); }}
+          />
+        )}
       >
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)', paddingBottom: 'var(--dim-space-900)' }}>
-          <section className='flex flex-col w-full' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-0)' }}>
-            <Stepper step={step} />
-          </section>
-
           {step === 'personal' && (
             <section className='flex flex-col w-full' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <TopicHeader icon='face' title='ข้อมูลส่วนตัว' subtitle='กรอกข้อมูลส่วนตัวของบุคลากร' />

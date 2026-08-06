@@ -25,7 +25,7 @@ import {
 } from '@/data/observationMock';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
 import Pagination from '@/components/pagination/Pagination';
-import StepProgress from '@/components/step/StepProgress';
+import RecordWizardMorphBand, { MORPH_STICKY_BELOW_TOPBAR } from '@/components/layout/RecordWizardMorphBand';
 import Footer from '@/components/layout/Footer';
 import SuccessToast from '@/components/toast/SuccessToast';
 import PatientCard from '@/components/card/PatientCard';
@@ -537,8 +537,8 @@ export default function ObservationDetailPage() {
   };
 
   const observationSteps = [
-    { title: 'ไทม์ไลน์การสังเกตอาการ (Observation Timeline)' },
-    { title: 'สรุปผลการสังเกตอาการ (Discharge Summary)' },
+    { title: 'ไทม์ไลน์การสังเกตอาการ', subtitle: 'Observation Timeline' },
+    { title: 'สรุปผลการสังเกตอาการ', subtitle: 'Discharge Summary' },
   ];
 
   /* Bottom CTA bar — same shared <Footer type='with BTN' sticky> pattern
@@ -551,9 +551,7 @@ export default function ObservationDetailPage() {
   const goPrevStep = () => setActiveTab(OBSERVATION_STEP_KEYS[Math.max(0, currentStepIdx - 1)]);
   const goNextStep = () =>
     setActiveTab(OBSERVATION_STEP_KEYS[Math.min(OBSERVATION_STEP_KEYS.length - 1, currentStepIdx + 1)]);
-  /* CTA reads the step titles Thai-only — strip the "(English)" suffix
-     the step indicator itself shows (e.g. "... (Discharge Summary)"). */
-  const nextStepTitleTh = (observationSteps[currentStepIdx + 1]?.title || '').replace(/\s*\([^)]*\)\s*$/, '');
+  const nextStepTitleTh = observationSteps[currentStepIdx + 1]?.title || '';
   const footerPrimaryLabel = isLastStep ? 'ส่งต่อ' : `ถัดไป: ${nextStepTitleTh}`;
   const handleFooterPrimaryClick = () => {
     if (isLastStep) {
@@ -608,7 +606,6 @@ export default function ObservationDetailPage() {
       <PatientCard
         sticky
         patient={patientCardProfile}
-        onBack={() => history.push('/observation')}
         title='แฟ้มบันทึกสังเกตอาการ (Observation Record)'
         actions={
           <NeutralSubdueButton variant='outline' size='md' leadingIcon='print' onClick={() => window.print()}>
@@ -652,29 +649,15 @@ export default function ObservationDetailPage() {
         }
       />
 
-      {/* Section step indicator — same StepProgress used by the CPOE
-          treatment wizard, sticky in the same slot QueuePageShell's
-          TabUnderline would otherwise occupy. */}
-      <div
-        className='w-full sticky flex justify-center overflow-x-auto'
-        style={{
-          top: '64px',
-          zIndex: 1100,
-          background: 'var(--surface-card-100)',
-          paddingTop: 'var(--dim-space-300)',
-          paddingBottom: 'var(--dim-space-300)',
-          paddingLeft: 'var(--dim-space-600)',
-          paddingRight: 'var(--dim-space-600)',
-          borderBottom: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-        }}
-      >
-        <StepProgress
-          steps={observationSteps}
-          current={OBSERVATION_STEP_KEYS.indexOf(activeTab)}
-          completedSteps={OBSERVATION_STEP_KEYS.map(() => false)}
-          onStepClick={(idx) => setActiveTab(OBSERVATION_STEP_KEYS[idx])}
-        />
-      </div>
+      <RecordWizardMorphBand
+        title='สังเกตอาการ'
+        steps={observationSteps}
+        current={OBSERVATION_STEP_KEYS.indexOf(activeTab)}
+        completedSteps={OBSERVATION_STEP_KEYS.map(() => false)}
+        onStepClick={(idx) => setActiveTab(OBSERVATION_STEP_KEYS[idx])}
+        stickyTop={MORPH_STICKY_BELOW_TOPBAR}
+        stickyZIndex={1100}
+      />
 
       <div
         className='flex flex-col flex-1 min-w-0'

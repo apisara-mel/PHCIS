@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import { highlightMatch } from '@/components/forms/textareaSuggestions';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 
 /* MIH AI Search — Figma MIH-DS Foundation `3396:1598`.
@@ -235,8 +236,9 @@ const AIClearButton = ({ onClick, ariaLabel = 'ล้างคำค้นหา
    "M54.9") stack with the label text vertically aligned across rows.
    A 16 px `add_circle` trailing icon is always visible (no hover
    reveal) — it indicates "add this code to the active query". */
-const HistoryRow = ({ item, onSelect, highlighted = false, onHover }) => {
+const HistoryRow = ({ item, onSelect, highlighted = false, onHover, query = '' }) => {
   const [hover, setHover] = useState(false);
+  const q = String(query || '').trim();
   /* `active` paints the hover tokens whether the user reached the row by
      mouse hover OR by keyboard ↑↓. Visual signal is consistent so the
      user doesn't need to learn two separate "selected" looks. */
@@ -284,7 +286,7 @@ const HistoryRow = ({ item, onSelect, highlighted = false, onHover }) => {
         </div>
       )}
       <span className='flex-1 min-w-0 whitespace-normal' style={{ color: 'inherit' }}>
-        {item.label}
+        {q ? highlightMatch(item.label, q, `ai-${item.id || item.label}`) : item.label}
       </span>
       <Sym
         name='add_circle'
@@ -654,6 +656,7 @@ const AISearch = React.forwardRef(function AISearch(
                 <HistoryRow
                   key={item.id || `${item.label}-${idx}`}
                   item={item}
+                  query={state === 'typing' ? trimmed : ''}
                   highlighted={idx === highlightedIndex}
                   onHover={() => setHighlightedIndex(idx)}
                   onSelect={(picked) => {

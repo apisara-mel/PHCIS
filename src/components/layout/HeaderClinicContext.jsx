@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 /* ศูนย์บริการสาธารณสุข สำนักอนามัย กรุงเทพมหานคร — ครบทั้ง 69 ศูนย์.
    ตามรายการของ BMA (สำนักอนามัย กทม.) ลำดับ 1–69 ใช้สำหรับ Header
@@ -89,14 +89,50 @@ export const CLINIC_OPTIONS = RAW_CLINICS.map(([n, name]) => ({
 /** Default clinic — pinned to ศูนย์ 4 ดินแดง so demo screens & Figma references stay stable. */
 export const DEFAULT_CLINIC_VALUE = 'hc-4';
 
+const CLINIC_STORAGE_KEY = 'mih:selected-clinic';
+
+const isValidClinicValue = (value) =>
+  CLINIC_OPTIONS.some((o) => o.value === value);
+
+/** Restore the last selected ศูนย์ (Hub header chip → every PHCIS screen). */
+const readStoredClinic = () => {
+  if (typeof window === 'undefined') return DEFAULT_CLINIC_VALUE;
+  try {
+    const stored = window.localStorage.getItem(CLINIC_STORAGE_KEY);
+    if (stored && isValidClinicValue(stored)) return stored;
+  } catch {
+    /* private mode / blocked storage */
+  }
+  return DEFAULT_CLINIC_VALUE;
+};
+
 const ClinicFilterContext = createContext(null);
 
-/** Wrap layouts that render <Sidebar /> + <Header /> so clinic state syncs; below `md` the chip moves into the drawer. */
+/** Wrap layouts that render <Sidebar /> + <Header /> so clinic state syncs; below `md` the chip moves into the drawer.
+    Nests are no-ops — App.jsx owns the single provider so Hub ↔ PHCIS pages share one value. */
 export function ClinicFilterProvider({ children }) {
-  const [clinic, setClinic] = useState(DEFAULT_CLINIC_VALUE);
+  const parent = useContext(ClinicFilterContext);
+  if (parent) return children;
+
+  const [clinic, setClinicState] = useState(readStoredClinic);
+
+  const setClinic = useCallback((value) => {
+    if (!isValidClinicValue(value)) return;
+    setClinicState(value);
+  }, []);
+
+  useEffect(() => {
+    if (!isValidClinicValue(clinic)) return;
+    try {
+      window.localStorage.setItem(CLINIC_STORAGE_KEY, clinic);
+    } catch {
+      /* ignore */
+    }
+  }, [clinic]);
+
   const value = useMemo(
     () => ({ clinic, setClinic, options: CLINIC_OPTIONS }),
-    [clinic],
+    [clinic, setClinic],
   );
   return (
     <ClinicFilterContext.Provider value={value}>

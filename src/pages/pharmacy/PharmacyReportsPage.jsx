@@ -5,6 +5,7 @@ import Badge from '@/components/badge/Badge';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import { sanitizeExportColumns } from '@/utils/exportPiiSanitize';
 import { buildReportsSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
 import { PHARMACY_QUEUE, PHARMACY_USAGE_HISTORY, DISPENSE_STATUS } from '@/data/pharmacyQueue';
@@ -107,7 +108,7 @@ const DETAIL_COLUMNS = [
         <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>HN {r.hn}</span>
       </div>
     ),
-    csv: (r) => `${r.patientName} (HN ${r.hn})`,
+    csv: (r) => r.hn,
   },
   { key: 'items', label: 'รายการยา', flex: true, minWidth: 220, render: (r) => r.items.map((i) => i.name).join(', ') },
   { key: 'issuedDate', label: 'วันที่สั่งยา', width: 110, render: (r) => formatIsoDateThai(r.issuedDate) },
@@ -178,7 +179,8 @@ const PharmacyReportsPage = () => {
 
   const handleExport = (title, columns, rows) => {
     const filename = `${title.replace(/\s+/g, '-')}_${fromDate}_${toDate}.csv`;
-    downloadCsv(filename, toCsv(columns, rows));
+    const exportCols = sanitizeExportColumns(columns);
+    downloadCsv(filename, toCsv(exportCols, rows));
     setExported(true);
   };
 

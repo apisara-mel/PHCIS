@@ -11,7 +11,6 @@ export const PERM_EDIT = 'edit';
 
 export const PHCIS_MODULES = [
   { key: 'phcis.dashboard', label: 'แดชบอร์ด' },
-  { key: 'phcis.forms', label: 'คลังแบบฟอร์ม' },
   { key: 'phcis.mr', label: 'งานเวชระเบียน' },
   { key: 'phcis.opd', label: 'ระบบงานผู้รับบริการนอก' },
   { key: 'phcis.treatment', label: 'ระบบบันทึกการรักษา' },
@@ -25,14 +24,21 @@ export const CONSENT_MODULES = [
   { key: 'consent.dashboard', label: 'แดชบอร์ด' },
   { key: 'consent.manage', label: 'จัดการความยินยอม' },
   { key: 'consent.forms', label: 'แบบฟอร์มความยินยอม' },
-  { key: 'consent.create', label: 'สร้างแบบฟอร์มใหม่' },
+  { key: 'consent.create', label: 'สร้างแบบฟอร์มจัดการความยินยอมใหม่' },
   { key: 'consent.access', label: 'จัดการสิทธิ์การเข้าถึง' },
   { key: 'consent.reports', label: 'สถิติและรายงาน' },
+];
+
+export const EDOCUMENT_MODULES = [
+  { key: 'edocument.dashboard', label: 'แดชบอร์ด' },
+  { key: 'edocument.catalog', label: 'คลังเอกสาร e-document ทั้งหมด' },
+  { key: 'edocument.create', label: 'สร้างเอกสาร e-document ใหม่' },
 ];
 
 export const ALL_MODULE_KEYS = [
   ...PHCIS_MODULES.map((m) => m.key),
   ...CONSENT_MODULES.map((m) => m.key),
+  ...EDOCUMENT_MODULES.map((m) => m.key),
 ];
 
 export const CENTER_OPTIONS = [

@@ -109,7 +109,6 @@ export default function ObservationHistoryPage() {
       <PatientCard
         sticky
         patient={patientCardProfile}
-        onBack={() => history.push('/observation')}
         title='ประวัติบันทึกการสังเกตอาการ (Observation History)'
         actions={
           <NeutralSubdueButton variant='outline' size='md' leadingIcon='print' onClick={() => window.print()}>

@@ -1,11 +1,16 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header, { SubHeader } from '@/components/layout/Header';
+import { isOpdScreeningMenuPath } from '@/data/opdScreeningMenuPaths';
 import Footer from '@/components/layout/Footer';
 import TabUnderline from '@/components/tab/TabUnderline';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
+import { useHeaderAutoHide } from '@/context/HeaderAutoHideContext';
+import { APP_TOPBAR_HEIGHT, MIH_TOPBAR_OFFSET } from '@/hooks/useHeaderAutoHide';
+import { MIH_CHROME_MORPH_STEP_BAND } from '@/components/layout/wizardChromeMorphStyles';
 
 /* MIH QueuePageShell — shared chrome for queue / list pages.
    Composes the four chrome layers used across OPD / MR / Treatment / etc:
@@ -34,6 +39,7 @@ import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
      headerInfo       — optional slot (Figma PHCIS_Header_Info) rendered in a white
                         panel flush under SubHeader — e.g. Appointment staff hero
      stickyHeaderInfo — when true, headerInfo sticks under Topbar (or SubHeader)
+     headerInfoDense   — tighter collapsed padding on PageHeaderInfoPanel (consent wizard)
      belowSummary     — optional slot rendered directly under the summary cards
                         (or under SubHeader when there are no summary cards),
                         above the sticky tab strip — e.g. a cross-module nav row
@@ -46,7 +52,7 @@ import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
      children         — page body (typically the white content card) */
 
 /** Topbar height (Header h-16) — used by table stickyHeaderTop callers. */
-export const QUEUE_TOPBAR_HEIGHT = 64;
+export const QUEUE_TOPBAR_HEIGHT = APP_TOPBAR_HEIGHT;
 /** Fallback SubHeader height before measure (padding 16×2 + md control ~40). */
 export const QUEUE_SUBHEADER_FALLBACK = 72;
 /** Approx tab strip height (padding + TabUnderline). */
@@ -64,17 +70,16 @@ export const QUEUE_STICKY_UNDER_TABS =
 
 const STICKY_UNDER_TABS_VAR = '--mih-queue-sticky-under-tabs';
 
-/** ต้องเลื่อนเกินกี่ px ถึงสลับโหมดซ่อน/แสดง Header */
-const HEADER_HIDE_DELTA = 12;
-/** ใกล้ยอดหน้า — บังคับแสดง Header เสมอ */
-const HEADER_SHOW_NEAR_TOP = 24;
-
 const QueuePageShell = ({
   activeKey,
   /* Override the sidebar nav for a separate top-level system (e.g. Consent
      Management). Defaults to the PHCIS nav inside <Sidebar>. */
   sidebarItems,
   sidebarFallbackKey,
+  /** Wider open rail for long nav labels (Consent uses 400px). */
+  sidebarOpenWidth,
+  /** Wrap sidemenu labels onto multiple lines. */
+  sidebarWrapLabels,
   breadcrumb,
   brandTitle,
   title,
@@ -86,6 +91,7 @@ const QueuePageShell = ({
   summaryFlushUnderSubHeader,
   headerInfo,
   stickyHeaderInfo = false,
+  headerInfoDense = false,
   belowSummary,
   tabs,
   tabVariant = 'underline',
@@ -94,7 +100,15 @@ const QueuePageShell = ({
   stickyTopOffset = QUEUE_TOPBAR_HEIGHT,
   children,
 }) => {
-  const hasSubHeader = !!(title || onBack || actions);
+  const { pathname } = useLocation();
+  /* เมนู คัดกรองและซักประวัติ — บางหน้าใช้ summaryTitle แทน title แต่ยังต้องมี SubHeader + ปุ่มสร้างคำขอ */
+  const effectiveTitle =
+    title
+    || (isOpdScreeningMenuPath(pathname) && summaryTitle ? summaryTitle : null);
+  const hasSubHeader = !!(effectiveTitle || onBack || actions);
+  /** summaryTitle ถูกยกไป SubHeader แล้ว — ไม่แสดง h1 ซ้ำบน SummaryCardsBar */
+  const summaryBarTitle =
+    !title && summaryTitle && effectiveTitle === summaryTitle ? undefined : summaryTitle;
   const hasHeaderInfo = !!headerInfo;
   const hasBelowSummary = !!belowSummary;
   const hasTabs = !!tabs;
@@ -112,8 +126,7 @@ const QueuePageShell = ({
     hasSubHeader ? QUEUE_SUBHEADER_FALLBACK : 0,
   );
   const [tabsH, setTabsH] = useState(hasTabs ? QUEUE_TAB_STRIP_HEIGHT : 0);
-  const [headerHidden, setHeaderHidden] = useState(false);
-  const lastScrollY = useRef(0);
+  const { topbarOffset } = useHeaderAutoHide() ?? { topbarOffset: stickyTopOffset };
 
   useLayoutEffect(() => {
     if (!hasSubHeader) {
@@ -127,7 +140,7 @@ const QueuePageShell = ({
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
     ro?.observe(el);
     return () => ro?.disconnect();
-  }, [hasSubHeader, title, actions, onBack]);
+  }, [hasSubHeader, effectiveTitle, actions, onBack]);
 
   useLayoutEffect(() => {
     if (!hasTabs) {
@@ -143,31 +156,7 @@ const QueuePageShell = ({
     return () => ro?.disconnect();
   }, [hasTabs, tabVariant, activeTab, tabs]);
 
-  useEffect(() => {
-    lastScrollY.current = typeof window !== 'undefined' ? window.scrollY : 0;
-    const onScroll = () => {
-      const y = window.scrollY;
-      const prev = lastScrollY.current;
-      const delta = y - prev;
-      lastScrollY.current = y;
-
-      if (y <= HEADER_SHOW_NEAR_TOP) {
-        setHeaderHidden(false);
-        return;
-      }
-      /* นิ้วปัดขึ้น → เนื้อหาเลื่อนขึ้น (scrollY เพิ่ม) → ซ่อน Header
-         นิ้วปัดลงนิดหน่อย → scrollY ลด → แสดง Header */
-      if (delta > HEADER_HIDE_DELTA) setHeaderHidden(true);
-      else if (delta < -HEADER_HIDE_DELTA) setHeaderHidden(false);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  const chromeTop = headerHidden ? 0 : stickyTopOffset;
-  const tabsStickyTop = chromeTop + subHeaderH;
-  const headerInfoStickyTop = chromeTop + subHeaderH;
-  const tableStickyTop = tabsStickyTop + tabsH;
+  const tableStickyTop = topbarOffset + subHeaderH + tabsH;
 
   /* Publish live offset so page-sticky Table headers track Topbar auto-hide. */
   useLayoutEffect(() => {
@@ -179,33 +168,45 @@ const QueuePageShell = ({
     };
   }, [tableStickyTop]);
 
+  const consentSidebar = sidebarFallbackKey?.startsWith('consent-');
+  const resolvedSidebarOpenWidth =
+    sidebarOpenWidth
+    ?? (consentSidebar
+      ? 'calc(var(--dim-size-2500, 320px) + var(--dim-size-1700, 80px))'
+      : undefined);
+  const resolvedSidebarWrapLabels = sidebarWrapLabels ?? false;
+
   return (
   <div
     className='flex w-full min-h-screen'
     style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}
   >
-    <Sidebar activeKey={activeKey} items={sidebarItems} fallbackKey={sidebarFallbackKey} />
+    <Sidebar
+      activeKey={activeKey}
+      items={sidebarItems}
+      fallbackKey={sidebarFallbackKey}
+      openWidth={resolvedSidebarOpenWidth}
+      wrapLabels={resolvedSidebarWrapLabels}
+    />
     <div className='flex-1 min-w-0 flex flex-col'>
       <Header
         breadcrumb={breadcrumb}
         brandTitle={brandTitle}
         standalone={!hasSubHeader}
-        collapsed={headerHidden}
       />
       <main className='flex-1 min-w-0 flex flex-col'>
-        {(title || onBack || actions) ? (
+        {(effectiveTitle || onBack || actions) ? (
           <div
             ref={subHeaderRef}
             className='w-full sticky'
             style={{
-              top: `${chromeTop}px`,
+              top: MIH_TOPBAR_OFFSET,
               zIndex: 1101,
               background: 'var(--surface-navigation-default)',
-              transition: 'top 200ms ease',
             }}
           >
             <SubHeader
-              title={title}
+              title={effectiveTitle}
               onBack={onBack}
               backLabel={backLabel}
               /* แถบ sticky ถัดไป (tabs / belowSummary) เป็นตัวทิ้งเงา — SubHeader ไม่ซ้อนเส้น */
@@ -219,25 +220,26 @@ const QueuePageShell = ({
         {headerInfo ? (
           stickyHeaderInfo ? (
             <div
-              className='w-full sticky'
+              className={`w-full sticky ${headerInfoDense ? MIH_CHROME_MORPH_STEP_BAND : ''}`.trim()}
               style={{
-                top: `${headerInfoStickyTop}px`,
+                top: hasSubHeader
+                  ? `calc(${MIH_TOPBAR_OFFSET} + ${subHeaderH}px)`
+                  : MIH_TOPBAR_OFFSET,
                 zIndex: 1101,
                 background: 'var(--surface-card-100)',
-                transition: 'top 200ms ease',
               }}
             >
-              <PageHeaderInfoPanel>{headerInfo}</PageHeaderInfoPanel>
+              <PageHeaderInfoPanel dense={headerInfoDense}>{headerInfo}</PageHeaderInfoPanel>
             </div>
           ) : (
-            <PageHeaderInfoPanel>{headerInfo}</PageHeaderInfoPanel>
+            <PageHeaderInfoPanel dense={headerInfoDense}>{headerInfo}</PageHeaderInfoPanel>
           )
         ) : null}
 
         {summaryCards ? (
           <SummaryCardsBar
             cards={summaryCards}
-            title={summaryTitle}
+            title={summaryBarTitle}
             flushUnderSubHeader={summaryFlush}
             bottomShadow={summaryBottomShadow}
           />
@@ -247,7 +249,7 @@ const QueuePageShell = ({
           <div
             className='w-full sticky'
             style={{
-              top: `${tabsStickyTop}px`,
+              top: `calc(${MIH_TOPBAR_OFFSET} + ${subHeaderH}px)`,
               zIndex: 1100,
               background: 'var(--surface-card-100)',
               paddingTop: 'var(--dim-space-200)',
@@ -259,7 +261,6 @@ const QueuePageShell = ({
                 ? 'none'
                 : 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
               boxShadow: belowSummaryBottomShadow ? headerDropShadow : 'none',
-              transition: 'top 200ms ease',
             }}
           >
             {belowSummary}
@@ -271,7 +272,7 @@ const QueuePageShell = ({
             ref={tabsRef}
             className='w-full sticky'
             style={{
-              top: `${tabsStickyTop}px`,
+              top: `calc(${MIH_TOPBAR_OFFSET} + ${subHeaderH}px)`,
               zIndex: 1100,
               background: 'var(--surface-card-100)',
               paddingTop: 'var(--dim-space-200)',
@@ -283,7 +284,6 @@ const QueuePageShell = ({
                 ? 'none'
                 : 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
               boxShadow: tabsBottomShadow ? headerDropShadow : 'none',
-              transition: 'top 200ms ease',
             }}
           >
             {tabVariant === 'pill' ? (

@@ -2,6 +2,7 @@ import React from 'react';
 import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import { MIH_FOOTER_LEGAL_AUTOHIDE } from '@/components/layout/wizardChromeMorphStyles';
 
 /* MIH · Schedule footer per Figma 16:54432 — two stacked rows:
    1. Action row (only when `type === 'btn'`): right-aligned Neutral
@@ -92,7 +93,7 @@ const ScheduleFooter = ({
       )}
       {/* Legal row — copyright left + Privacy / Terms right. Subtle
           divider only appears when the action row sits above it. */}
-      <div style={{
+      <div className={MIH_FOOTER_LEGAL_AUTOHIDE} style={{
         height: 'var(--dim-size-1200, 56px)',
         display: 'flex',
         alignItems: 'center',

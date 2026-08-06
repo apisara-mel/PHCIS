@@ -23,6 +23,9 @@ import { createPortal } from 'react-dom';
    Visual (light) — same tokens as ChartTooltip in VitalsSignGraph.jsx:
      • surface/card/100 · border/popover/grey · shadow/dropdown ·
        text/content/default
+     • Multi-line: `whiteSpace: normal` + `overflowWrap: break-word` when
+       content exceeds `maxWidth` (default 320px). Left-aligned text.
+       Brand variant stays single-line (`nowrap`) for short icon hints.
 
    Interactive behavior (Tooltip):
      • Opens on mouseenter / focusin of the wrapped child.
@@ -90,7 +93,7 @@ const usePrefersReducedMotion = () => {
   return reduced;
 };
 
-const Bubble = ({ children, maxWidth, tokens }) => (
+const Bubble = ({ children, maxWidth, tokens, withShadow = false, wrap = false }) => (
   <div
     style={{
       background: tokens.surface,
@@ -102,9 +105,13 @@ const Bubble = ({ children, maxWidth, tokens }) => (
       fontSize: 'var(--type-size-sm)',
       fontWeight: 'var(--type-weight-regular)',
       lineHeight: 1.5,
-      textAlign: 'center',
+      textAlign: wrap ? 'left' : 'center',
       maxWidth,
-      whiteSpace: 'nowrap',
+      minWidth: wrap ? 0 : undefined,
+      whiteSpace: wrap ? 'normal' : 'nowrap',
+      overflowWrap: wrap ? 'break-word' : undefined,
+      wordBreak: wrap ? 'break-word' : undefined,
+      ...(withShadow && tokens.shadowMode === 'boxShadow' ? { boxShadow: tokens.shadow } : {}),
     }}
   >
     {children}
@@ -149,6 +156,7 @@ export const TooltipBubble = React.forwardRef(function TooltipBubble(
     variant = 'brand',
     children = 'Tooltip text content',
     maxWidth = 160,
+    wrap,
     className = '',
     style = {},
     ...rest
@@ -159,9 +167,14 @@ export const TooltipBubble = React.forwardRef(function TooltipBubble(
   const direction = DIRECTION_FROM_POSITION[position] || 'down';
   const isVertical = position === 'top' || position === 'bottom';
   const caretFirst = position === 'bottom' || position === 'right';
-  const shadowStyle = tokens.shadowMode === 'boxShadow'
+  /* Light = chart/popover card (VitalsSignGraph) — no caret, shadow on bubble. */
+  const showCaret = variant !== 'light';
+  const textWrap = wrap ?? variant === 'light';
+  const shadowStyle = showCaret && tokens.shadowMode === 'boxShadow'
     ? { boxShadow: tokens.shadow }
-    : { filter: tokens.shadow };
+    : tokens.shadowMode === 'filter'
+      ? { filter: tokens.shadow }
+      : {};
 
   return (
     <div
@@ -178,9 +191,9 @@ export const TooltipBubble = React.forwardRef(function TooltipBubble(
       }}
       {...rest}
     >
-      {caretFirst && <Caret direction={direction} surface={tokens.surface} />}
-      <Bubble maxWidth={maxWidth} tokens={tokens}>{children}</Bubble>
-      {!caretFirst && <Caret direction={direction} surface={tokens.surface} />}
+      {showCaret && caretFirst && <Caret direction={direction} surface={tokens.surface} />}
+      <Bubble maxWidth={maxWidth} tokens={tokens} withShadow={!showCaret} wrap={textWrap}>{children}</Bubble>
+      {showCaret && !caretFirst && <Caret direction={direction} surface={tokens.surface} />}
     </div>
   );
 });
@@ -194,7 +207,8 @@ const Tooltip = ({
   variant = 'brand',
   delay = 200,
   disabled = false,
-  maxWidth = 240,
+  maxWidth = variant === 'light' ? 320 : 240,
+  wrap,
   children,
   className = '',
 }) => {
@@ -348,7 +362,7 @@ const Tooltip = ({
             willChange: 'opacity, transform',
           }}
         >
-          <TooltipBubble position={position} variant={variant} maxWidth={maxWidth}>
+          <TooltipBubble position={position} variant={variant} maxWidth={maxWidth} wrap={wrap}>
             {content}
           </TooltipBubble>
         </div>,

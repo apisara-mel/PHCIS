@@ -1,13 +1,14 @@
 /* PHCIS | Consent — persisted mock store (localStorage) + pub/sub.
    Connects consent worklist, form fill, OPD, CPOE, Telemed, and mobile flows. */
 
-import { CONSENT_RECORDS as SEED_RECORDS } from '@/data/consentRecords';
+import { CONSENT_RECORDS as SEED_RECORDS, AUTO_MR_REQUEST_CHANNEL, AUTO_SYSTEM_REQUESTER } from '@/data/consentRecords';
 import { DEFAULT_SERVICE_CENTER_CHANNEL, MOBILE_APP_CHANNEL } from '@/data/consentChannels';
 import { resolveConsentPatient } from '@/data/consentPatientDisplay';
 import { resolveConsentFormForWorklistType } from '@/data/consentFormRecords';
+import { bumpConsentFormVersionMinor } from '@/data/consentFormVersion';
 
 const STORAGE_KEY = 'mih:consent-workflow';
-const SEED_VERSION = 11; /* bump when CONSENT_RECORDS row count / shape changes */
+const SEED_VERSION = 12; /* bump when CONSENT_RECORDS row count / shape changes */
 const SIGN_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
 const listeners = new Set();
@@ -86,22 +87,159 @@ export const addConsentRecord = (record) => {
 export const nextConsentRecordId = () =>
   state.records.reduce((m, r) => Math.max(m, r.id), 0) + 1;
 
-export const applySupersededTypesToRecords = (supersededSet) =>
-  getConsentRecords().map((r) => (
-    r.status === 'ยินยอมแล้ว' && supersededSet.has(r.type)
-      ? { ...r, status: 'มีเวอร์ชันใหม่' }
-      : r
-  ));
+const todayThai = () =>
+  new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+
+const normalizeConsentVersion = (version) => {
+  if (!version) return 'V 1.0';
+  const v = String(version).trim();
+  if (/^V\s/i.test(v)) return v.replace(/^v\s/i, 'V ');
+  return `V ${v}`;
+};
+
+const bumpConsentVersion = bumpConsentFormVersionMinor;
+
+const formatSupersededVersionRange = (oldVersion, newVersion) => {
+  const oldNorm = normalizeConsentVersion(oldVersion);
+  return `${oldNorm} → ${newVersion}`;
+};
+
+const hasOpenSignatureRequest = (hn, type) =>
+  state.records.some(
+    (r) => r.hn === hn
+      && r.type === type
+      && ['รอลงนาม', 'อยู่ระหว่างลงนาม'].includes(r.status),
+  );
+
+/** เผยแพร่เทมเพลตใหม่ — ฉบับเซ็นแล้ว → ถูกแทนที่ · สร้าง รอลงนาม อัตโนมัติไปเวชระเบียน */
+const supersedeSignedRecordsForType = (type, { newVersion } = {}) => {
+  const now = todayThai();
+  const toCreate = [];
+
+  state.records = state.records.map((r) => {
+    if (r.status !== 'ยินยอมแล้ว' || r.type !== type) return r;
+    const nextVer = newVersion || bumpConsentVersion(r.version);
+    toCreate.push({ ...r, nextVer });
+    return {
+      ...r,
+      status: 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
+      version: formatSupersededVersionRange(r.version, nextVer),
+      supersededAt: now,
+      history: [
+        ...(r.history || []),
+        {
+          date: now,
+          dateTime: `${now} · ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`,
+          action: 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
+          fromStatus: 'ยินยอมแล้ว',
+          toStatus: 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
+          formCode: r.formCode,
+          formName: r.formName,
+          type: r.type,
+          version: nextVer,
+          status: 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
+          channel: AUTO_MR_REQUEST_CHANNEL,
+        },
+      ],
+    };
+  });
+
+  toCreate.forEach((src) => {
+    if (hasOpenSignatureRequest(src.hn, src.type)) return;
+    const formMeta = resolveConsentFormForWorklistType(src.type);
+    const newId = nextConsentRecordId();
+    const newRec = {
+      id: newId,
+      hn: src.hn,
+      name: src.name,
+      type: src.type,
+      formCode: src.formCode || formMeta.formCode,
+      formName: src.formName || formMeta.formName,
+      version: src.nextVer,
+      status: 'รอลงนาม',
+      signChannel: '-',
+      requestChannel: AUTO_MR_REQUEST_CHANNEL,
+      requester: AUTO_SYSTEM_REQUESTER,
+      autoSent: true,
+      supersededFromId: src.id,
+      createdDate: now,
+      signedDate: '-',
+      withdrawnDate: '-',
+      guardian: src.guardian,
+      history: [
+        {
+          date: now,
+          dateTime: `${now} · ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`,
+          action: 'ส่งอัตโนมัติ',
+          fromStatus: 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
+          toStatus: 'รอลงนาม',
+          formCode: src.formCode || formMeta.formCode,
+          formName: src.formName || formMeta.formName,
+          type: src.type,
+          version: src.nextVer,
+          status: 'รอลงนาม',
+          channel: AUTO_MR_REQUEST_CHANNEL,
+        },
+      ],
+    };
+    state.records.push(newRec);
+    state.records = state.records.map((r) => (
+      r.id === src.id ? { ...r, supersededById: newId } : r
+    ));
+  });
+};
+
+export const applySupersededTypesToRecords = (supersededSet) => {
+  supersededSet.forEach((type) => {
+    if (!state.supersededTypes.includes(type)) state.supersededTypes.push(type);
+    supersedeSignedRecordsForType(type);
+  });
+  persist();
+  return getConsentRecords();
+};
 
 /* ── Template version bump (ด.1.1.5) ─────────────────────────────── */
-export const markTypeSuperseded = (type) => {
+/** Dry-run preview — no mutation. Used on Step 4 before publish. */
+export const previewConsentSupersedeImpact = (type, { newVersion } = {}) => {
+  if (!type) {
+    return {
+      signedCount: 0,
+      patientCount: 0,
+      reconsentCount: 0,
+      skippedOpenRequestCount: 0,
+      newVersion: newVersion || '—',
+    };
+  }
+
+  const signed = state.records.filter((r) => r.status === 'ยินยอมแล้ว' && r.type === type);
+  const patientSet = new Set(signed.map((r) => r.hn));
+  let reconsentCount = 0;
+  let skippedOpenRequestCount = 0;
+
+  signed.forEach((r) => {
+    if (hasOpenSignatureRequest(r.hn, r.type)) skippedOpenRequestCount += 1;
+    else reconsentCount += 1;
+  });
+
+  return {
+    signedCount: signed.length,
+    patientCount: patientSet.size,
+    reconsentCount,
+    skippedOpenRequestCount,
+    newVersion: newVersion || (signed[0] ? bumpConsentVersion(signed[0].version) : '—'),
+  };
+};
+
+export const markTypeSuperseded = (type, { newVersion } = {}) => {
   if (!type) return;
   if (!state.supersededTypes.includes(type)) state.supersededTypes.push(type);
+  /* migrate legacy rows still on old status */
   state.records = state.records.map((r) => (
-    r.status === 'ยินยอมแล้ว' && r.type === type
-      ? { ...r, status: 'มีเวอร์ชันใหม่' }
+    r.status === 'มีเวอร์ชันใหม่' && r.type === type
+      ? { ...r, status: 'ถูกแทนที่ด้วยเวอร์ชันใหม่' }
       : r
   ));
+  supersedeSignedRecordsForType(type, { newVersion });
   persist();
 };
 
@@ -173,9 +311,6 @@ export const cancelConsentRequest = (recordId) => {
   persist();
 };
 
-const todayThai = () =>
-  new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
-
 /* ── Medical-record (เวชระเบียน) consent → worklist sync ─────────── */
 const MR_FORM_ID_TO_TYPE = {
   'PD-1011': 'PDPA',
@@ -194,13 +329,6 @@ export const consentTypeFromMrForm = ({ id, slug, categoryLabel } = {}) => {
   if (slug && MR_SLUG_TO_TYPE[slug]) return MR_SLUG_TO_TYPE[slug];
   if (categoryLabel) return categoryLabel;
   return 'การรักษา';
-};
-
-const normalizeConsentVersion = (version) => {
-  if (!version) return 'V 1.0';
-  const v = String(version).trim();
-  if (/^V\s/i.test(v)) return v.replace(/^v\s/i, 'V ');
-  return `V ${v}`;
 };
 
 /** Record consent signed/declined on เวชระเบียน into the central worklist. */
@@ -244,7 +372,7 @@ export const recordMrConsentSigning = ({
   const pending = state.records.find(
     (r) => r.hn === hnTrim
       && r.type === consentType
-      && ['รอลงนาม', 'อยู่ระหว่างลงนาม', 'มีเวอร์ชันใหม่'].includes(r.status),
+      && ['รอลงนาม', 'อยู่ระหว่างลงนาม'].includes(r.status),
   );
   if (pending) {
     patchConsentRecord(pending.id, {
@@ -330,7 +458,7 @@ export const hasActiveConsent = (hn, type) => {
 export const getOpdConsentSummary = (hn) => {
   const recs = getConsentRecords().filter((r) => r.hn === hn);
   const signed = recs.filter((r) => r.status === 'ยินยอมแล้ว').length;
-  const pending = recs.filter((r) => ['รอลงนาม', 'อยู่ระหว่างลงนาม', 'มีเวอร์ชันใหม่'].includes(r.status)).length;
+  const pending = recs.filter((r) => ['รอลงนาม', 'อยู่ระหว่างลงนาม'].includes(r.status)).length;
   const blocked = recs.some((r) => ['ถอนความยินยอม', 'ปฏิเสธ'].includes(r.status));
   return { signed, pending, blocked, total: recs.length };
 };

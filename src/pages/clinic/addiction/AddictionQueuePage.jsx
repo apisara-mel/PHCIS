@@ -27,6 +27,7 @@ import {
 } from '@/data/addictionVisits';
 import { CANCEL_REASON_SUGGESTIONS } from '@/data/addictionRegistry';
 import { AddictionAccessGate, AccessDemoToggle, ProgramBadge } from '@/pages/clinic/addiction/addictionShared';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* AddictionQueuePage — คิวการรักษางานบำบัดสารเสพติด (TOR 1.10.5.1/1.10.5.2).
    Mirror of AncQueuePage: same QueuePageShell chrome, search + tag-filter
@@ -99,14 +100,11 @@ const renderQueue = (row) => (
 );
 
 const renderName = (row) => (
-  <Link
-    to={{ pathname: '/clinic/addiction/record', state: { hn: row.hn, queue: row.queue, name: row.name } }}
-    className='min-w-0 flex-1 truncate hover:underline'
-    style={{ color: 'var(--text-neutral-default)', fontWeight: 'var(--type-weight-medium)', textDecoration: 'none' }}
-    onClick={(e) => e.stopPropagation()}
-  >
-    {row.name}
-  </Link>
+  <MaskedWorklistName
+    name={row.name}
+    recordKey={row.hn || row.queue}
+    linkTo={{ pathname: '/clinic/addiction/record', state: { hn: row.hn, queue: row.queue, name: row.name } }}
+  />
 );
 
 const renderTelemedicine = (row) => (

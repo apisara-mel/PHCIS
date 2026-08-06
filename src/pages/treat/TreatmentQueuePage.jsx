@@ -19,6 +19,7 @@ import {
   compareTreatmentQueueRows,
 } from '@/data/treatmentQueue';
 import { buildTreatmentSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* MIH TreatmentQueuePage — Figma PHCIS-ALL node 2760:140031.
    ระบบบันทึกการรักษา · คิวตรวจรักษาทั่วไป (OPD).
@@ -210,25 +211,14 @@ const renderQueue = (row) => (
 const renderName = (row, idx, { editMode } = {}) => (
   <div className='flex items-center gap-2 min-w-0'>
     <Avatar name={row.name} seed={idx} />
-    {editMode ? (
-      <TableEllipsisText text={row.name} />
-    ) : (
-      <Link
-        to={{
-          pathname: '/treat/record',
-          state: { hn: row.hn, queue: row.queue, name: row.name },
-        }}
-        className='min-w-0 flex-1 truncate hover:underline'
-        style={{
-          color: 'var(--text-neutral-default)',
-          fontWeight: 'var(--type-weight-medium)',
-          textDecoration: 'none',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {row.name}
-      </Link>
-    )}
+    <MaskedWorklistName
+      name={row.name}
+      recordKey={row.hn || row.queue}
+      linkTo={editMode ? null : {
+        pathname: '/treat/record',
+        state: { hn: row.hn, queue: row.queue, name: row.name },
+      }}
+    />
   </div>
 );
 
