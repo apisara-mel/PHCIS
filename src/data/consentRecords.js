@@ -14,12 +14,8 @@ import { resolveConsentFormForWorklistType } from '@/data/consentFormRecords';
 
 /* ── Consent type → ColorfulBadge tone (Figma type pills) ───────────── */
 export const CONSENT_TYPE_TONE = {
-  'ผ่าตัด':    'blue',
-  'การรักษา':  'green',
-  'การวิจัย':  'purple',
-  'เลือด':     'red',
-  'PDPA':      'indigo',
-  'เบิกจ่าย':  'magenta',
+  'PDPA':     'indigo',
+  'เบิกจ่าย': 'magenta',
 };
 
 /* ── Status meta — badge tone + which tab it belongs under + the action
@@ -28,15 +24,27 @@ export const CONSENT_STATUS = {
   'รอลงนาม':          { tone: 'orange', tab: 'sent',      action: { label: 'ยกเลิกคำขอ', kind: 'brandSubdue', confirm: 'cancel' } },
   'อยู่ระหว่างลงนาม':  { tone: 'orange', tab: 'sent',      action: { label: 'ยกเลิกคำขอ', kind: 'brandSubdue', confirm: 'cancel' } },
   /* ผู้รับบริการ request เพิกถอนผ่าน Mobile App / ที่ศูนย์ — รอเจ้าหน้าที่ดำเนินการ */
-  'ขอเพิกถอน':        { tone: 'red',    tab: 'pending',   action: { label: 'ดำเนินการเพิกถอน', kind: 'brand', confirm: 'revoke' } },
+  'ขอเพิกถอน':        { tone: 'red',    tab: 'pending',   action: { label: 'เพิกถอน', kind: 'brand', confirm: 'revoke' } },
   'ยินยอมแล้ว':        { tone: 'green',  tab: 'consented', action: { label: 'เพิกถอน',    kind: 'brandSubdue', confirm: 'revoke' } },
   'ปฏิเสธ':           { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
   'ถอนความยินยอม':    { tone: 'red',    tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
   'ใกล้หมดอายุ':       { tone: 'yellow', tab: 'expiring',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
   'หมดอายุ':          { tone: 'red',    tab: 'expired',   action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
-  /* Edge case (Figma note 312:97428): เทมเพลตออกเวอร์ชันใหม่หลังผู้ป่วย
-     เซ็นไปแล้ว → ฉบับเดิมเป็น superseded ต้องส่งขอเซ็นใหม่ */
-  'มีเวอร์ชันใหม่':     { tone: 'blue',   tab: 'pending',   action: { label: 'ส่งเซ็นเวอร์ชันใหม่', kind: 'brand', confirm: 'reconsent' } },
+  /* Edge case (Figma note 312:97428): เทมเพลตออกเวอร์ชันใหม่ — ฉบับเดิมถูกแทนที่
+     (read-only) · ระบบสร้างคำขอ รอลงนาม อัตโนมัติไปเวชระเบียน */
+  'ถูกแทนที่ด้วยเวอร์ชันใหม่': {
+    tone: 'blue',
+    tab: 'consented',
+    label: 'ถูกแทนที่',
+    action: null,
+  },
+  /* legacy localStorage — map ไปพฤติกรรม superseded ใหม่ */
+  'มีเวอร์ชันใหม่': {
+    tone: 'blue',
+    tab: 'consented',
+    label: 'ถูกแทนที่',
+    action: null,
+  },
   /* ด.1.1.7 — Re-Consent ครบวงจร: record เดิมที่มีคำขอ reconsent เกิดขึ้นแล้ว
      ย้ายมาสถานะนี้ (ไม่ hard delete — ประวัติคงอยู่)
      แสดง badge เป็น «หมดอายุ» และยังมี CTA Reconsent เหมือนแถวหมดอายุอื่น */
@@ -62,9 +70,13 @@ export {
 } from '@/data/consentChannels';
 
 /* ── Tabs (Figma TabUnderline) ──────────────────────────────────────── */
+/** ช่องทาง/ผู้สร้างเมื่อระบบส่งคำขอ reconsent อัตโนมัติไปเวชระเบียน */
+export const AUTO_MR_REQUEST_CHANNEL = 'เวชระเบียน';
+export const AUTO_SYSTEM_REQUESTER = 'ระบบ';
+
 export const CONSENT_TABS = [
   { value: 'pending',   label: 'รอดำเนินการ',      icon: 'pending_actions' },
-  { value: 'sent',      label: 'ส่งคำขอแล้ว',        icon: 'send' },
+  { value: 'sent',      label: 'รอลงนาม',           icon: 'draw' },
   { value: 'consented', label: 'ยินยอมแล้ว',        icon: 'verified' },
   { value: 'rejected',  label: 'ปฏิเสธ / เพิกถอน',  icon: 'do_not_disturb_on' },
   { value: 'expiring',  label: 'ใกล้หมดอายุ',       icon: 'hourglass_top' },
@@ -72,7 +84,7 @@ export const CONSENT_TABS = [
   { value: 'all',       label: 'ความยินยอมทั้งหมด',  icon: 'list' },
 ];
 
-/** แท็บรอดำเนินการ — รวมรายการที่หมดอายุ / ใกล้หมดอายุ ≤ 30 วัน (TOR worklist) */
+/** แท็บรอดำเนินการ — ไม่รวมใกล้หมดอายุ / หมดอายุ (มีแท็บแยก) */
 export const PENDING_EXPIRY_WINDOW_DAYS = 30;
 
 export const EXPIRED_CONSENT_STATUSES = ['หมดอายุ', 'หมดอายุ-Reconsent'];
@@ -86,14 +98,9 @@ export const isConsentExpiringWithinDays = (record, withinDays = PENDING_EXPIRY_
 
 export const isConsentExpired = (record) => EXPIRED_CONSENT_STATUSES.includes(record?.status);
 
-/** อยู่ในแท็บรอดำเนินการ — สถานะรอ action + หมดอายุ + ใกล้หมดอายุ ≤ 30 วัน */
-export const isConsentPendingWorklist = (record) => {
-  const meta = CONSENT_STATUS[record?.status] || {};
-  if (meta.tab === 'pending') return true;
-  if (isConsentExpired(record)) return true;
-  if (isConsentExpiringWithinDays(record)) return true;
-  return false;
-};
+/** อยู่ในแท็บรอดำเนินการ — เฉพาะงานที่เจ้าหน้าที่ต้องดำเนินการ (ไม่รวม รอลงนาม / ใกล้หมดอายุ / หมดอายุ) */
+export const isConsentPendingWorklist = (record) =>
+  (CONSENT_STATUS[record?.status] || {}).tab === 'pending';
 
 export const matchesConsentWorklistTab = (record, tab) => {
   if (tab === 'all') return true;
@@ -108,7 +115,7 @@ export const CONSENT_CONFIRM = {
   reconsent: { type: 'info',        title: 'ส่งคำขอความยินยอมใหม่',     description: 'ระบบจะสร้างคำขอความยินยอมฉบับใหม่และแจ้งผู้ป่วยให้ลงนามอีกครั้ง', confirmLabel: 'ส่งคำขอ' },
 };
 
-const CONSENT_TYPES = ['ผ่าตัด', 'การรักษา', 'การวิจัย', 'เลือด', 'PDPA', 'เบิกจ่าย'];
+const CONSENT_TYPES = ['PDPA', 'เบิกจ่าย'];
 export { CONSENT_TYPES };
 const REQUESTERS = ['ลดา ดีงาม', 'นที ทองคำ'];
 const THAI_MONTHS_FULL = [
@@ -133,7 +140,7 @@ export const isConsentDateThisMonth = (dateStr, now = new Date()) => {
 const PER_TAB_COUNT = 36;
 
 const TAB_STATUS_POOLS = {
-  pending:   ['ขอเพิกถอน', 'มีเวอร์ชันใหม่'],
+  pending:   ['ขอเพิกถอน'],
   sent:      ['รอลงนาม', 'อยู่ระหว่างลงนาม'],
   consented: ['ยินยอมแล้ว'],
   rejected:  ['ปฏิเสธ', 'ถอนความยินยอม', 'ยกเลิกคำขอ'],
@@ -141,9 +148,19 @@ const TAB_STATUS_POOLS = {
   expired:   ['หมดอายุ', 'หมดอายุ-Reconsent'],
 };
 
-/** สถานะเรียงตามแท็บ — 36 × 6 = 216 rows */
-const MOCK_STATUS_ROTATION = Object.values(TAB_STATUS_POOLS).flatMap((pool) =>
-  Array.from({ length: PER_TAB_COUNT }, (_, i) => pool[i % pool.length]),
+/** สัดส่วนสถานะ mock ให้ summary / แท็บดูสมจริง (รวม 216 รายการ) */
+const CONSENT_TAB_WEIGHTS = [
+  { pool: TAB_STATUS_POOLS.consented, count: 98 },
+  { pool: TAB_STATUS_POOLS.sent, count: 42 },
+  { pool: TAB_STATUS_POOLS.pending, count: 28 },
+  { pool: TAB_STATUS_POOLS.expiring, count: 18 },
+  { pool: TAB_STATUS_POOLS.rejected, count: 19 },
+  { pool: TAB_STATUS_POOLS.expired, count: 11 },
+];
+
+/** สถานะเรียงตามแท็บ — สัดส่วนจาก CONSENT_TAB_WEIGHTS */
+const MOCK_STATUS_ROTATION = CONSENT_TAB_WEIGHTS.flatMap(({ pool, count }) =>
+  Array.from({ length: count }, (_, i) => pool[i % pool.length]),
 );
 
 /** HN + seed name — aligned with MR / screening roster (enriched again at render).
@@ -205,7 +222,10 @@ const buildConsentMockRecords = () => {
   const month = inThisMonth ? thisMonth : prevMonth;
   const year = inThisMonth ? thisYear : (index % 6 === 0 ? thisYear - 1 : prevYear);
   const createdDate = `${day} ${month} ${year}`;
-  const signed = ['ยินยอมแล้ว', 'ใกล้หมดอายุ', 'หมดอายุ', 'มีเวอร์ชันใหม่', 'หมดอายุ-Reconsent', 'ถอนความยินยอม', 'ปฏิเสธ'].includes(status);
+  const signed = [
+    'ยินยอมแล้ว', 'ใกล้หมดอายุ', 'หมดอายุ', 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
+    'มีเวอร์ชันใหม่', 'หมดอายุ-Reconsent', 'ถอนความยินยอม', 'ปฏิเสธ',
+  ].includes(status);
   const onRejectedTab = ['ถอนความยินยอม', 'ปฏิเสธ', 'ยกเลิกคำขอ'].includes(status);
   const signedDate = signed ? `${Math.min(day + 1, 28)} ${month} ${year}` : '-';
   /* แท็บปฏิเสธ/เพิกถอน — mock วันที่ถอนครบทุกแถว (รวมปฏิเสธ · ยกเลิกคำขอ) */
@@ -347,7 +367,7 @@ const CONSENT_RECORD_OVERRIDES = {
     ],
   },
   17: {
-    status: 'มีเวอร์ชันใหม่',
+    status: 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
     type: 'ผ่าตัด',
     formCode: 'PH-004',
     formName: 'ใบยินยอมผ่าตัด / หัตถการ (Surgical / Procedure Consent)',
@@ -355,6 +375,7 @@ const CONSENT_RECORD_OVERRIDES = {
     signChannel: DEFAULT_SERVICE_CENTER_CHANNEL,
     createdDate: '8 มีนาคม 2569',
     signedDate: '9 มีนาคม 2569',
+    supersededById: 37,
     history: [
       {
         date: '9 มีนาคม 2569',
@@ -372,15 +393,47 @@ const CONSENT_RECORD_OVERRIDES = {
       {
         date: '28 มีนาคม 2569',
         dateTime: '28 มีนาคม 2569 · 08:45',
-        action: 'มีเวอร์ชันใหม่',
+        action: 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
         fromStatus: 'ยินยอมแล้ว',
-        toStatus: 'มีเวอร์ชันใหม่',
+        toStatus: 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
         formCode: 'PH-004',
         formName: 'ใบยินยอมผ่าตัด / หัตถการ (Surgical / Procedure Consent)',
         type: 'ผ่าตัด',
         version: 'V 2.0',
-        status: 'มีเวอร์ชันใหม่',
-        channel: DEFAULT_SERVICE_CENTER_CHANNEL,
+        status: 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
+        channel: AUTO_MR_REQUEST_CHANNEL,
+      },
+    ],
+  },
+  37: {
+    hn: '67-00017',
+    name: 'ภัคจิรา วงศ์อนันต์',
+    status: 'รอลงนาม',
+    type: 'ผ่าตัด',
+    formCode: 'PH-004',
+    formName: 'ใบยินยอมผ่าตัด / หัตถการ (Surgical / Procedure Consent)',
+    version: 'V 2.0',
+    signChannel: '-',
+    requestChannel: AUTO_MR_REQUEST_CHANNEL,
+    requester: AUTO_SYSTEM_REQUESTER,
+    autoSent: true,
+    supersededFromId: 17,
+    createdDate: '28 มีนาคม 2569',
+    signedDate: '-',
+    withdrawnDate: '-',
+    history: [
+      {
+        date: '28 มีนาคม 2569',
+        dateTime: '28 มีนาคม 2569 · 08:45',
+        action: 'ส่งอัตโนมัติ',
+        fromStatus: 'ถูกแทนที่ด้วยเวอร์ชันใหม่',
+        toStatus: 'รอลงนาม',
+        formCode: 'PH-004',
+        formName: 'ใบยินยอมผ่าตัด / หัตถการ (Surgical / Procedure Consent)',
+        type: 'ผ่าตัด',
+        version: 'V 2.0',
+        status: 'รอลงนาม',
+        channel: AUTO_MR_REQUEST_CHANNEL,
       },
     ],
   },

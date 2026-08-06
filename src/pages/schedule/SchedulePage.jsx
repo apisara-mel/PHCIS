@@ -8,10 +8,11 @@ import useSearchHistory from '@/components/search/useSearchHistory';
 import TabUnderline from '@/components/tab/TabUnderline';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import StaffProfileAvatar from '@/components/appointment/StaffProfileAvatar';
+import Header from '@/components/layout/Header';
+import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import { staffProfileSearchSrc } from '../appointment/appointmentStaffProfile';
 import { staffBadgeTone } from '../appointment/appointmentStaffRoster';
 import ScheduleSidebar from './ScheduleSidebar';
-import ScheduleHeader from './ScheduleHeader';
 import ScheduleFooter from './ScheduleFooter';
 import FacilityHolidayPopup from './FacilityHolidayPopup';
 import {
@@ -186,6 +187,7 @@ const SchedulePage = () => {
   };
 
   return (
+    <ClinicFilterProvider>
     <div
       style={{
         minHeight: '100vh',
@@ -213,8 +215,12 @@ const SchedulePage = () => {
           alignItems: 'stretch',
         }}
       >
-        {/* Top header bar — Figma 16:52473. */}
-        <ScheduleHeader />
+        {/* Top header bar — shared PHCIS Header with scroll auto-hide. */}
+        <Header
+          brandTitle='ระบบจัดตารางเวร'
+          breadcrumb={['จัดการตารางเวร']}
+          standalone={false}
+        />
 
         {/* Subheader — Figma 16:52474 · page title + tab bar on white panel.
             Tabs live HERE (not inside the table card) per Figma. */}
@@ -356,6 +362,7 @@ const SchedulePage = () => {
         onClose={() => setHolidayOpen(false)}
       />
     </div>
+    </ClinicFilterProvider>
   );
 };
 

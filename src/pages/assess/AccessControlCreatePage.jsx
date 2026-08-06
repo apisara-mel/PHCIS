@@ -356,7 +356,6 @@ export default function AccessControlCreatePage() {
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
         title='สิทธิการเข้าถึง'
-        onBack={isEdit ? () => navigate.push(`/assess/access-control/${id}`) : () => navigate.push('/assess/access-control')}
       >
         <div
           className='flex flex-col flex-1 min-w-0'

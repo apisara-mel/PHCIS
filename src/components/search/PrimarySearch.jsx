@@ -3,6 +3,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import { Icon } from '@/components/icons/Icon';
+import { highlightMatch } from '@/components/forms/textareaSuggestions';
 
 /* PrimarySearch — Figma MIH DS Foundation 2056:4246
    56px pill search with five states: Default / Hover / Focus / Typing /
@@ -182,9 +183,10 @@ const SectionHeader = ({ title, trailing }) => (
      3. else text-only row (Figma 2692:5995 default)
    Trailing chevron-right fades in on row hover via `.mih-search-row__chevron`
    so the resting state stays clean. */
-const SuggestionRow = ({ item, leadingIcon, onPick }) => {
+const SuggestionRow = ({ item, leadingIcon, onPick, query = '' }) => {
   const iconName = item.icon || leadingIcon;
   const hasBadges = Array.isArray(item.badges) && item.badges.length > 0;
+  const q = String(query || '').trim();
   return (
     <button
       type='button'
@@ -245,7 +247,7 @@ const SuggestionRow = ({ item, leadingIcon, onPick }) => {
             lineHeight: 1.5,
           }}
         >
-          {item.label}
+          {q ? highlightMatch(item.label, q, `ps-${item.id}-lbl`) : item.label}
         </span>
         {item.sublabel && (
           <span
@@ -256,7 +258,7 @@ const SuggestionRow = ({ item, leadingIcon, onPick }) => {
               lineHeight: 1.5,
             }}
           >
-            {item.sublabel}
+            {q ? highlightMatch(item.sublabel, q, `ps-${item.id}-sub`) : item.sublabel}
           </span>
         )}
       </span>
@@ -582,6 +584,7 @@ const PrimarySearch = ({
                       <SuggestionRow
                         key={item.id}
                         item={item}
+                        query={trimmed}
                         onPick={pickItem}
                       />
                     ))

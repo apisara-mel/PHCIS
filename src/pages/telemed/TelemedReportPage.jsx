@@ -275,13 +275,12 @@ const TelemedReportPage = () => {
   const exportCsv = useCallback(() => {
     const rows = tab === 'stats'
       ? [
-        ['รหัสสาย', 'วันที่', 'เวลา', 'ทิศทาง', 'ผลลัพธ์', 'นาที', 'แพทย์', 'หน่วยบริการ', 'HN', 'ชื่อ', 'บันทึกสาย'],
+        ['รหัสสาย', 'วันที่', 'เวลา', 'ทิศทาง', 'ผลลัพธ์', 'นาที', 'แพทย์', 'หน่วยบริการ', 'HN', 'บันทึกสาย'],
         ...calls.map((c) => [
           c.id, formatStatDate(c.at), formatStatTime(c.at),
           CALL_DIRECTION[c.direction].label, CALL_OUTCOME[c.outcome].label,
           c.durationMin, c.doctor, c.unit,
           canSeePii ? c.hn : maskPii(c.hn, role),
-          canSeePii ? c.name : maskPii(c.name, role),
           c.recorded ? 'บันทึก' : 'ไม่บันทึก',
         ]),
       ]

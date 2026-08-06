@@ -5,6 +5,12 @@ import SystemGridMenu from '@/components/layout/SystemGridMenu';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import { CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import FontSizeControls from '@/components/layout/FontSizeControls';
+import { useHeaderAutoHide } from '@/context/HeaderAutoHideContext';
+import {
+  APP_TOPBAR_HEIGHT,
+  CHROME_TRANSITION_EASE,
+  CHROME_TRANSITION_MS,
+} from '@/hooks/useHeaderAutoHide';
 import { EllipsisText } from '@/components/table/Table';
 const THAI_MONTHS = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -29,6 +35,9 @@ const formatThaiDate = (d) =>
  * @param {'none'|'brand-100'} [props.flushShadow='none'] — when `standalone`
  *   is false, optionally keep a subtle brand lift on the bar (System Hub
  *   Figma 25:3107 · Brand Drop Shadow Bottom/100 above the greeting card).
+ * @param {boolean} [props.autoHide=true] — when true, collapse on scroll-down
+ *   via global HeaderAutoHideProvider (Consent / queue shell behaviour).
+ * @param {boolean} [props.collapsed] — explicit override; wins over autoHide.
  * @param {'default'|'hub'} [props.variant='default'] — `hub` = System
  *   Selection page (Figma PHCIS | Consent 270:72714 · Header withBTN=No):
  *   location tag only on the left — no apps grid, no program name/breadcrumb.
@@ -40,9 +49,22 @@ const Header = ({
   standalone = true,
   merged = false,
   flushShadow = 'none',
-  /* เมื่อ true — ยุบความสูงเป็น 0 (scroll auto-hide จาก QueuePageShell) */
-  collapsed = false,
+  autoHide = true,
+  collapsed: collapsedProp,
 }) => {
+  const autoHideCtx = useHeaderAutoHide();
+  const liveTop = autoHideCtx?.topbarOffset ?? APP_TOPBAR_HEIGHT;
+  const driveHeightFromLerp = autoHide && collapsedProp === undefined && autoHideCtx;
+  const collapsed = collapsedProp ?? (autoHide && liveTop <= 0);
+  const barHeight = driveHeightFromLerp
+    ? liveTop
+    : (collapsed ? 0 : APP_TOPBAR_HEIGHT);
+  const barOpacity = driveHeightFromLerp
+    ? Math.min(1, liveTop / APP_TOPBAR_HEIGHT)
+    : (collapsed ? 0 : 1);
+  const barTranslateY = driveHeightFromLerp
+    ? APP_TOPBAR_HEIGHT - barHeight
+    : (collapsed ? APP_TOPBAR_HEIGHT : 0);
   const isHub = variant === 'hub';
   const clinicCtx = useClinicFilter();
   const [localClinic, setLocalClinic] = useState(DEFAULT_CLINIC_VALUE);
@@ -71,21 +93,25 @@ const Header = ({
   return (
     <header
       className='sticky top-0 z-[1200] w-full text-[color:var(--border-brandPrimary-quaternary)] flex items-center gap-3 md:gap-8 px-3 md:px-6'
-      aria-hidden={collapsed || undefined}
+      aria-hidden={barHeight < 4 || undefined}
       style={{
-        height: collapsed ? 0 : 'var(--dim-size-1400, 64px)',
-        minHeight: collapsed ? 0 : 'var(--dim-size-1400, 64px)',
-        paddingTop: collapsed ? 0 : undefined,
-        paddingBottom: collapsed ? 0 : undefined,
+        height: driveHeightFromLerp ? `${barHeight}px` : (collapsed ? 0 : 'var(--dim-size-1400, 64px)'),
+        minHeight: driveHeightFromLerp ? `${barHeight}px` : (collapsed ? 0 : 'var(--dim-size-1400, 64px)'),
+        paddingTop: collapsed && !driveHeightFromLerp ? 0 : (barHeight < 8 ? 0 : undefined),
+        paddingBottom: collapsed && !driveHeightFromLerp ? 0 : (barHeight < 8 ? 0 : undefined),
         overflow: 'hidden',
-        opacity: collapsed ? 0 : 1,
-        pointerEvents: collapsed ? 'none' : 'auto',
+        opacity: barOpacity,
+        pointerEvents: barHeight < 4 ? 'none' : 'auto',
+        transform: barTranslateY > 0 ? `translateY(-${barTranslateY}px)` : undefined,
+        willChange: driveHeightFromLerp ? 'height, opacity, transform' : undefined,
         background: 'var(--surface-navigation-default)',
-        borderBottom: collapsed
+        borderBottom: barHeight < 4
           ? 'none'
           : 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-        boxShadow: collapsed ? 'none' : barShadow,
-        transition: 'height 200ms ease, min-height 200ms ease, opacity 160ms ease, box-shadow 200ms ease, border-color 200ms ease',
+        boxShadow: barHeight < 4 ? 'none' : barShadow,
+        transition: driveHeightFromLerp
+          ? 'none'
+          : `height ${CHROME_TRANSITION_MS}ms ${CHROME_TRANSITION_EASE}, min-height ${CHROME_TRANSITION_MS}ms ${CHROME_TRANSITION_EASE}, opacity ${CHROME_TRANSITION_MS}ms ${CHROME_TRANSITION_EASE}, box-shadow ${CHROME_TRANSITION_MS}ms ${CHROME_TRANSITION_EASE}, border-color ${CHROME_TRANSITION_MS}ms ${CHROME_TRANSITION_EASE}`,
       }}
     >
     {!isHub && (
@@ -102,15 +128,27 @@ const Header = ({
     {!isHub && (
       <div className='flex items-center gap-3 min-w-0'>
         <SystemGridMenu buttonVariant='outline' />
-        <div className='flex flex-col items-start min-w-0'>
-          <p className='font-bold text-base text-brand-500 leading-[1.5] truncate'>{brandTitle}</p>
+        <div
+          className='flex flex-col items-start min-w-0'
+          style={{ gap: 'var(--dim-space-0)' }}
+        >
+          <p
+            className='font-bold text-base text-brand-500 truncate'
+            style={{
+              fontFamily: 'var(--type-family-body)',
+              lineHeight: 1.25,
+            }}
+          >
+            {brandTitle}
+          </p>
           <nav
             className='hidden md:flex items-center gap-2 min-w-0 w-full'
             aria-label='breadcrumb'
             style={{
+              marginTop: 'calc(-1 * var(--dim-space-100, 4px))',
               fontFamily: 'var(--type-family-body)',
               fontSize: 'var(--type-size-sm)',
-              lineHeight: 1.5,
+              lineHeight: 1.25,
             }}
           >
             <Icon

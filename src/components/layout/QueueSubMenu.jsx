@@ -170,12 +170,21 @@ const ViewAllButton = ({ onClick }) => (
   </button>
 );
 
+const DEFAULT_SECTION_LABELS = {
+  done:       (n) => `ตรวจเสร็จแล้ว (${n})`,
+  draft:      (n) => `ที่ร่างไว้ (${n})`,
+  inProgress: (n) => `ผู้ป่วยตรวจอยู่ (${n})`,
+  waiting:    (n) => `ผู้ป่วยรอคิว (${n})`,
+};
+
 const QueueSubMenu = ({
   /** Controlled open/closed. If omitted, the panel manages its own state. */
   expanded: controlledExpanded,
   onExpandedChange,
   /** Patient buckets — defaults to mock data when omitted. */
   queue = DEFAULT_QUEUE,
+  /** Optional per-module section labels — `(count) => string`. */
+  sectionLabels = DEFAULT_SECTION_LABELS,
   /** Click handlers — wire to navigation when ready. */
   onViewAll,
   onPickPatient,
@@ -276,7 +285,7 @@ const QueueSubMenu = ({
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <SectionLabel trailing={<ViewAllButton onClick={onViewAll} />}>
-            {`ตรวจเสร็จแล้ว (${doneBucket.total})`}
+            {sectionLabels.done(doneBucket.total)}
           </SectionLabel>
           {doneBucket.items.map((p) => (
             <QueueRow
@@ -289,7 +298,7 @@ const QueueSubMenu = ({
         </div>
 
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <SectionLabel>{`ที่ร่างไว้ (${draftBucket.total})`}</SectionLabel>
+          <SectionLabel>{sectionLabels.draft(draftBucket.total)}</SectionLabel>
           {draftBucket.items.map((p) => (
             <QueueRow
               key={p.id}
@@ -301,7 +310,7 @@ const QueueSubMenu = ({
         </div>
 
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <SectionLabel>{`ผู้ป่วยตรวจอยู่ (${inProgressBucket.total})`}</SectionLabel>
+          <SectionLabel>{sectionLabels.inProgress(inProgressBucket.total)}</SectionLabel>
           {inProgressBucket.items.map((p) => (
             <QueueRow
               key={p.id}
@@ -315,7 +324,7 @@ const QueueSubMenu = ({
         </div>
 
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <SectionLabel>{`ผู้ป่วยรอคิว (${waitingBucket.total})`}</SectionLabel>
+          <SectionLabel>{sectionLabels.waiting(waitingBucket.total)}</SectionLabel>
           {waitingBucket.items.map((p) => (
             <QueueRow
               key={p.id}

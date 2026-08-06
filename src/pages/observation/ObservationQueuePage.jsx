@@ -23,7 +23,8 @@ import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import ViewToggle from '@/components/toggle/ViewToggle';
 import AddVitalsModal, { VITALS_NOTE_SUGGESTIONS } from '@/components/observation/AddVitalsModal';
 import Pagination from '@/components/pagination/Pagination';
-import BedSelectionPopup from '@/components/popup/BedSelectionPopup';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import { NestedBedSelectionPanel } from '@/components/popup/BedSelectionPopup';
 import Popup from '@/components/popup/Popup';
 import InventoryCard from '@/components/card/InventoryCard';
 import { getPatientByHN, PATIENT_PROFILES } from '@/data/patientProfiles';
@@ -150,7 +151,12 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
           />
           <div className='min-w-0'>
             <div className='truncate' style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>
-              {patient.patientName}
+              <MaskedWorklistName
+                name={patient.patientName}
+                recordKey={patient.hn || patient.id}
+                className='truncate inline'
+                truncate={false}
+              />
             </div>
             <div style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
               HN: {patient.hn}
@@ -1130,7 +1136,13 @@ export default function ObservationQueuePage() {
                 >
                   <span className='material-symbols-outlined' style={{ fontSize: 18 }}>{item.icon}</span>
                   <strong>{item.bedNo}</strong>
-                  <span className='truncate' style={{ maxWidth: 180 }}>{item.patientName}</span>
+                  <MaskedWorklistName
+                    name={item.patientName}
+                    recordKey={item.id}
+                    className='truncate inline'
+                    style={{ maxWidth: 180 }}
+                    truncate={false}
+                  />
                   <span style={{ opacity: 0.85 }}>· {item.reason}</span>
                   <span className='material-symbols-outlined' style={{ fontSize: 18 }}>chevron_right</span>
                 </button>
@@ -1542,12 +1554,13 @@ export default function ObservationQueuePage() {
                       />
                       <div className='flex-1 min-w-0'>
                         <div className='flex items-baseline justify-between gap-1'>
-                          <h3
+                          <MaskedWorklistName
+                            name={patient.patientName}
+                            recordKey={patient.hn || patient.id}
                             className='font-bold text-ink text-base leading-tight hover:text-brand-600 cursor-pointer truncate'
-                            onClick={() => history.push(isFinishedObserving ? `/observation/history/${patient.id}` : `/observation/record/${patient.id}`)}
-                          >
-                            {patient.patientName}
-                          </h3>
+                            truncate={false}
+                            onRevealedClick={() => history.push(isFinishedObserving ? `/observation/history/${patient.id}` : `/observation/record/${patient.id}`)}
+                          />
                           <span className='text-xs font-semibold text-ink-tertiary shrink-0'>
                             {patient.gender}, {patient.age} ปี
                           </span>
@@ -1740,7 +1753,7 @@ export default function ObservationQueuePage() {
           className='fixed inset-0 z-[1400] flex items-center justify-center p-4 animate-fade-in'
           style={{ backgroundColor: 'var(--surface-overlay-default, rgba(0, 0, 0, 0.5))', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         >
-          <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-ink-line'>
+          <div className='bg-surface-card rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-ink-line relative'>
             <div
               className='px-6 py-4 flex items-center justify-between'
               style={{ background: 'var(--surface-modal-default)' }}
@@ -1867,20 +1880,19 @@ export default function ObservationQueuePage() {
                 </BrandPrimaryButton>
               </div>
             </form>
+            <NestedBedSelectionPanel
+              open={showBedPickerModal}
+              beds={observationBedOptions}
+              initialSelectedId={admitForm.bedId}
+              onClose={() => setShowBedPickerModal(false)}
+              onConfirm={(bedId) => setAdmitForm((prev) => ({ ...prev, bedId }))}
+            />
           </div>
         </div>,
         document.body
       )}
 
-      {/* Bed picker — same photo-tile BedSelectionPopup as OPD screening's
-          "เลือกเตียงผู้ป่วย", fed the Observation ward's own empty beds. */}
-      <BedSelectionPopup
-        open={showBedPickerModal}
-        onClose={() => setShowBedPickerModal(false)}
-        onConfirm={(bedId) => setAdmitForm((prev) => ({ ...prev, bedId }))}
-        initialSelectedId={admitForm.bedId}
-        beds={observationBedOptions}
-      />
+      {/* Bed picker nested inside admit modal above — no stacked popup here. */}
 
       {/* "เพิ่มเตียงใหม่เข้าระบบ" — adds a brand-new empty bed slot (not an
           admission). เลขเตียง is always auto-assigned (never user-editable);

@@ -1,14 +1,16 @@
-/* Mock data for the "คลังแบบฟอร์ม" (Forms Library) menu.
+/* Mock data for the "คลังเอกสาร e-document" catalog.
    Groups forms by category so the catalog page can render section-by-
    section, and each form ships a static field preview so the detail
    page can show clinicians what they will see on the mobile-side scan
    before they print or share the QR. */
 
+import { EDOCUMENT_FORM_TEMPLATES } from '@/data/consentFormRecords';
+
 export const FORM_CATEGORIES = [
   {
     key: 'consent',
-    label: 'แบบฟอร์มยินยอม',
-    description: 'หนังสือยินยอมรับการรักษาและหัตถการทางการแพทย์',
+    label: 'แบบฟอร์มยินยอมทางการแพทย์',
+    description: 'หนังสือยินยอมการรักษา ผ่าตัด วัคซีน ผลแล็บ และเอกสารเคลม — อยู่ในคลังเอกสาร e-document (ไม่ใช่ PDPA)',
     icon: 'verified_user',
     color: 'brand',
   },
@@ -40,7 +42,7 @@ export const FORM_CATEGORIES = [
    version, sections.
    `sections[].fields[]` is a static preview list, NOT a live form
    schema — the mobile QR target renders the same preview. */
-export const FORMS = [
+const BASE_FORMS = [
   /* — แบบฟอร์มยินยอม (consent) — */
   {
     slug: 'consent-treatment',
@@ -312,6 +314,29 @@ export const FORMS = [
     ],
   },
 ];
+
+/** แม่แบบที่ย้ายจากระบบจัดการความยินยอม (ไม่ใช่ PDPA) */
+const EDOCUMENT_MIGRATED_FORMS = EDOCUMENT_FORM_TEMPLATES.slice(0, 48).map((t, i) => ({
+  slug: `edoc-${i + 1}`,
+  code: `F-${2100 + i}`,
+  category: 'consent',
+  name: t.name,
+  summary: `คลังเอกสาร e-document — ${t.type}`,
+  language: 'ไทย',
+  estimatedMinutes: 3,
+  version: 'v1.0',
+  sections: [
+    { title: 'การยินยอม', fields: [
+      { label: 'ยินยอมตามข้อความในแบบฟอร์ม', type: 'checkbox', required: true },
+    ] },
+    { title: 'ลงนาม', fields: [
+      { label: 'ลายเซ็นผู้ป่วย', type: 'signature', required: true },
+      { label: 'วันที่', type: 'date', required: true },
+    ] },
+  ],
+}));
+
+export const FORMS = [...BASE_FORMS, ...EDOCUMENT_MIGRATED_FORMS];
 
 export const getCategory = (key) =>
   FORM_CATEGORIES.find((c) => c.key === key);

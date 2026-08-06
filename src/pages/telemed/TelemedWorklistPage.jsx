@@ -63,6 +63,7 @@ import {
   resolveDateRange,
   inDateRange,
 } from '@/pages/telemed/telemedShared';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* TelemedWorklistPage — ระบบหน้าห้องตรวจทางไกล (TOR §1.13.3 / .7 / .8 /
    .10 / .11 + §4.3.5).
@@ -364,23 +365,15 @@ const TelemedWorklistPage = () => {
 
   const renderName = (row) => (
     <div className='min-w-0 flex flex-col'>
-      <button
-        type='button'
-        className='min-w-0 truncate text-left hover:underline'
+      <MaskedWorklistName
+        name={row.name}
+        recordKey={row.hn || row.id}
+        className='min-w-0 truncate'
         style={{
-          background: 'none',
-          border: 'none',
-          padding: 0,
-          cursor: 'pointer',
-          color: 'var(--text-neutral-default)',
-          fontWeight: 'var(--type-weight-medium)',
-          fontFamily: 'inherit',
           fontSize: 'var(--type-size-sm)',
         }}
-        onClick={(e) => { e.stopPropagation(); history.push(`/telemed/assessment/${row.id}`); }}
-      >
-        {row.name}
-      </button>
+        onRevealedClick={() => history.push(`/telemed/assessment/${row.id}`)}
+      />
       <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
         {`HN ${row.hn} · ${row.sex} ${row.age} ปี`}
       </span>

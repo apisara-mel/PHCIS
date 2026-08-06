@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Icon from '@/components/icons/Icon';
 
-/* MIH ViewToggle — Grid / list view switch, Figma "Tab Bar / Pill"
+/* MIH ViewToggle — List / grid view switch, Figma "Tab Bar / Pill"
    (291:113045 · 334:134446): #e2f3eb pill track · p-4 · gap-2 · radius-full;
    each tab h-32 · px-12 py-6 · radius-full · 14px icon; active = white chip.
    Shared across any page offering a grid/list view switch (ConsentFormsPage,
@@ -47,7 +47,7 @@ const ViewToggle = ({ value, onChange }) => {
         background: 'var(--surface-brandPrimary-quaternary)',
       }}
     >
-      {[['grid', 'grid_view'], ['list', 'format_list_bulleted']].map(([v, icon]) => {
+      {[['list', 'format_list_bulleted'], ['grid', 'grid_view']].map(([v, icon]) => {
         const selected = value === v;
         const isHovered = hovered === v;
         const s = resolveButtonStyle({ selected, hovered: isHovered });

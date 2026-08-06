@@ -236,19 +236,23 @@ const FooterButton = ({ kind, action, fullWidth }) => {
   }
   if (kind === 'secondary') {
     return (
-      <BrandSubdueButton variant='outline' size='md' {...common}>
+      <BrandSubdueButton variant='outline' size='md' {...common} leadingIcon={action.leadingIcon}>
         {action.label}
       </BrandSubdueButton>
     );
   }
   if (action.tone === 'danger') {
     return (
-      <DangerButton variant='fill' size='md' {...common}>
+      <DangerButton variant='fill' size='md' {...common} leadingIcon={action.leadingIcon}>
         {action.label}
       </DangerButton>
     );
   }
-  return <BrandPrimaryButton {...common}>{action.label}</BrandPrimaryButton>;
+  return (
+    <BrandPrimaryButton {...common} leadingIcon={action.leadingIcon}>
+      {action.label}
+    </BrandPrimaryButton>
+  );
 };
 
 const Popup = ({
@@ -437,6 +441,7 @@ const Popup = ({
             ? (typeof heightProp === 'number' ? `${heightProp}px` : heightProp)
             : (fillsViewport ? viewportHeight : undefined),
           minHeight: 0,
+          position: 'relative',
           background: 'var(--surface-modal-default)',
           /* Figma Popup chrome (e.g. 161:42074 / 1:564) carries a 1 px
              `border/popover/grey` (#E2E4E6) ring around the dialog. */
@@ -517,21 +522,17 @@ const Popup = ({
           className='flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden'
           style={bodyOuterStyle}
         >
-          <div
-            className={
-              bodyScrollable
-                ? 'scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden'
-                : 'flex min-h-0 flex-1 flex-col overflow-hidden'
-            }
+        <div
+          className={
+            bodyScrollable
+              ? 'scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-clip'
+              : 'flex min-h-0 flex-1 flex-col'
+          }
             style={{
               WebkitOverflowScrolling: bodyScrollable ? 'touch' : undefined,
-              paddingTop: bodyScrollable ? 'var(--dim-space-200)' : 0,
-              paddingLeft: bodyScrollable
-                ? 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))'
-                : 0,
-              paddingRight: bodyScrollable
-                ? 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))'
-                : 0,
+              paddingTop: 'var(--dim-space-200)',
+              paddingLeft: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
+              paddingRight: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
               paddingBottom: bodyScrollable ? 'var(--dim-space-600)' : 0,
               gap: bodyScrollable ? 'var(--dim-space-400)' : 0,
               ...bodyStyle,

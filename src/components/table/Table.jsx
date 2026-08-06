@@ -8,6 +8,7 @@ import InputField   from '@/components/forms/InputField';
 import Select       from '@/components/forms/Select';
 import BrandIconButton       from '@/components/button/BrandIconButton';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* Skeleton-row pulse — idempotent module-load stylesheet injection so HMR
    doesn't leave a stale <style> behind. Mirrors the AISearch chrome-strip
@@ -112,7 +113,29 @@ export const EllipsisText = ({ text, className = '', fill = true }) => {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <span ref={ref} className={`truncate block ${className}`}>{text}</span>
+      {/* Clip แนวนอนที่ชั้นนอก — ข้อความอยู่ชั้นใน (line-height สูง + padding)
+         เพื่อไม่ให้ overflow:hidden ตัดสระ/วรรณยุกต์ไทยด้านบน */}
+      <span
+        ref={ref}
+        className={`block min-w-0 ${className}`}
+        style={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-block',
+            maxWidth: '100%',
+            lineHeight: 1.75,
+            paddingTop: 'var(--dim-space-150, 6px)',
+            paddingBottom: 'var(--dim-space-150, 6px)',
+          }}
+        >
+          {text}
+        </span>
+      </span>
       {hovered && isOverflow && typeof document !== 'undefined' && createPortal(
         <span
           className='pointer-events-none'
@@ -176,6 +199,7 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
     state,                                       /* force 'default' | 'hover' */
     showSorting = true,
     showSubtext = true,
+    titleWrap   = false,
     sortDirection,                               /* null | 'asc' | 'desc' — overrides icon */
     align       = 'left',
     onClick,
@@ -199,7 +223,7 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
       onClick={onClick}
       onMouseEnter={() => !state && setInternalHover(true)}
       onMouseLeave={() => !state && setInternalHover(false)}
-      className={`inline-flex items-center ${className}`}
+      className={`inline-flex ${titleWrap ? 'items-start' : 'items-center'} ${className}`}
       style={{
         minHeight: 44,
         gap: 'var(--dim-space-100, 4px)',
@@ -218,9 +242,9 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
       }}
       {...rest}
     >
-      <div className='flex flex-col min-w-0' style={{ lineHeight: 1.5, flex: '0 1 auto' }}>
+      <div className='flex flex-col min-w-0' style={{ lineHeight: 1.5, flex: '1 1 auto' }}>
         <span
-          title={typeof title === 'string' ? title : undefined}
+          title={!titleWrap && typeof title === 'string' ? title : undefined}
           style={{
             color: 'var(--text-table-title, var(--brand-p800, #004C31))',
             fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
@@ -228,9 +252,9 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
             fontWeight: 'var(--type-weight-bold, 700)',
             display: 'block',
             minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            ...(titleWrap
+              ? { whiteSpace: 'normal', overflow: 'visible', wordBreak: 'break-word' }
+              : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
           }}
         >
           {title}
@@ -763,6 +787,7 @@ const TableHeaderInternal = ({
       showSubtext={!!column.subtext}
       showSorting={sortable}
       sortDirection={sortDirection}
+      titleWrap={!!column.headerWrap}
       align={column.align === 'center' ? 'center' : 'left'}
       onClick={sortable ? () => onSort(column.key) : undefined}
       aria-disabled={!sortable}
@@ -832,7 +857,7 @@ const Row = ({
       style={{
         background: rowBg,
         borderBottom: 'var(--dim-stroke-100) solid var(--border-table-line)',
-        minHeight: 56,
+        minHeight: 64,
         color: 'var(--text-content-default)',
         fontFamily: 'var(--type-family-body)',
         fontSize: 'var(--type-size-sm)',
@@ -882,13 +907,21 @@ const Row = ({
           gap: 'var(--dim-space-150)',
           paddingLeft:  'var(--dim-space-400)',
           paddingRight: 'var(--dim-space-400)',
-          paddingTop:    'var(--dim-space-200)',
-          paddingBottom: 'var(--dim-space-200)',
+          paddingTop:    'var(--dim-space-300, 12px)',
+          paddingBottom: 'var(--dim-space-300, 12px)',
           minWidth: c.flex ? c.minWidth : undefined,
+          overflow: 'visible',
         };
         const node = c.render
           ? c.render(row, index, { editMode })
-          : <EllipsisText text={String(row[c.key] ?? '')} />;
+          : (c.key === 'name' || c.key === 'patientName')
+            ? (
+              <MaskedWorklistName
+                name={row[c.key]}
+                recordKey={row.hn || row.id || row.queue}
+              />
+            )
+            : <EllipsisText text={String(row[c.key] ?? '')} />;
         return (
           <div key={c.key} style={cellStyle}>{node}</div>
         );

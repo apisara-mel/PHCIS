@@ -15,8 +15,8 @@ const csvEscape = (value) => {
 };
 
 const buildCsv = (rows) => {
-  const header = ['เลขที่ใบเสร็จ', 'HN', 'ชื่อ-สกุล', 'แผนก', 'วันที่', 'ยอดเบิกจาก สปสช.'];
-  const lines = rows.map((r) => [r.receiptNo, r.hn, r.patient.shortName, r.dept, r.visitDate, r.rightsCoverage]
+  const header = ['เลขที่ใบเสร็จ', 'HN', 'แผนก', 'วันที่', 'ยอดเบิกจาก สปสช.'];
+  const lines = rows.map((r) => [r.receiptNo, r.hn, r.dept, r.visitDate, r.rightsCoverage]
     .map(csvEscape).join(','));
   return [header.join(','), ...lines].join('\n');
 };

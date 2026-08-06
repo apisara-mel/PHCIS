@@ -1,7 +1,9 @@
 import React from 'react';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Pagination from '@/components/pagination/Pagination';
+import { MIH_CHROME_MORPH_FOOTER, MIH_FOOTER_LEGAL_AUTOHIDE } from '@/components/layout/wizardChromeMorphStyles';
 
 /* MIH Footer — Figma "Footer" (node 1:2629).
 
@@ -18,7 +20,10 @@ import Pagination from '@/components/pagination/Pagination';
      • 'with Pagination' — pagination row ("X-Y of Z" + page numbers) + legal row
 
    All buttons alias canonical components (BrandPrimaryButton ·
-   BrandSubdueButton); pagination aliases <Pagination>. Visuals retint via
+   BrandSubdueButton · NeutralSubdueButton); pagination aliases
+   <Pagination>. Button 3 (leftmost / back) uses Neutral Subdue per
+   PHCIS sticky-footer pattern — leading `arrow_back` when the label
+   is "ย้อนกลับ" unless `button3Icon` overrides. Visuals retint via
    [data-brand] through --surface-navigation-default / --border-*-quaternary
    / --primaryshadow-* tokens. */
 
@@ -61,10 +66,11 @@ const Footer = ({
   const isNo            = type === 'No';
   const isWithBtn       = type === 'with BTN';
   const isWithPagi      = type === 'with Pagination';
+  const button3LeadingIcon = button3Icon ?? (button3Label === 'ย้อนกลับ' ? 'arrow_back' : undefined);
 
   const LegalRow = (
     <div
-      className='w-full flex items-center shrink-0'
+      className={`w-full flex items-center shrink-0 ${MIH_FOOTER_LEGAL_AUTOHIDE}`}
       style={{
         minHeight: 56,
         background: 'var(--surface-navigation-default)',
@@ -101,7 +107,7 @@ const Footer = ({
 
   return (
     <footer
-      className={`w-full flex flex-col shrink-0 ${className}`}
+      className={`w-full flex flex-col shrink-0 ${className}`.trim()}
       style={{
         background: 'var(--surface-navigation-default)',
         borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
@@ -114,7 +120,7 @@ const Footer = ({
       {/* Row 1 (variant-dependent) — Key actions or Pagination */}
       {isWithBtn && (
         <div
-          className='w-full flex items-center justify-end'
+          className={`w-full flex items-center ${MIH_CHROME_MORPH_FOOTER}`}
           style={{
             paddingTop: 'var(--dim-space-400)',
             paddingBottom: 'var(--dim-space-400)',
@@ -123,9 +129,21 @@ const Footer = ({
             gap: 'var(--dim-space-600)',
           }}
         >
+          {showButton3 && (
+            <NeutralSubdueButton
+              size='lg'
+              leadingIcon={button3LeadingIcon}
+              trailingIcon={button3TrailingIcon}
+              disabled={button3Disabled}
+              onClick={onButton3Click}
+              className='shrink-0'
+            >
+              {button3Label}
+            </NeutralSubdueButton>
+          )}
           {showAutoSave && (
             <div
-              className='flex-1 min-w-0 flex items-center'
+              className='min-w-0 flex items-center'
               style={{ gap: 'var(--dim-space-200)' }}
               role='status'
               aria-live='polite'
@@ -153,21 +171,8 @@ const Footer = ({
               </span>
             </div>
           )}
-          {/* When auto-save is hidden, push the buttons to the right via
-              an empty 1fr spacer so they don't recentre. */}
-          {!showAutoSave && <div className='flex-1' />}
+          <div className='flex-1' />
           <div className='inline-flex items-center shrink-0' style={{ gap: 'var(--dim-space-300)' }}>
-            {showButton3 && (
-              <BrandSubdueButton
-                variant='outline' size='lg'
-                leadingIcon={button3Icon}
-                trailingIcon={button3TrailingIcon}
-                disabled={button3Disabled}
-                onClick={onButton3Click}
-              >
-                {button3Label}
-              </BrandSubdueButton>
-            )}
             {showButton2 && (
               <BrandSubdueButton
                 variant='outline' size='lg'

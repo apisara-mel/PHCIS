@@ -682,8 +682,6 @@ const DirectoryServicePage = () => {
       activeKey='users'
       breadcrumb={breadcrumb}
       title='Directory Service (OIDC / SAML)'
-      onBack={handleCancel}
-      backLabel='กลับไปหน้าผู้ใช้'
       summaryCards={summaryCards}
       tabs={TABS}
       activeTab={activeTab}

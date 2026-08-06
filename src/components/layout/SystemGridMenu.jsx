@@ -1,41 +1,37 @@
-import React, { useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
-import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import Popover from '@/components/popup/Popover';
 import HubCard from '@/pages/hub/HubCard';
 import { SYSTEM_CATALOG_ROWS } from '@/data/systemCatalog';
-import useModalMotion from '@/components/popup/useModalMotion';
 
-/* MIH SystemGridMenu — apps-grid system picker overlay (Figma PHCIS | Consent
-   359:129936). Full content-area panel below the 64px header: green intro,
-   3×3 HubCard grid, Brand Subdue fill footer "กลับสู่หน้าเลือกระบบทั้งหมด". */
+/* MIH SystemGridMenu — apps-grid system picker popover (Figma PHCIS | Consent
+   359:129936). Anchored below the header grid button: compact 3×3 HubCard grid. */
 
 const INTRO_STYLE = {
   margin: 0,
   width: '100%',
   fontFamily: 'var(--type-family-heading-graphic2, var(--type-family-body))',
-  fontSize: 'var(--type-size-lg, 18px)',
+  fontSize: 'var(--type-size-base, 16px)',
   fontWeight: 'var(--type-weight-regular, 400)',
   lineHeight: 1.5,
   color: 'var(--text-brandPrimary-secondary, var(--brand-p600, #08A768))',
 };
 
-const SystemGridPanel = ({ onSelectSystem, onBackToHub }) => (
+const GRID_ROW_GAP = 'var(--dim-space-400, 16px)';
+
+const SystemGridPanel = ({ onSelectSystem }) => (
   <div
     role='dialog'
-    aria-modal='true'
     aria-label='เลือกระบบ'
     style={{
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: 'var(--dim-space-600, 24px)',
+      gap: 'var(--dim-space-400, 16px)',
       width: '100%',
-      maxWidth: '100%',
       boxSizing: 'border-box',
-      padding: 'var(--dim-space-600, 24px)',
-      background: 'var(--surface-card-100, #FFFFFF)',
+      padding: 'var(--dim-space-400, 16px) var(--dim-space-600, 24px) var(--dim-space-600, 24px)',
     }}
   >
     <p style={INTRO_STYLE}>
@@ -47,7 +43,7 @@ const SystemGridPanel = ({ onSelectSystem, onBackToHub }) => (
         key={row.map((s) => s.key).join('-')}
         style={{
           display: 'flex',
-          gap: 'var(--dim-space-600, 24px)',
+          gap: GRID_ROW_GAP,
           alignItems: 'stretch',
           width: '100%',
         }}
@@ -55,19 +51,16 @@ const SystemGridPanel = ({ onSelectSystem, onBackToHub }) => (
         {row.map((system) => (
           <HubCard
             key={system.key}
+            size='compact'
             illustration={system.illustration}
             title={system.title}
             description={system.desc}
-            lastUsed={system.lastUsed}
             onClick={system.route ? () => onSelectSystem(system) : undefined}
           />
         ))}
       </div>
     ))}
 
-    <BrandSubdueButton variant='fill' size='lg' onClick={onBackToHub}>
-      กลับสู่หน้าเลือกระบบทั้งหมด
-    </BrandSubdueButton>
   </div>
 );
 
@@ -78,7 +71,7 @@ const SystemGridMenu = ({
 }) => {
   const history = useHistory();
   const [open, setOpen] = React.useState(false);
-  const { mounted, visible, motionState } = useModalMotion(open);
+  const anchorRef = useRef(null);
 
   const close = () => setOpen(false);
 
@@ -87,65 +80,53 @@ const SystemGridMenu = ({
     if (system.route) history.push(system.route);
   };
 
-  const handleBackToHub = () => {
-    close();
-    history.push('/hub');
-  };
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => {
-      if (e.key === 'Escape') close();
-    };
-    document.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [open]);
-
   return (
-    <>
-      <div className={`relative shrink-0 ${className}`}>
-        <BrandSubdueIconButton
-          variant={buttonVariant}
-          size={buttonSize}
-          icon='apps'
-          active={open}
-          aria-label='เปลี่ยนระบบ'
-          aria-haspopup='dialog'
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-        />
-      </div>
+    <div className={`relative shrink-0 ${className}`} ref={anchorRef}>
+      <BrandSubdueIconButton
+        variant={buttonVariant}
+        size={buttonSize}
+        icon='apps'
+        iconActive='close'
+        active={open}
+        aria-label={open ? 'ปิดเมนูระบบ' : 'เปลี่ยนระบบ'}
+        aria-haspopup='dialog'
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      />
 
-      {mounted && typeof document !== 'undefined' && createPortal(
+      <Popover
+        open={open}
+        onClose={close}
+        anchorRef={anchorRef}
+        className='mih-system-grid-popover'
+        style={{
+          width: 'min(960px, calc(100vw - var(--dim-space-400, 16px)))',
+          zIndex: 'var(--sm-z-popover-nested, calc(var(--sm-z-overlay) + 2))',
+          background: 'var(--surface-card-100, #FFFFFF)',
+          border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+          borderRadius: 'var(--dim-radius-500, 16px)',
+          boxShadow: 'var(--shadow-drop-bottom-400)',
+        }}
+      >
         <div
-          className='mih-system-grid-overlay'
-          data-state={motionState}
+          className='scrollbar-thin'
           style={{
-            position: 'fixed',
-            top: 'var(--dim-size-1400, 64px)',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 'var(--sm-z-modal-overlay, 1400)',
+            maxHeight: 'min(75vh, 720px)',
             overflowY: 'auto',
-            background: 'var(--surface-card-100, #FFFFFF)',
-            opacity: visible ? 1 : 0,
-            transition: 'opacity var(--motion-duration-modal, 220ms) ease',
+            overflowX: 'hidden',
+            /* Match hub landing — brand-tinted canvas so card shadows read;
+               extra padding keeps Brand Drop Shadow Bottom/200 from being
+               clipped by the scrollport (`overflow` clips descendant shadows). */
+            padding: 'var(--dim-space-400, 16px)',
+            background: 'var(--background-screen-brand-100, var(--brand-p50, #F4FBF8))',
+            borderRadius: 'calc(var(--dim-radius-500, 16px) - var(--dim-stroke-100, 1px))',
+            boxSizing: 'border-box',
           }}
         >
-          <SystemGridPanel
-            onSelectSystem={handleSelect}
-            onBackToHub={handleBackToHub}
-          />
-        </div>,
-        document.body,
-      )}
-    </>
+          <SystemGridPanel onSelectSystem={handleSelect} />
+        </div>
+      </Popover>
+    </div>
   );
 };
 

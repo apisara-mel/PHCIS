@@ -40,7 +40,7 @@ import { NO_EDIT_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
        PharmacyRegistryPage: list + edit ใช้ route เดียว ไม่ push หน้าใหม่)
    คำศัพท์ตัวนับ "จำนวน N รายการ" + legend "ข้อมูลไม่สมบูรณ์" คงตามคู่มือ. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'ทะเบียนการส่งต่อผู้รับบริการ'];
+const breadcrumb = ['ทะเบียนการส่งต่อผู้รับบริการ'];
 
 const DIRECTION_TABS = [
   { key: 'out', label: 'ส่งต่อออก' },
@@ -508,7 +508,7 @@ const ReferralRegisterPage = () => {
   /* โหมด "ไม่มีสิทธิ์" — ปฏิเสธทั้งหน้าพร้อมทางออกกลับคิว */
   if (!access.canView) {
     return (
-      <QueuePageShell activeKey='treat' breadcrumb={breadcrumb} title='ทะเบียนการส่งต่อผู้รับบริการ'>
+      <QueuePageShell activeKey='refer' breadcrumb={breadcrumb} title='ทะเบียนการส่งต่อผู้รับบริการ'>
         <div style={{ paddingTop: 'var(--dim-space-600, 24px)', paddingRight: 'var(--dim-space-600, 24px)', paddingBottom: 'var(--dim-space-600, 24px)', paddingLeft: 'var(--dim-space-600, 24px)' }}>
           <AccessDeniedPanel what='ทะเบียนการส่งต่อ' onBack={() => history.push('/treat/queue')} />
         </div>
@@ -521,7 +521,7 @@ const ReferralRegisterPage = () => {
 
   return (
     <QueuePageShell
-      activeKey='treat'
+      activeKey='refer'
       breadcrumb={breadcrumb}
       title={mode === 'list' ? 'ทะเบียนการส่งต่อผู้รับบริการ' : `ใบส่งต่อ ${draft?.referNo || ''}`}
       onBack={mode === 'list' ? () => history.push('/treat/queue') : backToList}

@@ -33,6 +33,7 @@ import {
   CONSULT_QUESTION_SUGGESTIONS,
 } from '@/data/treatmentConsult';
 import { CURRENT_CLINICIAN, appendAudit } from '@/data/treatmentAudit';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { NO_EDIT_RIGHT_TOOLTIP, NO_CONFIDENTIAL_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
 
 /* PHCIS | CPOE §1.5.6 — ทะเบียนการส่งปรึกษา (Consult worklist).
@@ -251,9 +252,11 @@ const ConsultRegisterPage = () => {
     {
       key: 'name', header: 'ชื่อ - สกุล', flex: 1,
       render: (r) => (
-        <MaskedValue masked={isMasked(r)} onReveal={() => reveal(r)}>
-          <span style={strikeIf(r.status === 'cancelled') || undefined}>{r.name}</span>
-        </MaskedValue>
+        <MaskedWorklistName
+          name={r.name}
+          recordKey={r.hn || r.id}
+          style={strikeIf(r.status === 'cancelled') || undefined}
+        />
       ),
     },
     {

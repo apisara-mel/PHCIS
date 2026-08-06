@@ -26,13 +26,16 @@ import { MOBILE_PUSH_LOG, pushArrivalConfirmation } from '@/data/registrationVis
 import QueueTicketPrintPopup from './QueueTicketPrintPopup';
 import PatientCardPrintPopup, { buildOpdCardFromMr } from './PatientCardPrintPopup';
 import {
-  PATIENT_PROFILES,
-  PENDING_REGISTRATION_NO_PHOTO,
   getPatientByHN,
 } from '@/data/patientProfiles';
 import { buildRegistrationSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
 import { NEW_USER_AVATAR } from '@/data/avatarAssets';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import {
+  buildRegistrationQueueRoster,
+  REGISTRATION_QUEUE_ROWS,
+} from '@/data/registrationQueue';
 
 /* MIH RegistrationQueuePage — Figma node 2756:148259 / queue col 199:9243.
    Patient roster for the Medical Records (เวชระเบียน) workflow. Shares the
@@ -159,18 +162,7 @@ const renderQueue = (row) => (
   </ColorfulBadge>
 );
 
-/* Name display — show given name (+ title) in full; mask only นามสกุล
-   with `x` per character (e.g. "นายสมชาย มีสุข" → "นายสมชาย xxxx"). */
-const formatNameSurnameMasked = (fullName) => {
-  const s = String(fullName ?? '').trim();
-  if (!s) return '';
-  const parts = s.split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return s;
-  const surname = parts[parts.length - 1];
-  const given = parts.slice(0, -1).join(' ');
-  return `${given} ${'x'.repeat(Math.max(surname.length, 1))}`;
-};
-
+/* Name display — worklist masking (3 ตัวแรก + 3 ตัวท้าย) via MaskedWorklistName. */
 /* Table column config — shared with EllipsisText fallback for unspecified cells.
    ผู้รับบริการใหม่ (New User avatar): ชื่อ / ประเภท / อายุ / เลขบัตร / โทรศัพท์ = "—"
    ผู้รับบริการเก่าในคิวรอลงทะเบียนมีข้อมูลครบ + รูปโปรไฟล์ */
@@ -202,7 +194,11 @@ const renderName = (row) => {
         avatarUrl={avatarUrl}
         size={TABLE_AVATAR_SIZE}
       />
-      <span className='truncate'>{formatNameSurnameMasked(row.name)}</span>
+      <MaskedWorklistName
+        name={row.name}
+        recordKey={row.hn || row.id}
+        className='truncate min-w-0 flex-1'
+      />
       {/* TOR 1.1.1.2 — dark-grey StatusBadge on deceased rows (directory + queue) */}
       {row.lifeStatus === 'deceased' && (
         <StatusBadge style='neutral' size='small' showDot>
@@ -398,77 +394,13 @@ const buildMrActions = ({ onAddQueue }) => (
 
 const PAGE_SIZE = 20;
 
-/* Demo distribution — ลงทะเบียนสำเร็จ 2 · กำลังลงทะเบียน 2 · รอลงทะเบียน … */
-const seedRegistrationStatus = (i) => {
-  if (i < 2) return 'done';
-  if (i < 4) return 'progress';
-  if (i < 16) return 'pending';
-  if (i < 22) return 'draft';
-  return 'pending';
-};
-
-/* Queue table shows years only (e.g. "27"), not the full PATIENT_PROFILES
-   "NN ปี - M เดือน - D วัน" string used on PatientCard. */
-const ageYearsOnly = (age) => {
-  const m = String(age ?? '').match(/^(\d+)/);
-  return m ? m[1] : '';
-};
-
-/* Build a 130-row roster — one PATIENT_PROFILES entry per index (same pool
-   as OPD queue / Screening PatientCard), MR fields for phone/rights/status.
-   Most รอลงทะเบียน rows are ผู้รับบริการเก่า (full columns + profile photo).
-   Exactly 4 walk-in ใหม่ (PENDING_REGISTRATION_NO_PHOTO) — ไม่เคยใช้บริการ,
-   ไม่มี HN, ใช้ New User avatar (Figma DS 3891:7747). */
-const buildRoster = () => {
-  const rows = [];
-  let pendingNoPhotoIdx = 0;
-  for (let i = 0; i < 130; i += 1) {
-    const status = seedRegistrationStatus(i);
-    const usePendingNoPhoto = status === 'pending'
-      && pendingNoPhotoIdx < PENDING_REGISTRATION_NO_PHOTO.length;
-    const profile = usePendingNoPhoto
-      ? PENDING_REGISTRATION_NO_PHOTO[pendingNoPhotoIdx++]
-      : PATIENT_PROFILES[i % PATIENT_PROFILES.length];
-    const neverServed = Boolean(usePendingNoPhoto || profile.neverServed);
-    const mr = profile.hn ? MR_BY_HN[profile.hn] : null;
-    const fallbackMr = MR_PATIENTS[i % MR_PATIENTS.length];
-    rows.push({
-      id: `MR-${String(i + 1).padStart(3, '0')}`,
-      queue: `A${String(i + 1).padStart(3, '0')}`,
-      hn: neverServed ? '' : profile.hn,
-      /* New patients: dash columns + New User avatar (no PII yet). */
-      name: neverServed ? '' : profile.fullName,
-      age: neverServed ? '' : ageYearsOnly(profile.age),
-      nationalId: neverServed ? '' : profile.nationalId,
-      /* TOR 1.1.1.3 — passport search axis (derived from MR row; profiles
-         file stays untouched per module scope). */
-      passportNo: neverServed ? '' : (mr?.passportNo ?? ''),
-      /* TOR 1.1.1.2 — สถานะการมีชีวิต */
-      lifeStatus: neverServed ? 'alive' : (mr?.lifeStatus ?? 'alive'),
-      deceasedDate: neverServed ? '' : (mr?.deceasedDate ?? ''),
-      phone: neverServed ? '' : (mr?.phone ?? fallbackMr.phone),
-      rights: neverServed
-        ? (profile.rights || fallbackMr.rights)
-        : (mr?.rights ?? fallbackMr.rights),
-      queueChannel: QUEUE_CHANNEL_OPTIONS[i % QUEUE_CHANNEL_OPTIONS.length],
-      visitType: neverServed ? '' : VISIT_TYPE_OPTIONS[i % VISIT_TYPE_OPTIONS.length],
-      /* Active flag — Figma annotation 275:44876 (≤ 2 ปี since last visit). */
-      patientStatus: neverServed ? 'inactive' : (i % 7 === 0 ? 'inactive' : 'active'),
-      status,
-      noProfilePhoto: neverServed,
-      neverServed,
-    });
-  }
-  return rows;
-};
-
 /* Page-scoped localStorage key — keeps Registration's recent-search list
    separate from the OPD / Treatment queues. */
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:registration-queue';
 
 /* Demo recent-search — Figma PHCIS-OPD 290:48930 (MR id + HN pills). */
 const REGISTRATION_SEARCH_HISTORY_SEED = buildRegistrationSearchHistorySeed(
-  buildRoster().slice(0, 4),
+  REGISTRATION_QUEUE_ROWS.slice(0, 4),
 );
 
 const RegistrationQueuePage = () => {
@@ -515,7 +447,7 @@ const RegistrationQueuePage = () => {
   const setFilter = (key) => (val) => setFilters((f) => ({ ...f, [key]: val }));
 
   /* Mutable roster — drag-reorder in edit mode updates this array in place. */
-  const [rows, setRows] = useState(() => buildRoster());
+  const [rows, setRows] = useState(() => buildRegistrationQueueRoster());
 
   /* PII reveal — masked dob / nationalId / phone cells open PrivacyRevealPopup. */
   const [privacyRevealRequest, setPrivacyRevealRequest] = useState(null);

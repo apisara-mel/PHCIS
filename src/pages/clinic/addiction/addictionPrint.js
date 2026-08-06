@@ -63,9 +63,9 @@ export const printAddictionRegistry = (rows, filterSummary) => {
     <h1>ทะเบียนผู้ติดสารเสพติด</h1>
     <div class="meta">เงื่อนไขที่พิมพ์: ${esc(filterSummary || 'ทั้งหมด')} · จำนวน ${rows.length} รายการ</div>
     ${tableHtml(
-    ['HN', 'ชื่อ-สกุล', 'อายุ/เพศ', 'สารเสพติดหลัก', 'โปรแกรม', 'ASSIST', 'ความรุนแรง', 'วันลงทะเบียน', 'ผู้บำบัด', 'สถานะ'],
+    ['HN', 'อายุ/เพศ', 'สารเสพติดหลัก', 'โปรแกรม', 'ASSIST', 'ความรุนแรง', 'วันลงทะเบียน', 'ผู้บำบัด', 'สถานะ'],
     rows.map((r) => [
-      r.hn, r.name, `${r.age ?? '—'} ปี / ${r.gender || '—'}`,
+      r.hn, `${r.age ?? '—'} ปี / ${r.gender || '—'}`,
       r.mainSubstance || '—', r.programLabel || '—',
       `${r.screeningScore ?? '—'} คะแนน`, r.severityLabel || '—',
       formatAddictionDate(r.registeredDate), r.therapist || '—', r.statusLabel || '—',
@@ -83,7 +83,7 @@ export const printAddictionFollowUpSummary = ({
     <h1>ใบสรุปการติดตามการดูแลผู้ติดสารเสพติด</h1>
     <div class="meta">ช่วงเวลา ${esc(formatAddictionDate(range.from))} – ${esc(formatAddictionDate(range.to))}</div>
     <table class="kv"><tbody>
-      <tr><td>ผู้รับบริการ</td><td>${esc(patientName || '—')} (HN ${esc(hn || '—')})</td></tr>
+      <tr><td>HN</td><td>${esc(hn || '—')}</td></tr>
       <tr><td>โปรแกรมบำบัด</td><td>${esc(registry?.programLabel || '—')}</td></tr>
       <tr><td>สถานะทะเบียน</td><td>${esc(registry?.statusLabel || 'ยังไม่มีทะเบียน')}</td></tr>
       <tr><td>ผู้บำบัด</td><td>${esc(registry?.therapist || '—')}</td></tr>
@@ -109,7 +109,7 @@ export const printAddictionFollowUpSummary = ({
     xrays.map((r) => [formatAddictionDate(r.date), r.exam, r.result]),
     'ไม่มีผล X-ray ในช่วงเวลาที่เลือก')}
   `;
-  openPrintDoc(`ใบสรุปการติดตาม ${patientName || ''}`.trim(), body);
+  openPrintDoc(`ใบสรุปการติดตาม HN ${hn || ''}`.trim(), body);
 };
 
 /** พิมพ์รายชื่อ CBTx / HR แยกตามชุมชน-เขต (1.10.5.9). */
@@ -121,9 +121,9 @@ export const printCommunityRegistry = (rows, filterSummary) => {
   }, {});
   const sections = Object.keys(groups).sort().map((key) => `
     <h2>${esc(key)} (${groups[key].length} ราย)</h2>
-    ${tableHtml(['HN', 'ชื่อผู้รับบริการ', 'ประเภทการดูแล', 'ผู้รับผิดชอบ', 'สถานะ', 'ตำแหน่งบ้าน'],
+    ${tableHtml(['HN', 'ประเภทการดูแล', 'ผู้รับผิดชอบ', 'สถานะ', 'ตำแหน่งบ้าน'],
     groups[key].map((r) => [
-      r.hn, r.patientName, r.careTypeLabel, r.responsible, r.statusLabel,
+      r.hn, r.careTypeLabel, r.responsible, r.statusLabel,
       r.houseLocation?.pinSaved
         ? `${r.houseLocation.lat.toFixed(4)}, ${r.houseLocation.lng.toFixed(4)}`
         : 'รอปักหมุด',

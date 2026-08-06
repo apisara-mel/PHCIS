@@ -1,6 +1,9 @@
 import React, { useRef } from 'react';
 import TextareaCanonical from '@/components/forms/Textarea';
-import VoiceTextarea from '@/components/forms/VoiceTextarea';
+import VoiceTextarea, {
+  VOICE_TEXTAREA_HEIGHT,
+  VOICE_TEXTAREA_MIN_HEIGHT,
+} from '@/components/forms/VoiceTextarea';
 import { useTextareaSuggestions } from '@/components/forms/textareaSuggestions';
 
 /* MIH SuggestibleTextarea — Figma PHCIS · OPD 162:24221 + Voice Textarea 3280:3970.
@@ -52,8 +55,8 @@ const InnerVoiceTextarea = React.forwardRef(({
   onFocus,
   onBlur,
   placeholder,
-  height = 160,
-  minHeight = 96,
+  height = VOICE_TEXTAREA_HEIGHT,
+  minHeight = VOICE_TEXTAREA_MIN_HEIGHT,
   boxRef,
   disabled = false,
 }, ref) => (
@@ -89,8 +92,8 @@ const SuggestibleTextarea = ({
   minChars = 3,
   rows = 3,
   voice = false,
-  height = 160,
-  minHeight = 96,
+  height = VOICE_TEXTAREA_HEIGHT,
+  minHeight = VOICE_TEXTAREA_MIN_HEIGHT,
   disabled = false,
   popoverWidth = 591,
   popoverAriaLabel = 'คำแนะนำ',

@@ -144,10 +144,10 @@ export const FEATURE_GROUPS = [
   },
   {
     key: 'forms',
-    label: 'คลังแบบฟอร์ม',
+    label: 'คลังเอกสาร e-document',
     icon: 'assignment_add',
     features: [
-      { key: 'forms.view',   label: 'ดูคลังแบบฟอร์ม',          supportedLevels: ['view'] },
+      { key: 'forms.view',   label: 'ดูคลังเอกสาร e-document',          supportedLevels: ['view'] },
       { key: 'forms.fill',   label: 'กรอกแบบฟอร์มแทนผู้ป่วย',  supportedLevels: ['edit'] },
       { key: 'forms.share',  label: 'สร้าง QR / แชร์ลิงก์',     supportedLevels: ['edit'] },
       { key: 'forms.author', label: 'สร้าง/แก้ไขแบบฟอร์ม',      supportedLevels: ['edit'] },

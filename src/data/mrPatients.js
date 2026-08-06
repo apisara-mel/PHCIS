@@ -73,12 +73,12 @@ export const MR_PATIENTS = [
       { name: 'Sulfonamides', symptom: 'ผื่น Stevens-Johnson Syndrome (SJS) หรือผื่นแดงทั่วตัว, ไข้, ตุ่มน้ำพอง',  severity: 'critical' },
       { name: 'Aspirin',      symptom: 'ติดผ่าเร็บ / หลอดลมหดเกร็ง, ผื่นลมพิษ, คัดจมูก น้ำมูกไหล',                  severity: 'high'     },
       { name: 'NSAIDs',       symptom: 'ปวดท้อง / หลอดอาหารอักเสบ, ผื่นลมพิษ, คัดจมูก น้ำมูกไหล',                   severity: 'high'     },
-      { name: 'โรคลมชัก',      symptom: 'ชักเกร็งกระตุก, หมดสติชั่วคราว',                                            severity: 'medium'   },
+      { name: 'โรคลมชัก',      symptom: 'ชักเกร็งกระตุก, หมดสติชั่วคราว',                                            severity: 'mild'     },
     ],
     chronicDiseases: [
-      { name: 'หัวใจล้มเหลว',                severity: 'critical' },
-      { name: 'โรคไตเรื้อรัง ระยะ 3–4 (CKD)', severity: 'high'     },
-      { name: 'ความดันโลหิตสูง (HT)',         severity: 'medium'   },
+      { name: 'หัวใจล้มเหลว',                severity: 'critical', detail: 'NYHA class II · EF 35% · รับยา Furosemide, Carvedilol · ติดตาม cardiology ทุก 3 เดือน' },
+      { name: 'โรคไตเรื้อรัง ระยะ 3–4 (CKD)', severity: 'high',     detail: 'eGFR 32 ml/min/1.73m² · ควบคุมอาการ · งด NSAIDs · ติดตาม nephrology ทุก 3 เดือน' },
+      { name: 'ความดันโลหิตสูง (HT)',         severity: 'medium',   detail: 'BP เป้าหมาย < 130/80 mmHg · รับยา Amlodipine 5 mg วันละ 1 ครั้ง · ตรวจ BP ที่บ้านสัปดาห์ละ 2 ครั้ง' },
     ],
   },
   {

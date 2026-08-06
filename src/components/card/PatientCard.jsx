@@ -1,7 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useHeaderAutoHide } from '@/context/HeaderAutoHideContext';
+import {
+  APP_TOPBAR_HEIGHT,
+  CHROME_TRANSITION_EASE,
+  CHROME_TRANSITION_MS,
+  MIH_PATIENT_CARD_STICKY_HEIGHT_VAR,
+  MIH_TOPBAR_OFFSET,
+  clearLerpedCssLength,
+  setLerpedCssLength,
+} from '@/hooks/useHeaderAutoHide';
 import { useHistory } from 'react-router-dom';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Tooltip from '@/components/tooltip/Tooltip';
 import { resolveSeverityBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
 import { DEFAULT_PATIENT } from '@/data/patientProfiles';
 
@@ -31,10 +42,14 @@ const getInitials = (patient) => {
   return '—';
 };
 
-const Field = ({ label, value }) => (
-  <div className='flex flex-col text-white'>
-    <span className='text-xs leading-snug opacity-90'>{label}</span>
-    <span className='text-sm font-bold leading-snug -tracking-[0.28px]'>{value}</span>
+const Field = ({ label, value, minWidth }) => (
+  <div
+    className='flex flex-col text-white shrink-0'
+    style={minWidth ? { minWidth } : undefined}
+    title={typeof value === 'string' && value.length > 28 ? value : undefined}
+  >
+    <span className='text-xs leading-snug opacity-90 whitespace-nowrap'>{label}</span>
+    <span className='text-sm font-bold leading-snug -tracking-[0.28px] whitespace-nowrap'>{value}</span>
   </div>
 );
 
@@ -44,7 +59,10 @@ const Field = ({ label, value }) => (
    • Compact / parallax-stuck layout (Figma 343:5629) — label sits
      INLINE on the same row as the badges, hugging its content.
    Each entry resolves to a severity-coded ColorfulBadge via
-   resolveSeverityBadgeStyle (red / orange / blue / teal / yellow). */
+   resolveSeverityBadgeStyle (red / orange / blue / teal / yellow).
+   แพ้ยา — รายการสุดท้ายใช้ yellow; รายการที่มีรายละเอียด (`symptom` /
+   `detail` / `note`) แสดง popover สีขาวเมื่อ hover — ใช้ได้ทั้งแพ้ยา
+   และโรคประจำตัว. */
 const AlertBadgeColumn = ({ label, items, compact = false }) => {
   const labelEl = (
     <span
@@ -72,16 +90,49 @@ const AlertBadgeColumn = ({ label, items, compact = false }) => {
           —
         </span>
       ) : (
-        items.map((item, idx) => (
-          <ColorfulBadge
-            key={`${item.name}-${idx}`}
-            style={resolveSeverityBadgeStyle(item.severity)}
-            size='small'
-            width='hug'
-          >
-            {item.name}
-          </ColorfulBadge>
-        ))
+        items.map((item, idx) => {
+          const isLastAllergy = label === 'แพ้ยา' && idx === items.length - 1;
+          const badgeStyle = isLastAllergy
+            ? 'yellow'
+            : resolveSeverityBadgeStyle(item.severity);
+          const badge = (
+            <ColorfulBadge
+              style={badgeStyle}
+              size='small'
+              width='hug'
+            >
+              {item.name}
+            </ColorfulBadge>
+          );
+          const detail = item.symptom || item.detail || item.note || item.description;
+          const wrapped = detail ? (
+            <Tooltip
+              variant='light'
+              position='bottom'
+              maxWidth={320}
+              content={(
+                <span
+                  style={{
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-sm, 14px)',
+                    lineHeight: 1.5,
+                    color: 'var(--text-content-secondary, #5F676D)',
+                  }}
+                >
+                  {detail}
+                </span>
+              )}
+            >
+              <span className='inline-flex cursor-default'>{badge}</span>
+            </Tooltip>
+          ) : badge;
+
+          return (
+            <React.Fragment key={`${item.name}-${idx}`}>
+              {wrapped}
+            </React.Fragment>
+          );
+        })
       )}
     </div>
   );
@@ -101,6 +152,7 @@ const PatientCard = ({
   onBack,
   title = 'คัดกรองและซักประวัติ',
   actions,
+  showBack = true,
   /* Optional extra badges/pills (e.g. Observation's status/VN/nurse/
      admit-time) rendered as a wrapped row below the identity fields —
      fully caller-built JSX, same pattern as `actions`, so PatientCard
@@ -122,14 +174,17 @@ const PatientCard = ({
      PHCIS app `Header` (h-16, sticky, z-1200). Callers may still pass
      `compact` directly to force a static state (Components Library). */
   sticky = false,
-  stickyTop = 64,
+  stickyTop,
   /* Render only the teal identity strip (no back/title chrome). Use when
      the host page already owns SubHeader via QueuePageShell. */
   embedded = false,
 }) => {
   const history = useHistory();
+  const autoHide = useHeaderAutoHide();
+  const resolvedStickyTop = stickyTop ?? autoHide?.topbarOffset ?? APP_TOPBAR_HEIGHT;
   const [imgError, setImgError] = useState(false);
   const sentinelRef = useRef(null);
+  const cardRef = useRef(null);
   const [stuck, setStuck] = useState(false);
 
   /* When `sticky` mode is enabled, derive `compact` from the sentinel's
@@ -150,11 +205,11 @@ const PatientCard = ({
        card tucks under the app header. */
     const observer = new IntersectionObserver(
       ([entry]) => setStuck(!entry.isIntersecting),
-      { threshold: 0, rootMargin: `-${stickyTop}px 0px 0px 0px` },
+      { threshold: 0, rootMargin: `-${resolvedStickyTop}px 0px 0px 0px` },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [sticky, stickyTop]);
+  }, [sticky, resolvedStickyTop]);
 
   /* Default — navigate one step back. The page can intercept (e.g. to
      show an unsaved-changes confirmation) by passing its own `onBack`. */
@@ -167,9 +222,29 @@ const PatientCard = ({
   const diseasesList = chronicDiseases ?? patient?.chronicDiseases ?? [];
   const showAlertRow = allergiesList.length > 0 || diseasesList.length > 0;
 
-  /* Tunable parallax timing — kept short so the user feels the snap but
-     long enough that label/title fades read as graceful (Figma 343:5629). */
-  const T = '300ms cubic-bezier(0.4, 0, 0.2, 1)';
+  /* Publish live sticky height so RecordWizardMorphBand can stick flush
+     under this card (TreatmentFormPage / ScreeningPage). */
+  useLayoutEffect(() => {
+    if (!sticky || typeof document === 'undefined') return undefined;
+    const el = cardRef.current;
+    if (!el) return undefined;
+    const publish = () => {
+      const h = Math.round(el.getBoundingClientRect().height);
+      setLerpedCssLength(MIH_PATIENT_CARD_STICKY_HEIGHT_VAR, h);
+    };
+    publish();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
+    ro?.observe(el);
+    window.addEventListener('resize', publish);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', publish);
+      clearLerpedCssLength(MIH_PATIENT_CARD_STICKY_HEIGHT_VAR);
+    };
+  }, [sticky, compact, embedded, showAlertRow, patient?.hn]);
+
+  /* Tunable parallax timing — sync with app chrome lerp (Header · step band). */
+  const T = `${CHROME_TRANSITION_MS}ms ${CHROME_TRANSITION_EASE}`;
 
   const cardStyle = {
     paddingTop: embedded ? 0 : 'var(--dim-space-400, 16px)',
@@ -187,7 +262,7 @@ const PatientCard = ({
     ...(sticky
       ? {
           position: 'sticky',
-          top: stickyTop,
+          top: MIH_TOPBAR_OFFSET,
           /* Stack above page content but below the app header (z-1200)
              and modals (z-1400). The dropdown popover tokens
              (--sm-z-popover 1199) already sit just below the header — a
@@ -204,6 +279,7 @@ const PatientCard = ({
          under the app header. Rendered only in sticky mode. */}
       {sticky && <div ref={sentinelRef} aria-hidden style={{ height: 1 }} />}
     <div
+      ref={cardRef}
       className={embedded
         ? 'w-full'
         : 'w-full bg-surface-card px-6 border-b border-brand-200 shadow-card'}
@@ -233,6 +309,7 @@ const PatientCard = ({
       >
         {/* Back button — aliases Neutral Subdue Button (Figma PHCIS-ALL
             2373:119045: outline variant, leading chevron_left). */}
+        {showBack && (
         <NeutralSubdueButton
           variant='outline'
           size='md'
@@ -241,6 +318,7 @@ const PatientCard = ({
         >
           กลับ
         </NeutralSubdueButton>
+        )}
         <h1 className='text-base font-bold text-ink'>{title}</h1>
         {actions && (
           <div className='ml-auto flex items-center gap-2'>{actions}</div>
@@ -251,8 +329,7 @@ const PatientCard = ({
       {/* Patient info gradient card — compact (Figma 343:5629 mini) or
           full (Figma 150:33649). Compact: single row, 44px avatar, 24h
           HN/VIP pills, four right-aligned summary fields. Full: 68px
-          avatar, 32h pills, multi-row grid. Padding + gap + child
-          dimensions all transition in lockstep with the title row above. */}
+          avatar, 32h pills, summary fields in one horizontal row. */}
       <div
         className='w-full rounded-card flex'
         style={{
@@ -348,19 +425,18 @@ const PatientCard = ({
             <Field label='แพทย์เจ้าของคนไข้' value={patient.doctor} />
           </div>
         ) : (
-          <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-6 gap-y-4'>
+          <div
+            className='flex w-full min-w-0 flex-nowrap items-start overflow-x-auto scrollbar-thin'
+            style={{ gap: 'var(--dim-space-600, 24px)' }}
+          >
             <Field label='เพศ' value={patient.sex} />
             <Field label='อายุ' value={patient.age} />
             <Field label='เลขบัตรประชาชน' value={patient.nationalId} />
             <Field label='หมู่เลือด' value={patient.bloodType} />
             <Field label='ประเภท' value={patient.patientType} />
-            <Field label='แพทย์เจ้าของคนไข้' value={patient.doctor} />
-            <div className='col-span-2 lg:col-span-3 xl:col-span-4'>
-              <Field label='สิทธิ์การรักษา' value={patient.insurance} />
-            </div>
-            <div className='col-span-2 lg:col-span-3 xl:col-span-2'>
-              <Field label='ที่อยู่' value={patient.address} />
-            </div>
+            <Field label='แพทย์เจ้าของคนไข้' value={patient.doctor} minWidth={160} />
+            <Field label='สิทธิ์การรักษา' value={patient.insurance} minWidth={220} />
+            <Field label='ที่อยู่' value={patient.address} minWidth={280} />
           </div>
         )}
       </div>

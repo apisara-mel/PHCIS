@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { morphPanelPaddingStyle, morphStepScaleStyle } from '@/components/layout/headerMorphStyles';
 
 /* Figma node 2709:6562 — Step Indicator (MIH Design System Foundation)
    Variants: type (Default | Current | Success) × state (Default | Hover)
@@ -40,10 +41,10 @@ const CONNECTOR_TRANSITION = `background-color 220ms ${SMOOTH_EASE}`;
    length (the line "uncurls") so the transition is symmetric if the user
    walks the step backwards. */
 const CHECK_PATH_LENGTH = 14;
-const AnimatedCheck = ({ active }) => (
+const AnimatedCheck = ({ active, size = 16 }) => (
   <svg
-    width='16'
-    height='16'
+    width={size}
+    height={size}
     viewBox='0 0 16 16'
     fill='none'
     aria-hidden
@@ -62,10 +63,14 @@ const AnimatedCheck = ({ active }) => (
   </svg>
 );
 
-const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick }) => {
+const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = false, labelNoWrap = false }) => {
   const [hovered, setHovered] = useState(false);
   const isClickable = Boolean(onStepClick) && type !== TYPE.CURRENT;
   const showHover = hovered && isClickable;
+  const circleSize = compact ? 22 : 28;
+  const currentRing = compact ? 3 : 4;
+  const checkSize = compact ? 12 : 16;
+  const stepWidth = compact ? 112 : 160;
 
   let bg, numberColor, titleColor;
   if (type === TYPE.CURRENT) {
@@ -100,7 +105,15 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick }) => {
     : 'var(--border-steps-default)';
 
   return (
-    <div className='w-[160px] shrink-0 flex flex-col gap-2 items-start'>
+    <div
+      className='shrink-0 flex flex-col items-start'
+      style={{
+        width: labelNoWrap ? 'auto' : stepWidth,
+        minWidth: labelNoWrap ? stepWidth : undefined,
+        gap: compact ? 'var(--dim-space-050)' : 'var(--dim-space-200)',
+        transition: `width 220ms ${SMOOTH_EASE}, gap 220ms ${SMOOTH_EASE}`,
+      }}
+    >
       {/* Indicator row: circle + connector */}
       <div className='flex items-center gap-1.5 w-full' data-spotlight={`step-${idx + 1}`}>
         <button
@@ -109,21 +122,22 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick }) => {
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           className={[
-            'relative box-border rounded-full flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden',
+            'relative box-border rounded-full flex items-center justify-center font-bold shrink-0 overflow-hidden',
+            compact ? 'text-xs' : 'text-sm',
             isClickable ? 'cursor-pointer' : 'cursor-default',
           ].join(' ')}
           style={{
-            width: 28,
-            height: 28,
+            width: circleSize,
+            height: circleSize,
             background: bg,
             color: numberColor,
             border:
               type === TYPE.CURRENT
-                ? '4px solid var(--primaryBorder-600)'
+                ? `${currentRing}px solid var(--primaryBorder-600)`
                 : 'none',
             boxShadow:
               type === TYPE.CURRENT
-                ? '0 0 0 4px var(--primaryBorder-600)'
+                ? `0 0 0 ${currentRing}px var(--primaryBorder-600)`
                 : 'none',
             /* `translateZ(0)` + `willChange: transform` promote the button
                to its own GPU layer so the scale-on-hover renders without
@@ -133,7 +147,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick }) => {
                stabilises subpixel snapping on WebKit. */
             transform: `scale(${circleScale}) translateZ(0)`,
             transformOrigin: 'center',
-            transition: CIRCLE_TRANSITION,
+            transition: `${CIRCLE_TRANSITION}, width 220ms ${SMOOTH_EASE}, height 220ms ${SMOOTH_EASE}`,
             willChange: 'transform',
             backfaceVisibility: 'hidden',
             outline: 'none',
@@ -152,7 +166,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick }) => {
               transition: `opacity 220ms ${SMOOTH_EASE}`,
             }}
           >
-            <AnimatedCheck active={type === TYPE.SUCCESS} />
+            <AnimatedCheck active={type === TYPE.SUCCESS} size={checkSize} />
           </span>
           <span
             className='absolute inset-0 inline-flex items-center justify-center'
@@ -179,16 +193,21 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick }) => {
       {/* Title + optional English subtitle (CPOE bilingual stepper) */}
       <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-050)' }}>
         <p
-          className='text-sm leading-[1.5] text-left m-0'
+          className='leading-[1.5] text-left m-0'
+          data-step-label
           style={{
             color: titleColor,
+            fontFamily: 'var(--type-family-body)',
+            fontSize: compact ? 'var(--type-size-xs)' : 'var(--type-size-sm)',
             fontWeight: type === TYPE.CURRENT ? 700 : 400,
-            transition: TITLE_TRANSITION,
+            lineHeight: compact ? 1.35 : 1.5,
+            whiteSpace: labelNoWrap ? 'nowrap' : 'normal',
+            transition: `${TITLE_TRANSITION}, font-size 220ms ${SMOOTH_EASE}, line-height 220ms ${SMOOTH_EASE}`,
           }}
         >
           {label}
         </p>
-        {subtitle && (
+        {subtitle && !compact && (
           <p
             className='text-xs leading-[1.5] text-left m-0'
             style={{
@@ -211,11 +230,10 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick }) => {
    body. Default (`framed={false}`) renders plain — used inside FormShell /
    TreatmentFormShell that supply their own chrome. */
 /* `completedSteps` — opt-in validation gate. When provided (array of
-   booleans aligned to `steps`), a step renders SUCCESS only if its
-   entry is `true`. The current step still renders CURRENT regardless,
-   and steps that are neither current nor complete render DEFAULT. When
-   the prop is omitted we keep the original behaviour (`idx < current`
-   ⇒ SUCCESS) so existing callers don't change. */
+   booleans aligned to `steps`), a step renders SUCCESS whenever its
+   entry is `true` (even if the user jumped ahead/out of order). The
+   current step always renders CURRENT. When the prop is omitted we
+   keep the original behaviour (`idx < current` ⇒ SUCCESS). */
 const StepProgress = ({
   steps,
   current = 0,
@@ -223,9 +241,15 @@ const StepProgress = ({
   onStepClick,
   className = '',
   framed = false,
+  compact = false,
+  labelNoWrap = false,
+  morph = false,
 }) => {
   const row = (
-    <div className={`flex items-start gap-1.5 ${className}`}>
+    <div
+      className={`flex items-start ${compact ? 'gap-1' : 'gap-1.5'} ${className}`}
+      style={{ transition: 'gap 200ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+    >
       {steps.map((raw, idx) => {
         const { title, subtitle } = normalizeStep(raw);
         const isComplete = completedSteps
@@ -245,27 +269,31 @@ const StepProgress = ({
             type={type}
             isLast={idx === steps.length - 1}
             onStepClick={onStepClick}
+            compact={compact}
+            labelNoWrap={labelNoWrap}
           />
         );
       })}
     </div>
   );
 
-  if (!framed) return row;
+  const morphedRow = (framed || morph) ? (
+    <div style={morphStepScaleStyle}>{row}</div>
+  ) : row;
+
+  if (!framed) return morphedRow;
 
   return (
     <div
-      /* Bottom hairline is aliased from `--border-brandPrimary-quaternary`
-         (brand-aware) via inline style — Tailwind v2.1 JIT parses
-         `border-[var(...)]` as border-width rather than border-color, so
-         the arbitrary class can't reliably tint the rule. Pairing
-         `border-b` (width + style) with an explicit `borderColor`
-         matches how Popup / Calendar / DateFilterPopup tint their own
-         chrome from the same token. */
-      className='w-full bg-surface-card border-b rounded-t-card flex items-center justify-center px-6 py-6'
-      style={{ borderBottomColor: 'var(--border-brandPrimary-quaternary)' }}
+      className={`w-full bg-surface-card border-b rounded-t-card flex items-center justify-center ${
+        compact ? 'px-4 py-3' : ''
+      }`}
+      style={{
+        borderBottomColor: 'var(--border-brandPrimary-quaternary)',
+        ...(compact ? {} : morphPanelPaddingStyle),
+      }}
     >
-      {row}
+      {morphedRow}
     </div>
   );
 };

@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import AlertDialog from '@/components/popup/AlertDialog';
 import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
+import Popover from '@/components/popup/Popover';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
+import SelectableCardButton from '@/components/button/SelectableCardButton';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import {
@@ -15,7 +17,11 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Icon from '@/components/icons/Icon';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import PrimarySearch from '@/components/search/PrimarySearch';
+import SecondarySearch from '@/components/search/SecondarySearch';
+import {
+  SectionHeader as SearchSectionHeader,
+  SuggestionRow as SearchSuggestionRow,
+} from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import {
   CONSENT_PATIENT_SEARCH_POOL,
@@ -26,7 +32,8 @@ import {
 import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRecords';
 
 /* Shared ด.1.1.17.1 form — อัปโหลด/ถ่ายภาพแบบฟอร์มขอเข้าถึง → mock-OCR → ตรวจแก้ → ส่งคำขอ.
-   Used by RequestFormAccessPage (full page) and ScanImportPopup (modal). */
+   Used by RequestFormAccessPage (full page), ScanImportPopup, and
+   CreateConsentRequestPopup (modal). */
 
 const BODY_TEXT = {
   color: 'var(--text-content-secondary)',
@@ -34,6 +41,14 @@ const BODY_TEXT = {
   fontSize: 'var(--type-size-sm)',
   lineHeight: 1.6,
 };
+/** Matches FieldShell in `_inputBox.jsx` — keeps custom fields aligned with Select/Input. */
+export const FIELD_SHELL_LAYOUT = {
+  width: '100%',
+  maxWidth: 'var(--dim-size-2900, 640px)',
+  minWidth: 'var(--dim-size-2000, 128px)',
+  boxSizing: 'content-box',
+};
+
 const LABEL_TEXT = {
   color: 'var(--text-content-default)',
   fontFamily: 'var(--type-family-body)',
@@ -58,8 +73,20 @@ const SCOPE_OPTIONS = ['ประวัติการรักษา', 'ผล�
 
 /** ประเภทสิ่งที่ขอเข้าถึง */
 export const ACCESS_TYPE_OPTIONS = [
-  { value: 'form', label: 'ขอเข้าถึงแบบฟอร์มความยินยอม' },
-  { value: 'patient_consent', label: 'ขอเข้าถึงข้อมูลความยินยอมของผู้รับบริการ' },
+  {
+    value: 'form',
+    label: 'ขอเข้าถึงแบบฟอร์มความยินยอม',
+    shortLabel: 'ขอใช้แบบฟอร์มยินยอม',
+    caption: 'ขอใช้เทมเพลตแบบฟอร์มที่เผยแพร่ในระบบ',
+    description: 'ขอสิทธิ์ดูหรือใช้เทมเพลตแบบฟอร์มความยินยอมที่เผยแพร่ในระบบ เพื่อให้บริการหรือจัดทำเอกสาร',
+  },
+  {
+    value: 'patient_consent',
+    label: 'ขอเข้าถึงข้อมูลความยินยอมของผู้รับบริการ',
+    shortLabel: 'ขอดูข้อมูลการให้ความยินยอมของผู้รับบริการ',
+    caption: 'เพื่อตรวจสอบดูการให้ความยินยอมของผู้รับบริการ',
+    description: 'ขอสิทธิ์ตรวจสอบสถานะความยินยอมที่ผู้รับบริการรายนั้นให้ไว้ ต้องระบุผู้รับบริการ',
+  },
 ];
 
 /** เหตุผลที่ขอสิทธิ์ (dropdown) — ค่า `other` เปิด Voice SuggestibleTextarea */
@@ -82,7 +109,17 @@ const ACCESS_REASON_OTHER_SUGGESTIONS = [
   'ใช้ประกอบการประชุมคณะกรรมการคุ้มครองข้อมูลส่วนบุคคล',
 ];
 
-const ACCESS_TYPE_LABEL = Object.fromEntries(ACCESS_TYPE_OPTIONS.map((o) => [o.value, o.label]));
+const ACCESS_ADDITIONAL_NOTE_SUGGESTIONS = [
+  'แนบหลักฐานคำขอจากหน่วยงานต้นสังกัดแล้ว',
+  'ขอใช้แบบฟอร์มเพื่อให้บริการที่จุดรับบริการวันนี้',
+  'ผู้รับบริการมาพร้อมผู้ปกครอง — ต้องการตรวจสอบความยินยอมเดิม',
+  'ประสานงานส่งต่อข้อมูลความยินยอมไปโรงพยาบาลปลายทาง',
+  'ใช้ประกอบการตรวจสอบสิทธิก่อนให้บริการ',
+];
+
+export const ACCESS_TYPE_DISPLAY_LABEL = Object.fromEntries(
+  ACCESS_TYPE_OPTIONS.map((o) => [o.value, o.shortLabel]),
+);
 
 /** แบบฟอร์มความยินยอมที่เลือกได้ (เผยแพร่ก่อน แล้วตามด้วยสถานะอื่น) */
 const FORM_OPTIONS = (() => {
@@ -103,8 +140,28 @@ const FORM_OPTIONS = (() => {
   return [...published, ...rest];
 })();
 
-const PATIENT_SEARCH_HISTORY_KEY = 'mih:primarysearch-history:consent-access-request';
+const PATIENT_SEARCH_HISTORY_KEY = 'mih:secondarysearch-history:consent-access-request';
 const PATIENT_SEARCH_HISTORY_SEED = consentPatientSearchHistorySeed(4);
+
+const SEARCH_POPOVER_CHROME = {
+  maxHeight: 'min(480px, calc(100vh - 64px))',
+  background: 'var(--surface-dropdown-default)',
+  border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',
+  borderRadius: 'var(--dim-radius-500)',
+  boxShadow: 'var(--shadow-dropdown)',
+  padding: 'var(--dim-space-100)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 'var(--dim-space-0)',
+  overflow: 'hidden',
+  zIndex: 'var(--sm-z-modal-popover, 1450)',
+};
+
+const resolveConsentPatientPick = (label, item) => (
+  (item?.id && CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === item.id))
+  || CONSENT_PATIENT_SEARCH_POOL.find((p) =>
+    p.label === label || p.name === label || p.hn === label)
+);
 
 const OCR_RESULT = {
   name: 'ธนวัฒน์ ศรีสุข',
@@ -125,7 +182,9 @@ const OCR_RESULT = {
  * @param {boolean} [props.showFooter=true] — page mode shows footer buttons; popup uses Popup actions instead
  * @param {string} [props.submitLabel]
  * @param {string} [props.cancelLabel]
- * @param {(state: { ready: boolean, dirty: boolean, submit: () => void, requestCancel: () => void }) => void} [props.onStateChange]
+ * @param {string} [props.initialAccessType]
+ * @param {string} [props.initialFormId]
+ * @param {string} [props.fixedAccessType] — lock type + hide card selector (e.g. popup สร้างคำขอ → `form`)
  */
 export default function AccessRequestForm({
   onSubmit,
@@ -134,6 +193,9 @@ export default function AccessRequestForm({
   submitLabel = 'ส่งคำขอสิทธิ์',
   cancelLabel = 'ยกเลิก',
   onStateChange,
+  initialAccessType = '',
+  initialFormId = '',
+  fixedAccessType = '',
 }) {
   const [phase, setPhase] = useState('upload');
   const [uploadFiles, setUploadFiles] = useState([]);
@@ -148,11 +210,15 @@ export default function AccessRequestForm({
   const [hn, setHn] = useState('');
   const [purpose, setPurpose] = useState('');
   const [scopes, setScopes] = useState([]);
-  const [accessType, setAccessType] = useState('');
-  const [formId, setFormId] = useState('');
+  const [accessType, setAccessType] = useState(fixedAccessType || initialAccessType);
+  const [formId, setFormId] = useState(initialFormId);
   const [reason, setReason] = useState('');
   const [reasonDetail, setReasonDetail] = useState('');
+  const [additionalNote, setAdditionalNote] = useState('');
   const [patientQuery, setPatientQuery] = useState('');
+  const [patientSearchOpen, setPatientSearchOpen] = useState(false);
+  const [patientSearchPopoverWidth, setPatientSearchPopoverWidth] = useState(null);
+  const patientSearchBoxRef = useRef(null);
   const ocrResultRef = useRef({ readable: false });
   const {
     history: patientSearchHistory,
@@ -172,7 +238,7 @@ export default function AccessRequestForm({
       setPatientQuery('');
       setPurpose(OCR_RESULT.purpose);
       setScopes(OCR_RESULT.scopes);
-      setAccessType(OCR_RESULT.accessType);
+      setAccessType(fixedAccessType || OCR_RESULT.accessType);
       setFormId(OCR_RESULT.formId);
       setReason(OCR_RESULT.reason);
       setReasonDetail('');
@@ -185,7 +251,7 @@ export default function AccessRequestForm({
       setPatientQuery('');
       setPurpose('');
       setScopes([]);
-      setAccessType('');
+      setAccessType(fixedAccessType || '');
       setFormId('');
       setReason('');
       setReasonDetail('');
@@ -243,14 +309,19 @@ export default function AccessRequestForm({
   };
 
   const needsPatient = accessType === 'patient_consent';
+  const needsForm = accessType === 'form';
   const reasonIsOther = reason === ACCESS_REASON_OTHER;
   const resolvedReason = reasonIsOther ? reasonDetail.trim() : reason;
   const selectedForm = formId ? FORM_OPTIONS.find((o) => o.value === formId) : null;
-  const dirty = Boolean(fileName || name || hn || accessType || formId || reason || reasonDetail || patientQuery);
+  const dirty = Boolean(
+    fileName || name || hn || formId || reason || reasonDetail || additionalNote.trim() || patientQuery
+    || (!fixedAccessType && accessType),
+  );
   const ready = phase === 'review'
+    && fileName
     && name.trim()
     && accessType
-    && formId
+    && (!needsForm || formId)
     && reason
     && (!reasonIsOther || reasonDetail.trim().length >= 3)
     && purpose
@@ -266,16 +337,46 @@ export default function AccessRequestForm({
     [needsPatient, patientQuery],
   );
 
+  useLayoutEffect(() => {
+    if (!patientSearchOpen) return undefined;
+    const measure = () => {
+      const width = patientSearchBoxRef.current?.getBoundingClientRect().width;
+      if (width) setPatientSearchPopoverWidth(width);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [patientSearchOpen]);
+
+  const showPatientSuggestions = patientQuery.trim().length > 0;
+  const patientHistoryItems = !showPatientSuggestions ? patientSearchHistory : [];
+
   const pickPatient = (patient, historyItem) => {
     if (!patient) return;
     setHn(patient.hn);
     setPatientQuery('');
+    setPatientSearchOpen(false);
     pushPatientHistory(historyItem || toConsentPatientSearchItem(patient));
+  };
+
+  const submitPatientSearch = (label, item) => {
+    const found = resolveConsentPatientPick(label, item)
+      || (patientSuggestions[0]?.id
+        ? CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === patientSuggestions[0].id)
+        : null);
+    if (found) pickPatient(found, item || patientSuggestions[0]);
+    else setPatientQuery(label);
+    setPatientSearchOpen(false);
+  };
+
+  const pickPatientSearchItem = (item) => {
+    submitPatientSearch(item.value ?? item.label ?? '', item);
   };
 
   const clearPatient = () => {
     setHn('');
     setPatientQuery('');
+    setPatientSearchOpen(false);
   };
 
   const submit = () => {
@@ -290,12 +391,13 @@ export default function AccessRequestForm({
       scopes,
       fileName,
       accessType,
-      accessTypeLabel: ACCESS_TYPE_LABEL[accessType] || accessType,
-      formId,
-      formCode: selectedForm?.code || '',
-      formName: selectedForm?.name || selectedForm?.label || '',
+      accessTypeLabel: ACCESS_TYPE_DISPLAY_LABEL[accessType] || accessType,
+      formId: needsForm ? formId : '',
+      formCode: needsForm ? (selectedForm?.code || '') : '',
+      formName: needsForm ? (selectedForm?.name || selectedForm?.label || '') : '',
       reason: resolvedReason,
       reasonKey: reason,
+      note: additionalNote.trim(),
     });
   };
 
@@ -318,27 +420,97 @@ export default function AccessRequestForm({
       submit: () => submitRef.current(),
       requestCancel: () => requestCancelRef.current(),
     });
-  }, [ready, dirty, accessType, formId, reason, reasonDetail, needsPatient, hn]);
+  }, [ready, dirty, accessType, formId, reason, reasonDetail, needsPatient, hn, fileName]);
 
   return (
     <>
-      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+      <div className='flex flex-col items-start' style={{ gap: 'var(--dim-space-800, 32px)', ...FIELD_SHELL_LAYOUT }}>
         {/* ประเภท → แบบฟอร์ม / ผู้รับบริการ → เหตุผล */}
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-          <Select
-            label='ประเภทการขอเข้าถึง'
-            required
-            options={ACCESS_TYPE_OPTIONS}
-            value={accessType}
-            onChange={(v) => {
-              setAccessType(v);
-              if (v === 'form') clearPatient();
-            }}
-            placeholder='เลือกประเภทการขอ'
-            searchable={false}
-          />
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-800, 32px)' }}>
+          {!fixedAccessType && (
+          <div
+            className='flex flex-col items-start w-full'
+            style={{ gap: 'var(--dim-space-150)', ...FIELD_SHELL_LAYOUT }}
+            role='group'
+            aria-labelledby='access-type-label'
+          >
+            <span
+              id='access-type-label'
+              className='flex items-center w-full'
+              style={{
+                ...LABEL_TEXT,
+                gap: 'var(--dim-space-050, 2px)',
+              }}
+            >
+              <span>ประเภทการขอเข้าถึง</span>
+              <span style={{ color: 'var(--text-danger-default, #B91C1C)' }} aria-hidden>*</span>
+            </span>
+            <div
+              role='radiogroup'
+              aria-labelledby='access-type-label'
+              className='flex flex-row flex-wrap items-stretch w-full'
+              style={{ gap: 'var(--dim-space-400, 16px)' }}
+            >
+              {ACCESS_TYPE_OPTIONS.map((opt) => (
+                <div
+                  key={opt.value}
+                  className='flex min-w-0'
+                  style={{
+                    flex: '1 1 0',
+                    maxWidth: 'var(--dim-size-2500, 320px)',
+                  }}
+                >
+                  <SelectableCardButton
+                    selected={accessType === opt.value}
+                    onClick={() => {
+                      setAccessType(opt.value);
+                      if (opt.value === 'form') {
+                        clearPatient();
+                      } else {
+                        setFormId('');
+                      }
+                    }}
+                    ariaLabel={`${opt.shortLabel}. ${opt.caption}`}
+                    minHeight={0}
+                    padX='var(--dim-space-300, 12px)'
+                    padY='var(--dim-space-150, 6px)'
+                    className='flex w-full h-full items-start'
+                  >
+                    <span
+                      className='flex flex-col items-start w-full min-w-0'
+                      style={{ gap: 'var(--dim-space-050)' }}
+                    >
+                      <span
+                        className='w-full text-left'
+                        style={{
+                          color: 'var(--text-content-default, #363B3F)',
+                          fontSize: 'var(--type-size-sm, 14px)',
+                          fontWeight: 'var(--type-weight-medium, 500)',
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {opt.shortLabel}
+                      </span>
+                      <span
+                        className='w-full text-left'
+                        style={{
+                          color: 'var(--text-content-quaternary, #ADB2B7)',
+                          fontSize: 'var(--type-size-xs, 12px)',
+                          fontWeight: 'var(--type-weight-regular, 400)',
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {opt.caption}
+                      </span>
+                    </span>
+                  </SelectableCardButton>
+                </div>
+              ))}
+            </div>
+          </div>
+          )}
 
-          {accessType === 'form' && (
+          {needsForm && (
             <Select
               label='ชื่อแบบฟอร์มความยินยอม'
               required
@@ -351,9 +523,12 @@ export default function AccessRequestForm({
           )}
 
           {needsPatient && (
-            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+            <div
+              className='flex flex-col items-start w-full'
+              style={{ gap: 'var(--dim-space-150)', ...FIELD_SHELL_LAYOUT }}
+            >
               <span style={LABEL_TEXT}>
-                ผู้รับบริการ
+                ต้องการเข้าถึงข้อมูลของผู้รับบริการรายใด
                 <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span>
               </span>
               {selectedPatient ? (
@@ -403,39 +578,110 @@ export default function AccessRequestForm({
                   </NeutralSubdueButton>
                 </div>
               ) : (
-                <div className='w-full flex items-start justify-center'>
-                  <PrimarySearch
+                <div ref={patientSearchBoxRef} className='relative w-full'>
+                  <SecondarySearch
+                    fullWidth
                     value={patientQuery}
-                    onChange={setPatientQuery}
-                    onSubmit={(label, item) => {
-                      const found = (item?.id && CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === item.id))
-                        || CONSENT_PATIENT_SEARCH_POOL.find((p) =>
-                          p.label === label || p.name === label || p.hn === label);
-                      if (found) pickPatient(found, item || toConsentPatientSearchItem(found));
-                      else setPatientQuery(label);
+                    onChange={(v) => {
+                      setPatientQuery(v ?? '');
+                      setPatientSearchOpen(true);
                     }}
-                    suggestions={patientSuggestions}
-                    history={patientSearchHistory}
-                    onHistoryClear={patientSearchHistory.length > 0 ? clearPatientHistory : undefined}
+                    onSubmit={(label) => submitPatientSearch(
+                      label,
+                      showPatientSuggestions ? patientSuggestions[0] : patientHistoryItems[0],
+                    )}
+                    onFocus={() => setPatientSearchOpen(true)}
                     placeholder='ค้นหา HN / เลขบัตร / Passport / ชื่อ-สกุล / โทรศัพท์'
-                    width={640}
-                    scrollOffsetTop={null}
                   />
+                  <Popover
+                    open={patientSearchOpen}
+                    onClose={() => setPatientSearchOpen(false)}
+                    anchorRef={patientSearchBoxRef}
+                    className='mih-search-popover'
+                    style={{
+                      ...SEARCH_POPOVER_CHROME,
+                      width: patientSearchPopoverWidth ?? undefined,
+                      minWidth: patientSearchPopoverWidth ?? 200,
+                      maxWidth: patientSearchPopoverWidth ?? undefined,
+                    }}
+                  >
+                    <div
+                      className='scrollbar-thin flex flex-col w-full'
+                      style={{
+                        flex: '1 1 auto',
+                        minHeight: 0,
+                        maxHeight: 'min(480px, calc(100vh - 64px))',
+                        overflowY: 'auto',
+                        overflowX: 'hidden',
+                      }}
+                    >
+                      {showPatientSuggestions ? (
+                        patientSuggestions.length > 0 ? (
+                          patientSuggestions.map((item) => (
+                            <SearchSuggestionRow
+                              key={item.id || item.label}
+                              item={item}
+                              query={patientQuery}
+                              onPick={pickPatientSearchItem}
+                            />
+                          ))
+                        ) : (
+                          <div
+                            style={{
+                              padding: 'var(--dim-space-300)',
+                              color: 'var(--text-content-tertiary)',
+                              fontFamily: 'var(--type-family-body)',
+                              fontSize: 'var(--type-size-sm)',
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            ไม่พบรายการที่ค้นหา
+                          </div>
+                        )
+                      ) : (
+                        <>
+                          <SearchSectionHeader
+                            title='ค้นหาล่าสุด'
+                            trailing={patientSearchHistory.length > 0 ? (
+                              <NeutralSubdueButton
+                                variant='outline'
+                                size='sm'
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={clearPatientHistory}
+                                className='shrink-0'
+                              >
+                                ล้างประวัติ
+                              </NeutralSubdueButton>
+                            ) : null}
+                          />
+                          {patientHistoryItems.length > 0 ? (
+                            patientHistoryItems.map((item) => (
+                              <SearchSuggestionRow
+                                key={item.id || item.label || item.value}
+                                item={item}
+                                onPick={pickPatientSearchItem}
+                              />
+                            ))
+                          ) : (
+                            <div
+                              style={{
+                                padding: 'var(--dim-space-300)',
+                                color: 'var(--text-content-tertiary)',
+                                fontFamily: 'var(--type-family-body)',
+                                fontSize: 'var(--type-size-sm)',
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              ยังไม่มีประวัติการค้นหา
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </Popover>
                 </div>
               )}
             </div>
-          )}
-
-          {needsPatient && (
-            <Select
-              label='ชื่อแบบฟอร์มความยินยอม'
-              required
-              options={FORM_OPTIONS}
-              value={formId}
-              onChange={setFormId}
-              placeholder='ค้นหาหรือเลือกแบบฟอร์ม…'
-              searchable
-            />
           )}
 
           {accessType && (
@@ -458,9 +704,6 @@ export default function AccessRequestForm({
               voice
               required
               label='ระบุเหตุผลอื่นๆ'
-              rows={3}
-              height={120}
-              minHeight={96}
               value={reasonDetail}
               onChange={(e) => setReasonDetail(e?.target?.value ?? (typeof e === 'string' ? e : ''))}
               placeholder='พิมพ์หรือพูดเหตุผลที่ขอเข้าถึง…'
@@ -469,41 +712,52 @@ export default function AccessRequestForm({
               popoverAriaLabel='คำแนะนำเหตุผลที่ขอเข้าถึง'
             />
           )}
+
+          {accessType && (
+            <SuggestibleTextarea
+              voice
+              label='บันทึกเพิ่มเติม'
+              value={additionalNote}
+              onChange={(e) => setAdditionalNote(e?.target?.value ?? (typeof e === 'string' ? e : ''))}
+              placeholder='พิมพ์หรือพูดรายละเอียดเพิ่มเติมที่เกี่ยวกับคำขอนี้'
+              suggestions={ACCESS_ADDITIONAL_NOTE_SUGGESTIONS}
+              minChars={2}
+              popoverAriaLabel='คำแนะนำบันทึกเพิ่มเติม'
+            />
+          )}
         </div>
 
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-          <span style={LABEL_TEXT}>อัปโหลดหลักฐานเพื่อสิทธิการเข้าถึงแบบฟอร์ม</span>
-          <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <div
-              className='flex min-w-0'
+        <div
+          className='flex flex-col items-start w-full'
+          style={{ gap: 'var(--dim-space-150)', ...FIELD_SHELL_LAYOUT }}
+        >
+          <span style={LABEL_TEXT}>
+            อัปโหลดหลักฐานเพื่อสิทธิการเข้าถึงแบบฟอร์ม
+            <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span>
+          </span>
+          <div className='flex items-stretch w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+            <DragAndDrop
+              value={[]}
+              onChange={handleUploadChange}
+              onError={({ message }) => setFileError(message || 'ไฟล์ไม่ถูกต้อง')}
+              accept='.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf'
+              multiple={false}
+              preview={false}
+              size='sm'
+              title='ลากและวางไฟล์ หรือคลิกเพื่ออัปโหลด'
+              helper='อัปโหลดหลักฐาน (PDF, JPG หรือ PNG)'
+              ctaLabel='เลือกไฟล์'
+              error={!!fileError}
+              disabled={phase === 'reading'}
               style={{
-                flex: '0 1 var(--dim-size-2600, 384px)',
+                flex: '1 1 0',
+                minWidth: 0,
                 width: '100%',
-                maxWidth: 'var(--dim-size-2600, 384px)',
+                minHeight: 'var(--dim-size-2000, 128px)',
+                height: 'var(--dim-size-2000, 128px)',
+                boxSizing: 'border-box',
               }}
-            >
-              <DragAndDrop
-                value={[]}
-                onChange={handleUploadChange}
-                onError={({ message }) => setFileError(message || 'ไฟล์ไม่ถูกต้อง')}
-                accept='.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf'
-                multiple={false}
-                preview={false}
-                size='sm'
-                title='ลากและวางไฟล์ หรือคลิกเพื่ออัปโหลด'
-                helper=''
-                ctaLabel='เลือกไฟล์'
-                error={!!fileError}
-                disabled={phase === 'reading'}
-                style={{
-                  flex: 1,
-                  width: '100%',
-                  minHeight: 'var(--dim-size-2000, 128px)',
-                  height: 'var(--dim-size-2000, 128px)',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+            />
             <PhotoUploadField
               label='สแกนเอกสาร'
               icon='document_scanner'
@@ -662,10 +916,10 @@ export default function AccessRequestForm({
       <AlertDialog
         open={confirmDiscard}
         type='warning'
-        title='ละทิ้งการแก้ไข?'
+        title='ยืนยันการละทิ้งการแก้ไข'
         description='เอกสารที่อัปโหลดและข้อมูลที่กรอกไว้จะไม่ถูกบันทึก'
-        confirmLabel='ละทิ้ง'
-        cancelLabel='ทำต่อ'
+        confirmLabel='ยืนยัน'
+        cancelLabel='ยกเลิก'
         onConfirm={() => { setConfirmDiscard(false); onCancel?.(); }}
         onCancel={() => setConfirmDiscard(false)}
         onClose={() => setConfirmDiscard(false)}

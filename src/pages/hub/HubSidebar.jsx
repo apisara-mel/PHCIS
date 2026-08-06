@@ -3,6 +3,7 @@ import { useHistory } from 'react-router-dom';
 import Icon from '@/components/icons/Icon';
 import DoctorProfileAvatar from '@/components/layout/DoctorProfileAvatar';
 import SidebarProfileMenu from '@/components/layout/SidebarProfileMenu';
+import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 
 /* MIH PHCIS · System Hub sidebar (Figma PHCIS-Signin 6:1474).
    Slim 64px rail that HOVER-EXPANDS to 320px — same behaviour as the PHCIS
@@ -16,6 +17,9 @@ const MIH_LOGO = '/images/office-health-logo.png';
 /* Same easing/widths as src/components/layout/Sidebar.jsx so the two rails feel
    identical. closed = --sm-width-closed (64), open = --sm-width-open (320). */
 const REVEAL = 'opacity 160ms ease, max-width 220ms ease';
+
+/* Match SideSubMenu item label size (design.md §6.31.3). */
+const SIDEMENU_LABEL_SIZE = 'var(--type-size-base, 16px)';
 
 const NotificationBell = ({ onClick, expanded, hasUnread = true }) => (
   <button
@@ -62,7 +66,7 @@ const NotificationBell = ({ onClick, expanded, hasUnread = true }) => (
       style={{
         opacity: expanded ? 1 : 0,
         maxWidth: expanded ? 'calc(var(--sm-width-open, 320px) - 100px)' : 0,
-        fontSize: 'var(--type-size-sm, 14px)',
+        fontSize: SIDEMENU_LABEL_SIZE,
         color: 'var(--text-sidemenu-default, #4D5358)',
         transition: REVEAL,
       }}
@@ -109,13 +113,13 @@ const UserTile = forwardRef(({ onClick, expanded, active }, ref) => (
         className='whitespace-nowrap overflow-hidden'
         style={{ fontSize: 'var(--type-size-sm, 14px)', lineHeight: 1.25, color: 'var(--text-sidemenu-default, #4D5358)' }}
       >
-        พญ.สมหญิง รักษ์ดี
+        {PHCIS_CURRENT_USER.displayName}
       </span>
       <span
         className='whitespace-nowrap overflow-hidden'
         style={{ fontSize: 'var(--type-size-xs, 12px)', lineHeight: 1.25, color: 'var(--text-content-tertiary, #8A9099)' }}
       >
-        อายุรกรรม
+        {PHCIS_CURRENT_USER.department}
       </span>
     </div>
     {/* switch-user glyph — same as the PHCIS shell sidebar profile row. */}
@@ -200,12 +204,6 @@ const HubSidebar = ({ onNotificationClick }) => {
               style={{ fontSize: 'var(--type-size-base, 16px)', lineHeight: 1.25, color: 'var(--text-brand-name, #007549)' }}
             >
               สำนักอนามัย
-            </span>
-            <span
-              className='whitespace-nowrap overflow-hidden'
-              style={{ fontSize: 'var(--type-size-xs, 12px)', lineHeight: 1.25, color: 'var(--text-brand-sub, #8A9099)' }}
-            >
-              ศูนย์ 4 ดินแดง
             </span>
           </div>
         </div>

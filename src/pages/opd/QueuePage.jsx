@@ -22,6 +22,7 @@ import { addWalkinRequest } from '@/data/opdWalkinRequests';
 import { INITIAL_APPOINTMENTS } from '@/pages/appointment/appointmentMockData';
 import { getOpdConsentSummary } from '@/data/consentWorkflowStore';
 import { buildOpdSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* Topbar breadcrumb tailored for the OPD Queue page. */
 const breadcrumb = ['ระบบงานผู้รับบริการนอก (OPD)'];
@@ -132,25 +133,14 @@ const renderQueue = (row) =>
 const renderName = (row, idx, { editMode }) => (
   <>
     <Avatar name={row.name} seed={idx} />
-    {editMode ? (
-      <TableEllipsisText text={row.name} />
-    ) : (
-      <Link
-        to={{
-          pathname: '/opd/screening',
-          state: { hn: row.hn, queue: row.queue, name: row.name, statusKey: row.statusKey },
-        }}
-        className='min-w-0 flex-1 truncate hover:underline'
-        style={{
-          color: 'var(--text-neutral-default)',
-          fontWeight: 'var(--type-weight-medium)',
-          cursor: 'pointer',
-          textDecoration: 'none',
-        }}
-      >
-        {row.name}
-      </Link>
-    )}
+    <MaskedWorklistName
+      name={row.name}
+      recordKey={row.hn || row.queue}
+      linkTo={editMode ? null : {
+        pathname: '/opd/screening',
+        state: { hn: row.hn, queue: row.queue, name: row.name, statusKey: row.statusKey },
+      }}
+    />
   </>
 );
 
@@ -1095,7 +1085,7 @@ const QueuePage = () => {
                   columns={columns}
                   rows={draftRows}
                   rowKey={(row) => row.id}
-                  stickyColCount={3}
+                  stickyColCount={4}
                   onRowClick={handleRowClick}
                 />
               </section>
@@ -1116,7 +1106,7 @@ const QueuePage = () => {
               rowKey={(row) => row.id}
               sortConfig={sortConfig}
               onSort={handleSort}
-              stickyColCount={3}
+              stickyColCount={4}
               onRowClick={handleRowClick}
               editMode={editMode}
               draggedIdx={draggedIdx}
@@ -1135,7 +1125,7 @@ const QueuePage = () => {
 
             {/* Pagination */}
             <div
-              className='flex items-center w-full'
+              className='sticky bottom-0 flex items-center w-full'
               style={{
                 gap: 'var(--dim-space-200)',
                 position: 'sticky',

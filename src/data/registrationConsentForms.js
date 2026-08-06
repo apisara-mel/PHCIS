@@ -1,5 +1,12 @@
 /* Registration consent Step 1 + detail mocks — 3 disclosure consents.
-   Cards: Figma 292:104252 · Detail fill: Figma 295:41105 layout. */
+   Cards: Figma 292:104252 · Detail fill: Figma 295:41105 layout.
+   Cover art matches CreateConsentFormPage wizard (356:111486). */
+
+/** Consent wizard cover thumbnails — `/illustration/consent/form-cover-NN.png`. */
+export const consentFormCoverUrl = (index = 0) => {
+  const n = String((Number(index) % 20) + 1).padStart(2, '0');
+  return `/illustration/consent/form-cover-${n}.png`;
+};
 
 const sharedPatientFields = [
   { key: 'fullName', label: 'ชื่อตามบัตรประชาชน', required: true, placeholder: 'เช่น นายสมชาย ใจดี' },
@@ -14,7 +21,7 @@ export const REGISTRATION_CONSENT_FORMS = {
     categoryLabel: 'PDPA',
     categoryStyle: 'blue',
     version: '1.0',
-    cover: '/illustration/form-cover01.svg',
+    cover: consentFormCoverUrl(0),
     cardCategoryLabel: 'PDPA',
     cardCategoryStyle: 'blue',
     cardVersion: '1.0',
@@ -79,7 +86,7 @@ export const REGISTRATION_CONSENT_FORMS = {
     categoryLabel: 'การรักษา',
     categoryStyle: 'teal',
     version: '1.0',
-    cover: '/illustration/form-cover01.svg',
+    cover: consentFormCoverUrl(1),
     cardCategoryLabel: 'การรักษา',
     cardCategoryStyle: 'teal',
     cardVersion: '1.0',
@@ -144,7 +151,7 @@ export const REGISTRATION_CONSENT_FORMS = {
     categoryLabel: 'เบิกจ่าย',
     categoryStyle: 'magenta',
     version: '1.0',
-    cover: '/illustration/form-cover01.svg',
+    cover: consentFormCoverUrl(2),
     cardCategoryLabel: 'เบิกจ่าย',
     cardCategoryStyle: 'magenta',
     cardVersion: '1.0',

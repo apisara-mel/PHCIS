@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -14,7 +14,12 @@ import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import emptyHistoryAnim from '@/assets/illustrations/disease-history.json';
 import ConsentSignedFormViewPopup from '@/pages/consent/ConsentSignedFormViewPopup';
-import { CONSENT_TYPE_TONE, CONSENT_STATUS } from '@/data/consentRecords';
+import GroupedTimelineScrollFeed from '@/components/timeline/GroupedTimelineScrollFeed';
+import {
+  THAI_TIMELINE_MONTHS,
+  groupTimelineEventsByMonth,
+} from '@/components/timeline/groupTimelineByMonth';
+import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import {
   buildPatientConsentTimeline,
@@ -38,11 +43,6 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
 
 const breadcrumbSearch = ['จัดการความยินยอม', 'ประวัติความยินยอม'];
 const breadcrumbTimeline = ['จัดการความยินยอม', 'Timeline การเปลี่ยนแปลงความยินยอม'];
-
-const THAI_MONTHS = [
-  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
-];
 
 const BODY_TEXT = {
   color: 'var(--text-content-secondary)',
@@ -82,13 +82,6 @@ const EVENT_CARD_STYLE = {
   padding: 'var(--dim-space-400)',
 };
 
-const ACTION_BADGE_TONE = {
-  green: 'green',
-  red: 'red',
-  yellow: 'yellow',
-  blue: 'blue',
-};
-
 const ACTION_FILTERS = [
   { key: 'สร้างคำขอ', label: 'สร้างคำขอ' },
   { key: 'ให้ความยินยอม', label: 'ให้ความยินยอม' },
@@ -98,30 +91,10 @@ const ACTION_FILTERS = [
   { key: 'มีเวอร์ชันใหม่', label: 'มีเวอร์ชันใหม่' },
 ];
 
-/** แปลง "4 มีนาคม 2569 · 11:20" → { monthLabel, sortKey, instant } */
-const parseThaiDateTime = (dateTime) => {
-  const raw = String(dateTime || '').trim();
-  const monthIdx = THAI_MONTHS.findIndex((m) => raw.includes(m));
-  const yearMatch = raw.match(/(25\d{2}|20\d{2})/);
-  const dayMatch = raw.match(/^(\d{1,2})\s/);
-  const timeMatch = raw.match(/(\d{1,2}:\d{2})/);
-  const year = yearMatch ? Number(yearMatch[1]) : 0;
-  const month = monthIdx >= 0 ? monthIdx : 0;
-  const day = dayMatch ? Number(dayMatch[1]) : 0;
-  const [hh = 0, mm = 0] = (timeMatch?.[1] || '0:0').split(':').map(Number);
-  const buddhistYear = year >= 2400 ? year : year > 0 ? year + 543 : 0;
-  const monthLabel = monthIdx >= 0 && buddhistYear
-    ? `${THAI_MONTHS[monthIdx]} ${buddhistYear}`
-    : 'ไม่ระบุเดือน';
-  const sortKey = buddhistYear * 100 + month;
-  const instant = buddhistYear * 1e10 + month * 1e8 + day * 1e6 + hh * 100 + mm;
-  return { monthLabel, sortKey, instant };
-};
-
 /** Thai display date → local calendar Date at start of day (for FilterDateTag). */
 const toEventCalendarDate = (dateTime) => {
   const raw = String(dateTime || '').trim();
-  const monthIdx = THAI_MONTHS.findIndex((m) => raw.includes(m));
+  const monthIdx = THAI_TIMELINE_MONTHS.findIndex((m) => raw.includes(m));
   const yearMatch = raw.match(/(25\d{2}|20\d{2})/);
   const dayMatch = raw.match(/^(\d{1,2})\s/);
   if (monthIdx < 0 || !yearMatch || !dayMatch) return null;
@@ -130,6 +103,19 @@ const toEventCalendarDate = (dateTime) => {
   const d = new Date(year, monthIdx, Number(dayMatch[1]));
   d.setHours(0, 0, 0, 0);
   return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/** แสดงเฉพาะเวลาในการ์ด timeline — ดึงจาก "· HH:MM" หรือ derive จาก record id */
+const formatTimelineEventTime = (dateTime, recordId = 0) => {
+  const raw = String(dateTime || '').trim();
+  const afterSep = raw.split('·').map((s) => s.trim())[1];
+  if (afterSep && /^\d{1,2}:\d{2}$/.test(afterSep)) return afterSep;
+  const inline = raw.match(/(\d{1,2}:\d{2})/);
+  if (inline) return inline[1];
+  const seed = Number(recordId) || raw.length || 0;
+  const hour = 8 + (seed % 10);
+  const minute = (seed * 7) % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 };
 
 const resolveDateFilterRange = (value) => {
@@ -156,24 +142,6 @@ const matchesDateFilter = (dateTime, value) => {
   return d >= start && d <= end;
 };
 
-const groupEventsByMonth = (events) => {
-  const map = new Map();
-  events.forEach((ev) => {
-    const meta = parseThaiDateTime(ev.dateTime);
-    const enriched = { ...ev, _monthLabel: meta.monthLabel, _monthSort: meta.sortKey, _instant: meta.instant };
-    if (!map.has(meta.monthLabel)) {
-      map.set(meta.monthLabel, { label: meta.monthLabel, sortKey: meta.sortKey, events: [] });
-    }
-    map.get(meta.monthLabel).events.push(enriched);
-  });
-  const groups = [...map.values()];
-  groups.forEach((g) => {
-    g.events.sort((a, b) => b._instant - a._instant);
-  });
-  groups.sort((a, b) => b.sortKey - a.sortKey);
-  return groups;
-};
-
 const eventIconBg = (tone) => {
   if (tone === 'green') return 'var(--surface-statussummarycard-positive, #D1F6EE)';
   if (tone === 'red') return 'var(--surface-statussummarycard-destructive, #FEE2E2)';
@@ -190,7 +158,6 @@ const eventIconFg = (tone) => {
 
 function TimelineEventCard({ ev, showConnector, onOpen }) {
   const meta = CONSENT_HISTORY_ACTIONS[ev.action] || { tone: 'grey', icon: 'info' };
-  const statusTone = (CONSENT_STATUS[ev.toStatus] || {}).tone || ACTION_BADGE_TONE[meta.tone] || 'grey';
   const canView = Boolean(onOpen);
   return (
     <>
@@ -231,23 +198,22 @@ function TimelineEventCard({ ev, showConnector, onOpen }) {
           boxSizing: 'border-box',
         }}
       >
+        <span className='inline-flex items-center min-w-0' style={{ ...MUTED_XS, gap: 'var(--dim-space-100)' }}>
+          <Icon name='schedule' size={14} color='var(--text-content-tertiary)' />
+          เวลา: {formatTimelineEventTime(ev.dateTime, ev.recordId)}
+        </span>
         <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
-          <ColorfulBadge style={ACTION_BADGE_TONE[meta.tone] || 'grey'} size='small' hierarchy='secondary' width='hug'>
-            {ev.action}
-          </ColorfulBadge>
           <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{ev.formCode}</ColorfulBadge>
           <ColorfulBadge style={CONSENT_TYPE_TONE[ev.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>
             {ev.type}
           </ColorfulBadge>
           <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{ev.version}</ColorfulBadge>
-          <ColorfulBadge style={statusTone} size='small' hierarchy='secondary' width='hug'>{ev.toStatus}</ColorfulBadge>
         </div>
         <span style={{ ...BODY_TEXT, color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
           {ev.formName}
         </span>
         <span style={BODY_TEXT}>การเปลี่ยนแปลง: {ev.changeDetail}</span>
         <span style={MUTED_XS}>ช่องทาง: {ev.channel}</span>
-        <span style={MUTED_XS}>วันเวลา: {ev.dateTime}</span>
         {canView && (
           <div style={{ paddingTop: 'var(--dim-space-100)' }}>
             <BrandSubdueButton
@@ -394,10 +360,15 @@ function ConsentHistorySearch({ records, onSelectHn, embedded = false }) {
   );
 }
 
-function ConsentHistoryTimeline({ hn, records, embedded = false }) {
+function ConsentHistoryTimeline({ hn, records, embedded = false, onViewForm = null }) {
   const [actionFilter, setActionFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState({ quick: 'thisyear' });
-  const [viewEvent, setViewEvent] = useState(null);
+  const [internalViewEvent, setInternalViewEvent] = useState(null);
+  const scrollPanelRef = useRef(null);
+  const [pageScrollMaxH, setPageScrollMaxH] = useState(null);
+
+  const handleOpenForm = onViewForm || setInternalViewEvent;
+  const viewEvent = onViewForm ? null : internalViewEvent;
 
   const { patient, events } = useMemo(
     () => buildPatientConsentTimeline(hn, records),
@@ -415,7 +386,7 @@ function ConsentHistoryTimeline({ hn, records, embedded = false }) {
   }, [dateFiltered, actionFilter]);
 
   const monthGroups = useMemo(
-    () => groupEventsByMonth(filtered),
+    () => groupTimelineEventsByMonth(filtered),
     [filtered],
   );
 
@@ -431,6 +402,26 @@ function ConsentHistoryTimeline({ hn, records, embedded = false }) {
     if (actionFilter === 'all') return;
     if ((actionCounts[actionFilter] ?? 0) === 0) setActionFilter('all');
   }, [actionCounts, actionFilter]);
+
+  useLayoutEffect(() => {
+    if (embedded) return undefined;
+    const sync = () => {
+      const el = scrollPanelRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      setPageScrollMaxH(Math.max(280, window.innerHeight - top - 24));
+    };
+    sync();
+    window.addEventListener('resize', sync);
+    window.addEventListener('scroll', sync, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(sync) : null;
+    if (scrollPanelRef.current?.parentElement) ro?.observe(scrollPanelRef.current.parentElement);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', sync);
+      window.removeEventListener('scroll', sync);
+    };
+  }, [embedded, hn, filtered.length]);
 
   if (!patient) {
     return (
@@ -448,78 +439,129 @@ function ConsentHistoryTimeline({ hn, records, embedded = false }) {
     );
   }
 
+  const timelineFilters = (
+    <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+      <FilterDateTag
+        prefix='วันที่:'
+        value={dateFilter}
+        onChange={setDateFilter}
+        defaultQuick='thisyear'
+      />
+      {ACTION_FILTERS.map((f) => {
+        const count = actionCounts[f.key] ?? 0;
+        if (count === 0) return null;
+        return (
+          <FilterTag
+            key={f.key}
+            value={`${f.label} (${count})`}
+            selected={actionFilter === f.key}
+            onClick={() => setActionFilter((prev) => (prev === f.key ? 'all' : f.key))}
+          />
+        );
+      })}
+    </div>
+  );
+
+  const stickyBg = embedded ? 'var(--surface-modal-default)' : 'var(--surface-card-100)';
+
+  const timelineScrollPanel = (
+    <div
+      ref={scrollPanelRef}
+      className={`mih-grouped-timeline-scroll w-full min-w-0 scrollbar-thin ${
+        embedded ? 'flex-1 min-h-0' : 'mih-consent-timeline-page-scroll'
+      }`}
+      style={{
+        ...(embedded
+          ? {
+            flex: '1 1 0',
+            minHeight: 0,
+            height: 0,
+            WebkitOverflowScrolling: 'touch',
+            paddingBottom: 'var(--dim-space-600)',
+          }
+          : {}),
+        ...(pageScrollMaxH != null && !embedded ? { maxHeight: pageScrollMaxH } : {}),
+      }}
+    >
+      {filtered.length === 0 ? (
+        <>
+          <div
+            className='mih-timeline-sticky-chrome w-full min-w-0'
+            style={{ background: stickyBg }}
+          >
+            <div className='mih-timeline-filter-bar'>{timelineFilters}</div>
+          </div>
+          <span style={BODY_TEXT}>ไม่พบเหตุการณ์ตามตัวกรองที่เลือก</span>
+        </>
+      ) : (
+        <GroupedTimelineScrollFeed
+          scrollRef={scrollPanelRef}
+          groups={monthGroups}
+          chrome={<div className='mih-timeline-filter-bar'>{timelineFilters}</div>}
+          stickyBackground={stickyBg}
+          titleStyle={MONTH_HEADING}
+          mutedStyle={MUTED_XS}
+          renderGroupBody={(group) => (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '24px max-content',
+                columnGap: 'var(--dim-space-300)',
+                width: 'max-content',
+                maxWidth: '100%',
+                alignItems: 'stretch',
+              }}
+            >
+              {group.events.map((ev, i) => (
+                <TimelineEventCard
+                  key={ev.id}
+                  ev={ev}
+                  showConnector={i < group.events.length - 1}
+                  onOpen={handleOpenForm}
+                />
+              ))}
+            </div>
+          )}
+        />
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div
+        className='flex flex-col flex-1 min-h-0 w-full min-w-0'
+        style={{ flex: '1 1 0' }}
+      >
+        {timelineScrollPanel}
+      </div>
+    );
+  }
+
   return (
     <div
       className='flex flex-col flex-1 min-w-0'
       style={{
-        padding: embedded ? 0 : 'var(--dim-space-600)',
+        padding: 'var(--dim-space-600)',
         gap: 'var(--dim-space-400)',
       }}
     >
-      <section className='w-full flex flex-col' style={{ ...CARD_STYLE, gap: 'var(--dim-space-400)' }}>
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-          <FilterDateTag
-            prefix='วันที่:'
-            value={dateFilter}
-            onChange={setDateFilter}
-            defaultQuick='thisyear'
-          />
-          {ACTION_FILTERS.map((f) => {
-            const count = actionCounts[f.key] ?? 0;
-            if (count === 0) return null;
-            return (
-              <FilterTag
-                key={f.key}
-                value={`${f.label} (${count})`}
-                selected={actionFilter === f.key}
-                onClick={() => setActionFilter((prev) => (prev === f.key ? 'all' : f.key))}
-              />
-            );
-          })}
-        </div>
-
-        {filtered.length === 0 ? (
-          <span style={BODY_TEXT}>ไม่พบเหตุการณ์ตามตัวกรองที่เลือก</span>
-        ) : (
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
-            {monthGroups.map((group) => (
-              <div key={group.label} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-                <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                  <span style={MONTH_HEADING}>{group.label}</span>
-                  <span style={MUTED_XS}>{group.events.length} รายการ</span>
-                </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '24px max-content',
-                    columnGap: 'var(--dim-space-300)',
-                    width: 'max-content',
-                    maxWidth: '100%',
-                    alignItems: 'stretch',
-                  }}
-                >
-                  {group.events.map((ev, i) => (
-                    <TimelineEventCard
-                      key={ev.id}
-                      ev={ev}
-                      showConnector={i < group.events.length - 1}
-                      onOpen={setViewEvent}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      <section
+        className='w-full flex flex-col min-h-0'
+        style={{ ...CARD_STYLE, gap: 0, padding: 'var(--dim-space-400)' }}
+      >
+        {timelineScrollPanel}
       </section>
 
-      <ConsentSignedFormViewPopup
-        open={!!viewEvent}
-        onClose={() => setViewEvent(null)}
-        event={viewEvent}
-        patientHn={patient.hn || hn}
-        patientName={patient.name || ''}
-      />
+      {!onViewForm && (
+        <ConsentSignedFormViewPopup
+          open={!!viewEvent}
+          onClose={() => setInternalViewEvent(null)}
+          event={viewEvent}
+          patientHn={patient.hn || hn}
+          patientName={patient.name || ''}
+        />
+      )}
     </div>
   );
 }

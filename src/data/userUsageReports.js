@@ -11,6 +11,7 @@
 
 import { USERS, getRole, getDepartment } from '@/data/usersAccess';
 import { FUNCTION_USAGE, PEAK_HOURS } from '@/pages/audit/auditData';
+import { sanitizeExportColumns } from '@/utils/exportPiiSanitize';
 
 export const THAI_MONTHS = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -153,12 +154,13 @@ const csvCell = (v) => {
  * หัวเอกสารมี ชื่อรายงาน · ขอบเขต · ช่วงเวลา · ผู้ออก · วันเวลา ตามคู่มือ MIS.
  */
 export function exportSpreadsheet({ title, meta = [], columns, rows, filename }) {
+  const exportColumns = sanitizeExportColumns(columns);
   const lines = [];
   lines.push(csvCell(title));
   meta.forEach(([k, v]) => lines.push(`${csvCell(k)},${csvCell(v)}`));
   lines.push('');
-  lines.push(columns.map((c) => csvCell(c.label)).join(','));
-  rows.forEach((r) => lines.push(columns.map((c) => csvCell(c.value(r))).join(',')));
+  lines.push(exportColumns.map((c) => csvCell(c.label)).join(','));
+  rows.forEach((r) => lines.push(exportColumns.map((c) => csvCell(c.value(r))).join(',')));
 
   const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'application/vnd.ms-excel;charset=utf-8;' });
   const url = URL.createObjectURL(blob);

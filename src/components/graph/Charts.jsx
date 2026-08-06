@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import MihTooltip from '@/components/tooltip/Tooltip';
 
 /**
  * SVG chart primitives — all colors flow through MIH design tokens
@@ -312,7 +311,23 @@ export const Donut = ({
   );
 };
 
-/* ── Horizontal bar list (used in ranking widgets) ─────────── */
+const SEGMENT_TOOLTIP_STYLE = {
+  position: 'absolute',
+  left: '50%',
+  bottom: '100%',
+  transform: 'translate(-50%, calc(-1 * var(--dim-space-200, 8px)))',
+  pointerEvents: 'none',
+  zIndex: 2,
+  background: 'var(--surface-card-100)',
+  border: 'var(--dim-stroke-100) solid var(--border-popover-grey)',
+  borderRadius: 'var(--dim-radius-200, 8px)',
+  boxShadow: 'var(--shadow-dropdown)',
+  padding: 'var(--dim-space-200, 8px)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  color: 'var(--text-content-default)',
+  whiteSpace: 'nowrap',
+};
 /* Optional `segments` on a row: [{ value, color, label }] — stacked
    proportions inside one track (e.g. ยินยอม / ไม่ยินยอม). Track width
    still scales to the row's `value` vs the list max.
@@ -356,6 +371,7 @@ export const HBarList = ({
             } ${
               isActive ? 'bg-brand-50' : clickable ? 'hover:bg-brand-50/60' : ''
             }`}
+            style={{ overflow: 'visible' }}
             title={clickable ? 'ดูรายละเอียด' : undefined}
           >
             <span
@@ -367,7 +383,7 @@ export const HBarList = ({
             >
               {i + 1}
             </span>
-            <div className='flex-1 min-w-0'>
+            <div className='flex-1 min-w-0' style={{ overflow: 'visible' }}>
               <div className={`truncate ${isActive ? 'font-bold text-brand-500' : 'text-ink'}`}>{r.label}</div>
               <div
                 className='mt-0.5 flex items-center'
@@ -377,6 +393,7 @@ export const HBarList = ({
                   maxWidth: '100%',
                   background: segments && segments.length > 0 ? 'transparent' : 'var(--brand-p100)',
                   borderRadius: 'var(--dim-radius-full)',
+                  overflow: 'visible',
                 }}
               >
                 {segments && segments.length > 0 ? (
@@ -407,24 +424,27 @@ export const HBarList = ({
                         }}
                         onMouseLeave={() => setHoverSeg(null)}
                       >
-                        <MihTooltip content={tipText} position='top' delay={80} variant='light' className='block w-full h-full'>
+                        <div
+                          className='relative w-full h-full'
+                          style={{ cursor: 'pointer' }}
+                          aria-label={tipText}
+                        >
                           <div
-                            className='relative w-full h-full'
-                            style={{ cursor: 'pointer' }}
-                            aria-label={tipText}
-                          >
-                            <div
-                              className='absolute left-0 right-0'
-                              style={{
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                height: 'var(--dim-space-150, 6px)',
-                                background: s.color || (isActive ? 'var(--brand-p700)' : 'var(--brand-p400)'),
-                                borderRadius: radius,
-                              }}
-                            />
+                            className='absolute left-0 right-0'
+                            style={{
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              height: 'var(--dim-space-150, 6px)',
+                              background: s.color || (isActive ? 'var(--brand-p700)' : 'var(--brand-p400)'),
+                              borderRadius: radius,
+                            }}
+                          />
+                        </div>
+                        {isHovered && (
+                          <div style={SEGMENT_TOOLTIP_STYLE}>
+                            {tipText}
                           </div>
-                        </MihTooltip>
+                        )}
                       </div>
                     );
                   })

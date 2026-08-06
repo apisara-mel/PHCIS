@@ -992,7 +992,7 @@ export const Step3Examination = ({ form, setForm, patient }) => {
           }))}
           onSystemChange={set('examSystem')}
           onViewChange={set('examView')}
-          sidebar={<ExamSupportList width={320} />}
+          sidebar={<ExamSupportList width={320} patientHn={patient?.hn} />}
         />
 
         <ExamNotesPanel
@@ -1731,7 +1731,7 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient }) => {
               />
             </Field>
           </div>
-          <ExamSupportList width={320} className='self-stretch' />
+          <ExamSupportList width={320} className='self-stretch' patientHn={patient?.hn} />
         </div>
 
         <div

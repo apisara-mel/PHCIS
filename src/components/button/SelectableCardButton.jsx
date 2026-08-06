@@ -6,9 +6,10 @@ import React, { useState } from 'react';
      • Default  → 1px `--border-neutralbutton-tertiary`, no shadow.
      • Hover    → 2px `--border-brandprimarybutton-tertiary` (#C5EDDA)
                   + Brand Drop Shadow Top/200.
-     • Selected → 2px `--border-brandprimarybutton-default` (#007549)
-                  + Brand Drop Shadow Top/200 (same elevation cue as
-                  hover so engaged buttons read as one family).
+     • Selected → 2px `--border-secondarysearch-focus` (same stroke as
+                  SecondarySearch / PrimarySearch focus — `--brand-p600`)
+                  + `--shadow-secondarysearch` (same elevation cue as search
+                  focus so selected cards read as one family with search).
 
    Stroke uses OUTSET box-shadow (spread only, 0 offset) instead of a
    real CSS border so the 1px ↔ 2px transition on hover/selected does
@@ -20,18 +21,20 @@ const SelectableCardButton = ({
   ariaLabel,
   minHeight = 56,
   padX = 'var(--dim-space-400, 16px)',
+  padY = 'var(--dim-space-200, 8px)',
+  className = '',
   children,
 }) => {
   const [hover, setHover] = useState(false);
-  /* Selected wins over hover when both are true so the dark
-     brand-p700 stroke remains visible while the cursor is still over
+  /* Selected wins over hover when both are true so the search-focus
+     brand-p600 stroke remains visible while the cursor is still over
      the active button. */
   const state = selected ? 'selected' : hover ? 'hover' : 'default';
 
   let strokeShadow;
   if (state === 'selected') {
     strokeShadow =
-      '0 0 0 var(--dim-stroke-200, 2px) var(--border-brandprimarybutton-default, #007549)';
+      '0 0 0 var(--dim-stroke-200, 2px) var(--border-secondarysearch-focus, var(--brand-p600))';
   } else if (state === 'hover') {
     strokeShadow =
       '0 0 0 var(--dim-stroke-200, 2px) var(--border-brandprimarybutton-tertiary, #C5EDDA)';
@@ -40,13 +43,14 @@ const SelectableCardButton = ({
       '0 0 0 var(--dim-stroke-100, 1px) var(--border-neutralbutton-tertiary, #E2E4E6)';
   }
 
-  /* Drop shadow stack — `none` keyword on default so the shadow
-     transition starts from a clean baseline. Hover + selected share
-     the same Brand Drop Shadow Top/200 token. */
+  /* Drop shadow — default has none. Hover keeps Brand Drop Shadow Top/200;
+     selected mirrors SecondarySearch focus (`--shadow-secondarysearch`). */
   const dropShadow =
     state === 'default'
       ? 'none'
-      : 'var(--shadow-brand-top-200, 0px -1px 4px rgba(8, 167, 104, 0.08), 0px -1px 8px rgba(8, 167, 104, 0.10))';
+      : state === 'selected'
+        ? 'var(--shadow-secondarysearch, var(--shadow-primarysearch))'
+        : 'var(--shadow-brand-top-200, 0px -1px 4px rgba(8, 167, 104, 0.08), 0px -1px 8px rgba(8, 167, 104, 0.10))';
 
   return (
     <button
@@ -58,14 +62,14 @@ const SelectableCardButton = ({
       onBlur={() => setHover(false)}
       aria-pressed={selected}
       aria-label={ariaLabel}
-      className='inline-flex items-center'
+      className={`inline-flex items-center ${className}`.trim()}
       style={{
         minHeight,
         minWidth: 40,
         paddingLeft: padX,
         paddingRight: padX,
-        paddingTop: 'var(--dim-space-200, 8px)',
-        paddingBottom: 'var(--dim-space-200, 8px)',
+        paddingTop: padY,
+        paddingBottom: padY,
         gap: 'var(--dim-space-200, 8px)',
         borderRadius: 'var(--dim-radius-200, 8px)',
         background: 'var(--surface-neutralbutton-quinary, #FFFFFF)',

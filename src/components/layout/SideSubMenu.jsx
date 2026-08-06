@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import LabNotificationCountBadge from '@/components/badge/LabNotificationCountBadge';
 
 /* MIH SideSubMenu — Figma "Side SubMenu" (node 299:3610).
 
@@ -28,7 +29,13 @@ const SHELL_SHADOW = 'var(--shadow-sidemenu, 0 1px 4px rgba(8,167,104,0.10), 0 1
 
 /* Section header — body Medium · xs · neutral-tertiary. Used to label
    the parent menu the sub-departments belong to. */
-export const SideSubMenuHeader = ({ children, className = '', style = {}, ...rest }) => (
+export const SideSubMenuHeader = ({
+  children,
+  badgeCount = 0,
+  className = '',
+  style = {},
+  ...rest
+}) => (
   <div
     className={`flex items-center w-full ${className}`}
     style={{
@@ -40,8 +47,9 @@ export const SideSubMenuHeader = ({ children, className = '', style = {}, ...res
     {...rest}
   >
     <span
-      className='flex-1 min-w-0'
+      className='flex-1 min-w-0 inline-flex items-center'
       style={{
+        gap: 'var(--dim-space-150, 6px)',
         color: 'var(--text-neutral-tertiary, var(--text-content-tertiary, #ADB2B7))',
         fontFamily: 'var(--type-family-body)',
         fontSize: 'var(--type-size-xs, 12px)',
@@ -49,7 +57,8 @@ export const SideSubMenuHeader = ({ children, className = '', style = {}, ...res
         lineHeight: 1.5,
       }}
     >
-      {children}
+      <span className='min-w-0'>{children}</span>
+      <LabNotificationCountBadge count={badgeCount} />
     </span>
   </div>
 );
@@ -92,6 +101,7 @@ const resolveItemTone = (state) => {
 export const SideSubMenuItem = React.forwardRef(function SideSubMenuItem(
   {
     children = 'Sub menu item',
+    badgeCount = 0,
     selected = false,
     disabled = false,
     state,                                  /* force 'default' | 'hover' | 'selected' | 'disabled' */
@@ -146,8 +156,9 @@ export const SideSubMenuItem = React.forwardRef(function SideSubMenuItem(
       {...rest}
     >
       <span
-        className='flex-1 min-w-0'
+        className='flex-1 min-w-0 inline-flex items-center'
         style={{
+          gap:        'var(--dim-space-150, 6px)',
           color:      tone.text,
           fontFamily: tone.family,
           fontSize:   'var(--type-size-base, 16px)',
@@ -155,7 +166,8 @@ export const SideSubMenuItem = React.forwardRef(function SideSubMenuItem(
           lineHeight: 1.5,
         }}
       >
-        {children}
+        <span className='min-w-0'>{children}</span>
+        <LabNotificationCountBadge count={badgeCount} />
       </span>
     </div>
   );
@@ -167,6 +179,7 @@ export const SideSubMenuItem = React.forwardRef(function SideSubMenuItem(
 const SideSubMenu = React.forwardRef(function SideSubMenu(
   {
     header,
+    headerBadgeCount = 0,
     items,
     selectedKey,
     onSelect,
@@ -205,7 +218,7 @@ const SideSubMenu = React.forwardRef(function SideSubMenu(
       >
         {header && (
           typeof header === 'string'
-            ? <SideSubMenuHeader>{header}</SideSubMenuHeader>
+            ? <SideSubMenuHeader badgeCount={headerBadgeCount}>{header}</SideSubMenuHeader>
             : header
         )}
         {items
@@ -214,6 +227,7 @@ const SideSubMenu = React.forwardRef(function SideSubMenu(
                 key={it.key}
                 selected={it.key === selectedKey}
                 disabled={it.disabled}
+                badgeCount={it.badgeCount ?? 0}
                 onClick={onSelect ? () => onSelect(it.key) : undefined}
               >
                 {it.label}

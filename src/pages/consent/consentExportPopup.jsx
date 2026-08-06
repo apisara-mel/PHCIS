@@ -8,9 +8,14 @@ import CheckboxGroup from '@/components/checkbox/CheckboxGroup';
 import { formatThaiBuddhistDate } from '@/data/registrationForm';
 import { logExport } from '@/data/consentWorkflowStore';
 import { CONSENT_DASHBOARD_REPORTS } from '@/data/consentReports';
-import { CONSENT_STATUS, CONSENT_TYPE_TONE } from '@/data/consentRecords';
+import { CONSENT_STATUS } from '@/data/consentRecords';
 import { PHCIS_CHART } from '@/data/phcisChartPalette';
 import Icon from '@/components/icons/Icon';
+import { sanitizeExportReportMeta } from '@/utils/exportPiiSanitize';
+import {
+  buildConsentExportSections,
+  downloadConsentReport,
+} from '@/utils/consentReportExport';
 
 /* PHCIS | Consent — shared export popup (Figma 399:124481 / ด.1.1.16).
    Every "นำส่งออกรายงาน" action in the consent module opens this popup:
@@ -42,7 +47,7 @@ const STATUS_TONE = {
   'ยินยอม': 'green', 'ให้ความยินยอม': 'green', 'สำเร็จ': 'green', 'อนุมัติ': 'green', 'ใช้งาน': 'green', 'ยินยอมแล้ว': 'green', 'เผยแพร่': 'green',
   'ปฏิเสธ': 'red', 'ถอน': 'red', 'ไม่ยินยอม': 'red', 'ไม่ให้ความยินยอม': 'red', 'ถูกปฏิเสธ': 'red', 'ล้มเหลว': 'red', 'ปฏิเสธ/เพิกถอน': 'red', 'ไม่เผยแพร่': 'red',
   'รอตรวจสอบ': 'yellow', 'รอดำเนินการ': 'yellow', 'รอลงนาม': 'yellow', 'ขอเพิกถอน': 'red', 'หมดอายุ-Reconsent': 'yellow',
-  'มีเวอร์ชันใหม่': 'orange', 'ร่าง': 'grey', 'หมดอายุ': 'grey',
+  'ถูกแทนที่ด้วยเวอร์ชันใหม่': 'orange', 'มีเวอร์ชันใหม่': 'orange', 'ร่าง': 'grey', 'หมดอายุ': 'grey',
 };
 
 const BADGE_TONE = {
@@ -74,6 +79,13 @@ export const buildReportTableColumns = (cols) => cols.map((c) => ({
     if (c.kind === 'badge') {
       return <ColorfulBadge style={BADGE_TONE[v] || 'blue'} size='small' hierarchy='secondary' width='hug'>{v}</ColorfulBadge>;
     }
+    if (c.kind === 'nowrap' || c.key === 'signChannel') {
+      return (
+        <span className='block whitespace-nowrap' style={CELL_TEXT}>
+          {v == null || v === '' ? '-' : String(v)}
+        </span>
+      );
+    }
     if (c.kind === 'ellipsis' || c.key === 'formName') {
       return (
         <div className='min-w-0 w-full' style={CELL_TEXT}>
@@ -87,11 +99,9 @@ export const buildReportTableColumns = (cols) => cols.map((c) => ({
 
 const WORKLIST_EXPORT_COLUMNS = [
   { key: 'hn', header: 'HN', width: 110 },
-  { key: 'name', header: 'ชื่อ-นามสกุล', width: 220 },
   { key: 'formName', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 360, kind: 'ellipsis' },
-  { key: 'type', header: 'ประเภท Consent', width: 150, kind: 'badge' },
   { key: 'status', header: 'สถานะ', width: 160, kind: 'status' },
-  { key: 'signChannel', header: 'ช่องทางที่ลงนาม', width: 150 },
+  { key: 'signChannel', header: 'ช่องทางที่ลงนาม', width: 320, kind: 'nowrap' },
 ];
 
 /** Build export payload for the consent worklist (filtered rows). */
@@ -102,9 +112,7 @@ export const buildWorklistExportReport = (rows) => ({
     columns: WORKLIST_EXPORT_COLUMNS,
     rows: rows.map((r) => ({
       hn: r.hn,
-      name: r.name,
       formName: r.formName,
-      type: r.type,
       status: r.status,
       signChannel: r.signChannel,
     })),
@@ -116,7 +124,6 @@ const COMPARE_EXPORT_COLUMNS = [
   { key: 'formName', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 280, kind: 'ellipsis' },
   { key: 'formCode', header: 'รหัส', width: 100 },
   { key: 'version', header: 'เวอร์ชัน', width: 100 },
-  { key: 'type', header: 'ประเภท', width: 120, kind: 'badge' },
   { key: 'status', header: 'สถานะ', width: 140, kind: 'status' },
   { key: 'reconsent', header: 'Reconsent', width: 140 },
 ];
@@ -126,7 +133,6 @@ const compareExportRow = (item, outcome) => ({
   formName: item.formName,
   formCode: item.formCode,
   version: item.version,
-  type: item.type,
   status: (CONSENT_STATUS[item.status] || {}).label || item.status,
   reconsent: item.reconsentSent ? 'ส่ง Reconsent แล้ว' : '-',
 });
@@ -142,8 +148,8 @@ export const buildConsentCompareExportReport = (groups) => {
   return {
     key: 'consent-compare',
     snapshot: true,
-    title: `เปรียบเทียบการให้ความยินยอม · ${patient.name} · ${patient.hn}`,
-    patient,
+    title: `เปรียบเทียบการให้ความยินยอม · HN ${patient.hn}`,
+    patient: { hn: patient.hn },
     compare: { consented, declined },
     table: {
       columns: COMPARE_EXPORT_COLUMNS,
@@ -196,9 +202,6 @@ const CompareExportFormRow = ({ item }) => {
         <span style={COMPARE_MUTED}>{item.formCode} · {item.version}</span>
       </div>
       <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
-        <ColorfulBadge style={CONSENT_TYPE_TONE[item.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>
-          {item.type}
-        </ColorfulBadge>
         <ColorfulBadge style={statusTone} size='small' hierarchy='secondary' width='hug'>
           {statusLabel}
         </ColorfulBadge>
@@ -248,10 +251,6 @@ const CompareExportPreview = ({ patient, compare }) => (
         border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
       }}
     >
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)', minWidth: 200 }}>
-        <span style={COMPARE_MUTED}>ชื่อ-นามสกุล ผู้รับบริการ</span>
-        <span style={COMPARE_BODY}>{patient.name || '—'}</span>
-      </div>
       <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)', minWidth: 140 }}>
         <span style={COMPARE_MUTED}>HN (Hospital Number)</span>
         <span style={COMPARE_BODY}>{patient.hn || '—'}</span>
@@ -350,7 +349,7 @@ export const DateInputBox = ({
   </div>
 );
 
-export function ExportFormatPopup({
+export function useExportFormatState({
   open,
   report,
   reportsCatalog = CONSENT_DASHBOARD_REPORTS,
@@ -364,7 +363,6 @@ export function ExportFormatPopup({
   const [selectedTopics, setSelectedTopics] = useState([]);
 
   const topicKeys = useMemo(() => topics.map((t) => t.value), [topics]);
-  /* เลือกหัวข้อได้เมื่อนำออกแบบรวม (key=all) — รายงานเดี่ยว / worklist ไม่โชว์ picker */
   const showTopicPicker = !report?.key || report.key === 'all';
   const isCompareExport = report?.key === 'consent-compare';
   const isSnapshotExport = !!report?.snapshot;
@@ -428,164 +426,280 @@ export function ExportFormatPopup({
     const topicLabels = isCompareExport
       ? (report?.title || 'เปรียบเทียบการให้ความยินยอม')
       : selectedReports.map((r) => r.title).join(', ');
+    const topicListLine = showTopicPicker && selectedTopics.length > 1 && !allSelected
+      ? selectedReports.map((r) => r.title).join(' · ')
+      : undefined;
+    const sections = buildConsentExportSections({
+      report,
+      reportsCatalog,
+      selectedTopics,
+      showTopicPicker,
+      isCompareExport,
+      isSnapshotExport,
+      startDate,
+      endDate,
+      previewTitle,
+      selectedReports,
+      sanitizeExportReportMeta,
+    });
+    downloadConsentReport({
+      format,
+      previewTitle,
+      startDate,
+      endDate,
+      formatThaiDate: formatThaiBuddhistDate,
+      sections,
+      isCompareExport,
+      topicListLine,
+      filenameBase: previewTitle,
+    });
     logExport({
       source: topicLabels || (report ? report.title : 'รายงาน consent'),
       format,
       topics: selectedTopics,
     });
-    onClose();
-    if (onExported) onExported(format, { topics: selectedTopics, report });
+    onClose?.();
+    onExported?.(format, {
+      topics: selectedTopics,
+      report: sanitizeExportReportMeta(report),
+    });
   };
 
-  const previewCols = previewReport?.table ? buildReportTableColumns(previewReport.table.columns) : [];
-  const previewRows = previewReport?.table
-    ? previewReport.table.rows.slice(0, 5).map((r, i) => ({ ...r, _id: i }))
+  const previewReportSanitized = useMemo(() => {
+    if (!previewReport) return previewReport;
+    return sanitizeExportReportMeta(previewReport);
+  }, [previewReport]);
+
+  const previewCols = previewReportSanitized?.table
+    ? buildReportTableColumns(previewReportSanitized.table.columns)
     : [];
+  const previewRows = previewReportSanitized?.table
+    ? previewReportSanitized.table.rows.slice(0, 5).map((r, i) => ({ ...r, _id: i }))
+    : [];
+
+  const title = 'นำออกรายงาน';
+  const subtitle = isCompareExport
+    ? 'รายงานเปรียบเทียบความยินยอมของผู้รับบริการรายนี้ — เลือกรูปแบบไฟล์แล้วยืนยันนำออก'
+    : 'เลือกหัวข้อรายงาน ช่วงวันที่ และรูปแบบไฟล์ แล้วยืนยันนำออก (ระบบเก็บ log การส่งออก)';
+
+  return {
+    ready,
+    confirm,
+    title,
+    subtitle,
+    showTopicPicker,
+    isCompareExport,
+    isSnapshotExport,
+    format,
+    setFormat,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    selectedTopics,
+    setSelectedTopics,
+    allSelected,
+    someSelected,
+    toggleAll,
+    topicKeys,
+    topics,
+    previewTitle,
+    previewCols,
+    previewRows,
+    selectedReports,
+    report,
+    primaryAction: { label: 'ยืนยันนำออกรายงาน', onClick: confirm, disabled: !ready },
+    secondaryAction: { label: 'ยกเลิก', onClick: onClose },
+    tertiaryAction: { label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() },
+  };
+}
+
+export function ExportFormatFormBody({ form }) {
+  const {
+    showTopicPicker,
+    isCompareExport,
+    isSnapshotExport,
+    format,
+    setFormat,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    selectedTopics,
+    setSelectedTopics,
+    allSelected,
+    someSelected,
+    toggleAll,
+    topics,
+    previewTitle,
+    previewCols,
+    previewRows,
+    selectedReports,
+    report,
+  } = form;
+
+  return (
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+      {showTopicPicker && (
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <span style={SECTION_LABEL}>
+            เลือกหัวข้อรายงาน <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
+          </span>
+          <Checkbox
+            label='เลือกทั้งหมด'
+            checked={allSelected}
+            onChange={toggleAll}
+          />
+          <CheckboxGroup
+            options={topics}
+            value={selectedTopics}
+            onChange={setSelectedTopics}
+            name='consent-export-topics'
+            error={!someSelected ? 'เลือกอย่างน้อย 1 หัวข้อรายงาน' : undefined}
+          />
+        </div>
+      )}
+
+      <div
+        className='flex items-end flex-wrap w-full'
+        style={{ gap: 'var(--dim-space-1200, 48px)' }}
+      >
+        {!isSnapshotExport && (
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+            <span style={SECTION_LABEL}>
+              เลือกช่วงวันที่ <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
+            </span>
+            <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+              <DateInputBox
+                placeholder='วันเริ่มต้น'
+                value={startDate}
+                onChange={(d) => {
+                  setStartDate(d);
+                  if (endDate && d && endDate.getTime() < d.getTime()) setEndDate(null);
+                }}
+              />
+              <span style={{ color: 'var(--text-content-tertiary)', flexShrink: 0 }}>-</span>
+              <DateInputBox
+                placeholder='วันสิ้นสุด'
+                value={endDate}
+                onChange={setEndDate}
+                minDate={startDate || undefined}
+              />
+            </div>
+          </div>
+        )}
+        <div className='flex flex-col shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <span style={SECTION_LABEL}>เลือกรูปแบบไฟล์</span>
+          <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+            {FORMATS.map((f) => (
+              <RadioPill key={f.value} label={f.label} selected={format === f.value} onClick={() => setFormat(f.value)} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div
+        className='flex justify-center w-full'
+        style={{
+          background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+          paddingTop: 'var(--dim-space-500)', paddingRight: 'var(--dim-space-500)',
+          paddingBottom: 'var(--dim-space-500)', paddingLeft: 'var(--dim-space-500)',
+          borderRadius: 'var(--dim-radius-400)',
+          width: '100%',
+          minHeight: 'min(52vh, 560px)',
+        }}
+      >
+        <div
+          className='flex flex-col w-full'
+          style={{
+            width: '100%',
+            maxWidth: '100%',
+            background: 'var(--surface-card-100)',
+            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+            borderRadius: 'var(--dim-radius-300)',
+            boxShadow: 'var(--shadow-card)',
+            paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)',
+            paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
+            gap: 'var(--dim-space-400)',
+          }}
+        >
+          <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)' }}>
+            <img
+              src={OFFICE_HEALTH_LOGO}
+              alt='ตราสัญลักษณ์สำนักอนามัย กรุงเทพมหานคร'
+              style={{
+                width: 'var(--dim-size-1600, 72px)',
+                height: 'var(--dim-size-1600, 72px)',
+                objectFit: 'cover',
+                borderRadius: 'var(--dim-radius-full)',
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)' }}>
+              สำนักอนามัย กรุงเทพมหานคร
+            </span>
+            <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', textAlign: 'center' }}>
+              {previewTitle}
+            </span>
+            {selectedTopics.length > 1 && !allSelected && (
+              <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', textAlign: 'center' }}>
+                {selectedReports.map((r) => r.title).join(' · ')}
+              </span>
+            )}
+            <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', textAlign: 'center' }}>
+              {isCompareExport
+                ? `HN ${report?.patient?.hn || '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)`
+                : `ช่วงวันที่ ${startDate ? formatThaiBuddhistDate(startDate) : '—'} ถึง ${endDate ? formatThaiBuddhistDate(endDate) : '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)`}
+            </span>
+          </div>
+          {isCompareExport && report?.compare ? (
+            <CompareExportPreview patient={report.patient} compare={report.compare} />
+          ) : previewRows.length > 0 ? (
+            <Table columns={previewCols} rows={previewRows} rowKey={(r) => r._id} />
+          ) : (
+            <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', textAlign: 'center' }}>
+              {selectedTopics.length === 0
+                ? 'เลือกหัวข้อรายงานด้านบนเพื่อดูตัวอย่าง'
+                : selectedTopics.length === 1
+                  ? 'ตัวอย่างตารางจะแสดงเมื่อรายงานมีข้อมูลในช่วงที่เลือก'
+                  : 'รวมรายงานที่เลือก — ตัวอย่างตารางแสดงเมื่อเลือกเพียง 1 หัวข้อ'}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ExportFormatPopup({
+  open,
+  report,
+  reportsCatalog = CONSENT_DASHBOARD_REPORTS,
+  topics = CONSENT_EXPORT_TOPICS,
+  onClose,
+  onExported,
+}) {
+  const form = useExportFormatState({
+    open,
+    report,
+    reportsCatalog,
+    topics,
+    onClose,
+    onExported,
+  });
 
   return (
     <Popup
       open={open}
       onClose={onClose}
       size='extraLarge'
-      title='นำออกรายงาน'
-      subtitle={
-        isCompareExport
-          ? 'รายงานเปรียบเทียบความยินยอมของผู้รับบริการรายนี้ — เลือกรูปแบบไฟล์แล้วยืนยันนำออก'
-          : 'เลือกหัวข้อรายงาน ช่วงวันที่ และรูปแบบไฟล์ แล้วยืนยันนำออก (ระบบเก็บ log การส่งออก)'
-      }
-      primaryAction={{ label: 'ยืนยันนำออกรายงาน', onClick: confirm, disabled: !ready }}
-      secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
-      tertiaryAction={{ label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() }}
+      title={form.title}
+      subtitle={form.subtitle}
+      primaryAction={form.primaryAction}
+      secondaryAction={form.secondaryAction}
+      tertiaryAction={form.tertiaryAction}
     >
-      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-        {showTopicPicker && (
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-            <span style={SECTION_LABEL}>
-              เลือกหัวข้อรายงาน <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
-            </span>
-            <Checkbox
-              label='เลือกทั้งหมด'
-              checked={allSelected}
-              onChange={toggleAll}
-            />
-            <CheckboxGroup
-              options={topics}
-              value={selectedTopics}
-              onChange={setSelectedTopics}
-              name='consent-export-topics'
-              error={!someSelected ? 'เลือกอย่างน้อย 1 หัวข้อรายงาน' : undefined}
-            />
-          </div>
-        )}
-
-        <div
-          className='flex items-end flex-wrap w-full'
-          style={{ gap: 'var(--dim-space-1200, 48px)' }}
-        >
-          {!isSnapshotExport && (
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-              <span style={SECTION_LABEL}>
-                เลือกช่วงวันที่ <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
-              </span>
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                <DateInputBox
-                  placeholder='วันเริ่มต้น'
-                  value={startDate}
-                  onChange={(d) => {
-                    setStartDate(d);
-                    if (endDate && d && endDate.getTime() < d.getTime()) setEndDate(null);
-                  }}
-                />
-                <span style={{ color: 'var(--text-content-tertiary)', flexShrink: 0 }}>-</span>
-                <DateInputBox
-                  placeholder='วันสิ้นสุด'
-                  value={endDate}
-                  onChange={setEndDate}
-                  minDate={startDate || undefined}
-                />
-              </div>
-            </div>
-          )}
-          <div className='flex flex-col shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={SECTION_LABEL}>เลือกรูปแบบไฟล์</span>
-            <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
-              {FORMATS.map((f) => (
-                <RadioPill key={f.value} label={f.label} selected={format === f.value} onClick={() => setFormat(f.value)} />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div
-          className='flex justify-center w-full'
-          style={{
-            background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-            paddingTop: 'var(--dim-space-500)', paddingRight: 'var(--dim-space-500)',
-            paddingBottom: 'var(--dim-space-500)', paddingLeft: 'var(--dim-space-500)',
-            borderRadius: 'var(--dim-radius-400)',
-            width: '100%',
-            minHeight: 'min(52vh, 560px)',
-          }}
-        >
-          <div
-            className='flex flex-col w-full'
-            style={{
-              width: '100%',
-              maxWidth: '100%',
-              background: 'var(--surface-card-100)',
-              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-              borderRadius: 'var(--dim-radius-300)',
-              boxShadow: 'var(--shadow-card)',
-              paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)',
-              paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
-              gap: 'var(--dim-space-400)',
-            }}
-          >
-            <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)' }}>
-              <img
-                src={OFFICE_HEALTH_LOGO}
-                alt='ตราสัญลักษณ์สำนักอนามัย กรุงเทพมหานคร'
-                style={{
-                  width: 'var(--dim-size-1600, 72px)',
-                  height: 'var(--dim-size-1600, 72px)',
-                  objectFit: 'cover',
-                  borderRadius: 'var(--dim-radius-full)',
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)' }}>
-                สำนักอนามัย กรุงเทพมหานคร
-              </span>
-              <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', textAlign: 'center' }}>
-                {previewTitle}
-              </span>
-              {selectedTopics.length > 1 && !allSelected && (
-                <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', textAlign: 'center' }}>
-                  {selectedReports.map((r) => r.title).join(' · ')}
-                </span>
-              )}
-              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', textAlign: 'center' }}>
-                {isCompareExport
-                  ? `ผู้รับบริการ ${report?.patient?.name || '—'} · HN ${report?.patient?.hn || '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)`
-                  : `ช่วงวันที่ ${startDate ? formatThaiBuddhistDate(startDate) : '—'} ถึง ${endDate ? formatThaiBuddhistDate(endDate) : '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)`}
-              </span>
-            </div>
-            {isCompareExport && report?.compare ? (
-              <CompareExportPreview patient={report.patient} compare={report.compare} />
-            ) : previewRows.length > 0 ? (
-              <Table columns={previewCols} rows={previewRows} rowKey={(r) => r._id} />
-            ) : (
-              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', textAlign: 'center' }}>
-                {selectedTopics.length === 0
-                  ? 'เลือกหัวข้อรายงานด้านบนเพื่อดูตัวอย่าง'
-                  : selectedTopics.length === 1
-                    ? 'ตัวอย่างตารางจะแสดงเมื่อรายงานมีข้อมูลในช่วงที่เลือก'
-                    : 'รวมรายงานที่เลือก — ตัวอย่างตารางแสดงเมื่อเลือกเพียง 1 หัวข้อ'}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+      <ExportFormatFormBody form={form} />
     </Popup>
   );
 }

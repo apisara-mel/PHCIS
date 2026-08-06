@@ -19,11 +19,13 @@ export default class ErrorBoundary extends React.Component {
     const { error } = this.state;
     if (!error) return this.props.children;
 
+    const { compact = false } = this.props;
+
     return (
       <div
         role='alert'
         style={{
-          minHeight: '100vh',
+          minHeight: compact ? 'auto' : '100vh',
           padding: 'var(--dim-space-600, 24px)',
           background: '#FEF2F2',
           color: '#7F1D1D',

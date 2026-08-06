@@ -556,8 +556,6 @@ const UserEditPage = () => {
       activeKey='users'
       breadcrumb={breadcrumb}
       title={isNew ? 'เพิ่มผู้ใช้ใหม่' : (composeUserName(form) || 'แก้ไขผู้ใช้')}
-      onBack={goBack}
-      backLabel='กลับไปรายชื่อผู้ใช้'
       tabs={TABS}
       activeTab={activeTab}
       onTabChange={setActiveTab}

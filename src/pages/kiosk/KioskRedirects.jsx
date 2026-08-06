@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Redirect, useParams } from 'react-router-dom';
 
 /** Production kiosk app — namonlims/bma.kiosk · main branch. */
-export const KIOSK_PRODUCTION_URL = 'https://bma-kiosk.mih.co.th/Kiosk/02-insert-id-card';
+export const KIOSK_PRODUCTION_URL = 'https://bma-kiosk.mih.co.th';
 
 /** Legacy /kiosk → external production app (old in-repo UI removed). */
 export function KioskExternalRedirect() {

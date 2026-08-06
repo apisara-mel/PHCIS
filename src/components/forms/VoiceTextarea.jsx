@@ -19,7 +19,9 @@ import {
 
    Every dimension + colour aliases design.md per Figma:
      Outer:    gap-150 (6),  max-w-640, min-w-128, w-447 (default)
-     Box:      bg-input-default, radius-200 (8), h-160, min-h-96, gap-200 (8),
+     Box:      bg-input-default, radius-200 (8), h-128 default (size-2000),
+               min-h-96 (size-1800), gap-200 (8). Figma tall variant h-160
+               (size-2100) — pass `height={VOICE_TEXTAREA_HEIGHT_TALL}`.
                border + ring via shared resolveBox/composeBoxShadow.
      Top:      p-300 (12), placeholder = body-base (16) / text-input-default.
      Toolbar:  bg-neutral-quaternary (#f9fbfb) — or danger-quaternary in Error,
@@ -28,6 +30,13 @@ import {
      Mic:      36×36, radius-600 (24), brandPrimaryButton-tertiary (#e2f3eb),
                icon-brandPrimaryButton-default. In Error → dangerButton-secondary
                + icon-dangerButton-default.                                  */
+
+/** Default outer box height — `--dim-size-2000` (128px). Form / popup compact. */
+export const VOICE_TEXTAREA_HEIGHT = 128;
+/** Minimum outer box height — `--dim-size-1800` (96px). */
+export const VOICE_TEXTAREA_MIN_HEIGHT = 96;
+/** Figma 3217:3511 tall variant / body-mark editor — `--dim-size-2100` (160px). */
+export const VOICE_TEXTAREA_HEIGHT_TALL = 160;
 
 /** Speech-recognition locale options — design.md §6.16.1 (VoiceTextarea toolbar). */
 export const VOICE_TEXTAREA_LANGUAGE_OPTIONS = [
@@ -76,9 +85,8 @@ const VoiceTextarea = React.forwardRef(function VoiceTextarea(
     onDeleteClick,
     state,
     disabled = false,
-    /* Figma 3217:3511 defaults — h-160 with min-h-96. Caller may override. */
-    height = 160,
-    minHeight = 96,
+    height = VOICE_TEXTAREA_HEIGHT,
+    minHeight = VOICE_TEXTAREA_MIN_HEIGHT,
     id: idProp,
     name,
     className = '',

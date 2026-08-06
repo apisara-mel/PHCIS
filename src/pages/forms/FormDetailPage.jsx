@@ -12,6 +12,7 @@ import {
   getCategory,
   CATEGORY_PALETTE,
 } from '@/data/formsLibrary';
+import EDOCUMENT_NAV, { EDOCUMENT_BRAND_TITLE } from '@/pages/forms/edocumentNav';
 
 /* Token-driven type chip for the field-preview list. Each row in the
    preview shows a small uppercase pill telling the clinician what kind
@@ -208,9 +209,13 @@ const FormDetailPage = () => {
   if (!form) {
     return (
       <div className='min-h-screen w-full flex bg-brand-50'>
-        <Sidebar activeKey='consent' />
+        <Sidebar
+          activeKey='edocument-catalog'
+          items={EDOCUMENT_NAV}
+          fallbackKey='edocument-dashboard'
+        />
         <main className='flex-1 flex flex-col min-w-0'>
-          <Header breadcrumb={['คลังแบบฟอร์ม', 'ไม่พบแบบฟอร์ม']} />
+          <Header breadcrumb={['คลังเอกสาร e-document', 'ไม่พบแบบฟอร์ม']} brandTitle={EDOCUMENT_BRAND_TITLE} />
           <div className='flex flex-1 items-center justify-center text-ink-tertiary'>
             ไม่พบแบบฟอร์มที่ตรงกับลิงก์นี้
           </div>
@@ -220,13 +225,17 @@ const FormDetailPage = () => {
   }
 
   const fieldCount = form.sections.reduce((sum, s) => sum + s.fields.length, 0);
-  const breadcrumb = ['คลังแบบฟอร์ม', category?.label || '', form.name].filter(Boolean);
+  const breadcrumb = ['คลังเอกสาร e-document', category?.label || '', form.name].filter(Boolean);
 
   return (
     <div className='min-h-screen w-full flex bg-brand-50'>
-      <Sidebar activeKey='consent' />
+      <Sidebar
+        activeKey='edocument-catalog'
+        items={EDOCUMENT_NAV}
+        fallbackKey='edocument-dashboard'
+      />
       <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={breadcrumb} />
+        <Header breadcrumb={breadcrumb} brandTitle={EDOCUMENT_BRAND_TITLE} />
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           {/* Back link */}
           <div>
@@ -237,7 +246,7 @@ const FormDetailPage = () => {
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
             >
               <Icon name='chevron-left' size={16} />
-              กลับไปยังคลังแบบฟอร์ม
+              กลับไปยังคลังเอกสาร e-document
             </button>
           </div>
 

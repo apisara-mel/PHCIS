@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
-import Header from '@/components/layout/Header';
+import Header, { SubHeader } from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -206,7 +206,8 @@ const MentalHealthFormPage = () => {
     <div className='flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
       <Sidebar activeKey='treat' />
       <div className='flex-1 min-w-0 flex flex-col'>
-        <Header breadcrumb={breadcrumb} />
+        <Header breadcrumb={breadcrumb} standalone={false} />
+        <SubHeader title='บันทึกสุขภาพจิต — คลินิกสุขภาพจิต' hideBottomBorder />
 
         {/* Unsaved-changes confirm — ยกเลิก/ออกจากบันทึก (1.10.3.7 ยกเลิก) */}
         <Popup
@@ -227,7 +228,6 @@ const MentalHealthFormPage = () => {
           sticky
           patient={cardPatient}
           title='บันทึกสุขภาพจิต — คลินิกสุขภาพจิต'
-          onBack={handleBack}
           drugAllergies={intake.drugAllergies}
           chronicDiseases={intake.chronicDiseases}
           actions={(
@@ -341,12 +341,14 @@ const MentalHealthFormPage = () => {
         )}
 
         <TreatmentFormShell
+          morphTitle='สุขภาพจิต'
           stepIndex={stepIndex}
           onStepChange={handleStepChange}
           completedSteps={completedSteps}
           steps={MH_STEPS}
           queuePath={QUEUE_PATH}
           step0FlushLeft={false}
+          onLeave={handleBack}
         >
           <ActiveStep
             form={form}

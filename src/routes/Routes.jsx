@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
+import { HeaderAutoHideProvider } from '@/context/HeaderAutoHideContext';
 
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import SystemHubPage from '@/pages/hub/SystemHubPage';
@@ -78,6 +79,7 @@ import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
 import ObservationHistoryPage from '@/pages/observation/ObservationHistoryPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
+import EdocumentDashboardPage from '@/pages/forms/EdocumentDashboardPage';
 import FormsCategoryPage from '@/pages/forms/FormsCategoryPage';
 import FormDetailPage from '@/pages/forms/FormDetailPage';
 import FormFillPage from '@/pages/forms/FormFillPage';
@@ -177,6 +179,7 @@ import MobileSplashPage from '@/pages/mobile/MobileSplashPage';
 export default function Routes() {
   return (
     <Router>
+      <HeaderAutoHideProvider>
       {/* Global deep-link highlighter for TOR Compliance Checklist URLs.
           Reads `?spotlight=<key>&label=<TOR-id>` from every page. */}
       <Spotlight />
@@ -204,7 +207,7 @@ export default function Routes() {
         <Route exact path='/consent'              component={ConsentManagementPage} />
         {/* แดชบอร์ดความยินยอม (ด.1.1.12) */}
         <Route exact path='/consent/dashboard' component={ConsentDashboardPage} />
-        {/* สร้างแบบฟอร์มใหม่ — 3-step wizard, stays INSIDE the consent system
+        {/* สร้างแบบฟอร์มใหม่ — 4-step wizard, stays INSIDE the consent system
             (own consent side menu) instead of bouncing to /forms (PHCIS). */}
         {/* แบบฟอร์มความยินยอม — consent-form template registry (Figma 291:113045). */}
         <Route exact path='/consent/forms'        component={ConsentFormsPage} />
@@ -284,9 +287,9 @@ export default function Routes() {
         {/* ระบบบริหารจัดการก่อนตรวจ + การตั้งค่า (TOR §1.2.1 / §1.2.3.6 / §1.2.7)
             /opd/requests    = รายการ Request Walk-in แยกตามแผนก + ให้ Slot แพทย์
                                + ออกคิวตรวจตาม Slot (1.2.1.4–1.2.1.6)
-            /opd/room-config = ตั้งค่าห้องตรวจ/แพทย์ประจำห้อง + โควตารับผู้รับบริการ
-                               ต่อหน่วยบริการ (1.2.7.1–1.2.7.2) — ป้อนโควตาให้หน้า
-                               /opd/requests ใช้กั้นการให้ Slot
+            /opd/room-config = ตั้งค่าห้องตรวจ/แพทย์ประจำห้อง + โควตารายวัน (1.2.7.1–1.2.7.2)
+                               — เมนูอยู่ใน ระบบจัดการระบบ (systemNav); URL เดิม
+                               /opd/room-config ยังใช้ได้
             /opd/rg506       = แบบรายงานเฝ้าระวังโรค รง.506 → EPI-NET (1.2.3.6) */}
         <Route exact path='/opd/requests'    component={OpdWalkinRequestPage} />
         <Route exact path='/opd/room-config' component={OpdRoomConfigPage} />
@@ -441,10 +444,11 @@ export default function Routes() {
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
         <Route exact path='/observation/history/:id'  component={ObservationHistoryPage} />
-        {/* แม่แบบเอกสาร — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
+        {/* คลังเอกสาร e-document — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
         <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
         <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />
-        {/* คลังแบบฟอร์ม — catalog grouped by category + detail w/ QR share */}
+        {/* คลังเอกสาร e-document — catalog grouped by category + detail w/ QR share */}
+        <Route exact path='/forms/dashboard'                    component={EdocumentDashboardPage} />
         <Route exact path='/forms'                          component={FormsLibraryPage} />
         <Route exact path='/forms/category/:categoryKey'    component={FormsCategoryPage} />
         <Route exact path='/forms/:slug'                    component={FormDetailPage} />
@@ -540,6 +544,7 @@ export default function Routes() {
         </Route>
       </Switch>
       </TelemedCallProvider>
+      </HeaderAutoHideProvider>
     </Router>
   );
 }

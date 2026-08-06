@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import AccessRequestForm from '@/pages/consent/AccessRequestForm';
@@ -19,10 +19,14 @@ const CARD_STYLE = {
   boxShadow: 'var(--shadow-card)',
   padding: 'var(--dim-space-600)',
   gap: 'var(--dim-space-400)',
+  width: 'fit-content',
+  maxWidth: '100%',
 };
 
 export default function RequestFormAccessPage() {
   const navigate = useHistory();
+  const location = useLocation();
+  const prefill = location.state || {};
   const [toast, setToast] = useState(null);
 
   return (
@@ -36,11 +40,14 @@ export default function RequestFormAccessPage() {
         title='ขอสิทธิ์การเข้าถึงแบบฟอร์ม'
       >
         <div
-          className='flex flex-col flex-1 min-w-0'
+          className='flex flex-col flex-1 min-w-0 items-center w-full'
           style={{ padding: 'var(--dim-space-600)' }}
         >
-          <section className='w-full flex flex-col' style={CARD_STYLE}>
+          <section className='flex flex-col max-w-full' style={CARD_STYLE}>
             <AccessRequestForm
+              key={`${prefill.formId || 'new'}-${prefill.accessType || 'none'}`}
+              initialAccessType={prefill.accessType || ''}
+              initialFormId={prefill.formId ? String(prefill.formId) : ''}
               submitLabel='ส่งคำขอสิทธิ์'
               cancelLabel='ยกเลิก'
               onCancel={() => navigate.push('/consent/forms')}

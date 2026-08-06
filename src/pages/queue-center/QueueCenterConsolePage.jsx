@@ -22,6 +22,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import Alert from '@/components/alert/Alert';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 import { QueueTicketPrintRoot } from './QueueTicket';
 import {
@@ -505,7 +506,10 @@ const QueueCenterConsolePage = () => {
       />
       <div className='flex-1 min-w-0 flex flex-col'>
         {cancelledWrap(row, (
-          <span
+          <MaskedWorklistName
+            name={row.patient?.name}
+            recordKey={row.id || row.patient?.hn}
+            emptyLabel='ผู้รับบริการไม่ระบุตัวตน'
             className='truncate'
             style={{
               fontFamily: 'var(--type-family-body)',
@@ -513,9 +517,7 @@ const QueueCenterConsolePage = () => {
               fontWeight: 'var(--type-weight-medium, 500)',
               color: 'var(--text-content-primary)',
             }}
-          >
-            {row.patient?.name || 'ผู้รับบริการไม่ระบุตัวตน'}
-          </span>
+          />
         ))}
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)' }}>
           {/* §1.4.2 — บทบาท "อ่านอย่างเดียว" ห้ามเปิดดูข้อมูลส่วนบุคคล

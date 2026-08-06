@@ -18,6 +18,35 @@ const filled = (size = 16) => ({
   fill: 'currentColor',
 });
 
+/** Material Symbols Outlined — FILL 0 by default (AlertDialog tone icons, etc.). */
+export const MaterialSymbol = ({
+  name,
+  size = 16,
+  color = 'currentColor',
+  weight = 400,
+  fill = 0,
+  className = '',
+  style,
+}) => (
+  <span
+    className={`material-symbols-outlined ${className}`}
+    style={{
+      fontFamily: 'Material Symbols Outlined',
+      fontSize: size,
+      color,
+      lineHeight: 1,
+      display: 'inline-flex',
+      fontVariationSettings: `'FILL' ${fill}, 'wght' ${weight}, 'GRAD' 0, 'opsz' 24`,
+      ...style,
+    }}
+    aria-hidden
+  >
+    {name}
+  </span>
+);
+
+const MatSym = MaterialSymbol;
+
 export const Icon = ({ name, size = 16, className = '', style, color, ...rest }) => {
   const iconStyle = color ? { color, ...style } : style;
   const s = { ...base(size) };
@@ -230,6 +259,68 @@ export const Icon = ({ name, size = 16, className = '', style, color, ...rest })
       return (<svg {...s} className={className} style={iconStyle}><line x1='19' y1='12' x2='5' y2='12' /><polyline points='12 19 5 12 12 5' /></svg>);
     case 'check-circle':
       return (<svg {...s} className={className} style={iconStyle}><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14' /><polyline points='22 4 12 14.01 9 11.01' /></svg>);
+    /* DS SuccessIcon (TickOnCircle) — Figma 2798:5280. Teal disc + white `check`. */
+    case 'success_icon':
+    case 'tick_on_circle_filled':
+      return (
+        <span
+          aria-hidden
+          className={className}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: 'var(--dim-radius-full, 9999px)',
+            background: 'var(--icon-positive-success, #24A899)',
+            color: 'var(--text-positive-success-tick, #FFFFFF)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            ...iconStyle,
+          }}
+          {...rest}
+        >
+          <MatSym name='check' size={Math.round(size * 0.58)} color='currentColor' weight={700} fill={1} />
+        </span>
+      );
+    /* PHCIS SmallAlert / toast on chromatic pill — white disc + teal `check`
+       (323:58923). Inverted SuccessIcon; same compose pattern as ActionList. */
+    case 'tick_on_circle':
+      return (
+        <span
+          aria-hidden
+          className={className}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: 'var(--dim-radius-full, 9999px)',
+            background: 'var(--text-smallalert-on-success, #FFFFFF)',
+            color: 'var(--icon-positive-success, #24A899)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            ...iconStyle,
+          }}
+          {...rest}
+        >
+          <MatSym name='check' size={Math.round(size * 0.58)} color='currentColor' weight={700} fill={1} />
+        </span>
+      );
+    /* PHCIS SmallAlert error — Material `close` on error pill surface. */
+    case 'phcis_error_x':
+      return (
+        <MatSym
+          name='close'
+          size={size}
+          color='var(--text-smallalert-on-error, #FFFFFF)'
+          weight={700}
+          fill={0}
+          className={className}
+          style={{ flexShrink: 0, ...iconStyle }}
+          {...rest}
+        />
+      );
     /* Fallback — any unknown name is rendered via the Material Symbols
        Outlined font loaded in index.html. Lets pages reference glyphs
        like 'person_add', 'apartment', 'lock_person' without growing the

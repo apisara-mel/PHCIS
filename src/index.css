@@ -6,6 +6,31 @@
   --surface-overlay-default: rgba(0, 0, 0, 0.5);
 }
 
+/* Scroll-morph header — register so supporting browsers interpolate smoothly. */
+@property --header-morph {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --header-morph-motion {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --mih-topbar-offset {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 64px;
+}
+
+@property --mih-patient-card-sticky-height {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 64px;
+}
+
 /* ─────────────────────────────────────────────────────────────
    APP / COMPONENT CHROME · MIH PHCIS
    Design tokens live in @mih/design-tokens (imported from main.jsx).
@@ -288,7 +313,10 @@
   }
   .mih-popup-dialog[data-state='visible'] {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    /* transform: none — NOT translateY(0) scale(1). Any transform (even identity)
+       creates a containing block that breaks position:sticky inside scrollable
+       popup bodies (e.g. ConsentHistoryPopup grouped timeline month headers). */
+    transform: none;
   }
   @media (prefers-reduced-motion: reduce) {
     .mih-popup-overlay,
@@ -350,7 +378,7 @@
      pin the colour to the token and force `opacity: 1` so the
      "Search..." copy matches the design system across browsers. */
   .mih-secondary-search__input::placeholder {
-    color: var(--text-secondarysearch-default, #ADB2B7);
+    color: var(--secondarysearch-input-color, var(--text-secondarysearch-default, #ADB2B7));
     opacity: 1;
   }
   .mih-secondary-search__input::-webkit-search-decoration,
@@ -417,6 +445,16 @@
   outline: none !important;
   outline-offset: 0 !important;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Text selection — teal light tone (system-wide). */
+::selection {
+  background: var(--surface-positive-tertiary, #D1F6EE);
+  color: var(--text-colorfulbadge-teal, #196C65);
+}
+::-moz-selection {
+  background: var(--surface-positive-tertiary, #D1F6EE);
+  color: var(--text-colorfulbadge-teal, #196C65);
 }
 /* Native form-control borders are owned by our wrapper div — keep the inner
    <input>/<textarea>/<select> completely chrome-free so no inset/outset

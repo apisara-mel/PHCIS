@@ -16,13 +16,13 @@ import Icon from '@/components/icons/Icon';
 import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatientAvatar';
 import {
   HivStiConfidentialGate,
-  MaskedPii,
   ReadOnlyBanner,
   clientTypeBadge,
 } from '@/pages/clinic/hiv-sti/hivStiShared';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import { maskWorklistName } from '@/utils/piiMasking';
 import {
   HIV_STI_DOCTORS,
-  maskHivStiName,
   getHivStiQueueRows,
   getHivStiScheduledNotArrived,
   checkInHivStiAppointment,
@@ -104,7 +104,7 @@ const renderQueue = (row) => (
 
 /* §1.4.2 — the row identity is UIC + ชื่อย่อ; the avatar renders initials
    only (noProfilePhoto) so a portrait can't leak identity to onlookers.
-   The full name reveals per-cell through MaskedPii's popup. */
+   The full name reveals per-cell through MaskedWorklistName + PrivacyRevealPopup. */
 const renderClient = (row) => (
   <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
     <QueuePatientAvatar
@@ -118,11 +118,12 @@ const renderClient = (row) => (
       >
         {row.uic}
       </span>
-      <MaskedPii
-        hn={row.hn}
-        masked={maskHivStiName(row.name)}
-        full={row.name}
-        fieldLabel='ชื่อ-นามสกุลผู้รับบริการ'
+      <MaskedWorklistName
+        name={row.name}
+        recordKey={row.hn || row.uic}
+        fieldLabel='ชื่อ-นามสกุล ของผู้รับบริการ'
+        className='truncate'
+        style={{ fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-default, #363B3F)' }}
       />
     </div>
   </div>
@@ -146,7 +147,7 @@ const queueRowToSearchItem = (row) => ({
   id: row.hn,
   /* Masked identity only — search history + suggestion rows must not
      display the full name (§1.4.2). */
-  label: `${row.uic} · ${maskHivStiName(row.name)}`,
+  label: `${row.uic} · ${maskWorklistName(row.name)}`,
   sublabel: row.doctor,
   value: row.uic,
   badges: [

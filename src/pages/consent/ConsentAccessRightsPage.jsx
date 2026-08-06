@@ -14,7 +14,6 @@ import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerifyPopup';
 import Icon from '@/components/icons/Icon';
-import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import { canManageConsent } from '@/data/consentPermissions';
 import {
@@ -84,7 +83,7 @@ const nowThai = () => new Date().toLocaleString('th-TH', { dateStyle: 'long', ti
 
 /* ระดับความยินยอมของผู้ป่วยจาก record ที่ลงนามและยังมีผล */
 const levelOfPatient = (records) => {
-  const live = records.filter((r) => ['ยินยอมแล้ว', 'มีเวอร์ชันใหม่', 'ใกล้หมดอายุ'].includes(r.status));
+  const live = records.filter((r) => ['ยินยอมแล้ว', 'ถูกแทนที่ด้วยเวอร์ชันใหม่', 'มีเวอร์ชันใหม่', 'ใกล้หมดอายุ'].includes(r.status));
   if (live.length === 0) return 'none';
   if (live.some((r) => r.type === 'PDPA')) return 'full';
   if (live.some((r) => ['ผ่าตัด', 'การรักษา', 'เลือด'].includes(r.type))) return 'treatment';
@@ -141,7 +140,7 @@ export default function ConsentAccessRightsPage() {
   const levelKey = useMemo(() => levelOfPatient(patientRecords), [patientRecords]);
   const level = LEVEL_BY_KEY[levelKey];
   const signedDocs = useMemo(() => patientRecords
-    .filter((r) => ['ยินยอมแล้ว', 'มีเวอร์ชันใหม่', 'ใกล้หมดอายุ'].includes(r.status))
+    .filter((r) => ['ยินยอมแล้ว', 'ถูกแทนที่ด้วยเวอร์ชันใหม่', 'มีเวอร์ชันใหม่', 'ใกล้หมดอายุ'].includes(r.status))
     .map((r) => ({ value: `${r.type} ${r.version}`, label: `${r.type} · ${r.version} (ลงนาม ${r.signedDate})` })), [patientRecords]);
 
   const handleSubmit = (value, item) => {
@@ -333,8 +332,8 @@ export default function ConsentAccessRightsPage() {
                   <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
                     <span style={BODY_TEXT}>ระดับความยินยอมที่ลงนาม:</span>
                     <ColorfulBadge style={level.tone} size='small' hierarchy='secondary' width='hug'>{level.label}</ColorfulBadge>
-                    {patientRecords.filter((r) => ['ยินยอมแล้ว', 'มีเวอร์ชันใหม่', 'ใกล้หมดอายุ'].includes(r.status)).map((r) => (
-                      <ColorfulBadge key={r.id} style={CONSENT_TYPE_TONE[r.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.type} {r.version}</ColorfulBadge>
+                    {patientRecords.filter((r) => ['ยินยอมแล้ว', 'ถูกแทนที่ด้วยเวอร์ชันใหม่', 'มีเวอร์ชันใหม่', 'ใกล้หมดอายุ'].includes(r.status)).map((r) => (
+                      <ColorfulBadge key={r.id} style='blue' size='small' hierarchy='secondary' width='hug'>{r.version}</ColorfulBadge>
                     ))}
                   </div>
                   <span style={MUTED_XS}>{level.description}</span>

@@ -13,6 +13,7 @@ import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import { MIH_FOOTER_LEGAL_AUTOHIDE } from '@/components/layout/wizardChromeMorphStyles';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import { ANC_PATIENTS } from '@/data/ancVisits';
 import {
@@ -398,7 +399,7 @@ const DashboardPage = () => {
         <Reveal><ServiceCenterMapCard /></Reveal>
 
         {/* — Footer credits — */}
-        <div className='py-3 flex items-center justify-between text-xs text-ink-tertiary'>
+        <div className={`py-3 flex items-center justify-between text-xs text-ink-tertiary ${MIH_FOOTER_LEGAL_AUTOHIDE}`}>
           <span>© 2026 ศูนย์การพยาบาลคุณภาพ ดินแดง กรุงเทพมหานคร</span>
           <div className='flex items-center gap-4'>
             <a href='/privacy' target='_blank' rel='noopener noreferrer' className='hover:text-brand-500'>Privacy Policy</a>

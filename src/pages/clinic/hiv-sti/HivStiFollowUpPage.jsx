@@ -688,7 +688,7 @@ const HivStiFollowUpPage = () => {
             hn={row.hn}
             masked={maskHivStiName(row.name)}
             full={row.name}
-            fieldLabel='ชื่อ-นามสกุลผู้รับบริการ'
+            fieldLabel='ชื่อ-นามสกุล ของผู้รับบริการ'
           />
         </div>
       ),

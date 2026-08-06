@@ -22,7 +22,7 @@ import PharmacyAllergyEditor from '@/components/pharmacy/PharmacyAllergyEditor';
 import PharmacyMedicationEditor from '@/components/pharmacy/PharmacyMedicationEditor';
 import PharmacyVoiceSuggestInput from '@/components/pharmacy/PharmacyVoiceSuggestInput';
 import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
-import StepProgress from '@/components/step/StepProgress';
+import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import Checkbox from '@/components/checkbox/Checkbox';
 import Icon from '@/components/icons/Icon';
 import { DEFAULT_MR_PATIENT, findMrPatientByHn } from '@/data/mrPatients';
@@ -519,7 +519,13 @@ const PharmacyDispensePage = () => {
           title={`คิว ${row.queueNo} · จ่ายยา`}
           drugAllergies={mrPatient.drugAllergies}
           chronicDiseases={mrPatient.chronicDiseases}
-          onBack={() => history.push('/pharmacy/queue')}
+        />
+        <RecordWizardMorphBand
+          title={`จ่ายยา · คิว ${row.queueNo}`}
+          steps={DISPENSE_STEPS}
+          current={currentStep}
+          onStepClick={setCurrentStep}
+          stickyTop={MORPH_STICKY_BELOW_PATIENT}
         />
         <div className='flex-1 flex flex-col' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
 
@@ -573,12 +579,6 @@ const PharmacyDispensePage = () => {
           {/* Splits the rest of the page into steps (see `DISPENSE_STEPS`) —
               "รายการยา" first/default so the medication list is the first
               thing the pharmacist sees, not the last of 9 stacked sections. */}
-          <StepProgress
-            framed
-            steps={DISPENSE_STEPS}
-            current={currentStep}
-            onStepClick={setCurrentStep}
-          />
 
           {currentStep === 1 && (
           <>

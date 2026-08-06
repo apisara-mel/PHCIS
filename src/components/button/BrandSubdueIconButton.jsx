@@ -22,13 +22,61 @@ const SIZES = {
   lg: { side: 44, icon: 20 },
 };
 
-const Sym = ({ name, size, color }) => (
+const Sym = ({ name, size, color, style: styleProp }) => (
   <span
     className='material-symbols-outlined transition-colors duration-200 ease-out'
-    style={{ fontFamily: 'Material Symbols Outlined', fontSize: size, color, lineHeight: 1, display: 'inline-flex' }}
+    style={{
+      fontFamily: 'Material Symbols Outlined',
+      fontSize: size,
+      color,
+      lineHeight: 1,
+      display: 'inline-flex',
+      ...styleProp,
+    }}
     aria-hidden
   >
     {name}
+  </span>
+);
+
+const ICON_MORPH_MS = 200;
+const ICON_MORPH_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
+
+const IconMorph = ({ from, to, active, size, color }) => (
+  <span
+    aria-hidden
+    style={{
+      position: 'relative',
+      width: size,
+      height: size,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    }}
+  >
+    <Sym
+      name={from}
+      size={size}
+      color={color}
+      style={{
+        position: 'absolute',
+        transition: `opacity ${ICON_MORPH_MS}ms ${ICON_MORPH_EASE}, transform ${ICON_MORPH_MS}ms ${ICON_MORPH_EASE}`,
+        opacity: active ? 0 : 1,
+        transform: active ? 'rotate(-90deg) scale(0.55)' : 'rotate(0deg) scale(1)',
+      }}
+    />
+    <Sym
+      name={to}
+      size={size}
+      color={color}
+      style={{
+        position: 'absolute',
+        transition: `opacity ${ICON_MORPH_MS}ms ${ICON_MORPH_EASE}, transform ${ICON_MORPH_MS}ms ${ICON_MORPH_EASE}`,
+        opacity: active ? 1 : 0,
+        transform: active ? 'rotate(0deg) scale(1)' : 'rotate(90deg) scale(0.55)',
+      }}
+    />
   </span>
 );
 
@@ -94,6 +142,7 @@ const resolveStyles = ({ variant, isHover, active, activeAppearance, focused, di
 const BrandSubdueIconButton = React.forwardRef(function BrandSubdueIconButton(
   {
     icon,
+    iconActive,
     onClick,
     disabled = false,
     active = false,
@@ -151,7 +200,11 @@ const BrandSubdueIconButton = React.forwardRef(function BrandSubdueIconButton(
       }}
       {...rest}
     >
-      {icon && <Sym name={icon} size={dim.icon} color={s.icon} />}
+      {iconActive && icon ? (
+        <IconMorph from={icon} to={iconActive} active={isActive} size={dim.icon} color={s.icon} />
+      ) : icon ? (
+        <Sym name={icon} size={dim.icon} color={s.icon} />
+      ) : null}
     </button>
   );
 });

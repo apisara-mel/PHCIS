@@ -26,6 +26,7 @@ import {
   checkInNcdAppointment,
   getNcdCancellation,
 } from '@/data/ncdVisits';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* NcdQueuePage — คิวการรักษากลุ่มโรคเฉพาะ NCD (เบาหวาน/ความดัน/หอบหืด/
    ถุงลมโป่งพอง), TOR 1.10.2.1 + 1.10.2.2. Mirrors AncQueuePage (the §1.10.x
@@ -106,14 +107,11 @@ const renderQueue = (row) => (
 );
 
 const renderName = (row) => (
-  <Link
-    to={{ pathname: '/clinic/ncd/record', state: { hn: row.hn, queue: row.queue, name: row.name } }}
-    className='min-w-0 flex-1 truncate hover:underline'
-    style={{ color: 'var(--text-neutral-default)', fontWeight: 'var(--type-weight-medium)', textDecoration: 'none' }}
-    onClick={(e) => e.stopPropagation()}
-  >
-    {row.name}
-  </Link>
+  <MaskedWorklistName
+    name={row.name}
+    recordKey={row.hn || row.queue}
+    linkTo={{ pathname: '/clinic/ncd/record', state: { hn: row.hn, queue: row.queue, name: row.name } }}
+  />
 );
 
 const renderGroups = (row) => (

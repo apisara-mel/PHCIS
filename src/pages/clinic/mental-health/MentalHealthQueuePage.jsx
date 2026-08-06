@@ -29,6 +29,7 @@ import {
   formatMhDateTime,
   getMhNextAppointment,
 } from '@/data/mentalHealthClinic';
+import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* MentalHealthQueuePage — คิวคลินิกสุขภาพจิต (TOR 1.10.3.1 / 1.10.3.2).
    Mechanics mirror AncQueuePage verbatim (search + filter row + sort +
@@ -108,14 +109,11 @@ const renderQueue = (row) => (
 );
 
 const renderName = (row) => (
-  <Link
-    to={{ pathname: '/clinic/mental-health/record', state: { hn: row.hn, queue: row.queue, name: row.name } }}
-    className='min-w-0 flex-1 truncate hover:underline'
-    style={{ color: 'var(--text-neutral-default)', fontWeight: 'var(--type-weight-medium)', textDecoration: 'none' }}
-    onClick={(e) => e.stopPropagation()}
-  >
-    {row.name}
-  </Link>
+  <MaskedWorklistName
+    name={row.name}
+    recordKey={row.hn || row.queue}
+    linkTo={{ pathname: '/clinic/mental-health/record', state: { hn: row.hn, queue: row.queue, name: row.name } }}
+  />
 );
 
 /* ระดับการเฝ้าระวัง — the queue-level suicide-watch signal (ผล 9Q ≥ 7 หรือ
@@ -418,7 +416,7 @@ const MentalHealthQueuePage = () => {
       key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160,
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span>{r.name}</span>
+          <MaskedWorklistName name={r.name} recordKey={r.hn || r.queue} className='truncate' />
           {/* นัดที่บันทึกจากใบบันทึกสุขภาพจิต — แยกจากนัดที่ตั้งไว้ล่วงหน้า */}
           {r.fromVisitRecord && (
             <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>

@@ -17,7 +17,20 @@ export function getScrollableParents(node) {
   return out;
 }
 
-/** Figma 335:64463 — bold matched substring in brand-p600. */
+/** Figma 335:64463 — matched substring: teal light fill + teal text. */
+export const HIGHLIGHT_MATCH_MARK_STYLE = {
+  color: 'var(--text-colorfulbadge-teal, #196C65)',
+  fontFamily: 'var(--type-family-body)',
+  fontWeight: 'var(--type-weight-medium, 500)',
+  fontSize: 'inherit',
+  lineHeight: 'inherit',
+  background: 'var(--surface-positive-tertiary, #D1F6EE)',
+  borderRadius: 'var(--dim-radius-100, 4px)',
+  padding: '0 var(--dim-space-050, 2px)',
+  boxDecorationBreak: 'clone',
+  WebkitBoxDecorationBreak: 'clone',
+};
+
 export function highlightMatch(text, query, keyPrefix = 'm') {
   if (!text) return text;
   const q = String(query || '').trim();
@@ -32,14 +45,7 @@ export function highlightMatch(text, query, keyPrefix = 'm') {
     out.push(
       <span
         key={`${keyPrefix}-${idx}`}
-        style={{
-          color: 'var(--text-brandPrimary-secondary, #08A768)',
-          fontFamily: 'var(--type-family-body)',
-          fontWeight: 'var(--type-weight-bold, 700)',
-          fontSize: 'var(--type-size-sm, 14px)',
-          lineHeight: 1.5,
-          background: 'transparent',
-        }}
+        style={HIGHLIGHT_MATCH_MARK_STYLE}
       >
         {text.slice(idx, idx + q.length)}
       </span>,

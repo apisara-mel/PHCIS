@@ -23,6 +23,7 @@ import {
   todayKey,
   ROOM_PERIODS,
 } from '@/data/opdRoomConfig';
+import SYSTEM_NAV from '@/pages/system/systemNav';
 import { buildDoctorRoster } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* OpdRoomConfigPage — TOR 1.2.7.1 + 1.2.7.2.
@@ -35,7 +36,7 @@ import { buildDoctorRoster } from '@/pages/appointment/appointmentDoctorRoster';
        save. Saved quota is what the walk-in slot picker (/opd/requests) reads.
    Every save stamps ผู้บันทึก + เวลา (ConsentAuditBar-style strip). */
 
-const breadcrumb = ['ระบบงานผู้รับบริการนอก (OPD)', 'ตั้งค่าห้องตรวจและโควตา'];
+const breadcrumb = ['จัดการระบบ', 'ตั้งค่าห้องตรวจและโควตารายวัน'];
 
 const OVERRIDE_REASON_SUGGESTIONS = [
   'ผู้ป่วยส่งต่อจากจุดคัดกรองเกินคาดการณ์ จำเป็นต้องรับเพิ่มในช่วงบ่าย',
@@ -366,10 +367,12 @@ const OpdRoomConfigPage = () => {
       </Popup>
 
       <QueuePageShell
-        activeKey='opd'
+        activeKey='system-opd-room-config'
+        sidebarItems={SYSTEM_NAV}
+        sidebarFallbackKey='system-opd-room-config'
+        brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
         title='ตั้งค่าห้องตรวจและโควตารายวัน'
-        onBack={handleCancel}
         actions={(
           <NeutralSubdueButton
             leadingIcon={isAdmin ? 'admin_panel_settings' : 'lock'}

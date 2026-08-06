@@ -39,7 +39,7 @@ import {
    ดึงข้อมูลที่เกี่ยวข้องมาอัตโนมัติ"). EPI-NET is an external government
    system — ส่งเข้าระบบ is mocked as a status transition + export-file stub. */
 
-const breadcrumb = ['ระบบงานผู้รับบริการนอก (OPD)', 'รายงานเฝ้าระวังโรค รง.506'];
+const breadcrumb = ['รายงานเฝ้าระวังโรค รง.506'];
 const PAGE_SIZE = 10;
 
 const ADDRESS_SUGGESTIONS = [
@@ -281,7 +281,7 @@ const OpdRg506Page = () => {
       />
 
       <QueuePageShell
-        activeKey='opd'
+        activeKey='opd-rg506'
         breadcrumb={breadcrumb}
         title={form ? `รง.506 · ${form.reportNo}` : 'รายงานเฝ้าระวังโรค รง.506 (EPI-NET)'}
         onBack={form ? () => closeRecord() : () => history.push('/opd/queue')}

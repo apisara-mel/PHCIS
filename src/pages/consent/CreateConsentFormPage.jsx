@@ -1,31 +1,72 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout/WizardMorphHeader';
+import { MIH_CHROME_MORPH_FOOTER } from '@/components/layout/wizardChromeMorphStyles';
 import StepProgress from '@/components/step/StepProgress';
+import {
+  POPUP_MORPH_MOTION_VAR,
+  POPUP_MORPH_VAR,
+  useLocalHeaderMorph,
+} from '@/hooks/useGlobalHeaderMorph';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Checkbox from '@/components/checkbox/Checkbox';
 import BrandButton from '@/components/button/BrandButton';
-import NeutralButton from '@/components/button/NeutralButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import DangerSubdueIconButton from '@/components/button/DangerSubdueIconButton';
 import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import RadioButton from '@/components/radio/RadioButton';
 import AlertDialog from '@/components/popup/AlertDialog';
+import ConsentFormCancelEditPopup from '@/components/popup/ConsentFormCancelEditPopup';
 import Popup from '@/components/popup/Popup';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import SuccessScreen from '@/components/layout/SuccessScreen';
-import { markTypeSuperseded } from '@/data/consentWorkflowStore';
-import { getConsentFormById } from '@/data/consentFormRecords';
-import { buildWizardPrefillFromRecord } from '@/data/consentFormWizardContent';
+import PhcisTopToast from '@/components/alert/PhcisTopToast';
+import { markTypeSuperseded, previewConsentSupersedeImpact } from '@/data/consentWorkflowStore';
+import TabCapsule from '@/components/tab/TabCapsule';
+import { getConsentFormById, CONSENT_FORM_SCOPE_CATALOG, CONSENT_FORM_NAME_SUGGESTIONS, getConsentFormCodeSuggestions, getConsentFormVersionSuggestions } from '@/data/consentFormRecords';
+import { buildWizardDraftFromRecord, buildWizardPrefillFromRecord } from '@/data/consentFormWizardContent';
+import { buildConsentFormWizardDiff } from '@/data/consentFormVersionDiff';
+import { resolveNextConsentFormVersion } from '@/data/consentFormVersion';
+import {
+  ConsentFormVersionDiffPanel,
+  ConsentSupersedeImpactPanel,
+  ConsentFormSaveConfirmBody,
+} from '@/components/consent/ConsentFormVersionReviewPanels';
+import {
+  buildWizardPrefillFromDraft,
+  formatRelativeSavedThai,
+  getConsentFormDraftById,
+  saveConsentFormWizardDraft,
+} from '@/data/consentFormDraftStore';
+import {
+  consentScopeKey,
+  extractPositionsFromScopes,
+  stripConsentScopes,
+} from '@/data/consentFormScopes';
+import {
+  DEFAULT_PATIENT_FIELD_KEYS,
+  DEFAULT_SIGNATURE_KEYS,
+  fieldSetHas,
+  normalizeFieldKeys,
+  setFieldKey,
+  sortedFieldKeys,
+} from '@/data/consentFormFieldKeys';
+import ConsentFieldCheckboxGroup from '@/components/consent/ConsentFieldCheckboxGroup';
+import FormScopeAccessEditor from '@/components/consent/FormScopeAccessEditor';
+import FormPositionAccessEditor from '@/components/consent/FormPositionAccessEditor';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — สร้างแบบฟอร์มใหม่ (Figma node 294:124265, steps
    350:130712 / 354:135439 / 355:140557).
 
-   A 3-step create-consent-form wizard that lives ENTIRELY inside the Consent
+   A 4-step create-consent-form wizard that lives ENTIRELY inside the Consent
    Management system: it reuses the same <QueuePageShell> + consent side menu
    (CONSENT_NAV) so pressing "สร้างแบบฟอร์มใหม่" never bounces the user out to
    the PHCIS forms library. Step state is local; the stepper drives which panel
@@ -33,95 +74,58 @@ import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* Figma top bar (350:130181): breadcrumb is just Home / สร้างแบบฟอร์มใหม่ —
    the "ระบบจัดการความยินยอม" program name shows separately above it. */
-const breadcrumb = ['สร้างแบบฟอร์มใหม่'];
-const STEPS = ['ข้อมูลพื้นฐาน', 'เนื้อหาเอกสาร', 'ตรวจสอบและเผยแพร่'];
+const breadcrumb = ['สร้างแบบฟอร์มจัดการความยินยอมใหม่'];
+const STEPS = ['ข้อมูลพื้นฐาน', 'ผู้ที่มีสิทธิเข้าถึงได้', 'เนื้อหาเอกสาร', 'ตรวจสอบและเผยแพร่'];
+
+/* Popup step morph — continuous label sizing (no compact snap). */
+if (typeof document !== 'undefined' && !document.getElementById('mih-consent-popup-step-morph-style')) {
+  const s = document.createElement('style');
+  s.id = 'mih-consent-popup-step-morph-style';
+  s.textContent = [
+    '.mih-consent-popup-step-morph [data-step-label]{',
+    'font-size:calc(var(--type-size-sm) + (var(--type-size-xs) - var(--type-size-sm)) * var(--mih-popup-morph-motion,0))!important;',
+    'line-height:calc(1.5 + (1.35 - 1.5) * var(--mih-popup-morph-motion,0))!important;',
+    'transition:none!important;',
+    '}',
+    '.mih-consent-popup-step-morph button.rounded-full{',
+    'width:calc(28px + (24px - 28px) * var(--mih-popup-morph-motion,0))!important;',
+    'height:calc(28px + (24px - 28px) * var(--mih-popup-morph-motion,0))!important;',
+    'transition:background-color 220ms cubic-bezier(0.16,1,0.3,1),color 220ms cubic-bezier(0.16,1,0.3,1),border-color 220ms cubic-bezier(0.16,1,0.3,1),box-shadow 220ms cubic-bezier(0.16,1,0.3,1),transform 200ms cubic-bezier(0.16,1,0.3,1)!important;',
+    '}',
+  ].join('');
+  document.head.appendChild(s);
+}
 
 /* ── Reference data (mock, local) ───────────────────────────────────── */
 const TEMPLATES = [
-  { key: 'blank',       title: 'หน้าเปล่า',              subtitle: 'สร้างเองจากหน้าว่าง' },
-  { key: 'treatment',   title: 'การรักษาทั่วไป',          subtitle: 'General Consent for Treatment' },
-  { key: 'surgical',    title: 'การผ่าตัด',              subtitle: 'Surgical Consent มาตรฐาน' },
-  { key: 'procedure',   title: 'หัตถการ / วิสัญญี',       subtitle: 'Procedure & Anesthesia Consent' },
-  { key: 'research',    title: 'การวิจัยในมนุษย์',         subtitle: 'Research Consent (ICH-GCP)' },
-  { key: 'media',       title: 'บันทึกภาพ / สื่อ',         subtitle: 'Media & Photography Consent' },
-  { key: 'blood',       title: 'การให้เลือด',             subtitle: 'Blood Transfusion Consent' },
-  { key: 'vaccine',     title: 'การฉีดวัคซีน',            subtitle: 'Vaccination Consent' },
-  { key: 'screening',   title: 'การตรวจคัดกรองสุขภาพ',     subtitle: 'Health Screening Consent' },
-  { key: 'data',        title: 'การเปิดเผยข้อมูลสุขภาพ',    subtitle: 'Health Data Disclosure (PDPA)' },
-  { key: 'dental',      title: 'ทันตกรรม',               subtitle: 'Dental Treatment Consent' },
-  { key: 'mental',      title: 'สุขภาพจิต / จิตเวช',       subtitle: 'Mental Health Consent' },
-  { key: 'school',      title: 'อนามัยโรงเรียน',          subtitle: 'School Health Consent' },
-  { key: 'homecare',    title: 'การดูแลที่บ้าน',          subtitle: 'Home Care & Home Visit Consent' },
-  { key: 'referral',    title: 'การส่งต่อผู้ป่วย',         subtitle: 'Patient Referral Consent' },
-  { key: 'genetic',     title: 'การตรวจทางพันธุกรรม',      subtitle: 'Genetic Testing Consent' },
-  { key: 'telemed',     title: 'โทรเวชกรรม',             subtitle: 'Telemedicine Consent' },
-  { key: 'rehab',       title: 'เวชศาสตร์ฟื้นฟู',         subtitle: 'Rehabilitation Consent' },
-  { key: 'palliative',  title: 'การดูแลแบบประคับประคอง',    subtitle: 'Palliative Care Consent' },
-  { key: 'minor',       title: 'การรักษาผู้เยาว์',         subtitle: 'Minor / Guardian Consent' },
+  { key: 'blank', title: 'หน้าเปล่า',              subtitle: 'สร้างเองจากหน้าว่าง' },
+  { key: 'data',  title: 'เปิดเผยข้อมูลสุขภาพ',    subtitle: 'Health Data Disclosure (PDPA)' },
 ];
 
-/* Selecting a แม่แบบ pre-fills Step 1 (ข้อมูลพื้นฐาน) + Step 2 (เนื้อหาเอกสาร).
+/* Selecting a แม่แบบ pre-fills Step 1 (ข้อมูลพื้นฐาน) + Step 3 (เนื้อหาเอกสาร).
    The template key === the TYPE_OPTIONS value, so `type` is the key itself.
    Every field stays fully editable afterwards. (Figma 350:130188.) */
 const COMMON_CLAUSES = [
   { title: 'การคุ้มครองข้อมูลส่วนบุคคล', detail: 'ข้าพเจ้ายินยอมให้สถานพยาบาลเก็บรวบรวมและใช้ข้อมูลสุขภาพเพื่อการรักษาพยาบาล ภายใต้พระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล (PDPA)' },
   { title: 'สิทธิในการเพิกถอนความยินยอม', detail: 'ข้าพเจ้าทราบว่าสามารถเพิกถอนความยินยอมนี้ได้ทุกเมื่อ โดยไม่กระทบต่อสิทธิในการรับบริการอื่น ๆ' },
 ];
-const TPL = (name, lead, extra = {}) => ({ name, version: 'V 1.0', ttl: '30', leadClauses: lead, ...extra });
+const TPL = (name, lead, extra = {}) => ({ name, version: 'V 1.0', ttl: '30', leadClauses: lead, cover: 0, ...extra });
 const TEMPLATE_PREFILL = {
-  treatment:  TPL('ใบยินยอมรับการรักษาทั่วไป', [{ title: 'การยินยอมรับการรักษา', detail: 'ข้าพเจ้าได้รับคำอธิบายถึงแผนการรักษา ประโยชน์ และความเสี่ยงจากแพทย์ผู้ดูแลครบถ้วนแล้ว และยินยอมเข้ารับการรักษา' }]),
-  surgical:   TPL('ใบยินยอมการผ่าตัด / หัตถการ', [{ title: 'การยินยอมเข้ารับการผ่าตัด', detail: 'ข้าพเจ้าได้รับคำอธิบายถึงวิธีการผ่าตัด ความเสี่ยง ภาวะแทรกซ้อน และทางเลือกอื่นในการรักษา และยินยอมเข้ารับการผ่าตัด' }]),
-  procedure:  TPL('ใบยินยอมหัตถการและการระงับความรู้สึก', [{ title: 'การระงับความรู้สึก', detail: 'ข้าพเจ้ายินยอมรับการทำหัตถการและการระงับความรู้สึก โดยเข้าใจถึงความเสี่ยงของการดมยาสลบและการระงับความรู้สึก' }]),
-  research:   TPL('ใบยินยอมเข้าร่วมโครงการวิจัย (ICF)', [{ title: 'การเข้าร่วมโครงการวิจัยโดยสมัครใจ', detail: 'ข้าพเจ้าได้รับข้อมูลเกี่ยวกับวัตถุประสงค์ ขั้นตอน ประโยชน์ และความเสี่ยงของโครงการวิจัย และยินยอมเข้าร่วมโดยสมัครใจ' }], { ttl: '365' }),
-  media:      TPL('ใบยินยอมบันทึกภาพ / สื่อ', [{ title: 'การบันทึกและเผยแพร่ภาพ/สื่อ', detail: 'ข้าพเจ้ายินยอมให้บันทึกภาพ/วิดีโอเพื่อการศึกษาและเผยแพร่ตามขอบเขตที่ระบุไว้' }]),
-  blood:      TPL('ใบยินยอมรับเลือดและส่วนประกอบของเลือด', [{ title: 'การรับเลือดและส่วนประกอบของเลือด', detail: 'ข้าพเจ้าได้รับคำอธิบายถึงความจำเป็นและความเสี่ยงของการรับเลือด และยินยอมรับเลือดและส่วนประกอบของเลือด' }]),
-  vaccine:    TPL('ใบยินยอมการฉีดวัคซีน', [{ title: 'การรับวัคซีน', detail: 'ข้าพเจ้าได้รับข้อมูลเกี่ยวกับวัคซีน ประโยชน์ และอาการไม่พึงประสงค์ที่อาจเกิดขึ้น และยินยอมรับการฉีดวัคซีน' }]),
-  screening:  TPL('ใบยินยอมการตรวจคัดกรองสุขภาพ', [{ title: 'การตรวจคัดกรองสุขภาพ', detail: 'ข้าพเจ้ายินยอมรับการตรวจคัดกรองสุขภาพตามรายการที่กำหนด' }]),
-  data:       TPL('ใบยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)', [{ title: 'การเปิดเผยข้อมูลสุขภาพ', detail: 'ข้าพเจ้ายินยอมให้เปิดเผยข้อมูลสุขภาพแก่บุคคล/หน่วยงานที่ระบุ เพื่อวัตถุประสงค์ที่กำหนดไว้' }], { ttl: '365' }),
-  dental:     TPL('ใบยินยอมการรักษาทางทันตกรรม', [{ title: 'การรักษาทางทันตกรรม', detail: 'ข้าพเจ้าได้รับคำอธิบายถึงแผนการรักษาทางทันตกรรม ความเสี่ยง และยินยอมเข้ารับการรักษา' }]),
-  mental:     TPL('ใบยินยอมการรักษาสุขภาพจิต / จิตเวช', [{ title: 'การประเมินและรักษาทางสุขภาพจิต', detail: 'ข้าพเจ้ายินยอมรับการประเมินและรักษาทางสุขภาพจิตตามแผนการรักษาของแพทย์' }]),
-  school:     TPL('ใบยินยอมอนามัยโรงเรียน', [{ title: 'บริการอนามัยโรงเรียน', detail: 'ข้าพเจ้า (ผู้ปกครอง) ยินยอมให้นักเรียนได้รับบริการตรวจสุขภาพและส่งเสริมสุขภาพในโรงเรียน' }], { requireGuardian: true }),
-  homecare:   TPL('ใบยินยอมการดูแลที่บ้าน', [{ title: 'การดูแลรักษาที่บ้าน', detail: 'ข้าพเจ้ายินยอมรับบริการดูแลรักษาที่บ้านโดยทีมสหวิชาชีพตามแผนการดูแล' }]),
-  referral:   TPL('ใบยินยอมการส่งต่อผู้ป่วย', [{ title: 'การส่งต่อผู้ป่วยและข้อมูล', detail: 'ข้าพเจ้ายินยอมให้ส่งต่อข้อมูลและรับการส่งต่อไปยังสถานพยาบาลที่เหมาะสม' }]),
-  genetic:    TPL('ใบยินยอมการตรวจทางพันธุกรรม', [{ title: 'การตรวจทางพันธุกรรม', detail: 'ข้าพเจ้าได้รับคำอธิบายถึงการตรวจทางพันธุกรรม ผลกระทบที่อาจเกิดขึ้น และยินยอมเข้ารับการตรวจ' }], { ttl: '365' }),
-  telemed:    TPL('ใบยินยอมโทรเวชกรรม (Telemedicine)', [{ title: 'บริการโทรเวชกรรม', detail: 'ข้าพเจ้ายินยอมรับบริการปรึกษาและรักษาผ่านระบบโทรเวชกรรม โดยเข้าใจข้อจำกัดของการตรวจทางไกล' }]),
-  rehab:      TPL('ใบยินยอมเวชศาสตร์ฟื้นฟู', [{ title: 'โปรแกรมการฟื้นฟูสมรรถภาพ', detail: 'ข้าพเจ้ายินยอมรับโปรแกรมการฟื้นฟูสมรรถภาพตามแผนการรักษา' }]),
-  palliative: TPL('ใบยินยอมการดูแลแบบประคับประคอง', [{ title: 'การดูแลแบบประคับประคอง', detail: 'ข้าพเจ้ายินยอมรับการดูแลแบบประคับประคองเพื่อบรรเทาอาการและส่งเสริมคุณภาพชีวิต' }]),
-  minor:      TPL('ใบยินยอมการรักษาผู้เยาว์ (โดยผู้ปกครอง)', [{ title: 'การยินยอมโดยผู้ปกครอง', detail: 'ข้าพเจ้าในฐานะผู้ปกครองโดยชอบด้วยกฎหมาย ยินยอมให้ผู้เยาว์เข้ารับการรักษาตามแผนการรักษาของแพทย์' }], { requireGuardian: true, ttl: '90' }),
+  data: TPL('ใบยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)', [{ title: 'การเปิดเผยข้อมูลสุขภาพ', detail: 'ข้าพเจ้ายินยอมให้เปิดเผยข้อมูลสุขภาพแก่บุคคล/หน่วยงานที่ระบุ เพื่อวัตถุประสงค์ที่กำหนดไว้' }], { ttl: '365', cover: 1 }),
 };
 
-/* Form-cover thumbnails — exported illustration from Figma (PHCIS | Consent
-   356:111486). The gradient + scene are baked into the SVG. */
-const COVER_IMG = '/illustration/consent/form-cover-01.svg';
-const COVERS = [
-  { key: 'cover-01', label: 'หน้าปกแบบฟอร์ม 1', image: COVER_IMG },
-  { key: 'cover-02', label: 'หน้าปกแบบฟอร์ม 2', image: COVER_IMG },
-  { key: 'cover-03', label: 'หน้าปกแบบฟอร์ม 3', image: COVER_IMG },
-  { key: 'cover-04', label: 'หน้าปกแบบฟอร์ม 4', image: COVER_IMG },
-  { key: 'cover-05', label: 'หน้าปกแบบฟอร์ม 5', image: COVER_IMG },
-];
+/* Form-cover thumbnails — MIH Consent wizard (356:111486). */
+const COVERS = Array.from({ length: 20 }, (_, i) => {
+  const n = String(i + 1).padStart(2, '0');
+  return {
+    key: `cover-${n}`,
+    label: `หน้าปกแบบฟอร์ม ${i + 1}`,
+    image: `/illustration/consent/form-cover-${n}.png`,
+  };
+});
 
 const TYPE_OPTIONS = [
-  { value: 'general',    label: 'ความยินยอมทั่วไป' },
-  { value: 'treatment',  label: 'ความยินยอมการรักษา' },
-  { value: 'surgical',   label: 'ความยินยอมการผ่าตัด' },
-  { value: 'procedure',  label: 'ความยินยอมหัตถการ / วิสัญญี' },
-  { value: 'research',   label: 'ความยินยอมการวิจัยในมนุษย์' },
-  { value: 'media',      label: 'ความยินยอมบันทึกภาพ / สื่อ' },
-  { value: 'blood',      label: 'ความยินยอมการให้เลือด' },
-  { value: 'vaccine',    label: 'ความยินยอมการฉีดวัคซีน' },
-  { value: 'screening',  label: 'ความยินยอมการตรวจคัดกรองสุขภาพ' },
-  { value: 'data',       label: 'ความยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)' },
-  { value: 'dental',     label: 'ความยินยอมทันตกรรม' },
-  { value: 'mental',     label: 'ความยินยอมสุขภาพจิต / จิตเวช' },
-  { value: 'school',     label: 'ความยินยอมอนามัยโรงเรียน' },
-  { value: 'homecare',   label: 'ความยินยอมการดูแลที่บ้าน' },
-  { value: 'referral',   label: 'ความยินยอมการส่งต่อผู้ป่วย' },
-  { value: 'genetic',    label: 'ความยินยอมการตรวจทางพันธุกรรม' },
-  { value: 'telemed',    label: 'ความยินยอมโทรเวชกรรม' },
-  { value: 'rehab',      label: 'ความยินยอมเวชศาสตร์ฟื้นฟู' },
-  { value: 'palliative', label: 'ความยินยอมการดูแลแบบประคับประคอง' },
-  { value: 'minor',      label: 'ความยินยอมการรักษาผู้เยาว์' },
+  { value: 'data', label: 'ความยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)' },
 ];
 const TTL_OPTIONS = [
   { value: '1',   label: '1 วัน' },
@@ -134,111 +138,7 @@ const TTL_OPTIONS = [
   { value: '90',  label: '90 วัน' },
   { value: '365', label: '1 ปี (365 วัน)' },
 ];
-/* Group Policy = กลุ่มวิชาชีพผู้ใช้งาน (แพทย์ / พยาบาล / เภสัชกร …). */
-const GROUP_POLICY_OPTIONS = [
-  { value: 'doctor',     label: 'แพทย์' },
-  { value: 'nurse',      label: 'พยาบาล' },
-  { value: 'pharmacist', label: 'เภสัชกร' },
-  { value: 'medtech',    label: 'นักเทคนิคการแพทย์' },
-  { value: 'physio',     label: 'นักกายภาพบำบัด' },
-  { value: 'radiology',  label: 'นักรังสีการแพทย์' },
-  { value: 'public',     label: 'นักวิชาการสาธารณสุข' },
-  { value: 'nutrition',  label: 'นักโภชนาการ' },
-  { value: 'psych',      label: 'นักจิตวิทยา' },
-  { value: 'social',     label: 'นักสังคมสงเคราะห์' },
-  { value: 'phc-officer',label: 'เจ้าพนักงานสาธารณสุข' },
-  { value: 'admin',      label: 'เจ้าหน้าที่บริหาร / ธุรการ' },
-];
-/* สาขาย่อย = สาขาวิชาชีพภายในกลุ่มที่เลือก — ขึ้นกับ Group Policy. */
-const SUB_BRANCH_BY_GROUP = {
-  doctor: [
-    { value: 'gp',         label: 'แพทย์ทั่วไป' },
-    { value: 'specialist', label: 'แพทย์เฉพาะทาง' },
-    { value: 'dentist',    label: 'ทันตแพทย์' },
-    { value: 'thai-med',   label: 'แพทย์แผนไทย' },
-  ],
-  nurse: [
-    { value: 'rn',       label: 'พยาบาลวิชาชีพ' },
-    { value: 'er-nurse', label: 'พยาบาลห้องฉุกเฉิน' },
-    { value: 'np',       label: 'พยาบาลเวชปฏิบัติ' },
-    { value: 'pn',       label: 'ผู้ช่วยพยาบาล' },
-  ],
-  pharmacist: [
-    { value: 'clin-pharm', label: 'เภสัชกรคลินิก' },
-    { value: 'comm-pharm', label: 'เภสัชกรชุมชน' },
-    { value: 'prod-pharm', label: 'เภสัชกรการผลิต' },
-  ],
-  medtech: [
-    { value: 'medtech', label: 'นักเทคนิคการแพทย์' },
-    { value: 'medsci',  label: 'นักวิทยาศาสตร์การแพทย์' },
-  ],
-  physio: [
-    { value: 'pt', label: 'นักกายภาพบำบัด' },
-    { value: 'ot', label: 'นักกิจกรรมบำบัด' },
-  ],
-  radiology: [
-    { value: 'radtech',    label: 'นักรังสีการแพทย์' },
-    { value: 'rad-officer',label: 'เจ้าพนักงานรังสีการแพทย์' },
-  ],
-  public: [
-    { value: 'ph-academic', label: 'นักวิชาการสาธารณสุข' },
-    { value: 'health-promo',label: 'นักวิชาการส่งเสริมสุขภาพ' },
-    { value: 'epidemiology',label: 'นักระบาดวิทยา' },
-  ],
-  nutrition: [
-    { value: 'nutritionist', label: 'นักโภชนาการ' },
-    { value: 'dietitian',    label: 'นักกำหนดอาหาร' },
-  ],
-  psych: [
-    { value: 'clin-psych', label: 'นักจิตวิทยาคลินิก' },
-    { value: 'psychologist',label: 'นักจิตวิทยา' },
-  ],
-  social: [
-    { value: 'social-worker', label: 'นักสังคมสงเคราะห์' },
-    { value: 'community-dev',  label: 'นักพัฒนาสังคม' },
-  ],
-  'phc-officer': [
-    { value: 'phc-officer',  label: 'เจ้าพนักงานสาธารณสุข' },
-    { value: 'dental-officer',label: 'เจ้าพนักงานทันตสาธารณสุข' },
-  ],
-  admin: [
-    { value: 'general-admin', label: 'เจ้าหน้าที่บริหารงานทั่วไป' },
-    { value: 'clerk',         label: 'เจ้าพนักงานธุรการ' },
-    { value: 'finance',       label: 'นักวิชาการเงินและบัญชี' },
-  ],
-};
-/* รายการสาขาย่อยทั้งหมด (เรียงตามกลุ่ม) ติดแท็กกลุ่มต้นสังกัดไว้ใน `group`
-   เพื่อใช้ enable/disable ตาม Group Policy ที่เลือก. */
-const ALL_SUB_BRANCHES = Object.entries(SUB_BRANCH_BY_GROUP).flatMap(([group, opts]) =>
-  opts.map((o) => ({ ...o, group })),
-);
-/* แผนก/งาน ภายในศูนย์บริการสาธารณสุข. */
-const DEPT_OPTIONS = [
-  { value: 'opd',            label: 'แผนกผู้ป่วยนอก (OPD)' },
-  { value: 'dental',         label: 'งานทันตกรรม' },
-  { value: 'pharmacy',       label: 'งานเภสัชกรรม' },
-  { value: 'nursing',        label: 'งานการพยาบาล' },
-  { value: 'promotion',      label: 'งานส่งเสริมสุขภาพ' },
-  { value: 'mch',            label: 'งานอนามัยแม่และเด็ก' },
-  { value: 'disease',        label: 'งานควบคุมโรคติดต่อ' },
-  { value: 'env',            label: 'งานอนามัยสิ่งแวดล้อม' },
-  { value: 'mental',         label: 'งานสุขภาพจิต' },
-  { value: 'thai-med',       label: 'งานการแพทย์แผนไทย' },
-  { value: 'rehab',          label: 'งานเวชศาสตร์ฟื้นฟู' },
-  { value: 'lab',            label: 'งานชันสูตรสาธารณสุข (Lab)' },
-  { value: 'records',        label: 'งานเวชระเบียน' },
-];
-/* ตำแหน่ง — ระดับตำแหน่งของผู้มีสิทธิ์ใช้งานในศูนย์ฯ (Figma 369:124873). */
-const POSITION_OPTIONS = [
-  { value: 'director',     label: 'ผู้อำนวยการศูนย์บริการสาธารณสุข' },
-  { value: 'deputy',       label: 'รองผู้อำนวยการ' },
-  { value: 'group-head',   label: 'หัวหน้ากลุ่มงาน' },
-  { value: 'dept-head',    label: 'หัวหน้าแผนก' },
-  { value: 'section-head', label: 'หัวหน้างาน' },
-  { value: 'head-nurse',   label: 'หัวหน้าพยาบาล' },
-  { value: 'practitioner', label: 'ผู้ปฏิบัติงาน' },
-  { value: 'staff',        label: 'เจ้าหน้าที่ทั่วไป' },
-];
+/* ตำแหน่ง — options จาก consentFormScopes.js */
 
 const PATIENT_FIELDS = [
   { key: 'name',       label: 'ชื่อผู้ป่วย' },
@@ -261,7 +161,6 @@ const DETAIL_HINTS = [
   'ข้าพเจ้าได้รับคำอธิบายถึงความเสี่ยงและภาวะแทรกซ้อนที่อาจเกิดขึ้นแล้ว',
   'ข้าพเจ้าสามารถถอนความยินยอมนี้ได้ทุกเมื่อโดยแจ้งเป็นลายลักษณ์อักษร',
 ];
-const NAME_HINTS = ['ใบยินยอมรับการรักษาทั่วไป (General Consent for Treatment)', 'ใบยินยอมการผ่าตัด', 'ใบยินยอมเข้าร่วมการวิจัย'];
 
 /* ด.1.1.13 — field type ต่อข้อความยินยอม (form builder) */
 const FIELD_TYPE_OPTIONS = [
@@ -276,16 +175,141 @@ const FIELD_TYPE_OPTIONS = [
 /* แผนที่ประเภทไทย (registry) → ค่า TYPE_OPTIONS ของ wizard — ใช้ตอน prefill
    จาก "สร้างเวอร์ชันใหม่" (ด.1.1.5) */
 const TYPE_THAI_TO_VALUE = {
-  'การวิจัย': 'research',
-  'บันทึกภาพ/สื่อ': 'media',
-  'การรักษา': 'treatment',
-  'ผ่าตัด': 'surgical',
-  'วัคซีน': 'vaccine',
-  'PDPA': 'data',
+  PDPA: 'data',
 };
 
 let SECTION_SEQ = 2;
 const makeSection = () => ({ id: `cs-${SECTION_SEQ++}`, title: '', detail: '', fieldType: 'boolean' });
+
+const sectionHasContent = (s) => (
+  Boolean(s) && String(s.title ?? '').trim() && String(s.detail ?? '').trim()
+);
+
+const PREVIEW_DETAIL_MAX = 280;
+const truncatePreviewText = (text, max = PREVIEW_DETAIL_MAX) => {
+  const s = String(text ?? '').trim();
+  if (!s) return '';
+  if (s.length <= max) return s;
+  return `${s.slice(0, max)}…`;
+};
+
+const buildVersionDiffSafe = (baseline, current) => {
+  try {
+    return buildConsentFormWizardDiff(baseline, current);
+  } catch (err) {
+    console.error('[consent] buildConsentFormWizardDiff failed', err);
+    return {
+      hasChanges: true,
+      groups: [{
+        id: 'summary',
+        label: 'เนื้อหาเอกสาร',
+        changes: [{
+          label: 'การเปลี่ยนแปลง',
+          before: '—',
+          after: 'มีการแก้ไข — เปิด Console (F12) เพื่อดูรายละเอียด',
+        }],
+      }],
+    };
+  }
+};
+
+const setsEqual = (a, b, fallback = []) => {
+  const setA = new Set(sortedFieldKeys(a, fallback));
+  const setB = new Set(sortedFieldKeys(b, fallback));
+  if (setA.size !== setB.size) return false;
+  for (const key of setA) if (!setB.has(key)) return false;
+  return true;
+};
+
+/** มีการกรอก/เลือกอะไรบ้าง — ไม่นับค่า default ของฟอร์มว่าง */
+const consentWizardHasUserInput = ({
+  template,
+  cover,
+  name,
+  code,
+  version,
+  ttl,
+  type,
+  accessScopes,
+  position,
+  docTitle,
+  patientFields,
+  sections,
+  signatures,
+  note,
+  requireGuardian,
+  allowESign,
+}) => {
+  if (template !== 'blank') return true;
+  if (cover !== 0) return true;
+  if (String(name || '').trim() || String(code || '').trim()
+    || String(version || '').trim() || String(ttl || '').trim()) return true;
+  if (type !== 'data') return true;
+  if (String(docTitle || '').trim() || String(note || '').trim()) return true;
+  if (requireGuardian || !allowESign) return true;
+  if ((accessScopes?.length ?? 0) > 0 || (position?.length ?? 0) > 0) return true;
+  if (!setsEqual(patientFields, DEFAULT_PATIENT_FIELD_KEYS, DEFAULT_PATIENT_FIELD_KEYS)) return true;
+  if (!setsEqual(signatures, DEFAULT_SIGNATURE_KEYS, DEFAULT_SIGNATURE_KEYS)) return true;
+  if ((sections?.length ?? 0) !== 2) return true;
+  if (sections.some((s) => String(s.title || '').trim() || String(s.detail || '').trim())) return true;
+  if (sections.some((s) => s.fieldType && s.fieldType !== 'boolean')) return true;
+  return false;
+};
+
+const consentWizardSnapshot = (state) => JSON.stringify({
+  step: state.step ?? 0,
+  template: state.template ?? 'blank',
+  cover: state.cover ?? 0,
+  name: state.name ?? '',
+  code: state.code ?? '',
+  type: state.type ?? 'data',
+  version: state.version ?? '',
+  ttl: state.ttl ?? '',
+  accessScopes: state.accessScopes ?? [],
+  position: state.position ?? [],
+  docTitle: state.docTitle ?? '',
+  patientFields: sortedFieldKeys(state.patientFields, DEFAULT_PATIENT_FIELD_KEYS),
+  signatures: sortedFieldKeys(state.signatures, DEFAULT_SIGNATURE_KEYS),
+  sections: (state.sections || [])
+    .filter(Boolean)
+    .map((s) => ({
+      title: String(s.title ?? '').trim(),
+      detail: String(s.detail ?? '').trim(),
+      fieldType: s.fieldType ?? 'boolean',
+    })),
+  note: state.note ?? '',
+  requireGuardian: !!state.requireGuardian,
+  allowESign: state.allowESign !== false,
+});
+
+const buildWizardStateFromPrefill = (prefill) => ({
+  step: prefill.step ?? 0,
+  template: prefill.template ?? 'blank',
+  cover: prefill.cover ?? 0,
+  name: prefill.name ?? '',
+  code: prefill.code ?? '',
+  type: prefill.type ?? TYPE_THAI_TO_VALUE[prefill.typeLabel] ?? 'data',
+  version: prefill.version ?? '',
+  ttl: prefill.ttl ?? '',
+  accessScopes: prefill.accessScopes?.length ? stripConsentScopes(prefill.accessScopes) : [],
+  position: prefill.position?.length
+    ? prefill.position
+    : extractPositionsFromScopes(prefill.accessScopes || []),
+  docTitle: prefill.docTitle ?? prefill.name ?? '',
+  patientFields: normalizeFieldKeys(prefill.patientFields, DEFAULT_PATIENT_FIELD_KEYS),
+  sections: prefill.sections?.length
+    ? prefill.sections.map((s, i) => ({
+      id: s.id || `cs-prefill-${i}`,
+      title: s.title || '',
+      detail: s.detail || '',
+      fieldType: s.fieldType || 'boolean',
+    }))
+    : [makeSection(), makeSection()],
+  signatures: normalizeFieldKeys(prefill.signatures, DEFAULT_SIGNATURE_KEYS),
+  note: prefill.note ?? '',
+  requireGuardian: !!prefill.requireGuardian,
+  allowESign: prefill.allowESign !== false,
+});
 
 /* ── Small presentational helpers ───────────────────────────────────── */
 const SectionCard = ({ children, style }) => (
@@ -358,9 +382,7 @@ const CarouselArrows = ({ onPrev, onNext, prevDisabled = false, nextDisabled = f
      • Default  : 1px border brandPrimary-quaternary (#e2f3eb) · shadow Bottom/200
      • Hover    : same border · shadow Bottom/400 (lift)
      • Selected : 2px border brandPrimary-default (#007549) · shadow Bottom/400
-   Background stays surface/card/100 (white) in every state. The 65px medical
-   illustration is the exported Figma "herb" glyph reused across all templates. */
-const TEMPLATE_ILLUS = '/illustration/consent/form-template.svg';
+   Background stays surface/card/100 (white) in every state. */
 const TemplateCard = ({ tpl, selected, onClick, style }) => {
   const [hovered, setHovered] = useState(false);
   const lifted = hovered || selected;
@@ -374,7 +396,7 @@ const TemplateCard = ({ tpl, selected, onClick, style }) => {
       className='flex flex-col min-w-0 items-start justify-center text-left'
       style={{
         flex: '1 0 0',
-        gap: 'var(--dim-space-400)',
+        gap: 'var(--dim-space-200)',
         background: 'var(--surface-card-100)',
         /* Border WIDTH is constant 1px in every state — only the colour
            changes — so the content box never resizes and the card can't
@@ -392,7 +414,6 @@ const TemplateCard = ({ tpl, selected, onClick, style }) => {
         ...(style || {}),
       }}
     >
-      <img src={TEMPLATE_ILLUS} alt='' aria-hidden draggable={false} width={65} height={65} style={{ display: 'block', flexShrink: 0 }} />
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
         <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', lineHeight: 1.5 }}>
           {tpl.title}
@@ -422,6 +443,121 @@ if (typeof document !== 'undefined' && !document.getElementById('mih-tpl-track-s
    Cards passed to <CardCarousel> carry `style={{ flex: CARD_BASIS }}`. */
 const CARD_BASIS = '0 0 calc((100% - 4 * var(--dim-space-300)) / 5)';
 
+const INLINE_SUGGESTION_CHIP_STYLE = {
+  height: 'var(--dim-size-600, 32px)',
+  paddingLeft: 'var(--dim-space-200, 8px)',
+  paddingRight: 'var(--dim-space-200, 8px)',
+  paddingTop: 'var(--dim-space-050, 2px)',
+  paddingBottom: 'var(--dim-space-050, 2px)',
+  fontSize: 'var(--type-size-xs, 12px)',
+};
+
+/** Reserve chip-row height so prefill / chip pick doesn't shift sticky header morph. */
+const SUGGESTION_ROW_SLOT = { minHeight: 'var(--dim-size-600, 32px)' };
+
+const canNavigateToStep = (idx, step, completedSteps) =>
+  idx < step || Boolean(completedSteps[idx - 1]);
+
+/** Sticky wizard header — stepper uses visit order only (not live validation)
+    so filling Step 1 from a template never animates future steps in the chrome. */
+const ConsentWizardHeader = React.memo(function ConsentWizardHeader({
+  step, prefill, onStepClick,
+}) {
+  return (
+    <WizardMorphHeader
+      title='สร้างแบบฟอร์มจัดการความยินยอมใหม่'
+      afterTitle={prefill?.fromVersion ? (
+        <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
+          สร้างเวอร์ชันใหม่จาก {prefill.fromVersion} → {prefill.version}
+        </ColorfulBadge>
+      ) : null}
+      steps={STEPS}
+      current={step}
+      onStepClick={onStepClick}
+    />
+  );
+});
+
+/** Stepper band for ConsentFormEditPopup — sticky + scroll-morph (CSS vars only, no layout snap). */
+const ConsentFormEditPopupSteps = React.memo(function ConsentFormEditPopupSteps({
+  step,
+  completedSteps,
+  onStepClick,
+  fromVersion,
+  nextVersion,
+}) {
+  return (
+    <div
+      className='sticky top-0 z-10 w-full shrink-0 flex flex-col items-center'
+      style={{
+        marginTop: 'calc(-1 * var(--dim-space-600, 24px))',
+        paddingTop:
+          `calc(var(--dim-space-200) + (var(--dim-space-150) - var(--dim-space-200)) * var(${POPUP_MORPH_VAR}, 0))`,
+        paddingBottom:
+          `calc(var(--dim-space-200) + (var(--dim-space-150) - var(--dim-space-200)) * var(${POPUP_MORPH_VAR}, 0))`,
+        paddingLeft: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
+        paddingRight: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
+        background: 'var(--surface-card-100)',
+        borderBottom: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+        boxShadow: 'var(--shadow-brand-drop-bottom-100)',
+        gap: `calc(var(--dim-space-200) * (1 - var(${POPUP_MORPH_VAR}, 0)))`,
+      }}
+    >
+      <div
+        className='w-full min-w-0 flex justify-center mih-consent-popup-step-morph'
+        style={{
+          transform: `scale(calc(1 + (0.94 - 1) * var(${POPUP_MORPH_MOTION_VAR}, 0)))`,
+          transformOrigin: 'center top',
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
+        }}
+      >
+        <StepProgress
+          steps={STEPS}
+          current={step}
+          completedSteps={completedSteps}
+          onStepClick={onStepClick}
+          className='justify-center w-full'
+        />
+      </div>
+      {fromVersion && nextVersion ? (
+        <div
+          style={{
+            overflow: 'hidden',
+            maxHeight: `calc((1 - var(${POPUP_MORPH_VAR}, 0)) * var(--dim-size-800, 40px))`,
+            opacity: `calc(1 - var(${POPUP_MORPH_VAR}, 0))`,
+          }}
+        >
+          <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
+            {`สร้างเวอร์ชันใหม่จาก ${fromVersion} → ${nextVersion}`}
+          </ColorfulBadge>
+        </div>
+      ) : null}
+    </div>
+  );
+});
+
+const InlineSuggestionChips = ({ items, value, onSelect, getLabel, getKey }) => {
+  if (!items.length) return null;
+  return (
+    <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+      {items.map((item) => {
+        const label = getLabel(item);
+        return (
+          <TabCapsule
+            key={getKey(item)}
+            variant='filter'
+            label={label}
+            selected={value.trim() === label}
+            onClick={() => onSelect(label)}
+            style={INLINE_SUGGESTION_CHIP_STYLE}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
 /* Generic sliding carousel — a horizontal track + arrows + hover-to-slide.
    Used by both เลือกแม่แบบ and เลือกหน้าปก so they behave identically:
      • Arrow click slides exactly one view with smooth scroll.
@@ -437,7 +573,7 @@ const CAROUSEL_SHADOW_PAD = {
   marginInline: 'calc(-1 * var(--dim-space-100))',
 };
 
-function CardCarousel({ children }) {
+function CardCarousel({ children, showArrows = true }) {
   const trackRef = useRef(null);
   const hoverDir = useRef(0);
   const hoverTimer = useRef(null);
@@ -477,6 +613,7 @@ function CardCarousel({ children }) {
 
   /* Pointer within the left/right 64px gutter auto-slides that direction. */
   const onMove = (e) => {
+    if (!showArrows) return;
     const el = trackRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -499,12 +636,14 @@ function CardCarousel({ children }) {
       >
         {children}
       </div>
-      <CarouselArrows
-        onPrev={() => slide(-1)}
-        onNext={() => slide(1)}
-        prevDisabled={atStart}
-        nextDisabled={atEnd}
-      />
+      {showArrows && (
+        <CarouselArrows
+          onPrev={() => slide(-1)}
+          onNext={() => slide(1)}
+          prevDisabled={atStart}
+          nextDisabled={atEnd}
+        />
+      )}
     </>
   );
 }
@@ -534,7 +673,7 @@ const CoverCard = ({ cover, selected, onClick, style }) => {
         border: 'none',
         borderRadius: 'var(--dim-radius-400)',
         background: 'var(--surface-info-tertiary, #DBEAFE)',
-        boxShadow: hovered ? 'var(--shadow-card)' : 'none',
+        boxShadow: hovered && !selected ? 'var(--shadow-card)' : 'none',
         outline: 'none',
         cursor: 'pointer',
         transition: 'box-shadow 0.18s ease',
@@ -546,19 +685,17 @@ const CoverCard = ({ cover, selected, onClick, style }) => {
         alt={cover.label}
         draggable={false}
         className='block w-full h-full'
-        style={{ objectFit: 'cover' }}
+        style={{ objectFit: 'cover', borderRadius: 'inherit' }}
       />
-      {/* Selected ring — overlay element sits ABOVE the image (an inset
-          box-shadow would be hidden behind the full-bleed <img>). 2px brand
-          border, layout-neutral (absolute), so the card never jolts. */}
       {selected && (
         <span
           aria-hidden
           style={{
             position: 'absolute',
             inset: 0,
-            border: 'var(--dim-stroke-200) solid var(--border-brandPrimary-default, #007549)',
-            borderRadius: 'var(--dim-radius-400)',
+            zIndex: 1,
+            borderRadius: 'inherit',
+            boxShadow: 'inset 0 0 0 var(--dim-stroke-200, 2px) var(--border-brandPrimary-default, #007549)',
             pointerEvents: 'none',
           }}
         />
@@ -609,15 +746,6 @@ const UploadDropzone = ({ onFile, style }) => {
   );
 };
 
-/* Checkbox grid (ข้อมูลผู้ป่วย / ลายมือชื่อ) */
-const CheckboxRow = ({ fields, value, onToggle }) => (
-  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400) var(--dim-space-600)' }}>
-    {fields.map((f) => (
-      <Checkbox key={f.key} checked={value.has(f.key)} onChange={() => onToggle(f.key)} label={f.label} />
-    ))}
-  </div>
-);
-
 /* ── Page ───────────────────────────────────────────────────────────── */
 export default function CreateConsentFormPage() {
   const history = useHistory();
@@ -626,6 +754,12 @@ export default function CreateConsentFormPage() {
   const prefill = useMemo(() => {
     if (location.state && location.state.prefill) return location.state.prefill;
     const params = new URLSearchParams(location.search || '');
+    const draftId = params.get('draftId');
+    if (draftId) {
+      const entry = getConsentFormDraftById(draftId);
+      if (entry) return buildWizardPrefillFromDraft(entry);
+      return null;
+    }
     const editId = params.get('editId');
     if (!editId) return null;
     const record = getConsentFormById(editId);
@@ -633,44 +767,50 @@ export default function CreateConsentFormPage() {
     return buildWizardPrefillFromRecord(record, { newVersion: params.get('newVersion') === '1' });
   }, [location.state, location.search]);
   const [step, setStep] = useState(0);
+  const [draftId, setDraftId] = useState(null);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [showSaveBadge, setShowSaveBadge] = useState(false);
+  const [saveToast, setSaveToast] = useState(null);
+  const [savedLabelTick, setSavedLabelTick] = useState(0);
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmPublish, setConfirmPublish] = useState(false);
   const [publishVersion, setPublishVersion] = useState('');
   const [published, setPublished] = useState(false);
+  const pendingScrollY = useRef(null);
 
-  /* Step 1 */
+  useLayoutEffect(() => {
+    if (pendingScrollY.current == null) return;
+    window.scrollTo(0, pendingScrollY.current);
+    pendingScrollY.current = null;
+  });
   const [template, setTemplate] = useState('blank');
   const [cover, setCover] = useState(0);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [type, setType] = useState('');
+  const [type, setType] = useState('data');
   const [version, setVersion] = useState('');
   const [ttl, setTtl] = useState('');
-  const [groupPolicy, setGroupPolicy] = useState([]);
-  const [subBranch, setSubBranch] = useState([]);
-  const [dept, setDept] = useState([]);
+  /* Step 1 — access rights */
+  const [accessScopes, setAccessScopes] = useState([]);
   const [position, setPosition] = useState([]);
 
-  /* Step 2 */
+  /* Step 3 — document content */
   const [docTitle, setDocTitle] = useState('');
-  const [patientFields, setPatientFields] = useState(() => new Set(['name', 'hn', 'doctor']));
+  const [patientFields, setPatientFields] = useState(() => [...DEFAULT_PATIENT_FIELD_KEYS]);
   const [sections, setSections] = useState(() => [makeSection(), makeSection()]);
-  const [signatures, setSignatures] = useState(() => new Set(['patient', 'doctor']));
+  const [signatures, setSignatures] = useState(() => [...DEFAULT_SIGNATURE_KEYS]);
   const [note, setNote] = useState('');
   const [requireGuardian, setRequireGuardian] = useState(false);
   const [allowESign, setAllowESign] = useState(true);
-
-  const toggleIn = (setter) => (key) =>
-    setter((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
 
   /* Prefill ครั้งเดียวตอน mount — แก้ไข / สร้างเวอร์ชันใหม่: โหลดทุก field
      ที่เคยกรอก (Step 1 + Step 2) ให้แก้ต่อได้ทั้งหมด (ด.1.1.5). */
   useEffect(() => {
     if (!prefill) return;
+    if (prefill.draftId != null) setDraftId(prefill.draftId);
+    if (prefill.savedAt) setLastSavedAt(new Date(prefill.savedAt));
+    if (prefill.step != null) setStep(prefill.step);
     if (prefill.name) { setName(prefill.name); setDocTitle(prefill.docTitle || prefill.name); }
     if (prefill.code) setCode(prefill.code);
     if (prefill.type) setType(prefill.type);
@@ -680,11 +820,15 @@ export default function CreateConsentFormPage() {
     else setTtl((prev) => prev || '30');
     if (prefill.template) setTemplate(prefill.template);
     if (prefill.cover != null) setCover(prefill.cover);
-    if (prefill.groupPolicy?.length) setGroupPolicy(prefill.groupPolicy);
-    if (prefill.subBranch?.length) setSubBranch(prefill.subBranch);
-    if (prefill.dept?.length) setDept(prefill.dept);
-    if (prefill.position?.length) setPosition(prefill.position);
-    if (prefill.patientFields?.length) setPatientFields(new Set(prefill.patientFields));
+    if (prefill.accessScopes?.length) {
+      setAccessScopes(stripConsentScopes(prefill.accessScopes));
+      setPosition(
+        prefill.position?.length
+          ? prefill.position
+          : extractPositionsFromScopes(prefill.accessScopes),
+      );
+    }
+    setPatientFields(normalizeFieldKeys(prefill.patientFields, DEFAULT_PATIENT_FIELD_KEYS));
     if (prefill.sections?.length) {
       setSections(prefill.sections.map((s, i) => ({
         id: s.id || `cs-prefill-${i}`,
@@ -693,47 +837,172 @@ export default function CreateConsentFormPage() {
         fieldType: s.fieldType || 'boolean',
       })));
     }
-    if (prefill.signatures?.length) setSignatures(new Set(prefill.signatures));
+    setSignatures(normalizeFieldKeys(prefill.signatures, DEFAULT_SIGNATURE_KEYS));
     if (prefill.note != null) setNote(prefill.note);
     if (prefill.requireGuardian != null) setRequireGuardian(prefill.requireGuardian);
     if (prefill.allowESign != null) setAllowESign(prefill.allowESign);
+    setSavedSnapshot(consentWizardSnapshot(buildWizardStateFromPrefill(prefill)));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!lastSavedAt) return undefined;
+    const id = window.setInterval(() => setSavedLabelTick((v) => v + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, [lastSavedAt]);
+
+  useEffect(() => {
+    if (!showSaveBadge) return undefined;
+    const id = window.setTimeout(() => setShowSaveBadge(false), 4000);
+    return () => window.clearTimeout(id);
+  }, [showSaveBadge]);
+
+  const lastSavedLabel = useMemo(() => {
+    if (!lastSavedAt) return 'ยังไม่ได้บันทึก';
+    void savedLabelTick;
+    return formatRelativeSavedThai(lastSavedAt);
+  }, [lastSavedAt, savedLabelTick]);
+
+  const wizardState = useMemo(() => ({
+    step,
+    template,
+    cover,
+    name,
+    code,
+    type,
+    version,
+    ttl,
+    accessScopes,
+    position,
+    docTitle,
+    patientFields,
+    sections,
+    signatures,
+    note,
+    requireGuardian,
+    allowESign,
+  }), [
+    step, template, cover, name, code, type, version, ttl,
+    accessScopes, position, docTitle, patientFields, sections,
+    signatures, note, requireGuardian, allowESign,
+  ]);
+
+  const baselineDraft = useMemo(() => {
+    if (!prefill?.fromVersion) return null;
+    const record = prefill.sourceFormId ? getConsentFormById(prefill.sourceFormId) : null;
+    return record ? buildWizardDraftFromRecord(record) : null;
+  }, [prefill?.fromVersion, prefill?.sourceFormId]);
+
+  const versionDiff = useMemo(() => (
+    baselineDraft && step === 3
+      ? buildVersionDiffSafe(baselineDraft, wizardState)
+      : null
+  ), [baselineDraft, wizardState, step]);
+
+  const consentImpact = useMemo(() => (
+    prefill?.supersedeType
+      ? previewConsentSupersedeImpact(prefill.supersedeType, { newVersion: version.trim() })
+      : null
+  ), [prefill?.supersedeType, version]);
+
+  const canSaveDraft = useMemo(() => {
+    if (!consentWizardHasUserInput(wizardState)) return false;
+    const current = consentWizardSnapshot(wizardState);
+    if (savedSnapshot == null) return true;
+    return current !== savedSnapshot;
+  }, [wizardState, savedSnapshot]);
+
+  const handleSaveDraft = useCallback(() => {
+    if (!consentWizardHasUserInput(wizardState)) return;
+    const current = consentWizardSnapshot(wizardState);
+    if (savedSnapshot != null && current === savedSnapshot) return;
+    const result = saveConsentFormWizardDraft({
+      step,
+      template,
+      cover,
+      name,
+      code,
+      type,
+      version,
+      ttl,
+      accessScopes,
+      position,
+      docTitle,
+      patientFields: normalizeFieldKeys(patientFields, DEFAULT_PATIENT_FIELD_KEYS),
+      sections,
+      signatures: normalizeFieldKeys(signatures, DEFAULT_SIGNATURE_KEYS),
+      note,
+      requireGuardian,
+      allowESign,
+    }, { draftId });
+
+    setDraftId(result.id);
+    setLastSavedAt(result.savedAt);
+    setSavedSnapshot(consentWizardSnapshot(wizardState));
+    setShowSaveBadge(true);
+    setSaveToast({
+      id: Date.now(),
+      variant: 'success',
+      message: 'บันทึกแบบร่างแล้ว สามารถดูได้ที่เมนูแบบฟอร์มความยินยอม แท็บบันทึกร่าง',
+      action: {
+        label: 'ไปที่แท็บบันทึกร่าง',
+        onClick: () => {
+          setSaveToast(null);
+          history.push('/consent/forms?tab=draft');
+        },
+      },
+    });
+
+    if (!draftId) {
+      history.replace(`/consent/forms/new?draftId=${result.id}`);
+    }
+  }, [wizardState, savedSnapshot, draftId, history]);
 
   /* Select a แม่แบบ → pre-fill Step 1 + Step 2 (still fully editable).
      'blank' resets to an empty form. (Figma 350:130188.) */
   const applyTemplate = (key) => {
+    pendingScrollY.current = window.scrollY;
     setTemplate(key);
     if (key === 'blank' || !TEMPLATE_PREFILL[key]) {
-      setName(''); setType(''); setVersion(''); setTtl('');
+      setName(''); setType('data'); setVersion(''); setTtl('');
       setDocTitle(''); setRequireGuardian(false);
       setSections([makeSection(), makeSection()]);
+      setCover(0);
       return;
     }
     const p = TEMPLATE_PREFILL[key];
     setName(p.name);
-    setType(key); // template key === TYPE_OPTIONS value
-    setVersion(p.version);
+    setType('data');
+    setVersion('');
     setTtl(p.ttl);
+    setCover(p.cover ?? 0);
     setDocTitle(p.name);
     setRequireGuardian(!!p.requireGuardian);
     setSections([...p.leadClauses, ...COMMON_CLAUSES].map((c) => ({ ...makeSection(), ...c })));
   };
 
   /* Step-1 validity gates the "ถัดไป" button (Figma annotation). */
-  const step1Valid = name.trim() && code.trim() && type && version.trim() && ttl && groupPolicy.length && subBranch.length && dept.length && position.length;
-  const step2Valid = sections.some((s) => s.title.trim() && s.detail.trim());
-  const completedSteps = [Boolean(step1Valid), Boolean(step2Valid), false];
-  const canAdvance = step === 0 ? step1Valid : step === 1 ? step2Valid : true;
+  const step1Valid = name.trim() && code.trim() && type && version.trim() && ttl;
+  const step2Valid = accessScopes.length > 0 && position.length;
+  const step3Valid = sections.some(sectionHasContent);
+  const completedSteps = [Boolean(step1Valid), Boolean(step2Valid), Boolean(step3Valid), false];
+  const canAdvance = step === 0 ? step1Valid : step === 1 ? step2Valid : step === 2 ? step3Valid : true;
+  const handleStepClick = useCallback(
+    (idx) => { if (canNavigateToStep(idx, step, completedSteps)) setStep(idx); },
+    [step, step1Valid, step2Valid, step3Valid],
+  );
 
   const doPublish = (confirmedVersion) => {
+    const publishedVersion = (confirmedVersion || version).trim();
     if (confirmedVersion) setVersion(confirmedVersion);
-    if (prefill && prefill.supersedeType) markTypeSuperseded(prefill.supersedeType);
+    if (prefill?.supersedeType) {
+      markTypeSuperseded(prefill.supersedeType, { newVersion: publishedVersion });
+    }
     setConfirmPublish(false);
     setPublished(true);
   };
 
   const goNext = () => {
-    if (step < 2) { setStep(step + 1); window.scrollTo?.({ top: 0 }); }
+    if (step < 3) { setStep(step + 1); window.scrollTo?.({ top: 0 }); }
     else if (prefill?.fromVersion) {
       setPublishVersion(version.trim());
       setConfirmPublish(true);
@@ -749,13 +1018,30 @@ export default function CreateConsentFormPage() {
   const reorderSections = (from, to) =>
     setSections((prev) => {
       if (from == null || to == null || from === to || from < 0 || to < 0) return prev;
+      if (from >= prev.length || to > prev.length) return prev;
       const next = [...prev];
       const [moved] = next.splice(from, 1);
+      if (!moved) return prev;
       next.splice(to, 0, moved);
       return next;
     });
 
-  const nextLabel = step === 0 ? 'ถัดไป: เนื้อหาเอกสาร' : step === 1 ? 'ถัดไป: ตรวจสอบและเผยแพร่' : 'เผยแพร่';
+  const setPatientField = useCallback(
+    (key, checked) => setPatientFields((prev) => setFieldKey(prev, key, checked, DEFAULT_PATIENT_FIELD_KEYS)),
+    [],
+  );
+  const setSignatureField = useCallback(
+    (key, checked) => setSignatures((prev) => setFieldKey(prev, key, checked, DEFAULT_SIGNATURE_KEYS)),
+    [],
+  );
+
+  const nextLabel = step === 0
+    ? 'ถัดไป: ผู้ที่มีสิทธิเข้าถึงได้'
+    : step === 1
+      ? 'ถัดไป: เนื้อหาเอกสาร'
+      : step === 2
+        ? 'ถัดไป: ตรวจสอบและเผยแพร่'
+        : 'เผยแพร่';
   const nextIcon = 'arrow_forward';
 
   return (
@@ -766,32 +1052,13 @@ export default function CreateConsentFormPage() {
         sidebarFallbackKey='consent-new'
         brandTitle='ระบบจัดการความยินยอม'
         breadcrumb={breadcrumb}
-        stickyHeaderInfo
+        {...WIZARD_MORPH_SHELL_PROPS}
         headerInfo={(
-          /* Figma "PHCIS_Header_Summary Card Consent" (350:129658): the card's
-             own title sits top-left, above the stepper. PageHeaderInfoPanel is
-             already the white card, so StepProgress is unframed here.
-             stickyHeaderInfo — แถบชื่อ + stepper ติดค้างตอนเลื่อนหน้า. */
-          <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-400)' }}>
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-              <h1 style={{ color: 'var(--text-topic-tertiary-title)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-regular, 400)', lineHeight: 1.4 }}>
-                สร้างแบบฟอร์มใหม่
-              </h1>
-              {/* ด.1.1.5 — โหมดสร้างเวอร์ชันใหม่ (bump จากเวอร์ชันเดิม) */}
-              {prefill && prefill.fromVersion && (
-                <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
-                  สร้างเวอร์ชันใหม่จาก {prefill.fromVersion} → {prefill.version}
-                </ColorfulBadge>
-              )}
-            </div>
-            <StepProgress
-              steps={STEPS}
-              current={step}
-              completedSteps={completedSteps}
-              onStepClick={(idx) => { if (idx < step || completedSteps[idx - 1]) setStep(idx); }}
-              className='w-full justify-center'
-            />
-          </div>
+          <ConsentWizardHeader
+            step={step}
+            prefill={prefill}
+            onStepClick={handleStepClick}
+          />
         )}
       >
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)', paddingBottom: 96 }}>
@@ -801,34 +1068,51 @@ export default function CreateConsentFormPage() {
               cover={cover} setCover={setCover}
               name={name} setName={setName} code={code} setCode={setCode}
               type={type} setType={setType} version={version} setVersion={setVersion} ttl={ttl} setTtl={setTtl}
-              groupPolicy={groupPolicy} setGroupPolicy={setGroupPolicy}
-              subBranch={subBranch} setSubBranch={setSubBranch} dept={dept} setDept={setDept}
-              position={position} setPosition={setPosition}
+              showCodeSuggestions={!prefill?.code}
+              showVersionSuggestions={!prefill?.code && !prefill?.fromVersion}
+              versionReadOnly={Boolean(prefill?.fromVersion)}
+              fromVersion={prefill?.fromVersion}
             />
           )}
           {step === 1 && (
+            <StepAccess
+              accessScopes={accessScopes} setAccessScopes={setAccessScopes}
+              position={position} setPosition={setPosition}
+            />
+          )}
+          {step === 2 && (
+            <ErrorBoundary>
             <StepContent
-              patientFields={patientFields} togglePatient={toggleIn(setPatientFields)}
+              patientFields={patientFields}
+              setPatientField={setPatientField}
               sections={sections} updateSection={updateSection} removeSection={removeSection}
               reorderSections={reorderSections}
               addSection={() => setSections((p) => [...p, makeSection()])}
-              signatures={signatures} toggleSignature={toggleIn(setSignatures)}
+              signatures={signatures}
+              setSignatureField={setSignatureField}
               note={note} setNote={setNote}
               requireGuardian={requireGuardian} setRequireGuardian={setRequireGuardian}
               allowESign={allowESign} setAllowESign={setAllowESign}
             />
+            </ErrorBoundary>
           )}
-          {step === 2 && (
-            <StepReview
-              name={name} code={code} type={type} version={version} ttl={ttl}
-              docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
-            />
+          {step === 3 && (
+            <ErrorBoundary>
+              <StepReview
+                name={name} code={code} type={type} version={version} ttl={ttl}
+                docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
+                note={note}
+                fromVersion={prefill?.fromVersion}
+                versionDiff={versionDiff}
+                consentImpact={consentImpact}
+              />
+            </ErrorBoundary>
           )}
         </div>
 
         {/* Sticky wizard action bar (Figma footer 350:130686) */}
         <div
-          className='sticky bottom-0 z-10 flex items-center w-full'
+          className={`sticky bottom-0 z-10 flex items-center w-full ${MIH_CHROME_MORPH_FOOTER}`}
           style={{
             background: 'var(--surface-card-100)',
             borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
@@ -837,16 +1121,40 @@ export default function CreateConsentFormPage() {
             gap: 'var(--dim-space-600)',
           }}
         >
-          <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={{ width: 8, height: 8, borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-positive-secondary, #A2EDDE)' }} />
+          {step > 0 ? (
+            <NeutralSubdueButton
+              size='lg'
+              leadingIcon='arrow_back'
+              onClick={() => { setStep(step - 1); window.scrollTo?.({ top: 0 }); }}
+              className='shrink-0'
+            >
+              ย้อนกลับ
+            </NeutralSubdueButton>
+          ) : (
+            <NeutralSubdueButton size='lg' onClick={() => setConfirmCancel(true)} className='shrink-0'>
+              ยกเลิก
+            </NeutralSubdueButton>
+          )}
+          <div className='flex items-center min-w-0 flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+            {showSaveBadge ? (
+              <ColorfulBadge style='green' size='small' hierarchy='secondary' icon='check_circle' showIcon width='hug'>
+                บันทึกร่างแล้ว
+              </ColorfulBadge>
+            ) : (
+              <span style={{ width: 8, height: 8, borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-positive-secondary, #A2EDDE)' }} />
+            )}
             <span className='truncate' style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-              ร่างแบบฟอร์ม (บันทึกล่าสุด: 2 นาทีที่แล้ว)
+              {`ร่างแบบฟอร์ม (บันทึกล่าสุด: ${lastSavedLabel})`}
             </span>
           </div>
           <div className='flex-1' />
           <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-300)' }}>
-            <NeutralButton variant='outline' size='lg' onClick={() => setConfirmCancel(true)}>ยกเลิก</NeutralButton>
-            <BrandSubdueButton variant='outline' size='lg' leadingIcon='save'>บันทึกร่าง</BrandSubdueButton>
+            {step > 0 && (
+              <NeutralSubdueButton size='lg' onClick={() => setConfirmCancel(true)}>
+                ยกเลิก
+              </NeutralSubdueButton>
+            )}
+            <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' disabled={!canSaveDraft} onClick={handleSaveDraft}>บันทึกร่าง</BrandSubdueButton>
             <BrandButton variant='fill' size='lg' trailingIcon={nextIcon} disabled={!canAdvance} onClick={goNext}>
               {nextLabel}
             </BrandButton>
@@ -854,15 +1162,13 @@ export default function CreateConsentFormPage() {
         </div>
       </QueuePageShell>
 
-      <AlertDialog
+      <ConsentFormCancelEditPopup
         open={confirmCancel}
-        type='warning'
         title='ยกเลิกการสร้างแบบฟอร์ม?'
         description='ข้อมูลที่ยังไม่ได้บันทึกจะหายไป ต้องการออกจากหน้านี้หรือไม่'
         confirmLabel='ออกจากหน้านี้'
         cancelLabel='ทำต่อ'
         onConfirm={() => { setConfirmCancel(false); history.push('/consent'); }}
-        onCancel={() => setConfirmCancel(false)}
         onClose={() => setConfirmCancel(false)}
       />
 
@@ -902,6 +1208,8 @@ export default function CreateConsentFormPage() {
           onDone={() => { setPublished(false); history.push('/consent/forms'); }}
         />
       )}
+
+      <PhcisTopToast session={saveToast} onDismiss={() => setSaveToast(null)} />
     </>
   );
 }
@@ -911,45 +1219,54 @@ function StepBasics(props) {
   const {
     template, setTemplate, applyTemplate, cover, setCover,
     name, setName, code, setCode, type, setType, version, setVersion, ttl, setTtl,
-    groupPolicy, setGroupPolicy, subBranch, setSubBranch, dept, setDept,
-    position, setPosition,
+    showCodeSuggestions = true,
+    showVersionSuggestions = true,
+    codeReadOnly = false,
+    versionReadOnly = false,
+    versionHelperText,
+    fromVersion,
+    showTemplatePicker = true,
+    templateCardStyle,
+    coverCardStyle,
+    basicsCardStyle,
   } = props;
-  /* รูปที่ผู้ใช้อัปโหลดจากคอม — แสดงเป็นการ์ดหน้าปกที่ถูกเลือกทันที. */
   const [customCover, setCustomCover] = useState(null);
   const handleCoverFile = (file) => {
     setCustomCover((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
     setCover('custom');
   };
-  /* Selects that sit at the bottom of a column (อายุการใช้งาน, แผนก) open their
-     dropdown downward — into the sticky action bar. Scroll the trigger to the
-     viewport centre on open so the whole list clears the footer. */
   const scrollSelectIntoView = (node) =>
     node && node.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  /* สาขาย่อย ขึ้นกับ Group Policy ที่เลือก — เปลี่ยนกลุ่มแล้วล้างสาขาย่อยเดิม. */
-  /* สาขาย่อย: แสดงทุกสาขา แต่ enable เฉพาะสาขาที่อยู่ในกลุ่มที่เลือก —
-     สาขาที่ไม่เกี่ยวจะ disabled (เทา). ฟิลด์เปิดได้ต่อเมื่อเลือก Group Policy แล้ว. */
-  const subBranchOptions = ALL_SUB_BRANCHES.map((o) => ({ ...o, disabled: !groupPolicy.includes(o.group) }));
-  /* ตัดสาขาย่อยที่กลุ่มต้นสังกัดถูกเอาออกแล้ว เมื่อ Group Policy เปลี่ยน. */
-  const onGroupPolicyChange = (vals) => {
-    setGroupPolicy(vals);
-    setSubBranch((prev) => prev.filter((sb) => {
-      const opt = ALL_SUB_BRANCHES.find((o) => o.value === sb);
-      return opt && vals.includes(opt.group);
-    }));
-  };
+
+  const codeSuggestions = useMemo(() => {
+    if (!showCodeSuggestions || codeReadOnly) return [];
+    return getConsentFormCodeSuggestions({ query: code }).filter((s) => s.code !== code.trim());
+  }, [code, showCodeSuggestions, codeReadOnly]);
+
+  const versionSuggestions = useMemo(() => {
+    if (!showVersionSuggestions || versionReadOnly) return [];
+    return getConsentFormVersionSuggestions({ query: version, code })
+      .filter((s) => s.version !== version.trim());
+  }, [version, code, showVersionSuggestions, versionReadOnly]);
+
+  const resolvedVersionHelperText = versionHelperText
+    ?? (versionReadOnly && fromVersion ? `เวอร์ชันเดิม: ${fromVersion}` : undefined);
+
   return (
     <>
-      <SectionCard>
-        <CardHeading title='เลือกแม่แบบ' subtext='เป็นแม่แบบเบื้องต้น ซึ่งสามารถแก้ไขได้ภายหลัง' badge='20 แม่แบบ' />
-        <CardCarousel>
-          {TEMPLATES.map((t) => (
-            <TemplateCard key={t.key} tpl={t} selected={template === t.key} onClick={() => applyTemplate(t.key)} style={{ flex: CARD_BASIS }} />
-          ))}
-        </CardCarousel>
-      </SectionCard>
+      {showTemplatePicker ? (
+        <SectionCard style={templateCardStyle}>
+          <CardHeading title='เลือกแม่แบบ' subtext='เป็นแม่แบบเบื้องต้น ซึ่งสามารถแก้ไขได้ภายหลัง' badge={`${TEMPLATES.length} แม่แบบ`} />
+          <CardCarousel showArrows={false}>
+            {TEMPLATES.map((t) => (
+              <TemplateCard key={t.key} tpl={t} selected={template === t.key} onClick={() => applyTemplate(t.key)} style={{ flex: CARD_BASIS }} />
+            ))}
+          </CardCarousel>
+        </SectionCard>
+      ) : null}
 
-      <SectionCard>
-        <CardHeading title='เลือกหน้าปกแบบฟอร์ม' subtext='เป็นแม่แบบเบื้องต้น ซึ่งสามารถแก้ไขได้ภายหลัง' badge='20 แม่แบบ' />
+      <SectionCard style={coverCardStyle}>
+        <CardHeading title='เลือกหน้าปกแบบฟอร์ม' subtext='เป็นแม่แบบเบื้องต้น ซึ่งสามารถแก้ไขได้ภายหลัง' badge={`${COVERS.length} หน้าปก`} />
         <CardCarousel>
           <UploadDropzone key='upload' onFile={handleCoverFile} style={{ flex: CARD_BASIS }} />
           {customCover && (
@@ -967,37 +1284,147 @@ function StepBasics(props) {
         </CardCarousel>
       </SectionCard>
 
-      <div className='flex items-stretch w-full' style={{ gap: 'var(--dim-space-600)' }}>
-        <SectionCard style={{ flex: 1, gap: 'var(--dim-space-400)' }}>
-          <ColumnHeading>ข้อมูลพื้นฐาน</ColumnHeading>
-          <SuggestibleTextarea
-            voice label='ชื่อแบบฟอร์ม Consent' required
-            value={name} onChange={(v) => setName(typeof v === 'string' ? v : v?.target?.value ?? '')}
-            placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
-            suggestions={NAME_HINTS} minChars={3} height={120}
-          />
-          <span style={{ marginTop: -8, color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-            เช่น ใบยินยอมรับการรักษาทั่วไป (General Consent for Treatment)
-          </span>
-          <InputField label='รหัสแบบฟอร์ม Consent' required value={code} onChange={(v) => setCode(v)} placeholder='เช่น PH-001' />
-          <Select label='ประเภท Consent' required options={TYPE_OPTIONS} value={type} onChange={setType} placeholder='เลือกประเภท' searchable={false} />
-          <InputField label='เวอร์ชั่น' required value={version} onChange={(v) => setVersion(v)} placeholder='V 1.2' />
+      <SectionCard style={{ gap: 'var(--dim-space-400)', ...basicsCardStyle }}>
+        <ColumnHeading>ข้อมูลพื้นฐาน</ColumnHeading>
+        <div
+          className='grid w-full min-w-0'
+          style={{
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            columnGap: 'var(--dim-space-1200, 48px)',
+            rowGap: 'var(--dim-space-800, 32px)',
+          }}
+        >
+          <div
+            className='flex flex-col min-w-0'
+            style={{ gap: 'var(--dim-space-200, 8px)' }}
+          >
+            <SuggestibleTextarea
+              voice label='ชื่อแบบฟอร์ม Consent' required
+              value={name} onChange={(v) => setName(typeof v === 'string' ? v : v?.target?.value ?? '')}
+              placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
+              suggestions={CONSENT_FORM_NAME_SUGGESTIONS}
+              minChars={3}
+              height={120}
+              popoverAriaLabel='ชื่อแบบฟอร์มที่แนะนำ'
+            />
+            <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+              เช่น ใบยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)
+            </span>
+          </div>
+          <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <InputField
+              label='รหัสแบบฟอร์ม Consent'
+              required
+              value={code}
+              onChange={setCode}
+              placeholder='เช่น PH-001'
+              readOnly={codeReadOnly}
+              disabled={codeReadOnly}
+              showHelperText={false}
+            />
+            {showCodeSuggestions && !codeReadOnly && (
+              <div style={SUGGESTION_ROW_SLOT}>
+                {codeSuggestions.length > 0 && (
+                  <InlineSuggestionChips
+                    items={codeSuggestions}
+                    value={code}
+                    onSelect={setCode}
+                    getKey={(s) => s.code}
+                    getLabel={(s) => s.code}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+          <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {fromVersion && version ? (
+              <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
+                {`เปลี่ยนเวอร์ชัน ${fromVersion} → ${version}`}
+              </ColorfulBadge>
+            ) : null}
+            <InputField
+              label='เวอร์ชั่น'
+              required
+              value={version}
+              onChange={setVersion}
+              placeholder='V 1.2'
+              readOnly={versionReadOnly}
+              disabled={versionReadOnly}
+              helperText={resolvedVersionHelperText}
+              showHelperText={Boolean(resolvedVersionHelperText)}
+            />
+            {showVersionSuggestions && !versionReadOnly && (
+              <div style={SUGGESTION_ROW_SLOT}>
+                {versionSuggestions.length > 0 && (
+                  <InlineSuggestionChips
+                    items={versionSuggestions}
+                    value={version}
+                    onSelect={setVersion}
+                    getKey={(s) => s.version}
+                    getLabel={(s) => s.version}
+                  />
+                )}
+              </div>
+            )}
+          </div>
           <Select label='อายุการใช้งาน (วัน)' required options={TTL_OPTIONS} value={ttl} onChange={setTtl} placeholder='เลือกจำนวนวัน' searchable={false} onOpen={scrollSelectIntoView} />
-        </SectionCard>
-
-        <SectionCard style={{ flex: 1, gap: 'var(--dim-space-400)' }}>
-          <ColumnHeading>ผู้ที่มีสิทธิ์ใช้งาน</ColumnHeading>
-          <Select multiple selectAllLabel='เลือกทุก Group Policy' label='Group Policy' required options={GROUP_POLICY_OPTIONS} value={groupPolicy} onChange={onGroupPolicyChange} placeholder='เลือก Group Policy' searchable={false} />
-          <Select multiple selectAllLabel='เลือกทุกสาขาย่อย' label='สาขาย่อย' required options={subBranchOptions} value={subBranch} onChange={setSubBranch} placeholder={groupPolicy.length ? 'เลือกสาขาย่อย' : 'เลือก Group Policy ก่อน'} disabled={!groupPolicy.length} searchable={false} />
-          <Select multiple selectAllLabel='เลือกทุกแผนก' label='แผนก' required options={DEPT_OPTIONS} value={dept} onChange={setDept} placeholder='เลือกแผนก' searchable={false} onOpen={scrollSelectIntoView} />
-          <Select multiple selectAllLabel='เลือกทุกตำแหน่ง' label='ตำแหน่ง' required options={POSITION_OPTIONS} value={position} onChange={setPosition} placeholder='เลือกตำแหน่ง' searchable={false} onOpen={scrollSelectIntoView} />
-        </SectionCard>
-      </div>
+        </div>
+      </SectionCard>
     </>
   );
 }
 
-/* ── Step 2 · เนื้อหาเอกสาร ───────────────────────────────────────────── */
+/* ── Step 2 · ผู้ที่มีสิทธิเข้าถึงได้ ─────────────────────────────────────── */
+function StepAccess({ accessScopes, setAccessScopes, position, setPosition, positionCardStyle, scopeCardStyle }) {
+  const selectedScopeKeys = useMemo(
+    () => new Set(accessScopes.map(consentScopeKey)),
+    [accessScopes],
+  );
+
+  const handleScopeToggle = (scope) => {
+    const key = consentScopeKey(scope);
+    setAccessScopes((prev) => {
+      if (prev.some((s) => consentScopeKey(s) === key)) {
+        return prev.filter((s) => consentScopeKey(s) !== key);
+      }
+      return [...prev, scope];
+    });
+  };
+
+  const handleScopeToggleMany = (scopes, select) => {
+    setAccessScopes((prev) => {
+      if (select) {
+        const prevKeys = new Set(prev.map(consentScopeKey));
+        const toAdd = scopes.filter((s) => !prevKeys.has(consentScopeKey(s)));
+        return toAdd.length ? [...prev, ...toAdd] : prev;
+      }
+      const removeKeys = new Set(scopes.map(consentScopeKey));
+      return prev.filter((s) => !removeKeys.has(consentScopeKey(s)));
+    });
+  };
+
+  return (
+    <>
+      <FormPositionAccessEditor
+        value={position}
+        onChange={setPosition}
+        columns={2}
+        style={positionCardStyle}
+      />
+
+      <FormScopeAccessEditor
+        catalog={CONSENT_FORM_SCOPE_CATALOG}
+        selectedKeys={selectedScopeKeys}
+        onToggle={handleScopeToggle}
+        onToggleMany={handleScopeToggleMany}
+        columns={2}
+        style={scopeCardStyle}
+      />
+    </>
+  );
+}
+
+/* ── Step 3 · เนื้อหาเอกสาร ───────────────────────────────────────────── */
 /* Close (x) icon button — Figma "x button / info" (104:5369). 32×32 neutral
    close glyph; transparent at rest, hover fills with neutral-tertiary (#F4F5F5). */
 const CardXButton = ({ onClick, disabled, label }) => {
@@ -1027,51 +1454,93 @@ const CardXButton = ({ onClick, disabled, label }) => {
   );
 };
 
+const SectionDropIndicator = ({ active }) => (
+  <div
+    aria-hidden
+    style={{
+      height: active ? 4 : 0,
+      borderRadius: 'var(--dim-radius-full)',
+      background: active ? 'var(--icon-brandPrimary-quaternary, #91DFBB)' : 'transparent',
+      transition: 'height 120ms ease',
+      margin: active ? 'var(--dim-space-100, 4px) 0' : 0,
+      flexShrink: 0,
+    }}
+  />
+);
+
 function StepContent(props) {
   const {
-    patientFields, togglePatient,
+    patientFields, setPatientField,
     sections, updateSection, removeSection, reorderSections, addSection,
-    signatures, toggleSignature, note, setNote,
+    signatures, setSignatureField, note, setNote,
     requireGuardian, setRequireGuardian, allowESign, setAllowESign,
+    patientCardStyle,
+    notesCardStyle,
   } = props;
   /* Drag-to-reorder consent clauses (HTML5 DnD). A card becomes draggable only
      while its grab handle is held, so typing/selecting inside the fields is
      never hijacked by a drag. */
   const [dragIdx, setDragIdx] = useState(null);
-  const [overIdx, setOverIdx] = useState(null);
+  const [dropIndex, setDropIndex] = useState(null);
   const [grabIdx, setGrabIdx] = useState(null);
-  const resetDrag = () => { setDragIdx(null); setOverIdx(null); setGrabIdx(null); };
-  const dropOn = (to) => { if (dragIdx != null) reorderSections(dragIdx, to); resetDrag(); };
+  const resetDrag = () => { setDragIdx(null); setDropIndex(null); setGrabIdx(null); };
+  const dropAt = (insertAt) => {
+    if (dragIdx == null || insertAt == null) return;
+    let to = insertAt;
+    if (dragIdx < to) to -= 1;
+    if (dragIdx !== to) reorderSections(dragIdx, to);
+    resetDrag();
+  };
+  const handleDragOverCard = (e, i) => {
+    if (dragIdx == null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    const next = e.clientY < mid ? i : i + 1;
+    if (dropIndex !== next) setDropIndex(next);
+  };
   return (
     <>
-      <SectionCard>
+      <SectionCard style={patientCardStyle}>
         <ColumnHeading>ข้อมูลผู้ป่วย</ColumnHeading>
-        <CheckboxRow fields={PATIENT_FIELDS} value={patientFields} onToggle={togglePatient} />
+        <ConsentFieldCheckboxGroup
+          fields={PATIENT_FIELDS}
+          value={patientFields}
+          onSetField={setPatientField}
+          fallback={DEFAULT_PATIENT_FIELD_KEYS}
+        />
       </SectionCard>
 
       <SectionCard>
         <ColumnHeading>ข้อความยินยอม</ColumnHeading>
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+        <div
+          className='flex flex-col'
+          style={{ gap: 'var(--dim-space-300)' }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) setDropIndex(null);
+          }}
+        >
+          <SectionDropIndicator active={dragIdx != null && dropIndex === 0} />
           {sections.map((s, i) => (
-            <div
-              key={s.id}
-              draggable={grabIdx === i}
-              onDragStart={(e) => { setDragIdx(i); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', String(i)); } catch (_) { /* noop */ } }}
-              onDragEnter={() => { if (dragIdx != null && overIdx !== i) setOverIdx(i); }}
-              onDragOver={(e) => { if (dragIdx != null) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
-              onDrop={(e) => { e.preventDefault(); dropOn(i); }}
-              onDragEnd={resetDrag}
-              className='flex flex-col'
-              style={{
-                gap: 'var(--dim-space-300)',
-                border: `var(--dim-stroke-100) solid ${overIdx === i && dragIdx !== i ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-brandPrimary-quaternary)'}`,
-                borderRadius: 'var(--dim-radius-400)',
-                padding: 'var(--dim-space-400)',
-                background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-                opacity: dragIdx === i ? 0.45 : 1,
-                transition: 'border-color 120ms ease, opacity 120ms ease',
-              }}
-            >
+            <React.Fragment key={s.id}>
+              <div
+                draggable={grabIdx === i}
+                onDragStart={(e) => { setDragIdx(i); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', String(i)); } catch (_) { /* noop */ } }}
+                onDragOver={(e) => handleDragOverCard(e, i)}
+                onDrop={(e) => { e.preventDefault(); dropAt(dropIndex); }}
+                onDragEnd={resetDrag}
+                className='flex flex-col'
+                style={{
+                  gap: 'var(--dim-space-800, 32px)',
+                  border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                  borderRadius: 'var(--dim-radius-400)',
+                  padding: 'var(--dim-space-400)',
+                  background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+                  opacity: dragIdx === i ? 0.45 : 1,
+                  transition: 'opacity 120ms ease',
+                }}
+              >
               <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
                 <span
                   onMouseDown={() => setGrabIdx(i)}
@@ -1094,22 +1563,38 @@ function StepContent(props) {
                 <div className='flex-1' />
                 <CardXButton label='ลบข้อความ' onClick={() => removeSection(s.id)} disabled={sections.length <= 1} />
               </div>
-              <InputField label='หัวข้อ' required value={s.title} onChange={(v) => updateSection(s.id, { title: v })} placeholder='เช่น ยินยอมรับการรักษา' />
-              <SuggestibleTextarea
-                voice label='รายละเอียด' required
-                value={s.detail} onChange={(v) => updateSection(s.id, { detail: typeof v === 'string' ? v : v?.target?.value ?? '' })}
-                placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
-                suggestions={DETAIL_HINTS} minChars={3} height={120}
-              />
-              {/* ด.1.1.13 — เลือก field type ของคำตอบต่อข้อ */}
-              <Select
-                label='รูปแบบคำตอบของข้อนี้ (Field Type)'
-                options={FIELD_TYPE_OPTIONS}
-                value={s.fieldType || 'boolean'}
-                onChange={(v) => updateSection(s.id, { fieldType: v })}
-                searchable={false}
-              />
-            </div>
+              <div
+                className='grid w-full min-w-0'
+                style={{
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  columnGap: 'var(--dim-space-1200, 48px)',
+                  rowGap: 'var(--dim-space-800, 32px)',
+                }}
+              >
+                <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-800, 32px)' }}>
+                  <InputField label='หัวข้อ' required value={s.title} onChange={(v) => updateSection(s.id, { title: v })} placeholder='เช่น ยินยอมรับการรักษา' />
+                  <SuggestibleTextarea
+                    voice label='รายละเอียด' required
+                    value={s.detail} onChange={(v) => updateSection(s.id, { detail: typeof v === 'string' ? v : v?.target?.value ?? '' })}
+                    placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
+                    suggestions={DETAIL_HINTS} minChars={3} height={120}
+                  />
+                </div>
+                <div className='flex flex-col min-w-0'>
+                  {/* ด.1.1.13 — consent forms lock field type to boolean */}
+                  <Select
+                    label='รูปแบบคำตอบของข้อนี้ (Field Type)'
+                    options={FIELD_TYPE_OPTIONS}
+                    value={s.fieldType || 'boolean'}
+                    onChange={(v) => updateSection(s.id, { fieldType: v })}
+                    searchable={false}
+                    disabled
+                  />
+                </div>
+              </div>
+              </div>
+              <SectionDropIndicator active={dragIdx != null && dropIndex === i + 1} />
+            </React.Fragment>
           ))}
           <BrandDashedAddButton icon='add' onClick={addSection}>เพิ่มข้อความ</BrandDashedAddButton>
         </div>
@@ -1117,10 +1602,15 @@ function StepContent(props) {
 
       <SectionCard>
         <ColumnHeading>ลายมือชื่อ</ColumnHeading>
-        <CheckboxRow fields={SIGNATURE_FIELDS} value={signatures} onToggle={toggleSignature} />
+        <ConsentFieldCheckboxGroup
+          fields={SIGNATURE_FIELDS}
+          value={signatures}
+          onSetField={setSignatureField}
+          fallback={DEFAULT_SIGNATURE_KEYS}
+        />
       </SectionCard>
 
-      <SectionCard>
+      <SectionCard style={notesCardStyle}>
         <ColumnHeading>หมายเหตุพิเศษ และการตั้งค่าเพิ่มเติม</ColumnHeading>
         <SuggestibleTextarea
           voice label='ข้อความท้ายเอกสาร'
@@ -1129,18 +1619,18 @@ function StepContent(props) {
           suggestions={DETAIL_HINTS} minChars={3} height={120}
         />
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400) var(--dim-space-600)' }}>
-          <Checkbox checked={requireGuardian} onChange={setRequireGuardian} label='สำหรับผู้ป่วย / จำเป็นต้องกรอกผู้ปกครอง' />
-          <Checkbox checked={allowESign} onChange={setAllowESign} label='อนุญาตให้ใช้ e-Signature' />
+          <Checkbox checked={requireGuardian} onChange={(checked) => setRequireGuardian(Boolean(checked))} label='สำหรับผู้ป่วย / จำเป็นต้องกรอกผู้ปกครอง' />
+          <Checkbox checked={allowESign} onChange={(checked) => setAllowESign(Boolean(checked))} label='อนุญาตให้ใช้ e-Signature' />
         </div>
       </SectionCard>
     </>
   );
 }
 
-/* ── Step 3 · ตรวจสอบและเผยแพร่ (Figma 355:140557) ────────────────────────
+/* ── Step 4 · ตรวจสอบและเผยแพร่ (Figma 355:140557) ────────────────────────
    Two columns: a full document preview (patient-info fields, numbered consent
-   clauses with checkboxes, signature) on the left, and a live "Patient View"
-   phone mock-up on the right. */
+   clauses with ยินยอม/ไม่ยินยอม buttons, signature) on the left, and a live
+   "Patient View" phone mock-up on the right. */
 const PATIENT_SAMPLE = {
   name:    'เช่น นายสมชาย ใจดี',
   hn:      'เช่น 66-000123',
@@ -1149,54 +1639,131 @@ const PATIENT_SAMPLE = {
   citizen: 'เช่น 1-2345-67890-12-3',
   contact: 'เช่น 08x-xxx-xxxx',
 };
-export function StepReview({ name, code, type, version, ttl, docTitle, sections, patientFields, allowESign }) {
-  const typeLabel = useMemo(() => (TYPE_OPTIONS.find((o) => o.value === type) || {}).label || 'เอกสารความยินยอม', [type]);
-  const ttlDays = (TTL_OPTIONS.find((o) => o.value === ttl) || {}).label;
-  const title = docTitle || name || 'ใบยินยอมรับการรักษาทั่วไป';
-  const filledSections = sections.filter((s) => s.title.trim() || s.detail.trim());
-  const patientPreview = PATIENT_FIELDS.filter((f) => patientFields.has(f.key));
 
-  /* Unchecked checkbox glyph the patient would tick (Figma list checkbox). */
-  const Tick = () => (
-    <span
-      aria-hidden
+/** Figma 295:41105 — ปุ่มเลือก ยินยอม / ไม่ยินยอม ใต้แต่ละข้อ (preview = inert). */
+const consentRadioStyle = {
+  minHeight: 40,
+  height: 40,
+  paddingTop: 'var(--dim-space-200)',
+  paddingBottom: 'var(--dim-space-200)',
+  paddingLeft: 'var(--dim-space-400)',
+  paddingRight: 'var(--dim-space-400)',
+  pointerEvents: 'none',
+};
+
+const ConsentChoiceRadios = ({ value = '', name, compact }) => {
+  const iconSize = compact ? 14 : 16;
+  return (
+  <div
+    className='flex flex-wrap items-center'
+    style={{
+      gap: compact ? 'var(--dim-space-150)' : 'var(--dim-space-200)',
+      paddingTop: compact ? 'var(--dim-space-100)' : 'var(--dim-space-150)',
+    }}
+    role='radiogroup'
+    aria-label={name}
+    aria-disabled
+  >
+    <RadioButton
+      name={name}
+      value='yes'
+      title='ยินยอม'
+      checked={value === 'yes'}
+      onChange={() => {}}
+      border
+      showRadio={false}
+      showCircleIcon={false}
+      showIcon
+      icon={<Icon name='check' size={iconSize} color='var(--text-brandPrimary-default)' />}
+      showDescription={false}
+      showBadge={false}
+      showBadgeTitle={false}
       style={{
-        width: 'var(--dim-size-300, 16px)', height: 'var(--dim-size-300, 16px)', flexShrink: 0,
-        borderRadius: 'var(--dim-radius-100)',
-        border: 'var(--dim-stroke-150) solid var(--border-switch-default, #C9CDD0)',
-        background: 'var(--surface-switch-default, #FFFFFF)',
-        marginTop: 2,
+        ...consentRadioStyle,
+        ...(compact ? { minHeight: 32, height: 32, paddingLeft: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-300)', fontSize: 11 } : {}),
       }}
     />
+    <RadioButton
+      name={name}
+      value='no'
+      title='ไม่ยินยอม'
+      checked={value === 'no'}
+      onChange={() => {}}
+      border
+      showRadio={false}
+      showCircleIcon={false}
+      showIcon
+      icon={<Icon name='close' size={iconSize} color='var(--text-danger-default, #DC2626)' />}
+      showDescription={false}
+      showBadge={false}
+      showBadgeTitle={false}
+      style={{
+        ...consentRadioStyle,
+        ...(compact ? { minHeight: 32, height: 32, paddingLeft: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-300)', fontSize: 11 } : {}),
+      }}
+    />
+  </div>
   );
+};
+
+export function StepReview({
+  name, code, type, version, ttl, docTitle, sections, patientFields, allowESign, note, reviewStepStyle,
+  versionDiff, fromVersion, consentImpact, stackLayout = false,
+}) {
+  const typeLabel = useMemo(() => (TYPE_OPTIONS.find((o) => o.value === type) || {}).label || 'เอกสารความยินยอม', [type]);
+  const ttlDays = (TTL_OPTIONS.find((o) => o.value === ttl) || {}).label;
+  const noteText = note ?? `เอกสารนี้มีอายุ ${ttlDays || '—'} นับจากวันที่ลงนาม`;
+  const title = docTitle || name || 'ใบยินยอมรับการรักษาทั่วไป';
+  const filledSections = (sections || []).filter(
+    (s) => s && ((String(s.title ?? '').trim()) || (String(s.detail ?? '').trim())),
+  );
+  const patientPreview = PATIENT_FIELDS.filter((f) => fieldSetHas(patientFields, f.key, DEFAULT_PATIENT_FIELD_KEYS));
+  const previewLimit = stackLayout ? 8 : (filledSections.length > 15 ? 12 : filledSections.length);
+  const previewSections = filledSections.slice(0, previewLimit);
+  const hiddenPreviewCount = Math.max(0, filledSections.length - previewSections.length);
+  const displayNote = stackLayout ? truncatePreviewText(noteText, 400) : noteText;
 
   const Divider = () => (
     <div style={{ height: 'var(--dim-stroke-100)', background: 'var(--border-brandPrimary-quaternary)' }} />
   );
 
-  const Clause = ({ index, title: ct, detail, compact }) => (
-    <div className='flex items-start' style={{ gap: 'var(--dim-space-200)' }}>
-      <Tick />
-      <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+  const Clause = ({ index, title: ct, detail, compact, clauseId, lite }) => (
+    <div className='flex flex-col min-w-0'>
+      <div className='flex flex-col' style={{ gap: compact ? 'var(--dim-space-100)' : 'var(--dim-space-100)' }}>
         <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: compact ? 11 : 'var(--type-size-sm)', lineHeight: 1.4 }}>
           ข้อที่ {index} · {ct || '(ไม่มีหัวข้อ)'}
         </span>
-        {detail && (
+        {detail ? (
           <span
-            className={compact ? 'line-clamp-3' : undefined}
+            className={compact || lite ? 'line-clamp-3' : undefined}
             style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: compact ? 10 : 'var(--type-size-sm)', lineHeight: compact ? 1.5 : 1.6 }}
           >
-            {detail}
+            {lite ? truncatePreviewText(detail) : truncatePreviewText(detail, 480) || detail}
           </span>
-        )}
+        ) : null}
       </div>
+      {!lite ? <ConsentChoiceRadios name={`clause-${clauseId || index}`} compact={compact} /> : null}
     </div>
   );
 
   return (
-    <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-600)' }}>
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-600)', ...reviewStepStyle }}>
+      {(fromVersion || versionDiff?.hasChanges || consentImpact?.signedCount) ? (
+        <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
+          <ConsentFormVersionDiffPanel
+            diff={versionDiff}
+            fromVersion={fromVersion}
+            toVersion={version}
+          />
+          <ConsentSupersedeImpactPanel impact={consentImpact} />
+        </div>
+      ) : null}
+    <div
+      className={`flex w-full min-w-0 ${stackLayout ? 'flex-col' : 'items-start'}`}
+      style={{ gap: 'var(--dim-space-600)' }}
+    >
       {/* ── Left — full document preview ── */}
-      <SectionCard style={{ flex: 1.4 }}>
+      <SectionCard style={stackLayout ? { width: '100%' } : { flex: 1.4 }}>
         <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
           <span
             className='inline-flex items-center justify-center shrink-0'
@@ -1231,12 +1798,17 @@ export function StepReview({ name, code, type, version, ttl, docTitle, sections,
         <Divider />
 
         <ColumnHeading>ข้อความยินยอม</ColumnHeading>
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
           {filledSections.length === 0 ? (
             <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>ยังไม่มีข้อความยินยอม</span>
-          ) : filledSections.map((s, i) => (
-            <Clause key={s.id} index={i + 1} title={s.title} detail={s.detail} />
+          ) : previewSections.map((s, i) => (
+            <Clause key={s.id || `clause-${i}`} index={i + 1} title={s.title} detail={s.detail} clauseId={s.id} lite={stackLayout} />
           ))}
+          {hiddenPreviewCount > 0 ? (
+            <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+              {`… และอีก ${hiddenPreviewCount} ข้อ (แสดงตัวอย่าง ${previewSections.length} ข้อแรก)`}
+            </span>
+          ) : null}
         </div>
 
         <Divider />
@@ -1281,12 +1853,13 @@ export function StepReview({ name, code, type, version, ttl, docTitle, sections,
         >
           <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)' }}>หมายเหตุ</span>
           <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
-            เอกสารนี้มีอายุ {ttlDays || '—'} นับจากวันที่ลงนาม
+            {displayNote}
           </span>
         </div>
       </SectionCard>
 
-      {/* ── Right — live patient-view phone ── */}
+      {!stackLayout ? (
+      /* ── Right — live patient-view phone ── */
       <SectionCard style={{ flex: 1, alignItems: 'center', gap: 'var(--dim-space-400)' }}>
         <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
           <span style={{ color: 'var(--text-topic-tertiary-title)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)' }}>
@@ -1317,7 +1890,7 @@ export function StepReview({ name, code, type, version, ttl, docTitle, sections,
               <span style={{ width: 16 }} />
             </div>
             {/* scrollable doc */}
-            <div className='flex flex-col scrollbar-thin' style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 'var(--dim-space-400)', gap: 'var(--dim-space-300)' }}>
+            <div className='flex flex-col scrollbar-thin' style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 'var(--dim-space-400)', gap: 'var(--dim-space-400)' }}>
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)', padding: 'var(--dim-space-300)', borderRadius: 'var(--dim-radius-200)', background: 'var(--surface-brandPrimary-quaternary)' }}>
                 <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)', lineHeight: 1.4 }}>{title}</span>
                 <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 11 }}>{code || 'PH-001'} · {version || 'V1.0'}</span>
@@ -1325,7 +1898,7 @@ export function StepReview({ name, code, type, version, ttl, docTitle, sections,
               {filledSections.length === 0 ? (
                 <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 11 }}>ยังไม่มีข้อความยินยอม</span>
               ) : filledSections.slice(0, 6).map((s, i) => (
-                <Clause key={s.id} index={i + 1} title={s.title} detail={s.detail} compact />
+                <Clause key={s.id} index={i + 1} title={s.title} detail={s.detail} compact clauseId={s.id} />
               ))}
             </div>
             {/* sticky confirm */}
@@ -1338,6 +1911,8 @@ export function StepReview({ name, code, type, version, ttl, docTitle, sections,
           มุมมองที่ผู้ป่วยจะเห็นบนอุปกรณ์มือถือ
         </span>
       </SectionCard>
+      ) : null}
+    </div>
     </div>
   );
 }
@@ -1352,34 +1927,27 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
   const [step, setStep] = useState(0);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [confirmSave, setConfirmSave] = useState(false);
   const [publishVersion, setPublishVersion] = useState('');
 
   const [template, setTemplate] = useState('blank');
   const [cover, setCover] = useState(0);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [type, setType] = useState('');
+  const [type, setType] = useState('data');
   const [version, setVersion] = useState('');
   const [ttl, setTtl] = useState('');
-  const [groupPolicy, setGroupPolicy] = useState([]);
-  const [subBranch, setSubBranch] = useState([]);
-  const [dept, setDept] = useState([]);
+  const [accessScopes, setAccessScopes] = useState([]);
   const [position, setPosition] = useState([]);
 
   const [docTitle, setDocTitle] = useState('');
-  const [patientFields, setPatientFields] = useState(() => new Set(['name', 'hn', 'doctor']));
+  const [patientFields, setPatientFields] = useState(() => [...DEFAULT_PATIENT_FIELD_KEYS]);
   const [sections, setSections] = useState(() => [makeSection(), makeSection()]);
-  const [signatures, setSignatures] = useState(() => new Set(['patient', 'doctor']));
+  const [signatures, setSignatures] = useState(() => [...DEFAULT_SIGNATURE_KEYS]);
   const [note, setNote] = useState('');
   const [requireGuardian, setRequireGuardian] = useState(false);
   const [allowESign, setAllowESign] = useState(true);
-
-  const toggleIn = (setter) => (key) =>
-    setter((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
+  const [baselineSnapshot, setBaselineSnapshot] = useState(null);
 
   /* Reset + prefill whenever popup opens for a record */
   useEffect(() => {
@@ -1387,6 +1955,7 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
     setStep(0);
     setConfirmCancel(false);
     setConfirmPublish(false);
+    setConfirmSave(false);
     setPublishVersion('');
     if (prefill.name) { setName(prefill.name); setDocTitle(prefill.docTitle || prefill.name); }
     if (prefill.code) setCode(prefill.code);
@@ -1397,11 +1966,15 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
     else setTtl((prev) => prev || '30');
     if (prefill.template) setTemplate(prefill.template);
     if (prefill.cover != null) setCover(prefill.cover);
-    if (prefill.groupPolicy?.length) setGroupPolicy(prefill.groupPolicy);
-    if (prefill.subBranch?.length) setSubBranch(prefill.subBranch);
-    if (prefill.dept?.length) setDept(prefill.dept);
-    if (prefill.position?.length) setPosition(prefill.position);
-    if (prefill.patientFields?.length) setPatientFields(new Set(prefill.patientFields));
+    if (prefill.accessScopes?.length) {
+      setAccessScopes(stripConsentScopes(prefill.accessScopes));
+      setPosition(
+        prefill.position?.length
+          ? prefill.position
+          : extractPositionsFromScopes(prefill.accessScopes),
+      );
+    }
+    setPatientFields(normalizeFieldKeys(prefill.patientFields, DEFAULT_PATIENT_FIELD_KEYS));
     if (prefill.sections?.length) {
       setSections(prefill.sections.map((s, i) => ({
         id: s.id || `cs-edit-${i}`,
@@ -1410,48 +1983,111 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
         fieldType: s.fieldType || 'boolean',
       })));
     }
-    if (prefill.signatures?.length) setSignatures(new Set(prefill.signatures));
+    setSignatures(normalizeFieldKeys(prefill.signatures, DEFAULT_SIGNATURE_KEYS));
     if (prefill.note != null) setNote(prefill.note);
     if (prefill.requireGuardian != null) setRequireGuardian(prefill.requireGuardian);
     if (prefill.allowESign != null) setAllowESign(prefill.allowESign);
-  }, [open, prefill]);
+    setBaselineSnapshot(consentWizardSnapshot(buildWizardStateFromPrefill(prefill)));
+  }, [open, record?.id, newVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyTemplate = (key) => {
     setTemplate(key);
     if (key === 'blank' || !TEMPLATE_PREFILL[key]) {
-      setName(''); setType(''); setVersion(''); setTtl('');
+      setName(''); setType('data'); setVersion(''); setTtl('');
       setDocTitle(''); setRequireGuardian(false);
       setSections([makeSection(), makeSection()]);
+      setCover(0);
       return;
     }
     const p = TEMPLATE_PREFILL[key];
     setName(p.name);
-    setType(key);
-    setVersion(p.version);
+    setType('data');
+    setVersion('');
     setTtl(p.ttl);
+    setCover(p.cover ?? 0);
     setDocTitle(p.name);
     setRequireGuardian(!!p.requireGuardian);
     setSections([...p.leadClauses, ...COMMON_CLAUSES].map((c) => ({ ...makeSection(), ...c })));
   };
 
-  const step1Valid = name.trim() && code.trim() && type && version.trim() && ttl && groupPolicy.length && subBranch.length && dept.length && position.length;
-  const step2Valid = sections.some((s) => s.title.trim() && s.detail.trim());
-  const completedSteps = [Boolean(step1Valid), Boolean(step2Valid), false];
-  const canAdvance = step === 0 ? step1Valid : step === 1 ? step2Valid : true;
+  const step1Valid = name.trim() && code.trim() && type && version.trim() && ttl;
+  const step2Valid = accessScopes.length > 0 && position.length;
+  const step3Valid = sections.some(sectionHasContent);
+  const completedSteps = [Boolean(step1Valid), Boolean(step2Valid), Boolean(step3Valid), false];
+  const canAdvance = step === 0 ? step1Valid : step === 1 ? step2Valid : step === 2 ? step3Valid : true;
+  const handleStepClick = useCallback(
+    (idx) => { if (canNavigateToStep(idx, step, completedSteps)) setStep(idx); },
+    [step, step1Valid, step2Valid, step3Valid],
+  );
+
+  const wizardReviewState = useMemo(() => ({
+    template,
+    cover,
+    name,
+    code,
+    type,
+    version,
+    ttl,
+    accessScopes,
+    position,
+    docTitle,
+    patientFields,
+    sections,
+    signatures,
+    note,
+    requireGuardian,
+    allowESign,
+  }), [
+    template, cover, name, code, type, version, ttl, accessScopes, position, docTitle,
+    patientFields, sections, signatures, note, requireGuardian, allowESign,
+  ]);
+
+  const hasChanges = useMemo(() => {
+    if (!baselineSnapshot || step !== 3) return false;
+    return consentWizardSnapshot(wizardReviewState) !== baselineSnapshot;
+  }, [baselineSnapshot, wizardReviewState, step]);
+
+  const baselineDraft = useMemo(
+    () => (record ? buildWizardDraftFromRecord(record) : null),
+    [record],
+  );
+
+  const versionDiff = useMemo(() => (
+    baselineDraft && step === 3
+      ? buildVersionDiffSafe(baselineDraft, wizardReviewState)
+      : null
+  ), [baselineDraft, wizardReviewState, step]);
+
+  const consentImpact = useMemo(() => (
+    prefill?.supersedeType
+      ? previewConsentSupersedeImpact(prefill.supersedeType, { newVersion: version.trim() })
+      : null
+  ), [prefill?.supersedeType, version]);
+
+  const nextEditVersion = useMemo(
+    () => resolveNextConsentFormVersion({ mode: 'minor', fromVersion: record?.version || version }),
+    [record?.version, version],
+  );
 
   const doPublish = (confirmedVersion) => {
+    const publishedVersion = (confirmedVersion || version).trim();
     if (confirmedVersion) setVersion(confirmedVersion);
-    if (prefill && prefill.supersedeType) markTypeSuperseded(prefill.supersedeType);
+    if (prefill?.supersedeType) {
+      markTypeSuperseded(prefill.supersedeType, { newVersion: publishedVersion });
+    }
     setConfirmPublish(false);
-    onPublished?.({ name, code, version: confirmedVersion || version, newVersion });
+    setConfirmSave(false);
+    onPublished?.({ name, code, version: publishedVersion, newVersion });
     onClose?.();
   };
 
   const goNext = () => {
-    if (step < 2) setStep(step + 1);
+    if (step < 3) setStep(step + 1);
     else if (prefill?.fromVersion) {
       setPublishVersion(version.trim());
       setConfirmPublish(true);
+    } else if (!newVersion) {
+      setConfirmSave(true);
     } else {
       doPublish();
     }
@@ -1464,22 +2100,43 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
   const reorderSections = (from, to) =>
     setSections((prev) => {
       if (from == null || to == null || from === to || from < 0 || to < 0) return prev;
+      if (from >= prev.length || to > prev.length) return prev;
       const next = [...prev];
       const [moved] = next.splice(from, 1);
+      if (!moved) return prev;
       next.splice(to, 0, moved);
       return next;
     });
 
-  const nextLabel = step === 0 ? 'ถัดไป: เนื้อหาเอกสาร' : step === 1 ? 'ถัดไป: ตรวจสอบและเผยแพร่' : 'เผยแพร่';
+  const setPatientField = useCallback(
+    (key, checked) => setPatientFields((prev) => setFieldKey(prev, key, checked, DEFAULT_PATIENT_FIELD_KEYS)),
+    [],
+  );
+  const setSignatureField = useCallback(
+    (key, checked) => setSignatures((prev) => setFieldKey(prev, key, checked, DEFAULT_SIGNATURE_KEYS)),
+    [],
+  );
+
+  const nextLabel = step === 0
+    ? 'ถัดไป: ผู้ที่มีสิทธิเข้าถึงได้'
+    : step === 1
+      ? 'ถัดไป: เนื้อหาเอกสาร'
+      : step === 2
+        ? 'ถัดไป: ตรวจสอบและเผยแพร่'
+        : (newVersion ? 'เผยแพร่' : 'บันทึกการเปลี่ยนแปลง');
+  const canSubmit = canAdvance && (newVersion || step < 3 || hasChanges);
   const title = newVersion ? 'สร้างเวอร์ชันใหม่' : 'แก้ไขแบบฟอร์มความยินยอม';
   const subtitle = record
     ? `${record.code} · ${record.name}${prefill?.fromVersion ? ` · จาก ${prefill.fromVersion}` : ''}`
     : undefined;
 
   const requestClose = () => setConfirmCancel(true);
+  const morphHostRef = useRef(null);
+  useLocalHeaderMorph(morphHostRef, { enabled: open, reactive: false });
 
   return (
     <>
+      <ErrorBoundary compact>
       <Popup
         open={open}
         onClose={requestClose}
@@ -1490,68 +2147,124 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
         closeOnEscape={false}
         tertiaryAction={{ label: 'ยกเลิก', onClick: requestClose }}
         secondaryAction={step > 0 ? { label: 'ย้อนกลับ', onClick: () => setStep(step - 1) } : undefined}
-        primaryAction={{ label: nextLabel, onClick: goNext, disabled: !canAdvance }}
+        primaryAction={{ label: nextLabel, onClick: goNext, disabled: !canSubmit }}
+        bodyStyle={{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 }}
       >
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)', minHeight: 0 }}>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-            {prefill?.fromVersion && (
-              <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
-                สร้างเวอร์ชันใหม่จาก {prefill.fromVersion} → {prefill.version}
-              </ColorfulBadge>
-            )}
-          </div>
-          <StepProgress
-            steps={STEPS}
-            current={step}
+        <div
+          ref={morphHostRef}
+          className='flex flex-col w-full'
+          style={{
+            gap: 'var(--dim-space-400)',
+            minHeight: 0,
+            [POPUP_MORPH_VAR]: 0,
+            [POPUP_MORPH_MOTION_VAR]: 0,
+          }}
+        >
+          <ConsentFormEditPopupSteps
+            step={step}
             completedSteps={completedSteps}
-            onStepClick={(idx) => { if (idx < step || completedSteps[idx - 1]) setStep(idx); }}
-            className='w-full justify-center'
+            onStepClick={handleStepClick}
+            fromVersion={prefill?.fromVersion}
+            nextVersion={prefill?.version}
           />
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          <div
+            className='flex flex-col w-full'
+            style={{
+              gap: 'var(--dim-space-400)',
+              paddingLeft: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
+              paddingRight: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
+            }}
+          >
             {step === 0 && (
               <StepBasics
                 template={template} setTemplate={setTemplate} applyTemplate={applyTemplate}
                 cover={cover} setCover={setCover}
                 name={name} setName={setName} code={code} setCode={setCode}
                 type={type} setType={setType} version={version} setVersion={setVersion} ttl={ttl} setTtl={setTtl}
-                groupPolicy={groupPolicy} setGroupPolicy={setGroupPolicy}
-                subBranch={subBranch} setSubBranch={setSubBranch} dept={dept} setDept={setDept}
-                position={position} setPosition={setPosition}
+                showCodeSuggestions={!prefill?.code && newVersion}
+                showVersionSuggestions={!prefill?.code && !prefill?.fromVersion}
+                codeReadOnly={!newVersion}
+                versionReadOnly={!newVersion || Boolean(prefill?.fromVersion)}
+                versionHelperText={
+                  !newVersion
+                    ? 'จะมีการอัปเดตโดยอัตโนมัติหลังบันทึกการแก้ไข'
+                    : undefined
+                }
+                fromVersion={prefill?.fromVersion}
+                showTemplatePicker={false}
+                coverCardStyle={{ marginTop: 'var(--dim-space-600, 24px)' }}
+                basicsCardStyle={{ marginBottom: 'var(--dim-space-600, 24px)' }}
               />
             )}
             {step === 1 && (
-              <StepContent
-                patientFields={patientFields} togglePatient={toggleIn(setPatientFields)}
-                sections={sections} updateSection={updateSection} removeSection={removeSection}
-                reorderSections={reorderSections}
-                addSection={() => setSections((p) => [...p, makeSection()])}
-                signatures={signatures} toggleSignature={toggleIn(setSignatures)}
-                note={note} setNote={setNote}
-                requireGuardian={requireGuardian} setRequireGuardian={setRequireGuardian}
-                allowESign={allowESign} setAllowESign={setAllowESign}
+              <StepAccess
+                accessScopes={accessScopes} setAccessScopes={setAccessScopes}
+                position={position} setPosition={setPosition}
+                positionCardStyle={{ marginTop: 'var(--dim-space-600, 24px)' }}
+                scopeCardStyle={{ marginBottom: 'var(--dim-space-600, 24px)' }}
               />
             )}
             {step === 2 && (
-              <StepReview
-                name={name} code={code} type={type} version={version} ttl={ttl}
-                docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
+              <ErrorBoundary>
+              <StepContent
+                patientFields={patientFields}
+                setPatientField={setPatientField}
+                sections={sections} updateSection={updateSection} removeSection={removeSection}
+                reorderSections={reorderSections}
+                addSection={() => setSections((p) => [...p, makeSection()])}
+                signatures={signatures}
+                setSignatureField={setSignatureField}
+                note={note} setNote={setNote}
+                requireGuardian={requireGuardian} setRequireGuardian={setRequireGuardian}
+                allowESign={allowESign} setAllowESign={setAllowESign}
+                patientCardStyle={{ marginTop: 'var(--dim-space-600, 24px)' }}
+                notesCardStyle={{ marginBottom: 'var(--dim-space-600, 24px)' }}
               />
+              </ErrorBoundary>
+            )}
+            {step === 3 && (
+              <ErrorBoundary>
+                <StepReview
+                  name={name} code={code} type={type} version={version} ttl={ttl}
+                  docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
+                  note={note}
+                  fromVersion={prefill?.fromVersion}
+                  versionDiff={versionDiff}
+                  consentImpact={consentImpact}
+                  stackLayout
+                  reviewStepStyle={{
+                    marginTop: 'var(--dim-space-600, 24px)',
+                    marginBottom: 'var(--dim-space-600, 24px)',
+                  }}
+                />
+              </ErrorBoundary>
             )}
           </div>
         </div>
       </Popup>
 
-      <AlertDialog
+      <ConsentFormCancelEditPopup
         open={confirmCancel}
-        type='warning'
-        title='ยกเลิกการแก้ไขแบบฟอร์ม?'
-        description='ข้อมูลที่ยังไม่ได้บันทึกจะหายไป ต้องการปิดหน้าต่างนี้หรือไม่'
-        confirmLabel='ปิดหน้าต่าง'
-        cancelLabel='ทำต่อ'
         onConfirm={() => { setConfirmCancel(false); onClose?.(); }}
-        onCancel={() => setConfirmCancel(false)}
         onClose={() => setConfirmCancel(false)}
       />
+
+      <AlertDialog
+        open={confirmSave}
+        type='info'
+        title='ยืนยันบันทึกการเปลี่ยนแปลง'
+        confirmLabel='ตกลง'
+        cancelLabel='ยกเลิก'
+        onConfirm={() => doPublish(nextEditVersion)}
+        onCancel={() => setConfirmSave(false)}
+        onClose={() => setConfirmSave(false)}
+      >
+        <ConsentFormSaveConfirmBody
+          formCode={code || record?.code}
+          fromVersion={record?.version}
+          toVersion={nextEditVersion}
+        />
+      </AlertDialog>
 
       <AlertDialog
         open={confirmPublish}
@@ -1579,6 +2292,7 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
           />
         </div>
       </AlertDialog>
+      </ErrorBoundary>
     </>
   );
 }

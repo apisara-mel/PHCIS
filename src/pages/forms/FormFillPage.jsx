@@ -23,8 +23,9 @@ import {
   validateSignToken,
 } from '@/data/consentWorkflowStore';
 import { DEFAULT_SERVICE_CENTER_CHANNEL, MOBILE_APP_CHANNEL } from '@/data/consentChannels';
+import EDOCUMENT_NAV, { EDOCUMENT_BRAND_TITLE } from '@/pages/forms/edocumentNav';
 
-/* คลังแบบฟอร์ม — Fill page.
+/* คลังเอกสาร e-document — Fill page.
 
    Same surface for two callers:
      • Staff on desktop ("เจ้าหน้าที่กรอกในเครื่องนี้" from FormDetailPage)
@@ -405,9 +406,13 @@ const FormFillPage = () => {
   if (!form) {
     return (
       <div className='min-h-screen w-full flex bg-brand-50'>
-        <Sidebar activeKey='consent' />
+        <Sidebar
+          activeKey='edocument-catalog'
+          items={EDOCUMENT_NAV}
+          fallbackKey='edocument-dashboard'
+        />
         <main className='flex-1 flex flex-col min-w-0'>
-          <Header breadcrumb={['คลังแบบฟอร์ม', 'ไม่พบแบบฟอร์ม']} />
+          <Header breadcrumb={['คลังเอกสาร e-document', 'ไม่พบแบบฟอร์ม']} brandTitle={EDOCUMENT_BRAND_TITLE} />
           <div className='flex flex-1 items-center justify-center text-ink-tertiary'>
             ไม่พบแบบฟอร์มที่ตรงกับลิงก์นี้
           </div>
@@ -419,9 +424,13 @@ const FormFillPage = () => {
   if (tokenBlockReason) {
     return (
       <div className='min-h-screen w-full flex bg-brand-50'>
-        <Sidebar activeKey='consent' />
+        <Sidebar
+          activeKey='edocument-catalog'
+          items={EDOCUMENT_NAV}
+          fallbackKey='edocument-dashboard'
+        />
         <main className='flex-1 flex flex-col min-w-0'>
-          <Header breadcrumb={[form.name]} />
+          <Header breadcrumb={[form.name]} brandTitle={EDOCUMENT_BRAND_TITLE} />
           <div className='flex flex-1 flex-col items-center justify-center p-6' style={{ gap: 'var(--dim-space-300)' }}>
             <Icon name='link_off' size={40} color='var(--text-danger-default)' />
             <p style={{ margin: 0, fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-secondary)', textAlign: 'center' }}>
@@ -435,13 +444,17 @@ const FormFillPage = () => {
 
   const breadcrumb = role === 'patient'
     ? [form.name]
-    : ['คลังแบบฟอร์ม', category?.label || '', form.name, 'กรอกแบบฟอร์ม'].filter(Boolean);
+    : ['คลังเอกสาร e-document', category?.label || '', form.name, 'กรอกแบบฟอร์ม'].filter(Boolean);
 
   return (
     <div className='min-h-screen w-full flex bg-brand-50'>
-      <Sidebar activeKey='consent' />
+      <Sidebar
+        activeKey='edocument-catalog'
+        items={EDOCUMENT_NAV}
+        fallbackKey='edocument-dashboard'
+      />
       <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={breadcrumb} />
+        <Header breadcrumb={breadcrumb} brandTitle={EDOCUMENT_BRAND_TITLE} />
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           {/* Back link — staff only */}
           {role === 'staff' && !submitted && !declined && (
@@ -595,7 +608,7 @@ const FormFillPage = () => {
                 </NeutralSubdueButton>
                 {role === 'staff' && (
                   <BrandButton size='md' onClick={() => history.push('/forms')}>
-                    กลับไปคลังแบบฟอร์ม
+                    กลับไปคลังเอกสาร e-document
                   </BrandButton>
                 )}
               </div>
@@ -662,7 +675,7 @@ const FormFillPage = () => {
                     size='md'
                     onClick={() => history.push('/forms')}
                   >
-                    กลับไปคลังแบบฟอร์ม
+                    กลับไปคลังเอกสาร e-document
                   </BrandButton>
                 )}
               </div>
