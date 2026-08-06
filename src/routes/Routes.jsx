@@ -116,8 +116,10 @@ import SystemRoleCreatePage from '@/pages/system/SystemRoleCreatePage';
 import SystemOverviewPage from '@/pages/system/SystemOverviewPage';
 import SystemCentersPage from '@/pages/system/SystemCentersPage';
 import AddCenterPage from '@/pages/system/AddCenterPage';
+import SystemConfidentialDataPage from '@/pages/system/SystemConfidentialDataPage';
 import AuditOverviewPage from '@/pages/audit/AuditOverviewPage';
 import AuditLogPage from '@/pages/audit/AuditLogPage';
+import AuditRecordHistoryPage from '@/pages/audit/AuditRecordHistoryPage';
 import AuditPiiAccessLogPage from '@/pages/audit/AuditPiiAccessLogPage';
 import CreateDocTemplatePage from '@/pages/doc-template/CreateDocTemplatePage';
 import GroupPolicyPage from '@/pages/assess/GroupPolicyPage';
@@ -236,10 +238,14 @@ export default function Routes() {
         <Route exact path='/admin/staff/:id'    component={SystemStaffDetailPage} />
         <Route exact path='/admin/roles'        component={SystemRolesPage} />
         <Route exact path='/admin/roles/new'    component={SystemRoleCreatePage} />
+        <Route exact path='/admin/confidential-data'     component={SystemConfidentialDataPage} />
+        <Route exact path='/admin/confidential-data/:hn' component={SystemConfidentialDataPage} />
         {/* ระบบประวัติการใช้งาน (Audit / Activity log · Figma 0EDfjwf1 12:1624) —
             usage overview + history log. Top-level system, reached from the Hub. */}
         <Route exact path='/audit'           component={AuditOverviewPage} />
         <Route exact path='/audit/log'       component={AuditLogPage} />
+        <Route exact path='/audit/record-history'       component={AuditRecordHistoryPage} />
+        <Route exact path='/audit/record-history/:hn'   component={AuditRecordHistoryPage} />
         <Route exact path='/audit/pii-access' component={AuditPiiAccessLogPage} />
         {/* PHCIS | Assess-control — Group Policy (Figma 4D3nTx53 · 3:18430). */}
         <Route exact path='/assess/group-policy' component={GroupPolicyPage} />

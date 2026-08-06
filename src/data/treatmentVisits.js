@@ -139,6 +139,10 @@ const buildVisitDetailsForHn = (hn) => {
     date: v.date,
     center: v.center ?? null,
     cc: v.cc || DEFAULT_VISIT_DETAIL.cc,
+    dept: v.dept ?? null,
+    doctor: v.doctor ?? null,
+    dx: v.dx ?? null,
+    rx: v.rx ?? null,
   }));
 };
 

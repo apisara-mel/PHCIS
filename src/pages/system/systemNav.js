@@ -19,6 +19,8 @@ export const SYSTEM_NAV = [
   { key: 'assess-access-control', label: 'สิทธิการเข้าถึง',   icon: 'how_to_reg',       path: '/assess/access-control' },
   /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม (เพิ่ม/ยกเลิกสิทธิ) */
   { key: 'system-consent-access-rights', label: 'สิทธิตามความยินยอม', icon: 'verified_user', path: '/assess/consent-access-rights' },
+  /* EMR §1.4.2.1 — การจัดการข้อมูลลับ (ย้ายจาก ระบบประวัติการใช้งาน) */
+  { key: 'system-confidential-data', label: 'การจัดการข้อมูลลับ', icon: 'enhanced_encryption', path: '/admin/confidential-data' },
   { key: 'system-staff',          label: 'บุคลากร',          icon: 'group',            path: '/assess/users' },
 ];
 

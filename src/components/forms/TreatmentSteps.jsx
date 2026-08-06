@@ -58,7 +58,7 @@ import ExamNotesPanel from '@/components/examination/ExamNotesPanel';
    เพื่อไม่ให้ไฟล์นี้ (ใหญ่อยู่แล้ว) โตต่อและกัน conflict ระหว่าง agent */
 import LabRadiologyResultsPanel from '@/pages/treat/panels/LabRadiologyResultsPanel';
 import VaccineGrowthPanel from '@/pages/treat/panels/VaccineGrowthPanel';
-import AuditConfidentialPanel from '@/pages/treat/panels/AuditConfidentialPanel';
+import VisitJourneyPanel, { VisitJourneyStagePanel } from '@/pages/treat/panels/VisitJourneyPanel';
 import VisitAttachmentsPanel from '@/pages/treat/panels/VisitAttachmentsPanel';
 import ProblemListPanel from '@/pages/treat/panels/ProblemListPanel';
 import DiagnosisCodingPanel from '@/pages/treat/panels/DiagnosisCodingPanel';
@@ -175,6 +175,7 @@ import DoctorProfileAvatar, { DOCTOR_PROFILE_AVATAR_SRC } from '@/components/lay
    ───────────────────────────────────────────────────────────── */
 
 const HISTORY_TABS = [
+  'ภาพรวมการรักษา (ลงทะเบียน → ชำระเงิน)',
   'ผลการคัดกรองและซักประวัติ',
   'ผลการตรวจแล็บ',
   'ผลการ X-ray / RIS',
@@ -184,8 +185,13 @@ const HISTORY_TABS = [
      ตัวเองใน src/pages/treat/panels/ เพื่อไม่ให้ไฟล์นี้บวมต่อ */
   'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)',
   'วัคซีนและกราฟการเจริญเติบโต',
-  'ประวัติการบันทึก แก้ไข และข้อมูลลับ',
 ];
+
+const HISTORY_TAB_JOURNEY = 'ภาพรวมการรักษา (ลงทะเบียน → ชำระเงิน)';
+const HISTORY_TAB_SCREENING = 'ผลการคัดกรองและซักประวัติ';
+const HISTORY_TAB_LAB = 'ผลการตรวจแล็บ';
+const HISTORY_TAB_EXAM = 'ผลการตรวจร่างกาย';
+const HISTORY_TAB_DX = 'ผลการวินิจฉัย';
 
 /* The X-ray capsule is the one HISTORY_TABS entry with a real data source
    behind it (the RIS worklist), so it renders its own panel instead of the
@@ -196,7 +202,6 @@ const HISTORY_TAB_XRAY = 'ผลการ X-ray / RIS';
 /* EMR §1.4 tab → panel component (ไฟล์แยกใน src/pages/treat/panels/) */
 const HISTORY_TAB_LABRAD  = 'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)';
 const HISTORY_TAB_VACCINE = 'วัคซีนและกราฟการเจริญเติบโต';
-const HISTORY_TAB_AUDIT   = 'ประวัติการบันทึก แก้ไข และข้อมูลลับ';
 
 /* Step 5 "สั่งการรักษา" อยู่ที่ index 4 ใน STEP_RENDERERS — ใช้โดย CTA
    ของ empty state ในแท็บผลแล็บ ("ไปสั่งตรวจ") */
@@ -569,15 +574,36 @@ export const MedicalHistoryReadOnlyLayout = ({
      (NCD ฯลฯ) ไม่ส่งมา จึง fallback เป็นค่าคงที่เดิม — พฤติกรรมไม่เปลี่ยน */
   stepIndexes = null,
 }) => {
-  const visits = useMemo(() => findVisitDetailsByHn(patient?.hn), [patient?.hn]);
+  const pastVisits = useMemo(() => findVisitDetailsByHn(patient?.hn), [patient?.hn]);
+  const hasCurrentVisit = Boolean(form);
+  const visits = useMemo(() => {
+    if (!hasCurrentVisit) return pastVisits;
+    return [
+      {
+        ...pastVisits[0],
+        date: 'ครั้งนี้ (กำลังรักษา)',
+        isCurrent: true,
+        center: pastVisits[0]?.center ?? 'ศูนย์ 8 บางนา',
+      },
+      ...pastVisits,
+    ];
+  }, [hasCurrentVisit, pastVisits]);
+
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
   const selected = visits[selectedIndex] ?? visits[0];
+  const isCurrentVisit = Boolean(selected?.isCurrent);
 
   const dateItems = useMemo(
-    () => visits.map((v, i) => ({ id: `${v.date}-${i}`, date: v.date, center: v.center })),
+    () => visits.map((v, i) => ({
+      id: `${v.date}-${i}`,
+      date: v.date,
+      center: v.center,
+    })),
     [visits],
   );
+
+  const activeTabLabel = HISTORY_TABS[activeTab];
 
   return (
     <div
@@ -663,19 +689,57 @@ export const MedicalHistoryReadOnlyLayout = ({
           background: 'var(--border-neutral-tertiary, var(--border-card-default))',
         }} />
 
-        {HISTORY_TABS[activeTab] === HISTORY_TAB_XRAY ? (
+        {activeTabLabel === HISTORY_TAB_JOURNEY ? (
+          <VisitJourneyPanel
+            patient={patient}
+            visitDate={isCurrentVisit ? 'ครั้งนี้' : selected.date}
+            visitDetail={selected}
+            form={form}
+            isCurrentVisit={isCurrentVisit}
+          />
+        ) : activeTabLabel === HISTORY_TAB_XRAY ? (
           <XrayHistoryTabPanel patient={patient} />
-        ) : HISTORY_TABS[activeTab] === HISTORY_TAB_LABRAD ? (
+        ) : activeTabLabel === HISTORY_TAB_LABRAD ? (
           <LabRadiologyResultsPanel
             patient={patient}
             onGoToOrders={onStepChange
               ? () => onStepChange(stepIndexes?.orders ?? STEP_ORDERS_INDEX)
               : undefined}
           />
-        ) : HISTORY_TABS[activeTab] === HISTORY_TAB_VACCINE ? (
+        ) : activeTabLabel === HISTORY_TAB_VACCINE ? (
           <VaccineGrowthPanel patient={patient} form={form || {}} />
-        ) : HISTORY_TABS[activeTab] === HISTORY_TAB_AUDIT ? (
-          <AuditConfidentialPanel patient={patient} form={form || {}} />
+        ) : activeTabLabel === HISTORY_TAB_LAB ? (
+          <VisitJourneyStagePanel
+            patient={patient}
+            visitDate={isCurrentVisit ? 'ครั้งนี้' : selected.date}
+            visitDetail={selected}
+            form={form}
+            isCurrentVisit={isCurrentVisit}
+            stageKey='orders'
+            listKey='labs'
+            title='ผลการตรวจแล็บ'
+            emptyTitle='ยังไม่มีผลแล็บสำหรับครั้งนี้'
+          />
+        ) : activeTabLabel === HISTORY_TAB_EXAM ? (
+          <VisitJourneyStagePanel
+            patient={patient}
+            visitDate={isCurrentVisit ? 'ครั้งนี้' : selected.date}
+            visitDetail={selected}
+            form={form}
+            isCurrentVisit={isCurrentVisit}
+            stageKey='exam'
+            title='ผลการตรวจร่างกาย'
+          />
+        ) : activeTabLabel === HISTORY_TAB_DX ? (
+          <VisitJourneyStagePanel
+            patient={patient}
+            visitDate={isCurrentVisit ? 'ครั้งนี้' : selected.date}
+            visitDetail={selected}
+            form={form}
+            isCurrentVisit={isCurrentVisit}
+            stageKey='diagnosis'
+            title='ผลการวินิจฉัย'
+          />
         ) : (
         <>
         <VitalsSignHorizontalPanel

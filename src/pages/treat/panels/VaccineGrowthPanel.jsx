@@ -22,8 +22,8 @@ import {
   EPI_SCHEDULE, VACCINE_OPTIONS, VACCINE_REACTION_SUGGESTIONS, VACCINE_CANCEL_SUGGESTIONS,
   subscribeVaccines, vaccinesForPatient, findDuplicateVaccine,
   addVaccine, updateVaccine, cancelVaccine,
-  GROWTH_METRICS, GROWTH_PERCENTILE_KEYS, growthMeasurementsFor, growthBandsFor, computeBmi,
-  addGrowthMeasurement,
+  GROWTH_METRICS, GROWTH_PERCENTILE_KEYS, GROWTH_MOPH_ZONES, MOPH_CHART_AGE_MAX,
+  growthDisplayForPatient, growthBandsFor, computeBmi, addGrowthMeasurement, mophZoneFor,
 } from '@/data/treatmentVaccines';
 
 /* PHCIS | EMR §1.4.3.10 / §1.4.3.11 — ทะเบียนวัคซีนรายคน + กราฟการเจริญเติบโต.
@@ -34,29 +34,62 @@ import {
    ชุดข้อมูลจริงก่อนใช้งานทางคลินิก. */
 
 const PER_PAGE = 10;
-const MAX_GROWTH_AGE = 18;
 
-/* ── กราฟการเจริญเติบโต (SVG ในตัว — ข้อมูลเชิงสถิติ ไม่ใช่ icon) ── */
+/* ── กราฟการเจริญเติบโต (SVG — แถบสีตามเกณฑ์ กรมอนามัย / Facts for Life) ── */
 
-const CHART_W = 640;
-const CHART_H = 320;
-const PAD_L = 44;
-const PAD_B = 32;
-const PAD_T = 12;
-const PAD_R = 12;
+const CHART_W = 720;
+const CHART_H = 380;
+const PAD_L = 52;
+const PAD_B = 40;
+const PAD_T = 16;
+const PAD_R = 16;
 
-const BAND_FILLS = [
-  'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-  'var(--surface-brandPrimary-tertiary, #E2F3EB)',
-  'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-];
+const ZONE_FILL = {
+  red: 'var(--surface-colorfulbadge-red, #FEE2E2)',
+  orange: 'var(--surface-colorfulbadge-orange, #FFEDD5)',
+  green: 'var(--surface-colorfulbadge-green, #E2F3EB)',
+  yellow: 'var(--surface-colorfulbadge-yellow, #FEF9C3)',
+};
 
-const GrowthChart = ({ bands, points, unit }) => {
+const ZONE_STROKE = {
+  red: 'var(--surface-colorfulbadge-red-bold, #EF4444)',
+  orange: 'var(--surface-colorfulbadge-orange-bold, #F97316)',
+  green: 'var(--surface-colorfulbadge-green-bold, #54CF97)',
+  yellow: 'var(--surface-colorfulbadge-yellow-bold, #EAB308)',
+};
+
+const GrowthZoneLegend = ({ metric }) => {
+  const zones = GROWTH_MOPH_ZONES[metric] || GROWTH_MOPH_ZONES.weight;
+  return (
+    <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+      {zones.map((z) => (
+        <div
+          key={z.key}
+          className='flex items-center min-w-0'
+          style={{ gap: 'var(--dim-space-150, 6px)' }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 'var(--dim-size-300, 12px)',
+              height: 'var(--dim-size-300, 12px)',
+              borderRadius: 'var(--dim-radius-100, 4px)',
+              background: ZONE_FILL[z.tone] || ZONE_FILL.green,
+              border: `var(--dim-stroke-100, 1px) solid ${ZONE_STROKE[z.tone] || ZONE_STROKE.green}`,
+              flexShrink: 0,
+            }}
+          />
+          <span style={PANEL_LABEL_STYLE}>{z.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const GrowthChart = ({ bands, points, unit, metric, xMode = 'months' }) => {
   const hasBands = Array.isArray(bands) && bands.length > 0;
   const measured = points.filter((p) => Number.isFinite(p.value));
 
-  /* ไม่มีแถบอ้างอิง (เช่นแท็บ BMI ที่ยังไม่มี dataset BMI-for-age) →
-     วาดเฉพาะเส้นค่าที่วัดจริง ห้ามยืมแถบของค่าอื่นมาเทียบเด็ดขาด */
   if (!hasBands && measured.length === 0) {
     return (
       <PanelEmptyState
@@ -67,35 +100,53 @@ const GrowthChart = ({ bands, points, unit }) => {
     );
   }
 
-  const ages = hasBands ? bands.map((b) => b.age) : measured.map((p) => p.ageYears);
-  const minAge = Math.min(...ages);
-  const maxAge = Math.max(...ages);
+  const xKey = xMode === 'months' ? 'ageMonths' : 'age';
+  const pointX = (p) => (xMode === 'months' ? p.ageYears * 12 : p.ageYears);
+
+  const xs = hasBands
+    ? bands.map((b) => b[xKey] ?? b.ageMonths ?? b.age * 12)
+    : measured.map(pointX);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+
   const allVals = hasBands
     ? bands.flatMap((b) => GROWTH_PERCENTILE_KEYS.map((k) => b[k]))
     : [];
   const rawMin = Math.min(...allVals, ...measured.map((p) => p.value));
   const rawMax = Math.max(...allVals, ...measured.map((p) => p.value));
-  /* เผื่อขอบบน/ล่างเมื่อไม่มีแถบ ไม่งั้นเส้นจะแนบขอบกราฟจนอ่านไม่ออก */
   const padVal = hasBands ? 0 : ((rawMax - rawMin) || 1) * 0.15;
   const minVal = rawMin - padVal;
   const maxVal = rawMax + padVal;
   const span = maxVal - minVal || 1;
 
-  const x = (age) => PAD_L + ((age - minAge) / (maxAge - minAge || 1)) * (CHART_W - PAD_L - PAD_R);
+  const x = (xv) => PAD_L + ((xv - minX) / (maxX - minX || 1)) * (CHART_W - PAD_L - PAD_R);
   const y = (v) => PAD_T + (1 - (v - minVal) / span) * (CHART_H - PAD_T - PAD_B);
 
-  const lineFor = (key) => bands.map((b) => `${x(b.age)},${y(b[key])}`).join(' ');
+  const bandX = (b) => b[xKey] ?? b.ageMonths ?? b.age * 12;
 
-  /* พื้นที่ระหว่าง p3–p97 / p10–p90 / p25–p75 ให้อ่านแถบได้ง่าย */
-  const areaBetween = (lo, hi) => {
-    const up = bands.map((b) => `${x(b.age)},${y(b[hi])}`).join(' ');
-    const down = [...bands].reverse().map((b) => `${x(b.age)},${y(b[lo])}`).join(' ');
-    return `${up} ${down}`;
+  const valAt = (b, key) => {
+    if (!key) return null;
+    return b[key];
   };
 
-  const ageTicks = hasBands ? bands.map((b) => b.age) : [...new Set(measured.map((p) => p.ageYears))];
+  const areaBetweenKeys = (loKey, hiKey, fill) => {
+    const up = bands.map((b) => {
+      const hi = hiKey ? valAt(b, hiKey) : maxVal;
+      return `${x(bandX(b))},${y(hi ?? maxVal)}`;
+    }).join(' ');
+    const down = [...bands].reverse().map((b) => {
+      const lo = loKey ? valAt(b, loKey) : minVal;
+      return `${x(bandX(b))},${y(lo ?? minVal)}`;
+    }).join(' ');
+    return <polygon key={`${loKey}-${hiKey}`} points={`${up} ${down}`} fill={fill} opacity='0.85' />;
+  };
 
-  /* จุดวัดจริง — ข้ามค่าที่หายไป (ไม่ลากเส้นทะลุ) */
+  const zones = GROWTH_MOPH_ZONES[metric] || GROWTH_MOPH_ZONES.weight;
+
+  const ageTicks = xMode === 'months'
+    ? [0, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60].filter((m) => m >= minX && m <= maxX)
+    : [...new Set(bands.map((b) => b.age))];
+
   const segments = [];
   let current = [];
   points.forEach((p) => {
@@ -104,120 +155,118 @@ const GrowthChart = ({ bands, points, unit }) => {
   });
   if (current.length) segments.push(current);
 
-  const yTicks = 5;
+  const yTicks = 6;
+  const crossMark = (cx, cy, r = 5) => (
+    <g key={`x-${cx}-${cy}`}>
+      <line x1={cx - r} y1={cy - r} x2={cx + r} y2={cy + r} stroke='var(--border-dangerButton-default, #DC2626)' strokeWidth='2' />
+      <line x1={cx + r} y1={cy - r} x2={cx - r} y2={cy + r} stroke='var(--border-dangerButton-default, #DC2626)' strokeWidth='2' />
+    </g>
+  );
 
   return (
-    <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
-      <svg
-        width={CHART_W}
-        height={CHART_H}
-        viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-        role='img'
-        aria-label='กราฟการเจริญเติบโตเทียบแถบเปอร์เซ็นไทล์'
-        style={{ minWidth: CHART_W, display: 'block' }}
-      >
-        {hasBands ? (
-          <>
-            <polygon points={areaBetween('p3', 'p97')} fill={BAND_FILLS[0]} />
-            <polygon points={areaBetween('p10', 'p90')} fill={BAND_FILLS[1]} />
-            <polygon points={areaBetween('p25', 'p75')} fill={BAND_FILLS[2]} />
-          </>
-        ) : null}
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+      <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+        <svg
+          width={CHART_W}
+          height={CHART_H}
+          viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+          role='img'
+          aria-label='กราฟการเจริญเติบโตเทียบเกณฑ์กรมอนามัย'
+          style={{
+            minWidth: CHART_W,
+            display: 'block',
+            borderRadius: 'var(--dim-radius-300, 10px)',
+            border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+            background: 'var(--surface-neutral-primary, #FFFFFF)',
+          }}
+        >
+          {hasBands ? zones.map((z) => areaBetweenKeys(
+            z.lo,
+            z.hi,
+            ZONE_FILL[z.tone] || ZONE_FILL.green,
+          )) : null}
 
-        {/* แกน */}
-        <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={CHART_H - PAD_B} stroke='var(--border-neutral-tertiary, #E2E4E6)' strokeWidth='1' />
-        <line x1={PAD_L} y1={CHART_H - PAD_B} x2={CHART_W - PAD_R} y2={CHART_H - PAD_B} stroke='var(--border-neutral-tertiary, #E2E4E6)' strokeWidth='1' />
+          <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={CHART_H - PAD_B} stroke='var(--border-neutral-secondary, #C8CDD1)' strokeWidth='1.2' />
+          <line x1={PAD_L} y1={CHART_H - PAD_B} x2={CHART_W - PAD_R} y2={CHART_H - PAD_B} stroke='var(--border-neutral-secondary, #C8CDD1)' strokeWidth='1.2' />
 
-        {Array.from({ length: yTicks + 1 }).map((_, i) => {
-          const v = minVal + (span * i) / yTicks;
-          return (
-            <g key={i}>
+          {Array.from({ length: yTicks + 1 }).map((_, i) => {
+            const v = minVal + (span * i) / yTicks;
+            return (
+              <g key={i}>
+                <line
+                  x1={PAD_L} y1={y(v)} x2={CHART_W - PAD_R} y2={y(v)}
+                  stroke='var(--border-neutral-quaternary, #F4F5F5)' strokeWidth='1'
+                  strokeDasharray={i === 0 ? '' : '4 4'}
+                />
+                <text
+                  x={PAD_L - 8} y={y(v) + 4} textAnchor='end'
+                  fill='var(--text-content-secondary, #5C656D)'
+                  style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xxs, 10px)' }}
+                >
+                  {Math.round(v * 10) / 10}
+                </text>
+              </g>
+            );
+          })}
+
+          {ageTicks.map((tick) => (
+            <g key={tick}>
               <line
-                x1={PAD_L} y1={y(v)} x2={CHART_W - PAD_R} y2={y(v)}
+                x1={x(tick)} y1={PAD_T} x2={x(tick)} y2={CHART_H - PAD_B}
                 stroke='var(--border-neutral-quaternary, #F4F5F5)' strokeWidth='1'
               />
               <text
-                x={PAD_L - 6} y={y(v) + 4} textAnchor='end'
-                fill='var(--text-content-tertiary, #858C92)'
+                x={x(tick)} y={CHART_H - PAD_B + 16} textAnchor='middle'
+                fill='var(--text-content-secondary, #5C656D)'
                 style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xxs, 10px)' }}
               >
-                {Math.round(v * 10) / 10}
+                {xMode === 'months' ? tick : tick}
               </text>
             </g>
-          );
-        })}
+          ))}
 
-        {ageTicks.map((age) => (
+          {hasBands ? ['p3', 'p10', 'p50', 'p90', 'p97'].map((k) => (
+            <polyline
+              key={k}
+              points={bands.map((b) => `${x(bandX(b))},${y(b[k])}`).join(' ')}
+              fill='none'
+              stroke={k === 'p50' ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-neutral-tertiary, #E2E4E6)'}
+              strokeWidth={k === 'p50' ? 1.8 : 1}
+              strokeDasharray={k === 'p50' ? '' : '4 3'}
+              opacity={k === 'p50' ? 1 : 0.7}
+            />
+          )) : null}
+
+          {segments.filter((s) => s.length > 1).map((seg, i) => (
+            <polyline
+              key={`seg-${i}`}
+              points={seg.map((p) => `${x(pointX(p))},${y(p.value)}`).join(' ')}
+              fill='none'
+              stroke='var(--border-dangerButton-default, #DC2626)'
+              strokeWidth='2.2'
+            />
+          ))}
+          {measured.map((p, i) => crossMark(x(pointX(p)), y(p.value)))}
+
           <text
-            key={age}
-            x={x(age)} y={CHART_H - PAD_B + 14} textAnchor='middle'
-            fill='var(--text-content-tertiary, #858C92)'
-            style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xxs, 10px)' }}
+            x={PAD_L} y={PAD_T - 2} textAnchor='start'
+            fill='var(--text-content-secondary, #5C656D)'
+            style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs, 11px)', fontWeight: 'var(--type-weight-medium, 500)' }}
           >
-            {age}
+            {unit}
           </text>
-        ))}
-
-        {hasBands ? GROWTH_PERCENTILE_KEYS.map((k) => (
-          <polyline
-            key={k}
-            points={lineFor(k)}
-            fill='none'
-            stroke={k === 'p50' ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-neutral-tertiary, #E2E4E6)'}
-            strokeWidth={k === 'p50' ? 1.6 : 1}
-            strokeDasharray={k === 'p50' ? '' : '3 3'}
-          />
-        )) : null}
-
-        {/* เส้นค่าที่วัดจริง — ต่อเฉพาะช่วงที่มีค่าติดกัน */}
-        {segments.filter((s) => s.length > 1).map((seg, i) => (
-          <polyline
-            key={`seg-${i}`}
-            points={seg.map((p) => `${x(p.ageYears)},${y(p.value)}`).join(' ')}
-            fill='none'
-            stroke='var(--border-dangerButton-default, #DC2626)'
-            strokeWidth='2'
-          />
-        ))}
-        {measured.map((p, i) => (
-          <circle
-            key={`pt-${i}`}
-            cx={x(p.ageYears)} cy={y(p.value)} r='4'
-            fill='var(--surface-dangerButton-default, #B91C1C)'
-          />
-        ))}
-
-        <text
-          x={PAD_L} y={PAD_T + 2} textAnchor='start'
-          fill='var(--text-content-tertiary, #858C92)'
-          style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xxs, 10px)' }}
-        >
-          {unit}
-        </text>
-        <text
-          x={CHART_W - PAD_R} y={CHART_H - 4} textAnchor='end'
-          fill='var(--text-content-tertiary, #858C92)'
-          style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xxs, 10px)' }}
-        >
-          อายุ (ปี)
-        </text>
-      </svg>
+          <text
+            x={CHART_W - PAD_R} y={CHART_H - 6} textAnchor='end'
+            fill='var(--text-content-secondary, #5C656D)'
+            style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs, 11px)' }}
+          >
+            {xMode === 'months' ? 'อายุ (เดือน)' : 'อายุ (ปี)'}
+          </text>
+        </svg>
+      </div>
+      {hasBands ? <GrowthZoneLegend metric={metric} /> : null}
     </div>
   );
-};
-
-/* หาว่าค่าที่วัดตกอยู่ในแถบใด */
-const bandLabelFor = (bands, ageYears, value) => {
-  if (!Number.isFinite(value) || !bands.length) return null;
-  let ref = bands[0];
-  bands.forEach((b) => { if (b.age <= ageYears) ref = b; });
-  if (value < ref.p3) return { label: 'ต่ำกว่าเปอร์เซ็นไทล์ที่ 3', tone: 'red' };
-  if (value < ref.p10) return { label: 'ระหว่าง P3 – P10', tone: 'orange' };
-  if (value < ref.p25) return { label: 'ระหว่าง P10 – P25', tone: 'yellow' };
-  if (value < ref.p75) return { label: 'ระหว่าง P25 – P75 (เกณฑ์ปกติ)', tone: 'green' };
-  if (value < ref.p90) return { label: 'ระหว่าง P75 – P90', tone: 'yellow' };
-  if (value < ref.p97) return { label: 'ระหว่าง P90 – P97', tone: 'orange' };
-  return { label: 'สูงกว่าเปอร์เซ็นไทล์ที่ 97', tone: 'red' };
 };
 
 /* ── panel หลัก ─────────────────────────────────────────────── */
@@ -267,12 +316,28 @@ const VaccineGrowthPanel = ({ form, patient }) => {
     };
   }), [active, ageYears]);
 
-  const measurements = useMemo(() => growthMeasurementsFor(hn), [hn, growthTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const growthCtx = useMemo(() => growthDisplayForPatient(hn, ageYears), [hn, ageYears]);
+  const isDemo = growthCtx.mode === 'demo';
+  const chartGender = isDemo ? (growthCtx.gender || gender) : gender;
 
-  /* BMI ไม่มีชุด BMI-for-age ใน GROWTH_BANDS — ห้ามยืมแถบน้ำหนักตามอายุมาใช้
-     (kg/m² เทียบกับเกณฑ์หน่วย kg จะได้ผลแปลผลผิดแบบอันตราย) จึงไม่มีแถบเลย */
+  const measurements = useMemo(
+    () => growthCtx.measurements,
+    [growthCtx.measurements, growthTick], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const metricMeta = [...GROWTH_METRICS, { key: 'bmi', label: 'ดัชนีมวลกาย (BMI)', unit: 'kg/m²' }]
+    .find((m) => m.key === metric);
+  const metricOutOfAge = !isDemo && metricMeta?.maxAge != null
+    && Number.isFinite(ageYears) && ageYears > metricMeta.maxAge;
+  const showGrowthChart = isDemo || !metricOutOfAge;
+
+  /* BMI ไม่มีชุด BMI-for-age ใน GROWTH_BANDS — ห้ามยืมแถบน้ำหนักตามอายุมาใช้ */
   const bmiBandsMissing = metric === 'bmi';
-  const bands = bmiBandsMissing ? [] : growthBandsFor(gender, metric);
+  const useMophMonthly = !bmiBandsMissing && metric !== 'bmi'
+    && (GROWTH_METRICS.find((m) => m.key === metric)?.mophAgeMax ?? MOPH_CHART_AGE_MAX) === MOPH_CHART_AGE_MAX;
+  const bands = bmiBandsMissing
+    ? []
+    : growthBandsFor(chartGender, metric, { monthly: useMophMonthly && showGrowthChart });
 
   const growthPoints = useMemo(() => measurements.map((m) => {
     if (metric === 'bmi') {
@@ -283,18 +348,9 @@ const VaccineGrowthPanel = ({ form, patient }) => {
   }), [measurements, metric]);
 
   const latest = [...growthPoints].reverse().find((p) => Number.isFinite(p.value));
-  const latestBand = (latest && bands.length)
-    ? bandLabelFor(bands, latest.ageYears, latest.value)
+  const latestBand = (latest && bands.length && metric !== 'bmi')
+    ? mophZoneFor(metric, bands, latest.ageYears, latest.value)
     : null;
-
-  const outOfRange = Number.isFinite(ageYears) && ageYears > MAX_GROWTH_AGE;
-
-  /* เส้นรอบศีรษะใช้ติดตามถึงอายุ 5 ปีเท่านั้น — เกินนั้นแถบอ้างอิงหมด
-     ระบบจึงต้องบอกเหตุผล ไม่ใช่พล็อตจุดลอยนอกแถบเงียบ ๆ */
-  const metricMeta = [...GROWTH_METRICS, { key: 'bmi', label: 'ดัชนีมวลกาย (BMI)', unit: 'kg/m²' }]
-    .find((m) => m.key === metric);
-  const metricOutOfAge = metricMeta?.maxAge != null
-    && Number.isFinite(ageYears) && ageYears > metricMeta.maxAge;
 
   /* ค่าที่วัดวันนี้จากขั้นตอนคัดกรอง */
   const todayWeight = Number(form?.vitals?.weight);
@@ -490,21 +546,23 @@ const VaccineGrowthPanel = ({ form, patient }) => {
 
       {/* ── กราฟการเจริญเติบโต ──────────────────────────── */}
       <PanelCard
-        title='กราฟการเจริญเติบโต (0–18 ปี)'
-        subtitle='เทียบค่าที่วัดจริงกับแถบเปอร์เซ็นไทล์ P3–P97 แยกตามเพศ'
+        title='กราฟการเจริญเติบโต (0–5 ปี)'
+        subtitle='แถบสีตามเกณฑ์กรมอนามัย / Facts for Life — จุดกากบาท = ค่าที่วัดจริง'
         action={
-          <GuardedAction
-            allowed={canAddMeasurement}
-            reason={
-              !access.canEdit ? undefined
-                : !hasTodayValue ? 'ยังไม่มีน้ำหนัก/ส่วนสูงของวันนี้ — บันทึกสัญญาณชีพในขั้นตอนคัดกรองก่อน'
-                  : 'ไม่ทราบอายุของผู้รับบริการ จึงพล็อตลงกราฟตามอายุไม่ได้'
-            }
-          >
-            <NeutralSubdueButton variant='outline' size='sm' leadingIcon='add_chart' onClick={addTodayMeasurement}>
-              เพิ่มค่าที่วัดวันนี้ ({form?.vitals?.weight || '—'} กก. / {form?.vitals?.height || '—'} ซม.)
-            </NeutralSubdueButton>
-          </GuardedAction>
+          !isDemo ? (
+            <GuardedAction
+              allowed={canAddMeasurement}
+              reason={
+                !access.canEdit ? undefined
+                  : !hasTodayValue ? 'ยังไม่มีน้ำหนัก/ส่วนสูงของวันนี้ — บันทึกสัญญาณชีพในขั้นตอนคัดกรองก่อน'
+                    : 'ไม่ทราบอายุของผู้รับบริการ จึงพล็อตลงกราฟตามอายุไม่ได้'
+              }
+            >
+              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='add_chart' onClick={addTodayMeasurement}>
+                เพิ่มค่าที่วัดวันนี้ ({form?.vitals?.weight || '—'} กก. / {form?.vitals?.height || '—'} ซม.)
+              </NeutralSubdueButton>
+            </GuardedAction>
+          ) : null
         }
       >
         {growthSaved ? (
@@ -513,80 +571,91 @@ const VaccineGrowthPanel = ({ form, patient }) => {
           </PanelAlert>
         ) : null}
 
-        <PanelAlert tone='warning' icon='science' title='แถบเปอร์เซ็นไทล์เป็นชุดค่าประมาณ'>
-          ชุดข้อมูลอ้างอิงในเวอร์ชันนี้ยังไม่ใช่ dataset ทางการของสมาคมต่อมไร้ท่อเด็กและวัยรุ่นไทย — ใช้ประกอบการดูแนวโน้มเท่านั้น
-        </PanelAlert>
+        {isDemo ? (
+          <PanelAlert tone='info' icon='child_care' title='แสดงกราฟตัวอย่าง (เกณฑ์อ้างอิง)'>
+            {Number.isFinite(ageYears) && ageYears > 18
+              ? `ผู้รับบริการอายุ ${ageYears} ปี — กราฟการเจริญเติบโตใช้กับเด็ก 0–5 ปี ระบบจึงแสดงตัวอย่างจาก ${growthCtx.demoMeta?.label || 'เด็กตัวอย่าง'} (HN ${growthCtx.demoMeta?.hn}) เทียบเกณฑ์กรมอนามัย`
+              : `ยังไม่มีค่าวัดของผู้รับบริการรายนี้ — แสดงตัวอย่างจาก ${growthCtx.demoMeta?.label || 'เด็กตัวอย่าง'} (HN ${growthCtx.demoMeta?.hn})`}
+            {' '}
+            <a
+              href={growthCtx.demoMeta?.referenceUrl || 'https://cf.mahidol.ac.th/factsforlifethai/nutrition/graph05.html'}
+              target='_blank'
+              rel='noopener noreferrer'
+              style={{ color: 'var(--text-brandPrimary-default, #007549)', textDecoration: 'underline' }}
+            >
+              อ่านวิธีแปลผล (Facts for Life)
+            </a>
+          </PanelAlert>
+        ) : (
+          <PanelAlert tone='warning' icon='science' title='แถบสีเป็นชุดค่าประมาณสำหรับ prototype'>
+            ชุดข้อมูลอ้างอิงยังไม่ใช่ dataset ทางการของสมาคมต่อมไร้ท่อเด็กและวัยรุ่นไทย — ใช้ประกอบการดูแนวโน้มเท่านั้น
+          </PanelAlert>
+        )}
 
-        {outOfRange ? (
+        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          {[...GROWTH_METRICS, { key: 'bmi', label: 'ดัชนีมวลกาย (BMI)', unit: 'kg/m²' }].map((m) => (
+            <TabPill key={m.key} selected={metric === m.key} onClick={() => setMetric(m.key)}>
+              {m.label}
+            </TabPill>
+          ))}
+        </div>
+
+        {!showGrowthChart ? (
           <PanelEmptyState
             icon='block'
-            title={`ผู้รับบริการอายุ ${ageYears} ปี — ไม่อยู่ในช่วงที่ใช้กราฟนี้ (0–18 ปี)`}
-            subtitle='กราฟการเจริญเติบโตใช้สำหรับเด็กและวัยรุ่นเท่านั้น สำหรับผู้ใหญ่ให้ติดตามค่าดัชนีมวลกาย (BMI) จากสัญญาณชีพแทน'
+            title={`${metricMeta.label}ใช้ติดตามถึงอายุ ${metricMeta.maxAge} ปีเท่านั้น`}
+            subtitle={`ผู้รับบริการอายุ ${ageYears} ปี — เกินช่วงที่มีแถบอ้างอิง เลือกน้ำหนักหรือส่วนสูงตามอายุแทน`}
           />
-        ) : (
-          <>
-            <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              {[...GROWTH_METRICS, { key: 'bmi', label: 'ดัชนีมวลกาย (BMI)', unit: 'kg/m²' }].map((m) => (
-                <TabPill key={m.key} selected={metric === m.key} onClick={() => setMetric(m.key)}>
-                  {m.label}
-                </TabPill>
-              ))}
-            </div>
-
-            {metricOutOfAge ? (
-              <PanelEmptyState
-                icon='block'
-                title={`${metricMeta.label}ใช้ติดตามถึงอายุ ${metricMeta.maxAge} ปีเท่านั้น`}
-                subtitle={`ผู้รับบริการอายุ ${ageYears} ปี — เกินช่วงที่มีแถบเปอร์เซ็นไทล์อ้างอิง ระบบจึงไม่พล็อตค่าเพื่อไม่ให้แปลผลผิด เลือกน้ำหนักหรือส่วนสูงแทน`}
-              />
-            ) : growthPoints.length === 0 ? (
+        ) : growthCtx.mode === 'empty' && growthPoints.length === 0 ? (
               <PanelEmptyState
                 icon='monitoring'
                 title='ยังไม่มีค่าที่วัดของผู้รับบริการรายนี้'
                 subtitle='บันทึกน้ำหนัก/ส่วนสูงจากขั้นตอนคัดกรอง แล้วกด "เพิ่มค่าที่วัดวันนี้" เพื่อพล็อตลงกราฟ'
               />
-            ) : (
-              <>
-                {bmiBandsMissing ? (
-                  <PanelAlert tone='info' icon='info' title='แท็บ BMI ยังไม่มีแถบเปอร์เซ็นไทล์'>
-                    ระบบยังไม่มีชุดข้อมูล BMI-for-age (kg/m² ตามอายุ) จึงแสดงเป็นเส้นแนวโน้มอย่างเดียว
-                    และไม่แปลผลว่าอยู่แถบใด — การเทียบ BMI กับเกณฑ์น้ำหนักตามอายุให้ผลผิด จึงไม่ทำ
-                  </PanelAlert>
-                ) : null}
-                {growthPoints.filter((p) => Number.isFinite(p.value)).length === 1 ? (
-                  <PanelAlert tone='info' icon='scatter_plot' title='มีค่าที่วัดเพียงจุดเดียว'>
-                    ระบบจะพล็อตจุดบนแถบเปอร์เซ็นไทล์ให้ แต่ยังลากเส้นแนวโน้มไม่ได้จนกว่าจะมีการวัดครั้งที่ 2
-                  </PanelAlert>
-                ) : null}
-                {metric === 'bmi' && growthPoints.some((p) => (p.missing || []).length) ? (
-                  <PanelAlert tone='warning' icon='calculate' title='คำนวณ BMI ไม่ได้บางจุด'>
-                    การวัดบางครั้งขาด{[...new Set(growthPoints.flatMap((p) => p.missing || []))].join(' / ')} — ระบบข้ามจุดนั้นไป ไม่ลากเส้นทะลุ
-                  </PanelAlert>
-                ) : null}
+        ) : (
+          <>
+            {bmiBandsMissing ? (
+              <PanelAlert tone='info' icon='info' title='แท็บ BMI ยังไม่มีแถบเปอร์เซ็นไทล์'>
+                ระบบยังไม่มีชุดข้อมูล BMI-for-age (kg/m² ตามอายุ) จึงแสดงเป็นเส้นแนวโน้มอย่างเดียว
+              </PanelAlert>
+            ) : null}
+            {growthPoints.filter((p) => Number.isFinite(p.value)).length === 1 ? (
+              <PanelAlert tone='info' icon='scatter_plot' title='มีค่าที่วัดเพียงจุดเดียว'>
+                ระบบจะพล็อตจุดกากบาทบนแถบสีให้ แต่ยังลากเส้นแนวโน้มไม่ได้จนกว่าจะมีการวัดครั้งที่ 2
+              </PanelAlert>
+            ) : null}
+            {metric === 'bmi' && growthPoints.some((p) => (p.missing || []).length) ? (
+              <PanelAlert tone='warning' icon='calculate' title='คำนวณ BMI ไม่ได้บางจุด'>
+                การวัดบางครั้งขาด{[...new Set(growthPoints.flatMap((p) => p.missing || []))].join(' / ')} — ระบบข้ามจุดนั้นไป
+              </PanelAlert>
+            ) : null}
 
-                <GrowthChart
-                  bands={bands}
-                  points={growthPoints}
-                  unit={metric === 'bmi' ? 'kg/m²' : (GROWTH_METRICS.find((m) => m.key === metric)?.unit || '')}
-                />
+            <GrowthChart
+              bands={bands}
+              points={growthPoints}
+              metric={metric === 'bmi' ? 'weight' : metric}
+              unit={metric === 'bmi' ? 'kg/m²' : (GROWTH_METRICS.find((m) => m.key === metric)?.unit || '')}
+              xMode={useMophMonthly && metric !== 'bmi' ? 'months' : 'years'}
+            />
 
-                <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-                  <InfoPair label='ค่าล่าสุด' value={latest ? `${latest.value} ${metric === 'bmi' ? 'kg/m²' : GROWTH_METRICS.find((m) => m.key === metric)?.unit}` : '—'} />
-                  <InfoPair label='วันที่วัด' value={latest?.date} />
-                  <InfoPair label='อายุขณะวัด' value={latest ? `${latest.ageYears} ปี` : '—'} />
-                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)', minWidth: 220 }}>
-                    <span style={PANEL_LABEL_STYLE}>ตกอยู่ในแถบ</span>
-                    {latestBand
-                      ? <ColorfulBadge style={latestBand.tone} size='small' width='hug'>{latestBand.label}</ColorfulBadge>
-                      : (
-                        <span style={PANEL_VALUE_STYLE}>
-                          {bmiBandsMissing ? 'ยังไม่มีเกณฑ์ BMI ตามอายุให้เทียบ' : '—'}
-                        </span>
-                      )}
-                  </div>
-                </div>
-              </>
-            )}
+            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+              <InfoPair
+                label={isDemo ? 'ค่าล่าสุด (ตัวอย่าง)' : 'ค่าล่าสุด'}
+                value={latest ? `${latest.value} ${metric === 'bmi' ? 'kg/m²' : GROWTH_METRICS.find((m) => m.key === metric)?.unit}` : '—'}
+              />
+              <InfoPair label='วันที่วัด' value={latest?.date} />
+              <InfoPair label='อายุขณะวัด' value={latest ? `${Math.round(latest.ageYears * 12)} เดือน (${latest.ageYears} ปี)` : '—'} />
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)', minWidth: 220 }}>
+                <span style={PANEL_LABEL_STYLE}>ภาวะโภชนาการ (แถบสี)</span>
+                {latestBand
+                  ? <ColorfulBadge style={latestBand.tone} size='small' width='hug'>{latestBand.label}</ColorfulBadge>
+                  : (
+                    <span style={PANEL_VALUE_STYLE}>
+                      {bmiBandsMissing ? 'ยังไม่มีเกณฑ์ BMI ตามอายุให้เทียบ' : '—'}
+                    </span>
+                  )}
+              </div>
+            </div>
           </>
         )}
       </PanelCard>
