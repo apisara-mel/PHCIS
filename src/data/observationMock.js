@@ -218,7 +218,7 @@ export const isPhysicalBed = (patient) =>
 export const isBedAvailable = (patient) => patient?.status === 'empty';
 
 const BLANK_PATIENT_FIELDS = {
-  patientName: '', avatar: '', hn: '', vn: '', age: null, gender: '',
+  patientName: '', avatar: '', hn: '', vn: '', nationalId: '', age: null, gender: '',
   admitTime: '', dischargeTime: '', chiefComplaint: '', diagnosis: '',
   doctorName: '', nurseName: '', rights: '',
   vitalsTrend: [], statOrders: [], nursingNotes: [], dischargeSummary: null,
@@ -366,6 +366,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     avatar: '/avatars/patient-mock-01.png',
     hn: '67004128',
     vn: 'VN670728-091',
+    nationalId: '3101200456789',
     age: 58,
     gender: 'ชาย',
     admitTime: '2026-07-28 08:30 น.',
@@ -416,6 +417,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     avatar: '/avatars/patient-mock-02.png',
     hn: '67005932',
     vn: 'VN670728-104',
+    nationalId: '3101800987654',
     age: 72,
     gender: 'หญิง',
     admitTime: '2026-07-28 09:45 น.',
@@ -459,6 +461,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     avatar: '/avatars/patient-mock-03.png',
     hn: '67008120',
     vn: 'VN670728-052',
+    nationalId: '1100701123456',
     age: 9,
     gender: 'ชาย',
     admitTime: '2026-07-28 07:15 น.',
@@ -503,6 +506,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     avatar: '/avatars/patient-mock-04.png',
     hn: '67001099',
     vn: 'VN670728-112',
+    nationalId: '3101400567890',
     age: 64,
     gender: 'ชาย',
     admitTime: '2026-07-28 11:00 น.',

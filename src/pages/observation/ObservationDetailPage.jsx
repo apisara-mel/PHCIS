@@ -200,7 +200,9 @@ export default function ObservationDetailPage() {
      and storing the File object would imply a persistence that isn't
      there. Enough to prove the waiver was attached before discharge. */
   const [damaConsentFileName, setDamaConsentFileName] = useState('');
-  const [externalReferDraft, setExternalReferDraft] = useState(() => buildObservationExternalReferDraft(initialPatient));
+  const [externalReferDraft, setExternalReferDraft] = useState(() =>
+    buildObservationExternalReferDraft(initialPatient, { centerId }),
+  );
   /* Edge case #6 — second-stage confirmation shown when the clinician
      tries to finish while STAT orders are still 'pending'. */
   const [showPendingStatModal, setShowPendingStatModal] = useState(false);
@@ -595,7 +597,7 @@ export default function ObservationDetailPage() {
     setReferNote('');
     setDamaReason('');
     setDamaConsentFileName('');
-    setExternalReferDraft(buildObservationExternalReferDraft(patient));
+    setExternalReferDraft(buildObservationExternalReferDraft(patient, { centerId }));
     referPanels.reset();
     setShowReferModal(true);
   };

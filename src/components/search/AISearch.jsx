@@ -334,6 +334,9 @@ const AISearch = React.forwardRef(function AISearch(
     /** When true, swaps the right cluster for an inline spinner — used by
         the parent while an async query is in flight (e.g. ICD lookup). */
     loading = false,
+    /** When true, list stays in document flow (expands parent) instead of
+        absolute overlay — use inside Popup so the menu is not clipped. */
+    dropdownInFlow = false,
     'aria-label': ariaLabel = 'ค้นหา',
     className = '',
     style = {},
@@ -585,18 +588,23 @@ const AISearch = React.forwardRef(function AISearch(
           onMouseDown={(e) => e.preventDefault()}
           className='flex flex-col'
           style={{
-            /* Absolute-positioned so the dropdown floats over the
-               surrounding layout instead of pushing it down. Anchored
-               to the wrapper (position: relative). `top: calc(100% +
-               space/100)` keeps the same 4 px gap the previous in-flow
-               layout had. z-index 50 sits above page chrome but below
-               any system overlay (modal / toast). */
-            position: 'absolute',
-            top: 'calc(100% + var(--dim-space-100, 4px))',
-            left: 0,
-            right: 0,
-            zIndex: 50,
-            width: '100%',
+            /* Default: absolute overlay so the list floats over page
+               content. `dropdownInFlow`: stay in flow so Popup / overflow
+               parents grow instead of clipping the menu. */
+            ...(dropdownInFlow
+              ? {
+                  position: 'relative',
+                  width: '100%',
+                  marginTop: 'var(--dim-space-100, 4px)',
+                }
+              : {
+                  position: 'absolute',
+                  top: 'calc(100% + var(--dim-space-100, 4px))',
+                  left: 0,
+                  right: 0,
+                  zIndex: 50,
+                  width: '100%',
+                }),
             gap: 'var(--dim-space-050, 2px)',
             padding: 'var(--dim-space-100, 4px)',
             borderRadius: 'var(--dim-radius-500, 16px)',

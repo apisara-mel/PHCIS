@@ -45,14 +45,8 @@ import medicalCheckupAnim from '@/assets/illustrations/Medical checkup.json';
    empty state; the other in-form empty states (Steps 3 / 4) keep the
    "Medical checkup" doctor-with-patient scene imported above. */
 import firstaidKitAnim from '@/assets/illustrations/Firstaid Kit.json';
-/* `Aijson.json` is the Lottie export of Figma's "Ai" lockup
-   (PHCIS|Medical-examination 156:27360 / 335:36181) — a 68×68 stylised
-   "AI" letterform with pink-magenta gradient + ambient sparkles that
-   loop around the wordmark. Stored as the user-named source file
-   (kept verbatim so the asset folder maps 1:1 to what was dropped in)
-   but aliased to `doctorAiAnim` here for readability inside JSX. */
-import doctorAiAnim from '@/assets/illustrations/Aijson.json';
 import ExamSupportList from '@/components/examination/ExamSupportList';
+import DoctorAiIcdPanel from '@/components/search/DoctorAiIcdPanel';
 import ExamNotesPanel from '@/components/examination/ExamNotesPanel';
 /* EMR §1.4 panels — แต่ละอันเป็นไฟล์ของตัวเองใน src/pages/treat/panels/
    เพื่อไม่ให้ไฟล์นี้ (ใหญ่อยู่แล้ว) โตต่อและกัน conflict ระหว่าง agent */
@@ -74,8 +68,6 @@ import RadiologyOrderPanel from '@/pages/treat/panels/RadiologyOrderPanel';
 import ProcedureOrderPanel from '@/pages/treat/panels/ProcedureOrderPanel';
 import ConsultComposerPanel from '@/pages/treat/panels/ConsultComposerPanel';
 import DocumentCenterPanel from '@/pages/treat/panels/DocumentCenterPanel';
-import AISearch from '@/components/search/AISearch';
-import useSearchHistory from '@/components/search/useSearchHistory';
 import ReDiagnosisPopup from '@/components/popup/ReDiagnosisPopup';
 import ReMedicinePopup from '@/components/popup/ReMedicinePopup';
 import DeleteDiagnosisConfirmPopup from '@/components/popup/DeleteDiagnosisConfirmPopup';
@@ -1093,189 +1085,6 @@ export const Step3Examination = ({ form, setForm, patient }) => {
    ICD-10 table. All chrome aliased from existing components.
    ───────────────────────────────────────────────────────────── */
 
-/* Doctor AI wordmark gradient — Figma PHCIS|Medical-examination
-   156:27359 → child `Ai` lockup uses `from-[#6b83ff] via-[#a875ff]
-   to-[#ff7eb3]` for the "Doctor AI" text fill. The panel container's
-   surface + border now alias the design-system tokens published in
-   design.md §6.17.6b/c:
-     surface → --surface-card-indigo-100  (#F3F5FC)
-     border  → --border-doctor-ai-panel    (--color-indigo-500 / #6F82FF)
-   The three gradient stops below are still used for the wordmark text
-   only (Figma keeps them as literal fill stops, not yet aliased). */
-const DOCTOR_AI_GRADIENT_START  = '#6B83FF';
-const DOCTOR_AI_GRADIENT_MID    = '#A875FF';
-const DOCTOR_AI_GRADIENT_END    = '#FF7EB3';
-
-/* Doctor AI search box (Figma PHCIS|Medical-examination 156:27359 /
-   330:42665). Indigo-tinted card with a 2 px solid #6F82FF border
-   (aliased via the `--border-doctor-ai-panel` / `--surface-card-indigo-100`
-   tokens — design.md §6.17.6b). Items are CENTER-aligned per the Figma
-   spec so the wordmark, caption, and 640 px AISearch stack centrally
-   inside the 24 px padding. Contains: 68 px Doctor-AI Lottie + gradient
-   wordmark row, bold "ตัวช่วยค้นหารหัสการวินิจฉัย (ICD10)" caption
-   (h7), and the indigo AISearch shell (design system Figma 3396:1598).
-
-   The wrapped AISearch now drives the full discover-pick flow itself
-   via the standard typeahead pattern:
-     • Recent-history: `useSearchHistory('mih:doctor-ai-icd')` persists
-       the clinician's most recent committed queries to localStorage so
-       they reappear when the panel is reopened. Surfaced in Focus state
-       under the "ค้นหาล่าสุด" header with a `ล้างประวัติ` button.
-     • Suggestions: typed query filters `DEFAULT_ICD_SUGGESTIONS`
-       case-insensitively on both `code` and `name`. Each row stamps a
-       blue-bold ICD code badge (Figma 3396:1627 row layout) followed by
-       the diagnosis text. Picking a row commits its name and pushes a
-       rich-record into history (the leading badge survives re-render).
-   The wrapping form-state ICD table below the panel remains the single
-   source of truth for picked diagnoses — committing here only seeds the
-   text query; the caller still drives the table insert separately. */
-
-/* Helper — case-insensitive substring match on code OR name. Pre-computed
-   so we don't normalize the catalog on every keystroke. */
-const ICD_SEARCH_INDEX = DEFAULT_ICD_SUGGESTIONS.map((c) => ({
-  ...c,
-  haystack: `${c.code} ${c.name}`.toLowerCase(),
-}));
-
-/* Map a catalog row to AISearch's rich-record shape. `id` keys the
-   history dedupe (so "M54.9" stays unique across reloads), `label` is
-   the diagnosis name shown in the row text, `badge` is the ICD code
-   prefix (rendered inside the 64 px fixed badge column per Figma
-   3396:1627 / 3401:4292), `value` is what gets committed into the input
-   on Enter / row click. */
-const icdToRow = (c) => ({
-  id:         c.code,
-  label:      c.name,
-  badge:      c.code,
-  badgeStyle: 'blue',
-  value:      c.name,
-});
-
-const DoctorAiPanel = ({ value, onChange, onSubmit }) => {
-  const search = useSearchHistory('mih:doctor-ai-icd', { limit: 8 });
-  const suggestions = useMemo(() => {
-    const q = (value || '').trim().toLowerCase();
-    if (!q) return undefined; // undefined → AISearch falls back to history rows in typing
-    return ICD_SEARCH_INDEX
-      .filter((c) => c.haystack.includes(q))
-      .slice(0, 8)
-      .map(icdToRow);
-  }, [value]);
-
-  return (
-  <div
-    className='flex flex-col items-center'
-    style={{
-      /* Panel hugs its widest child (the fixed 640 px AISearch + 24 px
-         horizontal padding) instead of stretching to the form column
-         width. Tailwind 2.1 doesn't ship `w-fit`, so set `fit-content`
-         inline alongside the rest of the panel chrome tokens. */
-      width: 'fit-content',
-      gap: 'var(--dim-space-200)',
-      padding: 'var(--dim-space-600)',
-      borderRadius: 'var(--dim-radius-500)',
-      /* Standalone chrome from Figma PHCIS|Medical-examination 339:36797 —
-         intentionally NOT aliased to design tokens (per product spec for
-         this panel only). Borderless: the surface is just a left→right
-         linear gradient between two 20%-alpha indigo/magenta stops to
-         give the Doctor AI panel a subtle wash. */
-      background:
-        'linear-gradient(to right, rgba(111, 130, 255, 0.2) 0%, rgba(192, 120, 234, 0.2) 100%)',
-    }}
-  >
-    {/* Wordmark row — Figma node 156:27360 ("Ai" lockup). Lays out the
-        68×68 animated AI mark + gradient "Doctor AI" wordmark on a
-        single row with the 8px gap from `--dim-space-200`. The outer
-        panel is `flex flex-col gap-200`, so this row + the caption +
-        the PrimarySearch each sit on their own line, matching Figma
-        node 156:27359's flex-col composition. */}
-    <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-      {/* Doctor-AI mark — Lottie export of Figma node 335:36181 ("Ai"
-          icon). Renders the animated "AI" letterform with pink-magenta
-          gradient and the orbiting sparkles. `LottieIllustration`
-          handles mount/destroy + SVG renderer + reduced-motion-safe
-          loop. 68px matches Figma's `size-[68px]` exactly so the icon
-          stays in lockstep with the wordmark height. */}
-      <LottieIllustration
-        animationData={doctorAiAnim}
-        size={68}
-        ariaLabel='Doctor AI'
-      />
-      <span
-        style={{
-          /* Sarabun (the project's only loaded family) — Inter is the
-             Figma spec but isn't @font-face'd anywhere in this app, so
-             setting `font-family: Inter` would fall back to system-ui.
-             Sarabun Medium reads as the closest visually-loaded match. */
-          fontFamily: 'var(--type-family-heading-content)',
-          fontWeight: 'var(--type-weight-medium)',
-          fontSize: 20,
-          letterSpacing: '-0.7px',
-          lineHeight: 1.5,
-          background: `linear-gradient(to right, ${DOCTOR_AI_GRADIENT_START} 0%, ${DOCTOR_AI_GRADIENT_MID} 50%, ${DOCTOR_AI_GRADIENT_END} 100%)`,
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        Doctor AI
-      </span>
-    </div>
-
-    {/* Caption row — Figma node 156:27361. h7 type (Sarabun BOLD 14 /
-        heading-content) on content-default color. Copy updated from the
-        shorter "ค้นหารหัสโรค" placeholder to the canonical
-        "ตัวช่วยค้นหารหัสการวินิจฉัย (ICD10)" — matches Figma 156:27359
-        exactly and reads as a sub-heading rather than a hint string. */}
-    <span style={{
-      fontFamily: 'var(--type-family-heading-content)',
-      fontWeight: 'var(--type-weight-bold)',
-      fontSize: 'var(--type-size-sm)',
-      color: 'var(--text-content-default)',
-      lineHeight: 1.5,
-    }}>
-      ตัวช่วยค้นหารหัสการวินิจฉัย (ICD10)
-    </span>
-
-    {/* Indigo-themed AI Search shell — Figma MIH-DS Foundation 3396:1598.
-        Aliases the `--border-aiSearch-*` / `--icon-aiSearch-*` semantic
-        tokens (design.md §6.17.6b) and the `--shadow-indigo-drop-bottom-200`
-        drop, so the entire panel retints atomically when those tokens
-        change. History dropdown is intentionally empty — Doctor-AI
-        searches are session-scoped (no recent-search list), and the
-        ICD table below the panel is the single source of truth for
-        picked diagnoses.
-
-        Width: fixed 640 px (Figma 156:27359 / 330:42665). `AISearch`'s
-        `width` prop sets both `width` AND `maxWidth` to the same value,
-        so the bar is exactly 640 px wide and centred inside the
-        `items-center` panel — never grows with the typed query, never
-        shrinks below the design floor. */}
-    <AISearch
-      value={value || ''}
-      onChange={(next) => onChange?.(next)}
-      onSubmit={(next, picked) => {
-        /* Commit path — push the rich record (so the leading badge
-           survives re-render) when the user picks an ICD row, or fall
-           back to the raw query string for free-text submits. Parent
-           still gets the same `next` callback for any side-effects
-           (e.g. routing the value into the diagnosis table). */
-        search.push(picked || next);
-        onSubmit?.(next, picked);
-      }}
-      history={search.history}
-      onClearHistory={search.history.length > 0 ? search.clear : undefined}
-      suggestions={suggestions}
-      historyEmptyMessage='ยังไม่มีประวัติการค้นหารหัส ICD-10'
-      emptyMessage='ไม่พบรหัสที่ตรงกับคำค้น'
-      aria-label='ค้นหารหัส ICD-10'
-      width={640}
-    />
-  </div>
-  );
-};
-
 /* Read-only chip pattern used by the บันทึกจากการตรวจร่างกาย summary
    to mirror the attachment cards from Step 3 without re-using
    DragAndDrop's editable variant. */
@@ -1809,14 +1618,13 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient }) => {
         >
           <span style={{ ...STEP4_ICD_TITLE_STYLE, alignSelf: 'flex-start' }}>รหัสการวินิจฉัย (ICD10)</span>
 
-        <DoctorAiPanel
+        <DoctorAiIcdPanel
           value={form.icdQuery}
           onChange={set('icdQuery')}
           /* Picked an ICD suggestion → open the confirm-add popup so
              the clinician explicitly OKs the row before it lands in
              the diagnosis table. `picked.badge` carries the ICD code
-             (per the icdToRow shape in DoctorAiPanel), `picked.label`
-             carries the diagnosis name. */
+             (per icdToRow), `picked.label` carries the diagnosis name. */
           onSubmit={(_next, picked) => {
             if (!picked) return;
             const code = picked.badge ?? picked.id;
