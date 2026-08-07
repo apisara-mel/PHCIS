@@ -1,41 +1,54 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import StatusBadge from '@/components/badge/StatusBadge';
-import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import SelectableTag from '@/components/forms/SelectableTag';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Popup from '@/components/popup/Popup';
+import { useNestedPopupPanel } from '@/components/popup/useNestedPopupPanel';
+import {
+  InternalReferFields,
+  listInternalReferDepartments,
+  listInternalReferServicePoints,
+  resolveInternalReferLabels,
+} from '@/components/popup/InternalReferPopup';
 import Alert from '@/components/alert/Alert';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
-import EwsScoreBadge from '@/components/observation/EwsScoreBadge';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   MOCK_OBSERVATION_PATIENTS,
-  EWS_RISK_TIERS,
-  EWS_RED_ALERT_SCORE,
-  EWS_SCALES,
-  EWS_SYSTEM_LABEL,
   getOutOfRangeVitals,
   getPendingStatOrders,
-  scorePatientVitals,
   buildObservationTimeline,
   observationDayOffset,
   formatObservationDateTime,
   BLANK_OBSERVATION_VITALS_FORM,
   vitalsTimelineCells,
 } from '@/data/observationMock';
+import {
+  resolveVitalSnapshotTone,
+  vitalSnapshotValueColor,
+} from '@/data/vitalDisplayTone';
 import Pagination from '@/components/pagination/Pagination';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
-import Footer from '@/components/layout/Footer';
+import { MIH_CHROME_MORPH_FOOTER } from '@/components/layout/wizardChromeMorphStyles';
 import SuccessToast from '@/components/toast/SuccessToast';
+import ConsentFormCancelEditPopup from '@/components/popup/ConsentFormCancelEditPopup';
 import PatientCard from '@/components/card/PatientCard';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import AddVitalsModal, { VITALS_NOTE_SUGGESTIONS } from '@/components/observation/AddVitalsModal';
+import ObservationExternalReferForm, {
+  buildObservationExternalReferDraft,
+  externalReferHospitalLabel,
+  flattenExternalReferForSave,
+  isObservationExternalReferIncomplete,
+} from '@/components/observation/ObservationExternalReferForm';
+import { blankReferral, saveReferral } from '@/data/treatmentRefer';
+import { DEFAULT_CLINIC_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
 
 /* Matches the OPD queue table's own page size (QueuePage.jsx PAGE_SIZE). */
 const VITALS_PAGE_SIZE = 20;
@@ -100,33 +113,6 @@ const LAB_ORDER_SUGGESTIONS = [
 const STAT_DOSE_QUICK_TAGS = ['Berodual Nebulizer', 'Paracetamol IV', 'Amlodipine Oral'];
 const LAB_ORDER_QUICK_TAGS = ['Stat CBC', 'Electrolyte', 'Amylase', 'EKG 12 leads'];
 
-/* "ส่งต่อ" (Refer) popup's target lists. Internal mirrors the Sidebar's
-   own department set (@/components/layout/Sidebar.jsx ITEMS 'treat'
-   subItems) plus ward-level destinations that list doesn't carry
-   (Admit IPD, ER, ICU) — those wards aren't OPD sub-departments so they
-   never appeared there. External reuses the same hospital list the old
-   inline "Refer Hospital Selector" offered. */
-const REFER_DEPARTMENT_PLACEHOLDER = '-- เลือกแผนกปลายทาง --';
-const INTERNAL_REFER_DEPARTMENTS = [
-  REFER_DEPARTMENT_PLACEHOLDER,
-  'ตึกผู้ป่วยใน (Admit IPD)',
-  'ห้องฉุกเฉิน (ER)',
-  'ICU',
-  'ตรวจรักษาทั่วไป (OPD)',
-  'แผนกฝากครรภ์ (ANC)',
-  'แผนกทันตกรรม',
-  'แผนกวัณโรค',
-  'แผนกสุขภาพจิตและคลินิกสุขภาพจิต',
-];
-const EXTERNAL_REFER_HOSPITALS_PLACEHOLDER = '-- เลือกโรงพยาบาลส่งต่อ --';
-const EXTERNAL_REFER_HOSPITALS = [
-  EXTERNAL_REFER_HOSPITALS_PLACEHOLDER,
-  'โรงพยาบาลตากสิน',
-  'โรงพยาบาลเจริญกรุงประชารักษ์',
-  'โรงพยาบาลกลาง',
-  'โรงพยาบาลศิริราช',
-];
-
 const NURSING_NOTE_SUGGESTIONS = [
   'ผู้ป่วยรู้สึกตัวดี ไม่มีอาการแน่นหน้าอกเพิ่ม สัญญาณชีพคงที่',
   'พ่นยาขยายหลอดลมตามแผนการรักษา ฟังเสียงปอด Wheezing ลดลง',
@@ -173,6 +159,8 @@ const OBSERVATION_STEP_KEYS = ['vitals', 'discharge'];
 
 
 export default function ObservationDetailPage() {
+  const clinicCtx = useClinicFilter();
+  const centerId = clinicCtx?.clinic || DEFAULT_CLINIC_VALUE;
   const { id } = useParams();
   const history = useHistory();
 
@@ -200,18 +188,36 @@ export default function ObservationDetailPage() {
      patient is leaving of their own accord, so there IS no destination
      to pick — instead the popup demands a signed waiver + a reason. */
   const [showReferModal, setShowReferModal] = useState(false);
+  /* Nested drill-down inside ส่งต่อผู้ป่วย Popup — chooser (tags) → detail. */
+  const referPanels = useNestedPopupPanel('chooser');
   const [referScope, setReferScope] = useState('internal');
   const [referDepartment, setReferDepartment] = useState('');
+  const [referServicePoint, setReferServicePoint] = useState('');
+  /* Optional free-text note on internal refer — not required to confirm. */
+  const [referNote, setReferNote] = useState('');
   const [damaReason, setDamaReason] = useState('');
   /* Only the file NAME is kept — this is a mock with no upload backend,
      and storing the File object would imply a persistence that isn't
      there. Enough to prove the waiver was attached before discharge. */
   const [damaConsentFileName, setDamaConsentFileName] = useState('');
+  const [externalReferDraft, setExternalReferDraft] = useState(() =>
+    buildObservationExternalReferDraft(initialPatient, { centerId }),
+  );
   /* Edge case #6 — second-stage confirmation shown when the clinician
      tries to finish while STAT orders are still 'pending'. */
   const [showPendingStatModal, setShowPendingStatModal] = useState(false);
   const [vitalsPage, setVitalsPage] = useState(1);
   const [draftSavedToast, setDraftSavedToast] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  /* True once the session wrote a new vitals / note / STAT order into the
+     in-memory record. Used with discharge-form dirty check so Cancel can
+     exit without a confirm popup when nothing was actually changed. */
+  const [recordMutated, setRecordMutated] = useState(false);
+  const initialDischargeRef = useRef({
+    doctorSummary: initialPatient.dischargeSummary?.doctorSummary || '',
+    dischargeAdvice: initialPatient.dischargeSummary?.dischargeAdvice || '',
+    referHospital: initialPatient.dischargeSummary?.referHospital || '',
+  });
   /* Message text, or '' when no toast is showing. */
   const [saveToast, setSaveToast] = useState('');
   /* VitalCard/PressureCard's `required` prop only renders the asterisk —
@@ -240,9 +246,10 @@ export default function ObservationDetailPage() {
     referHospital: patient.dischargeSummary?.referHospital || '',
   });
 
-  // Calculate EWS for latest vitals
   const latestVitals = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
-  const currentEws = latestVitals ? scorePatientVitals(patient, latestVitals) : { score: 0, tier: EWS_RISK_TIERS.NORMAL, scale: null };
+  const latestEsi = latestVitals?.esi != null && latestVitals?.esi !== ''
+    ? Number(latestVitals.esi)
+    : null;
 
   /* Observation Timeline — merges vitalsTrend + nursingNotes + statOrders
      into one chronological feed so every timestamp shows its vital signs,
@@ -331,30 +338,11 @@ export default function ObservationDetailPage() {
       esi: Number(newVital.esi),
     };
 
-    /* Deterioration Event (edge case #1) — same crossing-detection as
-       ObservationQueuePage's own vitals save: only the reading that
-       first pushes EWS over the red-alert line writes an event, so a
-       patient who stays critical doesn't log one per measurement. */
-    const prevLatest = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
-    const prevScore = prevLatest ? scorePatientVitals(patient, prevLatest).score : 0;
-    const newScore = scorePatientVitals(patient, newLog).score;
-    const isDeterioration = newScore >= EWS_RED_ALERT_SCORE && prevScore < EWS_RED_ALERT_SCORE;
-    if (isDeterioration) newLog.deteriorationEvent = true;
-
     setPatient((prev) => ({
       ...prev,
       vitalsTrend: [...prev.vitalsTrend, newLog],
-      nursingNotes: isDeterioration
-        ? [
-            ...prev.nursingNotes,
-            {
-              time: nowStr,
-              nurse: prev.nurseName,
-              note: `Deterioration Event: ${EWS_SYSTEM_LABEL} พุ่งขึ้นเป็น ${newScore} (จากเดิม ${prevScore}) — ระบบบันทึกอัตโนมัติ ให้รายงานแพทย์ผู้ดูแลด่วนและพิจารณาย้ายเข้าห้องฉุกเฉิน`,
-            },
-          ]
-        : prev.nursingNotes,
     }));
+    setRecordMutated(true);
 
     setNewVital({ ...BLANK_OBSERVATION_VITALS_FORM });
     setVitalFieldValidity({});
@@ -388,6 +376,7 @@ export default function ObservationDetailPage() {
       ...prev,
       statOrders: [...prev.statOrders, newOrd],
     }));
+    setRecordMutated(true);
 
     setNewOrderText('');
   };
@@ -435,6 +424,7 @@ export default function ObservationDetailPage() {
       ...prev,
       nursingNotes: [...prev.nursingNotes, newNote],
     }));
+    setRecordMutated(true);
 
     setNewNursingNote('');
   };
@@ -466,8 +456,13 @@ export default function ObservationDetailPage() {
          signed waiver and the patient's stated reason (edge case #3). */
       ? (!damaConsentFileName || !damaReason.trim())
       : referScope === 'internal'
-      ? (!referDepartment || referDepartment === REFER_DEPARTMENT_PLACEHOLDER)
-      : (!dischargeForm.referHospital || dischargeForm.referHospital === EXTERNAL_REFER_HOSPITALS_PLACEHOLDER);
+      ? !String(referDepartment || '').trim() || !String(referServicePoint || '').trim()
+      : isObservationExternalReferIncomplete(externalReferDraft);
+
+  /* Read live catalogs each render — assess departments + queue stations
+     mutate in place / localStorage, so a stale memo would hide CRUD. */
+  const referDepartmentOptions = listInternalReferDepartments(centerId);
+  const referServicePointOptions = listInternalReferServicePoints();
 
   /* SuggestibleTextarea's `required` prop is cosmetic only (asterisk) —
      same gap as VitalCard/Select — so the ส่งต่อ button gates on this
@@ -486,6 +481,25 @@ export default function ObservationDetailPage() {
      discharge, false lets them stand on the record as unexecuted. */
   const commitDischarge = ({ cancelPendingOrders = false } = {}) => {
     if (isDoctorSummaryMissing || isReferTargetMissing) return;
+    const referHospitalLabel = referScope === 'external'
+      ? externalReferHospitalLabel(externalReferDraft)
+      : '';
+    if (referScope === 'external') {
+      const flat = flattenExternalReferForSave(externalReferDraft);
+      saveReferral({
+        ...blankReferral({
+          hn: patient.hn,
+          name: patient.patientName,
+          rights: patient.rights,
+        }),
+        ...flat,
+        hn: flat.hn || patient.hn,
+        name: flat.name || patient.patientName,
+        rights: flat.rights || patient.rights,
+        direction: 'out',
+        status: 'sent',
+      });
+    }
     const now = new Date();
     const nowStr = formatObservationDateTime(now).split(' ').slice(1).join(' ');
     setPatient((prev) => ({
@@ -513,8 +527,23 @@ export default function ObservationDetailPage() {
            routine discharge home — so downstream reports can count it. */
         disposition: isDama ? 'dama' : 'refer',
         referScope,
-        referDepartment: referScope === 'internal' ? referDepartment : '',
-        referHospital: referScope === 'external' ? dischargeForm.referHospital : '',
+        referDepartment: referScope === 'internal'
+          ? resolveInternalReferLabels({
+              departmentId: referDepartment,
+              servicePointId: referServicePoint,
+              centerId,
+            }).departmentLabel
+          : '',
+        referServicePoint: referScope === 'internal'
+          ? resolveInternalReferLabels({
+              departmentId: referDepartment,
+              servicePointId: referServicePoint,
+              centerId,
+            }).servicePointLabel
+          : '',
+        referNote: referScope === 'internal' ? referNote.trim() : '',
+        referHospital: referHospitalLabel,
+        externalReferForm: referScope === 'external' ? { ...externalReferDraft } : null,
         doctorSummary: isDama
           ? (dischargeForm.doctorSummary.trim() || `ผู้ป่วยปฏิเสธการรักษาและขอกลับบ้าน (DAMA) — ${damaReason.trim()}`)
           : dischargeForm.doctorSummary,
@@ -548,10 +577,9 @@ export default function ObservationDetailPage() {
     { title: 'สรุปผลการสังเกตอาการ', subtitle: 'Discharge Summary' },
   ];
 
-  /* Bottom CTA bar — same shared <Footer type='with BTN' sticky> pattern
-     as the OPD screening wizard, so every step (free-navigation dashboard
-     though these tabs are) ends in a consistent forward action. Final
-     step's primary button IS the discharge action instead of "ถัดไป". */
+  /* Sticky bottom action bar — same layout as CreateConsentFormPage: ยกเลิก
+     exits to the observation queue, ย้อนกลับ moves to the previous tab.
+     Final step's primary button opens the discharge/refer flow. */
   const currentStepIdx = OBSERVATION_STEP_KEYS.indexOf(activeTab);
   const isFirstStep = currentStepIdx === 0;
   const isLastStep = currentStepIdx === OBSERVATION_STEP_KEYS.length - 1;
@@ -560,24 +588,64 @@ export default function ObservationDetailPage() {
     setActiveTab(OBSERVATION_STEP_KEYS[Math.min(OBSERVATION_STEP_KEYS.length - 1, currentStepIdx + 1)]);
   const nextStepTitleTh = observationSteps[currentStepIdx + 1]?.title || '';
   const footerPrimaryLabel = isLastStep ? 'ส่งต่อ' : `ถัดไป: ${nextStepTitleTh}`;
-  const handleFooterPrimaryClick = () => {
-    if (isLastStep) {
-      /* Reset to a blank pick every open — mirrors handleOpenVitalsModal so
-         a previous referral's target doesn't silently carry over. */
-      setReferScope('internal');
-      setReferDepartment('');
-      setDamaReason('');
-      setDamaConsentFileName('');
-      setShowReferModal(true);
-    } else {
-      goNextStep();
-    }
+  const openReferModal = () => {
+    /* Reset to a blank pick every open — mirrors handleOpenVitalsModal so
+       a previous referral's target doesn't silently carry over. */
+    setReferScope('internal');
+    setReferDepartment('');
+    setReferServicePoint('');
+    setReferNote('');
+    setDamaReason('');
+    setDamaConsentFileName('');
+    setExternalReferDraft(buildObservationExternalReferDraft(patient, { centerId }));
+    referPanels.reset();
+    setShowReferModal(true);
   };
+  const handleFooterPrimaryClick = () => {
+    if (isLastStep) openReferModal();
+    else goNextStep();
+  };
+  useEffect(() => {
+    if (!showReferModal) referPanels.reset();
+  }, [showReferModal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isReferDetail = referPanels.step === 'detail';
+  const openReferDetail = (scope) => {
+    setReferScope(scope);
+    referPanels.goTo('detail');
+  };
+  const referDetailTitle = isDama
+    ? 'จำหน่ายผู้ป่วยแบบปฏิเสธการรักษา (DAMA)'
+    : referScope === 'external'
+      ? 'ส่งต่อภายนอก'
+      : 'ส่งต่อภายใน';
+  const referPopupTitle = isReferDetail ? referDetailTitle : 'ส่งต่อผู้ป่วย';
+  const referPopupSize = isReferDetail && referScope === 'external' ? 'extraLarge' : 'large';
   /* "บันทึกร่าง" — same decorative slot as the OPD screening footer.
      Every field on this page already lives in React state as the user
      types (no separate draft store to write to), so this just confirms
      the in-progress entry is safe instead of performing a real save. */
   const handleSaveDraft = () => setDraftSavedToast(true);
+  const isDischargeDirty =
+    dischargeForm.doctorSummary !== initialDischargeRef.current.doctorSummary
+    || dischargeForm.dischargeAdvice !== initialDischargeRef.current.dischargeAdvice
+    || dischargeForm.referHospital !== initialDischargeRef.current.referHospital;
+  const hasUnsavedWork = recordMutated || isDischargeDirty;
+  const handleRequestExit = () => {
+    if (!hasUnsavedWork) {
+      history.push('/observation');
+      return;
+    }
+    setConfirmCancel(true);
+  };
+  const handleFooterBackOrCancel = () => {
+    if (isFirstStep) handleRequestExit();
+    else goPrevStep();
+  };
+  const handleConfirmExit = () => {
+    setConfirmCancel(false);
+    history.push('/observation');
+  };
 
   /* Patient identity banner — aliases the same <PatientCard> used by OPD
      screening (Figma 150:33649/343:5629) instead of a hand-rolled header,
@@ -607,11 +675,11 @@ export default function ObservationDetailPage() {
       breadcrumb={['หน้าหลัก PHCIS', 'ห้องสังเกตอาการ', `แฟ้มสังเกตอาการ: ${patient.patientName}`]}
     >
       {/* Patient identity banner — same <PatientCard> aliased from OPD
-          screening, in the same top-of-page position; it owns its own
-          back/title/actions row so QueuePageShell's SubHeader is skipped
-          above (no title/onBack/actions passed) to avoid a duplicate bar. */}
+          screening. Page exit ("ยกเลิก") lives in the sticky footer below,
+          same pattern as CreateConsentFormPage — not in this header row. */}
       <PatientCard
         sticky
+        showBack={false}
         patient={patientCardProfile}
         title='แฟ้มบันทึกสังเกตอาการ (Observation Record)'
         actions={
@@ -630,8 +698,10 @@ export default function ObservationDetailPage() {
                   ? 'neutral'
                   : patient.status === 'ready_discharge'
                   ? 'success'
-                  : currentEws.score >= 3
+                  : latestEsi != null && latestEsi <= 2
                   ? 'error'
+                  : latestEsi === 3
+                  ? 'yellow'
                   : 'info'
               }
               size='small'
@@ -672,57 +742,13 @@ export default function ObservationDetailPage() {
           paddingTop: 'var(--dim-space-600, 24px)',
           paddingLeft: 'var(--dim-space-600, 24px)',
           paddingRight: 'var(--dim-space-600, 24px)',
-          paddingBottom: 'var(--dim-space-600, 24px)',
+          paddingBottom: 96,
           gap: 'var(--dim-space-600, 24px)',
         }}
       >
-      {/* Tab 1: Timed Vital Signs & EWS Trend */}
+      {/* Tab 1: Timed Vital Signs Trend */}
       {activeTab === 'vitals' && (
         <div className='space-y-6'>
-          {/* EWS Score & Clinical Escalation Protocol Card */}
-          <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
-            <div className='flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4'>
-              <div className='flex items-center gap-3'>
-                <EwsScoreBadge
-                  score={currentEws.score}
-                  tier={currentEws.tier}
-                  scale={currentEws.scale}
-                  size='md'
-                />
-                <div>
-                  <h3 className='font-bold text-brand-600 text-sm flex items-center gap-2'>
-                    {EWS_SYSTEM_LABEL}
-                  </h3>
-                  <p className='text-xs text-ink-tertiary'>
-                    เกณฑ์ {currentEws.scale?.label || EWS_SCALES.ADULT.label}
-                  </p>
-                  <p className='text-xs font-semibold' style={{ color: currentEws.tier.color }}>
-                    ระดับความเสี่ยง: {currentEws.tier.label}
-                  </p>
-                </div>
-              </div>
-
-              {/* Clinical Protocol Directive Alert — shrink-wraps to its
-                  text (not the full card width) and sits right-aligned,
-                  via the parent row's justify-between. */}
-              <div className='flex justify-end'>
-                <Alert
-                  type={currentEws.score >= 5 ? 'error' : currentEws.score >= 2 ? 'warning' : 'info'}
-                  title={`แนวทางปฏิบัติทางคลินิกตาม${EWS_SYSTEM_LABEL}:`}
-                  subtext={
-                    currentEws.score >= 5
-                      ? 'ระดับวิกฤต (High Risk): พยาบาลเข้าประเมินทันที, รายงานแพทย์ผู้ดูแลด่วน, เตรียมเครื่อง Defibrillator / O2 High Flow, และพิจารณาส่งต่อห้องฉุกเฉิน (ER) หรือ ICU ด่วน!'
-                      : currentEws.score >= 2
-                      ? 'ระดับเฝ้าระวัง (Medium Risk): แจ้งพยาบาลหัวหน้าเวรและปรึกษาแพทย์, เพิ่มความถี่ในการวัดสัญญาณชีพเป็นทุก 30–60 นาที'
-                      : 'ระดับปกติ (Low Risk): ผู้ป่วยสัญญาณชีพคงที่ เฝ้าสังเกตอาการตามปกติ วัด V/S ตามรอบ q 4 ชม.'
-                  }
-                  showCloseButton={false}
-                  style={{ width: 'fit-content', maxWidth: '100%' }}
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Observation Timeline — merged vitalsTrend + nursingNotes feed
               (see observationTimeline above), so every timestamp on this
               landing view already shows both the vital signs AND whatever
@@ -830,7 +856,6 @@ export default function ObservationDetailPage() {
                 <div className='flex flex-col'>
                   {pagedTimeline.map((entry, idx) => {
                     const isLast = idx === pagedTimeline.length - 1;
-                    const ewsRes = entry.vitals ? scorePatientVitals(patient, entry.vitals) : null;
                     return (
                       <div key={entry.key} className='flex' style={{ gap: 'var(--dim-space-300)' }}>
                         <div className='flex flex-col items-center shrink-0' style={{ width: 'var(--dim-size-300, 16px)' }}>
@@ -876,14 +901,6 @@ export default function ObservationDetailPage() {
                                 วัดซ้ำครั้งที่ {entry.repeatIndex + 1} ในนาทีเดียวกัน
                               </StatusBadge>
                             )}
-                            {ewsRes && (
-                              <EwsScoreBadge
-                                score={ewsRes.score}
-                                tier={ewsRes.tier}
-                                scale={ewsRes.scale}
-                                size='sm'
-                              />
-                            )}
                           </div>
 
                           {entry.vitals && (
@@ -891,15 +908,26 @@ export default function ObservationDetailPage() {
                               className='grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
                               style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-200)' }}
                             >
-                              {vitalsTimelineCells(entry.vitals).map(([label, value]) => (
-                                <div
-                                  key={label}
-                                  className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'
-                                >
-                                  <div className='text-[10px] text-ink-quaternary font-medium'>{label}</div>
-                                  <div className='font-bold text-brand-600 text-[11px]'>{value}</div>
-                                </div>
-                              ))}
+                              {vitalsTimelineCells(entry.vitals).map(({ key, label, value }) => {
+                                const tone = resolveVitalSnapshotTone(key, entry.vitals);
+                                const valueColor = tone === 'default'
+                                  ? 'var(--text-brandPrimary-default)'
+                                  : vitalSnapshotValueColor(tone);
+                                return (
+                                  <div
+                                    key={key || label}
+                                    className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'
+                                  >
+                                    <div className='text-[10px] text-ink-quaternary font-medium'>{label}</div>
+                                    <div
+                                      className='font-bold text-[11px]'
+                                      style={{ color: valueColor }}
+                                    >
+                                      {value}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
 
@@ -1048,29 +1076,51 @@ export default function ObservationDetailPage() {
       )}
       </div>
 
-      {/* Bottom CTA bar — same shared <Footer type='with BTN' sticky> used by
-          the OPD screening wizard, so every step ends in a consistent
-          forward action instead of relying solely on the StepProgress
-          circles above. Final step's primary button performs the
-          discharge save (see commitDischarge) instead of advancing. */}
-      <Footer
-        type='with BTN'
-        sticky
-        showLegal={false}
-        showAutoSave={false}
-        showButton2
-        button2Label='บันทึกร่าง'
-        button2Icon='save'
-        onButton2Click={handleSaveDraft}
-        showButton3={!isFirstStep}
-        button3Label='ย้อนกลับ'
-        button3Icon='arrow_back'
-        onButton3Click={goPrevStep}
-        showButton1
-        button1Label={footerPrimaryLabel}
-        button1TrailingIcon='arrow_forward'
-        button1Disabled={isLastStep && isDoctorSummaryMissing}
-        onButton1Click={handleFooterPrimaryClick}
+      {/* Sticky wizard action bar — single left button switches ยกเลิก /
+          ย้อนกลับ by step (same pattern as CreateConsentFormPage). */}
+      <div
+        className={`sticky bottom-0 z-10 flex items-center w-full ${MIH_CHROME_MORPH_FOOTER}`}
+        style={{
+          background: 'var(--surface-card-100)',
+          borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+          boxShadow: '0 -2px 8px rgba(8,167,104,0.06)',
+          padding: 'var(--dim-space-400) var(--dim-space-600)',
+          gap: 'var(--dim-space-600)',
+        }}
+      >
+        <NeutralSubdueButton
+          size='lg'
+          leadingIcon={isFirstStep ? undefined : 'arrow_back'}
+          onClick={handleFooterBackOrCancel}
+          className='shrink-0'
+        >
+          {isFirstStep ? 'ยกเลิก' : 'ย้อนกลับ'}
+        </NeutralSubdueButton>
+        <div className='flex-1' />
+        <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-300)' }}>
+          <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' onClick={handleSaveDraft}>
+            บันทึกร่าง
+          </BrandSubdueButton>
+          <BrandPrimaryButton
+            variant='fill'
+            size='lg'
+            trailingIcon='arrow_forward'
+            disabled={isLastStep && isDoctorSummaryMissing}
+            onClick={handleFooterPrimaryClick}
+          >
+            {footerPrimaryLabel}
+          </BrandPrimaryButton>
+        </div>
+      </div>
+
+      <ConsentFormCancelEditPopup
+        open={confirmCancel}
+        title='ยกเลิกการบันทึกสังเกตอาการ?'
+        description='ข้อมูลที่ยังไม่ได้บันทึกจะหายไป ต้องการออกจากหน้านี้หรือไม่'
+        confirmLabel='ออกจากหน้านี้'
+        cancelLabel='ทำต่อ'
+        onConfirm={handleConfirmExit}
+        onClose={() => setConfirmCancel(false)}
       />
 
       <SuccessToast
@@ -1098,7 +1148,7 @@ export default function ObservationDetailPage() {
       />
 
       {/* Modal: Vital Signs Trend Visualizer — the timeline header's "ดูแบบ
-          กราฟ" button opens the same chart engine shown in the EWS card
+          กราฟ" button opens the same VitalTrendChart engine as the timeline.
           above (VitalTrendChart + parameter TabBar), just full-size in a
           popup instead of squeezed above the timeline. Built on the same
           design-system Popup (size='extraLarge') as AddVitalsModal, so it
@@ -1278,188 +1328,212 @@ export default function ObservationDetailPage() {
       <Popup
         open={showReferModal}
         onClose={() => setShowReferModal(false)}
-        title={isDama ? 'จำหน่ายผู้ป่วยแบบปฏิเสธการรักษา (DAMA)' : 'ส่งต่อผู้ป่วย'}
-        leading={
-          <span
-            className='material-symbols-outlined text-2xl'
-            style={{ color: isDama ? 'var(--text-colorfulbadge-red, #B91C1C)' : 'var(--brand-p700)' }}
-          >
-            {isDama ? 'assignment_late' : 'local_hospital'}
-          </span>
-        }
-        size='large'
+        title={referPopupTitle}
+        onBack={isReferDetail ? () => referPanels.goBack() : undefined}
+        size={referPopupSize}
+        bodyStyle={isReferDetail && referScope === 'external' ? {
+          maxHeight: 'min(72vh, 760px)',
+          overflowY: 'auto',
+        } : undefined}
         secondaryAction={{ label: 'ยกเลิก', onClick: () => setShowReferModal(false) }}
-        primaryAction={{
+        primaryAction={isReferDetail ? {
           label: isDama ? 'ยืนยันจำหน่าย (DAMA)' : 'ยืนยันส่งต่อ',
           onClick: handleConfirmRefer,
           /* Also gates on the doctor summary — it was already required by
              the save handler, so leaving the button enabled just made the
              click silently do nothing. */
           disabled: isReferTargetMissing || isDoctorSummaryMissing,
-        }}
+        } : undefined}
       >
-        <PatientSummaryCard
-          avatarUrl={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl}
-          avatarAlt={patient.patientName}
-          cells={[
-            { label: 'ชื่อ-นามสกุล ผู้ป่วย', value: patient.patientName },
-            { label: 'HN (Hospital Number)', value: patient.hn },
-            { label: 'เตียง', value: patient.bedNo },
-          ]}
-        />
-
-        <div className='p-3 bg-ink-neutral rounded-xl border border-ink-line flex items-center justify-between text-xs text-ink-secondary'>
-          <span className='font-semibold text-ink-secondary'>จากแผนก:</span>
-          <span className='font-bold' style={{ color: 'var(--text-brandPrimary-default)' }}>ห้องสังเกตอาการ (Observation Unit)</span>
-        </div>
-
-        <div>
-          <p
-            className='font-medium mb-2'
-            style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-xs)' }}
+        {!isReferDetail ? (
+          <div
+            key='refer-chooser'
+            data-direction={referPanels.direction}
+            className='mih-step-content flex flex-col w-full min-w-0'
+            style={{ gap: 'var(--dim-space-400)' }}
           >
-            ส่งต่อไปยัง
-          </p>
-          <div className='flex flex-wrap' role='radiogroup' aria-label='ส่งต่อไปยัง' style={{ gap: 'var(--dim-space-200)' }}>
-            <SelectableTag
-              size='md'
-              selected={referScope === 'internal'}
-              onClick={() => setReferScope('internal')}
-              ariaLabel='ส่งต่อภายใน'
-            >
-              ส่งต่อภายใน
-            </SelectableTag>
-            <SelectableTag
-              size='md'
-              selected={referScope === 'external'}
-              onClick={() => setReferScope('external')}
-              ariaLabel='ส่งต่อภายนอก'
-            >
-              ส่งต่อภายนอก
-            </SelectableTag>
-            {/* Edge case #3 — DAMA sits alongside the two referral
-                targets because it's the same decision point ("where does
-                this patient go from here"), just an answer where the
-                patient, not the ward, picked the destination. */}
-            <SelectableTag
-              size='md'
-              selected={isDama}
-              onClick={() => setReferScope('dama')}
-              ariaLabel='ปฏิเสธการรักษา'
-            >
-              ปฏิเสธการรักษา (DAMA)
-            </SelectableTag>
-          </div>
-        </div>
-
-        {isDama ? (
-          <>
-            <Alert
-              type='warning'
-              title='ผู้ป่วยขอกลับบ้านก่อนแพทย์อนุญาต'
-              subtext='ต้องแนบใบยินยอมปฏิเสธการรักษา (DAMA Waiver Consent Form) ที่ผู้ป่วยหรือญาติลงนามแล้ว และบันทึกเหตุผลไว้ในแฟ้มสังเกตอาการก่อนจึงจะจำหน่ายได้'
-              showCloseButton={false}
-              style={{ maxWidth: '100%' }}
+            <PatientSummaryCard
+              avatarUrl={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl}
+              avatarAlt={patient.patientName}
+              cells={[
+                { label: 'ชื่อ-นามสกุล ผู้ป่วย', value: patient.patientName },
+                { label: 'HN (Hospital Number)', value: patient.hn },
+                { label: 'เตียง', value: patient.bedNo },
+              ]}
             />
 
-            <div>
-              <p className='font-medium mb-2' style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-xs)' }}>
-                ใบยินยอมปฏิเสธการรักษา (DAMA Waiver Consent Form)
-                <span style={{ color: 'var(--text-input-require)' }}> *</span>
-              </p>
-              <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300)' }}>
-                {/* Native file input is visually hidden behind the design-
-                    system button — the browser's default "Choose file"
-                    chrome has no token equivalent. */}
-                <label>
-                  <input
-                    type='file'
-                    accept='image/*,application/pdf'
-                    className='sr-only'
-                    onChange={(e) => setDamaConsentFileName(e.target.files?.[0]?.name || '')}
-                  />
-                  <span
-                    className='inline-flex items-center cursor-pointer'
-                    style={{
-                      gap: 'var(--dim-space-200)',
-                      paddingTop: 'var(--dim-space-200)',
-                      paddingBottom: 'var(--dim-space-200)',
-                      paddingLeft: 'var(--dim-space-400)',
-                      paddingRight: 'var(--dim-space-400)',
-                      borderRadius: 'var(--dim-radius-200, 8px)',
-                      border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-default)',
-                      color: 'var(--text-brandPrimary-default)',
-                      fontSize: 'var(--type-size-sm)',
-                      fontWeight: 'var(--type-weight-medium)',
-                    }}
-                  >
-                    <span className='material-symbols-outlined' style={{ fontSize: 20 }}>upload_file</span>
-                    แนบไฟล์ใบยินยอม
-                  </span>
-                </label>
-                <span
-                  className='inline-flex items-center min-w-0'
-                  style={{
-                    gap: 'var(--dim-space-100)',
-                    color: damaConsentFileName ? 'var(--text-content-default)' : 'var(--text-content-tertiary)',
-                    fontSize: 'var(--type-size-xs)',
-                  }}
-                >
-                  {damaConsentFileName ? (
-                    <>
-                      <span className='material-symbols-outlined' style={{ fontSize: 16, color: 'var(--text-colorfulbadge-green)' }}>check_circle</span>
-                      <span className='truncate'>{damaConsentFileName}</span>
-                    </>
-                  ) : (
-                    'ยังไม่ได้แนบไฟล์ (รองรับรูปภาพหรือ PDF)'
-                  )}
-                </span>
-              </div>
+            <div
+              className='flex items-center flex-wrap'
+              style={{
+                gap: 'var(--dim-space-200, 8px)',
+                fontSize: 'var(--type-size-xs)',
+              }}
+            >
+              <span
+                style={{
+                  fontWeight: 'var(--type-weight-medium)',
+                  color: 'var(--text-content-secondary)',
+                }}
+              >
+                จากแผนก:
+              </span>
+              <span
+                style={{
+                  fontWeight: 'var(--type-weight-bold)',
+                  color: 'var(--text-brandPrimary-default)',
+                }}
+              >
+                ห้องสังเกตอาการ (Observation Unit)
+              </span>
             </div>
 
-            <SuggestibleTextarea
-              voice
-              label='เหตุผลการปฏิเสธการรักษา (DAMA Reason)'
-              rows={3}
-              value={damaReason}
-              onChange={(e) => setDamaReason(e.target.value)}
-              placeholder='เช่น ผู้ป่วยต้องการกลับไปดูแลครอบครัว, กังวลค่าใช้จ่าย, ยืนยันว่าอาการดีขึ้นแล้ว'
-              suggestions={DAMA_REASON_SUGGESTIONS}
-              minChars={3}
-              popoverAriaLabel='คำแนะนำเหตุผลการปฏิเสธการรักษา'
-              required
-            />
-          </>
-        ) : referScope === 'internal' ? (
-          <Select
-            label='แผนกปลายทาง'
-            value={referDepartment || REFER_DEPARTMENT_PLACEHOLDER}
-            onChange={setReferDepartment}
-            options={INTERNAL_REFER_DEPARTMENTS}
-            size='sm'
-            required
-          />
+            <div>
+              <p
+                className='font-medium mb-2'
+                style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-xs)' }}
+              >
+                ส่งต่อไปยัง
+              </p>
+              <div
+                className='flex flex-wrap'
+                role='group'
+                aria-label='ส่งต่อไปยัง'
+                style={{ gap: 'var(--dim-space-300)' }}
+              >
+                <SelectableTag
+                  size='lg'
+                  selected={false}
+                  onClick={() => openReferDetail('internal')}
+                  ariaLabel='ส่งต่อภายใน'
+                >
+                  ส่งต่อภายใน
+                </SelectableTag>
+                <SelectableTag
+                  size='lg'
+                  selected={false}
+                  onClick={() => openReferDetail('external')}
+                  ariaLabel='ส่งต่อภายนอก'
+                >
+                  ส่งต่อภายนอก
+                </SelectableTag>
+                {/* Edge case #3 — DAMA sits alongside the two referral
+                    targets because it's the same decision point ("where does
+                    this patient go from here"), just an answer where the
+                    patient, not the ward, picked the destination. */}
+                <SelectableTag
+                  size='lg'
+                  selected={false}
+                  onClick={() => openReferDetail('dama')}
+                  ariaLabel='ปฏิเสธการรักษา'
+                >
+                  ปฏิเสธการรักษา (DAMA)
+                </SelectableTag>
+              </div>
+            </div>
+          </div>
         ) : (
-          <Select
-            label='โรงพยาบาลปลายทาง (Destination Referral Hospital)'
-            value={dischargeForm.referHospital || EXTERNAL_REFER_HOSPITALS_PLACEHOLDER}
-            onChange={(val) => setDischargeForm({ ...dischargeForm, referHospital: val })}
-            options={EXTERNAL_REFER_HOSPITALS}
-            size='sm'
-            required
-          />
-        )}
-        {isReferTargetMissing && (
-          <p style={{ color: 'var(--text-danger-default)', fontSize: 'var(--type-size-xs)' }}>
-            {isDama
-              ? 'กรุณาแนบใบยินยอมปฏิเสธการรักษาและระบุเหตุผลก่อนยืนยันจำหน่าย'
-              : `กรุณาเลือก${referScope === 'internal' ? 'แผนกปลายทาง' : 'โรงพยาบาลปลายทาง'}ก่อนยืนยัน`}
-          </p>
-        )}
-        {isDoctorSummaryMissing && (
-          <p style={{ color: 'var(--text-danger-default)', fontSize: 'var(--type-size-xs)' }}>
-            กรุณากรอก “ความเห็นแพทย์ / สรุปผลการสังเกตอาการ” ในขั้นตอนสรุปผลก่อนยืนยันส่งต่อ
-          </p>
+          <div
+            key={`refer-detail-${referScope}`}
+            data-direction={referPanels.direction}
+            className='mih-step-content flex flex-col w-full min-w-0'
+            style={{ gap: 'var(--dim-space-400)' }}
+          >
+            {isDama ? (
+              <>
+                <Alert
+                  type='warning'
+                  title='ผู้ป่วยขอกลับบ้านก่อนแพทย์อนุญาต'
+                  subtext='ต้องแนบใบยินยอมปฏิเสธการรักษา (DAMA Waiver Consent Form) ที่ผู้ป่วยหรือญาติลงนามแล้ว และบันทึกเหตุผลไว้ในแฟ้มสังเกตอาการก่อนจึงจะจำหน่ายได้'
+                  showCloseButton={false}
+                  style={{ maxWidth: '100%' }}
+                />
+
+                <div>
+                  <p className='font-medium mb-2' style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-xs)' }}>
+                    ใบยินยอมปฏิเสธการรักษา (DAMA Waiver Consent Form)
+                    <span style={{ color: 'var(--text-input-require)' }}> *</span>
+                  </p>
+                  <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300)' }}>
+                    {/* Native file input is visually hidden behind the design-
+                        system button — the browser's default "Choose file"
+                        chrome has no token equivalent. */}
+                    <label>
+                      <input
+                        type='file'
+                        accept='image/*,application/pdf'
+                        className='sr-only'
+                        onChange={(e) => setDamaConsentFileName(e.target.files?.[0]?.name || '')}
+                      />
+                      <span
+                        className='inline-flex items-center cursor-pointer'
+                        style={{
+                          gap: 'var(--dim-space-200)',
+                          paddingTop: 'var(--dim-space-200)',
+                          paddingBottom: 'var(--dim-space-200)',
+                          paddingLeft: 'var(--dim-space-400)',
+                          paddingRight: 'var(--dim-space-400)',
+                          borderRadius: 'var(--dim-radius-200, 8px)',
+                          border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-default)',
+                          color: 'var(--text-brandPrimary-default)',
+                          fontSize: 'var(--type-size-sm)',
+                          fontWeight: 'var(--type-weight-medium)',
+                        }}
+                      >
+                        <span className='material-symbols-outlined' style={{ fontSize: 20 }}>upload_file</span>
+                        แนบไฟล์ใบยินยอม
+                      </span>
+                    </label>
+                    <span
+                      className='inline-flex items-center min-w-0'
+                      style={{
+                        gap: 'var(--dim-space-100)',
+                        color: damaConsentFileName ? 'var(--text-content-default)' : 'var(--text-content-tertiary)',
+                        fontSize: 'var(--type-size-xs)',
+                      }}
+                    >
+                      {damaConsentFileName ? (
+                        <>
+                          <span className='material-symbols-outlined' style={{ fontSize: 16, color: 'var(--text-colorfulbadge-green)' }}>check_circle</span>
+                          <span className='truncate'>{damaConsentFileName}</span>
+                        </>
+                      ) : (
+                        'ยังไม่ได้แนบไฟล์ (รองรับรูปภาพหรือ PDF)'
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <SuggestibleTextarea
+                  voice
+                  label='เหตุผลการปฏิเสธการรักษา (DAMA Reason)'
+                  rows={3}
+                  value={damaReason}
+                  onChange={(e) => setDamaReason(e.target.value)}
+                  placeholder='เช่น ผู้ป่วยต้องการกลับไปดูแลครอบครัว, กังวลค่าใช้จ่าย, ยืนยันว่าอาการดีขึ้นแล้ว'
+                  suggestions={DAMA_REASON_SUGGESTIONS}
+                  minChars={3}
+                  popoverAriaLabel='คำแนะนำเหตุผลการปฏิเสธการรักษา'
+                  required
+                />
+              </>
+            ) : referScope === 'internal' ? (
+              <InternalReferFields
+                department={referDepartment}
+                servicePoint={referServicePoint}
+                note={referNote}
+                onDepartmentChange={setReferDepartment}
+                onServicePointChange={setReferServicePoint}
+                onNoteChange={setReferNote}
+                departmentOptions={referDepartmentOptions}
+                servicePointOptions={referServicePointOptions}
+              />
+            ) : (
+              <ObservationExternalReferForm
+                draft={externalReferDraft}
+                onChange={setExternalReferDraft}
+              />
+            )}
+          </div>
         )}
       </Popup>
 

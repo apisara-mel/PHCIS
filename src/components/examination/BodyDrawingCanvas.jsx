@@ -12,7 +12,11 @@ import Topic from '@/components/topic/Topic';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
-import VoiceTextarea from '@/components/forms/VoiceTextarea';
+import VoiceTextarea, {
+  VOICE_TEXTAREA_HEIGHT_EXTRA,
+  VOICE_TEXTAREA_HEIGHT_TALL,
+  VOICE_TEXTAREA_MIN_HEIGHT,
+} from '@/components/forms/VoiceTextarea';
 import { useTextareaSuggestions } from '@/components/forms/textareaSuggestions';
 import { composeBoxShadow, resolveBox } from '@/components/forms/_inputBox';
 import Tooltip from '@/components/tooltip/Tooltip';
@@ -942,8 +946,10 @@ const BodyTextDrawingInput = ({
 
 /** Above Popup footer/chrome (`--sm-z-modal` 1400). */
 const MARK_NOTE_EDITOR_Z_INDEX = 'var(--sm-z-modal-popover, 1450)';
-const MARK_NOTE_INPUT_HEIGHT = 160;
-const MARK_NOTE_INPUT_MIN_HEIGHT = 96;
+const MARK_NOTE_INPUT_HEIGHT = VOICE_TEXTAREA_HEIGHT_TALL;
+const MARK_NOTE_INPUT_MIN_HEIGHT = VOICE_TEXTAREA_MIN_HEIGHT;
+const MARK_NOTE_INPUT_EFFECTIVE_HEIGHT =
+  MARK_NOTE_INPUT_HEIGHT + VOICE_TEXTAREA_HEIGHT_EXTRA;
 /** Figma 220:27806 — grows with note text, capped at 480px. */
 const MARK_NOTE_POPOVER_MAX_WIDTH = 480;
 
@@ -1768,7 +1774,7 @@ const MARK_STATE_PREVIEW_LABEL = {
 };
 
 const MARK_NOTE_EDITOR_PREVIEW_HEIGHT =
-  MARK_NOTE_INPUT_HEIGHT + MARK_DOT_STYLES.focus.size / 2 + 8;
+  MARK_NOTE_INPUT_EFFECTIVE_HEIGHT + MARK_DOT_STYLES.focus.size / 2 + 8;
 
 const MarkNoteEditorPreviewFrame = ({ label, children }) => (
   <div style={{ ...MARK_STATE_PREVIEW_CELL, alignItems: 'stretch' }}>

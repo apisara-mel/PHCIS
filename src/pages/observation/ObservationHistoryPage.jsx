@@ -10,18 +10,17 @@ import PatientCard from '@/components/card/PatientCard';
 import Footer from '@/components/layout/Footer';
 import Pagination from '@/components/pagination/Pagination';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
-import EwsScoreBadge from '@/components/observation/EwsScoreBadge';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   MOCK_OBSERVATION_PATIENTS,
-  EWS_RISK_TIERS,
-  EWS_SCALES,
-  EWS_SYSTEM_LABEL,
-  scorePatientVitals,
   buildObservationTimeline,
   observationDayOffset,
   vitalsTimelineCells,
 } from '@/data/observationMock';
+import {
+  resolveVitalSnapshotTone,
+  vitalSnapshotValueColor,
+} from '@/data/vitalDisplayTone';
 
 /* Read-only counterpart to ObservationDetailPage.jsx (แฟ้มบันทึกสังเกตอาการ) —
    reached only from the queue's "รายการที่ส่งต่อแล้ว" tab (patient.status
@@ -49,11 +48,6 @@ export default function ObservationHistoryPage() {
   const [historyPage, setHistoryPage] = useState(1);
   const [showTrendGraphModal, setShowTrendGraphModal] = useState(false);
   const [selectedTrendParam, setSelectedTrendParam] = useState('bp');
-
-  const latestVitals = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
-  const finalEws = latestVitals
-    ? scorePatientVitals(patient, latestVitals)
-    : { score: 0, tier: EWS_RISK_TIERS.NORMAL, scale: null };
 
   /* Same merged feed the live record renders — built by the shared
      buildObservationTimeline so a closed case reads exactly as it did
@@ -100,7 +94,9 @@ export default function ObservationHistoryPage() {
   const dischargeSummary = patient.dischargeSummary || {};
   const referralTarget =
     dischargeSummary.referScope === 'internal' && dischargeSummary.referDepartment
-      ? `แผนกภายใน: ${dischargeSummary.referDepartment}`
+      ? `แผนกภายใน: ${dischargeSummary.referDepartment}${
+          dischargeSummary.referServicePoint ? ` · ${dischargeSummary.referServicePoint}` : ''
+        }`
       : dischargeSummary.referHospital
       ? `โรงพยาบาลภายนอก: ${dischargeSummary.referHospital}`
       : '-';
@@ -150,30 +146,6 @@ export default function ObservationHistoryPage() {
           gap: 'var(--dim-space-600, 24px)',
         }}
       >
-        {/* Final EWS reading — no clinical protocol alert here (that's an
-            actionable directive for an active case; this one's closed). */}
-        <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
-          <div className='flex items-center gap-3'>
-            <EwsScoreBadge
-              score={finalEws.score}
-              tier={finalEws.tier}
-              scale={finalEws.scale}
-              size='md'
-            />
-            <div>
-              <h3 className='font-bold text-brand-600 text-sm'>
-                {EWS_SYSTEM_LABEL} ล่าสุดก่อนส่งต่อ
-              </h3>
-              <p className='text-xs text-ink-tertiary'>
-                เกณฑ์ {finalEws.scale?.label || EWS_SCALES.ADULT.label}
-              </p>
-              <p className='text-xs font-semibold' style={{ color: finalEws.tier.color }}>
-                ระดับความเสี่ยง: {finalEws.tier.label}
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Observation Timeline — read-only: same merged feed as the live
             record, no quick-add buttons since there is nothing left to add. */}
         <div
@@ -237,7 +209,6 @@ export default function ObservationHistoryPage() {
               <div className='flex flex-col'>
                 {pagedTimeline.map((entry, idx) => {
                   const isLast = idx === pagedTimeline.length - 1;
-                  const ewsRes = entry.vitals ? scorePatientVitals(patient, entry.vitals) : null;
                   return (
                     <div key={entry.key} className='flex' style={{ gap: 'var(--dim-space-300)' }}>
                       <div className='flex flex-col items-center shrink-0' style={{ width: 'var(--dim-size-300, 16px)' }}>
@@ -283,14 +254,6 @@ export default function ObservationHistoryPage() {
                               วัดซ้ำครั้งที่ {entry.repeatIndex + 1} ในนาทีเดียวกัน
                             </StatusBadge>
                           )}
-                          {ewsRes && (
-                            <EwsScoreBadge
-                              score={ewsRes.score}
-                              tier={ewsRes.tier}
-                              scale={ewsRes.scale}
-                              size='sm'
-                            />
-                          )}
                         </div>
 
                         {entry.vitals && (
@@ -298,15 +261,26 @@ export default function ObservationHistoryPage() {
                             className='grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
                             style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-200)' }}
                           >
-                            {vitalsTimelineCells(entry.vitals).map(([label, value]) => (
-                              <div
-                                key={label}
-                                className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'
-                              >
-                                <div className='text-[10px] text-ink-quaternary font-medium'>{label}</div>
-                                <div className='font-bold text-brand-600 text-[11px]'>{value}</div>
-                              </div>
-                            ))}
+                            {vitalsTimelineCells(entry.vitals).map(({ key, label, value }) => {
+                              const tone = resolveVitalSnapshotTone(key, entry.vitals);
+                              const valueColor = tone === 'default'
+                                ? 'var(--text-brandPrimary-default)'
+                                : vitalSnapshotValueColor(tone);
+                              return (
+                                <div
+                                  key={key || label}
+                                  className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'
+                                >
+                                  <div className='text-[10px] text-ink-quaternary font-medium'>{label}</div>
+                                  <div
+                                    className='font-bold text-[11px]'
+                                    style={{ color: valueColor }}
+                                  >
+                                    {value}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
 
@@ -407,6 +381,12 @@ export default function ObservationHistoryPage() {
               <div className='font-bold text-content-default mb-1'>ปลายทางส่งต่อ (Referral Destination)</div>
               <p style={{ color: 'var(--text-content-secondary)', lineHeight: 1.6 }}>{referralTarget}</p>
             </div>
+            {dischargeSummary.referScope === 'internal' && dischargeSummary.referNote ? (
+              <div>
+                <div className='font-bold text-content-default mb-1'>หมายเหตุการส่งต่อ</div>
+                <p style={{ color: 'var(--text-content-secondary)', lineHeight: 1.6 }}>{dischargeSummary.referNote}</p>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

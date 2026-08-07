@@ -26,12 +26,26 @@ export const TREATMENT_PERMISSION_MODES = [
   { key: 'none',         label: 'ไม่มีสิทธิ์เข้าถึง',         perm: PERM_NONE, confidential: false },
 ];
 
+/* Demo default — full edit + confidential so SOAP / CPOE panels open
+   without flipping the SafetyRail. Presenters can still switch to
+   "ไม่มีสิทธิ์" mid-demo; a refresh lands back on full access. */
+export const DEMO_DEFAULT_TREATMENT_MODE = 'edit';
+
+try {
+  if (typeof window !== 'undefined') {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw == null || raw === 'none') {
+      window.localStorage.setItem(STORAGE_KEY, DEMO_DEFAULT_TREATMENT_MODE);
+    }
+  }
+} catch (e) { /* SSR / private mode */ }
+
 const readMode = () => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw && TREATMENT_PERMISSION_MODES.some((m) => m.key === raw)) return raw;
   } catch (e) { /* SSR / private mode — fall through to derived default */ }
-  return null;
+  return DEMO_DEFAULT_TREATMENT_MODE;
 };
 
 /* สิทธิ์จริงจาก accessControlStore (ถ้าองค์กรตั้งไว้) — ใช้เป็น default
@@ -48,8 +62,8 @@ const derivedModulePerm = () => {
 
 export const getTreatmentAccess = () => {
   const overrideKey = readMode();
-  if (overrideKey) {
-    const mode = TREATMENT_PERMISSION_MODES.find((m) => m.key === overrideKey);
+  const mode = TREATMENT_PERMISSION_MODES.find((m) => m.key === overrideKey);
+  if (mode) {
     return {
       mode: mode.key,
       permission: mode.perm,
@@ -58,9 +72,21 @@ export const getTreatmentAccess = () => {
       canSeeConfidential: mode.confidential,
     };
   }
-  const perm = derivedModulePerm();
+  /* Fallback when localStorage is unavailable — still prefer full edit
+     for demo; otherwise derive from accessControlStore. */
+  const perm = derivedModulePerm() || PERM_EDIT;
+  const editMode = TREATMENT_PERMISSION_MODES[0];
+  if (perm === PERM_EDIT) {
+    return {
+      mode: editMode.key,
+      permission: editMode.perm,
+      canView: true,
+      canEdit: true,
+      canSeeConfidential: true,
+    };
+  }
   return {
-    mode: perm === PERM_EDIT ? 'edit' : perm === PERM_VIEW ? 'viewOnly' : 'none',
+    mode: perm === PERM_VIEW ? 'viewOnly' : 'none',
     permission: perm,
     canView: perm !== PERM_NONE,
     canEdit: perm === PERM_EDIT,

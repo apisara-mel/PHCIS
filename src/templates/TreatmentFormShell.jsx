@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import { MIH_CHROME_MORPH_FOOTER } from '@/components/layout/wizardChromeMorphStyles';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
+import InternalReferPopup from '@/components/popup/InternalReferPopup';
 
 /* MIH TreatmentFormShell — Figma PHCIS | Medical-examination 317:29773.
    RecordWizardMorphBand (scroll-morph stepper) + unified step card body +
@@ -104,13 +105,20 @@ const TreatmentFormShell = ({
   step0FlushLeft = true,
   /** Optional leave handler for step 0 (ยกเลิก) — e.g. unsaved-changes guard. */
   onLeave,
+  /** Shown as "จากแผนก" in the last-step internal-refer popup. */
+  fromDepartment,
+  /** Called after internal-refer confirm, before navigating to queuePath.
+      Return false to skip the default history.push(queuePath). */
+  onFinish,
 }) => {
   const history = useHistory();
+  const [referOpen, setReferOpen] = useState(false);
   const isLast = stepIndex === steps.length - 1;
   const stepTitle = typeof steps[stepIndex] === 'string'
     ? steps[stepIndex]
     : steps[stepIndex]?.title;
   const headerTitle = morphTitle ?? stepTitle ?? 'บันทึกการรักษา';
+  const referFromDepartment = fromDepartment || headerTitle || 'ระบบบันทึกการรักษา';
   const handlePrev = () => {
     if (stepIndex === 0) {
       if (onLeave) onLeave();
@@ -118,8 +126,14 @@ const TreatmentFormShell = ({
     } else onStepChange(stepIndex - 1);
   };
   const handleNext = () => {
-    if (isLast) history.push(queuePath);
+    if (isLast) setReferOpen(true);
     else onStepChange(stepIndex + 1);
+  };
+  const handleReferConfirm = (payload) => {
+    setReferOpen(false);
+    const cont = onFinish?.(payload);
+    if (cont === false) return;
+    history.push(queuePath);
   };
 
   return (
@@ -167,6 +181,14 @@ const TreatmentFormShell = ({
       </div>
 
       <Footer stepIndex={stepIndex} steps={steps} onPrev={handlePrev} onNext={handleNext} isLast={isLast} />
+
+      <InternalReferPopup
+        open={referOpen}
+        onClose={() => setReferOpen(false)}
+        onConfirm={handleReferConfirm}
+        fromDepartment={referFromDepartment}
+        subtitle='เลือกแผนกและจุดบริการปลายทางก่อนจบการบันทึก'
+      />
     </main>
   );
 };

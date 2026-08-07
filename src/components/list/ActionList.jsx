@@ -145,7 +145,8 @@ const ActionList = ({
   label = 'List',
   subtext,                       // string shown under the label when showSubtext
   leadingIcon,                   // material symbol name (16px)
-  image,                         // avatar photo URL — 24px circle, takes priority over leadingIcon
+  image,                         // photo URL — avatar (circle) or thumb (rounded), takes priority over leadingIcon
+  imageVariant = 'avatar',       // 'avatar' (24 round cover) | 'thumb' (40×32 rounded contain — product/bed photos)
   leadingBadge,                  // { tone, label } — colorful pill before the text
   leadingBadge2,                 // { tone, label } — second colorful pill
   leadingBadge3,                 // { tone, label } — fixed 64 px column pill (Figma 382:14361)
@@ -233,10 +234,32 @@ const ActionList = ({
       {showLeadingIcon && image && (
         <span
           className='shrink-0 inline-flex items-center justify-center overflow-hidden'
-          style={{ width: 24, height: 24, borderRadius: 'var(--dim-radius-full, 9999px)' }}
+          style={imageVariant === 'thumb'
+            ? {
+                width: 'var(--dim-size-800, 40px)',
+                height: 'var(--dim-size-600, 32px)',
+                borderRadius: 'var(--dim-radius-150, 6px)',
+                background: 'var(--surface-neutral-tertiary, #F4F5F5)',
+                padding: 'var(--dim-space-050, 2px)',
+                boxSizing: 'border-box',
+              }
+            : {
+                width: 24,
+                height: 24,
+                borderRadius: 'var(--dim-radius-full, 9999px)',
+              }}
           aria-hidden
         >
-          <img src={image} alt='' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img
+            src={image}
+            alt=''
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: imageVariant === 'thumb' ? 'contain' : 'cover',
+              display: 'block',
+            }}
+          />
         </span>
       )}
       {showLeadingIcon && leadingIcon && !image && (

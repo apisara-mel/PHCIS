@@ -1011,6 +1011,15 @@ export default function CreateConsentFormPage() {
     }
   };
 
+  const handleFooterBackOrCancel = () => {
+    if (step > 0) {
+      setStep(step - 1);
+      window.scrollTo?.({ top: 0 });
+    } else {
+      setConfirmCancel(true);
+    }
+  };
+
   const updateSection = (id, patch) =>
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const removeSection = (id) =>
@@ -1121,20 +1130,14 @@ export default function CreateConsentFormPage() {
             gap: 'var(--dim-space-600)',
           }}
         >
-          {step > 0 ? (
-            <NeutralSubdueButton
-              size='lg'
-              leadingIcon='arrow_back'
-              onClick={() => { setStep(step - 1); window.scrollTo?.({ top: 0 }); }}
-              className='shrink-0'
-            >
-              ย้อนกลับ
-            </NeutralSubdueButton>
-          ) : (
-            <NeutralSubdueButton size='lg' onClick={() => setConfirmCancel(true)} className='shrink-0'>
-              ยกเลิก
-            </NeutralSubdueButton>
-          )}
+          <NeutralSubdueButton
+            size='lg'
+            leadingIcon={step > 0 ? 'arrow_back' : undefined}
+            onClick={handleFooterBackOrCancel}
+            className='shrink-0'
+          >
+            {step > 0 ? 'ย้อนกลับ' : 'ยกเลิก'}
+          </NeutralSubdueButton>
           <div className='flex items-center min-w-0 flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
             {showSaveBadge ? (
               <ColorfulBadge style='green' size='small' hierarchy='secondary' icon='check_circle' showIcon width='hug'>
@@ -1149,11 +1152,6 @@ export default function CreateConsentFormPage() {
           </div>
           <div className='flex-1' />
           <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-300)' }}>
-            {step > 0 && (
-              <NeutralSubdueButton size='lg' onClick={() => setConfirmCancel(true)}>
-                ยกเลิก
-              </NeutralSubdueButton>
-            )}
             <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' disabled={!canSaveDraft} onClick={handleSaveDraft}>บันทึกร่าง</BrandSubdueButton>
             <BrandButton variant='fill' size='lg' trailingIcon={nextIcon} disabled={!canAdvance} onClick={goNext}>
               {nextLabel}
@@ -2145,8 +2143,11 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
         subtitle={subtitle}
         showCloseButton
         closeOnEscape={false}
-        tertiaryAction={{ label: 'ยกเลิก', onClick: requestClose }}
-        secondaryAction={step > 0 ? { label: 'ย้อนกลับ', onClick: () => setStep(step - 1) } : undefined}
+        tertiaryAction={
+          step > 0
+            ? { label: 'ย้อนกลับ', leadingIcon: 'arrow_back', onClick: () => setStep(step - 1) }
+            : { label: 'ยกเลิก', onClick: requestClose }
+        }
         primaryAction={{ label: nextLabel, onClick: goNext, disabled: !canSubmit }}
         bodyStyle={{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 }}
       >

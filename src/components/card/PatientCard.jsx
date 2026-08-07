@@ -248,16 +248,28 @@ const PatientCard = ({
 
   const cardStyle = {
     paddingTop: embedded ? 0 : 'var(--dim-space-400, 16px)',
-    /* Compact bottom space:
+    ...(embedded
+      ? {
+          paddingLeft: 'var(--dim-space-600, 24px)',
+          paddingRight: 'var(--dim-space-600, 24px)',
+        }
+      : null),
+    /* Compact / sticky bottom space:
        • With alert row → 0 here (the alert row owns its 16 px pb).
-       • Without alert row → 16 px here so the sticky bar still has the
-         Figma 343:5629 breathing room above page content (the OPD
-         ScreeningPage header has no alert row). */
-    paddingBottom: embedded
-      ? 0
-      : compact
-        ? (showAlertRow ? 0 : 'var(--dim-space-400, 16px)')
-        : 'var(--dim-space-600, 24px)',
+       • Sticky without alert → 16 px white pad so rounded teal corners
+         don't let page content show through (OPD ScreeningPage embedded
+         sticky used to set pb=0 and looked see-through).
+       • Expanded non-sticky → 24 px. */
+    paddingBottom: sticky
+      ? (showAlertRow ? 0 : 'var(--dim-space-400, 16px)')
+      : embedded
+        ? 0
+        : compact
+          ? (showAlertRow ? 0 : 'var(--dim-space-400, 16px)')
+          : 'var(--dim-space-600, 24px)',
+    /* Opaque white underlay — embedded previously skipped surface fill,
+       so sticky ScreeningPage showed brand-100 page bg around the card. */
+    background: 'var(--surface-card-100, #FFFFFF)',
     transition: `padding-bottom ${T}`,
     ...(sticky
       ? {
@@ -282,7 +294,7 @@ const PatientCard = ({
       ref={cardRef}
       className={embedded
         ? 'w-full'
-        : 'w-full bg-surface-card px-6 border-b border-brand-200 shadow-card'}
+        : 'w-full px-6 border-b border-brand-200 shadow-card'}
       style={cardStyle}
     >
       {/* Top row (back · title · actions). Figma 343:5629 drops this row

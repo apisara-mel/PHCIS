@@ -1,121 +1,11 @@
 /* Mock data for Observation System (1.14 ระบบสังเกตอาการ / ER-Observation / Day Bed)
    Based on Obsidian BMA Health TOR Requirements:
-   - Timed vital-sign trend (กราฟ/ตารางแนวโน้มสัญญาณชีพตามช่วงเวลา + EWS Score)
+   - Timed vital-sign trend (กราฟ/ตารางแนวโน้มสัญญาณชีพตามช่วงเวลา + Pain/ESI)
    - Stat/urgent orders & nursing interventions
    - Observation bed Floor Map / Queue Management
    - Discharge summary & disposition (Discharge Home, Refer, Admit IPD, OPD) */
 
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
-
-export const EWS_RISK_TIERS = {
-  NORMAL: { level: 'low', label: 'ปกติ (EWS 0-1)', style: 'success', color: '#00875A' },
-  WARNING: { level: 'medium', label: 'เฝ้าระวัง (EWS 2-4)', style: 'yellow', color: '#D97706' },
-  CRITICAL: { level: 'high', label: 'วิกฤต/ต้องติดตาม (EWS ≥5)', style: 'error', color: '#DE350B' },
-};
-
-/* Which scale a score was calculated on. Surfaced alongside the number so
-   a clinician can tell at a glance that a child was scored on paediatric
-   thresholds, not adult ones (edge case #14). */
-export const EWS_SCALES = {
-  ADULT: { key: 'adult', label: 'NEWS (ผู้ใหญ่)', short: 'NEWS' },
-  PEDIATRIC: { key: 'pediatric', label: 'PEWS (เด็ก)', short: 'PEWS' },
-};
-
-/** User-facing system copy — badges show NEWS/PEWS; prose uses this label. */
-export const EWS_SYSTEM_LABEL = 'คะแนนเตือนภัย (EWS)';
-
-/* Age at which the adult NEWS chart takes over from the paediatric one —
-   the usual cut-off used by Thai hospitals' paediatric early-warning
-   charts. */
-export const PEDIATRIC_MAX_AGE = 15;
-
-/* Normal ranges per paediatric age band (ปี). Children breathe faster and
-   run higher heart rates than adults at baseline, and their systolic BP
-   floor is much lower — scoring them on the adult chart flags healthy
-   vitals as critical, which both frightens staff and dilutes the alarm
-   that matters. */
-const PEDIATRIC_BANDS = [
-  { maxAge: 1,  rr: [30, 60], pulse: [110, 160], bpSysLow: 70 },
-  { maxAge: 4,  rr: [24, 40], pulse: [90, 150],  bpSysLow: 75 },
-  { maxAge: 11, rr: [18, 30], pulse: [70, 120],  bpSysLow: 80 },
-  { maxAge: 15, rr: [12, 20], pulse: [60, 100],  bpSysLow: 90 },
-];
-
-/* 0 inside the normal band, then 1 / 2 / 3 as the value drifts further
-   out, scaled to the width of the band itself so a narrow band (older
-   children) isn't punished more harshly than a wide one (infants). */
-const deviationScore = (value, [low, high]) => {
-  if (value >= low && value <= high) return 0;
-  const span = Math.max(1, high - low);
-  const distance = value < low ? low - value : value - high;
-  if (distance <= span * 0.2) return 1;
-  if (distance <= span * 0.5) return 2;
-  return 3;
-};
-
-/* SpO2 and temperature thresholds are shared — paediatric charts use
-   essentially the same cut-offs as the adult ones for both. */
-const scoreOxygen = (spo2) => (spo2 <= 91 ? 3 : spo2 <= 93 ? 2 : spo2 <= 95 ? 1 : 0);
-const scoreTemperature = (temp) => {
-  if (temp <= 35.0) return 3;
-  if (temp >= 39.1) return 2;
-  if ((temp >= 35.1 && temp <= 36.0) || (temp >= 38.1 && temp <= 39.0)) return 1;
-  return 0;
-};
-
-/** Calculate an Early Warning Score from a vitals reading.
- *  Pass `age` (ปี) to get the paediatric (PEWS) chart for patients ≤ 15;
- *  omit it and the adult NEWS chart is used, same as before. */
-export function calculateEwsScore({ bpSys, pulse, temp, spo2, rr, age }) {
-  const isPediatric = Number.isFinite(Number(age)) && Number(age) <= PEDIATRIC_MAX_AGE;
-  const scale = isPediatric ? EWS_SCALES.PEDIATRIC : EWS_SCALES.ADULT;
-  if (!bpSys || !pulse || !temp || !spo2 || !rr) {
-    return { score: 0, tier: EWS_RISK_TIERS.NORMAL, scale };
-  }
-
-  let score = 0;
-
-  if (isPediatric) {
-    const band = PEDIATRIC_BANDS.find((b) => Number(age) <= b.maxAge) || PEDIATRIC_BANDS[PEDIATRIC_BANDS.length - 1];
-    score += deviationScore(rr, band.rr);
-    score += deviationScore(pulse, band.pulse);
-    /* Paediatric hypotension is a late, ominous sign — score the floor
-       hard and don't score the ceiling at all (high BP in a child is
-       rarely the acute problem the ward is watching for). */
-    if (bpSys < band.bpSysLow) score += 3;
-    else if (bpSys < band.bpSysLow * 1.1) score += 2;
-    else if (bpSys < band.bpSysLow * 1.2) score += 1;
-  } else {
-    // Respiratory Rate
-    if (rr <= 8 || rr >= 25) score += 3;
-    else if (rr >= 21 && rr <= 24) score += 2;
-    else if (rr >= 9 && rr <= 11) score += 1;
-
-    // Systolic BP
-    if (bpSys <= 90 || bpSys >= 220) score += 3;
-    else if (bpSys >= 91 && bpSys <= 100) score += 2;
-    else if (bpSys >= 101 && bpSys <= 110) score += 1;
-
-    // Pulse Rate
-    if (pulse <= 40 || pulse >= 131) score += 3;
-    else if (pulse >= 111 && pulse <= 130) score += 2;
-    else if ((pulse >= 41 && pulse <= 50) || (pulse >= 91 && pulse <= 110)) score += 1;
-  }
-
-  score += scoreOxygen(spo2);
-  score += scoreTemperature(temp);
-
-  let tier = EWS_RISK_TIERS.NORMAL;
-  if (score >= 5) tier = EWS_RISK_TIERS.CRITICAL;
-  else if (score >= 2) tier = EWS_RISK_TIERS.WARNING;
-
-  return { score, tier, scale };
-}
-
-/** Score a reading against the patient it belongs to — the call every
- *  screen should use, so the age-appropriate chart is never forgotten. */
-export const scorePatientVitals = (patient, vitals) =>
-  calculateEwsScore({ ...(vitals || {}), age: patient?.age });
 
 /* ── Clinical edge-case thresholds ─────────────────────────────────────
    One home for every rule in docs/observation-use-cases.md §"กรณีขอบเขต
@@ -123,14 +13,45 @@ export const scorePatientVitals = (patient, vitals) =>
    discharge flow all read the SAME number instead of each hard-coding
    its own idea of "too long" / "too high" / "impossible". */
 
-/* #1 Rapid Deterioration — NEWS ≥ 5 is the score at which the national
-   protocol demands an urgent bedside response, so it's also the point
-   where the bed card goes into its red blinking alert state. */
-export const EWS_RED_ALERT_SCORE = 5;
-
 /* #2 Overstay — OPD-Observation / Day Bed standard stay is 6 hours;
    past that the attending doctor has to re-evaluate for Admit / Refer. */
 export const OVERSTAY_LIMIT_MINUTES = 360;
+
+/** Latest ESI from vitalsTrend (1 = most urgent). Returns 5 when absent. */
+export const latestPatientEsi = (patient) => {
+  const latest = patient?.vitalsTrend?.[patient.vitalsTrend.length - 1];
+  const raw = latest?.esi;
+  if (raw == null || raw === '') return 5;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 5;
+};
+
+/** Latest Pain Score key from vitalsTrend (none | mild | mod | severe | agony). */
+export const latestPatientPain = (patient) => {
+  const pain = patient?.vitalsTrend?.[patient.vitalsTrend.length - 1]?.pain;
+  return pain ?? null;
+};
+
+/* Ward-board status labels + StatusBadge styles — one mapping everywhere
+   (filter tags, grid cards, table) so "กำลังเฝ้าระวัง" always reads info,
+   "รอทำความสะอาด" always warning, etc. */
+export const OBSERVATION_BED_STATUS = {
+  observing: { label: 'กำลังเฝ้าระวัง', badgeStyle: 'info' },
+  empty: { label: 'เตียงว่าง', badgeStyle: 'neutral' },
+  cleaning: { label: 'รอทำความสะอาด', badgeStyle: 'warning' },
+  referred: { label: 'ส่งต่อแล้ว', badgeStyle: 'success' },
+};
+
+export const observationBedStatusFor = (patient) => {
+  if (!patient) return null;
+  if (patient.status === 'observing') return { ...OBSERVATION_BED_STATUS.observing, status: 'observing' };
+  if (patient.status === 'empty') return { ...OBSERVATION_BED_STATUS.empty, status: 'empty' };
+  if (patient.status === 'cleaning') return { ...OBSERVATION_BED_STATUS.cleaning, status: 'cleaning' };
+  if (patient.status === 'ready_discharge' || patient.status === 'discharged') {
+    return { ...OBSERVATION_BED_STATUS.referred, status: patient.status };
+  }
+  return null;
+};
 
 /* ── Timestamps ────────────────────────────────────────────────────────
    Observation records carry two kinds of time string:
@@ -297,7 +218,7 @@ export const isPhysicalBed = (patient) =>
 export const isBedAvailable = (patient) => patient?.status === 'empty';
 
 const BLANK_PATIENT_FIELDS = {
-  patientName: '', avatar: '', hn: '', vn: '', age: null, gender: '',
+  patientName: '', avatar: '', hn: '', vn: '', nationalId: '', age: null, gender: '',
   admitTime: '', dischargeTime: '', chiefComplaint: '', diagnosis: '',
   doctorName: '', nurseName: '', rights: '',
   vitalsTrend: [], statOrders: [], nursingNotes: [], dischargeSummary: null,
@@ -317,6 +238,7 @@ export const splitEpisodeFromBed = (bed, { episodeId, dischargeTime, patch = {} 
     id: bed.id,
     bedNo: bed.bedNo,
     bedType: bed.bedType,
+    bedDescription: bed.bedDescription,
     bedPhotoId: bed.bedPhotoId,
     isExtraBed: bed.isExtraBed,
     severity: 'normal',
@@ -329,8 +251,8 @@ export const splitEpisodeFromBed = (bed, { episodeId, dischargeTime, patch = {} 
    IMPOSSIBLE reading (the mistyped "368 °C" / "1200/800 mmHg" the TOR
    calls out), not a clinically abnormal one. Genuinely alarming values
    (BP 220, Temp 41) stay inside the range on purpose: they must still be
-   recordable, and it's calculateEwsScore's job — not the form's — to
-   flag them. */
+   recordable — clinical urgency is surfaced via Pain/ESI on each entry,
+   not via a separate early-warning score. */
 export const VITAL_RANGES = {
   bpSys: { label: 'ความดันตัวบน (BP Systolic)', unit: 'mmHg', min: 40, max: 300 },
   bpDia: { label: 'ความดันตัวล่าง (BP Diastolic)', unit: 'mmHg', min: 20, max: 200 },
@@ -384,6 +306,13 @@ export const esiLevelSummary = (lv) => {
   return row ? `ESI ${row.lv} — ${row.th}` : `ESI ${lv}`;
 };
 
+export {
+  assessVitalAlerts,
+  getPatientVitalAlertState,
+  primaryVitalAlertLabel,
+  vitalAlertLevel,
+} from './observationVitalAlerts';
+
 export const painBadgeStyleFor = (key) => {
   const tone = OBSERVATION_PAIN_LEVELS.find((p) => p.key === key)?.tone;
   const map = { green: 'success', blue: 'info', yellow: 'yellow', orange: 'warning', red: 'error' };
@@ -398,18 +327,21 @@ export const esiBadgeStyleFor = (lv) => {
   return 'neutral';
 };
 
-/** Cells for vitals timeline grids — includes pain / ESI when recorded. */
+/** Cells for vitals timeline grids — includes pain / ESI when recorded.
+ *  `key` maps to resolveVitalSnapshotTone (bp / pulse / temp / spo2 / rr). */
 export const vitalsTimelineCells = (vitals) => {
   if (!vitals) return [];
   const cells = [
-    ['ความดัน (BP)', `${vitals.bpSys}/${vitals.bpDia}`],
-    ['ชีพจร (Pulse)', `${vitals.pulse} bpm`],
-    ['อุณหภูมิ (Temp)', `${vitals.temp}°C`],
-    ['ออกซิเจนปลายนิ้ว (SpO2)', `${vitals.spo2}%`],
-    ['อัตราการหายใจ (RR)', `${vitals.rr} ครั้ง/นาที`],
+    { key: 'bp', label: 'ความดัน (BP)', value: `${vitals.bpSys}/${vitals.bpDia}` },
+    { key: 'pulse', label: 'ชีพจร (Pulse)', value: `${vitals.pulse} bpm` },
+    { key: 'temp', label: 'อุณหภูมิ (Temp)', value: `${vitals.temp}°C` },
+    { key: 'spo2', label: 'ออกซิเจนปลายนิ้ว (SpO2)', value: `${vitals.spo2}%` },
+    { key: 'rr', label: 'อัตราการหายใจ (RR)', value: `${vitals.rr} ครั้ง/นาที` },
   ];
-  if (vitals.pain) cells.push(['Pain Score', painLevelLabel(vitals.pain)]);
-  if (vitals.esi != null && vitals.esi !== '') cells.push(['ESI', esiLevelSummary(vitals.esi)]);
+  if (vitals.pain) cells.push({ key: 'pain', label: 'Pain Score', value: painLevelLabel(vitals.pain) });
+  if (vitals.esi != null && vitals.esi !== '') {
+    cells.push({ key: 'esi', label: 'ESI', value: esiLevelSummary(vitals.esi) });
+  }
   return cells;
 };
 
@@ -427,12 +359,14 @@ export const MOCK_OBSERVATION_PATIENTS = [
     id: 'obs-001',
     bedNo: 'เตียง 01',
     bedType: 'เตียงไฟฟ้า (High Care)',
+    bedDescription: '',
     status: 'observing', // observing | ready_discharge | discharged
     severity: 'warning', // normal | warning | critical
     patientName: 'นาย สมชาย ใจดี',
     avatar: '/avatars/patient-mock-01.png',
     hn: '67004128',
     vn: 'VN670728-091',
+    nationalId: '3101200456789',
     age: 58,
     gender: 'ชาย',
     admitTime: '2026-07-28 08:30 น.',
@@ -445,12 +379,12 @@ export const MOCK_OBSERVATION_PATIENTS = [
     nurseName: 'พว. สุภาพร ชัยมงคล',
     rights: 'สิทธิบัตรทอง (NHSO)',
     vitalsTrend: [
-      { time: '08:30 น.', bpSys: 145, bpDia: 92, pulse: 104, temp: 37.2, spo2: 94, rr: 24, note: 'แรกรับเตียง สังเกตอาการ ใส่ O2 Cannula 3L/min', ews: 3 },
-      { time: '09:00 น.', bpSys: 138, bpDia: 88, pulse: 96,  temp: 37.1, spo2: 96, rr: 22, note: 'หลังพ่นยา Berodual Neb 1 dose อาการดีขึ้น', ews: 2 },
-      { time: '10:00 น.', bpSys: 132, bpDia: 84, pulse: 88,  temp: 36.9, spo2: 98, rr: 20, note: 'ผู้ป่วยรู้สึกตัวดี ไม่มีแน่นหน้าอกเพิ่ม', ews: 0 },
-      { time: '11:30 น.', bpSys: 128, bpDia: 82, pulse: 82,  temp: 36.8, spo2: 98, rr: 18, note: 'สัญญาณชีพคงที่ พร้อมประเมินจำหน่าย', ews: 0 },
-      { time: '13:00 น.', bpSys: 130, bpDia: 84, pulse: 84,  temp: 36.9, spo2: 98, rr: 18, note: 'รอผล EKG Serial ครั้งที่ 2 ก่อนตัดสินใจจำหน่าย', ews: 0 },
-      { time: '15:00 น.', bpSys: 126, bpDia: 80, pulse: 80,  temp: 36.8, spo2: 99, rr: 18, note: 'ครองเตียงเกิน 6 ชม. รอแพทย์ประเมินซ้ำเพื่อตัดสินใจ Admit หรือจำหน่าย', ews: 0, pain: 'mild', esi: 4 },
+      { time: '08:30 น.', bpSys: 145, bpDia: 92, pulse: 104, temp: 37.2, spo2: 94, rr: 24, note: 'แรกรับเตียง สังเกตอาการ ใส่ O2 Cannula 3L/min' },
+      { time: '09:00 น.', bpSys: 138, bpDia: 88, pulse: 96,  temp: 37.1, spo2: 96, rr: 22, note: 'หลังพ่นยา Berodual Neb 1 dose อาการดีขึ้น' },
+      { time: '10:00 น.', bpSys: 132, bpDia: 84, pulse: 88,  temp: 36.9, spo2: 98, rr: 20, note: 'ผู้ป่วยรู้สึกตัวดี ไม่มีแน่นหน้าอกเพิ่ม' },
+      { time: '11:30 น.', bpSys: 128, bpDia: 82, pulse: 82,  temp: 36.8, spo2: 98, rr: 18, note: 'สัญญาณชีพคงที่ พร้อมประเมินจำหน่าย' },
+      { time: '13:00 น.', bpSys: 130, bpDia: 84, pulse: 84,  temp: 36.9, spo2: 98, rr: 18, note: 'รอผล EKG Serial ครั้งที่ 2 ก่อนตัดสินใจจำหน่าย' },
+      { time: '15:00 น.', bpSys: 126, bpDia: 80, pulse: 80,  temp: 36.8, spo2: 99, rr: 18, note: 'ครองเตียงเกิน 6 ชม. รอแพทย์ประเมินซ้ำเพื่อตัดสินใจ Admit หรือจำหน่าย', pain: 'mild', esi: 4 },
     ],
     statOrders: [
       { id: 'ord-1', orderTime: '08:35 น.', orderText: 'Oxygen cannula 3 LPM keep SpO2 > 95%', status: 'completed', executedBy: 'พว. สุภาพร', executedTime: '08:37 น.' },
@@ -476,12 +410,14 @@ export const MOCK_OBSERVATION_PATIENTS = [
     id: 'obs-002',
     bedNo: 'เตียง 02',
     bedType: 'เตียงกึ่งพิเศษ',
+    bedDescription: '',
     status: 'observing',
     severity: 'critical',
     patientName: 'นาง สมศรี มีสุข',
     avatar: '/avatars/patient-mock-02.png',
     hn: '67005932',
     vn: 'VN670728-104',
+    nationalId: '3101800987654',
     age: 72,
     gender: 'หญิง',
     admitTime: '2026-07-28 09:45 น.',
@@ -492,9 +428,9 @@ export const MOCK_OBSERVATION_PATIENTS = [
     nurseName: 'พว. นิภา วงศ์สว่าง',
     rights: 'สิทธิข้าราชการ (Direct Billing)',
     vitalsTrend: [
-      { time: '09:45 น.', bpSys: 182, bpDia: 106, pulse: 112, temp: 37.0, spo2: 96, rr: 22, note: 'ความดันสูงมาก เวียนศีรษะมาก ให้นอนราบ', ews: 3 },
-      { time: '10:15 น.', bpSys: 168, bpDia: 98,  pulse: 102, temp: 36.9, spo2: 97, rr: 20, note: 'หลังให้ยา Amlodipine 10mg + Plasil 10mg IV', ews: 2 },
-      { time: '11:15 น.', bpSys: 154, bpDia: 92,  pulse: 94,  temp: 36.8, spo2: 97, rr: 19, note: 'ความดันค่อยๆ ลดลง อาการเวียนศีรษะเบาลง', ews: 1 },
+      { time: '09:45 น.', bpSys: 182, bpDia: 106, pulse: 112, temp: 37.0, spo2: 96, rr: 22, note: 'ความดันสูงมาก เวียนศีรษะมาก ให้นอนราบ' },
+      { time: '10:15 น.', bpSys: 168, bpDia: 98,  pulse: 102, temp: 36.9, spo2: 97, rr: 20, note: 'หลังให้ยา Amlodipine 10mg + Plasil 10mg IV' },
+      { time: '11:15 น.', bpSys: 154, bpDia: 92,  pulse: 94,  temp: 36.8, spo2: 97, rr: 19, note: 'ความดันค่อยๆ ลดลง อาการเวียนศีรษะเบาลง' },
     ],
     statOrders: [
       { id: 'ord-21', orderTime: '09:50 น.', orderText: 'Amlodipine (10mg) 1 tab oral Stat', status: 'completed', executedBy: 'พว. นิภา', executedTime: '09:52 น.' },
@@ -518,12 +454,14 @@ export const MOCK_OBSERVATION_PATIENTS = [
     id: 'obs-003',
     bedNo: 'เตียง 03',
     bedType: 'เตียงพับได้ / Recliner',
+    bedDescription: '',
     status: 'ready_discharge',
     severity: 'normal',
     patientName: 'เด็กชาย กิตติพงษ์ เด่นดวง',
     avatar: '/avatars/patient-mock-03.png',
     hn: '67008120',
     vn: 'VN670728-052',
+    nationalId: '1100701123456',
     age: 9,
     gender: 'ชาย',
     admitTime: '2026-07-28 07:15 น.',
@@ -534,10 +472,10 @@ export const MOCK_OBSERVATION_PATIENTS = [
     nurseName: 'พว. กัลยา จิตต์มั่น',
     rights: 'สิทธิบัตรทอง (NHSO)',
     vitalsTrend: [
-      { time: '07:15 น.', bpSys: 108, bpDia: 68, pulse: 118, temp: 38.8, spo2: 98, rr: 22, note: 'แรกรับ ไข้สูง เช็ดตัวลดไข้ ให้ Paracetamol syrup', ews: 2 },
-      { time: '08:15 น.', bpSys: 110, bpDia: 70, pulse: 104, temp: 37.8, spo2: 99, rr: 20, note: 'เช็ดตัวลดไข้ ดื่ม ORS ได้ดีขึ้น', ews: 0 },
-      { time: '10:15 น.', bpSys: 112, bpDia: 72, pulse: 92,  temp: 36.8, spo2: 99, rr: 18, note: 'ไข้ลด ร่าเริง กินอาหารว่างได้', ews: 0 },
-      { time: '11:45 น.', bpSys: 112, bpDia: 70, pulse: 88,  temp: 36.6, spo2: 99, rr: 18, note: 'อาการทั่วไปปกติ พร้อมกลับบ้าน', ews: 0 },
+      { time: '07:15 น.', bpSys: 108, bpDia: 68, pulse: 118, temp: 38.8, spo2: 98, rr: 22, note: 'แรกรับ ไข้สูง เช็ดตัวลดไข้ ให้ Paracetamol syrup' },
+      { time: '08:15 น.', bpSys: 110, bpDia: 70, pulse: 104, temp: 37.8, spo2: 99, rr: 20, note: 'เช็ดตัวลดไข้ ดื่ม ORS ได้ดีขึ้น' },
+      { time: '10:15 น.', bpSys: 112, bpDia: 72, pulse: 92,  temp: 36.8, spo2: 99, rr: 18, note: 'ไข้ลด ร่าเริง กินอาหารว่างได้' },
+      { time: '11:45 น.', bpSys: 112, bpDia: 70, pulse: 88,  temp: 36.6, spo2: 99, rr: 18, note: 'อาการทั่วไปปกติ พร้อมกลับบ้าน' },
     ],
     statOrders: [
       { id: 'ord-31', orderTime: '07:20 น.', orderText: 'Paracetamol syrup (250mg/5ml) 7.5 ml oral Stat', status: 'completed', executedBy: 'พว. กัลยา', executedTime: '07:22 น.' },
@@ -561,12 +499,14 @@ export const MOCK_OBSERVATION_PATIENTS = [
     id: 'obs-004',
     bedNo: 'เตียง 04',
     bedType: 'เตียงสามัญ',
+    bedDescription: '',
     status: 'observing',
     severity: 'critical',
     patientName: 'นาย ประเสริฐ ยิ้มแย้ม',
     avatar: '/avatars/patient-mock-04.png',
     hn: '67001099',
     vn: 'VN670728-112',
+    nationalId: '3101400567890',
     age: 64,
     gender: 'ชาย',
     admitTime: '2026-07-28 11:00 น.',
@@ -577,12 +517,10 @@ export const MOCK_OBSERVATION_PATIENTS = [
     nurseName: 'พว. สุภาพร ชัยมงคล',
     rights: 'สิทธิประกันสังคม (SSO)',
     vitalsTrend: [
-      { time: '11:00 น.', bpSys: 96, bpDia: 60, pulse: 118, temp: 37.6, spo2: 95, rr: 24, note: 'ความดันตก ชีพจรเร็ว ปวดท้องมาก เฝ้าระวัง Shock', ews: 5 },
-      { time: '11:30 น.', bpSys: 102, bpDia: 64, pulse: 110, temp: 37.5, spo2: 96, rr: 22, note: 'หลังให้ Acetar 1,000 ml IV load 200 ml/hr', ews: 3 },
-      /* Deterioration — pushes the calculated EWS back over the red-alert
-         line (≥ 5) so the queue card's Code Red state has a live example.
-         Clinically consistent with the suspected perforation below. */
-      { time: '12:00 น.', bpSys: 92, bpDia: 58, pulse: 116, temp: 37.6, spo2: 94, rr: 22, note: 'ความดันตกซ้ำ ชีพจรเร็วขึ้น ปวดท้องรุนแรงขึ้น เฝ้าระวังภาวะ Septic Shock', ews: 7, deteriorationEvent: true, pain: 'severe', esi: 2 },
+      { time: '11:00 น.', bpSys: 96, bpDia: 60, pulse: 118, temp: 37.6, spo2: 95, rr: 24, note: 'ความดันตก ชีพจรเร็ว ปวดท้องมาก เฝ้าระวัง Shock' },
+      { time: '11:30 น.', bpSys: 102, bpDia: 64, pulse: 110, temp: 37.5, spo2: 96, rr: 22, note: 'หลังให้ Acetar 1,000 ml IV load 200 ml/hr' },
+      /* Clinical deterioration example — ESI 2 with worsening vitals for demo. */
+      { time: '12:00 น.', bpSys: 88, bpDia: 52, pulse: 132, temp: 37.8, spo2: 91, rr: 27, note: 'ความดันตกซ้ำ ชีพจรเร็วขึ้น ปวดท้องรุนแรงขึ้น เฝ้าระวังภาวะ Septic Shock', pain: 'severe', esi: 2 },
     ],
     statOrders: [
       { id: 'ord-41', orderTime: '11:05 น.', orderText: 'NPO (Halt oral intake & water)', status: 'completed', executedBy: 'พว. สุภาพร', executedTime: '11:05 น.' },
@@ -606,6 +544,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     id: 'obs-005',
     bedNo: 'เตียง 05',
     bedType: 'เตียงหมุนมือ',
+    bedDescription: '',
     status: 'empty',
     severity: 'normal',
     patientName: '',
@@ -629,6 +568,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     id: 'obs-006',
     bedNo: 'เตียง 06',
     bedType: 'เตียงหมุนมือ',
+    bedDescription: '',
     status: 'empty',
     severity: 'normal',
     patientName: '',
@@ -652,6 +592,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     id: 'obs-007',
     bedNo: 'เตียง 07',
     bedType: 'เตียงไฟฟ้า (High Care)',
+    bedDescription: '',
     status: 'empty',
     severity: 'normal',
     patientName: '',
@@ -675,6 +616,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     id: 'obs-008',
     bedNo: 'เตียง 08',
     bedType: 'เตียงกึ่งพิเศษ',
+    bedDescription: '',
     status: 'empty',
     severity: 'normal',
     patientName: '',
@@ -698,6 +640,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     id: 'obs-009',
     bedNo: 'เตียง 09',
     bedType: 'เตียงพับได้ / Recliner',
+    bedDescription: '',
     status: 'empty',
     severity: 'normal',
     patientName: '',
@@ -721,6 +664,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
     id: 'obs-010',
     bedNo: 'เตียง 10',
     bedType: 'เตียงสามัญ',
+    bedDescription: '',
     status: 'empty',
     severity: 'normal',
     patientName: '',
@@ -866,10 +810,10 @@ WARD_FILLER_CASES.forEach((c, i) => {
 /* "รายการที่ส่งต่อแล้ว" (already referred/discharged) history — generated
    rather than hand-authored so the queue's referred tab has enough rows
    to exercise its filter tags (วันที่/เตียง/สถานะ/ผู้สั่ง/พยาบาลรับผู้ป่วย)
-   and pagination (40 rows / 20 per page). Spans the current + previous
-   two months so the "เดือนนี้" default date filter meaningfully narrows
-   the list instead of showing everything. Deterministic (index-based,
-   no Math.random) so the list is stable across reloads. */
+   and pagination. Target: 32 rows on the referred tab (31 generated +
+   the forked obs-003 episode below). Most land in the current month so
+   the default "เดือนนี้" filter still shows ~32; a few prior-month rows
+   keep the date filter demonstrable. Deterministic (index-based). */
 const REFERRED_BED_TYPES = ['เตียงไฟฟ้า (High Care)', 'เตียงกึ่งพิเศษ', 'เตียงพับได้ / Recliner', 'เตียงสามัญ', 'เตียงหมุนมือ'];
 const REFERRED_CASE_TEMPLATES = [
   { chiefComplaint: 'แน่นหน้าอก หายใจไม่สะดวก', diagnosis: 'Acute Bronchospasm', doctorName: 'นพ. วรวิทย์ เกียรติเจริญ', nurseName: 'พว. สุภาพร ชัยมงคล' },
@@ -888,11 +832,11 @@ const REFERRED_REFER_HOSPITALS = ['โรงพยาบาลตากสิน
 const buildReferredMockPatients = (count) => Array.from({ length: count }, (_, i) => {
   const profile = PATIENT_PROFILES[i % PATIENT_PROFILES.length];
   const dx = REFERRED_CASE_TEMPLATES[i % REFERRED_CASE_TEMPLATES.length];
-  /* Spread across this month + the two before it (0 = เดือนนี้). */
-  const monthsAgo = i % 3;
-  const month = 6 - monthsAgo; // 6 = July (0-indexed) → May..July 2026
-  const day = 1 + (i % 27);
-  const admitDate = new Date(2026, month, day);
+  /* Pin to the current calendar month so the referred tab's default
+     "เดือนนี้" date filter shows the full mock set (32 with hist fork). */
+  const now = new Date();
+  const day = 1 + (i % Math.min(27, now.getDate() || 27));
+  const admitDate = new Date(now.getFullYear(), now.getMonth(), day);
   const yyyy = admitDate.getFullYear();
   const mm = String(admitDate.getMonth() + 1).padStart(2, '0');
   const dd = String(admitDate.getDate()).padStart(2, '0');
@@ -922,7 +866,7 @@ const buildReferredMockPatients = (count) => Array.from({ length: count }, (_, i
     nurseName: dx.nurseName,
     rights: REFERRED_RIGHTS[i % REFERRED_RIGHTS.length],
     vitalsTrend: [
-      { time: `${String(hour).padStart(2, '0')}:00 น.`, ...dischargeVitals, note: 'อาการคงที่ ประเมินพร้อมจำหน่าย', ews: 0 },
+      { time: `${String(hour).padStart(2, '0')}:00 น.`, ...dischargeVitals, note: 'อาการคงที่ ประเมินพร้อมจำหน่าย' },
     ],
     statOrders: [],
     nursingNotes: [],
@@ -937,7 +881,7 @@ const buildReferredMockPatients = (count) => Array.from({ length: count }, (_, i
   };
 });
 
-MOCK_OBSERVATION_PATIENTS.push(...buildReferredMockPatients(40));
+MOCK_OBSERVATION_PATIENTS.push(...buildReferredMockPatients(31));
 
 /* Back-fill pain / ESI on the latest vitals row when not explicitly set —
    so every occupied card has both fields to render (TOR §1.14.2 re-assessment). */
@@ -1019,3 +963,15 @@ const forkFinishedBed = (bedId) => {
   MOCK_OBSERVATION_PATIENTS.push(episode);
 };
 forkFinishedBed('obs-003');
+
+/* Keep the forked history episode inside "เดือนนี้" so the referred tab
+   total stays at 32 under the default date filter. */
+(() => {
+  const hist = MOCK_OBSERVATION_PATIENTS.find((p) => p.id === 'obs-hist-obs-003');
+  if (!hist) return;
+  const now = new Date();
+  const admit = new Date(now.getFullYear(), now.getMonth(), Math.max(1, now.getDate() - 1), 7, 15);
+  const discharge = new Date(admit.getTime() + (hist.stayMinutes || 290) * 60000);
+  hist.admitTime = formatObservationDateTime(admit);
+  hist.dischargeTime = formatObservationDateTime(discharge);
+})();

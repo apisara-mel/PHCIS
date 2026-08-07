@@ -37,7 +37,8 @@ import StatusBadge from '@/components/badge/StatusBadge';
 
    API extensions (beyond the Figma panel):
      • image / imageAlt   — photo src + alt for the header tile
-     • title / subtext    — text content
+     • title / titleSecondary / subtext — text content
+       (titleSecondary = optional second line under title, e.g. English name)
      • badge              — { label, style, icon, ...rest } → ColorfulBadge
      • statusBadge        — { label, style, icon, ...rest } → StatusBadge
      • selected           — boolean shortcut for state='selected'
@@ -106,6 +107,8 @@ const InventoryCard = ({
   image = DEFAULT_IMAGE,
   imageAlt = 'Inventory item photo',
   title = 'Title',
+  /* Optional second title line (e.g. English name) — thin, small, tertiary. */
+  titleSecondary,
   subtext = 'Subtext',
   badge = { label: 'Info', style: 'blue' },
   statusBadge = { label: 'Success', style: 'success' },
@@ -256,19 +259,44 @@ const InventoryCard = ({
             </div>
           )}
           {showTitle && (
-            <p
+            <div
               style={{
-                margin: 'var(--dim-space-0)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 'var(--dim-space-100, 4px)',
                 width: '100%',
-                fontFamily: 'var(--type-family-heading, var(--type-family-body))',
-                fontWeight: 'var(--type-weight-bold, 700)',
-                fontSize: 'var(--type-size-sm, 14px)',
-                lineHeight: 1.5,
-                color: 'var(--text-content-default, var(--text-content-primary, #363B3F))',
               }}
             >
-              {title}
-            </p>
+              <p
+                style={{
+                  margin: 'var(--dim-space-0)',
+                  width: '100%',
+                  fontFamily: 'var(--type-family-heading, var(--type-family-body))',
+                  fontWeight: 'var(--type-weight-bold, 700)',
+                  fontSize: 'var(--type-size-sm, 14px)',
+                  lineHeight: 1.5,
+                  color: 'var(--text-content-default, var(--text-content-primary, #363B3F))',
+                }}
+              >
+                {title}
+              </p>
+              {titleSecondary ? (
+                <p
+                  style={{
+                    margin: 'var(--dim-space-0)',
+                    width: '100%',
+                    fontFamily: 'var(--type-family-body)',
+                    fontWeight: 'var(--type-weight-regular, 400)',
+                    fontSize: 'var(--type-size-xs, 12px)',
+                    lineHeight: 1.5,
+                    color: 'var(--text-content-tertiary, #858C92)',
+                  }}
+                >
+                  {titleSecondary}
+                </p>
+              ) : null}
+            </div>
           )}
           {showSubtext && (
             <p

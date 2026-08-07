@@ -1,23 +1,24 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header, { SubHeader } from '@/components/layout/Header';
 import PatientCard from '@/components/card/PatientCard';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
+import QueueSubMenu from '@/components/layout/QueueSubMenu';
 import { useStepDirection } from '@/components/step/stepTransition';
 import AllergyForm from '@/components/forms/AllergyForm';
 import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
 import ScreeningStep4 from '@/pages/opd/ScreeningStep4';
 import ScreeningStep5 from '@/pages/opd/ScreeningStep5';
 import AlertDialog from '@/components/popup/AlertDialog';
-import Popup from '@/components/popup/Popup';
-import Dropdown from '@/components/forms/Dropdown';
+import Select from '@/components/forms/Select';
 import Textarea from '@/components/forms/Textarea';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Icon from '@/components/icons/Icon';
 import Footer from '@/components/layout/Footer';
 import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
 import BedSelectionPopup from '@/components/popup/BedSelectionPopup';
+import InternalReferPopup from '@/components/popup/InternalReferPopup';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import SelectableCardButton from '@/components/button/SelectableCardButton';
@@ -37,7 +38,12 @@ import {
   stampStationTime,
   isScreeningCompleted,
 } from '@/data/opdScreeningDrafts';
-import { addWalkinRequest, WALKIN_DEPARTMENTS } from '@/data/opdWalkinRequests';
+import { addWalkinRequest } from '@/data/opdWalkinRequests';
+import {
+  buildOpdQueueSubMenuBuckets,
+  OPD_QUEUE_ROWS,
+  OPD_QUEUE_SUBMENU_LABELS,
+} from '@/data/opdQueue';
 
 const STEPS = [
   'สัญญาณชีพ',
@@ -807,18 +813,18 @@ const ScreeningPage = () => {
      (/opd/requests) works from, where staff assign a doctor slot and the
      exam queue number is issued. */
   const [forwardOpen, setForwardOpen] = useState(false);
-  const [forwardDept, setForwardDept] = useState('');
   const [forwardEsi, setForwardEsi] = useState('4');
   const [forwardDone, setForwardDone] = useState(null);
 
-  const submitForward = () => {
-    if (!forwardDept) return;
+  const submitForward = (refer) => {
+    if (!refer?.departmentLabel) return;
+    const noteSuffix = refer.note ? ` · ${refer.note}` : '';
     const created = addWalkinRequest({
       hn: patient.hn,
       name: patient.shortName || navState?.name || patient.name,
-      complaint: `ส่งต่อจากจุดคัดกรอง (คิว ${navState?.queue || '-'})`,
+      complaint: `ส่งต่อจากจุดคัดกรอง (คิว ${navState?.queue || '-'}) → ${refer.servicePointLabel}${noteSuffix}`,
       esi: Number(forwardEsi),
-      dept: forwardDept,
+      dept: refer.departmentLabel,
       requestedBy: 'พว.กานดา ศรีวิไล',
     });
     setForwardOpen(false);
@@ -967,6 +973,34 @@ const ScreeningPage = () => {
     leaveScreen();
   }, [clearDirty, leaveScreen]);
 
+  /* QueueSubMenu — same Sub Menu B pattern as TreatmentFormPage /
+     RegistrationFormPage. Buckets come from the shared OPD roster so
+     counts match /opd/queue. */
+  const queueBuckets = useMemo(() => {
+    const raw = buildOpdQueueSubMenuBuckets(OPD_QUEUE_ROWS);
+    const map = (rows) => rows.map((r) => ({
+      id: r.id,
+      hn: r.hn,
+      name: r.name,
+      queue: r.queue,
+      badge: r.vipBadge,
+      statusKey: r.statusKey,
+    }));
+    return {
+      done: { items: map(raw.done.items), total: raw.done.total },
+      draft: { items: map(raw.draft.items), total: raw.draft.total },
+      inProgress: { items: map(raw.inProgress.items), total: raw.inProgress.total },
+      waiting: { items: map(raw.waiting.items), total: raw.waiting.total },
+    };
+  }, []);
+
+  const goToPatientScreening = useCallback((p) => {
+    history.push({
+      pathname: '/opd/screening',
+      state: { hn: p.hn, queue: p.queue, name: p.name, statusKey: p.statusKey },
+    });
+  }, [history]);
+
   return (
     <ClinicFilterProvider>
     <ScreeningConfirmPopup
@@ -999,59 +1033,30 @@ const ScreeningPage = () => {
       cancelLabel='ปิด'
       confirmLabel='โหลดรอบล่าสุด'
     />
-    {/* TOR 1.2.1.3 → 1.2.1.4 — ส่งต่อไปยังแผนก (creates the walk-in request) */}
-    <Popup
+    {/* TOR 1.2.1.3 → 1.2.1.4 — ส่งต่อภายใน (creates the walk-in request) */}
+    <InternalReferPopup
       open={forwardOpen}
       onClose={() => setForwardOpen(false)}
-      title='ส่งต่อไปยังแผนก'
+      onConfirm={submitForward}
+      fromDepartment='คัดกรองและซักประวัติ'
+      title='ส่งต่อภายใน'
       subtitle={`${patient.shortName || navState?.name || ''} · คิว ${navState?.queue || '-'} — ระบบจะสร้างคำขอ Walk-in ให้แผนกปลายทาง`}
-      secondaryAction={{ label: 'ยกเลิก', onClick: () => setForwardOpen(false) }}
-      primaryAction={{ label: 'ส่งคำขอ', disabled: !forwardDept, onClick: submitForward }}
-    >
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-          <span
-            style={{
-              color: 'var(--text-content-default, #363B3F)',
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-sm)',
-              fontWeight: 'var(--type-weight-medium)',
-            }}
-          >
-            แผนกปลายทาง *
-          </span>
-          <Dropdown
-            value={forwardDept}
-            onChange={setForwardDept}
-            options={WALKIN_DEPARTMENTS.map((d) => ({ value: d, label: d }))}
-            placeholder='เลือกแผนกที่จะส่งต่อ'
-          />
-        </div>
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-          <span
-            style={{
-              color: 'var(--text-content-default, #363B3F)',
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-sm)',
-              fontWeight: 'var(--type-weight-medium)',
-            }}
-          >
-            ระดับความเร่งด่วน (ESI)
-          </span>
-          <Dropdown
-            value={forwardEsi}
-            onChange={setForwardEsi}
-            options={[
-              { value: '1', label: 'ESI 1 — วิกฤต ต้องช่วยชีวิตทันที' },
-              { value: '2', label: 'ESI 2 — ฉุกเฉินเร่งด่วน' },
-              { value: '3', label: 'ESI 3 — เร่งด่วน' },
-              { value: '4', label: 'ESI 4 — กึ่งเร่งด่วน' },
-              { value: '5', label: 'ESI 5 — ไม่เร่งด่วน' },
-            ]}
-          />
-        </div>
-      </div>
-    </Popup>
+      primaryLabel='ส่งคำขอ'
+      extra={(
+        <Select
+          label='ระดับความเร่งด่วน (ESI)'
+          value={forwardEsi}
+          onChange={setForwardEsi}
+          options={[
+            { value: '1', label: 'ESI 1 — วิกฤต ต้องช่วยชีวิตทันที' },
+            { value: '2', label: 'ESI 2 — ฉุกเฉินเร่งด่วน' },
+            { value: '3', label: 'ESI 3 — เร่งด่วน' },
+            { value: '4', label: 'ESI 4 — กึ่งเร่งด่วน' },
+            { value: '5', label: 'ESI 5 — ไม่เร่งด่วน' },
+          ]}
+        />
+      )}
+    />
     <AlertDialog
       open={!!forwardDone}
       onClose={() => setForwardDone(null)}
@@ -1076,8 +1081,20 @@ const ScreeningPage = () => {
       onSave={handleSaveDraftAndLeave}
       onDiscard={handleDiscardAndLeave}
     />
-    <div className='min-h-screen w-full flex bg-brand-50'>
+    <div
+      className='flex w-full min-h-screen'
+      style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}
+    >
       <Sidebar activeKey='opd' />
+      {/* QueueSubMenu — Figma "Sub Menu B" (same as /treat/record). Sits
+          between Sidebar and the screening form so nurses can jump to
+          another queue patient without returning to /opd/queue first. */}
+      <QueueSubMenu
+        queue={queueBuckets}
+        sectionLabels={OPD_QUEUE_SUBMENU_LABELS}
+        onViewAll={() => history.push('/opd/queue')}
+        onPickPatient={goToPatientScreening}
+      />
       <main className='flex-1 flex flex-col min-w-0'>
         <Header standalone={false} />
         <SubHeader title='คัดกรองและซักประวัติ' hideBottomBorder />

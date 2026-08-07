@@ -88,7 +88,8 @@ const DISEASE_HISTORY = [
   },
 ];
 
-const DISEASE_OPTIONS = [
+/** Shared with ส่งต่อภายนอก “โรคประจำตัว” dropdown — keep in sync with screening. */
+export const DISEASE_OPTIONS = [
   { value: '',         label: 'เลือกโรค/อาการ' },
   { value: 'ht',       label: 'ความดันโลหิตสูง (HT)'      },
   { value: 'dm',       label: 'โรคเบาหวาน (DM)'           },

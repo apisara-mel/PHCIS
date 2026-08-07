@@ -19,9 +19,10 @@ import {
 
    Every dimension + colour aliases design.md per Figma:
      Outer:    gap-150 (6),  max-w-640, min-w-128, w-447 (default)
-     Box:      bg-input-default, radius-200 (8), h-128 default (size-2000),
-               min-h-96 (size-1800), gap-200 (8). Figma tall variant h-160
-               (size-2100) — pass `height={VOICE_TEXTAREA_HEIGHT_TALL}`.
+     Box:      bg-input-default, radius-200 (8), h-160 default (size-2100),
+               min-h-128 (size-2000), gap-200 (8). Figma tall variant h-192
+               (size-2200) — pass `height={VOICE_TEXTAREA_HEIGHT_TALL}`.
+               Every instance adds VOICE_TEXTAREA_HEIGHT_EXTRA (+32px).
                border + ring via shared resolveBox/composeBoxShadow.
      Top:      p-300 (12), placeholder = body-base (16) / text-input-default.
      Toolbar:  bg-neutral-quaternary (#f9fbfb) — or danger-quaternary in Error,
@@ -31,11 +32,14 @@ import {
                icon-brandPrimaryButton-default. In Error → dangerButton-secondary
                + icon-dangerButton-default.                                  */
 
-/** Default outer box height — `--dim-size-2000` (128px). Form / popup compact. */
+/** Extra outer-box height applied to every VoiceTextarea (clinician typing room). */
+export const VOICE_TEXTAREA_HEIGHT_EXTRA = 32;
+
+/** Default outer box height — base 128px; effective 160px (--dim-size-2100) with EXTRA. */
 export const VOICE_TEXTAREA_HEIGHT = 128;
-/** Minimum outer box height — `--dim-size-1800` (96px). */
+/** Minimum outer box height — base 96px; effective 128px (--dim-size-2000) with EXTRA. */
 export const VOICE_TEXTAREA_MIN_HEIGHT = 96;
-/** Figma 3217:3511 tall variant / body-mark editor — `--dim-size-2100` (160px). */
+/** Figma tall variant / body-mark editor — base 160px; effective 192px (--dim-size-2200). */
 export const VOICE_TEXTAREA_HEIGHT_TALL = 160;
 
 /** Speech-recognition locale options — design.md §6.16.1 (VoiceTextarea toolbar). */
@@ -258,8 +262,8 @@ const VoiceTextarea = React.forwardRef(function VoiceTextarea(
         className='w-full flex flex-col items-start'
         style={{
           position: 'relative',
-          height,
-          minHeight,
+          height: height + VOICE_TEXTAREA_HEIGHT_EXTRA,
+          minHeight: minHeight + VOICE_TEXTAREA_HEIGHT_EXTRA,
           /* Figma gap-200 (8px) between the typing area and the toolbar. */
           gap: 'var(--dim-space-200)',
           borderRadius: 'var(--dim-radius-200)',
