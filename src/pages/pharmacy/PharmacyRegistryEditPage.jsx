@@ -174,7 +174,7 @@ const PharmacyRegistryEditPage = () => {
     );
   }
 
-  const breadcrumb = ['ระบบงานเภสัชกรรม', 'ทะเบียนยา', isNew ? 'เพิ่มยาใหม่' : form.name || 'แก้ไขรายการยา'];
+  const breadcrumb = ['ระบบงานเภสัชกรรม', 'ทะเบียนยา', isNew ? 'เพิ่มทะเบียนยา' : form.name || 'แก้ไขรายการยา'];
   const replacementOptions = DRUG_REGISTRY.filter((d) => d.id !== form.id);
 
   const handleSave = () => {
@@ -204,7 +204,7 @@ const PharmacyRegistryEditPage = () => {
 
           <SectionCard
             icon='medication'
-            title={isNew ? 'เพิ่มยาใหม่' : 'ข้อมูลพื้นฐาน'}
+            title={isNew ? 'เพิ่มทะเบียนยา' : 'ข้อมูลพื้นฐาน'}
             subtitle='ชื่อยา ชื่อสามัญ ชื่อการค้า และสถานะการใช้งาน'
             action={
               <label className='inline-flex items-center cursor-pointer' style={{ gap: 'var(--dim-space-200)' }}>

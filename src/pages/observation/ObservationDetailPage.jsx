@@ -22,10 +22,12 @@ import {
   buildObservationTimeline,
   observationDayOffset,
   formatObservationDateTime,
+  BLANK_OBSERVATION_VITALS_FORM,
+  vitalsTimelineCells,
 } from '@/data/observationMock';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
 import Pagination from '@/components/pagination/Pagination';
-import RecordWizardMorphBand, { MORPH_STICKY_BELOW_TOPBAR } from '@/components/layout/RecordWizardMorphBand';
+import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import Footer from '@/components/layout/Footer';
 import SuccessToast from '@/components/toast/SuccessToast';
 import PatientCard from '@/components/card/PatientCard';
@@ -178,9 +180,7 @@ export default function ObservationDetailPage() {
   const [selectedTrendParam, setSelectedTrendParam] = useState('bp'); // 'bp' | 'pulse' | 'spo2' | 'temp' | 'rr'
 
   // Forms states
-  const [newVital, setNewVital] = useState({
-    bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: ''
-  });
+  const [newVital, setNewVital] = useState({ ...BLANK_OBSERVATION_VITALS_FORM });
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [showTrendGraphModal, setShowTrendGraphModal] = useState(false);
   /* null when closed, otherwise which quick-add popup is open (each with
@@ -221,7 +221,9 @@ export default function ObservationDetailPage() {
   const setVitalFieldValid = (field, valid) =>
     setVitalFieldValidity((prev) => (prev[field] === valid ? prev : { ...prev, [field]: valid }));
   const REQUIRED_VITAL_FIELDS = ['pressure', 'pulse', 'temp', 'spo2', 'rr'];
-  const isVitalFormValid = REQUIRED_VITAL_FIELDS.every((f) => vitalFieldValidity[f] === true);
+  const isVitalFormValid = REQUIRED_VITAL_FIELDS.every((f) => vitalFieldValidity[f] === true)
+    && !!newVital.pain
+    && newVital.esi != null && newVital.esi !== '';
 
   const [newOrderText, setNewOrderText] = useState('');
   const [newNursingNote, setNewNursingNote] = useState('');
@@ -296,7 +298,7 @@ export default function ObservationDetailPage() {
     /* Blank fields — mirrors ObservationQueuePage's handleOpenVitalsModal
        so a value left over from a previous, uncommitted attempt can't
        leak into the popup as a stale, unmeasured reading. */
-    setNewVital({ bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '' });
+    setNewVital({ ...BLANK_OBSERVATION_VITALS_FORM });
     setVitalFieldValidity({});
     setShowVitalsModal(true);
   };
@@ -322,6 +324,8 @@ export default function ObservationDetailPage() {
       spo2: Number(newVital.spo2) || 98,
       rr: Number(newVital.rr) || 18,
       note: newVital.note || 'บันทึกประจำช่วงเวลา',
+      pain: newVital.pain,
+      esi: Number(newVital.esi),
     };
 
     /* Deterioration Event (edge case #1) — same crossing-detection as
@@ -349,7 +353,7 @@ export default function ObservationDetailPage() {
         : prev.nursingNotes,
     }));
 
-    setNewVital({ bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '' });
+    setNewVital({ ...BLANK_OBSERVATION_VITALS_FORM });
     setVitalFieldValidity({});
   };
 
@@ -651,12 +655,12 @@ export default function ObservationDetailPage() {
 
       <RecordWizardMorphBand
         title='สังเกตอาการ'
+        hideTitle
         steps={observationSteps}
         current={OBSERVATION_STEP_KEYS.indexOf(activeTab)}
         completedSteps={OBSERVATION_STEP_KEYS.map(() => false)}
         onStepClick={(idx) => setActiveTab(OBSERVATION_STEP_KEYS[idx])}
-        stickyTop={MORPH_STICKY_BELOW_TOPBAR}
-        stickyZIndex={1100}
+        stickyTop={MORPH_STICKY_BELOW_PATIENT}
       />
 
       <div
@@ -876,16 +880,10 @@ export default function ObservationDetailPage() {
 
                           {entry.vitals && (
                             <div
-                              className='grid grid-cols-2 sm:grid-cols-5'
+                              className='grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
                               style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-200)' }}
                             >
-                              {[
-                                ['ความดัน (BP)', `${entry.vitals.bpSys}/${entry.vitals.bpDia}`],
-                                ['ชีพจร (Pulse)', `${entry.vitals.pulse} bpm`],
-                                ['อุณหภูมิ (Temp)', `${entry.vitals.temp}°C`],
-                                ['ออกซิเจนปลายนิ้ว (SpO2)', `${entry.vitals.spo2}%`],
-                                ['อัตราการหายใจ (RR)', `${entry.vitals.rr} ครั้ง/นาที`],
-                              ].map(([label, value]) => (
+                              {vitalsTimelineCells(entry.vitals).map(([label, value]) => (
                                 <div
                                   key={label}
                                   className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'

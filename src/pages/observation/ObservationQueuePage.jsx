@@ -45,6 +45,10 @@ import {
   isBedAvailable,
   BED_CLEANING_STATUS,
   splitEpisodeFromBed,
+  BLANK_OBSERVATION_VITALS_FORM,
+  painLevelLabel,
+  painBadgeStyleFor,
+  esiBadgeStyleFor,
 } from '@/data/observationMock';
 import { CHIEF_COMPLAINT_SUGGESTIONS } from '@/pages/opd/ScreeningPage';
 import { MOCK_PATIENT_BEDS } from '@/data/mockPatientBeds';
@@ -393,7 +397,7 @@ export default function ObservationQueuePage() {
   // Modal states for Quick Vitals Log & Admit Patient
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [selectedPatientForVitals, setSelectedPatientForVitals] = useState(null);
-  const [vitalsForm, setVitalsForm] = useState({ bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '' });
+  const [vitalsForm, setVitalsForm] = useState({ ...BLANK_OBSERVATION_VITALS_FORM });
   /* VitalCard/PressureCard's `required` prop only renders the asterisk —
      unlike InputField it never reaches a native <input>, so nothing
      blocks an all-empty submit on its own. Track each field's validity
@@ -402,7 +406,9 @@ export default function ObservationQueuePage() {
   const [vitalsFieldValidity, setVitalsFieldValidity] = useState({});
   const setVitalsFieldValid = (field, valid) =>
     setVitalsFieldValidity((prev) => (prev[field] === valid ? prev : { ...prev, [field]: valid }));
-  const isVitalsFormValid = ['pressure', 'pulse', 'temp', 'spo2', 'rr'].every((f) => vitalsFieldValidity[f] === true);
+  const isVitalsFormValid = ['pressure', 'pulse', 'temp', 'spo2', 'rr'].every((f) => vitalsFieldValidity[f] === true)
+    && !!vitalsForm.pain
+    && vitalsForm.esi != null && vitalsForm.esi !== '';
 
   const [showAdmitModal, setShowAdmitModal] = useState(false);
   /* Admit modal's bed picker — reuses the same BedSelectionPopup (photo
@@ -762,7 +768,7 @@ export default function ObservationQueuePage() {
     /* Blank fields — this logs a NEW timed vital-signs entry, so it must
        not silently carry over the patient's last reading (that would let
        a nurse save a stale duplicate without actually re-measuring). */
-    setVitalsForm({ bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '' });
+    setVitalsForm({ ...BLANK_OBSERVATION_VITALS_FORM });
     setShowVitalsModal(true);
   };
 
@@ -788,6 +794,8 @@ export default function ObservationQueuePage() {
       spo2: Number(vitalsForm.spo2),
       rr: Number(vitalsForm.rr),
       note: vitalsForm.note || 'บันทึกสัญญาณชีพประจำช่วงเวลา',
+      pain: vitalsForm.pain,
+      esi: Number(vitalsForm.esi),
     };
 
     /* Deterioration Event (edge case #1) — when a freshly logged reading
@@ -1452,8 +1460,8 @@ export default function ObservationQueuePage() {
 
                 {/* Card Header */}
                 <div>
-                  <div className='flex items-center justify-between mb-3 pt-1'>
-                    <div className='flex items-center gap-2'>
+                  <div className='flex items-center justify-between mb-3 pt-1' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <div className='flex items-center gap-2 min-w-0'>
                       <span
                         style={{
                           padding: 'var(--dim-space-150, 6px) var(--dim-space-250, 10px)',
@@ -1472,23 +1480,35 @@ export default function ObservationQueuePage() {
                       </span>
                     </div>
 
-                    <StatusBadge
-                      style={
-                        patient.status === 'ready_discharge' || patient.status === 'discharged'
-                          ? 'success'
-                          : ewsResult?.tier.level === 'high'
-                          ? 'error'
-                          : ewsResult?.tier.level === 'medium'
-                          ? 'yellow'
-                          : 'info'
-                      }
-                      size='small'
-                      showDot
-                    >
-                      {patient.status === 'ready_discharge' || patient.status === 'discharged'
-                        ? 'ส่งต่อแล้ว'
-                        : `กำลังเฝ้าระวัง (${ewsResult?.score ?? 0})`}
-                    </StatusBadge>
+                    <div className='flex items-center flex-wrap justify-end shrink-0' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                      {latestVitals?.pain ? (
+                        <StatusBadge style={painBadgeStyleFor(latestVitals.pain)} size='small'>
+                          Pain: {painLevelLabel(latestVitals.pain)}
+                        </StatusBadge>
+                      ) : null}
+                      {latestVitals?.esi != null && latestVitals?.esi !== '' ? (
+                        <StatusBadge style={esiBadgeStyleFor(latestVitals.esi)} size='small' showDot>
+                          ESI {latestVitals.esi}
+                        </StatusBadge>
+                      ) : null}
+                      <StatusBadge
+                        style={
+                          patient.status === 'ready_discharge' || patient.status === 'discharged'
+                            ? 'success'
+                            : ewsResult?.tier.level === 'high'
+                            ? 'error'
+                            : ewsResult?.tier.level === 'medium'
+                            ? 'yellow'
+                            : 'info'
+                        }
+                        size='small'
+                        showDot
+                      >
+                        {patient.status === 'ready_discharge' || patient.status === 'discharged'
+                          ? 'ส่งต่อแล้ว'
+                          : `กำลังเฝ้าระวัง (${ewsResult?.score ?? 0})`}
+                      </StatusBadge>
+                    </div>
                   </div>
 
                   {/* Clinical alert strip (edge cases #1 · #2 · #4) — the

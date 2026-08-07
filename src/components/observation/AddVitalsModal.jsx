@@ -5,7 +5,15 @@ import VitalCard, { PressureCard } from '@/components/card/VitalCard';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import StatusBadge from '@/components/badge/StatusBadge';
 import Alert from '@/components/alert/Alert';
-import { scorePatientVitals, getOutOfRangeVitals } from '@/data/observationMock';
+import Icon from '@/components/icons/Icon';
+import SelectableCardButton from '@/components/button/SelectableCardButton';
+import {
+  scorePatientVitals,
+  getOutOfRangeVitals,
+  OBSERVATION_PAIN_LEVELS,
+  OBSERVATION_PAIN_TONE,
+  OBSERVATION_ESI_LEVELS,
+} from '@/data/observationMock';
 import { getPatientByHN } from '@/data/patientProfiles';
 
 export const VITALS_NOTE_SUGGESTIONS = [
@@ -16,6 +24,13 @@ export const VITALS_NOTE_SUGGESTIONS = [
   'วัดซ้ำหลังพักผู้ป่วย 15 นาที ค่าคงที่',
   'ผู้ป่วยมีไข้ต่ำๆ เฝ้าระวังอาการต่อเนื่อง',
 ];
+
+const SECTION_LABEL = {
+  color: 'var(--text-content-default, #363B3F)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm, 14px)',
+  fontWeight: 'var(--type-weight-medium, 500)',
+};
 
 /* Shared "วัด Vital Signs ใหม่" popup — first built for ObservationQueuePage's
    quick-log-from-card action, reused as-is by ObservationDetailPage's
@@ -38,9 +53,6 @@ export default function AddVitalsModal({
 }) {
   if (!patient) return null;
 
-  /* Scored against the patient, not the numbers alone — a 9-year-old's
-     pulse of 118 is normal on the paediatric chart and alarming on the
-     adult one (edge case #14). */
   const ewsRes = scorePatientVitals(patient, {
     bpSys: Number(form.bpSys),
     pulse: Number(form.pulse),
@@ -49,22 +61,17 @@ export default function AddVitalsModal({
     rr: Number(form.rr),
   });
 
-  /* Out-of-bound Vital Sign Validation (docs/observation-use-cases.md
-     edge case #5) — a mistyped "368 °C" / "1200/800 mmHg" must never
-     reach the Timed Vitals table, because everything downstream (EWS
-     tier, trend graph, discharge vitals) would silently inherit the
-     typo. Blocks the save AND names each offending field with its
-     accepted range, so the nurse can see WHICH number to re-check
-     rather than just being told "invalid". */
   const outOfRange = getOutOfRangeVitals(form);
   const hasOutOfRange = outOfRange.length > 0;
+  const painMissing = !form.pain;
+  const esiMissing = form.esi == null || form.esi === '';
 
   return (
     <Popup
       open={open}
       onClose={onClose}
       title={title}
-      leading={<span className='material-symbols-outlined text-2xl' style={{ color: 'var(--brand-p700)' }}>monitor_heart</span>}
+      leading={<Icon name='monitor_heart' size={24} style={{ color: 'var(--brand-p700, #007549)' }} />}
       size='extraLarge'
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
       primaryAction={{ label: 'บันทึกสัญญาณชีพ', onClick: onSubmit, disabled: !isFormValid || hasOutOfRange }}
@@ -125,6 +132,106 @@ export default function AddVitalsModal({
         />
       </div>
 
+      {/* Pain Score — same 5-level scale as OPD screening */}
+      <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <span style={SECTION_LABEL}>
+          ระดับความเจ็บปวด (Pain Score)
+          <span style={{ color: 'var(--text-input-require, #DC2626)', marginLeft: 'var(--dim-space-100, 4px)' }} aria-hidden>*</span>
+        </span>
+        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          {OBSERVATION_PAIN_LEVELS.map((p) => {
+            const active = form.pain === p.key;
+            const tone = OBSERVATION_PAIN_TONE[p.tone];
+            return (
+              <SelectableCardButton
+                key={p.key}
+                selected={active}
+                onClick={() => setForm({ ...form, pain: p.key })}
+                ariaLabel={p.label}
+              >
+                <span
+                  aria-hidden
+                  className='inline-flex items-center justify-center shrink-0'
+                  style={{
+                    width: 'var(--dim-size-900, 36px)',
+                    height: 'var(--dim-size-900, 36px)',
+                    borderRadius: 'var(--dim-radius-full, 9999px)',
+                    background: tone.bg,
+                    color: tone.fg,
+                  }}
+                >
+                  <Icon name={p.icon} size={20} />
+                </span>
+                {p.label}
+              </SelectableCardButton>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ESI — Emergency Severity Index (1–5) */}
+      <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <span style={SECTION_LABEL}>
+          ระดับความเร่งด่วน (ESI)
+          <span style={{ color: 'var(--text-input-require, #DC2626)', marginLeft: 'var(--dim-space-100, 4px)' }} aria-hidden>*</span>
+        </span>
+        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          {OBSERVATION_ESI_LEVELS.map((lv) => {
+            const active = Number(form.esi) === lv.lv;
+            return (
+              <SelectableCardButton
+                key={lv.lv}
+                selected={active}
+                onClick={() => setForm({ ...form, esi: lv.lv })}
+                ariaLabel={`ESI ${lv.lv} ${lv.en} ${lv.th}`}
+                minHeight={64}
+                padX='var(--dim-space-300, 12px)'
+              >
+                <span className='flex flex-col items-start' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+                  <span
+                    className='inline-flex items-center whitespace-nowrap'
+                    style={{
+                      height: 'var(--dim-size-500, 20px)',
+                      paddingLeft: 'var(--dim-space-200, 8px)',
+                      paddingRight: 'var(--dim-space-200, 8px)',
+                      borderRadius: 'var(--dim-radius-full, 9999px)',
+                      backgroundColor: lv.bg,
+                      color: lv.fg,
+                      fontSize: 'var(--type-size-xxs, 11px)',
+                      fontWeight: 'var(--type-weight-bold, 700)',
+                      lineHeight: 1,
+                    }}
+                  >
+                    Level {lv.lv}
+                  </span>
+                  <span
+                    style={{
+                      color: 'var(--text-content-default, #363B3F)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-xs, 12px)',
+                      fontWeight: 'var(--type-weight-medium, 500)',
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {lv.th}
+                  </span>
+                  <span
+                    style={{
+                      color: 'var(--text-content-tertiary, #858C92)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-xxs, 11px)',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {lv.en}
+                  </span>
+                </span>
+              </SelectableCardButton>
+            );
+          })}
+        </div>
+      </div>
+
       <SuggestibleTextarea
         voice
         label='หมายเหตุเพิ่มเติม / อาการขณะวัด'
@@ -141,8 +248,6 @@ export default function AddVitalsModal({
         <Alert
           type='error'
           title='กรุณาตรวจสอบตัวเลขก่อนบันทึก — ค่าที่กรอกอยู่นอกช่วงที่เป็นไปได้'
-          /* One indicator per offending field, so the nurse can see WHICH
-             number to re-check rather than just being told "invalid". */
           indicators={outOfRange.map((f) => `${f.label}: กรอก ${f.value} ${f.unit} — ค่าที่รับได้คือ ${f.min}–${f.max} ${f.unit}`)}
           showCloseButton={false}
           style={{ maxWidth: '100%' }}
@@ -159,7 +264,16 @@ export default function AddVitalsModal({
       </div>
       {!isFormValid && (
         <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
-          กรุณากรอกค่าให้ครบทุกช่อง (ความดัน, ชีพจร, อุณหภูมิ, SpO2, อัตราการหายใจ) ก่อนบันทึก
+          กรุณากรอกค่าให้ครบทุกช่อง (ความดัน, ชีพจร, อุณหภูมิ, SpO2, อัตราการหายใจ, Pain Score, ESI) ก่อนบันทึก
+        </p>
+      )}
+      {isFormValid && (painMissing || esiMissing) && (
+        <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+          {painMissing && esiMissing
+            ? 'เลือกระดับความเจ็บปวดและระดับ ESI ก่อนบันทึก'
+            : painMissing
+              ? 'เลือกระดับความเจ็บปวด (Pain Score) ก่อนบันทึก'
+              : 'เลือกระดับความเร่งด่วน (ESI) ก่อนบันทึก'}
         </p>
       )}
     </Popup>
