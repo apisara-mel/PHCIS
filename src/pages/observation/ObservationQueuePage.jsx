@@ -2015,9 +2015,13 @@ export default function ObservationQueuePage() {
         type='warning'
         title='ยืนยันเปิดใช้เตียง'
         description={
-          finishCleaningBed
-            ? `ยืนยันว่าทำความสะอาด ${finishCleaningBed.bedNo} (${resolveBedTitleTh(finishCleaningBed)}) เสร็จแล้ว และพร้อมรับผู้ป่วยใหม่?`
-            : ''
+          finishCleaningBed ? (
+            <>
+              {`ยืนยันว่าทำความสะอาด ${finishCleaningBed.bedNo} (${resolveBedTitleTh(finishCleaningBed)}) เสร็จแล้ว`}
+              <br />
+              และพร้อมรับผู้ป่วยใหม่?
+            </>
+          ) : ''
         }
         cancelLabel='ยกเลิก'
         confirmLabel='เปิดใช้เตียง'

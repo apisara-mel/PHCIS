@@ -11,14 +11,14 @@ import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
 import ScreeningStep4 from '@/pages/opd/ScreeningStep4';
 import ScreeningStep5 from '@/pages/opd/ScreeningStep5';
 import AlertDialog from '@/components/popup/AlertDialog';
-import Popup from '@/components/popup/Popup';
-import Dropdown from '@/components/forms/Dropdown';
+import Select from '@/components/forms/Select';
 import Textarea from '@/components/forms/Textarea';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Icon from '@/components/icons/Icon';
 import Footer from '@/components/layout/Footer';
 import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
 import BedSelectionPopup from '@/components/popup/BedSelectionPopup';
+import InternalReferPopup from '@/components/popup/InternalReferPopup';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import SelectableCardButton from '@/components/button/SelectableCardButton';
@@ -38,7 +38,7 @@ import {
   stampStationTime,
   isScreeningCompleted,
 } from '@/data/opdScreeningDrafts';
-import { addWalkinRequest, WALKIN_DEPARTMENTS } from '@/data/opdWalkinRequests';
+import { addWalkinRequest } from '@/data/opdWalkinRequests';
 import {
   buildOpdQueueSubMenuBuckets,
   OPD_QUEUE_ROWS,
@@ -813,18 +813,18 @@ const ScreeningPage = () => {
      (/opd/requests) works from, where staff assign a doctor slot and the
      exam queue number is issued. */
   const [forwardOpen, setForwardOpen] = useState(false);
-  const [forwardDept, setForwardDept] = useState('');
   const [forwardEsi, setForwardEsi] = useState('4');
   const [forwardDone, setForwardDone] = useState(null);
 
-  const submitForward = () => {
-    if (!forwardDept) return;
+  const submitForward = (refer) => {
+    if (!refer?.departmentLabel) return;
+    const noteSuffix = refer.note ? ` · ${refer.note}` : '';
     const created = addWalkinRequest({
       hn: patient.hn,
       name: patient.shortName || navState?.name || patient.name,
-      complaint: `ส่งต่อจากจุดคัดกรอง (คิว ${navState?.queue || '-'})`,
+      complaint: `ส่งต่อจากจุดคัดกรอง (คิว ${navState?.queue || '-'}) → ${refer.servicePointLabel}${noteSuffix}`,
       esi: Number(forwardEsi),
-      dept: forwardDept,
+      dept: refer.departmentLabel,
       requestedBy: 'พว.กานดา ศรีวิไล',
     });
     setForwardOpen(false);
@@ -1033,59 +1033,30 @@ const ScreeningPage = () => {
       cancelLabel='ปิด'
       confirmLabel='โหลดรอบล่าสุด'
     />
-    {/* TOR 1.2.1.3 → 1.2.1.4 — ส่งต่อไปยังแผนก (creates the walk-in request) */}
-    <Popup
+    {/* TOR 1.2.1.3 → 1.2.1.4 — ส่งต่อภายใน (creates the walk-in request) */}
+    <InternalReferPopup
       open={forwardOpen}
       onClose={() => setForwardOpen(false)}
-      title='ส่งต่อไปยังแผนก'
+      onConfirm={submitForward}
+      fromDepartment='คัดกรองและซักประวัติ'
+      title='ส่งต่อภายใน'
       subtitle={`${patient.shortName || navState?.name || ''} · คิว ${navState?.queue || '-'} — ระบบจะสร้างคำขอ Walk-in ให้แผนกปลายทาง`}
-      secondaryAction={{ label: 'ยกเลิก', onClick: () => setForwardOpen(false) }}
-      primaryAction={{ label: 'ส่งคำขอ', disabled: !forwardDept, onClick: submitForward }}
-    >
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-          <span
-            style={{
-              color: 'var(--text-content-default, #363B3F)',
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-sm)',
-              fontWeight: 'var(--type-weight-medium)',
-            }}
-          >
-            แผนกปลายทาง *
-          </span>
-          <Dropdown
-            value={forwardDept}
-            onChange={setForwardDept}
-            options={WALKIN_DEPARTMENTS.map((d) => ({ value: d, label: d }))}
-            placeholder='เลือกแผนกที่จะส่งต่อ'
-          />
-        </div>
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-          <span
-            style={{
-              color: 'var(--text-content-default, #363B3F)',
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-sm)',
-              fontWeight: 'var(--type-weight-medium)',
-            }}
-          >
-            ระดับความเร่งด่วน (ESI)
-          </span>
-          <Dropdown
-            value={forwardEsi}
-            onChange={setForwardEsi}
-            options={[
-              { value: '1', label: 'ESI 1 — วิกฤต ต้องช่วยชีวิตทันที' },
-              { value: '2', label: 'ESI 2 — ฉุกเฉินเร่งด่วน' },
-              { value: '3', label: 'ESI 3 — เร่งด่วน' },
-              { value: '4', label: 'ESI 4 — กึ่งเร่งด่วน' },
-              { value: '5', label: 'ESI 5 — ไม่เร่งด่วน' },
-            ]}
-          />
-        </div>
-      </div>
-    </Popup>
+      primaryLabel='ส่งคำขอ'
+      extra={(
+        <Select
+          label='ระดับความเร่งด่วน (ESI)'
+          value={forwardEsi}
+          onChange={setForwardEsi}
+          options={[
+            { value: '1', label: 'ESI 1 — วิกฤต ต้องช่วยชีวิตทันที' },
+            { value: '2', label: 'ESI 2 — ฉุกเฉินเร่งด่วน' },
+            { value: '3', label: 'ESI 3 — เร่งด่วน' },
+            { value: '4', label: 'ESI 4 — กึ่งเร่งด่วน' },
+            { value: '5', label: 'ESI 5 — ไม่เร่งด่วน' },
+          ]}
+        />
+      )}
+    />
     <AlertDialog
       open={!!forwardDone}
       onClose={() => setForwardDone(null)}

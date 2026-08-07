@@ -28,6 +28,7 @@ import {
   loadRegistrationDraft,
   saveRegistrationDraft,
 } from '@/data/registrationForm';
+import InternalReferPopup from '@/components/popup/InternalReferPopup';
 import DuplicatePatientWarningPopup from './DuplicatePatientWarningPopup';
 import PatientCardPrintPopup, { buildOpdCardFromForm } from './PatientCardPrintPopup';
 import {
@@ -176,13 +177,15 @@ const RegistrationFormPage = () => {
   /* ── save flow (1.1.1.10 + 1.1.1.13) ────────────────────────────── */
   const [printCard, setPrintCard] = useState(null);
   const [printOpen, setPrintOpen] = useState(false);
+  /* After step-6 main CTA validates, open ส่งต่อภายใน before doSave. */
+  const [referOpen, setReferOpen] = useState(false);
   const allowNavRef = useRef(false);
   const stepIndexRef = useRef(stepIndex);
   stepIndexRef.current = stepIndex;
   const formRef = useRef(form);
   formRef.current = form;
 
-  const doSave = () => {
+  const doSave = (referPayload) => {
     const f = formRef.current;
     appendRegistrationAudit({
       step: 'เวชระเบียน',
@@ -190,6 +193,18 @@ const RegistrationFormPage = () => {
       oldValue: '—',
       newValue: `${f.prefixTh || ''}${f.firstNameTh || ''} ${f.lastNameTh || ''} · HN ${buildHnPreview(f)}`,
     });
+    if (referPayload) {
+      appendRegistrationAudit({
+        step: 'เวชระเบียน',
+        field: 'ส่งต่อภายใน',
+        oldValue: '—',
+        newValue: [
+          referPayload.departmentLabel,
+          referPayload.servicePointLabel,
+          referPayload.note || null,
+        ].filter(Boolean).join(' · '),
+      });
+    }
     clearRegistrationDraft();
     dirtyRef.current = false;
     setSuccessToast('บันทึกข้อมูลผู้รับบริการสำเร็จ');
@@ -197,6 +212,8 @@ const RegistrationFormPage = () => {
     setPrintCard(buildOpdCardFromForm(f, buildHnPreview(f)));
     setPrintOpen(true);
   };
+
+  const openInternalRefer = () => setReferOpen(true);
 
   const handleSaveAttempt = () => {
     const report = getRegistrationMissingReport(formRef.current);
@@ -208,10 +225,15 @@ const RegistrationFormPage = () => {
     }
     const matches = unconfirmedDuplicates();
     if (matches.length) {
-      openDupPopup(matches, doSave);
+      openDupPopup(matches, openInternalRefer);
       return;
     }
-    doSave();
+    openInternalRefer();
+  };
+
+  const handleReferConfirm = (payload) => {
+    setReferOpen(false);
+    doSave(payload);
   };
 
   const handlePrintPopupClose = () => {
@@ -395,6 +417,14 @@ const RegistrationFormPage = () => {
             });
           },
         }}
+      />
+
+      <InternalReferPopup
+        open={referOpen}
+        onClose={() => setReferOpen(false)}
+        onConfirm={handleReferConfirm}
+        fromDepartment='งานเวชระเบียน'
+        subtitle='เลือกแผนกและจุดบริการปลายทางหลังลงทะเบียนผู้รับบริการ'
       />
 
       {/* ออกจากฟอร์มที่แก้ไขค้าง */}

@@ -38,6 +38,8 @@ const SNAPSHOT_TONE_RESOLVERS = {
   pulse: (vitals) => resolveScalarVitalDisplayTone('pulse', vitals.pulse),
   spo2: (vitals) => resolveScalarVitalDisplayTone('spo2', vitals.spo2),
   temp: (vitals) => resolveScalarVitalDisplayTone('temp', vitals.temp),
+  /* Observation stores RR as `rr`; OPD ScreeningStep1 thresholds use `resp`. */
+  rr: (vitals) => resolveScalarVitalDisplayTone('resp', vitals.rr),
 };
 
 /** Read-only vital snapshot tiles keep normal values on content/secondary. */

@@ -17,6 +17,10 @@ import {
   observationDayOffset,
   vitalsTimelineCells,
 } from '@/data/observationMock';
+import {
+  resolveVitalSnapshotTone,
+  vitalSnapshotValueColor,
+} from '@/data/vitalDisplayTone';
 
 /* Read-only counterpart to ObservationDetailPage.jsx (แฟ้มบันทึกสังเกตอาการ) —
    reached only from the queue's "รายการที่ส่งต่อแล้ว" tab (patient.status
@@ -90,7 +94,9 @@ export default function ObservationHistoryPage() {
   const dischargeSummary = patient.dischargeSummary || {};
   const referralTarget =
     dischargeSummary.referScope === 'internal' && dischargeSummary.referDepartment
-      ? `แผนกภายใน: ${dischargeSummary.referDepartment}`
+      ? `แผนกภายใน: ${dischargeSummary.referDepartment}${
+          dischargeSummary.referServicePoint ? ` · ${dischargeSummary.referServicePoint}` : ''
+        }`
       : dischargeSummary.referHospital
       ? `โรงพยาบาลภายนอก: ${dischargeSummary.referHospital}`
       : '-';
@@ -255,15 +261,26 @@ export default function ObservationHistoryPage() {
                             className='grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
                             style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-200)' }}
                           >
-                            {vitalsTimelineCells(entry.vitals).map(([label, value]) => (
-                              <div
-                                key={label}
-                                className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'
-                              >
-                                <div className='text-[10px] text-ink-quaternary font-medium'>{label}</div>
-                                <div className='font-bold text-brand-600 text-[11px]'>{value}</div>
-                              </div>
-                            ))}
+                            {vitalsTimelineCells(entry.vitals).map(({ key, label, value }) => {
+                              const tone = resolveVitalSnapshotTone(key, entry.vitals);
+                              const valueColor = tone === 'default'
+                                ? 'var(--text-brandPrimary-default)'
+                                : vitalSnapshotValueColor(tone);
+                              return (
+                                <div
+                                  key={key || label}
+                                  className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'
+                                >
+                                  <div className='text-[10px] text-ink-quaternary font-medium'>{label}</div>
+                                  <div
+                                    className='font-bold text-[11px]'
+                                    style={{ color: valueColor }}
+                                  >
+                                    {value}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
 
@@ -364,6 +381,12 @@ export default function ObservationHistoryPage() {
               <div className='font-bold text-content-default mb-1'>ปลายทางส่งต่อ (Referral Destination)</div>
               <p style={{ color: 'var(--text-content-secondary)', lineHeight: 1.6 }}>{referralTarget}</p>
             </div>
+            {dischargeSummary.referScope === 'internal' && dischargeSummary.referNote ? (
+              <div>
+                <div className='font-bold text-content-default mb-1'>หมายเหตุการส่งต่อ</div>
+                <p style={{ color: 'var(--text-content-secondary)', lineHeight: 1.6 }}>{dischargeSummary.referNote}</p>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

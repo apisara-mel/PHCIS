@@ -327,18 +327,21 @@ export const esiBadgeStyleFor = (lv) => {
   return 'neutral';
 };
 
-/** Cells for vitals timeline grids — includes pain / ESI when recorded. */
+/** Cells for vitals timeline grids — includes pain / ESI when recorded.
+ *  `key` maps to resolveVitalSnapshotTone (bp / pulse / temp / spo2 / rr). */
 export const vitalsTimelineCells = (vitals) => {
   if (!vitals) return [];
   const cells = [
-    ['ความดัน (BP)', `${vitals.bpSys}/${vitals.bpDia}`],
-    ['ชีพจร (Pulse)', `${vitals.pulse} bpm`],
-    ['อุณหภูมิ (Temp)', `${vitals.temp}°C`],
-    ['ออกซิเจนปลายนิ้ว (SpO2)', `${vitals.spo2}%`],
-    ['อัตราการหายใจ (RR)', `${vitals.rr} ครั้ง/นาที`],
+    { key: 'bp', label: 'ความดัน (BP)', value: `${vitals.bpSys}/${vitals.bpDia}` },
+    { key: 'pulse', label: 'ชีพจร (Pulse)', value: `${vitals.pulse} bpm` },
+    { key: 'temp', label: 'อุณหภูมิ (Temp)', value: `${vitals.temp}°C` },
+    { key: 'spo2', label: 'ออกซิเจนปลายนิ้ว (SpO2)', value: `${vitals.spo2}%` },
+    { key: 'rr', label: 'อัตราการหายใจ (RR)', value: `${vitals.rr} ครั้ง/นาที` },
   ];
-  if (vitals.pain) cells.push(['Pain Score', painLevelLabel(vitals.pain)]);
-  if (vitals.esi != null && vitals.esi !== '') cells.push(['ESI', esiLevelSummary(vitals.esi)]);
+  if (vitals.pain) cells.push({ key: 'pain', label: 'Pain Score', value: painLevelLabel(vitals.pain) });
+  if (vitals.esi != null && vitals.esi !== '') {
+    cells.push({ key: 'esi', label: 'ESI', value: esiLevelSummary(vitals.esi) });
+  }
   return cells;
 };
 
