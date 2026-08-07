@@ -11,11 +11,15 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Popup from '@/components/popup/Popup';
 import Alert from '@/components/alert/Alert';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
+import VitalTrendChart from '@/components/observation/VitalTrendChart';
+import EwsScoreBadge from '@/components/observation/EwsScoreBadge';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   MOCK_OBSERVATION_PATIENTS,
   EWS_RISK_TIERS,
   EWS_RED_ALERT_SCORE,
+  EWS_SCALES,
+  EWS_SYSTEM_LABEL,
   getOutOfRangeVitals,
   getPendingStatOrders,
   scorePatientVitals,
@@ -25,7 +29,6 @@ import {
   BLANK_OBSERVATION_VITALS_FORM,
   vitalsTimelineCells,
 } from '@/data/observationMock';
-import VitalTrendChart from '@/components/observation/VitalTrendChart';
 import Pagination from '@/components/pagination/Pagination';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import Footer from '@/components/layout/Footer';
@@ -347,7 +350,7 @@ export default function ObservationDetailPage() {
             {
               time: nowStr,
               nurse: prev.nurseName,
-              note: `Deterioration Event: คะแนน EWS พุ่งขึ้นเป็น ${newScore} (จากเดิม ${prevScore}) — ระบบบันทึกอัตโนมัติ ให้รายงานแพทย์ผู้ดูแลด่วนและพิจารณาย้ายเข้าห้องฉุกเฉิน`,
+              note: `Deterioration Event: ${EWS_SYSTEM_LABEL} พุ่งขึ้นเป็น ${newScore} (จากเดิม ${prevScore}) — ระบบบันทึกอัตโนมัติ ให้รายงานแพทย์ผู้ดูแลด่วนและพิจารณาย้ายเข้าห้องฉุกเฉิน`,
             },
           ]
         : prev.nursingNotes,
@@ -680,17 +683,19 @@ export default function ObservationDetailPage() {
           <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
             <div className='flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4'>
               <div className='flex items-center gap-3'>
-                <div
-                  className='w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white shadow-sm shrink-0 font-mono leading-none gap-0.5'
-                  style={{ backgroundColor: currentEws.tier.color }}
-                >
-                  <span className='text-[10px] font-semibold opacity-90'>EWS</span>
-                  <span className='text-lg font-bold'>{currentEws.score}</span>
-                </div>
+                <EwsScoreBadge
+                  score={currentEws.score}
+                  tier={currentEws.tier}
+                  scale={currentEws.scale}
+                  size='md'
+                />
                 <div>
                   <h3 className='font-bold text-brand-600 text-sm flex items-center gap-2'>
-                    คะแนนเตือนภัยล่วงหน้า (National Early Warning Score - EWS)
+                    {EWS_SYSTEM_LABEL}
                   </h3>
+                  <p className='text-xs text-ink-tertiary'>
+                    เกณฑ์ {currentEws.scale?.label || EWS_SCALES.ADULT.label}
+                  </p>
                   <p className='text-xs font-semibold' style={{ color: currentEws.tier.color }}>
                     ระดับความเสี่ยง: {currentEws.tier.label}
                   </p>
@@ -703,7 +708,7 @@ export default function ObservationDetailPage() {
               <div className='flex justify-end'>
                 <Alert
                   type={currentEws.score >= 5 ? 'error' : currentEws.score >= 2 ? 'warning' : 'info'}
-                  title='แนวทางปฏิบัติทางคลินิกตาม EWS Score:'
+                  title={`แนวทางปฏิบัติทางคลินิกตาม${EWS_SYSTEM_LABEL}:`}
                   subtext={
                     currentEws.score >= 5
                       ? 'ระดับวิกฤต (High Risk): พยาบาลเข้าประเมินทันที, รายงานแพทย์ผู้ดูแลด่วน, เตรียมเครื่อง Defibrillator / O2 High Flow, และพิจารณาส่งต่อห้องฉุกเฉิน (ER) หรือ ICU ด่วน!'
@@ -872,9 +877,12 @@ export default function ObservationDetailPage() {
                               </StatusBadge>
                             )}
                             {ewsRes && (
-                              <StatusBadge style={ewsRes.tier.style} size='small' showDot>
-                                {ewsRes.scale.short}: {ewsRes.score}
-                              </StatusBadge>
+                              <EwsScoreBadge
+                                score={ewsRes.score}
+                                tier={ewsRes.tier}
+                                scale={ewsRes.scale}
+                                size='sm'
+                              />
                             )}
                           </div>
 

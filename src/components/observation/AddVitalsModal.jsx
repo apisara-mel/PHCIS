@@ -6,10 +6,12 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import StatusBadge from '@/components/badge/StatusBadge';
 import Alert from '@/components/alert/Alert';
 import Icon from '@/components/icons/Icon';
+import EwsScoreBadge from '@/components/observation/EwsScoreBadge';
 import SelectableCardButton from '@/components/button/SelectableCardButton';
 import {
   scorePatientVitals,
   getOutOfRangeVitals,
+  EWS_SYSTEM_LABEL,
   OBSERVATION_PAIN_LEVELS,
   OBSERVATION_PAIN_TONE,
   OBSERVATION_ESI_LEVELS,
@@ -256,11 +258,17 @@ export default function AddVitalsModal({
 
       <div className='p-3 bg-ink-neutral rounded-xl border border-ink-line flex items-center justify-between text-xs text-ink-secondary'>
         <span className='font-semibold text-ink-secondary'>
-          คะแนนเตือนภัยล่วงหน้า — เกณฑ์ {ewsRes.scale.label}:
+          {EWS_SYSTEM_LABEL} — เกณฑ์ {ewsRes.scale.label}:
         </span>
-        <StatusBadge style={ewsRes.tier.style} size='small' showDot>
-          Score: {ewsRes.score} ({ewsRes.tier.label})
-        </StatusBadge>
+        <div className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+          <EwsScoreBadge
+            score={ewsRes.score}
+            tier={ewsRes.tier}
+            scale={ewsRes.scale}
+            size='sm'
+          />
+          <span className='text-ink-tertiary'>{ewsRes.tier.label}</span>
+        </div>
       </div>
       {!isFormValid && (
         <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>

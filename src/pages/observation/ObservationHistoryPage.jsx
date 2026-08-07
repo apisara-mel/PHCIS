@@ -10,10 +10,13 @@ import PatientCard from '@/components/card/PatientCard';
 import Footer from '@/components/layout/Footer';
 import Pagination from '@/components/pagination/Pagination';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
+import EwsScoreBadge from '@/components/observation/EwsScoreBadge';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   MOCK_OBSERVATION_PATIENTS,
   EWS_RISK_TIERS,
+  EWS_SCALES,
+  EWS_SYSTEM_LABEL,
   scorePatientVitals,
   buildObservationTimeline,
   observationDayOffset,
@@ -151,17 +154,19 @@ export default function ObservationHistoryPage() {
             actionable directive for an active case; this one's closed). */}
         <div className='bg-white rounded-2xl p-5 border-none' style={{ boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' }}>
           <div className='flex items-center gap-3'>
-            <div
-              className='w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white shadow-sm shrink-0 font-mono leading-none gap-0.5'
-              style={{ backgroundColor: finalEws.tier.color }}
-            >
-              <span className='text-[10px] font-semibold opacity-90'>EWS</span>
-              <span className='text-lg font-bold'>{finalEws.score}</span>
-            </div>
+            <EwsScoreBadge
+              score={finalEws.score}
+              tier={finalEws.tier}
+              scale={finalEws.scale}
+              size='md'
+            />
             <div>
               <h3 className='font-bold text-brand-600 text-sm'>
-                คะแนนเตือนภัยล่วงหน้าล่าสุดก่อนส่งต่อ (Final EWS)
+                {EWS_SYSTEM_LABEL} ล่าสุดก่อนส่งต่อ
               </h3>
+              <p className='text-xs text-ink-tertiary'>
+                เกณฑ์ {finalEws.scale?.label || EWS_SCALES.ADULT.label}
+              </p>
               <p className='text-xs font-semibold' style={{ color: finalEws.tier.color }}>
                 ระดับความเสี่ยง: {finalEws.tier.label}
               </p>
@@ -279,9 +284,12 @@ export default function ObservationHistoryPage() {
                             </StatusBadge>
                           )}
                           {ewsRes && (
-                            <StatusBadge style={ewsRes.tier.style} size='small' showDot>
-                              {ewsRes.scale.short}: {ewsRes.score}
-                            </StatusBadge>
+                            <EwsScoreBadge
+                              score={ewsRes.score}
+                              tier={ewsRes.tier}
+                              scale={ewsRes.scale}
+                              size='sm'
+                            />
                           )}
                         </div>
 
