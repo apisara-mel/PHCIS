@@ -27,11 +27,28 @@ const Sym = ({ name, size, color }) => (
 );
 
 const resolveStyles = ({ variant, isHover, selected, focused, disabled }) => {
+  /* Disabled tokens — design.md §5.1 Brand Button (Fill / Outline / Ghost).
+     Fill is the solid dark circle (surface.disabledButton.default #4D5358)
+     with on-disabled white icon. */
   if (disabled) {
+    if (variant === 'outline') {
+      return {
+        bg: 'var(--surface-disabledButton-quinary, #FFFFFF)',
+        border: 'var(--dim-stroke-100) solid var(--border-disabledButton-default, #636B72)',
+        icon: 'var(--icon-disabledButton-default, #4D5358)',
+      };
+    }
+    if (variant === 'ghost') {
+      return {
+        bg: 'var(--surface-disabledButton-tertiary, #F4F5F5)',
+        border: 'none',
+        icon: 'var(--icon-disabledButton-default, #4D5358)',
+      };
+    }
     return {
-      bg: 'var(--surface-disabledButton-default, #E2E4E6)',
-      border: variant === 'outline' ? 'var(--dim-stroke-100) solid var(--border-disabledButton-default, #C9CDD0)' : 'none',
-      icon: 'var(--icon-disablediconButton-default, #4D5358)',
+      bg: 'var(--surface-disabledButton-default, #4D5358)',
+      border: 'none',
+      icon: 'var(--icon-disabledButton-on-disabled, #FFFFFF)',
     };
   }
   if (selected) {
@@ -120,7 +137,7 @@ const BrandCircleIconButton = React.forwardRef(function BrandCircleIconButton(
         borderRadius: '50%',
         border: s.border, background: s.bg,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled && variant === 'fill' && !selected ? 0.6 : 1,
+        opacity: 1,
         transform: disabled ? 'none' : (pressed ? 'translateY(1px) scale(0.97)' : (hovered ? 'translateY(-1px)' : 'translateY(0)')),
         ...style,
       }}

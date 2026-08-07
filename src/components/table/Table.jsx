@@ -77,7 +77,7 @@ const Sym = ({ name, size = 14, color }) => (
 
    Tooltip portals to document.body (fixed) so table `overflow-x: auto`
    never clips the full name. */
-export const EllipsisText = ({ text, className = '', fill = true }) => {
+export const EllipsisText = ({ text, className = '', fill = true, compact = false }) => {
   const ref = useRef(null);
   const wrapRef = useRef(null);
   const [isOverflow, setIsOverflow] = useState(false);
@@ -128,9 +128,9 @@ export const EllipsisText = ({ text, className = '', fill = true }) => {
           style={{
             display: 'inline-block',
             maxWidth: '100%',
-            lineHeight: 1.75,
-            paddingTop: 'var(--dim-space-150, 6px)',
-            paddingBottom: 'var(--dim-space-150, 6px)',
+            lineHeight: compact ? 1.5 : 1.75,
+            paddingTop: compact ? 'var(--dim-space-050, 2px)' : 'var(--dim-space-150, 6px)',
+            paddingBottom: compact ? 'var(--dim-space-050, 2px)' : 'var(--dim-space-150, 6px)',
           }}
         >
           {text}
@@ -893,6 +893,7 @@ const Row = ({
         const isSticky = colIdx < stickyColCount;
         const cellStyle = {
           ...colSizeStyle(c),
+          boxSizing: 'border-box',
           ...(isSticky ? {
             position: 'sticky',
             left: stickyLeft(colIdx),
@@ -910,6 +911,7 @@ const Row = ({
           paddingTop:    'var(--dim-space-300, 12px)',
           paddingBottom: 'var(--dim-space-300, 12px)',
           minWidth: c.flex ? c.minWidth : undefined,
+          /* visible — overflow:hidden clips Thai diacritics on Sarabun */
           overflow: 'visible',
         };
         const node = c.render

@@ -2152,7 +2152,7 @@ const IMPL = {
   '1.13.10': {s:'done', u:'/telemed/reports', n:'สายเข้า/ออก · ระยะเวลาเฉลี่ยและรวม · no-show/สัญญาณหลุด/ปฏิเสธ · รายแพทย์ · รายหน่วยบริการต้นทาง · รายเดือน · รายช่วงเวลา · อัตราการบันทึกที่มี consent + drill-down รายสาย + pagination + พิมพ์/ส่งออก CSV ตามตัวกรอง'},
   '1.13.11': {s:'partial', u:'/telemed/reports', n:'แท็บบันทึกการเข้าใช้งาน (ตัวกรอง/ค้นหา/แบ่งหน้า/ปิดบัง PII ตามสิทธิ์) + ทุกการกระทำยิง appendAuditEvent จริง; auditData.js เป็น log ในหน่วยความจำ ไม่มี persistence จึง seed ย้อนหลัง 64 รายการจาก telemedCallStats.js (แถวจาก session ปัจจุบันหายเมื่อ refresh) [ปรับจาก done]'},
   '1.14.1': {s:'done', u:'/observation/record/obs-001', n:'บันทึกวันที่ เวลาเริ่มต้นและเวลาจำหน่าย (admitTime, durationMinutes, executedTime)'},
-  '1.14.2': {s:'done', u:'/observation/record/obs-001', n:'บันทึก Timed Vital Signs (BP, Pulse, Temp, SpO2, RR) พร้อมคำนวณ EWS/NEWS Score และตารางย้อนหลัง'},
+  '1.14.2': {s:'done', u:'/observation/record/obs-001', n:'บันทึก Timed Vital Signs (BP, Pulse, Temp, SpO2, RR) พร้อม Pain/ESI และตารางย้อนหลัง'},
   '1.14.3': {s:'done', u:'/observation/record/obs-001', n:'บันทึกความเห็นของบุคลากร (Progress Note, Nursing Log, Doctor Summary Note)'},
   '1.14.4': {s:'done', u:'/observation/record/obs-001', n:'บันทึกหัตถการและกิจกรรมการพยาบาล (เช่น การพ่นยา, ให้ออกซิเจน, เช็ดตัวลดไข้)'},
   '1.14.5': {s:'done', u:'/observation/record/obs-001', n:'สั่งยา STAT dose (เช่น Berodual Nebulizer, Paracetamol IV, Amlodipine Oral) พร้อมติดตามสถานะ'},

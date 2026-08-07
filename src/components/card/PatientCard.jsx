@@ -248,6 +248,12 @@ const PatientCard = ({
 
   const cardStyle = {
     paddingTop: embedded ? 0 : 'var(--dim-space-400, 16px)',
+    ...(embedded
+      ? {
+          paddingLeft: 'var(--dim-space-600, 24px)',
+          paddingRight: 'var(--dim-space-600, 24px)',
+        }
+      : null),
     /* Compact bottom space:
        • With alert row → 0 here (the alert row owns its 16 px pb).
        • Without alert row → 16 px here so the sticky bar still has the

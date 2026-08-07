@@ -116,6 +116,7 @@ import TextareaComp from '@/components/forms/Textarea';
 import SuggestibleTextareaComp from '@/components/forms/SuggestibleTextarea';
 import VoiceTextareaComp, {
   VOICE_TEXTAREA_HEIGHT,
+  VOICE_TEXTAREA_HEIGHT_EXTRA,
   VOICE_TEXTAREA_HEIGHT_TALL,
   VOICE_TEXTAREA_LANGUAGE_OPTIONS,
   VOICE_TEXTAREA_MIN_HEIGHT,
@@ -6885,7 +6886,7 @@ const InputFieldRangeDemo = () => (
 );
 
 const VoiceTextareaDemo = () => (
-  <Section title='VoiceTextarea' summary={`Multiline input with a bottom toolbar holding a language tag + brand mic button (Figma 3280:3970). Default outer height ${VOICE_TEXTAREA_HEIGHT}px (--dim-size-2000); tall variant ${VOICE_TEXTAREA_HEIGHT_TALL}px (--dim-size-2100) for body-mark editor. Type or click the mic to dictate. 5 states (default · hover · filled · error · disabled) inherited from the shared resolveBox. Tables below mirror the Figma variant matrix.`}>
+  <Section title='VoiceTextarea' summary={`Multiline input with a bottom toolbar holding a language tag + brand mic button (Figma 3280:3970). Default outer height ${VOICE_TEXTAREA_HEIGHT + VOICE_TEXTAREA_HEIGHT_EXTRA}px (--dim-size-2100); tall variant ${VOICE_TEXTAREA_HEIGHT_TALL + VOICE_TEXTAREA_HEIGHT_EXTRA}px (--dim-size-2200) for body-mark editor. Type or click the mic to dictate. 5 states (default · hover · filled · error · disabled) inherited from the shared resolveBox. Tables below mirror the Figma variant matrix.`}>
     <Variant label='State matrix · 5 states' stack>
       <FieldStateTable
         Component={VoiceTextareaComp}
@@ -6898,7 +6899,7 @@ const VoiceTextareaDemo = () => (
     <Guidelines
       behavior={[
         'Low-level multiline + mic primitive. Web SpeechRecognition + mic permission via getUserMedia — requires HTTPS / localhost.',
-        `Default box height ${VOICE_TEXTAREA_HEIGHT}px (min ${VOICE_TEXTAREA_MIN_HEIGHT}px). Pass height={VOICE_TEXTAREA_HEIGHT_TALL} for Figma tall / body-mark variant.`,
+        `Default box height ${VOICE_TEXTAREA_HEIGHT + VOICE_TEXTAREA_HEIGHT_EXTRA}px (min ${VOICE_TEXTAREA_MIN_HEIGHT + VOICE_TEXTAREA_HEIGHT_EXTRA}px). Pass height={VOICE_TEXTAREA_HEIGHT_TALL} for Figma tall / body-mark variant (effective ${VOICE_TEXTAREA_HEIGHT_TALL + VOICE_TEXTAREA_HEIGHT_EXTRA}px).`,
         'Toolbar at bottom holds the language tag + brand mic button.',
       ]}
       dos={[

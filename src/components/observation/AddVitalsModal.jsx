@@ -3,15 +3,11 @@ import Popup from '@/components/popup/Popup';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import VitalCard, { PressureCard } from '@/components/card/VitalCard';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
-import StatusBadge from '@/components/badge/StatusBadge';
 import Alert from '@/components/alert/Alert';
 import Icon from '@/components/icons/Icon';
-import EwsScoreBadge from '@/components/observation/EwsScoreBadge';
 import SelectableCardButton from '@/components/button/SelectableCardButton';
 import {
-  scorePatientVitals,
   getOutOfRangeVitals,
-  EWS_SYSTEM_LABEL,
   OBSERVATION_PAIN_LEVELS,
   OBSERVATION_PAIN_TONE,
   OBSERVATION_ESI_LEVELS,
@@ -55,14 +51,6 @@ export default function AddVitalsModal({
 }) {
   if (!patient) return null;
 
-  const ewsRes = scorePatientVitals(patient, {
-    bpSys: Number(form.bpSys),
-    pulse: Number(form.pulse),
-    temp: Number(form.temp),
-    spo2: Number(form.spo2),
-    rr: Number(form.rr),
-  });
-
   const outOfRange = getOutOfRangeVitals(form);
   const hasOutOfRange = outOfRange.length > 0;
   const painMissing = !form.pain;
@@ -73,10 +61,12 @@ export default function AddVitalsModal({
       open={open}
       onClose={onClose}
       title={title}
-      leading={<Icon name='monitor_heart' size={24} style={{ color: 'var(--brand-p700, #007549)' }} />}
       size='extraLarge'
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
       primaryAction={{ label: 'บันทึกสัญญาณชีพ', onClick: onSubmit, disabled: !isFormValid || hasOutOfRange }}
+      /* Space between body groups (patient card · vitals · pain · ESI · note).
+         Overrides Popup default --dim-space-400 so sections breathe. */
+      bodyStyle={{ gap: 'var(--dim-space-600, 24px)' }}
     >
       <PatientSummaryCard
         avatarUrl={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl}
@@ -256,20 +246,6 @@ export default function AddVitalsModal({
         />
       )}
 
-      <div className='p-3 bg-ink-neutral rounded-xl border border-ink-line flex items-center justify-between text-xs text-ink-secondary'>
-        <span className='font-semibold text-ink-secondary'>
-          {EWS_SYSTEM_LABEL} — เกณฑ์ {ewsRes.scale.label}:
-        </span>
-        <div className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-          <EwsScoreBadge
-            score={ewsRes.score}
-            tier={ewsRes.tier}
-            scale={ewsRes.scale}
-            size='sm'
-          />
-          <span className='text-ink-tertiary'>{ewsRes.tier.label}</span>
-        </div>
-      </div>
       {!isFormValid && (
         <p style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
           กรุณากรอกค่าให้ครบทุกช่อง (ความดัน, ชีพจร, อุณหภูมิ, SpO2, อัตราการหายใจ, Pain Score, ESI) ก่อนบันทึก

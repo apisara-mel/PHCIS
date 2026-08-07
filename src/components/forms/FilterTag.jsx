@@ -291,11 +291,27 @@ export const FilterDropdown = ({
         >
           {options.map((opt) => {
             const isSelected = opt.value === value;
+            /* Optional ColorfulBadge on the row — same contract as Select's
+               `colorfulBadgeStyle` (severity/ESI severity pills). When set,
+               the badge carries the option label; ActionList keeps a
+               non-empty label slot so the trailing check still aligns. */
+            const colorfulTone = opt.colorfulBadgeStyle || opt.leadingBadge?.tone;
+            const colorfulLabel = opt.leadingBadge?.label || (opt.colorfulBadgeStyle ? opt.label : null);
+            const leadingBadge = colorfulTone && colorfulLabel
+              ? { tone: colorfulTone, label: colorfulLabel }
+              : opt.leadingBadge;
             return (
               <ActionList
                 key={opt.value}
-                label={opt.label}
+                label={opt.colorfulBadgeStyle ? '\u00A0' : opt.label}
                 image={opt.image}
+                imageVariant={opt.imageVariant || 'avatar'}
+                leadingIcon={opt.leadingIcon}
+                leadingBadge={leadingBadge}
+                showLeadingBadge={!!leadingBadge}
+                showLeadingIcon={!!(opt.image || opt.leadingIcon)}
+                badge={opt.badge}
+                showBadge={!!opt.badge}
                 active={isSelected}
                 showCheck={isSelected}
                 /* Filter options are leaf actions (no submenu) — the

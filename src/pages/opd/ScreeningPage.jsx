@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header, { SubHeader } from '@/components/layout/Header';
 import PatientCard from '@/components/card/PatientCard';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
+import QueueSubMenu from '@/components/layout/QueueSubMenu';
 import { useStepDirection } from '@/components/step/stepTransition';
 import AllergyForm from '@/components/forms/AllergyForm';
 import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
@@ -38,6 +39,11 @@ import {
   isScreeningCompleted,
 } from '@/data/opdScreeningDrafts';
 import { addWalkinRequest, WALKIN_DEPARTMENTS } from '@/data/opdWalkinRequests';
+import {
+  buildOpdQueueSubMenuBuckets,
+  OPD_QUEUE_ROWS,
+  OPD_QUEUE_SUBMENU_LABELS,
+} from '@/data/opdQueue';
 
 const STEPS = [
   'สัญญาณชีพ',
@@ -967,6 +973,34 @@ const ScreeningPage = () => {
     leaveScreen();
   }, [clearDirty, leaveScreen]);
 
+  /* QueueSubMenu — same Sub Menu B pattern as TreatmentFormPage /
+     RegistrationFormPage. Buckets come from the shared OPD roster so
+     counts match /opd/queue. */
+  const queueBuckets = useMemo(() => {
+    const raw = buildOpdQueueSubMenuBuckets(OPD_QUEUE_ROWS);
+    const map = (rows) => rows.map((r) => ({
+      id: r.id,
+      hn: r.hn,
+      name: r.name,
+      queue: r.queue,
+      badge: r.vipBadge,
+      statusKey: r.statusKey,
+    }));
+    return {
+      done: { items: map(raw.done.items), total: raw.done.total },
+      draft: { items: map(raw.draft.items), total: raw.draft.total },
+      inProgress: { items: map(raw.inProgress.items), total: raw.inProgress.total },
+      waiting: { items: map(raw.waiting.items), total: raw.waiting.total },
+    };
+  }, []);
+
+  const goToPatientScreening = useCallback((p) => {
+    history.push({
+      pathname: '/opd/screening',
+      state: { hn: p.hn, queue: p.queue, name: p.name, statusKey: p.statusKey },
+    });
+  }, [history]);
+
   return (
     <ClinicFilterProvider>
     <ScreeningConfirmPopup
@@ -1076,8 +1110,20 @@ const ScreeningPage = () => {
       onSave={handleSaveDraftAndLeave}
       onDiscard={handleDiscardAndLeave}
     />
-    <div className='min-h-screen w-full flex bg-brand-50'>
+    <div
+      className='flex w-full min-h-screen'
+      style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}
+    >
       <Sidebar activeKey='opd' />
+      {/* QueueSubMenu — Figma "Sub Menu B" (same as /treat/record). Sits
+          between Sidebar and the screening form so nurses can jump to
+          another queue patient without returning to /opd/queue first. */}
+      <QueueSubMenu
+        queue={queueBuckets}
+        sectionLabels={OPD_QUEUE_SUBMENU_LABELS}
+        onViewAll={() => history.push('/opd/queue')}
+        onPickPatient={goToPatientScreening}
+      />
       <main className='flex-1 flex flex-col min-w-0'>
         <Header standalone={false} />
         <SubHeader title='คัดกรองและซักประวัติ' hideBottomBorder />

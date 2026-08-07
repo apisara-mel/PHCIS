@@ -65,6 +65,9 @@
     font-family: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     color: var(--text-content-default);
     background-color: var(--brand-p50);
+    /* Sarabun Thai needs ≥1.5 so สระบน/ล่าง + วรรณยุกต์ aren't clipped
+       by the line box (design.md body/label leading = 1.5). */
+    line-height: 1.5;
   }
   #root {
     width: 100%;
@@ -555,21 +558,9 @@ a:focus, a:focus-visible,
   }
 }
 
-/* Observation board — keyboard focus ring for the custom controls the
-   board adds (bed tiles, attention-bar entries). The global focus
-   suppressor above force-disables `outline`, so a custom control has to
-   own its focus state; box-shadow is the one property that survives it.
-   4px brand ring matches the design system's own focus treatment
-   (DangerButton FOCUS_OUTLINE = stroke-400). WCAG 2.4.7 / 2.4.11. */
-.mih-observation-focusable:focus-visible {
-  box-shadow:
-    0 0 0 var(--dim-stroke-400, 4px) var(--border-brandPrimary-tertiary),
-    0 0 0 calc(var(--dim-stroke-400, 4px) + var(--dim-stroke-100, 1px)) var(--border-brandPrimary-default) !important;
-}
-
-/* Observation bed card — EWS Red Alert (docs/observation-use-cases.md
-   edge case #1: EWS ≥ 5 → "การ์ดเตียงเปลี่ยนเป็นสีแดงกระพริบ"). Same
-   1.2s border+halo pulse as the telemed queue badge above, in the red
+/* Observation bed card — Vital Alert critical (docs/observation-use-cases.md
+   edge case #1: abnormal vitals → "การ์ดเตียงเปลี่ยนเป็นสีแดงกระพริบ").
+   Same 1.2s border+halo pulse as the telemed queue badge above, in the red
    colourful-badge tone. Reduced-motion falls back to a STATIC red border
    rather than nothing — the alert itself must survive, only the blink
    is the accessibility concession. */
@@ -593,6 +584,18 @@ a:focus, a:focus-visible,
     animation: none;
     border-color: var(--surface-colorfulbadge-red-bold, #EF4444);
   }
+}
+
+/* Observation board — keyboard focus ring for the custom controls the
+   board adds (bed tiles, attention-bar entries). The global focus
+   suppressor above force-disables `outline`, so a custom control has to
+   own its focus state; box-shadow is the one property that survives it.
+   4px brand ring matches the design system's own focus treatment
+   (DangerButton FOCUS_OUTLINE = stroke-400). WCAG 2.4.7 / 2.4.11. */
+.mih-observation-focusable:focus-visible {
+  box-shadow:
+    0 0 0 var(--dim-stroke-400, 4px) var(--border-brandPrimary-tertiary),
+    0 0 0 calc(var(--dim-stroke-400, 4px) + var(--dim-stroke-100, 1px)) var(--border-brandPrimary-default) !important;
 }
 
 /* PHCIS Sign-in — Figma 79:15269 "Picture and card"
@@ -746,5 +749,27 @@ a:focus, a:focus-visible,
 [data-mode="dark"] .hover\:text-brand-500:hover,
 [data-mode="dark"] .hover\:text-brand-600:hover {
   color: var(--brand-p400);
+}
+
+/* ───────────────────────────────────────────────────────────────
+   Thai diacritic safety (ทั้งระบบ)
+   Tight leading (1 / 1.25) + overflow:hidden clips สระบน/ล่าง and
+   วรรณยุกต์ in Sarabun. Body copy follows design.md leading 1.5.
+   Icon glyphs keep line-height:1 via .material-symbols-outlined.
+   Unlayered so these beat Tailwind utility classes.
+   ─────────────────────────────────────────────────────────────── */
+.leading-none:not(.material-symbols-outlined),
+.leading-tight,
+.leading-snug {
+  line-height: 1.5;
+}
+
+.truncate,
+.overflow-ellipsis,
+.text-ellipsis,
+.line-clamp-1,
+.line-clamp-2,
+.line-clamp-3 {
+  line-height: 1.5;
 }
 
