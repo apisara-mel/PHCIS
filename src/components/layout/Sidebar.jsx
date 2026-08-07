@@ -108,6 +108,7 @@ const ITEMS = [
     ],
   },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
+  { key: 'finance',   label: 'งานการเงิน',                icon: 'baht',      path: '/finance'           },
   /* รายงานเฝ้าระวังโรค รง.506 — TOR §1.2.3.6 (EPI-NET). เดิมเป็น submenu ใต้
      คัดกรองและซักประวัติ; ยกเป็นเมนูหลักใน rail. Route ยังอยู่ที่ /opd/rg506. */
   {
@@ -134,7 +135,6 @@ const ITEMS = [
   {
     key: 'refer', label: 'ทะเบียนการส่งต่อผู้รับบริการ', icon: 'send', path: '/treat/refer',
   },
-  { key: 'finance',   label: 'งานการเงิน',                icon: 'baht',      path: '/finance'           },
   /* ระบบนัดหมาย — TOR §1.6. เดิมเป็นเมนูเดี่ยวชี้ /appointment. wave นี้เพิ่ม
      หน้าจอระดับโมดูลอีก 4 หน้า (กล่องรับนัด · นัดต่อเนื่อง · รูปแบบการนัดหมาย ·
      ตั้งค่า) จึงเปลี่ยนเป็นเมนูที่มี subItems แบบเดียวกับ `opd`/`queue-center` —

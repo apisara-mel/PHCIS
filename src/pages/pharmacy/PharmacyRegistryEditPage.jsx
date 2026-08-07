@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import Sidebar from '@/components/layout/Sidebar';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
+import QueuePageShell from '@/templates/QueuePageShell';
+import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout/WizardMorphHeader';
+import { MIH_CHROME_MORPH_FOOTER } from '@/components/layout/wizardChromeMorphStyles';
 import Icon from '@/components/icons/Icon';
+import InputField from '@/components/forms/InputField';
+import DatePicker from '@/components/forms/DatePicker';
+import Select from '@/components/forms/Select';
+import Checkbox from '@/components/checkbox/Checkbox';
+import SelectableTag from '@/components/forms/SelectableTag';
+import SelectableCardButton from '@/components/button/SelectableCardButton';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
@@ -18,10 +24,18 @@ import {
 } from '@/data/pharmacyRegistry';
 import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
 
-/* Drug Registry add/edit page (ToR §1.9.1 + §1.9.10 settings). Mirrors
-   `UserEditPage.jsx`'s SectionCard / radio-card / chip-multiselect /
-   sticky-footer-save template exactly — same admin edit-page shape,
-   drug fields instead of user/role/feature fields. */
+/* Drug Registry add/edit wizard (ToR §1.9.1 + §1.9.10). Step chrome +
+   sticky footer mirror `CreateConsentFormPage.jsx`; every form control
+   aliases design-system components (InputField, DatePicker, Select,
+   Checkbox, SelectableTag, SelectableCardButton). */
+
+const STEPS = ['ข้อมูลพื้นฐาน', 'หน่วยและประเภท', 'สิทธิและข้อจำกัด', 'ราคาและตรวจสอบ'];
+
+const canNavigateToStep = (idx, step, completedSteps) =>
+  idx < step || Boolean(completedSteps[idx - 1]);
+
+const dateFromIso = (iso) => (iso ? new Date(`${iso}T12:00:00`) : null);
+const isoFromDate = (d) => (d ? d.toISOString().slice(0, 10) : null);
 
 const BLANK_DRUG = {
   id: 'new',
@@ -68,54 +82,20 @@ const SectionCard = ({ icon, title, subtitle, children, action }) => (
   </section>
 );
 
-const TextField = ({ label, value, onChange, placeholder, required }) => (
-  <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-    <span className='text-xs text-ink-secondary'>{label} {required && <span style={{ color: 'var(--text-input-require)' }}>*</span>}</span>
-    <input
-      type='text'
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      style={{ width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none' }}
-    />
-  </label>
-);
-
-const RadioCard = ({ label, icon = 'category', selected, onSelect }) => (
-  <button
-    type='button'
+const OptionCard = ({ label, icon = 'category', selected, onSelect }) => (
+  <SelectableCardButton
+    selected={selected}
     onClick={onSelect}
-    className='flex items-center w-full text-left transition-shadow'
-    style={{
-      gap: 'var(--dim-space-200)', padding: 'var(--dim-space-300)',
-      background: selected ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
-      border: `var(--dim-stroke-100) solid ${selected ? 'var(--border-brandPrimary-default)' : 'var(--border-card-default)'}`,
-      borderRadius: 'var(--dim-radius-200)', cursor: 'pointer',
-    }}
+    ariaLabel={label}
+    className='w-full justify-start'
+    minHeight={48}
   >
     <Icon name={icon} size={18} style={{ color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-tertiary)' }} />
-    <span className='flex-1 min-w-0 text-sm font-bold' style={{ color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-primary)' }}>{label}</span>
-    {selected && <Icon name='check_circle' size={18} style={{ color: 'var(--text-brandPrimary-default)' }} />}
-  </button>
-);
-
-const Chip = ({ label, selected, onToggle }) => (
-  <button
-    type='button'
-    onClick={onToggle}
-    className='inline-flex items-center text-left'
-    style={{
-      gap: 'var(--dim-space-200)', minHeight: 'var(--dim-size-700, 36px)', padding: 'var(--dim-space-200) var(--dim-space-300)',
-      background: selected ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
-      border: `var(--dim-stroke-100) solid ${selected ? 'var(--border-brandPrimary-default)' : 'var(--border-card-default)'}`,
-      borderRadius: 'var(--dim-radius-full)',
-      color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
-      fontSize: 'var(--type-size-sm)', cursor: 'pointer',
-    }}
-  >
-    <Icon name={selected ? 'check' : 'add'} size={14} />
-    {label}
-  </button>
+    <span className='flex-1 min-w-0 text-sm font-bold text-left' style={{ color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-primary)' }}>
+      {label}
+    </span>
+    {selected ? <Icon name='check_circle' size={18} style={{ color: 'var(--text-brandPrimary-default)' }} /> : null}
+  </SelectableCardButton>
 );
 
 const PharmacyRegistryEditPage = () => {
@@ -134,6 +114,49 @@ const PharmacyRegistryEditPage = () => {
     restrictedToDoctorGroup: base.restrictedToDoctorGroup || '',
   }));
   const [saved, setSaved] = useState(false);
+  const [step, setStep] = useState(0);
+
+  const step0Valid = Boolean(form.name.trim());
+  const step1Valid = Boolean(form.packSize > 0);
+  const step2Valid = form.rightsEligible.length > 0;
+  const completedSteps = [step0Valid, step1Valid, step2Valid, false];
+  const canAdvance = step === 0 ? step0Valid : step === 1 ? step1Valid : step === 2 ? step2Valid : step0Valid;
+
+  const handleStepClick = useCallback(
+    (idx) => { if (canNavigateToStep(idx, step, completedSteps)) setStep(idx); },
+    [step, step0Valid, step1Valid, step2Valid],
+  );
+
+  const goNext = () => {
+    if (step < STEPS.length - 1) {
+      setStep(step + 1);
+      window.scrollTo?.({ top: 0 });
+      return;
+    }
+    handleSave();
+  };
+
+  const goBack = () => {
+    if (step > 0) {
+      setStep(step - 1);
+      window.scrollTo?.({ top: 0 });
+      return;
+    }
+    history.push('/pharmacy/registry');
+  };
+
+  const nextLabel = useMemo(() => {
+    if (step === 0) return 'ถัดไป: หน่วยและประเภท';
+    if (step === 1) return 'ถัดไป: สิทธิและข้อจำกัด';
+    if (step === 2) return 'ถัดไป: ราคาและตรวจสอบ';
+    return isNew ? 'สร้างรายการยา' : 'บันทึกการเปลี่ยนแปลง';
+  }, [step, isNew]);
+
+  const summaryLine = useMemo(() => {
+    const cls = DRUG_CLASSIFICATIONS.find((c) => c.key === form.classification)?.label || '—';
+    const unit = UNIT_TYPES.find((u) => u.key === form.unit)?.label || form.unit;
+    return `${form.name.trim() || 'ยังไม่ระบุชื่อยา'} · ${cls} · ${form.rightsEligible.length} สิทธิ · ${unit}${form.highAlert ? ' · High Alert' : ''}`;
+  }, [form.name, form.classification, form.rightsEligible.length, form.unit, form.highAlert]);
 
   const setField = (key, v) => setForm((prev) => ({ ...prev, [key]: v }));
   const setUsageRateField = (key, v) => setForm((prev) => ({ ...prev, usageRate: { ...prev.usageRate, [key]: Number(v) || 0 } }));
@@ -164,13 +187,20 @@ const PharmacyRegistryEditPage = () => {
 
   if (!isNew && !existing) {
     return (
-      <div className='min-h-screen w-full flex bg-brand-50'>
-        <Sidebar activeKey='pharmacy' />
-        <main className='flex-1 flex flex-col min-w-0'>
-          <Header breadcrumb={['ระบบงานเภสัชกรรม', 'ทะเบียนยา', 'ไม่พบรายการยา']} />
-          <div className='flex flex-1 items-center justify-center text-ink-tertiary'>ไม่พบรายการยาที่ตรงกับลิงก์นี้</div>
-        </main>
-      </div>
+      <QueuePageShell
+        activeKey='pharmacy'
+        breadcrumb={['ระบบงานเภสัชกรรม', 'ทะเบียนยา', 'ไม่พบรายการยา']}
+        title='ไม่พบรายการยา'
+        onBack={() => history.push('/pharmacy/registry')}
+        backLabel='กลับไปยังทะเบียนยา'
+      >
+        <div
+          className='flex flex-1 items-center justify-center text-ink-tertiary'
+          style={{ padding: 'var(--dim-space-600, 24px)' }}
+        >
+          ไม่พบรายการยาที่ตรงกับลิงก์นี้
+        </div>
+      </QueuePageShell>
     );
   }
 
@@ -185,79 +215,89 @@ const PharmacyRegistryEditPage = () => {
   };
 
   return (
-    <div className='min-h-screen w-full flex bg-brand-50'>
-      <Sidebar activeKey='pharmacy' />
-      <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={breadcrumb} />
-        <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
-          <div>
-            <button
-              type='button'
-              onClick={() => history.push('/pharmacy/registry')}
-              className='inline-flex items-center gap-1 text-sm text-ink-secondary hover:text-brand-500'
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
-            >
-              <Icon name='chevron-left' size={16} />
-              กลับไปยังทะเบียนยา
-            </button>
-          </div>
-
+    <>
+      <QueuePageShell
+        activeKey='pharmacy'
+        breadcrumb={breadcrumb}
+        {...WIZARD_MORPH_SHELL_PROPS}
+        headerInfo={(
+          <WizardMorphHeader
+            title={isNew ? 'เพิ่มทะเบียนยา' : (form.name || 'แก้ไขรายการยา')}
+            steps={STEPS}
+            current={step}
+            onStepClick={handleStepClick}
+            completedSteps={completedSteps}
+          />
+        )}
+      >
+        <div
+          className='flex flex-col flex-1 min-w-0'
+          style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)', paddingBottom: 96 }}
+        >
+          {step === 0 && (
           <SectionCard
             icon='medication'
-            title={isNew ? 'เพิ่มทะเบียนยา' : 'ข้อมูลพื้นฐาน'}
+            title='ข้อมูลพื้นฐาน'
             subtitle='ชื่อยา ชื่อสามัญ ชื่อการค้า และสถานะการใช้งาน'
             action={
-              <label className='inline-flex items-center cursor-pointer' style={{ gap: 'var(--dim-space-200)' }}>
-                <input
-                  type='checkbox'
-                  checked={form.active}
-                  onChange={(e) => setField('active', e.target.checked)}
-                  style={{ width: 'var(--dim-size-300, 16px)', height: 'var(--dim-size-300, 16px)', accentColor: 'var(--surface-brandPrimary-default)' }}
-                />
-                <span className='text-sm text-ink-secondary'>ใช้งาน</span>
-              </label>
+              <Checkbox
+                checked={form.active}
+                onChange={(v) => setField('active', v)}
+                label='ใช้งาน'
+              />
             }
           >
-            <div className='grid grid-cols-1 md:grid-cols-4 gap-3 w-full'>
-              <TextField label='รหัสยา' value={form.code} onChange={(v) => setField('code', v)} placeholder='เช่น MED-0001' />
-              <TextField label='ชื่อยา (แสดงในระบบ)' required value={form.name} onChange={(v) => setField('name', v)} placeholder='เช่น Paracetamol 500 mg' />
-              <TextField label='ชื่อสามัญ (Generic name)' value={form.genericName} onChange={(v) => setField('genericName', v)} placeholder='เช่น Paracetamol' />
-              <TextField label='ชื่อการค้า (Trade name)' value={form.tradeName} onChange={(v) => setField('tradeName', v)} placeholder='ถ้ามี' />
+            <div
+              className='grid grid-cols-1 md:grid-cols-4 w-full min-w-0'
+              style={{ gap: 'var(--dim-space-300, 12px)' }}
+            >
+              <InputField label='รหัสยา' value={form.code} onChange={(v) => setField('code', v)} placeholder='เช่น MED-0001' showHelperText={false} />
+              <InputField label='ชื่อยา (แสดงในระบบ)' required value={form.name} onChange={(v) => setField('name', v)} placeholder='เช่น Paracetamol 500 mg' showHelperText={false} />
+              <InputField label='ชื่อสามัญ (Generic name)' value={form.genericName} onChange={(v) => setField('genericName', v)} placeholder='เช่น Paracetamol' showHelperText={false} />
+              <InputField label='ชื่อการค้า (Trade name)' value={form.tradeName} onChange={(v) => setField('tradeName', v)} placeholder='ถ้ามี' showHelperText={false} />
             </div>
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full'>
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <span className='text-xs text-ink-secondary'>วันที่เริ่มจำหน่ายยาในสถานพยาบาล</span>
-                <input
-                  type='date' value={form.activeFrom || ''} onChange={(e) => setField('activeFrom', e.target.value)}
-                  style={{ width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none' }}
-                />
-              </label>
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <span className='text-xs text-ink-secondary'>วันที่ตัดรายการยาออกจากสถานพยาบาล (ถ้ามี)</span>
-                <input
-                  type='date' value={form.activeTo || ''} onChange={(e) => setField('activeTo', e.target.value || null)}
-                  style={{ width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none' }}
-                />
-              </label>
+            <div
+              className='grid grid-cols-1 md:grid-cols-2 w-full min-w-0'
+              style={{ gap: 'var(--dim-space-300, 12px)' }}
+            >
+              <DatePicker
+                label='วันที่เริ่มจำหน่ายยาในสถานพยาบาล'
+                value={dateFromIso(form.activeFrom)}
+                onChange={(d) => setField('activeFrom', isoFromDate(d) || '')}
+                placeholder='เลือกวันที่'
+                showHelperText={false}
+              />
+              <DatePicker
+                label='วันที่ตัดรายการยาออกจากสถานพยาบาล (ถ้ามี)'
+                value={dateFromIso(form.activeTo)}
+                onChange={(d) => setField('activeTo', isoFromDate(d))}
+                placeholder='เลือกวันที่'
+                showHelperText={false}
+              />
             </div>
           </SectionCard>
+          )}
 
+          {step === 1 && (
+          <>
           <SectionCard icon='straighten' title='หน่วยนับและอัตราแปลง' subtitle='หน่วยจ่ายหลักของรายการยานี้ — พร้อมอัตราแปลงหน่วยเฉพาะของยารายการนี้'>
             <div className='grid w-full' style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 'var(--dim-space-300)' }}>
               {UNIT_TYPES.map((u) => (
-                <RadioCard key={u.key} icon='straighten' label={u.label} selected={form.unit === u.key} onSelect={() => setField('unit', u.key)} />
+                <OptionCard key={u.key} icon='straighten' label={u.label} selected={form.unit === u.key} onSelect={() => setField('unit', u.key)} />
               ))}
             </div>
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full'>
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <span className='text-xs text-ink-secondary'>ขนาดบรรจุต่อกล่อง (1 กล่อง = ? {UNIT_TYPES.find((u) => u.key === form.unit)?.label})</span>
-                <input
-                  type='number' min='1' value={form.packSize || ''}
-                  onChange={(e) => setField('packSize', Number(e.target.value) || 0)}
-                  placeholder='เช่น 100'
-                  style={{ width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none' }}
-                />
-              </label>
+            <div
+              className='grid grid-cols-1 md:grid-cols-2 w-full min-w-0'
+              style={{ gap: 'var(--dim-space-300, 12px)' }}
+            >
+              <InputField
+                label={`ขนาดบรรจุต่อกล่อง (1 กล่อง = ? ${UNIT_TYPES.find((u) => u.key === form.unit)?.label})`}
+                type='number'
+                value={form.packSize ? String(form.packSize) : ''}
+                onChange={(v) => setField('packSize', Number(v) || 0)}
+                placeholder='เช่น 100'
+                showHelperText={false}
+              />
               <div className='flex flex-col justify-end' style={{ gap: 'var(--dim-space-150)' }}>
                 <span className='text-xs text-ink-tertiary'>
                   อัตราแปลงของรายการนี้: 1 กล่อง = {form.packSize || 0} {UNIT_TYPES.find((u) => u.key === form.unit)?.label}
@@ -277,56 +317,69 @@ const PharmacyRegistryEditPage = () => {
           <SectionCard icon='category' title='การจัดประเภทยา' subtitle='บัญชียาหลักแห่งชาติ / วัตถุออกฤทธิ์ต่อจิตและประสาท และรายการยาเสี่ยงสูง (High Alert Drug)'>
             <div className='grid w-full' style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--dim-space-300)' }}>
               {DRUG_CLASSIFICATIONS.map((c) => (
-                <RadioCard key={c.key} icon='category' label={c.label} selected={form.classification === c.key} onSelect={() => setField('classification', c.key)} />
+                <OptionCard key={c.key} icon='category' label={c.label} selected={form.classification === c.key} onSelect={() => setField('classification', c.key)} />
               ))}
             </div>
-            <label
-              className='inline-flex items-center cursor-pointer w-fit'
+            <div
+              className='w-fit max-w-full'
               style={{
                 ...PHARMACY_NESTED_PANEL,
-                gap: 'var(--dim-space-200)',
                 padding: 'var(--dim-space-300)',
                 ...(form.highAlert ? { background: 'var(--surface-alert-warning)' } : null),
               }}
             >
-              <input
-                type='checkbox'
+              <Checkbox
                 checked={form.highAlert}
-                onChange={(e) => setField('highAlert', e.target.checked)}
-                style={{ width: 'var(--dim-size-300, 16px)', height: 'var(--dim-size-300, 16px)', accentColor: 'var(--surface-brandPrimary-default)' }}
+                onChange={(v) => setField('highAlert', v)}
+                label='เป็นยาเสี่ยงสูง (High Alert Drug) — ระบบจะแจ้งเตือนทุกครั้งก่อนจ่าย'
               />
-              <span className='text-sm text-ink-secondary'>เป็นยาเสี่ยงสูง (High Alert Drug) — ระบบจะแจ้งเตือนทุกครั้งก่อนจ่าย</span>
-            </label>
+            </div>
           </SectionCard>
+          </>
+          )}
 
+          {step === 2 && (
+          <>
           <SectionCard icon='verified_user' title='สิทธิที่เบิกได้' subtitle={`เลือกสิทธิการรักษาที่สามารถเบิกจ่ายยานี้ได้ — ${form.rightsEligible.length} สิทธิที่เลือก`}>
             <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-200)' }}>
               {RIGHTS_LIST.map((r) => (
-                <Chip key={r} label={r} selected={form.rightsEligible.includes(r)} onToggle={() => toggleRight(r)} />
+                <SelectableTag
+                  key={r}
+                  label={r}
+                  selected={form.rightsEligible.includes(r)}
+                  onClick={() => toggleRight(r)}
+                  size='md'
+                />
               ))}
             </div>
           </SectionCard>
 
           <SectionCard icon='factory' title='ผู้ผลิต/ผู้จำหน่าย และอัตราการใช้' subtitle='กำหนดผู้ผลิต ผู้จำหน่าย และอัตราการใช้เฉลี่ยต่อเดือนเพื่อคำนวณจุดสั่งซื้อ'>
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full'>
-              <TextField label='ผู้ผลิต' value={form.manufacturer} onChange={(v) => setField('manufacturer', v)} placeholder='เช่น องค์การเภสัชกรรม (GPO)' />
-              <TextField label='ผู้จำหน่าย' value={form.distributor} onChange={(v) => setField('distributor', v)} placeholder='เช่น บริษัท ดีเคเอสเอช (ประเทศไทย) จำกัด' />
+            <div
+              className='grid grid-cols-1 md:grid-cols-2 w-full min-w-0'
+              style={{ gap: 'var(--dim-space-300, 12px)' }}
+            >
+              <InputField label='ผู้ผลิต' value={form.manufacturer} onChange={(v) => setField('manufacturer', v)} placeholder='เช่น องค์การเภสัชกรรม (GPO)' showHelperText={false} />
+              <InputField label='ผู้จำหน่าย' value={form.distributor} onChange={(v) => setField('distributor', v)} placeholder='เช่น บริษัท ดีเคเอสเอช (ประเทศไทย) จำกัด' showHelperText={false} />
             </div>
-            <div className='grid grid-cols-2 md:grid-cols-4 gap-3 w-full'>
+            <div
+              className='grid grid-cols-2 md:grid-cols-4 w-full min-w-0'
+              style={{ gap: 'var(--dim-space-300, 12px)' }}
+            >
               {[
                 ['avgPerMonth', 'อัตราการใช้เฉลี่ย/เดือน'],
                 ['maxQty', 'ปริมาณสูงสุด'],
                 ['minQty', 'ปริมาณต่ำสุด'],
                 ['reorderPoint', 'ปริมาณถึงระดับสั่งซื้อ'],
               ].map(([key, label]) => (
-                <label key={key} className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                  <span className='text-xs text-ink-secondary'>{label}</span>
-                  <input
-                    type='number' min='0' value={form.usageRate[key]}
-                    onChange={(e) => setUsageRateField(key, e.target.value)}
-                    style={{ width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none' }}
-                  />
-                </label>
+                <InputField
+                  key={key}
+                  label={label}
+                  type='number'
+                  value={form.usageRate[key] ? String(form.usageRate[key]) : ''}
+                  onChange={(v) => setUsageRateField(key, v)}
+                  showHelperText={false}
+                />
               ))}
             </div>
           </SectionCard>
@@ -348,32 +401,60 @@ const PharmacyRegistryEditPage = () => {
                   </span>
                 ))}
               </div>
-              <div className='flex items-end' style={{ gap: 'var(--dim-space-200)' }}>
-                <TextField label='เพิ่มโรคประจำตัวที่ไม่อนุญาต' value={newDisease} onChange={setNewDisease} placeholder='เช่น โรคไตเรื้อรัง ระยะ 3–4 (CKD)' />
+              <div className='flex items-end w-full min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+                <div className='flex-1 min-w-0'>
+                  <InputField
+                    label='เพิ่มโรคประจำตัวที่ไม่อนุญาต'
+                    value={newDisease}
+                    onChange={setNewDisease}
+                    placeholder='เช่น โรคไตเรื้อรัง ระยะ 3–4 (CKD)'
+                    showHelperText={false}
+                  />
+                </div>
                 <NeutralSubdueButton variant='outline' size='sm' leadingIcon='add' onClick={addDisallowedDisease}>เพิ่ม</NeutralSubdueButton>
               </div>
             </div>
-            <TextField label='กลุ่มแพทย์เฉพาะที่อนุญาตให้สั่ง (เว้นว่างถ้าไม่จำกัด)' value={form.restrictedToDoctorGroup} onChange={(v) => setField('restrictedToDoctorGroup', v)} placeholder='เช่น แพทย์ผิวหนัง / อายุรกรรม' />
+            <InputField
+              label='กลุ่มแพทย์เฉพาะที่อนุญาตให้สั่ง (เว้นว่างถ้าไม่จำกัด)'
+              value={form.restrictedToDoctorGroup}
+              onChange={(v) => setField('restrictedToDoctorGroup', v)}
+              placeholder='เช่น แพทย์ผิวหนัง / อายุรกรรม'
+              showHelperText={false}
+            />
           </SectionCard>
+          </>
+          )}
 
+          {step === 3 && (
+          <>
           <SectionCard icon='payments' title='ราคาและช่วงเวลามีผล' subtitle='ปรับราคายาล่วงหน้าได้โดยกำหนดวันที่เริ่มต้นและวันที่สิ้นสุด' action={
             <NeutralSubdueButton variant='outline' size='sm' leadingIcon='add' onClick={addPriceRow}>เพิ่มช่วงราคา</NeutralSubdueButton>
           }>
             <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
               {form.priceSchedule.map((p, i) => (
-                <div key={p.id} className='flex flex-wrap items-center w-full' style={{ ...PHARMACY_NESTED_PANEL, gap: 'var(--dim-space-300)', padding: 'var(--dim-space-300)' }}>
-                  <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                    <span className='text-xs text-ink-tertiary'>เริ่มมีผล</span>
-                    <input type='date' value={p.effectiveFrom} onChange={(e) => updatePriceRow(i, 'effectiveFrom', e.target.value)} style={{ padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)' }} />
-                  </label>
-                  <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                    <span className='text-xs text-ink-tertiary'>สิ้นสุด (ถ้ามี)</span>
-                    <input type='date' value={p.effectiveTo || ''} onChange={(e) => updatePriceRow(i, 'effectiveTo', e.target.value || null)} style={{ padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)' }} />
-                  </label>
-                  <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                    <span className='text-xs text-ink-tertiary'>ราคา (บาท)</span>
-                    <input type='number' min='0' value={p.price} onChange={(e) => updatePriceRow(i, 'price', Number(e.target.value))} style={{ width: 'var(--dim-size-1800, 96px)', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)' }} />
-                  </label>
+                <div key={p.id} className='flex flex-wrap items-end w-full' style={{ ...PHARMACY_NESTED_PANEL, gap: 'var(--dim-space-300)', padding: 'var(--dim-space-300)' }}>
+                  <DatePicker
+                    label='เริ่มมีผล'
+                    value={dateFromIso(p.effectiveFrom)}
+                    onChange={(d) => updatePriceRow(i, 'effectiveFrom', isoFromDate(d) || '')}
+                    placeholder='เลือกวันที่'
+                    showHelperText={false}
+                  />
+                  <DatePicker
+                    label='สิ้นสุด (ถ้ามี)'
+                    value={dateFromIso(p.effectiveTo)}
+                    onChange={(d) => updatePriceRow(i, 'effectiveTo', isoFromDate(d))}
+                    placeholder='เลือกวันที่'
+                    showHelperText={false}
+                  />
+                  <InputField
+                    label='ราคา (บาท)'
+                    type='number'
+                    value={p.price != null ? String(p.price) : ''}
+                    onChange={(v) => updatePriceRow(i, 'price', Number(v) || 0)}
+                    showHelperText={false}
+                    style={{ width: 'var(--dim-size-1800, 96px)' }}
+                  />
                 </div>
               ))}
             </div>
@@ -381,37 +462,90 @@ const PharmacyRegistryEditPage = () => {
 
           {!isNew && (
             <SectionCard icon='block' title='ปิดใช้งานและรายการทดแทน' subtitle='เมื่อปิดใช้งานรายการยานี้ สามารถตั้งค่ารายการทดแทนไว้ล่วงหน้าได้ (ToR §1.9.10)'>
-              <label className='flex flex-col w-full md:w-1/2' style={{ gap: 'var(--dim-space-150)' }}>
-                <span className='text-xs text-ink-secondary'>รายการทดแทน</span>
-                <select
+              <div className='w-full md:w-1/2 min-w-0'>
+                <Select
+                  label='รายการทดแทน'
                   value={form.replacementId || ''}
-                  onChange={(e) => setField('replacementId', e.target.value)}
-                  style={{ width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none', appearance: 'none' }}
-                >
-                  <option value=''>— ไม่กำหนดรายการทดแทน —</option>
-                  {replacementOptions.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </label>
+                  onChange={(v) => setField('replacementId', v)}
+                  searchable={false}
+                  showHelperText={false}
+                  options={[
+                    { value: '', label: '— ไม่กำหนดรายการทดแทน —' },
+                    ...replacementOptions.map((d) => ({ value: d.id, label: d.name })),
+                  ]}
+                />
+              </div>
             </SectionCard>
           )}
 
-          <section className='flex flex-wrap items-center w-full sticky bottom-0' style={{ ...PHARMACY_WORKLIST_CARD, gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)' }}>
-            <div className='flex-1 min-w-0 flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-              <span className='text-xs text-ink-tertiary'>
-                สรุป: <strong className='text-ink-secondary'>{DRUG_CLASSIFICATIONS.find((c) => c.key === form.classification)?.label}</strong>
-                {' · '}{form.rightsEligible.length} สิทธิ{form.highAlert ? ' · High Alert' : ''}
-              </span>
+          <SectionCard icon='fact_check' title='ตรวจสอบก่อนบันทึก' subtitle='สรุปข้อมูลทะเบียนยาก่อนสร้างรายการในระบบ'>
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              {[
+                ['ชื่อยา', form.name || '—'],
+                ['รหัสยา', form.code || '—'],
+                ['ชื่อสามัญ', form.genericName || '—'],
+                ['หน่วยจ่าย', UNIT_TYPES.find((u) => u.key === form.unit)?.label || '—'],
+                ['การจัดประเภท', DRUG_CLASSIFICATIONS.find((c) => c.key === form.classification)?.label || '—'],
+                ['สิทธิที่เบิกได้', `${form.rightsEligible.length} สิทธิ`],
+                ['ราคาปัจจุบัน', form.priceSchedule?.[0]?.price != null ? `${form.priceSchedule[0].price.toLocaleString('th-TH')} บาท` : '—'],
+                ['สถานะ', form.active ? 'ใช้งาน' : 'ปิดใช้งาน'],
+              ].map(([label, value]) => (
+                <div key={label} className='flex flex-wrap items-baseline w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                  <span className='text-xs text-ink-tertiary shrink-0' style={{ minWidth: 'var(--dim-size-2000, 120px)' }}>{label}</span>
+                  <span className='text-sm text-ink-secondary'>{value}</span>
+                </div>
+              ))}
             </div>
-            <NeutralSubdueButton variant='outline' size='md' onClick={() => history.push('/pharmacy/registry')}>ยกเลิก</NeutralSubdueButton>
-            <BrandButton size='md' leadingIcon='save' onClick={handleSave} disabled={!form.name.trim()}>{isNew ? 'สร้างรายการยา' : 'บันทึกการเปลี่ยนแปลง'}</BrandButton>
-          </section>
+          </SectionCard>
+          </>
+          )}
         </div>
-        <Footer copyright='© 2026 ศูนย์บริการสาธารณสุข สำนักอนามัย กรุงเทพมหานคร' />
-      </main>
+
+        <div
+          className={`sticky bottom-0 z-10 flex items-center w-full ${MIH_CHROME_MORPH_FOOTER}`}
+          style={{
+            background: 'var(--surface-card-100)',
+            borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+            boxShadow: '0 -2px 8px rgba(8,167,104,0.06)',
+            padding: 'var(--dim-space-400) var(--dim-space-600)',
+            gap: 'var(--dim-space-600)',
+          }}
+        >
+          {step > 0 ? (
+            <NeutralSubdueButton
+              size='lg'
+              leadingIcon='arrow_back'
+              onClick={goBack}
+              className='shrink-0'
+            >
+              ย้อนกลับ
+            </NeutralSubdueButton>
+          ) : (
+            <NeutralSubdueButton size='lg' onClick={() => history.push('/pharmacy/registry')} className='shrink-0'>
+              ยกเลิก
+            </NeutralSubdueButton>
+          )}
+          <div className='flex items-center min-w-0 flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-positive-secondary, #A2EDDE)' }} />
+            <span className='truncate' style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+              {summaryLine}
+            </span>
+          </div>
+          <div className='flex-1' />
+          <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-300)' }}>
+            {step > 0 && (
+              <NeutralSubdueButton size='lg' onClick={() => history.push('/pharmacy/registry')}>
+                ยกเลิก
+              </NeutralSubdueButton>
+            )}
+            <BrandButton variant='fill' size='lg' trailingIcon={step < STEPS.length - 1 ? 'arrow_forward' : 'save'} disabled={!canAdvance} onClick={goNext}>
+              {nextLabel}
+            </BrandButton>
+          </div>
+        </div>
+      </QueuePageShell>
       <SuccessToast open={saved} message={isNew ? 'สร้างรายการยาสำเร็จ' : 'บันทึกการเปลี่ยนแปลงสำเร็จ'} onClose={() => setSaved(false)} />
-    </div>
+    </>
   );
 };
 

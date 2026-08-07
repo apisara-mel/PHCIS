@@ -21,6 +21,9 @@ export const EWS_SCALES = {
   PEDIATRIC: { key: 'pediatric', label: 'PEWS (เด็ก)', short: 'PEWS' },
 };
 
+/** User-facing system copy — badges show NEWS/PEWS; prose uses this label. */
+export const EWS_SYSTEM_LABEL = 'คะแนนเตือนภัย (EWS)';
+
 /* Age at which the adult NEWS chart takes over from the paediatric one —
    the usual cut-off used by Thai hospitals' paediatric early-warning
    charts. */
@@ -935,6 +938,22 @@ const buildReferredMockPatients = (count) => Array.from({ length: count }, (_, i
 });
 
 MOCK_OBSERVATION_PATIENTS.push(...buildReferredMockPatients(40));
+
+/* Back-fill pain / ESI on the latest vitals row when not explicitly set —
+   so every occupied card has both fields to render (TOR §1.14.2 re-assessment). */
+const PAIN_ESI_DEFAULTS = {
+  critical: { pain: 'severe', esi: 2 },
+  warning: { pain: 'mod', esi: 3 },
+  normal: { pain: 'mild', esi: 4 },
+};
+MOCK_OBSERVATION_PATIENTS.forEach((patient) => {
+  if (!patient.vitalsTrend?.length || patient.status === 'empty') return;
+  const last = patient.vitalsTrend[patient.vitalsTrend.length - 1];
+  if (last.pain != null && last.esi != null) return;
+  const defaults = PAIN_ESI_DEFAULTS[patient.severity] || PAIN_ESI_DEFAULTS.normal;
+  if (last.pain == null) last.pain = defaults.pain;
+  if (last.esi == null) last.esi = defaults.esi;
+});
 
 /* ── Timestamp rebasing ────────────────────────────────────────────────
    Duration is DERIVED from admitTime → (dischargeTime | now), so the

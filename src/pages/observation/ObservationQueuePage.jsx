@@ -22,6 +22,8 @@ import VitalCard, { PressureCard } from '@/components/card/VitalCard';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import ViewToggle from '@/components/toggle/ViewToggle';
 import AddVitalsModal, { VITALS_NOTE_SUGGESTIONS } from '@/components/observation/AddVitalsModal';
+import BedNumberBadge from '@/components/observation/BedNumberBadge';
+import EwsScoreBadge from '@/components/observation/EwsScoreBadge';
 import Pagination from '@/components/pagination/Pagination';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { NestedBedSelectionPanel } from '@/components/popup/BedSelectionPopup';
@@ -34,6 +36,7 @@ import {
   MOCK_OBSERVATION_PATIENTS,
   EWS_RISK_TIERS,
   EWS_RED_ALERT_SCORE,
+  EWS_SYSTEM_LABEL,
   OVERSTAY_LIMIT_MINUTES,
   isOverstay,
   getOutOfRangeVitals,
@@ -243,7 +246,7 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
   },
   {
     key: 'ews',
-    label: 'EWS Score',
+    label: EWS_SYSTEM_LABEL,
     width: 128,
     align: 'center',
     render: (patient) => {
@@ -251,9 +254,12 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
       if (!latest) return '-';
       const ews = scorePatientVitals(patient, latest);
       return (
-        <StatusBadge style={ews.tier.style} size='small' showDot>
-          {ews.score} ({ews.scale.short})
-        </StatusBadge>
+        <EwsScoreBadge
+          score={ews.score}
+          tier={ews.tier}
+          scale={ews.scale}
+          size='sm'
+        />
       );
     },
   },
@@ -528,10 +534,31 @@ export default function ObservationQueuePage() {
       const latest = p.vitalsTrend?.[p.vitalsTrend.length - 1];
       const ews = latest ? scorePatientVitals(p, latest) : null;
       if ((ews?.score ?? 0) >= EWS_RED_ALERT_SCORE) {
-        return { id: p.id, bedNo: p.bedNo, patientName: p.patientName, tone: 'red', icon: 'emergency_home', reason: `${ews.scale.short} ${ews.score} · อาการทรุดลง`, rank: 0 };
+        return {
+          id: p.id,
+          bedNo: p.bedNo,
+          patientName: p.patientName,
+          tone: 'red',
+          reason: 'อาการทรุดลง',
+          ewsScore: ews.score,
+          ewsTier: ews.tier,
+          ewsScale: ews.scale,
+          rank: 0,
+        };
       }
       if (isOverstay(p)) {
-        return { id: p.id, bedNo: p.bedNo, patientName: p.patientName, tone: 'orange', icon: 'hourglass_top', reason: `ครองเตียง ${formatDurationThai(getObservationDurationMinutes(p))} · รอประเมินซ้ำ`, rank: 1 };
+        const overstayEws = latest ? scorePatientVitals(p, latest) : null;
+        return {
+          id: p.id,
+          bedNo: p.bedNo,
+          patientName: p.patientName,
+          tone: 'orange',
+          reason: `ครองเตียง ${formatDurationThai(getObservationDurationMinutes(p))} · รอประเมินซ้ำ`,
+          ewsScore: overstayEws?.score ?? 0,
+          ewsTier: overstayEws?.tier,
+          ewsScale: overstayEws?.scale,
+          rank: 1,
+        };
       }
       return null;
     })
@@ -557,7 +584,7 @@ export default function ObservationQueuePage() {
     },
     { key: 'referred', label: 'รายการที่ส่งต่อแล้ว', value: `${referredCount} ราย`, indicator: 'จำหน่าย/ส่งต่อสำเร็จ', color: 'positive', icon: 'check_circle' },
     { key: 'overstay', label: `ครองเตียงเกิน ${OVERSTAY_LIMIT_MINUTES / 60} ชม.`, value: `${overstayCount} ราย`, indicator: 'รอแพทย์ประเมินซ้ำ', color: 'inprogress', icon: 'hourglass_top' },
-    { key: 'critical', label: 'เฝ้าระวังพิเศษ (EWS ≥3)', value: `${criticalCount} ราย`, indicator: 'ประเมินด่วนที่สุด', color: 'destructive', icon: 'warning' },
+    { key: 'critical', label: `${EWS_SYSTEM_LABEL} ≥3`, value: `${criticalCount} ราย`, indicator: 'ประเมินด่วนที่สุด', color: 'destructive', icon: 'warning' },
   ];
 
   const tabs = [
@@ -822,7 +849,7 @@ export default function ObservationQueuePage() {
                   {
                     time: nowStr,
                     nurse: p.nurseName,
-                    note: `Deterioration Event: คะแนน EWS พุ่งขึ้นเป็น ${newScore} (จากเดิม ${prevScore}) — ระบบบันทึกอัตโนมัติ ให้รายงานแพทย์ผู้ดูแลด่วนและพิจารณาย้ายเข้าห้องฉุกเฉิน`,
+                    note: `Deterioration Event: ${EWS_SYSTEM_LABEL} พุ่งขึ้นเป็น ${newScore} (จากเดิม ${prevScore}) — ระบบบันทึกอัตโนมัติ ให้รายงานแพทย์ผู้ดูแลด่วนและพิจารณาย้ายเข้าห้องฉุกเฉิน`,
                   },
                 ]
               : p.nursingNotes,
@@ -871,7 +898,7 @@ export default function ObservationQueuePage() {
             {
               time: nowClock,
               nurse: current.nurseName,
-              note: `Code Red — ย้ายด่วนเข้าห้องฉุกเฉิน (ER) ขณะ EWS ${score}${reason ? ` · ${reason}` : ''}`,
+              note: `Code Red — ย้ายด่วนเข้าห้องฉุกเฉิน (ER) ขณะ${EWS_SYSTEM_LABEL} ${score}${reason ? ` · ${reason}` : ''}`,
             },
           ],
           dischargeSummary: {
@@ -880,7 +907,7 @@ export default function ObservationQueuePage() {
             referScope: 'internal',
             referDepartment: 'ห้องฉุกเฉิน (ER)',
             referHospital: '',
-            doctorSummary: `ย้ายด่วนเข้าห้องฉุกเฉิน (Code Red) ขณะคะแนน EWS ${score}${reason ? ` · ${reason}` : ''}`,
+            doctorSummary: `ย้ายด่วนเข้าห้องฉุกเฉิน (Code Red) ขณะ${EWS_SYSTEM_LABEL} ${score}${reason ? ` · ${reason}` : ''}`,
             dischargeVitals: latest ? { ...latest } : null,
             isDischarged: true,
           },
@@ -1093,48 +1120,71 @@ export default function ObservationQueuePage() {
           <div
             className='w-full flex flex-wrap items-center'
             style={{
-              gap: 'var(--dim-space-300)',
-              background: 'var(--surface-card-100)',
-              border: `var(--dim-stroke-200) solid ${attentionItems.some((i) => i.tone === 'red')
-                ? 'var(--surface-colorfulbadge-red-bold, #EF4444)'
-                : 'var(--surface-colorfulbadge-orange-bold, #F97316)'}`,
-              borderRadius: 'var(--dim-radius-400)',
-              paddingTop: 'var(--dim-space-400)',
-              paddingRight: 'var(--dim-space-500)',
-              paddingBottom: 'var(--dim-space-400)',
-              paddingLeft: 'var(--dim-space-500)',
+              gap: 'var(--dim-space-400)',
+              background: 'var(--surface-card-100, #FFFFFF)',
+              border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+              borderRadius: 'var(--dim-radius-500, 24px)',
+              boxShadow: 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))',
+              paddingTop: 'var(--dim-space-500)',
+              paddingRight: 'var(--dim-space-600)',
+              paddingBottom: 'var(--dim-space-500)',
+              paddingLeft: 'var(--dim-space-600)',
             }}
           >
             <span
               className='inline-flex items-center shrink-0'
               style={{ gap: 'var(--dim-space-200)', color: 'var(--text-content-default)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)' }}
             >
-              <span className='material-symbols-outlined' style={{ fontSize: 20, color: 'var(--text-colorfulbadge-red, #B91C1C)' }}>
-                notification_important
+              <Icon
+                name='notification_important'
+                size={20}
+                color='var(--text-colorfulbadge-red, #B91C1C)'
+              />
+              ต้องดูแลด่วน
+              <span
+                className='inline-flex items-center justify-center'
+                style={{
+                  minWidth: 'var(--dim-size-500, 24px)',
+                  height: 'var(--dim-size-500, 24px)',
+                  paddingLeft: 'var(--dim-space-150)',
+                  paddingRight: 'var(--dim-space-150)',
+                  borderRadius: 'var(--dim-radius-full, 9999px)',
+                  background: 'var(--surface-colorfulbadge-red, #FEE2E2)',
+                  color: 'var(--text-colorfulbadge-red, #B91C1C)',
+                  fontSize: 'var(--type-size-xs)',
+                  fontWeight: 'var(--type-weight-bold)',
+                }}
+              >
+                {attentionItems.length}
               </span>
-              ต้องดูแลด่วน ({attentionItems.length})
             </span>
-            <div className='flex flex-wrap items-center flex-1 min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+            <div
+              className='hidden sm:block shrink-0'
+              style={{
+                width: 'var(--dim-stroke-100, 1px)',
+                alignSelf: 'stretch',
+                background: 'var(--border-neutral-quaternary, #F4F5F5)',
+              }}
+              aria-hidden
+            />
+            <div className='flex flex-wrap items-center flex-1 min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
               {attentionItems.map((item) => (
                 <button
                   key={item.id}
                   type='button'
                   onClick={() => history.push(`/observation/record/${item.id}`)}
-                  className='mih-observation-focusable inline-flex items-center transition-colors'
+                  className='mih-observation-focusable inline-flex items-center transition-all hover:shadow-[var(--shadow-card)]'
                   style={{
-                    gap: 'var(--dim-space-150)',
-                    paddingTop: 'var(--dim-space-200)',
-                    paddingBottom: 'var(--dim-space-200)',
-                    paddingLeft: 'var(--dim-space-300)',
-                    paddingRight: 'var(--dim-space-300)',
-                    borderRadius: 'var(--dim-radius-200, 8px)',
-                    background: item.tone === 'red'
-                      ? 'var(--surface-colorfulbadge-red, #FEE2E2)'
-                      : 'var(--surface-colorfulbadge-orange, #FFEDD5)',
-                    color: item.tone === 'red'
-                      ? 'var(--text-colorfulbadge-red, #B91C1C)'
-                      : 'var(--text-colorfulbadge-orange, #C2410C)',
-                    border: `var(--dim-stroke-100) solid ${item.tone === 'red'
+                    gap: 'var(--dim-space-200)',
+                    paddingTop: 'var(--dim-space-300)',
+                    paddingBottom: 'var(--dim-space-300)',
+                    paddingLeft: 'var(--dim-space-400)',
+                    paddingRight: 'var(--dim-space-400)',
+                    borderRadius: 'var(--dim-radius-300, 10px)',
+                    background: 'var(--surface-neutralButton-quinary, #FFFFFF)',
+                    color: 'var(--text-content-default)',
+                    border: 'var(--dim-stroke-100, 1px) solid var(--border-neutralButton-tertiary, #E2E4E6)',
+                    borderLeft: `var(--dim-stroke-400, 4px) solid ${item.tone === 'red'
                       ? 'var(--surface-colorfulbadge-red-bold, #EF4444)'
                       : 'var(--surface-colorfulbadge-orange-bold, #F97316)'}`,
                     fontSize: 'var(--type-size-sm)',
@@ -1142,17 +1192,22 @@ export default function ObservationQueuePage() {
                     minHeight: 'var(--dim-size-900, 44px)',
                   }}
                 >
-                  <span className='material-symbols-outlined' style={{ fontSize: 18 }}>{item.icon}</span>
-                  <strong>{item.bedNo}</strong>
+                  <BedNumberBadge bedNo={item.bedNo} size='sm' />
+                  <EwsScoreBadge
+                    score={item.ewsScore}
+                    tier={item.ewsTier}
+                    scale={item.ewsScale}
+                    size='sm'
+                  />
                   <MaskedWorklistName
                     name={item.patientName}
                     recordKey={item.id}
                     className='truncate inline'
-                    style={{ maxWidth: 180 }}
+                    style={{ maxWidth: 180, color: 'var(--text-content-secondary)' }}
                     truncate={false}
                   />
-                  <span style={{ opacity: 0.85 }}>· {item.reason}</span>
-                  <span className='material-symbols-outlined' style={{ fontSize: 18 }}>chevron_right</span>
+                  <span style={{ color: 'var(--text-content-tertiary)' }}>· {item.reason}</span>
+                  <Icon name='chevron_right' size={18} color='var(--icon-neutral-tertiary)' />
                 </button>
               ))}
             </div>
@@ -1321,6 +1376,10 @@ export default function ObservationQueuePage() {
             const isEmpty = patient.status === 'empty' || isCleaning;
             const latestVitals = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
             const ewsResult = latestVitals ? scorePatientVitals(patient, latestVitals) : null;
+            const painKey = latestVitals?.pain ?? null;
+            const esiValue = latestVitals?.esi != null && latestVitals?.esi !== ''
+              ? Number(latestVitals.esi)
+              : null;
             /* เวลาเริ่มต้น / เวลาสิ้นสุด (TOR 1.14.1) — both come off the
                record's own full timestamps now, so a stay that crosses
                midnight still reads correctly (edge case #12). */
@@ -1357,18 +1416,23 @@ export default function ObservationQueuePage() {
                   }}
                   className={`mih-observation-focusable rounded-2xl p-6 flex flex-col items-center justify-center min-h-[564px] text-center transition-all group hover:shadow-[var(--shadow-card)]${isCleaning ? '' : ' cursor-pointer'}`}
                   style={{
-                    background: isCleaning ? 'var(--surface-colorfulbadge-orange, #FFEDD5)' : 'var(--surface-neutral-quaternary)',
-                    border: `var(--dim-stroke-200) dashed ${isCleaning ? 'var(--surface-colorfulbadge-orange-bold, #F97316)' : 'var(--border-card-default)'}`,
+                    background: isCleaning
+                      ? 'var(--surface-card-100, #FFFFFF)'
+                      : 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+                    border: `var(--dim-stroke-200) dashed ${isCleaning
+                      ? 'var(--surface-colorfulbadge-orange-bold, #F97316)'
+                      : 'var(--border-brandPrimary-tertiary, #C5EDDA)'}`,
+                    boxShadow: isCleaning ? 'var(--shadow-card-strong, 0 4px 20px rgba(0,0,0,0.05))' : undefined,
                   }}
                   onMouseEnter={(e) => {
                     if (isCleaning) return;
-                    e.currentTarget.style.background = 'var(--surface-brandPrimary-quaternary)';
-                    e.currentTarget.style.borderColor = 'var(--border-brandPrimary-default)';
+                    e.currentTarget.style.background = 'var(--surface-brandPrimary-tertiary, #E2F3EB)';
+                    e.currentTarget.style.borderColor = 'var(--border-brandPrimary-default, #007549)';
                   }}
                   onMouseLeave={(e) => {
                     if (isCleaning) return;
-                    e.currentTarget.style.background = 'var(--surface-neutral-quaternary)';
-                    e.currentTarget.style.borderColor = 'var(--border-card-default)';
+                    e.currentTarget.style.background = 'var(--surface-brandPrimary-quaternary, #F4FBF8)';
+                    e.currentTarget.style.borderColor = 'var(--border-brandPrimary-tertiary, #C5EDDA)';
                   }}
                   onClick={() => {
                     /* A dirty bed can't take a patient — housekeeping has
@@ -1378,6 +1442,12 @@ export default function ObservationQueuePage() {
                     setShowAdmitModal(true);
                   }}
                 >
+                  <BedNumberBadge
+                    bedNo={patient.bedNo}
+                    size='lg'
+                    tone={isCleaning ? 'orange' : 'brand'}
+                    style={{ marginBottom: 'var(--dim-space-300)' }}
+                  />
                   <div
                     className='w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center mb-3 transition-all'
                     style={{
@@ -1392,23 +1462,31 @@ export default function ObservationQueuePage() {
                       className='w-full h-full object-cover'
                     />
                   </div>
-                  <h3 style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)', fontSize: 'var(--type-size-base)', marginBottom: 'var(--dim-space-050, 2px)' }}>
-                    {patient.bedNo}
-                  </h3>
                   {patient.isExtraBed && (
                     <div style={{ marginBottom: 'var(--dim-space-150, 6px)' }}>
                       <ColorfulBadge width='hug' style='orange' icon='airline_seat_flat'>เตียงเสริม (Extra Bed)</ColorfulBadge>
                     </div>
                   )}
-                  <p
-                    style={{
-                      color: isCleaning ? 'var(--text-colorfulbadge-orange, #C2410C)' : 'var(--text-content-tertiary)',
-                      fontSize: 'var(--type-size-xs)',
-                      marginBottom: 'var(--dim-space-400)',
-                    }}
+                  <div
+                    className='flex flex-col items-center'
+                    style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-400)' }}
                   >
-                    {patient.bedType} ({isCleaning ? 'รอทำความสะอาด' : 'ว่าง'})
-                  </p>
+                    <p
+                      style={{
+                        color: 'var(--text-content-tertiary)',
+                        fontSize: 'var(--type-size-xs)',
+                        fontWeight: 'var(--type-weight-regular)',
+                        margin: 0,
+                      }}
+                    >
+                      {patient.bedType}{!isCleaning && ' (ว่าง)'}
+                    </p>
+                    {isCleaning && (
+                      <ColorfulBadge width='hug' style='orange' icon='cleaning_services'>
+                        รอทำความสะอาด
+                      </ColorfulBadge>
+                    )}
+                  </div>
                   {isCleaning ? (
                     <BrandPrimaryButton
                       leadingIcon='cleaning_services'
@@ -1416,7 +1494,7 @@ export default function ObservationQueuePage() {
                       variant='outline'
                       onClick={(e) => { e.stopPropagation(); handleFinishCleaning(patient.id); }}
                     >
-                      ทำความสะอาดเสร็จ — เปิดใช้เตียง
+                      ทำความสะอาดเสร็จ - เปิดใช้เตียง
                     </BrandPrimaryButton>
                   ) : (
                     <BrandPrimaryButton
@@ -1462,35 +1540,29 @@ export default function ObservationQueuePage() {
                 <div>
                   <div className='flex items-center justify-between mb-3 pt-1' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                     <div className='flex items-center gap-2 min-w-0'>
-                      <span
-                        style={{
-                          padding: 'var(--dim-space-150, 6px) var(--dim-space-250, 10px)',
-                          background: 'var(--surface-brandPrimary-quaternary)',
-                          color: 'var(--text-brandPrimary-default)',
-                          borderRadius: 'var(--dim-radius-150, 6px)',
-                          border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-                          fontWeight: 'var(--type-weight-bold)',
-                          fontSize: 'var(--type-size-xs)',
-                        }}
-                      >
-                        {patient.bedNo}
-                      </span>
+                      <BedNumberBadge bedNo={patient.bedNo} size='md' />
+                      <EwsScoreBadge
+                        score={ewsResult?.score ?? 0}
+                        tier={ewsResult?.tier}
+                        scale={ewsResult?.scale}
+                        size='md'
+                      />
                       <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>
                         {patient.rights}
                       </span>
                     </div>
 
                     <div className='flex items-center flex-wrap justify-end shrink-0' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-                      {latestVitals?.pain ? (
-                        <StatusBadge style={painBadgeStyleFor(latestVitals.pain)} size='small'>
-                          Pain: {painLevelLabel(latestVitals.pain)}
-                        </StatusBadge>
-                      ) : null}
-                      {latestVitals?.esi != null && latestVitals?.esi !== '' ? (
-                        <StatusBadge style={esiBadgeStyleFor(latestVitals.esi)} size='small' showDot>
-                          ESI {latestVitals.esi}
-                        </StatusBadge>
-                      ) : null}
+                      <StatusBadge style={painKey ? painBadgeStyleFor(painKey) : 'neutral'} size='small'>
+                        Pain: {painKey ? painLevelLabel(painKey) : '—'}
+                      </StatusBadge>
+                      <StatusBadge
+                        style={esiValue != null ? esiBadgeStyleFor(esiValue) : 'neutral'}
+                        size='small'
+                        showDot={esiValue != null}
+                      >
+                        ESI {esiValue ?? '—'}
+                      </StatusBadge>
                       <StatusBadge
                         style={
                           patient.status === 'ready_discharge' || patient.status === 'discharged'
@@ -1506,7 +1578,7 @@ export default function ObservationQueuePage() {
                       >
                         {patient.status === 'ready_discharge' || patient.status === 'discharged'
                           ? 'ส่งต่อแล้ว'
-                          : `กำลังเฝ้าระวัง (${ewsResult?.score ?? 0})`}
+                          : 'กำลังเฝ้าระวัง'}
                       </StatusBadge>
                     </div>
                   </div>
@@ -1518,7 +1590,7 @@ export default function ObservationQueuePage() {
                     <div className='flex flex-wrap mb-3' style={{ gap: 'var(--dim-space-150, 6px)' }}>
                       {isRedAlert && (
                         <ColorfulBadge width='hug' style='red' icon='emergency_home'>
-                          EWS Red Alert (EWS {ewsResult?.score}) — อาการทรุดลง
+                          Red Alert — {EWS_SYSTEM_LABEL} {ewsResult?.score} · อาการทรุดลง
                         </ColorfulBadge>
                       )}
                       {overstay && (
@@ -1603,33 +1675,47 @@ export default function ObservationQueuePage() {
                   </div>
 
                   {/* Vitals Trend Snapshot */}
-                  {latestVitals && (
+                  {hasPatient(patient) && (
                     <div className='bg-brand-50/50 rounded-xl p-3 mb-4'>
-                      <div className='flex items-center justify-between text-xs mb-2'>
+                      <div className='flex items-center text-xs mb-2'>
                         <span className='font-bold text-brand-800 flex items-center gap-1'>
                           <span className='material-symbols-outlined text-sm text-brand-600'>monitor_heart</span>
-                          สัญญาณชีพล่าสุด ({latestVitals.time})
+                          สัญญาณชีพล่าสุด ({latestVitals?.time || '—'})
                         </span>
-                        <StatusBadge style={ewsResult.tier.style} size='small' showDot>
-                          {ewsResult.scale.short}: {ewsResult.score}
-                        </StatusBadge>
                       </div>
-                      <div className='grid grid-cols-4 gap-2 text-left text-xs'>
-                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'>
+                      <div
+                        className='grid grid-cols-2 md:grid-cols-4 text-left text-xs'
+                        style={{ gap: 'var(--dim-space-200)' }}
+                      >
+                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line min-w-0'>
                           <div className='text-[10px] text-ink-quaternary font-medium'>ความดัน</div>
-                          <div className='font-medium text-ink-secondary text-[11px]'>{latestVitals.bpSys}/{latestVitals.bpDia}</div>
+                          <div className='font-medium text-ink-secondary text-[11px]'>
+                            {latestVitals ? `${latestVitals.bpSys}/${latestVitals.bpDia}` : '—'}
+                          </div>
                         </div>
-                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'>
+                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line min-w-0'>
                           <div className='text-[10px] text-ink-quaternary font-medium'>ชีพจร</div>
-                          <div className='font-medium text-ink-secondary text-[11px]'>{latestVitals.pulse} <span className='text-[9px] font-normal text-ink-quaternary'>bpm</span></div>
+                          <div className='font-medium text-ink-secondary text-[11px]'>
+                            {latestVitals ? (
+                              <>
+                                {latestVitals.pulse}
+                                {' '}
+                                <span className='text-[9px] font-normal text-ink-quaternary'>bpm</span>
+                              </>
+                            ) : '—'}
+                          </div>
                         </div>
-                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'>
+                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line min-w-0'>
                           <div className='text-[10px] text-ink-quaternary font-medium'>SpO2</div>
-                          <div className='font-medium text-ink-secondary text-[11px]'>{latestVitals.spo2}%</div>
+                          <div className='font-medium text-ink-secondary text-[11px]'>
+                            {latestVitals ? `${latestVitals.spo2}%` : '—'}
+                          </div>
                         </div>
-                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'>
+                        <div className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line min-w-0'>
                           <div className='text-[10px] text-ink-quaternary font-medium'>อุณหภูมิ</div>
-                          <div className='font-medium text-ink-secondary text-[11px]'>{latestVitals.temp}°C</div>
+                          <div className='font-medium text-ink-secondary text-[11px]'>
+                            {latestVitals ? `${latestVitals.temp}°C` : '—'}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1671,12 +1757,13 @@ export default function ObservationQueuePage() {
                   /* Code Red shortcut (edge case #1) — full-width and
                      above the routine actions so escalating is never the
                      button a rushing nurse has to hunt for. */
-                  <div className='pt-3'>
+                  <div className='pt-3 w-full'>
                     <DangerButton
                       variant='fill'
                       size='lg'
                       leadingIcon='emergency_home'
                       className='w-full'
+                      style={{ display: 'flex', width: '100%', maxWidth: 'none' }}
                       onClick={() => {
                         setErTransferReason('');
                         setErTransferPatient(patient);
@@ -1688,25 +1775,27 @@ export default function ObservationQueuePage() {
                 )}
                 <div className={`pt-3 grid gap-2 ${isFinishedObserving ? 'grid-cols-1' : 'grid-cols-2'}`}>
                   {!isFinishedObserving && (
-                    <BrandSubdueButton
+                    <BrandPrimaryButton
                       variant='outline'
                       leadingIcon='add_chart'
                       size='lg'
                       className='w-full'
+                      style={{ width: '100%', maxWidth: 'none', display: 'flex' }}
                       onClick={() => handleOpenVitalsModal(patient)}
                     >
                       วัด Vital Signs ใหม่
-                    </BrandSubdueButton>
+                    </BrandPrimaryButton>
                   )}
-                  <BrandSubdueButton
+                  <BrandPrimaryButton
                     variant='fill'
                     leadingIcon='clinical_notes'
                     size='lg'
                     className='w-full'
+                    style={{ width: '100%', maxWidth: 'none', display: 'flex' }}
                     onClick={() => history.push(isFinishedObserving ? `/observation/history/${patient.id}` : `/observation/record/${patient.id}`)}
                   >
                     {isFinishedObserving ? 'ประวัติการสังเกตอาการ' : 'สังเกตอาการ'}
-                  </BrandSubdueButton>
+                  </BrandPrimaryButton>
                 </div>
               </div>
             );
@@ -2044,7 +2133,7 @@ export default function ObservationQueuePage() {
 
             <Alert
               type='error'
-              title={`คะแนน EWS ล่าสุดคือ ${erTransferEws} (เกณฑ์ Red Alert คือ ≥ ${EWS_RED_ALERT_SCORE})`}
+              title={`${EWS_SYSTEM_LABEL} ล่าสุดคือ ${erTransferEws} (เกณฑ์ Red Alert คือ ≥ ${EWS_RED_ALERT_SCORE})`}
               subtext='ผู้ป่วยจะถูกย้ายออกจากเตียงสังเกตอาการและบันทึกเป็นการส่งต่อภายในไปยัง ห้องฉุกเฉิน (ER) ทันที'
               showCloseButton={false}
               style={{ maxWidth: '100%' }}
