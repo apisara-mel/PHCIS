@@ -246,10 +246,82 @@ export const GROWTH_BANDS = {
 };
 
 export const GROWTH_METRICS = [
-  { key: 'weight', label: 'น้ำหนัก', unit: 'กก.',  maxAge: 18 },
-  { key: 'height', label: 'ส่วนสูง', unit: 'ซม.',  maxAge: 18 },
-  { key: 'head',   label: 'เส้นรอบศีรษะ', unit: 'ซม.', maxAge: 5 },
+  { key: 'weight', label: 'น้ำหนักตามอายุ', unit: 'กก.', maxAge: 18, mophAgeMax: 5 },
+  { key: 'height', label: 'ส่วนสูงตามอายุ', unit: 'ซม.', maxAge: 18, mophAgeMax: 5 },
+  { key: 'head',   label: 'เส้นรอบศีรษะ', unit: 'ซม.', maxAge: 5, mophAgeMax: 5 },
 ];
+
+/** ตัวอย่างเด็กสำหรับโหมด demo — ใช้เมื่อผู้รับบริการเป็นผู้ใหญ่หรือยังไม่มีค่าวัด */
+export const GROWTH_DEMO = {
+  hn: '67-00026',
+  label: 'เด็กชาย อายุ ~1 ปี',
+  gender: 'ชาย',
+  referenceUrl: 'https://cf.mahidol.ac.th/factsforlifethai/nutrition/graph05.html',
+};
+
+export const MAX_GROWTH_AGE = 18;
+export const MOPH_CHART_AGE_MAX = 5; /* กราฟสีแถบ กรมอนามัย 0–5 ปี (แกน X เป็นเดือน) */
+
+/* แถบสีตามคู่มือ Facts for Life / กรมอนามัย (น้ำหนัก-อายุ, ส่วนสูง-อายุ) */
+export const GROWTH_MOPH_ZONES = {
+  weight: [
+    { key: 'severeLow',  lo: null, hi: 'p3',  label: 'น้ำหนักน้อยกว่าเกณฑ์',       tone: 'red' },
+    { key: 'atRiskLow',  lo: 'p3', hi: 'p10', label: 'น้ำหนักค่อนข้างน้อย',       tone: 'orange' },
+    { key: 'normal',     lo: 'p10', hi: 'p90', label: 'น้ำหนักตามเกณฑ์อายุ',       tone: 'green' },
+    { key: 'atRiskHigh', lo: 'p90', hi: 'p97', label: 'น้ำหนักค่อนข้างมาก',       tone: 'orange' },
+    { key: 'severeHigh', lo: 'p97', hi: null, label: 'น้ำหนักมากเกินเกณฑ์',       tone: 'red' },
+  ],
+  height: [
+    { key: 'severeLow',  lo: null, hi: 'p3',  label: 'เตี้ย',                       tone: 'red' },
+    { key: 'atRiskLow',  lo: 'p3', hi: 'p10', label: 'ค่อนข้างเตี้ย',               tone: 'orange' },
+    { key: 'normal',     lo: 'p10', hi: 'p90', label: 'ส่วนสูงตามเกณฑ์อายุ',       tone: 'green' },
+    { key: 'atRiskHigh', lo: 'p90', hi: 'p97', label: 'ค่อนข้างสูง',               tone: 'orange' },
+    { key: 'severeHigh', lo: 'p97', hi: null, label: 'สูงกว่าเกณฑ์อายุ',           tone: 'red' },
+  ],
+  head: [
+    { key: 'severeLow',  lo: null, hi: 'p10', label: 'เส้นรอบศีรษะต่ำกว่าเกณฑ์',   tone: 'red' },
+    { key: 'normal',     lo: 'p10', hi: 'p90', label: 'เส้นรอบศีรษะตามเกณฑ์',     tone: 'green' },
+    { key: 'severeHigh', lo: 'p90', hi: null, label: 'เส้นรอบศีรษะสูงกว่าเกณฑ์', tone: 'orange' },
+  ],
+};
+
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/** สร้างแถบรายเดือน 0–maxMonths จากจุดย่อปี (linear interpolate) */
+const bandsMonthly = (yearlyRows, maxMonths = 60) => {
+  const anchors = [...yearlyRows].sort((a, b) => a.age - b.age);
+  const atAge = (ageYears) => {
+    if (ageYears <= anchors[0].age) return anchors[0];
+    if (ageYears >= anchors[anchors.length - 1].age) return anchors[anchors.length - 1];
+    for (let i = 0; i < anchors.length - 1; i += 1) {
+      const lo = anchors[i];
+      const hi = anchors[i + 1];
+      if (ageYears >= lo.age && ageYears <= hi.age) {
+        const t = (ageYears - lo.age) / (hi.age - lo.age || 1);
+        const row = { age: ageYears, ageMonths: Math.round(ageYears * 12) };
+        GROWTH_PERCENTILE_KEYS.forEach((k) => {
+          row[k] = Math.round(lerp(lo[k], hi[k], t) * 100) / 100;
+        });
+        return row;
+      }
+    }
+    return anchors[0];
+  };
+
+  const out = [];
+  for (let m = 0; m <= maxMonths; m += 1) {
+    const ageYears = m / 12;
+    const b = atAge(ageYears);
+    out.push({ ...b, age: ageYears, ageMonths: m });
+  }
+  return out;
+};
+
+const monthlyBandsFor = (gender, metric) => {
+  const sexKey = String(gender || '').includes('หญิง') ? 'girl' : 'boy';
+  const yearly = GROWTH_BANDS[sexKey]?.[metric] || [];
+  return bandsMonthly(yearly, MOPH_CHART_AGE_MAX * 12);
+};
 
 /* จุดวัดจริงของผู้รับบริการ — เด็กในตัวอย่างคือ HN 67-00026 */
 export const GROWTH_MEASUREMENTS = {
@@ -303,9 +375,47 @@ export const addGrowthMeasurement = (hn, entry = {}) => {
   return { ...row };
 };
 
-export const growthBandsFor = (gender, metric) => {
+export const growthBandsFor = (gender, metric, { monthly = false } = {}) => {
   const sexKey = String(gender || '').includes('หญิง') ? 'girl' : 'boy';
+  if (monthly) return monthlyBandsFor(gender, metric);
   return (GROWTH_BANDS[sexKey] && GROWTH_BANDS[sexKey][metric]) || [];
+};
+
+/** โหมดแสดงกราฟ: patient = ข้อมูลจริง, demo = ตัวอย่างเด็ก, empty = เด็กแต่ยังไม่มีค่าวัด */
+export const growthDisplayForPatient = (hn, ageYears) => {
+  const eligible = Number.isFinite(ageYears) && ageYears <= MAX_GROWTH_AGE;
+  const own = growthMeasurementsFor(hn);
+
+  if (eligible && own.length > 0) {
+    return { mode: 'patient', hn, ageYears, measurements: own, gender: null };
+  }
+  if (eligible && own.length === 0) {
+    return { mode: 'empty', hn, ageYears, measurements: [], gender: null };
+  }
+
+  return {
+    mode: 'demo',
+    hn,
+    ageYears,
+    measurements: growthMeasurementsFor(GROWTH_DEMO.hn),
+    gender: GROWTH_DEMO.gender,
+    demoMeta: GROWTH_DEMO,
+  };
+};
+
+export const mophZoneFor = (metric, bands, ageYears, value) => {
+  if (!Number.isFinite(value) || !bands.length) return null;
+  let ref = bands[0];
+  bands.forEach((b) => { if (b.age <= ageYears) ref = b; });
+  const zones = GROWTH_MOPH_ZONES[metric] || GROWTH_MOPH_ZONES.weight;
+
+  for (const z of zones) {
+    const lo = z.lo ? ref[z.lo] : -Infinity;
+    const hi = z.hi ? ref[z.hi] : Infinity;
+    if (value >= lo && value < hi) return { label: z.label, tone: z.tone };
+    if (z.lo === 'p97' && value >= ref.p97) return { label: z.label, tone: z.tone };
+  }
+  return null;
 };
 
 /* BMI — คำนวณไม่ได้ถ้าขาดค่าใดค่าหนึ่ง ต้องบอกว่าขาดอะไร */

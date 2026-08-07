@@ -27,7 +27,7 @@ export const PharmacyAddDrugButton = () => {
 
   return (
     <BrandButton size='md' leadingIcon='add' onClick={() => history.push('/pharmacy/registry/new')}>
-      เพิ่มยาใหม่
+      เพิ่มทะเบียนยา
     </BrandButton>
   );
 };

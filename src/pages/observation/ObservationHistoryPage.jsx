@@ -17,6 +17,7 @@ import {
   scorePatientVitals,
   buildObservationTimeline,
   observationDayOffset,
+  vitalsTimelineCells,
 } from '@/data/observationMock';
 
 /* Read-only counterpart to ObservationDetailPage.jsx (แฟ้มบันทึกสังเกตอาการ) —
@@ -286,16 +287,10 @@ export default function ObservationHistoryPage() {
 
                         {entry.vitals && (
                           <div
-                            className='grid grid-cols-2 sm:grid-cols-5'
+                            className='grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
                             style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-200)' }}
                           >
-                            {[
-                              ['ความดัน (BP)', `${entry.vitals.bpSys}/${entry.vitals.bpDia}`],
-                              ['ชีพจร (Pulse)', `${entry.vitals.pulse} bpm`],
-                              ['อุณหภูมิ (Temp)', `${entry.vitals.temp}°C`],
-                              ['ออกซิเจนปลายนิ้ว (SpO2)', `${entry.vitals.spo2}%`],
-                              ['อัตราการหายใจ (RR)', `${entry.vitals.rr} ครั้ง/นาที`],
-                            ].map(([label, value]) => (
+                            {vitalsTimelineCells(entry.vitals).map(([label, value]) => (
                               <div
                                 key={label}
                                 className='bg-surface-card p-1.5 rounded-lg shadow-2xs border border-ink-line'

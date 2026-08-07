@@ -348,6 +348,72 @@ export const getOutOfRangeVitals = (form = {}) =>
     return [...out, { key, value, ...range }];
   }, []);
 
+/* Pain / ESI — same 5-level scales as OPD screening (TOR §1.2.2.1) for
+   re-assessment at each timed vitals entry in observation (§1.14.2). */
+export const OBSERVATION_PAIN_LEVELS = [
+  { key: 'none',   label: 'ไม่ปวด',   icon: 'sentiment_satisfied', tone: 'green'  },
+  { key: 'mild',   label: 'เล็กน้อย', icon: 'sentiment_calm',      tone: 'blue'   },
+  { key: 'mod',    label: 'ปานกลาง',  icon: 'sentiment_neutral',   tone: 'yellow' },
+  { key: 'severe', label: 'มาก',      icon: 'sentiment_dissatisfied', tone: 'orange' },
+  { key: 'agony',  label: 'ทรมาน',    icon: 'sentiment_stressed',  tone: 'red'    },
+];
+
+export const OBSERVATION_PAIN_TONE = {
+  green:  { bg: 'var(--surface-brandPrimary-quaternary, #F4FBF8)', fg: 'var(--text-brandPrimary-default, #007549)' },
+  blue:   { bg: 'var(--surface-alert-info, #F0F6FF)', fg: 'var(--text-info-default, #1D4ED8)' },
+  yellow: { bg: 'var(--surface-colorfulbadge-yellow, #FEF9C3)', fg: 'var(--text-colorfulbadge-yellow, #A16207)' },
+  orange: { bg: 'var(--surface-alert-warning, #FFF9F0)', fg: 'var(--text-warning-default, #C2410C)' },
+  red:    { bg: 'var(--surface-danger-quaternary, #FFF0F0)', fg: 'var(--text-danger-default, #B91C1C)' },
+};
+
+export const OBSERVATION_ESI_LEVELS = [
+  { lv: 1, en: 'Resuscitation', th: 'วิกฤต',       bg: 'var(--surface-triage-level1)', fg: 'var(--text-triage-level1)' },
+  { lv: 2, en: 'Emergency',     th: 'ฉุกเฉิน',     bg: 'var(--surface-triage-level2)', fg: 'var(--text-triage-level2)' },
+  { lv: 3, en: 'Urgent',        th: 'เร่งด่วน',    bg: 'var(--surface-triage-level3)', fg: 'var(--text-triage-level3)' },
+  { lv: 4, en: 'Semi-urgent',   th: 'ไม่เร่งด่วน', bg: 'var(--surface-triage-level4)', fg: 'var(--text-triage-level4)' },
+  { lv: 5, en: 'Non-urgent',    th: 'ทั่วไป',      bg: 'var(--surface-triage-level5)', fg: 'var(--text-triage-level5)' },
+];
+
+export const painLevelLabel = (key) => OBSERVATION_PAIN_LEVELS.find((p) => p.key === key)?.label || '—';
+
+export const esiLevelSummary = (lv) => {
+  const row = OBSERVATION_ESI_LEVELS.find((e) => e.lv === Number(lv));
+  return row ? `ESI ${row.lv} — ${row.th}` : `ESI ${lv}`;
+};
+
+export const painBadgeStyleFor = (key) => {
+  const tone = OBSERVATION_PAIN_LEVELS.find((p) => p.key === key)?.tone;
+  const map = { green: 'success', blue: 'info', yellow: 'yellow', orange: 'warning', red: 'error' };
+  return map[tone] || 'neutral';
+};
+
+export const esiBadgeStyleFor = (lv) => {
+  const n = Number(lv);
+  if (n <= 2) return 'error';
+  if (n === 3) return 'warning';
+  if (n === 4) return 'info';
+  return 'neutral';
+};
+
+/** Cells for vitals timeline grids — includes pain / ESI when recorded. */
+export const vitalsTimelineCells = (vitals) => {
+  if (!vitals) return [];
+  const cells = [
+    ['ความดัน (BP)', `${vitals.bpSys}/${vitals.bpDia}`],
+    ['ชีพจร (Pulse)', `${vitals.pulse} bpm`],
+    ['อุณหภูมิ (Temp)', `${vitals.temp}°C`],
+    ['ออกซิเจนปลายนิ้ว (SpO2)', `${vitals.spo2}%`],
+    ['อัตราการหายใจ (RR)', `${vitals.rr} ครั้ง/นาที`],
+  ];
+  if (vitals.pain) cells.push(['Pain Score', painLevelLabel(vitals.pain)]);
+  if (vitals.esi != null && vitals.esi !== '') cells.push(['ESI', esiLevelSummary(vitals.esi)]);
+  return cells;
+};
+
+export const BLANK_OBSERVATION_VITALS_FORM = {
+  bpSys: '', bpDia: '', pulse: '', temp: '', spo2: '', rr: '', note: '', pain: null, esi: null,
+};
+
 /* #6 Discharge with unexecuted STAT orders — "pending" means nobody has
    acted on the order yet ("in_progress" is already being carried out). */
 export const getPendingStatOrders = (patient) =>
@@ -381,7 +447,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
       { time: '10:00 น.', bpSys: 132, bpDia: 84, pulse: 88,  temp: 36.9, spo2: 98, rr: 20, note: 'ผู้ป่วยรู้สึกตัวดี ไม่มีแน่นหน้าอกเพิ่ม', ews: 0 },
       { time: '11:30 น.', bpSys: 128, bpDia: 82, pulse: 82,  temp: 36.8, spo2: 98, rr: 18, note: 'สัญญาณชีพคงที่ พร้อมประเมินจำหน่าย', ews: 0 },
       { time: '13:00 น.', bpSys: 130, bpDia: 84, pulse: 84,  temp: 36.9, spo2: 98, rr: 18, note: 'รอผล EKG Serial ครั้งที่ 2 ก่อนตัดสินใจจำหน่าย', ews: 0 },
-      { time: '15:00 น.', bpSys: 126, bpDia: 80, pulse: 80,  temp: 36.8, spo2: 99, rr: 18, note: 'ครองเตียงเกิน 6 ชม. รอแพทย์ประเมินซ้ำเพื่อตัดสินใจ Admit หรือจำหน่าย', ews: 0 },
+      { time: '15:00 น.', bpSys: 126, bpDia: 80, pulse: 80,  temp: 36.8, spo2: 99, rr: 18, note: 'ครองเตียงเกิน 6 ชม. รอแพทย์ประเมินซ้ำเพื่อตัดสินใจ Admit หรือจำหน่าย', ews: 0, pain: 'mild', esi: 4 },
     ],
     statOrders: [
       { id: 'ord-1', orderTime: '08:35 น.', orderText: 'Oxygen cannula 3 LPM keep SpO2 > 95%', status: 'completed', executedBy: 'พว. สุภาพร', executedTime: '08:37 น.' },
@@ -513,7 +579,7 @@ export const MOCK_OBSERVATION_PATIENTS = [
       /* Deterioration — pushes the calculated EWS back over the red-alert
          line (≥ 5) so the queue card's Code Red state has a live example.
          Clinically consistent with the suspected perforation below. */
-      { time: '12:00 น.', bpSys: 92, bpDia: 58, pulse: 116, temp: 37.6, spo2: 94, rr: 22, note: 'ความดันตกซ้ำ ชีพจรเร็วขึ้น ปวดท้องรุนแรงขึ้น เฝ้าระวังภาวะ Septic Shock', ews: 7, deteriorationEvent: true },
+      { time: '12:00 น.', bpSys: 92, bpDia: 58, pulse: 116, temp: 37.6, spo2: 94, rr: 22, note: 'ความดันตกซ้ำ ชีพจรเร็วขึ้น ปวดท้องรุนแรงขึ้น เฝ้าระวังภาวะ Septic Shock', ews: 7, deteriorationEvent: true, pain: 'severe', esi: 2 },
     ],
     statOrders: [
       { id: 'ord-41', orderTime: '11:05 น.', orderText: 'NPO (Halt oral intake & water)', status: 'completed', executedBy: 'พว. สุภาพร', executedTime: '11:05 น.' },
