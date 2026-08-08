@@ -189,6 +189,10 @@ const colSizeStyle = (c) => c.flex
    ──────────────────────────────────────────────────────────── */
 
 /* HeaderCell — title + optional subtext + optional sort icon.
+   Title typography aliases design.md §6.34.1:
+     family `--type-family-heading-content` (Mitr)
+     weight `--type-weight-title` (Regular 400)
+     size   `--type-size-table-title` (12px fixed — exempt from font-size control)
    Property panel matches Figma node 177:6297 (state · showSorting ·
    showSubtext). When `state` is omitted it resolves from internal hover
    (mouseenter / focusin). */
@@ -248,8 +252,9 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
           style={{
             color: 'var(--text-table-title, var(--brand-p800, #004C31))',
             fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
-            fontSize: 'var(--type-size-xs, 12px)',
-            fontWeight: 'var(--type-weight-bold, 700)',
+            /* Fixed 12px — do NOT fall back to --type-size-xs (becomes 10px under data-font-size=sm). */
+            fontSize: 'var(--type-size-table-title, 12px)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             display: 'block',
             minWidth: 0,
             ...(titleWrap
@@ -325,7 +330,7 @@ export const FooterCell = React.forwardRef(function FooterCell(
         color: 'var(--text-table-footer, var(--brand-p800, #004C31))',
         fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
         fontSize: 'var(--type-size-sm, 14px)',
-        fontWeight: 'var(--type-weight-bold, 700)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         lineHeight: 1.5,
         whiteSpace: 'nowrap',
       }}>
@@ -379,7 +384,7 @@ const TextGroupSlot = ({ text = 'text', subtext = 'text', showText = true, showS
     {showText && (
       <span style={{
         color: 'var(--text-neutral-default, var(--text-content-secondary, #4D5358))',
-        fontSize: 'var(--type-size-sm, 14px)',
+        fontSize: 'var(--type-size-content, var(--type-size-sm, 14px))',
       }}>{text}</span>
     )}
     {showSubtext && (
@@ -860,7 +865,7 @@ const Row = ({
         minHeight: 64,
         color: 'var(--text-content-default)',
         fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
+        fontSize: 'var(--type-size-content, var(--type-size-sm, 14px))',
         lineHeight: 1.5,
         cursor: editMode
           ? (isDragging ? 'grabbing' : 'grab')

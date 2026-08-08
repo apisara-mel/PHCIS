@@ -152,7 +152,7 @@ const BackRow = ({ onBack }) => (
       margin: 0,
       fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
       fontSize: 'var(--type-size-base, 16px)',
-      fontWeight: 'var(--type-weight-bold, 700)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       lineHeight: 1.5,
       color: 'var(--text-topic-tertiary-title, #363B3F)',
     }}>
@@ -361,7 +361,7 @@ const PanelLabel = ({ children }) => (
   <span style={{
     fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
     fontSize: 'var(--type-size-base, 16px)',
-    fontWeight: 'var(--type-weight-bold, 700)',
+    fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
     color: 'var(--text-topic-tertiary-title, #363B3F)',
     lineHeight: 1.5,
   }}>
@@ -685,7 +685,7 @@ const CalendarCell = ({ day, inMonth, isToday, holiday, shifts, appointmentCount
           <span style={{
             fontFamily: 'var(--type-family-body)',
             fontSize: 'var(--type-size-xs, 10px)',
-            fontWeight: 'var(--type-weight-bold, 700)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             color: disabled
               ? 'var(--text-calendar-slot-slot-disabled, #CBD5E1)'
               : 'var(--text-calendar-slot-text, var(--brand-p700, #007549))',
@@ -1346,7 +1346,7 @@ const ConfirmAppointmentPopup = ({ open, appointments, oldSlotMin, newSlotMin, o
               <span style={{
                 fontFamily: 'var(--type-family-body)',
                 fontSize: 'var(--type-size-sm, 14px)',
-                fontWeight: 'var(--type-weight-bold, 700)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 color: 'var(--text-info-default, #1D4ED8)',
                 lineHeight: 1.5,
               }}>
@@ -1382,7 +1382,7 @@ const ConfirmAppointmentPopup = ({ open, appointments, oldSlotMin, newSlotMin, o
               borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
               fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
               fontSize: 'var(--type-size-sm, 14px)',
-              fontWeight: 'var(--type-weight-bold, 700)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               color: 'var(--text-table-title, var(--brand-p800, #004C31))',
               background: 'var(--surface-table-header, var(--brand-p50, #F4FBF8))',
             }}>
@@ -2108,7 +2108,7 @@ const ScheduleEditorPage = () => {
                 <span style={{
                   fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
                   fontSize: 'var(--type-size-base, 16px)',
-                  fontWeight: 'var(--type-weight-bold, 700)',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   color: 'var(--text-topic-secondary-title, var(--brand-p700, #007549))',
                   lineHeight: 1.5,
                 }}>
@@ -2167,7 +2167,7 @@ const ScheduleEditorPage = () => {
                   <span style={{
                     fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
                     fontSize: 'var(--type-size-sm, 14px)',
-                    fontWeight: 'var(--type-weight-bold, 700)',
+                    fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                     color: 'var(--text-content-default, #363B3F)',
                     lineHeight: 1.5,
                   }}>

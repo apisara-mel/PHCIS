@@ -36,7 +36,7 @@ const StageHeader = ({ stage }) => {
         <span style={{
           color: 'var(--text-content-default)',
           fontFamily: 'var(--type-family-heading-content)',
-          fontWeight: 'var(--type-weight-bold)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
           fontSize: 'var(--type-size-sm, 14px)',
         }}>
           {`${stage.order}. ${stage.label}`}

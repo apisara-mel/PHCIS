@@ -126,11 +126,11 @@ const PanelSummaryCard = ({ card, hover = false }) => {
       </div>
       <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-0)' }}>
-          <span className='truncate' style={{
+          <span className='truncate tabular-nums' style={{
             color: ink,
-            fontFamily: 'var(--type-family-heading-content)',
-            fontWeight: 'var(--type-weight-bold)',
-            fontSize: 18,
+            fontFamily: 'var(--type-family-statussummarycard-number, var(--type-family-body))',
+            fontWeight: 'var(--type-weight-bold, 700)',
+            fontSize: 'var(--type-size-lg, 18px)',
             lineHeight: 1.5,
           }}>{card.value}</span>
           <span className='truncate' style={{
@@ -188,7 +188,15 @@ const BannerSummaryCard = ({ card }) => {
           <Icon name={card.icon} size={20} color='currentColor' />
         </div>
         <div className='flex-1 min-w-0 flex flex-col leading-tight'>
-          <span className='text-lg font-bold tabular-nums leading-none' style={{ color: tone.ink }}>
+          <span
+            className='tabular-nums leading-none truncate'
+            style={{
+              color: tone.ink,
+              fontFamily: 'var(--type-family-statussummarycard-number, var(--type-family-body))',
+              fontWeight: 'var(--type-weight-bold, 700)',
+              fontSize: 'var(--type-size-lg, 18px)',
+            }}
+          >
             {card.value}
           </span>
           <p className='text-xs text-ink-tertiary mt-1 truncate'>{card.label}</p>
@@ -217,12 +225,11 @@ export const SummaryCard = ({ card, variant = 'panel', hover = false }) =>
 const PANEL_TITLE_STYLE = {
   color: 'var(--text-topic-tertiary-title)',
   fontFamily: 'var(--type-family-heading-content)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   margin: 'var(--dim-space-0)',
   width: '100%',
-  fontSize:
-    'calc(var(--type-size-base) + (var(--type-size-xs) - var(--type-size-base)) * var(--header-morph, 0))',
-  lineHeight: 'calc(1.5 + (1.3 - 1.5) * var(--header-morph, 0))',
+  fontSize: 'var(--type-size-title, var(--type-size-base, 16px))',
+  lineHeight: 1.5,
 };
 
 const SummaryCardsBar = ({

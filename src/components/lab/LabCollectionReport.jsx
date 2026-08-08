@@ -24,7 +24,7 @@ const TH = ({ children, width, align = 'left' }) => (
       textAlign: align,
       fontFamily: 'var(--type-family-body)',
       fontSize: '8pt',
-      fontWeight: 'var(--type-weight-bold)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       color: '#000000',
       borderBottom: '0.4mm solid #000000',
       padding: '1.5mm 1mm',
@@ -72,7 +72,7 @@ const LabCollectionReport = ({ rows = [], title = 'รายการเก็�
   return (
     <div className='mih-lab-print-only mih-lab-print-collection' style={{ padding: '8mm', background: '#FFFFFF' }}>
       <div style={{ marginBottom: '4mm' }}>
-        <div style={{ fontFamily: 'var(--type-family-heading-content)', fontSize: '13pt', fontWeight: 'var(--type-weight-bold)', color: '#000000' }}>
+        <div style={{ fontFamily: 'var(--type-family-heading-content)', fontSize: '13pt', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', color: '#000000' }}>
           {title}
         </div>
         <div style={{ fontFamily: 'var(--type-family-body)', fontSize: '8pt', color: '#000000' }}>
@@ -90,7 +90,7 @@ const LabCollectionReport = ({ rows = [], title = 'รายการเก็�
             style={{
               fontFamily: 'var(--type-family-body)',
               fontSize: '9pt',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               color: '#000000',
               background: '#EEEEEE',
               padding: '1.2mm 1.5mm',
@@ -124,7 +124,7 @@ const LabCollectionReport = ({ rows = [], title = 'รายการเก็�
                     <TD mono bold>
                       {g.accessionNo}
                       {r.urgency !== 'routine' && (
-                        <div style={{ fontFamily: 'var(--type-family-body)', fontSize: '7pt', fontWeight: 'var(--type-weight-bold)' }}>
+                        <div style={{ fontFamily: 'var(--type-family-body)', fontSize: '7pt', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
                           {r.urgency === 'stat' ? '★ STAT' : '● ด่วน'}
                         </div>
                       )}
@@ -142,7 +142,7 @@ const LabCollectionReport = ({ rows = [], title = 'รายการเก็�
                           at the bedside, before the draw — too late once the
                           tube is filled. */}
                       {fasting > 0 && (
-                        <div style={{ fontSize: '7.5pt', fontWeight: 'var(--type-weight-bold)' }}>
+                        <div style={{ fontSize: '7.5pt', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
                           ⚠ ต้องงดอาหาร {fasting} ชม. — ยืนยันกับผู้ป่วยก่อนเจาะ
                         </div>
                       )}

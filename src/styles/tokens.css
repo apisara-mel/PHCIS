@@ -727,18 +727,36 @@
   --dim-stroke-150: 1.5px;
 
   --type-family-body:             'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --type-family-heading-content:  'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --type-family-heading-content:  'Mitr', 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --type-family-ui:               'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  /* Brand display families — used only by typography.display.graphic*
-     (heading-graphic = Thai-led, heading-graphic2 = Latin-led with broader weights).
-     Both fall back to Sarabun → system if the brand font hasn't loaded yet. */
+  /* Brand display + title families:
+     heading-content = page/component titles (SubHeader, Popup, cards) → Mitr
+     heading-graphic = Thai-led display graphic, heading-graphic2 = Latin-led display + h1–h8
+     Fall back to Sarabun → system if the brand font hasn't loaded yet. */
   --type-family-heading-graphic:  'Sao Chingcha', 'Sarabun', system-ui, sans-serif;
   --type-family-heading-graphic2: 'Mitr', 'Sarabun', system-ui, sans-serif;
+  /* Status Summary Card hero number — always Sarabun (tabular UI figures), not Mitr */
+  --type-family-statussummarycard-number: var(--type-family-body);
+  /* Button labels — Mitr (same brand family as heading-content) */
+  --type-family-button: var(--type-family-heading-content);
   --type-size-xxs:       10px;      /* typography.size.xxs */
   --type-size-xs:        12px;
   --type-size-sm:        14px;
   --type-size-base:      16px;
   --type-size-lg:        18px;      /* typography.size.lg */
+  /* Page/component titles (SubHeader, Popup, Topic) — 16px (= base) */
+  --type-size-title:     var(--type-size-base, 16px);
+  /* Table HeaderCell column title — fixed 12px (does NOT follow data-font-size
+     remapping of --type-size-xxs, so column headers stay dense). */
+  --type-size-table-title: 12px;
+  /* Button label sizes — fixed Mitr scale (exempt from data-font-size remap):
+     xLarge 18 / Large·Medium 16 / Small 14 */
+  --type-size-button-xl: 18px;
+  --type-size-button-lg: 16px;
+  --type-size-button-md: 16px;
+  --type-size-button-sm: 14px;
+  /* Default content / body copy (not button, badge, subtext, title) */
+  --type-size-content: var(--type-size-sm, 14px);
   --type-size-xl:        20px;      /* typography.size.xl */
   --type-size-2xl:       24px;      /* typography.size.2xl — Sign-in card heading (h3 · Mitr) */
   --type-size-3xl:       30px;      /* typography.size.3xl */
@@ -748,6 +766,10 @@
   --type-weight-regular: 400;
   --type-weight-medium:  500;
   --type-weight-bold:    700;
+  /* Page/component titles (SubHeader, Popup, Table HeaderCell, h1–h4) — Mitr Regular (400) */
+  --type-weight-title:   var(--type-weight-regular, 400);
+  /* Button labels — same weight as Topic / page titles (Regular) */
+  --type-weight-button:  var(--type-weight-title, var(--type-weight-regular, 400));
 
   /* Composite text styles (Figma text styles → CSS). Use as classes below. */
   /* typography.h5-emphasis — Archive Payment Banner title 284:39953 */
@@ -1130,26 +1152,17 @@
   --icon-aiSearch-typing:    var(--color-indigo-700);
   --icon-aiSearch-filled:    var(--color-indigo-600);
 
-  /* Secondary Search (per Figma MIH DS Foundation 305:43)
-     Color + focus-state matrix aliases Primary Search (2056:4246) —
-     compact 40/36 px shell only; border/icon/text/shadow tokens match. */
+  /* Secondary Search (per Figma MIH DS Foundation 305:43) */
   --surface-search-default:           #FFFFFF;
-  --border-secondarysearch-default:   var(--brand-p600);
-  --border-secondarysearch-focus:     var(--border-secondarysearch-default);
-  --border-secondarysearch-hover:     var(--brand-p700);
+  --border-secondarysearch-default:   #C9CDD0;
+  --border-secondarysearch-filled:    #C9CDD0;
+  --border-secondarysearch-hover:     var(--brand-p700);  /* brand-aware */
   --border-secondarysearch-typing:    var(--brand-p700);
-  --border-secondarysearch-filled:    var(--brand-p600);
   --text-secondarysearch-default:     #ADB2B7;            /* placeholder */
-  --text-secondarysearch-focus:       var(--text-secondarysearch-default);
   --text-secondarysearch-hover:       #4D5358;
   --text-secondarysearch-typing:      #4D5358;
   --text-secondarysearch-filled:      #4D5358;
-  --icon-secondarysearch-default:     var(--brand-p600);
-  --icon-secondarysearch-focus:       var(--brand-p600);
-  --icon-secondarysearch-hover:       var(--brand-p700);
-  --icon-secondarysearch-typing:      var(--brand-p700);
-  --icon-secondarysearch-filled:      var(--brand-p600);
-  --shadow-secondarysearch:           var(--shadow-primarysearch);
+  --ring-secondarysearch:             rgb(var(--brand-p600-rgb) / 0.15); /* effect/input/100 = primaryborder/600 */
 
   /* Settings modal — surfaces, borders, text, mode-icon backdrops */
   --surface-modal-default:           #FFFFFF;
@@ -1455,12 +1468,17 @@
   --mobile-button-height-sm:     40px; /* dimension/size/800 */
   --mobile-button-height-md:     48px; /* dimension/size/1000 */
   --mobile-button-height-lg:     56px; /* dimension/size/1200 */
+  --mobile-button-height-xl:     64px; /* xLarge — Mitr 18 label */
   --mobile-button-padding-x:     var(--dim-space-600, 24px);
   --mobile-button-gap:           var(--dim-space-200, 8px);
   --mobile-button-gap-sm:        var(--dim-space-150, 6px);
-  --mobile-button-type-size:     var(--type-size-base, 16px);
-  --mobile-button-type-size-lg:  var(--type-size-lg, 18px);
-  --mobile-button-type-weight:   var(--type-weight-regular, 400);
+  --mobile-button-type-size-sm:  var(--type-size-button-sm, 14px);
+  --mobile-button-type-size-md:  var(--type-size-button-md, 16px);
+  --mobile-button-type-size-lg:  var(--type-size-button-lg, 16px);
+  --mobile-button-type-size-xl:  var(--type-size-button-xl, 18px);
+  /* legacy alias (Medium) */
+  --mobile-button-type-size:     var(--mobile-button-type-size-md);
+  --mobile-button-type-weight:   var(--type-weight-button, var(--type-weight-regular, 400));
   /* Brand Drop Shadow Bottom/300 — Fill default (Figma Brand Button) */
   --mobile-button-shadow-fill:
     0 var(--dim-space-100, 4px) var(--dim-space-100, 4px) -1px var(--PrimaryShadow-600),
@@ -2060,21 +2078,12 @@
   --icon-primarysearch-focus: var(--brand-p400);
   --icon-primarysearch-typing: var(--brand-p300);
   --icon-primarysearch-filled: var(--brand-p400);
-  --border-secondarysearch-default: var(--brand-p400);
-  --border-secondarysearch-focus: var(--border-secondarysearch-default);
-  --border-secondarysearch-hover: var(--brand-p300);
-  --border-secondarysearch-typing: var(--brand-p300);
-  --border-secondarysearch-filled: var(--brand-p400);
+  --border-secondarysearch-default: var(--d-border-2);
+  --border-secondarysearch-filled: var(--d-border-2);
   --text-secondarysearch-default: var(--d-text-3);
-  --text-secondarysearch-focus: var(--d-text-3);
   --text-secondarysearch-hover: var(--d-text-1);
   --text-secondarysearch-typing: var(--d-text-1);
   --text-secondarysearch-filled: var(--d-text-1);
-  --icon-secondarysearch-default: var(--brand-p400);
-  --icon-secondarysearch-focus: var(--brand-p400);
-  --icon-secondarysearch-hover: var(--brand-p300);
-  --icon-secondarysearch-typing: var(--brand-p300);
-  --icon-secondarysearch-filled: var(--brand-p400);
   --border-popover-grey: var(--d-border-2);
   --border-neutralbutton-tertiary: var(--d-border-2);
   --border-neutralbutton-tertiary-hover: var(--d-border-2);

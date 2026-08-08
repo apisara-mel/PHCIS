@@ -485,7 +485,7 @@ const DragAndDrop = React.forwardRef(function DragAndDrop(
               color: errored ? 'var(--text-formbuilder-error)' : 'var(--text-formbuilder-text)',
               fontFamily: 'var(--type-family-heading-content)',
               fontSize: 'var(--type-size-xs)',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               lineHeight: 1.5,
             }}
           >

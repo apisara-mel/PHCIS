@@ -76,7 +76,7 @@ const Avatar = ({ src, alt }) => {
           style={{
             color: 'var(--text-content-on-content, #FFFFFF)',
             fontFamily: 'var(--type-family-heading-content)',
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             fontSize: 20,
             lineHeight: 1,
           }}
@@ -110,7 +110,7 @@ const FieldValue = ({ children, muted = false }) => (
         ? 'var(--text-content-default, #4D5358)'
         : 'var(--text-brandprimary-default, #007549)',
       fontFamily: 'var(--type-family-heading-content)',
-      fontWeight: 'var(--type-weight-bold)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       fontSize: 'var(--type-size-base, 16px)',
       lineHeight: 1.5,
       whiteSpace: 'nowrap',

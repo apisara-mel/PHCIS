@@ -1061,7 +1061,7 @@ const QueuePage = () => {
                       margin: 'var(--dim-space-0)',
                       color: 'var(--text-topic-tertiary-title)',
                       fontFamily: 'var(--type-family-heading-content)',
-                      fontWeight: 'var(--type-weight-bold)',
+                      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                       fontSize: 'var(--type-size-base)',
                       lineHeight: 1.5,
                     }}

@@ -78,6 +78,18 @@ import LabPatientHistoryPage from '@/pages/lab/LabPatientHistoryPage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
 import ObservationHistoryPage from '@/pages/observation/ObservationHistoryPage';
+import CheckupQueuePage from '@/pages/checkup/CheckupQueuePage';
+import CheckupOrderPage from '@/pages/checkup/CheckupOrderPage';
+import CheckupRecordPage from '@/pages/checkup/CheckupRecordPage';
+import CheckupScreeningPage from '@/pages/checkup/CheckupScreeningPage';
+import CheckupIndividualReportPage from '@/pages/checkup/CheckupIndividualReportPage';
+import CheckupHistoryPage from '@/pages/checkup/CheckupHistoryPage';
+import CheckupTargetGroupPage from '@/pages/checkup/CheckupTargetGroupPage';
+import CheckupPackagePage from '@/pages/checkup/CheckupPackagePage';
+import CheckupReportsPage from '@/pages/checkup/CheckupReportsPage';
+import CheckupCommunityPage from '@/pages/checkup/CheckupCommunityPage';
+import RightsClaimPage from '@/pages/rights/RightsClaimPage';
+import ClaimSubmitDetailPage from '@/pages/rights/ClaimSubmitDetailPage';
 import FormsLibraryPage from '@/pages/forms/FormsLibraryPage';
 import EdocumentDashboardPage from '@/pages/forms/EdocumentDashboardPage';
 import FormsCategoryPage from '@/pages/forms/FormsCategoryPage';
@@ -450,6 +462,30 @@ export default function Routes() {
         <Route exact path='/observation'               component={ObservationQueuePage} />
         <Route exact path='/observation/record/:id'   component={ObservationDetailPage} />
         <Route exact path='/observation/history/:id'  component={ObservationHistoryPage} />
+        {/* ระบบงานตรวจสุขภาพ (TOR §1.19) —
+              /checkup            — คิวตรวจสุขภาพ (1.19.4)
+              /checkup/targets    — กลุ่มเป้าหมาย + import spreadsheet (1.19.2)
+              /checkup/packages   — ทะเบียนชุดตรวจสุขภาพ (1.19.1)
+              /checkup/reports    — รายงานภาพรวม (1.19.7)
+              /checkup/community  — กิจกรรมสุขภาพชุมชน (1.19.8–9)
+              /checkup/order|record|screening|report/:visitId + history/:hn
+            เหมือนกลุ่ม /lab: route static ทั้งหมดต้องอยู่เหนือ route ที่มี
+            param — <Switch> จับตัวแรกที่ match. */}
+        <Route exact path='/checkup'                    component={CheckupQueuePage} />
+        <Route exact path='/checkup/targets'            component={CheckupTargetGroupPage} />
+        <Route exact path='/checkup/packages'           component={CheckupPackagePage} />
+        <Route exact path='/checkup/reports'            component={CheckupReportsPage} />
+        <Route exact path='/checkup/community'          component={CheckupCommunityPage} />
+        <Route exact path='/checkup/order/:visitId'     component={CheckupOrderPage} />
+        <Route exact path='/checkup/record/:visitId'    component={CheckupRecordPage} />
+        <Route exact path='/checkup/screening/:visitId' component={CheckupScreeningPage} />
+        <Route exact path='/checkup/report/:visitId'    component={CheckupIndividualReportPage} />
+        <Route exact path='/checkup/history/:hn'        component={CheckupHistoryPage} />
+        {/* สิทธิและการเบิกจ่าย (TOR §1.7.3–1.7.5) — ตรวจสอบสิทธิ · ส่งเบิก ·
+            Claim · ตั้งค่า รวมใน RightsClaimPage (tab sections);
+            รายละเอียดรายการส่งเบิกแยกหน้า /rights/submit/:visitId. */}
+        <Route exact path='/rights'                     component={RightsClaimPage} />
+        <Route exact path='/rights/submit/:visitId'     component={ClaimSubmitDetailPage} />
         {/* คลังเอกสาร e-document — visual form builder (Figma 0EDfjwf1 · 26:1747). */}
         <Route exact path='/doc-template/new'              component={CreateDocTemplatePage} />
         <Route exact path='/doc-template'                  component={CreateDocTemplatePage} />

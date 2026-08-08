@@ -186,7 +186,7 @@ const Section = ({ title, summary, children }) => (
         color: 'var(--text-content-default)',
         fontFamily: 'var(--type-family-heading-content)',
         fontSize: 'var(--type-size-xl, 24px)',
-        fontWeight: 'var(--type-weight-bold)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         lineHeight: 1.4,
       }}>{title}</h1>
       {summary && (
@@ -252,7 +252,7 @@ const Guidelines = ({ behavior = [], dos = [], donts = [] }) => {
     color: 'var(--text-content-default)',
     fontFamily: 'var(--type-family-body)',
     fontSize: 'var(--type-size-sm)',
-    fontWeight: 'var(--type-weight-bold)',
+    fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
     letterSpacing: '0.04em',
     textTransform: 'uppercase',
     margin: 'var(--dim-space-0)',
@@ -2684,7 +2684,7 @@ const TableDemo = () => (
     </Variant>
     <Guidelines
       behavior={[
-        'HeaderCell: 44h, brand-p50 surface (#F4FBF8) default, brand-p100 (#E2F3EB) on hover. Title is heading-content bold xs (12px) brand-p800; subtext is regular xs neutral-tertiary. Sort icon flips between unfold_more / expand_less / expand_more.',
+        'HeaderCell: 44h, brand-p50 surface (#F4FBF8) default, brand-p100 (#E2F3EB) on hover. Title is heading-content Regular 12px (`--type-size-table-title`, fixed) brand-p800; subtext is regular xs neutral-tertiary. Sort icon flips between unfold_more / expand_less / expand_more.',
         'DataCell: 56h, white surface default, brand-p50 hover. 13 show flags from the Figma property panel: Checkbox · Profile · TextGroup (Text + Subtext) · Stepper · InputField · Select · Badge · Switch · Button1 · Button2 · Button3.',
         'FooterCell: 44h, brand-p100 surface, brand-p800 bold sm (14px) title. Compose multiple cells side-by-side via <TableSummary cells={[…]} />.',
         'TableSelectAllRow lays a wide caption cell ("เลือกคอลัมน์ทั้งหมด →") next to N checkbox-only cells — used to bulk-select columns rather than rows.',
@@ -3448,13 +3448,14 @@ const BUTTON_STATE_COLS = [
   { key: 'disabled', label: 'Disabled', props: { disabled: true } },
 ];
 const BUTTON_SIZE_ROWS = [
-  { key: 'lg', label: 'Large (44)'  },
-  { key: 'md', label: 'Medium (40)' },
-  { key: 'sm', label: 'Small (36)'  },
+  { key: 'xl', label: 'X Large (52 · Mitr 18)' },
+  { key: 'lg', label: 'Large (44 · Mitr 16)'  },
+  { key: 'md', label: 'Medium (40 · Mitr 16)' },
+  { key: 'sm', label: 'Small (36 · Mitr 14)'  },
 ];
 
 const BrandButtonDemo = () => (
-  <Section title='BrandButton' summary='Brand Button per Figma 231:29. Properties: Style (fill · outline · ghost) · State (default · hover · active · focus · disabled) · Size (sm 36 · md 40 · lg 44) · Show Leading icon · Show Trailing icon · Show Label. Tables below mirror the Figma variant matrix — each table is one Style, rows are sizes, columns are states.'>
+  <Section title='BrandButton' summary='Brand Button per Figma 231:29. Properties: Style (fill · outline · ghost) · State (default · hover · active · focus · disabled) · Size (sm 36 · md 40 · lg 44 · xl 52) · Label typography Mitr 14/16/16/18 · Show Leading icon · Show Trailing icon · Show Label. Tables below mirror the Figma variant matrix — each table is one Style, rows are sizes, columns are states.'>
     <Variant label='Style · Fill' stack>
       <ButtonStateTable Component={BrandButton} variant='fill' />
     </Variant>
@@ -6420,7 +6421,7 @@ const RadioButtonDemo = () => {
   );
 
   return (
-    <Section title='RadioButton' summary='Card-like radio row (Figma 2860:3497; PHCIS Appointment 4046:18305). Hover + Selected use Brand Drop Shadow Top/200 (`--shadow-brand-top-200`) with a real 2 px brand border (Hover → `--border-brandprimarybutton-tertiary`; Selected → `--border-brandprimarybutton-default`). Default + disabled use a 1–2 px neutral border with no lift shadow — stroke is a true CSS border (not transparent border + inset shadow) so no white seam appears beside the green stroke. Every visual slot is independently toggleable via show* props plus `border`.'>
+    <Section title='RadioButton' summary='Card-like radio row (Figma 2860:3497; PHCIS Appointment 4046:18305). Hover + Selected use Brand Drop Shadow Top/200 (`--shadow-brand-top-200`) with a real 2 px brand border (Hover → `--border-brandprimarybutton-tertiary`; Selected → `--border-brandprimarybutton-default`). Selected also shows a trailing `check_circle` (`showTrailingCheck`, default on) and brand-tinted title. Default + disabled use a 1–2 px neutral border with no lift shadow. Every visual slot is independently toggleable via show* props plus `border`.'>
         <Variant label='5 states · default Card layout — click to toggle selected (notice the lift)'>
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)', maxWidth: 520 }}>
             <RadioButtonComp checked={a} onChange={() => setA((x) => !x)} showBadgeTitle={false} />
@@ -8702,7 +8703,7 @@ const TopBar = () => (
       <span style={{
         color: 'var(--text-brandPrimary-default)',
         fontFamily: 'var(--type-family-heading-content)',
-        fontWeight: 'var(--type-weight-bold)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         fontSize: 'var(--type-size-base)',
       }}>MIH · Components Library</span>
     </Link>

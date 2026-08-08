@@ -709,6 +709,7 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | `typography.size.xs` | `12` |
 | `typography.size.sm` | `14` |
 | `typography.size.base` | `16` |
+| `typography.size.title` | `16` (alias base — page/component titles, Table HeaderCell) |
 | `typography.size.lg` | `18` |
 | `typography.size.xl` | `20` |
 | `typography.size.2xl` | `24` |
@@ -726,6 +727,7 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | `typography.weight.regular` | `400` |
 | `typography.weight.medium` | `500` |
 | `typography.weight.bold` | `700` |
+| `typography.weight.title` | `400` (alias regular — page/component titles via heading-content) |
 
 #### Letter Spacing
 
@@ -744,9 +746,10 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | --- | --- |
 | `typography.family.heading-graphic` | `Sao Chingcha` |
 | `typography.family.heading-graphic2` | `Mitr` |
-| `typography.family.heading-content` | `Sarabun` |
+| `typography.family.heading-content` | `Mitr` |
 | `typography.family.body` | `Sarabun` |
 | `typography.family.ui` | `Sarabun` |
+| `typography.family.statussummarycard-number` | `Sarabun` (alias body) — Status Summary Card hero count |
 
 #### Font Style
 
@@ -757,8 +760,10 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | `typography.style.regular` | `Regular` |
 | `typography.style.medium` | `Medium` |
 | `typography.style.bold` | `Bold` |
+| `typography.weight.title` | `Regular (400)` — page/component titles via `heading-content` |
+| `typography.size.title` | `16px` (alias `typography.size.base`) — page/component titles |
 
-> `heading-graphic` (Sao Chingcha) and `heading-graphic2` (Mitr — Google Fonts) are the two **brand display** typefaces; Mitr has broader weight coverage (200–900). Body / heading / UI use Sarabun.
+> `heading-graphic` (Sao Chingcha) and `heading-graphic2` (Mitr — Google Fonts) are the two **brand display** typefaces; Mitr has broader weight coverage (200–900). **Titles / headings** use Mitr via `heading-content` + `heading-graphic2`. Body / UI remain Sarabun.
 
 ### 1c. Dimension
 
@@ -1511,11 +1516,9 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.input.require` | `#DC2626` | `#F87171` | `Primitive/color/red/600` |
 | `text.primarySearch.default` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
 | `text.primarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
-| `text.primarySearch.focus` | `#ADB2B7` | `#858C92` | `Primitive/color/neutral/400` |
 | `text.primarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.primarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.secondarySearch.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
-| `text.secondarySearch.focus` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `text.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `text.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
@@ -1667,6 +1670,8 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.statusSummaryCard.subtext` | `#858C92` | `#ADB2B7` | `Primitive/color/neutral/500` |
 | `text.statusSummaryCard.increase` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `text.statusSummaryCard.decrease` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
+
+> **Typography — Status Summary Card number:** `typography.family.body` (Sarabun) via `--type-family-statussummarycard-number`. Hero count is **not** `heading-content` (Mitr). Weight: Bold · size: `typography.size.lg` (18px). Label / indicator stay body Regular xs.
 | `text.categorySummaryCard.A-number` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
 | `text.categorySummaryCard.B-number` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `text.categorySummaryCard.C-number` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
@@ -1741,18 +1746,16 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `border.input.disabled` | `#E2E4E6` | `#363B3F` | `Primitive/color/neutral/200` |
 | `border.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.primarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `border.primarySearch.focus` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.primarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `border.aiSearch.default` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
 | `border.aiSearch.hover` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `border.aiSearch.typing` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `border.aiSearch.filled` | `#818CF8` | `#818CF8` | `Primitive/color/indigo/500` |
-| `border.secondarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `border.secondarySearch.focus` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `border.secondarySearch.default` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
 | `border.secondarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.secondarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `border.secondarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `border.secondarySearch.filled` | `#C9CDD0` | `#4D5358` | `Primitive/color/neutral/300` |
 | `border.image.default` | `#FFFFFF` | `#111314` | `Primitive/color/grey/50` |
 | `border.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `border.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
@@ -1967,18 +1970,16 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `icon.input.disabled` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
 | `icon.primarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `icon.primarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.primarySearch.focus` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `icon.primarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `icon.primarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
 | `icon.aiSearch.default` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
 | `icon.aiSearch.hover` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `icon.aiSearch.typing` | `#4F46E5` | `#C7D2FE` | `Primitive/color/indigo/700` |
 | `icon.aiSearch.filled` | `#6366F1` | `#A5B4FC` | `Primitive/color/indigo/600` |
-| `icon.secondarySearch.default` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.secondarySearch.focus` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
-| `icon.secondarySearch.hover` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.secondarySearch.typing` | `#007549` | `#91DFBB` | `Brand/primary/700` |
-| `icon.secondarySearch.filled` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
+| `icon.secondarySearch.default` | `#ADB2B7` | `#636B72` | `Primitive/color/neutral/400` |
+| `icon.secondarySearch.hover` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.secondarySearch.typing` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
+| `icon.secondarySearch.filled` | `#4D5358` | `#C9CDD0` | `Primitive/color/neutral/700` |
 | `icon.brandPrimaryButton.default` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `icon.brandPrimaryButton.default-hover` | `#004C31` | `#C5EDDA` | `Brand/primary/800` |
 | `icon.brandPrimaryButton.secondary` | `#08A768` | `#6AD6A5` | `Brand/primary/600` |
@@ -2498,10 +2499,10 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | Family | Role | Styles | Weights | Sample |
 |---|---|---|---|---|
 | **Sao Chingcha** | Display graphic 1 — Thai-led hero, brand moments | 9 | Bold only | `Aa Bb Cc · กขคงจ · 0123456789` |
-| **Mitr**         | Display graphic 2 + Heading (h1–h8) — brand display family driving both hero + section headings | 17 | Regular (heading) · Bold (graphic2) — broader scale available 200–900 | `Aa Bb Cc · กขคงจ · 0123456789` |
+| **Mitr**         | Display graphic 2 + Heading (h1–h8) + page/component titles (`heading-content`) — brand display family for hero, section headings, SubHeader, Popup, Table HeaderCell, Table HeaderCell | 17 | Regular (heading) · Bold (graphic2) — broader scale available 200–900 | `Aa Bb Cc · กขคงจ · 0123456789` |
 | **Sarabun**      | UI typography — display, body, labels, captions, buttons (no longer used for headings) | 19 | Regular · Medium · Bold | `Aa Bb Cc · กขคงจ · 0123456789` |
 
-> Sao Chingcha + Mitr are the two **brand display** typefaces. Mitr now also drives **headings h1–h8** (Regular weight) — gives the product a softer, warmer brand voice than Sarabun Bold did previously. Sarabun remains the workhorse for body / display / labels / captions / buttons.
+> Sao Chingcha + Mitr are the two **brand display** typefaces. Mitr drives **headings h1–h8**, **SubHeader / Popup / Table HeaderCell / card titles** (`typography.family.heading-content`), and graphic2 display. Sarabun remains the workhorse for body / display1–9 / labels / captions. **Button labels use Mitr** (`typography.family.heading-content`).
 
 ##### Groups
 
@@ -2511,10 +2512,10 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | Display Graphic 2 | 9 | Mitr | Bold (default) · Medium / SemiBold available | 60 → 14 px | Alternative display headings, posters, kiosk hero blocks where Mitr's wider Latin glyphs read better. LH 125%, LS 0. |
 | Display / Heading | 9 | Sarabun | Bold | 60 → 14 px | Page-level display headlines. `display1` LS 0; `display2`–`display9` LS −2% (`tighter`). |
 | Heading | 8 | Mitr | Regular | 36 → 12 px | Section headings. h1–h4 LH **137.5%**; h5–h8 LH **150%**. Brand-driven heading family (was Sarabun Bold; now Mitr Regular for warmer brand voice). |
-| Body | 4 | Sarabun | Regular | 20 → 14 px | Body text, paragraphs, descriptions. LH 150%. |
-| Label | 2 | Sarabun | Medium | 14, 12 px | Form labels, nav items, tab labels, tags, chips, overlines. |
+| Body | 4 | Sarabun | Regular | 20 → 14 px | Body text, paragraphs, descriptions. **Default UI content** = `body4` / 14px (`--type-size-content`). LH 150%. |
+| Label | 2 | Sarabun | Medium | 14, 12 px | Form labels, nav items, tags, chips, overlines. |
 | Caption | 2 | Sarabun | Regular | 12, 10 px | Supporting text, timestamps, metadata, legal copy, hints. |
-| Button | 2 | Sarabun | Medium | 16, 14 px | `button.lg` — CTA / primary. `button.sm` — secondary / compact. |
+| Button | 4 | Mitr | Regular | 18 → 14 px | `button.xl` (18) · `button.lg`/`button.md` (16) · `button.sm` (14) — **fixed px** (exempt from Header font-size control). Family = `heading-content`. Weight matches Topic (`typography.weight.title`). |
 
 #### Full token reference
 
@@ -2562,12 +2563,18 @@ Every style below maps to a Figma text style of the same name. The right-hand "A
 | `typography.body2` | Sarabun | Regular | 18px | 150% | 0% | `typography.family.body` | `typography.weight.regular` | `typography.size.lg` | `typography.letter-spacing.normal` |
 | `typography.body3` | Sarabun | Regular | 16px | 150% | 0% | `typography.family.body` | `typography.weight.regular` | `typography.size.base` | `typography.letter-spacing.normal` |
 | `typography.body4` | Sarabun | Regular | 14px | 150% | 0% | `typography.family.body` | `typography.weight.regular` | `typography.size.sm` | `typography.letter-spacing.normal` |
+
+> **Default UI content text** (`typography.size.content` → `--type-size-content` = **14px** / `body4`): plain body copy in pages, table DataCell text, lists, descriptions. **Not** buttons (`typography.button.*`), badges, subtext/captions (`xs`/`xxs`), or page/table titles.
 | `typography.label1` | Sarabun | Medium | 14px | 150% | 0% | `typography.family.body` | `typography.weight.medium` | `typography.size.sm` | `typography.letter-spacing.normal` |
 | `typography.label2` | Sarabun | Medium | 12px | 150% | 0% | `typography.family.body` | `typography.weight.medium` | `typography.size.xs` | `typography.letter-spacing.normal` |
 | `typography.caption1` | Sarabun | Regular | 12px | 150% | 0px | `typography.family.body` | `typography.weight.regular` | `typography.size.xs` | `typography.letter-spacing.normal` |
 | `typography.caption2` | Sarabun | Regular | 10px | 150% | 0px | `typography.family.body` | `typography.weight.regular` | `typography.size.xxs` | `typography.letter-spacing.normal` |
-| `typography.button.lg` | Sarabun | Medium | 16px | 150% | 0% | `typography.family.body` | `typography.weight.medium` | `typography.size.base` | `typography.letter-spacing.normal` |
-| `typography.button.sm` | Sarabun | Medium | 14px | 150% | 0% | `typography.family.body` | `typography.weight.medium` | `typography.size.sm` | `typography.letter-spacing.normal` |
+| `typography.button.xl` | Mitr | Regular | 18px | 150% | 0% | `typography.family.heading-content` | `typography.weight.title` | `typography.size.lg` | `typography.letter-spacing.normal` |
+| `typography.button.lg` | Mitr | Regular | 16px | 150% | 0% | `typography.family.heading-content` | `typography.weight.title` | `typography.size.base` | `typography.letter-spacing.normal` |
+| `typography.button.md` | Mitr | Regular | 16px | 150% | 0% | `typography.family.heading-content` | `typography.weight.title` | `typography.size.base` | `typography.letter-spacing.normal` |
+| `typography.button.sm` | Mitr | Regular | 14px | 150% | 0% | `typography.family.heading-content` | `typography.weight.title` | `typography.size.sm` | `typography.letter-spacing.normal` |
+
+> Button label sizes are **fixed** (`--type-size-button-{xl,lg,md,sm}` = 18 / 16 / 16 / 14 px) and do not follow the Header “ขนาดตัวอักษร” remap. Family = Mitr via `--type-family-button`.
 
 ---
 
@@ -2637,7 +2644,7 @@ The Figma file contains **14 button families**, each with Style × State × Size
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `style` | `Fill` \| `Outline` \| `Ghost` | `Fill` | Visual style variant |
-| `size` | `Large` \| `Medium` \| `Small` | `Large` | Button size (44px / 40px / 36px height) |
+| `size` | `X Large` \| `Large` \| `Medium` \| `Small` | `Large` | Button size (52 / 44 / 40 / 36px height). Label: Mitr 18 / 16 / 16 / 14 |
 | `state` | `Default` \| `Hover` \| `Disable` \| `Selected` | `Default` | Interaction state |
 | `showLeadingIcon` | `boolean` | `true` | แสดง icon **ด้านหน้า** (ซ้ายของ label) |
 | `showTailingIcon` | `boolean` | `true` | แสดง icon **ด้านหลัง** (ขวาของ label) |
@@ -2646,6 +2653,7 @@ The Figma file contains **14 button families**, each with Style × State × Size
 
 | Size | Height | Padding X | Padding Y | Gap | Icon Size | Min Width | Max Width |
 |---|---|---|---|---|---|---|---|
+| X Large | 52px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Large | 44px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Medium | 40px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Small | 36px | `dimension/space/300` (12px) | `dimension/space/150` (6px) | `dimension/space/150` (6px) | 16 × 16px | 80px | 384px |
@@ -2822,7 +2830,7 @@ Subdue buttons use lower-contrast surface levels (tertiary/quaternary tiers), id
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `style` | `Fill` \| `Outline` | `Fill` | Visual style variant (ไม่มี Ghost) |
-| `size` | `Large` \| `Medium` \| `Small` | `Large` | Button size (44px / 40px / 36px height) |
+| `size` | `X Large` \| `Large` \| `Medium` \| `Small` | `Large` | Button size (52 / 44 / 40 / 36px height). Label: Mitr 18 / 16 / 16 / 14 |
 | `state` | `Default` \| `Hover` \| `Disable` \| `Selected` | `Default` | Interaction state |
 | `showLeadingIcon` | `boolean` | `true` | แสดง icon **ด้านหน้า** (ซ้ายของ label) |
 | `showTailingIcon` | `boolean` | `true` | แสดง icon **ด้านหลัง** (ขวาของ label) |
@@ -2831,6 +2839,7 @@ Subdue buttons use lower-contrast surface levels (tertiary/quaternary tiers), id
 
 | Size | Height | Padding X | Padding Y | Gap | Icon Size | Min Width | Max Width |
 |---|---|---|---|---|---|---|---|
+| X Large | 52px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Large | 44px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Medium | 40px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Small | 36px | `dimension/space/300` (12px) | `dimension/space/150` (6px) | `dimension/space/150` (6px) | 16 × 16px | 80px | 384px |
@@ -2998,6 +3007,7 @@ Disabled matches **Brand Subdue Button · Outline · Disabled** (design.md §7f 
 
 | Size | Height | Padding X | Padding Y | Gap | Icon Size | Min Width | Max Width |
 |---|---|---|---|---|---|---|---|
+| X Large | 52px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Large | 44px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Medium | 40px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Small | 36px | `dimension/space/300` (12px) | `dimension/space/150` (6px) | `dimension/space/150` (6px) | 16 × 16px | 80px | 384px |
@@ -3156,6 +3166,7 @@ Subdue danger buttons use softer red surface tiers, for confirmations or seconda
 
 | Size | Height | Padding X | Padding Y | Gap | Icon Size | Min Width | Max Width |
 |---|---|---|---|---|---|---|---|
+| X Large | 52px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Large | 44px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Medium | 40px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Small | 36px | `dimension/space/300` (12px) | `dimension/space/150` (6px) | `dimension/space/150` (6px) | 16 × 16px | 80px | 384px |
@@ -3277,6 +3288,7 @@ Subdue danger buttons use softer red surface tiers, for confirmations or seconda
 
 | Size | Height | Padding X | Padding Y | Gap | Icon Size | Min Width | Max Width |
 |---|---|---|---|---|---|---|---|
+| X Large | 52px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Large | 44px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Medium | 40px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Small | 36px | `dimension/space/300` (12px) | `dimension/space/150` (6px) | `dimension/space/150` (6px) | 16 × 16px | 80px | 384px |
@@ -3435,6 +3447,7 @@ Neutral subdue uses lighter neutral backgrounds compared to the standard neutral
 
 | Size | Height | Padding X | Padding Y | Gap | Icon Size | Min Width | Max Width |
 |---|---|---|---|---|---|---|---|
+| X Large | 52px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Large | 44px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Medium | 40px | `dimension/space/400` (16px) | `dimension/space/200` (8px) | `dimension/space/200` (8px) | 20 × 20px | 80px | 384px |
 | Small | 36px | `dimension/space/300` (12px) | `dimension/space/150` (6px) | `dimension/space/150` (6px) | 16 × 16px | 80px | 384px |
@@ -5780,21 +5793,7 @@ Box container border (brand-responsive):
 | Font Weight | `typograpphy/weight/regular` | 400 (Regular) |
 | Font Size | `typograpphy/size/sm` | 14px |
 | Line Height | — | 1.5 |
-| Text Align | — | center (brand) · left (light, multi-line) |
-
-#### 6.8.4a Light variant — multi-line popover
-
-Used for contextual detail on badges/chips (e.g. แพ้ยา · โรคประจำตัว in `PatientCard`). Same white-card tokens as chart hover popovers — **no caret**.
-
-| Property | Rule |
-|----------|------|
-| Variant | `light` on `<Tooltip>` / `<TooltipBubble>` |
-| `maxWidth` | default **320 px** (override per surface) |
-| Wrap | auto — `whiteSpace: normal`, `overflowWrap: break-word`, `wordBreak: break-word` |
-| Align | `text-align: left` inside the bubble |
-| Brand default | stays **single-line** (`whiteSpace: nowrap`, centered) for icon-button hints |
-
-Pass explicit `wrap={false}` on light tooltips only when a one-line clamp is intentional.
+| Text Align | — | center |
 
 #### 6.8.5 Positions & Arrow Rules
 
@@ -6142,7 +6141,7 @@ icon/accordion/collapsed     →  neutral/400 → #ADB2B7
 | Element | Font Size | Weight | Line-height | Token |
 |---|---|---|---|---|
 | Item label | 14 px | Regular (400) | 1.5 | `typography/body/sm` |
-| Topic title | 16 px | Bold (700) | 1.5 | `typography/heading-content/base` |
+| Topic title | 16 px | Regular (400) | 1.5 | `typography/heading-content/base` |
 | Topic subtext | 12 px | Medium (500) | 1.5 | `typography/body/xs` |
 | Badge text | 12 px | Medium (500) | 1 | `typography/label/xs` |
 
@@ -7014,7 +7013,7 @@ The Alert component communicates system feedback. All color, text, and icon toke
 
 | Role | Token | Resolved | Usage |
 |---|---|---|---|
-| Title | `typograpphy/family/heading-content` · Bold · `typograpphy/size/base` | Sarabun 700 · 16px · lh 1.5 | Alert heading |
+| Title | `typograpphy/family/heading-content` · Medium · `typograpphy/size/base` | Mitr 400 · 16px · lh 1.5 | Alert heading |
 | Subtext | `typograpphy/family/body` · Regular · `typograpphy/size/sm` | Sarabun 400 · 14px · lh 1.5 | Subtitle / message |
 | Detail text | `typograpphy/family/body` · Regular · `typograpphy/size/sm` | Sarabun 400 · 14px · lh 1.5 | Explain text in detail box |
 | Badge label | `typograpphy/family/body` · Medium · `typograpphy/size/xs` | Sarabun 500 · 12px · lh 1.5 | StatusBadge chip text |
@@ -7462,6 +7461,13 @@ Below the interactive demo, a **state grid** (same format as Button) presents al
 | Font size — Large/Medium | `typograpphy/size/base` | **16 px** | Label |
 | Font size — Small | `typograpphy/size/xs` | **12 px** | Label |
 
+##### Typography
+
+| Slot | Family | Weight | Size | Notes |
+|---|---|---|---|---|
+| Label | `typography.family.heading-content` (Mitr — same as Topic title) | `typography.weight.title` (Regular 400) | base 16 / xs 12 | Not body/Sarabun |
+| Count badge | `typography.family.body` (Sarabun) | Medium | xs 12 | Keep numeric figures in Sarabun |
+
 ##### States
 
 | State | Text Token | Background | Border bottom |
@@ -7888,7 +7894,7 @@ The Search component ships in **two variants**:
 | Variant | Description | Height | Radius | Figma Node |
 |---------|-------------|--------|--------|------------|
 | **Primary Search** | Full-width pill with brand border. **5 states** — Default · Hover · Focus · Typing · Filled. Typing adds X + submit controls. | `56px` | `9999px` | `2056:4246` |
-| **Secondary Search** | Compact inline input. **Same 5-state color matrix as Primary Search** (brand border + drop shadow on every state); `40px` / `36px` (SM) height, `8px` radius, clear X when filled. | `40px` / `36px` (SM) | `8px` | `305:43` |
+| **Secondary Search** | Compact inline input with neutral border, focus ring, clear button | `40px` / `36px` (SM) | `8px` | `305:43` |
 
 ---
 
@@ -7900,35 +7906,24 @@ All tokens follow the standard 2-layer alias chain:
 Semantic token                      →  Primitive / Brand     →  Resolved value
 ────────────────────────────────────────────────────────────────────────────────
 border/primarySearch/default        →  primary/600           →  var(--border-primarySearch-default)  #08A768
-border/primarySearch/focus          →  primary/600           →  var(--border-primarySearch-focus)    #08A768
 border/primarySearch/hover          →  primary/700           →  var(--border-primarySearch-hover)    #007549
 border/primarySearch/typing         →  primary/700           →  var(--border-primarySearch-typing)   #007549
 border/primarySearch/filled         →  primary/600           →  var(--border-primarySearch-filled)   #08A768
 
+border/secondarySearch/default      →  neutral/300           →  #C9CDD0  (fixed)
+border/secondarySearch/hover        →  primary/600           →  var(--em600)  #08A768  ← not 700
+border/secondarySearch/typing       →  primary/600           →  var(--em600)  #08A768  ← not 700
+border/secondarySearch/filled       →  neutral/300           →  #C9CDD0  (fixed)
+
 text/primarySearch/default          →  neutral/400           →  #ADB2B7  (placeholder)
-text/primarySearch/focus            →  neutral/400           →  #ADB2B7  (placeholder, focused empty)
-text/primarySearch/hover            →  neutral/700           →  #4D5358
+text/primarySearch/hover            →  neutral/700           →  #4D5358  (placeholder, hover)
 text/primarySearch/typing           →  neutral/700           →  #4D5358  (active typed text)
 text/primarySearch/filled           →  neutral/700           →  #4D5358  (value text)
 
 icon/primarySearch/default          →  primary/600           →  #08A768
-icon/primarySearch/focus            →  primary/600           →  #08A768
 icon/primarySearch/hover            →  primary/700           →  #007549
-icon/primarySearch/typing           →  primary/700           →  #007549
-icon/primarySearch/filled           →  primary/600           →  #08A768
-
-border/secondarySearch/default      →  primary/600           →  var(--border-secondarySearch-default)  #08A768
-border/secondarySearch/focus        →  primary/600           →  var(--border-secondarySearch-focus)    #08A768
-border/secondarySearch/hover        →  primary/700           →  var(--border-secondarySearch-hover)    #007549
-border/secondarySearch/typing       →  primary/700           →  var(--border-secondarySearch-typing)   #007549
-border/secondarySearch/filled       →  primary/600           →  var(--border-secondarySearch-filled)   #08A768
-
-text/secondarySearch/*              →  (same per-state values as primarySearch text/*)
-
-icon/secondarySearch/*              →  (same per-state values as primarySearch icon/*)
-
-shadow/primarySearch                →  PrimaryShadow/600+601 →  var(--shadow-primarySearch)
-shadow/secondarySearch              →  shadow/primarySearch  →  var(--shadow-secondarySearch)
+icon/secondarySearch/default        →  neutral/400           →  #ADB2B7
+icon/secondarySearch/typing         →  neutral/700           →  #4D5358
 
 surface/search/default              →  grey/50               →  #FFFFFF  (shared)
 surface/brandPrimaryButton/default  →  emerald/700           →  #007549  (typing button)
@@ -8110,37 +8105,37 @@ The same `<SuggestionRow>` supports a richer layout used in the **recent-search*
 
 #### 6.17.5 Secondary Search — Color Tokens
 
-> **Color parity with Primary Search:** Secondary Search reuses the same per-state border, text, icon, and shadow values as Primary Search (§6.17.1). Only shell dimensions differ (40/36 px height, 8 px radius, no submit button).
-
 | Property | Semantic Token | Primitive / Brand | Light Mode |
 |----------|---------------|-------------------|------------|
 | Background | `surface/search/default` | `grey/50` | `#FFFFFF` |
-| Border — Default | `border/secondarySearch/default` | `primary/600` | `var(--border-secondarySearch-default)` |
-| Border — Hover | `border/secondarySearch/hover` | `primary/700` | `var(--border-secondarySearch-hover)` |
-| Border — Focus | `border/secondarySearch/focus` (aliases `default`) | `primary/600` | `var(--border-secondarySearch-focus)` |
-| Border — Typing | `border/secondarySearch/typing` | `primary/700` | `var(--border-secondarySearch-typing)` |
-| Border — Filled | `border/secondarySearch/filled` | `primary/600` | `var(--border-secondarySearch-filled)` |
-| Drop shadow (all states) | `shadow/secondarySearch` | aliases `shadow/primarySearch` | `var(--shadow-secondarySearch)` |
+| Border — Default | `border/secondarySearch/default` | `neutral/300` | `#C9CDD0` |
+| Border — Hover | `border/secondarySearch/hover` | `primary/600` | `var(--em600)` |
+| Border — Typing | `border/secondarySearch/typing` | `primary/600` | `var(--em600)` |
+| Border — Filled | `border/secondarySearch/filled` | `neutral/300` | `#C9CDD0` |
+| Focus ring (Hover/Typing) | `primaryBorder/600` | brand primitive | `rgba(8,167,104,0.15)` |
 
-**Text tokens** — identical per-state values to Primary Search (§6.17.1):
+**Focus ring detail — effect token `input/100`:**
+```
+DROP_SHADOW · color: primaryBorder/600  →  rgba(8,167,104,0.15)
+             offset: (0, 0) · radius: 0 · spread: 4px
+```
+CSS: `box-shadow: 0 0 0 4px rgba(8,167,104,0.15);`
+
+**Text tokens:**
 
 | State | Semantic Token | Primitive | Value |
 |-------|---------------|-----------|-------|
 | Default | `text/secondarySearch/default` | `neutral/400` | `#ADB2B7` |
 | Hover | `text/secondarySearch/hover` | `neutral/700` | `#4D5358` |
-| Focus | `text/secondarySearch/focus` (aliases `default`) | `neutral/400` | `#ADB2B7` |
 | Typing | `text/secondarySearch/typing` | `neutral/700` | `#4D5358` |
 | Filled | `text/secondarySearch/filled` | `neutral/700` | `#4D5358` |
 
-**Icon tokens** — identical per-state values to Primary Search (§6.17.1):
+**Icon tokens:**
 
 | State | Semantic Token | Primitive | Value |
 |-------|---------------|-----------|-------|
-| Default | `icon/secondarySearch/default` | `primary/600` | `#08A768` |
-| Hover | `icon/secondarySearch/hover` | `primary/700` | `#007549` |
-| Focus | `icon/secondarySearch/focus` | `primary/600` | `#08A768` |
-| Typing | `icon/secondarySearch/typing` | `primary/700` | `#007549` |
-| Filled | `icon/secondarySearch/filled` | `primary/600` | `#08A768` |
+| Default | `icon/secondarySearch/default` | `neutral/400` | `#ADB2B7` |
+| Typing | `icon/secondarySearch/typing` | `neutral/700` | `#4D5358` |
 | Icon size | *(fixed)* | — | `16px` |
 
 ---
@@ -8151,16 +8146,15 @@ The same `<SuggestionRow>` supports a richer layout used in the **recent-search*
 |----------|---------------|----------------|
 | Height — Default size | `dimension/size/800` | `40px` |
 | Height — Small size | `dimension/size/700` | `36px` |
-| Border-width (all states) | `dimension/stroke/200` | `2px` |
+| Border-width — Default / Filled | `dimension/stroke/100` | `1px` |
+| Border-width — Hover / Typing | `dimension/stroke/200` | `2px` |
 | Border-radius | `dimension/radius/200` | `8px` |
 | Padding | `dimension/space/300` | `12px` |
 | Gap | `dimension/space/200` | `8px` |
-| Input text — Default size | `typography/body4` → `typography/size/sm` | `14px` · lh 1.5 |
-| Input text — Small size | `typography/caption1` → `typography/size/xs` | `12px` · lh 1.5 |
 | Min-width | `dimension/size/2300` | `224px` |
 | Max-width | `dimension/size/2700` | `448px` |
 
-> **State resolver:** Same 5-state auto-resolver as Primary Search — `focused + empty → focus`, `focused + value → typing`, `blurred + value → filled`. Pass `state` to force a variant in the component library matrix.
+> **Border-width toggle:** Secondary Search switches between `1px` (Default/Filled) and `2px` (Hover/Typing) using `dimension/stroke/100` and `dimension/stroke/200` respectively. This is the only component where border-width changes per state.
 
 ##### Clear (X) Button — Figma 3345:2713 / 3345:2721
 
@@ -8285,19 +8279,17 @@ Two-layer drop stacked the same way as Brand Drop Shadow Bottom/200, but with th
 |-------|-------------|-----------|-------------|------------|------------|
 | Default | `border/primarySearch/default` | `emerald/600` | `2px` | `icon/primarySearch/default` | `#08A768` |
 | Hover | `border/primarySearch/hover` | `emerald/700` | `2px` | `icon/primarySearch/hover` | `#007549` |
-| Focus | `border/primarySearch/focus` | `emerald/600` | `2px` | `icon/primarySearch/focus` | `#08A768` |
 | Typing | `border/primarySearch/typing` | `emerald/700` | `2px` | `icon/primarySearch/typing` | `#007549` |
 | Filled | `border/primarySearch/filled` | `emerald/600` | `2px` | `icon/primarySearch/filled` | `#08A768` |
 
-**Secondary Search** (same colors; compact shell):
+**Secondary Search:**
 
-| State | Border Token | Primitive | Border-width | Shadow | Icon Token |
-|-------|-------------|-----------|-------------|--------|------------|
-| Default | `border/secondarySearch/default` | `emerald/600` | `2px` | `shadow/secondarySearch` | `icon/secondarySearch/default` |
-| Hover | `border/secondarySearch/hover` | `emerald/700` | `2px` | `shadow/secondarySearch` | `icon/secondarySearch/hover` |
-| Focus | `border/secondarySearch/focus` | `emerald/600` | `2px` | `shadow/secondarySearch` | `icon/secondarySearch/focus` |
-| Typing | `border/secondarySearch/typing` | `emerald/700` | `2px` | `shadow/secondarySearch` | `icon/secondarySearch/typing` |
-| Filled | `border/secondarySearch/filled` | `emerald/600` | `2px` | `shadow/secondarySearch` | `icon/secondarySearch/filled` |
+| State | Border Token | Primitive | Border-width | Focus Ring |
+|-------|-------------|-----------|-------------|------------|
+| Default | `border/secondarySearch/default` | `neutral/300` | `1px` | — |
+| Hover | `border/secondarySearch/hover` | `emerald/700` | `2px` | `primaryBorder/600` · 4px |
+| Typing | `border/secondarySearch/typing` | `emerald/700` | `2px` | `primaryBorder/600` · 4px |
+| Filled | `border/secondarySearch/filled` | `neutral/300` | `1px` | — |
 
 **AI Search** (indigo-themed Doctor AI panel — Figma 156:27359):
 
@@ -8393,8 +8385,7 @@ Two-layer drop stacked the same way as Brand Drop Shadow Bottom/200, but with th
 |---------|---------|-----------------|---------|
 | Primary | Input text | `body4` | Sarabun · Regular · 14px · lh 1.5 |
 | Primary | Caption ("ค้นหาล่าสุด") | `caption1` | Sarabun · Regular · 12px · lh 1.5 |
-| Secondary — Default (40px) | Input text | `body4` | Sarabun · Regular · 14px · lh 1.5 |
-| Secondary — Small (36px) | Input text | `caption1` | Sarabun · Regular · 12px · lh 1.5 |
+| Secondary | Input text | `body3` | Sarabun · Regular · 16px · lh 1.5 |
 
 ---
 
@@ -8467,8 +8458,8 @@ The preview panel (`id="panel-search"`) contains two independent IIFE-scoped dem
 
 | Element | Figma Token | Value |
 |---|---|---|
-| Circle number — Default/Current | `typograpphy/family/heading-content` · Bold | Sarabun Bold 14px |
-| Title — Current | `typograpphy/family/heading-content` · Bold | Sarabun Bold 14px |
+| Circle number — Default/Current | `typograpphy/family/heading-content` · Medium | Mitr Regular 14px |
+| Title — Current | `typograpphy/family/heading-content` · Medium | Mitr Regular 14px |
 | Title — Default/Success | `typograpphy/family/body` · Regular | Sarabun Regular 14px |
 | Subtitle | `typograpphy/family/body` · Regular | Sarabun Regular 14px, `#858C92` |
 
@@ -8801,6 +8792,8 @@ Icon inherits `currentColor` from `.page-btn` → `text/pagination/default` (#4D
 | Default | `.rb` | `--surface-rb-default` #FFFFFF | `--border-rb-default` #E2E4E6 | 1px | — |
 | Hover | `.rb` (`:hover`) | `--surface-rb-default` #FFFFFF | `--border-rb-hover` #C5EDDA | 2px | `--shadow-rb-elevated` (Brand Drop Shadow Top/200) |
 | Selected | `.rb.rb--selected` | `--surface-rb-default` #FFFFFF | `--border-rb-selected` #007549 | 2px | `--shadow-rb-elevated` (Brand Drop Shadow Top/200) |
+
+**Selected affordance:** title retints to `text/brandPrimary/default` and a trailing Material Symbol `check_circle` (18 px) appears on the right (`showTrailingCheck`, default on). Opt out with `showTrailingCheck={false}`.
 | Disabled-Checked | `.rb.rb--disabled` | `--surface-rb-default` #FFFFFF | `--border-rb-default` #E2E4E6 | 1px | — |
 | Disabled-Unchecked | `.rb.rb--disabled` | `--surface-rb-default` #FFFFFF | `--border-rb-default` #E2E4E6 | 1px | — |
 
@@ -8824,6 +8817,7 @@ Icon inherits `currentColor` from `.page-btn` → `text/pagination/default` (#4D
 | `showIcon` | boolean | — | 24px icon slot |
 | `showCircleIcon` | boolean | — | 36px icon circle |
 | `showBadgeTitle` | boolean | — | Inline badge next to title |
+| `showTrailingCheck` | boolean | — | Show trailing `check_circle` when selected (default `true`) |
 | `state` | enum | — | `Default` · `Hover` · `Selected` · `Disabled-Checked` · `Disabled-Unchecked` |
 
 ---
@@ -8876,7 +8870,7 @@ Icon inherits `currentColor` from `.page-btn` → `text/pagination/default` (#4D
 
 > **Source:** Figma `exportAsync({{ format: 'SVG_STRING' }})` on node `2831:6699` — no Figma asset URL (no 7-day expiry).
 
-**Slot layout order (left → right):** `[radio dot]` `[circle-icon?]` `[icon?]` `[content]` `[badge?]`
+**Slot layout order (left → right):** `[radio dot]` `[circle-icon?]` `[icon?]` `[content]` `[badge?]` `[trailing check_circle when selected]`
 
 > Both slots use **inline SVG** instead of Figma asset URLs — avoids the 7-day expiry limitation.
 
@@ -9252,7 +9246,7 @@ Both variants share the same background and border tokens. The border is **alway
 
 | Token | Value | Usage |
 |---|---|---|
-| `typograpphy/family/heading-content` | Sarabun | Card title font family |
+| `typograpphy/family/heading-content` | Mitr | Card title font family |
 | `typograpphy/weight/bold` | 700 | Card title weight |
 | `typograpphy/size/sm` | 14 px | Card title size → **h7** style |
 | `typograpphy/family/body` | Sarabun | Subtitle / signature label font |
@@ -9590,21 +9584,6 @@ The Header is a 64 px fixed top bar. Left zone: Brand Subdue Icon Button (40 px)
 | `withBtn` | boolean | `true` · `false` | `false` |
 | `showSelection` | boolean | `true` · `false` | `true` |
 
-### 6.19.1a Scroll auto-hide (app-wide)
-
-Implemented in `HeaderAutoHideProvider` + `useHeaderAutoHide.js` — same behaviour as Consent / `QueuePageShell`.
-
-| Rule | Value |
-|------|-------|
-| Scroll down (Δ > 12 px) | Header collapses to 0 height |
-| Scroll up (Δ < −12 px) | Header returns |
-| Near top (`scrollY ≤ 24 px`) | Always visible |
-| Route change | Reset to visible |
-| CSS var | `--mih-topbar-offset` → `64px` or `0px` for sticky descendants |
-| Sticky helpers | `MIH_TOPBAR_OFFSET`, `MIH_STICKY_BELOW_PATIENT` in `useHeaderAutoHide.js` |
-
-`<Header autoHide={false} />` disables for component-library demos.
-
 ---
 
 ### 6.19.2 Dimension Tokens
@@ -9691,12 +9670,12 @@ Implemented in `HeaderAutoHideProvider` + `useHeaderAutoHide.js` — same behavi
 
 | Element | Style | Size | Weight |
 |---|---|---|---|
-| Program name | `h6` · heading-content Bold | `typograpphy/size/base` 16 px | 700 |
+h0 |
 | Breadcrumb links | `body4` · body Regular | `typograpphy/size/sm` 14 px | 400 |
 | Tag text | `label1` · body Medium | 14 px | 500 |
 | List item text | `body4` · body Regular | `typograpphy/size/sm` 14 px | 400 |
 | Date text | `body4` · body Regular | `typograpphy/size/sm` 14 px | 400 |
-| Manual button label | `button sm` · Sarabun Medium | `typograpphy/size/sm` 14 px | 500 |
+| Manual button label | `button.sm` · Mitr Regular (`NeutralSubdueButton` outline sm) | `--type-size-button-sm` 14 px | 400 (`--type-weight-button`) |
 | Font-size label | `caption1` · body Regular | `typograpphy/size/xs` 12 px | 400 |
 | Font-size ก (S/M/L) | — | 14 / 16 / 18 px | — |
 
@@ -12238,8 +12217,7 @@ A central reference for *behavior, accessibility, and usage rules* across recent
 
 **Do**
 - Wrap interactive controls (icon buttons, chips) when the label would otherwise be missing or truncated.
-- Keep **brand** `content` to one short line — the bubble uses `whiteSpace: nowrap` and a `maxWidth` clamp.
-- Use **`variant="light"`** for badge/chip detail popovers; long copy wraps at `maxWidth` (default 320 px) instead of overflowing horizontally.
+- Keep `content` to one short line; the bubble uses `whiteSpace: nowrap` and a `maxWidth` clamp.
 - Prefer `position="top"` for toolbar icons; `position="right"` for trailing affordances inside lists.
 
 **Don't**
@@ -12706,63 +12684,6 @@ Stacks a second elevation layer on hover: `0 1px 2px rgba(0,0,0,0.18), 0 2px 4px
 
 ---
 
-### 6.35 Print sheet — เอกสารพิมพ์ (งานรังสีวินิจฉัย)
-
-**Source:** [src/components/xray/XrayReportSheet.jsx](src/components/xray/XrayReportSheet.jsx) ·
-**Living demo:** [`/preview/xray-sheets`](src/pages/preview/XraySheetsPreviewPage.jsx) ·
-**Call sites:** `/xray/result` (ใบรายงานผล) · `/xray/order` (ใบส่งตรวจ · ใบนัด · ฉลากซองฟิล์ม)
-
-One masthead system, four paper formats via `variant`:
-
-| `variant` | Document | TOR / source |
-|---|---|---|
-| `report` | ใบรายงานผลการตรวจทางรังสีวิทยา | §1.12.6.5 |
-| `request` | ใบส่งตรวจทางรังสีวิทยา | legacy manual §2.1 item 11 |
-| `appointment` | ใบนัดตรวจทางรังสีวิทยา (ผู้ป่วยถือ) | §2.1 item 11 |
-| `filmLabel` | ฉลากติดซองฟิล์ม (70×40 mm) | §2.1 item 11 |
-
-Design rules that other print sheets should follow:
-
-- **Impression is the hero, not the letterhead.** Ink spine (`--dim-stroke-200`) + two type
-  steps above FINDINGS. The clinician's job on a report is to find the impression, so nothing
-  else on the page competes with it.
-- **Classification is ruled, never coloured.** ประเภทผลตรวจ prints as a bordered stamp;
-  ผิดปกติเร่งด่วน upgrades to a `3px double` rule plus an escalation line. These sheets print on
-  mono lasers — a coloured pill carries no information there (also satisfies the
-  "status never by colour alone" gate).
-- **Eyebrows are Latin uppercase only** (`--type-size-xxs` · `--type-weight-bold` ·
-  `letter-spacing: 0.14em`). Never uppercase Thai.
-- **Unverified reports self-declare.** A `reported`-but-not-`verified` row prints a rotated
-  ฉบับร่าง · DRAFT ghost plus a footer disclaimer (§1.12.6.3), and any amendment history is
-  printed, never hidden.
-- **No sequence markers.** A report is not a numbered process; `01 / 02 / 03` would encode
-  something untrue.
-
-#### Requested tokens — print medium
-
-Paper has no dark mode: aliasing `--surface-card-100` / `--text-content-default` makes a sheet
-print near-blank under `[data-mode="dark"]`. The component therefore pins ink and paper to the
-**light-mode values of the tokens it mirrors** and documents the exception inline. To remove that
-exception, `@mih/design-tokens` needs a print set:
-
-| Token | Value | Mirrors |
-|---|---|---|
-| `--print-paper` | `#FFFFFF` | `--surface-card-100` (light) |
-| `--print-ink` | `#363B3F` | `--text-content-default` (light) |
-| `--print-ink-soft` | `#636B72` | `--text-content-secondary` |
-| `--print-ink-muted` | `#858C92` | `--text-content-tertiary` |
-| `--print-rule` | `#E2E4E6` | `--border-neutral-tertiary` |
-
-Everything else in the sheet (space, radius, stroke, type size/weight/family) already aliases
-tokens. Millimetre values (`@page size: A4`, the 70×40 mm label) are medium geometry, not style —
-they have no token scale and should not get one.
-
-**Print scoping** stays with the host page (`.mih-xrayresult-print-area` /
-`.mih-xrayorder-print-area` visibility trick); the component only owns `@page`, print typography
-and `break-inside: avoid` on each block so an impression never starts on page 2.
-
----
-
 ### 6.34 Table — Composable Atoms (Figma "MIH Design System · Table")
 
 **Source:** [src/components/table/Table.jsx](src/components/table/Table.jsx)
@@ -12783,13 +12704,24 @@ Generic `<Table>` orchestrator (column-driven, sticky cols, drag-reorder) stays 
 | Role | Default | Hover |
 |------|---------|-------|
 | Surface | `--surface-table-header` → brand-p50 | `--surface-table-hover` → brand-p100 |
-| Title | `--text-table-title` → brand-p800 (#004C31), heading-content Bold xs (12px) | same |
+| Title color | `--text-table-title` → brand-p800 (#004C31) | same |
 | Subtext | `--text-table-subtext` → text-content-tertiary (#858C92), body Regular xs | same |
 | Sort icon (idle) | `--icon-brandSecondary-quaternary` → muted gray | (hover) `--icon-brandPrimary-default` |
 | Sort icon (sorted) | `--icon-brandPrimary-default` → brand-p700 | brand-p700 |
 | Border bottom | `dim/stroke/200` (2 px) `--border-table-default` (brand-p100) | same |
 | Min height | 44 px | 44 px |
 | Padding | 8 / 16 | 8 / 16 |
+
+**Title typography** — column headers share the same title tokens as SubHeader / Topic / Popup (implemented in `HeaderCell` → `src/components/table/Table.jsx`):
+
+| Property | Token | CSS var | Value |
+|----------|-------|---------|-------|
+| Family | `typography.family.heading-content` | `--type-family-heading-content` | **Mitr** (fallback Sarabun) |
+| Weight | `typography.weight.title` | `--type-weight-title` | **Regular 400** (alias `--type-weight-regular`) |
+| Size | `typography.size.table-title` | `--type-size-table-title` | **12px** (fixed — does not scale with header font-size control) |
+| Line height | — | `1.5` | — |
+
+> Table HeaderCell uses Mitr Regular at **12px** (`--type-size-table-title`). Value is **fixed** (not remapped by the Header “ขนาดตัวอักษร” control). Page titles stay at 16px (`--type-size-title`).
 
 Sort icon glyph: `unfold_more` (idle) → `expand_less` (asc) → `expand_more` (desc).
 
@@ -12809,7 +12741,7 @@ Sort icon glyph: `unfold_more` (idle) → `expand_less` (asc) → `expand_more` 
 |------|----------------|
 | Checkbox | `<Checkbox>` (§6.3 / 6.30.12) |
 | Profile | local 36 × 36 rounded avatar (no canonical yet) |
-| TextGroup | local stacked text+subtext (no canonical yet) |
+| TextGroup | local stacked text+subtext (no canonical yet) — **text 14px** (`--type-size-content` / sm), **subtext 12px** (xs) |
 | Stepper | `<Stepper size='small'>` (§6.5 / 6.30.6) |
 | InputField | `<InputField size='sm' showLabel={false} showHelperText={false}>` (§6.12) |
 | Select | `<Select size='sm' showFieldName={false} showHelperText={false}>` (§6.25) |
@@ -12826,7 +12758,7 @@ Icon-button clicks call `e.stopPropagation()` inline so they don't bubble to a r
 |----------|-------|
 | Surface | `--surface-table-footer` → brand-p100 (#E2F3EB) |
 | Title color | `--text-table-footer` → brand-p800 (#004C31) |
-| Font | heading-content Bold sm (14 px) |
+| Font | heading-content Regular sm (14 px) |
 | Min height | 44 px |
 | Padding | 8 / 16 |
 
@@ -13042,13 +12974,14 @@ All text buttons live under [src/components/mobile/button/](src/components/mobil
 
 **Size matrix (Figma App):**
 
-| Size | Height | Icon | Gap | Type |
+| Size | Height | Icon | Gap | Type (Mitr) |
 |------|--------|------|-----|------|
-| Small | 40px | 16 | 6px | `--type-size-base` (16) |
-| Medium | 48px | 20 | 8px | `--type-size-lg` (18) |
-| Large | 56px | 24 | 8px | `--type-size-lg` (18) |
+| Small | 40px | 16 | 6px | `--type-size-button-sm` (14) |
+| Medium | 48px | 20 | 8px | `--type-size-button-md` (16) |
+| Large | 56px | 24 | 8px | `--type-size-button-lg` (16) |
+| X Large | 64px | 24 | 8px | `--type-size-button-xl` (18) |
 
-Padding X = `24px` (`--dim-space-600`) · radius = pill · font = `--type-family-heading-graphic2` regular. Fill · Default uses `--mobile-button-shadow-fill` (Brand Drop Shadow Bottom/300).
+Padding X = `24px` (`--dim-space-600`) · radius = pill · font = `--type-family-button` (Mitr / heading-content) Regular (same as Topic). Fill · Default uses `--mobile-button-shadow-fill` (Brand Drop Shadow Bottom/300).
 
 **State matrix** — every Style resolves to 5 states (`default` / `hover` / `active` / `focus` / `disabled`). The renderer tracks hover/focus/pressed; callers can force a state via props (used by `/m/components`). Focus ring uses CSS `outline` outside the box.
 

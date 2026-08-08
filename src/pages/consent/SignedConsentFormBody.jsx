@@ -31,7 +31,7 @@ const sectionTitleStyle = {
   color: 'var(--text-content-default)',
   fontFamily: 'var(--type-family-body)',
   fontSize: 'var(--type-size-base, 16px)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   lineHeight: 'normal',
 };
 
@@ -304,7 +304,7 @@ export default function SignedConsentFormBody({
             style={{
               fontFamily: 'var(--type-family-heading-content)',
               fontSize: 'var(--type-size-sm)',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               color: 'var(--text-content-default)',
               lineHeight: 1.5,
               textAlign: 'center',

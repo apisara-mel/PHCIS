@@ -49,7 +49,7 @@ const READING_LABEL_STYLE = {
 const READING_VALUE_STYLE = {
   fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
   fontSize: 'var(--type-size-base, 16px)',
-  fontWeight: 'var(--type-weight-bold, 700)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   lineHeight: 1.5,
   color: 'var(--text-content-default, #363B3F)',
 };

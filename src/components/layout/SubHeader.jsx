@@ -69,8 +69,9 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
     <span style={{
       color: 'var(--text-content-default)',
       fontFamily: 'var(--type-family-heading-content)',
-      fontWeight: 'var(--type-weight-bold)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       lineHeight: 1.5,
+      fontSize: 'var(--type-size-title, var(--type-size-base, 16px))',
       ...morphTitleStyle,
     }}>
       {title}

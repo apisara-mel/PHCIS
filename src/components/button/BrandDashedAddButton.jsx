@@ -26,9 +26,9 @@ const BASE_STYLE = {
   borderStyle: 'dashed',
   borderWidth: 'var(--dim-stroke-200, 2px)',
   borderImage: 'none',
-  fontFamily: 'var(--type-family-ui, var(--type-family-body))',
-  fontSize: 'var(--type-size-base, 16px)',
-  fontWeight: 'var(--type-weight-medium, 500)',
+  fontFamily: 'var(--type-family-button, var(--type-family-heading-content))',
+  fontSize: 'var(--type-size-button-md, 16px)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   lineHeight: 1.5,
   outline: 'none',
   transition:
@@ -100,6 +100,10 @@ const BrandDashedAddButton = ({
         background: bg,
         borderColor,
         opacity: brandFadeDisabled ? 0.5 : 1,
+        /* Lock to title weight — after ...style so callers cannot thicken label */
+        fontFamily: 'var(--type-family-button, var(--type-family-heading-content))',
+        fontSize: 'var(--type-size-button-md, 16px)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       }}
       {...rest}
     >

@@ -260,7 +260,7 @@ export default function AccessControlPage() {
                 color: 'var(--text-topic-tertiary-title)',
                 fontFamily: 'var(--type-family-heading-content)',
                 fontSize: 'var(--type-size-base)',
-                fontWeight: 'var(--type-weight-bold)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 lineHeight: 1.5,
                 margin: 'var(--dim-space-0)',
               }}

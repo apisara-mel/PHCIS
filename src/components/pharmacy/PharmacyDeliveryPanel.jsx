@@ -49,7 +49,7 @@ const PharmacyDeliveryPanel = ({ queueNo, row, onChange }) => {
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <h3 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+      <h3 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
         วิธีรับยา
       </h3>
       <div className='flex' style={{ gap: 'var(--dim-space-200)' }}>
@@ -91,7 +91,7 @@ const PharmacyDeliveryPanel = ({ queueNo, row, onChange }) => {
       {row.deliveryMethod === 'mail' && (
         <div className='mih-pharmacy-print-only mih-pharmacy-print-label'>
           <div style={{ maxWidth: 'var(--dim-size-2600, 384px)', padding: 'var(--dim-space-400)', border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)', borderRadius: 'var(--dim-radius-300)', fontFamily: 'var(--type-family-body)' }}>
-            <div style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', marginBottom: 'var(--dim-space-100)' }}>ที่อยู่จัดส่ง</div>
+            <div style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', marginBottom: 'var(--dim-space-100)' }}>ที่อยู่จัดส่ง</div>
             <div style={{ fontSize: 'var(--type-size-sm)' }}>
               {address.recipientName}<br />
               {address.houseNumber} {address.soi ? `ซอย${address.soi} ` : ''}ถนน{address.road}<br />

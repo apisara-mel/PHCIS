@@ -99,7 +99,7 @@ const ConfirmAddDiagnosisPopup = ({
             color: 'var(--text-modal-text, #4D5358)',
             fontFamily: 'var(--type-family-heading-content)',
             fontSize: 'var(--type-size-base, 16px)',
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             lineHeight: 1.5,
           }}
         >

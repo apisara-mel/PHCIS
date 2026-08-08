@@ -1849,7 +1849,7 @@ export function StepReview({
             color: 'var(--text-content-secondary)',
           }}
         >
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)' }}>หมายเหตุ</span>
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>หมายเหตุ</span>
           <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
             {displayNote}
           </span>
@@ -1860,7 +1860,7 @@ export function StepReview({
       /* ── Right — live patient-view phone ── */
       <SectionCard style={{ flex: 1, alignItems: 'center', gap: 'var(--dim-space-400)' }}>
         <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-          <span style={{ color: 'var(--text-topic-tertiary-title)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)' }}>
+          <span style={{ color: 'var(--text-topic-tertiary-title)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-base)' }}>
             ตัวอย่างเอกสาร (Patient View)
           </span>
           <div className='flex-1' />

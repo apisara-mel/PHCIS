@@ -50,7 +50,7 @@ const ScreeningStep5 = ({ onValidityChange, patient = {} }) => {
               marginLeft: 'var(--dim-space-0, 0px)',
               color: 'var(--text-brandPrimary-default, #007549)',
               fontFamily: 'var(--type-family-heading-content)',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               fontSize: 'var(--type-size-base)',
             }}
           >
@@ -78,7 +78,7 @@ const ScreeningStep5 = ({ onValidityChange, patient = {} }) => {
                       key={h}
                       style={{
                         ...cellStyle,
-                        fontWeight: 'var(--type-weight-bold)',
+                        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                         color: 'var(--text-content-secondary, #636B72)',
                       }}
                     >

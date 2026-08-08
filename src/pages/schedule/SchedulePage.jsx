@@ -248,7 +248,7 @@ const SchedulePage = () => {
                 margin: 0,
                 fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
                 fontSize: 'var(--type-size-base, 16px)',
-                fontWeight: 'var(--type-weight-bold, 700)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 lineHeight: 1.5,
                 color: 'var(--text-topic-tertiary-title, #363B3F)',
               }}

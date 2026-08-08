@@ -32,7 +32,7 @@ const Section = ({ title, description, children }) => (
           color: 'var(--text-content-default)',
           fontFamily: 'var(--type-family-heading-content)',
           fontSize: 'var(--type-size-lg)',
-          fontWeight: 'var(--type-weight-bold)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
           lineHeight: 1.5,
         }}
       >
@@ -383,7 +383,7 @@ const TabsPreviewPage = () => (
             color: 'var(--text-content-default)',
             fontFamily: 'var(--type-family-heading-content)',
             fontSize: 24,
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             lineHeight: 1.4,
           }}
         >

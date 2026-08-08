@@ -59,27 +59,27 @@ const resolvePrimary = (state) => {
   switch (state) {
     case 'hover':
       return {
-        bg:        'var(--surface-topic-hover, var(--brand-p50, #F4FBF8))',
-        title:     'var(--text-topic-primary-hover, var(--brand-p700, #007549))',
-        subtext:   'var(--text-topic-primary-subtext-hover, var(--text-content-tertiary, #858C92))',
-        icon:      'var(--icon-topic-primary-default, var(--brand-p700, #007549))',
-        chevron:   'var(--icon-topic-primary-default, var(--brand-p700, #007549))',
+        bg: 'var(--surface-topic-hover, var(--brand-p50, #F4FBF8))',
+        title: 'var(--text-topic-primary-hover, var(--brand-p700, #007549))',
+        subtext: 'var(--text-topic-primary-subtext-hover, var(--text-content-tertiary, #858C92))',
+        icon: 'var(--icon-topic-primary-default, var(--brand-p700, #007549))',
+        chevron: 'var(--icon-topic-primary-default, var(--brand-p700, #007549))',
       };
     case 'disabled':
       return {
-        bg:        'var(--surface-topic-disabled, #F9FBFB)',
-        title:     'var(--text-topic-primary-disabled, #ADB2B7)',
-        subtext:   'var(--text-topic-primary-subtext-disabled, #C9CDD0)',
-        icon:      'var(--icon-topic-primary-disabled, #C9CDD0)',
-        chevron:   'var(--icon-topic-primary-disabled, #C9CDD0)',
+        bg: 'var(--surface-topic-disabled, #F9FBFB)',
+        title: 'var(--text-topic-primary-disabled, #ADB2B7)',
+        subtext: 'var(--text-topic-primary-subtext-disabled, #C9CDD0)',
+        icon: 'var(--icon-topic-primary-disabled, #C9CDD0)',
+        chevron: 'var(--icon-topic-primary-disabled, #C9CDD0)',
       };
     default:
       return {
-        bg:        'var(--surface-topic-default, #FFFFFF)',
-        title:     'var(--text-topic-primary-title, var(--brand-p700, #007549))',
-        subtext:   'var(--text-topic-primary-subtext-default, var(--text-content-tertiary, #858C92))',
-        icon:      'var(--icon-topic-primary-default, var(--brand-p700, #007549))',
-        chevron:   'var(--icon-topic-primary-default, var(--brand-p700, #007549))',
+        bg: 'var(--surface-topic-default, #FFFFFF)',
+        title: 'var(--text-topic-primary-title, var(--brand-p700, #007549))',
+        subtext: 'var(--text-topic-primary-subtext-default, var(--text-content-tertiary, #858C92))',
+        icon: 'var(--icon-topic-primary-default, var(--brand-p700, #007549))',
+        chevron: 'var(--icon-topic-primary-default, var(--brand-p700, #007549))',
       };
   }
 };
@@ -89,22 +89,22 @@ const resolveHierarchyText = (hierarchy) => {
     case 'secondary':
     case 'secondary-on':
       return {
-        title:    'var(--text-topic-secondary-title, var(--brand-p700, #007549))',
-        subtext:  hierarchy === 'secondary-on'
+        title: 'var(--text-topic-secondary-title, var(--brand-p700, #007549))',
+        subtext: hierarchy === 'secondary-on'
           ? 'var(--text-topic-tertiary-subtext-on, #858C92)'
           : 'var(--text-topic-tertiary-subtext, #ADB2B7)',
         titleSize: 'var(--type-size-base)',
-        subSize:   'var(--type-size-xs)',
+        subSize: 'var(--type-size-xs)',
       };
     case 'tertiary':
     case 'tertiary-on':
       return {
-        title:    'var(--text-topic-tertiary-title, #363B3F)',
-        subtext:  hierarchy === 'tertiary-on'
+        title: 'var(--text-topic-tertiary-title, #363B3F)',
+        subtext: hierarchy === 'tertiary-on'
           ? 'var(--text-topic-tertiary-subtext-on, #858C92)'
           : 'var(--text-topic-tertiary-subtext, #ADB2B7)',
         titleSize: 'var(--type-size-base)',
-        subSize:   'var(--type-size-xs)',
+        subSize: 'var(--type-size-xs)',
       };
     default:
       return null; /* primary uses its own resolver */
@@ -164,9 +164,9 @@ const Topic = React.forwardRef(function Topic(
         ].filter(Boolean).join(' ')}
         style={{
           gap: 'var(--dim-space-300, 12px)',
-          paddingLeft:  'var(--dim-space-300, 12px)',
+          paddingLeft: 'var(--dim-space-300, 12px)',
           paddingRight: 'var(--dim-space-300, 12px)',
-          paddingTop:    'var(--dim-space-200, 8px)',
+          paddingTop: 'var(--dim-space-200, 8px)',
           paddingBottom: 'var(--dim-space-200, 8px)',
           borderRadius: 'var(--dim-radius-400, 12px)',
           ...(useRuntimeHover ? {} : { background: tone.bg }),
@@ -188,7 +188,7 @@ const Topic = React.forwardRef(function Topic(
                 color: tone.title,
                 fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
                 fontSize: 'var(--type-size-base)',
-                fontWeight: 'var(--type-weight-bold)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 lineHeight: 1.5,
               }}
             >
@@ -247,7 +247,7 @@ const Topic = React.forwardRef(function Topic(
             color: text.title,
             fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
             fontSize: text.titleSize,
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             lineHeight: 1.5,
           }}
         >

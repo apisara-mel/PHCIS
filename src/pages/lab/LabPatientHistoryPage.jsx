@@ -110,7 +110,7 @@ const CellValue = ({ cell, row, masked }) => {
         {cell.value}
       </span>
       {flag && (
-        <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-bold)', color }}>
+        <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', color }}>
           {flag}
         </span>
       )}
@@ -132,7 +132,7 @@ const HeadCell = ({ children, width, sticky, left }) => (
       color: 'var(--text-table-title)',
       fontFamily: 'var(--type-family-body)',
       fontSize: 'var(--type-size-xs)',
-      fontWeight: 'var(--type-weight-bold)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       borderBottom: 'var(--dim-stroke-100) solid var(--border-table-default)',
       paddingTop: 'var(--dim-space-300)',
       paddingBottom: 'var(--dim-space-300)',
@@ -435,7 +435,7 @@ const LabPatientHistoryPage = () => {
                               color: 'var(--text-brandPrimary-default)',
                               fontFamily: 'var(--type-family-body)',
                               fontSize: 'var(--type-size-xs)',
-                              fontWeight: 'var(--type-weight-bold)',
+                              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                               paddingTop: 'var(--dim-space-200)',
                               paddingBottom: 'var(--dim-space-200)',
                               paddingLeft: 'var(--dim-space-300)',
@@ -568,7 +568,7 @@ const LabPatientHistoryPage = () => {
           style={{ width: '297mm', background: '#FFFFFF', color: '#000000', padding: '10mm', boxSizing: 'border-box' }}
         >
           <div style={{ borderBottom: '0.4mm solid #000000', paddingBottom: '2mm', marginBottom: '3mm' }}>
-            <div style={{ fontFamily: 'var(--type-family-heading-content)', fontSize: '13pt', fontWeight: 'var(--type-weight-bold)' }}>
+            <div style={{ fontFamily: 'var(--type-family-heading-content)', fontSize: '13pt', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
               ใบสรุปผลตรวจทางห้องปฏิบัติการย้อนหลัง (Cumulative report)
             </div>
             <div style={{ fontFamily: 'var(--type-family-body)', fontSize: '9pt' }}>
@@ -591,7 +591,7 @@ const LabPatientHistoryPage = () => {
               {data.sections.map((section) => (
                 <React.Fragment key={`p-${section.key}`}>
                   <tr>
-                    <td colSpan={data.columns.length + 2} style={{ fontSize: '8pt', fontWeight: 'var(--type-weight-bold)', padding: '2mm 1mm 1mm', borderBottom: '0.15mm solid #999999' }}>
+                    <td colSpan={data.columns.length + 2} style={{ fontSize: '8pt', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', padding: '2mm 1mm 1mm', borderBottom: '0.15mm solid #999999' }}>
                       {section.label}
                     </td>
                   </tr>

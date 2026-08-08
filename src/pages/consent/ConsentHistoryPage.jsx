@@ -62,7 +62,7 @@ const MONTH_HEADING = {
   color: 'var(--text-content-default)',
   fontFamily: 'var(--type-family-heading-content)',
   fontSize: 'var(--type-size-sm)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   lineHeight: 1.5,
 };
 

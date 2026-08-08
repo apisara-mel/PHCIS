@@ -83,7 +83,7 @@ const Block = ({ title, children }) => (
     <span style={{
       color: 'var(--text-topic-tertiary-title)',
       fontFamily: 'var(--type-family-heading-content)',
-      fontWeight: 'var(--type-weight-bold)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       fontSize: 'var(--type-size-sm, 14px)',
     }}>
       {title}
@@ -138,7 +138,7 @@ const ConsultPrintSheet = ({ row }) => {
         <span style={{
           color: 'var(--text-content-default)',
           fontFamily: 'var(--type-family-heading-content)',
-          fontWeight: 'var(--type-weight-bold)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
           fontSize: 'var(--type-size-lg, 18px)',
         }}>
           ใบส่งปรึกษาแพทย์ (Consultation Request)

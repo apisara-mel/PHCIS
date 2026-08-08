@@ -56,7 +56,7 @@ const LetterAvatar = ({ letter, tone }) => (
       background: tone.bg,
       color: tone.fg,
       fontFamily: 'var(--type-family-heading-content)',
-      fontWeight: 'var(--type-weight-bold)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       fontSize: 'var(--type-size-base, 16px)',
       lineHeight: 1,
     }}
@@ -88,7 +88,7 @@ const SourceCard = ({ title, lines, onPull, pullLabel = 'ดึงเข้า�
     <div className='flex flex-wrap items-center justify-between w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
       <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
         <Sym name='auto_awesome' size={14} color='var(--icon-brandPrimary-default, #007549)' />
-        <span style={{ ...PANEL_LABEL_STYLE, fontWeight: 'var(--type-weight-bold)' }}>{title}</span>
+        <span style={{ ...PANEL_LABEL_STYLE, fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>{title}</span>
       </span>
       {onPull ? (
         <GuardedAction allowed={!disabled}>
@@ -647,7 +647,7 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
           }}
         >
           <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-            <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>
+            <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
               Continue order — สั่งต่อเนื่องจากการตรวจครั้งก่อน
             </span>
             <span style={PANEL_LABEL_STYLE}>
@@ -860,7 +860,7 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
                 cursor: 'pointer',
               }}
             >
-              <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>
+              <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
                 {v.visitDate} · {v.clinic}
               </span>
               <span style={PANEL_LABEL_STYLE}>ผู้บันทึก {v.author}</span>
@@ -869,7 +869,7 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
               </span>
               {copyPick?.id === v.id ? (
                 <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-100, 4px)', marginTop: 'var(--dim-space-200, 8px)' }}>
-                  <span style={{ ...PANEL_LABEL_STYLE, fontWeight: 'var(--type-weight-bold)' }}>
+                  <span style={{ ...PANEL_LABEL_STYLE, fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
                     ความต่างจากที่พิมพ์ไว้ตอนนี้
                   </span>
                   {SOAP_FIELDS.map((f) => {

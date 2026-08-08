@@ -468,7 +468,7 @@ const LabCriticalLogPanel = ({ open, onClose, onOpenResult }) => {
             >
               <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
                 <Icon name='how_to_reg' size={20} style={{ color: 'var(--text-brandPrimary-default)' }} />
-                <span style={{ fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
+                <span style={{ fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
                   {mode === 'amend' ? 'แก้ไขบันทึกการรับทราบ' : 'บันทึกการรับทราบค่าวิกฤต'}
                 </span>
                 <Badge style='error' size='small' icon='warning'>{selected.testLabel}</Badge>

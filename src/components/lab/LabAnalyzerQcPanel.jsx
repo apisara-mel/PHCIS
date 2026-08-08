@@ -247,7 +247,7 @@ const Card = ({ icon, title, subtitle, action, children }) => (
     <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
       {icon && <Icon name={icon} size={20} style={{ color: 'var(--text-brandPrimary-default)' }} />}
       <div className='flex flex-col min-w-0' style={{ flex: '1 1 240px', gap: 'var(--dim-space-050, 2px)' }}>
-        <span style={{ fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
+        <span style={{ fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
           {title}
         </span>
         {subtitle && (

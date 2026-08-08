@@ -1006,7 +1006,7 @@ const LabQueuePage = () => {
             }}
           >
             <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
-              <span style={{ fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-default)' }}>
+              <span style={{ fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-default)' }}>
                 ปฏิเสธสิ่งส่งตรวจ
               </span>
               <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
@@ -1127,7 +1127,7 @@ const LabQueuePage = () => {
             >
               <div className='flex items-center' style={{ gap: 'var(--dim-space-200)', color: 'var(--text-statusbadge-warning, #C2410C)' }}>
                 <Icon name='event_upcoming' size={18} />
-                <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-sm)' }}>
+                <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-sm)' }}>
                   มีคำสั่งตรวจล่วงหน้าถึงกำหนดแล้ว {dueAdvance.length} รายการ
                 </span>
                 <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>

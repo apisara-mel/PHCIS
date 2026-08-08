@@ -99,8 +99,8 @@ const Sym = ({ name, size = 16, color }) => (
      extraLarge  → 1440px max (Popup Very Large 75:35675)
    `width` prop overrides base width; extraLarge still caps at VIEWPORT_MAX_* . */
 const SIZE_WIDTH = {
-  default:    448,
-  large:      640,
+  default: 448,
+  large: 640,
   extraLarge: 1440,
 };
 
@@ -368,9 +368,9 @@ const Popup = ({
      props in Figma order (left to right): tertiary, secondary, primary. */
   const resolvedActions = actions
     ?? [
-      tertiaryAction  && { key: 'tertiary',  kind: 'tertiary',  ...tertiaryAction  },
+      tertiaryAction && { key: 'tertiary', kind: 'tertiary', ...tertiaryAction },
       secondaryAction && { key: 'secondary', kind: 'secondary', ...secondaryAction },
-      primaryAction   && { key: 'primary',   kind: 'primary',   ...primaryAction   },
+      primaryAction && { key: 'primary', kind: 'primary', ...primaryAction },
     ].filter(Boolean);
 
   const hasFooter = footer || resolvedActions.length > 0;
@@ -464,11 +464,11 @@ const Popup = ({
           className='shrink-0 flex w-full items-start justify-end'
           style={{
             gap: 'var(--dim-space-200)',
-            paddingTop:    'var(--dim-space-600)',
-            paddingRight:  'clamp(var(--dim-space-300), 4vw, var(--dim-space-400))',
+            paddingTop: 'var(--dim-space-600)',
+            paddingRight: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-400))',
             paddingBottom: 'var(--dim-space-600)',
-            paddingLeft:   'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
-            background:    'var(--surface-modal-default)',
+            paddingLeft: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
+            background: 'var(--surface-modal-default)',
           }}
         >
           {onBack ? <BackButton onClick={onBack} /> : leading}
@@ -481,8 +481,8 @@ const Popup = ({
                 style={{
                   color: 'var(--text-modal-text)',
                   fontFamily: 'var(--type-family-heading-content)',
-                  fontSize: 'var(--type-size-base)',
-                  fontWeight: 'var(--type-weight-bold)',
+                  fontSize: 'var(--type-size-title, var(--type-size-base, 16px))',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   lineHeight: 1.5,
                   margin: 'var(--dim-space-0)',
                 }}
@@ -522,12 +522,12 @@ const Popup = ({
           className='flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden'
           style={bodyOuterStyle}
         >
-        <div
-          className={
-            bodyScrollable
-              ? 'scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-clip'
-              : 'flex min-h-0 flex-1 flex-col'
-          }
+          <div
+            className={
+              bodyScrollable
+                ? 'scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-clip'
+                : 'flex min-h-0 flex-1 flex-col'
+            }
             style={{
               WebkitOverflowScrolling: bodyScrollable ? 'touch' : undefined,
               paddingTop: 'var(--dim-space-200)',

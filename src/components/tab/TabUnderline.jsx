@@ -97,8 +97,6 @@ const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick,
         background: 'transparent',
         border: 'none',
         color: textColor,
-        fontFamily: 'var(--type-family-body)',
-        fontWeight: 'var(--type-weight-medium)',
         fontSize: 'var(--type-size-base)',
         lineHeight: 1.5,
         transform: pressed ? 'scale(0.98)' : 'scale(1)',
@@ -117,7 +115,17 @@ const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick,
           data-tabunderline-ink
           className='relative inline-block max-w-full whitespace-nowrap'
         >
-          <span style={{ color: 'inherit', transition: `color 200ms ${EASE}` }}>
+          <span
+            style={{
+              color: 'inherit',
+              /* Same family/weight as Topic title — count pill stays Sarabun below. */
+              fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+              fontSize: 'var(--type-size-base)',
+              lineHeight: 1.5,
+              transition: `color 200ms ${EASE}`,
+            }}
+          >
             {tab.label}
           </span>
           {!animated && (
@@ -162,6 +170,7 @@ const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick,
               fontFamily: 'var(--type-family-body)',
               fontSize: 'var(--type-size-xs)',
               fontWeight: 'var(--type-weight-medium)',
+              fontVariantNumeric: 'tabular-nums',
               transition: [
                 `background-color 200ms ${EASE}`,
                 `color 200ms ${EASE}`,
@@ -464,7 +473,10 @@ const TabUnderline = React.forwardRef(function TabUnderline(
                   <span
                     style={{
                       color: 'var(--text-content-tertiary)',
+                      fontFamily: 'var(--type-family-body)',
                       fontSize: 'var(--type-size-xs)',
+                      fontWeight: 'var(--type-weight-medium)',
+                      fontVariantNumeric: 'tabular-nums',
                       flexShrink: 0,
                     }}
                   >
@@ -484,7 +496,10 @@ const TabUnderline = React.forwardRef(function TabUnderline(
                   if (onChange) onChange(tab.key);
                   setMoreOpen(false);
                 }}
-                style={{ fontWeight: 'var(--type-weight-medium)' }}
+                style={{
+                  fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+                }}
               />
             );
           })}
@@ -564,9 +579,7 @@ export const TabUnderlineItem = React.forwardRef(function TabUnderlineItem(
         background: 'transparent',
         border: 'none',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        fontFamily: 'var(--type-family-body)',
         fontSize: dim.fontSize,
-        fontWeight: 'var(--type-weight-medium)',
         lineHeight: 1.5,
         color: tone.text,
         transition: `color 200ms ${EASE}`,
@@ -583,7 +596,17 @@ export const TabUnderlineItem = React.forwardRef(function TabUnderlineItem(
         }}
       >
         {showLeadingIcon && renderIcon(leadingIcon, dim.icon)}
-        <span style={{ color: 'inherit' }}>{label}</span>
+        <span
+          style={{
+            color: 'inherit',
+            fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+            fontSize: dim.fontSize,
+            lineHeight: 1.5,
+          }}
+        >
+          {label}
+        </span>
         {showTrailingIcon && (
           <Sym name='keyboard_arrow_down' size={dim.chev} color={tone.icon} />
         )}

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Icon from '@/components/icons/Icon';
 import BrandIconButton from '@/components/button/BrandIconButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SystemGridMenu from '@/components/layout/SystemGridMenu';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import { CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
@@ -12,6 +14,9 @@ import {
   CHROME_TRANSITION_MS,
 } from '@/hooks/useHeaderAutoHide';
 import { EllipsisText } from '@/components/table/Table';
+
+const HUB_PATH = '/hub';
+
 const THAI_MONTHS = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
@@ -20,9 +25,19 @@ const THAI_MONTHS = [
 const formatThaiDate = (d) =>
   `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
 
+/** Accept string[] or `{ label, to? }[]` — `to` makes the crumb a Link. */
+function normalizeBreadcrumb(items = []) {
+  return items.map((item) => {
+    if (item && typeof item === 'object') {
+      return { label: item.label ?? '', to: item.to || item.href || undefined };
+    }
+    return { label: String(item ?? ''), to: undefined };
+  });
+}
+
 /**
  * @param {object}  props
- * @param {string[]} [props.breadcrumb]
+ * @param {(string|{label:string,to?:string})[]} [props.breadcrumb]
  * @param {boolean} [props.standalone=true] — when false, the page has a
  *   section flush below the Header (same surface / no gap). In that case
  *   `shadow-header` is omitted so the bar does not cast a second shadow
@@ -66,6 +81,7 @@ const Header = ({
     ? APP_TOPBAR_HEIGHT - barHeight
     : (collapsed ? APP_TOPBAR_HEIGHT : 0);
   const isHub = variant === 'hub';
+  const crumbs = normalizeBreadcrumb(breadcrumb);
   const clinicCtx = useClinicFilter();
   const [localClinic, setLocalClinic] = useState(DEFAULT_CLINIC_VALUE);
   const clinic = clinicCtx ? clinicCtx.clinic : localClinic;
@@ -133,9 +149,10 @@ const Header = ({
           style={{ gap: 'var(--dim-space-0)' }}
         >
           <p
-            className='font-bold text-base text-brand-500 truncate'
+            className='text-base text-brand-500 truncate'
             style={{
-              fontFamily: 'var(--type-family-body)',
+              fontFamily: 'var(--type-family-heading-content, var(--type-family-heading-graphic2))',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               lineHeight: 1.25,
             }}
           >
@@ -151,16 +168,25 @@ const Header = ({
               lineHeight: 1.25,
             }}
           >
-            <Icon
-              name='home'
-              size={16}
-              className='shrink-0'
-              style={{ color: 'var(--text-breadcrumb-pagename)' }}
-            />
-            {breadcrumb.map((seg, i) => {
-              const isCurrent = i === breadcrumb.length - 1;
+            <Link
+              to={HUB_PATH}
+              aria-label='ไปที่ System Hub'
+              className='shrink-0 inline-flex items-center'
+              style={{ color: 'var(--text-breadcrumb-pagename)', textDecoration: 'none' }}
+            >
+              <Icon name='home' size={16} />
+            </Link>
+            {crumbs.map((seg, i) => {
+              const isCurrent = i === crumbs.length - 1;
+              const canLink = Boolean(seg.to) && !isCurrent;
+              const crumbStyle = {
+                color: isCurrent
+                  ? 'var(--text-breadcrumb-current)'
+                  : 'var(--text-breadcrumb-pagename)',
+                textDecoration: 'none',
+              };
               return (
-                <React.Fragment key={i}>
+                <React.Fragment key={`${seg.label}-${i}`}>
                   <span
                     className='shrink-0'
                     style={{ color: 'var(--text-breadcrumb-pagename)' }}
@@ -168,16 +194,23 @@ const Header = ({
                   >
                     /
                   </span>
-                  <span
-                    className='min-w-0'
-                    style={{
-                      color: isCurrent
-                        ? 'var(--text-breadcrumb-current)'
-                        : 'var(--text-breadcrumb-pagename)',
-                    }}
-                  >
-                    <EllipsisText text={seg} fill={false} />
-                  </span>
+                  {canLink ? (
+                    <Link
+                      to={seg.to}
+                      className='min-w-0 hover:underline focus-visible:underline'
+                      style={crumbStyle}
+                    >
+                      <EllipsisText text={seg.label} fill={false} />
+                    </Link>
+                  ) : (
+                    <span
+                      className='min-w-0'
+                      style={crumbStyle}
+                      aria-current={isCurrent ? 'page' : undefined}
+                    >
+                      <EllipsisText text={seg.label} fill={false} />
+                    </span>
+                  )}
                 </React.Fragment>
               );
             })}
@@ -206,20 +239,18 @@ const Header = ({
         </div>
         {/* Font-size controls — md+ in bar; below md see <Sidebar /> mobile drawer */}
         <FontSizeControls className='hidden md:flex' />
-        {/* Manual button — full label lg+, icon-only below */}
-        <button
-          type='button'
-          aria-label='คู่มือใช้งานระบบ'
-          className='h-9 inline-flex items-center gap-1.5 rounded-lg border px-2 lg:px-3 text-sm font-medium shrink-0'
-          style={{
-            background: 'var(--surface-navigation-default)',
-            borderColor: 'var(--border-neutralButton-tertiary)',
-            color: 'var(--text-neutralButton-default)',
-          }}
+        {/* Manual — aliases Neutral Subdue Button (design.md §6.19 / §5.6).
+            Label collapses below lg; typography from button tokens (Mitr Regular sm). */}
+        <NeutralSubdueButton
+          variant='outline'
+          size='sm'
+          leadingIcon='menu_book'
+          collapseLabelBelow='lg'
+          accessibilityLabel='คู่มือใช้งานระบบ'
+          className='shrink-0'
         >
-          <Icon name='book' size={16} />
-          <span className='hidden lg:inline'>คู่มือใช้งานระบบ</span>
-        </button>
+          คู่มือใช้งานระบบ
+        </NeutralSubdueButton>
       </div>
     </header>
   );

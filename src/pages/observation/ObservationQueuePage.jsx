@@ -126,7 +126,7 @@ const ObservationBedsEmptyState = ({ onAdmit }) => (
         style={{
           color: 'var(--text-brandPrimary-default, #007549)',
           fontFamily: 'var(--type-family-heading-content)',
-          fontWeight: 'var(--type-weight-bold)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
           fontSize: 'var(--type-size-sm, 14px)',
           lineHeight: 1.5,
           textAlign: 'center',
@@ -182,7 +182,7 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
        column drifts vs stickyLeft and overlaps neighbors when scrolling. */
     width: 104,
     render: (patient) => (
-      <span style={{ color: 'var(--text-brandPrimary-default, var(--brand-p700))', fontWeight: 'var(--type-weight-bold)' }}>
+      <span style={{ color: 'var(--text-brandPrimary-default, var(--brand-p700))', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
         {patient.bedNo}
       </span>
     ),
@@ -222,7 +222,7 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
           <span
             className='min-w-0'
             style={{
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               fontSize: 'var(--type-size-xs, 12px)',
               color: 'var(--text-content-default)',
             }}
@@ -311,7 +311,7 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
       const latest = patient.vitalsTrend?.[patient.vitalsTrend.length - 1];
       if (!latest) return '-';
       return (
-        <div style={{ fontWeight: 'var(--type-weight-bold)' }}>
+        <div style={{ fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
           <div style={{ color: vitalSnapshotValueColor(resolveVitalSnapshotTone('bp', latest)) }}>
             {latest.bpSys}/{latest.bpDia} mmHg
           </div>
@@ -1132,7 +1132,10 @@ export default function ObservationQueuePage() {
   return (
     <QueuePageShell
       activeKey='observation'
-      breadcrumb={['หน้าหลัก PHCIS', 'ระบบสังเกตอาการ (Observation)']}
+      breadcrumb={[
+        { label: 'หน้าหลัก PHCIS', to: '/dashboard' },
+        'ระบบสังเกตอาการ (Observation)',
+      ]}
       title='ห้องเฝ้าสังเกตอาการ (Observation Unit)'
       summaryCards={summaryCards}
       tabs={tabs}
@@ -1481,7 +1484,7 @@ export default function ObservationQueuePage() {
                       style={{
                         color: 'var(--text-content-default)',
                         fontSize: 'var(--type-size-sm, 14px)',
-                        fontWeight: 'var(--type-weight-bold)',
+                        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                         margin: 0,
                         textAlign: 'center',
                         lineHeight: 1.5,
@@ -1694,7 +1697,7 @@ export default function ObservationQueuePage() {
                               margin: 0,
                               fontFamily: 'var(--type-family-body)',
                               color: 'var(--text-brandPrimary-on-brand, #FFFFFF)',
-                              fontWeight: 'var(--type-weight-bold, 700)',
+                              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                               fontSize: 'var(--type-size-xs, 12px)',
                               lineHeight: 1.5,
                               textAlign: 'left',
@@ -2285,7 +2288,7 @@ export default function ObservationQueuePage() {
             <span style={{ color: 'var(--text-content-tertiary)', fontWeight: 'var(--type-weight-regular)' }}>
               เลขเตียง:
             </span>
-            <span style={{ color: 'var(--text-brandPrimary-default)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>
+            <span style={{ color: 'var(--text-brandPrimary-default)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
               {String(nextBedNumber).padStart(2, '0')}{isNextBedExtra ? '-Extra' : ''}
             </span>
             <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-regular)' }}>

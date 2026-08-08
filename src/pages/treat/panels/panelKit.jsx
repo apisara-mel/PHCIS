@@ -20,7 +20,7 @@ export const PANEL_SURFACE = {
 export const PANEL_TITLE_STYLE = {
   color: 'var(--text-topic-tertiary-title)',
   fontFamily: 'var(--type-family-heading-content)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   fontSize: 'var(--type-size-sm, 14px)',
   lineHeight: 1.5,
 };
@@ -120,7 +120,7 @@ export const PanelEmptyState = ({ icon = 'inbox', title, subtitle, action }) => 
     }}
   >
     <Sym name={icon} size={32} color='var(--icon-neutral-tertiary, #ADB2B7)' />
-    <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>{title}</span>
+    <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>{title}</span>
     {subtitle ? <span style={PANEL_LABEL_STYLE}>{subtitle}</span> : null}
     {action ? <div style={{ marginTop: 'var(--dim-space-200, 8px)' }}>{action}</div> : null}
   </div>

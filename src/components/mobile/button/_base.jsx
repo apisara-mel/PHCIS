@@ -17,10 +17,11 @@ import { Sym } from '../Sym';
 
        state shape: { bg, color, border, outline?, shadow? }
 
-   Sizes (Figma Size property):
-     sm = 40h · icon 16 · gap 6 · type base
-     md = 48h · icon 20 · gap 8 · type lg
-     lg = 56h · icon 24 · gap 8 · type lg
+   Sizes (Figma Size property) — label = Mitr via --type-family-button:
+     sm = 40h · icon 16 · gap 6 · type 14 (button.sm)
+     md = 48h · icon 20 · gap 8 · type 16 (button.md)
+     lg = 56h · icon 24 · gap 8 · type 16 (button.lg)
+     xl = 64h · icon 24 · gap 8 · type 18 (button.xl)
 */
 
 const FOCUS_OUTLINE = 'var(--mobile-focus-ring-width, 4px) solid var(--mobile-border-brandPrimaryButton-tertiary)';
@@ -32,31 +33,39 @@ const SIZE_TOKEN = {
     height: 'var(--mobile-button-height-sm, 40px)',
     icon: 16,
     gap: 'var(--mobile-button-gap-sm, 6px)',
-    fontSize: 'var(--mobile-button-type-size, var(--type-size-base, 16px))',
+    fontSize: 'var(--mobile-button-type-size-sm, var(--type-size-button-sm, 14px))',
     square: 40,
   },
   md: {
     height: 'var(--mobile-button-height-md, 48px)',
     icon: 20,
     gap: 'var(--mobile-button-gap, 8px)',
-    fontSize: 'var(--mobile-button-type-size-lg, var(--type-size-lg, 18px))',
+    fontSize: 'var(--mobile-button-type-size-md, var(--type-size-button-md, 16px))',
     square: 48,
   },
   lg: {
     height: 'var(--mobile-button-height-lg, 56px)',
     icon: 24,
     gap: 'var(--mobile-button-gap, 8px)',
-    fontSize: 'var(--mobile-button-type-size-lg, var(--type-size-lg, 18px))',
+    fontSize: 'var(--mobile-button-type-size-lg, var(--type-size-button-lg, 16px))',
     square: 56,
+  },
+  xl: {
+    height: 'var(--mobile-button-height-xl, 64px)',
+    icon: 24,
+    gap: 'var(--mobile-button-gap, 8px)',
+    fontSize: 'var(--mobile-button-type-size-xl, var(--type-size-button-xl, 18px))',
+    square: 64,
   },
 };
 
-/* Normalize Figma Size labels + legacy keys → sm|md|lg */
+/* Normalize Figma Size labels + legacy keys → sm|md|lg|xl */
 export const normalizeButtonSize = (size) => {
-  const key = String(size || 'lg').toLowerCase();
+  const key = String(size || 'lg').toLowerCase().replace(/\s+/g, '');
   if (key === 'small' || key === 'sm') return 'sm';
   if (key === 'medium' || key === 'md') return 'md';
   if (key === 'large' || key === 'lg') return 'lg';
+  if (key === 'xlarge' || key === 'xl' || key === 'x-large') return 'xl';
   return 'lg';
 };
 
@@ -266,9 +275,9 @@ export const MobileButtonBase = ({
         outlineOffset: 0,
         boxShadow: s.shadow || 'none',
         borderRadius: radius,
-        fontFamily: 'var(--type-family-heading-graphic2, var(--type-family-body))',
+        fontFamily: 'var(--type-family-button, var(--type-family-heading-content))',
         fontSize: tokens.fontSize,
-        fontWeight: 'var(--mobile-button-type-weight, var(--type-weight-regular, 400))',
+        fontWeight: 'var(--mobile-button-type-weight, var(--type-weight-title, var(--type-weight-regular, 400)))',
         lineHeight: 1.5,
         cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'inline-flex',

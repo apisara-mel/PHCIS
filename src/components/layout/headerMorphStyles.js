@@ -3,9 +3,9 @@
 export const MORPH_SMOOTH_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 
 export const morphTitleStyle = {
-  fontSize:
-    'calc(var(--type-size-base) + (var(--type-size-xs) - var(--type-size-base)) * var(--header-morph, 0))',
-  lineHeight: 'calc(1.4 + (1.3 - 1.4) * var(--header-morph, 0))',
+  /* Page titles stay 16px (type-size-title / base) — do not shrink on scroll morph. */
+  fontSize: 'var(--type-size-title, var(--type-size-base, 16px))',
+  lineHeight: 'calc(1.5 + (1.3 - 1.5) * var(--header-morph, 0))',
 };
 
 export const morphTopicTitleStyle = {

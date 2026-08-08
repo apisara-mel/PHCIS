@@ -158,7 +158,7 @@ const EmptyHistoryPlaceholder = () => (
         color: 'var(--text-brandPrimary-default, #007549)',
         fontFamily: 'var(--type-family-heading-content)',
         fontSize: 'var(--type-size-sm, 14px)',
-        fontWeight: 'var(--type-weight-bold, 700)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         lineHeight: 1.5,
       }}
     >

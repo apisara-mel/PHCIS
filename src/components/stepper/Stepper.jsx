@@ -192,7 +192,7 @@ const Stepper = React.forwardRef(function Stepper(
           height: '100%',
           fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
           fontSize: dim.font,
-          fontWeight: 'var(--type-weight-bold)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
           color: isDisabled
             ? 'var(--text-input-disabled, #ADB2B7)'
             : 'var(--text-input-filled, #4D5358)',

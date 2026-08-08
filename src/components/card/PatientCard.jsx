@@ -331,7 +331,12 @@ const PatientCard = ({
           กลับ
         </NeutralSubdueButton>
         )}
-        <h1 className='text-base font-bold text-ink'>{title}</h1>
+        <h1
+          className='text-base text-ink'
+          style={{ fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}
+        >
+          {title}
+        </h1>
         {actions && (
           <div className='ml-auto flex items-center gap-2'>{actions}</div>
         )}
@@ -384,7 +389,7 @@ const PatientCard = ({
                 aria-hidden
                 style={{
                   fontFamily: 'var(--type-family-heading-content)',
-                  fontWeight: 'var(--type-weight-bold, 700)',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   fontSize: compact ? 18 : 24,
                   lineHeight: 1,
                   letterSpacing: '-0.02em',

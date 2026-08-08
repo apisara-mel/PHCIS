@@ -314,7 +314,7 @@ const ExamNotesPanel = ({
       <span style={{
         color: 'var(--text-topic-secondary-title)',
         fontFamily: 'var(--type-family-heading-content)',
-        fontWeight: 'var(--type-weight-bold)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         fontSize: 'var(--type-size-base)',
       }}
       >
@@ -338,7 +338,7 @@ const ExamNotesPanel = ({
             <span style={{
               color: 'var(--text-topic-tertiary-title)',
               fontFamily: 'var(--type-family-heading-content)',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               fontSize: 'var(--type-size-base)',
             }}
             >
@@ -391,7 +391,7 @@ const ExamNotesPanel = ({
           <span style={{
             color: 'var(--text-topic-tertiary-title)',
             fontFamily: 'var(--type-family-heading-content)',
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             fontSize: 'var(--type-size-base)',
           }}
           >

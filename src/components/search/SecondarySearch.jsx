@@ -82,20 +82,24 @@ const SecondarySearch = ({
     if (e.key === 'Escape' && v) handleClear();
   };
 
-  /* 5-state resolver — mirrors PrimarySearch (2056:4246):
-       focused + empty   → focus
-       focused + value   → typing
+  /* 4-state resolver — design.md §6.17.5 redesign (focus state retired;
+       a focused field reads as active → typing):
+       focused           → typing
        blurred  + value  → filled */
   const filled = !!v;
   const computedState = focused
-    ? (filled ? 'typing' : 'focus')
+    ? 'typing'
     : hover
     ? 'hover'
     : filled
     ? 'filled'
     : 'default';
   const forcedState = String(stateProp || '').toLowerCase();
-  const state = forcedState === 'pressed' ? 'hover' : (forcedState || computedState);
+  const state = (() => {
+    if (forcedState === 'pressed') return 'hover';
+    if (forcedState === 'focus') return 'typing'; /* legacy callers */
+    return forcedState || computedState;
+  })();
 
   const showClear = filled && (state === 'typing' || state === 'filled' || state === 'hover');
   const dim = SIZE[size] || SIZE.default;
@@ -123,11 +127,19 @@ const SecondarySearch = ({
         borderRadius: 'var(--dim-radius-200)',
         background:   'var(--surface-search-default)',
         borderStyle:  'solid',
-        borderWidth:  'var(--dim-stroke-200)',
+        /* stroke/100 default+filled ↔ stroke/200 hover+typing — the only
+           component whose border-width changes per state (§6.17.6). */
+        borderWidth:  state === 'hover' || state === 'typing'
+          ? 'var(--dim-stroke-200, 2px)'
+          : 'var(--dim-stroke-100, 1px)',
         borderColor:  `var(--border-secondarysearch-${state})`,
-        boxShadow:    'var(--shadow-secondarysearch, var(--shadow-primarysearch))',
+        /* focus ring — effect token input/100 (0 0 0 4px primaryBorder/600
+           @15%) on hover + typing; no elevation shadow otherwise (§6.17.5). */
+        boxShadow:    state === 'hover' || state === 'typing'
+          ? '0 0 0 var(--dim-stroke-400, 4px) var(--ring-secondarysearch, rgb(8 167 104 / 0.15))'
+          : 'none',
         boxSizing:    'border-box',
-        transition:   'border-color 120ms ease, box-shadow 120ms ease',
+        transition:   'border-color 120ms ease, border-width 120ms ease, box-shadow 120ms ease',
         ...style,
       }}
       {...rest}

@@ -199,7 +199,7 @@ const ApptDetailToolbar = ({
 const APPT_CARD_TITLE_STYLE = {
   color: 'var(--text-topic-primary-title, var(--brand-p700, #007549))',
   fontFamily: 'var(--type-family-heading-content)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   fontSize: 'var(--type-size-base)',
   lineHeight: 1.5,
 };

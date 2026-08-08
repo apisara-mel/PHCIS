@@ -259,7 +259,7 @@ const SummaryPanel = ({
               minWidth: 0,
               color: titleColor,
               fontFamily: 'var(--type-family-heading-content)',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               fontSize: 'var(--type-size-base)',
               lineHeight: 1.5,
             }}
@@ -307,7 +307,7 @@ const PainTile = ({ pain }) => (
 const HISTORY_CARD_TITLE_STYLE = {
   color: 'var(--text-topic-tertiary-title)',
   fontFamily: 'var(--type-family-heading-content)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   fontSize: 'var(--type-size-base)',
   lineHeight: 1.5,
 };
@@ -515,7 +515,7 @@ const XrayHistoryTabPanel = ({ patient }) => {
               <span style={{
                 color: 'var(--text-content-default)',
                 fontFamily: 'var(--type-family-heading-content)',
-                fontWeight: 'var(--type-weight-bold)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 fontSize: 'var(--type-size-sm)',
               }}>
                 {r.examLabel}
@@ -966,7 +966,7 @@ const TREATMENT_GREY_PANEL_SHELL = {
 const TREATMENT_PANEL_TITLE_STYLE = {
   color: 'var(--text-topic-secondary-title)',
   fontFamily: 'var(--type-family-heading-content)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   fontSize: 'var(--type-size-base)',
   lineHeight: 1.5,
 };
@@ -1143,7 +1143,7 @@ const AttachmentSummaryChip = ({ file }) => (
 const STEP4_ICD_TITLE_STYLE = {
   color: 'var(--text-topic-tertiary-title)',
   fontFamily: 'var(--type-family-heading-content)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   fontSize: 'var(--type-size-base)',
   lineHeight: 1.5,
 };
@@ -1185,7 +1185,7 @@ const STEP4_SECTION_EMPTY_SHELL = {
 const STEP4_SECTION_TITLE_STYLE = {
   color: 'var(--text-topic-tertiary-title)',
   fontFamily: 'var(--type-family-heading-content)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   fontSize: 'var(--type-size-base)',
   lineHeight: 1.5,
 };
@@ -1533,7 +1533,7 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient }) => {
               <span style={{
                 color: 'var(--text-brandPrimary-default, #007549)',
                 fontFamily: 'var(--type-family-heading-content)',
-                fontWeight: 'var(--type-weight-bold)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 fontSize: 'var(--type-size-sm)',
                 lineHeight: 1.5,
                 textAlign: 'center',
@@ -1657,7 +1657,7 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient }) => {
               <span style={{
                 color: 'var(--text-brandPrimary-default, #007549)',
                 fontFamily: 'var(--type-family-heading-content)',
-                fontWeight: 'var(--type-weight-bold)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 fontSize: 'var(--type-size-sm)',
                 lineHeight: 1.5,
                 textAlign: 'center',
@@ -2770,7 +2770,7 @@ export const Step5Orders = ({
                 color: 'var(--text-brandPrimary-default, #007549)',
                 fontFamily: 'var(--type-family-heading-content)',
                 fontSize: 'var(--type-size-sm, 14px)',
-                fontWeight: 'var(--type-weight-bold, 700)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 lineHeight: 1.5,
               }}>
                 {ORDER_EMPTY_STATE_TEXT[activeCategory].title}
@@ -2816,7 +2816,7 @@ export const Step5Orders = ({
                 <span style={{
                   color: 'var(--text-content-default)',
                   fontFamily: 'var(--type-family-heading-content)',
-                  fontWeight: 'var(--type-weight-bold)',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   fontSize: 'var(--type-size-base)',
                 }}>
                   {/* Per-category copy from ORDER_TABLE_TEXT — medication
@@ -3016,7 +3016,7 @@ export const Step5Orders = ({
                   paddingLeft: 'var(--dim-space-400, 16px)',
                   fontFamily: 'var(--type-family-body)',
                   fontSize: 'var(--type-size-sm)',
-                  fontWeight: 'var(--type-weight-bold)',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   color: 'var(--text-table-footer, var(--brand-p800, #004C31))',
                 }}
               >
@@ -3314,7 +3314,7 @@ const APPT_ADVANCE_OPTIONS = [
 const APPT_CARD_TITLE_STYLE = {
   color: 'var(--text-topic-primary-title, var(--brand-p700, #007549))',
   fontFamily: 'var(--type-family-heading-content)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   fontSize: 'var(--type-size-base)',
   lineHeight: 1.5,
 };
@@ -4149,7 +4149,7 @@ const CertDiagnosisEmptyState = ({ onRecordDiagnosis }) => (
       <span style={{
         color: 'var(--text-brandPrimary-default, #007549)',
         fontFamily: 'var(--type-family-heading-content)',
-        fontWeight: 'var(--type-weight-bold)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         fontSize: 'var(--type-size-sm)',
         lineHeight: 1.5,
         textAlign: 'center',
@@ -4403,7 +4403,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                 style={{
                   color: 'var(--text-table-title)',
                   fontFamily: 'var(--type-family-heading-content)',
-                  fontWeight: 'var(--type-weight-bold)',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   fontSize: 'var(--type-size-base)',
                   lineHeight: 1.5,
                 }}
@@ -4450,7 +4450,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
               <span style={{
                 color: 'var(--text-content-default)',
                 fontFamily: 'var(--type-family-heading-content)',
-                fontWeight: 'var(--type-weight-bold)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 fontSize: 'var(--type-size-base)',
               }}>
                 ประเภทใบรับรองแพทย์
@@ -4491,7 +4491,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                 style={{
                   color: 'var(--text-content-default)',
                   fontFamily: 'var(--type-family-heading-content)',
-                  fontWeight: 'var(--type-weight-bold)',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   fontSize: 'var(--type-size-base)',
                   whiteSpace: 'nowrap',
                 }}
@@ -4536,7 +4536,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                     style={{
                       color: 'var(--text-content-default)',
                       fontFamily: 'var(--type-family-heading-content)',
-                      fontWeight: 'var(--type-weight-bold)',
+                      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                       fontSize: 'var(--type-size-base)',
                       whiteSpace: 'nowrap',
                     }}
@@ -4574,7 +4574,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
               <span style={{
                 color: 'var(--text-content-default)',
                 fontFamily: 'var(--type-family-heading-content)',
-                fontWeight: 'var(--type-weight-bold)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 fontSize: 'var(--type-size-base)',
               }}>
                 คำแนะนำการพักรักษา
@@ -4637,7 +4637,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
               <span style={{
                 color: 'var(--text-content-default)',
                 fontFamily: 'var(--type-family-heading-content)',
-                fontWeight: 'var(--type-weight-bold)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 fontSize: 'var(--type-size-base)',
               }}>
                 ผู้ออกใบรับรองแพทย์
