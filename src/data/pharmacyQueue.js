@@ -14,6 +14,7 @@ import { findMrPatientByHn } from '@/data/mrPatients';
 import { DRUG_REGISTRY } from '@/data/pharmacyRegistry';
 import { getPharmacySupportingInfo } from '@/data/pharmacySupportingInfo';
 import { getVnByHn } from '@/data/patientProfiles';
+import { getStation } from '@/data/queueCenterStore';
 
 export const DISPENSE_STATUS = {
   WAITING:   'waiting',
@@ -101,10 +102,10 @@ export const getAllergySafeDrugs = (allergies = [], keepName) => {
 };
 
 /* ── Two-tier warehouse (ToR §1.9.6-1.9.9) ──────────────────────────────
-   คลังยาใหญ่ (main, per-center bulk store) → เบิกจ่าย (requisition) →
-   คลังยาย่อย (sub-pharmacy counter stock, what dispensing actually draws
-   from). Each stock entry carries a lot + expiry so "near-expiry" (3-6
-   months) views have real dates to filter against. */
+   คลังยาใหญ่ — 1 คลังต่อศูนย์ (bulk store).
+   คลังยาย่อย — user-named warehouses in that center; each carries tags for
+   จุดบริการ (QUEUE_STATIONS id) + แผนก. Dispensing draws from the default
+   sub warehouse (`isDefaultDispense`). */
 const addMonths = (date, n) => {
   const d = new Date(date);
   d.setMonth(d.getMonth() + n);
@@ -117,7 +118,57 @@ const addDays = (date, n) => {
 };
 const TODAY = new Date().toISOString().slice(0, 10);
 
-export const SUB_PHARMACY_STOCK = {
+const cloneStockMap = (map, scale = 1) => Object.fromEntries(
+  Object.entries(map).map(([name, entry]) => ([
+    name,
+    {
+      ...entry,
+      stock: Math.max(0, Math.round(entry.stock * scale)),
+      lot: scale === 1 ? entry.lot : `${entry.lot}-B`,
+    },
+  ])),
+);
+
+/* Department labels for warehouse tags (prototype — not full assess CRUD). */
+export const PHARMACY_WAREHOUSE_DEPARTMENTS = [
+  { id: 'dept-pharm', name: 'เภสัชกรรม' },
+  { id: 'dept-im', name: 'อายุรกรรม (Internal Medicine)' },
+  { id: 'dept-ncd', name: 'คลินิกโรคเรื้อรัง (NCD)' },
+];
+
+export const getPharmacyWarehouseDepartment = (departmentId) => (
+  PHARMACY_WAREHOUSE_DEPARTMENTS.find((d) => d.id === departmentId) || null
+);
+
+/** User-named sub warehouses — tags: stationId (จุดบริการ) + departmentId (แผนก). */
+export const SUB_WAREHOUSES = [
+  {
+    id: 'wh-sub-pharmacy',
+    name: 'คลังยาย่อย — ห้องยา / รับยา',
+    stationId: 'st-pharmacy',
+    departmentId: 'dept-pharm',
+    active: true,
+    isDefaultDispense: true,
+  },
+  {
+    id: 'wh-sub-opd',
+    name: 'คลังยาย่อย — OPD',
+    stationId: 'st-opd',
+    departmentId: 'dept-im',
+    active: true,
+    isDefaultDispense: false,
+  },
+  {
+    id: 'wh-sub-ncd',
+    name: 'คลังยาย่อย — คลินิกโรคเรื้อรัง',
+    stationId: 'st-ncd',
+    departmentId: 'dept-ncd',
+    active: true,
+    isDefaultDispense: false,
+  },
+];
+
+const SUB_STOCK_ROOM = {
   'Amoxicillin 500 mg':  { stock: 40,  unit: 'เม็ด',    unitPrice: 3, lot: 'LOT-AMX-24A', expiryDate: addMonths(TODAY, 4)  },
   'Paracetamol 500 mg':  { stock: 200, unit: 'เม็ด',    unitPrice: 1, lot: 'LOT-PCM-24B', expiryDate: addMonths(TODAY, 14) },
   'Ibuprofen 400 mg':    { stock: 5,   unit: 'เม็ด',    unitPrice: 2, lot: 'LOT-IBU-24C', expiryDate: addMonths(TODAY, 2)  },
@@ -132,6 +183,28 @@ export const SUB_PHARMACY_STOCK = {
   'Amlodipine 5 mg':     { stock: 65,  unit: 'เม็ด',    unitPrice: 2, lot: 'LOT-AML-24A', expiryDate: addMonths(TODAY, 13) },
 };
 
+export const SUB_STOCK_BY_WAREHOUSE = {
+  'wh-sub-pharmacy': SUB_STOCK_ROOM,
+  'wh-sub-opd': cloneStockMap({
+    'Paracetamol 500 mg': SUB_STOCK_ROOM['Paracetamol 500 mg'],
+    'Amoxicillin 500 mg': SUB_STOCK_ROOM['Amoxicillin 500 mg'],
+    'Ibuprofen 400 mg': SUB_STOCK_ROOM['Ibuprofen 400 mg'],
+    'Cetirizine 10 mg': SUB_STOCK_ROOM['Cetirizine 10 mg'],
+    'Omeprazole 20 mg': SUB_STOCK_ROOM['Omeprazole 20 mg'],
+  }, 0.55),
+  'wh-sub-ncd': cloneStockMap({
+    'Metformin 500 mg': SUB_STOCK_ROOM['Metformin 500 mg'],
+    'Amlodipine 5 mg': SUB_STOCK_ROOM['Amlodipine 5 mg'],
+    'Enalapril 5 mg': SUB_STOCK_ROOM['Enalapril 5 mg'],
+    'Atorvastatin 20 mg': SUB_STOCK_ROOM['Atorvastatin 20 mg'],
+    'Atorvastatin 10 mg': SUB_STOCK_ROOM['Atorvastatin 10 mg'],
+    'Simvastatin 20 mg': SUB_STOCK_ROOM['Simvastatin 20 mg'],
+  }, 0.7),
+};
+
+/** Default dispense warehouse stock — same object as `wh-sub-pharmacy` map. */
+export const SUB_PHARMACY_STOCK = SUB_STOCK_BY_WAREHOUSE['wh-sub-pharmacy'];
+
 export const MAIN_WAREHOUSE_STOCK = {
   'Amoxicillin 500 mg':  { stock: 3000, unit: 'เม็ด', unitPrice: 2.5, lot: 'LOT-AMX-MAIN-24', expiryDate: addMonths(TODAY, 10), receivedFrom: 'องค์การเภสัชกรรม (GPO)', receivedAt: addMonths(TODAY, -2) },
   'Paracetamol 500 mg':  { stock: 8000, unit: 'เม็ด', unitPrice: 0.8, lot: 'LOT-PCM-MAIN-24', expiryDate: addMonths(TODAY, 22), receivedFrom: 'องค์การเภสัชกรรม (GPO)', receivedAt: addMonths(TODAY, -1) },
@@ -140,22 +213,54 @@ export const MAIN_WAREHOUSE_STOCK = {
   'Omeprazole 20 mg':    { stock: 1500, unit: 'แคปซูล', unitPrice: 3.5, lot: 'LOT-OME-MAIN-24', expiryDate: addMonths(TODAY, 8), receivedFrom: 'องค์การเภสัชกรรม (GPO)', receivedAt: addMonths(TODAY, -4) },
 };
 
-export const getStock = (name) => SUB_PHARMACY_STOCK[name] ?? null;
+export const listSubWarehouses = ({ activeOnly = true } = {}) => (
+  SUB_WAREHOUSES.filter((w) => (activeOnly ? w.active : true))
+);
+
+export const getSubWarehouse = (warehouseId) => (
+  SUB_WAREHOUSES.find((w) => w.id === warehouseId) || null
+);
+
+export const getDefaultDispenseWarehouseId = () => (
+  SUB_WAREHOUSES.find((w) => w.isDefaultDispense)?.id || SUB_WAREHOUSES[0]?.id || null
+);
+
+export const getSubStockMap = (warehouseId) => {
+  const id = warehouseId || getDefaultDispenseWarehouseId();
+  return SUB_STOCK_BY_WAREHOUSE[id] || SUB_PHARMACY_STOCK;
+};
+
+/** Resolve จุดบริการ + แผนก tags for a sub warehouse (for UI badges). */
+export const resolveSubWarehouseTags = (warehouse) => {
+  const wh = typeof warehouse === 'string' ? getSubWarehouse(warehouse) : warehouse;
+  if (!wh) return { stationLabel: '—', departmentLabel: '—', zone: '', floor: '' };
+  const station = getStation(wh.stationId);
+  const dept = getPharmacyWarehouseDepartment(wh.departmentId);
+  return {
+    stationLabel: station?.label || wh.stationId || '—',
+    departmentLabel: dept?.name || wh.departmentId || '—',
+    zone: station?.zone || '',
+    floor: station?.floor || '',
+  };
+};
+
+export const getStock = (name, warehouseId) => getSubStockMap(warehouseId)[name] ?? null;
 export const getMainStock = (name) => MAIN_WAREHOUSE_STOCK[name] ?? null;
 
-/** True when every item in the list has enough sub-pharmacy stock to dispense. */
-export const hasSufficientStock = (items = []) =>
-  items.every((item) => {
-    const entry = SUB_PHARMACY_STOCK[item.name];
+/** True when every item has enough stock in the (default) sub warehouse. */
+export const hasSufficientStock = (items = [], warehouseId) => {
+  const stockMap = getSubStockMap(warehouseId);
+  return items.every((item) => {
+    const entry = stockMap[item.name];
     return !entry || item.quantity <= entry.stock;
   });
+};
 
-/* Mutates the in-memory stock map — module-level, resets on reload (same
-   ephemerality as every other mock store in this app). Deducts only the
-   `qty` actually handed out (supports partial/refill dispensing). */
-export const deductStock = (items = [], qtyKey = 'quantity') => {
+/* Mutates the in-memory stock map — module-level, resets on reload. */
+export const deductStock = (items = [], qtyKey = 'quantity', warehouseId) => {
+  const stockMap = getSubStockMap(warehouseId);
   items.forEach((item) => {
-    const entry = SUB_PHARMACY_STOCK[item.name];
+    const entry = stockMap[item.name];
     const qty = item[qtyKey] ?? item.quantity;
     if (entry) entry.stock = Math.max(0, entry.stock - qty);
   });
@@ -169,23 +274,46 @@ export const nearExpiryEntries = (stockMap, monthsAhead = 6) => {
     .map(([name, entry]) => ({ name, ...entry }));
 };
 
-/* สถานะการทำงานของคลัง (ToR §1.9.8.1/§1.9.9.1) — an editable operating
-   status per warehouse tier, distinct from stock levels (open for
-   business / under maintenance / temporarily suspended). Module-level,
-   same ephemerality as every other mock store here. */
+/** Aggregate near-expiry count across every active sub warehouse. */
+export const nearExpirySubWarehouseCount = (monthsAhead = 6) => (
+  listSubWarehouses().reduce((sum, w) => sum + nearExpiryEntries(getSubStockMap(w.id), monthsAhead).length, 0)
+);
+
+/** Flatten all sub-warehouse stock rows (for center-level summary cards). */
+export const allSubWarehouseRows = () => (
+  listSubWarehouses().flatMap((w) => (
+    Object.entries(getSubStockMap(w.id)).map(([name, entry]) => ({
+      name, ...entry, warehouseId: w.id, warehouseName: w.name,
+    }))
+  ))
+);
+
+/* สถานะการทำงานของคลัง (ToR §1.9.8.1/§1.9.9.1) — main is one status;
+   each named sub warehouse has its own status. */
 export const WAREHOUSE_STATUS_OPTIONS = [
   { key: 'open',        label: 'เปิดดำเนินการ'   },
   { key: 'maintenance', label: 'ปิดปรับปรุง'      },
   { key: 'suspended',   label: 'ระงับชั่วคราว'    },
 ];
 
+const mkStatus = () => ({ status: 'open', updatedAt: TODAY, updatedBy: CURRENT_DISPENSER.name });
+
 export const WAREHOUSE_OPERATING_STATUS = {
-  main: { status: 'open', updatedAt: TODAY, updatedBy: CURRENT_DISPENSER.name },
-  sub:  { status: 'open', updatedAt: TODAY, updatedBy: CURRENT_DISPENSER.name },
+  main: mkStatus(),
+  /* legacy key — mirrors default sub warehouse for older callers */
+  sub: null,
+  bySubWarehouse: Object.fromEntries(SUB_WAREHOUSES.map((w) => [w.id, mkStatus()])),
+};
+WAREHOUSE_OPERATING_STATUS.sub = WAREHOUSE_OPERATING_STATUS.bySubWarehouse[getDefaultDispenseWarehouseId()];
+
+export const getWarehouseOperatingStatus = (tier, warehouseId) => {
+  if (tier === 'main') return WAREHOUSE_OPERATING_STATUS.main;
+  const id = warehouseId || getDefaultDispenseWarehouseId();
+  return WAREHOUSE_OPERATING_STATUS.bySubWarehouse[id] || WAREHOUSE_OPERATING_STATUS.sub;
 };
 
-export const setWarehouseOperatingStatus = (tier, status) => {
-  const entry = WAREHOUSE_OPERATING_STATUS[tier];
+export const setWarehouseOperatingStatus = (tier, status, warehouseId) => {
+  const entry = getWarehouseOperatingStatus(tier, warehouseId);
   if (!entry) return null;
   entry.status = status;
   entry.updatedAt = TODAY;
@@ -267,10 +395,18 @@ export const BORROW_RETURN_TYPES = [
   { key: 'lot-exchange', label: 'แลกล็อต'   },
 ];
 
+/* §1.9.9.4–5 history must cover all three TOR kinds (แลกล็อต / ยืมยา /
+   ยาที่ต้องคืน) for both ผู้ส่งคำร้อง and ผู้รับคำร้อง — include completed
+   rows so the table reads as ประวัติ, not only open requests.
+   `requestedBy` = ชื่อผู้สร้างคำร้อง. */
 export const BORROW_RETURN_RECORDS = [
-  { id: 'br-001', type: 'borrow', direction: 'outgoing', drugName: 'Ibuprofen 400 mg', quantity: 100, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 3 บางซื่อ', requestedAt: addMonths(TODAY, 0), status: 'pending' },
-  { id: 'br-002', type: 'return', direction: 'outgoing', drugName: 'Omeprazole 20 mg', quantity: 50,  unit: 'แคปซูล', counterpartCenter: 'ศูนย์บริการสาธารณสุข 7 บุคคโล', requestedAt: addMonths(TODAY, -1), status: 'completed' },
-  { id: 'br-003', type: 'lot-exchange', direction: 'incoming', drugName: 'Atorvastatin 20 mg', quantity: 60, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', requestedAt: addMonths(TODAY, 0), status: 'pending' },
+  { id: 'br-001', type: 'borrow', direction: 'outgoing', drugName: 'Ibuprofen 400 mg', quantity: 100, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 3 บางซื่อ', requestedBy: CURRENT_DISPENSER.name, requestedAt: addMonths(TODAY, 0), status: 'pending' },
+  { id: 'br-002', type: 'return', direction: 'outgoing', drugName: 'Omeprazole 20 mg', quantity: 50, unit: 'แคปซูล', counterpartCenter: 'ศูนย์บริการสาธารณสุข 7 บุคคโล', requestedBy: CURRENT_DISPENSER.name, requestedAt: addMonths(TODAY, -1), status: 'completed' },
+  { id: 'br-004', type: 'borrow', direction: 'outgoing', drugName: 'Amoxicillin 500 mg', quantity: 200, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 5 ดินแดง', requestedBy: 'ภญ.กรรณิการ์ ภู่ตระกูล', requestedAt: addMonths(TODAY, -2), status: 'completed' },
+  { id: 'br-005', type: 'lot-exchange', direction: 'outgoing', drugName: 'Paracetamol 500 mg', quantity: 500, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 9 หลวงพ่อทวีศักดิ์', requestedBy: CURRENT_DISPENSER.name, requestedAt: addMonths(TODAY, -3), status: 'completed' },
+  { id: 'br-003', type: 'lot-exchange', direction: 'incoming', drugName: 'Atorvastatin 20 mg', quantity: 60, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', requestedBy: 'ภก.วรากรณ์ สุขใจ', requestedAt: addMonths(TODAY, 0), status: 'pending' },
+  { id: 'br-006', type: 'borrow', direction: 'incoming', drugName: 'Metformin 500 mg', quantity: 150, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 12 บางคอแหลม', requestedBy: 'ภญ.ปิยะดา จันทร์เพ็ญ', requestedAt: addMonths(TODAY, -1), status: 'completed' },
+  { id: 'br-007', type: 'return', direction: 'incoming', drugName: 'Cetirizine 10 mg', quantity: 40, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 8 บางขุนเทียน', requestedBy: 'ภก.ธนวัฒน์ ศรีสุข', requestedAt: addMonths(TODAY, -2), status: 'completed' },
 ];
 
 /* §1.9.9.5 — confirm an incoming request from another center (ยืนยันการ
@@ -287,10 +423,11 @@ let borrowReturnSeq = BORROW_RETURN_RECORDS.length;
    another center (the create-side counterpart to `confirmBorrowReturnRequest`
    above, which only handles the receiving side). Always `direction:
    'outgoing'` since this center is the one sending the request. */
-export const createBorrowReturnRequest = ({ type, drugName, quantity, unit, counterpartCenter }) => {
+export const createBorrowReturnRequest = ({ type, drugName, quantity, unit, counterpartCenter, requestedBy }) => {
   const row = {
     id: `br-${++borrowReturnSeq}`,
     type, direction: 'outgoing', drugName, quantity: Number(quantity) || 0, unit, counterpartCenter,
+    requestedBy: requestedBy || CURRENT_DISPENSER.name,
     requestedAt: TODAY, status: 'pending',
   };
   BORROW_RETURN_RECORDS.unshift(row);
@@ -300,8 +437,8 @@ export const createBorrowReturnRequest = ({ type, drugName, quantity, unit, coun
 /** ประมาณ "เหลือถึงวันเบิกใหม่" — days of sub-pharmacy stock left, from
     current stock ÷ this drug's average monthly usage (`pharmacyRegistry.js`
     `usageRate.avgPerMonth`). Returns null when either figure is unknown. */
-export const estimateDaysUntilNextRequisition = (drugName) => {
-  const stockEntry = SUB_PHARMACY_STOCK[drugName];
+export const estimateDaysUntilNextRequisition = (drugName, warehouseId) => {
+  const stockEntry = getStock(drugName, warehouseId);
   const avgPerMonth = DRUG_REGISTRY.find((d) => d.name === drugName)?.usageRate?.avgPerMonth;
   if (!stockEntry || !avgPerMonth) return null;
   return Math.max(0, Math.round((stockEntry.stock / avgPerMonth) * 30));
@@ -357,6 +494,13 @@ export const updateRequisition = (id, patch) => {
 export const cancelRequisition = (id, reason = '') =>
   updateRequisition(id, { status: 'cancelled', cancelReason: reason });
 
+export const deleteRequisition = (id) => {
+  const idx = REQUISITIONS.findIndex((r) => r.id === id);
+  if (idx === -1) return false;
+  REQUISITIONS.splice(idx, 1);
+  return true;
+};
+
 export const approveRequisition = (id, approvedQuantity) =>
   updateRequisition(id, { status: 'approved', approvedQuantity });
 
@@ -410,6 +554,18 @@ export const cancelReceivingRecord = (id, reason = '') => {
   const entry = MAIN_WAREHOUSE_STOCK[row.drugName];
   if (entry) entry.stock = Math.max(0, entry.stock - row.quantity);
   return updateReceivingRecord(id, { status: 'cancelled', cancelReason: reason });
+};
+
+export const deleteReceivingRecord = (id) => {
+  const row = RECEIVING_RECORDS.find((r) => r.id === id);
+  if (!row) return false;
+  if (row.status !== 'cancelled') {
+    const entry = MAIN_WAREHOUSE_STOCK[row.drugName];
+    if (entry) entry.stock = Math.max(0, entry.stock - row.quantity);
+  }
+  const idx = RECEIVING_RECORDS.findIndex((r) => r.id === id);
+  RECEIVING_RECORDS.splice(idx, 1);
+  return true;
 };
 
 /* Cross-references each prescribed item's drug class against the patient's

@@ -21,6 +21,7 @@ import PharmacyOwnMedicationsList from '@/components/pharmacy/PharmacyOwnMedicat
 import PharmacyAllergyEditor from '@/components/pharmacy/PharmacyAllergyEditor';
 import PharmacyMedicationEditor from '@/components/pharmacy/PharmacyMedicationEditor';
 import PharmacyVoiceSuggestInput from '@/components/pharmacy/PharmacyVoiceSuggestInput';
+import PharmacySectionTopic from '@/components/pharmacy/PharmacySectionTopic';
 import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import Checkbox from '@/components/checkbox/Checkbox';
@@ -95,14 +96,9 @@ const SectionCard = ({ title, action, children }) => (
       gap: 'var(--dim-space-400)',
     }}
   >
-    {title && (
-      <div className='flex items-center justify-between'>
-        <h2 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
-          {title}
-        </h2>
-        {action}
-      </div>
-    )}
+    {title ? (
+      <PharmacySectionTopic title={title} trailing={action || undefined} />
+    ) : null}
     {children}
   </div>
 );

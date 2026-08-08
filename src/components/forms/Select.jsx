@@ -703,6 +703,27 @@ const Select = React.forwardRef(function Select(
           {showLeadingIcon && leadingIcon && (
             <Sym name={leadingIcon} size={dim.iconSize} color={s.iconColor} />
           )}
+          {/* Selected option image (e.g. ชื่อยา blister) — same 32px circle
+              as DropdownRow; hide while searchable typing so the filter
+              input stays uncluttered. */}
+          {selected?.image && !(searchable && open) && (
+            <span
+              className='shrink-0 inline-flex items-center justify-center overflow-hidden'
+              style={{
+                width: 'var(--dim-size-600, 32px)',
+                height: 'var(--dim-size-600, 32px)',
+                borderRadius: '50%',
+                background: 'var(--surface-card-100, #F4FBF8)',
+              }}
+              aria-hidden
+            >
+              <img
+                src={selected.image}
+                alt=''
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </span>
+          )}
           {showBadge && (badge ?? <Badge size='small'>Neutral</Badge>)}
           {/* Selected-option prefix badge — Figma 4025:14538 shows the
               category pill (Lab / Imaging / Vital / Procedure / Med)

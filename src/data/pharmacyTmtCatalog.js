@@ -184,9 +184,8 @@ export const tmtRowToRegistryForm = (tmtRow) => {
     highAlert: !!tmtRow.highAlert,
     manufacturer: tmtRow.manufacturer || '',
     distributor: tmtRow.distributor || '',
-    /* Leave blank until staff uploads — form empty-state uses Form Builder
-     medication icon tile, not the catalog blister pack. */
-  image: '',
+    /* Carry catalog blister pack into the form; staff can replace via upload. */
+    image: tmtRow.image || resolveMedicationImage(tmtRow.name, null) || '',
     tmtGpu: tmtRow.gpuCode || '',
     tmtTpu: tmtRow.tpuCode || '',
     tmtGpo: tmtRow.gpoCode || '',
@@ -212,6 +211,7 @@ export const tmtToAiSearchRow = (tmtRow) => {
     badge: tmtRow.tpuCode,
     badgeStyle: 'blue',
     value: tmtRow.name,
+    avatarSrc: tmtRow.image || resolveMedicationImage(tmtRow.name, null) || undefined,
     /* Stash ids so the confirm popup / form seed can resolve the full row. */
     tmtId: tmtRow.id,
     gpuCode: tmtRow.gpuCode,
@@ -251,6 +251,8 @@ export const createTmtRecentSearchEntry = (query, item) => {
       value: item.value || item.label || query,
       avatarSrc: item.avatarSrc,
       badges: item.badges,
+      badge: item.badge,
+      badgeStyle: item.badgeStyle,
       icon: item.icon,
     };
   }

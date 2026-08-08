@@ -12,7 +12,7 @@ const PharmacyPrescriptionPrint = ({ patient, hn, diagnosis, doctor, items = [],
   return (
     <div className='mih-pharmacy-print-only mih-pharmacy-print-prescription'>
       <div style={{ maxWidth: 640, padding: 'var(--dim-space-500)', fontFamily: 'var(--type-family-body)', color: 'var(--text-content-default)' }}>
-        <div style={{ fontSize: 'var(--type-size-xl)', fontWeight: 'var(--type-weight-bold)', marginBottom: 'var(--dim-space-100)' }}>
+        <div style={{ fontSize: 'var(--type-size-xl)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-heading-strong, var(--type-weight-medium, 500))', marginBottom: 'var(--dim-space-100)' }}>
           ใบสั่งยา
         </div>
         <div style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)', marginBottom: 'var(--dim-space-400)' }}>

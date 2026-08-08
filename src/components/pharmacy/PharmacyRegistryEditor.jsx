@@ -27,6 +27,7 @@ import Alert from '@/components/alert/Alert';
 import Badge from '@/components/badge/Badge';
 import Tooltip from '@/components/tooltip/Tooltip';
 import Topic from '@/components/topic/Topic';
+import PharmacySectionTopic from '@/components/pharmacy/PharmacySectionTopic';
 import SuccessToast from '@/components/toast/SuccessToast';
 import {
   DRUG_REGISTRY,
@@ -241,26 +242,7 @@ const SectionCard = ({ icon, title, subtitle, children, action, embedded = false
       ? { gap: 'var(--dim-space-400)' }
       : { ...PHARMACY_WORKLIST_CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
   >
-    <Topic
-      hierarchy='primary'
-      state='default'
-      title={title}
-      subText={subtitle || null}
-      leadingIcon={icon || 'category'}
-      showLeadingIcon={false}
-      showSubText={Boolean(subtitle)}
-      showBadge={false}
-      showChevron={false}
-      showSuccess={false}
-      trailing={action}
-      style={{
-        paddingLeft: 'var(--dim-space-0)',
-        paddingRight: 'var(--dim-space-0)',
-        paddingTop: 'var(--dim-space-0)',
-        paddingBottom: 'var(--dim-space-0)',
-        background: 'transparent',
-      }}
-    />
+    <PharmacySectionTopic title={title} subtitle={subtitle} trailing={action} />
     {children}
   </section>
 );
@@ -483,7 +465,7 @@ const PharmacyRegistryEditor = ({
   const prescriberScopes = form.restrictedPrescriberScopes || [];
   const prescriberPositions = form.restrictedPrescriberPositions || [];
 
-  const title = isNew ? 'เพิ่มทะเบียนยา' : (form.name || 'แก้ไขรายการยา');
+  const title = isNew ? 'เพิ่มทะเบียนยา' : 'แก้ไขทะเบียนยา';
 
   const setField = (key, v) => setForm((prev) => ({ ...prev, [key]: v }));
   const toggleRight = (right) => setForm((prev) => ({

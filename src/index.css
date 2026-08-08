@@ -93,6 +93,14 @@
     font-family: var(--type-family-heading-content, 'Mitr', 'Sarabun', system-ui, sans-serif);
     font-weight: var(--type-weight-title, var(--type-weight-regular, 400));
   }
+  /* Mitr headings: never Bold 700 — Tailwind `font-bold` on h1–h4 → Medium.
+     (Mitr + 700 reads overly heavy; Medium is the brand emphasis weight.) */
+  h1.font-bold,
+  h2.font-bold,
+  h3.font-bold,
+  h4.font-bold {
+    font-weight: var(--type-weight-medium, 500);
+  }
   input[type='number']::-webkit-outer-spin-button,
   input[type='number']::-webkit-inner-spin-button {
     -webkit-appearance: none; margin: 0;

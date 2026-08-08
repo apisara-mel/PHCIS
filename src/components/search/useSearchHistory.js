@@ -28,6 +28,11 @@ const normalizeEntry = (entry) => {
        badges) so rows pushed into history keep their rich layout when
        re-rendered later. Plain-string history items still work. */
     badges: Array.isArray(entry.badges) ? entry.badges : undefined,
+    /* AISearch HistoryRow uses a single leading ColorfulBadge
+       (`badge` + `badgeStyle`) — e.g. TMT TPU / ICD code. Keep those
+       through seed + push so "ค้นหาล่าสุด" matches the suggestion rows. */
+    badge: entry.badge,
+    badgeStyle: entry.badgeStyle,
   };
 };
 

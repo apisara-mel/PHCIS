@@ -18,11 +18,12 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 
    Visual rules per hierarchy:
      • Primary   — card-style row: 12px padding, 12px radius, surface tint;
-                   leading icon + bold title + subtext + trailing affordances.
+                   leading icon + title (`--type-weight-title` / Regular) +
+                   subtext + trailing affordances.
                    State swaps the surface (default white / hover brand-p50 /
                    disabled neutral-50) and dims title/subtext on disabled.
-     • Secondary — text-only row, brand-p700 bold title + neutral-300 subtext.
-     • Tertiary  — text-only row, neutral-800 bold title + neutral-300 subtext.
+     • Secondary — text-only row, brand-p700 title + neutral-300 subtext.
+     • Tertiary  — text-only row, neutral-800 title + neutral-300 subtext.
      • Secondary-on / Tertiary-on — same titles as the base variant but with
                    a darker subtext (#858c92) for use on tinted surfaces.
 

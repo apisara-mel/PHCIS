@@ -8,7 +8,7 @@ import Pagination from '@/components/pagination/Pagination';
 import Badge from '@/components/badge/Badge';
 import StatusBadge from '@/components/badge/StatusBadge';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
-import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyHeaderActions } from '@/components/pharmacy/PharmacySubNav';
 import PharmacyMedicationHistoryPopup from '@/components/pharmacy/PharmacyMedicationHistoryPopup';
 import { buildPatientsSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
@@ -223,7 +223,7 @@ const PharmacyPatientsPage = () => {
       breadcrumb={breadcrumb}
       title='ระบบงานเภสัชกรรม'
       summaryCards={summaryCards}
-      actions={<PharmacyAddDrugButton />}
+      actions={<PharmacyHeaderActions />}
       belowSummary={<PharmacySubNav />}
     >
       <div

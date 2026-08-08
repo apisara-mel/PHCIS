@@ -5,6 +5,7 @@ import {
   TMT_SEARCH_HISTORY_KEY,
   searchTmtCatalog,
   buildTmtSearchHistorySeed,
+  createTmtRecentSearchEntry,
   tmtToAiSearchRow,
 } from '@/data/pharmacyTmtCatalog';
 
@@ -102,7 +103,8 @@ export default function DoctorAiDrugPanel({
         value={value || ''}
         onChange={(next) => onChange?.(next)}
         onSubmit={(next, picked) => {
-          search.push(picked || next);
+          const entry = createTmtRecentSearchEntry(next, picked);
+          if (entry) search.push(entry);
           onSubmit?.(next, picked);
         }}
         history={search.history}

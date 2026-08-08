@@ -2,6 +2,7 @@ import React from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import TabUnderline from '@/components/tab/TabUnderline';
 import BrandButton from '@/components/button/BrandButton';
+import PharmacyBorrowReturnRequestButton from '@/components/pharmacy/PharmacyBorrowReturnRequestButton';
 
 /* Cross-links the pharmacy module pages. The Sidebar's `pharmacy` entry stays
    a flat item pointing at the queue (matches the OPD/Registration/Treatment
@@ -42,6 +43,14 @@ export const PharmacyAddDrugButton = () => {
     </BrandButton>
   );
 };
+
+/** SubHeader actions shared across every pharmacy page (ยืม–คืน–แลกล็อต + เพิ่มทะเบียนยา). */
+export const PharmacyHeaderActions = ({ borrowReturnProps } = {}) => (
+  <>
+    <PharmacyBorrowReturnRequestButton {...borrowReturnProps} />
+    <PharmacyAddDrugButton />
+  </>
+);
 
 const PharmacySubNav = () => {
   const history = useHistory();

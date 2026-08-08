@@ -139,6 +139,42 @@ const parseTradeGeneric = (name) => {
   return { tradeName: '', genericName: name };
 };
 
+/* Mock trade / brand names for registry seeds that aren't "Brand (Generic)"
+   — edit popup requires ชื่อการค้า so every seeded row has a value. */
+const TRADE_NAME_OVERRIDES = {
+  'Paracetamol 500 mg': 'Sara',
+  'Ibuprofen 400 mg': 'Nurofen',
+  'Methocarbamol 750 mg': 'Robaxin',
+  'Orphenadrine 35 mg': 'Norgesic',
+  'Omeprazole 20 mg': 'Losec',
+  'Esomeprazole 40 mg': 'Nexium',
+  'Amoxicillin 500 mg': 'Amoxil',
+  'Ciprofloxacin 500 mg': 'Ciproxin',
+  'Cetirizine 10 mg': 'Zyrtec',
+  'Loratadine 10 mg': 'Clarityne',
+  'Loperamide 2 mg': 'Imodium',
+  'Naproxen 250 mg': 'Synflex',
+  'Metformin 500 mg': 'Glucophage',
+  'Amlodipine 5 mg': 'Norvasc',
+  'Enalapril 5 mg': 'Renitec',
+  'Losartan 50 mg': 'Cozaar',
+  'Hydrochlorothiazide 25 mg': 'Dichlotride',
+  'Metoprolol 50 mg': 'Betaloc',
+  'Atorvastatin 20 mg': 'Lipitor',
+  'Atorvastatin 10 mg': 'Lipitor',
+  'Aspirin 81 mg': 'Aspirin Protect',
+  'Furosemide 40 mg': 'Lasix',
+  'Bisoprolol 5 mg': 'Concor',
+  'Spironolactone 25 mg': 'Aldactone',
+  'Simvastatin 20 mg': 'Zocor',
+  'Atenolol 50 mg': 'Tenormin',
+  'Indapamide 1.5 mg': 'Natrilix',
+  'Vitamin B Complex': 'Beminal',
+  'Folic Acid 5 mg': 'Folate',
+  'Codeine Phosphate 30 mg': 'Codeine',
+  'Diazepam 5 mg': 'Valium',
+};
+
 /* De-dupe the catalog's trailing "no-space-before-mg" alias entries
    (e.g. 'Paracetamol 500mg' next to 'Paracetamol 500 mg') — the registry
    only needs one canonical row per drug. */
@@ -159,7 +195,9 @@ const BARCODE_OVERRIDES = {
 };
 
 export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
-  const { tradeName, genericName } = parseTradeGeneric(opt.value);
+  const parsed = parseTradeGeneric(opt.value);
+  const genericName = parsed.genericName;
+  const tradeName = parsed.tradeName || TRADE_NAME_OVERRIDES[opt.value] || '';
   /* อัตราการใช้เฉลี่ย + จุดสั่งซื้อ (legacy §2.2.1 field 3.11) — mock
      figures derived deterministically from index so every drug has a
      plausible, distinct usage-rate profile. */
@@ -215,6 +253,62 @@ export const getRegistryDrugByBarcode = (code) => {
   const q = String(code || '').trim();
   if (!q) return null;
   return DRUG_REGISTRY.find((d) => d.barcode === q || d.code === q) || null;
+};
+
+/* ── PrimarySearch recent history (ทะเบียนยา / คลังยา) ─────────────── */
+
+export const REGISTRY_SEARCH_HISTORY_KEY = 'mih:primarysearch-history:pharmacy-registry';
+export const STOCK_SEARCH_HISTORY_KEY = 'mih:primarysearch-history:pharmacy-stock';
+
+/** Rich "ค้นหาล่าสุด" row — code pill + drug name + blister avatar. */
+export const buildDrugSearchHistoryItem = (drug, { id } = {}) => {
+  if (!drug) return null;
+  const trade = (drug.tradeName || '').trim();
+  const sublabel = trade
+    || (drug.genericName && drug.genericName !== drug.name ? drug.genericName : '');
+  return {
+    id: id || drug.id || `drug-hist-${drug.code || drug.name}`,
+    label: drug.name,
+    sublabel: sublabel || undefined,
+    value: drug.name,
+    badges: drug.code ? [{ label: drug.code, tone: 'blue' }] : undefined,
+    avatarSrc: drug.image || undefined,
+  };
+};
+
+/** Seed recent searches so empty-focus shows mock drug history first visit. */
+export const buildDrugRegistrySearchHistorySeed = (count = 5) => (
+  DRUG_REGISTRY
+    .filter((d) => d.active)
+    .slice(0, count)
+    .map((d, i) => buildDrugSearchHistoryItem(d, { id: `drug-seed-${i + 1}` }))
+    .filter(Boolean)
+);
+
+/** History entry from free-text submit or a picked rich suggestion. */
+export const createDrugRecentSearchEntry = (query, item) => {
+  if (item && (item.label || item.value)) {
+    return {
+      id: item.id || `drug-q-${Date.now()}`,
+      label: item.label || item.value || query,
+      sublabel: item.sublabel,
+      value: item.value || item.label || query,
+      badges: Array.isArray(item.badges) ? item.badges : undefined,
+      avatarSrc: item.avatarSrc,
+      icon: item.icon,
+    };
+  }
+  const q = String(query || '').trim();
+  if (!q) return null;
+  const qLower = q.toLowerCase();
+  const match = DRUG_REGISTRY.find((d) => (
+    (d.code || '').toLowerCase().includes(qLower)
+    || d.name.toLowerCase().includes(qLower)
+    || (d.genericName || '').toLowerCase().includes(qLower)
+    || (d.tradeName || '').toLowerCase().includes(qLower)
+  ));
+  if (match) return buildDrugSearchHistoryItem(match, { id: `drug-q-${match.id}` });
+  return { id: `drug-q-${qLower}`, label: q, value: q, icon: 'schedule' };
 };
 
 /* Pub/sub so PharmacyRegistryPage's list re-renders after

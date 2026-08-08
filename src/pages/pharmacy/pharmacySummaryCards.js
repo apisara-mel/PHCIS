@@ -41,15 +41,18 @@ export const buildRegistrySummaryCards = (registry) => [
   { key: 'nonNlem',   label: 'ยานอก NLEM',       value: countRows(registry, (d) => d.classification !== 'nlem'),    indicator: 'ยาทั่วไป/เวชภัณฑ์',     color: 'brand',       icon: 'vaccines'     },
 ];
 
-export const buildStockSummaryCards = ({ mainRows, subRows, nearExpiryMain, nearExpirySub, belowReorderMain, belowReorderSub }) => {
+export const buildStockSummaryCards = ({
+  mainRows, subRows, nearExpiryMain, nearExpirySub, belowReorderMain, belowReorderSub,
+  subWarehouseCount = 0,
+}) => {
   const allRows = [...mainRows, ...subRows];
   return [
-    { key: 'main',         label: 'คลังยาใหญ่',           value: mainRows.length,                                      indicator: 'รายการในคลังใหญ่',   color: 'brand',       icon: 'warehouse'    },
-    { key: 'sub',          label: 'คลังยาย่อย',           value: subRows.length,                                       indicator: 'รายการในคลังย่อย',   color: 'info',        icon: 'inventory_2'  },
-    { key: 'nearExpiry',   label: 'ใกล้หมดอายุ',          value: nearExpiryMain + nearExpirySub,                       indicator: '≤6 เดือน ทั้งสองคลัง', color: 'inprogress',  icon: 'schedule'     },
+    { key: 'main',         label: 'คลังยาใหญ่ของศูนย์',   value: mainRows.length,                                      indicator: '1 คลังต่อศูนย์',     color: 'brand',       icon: 'warehouse'    },
+    { key: 'sub',          label: 'คลังยาย่อย',           value: subRows.length,                                       indicator: subWarehouseCount > 0 ? `${subWarehouseCount} คลัง · ทุกรายการ` : 'รายการในคลังย่อย', color: 'info', icon: 'inventory_2' },
+    { key: 'nearExpiry',   label: 'ใกล้หมดอายุ',          value: nearExpiryMain + nearExpirySub,                       indicator: '≤6 เดือน ทุคลัง',    color: 'inprogress',  icon: 'schedule'     },
     { key: 'belowReorder', label: 'ต่ำกว่าจุดสั่งซื้อ',   value: belowReorderMain + belowReorderSub,                   indicator: 'ควรเบิกเพิ่มเติม',    color: 'destructive', icon: 'trending_down' },
     { key: 'totalUnits',   label: 'จำนวนคงคลังรวม',       value: allRows.reduce((s, r) => s + r.stock, 0).toLocaleString(), indicator: 'ทุกรายการ',       color: 'positive',    icon: 'inventory'    },
-    { key: 'totalItems',   label: 'รายการรวมทั้งสองคลัง', value: allRows.length,                                       indicator: 'คลังใหญ่ + คลังย่อย', color: 'brand',       icon: 'layers'       },
+    { key: 'totalItems',   label: 'รายการรวมทั้งสองชั้น', value: allRows.length,                                       indicator: 'คลังใหญ่ + คลังย่อย', color: 'brand',       icon: 'layers'       },
   ];
 };
 

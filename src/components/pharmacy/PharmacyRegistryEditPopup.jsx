@@ -7,7 +7,7 @@ import PharmacyRegistryEditor from '@/components/pharmacy/PharmacyRegistryEditor
    Footer / header back are driven by onStateChange (AccessRequestForm pattern). */
 
 const EMPTY_API = {
-  title: 'แก้ไขรายการยา',
+  title: 'แก้ไขทะเบียนยา',
   subtitle: undefined,
   step: 0,
   nextLabel: 'ถัดไป',
@@ -26,7 +26,7 @@ const PharmacyRegistryEditPopup = ({ open, drugId, onClose }) => {
       open={open && Boolean(drugId)}
       onClose={onClose}
       size='extraLarge'
-      title={api.title || 'แก้ไขรายการยา'}
+      title={api.title || 'แก้ไขทะเบียนยา'}
       subtitle={api.subtitle}
       onBack={step > 0 ? () => api.goBack() : undefined}
       tertiaryAction={

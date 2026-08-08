@@ -78,7 +78,7 @@ const PharmacyLabelPrint = ({ patientName, hn, items = [], pharmacistName = 'ภ
             color: 'var(--text-content-default)',
           }}
         >
-          <div style={{ fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-bold)', marginBottom: 'var(--dim-space-100)' }}>
+          <div style={{ fontSize: 'var(--type-size-lg)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-heading-strong, var(--type-weight-medium, 500))', marginBottom: 'var(--dim-space-100)' }}>
             {item.name}
           </div>
           <div style={{ fontSize: 'var(--type-size-sm)', marginBottom: 'var(--dim-space-200)' }}>

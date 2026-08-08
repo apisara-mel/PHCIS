@@ -926,7 +926,7 @@ const SectionTitle = ({ icon, children, right }) => (
 const DocumentPage = ({ doc }) => (
   <div style={{ background: 'var(--surface-card-100, #FFFFFF)', borderRadius: 'var(--dim-radius-200, 8px)', padding: 'var(--dim-space-600, 24px)', boxShadow: '0 2px 10px rgba(0,0,0,.12)', maxWidth: 460, width: '100%', margin: '0 auto' }}>
     <div style={{ textAlign: 'center', borderBottom: '2px solid var(--border-brandPrimary-default, #007549)', paddingBottom: 'var(--dim-space-300, 12px)', marginBottom: 'var(--dim-space-400, 16px)' }}>
-      <div style={{ fontWeight: 'var(--type-weight-bold, 700)', fontSize: 'var(--type-size-base, 16px)', color: 'var(--text-brandPrimary-default, #007549)', fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)' }}>ศูนย์บริการสาธารณสุข 4 ดินแดง</div>
+      <div style={{ fontWeight: 'var(--type-weight-heading-strong, var(--type-weight-medium, 500))', fontSize: 'var(--type-size-base, 16px)', color: 'var(--text-brandPrimary-default, #007549)', fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)' }}>ศูนย์บริการสาธารณสุข 4 ดินแดง</div>
       <div style={{ fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-content-secondary, #636B72)' }}>สำนักอนามัย กรุงเทพมหานคร</div>
     </div>
     <div style={{ fontWeight: 'var(--type-weight-bold, 700)', fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-default, #363B3F)', marginBottom: 'var(--dim-space-300, 12px)', textAlign: 'center' }}>{doc.docTitle}</div>
@@ -2183,7 +2183,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
         >
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--dim-space-300, 12px)', marginBottom: 'var(--dim-space-600, 24px)' }}>
             <Sym name='check_circle' size={32} fill={1} color='var(--icon-alertdialog-success, #067A4C)' />
-            <h1 style={{ margin: 0, fontSize: 'var(--type-size-lg, 18px)', fontWeight: 'var(--type-weight-bold, 700)', color: 'var(--text-alertdialog-text, #363B3F)', textAlign: 'center' }}>
+            <h1 style={{ margin: 0, fontSize: 'var(--type-size-lg, 18px)', fontWeight: 'var(--type-weight-heading-strong, var(--type-weight-medium, 500))', color: 'var(--text-alertdialog-text, #363B3F)', textAlign: 'center' }}>
               จบการปรึกษาแล้ว
             </h1>
             <p style={{ margin: 0, fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-alertdialog-subtext, #636B72)', textAlign: 'center', lineHeight: 1.6 }}>
