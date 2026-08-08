@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import AISearch from '@/components/search/AISearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import {
-  TMT_CATALOG,
   TMT_SEARCH_HISTORY_KEY,
   searchTmtCatalog,
   buildTmtSearchHistorySeed,
@@ -15,16 +14,28 @@ import {
    instead of the Doctor AI Lottie. Used by PharmacyRegistryEditor when
    adding a facility formulary row (ToR §1.9.1 / §5.1.2). */
 
-/* Official TMT assets mirrored from this.or.th (see public/images/brands/). */
+/* Official TMT wordmark mirrored from this.or.th (see public/images/brands/). */
 const TMT_LOGO_SRC = '/images/brands/tmt.svg';
-const TMT_ICON_SRC = '/images/brands/tmt-icon.png';
+
+/* Teal border/icon wash — same capsule-hero family as the panel
+   background (overrides AISearch indigo tokens locally only). */
+const TMT_SEARCH_CHROME = {
+  '--border-aiSearch-default': '#7AB0B5',
+  '--border-aiSearch-hover': '#5F9EA3',
+  '--border-aiSearch-typing': '#5F9EA3',
+  '--border-aiSearch-filled': '#6CA9AD',
+  '--icon-aiSearch-default': '#6CA9AD',
+  '--icon-aiSearch-hover': '#5F9EA3',
+  '--icon-aiSearch-typing': '#5F9EA3',
+  '--icon-aiSearch-filled': '#6CA9AD',
+};
 
 /**
  * @param {object} props
  * @param {string} props.value
  * @param {(next: string) => void} [props.onChange]
  * @param {(next: string, picked?: object) => void} [props.onSubmit]
- * @param {number} [props.width]
+ * @param {number|string} [props.width] AISearch width; use `'100%'` to stretch panel
  * @param {boolean} [props.dropdownInFlow]
  */
 export default function DoctorAiDrugPanel({
@@ -45,12 +56,15 @@ export default function DoctorAiDrugPanel({
     return searchTmtCatalog(q, { limit: 8 }).map(tmtToAiSearchRow);
   }, [value]);
 
+  const stretch = width === '100%' || width === '100';
+
   return (
     <div
       className='flex flex-col items-center'
       style={{
-        width: 'fit-content',
+        width: stretch ? '100%' : 'fit-content',
         maxWidth: '100%',
+        alignSelf: stretch ? 'stretch' : undefined,
         gap: 'var(--dim-space-200)',
         padding: 'var(--dim-space-600)',
         borderRadius: 'var(--dim-radius-500)',
@@ -59,32 +73,17 @@ export default function DoctorAiDrugPanel({
           'linear-gradient(90deg, #E6F7F8 0%, rgba(168, 218, 220, 0.55) 52%, rgba(122, 176, 181, 0.42) 100%)',
       }}
     >
-      <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-        <img
-          src={TMT_ICON_SRC}
-          alt=''
-          width={48}
-          height={48}
-          style={{
-            width: 'var(--dim-size-1000, 48px)',
-            height: 'var(--dim-size-1000, 48px)',
-            objectFit: 'contain',
-            display: 'block',
-          }}
-          aria-hidden
-        />
-        <img
-          src={TMT_LOGO_SRC}
-          alt='TMT — Thai Medicines Terminology'
-          style={{
-            height: 'var(--dim-size-700, 32px)',
-            width: 'auto',
-            maxWidth: 'min(180px, 40vw)',
-            objectFit: 'contain',
-            display: 'block',
-          }}
-        />
-      </div>
+      <img
+        src={TMT_LOGO_SRC}
+        alt='TMT — Thai Medicines Terminology'
+        style={{
+          height: 'var(--dim-size-700, 32px)',
+          width: 'auto',
+          maxWidth: 'min(180px, 40vw)',
+          objectFit: 'contain',
+          display: 'block',
+        }}
+      />
 
       <span
         style={{
@@ -115,14 +114,8 @@ export default function DoctorAiDrugPanel({
         placeholder='ค้นหารหัส GPU / TPU หรือชื่อยา เช่น Losartan'
         width={width}
         dropdownInFlow={dropdownInFlow}
+        style={TMT_SEARCH_CHROME}
       />
-
-      <span
-        className='text-xs text-ink-tertiary text-center'
-        style={{ maxWidth: width }}
-      >
-        มีรายการในบัญชีมาตรฐาน {TMT_CATALOG.length} รายการ — พิมพ์เพื่อค้นหาแล้วกด + เพื่อเพิ่มเข้าทะเบียน
-      </span>
     </div>
   );
 }

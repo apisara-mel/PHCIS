@@ -168,22 +168,30 @@ export const findFacilityRegistryMatch = (tmtRow) => {
 };
 
 /** Map a TMT catalog row into PharmacyRegistryEditor form fields. */
-export const tmtRowToRegistryForm = (tmtRow) => ({
-  code: tmtRow.tpuCode || tmtRow.gpuCode || '',
-  name: tmtRow.name || '',
-  genericName: tmtRow.genericName || '',
-  tradeName: tmtRow.tradeName || '',
-  unit: tmtRow.unit || 'tablet',
-  packSize: tmtRow.packSize || 100,
-  classification: tmtRow.classification || 'nlem',
-  highAlert: !!tmtRow.highAlert,
-  manufacturer: tmtRow.manufacturer || '',
-  distributor: tmtRow.distributor || '',
-  image: tmtRow.image,
-  tmtGpu: tmtRow.gpuCode || '',
-  tmtTpu: tmtRow.tpuCode || '',
-  tmtGpo: tmtRow.gpoCode || '',
-});
+export const tmtRowToRegistryForm = (tmtRow) => {
+  const unit = tmtRow.unit || 'tablet';
+  /* Liquid forms (ขวด/หลอด) use UNIT_CONVERSIONS defaults in the editor;
+     other forms keep packSize as “ต่อกล่อง”. */
+  return {
+    code: tmtRow.tpuCode || tmtRow.gpuCode || '',
+    name: tmtRow.name || '',
+    genericName: tmtRow.genericName || '',
+    tradeName: tmtRow.tradeName || '',
+    unit,
+    packSize: tmtRow.packSize || 100,
+    convertToUnit: unit === 'ml' ? 'ml' : unit,
+    classification: tmtRow.classification || 'nlem',
+    highAlert: !!tmtRow.highAlert,
+    manufacturer: tmtRow.manufacturer || '',
+    distributor: tmtRow.distributor || '',
+    /* Leave blank until staff uploads — form empty-state uses Form Builder
+     medication icon tile, not the catalog blister pack. */
+  image: '',
+    tmtGpu: tmtRow.gpuCode || '',
+    tmtTpu: tmtRow.tpuCode || '',
+    tmtGpo: tmtRow.gpoCode || '',
+  };
+};
 
 /* localStorage key for PrimarySearch recent history on add-registry. */
 export const TMT_SEARCH_HISTORY_KEY = 'mih:primarysearch-history:pharmacy-registry-tmt';

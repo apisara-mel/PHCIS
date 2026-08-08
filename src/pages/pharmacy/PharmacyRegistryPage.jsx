@@ -10,7 +10,7 @@ import { resolveHighAlertBadgeStyle } from '@/components/badge/clinicalBadgeStyl
 import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
 import Switch from '@/components/switch/Switch';
 import AlertDialog from '@/components/popup/AlertDialog';
-import { DRUG_REGISTRY, DRUG_CLASSIFICATIONS, UNIT_TYPES, currentPrice, subscribeRegistry, setRegistryDrugActive } from '@/data/pharmacyRegistry';
+import { DRUG_REGISTRY, DRUG_CLASSIFICATIONS, UNIT_TYPES, COUNT_UNIT_KEYS, currentPrice, subscribeRegistry, setRegistryDrugActive } from '@/data/pharmacyRegistry';
 import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
 import PharmacyRegistryEditPopup from '@/components/pharmacy/PharmacyRegistryEditPopup';
 import { buildRegistrySummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
@@ -41,7 +41,7 @@ const HIGH_ALERT_OPTIONS = [
 /* รูปแบบ (dosage form — ToR §1.9.5.1) — `unit` IS the dosage form. */
 const UNIT_OPTIONS = [
   { value: 'all', label: 'ทุกรูปแบบ' },
-  ...UNIT_TYPES.map((u) => ({ value: u.key, label: u.label })),
+  ...UNIT_TYPES.filter((u) => COUNT_UNIT_KEYS.includes(u.key)).map((u) => ({ value: u.key, label: u.label })),
 ];
 
 const classificationLabel = (key) => DRUG_CLASSIFICATIONS.find((c) => c.key === key)?.label || key;

@@ -13,22 +13,37 @@ import { MR_RIGHTS } from '@/data/mrPatients';
 export const RIGHTS_LIST = MR_RIGHTS;
 
 export const UNIT_TYPES = [
-  { key: 'tablet',  label: 'เม็ด'                 },
-  { key: 'capsule', label: 'แคปซูล'                },
-  { key: 'bottle',  label: 'ขวด'                   },
-  { key: 'tube',    label: 'หลอด'                  },
-  { key: 'sachet',  label: 'ซอง'                   },
-  { key: 'ml',      label: 'มิลลิลิตร (มล.)'        },
-  { key: 'box',     label: 'กล่อง'                 },
+  { key: 'bottle',  label: 'ขวด',     labelEn: 'Bottle'  },
+  { key: 'box',     label: 'กล่อง',   labelEn: 'Box'     },
+  { key: 'sachet',  label: 'ซอง',     labelEn: 'Sachet'  },
+  { key: 'tube',    label: 'หลอด',    labelEn: 'Tube'    },
+  { key: 'capsule', label: 'แคปซูล',  labelEn: 'Capsule' },
+  { key: 'tablet',  label: 'เม็ด',    labelEn: 'Tablet'  },
+  { key: 'blister', label: 'แผง',     labelEn: 'Blister' }, /* conversion target only — hidden in unit picker */
+  { key: 'ml',      label: 'ซีซี',    labelEn: 'mL'      }, /* ToR §1.9.1.2 “1 ขวด เป็น 60 ซีซี”; hidden in unit picker */
 ];
 
-/* §1.9.1.2 — "รองรับการกำหนดหน่วยได้มากกว่า 1 หน่วย และสามารถแปลงหน่วยของยาได้
-   เช่น จาก 1 ขวด เป็น 60 ซีซี". Generic fallback pairs for unit types that
-   aren't a per-drug packSize (below) — e.g. a liquid form's ขวด→มล., which
-   this tablet/capsule-only catalog doesn't have a real drug for yet. */
+/* Units selectable as the primary counting unit (left column). */
+export const COUNT_UNIT_KEYS = ['bottle', 'box', 'sachet', 'tube', 'capsule', 'tablet'];
+
+/* §1.9.1.2 — mock conversion rows seeded when picking a counting unit.
+   A unit may have multiple rows (e.g. กล่อง → แผง + เม็ด). */
+export const UNIT_CONVERSION_DEFAULTS = {
+  bottle:  [{ qty: 60,  toUnit: 'ml' }],
+  box:     [{ qty: 10,  toUnit: 'blister' }, { qty: 100, toUnit: 'tablet' }],
+  sachet:  [{ qty: 1,   toUnit: 'tablet' }],
+  tube:    [{ qty: 30,  toUnit: 'ml' }],
+  capsule: [],
+  tablet:  [],
+};
+
+/* Legacy single-pair table (fallback for convertPackToUnit helpers). */
 export const UNIT_CONVERSIONS = [
-  { fromUnit: 'bottle', toUnit: 'ml',  factor: 60,  note: '1 ขวด = 60 มล. (ตัวอย่าง — ยังไม่มียารูปแบบน้ำในทะเบียนนี้)' },
-  { fromUnit: 'tube',   toUnit: 'ml',  factor: 30,  note: '1 หลอด = 30 มล. (ตัวอย่าง — ยังไม่มียารูปแบบครีม/เจลในทะเบียนนี้)' },
+  { fromUnit: 'bottle',  toUnit: 'ml',      factor: 60,  note: '1 ขวด = 60 ซีซี' },
+  { fromUnit: 'box',     toUnit: 'blister', factor: 10,  note: '1 กล่อง = 10 แผง' },
+  { fromUnit: 'box',     toUnit: 'tablet',  factor: 100, note: '1 กล่อง = 100 เม็ด' },
+  { fromUnit: 'sachet',  toUnit: 'tablet',  factor: 1,   note: '1 ซอง = 1 เม็ด' },
+  { fromUnit: 'tube',    toUnit: 'ml',      factor: 30,  note: '1 หลอด = 30 ซีซี' },
 ];
 
 /* Real per-drug box→dispensing-unit conversions (ToR §1.9.1.2's actual
@@ -80,6 +95,23 @@ const PSYCHOTROPIC_NAMES = new Set(['Diazepam 5 mg']);
    not sourced from actual product data. */
 const MANUFACTURERS = ['องค์การเภสัชกรรม (GPO)', 'บริษัท เบอร์ลินฟาร์มาซูติคอลอินดัสตรี้ จำกัด', 'บริษัท ที.แมน ฟาร์มา จำกัด', 'บริษัท สยามฟาร์มาซูติคอล จำกัด'];
 const DISTRIBUTORS = ['บริษัท ดีเคเอสเอช (ประเทศไทย) จำกัด', 'บริษัท ซิลลิค ฟาร์มา จำกัด', 'บริษัท เซ็นทรัลโพลีเทรดดิ้ง จำกัด'];
+
+/* Mock catalog for registry “โรคประจำตัวที่ไม่อนุญาต” dropdown — names
+   align with `mrPatients.js` chronicDiseases[].name where possible. */
+export const CHRONIC_DISEASE_OPTIONS = [
+  'โรคไตเรื้อรัง ระยะ 3–4 (CKD)',
+  'หัวใจล้มเหลว',
+  'ความดันโลหิตสูง (HT)',
+  'โรคเบาหวานชนิดที่ 2',
+  'โรคหอบหืด',
+  'โรคตับแข็ง',
+  'โรคหลอดเลือดสมอง',
+  'ไขมันในเลือดสูง',
+  'โรคเกาต์',
+  'โรคกระเพาะอาหาร / แผลในกระเพาะ',
+  'โรคลมชัก',
+  'โรคไทรอยด์',
+];
 
 /* โรคประจำตัวที่ไม่อนุญาตให้จ่าย (legacy §2.1.1 "กรณีผู้ป่วยมีโรคประจำตัว" —
    คำเตือนเมื่อยาตัวที่สั่งตรงกับโรคประจำตัวที่ไม่อนุญาต). Real, defensible
@@ -328,5 +360,13 @@ export const checkDisallowedChronicDisease = (patient, items = []) => {
 /** Items restricted to a specific prescriber group, with that group's label. */
 export const checkDoctorGroupRestriction = (items = []) =>
   items
-    .map((item) => ({ item, group: getRegistryDrug(item.name)?.restrictedToDoctorGroup }))
+    .map((item) => {
+      const drug = getRegistryDrug(item.name);
+      const scopes = drug?.restrictedPrescriberScopes;
+      if (scopes?.length) {
+        const groups = [...new Set(scopes.map((s) => s.group).filter(Boolean))];
+        return { item, group: groups.join(', ') };
+      }
+      return { item, group: drug?.restrictedToDoctorGroup || null };
+    })
     .filter((r) => r.group);

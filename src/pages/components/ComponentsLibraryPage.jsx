@@ -2867,7 +2867,7 @@ const StepperStateTable = ({ cellMinWidth = 170 }) => (
 const StepperDemo = () => {
   const [v, setV] = useState(1);
   return (
-    <Section title='Stepper' summary='Numeric +/- input (Figma 2709:6338). Two flanking buttons + centered bold value. 2 sizes (Large 40 / Small 36) × 4 states (default · hover · filled · disabled). Pass `state` to force the visual state for docs; in real use it resolves from focus + value + disabled. Use min/max/step to constrain. Table below mirrors the Figma variant matrix.'>
+    <Section title='Stepper' summary='Numeric +/- input (Figma 2709:6338). Two flanking buttons + centered value in Sarabun (--type-family-body, medium). 2 sizes (Large 40 / Small 36) × 4 states (default · hover · filled · disabled). Pass `state` to force the visual state for docs; in real use it resolves from focus + value + disabled. Use min/max/step to constrain. Table below mirrors the Figma variant matrix.'>
       <Variant label='State matrix · 2 sizes × 4 states' stack>
         <StepperStateTable />
       </Variant>

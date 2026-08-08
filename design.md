@@ -750,7 +750,7 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | `typography.family.body` | `Sarabun` |
 | `typography.family.ui` | `Sarabun` |
 
-> **Exception — Status Summary Card hero number:** ใช้ `typography.family.body` (Sarabun) ตรง ๆ เสมอ (เลขต้อง tabular) — ไม่มี token แยก ห้ามเปลี่ยนเป็น `heading-content` (Mitr)
+> **Exception — tabular digits (Status Summary Card hero number, Stepper value):** ใช้ `typography.family.body` (Sarabun) ตรง ๆ เสมอ — ไม่มี token แยก ห้ามเปลี่ยนเป็น `heading-content` (Mitr)
 
 #### Font Style
 
@@ -5434,7 +5434,18 @@ The Date Picker reuses `input` tokens for the field and `calendar` tokens for th
 
 > **Behavior:** User can click `−`/`+` buttons to decrement/increment, or click the number field and type directly. Value is clamped to `[min, max]` on blur. The `−` button disables automatically at `min`, `+` at `max`.
 
-#### 6.5.5 CSS Implementation
+#### 6.5.5 Typography (number field)
+
+> **Typography — Stepper value:** `typography.family.body` (**Sarabun**) via `--type-family-body` — same rule as Status Summary Card hero numbers. Digits must stay tabular / body family; **do not** use `heading-content` (Mitr). Weight: Medium (`--type-weight-medium` / 500). Size: Large = `typography.size.base` (16px); Small = `typography.size.sm` (14px).
+
+| Role | CSS Variable | Figma Token | Value |
+|------|-------------|-------------|-------|
+| Number family | `--type-family-body` | `typography.family.body` | Sarabun |
+| Number weight | `--type-weight-medium` | `typography.weight.medium` | 500 |
+| Number size — Large | `--type-size-base` | `typography.size.base` | 16px |
+| Number size — Small | `--type-size-sm` | `typography.size.sm` | 14px |
+
+#### 6.5.6 CSS Implementation
 
 ```css
 .st2 {
@@ -5466,17 +5477,22 @@ The Date Picker reuses `input` tokens for the field and `calendar` tokens for th
 .st2-btn:disabled { cursor: not-allowed; color: var(--icon-stepper-btn-dis); }
 /* Divider lines */
 .st2-div { width: 1px; background: var(--border-stepper-default); align-self: stretch; }
-/* Input field */
+/* Input field — Sarabun (body), not Mitr */
 .st2-inp {
   flex: 1; border: none; background: transparent; outline: none;
-  text-align: center; font-size: 16px; font-weight: 500; color: var(--n900);
+  text-align: center;
+  font-family: var(--type-family-body);
+  font-size: var(--type-size-base);
+  font-weight: var(--type-weight-medium, 500);
+  color: var(--text-input-filled, #4D5358);
   -moz-appearance: textfield; appearance: textfield;
 }
+.st2.sm .st2-inp { font-size: var(--type-size-sm); }
 .st2-inp::-webkit-inner-spin-button,
 .st2-inp::-webkit-outer-spin-button { -webkit-appearance: none; }
 ```
 
-#### 6.5.6 Dimension Tokens (Figma node 2709-6338)
+#### 6.5.7 Dimension Tokens (Figma node 2709-6338)
 
 | Property | Design Token | Value | Role |
 |----------|-------------|-------|------|
@@ -5486,7 +5502,7 @@ The Date Picker reuses `input` tokens for the field and `calendar` tokens for th
 | Border radius | `dimension/radius/200` | **8px** | Container corner |
 | Border default | `dimension/stroke/150` | **1.5px** | Outer border |
 
-#### 6.5.7 Token Alias Chain
+#### 6.5.8 Token Alias Chain
 
 ```
 --border-stepper-default      ← border/input/default       ← neutral-200       ← #E2E4E6
@@ -5500,6 +5516,7 @@ The Date Picker reuses `input` tokens for the field and `calendar` tokens for th
 --icon-stepper-btn-active     ← icon/stepper/btn-active    ← emerald-700       ← #007549
 --icon-stepper-btn-dis        ← icon/input/disabled        ← neutral-400       ← #ADB2B7
 --surface-stepper-disabled    ← surface/input/disabled     ← neutral-100       ← #F4F5F5
+--type-family-body (Stepper #) ← typography.family.body    ← Sarabun
 ```
 
 ---
