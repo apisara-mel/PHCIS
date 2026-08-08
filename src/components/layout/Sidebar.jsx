@@ -109,6 +109,22 @@ const ITEMS = [
   },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht',      path: '/finance'           },
+  /* สิทธิและการเบิกจ่าย — TOR §1.7.3–1.7.5. ตรวจสอบสิทธิ · ส่งเบิก · Claim ·
+     ตั้งค่า เป็น tab sections ในหน้าเดียว (/rights) จึงไม่มี subItems.
+     วางติดงานการเงินเพราะเป็น workflow ต่อกัน (ชำระเงิน → ส่งเบิก). */
+  { key: 'rights',    label: 'สิทธิและการเบิกจ่าย',        icon: 'verified_user', path: '/rights' },
+  /* ระบบงานตรวจสุขภาพ — TOR §1.19. ชุดตรวจ · กลุ่มเป้าหมาย (import spreadsheet) ·
+     คิวตรวจ · คัดกรอง 7 แบบ + แปลผลอัตโนมัติ · รายงาน · กิจกรรมชุมชน. */
+  {
+    key: 'checkup', label: 'ระบบงานตรวจสุขภาพ', icon: 'health_metrics', path: '/checkup',
+    subItems: [
+      { key: 'checkup-queue',     label: 'คิวตรวจสุขภาพ',           path: '/checkup'           },
+      { key: 'checkup-targets',   label: 'กลุ่มเป้าหมายตรวจสุขภาพ',  path: '/checkup/targets'   },
+      { key: 'checkup-packages',  label: 'ทะเบียนชุดตรวจสุขภาพ',     path: '/checkup/packages'  },
+      { key: 'checkup-reports',   label: 'รายงานงานตรวจสุขภาพ',     path: '/checkup/reports'   },
+      { key: 'checkup-community', label: 'กิจกรรมสุขภาพชุมชน',       path: '/checkup/community' },
+    ],
+  },
   /* รายงานเฝ้าระวังโรค รง.506 — TOR §1.2.3.6 (EPI-NET). เดิมเป็น submenu ใต้
      คัดกรองและซักประวัติ; ยกเป็นเมนูหลักใน rail. Route ยังอยู่ที่ /opd/rg506. */
   {
