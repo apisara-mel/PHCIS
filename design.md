@@ -749,7 +749,8 @@ badge fill itself is a 141° cyan gradient (token exception, inline).
 | `typography.family.heading-content` | `Mitr` |
 | `typography.family.body` | `Sarabun` |
 | `typography.family.ui` | `Sarabun` |
-| `typography.family.statussummarycard-number` | `Sarabun` (alias body) — Status Summary Card hero count |
+
+> **Exception — Status Summary Card hero number:** ใช้ `typography.family.body` (Sarabun) ตรง ๆ เสมอ (เลขต้อง tabular) — ไม่มี token แยก ห้ามเปลี่ยนเป็น `heading-content` (Mitr)
 
 #### Font Style
 
@@ -1671,7 +1672,7 @@ Semantic tokens assign design meaning to values. They have two modes — **light
 | `text.statusSummaryCard.increase` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 | `text.statusSummaryCard.decrease` | `#636B72` | `#ADB2B7` | `Primitive/color/neutral/600` |
 
-> **Typography — Status Summary Card number:** `typography.family.body` (Sarabun) via `--type-family-statussummarycard-number`. Hero count is **not** `heading-content` (Mitr). Weight: Bold · size: `typography.size.lg` (18px). Label / indicator stay body Regular xs.
+> **Typography — Status Summary Card number:** `typography.family.body` (Sarabun) — ใช้ `--type-family-body` ตรง ๆ ไม่มี token แยก. Hero count is **not** `heading-content` (Mitr). Weight: Bold · size: `typography.size.lg` (18px). Label / indicator stay body Regular xs.
 | `text.categorySummaryCard.A-number` | `#1D4ED8` | `#93C5FD` | `Primitive/color/blue/700` |
 | `text.categorySummaryCard.B-number` | `#007549` | `#91DFBB` | `Brand/primary/700` |
 | `text.categorySummaryCard.C-number` | `#196C65` | `#6CDCCA` | `Primitive/color/teal/700` |
@@ -9675,7 +9676,7 @@ h0 |
 | Tag text | `label1` · body Medium | 14 px | 500 |
 | List item text | `body4` · body Regular | `typograpphy/size/sm` 14 px | 400 |
 | Date text | `body4` · body Regular | `typograpphy/size/sm` 14 px | 400 |
-| Manual button label | `button.sm` · Mitr Regular (`NeutralSubdueButton` outline sm) | `--type-size-button-sm` 14 px | 400 (`--type-weight-button`) |
+| Manual button label | `button.sm` · Mitr Regular (`NeutralSubdueButton` outline sm) | `--type-size-button-sm` 14 px | 400 (`--type-weight-title`) |
 | Font-size label | `caption1` · body Regular | `typograpphy/size/xs` 12 px | 400 |
 | Font-size ก (S/M/L) | — | 14 / 16 / 18 px | — |
 

@@ -735,8 +735,6 @@
      Fall back to Sarabun → system if the brand font hasn't loaded yet. */
   --type-family-heading-graphic:  'Sao Chingcha', 'Sarabun', system-ui, sans-serif;
   --type-family-heading-graphic2: 'Mitr', 'Sarabun', system-ui, sans-serif;
-  /* Status Summary Card hero number — always Sarabun (tabular UI figures), not Mitr */
-  --type-family-statussummarycard-number: var(--type-family-body);
   /* Button labels — Mitr (same brand family as heading-content) */
   --type-family-button: var(--type-family-heading-content);
   --type-size-xxs:       10px;      /* typography.size.xxs */
@@ -766,10 +764,9 @@
   --type-weight-regular: 400;
   --type-weight-medium:  500;
   --type-weight-bold:    700;
-  /* Page/component titles (SubHeader, Popup, Table HeaderCell, h1–h4) — Mitr Regular (400) */
+  /* Page/component titles + button labels (SubHeader, Popup, Table HeaderCell,
+     h1–h4, ปุ่มทุกตระกูล) — Mitr Regular (400) */
   --type-weight-title:   var(--type-weight-regular, 400);
-  /* Button labels — same weight as Topic / page titles (Regular) */
-  --type-weight-button:  var(--type-weight-title, var(--type-weight-regular, 400));
 
   /* Composite text styles (Figma text styles → CSS). Use as classes below. */
   /* typography.h5-emphasis — Archive Payment Banner title 284:39953 */
@@ -1162,7 +1159,7 @@
   --text-secondarysearch-hover:       #4D5358;
   --text-secondarysearch-typing:      #4D5358;
   --text-secondarysearch-filled:      #4D5358;
-  --ring-secondarysearch:             rgb(var(--brand-p600-rgb) / 0.15); /* effect/input/100 = primaryborder/600 */
+  /* focus ring ใช้ --focus-ring-input-hover (ค่าเดียวกับ effect input/100) — ไม่มี token แยกของ search */
 
   /* Settings modal — surfaces, borders, text, mode-icon backdrops */
   --surface-modal-default:           #FFFFFF;
@@ -1478,7 +1475,7 @@
   --mobile-button-type-size-xl:  var(--type-size-button-xl, 18px);
   /* legacy alias (Medium) */
   --mobile-button-type-size:     var(--mobile-button-type-size-md);
-  --mobile-button-type-weight:   var(--type-weight-button, var(--type-weight-regular, 400));
+  --mobile-button-type-weight:   var(--type-weight-title, var(--type-weight-regular, 400));
   /* Brand Drop Shadow Bottom/300 — Fill default (Figma Brand Button) */
   --mobile-button-shadow-fill:
     0 var(--dim-space-100, 4px) var(--dim-space-100, 4px) -1px var(--PrimaryShadow-600),
