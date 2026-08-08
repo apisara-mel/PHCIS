@@ -133,7 +133,7 @@ const DiagnosisCodingPanel = ({ form, setForm, patient }) => {
 
   const columns = [
     {
-      key: 'code', header: 'รหัส', width: 190,
+      key: 'code', header: 'รหัส',
       render: (row) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           {row.uncoded || !row.code ? (
@@ -173,7 +173,7 @@ const DiagnosisCodingPanel = ({ form, setForm, patient }) => {
       ),
     },
     {
-      key: 'type', header: 'ประเภทการวินิจฉัย', width: 280,
+      key: 'type', header: 'ประเภทการวินิจฉัย',
       render: (row) => (
         <DiagTypeSelect
           value={row.type}
@@ -185,7 +185,7 @@ const DiagnosisCodingPanel = ({ form, setForm, patient }) => {
       ),
     },
     {
-      key: 'actions', header: '', width: 110,
+      key: 'actions', header: '',
       render: (row) => (
         <GuardedAction allowed={access.canEdit}>
           <NeutralSubdueButton variant='outline' size='sm' leadingIcon='delete' onClick={() => removeRow(row)}>

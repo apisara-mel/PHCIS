@@ -72,28 +72,24 @@ const COLUMNS = [
   {
     key: 'groupPolicyLabel',
     header: 'Group Policy',
-    width: 160,
     sortable: true,
     render: (row) => <StaffBadge label={row.groupPolicyLabel || row.groupPolicy} />,
   },
   {
     key: 'subDivision',
     header: 'สายย่อย',
-    width: 192,
     sortable: true,
     render: (row) => <StaffBadge label={row.subDivision} />,
   },
   {
     key: 'dept',
     header: 'แผนก',
-    width: 200,
     sortable: true,
     render: (row) => <StaffBadge label={row.dept} />,
   },
   {
     key: 'scheduleStatus',
     header: 'สถานะ',
-    width: 180,
     sortable: true,
     render: (row) => <StatusBadge scheduleStatus={row.scheduleStatus} />,
   },

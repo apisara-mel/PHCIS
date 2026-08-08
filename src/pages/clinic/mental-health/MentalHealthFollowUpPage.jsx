@@ -251,8 +251,7 @@ const MentalHealthFollowUpPage = () => {
       label: '9Q ครั้งล่าสุดในช่วง',
       value: canRead ? (latest9Q ? latest9Q.score : '—') : '••',
       color: latest9Q && interpret9Q(latest9Q.score).referDoctor ? 'negative' : 'positive',
-      icon: 'psychology',
-    },
+      icon: 'psychology'},
   ]), [assessments, labs, events, latest9Q, canRead]);
 
   const totalAssessmentPages = Math.max(1, Math.ceil(assessmentsSorted.length / ASSESSMENT_PAGE_SIZE));
@@ -320,14 +319,14 @@ const MentalHealthFollowUpPage = () => {
   };
 
   const assessmentColumns = [
-    { key: 'date', label: 'วันที่ประเมิน', width: 130, render: (r) => formatMhDate(r.date) },
+    { key: 'date', label: 'วันที่ประเมิน', render: (r) => formatMhDate(r.date) },
     {
-      key: 'tool', label: 'แบบประเมิน', width: 150,
+      key: 'tool', label: 'แบบประเมิน',
       render: (r) => (
         <ColorfulBadge style={TOOL_BADGE_STYLE[r.tool] || 'grey'} size='small' hierarchy='secondary'>{r.tool}</ColorfulBadge>
       ),
     },
-    { key: 'score', label: 'คะแนน', width: 90, render: (r) => r.score },
+    { key: 'score', label: 'คะแนน', render: (r) => r.score },
     {
       key: 'interp', label: 'การแปลผล', flex: true, minWidth: 240, sortable: false,
       render: (r) => {
@@ -339,13 +338,13 @@ const MentalHealthFollowUpPage = () => {
   ];
 
   const labColumns = [
-    { key: 'date', label: 'วันที่ตรวจ', width: 130, render: (r) => formatMhDate(r.date) },
+    { key: 'date', label: 'วันที่ตรวจ', render: (r) => formatMhDate(r.date) },
     { key: 'test', label: 'รายการตรวจ', flex: true, minWidth: 180 },
-    { key: 'value', label: 'ผล', width: 90 },
-    { key: 'unit', label: 'หน่วย', width: 100 },
-    { key: 'ref', label: 'ค่าอ้างอิง', width: 120 },
+    { key: 'value', label: 'ผล' },
+    { key: 'unit', label: 'หน่วย' },
+    { key: 'ref', label: 'ค่าอ้างอิง' },
     {
-      key: 'flag', label: 'สถานะ', width: 140, sortable: false,
+      key: 'flag', label: 'สถานะ', sortable: false,
       render: (r) => {
         const f = LAB_FLAG[r.flag] || LAB_FLAG.normal;
         return <ColorfulBadge style={f.style} size='small' hierarchy='secondary'>{f.label}</ColorfulBadge>;

@@ -269,18 +269,17 @@ const QueueSettingsPage = () => {
   };
 
   const stationColumns = [
-    { key: 'prefix', label: 'รหัส', width: 90, render: (r) => (
+    { key: 'prefix', label: 'รหัส', render: (r) => (
       <ColorfulBadge style='teal' size='small' hierarchy='secondary'>{r.prefix}</ColorfulBadge>
     ) },
     { key: 'label', label: 'ชื่อจุดบริการ', flex: true, minWidth: 200 },
-    { key: 'zone', label: 'โซน / ชั้น', width: 160, render: (r) => `${r.zone} · ${r.floor}` },
-    { key: 'sourceModule', label: 'ระบบต้นทาง', width: 170, render: (r) => SOURCE_MODULES.find((m) => m.value === r.sourceModule)?.label || '—' },
-    { key: 'displayId', label: 'จอแสดงคิวที่ผูก', width: 200, render: (r) => QUEUE_DISPLAYS.find((d) => d.id === r.displayId)?.label || '—' },
-    { key: 'order', label: 'ลำดับแสดงผล', width: 130 },
+    { key: 'zone', label: 'โซน / ชั้น', render: (r) => `${r.zone} · ${r.floor}` },
+    { key: 'sourceModule', label: 'ระบบต้นทาง', render: (r) => SOURCE_MODULES.find((m) => m.value === r.sourceModule)?.label || '—' },
+    { key: 'displayId', label: 'จอแสดงคิวที่ผูก', render: (r) => QUEUE_DISPLAYS.find((d) => d.id === r.displayId)?.label || '—' },
+    { key: 'order', label: 'ลำดับแสดงผล' },
     {
       key: 'active',
       label: 'เปิดรับคิว',
-      width: 130,
       render: (r) => (
         <Tooltip content={canAdmin ? (r.active ? 'ปิดรับคิวชั่วคราว' : 'เปิดรับคิว') : 'ต้องมีสิทธิผู้ดูแลระบบ'} position='top'>
           <span className='inline-flex'>
@@ -303,7 +302,6 @@ const QueueSettingsPage = () => {
     {
       key: 'action',
       label: 'การดำเนินการ',
-      width: 130,
       sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
@@ -380,8 +378,8 @@ const QueueSettingsPage = () => {
     { key: 'label', label: 'ชื่อประเภทคิว', flex: true, minWidth: 180, render: (r) => (
       <ColorfulBadge style={r.color} size='small' hierarchy='secondary'>{r.label}</ColorfulBadge>
     ) },
-    { key: 'key', label: 'รหัสประเภท', width: 150 },
-    { key: 'weight', label: 'น้ำหนักลำดับ', width: 140, render: (r) => `${r.weight} (ยิ่งน้อยยิ่งก่อน)` },
+    { key: 'key', label: 'รหัสประเภท' },
+    { key: 'weight', label: 'น้ำหนักลำดับ', render: (r) => `${r.weight} (ยิ่งน้อยยิ่งก่อน)` },
     {
       key: 'stationIds',
       label: 'ใช้กับจุดบริการ',
@@ -389,12 +387,10 @@ const QueueSettingsPage = () => {
       minWidth: 180,
       render: (r) => (r.stationIds === 'all'
         ? 'ทุกจุดบริการ'
-        : r.stationIds.map((id) => getStation(id)?.label).filter(Boolean).join(' · ') || '—'),
-    },
+        : r.stationIds.map((id) => getStation(id)?.label).filter(Boolean).join(' · ') || '—')},
     {
       key: 'action',
       label: 'การดำเนินการ',
-      width: 130,
       sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>

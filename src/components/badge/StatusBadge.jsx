@@ -96,6 +96,7 @@ const StatusBadge = ({
 
   return (
     <span
+      data-mih-status-badge=""
       className={`inline-flex items-center justify-center shrink-0 whitespace-nowrap ${className}`}
       style={{
         height: sizeStyles.height,
@@ -131,6 +132,7 @@ const StatusBadge = ({
       {renderIcon && icon && <Sym name={icon} size={sizeStyles.iconSize} color={iconColor} />}
       {showText && children !== undefined && (
         <span
+          data-mih-status-badge-label=""
           className='overflow-hidden'
           style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >

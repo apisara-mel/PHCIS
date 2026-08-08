@@ -158,9 +158,9 @@ const OpdRg506Page = () => {
   const isAllDefault = diseaseFilter === 'all' && statusFilter === 'all' && (dateValue.quick || 'all') === 'all';
 
   const columns = useMemo(() => ([
-    { key: 'reportNo', label: 'เลขที่รายงาน', width: 160 },
-    { key: 'foundDate', label: 'วันพบผู้ป่วย', width: 128 },
-    { key: 'hn', label: 'HN', width: 96 },
+    { key: 'reportNo', label: 'เลขที่รายงาน' },
+    { key: 'foundDate', label: 'วันพบผู้ป่วย' },
+    { key: 'hn', label: 'HN' },
     { key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160 },
     {
       key: 'disease',
@@ -172,7 +172,6 @@ const OpdRg506Page = () => {
     {
       key: 'status',
       label: 'สถานะ',
-      width: 160,
       render: (row) => {
         const meta = RG506_STATUS[row.status] || RG506_STATUS.draft;
         return <Badge style={meta.badge} size='small'>{meta.label}</Badge>;
@@ -181,7 +180,6 @@ const OpdRg506Page = () => {
     {
       key: 'actions',
       label: 'การดำเนินการ',
-      width: 132,
       sortable: false,
       render: (row) => (
         <BrandSubdueButton

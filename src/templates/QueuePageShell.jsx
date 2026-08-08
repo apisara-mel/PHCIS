@@ -294,6 +294,7 @@ const QueuePageShell = ({
                     size='small'
                     selected={activeTab === t.key}
                     leadingIcon={t.icon || undefined}
+                    count={typeof t.count === 'number' ? t.count : undefined}
                     onClick={() => onTabChange?.(t.key)}
                   >
                     {t.label}

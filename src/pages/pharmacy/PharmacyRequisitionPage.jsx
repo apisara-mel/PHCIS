@@ -312,21 +312,21 @@ const NewReceivingForm = ({ onCreate, onCancel }) => {
 };
 
 const REQUISITION_COLUMNS = [
-  { key: 'seq', label: 'ลำดับ', width: 60, align: 'center', render: (r) => r.seq ?? '-', print: (r) => r.seq ?? '-' },
-  { key: 'requisitionNo', label: 'เลขที่คำขอ', width: 150 },
+  { key: 'seq', label: 'ลำดับ', align: 'center', render: (r) => r.seq ?? '-', print: (r) => r.seq ?? '-' },
+  { key: 'requisitionNo', label: 'เลขที่คำขอ' },
   { key: 'drugName', label: 'ชื่อยา', flex: true, minWidth: 200 },
-  { key: 'itemCategory', label: 'ประเภทรายการ', width: 110, render: (r) => ITEM_CATEGORY_LABEL[r.itemCategory] || '-', print: (r) => ITEM_CATEGORY_LABEL[r.itemCategory] || '-' },
-  { key: 'packSize', label: 'บรรจุ', width: 140, render: (r) => r.packSize || '-', print: (r) => r.packSize || '-' },
-  { key: 'requisitionType', label: 'ประเภทการเบิก', width: 130, render: (r) => <Badge style={r.requisitionType === 'urgent' ? 'error' : 'neutral'} size='small'>{REQUISITION_TYPE_LABEL[r.requisitionType]}</Badge>, print: (r) => REQUISITION_TYPE_LABEL[r.requisitionType] },
-  { key: 'quantity', label: 'ขอเบิกใหม่', width: 110, align: 'center', render: (r) => `${r.quantity} ${r.unit}`, print: (r) => `${r.quantity} ${r.unit}` },
-  { key: 'requisitionCount', label: 'เบิกครั้งที่', width: 90, align: 'center', render: (r) => r.requisitionCount ?? '-', print: (r) => r.requisitionCount ?? '-' },
-  { key: 'previous', label: 'เบิกครั้งที่แล้ว', width: 160, render: (r) => r.previousRequestQty != null ? `${r.previousRequestQty} ${r.unit} (${formatThaiDate(r.previousRequestAt)})` : '—', print: (r) => r.previousRequestQty != null ? `${r.previousRequestQty} ${r.unit} (${formatThaiDate(r.previousRequestAt)})` : '—' },
+  { key: 'itemCategory', label: 'ประเภทรายการ', render: (r) => ITEM_CATEGORY_LABEL[r.itemCategory] || '-', print: (r) => ITEM_CATEGORY_LABEL[r.itemCategory] || '-' },
+  { key: 'packSize', label: 'บรรจุ', render: (r) => r.packSize || '-', print: (r) => r.packSize || '-' },
+  { key: 'requisitionType', label: 'ประเภทการเบิก', render: (r) => <Badge style={r.requisitionType === 'urgent' ? 'error' : 'neutral'} size='small'>{REQUISITION_TYPE_LABEL[r.requisitionType]}</Badge>, print: (r) => REQUISITION_TYPE_LABEL[r.requisitionType] },
+  { key: 'quantity', label: 'ขอเบิกใหม่', align: 'center', render: (r) => `${r.quantity} ${r.unit}`, print: (r) => `${r.quantity} ${r.unit}` },
+  { key: 'requisitionCount', label: 'เบิกครั้งที่', align: 'center', render: (r) => r.requisitionCount ?? '-', print: (r) => r.requisitionCount ?? '-' },
+  { key: 'previous', label: 'เบิกครั้งที่แล้ว', render: (r) => r.previousRequestQty != null ? `${r.previousRequestQty} ${r.unit} (${formatThaiDate(r.previousRequestAt)})` : '—', print: (r) => r.previousRequestQty != null ? `${r.previousRequestQty} ${r.unit} (${formatThaiDate(r.previousRequestAt)})` : '—' },
   {
-    key: 'daysUntilNext', label: 'เหลือถึงวันเบิกใหม่', width: 140, align: 'center',
+    key: 'daysUntilNext', label: 'เหลือถึงวันเบิกใหม่', align: 'center',
     render: (r) => { const d = estimateDaysUntilNextRequisition(r.drugName); return d != null ? `~${d} วัน` : '—'; },
     print: (r) => { const d = estimateDaysUntilNextRequisition(r.drugName); return d != null ? `~${d} วัน` : '—'; },
   },
-  { key: 'approvedQuantity', label: 'จำนวนอนุมัติ', width: 110, align: 'center', render: (r) => r.approvedQuantity != null ? `${r.approvedQuantity} ${r.unit}` : '—', print: (r) => r.approvedQuantity != null ? `${r.approvedQuantity} ${r.unit}` : '—' },
+  { key: 'approvedQuantity', label: 'จำนวนอนุมัติ', align: 'center', render: (r) => r.approvedQuantity != null ? `${r.approvedQuantity} ${r.unit}` : '—', print: (r) => r.approvedQuantity != null ? `${r.approvedQuantity} ${r.unit}` : '—' },
   {
     key: 'requestedBy', label: 'ผู้ขอเบิก', flex: true, minWidth: 200,
     render: (r) => (
@@ -340,8 +340,8 @@ const REQUISITION_COLUMNS = [
   { key: 'requestingCenter', label: 'ศูนย์ที่ขอเบิก', flex: true, minWidth: 200, render: (r) => CLINIC_LABEL[r.requestingCenter] || '-', print: (r) => CLINIC_LABEL[r.requestingCenter] || '-' },
   { key: 'targetUnit', label: 'ส่งไปยัง', flex: true, minWidth: 180, render: (r) => REQUISITION_TARGET_LABEL[r.targetUnit] || '-', print: (r) => REQUISITION_TARGET_LABEL[r.targetUnit] || '-' },
   { key: 'notes', label: 'หมายเหตุ', flex: true, minWidth: 160, render: (r) => r.notes || '—', print: (r) => r.notes || '—' },
-  { key: 'requestedAt', label: 'วันที่ขอเบิก', width: 130, render: (r) => formatThaiDate(r.requestedAt), print: (r) => formatThaiDate(r.requestedAt) },
-  { key: 'status', label: 'สถานะ', width: 130, render: (r) => <Badge style={REQ_STATUS_PILL[r.status].style} size='small'>{REQ_STATUS_PILL[r.status].label}</Badge>, print: (r) => REQ_STATUS_PILL[r.status].label },
+  { key: 'requestedAt', label: 'วันที่ขอเบิก', render: (r) => formatThaiDate(r.requestedAt), print: (r) => formatThaiDate(r.requestedAt) },
+  { key: 'status', label: 'สถานะ', render: (r) => <Badge style={REQ_STATUS_PILL[r.status].style} size='small'>{REQ_STATUS_PILL[r.status].label}</Badge>, print: (r) => REQ_STATUS_PILL[r.status].label },
 ];
 
 const RECEIVING_STATUS_PILL = {
@@ -349,24 +349,24 @@ const RECEIVING_STATUS_PILL = {
 };
 
 const RECEIVING_COLUMNS = [
-  { key: 'seq', label: 'ลำดับ', width: 60, align: 'center', render: (r) => r.seq ?? '-', print: (r) => r.seq ?? '-' },
-  { key: 'receiptNo', label: 'เลขที่ใบรับ', width: 150 },
+  { key: 'seq', label: 'ลำดับ', align: 'center', render: (r) => r.seq ?? '-', print: (r) => r.seq ?? '-' },
+  { key: 'receiptNo', label: 'เลขที่ใบรับ' },
   { key: 'department', label: 'หน่วยงาน', flex: true, minWidth: 180, render: (r) => r.department || '—', print: (r) => r.department || '—' },
   { key: 'drugName', label: 'ชื่อยา', flex: true, minWidth: 200 },
-  { key: 'drugType', label: 'แหล่งยา', width: 90, align: 'center' },
-  { key: 'packSize', label: 'บรรจุ', width: 140, render: (r) => r.packSize || '-', print: (r) => r.packSize || '-' },
-  { key: 'receivingType', label: 'ประเภทการรับ', width: 140, render: (r) => RECEIVING_TYPE_LABEL[r.receivingType], print: (r) => RECEIVING_TYPE_LABEL[r.receivingType] },
-  { key: 'quantity', label: 'จำนวน', width: 100, align: 'center', render: (r) => `${r.quantity} ${r.unit}`, print: (r) => `${r.quantity} ${r.unit}` },
-  { key: 'lot', label: 'Lot No.', width: 140 },
-  { key: 'expiryDate', label: 'วันหมดอายุ', width: 120, render: (r) => formatThaiDate(r.expiryDate), print: (r) => formatThaiDate(r.expiryDate) },
-  { key: 'costPrice', label: 'ราคาทุน/หน่วย', width: 110, align: 'center', render: (r) => `฿${r.costPrice}`, print: (r) => `฿${r.costPrice}` },
-  { key: 'salePrice', label: 'ราคาขาย/หน่วย', width: 110, align: 'center', render: (r) => `฿${r.salePrice}`, print: (r) => `฿${r.salePrice}` },
-  { key: 'claimablePrice', label: 'ราคาที่เบิกได้', width: 110, align: 'center', render: (r) => r.claimablePrice != null ? `฿${r.claimablePrice}` : '—', print: (r) => r.claimablePrice != null ? `฿${r.claimablePrice}` : '—' },
-  { key: 'poNumber', label: 'เลขที่ใบสั่งซื้อ', width: 150, render: (r) => r.poNumber || '—', print: (r) => r.poNumber || '—' },
-  { key: 'deliveryNoteNumber', label: 'เลขที่ใบส่งของ', width: 150, render: (r) => r.deliveryNoteNumber || '—', print: (r) => r.deliveryNoteNumber || '—' },
+  { key: 'drugType', label: 'แหล่งยา', align: 'center' },
+  { key: 'packSize', label: 'บรรจุ', render: (r) => r.packSize || '-', print: (r) => r.packSize || '-' },
+  { key: 'receivingType', label: 'ประเภทการรับ', render: (r) => RECEIVING_TYPE_LABEL[r.receivingType], print: (r) => RECEIVING_TYPE_LABEL[r.receivingType] },
+  { key: 'quantity', label: 'จำนวน', align: 'center', render: (r) => `${r.quantity} ${r.unit}`, print: (r) => `${r.quantity} ${r.unit}` },
+  { key: 'lot', label: 'Lot No.' },
+  { key: 'expiryDate', label: 'วันหมดอายุ', render: (r) => formatThaiDate(r.expiryDate), print: (r) => formatThaiDate(r.expiryDate) },
+  { key: 'costPrice', label: 'ราคาทุน/หน่วย', align: 'center', render: (r) => `฿${r.costPrice}`, print: (r) => `฿${r.costPrice}` },
+  { key: 'salePrice', label: 'ราคาขาย/หน่วย', align: 'center', render: (r) => `฿${r.salePrice}`, print: (r) => `฿${r.salePrice}` },
+  { key: 'claimablePrice', label: 'ราคาที่เบิกได้', align: 'center', render: (r) => r.claimablePrice != null ? `฿${r.claimablePrice}` : '—', print: (r) => r.claimablePrice != null ? `฿${r.claimablePrice}` : '—' },
+  { key: 'poNumber', label: 'เลขที่ใบสั่งซื้อ', render: (r) => r.poNumber || '—', print: (r) => r.poNumber || '—' },
+  { key: 'deliveryNoteNumber', label: 'เลขที่ใบส่งของ', render: (r) => r.deliveryNoteNumber || '—', print: (r) => r.deliveryNoteNumber || '—' },
   { key: 'receivedFrom', label: 'รับจาก', flex: true, minWidth: 180 },
-  { key: 'receivedAt', label: 'วันที่รับเข้า', width: 130, render: (r) => formatThaiDate(r.receivedAt), print: (r) => formatThaiDate(r.receivedAt) },
-  { key: 'status', label: 'สถานะ', width: 120, render: (r) => r.status === 'cancelled' ? <Badge style='error' size='small'>{RECEIVING_STATUS_PILL.cancelled.label}</Badge> : <Badge style='success' size='small'>รับเข้าแล้ว</Badge>, print: (r) => r.status === 'cancelled' ? RECEIVING_STATUS_PILL.cancelled.label : 'รับเข้าแล้ว' },
+  { key: 'receivedAt', label: 'วันที่รับเข้า', render: (r) => formatThaiDate(r.receivedAt), print: (r) => formatThaiDate(r.receivedAt) },
+  { key: 'status', label: 'สถานะ', render: (r) => r.status === 'cancelled' ? <Badge style='error' size='small'>{RECEIVING_STATUS_PILL.cancelled.label}</Badge> : <Badge style='success' size='small'>รับเข้าแล้ว</Badge>, print: (r) => r.status === 'cancelled' ? RECEIVING_STATUS_PILL.cancelled.label : 'รับเข้าแล้ว' },
 ];
 
 const PharmacyRequisitionPage = () => {
@@ -389,7 +389,7 @@ const PharmacyRequisitionPage = () => {
   };
 
   const REQUISITION_ACTIONS_COLUMN = {
-    key: 'itemActions', label: 'ดำเนินการ', width: 150, align: 'center', sortable: false,
+    key: 'itemActions', label: 'ดำเนินการ', align: 'center', sortable: false,
     render: (r) => {
       if (editingReqId === r.id) {
         return (
@@ -450,7 +450,7 @@ const PharmacyRequisitionPage = () => {
   };
 
   const RECEIVING_ACTIONS_COLUMN = {
-    key: 'itemActions', label: 'ดำเนินการ', width: 120, align: 'center', sortable: false,
+    key: 'itemActions', label: 'ดำเนินการ', align: 'center', sortable: false,
     render: (r) => {
       if (editingRcvId === r.id) {
         return (
@@ -533,15 +533,10 @@ const PharmacyRequisitionPage = () => {
                   size='large'
                   selected={activeTab === t.key}
                   leadingIcon={t.icon}
+                  count={tabCounts[t.key]}
                   onClick={() => handleTabChange(t.key)}
                 >
                   {t.label}
-                  <span
-                    className='tabular-nums'
-                    style={{ marginLeft: 'var(--dim-space-200)', fontWeight: 'var(--type-weight-bold)' }}
-                  >
-                    {tabCounts[t.key]}
-                  </span>
                 </TabPill>
               ))}
             </TabBar>

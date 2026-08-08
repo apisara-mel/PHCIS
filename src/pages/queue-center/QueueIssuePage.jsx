@@ -312,16 +312,15 @@ const QueueIssuePage = () => {
   useEffect(() => { if (aptPage > aptPages) setAptPage(aptPages); }, [aptPage, aptPages]);
 
   const appointmentColumns = [
-    { key: 'time', label: 'เวลานัด', width: 96, render: (r) => `${r.time} น.` },
-    { key: 'hn', label: 'HN', width: 116 },
+    { key: 'time', label: 'เวลานัด', render: (r) => `${r.time} น.` },
+    { key: 'hn', label: 'HN' },
     { key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 180 },
-    { key: 'stationId', label: 'จุดบริการ', width: 200, render: (r) => getStation(r.stationId)?.label || '—' },
+    { key: 'stationId', label: 'จุดบริการ', render: (r) => getStation(r.stationId)?.label || '—' },
     { key: 'doctor', label: 'แพทย์/ผู้ให้บริการ', flex: true, minWidth: 160 },
     { key: 'note', label: 'หมายเหตุนัด', flex: true, minWidth: 160 },
     {
       key: 'action',
       label: 'การดำเนินการ',
-      width: 180,
       sortable: false,
       render: (r) => (
         <BrandSubdueButton
@@ -350,7 +349,7 @@ const QueueIssuePage = () => {
   useEffect(() => { if (historyPage > historyPages) setHistoryPage(historyPages); }, [historyPage, historyPages]);
 
   const historyColumns = [
-    { key: 'code', label: 'รหัสคิว', width: 108, render: (r) => <QueueCodeCell queue={r} /> },
+    { key: 'code', label: 'รหัสคิว', render: (r) => <QueueCodeCell queue={r} /> },
     { key: 'patient', label: 'ผู้รับบริการ', flex: true, minWidth: 180, render: (r) => (
       <MaskedWorklistName
         name={r.patient?.name}
@@ -358,15 +357,14 @@ const QueueIssuePage = () => {
         emptyLabel='ผู้รับบริการไม่ระบุตัวตน'
       />
     ) },
-    { key: 'station', label: 'จุดบริการ', width: 190, render: (r) => getStation(r.stationId)?.label || '—' },
-    { key: 'issuedAt', label: 'เวลาออกคิว', width: 116, render: (r) => `${formatClock(r.issuedAt)} น.` },
-    { key: 'entryChannel', label: 'แหล่งที่มา', width: 150, render: (r) => ENTRY_CHANNELS.find((c) => c.key === r.entryChannel)?.label || '—' },
-    { key: 'printCount', label: 'พิมพ์แล้ว', width: 100, render: (r) => `${r.printCount || 0} ครั้ง` },
-    { key: 'status', label: 'สถานะ', width: 140, render: (r) => <StatusChip status={r.status} /> },
+    { key: 'station', label: 'จุดบริการ', render: (r) => getStation(r.stationId)?.label || '—' },
+    { key: 'issuedAt', label: 'เวลาออกคิว', render: (r) => `${formatClock(r.issuedAt)} น.` },
+    { key: 'entryChannel', label: 'แหล่งที่มา', render: (r) => ENTRY_CHANNELS.find((c) => c.key === r.entryChannel)?.label || '—' },
+    { key: 'printCount', label: 'พิมพ์แล้ว', render: (r) => `${r.printCount || 0} ครั้ง` },
+    { key: 'status', label: 'สถานะ', render: (r) => <StatusChip status={r.status} /> },
     {
       key: 'action',
       label: 'การดำเนินการ',
-      width: 230,
       sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>

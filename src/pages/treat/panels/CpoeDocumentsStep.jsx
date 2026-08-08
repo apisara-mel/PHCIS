@@ -317,16 +317,16 @@ const CpoeDocumentsStep = (props) => {
                   columns={[
                     { key: 'name', header: 'รายการยา', flex: 1 },
                     {
-                      key: 'sig', header: 'วิธีใช้', width: 300,
+                      key: 'sig', header: 'วิธีใช้',
                       render: (r) => (
                         <span style={PANEL_LABEL_STYLE}>
                           ครั้งละ {r.dosePerTake || '—'} {r.unit || 'เม็ด'} · {r.frequency || '—'} · {r.when || '—'}
                         </span>
                       ),
                     },
-                    { key: 'quantity', header: 'จำนวน', width: 110 },
+                    { key: 'quantity', header: 'จำนวน' },
                     {
-                      key: 'price', header: 'ราคา', width: 130,
+                      key: 'price', header: 'ราคา',
                       render: (r) => {
                         const drug = getRegistryDrug(r.name);
                         return <span style={PANEL_VALUE_STYLE}>{baht((drug ? currentPrice(drug) : 0) * (Number(r.quantity) || 1))}</span>;
@@ -448,7 +448,7 @@ const CpoeDocumentsStep = (props) => {
                 ),
               },
               {
-                key: 'fields', header: 'ฟิลด์ที่แสดง', width: 320,
+                key: 'fields', header: 'ฟิลด์ที่แสดง',
                 render: (r) => (
                   <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                     {r.fields.map((f) => (
@@ -459,9 +459,9 @@ const CpoeDocumentsStep = (props) => {
                   </div>
                 ),
               },
-              { key: 'owner', header: 'เจ้าของ', width: 200 },
+              { key: 'owner', header: 'เจ้าของ' },
               {
-                key: 'actions', header: '', width: 220,
+                key: 'actions', header: '',
                 render: (r) => (
                   <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                     <GuardedAction
@@ -657,10 +657,10 @@ const CpoeDocumentsStep = (props) => {
               rows={consentRecords}
               columns={[
                 { key: 'name', header: 'แบบฟอร์ม', flex: 1 },
-                { key: 'signedAt', header: 'ลงนามเมื่อ', width: 220 },
-                { key: 'signedBy', header: 'ผู้ลงนาม', width: 220 },
+                { key: 'signedAt', header: 'ลงนามเมื่อ' },
+                { key: 'signedBy', header: 'ผู้ลงนาม' },
                 {
-                  key: 'linkedOrders', header: 'ผูกกับคำสั่ง', width: 260,
+                  key: 'linkedOrders', header: 'ผูกกับคำสั่ง',
                   render: (r) => <span style={PANEL_LABEL_STYLE}>{(r.linkedOrders || []).join(' · ') || 'ทั้ง visit'}</span>,
                 },
               ]}

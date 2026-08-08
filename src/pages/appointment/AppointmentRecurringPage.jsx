@@ -428,11 +428,11 @@ const AppointmentRecurringPage = () => {
 
   const previewColumns = [
     {
-      key: 'seq', header: 'ลำดับที่', width: 96, sortable: false,
+      key: 'seq', header: 'ลำดับที่', sortable: false,
       render: (o) => <span style={TEXT_CELL}>{o.seq}</span>,
     },
     {
-      key: 'date', header: 'วันที่นัดล่วงหน้า', width: 200, sortable: false,
+      key: 'date', header: 'วันที่นัดล่วงหน้า', sortable: false,
       render: (o) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span style={TEXT_CELL}>{formatApptListDate(o.date)}</span>
@@ -443,15 +443,15 @@ const AppointmentRecurringPage = () => {
       ),
     },
     {
-      key: 'time', header: 'เวลานัด', width: 116, sortable: false,
+      key: 'time', header: 'เวลานัด', sortable: false,
       render: (o) => <span style={TEXT_CELL}>{o.time} น.</span>,
     },
     {
-      key: 'clinic', header: 'คลินิกที่ตรวจ', width: 190, sortable: false,
+      key: 'clinic', header: 'คลินิกที่ตรวจ', sortable: false,
       render: () => <span className='truncate' style={TEXT_CELL}>{clinic}</span>,
     },
     {
-      key: 'doctor', header: 'แพทย์ที่นัดตรวจ', width: 190, sortable: false,
+      key: 'doctor', header: 'แพทย์ที่นัดตรวจ', sortable: false,
       render: () => <span className='truncate' style={TEXT_CELL}>{doctorName || '—'}</span>,
     },
     {
@@ -477,7 +477,7 @@ const AppointmentRecurringPage = () => {
       ),
     },
     {
-      key: 'action', header: 'การจัดการรายครั้ง', width: 260, sortable: false,
+      key: 'action', header: 'การจัดการรายครั้ง', sortable: false,
       render: (o) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
           <BrandSubdueButton

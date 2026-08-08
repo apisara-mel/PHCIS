@@ -331,8 +331,8 @@ const PharmacyDispensePage = () => {
   };
 
   const columns = [
-    { key: 'seq', label: 'ลำดับ', width: 50, align: 'center', sortable: false, render: (r, i) => i + 1 },
-    { key: 'image', label: 'รูป', width: 60, sortable: false, render: (r) => <MedImageTile src={resolveMedicationImage(r.name)} alt={r.name} /> },
+    { key: 'seq', label: 'ลำดับ', align: 'center', sortable: false, render: (r, i) => i + 1 },
+    { key: 'image', label: 'รูป', sortable: false, render: (r) => <MedImageTile src={resolveMedicationImage(r.name)} alt={r.name} /> },
     {
       key: 'name', label: 'ชื่อยา', flex: true, minWidth: 200,
       render: (r) => {
@@ -360,11 +360,11 @@ const PharmacyDispensePage = () => {
         );
       },
     },
-    { key: 'drugType', label: 'แหล่งยา', width: 90, align: 'center' },
-    { key: 'dose', label: 'ขนาด/ความถี่', width: 200, render: (r) => `${r.dosePerTake} ${r.unit} · ${r.frequency} · ${r.when}` },
-    { key: 'quantity', label: 'สั่งทั้งหมด', width: 90, align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
+    { key: 'drugType', label: 'แหล่งยา', align: 'center' },
+    { key: 'dose', label: 'ขนาด/ความถี่', render: (r) => `${r.dosePerTake} ${r.unit} · ${r.frequency} · ${r.when}` },
+    { key: 'quantity', label: 'สั่งทั้งหมด', align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
     {
-      key: 'qtyNow', label: 'จ่ายครั้งนี้', width: 150, align: 'center', sortable: false,
+      key: 'qtyNow', label: 'จ่ายครั้งนี้', align: 'center', sortable: false,
       render: (r) => (
         <Stepper
           size='small'
@@ -378,15 +378,15 @@ const PharmacyDispensePage = () => {
       ),
     },
     {
-      key: 'stock', label: 'คงคลัง', width: 130, align: 'center',
+      key: 'stock', label: 'คงคลัง', align: 'center',
       render: (r) => r.stockEntry
         ? <Badge style={r.insufficient ? 'error' : 'neutral'} size='small'>{r.stockEntry.stock} {r.stockEntry.unit}{r.insufficient ? ' (ไม่พอ)' : ''}</Badge>
         : <span style={{ color: 'var(--text-content-tertiary)' }}>ไม่มีข้อมูล</span>,
     },
-    { key: 'subtotal', label: 'ราคารวม', width: 90, align: 'center', render: (r) => `฿${r.subtotal.toLocaleString()}` },
-    { key: 'claimable', label: 'ราคาที่เบิกได้', width: 110, align: 'center', render: (r) => r.claimable > 0 ? `฿${r.claimable.toLocaleString()}` : <span style={{ color: 'var(--text-content-tertiary)' }}>เบิกไม่ได้</span> },
+    { key: 'subtotal', label: 'ราคารวม', align: 'center', render: (r) => `฿${r.subtotal.toLocaleString()}` },
+    { key: 'claimable', label: 'ราคาที่เบิกได้', align: 'center', render: (r) => r.claimable > 0 ? `฿${r.claimable.toLocaleString()}` : <span style={{ color: 'var(--text-content-tertiary)' }}>เบิกไม่ได้</span> },
     {
-      key: 'changeDrug', label: 'เปลี่ยนยา', width: 180, align: 'center', sortable: false,
+      key: 'changeDrug', label: 'เปลี่ยนยา', align: 'center', sortable: false,
       render: (r) => (
         <select
           value={r.name}
@@ -412,7 +412,7 @@ const PharmacyDispensePage = () => {
       ),
     },
     {
-      key: 'itemActions', label: 'แก้ไข', width: 90, align: 'center', sortable: false,
+      key: 'itemActions', label: 'แก้ไข', align: 'center', sortable: false,
       render: (r) => (
         <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-150)' }}>
           <button
@@ -956,7 +956,7 @@ const PharmacyDispensePage = () => {
             <Table
               columns={[
                 { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 200 },
-                { key: 'source', label: 'แหล่งที่มา', width: 220, render: (r) => <Badge style={r.source === 'current' ? 'success' : 'info'} size='small'>{r.source === 'current' ? 'ใบสั่งยาปัจจุบัน' : 'ยาที่ผู้ป่วยนำมาเอง'}</Badge> },
+                { key: 'source', label: 'แหล่งที่มา', render: (r) => <Badge style={r.source === 'current' ? 'success' : 'info'} size='small'>{r.source === 'current' ? 'ใบสั่งยาปัจจุบัน' : 'ยาที่ผู้ป่วยนำมาเอง'}</Badge> },
                 { key: 'note', label: 'หมายเหตุ', flex: true, minWidth: 200, render: (r) => r.note || '—' },
               ]}
               rows={[

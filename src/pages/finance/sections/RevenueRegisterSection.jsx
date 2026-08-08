@@ -49,7 +49,7 @@ const RevenueRegisterSection = ({ queue }) => {
 
   const columns = [
     {
-      key: 'paidTime', label: 'วันที่และเวลารับชำระ', width: 170,
+      key: 'paidTime', label: 'วันที่และเวลารับชำระ',
       render: (row) => (
         <div className='flex flex-col'>
           <span>{row.paidDate || row.visitDate}</span>
@@ -60,8 +60,8 @@ const RevenueRegisterSection = ({ queue }) => {
         </div>
       ),
     },
-    { key: 'center', label: 'ศูนย์/คลินิก', width: 140 },
-    { key: 'receiptNo', label: 'เลขที่ใบเสร็จ', width: 140 },
+    { key: 'center', label: 'ศูนย์/คลินิก' },
+    { key: 'receiptNo', label: 'เลขที่ใบเสร็จ' },
     {
       key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
       render: (row) => (
@@ -84,11 +84,10 @@ const RevenueRegisterSection = ({ queue }) => {
       },
     },
     {
-      key: 'paymentMethod', label: 'วิธีชำระ', width: 140,
-      render: (row) => PAYMENT_METHODS.find((m) => m.key === row.paymentMethod)?.label ?? '-',
-    },
+      key: 'paymentMethod', label: 'วิธีชำระ',
+      render: (row) => PAYMENT_METHODS.find((m) => m.key === row.paymentMethod)?.label ?? '-'},
     {
-      key: 'amountReceived', label: 'ยอดสุทธิ', width: 140,
+      key: 'amountReceived', label: 'ยอดสุทธิ',
       render: (row) => (
         <div className='flex flex-col'>
           <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(netCollected(row))}</span>
@@ -100,7 +99,7 @@ const RevenueRegisterSection = ({ queue }) => {
         </div>
       ),
     },
-    { key: 'cashier', label: 'ผู้รับเงิน', width: 160 },
+    { key: 'cashier', label: 'ผู้รับเงิน' },
   ];
 
   return (

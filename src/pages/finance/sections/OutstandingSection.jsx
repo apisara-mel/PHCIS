@@ -130,7 +130,7 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
   const outstandingTotal = pendingRows.reduce((s, r) => s + outstandingOf(r), 0);
 
   const columns = [
-    { key: 'queueNo', label: 'คิว', width: 80 },
+    { key: 'queueNo', label: 'คิว' },
     {
       key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
       render: (row) => (
@@ -140,11 +140,11 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
         </div>
       ),
     },
-    { key: 'dept', label: 'แผนก', width: 140 },
-    { key: 'center', label: 'ศูนย์/คลินิก', width: 140 },
-    { key: 'rights', label: 'สิทธิ', width: 140, render: (row) => <ColorfulBadge badgeStyle={row.rights.badge} size='small'>{row.rights.short}</ColorfulBadge> },
+    { key: 'dept', label: 'แผนก' },
+    { key: 'center', label: 'ศูนย์/คลินิก' },
+    { key: 'rights', label: 'สิทธิ', render: (row) => <ColorfulBadge badgeStyle={row.rights.badge} size='small'>{row.rights.short}</ColorfulBadge> },
     {
-      key: 'visitTime', label: 'เข้ารับบริการเมื่อ', width: 150,
+      key: 'visitTime', label: 'เข้ารับบริการเมื่อ',
       render: (row) => (
         <div className='flex flex-col'>
           <span>{row.visitDate}</span>
@@ -153,7 +153,7 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
       ),
     },
     {
-      key: 'amountDue', label: 'ยอดค้างชำระ', width: 150,
+      key: 'amountDue', label: 'ยอดค้างชำระ',
       render: (row) => (
         <div className='flex flex-col'>
           <span style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-statusbadge-warning, #B25E09)' }}>{formatBaht(outstandingOf(row))}</span>
@@ -166,25 +166,25 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
       ),
     },
     {
-      key: 'claimStatus', label: 'สถานะการเบิกจ่าย', width: 150,
+      key: 'claimStatus', label: 'สถานะการเบิกจ่าย',
       render: (row) => (row.claimStatus
         ? <StatusBadge style={CLAIM_STATUS_STYLE[row.claimStatus]} size='small'>{CLAIM_STATUSES.find((s) => s.key === row.claimStatus)?.label}</StatusBadge>
         : <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>-</span>),
     },
     {
-      key: 'doc', label: 'เอกสารประกอบ', width: 140,
+      key: 'doc', label: 'เอกสารประกอบ',
       render: (row) => (row.followUps?.length && row.followUps[row.followUps.length - 1].docName
         ? <a href={row.followUps[row.followUps.length - 1].docUrl} target='_blank' rel='noreferrer' onClick={(e) => e.stopPropagation()} style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-brandPrimary-default)' }}>ดูเอกสาร</a>
         : <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>-</span>),
     },
     {
-      key: 'followUp', label: 'สถานะติดตาม', width: 160,
+      key: 'followUp', label: 'สถานะติดตาม',
       render: (row) => (row.followUps?.length
         ? <StatusBadge style='info' size='small'>ติดตามแล้ว ({row.followUps.length})</StatusBadge>
         : <StatusBadge style='warning' size='small'>ยังไม่ติดตาม</StatusBadge>),
     },
     {
-      key: 'action', label: '', width: 140,
+      key: 'action', label: '',
       render: (row) => <NeutralSubdueButton size='sm' onClick={(e) => { e.stopPropagation(); setActiveRow(row); }}>บันทึกติดตาม</NeutralSubdueButton>,
     },
   ];

@@ -1,4 +1,5 @@
 import React, { useContext, useLayoutEffect, useRef, useState } from 'react';
+import TabCountBadge from '@/components/tab/TabCountBadge';
 
 /* MIH TabPill — Figma "Tab Pill" (MIH Design System Foundation, node 370:30).
 
@@ -141,6 +142,8 @@ const TabPill = React.forwardRef(function TabPill(
        lets callers force-hide an icon they would otherwise pass. */
     icon: iconLegacy,
     showIcon = true,
+    /* Optional count chip — same brandTag frame as TabUnderline. */
+    count,
     children,
     onClick,
     type = 'button',
@@ -235,6 +238,14 @@ const TabPill = React.forwardRef(function TabPill(
         <>
           {renderIcon()}
           {children != null && <span>{children}</span>}
+          {typeof count === 'number' && (
+            <TabCountBadge
+              count={count}
+              tone='green'
+              selected={effective === 'selected'}
+              hovered={effective === 'hover' || (effective === 'selected' && hovered)}
+            />
+          )}
         </>
       )}
     </button>

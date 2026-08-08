@@ -443,12 +443,11 @@ export const MhStep1History = ({ form, setForm, mhHn, intake, registration, lock
         <TopicHeader icon='history'>ประวัติการตรวจสุขภาพจิตครั้งก่อนหน้า</TopicHeader>
         <Table
           columns={[
-            { key: 'savedAt', label: 'วันที่บันทึก', width: 190, render: (r) => formatMhDateTime(r.savedAt) },
-            { key: 'doctor', label: 'แพทย์', width: 190, render: (r) => r.doctor || '—' },
+            { key: 'savedAt', label: 'วันที่บันทึก', render: (r) => formatMhDateTime(r.savedAt) },
+            { key: 'doctor', label: 'แพทย์', render: (r) => r.doctor || '—' },
             {
               key: 'diagnoses', label: 'วินิจฉัย (ICD-10)', flex: true, minWidth: 200,
-              render: (r) => (hasMentalHealthRights() ? ((r.diagnoses || []).join(', ') || '—') : '••••••••'),
-            },
+              render: (r) => (hasMentalHealthRights() ? ((r.diagnoses || []).join(', ') || '—') : '••••••••')},
             {
               key: 'scores', label: 'ผลประเมิน', flex: true, minWidth: 180,
               render: (r) => {
@@ -460,7 +459,7 @@ export const MhStep1History = ({ form, setForm, mhHn, intake, registration, lock
                 return parts.join(' · ') || '—';
               },
             },
-            { key: 'savedBy', label: 'ผู้บันทึก', width: 190, render: (r) => r.savedBy },
+            { key: 'savedBy', label: 'ผู้บันทึก', render: (r) => r.savedBy },
           ]}
           rows={visitHistory}
           rowKey={(r) => r.savedAt}

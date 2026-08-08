@@ -279,9 +279,9 @@ const ReportTablePopup = ({ open, report, onClose, reportsCatalog, onExported, o
         <div key='access-times' data-direction={panels.direction} className='mih-step-content flex flex-col w-full min-w-0'>
           <Table
             columns={[
-              { key: 'datetime', header: 'วันเวลาที่เข้าถึง', width: 200, render: (r) => <span style={CELL_TEXT}>{r.datetime}</span> },
-              { key: 'action', header: 'ประเภท action', width: 140, render: (r) => <ColorfulBadge style={BADGE_TONE[r.action] || 'blue'} size='small' hierarchy='secondary' width='hug'>{r.action}</ColorfulBadge> },
-              { key: 'target', header: 'ข้อมูลที่เข้าถึง', width: 240, render: (r) => <span style={CELL_TEXT}>{r.target}</span> },
+              { key: 'datetime', header: 'วันเวลาที่เข้าถึง', render: (r) => <span style={CELL_TEXT}>{r.datetime}</span> },
+              { key: 'action', header: 'ประเภท action', render: (r) => <ColorfulBadge style={BADGE_TONE[r.action] || 'blue'} size='small' hierarchy='secondary' width='hug'>{r.action}</ColorfulBadge> },
+              { key: 'target', header: 'ข้อมูลที่เข้าถึง', render: (r) => <span style={CELL_TEXT}>{r.target}</span> },
             ]}
             rows={accessTimesFor.accessTimes.map((t, i) => ({ ...t, _id: i }))}
             rowKey={(r) => r._id}

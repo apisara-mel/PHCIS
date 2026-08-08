@@ -420,9 +420,9 @@ const VaccineGrowthPanel = ({ form, patient }) => {
         </div>
       ),
     },
-    { key: 'injectedOn', header: 'วันที่ฉีด', width: 150 },
+    { key: 'injectedOn', header: 'วันที่ฉีด' },
     {
-      key: 'lot', header: 'Lot / วันหมดอายุ', width: 180,
+      key: 'lot', header: 'Lot / วันหมดอายุ',
       render: (row) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={PANEL_VALUE_STYLE}>{row.lot || '—'}</span>
@@ -430,13 +430,13 @@ const VaccineGrowthPanel = ({ form, patient }) => {
         </div>
       ),
     },
-    { key: 'injectedBy', header: 'ผู้ฉีด', width: 170 },
+    { key: 'injectedBy', header: 'ผู้ฉีด' },
     {
-      key: 'reaction', header: 'ปฏิกิริยาหลังฉีด', width: 240,
+      key: 'reaction', header: 'ปฏิกิริยาหลังฉีด',
       render: (row) => <span style={PANEL_LABEL_STYLE}>{row.reaction || 'ไม่ได้บันทึก'}</span>,
     },
     {
-      key: 'actions', header: '', width: 170,
+      key: 'actions', header: '',
       render: (row) => (row.cancelledAt ? <span style={PANEL_LABEL_STYLE}>ยกเลิกแล้ว</span> : (
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <GuardedAction allowed={access.canEdit}>

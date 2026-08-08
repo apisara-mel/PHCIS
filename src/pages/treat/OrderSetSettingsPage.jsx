@@ -325,7 +325,7 @@ const OrderSetSettingsPage = () => {
                           ),
                         },
                         {
-                          key: 'scope', header: 'เจ้าของ', width: 220,
+                          key: 'scope', header: 'เจ้าของ',
                           render: (r) => (
                             <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                               <ColorfulBadge style={orderSetScopeMeta(r.scope).badge} size='small' width='hug'>
@@ -336,7 +336,7 @@ const OrderSetSettingsPage = () => {
                           ),
                         },
                         {
-                          key: 'items', header: 'จำนวนรายการแยกชนิด', width: 280,
+                          key: 'items', header: 'จำนวนรายการแยกชนิด',
                           render: (r) => (
                             <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                               {ORDER_SET_ITEM_KINDS.map((k) => {
@@ -352,7 +352,7 @@ const OrderSetSettingsPage = () => {
                           ),
                         },
                         {
-                          key: 'lastUsedAt', header: 'ใช้งานล่าสุด', width: 200,
+                          key: 'lastUsedAt', header: 'ใช้งานล่าสุด',
                           render: (r) => (
                             <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                               <span style={PANEL_VALUE_STYLE}>{r.lastUsedAt || '—'}</span>
@@ -361,7 +361,7 @@ const OrderSetSettingsPage = () => {
                           ),
                         },
                         {
-                          key: 'active', header: 'สถานะ', width: 200,
+                          key: 'active', header: 'สถานะ',
                           render: (r) => (
                             <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                               <StatusBadge style={r.active ? 'success' : 'neutral'} size='small'>
@@ -485,7 +485,7 @@ const OrderSetSettingsPage = () => {
                       rows={setDraft.items}
                       columns={[
                         {
-                          key: 'kind', header: 'ชนิด', width: 120,
+                          key: 'kind', header: 'ชนิด',
                           render: (r) => (
                             <ColorfulBadge style={itemKindMeta(r.kind).badge} size='small' width='hug'>
                               {itemKindMeta(r.kind).label}
@@ -516,7 +516,7 @@ const OrderSetSettingsPage = () => {
                           )),
                         },
                         {
-                          key: 'defaults', header: 'ค่า default', width: 320,
+                          key: 'defaults', header: 'ค่า default',
                           render: (r) => (r.kind === 'medication' ? (
                             <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                               <div style={{ minWidth: 90 }}>
@@ -549,7 +549,7 @@ const OrderSetSettingsPage = () => {
                           )),
                         },
                         {
-                          key: 'note', header: 'หมายเหตุ', width: 260,
+                          key: 'note', header: 'หมายเหตุ',
                           render: (r) => (
                             <InputField
                               value={r.note} onChange={(v) => patchSetItem(r.id, { note: v })}
@@ -559,7 +559,7 @@ const OrderSetSettingsPage = () => {
                           ),
                         },
                         {
-                          key: 'actions', header: '', width: 100,
+                          key: 'actions', header: '',
                           render: (r) => (
                             <GuardedAction allowed={canEdit}>
                               <NeutralSubdueButton variant='outline' size='sm' leadingIcon='delete' onClick={() => removeSetItem(r.id)}>
@@ -622,7 +622,7 @@ const OrderSetSettingsPage = () => {
                         ),
                       },
                       {
-                        key: 'classification', header: 'ประเภท', width: 240,
+                        key: 'classification', header: 'ประเภท',
                         render: (r) => (
                           <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                             <ColorfulBadge style={r.classification === 'nlem' ? 'teal' : 'purple'} size='small' width='hug'>
@@ -633,11 +633,11 @@ const OrderSetSettingsPage = () => {
                         ),
                       },
                       {
-                        key: 'unit', header: 'หน่วย', width: 120,
+                        key: 'unit', header: 'หน่วย',
                         render: (r) => <span style={PANEL_VALUE_STYLE}>{r.unit === 'capsule' ? 'แคปซูล' : 'เม็ด'}</span>,
                       },
                       {
-                        key: 'price', header: 'ราคา/หน่วย', width: 200,
+                        key: 'price', header: 'ราคา/หน่วย',
                         render: (r) => (
                           <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                             <span style={PANEL_VALUE_STYLE}>{baht(currentPrice(r))} บาท</span>
@@ -646,7 +646,7 @@ const OrderSetSettingsPage = () => {
                         ),
                       },
                       {
-                        key: 'active', header: 'สถานะ', width: 210,
+                        key: 'active', header: 'สถานะ',
                         render: (r) => (
                           <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                             <StatusBadge style={r.active ? 'success' : 'neutral'} size='small'>
@@ -669,7 +669,7 @@ const OrderSetSettingsPage = () => {
                         ),
                       },
                       {
-                        key: 'actions', header: '', width: 240,
+                        key: 'actions', header: '',
                         render: (r) => (
                           <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                             <GuardedAction allowed={canEdit}>
@@ -777,7 +777,7 @@ const OrderSetSettingsPage = () => {
                         ),
                       },
                       {
-                        key: 'price', header: 'ราคา / ยอดเบิกได้ตามสิทธิ', width: 280,
+                        key: 'price', header: 'ราคา / ยอดเบิกได้ตามสิทธิ',
                         render: (r) => {
                           if (testKind === 'lab') {
                             const p = resolveRightPricing(r, rightKey);
@@ -800,7 +800,7 @@ const OrderSetSettingsPage = () => {
                         },
                       },
                       {
-                        key: 'repeat', header: 'หน้าต่างเวลาสั่งซ้ำ', width: 200,
+                        key: 'repeat', header: 'หน้าต่างเวลาสั่งซ้ำ',
                         render: (r) => {
                           const base = testKind === 'lab' ? labRepeatWindow(r.id) : xrayRepeatWindow(r.id);
                           const override = cdss.repeatOverrides?.[testKind]?.[r.id];
@@ -815,7 +815,7 @@ const OrderSetSettingsPage = () => {
                         },
                       },
                       {
-                        key: 'active', header: 'สถานะ', width: 220,
+                        key: 'active', header: 'สถานะ',
                         render: (r) => (
                           <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                             <StatusBadge style={r.retired ? 'neutral' : 'success'} size='small'>
@@ -880,7 +880,7 @@ const OrderSetSettingsPage = () => {
                       ),
                     },
                     {
-                      key: 'enabled', header: 'เปิดใช้งาน', width: 200,
+                      key: 'enabled', header: 'เปิดใช้งาน',
                       render: (r) => (
                         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                           <Checkbox
@@ -894,7 +894,7 @@ const OrderSetSettingsPage = () => {
                       ),
                     },
                     {
-                      key: 'minSeverity', header: 'ระดับความรุนแรงขั้นต่ำที่แจ้ง', width: 280,
+                      key: 'minSeverity', header: 'ระดับความรุนแรงขั้นต่ำที่แจ้ง',
                       render: (r) => (
                         <Select
                           value={cdss.rules[r.key]?.minSeverity}
@@ -908,7 +908,7 @@ const OrderSetSettingsPage = () => {
                       ),
                     },
                     {
-                      key: 'enforcement', header: 'รูปแบบการบังคับ', width: 300,
+                      key: 'enforcement', header: 'รูปแบบการบังคับ',
                       render: (r) => (
                         <Select
                           value={cdss.rules[r.key]?.enforcement}
@@ -994,12 +994,12 @@ const OrderSetSettingsPage = () => {
                 rowKey={(r) => r.role}
                 rows={ROLE_ORDER_MATRIX}
                 columns={[
-                  { key: 'role', header: 'บทบาท', width: 200 },
-                  { key: 'medication', header: 'ยา', width: 180 },
-                  { key: 'lab', header: 'แล็บ', width: 220 },
-                  { key: 'xray', header: 'X-ray', width: 180 },
-                  { key: 'procedure', header: 'หัตถการ', width: 220 },
-                  { key: 'consult', header: 'ปรึกษา', width: 160 },
+                  { key: 'role', header: 'บทบาท' },
+                  { key: 'medication', header: 'ยา' },
+                  { key: 'lab', header: 'แล็บ' },
+                  { key: 'xray', header: 'X-ray' },
+                  { key: 'procedure', header: 'หัตถการ' },
+                  { key: 'consult', header: 'ปรึกษา' },
                   { key: 'cancel', header: 'การยกเลิก', flex: 1 },
                 ]}
                 emptyMessage='ไม่มีข้อมูลสิทธิ์'

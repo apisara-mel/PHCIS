@@ -273,7 +273,6 @@ const LabSendOutPage = () => {
     {
       key: 'select',
       label: '',
-      width: 44,
       render: (row) => {
         const on = selectedIds.includes(row.id);
         return (
@@ -291,7 +290,7 @@ const LabSendOutPage = () => {
         );
       },
     },
-    { key: 'accessionNo', label: 'Accession / ผู้ป่วย', width: 220, render: identityCell },
+    { key: 'accessionNo', label: 'Accession / ผู้ป่วย', render: identityCell },
     { key: 'testLabel', label: 'รายการตรวจ', render: testCell },
     {
       key: 'status',
@@ -302,7 +301,6 @@ const LabSendOutPage = () => {
     {
       key: 'price',
       label: 'ราคา',
-      width: 100,
       render: (row) => (
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
           {row.price?.toLocaleString('th-TH')} บาท
@@ -312,7 +310,6 @@ const LabSendOutPage = () => {
     {
       key: 'actions',
       label: '',
-      width: 140,
       render: (row) => (
         <NeutralSubdueButton
           variant='outline'
@@ -327,12 +324,11 @@ const LabSendOutPage = () => {
   ];
 
   const sentColumns = [
-    { key: 'accessionNo', label: 'Accession / ผู้ป่วย', width: 220, render: identityCell },
+    { key: 'accessionNo', label: 'Accession / ผู้ป่วย', render: identityCell },
     { key: 'testLabel', label: 'รายการตรวจ', render: testCell },
     {
       key: 'destination',
       label: 'หน่วยงานปลายทาง',
-      width: 230,
       render: (row) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
@@ -350,7 +346,6 @@ const LabSendOutPage = () => {
     {
       key: 'timing',
       label: 'ส่ง / คาดว่าจะได้ผล',
-      width: 210,
       render: (row) => {
         const rec = row.sendOut;
         const late = isOverdueReturn(rec, TODAY);
@@ -377,7 +372,6 @@ const LabSendOutPage = () => {
     {
       key: 'actions',
       label: '',
-      width: 280,
       render: (row) => (
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-150)' }}>
           {!row.sendOut?.returned && (

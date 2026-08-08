@@ -313,7 +313,7 @@ const MentalHealthRegistryPage = () => {
 
   const columns = useMemo(() => ([
     {
-      key: 'mhNumber', label: 'เลขที่สุขภาพจิต', width: 130,
+      key: 'mhNumber', label: 'เลขที่สุขภาพจิต',
       render: (r) => (
         <span
           style={r.status === 'cancelled' ? cancelledText : { fontWeight: 'var(--type-weight-medium)' }}
@@ -323,12 +323,12 @@ const MentalHealthRegistryPage = () => {
         </span>
       ),
     },
-    { key: 'hn', label: 'HN', width: 96, render: (r) => <span style={r.status === 'cancelled' ? cancelledText : undefined}>{r.hn}</span> },
+    { key: 'hn', label: 'HN', render: (r) => <span style={r.status === 'cancelled' ? cancelledText : undefined}>{r.hn}</span> },
     { key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 170, render: (r) => <span style={r.status === 'cancelled' ? cancelledText : undefined}>{r.name}</span> },
-    { key: 'issuedAt', label: 'ออกที่', width: 200, render: (r) => <span style={r.status === 'cancelled' ? cancelledText : undefined}>{resolveMhIssuedAt(r.issuedAt)}</span> },
-    { key: 'registeredDate', label: 'วันที่ลงทะเบียน', width: 130, render: (r) => <span style={r.status === 'cancelled' ? cancelledText : undefined}>{formatMhDate(r.registeredDate)}</span> },
+    { key: 'issuedAt', label: 'ออกที่', render: (r) => <span style={r.status === 'cancelled' ? cancelledText : undefined}>{resolveMhIssuedAt(r.issuedAt)}</span> },
+    { key: 'registeredDate', label: 'วันที่ลงทะเบียน', render: (r) => <span style={r.status === 'cancelled' ? cancelledText : undefined}>{formatMhDate(r.registeredDate)}</span> },
     {
-      key: 'status', label: 'สถานะ', width: 200,
+      key: 'status', label: 'สถานะ',
       render: (r) => (r.status === 'cancelled' ? (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <ColorfulBadge style='red' size='small' hierarchy='secondary'>ยกเลิกทะเบียน</ColorfulBadge>
@@ -344,7 +344,7 @@ const MentalHealthRegistryPage = () => {
       )),
     },
     {
-      key: 'recordedBy', label: 'ผู้บันทึก', width: 210, sortable: false,
+      key: 'recordedBy', label: 'ผู้บันทึก', sortable: false,
       render: (r) => (
         <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary, #636B72)' }}>
           {r.recordedBy}<br />{formatMhDateTime(r.recordedAt)}
@@ -352,7 +352,7 @@ const MentalHealthRegistryPage = () => {
       ),
     },
     {
-      key: 'actions', label: 'การดำเนินการ', width: 210, sortable: false,
+      key: 'actions', label: 'การดำเนินการ', sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           {!canRead ? (

@@ -661,8 +661,7 @@ const HivStiFollowUpPage = () => {
         label: 'Viral load ล่าสุด (copies/mL)',
         value: latestVl ? (isHivStiUndetectable(latestVl.raw) ? 'Undetectable' : latestVl.value.toLocaleString('en-US')) : '—',
         color: 'positive',
-        icon: 'genetics',
-      },
+        icon: 'genetics'},
       { key: 'status', label: 'สถานะนัดปัจจุบัน', value: HIV_STI_FOLLOWUP_STATUS[current?.status]?.label || '—', color: 'inprogress', icon: 'event_available' },
     ];
   }, [hn, allRows, labRows, latestCd4, latestVl, current]);
@@ -670,7 +669,7 @@ const HivStiFollowUpPage = () => {
   /* ── Worklist columns ───────────────────────────────────────────── */
 
   const worklistColumns = useMemo(() => ([
-    { key: 'hn', label: 'HN', width: 96 },
+    { key: 'hn', label: 'HN' },
     {
       key: 'client',
       label: 'ผู้รับบริการ (UIC)',
@@ -696,7 +695,6 @@ const HivStiFollowUpPage = () => {
     {
       key: 'track',
       label: 'ประเภทการติดตาม',
-      width: 170,
       render: (row) => (
         <ColorfulBadge style={HIV_STI_TRACK_BADGE[row.track] || 'grey'} size='small' hierarchy='secondary'>
           {HIV_STI_TRACK_LABELS[row.track] || row.track}
@@ -706,7 +704,6 @@ const HivStiFollowUpPage = () => {
     {
       key: 'nextDate',
       label: 'นัดครั้งถัดไป',
-      width: 190,
       render: (row) => (
         <div className='flex flex-col'>
           <span>{formatHivStiDate(row.nextDate)}</span>
@@ -717,7 +714,6 @@ const HivStiFollowUpPage = () => {
     {
       key: 'overdueDays',
       label: 'เกินกำหนด',
-      width: 110,
       render: (row) => (row.overdueDays > 0
         ? <ColorfulBadge style='red' size='small' hierarchy='secondary'>{`${row.overdueDays} วัน`}</ColorfulBadge>
         : '—'),
@@ -725,7 +721,6 @@ const HivStiFollowUpPage = () => {
     {
       key: 'status',
       label: 'สถานะ',
-      width: 150,
       render: (row) => {
         const badge = HIV_STI_FOLLOWUP_STATUS[row.status] || HIV_STI_FOLLOWUP_STATUS.onSchedule;
         return (
@@ -741,7 +736,6 @@ const HivStiFollowUpPage = () => {
     {
       key: 'pep',
       label: 'ผล PEP 28 วัน',
-      width: 160,
       sortable: false,
       render: (row) => {
         if (!row.pep) return '—';
@@ -756,7 +750,6 @@ const HivStiFollowUpPage = () => {
     {
       key: 'actions',
       label: 'การดำเนินการ',
-      width: 170,
       sortable: false,
       render: (row) => (
         <BrandSubdueButton
@@ -807,16 +800,16 @@ const HivStiFollowUpPage = () => {
   };
 
   const labColumns = useMemo(() => ([
-    { key: 'date', label: 'วันที่รายงานผล', width: 150, render: (r) => formatHivStiDate(r.dateIso) },
-    { key: 'cd4', label: 'CD4 (cells/mm³)', width: 150, render: (r) => renderLabValue(r.cd4) },
-    { key: 'viralLoad', label: 'Viral load (copies/mL)', width: 250, render: (r) => renderLabValue(r.viralLoad, { undetectable: true }) },
-    { key: 'vdrl', label: 'VDRL / RPR', width: 160, render: (r) => renderLabValue(r.vdrl) },
+    { key: 'date', label: 'วันที่รายงานผล', render: (r) => formatHivStiDate(r.dateIso) },
+    { key: 'cd4', label: 'CD4 (cells/mm³)', render: (r) => renderLabValue(r.cd4) },
+    { key: 'viralLoad', label: 'Viral load (copies/mL)', render: (r) => renderLabValue(r.viralLoad, { undetectable: true }) },
+    { key: 'vdrl', label: 'VDRL / RPR', render: (r) => renderLabValue(r.vdrl) },
     { key: 'note', label: 'หมายเหตุ', flex: true, minWidth: 200, render: (r) => r.note || '—' },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), []);
 
   const drugColumns = useMemo(() => ([
-    { key: 'date', label: 'วันที่ - เวลา', width: 180, render: (r) => `${formatHivStiDate(r.dateIso)} · ${r.time} น.` },
+    { key: 'date', label: 'วันที่ - เวลา', render: (r) => `${formatHivStiDate(r.dateIso)} · ${r.time} น.` },
     {
       key: 'drug',
       label: 'รายการยา',
@@ -829,27 +822,26 @@ const HivStiFollowUpPage = () => {
         </div>
       ),
     },
-    { key: 'quantity', label: 'จำนวน', width: 110 },
-    { key: 'prescriptionNo', label: 'เลขที่ใบสั่งยา', width: 160 },
+    { key: 'quantity', label: 'จำนวน' },
+    { key: 'prescriptionNo', label: 'เลขที่ใบสั่งยา' },
     { key: 'usage', label: 'วิธีใช้', flex: true, minWidth: 220 },
   ]), []);
 
   const xrayColumns = useMemo(() => ([
-    { key: 'date', label: 'วันที่ตรวจ', width: 150, render: (r) => formatHivStiDate(r.dateIso) },
+    { key: 'date', label: 'วันที่ตรวจ', render: (r) => formatHivStiDate(r.dateIso) },
     { key: 'exam', label: 'รายการตรวจ', flex: true, minWidth: 200 },
     { key: 'result', label: 'ผลการตรวจ', flex: true, minWidth: 260 },
   ]), []);
 
   const visitColumns = useMemo(() => ([
-    { key: 'date', label: 'วันที่รับบริการ', width: 150, render: (v) => v.date || formatHivStiDate(v.dateIso) },
-    { key: 'clinic', label: 'คลินิก', width: 140, render: () => 'คลินิกเวชกรรม' },
+    { key: 'date', label: 'วันที่รับบริการ', render: (v) => v.date || formatHivStiDate(v.dateIso) },
+    { key: 'clinic', label: 'คลินิก', render: () => 'คลินิกเวชกรรม' },
     { key: 'chiefComplaint', label: 'อาการสำคัญ', flex: true, minWidth: 180, render: (v) => v.chiefComplaint || '—' },
     { key: 'summary', label: 'สรุปการรักษา', flex: true, minWidth: 240, render: (v) => v.summary || '—' },
     { key: 'doctor', label: 'แพทย์ผู้ตรวจ', flex: true, minWidth: 150, render: (v) => v.doctor || '—' },
     {
       key: 'detail',
       label: '',
-      width: 130,
       sortable: false,
       render: (v) => (
         <NeutralSubdueButton size='sm' leadingIcon='visibility' onClick={(e) => { e.stopPropagation(); setDetailVisit(v); }}>

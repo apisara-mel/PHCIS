@@ -115,7 +115,6 @@ const ItemLookupPopup = ({ open, group, selected, onClose, onConfirm }) => {
     {
       key: 'pick',
       label: '',
-      width: 56,
       sortable: false,
       render: (row) => (
         <Checkbox
@@ -125,10 +124,10 @@ const ItemLookupPopup = ({ open, group, selected, onClose, onConfirm }) => {
         />
       ),
     },
-    { key: 'code', label: 'รหัส', width: 130 },
+    { key: 'code', label: 'รหัส' },
     { key: 'name', label: 'ชื่อรายการตรวจ', flex: true, minWidth: 260 },
-    { key: 'price', label: 'ราคา', width: 120, align: 'right', render: (r) => formatBahtTh(r.price) },
-    { key: 'claimable', label: 'เบิกได้', width: 120, align: 'right', render: (r) => formatBahtTh(r.claimable) },
+    { key: 'price', label: 'ราคา', align: 'right', render: (r) => formatBahtTh(r.price) },
+    { key: 'claimable', label: 'เบิกได้', align: 'right', render: (r) => formatBahtTh(r.claimable) },
   ];
 
   return (
@@ -260,7 +259,7 @@ const CriteriaTab = ({ form, setForm, readOnly }) => {
   };
 
   const columns = [
-    { key: 'code', label: 'รหัส', width: 120 },
+    { key: 'code', label: 'รหัส' },
     { key: 'name', label: 'รายการตรวจ', flex: true, minWidth: 240, render: (r) => findCatalogItem(r.code)?.name || r.code },
     {
       key: 'levels',
@@ -294,7 +293,6 @@ const CriteriaTab = ({ form, setForm, readOnly }) => {
     {
       key: 'actions',
       label: 'การดำเนินการ',
-      width: 220,
       sortable: false,
       render: (r) => (
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
@@ -428,14 +426,13 @@ const PackageEditor = ({ form, setForm, readOnly, onSave, onCancel, isNew, error
     .filter((i) => i && i.group === groupKey);
 
   const itemColumns = [
-    { key: 'code', label: 'รหัส', width: 130 },
+    { key: 'code', label: 'รหัส' },
     { key: 'name', label: 'ชื่อรายการตรวจ', flex: true, minWidth: 240 },
-    { key: 'price', label: 'ราคา', width: 120, align: 'right', render: (r) => formatBahtTh(r.price) },
-    { key: 'claimable', label: 'เบิกได้', width: 120, align: 'right', render: (r) => formatBahtTh(r.claimable) },
+    { key: 'price', label: 'ราคา', align: 'right', render: (r) => formatBahtTh(r.price) },
+    { key: 'claimable', label: 'เบิกได้', align: 'right', render: (r) => formatBahtTh(r.claimable) },
     {
       key: 'remove',
       label: '',
-      width: 64,
       sortable: false,
       render: (r) => (
         <BrandSubdueIconButton
@@ -771,7 +768,7 @@ const CheckupPackagePage = () => {
   };
 
   const columns = useMemo(() => ([
-    { key: 'code', label: 'รหัสชุดตรวจ', width: 150 },
+    { key: 'code', label: 'รหัสชุดตรวจ' },
     {
       key: 'name',
       label: 'ชื่อชุดตรวจ',
@@ -791,16 +788,14 @@ const CheckupPackagePage = () => {
     {
       key: 'items',
       label: 'จำนวนรายการ',
-      width: 130,
       align: 'center',
       render: (r) => `${(r.items || []).length} รายการ`,
     },
-    { key: 'price', label: 'ราคา', width: 130, align: 'right', render: (r) => formatBahtTh(packagePrice(r).total) },
-    { key: 'claim', label: 'เบิกได้', width: 130, align: 'right', render: (r) => formatBahtTh(packagePrice(r).claimable) },
+    { key: 'price', label: 'ราคา', align: 'right', render: (r) => formatBahtTh(packagePrice(r).total) },
+    { key: 'claim', label: 'เบิกได้', align: 'right', render: (r) => formatBahtTh(packagePrice(r).claimable) },
     {
       key: 'active',
       label: 'สถานะ',
-      width: 170,
       render: (r) => (r.active
         ? <ColorfulBadge style='green' size='small' hierarchy='secondary'>ใช้งาน</ColorfulBadge>
         : (
@@ -817,7 +812,6 @@ const CheckupPackagePage = () => {
     {
       key: 'actions',
       label: 'การดำเนินการ',
-      width: 250,
       sortable: false,
       render: (r) => (
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>

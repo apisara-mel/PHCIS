@@ -178,9 +178,8 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
   {
     key: 'bedNo',
     label: 'เลขเตียง',
-    /* Fixed widths on the sticky trio (bed / HN / name) — a flex sticky
-       column drifts vs stickyLeft and overlaps neighbors when scrolling. */
-    width: 104,
+    /* Sticky left offsets come from Table content-fit measurements
+       (max of header vs longest cell) — do not author fixed width. */
     render: (patient) => (
       <span style={{ color: 'var(--text-brandPrimary-default, var(--brand-p700))', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
         {patient.bedNo}
@@ -190,7 +189,6 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
   {
     key: 'hn',
     label: 'HN',
-    width: 120,
     render: (patient) => (!hasPatient(patient)
       ? <span style={{ color: 'var(--text-content-tertiary)' }}>-</span>
       : <EllipsisText text={patient.hn} fill={false} compact />),
@@ -198,7 +196,6 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
   {
     key: 'name',
     label: 'ชื่อ-นามสกุล',
-    width: 220,
     render: (patient) => {
       if (!hasPatient(patient)) {
         return (
@@ -236,13 +233,11 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
   {
     key: 'genderAge',
     label: 'เพศ / อายุ',
-    width: 112,
     render: (patient) => (!hasPatient(patient) ? '-' : `${patient.gender}, ${patient.age} ปี`),
   },
   {
     key: 'bedType',
     label: 'รูปแบบเตียง',
-    width: 180,
     render: (patient) => (
       <EllipsisText text={resolveBedTitleTh(patient) || patient.bedType || '-'} fill={false} />
     ),
@@ -251,7 +246,6 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
     key: 'admitTime',
     label: 'เวลาเข้าเตียง',
     /* Wide enough for "YYYY-MM-DD HH:MM น." on one line (e.g. 2026-08-07 09:30 น.). */
-    width: 200,
     render: (patient) => {
       if (!hasPatient(patient)) return '-';
       const overstay = isOverstay(patient);
@@ -304,7 +298,6 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
   {
     key: 'vitals',
     label: 'สัญญาณชีพล่าสุด',
-    width: 176,
     align: 'center',
     sortable: false,
     render: (patient) => {
@@ -332,7 +325,6 @@ const OBSERVATION_QUEUE_BASE_COLUMNS = [
     key: 'status',
     label: 'สถานะ',
     /* Fit longest badge labels ("กำลังเฝ้าระวัง" / "รอทำความสะอาด") + optional dot. */
-    width: 168,
     align: 'center',
     render: (patient) => {
       const bedStatus = observationBedStatusFor(patient);
@@ -357,7 +349,6 @@ export default function ObservationQueuePage() {
         label: 'เครื่องมือ',
         /* Wide enough for the longest label ("ประวัติการสังเกตอาการ") to
            render on one line without the button clipping its own text. */
-        width: 210,
         align: 'right',
         sortable: false,
         render: (patient) => {
@@ -1454,13 +1445,15 @@ export default function ObservationQueuePage() {
                       variant='plain'
                     />
                   </BedInfoTooltip>
-                  {/* Same photo ratio as InventoryCard in "เพิ่มเตียง" (227×180). */}
+                  {/* Empty / cleaning tiles — slightly smaller than InventoryCard
+                     (227×180) so the catalogue photo doesn't dominate the card. */}
                   <div
                     className='rounded-2xl overflow-hidden flex items-center justify-center shrink-0 w-full'
                     style={{
-                      maxWidth: 227,
+                      maxWidth: 'var(--dim-size-2170, 177px)',
                       aspectRatio: '227 / 180',
                       height: 'auto',
+                      padding: 'var(--dim-space-300, 12px)',
                       background: 'var(--surface-card-100)',
                       border: 'var(--dim-stroke-100) solid var(--border-card-default)',
                       boxShadow: 'var(--shadow-2xs, none)',
@@ -1470,7 +1463,8 @@ export default function ObservationQueuePage() {
                     <img
                       src={resolveBedImage(patient)}
                       alt={bedTitleTh}
-                      className='w-full h-full object-cover'
+                      className='w-full h-full object-contain'
+                      style={{ maxHeight: '100%' }}
                     />
                   </div>
                   {patient.isExtraBed && (
@@ -2288,7 +2282,7 @@ export default function ObservationQueuePage() {
             <span style={{ color: 'var(--text-content-tertiary)', fontWeight: 'var(--type-weight-regular)' }}>
               เลขเตียง:
             </span>
-            <span style={{ color: 'var(--text-brandPrimary-default)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
+            <span style={{ color: 'var(--text-brandPrimary-default)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold, 700)' }}>
               {String(nextBedNumber).padStart(2, '0')}{isNextBedExtra ? '-Extra' : ''}
             </span>
             <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-regular)' }}>

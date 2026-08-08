@@ -230,11 +230,11 @@ const ConsultRegisterPage = () => {
 
   const columns = [
     {
-      key: 'requestedAt', header: 'วันที่', width: 170,
+      key: 'requestedAt', header: 'วันที่',
       render: (r) => <span style={{ ...PANEL_VALUE_STYLE, ...strikeIf(r.status === 'cancelled') }}>{r.requestedAt}</span>,
     },
     {
-      key: 'consultNo', header: 'เลขที่คำขอ', width: 160,
+      key: 'consultNo', header: 'เลขที่คำขอ',
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={{ ...PANEL_VALUE_STYLE, ...strikeIf(r.status === 'cancelled') }}>{r.consultNo}</span>
@@ -247,8 +247,8 @@ const ConsultRegisterPage = () => {
         </div>
       ),
     },
-    { key: 'hn', header: 'HN', width: 110 },
-    { key: 'cid', header: 'CID', width: 170, render: (r) => r.cid || '—' },
+    { key: 'hn', header: 'HN' },
+    { key: 'cid', header: 'CID', render: (r) => r.cid || '—' },
     {
       key: 'name', header: 'ชื่อ - สกุล', flex: 1,
       render: (r) => (
@@ -260,7 +260,7 @@ const ConsultRegisterPage = () => {
       ),
     },
     {
-      key: 'toClinic', header: 'คลินิกที่ส่งไป', width: 240,
+      key: 'toClinic', header: 'คลินิกที่ส่งไป',
       render: (r) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={PANEL_VALUE_STYLE}>{clinicMeta(r.toClinic)?.label || 'ยังไม่ระบุคลินิก'}</span>
@@ -269,7 +269,7 @@ const ConsultRegisterPage = () => {
       ),
     },
     {
-      key: 'type', header: 'ประเภท / ความเร่งด่วน', width: 240,
+      key: 'type', header: 'ประเภท / ความเร่งด่วน',
       render: (r) => (
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <ColorfulBadge style='blue' size='small' width='hug'>{consultTypeMeta(r.consultType).label}</ColorfulBadge>
@@ -280,7 +280,7 @@ const ConsultRegisterPage = () => {
       ),
     },
     {
-      key: 'status', header: 'สถานะ', width: 160,
+      key: 'status', header: 'สถานะ',
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <StatusBadge style={consultStatusMeta(r.status).badge} size='small'>{consultStatusMeta(r.status).label}</StatusBadge>

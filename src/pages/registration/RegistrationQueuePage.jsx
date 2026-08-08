@@ -367,16 +367,16 @@ const makeRenderActions = ({ onCall, onPause, onCancel, onMore }) => function Ac
    Actions column is bound later with page-level onCall / onPause / onCancel. */
 const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause, onCancel, onMore }) => {
   const cols = [
-    !isDirectory && { key: 'queue',        header: 'คิว',                    width: 80,  sortable: true, render: renderQueue },
-    { key: 'hn',           header: 'HN',                     width: 96,  sortable: true, render: renderHn },
-    { key: 'name',         header: 'ชื่อ-นามสกุล',            width: 220, sortable: true, render: renderName },
-    { key: 'queueChannel', header: 'การรับคิว',               width: 160, sortable: true },
-    { key: 'visitType',    header: 'ประเภท',                 width: 180, sortable: true, render: renderVisitType },
-    { key: 'age',          header: 'อายุ (ปี)',               width: 96,  sortable: true, render: renderAge },
-    { key: 'nationalId',   header: 'เลขบัตรประชาชน',          width: 180, sortable: true, render: renderPrivacyCell('nationalId') },
-    { key: 'phone',        header: 'โทรศัพท์',               width: 128, sortable: true, render: renderPrivacyCell('phone') },
-    !isDirectory && { key: 'status',       header: 'สถานะการเข้าใช้บริการ',    width: 240, sortable: true, render: renderStatus },
-    { key: 'actions',      header: 'การดำเนินการ',           width: 260, render: makeRenderActions({ onCall, onPause, onCancel, onMore }) },
+    !isDirectory && { key: 'queue',        header: 'คิว',  sortable: true, render: renderQueue },
+    { key: 'hn',           header: 'HN',  sortable: true, render: renderHn },
+    { key: 'name',         header: 'ชื่อ-นามสกุล', sortable: true, render: renderName },
+    { key: 'queueChannel', header: 'การรับคิว', sortable: true },
+    { key: 'visitType',    header: 'ประเภท', sortable: true, render: renderVisitType },
+    { key: 'age',          header: 'อายุ (ปี)',  sortable: true, render: renderAge },
+    { key: 'nationalId',   header: 'เลขบัตรประชาชน', sortable: true, render: renderPrivacyCell('nationalId') },
+    { key: 'phone',        header: 'โทรศัพท์', sortable: true, render: renderPrivacyCell('phone') },
+    !isDirectory && { key: 'status',       header: 'สถานะการเข้าใช้บริการ', sortable: true, render: renderStatus },
+    { key: 'actions',      header: 'การดำเนินการ', render: makeRenderActions({ onCall, onPause, onCancel, onMore }) },
   ];
   return cols.filter(Boolean);
 };

@@ -2394,11 +2394,11 @@ const LIVE_PATIENTS = [
 ];
 
 const TABLE_LIVE_COLUMNS = [
-  { key: 'queue', label: 'คิว',         subtext: 'queue no.' , width: 110 },
-  { key: 'hn',    label: 'HN',          subtext: 'hospital id', width: 130 },
-  { key: 'name',  label: 'ชื่อ-นามสกุล', subtext: 'patient',     width: 260 },
-  { key: 'dept',  label: 'แผนก',        subtext: 'department',  width: 170 },
-  { key: 'count', label: 'จำนวนครั้ง',   subtext: 'visit count', width: 140 },
+  { key: 'queue', label: 'คิว',         subtext: 'queue no.'  },
+  { key: 'hn',    label: 'HN',          subtext: 'hospital id' },
+  { key: 'name',  label: 'ชื่อ-นามสกุล', subtext: 'patient' },
+  { key: 'dept',  label: 'แผนก',        subtext: 'department' },
+  { key: 'count', label: 'จำนวนครั้ง',   subtext: 'visit count' },
 ];
 
 /* Cycle: null → asc → desc → null. Returns the next sort state. */
@@ -2641,10 +2641,10 @@ const TableDemo = () => (
       <div className='w-full'>
         <Table
           columns={[
-            { key: 'queue', header: 'คิว', width: 70 },
-            { key: 'hn',    header: 'HN',  width: 90 },
+            { key: 'queue', header: 'คิว' },
+            { key: 'hn',    header: 'HN' },
             { key: 'name',  header: 'ชื่อ-นามสกุล', flex: 1 },
-            { key: 'dept',  header: 'แผนก', width: 130 },
+            { key: 'dept',  header: 'แผนก' },
           ]}
           rows={[
             { queue: 'B001', hn: '0001', name: 'สมชาย ใจดี',     dept: 'อายุรกรรม' },
@@ -2658,10 +2658,10 @@ const TableDemo = () => (
       <div className='w-full'>
         <Table
           columns={[
-            { key: 'queue', header: 'คิว', width: 70 },
-            { key: 'hn',    header: 'HN',  width: 90 },
+            { key: 'queue', header: 'คิว' },
+            { key: 'hn',    header: 'HN' },
             { key: 'name',  header: 'ชื่อ-นามสกุล', flex: 1 },
-            { key: 'dept',  header: 'แผนก', width: 130 },
+            { key: 'dept',  header: 'แผนก' },
           ]}
           rows={[]}
           loading
@@ -2673,10 +2673,10 @@ const TableDemo = () => (
       <div className='w-full'>
         <Table
           columns={[
-            { key: 'queue', header: 'คิว', width: 70 },
-            { key: 'hn',    header: 'HN',  width: 90 },
+            { key: 'queue', header: 'คิว' },
+            { key: 'hn',    header: 'HN' },
             { key: 'name',  header: 'ชื่อ-นามสกุล', flex: 1 },
-            { key: 'dept',  header: 'แผนก', width: 130 },
+            { key: 'dept',  header: 'แผนก' },
           ]}
           rows={[]}
         />

@@ -73,11 +73,10 @@ const PricingSettingsSection = ({ value, onChange }) => {
       ),
     },
     {
-      key: 'basePrice', label: 'ราคาตั้งต้น', width: 120,
-      render: (row) => formatBaht(BASE_PRICE[row.key]),
-    },
+      key: 'basePrice', label: 'ราคาตั้งต้น',
+      render: (row) => formatBaht(BASE_PRICE[row.key])},
     ...RIGHTS_LIST.map((r) => ({
-      key: r.key, label: r.short, width: 150, align: 'center', sortable: false,
+      key: r.key, label: r.short, align: 'center', sortable: false,
       render: (row) => (
         <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-100)' }}>
           <InputField
@@ -99,7 +98,7 @@ const PricingSettingsSection = ({ value, onChange }) => {
   const packageColumns = (prices, setPrices) => [
     { key: 'label', label: 'รายการ', flex: true, minWidth: 260 },
     {
-      key: 'price', label: 'ราคาขาย', width: 160,
+      key: 'price', label: 'ราคาขาย',
       render: (row) => (
         <InputField
           type='number'

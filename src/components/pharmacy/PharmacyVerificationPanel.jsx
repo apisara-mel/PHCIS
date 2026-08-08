@@ -14,9 +14,9 @@ import { verifyPrescription, appendPharmacistNote } from '@/data/pharmacyQueue';
    หมายเหตุ, newest-first). */
 
 const LOG_COLUMNS = [
-  { key: 'at', label: 'เวลา', width: 100 },
+  { key: 'at', label: 'เวลา' },
   { key: 'actor', label: 'ผู้ดำเนินการ', flex: true, minWidth: 200 },
-  { key: 'action', label: 'รายการ', width: 220 },
+  { key: 'action', label: 'รายการ' },
   { key: 'note', label: 'หมายเหตุ', flex: true, minWidth: 200, render: (r) => r.note || '—' },
 ];
 

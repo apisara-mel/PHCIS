@@ -291,9 +291,9 @@ const NcdFollowUpPage = () => {
   /* ── ตาราง — visits × ผลตรวจ (TOR 1.10.2.8 ตารางข้อมูล) ───────────── */
 
   const columns = useMemo(() => ([
-    { key: 'date', label: 'วันที่', width: 120, render: (v) => formatNcdDate(v.date) },
+    { key: 'date', label: 'วันที่', render: (v) => formatNcdDate(v.date) },
     {
-      key: 'type', label: 'ประเภท', width: 128,
+      key: 'type', label: 'ประเภท',
       render: (v) => (
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)' }}>
           {v.type === 'Telemedicine' && <Icon name='videocam' size={14} />}
@@ -302,7 +302,7 @@ const NcdFollowUpPage = () => {
       ),
     },
     {
-      key: 'bp', label: 'BP', width: 88,
+      key: 'bp', label: 'BP',
       render: (v) => (
         <span style={(v.sbp != null && v.sbp >= 140) || (v.dbp != null && v.dbp >= 90) ? { color: 'var(--text-danger-default, #C72121)', fontWeight: 'var(--type-weight-medium)' } : undefined}>
           {dash(v.bp)}
@@ -310,7 +310,7 @@ const NcdFollowUpPage = () => {
       ),
     },
     {
-      key: 'fbs', label: 'FBS', width: 72,
+      key: 'fbs', label: 'FBS',
       render: (v) => (
         <span style={v.fbs != null && v.fbs >= 126 ? { color: 'var(--text-danger-default, #C72121)', fontWeight: 'var(--type-weight-medium)' } : undefined}>
           {dash(v.fbs)}
@@ -318,22 +318,22 @@ const NcdFollowUpPage = () => {
       ),
     },
     {
-      key: 'hba1c', label: 'HbA1c', width: 80,
+      key: 'hba1c', label: 'HbA1c',
       render: (v) => (
         <span style={v.hba1c != null && v.hba1c >= 7 ? { color: 'var(--text-danger-default, #C72121)', fontWeight: 'var(--type-weight-medium)' } : undefined}>
           {dash(v.hba1c)}
         </span>
       ),
     },
-    { key: 'ldl',  label: 'LDL',  width: 72, render: (v) => dash(v.ldl) },
-    { key: 'egfr', label: 'eGFR', width: 72, render: (v) => dash(v.egfr) },
-    { key: 'pefr', label: 'PEFR', width: 72, render: (v) => dash(v.pefr) },
-    { key: 'spo2', label: 'SpO₂', width: 72, render: (v) => dash(v.spo2, '%') },
+    { key: 'ldl',  label: 'LDL', render: (v) => dash(v.ldl) },
+    { key: 'egfr', label: 'eGFR', render: (v) => dash(v.egfr) },
+    { key: 'pefr', label: 'PEFR', render: (v) => dash(v.pefr) },
+    { key: 'spo2', label: 'SpO₂', render: (v) => dash(v.spo2, '%') },
     { key: 'exam',   label: 'ผลตรวจร่างกาย',   flex: true, minWidth: 180, render: (v) => <span className='truncate block'>{dash(v.exam)}</span> },
     { key: 'dental', label: 'การตรวจทันตกรรม', flex: true, minWidth: 150, render: (v) => <span className='truncate block'>{dash(v.dental)}</span> },
     { key: 'xray',   label: 'X-ray',           flex: true, minWidth: 150, render: (v) => <span className='truncate block'>{dash(v.xray)}</span> },
     {
-      key: 'attachments', label: 'เอกสารแนบ', width: 104, sortable: false,
+      key: 'attachments', label: 'เอกสารแนบ', sortable: false,
       render: (v) => ((v.attachments || []).length === 0 ? '—' : (
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)' }}>
           <Icon name='attach_file' size={14} />
@@ -342,7 +342,7 @@ const NcdFollowUpPage = () => {
       )),
     },
     {
-      key: 'detail', label: '', width: 120, sortable: false,
+      key: 'detail', label: '', sortable: false,
       render: (v) => (
         <NeutralSubdueButton size='sm' leadingIcon='visibility' onClick={(e) => { e.stopPropagation(); setDetailVisit(v); }}>
           รายละเอียด

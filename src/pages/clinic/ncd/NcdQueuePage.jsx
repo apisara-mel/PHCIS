@@ -353,36 +353,35 @@ const NcdQueuePage = () => {
   );
 
   const columns = useMemo(() => ([
-    { key: 'queue',   label: 'คิว',           width: 80,  render: renderQueue },
-    { key: 'hn',      label: 'HN',            width: 96 },
+    { key: 'queue',   label: 'คิว',  render: renderQueue },
+    { key: 'hn',      label: 'HN' },
     { key: 'name',    label: 'ชื่อ-นามสกุล',   flex: true, minWidth: 160, render: renderName },
-    { key: 'group',   label: 'กลุ่มโรค',       width: 136, render: renderGroups },
-    { key: 'telemed', label: 'Telemedicine',  width: 120, align: 'center', sortable: false, render: renderTelemedicine },
-    { key: 'room',    label: 'ห้อง',          width: 80 },
+    { key: 'group',   label: 'กลุ่มโรค', render: renderGroups },
+    { key: 'telemed', label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
+    { key: 'room',    label: 'ห้อง' },
     { key: 'doctor',  label: 'แพทย์ผู้ดูแล',   flex: true, minWidth: 140 },
-    { key: 'wait',    label: 'รอนาน',         width: 96,  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
-    { key: 'status',  label: 'สถานะ',         width: 200, render: renderStatus },
-    { key: 'actions', label: 'การดำเนินการ',   width: 140, sortable: false, render: renderActions },
+    { key: 'wait',    label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
+    { key: 'status',  label: 'สถานะ', render: renderStatus },
+    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: renderActions },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
   /* "นัดแล้วยังไม่มาติดต่อ" — different row shape (เวลานัด instead of
      queue/wait/status) + a ส่งตรวจ check-in action. */
   const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด',      width: 96 },
-    { key: 'hn',              label: 'HN',           width: 96 },
+    { key: 'appointmentTime', label: 'เวลานัด' },
+    { key: 'hn',              label: 'HN' },
     { key: 'name',            label: 'ชื่อ-นามสกุล',  flex: true, minWidth: 160 },
-    { key: 'group',           label: 'กลุ่มโรค',      width: 136, render: renderGroups },
-    { key: 'clinic',          label: 'คลินิก',        width: 96 },
+    { key: 'group',           label: 'กลุ่มโรค', render: renderGroups },
+    { key: 'clinic',          label: 'คลินิก' },
     { key: 'doctor',          label: 'แพทย์ผู้ดูแล',  flex: true, minWidth: 140 },
     {
-      key: 'source', label: 'ที่มาของนัด', width: 156, sortable: false,
+      key: 'source', label: 'ที่มาของนัด', sortable: false,
       render: (row) => (row.fromRecord
         ? <ColorfulBadge style='teal' size='small' hierarchy='secondary'>นัดจากบันทึกการตรวจ</ColorfulBadge>
-        : <ColorfulBadge style='grey' size='small' hierarchy='secondary'>นัดล่วงหน้า</ColorfulBadge>),
-    },
+        : <ColorfulBadge style='grey' size='small' hierarchy='secondary'>นัดล่วงหน้า</ColorfulBadge>)},
     {
-      key: 'checkin', label: 'การดำเนินการ', width: 140, sortable: false,
+      key: 'checkin', label: 'การดำเนินการ', sortable: false,
       render: (row) => (
         <BrandSubdueButton variant='fill' size='sm' leadingIcon='login' onClick={(e) => { e.stopPropagation(); handleCheckIn(row.hn); }}>
           ส่งตรวจ

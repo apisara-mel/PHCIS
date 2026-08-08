@@ -61,9 +61,9 @@ const isBelowReorderPoint = (name, stock) => {
 
 const BASE_COLUMNS = [
   { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220 },
-  { key: 'lot', label: 'Lot No.', width: 140 },
+  { key: 'lot', label: 'Lot No.' },
   {
-    key: 'stock', label: 'คงคลัง', width: 150, align: 'center',
+    key: 'stock', label: 'คงคลัง', align: 'center',
     render: (r) => (
       <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-050)' }}>
         <span>{r.stock.toLocaleString()} {r.unit}</span>
@@ -71,9 +71,9 @@ const BASE_COLUMNS = [
       </div>
     ),
   },
-  { key: 'unitPrice', label: 'ราคา/หน่วย', width: 100, align: 'center', render: (r) => `฿${r.unitPrice}` },
+  { key: 'unitPrice', label: 'ราคา/หน่วย', align: 'center', render: (r) => `฿${r.unitPrice}` },
   {
-    key: 'expiryDate', label: 'วันหมดอายุ', width: 160,
+    key: 'expiryDate', label: 'วันหมดอายุ',
     render: (r) => (
       <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
         <span>{formatThaiDate(r.expiryDate)}</span>
@@ -85,8 +85,8 @@ const BASE_COLUMNS = [
 
 const MAIN_COLUMNS = [
   ...BASE_COLUMNS,
-  { key: 'receivedFrom', label: 'รับจาก', width: 200 },
-  { key: 'receivedAt', label: 'วันที่รับเข้า', width: 120, render: (r) => formatThaiDate(r.receivedAt) },
+  { key: 'receivedFrom', label: 'รับจาก' },
+  { key: 'receivedAt', label: 'วันที่รับเข้า', render: (r) => formatThaiDate(r.receivedAt) },
 ];
 
 const BORROW_RETURN_STATUS_PILL = {
@@ -257,15 +257,10 @@ const PharmacyStockPage = () => {
                 size='large'
                 selected={activeTab === t.key}
                 leadingIcon={t.icon}
+                count={tabCounts[t.key]}
                 onClick={() => setActiveTab(t.key)}
               >
                 {t.label}
-                <span
-                  className='tabular-nums'
-                  style={{ marginLeft: 'var(--dim-space-200)', fontWeight: 'var(--type-weight-bold)' }}
-                >
-                  {tabCounts[t.key]}
-                </span>
               </TabPill>
             ))}
           </TabBar>
@@ -319,11 +314,11 @@ const PharmacyStockPage = () => {
           <Table
             columns={[
               { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220 },
-              { key: 'stock', label: 'คงคลัง', width: 120, align: 'center', render: (r) => `${r.stock.toLocaleString()} ${r.unit}` },
-              { key: 'reorderPoint', label: 'จุดสั่งซื้อ', width: 120, align: 'center', render: (r) => r.reorderPoint.toLocaleString() },
-              { key: 'channel', label: 'เบิกจาก', width: 220, render: (r) => <Badge style='warning' size='small'>{REORDER_CHANNEL_LABEL[r.channel]}</Badge> },
+              { key: 'stock', label: 'คงคลัง', align: 'center', render: (r) => `${r.stock.toLocaleString()} ${r.unit}` },
+              { key: 'reorderPoint', label: 'จุดสั่งซื้อ', align: 'center', render: (r) => r.reorderPoint.toLocaleString() },
+              { key: 'channel', label: 'เบิกจาก', render: (r) => <Badge style='warning' size='small'>{REORDER_CHANNEL_LABEL[r.channel]}</Badge> },
               {
-                key: 'autoReorder', label: 'ดำเนินการ', width: 150, align: 'center', sortable: false,
+                key: 'autoReorder', label: 'ดำเนินการ', align: 'center', sortable: false,
                 render: (r) => requestedNames.has(r.name) ? (
                   <Badge style='success' size='small'>ส่งใบเบิกแล้ว</Badge>
                 ) : (
@@ -385,12 +380,12 @@ const PharmacyStockPage = () => {
 
               <Table
                 columns={[
-                  { key: 'type', label: 'ประเภท', width: 110, render: (r) => <Badge style={r.type === 'borrow' ? 'info' : r.type === 'return' ? 'success' : 'warning'} size='small'>{BORROW_RETURN_TYPE_LABEL[r.type]}</Badge> },
+                  { key: 'type', label: 'ประเภท', render: (r) => <Badge style={r.type === 'borrow' ? 'info' : r.type === 'return' ? 'success' : 'warning'} size='small'>{BORROW_RETURN_TYPE_LABEL[r.type]}</Badge> },
                   { key: 'drugName', label: 'ชื่อยา', flex: true, minWidth: 200 },
-                  { key: 'quantity', label: 'จำนวน', width: 120, align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
+                  { key: 'quantity', label: 'จำนวน', align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
                   { key: 'counterpartCenter', label: 'ศูนย์บริการคู่กรณี', flex: true, minWidth: 220 },
-                  { key: 'requestedAt', label: 'วันที่ทำรายการ', width: 140, render: (r) => formatThaiDate(r.requestedAt) },
-                  { key: 'status', label: 'สถานะ', width: 130, render: (r) => <Badge style={BORROW_RETURN_STATUS_PILL[r.status].style} size='small'>{BORROW_RETURN_STATUS_PILL[r.status].label}</Badge> },
+                  { key: 'requestedAt', label: 'วันที่ทำรายการ', render: (r) => formatThaiDate(r.requestedAt) },
+                  { key: 'status', label: 'สถานะ', render: (r) => <Badge style={BORROW_RETURN_STATUS_PILL[r.status].style} size='small'>{BORROW_RETURN_STATUS_PILL[r.status].label}</Badge> },
                 ]}
                 rows={BORROW_RETURN_RECORDS.filter((r) => r.direction === 'outgoing')}
                 rowKey={(r) => r.id}
@@ -409,14 +404,14 @@ const PharmacyStockPage = () => {
               </h2>
               <Table
                 columns={[
-                  { key: 'type', label: 'ประเภท', width: 110, render: (r) => <Badge style={r.type === 'borrow' ? 'info' : r.type === 'return' ? 'success' : 'warning'} size='small'>{BORROW_RETURN_TYPE_LABEL[r.type]}</Badge> },
+                  { key: 'type', label: 'ประเภท', render: (r) => <Badge style={r.type === 'borrow' ? 'info' : r.type === 'return' ? 'success' : 'warning'} size='small'>{BORROW_RETURN_TYPE_LABEL[r.type]}</Badge> },
                   { key: 'drugName', label: 'ชื่อยา', flex: true, minWidth: 200 },
-                  { key: 'quantity', label: 'จำนวน', width: 120, align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
+                  { key: 'quantity', label: 'จำนวน', align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
                   { key: 'counterpartCenter', label: 'ศูนย์บริการคู่กรณี', flex: true, minWidth: 220 },
-                  { key: 'requestedAt', label: 'วันที่ทำรายการ', width: 140, render: (r) => formatThaiDate(r.requestedAt) },
-                  { key: 'status', label: 'สถานะ', width: 130, render: (r) => <Badge style={BORROW_RETURN_STATUS_PILL[r.status].style} size='small'>{BORROW_RETURN_STATUS_PILL[r.status].label}</Badge> },
+                  { key: 'requestedAt', label: 'วันที่ทำรายการ', render: (r) => formatThaiDate(r.requestedAt) },
+                  { key: 'status', label: 'สถานะ', render: (r) => <Badge style={BORROW_RETURN_STATUS_PILL[r.status].style} size='small'>{BORROW_RETURN_STATUS_PILL[r.status].label}</Badge> },
                   {
-                    key: 'itemActions', label: 'ดำเนินการ', width: 120, align: 'center', sortable: false,
+                    key: 'itemActions', label: 'ดำเนินการ', align: 'center', sortable: false,
                     render: (r) => r.status === 'pending' ? (
                       <NeutralSubdueButton size='sm' variant='outline' onClick={() => { confirmBorrowReturnRequest(r.id); forceRender((n) => n + 1); }}>
                         ยืนยัน

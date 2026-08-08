@@ -123,21 +123,24 @@ const makeRenderActions = ({ onCall }) => function ActionsCell(row) {
   );
 };
 
+/* Column widths are content-fit in <Table> (max of header vs longest cell).
+   Only `flex` / `minWidth` remain for the patient column that should grow. */
 const BASE_COLUMNS = [
-  { key: 'queueNo', label: 'คิว', width: 88, render: (row) => <Badge style='success' size='small'>{row.queueNo}</Badge> },
-  { key: 'hn', label: 'HN', width: 112 },
+  { key: 'queueNo', label: 'คิว', render: (row) => <Badge style='success' size='small'>{row.queueNo}</Badge> },
+  { key: 'hn', label: 'HN' },
   /* VN (Visit Number) — same value as the OPD screening queue for this
      patient (see `getVnByHn` in patientProfiles.js). Blank for the handful
      of mock HNs still "รอลงทะเบียน" with no screening visit yet. */
-  { key: 'vn', label: 'VN', width: 112, render: (row) => row.vn || '-' },
+  { key: 'vn', label: 'VN', render: (row) => row.vn || '-' },
   {
     key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
     render: (row) => {
+      /* Always show the HN's profile portrait (unique per patient).
+         Pharmacy queue includes pending-registration HNs that have no VN yet —
+         still show their photo, not initials. */
       const avatarProps = resolveQueuePatientAvatarProps({
         hn: row.hn,
         displayName: row.patientName,
-        /* No VN yet → same as registration "รอลงทะเบียน" rows: initials, not mock portrait. */
-        noProfilePhoto: !row.vn,
       });
       return (
         <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
@@ -151,10 +154,10 @@ const BASE_COLUMNS = [
       );
     },
   },
-  { key: 'queueType', label: 'ประเภท', width: 100, render: (row) => <Pill pill={QUEUE_TYPE_PILL[row.queueType]} /> },
-  { key: 'items', label: 'จำนวนรายการยา', width: 130, align: 'center', render: (row) => `${row.items.length} รายการ` },
+  { key: 'queueType', label: 'ประเภท', render: (row) => <Pill pill={QUEUE_TYPE_PILL[row.queueType]} /> },
+  { key: 'items', label: 'จำนวนรายการยา', align: 'center', render: (row) => `${row.items.length} รายการ` },
   {
-    key: 'allergy', label: 'แพ้ยา / High Alert', width: 160, sortable: false,
+    key: 'allergy', label: 'แพ้ยา / High Alert', sortable: false,
     render: (row) => {
       const { hasAllergy, hasHighAlert } = getAllergyFlags(row);
       return (
@@ -162,16 +165,16 @@ const BASE_COLUMNS = [
            (this person reacts to this drug class), amber is drug-specific
            (high-risk drug, safe for this patient). Both in red read as one
            undifferentiated alarm. */
-        <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-100)' }}>
+        <div className='flex items-center' style={{ gap: 'var(--dim-space-100)', flexWrap: 'nowrap' }}>
           {hasAllergy && <Badge style='error' size='small'>แพ้ยาข้ามกลุ่ม</Badge>}
           {hasHighAlert && <Badge style='warning' size='small'>High Alert</Badge>}
         </div>
       );
     },
   },
-  { key: 'issuedAt', label: 'เวลาสั่งยา', width: 96 },
-  { key: 'payment', label: 'การชำระเงิน', width: 120, render: (row) => <Pill pill={PAYMENT_STATUS_PILL[row.paymentStatus]} /> },
-  { key: 'status', label: 'สถานะ', width: 128, render: (row) => <Pill pill={STATUS_PILL[row.status]} /> },
+  { key: 'issuedAt', label: 'เวลาสั่งยา' },
+  { key: 'payment', label: 'การชำระเงิน', render: (row) => <Pill pill={PAYMENT_STATUS_PILL[row.paymentStatus]} /> },
+  { key: 'status', label: 'สถานะ', render: (row) => <Pill pill={STATUS_PILL[row.status]} /> },
 ];
 
 const PAGE_SIZE = 20;
@@ -347,7 +350,7 @@ const PharmacyQueuePage = () => {
 
   const columns = useMemo(
     () => (ACTIONABLE_TABS.includes(activeTab)
-      ? [...BASE_COLUMNS, { key: 'actions', label: 'การดำเนินการ', width: 96, align: 'center', sortable: false, render: makeRenderActions({ onCall: handleCall }) }]
+      ? [...BASE_COLUMNS, { key: 'actions', label: 'การดำเนินการ', align: 'center', sortable: false, render: makeRenderActions({ onCall: handleCall }) }]
       : BASE_COLUMNS),
     [activeTab],
   );
@@ -382,17 +385,10 @@ const PharmacyQueuePage = () => {
                 size='large'
                 selected={activeTab === t.key}
                 leadingIcon={t.icon}
+                count={tabCounts[t.key]}
                 onClick={() => handleTabChange(t.key)}
               >
                 {t.label}
-                {/* Count rides on weight, not colour — the pill already owns a
-                    colour per state, and a second tone here would fight it. */}
-                <span
-                  className='tabular-nums'
-                  style={{ marginLeft: 'var(--dim-space-200)', fontWeight: 'var(--type-weight-bold)' }}
-                >
-                  {tabCounts[t.key]}
-                </span>
               </TabPill>
             ))}
           </TabBar>

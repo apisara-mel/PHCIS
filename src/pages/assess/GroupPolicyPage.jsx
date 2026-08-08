@@ -227,7 +227,6 @@ function GroupPolicySection({
     {
       key: 'order',
       header: 'ลำดับ',
-      width: 80,
       sortable: true,
       render: (row) => <span style={TEXT_CELL}>{row.order}</span>,
     },
@@ -242,7 +241,6 @@ function GroupPolicySection({
     {
       key: 'active',
       header: 'สถานะการใช้งาน',
-      width: 160,
       render: (row) => (
         <Switch
           checked={row.active}
@@ -254,7 +252,6 @@ function GroupPolicySection({
     {
       key: 'action',
       header: 'การดำเนินการ',
-      width: 160,
       render: (row) => (
         <div className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
           <NeutralSubdueButton

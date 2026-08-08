@@ -19,9 +19,9 @@ const TEXT_CELL = {
 };
 
 const HISTORY_COLUMNS = [
-  { key: 'date', header: 'วันที่', width: 150, render: (r) => <span style={TEXT_CELL}>{r.date}</span> },
+  { key: 'date', header: 'วันที่', render: (r) => <span style={TEXT_CELL}>{r.date}</span> },
   {
-    key: 'formCode', header: 'รหัสแบบฟอร์ม', width: 150,
+    key: 'formCode', header: 'รหัสแบบฟอร์ม',
     render: (r) => <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>{r.formCode}</ColorfulBadge>,
   },
   {
@@ -33,18 +33,18 @@ const HISTORY_COLUMNS = [
     ),
   },
   {
-    key: 'type', header: 'ประเภท', width: 120,
+    key: 'type', header: 'ประเภท',
     render: (r) => <ColorfulBadge style={CONSENT_TYPE_TONE[r.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.type}</ColorfulBadge>,
   },
   {
-    key: 'version', header: 'เวอร์ชั่น', width: 110,
+    key: 'version', header: 'เวอร์ชั่น',
     render: (r) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{r.version}</ColorfulBadge>,
   },
   {
-    key: 'status', header: 'สถานะ', width: 150,
+    key: 'status', header: 'สถานะ',
     render: (r) => <ColorfulBadge style={(CONSENT_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>,
   },
-  { key: 'channel', header: 'ช่องทางที่ถอน', width: 150, render: (r) => <span style={TEXT_CELL}>{r.channel}</span> },
+  { key: 'channel', header: 'ช่องทางที่ถอน', render: (r) => <span style={TEXT_CELL}>{r.channel}</span> },
 ];
 
 const Initials = ({ name }) => (

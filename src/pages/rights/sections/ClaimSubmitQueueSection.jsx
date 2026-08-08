@@ -168,7 +168,7 @@ const ClaimSubmitQueueSection = ({ role }) => {
 
   const columns = [
     {
-      key: 'visitDate', label: 'วันที่รับบริการ', width: 160,
+      key: 'visitDate', label: 'วันที่รับบริการ',
       render: (v) => (
         <div className='flex flex-col min-w-0'>
           <span style={T.value}>{v.visitDate}</span>
@@ -187,7 +187,7 @@ const ClaimSubmitQueueSection = ({ role }) => {
       ),
     },
     {
-      key: 'rights', label: 'สิทธิ', width: 160,
+      key: 'rights', label: 'สิทธิ',
       render: (v) => {
         const r = rightsById(v.billingRightsId);
         return (
@@ -199,7 +199,7 @@ const ClaimSubmitQueueSection = ({ role }) => {
       },
     },
     {
-      key: 'clinic', label: 'คลินิก', width: 200,
+      key: 'clinic', label: 'คลินิก',
       render: (v) => (
         <div className='flex flex-col min-w-0'>
           <EllipsisText text={clinicLabelOf(v)} />
@@ -207,9 +207,9 @@ const ClaimSubmitQueueSection = ({ role }) => {
         </div>
       ),
     },
-    { key: 'doctor', label: 'แพทย์ผู้ตรวจ', width: 170, render: (v) => <EllipsisText text={v.doctor} /> },
+    { key: 'doctor', label: 'แพทย์ผู้ตรวจ', render: (v) => <EllipsisText text={v.doctor} /> },
     {
-      key: 'dx', label: 'ICD10 หลัก', width: 190,
+      key: 'dx', label: 'ICD10 หลัก',
       render: (v) => {
         const dx = principalDx(v);
         if (!dx) return <span style={T.muted}>ยังไม่ระบุรหัส</span>;
@@ -222,18 +222,18 @@ const ClaimSubmitQueueSection = ({ role }) => {
       },
     },
     {
-      key: 'procedures', label: 'ICD9CM', width: 100, align: 'center',
+      key: 'procedures', label: 'ICD9CM', align: 'center',
       render: (v) => <span style={T.value}>{v.icd9.length} รายการ</span>,
     },
     {
-      key: 'status', label: 'สถานะยืนยัน', width: 150,
+      key: 'status', label: 'สถานะยืนยัน',
       render: (v) => {
         const meta = submitStatusMeta(submitStatusOf(v));
         return <StatusBadge style={meta.color === 'positive' ? 'success' : meta.color} size='small'>{meta.label}</StatusBadge>;
       },
     },
     {
-      key: 'confirmedBy', label: 'ผู้ยืนยัน / เวลา', width: 210,
+      key: 'confirmedBy', label: 'ผู้ยืนยัน / เวลา',
       sortable: false,
       render: (v) => {
         if (v.reworkReason) {
@@ -255,7 +255,7 @@ const ClaimSubmitQueueSection = ({ role }) => {
       },
     },
     {
-      key: 'action', label: '', width: 130, sortable: false,
+      key: 'action', label: '', sortable: false,
       render: (v) => (
         <div className='flex items-center justify-end w-full'>
           <BrandSubdueButton

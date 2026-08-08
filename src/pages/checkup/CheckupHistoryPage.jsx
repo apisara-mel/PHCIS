@@ -74,23 +74,20 @@ const CheckupHistoryPage = () => {
     {
       key: 'round',
       label: 'ครั้งที่',
-      width: 100,
       render: (r) => <ColorfulBadge style={(r.round || 1) > 1 ? 'indigo' : 'grey'} size='small' hierarchy='secondary'>{`ครั้งที่ ${r.round || 1}`}</ColorfulBadge>,
     },
-    { key: 'visitDate', label: 'วันที่ตรวจ', width: 190, render: (r) => formatThaiDate(r.visitDate) },
+    { key: 'visitDate', label: 'วันที่ตรวจ', render: (r) => formatThaiDate(r.visitDate) },
     { key: 'programName', label: 'โปรแกรมตรวจสุขภาพ', flex: true, minWidth: 300 },
     {
       key: 'packageId',
       label: 'ชุดตรวจ',
       flex: true,
       minWidth: 220,
-      render: (r) => getPackage(r.packageId)?.code || '—',
-    },
+      render: (r) => getPackage(r.packageId)?.code || '—'},
     { key: 'doctor', label: 'แพทย์', flex: true, minWidth: 160 },
     {
       key: 'verdict',
       label: 'สรุปผลการตรวจ',
-      width: 170,
       sortable: false,
       render: (r) => {
         const rec = getVisitRecord(r.id);
@@ -101,7 +98,6 @@ const CheckupHistoryPage = () => {
     {
       key: 'status',
       label: 'สถานะ',
-      width: 140,
       render: (r) => {
         const cfg = VISIT_STATUSES[r.statusKey] || VISIT_STATUSES.waiting;
         return <ColorfulBadge style={cfg.badge} size='small' hierarchy='secondary'>{cfg.label}</ColorfulBadge>;
@@ -110,7 +106,6 @@ const CheckupHistoryPage = () => {
     {
       key: 'actions',
       label: 'การดำเนินการ',
-      width: 230,
       sortable: false,
       render: (r, idx) => (
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
@@ -156,7 +151,7 @@ const CheckupHistoryPage = () => {
     const screeningSummary = selectedScreening ? summariseScreening(selectedScreening) : [];
 
     const resultColumns = [
-      { key: 'code', label: 'รหัส', width: 120 },
+      { key: 'code', label: 'รหัส' },
       { key: 'name', label: 'รายการตรวจ', flex: true, minWidth: 250, render: (r) => findCatalogItem(r.code)?.name || r.code },
       {
         key: 'value',
@@ -170,7 +165,6 @@ const CheckupHistoryPage = () => {
       {
         key: 'verdict',
         label: 'แปลผล',
-        width: 150,
         sortable: false,
         render: (r) => {
           const item = findCatalogItem(r.code);
@@ -186,7 +180,6 @@ const CheckupHistoryPage = () => {
       {
         key: 'ref',
         label: 'ค่าอ้างอิง / ที่มา',
-        width: 250,
         sortable: false,
         render: (r) => {
           const item = findCatalogItem(r.code);

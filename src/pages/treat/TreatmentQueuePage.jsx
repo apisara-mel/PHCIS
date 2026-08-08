@@ -307,17 +307,17 @@ const makeRenderActions = ({ onCall }) => function ActionsCell(row) {
 };
 
 const BASE_COLUMNS = [
-  { key: 'queue',        label: 'คิว',              width: 80,  render: renderQueue },
-  { key: 'hn',           label: 'HN',               width: 96  },
+  { key: 'queue',        label: 'คิว',  render: renderQueue },
+  { key: 'hn',           label: 'HN'  },
   { key: 'name',         label: 'ชื่อ-นามสกุล',      flex: true, minWidth: 160, render: renderName },
-  { key: 'type',         label: 'ประเภท',           width: 96,  render: renderType },
-  { key: 'telemedicine', label: 'Telemedicine',     width: 168, align: 'center', render: renderTelemedicine },
-  { key: 'cc',           label: 'อาการสำคัญ (CC)',   width: 224, render: (row) => <TableEllipsisText text={row.cc} /> },
-  { key: 'vitals',       label: 'Vitals',           width: 128, sortable: false, render: (row) => <VitalsCell vitals={row.vitals} /> },
-  { key: 'room',         label: 'ห้อง',             width: 112, render: renderRoom },
+  { key: 'type',         label: 'ประเภท',  render: renderType },
+  { key: 'telemedicine', label: 'Telemedicine', align: 'center', render: renderTelemedicine },
+  { key: 'cc',           label: 'อาการสำคัญ (CC)', render: (row) => <TableEllipsisText text={row.cc} /> },
+  { key: 'vitals',       label: 'Vitals', sortable: false, render: (row) => <VitalsCell vitals={row.vitals} /> },
+  { key: 'room',         label: 'ห้อง', render: renderRoom },
   { key: 'doctor',       label: 'แพทย์รักษา',        flex: true, minWidth: 140 },
-  { key: 'wait',         label: 'รอนาน',            width: 112, render: (row) => `${row.waitMinutes} นาที` },
-  { key: 'status',       label: 'สถานะ',            width: 128, render: renderStatus },
+  { key: 'wait',         label: 'รอนาน', render: (row) => `${row.waitMinutes} นาที` },
+  { key: 'status',       label: 'สถานะ', render: renderStatus },
 ];
 
 /* buildRoster moved to src/data/treatmentQueue.js — see TREATMENT_QUEUE_ROWS. */
@@ -543,7 +543,6 @@ const TreatmentQueuePage = () => {
       {
         key: 'actions',
         label: 'การดำเนินการ',
-        width: 160,
         sortable: false,
         render: makeRenderActions({ onCall: () => {} }),
       },

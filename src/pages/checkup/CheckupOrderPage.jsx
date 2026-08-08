@@ -74,13 +74,13 @@ const AddItemPopup = ({ open, onClose, existing, onConfirm }) => {
 
   const columns = [
     {
-      key: 'pick', label: '', width: 56, sortable: false,
+      key: 'pick', label: '', sortable: false,
       render: (r) => <Checkbox checked={picked.includes(r.code)} onChange={() => toggle(r.code)} aria-label={`เลือก ${r.name}`} />,
     },
-    { key: 'code', label: 'รหัส', width: 130 },
+    { key: 'code', label: 'รหัส' },
     { key: 'name', label: 'ชื่อรายการตรวจ', flex: true, minWidth: 240 },
-    { key: 'price', label: 'ราคา', width: 120, align: 'right', render: (r) => formatBahtTh(r.price) },
-    { key: 'claimable', label: 'เบิกได้', width: 120, align: 'right', render: (r) => formatBahtTh(r.claimable) },
+    { key: 'price', label: 'ราคา', align: 'right', render: (r) => formatBahtTh(r.price) },
+    { key: 'claimable', label: 'เบิกได้', align: 'right', render: (r) => formatBahtTh(r.claimable) },
   ];
 
   return (
@@ -190,10 +190,10 @@ const OrderPrintPopup = ({ open, onClose, visit, items, totals, patient, draft }
             </span>
             <Table
               columns={[
-                { key: 'code', label: 'รหัส', width: 120 },
+                { key: 'code', label: 'รหัส' },
                 { key: 'name', label: 'รายการตรวจ', flex: true, minWidth: 260 },
-                { key: 'price', label: 'ราคา', width: 120, align: 'right', render: (r) => formatBahtTh(r.price) },
-                { key: 'claimable', label: 'เบิกได้', width: 120, align: 'right', render: (r) => formatBahtTh(r.claimable) },
+                { key: 'price', label: 'ราคา', align: 'right', render: (r) => formatBahtTh(r.price) },
+                { key: 'claimable', label: 'เบิกได้', align: 'right', render: (r) => formatBahtTh(r.claimable) },
               ]}
               rows={rows}
               rowKey={(r) => r.code}
@@ -402,31 +402,27 @@ const CheckupOrderPage = () => {
     const rows = items.filter((i) => i.group === groupKey);
     const pkgItems = getPackage(draft.packageId)?.items || [];
     const columns = [
-      { key: 'code', label: 'รหัส', width: 130 },
+      { key: 'code', label: 'รหัส' },
       { key: 'name', label: 'ชื่อรายการตรวจ', flex: true, minWidth: 250 },
       {
         key: 'origin',
         label: 'ที่มา',
-        width: 140,
         render: (r) => (pkgItems.includes(r.code)
           ? <ColorfulBadge style='teal' size='small' hierarchy='secondary'>จากชุดตรวจ</ColorfulBadge>
-          : <ColorfulBadge style='indigo' size='small' hierarchy='secondary'>เพิ่มเฉพาะราย</ColorfulBadge>),
-      },
-      { key: 'price', label: 'ราคา', width: 120, align: 'right', render: (r) => formatBahtTh(r.price) },
+          : <ColorfulBadge style='indigo' size='small' hierarchy='secondary'>เพิ่มเฉพาะราย</ColorfulBadge>)},
+      { key: 'price', label: 'ราคา', align: 'right', render: (r) => formatBahtTh(r.price) },
       {
         key: 'claimable',
         label: 'เบิกได้',
-        width: 130,
         align: 'right',
         render: (r) => (visit.rightsValid === false
           ? <span style={{ color: 'var(--text-alert-warning, #C2410C)' }}>{formatBahtTh(0)}</span>
           : formatBahtTh(r.claimable)),
       },
-      { key: 'specimen', label: 'สิ่งส่งตรวจ', width: 120, render: (r) => r.specimen || '—' },
+      { key: 'specimen', label: 'สิ่งส่งตรวจ', render: (r) => r.specimen || '—' },
       {
         key: 'remove',
         label: '',
-        width: 64,
         sortable: false,
         render: (r) => (
           <BrandSubdueIconButton

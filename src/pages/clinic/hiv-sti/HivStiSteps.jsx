@@ -257,11 +257,11 @@ export const HivStiStep1History = ({ form, setForm, hn, clinicPatient, visitNo, 
         <TopicHeader icon='history'>ประวัติการมารับบริการครั้งก่อนหน้า</TopicHeader>
         <Table
           columns={[
-            { key: 'visitNo', label: 'ครั้งที่', width: 72 },
-            { key: 'date', label: 'วันที่', width: 140 },
+            { key: 'visitNo', label: 'ครั้งที่' },
+            { key: 'date', label: 'วันที่' },
             { key: 'chiefComplaint', label: 'อาการสำคัญ', flex: true, minWidth: 180 },
             { key: 'summary', label: 'สรุปการรักษา', flex: true, minWidth: 260 },
-            { key: 'hivResult', label: 'ผล HIV', width: 140 },
+            { key: 'hivResult', label: 'ผล HIV' },
             { key: 'doctor', label: 'แพทย์ผู้ตรวจ', flex: true, minWidth: 160 },
           ]}
           rows={history}
@@ -586,11 +586,11 @@ export const HivStiStep4Diagnosis = ({ form, setForm, readOnly }) => {
         )}
         <Table
           columns={[
-            { key: 'code', label: 'รหัส ICD-10', width: 140 },
+            { key: 'code', label: 'รหัส ICD-10' },
             { key: 'name', label: 'โรค / การวินิจฉัย', flex: true, minWidth: 260 },
             { key: 'type', label: 'ประเภทการวินิจฉัย', flex: true, minWidth: 180 },
             {
-              key: 'actions', label: 'การดำเนินการ', width: 120, sortable: false,
+              key: 'actions', label: 'การดำเนินการ', sortable: false,
               render: (row) => (readOnly ? null : (
                 <NeutralSubdueButton size='sm' leadingIcon='delete' onClick={() => setRemoveTarget(row)}>
                   ลบ
@@ -699,12 +699,12 @@ export const HivStiStep5Orders = ({ form, setForm, clinicPatient, readOnly }) =>
           columns={[
             { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220 },
             { key: 'usage', label: 'วิธีใช้', flex: true, minWidth: 140 },
-            { key: 'dosePerTake', label: 'ครั้งละ', width: 90 },
+            { key: 'dosePerTake', label: 'ครั้งละ' },
             { key: 'frequency', label: 'ความถี่', flex: true, minWidth: 140 },
             { key: 'when', label: 'เวลาใช้ยา', flex: true, minWidth: 130 },
-            { key: 'quantity', label: 'จำนวน', width: 90 },
+            { key: 'quantity', label: 'จำนวน' },
             {
-              key: 'actions', label: 'การดำเนินการ', width: 120, sortable: false,
+              key: 'actions', label: 'การดำเนินการ', sortable: false,
               render: (row) => (readOnly ? null : (
                 <NeutralSubdueButton size='sm' leadingIcon='delete' onClick={() => setRemoveMed(row)}>
                   ลบ
@@ -1031,11 +1031,11 @@ export const HivStiStep6Education = ({ form, setForm, readOnly }) => {
           columns={[
             { key: 'docType', label: 'ประเภทเอกสาร', flex: true, minWidth: 200 },
             { key: 'name', label: 'ชื่อไฟล์', flex: true, minWidth: 200 },
-            { key: 'sizeLabel', label: 'ขนาด', width: 100 },
+            { key: 'sizeLabel', label: 'ขนาด' },
             { key: 'uploadedBy', label: 'ผู้อัปโหลด', flex: true, minWidth: 160 },
             { key: 'uploadedAt', label: 'เวลาอัปโหลด', flex: true, minWidth: 180 },
             {
-              key: 'actions', label: 'การดำเนินการ', width: 120, sortable: false,
+              key: 'actions', label: 'การดำเนินการ', sortable: false,
               render: (row) => (readOnly ? null : (
                 <NeutralSubdueButton size='sm' leadingIcon='delete' onClick={() => setDeleteTarget(row)}>
                   ลบ

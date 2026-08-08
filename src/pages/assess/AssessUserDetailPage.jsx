@@ -101,7 +101,6 @@ function ReadonlyPermTable({ title, modules, permissions }) {
     {
       key: 'level',
       header: 'สิทธิการเข้าถึง',
-      width: 160,
       render: (row) => <PermBadge level={row.level} />,
     },
   ];
@@ -204,16 +203,15 @@ export default function AssessUserDetailPage() {
   ];
 
   const assignmentColumns = [
-    { key: 'order', header: 'ลำดับ', width: 80, render: (_row, idx) => <span style={TEXT_CELL}>{idx + 1}</span> },
-    { key: 'center', header: 'ศูนย์บริการ', width: 180, render: (row) => <span style={TEXT_CELL}>{row.center}</span> },
-    { key: 'groupPolicy', header: 'Group Policy', width: 140, render: (row) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{row.groupPolicy}</ColorfulBadge> },
-    { key: 'subBranch', header: 'สาขาย่อย', width: 140, render: (row) => <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>{row.subBranch}</ColorfulBadge> },
-    { key: 'department', header: 'แผนก', width: 160, render: (row) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{row.department}</ColorfulBadge> },
-    { key: 'position', header: 'ตำแหน่ง', width: 180, render: (row) => <ColorfulBadge style='purple' size='small' hierarchy='secondary' width='hug'>{row.position}</ColorfulBadge> },
+    { key: 'order', header: 'ลำดับ', render: (_row, idx) => <span style={TEXT_CELL}>{idx + 1}</span> },
+    { key: 'center', header: 'ศูนย์บริการ', render: (row) => <span style={TEXT_CELL}>{row.center}</span> },
+    { key: 'groupPolicy', header: 'Group Policy', render: (row) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{row.groupPolicy}</ColorfulBadge> },
+    { key: 'subBranch', header: 'สาขาย่อย', render: (row) => <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>{row.subBranch}</ColorfulBadge> },
+    { key: 'department', header: 'แผนก', render: (row) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{row.department}</ColorfulBadge> },
+    { key: 'position', header: 'ตำแหน่ง', render: (row) => <ColorfulBadge style='purple' size='small' hierarchy='secondary' width='hug'>{row.position}</ColorfulBadge> },
     {
       key: 'isPrimary',
       header: 'สาขาหลัก',
-      width: 112,
       render: (row) => (
         row.isPrimary
           ? <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug' showDot>สาขาหลัก</ColorfulBadge>

@@ -57,7 +57,7 @@ const PharmacyHistoryPage = () => {
   }, [query]);
 
   const columns = [
-    { key: 'queueNo', label: 'เลขที่ใบสั่งยา (คิว)', width: 160, render: (r) => <Badge style='success' size='small'>{r.queueNo}</Badge> },
+    { key: 'queueNo', label: 'เลขที่ใบสั่งยา (คิว)', render: (r) => <Badge style='success' size='small'>{r.queueNo}</Badge> },
     {
       key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
       render: (r) => (
@@ -67,11 +67,11 @@ const PharmacyHistoryPage = () => {
         </div>
       ),
     },
-    { key: 'items', label: 'รายการยา', width: 120, align: 'center', render: (r) => `${r.items.length} รายการ` },
-    { key: 'issuedAt', label: 'เวลาสั่งยา', width: 100 },
-    { key: 'dispensedAt', label: 'เวลาจ่ายยา', width: 110, render: (r) => r.dispensedAt || '—' },
-    { key: 'payment', label: 'การชำระเงิน', width: 130, render: (r) => <Badge style={PAYMENT_STATUS_PILL[r.paymentStatus].style} size='small'>{PAYMENT_STATUS_PILL[r.paymentStatus].label}</Badge> },
-    { key: 'status', label: 'สถานะ', width: 130, render: (r) => <Badge style={STATUS_PILL[r.status].style} size='small'>{STATUS_PILL[r.status].label}</Badge> },
+    { key: 'items', label: 'รายการยา', align: 'center', render: (r) => `${r.items.length} รายการ` },
+    { key: 'issuedAt', label: 'เวลาสั่งยา' },
+    { key: 'dispensedAt', label: 'เวลาจ่ายยา', render: (r) => r.dispensedAt || '—' },
+    { key: 'payment', label: 'การชำระเงิน', render: (r) => <Badge style={PAYMENT_STATUS_PILL[r.paymentStatus].style} size='small'>{PAYMENT_STATUS_PILL[r.paymentStatus].label}</Badge> },
+    { key: 'status', label: 'สถานะ', render: (r) => <Badge style={STATUS_PILL[r.status].style} size='small'>{STATUS_PILL[r.status].label}</Badge> },
   ];
 
   return (

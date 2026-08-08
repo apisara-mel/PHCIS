@@ -73,7 +73,7 @@ const CheckupReportsPage = () => {
   /* ── Tab 1 columns ───────────────────────────────────────────────── */
 
   const screeningColumns = [
-    { key: 'hn', label: 'HN', width: 110 },
+    { key: 'hn', label: 'HN' },
     {
       key: 'name',
       label: 'ชื่อ-นามสกุล',
@@ -89,7 +89,7 @@ const CheckupReportsPage = () => {
       ),
     },
     { key: 'program', label: 'โปรแกรมตรวจ', flex: true, minWidth: 280 },
-    { key: 'forms', label: 'จำนวนแบบคัดกรอง', width: 160, align: 'center', render: (r) => `${r.forms} แบบ` },
+    { key: 'forms', label: 'จำนวนแบบคัดกรอง', align: 'center', render: (r) => `${r.forms} แบบ` },
     {
       key: 'formList',
       label: 'แบบคัดกรองที่บันทึก',
@@ -103,7 +103,7 @@ const CheckupReportsPage = () => {
   ];
 
   const referralColumns = [
-    { key: 'hn', label: 'HN', width: 110 },
+    { key: 'hn', label: 'HN' },
     {
       key: 'name',
       label: 'ชื่อ-นามสกุล',
@@ -113,7 +113,7 @@ const CheckupReportsPage = () => {
     },
     { key: 'to', label: 'ส่งต่อไปยัง', flex: true, minWidth: 220 },
     { key: 'reason', label: 'เหตุผลการส่งต่อ', flex: true, minWidth: 300 },
-    { key: 'count', label: 'รายการผิดปกติ', width: 150, align: 'center', render: (r) => `${r.count} รายการ` },
+    { key: 'count', label: 'รายการผิดปกติ', align: 'center', render: (r) => `${r.count} รายการ` },
   ];
 
   const activityColumns = [
@@ -122,15 +122,13 @@ const CheckupReportsPage = () => {
     {
       key: 'time',
       label: 'เวลา',
-      width: 150,
       sortable: false,
       render: (r) => (r.timeStart ? `${r.timeStart}${r.timeEnd ? `–${r.timeEnd}` : ''} น.` : '—'),
     },
-    { key: 'attendees', label: 'ผู้เข้าร่วม', width: 140, align: 'center', render: (r) => `${r.attendees || 0} คน` },
+    { key: 'attendees', label: 'ผู้เข้าร่วม', align: 'center', render: (r) => `${r.attendees || 0} คน` },
     {
       key: 'status',
       label: 'สถานะ',
-      width: 150,
       render: (r) => {
         const cfg = COMMUNITY_STATUSES[r.status] || COMMUNITY_STATUSES.planned;
         return <ColorfulBadge style={cfg.badge} size='small' hierarchy='secondary'>{cfg.label}</ColorfulBadge>;
@@ -140,7 +138,7 @@ const CheckupReportsPage = () => {
   ];
 
   const trackingColumns = [
-    { key: 'hn', label: 'HN', width: 110 },
+    { key: 'hn', label: 'HN' },
     {
       key: 'name',
       label: 'ชื่อ-นามสกุล',
@@ -148,27 +146,24 @@ const CheckupReportsPage = () => {
       minWidth: 200,
       render: (r) => <MaskedWorklistName name={r.name} recordKey={r.hn} linkTo={`/checkup/record/${r.id}`} />,
     },
-    { key: 'orderNo', label: 'เลขที่ใบสั่งตรวจ', width: 160 },
+    { key: 'orderNo', label: 'เลขที่ใบสั่งตรวจ' },
     { key: 'tubes', label: 'ชนิดสิ่งส่งตรวจ', flex: true, minWidth: 190 },
-    { key: 'specimenCount', label: 'จำนวนรายการ', width: 140, align: 'center', render: (r) => `${r.specimenCount} รายการ` },
+    { key: 'specimenCount', label: 'จำนวนรายการ', align: 'center', render: (r) => `${r.specimenCount} รายการ` },
     {
       key: 'specimen',
       label: 'สถานะสิ่งส่งตรวจ',
-      width: 160,
       render: (r) => {
         const cfg = SPECIMEN_STATUSES[r.specimen] || SPECIMEN_STATUSES.pending;
         return <ColorfulBadge style={cfg.badge} size='small' hierarchy='secondary'>{cfg.label}</ColorfulBadge>;
       },
     },
-    { key: 'stage', label: 'ขั้นตอนปัจจุบัน', width: 170 },
+    { key: 'stage', label: 'ขั้นตอนปัจจุบัน' },
     {
       key: 'overdue',
       label: 'ค้างดำเนินการ',
-      width: 160,
       render: (r) => (r.overdue
         ? <ColorfulBadge style='yellow' size='small' hierarchy='secondary' icon='hourglass_top'>รอผลจาก Lab</ColorfulBadge>
-        : <ColorfulBadge style='green' size='small' hierarchy='secondary'>ตามกำหนด</ColorfulBadge>),
-    },
+        : <ColorfulBadge style='green' size='small' hierarchy='secondary'>ตามกำหนด</ColorfulBadge>)},
   ];
 
   const printBar = (
@@ -530,12 +525,11 @@ const CheckupReportsPage = () => {
                   <Table
                     columns={[
                       { key: 'band', label: 'กลุ่มวัย', flex: true, minWidth: 240 },
-                      { key: 'target', label: 'เป้าหมาย', width: 130, align: 'center', render: (r) => `${r.target} ราย` },
-                      { key: 'screened', label: 'ตรวจแล้ว', width: 130, align: 'center', render: (r) => `${r.screened} ราย` },
+                      { key: 'target', label: 'เป้าหมาย', align: 'center', render: (r) => `${r.target} ราย` },
+                      { key: 'screened', label: 'ตรวจแล้ว', align: 'center', render: (r) => `${r.screened} ราย` },
                       {
                         key: 'pct',
                         label: 'ความครอบคลุม',
-                        width: 170,
                         render: (r) => (
                           <ColorfulBadge
                             style={r.pct >= 80 ? 'green' : r.pct >= 50 ? 'yellow' : 'red'}

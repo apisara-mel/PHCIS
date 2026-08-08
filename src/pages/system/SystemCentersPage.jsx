@@ -201,14 +201,12 @@ export default function SystemCentersPage() {
     {
       key: 'code',
       header: 'รหัสศูนย์',
-      width: 96,
       sortable: true,
       render: (row) => <span style={TEXT_CELL}>{row.code || '—'}</span>,
     },
     {
       key: 'name',
       header: 'ชื่อศูนย์บริการ',
-      width: 220,
       sortable: true,
       render: (row) => <span style={TEXT_CELL}>{row.name}</span>,
     },
@@ -216,39 +214,33 @@ export default function SystemCentersPage() {
       key: 'address',
       header: 'ที่ตั้ง',
       minWidth: 240,
-      width: 280,
       render: (row) => <span style={TEXT_CELL}>{formatCenterAddress(row.location)}</span>,
     },
     {
       key: 'phone',
       header: 'เบอร์โทรศัพท์',
-      width: 140,
       render: (row) => <span style={TEXT_CELL}>{row.phones?.[0] || '—'}</span>,
     },
     {
       key: 'email',
       header: 'อีเมล',
       minWidth: 180,
-      width: 200,
       render: (row) => <span style={TEXT_CELL}>{row.emails?.[0] || '—'}</span>,
     },
     {
       key: 'website',
       header: 'เว็บไซต์',
       minWidth: 160,
-      width: 180,
       render: (row) => <span style={TEXT_CELL}>{row.website || '—'}</span>,
     },
     {
       key: 'hours',
       header: 'เวลาทำการ',
-      width: 168,
       render: (row) => <HoursCell hours={row.hours} />,
     },
     {
       key: 'active',
       header: 'สถานะ',
-      width: 96,
       render: (row) => (
         <Switch
           checked={row.active}
@@ -261,7 +253,6 @@ export default function SystemCentersPage() {
     {
       key: 'action',
       header: 'การดำเนินการ',
-      width: 128,
       render: () => (
         <NeutralSubdueButton
           leadingIcon='edit'

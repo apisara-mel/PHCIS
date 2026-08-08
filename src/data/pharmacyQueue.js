@@ -720,9 +720,7 @@ export const PHARMACY_QUEUE = SEED.map((row) => ({
   patientName: patientName(row.hn),
   /* VN (Visit Number) — same value the OPD screening queue shows for this
      patient (both read `patientProfiles.js`'s `vn` field — see
-     `getVnByHn`'s doc comment). Empty string for the small number of
-     filler HNs (67-00026..29) that are still "รอลงทะเบียน" and have no
-     screening visit yet, same as the OPD queue would show for them. */
+     `getVnByHn`'s doc comment). */
   vn: getVnByHn(row.hn),
   /* วันที่ออกใบสั่งยา — the mock only carries one day of seed data (resets
      on reload), so this is always "today"; kept as an explicit field

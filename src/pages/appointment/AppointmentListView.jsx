@@ -275,7 +275,6 @@ const buildFigmaListColumns = ({
     {
       key: 'time',
       header: 'เวลา',
-      width: 112,
       sortable: true,
       render: (row) => (
         <span style={TEXT_CELL}>{row.time || '—'}</span>
@@ -284,7 +283,6 @@ const buildFigmaListColumns = ({
     {
       key: 'hn',
       header: 'HN',
-      width: 96,
       sortable: true,
       render: (row) => <span style={TEXT_CELL}>{row.hn || '—'}</span>,
     },
@@ -293,8 +291,7 @@ const buildFigmaListColumns = ({
       header: isRoot ? 'ผู้รับบริการ' : 'ชื่อ-นามสกุล ผู้รับบริการ',
       width: isRoot ? 220 : 200,
       sortable: true,
-      render: renderPatientCell,
-    },
+      render: renderPatientCell},
   ];
 
   if (isRoot) {
@@ -314,23 +311,18 @@ const buildFigmaListColumns = ({
     {
       key: 'type',
       header: 'ประเภท',
-      width: 112,
       sortable: false,
       align: 'left',
-      render: renderTypeBadge,
-    },
+      render: renderTypeBadge},
     {
       key: 'telemedicine',
       header: 'Telemedicine',
-      width: 128,
       sortable: false,
       align: 'left',
-      render: renderTelemedicine,
-    },
+      render: renderTelemedicine},
     {
       key: 'orderingUnit',
       header: 'หน่วยงานที่สั่งนัด',
-      width: 192,
       sortable: true,
       render: (row) => (
         <span className='truncate' style={TEXT_CELL}>
@@ -341,7 +333,6 @@ const buildFigmaListColumns = ({
     {
       key: 'clinic',
       header: 'แผนก',
-      width: 160,
       sortable: true,
       render: (row) => (
         <span className='truncate' style={TEXT_CELL}>{formatApptDeptLabel(row)}</span>
@@ -352,33 +343,26 @@ const buildFigmaListColumns = ({
       header: 'สถานะ',
       width: isRoot ? 128 : 224,
       sortable: false,
-      render: renderStatusBadge,
-    },
+      render: renderStatusBadge},
     {
       key: 'hcisStatus',
       header: 'สถานะการนัด (HCIS)',
-      width: 246,
       sortable: false,
-      render: renderHcisStatusBadge,
-    },
+      render: renderHcisStatusBadge},
   );
 
   if (showConfirmAction) {
     cols.push({
       key: 'actions',
       header: 'การดำเนินการ',
-      width: 120,
       sortable: false,
-      render: makeRenderConfirmAction(onConfirmAppointment),
-    });
+      render: makeRenderConfirmAction(onConfirmAppointment)});
   } else if (showEditAction) {
     cols.push({
       key: 'actions',
       header: 'การดำเนินการ',
-      width: 140,
       sortable: false,
-      render: makeRenderEditAction(onEditAppointment),
-    });
+      render: makeRenderEditAction(onEditAppointment)});
   }
 
   return cols;

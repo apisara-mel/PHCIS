@@ -120,11 +120,11 @@ const AppointmentNotifyLogTable = ({ canManage = true }) => {
 
   const columns = [
     {
-      key: 'at', header: 'เวลาที่ส่ง', width: 156, sortable: false,
+      key: 'at', header: 'เวลาที่ส่ง', sortable: false,
       render: (r) => <span style={{ ...TEXT_CELL, whiteSpace: 'nowrap' }}>{r.at}</span>,
     },
     {
-      key: 'channel', header: 'ช่องทาง', width: 148, sortable: false,
+      key: 'channel', header: 'ช่องทาง', sortable: false,
       render: (r) => (
         <ColorfulBadge style={CHANNEL_STYLE[r.channel] || 'grey'} size='small' hierarchy='secondary' width='hug'>
           {notifyChannelLabel(r.channel)}
@@ -132,11 +132,11 @@ const AppointmentNotifyLogTable = ({ canManage = true }) => {
       ),
     },
     {
-      key: 'kind', header: 'ประเภทข้อความ', width: 152, sortable: false,
+      key: 'kind', header: 'ประเภทข้อความ', sortable: false,
       render: (r) => <span style={TEXT_CELL}>{notifyKindLabel(r.kind)}</span>,
     },
     {
-      key: 'patient', header: 'ผู้รับบริการ', width: 190, sortable: false,
+      key: 'patient', header: 'ผู้รับบริการ', sortable: false,
       render: (r) => (
         <span className='truncate' style={TEXT_CELL}>{r.patient} · {r.hn}</span>
       ),
@@ -160,7 +160,7 @@ const AppointmentNotifyLogTable = ({ canManage = true }) => {
       ),
     },
     {
-      key: 'status', header: 'สถานะการส่ง', width: 216, sortable: false,
+      key: 'status', header: 'สถานะการส่ง', sortable: false,
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <StatusBadge style={r.status === NOTIFY_STATUS.SENT ? 'success' : 'error'} size='small'>
@@ -181,11 +181,11 @@ const AppointmentNotifyLogTable = ({ canManage = true }) => {
       ),
     },
     {
-      key: 'actor', header: 'ผู้ดำเนินการ', width: 168, sortable: false,
+      key: 'actor', header: 'ผู้ดำเนินการ', sortable: false,
       render: (r) => <span className='truncate' style={TEXT_CELL}>{r.actor}</span>,
     },
     {
-      key: 'actions', header: 'ส่งซ้ำ', width: 120, sortable: false,
+      key: 'actions', header: 'ส่งซ้ำ', sortable: false,
       render: (r) => (r.status === NOTIFY_STATUS.FAILED ? (
         <span title={canManage ? 'ส่งข้อความนี้อีกครั้ง' : NO_PERMISSION_TOOLTIP}>
           <BrandSubdueButton

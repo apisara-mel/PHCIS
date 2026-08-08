@@ -234,7 +234,7 @@ const RadiologyOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
       },
     },
     {
-      key: 'money', header: 'ราคา / ยอดเบิกได้', width: 200,
+      key: 'money', header: 'ราคา / ยอดเบิกได้',
       render: (o) => {
         const c = claimFor(XRAY_EXAM_BY_ID[o.examId], rightKey);
         return (
@@ -246,7 +246,7 @@ const RadiologyOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
       },
     },
     {
-      key: 'note', header: 'Note ถึงหน่วยรังสี', width: 380,
+      key: 'note', header: 'Note ถึงหน่วยรังสี',
       render: (o) => (
         <SuggestibleTextarea
           voice
@@ -266,7 +266,7 @@ const RadiologyOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
       ),
     },
     {
-      key: 'actions', header: '', width: 190,
+      key: 'actions', header: '',
       render: (o) => (o.cancelledAt ? (
         <GuardedAction allowed={canEdit}>
           <NeutralSubdueButton
@@ -453,7 +453,7 @@ const RadiologyOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
                 rows={slice}
                 columns={[
                   {
-                    key: 'xn', header: 'เลขที่คำสั่ง (XN)', width: 150,
+                    key: 'xn', header: 'เลขที่คำสั่ง (XN)',
                     render: (r) => <span style={PANEL_VALUE_STYLE}>{r.xn || r.orderId || '—'}</span>,
                   },
                   {
@@ -461,7 +461,7 @@ const RadiologyOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
                     render: (r) => <span style={PANEL_VALUE_STYLE}>{XRAY_EXAM_BY_ID[r.examId]?.name || r.examId}</span>,
                   },
                   {
-                    key: 'status', header: 'สถานะ', width: 180,
+                    key: 'status', header: 'สถานะ',
                     render: (r) => {
                       const meta = XRAY_STATUS_BY_KEY[r.status];
                       const roll = rollUpOrderStatus(grouped.get ? (grouped.get(r.orderId) || [r]) : [r]);
@@ -476,7 +476,7 @@ const RadiologyOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
                     },
                   },
                   {
-                    key: 'result', header: 'ผลการอ่านภาพ', width: 260,
+                    key: 'result', header: 'ผลการอ่านภาพ',
                     render: (r) => {
                       const meta = XRAY_RESULT_TYPE_BY_KEY[r.resultType];
                       const acked = (form?.xrayAcknowledged || {})[r.id];
@@ -502,7 +502,7 @@ const RadiologyOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
                     },
                   },
                   {
-                    key: 'actions', header: '', width: 230,
+                    key: 'actions', header: '',
                     render: (r) => (
                       <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                         <GuardedAction

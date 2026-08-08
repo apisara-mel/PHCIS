@@ -108,7 +108,7 @@ const ProblemListPanel = ({ form, patient }) => {
 
   const columns = [
     {
-      key: 'code', header: 'รหัส', width: 130,
+      key: 'code', header: 'รหัส',
       render: (row) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <ColorfulBadge style={row.system === 'SNOMED-CT' ? 'purple' : 'blue'} size='small' width='hug' hierarchy='primary'>
@@ -132,13 +132,13 @@ const ProblemListPanel = ({ form, patient }) => {
       ),
     },
     {
-      key: 'source', header: 'ที่มา', width: 190,
+      key: 'source', header: 'ที่มา',
       render: (row) => <span style={PANEL_LABEL_STYLE}>{problemSourceMeta(row.source).label}</span>,
     },
-    { key: 'onsetDate', header: 'เริ่มเป็นเมื่อ', width: 150, render: (row) => row.onsetDate || '—' },
-    { key: 'status', header: 'สถานะ', width: 120, render: (row) => <StatusPill status={row.status} /> },
+    { key: 'onsetDate', header: 'เริ่มเป็นเมื่อ', render: (row) => row.onsetDate || '—' },
+    { key: 'status', header: 'สถานะ', render: (row) => <StatusPill status={row.status} /> },
     {
-      key: 'recorded', header: 'ผู้บันทึก / เวลา', width: 200,
+      key: 'recorded', header: 'ผู้บันทึก / เวลา',
       render: (row) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={PANEL_VALUE_STYLE}>{row.recordedBy}</span>
@@ -148,7 +148,7 @@ const ProblemListPanel = ({ form, patient }) => {
       ),
     },
     {
-      key: 'actions', header: '', width: 230,
+      key: 'actions', header: '',
       render: (row) => {
         const editableSource = problemSourceMeta(row.source).editable;
         if (row.status === 'cancelled') return <span style={PANEL_LABEL_STYLE}>ยกเลิกแล้ว</span>;

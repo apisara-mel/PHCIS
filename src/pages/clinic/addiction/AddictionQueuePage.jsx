@@ -340,31 +340,31 @@ const AddictionQueuePage = () => {
   };
 
   const columns = useMemo(() => ([
-    { key: 'queue',     label: 'คิว',           width: 80,  render: renderQueue },
-    { key: 'hn',        label: 'HN',            width: 96  },
+    { key: 'queue',     label: 'คิว',  render: renderQueue },
+    { key: 'hn',        label: 'HN'  },
     { key: 'name',      label: 'ชื่อ-นามสกุล',   flex: true, minWidth: 160, render: renderName },
-    { key: 'program',   label: 'โปรแกรมบำบัด',  width: 128, render: (r) => <ProgramBadge program={r.program} /> },
-    { key: 'sessionNo', label: 'ครั้งที่บำบัด',  width: 104, render: (r) => `ครั้งที่ ${r.sessionNo}` },
-    { key: 'telemed',   label: 'Telemedicine',  width: 120, align: 'center', sortable: false, render: renderTelemedicine },
-    { key: 'room',      label: 'ห้อง',          width: 88 },
+    { key: 'program',   label: 'โปรแกรมบำบัด', render: (r) => <ProgramBadge program={r.program} /> },
+    { key: 'sessionNo', label: 'ครั้งที่บำบัด', render: (r) => `ครั้งที่ ${r.sessionNo}` },
+    { key: 'telemed',   label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
+    { key: 'room',      label: 'ห้อง' },
     { key: 'therapist', label: 'ผู้บำบัด',       flex: true, minWidth: 150 },
-    { key: 'wait',      label: 'รอนาน',         width: 96,  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
-    { key: 'status',    label: 'สถานะ',         width: 132, render: renderStatus },
-    { key: 'actions',   label: 'การดำเนินการ',   width: 148, sortable: false, render: renderActions },
+    { key: 'wait',      label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
+    { key: 'status',    label: 'สถานะ', render: renderStatus },
+    { key: 'actions',   label: 'การดำเนินการ', sortable: false, render: renderActions },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
   /* "นัดแล้วยังไม่มาติดต่อ" — appointment-shaped rows + ส่งตรวจ check-in. */
   const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด',      width: 96 },
-    { key: 'hn',              label: 'HN',           width: 96 },
+    { key: 'appointmentTime', label: 'เวลานัด' },
+    { key: 'hn',              label: 'HN' },
     { key: 'name',            label: 'ชื่อ-นามสกุล',  flex: true, minWidth: 160 },
-    { key: 'program',         label: 'โปรแกรมบำบัด', width: 128, render: (r) => <ProgramBadge program={r.program} /> },
-    { key: 'sessionNo',       label: 'ครั้งที่บำบัด', width: 104, render: (r) => `ครั้งที่ ${r.sessionNo}` },
-    { key: 'clinic',          label: 'คลินิก',        width: 132 },
+    { key: 'program',         label: 'โปรแกรมบำบัด', render: (r) => <ProgramBadge program={r.program} /> },
+    { key: 'sessionNo',       label: 'ครั้งที่บำบัด', render: (r) => `ครั้งที่ ${r.sessionNo}` },
+    { key: 'clinic',          label: 'คลินิก' },
     { key: 'therapist',       label: 'ผู้บำบัด',      flex: true, minWidth: 150 },
     {
-      key: 'checkin', label: 'การดำเนินการ', width: 140, sortable: false,
+      key: 'checkin', label: 'การดำเนินการ', sortable: false,
       render: (row) => (
         <BrandSubdueButton variant='fill' size='sm' leadingIcon='login' onClick={(e) => { e.stopPropagation(); handleCheckIn(row.hn); }}>
           ส่งตรวจ

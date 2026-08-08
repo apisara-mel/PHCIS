@@ -203,9 +203,9 @@ const DirectoryServicePage = () => {
         />
       ),
     },
-    { key: 'arrow', label: '', width: 44, sortable: false, render: () => <Icon name='arrow_forward' size={16} /> },
+    { key: 'arrow', label: '', sortable: false, render: () => <Icon name='arrow_forward' size={16} /> },
     {
-      key: 'target', label: 'Attribute ฝั่ง PHCIS', width: 240, sortable: false,
+      key: 'target', label: 'Attribute ฝั่ง PHCIS', sortable: false,
       render: (r) => (
         <Select
           showLabel={false}
@@ -219,7 +219,7 @@ const DirectoryServicePage = () => {
       ),
     },
     {
-      key: 'transform', label: 'แปลงค่า', width: 190, sortable: false,
+      key: 'transform', label: 'แปลงค่า', sortable: false,
       render: (r) => (
         <Select
           showLabel={false}
@@ -232,19 +232,18 @@ const DirectoryServicePage = () => {
       ),
     },
     {
-      key: 'required', label: 'บังคับ', width: 100, sortable: false,
+      key: 'required', label: 'บังคับ', sortable: false,
       render: (r) => (
         <Switch checked={!!r.required} onChange={(v) => setMapRow(r.id, 'required', v)} aria-label='บังคับให้มีค่า' />
       ),
     },
     {
-      key: 'status', label: 'สถานะ', width: 140, sortable: false,
+      key: 'status', label: 'สถานะ', sortable: false,
       render: (r) => (String(r.claim || '').trim()
         ? <ColorfulBadge style='green' size='small' icon='check_circle'>แม็ปแล้ว</ColorfulBadge>
-        : <ColorfulBadge style='red' size='small' icon='error'>ยังไม่แม็ป</ColorfulBadge>),
-    },
+        : <ColorfulBadge style='red' size='small' icon='error'>ยังไม่แม็ป</ColorfulBadge>)},
     {
-      key: 'actions', label: '', width: 96, sortable: false,
+      key: 'actions', label: '', sortable: false,
       render: (r) => (
         <NeutralSubdueButton variant='outline' size='sm' leadingIcon='delete' onClick={() => removeMapRow(r.id)}>
           ลบ
@@ -282,13 +281,13 @@ const DirectoryServicePage = () => {
       ),
     },
     {
-      key: 'role', label: 'บทบาทใน PHCIS', width: 200, sortable: false,
+      key: 'role', label: 'บทบาทใน PHCIS', sortable: false,
       render: (r) => (
         <Select showLabel={false} searchable={false} size='md' value={r.role} onChange={(v) => setGroupRow(r.id, 'role', v)} options={ROLES.map((x) => ({ value: x.key, label: x.label }))} />
       ),
     },
     {
-      key: 'subRole', label: 'บทบาทย่อย', width: 220, sortable: false,
+      key: 'subRole', label: 'บทบาทย่อย', sortable: false,
       render: (r) => (
         <Select
           showLabel={false}
@@ -302,13 +301,13 @@ const DirectoryServicePage = () => {
       ),
     },
     {
-      key: 'note', label: 'หมายเหตุ', width: 220, sortable: false,
+      key: 'note', label: 'หมายเหตุ', sortable: false,
       render: (r) => (
         <InputField showLabel={false} size='md' value={r.note} onChange={(v) => setGroupRow(r.id, 'note', v)} placeholder='คำอธิบายสั้น ๆ' showHelperText={false} />
       ),
     },
     {
-      key: 'actions', label: '', width: 96, sortable: false,
+      key: 'actions', label: '', sortable: false,
       render: (r) => (
         <NeutralSubdueButton variant='outline' size='sm' leadingIcon='delete' onClick={() => removeGroupRow(r.id)}>ลบ</NeutralSubdueButton>
       ),
@@ -317,15 +316,15 @@ const DirectoryServicePage = () => {
   ]), []);
 
   const syncColumns = useMemo(() => ([
-    { key: 'at', label: 'เวลา', width: 190 },
-    { key: 'by', label: 'ผู้ดำเนินการ', width: 170 },
-    { key: 'total', label: 'บัญชีทั้งหมด', width: 120 },
-    { key: 'created', label: 'สร้างใหม่', width: 100 },
-    { key: 'updated', label: 'อัปเดต', width: 100 },
-    { key: 'deactivated', label: 'ปิดใช้งาน', width: 110 },
-    { key: 'failed', label: 'ล้มเหลว', width: 100 },
+    { key: 'at', label: 'เวลา' },
+    { key: 'by', label: 'ผู้ดำเนินการ' },
+    { key: 'total', label: 'บัญชีทั้งหมด' },
+    { key: 'created', label: 'สร้างใหม่' },
+    { key: 'updated', label: 'อัปเดต' },
+    { key: 'deactivated', label: 'ปิดใช้งาน' },
+    { key: 'failed', label: 'ล้มเหลว' },
     {
-      key: 'status', label: 'ผล', width: 140, sortable: false,
+      key: 'status', label: 'ผล', sortable: false,
       render: (r) => (
         <ColorfulBadge
           style={r.status === 'success' ? 'green' : r.status === 'partial' ? 'orange' : 'red'}

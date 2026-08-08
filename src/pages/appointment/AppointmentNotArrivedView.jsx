@@ -110,19 +110,19 @@ const AppointmentNotArrivedView = ({
 
   const columns = [
     {
-      key: 'time', header: 'เวลานัด', width: 108, sortable: false,
+      key: 'time', header: 'เวลานัด', sortable: false,
       render: (r) => <span style={{ ...TEXT_CELL, whiteSpace: 'nowrap' }}>{r.time} น.</span>,
     },
     {
-      key: 'hn', header: 'HN', width: 108, sortable: false,
+      key: 'hn', header: 'HN', sortable: false,
       render: (r) => <span style={TEXT_CELL}>{r.hn}</span>,
     },
     {
-      key: 'patient', header: 'ผู้รับบริการ', width: 200, sortable: false,
+      key: 'patient', header: 'ผู้รับบริการ', sortable: false,
       render: (r) => <span className='truncate' style={{ ...TEXT_CELL, fontWeight: 'var(--type-weight-medium)' }}>{r.patient}</span>,
     },
     {
-      key: 'clinic', header: 'คลินิกที่นัดตรวจ', width: 190, sortable: false,
+      key: 'clinic', header: 'คลินิกที่นัดตรวจ', sortable: false,
       render: (r) => <span className='truncate' style={TEXT_CELL}>{r.clinic || r.dept || '—'}</span>,
     },
     {
@@ -130,7 +130,7 @@ const AppointmentNotArrivedView = ({
       render: (r) => <span className='truncate' style={TEXT_CELL}>{r.doctor || 'ไม่ระบุแพทย์'}</span>,
     },
     {
-      key: 'status', header: 'สถานะการนัด (HCIS)', width: 236, sortable: false,
+      key: 'status', header: 'สถานะการนัด (HCIS)', sortable: false,
       render: (r) => (
         r.status === APPT_STATUS_NO_SHOW ? (
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
@@ -151,7 +151,7 @@ const AppointmentNotArrivedView = ({
       ),
     },
     {
-      key: 'actions', header: 'การดำเนินการ', width: 300, sortable: false,
+      key: 'actions', header: 'การดำเนินการ', sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <BrandSubdueButton

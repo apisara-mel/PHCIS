@@ -99,7 +99,7 @@ const CARD_SUBTITLE = {
 };
 
 const DETAIL_COLUMNS = [
-  { key: 'queueNo', label: 'เลขที่ใบสั่งยา', width: 130, render: (r) => <Badge style='success' size='small'>{r.queueNo}</Badge>, csv: (r) => r.queueNo },
+  { key: 'queueNo', label: 'เลขที่ใบสั่งยา', render: (r) => <Badge style='success' size='small'>{r.queueNo}</Badge>, csv: (r) => r.queueNo },
   {
     key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
     render: (r) => (
@@ -111,19 +111,19 @@ const DETAIL_COLUMNS = [
     csv: (r) => r.hn,
   },
   { key: 'items', label: 'รายการยา', flex: true, minWidth: 220, render: (r) => r.items.map((i) => i.name).join(', ') },
-  { key: 'issuedDate', label: 'วันที่สั่งยา', width: 110, render: (r) => formatIsoDateThai(r.issuedDate) },
-  { key: 'issuedAt', label: 'เวลาสั่งยา', width: 100 },
-  { key: 'dispensedAt', label: 'เวลาจ่ายยา', width: 110, render: (r) => r.dispensedAt || '—' },
-  { key: 'verifiedBy', label: 'เภสัชกรผู้ตรวจสอบ', width: 180, render: (r) => r.verifiedBy || '—' },
-  { key: 'status', label: 'สถานะ', width: 130, render: (r) => <Badge style={STATUS_PILL[r.status].style} size='small'>{STATUS_PILL[r.status].label}</Badge>, csv: (r) => STATUS_PILL[r.status].label },
+  { key: 'issuedDate', label: 'วันที่สั่งยา', render: (r) => formatIsoDateThai(r.issuedDate) },
+  { key: 'issuedAt', label: 'เวลาสั่งยา' },
+  { key: 'dispensedAt', label: 'เวลาจ่ายยา', render: (r) => r.dispensedAt || '—' },
+  { key: 'verifiedBy', label: 'เภสัชกรผู้ตรวจสอบ', render: (r) => r.verifiedBy || '—' },
+  { key: 'status', label: 'สถานะ', render: (r) => <Badge style={STATUS_PILL[r.status].style} size='small'>{STATUS_PILL[r.status].label}</Badge>, csv: (r) => STATUS_PILL[r.status].label },
 ];
 
 const SUMMARY_COLUMNS = [
   { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220 },
-  { key: 'prescriptionCount', label: 'จำนวนใบสั่งยา', width: 130, align: 'center' },
-  { key: 'totalQuantity', label: 'จำนวนสั่ง', width: 110, align: 'center', render: (r) => `${r.totalQuantity.toLocaleString()} ${r.unit}`, csv: (r) => `${r.totalQuantity} ${r.unit}` },
-  { key: 'totalDispensed', label: 'จำนวนจ่ายแล้ว', width: 130, align: 'center', render: (r) => `${r.totalDispensed.toLocaleString()} ${r.unit}`, csv: (r) => `${r.totalDispensed} ${r.unit}` },
-  { key: 'totalValue', label: 'มูลค่ารวม (โดยประมาณ)', width: 160, align: 'right', render: (r) => `฿${r.totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, csv: (r) => r.totalValue.toFixed(2) },
+  { key: 'prescriptionCount', label: 'จำนวนใบสั่งยา', align: 'center' },
+  { key: 'totalQuantity', label: 'จำนวนสั่ง', align: 'center', render: (r) => `${r.totalQuantity.toLocaleString()} ${r.unit}`, csv: (r) => `${r.totalQuantity} ${r.unit}` },
+  { key: 'totalDispensed', label: 'จำนวนจ่ายแล้ว', align: 'center', render: (r) => `${r.totalDispensed.toLocaleString()} ${r.unit}`, csv: (r) => `${r.totalDispensed} ${r.unit}` },
+  { key: 'totalValue', label: 'มูลค่ารวม (โดยประมาณ)', align: 'right', render: (r) => `฿${r.totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, csv: (r) => r.totalValue.toFixed(2) },
 ];
 
 const buildDetailRows = (from, to) => REPORT_SOURCE_ROWS.filter((r) => r.issuedDate >= from && r.issuedDate <= to);

@@ -443,7 +443,7 @@ const AddictionRegistryPage = () => {
 
   const columns = useMemo(() => ([
     {
-      key: 'hn', label: 'HN', width: 96,
+      key: 'hn', label: 'HN',
       render: (r) => <span style={r.cancellation ? greyed : undefined}>{r.hn}</span>,
     },
     {
@@ -453,7 +453,7 @@ const AddictionRegistryPage = () => {
       ),
     },
     {
-      key: 'age', label: 'อายุ/เพศ', width: 104, sortable: false,
+      key: 'age', label: 'อายุ/เพศ', sortable: false,
       render: (r) => <span style={r.cancellation ? greyed : undefined}>{`${r.age ?? '—'} ปี / ${r.gender || '—'}`}</span>,
     },
     {
@@ -468,11 +468,11 @@ const AddictionRegistryPage = () => {
       ),
     },
     {
-      key: 'program', label: 'โปรแกรม', width: 116, sortable: false,
+      key: 'program', label: 'โปรแกรม', sortable: false,
       render: (r) => <ProgramBadge program={r.program} />,
     },
     {
-      key: 'screeningScore', label: 'ASSIST / ความรุนแรง', width: 178,
+      key: 'screeningScore', label: 'ASSIST / ความรุนแรง',
       render: (r) => {
         const sev = resolveSeverity(r.severity);
         return (
@@ -484,7 +484,7 @@ const AddictionRegistryPage = () => {
       },
     },
     {
-      key: 'registeredDate', label: 'วันลงทะเบียน', width: 132,
+      key: 'registeredDate', label: 'วันลงทะเบียน',
       render: (r) => <span style={r.cancellation ? greyed : undefined}>{formatAddictionDate(r.registeredDate)}</span>,
     },
     {
@@ -492,7 +492,7 @@ const AddictionRegistryPage = () => {
       render: (r) => <span style={r.cancellation ? greyed : undefined}>{r.therapist}</span>,
     },
     {
-      key: 'status', label: 'สถานะ', width: 230, sortable: false,
+      key: 'status', label: 'สถานะ', sortable: false,
       render: (r) => {
         if (r.cancellation) {
           return (
@@ -524,7 +524,7 @@ const AddictionRegistryPage = () => {
       },
     },
     {
-      key: 'recordedBy', label: 'ผู้บันทึก', width: 200, sortable: false,
+      key: 'recordedBy', label: 'ผู้บันทึก', sortable: false,
       render: (r) => (
         <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary, #636B72)' }}>
           {r.recordedBy}<br />{r.recordedAt}
@@ -533,7 +533,7 @@ const AddictionRegistryPage = () => {
       ),
     },
     {
-      key: 'actions', label: 'การดำเนินการ', width: 330, sortable: false,
+      key: 'actions', label: 'การดำเนินการ', sortable: false,
       render: (r) => (
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           {r.cancellation ? (

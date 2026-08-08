@@ -288,11 +288,11 @@ const AppointmentTypeCatalogPage = () => {
 
   const columns = [
     {
-      key: 'code', header: 'รหัส', width: 116, sortable: false,
+      key: 'code', header: 'รหัส', sortable: false,
       render: (t) => <span style={{ ...TEXT_CELL, fontWeight: 'var(--type-weight-medium)' }}>{t.code}</span>,
     },
     {
-      key: 'name', header: 'ชื่อรูปแบบ', width: 200, sortable: false,
+      key: 'name', header: 'ชื่อรูปแบบ', sortable: false,
       render: (t) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span className='truncate' style={TEXT_CELL}>{t.name}</span>
@@ -307,15 +307,15 @@ const AppointmentTypeCatalogPage = () => {
       render: (t) => <span className='truncate' style={TEXT_CELL}>{(t.clinics || []).join(' · ') || '—'}</span>,
     },
     {
-      key: 'slotMinutes', header: 'ความยาว Slot', width: 128, sortable: false,
+      key: 'slotMinutes', header: 'ความยาว Slot', sortable: false,
       render: (t) => <span style={TEXT_CELL}>{t.slotMinutes} นาที</span>,
     },
     {
-      key: 'mode', header: 'โหมด', width: 210, sortable: false,
+      key: 'mode', header: 'โหมด', sortable: false,
       render: (t) => <span className='truncate' style={TEXT_CELL}>{APPT_TYPE_MODE_LABEL(t.mode)}</span>,
     },
     {
-      key: 'accept', header: 'การรับคำขอ', width: 156, sortable: false,
+      key: 'accept', header: 'การรับคำขอ', sortable: false,
       render: (t) => (
         <StatusBadge style={t.autoAccept ? 'success' : 'info'} size='small'>
           {t.autoAccept ? 'รับอัตโนมัติ' : 'ต้องยืนยันก่อน'}
@@ -323,7 +323,7 @@ const AppointmentTypeCatalogPage = () => {
       ),
     },
     {
-      key: 'recurrence', header: 'นัดต่อเนื่องเริ่มต้น', width: 156, sortable: false,
+      key: 'recurrence', header: 'นัดต่อเนื่องเริ่มต้น', sortable: false,
       render: (t) => (
         <span style={TEXT_CELL}>
           {t.recurrenceEveryDays ? `ทุก ${t.recurrenceEveryDays} วัน` : 'ไม่ตั้งค่า'}
@@ -331,7 +331,7 @@ const AppointmentTypeCatalogPage = () => {
       ),
     },
     {
-      key: 'active', header: 'สถานะ', width: 132, sortable: false,
+      key: 'active', header: 'สถานะ', sortable: false,
       render: (t) => (
         <StatusBadge style={t.active === false ? 'neutral' : 'success'} size='small'>
           {t.active === false ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
@@ -339,7 +339,7 @@ const AppointmentTypeCatalogPage = () => {
       ),
     },
     {
-      key: 'actions', header: 'การดำเนินการ', width: 300, sortable: false,
+      key: 'actions', header: 'การดำเนินการ', sortable: false,
       render: (t) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
           <span title={canConfigure ? 'แก้ไขรูปแบบนี้' : NO_PERMISSION_TOOLTIP}>

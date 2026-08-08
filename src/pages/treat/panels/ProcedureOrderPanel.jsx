@@ -240,11 +240,11 @@ const ProcedureOrderPanel = ({ form, setForm, patient, onOpenBodyDiagram }) => {
 
   const columns = [
     {
-      key: 'seq', header: 'ลำดับ', width: 80,
+      key: 'seq', header: 'ลำดับ',
       render: (r) => <span style={PANEL_VALUE_STYLE}>{rows.indexOf(r) + 1}</span>,
     },
     {
-      key: 'start', header: 'วัน-เวลาที่เริ่มต้น', width: 240,
+      key: 'start', header: 'วัน-เวลาที่เริ่มต้น',
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <InputField
@@ -261,7 +261,7 @@ const ProcedureOrderPanel = ({ form, setForm, patient, onOpenBodyDiagram }) => {
       ),
     },
     {
-      key: 'end', header: 'วัน-เวลาสิ้นสุด · รวมเวลา', width: 250,
+      key: 'end', header: 'วัน-เวลาสิ้นสุด · รวมเวลา',
       render: (r) => {
         const mins = minutesBetween(r.startTime, r.endTime);
         const invalid = mins != null && mins < 0 && r.startDate === r.endDate;
@@ -286,7 +286,7 @@ const ProcedureOrderPanel = ({ form, setForm, patient, onOpenBodyDiagram }) => {
       },
     },
     {
-      key: 'site', header: 'ตำแหน่งที่ทำ', width: 220,
+      key: 'site', header: 'ตำแหน่งที่ทำ',
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <InputField
@@ -315,7 +315,7 @@ const ProcedureOrderPanel = ({ form, setForm, patient, onOpenBodyDiagram }) => {
       ),
     },
     {
-      key: 'qty', header: 'จำนวน / หน่วย', width: 160,
+      key: 'qty', header: 'จำนวน / หน่วย',
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <InputField
@@ -327,7 +327,7 @@ const ProcedureOrderPanel = ({ form, setForm, patient, onOpenBodyDiagram }) => {
       ),
     },
     {
-      key: 'price', header: 'ราคา/หน่วย · เบิกได้', width: 190,
+      key: 'price', header: 'ราคา/หน่วย · เบิกได้',
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={PANEL_VALUE_STYLE}>{baht(r.unitPrice)} บาท</span>
@@ -337,7 +337,7 @@ const ProcedureOrderPanel = ({ form, setForm, patient, onOpenBodyDiagram }) => {
       ),
     },
     {
-      key: 'performer', header: 'ผู้ทำหัตถการ', width: 250,
+      key: 'performer', header: 'ผู้ทำหัตถการ',
       render: (r) => (
         <Select
           value={r.performer}
@@ -351,7 +351,7 @@ const ProcedureOrderPanel = ({ form, setForm, patient, onOpenBodyDiagram }) => {
       ),
     },
     {
-      key: 'actions', header: '', width: 260,
+      key: 'actions', header: '',
       render: (r) => (
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           {r.cancelledAt ? (

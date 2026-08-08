@@ -239,9 +239,9 @@ const MedRecPanel = ({ form, setForm, patient }) => {
         </div>
       ),
     },
-    { key: 'source', header: 'แหล่งข้อมูล', width: 190, render: (row) => <SourceBadge source={row.source} /> },
+    { key: 'source', header: 'แหล่งข้อมูล', render: (row) => <SourceBadge source={row.source} /> },
     {
-      key: 'startedOn', header: 'เริ่มใช้ / ผู้สั่ง', width: 190,
+      key: 'startedOn', header: 'เริ่มใช้ / ผู้สั่ง',
       render: (row) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={PANEL_VALUE_STYLE}>{row.startedOn || '—'}</span>
@@ -249,9 +249,9 @@ const MedRecPanel = ({ form, setForm, patient }) => {
         </div>
       ),
     },
-    { key: 'warnings', header: 'ความปลอดภัย', width: 280, render: (row) => <WarningCell warnings={row.warnings} /> },
+    { key: 'warnings', header: 'ความปลอดภัย', render: (row) => <WarningCell warnings={row.warnings} /> },
     {
-      key: 'disposition', header: 'การตัดสินใจ', width: 210,
+      key: 'disposition', header: 'การตัดสินใจ',
       render: (row) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <Select
@@ -271,7 +271,7 @@ const MedRecPanel = ({ form, setForm, patient }) => {
       ),
     },
     {
-      key: 'actions', header: '', width: 120,
+      key: 'actions', header: '',
       render: (row) => {
         const disp = dispositions[row.key]?.disposition;
         const meta = dispositionMeta(disp);

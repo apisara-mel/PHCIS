@@ -331,15 +331,15 @@ const AddictionCommunityPage = () => {
   const greyed = { color: 'var(--text-content-tertiary, #858C92)' };
 
   const columns = useMemo(() => ([
-    { key: 'hn', label: 'HN', width: 96, render: (r) => <span style={r.cancellation ? greyed : undefined}>{r.hn}</span> },
+    { key: 'hn', label: 'HN', render: (r) => <span style={r.cancellation ? greyed : undefined}>{r.hn}</span> },
     {
       key: 'patientName', label: 'ชื่อผู้รับบริการ', flex: true, minWidth: 160,
       render: (r) => <span style={r.cancellation ? greyed : { fontWeight: 'var(--type-weight-medium)' }}>{r.patientName}</span>,
     },
     { key: 'community', label: 'ชุมชน', flex: true, minWidth: 170, render: (r) => <span style={r.cancellation ? greyed : undefined}>{r.community}</span> },
-    { key: 'district', label: 'เขต', width: 150, render: (r) => <span style={r.cancellation ? greyed : undefined}>{r.district}</span> },
+    { key: 'district', label: 'เขต', render: (r) => <span style={r.cancellation ? greyed : undefined}>{r.district}</span> },
     {
-      key: 'careType', label: 'ประเภทการดูแล', width: 210, sortable: false,
+      key: 'careType', label: 'ประเภทการดูแล', sortable: false,
       render: (r) => {
         const t = resolveCommunityCareType(r.careType);
         return t ? <ColorfulBadge style={r.cancellation ? 'grey' : t.badge} size='small' hierarchy='secondary' width='hug' maxWidth={200}>{t.label}</ColorfulBadge> : <span>—</span>;
@@ -347,7 +347,7 @@ const AddictionCommunityPage = () => {
     },
     { key: 'responsible', label: 'ผู้รับผิดชอบ (อสส.)', flex: true, minWidth: 170, render: (r) => <span style={r.cancellation ? greyed : undefined}>{r.responsible}</span> },
     {
-      key: 'status', label: 'สถานะ', width: 220, sortable: false,
+      key: 'status', label: 'สถานะ', sortable: false,
       render: (r) => {
         if (r.cancellation) {
           return (
@@ -365,7 +365,7 @@ const AddictionCommunityPage = () => {
       },
     },
     {
-      key: 'houseLocation', label: 'ตำแหน่งบ้าน', width: 170, sortable: false,
+      key: 'houseLocation', label: 'ตำแหน่งบ้าน', sortable: false,
       render: (r) => (r.houseLocation?.pinSaved ? (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <ColorfulBadge style='green' size='small' hierarchy='secondary'>ปักหมุดแล้ว</ColorfulBadge>
@@ -378,7 +378,7 @@ const AddictionCommunityPage = () => {
       )),
     },
     {
-      key: 'actions', label: 'การดำเนินการ', width: 300, sortable: false,
+      key: 'actions', label: 'การดำเนินการ', sortable: false,
       render: (r) => (
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           {r.cancellation ? (

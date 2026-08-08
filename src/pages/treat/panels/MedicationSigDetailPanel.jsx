@@ -335,28 +335,28 @@ const MedicationSigDetailPanel = ({
                       rows={sig.taperRows}
                       columns={[
                         {
-                          key: 'startDate', header: 'วันที่เริ่ม', width: 170,
+                          key: 'startDate', header: 'วันที่เริ่ม',
                           render: (r) => (
                             <InputField value={r.startDate} onChange={(v) => patchTaper(r.id, { startDate: v })}
                               disabled={!canEdit} showLabel={false} showLeadingIcon={false} placeholder='6 พ.ค. 2569' />
                           ),
                         },
                         {
-                          key: 'endDate', header: 'วันที่สิ้นสุด', width: 170,
+                          key: 'endDate', header: 'วันที่สิ้นสุด',
                           render: (r) => (
                             <InputField value={r.endDate} onChange={(v) => patchTaper(r.id, { endDate: v })}
                               disabled={!canEdit} showLabel={false} showLeadingIcon={false} placeholder='12 พ.ค. 2569' />
                           ),
                         },
                         {
-                          key: 'dosePerTake', header: 'ขนาดต่อครั้ง', width: 140,
+                          key: 'dosePerTake', header: 'ขนาดต่อครั้ง',
                           render: (r) => (
                             <InputField value={r.dosePerTake} onChange={(v) => patchTaper(r.id, { dosePerTake: v })}
                               disabled={!canEdit} showLabel={false} showLeadingIcon={false} placeholder='2' />
                           ),
                         },
                         {
-                          key: 'timesPerDay', header: 'ครั้ง/วัน', width: 120,
+                          key: 'timesPerDay', header: 'ครั้ง/วัน',
                           render: (r) => (
                             <InputField value={r.timesPerDay} onChange={(v) => patchTaper(r.id, { timesPerDay: v })}
                               disabled={!canEdit} showLabel={false} showLeadingIcon={false} placeholder='3' />
@@ -370,7 +370,7 @@ const MedicationSigDetailPanel = ({
                           ),
                         },
                         {
-                          key: 'actions', header: '', width: 90,
+                          key: 'actions', header: '',
                           render: (r) => (
                             <GuardedAction allowed={canEdit}>
                               <NeutralSubdueButton variant='outline' size='sm' leadingIcon='delete' onClick={() => removeTaper(r.id)}>

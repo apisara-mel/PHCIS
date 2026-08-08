@@ -312,22 +312,22 @@ const HivStiRegistryPage = () => {
   };
 
   const columns = useMemo(() => ([
-    { key: 'hn',            label: 'HN',                width: 96 },
+    { key: 'hn',            label: 'HN' },
     { key: 'client',        label: 'ผู้รับบริการ (UIC)',  flex: true, minWidth: 200, render: renderClient },
-    { key: 'clientType',    label: 'ประเภท',            width: 96, render: (r) => {
+    { key: 'clientType',    label: 'ประเภท', render: (r) => {
       const b = clientTypeBadge(r.clientType);
       return <ColorfulBadge style={b.style} size='small' hierarchy='secondary'>{b.label}</ColorfulBadge>;
     } },
     { key: 'keyPopulation', label: 'กลุ่มประชากรเฉพาะ',  flex: true, minWidth: 180, render: (r) => keyPopulationLabel(r.keyPopulation) },
-    { key: 'occupation',    label: 'อาชีพ',             width: 140, render: (r) => r.occupation || '—' },
+    { key: 'occupation',    label: 'อาชีพ', render: (r) => r.occupation || '—' },
     { key: 'referral',      label: 'แหล่งที่มา / ส่งต่อจาก', flex: true, minWidth: 180, render: (r) => r.referral || '—' },
-    { key: 'arvStatus',     label: 'สถานะรับยา ARV',    width: 170, render: (r) => {
+    { key: 'arvStatus',     label: 'สถานะรับยา ARV', render: (r) => {
       const s = resolveArvStatus(r.arvStatus);
       return s
         ? <ColorfulBadge style={ARV_BADGE_STYLE[r.arvStatus] || 'grey'} size='small' hierarchy='secondary'>{s.label}</ColorfulBadge>
         : '—';
     } },
-    { key: 'registeredAt',  label: 'ลงทะเบียนเมื่อ',     width: 180, render: (r) => (
+    { key: 'registeredAt',  label: 'ลงทะเบียนเมื่อ', render: (r) => (
       <div className='flex flex-col'>
         <span>{r.registeredAt}</span>
         <span style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858C92)' }}>
@@ -335,8 +335,8 @@ const HivStiRegistryPage = () => {
         </span>
       </div>
     ) },
-    { key: 'status',        label: 'สถานะทะเบียน',      width: 200, render: renderStatus },
-    { key: 'actions',       label: 'การดำเนินการ',       width: 340, sortable: false, render: renderActions },
+    { key: 'status',        label: 'สถานะทะเบียน', render: renderStatus },
+    { key: 'actions',       label: 'การดำเนินการ', sortable: false, render: renderActions },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick, readOnlyRole]);
 

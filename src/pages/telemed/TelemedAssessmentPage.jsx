@@ -710,15 +710,15 @@ const TelemedAssessmentPage = () => {
             <Table
               columns={[
                 { key: 'name', label: 'ไฟล์', flex: true, minWidth: 220, sortable: false },
-                { key: 'kind', label: 'ชนิด', width: 100, sortable: false, render: (r) => (
+                { key: 'kind', label: 'ชนิด', sortable: false, render: (r) => (
                   <ColorfulBadge style={r.kind === 'pdf' ? 'red' : 'blue'} size='small' hierarchy='secondary'>
                     {r.kind === 'pdf' ? 'PDF' : 'ภาพ'}
                   </ColorfulBadge>
                 ) },
-                { key: 'size', label: 'ขนาด', width: 100, sortable: false },
-                { key: 'at', label: 'อัพโหลดเมื่อ', width: 200, sortable: false, render: (r) => formatThaiDateTime(r.at) },
-                { key: 'by', label: 'ผู้อัพโหลด', width: 180, sortable: false },
-                { key: 'act', label: 'การจัดการ', width: 130, sortable: false, render: (r) => (
+                { key: 'size', label: 'ขนาด', sortable: false },
+                { key: 'at', label: 'อัพโหลดเมื่อ', sortable: false, render: (r) => formatThaiDateTime(r.at) },
+                { key: 'by', label: 'ผู้อัพโหลด', sortable: false },
+                { key: 'act', label: 'การจัดการ', sortable: false, render: (r) => (
                   <NeutralSubdueButton
                     size='sm'
                     variant='outline'
@@ -874,7 +874,7 @@ const TelemedAssessmentPage = () => {
         </div>
         <Table
           columns={[
-            { key: 'at', label: 'วัน-เวลา', width: 190, sortable: false, render: (r) => formatThaiDateTime(r.at) },
+            { key: 'at', label: 'วัน-เวลา', sortable: false, render: (r) => formatThaiDateTime(r.at) },
             { key: 'value', label: 'ค่า', flex: true, minWidth: 220, sortable: false, render: (r) => {
               const parts = [];
               if (r.bpSys != null) parts.push(`BP ${r.bpSys}/${r.bpDia}`);
@@ -884,12 +884,12 @@ const TelemedAssessmentPage = () => {
               if (r.pulse != null) parts.push(`PR ${r.pulse}`);
               return parts.join(' · ') || '—';
             } },
-            { key: 'source', label: 'ที่มา', width: 150, sortable: false, render: (r) => (
+            { key: 'source', label: 'ที่มา', sortable: false, render: (r) => (
               <ColorfulBadge style={RPM_SOURCE[r.source]?.tone || 'grey'} size='small' hierarchy='secondary'>
                 {RPM_SOURCE[r.source]?.label}
               </ColorfulBadge>
             ) },
-            { key: 'audit', label: 'ผู้บันทึก / แก้ไข', width: 240, sortable: false, render: (r) => (
+            { key: 'audit', label: 'ผู้บันทึก / แก้ไข', sortable: false, render: (r) => (
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
                 {r.recordedBy && <AuditStamp action='บันทึก' by={r.recordedBy} at={r.at} />}
                 {r.editedBy && <AuditStamp action='แก้ไข' by={r.editedBy} at={r.editedAt} />}
@@ -900,7 +900,7 @@ const TelemedAssessmentPage = () => {
                 )}
               </div>
             ) },
-            { key: 'act', label: 'การจัดการ', width: 220, sortable: false, render: (r) => (
+            { key: 'act', label: 'การจัดการ', sortable: false, render: (r) => (
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100)' }}>
                 <NeutralSubdueButton
                   size='sm'
@@ -956,9 +956,9 @@ const TelemedAssessmentPage = () => {
     return (
       <Table
         columns={[
-          { key: 'at', label: 'วัน-เวลา', width: 200, sortable: false, render: (r) => formatThaiDateTime(r.at) },
-          { key: 'by', label: 'ผู้ดำเนินการ', width: 200, sortable: false },
-          { key: 'scope', label: 'ส่วนของข้อมูล', width: 140, sortable: false, render: (r) => (
+          { key: 'at', label: 'วัน-เวลา', sortable: false, render: (r) => formatThaiDateTime(r.at) },
+          { key: 'by', label: 'ผู้ดำเนินการ', sortable: false },
+          { key: 'scope', label: 'ส่วนของข้อมูล', sortable: false, render: (r) => (
             <ColorfulBadge style={r.scope === 'การประเมิน' ? 'teal' : 'indigo'} size='small' hierarchy='secondary'>{r.scope}</ColorfulBadge>
           ) },
           { key: 'action', label: 'การกระทำ', flex: true, minWidth: 200, sortable: false },

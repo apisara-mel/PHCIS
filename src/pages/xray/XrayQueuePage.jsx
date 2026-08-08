@@ -554,7 +554,7 @@ const buildColumns = (onAction, dupFor) => [
   /* เลข XN — §1.12.5.2 "ระบบ Automatic Generate เลข XN". One XN per
      request; the orderId beneath ties multi-exam rows together. */
   {
-    key: 'xn', label: 'เลข XN', width: 120,
+    key: 'xn', label: 'เลข XN',
     render: (row) => (
       <div className='flex flex-col min-w-0' style={{ gap: 2 }}>
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-default)' }}>
@@ -631,7 +631,7 @@ const buildColumns = (onAction, dupFor) => [
   },
   /* ความเร่งด่วน — §1.12.5.4's first column. STAT reads red (error). */
   {
-    key: 'urgency', label: 'ความเร่งด่วน', width: 116,
+    key: 'urgency', label: 'ความเร่งด่วน',
     render: (row) => {
       if (row.urgency === 'stat') return <StatusBadge style='error' size='small'>STAT</StatusBadge>;
       if (row.urgency === 'urgent') return <StatusBadge style='warning' size='small'>ด่วน</StatusBadge>;
@@ -640,7 +640,7 @@ const buildColumns = (onAction, dupFor) => [
   },
   /* คลินิกที่ขอตรวจ — §1.12.5.2. */
   {
-    key: 'location', label: 'คลินิกที่ขอตรวจ', width: 168,
+    key: 'location', label: 'คลินิกที่ขอตรวจ',
     render: (row) => (
       <span className='block min-w-0' style={cellText}>
         <EllipsisText text={row.orderingLocation} />
@@ -652,7 +652,7 @@ const buildColumns = (onAction, dupFor) => [
      amend-in-place action; reject is the fallback when only the ordering
      doctor can fix it.) */
   {
-    key: 'orderedBy', label: 'แพทย์ผู้ส่งตรวจ', width: 160,
+    key: 'orderedBy', label: 'แพทย์ผู้ส่งตรวจ',
     render: (row) => (
       <span className='block min-w-0' style={cellText}>
         <EllipsisText text={row.orderedBy} />
@@ -662,7 +662,7 @@ const buildColumns = (onAction, dupFor) => [
   /* วันเวลาส่ง/นัด — §1.12.5.2 "วันที่ส่งหรือนัด". A scheduled row shows
      its appointment slot beneath (legacy §2.2 การนัดตรวจ). */
   {
-    key: 'orderedAt', label: 'วันเวลาส่ง/นัด', width: 132,
+    key: 'orderedAt', label: 'วันเวลาส่ง/นัด',
     render: (row) => (
       <div className='flex flex-col' style={{ gap: 2 }}>
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
@@ -679,7 +679,7 @@ const buildColumns = (onAction, dupFor) => [
   /* รอมานาน — aging vs urgency SLA; turns red past SLA. The clock stops
      at performedAt (SLA is time-to-exposure — see isOverdue). */
   {
-    key: 'aging', label: 'รอมานาน', width: 128,
+    key: 'aging', label: 'รอมานาน',
     render: (row) => {
       if (row.exception) return <span style={subText}>—</span>;
       if (row.status === 'scheduled') return <span style={subText}>รอถึงวันนัด</span>;
@@ -708,7 +708,7 @@ const buildColumns = (onAction, dupFor) => [
      overrides the pill: "ถูกปฏิเสธ" is the fact the department needs to
      see first (manual pp.8–9). */
   {
-    key: 'status', label: 'สถานะ', width: 150,
+    key: 'status', label: 'สถานะ',
     render: (row) => {
       if (row.exception) {
         const ex = XRAY_EXCEPTION_BY_KEY[row.exception];
@@ -720,7 +720,7 @@ const buildColumns = (onAction, dupFor) => [
   },
   /* ประเภทผล — §1.12.6.9 (ปกติ/ผิดปกติ/ผิดปกติเร่งด่วน/ไม่ชัดเจน). */
   {
-    key: 'resultType', label: 'ประเภทผล', width: 136,
+    key: 'resultType', label: 'ประเภทผล',
     render: (row) => (
       row.resultType
         ? <StatusBadge style={row.resultTypeColor} size='small'>{row.resultTypeLabel}</StatusBadge>
@@ -737,7 +737,7 @@ const buildColumns = (onAction, dupFor) => [
        ก่อนรายงานผล → แก้ไขรายละเอียดการส่งตรวจ (§1.12.5.6)
        ก่อนยืนยัน → ยกเลิกรายการตรวจ (Cancel Request) */
   {
-    key: 'actions', label: 'การจัดการ', width: 184, sortable: false, align: 'center',
+    key: 'actions', label: 'การจัดการ', sortable: false, align: 'center',
     render: (row) => {
       if (row.exception) return null;
       const buttons = [];

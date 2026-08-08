@@ -225,7 +225,7 @@ const buildColumns = (onAction, historyFor, selection) => [
   {
     /* Table renders headers as plain text (see Table.jsx `title`), so the
        select-all control lives in the toolbar rather than this header. */
-    key: 'select', label: '', width: 44, sortable: false, align: 'center',
+    key: 'select', label: '', sortable: false, align: 'center',
     render: (row) => (
       <input
         type='checkbox'
@@ -239,7 +239,7 @@ const buildColumns = (onAction, historyFor, selection) => [
   },
   /* คิว / ลำดับ — "เรียงลำดับเรียกผู้ป่วย". */
   {
-    key: 'queueNo', label: 'คิว', width: 64, align: 'center',
+    key: 'queueNo', label: 'คิว', align: 'center',
     render: (row) => (
       <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-secondary)' }}>
         {row.queueNo}
@@ -250,7 +250,7 @@ const buildColumns = (onAction, historyFor, selection) => [
      mockup, and doubles as the sticker-printed state: a row whose label
      hasn't been printed yet shows "รอพิมพ์ label" underneath. */
   {
-    key: 'accessionNo', label: 'Accession / บาร์โค้ด', width: 172,
+    key: 'accessionNo', label: 'Accession / บาร์โค้ด',
     render: (row) => (
       <div className='flex flex-col min-w-0' style={{ gap: 2 }}>
         <span
@@ -270,7 +270,7 @@ const buildColumns = (onAction, historyFor, selection) => [
   },
   /* ความเร่งด่วน — STAT / ด่วน / Routine, "STAT ต้องเด้งขึ้นบนสุด (สีแดง)". */
   {
-    key: 'urgency', label: 'ความเร่งด่วน', width: 124,
+    key: 'urgency', label: 'ความเร่งด่วน',
     render: (row) => {
       if (row.urgency === 'stat') return <Badge style='error' size='small'>STAT</Badge>;
       if (row.urgency === 'urgent') return <Badge style='warning' size='small'>ด่วน</Badge>;
@@ -313,7 +313,7 @@ const buildColumns = (onAction, historyFor, selection) => [
   /* อายุ / เพศ — "ผลบางค่าใช้ค่าต่างช่วง + เลือกเทคนิคเจาะ". The stored age
      is free-text Thai ("42 ปี - 3 เดือน - 8 วัน"); only the year matters here. */
   {
-    key: 'ageSex', label: 'อายุ / เพศ', width: 104,
+    key: 'ageSex', label: 'อายุ / เพศ',
     render: (row) => (
       <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
         {row.confidential ? '—' : `${parseInt(row.patient.age, 10) || '—'} ปี / ${row.patient.sex}`}
@@ -322,7 +322,7 @@ const buildColumns = (onAction, historyFor, selection) => [
   },
   /* เวลาสั่ง + aging — "ดู aging / SLA รอคิวนานเกินไหม". */
   {
-    key: 'orderedAt', label: 'เวลาสั่ง', width: 120,
+    key: 'orderedAt', label: 'เวลาสั่ง',
     render: (row) => {
       const age = ageMinutes(row);
       const overdue = isOverdue(row);
@@ -347,7 +347,7 @@ const buildColumns = (onAction, historyFor, selection) => [
   },
   /* จุดสั่ง / ward — the team clarified this is the ordering clinic. */
   {
-    key: 'location', label: 'จุดสั่ง / ward', width: 168,
+    key: 'location', label: 'จุดสั่ง / ward',
     render: (row) => (
       <span className='block min-w-0' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
         <EllipsisText text={row.location} />
@@ -356,7 +356,7 @@ const buildColumns = (onAction, historyFor, selection) => [
   },
   /* แพทย์ผู้สั่ง — "ติดต่อกลับเมื่อสงสัย". */
   {
-    key: 'doctor', label: 'แพทย์ผู้สั่ง', width: 168,
+    key: 'doctor', label: 'แพทย์ผู้สั่ง',
     render: (row) => (
       <span className='block min-w-0' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
         <EllipsisText text={row.doctor} />
@@ -397,12 +397,12 @@ const buildColumns = (onAction, historyFor, selection) => [
   /* ชนิดตัวอย่าง + หลอด (สีจุก) — "EDTA(ม่วง)/Clot(แดง)/Fluoride(เทา) ฯลฯ".
      Colour is derived from the test's group, never hand-set. */
   {
-    key: 'tube', label: 'ตัวอย่าง + หลอด', width: 156,
+    key: 'tube', label: 'ตัวอย่าง + หลอด',
     render: (row) => <LabTubeDot tube={row.tube} count={row.tubeCount} />,
   },
   /* จำนวนหลอด + ปริมาตร — "เตรียมหลอดให้ครบ ไม่ต้องเจาะซ้ำ". */
   {
-    key: 'volumeMl', label: 'จำนวน / ปริมาตร', width: 128,
+    key: 'volumeMl', label: 'จำนวน / ปริมาตร',
     render: (row) => (
       <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
         {row.tubeCount} หลอด · {row.volumeMl} mL
@@ -412,7 +412,7 @@ const buildColumns = (onAction, historyFor, selection) => [
   /* สถานะ — "ติดตามงาน". An exception (rejected/redraw) overrides the pill,
      because "ปฏิเสธแล้วรอเจาะใหม่" is the fact the bench needs to see first. */
   {
-    key: 'status', label: 'สถานะ', width: 148,
+    key: 'status', label: 'สถานะ',
     render: (row) => {
       if (row.exception === 'rejected') {
         return <Badge style='error' size='small' title={row.rejectReason}>ปฏิเสธตัวอย่าง</Badge>;
@@ -426,7 +426,7 @@ const buildColumns = (onAction, historyFor, selection) => [
   /* ค่าวิกฤต vs ผลผิดปกติ — TOR §1.15.3.2 vs §1.15.4.6, two severities.
      Critical wins when both are true (a panic value is always abnormal). */
   {
-    key: 'resultFlag', label: 'ผล', width: 132,
+    key: 'resultFlag', label: 'ผล',
     render: (row) => {
       if (row.critical) {
         return (
@@ -456,7 +456,7 @@ const buildColumns = (onAction, historyFor, selection) => [
      lives in the detail panel; a table-wide sum would add up unrelated
      patients' line items, which isn't what "ยอดรวม" means. */
   {
-    key: 'price', label: 'ราคา', width: 88,
+    key: 'price', label: 'ราคา',
     render: (row) => (
       <div className='w-full flex justify-end'>
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
@@ -470,7 +470,7 @@ const buildColumns = (onAction, historyFor, selection) => [
      pipeline: you cannot mark a specimen collected before its label is
      printed, and you cannot reject one that was never drawn. */
   {
-    key: 'actions', label: 'การจัดการ', width: 252, sortable: false, align: 'center',
+    key: 'actions', label: 'การจัดการ', sortable: false, align: 'center',
     render: (row) => {
       const canCollect = row.status === 'requested' || row.status === 'collect';
       const canReject = row.status !== 'requested' && row.status !== 'reported';

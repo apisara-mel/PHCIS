@@ -377,34 +377,34 @@ const DentalQueuePage = () => {
   );
 
   const columns = useMemo(() => ([
-    { key: 'queue',     label: 'คิว',              width: 88,  render: renderQueue },
-    { key: 'visitTime', label: 'เวลามาตรวจ',       width: 104, render: renderTime },
-    { key: 'hn',        label: 'HN',               width: 96 },
+    { key: 'queue',     label: 'คิว',  render: renderQueue },
+    { key: 'visitTime', label: 'เวลามาตรวจ', render: renderTime },
+    { key: 'hn',        label: 'HN' },
     { key: 'name',      label: 'ชื่อ-นามสกุล',      flex: true, minWidth: 168, render: renderName },
     { key: 'cc',        label: 'อาการ (Chief Complaint)', flex: true, minWidth: 200,
       render: (r) => <span className='block truncate' title={r.cc}>{r.cc}</span> },
-    { key: 'workType',  label: 'ประเภทงาน',        width: 168, render: renderWorkType },
+    { key: 'workType',  label: 'ประเภทงาน', render: renderWorkType },
     { key: 'doctor',    label: 'ทันตแพทย์ผู้ตรวจ',  flex: true, minWidth: 150 },
-    { key: 'clinic',    label: 'คลินิก/ห้องตรวจ',   width: 136 },
-    { key: 'wait',      label: 'รอนาน',            width: 88,  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
-    { key: 'status',    label: 'สถานะ',            width: 160, render: renderStatus },
-    { key: 'actions',   label: 'การจัดการ',        width: 128, sortable: false, render: renderActions },
+    { key: 'clinic',    label: 'คลินิก/ห้องตรวจ' },
+    { key: 'wait',      label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
+    { key: 'status',    label: 'สถานะ', render: renderStatus },
+    { key: 'actions',   label: 'การจัดการ', sortable: false, render: renderActions },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
   /* นัดแล้วยังไม่มาติดต่อ (legacy tab-sheet 2, p.2-2) — appointment-time
      row shape + the ส่งตรวจ check-in action. */
   const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด',          width: 96 },
-    { key: 'hn',              label: 'HN',               width: 96 },
+    { key: 'appointmentTime', label: 'เวลานัด' },
+    { key: 'hn',              label: 'HN' },
     { key: 'name',            label: 'ชื่อ-นามสกุล',      flex: true, minWidth: 168 },
     { key: 'cc',              label: 'นัดมาเพื่อ',        flex: true, minWidth: 200,
       render: (r) => <span className='block truncate' title={r.cc}>{r.cc}</span> },
-    { key: 'workType',        label: 'ประเภทงาน',        width: 168, render: renderWorkType },
+    { key: 'workType',        label: 'ประเภทงาน', render: renderWorkType },
     { key: 'doctor',          label: 'ทันตแพทย์ผู้ตรวจ',  flex: true, minWidth: 150 },
-    { key: 'clinic',          label: 'คลินิก/ห้องตรวจ',   width: 136 },
+    { key: 'clinic',          label: 'คลินิก/ห้องตรวจ' },
     {
-      key: 'checkin', label: 'การจัดการ', width: 132, sortable: false,
+      key: 'checkin', label: 'การจัดการ', sortable: false,
       render: (row) => (
         <BrandSubdueButton variant='fill' size='sm' leadingIcon='login' onClick={(e) => { e.stopPropagation(); handleCheckIn(row.hn); }}>
           ส่งตรวจ
