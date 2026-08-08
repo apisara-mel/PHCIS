@@ -113,13 +113,13 @@ const UserSchedulePage = () => {
   };
 
   const columns = [
-    { key: 'dateLabel', label: 'วันที่', width: 200 },
-    { key: 'weekday', label: 'วัน', width: 80 },
+    { key: 'dateLabel', label: 'วันที่' },
+    { key: 'weekday', label: 'วัน' },
     {
-      key: 'shiftLabel', label: 'เวร', width: 140, sortable: false,
+      key: 'shiftLabel', label: 'เวร', sortable: false,
       render: (r) => <ColorfulBadge style={r.tone} size='small'>{r.shiftLabel}</ColorfulBadge>,
     },
-    { key: 'time', label: 'เวลา', width: 150 },
+    { key: 'time', label: 'เวลา' },
     { key: 'unit', label: 'ศูนย์ / หน่วยบริการ', flex: true, minWidth: 200 },
     { key: 'note', label: 'หมายเหตุ', flex: true, minWidth: 180 },
   ];

@@ -303,7 +303,7 @@ const ConsultComposerPanel = ({ form, setForm, patient, cardPatient }) => {
               onRowClick={openRow}
               columns={[
                 {
-                  key: 'consultNo', header: 'เลขที่คำขอ', width: 160,
+                  key: 'consultNo', header: 'เลขที่คำขอ',
                   render: (r) => (
                     <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                       <span style={{ ...PANEL_VALUE_STYLE, ...strikeIf(r.status === 'cancelled') }}>{r.consultNo}</span>
@@ -326,7 +326,7 @@ const ConsultComposerPanel = ({ form, setForm, patient, cardPatient }) => {
                   ),
                 },
                 {
-                  key: 'type', header: 'ประเภท / ความเร่งด่วน', width: 250,
+                  key: 'type', header: 'ประเภท / ความเร่งด่วน',
                   render: (r) => (
                     <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                       <ColorfulBadge style='blue' size='small' width='hug'>{consultTypeMeta(r.consultType).label}</ColorfulBadge>
@@ -337,7 +337,7 @@ const ConsultComposerPanel = ({ form, setForm, patient, cardPatient }) => {
                   ),
                 },
                 {
-                  key: 'status', header: 'สถานะ', width: 150,
+                  key: 'status', header: 'สถานะ',
                   render: (r) => (
                     <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                       <StatusBadge style={consultStatusMeta(r.status).badge} size='small'>
@@ -348,7 +348,7 @@ const ConsultComposerPanel = ({ form, setForm, patient, cardPatient }) => {
                   ),
                 },
                 {
-                  key: 'actions', header: '', width: 230,
+                  key: 'actions', header: '',
                   render: (r) => (
                     <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                       <NeutralSubdueButton variant='outline' size='sm' leadingIcon='visibility' onClick={() => openRow(r)}>

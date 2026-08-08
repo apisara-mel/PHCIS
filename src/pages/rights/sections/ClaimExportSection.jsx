@@ -156,17 +156,17 @@ const ClaimExportSection = ({ role }) => {
   };
 
   const previewColumns = [
-    { key: 'name', label: 'ชื่อแฟ้ม', width: 140 },
+    { key: 'name', label: 'ชื่อแฟ้ม' },
     { key: 'title', label: 'เนื้อหาของแฟ้ม', flex: true, minWidth: 220, render: (f) => <EllipsisText text={f.title} /> },
     {
-      key: 'records', label: 'จำนวน record', width: 150, align: 'center',
+      key: 'records', label: 'จำนวน record', align: 'center',
       render: (f) => (f.records > 0
         ? <span style={T.value}>{f.records.toLocaleString('th-TH')}</span>
         : <span style={T.muted}>0 (แฟ้มว่าง)</span>),
     },
-    { key: 'bytes', label: 'ขนาดโดยประมาณ', width: 160, render: (f) => <span style={T.body}>{formatBytes(f.bytes)}</span> },
+    { key: 'bytes', label: 'ขนาดโดยประมาณ', render: (f) => <span style={T.body}>{formatBytes(f.bytes)}</span> },
     {
-      key: 'download', label: '', width: 140, sortable: false,
+      key: 'download', label: '', sortable: false,
       render: (f) => (
         <div className='flex justify-end w-full'>
           <BrandSubdueButton
@@ -185,13 +185,13 @@ const ClaimExportSection = ({ role }) => {
   ];
 
   const historyColumns = [
-    { key: 'at', label: 'เวลาที่ดึง', width: 220 },
-    { key: 'by', label: 'ผู้ดึงข้อมูล', width: 190, render: (h) => <EllipsisText text={h.by} /> },
+    { key: 'at', label: 'เวลาที่ดึง' },
+    { key: 'by', label: 'ผู้ดึงข้อมูล', render: (h) => <EllipsisText text={h.by} /> },
     { key: 'format', label: 'รูปแบบชุดข้อมูล', flex: true, minWidth: 220, render: (h) => <EllipsisText text={exportFormatByKey(h.formatKey)?.label || h.formatKey} /> },
-    { key: 'fileType', label: 'ประเภทไฟล์', width: 120, render: (h) => String(h.fileType).toUpperCase() },
-    { key: 'range', label: 'ช่วงวันที่', width: 260, render: (h) => `${h.from} – ${h.to}` },
-    { key: 'files', label: 'จำนวนแฟ้ม', width: 120, align: 'center' },
-    { key: 'records', label: 'จำนวน record', width: 140, align: 'center', render: (h) => h.records.toLocaleString('th-TH') },
+    { key: 'fileType', label: 'ประเภทไฟล์', render: (h) => String(h.fileType).toUpperCase() },
+    { key: 'range', label: 'ช่วงวันที่', render: (h) => `${h.from} – ${h.to}` },
+    { key: 'files', label: 'จำนวนแฟ้ม', align: 'center' },
+    { key: 'records', label: 'จำนวน record', align: 'center', render: (h) => h.records.toLocaleString('th-TH') },
   ];
 
   return (

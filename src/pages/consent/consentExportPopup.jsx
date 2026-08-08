@@ -98,10 +98,10 @@ export const buildReportTableColumns = (cols) => cols.map((c) => ({
 }));
 
 const WORKLIST_EXPORT_COLUMNS = [
-  { key: 'hn', header: 'HN', width: 110 },
+  { key: 'hn', header: 'HN' },
   { key: 'formName', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 360, kind: 'ellipsis' },
-  { key: 'status', header: 'สถานะ', width: 160, kind: 'status' },
-  { key: 'signChannel', header: 'ช่องทางที่ลงนาม', width: 320, kind: 'nowrap' },
+  { key: 'status', header: 'สถานะ', kind: 'status' },
+  { key: 'signChannel', header: 'ช่องทางที่ลงนาม', kind: 'nowrap' },
 ];
 
 /** Build export payload for the consent worklist (filtered rows). */
@@ -120,12 +120,12 @@ export const buildWorklistExportReport = (rows) => ({
 });
 
 const COMPARE_EXPORT_COLUMNS = [
-  { key: 'outcome', header: 'ผลลัพธ์', width: 150, kind: 'status' },
+  { key: 'outcome', header: 'ผลลัพธ์', kind: 'status' },
   { key: 'formName', header: 'ชื่อแบบฟอร์ม', flex: true, minWidth: 280, kind: 'ellipsis' },
-  { key: 'formCode', header: 'รหัส', width: 100 },
-  { key: 'version', header: 'เวอร์ชัน', width: 100 },
-  { key: 'status', header: 'สถานะ', width: 140, kind: 'status' },
-  { key: 'reconsent', header: 'Reconsent', width: 140 },
+  { key: 'formCode', header: 'รหัส' },
+  { key: 'version', header: 'เวอร์ชัน' },
+  { key: 'status', header: 'สถานะ', kind: 'status' },
+  { key: 'reconsent', header: 'Reconsent' },
 ];
 
 const compareExportRow = (item, outcome) => ({

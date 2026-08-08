@@ -42,7 +42,7 @@ const EclaimSection = ({ queue }) => {
   const claimTotal = claimRows.reduce((s, r) => s + r.rightsCoverage, 0);
 
   const columns = [
-    { key: 'receiptNo', label: 'เลขที่ใบเสร็จ', width: 140 },
+    { key: 'receiptNo', label: 'เลขที่ใบเสร็จ' },
     {
       key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
       render: (row) => (
@@ -52,9 +52,9 @@ const EclaimSection = ({ queue }) => {
         </div>
       ),
     },
-    { key: 'dept', label: 'แผนก', width: 160 },
-    { key: 'visitDate', label: 'วันที่', width: 140 },
-    { key: 'rightsCoverage', label: 'ยอดเบิกจาก สปสช.', width: 160, render: (row) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(row.rightsCoverage)}</span> },
+    { key: 'dept', label: 'แผนก' },
+    { key: 'visitDate', label: 'วันที่' },
+    { key: 'rightsCoverage', label: 'ยอดเบิกจาก สปสช.', render: (row) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(row.rightsCoverage)}</span> },
   ];
 
   return (

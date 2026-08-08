@@ -385,10 +385,10 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
         </span>
       ),
     },
-    { key: 'allocated', label: 'งบได้รับ', width: 150, align: 'right', render: (b) => formatBaht(b.allocated) },
-    { key: 'used', label: 'ใช้ไป', width: 150, align: 'right', render: (b) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(b.used)}</span> },
+    { key: 'allocated', label: 'งบได้รับ', align: 'right', render: (b) => formatBaht(b.allocated) },
+    { key: 'used', label: 'ใช้ไป', align: 'right', render: (b) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(b.used)}</span> },
     {
-      key: 'remaining', label: 'คงเหลือ', width: 150, align: 'right',
+      key: 'remaining', label: 'คงเหลือ', align: 'right',
       render: (b) => (
         <span style={{ fontWeight: 'var(--type-weight-bold)', color: b.overBudget ? 'var(--text-statusbadge-error, #B91C1C)' : 'var(--text-content-default, #363B3F)' }}>
           {formatSignedBaht(b.remaining)}
@@ -396,7 +396,7 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
       ),
     },
     {
-      key: 'pct', label: 'ใช้ไปเทียบปฏิทิน', width: 210,
+      key: 'pct', label: 'ใช้ไปเทียบปฏิทิน',
       /* `w-full` is load-bearing: the cell is a flex item that shrink-to-fits,
          so without it this row sizes to the "77.8%" text (~42px) and the
          flex-1 track collapses to zero width — the bar disappears entirely. */
@@ -434,15 +434,14 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
       ),
     },
     {
-      key: 'status', label: 'สถานะ', width: 130,
+      key: 'status', label: 'สถานะ',
       render: (b) => (
         b.overBudget
           ? <StatusBadge style='error' size='small'>เกินงบประมาณ</StatusBadge>
           : b.pct >= 90
             ? <StatusBadge style='warning' size='small'>ใกล้เต็มงบ</StatusBadge>
             : <StatusBadge style='success' size='small'>อยู่ในงบ</StatusBadge>
-      ),
-    },
+      )},
   ];
 
   const periodNote = year.current

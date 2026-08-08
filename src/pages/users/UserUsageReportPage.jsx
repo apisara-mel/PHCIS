@@ -160,15 +160,15 @@ const UserUsageReportPage = () => {
 
   const peopleColumns = useMemo(() => ([
     { key: 'name', label: 'ชื่อเจ้าหน้าที่', flex: true, minWidth: 200 },
-    { key: 'roleLabel', label: 'บทบาท', width: 150 },
-    { key: 'deptLabel', label: 'แผนก', width: 210 },
-    { key: 'center', label: 'ศูนย์', width: 190, render: (r) => centerLabel(r.center) },
-    { key: 'sessions', label: 'จำนวนครั้ง', width: 120, render: (r) => r.sessions.toLocaleString('th-TH') },
-    { key: 'minutes', label: 'ระยะเวลารวม', width: 150, render: (r) => formatMinutes(r.minutes) },
-    { key: 'avgMinutes', label: 'เฉลี่ย/ครั้ง', width: 130, render: (r) => `${r.avgMinutes} นาที` },
-    { key: 'lastActive', label: 'เข้าใช้ล่าสุด', width: 170 },
+    { key: 'roleLabel', label: 'บทบาท' },
+    { key: 'deptLabel', label: 'แผนก' },
+    { key: 'center', label: 'ศูนย์', render: (r) => centerLabel(r.center) },
+    { key: 'sessions', label: 'จำนวนครั้ง', render: (r) => r.sessions.toLocaleString('th-TH') },
+    { key: 'minutes', label: 'ระยะเวลารวม', render: (r) => formatMinutes(r.minutes) },
+    { key: 'avgMinutes', label: 'เฉลี่ย/ครั้ง', render: (r) => `${r.avgMinutes} นาที` },
+    { key: 'lastActive', label: 'เข้าใช้ล่าสุด' },
     {
-      key: 'status', label: 'สถานะ', width: 130, sortable: false,
+      key: 'status', label: 'สถานะ', sortable: false,
       render: (r) => <ColorfulBadge style={r.status === 'active' ? 'green' : 'grey'} size='small' showDot>{r.status === 'active' ? 'ใช้งาน' : 'ปิดใช้งาน'}</ColorfulBadge>,
     },
   ]), []);
@@ -194,12 +194,12 @@ const UserUsageReportPage = () => {
   }, [logRows, logFilters, logQ]);
 
   const logColumns = useMemo(() => ([
-    { key: 'time', label: 'เวลา', width: 170 },
+    { key: 'time', label: 'เวลา' },
     { key: 'user', label: 'ผู้ใช้', flex: true, minWidth: 180 },
     { key: 'action', label: 'การกระทำ', flex: true, minWidth: 200 },
-    { key: 'mod', label: 'โมดูล', width: 180 },
+    { key: 'mod', label: 'โมดูล' },
     {
-      key: 'ok', label: 'ผล', width: 120, sortable: false,
+      key: 'ok', label: 'ผล', sortable: false,
       render: (r) => <ColorfulBadge style={r.ok ? 'green' : 'red'} size='small' icon={r.ok ? 'check_circle' : 'cancel'}>{r.ok ? 'สำเร็จ' : 'ล้มเหลว'}</ColorfulBadge>,
     },
   ]), []);

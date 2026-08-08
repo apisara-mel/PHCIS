@@ -389,29 +389,29 @@ const MentalHealthQueuePage = () => {
   );
 
   const columns = useMemo(() => ([
-    { key: 'queue',    label: 'คิว',              width: 72,  render: renderQueue },
-    { key: 'hn',       label: 'HN',               width: 96 },
+    { key: 'queue',    label: 'คิว',  render: renderQueue },
+    { key: 'hn',       label: 'HN' },
     { key: 'name',     label: 'ชื่อ-นามสกุล',      flex: true, minWidth: 160, render: renderName },
-    { key: 'sex',      label: 'เพศ',              width: 64 },
-    { key: 'age',      label: 'อายุ',             width: 72 },
-    { key: 'cid',      label: 'เลขบัตรประชาชน',    width: 140 },
-    { key: 'insurance', label: 'สิทธิ',            width: 150, render: renderInsurance },
-    { key: 'mhNumber', label: 'เลขที่สุขภาพจิต',   width: 120, render: (r) => r.mhNumber || '—' },
+    { key: 'sex',      label: 'เพศ' },
+    { key: 'age',      label: 'อายุ' },
+    { key: 'cid',      label: 'เลขบัตรประชาชน' },
+    { key: 'insurance', label: 'สิทธิ', render: renderInsurance },
+    { key: 'mhNumber', label: 'เลขที่สุขภาพจิต', render: (r) => r.mhNumber || '—' },
     { key: 'chiefComplaint', label: 'อาการสำคัญ',  flex: true, minWidth: 200 },
-    { key: 'watch',    label: 'ระดับการเฝ้าระวัง', width: 150, render: renderWatchLevel },
+    { key: 'watch',    label: 'ระดับการเฝ้าระวัง', render: renderWatchLevel },
     { key: 'doctor',   label: 'แพทย์',            flex: true, minWidth: 150 },
-    { key: 'telemed',  label: 'Telemedicine',     width: 128, align: 'center', sortable: false, render: renderTelemedicine },
-    { key: 'wait',     label: 'รอนาน',            width: 90,  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
-    { key: 'status',   label: 'สถานะ',            width: 170, render: renderStatus },
-    { key: 'actions',  label: 'การดำเนินการ',      width: 140, sortable: false, render: renderActions },
+    { key: 'telemed',  label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
+    { key: 'wait',     label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
+    { key: 'status',   label: 'สถานะ', render: renderStatus },
+    { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: renderActions },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
   /* ผู้ป่วยนัดที่ยังไม่มาติดต่อ (manual §2.2 tab 2) — a different row shape
      (เวลานัด instead of queue/wait/status), so its own columns + ส่งตรวจ. */
   const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด',      width: 90 },
-    { key: 'hn',              label: 'HN',           width: 96 },
+    { key: 'appointmentTime', label: 'เวลานัด' },
+    { key: 'hn',              label: 'HN' },
     {
       key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160,
       render: (r) => (
@@ -426,13 +426,13 @@ const MentalHealthQueuePage = () => {
         </div>
       ),
     },
-    { key: 'cid',             label: 'เลขบัตรประชาชน', width: 140 },
-    { key: 'insurance',       label: 'สิทธิ',         width: 150 },
-    { key: 'mhNumber',        label: 'เลขที่สุขภาพจิต', width: 120, render: (r) => r.mhNumber || '—' },
+    { key: 'cid',             label: 'เลขบัตรประชาชน' },
+    { key: 'insurance',       label: 'สิทธิ' },
+    { key: 'mhNumber',        label: 'เลขที่สุขภาพจิต', render: (r) => r.mhNumber || '—' },
     { key: 'chiefComplaint',  label: 'นัดหมายเรื่อง', flex: true, minWidth: 200 },
     { key: 'doctor',          label: 'แพทย์',        flex: true, minWidth: 150 },
     {
-      key: 'checkin', label: 'การดำเนินการ', width: 130, sortable: false,
+      key: 'checkin', label: 'การดำเนินการ', sortable: false,
       render: (row) => (
         <BrandSubdueButton variant='fill' size='sm' leadingIcon='login' onClick={(e) => { e.stopPropagation(); handleCheckIn(row.hn); }}>
           ส่งตรวจ

@@ -187,8 +187,7 @@ export default function ConsentManagementPage() {
     icon: t.icon,
     count: t.value === 'all'
       ? rows.length
-      : rows.filter((r) => matchesConsentWorklistTab(r, t.value)).length,
-  })), [rows]);
+      : rows.filter((r) => matchesConsentWorklistTab(r, t.value)).length})), [rows]);
 
   const summaryCards = useMemo(() => buildConsentSummary(rows), [rows]);
 
@@ -424,20 +423,18 @@ export default function ConsentManagementPage() {
     const colCreatedDate = {
       key: 'createdDate',
       header: 'วันที่สร้างคำขอ/Reconsent',
-      width: 210,
       sortable: true,
       render: (r) => <Cell value={r.createdDate} />,
     };
     const colSignedDate = {
       key: 'signedDate',
       header: 'วันที่ลงนาม',
-      width: 150,
       sortable: true,
       render: (r) => <Cell value={r.signedDate} />,
     };
-    const colHn = { key: 'hn', header: 'HN', width: 110, sortable: true, render: (r) => <Cell value={r.hn} /> };
+    const colHn = { key: 'hn', header: 'HN', sortable: true, render: (r) => <Cell value={r.hn} /> };
     const colName = {
-      key: 'name', header: 'ชื่อ-นามสกุล', width: 220, sortable: true,
+      key: 'name', header: 'ชื่อ-นามสกุล', sortable: true,
       render: (r) => (
         <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
           <QueuePatientAvatar
@@ -479,11 +476,11 @@ export default function ConsentManagementPage() {
         ),
       },
       {
-        key: 'version', header: 'เวอร์ชั่น', width: 104,
+        key: 'version', header: 'เวอร์ชั่น',
         render: (r) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{r.version}</ColorfulBadge>,
       },
       {
-        key: 'status', header: 'สถานะ', width: 320, sortable: true,
+        key: 'status', header: 'สถานะ', sortable: true,
         render: (r) => {
           const subtextLineStyle = {
             color: 'var(--text-content-tertiary)',
@@ -534,7 +531,7 @@ export default function ConsentManagementPage() {
         },
       },
       {
-        key: 'signChannel', header: 'ช่องทางที่ลงนาม', width: 320, render: (r) => (
+        key: 'signChannel', header: 'ช่องทางที่ลงนาม', render: (r) => (
           <span
             className='block whitespace-nowrap'
             style={{
@@ -551,19 +548,17 @@ export default function ConsentManagementPage() {
           </span>
         ),
       },
-      { key: 'requester', header: 'ผู้สร้างคำขอ', width: 140, render: (r) => <Cell value={r.requester} /> },
+      { key: 'requester', header: 'ผู้สร้างคำขอ', render: (r) => <Cell value={r.requester} /> },
     ];
     const colWithdrawn = {
       key: 'withdrawnDate',
       header: 'วันที่ถอนความยินยอม',
-      width: 180,
       sortable: true,
       render: (r) => <Cell value={r.withdrawnDate} />,
     };
     const colExpiresInDays = {
       key: 'expiresInDays',
       header: 'จำนวนวันที่เหลือ',
-      width: 160,
       sortable: true,
       render: (r) => (
         <span
@@ -579,7 +574,7 @@ export default function ConsentManagementPage() {
         </span>
       ),
     };
-    const colAction = { key: 'action', header: 'การดำเนินการ', width: 280, render: renderAction };
+    const colAction = { key: 'action', header: 'การดำเนินการ', render: renderAction };
 
     /* ยินยอมแล้ว: วันที่ลงนามขึ้นก่อน · วันที่สร้างอยู่หลังผู้สร้างคำขอ */
     if (activeTab === 'consented') {

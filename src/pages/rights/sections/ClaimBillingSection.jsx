@@ -85,7 +85,7 @@ const VisitClaimCard = ({ visit, expanded, onToggle, onEdit, role }) => {
 
   const lineColumns = [
     {
-      key: 'category', label: 'หมวด', width: 190,
+      key: 'category', label: 'หมวด',
       render: (l) => (
         <span className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
           <Icon name={CHARGE_CATEGORIES[l.category].icon} size={16} />
@@ -94,11 +94,11 @@ const VisitClaimCard = ({ visit, expanded, onToggle, onEdit, role }) => {
       ),
     },
     { key: 'label', label: 'รายการ', flex: true, minWidth: 200 },
-    { key: 'qty', label: 'จำนวน', width: 80, align: 'center' },
-    { key: 'amount', label: 'ราคาเต็ม', width: 110, render: (l) => <span style={T.value}>{formatBaht(l.amount)}</span> },
+    { key: 'qty', label: 'จำนวน', align: 'center' },
+    { key: 'amount', label: 'ราคาเต็ม', render: (l) => <span style={T.value}>{formatBaht(l.amount)}</span> },
     {
       /* §1.7.4.1 — badge สีแยกว่าบรรทัดนี้เรียกเก็บหรือเก็บเงินสด */
-      key: 'payer', label: 'ผู้รับผิดชอบ', width: 140,
+      key: 'payer', label: 'ผู้รับผิดชอบ',
       render: (l) => (
         <div className='flex flex-col items-start' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <ColorfulBadge badgeStyle={PAYER_KINDS[l.payer].badge} size='small'>{PAYER_KINDS[l.payer].label}</ColorfulBadge>
@@ -106,8 +106,8 @@ const VisitClaimCard = ({ visit, expanded, onToggle, onEdit, role }) => {
         </div>
       ),
     },
-    { key: 'claimAmount', label: 'ส่วนเรียกเก็บ', width: 130, render: (l) => <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>{formatBaht(l.claimAmount)}</span> },
-    { key: 'cashAmount', label: 'ส่วนเงินสด', width: 120, render: (l) => <span style={T.value}>{formatBaht(l.cashAmount)}</span> },
+    { key: 'claimAmount', label: 'ส่วนเรียกเก็บ', render: (l) => <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>{formatBaht(l.claimAmount)}</span> },
+    { key: 'cashAmount', label: 'ส่วนเงินสด', render: (l) => <span style={T.value}>{formatBaht(l.cashAmount)}</span> },
   ];
 
   return (
@@ -435,10 +435,10 @@ const BillingEditPopup = ({ visit, role, onClose }) => {
             <Table
               columns={[
                 { key: 'label', label: 'รายการ', flex: true, minWidth: 200 },
-                { key: 'payer', label: 'ผู้รับผิดชอบ', width: 130, render: (l) => <ColorfulBadge badgeStyle={PAYER_KINDS[l.payer].badge} size='small'>{PAYER_KINDS[l.payer].label}</ColorfulBadge> },
-                { key: 'amount', label: 'ราคาเต็ม', width: 110, render: (l) => formatBaht(l.amount) },
-                { key: 'claimAmount', label: 'ส่วนเรียกเก็บ', width: 130, render: (l) => formatBaht(l.claimAmount) },
-                { key: 'cashAmount', label: 'ส่วนเงินสด', width: 120, render: (l) => formatBaht(l.cashAmount) },
+                { key: 'payer', label: 'ผู้รับผิดชอบ', render: (l) => <ColorfulBadge badgeStyle={PAYER_KINDS[l.payer].badge} size='small'>{PAYER_KINDS[l.payer].label}</ColorfulBadge> },
+                { key: 'amount', label: 'ราคาเต็ม', render: (l) => formatBaht(l.amount) },
+                { key: 'claimAmount', label: 'ส่วนเรียกเก็บ', render: (l) => formatBaht(l.claimAmount) },
+                { key: 'cashAmount', label: 'ส่วนเงินสด', render: (l) => formatBaht(l.cashAmount) },
               ]}
               rows={preview.lines}
               rowKey={(l) => l.id}
@@ -531,7 +531,7 @@ const ClaimBillingSection = ({ role }) => {
 
   const cycleColumns = [
     {
-      key: 'expand', label: '', width: 56, sortable: false,
+      key: 'expand', label: '', sortable: false,
       render: (c) => (
         <BrandIconButton
           icon={expandedCycle === c.id ? 'expand_less' : 'expand_more'}
@@ -542,17 +542,17 @@ const ClaimBillingSection = ({ role }) => {
         />
       ),
     },
-    { key: 'name', label: 'งวดส่งเบิก', width: 150 },
-    { key: 'range', label: 'ช่วงวันที่', width: 240, render: (c) => cycleRangeLabel(c) },
-    { key: 'visitCount', label: 'จำนวนผู้รับบริการ', width: 160, align: 'center', render: (c) => `${c.totals.visitCount} ราย` },
-    { key: 'totalCharge', label: 'ค่าใช้จ่ายรวม', width: 150, render: (c) => formatBaht(c.totals.totalCharge) },
+    { key: 'name', label: 'งวดส่งเบิก' },
+    { key: 'range', label: 'ช่วงวันที่', render: (c) => cycleRangeLabel(c) },
+    { key: 'visitCount', label: 'จำนวนผู้รับบริการ', align: 'center', render: (c) => `${c.totals.visitCount} ราย` },
+    { key: 'totalCharge', label: 'ค่าใช้จ่ายรวม', render: (c) => formatBaht(c.totals.totalCharge) },
     { key: 'claimTotal', label: 'ยอดเรียกเก็บรวม', flex: true, minWidth: 160, render: (c) => <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>{formatBaht(c.totals.claimTotal)}</span> },
     {
-      key: 'status', label: 'สถานะรอบ', width: 160,
+      key: 'status', label: 'สถานะรอบ',
       render: (c) => <StatusBadge style={CYCLE_STATUSES[c.status].color} size='small'>{CYCLE_STATUSES[c.status].label}</StatusBadge>,
     },
     {
-      key: 'submitted', label: 'ส่งเบิกเมื่อ', width: 220, sortable: false,
+      key: 'submitted', label: 'ส่งเบิกเมื่อ', sortable: false,
       render: (c) => (c.submittedAt
         ? <div className='flex flex-col min-w-0'><EllipsisText text={c.submittedBy} /><span style={T.muted}>{c.submittedAt}</span></div>
         : <span style={T.muted}>ยังไม่ส่ง</span>),
@@ -723,8 +723,8 @@ const ClaimBillingSection = ({ role }) => {
               ) : (
                 <Table
                   columns={[
-                    { key: 'visitNo', label: 'เลขที่การมารับบริการ', width: 180 },
-                    { key: 'visitDate', label: 'วันที่รับบริการ', width: 150 },
+                    { key: 'visitNo', label: 'เลขที่การมารับบริการ' },
+                    { key: 'visitDate', label: 'วันที่รับบริการ' },
                     {
                       key: 'patient', label: 'HN / ชื่อ-สกุล', flex: true, minWidth: 200,
                       render: (v) => (
@@ -735,15 +735,15 @@ const ClaimBillingSection = ({ role }) => {
                       ),
                     },
                     {
-                      key: 'rights', label: 'สิทธิ', width: 130,
+                      key: 'rights', label: 'สิทธิ',
                       render: (v) => {
                         const r = rightsById(v.billingRightsId);
                         return <ColorfulBadge badgeStyle={r?.badge || 'grey'} size='small'>{r?.code || '-'}</ColorfulBadge>;
                       },
                     },
-                    { key: 'kind', label: 'ประเภท', width: 130, render: (v) => visitKindMeta(v.visitKind).label },
-                    { key: 'org', label: 'หน่วยงานต้นสังกัด', width: 240, render: (v) => <EllipsisText text={parentOrgByCode(v.parentOrgCode)?.name || 'ยังไม่ระบุ'} /> },
-                    { key: 'claim', label: 'ยอดเรียกเก็บ', width: 140, render: (v) => <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>{formatBaht(computeVisitClaim(v).claimTotal)}</span> },
+                    { key: 'kind', label: 'ประเภท', render: (v) => visitKindMeta(v.visitKind).label },
+                    { key: 'org', label: 'หน่วยงานต้นสังกัด', render: (v) => <EllipsisText text={parentOrgByCode(v.parentOrgCode)?.name || 'ยังไม่ระบุ'} /> },
+                    { key: 'claim', label: 'ยอดเรียกเก็บ', render: (v) => <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>{formatBaht(computeVisitClaim(v).claimTotal)}</span> },
                   ]}
                   rows={expandedCycleRow.visits}
                   rowKey={(v) => v.id}

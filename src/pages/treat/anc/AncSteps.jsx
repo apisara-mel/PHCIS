@@ -476,20 +476,19 @@ export const AncStep1History = ({ form, setForm, cardPatient, ancHn, visitNo = 1
               order for records saved before it was captured. */}
           <Table
             columns={[
-              { key: 'visitNo', label: 'ครั้งที่', width: 72, render: (r, i) => r.visitNo ?? (i + 1) },
-              { key: 'date', label: 'วันที่', width: 128 },
-              { key: 'gestWeeks', label: 'อายุครรภ์', width: 96, render: (r) => `${r.gestWeeks} สัปดาห์` },
-              { key: 'fundusHeight', label: 'ยอดมดลูก', width: 112 },
-              { key: 'presentation', label: 'ส่วนนำ', width: 112, render: (r) => r.presentation || '-' },
-              { key: 'fetalHeartRate', label: 'FHR', width: 96 },
-              { key: 'bp', label: 'BP', width: 96 },
-              { key: 'weight', label: 'น้ำหนัก', width: 96, render: (r) => `${r.weight} กก.` },
-              { key: 'urineResult', label: 'ปัสสาวะ', width: 140, render: (r) => r.urineResult || '-' },
+              { key: 'visitNo', label: 'ครั้งที่', render: (r, i) => r.visitNo ?? (i + 1) },
+              { key: 'date', label: 'วันที่' },
+              { key: 'gestWeeks', label: 'อายุครรภ์', render: (r) => `${r.gestWeeks} สัปดาห์` },
+              { key: 'fundusHeight', label: 'ยอดมดลูก' },
+              { key: 'presentation', label: 'ส่วนนำ', render: (r) => r.presentation || '-' },
+              { key: 'fetalHeartRate', label: 'FHR' },
+              { key: 'bp', label: 'BP' },
+              { key: 'weight', label: 'น้ำหนัก', render: (r) => `${r.weight} กก.` },
+              { key: 'urineResult', label: 'ปัสสาวะ', render: (r) => r.urineResult || '-' },
               {
-                key: 'riskLevel', label: 'ความเสี่ยง', width: 128,
-                render: (r) => resolveAncRiskLevel(r.riskLevel)?.label || '-',
-              },
-              { key: 'labSummary', label: 'ผล Lab', width: 200, render: (r) => r.labSummary || '-' },
+                key: 'riskLevel', label: 'ความเสี่ยง',
+                render: (r) => resolveAncRiskLevel(r.riskLevel)?.label || '-'},
+              { key: 'labSummary', label: 'ผล Lab', render: (r) => r.labSummary || '-' },
               { key: 'note', label: 'บันทึก', flex: true, minWidth: 200 },
             ]}
             rows={history}

@@ -53,11 +53,11 @@ export default function AuditLogPage() {
   );
 
   const logCols = [
-    { key: 'time', header: 'เวลา', width: 140, render: (r) => <span style={LABEL}>{r.time}</span> },
-    { key: 'user', header: 'ผู้ใช้งาน', width: 200, render: (r) => <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}><Avatar name={r.user} /><span style={VAL}>{r.user}</span></div> },
-    { key: 'action', header: 'การกระทำ', width: 180, render: (r) => <span style={VAL}>{r.action}</span> },
-    { key: 'mod', header: 'ระบบ / โมดูล', width: 180, render: (r) => <span style={LABEL}>{r.mod}</span> },
-    { key: 'status', header: 'สถานะ', width: 120, render: (r) => <ColorfulBadge style={r.ok ? 'green' : 'red'} size='small' hierarchy='secondary' width='hug'>{r.ok ? 'สำเร็จ' : 'ถูกปฏิเสธ'}</ColorfulBadge> },
+    { key: 'time', header: 'เวลา', render: (r) => <span style={LABEL}>{r.time}</span> },
+    { key: 'user', header: 'ผู้ใช้งาน', render: (r) => <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}><Avatar name={r.user} /><span style={VAL}>{r.user}</span></div> },
+    { key: 'action', header: 'การกระทำ', render: (r) => <span style={VAL}>{r.action}</span> },
+    { key: 'mod', header: 'ระบบ / โมดูล', render: (r) => <span style={LABEL}>{r.mod}</span> },
+    { key: 'status', header: 'สถานะ', render: (r) => <ColorfulBadge style={r.ok ? 'green' : 'red'} size='small' hierarchy='secondary' width='hug'>{r.ok ? 'สำเร็จ' : 'ถูกปฏิเสธ'}</ColorfulBadge> },
   ];
 
   return (

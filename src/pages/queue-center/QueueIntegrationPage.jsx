@@ -130,11 +130,10 @@ const QueueIntegrationPage = () => {
         </div>
       ),
     },
-    { key: 'label', label: 'ระบบต้นทาง', width: 200 },
+    { key: 'label', label: 'ระบบต้นทาง' },
     {
       key: 'path',
       label: 'เส้นทาง',
-      width: 190,
       render: (r) => (
         <span
           style={{
@@ -147,11 +146,10 @@ const QueueIntegrationPage = () => {
         </span>
       ),
     },
-    { key: 'todayCount', label: 'คิวที่ดึงเข้ามาวันนี้', width: 168, render: (r) => `${r.todayCount} รายการ` },
+    { key: 'todayCount', label: 'คิวที่ดึงเข้ามาวันนี้', render: (r) => `${r.todayCount} รายการ` },
     {
       key: 'connected',
       label: 'สถานะเชื่อมต่อ',
-      width: 176,
       render: (r) => (
         <Tooltip content={r.message} position='top'>
           <span className='inline-flex'>
@@ -165,13 +163,11 @@ const QueueIntegrationPage = () => {
     {
       key: 'lastSyncAt',
       label: 'ซิงก์ล่าสุด',
-      width: 160,
       render: (r) => (r.lastSyncAt ? `${formatDateTh(r.lastSyncAt)} ${formatClock(r.lastSyncAt)} น.` : 'ยังไม่เคยซิงก์'),
     },
     {
       key: 'action',
       label: 'การดำเนินการ',
-      width: 220,
       sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
@@ -213,15 +209,14 @@ const QueueIntegrationPage = () => {
   /* ──────────────────────────────────────────────── tab 4: log table */
 
   const logColumns = [
-    { key: 'at', label: 'วัน-เวลา', width: 190, render: (r) => `${formatDateTh(r.at)} ${formatClock(r.at)} น.` },
-    { key: 'source', label: 'ระบบต้นทาง', width: 200, render: (r) => sources.find((s) => s.id === r.sourceId)?.label || 'ระบบคิวกลาง' },
-    { key: 'action', label: 'รายการ', width: 190 },
-    { key: 'actor', label: 'ผู้ทำรายการ', width: 190 },
-    { key: 'role', label: 'บทบาท', width: 190 },
+    { key: 'at', label: 'วัน-เวลา', render: (r) => `${formatDateTh(r.at)} ${formatClock(r.at)} น.` },
+    { key: 'source', label: 'ระบบต้นทาง', render: (r) => sources.find((s) => s.id === r.sourceId)?.label || 'ระบบคิวกลาง' },
+    { key: 'action', label: 'รายการ' },
+    { key: 'actor', label: 'ผู้ทำรายการ' },
+    { key: 'role', label: 'บทบาท' },
     {
       key: 'result',
       label: 'ผลลัพธ์',
-      width: 140,
       render: (r) => (
         <StatusBadge style={r.result === 'success' ? 'success' : 'error'} size='small'>
           {r.result === 'success' ? 'สำเร็จ' : 'ไม่สำเร็จ'}

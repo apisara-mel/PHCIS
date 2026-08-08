@@ -365,15 +365,15 @@ const TelemedConsentPage = () => {
 
   const columns = useMemo(() => ([
     { key: 'name',        label: 'ผู้รับบริการ',   flex: true, minWidth: 190, render: renderPatient },
-    { key: 'kind',        label: 'ประเภทความยินยอม', width: 200, render: renderKind },
-    { key: 'formCode',    label: 'แบบฟอร์ม',      width: 140, render: (r) => `${r.formCode} ${r.version}` },
-    { key: 'channel',     label: 'ช่องทางลงนาม',   width: 210 },
-    { key: 'status',      label: 'สถานะ',          width: 150, render: renderStatus },
-    { key: 'signedDate',  label: 'วันที่ลงนาม',     width: 150 },
-    { key: 'expiryDate',  label: 'วันหมดอายุ',     width: 150 },
-    { key: 'files',       label: 'ไฟล์บันทึกสาย',  width: 170, sortable: false, render: renderFiles },
-    { key: 'requester',   label: 'ผู้ขอความยินยอม', width: 180 },
-    { key: 'actions',     label: 'การดำเนินการ',   width: 460, sortable: false, render: renderActions },
+    { key: 'kind',        label: 'ประเภทความยินยอม', render: renderKind },
+    { key: 'formCode',    label: 'แบบฟอร์ม', render: (r) => `${r.formCode} ${r.version}` },
+    { key: 'channel',     label: 'ช่องทางลงนาม' },
+    { key: 'status',      label: 'สถานะ', render: renderStatus },
+    { key: 'signedDate',  label: 'วันที่ลงนาม' },
+    { key: 'expiryDate',  label: 'วันหมดอายุ' },
+    { key: 'files',       label: 'ไฟล์บันทึกสาย', sortable: false, render: renderFiles },
+    { key: 'requester',   label: 'ผู้ขอความยินยอม' },
+    { key: 'actions',     label: 'การดำเนินการ', sortable: false, render: renderActions },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [canManage, role]);
 
@@ -674,14 +674,14 @@ const TelemedConsentPage = () => {
             <Table
               columns={[
                 { key: 'name', label: 'ไฟล์', flex: true, minWidth: 240, sortable: false },
-                { key: 'size', label: 'ขนาด', width: 100, sortable: false },
-                { key: 'at', label: 'บันทึกเมื่อ', width: 200, sortable: false, render: (r) => formatThaiDateTime(r.at) },
-                { key: 'state', label: 'สถานะ', width: 170, sortable: false, render: (r) => (
+                { key: 'size', label: 'ขนาด', sortable: false },
+                { key: 'at', label: 'บันทึกเมื่อ', sortable: false, render: (r) => formatThaiDateTime(r.at) },
+                { key: 'state', label: 'สถานะ', sortable: false, render: (r) => (
                   <ColorfulBadge style={r.queuedForDeletion ? 'red' : 'green'} size='small' hierarchy='secondary'>
                     {r.queuedForDeletion ? 'เข้าคิวลบแล้ว' : 'เก็บรักษาอยู่'}
                   </ColorfulBadge>
                 ) },
-                { key: 'act', label: 'การจัดการ', width: 150, sortable: false, render: (r) => (
+                { key: 'act', label: 'การจัดการ', sortable: false, render: (r) => (
                   <NeutralSubdueButton
                     size='sm'
                     variant='outline'

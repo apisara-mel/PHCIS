@@ -91,21 +91,19 @@ const CheckupImportPopup = ({ open, onClose, existingMembers = [], onImport }) =
   };
 
   const columns = useMemo(() => ([
-    { key: 'rowNo', label: 'แถวที่', width: 80 },
+    { key: 'rowNo', label: 'แถวที่' },
     {
       key: 'status',
       label: 'ผลตรวจสอบ',
-      width: 130,
       sortable: false,
       render: (r) => (r.valid
         ? <ColorfulBadge style='green' size='small' hierarchy='secondary' icon='check_circle'>ผ่าน</ColorfulBadge>
-        : <ColorfulBadge style='red' size='small' hierarchy='secondary' icon='error'>ไม่ผ่าน</ColorfulBadge>),
-    },
-    { key: 'cid', label: 'เลขบัตรประชาชน', width: 170, render: (r) => r.cid || '—' },
+        : <ColorfulBadge style='red' size='small' hierarchy='secondary' icon='error'>ไม่ผ่าน</ColorfulBadge>)},
+    { key: 'cid', label: 'เลขบัตรประชาชน', render: (r) => r.cid || '—' },
     { key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 200, render: (r) => r.name || '—' },
-    { key: 'sex', label: 'เพศ', width: 80, render: (r) => r.sex || '—' },
-    { key: 'dob', label: 'วันเกิด', width: 150, render: (r) => (r.dob ? formatThaiDate(r.dob) : '—') },
-    { key: 'phone', label: 'เบอร์โทร', width: 130, render: (r) => r.phone || '—' },
+    { key: 'sex', label: 'เพศ', render: (r) => r.sex || '—' },
+    { key: 'dob', label: 'วันเกิด', render: (r) => (r.dob ? formatThaiDate(r.dob) : '—') },
+    { key: 'phone', label: 'เบอร์โทร', render: (r) => r.phone || '—' },
     {
       key: 'errors',
       label: 'ปัญหาที่พบ',

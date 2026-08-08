@@ -75,7 +75,7 @@ const OtherChargesSection = ({ queue, onAddCharge }) => {
   ), [queue]);
 
   const columns = [
-    { key: 'queueNo', label: 'คิว', width: 80 },
+    { key: 'queueNo', label: 'คิว' },
     {
       key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
       render: (row) => (
@@ -85,8 +85,8 @@ const OtherChargesSection = ({ queue, onAddCharge }) => {
         </div>
       ),
     },
-    { key: 'rights', label: 'สิทธิ', width: 140, render: (row) => <ColorfulBadge badgeStyle={row.rights.badge} size='small'>{row.rights.short}</ColorfulBadge> },
-    { key: 'dept', label: 'แผนก', width: 140 },
+    { key: 'rights', label: 'สิทธิ', render: (row) => <ColorfulBadge badgeStyle={row.rights.badge} size='small'>{row.rights.short}</ColorfulBadge> },
+    { key: 'dept', label: 'แผนก' },
     {
       key: 'otherCharges', label: 'ค่าใช้จ่ายอื่นๆที่เพิ่ม', flex: true, minWidth: 200,
       render: (row) => (otherItemCounts[row.id] > 0
@@ -96,7 +96,7 @@ const OtherChargesSection = ({ queue, onAddCharge }) => {
         : <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>-</span>),
     },
     {
-      key: 'action', label: '', width: 160,
+      key: 'action', label: '',
       render: (row) => <NeutralSubdueButton size='sm' onClick={(e) => { e.stopPropagation(); setActiveRow(row); }}>เพิ่มค่าใช้จ่าย</NeutralSubdueButton>,
     },
   ];

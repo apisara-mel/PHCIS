@@ -189,8 +189,7 @@ const TbScreeningPage = () => {
         label: s.label,
         value: live.filter((r) => r.summary === s.value).length,
         color: colorOf[s.value] || 'info',
-        icon: iconOf[s.value] || 'help',
-      })),
+        icon: iconOf[s.value] || 'help'})),
     ];
   }, [rows]);
 
@@ -326,8 +325,8 @@ const TbScreeningPage = () => {
 
   const columns = useMemo(() => ([
     { key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 180, render: (r) => <span style={cancelledStyle(r)}>{displayName(r.name)}</span> },
-    { key: 'idCard', label: 'เลขบัตรประชาชน', width: 150 },
-    { key: 'age', label: 'อายุ', width: 80, render: (r) => (r.age ? `${r.age} ปี` : '—') },
+    { key: 'idCard', label: 'เลขบัตรประชาชน' },
+    { key: 'age', label: 'อายุ', render: (r) => (r.age ? `${r.age} ปี` : '—') },
     {
       key: 'riskGroups', label: 'กลุ่มเสี่ยง', flex: true, minWidth: 200, sortable: false,
       render: (r) => (
@@ -340,12 +339,12 @@ const TbScreeningPage = () => {
         </div>
       ),
     },
-    { key: 'screeningDate', label: 'วันที่คัดกรอง', width: 130, render: (r) => formatTbDate(r.screeningDate) },
+    { key: 'screeningDate', label: 'วันที่คัดกรอง', render: (r) => formatTbDate(r.screeningDate) },
     { key: 'cxrResult', label: 'CXR', flex: true, minWidth: 150 },
-    { key: 'afbResult', label: 'AFB', width: 110 },
+    { key: 'afbResult', label: 'AFB' },
     { key: 'geneXpertResult', label: 'GeneXpert', flex: true, minWidth: 160 },
     {
-      key: 'summary', label: 'ผลสรุป', width: 120,
+      key: 'summary', label: 'ผลสรุป',
       render: (r) => {
         const s = resolveTbScreeningSummary(r.summary);
         return s ? <ColorfulBadge style={s.badge} size='small' hierarchy='secondary'>{s.label}</ColorfulBadge> : '—';
@@ -361,7 +360,7 @@ const TbScreeningPage = () => {
       ),
     },
     {
-      key: 'actions', label: 'การดำเนินการ', width: 260, sortable: false,
+      key: 'actions', label: 'การดำเนินการ', sortable: false,
       render: (r) => (
         <div className='inline-flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <BrandSubdueButton variant='outline' size='sm' leadingIcon='visibility' onClick={(e) => { e.stopPropagation(); setViewTarget(r); }}>

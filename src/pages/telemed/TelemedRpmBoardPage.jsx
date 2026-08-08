@@ -559,14 +559,14 @@ const TelemedRpmBoardPage = () => {
   );
 
   const columns = useMemo(() => ([
-    { key: 'level',   label: 'สถานะเฝ้าระวัง', width: 150, render: renderLevel },
+    { key: 'level',   label: 'สถานะเฝ้าระวัง', render: renderLevel },
     { key: 'name',    label: 'ผู้รับบริการ',   flex: true, minWidth: 220, render: renderPatient },
-    { key: 'latest',  label: 'ค่าล่าสุด',      width: 190, sortable: false, render: renderLatest },
-    { key: 'trend',   label: 'แนวโน้ม 7 วัน',  width: 156, sortable: false, render: renderTrend },
-    { key: 'lastSync', label: 'อุปกรณ์ / sync', width: 230, render: renderDevices },
+    { key: 'latest',  label: 'ค่าล่าสุด', sortable: false, render: renderLatest },
+    { key: 'trend',   label: 'แนวโน้ม 7 วัน', sortable: false, render: renderTrend },
+    { key: 'lastSync', label: 'อุปกรณ์ / sync', render: renderDevices },
     { key: 'originUnit', label: 'หน่วยบริการต้นทาง', flex: true, minWidth: 180 },
     { key: 'doctor',  label: 'แพทย์',          flex: true, minWidth: 150 },
-    { key: 'actions', label: 'การจัดการ',      width: 620, sortable: false, render: renderRowActions },
+    { key: 'actions', label: 'การจัดการ', sortable: false, render: renderRowActions },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [canEditRpm, canNotify, role]);
 
@@ -780,7 +780,7 @@ const TelemedRpmBoardPage = () => {
               </span>
               <Table
                 columns={[
-                  { key: 'at', label: 'วัน-เวลา', width: 190, sortable: false, render: (r) => formatThaiDateTime(r.at) },
+                  { key: 'at', label: 'วัน-เวลา', sortable: false, render: (r) => formatThaiDateTime(r.at) },
                   { key: 'value', label: 'ค่า', flex: true, minWidth: 200, sortable: false, render: (r) => {
                     const parts = [];
                     if (r.bpSys != null) parts.push(`BP ${r.bpSys}/${r.bpDia}`);
@@ -791,12 +791,12 @@ const TelemedRpmBoardPage = () => {
                     if (r.weight != null) parts.push(`น้ำหนัก ${r.weight} กก.`);
                     return parts.join(' · ') || '—';
                   } },
-                  { key: 'source', label: 'ที่มา', width: 150, sortable: false, render: (r) => (
+                  { key: 'source', label: 'ที่มา', sortable: false, render: (r) => (
                     <ColorfulBadge style={RPM_SOURCE[r.source]?.tone || 'grey'} size='small' hierarchy='secondary'>
                       {RPM_SOURCE[r.source]?.label}
                     </ColorfulBadge>
                   ) },
-                  { key: 'audit', label: 'ผู้บันทึก / แก้ไข', width: 230, sortable: false, render: (r) => (
+                  { key: 'audit', label: 'ผู้บันทึก / แก้ไข', sortable: false, render: (r) => (
                     <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
                       {r.recordedBy && <AuditStamp action='บันทึก' by={r.recordedBy} at={r.at} />}
                       {r.editedBy && <AuditStamp action='แก้ไข' by={r.editedBy} at={r.editedAt} />}
@@ -807,7 +807,7 @@ const TelemedRpmBoardPage = () => {
                       )}
                     </div>
                   ) },
-                  { key: 'act', label: 'การจัดการ', width: 250, sortable: false, render: (r) => (
+                  { key: 'act', label: 'การจัดการ', sortable: false, render: (r) => (
                     <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100)' }}>
                       {r.cancelled ? (
                         <NeutralSubdueButton

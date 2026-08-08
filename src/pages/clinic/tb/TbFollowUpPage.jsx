@@ -770,14 +770,14 @@ const TbFollowUpPage = () => {
                   <Table
                     columns={[
                       {
-                        key: 'date', label: 'วันที่', width: 130,
+                        key: 'date', label: 'วันที่',
                         render: (r) => (
                           <span style={r.status === 'cancelled' ? { textDecoration: 'line-through', color: 'var(--text-content-quaternary, #ADB2B7)' } : undefined}>
                             {formatTbDate(r.date)}
                           </span>
                         ),
                       },
-                      { key: 'type', label: 'ประเภท', width: 180 },
+                      { key: 'type', label: 'ประเภท' },
                       { key: 'note', label: 'บันทึก', flex: true, minWidth: 260 },
                       { key: 'by', label: 'ผู้ติดตาม', flex: true, minWidth: 150 },
                       {
@@ -790,7 +790,7 @@ const TbFollowUpPage = () => {
                         ),
                       },
                       {
-                        key: 'actions', label: 'การดำเนินการ', width: 180, sortable: false,
+                        key: 'actions', label: 'การดำเนินการ', sortable: false,
                         render: (r) => (canMutate && r.status !== 'cancelled' ? (
                           <div className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                             <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' onClick={() => openFu(r)}>แก้ไข</BrandSubdueButton>
@@ -848,10 +848,10 @@ const TbFollowUpPage = () => {
                 <Table
                   columns={[
                     { key: 'name', label: 'ชื่อ-สกุล', flex: true, minWidth: 170, render: (r) => displayName(r.name) },
-                    { key: 'relation', label: 'ความสัมพันธ์', width: 150 },
-                    { key: 'age', label: 'อายุ', width: 80, render: (r) => (r.age ? `${r.age} ปี` : '—') },
+                    { key: 'relation', label: 'ความสัมพันธ์' },
+                    { key: 'age', label: 'อายุ', render: (r) => (r.age ? `${r.age} ปี` : '—') },
                     {
-                      key: 'screeningResult', label: 'ผลการคัดกรอง', width: 180,
+                      key: 'screeningResult', label: 'ผลการคัดกรอง',
                       render: (r) => {
                         const done = r.screeningResult && r.screeningResult !== 'ยังไม่ได้คัดกรอง';
                         return (
@@ -861,9 +861,9 @@ const TbFollowUpPage = () => {
                         );
                       },
                     },
-                    { key: 'screeningDate', label: 'วันที่คัดกรอง', width: 130, render: (r) => (r.screeningDate ? formatTbDate(r.screeningDate) : '—') },
+                    { key: 'screeningDate', label: 'วันที่คัดกรอง', render: (r) => (r.screeningDate ? formatTbDate(r.screeningDate) : '—') },
                     {
-                      key: 'actions', label: 'การดำเนินการ', width: 170, sortable: false,
+                      key: 'actions', label: 'การดำเนินการ', sortable: false,
                       render: (r) => (
                         <NeutralSubdueButton
                           size='sm'
@@ -905,15 +905,15 @@ const TbFollowUpPage = () => {
               ) : (
                 <Table
                   columns={[
-                    { key: 'date', label: 'วันที่', width: 130, render: (r) => formatTbDate(r.date) },
+                    { key: 'date', label: 'วันที่', render: (r) => formatTbDate(r.date) },
                     { key: 'kind', label: 'รายการตรวจ', flex: true, minWidth: 200 },
                     { key: 'detail', label: 'รายละเอียด', flex: true, minWidth: 260 },
                     {
-                      key: 'flag', label: 'ผลสรุป', width: 150,
+                      key: 'flag', label: 'ผลสรุป',
                       render: (r) => <ColorfulBadge style={r.tone} size='small' hierarchy='secondary'>{r.flag}</ColorfulBadge>,
                     },
                     {
-                      key: 'system', label: 'ระบบต้นทาง', width: 170, sortable: false,
+                      key: 'system', label: 'ระบบต้นทาง', sortable: false,
                       render: (r) => (
                         <NeutralSubdueButton
                           size='sm'

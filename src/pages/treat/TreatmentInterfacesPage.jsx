@@ -236,7 +236,7 @@ const TreatmentInterfacesPage = () => {
 
   const inboundColumns = [
     {
-      key: 'patient', header: 'ผู้รับบริการ', width: 220,
+      key: 'patient', header: 'ผู้รับบริการ',
       render: (row) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={PANEL_VALUE_STYLE}>{row.patientName}</span>
@@ -257,16 +257,16 @@ const TreatmentInterfacesPage = () => {
         </div>
       ),
     },
-    { key: 'resultedAt', header: 'เวลารายงานผล', width: 160 },
+    { key: 'resultedAt', header: 'เวลารายงานผล' },
     {
-      key: 'status', header: 'สถานะ', width: 140,
+      key: 'status', header: 'สถานะ',
       render: (row) => {
         const meta = inboundStatusMeta(row.status);
         return <StatusBadge style={meta.badge} size='small'>{meta.label}</StatusBadge>;
       },
     },
     {
-      key: 'actions', header: '', width: 200,
+      key: 'actions', header: '',
       render: (row) => {
         if (row.status === 'imported') return <span style={PANEL_LABEL_STYLE}>นำเข้าแล้ว</span>;
         /* HN ไม่ตรง — ห้ามมีปุ่มนำเข้าเลย มีได้แค่ปุ่ม flag */
@@ -463,13 +463,13 @@ const TreatmentInterfacesPage = () => {
             <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
               <Table
                 columns={[
-                  { key: 'accession', header: 'Accession No.', width: 180 },
-                  { key: 'hn', header: 'HN', width: 110 },
+                  { key: 'accession', header: 'Accession No.' },
+                  { key: 'hn', header: 'HN' },
                   { key: 'examType', header: 'รายการตรวจ', flex: 1 },
-                  { key: 'studyDate', header: 'วันเวลาที่ถ่าย', width: 180 },
-                  { key: 'images', header: 'จำนวนภาพ', width: 110, render: (r) => `${r.images} ภาพ` },
+                  { key: 'studyDate', header: 'วันเวลาที่ถ่าย' },
+                  { key: 'images', header: 'จำนวนภาพ', render: (r) => `${r.images} ภาพ` },
                   {
-                    key: 'status', header: 'สถานะ', width: 150,
+                    key: 'status', header: 'สถานะ',
                     render: (r) => (
                       <ColorfulBadge style={r.status === 'พร้อมดูภาพ' ? 'teal' : 'yellow'} size='small' width='hug'>
                         {r.status}
@@ -477,7 +477,7 @@ const TreatmentInterfacesPage = () => {
                     ),
                   },
                   {
-                    key: 'actions', header: '', width: 260,
+                    key: 'actions', header: '',
                     render: (r) => (
                       <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                         <NeutralSubdueButton
@@ -576,7 +576,7 @@ const TreatmentInterfacesPage = () => {
                 <Table
                   columns={[
                     {
-                      key: 'patientName', header: 'ผู้รับบริการ', width: 220,
+                      key: 'patientName', header: 'ผู้รับบริการ',
                       render: (r) => (
                         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                           <span style={PANEL_VALUE_STYLE}>{r.patientName}</span>
@@ -585,17 +585,17 @@ const TreatmentInterfacesPage = () => {
                       ),
                     },
                     {
-                      key: 'state', header: 'สถานะ', width: 180,
+                      key: 'state', header: 'สถานะ',
                       render: (r) => {
                         const meta = telemedStateMeta(r.state);
                         return <StatusBadge style={meta.badge} size='small'>{meta.label}</StatusBadge>;
                       },
                     },
-                    { key: 'startedAt', header: 'เริ่ม', width: 170 },
-                    { key: 'endedAt', header: 'สิ้นสุด', width: 170, render: (r) => r.endedAt || '—' },
+                    { key: 'startedAt', header: 'เริ่ม' },
+                    { key: 'endedAt', header: 'สิ้นสุด', render: (r) => r.endedAt || '—' },
                     { key: 'participants', header: 'ผู้เข้าร่วม', flex: 1 },
                     {
-                      key: 'recording', header: 'การบันทึก', width: 250,
+                      key: 'recording', header: 'การบันทึก',
                       render: (r) => (r.recording ? (
                         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                           <StatusBadge style='info' size='small' icon='videocam'>บันทึกภาพ/เสียง</StatusBadge>
@@ -604,7 +604,7 @@ const TreatmentInterfacesPage = () => {
                       ) : <span style={PANEL_LABEL_STYLE}>ไม่บันทึก</span>),
                     },
                     {
-                      key: 'actions', header: '', width: 200,
+                      key: 'actions', header: '',
                       render: (r) => (r.state === 'waiting' || r.state === 'active' ? (
                         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                           <GuardedAction allowed={access.canEdit}>

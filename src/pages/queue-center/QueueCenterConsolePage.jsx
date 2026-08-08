@@ -411,8 +411,7 @@ const QueueCenterConsolePage = () => {
         label: closed ? 'ดูข้อมูลคิว (อ่านอย่างเดียว)' : 'แก้ไขข้อมูลคิว',
         icon: 'edit',
         disabled: false,
-        onClick: () => setEditTarget(row),
-      },
+        onClick: () => setEditTarget(row)},
       {
         key: 'reprint',
         label: 'พิมพ์บัตรคิวซ้ำ',
@@ -426,8 +425,7 @@ const QueueCenterConsolePage = () => {
         label: 'ประวัติคิว',
         icon: 'history',
         disabled: false,
-        onClick: () => setHistoryTarget(row),
-      },
+        onClick: () => setHistoryTarget(row)},
       {
         key: 'cancel',
         label: 'ยกเลิกคิว',
@@ -622,15 +620,14 @@ const QueueCenterConsolePage = () => {
   };
 
   const columns = useMemo(() => ([
-    { key: 'order', label: 'ลำดับ', width: 72, render: (row) => cancelledWrap(row, <span>{row.order}</span>) },
-    { key: 'code', label: 'รหัสคิว', width: 108, render: (row) => <QueueCodeCell queue={row} /> },
+    { key: 'order', label: 'ลำดับ', render: (row) => cancelledWrap(row, <span>{row.order}</span>) },
+    { key: 'code', label: 'รหัสคิว', render: (row) => <QueueCodeCell queue={row} /> },
     { key: 'patient', label: 'ผู้รับบริการ', flex: true, minWidth: 220, render: renderPatient },
-    { key: 'queueType', label: 'ประเภทคิว / ความเร่งด่วน', width: 200, render: (row) => <QueueTypeChip queueType={row.queueType} urgency={row.urgency} /> },
-    { key: 'issuedAt', label: 'เวลาออกคิว', width: 116, render: (row) => cancelledWrap(row, <span>{`${formatClock(row.issuedAt)} น.`}</span>) },
+    { key: 'queueType', label: 'ประเภทคิว / ความเร่งด่วน', render: (row) => <QueueTypeChip queueType={row.queueType} urgency={row.urgency} /> },
+    { key: 'issuedAt', label: 'เวลาออกคิว', render: (row) => cancelledWrap(row, <span>{`${formatClock(row.issuedAt)} น.`}</span>) },
     {
       key: 'wait',
       label: 'รอมาแล้ว',
-      width: 132,
       /* ไฮไลต์ในตารางเปิด/ปิดตามช่องทาง 'screen' ของการเตือนเวลารอ */
       render: (row) => (
         <WaitCell
@@ -643,7 +640,6 @@ const QueueCenterConsolePage = () => {
     ...(isPharmacy ? [{
       key: 'pharmacy',
       label: 'สถานะเตรียมยา',
-      width: 148,
       render: (row) => {
         const meta = PHARMACY_PREP_STATUSES.find((s) => s.key === row.pharmacyStatus);
         return meta
@@ -654,7 +650,6 @@ const QueueCenterConsolePage = () => {
     {
       key: 'status',
       label: 'สถานะ',
-      width: 168,
       render: (row) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
           <StatusChip status={row.status} />
@@ -676,7 +671,7 @@ const QueueCenterConsolePage = () => {
         </div>
       ),
     },
-    { key: 'actions', label: 'การดำเนินการ', width: 200, sortable: false, render: renderActions },
+    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: renderActions },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [isPharmacy, canOperate, revealed, stationId, highlightOverdue]);
 

@@ -945,11 +945,11 @@ export const TbStep5Attachments = ({ form, setForm, readOnly }) => {
             columns={[
               { key: 'docTypeLabel', label: 'ประเภทเอกสาร', flex: true, minWidth: 200 },
               { key: 'name', label: 'ชื่อไฟล์', flex: true, minWidth: 200 },
-              { key: 'sizeLabel', label: 'ขนาด', width: 100 },
+              { key: 'sizeLabel', label: 'ขนาด' },
               { key: 'uploadedBy', label: 'ผู้อัปโหลด', flex: true, minWidth: 160 },
               { key: 'uploadedAt', label: 'เวลาอัปโหลด', flex: true, minWidth: 190 },
               {
-                key: 'actions', label: 'การดำเนินการ', width: 120, sortable: false,
+                key: 'actions', label: 'การดำเนินการ', sortable: false,
                 render: (row) => (readOnly ? null : (
                   <NeutralSubdueButton size='sm' leadingIcon='delete' onClick={() => setDeleteTarget(row)}>
                     ลบ

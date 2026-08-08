@@ -766,7 +766,7 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
               rows={notes}
               columns={[
                 {
-                  key: 'recordedAt', header: 'เวลาบันทึก', width: 180,
+                  key: 'recordedAt', header: 'เวลาบันทึก',
                   render: (r) => (
                     <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                       <span style={{ ...PANEL_VALUE_STYLE, ...strikeIf(!!r.cancelledAt) }}>{r.recordedAt}</span>
@@ -774,7 +774,7 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
                     </div>
                   ),
                 },
-                { key: 'author', header: 'ผู้บันทึก', width: 180 },
+                { key: 'author', header: 'ผู้บันทึก' },
                 {
                   key: 'body', header: 'เนื้อหา', flex: 1,
                   render: (r) => (
@@ -787,7 +787,7 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
                   ),
                 },
                 {
-                  key: 'actions', header: '', width: 210,
+                  key: 'actions', header: '',
                   render: (r) => (
                     <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                       <GuardedAction allowed={canEdit && !r.cancelledAt}>

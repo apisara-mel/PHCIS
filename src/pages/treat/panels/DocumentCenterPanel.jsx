@@ -174,7 +174,7 @@ const DocumentCenterPanel = ({ form, setForm, patient }) => {
 
   const columns = [
     {
-      key: 'docNo', header: 'เลขที่เอกสาร', width: 160,
+      key: 'docNo', header: 'เลขที่เอกสาร',
       render: (row) => (
         <span style={{ ...PANEL_VALUE_STYLE, ...strikeIf(row.status === 'cancelled') }}>{row.docNo}</span>
       ),
@@ -197,21 +197,21 @@ const DocumentCenterPanel = ({ form, setForm, patient }) => {
         );
       },
     },
-    { key: 'issuedBy', header: 'ผู้ออกเอกสาร', width: 170 },
-    { key: 'issuedAt', header: 'วันเวลาที่ออก', width: 160 },
+    { key: 'issuedBy', header: 'ผู้ออกเอกสาร' },
+    { key: 'issuedAt', header: 'วันเวลาที่ออก' },
     {
-      key: 'status', header: 'สถานะ', width: 110,
+      key: 'status', header: 'สถานะ',
       render: (row) => {
         const meta = docStatusMeta(row.status);
         return <StatusBadge style={meta.badge} size='small'>{meta.label}</StatusBadge>;
       },
     },
     {
-      key: 'printCount', header: 'พิมพ์แล้ว', width: 110,
+      key: 'printCount', header: 'พิมพ์แล้ว',
       render: (row) => <span style={PANEL_LABEL_STYLE}>{row.printCount || 0} ครั้ง</span>,
     },
     {
-      key: 'actions', header: '', width: 260,
+      key: 'actions', header: '',
       render: (row) => (
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <GuardedAction allowed={access.canEdit && row.status !== 'cancelled'}>

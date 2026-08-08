@@ -39,14 +39,14 @@ const PaymentStatusAdjustmentSection = ({ queue, onAdjustStatus }) => {
 
   const columns = [
     {
-      key: 'select', label: '', width: 48,
+      key: 'select', label: '',
       render: (row) => (
         <div onClick={(e) => e.stopPropagation()}>
           <Checkbox checked={selected.has(row.id)} onChange={() => toggleOne(row.id)} />
         </div>
       ),
     },
-    { key: 'queueNo', label: 'คิว', width: 80 },
+    { key: 'queueNo', label: 'คิว' },
     {
       key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
       render: (row) => (
@@ -56,8 +56,8 @@ const PaymentStatusAdjustmentSection = ({ queue, onAdjustStatus }) => {
         </div>
       ),
     },
-    { key: 'amountDue', label: 'ยอดชำระ', width: 120, render: (row) => formatBaht(row.amountDue) },
-    { key: 'status', label: 'สถานะปัจจุบัน', width: 140, render: (row) => <StatusBadge style={STATUS_STYLE[row.status]} size='small'>{QUEUE_STATUSES.find((s) => s.key === row.status)?.label}</StatusBadge> },
+    { key: 'amountDue', label: 'ยอดชำระ', render: (row) => formatBaht(row.amountDue) },
+    { key: 'status', label: 'สถานะปัจจุบัน', render: (row) => <StatusBadge style={STATUS_STYLE[row.status]} size='small'>{QUEUE_STATUSES.find((s) => s.key === row.status)?.label}</StatusBadge> },
   ];
 
   return (

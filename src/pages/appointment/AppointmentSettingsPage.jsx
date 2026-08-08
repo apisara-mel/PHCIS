@@ -290,11 +290,11 @@ th{background:#F4FBF8}@media print{body{padding:0}}</style></head><body>
   /* ── columns ────────────────────────────────────────────────── */
   const capacityColumns = [
     {
-      key: 'date', header: 'วันที่', width: 190, sortable: false,
+      key: 'date', header: 'วันที่', sortable: false,
       render: (r) => <span style={TEXT_CELL}>{formatApptListDate(r.key)}</span>,
     },
     {
-      key: 'quota', header: 'โควตาคิว', width: 128, sortable: false,
+      key: 'quota', header: 'โควตาคิว', sortable: false,
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span style={{ ...TEXT_CELL, fontWeight: 'var(--type-weight-medium)' }}>{r.quota}</span>
@@ -305,15 +305,15 @@ th{background:#F4FBF8}@media print{body{padding:0}}</style></head><body>
       ),
     },
     {
-      key: 'booked', header: 'จองแล้ว', width: 116, sortable: false,
+      key: 'booked', header: 'จองแล้ว', sortable: false,
       render: (r) => <span style={TEXT_CELL}>{r.booked}</span>,
     },
     {
-      key: 'remaining', header: 'คงเหลือ', width: 116, sortable: false,
+      key: 'remaining', header: 'คงเหลือ', sortable: false,
       render: (r) => <span style={TEXT_CELL}>{r.remaining}</span>,
     },
     {
-      key: 'status', header: 'สถานะรับนัด', width: 210, sortable: false,
+      key: 'status', header: 'สถานะรับนัด', sortable: false,
       render: (r) => (
         <StatusBadge style={r.style} size='small' showDot>
           {r.status === AVAILABILITY.AVAILABLE ? 'Available' : 'Non-available'}
@@ -330,7 +330,7 @@ th{background:#F4FBF8}@media print{body{padding:0}}</style></head><body>
       ),
     },
     {
-      key: 'actions', header: 'การดำเนินการ', width: 236, sortable: false,
+      key: 'actions', header: 'การดำเนินการ', sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
           <BrandSubdueButton
@@ -364,25 +364,25 @@ th{background:#F4FBF8}@media print{body{padding:0}}</style></head><body>
   ];
 
   const auditColumns = [
-    { key: 'at', header: 'เวลาที่บันทึก', width: 156, sortable: false, render: (r) => <span style={{ ...TEXT_CELL, whiteSpace: 'nowrap' }}>{r.at}</span> },
+    { key: 'at', header: 'เวลาที่บันทึก', sortable: false, render: (r) => <span style={{ ...TEXT_CELL, whiteSpace: 'nowrap' }}>{r.at}</span> },
     {
-      key: 'kind', header: 'ประเภท', width: 152, sortable: false,
+      key: 'kind', header: 'ประเภท', sortable: false,
       render: (r) => (
         <ColorfulBadge style={r.kind === 'ปฏิเสธคำขอนัด' ? 'orange' : r.kind === 'ไม่มาตามนัด' ? 'yellow' : 'red'} size='small' hierarchy='secondary' width='hug'>
           {r.kind || 'ยกเลิกนัด'}
         </ColorfulBadge>
       ),
     },
-    { key: 'patient', header: 'ผู้รับบริการ', width: 210, sortable: false, render: (r) => <span className='truncate' style={TEXT_CELL}>{r.patient} · {r.hn}</span> },
-    { key: 'slot', header: 'วัน-เวลานัด', width: 190, sortable: false, render: (r) => <span style={TEXT_CELL}>{r.date ? formatApptListDate(r.date) : '—'} {r.time}</span> },
+    { key: 'patient', header: 'ผู้รับบริการ', sortable: false, render: (r) => <span className='truncate' style={TEXT_CELL}>{r.patient} · {r.hn}</span> },
+    { key: 'slot', header: 'วัน-เวลานัด', sortable: false, render: (r) => <span style={TEXT_CELL}>{r.date ? formatApptListDate(r.date) : '—'} {r.time}</span> },
     { key: 'reason', header: 'สาเหตุ', flex: true, minWidth: 220, sortable: false, render: (r) => (
       <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
         <span style={TEXT_CELL}>{r.reason}</span>
         {r.note ? <span style={HINT}>{r.note}</span> : null}
       </div>
     ) },
-    { key: 'actor', header: 'ผู้ดำเนินการ (อัตโนมัติ)', width: 200, sortable: false, render: (r) => <span className='truncate' style={TEXT_CELL}>{r.actor}</span> },
-    { key: 'ref', header: 'อ้างอิง', width: 156, sortable: false, render: (r) => <span className='truncate' style={TEXT_CELL}>{r.appointmentId}</span> },
+    { key: 'actor', header: 'ผู้ดำเนินการ (อัตโนมัติ)', sortable: false, render: (r) => <span className='truncate' style={TEXT_CELL}>{r.actor}</span> },
+    { key: 'ref', header: 'อ้างอิง', sortable: false, render: (r) => <span className='truncate' style={TEXT_CELL}>{r.appointmentId}</span> },
   ];
 
   const facility = getFacilityHolidays();

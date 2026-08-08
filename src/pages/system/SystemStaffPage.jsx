@@ -130,19 +130,19 @@ export default function SystemStaffPage() {
   const handleSubmit = (v) => { const q = (v || '').trim(); if (q) pushHistory({ label: q, value: q }); setSearch(q); setPage(1); };
 
   const columns = useMemo(() => [
-    { key: 'name', header: 'บุคลากร', width: 260, sortable: true, render: (u) => <StaffCell user={u} /> },
+    { key: 'name', header: 'บุคลากร', sortable: true, render: (u) => <StaffCell user={u} /> },
     {
-      key: 'role', header: 'บทบาท', width: 140, sortable: true,
+      key: 'role', header: 'บทบาท', sortable: true,
       render: (u) => { const r = getRole(u.role); return <ColorfulBadge style={roleTone(r && r.color)} size='small' hierarchy='secondary' width='hug'>{r ? r.label : u.role}</ColorfulBadge>; },
     },
-    { key: 'subRole', header: 'สาขาย่อย', width: 170, render: (u) => { const s = getSubRole(u.role, u.subRole); return <span style={s ? TEXT_CELL : MUTED}>{s ? s.label : '-'}</span>; } },
-    { key: 'dept', header: 'แผนก', width: 160, render: (u) => { const d = getDepartment((u.departments || [])[0]); return <span style={d ? TEXT_CELL : MUTED}>{d ? d.label : '-'}</span>; } },
-    { key: 'hours', header: 'เวลาทำงาน', width: 160, render: (u) => <span style={MUTED}>{workHours(u.role)}</span> },
+    { key: 'subRole', header: 'สาขาย่อย', render: (u) => { const s = getSubRole(u.role, u.subRole); return <span style={s ? TEXT_CELL : MUTED}>{s ? s.label : '-'}</span>; } },
+    { key: 'dept', header: 'แผนก', render: (u) => { const d = getDepartment((u.departments || [])[0]); return <span style={d ? TEXT_CELL : MUTED}>{d ? d.label : '-'}</span>; } },
+    { key: 'hours', header: 'เวลาทำงาน', render: (u) => <span style={MUTED}>{workHours(u.role)}</span> },
     {
-      key: 'status', header: 'สถานะ', width: 130, sortable: true,
+      key: 'status', header: 'สถานะ', sortable: true,
       render: (u) => { const s = STATUS[u.status] || STATUS.disabled; return <ColorfulBadge style={s.tone} size='small' hierarchy='secondary' width='hug' showDot>{s.label}</ColorfulBadge>; },
     },
-    { key: 'action', header: '', width: 96, render: (u) => <NeutralSubdueButton leadingIcon='edit' size='sm' onClick={() => navigate.push(`/system/staff/${u.id}`)}>แก้ไข</NeutralSubdueButton> },
+    { key: 'action', header: '', render: (u) => <NeutralSubdueButton leadingIcon='edit' size='sm' onClick={() => navigate.push(`/system/staff/${u.id}`)}>แก้ไข</NeutralSubdueButton> },
   ], []);
 
   return (

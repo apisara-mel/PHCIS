@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { Icon } from '@/components/icons/Icon';
 import ActionList from '@/components/list/ActionList';
 import OverflowMoreTrigger from '@/components/overflow/OverflowMoreTrigger';
+import TabCountBadge from '@/components/tab/TabCountBadge';
 
 /* MIH TabUnderline — design-system canonical underline tab strip.
    One component renders the whole row of tabs *and* the single sliding
@@ -152,34 +153,7 @@ const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick,
           )}
         </span>
         {typeof tab.count === 'number' && (
-          <span
-            className='inline-flex items-center justify-center'
-            style={{
-              minWidth: 24, height: 20,
-              paddingLeft: 'var(--dim-space-200)', paddingRight: 'var(--dim-space-200)',
-              borderRadius: 'var(--dim-radius-full)',
-              background: selected
-                ? (hovered ? 'var(--surface-brandtag-selected-hover)' : 'var(--surface-brandtag-selected)')
-                : (hovered ? 'var(--surface-brandtag-hover)' : 'var(--surface-brandtag-default)'),
-              color: selected
-                ? (hovered ? 'var(--text-brandtag-selected-hover)' : 'var(--text-brandtag-selected)')
-                : (hovered ? 'var(--text-brandtag-hover)' : 'var(--text-brandtag-title)'),
-              border: 'var(--dim-stroke-100) solid ' + (selected
-                ? (hovered ? 'var(--border-brandtag-selected-hover)' : 'var(--border-brandtag-selected)')
-                : (hovered ? 'var(--border-brandtag-hover)' : 'var(--border-brandtag-default)')),
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-xs)',
-              fontWeight: 'var(--type-weight-medium)',
-              fontVariantNumeric: 'tabular-nums',
-              transition: [
-                `background-color 200ms ${EASE}`,
-                `color 200ms ${EASE}`,
-                `border-color 200ms ${EASE}`,
-              ].join(', '),
-            }}
-          >
-            {tab.count}
-          </span>
+          <TabCountBadge count={tab.count} selected={selected} hovered={hovered} />
         )}
       </span>
     </button>

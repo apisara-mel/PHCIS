@@ -321,7 +321,7 @@ const RightsSettingsSection = ({ role }) => {
   const usage = selected ? rightsUsageCount(selected.id) : 0;
 
   const masterColumns = [
-    { key: 'code', label: 'รหัสสิทธิ', width: 120 },
+    { key: 'code', label: 'รหัสสิทธิ' },
     {
       key: 'name', label: 'ชื่อสิทธิ', flex: true, minWidth: 240,
       render: (r) => (
@@ -331,10 +331,10 @@ const RightsSettingsSection = ({ role }) => {
         </div>
       ),
     },
-    { key: 'receiptType', label: 'ประเภทใบเสร็จ', width: 220, render: (r) => <EllipsisText text={receiptTypeLabel(r.receiptType)} /> },
-    { key: 'billingMode', label: 'ชนิดการคิดค่าบริการ', width: 210, render: (r) => <EllipsisText text={billingModeLabel(r.billingMode)} /> },
+    { key: 'receiptType', label: 'ประเภทใบเสร็จ', render: (r) => <EllipsisText text={receiptTypeLabel(r.receiptType)} /> },
+    { key: 'billingMode', label: 'ชนิดการคิดค่าบริการ', render: (r) => <EllipsisText text={billingModeLabel(r.billingMode)} /> },
     {
-      key: 'cap', label: 'วงเงิน', width: 190,
+      key: 'cap', label: 'วงเงิน',
       render: (r) => (
         <div className='flex flex-col min-w-0'>
           <span style={T.value}>{r.capPerVisit > 0 ? `${formatBaht(r.capPerVisit)}/ครั้ง` : 'ไม่จำกัดต่อครั้ง'}</span>
@@ -342,9 +342,9 @@ const RightsSettingsSection = ({ role }) => {
         </div>
       ),
     },
-    { key: 'usage', label: 'ใช้อยู่', width: 110, align: 'center', render: (r) => <span style={T.body}>{rightsUsageCount(r.id)} ครั้งบริการ</span> },
+    { key: 'usage', label: 'ใช้อยู่', align: 'center', render: (r) => <span style={T.body}>{rightsUsageCount(r.id)} ครั้งบริการ</span> },
     {
-      key: 'active', label: 'สถานะใช้งาน', width: 160, sortable: false,
+      key: 'active', label: 'สถานะใช้งาน', sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }} onClick={(e) => e.stopPropagation()}>
           <Switch
@@ -358,7 +358,7 @@ const RightsSettingsSection = ({ role }) => {
       ),
     },
     {
-      key: 'edit', label: '', width: 70, sortable: false,
+      key: 'edit', label: '', sortable: false,
       render: (r) => (
         <div className='flex justify-end w-full'>
           <BrandIconButton
@@ -374,13 +374,13 @@ const RightsSettingsSection = ({ role }) => {
   ];
 
   const itemColumns = [
-    { key: 'code', label: 'รหัส', width: 130 },
+    { key: 'code', label: 'รหัส' },
     { key: 'label', label: 'ชื่อรายการ', flex: true, minWidth: 220, render: (i) => <EllipsisText text={i.label} /> },
-    { key: 'category', label: 'หมวด', width: 190, render: (i) => <EllipsisText text={CHARGE_CATEGORIES[i.category]?.label || i.category} /> },
-    { key: 'price', label: 'ราคาตั้ง', width: 120, render: (i) => formatBaht(i.price) },
-    { key: 'covered', label: 'สิทธิครอบคลุม', width: 150, render: (i) => <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>{formatBaht(i.covered)}</span> },
+    { key: 'category', label: 'หมวด', render: (i) => <EllipsisText text={CHARGE_CATEGORIES[i.category]?.label || i.category} /> },
+    { key: 'price', label: 'ราคาตั้ง', render: (i) => formatBaht(i.price) },
+    { key: 'covered', label: 'สิทธิครอบคลุม', render: (i) => <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>{formatBaht(i.covered)}</span> },
     {
-      key: 'actions', label: '', width: 110, sortable: false,
+      key: 'actions', label: '', sortable: false,
       render: (i) => (
         <div className='flex items-center justify-end w-full' style={{ gap: 'var(--dim-space-150)' }}>
           <BrandIconButton icon='edit' size='sm' variant='ghost' aria-label='แก้ไขรายการ' onClick={() => setItemPopup({ item: i })} />
@@ -398,17 +398,17 @@ const RightsSettingsSection = ({ role }) => {
 
   const deductionColumns = [
     { key: 'name', label: 'ชื่อประเภทการลดหย่อน', flex: true, minWidth: 240, render: (d) => <EllipsisText text={d.name} /> },
-    { key: 'condition', label: 'เงื่อนไข', width: 320, render: (d) => <EllipsisText text={d.condition || '-'} /> },
+    { key: 'condition', label: 'เงื่อนไข', render: (d) => <EllipsisText text={d.condition || '-'} /> },
     {
-      key: 'value', label: 'ส่วนลด', width: 150,
+      key: 'value', label: 'ส่วนลด',
       render: (d) => <span style={T.value}>{d.mode === 'percent' ? `${d.value}%` : formatBaht(d.value)}</span>,
     },
     {
-      key: 'active', label: 'สถานะ', width: 140,
+      key: 'active', label: 'สถานะ',
       render: (d) => <StatusBadge style={d.active ? 'success' : 'neutral'} size='small'>{d.active ? 'ใช้งาน' : 'ปิดใช้งาน'}</StatusBadge>,
     },
     {
-      key: 'audit', label: 'แก้ไขล่าสุด', width: 250, sortable: false,
+      key: 'audit', label: 'แก้ไขล่าสุด', sortable: false,
       render: (d) => (
         <div className='flex flex-col min-w-0'>
           <EllipsisText text={d.updatedBy || '-'} />
@@ -417,7 +417,7 @@ const RightsSettingsSection = ({ role }) => {
       ),
     },
     {
-      key: 'actions', label: '', width: 120, sortable: false,
+      key: 'actions', label: '', sortable: false,
       render: (d) => (
         <div className='flex items-center justify-end w-full' style={{ gap: 'var(--dim-space-150)' }}>
           <BrandIconButton

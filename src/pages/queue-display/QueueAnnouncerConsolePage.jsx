@@ -167,29 +167,25 @@ const QueueAnnouncerConsolePage = () => {
       label: 'กำลังเรียก',
       value: current ? 1 : 0,
       color: 'inprogress',
-      icon: 'campaign',
-    },
+      icon: 'campaign'},
     {
       key: 'waiting',
       label: 'รอเรียก',
       value: state ? state.next.length : 0,
       color: 'info',
-      icon: 'schedule',
-    },
+      icon: 'schedule'},
     {
       key: 'confirmed',
       label: 'ยืนยันการมาแล้ว',
       value: current && current.confirmed === true ? 1 : 0,
       color: 'positive',
-      icon: 'how_to_reg',
-    },
+      icon: 'how_to_reg'},
     {
       key: 'passed',
       label: 'เรียกผ่านไปแล้ว',
       value: state ? state.passed.length : 0,
       color: 'destructive',
-      icon: 'person_off',
-    },
+      icon: 'person_off'},
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [state, current, tick]);
 
@@ -198,13 +194,11 @@ const QueueAnnouncerConsolePage = () => {
     {
       key: 'seq',
       label: 'ลำดับ',
-      width: 80,
       render: (row) => `คิวที่ ${row.seq}`,
     },
     {
       key: 'number',
       label: 'เลขคิว',
-      width: 120,
       render: (row) => (
         <ColorfulBadge style='teal' size='default' hierarchy='secondary' width='hug'>
           {row.number}
@@ -229,7 +223,6 @@ const QueueAnnouncerConsolePage = () => {
     {
       key: 'number',
       label: 'เลขคิว',
-      width: 120,
       render: (row) => (
         <ColorfulBadge style='grey' size='default' hierarchy='secondary' width='hug'>
           {row.number}
@@ -247,19 +240,18 @@ const QueueAnnouncerConsolePage = () => {
 
   /* ── ตาราง audit ของฝั่งจอ ─────────────────────────────────────── */
   const auditColumns = useMemo(() => ([
-    { key: 'ts', label: 'เวลา', width: 100, render: (row) => `${formatHm(row.ts)} น.` },
-    { key: 'number', label: 'เลขคิว', width: 110, render: (row) => row.number || '—' },
+    { key: 'ts', label: 'เวลา', render: (row) => `${formatHm(row.ts)} น.` },
+    { key: 'number', label: 'เลขคิว', render: (row) => row.number || '—' },
     {
       key: 'action',
       label: 'การกระทำ',
-      width: 200,
       render: (row) => (
         <ColorfulBadge style={ACTION_TONE[row.action] || 'grey'} size='small' hierarchy='secondary' width='hug'>
           {ACTION_LABEL[row.action] || row.action}
         </ColorfulBadge>
       ),
     },
-    { key: 'actor', label: 'ผู้ทำรายการ', width: 180, render: (row) => row.actor || '—' },
+    { key: 'actor', label: 'ผู้ทำรายการ', render: (row) => row.actor || '—' },
     { key: 'detail', label: 'รายละเอียด', flex: true, minWidth: 260, render: (row) => row.detail || '—' },
   ]), []);
 

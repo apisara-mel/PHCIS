@@ -13,8 +13,7 @@ import { MR_PATIENTS } from '@/data/mrPatients';
    (Thai/Asian, front-facing, solid light sky-blue background — same
    style as `somchai-mock.png`). `patient-mock-01` … `patient-mock-10`
    extend that set; older `patient-female-*` / `patient-male-*` /
-   `mock-male-asian-{a,b,c}.png` — male variety (somchai sky-blue style). Portraits may be reused
-   across patients when sex + age band match. */
+   `mock-male-asian-{a,b,c}.png` — male variety (somchai sky-blue style). Each profile gets a unique portrait — no reuse across HNs. */
 
 /** Somchai-style portraits — sky-blue studio headshots (see `somchai-mock.png`). */
 export const PATIENT_MOCK_AVATARS = [
@@ -28,6 +27,13 @@ export const PATIENT_MOCK_AVATARS = [
   '/avatars/patient-mock-08.png',
   '/avatars/patient-mock-09.png',
   '/avatars/patient-mock-10.png',
+  '/avatars/patient-mock-11.png',
+  '/avatars/patient-mock-12.png',
+  '/avatars/patient-mock-13.png',
+  '/avatars/patient-mock-14.png',
+  '/avatars/patient-mock-15.png',
+  '/avatars/patient-mock-16.png',
+  '/avatars/patient-mock-17.png',
 ];
 
 export const PATIENT_PROFILES = [
@@ -76,7 +82,7 @@ export const PATIENT_PROFILES = [
     doctor:     'พญ.วิภา สุขศรี',
     insurance:  'สิทธิข้าราชการ กรมบัญชีกลาง',
     address:    '256 หมู่ 7 ต.บางใหญ่ อ.บางใหญ่ จ.นนทบุรี 11140',
-    avatarUrl:  '/avatars/patient-female-e.png',
+    avatarUrl:  '/avatars/patient-female-b.png',
     vip:        true,
   },
   {
@@ -92,7 +98,7 @@ export const PATIENT_PROFILES = [
     doctor:     'นพ.ณัฐวุฒิ บุญมี',
     insurance:  'ชำระเอง',
     address:    '15/9 ซ.ลาดพร้าว 71 วังทองหลาง กรุงเทพมหานคร 10310',
-    avatarUrl:  '/avatars/mock-male-asian-b.png',
+    avatarUrl:  '/avatars/mock-male-asian-a.png',
     vip:        false,
   },
   {
@@ -124,7 +130,7 @@ export const PATIENT_PROFILES = [
     doctor:     'นพ.สมชาย ใจดี',
     insurance:  'สิทธิประกันสังคม รพ.กรุงเทพคริสเตียน',
     address:    '19/77 ซ.รามอินทรา 23 บางเขน กรุงเทพมหานคร 10220',
-    avatarUrl:  '/avatars/mock-male-asian-c.png',
+    avatarUrl:  '/avatars/mock-male-asian-b.png',
     vip:        false,
   },
   /* ── Rows 7-25 — added so the OPD queue (25 rows) has zero name
@@ -138,7 +144,7 @@ export const PATIENT_PROFILES = [
     nationalId: '3100501239876', bloodType: 'O', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.ปริยากร เจริญสุข', insurance: 'สิทธิประกันสังคม รพ.มงกุฎวัฒนะ',
     address: '67/13 ซ.รัชดาภิเษก 18 ห้วยขวาง กรุงเทพมหานคร 10310',
-    avatarUrl: PATIENT_MOCK_AVATARS[2], vip: false,
+    avatarUrl: '/avatars/patient-female-d.png', vip: false,
   },
   {
     shortName: 'ธนพร สุนทรา', fullName: 'นางสาวธนพร สุนทรา', englishName: 'Thanaporn Suntara',
@@ -146,7 +152,7 @@ export const PATIENT_PROFILES = [
     nationalId: '1101400785632', bloodType: 'A', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ธนากร อินทรา', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
     address: '199 ซ.อ่อนนุช 17 สวนหลวง กรุงเทพมหานคร 10250',
-    avatarUrl: PATIENT_MOCK_AVATARS[8], vip: false,
+    avatarUrl: '/avatars/patient-female-e.png', vip: false,
   },
   {
     shortName: 'กิตติ ศรีสมบูรณ์', fullName: 'นายกิตติ ศรีสมบูรณ์', englishName: 'Kitti Srisomboon',
@@ -154,7 +160,7 @@ export const PATIENT_PROFILES = [
     nationalId: '3550900462158', bloodType: 'B', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.ศิรินทร์ พัฒนกุล', insurance: 'สิทธิข้าราชการ กรมบัญชีกลาง',
     address: '88/3 ซ.สุขุมวิท 71 พระโขนง กรุงเทพมหานคร 10110',
-    avatarUrl: PATIENT_MOCK_AVATARS[5], vip: true,
+    avatarUrl: '/avatars/mock-male-asian-c.png', vip: true,
   },
   {
     shortName: 'นพดล ช่วยเหลือ', fullName: 'นายนพดล ช่วยเหลือ', englishName: 'Nopadol Chuayluea',
@@ -162,7 +168,7 @@ export const PATIENT_PROFILES = [
     nationalId: '1100600384912', bloodType: 'O', patientType: 'ผู้ป่วยใหม่',
     doctor: 'นพ.อภิชาติ พรหมสาร', insurance: 'ชำระเอง',
     address: '12/45 ซ.จรัญสนิทวงศ์ 13 บางพลัด กรุงเทพมหานคร 10700',
-    avatarUrl: PATIENT_MOCK_AVATARS[7], vip: false,
+    avatarUrl: '/avatars/patient-male-d.png', vip: false,
   },
   {
     shortName: 'อรอุมา ดวงสว่าง', fullName: 'นางอรอุมา ดวงสว่าง', englishName: 'Onuma Duangsawang',
@@ -170,7 +176,7 @@ export const PATIENT_PROFILES = [
     nationalId: '3401200583926', bloodType: 'AB', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.พรพิมล สุขสำราญ', insurance: 'สิทธิประกันสังคม รพ.เปาโล พหลโยธิน',
     address: '54/9 ซ.วิภาวดี 22 จตุจักร กรุงเทพมหานคร 10900',
-    avatarUrl: PATIENT_MOCK_AVATARS[4], vip: false,
+    avatarUrl: '/avatars/patient-female-f.png', vip: false,
   },
   {
     shortName: 'วิชัย รุ่งเรือง', fullName: 'นายวิชัย รุ่งเรือง', englishName: 'Wichai Rungruang',
@@ -178,7 +184,7 @@ export const PATIENT_PROFILES = [
     nationalId: '5670012584731', bloodType: 'A', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ปวิณ ราชาธิราช', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
     address: '321 ซ.ลาดพร้าว 101 บางกะปิ กรุงเทพมหานคร 10240',
-    avatarUrl: PATIENT_MOCK_AVATARS[5], vip: false,
+    avatarUrl: '/avatars/patient-male-e.png', vip: false,
   },
   {
     shortName: 'พิมพ์ใจ จันทรา', fullName: 'นางสาวพิมพ์ใจ จันทรา', englishName: 'Pimjai Janthra',
@@ -186,7 +192,7 @@ export const PATIENT_PROFILES = [
     nationalId: '1809900739581', bloodType: 'O', patientType: 'ผู้ป่วยใหม่',
     doctor: 'พญ.ปริยากร เจริญสุข', insurance: 'สิทธิประกันสังคม รพ.เปาโลโชคชัย 4',
     address: '11/4 ซ.รัชดาภิเษก 7 ดินแดง กรุงเทพมหานคร 10400',
-    avatarUrl: PATIENT_MOCK_AVATARS[1], vip: false,
+    avatarUrl: '/avatars/patient-mock-12.png', vip: false,
   },
   {
     shortName: 'ชัยวัฒน์ ก้องเกียรติ', fullName: 'นายชัยวัฒน์ ก้องเกียรติ', englishName: 'Chaiwat Kongkiat',
@@ -194,7 +200,7 @@ export const PATIENT_PROFILES = [
     nationalId: '3100401872569', bloodType: 'B', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.สมหญิง รักษ์ดี', insurance: 'สิทธิประกันสังคม รพ.พระมงกุฎเกล้า',
     address: '99/12 ซ.พระราม 9 ซอย 32 ห้วยขวาง กรุงเทพมหานคร 10310',
-    avatarUrl: PATIENT_MOCK_AVATARS[3], vip: false,
+    avatarUrl: '/avatars/patient-mock-11.png', vip: false,
   },
   {
     shortName: 'รัตนาภรณ์ ใสสะอาด', fullName: 'นางรัตนาภรณ์ ใสสะอาด', englishName: 'Rattanaporn Saisaard',
@@ -202,7 +208,7 @@ export const PATIENT_PROFILES = [
     nationalId: '3550900237845', bloodType: 'A', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ณัฐวุฒิ บุญมี', insurance: 'สิทธิข้าราชการ กรมบัญชีกลาง',
     address: '7/26 ซ.บางขุนเทียน 15 บางขุนเทียน กรุงเทพมหานคร 10150',
-    avatarUrl: PATIENT_MOCK_AVATARS[8], vip: false,
+    avatarUrl: '/avatars/patient-mock-14.png', vip: false,
   },
   {
     shortName: 'ปกรณ์ บุญพิทักษ์', fullName: 'นายปกรณ์ บุญพิทักษ์', englishName: 'Pakorn Boonpitak',
@@ -210,7 +216,7 @@ export const PATIENT_PROFILES = [
     nationalId: '1100401473652', bloodType: 'O', patientType: 'ผู้ป่วยใหม่',
     doctor: 'นพ.ธนากร อินทรา', insurance: 'สิทธิประกันสังคม รพ.เกษมราษฎร์',
     address: '83 ซ.พหลโยธิน 60 สายไหม กรุงเทพมหานคร 10220',
-    avatarUrl: PATIENT_MOCK_AVATARS[0], vip: false,
+    avatarUrl: '/avatars/patient-mock-13.png', vip: false,
   },
   {
     shortName: 'ภัคจิรา วงศ์อนันต์', fullName: 'นางภัคจิรา วงศ์อนันต์', englishName: 'Phakchira Wonganan',
@@ -218,7 +224,7 @@ export const PATIENT_PROFILES = [
     nationalId: '3401200674923', bloodType: 'AB', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.วิภา สุขศรี', insurance: 'สิทธิประกันสังคม รพ.จุฬาลงกรณ์',
     address: '142/7 ซ.รามอินทรา 65 มีนบุรี กรุงเทพมหานคร 10510',
-    avatarUrl: '/avatars/patient-female-b.png', vip: true,
+    avatarUrl: '/avatars/patient-mock-16.png', vip: true,
   },
   {
     shortName: 'ธีรเดช อัครพงศ์', fullName: 'นายธีรเดช อัครพงศ์', englishName: 'Theerdej Akarapong',
@@ -226,7 +232,7 @@ export const PATIENT_PROFILES = [
     nationalId: '5670012467128', bloodType: 'A', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.ศิรินทร์ พัฒนกุล', insurance: 'ชำระเอง',
     address: '67 ซ.พระราม 4 ซอย 36 คลองเตย กรุงเทพมหานคร 10110',
-    avatarUrl: '/avatars/patient-male-e.png', vip: false,
+    avatarUrl: '/avatars/patient-mock-15.png', vip: false,
   },
   {
     shortName: 'นันทิดา พรเลิศ', fullName: 'นางสาวนันทิดา พรเลิศ', englishName: 'Nantida Pornlert',
@@ -234,7 +240,7 @@ export const PATIENT_PROFILES = [
     nationalId: '1809900472316', bloodType: 'B', patientType: 'ผู้ป่วยใหม่',
     doctor: 'นพ.อภิชาติ พรหมสาร', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
     address: '215/3 ซ.สาทร 11 สาทร กรุงเทพมหานคร 10120',
-    avatarUrl: '/avatars/patient-female-a.png', vip: false,
+    avatarUrl: '/avatars/patient-mock-02.png', vip: false,
   },
   {
     shortName: 'กฤษดา ผ่องใส', fullName: 'นายกฤษดา ผ่องใส', englishName: 'Krisada Pongsai',
@@ -242,7 +248,7 @@ export const PATIENT_PROFILES = [
     nationalId: '1100600296481', bloodType: 'O', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.พรพิมล สุขสำราญ', insurance: 'สิทธิประกันสังคม รพ.พระนั่งเกล้า (10686)',
     address: '155 ซ.สุขุมวิท 39 วัฒนา กรุงเทพมหานคร 10110',
-    avatarUrl: '/avatars/mock-male-asian-c.png', vip: false,
+    avatarUrl: '/avatars/patient-mock-17.png', vip: false,
   },
   {
     shortName: 'วรรณภา ทองดี', fullName: 'นางวรรณภา ทองดี', englishName: 'Wannapha Thongdee',
@@ -250,7 +256,7 @@ export const PATIENT_PROFILES = [
     nationalId: '3100501736485', bloodType: 'A', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ปวิณ ราชาธิราช', insurance: 'สิทธิข้าราชการ กรมบัญชีกลาง',
     address: '36/22 ซ.นนทรี 4 ยานนาวา กรุงเทพมหานคร 10120',
-    avatarUrl: '/avatars/patient-female-e.png', vip: false,
+    avatarUrl: '/avatars/patient-mock-04.png', vip: false,
   },
   {
     shortName: 'อนุชา สมบูรณ์ทรัพย์', fullName: 'นายอนุชา สมบูรณ์ทรัพย์', englishName: 'Anucha Somboonsap',
@@ -258,7 +264,7 @@ export const PATIENT_PROFILES = [
     nationalId: '5670012849137', bloodType: 'AB', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.สมชาย ใจดี', insurance: 'สิทธิประกันสังคม รพ.พระมงกุฎเกล้า',
     address: '4/19 ซ.รัชดาภิเษก 26 ห้วยขวาง กรุงเทพมหานคร 10310',
-    avatarUrl: '/avatars/mock-male-asian-a.png', vip: false,
+    avatarUrl: '/avatars/patient-mock-01.png', vip: false,
   },
   {
     shortName: 'ภัทรานิษฐ์ บูรณะ', fullName: 'นางสาวภัทรานิษฐ์ บูรณะ', englishName: 'Patranit Burana',
@@ -266,7 +272,7 @@ export const PATIENT_PROFILES = [
     nationalId: '3401200971563', bloodType: 'O', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.ปริยากร เจริญสุข', insurance: 'สิทธิประกันสังคม รพ.วชิรพยาบาล',
     address: '78/14 ซ.สรงประภา 7 ดอนเมือง กรุงเทพมหานคร 10210',
-    avatarUrl: '/avatars/patient-female-d.png', vip: false,
+    avatarUrl: '/avatars/patient-mock-08.png', vip: false,
   },
   {
     shortName: 'เอกชัย พิทยาคม', fullName: 'นายเอกชัย พิทยาคม', englishName: 'Ekachai Pittayakom',
@@ -274,7 +280,7 @@ export const PATIENT_PROFILES = [
     nationalId: '1101400485273', bloodType: 'A', patientType: 'ผู้ป่วยใหม่',
     doctor: 'พญ.สมหญิง รักษ์ดี', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
     address: '105 ซ.รามคำแหง 24 หัวหมาก บางกะปิ กรุงเทพมหานคร 10240',
-    avatarUrl: '/avatars/mock-male-asian-b.png', vip: false,
+    avatarUrl: '/avatars/patient-mock-05.png', vip: false,
   },
   {
     shortName: 'ภาสกร ชาญฉลาด', fullName: 'นายภาสกร ชาญฉลาด', englishName: 'Passakorn Chanchalad',
@@ -282,7 +288,7 @@ export const PATIENT_PROFILES = [
     nationalId: '3100401273658', bloodType: 'B', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ณัฐวุฒิ บุญมี', insurance: 'สิทธิประกันสังคม รพ.สุขุมวิท',
     address: '90/8 ซ.ลาดพร้าว 71 วังทองหลาง กรุงเทพมหานคร 10310',
-    avatarUrl: '/avatars/mock-male-asian-a.png', vip: false,
+    avatarUrl: '/avatars/patient-mock-06.png', vip: false,
   },
   /* 67-00027 / 67-00029 — ANC follow-up patients (ancVisits.js
      ANC_PATIENTS). The ANC queue referenced them but they had no profile
@@ -297,7 +303,7 @@ export const PATIENT_PROFILES = [
     nationalId: '1102003847561', bloodType: 'B', patientType: 'ผู้ป่วยเก่า',
     doctor: 'พญ.สมหญิง รักษ์ดี', insurance: 'สิทธิหลักประกันสุขภาพถ้วนหน้า (บัตรทอง)',
     address: '45/9 ซ.เพชรบุรี 15 ราชเทวี กรุงเทพมหานคร 10400',
-    avatarUrl: PATIENT_MOCK_AVATARS[2], vip: false,
+    avatarUrl: '/avatars/patient-mock-09.png', vip: false,
   },
   {
     shortName: 'อาทิตยา บุญเรือง', fullName: 'นางสาวอาทิตยา บุญเรือง', englishName: 'Arthiya Boonruang',
@@ -305,7 +311,26 @@ export const PATIENT_PROFILES = [
     nationalId: '3401201029587', bloodType: 'O', patientType: 'ผู้ป่วยเก่า',
     doctor: 'นพ.ณัฐวุฒิ บุญมี', insurance: 'สิทธิประกันสังคม รพ.เกษมราษฎร์',
     address: '63/5 ซ.รัชดาภิเษก 12 ดินแดง กรุงเทพมหานคร 10400',
-    avatarUrl: PATIENT_MOCK_AVATARS[8], vip: false,
+    avatarUrl: '/avatars/patient-mock-10.png', vip: false,
+  },
+  /* 67-00026 / 67-00028 — pharmacy filler + registration-pending walk-ins
+     (mrPatients.js). Were missing from PATIENT_PROFILES so the pharmacy
+     queue fell back to initials. Unique portraits assigned below. */
+  {
+    shortName: 'ก้องภพ ศรีวงศ์', fullName: 'นายก้องภพ ศรีวงศ์', englishName: 'Kongphop Srivong',
+    hn: '67-00026', vn: '69-00026', sex: 'ชาย', age: '34 ปี - 2 เดือน - 6 วัน',
+    nationalId: '1101200894521', bloodType: 'O', patientType: 'ผู้ป่วยใหม่',
+    doctor: 'นพ.สมชาย ใจดี', insurance: 'สิทธิประกันสังคม รพ.พระนั่งเกล้า (10686)',
+    address: '42/8 ซ.พระราม 2 ซอย 39 บางมด กรุงเทพมหานคร 10150',
+    avatarUrl: '/avatars/patient-mock-07.png', vip: false,
+  },
+  {
+    shortName: 'พงศ์ศักดิ์ แสงทอง', fullName: 'นายพงศ์ศักดิ์ แสงทอง', englishName: 'Pongsak Saengthong',
+    hn: '67-00028', vn: '69-00028', sex: 'ชาย', age: '41 ปี - 0 เดือน - 19 วัน',
+    nationalId: '3100401928475', bloodType: 'B', patientType: 'ผู้ป่วยใหม่',
+    doctor: 'พญ.วิภา สุขศรี', insurance: 'ชำระเอง',
+    address: '7/11 ซ.จรัญสนิทวงศ์ 90 บางพลัด กรุงเทพมหานคร 10700',
+    avatarUrl: '/avatars/patient-mock-03.png', vip: false,
   },
 ];
 

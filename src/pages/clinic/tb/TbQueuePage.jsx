@@ -279,18 +279,18 @@ const TbQueuePage = () => {
   );
 
   const columns = useMemo(() => ([
-    { key: 'queue',    label: 'คิว',              width: 76,  render: renderQueue },
-    { key: 'hn',       label: 'HN',               width: 96 },
+    { key: 'queue',    label: 'คิว',  render: renderQueue },
+    { key: 'hn',       label: 'HN' },
     { key: 'name',     label: 'ชื่อ-นามสกุล',      flex: true, minWidth: 170, render: renderName },
-    { key: 'type',     label: 'ประเภทผู้ป่วย',     width: 130, render: renderType },
-    { key: 'registry', label: 'ทะเบียน / เดือนที่', width: 150, render: renderRegistry },
-    { key: 'rights',   label: 'สิทธิ',             width: 210, render: renderRights },
-    { key: 'telemed',  label: 'Telemedicine',     width: 120, align: 'center', sortable: false, render: renderTelemedicine },
-    { key: 'dot',      label: 'DOT วันนี้',        width: 100, align: 'center', sortable: false, render: renderDotToday },
+    { key: 'type',     label: 'ประเภทผู้ป่วย', render: renderType },
+    { key: 'registry', label: 'ทะเบียน / เดือนที่', render: renderRegistry },
+    { key: 'rights',   label: 'สิทธิ', render: renderRights },
+    { key: 'telemed',  label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
+    { key: 'dot',      label: 'DOT วันนี้', align: 'center', sortable: false, render: renderDotToday },
     { key: 'doctor',   label: 'แพทย์',            flex: true, minWidth: 150 },
-    { key: 'wait',     label: 'รอนาน',            width: 92,  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
-    { key: 'status',   label: 'สถานะ',            width: 120, render: renderStatus },
-    { key: 'actions',  label: 'การดำเนินการ',      width: 176, sortable: false, render: renderActions },
+    { key: 'wait',     label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
+    { key: 'status',   label: 'สถานะ', render: renderStatus },
+    { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: renderActions },
   ]), []);
 
   return (

@@ -144,8 +144,7 @@ const OpdWalkinRequestPage = () => {
     ...WALKIN_DEPARTMENTS.map((d) => ({
       key: d,
       label: d,
-      count: rows.filter((r) => r.dept === d).length,
-    })),
+      count: rows.filter((r) => r.dept === d).length})),
   ]), [rows]);
 
   const filtered = useMemo(() => {
@@ -317,14 +316,14 @@ const OpdWalkinRequestPage = () => {
   };
 
   const columns = useMemo(() => ([
-    { key: 'requestQueue', label: 'คิวคำขอ', width: 96, render: (row) => <Badge style='success' size='small'>{row.requestQueue}</Badge> },
-    { key: 'hn', label: 'HN', width: 96 },
+    { key: 'requestQueue', label: 'คิวคำขอ', render: (row) => <Badge style='success' size='small'>{row.requestQueue}</Badge> },
+    { key: 'hn', label: 'HN' },
     { key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160 },
     { key: 'complaint', label: 'อาการนำ / ESI', flex: true, minWidth: 220, sortable: false, render: renderComplaint },
-    { key: 'dept', label: 'แผนกปลายทาง', width: 128 },
-    { key: 'requestedAt', label: 'เวลาส่งคำขอ', width: 112 },
-    { key: 'status', label: 'สถานะ', width: 176, render: renderStatus },
-    { key: 'actions', label: 'การดำเนินการ', width: 248, sortable: false, render: renderActions },
+    { key: 'dept', label: 'แผนกปลายทาง' },
+    { key: 'requestedAt', label: 'เวลาส่งคำขอ' },
+    { key: 'status', label: 'สถานะ', render: renderStatus },
+    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: renderActions },
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   ]), [clinicalScope, revealedIds, rows]);
 

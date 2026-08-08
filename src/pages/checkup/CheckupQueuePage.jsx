@@ -324,15 +324,15 @@ const CheckupQueuePage = () => {
   );
 
   const columns = useMemo(() => ([
-    { key: 'visitTime', label: 'เวลา', width: 80 },
-    { key: 'hn', label: 'HN', width: 100 },
+    { key: 'visitTime', label: 'เวลา' },
+    { key: 'hn', label: 'HN' },
     { key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 220, render: renderName },
     { key: 'packageName', label: 'ชุดตรวจ', flex: true, minWidth: 260, render: renderPackage },
-    { key: 'round', label: 'ครั้งที่รับบริการ', width: 140, render: renderRound },
-    { key: 'orderNo', label: 'เลขที่ใบสั่งตรวจ', width: 160 },
+    { key: 'round', label: 'ครั้งที่รับบริการ', render: renderRound },
+    { key: 'orderNo', label: 'เลขที่ใบสั่งตรวจ' },
     { key: 'doctor', label: 'แพทย์', flex: true, minWidth: 170 },
-    { key: 'status', label: 'สถานะ', width: 150, render: renderStatus },
-    { key: 'actions', label: 'การดำเนินการ', width: 250, sortable: false, render: renderActions },
+    { key: 'status', label: 'สถานะ', render: renderStatus },
+    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: renderActions },
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   ]), [tick]);
 
@@ -341,7 +341,7 @@ const CheckupQueuePage = () => {
   const trackingRows = useMemo(() => getSpecimenTracking(CHECKUP_TODAY), [tick]);
 
   const trackingColumns = useMemo(() => ([
-    { key: 'hn', label: 'HN', width: 100 },
+    { key: 'hn', label: 'HN' },
     {
       key: 'name',
       label: 'ชื่อ-นามสกุล',
@@ -349,7 +349,7 @@ const CheckupQueuePage = () => {
       minWidth: 200,
       render: (row) => <MaskedWorklistName name={row.name} recordKey={row.hn} linkTo={`/checkup/record/${row.id}`} />,
     },
-    { key: 'orderNo', label: 'เลขที่ใบสั่งตรวจ', width: 160 },
+    { key: 'orderNo', label: 'เลขที่ใบสั่งตรวจ' },
     {
       key: 'steps',
       label: 'ขั้นตอนการตรวจ',
@@ -361,17 +361,16 @@ const CheckupQueuePage = () => {
         return <StepTrackerRow steps={CHECKUP_STEPS} state={visit?.steps || {}} />;
       },
     },
-    { key: 'tubes', label: 'สิ่งส่งตรวจ', width: 170 },
+    { key: 'tubes', label: 'สิ่งส่งตรวจ' },
     {
       key: 'specimen',
       label: 'สถานะสิ่งส่งตรวจ',
-      width: 150,
       render: (row) => {
         const cfg = SPECIMEN_STATUSES[row.specimen] || SPECIMEN_STATUSES.pending;
         return <ColorfulBadge style={cfg.badge} size='small' hierarchy='secondary'>{cfg.label}</ColorfulBadge>;
       },
     },
-    { key: 'stage', label: 'ขั้นตอนปัจจุบัน', width: 150 },
+    { key: 'stage', label: 'ขั้นตอนปัจจุบัน' },
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   ]), [allVisits]);
 

@@ -1198,7 +1198,7 @@ const STEP4_SECTION_TITLE_STYLE = {
    header — the per-row stamp added redundant noise. */
 const ICD_TABLE_COLUMNS = [
   {
-    key: 'code',  header: 'รหัส',            width: 80,
+    key: 'code',  header: 'รหัส',
     render: (row) => (
       <ColorfulBadge style='blue' size='small' width='hug' hierarchy='primary'>
         {row.code}
@@ -1207,7 +1207,7 @@ const ICD_TABLE_COLUMNS = [
   },
   { key: 'name', header: 'การวินิจฉัย', flex: 1 },
   {
-    key: 'type', header: 'Diagnosis Type', width: 256,
+    key: 'type', header: 'Diagnosis Type',
     render: (row) => {
       const meta = resolveDiagnosisType(row.type);
       return (
@@ -1342,7 +1342,6 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient }) => {
     {
       key: 'actions',
       header: 'การดำเนินการ',
-      width: 128,
       render: (row, rowIdx) => (
         <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-200)' }}>
           {/* Figma PHCIS | Medical-examination 339:36817 — Brand Icon
@@ -1853,7 +1852,7 @@ const MedImageTile = ({ src, alt }) => {
    render as read-only body text (EllipsisText); workflow flags stay
    as inline <Checkbox> toggles; row edits go through AddMedicationPopup. */
 const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
-  { key: 'image', header: 'รูป', width: 68,
+  { key: 'image', header: 'รูป',
     render: (row) => (
       <MedImageTile
         src={resolveMedicationImage(row.name, row.image)}
@@ -1861,31 +1860,29 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
       />
     ),
   },
-  { key: 'name',       header: 'ชื่อยา',      width: 256 },
+  { key: 'name',       header: 'ชื่อยา' },
   /* Figma PHCIS|CPOE 276:34332 — วิธีใช้ is read-only body text in the
      table (not an inline Select). Edits go through AddMedicationPopup. */
-  { key: 'usage',      header: 'วิธีใช้',     width: 256 },
-  { key: 'dosePerTake', header: 'ทานครั้งละ', width: 112 },
-  { key: 'unit',       header: 'หน่วย',       width: 160 },
-  { key: 'frequency',  header: 'ความถี่',     width: 160 },
-  { key: 'when',       header: 'เวลาใช้ยา',   width: 160 },
-  { key: 'warning',    header: 'คำเตือน',     width: 224 },
-  { key: 'quantity',   header: 'จำนวน',       width: 96 },
-  { key: 'totalPrice', header: 'ราคารวม',     width: 96, align: 'center',
+  { key: 'usage',      header: 'วิธีใช้' },
+  { key: 'dosePerTake', header: 'ทานครั้งละ' },
+  { key: 'unit',       header: 'หน่วย' },
+  { key: 'frequency',  header: 'ความถี่' },
+  { key: 'when',       header: 'เวลาใช้ยา' },
+  { key: 'warning',    header: 'คำเตือน' },
+  { key: 'quantity',   header: 'จำนวน' },
+  { key: 'totalPrice', header: 'ราคารวม', align: 'center',
     /* Per Figma PHCIS|CPOE 276:34342 the ราคารวม cell renders the
        plain money number centered — no "฿" suffix. The currency
        context lives in the header. */
-    render: (row) => row.totalPrice ?? 0,
-  },
-  { key: 'reimbursable', header: 'เบิกได้',   width: 96,
+    render: (row) => row.totalPrice ?? 0},
+  { key: 'reimbursable', header: 'เบิกได้',
     /* Per Figma PHCIS|CPOE 276:34343 the เบิกได้ cell shows the
        reimbursable AMOUNT as a plain number, not a checkbox. The data
        model still carries a `reimbursable: boolean`: when true the
        row's full totalPrice is eligible for reimbursement, otherwise 0. */
-    render: (row) => (row.reimbursable ? (row.totalPrice ?? 0) : 0),
-  },
-  { key: 'purpose',    header: 'การใช้',      width: 192 },
-  { key: 'approve',    header: 'Approve',     width: 96, align: 'center',
+    render: (row) => (row.reimbursable ? (row.totalPrice ?? 0) : 0)},
+  { key: 'purpose',    header: 'การใช้' },
+  { key: 'approve',    header: 'Approve', align: 'center',
     render: (row, idx) => (
       <Checkbox
         checked={!!row.approve}
@@ -1894,7 +1891,7 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
       />
     ),
   },
-  { key: 'consult',    header: 'รอ Consult',  width: 112, align: 'center',
+  { key: 'consult',    header: 'รอ Consult', align: 'center',
     render: (row, idx) => (
       <Checkbox
         checked={!!row.consult}
@@ -1903,7 +1900,7 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
       />
     ),
   },
-  { key: 'stat',       header: 'STAT',        width: 96, align: 'center',
+  { key: 'stat',       header: 'STAT', align: 'center',
     render: (row, idx) => (
       <Checkbox
         checked={!!row.stat}
@@ -1912,7 +1909,7 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
       />
     ),
   },
-  { key: 'print',      header: 'พิมพ์',       width: 96, align: 'center',
+  { key: 'print',      header: 'พิมพ์', align: 'center',
     render: (row, idx) => (
       <Checkbox
         checked={!!row.print}
@@ -1926,7 +1923,7 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
      `edited` flag so the doctor can mark "I touched this entry" on the
      audit trail without leaving the table. The full editor name still
      lives on `row.editor` for later display surfaces. */
-  { key: 'edited',     header: 'ผู้แก้ไข',     width: 96, align: 'center',
+  { key: 'edited',     header: 'ผู้แก้ไข', align: 'center',
     render: (row, idx) => (
       <Checkbox
         checked={!!row.edited}
@@ -1935,7 +1932,7 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
       />
     ),
   },
-  { key: 'actions',    header: 'การดำเนินการ', width: 128, align: 'center',
+  { key: 'actions',    header: 'การดำเนินการ', align: 'center',
     /* Figma PHCIS|CPOE 195:34355 — row-action cluster: Edit then Delete. */
     render: (row, idx) => (
       <div
@@ -2021,7 +2018,7 @@ const xrayCellSelectStyle = {
    through XRAY_EXAM_BY_ID at render time so a catalog edit (Setup page)
    reflects here without migrating stored rows. */
 const buildXrayTableColumns = ({ updateRow, removeRow, rightKey }) => [
-  { key: 'urgency', header: 'ความเร่งด่วน', width: 168,
+  { key: 'urgency', header: 'ความเร่งด่วน',
     /* §1.12.5.4 lists ความเร่งด่วน first; editable per row because one
        visit can mix a STAT portable chest with a routine follow-up film. */
     render: (row, idx) => (
@@ -2037,7 +2034,7 @@ const buildXrayTableColumns = ({ updateRow, removeRow, rightKey }) => [
       </select>
     ),
   },
-  { key: 'exam', header: 'รายการตรวจ', width: 288,
+  { key: 'exam', header: 'รายการตรวจ',
     /* ชื่อไทย + code/ชื่ออังกฤษ subtext — the same identity pair the RIS
        worklist columns show, plus the safety badges (สารทึบรังสี /
        ส่งตรวจภายนอก) so the row itself explains any alert above it. */
@@ -2069,12 +2066,11 @@ const buildXrayTableColumns = ({ updateRow, removeRow, rightKey }) => [
       );
     },
   },
-  { key: 'region', header: 'ตำแหน่งที่ตรวจ', width: 176,
+  { key: 'region', header: 'ตำแหน่งที่ตรวจ',
     /* §1.12.5.4 — ตำแหน่งที่ตรวจ is its own column, sourced from the
        exam's first-class `region` key, never parsed out of the name. */
-    render: (row) => getRegion(XRAY_EXAM_BY_ID[row.examId])?.thai ?? '—',
-  },
-  { key: 'view', header: 'ท่าถ่าย', width: 200,
+    render: (row) => getRegion(XRAY_EXAM_BY_ID[row.examId])?.thai ?? '—'},
+  { key: 'view', header: 'ท่าถ่าย',
     /* Per-row select over THIS exam's registered views — ใบฉายรังสี
        prints one line per exposure, so the doctor narrows the ท่า here
        instead of free-texting it (legacy §2.1 item 11 vocabulary). */
@@ -2100,13 +2096,11 @@ const buildXrayTableColumns = ({ updateRow, removeRow, rightKey }) => [
      positive ผู้ป่วยจ่าย is the partial-claim case the สปสช. reviewers
      probe (e.g. อัลตราซาวด์ under UCS/SSS). Warning-toned when > 0 so
      the doctor can flag the copay at the desk, matching XrayOrderPage. */
-  { key: 'price', header: 'ราคา (บาท)', width: 112, align: 'center',
-    render: (row) => bahtText(claimFor(XRAY_EXAM_BY_ID[row.examId], rightKey).price),
-  },
-  { key: 'claim', header: 'ยอดที่เบิกได้ (บาท)', width: 136, align: 'center',
-    render: (row) => bahtText(claimFor(XRAY_EXAM_BY_ID[row.examId], rightKey).claim),
-  },
-  { key: 'patientPay', header: 'ผู้ป่วยจ่าย (บาท)', width: 128, align: 'center',
+  { key: 'price', header: 'ราคา (บาท)', align: 'center',
+    render: (row) => bahtText(claimFor(XRAY_EXAM_BY_ID[row.examId], rightKey).price)},
+  { key: 'claim', header: 'ยอดที่เบิกได้ (บาท)', align: 'center',
+    render: (row) => bahtText(claimFor(XRAY_EXAM_BY_ID[row.examId], rightKey).claim)},
+  { key: 'patientPay', header: 'ผู้ป่วยจ่าย (บาท)', align: 'center',
     render: (row) => {
       const { patientPay } = claimFor(XRAY_EXAM_BY_ID[row.examId], rightKey);
       return (
@@ -2120,7 +2114,7 @@ const buildXrayTableColumns = ({ updateRow, removeRow, rightKey }) => [
       );
     },
   },
-  { key: 'actions', header: 'ลบ', width: 80, align: 'center',
+  { key: 'actions', header: 'ลบ', align: 'center',
     /* Direct remove, no confirm dialog — parity with XrayOrderPage's row
        delete: unlike a medication row (dose/frequency worth protecting),
        an un-submitted exam line is one checkbox away in the picker. */

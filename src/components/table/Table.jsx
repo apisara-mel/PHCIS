@@ -14,9 +14,13 @@ import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
    doesn't leave a stale <style> behind. Mirrors the AISearch chrome-strip
    pattern in CLAUDE.md. The bar uses `--surface-table-hover` (brand-p50)
    so the placeholder tint stays consistent with hover rows. */
-if (typeof document !== 'undefined' && !document.getElementById('mih-table-skeleton-style')) {
-  const css = document.createElement('style');
-  css.id = 'mih-table-skeleton-style';
+if (typeof document !== 'undefined') {
+  let css = document.getElementById('mih-table-skeleton-style');
+  if (!css) {
+    css = document.createElement('style');
+    css.id = 'mih-table-skeleton-style';
+    document.head.appendChild(css);
+  }
   css.textContent = `
     @keyframes mih-table-skeleton-pulse {
       0%, 100% { opacity: 0.55; }
@@ -28,8 +32,70 @@ if (typeof document !== 'undefined' && !document.getElementById('mih-table-skele
       border-radius: var(--dim-radius-150, 6px);
       animation: mih-table-skeleton-pulse 1.4s ease-in-out infinite;
     }
+    /* Content-fit measure pass — unwrap ellipsis / min-w-0 so header + cells
+       report their true intrinsic width (max of header vs longest cell).
+       Never use min-width:0 here — that collapses max-content to the
+       already-truncated size and locks columns too narrow. */
+    [data-mih-table-measuring] [data-mih-col] {
+      width: max-content !important;
+      max-width: none !important;
+      flex: 0 0 auto !important;
+      min-width: max-content !important;
+    }
+    [data-mih-table-measuring] [data-mih-col] .min-w-0,
+    [data-mih-table-measuring] [data-mih-col] [class*="min-w-0"] {
+      min-width: max-content !important;
+    }
+    [data-mih-table-measuring] [data-mih-col] > div {
+      flex: 0 0 auto !important;
+      min-width: max-content !important;
+      width: max-content !important;
+      max-width: none !important;
+      overflow: visible !important;
+    }
+    [data-mih-table-measuring] [data-mih-col] span {
+      overflow: visible !important;
+      text-overflow: clip !important;
+      max-width: none !important;
+      min-width: max-content !important;
+      width: max-content !important;
+      white-space: nowrap !important;
+    }
+    [data-mih-table-measuring] .truncate {
+      overflow: visible !important;
+      text-overflow: clip !important;
+      max-width: none !important;
+      min-width: max-content !important;
+      width: max-content !important;
+      white-space: nowrap !important;
+    }
+    /* Content-fit tables: never ellipsis header titles (belt-and-suspenders
+       over inline styles so a stale locked width cannot show "…"). */
+    [data-mih-table-fit="content"] [data-mih-header-title] {
+      overflow: visible !important;
+      text-overflow: clip !important;
+      max-width: none !important;
+      min-width: max-content !important;
+      white-space: nowrap !important;
+    }
+    /* Content-fit: StatusBadge / ColorfulBadge / pills size to full label —
+       column width is max(header, longest cell/badge). Cap + ellipsis would
+       otherwise under-measure and lock columns too narrow. */
+    [data-mih-table-fit="content"] [data-mih-status-badge],
+    [data-mih-table-fit="content"] [data-mih-colorful-badge] {
+      max-width: none !important;
+      width: max-content !important;
+      flex-shrink: 0 !important;
+    }
+    [data-mih-table-fit="content"] [data-mih-status-badge-label],
+    [data-mih-table-fit="content"] [data-mih-colorful-badge-label] {
+      overflow: visible !important;
+      text-overflow: clip !important;
+      max-width: none !important;
+      min-width: max-content !important;
+      white-space: nowrap !important;
+    }
   `;
-  document.head.appendChild(css);
 }
 
 /* MIH Table — Figma node 49FBtstXs6YQGlpVqREqhy / 22:11760.
@@ -168,11 +234,108 @@ export const EllipsisText = ({ text, className = '', fill = true, compact = fals
 
 const DRAG_COL_W = 40;
 
-const colWidthPx = (c) => (typeof c.width === 'number' ? c.width : 0) || c.minWidth || 0;
+const widthsEqual = (a, b) => {
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (Math.abs(a[i] - b[i]) > 0.5) return false;
+  }
+  return true;
+};
 
-const colSizeStyle = (c) => c.flex
-  ? { flex: '1 0 0', minWidth: c.minWidth || 0 }
-  : { width: c.width, flexShrink: 0 };
+/* Canvas text measure — reliable floor for header labels so we never lock a
+   column narrower than its title (DOM measure can under-report while the
+   title is still ellipsized / min-w-0 collapsed). */
+let _measureCtx;
+const measureTextPx = (text, font) => {
+  if (typeof document === 'undefined') return 0;
+  if (!_measureCtx) {
+    _measureCtx = document.createElement('canvas').getContext('2d');
+  }
+  if (!_measureCtx) return Math.ceil(String(text).length * 8);
+  _measureCtx.font = font;
+  return _measureCtx.measureText(String(text ?? '')).width;
+};
+
+/* HeaderCell chrome: pad L/R space-400 (16+16), optional sort icon 14 + gap 4. */
+const headerFloorPx = (column, { sortable = true } = {}) => {
+  const title = column?.label ?? column?.header ?? '';
+  const font = '400 12px Mitr, Sarabun, sans-serif';
+  const textW = measureTextPx(title, font);
+  const padX = 32;
+  const sortW = sortable ? 18 : 0;
+  return Math.ceil(textW + padX + sortW + 1);
+};
+
+/* Off-DOM clone measure — strips truncate/ellipsis (incl. StatusBadge cap)
+   and keeps the cell's padding/border so border-box width matches live cells. */
+const measureIntrinsicPx = (el) => {
+  if (!el || typeof document === 'undefined') return 0;
+  const cs = window.getComputedStyle(el);
+  const host = document.createElement('div');
+  host.setAttribute('data-mih-table-measure-host', '');
+  host.style.cssText = 'position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none;display:block;';
+  const clone = el.cloneNode(true);
+  clone.style.cssText = [
+    'width:max-content',
+    'min-width:max-content',
+    'max-width:none',
+    'flex:0 0 auto',
+    'overflow:visible',
+    'display:inline-flex',
+    'align-items:center',
+    'box-sizing:border-box',
+    /* Preserve chrome — wiping padding under-measures by ~32px and locks
+       badge columns too narrow once border-box width is applied live. */
+    `padding-left:${cs.paddingLeft}`,
+    `padding-right:${cs.paddingRight}`,
+    `padding-top:${cs.paddingTop}`,
+    `padding-bottom:${cs.paddingBottom}`,
+    `border-left:${cs.borderLeftWidth} solid transparent`,
+    `border-right:${cs.borderRightWidth} solid transparent`,
+    `gap:${cs.columnGap || cs.gap || '0px'}`,
+    `font:${cs.font}`,
+  ].join(';');
+  clone.querySelectorAll('*').forEach((node) => {
+    node.style.setProperty('overflow', 'visible', 'important');
+    node.style.setProperty('text-overflow', 'clip', 'important');
+    node.style.setProperty('max-width', 'none', 'important');
+    node.style.setProperty('min-width', 'max-content', 'important');
+    node.style.setProperty('width', 'max-content', 'important');
+    node.style.setProperty('flex-shrink', '0', 'important');
+    node.style.setProperty('white-space', 'nowrap', 'important');
+    node.classList.remove('truncate', 'min-w-0', 'text-ellipsis', 'overflow-ellipsis', 'overflow-hidden');
+  });
+  host.appendChild(clone);
+  document.body.appendChild(host);
+  const w = Math.ceil(Math.max(clone.getBoundingClientRect().width, clone.scrollWidth));
+  host.remove();
+  return w;
+};
+
+/* Pixel width used for sticky `left` offsets + minWidth total.
+   Prefers content-fit measurement; falls back to column.width / minWidth. */
+const colWidthPx = (c, measuredW) => {
+  if (typeof measuredW === 'number' && measuredW > 0) return measuredW;
+  return (typeof c.width === 'number' ? c.width : 0) || c.minWidth || 0;
+};
+
+/* Column sizing:
+   • measuredW set → lock to content-fit width (max of header vs longest cell).
+     `flex` columns keep growing (`flex: 1`) with that width as minWidth.
+   • measuredW null → intrinsic max-content pass (for measurement). */
+const colSizeStyle = (c, measuredW) => {
+  if (measuredW == null) {
+    return { width: 'max-content', maxWidth: 'none', flexShrink: 0 };
+  }
+  if (c.flex) {
+    return {
+      flex: '1 1 0',
+      minWidth: Math.max(measuredW, c.minWidth || 0),
+      flexShrink: 1,
+    };
+  }
+  return { width: measuredW, minWidth: measuredW, maxWidth: 'none', flexShrink: 0 };
+};
 
 /* ── Figma-spec atoms ─────────────────────────────────────────
    Standalone named exports that mirror the Figma "MIH Design System ·
@@ -204,6 +367,9 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
     showSorting = true,
     showSubtext = true,
     titleWrap   = false,
+    /* When true (Table columnFit=content), never ellipsis the title —
+       column width is sized to max(header, longest cell). */
+    contentFit  = false,
     sortDirection,                               /* null | 'asc' | 'desc' — overrides icon */
     align       = 'left',
     onClick,
@@ -221,6 +387,7 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
     : sortDirection === 'desc'
       ? 'expand_more'
       : 'unfold_more';
+  const noEllipsis = contentFit || titleWrap;
   return (
     <div
       ref={ref}
@@ -246,9 +413,18 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
       }}
       {...rest}
     >
-      <div className='flex flex-col min-w-0' style={{ lineHeight: 1.5, flex: '1 1 auto' }}>
+      <div
+        className={`flex flex-col ${noEllipsis ? '' : 'min-w-0'}`}
+        style={{
+          lineHeight: 1.5,
+          /* content-fit: size to the title (don't flex-shrink under the sort icon). */
+          flex: noEllipsis ? '0 0 auto' : '1 1 auto',
+          minWidth: noEllipsis ? 'max-content' : 0,
+        }}
+      >
         <span
-          title={!titleWrap && typeof title === 'string' ? title : undefined}
+          data-mih-header-title=""
+          title={!noEllipsis && typeof title === 'string' ? title : undefined}
           style={{
             color: 'var(--text-table-title, var(--brand-p800, #004C31))',
             fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
@@ -256,10 +432,11 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
             fontSize: 'var(--type-size-table-title, 12px)',
             fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             display: 'block',
-            minWidth: 0,
             ...(titleWrap
-              ? { whiteSpace: 'normal', overflow: 'visible', wordBreak: 'break-word' }
-              : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
+              ? { whiteSpace: 'normal', overflow: 'visible', wordBreak: 'break-word', minWidth: 0 }
+              : contentFit
+                ? { whiteSpace: 'nowrap', overflow: 'visible', textOverflow: 'clip', minWidth: 'max-content' }
+                : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }),
           }}
         >
           {title}
@@ -727,12 +904,15 @@ export const TableSummary = React.forwardRef(function TableSummary(
    No bespoke header styles here — keep the design system in HeaderCell. */
 const TableHeaderInternal = ({
   column,
+  colIdx = 0,
+  sizeStyle,
   sortable,
   sortIconName,
   sticky,
   stickyLeft,
   stickyShadow,
   onSort,
+  contentFit = false,
   /* When non-null (page-sticky mode), the header row lives OUTSIDE the
      X-scrolling body, so its sticky-left columns can't use CSS
      `position: sticky; left:` (no scrollport to track). We instead place
@@ -787,19 +967,22 @@ const TableHeaderInternal = ({
   const title = column.label ?? column.header;
   return (
     <HeaderCell
+      data-mih-col={colIdx}
       title={title}
       subtext={column.subtext}
       showSubtext={!!column.subtext}
       showSorting={sortable}
       sortDirection={sortDirection}
       titleWrap={!!column.headerWrap}
+      contentFit={contentFit}
       align={column.align === 'center' ? 'center' : 'left'}
       onClick={sortable ? () => onSort(column.key) : undefined}
       aria-disabled={!sortable}
       style={{
-        ...colSizeStyle(column),
+        ...(sizeStyle || colSizeStyle(column, null)),
         ...stickyStyle,
         cursor: sortable ? 'pointer' : 'default',
+        boxSizing: 'border-box',
       }}
     />
   );
@@ -807,6 +990,7 @@ const TableHeaderInternal = ({
 
 const Row = ({
   row, index, columns,
+  colWidths,
   stickyColCount, stickyLeft, stickyShadow,
   editMode, isDragging, isOver,
   onDragStart, onDragOver, onDrop, onDragEnd,
@@ -896,8 +1080,9 @@ const Row = ({
       )}
       {columns.map((c, colIdx) => {
         const isSticky = colIdx < stickyColCount;
+        const measuredW = colWidths ? colWidths[colIdx] : null;
         const cellStyle = {
-          ...colSizeStyle(c),
+          ...colSizeStyle(c, measuredW),
           boxSizing: 'border-box',
           ...(isSticky ? {
             position: 'sticky',
@@ -915,7 +1100,6 @@ const Row = ({
           paddingRight: 'var(--dim-space-400)',
           paddingTop:    'var(--dim-space-300, 12px)',
           paddingBottom: 'var(--dim-space-300, 12px)',
-          minWidth: c.flex ? c.minWidth : undefined,
           /* visible — overflow:hidden clips Thai diacritics on Sarabun */
           overflow: 'visible',
         };
@@ -930,7 +1114,7 @@ const Row = ({
             )
             : <EllipsisText text={String(row[c.key] ?? '')} />;
         return (
-          <div key={c.key} style={cellStyle}>{node}</div>
+          <div key={c.key} data-mih-col={colIdx} style={cellStyle}>{node}</div>
         );
       })}
     </div>
@@ -989,6 +1173,13 @@ const Table = ({
      flush against the table border at scroll end. */
   trailingInset = null,
 
+  /* Column width mode — default `content` applies to EVERY <Table> consumer
+     (OPD / pharmacy / observation / clinics / finance / …) unless opted out:
+     • `content` — each column = max(header, longest cell/badge). Authored
+       `column.width` is ignored (only `minWidth` / `flex` still apply).
+     • `fixed` — legacy: use column.width / flex / minWidth as authored. */
+  columnFit = 'content',
+
   className = '',
   style = {},
 }) => {
@@ -1009,6 +1200,20 @@ const Table = ({
   const bodyRef = useRef(null);
   const [stickyShadow, setStickyShadow] = useState(false);
   const [scrollX, setScrollX] = useState(0);
+  const fitContent = columnFit !== 'fixed';
+
+  /* First paint: size columns at least as wide as their header labels so
+     titles never flash truncated while the DOM measure effect catches up. */
+  const headerFloors = React.useMemo(() => {
+    if (!fitContent) return null;
+    return columns.map((c) => Math.max(
+      headerFloorPx(c, { sortable: c.sortable !== false && !!onSort }),
+      c.minWidth || 0,
+    ));
+  }, [fitContent, columns, onSort]);
+
+  const [colWidths, setColWidths] = useState(null);
+  const effectiveColWidths = fitContent ? (colWidths ?? headerFloors) : null;
 
   useEffect(() => {
     const el = usePageSticky ? bodyRef.current : wrapRef.current;
@@ -1023,16 +1228,51 @@ const Table = ({
     return () => el.removeEventListener('scroll', onScroll);
   }, [usePageSticky]);
 
+  /* Content-fit: max(header-text floor, intrinsic DOM width of header + cells).
+     Uses off-DOM clones so page-sticky `overflow:hidden` cannot under-measure. */
+  useLayoutEffect(() => {
+    if (!fitContent || loading) return undefined;
+    const root = wrapRef.current;
+    if (!root) return undefined;
+
+    const run = () => {
+      const n = columns.length;
+      const maxes = (headerFloors ? headerFloors.slice() : new Array(n).fill(0));
+      /* In-DOM unwrap pass — StatusBadge caps / ellipsis expand so live
+         getBoundingClientRect includes full pill labels. */
+      root.setAttribute('data-mih-table-measuring', '');
+      void root.offsetWidth;
+      root.querySelectorAll('[data-mih-col]').forEach((el) => {
+        const i = Number(el.getAttribute('data-mih-col'));
+        if (!Number.isFinite(i) || i < 0 || i >= n) return;
+        const live = Math.ceil(Math.max(el.getBoundingClientRect().width, el.scrollWidth));
+        maxes[i] = Math.max(maxes[i], live, measureIntrinsicPx(el), columns[i]?.minWidth || 0);
+      });
+      root.removeAttribute('data-mih-table-measuring');
+      if (maxes.every((w) => w <= 0)) return;
+      setColWidths((prev) => (widthsEqual(prev, maxes) ? prev : maxes));
+    };
+
+    run();
+    let cancelled = false;
+    const fontsReady = document.fonts?.ready;
+    if (fontsReady) {
+      fontsReady.then(() => { if (!cancelled) run(); });
+    }
+    return () => { cancelled = true; };
+  }, [fitContent, loading, columns, rows, editMode, sortConfig, headerFloors]);
+
   const stickyLeft = (colIdx) => {
     let left = editMode ? DRAG_COL_W : 0;
     for (let i = 0; i < colIdx; i += 1) {
-      left += colWidthPx(columns[i]);
+      left += colWidthPx(columns[i], fitContent ? effectiveColWidths?.[i] : null);
     }
     return left;
   };
 
   const totalMinWidth = columns.reduce(
-    (s, c) => s + colWidthPx(c), 0,
+    (s, c, i) => s + colWidthPx(c, fitContent ? effectiveColWidths?.[i] : null),
+    0,
   ) + (editMode ? DRAG_COL_W : 0);
 
   const trailingInsetStyle = trailingInset ? { paddingRight: trailingInset } : null;
@@ -1064,10 +1304,20 @@ const Table = ({
         const sortIconName = sortConfig.key === c.key
           ? (sortConfig.direction === 'asc' ? 'expand_less' : 'expand_more')
           : 'unfold_more';
+        const measuredW = fitContent
+          ? (effectiveColWidths ? effectiveColWidths[colIdx] : null)
+          : (typeof c.width === 'number' ? c.width : null);
         return (
           <TableHeaderInternal
             key={c.key}
             column={{ ...c, _idx: colIdx }}
+            colIdx={colIdx}
+            contentFit={fitContent}
+            sizeStyle={fitContent
+              ? colSizeStyle(c, measuredW)
+              : (c.flex
+                ? { flex: '1 0 0', minWidth: c.minWidth || 0 }
+                : { width: c.width, flexShrink: 0 })}
             sortable={sortable}
             sortIconName={sortIconName}
             sticky={isSticky}
@@ -1116,8 +1366,9 @@ const Table = ({
               {columns.map((c, colIdx) => (
                 <div
                   key={c.key}
+                  data-mih-col={colIdx}
                   style={{
-                    width: colWidthPx(c),
+                    width: colWidthPx(c, fitContent ? effectiveColWidths?.[colIdx] : null),
                     flexShrink: 0,
                     paddingRight: 'var(--dim-space-200, 8px)',
                   }}
@@ -1136,6 +1387,9 @@ const Table = ({
               row={row}
               index={idx}
               columns={columns}
+              colWidths={fitContent ? effectiveColWidths : columns.map((c) => (
+                typeof c.width === 'number' ? c.width : (c.minWidth || 0)
+              ))}
               stickyColCount={stickyColCount}
               stickyLeft={stickyLeft}
               stickyShadow={stickyShadow}
@@ -1195,6 +1449,7 @@ const Table = ({
       <div
         ref={wrapRef}
         className={`w-full ${className}`}
+        data-mih-table-fit={fitContent ? 'content' : 'fixed'}
         style={{
           border: 'var(--dim-stroke-100) solid var(--border-table-default)',
           borderRadius: 'var(--dim-radius-400)',
@@ -1278,6 +1533,7 @@ const Table = ({
     <div
       ref={wrapRef}
       className={`w-full overflow-x-auto ${className}`}
+      data-mih-table-fit={fitContent ? 'content' : 'fixed'}
       style={{
         border: 'var(--dim-stroke-100) solid var(--border-table-default)',
         borderRadius: 'var(--dim-radius-400)',

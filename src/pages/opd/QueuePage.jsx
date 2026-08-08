@@ -229,20 +229,20 @@ const renderConsent = (row) => {
 };
 
 const BASE_COLUMNS = [
-  { key: 'queue',        label: 'คิว',          width: 80,  render: renderQueue },
-  { key: 'hn',           label: 'HN',           width: 96  },
+  { key: 'queue',        label: 'คิว',  render: renderQueue },
+  { key: 'hn',           label: 'HN'  },
   /* VN (Visit Number) — Figma 3185:144272 cell rhythm sits next to HN. */
-  { key: 'vn',           label: 'VN',           width: 112 },
+  { key: 'vn',           label: 'VN' },
   { key: 'name',         label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160, render: renderName },
   { key: 'doctor',       label: 'แพทย์รักษา',   flex: true, minWidth: 160 },
-  { key: 'type',         label: 'ประเภท',       width: 96,  render: (row) => <Pill pill={TYPE_PILL[row.typeKey]} /> },
-  { key: 'telemedicine', label: 'Telemedicine', width: 128, align: 'center', sortable: false, render: renderTelemedicine },
-  { key: 'contact',      label: 'การติดต่อ',    width: 112, render: (row) => <Pill pill={CONTACT_PILL[row.contactKey]} /> },
-  { key: 'time',         label: 'เวลา',         width: 80  },
-  { key: 'dept',         label: 'แผนก',         width: 256 },
-  { key: 'room',         label: 'ห้อง',         width: 112 },
-  { key: 'consent',      label: 'ความยินยอม',   width: 120, sortable: false, render: renderConsent },
-  { key: 'status',       label: 'สถานะ',        width: 128, render: (row) => <Pill pill={STATUS_PILL[row.statusKey]} /> },
+  { key: 'type',         label: 'ประเภท',  render: (row) => <Pill pill={TYPE_PILL[row.typeKey]} /> },
+  { key: 'telemedicine', label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
+  { key: 'contact',      label: 'การติดต่อ', render: (row) => <Pill pill={CONTACT_PILL[row.contactKey]} /> },
+  { key: 'time',         label: 'เวลา'  },
+  { key: 'dept',         label: 'แผนก' },
+  { key: 'room',         label: 'ห้อง' },
+  { key: 'consent',      label: 'ความยินยอม', sortable: false, render: renderConsent },
+  { key: 'status',       label: 'สถานะ', render: (row) => <Pill pill={STATUS_PILL[row.statusKey]} /> },
 ];
 
 /* Pill records carry `{ style, label }` consumed by the shared Badge
@@ -720,7 +720,6 @@ const QueuePage = () => {
       base.splice(timeIdx + 1, 0, {
         key: 'appt',
         label: 'นัดหมาย (ตารางแพทย์)',
-        width: 264,
         sortable: false,
         render: makeRenderAppointment({ onRegister: handleRegisterArrival }),
       });
@@ -729,7 +728,6 @@ const QueuePage = () => {
         {
           key: 'actions',
           label: 'การดำเนินการ',
-          width: 176,
           sortable: false,
           render: makeRenderActions({
             onDelete: handleAskDelete,

@@ -299,7 +299,7 @@ export const CheckupStep2Results = ({ form, setForm, visit, locked }) => {
   };
 
   const columns = [
-    { key: 'code', label: 'รหัส', width: 120 },
+    { key: 'code', label: 'รหัส' },
     {
       key: 'name',
       label: 'รายการตรวจ',
@@ -318,7 +318,6 @@ export const CheckupStep2Results = ({ form, setForm, visit, locked }) => {
     {
       key: 'ref',
       label: 'ค่าอ้างอิง / ที่มา',
-      width: 220,
       sortable: false,
       render: (r) => {
         const verdict = verdictFor(r);
@@ -343,7 +342,6 @@ export const CheckupStep2Results = ({ form, setForm, visit, locked }) => {
     {
       key: 'verdict',
       label: 'แปลผล',
-      width: 150,
       sortable: false,
       render: (r) => <ResultBadge verdict={verdictFor(r)} />,
     },
@@ -523,11 +521,10 @@ export const CheckupStep4Summary = ({ form, setForm, visit, locked, saved, onCon
 
   const findingColumns = [
     { key: 'label', label: 'รายการที่ผิดปกติ', flex: true, minWidth: 240 },
-    { key: 'value', label: 'ค่าที่ตรวจได้', width: 170, render: (r) => `${r.value}${r.unit ? ` ${r.unit}` : ''}` },
+    { key: 'value', label: 'ค่าที่ตรวจได้', render: (r) => `${r.value}${r.unit ? ` ${r.unit}` : ''}` },
     {
       key: 'ref',
       label: 'ค่าอ้างอิง / ที่มา',
-      width: 220,
       sortable: false,
       render: (r) => (
         <span className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>

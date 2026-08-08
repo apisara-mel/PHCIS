@@ -512,8 +512,8 @@ export const AddictionStep4Activity = ({ form, setForm, hn, sessionNo, readOnly,
           {dispenses.length > 0 && (
             <Table
               columns={[
-                { key: 'date', label: 'วันที่', width: 120 },
-                { key: 'dose', label: 'ขนาดยา', width: 96 },
+                { key: 'date', label: 'วันที่' },
+                { key: 'dose', label: 'ขนาดยา' },
                 { key: 'by',   label: 'ผู้จ่ายยา', flex: true, minWidth: 160 },
                 { key: 'at',   label: 'เวลาบันทึก', flex: true, minWidth: 180 },
               ]}
@@ -603,10 +603,10 @@ export const AddictionStep4Activity = ({ form, setForm, hn, sessionNo, readOnly,
         <TopicHeader icon='history'>ประวัติการบำบัดครั้งก่อนหน้า</TopicHeader>
         <Table
           columns={[
-            { key: 'sessionNo', label: 'ครั้งที่', width: 72 },
-            { key: 'date',      label: 'วันที่', width: 140 },
+            { key: 'sessionNo', label: 'ครั้งที่' },
+            { key: 'date',      label: 'วันที่' },
             { key: 'activity',  label: 'กิจกรรม/การบำบัด', flex: true, minWidth: 220 },
-            { key: 'urine',     label: 'ผลปัสสาวะ', width: 160 },
+            { key: 'urine',     label: 'ผลปัสสาวะ' },
             { key: 'therapist', label: 'ผู้บำบัด', flex: true, minWidth: 150 },
             { key: 'note',      label: 'บันทึก', flex: true, minWidth: 200 },
           ]}
@@ -782,7 +782,7 @@ export const AddictionStep6Documents = ({ form, setForm, readOnly }) => {
             { key: 'uploadedBy', label: 'ผู้อัปโหลด', flex: true, minWidth: 160 },
             { key: 'uploadedAt', label: 'เวลาอัปโหลด', flex: true, minWidth: 180 },
             {
-              key: 'actions', label: 'การดำเนินการ', width: 120, sortable: false,
+              key: 'actions', label: 'การดำเนินการ', sortable: false,
               render: (row) => (
                 readOnly ? null : (
                   <NeutralSubdueButton size='sm' leadingIcon='delete' onClick={() => setDeleteTarget(row)}>

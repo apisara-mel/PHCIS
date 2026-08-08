@@ -387,14 +387,14 @@ const AddictionFollowUpPage = () => {
   const greyed = { color: 'var(--text-content-tertiary, #858C92)' };
 
   const followUpColumns = useMemo(() => ([
-    { key: 'no', label: 'ครั้งที่', width: 80, render: (r) => <span style={r.cancellation ? greyed : undefined}>{r.no}</span> },
-    { key: 'date', label: 'วันที่ติดตาม', width: 132, render: (r) => <span style={r.cancellation ? greyed : undefined}>{formatAddictionDate(r.date)}</span> },
+    { key: 'no', label: 'ครั้งที่', render: (r) => <span style={r.cancellation ? greyed : undefined}>{r.no}</span> },
+    { key: 'date', label: 'วันที่ติดตาม', render: (r) => <span style={r.cancellation ? greyed : undefined}>{formatAddictionDate(r.date)}</span> },
     {
-      key: 'method', label: 'วิธีติดตาม', width: 140, sortable: false,
+      key: 'method', label: 'วิธีติดตาม', sortable: false,
       render: (r) => <span style={r.cancellation ? greyed : undefined}>{resolveFollowUpMethod(r.method)?.label || '—'}</span>,
     },
     {
-      key: 'result', label: 'ผลการติดตาม', width: 190, sortable: false,
+      key: 'result', label: 'ผลการติดตาม', sortable: false,
       render: (r) => {
         const res = resolveFollowUpResult(r.result);
         return res
@@ -422,7 +422,7 @@ const AddictionFollowUpPage = () => {
       ),
     },
     {
-      key: 'actions', label: 'การดำเนินการ', width: 210, sortable: false,
+      key: 'actions', label: 'การดำเนินการ', sortable: false,
       render: (r) => (
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           {r.cancellation ? (
@@ -446,19 +446,19 @@ const AddictionFollowUpPage = () => {
   ]), [tick, selectedHn]);
 
   const medColumns = [
-    { key: 'date', label: 'วันที่', width: 132, render: (r) => formatAddictionDate(r.date) },
+    { key: 'date', label: 'วันที่', render: (r) => formatAddictionDate(r.date) },
     { key: 'item', label: 'รายการยา', flex: true, minWidth: 220 },
     { key: 'dose', label: 'วิธีใช้ / ขนาด', flex: true, minWidth: 200 },
-    { key: 'qty', label: 'จำนวน', width: 120 },
-    { key: 'source', label: 'แหล่งข้อมูล', width: 200, sortable: false },
+    { key: 'qty', label: 'จำนวน' },
+    { key: 'source', label: 'แหล่งข้อมูล', sortable: false },
   ];
 
   const labColumns = [
-    { key: 'date', label: 'วันที่ตรวจ', width: 132, render: (r) => formatAddictionDate(r.date) },
+    { key: 'date', label: 'วันที่ตรวจ', render: (r) => formatAddictionDate(r.date) },
     { key: 'test', label: 'รายการตรวจ', flex: true, minWidth: 220 },
     { key: 'result', label: 'ผล', flex: true, minWidth: 220 },
     {
-      key: 'abnormal', label: 'สถานะ', width: 140, sortable: false,
+      key: 'abnormal', label: 'สถานะ', sortable: false,
       render: (r) => (r.abnormal ? (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <ColorfulIconBadge style='red' size='medium' fill='default' icon='priority_high' />
@@ -471,7 +471,7 @@ const AddictionFollowUpPage = () => {
   ];
 
   const xrayColumns = [
-    { key: 'date', label: 'วันที่ตรวจ', width: 132, render: (r) => formatAddictionDate(r.date) },
+    { key: 'date', label: 'วันที่ตรวจ', render: (r) => formatAddictionDate(r.date) },
     { key: 'exam', label: 'รายการตรวจ', flex: true, minWidth: 260 },
     { key: 'result', label: 'ผลการอ่าน', flex: true, minWidth: 280 },
   ];

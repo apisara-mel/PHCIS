@@ -487,9 +487,9 @@ export default function AccessManagementPage() {
   };
 
   const columns = useMemo(() => [
-    { key: 'reqNo', header: 'เลขที่คำขอ', width: 150, sortable: true, render: (r) => <Cell value={r.reqNo} /> },
+    { key: 'reqNo', header: 'เลขที่คำขอ', sortable: true, render: (r) => <Cell value={r.reqNo} /> },
     {
-      key: 'name', header: 'ผู้ขอ (เจ้าหน้าที่)', width: 220, sortable: true,
+      key: 'name', header: 'ผู้ขอ (เจ้าหน้าที่)', sortable: true,
       render: (r) => (
         <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
           <RequesterAvatar row={r} />
@@ -497,15 +497,15 @@ export default function AccessManagementPage() {
         </div>
       ),
     },
-    { key: 'empCode', header: 'รหัสพนักงาน', width: 130, sortable: true, render: (r) => <Cell value={r.empCode} /> },
+    { key: 'empCode', header: 'รหัสพนักงาน', sortable: true, render: (r) => <Cell value={r.empCode} /> },
     {
-      key: 'group', header: 'Group Policy / สาขาย่อย / แผนก', width: 400,
+      key: 'group', header: 'Group Policy / สาขาย่อย / แผนก',
       render: (r) => <ScopeCell row={r} />,
     },
-    { key: 'createdDate', header: 'วันที่สร้างคำขอ', width: 160, sortable: true, render: (r) => <StackCell top={r.createdDate} bottom={formatAccessCreatedTime(r.createdTime)} /> },
-    { key: 'hn', header: 'ผู้รับบริการ', width: 220, render: (r) => <PatientCell row={r} /> },
+    { key: 'createdDate', header: 'วันที่สร้างคำขอ', sortable: true, render: (r) => <StackCell top={r.createdDate} bottom={formatAccessCreatedTime(r.createdTime)} /> },
+    { key: 'hn', header: 'ผู้รับบริการ', render: (r) => <PatientCell row={r} /> },
     {
-      key: 'accessType', header: 'ประเภทการขอ', width: 280,
+      key: 'accessType', header: 'ประเภทการขอ',
       render: (r) => {
         const value = r.accessTypeLabel || ACCESS_TYPE_DISPLAY_LABEL[r.accessType];
         return value && value !== '-'
@@ -525,11 +525,11 @@ export default function AccessManagementPage() {
         />
       ),
     },
-    { key: 'reason', header: 'เหตุผลที่ขอ', width: 240, render: (r) => <Cell value={r.reason} /> },
-    { key: 'period', header: 'ช่วงเวลาสิทธิ (เริ่ม-สิ้นสุด)', width: 230, render: renderPeriod },
-    { key: 'file', header: 'หลักฐาน', width: 200, render: (r) => <FileCell name={r.file} size={r.fileSize} onClick={() => setPreviewFile(r)} /> },
+    { key: 'reason', header: 'เหตุผลที่ขอ', render: (r) => <Cell value={r.reason} /> },
+    { key: 'period', header: 'ช่วงเวลาสิทธิ (เริ่ม-สิ้นสุด)', render: renderPeriod },
+    { key: 'file', header: 'หลักฐาน', render: (r) => <FileCell name={r.file} size={r.fileSize} onClick={() => setPreviewFile(r)} /> },
     {
-      key: 'status', header: 'สถานะ', width: 140, sortable: true,
+      key: 'status', header: 'สถานะ', sortable: true,
       render: (r) => (
         <div className='flex flex-col items-start' style={{ gap: 'var(--dim-space-050)' }}>
           <ColorfulBadge style={(ACCESS_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>
@@ -540,8 +540,8 @@ export default function AccessManagementPage() {
       ),
     },
     /* ด.1.1.17.3 — เปิด/ปิดการให้สิทธิตามที่ระบุในเอกสาร */
-    { key: 'active', header: 'Active', width: 90, render: renderActive },
-    { key: 'action', header: 'การจัดการ', width: 150, render: renderAction },
+    { key: 'active', header: 'Active', render: renderActive },
+    { key: 'action', header: 'การจัดการ', render: renderAction },
   ], []);
 
   return (

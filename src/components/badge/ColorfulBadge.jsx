@@ -177,6 +177,7 @@ const ColorfulBadge = ({
 
   return (
     <span
+      data-mih-colorful-badge=""
       className={`inline-flex items-center justify-center shrink-0 whitespace-nowrap ${className}`}
       style={{
         height: sizeStyles.height,
@@ -225,6 +226,7 @@ const ColorfulBadge = ({
       )}
       {showText && children !== undefined && (
         <span
+          data-mih-colorful-badge-label=""
           className={hugWidth ? undefined : 'min-w-0'}
           style={hugWidth ? {
             flexShrink: 0,

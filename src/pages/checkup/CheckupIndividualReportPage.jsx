@@ -182,7 +182,7 @@ const CheckupIndividualReportPage = () => {
   const statusCfg = REPORT_STATUSES[status] || REPORT_STATUSES.draft;
 
   const historyColumns = [
-    { key: 'at', label: 'วันเวลา', width: 240, render: (r) => formatThaiDateTime(r.at) },
+    { key: 'at', label: 'วันเวลา', render: (r) => formatThaiDateTime(r.at) },
     { key: 'by', label: 'ผู้ดำเนินการ', flex: true, minWidth: 200 },
     { key: 'action', label: 'การดำเนินการ', flex: true, minWidth: 300 },
   ];

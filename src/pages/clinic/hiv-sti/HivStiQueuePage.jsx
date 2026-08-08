@@ -349,30 +349,30 @@ const HivStiQueuePage = () => {
   );
 
   const columns = useMemo(() => ([
-    { key: 'queue',      label: 'คิว',            width: 80,  render: renderQueue },
-    { key: 'hn',         label: 'HN',             width: 96  },
+    { key: 'queue',      label: 'คิว',  render: renderQueue },
+    { key: 'hn',         label: 'HN'  },
     { key: 'client',     label: 'ผู้รับบริการ (UIC)', flex: true, minWidth: 200, render: renderClient },
-    { key: 'clientType', label: 'ประเภท',         width: 96,  render: renderClientType },
+    { key: 'clientType', label: 'ประเภท',  render: renderClientType },
     { key: 'visitReason', label: 'เหตุผลการมารับบริการ', flex: true, minWidth: 180 },
-    { key: 'telemed',    label: 'Telemedicine',   width: 120, align: 'center', sortable: false, render: renderTelemedicine },
-    { key: 'room',       label: 'ห้อง',           width: 80 },
+    { key: 'telemed',    label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
+    { key: 'room',       label: 'ห้อง' },
     { key: 'doctor',     label: 'แพทย์ผู้ตรวจ',    flex: true, minWidth: 140 },
-    { key: 'wait',       label: 'รอนาน',          width: 96,  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
-    { key: 'status',     label: 'สถานะ',          width: 128, render: renderStatus },
-    { key: 'actions',    label: 'การดำเนินการ',    width: 290, sortable: false, render: renderActions },
+    { key: 'wait',       label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
+    { key: 'status',     label: 'สถานะ', render: renderStatus },
+    { key: 'actions',    label: 'การดำเนินการ', sortable: false, render: renderActions },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
   const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด',        width: 96 },
-    { key: 'hn',              label: 'HN',             width: 96 },
+    { key: 'appointmentTime', label: 'เวลานัด' },
+    { key: 'hn',              label: 'HN' },
     { key: 'client',          label: 'ผู้รับบริการ (UIC)', flex: true, minWidth: 200, render: renderClient },
-    { key: 'clientType',      label: 'ประเภท',         width: 96, render: renderClientType },
+    { key: 'clientType',      label: 'ประเภท', render: renderClientType },
     { key: 'visitReason',     label: 'เหตุผลการนัด',    flex: true, minWidth: 180 },
-    { key: 'clinic',          label: 'คลินิก',          width: 96 },
+    { key: 'clinic',          label: 'คลินิก' },
     { key: 'doctor',          label: 'แพทย์ผู้ตรวจ',    flex: true, minWidth: 140 },
     {
-      key: 'checkin', label: 'การดำเนินการ', width: 140, sortable: false,
+      key: 'checkin', label: 'การดำเนินการ', sortable: false,
       render: (row) => (readOnlyRole ? null : (
         <BrandSubdueButton variant='fill' size='sm' leadingIcon='login' onClick={(e) => { e.stopPropagation(); handleCheckIn(row.hn); }}>
           ส่งตรวจ

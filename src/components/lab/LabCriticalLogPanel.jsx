@@ -219,7 +219,6 @@ const LabCriticalLogPanel = ({ open, onClose, onOpenResult }) => {
     {
       key: 'found',
       label: 'เวลาที่พบค่า',
-      width: 132,
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
@@ -250,7 +249,6 @@ const LabCriticalLogPanel = ({ open, onClose, onOpenResult }) => {
     {
       key: 'notify',
       label: 'การแจ้งของห้องปฏิบัติการ',
-      width: 230,
       render: (r) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
@@ -277,7 +275,6 @@ const LabCriticalLogPanel = ({ open, onClose, onOpenResult }) => {
     {
       key: 'ack',
       label: 'การรับทราบ',
-      width: 220,
       render: (r) => (r.acknowledged ? (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
@@ -301,7 +298,6 @@ const LabCriticalLogPanel = ({ open, onClose, onOpenResult }) => {
     {
       key: 'actions',
       label: '',
-      width: 200,
       render: (r) => (
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-150)' }}>
           {!r.acknowledged ? (

@@ -220,9 +220,9 @@ const UsersAccessPage = () => {
         </div>
       ),
     },
-    { key: 'role', label: 'บทบาท', width: 190, render: (u) => <RoleCell user={u} /> },
+    { key: 'role', label: 'บทบาท', render: (u) => <RoleCell user={u} /> },
     {
-      key: 'dept', label: 'แผนก / Department-Code', width: 210,
+      key: 'dept', label: 'แผนก / Department-Code',
       render: (u) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span className='truncate' style={{ color: 'var(--text-content-primary)', fontSize: 'var(--type-size-xs, 12px)' }}>
@@ -235,13 +235,13 @@ const UsersAccessPage = () => {
       ),
     },
     {
-      key: 'license', label: 'รหัสวิชาชีพ', width: 130, sortable: false,
+      key: 'license', label: 'รหัสวิชาชีพ', sortable: false,
       render: (u) => (u.licenseNo
         ? <span style={{ fontSize: 'var(--type-size-xs, 12px)' }}>{u.licenseNo}</span>
         : <ColorfulBadge style='grey' size='small'>ไม่ต้องใช้</ColorfulBadge>),
     },
     {
-      key: 'center', label: 'ศูนย์ที่สังกัด', width: 190,
+      key: 'center', label: 'ศูนย์ที่สังกัด',
       render: (u) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span className='truncate' style={{ fontSize: 'var(--type-size-xs, 12px)' }}>{centerLabel(u.homeCenter)}</span>
@@ -253,9 +253,9 @@ const UsersAccessPage = () => {
         </div>
       ),
     },
-    { key: 'source', label: 'แหล่งบัญชี', width: 170, render: (u) => <SourceBadge source={u.source} /> },
+    { key: 'source', label: 'แหล่งบัญชี', render: (u) => <SourceBadge source={u.source} /> },
     {
-      key: 'access', label: 'สิทธิ์การเข้าถึง', width: 150, align: 'left',
+      key: 'access', label: 'สิทธิ์การเข้าถึง', align: 'left',
       render: (u) => {
         const { view, edit, total } = countAccess(u.features);
         if (!total) return <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs, 12px)' }}>ยังไม่ได้กำหนด</span>;
@@ -266,10 +266,10 @@ const UsersAccessPage = () => {
         );
       },
     },
-    { key: 'status', label: 'สถานะ (Active)', width: 140, render: (u) => <ActiveBadge active={u.status === 'active'} /> },
-    { key: 'lastActive', label: 'เข้าใช้ล่าสุด', width: 150, render: (u) => <span style={{ fontSize: 'var(--type-size-xs, 12px)' }}>{u.lastActive || '—'}</span> },
+    { key: 'status', label: 'สถานะ (Active)', render: (u) => <ActiveBadge active={u.status === 'active'} /> },
+    { key: 'lastActive', label: 'เข้าใช้ล่าสุด', render: (u) => <span style={{ fontSize: 'var(--type-size-xs, 12px)' }}>{u.lastActive || '—'}</span> },
     {
-      key: 'actions', label: 'การดำเนินการ', width: 210, sortable: false,
+      key: 'actions', label: 'การดำเนินการ', sortable: false,
       render: (u) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
           <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' onClick={(e) => { e.stopPropagation(); history.push(`/users/${u.id}`); }}>

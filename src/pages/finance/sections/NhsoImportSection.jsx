@@ -72,17 +72,17 @@ const NhsoImportSection = ({ value, onChange }) => {
   };
 
   const recordColumns = [
-    { key: 'ref', label: 'เลขที่อ้างอิง', width: 170 },
-    { key: 'hn', label: 'HN', width: 110 },
-    { key: 'serviceDate', label: 'วันที่รับบริการ', width: 140 },
-    { key: 'rightsCode', label: 'รหัสสิทธิ', width: 100 },
-    { key: 'billed', label: 'ยอดเรียกเก็บ', width: 130, align: 'right', render: (r) => formatBaht(r.billed) },
+    { key: 'ref', label: 'เลขที่อ้างอิง' },
+    { key: 'hn', label: 'HN' },
+    { key: 'serviceDate', label: 'วันที่รับบริการ' },
+    { key: 'rightsCode', label: 'รหัสสิทธิ' },
+    { key: 'billed', label: 'ยอดเรียกเก็บ', align: 'right', render: (r) => formatBaht(r.billed) },
     {
-      key: 'approved', label: 'ยอดอนุมัติ', width: 130, align: 'right',
+      key: 'approved', label: 'ยอดอนุมัติ', align: 'right',
       render: (r) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(r.approved)}</span>,
     },
     {
-      key: 'shortfall', label: 'ส่วนต่าง', width: 120, align: 'right',
+      key: 'shortfall', label: 'ส่วนต่าง', align: 'right',
       render: (r) => {
         const diff = r.billed - (r.status === 'approved' ? r.approved : 0);
         return diff > 0
@@ -91,25 +91,24 @@ const NhsoImportSection = ({ value, onChange }) => {
       },
     },
     {
-      key: 'status', label: 'สถานะ', width: 120,
+      key: 'status', label: 'สถานะ',
       render: (r) => (r.status === 'approved'
         ? <StatusBadge style='success' size='small'>อนุมัติ</StatusBadge>
-        : <StatusBadge style='error' size='small'>ปฏิเสธ</StatusBadge>),
-    },
+        : <StatusBadge style='error' size='small'>ปฏิเสธ</StatusBadge>)},
   ];
 
   const batchColumns = [
     { key: 'filename', label: 'ไฟล์', flex: true, minWidth: 220 },
-    { key: 'importedAt', label: 'เวลานำเข้า', width: 190 },
-    { key: 'added', label: 'เพิ่มใหม่', width: 100, align: 'right' },
+    { key: 'importedAt', label: 'เวลานำเข้า' },
+    { key: 'added', label: 'เพิ่มใหม่', align: 'right' },
     {
-      key: 'duplicates', label: 'ซ้ำ (ข้าม)', width: 110, align: 'right',
+      key: 'duplicates', label: 'ซ้ำ (ข้าม)', align: 'right',
       render: (b) => (b.duplicates > 0
         ? <span style={{ color: 'var(--text-statusbadge-warning, #C2410C)' }}>{b.duplicates}</span>
         : '-'),
     },
-    { key: 'skipped', label: 'อ่านไม่ได้', width: 110, align: 'right', render: (b) => b.skipped || '-' },
-    { key: 'approvedTotal', label: 'ยอดอนุมัติ', width: 140, align: 'right', render: (b) => formatBaht(b.approvedTotal) },
+    { key: 'skipped', label: 'อ่านไม่ได้', align: 'right', render: (b) => b.skipped || '-' },
+    { key: 'approvedTotal', label: 'ยอดอนุมัติ', align: 'right', render: (b) => formatBaht(b.approvedTotal) },
   ];
 
   return (

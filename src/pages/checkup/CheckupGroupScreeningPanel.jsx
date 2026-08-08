@@ -104,7 +104,6 @@ const CheckupGroupScreeningPanel = ({ form, currentVisit, onApplied }) => {
     {
       key: 'pick',
       label: '',
-      width: 56,
       sortable: false,
       render: (r) => (r.visitId ? (
         <Checkbox
@@ -118,7 +117,7 @@ const CheckupGroupScreeningPanel = ({ form, currentVisit, onApplied }) => {
         </span>
       )),
     },
-    { key: 'hn', label: 'HN', width: 110, render: (r) => r.hn || '—' },
+    { key: 'hn', label: 'HN', render: (r) => r.hn || '—' },
     {
       key: 'name',
       label: 'ชื่อ-นามสกุล',
@@ -134,7 +133,6 @@ const CheckupGroupScreeningPanel = ({ form, currentVisit, onApplied }) => {
     {
       key: 'status',
       label: 'สถานะการคัดกรอง',
-      width: 190,
       render: (r) => {
         if (!r.visitId) return <ColorfulBadge style='grey' size='small' hierarchy='secondary'>ยังไม่มีใบสั่งตรวจ</ColorfulBadge>;
         return r.existing

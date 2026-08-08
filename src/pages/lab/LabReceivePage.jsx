@@ -306,7 +306,6 @@ const LabReceivePage = () => {
     {
       key: 'select',
       label: '',
-      width: 44,
       render: (row) => {
         const on = selectedIds.includes(row.id);
         return (
@@ -331,7 +330,6 @@ const LabReceivePage = () => {
     {
       key: 'accessionNo',
       label: 'Accession / สิ่งส่งตรวจ',
-      width: 210,
       render: (row) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)', fontFamily: MONO, fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
@@ -350,7 +348,6 @@ const LabReceivePage = () => {
     {
       key: 'patient',
       label: 'ผู้ป่วย',
-      width: 200,
       render: (row) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)', fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
@@ -380,7 +377,6 @@ const LabReceivePage = () => {
     {
       key: 'urgency',
       label: 'ความเร่งด่วน',
-      width: 120,
       render: (row) => (
         <Badge style={row.urgency === 'stat' ? 'error' : row.urgency === 'urgent' ? 'warning' : 'neutral'} size='small'>
           {row.urgencyLabel}
@@ -390,7 +386,6 @@ const LabReceivePage = () => {
     {
       key: 'stageState',
       label: 'สถานะการรับก่อนหน้า',
-      width: 210,
       render: (row) => {
         const done = receiptsFor(row.id).filter((r) => !r.receipt.cancelled);
         const exception = row.exception ? LAB_EXCEPTION_BY_KEY[row.exception] : null;
@@ -420,7 +415,6 @@ const LabReceivePage = () => {
     {
       key: 'actions',
       label: '',
-      width: 150,
       render: (row) => (
         <BrandPrimaryButton
           size='sm'
@@ -439,7 +433,6 @@ const LabReceivePage = () => {
     {
       key: 'accessionNo',
       label: 'Accession',
-      width: 160,
       render: (row) => (
         <span style={{ fontFamily: MONO, fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
           {row.accessionNo}
@@ -460,11 +453,10 @@ const LabReceivePage = () => {
         </div>
       ),
     },
-    { key: 'receipt', label: 'ผลการรับ', width: 300, render: (row) => <ReceiptStamp receipt={row.receipt} /> },
+    { key: 'receipt', label: 'ผลการรับ', render: (row) => <ReceiptStamp receipt={row.receipt} /> },
     {
       key: 'actions',
       label: '',
-      width: 200,
       render: (row) => (
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-150)' }}>
           <NeutralSubdueButton

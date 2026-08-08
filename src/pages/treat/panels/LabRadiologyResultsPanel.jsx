@@ -132,7 +132,7 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
       render: (row) => <span style={PANEL_VALUE_STYLE}>{row.name}</span>,
     },
     {
-      key: 'value', header: 'ผล', width: 220,
+      key: 'value', header: 'ผล',
       render: (row) => (row.text ? (
         /* ค่าเป็นข้อความ — แสดงเป็นข้อความ ไม่พยายามทำเป็นตัวเลข */
         <span style={{ ...PANEL_VALUE_STYLE, color: valueColor(row.flag) }}>{row.text}</span>
@@ -145,17 +145,17 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
         </span>
       )),
     },
-    { key: 'ref', header: 'ค่าปกติ', width: 170, render: (row) => <span style={PANEL_LABEL_STYLE}>{row.ref}</span> },
-    { key: 'flag', header: 'การแปลผล', width: 190, render: (row) => <FlagMark flag={row.flag} /> },
+    { key: 'ref', header: 'ค่าปกติ', render: (row) => <span style={PANEL_LABEL_STYLE}>{row.ref}</span> },
+    { key: 'flag', header: 'การแปลผล', render: (row) => <FlagMark flag={row.flag} /> },
   ];
 
   const compareColumns = [
     {
-      key: 'reportedAt', header: 'วันที่รายงานผล', width: 200,
+      key: 'reportedAt', header: 'วันที่รายงานผล',
       render: (row) => <span style={PANEL_VALUE_STYLE}>{row.reportedAt}</span>,
     },
     {
-      key: 'value', header: analyteMeta?.name || 'ผล', width: 200,
+      key: 'value', header: analyteMeta?.name || 'ผล',
       render: (row) => (row.text ? (
         <span style={{ ...PANEL_VALUE_STYLE, color: valueColor(row.flag) }}>{row.text}</span>
       ) : (
@@ -182,8 +182,8 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
         </span>
       )),
     },
-    { key: 'ref', header: 'ค่าปกติ', width: 160, render: (row) => <span style={PANEL_LABEL_STYLE}>{row.ref}</span> },
-    { key: 'flag', header: 'การแปลผล', width: 190, render: (row) => <FlagMark flag={row.flag} /> },
+    { key: 'ref', header: 'ค่าปกติ', render: (row) => <span style={PANEL_LABEL_STYLE}>{row.ref}</span> },
+    { key: 'flag', header: 'การแปลผล', render: (row) => <FlagMark flag={row.flag} /> },
   ];
 
   return (

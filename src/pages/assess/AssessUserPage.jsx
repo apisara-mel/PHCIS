@@ -156,7 +156,6 @@ export default function AssessUserPage() {
     {
       key: 'groupPolicy',
       header: 'Group Policy',
-      width: 140,
       render: (row) => {
         const p = primaryAssignment(row);
         return p?.groupPolicy ? <PolicyBadge style='blue'>{p.groupPolicy}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
@@ -165,7 +164,6 @@ export default function AssessUserPage() {
     {
       key: 'subBranch',
       header: 'สาขาย่อย',
-      width: 140,
       render: (row) => {
         const p = primaryAssignment(row);
         return p?.subBranch ? <PolicyBadge style='teal'>{p.subBranch}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
@@ -174,7 +172,6 @@ export default function AssessUserPage() {
     {
       key: 'department',
       header: 'แผนก',
-      width: 160,
       render: (row) => {
         const p = primaryAssignment(row);
         return p?.department ? <PolicyBadge style='blue'>{p.department}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
@@ -183,7 +180,6 @@ export default function AssessUserPage() {
     {
       key: 'position',
       header: 'ตำแหน่ง',
-      width: 180,
       render: (row) => {
         const p = primaryAssignment(row);
         return p?.position ? <PolicyBadge style='purple'>{p.position}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
@@ -192,7 +188,6 @@ export default function AssessUserPage() {
     {
       key: 'center',
       header: 'ศูนย์บริการหลัก',
-      width: 160,
       render: (row) => {
         const p = primaryAssignment(row);
         return <span style={TEXT_CELL}>{p?.center || '—'}</span>;
@@ -201,7 +196,6 @@ export default function AssessUserPage() {
     {
       key: 'active',
       header: 'สถานะการใช้งาน',
-      width: 160,
       render: (row) => (
         <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role='presentation'>
           <Switch
@@ -215,7 +209,6 @@ export default function AssessUserPage() {
     {
       key: 'action',
       header: 'การดำเนินการ',
-      width: 128,
       render: (row) => (
         <NeutralSubdueButton
           leadingIcon='visibility'

@@ -230,7 +230,7 @@ export default function ConsentAccessRightsPage() {
   const matrixColumns = useMemo(() => {
     const cols = [
       {
-        key: 'category', header: 'หมวดข้อมูล (HCIS)', width: 220,
+        key: 'category', header: 'หมวดข้อมูล (HCIS)',
         render: (r) => (
           <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
             <Icon name={r.icon} size={18} color='var(--text-brandPrimary-default)' />
@@ -239,15 +239,14 @@ export default function ConsentAccessRightsPage() {
         ),
       },
       ...MATRIX_ROLES.map((role) => ({
-        key: role.key, header: role.key, width: 130,
+        key: role.key, header: role.key,
         render: (r) => (hasAccess(r.key, role.key)
           ? <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>เข้าถึงได้</ColorfulBadge>
-          : <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>ไม่ได้</ColorfulBadge>),
-      })),
+          : <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>ไม่ได้</ColorfulBadge>)})),
     ];
     if (canManage) {
       cols.push({
-        key: 'manage', header: 'การจัดการ', width: 140,
+        key: 'manage', header: 'การจัดการ',
         render: (r) => (
           <NeutralSubdueButton
             size='sm'

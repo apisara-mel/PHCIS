@@ -52,7 +52,7 @@ const AuditRecordPanel = ({ patient }) => {
 
   const columns = [
     {
-      key: 'category', header: 'หมวด', width: 170,
+      key: 'category', header: 'หมวด',
       render: (row) => {
         const meta = auditCategoryMeta(row.category);
         return <ColorfulBadge style={meta.tone} size='small' width='hug'>{meta.label}</ColorfulBadge>;
@@ -71,16 +71,16 @@ const AuditRecordPanel = ({ patient }) => {
         </div>
       ),
     },
-    { key: 'by', header: 'ผู้บันทึก', width: 160 },
-    { key: 'recordedAt', header: 'เวลาที่บันทึก', width: 150 },
+    { key: 'by', header: 'ผู้บันทึก' },
+    { key: 'recordedAt', header: 'เวลาที่บันทึก' },
     {
-      key: 'amendedAt', header: 'เวลาที่แก้ไข', width: 150,
+      key: 'amendedAt', header: 'เวลาที่แก้ไข',
       render: (row) => (row.amendedAt
         ? <span style={PANEL_VALUE_STYLE}>{row.amendedAt}</span>
         : <span style={PANEL_LABEL_STYLE}>ไม่เคยแก้ไข</span>),
     },
     {
-      key: 'erroneousAt', header: 'ระบุว่าลงข้อมูลผิด', width: 230,
+      key: 'erroneousAt', header: 'ระบุว่าลงข้อมูลผิด',
       render: (row) => (row.erroneousAt ? (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <StatusBadge style='error' size='small' icon='report'>{row.erroneousAt}</StatusBadge>
@@ -90,7 +90,7 @@ const AuditRecordPanel = ({ patient }) => {
       ) : <span style={PANEL_LABEL_STYLE}>—</span>),
     },
     {
-      key: 'actions', header: '', width: 180,
+      key: 'actions', header: '',
       render: (row) => (row.erroneousAt ? (
         <GuardedAction allowed={access.canEdit}>
           <NeutralSubdueButton variant='outline' size='sm' leadingIcon='undo' onClick={() => setUnmarkTarget(row)}>

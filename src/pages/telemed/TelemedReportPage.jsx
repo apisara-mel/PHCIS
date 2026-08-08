@@ -336,9 +336,9 @@ const TelemedReportPage = () => {
 
   /* ── columns ───────────────────────────────────────────────────────── */
   const callColumns = useMemo(() => ([
-    { key: 'id',        label: 'รหัสสาย',   width: 120 },
-    { key: 'at',        label: 'วัน-เวลา',  width: 170, render: (r) => `${formatStatDate(r.at)} ${formatStatTime(r.at)}` },
-    { key: 'direction', label: 'ทิศทาง',    width: 190, render: (r) => (
+    { key: 'id',        label: 'รหัสสาย' },
+    { key: 'at',        label: 'วัน-เวลา', render: (r) => `${formatStatDate(r.at)} ${formatStatTime(r.at)}` },
+    { key: 'direction', label: 'ทิศทาง', render: (r) => (
       <ColorfulBadge style={CALL_DIRECTION[r.direction].tone} size='small' hierarchy='secondary'>
         {CALL_DIRECTION[r.direction].label}
       </ColorfulBadge>
@@ -355,13 +355,13 @@ const TelemedReportPage = () => {
     ) },
     { key: 'doctor',    label: 'แพทย์',      flex: true, minWidth: 160 },
     { key: 'unit',      label: 'หน่วยบริการต้นทาง', flex: true, minWidth: 200 },
-    { key: 'durationMin', label: 'ระยะเวลา', width: 120, render: (r) => (r.durationMin ? `${r.durationMin} นาที` : '—') },
-    { key: 'outcome',   label: 'ผลลัพธ์',    width: 210, render: (r) => (
+    { key: 'durationMin', label: 'ระยะเวลา', render: (r) => (r.durationMin ? `${r.durationMin} นาที` : '—') },
+    { key: 'outcome',   label: 'ผลลัพธ์', render: (r) => (
       <ColorfulBadge style={CALL_OUTCOME[r.outcome].tone} size='small' hierarchy='secondary'>
         {CALL_OUTCOME[r.outcome].label}
       </ColorfulBadge>
     ) },
-    { key: 'recorded',  label: 'บันทึกสาย',  width: 140, render: (r) => (
+    { key: 'recorded',  label: 'บันทึกสาย', render: (r) => (
       <StatusBadge style={r.recorded ? 'success' : 'neutral'} icon={r.recorded ? 'radio_button_checked' : 'block'}>
         {r.recorded ? 'บันทึกแล้ว' : 'ไม่บันทึก'}
       </StatusBadge>
@@ -369,19 +369,19 @@ const TelemedReportPage = () => {
   ]), [role]);
 
   const auditColumns = useMemo(() => ([
-    { key: 'timeLabel', label: 'เวลา',       width: 190 },
+    { key: 'timeLabel', label: 'เวลา' },
     { key: 'user',      label: 'ผู้ใช้งาน',  flex: true, minWidth: 190 },
     { key: 'action',    label: 'เหตุการณ์',  flex: true, minWidth: 280 },
-    { key: 'hn',        label: 'ผู้รับบริการ', width: 190, render: (r) => (
+    { key: 'hn',        label: 'ผู้รับบริการ', render: (r) => (
       r.hn ? `${maskPii(r.name, role)} (${maskPii(r.hn, role)})` : '—'
     ) },
-    { key: 'ip',        label: 'ที่มา',       width: 170 },
-    { key: 'result',    label: 'ผลลัพธ์',     width: 180, render: (r) => (
+    { key: 'ip',        label: 'ที่มา' },
+    { key: 'result',    label: 'ผลลัพธ์', render: (r) => (
       <StatusBadge style={r.ok ? 'success' : 'error'} icon={r.ok ? 'check_circle' : 'error'}>
         {r.result}
       </StatusBadge>
     ) },
-    { key: 'live',      label: 'แหล่งข้อมูล', width: 150, sortable: false, render: (r) => (
+    { key: 'live',      label: 'แหล่งข้อมูล', sortable: false, render: (r) => (
       <ColorfulBadge style={r.live ? 'teal' : 'grey'} size='small' hierarchy='secondary'>
         {r.live ? 'session ปัจจุบัน' : 'ประวัติย้อนหลัง'}
       </ColorfulBadge>

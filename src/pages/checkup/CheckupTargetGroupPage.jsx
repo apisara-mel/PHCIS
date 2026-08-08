@@ -187,14 +187,13 @@ const HnSearchPopup = ({ open, onClose, existingMembers, onAdd }) => {
     {
       key: 'pick',
       label: '',
-      width: 56,
       sortable: false,
       render: (r) => <Checkbox checked={picked.includes(r.hn)} onChange={() => toggle(r.hn)} aria-label={`เลือก ${r.fullName}`} />,
     },
-    { key: 'hn', label: 'HN', width: 110 },
+    { key: 'hn', label: 'HN' },
     { key: 'fullName', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 200, render: (r) => r.fullName },
-    { key: 'nationalId', label: 'เลขบัตรประชาชน', width: 170 },
-    { key: 'sex', label: 'เพศ', width: 80 },
+    { key: 'nationalId', label: 'เลขบัตรประชาชน' },
+    { key: 'sex', label: 'เพศ' },
     { key: 'insurance', label: 'สิทธิการรักษา', flex: true, minWidth: 220 },
   ];
 
@@ -388,7 +387,7 @@ const CheckupTargetGroupPage = () => {
   /* ── group list columns ─────────────────────────────────────────── */
 
   const groupColumns = useMemo(() => ([
-    { key: 'code', label: 'รหัสกลุ่ม', width: 170 },
+    { key: 'code', label: 'รหัสกลุ่ม' },
     {
       key: 'name',
       label: 'ชื่อกลุ่มเป้าหมาย',
@@ -415,14 +414,12 @@ const CheckupTargetGroupPage = () => {
     {
       key: 'dates',
       label: 'รอบตรวจ',
-      width: 220,
       sortable: false,
       render: (r) => `${formatThaiDate(r.startDate)}${r.endDate && r.endDate !== r.startDate ? ` – ${formatThaiDate(r.endDate)}` : ''}`,
     },
     {
       key: 'members',
       label: 'สมาชิก',
-      width: 150,
       align: 'center',
       render: (r) => {
         const active = (r.members || []).filter((m) => m.status !== 'cancelled');
@@ -440,15 +437,12 @@ const CheckupTargetGroupPage = () => {
     {
       key: 'status',
       label: 'สถานะ',
-      width: 150,
       render: (r) => (r.status === 'cancelled'
         ? <ColorfulBadge style='red' size='small' hierarchy='secondary'>ยกเลิกแล้ว</ColorfulBadge>
-        : <ColorfulBadge style='green' size='small' hierarchy='secondary'>ใช้งาน</ColorfulBadge>),
-    },
+        : <ColorfulBadge style='green' size='small' hierarchy='secondary'>ใช้งาน</ColorfulBadge>)},
     {
       key: 'actions',
       label: 'การดำเนินการ',
-      width: 240,
       sortable: false,
       render: (r) => (
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
@@ -488,7 +482,7 @@ const CheckupTargetGroupPage = () => {
   const memberPageRows = filteredMembers.slice((memberPage - 1) * MEMBER_PAGE_SIZE, memberPage * MEMBER_PAGE_SIZE);
 
   const memberColumns = useMemo(() => ([
-    { key: 'cid', label: 'เลขบัตรประชาชน', width: 170 },
+    { key: 'cid', label: 'เลขบัตรประชาชน' },
     {
       key: 'name',
       label: 'ชื่อ-นามสกุล',
@@ -502,10 +496,10 @@ const CheckupTargetGroupPage = () => {
         />
       ),
     },
-    { key: 'sex', label: 'เพศ', width: 80 },
-    { key: 'dob', label: 'อายุ', width: 100, render: (r) => (ageFromDob(r.dob) != null ? `${ageFromDob(r.dob)} ปี` : '—') },
-    { key: 'hn', label: 'HN', width: 110, render: (r) => r.hn || <ColorfulBadge style='yellow' size='small' hierarchy='secondary'>ยังไม่มี HN</ColorfulBadge> },
-    { key: 'phone', label: 'เบอร์โทร', width: 130, render: (r) => r.phone || '—' },
+    { key: 'sex', label: 'เพศ' },
+    { key: 'dob', label: 'อายุ', render: (r) => (ageFromDob(r.dob) != null ? `${ageFromDob(r.dob)} ปี` : '—') },
+    { key: 'hn', label: 'HN', render: (r) => r.hn || <ColorfulBadge style='yellow' size='small' hierarchy='secondary'>ยังไม่มี HN</ColorfulBadge> },
+    { key: 'phone', label: 'เบอร์โทร', render: (r) => r.phone || '—' },
     {
       key: 'packageId',
       label: 'ชุดตรวจของสมาชิก',
@@ -536,7 +530,6 @@ const CheckupTargetGroupPage = () => {
     {
       key: 'status',
       label: 'สถานะ',
-      width: 180,
       render: (r) => (r.status === 'cancelled'
         ? (
           <span className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
@@ -555,7 +548,6 @@ const CheckupTargetGroupPage = () => {
     {
       key: 'actions',
       label: 'การดำเนินการ',
-      width: 210,
       sortable: false,
       render: (r) => (
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>

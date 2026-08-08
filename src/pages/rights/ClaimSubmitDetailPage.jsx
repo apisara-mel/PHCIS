@@ -234,7 +234,7 @@ const ClaimSubmitDetailPage = () => {
 
   const dxColumns = [
     {
-      key: 'code', label: 'รหัส ICD10', width: 150,
+      key: 'code', label: 'รหัส ICD10',
       render: (row) => (
         <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
           <span style={T.value}>{row.code}</span>
@@ -260,7 +260,7 @@ const ClaimSubmitDetailPage = () => {
       ),
     },
     {
-      key: 'diagType', label: 'สถานะการวินิจฉัย', width: 260, sortable: false,
+      key: 'diagType', label: 'สถานะการวินิจฉัย', sortable: false,
       render: (row) => (readOnly ? (
         <ColorfulBadge badgeStyle={resolveDiagnosisType(row.diagType).badgeStyle} size='small'>
           {resolveDiagnosisType(row.diagType).labelEn}
@@ -277,7 +277,7 @@ const ClaimSubmitDetailPage = () => {
       )),
     },
     {
-      key: 'doctor', label: 'แพทย์ผู้วินิจฉัย', width: 220, sortable: false,
+      key: 'doctor', label: 'แพทย์ผู้วินิจฉัย', sortable: false,
       render: (row) => (readOnly ? <span style={T.value}>{row.doctor}</span> : (
         <div onClick={(e) => e.stopPropagation()} style={{ width: '100%' }}>
           <Select
@@ -295,7 +295,7 @@ const ClaimSubmitDetailPage = () => {
       )),
     },
     ...(readOnly ? [] : [{
-      key: 'remove', label: '', width: 64, sortable: false,
+      key: 'remove', label: '', sortable: false,
       render: (row) => (
         <BrandIconButton
           icon='delete'
@@ -310,7 +310,7 @@ const ClaimSubmitDetailPage = () => {
 
   const pxColumns = [
     {
-      key: 'code', label: 'รหัส ICD9CM', width: 150,
+      key: 'code', label: 'รหัส ICD9CM',
       render: (row) => (
         <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
           <span style={T.value}>{row.code}</span>
@@ -336,7 +336,7 @@ const ClaimSubmitDetailPage = () => {
       ),
     },
     {
-      key: 'status', label: 'สถานะ', width: 200, sortable: false,
+      key: 'status', label: 'สถานะ', sortable: false,
       render: (row) => (readOnly ? <span style={T.value}>{procedureStatusLabel(row.status)}</span> : (
         <div onClick={(e) => e.stopPropagation()} style={{ width: '100%' }}>
           <Select
@@ -354,7 +354,7 @@ const ClaimSubmitDetailPage = () => {
       )),
     },
     {
-      key: 'performer', label: 'ผู้ทำหัตถการ', width: 220, sortable: false,
+      key: 'performer', label: 'ผู้ทำหัตถการ', sortable: false,
       render: (row) => (readOnly ? <span style={T.value}>{row.performer}</span> : (
         <div onClick={(e) => e.stopPropagation()} style={{ width: '100%' }}>
           <Select
@@ -372,7 +372,7 @@ const ClaimSubmitDetailPage = () => {
       )),
     },
     ...(readOnly ? [] : [{
-      key: 'remove', label: '', width: 64, sortable: false,
+      key: 'remove', label: '', sortable: false,
       render: (row) => (
         <BrandIconButton
           icon='delete'
@@ -390,12 +390,12 @@ const ClaimSubmitDetailPage = () => {
   const chargeColumns = [
     { key: 'label', label: 'รายการค่าใช้จ่าย', flex: true, minWidth: 220 },
     {
-      key: 'payer', label: 'ผู้รับผิดชอบ', width: 130,
+      key: 'payer', label: 'ผู้รับผิดชอบ',
       render: (l) => <ColorfulBadge badgeStyle={PAYER_KINDS[l.payer].badge} size='small'>{PAYER_KINDS[l.payer].label}</ColorfulBadge>,
     },
-    { key: 'amount', label: 'ราคาเต็ม', width: 110, render: (l) => <span style={T.value}>{formatBaht(l.amount)}</span> },
-    { key: 'claimAmount', label: 'ส่วนเรียกเก็บ', width: 130, render: (l) => <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>{formatBaht(l.claimAmount)}</span> },
-    { key: 'cashAmount', label: 'ส่วนเงินสด', width: 120, render: (l) => <span style={T.value}>{formatBaht(l.cashAmount)}</span> },
+    { key: 'amount', label: 'ราคาเต็ม', render: (l) => <span style={T.value}>{formatBaht(l.amount)}</span> },
+    { key: 'claimAmount', label: 'ส่วนเรียกเก็บ', render: (l) => <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>{formatBaht(l.claimAmount)}</span> },
+    { key: 'cashAmount', label: 'ส่วนเงินสด', render: (l) => <span style={T.value}>{formatBaht(l.cashAmount)}</span> },
   ];
 
   const dxCatalogRows = ICD10_CATALOG;

@@ -305,9 +305,9 @@ const ReceiptDetail = ({ row }) => {
 
       <Table
         columns={[
-          { key: 'code', label: 'รหัส', width: 56, render: (_item, idx) => idx + 1 },
+          { key: 'code', label: 'รหัส', render: (_item, idx) => idx + 1 },
           { key: 'label', label: 'รายการค่ารักษาพยาบาล', flex: true, minWidth: 200 },
-          { key: 'amount', label: 'จำนวนเงิน (บาท)', width: 120, render: (item) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(item.amount)}</span> },
+          { key: 'amount', label: 'จำนวนเงิน (บาท)', render: (item) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(item.amount)}</span> },
         ]}
         rows={receiptItems}
         rowKey={(item) => item.id}
@@ -599,7 +599,7 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
         <Table
           columns={[
             {
-              key: 'select', label: '', width: 40,
+              key: 'select', label: '',
               render: (item) => (
                 <div onClick={(e) => e.stopPropagation()}>
                   <Checkbox checked={selected.has(item.id)} onChange={() => toggleOne(item.id)} />
@@ -607,7 +607,7 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
               ),
             },
             {
-              key: 'category', label: 'หมวดหมู่', width: 180,
+              key: 'category', label: 'หมวดหมู่',
               render: (item) => (
                 <span className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
                   <Icon name={CHARGE_CATEGORIES[item.category].icon} size={16} />
@@ -617,7 +617,7 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
             },
             { key: 'label', label: 'รายการ', flex: true, minWidth: 180 },
             {
-              key: 'amount', label: 'ราคาเต็ม', width: 92,
+              key: 'amount', label: 'ราคาเต็ม',
               render: (item) => (
                 <div className='flex flex-col'>
                   <span>{formatBaht(item.amount)}</span>
@@ -630,18 +630,18 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
               ),
             },
             {
-              key: 'covered', label: 'สิทธิจ่าย', width: 92,
+              key: 'covered', label: 'สิทธิจ่าย',
               render: (item) => <span style={{ color: 'var(--text-statusbadge-success)' }}>-{formatBaht(item.covered)}</span>,
             },
             {
-              key: 'patientPortion', label: 'ส่วนเกินสิทธิ', width: 104,
+              key: 'patientPortion', label: 'ส่วนเกินสิทธิ',
               render: (item) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(item.patientPortion)}</span>,
             },
             /* TOR §1.8.2.3 — per-line percent, shown alongside the baht it
                works out to. Only meaningful in percent mode; flat-amount
                discounts stay a single visit-level figure (§1.8.2.4). */
             ...(discountMode === 'percent' ? [{
-              key: 'lineDiscount', label: 'ส่วนลด (%)', width: 150, sortable: false,
+              key: 'lineDiscount', label: 'ส่วนลด (%)', sortable: false,
               render: (item) => (
                 <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }} onClick={(e) => e.stopPropagation()}>
                   <InputField
@@ -1000,8 +1000,7 @@ const FinancePaymentPage = () => {
       key: s.key,
       label: s.label,
       icon: STATUS_TAB_ICON[s.key],
-      count: queue.filter((r) => r.status === s.key).length,
-    })),
+      count: queue.filter((r) => r.status === s.key).length})),
   ];
 
   /* OUTER level — section switcher, owns QueuePageShell's sticky `tabs`
@@ -1009,8 +1008,8 @@ const FinancePaymentPage = () => {
   const sectionTabs = SECTIONS.map((s) => ({ key: s.key, label: s.label, icon: s.icon }));
 
   const columns = [
-    { key: 'queueNo', label: 'คิว', width: 80 },
-    { key: 'hn', label: 'HN', width: 110 },
+    { key: 'queueNo', label: 'คิว' },
+    { key: 'hn', label: 'HN' },
     {
       key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 220,
       render: (row) => (
@@ -1020,22 +1019,22 @@ const FinancePaymentPage = () => {
         </div>
       ),
     },
-    { key: 'rights', label: 'สิทธิ', width: 140, render: (row) => <ColorfulBadge badgeStyle={row.rights.badge} size='small'>{row.rights.short}</ColorfulBadge> },
-    { key: 'dept', label: 'แผนก', width: 140 },
+    { key: 'rights', label: 'สิทธิ', render: (row) => <ColorfulBadge badgeStyle={row.rights.badge} size='small'>{row.rights.short}</ColorfulBadge> },
+    { key: 'dept', label: 'แผนก' },
     {
       /* สถานะการเตรียมยา — TOR §1.8.8.1: lets the cashier see whether
          pharmacy has finished before calling the patient to pay. */
-      key: 'pharmacyStatus', label: 'สถานะเตรียมยา', width: 140,
+      key: 'pharmacyStatus', label: 'สถานะเตรียมยา',
       render: (row) => (
         <StatusBadge style={PHARMACY_STATUSES[row.pharmacyStatus].color} size='small'>
           {PHARMACY_STATUSES[row.pharmacyStatus].label}
         </StatusBadge>
       ),
     },
-    { key: 'amountDue', label: 'ยอดชำระ', width: 120, render: (row) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(row.amountDue)}</span> },
-    { key: 'status', label: 'สถานะ', width: 140, render: (row) => <StatusBadge style={STATUS_STYLE[row.status]} size='small'>{QUEUE_STATUSES.find((s) => s.key === row.status)?.label}</StatusBadge> },
+    { key: 'amountDue', label: 'ยอดชำระ', render: (row) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(row.amountDue)}</span> },
+    { key: 'status', label: 'สถานะ', render: (row) => <StatusBadge style={STATUS_STYLE[row.status]} size='small'>{QUEUE_STATUSES.find((s) => s.key === row.status)?.label}</StatusBadge> },
     {
-      key: 'action', label: '', width: 200, sortable: false,
+      key: 'action', label: '', sortable: false,
       render: (row) => (
         <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-150)' }}>
           {/* เรียกคิว — ใช้ตัวเดียวกับหน้าคิว OPD (src/pages/opd/QueuePage.jsx

@@ -148,38 +148,32 @@ export default function AccessControlPage() {
     {
       key: 'center',
       header: 'ศูนย์บริการ',
-      width: 200,
       sortable: true,
       render: (row) => <span style={TEXT_CELL}>{row.center}</span>,
     },
     {
       key: 'groupPolicy',
       header: 'Group Policy',
-      width: 140,
       render: (row) => <PolicyBadge style='blue'>{row.groupPolicy}</PolicyBadge>,
     },
     {
       key: 'subBranch',
       header: 'สาขาย่อย',
-      width: 160,
       render: (row) => <PolicyBadge style='teal'>{row.subBranch}</PolicyBadge>,
     },
     {
       key: 'department',
       header: 'แผนก',
-      width: 160,
       render: (row) => <PolicyBadge style='blue'>{row.department}</PolicyBadge>,
     },
     {
       key: 'position',
       header: 'ตำแหน่ง',
-      width: 200,
       render: (row) => <PolicyBadge style='purple'>{row.position}</PolicyBadge>,
     },
     {
       key: 'viewCount',
       header: 'ระบบที่มีสิทธิดู',
-      width: 128,
       align: 'center',
       render: (row) => {
         const { view } = countPermissionBuckets(row.permissions);
@@ -189,7 +183,6 @@ export default function AccessControlPage() {
     {
       key: 'editCount',
       header: 'ระบบที่มีสิทธิบันทึก',
-      width: 160,
       align: 'center',
       render: (row) => {
         const { edit } = countPermissionBuckets(row.permissions);
@@ -199,7 +192,6 @@ export default function AccessControlPage() {
     {
       key: 'noneCount',
       header: 'ระบบที่ไม่มีสิทธิ',
-      width: 128,
       align: 'center',
       render: (row) => {
         const { none } = countPermissionBuckets(row.permissions);
@@ -209,7 +201,6 @@ export default function AccessControlPage() {
     {
       key: 'active',
       header: 'สถานะการใช้งาน',
-      width: 160,
       render: (row) => (
         <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role='presentation'>
           <Switch
@@ -223,7 +214,6 @@ export default function AccessControlPage() {
     {
       key: 'action',
       header: 'การดำเนินการ',
-      width: 128,
       render: (row) => (
         <NeutralSubdueButton
           leadingIcon='edit'

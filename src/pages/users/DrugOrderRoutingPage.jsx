@@ -219,7 +219,7 @@ const DrugOrderRoutingPage = () => {
 
   const columns = useMemo(() => ([
     {
-      key: 'order', label: 'ลำดับ', width: 110, sortable: false,
+      key: 'order', label: 'ลำดับ', sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <ColorfulBadge style='grey' size='small'>{r.order}</ColorfulBadge>
@@ -252,7 +252,7 @@ const DrugOrderRoutingPage = () => {
       ),
     },
     {
-      key: 'sources', label: 'คลินิกต้นทาง', width: 230, sortable: false,
+      key: 'sources', label: 'คลินิกต้นทาง', sortable: false,
       render: (r) => (
         <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           {(r.sources || []).slice(0, 2).map((s) => (
@@ -263,7 +263,7 @@ const DrugOrderRoutingPage = () => {
       ),
     },
     {
-      key: 'destination', label: 'ห้องยาปลายทาง', width: 220, sortable: false,
+      key: 'destination', label: 'ห้องยาปลายทาง', sortable: false,
       render: (r) => {
         const dest = getHealthcareService(r.destination);
         return (
@@ -281,7 +281,7 @@ const DrugOrderRoutingPage = () => {
       },
     },
     {
-      key: 'drug', label: 'ประเภทยา', width: 190, sortable: false,
+      key: 'drug', label: 'ประเภทยา', sortable: false,
       render: (r) => (
         <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           {(r.drugCategories || []).map((d) => (
@@ -291,7 +291,7 @@ const DrugOrderRoutingPage = () => {
       ),
     },
     {
-      key: 'when', label: 'เงื่อนไขเวลา', width: 200, sortable: false,
+      key: 'when', label: 'เงื่อนไขเวลา', sortable: false,
       render: (r) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)', fontSize: 'var(--type-size-xs, 12px)' }}>
           <span>{SERVICE_WINDOWS.find((w) => w.key === r.window)?.label}</span>
@@ -305,7 +305,7 @@ const DrugOrderRoutingPage = () => {
       ),
     },
     {
-      key: 'enabled', label: 'เปิดใช้', width: 110, sortable: false,
+      key: 'enabled', label: 'เปิดใช้', sortable: false,
       render: (r) => (
         <span onClick={(e) => e.stopPropagation()} role='presentation'>
           <Switch checked={!!r.enabled} onChange={(next) => requestToggle(r, next)} aria-label={`เปิด-ปิดกติกา ${r.name}`} />
@@ -313,7 +313,7 @@ const DrugOrderRoutingPage = () => {
       ),
     },
     {
-      key: 'updatedBy', label: 'แก้ไขล่าสุด', width: 190, sortable: false,
+      key: 'updatedBy', label: 'แก้ไขล่าสุด', sortable: false,
       render: (r) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)', fontSize: 'var(--type-size-xs, 12px)' }}>
           <span className='truncate'>{r.updatedBy}</span>
@@ -322,7 +322,7 @@ const DrugOrderRoutingPage = () => {
       ),
     },
     {
-      key: 'actions', label: 'การดำเนินการ', width: 180, sortable: false,
+      key: 'actions', label: 'การดำเนินการ', sortable: false,
       render: (r) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
           <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' onClick={(e) => { e.stopPropagation(); openEdit(r); }}>แก้ไข</BrandSubdueButton>

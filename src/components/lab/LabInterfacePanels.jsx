@@ -105,7 +105,6 @@ export const LabCodeMappingPanel = ({
     {
       key: 'code',
       label: 'รหัสจากเครื่อง / LIS',
-      width: 150,
       render: (m) => (
         <span style={{ fontFamily: MONO, fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
           {m.code}
@@ -115,7 +114,6 @@ export const LabCodeMappingPanel = ({
     {
       key: 'analyzerName',
       label: 'เครื่องตรวจวิเคราะห์',
-      width: 200,
       render: (m) => (
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
           {m.analyzerName}
@@ -143,7 +141,6 @@ export const LabCodeMappingPanel = ({
     {
       key: 'tmlt',
       label: 'TMLT / LOINC',
-      width: 170,
       render: (m) => (m.testId ? (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span style={{ fontFamily: MONO, fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary)' }}>
@@ -160,7 +157,6 @@ export const LabCodeMappingPanel = ({
     {
       key: 'actions',
       label: '',
-      width: 110,
       render: (m) => (
         <DangerSubdueButton
           variant='outline'
@@ -300,7 +296,6 @@ export const LabMessageQueuePanel = ({
     {
       key: 'id',
       label: 'ข้อความ',
-      width: 190,
       render: (m) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)', fontFamily: MONO, fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
@@ -316,7 +311,6 @@ export const LabMessageQueuePanel = ({
     {
       key: 'code',
       label: 'รหัส / Accession',
-      width: 180,
       render: (m) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span style={{ fontFamily: MONO, fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
@@ -350,13 +344,11 @@ export const LabMessageQueuePanel = ({
     {
       key: 'state',
       label: 'สถานะ',
-      width: 150,
       render: (m) => <Badge style={m.stateColor === 'neutral' ? 'neutral' : m.stateColor} size='small'>{m.stateLabel}</Badge>,
     },
     {
       key: 'actions',
       label: '',
-      width: 220,
       render: (m) => (
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-150)' }}>
           {m.direction === 'in' && m.state !== 'imported' && m.state !== 'bounced' && (

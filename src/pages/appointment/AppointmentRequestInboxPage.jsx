@@ -312,7 +312,7 @@ const AppointmentRequestInboxPage = () => {
 
   const columns = [
     {
-      key: 'submittedAt', header: 'เวลาที่ยื่นคำขอ', width: 156, sortable: false,
+      key: 'submittedAt', header: 'เวลาที่ยื่นคำขอ', sortable: false,
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span style={{ ...TEXT_CELL, whiteSpace: 'nowrap' }}>{r.submittedAt}</span>
@@ -323,7 +323,7 @@ const AppointmentRequestInboxPage = () => {
       ),
     },
     {
-      key: 'channel', header: 'ช่องทาง', width: 178, sortable: false,
+      key: 'channel', header: 'ช่องทาง', sortable: false,
       render: (r) => {
         const meta = getChannelMeta(r.channel);
         return (
@@ -334,17 +334,17 @@ const AppointmentRequestInboxPage = () => {
       },
     },
     {
-      key: 'hn', header: 'HN', width: 104, sortable: false,
+      key: 'hn', header: 'HN', sortable: false,
       render: (r) => <span style={TEXT_CELL}>{r.hn}</span>,
     },
     {
-      key: 'patient', header: 'ชื่อ-สกุล', width: 184, sortable: false,
+      key: 'patient', header: 'ชื่อ-สกุล', sortable: false,
       render: (r) => (
         <span className='truncate' style={{ ...TEXT_CELL, fontWeight: 'var(--type-weight-medium)' }}>{r.patient}</span>
       ),
     },
     {
-      key: 'rights', header: 'สิทธิการรักษา', width: 148, sortable: false,
+      key: 'rights', header: 'สิทธิการรักษา', sortable: false,
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span className='truncate' style={TEXT_CELL}>{r.rights}</span>
@@ -355,18 +355,18 @@ const AppointmentRequestInboxPage = () => {
       ),
     },
     {
-      key: 'clinic', header: 'คลินิกที่ขอ', width: 190, sortable: false,
+      key: 'clinic', header: 'คลินิกที่ขอ', sortable: false,
       render: (r) => <span className='truncate' style={TEXT_CELL}>{r.clinic}</span>,
     },
     {
-      key: 'doctor', header: 'แพทย์ที่ขอ', width: 176, sortable: false,
+      key: 'doctor', header: 'แพทย์ที่ขอ', sortable: false,
       render: (r) => (
         r.doctor ? <span className='truncate' style={TEXT_CELL}>{r.doctor}</span>
           : <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>ไม่ระบุแพทย์</ColorfulBadge>
       ),
     },
     {
-      key: 'requestedDate', header: 'วัน-เวลาที่ขอ', width: 190, sortable: false,
+      key: 'requestedDate', header: 'วัน-เวลาที่ขอ', sortable: false,
       render: (r) => (
         <span style={TEXT_CELL}>{formatApptListDate(r.requestedDate)} · {r.requestedTime} น.</span>
       ),
@@ -376,14 +376,14 @@ const AppointmentRequestInboxPage = () => {
       render: (r) => <span className='truncate' style={TEXT_CELL}>{r.symptom || '—'}</span>,
     },
     {
-      key: 'status', header: 'สถานะคำขอ', width: 168, sortable: false,
+      key: 'status', header: 'สถานะคำขอ', sortable: false,
       render: (r) => {
         const p = REQUEST_STATUS_PRESENTATION[r.status] || REQUEST_STATUS_PRESENTATION.pending;
         return <StatusBadge style={p.style} size='small'>{p.label}</StatusBadge>;
       },
     },
     {
-      key: 'actions', header: 'การดำเนินการ', width: 168, sortable: false,
+      key: 'actions', header: 'การดำเนินการ', sortable: false,
       render: (r) => {
         const locked = isRequestReadOnly(r);
         return (

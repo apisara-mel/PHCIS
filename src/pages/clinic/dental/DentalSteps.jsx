@@ -125,7 +125,6 @@ export const DentalStep1History = ({
     {
       key: 'naranjo',
       label: 'ระดับความน่าจะเป็น (Naranjo)',
-      width: 200,
       render: (r) => (
         <ColorfulBadge style={r.naranjo === 'Probable' ? 'orange' : 'grey'} size='small' hierarchy='secondary'>
           {r.naranjo}
@@ -135,7 +134,6 @@ export const DentalStep1History = ({
     {
       key: 'severity',
       label: 'ความรุนแรง',
-      width: 120,
       render: (r) => (
         <ColorfulBadge style={r.severity === 'รุนแรง' ? 'red' : 'orange'} size='small' hierarchy='secondary'>
           {r.severity}
@@ -145,14 +143,12 @@ export const DentalStep1History = ({
     {
       key: 'recorded',
       label: 'ผู้บันทึก / วัน-เวลา',
-      width: 200,
       sortable: false,
       render: (r) => <AuditCell by={r.recordedBy} at={r.recordedAt} />,
     },
     {
       key: 'updated',
       label: 'แก้ไขล่าสุด',
-      width: 200,
       sortable: false,
       render: (r) => <AuditCell by={r.updatedBy} at={r.updatedAt} />,
     },
@@ -568,13 +564,13 @@ export const DentalStep3Diagnosis = ({
   };
 
   const columns = [
-    { key: 'code', label: 'ICD-10-TM', width: 120,
+    { key: 'code', label: 'ICD-10-TM',
       render: (r) => <ColorfulBadge style='indigo' size='small' hierarchy='secondary'>{r.code}</ColorfulBadge> },
     { key: 'name', label: 'ชื่อโรค', flex: true, minWidth: 240 },
-    { key: 'snomed', label: 'SNOMED-CT', width: 140,
+    { key: 'snomed', label: 'SNOMED-CT',
       render: (r) => <MutedText size='sm'>{r.snomed || '—'}</MutedText> },
     {
-      key: 'type', label: 'ประเภทการวินิจฉัย (Diag Type)', width: 240, sortable: false,
+      key: 'type', label: 'ประเภทการวินิจฉัย (Diag Type)', sortable: false,
       render: (r) => (
         <DiagTypeSelect
           label={null}
@@ -586,11 +582,11 @@ export const DentalStep3Diagnosis = ({
       ),
     },
     {
-      key: 'audit', label: 'ผู้บันทึก / วัน-เวลา', width: 190, sortable: false,
+      key: 'audit', label: 'ผู้บันทึก / วัน-เวลา', sortable: false,
       render: (r) => <AuditCell by={r.recordedBy} at={r.recordedAt} />,
     },
     {
-      key: 'actions', label: 'จัดการ', width: 88, sortable: false,
+      key: 'actions', label: 'จัดการ', sortable: false,
       render: (r) => (readOnly ? <MutedText>—</MutedText> : (
         <BrandIconButton
           variant='ghost'
@@ -1046,13 +1042,13 @@ export const DentalStep4Procedures = ({ form, setForm, readOnly = false, insuran
 
   const procedureColumns = [
     {
-      key: 'seq', label: 'ลำดับ', width: 72, sortable: false,
+      key: 'seq', label: 'ลำดับ', sortable: false,
       render: (r) => <BodyText>{rows.findIndex((x) => x.id === r.id) + 1}</BodyText>,
     },
-    { key: 'startedAt', label: 'วัน-เวลาเริ่ม', width: 170,
+    { key: 'startedAt', label: 'วัน-เวลาเริ่ม',
       render: (r) => <MutedText size='sm'>{r.startedAt || '—'}</MutedText> },
     {
-      key: 'teeth', label: 'ตำแหน่งฟัน', width: 150, sortable: false,
+      key: 'teeth', label: 'ตำแหน่งฟัน', sortable: false,
       render: (r) => {
         const proc = findDentalProcedure(r.procedureId);
         const needsTooth = proc?.toothSpecific && (r.teeth || []).length === 0;
@@ -1093,30 +1089,30 @@ export const DentalStep4Procedures = ({ form, setForm, readOnly = false, insuran
         );
       },
     },
-    { key: 'quantity', label: 'จำนวน', width: 88, render: (r) => <BodyText>{r.quantity}</BodyText> },
+    { key: 'quantity', label: 'จำนวน', render: (r) => <BodyText>{r.quantity}</BodyText> },
     {
-      key: 'unit', label: 'หน่วย', width: 88, sortable: false,
+      key: 'unit', label: 'หน่วย', sortable: false,
       render: (r) => <BodyText>{findDentalProcedure(r.procedureId)?.unit || '—'}</BodyText>,
     },
-    { key: 'unitPrice', label: 'ราคา/หน่วย', width: 120,
+    { key: 'unitPrice', label: 'ราคา/หน่วย',
       render: (r) => <BodyText>{formatBaht(r.unitPrice)}</BodyText> },
     {
-      key: 'amount', label: 'จำนวนเงิน', width: 130, sortable: false,
+      key: 'amount', label: 'จำนวนเงิน', sortable: false,
       render: (r) => <BodyText weight='medium'>{formatBaht((Number(r.quantity) || 0) * (Number(r.unitPrice) || 0))}</BodyText>,
     },
     {
-      key: 'coverage', label: 'สิทธิการเบิก', width: 170, sortable: false,
+      key: 'coverage', label: 'สิทธิการเบิก', sortable: false,
       render: (r) => (
         <ReimbursableBadge reimbursable={isProcedureReimbursable(findDentalProcedure(r.procedureId), rightKey)} />
       ),
     },
-    { key: 'performer', label: 'ผู้ทำหัตถการ', width: 170 },
+    { key: 'performer', label: 'ผู้ทำหัตถการ' },
     {
-      key: 'audit', label: 'ผู้บันทึก / วัน-เวลา', width: 190, sortable: false,
+      key: 'audit', label: 'ผู้บันทึก / วัน-เวลา', sortable: false,
       render: (r) => <AuditCell by={r.recordedBy} at={r.recordedAt} />,
     },
     {
-      key: 'actions', label: 'จัดการ', width: 104, sortable: false,
+      key: 'actions', label: 'จัดการ', sortable: false,
       render: (r) => (readOnly ? <MutedText>—</MutedText> : (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-100)' }}>
           <BrandIconButton variant='quaternary' size='sm' icon='edit' aria-label='แก้ไขหัตถการ' onClick={() => openEdit(r)} />
@@ -1153,20 +1149,20 @@ export const DentalStep4Procedures = ({ form, setForm, readOnly = false, insuran
       render: (r) => <BodyText>{findDentalConsumable(r.consumableId)?.name || '—'}</BodyText>,
     },
     {
-      key: 'unit', label: 'หน่วย', width: 110, sortable: false,
+      key: 'unit', label: 'หน่วย', sortable: false,
       render: (r) => <BodyText>{findDentalConsumable(r.consumableId)?.unit || '—'}</BodyText>,
     },
     {
-      key: 'lot', label: 'Lot', width: 140, sortable: false,
+      key: 'lot', label: 'Lot', sortable: false,
       render: (r) => <MutedText size='sm'>{findDentalConsumable(r.consumableId)?.lot || '—'}</MutedText>,
     },
-    { key: 'quantity', label: 'จำนวนที่ใช้', width: 110, render: (r) => <BodyText>{r.quantity}</BodyText> },
+    { key: 'quantity', label: 'จำนวนที่ใช้', render: (r) => <BodyText>{r.quantity}</BodyText> },
     {
-      key: 'audit', label: 'ผู้บันทึก / วัน-เวลา', width: 190, sortable: false,
+      key: 'audit', label: 'ผู้บันทึก / วัน-เวลา', sortable: false,
       render: (r) => <AuditCell by={r.recordedBy} at={r.recordedAt} />,
     },
     {
-      key: 'actions', label: 'จัดการ', width: 88, sortable: false,
+      key: 'actions', label: 'จัดการ', sortable: false,
       render: (r) => (readOnly ? <MutedText>—</MutedText> : (
         <BrandIconButton variant='ghost' size='sm' icon='delete' aria-label='ลบวัสดุ' onClick={() => removeConsumable(r.id)} />
       )),

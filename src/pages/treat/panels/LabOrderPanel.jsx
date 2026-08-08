@@ -332,7 +332,7 @@ const LabOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
       },
     },
     {
-      key: 'tube', header: 'สิ่งส่งตรวจ', width: 170,
+      key: 'tube', header: 'สิ่งส่งตรวจ',
       render: (r) => {
         const t = LAB_TEST_BY_ID[r.testId];
         const tube = t ? LAB_TUBES[t.tubeKey] : null;
@@ -349,7 +349,7 @@ const LabOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
       },
     },
     {
-      key: 'urgency', header: 'ความเร่งด่วน', width: 190,
+      key: 'urgency', header: 'ความเร่งด่วน',
       render: (r) => (
         <Select
           value={r.urgency}
@@ -363,20 +363,19 @@ const LabOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
       ),
     },
     {
-      key: 'send', header: 'สั่งส่งตรวจ', width: 130,
+      key: 'send', header: 'สั่งส่งตรวจ',
       render: (r) => (r.cancelledAt
         ? <StatusBadge style='error' size='small' icon='block'>ยกเลิก</StatusBadge>
-        : <StatusBadge style='info' size='small' icon='send'>รอสั่งส่งตรวจ</StatusBadge>),
-    },
+        : <StatusBadge style='info' size='small' icon='send'>รอสั่งส่งตรวจ</StatusBadge>)},
     {
-      key: 'price', header: 'ราคา', width: 110,
+      key: 'price', header: 'ราคา',
       render: (r) => {
         const p = resolveRightPricing(LAB_TEST_BY_ID[r.testId], rightKey);
         return <span style={PANEL_VALUE_STYLE}>{baht(p.price)}</span>;
       },
     },
     {
-      key: 'claim', header: 'ราคาเบิกได้', width: 150,
+      key: 'claim', header: 'ราคาเบิกได้',
       render: (r) => {
         const p = resolveRightPricing(LAB_TEST_BY_ID[r.testId], rightKey);
         return p.reimbursable
@@ -385,7 +384,7 @@ const LabOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
       },
     },
     {
-      key: 'actions', header: '', width: 190,
+      key: 'actions', header: '',
       render: (r) => (r.cancelledAt ? (
         <GuardedAction allowed={canEdit}>
           <NeutralSubdueButton
@@ -704,7 +703,7 @@ const LabOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
                 rowKey={(r) => r.id}
                 rows={slice}
                 columns={[
-                  { key: 'orderId', header: 'เลขที่คำสั่ง', width: 140 },
+                  { key: 'orderId', header: 'เลขที่คำสั่ง' },
                   {
                     key: 'test', header: 'รายการตรวจ', flex: 1,
                     render: (r) => (
@@ -712,7 +711,7 @@ const LabOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
                     ),
                   },
                   {
-                    key: 'status', header: 'สถานะ', width: 170,
+                    key: 'status', header: 'สถานะ',
                     render: (r) => {
                       const meta = LAB_STATUS_BY_KEY[r.status];
                       const roll = rollUpOrderStatus(grouped.get ? (grouped.get(r.orderId) || [r]) : [r]);
@@ -725,7 +724,7 @@ const LabOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
                     },
                   },
                   {
-                    key: 'flags', header: 'ผลและค่าผิดปกติ', width: 300,
+                    key: 'flags', header: 'ผลและค่าผิดปกติ',
                     render: (r) => (
                       <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>

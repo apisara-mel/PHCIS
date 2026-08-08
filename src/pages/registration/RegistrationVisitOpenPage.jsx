@@ -421,7 +421,6 @@ const RegistrationVisitOpenPage = () => {
     {
       key: 'vn',
       header: 'VN',
-      width: 132,
       sortable: true,
       render: (row) => (
         <span style={{
@@ -434,19 +433,17 @@ const RegistrationVisitOpenPage = () => {
         </span>
       ),
     },
-    { key: 'time', header: 'เวลา', width: 96, sortable: true },
+    { key: 'time', header: 'เวลา', sortable: true },
     {
       key: 'patientName',
       header: 'ผู้รับบริการ',
-      width: 180,
       sortable: true,
       render: (row) => `${row.patientName || '—'} (${row.hn || '—'})`,
     },
-    { key: 'clinic', header: 'ห้องตรวจ / คลินิก', width: 260, sortable: true },
+    { key: 'clinic', header: 'ห้องตรวจ / คลินิก', sortable: true },
     {
       key: 'urgency',
       header: 'ความเร่งด่วน',
-      width: 128,
       render: (row) => {
         const u = urgencyMeta(row.urgency);
         return <StatusBadge style={u.badge} size='small' showDot>{u.label}</StatusBadge>;
@@ -455,7 +452,6 @@ const RegistrationVisitOpenPage = () => {
     {
       key: 'arrival',
       header: 'การเข้ามา',
-      width: 200,
       render: (row) => (
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
           {arrivalLabel(row.arrival)}
@@ -470,15 +466,12 @@ const RegistrationVisitOpenPage = () => {
     {
       key: 'condition',
       header: 'สภาพผู้รับบริการ',
-      width: 148,
       render: (row) => (row.condition === 'other'
         ? (row.conditionOther || 'อื่นๆ')
-        : conditionLabel(row.condition)),
-    },
+        : conditionLabel(row.condition))},
     {
       key: 'status',
       header: 'สถานะ',
-      width: 176,
       render: (row) => (row.status === 'cancelled'
         ? (
           <span className='inline-flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
@@ -508,7 +501,6 @@ const RegistrationVisitOpenPage = () => {
     {
       key: 'actions',
       header: 'การดำเนินการ',
-      width: 208,
       render: (row) => {
         const locked = row.status === 'cancelled' || readOnly;
         return (

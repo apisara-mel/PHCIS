@@ -94,7 +94,7 @@ const StatusCell = ({ row }) => {
 const RegisterTable = ({ rows, direction, onOpen, emptyKind }) => {
   const columns = [
     {
-      key: 'referNo', header: 'เลขที่ใบส่งต่อ', width: 150,
+      key: 'referNo', header: 'เลขที่ใบส่งต่อ',
       render: (row) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={{ ...PANEL_VALUE_STYLE, ...strikeIf(row.status === 'cancelled') }}>{row.referNo}</span>
@@ -109,13 +109,13 @@ const RegisterTable = ({ rows, direction, onOpen, emptyKind }) => {
         </div>
       ),
     },
-    { key: 'hn', header: 'HN', width: 100 },
+    { key: 'hn', header: 'HN' },
     {
       key: 'name', header: 'ชื่อ - นามสกุล', flex: 1,
       render: (row) => <span style={strikeIf(row.status === 'cancelled') || undefined}>{row.name}</span>,
     },
     {
-      key: 'route', header: direction === 'out' ? 'ต้นทาง → ปลายทาง' : 'ต้นทาง → ศูนย์ของเรา', width: 260,
+      key: 'route', header: direction === 'out' ? 'ต้นทาง → ปลายทาง' : 'ต้นทาง → ศูนย์ของเรา',
       render: (row) => (
         <span style={PANEL_LABEL_STYLE}>
           {centerMeta(row.fromCenter)?.label || '—'}
@@ -124,9 +124,9 @@ const RegisterTable = ({ rows, direction, onOpen, emptyKind }) => {
         </span>
       ),
     },
-    { key: 'sentDate', header: 'วันที่ส่ง', width: 140, render: (row) => row.sentDate || row.lastVisitDate || '—' },
+    { key: 'sentDate', header: 'วันที่ส่ง', render: (row) => row.sentDate || row.lastVisitDate || '—' },
     {
-      key: 'validUntil', header: 'อายุใบส่งต่อ', width: 150,
+      key: 'validUntil', header: 'อายุใบส่งต่อ',
       render: (row) => {
         if (!row.validUntil) return <span style={PANEL_LABEL_STYLE}>—</span>;
         const d = parseThaiDate(row.validUntil);
@@ -136,7 +136,7 @@ const RegisterTable = ({ rows, direction, onOpen, emptyKind }) => {
           : <span style={PANEL_LABEL_STYLE}>ถึง {row.validUntil}</span>;
       },
     },
-    { key: 'status', header: 'สถานะ', width: 130, render: (row) => <StatusCell row={row} /> },
+    { key: 'status', header: 'สถานะ', render: (row) => <StatusCell row={row} /> },
   ];
 
   const emptyCopy = {

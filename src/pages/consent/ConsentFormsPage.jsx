@@ -433,14 +433,13 @@ export default function ConsentFormsPage() {
     const updatedDateCol = {
       key: 'updatedDate',
       header: 'วันที่อัปเดตล่าสุด',
-      width: 160,
       sortable: true,
       render: (r) => <Cell value={r.updatedDate} />,
     };
     const leading = [
-      { key: 'code', header: 'รหัสแบบฟอร์ม', width: 128, sortable: true, render: (r) => <Cell value={r.code} /> },
+      { key: 'code', header: 'รหัสแบบฟอร์ม', sortable: true, render: (r) => <Cell value={r.code} /> },
       {
-        key: 'name', header: 'ชื่อแบบฟอร์ม', width: 400, sortable: true,
+        key: 'name', header: 'ชื่อแบบฟอร์ม', sortable: true,
         render: (r) => (
           <div className='min-w-0 w-full' style={TEXT_CELL}>
             <EllipsisText text={r.name || '-'} />
@@ -448,29 +447,27 @@ export default function ConsentFormsPage() {
         ),
       },
       {
-        key: 'version', header: 'เวอร์ชั่น', width: 96,
+        key: 'version', header: 'เวอร์ชั่น',
         render: (r) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{r.version}</ColorfulBadge>,
       },
       {
         key: 'group',
         header: 'Group Policy / สาขาย่อย / แผนก ที่เข้าถึงได้',
-        width: 280,
         render: (r) => <ScopeCell row={r} onView={setScopeViewFor} />,
       },
       {
         key: 'positions',
         header: 'ตำแหน่งที่มีสิทธิเข้าถึงได้',
-        width: 220,
         render: (r) => <PositionCell row={r} onView={setPositionViewFor} />,
       },
     ];
     const trailing = [
-      { key: 'creator', header: 'ผู้สร้าง', width: 128, render: (r) => <Cell value={r.creator} /> },
+      { key: 'creator', header: 'ผู้สร้าง', render: (r) => <Cell value={r.creator} /> },
       {
-        key: 'status', header: 'สถานะ', width: 128, sortable: true,
+        key: 'status', header: 'สถานะ', sortable: true,
         render: (r) => <ColorfulBadge style={(CONSENT_FORM_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>,
       },
-      { key: 'action', header: 'การดำเนินการ', width: 304, minWidth: 304, render: renderAction },
+      { key: 'action', header: 'การดำเนินการ', minWidth: 304, render: renderAction },
     ];
     if (activeTab === 'draft') {
       return [updatedDateCol, ...leading, ...trailing];

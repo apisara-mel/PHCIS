@@ -59,10 +59,10 @@ const CashierAuditSection = ({ queue }) => {
 
   const columns = [
     { key: 'rights', label: 'สิทธิการรักษา', flex: true, minWidth: 160, render: (g) => <ColorfulBadge badgeStyle={g.rights.badge} size='small'>{g.rights.label}</ColorfulBadge> },
-    { key: 'paidCount', label: 'ชำระแล้ว (รายการ)', width: 140, align: 'right', render: (g) => g.paidCount },
-    { key: 'paid', label: 'ยอดชำระแล้ว', width: 140, align: 'right', render: (g) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(g.paid)}</span> },
-    { key: 'outstandingCount', label: 'ค้างชำระ (รายการ)', width: 140, align: 'right', render: (g) => g.outstandingCount },
-    { key: 'outstanding', label: 'ยอดค้างชำระ', width: 140, align: 'right', render: (g) => <span style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-statusbadge-warning, #B25E09)' }}>{formatBaht(g.outstanding)}</span> },
+    { key: 'paidCount', label: 'ชำระแล้ว (รายการ)', align: 'right', render: (g) => g.paidCount },
+    { key: 'paid', label: 'ยอดชำระแล้ว', align: 'right', render: (g) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(g.paid)}</span> },
+    { key: 'outstandingCount', label: 'ค้างชำระ (รายการ)', align: 'right', render: (g) => g.outstandingCount },
+    { key: 'outstanding', label: 'ยอดค้างชำระ', align: 'right', render: (g) => <span style={{ fontWeight: 'var(--type-weight-bold)', color: 'var(--text-statusbadge-warning, #B25E09)' }}>{formatBaht(g.outstanding)}</span> },
   ];
 
   return (

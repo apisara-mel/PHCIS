@@ -440,7 +440,7 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
   /* ── ตารางรายละเอียด 11 มิติ (§1.5.4.8) ─────────────────── */
   const detailColumns = [
     {
-      key: 'name', header: 'รายการยา', width: 240,
+      key: 'name', header: 'รายการยา',
       render: (row) => {
         const drug = getRegistryDrug(row.name);
         const inactive = !!row.cancelledAt || !!row.discontinuedAt;
@@ -460,7 +460,7 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
       },
     },
     {
-      key: 'mode', header: 'ลักษณะการสั่ง', width: 210,
+      key: 'mode', header: 'ลักษณะการสั่ง',
       render: (row) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           {ORDER_MODES.map((m) => (
@@ -483,7 +483,7 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
       ),
     },
     {
-      key: 'sig', header: 'ปริมาณ / เวลา / จำนวน', width: 260,
+      key: 'sig', header: 'ปริมาณ / เวลา / จำนวน',
       render: (row) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={PANEL_VALUE_STYLE}>
@@ -497,7 +497,7 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
       ),
     },
     {
-      key: 'money', header: 'จำนวนเงิน', width: 170,
+      key: 'money', header: 'จำนวนเงิน',
       render: (row) => {
         const drug = getRegistryDrug(row.name);
         const unitPrice = drug ? currentPrice(drug) : (row.unitPrice ?? 0);
@@ -515,7 +515,7 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
       },
     },
     {
-      key: 'flags', header: 'สถานะ', width: 230,
+      key: 'flags', header: 'สถานะ',
       render: (row) => {
         const drug = getRegistryDrug(row.name);
         const stock = drug?.usageRate?.reorderPoint ?? 0;
@@ -542,7 +542,7 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
       },
     },
     {
-      key: 'actions', header: '', width: 250,
+      key: 'actions', header: '',
       render: (row) => (
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <NeutralSubdueButton variant='outline' size='sm' leadingIcon='visibility' onClick={() => setDetailRow(row)}>

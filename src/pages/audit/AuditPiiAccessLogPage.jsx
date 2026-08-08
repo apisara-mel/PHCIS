@@ -96,12 +96,12 @@ export default function AuditPiiAccessLogPage() {
   const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const columns = [
-    { key: 'datetime', header: 'วันเวลา', width: 180, render: (r) => <span style={CELL}>{r.datetime}</span> },
-    { key: 'user', header: 'ผู้ใช้', width: 190, render: (r) => <span style={CELL}>{r.user}</span> },
-    { key: 'action', header: 'ประเภท action', width: 140, render: (r) => <ColorfulBadge style={BADGE_TONE[r.action] || 'blue'} size='small' hierarchy='secondary' width='hug'>{r.action}</ColorfulBadge> },
-    { key: 'target', header: 'ข้อมูลที่เข้าถึง', width: 240, render: (r) => <span style={CELL}>{r.target}</span> },
-    { key: 'ip', header: 'IP Address', width: 140, render: (r) => <span style={{ ...BODY, color: 'var(--text-content-tertiary)' }}>{r.ip}</span> },
-    { key: 'sessionId', header: 'Session ID', width: 120, render: (r) => <span style={{ ...BODY, color: 'var(--text-content-tertiary)' }}>{r.sessionId}</span> },
+    { key: 'datetime', header: 'วันเวลา', render: (r) => <span style={CELL}>{r.datetime}</span> },
+    { key: 'user', header: 'ผู้ใช้', render: (r) => <span style={CELL}>{r.user}</span> },
+    { key: 'action', header: 'ประเภท action', render: (r) => <ColorfulBadge style={BADGE_TONE[r.action] || 'blue'} size='small' hierarchy='secondary' width='hug'>{r.action}</ColorfulBadge> },
+    { key: 'target', header: 'ข้อมูลที่เข้าถึง', render: (r) => <span style={CELL}>{r.target}</span> },
+    { key: 'ip', header: 'IP Address', render: (r) => <span style={{ ...BODY, color: 'var(--text-content-tertiary)' }}>{r.ip}</span> },
+    { key: 'sessionId', header: 'Session ID', render: (r) => <span style={{ ...BODY, color: 'var(--text-content-tertiary)' }}>{r.sessionId}</span> },
   ];
 
   return (

@@ -103,12 +103,11 @@ const AttachmentSection = ({ files, onChange, readOnly }) => {
         </span>
       ),
     },
-    { key: 'size', label: 'ขนาด', width: 110 },
-    { key: 'uploadedAt', label: 'แนบเมื่อ', width: 220, render: (r) => formatThaiDateTime(r.uploadedAt) },
+    { key: 'size', label: 'ขนาด' },
+    { key: 'uploadedAt', label: 'แนบเมื่อ', render: (r) => formatThaiDateTime(r.uploadedAt) },
     {
       key: 'actions',
       label: 'การดำเนินการ',
-      width: 170,
       sortable: false,
       render: (r) => (
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
@@ -308,7 +307,6 @@ const CheckupCommunityPage = () => {
     {
       key: 'date',
       label: 'วันที่นัดหมาย',
-      width: 200,
       render: (r) => (
         <span className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <span style={{ fontSize: 'var(--type-size-sm, 14px)' }}>{formatThaiDate(r.date)}</span>
@@ -322,14 +320,12 @@ const CheckupCommunityPage = () => {
     {
       key: 'attendees',
       label: 'ผู้เข้าร่วม',
-      width: 140,
       align: 'center',
       render: (r) => `${r.attendees || 0}${r.targetAttendees ? ` / ${r.targetAttendees}` : ''} คน`,
     },
     {
       key: 'attachments',
       label: 'เอกสารแนบ',
-      width: 120,
       align: 'center',
       render: (r) => ((r.attachments || []).length > 0
         ? <ColorfulBadge style='indigo' size='small' hierarchy='secondary' icon='attach_file'>{`${r.attachments.length} ไฟล์`}</ColorfulBadge>
@@ -338,7 +334,6 @@ const CheckupCommunityPage = () => {
     {
       key: 'status',
       label: 'สถานะ',
-      width: 170,
       render: (r) => {
         const cfg = COMMUNITY_STATUSES[r.status] || COMMUNITY_STATUSES.planned;
         return (
@@ -356,7 +351,6 @@ const CheckupCommunityPage = () => {
     {
       key: 'actions',
       label: 'การดำเนินการ',
-      width: 240,
       sortable: false,
       render: (r) => (
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>

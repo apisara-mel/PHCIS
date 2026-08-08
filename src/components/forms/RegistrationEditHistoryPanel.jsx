@@ -146,10 +146,10 @@ const renderNewValue = (row) => (
 );
 
 const COLUMNS = [
-  { key: 'changedAt', label: 'วันเวลา',  width: 200,  sortable: true },
-  { key: 'changedBy', label: 'ผู้แก้ไข', width: 200,  sortable: true },
-  { key: 'step',      label: 'หมวด',     width: 128, sortable: true, render: renderStep },
-  { key: 'field',     label: 'รายการ',   width: 192, sortable: true },
+  { key: 'changedAt', label: 'วันเวลา',  sortable: true },
+  { key: 'changedBy', label: 'ผู้แก้ไข',  sortable: true },
+  { key: 'step',      label: 'หมวด', sortable: true, render: renderStep },
+  { key: 'field',     label: 'รายการ', sortable: true },
   { key: 'oldValue',  label: 'ค่าเดิม',  flex: 1, minWidth: 200, sortable: false, render: renderOldValue },
   { key: 'newValue',  label: 'ค่าใหม่',  flex: 1, minWidth: 200, sortable: false, render: renderNewValue },
 ];

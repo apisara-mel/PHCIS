@@ -140,7 +140,7 @@ const SignatureSection = ({ queue, onSign }) => {
   const [viewRow, setViewRow] = useState(null);
 
   const columns = [
-    { key: 'queueNo', label: 'คิว', width: 80 },
+    { key: 'queueNo', label: 'คิว' },
     {
       key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 200,
       render: (row) => (
@@ -150,15 +150,14 @@ const SignatureSection = ({ queue, onSign }) => {
         </div>
       ),
     },
-    { key: 'receiptNo', label: 'เลขที่ใบเสร็จ', width: 140, render: (row) => row.receiptNo || '-' },
+    { key: 'receiptNo', label: 'เลขที่ใบเสร็จ', render: (row) => row.receiptNo || '-' },
     {
-      key: 'signature', label: 'สถานะลายเซ็น', width: 160,
+      key: 'signature', label: 'สถานะลายเซ็น',
       render: (row) => (row.signature
         ? <StatusBadge style='success' size='small'>เซ็นแล้ว</StatusBadge>
-        : <StatusBadge style='warning' size='small'>ยังไม่เซ็น</StatusBadge>),
-    },
+        : <StatusBadge style='warning' size='small'>ยังไม่เซ็น</StatusBadge>)},
     {
-      key: 'action', label: '', width: 220,
+      key: 'action', label: '',
       render: (row) => (
         <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
           {row.signature && <NeutralSubdueButton size='sm' onClick={(e) => { e.stopPropagation(); setViewRow(row); }}>ดูลายเซ็น</NeutralSubdueButton>}

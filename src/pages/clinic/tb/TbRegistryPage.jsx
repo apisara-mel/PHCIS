@@ -675,11 +675,11 @@ const TbRegistryPage = () => {
   /* ── ตารางรายการ ───────────────────────────────────────────────── */
 
   const columns = useMemo(() => ([
-    { key: 'regNo', label: 'เลขที่ขึ้นทะเบียน', width: 130 },
-    { key: 'hn', label: 'HN', width: 100 },
+    { key: 'regNo', label: 'เลขที่ขึ้นทะเบียน' },
+    { key: 'hn', label: 'HN' },
     { key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 170, render: (r) => displayName(r) },
     {
-      key: 'patientType', label: 'ประเภทผู้ป่วย', width: 120,
+      key: 'patientType', label: 'ประเภทผู้ป่วย',
       render: (r) => {
         const t = resolveTbPatientType(r.patientType);
         return t ? (
@@ -690,22 +690,22 @@ const TbRegistryPage = () => {
       },
     },
     {
-      key: 'diseaseSite', label: 'ชนิดวัณโรค', width: 150,
+      key: 'diseaseSite', label: 'ชนิดวัณโรค',
       render: (r) => (r.diseaseSite === 'extrapulmonary' ? `นอกปอด · ${r.epSite || '—'}` : 'ปอด'),
     },
-    { key: 'registeredDate', label: 'วันขึ้นทะเบียน', width: 130, render: (r) => formatTbDate(r.registeredDate) },
-    { key: 'treatmentMonth', label: 'เดือนที่รักษา', width: 110, render: (r) => (r.treatmentMonth != null ? `เดือนที่ ${r.treatmentMonth}` : '—') },
+    { key: 'registeredDate', label: 'วันขึ้นทะเบียน', render: (r) => formatTbDate(r.registeredDate) },
+    { key: 'treatmentMonth', label: 'เดือนที่รักษา', render: (r) => (r.treatmentMonth != null ? `เดือนที่ ${r.treatmentMonth}` : '—') },
     { key: 'regimen', label: 'สูตรยา', flex: true, minWidth: 160, render: (r) => resolveTbRegimen(r.regimen)?.label || '—' },
     { key: 'doctor', label: 'แพทย์ผู้ดูแล', flex: true, minWidth: 150 },
     {
-      key: 'status', label: 'สถานะ', width: 190,
+      key: 'status', label: 'สถานะ',
       render: (r) => {
         const s = registryStatus(r);
         return <ColorfulBadge style={s.badge} size='small' hierarchy='secondary' width='hug' maxWidth={180}>{s.label}</ColorfulBadge>;
       },
     },
     {
-      key: 'actions', label: 'การดำเนินการ', width: 150, sortable: false,
+      key: 'actions', label: 'การดำเนินการ', sortable: false,
       render: (r) => (
         <BrandSubdueButton
           variant='outline'
@@ -813,18 +813,18 @@ const TbRegistryPage = () => {
               ) : (
                 <Table
                   columns={[
-                    { key: 'month', label: 'เดือนที่', width: 130, render: (r) => <span style={cancelledCellStyle(r)}>{r.month}</span> },
-                    { key: 'specimenNo', label: 'ครั้งที่', width: 80, render: (r) => <span style={cancelledCellStyle(r)}>{r.specimenNo}</span> },
-                    { key: 'date', label: 'วันที่เก็บ', width: 130, render: (r) => <span style={cancelledCellStyle(r)}>{formatTbDate(r.date)}</span> },
+                    { key: 'month', label: 'เดือนที่', render: (r) => <span style={cancelledCellStyle(r)}>{r.month}</span> },
+                    { key: 'specimenNo', label: 'ครั้งที่', render: (r) => <span style={cancelledCellStyle(r)}>{r.specimenNo}</span> },
+                    { key: 'date', label: 'วันที่เก็บ', render: (r) => <span style={cancelledCellStyle(r)}>{formatTbDate(r.date)}</span> },
                     {
-                      key: 'result', label: 'ผลตรวจ', width: 110, render: (r) => {
+                      key: 'result', label: 'ผลตรวจ', render: (r) => {
                         const res = resolveTbSmearResult(r.result);
                         return res ? <ColorfulBadge style={res.badge} size='small' hierarchy='secondary'>{res.label}</ColorfulBadge> : '—';
                       },
                     },
-                    { key: 'labNo', label: 'Lab No.', width: 110, render: (r) => r.labNo || '—' },
+                    { key: 'labNo', label: 'Lab No.', render: (r) => r.labNo || '—' },
                     auditColumn('sputum'),
-                    { key: 'actions', label: 'การดำเนินการ', width: 180, sortable: false, render: (r) => rowActions('sputum', r) },
+                    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: (r) => rowActions('sputum', r) },
                   ]}
                   rows={viewTarget.sputumRows}
                   rowKey={(r) => r.id}
@@ -867,14 +867,14 @@ const TbRegistryPage = () => {
               ) : (
                 <Table
                   columns={[
-                    { key: 'dispensedDate', label: 'วันที่จ่าย', width: 130, render: (r) => <span style={cancelledCellStyle(r)}>{formatTbDate(r.dispensedDate)}</span> },
+                    { key: 'dispensedDate', label: 'วันที่จ่าย', render: (r) => <span style={cancelledCellStyle(r)}>{formatTbDate(r.dispensedDate)}</span> },
                     { key: 'regimen', label: 'สูตรยา', flex: true, minWidth: 180, render: (r) => <span style={cancelledCellStyle(r)}>{resolveTbRegimen(r.regimen)?.label || r.regimen}</span> },
-                    { key: 'weightKg', label: 'น้ำหนัก (กก.)', width: 110 },
-                    { key: 'days', label: 'จำนวนวัน', width: 100, render: (r) => r.days || '—' },
-                    { key: 'phase', label: 'ระยะ', width: 130, render: (r) => (r.phase === 'intensive' ? 'ระยะเข้มข้น' : r.phase === 'continuation' ? 'ระยะต่อเนื่อง' : '—') },
+                    { key: 'weightKg', label: 'น้ำหนัก (กก.)' },
+                    { key: 'days', label: 'จำนวนวัน', render: (r) => r.days || '—' },
+                    { key: 'phase', label: 'ระยะ', render: (r) => (r.phase === 'intensive' ? 'ระยะเข้มข้น' : r.phase === 'continuation' ? 'ระยะต่อเนื่อง' : '—') },
                     { key: 'complication', label: 'ภาวะแทรกซ้อน', flex: true, minWidth: 200, render: (r) => r.complication || '—' },
                     auditColumn('regimen'),
-                    { key: 'actions', label: 'การดำเนินการ', width: 180, sortable: false, render: (r) => rowActions('regimen', r) },
+                    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: (r) => rowActions('regimen', r) },
                   ]}
                   rows={viewTarget.regimenRows}
                   rowKey={(r) => r.id}
@@ -908,16 +908,16 @@ const TbRegistryPage = () => {
                 <Table
                   columns={[
                     { key: 'specimen', label: 'สิ่งส่งตรวจ', flex: true, minWidth: 160, render: (r) => <span style={cancelledCellStyle(r)}>{r.specimen}</span> },
-                    { key: 'sentDate', label: 'วันที่ส่ง', width: 130, render: (r) => formatTbDate(r.sentDate) },
+                    { key: 'sentDate', label: 'วันที่ส่ง', render: (r) => formatTbDate(r.sentDate) },
                     {
-                      key: 'result', label: 'ผล', width: 130, render: (r) => {
+                      key: 'result', label: 'ผล', render: (r) => {
                         const res = resolveTbCultureResult(r.result);
                         return res ? <ColorfulBadge style={res.badge} size='small' hierarchy='secondary'>{res.label}</ColorfulBadge> : '—';
                       },
                     },
                     { key: 'organism', label: 'เชื้อที่พบ', flex: true, minWidth: 180, render: (r) => r.organism || '—' },
-                    { key: 'reportDate', label: 'วันที่รายงาน', width: 130, render: (r) => (r.reportDate ? formatTbDate(r.reportDate) : 'รอผล') },
-                    { key: 'actions', label: 'การดำเนินการ', width: 180, sortable: false, render: (r) => rowActions('culture', r) },
+                    { key: 'reportDate', label: 'วันที่รายงาน', render: (r) => (r.reportDate ? formatTbDate(r.reportDate) : 'รอผล') },
+                    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: (r) => rowActions('culture', r) },
                   ]}
                   rows={viewTarget.cultureRows}
                   rowKey={(r) => r.id}
@@ -935,13 +935,13 @@ const TbRegistryPage = () => {
               ) : (
                 <Table
                   columns={[
-                    { key: 'sentDate', label: 'วันที่ส่ง', width: 130, render: (r) => formatTbDate(r.sentDate) },
-                    { key: 'isoniazid', label: 'Isoniazid (H)', width: 120, render: (r) => r.isoniazid || '—' },
-                    { key: 'rifampicin', label: 'Rifampicin (R)', width: 130, render: (r) => r.rifampicin || '—' },
-                    { key: 'ethambutol', label: 'Ethambutol (E)', width: 130, render: (r) => r.ethambutol || '—' },
-                    { key: 'streptomycin', label: 'Streptomycin (S)', width: 140, render: (r) => r.streptomycin || '—' },
-                    { key: 'reportDate', label: 'วันที่รายงาน', width: 130, render: (r) => (r.reportDate ? formatTbDate(r.reportDate) : 'รอผล') },
-                    { key: 'actions', label: 'การดำเนินการ', width: 180, sortable: false, render: (r) => rowActions('dst', r) },
+                    { key: 'sentDate', label: 'วันที่ส่ง', render: (r) => formatTbDate(r.sentDate) },
+                    { key: 'isoniazid', label: 'Isoniazid (H)', render: (r) => r.isoniazid || '—' },
+                    { key: 'rifampicin', label: 'Rifampicin (R)', render: (r) => r.rifampicin || '—' },
+                    { key: 'ethambutol', label: 'Ethambutol (E)', render: (r) => r.ethambutol || '—' },
+                    { key: 'streptomycin', label: 'Streptomycin (S)', render: (r) => r.streptomycin || '—' },
+                    { key: 'reportDate', label: 'วันที่รายงาน', render: (r) => (r.reportDate ? formatTbDate(r.reportDate) : 'รอผล') },
+                    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: (r) => rowActions('dst', r) },
                   ]}
                   rows={viewTarget.dstRows}
                   rowKey={(r) => r.id}
@@ -989,12 +989,12 @@ const TbRegistryPage = () => {
             ) : (
               <Table
                 columns={[
-                  { key: 'date', label: 'วันที่', width: 130, render: (r) => <span style={cancelledCellStyle(r)}>{formatTbDate(r.date)}</span> },
-                  { key: 'type', label: 'ประเภท', width: 180, render: (r) => <span style={cancelledCellStyle(r)}>{r.type}</span> },
+                  { key: 'date', label: 'วันที่', render: (r) => <span style={cancelledCellStyle(r)}>{formatTbDate(r.date)}</span> },
+                  { key: 'type', label: 'ประเภท', render: (r) => <span style={cancelledCellStyle(r)}>{r.type}</span> },
                   { key: 'note', label: 'บันทึก', flex: true, minWidth: 260, render: (r) => <span style={cancelledCellStyle(r)}>{r.note}</span> },
                   { key: 'by', label: 'ผู้ติดตาม', flex: true, minWidth: 150 },
                   auditColumn('followUp'),
-                  { key: 'actions', label: 'การดำเนินการ', width: 180, sortable: false, render: (r) => rowActions('followUp', r) },
+                  { key: 'actions', label: 'การดำเนินการ', sortable: false, render: (r) => rowActions('followUp', r) },
                 ]}
                 rows={viewTarget.followUps}
                 rowKey={(r) => r.id}
@@ -1017,13 +1017,13 @@ const TbRegistryPage = () => {
               <Table
                 columns={[
                   { key: 'name', label: 'ชื่อ-สกุล', flex: true, minWidth: 170, render: (r) => <span style={cancelledCellStyle(r)}>{canEdit ? r.name : maskTbName(r.name)}</span> },
-                  { key: 'relation', label: 'ความสัมพันธ์', width: 150 },
-                  { key: 'age', label: 'อายุ', width: 80, render: (r) => (r.age ? `${r.age} ปี` : '—') },
-                  { key: 'screeningResult', label: 'ผลการคัดกรอง', width: 170, render: (r) => (r.screeningResult || 'ยังไม่ได้คัดกรอง') },
-                  { key: 'screeningDate', label: 'วันที่คัดกรอง', width: 130, render: (r) => (r.screeningDate ? formatTbDate(r.screeningDate) : '—') },
+                  { key: 'relation', label: 'ความสัมพันธ์' },
+                  { key: 'age', label: 'อายุ', render: (r) => (r.age ? `${r.age} ปี` : '—') },
+                  { key: 'screeningResult', label: 'ผลการคัดกรอง', render: (r) => (r.screeningResult || 'ยังไม่ได้คัดกรอง') },
+                  { key: 'screeningDate', label: 'วันที่คัดกรอง', render: (r) => (r.screeningDate ? formatTbDate(r.screeningDate) : '—') },
                   auditColumn('contact'),
                   {
-                    key: 'actions', label: 'การดำเนินการ', width: 280, sortable: false,
+                    key: 'actions', label: 'การดำเนินการ', sortable: false,
                     render: (r) => (
                       <div className='inline-flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                         <NeutralSubdueButton
@@ -1056,9 +1056,9 @@ const TbRegistryPage = () => {
             <TopicHeader icon='history'>ประวัติการทำงานทั้งหมด (Audit Trail)</TopicHeader>
             <Table
               columns={[
-                { key: 'at', label: 'วันเวลา', width: 200 },
+                { key: 'at', label: 'วันเวลา' },
                 { key: 'by', label: 'ผู้ดำเนินการ', flex: true, minWidth: 170 },
-                { key: 'action', label: 'การกระทำ', width: 170 },
+                { key: 'action', label: 'การกระทำ' },
                 { key: 'detail', label: 'รายละเอียด', flex: true, minWidth: 300 },
               ]}
               rows={viewTarget.auditTrail}
