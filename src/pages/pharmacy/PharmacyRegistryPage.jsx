@@ -2,16 +2,28 @@ import React, { useEffect, useMemo, useState } from 'react';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import useSearchHistory from '@/components/search/useSearchHistory';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { resolveHighAlertBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
-import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Switch from '@/components/switch/Switch';
 import AlertDialog from '@/components/popup/AlertDialog';
-import { DRUG_REGISTRY, DRUG_CLASSIFICATIONS, UNIT_TYPES, COUNT_UNIT_KEYS, currentPrice, subscribeRegistry, setRegistryDrugActive } from '@/data/pharmacyRegistry';
-import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import {
+  DRUG_REGISTRY,
+  DRUG_CLASSIFICATIONS,
+  UNIT_TYPES,
+  COUNT_UNIT_KEYS,
+  currentPrice,
+  subscribeRegistry,
+  setRegistryDrugActive,
+  REGISTRY_SEARCH_HISTORY_KEY,
+  buildDrugRegistrySearchHistorySeed,
+  createDrugRecentSearchEntry,
+} from '@/data/pharmacyRegistry';
+import PharmacySubNav, { PharmacyHeaderActions } from '@/components/pharmacy/PharmacySubNav';
 import PharmacyRegistryEditPopup from '@/components/pharmacy/PharmacyRegistryEditPopup';
 import { buildRegistrySummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
@@ -47,6 +59,8 @@ const UNIT_OPTIONS = [
 const classificationLabel = (key) => DRUG_CLASSIFICATIONS.find((c) => c.key === key)?.label || key;
 const unitLabel = (key) => UNIT_TYPES.find((u) => u.key === key)?.label || key || '—';
 
+const REGISTRY_SEARCH_HISTORY_SEED = buildDrugRegistrySearchHistorySeed(5);
+
 const PharmacyRegistryPage = () => {
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('all');
@@ -59,6 +73,13 @@ const PharmacyRegistryPage = () => {
   const [toggleConfirm, setToggleConfirm] = useState(null);
   /* ExtraLarge edit popup — row click / edit button (add still uses /new page) */
   const [editDrugId, setEditDrugId] = useState(null);
+  const {
+    history: searchHistory,
+    push: pushHistory,
+    clear: clearHistory,
+  } = useSearchHistory(REGISTRY_SEARCH_HISTORY_KEY, {
+    seedIfEmpty: REGISTRY_SEARCH_HISTORY_SEED,
+  });
 
   const handleSort = (key) => {
     setSortConfig((prev) => (
@@ -208,9 +229,9 @@ const PharmacyRegistryPage = () => {
     },
     {
       key: 'price',
-      label: 'ราคาปัจจุบัน',
+      label: 'ราคาปัจจุบัน(บาท)',
       align: 'center',
-      render: (d) => `฿${currentPrice(d)}`,
+      render: (d) => String(currentPrice(d)),
     },
     {
       key: 'rights',
@@ -225,12 +246,12 @@ const PharmacyRegistryPage = () => {
       align: 'center',
       render: (d) => (
         <div
-          className='inline-flex flex-col items-center'
-          style={{ gap: 'var(--dim-space-50)' }}
+          className='inline-flex flex-row items-center'
+          style={{ gap: 'var(--dim-space-200)' }}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)', whiteSpace: 'nowrap' }}>
             {d.active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
           </span>
           <Switch
@@ -247,16 +268,18 @@ const PharmacyRegistryPage = () => {
       align: 'center',
       sortable: false,
       render: (d) => (
-        <BrandCircleSubdueIconButton
-          icon='edit'
+        <NeutralSubdueButton
+          variant='outline'
           size='sm'
-          variant='fill'
+          leadingIcon='edit'
           aria-label={`แก้ไข ${d.name}`}
           onClick={(e) => {
             e.stopPropagation();
             setEditDrugId(d.id);
           }}
-        />
+        >
+          แก้ไข
+        </NeutralSubdueButton>
       ),
     },
   ];
@@ -268,7 +291,7 @@ const PharmacyRegistryPage = () => {
       breadcrumb={breadcrumb}
       title='ระบบงานเภสัชกรรม'
       summaryCards={summaryCards}
-      actions={<PharmacyAddDrugButton />}
+      actions={<PharmacyHeaderActions />}
       belowSummary={<PharmacySubNav />}
     >
       <div
@@ -283,9 +306,15 @@ const PharmacyRegistryPage = () => {
             <PrimarySearch
               value={search}
               onChange={setSearch}
-              onSubmit={setSearch}
+              onSubmit={(v, item) => {
+                const entry = createDrugRecentSearchEntry(v, item);
+                if (entry) pushHistory(entry);
+                setSearch(v);
+              }}
               placeholder='ค้นหารหัสยา / ชื่อการค้า / ชื่อสามัญ'
               width={640}
+              history={searchHistory}
+              onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
             />
           </div>
 

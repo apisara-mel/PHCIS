@@ -15,6 +15,8 @@ const uid = () => `dept-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 export const DEMO_DEPARTMENTS = [
   { id: 'dept-im', centerId: 'hc-4', name: 'อายุรกรรม (Internal Medicine)', active: true, order: 1 },
   { id: 'dept-surg', centerId: 'hc-4', name: 'ศัลยกรรม (Surgery)', active: true, order: 2 },
+  { id: 'dept-pharm', centerId: 'hc-4', name: 'เภสัชกรรม', active: true, order: 3 },
+  { id: 'dept-ncd', centerId: 'hc-4', name: 'คลินิกโรคเรื้อรัง (NCD)', active: true, order: 4 },
 ];
 
 /* Raw read of the full cross-center array (unscoped). */

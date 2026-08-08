@@ -9,6 +9,7 @@ import Select       from '@/components/forms/Select';
 import BrandIconButton       from '@/components/button/BrandIconButton';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import { isMaskedWorklistNameColumn } from '@/utils/piiMasking';
 
 /* Skeleton-row pulse — idempotent module-load stylesheet injection so HMR
    doesn't leave a stale <style> behind. Mirrors the AISearch chrome-strip
@@ -1105,7 +1106,7 @@ const Row = ({
         };
         const node = c.render
           ? c.render(row, index, { editMode })
-          : (c.key === 'name' || c.key === 'patientName')
+          : isMaskedWorklistNameColumn(c)
             ? (
               <MaskedWorklistName
                 name={row[c.key]}

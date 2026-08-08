@@ -11,7 +11,7 @@ import Badge from '@/components/badge/Badge';
 import { PHARMACY_QUEUE, DISPENSE_STATUS, QUEUE_TYPES, PAYMENT_STATUS, checkAllergyConflicts, updatePharmacyRow } from '@/data/pharmacyQueue';
 import { checkHighAlert } from '@/data/pharmacyRegistry';
 import { findMrPatientByHn } from '@/data/mrPatients';
-import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyHeaderActions } from '@/components/pharmacy/PharmacySubNav';
 import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import { buildDispenseStatusSummaryCards, countRows } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
@@ -342,7 +342,7 @@ const PharmacyQueuePage = () => {
       breadcrumb={breadcrumb}
       title='ระบบงานเภสัชกรรม'
       summaryCards={summaryCards}
-      actions={<PharmacyAddDrugButton />}
+      actions={<PharmacyHeaderActions />}
       belowSummary={<PharmacySubNav />}
     >
       <div

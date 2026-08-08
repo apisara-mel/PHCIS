@@ -4,7 +4,8 @@ import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyHeaderActions } from '@/components/pharmacy/PharmacySubNav';
+import PharmacySectionTopic from '@/components/pharmacy/PharmacySectionTopic';
 import { sanitizeExportColumns } from '@/utils/exportPiiSanitize';
 import { buildReportsSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
@@ -84,20 +85,6 @@ const CARD = {
   padding: 'var(--dim-space-600)',
 };
 
-const CARD_TITLE = {
-  margin: 0,
-  fontFamily: 'var(--type-family-heading-content)',
-  fontWeight: 'var(--type-weight-bold)',
-  fontSize: 'var(--type-size-base)',
-  color: 'var(--text-content-default)',
-};
-
-const CARD_SUBTITLE = {
-  color: 'var(--text-content-tertiary)',
-  fontFamily: 'var(--type-family-body)',
-  fontSize: 'var(--type-size-xs)',
-};
-
 const DETAIL_COLUMNS = [
   { key: 'queueNo', label: 'เลขที่ใบสั่งยา', render: (r) => <Badge style='success' size='small'>{r.queueNo}</Badge>, csv: (r) => r.queueNo },
   {
@@ -148,14 +135,13 @@ const buildSummaryRows = (from, to) => {
 
 const ReportCard = ({ title, subtitle, columns, rows, emptyMessage, onExport }) => (
   <section className='w-full flex flex-col' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
-    <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-400)' }}>
-      <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
-        <h2 style={CARD_TITLE}>{title}</h2>
-        <span style={CARD_SUBTITLE}>{subtitle}</span>
-      </div>
-      <div className='flex-1' />
-      <NeutralSubdueButton leadingIcon='ios_share' size='sm' onClick={onExport}>นำส่งออกรายงาน</NeutralSubdueButton>
-    </div>
+    <PharmacySectionTopic
+      title={title}
+      subtitle={subtitle}
+      trailing={(
+        <NeutralSubdueButton leadingIcon='ios_share' size='sm' onClick={onExport}>นำส่งออกรายงาน</NeutralSubdueButton>
+      )}
+    />
     <Table columns={columns} rows={rows} rowKey={(r) => r.id || r.name} emptyMessage={emptyMessage} />
   </section>
 );
@@ -198,7 +184,7 @@ const PharmacyReportsPage = () => {
       breadcrumb={breadcrumb}
       title='ระบบงานเภสัชกรรม'
       summaryCards={summaryCards}
-      actions={<PharmacyAddDrugButton />}
+      actions={<PharmacyHeaderActions />}
       belowSummary={<PharmacySubNav />}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>

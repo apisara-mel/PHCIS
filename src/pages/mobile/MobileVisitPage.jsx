@@ -130,7 +130,7 @@ const MobileVisitInner = () => {
               />
             </span>
             <div className='min-w-0' style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <p style={{ margin: 0, fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold, 700)' }}>
+              <p style={{ margin: 0, fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-heading-strong, var(--type-weight-medium, 500))' }}>
                 {v.doctor}
               </p>
               <span className='inline-flex items-center' style={{ gap: 4, fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>

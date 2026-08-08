@@ -16,6 +16,7 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import { MIH_FOOTER_LEGAL_AUTOHIDE } from '@/components/layout/wizardChromeMorphStyles';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
+import Topic from '@/components/topic/Topic';
 import { ANC_PATIENTS } from '@/data/ancVisits';
 import {
   PopulationPyramidCard,
@@ -186,9 +187,23 @@ const DashboardPage = () => {
 
       {/* — White section: page header + overview — */}
       <div className='bg-surface-card px-6 pt-6 pb-5 border-b-0 shadow-header flex flex-col gap-4'>
-        <div className='flex items-center gap-4'>
-          <h1 className='flex-1 text-xl font-bold text-ink'>แดชบอร์ดภาพรวมโรงพยาบาล</h1>
-          <div className='relative w-[200px]' style={{ marginLeft: 'var(--dimension/space/300,12px)' }}>
+        <div
+          className='flex items-center w-full min-w-0'
+          style={{ gap: 'var(--dim-space-400)' }}
+        >
+          {/* Page topic — DS <Topic> tertiary (heading-content · title weight · content title color) */}
+          <div className='flex-1 min-w-0'>
+            <Topic
+              hierarchy='tertiary'
+              title='แดชบอร์ดภาพรวมโรงพยาบาล'
+              showSubText={false}
+              showBadge={false}
+              showChevron={false}
+              showLeadingIcon={false}
+              showSuccess={false}
+            />
+          </div>
+          <div className='relative shrink-0' style={{ width: 'var(--dim-size-2200, 200px)' }}>
             <Dropdown
               className='w-full'
               size='md'

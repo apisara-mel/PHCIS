@@ -767,6 +767,8 @@
   /* Page/component titles + button labels (SubHeader, Popup, Table HeaderCell,
      h1–h4, ปุ่มทุกตระกูล) — Mitr Regular (400) */
   --type-weight-title:   var(--type-weight-regular, 400);
+  /* Mitr emphasis (was often Bold 700) — use Medium so headings don't look heavy */
+  --type-weight-heading-strong: var(--type-weight-medium, 500);
 
   /* Composite text styles (Figma text styles → CSS). Use as classes below. */
   /* typography.h5-emphasis — Archive Payment Banner title 284:39953 */

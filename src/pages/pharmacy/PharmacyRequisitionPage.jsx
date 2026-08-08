@@ -4,22 +4,31 @@ import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import Icon from '@/components/icons/Icon';
+import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import {
   REQUISITIONS, RECEIVING_RECORDS, REQUISITION_TYPES, RECEIVING_TYPES,
   REQUISITION_ITEM_CATEGORIES, REQUISITION_TARGETS,
   createRequisition, createReceivingRecord,
-  updateRequisition, cancelRequisition, approveRequisition,
-  updateReceivingRecord, cancelReceivingRecord,
+  updateRequisition, cancelRequisition,
+  updateReceivingRecord, deleteReceivingRecord,
   estimateDaysUntilNextRequisition,
 } from '@/data/pharmacyQueue';
-import { DRUG_REGISTRY } from '@/data/pharmacyRegistry';
+import { DRUG_REGISTRY, UNIT_TYPES, getRegistryDrug } from '@/data/pharmacyRegistry';
+import { resolveMedicationImage } from '@/data/medicationCatalog';
 import { CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE } from '@/components/layout/HeaderClinicContext';
-import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import PharmacySubNav, { PharmacyHeaderActions } from '@/components/pharmacy/PharmacySubNav';
+import PharmacySectionTopic from '@/components/pharmacy/PharmacySectionTopic';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import PharmacyRequisitionPrint from '@/components/pharmacy/PharmacyRequisitionPrint';
 import PharmacyReceivingScanPopup from '@/components/pharmacy/PharmacyReceivingScanPopup';
 import Alert from '@/components/alert/Alert';
+import AlertDialog from '@/components/popup/AlertDialog';
+import Popup from '@/components/popup/Popup';
+import InputField from '@/components/forms/InputField';
+import Select from '@/components/forms/Select';
 import { resolveReceivingScan } from '@/data/pharmacyReceivingScan';
 import { buildRequisitionSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
@@ -43,6 +52,21 @@ const REQ_STATUS_PILL = {
   cancelled: { style: 'error',   label: 'ยกเลิกแล้ว'   },
 };
 
+const REQ_STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'ทั้งหมด' },
+  ...Object.entries(REQ_STATUS_PILL).map(([value, { label }]) => ({ value, label })),
+];
+
+const REQ_TYPE_FILTER_OPTIONS = [
+  { value: 'all', label: 'ทั้งหมด' },
+  ...REQUISITION_TYPES.map((t) => ({ value: t.key, label: t.label })),
+];
+
+const REQ_CATEGORY_FILTER_OPTIONS = [
+  { value: 'all', label: 'ทั้งหมด' },
+  ...REQUISITION_ITEM_CATEGORIES.map((c) => ({ value: c.key, label: c.label })),
+];
+
 const REQUISITION_TYPE_LABEL = {
   regular: 'ปกติ', urgent: 'ด่วน', 'other-unit': 'จ่ายให้หน่วยงานอื่น',
 };
@@ -57,6 +81,61 @@ const RECEIVING_TYPE_LABEL = {
 
 const formatThaiDate = (iso) => new Date(iso).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
 
+const registryUnitLabel = (unitKey) => UNIT_TYPES.find((u) => u.key === unitKey)?.label || unitKey || '—';
+
+/* §1.9.6.9 บรรจุ → หน่วยนับ + จำนวน (นับต่อหน่วยบรรจุ). */
+const resolvePackCount = (row) => {
+  if (typeof row.packSize === 'number' && row.packSize > 0) return row.packSize;
+  const fromRow = String(row.packSize || '').match(/(\d+)/);
+  if (fromRow) return Number(fromRow[1]);
+  const reg = getRegistryDrug(row.drugName);
+  if (reg?.packSize != null && Number(reg.packSize) > 0) return Number(reg.packSize);
+  return null;
+};
+
+const resolveUnitLabel = (row) => {
+  if (row.unit) return row.unit;
+  const reg = getRegistryDrug(row.drugName);
+  return registryUnitLabel(reg?.unit);
+};
+
+const lineFromDrugName = (drugName, quantity = 100) => {
+  const drug = getRegistryDrug(drugName) || DRUG_REGISTRY[0];
+  return {
+    drugName: drug?.name || '',
+    quantity,
+    packQty: drug?.packSize > 0 ? Number(drug.packSize) : '',
+    unitKey: drug?.unit || 'tablet',
+  };
+};
+
+const drugImageSrc = (name) => {
+  const reg = getRegistryDrug(name);
+  return reg?.image || resolveMedicationImage(name, null) || '';
+};
+
+/* Sticky name cell — thumbnail + label (same contract as คลังยา / ทะเบียนยา). */
+const RequisitionDrugNameCell = ({ name }) => {
+  const src = drugImageSrc(name);
+  return (
+    <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
+      <div
+        className='shrink-0 rounded-full overflow-hidden'
+        style={{
+          width: 'var(--dim-size-900, 36px)',
+          height: 'var(--dim-size-900, 36px)',
+          background: 'var(--surface-card-quaternary)',
+        }}
+      >
+        {src ? <img src={src} alt='' className='w-full h-full object-cover' /> : null}
+      </div>
+      <span className='truncate min-w-0' style={{ fontWeight: 'var(--type-weight-medium, 500)' }}>
+        {name}
+      </span>
+    </div>
+  );
+};
+
 const inputStyle = {
   padding: 'var(--dim-space-150) var(--dim-space-300)',
   background: 'var(--surface-input-default)',
@@ -65,7 +144,7 @@ const inputStyle = {
   fontSize: 'var(--type-size-sm)',
 };
 
-const blankRequisitionLine = () => ({ drugName: DRUG_REGISTRY[0]?.name || '', quantity: 100, packSize: '' });
+const blankRequisitionLine = () => lineFromDrugName(DRUG_REGISTRY[0]?.name || '', 100);
 
 /* §1.9.6.9 — one requisition document, many drug lines (add/remove).
    §1.9.6.3/.5/.7/.8 — requesting center + target unit + item category +
@@ -78,14 +157,22 @@ const NewRequisitionForm = ({ onCreate, onCancel }) => {
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState([blankRequisitionLine()]);
 
-  const updateLine = (idx, patch) => setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  const updateLine = (idx, patch) => setLines((ls) => ls.map((l, i) => {
+    if (i !== idx) return l;
+    if (patch.drugName != null && patch.drugName !== l.drugName) {
+      return lineFromDrugName(patch.drugName, l.quantity);
+    }
+    return { ...l, ...patch };
+  }));
   const addLine = () => setLines((ls) => [...ls, blankRequisitionLine()]);
   const removeLine = (idx) => setLines((ls) => ls.filter((_, i) => i !== idx));
 
   const handleSubmit = () => onCreate({
     items: lines.map((l) => ({
-      drugName: l.drugName, quantity: l.quantity, packSize: l.packSize,
-      unit: DRUG_REGISTRY.find((d) => d.name === l.drugName)?.unit === 'capsule' ? 'แคปซูล' : 'เม็ด',
+      drugName: l.drugName,
+      quantity: l.quantity,
+      packSize: l.packQty !== '' && l.packQty != null ? String(l.packQty) : '',
+      unit: registryUnitLabel(l.unitKey || getRegistryDrug(l.drugName)?.unit),
     })),
     requisitionType, notes, requestingCenter, targetUnit, itemCategory,
   });
@@ -140,8 +227,24 @@ const NewRequisitionForm = ({ onCreate, onCancel }) => {
                 <input type='number' min='1' value={line.quantity} onChange={(e) => updateLine(idx, { quantity: Number(e.target.value) })} style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)' }} />
               </label>
               <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                <span className='text-xs text-ink-tertiary'>บรรจุ</span>
-                <input type='text' value={line.packSize} onChange={(e) => updateLine(idx, { packSize: e.target.value })} placeholder='เช่น ขวดละ 500 เม็ด' style={{ ...inputStyle, minWidth: 'var(--dim-size-2050, 144px)' }} />
+                <span className='text-xs text-ink-tertiary'>จำนวนที่ขอเบิก</span>
+                <input
+                  type='number'
+                  min='1'
+                  value={line.packQty}
+                  onChange={(e) => updateLine(idx, { packQty: e.target.value === '' ? '' : Number(e.target.value) })}
+                  placeholder='เช่น 500'
+                  style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)' }}
+                />
+              </label>
+              <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                <span className='text-xs text-ink-tertiary'>หน่วยนับ</span>
+                <input
+                  type='text'
+                  readOnly
+                  value={registryUnitLabel(line.unitKey)}
+                  style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)', color: 'var(--text-content-secondary)' }}
+                />
               </label>
               <span className='text-xs' style={{ color: 'var(--text-content-tertiary)', paddingBottom: 'var(--dim-space-200)' }}>
                 ใช้เฉลี่ย/เดือน: {usage?.avgPerMonth ?? '—'} · เหลือถึงวันเบิกใหม่: {days != null ? `~${days} วัน` : '—'}
@@ -390,13 +493,21 @@ const NewReceivingForm = ({ onCreate, onCancel }) => {
 };
 
 const REQUISITION_COLUMNS = [
+  /* Sticky trio — no flex on these; flex sticky cols drift vs stickyLeft and overlap. */
   { key: 'seq', label: 'ลำดับ', align: 'center', render: (r) => r.seq ?? '-', print: (r) => r.seq ?? '-' },
   { key: 'requisitionNo', label: 'เลขที่คำขอ' },
-  { key: 'drugName', label: 'ชื่อยา', flex: true, minWidth: 200 },
+  {
+    key: 'drugName',
+    label: 'ชื่อยา',
+    minWidth: 220,
+    render: (r) => <RequisitionDrugNameCell name={r.drugName} />,
+    print: (r) => r.drugName,
+  },
   { key: 'itemCategory', label: 'ประเภทรายการ', render: (r) => ITEM_CATEGORY_LABEL[r.itemCategory] || '-', print: (r) => ITEM_CATEGORY_LABEL[r.itemCategory] || '-' },
-  { key: 'packSize', label: 'บรรจุ', render: (r) => r.packSize || '-', print: (r) => r.packSize || '-' },
+  /* §1.9.6.9 บรรจุ — จำนวนที่ขอเบิก + หน่วยนับ */
+  { key: 'packSize', label: 'จำนวนที่ขอเบิก', align: 'center', render: (r) => { const n = resolvePackCount(r); return n != null ? n.toLocaleString() : '—'; }, print: (r) => { const n = resolvePackCount(r); return n != null ? String(n) : '—'; } },
+  { key: 'unit', label: 'หน่วยนับ', align: 'center', render: (r) => resolveUnitLabel(r), print: (r) => resolveUnitLabel(r) },
   { key: 'requisitionType', label: 'ประเภทการเบิก', render: (r) => <Badge style={r.requisitionType === 'urgent' ? 'error' : 'neutral'} size='small'>{REQUISITION_TYPE_LABEL[r.requisitionType]}</Badge>, print: (r) => REQUISITION_TYPE_LABEL[r.requisitionType] },
-  { key: 'quantity', label: 'ขอเบิกใหม่', align: 'center', render: (r) => `${r.quantity} ${r.unit}`, print: (r) => `${r.quantity} ${r.unit}` },
   { key: 'requisitionCount', label: 'เบิกครั้งที่', align: 'center', render: (r) => r.requisitionCount ?? '-', print: (r) => r.requisitionCount ?? '-' },
   { key: 'previous', label: 'เบิกครั้งที่แล้ว', render: (r) => r.previousRequestQty != null ? `${r.previousRequestQty} ${r.unit} (${formatThaiDate(r.previousRequestAt)})` : '—', print: (r) => r.previousRequestQty != null ? `${r.previousRequestQty} ${r.unit} (${formatThaiDate(r.previousRequestAt)})` : '—' },
   {
@@ -453,71 +564,192 @@ const PharmacyRequisitionPage = () => {
   const [renderTick, forceRender] = useState(0);
   const bump = () => forceRender((n) => n + 1);
 
-  /* §1.9.6.1 — edit/cancel/approve an existing requisition line. Edit is
-     a lightweight inline quantity override (double-click-to-edit style
-     already used elsewhere in this module) rather than reopening the
-     whole multi-line form. */
-  const [editingReqId, setEditingReqId] = useState(null);
-  const [editQuantity, setEditQuantity] = useState('');
-  const startEditReq = (r) => { setEditingReqId(r.id); setEditQuantity(String(r.quantity)); };
+  /* §1.9.6 list filters — search + FilterDropdown chips (สถานะ / ประเภทเบิก / ประเภทรายการ). */
+  const [searchQ, setSearchQ] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
+  const requisitionFiltersActive = searchQ.trim() !== ''
+    || statusFilter !== 'all'
+    || typeFilter !== 'all'
+    || categoryFilter !== 'all';
+
+  const clearRequisitionFilters = () => {
+    setSearchQ('');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setCategoryFilter('all');
+  };
+
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const handleSort = (key) => {
+    setSortConfig((prev) => (
+      prev.key === key
+        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    ));
+  };
+
+  const filteredRequisitions = useMemo(() => {
+    const q = searchQ.trim().toLowerCase();
+    return REQUISITIONS.filter((r) => {
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (typeFilter !== 'all' && r.requisitionType !== typeFilter) return false;
+      if (categoryFilter !== 'all' && r.itemCategory !== categoryFilter) return false;
+      if (!q) return true;
+      return (
+        (r.drugName || '').toLowerCase().includes(q)
+        || (r.requisitionNo || '').toLowerCase().includes(q)
+        || (r.requestedBy || '').toLowerCase().includes(q)
+        || (r.notes || '').toLowerCase().includes(q)
+      );
+    });
+  }, [renderTick, searchQ, statusFilter, typeFilter, categoryFilter]);
+
+  /* Column-header sort — same pattern as PharmacyQueuePage / OPD worklist. */
+  const sortedRequisitions = useMemo(() => {
+    if (!sortConfig.key) return filteredRequisitions;
+    const sign = sortConfig.direction === 'desc' ? -1 : 1;
+    const normalize = (row, key) => {
+      switch (key) {
+        case 'itemCategory': return ITEM_CATEGORY_LABEL[row.itemCategory] || '';
+        case 'packSize': return resolvePackCount(row) ?? -1;
+        case 'unit': return resolveUnitLabel(row) || '';
+        case 'requisitionType': return REQUISITION_TYPE_LABEL[row.requisitionType] || '';
+        case 'previous': return row.previousRequestQty ?? -1;
+        case 'daysUntilNext': return estimateDaysUntilNextRequisition(row.drugName) ?? Number.POSITIVE_INFINITY;
+        case 'approvedQuantity': return row.approvedQuantity ?? -1;
+        case 'requestedBy': return row.requestedBy || '';
+        case 'requestingCenter': return CLINIC_LABEL[row.requestingCenter] || '';
+        case 'targetUnit': return REQUISITION_TARGET_LABEL[row.targetUnit] || '';
+        case 'status': return REQ_STATUS_PILL[row.status]?.label || '';
+        case 'requestedAt':
+        case 'previousRequestAt': return row[key] || '';
+        case 'seq':
+        case 'quantity':
+        case 'requisitionCount': return typeof row[key] === 'number' ? row[key] : Number(row[key]) || 0;
+        default: return row[key] ?? '';
+      }
+    };
+    const collator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' });
+    return [...filteredRequisitions].sort((a, b) => {
+      const av = normalize(a, sortConfig.key);
+      const bv = normalize(b, sortConfig.key);
+      const primary = typeof av === 'number' && typeof bv === 'number'
+        ? av - bv
+        : collator.compare(String(av), String(bv));
+      return sign * primary;
+    });
+  }, [filteredRequisitions, sortConfig]);
+
+  /* §1.9.6.1 — edit opens Popup; saving resets status → รอดำเนินการ.
+     Cancel allowed while pending or approved (ยังไม่เบิกจ่าย). */
+  const [editingReq, setEditingReq] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  /* Destructive confirm — { kind: 'cancel-req' | 'delete-rcv', row } */
+  const [pendingDestructive, setPendingDestructive] = useState(null);
+
+  const startEditReq = (r) => {
+    const reg = getRegistryDrug(r.drugName);
+    setEditingReq(r);
+    setEditForm({
+      drugName: r.drugName,
+      quantity: String(r.quantity ?? ''),
+      packQty: (() => { const n = resolvePackCount(r); return n != null ? String(n) : ''; })(),
+      unitKey: reg?.unit || 'tablet',
+      requisitionType: r.requisitionType || 'regular',
+      itemCategory: r.itemCategory || 'drug',
+      requestingCenter: r.requestingCenter || DEFAULT_CLINIC_VALUE,
+      targetUnit: r.targetUnit || REQUISITION_TARGETS[0].key,
+      notes: r.notes || '',
+    });
+  };
+
+  const closeEditReq = () => {
+    setEditingReq(null);
+    setEditForm(null);
+  };
+
   const saveEditReq = () => {
-    updateRequisition(editingReqId, { quantity: Number(editQuantity) || 0 });
-    setEditingReqId(null);
+    if (!editingReq || !editForm) return;
+    const packQty = editForm.packQty === '' ? '' : String(Number(editForm.packQty) || '');
+    updateRequisition(editingReq.id, {
+      drugName: editForm.drugName,
+      quantity: Number(editForm.quantity) || 0,
+      packSize: packQty,
+      unit: registryUnitLabel(editForm.unitKey || getRegistryDrug(editForm.drugName)?.unit),
+      requisitionType: editForm.requisitionType,
+      itemCategory: editForm.itemCategory,
+      requestingCenter: editForm.requestingCenter,
+      targetUnit: editForm.targetUnit,
+      notes: editForm.notes,
+      /* แก้ไขแล้วกลับไปรออนุมัติใหม่ */
+      status: 'pending',
+      approvedQuantity: null,
+    });
+    closeEditReq();
+    bump();
+  };
+
+  const patchEditForm = (patch) => {
+    setEditForm((prev) => {
+      if (!prev) return prev;
+      if (patch.drugName != null && patch.drugName !== prev.drugName) {
+        const next = lineFromDrugName(patch.drugName, Number(prev.quantity) || 100);
+        return {
+          ...prev,
+          drugName: next.drugName,
+          packQty: next.packQty === '' ? '' : String(next.packQty),
+          unitKey: next.unitKey,
+        };
+      }
+      return { ...prev, ...patch };
+    });
+  };
+
+  const handleConfirmDestructive = () => {
+    if (!pendingDestructive?.row) return;
+    const { kind, row } = pendingDestructive;
+    if (kind === 'cancel-req') cancelRequisition(row.id, 'ยกเลิกโดยเภสัชกร');
+    if (kind === 'delete-rcv') deleteReceivingRecord(row.id);
+    setPendingDestructive(null);
     bump();
   };
 
   const REQUISITION_ACTIONS_COLUMN = {
     key: 'itemActions', label: 'ดำเนินการ', align: 'center', sortable: false,
     render: (r) => {
-      if (editingReqId === r.id) {
-        return (
-          <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-100)' }}>
-            <input
-              type='number' min='1' value={editQuantity} onChange={(e) => setEditQuantity(e.target.value)}
-              style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)' }}
-            />
-            <button type='button' aria-label='บันทึก' onClick={saveEditReq} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-brandPrimary-default)' }}>
-              <Icon name='check' size={16} />
-            </button>
-            <button type='button' aria-label='ยกเลิกการแก้ไข' onClick={() => setEditingReqId(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-content-tertiary)' }}>
-              <Icon name='close' size={16} />
-            </button>
-          </div>
-        );
-      }
-      const locked = r.status === 'cancelled' || r.status === 'fulfilled';
+      /* รอดำเนินการ / อนุมัติแล้ว → แก้ไข+ยกเลิกได้; เบิกจ่ายแล้ว / ยกเลิกแล้ว → ล็อก */
+      const canMutate = r.status === 'pending' || r.status === 'approved';
       return (
-        <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-150)' }}>
-          {r.status === 'pending' && (
-            <button
-              type='button' aria-label={`อนุมัติ ${r.drugName}`}
-              onClick={() => { approveRequisition(r.id, r.quantity); bump(); }}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-alert-success, #1B8E5A)' }}
-            >
-              <Icon name='task_alt' size={16} />
-            </button>
-          )}
-          <button
-            type='button' aria-label={`แก้ไข ${r.drugName}`} disabled={locked}
+        <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-200)' }}>
+          <NeutralSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='edit'
+            disabled={!canMutate}
+            aria-label={`แก้ไข ${r.drugName}`}
             onClick={() => startEditReq(r)}
-            style={{ background: 'transparent', border: 'none', cursor: locked ? 'not-allowed' : 'pointer', color: 'var(--text-brandPrimary-default)', opacity: locked ? 0.4 : 1 }}
           >
-            <Icon name='edit' size={16} />
-          </button>
-          <button
-            type='button' aria-label={`ยกเลิก ${r.drugName}`} disabled={locked}
-            onClick={() => { cancelRequisition(r.id, 'ยกเลิกโดยเภสัชกร'); bump(); }}
-            style={{ background: 'transparent', border: 'none', cursor: locked ? 'not-allowed' : 'pointer', color: 'var(--text-content-tertiary)', opacity: locked ? 0.4 : 1 }}
+            แก้ไข
+          </NeutralSubdueButton>
+          <NeutralSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='block'
+            disabled={!canMutate}
+            aria-label={`ยกเลิก ${r.drugName}`}
+            onClick={() => setPendingDestructive({ kind: 'cancel-req', row: r })}
           >
-            <Icon name='close' size={16} />
-          </button>
+            ยกเลิก
+          </NeutralSubdueButton>
         </div>
       );
     },
   };
 
-  /* §1.9.7.1 — edit/cancel an existing receiving line, mirroring the
-     requisition actions above. */
+  /* §1.9.7.1 — edit / delete an existing receiving line. */
   const [editingRcvId, setEditingRcvId] = useState(null);
   const [editRcvQuantity, setEditRcvQuantity] = useState('');
   const startEditRcv = (r) => { setEditingRcvId(r.id); setEditRcvQuantity(String(r.quantity)); };
@@ -532,37 +764,43 @@ const PharmacyRequisitionPage = () => {
     render: (r) => {
       if (editingRcvId === r.id) {
         return (
-          <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-100)' }}>
+          <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-200)' }}>
             <input
               type='number' min='1' value={editRcvQuantity} onChange={(e) => setEditRcvQuantity(e.target.value)}
               style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)' }}
             />
-            <button type='button' aria-label='บันทึก' onClick={saveEditRcv} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-brandPrimary-default)' }}>
-              <Icon name='check' size={16} />
-            </button>
-            <button type='button' aria-label='ยกเลิกการแก้ไข' onClick={() => setEditingRcvId(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-content-tertiary)' }}>
-              <Icon name='close' size={16} />
-            </button>
+            <NeutralSubdueButton variant='outline' size='sm' leadingIcon='check' onClick={saveEditRcv}>
+              บันทึก
+            </NeutralSubdueButton>
+            <NeutralSubdueButton variant='outline' size='sm' leadingIcon='close' onClick={() => setEditingRcvId(null)}>
+              ยกเลิก
+            </NeutralSubdueButton>
           </div>
         );
       }
       const locked = r.status === 'cancelled';
       return (
-        <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-150)' }}>
-          <button
-            type='button' aria-label={`แก้ไข ${r.drugName}`} disabled={locked}
+        <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-200)' }}>
+          <NeutralSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='edit'
+            disabled={locked}
+            aria-label={`แก้ไข ${r.drugName}`}
             onClick={() => startEditRcv(r)}
-            style={{ background: 'transparent', border: 'none', cursor: locked ? 'not-allowed' : 'pointer', color: 'var(--text-brandPrimary-default)', opacity: locked ? 0.4 : 1 }}
           >
-            <Icon name='edit' size={16} />
-          </button>
-          <button
-            type='button' aria-label={`ยกเลิก ${r.drugName}`} disabled={locked}
-            onClick={() => { cancelReceivingRecord(r.id, 'ยกเลิกโดยเภสัชกร'); bump(); }}
-            style={{ background: 'transparent', border: 'none', cursor: locked ? 'not-allowed' : 'pointer', color: 'var(--text-content-tertiary)', opacity: locked ? 0.4 : 1 }}
+            แก้ไข
+          </NeutralSubdueButton>
+          <NeutralSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='delete'
+            disabled={locked}
+            aria-label={`ลบ ${r.drugName}`}
+            onClick={() => setPendingDestructive({ kind: 'delete-rcv', row: r })}
           >
-            <Icon name='close' size={16} />
-          </button>
+            ลบ
+          </NeutralSubdueButton>
         </div>
       );
     },
@@ -596,7 +834,7 @@ const PharmacyRequisitionPage = () => {
         breadcrumb={breadcrumb}
         title='ระบบงานเภสัชกรรม'
         summaryCards={summaryCards}
-        actions={<PharmacyAddDrugButton />}
+        actions={<PharmacyHeaderActions />}
         belowSummary={<PharmacySubNav />}
       >
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
@@ -619,21 +857,21 @@ const PharmacyRequisitionPage = () => {
               ))}
             </TabBar>
 
-            <div className='flex items-center justify-between'>
-              <h2 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
-                {activeTab === 'requisition' ? 'รายการเบิกจ่ายยา/เวชภัณฑ์' : 'รายการรับยาเข้าคลังใหญ่'}
-              </h2>
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                <NeutralSubdueButton size='sm' variant='outline' leadingIcon='print' onClick={() => window.print()}>
-                  {activeTab === 'requisition' ? 'พิมพ์ใบเบิกยา' : 'พิมพ์ใบรับยา'}
-                </NeutralSubdueButton>
-                {!showForm && (
-                  <BrandButton size='sm' leadingIcon='add' onClick={() => setShowForm(true)}>
-                    {activeTab === 'requisition' ? 'สร้างคำขอเบิก' : 'บันทึกรับเข้าคลัง'}
-                  </BrandButton>
-                )}
-              </div>
-            </div>
+            <PharmacySectionTopic
+              title={activeTab === 'requisition' ? 'รายการเบิกจ่ายยา/เวชภัณฑ์' : 'รายการรับยาเข้าคลังใหญ่'}
+              trailing={(
+                <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                  <NeutralSubdueButton size='sm' variant='outline' leadingIcon='print' onClick={() => window.print()}>
+                    {activeTab === 'requisition' ? 'พิมพ์ใบเบิกยา' : 'พิมพ์ใบรับยา'}
+                  </NeutralSubdueButton>
+                  {!showForm && (
+                    <BrandButton size='sm' leadingIcon='add' onClick={() => setShowForm(true)}>
+                      {activeTab === 'requisition' ? 'สร้างคำขอเบิก' : 'บันทึกรับเข้าคลัง'}
+                    </BrandButton>
+                  )}
+                </div>
+              )}
+            />
 
             {showForm && activeTab === 'requisition' && (
               <NewRequisitionForm
@@ -649,7 +887,56 @@ const PharmacyRequisitionPage = () => {
             )}
 
             {activeTab === 'requisition' ? (
-              <Table columns={[...REQUISITION_COLUMNS, REQUISITION_ACTIONS_COLUMN]} rows={REQUISITIONS} rowKey={(r) => r.id} emptyMessage='ไม่มีคำขอเบิกจ่าย' />
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                <div className='w-full flex items-start justify-center'>
+                  <PrimarySearch
+                    value={searchQ}
+                    onChange={setSearchQ}
+                    onSubmit={(v) => setSearchQ(v)}
+                    placeholder='ค้นหาเลขที่คำขอ / ชื่อยา / ผู้ขอเบิก'
+                    width={640}
+                  />
+                </div>
+                <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                  <FilterDropdown
+                    prefix='สถานะ:'
+                    options={REQ_STATUS_FILTER_OPTIONS}
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                  />
+                  <FilterDropdown
+                    prefix='ประเภทการเบิก:'
+                    options={REQ_TYPE_FILTER_OPTIONS}
+                    value={typeFilter}
+                    onChange={setTypeFilter}
+                  />
+                  <FilterDropdown
+                    prefix='ประเภทรายการ:'
+                    options={REQ_CATEGORY_FILTER_OPTIONS}
+                    value={categoryFilter}
+                    onChange={setCategoryFilter}
+                  />
+                  {requisitionFiltersActive ? (
+                    <FilterTag
+                      variant='neutral'
+                      leadingIcon='close'
+                      value='ล้างตัวกรอง'
+                      showTitle={false}
+                      onClick={clearRequisitionFilters}
+                    />
+                  ) : null}
+                </div>
+                <SearchResultCount found={sortedRequisitions.length} total={REQUISITIONS.length} />
+                <Table
+                  columns={[...REQUISITION_COLUMNS, REQUISITION_ACTIONS_COLUMN]}
+                  rows={sortedRequisitions}
+                  rowKey={(r) => r.id}
+                  stickyColCount={3}
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+                  emptyMessage={requisitionFiltersActive ? 'ไม่พบรายการที่ตรงกับเงื่อนไข' : 'ไม่มีคำขอเบิกจ่าย'}
+                />
+              </div>
             ) : (
               <Table columns={[...RECEIVING_COLUMNS, RECEIVING_ACTIONS_COLUMN]} rows={RECEIVING_RECORDS} rowKey={(r) => r.id} emptyMessage='ไม่มีรายการรับเข้าคลัง' />
             )}
@@ -657,6 +944,142 @@ const PharmacyRequisitionPage = () => {
         </div>
       </QueuePageShell>
       </div>
+      <Popup
+        open={Boolean(editingReq && editForm)}
+        onClose={closeEditReq}
+        size='large'
+        title='แก้ไขคำขอเบิก'
+        subtitle={editingReq
+          ? `${editingReq.requisitionNo} · บันทึกแล้วสถานะจะกลับเป็นรอดำเนินการ`
+          : ''}
+        primaryAction={{
+          label: 'บันทึกการแก้ไข',
+          onClick: saveEditReq,
+          disabled: !editForm?.drugName || !editForm?.quantity,
+        }}
+        secondaryAction={{
+          label: 'ปิด',
+          onClick: closeEditReq,
+        }}
+      >
+        {editForm && (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+            <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-2280, 218px)' }}>
+                <Select
+                  label='ศูนย์บริการสาธารณสุขผู้ขอเบิก'
+                  value={editForm.requestingCenter}
+                  onChange={(v) => patchEditForm({ requestingCenter: v })}
+                  options={CLINIC_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
+                  searchable={false}
+                  showHelperText={false}
+                />
+              </div>
+              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-2280, 218px)' }}>
+                <Select
+                  label='หน่วยงานที่ส่งคำร้องไป'
+                  value={editForm.targetUnit}
+                  onChange={(v) => patchEditForm({ targetUnit: v })}
+                  options={REQUISITION_TARGETS.map((t) => ({ value: t.key, label: t.label }))}
+                  searchable={false}
+                  showHelperText={false}
+                />
+              </div>
+            </div>
+            <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-2050, 144px)' }}>
+                <Select
+                  label='ประเภทรายการ'
+                  value={editForm.itemCategory}
+                  onChange={(v) => patchEditForm({ itemCategory: v })}
+                  options={REQUISITION_ITEM_CATEGORIES.map((c) => ({ value: c.key, label: c.label }))}
+                  searchable={false}
+                  showHelperText={false}
+                />
+              </div>
+              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-2050, 144px)' }}>
+                <Select
+                  label='ประเภทการเบิก'
+                  value={editForm.requisitionType}
+                  onChange={(v) => patchEditForm({ requisitionType: v })}
+                  options={REQUISITION_TYPES.map((t) => ({ value: t.key, label: t.label }))}
+                  searchable={false}
+                  showHelperText={false}
+                />
+              </div>
+            </div>
+            <Select
+              label='ชื่อยา'
+              value={editForm.drugName}
+              onChange={(v) => patchEditForm({ drugName: v })}
+              options={DRUG_REGISTRY.map((d) => ({
+                value: d.name,
+                label: d.name,
+                image: d.image || resolveMedicationImage(d.name, null) || undefined,
+              }))}
+              searchable
+              showHelperText={false}
+            />
+            <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-1800, 96px)' }}>
+                <InputField
+                  label='จำนวนที่ขอเบิก'
+                  type='number'
+                  value={editForm.packQty}
+                  onChange={(v) => patchEditForm({ packQty: v })}
+                  placeholder='เช่น 500'
+                  showHelperText={false}
+                />
+              </div>
+              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-1800, 96px)' }}>
+                <InputField
+                  label='หน่วยนับ'
+                  value={registryUnitLabel(editForm.unitKey)}
+                  onChange={() => {}}
+                  disabled
+                  showHelperText={false}
+                />
+              </div>
+              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-1800, 96px)' }}>
+                <InputField
+                  label='ขอเบิกใหม่'
+                  type='number'
+                  value={editForm.quantity}
+                  onChange={(v) => patchEditForm({ quantity: v })}
+                  placeholder='เช่น 500'
+                  showHelperText={false}
+                />
+              </div>
+            </div>
+            <InputField
+              label='หมายเหตุ'
+              value={editForm.notes}
+              onChange={(v) => patchEditForm({ notes: v })}
+              placeholder='(ถ้ามี)'
+              showHelperText={Boolean(editingReq?.status === 'approved')}
+              helperText={editingReq?.status === 'approved'
+                ? 'รายการนี้อนุมัติแล้ว — เมื่อบันทึกจะกลับเป็นรอดำเนินการและล้างจำนวนอนุมัติ'
+                : undefined}
+            />
+          </div>
+        )}
+      </Popup>
+      <AlertDialog
+        open={Boolean(pendingDestructive)}
+        type='destructive'
+        alignment='center'
+        title={pendingDestructive?.kind === 'delete-rcv' ? 'ลบรายการนี้?' : 'ยกเลิกรายการนี้?'}
+        description={pendingDestructive?.row
+          ? (pendingDestructive.kind === 'delete-rcv'
+            ? `ยืนยันลบรายการรับเข้า «${pendingDestructive.row.drugName}» (${pendingDestructive.row.receiptNo}) — การดำเนินการนี้ไม่สามารถย้อนกลับได้`
+            : `ยืนยันยกเลิกคำขอเบิก «${pendingDestructive.row.drugName}» (${pendingDestructive.row.requisitionNo})`)
+          : ''}
+        confirmLabel={pendingDestructive?.kind === 'delete-rcv' ? 'ลบ' : 'ยกเลิกคำขอ'}
+        cancelLabel='ปิด'
+        onConfirm={handleConfirmDestructive}
+        onCancel={() => setPendingDestructive(null)}
+        onClose={() => setPendingDestructive(null)}
+      />
     </>
   );
 };
