@@ -4,6 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import DatePicker from '@/components/forms/DatePicker';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -766,6 +767,8 @@ th{background:#F4FBF8}@media print{body{padding:0}}</style></head><body>
                     </NeutralSubdueButton>
                   ) : null}
                 </div>
+
+                <SearchResultCount found={auditFiltered.length} total={cancelAudit.length} />
 
                 <Table
                   columns={auditColumns}

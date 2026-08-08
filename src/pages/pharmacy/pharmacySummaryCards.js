@@ -62,18 +62,14 @@ export const buildRequisitionSummaryCards = (requisitions, receiving) => [
   { key: 'receivedQty', label: 'จำนวนรับรวม',       value: receiving.reduce((s, r) => s + r.quantity, 0).toLocaleString(), indicator: 'หน่วยทั้งหมด',     color: 'info',        icon: 'inventory_2'   },
 ];
 
-/** MPI roster cards — ผู้รับบริการทั้งหมด (registration status + today's Rx). */
-export const buildPatientsSummaryCards = (patients, { rxCountByHn = new Map() } = {}) => {
-  const withRxToday = patients.filter((p) => (rxCountByHn.get(p.hn) || 0) > 0).length;
-  return [
-    { key: 'total',    label: 'ผู้รับบริการทั้งหมด', value: patients.length,                                      indicator: 'ทะเบียน MPI',       color: 'brand',       icon: 'groups'         },
-    { key: 'active',   label: 'Active',              value: countRows(patients, (p) => p.status === 'active'),   indicator: 'ใช้งานได้',          color: 'positive',    icon: 'check_circle'   },
-    { key: 'inactive', label: 'Inactive',            value: countRows(patients, (p) => p.status === 'inactive'), indicator: 'ปิดใช้งาน',          color: 'inprogress',  icon: 'block'          },
-    { key: 'pending',  label: 'รอลงทะเบียน',         value: countRows(patients, (p) => p.status === 'pending'),  indicator: 'ยังไม่ครบข้อมูล',    color: 'inprogress',  icon: 'hourglass_top'  },
-    { key: 'draft',    label: 'ที่ร่างไว้',          value: countRows(patients, (p) => p.status === 'draft'),    indicator: 'บันทึกชั่วคราว',     color: 'info',        icon: 'edit_note'      },
-    { key: 'rxToday',  label: 'มีใบสั่งวันนี้',      value: withRxToday,                                         indicator: 'ในคิวจ่ายยา',       color: 'brand',       icon: 'medication'     },
-  ];
-};
+/** MPI roster cards — ผู้รับบริการทั้งหมด (registration status). */
+export const buildPatientsSummaryCards = (patients) => [
+  { key: 'total',    label: 'ผู้รับบริการทั้งหมด', value: patients.length,                                      indicator: 'ทะเบียน MPI',       color: 'brand',       icon: 'groups'         },
+  { key: 'active',   label: 'Active',              value: countRows(patients, (p) => p.status === 'active'),   indicator: 'ใช้งานได้',          color: 'positive',    icon: 'check_circle'   },
+  { key: 'inactive', label: 'Inactive',            value: countRows(patients, (p) => p.status === 'inactive'), indicator: 'ปิดใช้งาน',          color: 'inprogress',  icon: 'block'          },
+  { key: 'pending',  label: 'รอลงทะเบียน',         value: countRows(patients, (p) => p.status === 'pending'),  indicator: 'ยังไม่ครบข้อมูล',    color: 'inprogress',  icon: 'hourglass_top'  },
+  { key: 'draft',    label: 'ที่ร่างไว้',          value: countRows(patients, (p) => p.status === 'draft'),    indicator: 'บันทึกชั่วคราว',     color: 'info',        icon: 'edit_note'      },
+];
 
 export const buildReportsSummaryCards = ({ detailRows, summaryRows, dispensedCount, totalValue, rangeLabel }) => [
   { key: 'prescriptions', label: 'ใบสั่งยาในช่วงที่เลือก', value: detailRows.length,                                      indicator: rangeLabel,              color: 'brand',       icon: 'description'    },

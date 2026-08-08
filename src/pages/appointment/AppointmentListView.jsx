@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
@@ -617,6 +618,8 @@ const AppointmentListView = ({
               </BrandSubdueButton>
             ) : null}
         </OverflowFlexRow>
+
+        <SearchResultCount found={sorted.length} total={appointments.length} />
 
         <Table
           columns={columns}

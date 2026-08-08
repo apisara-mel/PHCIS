@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Table, { EllipsisText } from '@/components/table/Table';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import FilterTag from '@/components/forms/FilterTag';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -625,6 +626,8 @@ const ClaimBillingSection = ({ role }) => {
               </NeutralSubdueButton>
             )}
           </div>
+
+          <SearchResultCount found={rows.length} total={RIGHTS_VISITS.length} />
 
           {rows.length === 0 ? (
             <EmptyState

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -752,6 +753,8 @@ const MentalHealthRegistryPage = () => {
               </NeutralSubdueButton>
             )}
           </div>
+
+          <SearchResultCount found={filtered.length} total={rows.length} />
 
           <Table
             columns={columns}

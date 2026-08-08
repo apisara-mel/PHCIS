@@ -14,6 +14,7 @@ import Icon from '@/components/icons/Icon';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import hospitalPatientAdmittedAnim from '@/assets/illustrations/Hospital Patient admitted.json';
 import PrimarySearch, { DropdownPanel, SuggestionRow } from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import SecondarySearch from '@/components/search/SecondarySearch';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
@@ -1328,6 +1329,8 @@ export default function ObservationQueuePage() {
             />
           </div>
         </div>
+
+        <SearchResultCount found={filteredPatients.length} total={patients.length} />
 
       {/* Main Content Area */}
       {viewMode === 'grid' ? (

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import Table, { EllipsisText as TableEllipsisText } from '@/components/table/Table';
@@ -360,6 +361,8 @@ const OpdRg506Page = () => {
                   quickLabels={{ all: 'ทุกช่วงเวลา', today: 'วันนี้', yesterday: 'เมื่อวาน' }}
                 />
               </div>
+
+              <SearchResultCount found={filtered.length} total={cases.length} />
 
               {cases.length === 0 ? (
                 <div

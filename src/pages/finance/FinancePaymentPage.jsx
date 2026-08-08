@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table, { EllipsisText } from '@/components/table/Table';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag from '@/components/forms/FilterTag';
 import StatusBadge from '@/components/badge/StatusBadge';
@@ -1200,6 +1201,7 @@ const FinancePaymentPage = () => {
                   />
                 ))}
               </div>
+              <SearchResultCount found={sortedRows.length} total={statusRows.length} />
               <Table
                 columns={columns}
                 rows={sortedRows}

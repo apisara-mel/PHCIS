@@ -6,6 +6,7 @@ import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import Icon from '@/components/icons/Icon';
 import Dropdown from '@/components/forms/Dropdown';
 import SecondarySearch from '@/components/search/SecondarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import { Reveal } from '@/components/graph/Charts';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import Pagination from '@/components/pagination/Pagination';
@@ -292,7 +293,7 @@ const DashboardPage = () => {
             </NeutralSubdueButton>
           }
         >
-          <div className='flex items-center gap-2 mb-3'>
+          <div className='flex flex-col gap-2 mb-3'>
             <SecondarySearch
               size='small'
               value={search}
@@ -301,9 +302,7 @@ const DashboardPage = () => {
               className='flex-1'
               style={{ width: 'auto', maxWidth: 360 }}
             />
-            <span className='text-xs text-ink-tertiary tabular-nums'>
-              พบ {filteredPatients.length} รายการ
-            </span>
+            <SearchResultCount found={filteredPatients.length} total={RECENT_PATIENTS.length} />
           </div>
 
           <div className='overflow-x-auto'>

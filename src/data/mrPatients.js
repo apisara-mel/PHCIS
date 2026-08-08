@@ -1,7 +1,12 @@
 /* Medical Records (MR) patient roster — Thai names with realistic IDs,
    phone numbers, and treatment-rights labels. Source of truth for both
    the MR queue table and the MR registration form (data flows via
-   <Link state={...}> when the user clicks a row). */
+   <Link state={...}> when the user clicks a row).
+
+   Target size: 40 unique MPI rows (unique full name + unique avatarUrl).
+   Extra portraits live under public/avatars/patient-mock-20…28.png. */
+
+import { PATIENT_AVATAR_POOL } from '@/data/avatarAssets';
 
 export const MR_RIGHTS = [
   'บัตรทอง',
@@ -320,6 +325,80 @@ export const MR_PATIENTS = [
     drugAllergies: [], chronicDiseases: [],
   },
 ];
+
+/* Compact filler rows — pad MPI roster to 40 with unique Thai names.
+   Shared address / rights cycle keeps the file readable; each HN + name
+   pair is unique (no overlap with the hand-authored rows above). */
+const MR_FILLER_SEEDS = [
+  { hn: '67-00011', prefixTh: 'นาย', firstNameTh: 'วิชัย', lastNameTh: 'รุ่งเรือง', prefixEn: 'Mr.', firstNameEn: 'Wichai', lastNameEn: 'Rungrueang', gender: 'ชาย', age: 45, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00012', prefixTh: 'นาง', firstNameTh: 'กนกวรรณ', lastNameTh: 'ศรีสุข', prefixEn: 'Mrs.', firstNameEn: 'Kanokwan', lastNameEn: 'Srisuk', gender: 'หญิง', age: 48, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00013', prefixTh: 'นาย', firstNameTh: 'อานนท์', lastNameTh: 'พานิช', prefixEn: 'Mr.', firstNameEn: 'Anon', lastNameEn: 'Phanit', gender: 'ชาย', age: 33, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00014', prefixTh: 'นางสาว', firstNameTh: 'สุภาพร', lastNameTh: 'ใจดี', prefixEn: 'Ms.', firstNameEn: 'Supaporn', lastNameEn: 'Jaidee', gender: 'หญิง', age: 29, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00015', prefixTh: 'นาย', firstNameTh: 'ชาญชัย', lastNameTh: 'อินทร์ทอง', prefixEn: 'Mr.', firstNameEn: 'Chanchai', lastNameEn: 'Inthong', gender: 'ชาย', age: 52, status: 'inactive', rights: 'บัตรทอง' },
+  { hn: '67-00016', prefixTh: 'นางสาว', firstNameTh: 'ปิยะดา', lastNameTh: 'วงศ์สกุล', prefixEn: 'Ms.', firstNameEn: 'Piyada', lastNameEn: 'Wongsakul', gender: 'หญิง', age: 26, status: 'active', rights: 'ชำระเงินเอง' },
+  { hn: '67-00017', prefixTh: 'นาย', firstNameTh: 'ธีรพงษ์', lastNameTh: 'นาคินทร์', prefixEn: 'Mr.', firstNameEn: 'Teerapong', lastNameEn: 'Nakhin', gender: 'ชาย', age: 41, status: 'active', rights: 'รัฐวิสาหกิจ' },
+  { hn: '67-00018', prefixTh: 'นาง', firstNameTh: 'วราภรณ์', lastNameTh: 'เพชรรัตน์', prefixEn: 'Mrs.', firstNameEn: 'Waraporn', lastNameEn: 'Petchrat', gender: 'หญิง', age: 55, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00019', prefixTh: 'นาย', firstNameTh: 'สมบูรณ์', lastNameTh: 'กาญจนวิทย์', prefixEn: 'Mr.', firstNameEn: 'Sombun', lastNameEn: 'Kanjanawit', gender: 'ชาย', age: 62, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00020', prefixTh: 'นางสาว', firstNameTh: 'นิภา', lastNameTh: 'สายสมร', prefixEn: 'Ms.', firstNameEn: 'Nipa', lastNameEn: 'Saisamon', gender: 'หญิง', age: 31, status: 'draft', rights: 'ประกันสังคม' },
+  { hn: '67-00021', prefixTh: 'นาย', firstNameTh: 'ฤทธิ์', lastNameTh: 'บุญมา', prefixEn: 'Mr.', firstNameEn: 'Rit', lastNameEn: 'Boonma', gender: 'ชาย', age: 38, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00022', prefixTh: 'นาง', firstNameTh: 'อรทัย', lastNameTh: 'จันทร์เพ็ญ', prefixEn: 'Mrs.', firstNameEn: 'Orathai', lastNameEn: 'Chanpen', gender: 'หญิง', age: 44, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00023', prefixTh: 'นาย', firstNameTh: 'พิชัย', lastNameTh: 'ทองดี', prefixEn: 'Mr.', firstNameEn: 'Pichai', lastNameEn: 'Thongdee', gender: 'ชาย', age: 36, status: 'pending', rights: 'ชำระเงินเอง' },
+  { hn: '67-00024', prefixTh: 'นางสาว', firstNameTh: 'ศิริพร', lastNameTh: 'มหาชัย', prefixEn: 'Ms.', firstNameEn: 'Siriporn', lastNameEn: 'Mahachai', gender: 'หญิง', age: 28, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00025', prefixTh: 'นาย', firstNameTh: 'ณัฐพล', lastNameTh: 'แสงอรุณ', prefixEn: 'Mr.', firstNameEn: 'Nattapon', lastNameEn: 'Saengarun', gender: 'ชาย', age: 34, status: 'active', rights: 'ประกันชีวิต AIA' },
+  { hn: '67-00030', prefixTh: 'นาง', firstNameTh: 'รุ่งนภา', lastNameTh: 'วิไลเลิศ', prefixEn: 'Mrs.', firstNameEn: 'Rungnapha', lastNameEn: 'Wilailert', gender: 'หญิง', age: 47, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00031', prefixTh: 'นาย', firstNameTh: 'เกรียงไกร', lastNameTh: 'สุวรรณ', prefixEn: 'Mr.', firstNameEn: 'Kriangkrai', lastNameEn: 'Suwan', gender: 'ชาย', age: 39, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00032', prefixTh: 'นางสาว', firstNameTh: 'มัลลิกา', lastNameTh: 'ประสิทธิ์', prefixEn: 'Ms.', firstNameEn: 'Mallika', lastNameEn: 'Prasit', gender: 'หญิง', age: 24, status: 'pending', rights: 'บัตรทอง' },
+  { hn: '67-00033', prefixTh: 'นาย', firstNameTh: 'อดิศักดิ์', lastNameTh: 'เจริญผล', prefixEn: 'Mr.', firstNameEn: 'Adisak', lastNameEn: 'Charoenphon', gender: 'ชาย', age: 51, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00034', prefixTh: 'นางสาว', firstNameTh: 'ชุติมา', lastNameTh: 'อร่าม', prefixEn: 'Ms.', firstNameEn: 'Chutima', lastNameEn: 'Aram', gender: 'หญิง', age: 30, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00035', prefixTh: 'นาย', firstNameTh: 'ปริญญา', lastNameTh: 'ตั้งใจ', prefixEn: 'Mr.', firstNameEn: 'Parinya', lastNameEn: 'Tangjai', gender: 'ชาย', age: 43, status: 'inactive', rights: 'รัฐวิสาหกิจ' },
+  { hn: '67-00036', prefixTh: 'นาง', firstNameTh: 'ภัทรวดี', lastNameTh: 'มีทรัพย์', prefixEn: 'Mrs.', firstNameEn: 'Phattharawadi', lastNameEn: 'Meesap', gender: 'หญิง', age: 40, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00037', prefixTh: 'นาย', firstNameTh: 'สุรศักดิ์', lastNameTh: 'โพธิ์ทอง', prefixEn: 'Mr.', firstNameEn: 'Surasak', lastNameEn: 'Phothong', gender: 'ชาย', age: 58, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00038', prefixTh: 'นางสาว', firstNameTh: 'อังคณา', lastNameTh: 'วัฒนา', prefixEn: 'Ms.', firstNameEn: 'Angkana', lastNameEn: 'Wattana', gender: 'หญิง', age: 27, status: 'draft', rights: 'ชำระเงินเอง' },
+  { hn: '67-00039', prefixTh: 'นาย', firstNameTh: 'ธนากร', lastNameTh: 'ศิริวัฒน์', prefixEn: 'Mr.', firstNameEn: 'Thanakorn', lastNameEn: 'Siriwat', gender: 'ชาย', age: 32, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00040', prefixTh: 'นาง', firstNameTh: 'เมตตา', lastNameTh: 'บุญช่วย', prefixEn: 'Mrs.', firstNameEn: 'Metta', lastNameEn: 'Boonchuay', gender: 'หญิง', age: 49, status: 'active', rights: 'บัตรทอง' },
+];
+
+const FILLER_ADDRESS = {
+  zip: '10400', province: 'กรุงเทพมหานคร', district: 'ดินแดง',
+  subdistrict: 'ดินแดง', road: 'รัชดาภิเษก', moo: '', houseNo: '100/1',
+};
+
+MR_FILLER_SEEDS.forEach((seed, i) => {
+  const female = seed.gender === 'หญิง';
+  MR_PATIENTS.push({
+    ...seed,
+    genderIdentity: seed.gender,
+    nationalId: `1-1${String(100 + i).slice(-3)}-${String(20000 + i * 17).slice(-5)}-${String(10 + (i % 89)).padStart(2, '0')}-${i % 10}`,
+    dob: `${(i % 28) + 1} มกราคม ${2500 + (seed.age ? 69 - seed.age : 30)}`,
+    phone: `08${1 + (i % 9)}-${String(100 + i * 3).padStart(3, '0')}-${String(1000 + i * 41).slice(-4)}`,
+    altPhone: '',
+    email: `${seed.firstNameEn.toLowerCase()}.${seed.lastNameEn.toLowerCase()}@email.com`,
+    registeredOn: seed.status === 'pending' || seed.status === 'draft' ? '—' : `${(i % 27) + 1} มีนาคม 256${6 + (i % 3)}`,
+    bloodType: ['O', 'A', 'B', 'AB'][i % 4],
+    education: female ? 'ปริญญาตรี' : 'มัธยมศึกษา',
+    occupation: female ? 'พนักงานบริษัท' : 'รับจ้าง',
+    marital: i % 3 === 0 ? 'สมรส' : 'โสด',
+    spouseName: '',
+    address: { ...FILLER_ADDRESS, houseNo: `${10 + i}/${1 + (i % 9)}` },
+    emergency: [{ name: female ? 'สมชาย' : 'สมหญิง', last: seed.lastNameTh, relation: female ? 'บิดา' : 'มารดา', phone: `081-${String(200 + i).slice(-3)}-${String(3000 + i).slice(-4)}` }],
+    insurance: [{ type: seed.rights, claimCode: seed.status === 'pending' ? '—' : `MPI-${seed.hn}`, verified: seed.status === 'active' }],
+    mobility: 'เดิน',
+    flags: { vip: i % 11 === 0, allergyDrug: false, allergyOther: false, chronic: i % 7 === 0 },
+    drugAllergies: [],
+    chronicDiseases: [],
+  });
+});
+
+/* One unique portrait per MPI row — PATIENT_AVATAR_POOL has 40 adult
+   headshots (incl. generated patient-mock-20…28). */
+if (MR_PATIENTS.length !== PATIENT_AVATAR_POOL.length) {
+  console.warn(
+    `[mrPatients] expected ${PATIENT_AVATAR_POOL.length} unique avatars for ${MR_PATIENTS.length} patients`,
+  );
+}
+MR_PATIENTS.forEach((p, i) => {
+  p.avatarUrl = PATIENT_AVATAR_POOL[i % PATIENT_AVATAR_POOL.length];
+});
 
 /* Special-watch flags (ToR §1.9.4.7 — เฝ้าระวังพิเศษ: ตั้งครรภ์ / ให้นมบุตร /
    G6PD, on top of the existing drugAllergies list). Applied as a

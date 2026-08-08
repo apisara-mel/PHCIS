@@ -5,7 +5,11 @@ import Badge from '@/components/badge/Badge';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandButton from '@/components/button/BrandButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import { FilterDropdown } from '@/components/forms/FilterTag';
+import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
+import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import InputField from '@/components/forms/InputField';
+import Select from '@/components/forms/Select';
 import {
   MAIN_WAREHOUSE_STOCK,
   SUB_PHARMACY_STOCK,
@@ -112,15 +116,6 @@ const COUNTERPART_CENTER_OPTIONS = CLINIC_OPTIONS
   .filter((c) => c.value !== DEFAULT_CLINIC_VALUE)
   .map((c) => ({ value: c.label.replace(/^ศูนย์/, 'ศูนย์บริการสาธารณสุข'), label: c.label.replace(/^ศูนย์/, 'ศูนย์บริการสาธารณสุข') }));
 
-const INPUT_STYLE = {
-  padding: 'var(--dim-space-150) var(--dim-space-300)',
-  background: 'var(--surface-input-default)',
-  border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-  borderRadius: 'var(--dim-radius-200)',
-  fontSize: 'var(--type-size-sm)',
-  outline: 'none',
-};
-
 const CLASSIFICATION_OPTIONS = [{ value: 'all', label: 'ทุกประเภทยา' }, ...DRUG_CLASSIFICATIONS.map((c) => ({ value: c.key, label: c.label }))];
 const EXPIRY_OPTIONS = [
   { value: 'all', label: 'ทุกช่วงเวลาหมดอายุ' },
@@ -128,6 +123,11 @@ const EXPIRY_OPTIONS = [
   { value: '6',   label: 'หมดอายุภายใน 6 เดือน' },
   { value: '12',  label: 'หมดอายุภายใน 12 เดือน' },
 ];
+const BORROW_TYPE_OPTIONS = BORROW_RETURN_TYPES.map((t) => ({ value: t.key, label: t.label }));
+const STOCK_DRUG_OPTIONS = [...new Set([
+  ...Object.keys(MAIN_WAREHOUSE_STOCK),
+  ...Object.keys(SUB_PHARMACY_STOCK),
+])].sort((a, b) => a.localeCompare(b, 'th')).map((name) => ({ value: name, label: name }));
 
 const PharmacyStockPage = () => {
   const [activeTab, setActiveTab] = useState('main');
@@ -233,6 +233,16 @@ const PharmacyStockPage = () => {
 
   const tabCounts = useMemo(() => ({ main: mainRows.length, sub: subRows.length }), [mainRows.length, subRows.length]);
 
+  const filtersActive = search.trim() !== ''
+    || classificationFilter !== 'all'
+    || expiryFilter !== 'all';
+
+  const clearFilters = () => {
+    setSearch('');
+    setClassificationFilter('all');
+    setExpiryFilter('all');
+  };
+
   return (
     <QueuePageShell
       activeKey='pharmacy'
@@ -282,22 +292,42 @@ const PharmacyStockPage = () => {
               ))}
             </div>
           </div>
-          <input
-            type='text'
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder='ค้นหาชื่อยา / รหัสยา / Lot No.'
-            style={{
-              width: '100%', maxWidth: 'var(--dim-size-2600, 384px)', padding: 'var(--dim-space-150) var(--dim-space-300)',
-              background: 'var(--surface-input-default)',
-              border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-              borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', outline: 'none',
-            }}
-          />
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-            <FilterDropdown prefix='ประเภทยา:' options={CLASSIFICATION_OPTIONS} value={classificationFilter} onChange={setClassificationFilter} />
-            <FilterDropdown prefix='วันหมดอายุ:' options={EXPIRY_OPTIONS} value={expiryFilter} onChange={setExpiryFilter} />
+          <div className='w-full flex items-start justify-center'>
+            <PrimarySearch
+              value={search}
+              onChange={setSearch}
+              onSubmit={setSearch}
+              placeholder='ค้นหาชื่อยา / รหัสยา / Lot No.'
+              width={640}
+            />
           </div>
+
+          <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            <FilterDropdown
+              prefix='ประเภทยา :'
+              options={CLASSIFICATION_OPTIONS}
+              value={classificationFilter}
+              onChange={setClassificationFilter}
+            />
+            <FilterDropdown
+              prefix='วันหมดอายุ :'
+              options={EXPIRY_OPTIONS}
+              value={expiryFilter}
+              onChange={setExpiryFilter}
+            />
+            {filtersActive ? (
+              <FilterTag
+                variant='neutral'
+                leadingIcon='close'
+                value='ล้างตัวกรอง'
+                showTitle={false}
+                onClick={clearFilters}
+              />
+            ) : null}
+          </div>
+
+          <SearchResultCount found={filteredRows.length} total={rows.length} />
+
           <Table columns={columns} rows={filteredRows} rowKey={(r) => r.name} stickyColCount={1} emptyMessage='ไม่พบรายการยาที่ตรงกับเงื่อนไข' />
         </div>
 
@@ -350,31 +380,58 @@ const PharmacyStockPage = () => {
               </div>
 
               {showNewRequestForm && (
-                <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', ...PHARMACY_NESTED_PANEL }}>
-                  <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                    <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>ประเภท</span>
-                    <select value={newRequest.type} onChange={(e) => setNewRequest((p) => ({ ...p, type: e.target.value }))} style={{ ...INPUT_STYLE, appearance: 'none' }}>
-                      {BORROW_RETURN_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-                    </select>
-                  </label>
-                  <label className='flex flex-col flex-1' style={{ gap: 'var(--dim-space-150)', minWidth: 200 }}>
-                    <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>ชื่อยา</span>
-                    <input type='text' value={newRequest.drugName} onChange={(e) => setNewRequest((p) => ({ ...p, drugName: e.target.value }))} placeholder='เช่น Ibuprofen 400 mg' style={INPUT_STYLE} list='stock-drug-options' />
-                    <datalist id='stock-drug-options'>
-                      {Object.keys(SUB_PHARMACY_STOCK).map((name) => <option key={name} value={name} />)}
-                    </datalist>
-                  </label>
-                  <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                    <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>จำนวน</span>
-                    <input type='number' min='1' value={newRequest.quantity} onChange={(e) => setNewRequest((p) => ({ ...p, quantity: e.target.value }))} style={{ ...INPUT_STYLE, width: 'var(--dim-size-1800, 96px)' }} />
-                  </label>
-                  <label className='flex flex-col flex-1' style={{ gap: 'var(--dim-space-150)', minWidth: 220 }}>
-                    <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>ศูนย์บริการคู่กรณี</span>
-                    <select value={newRequest.counterpartCenter} onChange={(e) => setNewRequest((p) => ({ ...p, counterpartCenter: e.target.value }))} style={{ ...INPUT_STYLE, appearance: 'none' }}>
-                      {COUNTERPART_CENTER_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
-                  </label>
-                  <BrandButton size='md' leadingIcon='send' onClick={handleCreateBorrowReturn} disabled={!newRequest.drugName.trim() || !newRequest.quantity}>ส่งคำร้อง</BrandButton>
+                <div
+                  className='flex flex-wrap items-end w-full'
+                  style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', ...PHARMACY_NESTED_PANEL }}
+                >
+                  <div style={{ minWidth: 'var(--dim-size-1800, 160px)' }}>
+                    <Select
+                      label='ประเภท'
+                      value={newRequest.type}
+                      onChange={(v) => setNewRequest((p) => ({ ...p, type: v }))}
+                      options={BORROW_TYPE_OPTIONS}
+                      searchable={false}
+                      showHelperText={false}
+                    />
+                  </div>
+                  <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-2200, 200px)' }}>
+                    <Select
+                      label='ชื่อยา'
+                      value={newRequest.drugName}
+                      onChange={(v) => setNewRequest((p) => ({ ...p, drugName: v }))}
+                      options={STOCK_DRUG_OPTIONS}
+                      placeholder='เลือกชื่อยา'
+                      showHelperText={false}
+                    />
+                  </div>
+                  <div style={{ width: 'var(--dim-size-1800, 120px)' }}>
+                    <InputField
+                      label='จำนวน'
+                      type='number'
+                      value={newRequest.quantity}
+                      onChange={(v) => setNewRequest((p) => ({ ...p, quantity: v }))}
+                      placeholder='เช่น 100'
+                      showHelperText={false}
+                    />
+                  </div>
+                  <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-2400, 220px)' }}>
+                    <Select
+                      label='ศูนย์บริการคู่กรณี'
+                      value={newRequest.counterpartCenter}
+                      onChange={(v) => setNewRequest((p) => ({ ...p, counterpartCenter: v }))}
+                      options={COUNTERPART_CENTER_OPTIONS}
+                      searchable={false}
+                      showHelperText={false}
+                    />
+                  </div>
+                  <BrandButton
+                    size='md'
+                    leadingIcon='send'
+                    onClick={handleCreateBorrowReturn}
+                    disabled={!newRequest.drugName.trim() || !newRequest.quantity}
+                  >
+                    ส่งคำร้อง
+                  </BrandButton>
                 </div>
               )}
 

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
@@ -1638,6 +1639,8 @@ const TbRegistryPage = () => {
               <FilterDropdown prefix='แพทย์:' options={doctorOptions} value={filters.doctor} onChange={setFilter('doctor')} />
             </OverflowFlexRow>
           </div>
+
+          <SearchResultCount found={filtered.length} total={rows.length} />
 
           {rows.length === 0 ? (
             <EmptyPanel

@@ -1205,7 +1205,16 @@ const ICD_TABLE_COLUMNS = [
       </ColorfulBadge>
     ),
   },
-  { key: 'name', header: 'การวินิจฉัย', flex: 1 },
+  /* Prefer key `diagnosis` (not `name`) — Table auto-wraps `name` /
+     `patientName` with MaskedWorklistName for PII, which must not apply
+     to ICD diagnosis labels. */
+  {
+    key: 'diagnosis',
+    header: 'การวินิจฉัย',
+    flex: true,
+    minWidth: 220,
+    render: (row) => row.name || '—',
+  },
   {
     key: 'type', header: 'Diagnosis Type',
     render: (row) => {

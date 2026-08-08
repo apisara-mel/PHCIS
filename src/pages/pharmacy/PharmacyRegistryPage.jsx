@@ -1,22 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
-import QueuePageShell from '@/templates/QueuePageShell';
-import Icon from '@/components/icons/Icon';
+import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
+import Table from '@/components/table/Table';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { resolveHighAlertBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
 import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
-import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
+import Switch from '@/components/switch/Switch';
+import AlertDialog from '@/components/popup/AlertDialog';
 import { DRUG_REGISTRY, DRUG_CLASSIFICATIONS, UNIT_TYPES, currentPrice, subscribeRegistry, setRegistryDrugActive } from '@/data/pharmacyRegistry';
 import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
+import PharmacyRegistryEditPopup from '@/components/pharmacy/PharmacyRegistryEditPopup';
 import { buildRegistrySummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
-import { PHARMACY_LIST_ROW, PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
+import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 
 /* Drug Registry (ระบบทะเบียนยา — ToR §1.9.1) list page.
-   Search / filters alias PrimarySearch + FilterDropdown + FilterTag
-   (same pattern as PharmacyPatientsPage / UsersAccessPage). */
+   Search / filters alias PrimarySearch + FilterDropdown + FilterTag.
+   List is a shared <Table> (same pattern as คลังยา / ผู้รับบริการ).
+   Active toggle uses Switch + informative AlertDialog confirm
+   (AccessManagement / Department pattern). */
 
 const breadcrumb = ['ระบบงานเภสัชกรรม', 'ทะเบียนยา'];
 
@@ -41,88 +45,28 @@ const UNIT_OPTIONS = [
 ];
 
 const classificationLabel = (key) => DRUG_CLASSIFICATIONS.find((c) => c.key === key)?.label || key;
-
-const DrugRow = ({ drug, onEdit, onToggleActive }) => (
-  <div
-    role='button'
-    tabIndex={0}
-    onClick={onEdit}
-    onKeyDown={(e) => { if (e.key === 'Enter') onEdit(); }}
-    className='flex items-center w-full cursor-pointer transition-shadow hover:shadow-cardHover'
-    style={{
-      gap: 'var(--dim-space-400)',
-      padding: 'var(--dim-space-400)',
-      ...PHARMACY_LIST_ROW,
-    }}
-  >
-    <div
-      className='shrink-0 rounded-full overflow-hidden'
-      style={{
-        width: 'var(--dim-size-900, 44px)',
-        height: 'var(--dim-size-900, 44px)',
-        background: 'var(--surface-card-quaternary)',
-      }}
-    >
-      <img src={drug.image} alt='' className='w-full h-full object-cover' />
-    </div>
-
-    <div className='flex-1 min-w-0 flex flex-col'>
-      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-        <span className='text-sm font-bold text-ink truncate'>{drug.name}</span>
-        {drug.highAlert && <ColorfulBadge style={resolveHighAlertBadgeStyle(true)} size='small'>High Alert</ColorfulBadge>}
-        {!drug.active && <Badge style='neutral' size='small'>ปิดใช้งาน</Badge>}
-      </div>
-      <span className='text-xs text-ink-tertiary truncate'>
-        {drug.code ? `${drug.code} · ` : ''}{drug.genericName}{drug.tradeName ? ` · ${drug.tradeName}` : ''}
-      </span>
-    </div>
-
-    <div className='hidden md:flex flex-col shrink-0' style={{ gap: 'var(--dim-space-100)', minWidth: 'var(--dim-size-2000, 200px)' }}>
-      <Badge style={drug.classification === 'nlem' ? 'success' : 'info'} size='small'>
-        {classificationLabel(drug.classification)}
-      </Badge>
-      <span className='text-xs text-ink-tertiary'>หน่วย: {drug.unit === 'capsule' ? 'แคปซูล' : 'เม็ด'}</span>
-    </div>
-
-    <div className='hidden lg:flex flex-col shrink-0' style={{ gap: 'var(--dim-space-100)', minWidth: 'var(--dim-size-1400, 140px)' }}>
-      <span className='text-xs text-ink-tertiary'>ราคาปัจจุบัน</span>
-      <span className='text-sm font-bold text-ink'>฿{currentPrice(drug)}</span>
-    </div>
-
-    <div className='hidden lg:flex flex-col shrink-0' style={{ gap: 'var(--dim-space-100)', minWidth: 'var(--dim-size-1800, 180px)' }}>
-      <span className='text-xs text-ink-tertiary'>สิทธิที่เบิกได้</span>
-      <span className='text-xs text-ink-secondary'>
-        {drug.rightsEligible.length >= 5 ? 'ทุกสิทธิ' : drug.rightsEligible.join(', ')}
-      </span>
-    </div>
-
-    <div className='shrink-0 inline-flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-      <NeutralSubdueIconButton
-        icon={drug.active ? 'block' : 'check_circle'}
-        size='sm'
-        variant='outline'
-        aria-label={drug.active ? 'ปิดใช้งานรายการยา' : 'เปิดใช้งานรายการยา'}
-        onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
-      />
-      <BrandCircleSubdueIconButton
-        icon='edit'
-        size='sm'
-        variant='fill'
-        aria-label='แก้ไขรายการยา'
-        onClick={(e) => { e.stopPropagation(); onEdit(); }}
-      />
-    </div>
-  </div>
-);
+const unitLabel = (key) => UNIT_TYPES.find((u) => u.key === key)?.label || key || '—';
 
 const PharmacyRegistryPage = () => {
-  const history = useHistory();
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [highAlertFilter, setHighAlertFilter] = useState('all');
   const [unitFilter, setUnitFilter] = useState('all');
   const [registryTick, setRegistryTick] = useState(0);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  /* { drug, nextActive } — pending Switch confirm via informative AlertDialog */
+  const [toggleConfirm, setToggleConfirm] = useState(null);
+  /* ExtraLarge edit popup — row click / edit button (add still uses /new page) */
+  const [editDrugId, setEditDrugId] = useState(null);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => (
+      prev.key === key
+        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    ));
+  };
 
   /* `DRUG_REGISTRY` is mutated in place by upsertRegistryDrug /
      setRegistryDrugActive; subscribing + bumping a tick state forces this
@@ -147,6 +91,35 @@ const PharmacyRegistryPage = () => {
     });
   }, [search, classFilter, statusFilter, highAlertFilter, unitFilter, registryTick]);
 
+  /* Sort only after the pharmacist clicks a header (null key keeps
+     registry insertion order). */
+  const sortedRows = useMemo(() => {
+    if (!sortConfig.key) return filtered;
+    const sign = sortConfig.direction === 'desc' ? -1 : 1;
+    const normalize = (row, key) => {
+      switch (key) {
+        case 'name':           return row.name || '';
+        case 'classification': return classificationLabel(row.classification);
+        case 'unit':           return unitLabel(row.unit);
+        case 'price':          return Number(currentPrice(row)) || 0;
+        case 'rights':         return row.rightsEligible.length >= 5
+          ? 'ทุกสิทธิ'
+          : (row.rightsEligible || []).join(', ');
+        case 'active':         return row.active ? 1 : 0;
+        default:               return row[key] ?? '';
+      }
+    };
+    const collator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' });
+    return [...filtered].sort((a, b) => {
+      const av = normalize(a, sortConfig.key);
+      const bv = normalize(b, sortConfig.key);
+      const primary = typeof av === 'number' && typeof bv === 'number'
+        ? av - bv
+        : collator.compare(String(av), String(bv));
+      return sign * primary;
+    });
+  }, [filtered, sortConfig]);
+
   const summaryCards = useMemo(
     () => buildRegistrySummaryCards(DRUG_REGISTRY),
     [registryTick],
@@ -166,7 +139,130 @@ const PharmacyRegistryPage = () => {
     setUnitFilter('all');
   };
 
+  const requestToggle = (drug) => {
+    setToggleConfirm({ drug, nextActive: !drug.active });
+  };
+
+  const confirmToggle = () => {
+    if (!toggleConfirm) return;
+    setRegistryDrugActive(toggleConfirm.drug.id, toggleConfirm.nextActive);
+    setToggleConfirm(null);
+  };
+
+  const turningOn = Boolean(toggleConfirm?.nextActive);
+  const confirmDrug = toggleConfirm?.drug;
+
+  const columns = [
+    {
+      key: 'name',
+      label: 'ชื่อยา',
+      flex: true,
+      minWidth: 260,
+      render: (d) => (
+        <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
+          <div
+            className='shrink-0 rounded-full overflow-hidden'
+            style={{
+              width: 'var(--dim-size-900, 36px)',
+              height: 'var(--dim-size-900, 36px)',
+              background: 'var(--surface-card-quaternary)',
+            }}
+          >
+            <img src={d.image} alt='' className='w-full h-full object-cover' />
+          </div>
+          <div className='flex flex-col min-w-0 flex-1'>
+            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+              <span className='truncate' style={{ fontWeight: 'var(--type-weight-bold)' }}>{d.name}</span>
+              {d.highAlert ? (
+                <ColorfulBadge style={resolveHighAlertBadgeStyle(true)} size='small'>High Alert</ColorfulBadge>
+              ) : null}
+              {!d.active ? <Badge style='neutral' size='small'>ปิดใช้งาน</Badge> : null}
+            </div>
+            <span
+              className='truncate'
+              style={{
+                color: 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+              }}
+            >
+              {d.code ? `${d.code} · ` : ''}{d.genericName}{d.tradeName ? ` · ${d.tradeName}` : ''}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'classification',
+      label: 'ประเภท',
+      render: (d) => (
+        <Badge style={d.classification === 'nlem' ? 'success' : 'info'} size='small'>
+          {classificationLabel(d.classification)}
+        </Badge>
+      ),
+    },
+    {
+      key: 'unit',
+      label: 'รูปแบบ',
+      render: (d) => unitLabel(d.unit),
+    },
+    {
+      key: 'price',
+      label: 'ราคาปัจจุบัน',
+      align: 'center',
+      render: (d) => `฿${currentPrice(d)}`,
+    },
+    {
+      key: 'rights',
+      label: 'สิทธิที่เบิกได้',
+      render: (d) => (
+        d.rightsEligible.length >= 5 ? 'ทุกสิทธิ' : d.rightsEligible.join(', ')
+      ),
+    },
+    {
+      key: 'active',
+      label: 'สถานะใช้งาน',
+      align: 'center',
+      render: (d) => (
+        <div
+          className='inline-flex flex-col items-center'
+          style={{ gap: 'var(--dim-space-50)' }}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+            {d.active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+          </span>
+          <Switch
+            checked={!!d.active}
+            aria-label={`${d.active ? 'ปิด' : 'เปิด'}ใช้งาน ${d.name}`}
+            onChange={() => requestToggle(d)}
+          />
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'การดำเนินการ',
+      align: 'center',
+      sortable: false,
+      render: (d) => (
+        <BrandCircleSubdueIconButton
+          icon='edit'
+          size='sm'
+          variant='fill'
+          aria-label={`แก้ไข ${d.name}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditDrugId(d.id);
+          }}
+        />
+      ),
+    },
+  ];
+
   return (
+    <>
     <QueuePageShell
       activeKey='pharmacy'
       breadcrumb={breadcrumb}
@@ -229,30 +325,47 @@ const PharmacyRegistryPage = () => {
             ) : null}
           </div>
 
-          <div className='text-xs text-ink-tertiary'>
-            พบ <strong className='text-ink-secondary'>{filtered.length}</strong> รายการ จาก {DRUG_REGISTRY.length} รายการ
-          </div>
+          <SearchResultCount found={filtered.length} total={DRUG_REGISTRY.length} />
 
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-            {filtered.length === 0 ? (
-              <div className='flex flex-col items-center text-center' style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-200)' }}>
-                <Icon name='search_off' size={32} />
-                <p className='text-sm text-ink-secondary'>ไม่พบรายการยาที่ตรงกับเงื่อนไข</p>
-              </div>
-            ) : (
-              filtered.map((d) => (
-                <DrugRow
-                  key={d.id}
-                  drug={d}
-                  onEdit={() => history.push(`/pharmacy/registry/${d.id}`)}
-                  onToggleActive={() => setRegistryDrugActive(d.id, !d.active)}
-                />
-              ))
-            )}
-          </div>
+          <Table
+            columns={columns}
+            rows={sortedRows}
+            rowKey={(d) => d.id}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            stickyColCount={1}
+            stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+            onRowClick={(d) => setEditDrugId(d.id)}
+            emptyMessage={filtersActive ? 'ไม่พบรายการยาที่ตรงกับเงื่อนไข' : 'ยังไม่มีรายการในทะเบียนยา'}
+            emptySubtext={filtersActive ? 'ลองล้างตัวกรองหรือแก้คำค้นหา' : null}
+          />
         </section>
       </div>
     </QueuePageShell>
+
+    <PharmacyRegistryEditPopup
+      open={Boolean(editDrugId)}
+      drugId={editDrugId}
+      onClose={() => setEditDrugId(null)}
+    />
+
+    <AlertDialog
+      open={Boolean(toggleConfirm)}
+      type='info'
+      alignment='center'
+      title={turningOn ? 'เปิดใช้งานรายการยานี้?' : 'ปิดใช้งานรายการยานี้?'}
+      description={confirmDrug
+        ? turningOn
+          ? `ยืนยันเปิดใช้งาน «${confirmDrug.name}» — รายการนี้จะกลับมาสั่งจ่ายและเบิกได้ตามสิทธิที่ตั้งไว้`
+          : `ยืนยันปิดใช้งาน «${confirmDrug.name}» — รายการนี้จะไม่แสดงให้สั่งจ่ายจนกว่าจะเปิดอีกครั้ง (ข้อมูลทะเบียนยังคงอยู่)`
+        : ''}
+      confirmLabel={turningOn ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+      cancelLabel='ยกเลิก'
+      onConfirm={confirmToggle}
+      onCancel={() => setToggleConfirm(null)}
+      onClose={() => setToggleConfirm(null)}
+    />
+    </>
   );
 };
 

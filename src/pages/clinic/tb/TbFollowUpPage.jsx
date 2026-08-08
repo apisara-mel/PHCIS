@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import PatientCard from '@/components/card/PatientCard';
 import DatePickerRange from '@/components/forms/DatePickerRange';
@@ -316,6 +317,12 @@ const TbFollowUpPage = () => {
     setFuPage(1);
   };
 
+  const pickerMatchCount = useMemo(() => {
+    const q = searchQ.trim().toLowerCase();
+    if (!q) return 0;
+    return pool.filter((r) => [r.hn, r.name, r.regNo].some((f) => f && f.toLowerCase().includes(q))).length;
+  }, [searchQ, pool]);
+
   const searchSuggestions = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
     if (!q) return [];
@@ -577,6 +584,9 @@ const TbFollowUpPage = () => {
               width={640}
             />
           </div>
+          {searchQ.trim() && !record ? (
+            <SearchResultCount found={pickerMatchCount} total={pool.length} />
+          ) : null}
           {!record && searchQ.trim() && searchSuggestions.length === 0 && (
             <EmptyPanel icon='search_off' title={`ไม่พบผู้รับบริการที่ตรงกับ "${searchQ.trim()}"`} subtitle='ตรวจสอบ HN / ชื่อ / เลขทะเบียน แล้วลองอีกครั้ง' />
           )}

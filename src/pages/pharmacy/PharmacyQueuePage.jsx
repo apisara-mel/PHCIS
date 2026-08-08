@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import Table, { EllipsisText as TableEllipsisText } from '@/components/table/Table';
@@ -374,53 +375,59 @@ const PharmacyQueuePage = () => {
             />
           </div>
 
-          <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
-            <FilterDropdown
-              prefix='ประเภท:'
-              options={queueTypeOptions}
-              value={queueTypeFilter}
-              onChange={setQueueTypeFilter}
-            />
-            <FilterDropdown
-              prefix='แพ้ยา / High Alert:'
-              options={ALLERGY_FILTER_OPTIONS}
-              value={allergyFilter}
-              onChange={setAllergyFilter}
-            />
-            <FilterDropdown
-              prefix='การชำระเงิน:'
-              options={PAYMENT_FILTER_OPTIONS}
-              value={paymentFilter}
-              onChange={setPaymentFilter}
-            />
-            {/* Same chip shape as the filters it clears, and only present once
-                there is something to clear. */}
-            {filtersActive ? (
-              <FilterTag
-                variant='neutral'
-                leadingIcon='close'
-                value='ล้างตัวกรอง'
-                showTitle={false}
-                onClick={clearFilters}
+          {/* Filters + result count + table — 12px stack (space-300).
+              Outer worklist card keeps space-600 above (tabs / search). */}
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              <FilterDropdown
+                prefix='ประเภท:'
+                options={queueTypeOptions}
+                value={queueTypeFilter}
+                onChange={setQueueTypeFilter}
               />
-            ) : null}
-          </div>
+              <FilterDropdown
+                prefix='แพ้ยา / High Alert:'
+                options={ALLERGY_FILTER_OPTIONS}
+                value={allergyFilter}
+                onChange={setAllergyFilter}
+              />
+              <FilterDropdown
+                prefix='การชำระเงิน:'
+                options={PAYMENT_FILTER_OPTIONS}
+                value={paymentFilter}
+                onChange={setPaymentFilter}
+              />
+              {/* Same chip shape as the filters it clears, and only present once
+                  there is something to clear. */}
+              {filtersActive ? (
+                <FilterTag
+                  variant='neutral'
+                  leadingIcon='close'
+                  value='ล้างตัวกรอง'
+                  showTitle={false}
+                  onClick={clearFilters}
+                />
+              ) : null}
+            </div>
 
-          <div className='flex flex-col' style={{ minHeight: 'calc(100vh - 460px)' }}>
-            <Table
-              columns={columns}
-              rows={pageRows}
-              rowKey={(row) => row.id}
-              sortConfig={sortConfig}
-              onSort={handleSort}
-              stickyColCount={2}
-              onRowClick={handleRowClick}
-              stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
-              emptyMessage={filtersActive
-                ? 'ไม่พบรายการที่ตรงกับตัวกรอง'
-                : EMPTY_MESSAGE[activeTab] || 'ยังไม่มีรายการ'}
-              emptySubtext={filtersActive ? 'ลองล้างตัวกรองหรือแก้คำค้นหา' : null}
-            />
+            <SearchResultCount found={sortedRows.length} total={rows.length} />
+
+            <div className='flex flex-col' style={{ minHeight: 'calc(100vh - 460px)' }}>
+              <Table
+                columns={columns}
+                rows={pageRows}
+                rowKey={(row) => row.id}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                stickyColCount={2}
+                onRowClick={handleRowClick}
+                stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
+                emptyMessage={filtersActive
+                  ? 'ไม่พบรายการที่ตรงกับตัวกรอง'
+                  : EMPTY_MESSAGE[activeTab] || 'ยังไม่มีรายการ'}
+                emptySubtext={filtersActive ? 'ลองล้างตัวกรองหรือแก้คำค้นหา' : null}
+              />
+            </div>
           </div>
 
           <div

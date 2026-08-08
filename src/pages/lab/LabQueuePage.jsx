@@ -4,6 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
@@ -1325,6 +1326,8 @@ const LabQueuePage = () => {
                 <FilterDropdown prefix='จุดสั่ง:' options={LOCATION_OPTIONS} value={location} onChange={setLocation} />
                 <FilterDropdown prefix='ชนิดหลอด:' options={TUBE_OPTIONS} value={tube} onChange={setTube} />
               </OverflowFlexRow>
+
+              <SearchResultCount found={sorted.length} total={liveRows.length} />
 
               {/* Bulk action bar. Appears only when something is selected,
                   so it costs nothing in the normal scanning case, and it is

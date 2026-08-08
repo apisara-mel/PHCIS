@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import ConfidentialDataPanel from '@/pages/treat/panels/ConfidentialDataPanel';
 import { MR_PATIENTS } from '@/data/mrPatients';
@@ -43,12 +44,18 @@ const searchPool = MR_PATIENTS.map((p) => ({
   hn: p.hn,
 }));
 
+const matchPatients = (query) => {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return [];
+  return searchPool.filter(
+    (p) => p.label.toLowerCase().includes(q) || p.hn.toLowerCase().includes(q),
+  );
+};
+
 const filterPatients = (query) => {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return searchPool.slice(0, 8);
-  return searchPool.filter(
-    (p) => p.label.toLowerCase().includes(q) || p.hn.toLowerCase().includes(q),
-  ).slice(0, 12);
+  return matchPatients(query).slice(0, 12);
 };
 
 export default function SystemConfidentialDataPage() {
@@ -62,6 +69,7 @@ export default function SystemConfidentialDataPage() {
   );
 
   const suggestions = useMemo(() => filterPatients(query), [query]);
+  const matchCount = useMemo(() => matchPatients(query).length, [query]);
 
   const handleSubmit = (text, item) => {
     const hn = item?.hn || item?.value || text?.trim();
@@ -93,6 +101,9 @@ export default function SystemConfidentialDataPage() {
             suggestions={suggestions}
             width={640}
           />
+          {query.trim() && !patient ? (
+            <SearchResultCount found={matchCount} total={searchPool.length} />
+          ) : null}
         </section>
 
         {patient ? (

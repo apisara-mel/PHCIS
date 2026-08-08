@@ -4,6 +4,7 @@ import Checkbox from '@/components/checkbox/Checkbox';
 import Switch from '@/components/switch/Switch';
 import Select from '@/components/forms/Select';
 import InputField from '@/components/forms/InputField';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -47,10 +48,14 @@ const CheckupGroupScreeningPanel = ({ form, currentVisit, onApplied }) => {
   const group = groups.find((g) => g.id === groupId) || null;
   const visits = useMemo(() => listVisits(), [result]);
 
+  const activeMembers = useMemo(
+    () => (group ? (group.members || []).filter((m) => m.status !== 'cancelled') : []),
+    [group],
+  );
+
   const rows = useMemo(() => {
     if (!group) return [];
-    return (group.members || [])
-      .filter((m) => m.status !== 'cancelled')
+    return activeMembers
       .map((m) => {
         const visit = visits.find((v) => v.hn && v.hn === m.hn) || null;
         const existing = visit ? getScreening(visit.id) : null;
@@ -67,7 +72,7 @@ const CheckupGroupScreeningPanel = ({ form, currentVisit, onApplied }) => {
         const needle = q.trim().toLowerCase();
         return [r.name, r.cid, r.hn].some((f) => f && String(f).toLowerCase().includes(needle));
       });
-  }, [group, visits, q, currentVisit]);
+  }, [group, activeMembers, visits, q, currentVisit]);
 
   const eligible = rows.filter((r) => r.visitId);
   const allSelected = eligible.length > 0 && eligible.every((r) => selected.includes(r.visitId));
@@ -188,6 +193,8 @@ const CheckupGroupScreeningPanel = ({ form, currentVisit, onApplied }) => {
               onChange={(e) => setQ(e?.target ? e.target.value : e)}
             />
           </div>
+
+          <SearchResultCount found={rows.length} total={activeMembers.length} />
 
           <SubCard tone='warning'>
             <div className='flex items-start flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>

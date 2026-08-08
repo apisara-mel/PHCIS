@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
@@ -170,16 +171,20 @@ const HnSearchPopup = ({ open, onClose, existingMembers, onAdd }) => {
   useEffect(() => { if (open) { setQ(''); setPicked([]); } }, [open]);
 
   const existing = new Set(existingMembers.map((m) => m.hn).filter(Boolean));
+  const eligiblePool = useMemo(
+    () => PATIENT_PROFILES.filter((p) => !existing.has(p.hn)),
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    [existingMembers],
+  );
 
-  const results = useMemo(() => {
+  const hnMatches = useMemo(() => {
     if (q.trim().length < 2) return [];
     const needle = q.trim().toLowerCase();
-    return PATIENT_PROFILES
-      .filter((p) => !existing.has(p.hn))
-      .filter((p) => [p.hn, p.fullName, p.shortName, p.nationalId].some((f) => f && String(f).toLowerCase().includes(needle)))
-      .slice(0, 20);
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [q, existingMembers]);
+    return eligiblePool.filter((p) => [p.hn, p.fullName, p.shortName, p.nationalId]
+      .some((f) => f && String(f).toLowerCase().includes(needle)));
+  }, [q, eligiblePool]);
+
+  const results = hnMatches.slice(0, 20);
 
   const toggle = (hn) => setPicked((p) => (p.includes(hn) ? p.filter((h) => h !== hn) : [...p, hn]));
 
@@ -235,6 +240,9 @@ const HnSearchPopup = ({ open, onClose, existingMembers, onAdd }) => {
           value={q}
           onChange={(e) => setQ(e?.target ? e.target.value : e)}
         />
+        {q.trim().length >= 2 ? (
+          <SearchResultCount found={hnMatches.length} total={eligiblePool.length} />
+        ) : null}
         {q.trim().length < 2 ? (
           <EmptyState compact icon='manage_search' title='พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา' />
         ) : results.length === 0 ? (
@@ -933,6 +941,10 @@ const CheckupTargetGroupPage = () => {
                   style={{ minWidth: 'var(--dim-size-2500, 320px)' }}
                 />
               </div>
+
+              {members.length > 0 ? (
+                <SearchResultCount found={filteredMembers.length} total={members.length} />
+              ) : null}
 
               {members.length === 0 ? (
                 <EmptyState

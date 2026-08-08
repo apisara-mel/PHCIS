@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import Table, { EllipsisText } from '@/components/table/Table';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
@@ -336,9 +337,7 @@ const ClaimSubmitQueueSection = ({ role }) => {
         )}
       </div>
 
-      <span style={T.muted}>
-        พบ {sortedRows.length} ครั้งบริการ (Close Visit) จากทั้งหมด {RIGHTS_VISITS.length} รายการ
-      </span>
+      <SearchResultCount found={sortedRows.length} total={RIGHTS_VISITS.length} unit='ครั้งบริการ' />
 
       {sortedRows.length === 0 ? (
         <EmptyState

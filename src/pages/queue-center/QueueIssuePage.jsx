@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import SelectableOptionCard from '@/components/card/SelectableOptionCard';
@@ -155,13 +156,11 @@ const QueueIssuePage = () => {
   const matches = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
     if (!q) return [];
-    return QUEUE_PATIENT_POOL
-      .filter((p) => [p.hn, p.name, p.fullName, p.nationalId]
-        .some((f) => f && String(f).toLowerCase().includes(q)))
-      .slice(0, 8);
+    return QUEUE_PATIENT_POOL.filter((p) => [p.hn, p.name, p.fullName, p.nationalId]
+      .some((f) => f && String(f).toLowerCase().includes(q)));
   }, [searchQ]);
 
-  const suggestions = matches.map((p) => ({
+  const suggestions = matches.slice(0, 8).map((p) => ({
     id: p.hn,
     label: p.name,
     sublabel: p.rights,
@@ -474,6 +473,10 @@ const QueueIssuePage = () => {
                       width={640}
                     />
                   </div>
+
+                  {searchQ.trim() && !form.patient ? (
+                    <SearchResultCount found={matches.length} total={QUEUE_PATIENT_POOL.length} />
+                  ) : null}
 
                   {searchQ.trim() && matches.length === 0 && !form.patient ? (
                     <EmptyState

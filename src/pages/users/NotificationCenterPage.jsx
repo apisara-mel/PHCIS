@@ -8,6 +8,7 @@ import Select from '@/components/forms/Select';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import Pagination from '@/components/pagination/Pagination';
 import AlertDialog from '@/components/popup/AlertDialog';
 import Popup from '@/components/popup/Popup';
@@ -306,6 +307,8 @@ const NotificationCenterPage = () => {
           ทำเครื่องหมายอ่านทั้งหมด
         </NeutralSubdueButton>
       </div>
+
+      <SearchResultCount found={filtered.length} total={items.length} />
 
       {items.length === 0 ? (
         <EmptyState

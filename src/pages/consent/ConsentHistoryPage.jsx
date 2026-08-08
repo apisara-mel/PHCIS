@@ -4,6 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
@@ -245,6 +246,12 @@ function ConsentHistorySearch({ records, onSelectHn, embedded = false }) {
     [search, records],
   );
 
+  const patientPoolTotal = useMemo(() => {
+    const set = new Set();
+    (records || []).forEach((r) => { if (r?.hn) set.add(r.hn); });
+    return set.size;
+  }, [records]);
+
   const searchSuggestions = useMemo(
     () => consentPatientSearchSuggestions(search),
     [search],
@@ -313,6 +320,10 @@ function ConsentHistorySearch({ records, onSelectHn, embedded = false }) {
             onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
           />
         </div>
+
+        {search.trim() ? (
+          <SearchResultCount found={results.length} total={patientPoolTotal} />
+        ) : null}
 
         {search.trim() && results.length === 0 && (
           <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-600)' }}>

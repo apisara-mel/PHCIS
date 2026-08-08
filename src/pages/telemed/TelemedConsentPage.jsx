@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
@@ -459,6 +460,8 @@ const TelemedConsentPage = () => {
               <FilterDateTag prefix='ช่วง:' value={dateValue} onChange={(v) => { setDateValue(v); setPage(1); }} defaultQuick='all' quickLabels={DATE_CHIP_LABELS} />
             </OverflowFlexRow>
           </div>
+
+          <SearchResultCount found={sorted.length} total={records.length} />
 
           {records.length === 0 ? (
             <EmptyState icon='verified_user' title='ยังไม่มีทะเบียนความยินยอมของ Telemedicine' hint='กด "สร้างคำขอความยินยอม" เพื่อส่งแบบฟอร์ม PDPA ไปที่แอปผู้รับบริการ' />

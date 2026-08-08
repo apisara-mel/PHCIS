@@ -14,6 +14,7 @@ import Alert from '@/components/alert/Alert';
 import Popup from '@/components/popup/Popup';
 import Checkbox from '@/components/checkbox/Checkbox';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import XrayOrderPicker from '@/components/xray/XrayOrderPicker';
 import XrayReportSheet from '@/components/xray/XrayReportSheet';
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
@@ -526,6 +527,14 @@ const XrayOrderPage = () => {
   /* Patient search suggestions — §1.12.2 verbatim: HN / ชื่อ-สกุล /
      เลขบัตรประชาชน. Matching starts at 2 characters so the dropdown never
      lists all 25 profiles on the first keystroke. */
+  const patientMatchCount = useMemo(() => {
+    const q = patientQuery.trim().toLowerCase();
+    if (q.length < 2) return 0;
+    return PATIENT_PROFILES.filter((p) => p.hn.toLowerCase().includes(q)
+      || p.fullName.toLowerCase().includes(q)
+      || (p.nationalId ?? '').includes(q)).length;
+  }, [patientQuery]);
+
   const patientSuggestions = useMemo(() => {
     const q = patientQuery.trim().toLowerCase();
     if (q.length < 2) return [];
@@ -983,6 +992,9 @@ const XrayOrderPage = () => {
               historyEmptyMessage={null}
               />
             </div>
+            {patientQuery.trim().length >= 2 && !patient ? (
+              <SearchResultCount found={patientMatchCount} total={PATIENT_PROFILES.length} />
+            ) : null}
             {fieldError('xo-field-patient') && (
               <FieldError id='xo-field-patient-error'>{fieldError('xo-field-patient')}</FieldError>
             )}
