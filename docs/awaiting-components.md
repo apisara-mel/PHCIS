@@ -574,6 +574,51 @@ design system เมื่อไร
 
 ---
 
+## Token ที่รอ sync เข้า mih-design
+
+ทะเบียนของ **design token ที่ mirror ในนี้ (`src/styles/tokens.css` + `design.md`) ล้ำหน้า
+repo `mih-design`** — เกิดจาก typography sweep (Mitr) + redesign SecondarySearch เมื่อ 8 ส.ค. 2569
+(PR #55) mirror ฝั่งนี้ใช้งานได้จริงแล้วทั้งหมด แต่ยังไม่ได้เปิด PR ฝั่ง `mih-design`
+(`packages/design-tokens`) — ใครจะรัน `npm run tokens:pull` ต้องรอ sync ก่อน ไม่งั้น token
+กลุ่มนี้จะถูกเขียนทับหาย
+
+### T1. กลุ่ม typography title/button — 🚧 รอเคาะ 2 ประเด็นก่อนเปิด PR mih-design
+
+| Token | ค่า | alias ของ | ผู้ใช้ |
+|---|---|---|---|
+| `--type-weight-title` | 400 | `typography.weight.regular` | 216 จุด / 110 ไฟล์ (h1–h4, SubHeader, Popup, Topic, Table Header/FooterCell, card titles) |
+| `--type-size-title` | 16px | `typography.size.base` | Popup · SubHeader · SummaryCardsBar · ObservationExternalReferForm |
+| `--type-size-table-title` | **12px คงที่** | *(primitive จงใจ — ยกเว้นจาก data-font-size remap)* | Table.jsx HeaderCell |
+| `--type-family-button` | Mitr | `typography.family.heading-content` | ปุ่ม 7 ตระกูล + mobile `_base` |
+| `--type-size-button-xl/lg/md/sm` | **18/16/16/14px คงที่** | *(primitive จงใจ — ยกเว้น remap)* | ปุ่มชุดเดียวกัน (xl = BrandButton 52px) |
+| `--type-size-content` | 14px | `typography.size.sm` | index.css body default + Table.jsx |
+| `--type-weight-button` | 400 | `--type-weight-title` | ⚠️ ไม่มี component ใช้ตรง — มีแต่ alias ภายใน tokens.css |
+| `--type-family-statussummarycard-number` | Sarabun | `typography.family.body` | SummaryCardsBar จุดเดียว (hero number ต้อง tabular ห้าม Mitr) |
+
+**ประเด็นรอเคาะ:**
+1. `--type-weight-button` — เสนอ**ตัดทิ้ง** (alias ซ้อน alias, ไม่มีผู้ใช้จริง) หรือถ้าเก็บ ต้องมีเหตุผลเชิง semantic ใน Figma
+2. `--type-family-statussummarycard-number` — narrow มาก (component เดียว) ทางเลือกคือใช้ `--type-family-body` ตรง ๆ แล้วบันทึกเป็น exception note ใน design.md แทนการมี token
+3. ตอน sync ต้องบันทึกเจตนา **fixed literal** ของกลุ่ม `button-*` + `table-title` ไว้ใน mih-design ด้วย — กันรอบ pull หน้ามีคนแก้กลับเป็น alias แล้วปุ่ม/หัวตารางบวมตาม accessibility font-scale
+
+### T2. `--ring-secondarysearch` (focus ring effect `input/100`) — 🚧 รอเคาะชื่อ
+
+| | |
+|---|---|
+| **ค่า** | `rgb(var(--brand-p600-rgb) / 0.15)` — ใช้เป็น `box-shadow: 0 0 0 4px` ตอน hover/typing |
+| **ผู้ใช้** | `SecondarySearch.jsx` จุดเดียว |
+| **ประเด็น** | ใน Figma effect ชื่อ **`input/100`** เป็นกลาง ไม่ผูกกับ secondarySearch — และมี `--focus-ring-input-hover` (tokens.css:432) **ค่าเดียวกันเป๊ะ** อยู่แล้ว เสนอรวมเป็นชื่อกลางตัวเดียว (เช่น `--effect-input-100` หรือใช้ `--focus-ring-input-hover` เดิม) แล้วตัด `--ring-secondarysearch` ทิ้ง — ตอนนี้มี token ค่าซ้ำ 2 ชื่อ |
+
+### T3. ฝั่ง retire + เปลี่ยนค่า (ต้องลบ/แก้ใน mih-design ให้ตรง mirror) — 📐 ค่าชัดแล้ว รอแค่เปิด PR
+
+- ลบ state **focus** ของ search ทั้งคู่: `text/border/icon.primarySearch.focus`, `*.secondarySearch.focus` (focused = typing แล้ว)
+- ลบ `shadow.secondarySearch` (เปลี่ยนเป็น ring)
+- `border/icon/text.secondarySearch.*` เปลี่ยน brand เขียว → **neutral**: default/filled = neutral-300 (border) / neutral-400 (icon,text) · hover/typing = neutral-700 (icon,text) ส่วน border hover/typing ยัง brand-p700
+- ⚠️ design.md ขัดกันเอง: §4 บอก `border.secondarySearch.hover` = **p700** (ตรงกับโค้ด) แต่ §6.17.5 เขียน **p600** — ต้องเคาะค่าเดียวตอน sync
+
+**บันทึกเมื่อ** 8 ส.ค. 2569 · อ้างอิง PR #55
+
+---
+
 ## ยกขึ้น design system แล้ว
 
 *(ยังไม่มี)*
