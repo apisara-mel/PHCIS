@@ -237,7 +237,7 @@ const PharmacyStockPage = () => {
     <QueuePageShell
       activeKey='pharmacy'
       breadcrumb={breadcrumb}
-      title='ระบบคลังยาและเวชภัณฑ์'
+      title='ระบบงานเภสัชกรรม'
       summaryCards={summaryCards}
       actions={<PharmacyAddDrugButton />}
       belowSummary={<PharmacySubNav />}

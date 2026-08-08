@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import Icon from '@/components/icons/Icon';
@@ -8,8 +7,10 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import SuccessToast from '@/components/toast/SuccessToast';
+import LabSubNav from '@/components/lab/LabSubNav';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import { SpecimenSticker, groupRowsByTube } from '@/components/lab/LabSpecimenLabel';
+import { MIH_TOPBAR_OFFSET } from '@/hooks/useHeaderAutoHide';
 import { LAB_ORDERS, withTestLabel } from '@/data/labOrders';
 import {
   LAB_STICKER_FIELDS, getPrintSettings, isStickerFieldOn,
@@ -286,8 +287,6 @@ const blankTest = () => ({
 });
 
 const LabSetupPage = () => {
-  const history = useHistory();
-
   /* Re-render on catalog writes — the store is module-level mutable state,
      so a version counter is what turns a mutation into a render. */
   const [version, setVersion] = useState(0);
@@ -392,18 +391,23 @@ const LabSetupPage = () => {
       <Sidebar activeKey='lab' />
       <main className='flex-1 flex flex-col min-w-0'>
         <Header breadcrumb={breadcrumb} />
+        <div
+          className='w-full sticky'
+          style={{
+            top: MIH_TOPBAR_OFFSET,
+            zIndex: 1100,
+            background: 'var(--surface-card-100)',
+            paddingTop: 'var(--dim-space-200)',
+            paddingBottom: 'var(--dim-space-0)',
+            paddingLeft: 'var(--dim-space-400)',
+            paddingRight: 'var(--dim-space-400)',
+            boxShadow: 'var(--shadow-header)',
+          }}
+        >
+          <LabSubNav />
+        </div>
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-            <button
-              type='button'
-              onClick={() => history.push('/lab/queue')}
-              className='inline-flex items-center gap-1 text-sm text-ink-secondary hover:text-brand-500'
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
-            >
-              <Icon name='chevron-left' size={16} />
-              กลับไปยัง Worklist
-            </button>
-            <div className='flex-1' />
+          <div className='flex items-center flex-wrap justify-end' style={{ gap: 'var(--dim-space-300)' }}>
             {/* The TMLT Browser the team nominated as the code reference.
                 Opens in a new tab — this is an external national database,
                 not part of the app. */}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
@@ -18,6 +18,9 @@ import { CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE } from '@/components/layout/Header
 import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import PharmacyRequisitionPrint from '@/components/pharmacy/PharmacyRequisitionPrint';
+import PharmacyReceivingScanPopup from '@/components/pharmacy/PharmacyReceivingScanPopup';
+import Alert from '@/components/alert/Alert';
+import { resolveReceivingScan } from '@/data/pharmacyReceivingScan';
 import { buildRequisitionSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 
@@ -176,9 +179,10 @@ const blankReceivingLine = () => ({
 });
 
 /* §1.9.7.2/.4 — document-level header (หน่วยงาน/ประเภทการรับ/เลขที่ใบสั่งซื้อ/
-   วันที่ซื้อ/เลขที่ใบส่งของ/วันที่ส่งของ + a mock scan-entry field) plus
-   multiple lines, each with its OWN "รับจาก" (manufacturer/supplier) so one
-   receiving document can cover several manufacturers at once. */
+   วันที่ซื้อ/เลขที่ใบส่งของ/วันที่ส่งของ) + barcode/camera scan that fills
+   header fields or appends a drug line — plus multiple lines, each with its
+   OWN "รับจาก" (manufacturer/supplier) so one receiving document can cover
+   several manufacturers at once. */
 const NewReceivingForm = ({ onCreate, onCancel }) => {
   const [department, setDepartment] = useState('คลังยาใหญ่ศูนย์ 4 ดินแดง');
   const [receivingType, setReceivingType] = useState('purchase');
@@ -187,11 +191,39 @@ const NewReceivingForm = ({ onCreate, onCancel }) => {
   const [deliveryNoteNumber, setDeliveryNoteNumber] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [scanCode, setScanCode] = useState('');
+  const [scanHint, setScanHint] = useState(null);
+  const [scanOpen, setScanOpen] = useState(false);
   const [lines, setLines] = useState([blankReceivingLine()]);
+  const scanInputRef = useRef(null);
 
   const updateLine = (idx, patch) => setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, blankReceivingLine()]);
   const removeLine = (idx) => setLines((ls) => ls.filter((_, i) => i !== idx));
+
+  const applyScan = (raw) => {
+    const result = resolveReceivingScan(raw);
+    setScanCode(result.code || String(raw || '').trim());
+    if (result.type === 'document') {
+      const f = result.fields || {};
+      if (f.department != null) setDepartment(f.department);
+      if (f.receivingType != null) setReceivingType(f.receivingType);
+      if (f.poNumber != null) setPoNumber(f.poNumber);
+      if (f.purchaseDate != null) setPurchaseDate(f.purchaseDate);
+      if (f.deliveryNoteNumber != null) setDeliveryNoteNumber(f.deliveryNoteNumber);
+      if (f.deliveryDate != null) setDeliveryDate(f.deliveryDate);
+      setScanHint({ type: 'success', text: `ดึงข้อมูลเอกสารแล้ว: ${result.label}` });
+    } else if (result.type === 'drug' && result.line) {
+      setLines((ls) => {
+        const emptyOnly = ls.length === 1 && !ls[0].lot && !ls[0].expiryDate
+          && ls[0].drugName === (DRUG_REGISTRY[0]?.name || '');
+        return emptyOnly ? [result.line] : [...ls, result.line];
+      });
+      setScanHint({ type: 'success', text: `เพิ่มรายการยาจากบาร์โค้ด: ${result.label}` });
+    } else {
+      setScanHint({ type: 'error', text: `ไม่พบบาร์โค้ด "${result.code}" ในทะเบียนยาหรือใบเอกสารตัวอย่าง` });
+    }
+    requestAnimationFrame(() => scanInputRef.current?.focus?.());
+  };
 
   const linesValid = lines.every((l) => l.lot && l.expiryDate);
 
@@ -218,6 +250,10 @@ const NewReceivingForm = ({ onCreate, onCancel }) => {
           </select>
         </label>
         <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+          <span className='text-xs text-ink-tertiary'>เลขที่ใบรับ</span>
+          <input type='text' value='ออกอัตโนมัติเมื่อบันทึก' readOnly disabled style={{ ...inputStyle, width: 'var(--dim-size-2200, 192px)', opacity: 0.7 }} />
+        </label>
+        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span className='text-xs text-ink-tertiary'>เลขที่ใบสั่งซื้อ</span>
           <input type='text' value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder='PO-2026-XXXX' style={{ ...inputStyle, width: 'var(--dim-size-2050, 144px)' }} />
         </label>
@@ -233,11 +269,53 @@ const NewReceivingForm = ({ onCreate, onCancel }) => {
           <span className='text-xs text-ink-tertiary'>วันที่ส่งของ</span>
           <input type='date' value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} style={inputStyle} />
         </label>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>สแกนเลขที่เอกสาร</span>
-          <input type='text' value={scanCode} onChange={(e) => setScanCode(e.target.value)} placeholder='สแกนบาร์โค้ด/พิมพ์เลขที่' style={{ ...inputStyle, minWidth: 'var(--dim-size-2170, 177px)' }} />
-        </label>
       </div>
+
+      <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-200)' }}>
+        <label className='flex flex-col flex-1' style={{ gap: 'var(--dim-space-100, 4px)', minWidth: 'var(--dim-size-2400, 240px)' }}>
+          <span className='text-xs text-ink-tertiary'>สแกนบาร์โค้ด / เลขที่เอกสาร</span>
+          <input
+            ref={scanInputRef}
+            type='text'
+            value={scanCode}
+            onChange={(e) => { setScanCode(e.target.value); setScanHint(null); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                applyScan(scanCode);
+              }
+            }}
+            placeholder='สแกนหรือพิมพ์บาร์โค้ดยา / PO-… / DN-… แล้วกด Enter'
+            style={{ ...inputStyle, width: '100%' }}
+          />
+        </label>
+        <BrandButton size='sm' leadingIcon='barcode_scanner' onClick={() => applyScan(scanCode)}>
+          ใช้รหัสนี้
+        </BrandButton>
+        <BrandButton size='sm' variant='outline' leadingIcon='photo_camera' onClick={() => setScanOpen(true)}>
+          เปิดกล้องสแกน
+        </BrandButton>
+      </div>
+
+      {scanHint && (
+        <Alert
+          type={scanHint.type === 'error' ? 'destructive' : 'success'}
+          iconName={scanHint.type === 'error' ? 'search_off' : 'check_circle'}
+          iconFill={1}
+          title={scanHint.text}
+          showSubtext={false}
+          showBadge={false}
+          showIndicator={false}
+          showDetail={false}
+          onClose={() => setScanHint(null)}
+        />
+      )}
+
+      <PharmacyReceivingScanPopup
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onScan={applyScan}
+      />
 
       <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
         {lines.map((line, idx) => (
@@ -516,7 +594,7 @@ const PharmacyRequisitionPage = () => {
       <QueuePageShell
         activeKey='pharmacy'
         breadcrumb={breadcrumb}
-        title='เบิกจ่ายยา/เวชภัณฑ์ และรับเข้าคลังใหญ่'
+        title='ระบบงานเภสัชกรรม'
         summaryCards={summaryCards}
         actions={<PharmacyAddDrugButton />}
         belowSummary={<PharmacySubNav />}

@@ -8,7 +8,9 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import LabOrderPicker from '@/components/lab/LabOrderPicker';
+import LabSubNav from '@/components/lab/LabSubNav';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
+import { MIH_TOPBAR_OFFSET } from '@/hooks/useHeaderAutoHide';
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
 import {
   LAB_LOCATIONS, LAB_URGENCIES, labHistoryFor,
@@ -196,19 +198,22 @@ const LabOrderPage = () => {
       <Sidebar activeKey='lab' />
       <main className='flex-1 flex flex-col min-w-0'>
         <Header breadcrumb={breadcrumb} />
+        <div
+          className='w-full sticky'
+          style={{
+            top: MIH_TOPBAR_OFFSET,
+            zIndex: 1100,
+            background: 'var(--surface-card-100)',
+            paddingTop: 'var(--dim-space-200)',
+            paddingBottom: 'var(--dim-space-0)',
+            paddingLeft: 'var(--dim-space-400)',
+            paddingRight: 'var(--dim-space-400)',
+            boxShadow: 'var(--shadow-header)',
+          }}
+        >
+          <LabSubNav />
+        </div>
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
-          <div>
-            <button
-              type='button'
-              onClick={() => history.push('/lab/queue')}
-              className='inline-flex items-center gap-1 text-sm text-ink-secondary hover:text-brand-500'
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
-            >
-              <Icon name='chevron-left' size={16} />
-              กลับไปยัง Worklist
-            </button>
-          </div>
-
           {/* ผู้ป่วย + จุดสั่ง. "จุดสั่งคือคลินิกที่สั่ง" and it drives the
               worklist's จุดสั่ง/ward column, so it is a required header
               field rather than something inferred later. */}

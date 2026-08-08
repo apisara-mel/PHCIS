@@ -161,3 +161,20 @@ export const morphStepHeaderStepWrapStyle = {
   willChange: 'transform',
   backfaceVisibility: 'hidden',
 };
+
+/* TabUnderline scroll-compact — GPU scale only (no height/font-size tween).
+   Extra CSS transitions on top of the rAF-lerped `--header-morph-motion`
+   fight each other and read as stutter; match SubHeader: drive from the var. */
+export const morphTabUnderlineBarStyle = {
+  transform:
+    'scale3d(calc(1 + (0.88 - 1) * var(--header-morph-motion, 0)), calc(1 + (0.88 - 1) * var(--header-morph-motion, 0)), 1)',
+  transformOrigin: 'left bottom',
+  willChange: 'transform',
+  backfaceVisibility: 'hidden',
+};
+
+/** Sticky strip hosting TabUnderline under summary (QueuePageShell). */
+export const morphTabStripPaddingStyle = {
+  paddingTop:
+    'calc(var(--dim-space-200) + (var(--dim-space-0) - var(--dim-space-200)) * var(--header-morph-motion, 0))',
+};

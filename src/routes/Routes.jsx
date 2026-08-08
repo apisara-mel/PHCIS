@@ -58,13 +58,37 @@ import HivStiQueuePage from '@/pages/clinic/hiv-sti/HivStiQueuePage';
 import HivStiFormPage from '@/pages/clinic/hiv-sti/HivStiFormPage';
 import HivStiRegistryPage from '@/pages/clinic/hiv-sti/HivStiRegistryPage';
 import HivStiFollowUpPage from '@/pages/clinic/hiv-sti/HivStiFollowUpPage';
+/* คลินิกพิเศษชุด 2 (TOR §1.10.8–.11) + เยี่ยมบ้าน (§1.10.12 + §1.18) — Wave 2 */
+import FamilyPlanningQueuePage from '@/pages/clinic/family-planning/FamilyPlanningQueuePage';
+import FamilyPlanningFormPage from '@/pages/clinic/family-planning/FamilyPlanningFormPage';
+import FamilyPlanningRegistryPage from '@/pages/clinic/family-planning/FamilyPlanningRegistryPage';
+import ImmunizationQueuePage from '@/pages/clinic/immunization/ImmunizationQueuePage';
+import ImmunizationFormPage from '@/pages/clinic/immunization/ImmunizationFormPage';
+import ImmunizationRegistryPage from '@/pages/clinic/immunization/ImmunizationRegistryPage';
+import ImmunizationFollowUpPage from '@/pages/clinic/immunization/ImmunizationFollowUpPage';
+import ImmunizationVaccineBookPage from '@/pages/clinic/immunization/ImmunizationVaccineBookPage';
+import VaccineCatalogPage from '@/pages/clinic/immunization/VaccineCatalogPage';
+import RehabQueuePage from '@/pages/clinic/rehab/RehabQueuePage';
+import RehabFormPage from '@/pages/clinic/rehab/RehabFormPage';
+import RehabRegistryPage from '@/pages/clinic/rehab/RehabRegistryPage';
+import RehabFollowUpPage from '@/pages/clinic/rehab/RehabFollowUpPage';
+import SocialWorkQueuePage from '@/pages/clinic/social-work/SocialWorkQueuePage';
+import SocialWorkFormPage from '@/pages/clinic/social-work/SocialWorkFormPage';
+import SocialWorkRegistryPage from '@/pages/clinic/social-work/SocialWorkRegistryPage';
+import SocialWorkRequesterRegistryPage from '@/pages/clinic/social-work/SocialWorkRequesterRegistryPage';
+import SocialWorkSupplyPage from '@/pages/clinic/social-work/SocialWorkSupplyPage';
+import SocialWorkFollowUpPage from '@/pages/clinic/social-work/SocialWorkFollowUpPage';
+import HomeVisitQueuePage from '@/pages/homevisit/HomeVisitQueuePage';
+import HomeVisitRecordPage from '@/pages/homevisit/HomeVisitRecordPage';
+import HomeVisitRegistryPage from '@/pages/homevisit/HomeVisitRegistryPage';
+import HomeVisitFollowUpPage from '@/pages/homevisit/HomeVisitFollowUpPage';
 import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
 import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
 import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
 import PharmacyRegistryEditPage from '@/pages/pharmacy/PharmacyRegistryEditPage';
 import PharmacyStockPage from '@/pages/pharmacy/PharmacyStockPage';
 import PharmacyRequisitionPage from '@/pages/pharmacy/PharmacyRequisitionPage';
-import PharmacyHistoryPage from '@/pages/pharmacy/PharmacyHistoryPage';
+import PharmacyPatientsPage from '@/pages/pharmacy/PharmacyPatientsPage';
 import PharmacyReportsPage from '@/pages/pharmacy/PharmacyReportsPage';
 import LabQueuePage from '@/pages/lab/LabQueuePage';
 import LabOrderPage from '@/pages/lab/LabOrderPage';
@@ -423,6 +447,33 @@ export default function Routes() {
         <Route exact path='/clinic/hiv-sti/record'      component={HivStiFormPage} />
         <Route exact path='/clinic/hiv-sti/registry'    component={HivStiRegistryPage} />
         <Route exact path='/clinic/hiv-sti/follow-up'   component={HivStiFollowUpPage} />
+        {/* คลินิกพิเศษชุด 2 (Wave 2) — ทุกหน้าใช้ query-string (?hn=) ยกเว้น
+            social-work record ที่รับ :hn เป็น param เสริม (fallback ใน state) */}
+        <Route exact path='/clinic/family-planning'          component={FamilyPlanningQueuePage} />
+        <Route exact path='/clinic/family-planning/record'   component={FamilyPlanningFormPage} />
+        <Route exact path='/clinic/family-planning/registry' component={FamilyPlanningRegistryPage} />
+        <Route exact path='/clinic/immunization'              component={ImmunizationQueuePage} />
+        <Route exact path='/clinic/immunization/record'       component={ImmunizationFormPage} />
+        <Route exact path='/clinic/immunization/registry'     component={ImmunizationRegistryPage} />
+        <Route exact path='/clinic/immunization/follow-up'    component={ImmunizationFollowUpPage} />
+        <Route exact path='/clinic/immunization/vaccines'     component={VaccineCatalogPage} />
+        <Route exact path='/clinic/immunization/vaccine-book' component={ImmunizationVaccineBookPage} />
+        <Route exact path='/clinic/rehab'          component={RehabQueuePage} />
+        <Route exact path='/clinic/rehab/record'   component={RehabFormPage} />
+        <Route exact path='/clinic/rehab/registry' component={RehabRegistryPage} />
+        <Route exact path='/clinic/rehab/followup' component={RehabFollowUpPage} />
+        <Route exact path='/clinic/social-work'            component={SocialWorkQueuePage} />
+        <Route exact path='/clinic/social-work/record/:hn' component={SocialWorkFormPage} />
+        <Route exact path='/clinic/social-work/record'     component={SocialWorkFormPage} />
+        <Route exact path='/clinic/social-work/registry'   component={SocialWorkRegistryPage} />
+        <Route exact path='/clinic/social-work/requesters' component={SocialWorkRequesterRegistryPage} />
+        <Route exact path='/clinic/social-work/supplies'   component={SocialWorkSupplyPage} />
+        <Route exact path='/clinic/social-work/follow-up'  component={SocialWorkFollowUpPage} />
+        {/* ระบบการเยี่ยมบ้าน (TOR §1.18) — ระบบใหม่ระดับ rail ไม่ใช่คลินิกใน /clinic */}
+        <Route exact path='/homevisit'           component={HomeVisitQueuePage} />
+        <Route exact path='/homevisit/visit'     component={HomeVisitRecordPage} />
+        <Route exact path='/homevisit/registry'  component={HomeVisitRegistryPage} />
+        <Route exact path='/homevisit/follow-up' component={HomeVisitFollowUpPage} />
         <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
@@ -431,7 +482,7 @@ export default function Routes() {
         <Route exact path='/pharmacy/registry/:id' component={PharmacyRegistryEditPage} />
         <Route exact path='/pharmacy/stock'        component={PharmacyStockPage} />
         <Route exact path='/pharmacy/requisition'  component={PharmacyRequisitionPage} />
-        <Route exact path='/pharmacy/history'      component={PharmacyHistoryPage} />
+        <Route exact path='/pharmacy/patients'     component={PharmacyPatientsPage} />
         <Route exact path='/pharmacy/reports'      component={PharmacyReportsPage} />
 
         {/* งานชันสูตรโรค (Lab · TOR ข้อ 1.15). Eight screens, matching the

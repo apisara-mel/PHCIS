@@ -2,61 +2,43 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Icon from '@/components/icons/Icon';
-import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import PrimarySearch from '@/components/search/PrimarySearch';
+import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { resolveHighAlertBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
+import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
+import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import { DRUG_REGISTRY, DRUG_CLASSIFICATIONS, UNIT_TYPES, currentPrice, subscribeRegistry, setRegistryDrugActive } from '@/data/pharmacyRegistry';
 import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
 import { buildRegistrySummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_LIST_ROW, PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 
-/* Drug Registry (ระบบทะเบียนยา — ToR §1.9.1) list page. Mirrors
-   `UsersAccessPage.jsx`'s hero + filter-bar + row-card layout exactly —
-   same admin-list-page template, drug fields instead of user fields. */
+/* Drug Registry (ระบบทะเบียนยา — ToR §1.9.1) list page.
+   Search / filters alias PrimarySearch + FilterDropdown + FilterTag
+   (same pattern as PharmacyPatientsPage / UsersAccessPage). */
 
 const breadcrumb = ['ระบบงานเภสัชกรรม', 'ทะเบียนยา'];
 
-const FilterSelect = ({ icon, label, value, options, onChange }) => (
-  <label
-    className='inline-flex items-center'
-    style={{
-      gap: 'var(--dim-space-200)',
-      height: 'var(--dim-size-700, 36px)',
-      paddingLeft: 'var(--dim-space-300)',
-      paddingRight: 'var(--dim-space-200)',
-      borderRadius: 'var(--dim-radius-200)',
-      background: 'var(--surface-input-default)',
-      border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-      color: 'var(--text-content-secondary)',
-      fontSize: 'var(--type-size-sm)',
-      cursor: 'pointer',
-    }}
-  >
-    <Icon name={icon} size={16} />
-    <span className='text-ink-tertiary'>{label}:</span>
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={{
-        appearance: 'none',
-        background: 'transparent',
-        border: 'none',
-        outline: 'none',
-        color: 'var(--text-content-primary)',
-        fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
-        cursor: 'pointer',
-        paddingRight: 'var(--dim-space-100)',
-      }}
-    >
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </select>
-    <Icon name='chevron-down' size={14} />
-  </label>
-);
+const CLASS_OPTIONS = [
+  { value: 'all', label: 'ทุกประเภท' },
+  ...DRUG_CLASSIFICATIONS.map((c) => ({ value: c.key, label: c.label })),
+];
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'ทุกสถานะ' },
+  { value: 'active', label: 'ใช้งาน' },
+  { value: 'inactive', label: 'ปิดใช้งาน' },
+];
+const HIGH_ALERT_OPTIONS = [
+  { value: 'all', label: 'ทั้งหมด' },
+  { value: 'yes', label: 'High Alert' },
+  { value: 'no', label: 'ยาปกติ' },
+];
+/* รูปแบบ (dosage form — ToR §1.9.5.1) — `unit` IS the dosage form. */
+const UNIT_OPTIONS = [
+  { value: 'all', label: 'ทุกรูปแบบ' },
+  ...UNIT_TYPES.map((u) => ({ value: u.key, label: u.label })),
+];
 
 const classificationLabel = (key) => DRUG_CLASSIFICATIONS.find((c) => c.key === key)?.label || key;
 
@@ -75,7 +57,11 @@ const DrugRow = ({ drug, onEdit, onToggleActive }) => (
   >
     <div
       className='shrink-0 rounded-full overflow-hidden'
-      style={{ width: 'var(--dim-size-900, 44px)', height: 'var(--dim-size-900, 44px)', background: 'var(--surface-card-quaternary, #F9FBFB)' }}
+      style={{
+        width: 'var(--dim-size-900, 44px)',
+        height: 'var(--dim-size-900, 44px)',
+        background: 'var(--surface-card-quaternary)',
+      }}
     >
       <img src={drug.image} alt='' className='w-full h-full object-cover' />
     </div>
@@ -91,19 +77,19 @@ const DrugRow = ({ drug, onEdit, onToggleActive }) => (
       </span>
     </div>
 
-    <div className='hidden md:flex flex-col shrink-0' style={{ gap: 'var(--dim-space-100)', minWidth: 200 }}>
+    <div className='hidden md:flex flex-col shrink-0' style={{ gap: 'var(--dim-space-100)', minWidth: 'var(--dim-size-2000, 200px)' }}>
       <Badge style={drug.classification === 'nlem' ? 'success' : 'info'} size='small'>
         {classificationLabel(drug.classification)}
       </Badge>
       <span className='text-xs text-ink-tertiary'>หน่วย: {drug.unit === 'capsule' ? 'แคปซูล' : 'เม็ด'}</span>
     </div>
 
-    <div className='hidden lg:flex flex-col shrink-0' style={{ gap: 'var(--dim-space-100)', minWidth: 140 }}>
+    <div className='hidden lg:flex flex-col shrink-0' style={{ gap: 'var(--dim-space-100)', minWidth: 'var(--dim-size-1400, 140px)' }}>
       <span className='text-xs text-ink-tertiary'>ราคาปัจจุบัน</span>
       <span className='text-sm font-bold text-ink'>฿{currentPrice(drug)}</span>
     </div>
 
-    <div className='hidden lg:flex flex-col shrink-0' style={{ gap: 'var(--dim-space-100)', minWidth: 180 }}>
+    <div className='hidden lg:flex flex-col shrink-0' style={{ gap: 'var(--dim-space-100)', minWidth: 'var(--dim-size-1800, 180px)' }}>
       <span className='text-xs text-ink-tertiary'>สิทธิที่เบิกได้</span>
       <span className='text-xs text-ink-secondary'>
         {drug.rightsEligible.length >= 5 ? 'ทุกสิทธิ' : drug.rightsEligible.join(', ')}
@@ -111,32 +97,20 @@ const DrugRow = ({ drug, onEdit, onToggleActive }) => (
     </div>
 
     <div className='shrink-0 inline-flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-      <button
-        type='button'
+      <NeutralSubdueIconButton
+        icon={drug.active ? 'block' : 'check_circle'}
+        size='sm'
+        variant='outline'
         aria-label={drug.active ? 'ปิดใช้งานรายการยา' : 'เปิดใช้งานรายการยา'}
         onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
-        className='inline-flex items-center justify-center'
-        style={{
-          width: 'var(--dim-size-700, 36px)', height: 'var(--dim-size-700, 36px)', borderRadius: 'var(--dim-radius-full)',
-          background: 'var(--surface-card-100)',
-          color: 'var(--text-content-tertiary)', boxShadow: 'var(--shadow-card)', cursor: 'pointer',
-        }}
-      >
-        <Icon name={drug.active ? 'block' : 'check_circle'} size={18} />
-      </button>
-      <button
-        type='button'
+      />
+      <BrandCircleSubdueIconButton
+        icon='edit'
+        size='sm'
+        variant='fill'
         aria-label='แก้ไขรายการยา'
         onClick={(e) => { e.stopPropagation(); onEdit(); }}
-        className='inline-flex items-center justify-center'
-        style={{
-          width: 'var(--dim-size-700, 36px)', height: 'var(--dim-size-700, 36px)', borderRadius: 'var(--dim-radius-full)',
-          background: 'var(--surface-brandPrimary-quaternary)',
-          color: 'var(--text-brandPrimary-default)', border: 'none', cursor: 'pointer',
-        }}
-      >
-        <Icon name='edit' size={18} />
-      </button>
+      />
     </div>
   </div>
 );
@@ -173,14 +147,6 @@ const PharmacyRegistryPage = () => {
     });
   }, [search, classFilter, statusFilter, highAlertFilter, unitFilter, registryTick]);
 
-  const classOptions = [{ value: 'all', label: 'ทุกประเภท' }, ...DRUG_CLASSIFICATIONS.map((c) => ({ value: c.key, label: c.label }))];
-  const statusOptions = [{ value: 'all', label: 'ทุกสถานะ' }, { value: 'active', label: 'ใช้งาน' }, { value: 'inactive', label: 'ปิดใช้งาน' }];
-  const highAlertOptions = [{ value: 'all', label: 'ทั้งหมด' }, { value: 'yes', label: 'High Alert' }, { value: 'no', label: 'ยาปกติ' }];
-  /* รูปแบบ (dosage form — ToR §1.9.5.1) — this data model's `unit` field
-     IS the dosage form (tablet/capsule/bottle/...), so the filter reuses
-     the same UNIT_TYPES catalog rather than inventing a parallel one. */
-  const unitOptions = [{ value: 'all', label: 'ทุกรูปแบบ' }, ...UNIT_TYPES.map((u) => ({ value: u.key, label: u.label }))];
-
   const summaryCards = useMemo(
     () => buildRegistrySummaryCards(DRUG_REGISTRY),
     [registryTick],
@@ -192,75 +158,99 @@ const PharmacyRegistryPage = () => {
     || highAlertFilter !== 'all'
     || unitFilter !== 'all';
 
+  const clearFilters = () => {
+    setSearch('');
+    setClassFilter('all');
+    setStatusFilter('all');
+    setHighAlertFilter('all');
+    setUnitFilter('all');
+  };
+
   return (
     <QueuePageShell
       activeKey='pharmacy'
       breadcrumb={breadcrumb}
-      title='ทะเบียนยา'
+      title='ระบบงานเภสัชกรรม'
       summaryCards={summaryCards}
       actions={<PharmacyAddDrugButton />}
       belowSummary={<PharmacySubNav />}
     >
-      <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
-          <section
-            className='w-full flex flex-col'
-            style={PHARMACY_WORKLIST_CARD_BODY}
-          >
-            <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
-              <div
-                className='flex items-center flex-1'
-                style={{ minWidth: 'var(--dim-size-2280, 218px)', gap: 'var(--dim-space-200)', height: 'var(--dim-size-800, 40px)', paddingLeft: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-300)', borderRadius: 'var(--dim-radius-200)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)' }}
-              >
-                <Icon name='search' size={18} />
-                <input
-                  type='text'
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder='ค้นหารหัสยา / ชื่อการค้า / ชื่อสามัญ'
-                  className='flex-1 bg-transparent border-none outline-none text-sm'
-                  style={{ color: 'var(--text-content-primary)' }}
-                />
-                {search && (
-                  <button type='button' onClick={() => setSearch('')} aria-label='clear' style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-content-tertiary)' }}>
-                    <Icon name='close' size={16} />
-                  </button>
-                )}
+      <div
+        className='flex flex-col flex-1 min-w-0'
+        style={{
+          padding: 'var(--dim-space-600)',
+          gap: 'var(--dim-space-600)',
+        }}
+      >
+        <section className='w-full flex flex-col' style={PHARMACY_WORKLIST_CARD_BODY}>
+          <div className='w-full flex items-start justify-center'>
+            <PrimarySearch
+              value={search}
+              onChange={setSearch}
+              onSubmit={setSearch}
+              placeholder='ค้นหารหัสยา / ชื่อการค้า / ชื่อสามัญ'
+              width={640}
+            />
+          </div>
+
+          <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            <FilterDropdown
+              prefix='ประเภท :'
+              options={CLASS_OPTIONS}
+              value={classFilter}
+              onChange={setClassFilter}
+            />
+            <FilterDropdown
+              prefix='รูปแบบ :'
+              options={UNIT_OPTIONS}
+              value={unitFilter}
+              onChange={setUnitFilter}
+            />
+            <FilterDropdown
+              prefix='สถานะ :'
+              options={STATUS_OPTIONS}
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+            <FilterDropdown
+              prefix='High Alert :'
+              options={HIGH_ALERT_OPTIONS}
+              value={highAlertFilter}
+              onChange={setHighAlertFilter}
+            />
+            {filtersActive ? (
+              <FilterTag
+                variant='neutral'
+                leadingIcon='close'
+                value='ล้างตัวกรอง'
+                showTitle={false}
+                onClick={clearFilters}
+              />
+            ) : null}
+          </div>
+
+          <div className='text-xs text-ink-tertiary'>
+            พบ <strong className='text-ink-secondary'>{filtered.length}</strong> รายการ จาก {DRUG_REGISTRY.length} รายการ
+          </div>
+
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            {filtered.length === 0 ? (
+              <div className='flex flex-col items-center text-center' style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-200)' }}>
+                <Icon name='search_off' size={32} />
+                <p className='text-sm text-ink-secondary'>ไม่พบรายการยาที่ตรงกับเงื่อนไข</p>
               </div>
-              <FilterSelect icon='category' label='ประเภท' value={classFilter} options={classOptions} onChange={setClassFilter} />
-              <FilterSelect icon='straighten' label='รูปแบบ' value={unitFilter} options={unitOptions} onChange={setUnitFilter} />
-              <FilterSelect icon='toggle_on' label='สถานะ' value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
-              <FilterSelect icon='warning' label='High Alert' value={highAlertFilter} options={highAlertOptions} onChange={setHighAlertFilter} />
-              {filtersActive && (
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  onClick={() => { setSearch(''); setClassFilter('all'); setStatusFilter('all'); setHighAlertFilter('all'); setUnitFilter('all'); }}
-                >
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
-              )}
-            </div>
-            <div className='text-xs text-ink-tertiary'>
-              พบ <strong className='text-ink-secondary'>{filtered.length}</strong> รายการ จาก {DRUG_REGISTRY.length} รายการ
-            </div>
-            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-              {filtered.length === 0 ? (
-                <div className='flex flex-col items-center text-center' style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-200)' }}>
-                  <Icon name='search_off' size={32} />
-                  <p className='text-sm text-ink-secondary'>ไม่พบรายการยาที่ตรงกับเงื่อนไข</p>
-                </div>
-              ) : (
-                filtered.map((d) => (
-                  <DrugRow
-                    key={d.id}
-                    drug={d}
-                    onEdit={() => history.push(`/pharmacy/registry/${d.id}`)}
-                    onToggleActive={() => setRegistryDrugActive(d.id, !d.active)}
-                  />
-                ))
-              )}
-            </div>
-          </section>
+            ) : (
+              filtered.map((d) => (
+                <DrugRow
+                  key={d.id}
+                  drug={d}
+                  onEdit={() => history.push(`/pharmacy/registry/${d.id}`)}
+                  onToggleActive={() => setRegistryDrugActive(d.id, !d.active)}
+                />
+              ))
+            )}
+          </div>
+        </section>
       </div>
     </QueuePageShell>
   );

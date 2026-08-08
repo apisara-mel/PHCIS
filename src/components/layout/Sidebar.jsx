@@ -43,16 +43,19 @@ const TREAT_MODULE_SUBITEMS = [
 
 const TREAT_DEPARTMENT_SUBITEMS = [
   { key: 'opd-treat',  label: 'แผนกผู้ป่วยนอก (OPD)',              path: '/treat/queue' },
-  { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)' },
+  { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)',    path: '/clinic/family-planning' },
   { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์', path: '/clinic/hiv-sti' },
   { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด',   path: '/clinic/addiction' },
   { key: 'anc',        label: 'แผนกฝากครรภ์',                          path: '/treat/anc/queue' },
   { key: 'ncd',        label: 'แผนกโรคเรื้อรัง (NCD)',                  path: '/clinic/ncd' },
-  { key: 'wellness',   label: 'แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ' },
-  { key: 'vaccine',    label: 'แผนกสร้างเสริมภูมิคุ้มกันโรค' },
+  /* "ส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ" = ชื่อคู่มือของระบบงานตรวจสุขภาพ (§1.19) */
+  { key: 'wellness',   label: 'แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ',   path: '/checkup' },
+  { key: 'vaccine',    label: 'แผนกสร้างเสริมภูมิคุ้มกันโรค',           path: '/clinic/immunization' },
   { key: 'dental',     label: 'แผนกทันตกรรม',                          path: '/clinic/dental' },
   { key: 'tb',         label: 'แผนกวัณโรค',                            path: '/clinic/tb' },
   { key: 'mental',     label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต',        path: '/clinic/mental-health' },
+  { key: 'rehab',      label: 'แผนกเวชศาสตร์ฟื้นฟูและกายภาพบำบัด',      path: '/clinic/rehab' },
+  { key: 'social',     label: 'แผนกสังคมสงเคราะห์',                    path: '/clinic/social-work' },
 ];
 
 const OPD_CORE_SUBITEMS = [
@@ -96,17 +99,9 @@ const ITEMS = [
     ],
   },
   { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18, path: '/xray/queue' },
-  {
-    key: 'lab', label: 'ห้องปฏิบัติการ', icon: 'biotech', iconSize: 18, path: '/lab/queue',
-    subItems: [
-      { key: 'lab-queue',     label: 'คิวห้องปฏิบัติการ',                 path: '/lab/queue'     },
-      { key: 'lab-order',     label: 'บันทึกส่งตรวจ',                     path: '/lab/order'     },
-      { key: 'lab-receive',   label: 'สถานีรับสิ่งส่งตรวจ',                path: '/lab/receive'   },
-      { key: 'lab-send-out',  label: 'ส่งตรวจภายนอก (Lab-out)',           path: '/lab/send-out'  },
-      { key: 'lab-interface', label: 'เชื่อมต่อ LIS และเครื่องตรวจวิเคราะห์', path: '/lab/interface' },
-      { key: 'lab-setup',     label: 'ทะเบียนรายการตรวจ',                 path: '/lab/setup'     },
-    ],
-  },
+  /* Lab module pages cross-link via LabSubNav (TabUnderline) — same flat
+     pattern as pharmacy. */
+  { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',  iconSize: 18, path: '/lab/queue' },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht',      path: '/finance'           },
   /* สิทธิและการเบิกจ่าย — TOR §1.7.3–1.7.5. ตรวจสอบสิทธิ · ส่งเบิก · Claim ·
@@ -123,6 +118,17 @@ const ITEMS = [
       { key: 'checkup-packages',  label: 'ทะเบียนชุดตรวจสุขภาพ',     path: '/checkup/packages'  },
       { key: 'checkup-reports',   label: 'รายงานงานตรวจสุขภาพ',     path: '/checkup/reports'   },
       { key: 'checkup-community', label: 'กิจกรรมสุขภาพชุมชน',       path: '/checkup/community' },
+    ],
+  },
+  /* ระบบการเยี่ยมบ้าน — TOR §1.18 (+§1.10.12). ระบบใหม่ระดับ rail ไม่ใช่คลินิก
+     ใน "ระบบบันทึกการรักษา": คิวนัดเยี่ยม · บันทึกเยี่ยม (mock GPS/map) ·
+     ทะเบียน · ติดตาม. ทุกหน้าส่ง activeKey='homevisit'. */
+  {
+    key: 'homevisit', label: 'ระบบการเยี่ยมบ้าน', icon: 'home_health', path: '/homevisit',
+    subItems: [
+      { key: 'hv-queue',     label: 'คิวนัดเยี่ยมบ้าน',      path: '/homevisit'           },
+      { key: 'hv-registry',  label: 'ทะเบียนเยี่ยมบ้าน',     path: '/homevisit/registry'  },
+      { key: 'hv-follow-up', label: 'ติดตามการเยี่ยมบ้าน',   path: '/homevisit/follow-up' },
     ],
   },
   /* รายงานเฝ้าระวังโรค รง.506 — TOR §1.2.3.6 (EPI-NET). เดิมเป็น submenu ใต้

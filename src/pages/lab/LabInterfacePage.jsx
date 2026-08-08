@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Badge from '@/components/badge/Badge';
 import Alert from '@/components/alert/Alert';
@@ -14,6 +13,8 @@ import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { Icon } from '@/components/icons/Icon';
+import LabSubNav from '@/components/lab/LabSubNav';
+import StickyStatusTabBar from '@/components/tab/StickyStatusTabBar';
 import LabQcRunPopup from '@/components/lab/LabQcRunPopup';
 import LabAnalyzerQcPanel from '@/components/lab/LabAnalyzerQcPanel';
 import { LabCodeMappingPanel, LabMessageQueuePanel } from '@/components/lab/LabInterfacePanels';
@@ -99,8 +100,6 @@ const Card = ({ icon, title, subtitle, action, children }) => (
 );
 
 const LabInterfacePage = () => {
-  const history = useHistory();
-
   /* Resolved, not hardcoded. `const canEdit = true` made the read-only state
      unreachable, which meant every disabled branch and every "สิทธิ์ไม่พอ"
      title below was code nobody could ever see. src/data/labPermissions.js
@@ -387,13 +386,9 @@ const LabInterfacePage = () => {
         activeKey='lab'
         breadcrumb={breadcrumb}
         title='เชื่อมต่อ LIS และเครื่องตรวจวิเคราะห์'
-        onBack={() => history.push('/lab/queue')}
-        backLabel='กลับไปยัง Worklist'
         summaryCards={summaryCards}
         summaryFlushUnderSubHeader={false}
-        tabs={tabs}
-        activeTab={tab}
-        onTabChange={handleTabChange}
+        belowSummary={<LabSubNav />}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -429,6 +424,13 @@ const LabInterfacePage = () => {
               showDetail={false}
             />
           )}
+
+          <StickyStatusTabBar
+            tabs={tabs}
+            value={tab}
+            onChange={handleTabChange}
+            aria-label='ส่วนเชื่อมต่อ LIS'
+          />
 
           {tab === 'connection' && (
             <>

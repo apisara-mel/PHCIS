@@ -1465,14 +1465,18 @@ const Table = ({
           style={{
             position: 'sticky',
             top: stickyHeaderTop,
-            zIndex: 1050,
+            /* Under sticky status TabPill (1090) / SubNav (1100), above body rows. */
+            zIndex: 1080,
             /* Clip the translated row so it doesn't bleed past the
                table's left/right edges. This `overflow: hidden` is on
                the STICKY element itself, which doesn't affect its own
                sticky positioning — only its ancestors do. */
             overflow: 'hidden',
-            background: 'var(--surface-table-header)',
-            transition: 'top 200ms ease',
+            /* Opaque plate — rows scrolling underneath must not show through. */
+            background: 'var(--surface-table-header, var(--brand-p50, #F4FBF8))',
+            isolation: 'isolate',
+            /* No top transition — lagging behind status-tab height changes
+               left a see-through gap under the sticky chrome. */
           }}
         >
           <div

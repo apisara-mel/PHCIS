@@ -574,6 +574,39 @@ design system เมื่อไร
 
 ---
 
+### 38. ConfidentialMask (empty-state ข้อมูลลับ §1.4.2) — 📐 มี 2 ผู้ใช้แล้ว พร้อมยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `MentalHealthSteps.jsx` (ConfidentialMask ของตัวเอง) · `src/pages/clinic/family-planning/FamilyPlanningSteps.jsx` (`FpConfidentialMask` — S4 ตรวจสตรี เมื่อสิทธิ์ไม่พอ) — **2 ที่ ประกาศซ้ำกันคนละไฟล์** |
+| **หน้าที่** | empty-state "ข้อมูลลับ — สิทธิ์ของคุณไม่เพียงพอ" ตาม TOR §1.4.2 สำหรับ section ที่ต้อง gate ตามสิทธิ์ (จิตเวช, ตรวจภายใน, HIV) |
+| **ทำไมควรยกขึ้น DS** | เข้าเกณฑ์ผู้ใช้ ≥2 ที่แล้ว และจะโตต่อ (HIV/STI §1.4.2, สังคมสงเคราะห์) — ควรรวมเป็น `<ConfidentialMask reason onRequestAccess>` กลางตัวเดียว แล้วให้ 2 ที่เดิม alias |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave 2) |
+
+---
+
+### 39. BarthelIndexGrid (ตารางให้คะแนนแบบประเมินมาตรฐาน) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/clinic/rehab/BarthelIndexGrid.jsx` — RehabSteps S3 ประเมิน ADLs (Barthel 0–100 + แปลผลระดับ) — 1 ที่ |
+| **หน้าที่** | ตาราง "หัวข้อ × ตัวเลือกคะแนน + รวมคะแนน + แปลผลระดับ" — รูปแบบของแบบประเมินมาตรฐานทุกตัว (Barthel, ADL, MMSE) |
+| **รอเคสอะไร** | แบบประเมินตัวถัดไปที่เป็นตารางคะแนน — candidates ใกล้เคียง: แบบคัดกรอง 2Q/9Q/8Q/ST-5 ใน checkup (ตอนนี้เป็นฟอร์มของตัวเอง) และงานผู้สูงอายุ/เยี่ยมบ้าน (ADL) |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave 2) |
+
+---
+
+### 40. FamilyPlanningFollowUpCard (บัตรติดตามวางแผนครอบครัว — เอกสารพิมพ์) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/clinic/family-planning/FamilyPlanningFollowUpCard.jsx` — S7 preview + ปุ่มพิมพ์ในทะเบียน — 1 โมดูล |
+| **หน้าที่** | บัตรติดตามผู้รับบริการวางแผนครอบครัว (คู่มือ p.2-8/2-9) 2 โหมด: preview ใน Popup / print ผ่าน createPortal + `@media print` |
+| **หมายเหตุ** | ถ้า PrintSheet (รายการ #2) ถูกยกขึ้น DS เมื่อไร บัตรนี้ควร refactor ไปใช้ PrintSheet เป็นฐาน |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave 2) |
+
+---
+
 ## Token ที่รอ sync เข้า mih-design
 
 ทะเบียนของ **design token ที่ mirror ในนี้ (`src/styles/tokens.css` + `design.md`) ล้ำหน้า

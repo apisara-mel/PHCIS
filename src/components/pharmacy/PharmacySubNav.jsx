@@ -10,14 +10,25 @@ import BrandButton from '@/components/button/BrandButton';
 
 const LINKS = [
   { key: 'queue',       label: 'คิวจ่ายยา',           path: '/pharmacy/queue'       },
+  { key: 'patients',    label: 'ผู้รับบริการทั้งหมด', path: '/pharmacy/patients'    },
   { key: 'registry',    label: 'ทะเบียนยา',           path: '/pharmacy/registry'    },
   { key: 'stock',       label: 'คลังยาและเวชภัณฑ์',   path: '/pharmacy/stock'       },
   { key: 'requisition', label: 'เบิกจ่าย/รับเข้าคลัง', path: '/pharmacy/requisition' },
-  { key: 'history',     label: 'ประวัติการรับยา',     path: '/pharmacy/history'     },
   { key: 'reports',     label: 'รายงาน',              path: '/pharmacy/reports'     },
 ];
 
 const TABS = LINKS.map(({ key, label }) => ({ key, label }));
+
+const resolveActiveKey = (pathname) => {
+  if (pathname.startsWith('/pharmacy/patients')) return 'patients';
+  if (pathname.startsWith('/pharmacy/registry')) return 'registry';
+  if (pathname.startsWith('/pharmacy/stock')) return 'stock';
+  if (pathname.startsWith('/pharmacy/requisition')) return 'requisition';
+  if (pathname.startsWith('/pharmacy/reports')) return 'reports';
+  if (pathname.startsWith('/pharmacy/queue') || pathname === '/pharmacy' || pathname === '/pharmacy/') return 'queue';
+  if (pathname.startsWith('/pharmacy/')) return 'queue';
+  return 'queue';
+};
 
 /** Primary action — same SubHeader slot on every pharmacy list page. */
 export const PharmacyAddDrugButton = () => {
@@ -35,14 +46,13 @@ export const PharmacyAddDrugButton = () => {
 const PharmacySubNav = () => {
   const history = useHistory();
   const location = useLocation();
-
-  const activeKey = LINKS.find((l) => location.pathname.startsWith(l.path))?.key
-    || LINKS[0].key;
+  const activeKey = resolveActiveKey(location.pathname);
 
   return (
     <TabUnderline
       tabs={TABS}
       value={activeKey}
+      morphOnScroll
       onChange={(key) => {
         const link = LINKS.find((l) => l.key === key);
         if (link) history.push(link.path);
