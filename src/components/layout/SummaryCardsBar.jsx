@@ -128,7 +128,7 @@ const PanelSummaryCard = ({ card, hover = false }) => {
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-0)' }}>
           <span className='truncate tabular-nums' style={{
             color: ink,
-            fontFamily: 'var(--type-family-statussummarycard-number, var(--type-family-body))',
+            fontFamily: 'var(--type-family-body)',
             fontWeight: 'var(--type-weight-bold, 700)',
             fontSize: 'var(--type-size-lg, 18px)',
             lineHeight: 1.5,
@@ -192,7 +192,7 @@ const BannerSummaryCard = ({ card }) => {
             className='tabular-nums leading-none truncate'
             style={{
               color: tone.ink,
-              fontFamily: 'var(--type-family-statussummarycard-number, var(--type-family-body))',
+              fontFamily: 'var(--type-family-body)',
               fontWeight: 'var(--type-weight-bold, 700)',
               fontSize: 'var(--type-size-lg, 18px)',
             }}

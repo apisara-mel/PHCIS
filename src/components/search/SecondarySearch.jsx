@@ -136,7 +136,7 @@ const SecondarySearch = ({
         /* focus ring — effect token input/100 (0 0 0 4px primaryBorder/600
            @15%) on hover + typing; no elevation shadow otherwise (§6.17.5). */
         boxShadow:    state === 'hover' || state === 'typing'
-          ? '0 0 0 var(--dim-stroke-400, 4px) var(--ring-secondarysearch, rgb(8 167 104 / 0.15))'
+          ? '0 0 0 var(--dim-stroke-400, 4px) var(--focus-ring-input-hover, rgb(8 167 104 / 0.15))'
           : 'none',
         boxSizing:    'border-box',
         transition:   'border-color 120ms ease, border-width 120ms ease, box-shadow 120ms ease',
