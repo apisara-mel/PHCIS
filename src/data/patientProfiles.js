@@ -34,6 +34,8 @@ export const PATIENT_MOCK_AVATARS = [
   '/avatars/patient-mock-15.png',
   '/avatars/patient-mock-16.png',
   '/avatars/patient-mock-17.png',
+  '/avatars/patient-mock-18.png',
+  '/avatars/patient-mock-19.png',
 ];
 
 export const PATIENT_PROFILES = [
@@ -315,14 +317,15 @@ export const PATIENT_PROFILES = [
   },
   /* 67-00026 / 67-00028 — pharmacy filler + registration-pending walk-ins
      (mrPatients.js). Were missing from PATIENT_PROFILES so the pharmacy
-     queue fell back to initials. Unique portraits assigned below. */
+     queue fell back to initials. Male portraits mock-18/19 (not female
+     mock-07/03 which were wrongly reused before). */
   {
     shortName: 'ก้องภพ ศรีวงศ์', fullName: 'นายก้องภพ ศรีวงศ์', englishName: 'Kongphop Srivong',
     hn: '67-00026', vn: '69-00026', sex: 'ชาย', age: '34 ปี - 2 เดือน - 6 วัน',
     nationalId: '1101200894521', bloodType: 'O', patientType: 'ผู้ป่วยใหม่',
     doctor: 'นพ.สมชาย ใจดี', insurance: 'สิทธิประกันสังคม รพ.พระนั่งเกล้า (10686)',
     address: '42/8 ซ.พระราม 2 ซอย 39 บางมด กรุงเทพมหานคร 10150',
-    avatarUrl: '/avatars/patient-mock-07.png', vip: false,
+    avatarUrl: '/avatars/patient-mock-18.png', vip: false,
   },
   {
     shortName: 'พงศ์ศักดิ์ แสงทอง', fullName: 'นายพงศ์ศักดิ์ แสงทอง', englishName: 'Pongsak Saengthong',
@@ -330,7 +333,7 @@ export const PATIENT_PROFILES = [
     nationalId: '3100401928475', bloodType: 'B', patientType: 'ผู้ป่วยใหม่',
     doctor: 'พญ.วิภา สุขศรี', insurance: 'ชำระเอง',
     address: '7/11 ซ.จรัญสนิทวงศ์ 90 บางพลัด กรุงเทพมหานคร 10700',
-    avatarUrl: '/avatars/patient-mock-03.png', vip: false,
+    avatarUrl: '/avatars/patient-mock-19.png', vip: false,
   },
 ];
 

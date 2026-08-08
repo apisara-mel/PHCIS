@@ -21,6 +21,8 @@ export const PATIENT_AVATAR_POOL = [
   '/avatars/patient-mock-15.png',
   '/avatars/patient-mock-16.png',
   '/avatars/patient-mock-17.png',
+  '/avatars/patient-mock-18.png',
+  '/avatars/patient-mock-19.png',
   '/avatars/mock-male-asian-a.png',
   '/avatars/mock-male-asian-b.png',
   '/avatars/mock-male-asian-c.png',
