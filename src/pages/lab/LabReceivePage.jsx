@@ -593,7 +593,7 @@ const LabReceivePage = () => {
                 than typed on every row. */}
             <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-400)' }}>
               <div className='flex flex-col min-w-0' style={{ flex: '1 1 320px', gap: 'var(--dim-space-100)' }}>
-                <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
+                <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
                   <Icon name={stageDef?.icon ?? 'inventory_2'} size={20} style={{ color: 'var(--text-brandPrimary-default)' }} />
                   {stageDef?.label}
                   <Badge style='neutral' size='small'>{stageDef?.manual}</Badge>
@@ -818,7 +818,7 @@ const LabReceivePage = () => {
               gap: 'var(--dim-space-400)',
             }}
           >
-            <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
+            <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
               <Icon name='fact_check' size={20} style={{ color: 'var(--text-brandPrimary-default)' }} />
               รายการที่บันทึกรับแล้วที่ขั้นตอนนี้ ({receiptedRows.length})
             </span>

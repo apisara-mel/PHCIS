@@ -58,7 +58,7 @@ export const InfoCell = ({
         style={{
           color: valueColor,
           fontFamily: 'var(--type-family-heading-content)',
-          fontWeight: 'var(--type-weight-bold, 700)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
           fontSize: 'var(--type-size-base, 16px)',
           lineHeight: 1.5,
         }}

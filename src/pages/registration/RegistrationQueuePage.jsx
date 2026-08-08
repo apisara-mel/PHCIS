@@ -1107,7 +1107,7 @@ const RegistrationQueuePage = () => {
           <span style={{
             fontFamily: 'var(--type-family-heading-content)',
             fontSize: 'var(--type-size-sm, 14px)',
-            fontWeight: 'var(--type-weight-bold, 700)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             color: 'var(--text-content-default, #363B3F)',
           }}>
             การแจ้งเตือนผ่าน Mobile Application (จำลอง)

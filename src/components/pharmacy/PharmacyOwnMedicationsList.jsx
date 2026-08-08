@@ -42,7 +42,7 @@ const PharmacyOwnMedicationsList = ({ queueNo, row, onChange }) => {
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <h3 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+      <h3 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
         ยาที่ผู้รับบริการนำมาเอง
       </h3>
 

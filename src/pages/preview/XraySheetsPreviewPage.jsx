@@ -91,7 +91,7 @@ const Section = ({ title, description, children }) => (
         color: 'var(--text-content-default)',
         fontFamily: 'var(--type-family-heading-content)',
         fontSize: 'var(--type-size-base)',
-        fontWeight: 'var(--type-weight-bold)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       }}>
         {title}
       </h2>
@@ -138,7 +138,7 @@ const XraySheetsPreviewPage = () => {
           color: 'var(--text-content-default)',
           fontFamily: 'var(--type-family-heading-content)',
           fontSize: 'var(--type-size-xl)',
-          fontWeight: 'var(--type-weight-bold)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         }}>
           เอกสารพิมพ์ของงานรังสีวินิจฉัย
         </h1>

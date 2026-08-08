@@ -315,7 +315,7 @@ const ReMedicinePopup = ({
                 style={{
                   color: 'var(--text-list-default, #4D5358)',
                   fontFamily: 'var(--type-family-heading-content)',
-                  fontWeight: 'var(--type-weight-bold, 700)',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   fontSize: 'var(--type-size-sm, 14px)',
                   lineHeight: 1.5,
                 }}

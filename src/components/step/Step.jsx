@@ -112,7 +112,7 @@ const Step = React.forwardRef(function Step(
             cursor: isClickable ? 'pointer' : 'default',
             fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
             fontSize: 'var(--type-size-sm)',
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             lineHeight: 1,
             transition: [
               `background-color 200ms ${EASE}`,

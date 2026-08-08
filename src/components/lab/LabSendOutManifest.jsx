@@ -34,7 +34,7 @@ const TH = ({ children, width, align = 'left' }) => (
       textAlign: align,
       fontFamily: 'var(--type-family-body)',
       fontSize: '8pt',
-      fontWeight: 'var(--type-weight-bold)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       color: '#000000',
       borderBottom: '0.4mm solid #000000',
       padding: '1.5mm 1mm',
@@ -94,7 +94,7 @@ const LabSendOutManifest = ({ rows = [], draft = null, batchNo = '', preview = f
       }}
     >
       <div style={{ borderBottom: '0.4mm solid #000000', paddingBottom: '2mm' }}>
-        <div style={{ fontFamily: 'var(--type-family-heading-content)', fontSize: '13pt', fontWeight: 'var(--type-weight-bold)' }}>
+        <div style={{ fontFamily: 'var(--type-family-heading-content)', fontSize: '13pt', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
           ใบนำส่งสิ่งส่งตรวจไปหน่วยงานภายนอก
         </div>
         <div style={{ fontFamily: 'var(--type-family-body)', fontSize: '9pt' }}>
@@ -145,7 +145,7 @@ const LabSendOutManifest = ({ rows = [], draft = null, batchNo = '', preview = f
           paperwork, so their clerk can tick straight down it. */}
       {summary.groups.map((g) => (
         <div key={g.key} style={{ marginTop: '4mm' }}>
-          <div style={{ fontFamily: 'var(--type-family-body)', fontSize: '9pt', fontWeight: 'var(--type-weight-bold)' }}>
+          <div style={{ fontFamily: 'var(--type-family-body)', fontSize: '9pt', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
             {g.label} ({g.rows.length} รายการ)
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1mm' }}>
@@ -195,7 +195,7 @@ const LabSendOutManifest = ({ rows = [], draft = null, batchNo = '', preview = f
           fontSize: '9pt',
         }}
       >
-        <div style={{ fontWeight: 'var(--type-weight-bold)' }}>
+        <div style={{ fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
           รวมจำนวนสิ่งส่งตรวจ {summary.totalSpecimens} ตัวอย่าง · {summary.totalTests} รายการตรวจ
         </div>
         <div style={{ fontSize: '8pt', color: '#333333' }}>

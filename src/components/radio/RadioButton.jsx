@@ -14,10 +14,15 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
      • BadgeTitle   — red colorful badge inline with title (showBadgeTitle)
      • Description  — caption text below title (showDescription)
      • Trailing Badge — grey colorful badge at the right (showBadge)
+     • Trailing check — `check_circle` when selected (showTrailingCheck)
      • Palette      — 3-swatch color preview row (showPalette)
 
    State auto-derives from {checked, disabled, hover} — pass `state`
    only to force a specific look (e.g. story grids in Component Library).
+
+   Selected card chrome (border=true, single-select): brand stroke + trailing
+   `check_circle` so the chosen option reads clearly without relying on the
+   radio dot alone (card rows often set `showRadio={false}`).
 
    All tokens alias from design.md. Border + container retint via
    `[data-brand]` because they reuse brandprimarybutton-tertiary.       */
@@ -132,6 +137,8 @@ const RadioButton = React.forwardRef(function RadioButton(
     showDescription = true,
     showBadgeTitle = true,
     showPalette = false,
+    /* Trailing check_circle on selected — default on for card radios. */
+    showTrailingCheck = true,
     /* Pass-through */
     className = '',
     style = {},
@@ -155,10 +162,13 @@ const RadioButton = React.forwardRef(function RadioButton(
   const radioHover = state === 'hover';
   const titleColor = isDisabled
     ? 'var(--text-content-quaternary)'
-    : 'var(--text-content-default)';
+    : radioChecked
+      ? 'var(--text-brandPrimary-default, #007549)'
+      : 'var(--text-content-default)';
   const descColor = isDisabled
     ? 'var(--text-content-quaternary)'
     : 'var(--text-content-tertiary)';
+  const showSelectedCheck = showTrailingCheck && radioChecked;
 
   const handleClick = () => {
     if (isDisabled) return;
@@ -265,6 +275,21 @@ const RadioButton = React.forwardRef(function RadioButton(
       </span>
 
       {showBadge && (badge != null ? badge : <TrailingBadge />)}
+
+      {showSelectedCheck && (
+        <Icon
+          name='check_circle'
+          size={18}
+          className='shrink-0'
+          style={{
+            marginLeft: 'auto',
+            color: isDisabled
+              ? 'var(--text-content-quaternary)'
+              : 'var(--text-brandPrimary-default, #007549)',
+          }}
+          aria-hidden
+        />
+      )}
     </div>
   );
 });

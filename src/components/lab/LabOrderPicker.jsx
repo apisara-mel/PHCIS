@@ -146,7 +146,7 @@ const LabOrderPicker = ({
             <span
               style={{
                 fontFamily: 'var(--type-family-heading-content)',
-                fontWeight: 'var(--type-weight-bold)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 fontSize: 'var(--type-size-sm)',
                 color: 'var(--text-content-default)',
               }}

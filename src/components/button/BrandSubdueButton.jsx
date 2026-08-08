@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 
 /* MIH BrandSubdueButton — Figma "Brand Subdue Button" (node 2024:3589).
-   2 styles (fill / outline) × 3 sizes (sm/md/lg) × 5 states
+   2 styles (fill / outline) × 4 sizes (sm/md/lg/xl) × 5 states
    (default · hover · active · focus · disabled).
 
    Property panel (per Figma):
      • Style              → `variant` ('fill' | 'outline')
-     • Size               → `size`    ('sm' | 'md' | 'lg')
+     • Size               → `size`    ('sm' | 'md' | 'lg' | 'xl')
      • State              → derived from {disabled, active, focused, hover}
      • Show Label         → `showLabel`        (boolean — default true)
      • Show Leading Icon  → `showLeadingIcon`  (auto-derives from `leadingIcon`)
@@ -30,9 +30,10 @@ import React, { useState } from 'react';
    Tokens alias from design.md §4.5/§7a — no hex literals.            */
 
 const SIZES = {
-  sm: { height: 'var(--dim-size-700)', icon: 16, fontSize: 'var(--type-size-sm)' },
-  md: { height: 'var(--dim-size-800)', icon: 20, fontSize: 'var(--type-size-base)' },
-  lg: { height: 'var(--dim-size-900)', icon: 20, fontSize: 'var(--type-size-base)' },
+  sm: { height: 'var(--dim-size-700)', icon: 16, fontSize: 'var(--type-size-button-sm, 14px)' },
+  md: { height: 'var(--dim-size-800)', icon: 20, fontSize: 'var(--type-size-button-md, 16px)' },
+  lg: { height: 'var(--dim-size-900)', icon: 20, fontSize: 'var(--type-size-button-lg, 16px)' },
+  xl: { height: 'var(--dim-size-1100, 52px)', icon: 20, fontSize: 'var(--type-size-button-xl, 18px)' },
 };
 
 const Sym = ({ name, size, color }) => (
@@ -154,16 +155,17 @@ const BrandSubdueButton = React.forwardRef(function BrandSubdueButton(
         outline: s.outline,
         outlineOffset: 0,
         color: s.text,
-        fontFamily: 'var(--type-family-ui, var(--type-family-body))',
-        fontSize:   dim.fontSize,
-        fontWeight: 'var(--type-weight-medium)',
-        lineHeight: 1.5,
         cursor: disabled ? 'not-allowed' : 'pointer',
         /* No hover translateY — lifts get clipped by PatientCard / toolbar rows with
            overflow:hidden + fixed maxHeight (พิมพ์ใบสั่งยา · พิมพ์ OPD Card). */
         transform: disabled ? 'none' : (pressed ? 'translateY(1px) scale(0.97)' : 'none'),
         whiteSpace: 'nowrap',
         ...style,
+        /* Lock to title weight/family — after ...style so callers cannot thicken label */
+        fontFamily: 'var(--type-family-button, var(--type-family-heading-content))',
+        fontSize: dim.fontSize,
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+        lineHeight: 1.5,
       }}
       {...rest}
     >

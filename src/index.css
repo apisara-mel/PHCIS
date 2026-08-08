@@ -83,12 +83,15 @@
   html {
     scrollbar-gutter: stable;
   }
+  /* Default content text = 14px (body4 / --type-size-content).
+     Exceptions keep their own tokens: buttons, badges, subtext/captions,
+     page titles, table HeaderCell. Do not bump to text-base on md+. */
   body {
-    @apply text-sm md:text-base;
+    font-size: var(--type-size-content, var(--type-size-sm, 14px));
   }
   h1, h2, h3, h4 {
-    font-family: 'Sarabun', system-ui, sans-serif;
-    font-weight: 700;
+    font-family: var(--type-family-heading-content, 'Mitr', 'Sarabun', system-ui, sans-serif);
+    font-weight: var(--type-weight-title, var(--type-weight-regular, 400));
   }
   input[type='number']::-webkit-outer-spin-button,
   input[type='number']::-webkit-inner-spin-button {
@@ -708,6 +711,9 @@ a:focus, a:focus-visible,
    type scale (10 · 12 · 14 · 16 · 18 · 20 · 24 · 30 · 36 · 48 · 60) — no new
    values are invented, and every component that sizes text through the token
    scales with it.
+   Exceptions (stay fixed — do not inflate with accessibility scale):
+     • `--type-size-table-title` = 12px (HeaderCell)
+     • `--type-size-button-{xl,lg,md,sm}` = 18 / 16 / 16 / 14 (Mitr button labels)
    ─────────────────────────────────────────────────────────────── */
 
 [data-font-size="sm"] {
@@ -722,6 +728,12 @@ a:focus, a:focus-visible,
   --type-size-4xl:   30px;
   --type-size-5xl:   36px;
   --type-size-6xl:   48px;
+  --type-size-table-title: 12px;
+  --type-size-content: var(--type-size-sm);
+  --type-size-button-xl: 18px;
+  --type-size-button-lg: 16px;
+  --type-size-button-md: 16px;
+  --type-size-button-sm: 14px;
 }
 
 [data-font-size="lg"] {
@@ -736,6 +748,12 @@ a:focus, a:focus-visible,
   --type-size-4xl:   48px;
   --type-size-5xl:   60px;
   --type-size-6xl:   60px;   /* ceiling — already largest step */
+  --type-size-table-title: 12px;
+  --type-size-content: var(--type-size-sm);
+  --type-size-button-xl: 18px;
+  --type-size-button-lg: 16px;
+  --type-size-button-md: 16px;
+  --type-size-button-sm: 14px;
 }
 
 [data-mode="dark"] .hover\:bg-brand-50:hover {

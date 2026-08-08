@@ -25,7 +25,7 @@ export const TopicHeader = ({ icon = 'dentistry', children, action }) => (
         color: 'var(--text-brandPrimary-default, #007549)',
         fontFamily: 'var(--type-family-heading-content)',
         fontSize: 'var(--type-size-base)',
-        fontWeight: 'var(--type-weight-bold)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       }}
     >
       {children}
@@ -192,7 +192,7 @@ export const DentalAccessDeniedCard = ({ hn, name, onBack, onRequestAccess }) =>
       color: 'var(--text-content-default, #363B3F)',
       fontFamily: 'var(--type-family-heading-content)',
       fontSize: 'var(--type-size-lg)',
-      fontWeight: 'var(--type-weight-bold)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       textAlign: 'center',
     }}>
       ไม่มีสิทธิ์เข้าถึงข้อมูลผู้รับบริการรายนี้

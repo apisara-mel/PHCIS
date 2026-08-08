@@ -485,7 +485,7 @@ const DentalChartPanel = ({
           <span style={{
             color: 'var(--text-content-default, #363B3F)',
             fontSize: 'var(--type-size-sm)',
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             fontFamily: 'var(--type-family-heading-content)',
           }}>
             ตำแหน่งฟันที่บันทึก ({selectedTeeth.length})

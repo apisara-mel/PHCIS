@@ -76,7 +76,7 @@ const resolveItemTone = (state) => {
       return {
         bg:     'var(--surface-sidesubmenu-selected, var(--brand-p100, #E2F3EB))',
         text:   'var(--text-sidesubmenu-selected, var(--brand-p700, #007549))',
-        weight: 'var(--type-weight-bold, 700)',
+        weight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         family: 'var(--type-family-heading-content, var(--type-family-body))',
       };
     case 'disabled':

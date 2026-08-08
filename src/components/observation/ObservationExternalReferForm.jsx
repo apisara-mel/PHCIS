@@ -66,9 +66,9 @@ const SECTION_GAP = 'var(--dim-space-300, 12px)';
 const sectionTitleStyle = {
   margin: 0,
   color: 'var(--text-brandPrimary-default, #007549)',
-  fontSize: 'var(--type-size-lg, 18px)',
-  fontWeight: 'var(--type-weight-bold)',
-  lineHeight: 1.4,
+  fontSize: 'var(--type-size-title, var(--type-size-base, 16px))',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+  lineHeight: 1.5,
 };
 
 const fieldLabelStyle = {

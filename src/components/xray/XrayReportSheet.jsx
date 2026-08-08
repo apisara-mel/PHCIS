@@ -133,7 +133,7 @@ const eyebrow = {
   color: INK_2,
   fontFamily: 'var(--type-family-body)',
   fontSize: 'var(--type-size-xxs, 10px)',
-  fontWeight: 'var(--type-weight-bold, 700)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   letterSpacing: '0.14em',
   textTransform: 'uppercase',
 };
@@ -152,7 +152,7 @@ const fieldValue = {
   color: INK,
   fontFamily: 'var(--type-family-heading-content)',
   fontSize: 'var(--type-size-sm, 14px)',
-  fontWeight: 'var(--type-weight-bold, 700)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   lineHeight: 1.45,
 };
 
@@ -222,7 +222,7 @@ const Masthead = ({ variant, center, docNo, printedAt }) => (
           color: INK,
           fontFamily: 'var(--type-family-heading-content)',
           fontSize: 'var(--type-size-base, 16px)',
-          fontWeight: 'var(--type-weight-bold, 700)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
           lineHeight: 1.4,
         }}>
           {center || 'ศูนย์บริการสาธารณสุข'}
@@ -234,7 +234,7 @@ const Masthead = ({ variant, center, docNo, printedAt }) => (
           color: INK,
           fontFamily: 'var(--type-family-heading-content)',
           fontSize: 'var(--type-size-sm, 14px)',
-          fontWeight: 'var(--type-weight-bold, 700)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         }}>
           {DOC_TITLE[variant] || DOC_TITLE.report}
         </span>
@@ -292,7 +292,7 @@ const ResultStamp = ({ label, urgent }) => (
       color: INK,
       fontFamily: 'var(--type-family-heading-content)',
       fontSize: 'var(--type-size-base, 16px)',
-      fontWeight: 'var(--type-weight-bold, 700)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       lineHeight: 1.3,
     }}>
       {label || 'ยังไม่ระบุ'}
@@ -315,7 +315,7 @@ const DraftGhost = () => (
       color: RULE,
       fontFamily: 'var(--type-family-heading-content)',
       fontSize: '64px',
-      fontWeight: 'var(--type-weight-bold, 700)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       letterSpacing: '0.08em',
       whiteSpace: 'nowrap',
       pointerEvents: 'none',
@@ -429,7 +429,7 @@ const ReportBody = ({ order }) => {
           <p style={{
             ...bodyText,
             fontSize: 'var(--type-size-lg, 18px)',
-            fontWeight: 'var(--type-weight-bold, 700)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             lineHeight: 1.55,
           }}>
             {dash(order?.impression)}
@@ -654,7 +654,7 @@ const AppointmentBody = ({ order, items, center }) => {
             color: INK,
             fontFamily: 'var(--type-family-heading-content)',
             fontSize: 'var(--type-size-2xl, 24px)',
-            fontWeight: 'var(--type-weight-bold, 700)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             lineHeight: 1.3,
           }}>
             {order.scheduledAt}
@@ -741,7 +741,7 @@ const FilmLabel = ({ patient, order, printedAt }) => (
       color: INK,
       fontFamily: 'var(--type-family-heading-content)',
       fontSize: 'var(--type-size-lg, 18px)',
-      fontWeight: 'var(--type-weight-bold, 700)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       letterSpacing: '0.14em',
     }}>
       {dash(order?.xn)}

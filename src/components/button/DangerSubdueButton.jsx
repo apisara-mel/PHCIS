@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 
    Property panel:
      • Style              → `variant` ('fill' | 'outline')
-     • Size               → `size`    ('sm' | 'md' | 'lg')
+     • Size               → `size`    ('sm' | 'md' | 'lg' | 'xl')
      • State              → derived from {disabled, active, focused, hover}
      • Show Label/Leading/Trailing icon → `show*` toggles
 
@@ -23,9 +23,10 @@ import React, { useState } from 'react';
    Tokens alias from design.md §4.5 — no hex literals.            */
 
 const SIZES = {
-  sm: { height: 36, paddingX: 'var(--dim-space-300)', paddingY: 'var(--dim-space-150)', gap: 'var(--dim-space-150)', icon: 16, fontSize: 'var(--type-size-sm)' },
-  md: { height: 40, paddingX: 'var(--dim-space-400)', paddingY: 'var(--dim-space-200)', gap: 'var(--dim-space-200)', icon: 20, fontSize: 'var(--type-size-base)' },
-  lg: { height: 44, paddingX: 'var(--dim-space-400)', paddingY: 'var(--dim-space-200)', gap: 'var(--dim-space-200)', icon: 20, fontSize: 'var(--type-size-base)' },
+  sm: { height: 36, paddingX: 'var(--dim-space-300)', paddingY: 'var(--dim-space-150)', gap: 'var(--dim-space-150)', icon: 16, fontSize: 'var(--type-size-button-sm, 14px)' },
+  md: { height: 40, paddingX: 'var(--dim-space-400)', paddingY: 'var(--dim-space-200)', gap: 'var(--dim-space-200)', icon: 20, fontSize: 'var(--type-size-button-md, 16px)' },
+  lg: { height: 44, paddingX: 'var(--dim-space-400)', paddingY: 'var(--dim-space-200)', gap: 'var(--dim-space-200)', icon: 20, fontSize: 'var(--type-size-button-lg, 16px)' },
+  xl: { height: 52, paddingX: 'var(--dim-space-400)', paddingY: 'var(--dim-space-200)', gap: 'var(--dim-space-200)', icon: 20, fontSize: 'var(--type-size-button-xl, 18px)' },
 };
 
 const Sym = ({ name, size, color }) => (
@@ -130,12 +131,12 @@ const DangerSubdueButton = React.forwardRef(function DangerSubdueButton(
         border: s.border, background: s.bg, color: s.text,
         outline: s.outline,
         outlineOffset: 0,
-        fontFamily: 'var(--type-family-ui, var(--type-family-body))',
-        fontSize: dim.fontSize, fontWeight: 'var(--type-weight-medium)', lineHeight: 1.5,
         cursor: disabled ? 'not-allowed' : 'pointer',
         transform: disabled ? 'none' : (pressed ? 'translateY(1px) scale(0.97)' : (hovered ? 'translateY(-1px)' : 'translateY(0)')),
         whiteSpace: 'nowrap',
         ...style,
+        fontFamily: 'var(--type-family-button, var(--type-family-heading-content))',
+        fontSize: dim.fontSize, fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', lineHeight: 1.5,
       }}
       {...rest}
     >

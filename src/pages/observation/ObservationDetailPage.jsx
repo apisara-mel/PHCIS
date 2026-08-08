@@ -672,7 +672,11 @@ export default function ObservationDetailPage() {
   return (
     <QueuePageShell
       activeKey='observation'
-      breadcrumb={['หน้าหลัก PHCIS', 'ห้องสังเกตอาการ', `แฟ้มสังเกตอาการ: ${patient.patientName}`]}
+      breadcrumb={[
+        { label: 'หน้าหลัก PHCIS', to: '/dashboard' },
+        { label: 'ห้องสังเกตอาการ', to: '/observation' },
+        `แฟ้มสังเกตอาการ: ${patient.patientName}`,
+      ]}
     >
       {/* Patient identity banner — same <PatientCard> aliased from OPD
           screening. Page exit ("ยกเลิก") lives in the sticky footer below,
@@ -777,7 +781,7 @@ export default function ObservationDetailPage() {
                   gap: 'var(--dim-space-150, 6px)',
                   color: 'var(--text-table-title)',
                   fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
-                  fontWeight: 'var(--type-weight-bold)',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   fontSize: 'var(--type-size-sm)',
                 }}
               >
@@ -881,7 +885,7 @@ export default function ObservationDetailPage() {
                             <span
                               className='font-mono'
                               style={{
-                                fontWeight: 'var(--type-weight-bold)',
+                                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                                 color: 'var(--text-brandPrimary-default)',
                                 background: 'var(--surface-brandPrimary-quaternary)',
                                 padding: 'var(--dim-space-050, 2px) var(--dim-space-200)',
@@ -966,7 +970,7 @@ export default function ObservationDetailPage() {
                                         background: cfg.bg,
                                         color: cfg.color,
                                         fontSize: 10,
-                                        fontWeight: 'var(--type-weight-bold)',
+                                        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                                       }}
                                     >
                                       <span className='material-symbols-outlined' style={{ fontSize: 12 }}>{cfg.icon}</span>
@@ -1379,7 +1383,7 @@ export default function ObservationDetailPage() {
               </span>
               <span
                 style={{
-                  fontWeight: 'var(--type-weight-bold)',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   color: 'var(--text-brandPrimary-default)',
                 }}
               >

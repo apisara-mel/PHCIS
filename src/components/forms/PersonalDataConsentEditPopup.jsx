@@ -40,7 +40,7 @@ const sectionTitleStyle = {
   color: 'var(--text-topic-secondary-title, var(--brand-p700))',
   fontFamily: 'var(--type-family-heading-content)',
   fontSize: 'var(--type-size-base)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   lineHeight: 1.5,
 };
 

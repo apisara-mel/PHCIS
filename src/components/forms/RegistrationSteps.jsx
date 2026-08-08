@@ -187,7 +187,7 @@ const PatientStatusSection = ({
             color: 'var(--text-topic-primary-title, #007549)',
             fontFamily: 'var(--type-family-heading-content)',
             fontSize: 'var(--type-size-base)',
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             lineHeight: 1.5,
           }}>
             สถานะผู้รับบริการ
@@ -410,7 +410,7 @@ const PendingConsentFormCard = ({
         color: 'var(--text-content-default)',
         fontFamily: 'var(--type-family-body)',
         fontSize: 'var(--type-size-sm)',
-        fontWeight: 'var(--type-weight-bold)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         lineHeight: 1.5,
       }}>
         {title}
@@ -1790,7 +1790,7 @@ const RightsLookupPanel = ({ form, setForm, onVerified }) => {
           <span style={{
             color: 'var(--text-brandPrimary-default)',
             fontFamily: 'var(--type-family-heading-content)',
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             fontSize: 'var(--type-size-sm)',
             lineHeight: 1.5,
           }}>
@@ -2125,7 +2125,7 @@ const RightsGroupCard = ({
           <span style={{
             color: 'var(--text-topic-secondary-title, var(--text-brandPrimary-default))',
             fontFamily: 'var(--type-family-heading-content)',
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             fontSize: 'var(--type-size-base)',
             lineHeight: 1.5,
           }}>

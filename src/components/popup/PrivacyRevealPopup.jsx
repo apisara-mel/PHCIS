@@ -79,7 +79,7 @@ const NestedPrivacyReveal = ({
           color: 'var(--text-modal-text)',
           fontFamily: 'var(--type-family-heading-content)',
           fontSize: 'var(--type-size-base)',
-          fontWeight: 'var(--type-weight-bold)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
           lineHeight: 1.5,
           margin: 0,
         }}

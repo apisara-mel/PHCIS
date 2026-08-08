@@ -670,7 +670,7 @@ const LabSendOutPage = () => {
               }}
             >
               <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
-                <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
+                <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
                   <Icon name='receipt_long' size={20} style={{ color: 'var(--text-brandPrimary-default)' }} />
                   ตัวอย่างใบนำส่ง {manifest.batchNo}
                 </span>

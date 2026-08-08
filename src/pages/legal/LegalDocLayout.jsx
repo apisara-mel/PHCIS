@@ -54,7 +54,7 @@ const H2 = {
   color: 'var(--text-content-default)',
   fontFamily: 'var(--type-family-heading-content)',
   fontSize: 'var(--type-size-base)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   lineHeight: 1.5,
 };
 
@@ -70,7 +70,7 @@ const BODY = {
 const TH = {
   ...BODY,
   color: 'var(--text-content-default)',
-  fontWeight: 'var(--type-weight-bold)',
+  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
   textAlign: 'left',
   padding: 'var(--dim-space-200) var(--dim-space-300)',
   borderBottom: 'var(--dim-stroke-100) solid var(--border-table-default)',

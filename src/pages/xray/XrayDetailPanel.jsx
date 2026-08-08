@@ -275,7 +275,7 @@ const XrayDetailPanel = ({
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
           <div className='flex items-center justify-between' style={{ gap: 'var(--dim-space-200)' }}>
             <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-              <h2 className='min-w-0' style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-default)' }}>
+              <h2 className='min-w-0' style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-default)' }}>
                 {order.examLabel}
               </h2>
               {order.urgency === 'stat' && <StatusBadge style='error' size='small'>STAT</StatusBadge>}

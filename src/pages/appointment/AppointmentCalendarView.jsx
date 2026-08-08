@@ -132,7 +132,7 @@ function MonthDayCell({
             style={{
               fontFamily: 'var(--type-family-body)',
               fontSize: 'var(--type-size-xxs, 10px)',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               color: 'var(--text-calendar-slot-text)',
               lineHeight: 1.5,
               overflow: 'hidden',
@@ -226,7 +226,7 @@ function MonthWeekdayHeader() {
             style={{
               fontFamily: 'var(--type-family-heading-content)',
               fontSize: 'var(--type-size-xs)',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               color: 'var(--text-table-title)',
               lineHeight: 1.5,
             }}
@@ -284,7 +284,7 @@ function WeekDayCell({
             style={{
               fontFamily: 'var(--type-family-body)',
               fontSize: 'var(--type-size-xxs, 10px)',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               color: 'var(--text-calendar-slot-text)',
               lineHeight: 1.5,
               overflow: 'hidden',
@@ -375,7 +375,7 @@ function DayWeekdayHeader({ label }) {
             style={{
               fontFamily: 'var(--type-family-heading-content)',
               fontSize: 'var(--type-size-xs)',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               color: 'var(--text-table-title)',
               lineHeight: 1.5,
             }}
@@ -438,7 +438,7 @@ function DayViewPanel({
                 style={{
                   fontFamily: 'var(--type-family-body)',
                   fontSize: 'var(--type-size-xxs, 10px)',
-                  fontWeight: 'var(--type-weight-bold)',
+                  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                   color: 'var(--text-calendar-slot-text)',
                   lineHeight: 1.5,
                   overflow: 'hidden',

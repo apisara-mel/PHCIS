@@ -227,7 +227,7 @@ const AlertDialog = ({
                     margin: 'var(--dim-space-0)',
                     color: 'var(--text-alertdialog-text)',
                     fontFamily: 'var(--type-family-heading-content)',
-                    fontWeight: 'var(--type-weight-bold, 700)',
+                    fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                     fontSize: 'var(--type-size-lg, 18px)',
                     lineHeight: 1.5,
                   }}
@@ -269,7 +269,7 @@ const AlertDialog = ({
                     margin: 'var(--dim-space-0)',
                     color: 'var(--text-content-default, var(--text-alertdialog-text))',
                     fontFamily: 'var(--type-family-heading-content)',
-                    fontWeight: 'var(--type-weight-bold, 700)',
+                    fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                     fontSize: 'var(--type-size-base, 16px)',
                     lineHeight: 1.5,
                   }}

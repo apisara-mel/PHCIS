@@ -62,7 +62,7 @@ export const SectionTitle = ({ icon, iconElement, children }) => (
     <span style={{
       color: 'var(--text-brandPrimary-default)',
       fontFamily: 'var(--type-family-heading-content)',
-      fontWeight: 'var(--type-weight-bold)',
+      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       fontSize: 'var(--type-size-base)',
       lineHeight: 1.5,
     }}>

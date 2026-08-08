@@ -92,7 +92,7 @@ const SignatureMetaStack = ({
           style={{
             color: 'var(--text-formbuilder-text)',
             fontFamily: 'var(--type-family-heading-content)',
-            fontWeight: 'var(--type-weight-bold)',
+            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             fontSize: 'var(--type-size-sm)',
             lineHeight: 1.5,
             textAlign: 'center',

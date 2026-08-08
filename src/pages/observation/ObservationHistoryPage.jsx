@@ -104,7 +104,11 @@ export default function ObservationHistoryPage() {
   return (
     <QueuePageShell
       activeKey='observation'
-      breadcrumb={['หน้าหลัก PHCIS', 'ห้องสังเกตอาการ', `ประวัติบันทึกการสังเกตอาการ: ${patient.patientName}`]}
+      breadcrumb={[
+        { label: 'หน้าหลัก PHCIS', to: '/dashboard' },
+        { label: 'ห้องสังเกตอาการ', to: '/observation' },
+        `ประวัติบันทึกการสังเกตอาการ: ${patient.patientName}`,
+      ]}
     >
       <PatientCard
         sticky
@@ -171,7 +175,7 @@ export default function ObservationHistoryPage() {
                 gap: 'var(--dim-space-150, 6px)',
                 color: 'var(--text-table-title)',
                 fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
-                fontWeight: 'var(--type-weight-bold)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 fontSize: 'var(--type-size-sm)',
               }}
             >
@@ -234,7 +238,7 @@ export default function ObservationHistoryPage() {
                           <span
                             className='font-mono'
                             style={{
-                              fontWeight: 'var(--type-weight-bold)',
+                              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                               color: 'var(--text-brandPrimary-default)',
                               background: 'var(--surface-brandPrimary-quaternary)',
                               padding: 'var(--dim-space-050, 2px) var(--dim-space-200)',
@@ -313,7 +317,7 @@ export default function ObservationHistoryPage() {
                                       background: cfg.bg,
                                       color: cfg.color,
                                       fontSize: 10,
-                                      fontWeight: 'var(--type-weight-bold)',
+                                      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                                     }}
                                   >
                                     <span className='material-symbols-outlined' style={{ fontSize: 12 }}>{cfg.icon}</span>

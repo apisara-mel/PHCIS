@@ -88,7 +88,7 @@ const Block = ({ title, children }) => (
       style={{
         color: 'var(--text-topic-tertiary-title)',
         fontFamily: 'var(--type-family-heading-content)',
-        fontWeight: 'var(--type-weight-bold)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         fontSize: 'var(--type-size-sm, 14px)',
         lineHeight: 1.5,
       }}
@@ -156,7 +156,7 @@ const ReferralPrintSheet = ({ row, copies = 1 }) => {
             style={{
               color: 'var(--text-topic-primary-title)',
               fontFamily: 'var(--type-family-heading-content)',
-              fontWeight: 'var(--type-weight-bold)',
+              fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               fontSize: 'var(--type-size-lg, 18px)',
               lineHeight: 1.4,
             }}
@@ -167,7 +167,7 @@ const ReferralPrintSheet = ({ row, copies = 1 }) => {
           <span style={LABEL}>โทร. {from?.phone || '—'} · โทรสาร {from?.fax || '—'}</span>
         </div>
         <div className='flex flex-col items-end shrink-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span style={{ ...VALUE, fontWeight: 'var(--type-weight-bold)' }}>{row.referNo}</span>
+          <span style={{ ...VALUE, fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>{row.referNo}</span>
           <Barcode128 value={row.referNo} height={36} />
           {copies > 1 ? <span style={LABEL}>พิมพ์ {copies} ชุด</span> : null}
         </div>

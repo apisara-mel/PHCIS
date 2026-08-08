@@ -41,7 +41,7 @@ const PharmacyVerificationPanel = ({ queueNo, row, onChange }) => {
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
       <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
         <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-          <h3 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+          <h3 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
             การตรวจสอบคำสั่งใช้ยาโดยเภสัชกร
           </h3>
           {row.verifiedBy ? (
@@ -73,7 +73,7 @@ const PharmacyVerificationPanel = ({ queueNo, row, onChange }) => {
       )}
 
       <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)', borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)', paddingTop: 'var(--dim-space-300)' }}>
-        <h4 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+        <h4 style={{ margin: 0, fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
           Pharmacist note — สื่อสารกับบุคลากรทางการแพทย์
         </h4>
         <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
