@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -17,7 +18,7 @@ import Pagination from '@/components/pagination/Pagination';
 import Popup from '@/components/popup/Popup';
 import PatientCard from '@/components/card/PatientCard';
 import {
-  SwSectionHeader, SwField, SwBanner, SwConfidentialMask, SwInlineSearch, SwPagerBar,
+  SwSectionHeader, SwField, SwBanner, SwConfidentialMask, SwInlineSearch, SwPagerBar, toLocalIso,
 } from '@/pages/clinic/social-work/SocialWorkShared';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
@@ -537,7 +538,7 @@ const SocialWorkRegistryPage = () => {
                   showLabel={false}
                   disabled={!canRead}
                   value={form.receivedDate ? new Date(form.receivedDate) : null}
-                  onChange={(d) => setField('receivedDate')(d ? d.toISOString().slice(0, 10) : '')}
+                  onChange={(d) => setField('receivedDate')(d ? toLocalIso(d) : '')}
                   placeholder='เลือกวันที่รับเรื่อง'
                 />
               </SwField>
@@ -814,6 +815,8 @@ const SocialWorkRegistryPage = () => {
               </NeutralSubdueButton>
             )}
           </div>
+
+          <SearchResultCount found={filtered.length} total={rows.length} />
 
           {filtersActive && filtered.length === 0 ? (
             <div className='flex flex-col w-full items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>

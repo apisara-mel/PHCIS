@@ -143,9 +143,10 @@ export const summarizeFpServices = (keys = []) =>
     (ส่งฝากครรภ์แทน) และห้ามจ่ายเมื่อคัดกรอง 11 ข้อ ติด "มี" แม้ข้อเดียว. */
 export const FP_HORMONAL_SERVICE_KEYS = FP_SERVICES.filter((s) => s.hormonal).map((s) => s.key);
 
-/** บริการที่ยัง "จ่ายยา" ได้แม้ติดธงแดง — คู่มือ p.2-5 ห้ามเฉพาะการจ่ายยา
-    (ยาเม็ด/ยาฉีด/ยาฝัง); ถุงยางอนามัยและการให้คำปรึกษายังทำได้. */
-export const FP_SERVICES_ALLOWED_WHEN_FLAGGED = ['condom'];
+/** บริการที่ยังทำได้แม้ติดธงแดง — คู่มือ p.2-5 ห้ามเฉพาะการจ่ายยา
+    (ยาเม็ด/ยาฉีด/ยาฝัง = วิธีที่มีฮอร์โมน); ถุงยางอนามัย ใส่ห่วงอนามัย
+    ทำหมันชาย/หญิง และการให้คำปรึกษายังทำได้. */
+export const FP_SERVICES_ALLOWED_WHEN_FLAGGED = ['condom', 'iud', 'vasectomy', 'tubal'];
 
 /* ── §2.2.1–2.2.7 รายงานทะเบียน 7 ฉบับ → filter chips ในหน้าทะเบียน ──
    คู่มือแยกเป็น 7 รายงาน (ยาเม็ด / ยาฉีด / ใส่ห่วง / ถอดห่วง / ฝังยา /
@@ -629,10 +630,28 @@ export const validateFpVisit = (form) => {
   if (screen.mustReferDoctor && !form?.doctorConsulted && flaggedBlockedServices.length > 0) {
     errs.push('ห้ามจ่ายยา/ให้บริการคุมกำเนิดขณะยังไม่ได้ส่งปรึกษาแพทย์ — เลือกได้เฉพาะถุงยางอนามัย/ให้คำปรึกษา');
   }
+  /* คัดกรองติดธง + ยังไม่ส่งปรึกษาแพทย์ → คลุมทั้งคำสั่งยา (S6) และธง
+     จ่ายยาจริง (S3) ด้วย — ไม่ใช่แค่ services */
+  const hormonalMedOrders = FP_MED_ORDERS
+    .filter((m) => m.hormonal && form?.medOrders?.[m.key]);
+  if (screen.mustReferDoctor && !form?.doctorConsulted) {
+    if (hormonalMedOrders.length > 0) {
+      errs.push('พบข้อคัดกรองที่ตอบ "มี" — ห้ามสั่งยาคุมกำเนิดชนิดฮอร์โมนจนกว่าจะส่งปรึกษาแพทย์ (ลบรายการยาในขั้นตอนที่ 6 หรือบันทึกส่งปรึกษาในขั้นตอนที่ 2)');
+    }
+    if (form?.dispensed) {
+      errs.push('พบข้อคัดกรองที่ตอบ "มี" — ห้ามจ่ายยาคุมกำเนิดจนกว่าจะส่งปรึกษาแพทย์ (เอาเครื่องหมาย "จ่ายยาคุมกำเนิดจริง" ออกในขั้นตอนที่ 3)');
+    }
+  }
   if (form?.pregnancyTest === 'positive') {
     const hormonal = (form?.services || []).filter((k) => FP_HORMONAL_SERVICE_KEYS.includes(k));
     if (hormonal.length > 0) {
       errs.push('ผลทดสอบการตั้งครรภ์เป็น "ตั้งครรภ์" — ห้ามให้บริการคุมกำเนิดชนิดฮอร์โมน ให้ส่งคลินิกฝากครรภ์ (ANC)');
+    }
+    if (hormonalMedOrders.length > 0) {
+      errs.push('ผลทดสอบการตั้งครรภ์เป็น "ตั้งครรภ์" — ห้ามสั่งยาคุมกำเนิดชนิดฮอร์โมน (ลบรายการยาในขั้นตอนที่ 6)');
+    }
+    if (form?.dispensed) {
+      errs.push('ผลทดสอบการตั้งครรภ์เป็น "ตั้งครรภ์" — ห้ามจ่ายยาคุมกำเนิด (เอาเครื่องหมาย "จ่ายยาคุมกำเนิดจริง" ออกในขั้นตอนที่ 3)');
     }
   }
   if (hasText(form?.lmp) && form.lmp > todayIso()) {
@@ -963,8 +982,11 @@ export const getFpPrintLog = (hn) => (hn ? readJson(K.printLog, {})[hn] || [] : 
 /** ข้อมูลบนบัตรติดตามวางแผนครอบครัว — เลขที่ วผ., ชนิดบริการ,
     วันเริ่มบริการครั้งแรก, ตารางนัดหมาย (คู่มือ p.2-9). */
 export const buildFpFollowUpCard = ({ registration, patient, visits = [], appointment }) => {
+  /* แสดง 6 ครั้งล่าสุด — เลขครั้งต้องเป็นลำดับจริงของการรับบริการ
+     ไม่ใช่นับ 1 ใหม่ (เช่นมี 8 ครั้ง → แสดงครั้งที่ 3–8) */
+  const start = Math.max(0, visits.length - 6);
   const rows = visits.slice(-6).map((v, i) => ({
-    no: i + 1,
+    no: start + i + 1,
     date: v.date,
     service: summarizeFpServices(v.services || []),
     by: v.savedBy || FP_CURRENT_USER,

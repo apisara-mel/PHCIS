@@ -13,21 +13,46 @@ import { formatFpDate } from '@/data/familyPlanningVisits';
      • ไม่ใส่ `preview` = render ผ่าน portal ไปเป็นลูกตรงของ <body> พร้อม
        class `.mih-fp-card-print-only` ซึ่งซ่อนบนจอ และใน @media print จะ
        ซ่อนลูกอื่นทั้งหมดของ body ให้เหลือเฉพาะบัตร
-     • stylesheet ฉีดครั้งเดียวตอน module load (idempotent — HMR ไม่ทิ้ง
-       <style> ค้าง) ตามกติกาใน CLAUDE.md */
+     • stylesheet ฉีดแบบ create-or-UPDATE (ไม่ใช่ create-if-missing) —
+       HMR แก้ CSS แล้วเห็นผลทันที ไม่ทิ้ง <style> ค้าง (กติกา CLAUDE.md)
 
-if (typeof document !== 'undefined' && !document.getElementById('mih-fp-card-print-style')) {
-  const css = document.createElement('style');
-  css.id = 'mih-fp-card-print-style';
+   สำคัญ: กฎ `body > *:not(...)` ต้อง scope ด้วย html[data-fp-card-print-mode]
+   เสมอ (pattern เดียวกับ queueCenterStore / labPrintSettings) เพราะ
+   Routes.jsx import ทุกหน้าแบบ static → stylesheet ของทุกโมดูลโหลด
+   พร้อมกัน ถ้าไม่ scope กฎของแต่ละโมดูลจะซ่อน print-root ของกันเอง
+   แล้วพิมพ์ได้หน้าเปล่า — ตอนพิมพ์ให้เรียก printFpFollowUpCard() ซึ่ง
+   set attribute ก่อน window.print() แล้วถอดออกหลังพิมพ์ */
+
+if (typeof document !== 'undefined') {
+  let css = document.getElementById('mih-fp-card-print-style');
+  if (!css) {
+    css = document.createElement('style');
+    css.id = 'mih-fp-card-print-style';
+    document.head.appendChild(css);
+  }
   css.textContent = `
     .mih-fp-card-print-only { display: none; }
     @media print {
-      body > *:not(.mih-fp-card-print-only) { display: none !important; }
-      .mih-fp-card-print-only { display: block !important; }
+      html[data-fp-card-print-mode] body > *:not(.mih-fp-card-print-only) { display: none !important; }
+      html[data-fp-card-print-mode] .mih-fp-card-print-only { display: block !important; }
     }
   `;
-  document.head.appendChild(css);
 }
+
+/** พิมพ์บัตรติดตาม — สลับเอกสารด้วย attribute บน <html> รอบการพิมพ์เท่านั้น
+    (ตาม pattern printQueueTicket ใน queueCenterStore.js). */
+export const printFpFollowUpCard = () => {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  try {
+    document.documentElement.setAttribute('data-fp-card-print-mode', 'card');
+    window.print();
+    window.setTimeout(() => {
+      document.documentElement.removeAttribute('data-fp-card-print-mode');
+    }, 500);
+  } catch (err) {
+    document.documentElement.removeAttribute('data-fp-card-print-mode');
+  }
+};
 
 const cellBase = {
   paddingTop: 'var(--dim-space-200, 8px)',

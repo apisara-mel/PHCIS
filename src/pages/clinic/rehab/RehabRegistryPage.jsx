@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import Icon from '@/components/icons/Icon';
 import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -995,6 +996,8 @@ const RehabRegistryPage = () => {
               </NeutralSubdueButton>
             )}
           </div>
+
+          <SearchResultCount found={filtered.length} total={rows.length} />
 
           <Table
             columns={columns}

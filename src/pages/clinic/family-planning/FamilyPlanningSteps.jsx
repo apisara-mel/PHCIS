@@ -15,7 +15,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
 import DrawingCanvasPopup from '@/components/popup/DrawingCanvasPopup';
-import FamilyPlanningFollowUpCard from '@/pages/clinic/family-planning/FamilyPlanningFollowUpCard';
+import FamilyPlanningFollowUpCard, { printFpFollowUpCard } from '@/pages/clinic/family-planning/FamilyPlanningFollowUpCard';
 import {
   FP_CURRENT_USER,
   FP_DOCTORS,
@@ -642,8 +642,13 @@ export const FpStep3Plan = ({ form, setForm, locked }) => {
   const toggleService = (key) => {
     if (locked) return;
     const service = resolveFpService(key);
-    if (dispensingBlocked && !FP_SERVICES_ALLOWED_WHEN_FLAGGED.includes(key)) return;
-    if (pregnant && service?.hormonal) return;
+    /* บล็อกเฉพาะการ "เพิ่ม" รายการใหม่ — รายการที่เลือกไว้แล้วต้องถอน
+       ติ๊กออกได้เสมอ ไม่งั้นติดธง/ตั้งครรภ์ทีหลังแล้ว deadlock ปลดไม่ได้ */
+    const alreadySelected = form.services.includes(key);
+    if (!alreadySelected) {
+      if (dispensingBlocked && !FP_SERVICES_ALLOWED_WHEN_FLAGGED.includes(key)) return;
+      if (pregnant && service?.hormonal) return;
+    }
     setForm((f) => ({
       ...f,
       services: f.services.includes(key)
@@ -823,7 +828,10 @@ export const FpStep3Plan = ({ form, setForm, locked }) => {
             label='จ่ายยาคุมกำเนิดจริงในครั้งนี้'
             size='md'
             selected={form.dispensed}
-            onClick={() => { if (!locked && !dispensingBlocked) set('dispensed')(!form.dispensed); }}
+            onClick={() => {
+              /* ถอนติ๊กได้เสมอ — บล็อกเฉพาะการติ๊กใหม่ตอน dispensingBlocked */
+              if (!locked && (form.dispensed || !dispensingBlocked)) set('dispensed')(!form.dispensed);
+            }}
           />
         </div>
       </div>
@@ -1564,7 +1572,11 @@ export const FpStep6Orders = ({ form, setForm, locked }) => {
                   label={m.label}
                   size='lg'
                   selected={!!form.medOrders[m.key]}
-                  onClick={() => { if (!blocked) toggleGroup('medOrders')(m.key); }}
+                  onClick={() => {
+                    /* รายการที่สั่งไว้แล้วต้องถอนออกได้แม้ถูกบล็อก —
+                       บล็อกเฉพาะการ "เพิ่ม" รายการใหม่ */
+                    if (!blocked || form.medOrders[m.key]) toggleGroup('medOrders')(m.key);
+                  }}
                 />
               </span>
             );
@@ -1725,7 +1737,7 @@ export const FpStep6Orders = ({ form, setForm, locked }) => {
               options={[{ value: true, label: 'สั่ง' }, { value: false, label: 'ไม่สั่ง' }]}
               value={!!form.medOrders[m.key]}
               onSelect={(v) => setForm((f) => ({ ...f, medOrders: { ...f.medOrders, [m.key]: v } }))}
-              locked={locked || medBlocked(m)}
+              locked={locked || (medBlocked(m) && !form.medOrders[m.key])}
             />
           ))}
         </div>
@@ -1833,7 +1845,7 @@ export const FpStep7Documents = ({
      setState ยังไม่ทัน re-render ในรอบเดียวกัน ถ้าปิดก่อนจะไม่มีบัตรให้พิมพ์ */
   const doPrint = () => {
     logFpPrint(fpHn, 'บัตรติดตามวางแผนครอบครัว');
-    if (typeof window !== 'undefined') window.print();
+    printFpFollowUpCard();
     setPrintTick((t) => t + 1);
     setForm((f) => ({ ...f, cardPrinted: true }));
     setPrintPreview(false);

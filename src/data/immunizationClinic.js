@@ -1468,24 +1468,37 @@ export const clearImmDraft = (hn) => {
 
 export const getImmVisitRecords = (hn) => (readJson(K.visits, {})[hn] || []);
 
+/* บันทึก/แก้ไขใบบันทึกการตรวจ — เรียกซ้ำตอน "แก้ไขบันทึก" ได้โดยไม่สร้าง
+   เข็ม/นัด/visit ซ้ำ: record เก็บ visitId + doseId (ใน todayDoses) +
+   appointmentId ไว้ รอบถัดไปจึง update ของเดิมแทน insert ใหม่ */
 export const saveImmVisitRecord = (hn, form) => {
   const all = readJson(K.visits, {});
-  const record = {
-    ...form,
-    savedBy: IMM_CURRENT_USER,
-    savedAt: new Date().toISOString(),
-  };
-  all[hn] = [...(all[hn] || []), record];
-  writeJson(K.visits, all);
+  const prior = all[hn] || [];
+  /* หา visit เดิม: จาก visitId ที่เคยออกให้ หรือ (record เก่าก่อนมี visitId) จาก savedAt */
+  const priorIdx = form.visitId
+    ? prior.findIndex((r) => r.visitId === form.visitId)
+    : prior.findIndex((r) => r.savedAt && r.savedAt === form.savedAt);
+  const visitId = form.visitId || `v-${hn}-${Date.now()}`;
 
-  /* เข็มที่ให้วันนี้ถูกเขียนลงสมุดวัคซีนทันที (IIS §1.11.2.1) */
-  (form.todayDoses || []).forEach((d) => {
-    saveImmDose({ ...d, id: '', hn });
+  /* เข็มที่ให้วันนี้ถูกเขียนลงสมุดวัคซีนทันที (IIS §1.11.2.1)
+     — เข็มที่เคยบันทึกแล้ว (มี doseId หรือ dedupe ตรงกับเข็มเดิม) → update */
+  const existingDoses = getImmDoses(hn);
+  const todayDoses = (form.todayDoses || []).map((d) => {
+    const doseId = d.doseId
+      || existingDoses.find((x) =>
+        x.vaccineId === d.vaccineId && x.seq === d.seq && x.date === d.date && x.lotNo === d.lotNo,
+      )?.id
+      || '';
+    const { saved } = saveImmDose({ ...d, id: doseId, hn });
+    return { ...d, doseId: saved.id };
   });
 
-  /* นัดหมายเข็มถัดไป (1.10.9.5) มองเห็นได้จากหน้าคิว + follow-up */
+  /* นัดหมายเข็มถัดไป (1.10.9.5) มองเห็นได้จากหน้าคิว + follow-up
+     — ส่ง id เดิมกลับเข้า saveImmAppointment เพื่อ update ใบเดิม */
+  let appointmentId = form.appointmentId || '';
   if (form.appointment?.date && !form.appointment.cancelled) {
-    saveImmAppointment({
+    const savedAp = saveImmAppointment({
+      id: appointmentId,
       hn,
       date: form.appointment.date,
       time: form.appointment.time,
@@ -1493,7 +1506,22 @@ export const saveImmVisitRecord = (hn, form) => {
       note: form.appointment.note,
       doctor: form.doctor,
     });
+    appointmentId = savedAp.id;
   }
+
+  const record = {
+    ...form,
+    todayDoses,
+    visitId,
+    appointmentId,
+    savedBy: IMM_CURRENT_USER,
+    savedAt: new Date().toISOString(),
+  };
+  /* แก้ไข visit เดิม → replace แถวเดิม; บันทึกครั้งแรก → append */
+  all[hn] = priorIdx >= 0
+    ? prior.map((r, i) => (i === priorIdx ? record : r))
+    : [...prior, record];
+  writeJson(K.visits, all);
   return record;
 };
 

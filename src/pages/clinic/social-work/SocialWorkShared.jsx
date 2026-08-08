@@ -18,6 +18,16 @@ import Icon from '@/components/icons/Icon';
    Every value aliases a design.md token with a truthful fallback; inline
    padding/margin are written longhand (CSSOM drops var() shorthands). */
 
+/* DatePicker คืน Date ที่ local midnight — แปลงเป็น 'yyyy-mm-dd' ต้องใช้
+   getFullYear/getMonth/getDate (เวลาท้องถิ่น) ห้ามใช้ toISOString() ซึ่ง
+   แปลงเป็น UTC ก่อน ทำให้ที่ UTC+7 วันที่ถอยไป 1 วันเสมอ. */
+export const toLocalIso = (d) => {
+  if (!d) return '';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+};
+
 export const SwSectionHeader = ({ icon, children, aside }) => (
   <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
     <span className='text-brand-500'><Icon name={icon} size={20} /></span>

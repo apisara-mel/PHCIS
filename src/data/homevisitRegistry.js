@@ -350,6 +350,17 @@ export const appendVisitHistory = (hn, record) => {
     at: formatHomeVisitDateTime(),
   };
   writeJson(VISIT_HISTORY_OVERLAY_KEY, { ...overlay, [hn]: [...(overlay[hn] || []), entry] });
+  /* การบันทึกเยี่ยมคือจุดเดียวที่ "เยี่ยมล่าสุด/จำนวนครั้ง" ของทะเบียนต้องขยับ —
+     ถ้าไม่อัปเดตที่นี่ แถวจะค้างในแท็บ "เลยกำหนดติดตาม" ตลอด และ visitNo
+     ของครั้งถัดไปจะซ้ำ (getVisitFollowUpOverdue / buildHomeVisitForm อ่านค่านี้). */
+  const reg = findRegistryEntryByHn(hn);
+  if (reg) {
+    upsertRegistryEntry({
+      id: reg.id,
+      lastVisitDate: entry.date,
+      visitCount: (Number(reg.visitCount) || 0) + 1,
+    });
+  }
   return entry;
 };
 

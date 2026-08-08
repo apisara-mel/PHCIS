@@ -15,7 +15,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import {
-  SwSectionHeader, SwField, SwBanner, SwInlineSearch, SwPagerBar, SwEmptyHint,
+  SwSectionHeader, SwField, SwBanner, SwInlineSearch, SwPagerBar, SwEmptyHint, toLocalIso,
 } from '@/pages/clinic/social-work/SocialWorkShared';
 import {
   SW_INVENTORY_LINK,
@@ -276,6 +276,9 @@ const SocialWorkSupplyPage = () => {
       formula: row.formula || '',
       lot: row.lot,
       expireDate: row.expireDate,
+      /* ค่า Expire เดิมของแถว — ใช้ตัดสินว่าผู้ใช้แก้ค่า Expire หรือไม่
+         (แก้ไขแถวของล็อตที่หมดอายุไปแล้วต้องทำได้ ตราบใดที่ไม่แตะ Expire) */
+      initialExpireDate: row.expireDate,
       source: row.source || '',
       qty: String(row.qty),
       unit: row.unit,
@@ -307,7 +310,11 @@ const SocialWorkSupplyPage = () => {
     if (!receiptForm.materialCode) errs.materialCode = 'กรุณาเลือกรายการวัสดุ';
     if (!receiptForm.lot.trim()) errs.lot = 'กรุณาระบุ Lot Number';
     if (!receiptForm.expireDate) errs.expireDate = 'กรุณาระบุวันหมดอายุ (Expire Date)';
-    else if (daysToExpire(receiptForm.expireDate) <= 0) errs.expireDate = 'วันหมดอายุต้องเป็นวันในอนาคต';
+    /* บังคับ "ต้องเป็นวันในอนาคต" เฉพาะตอนสร้างใหม่ หรือเมื่อผู้ใช้เปลี่ยนค่า
+       Expire จากค่าเดิม — ไม่งั้นรายการรับเข้าของล็อตที่หมดอายุไปแล้ว
+       จะแก้ไข field อื่น (เช่น ปริมาณ/ราคา) ไม่ได้เลย */
+    else if ((!receiptForm.id || receiptForm.expireDate !== receiptForm.initialExpireDate)
+      && daysToExpire(receiptForm.expireDate) <= 0) errs.expireDate = 'วันหมดอายุต้องเป็นวันในอนาคต';
     if (!receiptForm.source) errs.source = 'กรุณาระบุแหล่งที่รับมา';
     const qty = Number(receiptForm.qty);
     if (!Number.isFinite(qty) || qty <= 0) errs.qty = 'ปริมาณต้องมากกว่า 0';
@@ -349,9 +356,13 @@ const SocialWorkSupplyPage = () => {
   );
 
   const issueLots = useMemo(
-    () => (issueForm.materialCode ? getSwLotsForMaterial(issueForm.materialCode) : []),
+    /* ตอนแก้ไข (มี id): lot ปัจจุบันของแถวอาจมี remaining = 0 แล้ว —
+       ต้องรวมเข้า options เสมอ ไม่งั้นช่อง Lot ของฟอร์มแก้ไขว่าง */
+    () => (issueForm.materialCode
+      ? getSwLotsForMaterial(issueForm.materialCode, { includeLot: issueForm.id ? issueForm.lot : undefined })
+      : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [issueForm.materialCode, tick],
+    [issueForm.materialCode, issueForm.id, issueForm.lot, tick],
   );
 
   const issueRemaining = useMemo(() => {
@@ -681,7 +692,7 @@ const SocialWorkSupplyPage = () => {
               <DatePicker
                 showLabel={false}
                 value={receiptForm.receiveDate ? new Date(receiptForm.receiveDate) : null}
-                onChange={(d) => setReceiptField('receiveDate')(d ? d.toISOString().slice(0, 10) : '')}
+                onChange={(d) => setReceiptField('receiveDate')(d ? toLocalIso(d) : '')}
                 placeholder='เลือกวันที่รับ'
               />
             </SwField>
@@ -735,7 +746,7 @@ const SocialWorkSupplyPage = () => {
               <DatePicker
                 showLabel={false}
                 value={receiptForm.expireDate ? new Date(receiptForm.expireDate) : null}
-                onChange={(d) => setReceiptField('expireDate')(d ? d.toISOString().slice(0, 10) : '')}
+                onChange={(d) => setReceiptField('expireDate')(d ? toLocalIso(d) : '')}
                 placeholder='เลือกวันหมดอายุ'
               />
             </SwField>
@@ -807,7 +818,7 @@ const SocialWorkSupplyPage = () => {
               <DatePicker
                 showLabel={false}
                 value={issueForm.issueDate ? new Date(issueForm.issueDate) : null}
-                onChange={(d) => setIssueField('issueDate')(d ? d.toISOString().slice(0, 10) : '')}
+                onChange={(d) => setIssueField('issueDate')(d ? toLocalIso(d) : '')}
                 placeholder='เลือกวันที่จ่าย'
               />
             </SwField>

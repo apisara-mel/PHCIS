@@ -344,8 +344,10 @@ const ImmunizationFollowUpPage = () => {
                     {
                       key: 'weightEval', label: 'แปลผลน้ำหนักตามอายุ', sortable: false, flex: true, minWidth: 200,
                       render: (r) => {
-                        const ref = GROWTH_REFERENCE[months > 36 ? 'weight2to19' : 'weight0to36']?.[child?.sex] || [];
-                        const ev = evaluatePercentile(ref, ageInMonths(child?.birthDate, r.date), r.weight);
+                        /* เลือกตารางเกณฑ์ด้วยอายุ ณ วันชั่งของแถวนั้น ไม่ใช่อายุปัจจุบัน */
+                        const rowMonths = ageInMonths(child?.birthDate, r.date);
+                        const ref = GROWTH_REFERENCE[rowMonths > 36 ? 'weight2to19' : 'weight0to36']?.[child?.sex] || [];
+                        const ev = evaluatePercentile(ref, rowMonths, r.weight);
                         return ev
                           ? <ColorfulBadge style={ev.style} size='small' hierarchy='secondary'>{`${ev.label} (P${ev.percentile})`}</ColorfulBadge>
                           : '—';

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import PatientCard from '@/components/card/PatientCard';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
@@ -263,6 +264,13 @@ const HomeVisitFollowUpPage = () => {
     avatarSrc: row.confidential ? undefined : getPatientByHN(row.hn)?.avatarUrl,
   });
 
+  const pickerMatchCount = useMemo(() => {
+    const q = searchQ.trim().toLowerCase();
+    if (!q) return 0;
+    return pool.filter((row) => [row.hn, row.name, row.responsible]
+      .some((f) => f && String(f).toLowerCase().includes(q))).length;
+  }, [searchQ, pool]);
+
   const searchSuggestions = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
     if (!q) return [];
@@ -419,6 +427,9 @@ const HomeVisitFollowUpPage = () => {
                 width={640}
               />
             </div>
+            {searchQ.trim() && !selectedHn ? (
+              <SearchResultCount found={pickerMatchCount} total={pool.length} />
+            ) : null}
             {deepLinkMiss && !selectedHn && (
               <NoticeBand tone='warning' icon='link_off'>
                 ไม่พบ HN {deepLinkMiss} ในทะเบียนเยี่ยมบ้านหรือคิวเยี่ยมของวันนี้ —

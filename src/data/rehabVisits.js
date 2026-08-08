@@ -787,8 +787,8 @@ export const DEFAULT_REHAB_VISIT = {
   pathologicRows: [],           // { id, reflex, side, result }
   specialTestRows: [],          // { id, test, side, result, note }
   examNote: '',
-  bodyMarkers: [],              // BodyDiagramPanel markers
-  bodyDrawings: [],             // BodyDiagramPanel pen strokes
+  bodyMarkers: {},              // BodyDiagramPanel markers — keyed by body system (per-system slots)
+  bodyDrawings: {},             // BodyDiagramPanel pen strokes — keyed by body system
 
   // Step 3 — ประเมิน ADLs (Barthel)
   barthel: {},                  // { [itemKey]: score }

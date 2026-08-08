@@ -116,6 +116,12 @@ const SocialWorkFormPage = () => {
   const canWrite = hasSocialWorkRights();
   /* ยุติการให้บริการแล้ว → อ่านอย่างเดียว · สิทธิไม่พอ → เขียนไม่ได้ */
   const locked = mode === 'view' || saved || !!form.terminated || !canWrite;
+  /* `saveLocked` ไม่รวม form.terminated โดยเจตนา — หลังกดยืนยันยุติบริการ
+     ผู้ใช้ยังต้อง "ยืนยันบันทึกแบบ สส.2" ได้ (validation ในขั้นตอนที่ 8 จะ
+     บังคับให้ระบุเหตุผลการยุติก่อนอยู่แล้ว) ถ้าใช้ `locked` กับปุ่มบันทึก
+     ปุ่มจะ disabled ถาวรและบันทึกการยุติไม่ได้เลย. terminated จึงล็อกเฉพาะ
+     input ของฟอร์ม (ผ่าน `locked`) ไม่ล็อกปุ่มยืนยันบันทึก. */
+  const saveLocked = mode === 'view' || saved || !canWrite;
   const dirty = !saved && JSON.stringify(form) !== seedJson.current;
 
   const setForm = (updater) => {
@@ -323,6 +329,7 @@ const SocialWorkFormPage = () => {
               queueRow={queueRow}
               cardPatient={cardPatient}
               locked={locked}
+              saveLocked={saveLocked}
               saved={saved}
               onConfirmSave={confirmSave}
             />

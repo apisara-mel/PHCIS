@@ -314,8 +314,12 @@ export const getSwStockLots = () => {
     .sort((a, b) => String(a.expireDate).localeCompare(String(b.expireDate)));
 };
 
-export const getSwLotsForMaterial = (materialCode) =>
-  getSwStockLots().filter((l) => l.materialCode === materialCode && l.remaining > 0);
+/* `includeLot` — ตอนแก้ไขรายการจ่ายออก lot เดิมของแถวอาจมี remaining = 0
+   (ถูกจ่ายจนหมดแล้ว) ถ้ากรองทิ้ง ช่อง Lot ของฟอร์มแก้ไขจะว่าง —
+   จึงรวม lot ที่ระบุเข้า options เสมอแม้ยอดคงเหลือเป็น 0. */
+export const getSwLotsForMaterial = (materialCode, { includeLot } = {}) =>
+  getSwStockLots().filter((l) => l.materialCode === materialCode
+    && (l.remaining > 0 || (!!includeLot && l.lot === includeLot)));
 
 export const getSwRemainingForLot = (materialCode, lot, excludeIssueId) => {
   const received = getSwReceipts()
@@ -480,6 +484,11 @@ export const cancelSwRequester = (id, reason) => {
   if (!current) return;
   overlay[id] = {
     ...current,
+    /* เก็บสถานะก่อนยกเลิกไว้ — reactivateSwRequester ใช้คืนสถานะเดิม
+       (ไม่งั้นคำขอ approved/received ที่ยกเลิกแล้วเปิดใช้งานจะเพี้ยนเป็น pending) */
+    previousStatus: current.status !== 'cancelled'
+      ? current.status
+      : (current.previousStatus || 'pending'),
     status: 'cancelled',
     cancellation: { reason: reason || '', by: SW_SUPPLY_USER, at: new Date().toISOString() },
   };
@@ -667,10 +676,14 @@ export const getSwAssessmentsByHn = (hn, from, to) => {
     .sort((a, b) => a.date.localeCompare(b.date));
 };
 
-/* วัสดุที่ผู้รับบริการได้รับ (ใช้ในหน้าติดตามผล) */
-export const getSwIssuesByHn = (hn, from, to) =>
+/* วัสดุที่ผู้รับบริการได้รับ (ใช้ในหน้าติดตามผล) — ค่าเริ่มต้นกรองรายการ
+   ที่ยกเลิกออก เพื่อให้ตัวนับสรุป/ใบพิมพ์ไม่นับของที่ไม่ได้จ่ายจริง;
+   ตารางรายละเอียดเรียกด้วย { includeCancelled: true } เพื่อโชว์แถวยกเลิก
+   พร้อม badge ได้ */
+export const getSwIssuesByHn = (hn, from, to, { includeCancelled = false } = {}) =>
   getSwIssues()
     .filter((i) => i.hn === hn)
+    .filter((i) => includeCancelled || i.status !== 'cancelled')
     .filter((i) => (!from || i.issueDate >= from) && (!to || i.issueDate <= to))
     .sort((a, b) => b.issueDate.localeCompare(a.issueDate));
 

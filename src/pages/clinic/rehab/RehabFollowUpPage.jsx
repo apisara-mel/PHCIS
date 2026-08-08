@@ -3,6 +3,7 @@ import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import TabCapsule from '@/components/tab/TabCapsule';
 import DatePickerRange from '@/components/forms/DatePickerRange';
@@ -18,6 +19,7 @@ import PHCIS_CHART from '@/data/phcisChartPalette';
 import RehabTrendSection from '@/pages/clinic/rehab/RehabTrendSection';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
+  resolveRehabActivity,
   resolveRehabCause,
   resolveImcPhase,
   resolveDischargeStatus,
@@ -173,6 +175,14 @@ const RehabFollowUpPage = () => {
     [hn, fromIso, toIso],
   );
   const stats = useMemo(() => computeRehabStats(visits, registration), [visits, registration]);
+
+  /* เกจ "จำนวนครั้งที่มาเทียบแผน Course" ต้องนับทุกครั้งของ Course —
+     ไม่ใช่ `visits.length` ของช่วงเวลาที่กรองอยู่ (กรอง 3 เดือนแล้วเกจตก
+     ทั้งที่มาครบ = อ่านผิด). `visits` อยู่ใน deps เพื่อ refresh หลังยืนยันบันทึกใหม่. */
+  const courseAttended = useMemo(() => (hn ? getRehabVisitCount(hn) : 0), [hn, visits]);
+  const courseAttendedPct = stats.plannedSessions
+    ? Math.min(100, Math.round((courseAttended / stats.plannedSessions) * 100))
+    : null;
 
   /* ความสำเร็จตามเป้าหมาย — นับจากเป้าหมายที่บันทึกในวิสิตล่าสุดที่มี goals.
      ไม่มี goals เลย = null (แสดง "ยังไม่ได้ตั้งเป้าหมาย" แทนเกจ 0%). */
@@ -388,7 +398,8 @@ const RehabFollowUpPage = () => {
                 </span>
                 {detailVisit.procedures.map((p) => (
                   <span key={p.id} style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
-                    • {p.name || '—'} · ผู้ทำ {p.performer || '—'} · เวลา {p.time || '—'}
+                    {/* p.name เก็บเป็น activity key — แปลงเป็น label ก่อนแสดง */}
+                    • {resolveRehabActivity(p.name)?.label || p.name || '—'} · ผู้ทำ {p.performer || '—'} · เวลา {p.time || '—'}
                     {p.note ? ` · ${p.note}` : ''}
                   </span>
                 ))}
@@ -479,6 +490,8 @@ const RehabFollowUpPage = () => {
                   width={640}
                 />
               </div>
+
+              <SearchResultCount found={pickerMatches.length} total={registryRows.length} />
 
               {pickerMatches.length === 0 ? (
                 <div className='flex flex-col items-center text-center' style={{ padding: 'var(--dim-space-800, 32px)', gap: 'var(--dim-space-200)' }}>
@@ -733,14 +746,14 @@ const RehabFollowUpPage = () => {
                       />
                     )}
 
-                    {stats.attendedPct != null ? (
+                    {courseAttendedPct != null ? (
                       <SingleGaugeCard
                         title='จำนวนครั้งที่มาเทียบแผน Course'
                         icon='event_available'
-                        value={stats.attendedPct}
+                        value={courseAttendedPct}
                         color={PHCIS_CHART.pink}
-                        label={`มาแล้ว ${visits.length} จากแผน ${stats.plannedSessions} ครั้ง`}
-                        sub={`เหลืออีก ${Math.max(0, stats.plannedSessions - visits.length)} ครั้งตามแผน`}
+                        label={`มาแล้ว ${courseAttended} จากแผน ${stats.plannedSessions} ครั้ง`}
+                        sub={`เหลืออีก ${Math.max(0, stats.plannedSessions - courseAttended)} ครั้งตามแผน`}
                       />
                     ) : (
                       <SingleGaugeCard

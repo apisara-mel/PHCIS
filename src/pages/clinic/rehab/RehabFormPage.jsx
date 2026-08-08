@@ -90,6 +90,22 @@ const formatAuditTime = (d) => new Intl.DateTimeFormat('th-TH-u-ca-buddhist', {
 
 const formatApptLabel = (a) => `${formatRehabDate(a?.date)}${a?.time ? ` · ${a.time} น.` : ''}`;
 
+/* แปลงค่า input เป็นตัวเลข — ช่องว่าง/ค่าที่ไม่ใช่ตัวเลขคืน null แต่ 0 จริง
+   ต้องรอดเป็น 0 (ห้ามใช้ `|| null` เพราะจะกลืน 0 เป็น null). */
+const toFiniteNumber = (v) => {
+  if (v == null || String(v).trim() === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+/* องศา ROM ของแถว — เลือกข้างที่กรอกค่าไว้ (ขวาก่อน แล้วค่อยซ้าย);
+   แถว seed มาเป็น `{ right: '', left: '' }` จึงห้ามใช้ `??` ที่มองว่า '' มีค่า. */
+const romDegree = (row) => {
+  if (!row) return null;
+  const right = toFiniteNumber(row.right);
+  return right != null ? right : toFiniteNumber(row.left);
+};
+
 const Banner = ({ tone = 'warning', icon, children, action }) => {
   const palette = tone === 'danger'
     ? { bg: 'var(--surface-danger-quaternary, #FFF0F0)', fg: 'var(--text-danger-default, #C72121)' }
@@ -304,7 +320,10 @@ const RehabFormPage = () => {
     setConfirmError('');
     const now = new Date();
     const romKneeRow = form.romRows.find((r) => r.joint === 'Knee' && r.motion === 'Flexion');
-    const romShoulderRow = form.romRows.find((r) => r.joint === 'Shoulder');
+    /* กราฟติดตามคือ "องศาการยกไหล่" — นับเฉพาะ motion ที่เป็นการยกแขน
+       (Flexion ก่อน, Abduction สำรอง) ไม่ใช่ Shoulder แถวไหนก็ได้. */
+    const romShoulderRow = form.romRows.find((r) => r.joint === 'Shoulder' && r.motion === 'Flexion')
+      || form.romRows.find((r) => r.joint === 'Shoulder' && r.motion === 'Abduction');
     const gradeNumbers = form.muscleRows
       .map((r) => Number(r.grade))
       .filter((n) => Number.isFinite(n));
@@ -313,14 +332,14 @@ const RehabFormPage = () => {
       recordId,
       date: now.toISOString().slice(0, 10),
       visitNo: visitNo ?? null,
-      type: form.appointment.mode === 'telemedicine' || telemedStatus !== 'none'
-        ? 'Telemedicine'
-        : 'ฟื้นฟูตามนัด',
+      /* วิสิตนี้เป็น Telemedicine ก็ต่อเมื่อทำ telemed จริงในวิสิตนี้ —
+         form.appointment.mode เป็นของ "นัดครั้งหน้า" ห้ามเอามาติดป้ายวิสิตนี้. */
+      type: telemedStatus !== 'none' ? 'Telemedicine' : 'ฟื้นฟูตามนัด',
       bp: form.vitals.bp || null,
-      pulse: Number(form.vitals.hr) || null,
+      pulse: toFiniteNumber(form.vitals.hr),
       barthel: barthel.complete ? barthel.total : null,
-      romKnee: romKneeRow ? Number(romKneeRow.right ?? romKneeRow.left) || null : null,
-      romShoulder: romShoulderRow ? Number(romShoulderRow.right ?? romShoulderRow.left) || null : null,
+      romKnee: romDegree(romKneeRow),
+      romShoulder: romDegree(romShoulderRow),
       muscleGrade: gradeNumbers.length ? Math.min(...gradeNumbers) : null,
       exam: form.examNote || '—',
       /* Lab / X-ray ในหน้าติดตามเป็น mock ระดับโมดูล — บันทึกจาก CPOE ของ

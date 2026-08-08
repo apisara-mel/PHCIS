@@ -2062,6 +2062,43 @@ const IMPL = {
   '1.10.7.7': {s:'done',    u:'/treat/anc/record', n:'EMR/CPOE/risk screening + Telemedicine start/end session workflow + external-result upload (DragAndDrop) + คำแนะนำ; Step 5 orders adapt by gestational-age tier (Lab#1 <12wk, Down-syndrome+2nd US 12-19wk, GCT/OGTT 20-27wk, Lab#2+vaccines 28wk+) — covers FigJam swimlanes A-E; captures ผลตรวจ Lab จริง (หมู่เลือด/Rh/Hb/HCT/ปัสสาวะ/VDRL/Anti-HIV/HBsAg) + ผลตรวจ Ultrasound แบบมีโครงสร้าง (จำนวนทารก/ท่า/GA/FHR/รก/น้ำคร่ำ/ความผิดปกติ, pp.50-52) + วัคซีน dT คำนวณจำนวนเข็มที่ต้องให้อัตโนมัติตาม flowchart (pp.47-48) + คัดกรองสุขภาพช่องปากด้วย Maternal Oral Screening tool จริง (2Q, p.53) แทน checkbox เดี่ยว + ตรวจประเมินหัวนม (pp.64-66) + แผนการคลอด (pp.59-60); cross-department EMR/CPOE wiring is mock-only (frontend, no backend)'},
   '1.10.7.8': {s:'done',    u:'/treat/anc/record', n:'Step 1 follow-up trend table — real visits saved via saveAncVisitRecord (sessionStorage) merged with mock history; columns now include ปัสสาวะ/ความเสี่ยง/ผล Lab (summarizeLabResults) alongside FHR/BP/น้ำหนัก, so "Lab ในช่วงเวลา" trends actual result values, not just order flags; note column summarizes tier-specific procedures via summarizeAncProcedures'},
 
+  /* ===== 1.10.8 งานวางแผนครอบครัว — /clinic/family-planning (Wave 2) ===== */
+  '1.10.8.1': {s:'done',    u:'/clinic/family-planning', n:'PatientCard sticky บนหน้าบันทึก + คอลัมน์ HN/ชื่อ(masked)/อายุ/สิทธิ/เลขที่ วผ. บนคิว + บล็อกข้อมูลทั่วไป read-only ในทะเบียน + แบนเนอร์สิทธิหมดอายุ'},
+  '1.10.8.2': {s:'done',    u:'/clinic/family-planning', n:'คิว 6 แท็บ + PrimarySearch (HN/ชื่อ/บัตร ปชช./เลขที่ วผ.) + filters บริการ/ประเภท/วันที่/ผู้ตรวจ + sort + pagination 20/หน้า + ส่งตรวจ + ยกเลิก/เปิดใช้งานทะเบียนพร้อมเหตุผล+audit'},
+  '1.10.8.3': {s:'done',    u:'/clinic/family-planning/record', n:'S1 ซักประวัติ/vitals read-only จากห้องซักประวัติ + แก้ไขจากห้องตรวจ + dipstick; S2 คัดกรอง 11 ข้อ กฎ "มีข้อเดียว → ห้ามจ่ายยา ส่งปรึกษาแพทย์" ล็อกการสั่งยาใน S6 จริง'},
+  '1.10.8.4': {s:'partial', u:'/clinic/family-planning/record', n:'แนบไฟล์หลายไฟล์ (FileUploadField + DragAndDrop) + validate ชนิด/ขนาด ≤10MB + รายการไฟล์พร้อมผู้แนบ/เวลา/ลบ — ยังไม่มีตัวสร้าง e-Document ด้วย form-builder (มี field eDocBlocks รองรับแล้ว)'},
+  '1.10.8.5': {s:'done',    u:'/clinic/family-planning/record', n:'นัดหมาย S7: ประเภทนัด 7 แบบ + วัน/เวลา + หมายเหตุ (SuggestibleTextarea voice) + validate วันในอดีต + ยกเลิก/นัดใหม่ + สรุปบนบัตรติดตาม'},
+  '1.10.8.6': {s:'done',    u:'/clinic/family-planning/registry', n:'ทะเบียน วผ.: ออกเลขที่เมื่อบันทึกสำเร็จเท่านั้น (คู่มือ p.2-3) + ค้นหาช่วงวันที่ + รายงาน 7 ฉบับเป็น filter chips + แก้ไข/ยกเลิกพร้อมเหตุผล/เปิดใช้งาน/พิมพ์บัตรติดตาม + audit ทุกแถว'},
+  '1.10.8.7': {s:'partial', u:'/clinic/family-planning/record', n:'ครบ 7/9: วางแผนครอบครัว+คำแนะนำ · ตรวจสตรี (มะเร็งเต้านม+DrawingCanvasPopup, ตรวจภายใน/Pap) · หลังคลอดแม่+เด็ก · ประวัติ · ส่งปรึกษาภายใน · นัด · พิมพ์บัตร — บาง 2 ข้อ: CPOE เป็น chip บัญชียาคลินิก (ไม่ต่อ AddMedicationPopup) และส่งต่อภายนอกเป็นฟอร์ม inline'},
+
+  /* ===== 1.10.10 งานเวชศาสตร์ฟื้นฟูและกายภาพบำบัด — /clinic/rehab (Wave 2) ===== */
+  '1.10.10.1': {s:'done',    u:'/clinic/rehab', n:'ข้อมูลทั่วไป read-only 3 จุด: คอลัมน์คิว → PatientCard sticky บน /record (เพศ อายุ บัตร ปชช. สิทธิ แพ้ยา โรคประจำตัว) → popup ทะเบียน; แก้ทะเบียนราษฎร์จากโมดูลนี้ไม่ได้'},
+  '1.10.10.2': {s:'done',    u:'/clinic/rehab', n:'คิว 6 แท็บ + summary cards + PrimarySearch พร้อม history + ตัวกรอง 6 ตัว + sort ทุกคอลัมน์ + pagination snap-back + ส่งตรวจ (check-in) + empty state แยกกรณี'},
+  '1.10.10.3': {s:'done',    u:'/clinic/rehab/record', n:'S1 อาการสำคัญ/คัดกรองแรกรับ/บันทึกแพทย์ read-only strip + Vital Signs ก่อนกายภาพ + SuggestibleTextarea ประวัติเพิ่มเติม + MedicalHistoryPopup'},
+  '1.10.10.4': {s:'done',    u:'/clinic/rehab/record', n:'S6 อัปโหลด: FileUploadField + CameraCapturePopup + UploadProgressBar + preview + ลบพร้อม confirm; validate นามสกุล/ขนาด >10MB; metadata ไปกับ visit เห็นในหน้าติดตาม'},
+  '1.10.10.5': {s:'done',    u:'/clinic/rehab/record', n:'S7 นัดหมายครบ แสดง/บันทึก/แก้ไข/ยกเลิก (บังคับเหตุผล+audit) + mirror ไป appointmentExtraStore (id A-REHAB) + validate วันย้อนหลัง/slot ชน/ครั้งคงเหลือใน Course + พิมพ์ใบนัด'},
+  '1.10.10.6': {s:'done',    u:'/clinic/rehab/registry', n:'ทะเบียนฟื้นฟู+IMC ครบ 4 กริยา + เปิดใช้งานอีกครั้ง + audit trail รายฟิลด์ + บล็อกขึ้นทะเบียนซ้ำ (AlertDialog) + validate onset/admit, Barthel 0–100 + golden-period countdown 6 เดือน'},
+  '1.10.10.7': {s:'partial', u:'/clinic/rehab/record', n:'PE 7 แท็บ (ROM/Brunnstrom/Sensation/Reflex/Special test/Body diagram) + Barthel ADL (BarthelIndexGrid) + ICD-10 + Goal + Course + โปรแกรมฟื้นฟู/หัตถการ + CPOE Step5Orders — partial: Telemedicine เป็น badge+banner ยังไม่ mount TelemedEmrPanel ในฟอร์ม'},
+  '1.10.10.8': {s:'done',    u:'/clinic/rehab/followup', n:'ติดตาม 3 มุมมอง: ตาราง (Barthel/ROM/MMT/BP/Lab/X-ray/เอกสาร ต่อครั้ง) · เกจ 3 ใบ (Barthel แรกรับ vs ล่าสุด, %goal, ครั้งเทียบแผน) · กราฟแนวโน้ม (RehabTrendSection) + VitalSignTimelineCard + แถบสรุป Course'},
+
+  /* ===== 1.10.9 งานสร้างเสริมภูมิคุ้มกัน — /clinic/immunization (Wave 2, ครอบ §1.11 IIS) ===== */
+  '1.10.9.1': {s:'done',    u:'/clinic/immunization',            n:'ImmunizationQueuePage คอลัมน์ HN/ชื่อ/อายุ ป-ด-ว/CID/สิทธิ + ImmStep1General ReadOnlyRow ข้อมูลทั่วไป+ผู้ปกครอง+ทะเบียน EPI'},
+  '1.10.9.2': {s:'done',    u:'/clinic/immunization',            n:'getImmQueueRows + 5 แท็บ (ทั้งหมด/ลงทะเบียน/เสร็จ/ร่าง/นัดยังไม่มา), FilterDropdown, sort, Pagination, cancelImmQueue/restoreImmQueue'},
+  '1.10.9.3': {s:'done',    u:'/clinic/immunization/record',     n:'ImmStep1General แสดง vitals+nurseNote+แพ้ยา/โรคประจำตัว จาก getImmIntake แบบอ่านอย่างเดียว + SuggestibleTextarea บันทึกเพิ่มของผู้ตรวจ'},
+  '1.10.9.4': {s:'done',    u:'/clinic/immunization/record',     n:'ImmStep8Summary FileUploadField + validateImmUpload (.pdf/.jpg/.png ≤10MB) + ลบเอกสารพร้อม audit ผู้แนบ/เวลา'},
+  '1.10.9.5': {s:'done',    u:'/clinic/immunization/record',     n:'ImmStep8Summary ประเภท/วัน/เวลา/หมายเหตุ → saveImmAppointment, ยกเลิก+นัดใหม่ได้, โผล่แท็บ "นัดแล้วยังไม่มาติดต่อ"'},
+  '1.10.9.6': {s:'done',    u:'/clinic/immunization/registry',   n:'ImmunizationRegistryPage + saveImmRegistration/cancelImmRegistration/reactivate, guardians[] บังคับชื่อ+ความสัมพันธ์+เบอร์ อย่างน้อย 1 คน'},
+  '1.10.9.7': {s:'partial', u:'/clinic/immunization/record',     n:'ครบ 8 ขั้นตอน ImmStep1-8 (ANC/โภชนาการ/Growth chart/DSPM/วัคซีน/ตรวจ 14 ระบบ/ประวัติเจ็บป่วย) แต่ CPOE+Telemedicine เป็น SelectableTag/สถานะจำลอง ไม่ผูกระบบยา-lab จริง'},
+  '1.10.9.8': {s:'done',    u:'/clinic/immunization/follow-up',  n:'ImmunizationFollowUpPage 4 แท็บ: GrowthPercentileChart, dspmTimeline, nextDue+AEFI+ประวัติเข็ม, outreachRows รายชื่อค้างเข็ม/ขาดนัด'},
+
+  /* ===== 1.11 IIS — ทะเบียนวัคซีน + สมุดวัคซีน (Wave 2, อยู่ในโมดูล immunization) ===== */
+  '1.11.1.1': {s:'done',    u:'/clinic/immunization/vaccines',   n:'VaccineCatalogPage ครบ 4 กริยา: saveVaccine/findVaccineDuplicate/cancelVaccine (soft-inactivate)/reactivateVaccine + schedule EPI รายเข็ม'},
+  '1.11.2.1': {s:'partial', u:'/clinic/immunization/vaccine-book', n:'ImmStep5Vaccine + dose editor ครบทุกฟิลด์ (วัน/เวลา/route/dose/site/lot/expiry/reaction/พยาบาล) แต่ lot มาจาก VACCINE_LOTS mock ไม่ตัดสต๊อกคลังจริง'},
+  '1.11.2.2': {s:'done',    u:'/clinic/immunization/vaccine-book', n:'flag otherFacility + facilityName/reference บังคับ validate, badge "หน่วยงานอื่น" ในตาราง มีทั้ง ImmStep5Vaccine และ VaccineBook'},
+  '1.11.2.3': {s:'done',    u:'/clinic/immunization/vaccine-book', n:'getImmDoses แสดงทุกแถวรวมที่ยกเลิก (toggle showCancelled) พร้อม audit recordedBy/editedBy/cancellation; ห้าม hard delete'},
+  '1.11.2.4': {s:'done',    u:'/clinic/immunization/vaccine-book', n:'buildEpiMatrix + summarizeEpi + EpiScheduleMatrix (เข็ม×ช่วงอายุ, done/due/overdue/upcoming) แสดงซ้ำที่คิว/registry/follow-up'},
+  '1.11.2.5': {s:'done',    u:'/clinic/immunization/vaccine-book', n:'แท็บ aefi: saveAefi/cancelAefi/restoreAefi บังคับ doseId+อาการ+วัน-เวลาเริ่ม+ความรุนแรง, กันวันเริ่มก่อนวันฉีด'},
+
   /* ===== 1.12 RIS — งานรังสีวินิจฉัย (feature/xray) =====
      Screens: /xray/queue (ลำดับการตรวจผู้ป่วย · worklist) · /xray/order
      (บันทึกส่งตรวจ) · /xray/result (บันทึก/ยืนยันผล) · /xray/setup (ทะเบียน
@@ -2184,6 +2221,22 @@ const IMPL = {
   '1.14.6': {s:'done', u:'/observation/record/obs-001', n:'สั่ง Lab/EKG STAT (เช่น Stat CBC, Electrolyte, Amylase, EKG 12 leads)'},
   '1.14.7': {s:'done', u:'/observation/record/obs-001', n:'สรุปผลการดูแลรักษา (Discharge Summary & Instructions)'},
   '1.14.8': {s:'done', u:'/observation/record/obs-001', n:'บันทึกการส่งต่อโรงพยาบาล (E-Referral Disposition)'},
+
+  /* ===== 1.18 Home Visit — /homevisit (Wave 2: queue + visit wizard + registry + follow-up; map/GPS = mock ตาม §2.3 ของทีมอื่น) ===== */
+  '1.18.1':  {s:'done',    u:'/homevisit',           n:'HomeVisitQueuePage: 7 แท็บ (รอออกเยี่ยม/กำลังเยี่ยม/ร่าง/เลยกำหนด/ยกเลิก) + filter + Table + Pagination + printHomeVisitQueue'},
+  '1.18.2':  {s:'done',    u:'/homevisit',           n:'HomeVisitRouteMapPanel (มุมมองแผนที่+ลำดับเดินทาง+distanceMeters) และ Step1 แสดงหมุดบ้านจากทะเบียน — mock map ตาม §2.3'},
+  '1.18.3':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep2History ตาราง getVisitHistory + HomeVisitAccessGate/getHomeVisitAccess ล็อกตามสิทธิ (แสดง locked ไม่ใช่ empty)'},
+  '1.18.4':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep3Vitals: กรอกเองครบ VITAL_FIELDS + evaluateVital + readDeviceVitals/getDeviceConnected (mock MIH-HV Kit) + BMI'},
+  '1.18.5':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep5Care วน ROLE_NOTE_SECTIONS บันทึกแยกรายวิชาชีพ (พยาบาล/สังคมฯ/กภ./แพทย์/เภสัช/โภชนาการ) + นับที่บันทึกแล้ว'},
+  '1.18.6':  {s:'partial', u:'/homevisit/visit',     n:'HomeVisitStep6Orders เลือกยา/Lab/X-ray/หัตถการจากรายการคงที่ + summarizeOrders แต่ไม่มี navigation/integration เข้าหน้าจอ CPOE จริง'},
+  '1.18.7':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep5Care: CARE_ACTIVITIES จัดกลุ่มตามงาน (พยาบาล/สังคมสงเคราะห์/ฟื้นฟู) เลือกหลายรายการ + บังคับอย่างน้อย 1'},
+  '1.18.8':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep1Travel.captureLocation เรียก navigator.geolocation จริง + fallback ปักหมุดเองผ่าน AddressMapBlock เมื่อ denied'},
+  '1.18.9':  {s:'done',    u:'/homevisit/visit',     n:'requestStampArrival/saveArrivalCheckIn เทียบ ARRIVAL_DISTANCE_THRESHOLD_M 300 ม. ยืนยันเมื่อไกลเกิน + restamp ต้องมีเหตุผล'},
+  '1.18.10': {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep5Care.launchTelemed เปิด Popup แล้ว push /telemed/worklist พร้อม state {hn, from:homevisit, reason}'},
+  '1.10.12.1': {s:'done', u:'/homevisit/registry',  n:'HomeVisitRegistryPage: สร้าง/แก้/ยกเลิก(ต้องมีเหตุผล)/เปิดใหม่ + 6 กลุ่ม + HOMEVISIT_SOURCES ล็อกเคส auto + readSmartCard + AddressMapBlock + PhotoUploadField + AuditStamp'},
+  '1.10.12.2': {s:'done', u:'/homevisit/visit',     n:'7 ขั้นตอนใน HOMEVISIT_STEP_RENDERERS: ข้อมูลทั่วไป/ประวัติ/vitals/ADL+2Q/บทบาท/CPOE/Family Folder + saveVisitSubmission ส่งเข้าศูนย์ฯ'},
+  '1.10.12.3': {s:'done', u:'/homevisit/visit',     n:'HomeVisitStep7Family ปุ่ม "บันทึกงานเชิงรุกในโมดูลงานชุมชน" push /checkup/community พร้อม state {hn, from:homevisit}'},
+  '1.10.12.4': {s:'done', u:'/homevisit/follow-up', n:'HomeVisitFollowUpPage: LineChart vitals เลือก series + กราฟ ADL + ตาราง Lab/X-ray ตาม effRange + DatePickerRange + printHomeVisitFollowUp'},
 
   /* ===== 1.19 Health Check — /checkup (queue + targets + packages + record/screening wizards + reports + community) ===== */
   '1.19.1':  {s:'done',    u:'/checkup/packages',           n:'CHECKUP_CATALOG แยก 4 กลุ่ม (radiology/lab/procedure/other) + PackageEditor สร้างชุดตรวจสำเร็จรูป และ AddItemPopup สั่งตรวจได้ทุกกลุ่ม'},

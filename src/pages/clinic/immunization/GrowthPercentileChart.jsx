@@ -206,7 +206,7 @@ const GrowthPercentileChart = ({
           ช่วงปกติ P3–P97
         </span>
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span style={{ width: 8, height: 8, borderRadius: 'var(--dim-radius-full, 999px)', background: POINT_COLOR, display: 'inline-block' }} />
+          <span style={{ width: 8, height: 8, borderRadius: 'var(--dim-radius-full, 9999px)', background: POINT_COLOR, display: 'inline-block' }} />
           ค่าของเด็ก
         </span>
         {points.length === 1 && <span>มีข้อมูลเพียง 1 ครั้ง — แสดงเป็นจุด ยังไม่ลากเส้นแนวโน้ม</span>}

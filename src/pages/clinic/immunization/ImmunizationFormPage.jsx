@@ -134,9 +134,12 @@ const ImmunizationFormPage = () => {
   };
 
   const confirmSave = () => {
-    saveImmVisitRecord(immHn, form);
+    /* เก็บ record ที่ได้กลับเข้า state — พก visitId/doseId/appointmentId ไว้
+       ให้การกด "แก้ไขบันทึก" รอบถัดไป update ของเดิมแทนสร้างซ้ำ */
+    const record = saveImmVisitRecord(immHn, form);
     clearImmDraft(immHn);
-    seedJson.current = JSON.stringify(form);
+    setFormState(record);
+    seedJson.current = JSON.stringify(record);
     setSaved(true);
   };
 

@@ -19,7 +19,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
 import {
-  SwField, SwBanner, SwConfidentialMask, SwAuditLine,
+  SwField, SwBanner, SwConfidentialMask, SwAuditLine, toLocalIso,
 } from '@/pages/clinic/social-work/SocialWorkShared';
 import {
   SW_CURRENT_USER,
@@ -338,7 +338,7 @@ export const SwStep1General = ({ form, setForm, swHn, registration, queueRow, lo
               showLabel={false}
               disabled={locked}
               value={form.serviceDate ? new Date(form.serviceDate) : null}
-              onChange={(d) => set('serviceDate')(d ? d.toISOString().slice(0, 10) : '')}
+              onChange={(d) => set('serviceDate')(d ? toLocalIso(d) : '')}
               placeholder='เลือกวันที่'
             />
           </SwField>
@@ -1088,7 +1088,7 @@ export const SwStep5Services = ({ form, setForm, swHn, locked }) => {
               showLabel={false}
               disabled={locked}
               value={fund.date ? new Date(fund.date) : null}
-              onChange={(d) => setFund((f) => ({ ...f, date: d ? d.toISOString().slice(0, 10) : '' }))}
+              onChange={(d) => setFund((f) => ({ ...f, date: d ? toLocalIso(d) : '' }))}
               placeholder='ค่าเริ่มต้น = วันนี้'
             />
           </SwField>
@@ -1400,7 +1400,7 @@ export const SwStep6FollowUp = ({ form, setForm, swHn, locked }) => {
                   showLabel={false}
                   disabled={locked}
                   value={entry.date ? new Date(entry.date) : null}
-                  onChange={(d) => { setEntry((e) => ({ ...e, date: d ? d.toISOString().slice(0, 10) : '' })); setError(''); }}
+                  onChange={(d) => { setEntry((e) => ({ ...e, date: d ? toLocalIso(d) : '' })); setError(''); }}
                   placeholder='เลือกวันที่'
                 />
               </SwField>
@@ -1483,7 +1483,7 @@ export const SwStep6FollowUp = ({ form, setForm, swHn, locked }) => {
                   showLabel={false}
                   disabled={locked || form.terminated}
                   value={form.terminationDate ? new Date(form.terminationDate) : null}
-                  onChange={(d) => setForm((f) => ({ ...f, terminationDate: d ? d.toISOString().slice(0, 10) : '' }))}
+                  onChange={(d) => setForm((f) => ({ ...f, terminationDate: d ? toLocalIso(d) : '' }))}
                   placeholder='ค่าเริ่มต้น = วันนี้'
                 />
               </SwField>
@@ -1638,7 +1638,7 @@ const STEP8_SECTIONS = [
   { key: 'summary', label: 'สรุปและบันทึก' },
 ];
 
-export const SwStep8Closing = ({ form, setForm, swHn, cardPatient, registration, locked, saved, onConfirmSave }) => {
+export const SwStep8Closing = ({ form, setForm, swHn, cardPatient, registration, locked, saveLocked = locked, saved, onConfirmSave }) => {
   const { active, refs, jump } = useSectionJump('orders');
   const [uploadError, setUploadError] = useState('');
   const [docType, setDocType] = useState('');
@@ -1887,7 +1887,7 @@ export const SwStep8Closing = ({ form, setForm, swHn, cardPatient, registration,
                   showLabel={false}
                   disabled={locked}
                   value={appt.date ? new Date(appt.date) : null}
-                  onChange={(d) => setAppt('date')(d ? d.toISOString().slice(0, 10) : '')}
+                  onChange={(d) => setAppt('date')(d ? toLocalIso(d) : '')}
                   placeholder='เลือกวันที่'
                 />
               </SwField>
@@ -2080,11 +2080,13 @@ export const SwStep8Closing = ({ form, setForm, swHn, cardPatient, registration,
             บันทึกแบบ สส.2 เรียบร้อยแล้ว · ผู้บันทึก {SW_CURRENT_USER} — กด "จบการบันทึก" ด้านล่างเพื่อกลับหน้าคิว
           </div>
         ) : (
+          /* ปุ่มยืนยันใช้ `saveLocked` (ไม่รวม terminated) — หลังยืนยันยุติบริการ
+             ยังต้องกดบันทึก สส.2 ได้ โดย validation ด้านบนบังคับเหตุผลการยุติแล้ว */
           <BrandButton
             size='lg'
             leadingIcon='save'
-            disabled={validationErrors.length > 0 || locked}
-            onClick={() => { if (validationErrors.length === 0 && !locked) onConfirmSave(); }}
+            disabled={validationErrors.length > 0 || saveLocked}
+            onClick={() => { if (validationErrors.length === 0 && !saveLocked) onConfirmSave(); }}
           >
             ยืนยันบันทึกแบบ สส.2
           </BrandButton>

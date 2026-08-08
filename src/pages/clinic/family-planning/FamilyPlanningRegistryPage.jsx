@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -14,7 +15,7 @@ import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import Popup from '@/components/popup/Popup';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
-import FamilyPlanningFollowUpCard from '@/pages/clinic/family-planning/FamilyPlanningFollowUpCard';
+import FamilyPlanningFollowUpCard, { printFpFollowUpCard } from '@/pages/clinic/family-planning/FamilyPlanningFollowUpCard';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   FP_CLIENT_TYPES,
@@ -340,7 +341,7 @@ const FamilyPlanningRegistryPage = () => {
   const doPrint = () => {
     if (!printTarget) return;
     logFpPrint(printTarget.hn, 'บัตรติดตามวางแผนครอบครัว');
-    if (typeof window !== 'undefined') window.print();
+    printFpFollowUpCard();
     setPrintTick((t) => t + 1);
     setPrintTarget(null);
   };
@@ -938,6 +939,8 @@ const FamilyPlanningRegistryPage = () => {
               />
             ))}
           </div>
+
+          <SearchResultCount found={sorted.length} total={rows.length} />
 
           <Table
             columns={columns}

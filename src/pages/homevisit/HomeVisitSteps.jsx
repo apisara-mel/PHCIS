@@ -65,6 +65,7 @@ import {
   saveArrivalCheckIn,
   getVisitSubmission,
   saveVisitSubmission,
+  saveHomeVisitDraft,
   summarizeOrders,
   getHomeVisitAccess,
   resolveGroup,
@@ -960,7 +961,7 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
 
 /* ── Step 5 — บันทึกตามบทบาทวิชาชีพ + กิจกรรมการดูแล + Telemed ────── */
 
-export const HomeVisitStep5Care = ({ form, setForm, readOnly, hn, appointment, blockedMsg }) => {
+export const HomeVisitStep5Care = ({ form, setForm, readOnly, visitId, hn, appointment, blockedMsg }) => {
   const routerHistory = useHistory();
   const [telemedOpen, setTelemedOpen] = useState(false);
 
@@ -987,6 +988,11 @@ export const HomeVisitStep5Care = ({ form, setForm, readOnly, hn, appointment, b
   const filledRoles = ROLE_NOTE_SECTIONS.filter((s) => String(form.roleNotes?.[s.profession] || '').trim());
 
   const launchTelemed = () => {
+    /* push ด้านล่างจะ unmount HomeVisitRecordPage ใน commit เดียวกับ setForm —
+       autosave effect ของหน้าไม่ทันทำงาน จึงต้องบันทึกร่างตรงนี้เองก่อนออก
+       (ตรงกับข้อความใน popup ว่า "แบบร่างจะถูกบันทึกอัตโนมัติก่อนออกจากหน้านี้")
+       stepIndex 4 = ขั้นตอนที่ 5 ใน HOMEVISIT_STEP_RENDERERS. */
+    saveHomeVisitDraft(visitId, { ...form, telemedRequested: true }, 4);
     setForm((f) => ({ ...f, telemedRequested: true }));
     setTelemedOpen(false);
     routerHistory.push({

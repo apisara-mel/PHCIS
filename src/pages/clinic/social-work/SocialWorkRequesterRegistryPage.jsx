@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -21,7 +22,7 @@ import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import PatientCard from '@/components/card/PatientCard';
 import { LineChart } from '@/components/graph/Charts';
 import {
-  SwSectionHeader, SwField, SwBanner, SwEmptyHint, SwInlineSearch, SwPagerBar,
+  SwSectionHeader, SwField, SwBanner, SwEmptyHint, SwInlineSearch, SwPagerBar, toLocalIso,
 } from '@/pages/clinic/social-work/SocialWorkShared';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
@@ -580,7 +581,7 @@ const SocialWorkRequesterRegistryPage = () => {
                 showLabel={false}
                 disabled={!canWrite}
                 value={assessment.date ? new Date(assessment.date) : null}
-                onChange={(d) => setAssessment((a) => ({ ...a, date: d ? d.toISOString().slice(0, 10) : '' }))}
+                onChange={(d) => setAssessment((a) => ({ ...a, date: d ? toLocalIso(d) : '' }))}
                 placeholder='เลือกวันที่'
               />
             </SwField>
@@ -771,7 +772,7 @@ const SocialWorkRequesterRegistryPage = () => {
                   showLabel={false}
                   disabled={!canWrite}
                   value={form.requestDate ? new Date(form.requestDate) : null}
-                  onChange={(d) => setField('requestDate')(d ? d.toISOString().slice(0, 10) : '')}
+                  onChange={(d) => setField('requestDate')(d ? toLocalIso(d) : '')}
                   placeholder='เลือกวันที่ขอ'
                 />
               </SwField>
@@ -901,6 +902,8 @@ const SocialWorkRequesterRegistryPage = () => {
               <NeutralSubdueButton variant='outline' size='sm' onClick={clearFilters}>ล้างตัวกรอง</NeutralSubdueButton>
             )}
           </div>
+
+          <SearchResultCount found={filtered.length} total={rows.length} />
 
           {filtered.length === 0 ? (
             <SwEmptyHint icon={filtersActive ? 'search_off' : 'assignment_ind'}>

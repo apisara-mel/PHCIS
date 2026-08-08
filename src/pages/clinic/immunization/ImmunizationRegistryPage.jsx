@@ -15,6 +15,7 @@ import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import Popup from '@/components/popup/Popup';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import {
   IMM_CHILDREN,
@@ -186,9 +187,11 @@ const ImmunizationRegistryPage = () => {
     if (!form.name.trim()) errs.push('กรุณาระบุชื่อ-นามสกุลของเด็ก');
     if (!form.birthDate) errs.push('กรุณาระบุวันเกิด');
     if (!form.sex) errs.push('กรุณาระบุเพศ');
-    const named = (form.guardians || []).filter((g) => g.name.trim());
-    if (named.length === 0) errs.push('ต้องบันทึกชื่อผู้ปกครองอย่างน้อย 1 คน');
-    named.forEach((g, i) => {
+    const guardians = form.guardians || [];
+    if (!guardians.some((g) => g.name.trim())) errs.push('ต้องบันทึกชื่อผู้ปกครองอย่างน้อย 1 คน');
+    /* วนตาม index จริงของแถวบนจอ (ข้ามแถวไม่มีชื่อ) ให้เลข "คนที่" ชี้ถูกแถว */
+    guardians.forEach((g, i) => {
+      if (!g.name.trim()) return;
       if (!g.relation) errs.push(`ผู้ปกครองคนที่ ${i + 1}: กรุณาระบุความสัมพันธ์`);
       if (!g.phone.trim()) errs.push(`ผู้ปกครองคนที่ ${i + 1}: กรุณาระบุเบอร์ติดต่อ`);
     });
@@ -699,6 +702,8 @@ const ImmunizationRegistryPage = () => {
               width={640}
             />
           </div>
+
+          <SearchResultCount found={filtered.length} total={rows.length} />
 
           <Table
             columns={columns}

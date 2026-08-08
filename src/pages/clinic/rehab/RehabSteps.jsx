@@ -449,7 +449,8 @@ export const RehabStep2Examination = ({
               : t.key === 'sensation' ? form.sensationRows.length > 0
                 : t.key === 'reflex' ? form.reflexRows.length > 0 || form.pathologicRows.length > 0
                   : t.key === 'special' ? form.specialTestRows.length > 0
-                    : (form.bodyMarkers || []).length > 0 || (form.bodyDrawings || []).length > 0;
+                    : Object.values(form.bodyMarkers || {}).some((slot) => (slot || []).length > 0)
+                      || Object.values(form.bodyDrawings || {}).some((slot) => (slot || []).length > 0);
           return (
             <TabCapsule
               key={t.key}
@@ -888,15 +889,25 @@ export const RehabStep2Examination = ({
             กด “บันทึกร่างกาย” เพื่อเปิดกระดานวาด — วาดตำแหน่งที่ปวด/ที่ทำหัตถการลงบนภาพ
             แล้วกดบันทึก (ปุ่มบันทึกจะเปิดใช้งานเมื่อมีการวาดอย่างน้อย 1 เส้น)
           </span>
+          {/* Per-system marker + drawing isolation (contract เดียวกับ
+              TreatmentSteps): `bodyMarkers` / `bodyDrawings` เป็น object
+              คีย์ตามระบบร่างกาย — panel เห็นเฉพาะ slice ของระบบที่เลือกอยู่
+              และบันทึกกลับเฉพาะ key นั้น ไม่ทับ annotation ของระบบอื่น. */}
           <BodyDiagramPanel
             systemKey={bodySystem}
             viewKey={bodyView}
-            markers={form.bodyMarkers || []}
-            drawings={form.bodyDrawings || []}
+            markers={(form.bodyMarkers && form.bodyMarkers[bodySystem]) || []}
+            drawings={(form.bodyDrawings && form.bodyDrawings[bodySystem]) || []}
             onSystemChange={setBodySystem}
             onViewChange={setBodyView}
-            onMarkersChange={(next) => { if (!readOnly) setForm((f) => ({ ...f, bodyMarkers: next })); }}
-            onDrawingsChange={(next) => { if (!readOnly) setForm((f) => ({ ...f, bodyDrawings: next })); }}
+            onMarkersChange={(next) => {
+              if (readOnly) return;
+              setForm((f) => ({ ...f, bodyMarkers: { ...(f.bodyMarkers || {}), [bodySystem]: next } }));
+            }}
+            onDrawingsChange={(next) => {
+              if (readOnly) return;
+              setForm((f) => ({ ...f, bodyDrawings: { ...(f.bodyDrawings || {}), [bodySystem]: next } }));
+            }}
             variant={readOnly ? 'summary' : 'default'}
           />
         </div>

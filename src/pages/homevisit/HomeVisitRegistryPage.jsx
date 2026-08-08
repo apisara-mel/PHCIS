@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
@@ -1117,6 +1118,8 @@ const HomeVisitRegistryPage = () => {
                 />
               </OverflowFlexRow>
             </div>
+
+            <SearchResultCount found={filtered.length} total={rows.length} />
 
             {rows.length === 0 ? (
               <EmptyHint

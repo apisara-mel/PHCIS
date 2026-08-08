@@ -133,8 +133,10 @@ const HomeVisitRecordPage = () => {
   useEffect(() => {
     if (!dirty || readOnly) return;
     saveHomeVisitDraft(visitId, formRef.current, stepIndex);
-    if (hasAppointment) setHomeVisitStatus(visitId, 'draft');
-  }, [form, stepIndex, dirty, readOnly, visitId, hasAppointment]);
+    /* visit ที่ปิดการบันทึกแล้ว (มี completion stamp) ต้องไม่ถูกดันกลับไป
+       แท็บ "ที่ร่างไว้" ตอนแก้ไขหลังปิด — สถานะคิวคง 'done' ไว้. */
+    if (hasAppointment && !completion) setHomeVisitStatus(visitId, 'draft');
+  }, [form, stepIndex, dirty, readOnly, visitId, hasAppointment, completion]);
 
   /* ไปขั้นถัดไปได้เมื่อขั้นปัจจุบันครบถ้วน (ย้อนกลับไม่ตรวจ). */
   const setStepIndex = (next) => {
@@ -165,7 +167,7 @@ const HomeVisitRecordPage = () => {
   const finishVisit = () => {
     markHomeVisitCompleted(visitId);
     clearHomeVisitDraft(visitId);
-    setHomeVisitStatus(visitId, 'done');
+    syncQueueStatus('done');
     history.push('/homevisit');
   };
 
@@ -199,7 +201,7 @@ const HomeVisitRecordPage = () => {
             onClose={() => setUnsavedOpen(false)}
             onSave={() => {
               saveHomeVisitDraft(visitId, formRef.current, stepIndex);
-              setHomeVisitStatus(visitId, 'draft');
+              syncQueueStatus('draft');
               setUnsavedOpen(false);
               history.push('/homevisit');
             }}

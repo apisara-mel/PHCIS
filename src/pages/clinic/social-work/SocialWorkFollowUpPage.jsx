@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import PatientCard from '@/components/card/PatientCard';
 import DatePickerRange from '@/components/forms/DatePickerRange';
@@ -15,7 +16,7 @@ import Pagination from '@/components/pagination/Pagination';
 import Icon from '@/components/icons/Icon';
 import { LineChart } from '@/components/graph/Charts';
 import {
-  SwSectionCard, SwEmptyHint, SwConfidentialMask, SwBanner, SwPagerBar,
+  SwSectionCard, SwEmptyHint, SwConfidentialMask, SwBanner, SwPagerBar, toLocalIso,
 } from '@/pages/clinic/social-work/SocialWorkShared';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import {
@@ -61,7 +62,8 @@ const breadcrumb = ['ระบบบันทึกการรักษา', '�
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:social-work-followup';
 const PAGE_SIZE = 8;
 
-const isoOf = (d) => d.toISOString().slice(0, 10);
+/* yyyy-mm-dd จากเวลาท้องถิ่น — toISOString() จะเลื่อนวันถอยหลังที่ UTC+7 */
+const isoOf = (d) => toLocalIso(d);
 const todayIsoLocal = () => isoOf(new Date());
 const monthsAgoIso = (n) => {
   const d = new Date();
@@ -140,8 +142,14 @@ const SocialWorkFollowUpPage = () => {
     () => (selectedHn ? getSwFollowUpHistory(selectedHn, range.from, range.to) : []),
     [selectedHn, range],
   );
+  /* `issues` (กรองรายการยกเลิก) ใช้กับตัวนับสรุป + บรรทัดพิมพ์ —
+     `issuesWithCancelled` ใช้กับตารางรายละเอียด เพื่อโชว์แถวยกเลิกพร้อม badge */
   const issues = useMemo(
     () => (selectedHn ? getSwIssuesByHn(selectedHn, range.from, range.to) : []),
+    [selectedHn, range],
+  );
+  const issuesWithCancelled = useMemo(
+    () => (selectedHn ? getSwIssuesByHn(selectedHn, range.from, range.to, { includeCancelled: true }) : []),
     [selectedHn, range],
   );
   const funds = useMemo(
@@ -188,6 +196,12 @@ const SocialWorkFollowUpPage = () => {
   };
 
   const searchFields = (row) => [row.hn, row.cid, row.name, row.caseNo];
+
+  const pickerMatchCount = useMemo(() => {
+    const q = searchQ.trim().toLowerCase();
+    if (!q) return 0;
+    return pool.filter((row) => searchFields(row).some((f) => f && String(f).toLowerCase().includes(q))).length;
+  }, [searchQ, pool]);
 
   const searchSuggestions = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
@@ -341,6 +355,9 @@ const SocialWorkFollowUpPage = () => {
               width={640}
             />
           </div>
+          {searchQ.trim() && !selectedHn ? (
+            <SearchResultCount found={pickerMatchCount} total={pool.length} />
+          ) : null}
           {searchQ.trim() && searchSuggestions.length === 0 && !selectedHn && (
             <SwEmptyHint>
               ไม่พบผู้รับบริการที่ตรงกับ "{searchQ.trim()}" — ตรวจสอบ HN หรือเลข CASE แล้วลองอีกครั้ง
@@ -531,14 +548,14 @@ const SocialWorkFollowUpPage = () => {
                     </span>
                   )}
                 >
-                  {issues.length === 0 ? (
+                  {issuesWithCancelled.length === 0 ? (
                     <SwEmptyHint icon='inventory'>
                       ยังไม่ได้รับวัสดุหรือกายอุปกรณ์ในช่วงเวลาที่เลือก
                     </SwEmptyHint>
                   ) : (
                     <Table
                       columns={issueColumns}
-                      rows={issues}
+                      rows={issuesWithCancelled}
                       rowKey={(r) => r.id}
                       emptyMessage='ไม่มีรายการวัสดุ'
                     />
