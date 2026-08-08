@@ -4,6 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
@@ -498,6 +499,8 @@ const AppointmentRequestInboxPage = () => {
                 </NeutralSubdueButton>
               ) : null}
             </OverflowFlexRow>
+
+            <SearchResultCount found={filtered.length} total={requests.length} />
 
             <Table
               columns={columns}

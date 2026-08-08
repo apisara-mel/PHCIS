@@ -12,6 +12,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Badge from '@/components/badge/Badge';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   NCD_DISEASE_GROUPS,
@@ -695,9 +696,7 @@ const NcdRegistryPage = () => {
             )}
           </div>
 
-          <div className='text-xs text-ink-tertiary'>
-            พบ <strong className='text-ink-secondary'>{filtered.length}</strong> รายการ จาก {rows.length} รายการ
-          </div>
+          <SearchResultCount found={filtered.length} total={rows.length} />
 
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
             {filtered.length === 0 ? (

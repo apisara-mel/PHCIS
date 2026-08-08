@@ -4,6 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import StatusBadge from '@/components/badge/StatusBadge';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -574,6 +575,8 @@ const ReferralRegisterPage = () => {
                   </NeutralSubdueButton>
                 ) : null}
               </div>
+
+              <SearchResultCount found={filtered.length} total={directionRows.length} />
 
               {/* legend "ข้อมูลไม่สมบูรณ์" ตามคู่มือ */}
               <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>

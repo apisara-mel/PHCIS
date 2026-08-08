@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import PatientCard from '@/components/card/PatientCard';
+import { PATIENT_PROFILES } from '@/data/patientProfiles';
 import Alert from '@/components/alert/Alert';
 import Icon from '@/components/icons/Icon';
 import StatusBadge from '@/components/badge/StatusBadge';
@@ -296,6 +298,13 @@ const RightsCheckSection = ({ role }) => {
     return searchPatients(q).map(patientToSearchItem);
   }, [query]);
 
+  const pickerMatchCount = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return 0;
+    return PATIENT_PROFILES.filter((p) => [p.hn, p.shortName, p.fullName, p.nationalId, p.englishName]
+      .some((f) => f && f.toString().toLowerCase().includes(q))).length;
+  }, [query]);
+
   const resolvePatient = (value, item) => {
     if (item?.id) {
       const byHn = patientByHn(item.id);
@@ -359,6 +368,10 @@ const RightsCheckSection = ({ role }) => {
           suggestions={suggestions}
         />
       </div>
+
+      {query.trim() && !patient ? (
+        <SearchResultCount found={pickerMatchCount} total={PATIENT_PROFILES.length} />
+      ) : null}
 
       {idError && (
         <Alert type='error' title='เลขบัตรประชาชนไม่ครบ' subtext={idError} />

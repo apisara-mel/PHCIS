@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Table, { EllipsisText } from '@/components/table/Table';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -24,8 +25,14 @@ const RevenueRegisterSection = ({ queue }) => {
   const [filters, setFilters] = useState(FILTER_DEFAULTS);
   const setFilter = (key) => (val) => setFilters((f) => ({ ...f, [key]: val }));
 
+  /* Unfiltered paid universe — SearchResultCount "จาก" total. */
+  const paidBase = useMemo(
+    () => queue.filter((r) => r.status === 'paid'),
+    [queue],
+  );
+
   const paidRows = useMemo(() => {
-    let rows = queue.filter((r) => r.status === 'paid');
+    let rows = paidBase;
     if (q.trim()) {
       const query = q.trim().toLowerCase();
       rows = rows.filter((r) => r.hn.toLowerCase().includes(query) || r.patient.shortName.toLowerCase().includes(query));
@@ -37,7 +44,7 @@ const RevenueRegisterSection = ({ queue }) => {
        visit belongs in today's register (TOR §1.8.1.12 / §1.8.5.3). */
     rows = rows.filter((r) => matchesDateFilter(r.paidDate || r.visitDate, filters.dateValue));
     return rows.sort((a, b) => timeToMinutes(a.paidTime || a.visitTime) - timeToMinutes(b.paidTime || b.visitTime));
-  }, [queue, q, filters]);
+  }, [paidBase, q, filters]);
 
   const methodTotals = useMemo(() => PAYMENT_METHODS.map((m) => ({
     ...m,
@@ -130,6 +137,8 @@ const RevenueRegisterSection = ({ queue }) => {
         <div className='flex-1' />
         <NeutralSubdueButton leadingIcon='print' onClick={() => window.print()}>พิมพ์</NeutralSubdueButton>
       </div>
+
+      <SearchResultCount found={paidRows.length} total={paidBase.length} />
 
       <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
         {methodTotals.map((m) => (

@@ -6,6 +6,7 @@ import InputField from '@/components/forms/InputField';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import RadioGroup from '@/components/radio/RadioGroup';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -113,10 +114,16 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
     return [{ value: 'all', label: 'ทุกแผนก' }, ...depts.map((d) => ({ value: d, label: d }))];
   }, [queue]);
 
+  /* Unfiltered pending/residual universe — SearchResultCount "จาก" total. */
+  const pendingBase = useMemo(
+    () => queue.filter((r) => r.status === 'pending' || hasResidual(r)),
+    [queue],
+  );
+
   const pendingRows = useMemo(() => {
     /* Not just status==='pending' — a receipt settled for only part of the
        visit still owes the rest (TOR §1.8.1.15 → §1.8.6.1). */
-    let rows = queue.filter((r) => r.status === 'pending' || hasResidual(r));
+    let rows = pendingBase;
     if (q.trim()) {
       const query = q.trim().toLowerCase();
       rows = rows.filter((r) => r.hn.toLowerCase().includes(query) || r.patient.shortName.toLowerCase().includes(query));
@@ -125,7 +132,7 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
     if (filters.claimStatus !== 'all') rows = rows.filter((r) => (r.claimStatus || 'inprogress') === filters.claimStatus);
     rows = rows.filter((r) => matchesDateFilter(r.visitDate, filters.dateValue));
     return rows.sort((a, b) => timeToMinutes(a.visitTime) - timeToMinutes(b.visitTime));
-  }, [queue, q, filters]);
+  }, [pendingBase, q, filters]);
 
   const outstandingTotal = pendingRows.reduce((s, r) => s + outstandingOf(r), 0);
 
@@ -210,6 +217,8 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
         />
         <FilterDateTag prefix='วัน:' value={filters.dateValue} onChange={setFilter('dateValue')} defaultQuick={FILTER_DEFAULTS.dateValue.quick} />
       </div>
+
+      <SearchResultCount found={pendingRows.length} total={pendingBase.length} />
 
       <div
         className='flex flex-col'

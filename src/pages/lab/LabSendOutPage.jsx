@@ -5,6 +5,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Badge from '@/components/badge/Badge';
@@ -579,6 +580,8 @@ const LabSendOutPage = () => {
                 </NeutralSubdueButton>
               )}
             </OverflowFlexRow>
+
+            <SearchResultCount found={filtered.length} total={tabRows.length} />
 
             {tab === 'pending' && selectedRows.length > 0 && (
               <div

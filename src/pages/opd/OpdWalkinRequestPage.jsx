@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import Table, { EllipsisText as TableEllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import Badge from '@/components/badge/Badge';
@@ -670,6 +671,7 @@ const OpdWalkinRequestPage = () => {
               </div>
             ) : (
               <>
+                <SearchResultCount found={filtered.length} total={rows.length} />
                 <Table
                   columns={columns}
                   rows={pageRows}

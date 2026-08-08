@@ -190,9 +190,10 @@ const Stepper = React.forwardRef(function Stepper(
         className='flex-1 min-w-0 bg-transparent outline-none border-0 p-0 text-center'
         style={{
           height: '100%',
-          fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
+          /* Numbers use Sarabun (body) — not Mitr heading — for tabular digits. */
+          fontFamily: 'var(--type-family-body)',
           fontSize: dim.font,
-          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+          fontWeight: 'var(--type-weight-medium, 500)',
           color: isDisabled
             ? 'var(--text-input-disabled, #ADB2B7)'
             : 'var(--text-input-filled, #4D5358)',

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -123,6 +124,14 @@ export default function ConsentAccessRightsPage() {
     () => consentPatientSearchSuggestions(search),
     [search],
   );
+
+  const pickerMatchCount = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return 0;
+    return CONSENT_PATIENT_SEARCH_POOL.filter((p) => [
+      p.hn, p.name, p.label, p.nationalId, p.phone, p.queue,
+    ].some((f) => f && String(f).toLowerCase().includes(q))).length;
+  }, [search]);
 
   /* grant popup fields */
   const [gCategory, setGCategory] = useState('');
@@ -307,6 +316,9 @@ export default function ConsentAccessRightsPage() {
               history={searchHistory}
               onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
             />
+            {search.trim() && !selectedHn ? (
+              <SearchResultCount found={pickerMatchCount} total={CONSENT_PATIENT_SEARCH_POOL.length} />
+            ) : null}
             {notFound && (
               <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-100)' }}>
                 <span style={{ ...BODY_TEXT, color: 'var(--text-danger-default, #B91C1C)' }}>ไม่พบผู้ป่วยที่ค้นหา</span>

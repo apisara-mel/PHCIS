@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import Icon from '@/components/icons/Icon';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
@@ -542,6 +543,8 @@ const HivStiRegistryPage = () => {
                 </NeutralSubdueButton>
               )}
             </div>
+
+            <SearchResultCount found={filtered.length} total={rows.length} />
 
             {filtered.length === 0 ? (
               <div

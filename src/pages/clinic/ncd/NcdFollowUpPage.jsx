@@ -3,6 +3,7 @@ import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import TabCapsule from '@/components/tab/TabCapsule';
 import DatePickerRange from '@/components/forms/DatePickerRange';
@@ -484,6 +485,8 @@ const NcdFollowUpPage = () => {
                   width={640}
                 />
               </div>
+
+              <SearchResultCount found={pickerMatches.length} total={registryRows.length} />
 
               {pickerMatches.length === 0 ? (
                 <div className='flex flex-col items-center text-center' style={{ padding: 'var(--dim-space-700)', gap: 'var(--dim-space-200)' }}>

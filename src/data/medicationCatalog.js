@@ -1,27 +1,54 @@
 /* Medication name → blister-pack image catalog.
    Single source of truth for AddMedicationPopup, Step-5 table
-   (MedImageTile), FrequentOrdersCard chips, and Re-Medicine rows.
+   (MedImageTile), FrequentOrdersCard chips, Re-Medicine rows,
+   and pharmacy registry / dispense tiles.
 
-   Only six dedicated PNGs exist under public/images/medications/;
-   everything else aliases to the closest match or the ibuprofen
-   placeholder tile until more assets land. */
+   Each catalog drug maps to its own `med-{slug}.png` under
+   public/images/medications/ — name on the tablet must match the drug. */
 
 export const MED_IMG_DIR = '/images/medications';
 export const FALLBACK_MED_IMG = `${MED_IMG_DIR}/med-ibuprofen.png`;
 
 export const medImg = (slug) => `${MED_IMG_DIR}/med-${slug}.png`;
 
-/* Slug inferred from the leading token of a drug name (case-insensitive). */
+/* Slug inferred from the leading token of a drug name (case-insensitive).
+   Longest / most-specific needles first where needed. */
 const SLUG_FROM_NAME = [
-  ['paracetamol', 'paracetamol'],
-  ['ibuprofen', 'ibuprofen'],
+  ['hydrochlorothiazide', 'hydrochlorothiazide'],
+  ['spironolactone', 'spironolactone'],
   ['methocarbamol', 'methocarbamol'],
+  ['ciprofloxacin', 'ciprofloxacin'],
+  ['orphenadrine', 'orphenadrine'],
+  ['esomeprazole', 'esomeprazole'],
+  ['atorvastatin', 'atorvastatin'],
+  ['simvastatin', 'simvastatin'],
   ['amoxicillin', 'amoxicillin'],
+  ['paracetamol', 'paracetamol'],
   ['omeprazole', 'omeprazole'],
-  ['esomeprazole', 'omeprazole'],
+  ['metoprolol', 'metoprolol'],
+  ['indapamide', 'indapamide'],
+  ['bisoprolol', 'bisoprolol'],
+  ['furosemide', 'furosemide'],
+  ['loratadine', 'loratadine'],
+  ['loperamide', 'loperamide'],
   ['cetirizine', 'cetirizine'],
-  ['loratadine', 'cetirizine'],
-  ['orphenadrine', 'ibuprofen'],
+  ['amlodipine', 'amlodipine'],
+  ['metformin', 'metformin'],
+  ['enalapril', 'enalapril'],
+  ['aciclovir', 'aciclovir'],
+  ['acyclovir', 'aciclovir'],
+  ['ibuprofen', 'ibuprofen'],
+  ['naproxen', 'naproxen'],
+  ['losartan', 'losartan'],
+  ['atenolol', 'atenolol'],
+  ['diazepam', 'diazepam'],
+  ['folic acid', 'folic-acid'],
+  ['folicacid', 'folic-acid'],
+  ['vitamin b', 'vitamin-b'],
+  ['vitaminb', 'vitamin-b'],
+  ['aspirin', 'aspirin'],
+  ['codeine', 'codeine'],
+  ['vilerm', 'aciclovir'],
 ];
 
 const normKey = (name) => (
@@ -32,48 +59,45 @@ const normKey = (name) => (
 );
 
 export const MEDICATION_NAME_OPTIONS = [
-  { value: 'Paracetamol 500 mg',         image: medImg('paracetamol')   },
-  { value: 'Ibuprofen 400 mg',            image: medImg('ibuprofen')     },
-  { value: 'Methocarbamol 750 mg',        image: medImg('methocarbamol') },
-  { value: 'Orphenadrine 35 mg',          image: FALLBACK_MED_IMG        },
-  { value: 'Omeprazole 20 mg',            image: medImg('omeprazole')    },
-  { value: 'Esomeprazole 40 mg',          image: medImg('omeprazole')    },
-  { value: 'Amoxicillin 500 mg',          image: medImg('amoxicillin')   },
-  { value: 'Ciprofloxacin 500 mg',        image: FALLBACK_MED_IMG        },
-  { value: 'Cetirizine 10 mg',            image: medImg('cetirizine')    },
-  { value: 'Loratadine 10 mg',            image: medImg('cetirizine')    },
-  { value: 'Loperamide 2 mg',             image: FALLBACK_MED_IMG        },
-  { value: 'Naproxen 250 mg',             image: FALLBACK_MED_IMG        },
-  { value: 'Metformin 500 mg',            image: FALLBACK_MED_IMG        },
-  { value: 'Amlodipine 5 mg',             image: FALLBACK_MED_IMG        },
-  { value: 'Enalapril 5 mg',              image: FALLBACK_MED_IMG        },
-  { value: 'VILERM (Aciclovir 400 mg)',   image: FALLBACK_MED_IMG        },
-  { value: 'Losartan 50 mg',              image: FALLBACK_MED_IMG        },
-  { value: 'Hydrochlorothiazide 25 mg',   image: FALLBACK_MED_IMG        },
-  { value: 'Metoprolol 50 mg',            image: FALLBACK_MED_IMG        },
-  { value: 'Atorvastatin 20 mg',          image: FALLBACK_MED_IMG        },
-  { value: 'Atorvastatin 10 mg',          image: FALLBACK_MED_IMG        },
-  { value: 'Aspirin 81 mg',               image: FALLBACK_MED_IMG        },
-  { value: 'Furosemide 40 mg',            image: FALLBACK_MED_IMG        },
-  { value: 'Bisoprolol 5 mg',             image: FALLBACK_MED_IMG        },
-  { value: 'Spironolactone 25 mg',        image: FALLBACK_MED_IMG        },
-  { value: 'Simvastatin 20 mg',           image: FALLBACK_MED_IMG        },
-  { value: 'Atenolol 50 mg',              image: FALLBACK_MED_IMG        },
-  { value: 'Indapamide 1.5 mg',           image: FALLBACK_MED_IMG        },
-  { value: 'Vitamin B Complex',           image: FALLBACK_MED_IMG        },
-  { value: 'Folic Acid 5 mg',             image: FALLBACK_MED_IMG        },
-  /* Two genuinely controlled drugs (real Thai Narcotics/Psychotropic Substances
-     Act schedules, not fabricated) so pharmacyRegistry.js's "ยาเสพติดให้โทษ" /
-     "วัตถุออกฤทธิ์ต่อจิตและประสาท" classifications have a real seed row each
-     instead of sitting unused as selectable-but-empty categories. */
-  { value: 'Codeine Phosphate 30 mg',     image: FALLBACK_MED_IMG        },
-  { value: 'Diazepam 5 mg',               image: FALLBACK_MED_IMG        },
+  { value: 'Paracetamol 500 mg',         image: medImg('paracetamol')         },
+  { value: 'Ibuprofen 400 mg',            image: medImg('ibuprofen')           },
+  { value: 'Methocarbamol 750 mg',        image: medImg('methocarbamol')       },
+  { value: 'Orphenadrine 35 mg',          image: medImg('orphenadrine')        },
+  { value: 'Omeprazole 20 mg',            image: medImg('omeprazole')          },
+  { value: 'Esomeprazole 40 mg',          image: medImg('esomeprazole')        },
+  { value: 'Amoxicillin 500 mg',          image: medImg('amoxicillin')         },
+  { value: 'Ciprofloxacin 500 mg',        image: medImg('ciprofloxacin')       },
+  { value: 'Cetirizine 10 mg',            image: medImg('cetirizine')          },
+  { value: 'Loratadine 10 mg',            image: medImg('loratadine')          },
+  { value: 'Loperamide 2 mg',             image: medImg('loperamide')          },
+  { value: 'Naproxen 250 mg',             image: medImg('naproxen')            },
+  { value: 'Metformin 500 mg',            image: medImg('metformin')           },
+  { value: 'Amlodipine 5 mg',             image: medImg('amlodipine')          },
+  { value: 'Enalapril 5 mg',              image: medImg('enalapril')           },
+  { value: 'VILERM (Aciclovir 400 mg)',   image: medImg('aciclovir')           },
+  { value: 'Losartan 50 mg',              image: medImg('losartan')            },
+  { value: 'Hydrochlorothiazide 25 mg',   image: medImg('hydrochlorothiazide') },
+  { value: 'Metoprolol 50 mg',            image: medImg('metoprolol')          },
+  { value: 'Atorvastatin 20 mg',          image: medImg('atorvastatin')        },
+  { value: 'Atorvastatin 10 mg',          image: medImg('atorvastatin')        },
+  { value: 'Aspirin 81 mg',               image: medImg('aspirin')             },
+  { value: 'Furosemide 40 mg',            image: medImg('furosemide')          },
+  { value: 'Bisoprolol 5 mg',             image: medImg('bisoprolol')          },
+  { value: 'Spironolactone 25 mg',        image: medImg('spironolactone')      },
+  { value: 'Simvastatin 20 mg',           image: medImg('simvastatin')         },
+  { value: 'Atenolol 50 mg',              image: medImg('atenolol')            },
+  { value: 'Indapamide 1.5 mg',           image: medImg('indapamide')          },
+  { value: 'Vitamin B Complex',           image: medImg('vitamin-b')           },
+  { value: 'Folic Acid 5 mg',             image: medImg('folic-acid')          },
+  /* Controlled / psychotropic seeds for pharmacyRegistry classifications. */
+  { value: 'Codeine Phosphate 30 mg',     image: medImg('codeine')             },
+  { value: 'Diazepam 5 mg',               image: medImg('diazepam')            },
   /* Aliases for mock rows that omit the space before "mg". */
-  { value: 'Paracetamol 500mg',           image: medImg('paracetamol')   },
-  { value: 'Ibuprofen 400mg',             image: medImg('ibuprofen')     },
-  { value: 'Methocarbamol 750mg',         image: medImg('methocarbamol') },
-  { value: 'Amoxicillin 500mg',           image: medImg('amoxicillin')   },
-  { value: 'Omeprazole 20mg',             image: medImg('omeprazole')    },
+  { value: 'Paracetamol 500mg',           image: medImg('paracetamol')         },
+  { value: 'Ibuprofen 400mg',             image: medImg('ibuprofen')           },
+  { value: 'Methocarbamol 750mg',         image: medImg('methocarbamol')       },
+  { value: 'Amoxicillin 500mg',           image: medImg('amoxicillin')         },
+  { value: 'Omeprazole 20mg',             image: medImg('omeprazole')          },
 ].map((opt) => ({ ...opt, label: opt.value }));
 
 const IMAGE_BY_KEY = new Map(
@@ -88,13 +112,20 @@ const slugFromName = (name) => {
   return null;
 };
 
-/** Resolve a displayable medication image URL for table tiles / popups. */
+/** Resolve a displayable medication image URL for table tiles / popups.
+   Prefer name→slug match over a stale explicitSrc that points at the
+   generic fallback, so registry seeds stay correct after catalog updates. */
 export const resolveMedicationImage = (name, explicitSrc) => {
-  if (explicitSrc && String(explicitSrc).trim()) return explicitSrc;
-  if (!name) return '';
+  if (!name) {
+    if (explicitSrc && String(explicitSrc).trim()) return explicitSrc;
+    return '';
+  }
   const keyed = IMAGE_BY_KEY.get(normKey(name));
   if (keyed) return keyed;
   const slug = slugFromName(name);
   if (slug) return medImg(slug);
+  if (explicitSrc && String(explicitSrc).trim() && explicitSrc !== FALLBACK_MED_IMG) {
+    return explicitSrc;
+  }
   return FALLBACK_MED_IMG;
 };

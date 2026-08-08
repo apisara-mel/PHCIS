@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import StatusBadge from '@/components/badge/StatusBadge';
@@ -227,6 +228,8 @@ const AppointmentNotifyLogTable = ({ canManage = true }) => {
           </NeutralSubdueButton>
         ) : null}
       </OverflowFlexRow>
+
+      <SearchResultCount found={filtered.length} total={rows.length} />
 
       <Table
         columns={columns}

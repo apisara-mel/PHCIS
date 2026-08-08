@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
@@ -913,6 +914,8 @@ const RegistrationQueuePage = () => {
                   </BrandSubdueButton>
                 </div>
               </div>
+
+              <SearchResultCount found={sorted.length} total={rows.length} />
 
               {/* Patient table — queue tabs pin คิว / HN / ชื่อ; directory
                   tab omits คิว so sticky pins HN / ชื่อ only. */}

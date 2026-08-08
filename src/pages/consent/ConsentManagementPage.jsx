@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
@@ -729,6 +730,8 @@ export default function ConsentManagementPage() {
                   </NeutralSubdueButton>
                 )}
               </div>
+
+              <SearchResultCount found={sorted.length} total={rows.length} />
 
               <Table
                 columns={columns}

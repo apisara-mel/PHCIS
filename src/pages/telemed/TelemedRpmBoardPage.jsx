@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
@@ -668,6 +669,8 @@ const TelemedRpmBoardPage = () => {
               />
             </OverflowFlexRow>
           </div>
+
+          <SearchResultCount found={sorted.length} total={rows.length} />
 
           {rows.length === 0 ? (
             <EmptyState icon='monitor_heart' title='ยังไม่มีผู้รับบริการที่ลงทะเบียนอุปกรณ์ RPM' hint='ลงทะเบียนอุปกรณ์วัดที่บ้านให้ผู้รับบริการที่หน่วยบริการต้นทางก่อน' />

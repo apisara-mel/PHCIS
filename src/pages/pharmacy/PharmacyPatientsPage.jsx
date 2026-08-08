@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
@@ -12,13 +13,11 @@ import PharmacyMedicationHistoryPopup from '@/components/pharmacy/PharmacyMedica
 import { buildPatientsSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 import { MR_PATIENTS, MR_STATUS, MR_LIFE_STATUS, lifeStatusLabel } from '@/data/mrPatients';
-import { PHARMACY_QUEUE } from '@/data/pharmacyQueue';
 import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatientAvatar';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
-/* ผู้รับบริการทั้งหมด — MPI lookup across the whole patient roster (not
-   today's dispense-queue status filter). ดูประวัติการรับยา opens an
-   in-page popup (PharmacyMedicationHistoryPopup). */
+/* ผู้รับบริการทั้งหมด — MPI lookup across the whole patient roster.
+   ดูประวัติการรับยา opens an in-page popup (PharmacyMedicationHistoryPopup). */
 
 const breadcrumb = ['ระบบงานเภสัชกรรม', 'ผู้รับบริการทั้งหมด'];
 const PAGE_SIZE = 20;
@@ -40,12 +39,6 @@ const REG_STATUS_FILTER_OPTIONS = [
 const LIFE_FILTER_OPTIONS = [
   { value: 'all', label: 'ทั้งหมด' },
   ...MR_LIFE_STATUS.map((s) => ({ value: s.key, label: s.label })),
-];
-
-const RX_TODAY_FILTER_OPTIONS = [
-  { value: 'all', label: 'ทั้งหมด' },
-  { value: 'yes', label: 'มีใบสั่งวันนี้' },
-  { value: 'no',  label: 'ไม่มีใบสั่งวันนี้' },
 ];
 
 const patientName = (p) => `${p.prefixTh || ''}${p.firstNameTh} ${p.lastNameTh}`.trim();
@@ -70,18 +63,9 @@ const PharmacyPatientsPage = () => {
   const [searchQ, setSearchQ] = useState('');
   const [regStatusFilter, setRegStatusFilter] = useState('all');
   const [lifeFilter, setLifeFilter] = useState('all');
-  const [rxTodayFilter, setRxTodayFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [historyPatient, setHistoryPatient] = useState(null);
-
-  const rxCountByHn = useMemo(() => {
-    const map = new Map();
-    PHARMACY_QUEUE.forEach((r) => {
-      map.set(r.hn, (map.get(r.hn) || 0) + 1);
-    });
-    return map;
-  }, []);
 
   const handleSort = (key) => {
     setSortConfig((prev) => (
@@ -93,13 +77,11 @@ const PharmacyPatientsPage = () => {
 
   const filtersActive = regStatusFilter !== 'all'
     || lifeFilter !== 'all'
-    || rxTodayFilter !== 'all'
     || searchQ.trim() !== '';
 
   const clearFilters = () => {
     setRegStatusFilter('all');
     setLifeFilter('all');
-    setRxTodayFilter('all');
     setSearchQ('');
     setPage(1);
   };
@@ -112,11 +94,6 @@ const PharmacyPatientsPage = () => {
     /* TOR §1.1.1.2 — filter สถานะชีวิต (same axis as registration directory). */
     if (lifeFilter !== 'all') {
       rows = rows.filter((p) => (p.lifeStatus || 'alive') === lifeFilter);
-    }
-    if (rxTodayFilter === 'yes') {
-      rows = rows.filter((p) => (rxCountByHn.get(p.hn) || 0) > 0);
-    } else if (rxTodayFilter === 'no') {
-      rows = rows.filter((p) => (rxCountByHn.get(p.hn) || 0) === 0);
     }
     const q = searchQ.trim().toLowerCase();
     if (!q) return rows;
@@ -131,7 +108,7 @@ const PharmacyPatientsPage = () => {
         || (p.phone || '').replace(/-/g, '').includes(q.replace(/-/g, ''))
       );
     });
-  }, [searchQ, regStatusFilter, lifeFilter, rxTodayFilter, rxCountByHn]);
+  }, [searchQ, regStatusFilter, lifeFilter]);
 
   /* Column-header sort — same pattern as PharmacyQueuePage: only applied
      once the pharmacist clicks a header (null key keeps insertion order). */
@@ -142,7 +119,6 @@ const PharmacyPatientsPage = () => {
       switch (key) {
         case 'patient':    return patientName(row);
         case 'age':        return row.age ?? -1;
-        case 'rxToday':    return rxCountByHn.get(row.hn) || 0;
         case 'lifeStatus': return lifeStatusLabel(row.lifeStatus);
         case 'status':     return STATUS_PILL[row.status]?.label || STATUS_BY_KEY[row.status] || row.status || '';
         default:           return row[key] ?? '';
@@ -157,7 +133,7 @@ const PharmacyPatientsPage = () => {
         : collator.compare(String(av), String(bv));
       return sign * primary;
     });
-  }, [filtered, sortConfig, rxCountByHn]);
+  }, [filtered, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -166,8 +142,8 @@ const PharmacyPatientsPage = () => {
   const rangeEnd = Math.min(safePage * PAGE_SIZE, sortedRows.length);
 
   const summaryCards = useMemo(
-    () => buildPatientsSummaryCards(MR_PATIENTS, { rxCountByHn }),
-    [rxCountByHn],
+    () => buildPatientsSummaryCards(MR_PATIENTS),
+    [],
   );
 
   const columns = [
@@ -178,7 +154,12 @@ const PharmacyPatientsPage = () => {
       minWidth: 240,
       render: (p) => {
         const name = patientName(p);
-        const avatar = resolveQueuePatientAvatarProps({ hn: p.hn, displayName: name });
+        /* Prefer MR.avatarUrl (1:1 unique on this roster) over profile pool. */
+        const avatar = resolveQueuePatientAvatarProps({
+          hn: p.hn,
+          displayName: name,
+          profile: { shortName: name, avatarUrl: p.avatarUrl },
+        });
         return (
           <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
             <QueuePatientAvatar size={36} {...avatar} />
@@ -204,17 +185,6 @@ const PharmacyPatientsPage = () => {
       key: 'lifeStatus',
       label: 'สถานะชีวิต',
       render: renderLifeStatus,
-    },
-    {
-      key: 'rxToday',
-      label: 'ใบสั่งวันนี้',
-      align: 'center',
-      render: (p) => {
-        const n = rxCountByHn.get(p.hn) || 0;
-        return n > 0
-          ? <Badge style='info' size='small'>{n}</Badge>
-          : <span style={{ color: 'var(--text-content-tertiary)' }}>—</span>;
-      },
     },
     {
       key: 'status',
@@ -290,12 +260,6 @@ const PharmacyPatientsPage = () => {
               value={lifeFilter}
               onChange={(v) => { setLifeFilter(v); setPage(1); }}
             />
-            <FilterDropdown
-              prefix='ใบสั่งวันนี้ :'
-              options={RX_TODAY_FILTER_OPTIONS}
-              value={rxTodayFilter}
-              onChange={(v) => { setRxTodayFilter(v); setPage(1); }}
-            />
             {filtersActive ? (
               <FilterTag
                 variant='neutral'
@@ -306,6 +270,8 @@ const PharmacyPatientsPage = () => {
               />
             ) : null}
           </div>
+
+          <SearchResultCount found={sortedRows.length} total={MR_PATIENTS.length} />
 
           <div className='flex flex-col' style={{ minHeight: 'calc(100vh - 420px)' }}>
             <Table

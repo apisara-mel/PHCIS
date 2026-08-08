@@ -121,7 +121,7 @@ export const SubCard = ({
             ? 'var(--type-family-heading-content, var(--type-family-body))'
             : 'var(--type-family-body)',
           fontWeight: isTopicTitle
-            ? 'var(--type-weight-bold, 700)'
+            ? 'var(--type-weight-title, var(--type-weight-regular, 400))'
             : 'var(--type-weight-medium)',
           fontSize: isBrandQuaternary
             ? 'var(--type-size-sm)'

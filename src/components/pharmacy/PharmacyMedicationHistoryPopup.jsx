@@ -261,40 +261,21 @@ const PharmacyMedicationHistoryPopup = ({
       label: 'รายการยา',
       flex: true,
       minWidth: 220,
-      sortable: false,
       render: (r) => (
-        <div
-          className='flex flex-col items-start min-w-0 w-full'
-          style={{ gap: 'var(--dim-space-150)' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className='flex flex-col min-w-0 w-full' style={{ gap: 'var(--dim-space-50)' }}>
-            <span style={{ fontWeight: 'var(--type-weight-medium)' }}>
-              {r.items.length} รายการ
-            </span>
-            <span
-              className='truncate'
-              style={{
-                color: 'var(--text-content-tertiary)',
-                fontSize: 'var(--type-size-xs)',
-              }}
-              title={r.items.map((i) => i.name).join(', ')}
-            >
-              {r.items.map((i) => i.name).join(', ')}
-            </span>
-          </div>
-          <BrandSubdueButton
-            variant='outline'
-            size='sm'
-            leadingIcon='visibility'
-            onClick={(e) => {
-              e.stopPropagation();
-              openItems(r);
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-50)' }}>
+          <span style={{ fontWeight: 'var(--type-weight-medium)' }}>
+            {r.items.length} รายการ
+          </span>
+          <span
+            className='truncate'
+            style={{
+              color: 'var(--text-content-tertiary)',
+              fontSize: 'var(--type-size-xs)',
             }}
-            aria-label={`ดูรายการยา ${r.queueNo}`}
+            title={r.items.map((i) => i.name).join(', ')}
           >
-            ดูรายการยา
-          </BrandSubdueButton>
+            {r.items.map((i) => i.name).join(', ')}
+          </span>
         </div>
       ),
     },
@@ -319,6 +300,25 @@ const PharmacyMedicationHistoryPopup = ({
         const pill = STATUS_PILL[r.status] || { style: 'neutral', label: r.status || '—' };
         return <Badge style={pill.style} size='small'>{pill.label}</Badge>;
       },
+    },
+    {
+      key: 'actions',
+      label: '',
+      sortable: false,
+      render: (r) => (
+        <BrandSubdueButton
+          variant='outline'
+          size='sm'
+          leadingIcon='visibility'
+          onClick={(e) => {
+            e.stopPropagation();
+            openItems(r);
+          }}
+          aria-label={`ดูรายการยา ${r.queueNo}`}
+        >
+          ดูรายการยา
+        </BrandSubdueButton>
+      ),
     },
   ], []);
 

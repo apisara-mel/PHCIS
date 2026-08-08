@@ -4,6 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Badge from '@/components/badge/Badge';
@@ -686,6 +687,8 @@ const LabReceivePage = () => {
                 </NeutralSubdueButton>
               )}
             </OverflowFlexRow>
+
+            <SearchResultCount found={filtered.length} total={stageRows.length} />
 
             {/* §2.1.6 แบบกลุ่ม — one disposition applied to N selected rows. */}
             {selectedRows.length > 0 && (

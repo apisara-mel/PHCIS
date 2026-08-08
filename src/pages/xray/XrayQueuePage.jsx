@@ -4,6 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import Table, { EllipsisText } from '@/components/table/Table';
 import StatusBadge from '@/components/badge/StatusBadge';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
@@ -1882,6 +1883,8 @@ const XrayQueuePage = () => {
                 <FilterDropdown prefix='ผู้อ่านผล:' options={RADIOLOGIST_OPTIONS} value={radiologist} onChange={setRadiologist} />
                 <FilterDateTag prefix='วันที่ส่งตรวจ:' value={dateValue} onChange={setDateValue} defaultQuick='today' />
               </OverflowFlexRow>
+
+              <SearchResultCount found={sorted.length} total={liveRows.length} />
 
               {/* ── Sticky selection bar ── appears the moment ≥1 row is
                   checked; pinned under the app chrome so it survives

@@ -3,6 +3,7 @@ import { useHistory } from 'react-router-dom';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import StatusBadge from '@/components/badge/StatusBadge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -245,6 +246,8 @@ const AppointmentNotArrivedView = ({
             width={520}
           />
         </div>
+
+        <SearchResultCount found={filtered.length} total={rows.length} />
 
         <Table
           columns={columns}

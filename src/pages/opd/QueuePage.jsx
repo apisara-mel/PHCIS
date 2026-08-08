@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
@@ -1031,6 +1032,8 @@ const QueuePage = () => {
                 </NeutralSubdueButton>
               </div>
             </div>
+
+            <SearchResultCount found={sortedRows.length} total={rows.length} />
 
             {/* Draft callout — Figma 264:80153 / 264:56523. Lives INSIDE
                 the white queue card (Figma 264:52725) between the filter

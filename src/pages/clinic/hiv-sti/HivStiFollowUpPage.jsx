@@ -3,6 +3,7 @@ import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
+import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import TabCapsule from '@/components/tab/TabCapsule';
 import DatePicker from '@/components/forms/DatePicker';
@@ -1031,6 +1032,8 @@ const HivStiFollowUpPage = () => {
                   onChange={(v) => { setTrackFilter(v); setPage(1); }}
                 />
               </div>
+
+              <SearchResultCount found={filteredRows.length} total={allRows.length} />
 
               {worklistEmpty ? (
                 <div
