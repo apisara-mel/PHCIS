@@ -429,7 +429,7 @@ const LabResultEntryPage = () => {
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
             >
               <Icon name='chevron-left' size={16} />
-              กลับไปยัง Worklist
+              กลับไปยังงานชันสูตรโรค (Lab)
             </button>
           </div>
 

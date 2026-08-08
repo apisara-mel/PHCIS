@@ -1,15 +1,17 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header, { SubHeader } from '@/components/layout/Header';
 import { isOpdScreeningMenuPath } from '@/data/opdScreeningMenuPaths';
 import Footer from '@/components/layout/Footer';
 import TabUnderline from '@/components/tab/TabUnderline';
+import { morphTabStripPaddingStyle } from '@/components/layout/headerMorphStyles';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
 import { useHeaderAutoHide } from '@/context/HeaderAutoHideContext';
 import { APP_TOPBAR_HEIGHT, MIH_TOPBAR_OFFSET } from '@/hooks/useHeaderAutoHide';
+import { useHeaderMorphValue } from '@/hooks/useGlobalHeaderMorph';
 import { MIH_CHROME_MORPH_STEP_BAND } from '@/components/layout/wizardChromeMorphStyles';
 
 /* MIH QueuePageShell — shared chrome for queue / list pages.
@@ -55,8 +57,10 @@ import { MIH_CHROME_MORPH_STEP_BAND } from '@/components/layout/wizardChromeMorp
 export const QUEUE_TOPBAR_HEIGHT = APP_TOPBAR_HEIGHT;
 /** Fallback SubHeader height before measure (padding 16×2 + md control ~40). */
 export const QUEUE_SUBHEADER_FALLBACK = 72;
-/** Approx tab strip height (padding + TabUnderline). */
+/** Approx tab strip height (padding + TabUnderline / TabPill). */
 export const QUEUE_TAB_STRIP_HEIGHT = 49;
+/** Approx belowSummary strip (padding + TabUnderline SubNav). */
+export const QUEUE_BELOW_SUMMARY_FALLBACK = 49;
 /** Fallback px when CSS var ยังไม่ถูกตั้ง (Topbar + SubHeader + tabs). */
 export const QUEUE_STICKY_UNDER_TABS_FALLBACK =
   QUEUE_TOPBAR_HEIGHT + QUEUE_SUBHEADER_FALLBACK + QUEUE_TAB_STRIP_HEIGHT;
@@ -121,12 +125,31 @@ const QueuePageShell = ({
   const tabsBottomShadow = hasTabs;
 
   const subHeaderRef = useRef(null);
+  const belowSummaryRef = useRef(null);
   const tabsRef = useRef(null);
   const [subHeaderH, setSubHeaderH] = useState(
     hasSubHeader ? QUEUE_SUBHEADER_FALLBACK : 0,
   );
+  const [belowSummaryH, setBelowSummaryH] = useState(
+    hasBelowSummary ? QUEUE_BELOW_SUMMARY_FALLBACK : 0,
+  );
   const [tabsH, setTabsH] = useState(hasTabs ? QUEUE_TAB_STRIP_HEIGHT : 0);
   const { topbarOffset } = useHeaderAutoHide() ?? { topbarOffset: stickyTopOffset };
+
+  /* Pill status tabs: large at rest → small once scroll-morph engages.
+     Hysteresis avoids flicker around the threshold. */
+  const headerMorph = useHeaderMorphValue();
+  const [pillCompact, setPillCompact] = useState(false);
+  useEffect(() => {
+    if (tabVariant !== 'pill') return undefined;
+    setPillCompact((prev) => {
+      if (headerMorph > 0.38) return true;
+      if (headerMorph < 0.12) return false;
+      return prev;
+    });
+    return undefined;
+  }, [headerMorph, tabVariant]);
+  const pillSize = tabVariant === 'pill' && pillCompact ? 'small' : 'large';
 
   useLayoutEffect(() => {
     if (!hasSubHeader) {
@@ -143,6 +166,20 @@ const QueuePageShell = ({
   }, [hasSubHeader, effectiveTitle, actions, onBack]);
 
   useLayoutEffect(() => {
+    if (!hasBelowSummary) {
+      setBelowSummaryH(0);
+      return undefined;
+    }
+    const el = belowSummaryRef.current;
+    if (!el) return undefined;
+    const measure = () => setBelowSummaryH(Math.round(el.getBoundingClientRect().height));
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [hasBelowSummary, belowSummary]);
+
+  useLayoutEffect(() => {
     if (!hasTabs) {
       setTabsH(0);
       return undefined;
@@ -154,9 +191,9 @@ const QueuePageShell = ({
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
     ro?.observe(el);
     return () => ro?.disconnect();
-  }, [hasTabs, tabVariant, activeTab, tabs]);
+  }, [hasTabs, tabVariant, activeTab, tabs, pillSize]);
 
-  const tableStickyTop = topbarOffset + subHeaderH + tabsH;
+  const tableStickyTop = topbarOffset + subHeaderH + belowSummaryH + tabsH;
 
   /* Publish live offset so page-sticky Table headers track Topbar auto-hide. */
   useLayoutEffect(() => {
@@ -247,12 +284,13 @@ const QueuePageShell = ({
 
         {belowSummary ? (
           <div
+            ref={belowSummaryRef}
+            data-mih-sticky-subnav=''
             className='w-full sticky'
             style={{
               top: `calc(${MIH_TOPBAR_OFFSET} + ${subHeaderH}px)`,
-              zIndex: 1100,
-              background: 'var(--surface-card-100)',
-              paddingTop: 'var(--dim-space-200)',
+              zIndex: 1101,
+              background: 'var(--surface-card-100, #FFFFFF)',
               paddingBottom: 'var(--dim-space-0)',
               paddingLeft: 'var(--dim-space-400)',
               paddingRight: 'var(--dim-space-400)',
@@ -261,6 +299,7 @@ const QueuePageShell = ({
                 ? 'none'
                 : 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
               boxShadow: belowSummaryBottomShadow ? headerDropShadow : 'none',
+              ...morphTabStripPaddingStyle,
             }}
           >
             {belowSummary}
@@ -272,11 +311,14 @@ const QueuePageShell = ({
             ref={tabsRef}
             className='w-full sticky'
             style={{
-              top: `calc(${MIH_TOPBAR_OFFSET} + ${subHeaderH}px)`,
+              top: hasBelowSummary
+                ? `calc(${MIH_TOPBAR_OFFSET} + ${subHeaderH}px + ${belowSummaryH}px)`
+                : `calc(${MIH_TOPBAR_OFFSET} + ${subHeaderH}px)`,
               zIndex: 1100,
               background: 'var(--surface-card-100)',
-              paddingTop: 'var(--dim-space-200)',
-              paddingBottom: tabVariant === 'pill' ? 'var(--dim-space-200)' : undefined,
+              paddingBottom: tabVariant === 'pill'
+                ? (pillCompact ? 'var(--dim-space-150)' : 'var(--dim-space-200)')
+                : undefined,
               paddingLeft: 'var(--dim-space-400)',
               paddingRight: 'var(--dim-space-400)',
               borderTop: 0,
@@ -284,14 +326,22 @@ const QueuePageShell = ({
                 ? 'none'
                 : 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
               boxShadow: tabsBottomShadow ? headerDropShadow : 'none',
+              ...morphTabStripPaddingStyle,
             }}
           >
             {tabVariant === 'pill' ? (
-              <TabBar aria-label='กรองตามสถานะ'>
+              <TabBar
+                aria-label='กรองตามสถานะ'
+                align='center'
+                className='w-full max-w-full'
+                style={{
+                  transition: 'padding 180ms cubic-bezier(0.32, 0.72, 0, 1)',
+                }}
+              >
                 {tabs.map((t) => (
                   <TabPill
                     key={t.key}
-                    size='small'
+                    size={pillSize}
                     selected={activeTab === t.key}
                     leadingIcon={t.icon || undefined}
                     count={typeof t.count === 'number' ? t.count : undefined}
@@ -306,6 +356,7 @@ const QueuePageShell = ({
                 tabs={tabs}
                 value={activeTab}
                 onChange={onTabChange}
+                morphOnScroll
                 style={{ gap: 'var(--dim-space-0)' }}
               />
             )}

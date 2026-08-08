@@ -13,6 +13,8 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import Pagination from '@/components/pagination/Pagination';
 import { Icon } from '@/components/icons/Icon';
+import LabSubNav from '@/components/lab/LabSubNav';
+import StickyStatusTabBar from '@/components/tab/StickyStatusTabBar';
 import {
   LAB_ORDERS, LAB_STATUSES, LAB_URGENCIES, LAB_LOCATIONS,
   LAB_STATUS_BY_KEY, LAB_URGENCY_BY_KEY,
@@ -158,11 +160,6 @@ const rowToSearchItem = (row) => ({
 const GROUP_OPTIONS = [
   { value: 'all', label: 'ทุกกลุ่มตรวจ' },
   ...LAB_GROUPS.map((g) => ({ value: g.key, label: `${g.thai} (${g.short})` })),
-];
-
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'ทุกสถานะ' },
-  ...LAB_STATUSES.map((s) => ({ value: s.key, label: s.label })),
 ];
 
 /* ความเร่งด่วน — the team's three levels (STAT / ด่วน / Routine), not the
@@ -1087,12 +1084,10 @@ const LabQueuePage = () => {
       <QueuePageShell
         activeKey='lab'
         breadcrumb={breadcrumb}
-        title='งานชันสูตรโรค (Lab) — Worklist'
+        title='งานชันสูตรโรค (Lab)'
         summaryCards={summaryCards}
         summaryFlushUnderSubHeader={false}
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
+        belowSummary={<LabSubNav />}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -1197,12 +1192,17 @@ const LabQueuePage = () => {
               style={{
                 background: 'var(--surface-card-100)',
                 borderRadius: 'var(--dim-radius-500)',
-                border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
                 boxShadow: 'var(--shadow-card-strong)',
                 padding: 'var(--dim-space-600)',
-                gap: 'var(--dim-space-400)',
+                gap: 'var(--dim-space-600)',
               }}
             >
+              <StickyStatusTabBar
+                tabs={tabs}
+                value={activeTab}
+                onChange={setActiveTab}
+              />
+
               {/* Search + scan. The mockup puts "สแกนบาร์โค้ด" as the widget's
                   one primary action, to the right of the search field. */}
               <div className='w-full flex items-start justify-center' style={{ gap: 'var(--dim-space-300)' }} ref={searchWrapRef}>
@@ -1253,34 +1253,24 @@ const LabQueuePage = () => {
                 />
               </div>
 
-              {/* The rest of the module. The receiving station, the send-out
-                  station, the LIS interface and the cumulative sheet are all
-                  steps of the same specimen's journey, so they are reachable
-                  from the worklist rather than only from the system hub. */}
-              <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงลิงก์ที่ซ่อน'>
+              <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
+                {/* §1.15.5.2 — the round sheet. Prints whatever the current
+                    filters have narrowed the list to, so "พิมพ์รายการเก็บ
+                    ตัวอย่างของ ER เฉพาะ STAT" is just filter-then-print
+                    rather than a separate report builder. Only rows still
+                    awaiting collection are worth walking to. */}
                 <NeutralSubdueButton
                   variant='outline'
                   size='sm'
-                  leadingIcon='inventory_2'
-                  onClick={() => history.push('/lab/receive')}
+                  leadingIcon='print'
+                  disabled={collectionRows.length === 0}
+                  onClick={() => {
+                    setPrintRows(collectionRows);
+                    logAudit('พิมพ์รายการเก็บตัวอย่าง', `${collectionRows.length} รายการ`);
+                    window.setTimeout(() => printLab('collection'), 0);
+                  }}
                 >
-                  ไปสถานีรับสิ่งส่งตรวจ
-                </NeutralSubdueButton>
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='send'
-                  onClick={() => history.push('/lab/send-out')}
-                >
-                  ส่งตรวจภายนอก
-                </NeutralSubdueButton>
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='lan'
-                  onClick={() => history.push('/lab/interface')}
-                >
-                  เชื่อมต่อ LIS
+                  พิมพ์รายการเก็บตัวอย่าง ({collectionRows.length})
                 </NeutralSubdueButton>
                 <NeutralSubdueButton
                   variant='outline'
@@ -1303,27 +1293,6 @@ const LabQueuePage = () => {
                   onClick={() => setCriticalOpen(true)}
                 >
                   ทะเบียนค่าวิกฤต ({criticalSummary.open} รอรับทราบ)
-                </NeutralSubdueButton>
-              </OverflowFlexRow>
-
-              <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                {/* §1.15.5.2 — the round sheet. Prints whatever the current
-                    filters have narrowed the list to, so "พิมพ์รายการเก็บ
-                    ตัวอย่างของ ER เฉพาะ STAT" is just filter-then-print
-                    rather than a separate report builder. Only rows still
-                    awaiting collection are worth walking to. */}
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='print'
-                  disabled={collectionRows.length === 0}
-                  onClick={() => {
-                    setPrintRows(collectionRows);
-                    logAudit('พิมพ์รายการเก็บตัวอย่าง', `${collectionRows.length} รายการ`);
-                    window.setTimeout(() => printLab('collection'), 0);
-                  }}
-                >
-                  พิมพ์รายการเก็บตัวอย่าง ({collectionRows.length})
                 </NeutralSubdueButton>
                 {/* "STAT ก่อน" — the mockup renders it as a pressed pill
                     beside the filters, so it reads as a mode not a filter:
@@ -1355,9 +1324,6 @@ const LabQueuePage = () => {
                 <FilterDropdown prefix='กลุ่มตรวจ:' options={GROUP_OPTIONS} value={group} onChange={setGroup} />
                 <FilterDropdown prefix='จุดสั่ง:' options={LOCATION_OPTIONS} value={location} onChange={setLocation} />
                 <FilterDropdown prefix='ชนิดหลอด:' options={TUBE_OPTIONS} value={tube} onChange={setTube} />
-                {/* Second way to set the same `activeTab` the sticky tab
-                    strip controls, not a separate filter dimension. */}
-                <FilterDropdown prefix='สถานะ:' options={STATUS_OPTIONS} value={activeTab} onChange={setActiveTab} />
               </OverflowFlexRow>
 
               {/* Bulk action bar. Appears only when something is selected,

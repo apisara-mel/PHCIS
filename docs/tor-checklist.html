@@ -1934,7 +1934,7 @@ const IMPL = {
   '1.9.3.1':  {s:'done',    u:'/pharmacy/dispense', n:'Per-item "prepared" checklist + จัดยา step/status before dispensing'},
 
   '1.9.4.1':  {s:'done',    u:'/pharmacy/dispense', n:'Dispense action sets DISPENSE_STATUS.DISPENSED/PARTIAL + deducts SUB_PHARMACY_STOCK'},
-  '1.9.4.2':  {s:'partial', u:'/pharmacy/dispense', n:'getPharmacySupportingInfo() joins ประวัติการรักษา/ผลตรวจ Lab/นัดหมาย live from treatmentVisits.js/labOrders.js/appointment module; ประวัติส่งปรึกษา + ผลตรวจรังสีวิทยา stay illustrative overrides — no consult/radiology module exists anywhere in the app yet (product-spec.md §10)'},
+  '1.9.4.2':  {s:'done',    u:'/pharmacy/dispense', n:'getPharmacySupportingInfo() joins ครบ 5 ชุด live ต่อ HN — ประวัติการรักษา (treatmentVisits) · ส่งปรึกษา (treatmentConsult.consultsForPatient) · Lab (labOrders reported) · รังสี (XRAY_ORDERS reported/verified + xrayHistoryFor) · นัดหมาย (appointment); per-row overrides เหลือเป็น fallback เมื่อ live join เป็น null'},
   '1.9.4.3':  {s:'done',    u:'/pharmacy/queue',    n:'Status tabs (รอเรียก/เรียกแล้ว/จ่ายแล้ว/ไม่มารับยา) + /pharmacy/history search by HN/queue/name'},
   '1.9.4.4':  {s:'done',    u:'/pharmacy/dispense', n:'counselingLog records คำแนะนำการใช้ยา, shown per visit'},
   '1.9.4.5':  {s:'done',    u:'/pharmacy/dispense', n:'createRefillPlan()/markRefillVisitPickedUp() — split an item into scheduled pickup visits'},
@@ -1964,7 +1964,7 @@ const IMPL = {
   '1.9.6.10': {s:'done',    u:'/pharmacy/requisition', n:'PharmacyRequisitionPrint via window.print()'},
 
   '1.9.7.1':  {s:'done',    u:'/pharmacy/requisition', n:'รับเข้าคลังใหญ่ tab — createReceivingRecord/updateReceivingRecord/cancelReceivingRecord (cancel reverses the stock bump)'},
-  '1.9.7.2':  {s:'partial', u:'/pharmacy/requisition', n:'หน่วยงาน/ประเภทการรับ/เลขที่ใบรับ/PO/delivery-note fields exist; scanCode is a text field, not an actual barcode/camera scan'},
+  '1.9.7.2':  {s:'done',    u:'/pharmacy/requisition', n:'ฟอร์มรับเข้าครบ หน่วยงาน/ประเภท/เลขที่ใบรับ(auto)/วันที่ซื้อ/PO/DN/วันที่ส่งของ + สแกนเข้าระบบ: ช่องสแกน Enter / ปุ่มใช้รหัส / เปิดกล้องสแกน (BarcodeDetector+getUserMedia หรือจำลองสแกน) → resolveReceivingScan เติม header หรือเพิ่มแถวยาจาก barcode ใน DRUG_REGISTRY'},
   '1.9.7.3':  {s:'done',    u:'/pharmacy/requisition', n:'Per-line GPO/GPU/TPU (drugType), บรรจุ, ราคาทุน/ขาย/เบิกได้, วันหมดอายุ, Lot no.'},
   '1.9.7.4':  {s:'done',    u:'/pharmacy/requisition', n:'Each receiving line carries its own receivedFrom — one document, multiple manufacturers'},
 

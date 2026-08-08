@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useHistory } from 'react-router-dom';
-import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
+import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
@@ -16,6 +16,8 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { Icon } from '@/components/icons/Icon';
+import LabSubNav from '@/components/lab/LabSubNav';
+import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import LabSendOutFormPopup from '@/components/lab/LabSendOutFormPopup';
 import LabSendOutManifest from '@/components/lab/LabSendOutManifest';
@@ -465,14 +467,10 @@ const LabSendOutPage = () => {
       <QueuePageShell
         activeKey='lab'
         breadcrumb={breadcrumb}
-        title='ส่งตรวจภายนอก (Send-out lab)'
-        onBack={() => history.push('/lab/queue')}
-        backLabel='กลับไปยัง Worklist'
+        title='ส่งตรวจภายนอก (Lab-out)'
         summaryCards={summaryCards}
         summaryFlushUnderSubHeader={false}
-        tabs={tabs}
-        activeTab={tab}
-        onTabChange={setTab}
+        belowSummary={<LabSubNav />}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -523,9 +521,16 @@ const LabSendOutPage = () => {
               paddingRight: 'var(--dim-space-600)',
               paddingBottom: 'var(--dim-space-600)',
               paddingLeft: 'var(--dim-space-600)',
-              gap: 'var(--dim-space-400)',
+              gap: 'var(--dim-space-600)',
             }}
           >
+            <StickyStatusTabBar
+              tabs={tabs}
+              value={tab}
+              onChange={setTab}
+              aria-label='สถานะส่งตรวจภายนอก'
+            />
+
             <div className='w-full flex flex-wrap items-start' style={{ gap: 'var(--dim-space-300)' }}>
               <PrimarySearch
                 value={query}
@@ -545,9 +550,6 @@ const LabSendOutPage = () => {
                   ส่งตรวจภายนอก {selectedRows.length > 0 ? `(${selectedRows.length})` : ''}
                 </BrandPrimaryButton>
               )}
-              <NeutralSubdueButton variant='outline' size='md' leadingIcon='inventory_2' onClick={() => history.push('/lab/receive')}>
-                สถานีรับสิ่งส่งตรวจ
-              </NeutralSubdueButton>
             </div>
 
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
@@ -633,7 +635,7 @@ const LabSendOutPage = () => {
                   rows={pageRows}
                   rowKey={(row) => row.id}
                   stickyColCount={tab === 'pending' ? 2 : 1}
-                  stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+                  stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
                   emptyMessage={emptyCopy()}
                 />
                 <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)', paddingTop: 'var(--dim-space-200)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>

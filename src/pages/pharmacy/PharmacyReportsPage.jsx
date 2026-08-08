@@ -196,7 +196,7 @@ const PharmacyReportsPage = () => {
     <QueuePageShell
       activeKey='pharmacy'
       breadcrumb={breadcrumb}
-      title='รายงานระบบงานเภสัชกรรม'
+      title='ระบบงานเภสัชกรรม'
       summaryCards={summaryCards}
       actions={<PharmacyAddDrugButton />}
       belowSummary={<PharmacySubNav />}

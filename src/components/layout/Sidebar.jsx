@@ -96,17 +96,9 @@ const ITEMS = [
     ],
   },
   { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18, path: '/xray/queue' },
-  {
-    key: 'lab', label: 'ห้องปฏิบัติการ', icon: 'biotech', iconSize: 18, path: '/lab/queue',
-    subItems: [
-      { key: 'lab-queue',     label: 'คิวห้องปฏิบัติการ',                 path: '/lab/queue'     },
-      { key: 'lab-order',     label: 'บันทึกส่งตรวจ',                     path: '/lab/order'     },
-      { key: 'lab-receive',   label: 'สถานีรับสิ่งส่งตรวจ',                path: '/lab/receive'   },
-      { key: 'lab-send-out',  label: 'ส่งตรวจภายนอก (Lab-out)',           path: '/lab/send-out'  },
-      { key: 'lab-interface', label: 'เชื่อมต่อ LIS และเครื่องตรวจวิเคราะห์', path: '/lab/interface' },
-      { key: 'lab-setup',     label: 'ทะเบียนรายการตรวจ',                 path: '/lab/setup'     },
-    ],
-  },
+  /* Lab module pages cross-link via LabSubNav (TabUnderline) — same flat
+     pattern as pharmacy. */
+  { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',  iconSize: 18, path: '/lab/queue' },
   { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht',      path: '/finance'           },
   /* สิทธิและการเบิกจ่าย — TOR §1.7.3–1.7.5. ตรวจสอบสิทธิ · ส่งเบิก · Claim ·

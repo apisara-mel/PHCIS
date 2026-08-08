@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
+import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
 import BrandIconButton from '@/components/button/BrandIconButton';
@@ -11,7 +11,7 @@ import { PHARMACY_QUEUE, DISPENSE_STATUS, QUEUE_TYPES, PAYMENT_STATUS, checkAlle
 import { checkHighAlert } from '@/data/pharmacyRegistry';
 import { findMrPatientByHn } from '@/data/mrPatients';
 import PharmacySubNav, { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
-import TabPill, { TabBar } from '@/components/tab/TabPill';
+import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import { buildDispenseStatusSummaryCards, countRows } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatientAvatar';
@@ -26,7 +26,6 @@ const TABS = [
   { key: 'dispensed', label: 'จ่ายแล้ว',    icon: 'check_circle'  },
   { key: 'problem',   label: 'มีปัญหา',     icon: 'report'        },
   { key: 'no_show',   label: 'ไม่มารับยา',  icon: 'person_off'    },
-  { key: 'all',       label: 'ผู้รับบริการทั้งหมด', icon: 'group' },
 ];
 
 const TAB_STATUS_FILTER = {
@@ -88,18 +87,6 @@ const PAYMENT_FILTER_OPTIONS = [
   { value: PAYMENT_STATUS.UNPAID,         label: 'ค้างชำระ'       },
   { value: PAYMENT_STATUS.PAID,           label: 'ชำระแล้ว'       },
 ];
-const STATUS_FILTER_OPTIONS = [
-  { value: 'all', label: 'ทั้งหมด' },
-  { value: DISPENSE_STATUS.WAITING,   label: 'รอเรียก'      },
-  { value: DISPENSE_STATUS.CALLED,    label: 'เรียกแล้ว'    },
-  { value: DISPENSE_STATUS.PREPARING, label: 'จัดยา'        },
-  { value: DISPENSE_STATUS.DISPENSED, label: 'จ่ายแล้ว'     },
-  { value: DISPENSE_STATUS.PARTIAL,   label: 'จ่ายบางส่วน'  },
-  { value: DISPENSE_STATUS.PROBLEM,   label: 'มีปัญหา'      },
-  { value: DISPENSE_STATUS.NO_SHOW,   label: 'ไม่มารับยา'   },
-  { value: DISPENSE_STATUS.CANCELLED, label: 'ยกเลิก'       },
-];
-
 const actionModeForStatus = (status) => {
   if ([DISPENSE_STATUS.DISPENSED, DISPENSE_STATUS.NO_SHOW, DISPENSE_STATUS.PROBLEM, DISPENSE_STATUS.CANCELLED].includes(status)) return 'disabled';
   if (status === DISPENSE_STATUS.CALLED || status === DISPENSE_STATUS.PREPARING) return 'quaternary';
@@ -189,13 +176,12 @@ const EMPTY_MESSAGE = {
   dispensed: 'ยังไม่มีรายการที่จ่ายแล้ววันนี้',
   problem:   'ไม่มีรายการที่ติดปัญหา',
   no_show:   'ไม่มีผู้รับบริการที่ไม่มารับยา',
-  all:       'ยังไม่มีใบสั่งยาวันนี้',
 };
 
 /* Tabs whose rows can still be acted on. On the terminal tabs every "เรียกคิว"
    button would render disabled, so the column is dropped instead of showing a
    row of dead controls. */
-const ACTIONABLE_TABS = ['waiting', 'called', 'preparing', 'all'];
+const ACTIONABLE_TABS = ['waiting', 'called', 'preparing'];
 
 const PharmacyQueuePage = () => {
   const history = useHistory();
@@ -205,18 +191,13 @@ const PharmacyQueuePage = () => {
   const [queueTypeFilter, setQueueTypeFilter] = useState('all');
   const [allergyFilter, setAllergyFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [lastCalled, setLastCalled] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  /* Leaving "ผู้รับบริการทั้งหมด" hides the สถานะ dropdown, so clear it too —
-     a filter the pharmacist can no longer see must not keep narrowing the
-     table from off-screen. */
   const handleTabChange = (key) => {
     setActiveTab(key);
     setPage(1);
-    if (key !== 'all') setStatusFilter('all');
   };
 
   /* Same toggler as the OPD screening worklist (src/pages/opd/QueuePage.jsx)
@@ -258,7 +239,6 @@ const PharmacyQueuePage = () => {
       });
     }
     if (paymentFilter !== 'all') result = result.filter((r) => r.paymentStatus === paymentFilter);
-    if (statusFilter !== 'all') result = result.filter((r) => r.status === statusFilter);
     if (searchQ) {
       const q = searchQ.toLowerCase();
       result = result.filter((r) =>
@@ -268,7 +248,7 @@ const PharmacyQueuePage = () => {
       );
     }
     return result;
-  }, [rows, activeTab, queueTypeFilter, allergyFilter, paymentFilter, statusFilter, searchQ]);
+  }, [rows, activeTab, queueTypeFilter, allergyFilter, paymentFilter, searchQ]);
 
   /* Column-header sort — same pattern as the OPD screening worklist
      (src/pages/opd/QueuePage.jsx): only applied once the pharmacist
@@ -322,37 +302,37 @@ const PharmacyQueuePage = () => {
     return buildDispenseStatusSummaryCards(rows, { indicatorPrefix: indicator });
   }, [rows, lastCalled]);
 
-  /* Every tab carries its own count, so the pharmacist can see where the
-     backlog is without clicking through all seven. */
+  /* Every status tab carries its own count, so the pharmacist can see where
+     the backlog is without clicking through. */
   const tabCounts = useMemo(() => Object.fromEntries(
-    TABS.map((t) => {
-      const pred = TAB_STATUS_FILTER[t.key];
-      return [t.key, pred ? countRows(rows, pred) : rows.length];
-    }),
+    TABS.map((t) => [t.key, countRows(rows, TAB_STATUS_FILTER[t.key])]),
   ), [rows]);
 
   const filtersActive = queueTypeFilter !== 'all'
     || allergyFilter !== 'all'
     || paymentFilter !== 'all'
-    || statusFilter !== 'all'
     || searchQ.trim() !== '';
 
   const clearFilters = () => {
     setQueueTypeFilter('all');
     setAllergyFilter('all');
     setPaymentFilter('all');
-    setStatusFilter('all');
     setSearchQ('');
     setPage(1);
   };
 
-  const queueTypeOptions = [{ value: 'all', label: 'ทุกประเภทคิว' }, ...QUEUE_TYPES.map((t) => ({ value: t.key, label: t.label }))];
+  const queueTypeOptions = [{ value: 'all', label: 'ทุกประเภท' }, ...QUEUE_TYPES.map((t) => ({ value: t.key, label: t.label }))];
 
   const columns = useMemo(
     () => (ACTIONABLE_TABS.includes(activeTab)
       ? [...BASE_COLUMNS, { key: 'actions', label: 'การดำเนินการ', align: 'center', sortable: false, render: makeRenderActions({ onCall: handleCall }) }]
       : BASE_COLUMNS),
     [activeTab],
+  );
+
+  const statusTabs = useMemo(
+    () => TABS.map((t) => ({ ...t, count: tabCounts[t.key] })),
+    [tabCounts],
   );
 
   return (
@@ -378,20 +358,11 @@ const PharmacyQueuePage = () => {
           className='w-full flex flex-col'
           style={PHARMACY_WORKLIST_CARD_BODY}
         >
-          <TabBar aria-label='กรองตามสถานะ' align='center' className='self-center shrink-0 max-w-full'>
-            {TABS.map((t) => (
-              <TabPill
-                key={t.key}
-                size='large'
-                selected={activeTab === t.key}
-                leadingIcon={t.icon}
-                count={tabCounts[t.key]}
-                onClick={() => handleTabChange(t.key)}
-              >
-                {t.label}
-              </TabPill>
-            ))}
-          </TabBar>
+          <StickyStatusTabBar
+            tabs={statusTabs}
+            value={activeTab}
+            onChange={handleTabChange}
+          />
 
           <div className='w-full flex items-start justify-center'>
             <PrimarySearch
@@ -405,7 +376,7 @@ const PharmacyQueuePage = () => {
 
           <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <FilterDropdown
-              prefix='ประเภทคิว:'
+              prefix='ประเภท:'
               options={queueTypeOptions}
               value={queueTypeFilter}
               onChange={setQueueTypeFilter}
@@ -422,17 +393,6 @@ const PharmacyQueuePage = () => {
               value={paymentFilter}
               onChange={setPaymentFilter}
             />
-            {/* Only on "ผู้รับบริการทั้งหมด" — every other tab already IS a
-                status filter, so a second one there can only contradict the
-                tab or narrow it to nothing. */}
-            {activeTab === 'all' ? (
-              <FilterDropdown
-                prefix='สถานะ:'
-                options={STATUS_FILTER_OPTIONS}
-                value={statusFilter}
-                onChange={setStatusFilter}
-              />
-            ) : null}
             {/* Same chip shape as the filters it clears, and only present once
                 there is something to clear. */}
             {filtersActive ? (
@@ -455,7 +415,7 @@ const PharmacyQueuePage = () => {
               onSort={handleSort}
               stickyColCount={2}
               onRowClick={handleRowClick}
-              stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+              stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
               emptyMessage={filtersActive
                 ? 'ไม่พบรายการที่ตรงกับตัวกรอง'
                 : EMPTY_MESSAGE[activeTab] || 'ยังไม่มีรายการ'}

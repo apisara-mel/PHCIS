@@ -261,7 +261,7 @@ const LabPatientHistoryPage = () => {
         breadcrumb={breadcrumb}
         title='ผลตรวจย้อนหลัง / เปรียบเทียบ (Cumulative report)'
         onBack={() => historyNav.push('/lab/queue')}
-        backLabel='กลับไปยัง Worklist'
+        backLabel='กลับไปยังงานชันสูตรโรค (Lab)'
         summaryCards={summaryCards}
         summaryFlushUnderSubHeader={false}
       >

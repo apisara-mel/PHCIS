@@ -476,6 +476,8 @@ const MANUAL_SEED = [
     ownMedications: [], medErrors: [],
     items: [
       { id: 'i-3', name: 'Ibuprofen 400 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 2 ครั้ง', when: 'หลังอาหารทันที', quantity: 10, instructions: 'งดใช้ร่วมกับยาแก้ปวดกลุ่มเดียวกัน', source: 'new', quantityDispensed: 0, drugType: 'TPU' },
+      { id: 'i-3b', name: 'Paracetamol 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'ทุก 6 ชั่วโมงเมื่อมีอาการ', when: 'หลังอาหาร', quantity: 20, instructions: 'รับประทานเมื่อมีไข้หรือปวด', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-3c', name: 'Omeprazole 20 mg', dosePerTake: '1', unit: 'แคปซูล', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนอาหารเช้า', quantity: 14, instructions: 'รับประทานก่อนอาหาร 30 นาที', source: 'remed', quantityDispensed: 0, drugType: 'GPO' },
     ],
   },
   {
@@ -635,6 +637,32 @@ const FILLER_DRUGS = [
   { name: 'Enalapril 5 mg',     unit: 'เม็ด',   dosePerTake: '1', frequency: 'วันละ 1 ครั้ง',           when: 'เช้า',       quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง',         drugType: 'GPO' },
   { name: 'Amlodipine 5 mg',    unit: 'เม็ด',   dosePerTake: '1', frequency: 'วันละ 1 ครั้ง',           when: 'เช้า',       quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง',         drugType: 'GPO' },
 ];
+
+/* Build 2–4 line items per prescription so history / queue mock looks like
+   real multi-drug scripts (not a single Paracetamol every time). */
+const buildFillerItems = (startIdx, count, idPrefix, {
+  quantityScale = 1,
+  dispensed = false,
+} = {}) => {
+  const n = Math.max(1, Math.min(count, FILLER_DRUGS.length));
+  return Array.from({ length: n }, (_, j) => {
+    const drug = FILLER_DRUGS[(startIdx + j) % FILLER_DRUGS.length];
+    const quantity = Math.max(1, Math.round(drug.quantity * quantityScale));
+    return {
+      id: `${idPrefix}-${j}`,
+      name: drug.name,
+      dosePerTake: drug.dosePerTake,
+      unit: drug.unit,
+      frequency: drug.frequency,
+      when: drug.when,
+      quantity,
+      quantityDispensed: dispensed ? quantity : 0,
+      instructions: drug.instructions,
+      source: j === 0 ? 'new' : (j % 2 === 0 ? 'new' : 'remed'),
+      drugType: drug.drugType,
+    };
+  });
+};
 /* Front-of-queue rows have already been dealt with (a realistic FIFO
    pharmacy queue serves earlier arrivals first); only the tail is still
    `WAITING`. `SERVED_STATUS_CYCLE` covers the first `SERVED_CUTOFF` rows —
@@ -658,7 +686,6 @@ const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
   const n = i + 20; // continues P-012..P-019 → P-020..P-079
   const hn = FILLER_HNS[i % FILLER_HNS.length];
   const diagnosis = FILLER_DIAGNOSES[i % FILLER_DIAGNOSES.length];
-  const drug = FILLER_DRUGS[i % FILLER_DRUGS.length];
   const status = i < SERVED_CUTOFF
     ? SERVED_STATUS_CYCLE[i % SERVED_STATUS_CYCLE.length]
     : DISPENSE_STATUS.WAITING;
@@ -671,6 +698,7 @@ const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
   const issuedAt = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   const wasCalled = [DISPENSE_STATUS.CALLED, DISPENSE_STATUS.PREPARING, DISPENSE_STATUS.DISPENSED, DISPENSE_STATUS.PARTIAL].includes(status);
   const wasDispensed = status === DISPENSE_STATUS.DISPENSED;
+  const itemCount = 2 + (i % 3); /* 2–4 drugs per script */
   return {
     id: `ph-f${n}`, queueNo: `P-0${n}`, hn, issuedAt,
     status, queueType,
@@ -688,27 +716,16 @@ const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
     deliveryMethod: 'pickup', deliveryAddress: null,
     paymentStatus,
     ownMedications: [], medErrors: [],
-    items: [
-      {
-        id: `i-f${n}`, name: drug.name, dosePerTake: drug.dosePerTake, unit: drug.unit,
-        frequency: drug.frequency, when: drug.when, quantity: drug.quantity,
-        instructions: drug.instructions, source: 'new',
-        quantityDispensed: wasDispensed ? drug.quantity : 0, drugType: drug.drugType,
-      },
-    ],
+    items: buildFillerItems(i, itemCount, `i-f${n}`, { dispensed: wasDispensed }),
   };
 });
 
 const SEED = [...MANUAL_SEED, ...FILLER_SEED];
 
-/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.4.2) — ประวัติการรักษา/ผลตรวจ Lab/นัดหมาย
-   are joined live from treatmentVisits.js/labOrders.js/the appointment module
-   via `getPharmacySupportingInfo` (src/data/pharmacySupportingInfo.js).
-   ประวัติส่งปรึกษา/ผลตรวจทางรังสีวิทยา have no HN-keyed module anywhere in
-   this app yet (both are themselves undeveloped stub modules — see
-   docs/product-spec.md §10), so those two stay as illustrative per-row
-   overrides applied on top of the live join, same pattern as
-   `SPECIAL_WATCH_OVERRIDES` in mrPatients.js. */
+/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.4.2) — joined live via
+   `getPharmacySupportingInfo` (treatment / consult / lab / xray /
+   appointment). Per-row overrides below are fallbacks when the live join
+   returns null for that field (e.g. Spironolactone kidney-consult demo). */
 const SUPPORTING_INFO_OVERRIDES = {
   'P-018': {
     consultHistory: 'ส่งปรึกษาอายุรกรรมโรคไต 2 สัปดาห์ก่อน (ประเมินการทำงานของไตก่อนเริ่ม Spironolactone)',
@@ -737,7 +754,7 @@ export const PHARMACY_QUEUE = SEED.map((row) => ({
    filter had nothing to show for any other day. This backfills the past 6
    days as already-closed (DISPENSED) records — kept in a separate array
    rather than merged into `PHARMACY_QUEUE` itself, since that array also
-   backs the LIVE queue board (PharmacyQueuePage) and search (PharmacyHistoryPage),
+   backs the LIVE queue board (PharmacyQueuePage) and patient med-history popup,
    neither of which should show old closed prescriptions mixed into "today".
    PharmacyReportsPage is the only reader, via `PHARMACY_USAGE_HISTORY`.
    Quantity is scaled per day by `DAILY_VOLUME_FACTOR` (not a flat repeat) so
@@ -756,21 +773,19 @@ export const PHARMACY_USAGE_HISTORY = DAILY_VOLUME_FACTOR.flatMap((factor, dayId
   const rowsToday = Math.max(3, Math.round(FILLER_DRUGS.length * 2 * factor));
   return Array.from({ length: rowsToday }, (_, i) => {
     const hn = FILLER_HNS[(dayIdx * 7 + i) % FILLER_HNS.length];
-    const drug = FILLER_DRUGS[i % FILLER_DRUGS.length];
-    const quantity = Math.max(1, Math.round(drug.quantity * factor));
     const hour = 8 + (i % 8);
     const minute = (i % 6) * 10;
     const issuedAt = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    const itemCount = 2 + ((dayIdx + i) % 3); /* 2–4 drugs per past script */
     return {
       id: `ph-h${dayIdx}-${i}`, queueNo: `H-${daysAgo}-${String(i + 1).padStart(2, '0')}`,
       hn, vn: getVnByHn(hn), patientName: patientName(hn), issuedAt, issuedDate,
       dispensedAt: issuedAt, status: DISPENSE_STATUS.DISPENSED,
       verifiedBy: HISTORY_VERIFIERS[i % HISTORY_VERIFIERS.length],
-      items: [{
-        id: `i-h${dayIdx}-${i}`, name: drug.name, dosePerTake: drug.dosePerTake, unit: drug.unit,
-        frequency: drug.frequency, when: drug.when, quantity, quantityDispensed: quantity,
-        instructions: drug.instructions, source: 'new', drugType: drug.drugType,
-      }],
+      items: buildFillerItems(dayIdx * 3 + i, itemCount, `i-h${dayIdx}-${i}`, {
+        quantityScale: factor,
+        dispensed: true,
+      }),
     };
   });
 });

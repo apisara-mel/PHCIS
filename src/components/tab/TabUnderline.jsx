@@ -3,6 +3,7 @@ import { Icon } from '@/components/icons/Icon';
 import ActionList from '@/components/list/ActionList';
 import OverflowMoreTrigger from '@/components/overflow/OverflowMoreTrigger';
 import TabCountBadge from '@/components/tab/TabCountBadge';
+import { morphTabUnderlineBarStyle } from '@/components/layout/headerMorphStyles';
 
 /* MIH TabUnderline — design-system canonical underline tab strip.
    One component renders the whole row of tabs *and* the single sliding
@@ -100,10 +101,10 @@ const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick,
         color: textColor,
         fontSize: 'var(--type-size-base)',
         lineHeight: 1.5,
-        transform: pressed ? 'scale(0.98)' : 'scale(1)',
+        transform: pressed ? 'scale(0.97)' : (hovered ? 'translateY(-1px)' : 'translateY(0)'),
         transition: [
-          `color 200ms ${EASE}`,
-          `transform 140ms ${EASE}`,
+          `color 220ms ${EASE}`,
+          `transform 180ms ${EASE}`,
         ].join(', '),
       }}
     >
@@ -124,7 +125,7 @@ const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick,
               fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               fontSize: 'var(--type-size-base)',
               lineHeight: 1.5,
-              transition: `color 200ms ${EASE}`,
+              transition: `color 220ms ${EASE}`,
             }}
           >
             {tab.label}
@@ -144,8 +145,8 @@ const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick,
                 transformOrigin: 'center',
                 willChange: 'transform',
                 transition: [
-                  `transform 260ms ${EASE}`,
-                  `background-color 200ms ${EASE}`,
+                  `transform 280ms ${EASE}`,
+                  `background-color 220ms ${EASE}`,
                 ].join(', '),
                 pointerEvents: 'none',
               }}
@@ -166,6 +167,8 @@ const TabUnderline = React.forwardRef(function TabUnderline(
     value,
     onChange,
     animated = true,
+    /* When true, height/type/padding track `--header-morph-motion` (scroll compact). */
+    morphOnScroll = false,
     className = '',
     style = {},
     ...rest
@@ -359,7 +362,10 @@ const TabUnderline = React.forwardRef(function TabUnderline(
       ref={setRefs}
       role='tablist'
       className={`relative flex items-end ${className}`}
-      style={style}
+      style={{
+        ...style,
+        ...(morphOnScroll ? morphTabUnderlineBarStyle : null),
+      }}
       {...rest}
     >
       {tabs.map((tab, idx) => (
@@ -400,17 +406,17 @@ const TabUnderline = React.forwardRef(function TabUnderline(
             height: 'var(--dim-stroke-400, 4px)',
             background: indicator.color,
             borderRadius: '2px 2px 0 0',
-            transform: `translateX(${indicator.x}px)`,
+            transform: `translate3d(${indicator.x}px, 0, 0)`,
             opacity: indicator.ready ? 1 : 0,
             willChange: 'transform, width, background-color',
             transition: indicator.ready
               ? [
-                `transform 280ms ${EASE}`,
-                `width 280ms ${EASE}`,
-                `background-color 200ms ${EASE}`,
-                'opacity 160ms linear',
+                `transform 320ms ${EASE}`,
+                `width 320ms ${EASE}`,
+                `background-color 220ms ${EASE}`,
+                'opacity 180ms linear',
               ].join(', ')
-              : 'opacity 160ms linear',
+              : 'opacity 180ms linear',
             pointerEvents: 'none',
           }}
         />

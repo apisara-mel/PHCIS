@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
+import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
@@ -16,6 +16,8 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { Icon } from '@/components/icons/Icon';
+import LabSubNav from '@/components/lab/LabSubNav';
+import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import LabReceiptFormPopup from '@/components/lab/LabReceiptFormPopup';
 import {
@@ -534,14 +536,10 @@ const LabReceivePage = () => {
       <QueuePageShell
         activeKey='lab'
         breadcrumb={breadcrumb}
-        title='สถานีรับสิ่งส่งตรวจ (Specimen receiving)'
-        onBack={() => history.push('/lab/queue')}
-        backLabel='กลับไปยัง Worklist'
+        title='สถานีรับสิ่งส่งตรวจ'
         summaryCards={summaryCards}
         summaryFlushUnderSubHeader={false}
-        tabs={tabs}
-        activeTab={stage}
-        onTabChange={setStage}
+        belowSummary={<LabSubNav />}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -576,9 +574,16 @@ const LabReceivePage = () => {
               paddingRight: 'var(--dim-space-600)',
               paddingBottom: 'var(--dim-space-600)',
               paddingLeft: 'var(--dim-space-600)',
-              gap: 'var(--dim-space-400)',
+              gap: 'var(--dim-space-600)',
             }}
           >
+            <StickyStatusTabBar
+              tabs={tabs}
+              value={stage}
+              onChange={setStage}
+              aria-label='ขั้นตอนรับสิ่งส่งตรวจ'
+            />
+
             {/* Stage explainer + ผู้รับ. ผู้รับ must be chosen before any
                 disposition can be applied — validateReceiptDraft rejects an
                 empty receivedBy, so it is picked once at the counter rather
@@ -758,7 +763,7 @@ const LabReceivePage = () => {
                   rows={pageRows}
                   rowKey={(row) => row.id}
                   stickyColCount={2}
-                  stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+                  stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
                   emptyMessage='ไม่มีสิ่งส่งตรวจรอรับที่ขั้นตอนนี้'
                 />
                 <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)', paddingTop: 'var(--dim-space-200)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>

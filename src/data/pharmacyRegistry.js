@@ -118,6 +118,14 @@ const CANONICAL_OPTIONS = MEDICATION_NAME_OPTIONS.filter((o) => {
   return true;
 });
 
+/* §1.9.7.2 — EAN-13 style barcodes used by the receiving-form scanner.
+   Seed receiving rows in pharmacyQueue.js use the Paracetamol / Metformin
+   overrides so demo scan → fill-line stays stable. */
+const BARCODE_OVERRIDES = {
+  'Paracetamol 500 mg': '8850001112345',
+  'Metformin 500 mg': '8850001112352',
+};
+
 export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
   const { tradeName, genericName } = parseTradeGeneric(opt.value);
   /* อัตราการใช้เฉลี่ย + จุดสั่งซื้อ (legacy §2.2.1 field 3.11) — mock
@@ -130,6 +138,7 @@ export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
        `id` (a React-key-style slug), this is the human-facing drug code
        staff actually search/type, e.g. on a requisition or receiving form. */
     code: `MED-${String(i + 1).padStart(4, '0')}`,
+    barcode: BARCODE_OVERRIDES[opt.value] || `885${String(i + 1).padStart(10, '0')}`,
     name: opt.value,
     genericName,
     tradeName,
@@ -170,6 +179,11 @@ export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
 
 export const getRegistryDrug = (name) => DRUG_REGISTRY.find((d) => d.name === name) || null;
 export const getRegistryDrugById = (id) => DRUG_REGISTRY.find((d) => d.id === id) || null;
+export const getRegistryDrugByBarcode = (code) => {
+  const q = String(code || '').trim();
+  if (!q) return null;
+  return DRUG_REGISTRY.find((d) => d.barcode === q || d.code === q) || null;
+};
 
 /* Pub/sub so PharmacyRegistryPage's list re-renders after
    PharmacyRegistryEditPage saves — same pattern as
@@ -199,10 +213,12 @@ const nextDrugCode = () => {
 export const upsertRegistryDrug = (form) => {
   const isNew = !form.id || form.id === 'new';
   if (isNew) {
+    const id = `drug-${++registrySeq}`;
     const row = {
       ...form,
-      id: `drug-${++registrySeq}`,
+      id,
       code: form.code?.trim() || nextDrugCode(),
+      barcode: form.barcode?.trim() || `885${String(registrySeq).padStart(10, '0')}`,
       image: resolveMedicationImage(form.name, null),
     };
     DRUG_REGISTRY.push(row);

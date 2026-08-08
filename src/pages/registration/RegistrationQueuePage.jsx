@@ -21,7 +21,7 @@ import StatusBadge from '@/components/badge/StatusBadge';
 import Popover from '@/components/popup/Popover';
 import SuccessToast from '@/components/toast/SuccessToast';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
-import { MR_PATIENTS, findMrPatientByHn } from '@/data/mrPatients';
+import { MR_PATIENTS, findMrPatientByHn, lifeStatusLabel } from '@/data/mrPatients';
 import { MOBILE_PUSH_LOG, pushArrivalConfirmation } from '@/data/registrationVisits';
 import QueueTicketPrintPopup from './QueueTicketPrintPopup';
 import PatientCardPrintPopup, { buildOpdCardFromMr } from './PatientCardPrintPopup';
@@ -217,6 +217,16 @@ const renderAge = (row) => (
   <EllipsisText text={isNewPatientRow(row) || !row.age ? EMPTY_PENDING : String(row.age)} />
 );
 
+/* TOR §1.1.1.2 — dedicated สถานะชีวิต column (directory + queue). */
+const renderLifeStatus = (row) => {
+  const status = row.lifeStatus || 'alive';
+  return (
+    <StatusBadge style={status === 'deceased' ? 'neutral' : 'success'} size='small' showDot>
+      {lifeStatusLabel(status)}
+    </StatusBadge>
+  );
+};
+
 const renderVisitType = (row) => (
   <EllipsisText text={isNewPatientRow(row) || !row.visitType ? EMPTY_PENDING : row.visitType} />
 );
@@ -375,6 +385,7 @@ const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause,
     { key: 'age',          header: 'อายุ (ปี)',  sortable: true, render: renderAge },
     { key: 'nationalId',   header: 'เลขบัตรประชาชน', sortable: true, render: renderPrivacyCell('nationalId') },
     { key: 'phone',        header: 'โทรศัพท์', sortable: true, render: renderPrivacyCell('phone') },
+    { key: 'lifeStatus',   header: 'สถานะชีวิต', sortable: true, render: renderLifeStatus },
     !isDirectory && { key: 'status',       header: 'สถานะการเข้าใช้บริการ', sortable: true, render: renderStatus },
     { key: 'actions',      header: 'การดำเนินการ', render: makeRenderActions({ onCall, onPause, onCancel, onMore }) },
   ];

@@ -47,7 +47,7 @@ const LabReportPage = () => {
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
             >
               <Icon name='chevron-left' size={16} />
-              กลับไปยัง Worklist
+              กลับไปยังงานชันสูตรโรค (Lab)
             </button>
             <div className='flex-1' />
             <span className='text-xs text-ink-tertiary'>

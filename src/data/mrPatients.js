@@ -19,6 +19,17 @@ export const MR_STATUS = [
   { key: 'draft',     label: 'ที่ร่างไว้'   },
 ];
 
+/* TOR §1.1.1.2 — สถานะการมีชีวิต (shared by registration + module MPI tables). */
+export const MR_LIFE_STATUS = [
+  { key: 'alive',    label: 'มีชีวิตอยู่' },
+  { key: 'deceased', label: 'เสียชีวิต'  },
+];
+
+export const lifeStatusLabel = (status) => (
+  MR_LIFE_STATUS.find((s) => s.key === (status || 'alive'))?.label
+  || 'มีชีวิตอยู่'
+);
+
 /** เพศกำเนิด — smart-card / MR registration (matches `gender` on roster rows). */
 export const MR_GENDERS = ['ชาย', 'หญิง', 'อื่นๆ'];
 

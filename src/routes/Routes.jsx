@@ -64,7 +64,7 @@ import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
 import PharmacyRegistryEditPage from '@/pages/pharmacy/PharmacyRegistryEditPage';
 import PharmacyStockPage from '@/pages/pharmacy/PharmacyStockPage';
 import PharmacyRequisitionPage from '@/pages/pharmacy/PharmacyRequisitionPage';
-import PharmacyHistoryPage from '@/pages/pharmacy/PharmacyHistoryPage';
+import PharmacyPatientsPage from '@/pages/pharmacy/PharmacyPatientsPage';
 import PharmacyReportsPage from '@/pages/pharmacy/PharmacyReportsPage';
 import LabQueuePage from '@/pages/lab/LabQueuePage';
 import LabOrderPage from '@/pages/lab/LabOrderPage';
@@ -431,7 +431,7 @@ export default function Routes() {
         <Route exact path='/pharmacy/registry/:id' component={PharmacyRegistryEditPage} />
         <Route exact path='/pharmacy/stock'        component={PharmacyStockPage} />
         <Route exact path='/pharmacy/requisition'  component={PharmacyRequisitionPage} />
-        <Route exact path='/pharmacy/history'      component={PharmacyHistoryPage} />
+        <Route exact path='/pharmacy/patients'     component={PharmacyPatientsPage} />
         <Route exact path='/pharmacy/reports'      component={PharmacyReportsPage} />
 
         {/* งานชันสูตรโรค (Lab · TOR ข้อ 1.15). Eight screens, matching the

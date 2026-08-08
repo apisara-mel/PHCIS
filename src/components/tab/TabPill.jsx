@@ -227,6 +227,11 @@ const TabPill = React.forwardRef(function TabPill(
           `color 200ms ${EASE}`,
           `box-shadow 240ms ${EASE}`,
           `transform 140ms ${EASE}`,
+          /* Smooth large ↔ small when sticky chrome compacts on scroll. */
+          `padding 200ms ${EASE}`,
+          `height 200ms ${EASE}`,
+          `font-size 200ms ${EASE}`,
+          `gap 200ms ${EASE}`,
         ].join(', '),
         ...(styleOverride || {}),
       }}
