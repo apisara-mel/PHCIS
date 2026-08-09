@@ -16,15 +16,36 @@ export function useModalMotion(open, durationMs = MODAL_MOTION_MS) {
         closeTimerRef.current = null;
       }
       setMounted(true);
+
+      /* Browsers stop running requestAnimationFrame in a background tab. The
+         two-frame enter below would then never flip `visible`, leaving the
+         overlay mounted at opacity 0 — invisible but still `pointer-events:
+         auto` across the whole viewport, so every click is swallowed and the
+         page reads as frozen. Seen on OPD Screening, whose confirm popup
+         opens on mount (and whose tab goes to the background as soon as the
+         nurse opens the observation system in a new tab).
+
+         Hidden tab → skip the animation entirely; there is nothing to
+         animate that anyone can see. */
+      if (typeof document !== 'undefined' && document.hidden) {
+        setVisible(true);
+        return undefined;
+      }
+
       setVisible(false);
       let outerRaf = 0;
       let innerRaf = 0;
       outerRaf = window.requestAnimationFrame(() => {
         innerRaf = window.requestAnimationFrame(() => setVisible(true));
       });
+      /* Belt and braces for the visible-tab path: timers keep firing when
+         rAF does not (tab hidden mid-transition, throttled frames), so the
+         overlay can never get stuck invisible-but-blocking. */
+      const settleTimer = window.setTimeout(() => setVisible(true), durationMs);
       return () => {
         window.cancelAnimationFrame(outerRaf);
         window.cancelAnimationFrame(innerRaf);
+        window.clearTimeout(settleTimer);
       };
     }
 
