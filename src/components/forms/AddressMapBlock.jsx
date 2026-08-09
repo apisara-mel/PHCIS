@@ -157,6 +157,11 @@ const AddressMapBlock = ({
   hint = 'ลากหมุดเพื่อปรับตำแหน่ง คลิกบนแผนที่ หรือกด “ใช้ตำแหน่งปัจจุบัน”',
   readOnly = false,
   compact = false,
+  /* ตัดกรอบในของตัวเอง (padding 24 + maxWidth 780) ออก เพื่อให้ขอบซ้าย-ขวา
+     ตรงกับแถวฟิลด์ในฟอร์มที่ครอบอยู่. ค่าเริ่มต้น false เพราะมี ~15 จุดที่
+     เรียกใช้อยู่แล้ว — เปิดเฉพาะฟอร์มที่วางแผนที่ต่อจากแถวฟิลด์ตรง ๆ
+     (เพิ่มศูนย์บริการ · step "ที่ตั้ง"). */
+  flush = false,
 }) => {
   const mapRef = useRef(null);
   const draggingRef = useRef(false);
@@ -322,10 +327,9 @@ const AddressMapBlock = ({
       className='flex flex-col w-full'
       style={compact ? { maxWidth: 718 } : {
         gap: 'var(--dim-space-300)',
-        padding: 'var(--dim-space-600)',
         borderRadius: 'var(--dim-radius-400)',
         background: 'var(--surface-card-100)',
-        maxWidth: 780,
+        ...(flush ? {} : { padding: 'var(--dim-space-600)', maxWidth: 780 }),
       }}
     >
       {!compact && (

@@ -14,6 +14,8 @@ import Switch from '@/components/switch/Switch';
 import AlertDialog from '@/components/popup/AlertDialog';
 import SmallAlert from '@/components/alert/SmallAlert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
+import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
+import SuccessToast from '@/components/toast/SuccessToast';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import {
   readCenters,
@@ -21,6 +23,7 @@ import {
   computeCenterStats,
   formatCenterAddress,
   formatCenterHoursLine,
+  HOUR_GROUPS,
 } from '@/data/centerStore';
 
 /* ระบบจัดการระบบ · ศูนย์บริการ
@@ -71,6 +74,38 @@ const CENTER_TABS = [
   { key: 'draft', label: 'บันทึกร่าง', icon: 'save' },
 ];
 
+/* คำค้นตั้งต้นของ "ค้นหาล่าสุด" — ให้เห็นตั้งแต่เปิดหน้าครั้งแรก แล้วถูกแทนที่
+   ด้วยคำที่ผู้ใช้ค้นจริง */
+const CENTER_SEARCH_HISTORY_SEED = [
+  '4 ดินแดง',
+  '25 ห้วยขวาง',
+  '35 หัวหมาก',
+  '69 คันนายาว',
+  'GA0012460',
+];
+
+/* รายงานที่ป้อนให้ ExportFormatPopup (ตัวเดียวกับหน้าจัดการความยินยอม) —
+   popup ใช้ title/subtitle ขึ้นหัว และ table.columns เป็นตัวเลือกหัวข้อที่จะส่งออก */
+const CENTER_EXPORT_REPORT = {
+  key: 'center-registry',
+  title: 'ทะเบียนศูนย์บริการ',
+  subtitle: 'รายชื่อศูนย์บริการสาธารณสุขทั้งหมดในระบบ พร้อมรหัสหน่วยบริการและเวลาทำการ',
+  table: {
+    columns: [
+      { key: 'hcode9', header: 'รหัสหน่วยบริการ (9 หลัก)', width: 180 },
+      { key: 'hcode5', header: 'รหัสเดิม (5 หลัก)', width: 140 },
+      { key: 'code', header: 'รหัสศูนย์', width: 100 },
+      { key: 'name', header: 'ชื่อศูนย์บริการ', width: 220 },
+      { key: 'address', header: 'ที่ตั้ง', width: 320 },
+      { key: 'phone', header: 'เบอร์โทรศัพท์', width: 150 },
+      { key: 'email', header: 'อีเมล', width: 200 },
+      { key: 'hours', header: 'เวลาทำการ', width: 200 },
+      { key: 'status', header: 'สถานะ', width: 120 },
+    ],
+    rows: [],
+  },
+};
+
 const AMBULANCE_LOTTIE = '/illustration/ambulance.json';
 
 function EmptyIllustration() {
@@ -90,17 +125,29 @@ function EmptyIllustration() {
   return <LottieIllustration animationData={anim} size={160} loop ariaLabel='ยังไม่มีศูนย์บริการ' />;
 }
 
+/* เวลาทำการแยกตามกลุ่มวัน — จันทร์-ศุกร์ / เสาร์-อาทิตย์ / วันหยุดนักขัตฤกษ์
+   แสดงเฉพาะ "ในเวลาราชการ" ของแต่ละกลุ่มให้แถวไม่สูงเกินไป กลุ่มที่ปิดทำการ
+   formatCenterHoursLine จะคืน "ปิดทำการ" ให้เอง. */
 function HoursCell({ hours }) {
   return (
     <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
-      <div className='flex flex-col'>
-        <span style={SUBTEXT_CELL}>ในเวลาราชการ</span>
-        <span style={TEXT_CELL}>{formatCenterHoursLine(hours, 'in')}</span>
-      </div>
-      <div className='flex flex-col'>
-        <span style={SUBTEXT_CELL}>นอกเวลาราชการ</span>
-        <span style={TEXT_CELL}>{formatCenterHoursLine(hours, 'out')}</span>
-      </div>
+      {HOUR_GROUPS.map((g) => (
+        /* กลุ่มวันกับช่วงเวลาอยู่บรรทัดเดียวกัน — แถวตารางจะได้ไม่สูงเป็น 6 บรรทัด */
+        <div key={g.key} className='flex items-baseline' style={{ gap: 'var(--dim-space-200)' }}>
+          <span style={SUBTEXT_CELL}>{g.label}</span>
+          <span style={TEXT_CELL}>{formatCenterHoursLine(hours, 'in', g.key)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* รหัสหน่วยบริการ — 9 หลักเป็นตัวหลัก, 5 หลักเดิมเป็นบรรทัดรอง. */
+function HcodeCell({ row }) {
+  return (
+    <div className='flex flex-col'>
+      <span style={TEXT_CELL}>{row.hcode9 || '—'}</span>
+      <span style={SUBTEXT_CELL}>{row.hcode5 ? `เดิม ${row.hcode5}` : 'ไม่มีรหัสเดิม'}</span>
     </div>
   );
 }
@@ -113,9 +160,27 @@ export default function SystemCentersPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [toast, setToast] = useState(null);
   const [toggleConfirm, setToggleConfirm] = useState(null);
+  /* นำส่งออกรายงาน — ใช้ popup ตัวเดียวกับหน้าจัดการความยินยอม (เลือกไฟล์
+     PDF/Excel/CSV + ช่วงวันที่ + หัวข้อ + บันทึก log) ไม่สร้าง flow ใหม่ */
+  const [exportReport, setExportReport] = useState(null);
+  const [exportDone, setExportDone] = useState(false);
 
+  /* ค้นหาล่าสุด — seed ไว้ให้เห็นตั้งแต่ครั้งแรกที่เปิดหน้า (เบราว์เซอร์ใหม่
+     ยังไม่มีประวัติของตัวเอง) แล้วค่อยถูกแทนที่ด้วยคำที่ผู้ใช้ค้นจริง */
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
-    useSearchHistory('mih:primarysearch-history:centers');
+    useSearchHistory('mih:primarysearch-history:centers', {
+      seedIfEmpty: CENTER_SEARCH_HISTORY_SEED,
+    });
+
+  /* เรียงตามคอลัมน์ที่กดบนหัวตาราง — กดซ้ำสลับ asc/desc */
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const handleSort = (key) => {
+    setSortConfig((prev) => (
+      prev.key === key
+        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    ));
+  };
 
   const refresh = useCallback(() => {
     setCenters(readCenters());
@@ -150,8 +215,20 @@ export default function SystemCentersPage() {
   const stats = useMemo(() => computeCenterStats(centers), [centers]);
 
   const summaryCards = useMemo(() => [
-    { key: 'total', icon: 'local_hospital', color: 'info', value: String(stats.total), label: 'ศูนย์บริการทั้งหมด' },
-    { key: 'active', icon: 'check_circle', color: 'positive', value: String(stats.active), label: 'ศูนย์ที่เปิดบริการ' },
+    {
+      key: 'total',
+      icon: 'local_hospital',
+      color: 'info',
+      value: String(stats.total),
+      label: 'ศูนย์บริการทั้งหมด',
+    },
+    {
+      key: 'active',
+      icon: 'check_circle',
+      color: 'positive',
+      value: String(stats.active),
+      label: 'ศูนย์ที่เปิดบริการ',
+    },
     {
       key: 'inactive',
       icon: 'cancel',
@@ -177,7 +254,7 @@ export default function SystemCentersPage() {
       const inTab = activeTab === 'draft' ? c.draft : !c.draft;
       if (!inTab) return false;
 
-      const hay = `${c.code} ${c.name}`.toLowerCase();
+      const hay = `${c.code} ${c.name} ${c.hcode9 || ''} ${c.hcode5 || ''}`.toLowerCase();
       const matchesSearch = !q || hay.includes(q);
       const matchesStatus = !filterStatus
         || (filterStatus === 'active' && c.active)
@@ -185,6 +262,34 @@ export default function SystemCentersPage() {
       return matchesSearch && matchesStatus;
     });
   }, [centers, search, filterStatus, activeTab]);
+
+  /* ค่าที่ใช้เรียงต่อคอลัมน์ — เก็บแยกจาก render() เพราะบางคอลัมน์ render
+     เป็น JSX (รหัสหน่วยบริการ / เวลาทำการ) เรียงจาก DOM ตรง ๆ ไม่ได้ */
+  const sortValueOf = (row, key) => {
+    switch (key) {
+      case 'hcode': return row.hcode9 || '';
+      case 'code': return Number(row.code) || 0;
+      case 'name': return row.name || '';
+      case 'address': return formatCenterAddress(row.location);
+      case 'phone': return row.phones?.[0] || '';
+      case 'email': return row.emails?.[0] || '';
+      case 'website': return row.website || '';
+      case 'hours': return formatCenterHoursLine(row.hours, 'in', 'weekday');
+      case 'active': return row.active ? 1 : 0;
+      default: return '';
+    }
+  };
+
+  const sortedRows = useMemo(() => {
+    if (!sortConfig.key) return filteredRows;
+    const dir = sortConfig.direction === 'desc' ? -1 : 1;
+    return [...filteredRows].sort((a, b) => {
+      const av = sortValueOf(a, sortConfig.key);
+      const bv = sortValueOf(b, sortConfig.key);
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv), 'th') * dir;
+    });
+  }, [filteredRows, sortConfig]);
 
   const handleSubmitSearch = (value) => {
     const q = (value || '').trim();
@@ -207,6 +312,14 @@ export default function SystemCentersPage() {
   };
 
   const columns = useMemo(() => [
+    /* รหัสหน่วยบริการ 9 หลักเป็นรหัสหลักของศูนย์ จึงมาก่อนรหัสศูนย์ */
+    {
+      key: 'hcode',
+      header: 'รหัสหน่วยบริการ',
+      sortable: true,
+      minWidth: 140,
+      render: (row) => <HcodeCell row={row} />,
+    },
     {
       key: 'code',
       header: 'รหัสศูนย์',
@@ -282,22 +395,25 @@ export default function SystemCentersPage() {
         sidebarFallbackKey='system-centers'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
-        title={hasCenters ? undefined : 'ศูนย์บริการ'}
+        title='ศูนย์บริการ'
         headerInfo={hasCenters ? (
-          <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-              <h1 style={PANEL_TITLE}>ศูนย์บริการ</h1>
-              <BrandButton variant='fill' size='md' leadingIcon='add' onClick={goAdd}>
-                เพิ่มศูนย์บริการ
-              </BrandButton>
-            </div>
+          /* ชื่อหน้า + ปุ่มเพิ่มศูนย์อยู่ใน SubHeader มาตรฐานแล้ว (เหมือนหน้าอื่น)
+             ตรงนี้จึงเหลือเฉพาะการ์ดสรุป และเว้นบน 24px ให้เท่าหน้าอื่น */
+          <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)', paddingTop: 'var(--dim-space-600)' }}>
             <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               {summaryCards.map((c) => (
-                <SummaryCard key={c.key} card={c} variant='panel' hover />
+                <SummaryCard key={c.key} card={c} variant='panel' />
               ))}
             </div>
           </section>
         ) : null}
+        /* ปุ่มเพิ่มศูนย์บริการอยู่ใน SubHeader ที่ sticky ด้วย — เลื่อนตาราง
+           ลงไปแล้วปุ่มยังอยู่ ไม่ต้องเลื่อนกลับขึ้นบนสุด */
+        actions={hasCenters ? (
+          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={goAdd}>
+            เพิ่มศูนย์บริการ
+          </BrandButton>
+        ) : undefined}
         tabs={hasCenters ? tabDefs : undefined}
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -327,48 +443,54 @@ export default function SystemCentersPage() {
           </div>
         ) : (
           <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}>
-            <section
-              className='w-full flex flex-col items-center'
-              style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}
-            >
-              <PrimarySearch
-                value={search}
-                onChange={setSearch}
-                onSubmit={handleSubmitSearch}
-                placeholder='ค้นหารหัสศูนย์ / ชื่อศูนย์บริการ'
-                width={640}
-                history={searchHistory}
-                onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
-              />
-
-              <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-                <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  <FilterDropdown
-                    prefix='สถานะ:'
-                    options={STATUS_OPTIONS}
-                    value={filterStatus}
-                    onChange={setFilterStatus}
-                    placeholder='ทั้งหมด'
-                  />
-                  <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
-                </div>
-                <div className='flex-1' />
-                <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
-                  นำส่งออกรายงาน
-                </NeutralSubdueButton>
-              </div>
-            </section>
-
+            {/* ค้นหา + ตัวกรอง + ตาราง อยู่ในการ์ดขาวใบเดียวกัน — ตัวกรองคุม
+                ตารางที่อยู่ใต้มันโดยตรง แยกการ์ดแล้วอ่านเหมือนคนละเรื่อง */}
             <section
               className='w-full flex flex-col'
-              style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}
+              style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}
             >
+              <div className='w-full flex flex-col items-center' style={{ gap: 'var(--dim-space-600)' }}>
+                <PrimarySearch
+                  value={search}
+                  onChange={setSearch}
+                  onSubmit={handleSubmitSearch}
+                  placeholder='ค้นหารหัสศูนย์ / รหัสหน่วยบริการ / ชื่อศูนย์บริการ'
+                  width={640}
+                  history={searchHistory}
+                  onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+                />
+
+                <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+                  <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+                    <FilterDropdown
+                      prefix='สถานะ:'
+                      options={STATUS_OPTIONS}
+                      value={filterStatus}
+                      onChange={setFilterStatus}
+                      placeholder='ทั้งหมด'
+                    />
+                    <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
+                  </div>
+                  <div className='flex-1' />
+                  <NeutralSubdueButton
+                    leadingIcon='ios_share'
+                    size='sm'
+                    collapseLabelBelow='lg'
+                    onClick={() => setExportReport(CENTER_EXPORT_REPORT)}
+                  >
+                    นำส่งออกรายงาน
+                  </NeutralSubdueButton>
+                </div>
+              </div>
+
               <SmoothFilterResults opaque={resultsOpaque}>
               <Table
                 columns={columns}
-                rows={filteredRows}
+                rows={sortedRows}
                 rowKey={(row) => row.id}
-                stickyColCount={2}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                stickyColCount={3}
                 stickyShadow
                 emptyMessage={activeTab === 'draft' ? 'ไม่มีร่างศูนย์บริการ' : 'ไม่พบศูนย์บริการ'}
               />
@@ -377,6 +499,18 @@ export default function SystemCentersPage() {
           </div>
         )}
       </QueuePageShell>
+
+      <ExportFormatPopup
+        open={!!exportReport}
+        report={exportReport}
+        onClose={() => setExportReport(null)}
+        onExported={() => setExportDone(true)}
+      />
+      <SuccessToast
+        open={exportDone}
+        message='นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล'
+        onClose={() => setExportDone(false)}
+      />
 
       <AlertDialog
         open={!!toggleConfirm}

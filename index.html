@@ -52,6 +52,13 @@
 <body>
   <div id="root"></div>
   <script>
+    /* กันหน้าขาวเวลาไม่ได้รัน dev server จริง ๆ.
+       เดิมตั้งไว้ 5 วินาที ซึ่งสั้นเกินไปสำหรับ dev server ที่ module graph ยัง
+       เย็น (เพิ่ง restart / เพิ่งล้าง node_modules/.vite) — vite ใช้เวลา compile
+       เกิน 5 วิ ข้อความนี้เลยขึ้นทับ UI จริงทั้งที่เซิร์ฟเวอร์ทำงานปกติ ทำให้
+       ตอนรีวิวเข้าใจผิดว่าแอปพัง. ขยับเป็น 30 วินาที: ถ้าไม่ได้รันเซิร์ฟเวอร์
+       จริงก็ยังเห็นข้อความนี้อยู่ดี แค่ช้าลง ส่วน production bundle โหลดเร็ว
+       อยู่แล้วจึงไม่มีผล. */
     window.setTimeout(function () {
       var root = document.getElementById('root');
       if (root && !root.innerHTML.trim()) {
@@ -60,10 +67,10 @@
           '<h2 style="margin:0 0 12px;color:#363B3F">ยังไม่เห็นแอป — ต้องรัน dev server</h2>' +
           '<p style="margin:0 0 8px;color:#5C636A">ใน Terminal:</p>' +
           '<pre style="background:#F4F5F5;padding:12px;border-radius:8px">npm run dev</pre>' +
-          '<p style="margin:12px 0 0;color:#5C636A">เปิด <strong>http://127.0.0.1:3000/preview/body-record</strong></p>' +
+          '<p style="margin:12px 0 0;color:#5C636A">เปิด <strong>http://localhost:5173/</strong></p>' +
           '</div>';
       }
-    }, 5000);
+    }, 30000);
   </script>
   <script type="module" src="/src/main.jsx"></script>
 </body>

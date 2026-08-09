@@ -45,7 +45,7 @@ export const DEMO_ASSESS_USERS = [
     assignments: [
       {
         id: 'asgn-1',
-        centerId: 'center-4',
+        centerId: 'hc-4',
         center: 'ศูนย์ 4 ดินแดง',
         groupPolicyId: 'gp-doctor',
         groupPolicy: 'แพทย์',
@@ -75,7 +75,21 @@ export function emptyAssignment() {
     positionId: '',
     position: '',
     isPrimary: false,
+    /* ช่วงเวลาปฏิบัติงานที่ศูนย์นี้ — สิ้นสุดเว้นว่าง = ยังไม่กำหนด (ปฏิบัติงานต่อเนื่อง) */
+    startAt: '',
+    endAt: '',
+    /* บุคลากรคนเดียวกัน Active ที่ศูนย์หนึ่งแต่ Inactive อีกศูนย์ได้
+       (ย้าย/พ้นหน้าที่เฉพาะสาขา) — สถานะจึงอยู่ระดับ assignment ไม่ใช่ระดับคน */
+    active: true,
   };
+}
+
+/** จำนวนศูนย์ที่บุคลากรคนนี้ยัง Active อยู่. */
+export function activeCenterCount(user) {
+  const ids = new Set(
+    (user?.assignments || []).filter((a) => a.active !== false && a.centerId).map((a) => a.centerId),
+  );
+  return ids.size;
 }
 
 export function readAssessUsers() {

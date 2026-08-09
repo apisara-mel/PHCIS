@@ -307,7 +307,7 @@ export default function AssessUserDetailPage() {
 
         <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
           {summaryCards.map((c) => (
-            <SummaryCard key={c.key} card={c} variant='panel' hover />
+            <SummaryCard key={c.key} card={c} variant='panel' />
           ))}
         </div>
 
