@@ -1,10 +1,14 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
+import FilterDateTag from '@/components/forms/FilterDateTag';
+import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
@@ -16,12 +20,12 @@ import {
   updateReceivingRecord, deleteReceivingRecord,
   estimateDaysUntilNextRequisition,
 } from '@/data/pharmacyQueue';
-import { DRUG_REGISTRY, UNIT_TYPES, getRegistryDrug } from '@/data/pharmacyRegistry';
+import { DRUG_REGISTRY, UNIT_TYPES, SUPPLIER_OPTIONS, getRegistryDrug } from '@/data/pharmacyRegistry';
 import { resolveMedicationImage } from '@/data/medicationCatalog';
-import { CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE } from '@/components/layout/HeaderClinicContext';
+import { CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import PharmacySubNav, { PharmacyHeaderActions } from '@/components/pharmacy/PharmacySubNav';
 import PharmacySectionTopic from '@/components/pharmacy/PharmacySectionTopic';
-import TabPill, { TabBar } from '@/components/tab/TabPill';
+import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import PharmacyRequisitionPrint from '@/components/pharmacy/PharmacyRequisitionPrint';
 import PharmacyReceivingScanPopup from '@/components/pharmacy/PharmacyReceivingScanPopup';
 import Alert from '@/components/alert/Alert';
@@ -29,9 +33,17 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import Popup from '@/components/popup/Popup';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
+import Textarea from '@/components/forms/Textarea';
+import DatePicker from '@/components/forms/DatePicker';
+import { Field } from '@/components/forms/Fields';
+import Stepper from '@/components/stepper/Stepper';
 import { resolveReceivingScan } from '@/data/pharmacyReceivingScan';
 import { buildRequisitionSummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
-import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
+import {
+  PHARMACY_INSET_GROUP,
+  PHARMACY_INSET_GROUP_HOVERABLE_CLASS,
+  PHARMACY_WORKLIST_CARD_BODY,
+} from '@/pages/pharmacy/pharmacyContentCard';
 
 /* เบิกจ่ายยา/เวชภัณฑ์ + บันทึกรับยาเข้าคลังใหญ่ (ToR §1.9.6-1.9.7) — two-tab
    record list (เบิกจ่าย / รับเข้าคลังใหญ่) with a mock "new" action for
@@ -66,6 +78,60 @@ const REQ_CATEGORY_FILTER_OPTIONS = [
   { value: 'all', label: 'ทั้งหมด' },
   ...REQUISITION_ITEM_CATEGORIES.map((c) => ({ value: c.key, label: c.label })),
 ];
+
+const RCV_STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'ทั้งหมด' },
+  { value: 'received', label: 'รับเข้าแล้ว' },
+  { value: 'cancelled', label: 'ยกเลิกแล้ว' },
+];
+
+const RCV_TYPE_FILTER_OPTIONS = [
+  { value: 'all', label: 'ทั้งหมด' },
+  ...RECEIVING_TYPES.map((t) => ({ value: t.key, label: t.label })),
+];
+
+const RCV_DRUG_TYPE_FILTER_OPTIONS = [
+  { value: 'all', label: 'ทั้งหมด' },
+  { value: 'GPO', label: 'GPO' },
+  { value: 'GPU', label: 'GPU' },
+  { value: 'TPU', label: 'TPU' },
+];
+
+const DEFAULT_DATE_FILTER = { quick: 'all' };
+
+const startOfDay = (d) => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+
+/* Resolve FilterDateTag value → { start, end } (inclusive day bounds). */
+const resolveDateFilterRange = (value) => {
+  if (!value?.quick || value.quick === 'all') return null;
+  if (value.quick === 'custom') {
+    if (value.tab === 'single' && value.single) {
+      const day = startOfDay(value.single);
+      return { start: day, end: day };
+    }
+    if (value.tab === 'range' && value.range?.start && value.range?.end) {
+      return { start: startOfDay(value.range.start), end: startOfDay(value.range.end) };
+    }
+    return null;
+  }
+  const single = computeQuickSingle(value.quick);
+  if (single) return { start: single, end: single };
+  const range = computeQuickRange(value.quick);
+  if (!range) return null;
+  return { start: startOfDay(range.start), end: startOfDay(range.end) };
+};
+
+const matchesRequestedAtFilter = (requestedAt, value) => {
+  const range = resolveDateFilterRange(value);
+  if (!range) return true;
+  const d = startOfDay(new Date(requestedAt));
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getTime() >= range.start.getTime() && d.getTime() <= range.end.getTime();
+};
 
 const REQUISITION_TYPE_LABEL = {
   regular: 'ปกติ', urgent: 'ด่วน', 'other-unit': 'จ่ายให้หน่วยงานอื่น',
@@ -144,150 +210,400 @@ const inputStyle = {
   fontSize: 'var(--type-size-sm)',
 };
 
-const blankRequisitionLine = () => lineFromDrugName(DRUG_REGISTRY[0]?.name || '', 100);
+/** First unused registry drug — keeps multi-line requisitions free of duplicates. */
+const firstAvailableDrugName = (takenNames = []) => {
+  const taken = new Set((takenNames || []).filter(Boolean));
+  const free = DRUG_REGISTRY.find((d) => d?.name && !taken.has(d.name));
+  return free?.name || '';
+};
+
+const blankRequisitionLine = (takenNames = []) => {
+  const name = firstAvailableDrugName(takenNames);
+  return name ? lineFromDrugName(name, 100) : lineFromDrugName('', 100);
+};
+
+/* Shared 4-col grid so line fields line up with header Selects:
+   col1–2 ชื่อยา · col3 จำนวนที่ขอเบิก (= ประเภทรายการ) · col4 หน่วยนับ (= ประเภทการเบิก). */
+const REQ_FORM_COL_GAP = 'var(--dim-space-400)';
+const REQ_FORM_LINE_INSET = 'var(--dim-space-400)';
+const REQ_FORM_GRID = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  columnGap: REQ_FORM_COL_GAP,
+  width: '100%',
+  alignItems: 'start',
+  boxSizing: 'border-box',
+};
 
 /* §1.9.6.9 — one requisition document, many drug lines (add/remove).
    §1.9.6.3/.5/.7/.8 — requesting center + target unit + item category +
-   live usage-rate/days-of-stock context per line, all captured up front. */
-const NewRequisitionForm = ({ onCreate, onCancel }) => {
-  const [requestingCenter, setRequestingCenter] = useState(DEFAULT_CLINIC_VALUE);
+   live usage-rate/days-of-stock context per line, all captured up front.
+   Opens as Popup (same chrome as แก้ไขคำขอเบิก). */
+const NewRequisitionPopup = ({ open, onClose, onCreate }) => {
+  const clinicCtx = useClinicFilter();
+  /* Filled from Hub header clinic — not editable on this form. */
+  const requestingCenter = clinicCtx?.clinic || DEFAULT_CLINIC_VALUE;
   const [targetUnit, setTargetUnit] = useState(REQUISITION_TARGETS[0].key);
   const [itemCategory, setItemCategory] = useState(REQUISITION_ITEM_CATEGORIES[0].key);
   const [requisitionType, setRequisitionType] = useState('regular');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState([blankRequisitionLine()]);
+  const [pendingRemoveIdx, setPendingRemoveIdx] = useState(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setTargetUnit(REQUISITION_TARGETS[0].key);
+    setItemCategory(REQUISITION_ITEM_CATEGORIES[0].key);
+    setRequisitionType('regular');
+    setNotes('');
+    setLines([blankRequisitionLine()]);
+    setPendingRemoveIdx(null);
+  }, [open]);
 
   const updateLine = (idx, patch) => setLines((ls) => ls.map((l, i) => {
     if (i !== idx) return l;
     if (patch.drugName != null && patch.drugName !== l.drugName) {
+      const taken = ls.filter((_, j) => j !== idx).map((x) => x.drugName);
+      if (taken.includes(patch.drugName)) return l;
       return lineFromDrugName(patch.drugName, l.quantity);
     }
     return { ...l, ...patch };
   }));
-  const addLine = () => setLines((ls) => [...ls, blankRequisitionLine()]);
-  const removeLine = (idx) => setLines((ls) => ls.filter((_, i) => i !== idx));
-
-  const handleSubmit = () => onCreate({
-    items: lines.map((l) => ({
-      drugName: l.drugName,
-      quantity: l.quantity,
-      packSize: l.packQty !== '' && l.packQty != null ? String(l.packQty) : '',
-      unit: registryUnitLabel(l.unitKey || getRegistryDrug(l.drugName)?.unit),
-    })),
-    requisitionType, notes, requestingCenter, targetUnit, itemCategory,
+  const addLine = () => setLines((ls) => {
+    const next = blankRequisitionLine(ls.map((l) => l.drugName));
+    if (!next.drugName) return ls;
+    return [...ls, next];
   });
+  const removeLine = (idx) => setLines((ls) => ls.filter((_, i) => i !== idx));
+  const pendingRemoveLine = pendingRemoveIdx != null ? lines[pendingRemoveIdx] : null;
+  const confirmRemoveLine = () => {
+    if (pendingRemoveIdx == null) return;
+    removeLine(pendingRemoveIdx);
+    setPendingRemoveIdx(null);
+  };
+
+  const selectedDrugNames = new Set(lines.map((l) => l.drugName).filter(Boolean));
+  const canAddLine = DRUG_REGISTRY.some((d) => d?.name && !selectedDrugNames.has(d.name));
+
+  const headerComplete = Boolean(targetUnit && itemCategory && requisitionType);
+  const canSubmit = headerComplete
+    && lines.length > 0
+    && lines.every((l) => l.drugName && Number(l.packQty) > 0);
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    onCreate({
+      items: lines.map((l) => {
+        const qty = Number(l.packQty) || 0;
+        return {
+          drugName: l.drugName,
+          quantity: qty,
+          packSize: qty > 0 ? String(qty) : '',
+          unit: registryUnitLabel(l.unitKey || getRegistryDrug(l.drugName)?.unit),
+        };
+      }),
+      requisitionType, notes, requestingCenter, targetUnit, itemCategory,
+    });
+  };
 
   return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', ...PHARMACY_NESTED_PANEL }}>
-      <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>ศูนย์บริการสาธารณสุขผู้ขอเบิก</span>
-          <select value={requestingCenter} onChange={(e) => setRequestingCenter(e.target.value)} style={{ ...inputStyle, minWidth: 'var(--dim-size-2280, 218px)', appearance: 'none' }}>
-            {CLINIC_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
-        </label>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>หน่วยงานที่ส่งคำร้องไป</span>
-          <select value={targetUnit} onChange={(e) => setTargetUnit(e.target.value)} style={{ ...inputStyle, minWidth: 'var(--dim-size-2280, 218px)', appearance: 'none' }}>
-            {REQUISITION_TARGETS.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-          </select>
-        </label>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>ประเภทรายการ</span>
-          <select value={itemCategory} onChange={(e) => setItemCategory(e.target.value)} style={{ ...inputStyle, minWidth: 'var(--dim-size-2050, 144px)', appearance: 'none' }}>
-            {REQUISITION_ITEM_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-          </select>
-        </label>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>ประเภทการเบิก</span>
-          <select value={requisitionType} onChange={(e) => setRequisitionType(e.target.value)} style={{ ...inputStyle, minWidth: 'var(--dim-size-2050, 144px)', appearance: 'none' }}>
-            {REQUISITION_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-          </select>
-        </label>
-        <label className='flex flex-col flex-1' style={{ gap: 'var(--dim-space-100, 4px)', minWidth: 'var(--dim-size-2170, 177px)' }}>
-          <span className='text-xs text-ink-tertiary'>หมายเหตุ</span>
-          <input type='text' value={notes} onChange={(e) => setNotes(e.target.value)} placeholder='(ถ้ามี)' style={inputStyle} />
-        </label>
-      </div>
+    <>
+    <Popup
+      open={open}
+      onClose={onClose}
+      size='extraLarge'
+      title='สร้างคำขอเบิก'
+      subtitle='ระบุศูนย์ผู้ขอเบิก หน่วยงานปลายทาง และรายการยาที่ต้องการเบิก'
+      primaryAction={{
+        label: 'ส่งคำขอเบิก',
+        onClick: handleSubmit,
+        disabled: !canSubmit,
+        leadingIcon: 'send',
+      }}
+      secondaryAction={{
+        label: 'ปิด',
+        onClick: onClose,
+      }}
+    >
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+        <div
+          style={{
+            ...REQ_FORM_GRID,
+            paddingLeft: REQ_FORM_LINE_INSET,
+            paddingRight: REQ_FORM_LINE_INSET,
+          }}
+        >
+          <div className='min-w-0'>
+            <Select
+              label='ศูนย์บริการสาธารณสุขผู้ขอเบิก'
+              value={requestingCenter}
+              onChange={() => {}}
+              options={CLINIC_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
+              searchable={false}
+              showHelperText={false}
+              disabled
+              className='w-full'
+              style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div className='min-w-0'>
+            <Select
+              label='หน่วยงานที่ส่งคำร้องไป'
+              value={targetUnit}
+              onChange={setTargetUnit}
+              options={REQUISITION_TARGETS.map((t) => ({ value: t.key, label: t.label }))}
+              searchable={false}
+              showHelperText={false}
+              required
+              className='w-full'
+              style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div className='min-w-0'>
+            <Select
+              label='ประเภทรายการ'
+              value={itemCategory}
+              onChange={setItemCategory}
+              options={REQUISITION_ITEM_CATEGORIES.map((c) => ({ value: c.key, label: c.label }))}
+              searchable={false}
+              showHelperText={false}
+              required
+              className='w-full'
+              style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div className='min-w-0'>
+            <Select
+              label='ประเภทการเบิก'
+              value={requisitionType}
+              onChange={setRequisitionType}
+              options={REQUISITION_TYPES.map((t) => ({ value: t.key, label: t.label }))}
+              searchable={false}
+              showHelperText={false}
+              required
+              className='w-full'
+              style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+        </div>
+        <div
+          style={{
+            ...REQ_FORM_GRID,
+            paddingLeft: REQ_FORM_LINE_INSET,
+            paddingRight: REQ_FORM_LINE_INSET,
+          }}
+        >
+          <div className='min-w-0' style={{ gridColumn: '1 / span 2', maxWidth: '100%' }}>
+            <Textarea
+              label='หมายเหตุ'
+              value={notes}
+              onChange={setNotes}
+              placeholder='(ถ้ามี)'
+              rows={3}
+              showHelperText={false}
+              style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}
+            />
+          </div>
+        </div>
 
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-        {lines.map((line, idx) => {
-          const days = estimateDaysUntilNextRequisition(line.drugName);
-          const usage = DRUG_REGISTRY.find((d) => d.name === line.drugName)?.usageRate;
-          return (
-            <div key={idx} className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                <span className='text-xs text-ink-tertiary'>ชื่อยา</span>
-                <select value={line.drugName} onChange={(e) => updateLine(idx, { drugName: e.target.value })} style={{ ...inputStyle, minWidth: 'var(--dim-size-2280, 218px)', appearance: 'none' }}>
-                  {DRUG_REGISTRY.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
-                </select>
-              </label>
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                <span className='text-xs text-ink-tertiary'>ขอเบิกใหม่</span>
-                <input type='number' min='1' value={line.quantity} onChange={(e) => updateLine(idx, { quantity: Number(e.target.value) })} style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)' }} />
-              </label>
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                <span className='text-xs text-ink-tertiary'>จำนวนที่ขอเบิก</span>
-                <input
-                  type='number'
-                  min='1'
-                  value={line.packQty}
-                  onChange={(e) => updateLine(idx, { packQty: e.target.value === '' ? '' : Number(e.target.value) })}
-                  placeholder='เช่น 500'
-                  style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)' }}
-                />
-              </label>
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                <span className='text-xs text-ink-tertiary'>หน่วยนับ</span>
-                <input
-                  type='text'
-                  readOnly
-                  value={registryUnitLabel(line.unitKey)}
-                  style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)', color: 'var(--text-content-secondary)' }}
-                />
-              </label>
-              <span className='text-xs' style={{ color: 'var(--text-content-tertiary)', paddingBottom: 'var(--dim-space-200)' }}>
-                ใช้เฉลี่ย/เดือน: {usage?.avgPerMonth ?? '—'} · เหลือถึงวันเบิกใหม่: {days != null ? `~${days} วัน` : '—'}
-              </span>
-              {lines.length > 1 && (
-                <button
-                  type='button' onClick={() => removeLine(idx)} aria-label='ลบรายการ'
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-content-tertiary)', paddingBottom: 'var(--dim-space-200)' }}
-                >
-                  <Icon name='close' size={18} />
-                </button>
-              )}
-            </div>
-          );
-        })}
-        <NeutralSubdueButton size='sm' variant='outline' leadingIcon='add' onClick={addLine} className='self-start'>
-          เพิ่มรายการยา
-        </NeutralSubdueButton>
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <PharmacySectionTopic
+            title='รายการยาที่ต้องการขอเบิก'
+            hierarchy='secondary'
+            style={{
+              paddingTop: 'var(--dim-space-400)',
+              paddingLeft: REQ_FORM_LINE_INSET,
+              paddingRight: REQ_FORM_LINE_INSET,
+            }}
+          />
+          <div
+            className='flex flex-col w-full'
+            style={{
+              gap: 'var(--dim-space-300)',
+              paddingLeft: REQ_FORM_LINE_INSET,
+              paddingRight: REQ_FORM_LINE_INSET,
+            }}
+          >
+            {lines.map((line, idx) => {
+              const showFieldLabels = idx === 0;
+              const takenElsewhere = new Set(
+                lines.filter((_, i) => i !== idx).map((l) => l.drugName).filter(Boolean),
+              );
+              const drugOptions = DRUG_REGISTRY
+                .filter((d) => d?.name && (d.name === line.drugName || !takenElsewhere.has(d.name)))
+                .map((d) => ({
+                  value: d.name,
+                  label: d.name,
+                  image: d.image || resolveMedicationImage(d.name, null) || undefined,
+                }));
+              return (
+                <div key={idx} className='w-full' style={{ ...REQ_FORM_GRID, maxWidth: '100%' }}>
+                  <div className='min-w-0' style={{ gridColumn: '1 / span 2', maxWidth: '100%' }}>
+                    <Select
+                      label='ชื่อยา'
+                      value={line.drugName}
+                      onChange={(v) => updateLine(idx, { drugName: v })}
+                      options={drugOptions}
+                      searchable
+                      required
+                      showLabel={showFieldLabels}
+                      showHelperText={false}
+                      className='w-full'
+                      style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div className='min-w-0 w-full' style={{ maxWidth: '100%' }}>
+                    <Field
+                      label={showFieldLabels ? 'จำนวนที่ขอเบิก' : null}
+                      required={showFieldLabels}
+                    >
+                      <Stepper
+                        min={1}
+                        value={line.packQty === '' || line.packQty == null ? null : Number(line.packQty)}
+                        onChange={(n) => updateLine(idx, {
+                          packQty: n == null || Number.isNaN(n) ? '' : n,
+                        })}
+                        aria-label='จำนวนที่ขอเบิก'
+                        className='w-full'
+                        style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                      />
+                    </Field>
+                  </div>
+                  <div
+                    className='min-w-0 flex items-start'
+                    style={{ gap: 'var(--dim-space-200)', maxWidth: '100%' }}
+                  >
+                    <div className='min-w-0 flex-1'>
+                      <InputField
+                        label='หน่วยนับ'
+                        value={registryUnitLabel(line.unitKey)}
+                        onChange={() => {}}
+                        disabled
+                        showLabel={showFieldLabels}
+                        showHelperText={false}
+                        style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    {lines.length > 1 ? (
+                      <NeutralSubdueButton
+                        size='sm'
+                        variant='outline'
+                        leadingIcon='delete'
+                        onClick={() => setPendingRemoveIdx(idx)}
+                        className='shrink-0'
+                        aria-label='ลบรายการ'
+                        style={showFieldLabels
+                          ? { marginTop: 'var(--dim-space-700, 28px)' }
+                          : undefined}
+                      >
+                        ลบ
+                      </NeutralSubdueButton>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+            <NeutralSubdueButton
+              size='sm'
+              variant='outline'
+              leadingIcon='add'
+              onClick={addLine}
+              disabled={!canAddLine}
+              className='self-start'
+            >
+              เพิ่มรายการยา
+            </NeutralSubdueButton>
+          </div>
+        </div>
       </div>
-
-      <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-200)' }}>
-        <NeutralSubdueButton size='sm' variant='outline' onClick={onCancel}>ยกเลิก</NeutralSubdueButton>
-        <BrandButton size='sm' leadingIcon='send' onClick={handleSubmit}>ส่งคำขอเบิก</BrandButton>
-      </div>
-    </div>
+    </Popup>
+    <AlertDialog
+      open={pendingRemoveIdx != null && pendingRemoveLine != null}
+      type='destructive'
+      alignment='center'
+      title='ลบรายการนี้?'
+      description={pendingRemoveLine
+        ? `ยืนยันลบรายการที่ ${pendingRemoveIdx + 1}${pendingRemoveLine.drugName ? ` «${pendingRemoveLine.drugName}»` : ''} — ข้อมูลในรายการนี้จะหายไป`
+        : ''}
+      confirmLabel='ลบ'
+      cancelLabel='ยกเลิก'
+      onConfirm={confirmRemoveLine}
+      onCancel={() => setPendingRemoveIdx(null)}
+      onClose={() => setPendingRemoveIdx(null)}
+    />
+    </>
   );
 };
 
-const DRUG_TYPE_OPTIONS = ['GPO', 'GPU', 'TPU'];
+const DRUG_TYPE_OPTIONS = [
+  { value: 'GPO', label: 'GPO' },
+  { value: 'GPU', label: 'GPU' },
+  { value: 'TPU', label: 'TPU' },
+];
 
-const blankReceivingLine = () => ({
-  drugName: DRUG_REGISTRY[0]?.name || '', quantity: 500, packSize: '',
-  lot: '', expiryDate: '', receivedFrom: 'องค์การเภสัชกรรม (GPO)',
-  drugType: 'GPO', costPrice: 1, salePrice: 1.5, claimablePrice: 1.5,
+const FIELD_FULL = { width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' };
+
+/** Parse YYYY-MM-DD → local Date (avoids UTC day-shift). */
+const parseIsoDate = (iso) => {
+  if (!iso) return null;
+  const [y, m, d] = String(iso).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+};
+const toIsoDate = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+let receivingLineSeq = 0;
+/* Demo-seeded first line when the popup opens. */
+const blankReceivingLine = () => {
+  const drug = DRUG_REGISTRY[0];
+  return {
+    id: `recv-line-${++receivingLineSeq}`,
+    drugName: drug?.name || '',
+    quantity: 500,
+    unitKey: drug?.unit || 'tablet',
+    lot: '',
+    expiryDate: '',
+    receivedFrom: 'องค์การเภสัชกรรม (GPO)',
+    drugType: 'GPO',
+    costPrice: 1,
+    salePrice: 1.5,
+    claimablePrice: 1.5,
+  };
+};
+/* Extra lines from «รายการยา» start empty — user fills every field. */
+const emptyReceivingLine = () => ({
+  id: `recv-line-${++receivingLineSeq}`,
+  drugName: '',
+  quantity: '',
+  unitKey: '',
+  lot: '',
+  expiryDate: '',
+  receivedFrom: '',
+  drugType: '',
+  costPrice: '',
+  salePrice: '',
+  claimablePrice: '',
 });
 
 /* §1.9.7.2/.4 — document-level header (หน่วยงาน/ประเภทการรับ/เลขที่ใบสั่งซื้อ/
    วันที่ซื้อ/เลขที่ใบส่งของ/วันที่ส่งของ) + barcode/camera scan that fills
    header fields or appends a drug line — plus multiple lines, each with its
    OWN "รับจาก" (manufacturer/supplier) so one receiving document can cover
-   several manufacturers at once. */
-const NewReceivingForm = ({ onCreate, onCancel }) => {
-  const [department, setDepartment] = useState('คลังยาใหญ่ศูนย์ 4 ดินแดง');
+   several manufacturers at once. Opens as Popup (same chrome as สร้างคำขอเบิก).
+   All fields alias MIH DS: InputField · Select · DatePicker · Stepper · Alert. */
+const NewReceivingPopup = ({ open, onClose, onCreate }) => {
+  const clinicCtx = useClinicFilter();
+  /* Filled from Hub header clinic — not editable (same contract as ศูนย์ผู้ขอเบิก). */
+  const clinicLabel = CLINIC_OPTIONS.find((c) => c.value === (clinicCtx?.clinic || DEFAULT_CLINIC_VALUE))?.label
+    || CLINIC_OPTIONS.find((c) => c.value === DEFAULT_CLINIC_VALUE)?.label
+    || 'ศูนย์ 4 ดินแดง';
+  const department = `คลังยาใหญ่${clinicLabel}`;
   const [receivingType, setReceivingType] = useState('purchase');
   const [poNumber, setPoNumber] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
@@ -297,18 +613,90 @@ const NewReceivingForm = ({ onCreate, onCancel }) => {
   const [scanHint, setScanHint] = useState(null);
   const [scanOpen, setScanOpen] = useState(false);
   const [lines, setLines] = useState([blankReceivingLine()]);
+  /* ids in this set are collapsed; everything else stays expanded. */
+  const [collapsedLineIds, setCollapsedLineIds] = useState(() => new Set());
+  const [pendingRemoveId, setPendingRemoveId] = useState(null);
   const scanInputRef = useRef(null);
 
-  const updateLine = (idx, patch) => setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
-  const addLine = () => setLines((ls) => [...ls, blankReceivingLine()]);
-  const removeLine = (idx) => setLines((ls) => ls.filter((_, i) => i !== idx));
+  useEffect(() => {
+    if (!open) return;
+    setReceivingType('purchase');
+    setPoNumber('');
+    setPurchaseDate('');
+    setDeliveryNoteNumber('');
+    setDeliveryDate('');
+    setScanCode('');
+    setScanHint(null);
+    setScanOpen(false);
+    setLines([blankReceivingLine()]);
+    setCollapsedLineIds(new Set());
+    setPendingRemoveId(null);
+  }, [open]);
+
+  const updateLine = (idx, patch) => setLines((ls) => ls.map((l, i) => {
+    if (i !== idx) return l;
+    if (patch.drugName != null && patch.drugName !== l.drugName) {
+      const drug = getRegistryDrug(patch.drugName);
+      return {
+        ...l,
+        ...patch,
+        unitKey: drug?.unit || '',
+        /* Keep an already-chosen supplier; otherwise suggest from registry. */
+        receivedFrom: l.receivedFrom
+          || drug?.manufacturer
+          || drug?.distributor
+          || '',
+      };
+    }
+    return { ...l, ...patch };
+  }));
+  const addLine = () => {
+    const next = emptyReceivingLine();
+    setLines((ls) => [...ls, next]);
+    setCollapsedLineIds((prev) => {
+      if (!prev.has(next.id)) return prev;
+      const n = new Set(prev);
+      n.delete(next.id);
+      return n;
+    });
+  };
+  const removeLine = (idx) => {
+    const removedId = lines[idx]?.id;
+    setLines((ls) => ls.filter((_, i) => i !== idx));
+    if (removedId == null) return;
+    setCollapsedLineIds((prev) => {
+      if (!prev.has(removedId)) return prev;
+      const n = new Set(prev);
+      n.delete(removedId);
+      return n;
+    });
+  };
+  const toggleLineCollapsed = (id) => {
+    setCollapsedLineIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
+  const pendingRemoveIdx = pendingRemoveId == null
+    ? -1
+    : lines.findIndex((l) => l.id === pendingRemoveId);
+  const pendingRemoveLine = pendingRemoveIdx >= 0 ? lines[pendingRemoveIdx] : null;
+  const confirmRemoveLine = () => {
+    if (pendingRemoveIdx < 0) {
+      setPendingRemoveId(null);
+      return;
+    }
+    removeLine(pendingRemoveIdx);
+    setPendingRemoveId(null);
+  };
 
   const applyScan = (raw) => {
     const result = resolveReceivingScan(raw);
     setScanCode(result.code || String(raw || '').trim());
     if (result.type === 'document') {
       const f = result.fields || {};
-      if (f.department != null) setDepartment(f.department);
       if (f.receivingType != null) setReceivingType(f.receivingType);
       if (f.poNumber != null) setPoNumber(f.poNumber);
       if (f.purchaseDate != null) setPurchaseDate(f.purchaseDate);
@@ -316,10 +704,21 @@ const NewReceivingForm = ({ onCreate, onCancel }) => {
       if (f.deliveryDate != null) setDeliveryDate(f.deliveryDate);
       setScanHint({ type: 'success', text: `ดึงข้อมูลเอกสารแล้ว: ${result.label}` });
     } else if (result.type === 'drug' && result.line) {
+      const nextLine = {
+        id: `recv-line-${++receivingLineSeq}`,
+        ...result.line,
+        unitKey: result.drug?.unit || getRegistryDrug(result.line.drugName)?.unit || 'tablet',
+      };
       setLines((ls) => {
         const emptyOnly = ls.length === 1 && !ls[0].lot && !ls[0].expiryDate
           && ls[0].drugName === (DRUG_REGISTRY[0]?.name || '');
-        return emptyOnly ? [result.line] : [...ls, result.line];
+        return emptyOnly ? [nextLine] : [...ls, nextLine];
+      });
+      setCollapsedLineIds((prev) => {
+        if (!prev.has(nextLine.id)) return prev;
+        const n = new Set(prev);
+        n.delete(nextLine.id);
+        return n;
       });
       setScanHint({ type: 'success', text: `เพิ่มรายการยาจากบาร์โค้ด: ${result.label}` });
     } else {
@@ -328,174 +727,516 @@ const NewReceivingForm = ({ onCreate, onCancel }) => {
     requestAnimationFrame(() => scanInputRef.current?.focus?.());
   };
 
-  const linesValid = lines.every((l) => l.lot && l.expiryDate);
+  const linesValid = lines.length > 0
+    && lines.every((l) => l.drugName && l.lot && l.expiryDate && Number(l.quantity) > 0);
 
-  const handleSubmit = () => onCreate({
-    receivingType, department, poNumber, scanCode,
-    purchaseDate: purchaseDate || undefined, deliveryNoteNumber, deliveryDate: deliveryDate || undefined,
-    items: lines.map((l) => ({
-      ...l,
-      unit: DRUG_REGISTRY.find((d) => d.name === l.drugName)?.unit === 'capsule' ? 'แคปซูล' : 'เม็ด',
-    })),
-  });
+  const handleSubmit = () => {
+    if (!linesValid) return;
+    onCreate({
+      receivingType, department, poNumber, scanCode,
+      purchaseDate: purchaseDate || undefined, deliveryNoteNumber, deliveryDate: deliveryDate || undefined,
+      items: lines.map((l) => {
+        const unit = registryUnitLabel(l.unitKey || getRegistryDrug(l.drugName)?.unit);
+        const { id: _lineId, ...rest } = l;
+        return {
+          ...rest,
+          unit,
+          packSize: unit,
+        };
+      }),
+    });
+  };
+
+  const drugOptions = DRUG_REGISTRY.map((d) => ({
+    value: d.name,
+    label: d.name,
+    image: d.image || resolveMedicationImage(d.name, null) || undefined,
+  }));
 
   return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', ...PHARMACY_NESTED_PANEL }}>
-      <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)' }}>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>หน่วยงาน</span>
-          <input type='text' value={department} onChange={(e) => setDepartment(e.target.value)} style={{ ...inputStyle, minWidth: 'var(--dim-size-2280, 218px)' }} />
-        </label>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>ประเภทการรับ</span>
-          <select value={receivingType} onChange={(e) => setReceivingType(e.target.value)} style={{ ...inputStyle, minWidth: 'var(--dim-size-2050, 144px)', appearance: 'none' }}>
-            {RECEIVING_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-          </select>
-        </label>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>เลขที่ใบรับ</span>
-          <input type='text' value='ออกอัตโนมัติเมื่อบันทึก' readOnly disabled style={{ ...inputStyle, width: 'var(--dim-size-2200, 192px)', opacity: 0.7 }} />
-        </label>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>เลขที่ใบสั่งซื้อ</span>
-          <input type='text' value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder='PO-2026-XXXX' style={{ ...inputStyle, width: 'var(--dim-size-2050, 144px)' }} />
-        </label>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>วันที่ซื้อ</span>
-          <input type='date' value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} style={inputStyle} />
-        </label>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>เลขที่ใบส่งของ</span>
-          <input type='text' value={deliveryNoteNumber} onChange={(e) => setDeliveryNoteNumber(e.target.value)} placeholder='DN-2026-XXXX' style={{ ...inputStyle, width: 'var(--dim-size-2050, 144px)' }} />
-        </label>
-        <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <span className='text-xs text-ink-tertiary'>วันที่ส่งของ</span>
-          <input type='date' value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} style={inputStyle} />
-        </label>
-      </div>
-
-      <div className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-200)' }}>
-        <label className='flex flex-col flex-1' style={{ gap: 'var(--dim-space-100, 4px)', minWidth: 'var(--dim-size-2400, 240px)' }}>
-          <span className='text-xs text-ink-tertiary'>สแกนบาร์โค้ด / เลขที่เอกสาร</span>
-          <input
-            ref={scanInputRef}
-            type='text'
-            value={scanCode}
-            onChange={(e) => { setScanCode(e.target.value); setScanHint(null); }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                applyScan(scanCode);
-              }
-            }}
-            placeholder='สแกนหรือพิมพ์บาร์โค้ดยา / PO-… / DN-… แล้วกด Enter'
-            style={{ ...inputStyle, width: '100%' }}
-          />
-        </label>
-        <BrandButton size='sm' leadingIcon='barcode_scanner' onClick={() => applyScan(scanCode)}>
-          ใช้รหัสนี้
-        </BrandButton>
-        <BrandButton size='sm' variant='outline' leadingIcon='photo_camera' onClick={() => setScanOpen(true)}>
-          เปิดกล้องสแกน
-        </BrandButton>
-      </div>
-
-      {scanHint && (
-        <Alert
-          type={scanHint.type === 'error' ? 'destructive' : 'success'}
-          iconName={scanHint.type === 'error' ? 'search_off' : 'check_circle'}
-          iconFill={1}
-          title={scanHint.text}
-          showSubtext={false}
-          showBadge={false}
-          showIndicator={false}
-          showDetail={false}
-          onClose={() => setScanHint(null)}
-        />
-      )}
-
-      <PharmacyReceivingScanPopup
-        open={scanOpen}
-        onClose={() => setScanOpen(false)}
-        onScan={applyScan}
-      />
-
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-        {lines.map((line, idx) => (
-          <div key={idx} className='flex flex-wrap items-end' style={{ gap: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-200)', borderTop: idx > 0 ? 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)' : 'none' }}>
-            <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span className='text-xs text-ink-tertiary'>ชื่อยา</span>
-              <select value={line.drugName} onChange={(e) => updateLine(idx, { drugName: e.target.value })} style={{ ...inputStyle, minWidth: 'var(--dim-size-2200, 192px)', appearance: 'none' }}>
-                {DRUG_REGISTRY.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
-              </select>
-            </label>
-            <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span className='text-xs text-ink-tertiary'>GPO/GPU/TPU</span>
-              <select value={line.drugType} onChange={(e) => updateLine(idx, { drugType: e.target.value })} style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)', appearance: 'none' }}>
-                {DRUG_TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </label>
-            <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span className='text-xs text-ink-tertiary'>จำนวน</span>
-              <input type='number' min='1' value={line.quantity} onChange={(e) => updateLine(idx, { quantity: Number(e.target.value) })} style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)' }} />
-            </label>
-            <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span className='text-xs text-ink-tertiary'>บรรจุ</span>
-              <input type='text' value={line.packSize} onChange={(e) => updateLine(idx, { packSize: e.target.value })} placeholder='เช่น ขวดละ 1000 เม็ด' style={{ ...inputStyle, minWidth: 'var(--dim-size-2050, 144px)' }} />
-            </label>
-            <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span className='text-xs text-ink-tertiary'>Lot No.</span>
-              <input type='text' value={line.lot} onChange={(e) => updateLine(idx, { lot: e.target.value })} placeholder='LOT-XXX-26' style={{ ...inputStyle, width: 'var(--dim-size-2050, 144px)' }} />
-            </label>
-            <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span className='text-xs text-ink-tertiary'>วันหมดอายุ</span>
-              <input type='date' value={line.expiryDate} onChange={(e) => updateLine(idx, { expiryDate: e.target.value })} style={inputStyle} />
-            </label>
-            <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span className='text-xs text-ink-tertiary'>ราคาทุน/หน่วย</span>
-              <input type='number' min='0' step='0.1' value={line.costPrice} onChange={(e) => updateLine(idx, { costPrice: Number(e.target.value) })} style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)' }} />
-            </label>
-            <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span className='text-xs text-ink-tertiary'>ราคาขาย/หน่วย</span>
-              <input type='number' min='0' step='0.1' value={line.salePrice} onChange={(e) => updateLine(idx, { salePrice: Number(e.target.value) })} style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)' }} />
-            </label>
-            <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span className='text-xs text-ink-tertiary'>ราคาที่เบิกได้</span>
-              <input type='number' min='0' step='0.1' value={line.claimablePrice} onChange={(e) => updateLine(idx, { claimablePrice: Number(e.target.value) })} style={{ ...inputStyle, width: 'var(--dim-size-1800, 96px)' }} />
-            </label>
-            <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span className='text-xs text-ink-tertiary'>รับจาก (ผู้ผลิต/ผู้จำหน่าย)</span>
-              <input type='text' value={line.receivedFrom} onChange={(e) => updateLine(idx, { receivedFrom: e.target.value })} style={{ ...inputStyle, minWidth: 'var(--dim-size-2170, 177px)' }} />
-            </label>
-            {lines.length > 1 && (
-              <button
-                type='button' onClick={() => removeLine(idx)} aria-label='ลบรายการ'
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-content-tertiary)', paddingBottom: 'var(--dim-space-200)' }}
-              >
-                <Icon name='close' size={18} />
-              </button>
-            )}
+    <>
+    <Popup
+      open={open}
+      onClose={onClose}
+      size='extraLarge'
+      title='บันทึกรับเข้าคลัง'
+      subtitle='ระบุข้อมูลเอกสารรับเข้าและรายการยา พร้อม Lot / วันหมดอายุ'
+      primaryAction={{
+        label: 'บันทึกรับเข้าคลัง',
+        onClick: handleSubmit,
+        disabled: !linesValid,
+        leadingIcon: 'inventory',
+      }}
+      secondaryAction={{
+        label: 'ปิด',
+        onClick: onClose,
+      }}
+    >
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+        <div
+          style={{
+            ...REQ_FORM_GRID,
+            paddingLeft: REQ_FORM_LINE_INSET,
+            paddingRight: REQ_FORM_LINE_INSET,
+          }}
+        >
+          <div className='min-w-0'>
+            <InputField
+              label='หน่วยงาน'
+              value={department}
+              onChange={() => {}}
+              disabled
+              showLeadingIcon={false}
+              showHelperText={false}
+              style={FIELD_FULL}
+            />
           </div>
-        ))}
-        <NeutralSubdueButton size='sm' variant='outline' leadingIcon='add' onClick={addLine} className='self-start'>
-          เพิ่มรายการยา (ผู้ผลิต/ผู้จำหน่ายรายอื่น)
-        </NeutralSubdueButton>
-      </div>
+          <div className='min-w-0'>
+            <Select
+              label='ประเภทการรับ'
+              value={receivingType}
+              onChange={setReceivingType}
+              options={RECEIVING_TYPES.map((t) => ({ value: t.key, label: t.label }))}
+              searchable={false}
+              showHelperText={false}
+              required
+              style={FIELD_FULL}
+            />
+          </div>
+          <div className='min-w-0'>
+            <InputField
+              label='เลขที่ใบรับ'
+              value='ออกอัตโนมัติเมื่อบันทึก'
+              onChange={() => {}}
+              disabled
+              showLeadingIcon={false}
+              showHelperText={false}
+              style={FIELD_FULL}
+            />
+          </div>
+          <div className='min-w-0'>
+            <InputField
+              label='เลขที่ใบสั่งซื้อ'
+              value={poNumber}
+              onChange={setPoNumber}
+              placeholder='PO-2026-XXXX'
+              showLeadingIcon={false}
+              showHelperText={false}
+              style={FIELD_FULL}
+            />
+          </div>
+        </div>
 
-      <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-200)' }}>
-        <NeutralSubdueButton size='sm' variant='outline' onClick={onCancel}>ยกเลิก</NeutralSubdueButton>
-        <BrandButton size='sm' leadingIcon='inventory' disabled={!linesValid} onClick={handleSubmit}>
-          บันทึกรับเข้าคลัง
-        </BrandButton>
+        <div
+          style={{
+            ...REQ_FORM_GRID,
+            paddingLeft: REQ_FORM_LINE_INSET,
+            paddingRight: REQ_FORM_LINE_INSET,
+          }}
+        >
+          <div className='min-w-0'>
+            <DatePicker
+              label='วันที่ซื้อ'
+              value={parseIsoDate(purchaseDate)}
+              onChange={(d) => setPurchaseDate(toIsoDate(d))}
+              placeholder='เลือกวันที่'
+              showHelperText={false}
+              showLeadingIcon
+              leadingIcon='calendar_today'
+              style={FIELD_FULL}
+            />
+          </div>
+          <div className='min-w-0'>
+            <InputField
+              label='เลขที่ใบส่งของ'
+              value={deliveryNoteNumber}
+              onChange={setDeliveryNoteNumber}
+              placeholder='DN-2026-XXXX'
+              showLeadingIcon={false}
+              showHelperText={false}
+              style={FIELD_FULL}
+            />
+          </div>
+          <div className='min-w-0'>
+            <DatePicker
+              label='วันที่ส่งของ'
+              value={parseIsoDate(deliveryDate)}
+              onChange={(d) => setDeliveryDate(toIsoDate(d))}
+              placeholder='เลือกวันที่'
+              showHelperText={false}
+              showLeadingIcon
+              leadingIcon='calendar_today'
+              style={FIELD_FULL}
+            />
+          </div>
+        </div>
+
+        <div
+          className='flex flex-wrap items-end w-full'
+          style={{
+            gap: 'var(--dim-space-200)',
+            paddingLeft: REQ_FORM_LINE_INSET,
+            paddingRight: REQ_FORM_LINE_INSET,
+          }}
+        >
+          <div className='min-w-0 flex-1' style={{ minWidth: 'var(--dim-size-2400, 240px)' }}>
+            <InputField
+              ref={scanInputRef}
+              label='สแกนบาร์โค้ด / เลขที่เอกสาร'
+              value={scanCode}
+              onChange={(v) => { setScanCode(v); setScanHint(null); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  applyScan(scanCode);
+                }
+              }}
+              placeholder='สแกนหรือพิมพ์บาร์โค้ดยา / PO-… / DN-… แล้วกด Enter'
+              leadingIcon='barcode_scanner'
+              showLeadingIcon
+              showHelperText={false}
+              style={FIELD_FULL}
+            />
+          </div>
+          <BrandButton size='sm' leadingIcon='barcode_scanner' onClick={() => applyScan(scanCode)}>
+            ใช้รหัสนี้
+          </BrandButton>
+          <BrandButton size='sm' variant='outline' leadingIcon='photo_camera' onClick={() => setScanOpen(true)}>
+            เปิดกล้องสแกน
+          </BrandButton>
+        </div>
+
+        {scanHint && (
+          <div style={{ paddingLeft: REQ_FORM_LINE_INSET, paddingRight: REQ_FORM_LINE_INSET }}>
+            <Alert
+              type={scanHint.type === 'error' ? 'destructive' : 'success'}
+              iconName={scanHint.type === 'error' ? 'search_off' : 'check_circle'}
+              iconFill={1}
+              title={scanHint.text}
+              showSubtext={false}
+              showBadge={false}
+              showIndicator={false}
+              showDetail={false}
+              onClose={() => setScanHint(null)}
+            />
+          </div>
+        )}
+
+        <PharmacyReceivingScanPopup
+          open={scanOpen}
+          onClose={() => setScanOpen(false)}
+          onScan={applyScan}
+        />
+
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <PharmacySectionTopic
+            title='รายการยารับเข้า'
+            hierarchy='secondary'
+            style={{
+              paddingTop: 'var(--dim-space-400)',
+              paddingLeft: REQ_FORM_LINE_INSET,
+              paddingRight: REQ_FORM_LINE_INSET,
+            }}
+          />
+          <div
+            className='flex flex-col w-full'
+            style={{
+              gap: 'var(--dim-space-400)',
+              paddingLeft: REQ_FORM_LINE_INSET,
+              paddingRight: REQ_FORM_LINE_INSET,
+            }}
+          >
+            {lines.map((line, idx) => {
+              const lineId = line.id || `recv-fallback-${idx}`;
+              const expanded = !collapsedLineIds.has(lineId);
+              const collapsedDrugSrc = !expanded && line.drugName ? drugImageSrc(line.drugName) : '';
+              const { background: insetBg, ...insetRest } = PHARMACY_INSET_GROUP;
+              return (
+                <div
+                  key={lineId}
+                  className={[
+                    'flex flex-col w-full min-w-0',
+                    expanded ? '' : PHARMACY_INSET_GROUP_HOVERABLE_CLASS,
+                  ].filter(Boolean).join(' ')}
+                  style={{
+                    ...insetRest,
+                    ...(expanded ? { background: insetBg } : null),
+                    gap: expanded ? 'var(--dim-space-400)' : 'var(--dim-space-0)',
+                    padding: 'var(--dim-space-400)',
+                  }}
+                >
+                  <div
+                    className='flex items-center w-full min-w-0'
+                    style={{ gap: 'var(--dim-space-300)' }}
+                  >
+                    <button
+                      type='button'
+                      onClick={() => toggleLineCollapsed(lineId)}
+                      aria-expanded={expanded}
+                      aria-controls={`receiving-line-body-${lineId}`}
+                      aria-label={expanded
+                        ? `ย่อรายการที่ ${idx + 1}`
+                        : `ขยายรายการที่ ${idx + 1}${line.drugName ? ` ${line.drugName}` : ''}`}
+                      className='flex items-center flex-1 min-w-0'
+                      style={{
+                        gap: 'var(--dim-space-300)',
+                        padding: 'var(--dim-space-0)',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      {expanded ? (
+                        <span
+                          className='truncate flex-1 min-w-0'
+                          style={{
+                            color: 'var(--text-topic-tertiary-title, #363B3F)',
+                            fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
+                            fontSize: 'var(--type-size-base)',
+                            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {`รายการที่ ${idx + 1}`}
+                        </span>
+                      ) : (
+                        <div
+                          className='flex items-center flex-1 min-w-0'
+                          style={{ gap: 'var(--dim-space-300)' }}
+                        >
+                          <div
+                            className='shrink-0 rounded-full overflow-hidden'
+                            style={{
+                              width: 'var(--dim-size-900, 36px)',
+                              height: 'var(--dim-size-900, 36px)',
+                              background: 'var(--surface-card-quaternary)',
+                            }}
+                            aria-hidden
+                          >
+                            {collapsedDrugSrc ? (
+                              <img src={collapsedDrugSrc} alt='' className='w-full h-full object-cover' />
+                            ) : null}
+                          </div>
+                          <div className='flex flex-col flex-1 min-w-0'>
+                            <span
+                              className='truncate'
+                              style={{
+                                color: 'var(--text-content-tertiary, #858C92)',
+                                fontFamily: 'var(--type-family-body)',
+                                fontSize: 'var(--type-size-xs)',
+                                fontWeight: 'var(--type-weight-regular, 400)',
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {`รายการที่ ${idx + 1}`}
+                            </span>
+                            <span
+                              className='truncate'
+                              style={{
+                                color: 'var(--text-topic-tertiary-title, #363B3F)',
+                                fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
+                                fontSize: 'var(--type-size-base)',
+                                fontWeight: 'var(--type-weight-medium, 500)',
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {line.drugName || 'ยังไม่ระบุชื่อยา'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      <Icon
+                        name={expanded ? 'expand_less' : 'expand_more'}
+                        size={24}
+                        style={{ color: 'var(--icon-content-secondary, #636B72)', flexShrink: 0 }}
+                      />
+                    </button>
+                    {lines.length > 1 ? (
+                      <NeutralSubdueButton
+                        size='sm'
+                        variant='outline'
+                        leadingIcon='delete'
+                        onClick={() => setPendingRemoveId(lineId)}
+                        className='shrink-0'
+                        aria-label={`ลบรายการที่ ${idx + 1}`}
+                      >
+                        ลบ
+                      </NeutralSubdueButton>
+                    ) : null}
+                  </div>
+                  {expanded ? (
+                    <div
+                      id={`receiving-line-body-${lineId}`}
+                      className='flex flex-col w-full min-w-0'
+                      style={{ gap: 'var(--dim-space-400)' }}
+                    >
+                      <div className='w-full' style={{ ...REQ_FORM_GRID, maxWidth: '100%' }}>
+                        <div className='min-w-0' style={{ gridColumn: '1 / span 2', maxWidth: '100%' }}>
+                          <Select
+                            label='ชื่อยา'
+                            value={line.drugName}
+                            onChange={(v) => updateLine(idx, { drugName: v })}
+                            options={drugOptions}
+                            searchable
+                            required
+                            showHelperText={false}
+                            style={FIELD_FULL}
+                          />
+                        </div>
+                        <div className='min-w-0' style={{ gridColumn: '3 / span 2', maxWidth: '100%' }}>
+                          <Select
+                            label='GPO/GPU/TPU'
+                            value={line.drugType}
+                            onChange={(v) => updateLine(idx, { drugType: v })}
+                            options={DRUG_TYPE_OPTIONS}
+                            searchable={false}
+                            showHelperText={false}
+                            style={FIELD_FULL}
+                          />
+                        </div>
+                      </div>
+                      <div className='w-full' style={{ ...REQ_FORM_GRID, maxWidth: '100%' }}>
+                        <div className='min-w-0'>
+                          <Field label='จำนวน' required>
+                            <Stepper
+                              min={1}
+                              value={line.quantity == null || line.quantity === '' ? null : Number(line.quantity)}
+                              onChange={(n) => updateLine(idx, {
+                                quantity: n == null || Number.isNaN(n) ? '' : n,
+                              })}
+                              aria-label='จำนวน'
+                              className='w-full'
+                              style={FIELD_FULL}
+                            />
+                          </Field>
+                        </div>
+                        <div className='min-w-0'>
+                          <InputField
+                            label='หน่วยนับ'
+                            value={registryUnitLabel(line.unitKey || getRegistryDrug(line.drugName)?.unit)}
+                            onChange={() => {}}
+                            disabled
+                            showLeadingIcon={false}
+                            showHelperText={false}
+                            style={FIELD_FULL}
+                          />
+                        </div>
+                      </div>
+                      <div className='w-full' style={{ ...REQ_FORM_GRID, maxWidth: '100%' }}>
+                        <div className='min-w-0'>
+                          <InputField
+                            label='Lot No.'
+                            value={line.lot}
+                            onChange={(v) => updateLine(idx, { lot: v })}
+                            placeholder='LOT-XXX-26'
+                            required
+                            showLeadingIcon={false}
+                            showHelperText={false}
+                            style={FIELD_FULL}
+                          />
+                        </div>
+                        <div className='min-w-0'>
+                          <DatePicker
+                            label='วันหมดอายุ'
+                            value={parseIsoDate(line.expiryDate)}
+                            onChange={(d) => updateLine(idx, { expiryDate: toIsoDate(d) })}
+                            placeholder='เลือกวันที่'
+                            required
+                            showHelperText={false}
+                            showLeadingIcon
+                            leadingIcon='calendar_today'
+                            style={FIELD_FULL}
+                          />
+                        </div>
+                        <div className='min-w-0' style={{ gridColumn: '3 / span 2', maxWidth: '100%' }}>
+                          <Select
+                            label='รับจาก (ผู้ผลิต/ผู้จำหน่าย)'
+                            value={line.receivedFrom}
+                            onChange={(v) => updateLine(idx, { receivedFrom: v })}
+                            options={SUPPLIER_OPTIONS.map((name) => ({ value: name, label: name }))}
+                            searchable
+                            showHelperText={false}
+                            style={FIELD_FULL}
+                          />
+                        </div>
+                      </div>
+                      <div className='w-full' style={{ ...REQ_FORM_GRID, maxWidth: '100%' }}>
+                        <div className='min-w-0'>
+                          <InputField
+                            label='ราคาทุน/หน่วย (บาท)'
+                            type='number'
+                            value={line.costPrice == null ? '' : String(line.costPrice)}
+                            onChange={(v) => updateLine(idx, { costPrice: v === '' ? '' : Number(v) })}
+                            showLeadingIcon={false}
+                            showHelperText={false}
+                            style={FIELD_FULL}
+                          />
+                        </div>
+                        <div className='min-w-0'>
+                          <InputField
+                            label='ราคาขาย/หน่วย (บาท)'
+                            type='number'
+                            value={line.salePrice == null ? '' : String(line.salePrice)}
+                            onChange={(v) => updateLine(idx, { salePrice: v === '' ? '' : Number(v) })}
+                            showLeadingIcon={false}
+                            showHelperText={false}
+                            style={FIELD_FULL}
+                          />
+                        </div>
+                        <div className='min-w-0'>
+                          <InputField
+                            label='ราคาที่เบิกได้ (บาท)'
+                            type='number'
+                            value={line.claimablePrice == null ? '' : String(line.claimablePrice)}
+                            onChange={(v) => updateLine(idx, { claimablePrice: v === '' ? '' : Number(v) })}
+                            showLeadingIcon={false}
+                            showHelperText={false}
+                            style={FIELD_FULL}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+            <NeutralSubdueButton
+              size='sm'
+              variant='outline'
+              leadingIcon='add'
+              onClick={addLine}
+              className='self-start'
+            >
+              รายการยา
+            </NeutralSubdueButton>
+          </div>
+        </div>
       </div>
-    </div>
+    </Popup>
+    <AlertDialog
+      open={pendingRemoveId != null && pendingRemoveLine != null}
+      type='destructive'
+      alignment='center'
+      title='ลบรายการนี้?'
+      description={pendingRemoveLine
+        ? `ยืนยันลบรายการที่ ${pendingRemoveIdx + 1}${pendingRemoveLine.drugName ? ` «${pendingRemoveLine.drugName}»` : ''} — ข้อมูลในรายการนี้จะหายไป`
+        : ''}
+      confirmLabel='ลบ'
+      cancelLabel='ยกเลิก'
+      onConfirm={confirmRemoveLine}
+      onCancel={() => setPendingRemoveId(null)}
+      onClose={() => setPendingRemoveId(null)}
+    />
+    </>
   );
 };
 
 const REQUISITION_COLUMNS = [
-  /* Sticky trio — no flex on these; flex sticky cols drift vs stickyLeft and overlap. */
+  /* Sticky lead cols — no flex on these; flex sticky cols drift vs stickyLeft and overlap. */
   { key: 'seq', label: 'ลำดับ', align: 'center', render: (r) => r.seq ?? '-', print: (r) => r.seq ?? '-' },
   { key: 'requisitionNo', label: 'เลขที่คำขอ' },
+  { key: 'requestedAt', label: 'วันที่ขอเบิก', render: (r) => formatThaiDate(r.requestedAt), print: (r) => formatThaiDate(r.requestedAt) },
   {
     key: 'drugName',
     label: 'ชื่อยา',
@@ -529,7 +1270,6 @@ const REQUISITION_COLUMNS = [
   { key: 'requestingCenter', label: 'ศูนย์ที่ขอเบิก', flex: true, minWidth: 200, render: (r) => CLINIC_LABEL[r.requestingCenter] || '-', print: (r) => CLINIC_LABEL[r.requestingCenter] || '-' },
   { key: 'targetUnit', label: 'ส่งไปยัง', flex: true, minWidth: 180, render: (r) => REQUISITION_TARGET_LABEL[r.targetUnit] || '-', print: (r) => REQUISITION_TARGET_LABEL[r.targetUnit] || '-' },
   { key: 'notes', label: 'หมายเหตุ', flex: true, minWidth: 160, render: (r) => r.notes || '—', print: (r) => r.notes || '—' },
-  { key: 'requestedAt', label: 'วันที่ขอเบิก', render: (r) => formatThaiDate(r.requestedAt), print: (r) => formatThaiDate(r.requestedAt) },
   { key: 'status', label: 'สถานะ', render: (r) => <Badge style={REQ_STATUS_PILL[r.status].style} size='small'>{REQ_STATUS_PILL[r.status].label}</Badge>, print: (r) => REQ_STATUS_PILL[r.status].label },
 ];
 
@@ -538,19 +1278,20 @@ const RECEIVING_STATUS_PILL = {
 };
 
 const RECEIVING_COLUMNS = [
+  /* Sticky lead cols — no flex on these; flex sticky cols drift vs stickyLeft and overlap. */
   { key: 'seq', label: 'ลำดับ', align: 'center', render: (r) => r.seq ?? '-', print: (r) => r.seq ?? '-' },
   { key: 'receiptNo', label: 'เลขที่ใบรับ' },
-  { key: 'department', label: 'หน่วยงาน', flex: true, minWidth: 180, render: (r) => r.department || '—', print: (r) => r.department || '—' },
-  { key: 'drugName', label: 'ชื่อยา', flex: true, minWidth: 200 },
+  { key: 'department', label: 'หน่วยงาน', minWidth: 180, render: (r) => r.department || '—', print: (r) => r.department || '—' },
+  { key: 'drugName', label: 'ชื่อยา', minWidth: 200 },
   { key: 'drugType', label: 'แหล่งยา', align: 'center' },
-  { key: 'packSize', label: 'บรรจุ', render: (r) => r.packSize || '-', print: (r) => r.packSize || '-' },
+  { key: 'unit', label: 'หน่วยนับ', align: 'center', render: (r) => r.unit || resolveUnitLabel(r), print: (r) => r.unit || resolveUnitLabel(r) },
   { key: 'receivingType', label: 'ประเภทการรับ', render: (r) => RECEIVING_TYPE_LABEL[r.receivingType], print: (r) => RECEIVING_TYPE_LABEL[r.receivingType] },
-  { key: 'quantity', label: 'จำนวน', align: 'center', render: (r) => `${r.quantity} ${r.unit}`, print: (r) => `${r.quantity} ${r.unit}` },
+  { key: 'quantity', label: 'จำนวน', align: 'center', render: (r) => `${r.quantity}`, print: (r) => `${r.quantity}` },
   { key: 'lot', label: 'Lot No.' },
   { key: 'expiryDate', label: 'วันหมดอายุ', render: (r) => formatThaiDate(r.expiryDate), print: (r) => formatThaiDate(r.expiryDate) },
-  { key: 'costPrice', label: 'ราคาทุน/หน่วย', align: 'center', render: (r) => `฿${r.costPrice}`, print: (r) => `฿${r.costPrice}` },
-  { key: 'salePrice', label: 'ราคาขาย/หน่วย', align: 'center', render: (r) => `฿${r.salePrice}`, print: (r) => `฿${r.salePrice}` },
-  { key: 'claimablePrice', label: 'ราคาที่เบิกได้', align: 'center', render: (r) => r.claimablePrice != null ? `฿${r.claimablePrice}` : '—', print: (r) => r.claimablePrice != null ? `฿${r.claimablePrice}` : '—' },
+  { key: 'costPrice', label: 'ราคาทุน/หน่วย (บาท)', align: 'center', render: (r) => `฿${r.costPrice}`, print: (r) => `฿${r.costPrice}` },
+  { key: 'salePrice', label: 'ราคาขาย/หน่วย (บาท)', align: 'center', render: (r) => `฿${r.salePrice}`, print: (r) => `฿${r.salePrice}` },
+  { key: 'claimablePrice', label: 'ราคาที่เบิกได้ (บาท)', align: 'center', render: (r) => r.claimablePrice != null ? `฿${r.claimablePrice}` : '—', print: (r) => r.claimablePrice != null ? `฿${r.claimablePrice}` : '—' },
   { key: 'poNumber', label: 'เลขที่ใบสั่งซื้อ', render: (r) => r.poNumber || '—', print: (r) => r.poNumber || '—' },
   { key: 'deliveryNoteNumber', label: 'เลขที่ใบส่งของ', render: (r) => r.deliveryNoteNumber || '—', print: (r) => r.deliveryNoteNumber || '—' },
   { key: 'receivedFrom', label: 'รับจาก', flex: true, minWidth: 180 },
@@ -560,27 +1301,62 @@ const RECEIVING_COLUMNS = [
 
 const PharmacyRequisitionPage = () => {
   const [activeTab, setActiveTab] = useState('requisition');
-  const [showForm, setShowForm] = useState(false);
+  const [showCreateReq, setShowCreateReq] = useState(false);
+  const [showCreateRecv, setShowCreateRecv] = useState(false);
   const [renderTick, forceRender] = useState(0);
   const bump = () => forceRender((n) => n + 1);
 
-  /* §1.9.6 list filters — search + FilterDropdown chips (สถานะ / ประเภทเบิก / ประเภทรายการ). */
+  /* §1.9.6 list filters — search + date + FilterDropdown chips. */
   const [searchQ, setSearchQ] = useState('');
+  const [dateFilter, setDateFilter] = useState(DEFAULT_DATE_FILTER);
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
+  /* §1.9.7 list filters — mirror เบิกจ่าย chrome on รับเข้าคลังใหญ่. */
+  const [recvSearchQ, setRecvSearchQ] = useState('');
+  const [recvDateFilter, setRecvDateFilter] = useState(DEFAULT_DATE_FILTER);
+  const [recvStatusFilter, setRecvStatusFilter] = useState('all');
+  const [recvTypeFilter, setRecvTypeFilter] = useState('all');
+  const [recvDrugTypeFilter, setRecvDrugTypeFilter] = useState('all');
+
   const requisitionFiltersActive = searchQ.trim() !== ''
+    || (dateFilter?.quick && dateFilter.quick !== 'all')
     || statusFilter !== 'all'
     || typeFilter !== 'all'
     || categoryFilter !== 'all';
 
-  const clearRequisitionFilters = () => {
-    setSearchQ('');
-    setStatusFilter('all');
-    setTypeFilter('all');
-    setCategoryFilter('all');
-  };
+  const receivingFiltersActive = recvSearchQ.trim() !== ''
+    || (recvDateFilter?.quick && recvDateFilter.quick !== 'all')
+    || recvStatusFilter !== 'all'
+    || recvTypeFilter !== 'all'
+    || recvDrugTypeFilter !== 'all';
+
+  const { showClearChip, resultsOpaque, clearFilters: clearRequisitionFilters } = useSmoothClearFilters(
+    requisitionFiltersActive,
+    () => {
+      setSearchQ('');
+      setDateFilter(DEFAULT_DATE_FILTER);
+      setStatusFilter('all');
+      setTypeFilter('all');
+      setCategoryFilter('all');
+    },
+  );
+
+  const {
+    showClearChip: showRecvClearChip,
+    resultsOpaque: recvResultsOpaque,
+    clearFilters: clearReceivingFilters,
+  } = useSmoothClearFilters(
+    receivingFiltersActive,
+    () => {
+      setRecvSearchQ('');
+      setRecvDateFilter(DEFAULT_DATE_FILTER);
+      setRecvStatusFilter('all');
+      setRecvTypeFilter('all');
+      setRecvDrugTypeFilter('all');
+    },
+  );
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const handleSort = (key) => {
@@ -591,9 +1367,19 @@ const PharmacyRequisitionPage = () => {
     ));
   };
 
+  const [recvSortConfig, setRecvSortConfig] = useState({ key: null, direction: 'asc' });
+  const handleRecvSort = (key) => {
+    setRecvSortConfig((prev) => (
+      prev.key === key
+        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    ));
+  };
+
   const filteredRequisitions = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
     return REQUISITIONS.filter((r) => {
+      if (!matchesRequestedAtFilter(r.requestedAt, dateFilter)) return false;
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
       if (typeFilter !== 'all' && r.requisitionType !== typeFilter) return false;
       if (categoryFilter !== 'all' && r.itemCategory !== categoryFilter) return false;
@@ -605,7 +1391,7 @@ const PharmacyRequisitionPage = () => {
         || (r.notes || '').toLowerCase().includes(q)
       );
     });
-  }, [renderTick, searchQ, statusFilter, typeFilter, categoryFilter]);
+  }, [renderTick, searchQ, dateFilter, statusFilter, typeFilter, categoryFilter]);
 
   /* Column-header sort — same pattern as PharmacyQueuePage / OPD worklist. */
   const sortedRequisitions = useMemo(() => {
@@ -643,6 +1429,59 @@ const PharmacyRequisitionPage = () => {
     });
   }, [filteredRequisitions, sortConfig]);
 
+  const filteredReceiving = useMemo(() => {
+    const q = recvSearchQ.trim().toLowerCase();
+    return RECEIVING_RECORDS.filter((r) => {
+      if (!matchesRequestedAtFilter(r.receivedAt, recvDateFilter)) return false;
+      if (recvStatusFilter === 'cancelled' && r.status !== 'cancelled') return false;
+      if (recvStatusFilter === 'received' && r.status === 'cancelled') return false;
+      if (recvTypeFilter !== 'all' && r.receivingType !== recvTypeFilter) return false;
+      if (recvDrugTypeFilter !== 'all' && r.drugType !== recvDrugTypeFilter) return false;
+      if (!q) return true;
+      return (
+        (r.drugName || '').toLowerCase().includes(q)
+        || (r.receiptNo || '').toLowerCase().includes(q)
+        || (r.lot || '').toLowerCase().includes(q)
+        || (r.poNumber || '').toLowerCase().includes(q)
+        || (r.deliveryNoteNumber || '').toLowerCase().includes(q)
+        || (r.receivedFrom || '').toLowerCase().includes(q)
+        || (r.department || '').toLowerCase().includes(q)
+        || (r.scanCode || '').toLowerCase().includes(q)
+      );
+    });
+  }, [renderTick, recvSearchQ, recvDateFilter, recvStatusFilter, recvTypeFilter, recvDrugTypeFilter]);
+
+  const sortedReceiving = useMemo(() => {
+    if (!recvSortConfig.key) return filteredReceiving;
+    const sign = recvSortConfig.direction === 'desc' ? -1 : 1;
+    const normalize = (row, key) => {
+      switch (key) {
+        case 'receivingType': return RECEIVING_TYPE_LABEL[row.receivingType] || '';
+        case 'unit': return row.unit || resolveUnitLabel(row) || '';
+        case 'status': return row.status === 'cancelled'
+          ? RECEIVING_STATUS_PILL.cancelled.label
+          : 'รับเข้าแล้ว';
+        case 'expiryDate':
+        case 'receivedAt': return row[key] || '';
+        case 'seq':
+        case 'quantity':
+        case 'costPrice':
+        case 'salePrice':
+        case 'claimablePrice': return typeof row[key] === 'number' ? row[key] : Number(row[key]) || 0;
+        default: return row[key] ?? '';
+      }
+    };
+    const collator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' });
+    return [...filteredReceiving].sort((a, b) => {
+      const av = normalize(a, recvSortConfig.key);
+      const bv = normalize(b, recvSortConfig.key);
+      const primary = typeof av === 'number' && typeof bv === 'number'
+        ? av - bv
+        : collator.compare(String(av), String(bv));
+      return sign * primary;
+    });
+  }, [filteredReceiving, recvSortConfig]);
+
   /* §1.9.6.1 — edit opens Popup; saving resets status → รอดำเนินการ.
      Cancel allowed while pending or approved (ยังไม่เบิกจ่าย). */
   const [editingReq, setEditingReq] = useState(null);
@@ -673,10 +1512,11 @@ const PharmacyRequisitionPage = () => {
 
   const saveEditReq = () => {
     if (!editingReq || !editForm) return;
-    const packQty = editForm.packQty === '' ? '' : String(Number(editForm.packQty) || '');
+    const qty = Number(editForm.packQty) || 0;
+    const packQty = editForm.packQty === '' ? '' : String(qty || '');
     updateRequisition(editingReq.id, {
       drugName: editForm.drugName,
-      quantity: Number(editForm.quantity) || 0,
+      quantity: qty,
       packSize: packQty,
       unit: registryUnitLabel(editForm.unitKey || getRegistryDrug(editForm.drugName)?.unit),
       requisitionType: editForm.requisitionType,
@@ -816,17 +1656,25 @@ const PharmacyRequisitionPage = () => {
     [renderTick],
   );
 
+  const statusTabs = useMemo(
+    () => TABS.map((t) => ({ ...t, count: tabCounts[t.key] })),
+    [tabCounts],
+  );
+
   const handleTabChange = (key) => {
     setActiveTab(key);
-    setShowForm(false);
+    setShowCreateReq(false);
+    setShowCreateRecv(false);
   };
+
+  const printRows = activeTab === 'requisition' ? sortedRequisitions : sortedReceiving;
 
   return (
     <>
       <PharmacyRequisitionPrint
         title={activeTab === 'requisition' ? 'ใบเบิกยา/เวชภัณฑ์' : 'ใบรับยา/เวชภัณฑ์เข้าคลังใหญ่'}
         columns={activeTab === 'requisition' ? REQUISITION_COLUMNS : RECEIVING_COLUMNS}
-        rows={activeTab === 'requisition' ? REQUISITIONS : RECEIVING_RECORDS}
+        rows={printRows}
       />
       <div className='mih-requisition-no-print'>
       <QueuePageShell
@@ -842,49 +1690,12 @@ const PharmacyRequisitionPage = () => {
             className='w-full flex flex-col'
             style={PHARMACY_WORKLIST_CARD_BODY}
           >
-            <TabBar aria-label='เลือกประเภทรายการ' align='center' className='self-center shrink-0 max-w-full'>
-              {TABS.map((t) => (
-                <TabPill
-                  key={t.key}
-                  size='large'
-                  selected={activeTab === t.key}
-                  leadingIcon={t.icon}
-                  count={tabCounts[t.key]}
-                  onClick={() => handleTabChange(t.key)}
-                >
-                  {t.label}
-                </TabPill>
-              ))}
-            </TabBar>
-
-            <PharmacySectionTopic
-              title={activeTab === 'requisition' ? 'รายการเบิกจ่ายยา/เวชภัณฑ์' : 'รายการรับยาเข้าคลังใหญ่'}
-              trailing={(
-                <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                  <NeutralSubdueButton size='sm' variant='outline' leadingIcon='print' onClick={() => window.print()}>
-                    {activeTab === 'requisition' ? 'พิมพ์ใบเบิกยา' : 'พิมพ์ใบรับยา'}
-                  </NeutralSubdueButton>
-                  {!showForm && (
-                    <BrandButton size='sm' leadingIcon='add' onClick={() => setShowForm(true)}>
-                      {activeTab === 'requisition' ? 'สร้างคำขอเบิก' : 'บันทึกรับเข้าคลัง'}
-                    </BrandButton>
-                  )}
-                </div>
-              )}
+            <StickyStatusTabBar
+              aria-label='เลือกประเภทรายการ'
+              tabs={statusTabs}
+              value={activeTab}
+              onChange={handleTabChange}
             />
-
-            {showForm && activeTab === 'requisition' && (
-              <NewRequisitionForm
-                onCreate={(payload) => { createRequisition(payload); setShowForm(false); forceRender((n) => n + 1); }}
-                onCancel={() => setShowForm(false)}
-              />
-            )}
-            {showForm && activeTab === 'receiving' && (
-              <NewReceivingForm
-                onCreate={(payload) => { createReceivingRecord(payload); setShowForm(false); forceRender((n) => n + 1); }}
-                onCancel={() => setShowForm(false)}
-              />
-            )}
 
             {activeTab === 'requisition' ? (
               <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
@@ -898,6 +1709,15 @@ const PharmacyRequisitionPage = () => {
                   />
                 </div>
                 <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                  <FilterDateTag
+                    prefix='วันที่ขอเบิก:'
+                    value={dateFilter}
+                    onChange={setDateFilter}
+                    defaultQuick='all'
+                    quickLabels={{ all: 'ทั้งหมด' }}
+                    placeholder='ทั้งหมด'
+                    selectedWhen={(v) => v?.quick && v.quick !== 'all'}
+                  />
                   <FilterDropdown
                     prefix='สถานะ:'
                     options={REQ_STATUS_FILTER_OPTIONS}
@@ -916,34 +1736,116 @@ const PharmacyRequisitionPage = () => {
                     value={categoryFilter}
                     onChange={setCategoryFilter}
                   />
-                  {requisitionFiltersActive ? (
-                    <FilterTag
-                      variant='neutral'
-                      leadingIcon='close'
-                      value='ล้างตัวกรอง'
-                      showTitle={false}
-                      onClick={clearRequisitionFilters}
-                    />
-                  ) : null}
+                  <ClearFiltersTag active={showClearChip} onClear={clearRequisitionFilters} />
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)', marginLeft: 'auto' }}>
+                    <NeutralSubdueButton size='sm' variant='outline' leadingIcon='print' onClick={() => window.print()}>
+                      พิมพ์ใบเบิกยา
+                    </NeutralSubdueButton>
+                    <BrandButton size='sm' leadingIcon='add' onClick={() => setShowCreateReq(true)}>
+                      สร้างคำขอเบิก
+                    </BrandButton>
+                  </div>
                 </div>
-                <SearchResultCount found={sortedRequisitions.length} total={REQUISITIONS.length} />
-                <Table
-                  columns={[...REQUISITION_COLUMNS, REQUISITION_ACTIONS_COLUMN]}
-                  rows={sortedRequisitions}
-                  rowKey={(r) => r.id}
-                  stickyColCount={3}
-                  sortConfig={sortConfig}
-                  onSort={handleSort}
-                  emptyMessage={requisitionFiltersActive ? 'ไม่พบรายการที่ตรงกับเงื่อนไข' : 'ไม่มีคำขอเบิกจ่าย'}
-                />
+                <SmoothFilterResults opaque={resultsOpaque}>
+                  <SearchResultCount found={sortedRequisitions.length} total={REQUISITIONS.length} />
+                  <Table
+                    columns={[...REQUISITION_COLUMNS, REQUISITION_ACTIONS_COLUMN]}
+                    rows={sortedRequisitions}
+                    rowKey={(r) => r.id}
+                    stickyColCount={4}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
+                    emptyMessage={requisitionFiltersActive ? 'ไม่พบรายการที่ตรงกับเงื่อนไข' : 'ไม่มีคำขอเบิกจ่าย'}
+                  />
+                </SmoothFilterResults>
               </div>
             ) : (
-              <Table columns={[...RECEIVING_COLUMNS, RECEIVING_ACTIONS_COLUMN]} rows={RECEIVING_RECORDS} rowKey={(r) => r.id} emptyMessage='ไม่มีรายการรับเข้าคลัง' />
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                <div className='w-full flex items-start justify-center'>
+                  <PrimarySearch
+                    value={recvSearchQ}
+                    onChange={setRecvSearchQ}
+                    onSubmit={(v) => setRecvSearchQ(v)}
+                    placeholder='ค้นหาเลขที่ใบรับ / ชื่อยา / Lot / เลขที่ใบสั่งซื้อ'
+                    width={640}
+                  />
+                </div>
+                <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                  <FilterDateTag
+                    prefix='วันที่รับเข้า:'
+                    value={recvDateFilter}
+                    onChange={setRecvDateFilter}
+                    defaultQuick='all'
+                    quickLabels={{ all: 'ทั้งหมด' }}
+                    placeholder='ทั้งหมด'
+                    selectedWhen={(v) => v?.quick && v.quick !== 'all'}
+                  />
+                  <FilterDropdown
+                    prefix='สถานะ:'
+                    options={RCV_STATUS_FILTER_OPTIONS}
+                    value={recvStatusFilter}
+                    onChange={setRecvStatusFilter}
+                  />
+                  <FilterDropdown
+                    prefix='ประเภทการรับ:'
+                    options={RCV_TYPE_FILTER_OPTIONS}
+                    value={recvTypeFilter}
+                    onChange={setRecvTypeFilter}
+                  />
+                  <FilterDropdown
+                    prefix='แหล่งยา:'
+                    options={RCV_DRUG_TYPE_FILTER_OPTIONS}
+                    value={recvDrugTypeFilter}
+                    onChange={setRecvDrugTypeFilter}
+                  />
+                  <ClearFiltersTag active={showRecvClearChip} onClear={clearReceivingFilters} />
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)', marginLeft: 'auto' }}>
+                    <NeutralSubdueButton size='sm' variant='outline' leadingIcon='print' onClick={() => window.print()}>
+                      พิมพ์ใบรับยา
+                    </NeutralSubdueButton>
+                    <BrandButton size='sm' leadingIcon='add' onClick={() => setShowCreateRecv(true)}>
+                      บันทึกรับเข้าคลัง
+                    </BrandButton>
+                  </div>
+                </div>
+                <SmoothFilterResults opaque={recvResultsOpaque}>
+                  <SearchResultCount found={sortedReceiving.length} total={RECEIVING_RECORDS.length} />
+                  <Table
+                    columns={[...RECEIVING_COLUMNS, RECEIVING_ACTIONS_COLUMN]}
+                    rows={sortedReceiving}
+                    rowKey={(r) => r.id}
+                    stickyColCount={4}
+                    sortConfig={recvSortConfig}
+                    onSort={handleRecvSort}
+                    stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
+                    emptyMessage={receivingFiltersActive ? 'ไม่พบรายการที่ตรงกับเงื่อนไข' : 'ไม่มีรายการรับเข้าคลัง'}
+                  />
+                </SmoothFilterResults>
+              </div>
             )}
           </div>
         </div>
       </QueuePageShell>
       </div>
+      <NewRequisitionPopup
+        open={showCreateReq}
+        onClose={() => setShowCreateReq(false)}
+        onCreate={(payload) => {
+          createRequisition(payload);
+          setShowCreateReq(false);
+          bump();
+        }}
+      />
+      <NewReceivingPopup
+        open={showCreateRecv}
+        onClose={() => setShowCreateRecv(false)}
+        onCreate={(payload) => {
+          createReceivingRecord(payload);
+          setShowCreateRecv(false);
+          bump();
+        }}
+      />
       <Popup
         open={Boolean(editingReq && editForm)}
         onClose={closeEditReq}
@@ -955,7 +1857,11 @@ const PharmacyRequisitionPage = () => {
         primaryAction={{
           label: 'บันทึกการแก้ไข',
           onClick: saveEditReq,
-          disabled: !editForm?.drugName || !editForm?.quantity,
+          disabled: !editForm?.drugName
+            || !(Number(editForm?.packQty) > 0)
+            || !editForm?.targetUnit
+            || !editForm?.itemCategory
+            || !editForm?.requisitionType,
         }}
         secondaryAction={{
           label: 'ปิด',
@@ -964,18 +1870,27 @@ const PharmacyRequisitionPage = () => {
       >
         {editForm && (
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-2280, 218px)' }}>
+            <div
+              style={{
+                ...REQ_FORM_GRID,
+                paddingLeft: REQ_FORM_LINE_INSET,
+                paddingRight: REQ_FORM_LINE_INSET,
+              }}
+            >
+              <div className='min-w-0'>
                 <Select
                   label='ศูนย์บริการสาธารณสุขผู้ขอเบิก'
                   value={editForm.requestingCenter}
-                  onChange={(v) => patchEditForm({ requestingCenter: v })}
+                  onChange={() => {}}
                   options={CLINIC_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
                   searchable={false}
                   showHelperText={false}
+                  disabled
+                  className='w-full'
+                  style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
                 />
               </div>
-              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-2280, 218px)' }}>
+              <div className='min-w-0'>
                 <Select
                   label='หน่วยงานที่ส่งคำร้องไป'
                   value={editForm.targetUnit}
@@ -983,11 +1898,12 @@ const PharmacyRequisitionPage = () => {
                   options={REQUISITION_TARGETS.map((t) => ({ value: t.key, label: t.label }))}
                   searchable={false}
                   showHelperText={false}
+                  required
+                  className='w-full'
+                  style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
                 />
               </div>
-            </div>
-            <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-2050, 144px)' }}>
+              <div className='min-w-0'>
                 <Select
                   label='ประเภทรายการ'
                   value={editForm.itemCategory}
@@ -995,9 +1911,12 @@ const PharmacyRequisitionPage = () => {
                   options={REQUISITION_ITEM_CATEGORIES.map((c) => ({ value: c.key, label: c.label }))}
                   searchable={false}
                   showHelperText={false}
+                  required
+                  className='w-full'
+                  style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
                 />
               </div>
-              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-2050, 144px)' }}>
+              <div className='min-w-0'>
                 <Select
                   label='ประเภทการเบิก'
                   value={editForm.requisitionType}
@@ -1005,62 +1924,75 @@ const PharmacyRequisitionPage = () => {
                   options={REQUISITION_TYPES.map((t) => ({ value: t.key, label: t.label }))}
                   searchable={false}
                   showHelperText={false}
+                  required
+                  className='w-full'
+                  style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
-            <Select
-              label='ชื่อยา'
-              value={editForm.drugName}
-              onChange={(v) => patchEditForm({ drugName: v })}
-              options={DRUG_REGISTRY.map((d) => ({
-                value: d.name,
-                label: d.name,
-                image: d.image || resolveMedicationImage(d.name, null) || undefined,
-              }))}
-              searchable
-              showHelperText={false}
-            />
-            <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-1800, 96px)' }}>
-                <InputField
-                  label='จำนวนที่ขอเบิก'
-                  type='number'
-                  value={editForm.packQty}
-                  onChange={(v) => patchEditForm({ packQty: v })}
-                  placeholder='เช่น 500'
+            <div
+              className='w-full'
+              style={{
+                ...REQ_FORM_GRID,
+                paddingLeft: REQ_FORM_LINE_INSET,
+                paddingRight: REQ_FORM_LINE_INSET,
+              }}
+            >
+              <div className='min-w-0' style={{ gridColumn: '1 / span 2', maxWidth: '100%' }}>
+                <Select
+                  label='ชื่อยา'
+                  value={editForm.drugName}
+                  onChange={(v) => patchEditForm({ drugName: v })}
+                  options={DRUG_REGISTRY.map((d) => ({
+                    value: d.name,
+                    label: d.name,
+                    image: d.image || resolveMedicationImage(d.name, null) || undefined,
+                  }))}
+                  searchable
                   showHelperText={false}
+                  className='w-full'
+                  style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
                 />
               </div>
-              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-1800, 96px)' }}>
+              <div className='min-w-0' style={{ maxWidth: '100%' }}>
+                <Field label='จำนวนที่ขอเบิก'>
+                  <Stepper
+                    min={1}
+                    value={editForm.packQty === '' || editForm.packQty == null
+                      ? null
+                      : Number(editForm.packQty)}
+                    onChange={(n) => patchEditForm({
+                      packQty: n == null || Number.isNaN(n) ? '' : String(n),
+                    })}
+                    aria-label='จำนวนที่ขอเบิก'
+                  />
+                </Field>
+              </div>
+              <div className='min-w-0' style={{ maxWidth: '100%' }}>
                 <InputField
                   label='หน่วยนับ'
                   value={registryUnitLabel(editForm.unitKey)}
                   onChange={() => {}}
                   disabled
                   showHelperText={false}
-                />
-              </div>
-              <div className='flex-1 min-w-0' style={{ minWidth: 'var(--dim-size-1800, 96px)' }}>
-                <InputField
-                  label='ขอเบิกใหม่'
-                  type='number'
-                  value={editForm.quantity}
-                  onChange={(v) => patchEditForm({ quantity: v })}
-                  placeholder='เช่น 500'
-                  showHelperText={false}
+                  style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
-            <InputField
-              label='หมายเหตุ'
-              value={editForm.notes}
-              onChange={(v) => patchEditForm({ notes: v })}
-              placeholder='(ถ้ามี)'
-              showHelperText={Boolean(editingReq?.status === 'approved')}
-              helperText={editingReq?.status === 'approved'
-                ? 'รายการนี้อนุมัติแล้ว — เมื่อบันทึกจะกลับเป็นรอดำเนินการและล้างจำนวนอนุมัติ'
-                : undefined}
-            />
+            <div style={{ paddingLeft: REQ_FORM_LINE_INSET, paddingRight: REQ_FORM_LINE_INSET }}>
+              <Textarea
+                label='หมายเหตุ'
+                value={editForm.notes}
+                onChange={(v) => patchEditForm({ notes: v })}
+                placeholder='(ถ้ามี)'
+                rows={3}
+                showHelperText={Boolean(editingReq?.status === 'approved')}
+                helperText={editingReq?.status === 'approved'
+                  ? 'รายการนี้อนุมัติแล้ว — เมื่อบันทึกจะกลับเป็นรอดำเนินการและล้างจำนวนอนุมัติ'
+                  : undefined}
+                style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}
+              />
+            </div>
           </div>
         )}
       </Popup>

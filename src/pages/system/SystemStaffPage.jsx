@@ -4,7 +4,9 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -125,8 +127,16 @@ export default function SystemStaffPage() {
   const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
-  const isAll = !filterRole && !filterDept && !filterStatus;
   const resetFilters = () => { setFilterRole(''); setFilterDept(''); setFilterStatus(''); setPage(1); };
+  const isAll = !filterRole && !filterDept && !filterStatus;
+  const filtersActive = !isAll || search.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      resetFilters();
+      setSearch('');
+    },
+  );
   const handleSubmit = (v) => { const q = (v || '').trim(); if (q) pushHistory({ label: q, value: q }); setSearch(q); setPage(1); };
 
   const columns = useMemo(() => [
@@ -177,15 +187,16 @@ export default function SystemStaffPage() {
             />
           </div>
           <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-200)' }}>
-            <FilterTag value='ทั้งหมด' selected={isAll} onClick={resetFilters} />
             <FilterDropdown prefix='แผนก:' options={deptOptions} value={filterDept} onChange={(v) => { setFilterDept(v); setPage(1); }} />
             <FilterDropdown prefix='บทบาท:' options={roleOptions} value={filterRole} onChange={(v) => { setFilterRole(v); setPage(1); }} />
             <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
           </div>
         </section>
 
         {/* table */}
         <section className='w-full flex flex-col' style={{ ...CARD_STYLE, gap: 'var(--dim-space-400)' }}>
+          <SmoothFilterResults opaque={resultsOpaque}>
           <Table
             columns={columns}
             rows={pageRows}
@@ -203,6 +214,7 @@ export default function SystemStaffPage() {
             </span>
             <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
           </div>
+          </SmoothFilterResults>
         </section>
       </div>
     </QueuePageShell>

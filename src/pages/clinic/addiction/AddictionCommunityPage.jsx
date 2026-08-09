@@ -4,7 +4,9 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import InputField from '@/components/forms/InputField';
@@ -413,6 +415,8 @@ const AddictionCommunityPage = () => {
     || filters.status !== 'all'
     || activeTab !== 'all';
 
+  const { showClearChip, resultsOpaque, clearFilters: smoothClearFilters } = useSmoothClearFilters(filtersActive, clearFilters);
+
   const clearFilters = () => {
     setSearchQ('');
     setFilters(FILTER_DEFAULTS);
@@ -782,7 +786,6 @@ const AddictionCommunityPage = () => {
 
             <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                <FilterTag value='ทั้งหมด' selected={!filtersActive} onClick={clearFilters} />
                 <FilterDropdown
                   prefix='เขต:'
                   options={[{ value: 'all', label: 'ทุกเขต' }, ...COMMUNITY_DISTRICTS.map((d) => ({ value: d, label: d }))]}
@@ -801,10 +804,12 @@ const AddictionCommunityPage = () => {
                   value={filters.status}
                   onChange={(v) => setFilters((f) => ({ ...f, status: v }))}
                 />
+              <ClearFiltersTag active={showClearChip} onClear={smoothClearFilters} />
               </OverflowFlexRow>
             </div>
 
-            <SearchResultCount found={filtered.length} total={rows.length} />
+            <SmoothFilterResults opaque={resultsOpaque}>
+          <SearchResultCount found={filtered.length} total={rows.length} />
 
             {rows.length === 0 ? (
               <EmptyHint
@@ -820,11 +825,6 @@ const AddictionCommunityPage = () => {
             ) : filtered.length === 0 ? (
               <EmptyHint
                 icon='filter_alt_off'
-                action={(
-                  <NeutralSubdueButton variant='outline' leadingIcon='restart_alt' onClick={clearFilters}>
-                    ล้างตัวกรอง
-                  </NeutralSubdueButton>
-                )}
               >
                 ไม่พบข้อมูลที่ตรงกับเงื่อนไข ({filterSummary || 'ตัวกรองปัจจุบัน'}) — ปรับหรือล้างตัวกรองแล้วลองอีกครั้ง
               </EmptyHint>
@@ -847,6 +847,8 @@ const AddictionCommunityPage = () => {
                 </div>
               </>
             )}
+
+            </SmoothFilterResults>
 
             <div
               className='flex items-start w-full'

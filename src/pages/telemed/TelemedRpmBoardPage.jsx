@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import ViewToggle from '@/components/toggle/ViewToggle';
@@ -159,6 +161,18 @@ const TelemedRpmBoardPage = () => {
     if (tab === 'all') return rows;
     return rows.filter((r) => r.level === tab);
   }, [rows, tab]);
+
+  const isAllDefault =
+    filters.source === FILTER_DEFAULTS.source &&
+    filters.unit === FILTER_DEFAULTS.unit &&
+    filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick;
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters(FILTER_DEFAULTS);
+    setSearchQ('');
+    setPage(1);
+  });
 
   const filtered = useMemo(() => {
     let out = byTab;
@@ -652,12 +666,6 @@ const TelemedRpmBoardPage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag
-                value='ทั้งหมด'
-                selected={filters.source === 'all' && filters.unit === 'all'
-                  && filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick && !searchQ}
-                onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); setPage(1); }}
-              />
               <FilterDropdown prefix='ที่มาของค่า:' options={SOURCE_OPTIONS} value={filters.source} onChange={(v) => { setFilters((f) => ({ ...f, source: v })); setPage(1); }} />
               <FilterDropdown prefix='หน่วยบริการ:' options={unitOptions} value={filters.unit} onChange={(v) => { setFilters((f) => ({ ...f, unit: v })); setPage(1); }} />
               <FilterDateTag
@@ -667,9 +675,11 @@ const TelemedRpmBoardPage = () => {
                 defaultQuick='last7'
                 quickLabels={{ last7: '7 วันล่าสุด', last30: '30 วันล่าสุด' }}
               />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           <SearchResultCount found={sorted.length} total={rows.length} />
 
           {rows.length === 0 ? (
@@ -679,11 +689,6 @@ const TelemedRpmBoardPage = () => {
               icon='search_off'
               title='ไม่พบผู้รับบริการที่ตรงกับการค้นหา / ตัวกรอง'
               hint='ลองปรับคำค้นหรือล้างตัวกรอง'
-              action={(
-                <NeutralSubdueButton size='md' variant='outline' leadingIcon='filter_alt_off' onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); setPage(1); }}>
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
-              )}
             />
           ) : view === 'grid' ? (
             <>
@@ -747,6 +752,8 @@ const TelemedRpmBoardPage = () => {
               </PagerBar>
             </>
           )}
+          </SmoothFilterResults>
+
         </ContentCard>
       </div>
 

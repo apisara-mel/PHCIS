@@ -64,10 +64,10 @@ function downloadBlob(filename, blob) {
   return true;
 }
 
-function buildDateSubtitle(startDate, endDate, formatThaiDate) {
+function buildDateSubtitle(startDate, endDate, formatThaiDate, footer = CONSENT_EXPORT_FOOTER) {
   const start = startDate ? formatThaiDate(startDate) : '—';
   const end = endDate ? formatThaiDate(endDate) : '—';
-  return `ช่วงวันที่ ${start} ถึง ${end} · ${CONSENT_EXPORT_FOOTER}`;
+  return `ช่วงวันที่ ${start} ถึง ${end} · ${footer}`;
 }
 
 function buildCompareSubtitle(patient) {
@@ -266,12 +266,13 @@ export function downloadConsentReport({
   isCompareExport = false,
   topicListLine,
   filenameBase,
+  documentFooter = CONSENT_EXPORT_FOOTER,
 }) {
   if (!format || typeof document === 'undefined') return false;
 
   const subtitle = isCompareExport
     ? buildCompareSubtitle(sections[0]?.patient)
-    : buildDateSubtitle(startDate, endDate, formatThaiDate);
+    : buildDateSubtitle(startDate, endDate, formatThaiDate, documentFooter);
 
   const fname = slugFilename(filenameBase || previewTitle);
 

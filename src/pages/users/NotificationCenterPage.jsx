@@ -5,7 +5,9 @@ import Icon from '@/components/icons/Icon';
 import Alert from '@/components/alert/Alert';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Select from '@/components/forms/Select';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
@@ -185,6 +187,14 @@ const NotificationCenterPage = () => {
 
   const setFilter = (key) => (value) => setFilters((prev) => ({ ...prev, [key]: value }));
   const isAllDefault = Object.keys(FILTER_DEFAULTS).every((k) => filters[k] === FILTER_DEFAULTS[k]) && !searchQ;
+  const filtersActive = !isAllDefault;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setFilters(FILTER_DEFAULTS);
+      setSearchQ('');
+    },
+  );
 
   const filtered = useMemo(() => {
     let rows = items;
@@ -275,7 +285,6 @@ const NotificationCenterPage = () => {
 
       <div className='flex flex-wrap items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
         <OverflowFlexRow itemGap='var(--dim-space-200, 8px)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-          <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); }} />
           <FilterDropdown prefix='ความรุนแรง:' options={[{ value: 'all', label: 'ทุกระดับ' }, ...SEVERITIES.map((s) => ({ value: s.key, label: s.label }))]} value={filters.severity} onChange={setFilter('severity')} />
           <FilterDropdown
             prefix='สถานะ:'
@@ -295,6 +304,7 @@ const NotificationCenterPage = () => {
             value={filters.day}
             onChange={setFilter('day')}
           />
+          <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         </OverflowFlexRow>
         <div className='flex-1' />
         <NeutralSubdueButton
@@ -321,9 +331,10 @@ const NotificationCenterPage = () => {
           icon='search_off'
           title='ไม่พบการแจ้งเตือนที่ตรงกับเงื่อนไข'
           subtitle='ลองล้างตัวกรองหรือเปลี่ยนหมวดด้านบน'
-          action={<NeutralSubdueButton variant='outline' size='md' leadingIcon='filter_alt_off' onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); }}>ล้างตัวกรอง</NeutralSubdueButton>}
+          action={<NeutralSubdueButton variant='outline' size='md' leadingIcon='filter_alt_off' onClick={clearFilters}>ล้างตัวกรอง</NeutralSubdueButton>}
         />
       ) : (
+        <SmoothFilterResults opaque={resultsOpaque}>
         <>
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
             {pageRows.map((item) => (
@@ -349,6 +360,7 @@ const NotificationCenterPage = () => {
             <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
           </div>
         </>
+        </SmoothFilterResults>
       )}
     </ModuleCard>
   );

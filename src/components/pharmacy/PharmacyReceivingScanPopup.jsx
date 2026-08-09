@@ -1,13 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import BrandButton from '@/components/button/BrandButton';
-import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Icon from '@/components/icons/Icon';
-import { DEMO_SCAN_TARGETS } from '@/data/pharmacyReceivingScan';
 
-/* §1.9.7.2 — camera / mock barcode scan for the receiving form.
-   Prefer BarcodeDetector + getUserMedia when the browser supports them;
-   otherwise fall back to "จำลองสแกน" quick-picks so the TOR demo always works. */
+/* §1.9.7.2 — camera barcode scan for the receiving form.
+   Prefer BarcodeDetector + getUserMedia when the browser supports them. */
 
 const PharmacyReceivingScanPopup = ({ open, onClose, onScan }) => {
   const videoRef = useRef(null);
@@ -32,7 +29,7 @@ const PharmacyReceivingScanPopup = ({ open, onClose, onScan }) => {
 
     const start = async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setCameraError('เบราว์เซอร์นี้ไม่รองรับกล้อง — ใช้จำลองสแกนด้านล่างได้');
+        setCameraError('เบราว์เซอร์นี้ไม่รองรับกล้อง — พิมพ์เลขที่ช่องสแกนแทน');
         return;
       }
       try {
@@ -53,7 +50,7 @@ const PharmacyReceivingScanPopup = ({ open, onClose, onScan }) => {
 
         const Detector = typeof window !== 'undefined' ? window.BarcodeDetector : null;
         if (!Detector) {
-          setCameraError('กล้องพร้อมแล้ว แต่ยังไม่มี BarcodeDetector — กดจำลองสแกนด้านล่าง');
+          setCameraError('กล้องพร้อมแล้ว แต่ยังไม่มี BarcodeDetector — พิมพ์เลขที่ช่องสแกนแทน');
           return;
         }
         const detector = new Detector({ formats: ['ean_13', 'code_128', 'qr_code'] });
@@ -74,7 +71,7 @@ const PharmacyReceivingScanPopup = ({ open, onClose, onScan }) => {
         };
         rafRef.current = requestAnimationFrame(tick);
       } catch {
-        setCameraError('เปิดกล้องไม่ได้ — อนุญาตสิทธิ์กล้อง หรือใช้จำลองสแกนด้านล่าง');
+        setCameraError('เปิดกล้องไม่ได้ — อนุญาตสิทธิ์กล้อง หรือพิมพ์เลขที่ช่องสแกนแทน');
       }
     };
 
@@ -127,25 +124,6 @@ const PharmacyReceivingScanPopup = ({ open, onClose, onScan }) => {
             {cameraError}
           </p>
         )}
-
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-          <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-secondary)' }}>
-            จำลองสแกน (สำหรับสาธิต)
-          </span>
-          <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-            {DEMO_SCAN_TARGETS.map((t) => (
-              <NeutralSubdueButton
-                key={t.code}
-                size='sm'
-                variant='outline'
-                leadingIcon='barcode'
-                onClick={() => { onScan?.(t.code); onClose?.(); }}
-              >
-                {t.label}
-              </NeutralSubdueButton>
-            ))}
-          </div>
-        </div>
 
         <BrandButton size='sm' leadingIcon='keyboard' onClick={onClose} className='self-start'>
           พิมพ์เลขเองที่ช่องสแกน

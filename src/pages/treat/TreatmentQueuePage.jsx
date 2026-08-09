@@ -5,7 +5,9 @@ import TelemedicineQueueBadge from '@/components/telemed/TelemedicineQueueBadge'
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -347,6 +349,15 @@ const TreatmentQueuePage = () => {
     filters.type === FILTER_DEFAULTS.type &&
     filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick &&
     filters.time === FILTER_DEFAULTS.time;
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setFilters(FILTER_DEFAULTS);
+      setSearchQ('');
+      setPage(1);
+    },
+  );
 
   const handleRowClick = (row) => history.push({
     pathname: '/treat/record',
@@ -602,7 +613,6 @@ const TreatmentQueuePage = () => {
             style={{ gap: 'var(--dim-space-300)' }}
           >
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => setFilters(FILTER_DEFAULTS)} />
               <FilterDropdown prefix='แผนก:' options={FILTER_OPTIONS.department} value={filters.department} onChange={setFilter('department')} />
               <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.type} value={filters.type} onChange={setFilter('type')} />
@@ -614,6 +624,7 @@ const TreatmentQueuePage = () => {
                 quickLabels={DATE_CHIP_LABELS}
               />
               <FilterDropdown prefix='เวลา:' options={FILTER_OPTIONS.time} value={filters.time} onChange={setFilter('time')} />
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
             <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
               <NeutralSubdueButton
@@ -635,6 +646,7 @@ const TreatmentQueuePage = () => {
             </div>
           </div>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           <SearchResultCount found={sortedRows.length} total={rows.length} />
 
           <Table
@@ -683,6 +695,7 @@ const TreatmentQueuePage = () => {
               <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
             )}
           </div>
+          </SmoothFilterResults>
         </div>
       </div>
     </QueuePageShell>

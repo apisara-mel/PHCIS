@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
@@ -93,6 +95,10 @@ const TelemedConsentPage = () => {
   const [kindFilter, setKindFilter] = useState('all');
   const [channelFilter, setChannelFilter] = useState('all');
   const [dateValue, setDateValue] = useState(DEFAULT_DATE_VALUE);
+  const filtersActive = kindFilter !== 'all' || channelFilter !== 'all' || dateValue?.quick !== DEFAULT_DATE_VALUE.quick || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setKindFilter('all'); setChannelFilter('all'); setDateValue(DEFAULT_DATE_VALUE); setSearchQ(''); setPage(1);
+  });
   const [tick, setTick] = useState(0);
 
   const [fillTarget, setFillTarget] = useState(null);
@@ -450,17 +456,14 @@ const TelemedConsentPage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag
-                value='ทั้งหมด'
-                selected={kindFilter === 'all' && channelFilter === 'all' && dateValue.quick === DEFAULT_DATE_VALUE.quick && !searchQ}
-                onClick={() => { setKindFilter('all'); setChannelFilter('all'); setDateValue(DEFAULT_DATE_VALUE); setSearchQ(''); setPage(1); }}
-              />
               <FilterDropdown prefix='ประเภท:' options={KIND_OPTIONS} value={kindFilter} onChange={(v) => { setKindFilter(v); setPage(1); }} />
               <FilterDropdown prefix='ช่องทาง:' options={channelOptions} value={channelFilter} onChange={(v) => { setChannelFilter(v); setPage(1); }} />
               <FilterDateTag prefix='ช่วง:' value={dateValue} onChange={(v) => { setDateValue(v); setPage(1); }} defaultQuick='all' quickLabels={DATE_CHIP_LABELS} />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           <SearchResultCount found={sorted.length} total={records.length} />
 
           {records.length === 0 ? (
@@ -495,6 +498,8 @@ const TelemedConsentPage = () => {
               </PagerBar>
             </>
           )}
+          </SmoothFilterResults>
+
         </ContentCard>
       </div>
 

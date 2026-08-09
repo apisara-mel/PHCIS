@@ -5,6 +5,8 @@ import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import StatusBadge from '@/components/badge/StatusBadge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -166,6 +168,14 @@ const ClaimSubmitQueueSection = ({ role }) => {
   ];
 
   const filtersActive = query.trim() !== '' || status !== 'all' || dateFilter?.quick !== '30days';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setQuery('');
+      setStatus('all');
+      setDateFilter({ quick: '30days' });
+    },
+  );
 
   const columns = [
     {
@@ -326,17 +336,10 @@ const ClaimSubmitQueueSection = ({ role }) => {
             value={`${t.label} (${t.count})`}
           />
         ))}
-        {filtersActive && (
-          <NeutralSubdueButton
-            size='sm'
-            variant='outline'
-            onClick={() => { setQuery(''); setStatus('all'); setDateFilter({ quick: '30days' }); }}
-          >
-            ล้างตัวกรอง
-          </NeutralSubdueButton>
-        )}
+        <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
       </div>
 
+      <SmoothFilterResults opaque={resultsOpaque}>
       <SearchResultCount found={sortedRows.length} total={RIGHTS_VISITS.length} unit='ครั้งบริการ' />
 
       {sortedRows.length === 0 ? (
@@ -367,6 +370,7 @@ const ClaimSubmitQueueSection = ({ role }) => {
           )}
         </>
       )}
+      </SmoothFilterResults>
     </div>
   );
 };

@@ -5,6 +5,8 @@ import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import StatusBadge from '@/components/badge/StatusBadge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import InputField from '@/components/forms/InputField';
@@ -937,6 +939,12 @@ const FinancePaymentPage = () => {
     });
   }, [statusRows, searchQ]);
 
+  const queueFiltersActive = searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    queueFiltersActive,
+    () => setSearchQ(''),
+  );
+
   /* Queue-table sorting — click a header to sort, click again to flip
      direction. Each sortable column maps to a plain-value accessor so the
      comparator stays generic (numeric vs. Thai-locale string compare). */
@@ -1200,7 +1208,9 @@ const FinancePaymentPage = () => {
                     )}
                   />
                 ))}
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </div>
+              <SmoothFilterResults opaque={resultsOpaque}>
               <SearchResultCount found={sortedRows.length} total={statusRows.length} />
               <Table
                 columns={columns}
@@ -1211,6 +1221,7 @@ const FinancePaymentPage = () => {
                 onRowClick={(row) => setActiveRow(row)}
                 emptyMessage='ไม่มีรายการในคิวการเงิน'
               />
+              </SmoothFilterResults>
               {activeRow && <PaymentModal row={activeRow} onClose={() => setActiveRow(null)} onVoid={handleVoid} onPay={handlePay} pricing={pricing} />}
             </>
           )}

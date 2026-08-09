@@ -4,7 +4,9 @@ import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
@@ -391,6 +393,12 @@ export default function AccessManagementPage() {
     setFilterDate({ quick: 'thisyear' }); setPage(1);
   };
 
+  const filtersActive = !isAllFilters || search.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    resetFilters();
+    setSearch('');
+  });
+
   const handleSubmit = (value, item) => {
     const q = (item?.value || item?.label || value || '').trim();
     if (q) pushHistory(item?.badges ? item : { label: q, value: q });
@@ -597,7 +605,6 @@ export default function AccessManagementPage() {
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
               <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
                 <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  <FilterTag value='ทั้งหมด' selected={isAllFilters} onClick={resetFilters} />
                   <FilterDropdown prefix='ผู้ขอ:' options={requesterOptions} value={filterRequester} onChange={(v) => { setFilterRequester(v); setPage(1); }} />
                   <FilterDropdown prefix='วัตถุประสงค์:' options={purposeOptions} value={filterPurpose} onChange={(v) => { setFilterPurpose(v); setPage(1); }} />
                   {!STATUS_FILTER_HIDDEN_TABS.has(activeTab) && (
@@ -609,9 +616,11 @@ export default function AccessManagementPage() {
                     onChange={(v) => { setFilterDate(v); setPage(1); }}
                     defaultQuick='thisyear'
                   />
+                  <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 </div>
               </div>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               <SearchResultCount found={sorted.length} total={rows.length} />
 
               <Table
@@ -634,6 +643,7 @@ export default function AccessManagementPage() {
                   <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
                 )}
               </div>
+              </SmoothFilterResults>
             </div>
           </section>
         </div>

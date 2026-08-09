@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
@@ -87,6 +89,13 @@ const CheckupQueuePage = () => {
     && filters.round === 'all'
     && filters.specimen === 'all'
     && filters.dateValue?.quick === 'today';
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters(FILTER_DEFAULTS);
+    setSearchQ('');
+    setPage(1);
+  });
 
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
   const allVisits = useMemo(() => listVisits(), [tick]);
@@ -459,7 +468,6 @@ const CheckupQueuePage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => { setFilters(FILTER_DEFAULTS); setPage(1); }} />
               <FilterDropdown prefix='ชุดตรวจ:' options={filterOptions.pkg} value={filters.pkg} onChange={setFilter('pkg')} />
               <FilterDropdown prefix='แพทย์:' options={filterOptions.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='ครั้งที่:' options={filterOptions.round} value={filters.round} onChange={setFilter('round')} />
@@ -471,10 +479,12 @@ const CheckupQueuePage = () => {
                 defaultQuick='today'
                 quickLabels={DATE_CHIP_LABELS}
               />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
-          <SearchResultCount found={sortedRows.length} total={rows.length} />
+          <SmoothFilterResults opaque={resultsOpaque}>
+<SearchResultCount found={sortedRows.length} total={rows.length} />
 
           {activeTab === 'tracking' ? (
             <>
@@ -534,6 +544,7 @@ const CheckupQueuePage = () => {
               <PagerRow page={page} pageSize={PAGE_SIZE} total={sortedRows.length} onPageChange={setPage} />
             </>
           )}
+          </SmoothFilterResults>
 
           <div
             className='flex items-center flex-wrap'

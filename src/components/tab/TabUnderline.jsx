@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Icon } from '@/components/icons/Icon';
 import ActionList from '@/components/list/ActionList';
 import OverflowMoreTrigger from '@/components/overflow/OverflowMoreTrigger';
 import TabCountBadge from '@/components/tab/TabCountBadge';
 import { morphTabUnderlineBarStyle } from '@/components/layout/headerMorphStyles';
+import { Icon } from '@/components/icons/Icon';
 
 /* MIH TabUnderline — design-system canonical underline tab strip.
    One component renders the whole row of tabs *and* the single sliding
@@ -11,7 +11,8 @@ import { morphTabUnderlineBarStyle } from '@/components/layout/headerMorphStyles
    (per-tab button) + TabUnderlineBar (parent wrapper) split.
 
    Props:
-     • tabs       Array<{ key, label, icon?, count? }>
+     • tabs       Array<{ key, label, count? }>  (`icon` on a tab is ignored —
+                  underline tabs are label-only; no leading icon)
      • value      currently selected tab key
      • onChange   (key) => void
      • animated   default true. When false, each tab paints its own
@@ -21,7 +22,6 @@ import { morphTabUnderlineBarStyle } from '@/components/layout/headerMorphStyles
 
    Token contract (design.md §6.15 / rows 1301-1305, 1473-1476, 1666-1670):
      • text.tabUnderline.{default,hover,selected,selected-hover}
-     • icon.tabUnderline.{default,hover,selected,selected-hover}
      • border.tab.{hover,selected,selected-hover}
 
    Anti-jitter notes:
@@ -40,17 +40,6 @@ const EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
    `[data-tabunderline-ink]` so the bar hugs the label glyphs. */
 const UNDERLINE_INSET = 12; /* var(--dim-space-300) */
 
-/* Icon wrapper — defers to the project's <Icon> adapter (curated Lucide
-   SVGs for users/clock/check-circle/save/etc · Material Symbols Outlined
-   font fallback for everything else). This honours CLAUDE.md icon rule
-   "render via <Icon name='...' />" and lets tab callers reference Figma's
-   exact glyph names (Lucide-PascalCase or MS-snake_case) interchangeably. */
-const TabIcon = ({ name, size = 16, color }) => (
-  <span style={{ color, display: 'inline-flex', lineHeight: 1 }} aria-hidden>
-    <Icon name={name} size={size} />
-  </span>
-);
-
 const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick, animated }) => {
   /* Resolve compound state: selected-hover > selected > hover > default. */
   const isSelectedHover = selected && hovered;
@@ -63,14 +52,6 @@ const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick,
       : isHover
         ? 'var(--text-tabunderline-hover)'
         : 'var(--text-tabunderline-default)';
-
-  const iconColor = isSelectedHover
-    ? 'var(--icon-tabunderline-selected-hover)'
-    : selected
-      ? 'var(--icon-tabunderline-selected)'
-      : isHover
-        ? 'var(--icon-tabunderline-hover)'
-        : 'var(--icon-tabunderline-default)';
 
   /* Standalone (non-animated) per-tab underline — only when animated bar
      is off. Otherwise the parent paints one shared sliding indicator. */
@@ -112,7 +93,6 @@ const TabButton = ({ tab, selected, hovered, pressed, onHover, onPress, onClick,
         className='inline-flex items-center'
         style={{ gap: 'var(--dim-space-150)', height: '100%' }}
       >
-        {tab.icon && <TabIcon name={tab.icon} size={16} color={iconColor} />}
         <span
           data-tabunderline-ink
           className='relative inline-block max-w-full whitespace-nowrap'
@@ -307,7 +287,7 @@ const TabUnderline = React.forwardRef(function TabUnderline(
       let x;
       let w;
       if (inkRect && inkRect.width > 0.5) {
-        /* Hug the label glyph box — excludes leading icon + count pill. */
+        /* Hug the label glyph box — excludes count pill. */
         x = inkRect.left - cRect.left;
         w = Math.max(0, inkRect.width);
       } else if (btnRect) {
@@ -447,7 +427,7 @@ const TabUnderline = React.forwardRef(function TabUnderline(
                 key={tab.key}
                 as='button'
                 role='menuitem'
-                leadingIcon={tab.icon || undefined}
+                showLeadingIcon={false}
                 label={tab.label}
                 trailing={typeof tab.count === 'number' ? (
                   <span
@@ -520,8 +500,8 @@ export const TabUnderlineItem = React.forwardRef(function TabUnderlineItem(
     size = 'lg',                       /* 'lg' | 'md' | 'sm' (44/40/36) */
     state = 'default',                 /* default | hover | selected | selected-hover | disabled */
     label = 'Tab Label',
-    leadingIcon = 'pets',              /* string Material Symbols name, element, or render fn */
-    showLeadingIcon = true,
+    leadingIcon = 'pets',              /* ignored unless showLeadingIcon — underline tabs are label-only by default */
+    showLeadingIcon = false,
     showTrailingIcon = true,
     onClick,
     className = '',
@@ -537,7 +517,11 @@ export const TabUnderlineItem = React.forwardRef(function TabUnderlineItem(
   const renderIcon = (source, sz) => {
     if (!source) return null;
     if (typeof source === 'string') {
-      return <Sym name={source} size={sz} color={tone.icon} />;
+      return (
+        <span style={{ color: tone.icon, display: 'inline-flex', lineHeight: 1 }} aria-hidden>
+          <Icon name={source} size={sz} />
+        </span>
+      );
     }
     if (typeof source === 'function') return source({ size: sz, color: tone.icon });
     return source;
@@ -588,7 +572,9 @@ export const TabUnderlineItem = React.forwardRef(function TabUnderlineItem(
           {label}
         </span>
         {showTrailingIcon && (
-          <Sym name='keyboard_arrow_down' size={dim.chev} color={tone.icon} />
+          <span style={{ color: tone.icon, display: 'inline-flex', lineHeight: 1 }} aria-hidden>
+            <Icon name='keyboard_arrow_down' size={dim.chev} />
+          </span>
         )}
       </span>
     </button>

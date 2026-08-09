@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -152,6 +154,13 @@ const TbQueuePage = () => {
     filters.patientType === FILTER_DEFAULTS.patientType &&
     filters.doctor === FILTER_DEFAULTS.doctor &&
     filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick;
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters(FILTER_DEFAULTS);
+    setSearchQ('');
+    setPage(1);
+  });
 
   const summaryCards = useMemo(() => ([
     { key: 'waiting',  label: 'รอตรวจ',        value: rows.filter((r) => r.statusKey === 'waiting').length,  color: 'info',     icon: 'schedule' },
@@ -349,7 +358,6 @@ const TbQueuePage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => { setFilters(FILTER_DEFAULTS); setPage(1); }} />
               <FilterDropdown prefix='สถานะ:' options={FILTER_OPTIONS.status} value={filters.status} onChange={setFilter('status')} />
               <FilterDropdown prefix='ประเภทผู้ป่วย:' options={FILTER_OPTIONS.patientType} value={filters.patientType} onChange={setFilter('patientType')} />
               <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
@@ -360,10 +368,12 @@ const TbQueuePage = () => {
                 defaultQuick={FILTER_DEFAULTS.dateValue.quick}
                 quickLabels={DATE_CHIP_LABELS}
               />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
-          <SearchResultCount found={sortedRows.length} total={rows.length} />
+          <SmoothFilterResults opaque={resultsOpaque}>
+<SearchResultCount found={sortedRows.length} total={rows.length} />
 
           {rows.length === 0 ? (
             <div className='flex flex-col items-center text-center w-full' style={{ paddingTop: 'var(--dim-space-800)', paddingBottom: 'var(--dim-space-800)', gap: 'var(--dim-space-300)' }}>
@@ -409,6 +419,7 @@ const TbQueuePage = () => {
               </div>
             </>
           )}
+          </SmoothFilterResults>
         </div>
       </div>
     </QueuePageShell>

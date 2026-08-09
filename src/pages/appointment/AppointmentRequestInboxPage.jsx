@@ -6,6 +6,8 @@ import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
@@ -163,13 +165,19 @@ const AppointmentRequestInboxPage = () => {
   }, [requests, tab, channel, clinic, dateBounds, search]);
 
   const hasFilter = !!(search || channel || clinic || (dateValue.quick && dateValue.quick !== 'all'));
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    hasFilter,
+    () => {
+      setSearch('');
+      setChannel('');
+      setClinic('');
+      setDateValue({ quick: 'all' });
+      setPage(1);
+    },
+  );
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  const clearFilters = () => {
-    setSearch(''); setChannel(''); setClinic(''); setDateValue({ quick: 'all' }); setPage(1);
-  };
 
   const summaryCards = [
     { key: 'pending', label: 'รอตรวจสอบ', value: counts.pending || 0, indicator: 'ต้องตอบกลับ', color: 'inprogress', icon: 'hourglass_top' },
@@ -493,13 +501,10 @@ const AppointmentRequestInboxPage = () => {
                 selectedWhen={(v) => v?.quick && v.quick !== 'all'}
                 onChange={(v) => { setDateValue(v); setPage(1); }}
               />
-              {hasFilter ? (
-                <NeutralSubdueButton size='sm' variant='outline' leadingIcon='filter_alt_off' onClick={clearFilters}>
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
-              ) : null}
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
 
+            <SmoothFilterResults opaque={resultsOpaque}>
             <SearchResultCount found={filtered.length} total={requests.length} />
 
             <Table
@@ -535,6 +540,7 @@ const AppointmentRequestInboxPage = () => {
               </span>
               <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
             </div>
+            </SmoothFilterResults>
           </section>
         </div>
       </QueuePageShell>

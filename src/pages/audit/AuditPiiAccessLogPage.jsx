@@ -5,6 +5,8 @@ import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import FilterTag from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import { Donut, VBars } from '@/components/graph/Charts';
@@ -91,6 +93,17 @@ export default function AuditPiiAccessLogPage() {
     });
   }, [search, actionFilter, dateFilter]);
 
+  const filtersActive = !!search.trim() || !!actionFilter || !!dateFilter;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearch('');
+      setActionFilter('');
+      setDateFilter(null);
+      setPage(1);
+    },
+  );
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -161,12 +174,13 @@ export default function AuditPiiAccessLogPage() {
               width={360}
             />
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
-              <FilterTag value='ทั้งหมด' selected={!actionFilter} onClick={() => { setActionFilter(''); setPage(1); }} />
               {['VIEW', 'EXPORT', 'DELETE'].map((a) => (
                 <FilterTag key={a} value={a} selected={actionFilter === a} onClick={() => { setActionFilter(a); setPage(1); }} />
               ))}
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </div>
           </div>
+          <SmoothFilterResults opaque={resultsOpaque}>
           <Table columns={columns} rows={pageRows} rowKey={(r) => r.id} emptyMessage='ไม่พบ log ตามตัวกรอง' />
           <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)' }}>
             <span style={{ flex: 1, ...BODY }}>
@@ -174,6 +188,7 @@ export default function AuditPiiAccessLogPage() {
             </span>
             <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
           </div>
+          </SmoothFilterResults>
         </section>
       </div>
     </QueuePageShell>

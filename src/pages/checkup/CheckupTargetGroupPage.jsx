@@ -3,7 +3,9 @@ import { useHistory } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
 import InputField from '@/components/forms/InputField';
@@ -475,6 +477,13 @@ const CheckupTargetGroupPage = () => {
 
   const members = form.members || [];
 
+  const memberFiltersActive = memberFilter !== 'all' || memberQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(memberFiltersActive, () => {
+    setMemberFilter('all');
+    setMemberQ('');
+    setMemberPage(1);
+  });
+
   const filteredMembers = useMemo(() => {
     let rows = members;
     if (memberFilter === 'preordered') rows = rows.filter((m) => m.preordered && m.status !== 'cancelled');
@@ -916,7 +925,6 @@ const CheckupTargetGroupPage = () => {
 
               <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
                 <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                  <FilterTag value='ทั้งหมด' selected={memberFilter === 'all'} onClick={() => { setMemberFilter('all'); setMemberPage(1); }} />
                   <FilterDropdown
                     prefix='สถานะ:'
                     options={[
@@ -928,6 +936,7 @@ const CheckupTargetGroupPage = () => {
                     value={memberFilter}
                     onChange={(v) => { setMemberFilter(v); setMemberPage(1); }}
                   />
+                  <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 </OverflowFlexRow>
                 <div className='flex-1' />
                 <InputField
@@ -942,6 +951,7 @@ const CheckupTargetGroupPage = () => {
                 />
               </div>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               {members.length > 0 ? (
                 <SearchResultCount found={filteredMembers.length} total={members.length} />
               ) : null}
@@ -974,6 +984,7 @@ const CheckupTargetGroupPage = () => {
                   <PagerRow page={memberPage} pageSize={MEMBER_PAGE_SIZE} total={filteredMembers.length} onPageChange={setMemberPage} unit='ราย' />
                 </>
               )}
+              </SmoothFilterResults>
 
               <SubCard tone='brand'>
                 <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>

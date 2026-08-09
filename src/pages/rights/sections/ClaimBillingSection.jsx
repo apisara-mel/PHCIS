@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Table, { EllipsisText } from '@/components/table/Table';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import FilterTag from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import RadioGroup from '@/components/radio/RadioGroup';
@@ -505,6 +507,16 @@ const ClaimBillingSection = ({ role }) => {
     });
   }, [query, cycleFilter, onlyClaimable, tick]);
 
+  const lineFiltersActive = !!query.trim() || cycleFilter !== 'all' || onlyClaimable;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    lineFiltersActive,
+    () => {
+      setQuery('');
+      setCycleFilter('all');
+      setOnlyClaimable(false);
+    },
+  );
+
   const totals = useMemo(() => computeClaimTotals(rows), [rows, tick]);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -616,17 +628,10 @@ const ClaimBillingSection = ({ role }) => {
               <Checkbox checked={onlyClaimable} onChange={() => setOnlyClaimable((v) => !v)} />
               <span style={T.body}>แสดงเฉพาะรายการที่มีส่วนเรียกเก็บ</span>
             </label>
-            {(query || cycleFilter !== 'all' || onlyClaimable) && (
-              <NeutralSubdueButton
-                size='sm'
-                variant='outline'
-                onClick={() => { setQuery(''); setCycleFilter('all'); setOnlyClaimable(false); }}
-              >
-                ล้างตัวกรอง
-              </NeutralSubdueButton>
-            )}
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
           </div>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           <SearchResultCount found={rows.length} total={RIGHTS_VISITS.length} />
 
           {rows.length === 0 ? (
@@ -680,6 +685,7 @@ const ClaimBillingSection = ({ role }) => {
               )}
             </>
           )}
+          </SmoothFilterResults>
         </>
       )}
 

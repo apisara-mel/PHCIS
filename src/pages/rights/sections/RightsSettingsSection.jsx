@@ -3,6 +3,8 @@ import Table, { EllipsisText } from '@/components/table/Table';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import FilterTag from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Switch from '@/components/switch/Switch';
 import Popup from '@/components/popup/Popup';
 import Alert from '@/components/alert/Alert';
@@ -264,6 +266,15 @@ const RightsSettingsSection = ({ role }) => {
 
   const canManage = role.canManageSettings;
 
+  const rightsFiltersActive = !!query.trim() || statusFilter !== 'all';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    rightsFiltersActive,
+    () => {
+      setQuery('');
+      setStatusFilter('all');
+    },
+  );
+
   const selected = selectedId === 'new'
     ? null
     : RIGHTS_MASTER.find((r) => r.id === selectedId) || null;
@@ -475,6 +486,7 @@ const RightsSettingsSection = ({ role }) => {
               {[{ k: 'all', l: 'ทุกสถานะ' }, { k: 'active', l: 'ใช้งาน' }, { k: 'inactive', l: 'ปิดใช้งาน' }].map((s) => (
                 <FilterTag key={s.k} selected={statusFilter === s.k} onClick={() => setStatusFilter(s.k)} value={s.l} />
               ))}
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </div>
             <div style={{ paddingBottom: 'var(--dim-space-200)' }}>
               <BrandPrimaryButton
@@ -491,6 +503,7 @@ const RightsSettingsSection = ({ role }) => {
 
           <span style={T.muted}>พบ {rows.length} สิทธิ จากทั้งหมด {RIGHTS_MASTER.length} รายการ</span>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           {rows.length === 0 ? (
             <EmptyState icon='search_off' title='ไม่พบสิทธิที่ตรงกับคำค้น' subtext='ลองล้างตัวกรองสถานะ หรือค้นด้วยรหัสสิทธิสั้นลง' />
           ) : (
@@ -503,6 +516,7 @@ const RightsSettingsSection = ({ role }) => {
               emptyMessage='ไม่พบสิทธิที่ตรงกับคำค้น'
             />
           )}
+          </SmoothFilterResults>
 
           {form && (
             <SectionCard

@@ -5,7 +5,9 @@ import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Badge from '@/components/badge/Badge';
 import Alert from '@/components/alert/Alert';
@@ -204,8 +206,17 @@ const LabReceivePage = () => {
   const rangeStart = filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, filtered.length);
 
-  const hasFilter = query.trim() !== '' || urgency !== ALL || group !== ALL || location !== ALL || tube !== ALL;
-  const clearFilters = () => { setQuery(''); setUrgency(ALL); setGroup(ALL); setLocation(ALL); setTube(ALL); };
+  const filtersActive = query.trim() !== '' || urgency !== ALL || group !== ALL || location !== ALL || tube !== ALL;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setQuery('');
+      setUrgency(ALL);
+      setGroup(ALL);
+      setLocation(ALL);
+      setTube(ALL);
+    },
+  );
 
   const summary = useMemo(() => summariseSpecimens(receivableRows(liveRows)), [liveRows]);
 
@@ -681,13 +692,10 @@ const LabReceivePage = () => {
               <FilterDropdown prefix='กลุ่มตรวจ:' options={GROUP_OPTIONS} value={group} onChange={setGroup} />
               <FilterDropdown prefix='จุดสั่ง:' options={LOCATION_OPTIONS} value={location} onChange={setLocation} />
               <FilterDropdown prefix='ชนิดหลอด:' options={TUBE_OPTIONS} value={tube} onChange={setTube} />
-              {hasFilter && (
-                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='filter_alt_off' onClick={clearFilters}>
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
-              )}
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
 
+            <SmoothFilterResults opaque={resultsOpaque}>
             <SearchResultCount found={filtered.length} total={stageRows.length} />
 
             {/* §2.1.6 แบบกลุ่ม — one disposition applied to N selected rows. */}
@@ -740,16 +748,16 @@ const LabReceivePage = () => {
                 }}
               >
                 <Icon
-                  name={hasFilter ? 'search_off' : 'inventory_2'}
+                  name={filtersActive ? 'search_off' : 'inventory_2'}
                   size={32}
                   style={{ color: 'var(--text-content-quaternary)' }}
                 />
                 <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)', textAlign: 'center' }}>
-                  {hasFilter
+                  {filtersActive
                     ? `ไม่พบรายการที่ตรงกับ "${query.trim() || 'ตัวกรองที่เลือก'}"`
                     : 'ไม่มีสิ่งส่งตรวจรอรับที่ขั้นตอนนี้'}
                 </span>
-                {hasFilter ? (
+                {filtersActive ? (
                   <NeutralSubdueButton variant='outline' size='sm' leadingIcon='filter_alt_off' onClick={clearFilters}>
                     ล้างตัวกรอง
                   </NeutralSubdueButton>
@@ -778,6 +786,7 @@ const LabReceivePage = () => {
                 </div>
               </>
             )}
+            </SmoothFilterResults>
 
             {/* รวมจำนวนสิ่งส่งตรวจ — counted per SPECIMEN (tube), never per
                 test row: two tests drawn into one EDTA tube are one specimen,

@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -199,6 +201,13 @@ const ImmunizationQueuePage = () => {
     && filters.epi === FILTER_DEFAULTS.epi
     && filters.ageGroup === FILTER_DEFAULTS.ageGroup
     && filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick;
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters(FILTER_DEFAULTS);
+    setSearchQ('');
+    setPage(1);
+  });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const rows = useMemo(() => getImmQueueRows(), [tick]);
@@ -577,7 +586,6 @@ const ImmunizationQueuePage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => setFilters(FILTER_DEFAULTS)} />
               <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='สถานะ:' options={FILTER_OPTIONS.status} value={filters.status} onChange={setFilter('status')} />
               <FilterDropdown prefix='วัคซีน:' options={FILTER_OPTIONS.epi} value={filters.epi} onChange={setFilter('epi')} />
@@ -598,9 +606,11 @@ const ImmunizationQueuePage = () => {
                 {canWrite ? 'สิทธิ: แก้ไขได้' : 'สิทธิ: อ่านอย่างเดียว'}
               </NeutralSubdueButton>
             </OverflowFlexRow>
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
           </div>
 
-          {activeTab !== 'scheduled' && (
+          <SmoothFilterResults opaque={resultsOpaque}>
+{activeTab !== 'scheduled' && (
             <SearchResultCount found={sortedRows.length} total={rows.length} />
           )}
 
@@ -650,6 +660,7 @@ const ImmunizationQueuePage = () => {
               </div>
             </>
           )}
+          </SmoothFilterResults>
         </div>
       </div>
     </QueuePageShell>

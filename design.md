@@ -12471,15 +12471,18 @@ A central reference for *behavior, accessibility, and usage rules* across recent
 - Renders page numbers + previous/next chevrons; current page is bold + brand-accented.
 - Page numbers are real buttons; arrow keys move focus, `Enter` activates.
 - Disabled state on the first page's "previous" and the last page's "next".
+- **Client-side table lists (system default):** `<Table>` pages at **20 rows** (`DEFAULT_TABLE_PAGE_SIZE`) and shows the sticky range label + Pagination footer only when `rows.length > 20`. Shared helpers: `src/utils/tablePagination.js`, `src/hooks/useClientPagination.js`, `src/components/table/TablePaginationBar.jsx`. Opt out with `pagination={false}` on `<Table>`.
 
 **Do**
 - Pair Pagination with a "Showing X–Y of Z" label so users know the range.
-- Use Pagination for *server-paged* lists; for short client-side lists, prefer infinite scroll or expand-all.
+- Pass the full filtered/sorted list into `<Table>` and let built-in paging handle the 20-row rule (unless the page already owns server/external paging).
+- Use Pagination for *server-paged* lists; for short client-side lists that fit on one page, hide the pager.
 
 **Don't**
 - Don't render Pagination if the result set fits on one page — hide it instead.
 - Don't auto-advance the page on partial result loading — wait for the click.
 - Don't use Pagination for non-list flows (wizard navigation) — use Step.
+- Don't stack a second pager under `<Table>` when built-in pagination is already on — either pass pre-sliced rows (≤20) with an external pager, or set `pagination={false}`.
 
 #### 6.30.17 Alert & SmallAlert ([6.13](#613-alert) · [6.13.1](#6131-smallalert))
 

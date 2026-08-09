@@ -3,7 +3,9 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
@@ -189,7 +191,14 @@ export default function DepartmentPage() {
   }, [departments, search, filterStatus]);
 
   const hasDepartments = departments.length > 0;
-  const isAllFilters = !filterStatus;
+  const filtersActive = !!filterStatus || !!search.trim();
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearch('');
+      setFilterStatus('');
+    },
+  );
 
   const openAdd = () => {
     setNameDraft('');
@@ -424,11 +433,6 @@ export default function DepartmentPage() {
 
               <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
                 <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  <FilterTag
-                    value='ทั้งหมด'
-                    selected={isAllFilters}
-                    onClick={() => setFilterStatus('')}
-                  />
                   <FilterDropdown
                     prefix='สถานะ:'
                     options={STATUS_OPTIONS}
@@ -436,6 +440,7 @@ export default function DepartmentPage() {
                     onChange={setFilterStatus}
                     placeholder='ทั้งหมด'
                   />
+                  <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 </div>
                 <div className='flex-1' />
                 <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
@@ -468,6 +473,7 @@ export default function DepartmentPage() {
                 </NeutralSubdueButton>
               </div>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               <Table
                 columns={columns}
                 rows={filteredRows}
@@ -481,6 +487,7 @@ export default function DepartmentPage() {
                 onDragEnd={handleDragEnd}
                 emptyMessage='ไม่พบแผนก'
               />
+              </SmoothFilterResults>
 
               {!editMode ? (
                 <BrandDashedAddButton onClick={openAdd}>

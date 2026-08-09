@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
@@ -335,6 +337,9 @@ const TelemedReportPage = () => {
     setPage(1);
   };
 
+  const filtersActive = doctorFilter !== 'all' || unitFilter !== 'all' || outcomeFilter !== 'all' || searchQ.trim() !== '' || dateValue?.quick !== 'last30';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, resetRange);
+
   /* ── columns ───────────────────────────────────────────────────────── */
   const callColumns = useMemo(() => ([
     { key: 'id',        label: 'รหัสสาย' },
@@ -449,11 +454,11 @@ const TelemedReportPage = () => {
 
           <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ล้างตัวกรอง' selected={false} onClick={resetRange} />
               <FilterDropdown prefix='แพทย์:' options={doctorOptions} value={doctorFilter} onChange={(v) => { setDoctorFilter(v); setPage(1); }} />
               <FilterDropdown prefix='หน่วยบริการ:' options={unitOptions} value={unitFilter} onChange={(v) => { setUnitFilter(v); setPage(1); }} />
               <FilterDropdown prefix='ผลลัพธ์:' options={outcomeOptions} value={outcomeFilter} onChange={(v) => { setOutcomeFilter(v); setPage(1); }} />
               <FilterDateTag prefix='ช่วง:' value={dateValue} onChange={applyQuickRange} defaultQuick='last30' quickLabels={{ last30: '30 วันล่าสุด', last7: '7 วันล่าสุด' }} />
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
@@ -501,12 +506,10 @@ const TelemedReportPage = () => {
             )}
           </div>
 
-          {tab === 'stats' && (
-            <SearchResultCount found={sortedRows.length} total={scopedCalls.length} />
-          )}
-
           {tab === 'stats' ? (
+            <SmoothFilterResults opaque={resultsOpaque}>
             <>
+              <SearchResultCount found={sortedRows.length} total={scopedCalls.length} />
               <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
                 <StatTile icon='timer' label='ระยะเวลารวมทุกสาย' value={formatMinutes(summary.totalMin)} sub={`เฉลี่ย ${summary.avgMin} นาที/สาย`} />
                 <StatTile icon='person_off' label='ผู้รับบริการไม่เข้าห้อง' value={summary.noshow} tone='negative' sub='No-show' />
@@ -579,6 +582,7 @@ const TelemedReportPage = () => {
                 </>
               )}
             </>
+            </SmoothFilterResults>
           ) : (
             <>
               <PageBanner tone='info' icon='shield_lock' title='บันทึกการเข้าใช้งานโมดูล Telemedicine'>

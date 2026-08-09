@@ -8,6 +8,8 @@ import RadioGroup from '@/components/radio/RadioGroup';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -136,6 +138,18 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
 
   const outstandingTotal = pendingRows.reduce((s, r) => s + outstandingOf(r), 0);
 
+  const filtersActive = !!q.trim()
+    || filters.dept !== 'all'
+    || filters.claimStatus !== 'all'
+    || filters.dateValue?.quick !== FILTER_DEFAULTS.dateValue.quick;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setQ('');
+      setFilters(FILTER_DEFAULTS);
+    },
+  );
+
   const columns = [
     { key: 'queueNo', label: 'คิว' },
     {
@@ -216,8 +230,10 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
           onChange={setFilter('claimStatus')}
         />
         <FilterDateTag prefix='วัน:' value={filters.dateValue} onChange={setFilter('dateValue')} defaultQuick={FILTER_DEFAULTS.dateValue.quick} />
+        <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
       </div>
 
+      <SmoothFilterResults opaque={resultsOpaque}>
       <SearchResultCount found={pendingRows.length} total={pendingBase.length} />
 
       <div
@@ -235,6 +251,7 @@ const OutstandingSection = ({ queue, onFollowUp }) => {
       </div>
 
       <Table columns={columns} rows={pendingRows} rowKey={(row) => row.id} emptyMessage='ไม่พบยอดค้างชำระที่ตรงกับเงื่อนไข' />
+      </SmoothFilterResults>
 
       {activeRow && (
         <Popup

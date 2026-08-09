@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import Table from '@/components/table/Table';
 import DatePicker from '@/components/forms/DatePicker';
 import FilterDateTag from '@/components/forms/FilterDateTag';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -46,6 +48,8 @@ const CheckupReportsPage = () => {
   const [date, setDate] = useState(CHECKUP_TODAY);
   const [dateChip, setDateChip] = useState({ quick: 'today' });
   const [specimenFilter, setSpecimenFilter] = useState('all');
+  const specimenFiltersActive = specimenFilter !== 'all';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(specimenFiltersActive, () => setSpecimenFilter('all'));
   const [page, setPage] = useState(1);
   const [trackPage, setTrackPage] = useState(1);
   const printedAt = useMemo(() => new Date().toISOString(), [activeTab, date]);
@@ -237,13 +241,13 @@ const CheckupReportsPage = () => {
                 />
                 {activeTab === 'specimen' ? (
                   <>
-                    <FilterTag value='ทั้งหมด' selected={specimenFilter === 'all'} onClick={() => setSpecimenFilter('all')} />
                     <FilterDropdown
                       prefix='สถานะสิ่งส่งตรวจ:'
                       options={[{ value: 'all', label: 'ทุกสถานะ' }, ...Object.values(SPECIMEN_STATUSES).map((s) => ({ value: s.key, label: s.label }))]}
                       value={specimenFilter}
                       onChange={setSpecimenFilter}
                     />
+                    <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                   </>
                 ) : null}
               </OverflowFlexRow>
@@ -374,6 +378,7 @@ const CheckupReportsPage = () => {
               title='รายงานติดตามสิ่งส่งตรวจประจำวัน'
               subtitle='สถานะสิ่งส่งตรวจต่อขั้นตอน — รายการที่ยัง "ส่ง Lab" และผู้รับบริการยังอยู่สถานะรอผล ถือว่าค้างดำเนินการ'
             />
+            <SmoothFilterResults opaque={resultsOpaque}>
             <div className='flex items-start flex-wrap w-full' style={{ gap: 'var(--dim-space-600)' }}>
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
                 {Object.values(SPECIMEN_STATUSES).map((s) => (
@@ -430,6 +435,7 @@ const CheckupReportsPage = () => {
                 <PagerRow page={trackPage} pageSize={PAGE_SIZE} total={filteredTracking.length} onPageChange={setTrackPage} unit='ราย' />
               </>
             )}
+            </SmoothFilterResults>
           </PageCard>
         ) : null}
 

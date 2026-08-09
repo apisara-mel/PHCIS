@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -181,6 +183,13 @@ const HivStiQueuePage = () => {
     filters.clientType === FILTER_DEFAULTS.clientType &&
     filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick &&
     filters.time === FILTER_DEFAULTS.time;
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters(FILTER_DEFAULTS);
+    setSearchQ('');
+    setPage(1);
+  });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const rows = useMemo(() => getHivStiQueueRows(), [tick]);
@@ -450,7 +459,6 @@ const HivStiQueuePage = () => {
 
             <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => setFilters(FILTER_DEFAULTS)} />
                 <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
                 <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.clientType} value={filters.clientType} onChange={setFilter('clientType')} />
                 <FilterDateTag
@@ -461,6 +469,7 @@ const HivStiQueuePage = () => {
                   quickLabels={DATE_CHIP_LABELS}
                 />
                 <FilterDropdown prefix='เวลา:' options={FILTER_OPTIONS.time} value={filters.time} onChange={setFilter('time')} />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
               {/* Cross-page entries — ทะเบียนผู้รับบริการ (1.10.6.6) และ
                   ติดตามการดูแล (1.10.6.8) อยู่ในโมดูลเดียวกัน */}
@@ -483,10 +492,6 @@ const HivStiQueuePage = () => {
               </div>
             </div>
 
-            {activeTab !== 'scheduled' && (
-              <SearchResultCount found={sortedRows.length} total={rows.length} />
-            )}
-
             {activeTab === 'scheduled' ? (
               <Table
                 columns={scheduledColumns}
@@ -494,7 +499,11 @@ const HivStiQueuePage = () => {
                 rowKey={(row) => row.hn}
                 emptyMessage='ไม่มีนัดหมายที่ยังไม่มาติดต่อวันนี้'
               />
-            ) : queueEmptyToday ? (
+            ) : (
+              <SmoothFilterResults opaque={resultsOpaque}>
+                <>
+                  <SearchResultCount found={sortedRows.length} total={rows.length} />
+                  {queueEmptyToday ? (
               <div
                 className='flex flex-col items-center text-center w-full'
                 style={{
@@ -537,9 +546,6 @@ const HivStiQueuePage = () => {
                 <span style={{ fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-secondary, #636B72)' }}>
                   ไม่พบรายการที่ตรงกับคำค้นหรือตัวกรองปัจจุบัน
                 </span>
-                <NeutralSubdueButton variant='outline' size='sm' onClick={clearAllFilters}>
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
               </div>
             ) : (
               <>
@@ -574,6 +580,9 @@ const HivStiQueuePage = () => {
                   <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
                 </div>
               </>
+            )}
+                </>
+              </SmoothFilterResults>
             )}
           </div>
         </div>

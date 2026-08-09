@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
@@ -134,6 +136,17 @@ export default function AccessControlPage() {
 
   const hasRecords = records.length > 0;
   const isAllFilters = !filterCenter && !filterGroup && !filterSub && !filterDept && !filterPosition;
+  const filtersActive = !isAllFilters;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setFilterCenter('');
+      setFilterGroup('');
+      setFilterSub('');
+      setFilterDept('');
+      setFilterPosition('');
+    },
+  );
 
   const openCreate = () => navigate.push('/assess/access-control/new');
   const openDetail = (row) => navigate.push(`/assess/access-control/${row.id}`);
@@ -297,19 +310,12 @@ export default function AccessControlPage() {
               style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}
             >
               <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-                <FilterTag value='ทั้งหมด' selected={isAllFilters} onClick={() => {
-                  setFilterCenter('');
-                  setFilterGroup('');
-                  setFilterSub('');
-                  setFilterDept('');
-                  setFilterPosition('');
-                }}
-                />
                 <FilterDropdown prefix='ศูนย์:' options={filterOpts.center} value={filterCenter} onChange={setFilterCenter} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='Group Policy:' options={filterOpts.group} value={filterGroup} onChange={setFilterGroup} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='สาขาย่อย:' options={filterOpts.sub} value={filterSub} onChange={setFilterSub} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='ตำแหน่ง:' options={filterOpts.pos} value={filterPosition} onChange={setFilterPosition} placeholder='ทั้งหมด' />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 <div className='flex-1' />
                 <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
                   นำส่งออกรายงาน
@@ -325,6 +331,7 @@ export default function AccessControlPage() {
                 สิทธิ์เข้าถึงระบบ
               </span>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               <Table
                 columns={columns}
                 rows={filteredRows}
@@ -332,6 +339,7 @@ export default function AccessControlPage() {
                 onRowClick={openDetail}
                 emptyMessage='ไม่พบสิทธิการเข้าถึง'
               />
+              </SmoothFilterResults>
 
               <BrandDashedAddButton onClick={openCreate}>
                 เพิ่มสิทธิ์เข้าถึงระบบ

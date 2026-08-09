@@ -6,7 +6,9 @@ import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Badge from '@/components/badge/Badge';
 import Alert from '@/components/alert/Alert';
@@ -165,8 +167,17 @@ const LabSendOutPage = () => {
   const rangeStart = filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, filtered.length);
 
-  const hasFilter = query.trim() !== '' || urgency !== ALL || group !== ALL || location !== ALL || labFilter !== ALL;
-  const clearFilters = () => { setQuery(''); setUrgency(ALL); setGroup(ALL); setLocation(ALL); setLabFilter(ALL); };
+  const filtersActive = query.trim() !== '' || urgency !== ALL || group !== ALL || location !== ALL || labFilter !== ALL;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setQuery('');
+      setUrgency(ALL);
+      setGroup(ALL);
+      setLocation(ALL);
+      setLabFilter(ALL);
+    },
+  );
 
   const outstanding = useMemo(
     () => withRecord(sentRows(liveRows)).filter((r) => !r.sendOut?.returned),
@@ -401,7 +412,7 @@ const LabSendOutPage = () => {
   ];
 
   const emptyCopy = () => {
-    if (hasFilter) return `ไม่พบรายการที่ตรงกับ "${query.trim() || 'ตัวกรองที่เลือก'}"`;
+    if (filtersActive) return `ไม่พบรายการที่ตรงกับ "${query.trim() || 'ตัวกรองที่เลือก'}"`;
     if (tab === 'pending') return 'ไม่มีรายการที่ต้องส่งตรวจภายนอก';
     if (tab === 'sent') return 'ไม่มีรายการที่ส่งออกและยังรอผลกลับ';
     return 'ยังไม่มีรายการที่รับผลกลับจากหน่วยงานภายนอก';
@@ -574,13 +585,10 @@ const LabSendOutPage = () => {
               {tab !== 'pending' && (
                 <FilterDropdown prefix='หน่วยงานปลายทาง:' options={LAB_OPTIONS} value={labFilter} onChange={setLabFilter} />
               )}
-              {hasFilter && (
-                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='filter_alt_off' onClick={clearFilters}>
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
-              )}
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
 
+            <SmoothFilterResults opaque={resultsOpaque}>
             <SearchResultCount found={filtered.length} total={tabRows.length} />
 
             {tab === 'pending' && selectedRows.length > 0 && (
@@ -621,11 +629,11 @@ const LabSendOutPage = () => {
                   borderRadius: 'var(--dim-radius-500)',
                 }}
               >
-                <Icon name={hasFilter ? 'search_off' : 'outbox'} size={32} style={{ color: 'var(--text-content-quaternary)' }} />
+                <Icon name={filtersActive ? 'search_off' : 'outbox'} size={32} style={{ color: 'var(--text-content-quaternary)' }} />
                 <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)', textAlign: 'center' }}>
                   {emptyCopy()}
                 </span>
-                {hasFilter && (
+                {filtersActive && (
                   <NeutralSubdueButton variant='outline' size='sm' leadingIcon='filter_alt_off' onClick={clearFilters}>
                     ล้างตัวกรอง
                   </NeutralSubdueButton>
@@ -650,6 +658,7 @@ const LabSendOutPage = () => {
                 </div>
               </>
             )}
+            </SmoothFilterResults>
           </div>
 
           {/* Manifest preview — the same component the printer gets, on a

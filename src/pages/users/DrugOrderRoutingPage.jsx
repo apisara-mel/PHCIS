@@ -11,7 +11,9 @@ import Select from '@/components/forms/Select';
 import InputField from '@/components/forms/InputField';
 import SelectableTag from '@/components/forms/SelectableTag';
 import Switch from '@/components/switch/Switch';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -104,6 +106,14 @@ const DrugOrderRoutingPage = () => {
 
   const setFilter = (key) => (value) => setFilters((prev) => ({ ...prev, [key]: value }));
   const isAllDefault = Object.keys(FILTER_DEFAULTS).every((k) => filters[k] === FILTER_DEFAULTS[k]) && !searchQ;
+  const filtersActive = !isAllDefault;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setFilters(FILTER_DEFAULTS);
+      setSearchQ('');
+    },
+  );
 
   const filtered = useMemo(() => {
     let rows = rules;
@@ -391,11 +401,11 @@ const DrugOrderRoutingPage = () => {
 
       <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
         <OverflowFlexRow itemGap='var(--dim-space-200, 8px)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-          <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); }} />
           <FilterDropdown prefix='คลินิก:' options={[{ value: 'all', label: 'ทุกคลินิก' }, ...clinics.map((c) => ({ value: c.id, label: c.name }))]} value={filters.clinic} onChange={setFilter('clinic')} />
           <FilterDropdown prefix='ห้องยา:' options={[{ value: 'all', label: 'ทุกห้องยา' }, ...pharmacies.map((p) => ({ value: p.id, label: p.name }))]} value={filters.pharmacy} onChange={setFilter('pharmacy')} />
           <FilterDropdown prefix='ประเภทยา:' options={[{ value: 'all', label: 'ทุกประเภท' }, ...DRUG_CATEGORIES.map((d) => ({ value: d.key, label: d.label }))]} value={filters.drug} onChange={setFilter('drug')} />
           <FilterDropdown prefix='สถานะ:' options={[{ value: 'all', label: 'ทั้งหมด' }, { value: 'on', label: 'เปิดใช้งาน' }, { value: 'off', label: 'ปิดอยู่' }]} value={filters.state} onChange={setFilter('state')} />
+          <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         </OverflowFlexRow>
         <div className='flex-1' />
         {!readOnly ? (
@@ -415,9 +425,10 @@ const DrugOrderRoutingPage = () => {
           icon='search_off'
           title='ไม่พบกติกาที่ตรงกับเงื่อนไข'
           subtitle='ลองปรับคำค้นหรือล้างตัวกรอง'
-          action={<NeutralSubdueButton variant='outline' size='md' leadingIcon='filter_alt_off' onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); }}>ล้างตัวกรอง</NeutralSubdueButton>}
+          action={<NeutralSubdueButton variant='outline' size='md' leadingIcon='filter_alt_off' onClick={clearFilters}>ล้างตัวกรอง</NeutralSubdueButton>}
         />
       ) : (
+        <SmoothFilterResults opaque={resultsOpaque}>
         <>
           <Table columns={columns} rows={pageRows} rowKey={(r) => r.id} onRowClick={(r) => openEdit(r)} stickyColCount={1} emptyMessage='ไม่พบกติกา' />
           <div
@@ -435,6 +446,7 @@ const DrugOrderRoutingPage = () => {
             <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
           </div>
         </>
+        </SmoothFilterResults>
       )}
     </ModuleCard>
   );

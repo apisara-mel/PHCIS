@@ -4,7 +4,9 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import InputField from '@/components/forms/InputField';
@@ -472,12 +474,14 @@ const HomeVisitRegistryPage = () => {
     || filters.responsible !== 'all'
     || (filters.dateValue?.quick || 'all') !== 'all'
     || activeTab !== 'all';
-
-  const clearFilters = () => {
-    setSearchQ('');
-    setFilters(FILTER_DEFAULTS);
-    setActiveTab('all');
-  };
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearchQ('');
+      setFilters(FILTER_DEFAULTS);
+      setActiveTab('all');
+    },
+  );
 
   const filterSummary = [
     activeTab === 'all' ? null : tabs.find((t) => t.key === activeTab)?.label,
@@ -1084,7 +1088,6 @@ const HomeVisitRegistryPage = () => {
 
             <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                <FilterTag value='ทั้งหมด' selected={!filtersActive} onClick={clearFilters} />
                 <FilterDropdown
                   prefix='กลุ่ม:'
                   options={[{ value: 'all', label: 'ทุกกลุ่ม' }, ...HOMEVISIT_GROUPS.map((g) => ({ value: g.value, label: g.short }))]}
@@ -1116,9 +1119,11 @@ const HomeVisitRegistryPage = () => {
                   defaultQuick='all'
                   quickLabels={DATE_CHIP_LABELS}
                 />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
             </div>
 
+            <SmoothFilterResults opaque={resultsOpaque}>
             <SearchResultCount found={filtered.length} total={rows.length} />
 
             {rows.length === 0 ? (
@@ -1166,6 +1171,7 @@ const HomeVisitRegistryPage = () => {
                 </div>
               </>
             )}
+            </SmoothFilterResults>
           </SectionCard>
         </div>
       </HomeVisitAccessGate>

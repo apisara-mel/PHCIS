@@ -356,6 +356,11 @@ export function useExportFormatState({
   topics = CONSENT_EXPORT_TOPICS,
   onClose,
   onExported,
+  /** Footer line under preview / in exported file (default = consent module). */
+  documentFooter = 'ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)',
+  /** Override / disable consent export log. Pass null to skip logging. */
+  logExportFn = logExport,
+  topicsFieldName = 'consent-export-topics',
 }) {
   const [format, setFormat] = useState(null);
   const [startDate, setStartDate] = useState(null);
@@ -452,12 +457,15 @@ export function useExportFormatState({
       isCompareExport,
       topicListLine,
       filenameBase: previewTitle,
+      documentFooter,
     });
-    logExport({
-      source: topicLabels || (report ? report.title : 'รายงาน consent'),
-      format,
-      topics: selectedTopics,
-    });
+    if (typeof logExportFn === 'function') {
+      logExportFn({
+        source: topicLabels || (report ? report.title : 'รายงาน'),
+        format,
+        topics: selectedTopics,
+      });
+    }
     onClose?.();
     onExported?.(format, {
       topics: selectedTopics,
@@ -503,11 +511,13 @@ export function useExportFormatState({
     toggleAll,
     topicKeys,
     topics,
+    topicsFieldName,
     previewTitle,
     previewCols,
     previewRows,
     selectedReports,
     report,
+    documentFooter,
     primaryAction: { label: 'ยืนยันนำออกรายงาน', onClick: confirm, disabled: !ready },
     secondaryAction: { label: 'ยกเลิก', onClick: onClose },
     tertiaryAction: { label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() },
@@ -531,11 +541,13 @@ export function ExportFormatFormBody({ form }) {
     someSelected,
     toggleAll,
     topics,
+    topicsFieldName,
     previewTitle,
     previewCols,
     previewRows,
     selectedReports,
     report,
+    documentFooter,
   } = form;
 
   return (
@@ -554,7 +566,7 @@ export function ExportFormatFormBody({ form }) {
             options={topics}
             value={selectedTopics}
             onChange={setSelectedTopics}
-            name='consent-export-topics'
+            name={topicsFieldName}
             error={!someSelected ? 'เลือกอย่างน้อย 1 หัวข้อรายงาน' : undefined}
           />
         </div>
@@ -648,8 +660,8 @@ export function ExportFormatFormBody({ form }) {
             )}
             <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', textAlign: 'center' }}>
               {isCompareExport
-                ? `HN ${report?.patient?.hn || '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)`
-                : `ช่วงวันที่ ${startDate ? formatThaiBuddhistDate(startDate) : '—'} ถึง ${endDate ? formatThaiBuddhistDate(endDate) : '—'} · ออกเอกสารโดยระบบจัดการความยินยอม (PHCIS)`}
+                ? `HN ${report?.patient?.hn || '—'} · ${documentFooter}`
+                : `ช่วงวันที่ ${startDate ? formatThaiBuddhistDate(startDate) : '—'} ถึง ${endDate ? formatThaiBuddhistDate(endDate) : '—'} · ${documentFooter}`}
             </span>
           </div>
           {isCompareExport && report?.compare ? (
@@ -678,6 +690,9 @@ export function ExportFormatPopup({
   topics = CONSENT_EXPORT_TOPICS,
   onClose,
   onExported,
+  documentFooter,
+  logExportFn,
+  topicsFieldName,
 }) {
   const form = useExportFormatState({
     open,
@@ -686,6 +701,9 @@ export function ExportFormatPopup({
     topics,
     onClose,
     onExported,
+    documentFooter,
+    logExportFn,
+    topicsFieldName,
   });
 
   return (

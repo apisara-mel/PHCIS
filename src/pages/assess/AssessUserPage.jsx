@@ -4,7 +4,9 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
@@ -127,7 +129,17 @@ export default function AssessUserPage() {
   }, [records, search, filterCenter, filterGroup, filterDept, filterPosition]);
 
   const hasRecords = records.length > 0;
-  const isAllFilters = !filterCenter && !filterGroup && !filterDept && !filterPosition && !search.trim();
+  const filtersActive = !!(filterCenter || filterGroup || filterDept || filterPosition || search.trim());
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearch('');
+      setFilterCenter('');
+      setFilterGroup('');
+      setFilterDept('');
+      setFilterPosition('');
+    },
+  );
 
   const openCreate = () => navigate.push('/assess/users/new');
   const openDetail = (row) => navigate.push(`/assess/users/${row.id}`);
@@ -303,22 +315,13 @@ export default function AssessUserPage() {
                 onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
               />
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                <FilterTag
-                  value='ทั้งหมด'
-                  selected={isAllFilters}
-                  onClick={() => {
-                    setSearch('');
-                    setFilterCenter('');
-                    setFilterGroup('');
-                    setFilterDept('');
-                    setFilterPosition('');
-                  }}
-                />
                 <FilterDropdown prefix='ศูนย์:' options={filterOpts.center} value={filterCenter} onChange={setFilterCenter} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='Group Policy:' options={filterOpts.group} value={filterGroup} onChange={setFilterGroup} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='ตำแหน่ง:' options={filterOpts.pos} value={filterPosition} onChange={setFilterPosition} placeholder='ทั้งหมด' />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </div>
+              <SmoothFilterResults opaque={resultsOpaque}>
               <Table
                 columns={columns}
                 rows={filteredRows}
@@ -326,6 +329,7 @@ export default function AssessUserPage() {
                 onRowClick={openDetail}
                 emptyMessage='ไม่พบบุคลากรที่ตรงกับเงื่อนไข'
               />
+              </SmoothFilterResults>
             </section>
           </div>
         )}

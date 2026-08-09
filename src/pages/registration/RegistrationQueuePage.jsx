@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
@@ -457,6 +459,20 @@ const RegistrationQueuePage = () => {
 
   const [filters, setFilters] = useState(FILTER_DEFAULTS);
   const setFilter = (key) => (val) => setFilters((f) => ({ ...f, [key]: val }));
+  const isAllDefault =
+    filters.status === FILTER_DEFAULTS.status &&
+    filters.type === FILTER_DEFAULTS.type &&
+    filters.visitStatus === FILTER_DEFAULTS.visitStatus &&
+    filters.life === FILTER_DEFAULTS.life;
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setFilters(FILTER_DEFAULTS);
+      setSearchQ('');
+      setPage(1);
+    },
+  );
 
   /* Mutable roster — drag-reorder in edit mode updates this array in place. */
   const [rows, setRows] = useState(() => buildRegistrationQueueRoster());
@@ -875,6 +891,7 @@ const RegistrationQueuePage = () => {
                     value={filters.life}
                     onChange={setFilter('life')}
                   />
+                  <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 </OverflowFlexRow>
                 <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
                   {/* TOR 1.1.2.2 — mock mobile-app notification log */}
@@ -915,6 +932,7 @@ const RegistrationQueuePage = () => {
                 </div>
               </div>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               <SearchResultCount found={sorted.length} total={rows.length} />
 
               {/* Patient table — queue tabs pin คิว / HN / ชื่อ; directory
@@ -983,6 +1001,7 @@ const RegistrationQueuePage = () => {
                   <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
                 )}
               </div>
+              </SmoothFilterResults>
             </div>
       </div>
 

@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
@@ -535,6 +537,22 @@ const AppointmentListView = ({
     [listVariant, showConfirmAction, showEditAction, onConfirmAppointment, onOpenDetail],
   );
 
+  const filtersActive = !!(search || filterDoctor || filterExamMode || filterHcis || filterAvailability
+    || filterTime !== 'all' || (dateValue.quick && dateValue.quick !== 'all'));
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearch('');
+      setFilterDoctor('');
+      setFilterExamMode('');
+      setFilterTime('all');
+      setFilterHcis('');
+      setFilterAvailability('');
+      setDateValue({ quick: defaultDateQuick });
+      setPage(1);
+    },
+  );
+
   const body = (
     <>
       <div className='w-full flex items-start justify-center'>
@@ -597,28 +615,10 @@ const AppointmentListView = ({
             value={filterAvailability}
             onChange={(v) => { setFilterAvailability(v); setPage(1); }}
           />
-          {(search || filterDoctor || filterExamMode || filterHcis || filterAvailability
-            || filterTime !== 'all' || (dateValue.quick && dateValue.quick !== 'all')) ? (
-              <BrandSubdueButton
-                variant='outline'
-                size='sm'
-                leadingIcon='filter_alt_off'
-                onClick={() => {
-                  setSearch('');
-                  setFilterDoctor('');
-                  setFilterExamMode('');
-                  setFilterTime('all');
-                  setFilterHcis('');
-                  setFilterAvailability('');
-                  setDateValue({ quick: defaultDateQuick });
-                  setPage(1);
-                }}
-              >
-                ล้างตัวกรอง
-              </BrandSubdueButton>
-            ) : null}
+          <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         </OverflowFlexRow>
 
+        <SmoothFilterResults opaque={resultsOpaque}>
         <SearchResultCount found={sorted.length} total={appointments.length} />
 
         <Table
@@ -664,6 +664,7 @@ const AppointmentListView = ({
           </span>
           <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
         </div>
+        </SmoothFilterResults>
       </div>
     </>
   );

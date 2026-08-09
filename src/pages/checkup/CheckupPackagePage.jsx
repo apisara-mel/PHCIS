@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
 import Checkbox from '@/components/checkbox/Checkbox';
@@ -692,6 +694,12 @@ const CheckupPackagePage = () => {
   const [searchQ, setSearchQ] = useState('');
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ rights: 'all', serviceType: 'all' });
+  const filtersActive = filters.rights !== 'all' || filters.serviceType !== 'all' || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters({ rights: 'all', serviceType: 'all' });
+    setSearchQ('');
+    setPage(1);
+  });
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
@@ -979,11 +987,6 @@ const CheckupPackagePage = () => {
 
             <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                <FilterTag
-                  value='ทั้งหมด'
-                  selected={filters.rights === 'all' && filters.serviceType === 'all'}
-                  onClick={() => setFilters({ rights: 'all', serviceType: 'all' })}
-                />
                 <FilterDropdown
                   prefix='สิทธิ:'
                   options={[{ value: 'all', label: 'ทุกสิทธิ' }, ...RIGHTS_OPTIONS]}
@@ -996,9 +999,11 @@ const CheckupPackagePage = () => {
                   value={filters.serviceType}
                   onChange={(v) => { setFilters((f) => ({ ...f, serviceType: v })); setPage(1); }}
                 />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
             </div>
 
+            <SmoothFilterResults opaque={resultsOpaque}>
             {packages.length === 0 ? (
               <EmptyState
                 icon='inventory_2'
@@ -1029,6 +1034,7 @@ const CheckupPackagePage = () => {
                 <PagerRow page={page} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} unit='ชุดตรวจ' />
               </>
             )}
+            </SmoothFilterResults>
           </PageCard>
         )}
       </PageBody>

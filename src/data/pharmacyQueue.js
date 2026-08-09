@@ -11,7 +11,7 @@
    §1.9.6-1.9.9 two-tier warehouse + requisition/receiving/borrow-return. */
 
 import { findMrPatientByHn } from '@/data/mrPatients';
-import { DRUG_REGISTRY } from '@/data/pharmacyRegistry';
+import { DRUG_REGISTRY, SUPPLIER_OPTIONS } from '@/data/pharmacyRegistry';
 import { getPharmacySupportingInfo } from '@/data/pharmacySupportingInfo';
 import { getVnByHn } from '@/data/patientProfiles';
 import { getStation } from '@/data/queueCenterStore';
@@ -372,16 +372,141 @@ export const RECEIVING_TYPES = [
   { key: 'donation', label: 'รับบริจาค'             },
 ];
 
-export const REQUISITIONS = [
-  { id: 'req-001', requisitionNo: 'RQ-2026-0142', groupId: 'RQ-2026-0142', seq: 1, drugName: 'Amoxicillin 500 mg', quantity: 500, unit: 'เม็ด', packSize: 'ขวดละ 500 เม็ด', itemCategory: 'drug', requestedBy: CURRENT_DISPENSER.name, requestedByPosition: 'เภสัชกร', requestingCenter: 'hc-4', targetUnit: 'main-warehouse', requisitionType: 'regular', previousRequestQty: 400, previousRequestAt: addMonths(TODAY, -1), requisitionCount: 4, approvedQuantity: null, notes: '', requestedAt: addMonths(TODAY, 0), status: 'pending' },
-  { id: 'req-002', requisitionNo: 'RQ-2026-0141', groupId: 'RQ-2026-0141', seq: 1, drugName: 'Ibuprofen 400 mg',   quantity: 300, unit: 'เม็ด', packSize: 'กล่องละ 1000 เม็ด', itemCategory: 'drug', requestedBy: CURRENT_DISPENSER.name, requestedByPosition: 'เภสัชกร', requestingCenter: 'hc-4', targetUnit: 'main-warehouse', requisitionType: 'urgent', previousRequestQty: 200, previousRequestAt: addMonths(TODAY, -1), requisitionCount: 3, approvedQuantity: 300, notes: 'ใกล้หมดสต็อกย่อย เร่งด่วน', requestedAt: addMonths(TODAY, 0), status: 'approved' },
-  { id: 'req-003', requisitionNo: 'RQ-2026-0130', groupId: 'RQ-2026-0130', seq: 1, drugName: 'Paracetamol 500 mg', quantity: 1000, unit: 'เม็ด', packSize: 'ขวดละ 1000 เม็ด', itemCategory: 'drug', requestedBy: CURRENT_DISPENSER.name, requestedByPosition: 'เภสัชกร', requestingCenter: 'hc-4', targetUnit: 'pharmacy-division', requisitionType: 'regular', previousRequestQty: null, previousRequestAt: null, requisitionCount: 1, approvedQuantity: 1000, notes: '', requestedAt: addMonths(TODAY, -1), status: 'fulfilled' },
+/* §1.9.6 mock list — 40 rows seeded from ทะเบียนยา for filter/sort/pagination demos. */
+const REQ_UNIT_LABEL = {
+  tablet: 'เม็ด', capsule: 'แคปซูล', bottle: 'ขวด', box: 'กล่อง',
+  sachet: 'ซอง', tube: 'หลอด', blister: 'แผง', ml: 'ซีซี',
+};
+const REQ_SEED_REQUESTERS = [
+  { name: CURRENT_DISPENSER.name, position: 'เภสัชกร' },
+  { name: CURRENT_CLINICAL_PHARMACIST.name, position: 'เภสัชกรคลินิก' },
+  { name: 'ภญ.ปิยะดา จันทร์เพ็ญ', position: 'เภสัชกร' },
+  { name: 'ภก.วรากรณ์ สุขใจ', position: 'เภสัชกร' },
+];
+const REQ_SEED_CENTERS = ['hc-4', 'hc-3', 'hc-5', 'hc-7', 'hc-1'];
+const REQ_SEED_NOTES = [
+  '', '', 'ใกล้หมดสต็อกย่อย', 'เร่งด่วน — คลินิกโรคเรื้อรัง',
+  'เบิกสำรองเดือนนี้', 'สำหรับจุดบริการ OPD', 'ยาใกล้หมดอายุ — เร่งใช้',
+];
+const REQ_SEED_STATUSES = ['pending', 'approved', 'fulfilled', 'cancelled', 'pending', 'approved'];
+
+const buildRequisitionSeeds = (count = 40) => {
+  const drugs = DRUG_REGISTRY.length ? DRUG_REGISTRY : [{ name: 'Paracetamol 500 mg', unit: 'tablet', packSize: 1000 }];
+  const typeKeys = REQUISITION_TYPES.map((t) => t.key);
+  const categoryKeys = REQUISITION_ITEM_CATEGORIES.map((c) => c.key);
+  const targetKeys = REQUISITION_TARGETS.map((t) => t.key);
+  return Array.from({ length: count }, (_, i) => {
+    const drug = drugs[i % drugs.length];
+    const unit = REQ_UNIT_LABEL[drug.unit] || 'เม็ด';
+    const packQty = drug.packSize > 0 ? Number(drug.packSize) : 100 + (i % 5) * 100;
+    const quantity = 100 + (i % 12) * 50;
+    const status = REQ_SEED_STATUSES[i % REQ_SEED_STATUSES.length];
+    const requester = REQ_SEED_REQUESTERS[i % REQ_SEED_REQUESTERS.length];
+    const requisitionCount = 1 + (i % 7);
+    const hasPrevious = requisitionCount > 1;
+    const requisitionNo = `RQ-2026-${String(200 - i).padStart(4, '0')}`;
+    const approved = status === 'approved' || status === 'fulfilled' ? quantity : null;
+    return {
+      id: `req-${String(i + 1).padStart(3, '0')}`,
+      requisitionNo,
+      groupId: requisitionNo,
+      seq: 1,
+      drugName: drug.name,
+      quantity,
+      unit,
+      packSize: String(packQty),
+      itemCategory: categoryKeys[i % categoryKeys.length],
+      requestedBy: requester.name,
+      requestedByPosition: requester.position,
+      requestingCenter: REQ_SEED_CENTERS[i % REQ_SEED_CENTERS.length],
+      targetUnit: targetKeys[i % targetKeys.length],
+      requisitionType: typeKeys[i % typeKeys.length],
+      previousRequestQty: hasPrevious ? Math.max(50, quantity - 50) : null,
+      previousRequestAt: hasPrevious ? addDays(TODAY, -(30 + (i % 20))) : null,
+      requisitionCount,
+      approvedQuantity: approved,
+      notes: REQ_SEED_NOTES[i % REQ_SEED_NOTES.length],
+      requestedAt: addDays(TODAY, -(i % 45)),
+      status,
+      ...(status === 'cancelled' ? { cancelReason: 'ยกเลิกโดยเภสัชกร (mock)' } : null),
+    };
+  });
+};
+
+export const REQUISITIONS = buildRequisitionSeeds(40);
+
+/* §1.9.7 mock list — 40 rows seeded from ทะเบียนยา for filter/sort/pagination demos. */
+const RCV_SEED_DEPARTMENTS = [
+  'คลังยาใหญ่ศูนย์ 4 ดินแดง',
+  'คลังยาใหญ่ศูนย์ 3 บางซื่อ',
+  'คลังยาใหญ่ศูนย์ 5 ดินแดง',
+  'คลังยาใหญ่ศูนย์ 7 บุคคโล',
+  'คลังยาใหญ่ศูนย์ 1 พญาไท',
+];
+const RCV_SEED_RECEIVERS = [
+  CURRENT_DISPENSER.name,
+  CURRENT_CLINICAL_PHARMACIST.name,
+  'ภญ.ปิยะดา จันทร์เพ็ญ',
+  'ภก.วรากรณ์ สุขใจ',
+];
+const RCV_SEED_STATUSES = [
+  undefined, undefined, undefined, undefined, 'cancelled',
+  undefined, undefined, undefined,
 ];
 
-export const RECEIVING_RECORDS = [
-  { id: 'rcv-001', receiptNo: 'RCV-2026-0088', groupId: 'RCV-2026-0088', seq: 1, department: 'คลังยาใหญ่ศูนย์ 4 ดินแดง', scanCode: '8850001112345', drugName: 'Paracetamol 500 mg', quantity: 1000, unit: 'เม็ด', packSize: 'ขวดละ 1000 เม็ด', drugType: 'GPO', lot: 'LOT-PCM-MAIN-24', expiryDate: addMonths(TODAY, 22), costPrice: 0.6, salePrice: 0.8, claimablePrice: 0.75, receivingType: 'purchase', poNumber: 'PO-2026-0044', purchaseDate: addMonths(TODAY, -2), deliveryNoteNumber: 'DN-2026-0091', deliveryDate: addMonths(TODAY, -1), receivedFrom: 'องค์การเภสัชกรรม (GPO)', receivedAt: addMonths(TODAY, -1), receivedBy: CURRENT_DISPENSER.name },
-  { id: 'rcv-002', receiptNo: 'RCV-2026-0087', groupId: 'RCV-2026-0087', seq: 1, department: 'คลังยาใหญ่ศูนย์ 4 ดินแดง', scanCode: '8850001112352', drugName: 'Metformin 500 mg',   quantity: 5000, unit: 'เม็ด', packSize: 'ขวดละ 1000 เม็ด', drugType: 'GPO', lot: 'LOT-MET-MAIN-24', expiryDate: addMonths(TODAY, 16), costPrice: 0.7, salePrice: 0.9, claimablePrice: 0.85, receivingType: 'purchase', poNumber: 'PO-2026-0039', purchaseDate: addMonths(TODAY, -3), deliveryNoteNumber: 'DN-2026-0082', deliveryDate: addMonths(TODAY, -2), receivedFrom: 'องค์การเภสัชกรรม (GPO)', receivedAt: addMonths(TODAY, -2), receivedBy: CURRENT_DISPENSER.name },
-];
+const buildReceivingSeeds = (count = 40) => {
+  const drugs = DRUG_REGISTRY.length
+    ? DRUG_REGISTRY
+    : [{ name: 'Paracetamol 500 mg', unit: 'tablet', packSize: 1000 }];
+  const typeKeys = RECEIVING_TYPES.map((t) => t.key);
+  const suppliers = SUPPLIER_OPTIONS.length
+    ? SUPPLIER_OPTIONS
+    : ['องค์การเภสัชกรรม (GPO)'];
+  return Array.from({ length: count }, (_, i) => {
+    const drug = drugs[i % drugs.length];
+    const unit = REQ_UNIT_LABEL[drug.unit] || 'เม็ด';
+    const packQty = drug.packSize > 0 ? Number(drug.packSize) : 1000;
+    const quantity = packQty * (1 + (i % 5));
+    const costPrice = Number((0.5 + (i % 12) * 0.15).toFixed(2));
+    const salePrice = Number((costPrice + 0.2 + (i % 5) * 0.05).toFixed(2));
+    const claimablePrice = Number((salePrice - 0.05).toFixed(2));
+    const receiptNo = `RCV-2026-${String(120 - i).padStart(4, '0')}`;
+    const lotStem = String(drug.name || 'DRUG').replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase() || 'DRUG';
+    const status = RCV_SEED_STATUSES[i % RCV_SEED_STATUSES.length];
+    const monthsAgo = 1 + (i % 10);
+    return {
+      id: `rcv-${String(i + 1).padStart(3, '0')}`,
+      receiptNo,
+      groupId: receiptNo,
+      seq: 1,
+      department: RCV_SEED_DEPARTMENTS[i % RCV_SEED_DEPARTMENTS.length],
+      scanCode: `8850001${String(112345 + i).padStart(6, '0')}`,
+      drugName: drug.name,
+      quantity,
+      unit,
+      packSize: `${unit}ละ ${packQty}`,
+      drugType: DRUG_TYPES[i % DRUG_TYPES.length],
+      lot: `LOT-${lotStem}-${String(24 + (i % 3)).padStart(2, '0')}${String.fromCharCode(65 + (i % 6))}`,
+      expiryDate: addMonths(TODAY, 6 + (i % 24)),
+      costPrice,
+      salePrice,
+      claimablePrice,
+      receivingType: typeKeys[i % typeKeys.length],
+      poNumber: `PO-2026-${String(80 - (i % 40)).padStart(4, '0')}`,
+      purchaseDate: addMonths(TODAY, -(monthsAgo + 1)),
+      deliveryNoteNumber: `DN-2026-${String(100 - (i % 40)).padStart(4, '0')}`,
+      deliveryDate: addMonths(TODAY, -monthsAgo),
+      receivedFrom: suppliers[i % suppliers.length],
+      receivedAt: addDays(TODAY, -(i % 45)),
+      receivedBy: RCV_SEED_RECEIVERS[i % RCV_SEED_RECEIVERS.length],
+      ...(status === 'cancelled'
+        ? { status: 'cancelled', cancelReason: 'ยกเลิกรายการรับเข้า (mock)' }
+        : null),
+    };
+  });
+};
+
+export const RECEIVING_RECORDS = buildReceivingSeeds(40);
 
 /* ยืม-คืนยา + แลกล็อตยาระหว่างศูนย์ (ToR §1.9.9.4-5) — `direction` splits
    the list into "ผู้ส่งคำร้อง" (`outgoing` — requests this center made to

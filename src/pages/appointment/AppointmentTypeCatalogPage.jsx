@@ -5,6 +5,8 @@ import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Select from '@/components/forms/Select';
 import InputField from '@/components/forms/InputField';
@@ -173,6 +175,14 @@ const AppointmentTypeCatalogPage = () => {
   }, [allTypes, tab, modeFilter, search]);
 
   const hasFilter = !!(search || modeFilter);
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    hasFilter,
+    () => {
+      setSearch('');
+      setModeFilter('');
+      setPage(1);
+    },
+  );
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -457,11 +467,7 @@ const AppointmentTypeCatalogPage = () => {
 
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
               <FilterDropdown prefix='โหมด:' options={MODE_FILTER} value={modeFilter} onChange={(v) => { setModeFilter(v); setPage(1); }} />
-              {hasFilter ? (
-                <NeutralSubdueButton size='sm' variant='outline' leadingIcon='filter_alt_off' onClick={() => { setSearch(''); setModeFilter(''); setPage(1); }}>
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
-              ) : null}
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
 
             {customCount === 0 && tab === 'custom' ? (
@@ -491,6 +497,7 @@ const AppointmentTypeCatalogPage = () => {
                 </BrandButton>
               </div>
             ) : (
+              <SmoothFilterResults opaque={resultsOpaque}>
               <>
                 <Table
                   columns={columns}
@@ -518,6 +525,7 @@ const AppointmentTypeCatalogPage = () => {
                   <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
                 </div>
               </>
+              </SmoothFilterResults>
             )}
           </section>
 

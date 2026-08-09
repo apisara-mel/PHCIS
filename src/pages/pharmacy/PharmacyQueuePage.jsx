@@ -3,7 +3,9 @@ import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import Table, { EllipsisText as TableEllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
@@ -314,13 +316,16 @@ const PharmacyQueuePage = () => {
     || paymentFilter !== 'all'
     || searchQ.trim() !== '';
 
-  const clearFilters = () => {
-    setQueueTypeFilter('all');
-    setAllergyFilter('all');
-    setPaymentFilter('all');
-    setSearchQ('');
-    setPage(1);
-  };
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setQueueTypeFilter('all');
+      setAllergyFilter('all');
+      setPaymentFilter('all');
+      setSearchQ('');
+      setPage(1);
+    },
+  );
 
   const queueTypeOptions = [{ value: 'all', label: 'ทุกประเภท' }, ...QUEUE_TYPES.map((t) => ({ value: t.key, label: t.label }))];
 
@@ -397,37 +402,29 @@ const PharmacyQueuePage = () => {
                 value={paymentFilter}
                 onChange={setPaymentFilter}
               />
-              {/* Same chip shape as the filters it clears, and only present once
-                  there is something to clear. */}
-              {filtersActive ? (
-                <FilterTag
-                  variant='neutral'
-                  leadingIcon='close'
-                  value='ล้างตัวกรอง'
-                  showTitle={false}
-                  onClick={clearFilters}
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
+            </div>
+
+            <SmoothFilterResults opaque={resultsOpaque}>
+              <SearchResultCount found={sortedRows.length} total={rows.length} />
+
+              <div className='flex flex-col' style={{ minHeight: 'calc(100vh - 460px)' }}>
+                <Table
+                  columns={columns}
+                  rows={pageRows}
+                  rowKey={(row) => row.id}
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+                  stickyColCount={2}
+                  onRowClick={handleRowClick}
+                  stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
+                  emptyMessage={filtersActive
+                    ? 'ไม่พบรายการที่ตรงกับตัวกรอง'
+                    : EMPTY_MESSAGE[activeTab] || 'ยังไม่มีรายการ'}
+                  emptySubtext={filtersActive ? 'ลองล้างตัวกรองหรือแก้คำค้นหา' : null}
                 />
-              ) : null}
-            </div>
-
-            <SearchResultCount found={sortedRows.length} total={rows.length} />
-
-            <div className='flex flex-col' style={{ minHeight: 'calc(100vh - 460px)' }}>
-              <Table
-                columns={columns}
-                rows={pageRows}
-                rowKey={(row) => row.id}
-                sortConfig={sortConfig}
-                onSort={handleSort}
-                stickyColCount={2}
-                onRowClick={handleRowClick}
-                stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
-                emptyMessage={filtersActive
-                  ? 'ไม่พบรายการที่ตรงกับตัวกรอง'
-                  : EMPTY_MESSAGE[activeTab] || 'ยังไม่มีรายการ'}
-                emptySubtext={filtersActive ? 'ลองล้างตัวกรองหรือแก้คำค้นหา' : null}
-              />
-            </div>
+              </div>
+            </SmoothFilterResults>
           </div>
 
           <div
