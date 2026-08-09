@@ -249,7 +249,9 @@ export const getEmrChart = (hn, hint = {}) => {
         name: `${a.label}`,
         code: t.code,
         panel: t.nameEn,
-        value: `${n.value} ${a.unit || ''}`.trim(),
+        /* `pending` = ยังไม่มีค่าตัวเลข (numericFor อ่านค่าอ้างอิงไม่ออก) —
+           ต่อหน่วยท้ายข้อความรอผลจะได้ "รอผลจากห้องปฏิบัติการ mg/dL" */
+        value: n.pending ? String(n.value) : `${n.value} ${a.unit || ''}`.trim(),
         ref: a.normalRange ? `ค่าอ้างอิง ${a.normalRange}` : '',
         at,
         abnormal: n.abnormal,

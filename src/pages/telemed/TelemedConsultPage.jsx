@@ -1058,6 +1058,9 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
      setPatientPresent(false) อาจถูกเรียกไปแล้ว (ผู้ป่วยวางสาย / สัญญาณหลุด) */
   const patientEverPresentRef = useRef(false);
   const [patientLeft, setPatientLeft] = useState(false);
+  /* Mirror of `patientLeft` for the session listener — that effect is mounted
+     once with [] deps, so its closure would otherwise always read `false`. */
+  const patientLeftRef = useRef(false);
   const [joinRequestOpen, setJoinRequestOpen] = useState(false);
   const [noShowStep, setNoShowStep] = useState(null); // null | 1 | 2 | 'timeslot'
   const [timeslotCountdown, setTimeslotCountdown] = useState(30);
@@ -1398,14 +1401,20 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
              เพราะเวลาให้บริการ/การเบิกจ่าย (คู่มือ 5.3.5) อ่านจากบันทึกนี้ */
           case TELEMED_SESSION_EVENTS.leave:
             setPatientPresent(false);
+            patientLeftRef.current = true;
             setPatientLeft(true);
             appendAuditEvent({ user: DOCTOR.name, action: 'ผู้รับบริการวางสาย (สิ้นสุดการปรึกษา)', ok: true });
             break;
           case TELEMED_SESSION_EVENTS.bye:
-            /* แท็บผู้ป่วยปิด/รีเฟรชกลางคัน → เป็น "สัญญาณขาดหาย" จริง */
+            /* แท็บผู้ป่วยปิด/รีเฟรชกลางคัน → เป็น "สัญญาณขาดหาย" จริง
+               แต่ `bye` ถูกส่งตอน close() ทุกกรณี รวมถึงตอนผู้ป่วยกดวางสาย
+               แล้วปิดแท็บตามมา — เคสนั้นสายจบไปแล้ว ห้ามพลิกเป็น "สัญญาณหลุด"
+               (จะกลืนแบนเนอร์ "ผู้รับบริการวางสายแล้ว" และขึ้นให้เชื่อมต่อใหม่) */
             setPatientPresent(false);
-            setNetwork('lost');
-            appendAuditEvent({ user: DOCTOR.name, action: 'สัญญาณผู้รับบริการขาดหาย (แท็บผู้รับบริการหลุด)', ok: false });
+            if (!patientLeftRef.current) {
+              setNetwork('lost');
+              appendAuditEvent({ user: DOCTOR.name, action: 'สัญญาณผู้รับบริการขาดหาย (แท็บผู้รับบริการหลุด)', ok: false });
+            }
             break;
           case TELEMED_SESSION_EVENTS.consent:
             setConsent(msg.granted ? 'granted' : 'denied');
@@ -1435,6 +1444,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setElapsed(0);
     setPatientPresent(false);
     patientEverPresentRef.current = false;
+    patientLeftRef.current = false;
     setPatientLeft(false);
     setJoinRequestOpen(false);
     setNoShowStep(null);
@@ -1461,6 +1471,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setJoinRequestOpen(false);
     setPatientPresent(true);
     patientEverPresentRef.current = true;   /* มีการให้บริการจริงแล้ว */
+    patientLeftRef.current = false;
     setPatientLeft(false);
     setNoShowStep(null);
     sessionRef.current?.post(TELEMED_SESSION_EVENTS.accept, { by: DOCTOR.name });
