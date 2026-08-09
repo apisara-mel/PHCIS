@@ -677,6 +677,10 @@ a:focus, a:focus-visible,
    This file only keeps class/element overrides (e.g. .bg-white).
    ─────────────────────────────────────────────────────────────── */
 
+/* แรมป์ --d-* และ token override ของโหมดมืดทั้งหมดอยู่ใน @mih/design-tokens
+   แล้ว (mirror: src/styles/tokens.css) — ไฟล์นี้เก็บเฉพาะ override ระดับ
+   class/element เช่น .bg-white ตามเดิม อย่านิยาม --d-* ซ้ำที่นี่. */
+
 /* Body backdrop follows the dark screen so no light gutter shows. */
 
 [data-mode="dark"] body {
