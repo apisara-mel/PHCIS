@@ -12,7 +12,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import InputField from '@/components/forms/InputField';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Checkbox from '@/components/checkbox/Checkbox';
-import RadioGroup from '@/components/radio/RadioGroup';
+import { FilterDropdown } from '@/components/forms/FilterTag';
 import Popup from '@/components/popup/Popup';
 import Alert from '@/components/alert/Alert';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
@@ -22,6 +22,9 @@ import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import SelectableCardButton from '@/components/button/SelectableCardButton';
 import { Icon } from '@/components/icons/Icon';
+import LottieIllustration from '@/components/illustrations/LottieIllustration';
+import insertCardAnimation from '@/assets/illustrations/insert-card.json';
+import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import RevenueRegisterSection from '@/pages/finance/sections/RevenueRegisterSection';
 import OutstandingSection from '@/pages/finance/sections/OutstandingSection';
 import CutoffSection from '@/pages/finance/sections/CutoffSection';
@@ -102,9 +105,10 @@ const SECTIONS = [
   { key: 'pricing', label: 'ตั้งค่าราคาขาย', icon: 'sell' },
 ];
 
-const breadcrumb = ['งานการเงิน (Finance / Payment)'];
+const breadcrumb = ['งานการเงิน'];
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:finance-queue';
+const PATIENT_SEARCH_HISTORY_KEY = 'mih:primarysearch-history:finance-patients';
 
 const STATUS_STYLE = { pending: 'info', paid: 'success', voided: 'error' };
 const STATUS_TAB_ICON = { pending: 'hourglass_top', paid: 'check_circle', voided: 'cancel' };
@@ -171,6 +175,34 @@ const VOID_DETAIL_SUGGESTIONS = [
 const todayThai = () => new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
 /* วันที่-เวลาทำรายการ — stamped onto the receipt when a payment completes. */
 const nowThaiDateTime = () => `${todayThai()} · ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} น.`;
+
+/* Compact, single-select button row for the payment form. The selected value
+   is held by the parent state, so each group always has exactly one choice. */
+const ChoiceButtonGroup = ({ legend, options, value, onChange }) => (
+  <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+    {legend && (
+      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-regular)', color: 'var(--text-neutral-default)' }}>
+        {legend}
+      </span>
+    )}
+    <div className='flex items-center flex-wrap' role='group' aria-label={legend} style={{ gap: 'var(--dim-space-200)' }}>
+      {options.map((option) => (
+        <SelectableCardButton
+          key={option.value}
+          selected={value === option.value}
+          onClick={() => onChange(option.value)}
+          ariaLabel={option.label}
+          minHeight={40}
+          padX='var(--dim-space-300)'
+          padY='var(--dim-space-150)'
+          showTrailingCheck={false}
+        >
+          {option.label}
+        </SelectableCardButton>
+      ))}
+    </div>
+  </div>
+);
 
 const VoidReceiptForm = ({ row, onCancel, onConfirm }) => {
   const [reason, setReason] = useState(VOID_REASONS[0]);
@@ -367,7 +399,7 @@ const ReceiptDetail = ({ row }) => {
   );
 };
 
-const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
+const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing, viewOnly = false }) => {
   /* Bill at the price the settings screen says this rights group pays
      (TOR §1.8.9.1). A receipt already issued keeps the price it was issued
      at — `items` on a paid row are the billed lines, not live ones. */
@@ -382,8 +414,8 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
   const [method, setMethod] = useState(PAYMENT_METHODS[0].key);
   const [received, setReceived] = useState('');
   const [payerName, setPayerName] = useState(row.payerName || row.patient.shortName);
-  const [discountKind, setDiscountKind] = useState(row.discountKind || 'discount');
-  const [discountType, setDiscountType] = useState(row.discountType || DISCOUNT_TYPES[0]);
+  const [discountKind, setDiscountKind] = useState(row.discountKind || 'none');
+  const [discountType, setDiscountType] = useState(row.discountType || '');
   const [discountMode, setDiscountMode] = useState('percent');
   const [discountPct, setDiscountPct] = useState(() => {
     if (!row.discount) return '0';
@@ -398,6 +430,7 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
   const [linePct, setLinePct] = useState(() => Object.fromEntries(row.items.map((i) => [i.id, 0])));
   const [discountFlat, setDiscountFlat] = useState(row.discount ? String(row.discount) : '0');
   const [voiding, setVoiding] = useState(false);
+  const [paymentStep, setPaymentStep] = useState('details');
 
   /* Totals follow the ticked lines — TOR §1.8.1.15 "เลือกชำระเงินรายการ
      ร่วมจ่ายได้". Previously this read every line regardless of the
@@ -413,7 +446,9 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
     [row.items, selected],
   );
   const { totalCharge, rightsCoverage, amountDue } = computeTotals(selectedItems, false);
-  const isReadOnly = row.status !== 'pending';
+  const isReadOnly = viewOnly || row.status !== 'pending';
+  const hasDiscount = discountKind === 'exempt' || discountKind === 'discount';
+  const hasSelectedDiscountType = hasDiscount && Boolean(discountType);
   const discountTypeOptions = discountKind === 'exempt' ? EXEMPTION_TYPES : DISCOUNT_TYPES;
 
   /* Each line's discount comes off the part the patient actually owes on it
@@ -426,6 +461,8 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
 
   const discountAmount = isReadOnly
     ? row.discount
+    : !hasSelectedDiscountType
+      ? 0
     : Math.min(
       amountDue,
       discountMode === 'percent' ? percentDiscountTotal : Number(discountFlat || 0),
@@ -447,7 +484,30 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
     return next;
   });
 
-  if (row.status === 'paid' && voiding) {
+  const completePayment = () => {
+    onPay(row.id, {
+      method,
+      received: Number(received || 0),
+      change,
+      payerName: payerName.trim(),
+      discountAmount,
+      discountKind,
+      discountType,
+      paidItemIds: selectedItems.map((i) => i.id),
+      netDue,
+      pricedItems: row.items,
+      totalCharge,
+      rightsCoverage,
+      lineDiscounts: discountMode === 'percent'
+        ? selectedItems
+          .filter((i) => Number(linePct[i.id] || 0) > 0)
+          .map((i) => ({ id: i.id, label: i.label, pct: Number(linePct[i.id]), amount: lineDiscount(i) }))
+        : [],
+    });
+    onClose();
+  };
+
+  if (row.status === 'paid' && voiding && !viewOnly) {
     return (
       <Popup
         open
@@ -475,7 +535,7 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
         open
         onClose={onClose}
         size='large'
-        title={`ใบเสร็จ ${row.receiptNo}`}
+        title={row.receiptNo ? `ใบเสร็จ ${row.receiptNo}` : 'บันทึกรับเงิน'}
         subtitle={`${row.patient.shortName} · HN ${row.hn} · คิว ${row.queueNo}`}
         /* Custom footer — ยกเลิกใบเสร็จ sits with the CTA row (not floating
            in the body) but pinned to the left, while ปิด/พิมพ์ใบเสร็จ stay
@@ -483,7 +543,7 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
         footer={(
           <div className='w-full flex items-center justify-between'>
             <div>
-              {row.status === 'paid' && (
+              {!viewOnly && row.status === 'paid' && (
                 <DangerSubdueButton size='sm' onClick={() => setVoiding(true)}>ยกเลิกใบเสร็จ</DangerSubdueButton>
               )}
             </div>
@@ -515,6 +575,91 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
     );
   }
 
+  if (paymentStep === 'verifyRights') {
+    return (
+      <Popup
+        open
+        onClose={onClose}
+        onBack={() => setPaymentStep('details')}
+        width={1040}
+        title='ตรวจสอบสิทธิ'
+        subtitle={`${row.patient.shortName} · HN ${row.hn} · คิว ${row.queueNo}`}
+        primaryAction={{
+          label: 'ยืนยันสิทธิและดำเนินการชำระเงิน',
+          trailingIcon: 'arrow_forward',
+          onClick: () => setPaymentStep('method'),
+        }}
+        secondaryAction={{ label: 'ยกเลิก', onClick: () => setPaymentStep('details') }}
+      >
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+          <div
+            className='flex flex-col items-center text-center'
+            style={{
+              gap: 'var(--dim-space-300)',
+              padding: 'var(--dim-space-600, 24px)',
+              background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+              borderRadius: 'var(--dim-radius-300)',
+            }}
+          >
+            <LottieIllustration animationData={insertCardAnimation} size={160} ariaLabel='ภาพเคลื่อนไหวการเสียบบัตรประชาชน' />
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
+              <span style={{ fontFamily: 'var(--type-family-heading-content, "Mitr", sans-serif)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-brandPrimary-default)' }}>กรุณาเสียบบัตรประชาชนเพื่อยืนยันสิทธิ</span>
+              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>ระบบจะตรวจสอบสิทธิการรักษาก่อนดำเนินการชำระเงิน</span>
+            </div>
+          </div>
+          <div className='flex items-center justify-between' style={{ padding: 'var(--dim-space-400, 16px)', border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)', borderRadius: 'var(--dim-radius-300)' }}>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>สิทธิที่ต้องตรวจสอบ</span>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)' }}>{row.rights.label}</span>
+          </div>
+        </div>
+      </Popup>
+    );
+  }
+
+  if (paymentStep === 'method') {
+    return (
+      <Popup
+        open
+        onClose={onClose}
+        onBack={() => setPaymentStep('details')}
+        width={1040}
+        title='ดำเนินการชำระเงิน'
+        subtitle={`${row.patient.shortName} · HN ${row.hn} · คิว ${row.queueNo}`}
+        primaryAction={{
+          label: 'บันทึกและพิมพ์ใบเสร็จ',
+          disabled: payerName.trim().length === 0 || Number(received || 0) < netDue,
+          onClick: completePayment,
+        }}
+        secondaryAction={{ label: 'ยกเลิก', onClick: () => setPaymentStep('details') }}
+      >
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
+          <div
+            className='flex items-center justify-between'
+            style={{
+              padding: 'var(--dim-space-400, 16px)',
+              background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+              borderRadius: 'var(--dim-radius-300)',
+            }}
+          >
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>ยอดที่ต้องชำระ</span>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-brandPrimary-default)' }}>{formatBaht(netDue)}</span>
+          </div>
+          <ChoiceButtonGroup legend='วิธีชำระเงิน' value={method} onChange={setMethod} options={PAYMENT_METHODS.map((m) => ({ value: m.key, label: m.label }))} />
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+            <div className='flex items-end' style={{ gap: 'var(--dim-space-300)' }}>
+              <InputField label='จำนวนเงินที่รับ' type='number' value={received} onChange={setReceived} placeholder='0.00' />
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
+                <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>เงินทอน</span>
+                <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-statusbadge-success)' }}>{formatBaht(change).replace('฿', '')} บาท</span>
+              </div>
+            </div>
+            <InputField label='ได้รับเงินจาก' value={payerName} onChange={setPayerName} placeholder='ชื่อผู้ชำระเงิน' />
+          </div>
+        </div>
+      </Popup>
+    );
+  }
+
   return (
     <Popup
       open
@@ -526,54 +671,31 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
          Widen the payment popup specifically; other popups keep their size. */
       width={1040}
       title='บันทึกรับเงินผู้ป่วย'
-      subtitle={`${row.patient.shortName} · HN ${row.hn} · คิว ${row.queueNo}`}
       primaryAction={{
-        label: 'บันทึกและพิมพ์ใบเสร็จ',
-        disabled: selected.size === 0 || payerName.trim().length === 0 || Number(received || 0) < netDue,
-        onClick: () => {
-          onPay(row.id, {
-            method,
-            received: Number(received || 0),
-            change,
-            payerName: payerName.trim(),
-            discountAmount,
-            discountKind,
-            discountType,
-            /* Carry the settled lines + their computed net so the receipt
-               and the queue's ยอดชำระ match what was actually collected,
-               instead of re-deriving from every line on the visit. */
-            paidItemIds: selectedItems.map((i) => i.id),
-            netDue,
-            /* Freeze the priced lines onto the row — the receipt must not
-               change if someone edits ตั้งค่าราคาขาย afterwards. */
-            pricedItems: row.items,
-            totalCharge,
-            rightsCoverage,
-            /* Keep the per-line breakdown on the row so the receipt can show
-               which charge each baht of discount came off (§1.8.2.3). */
-            lineDiscounts: discountMode === 'percent'
-              ? selectedItems
-                .filter((i) => Number(linePct[i.id] || 0) > 0)
-                .map((i) => ({ id: i.id, label: i.label, pct: Number(linePct[i.id]), amount: lineDiscount(i) }))
-              : [],
-          });
-          onClose();
-        },
+        label: 'ดำเนินการชำระเงิน',
+        trailingIcon: 'arrow_forward',
+        disabled: selected.size === 0,
+        onClick: () => setPaymentStep('verifyRights'),
       }}
-      secondaryAction={{ label: 'ปิด', onClick: onClose }}
+      secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
     >
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
-        <div className='flex items-center justify-between'>
-          <ColorfulBadge badgeStyle={row.rights.badge}>{row.rights.label}</ColorfulBadge>
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>{row.dept} · {row.visitDate}</span>
-        </div>
-        {/* ข้อมูลทั่วไป — TOR §1.8.1.6: HN / เพศ / อายุ / เลขบัตรประชาชน
-            alongside the rights badge already shown above. */}
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>HN {row.hn}</span>
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>{row.patient.sex} · {row.patient.age}</span>
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>บัตรประชาชน {formatTaxId(row.patient.nationalId)}</span>
-        </div>
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
+        {/* Patient identity is deliberately prominent at the point of payment:
+            the shared default variant is the design-system's light mint card. */}
+        <PatientSummaryCard
+          avatarUrl={row.patient.avatarUrl}
+          avatarAlt={row.patient.fullName}
+          cells={[
+            { label: 'ผู้รับบริการ', value: row.patient.fullName },
+            { label: 'HN', value: row.hn },
+            { label: 'บัตรประชาชน', value: formatTaxId(row.patient.nationalId) },
+            { label: 'เพศ / อายุ', value: `${row.patient.sex} · ${row.patient.age}` },
+            {
+              label: 'สิทธิการรักษา',
+              children: <ColorfulBadge badgeStyle={row.rights.badge}>{row.rights.label}</ColorfulBadge>,
+            },
+          ]}
+        />
 
         {/* TOR §1.8.9.1 — say so when the price on screen isn't the standard
             one, otherwise a cashier can't tell why the total moved. */}
@@ -585,23 +707,26 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
           />
         )}
 
-        <div className='flex items-center justify-between'>
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>รายการค่าใช้จ่าย</span>
-          <label className='flex items-center' style={{ gap: 'var(--dim-space-100)' }}>
-            <Checkbox checked={allSelected} onChange={toggleAll} />
-            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>เลือกทั้งหมด</span>
-          </label>
-        </div>
+        <section className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+          <div className='flex items-center'>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>รายการค่าใช้จ่าย</span>
+          </div>
 
-        {/* Line items — TOR §1.5.1 charge breakdown by category, rendered
-            as the shared <Table> (same component/style as the queue
-            tables elsewhere — src/pages/opd/QueuePage.jsx) instead of
-            hand-rolled rows. Category is its own column rather than a
-            group header, since <Table> is a flat-row component. */}
-        <Table
+          {/* Line items — TOR §1.5.1 charge breakdown by category, rendered
+              as the shared <Table> (same component/style as the queue
+              tables elsewhere — src/pages/opd/QueuePage.jsx) instead of
+              hand-rolled rows. Category is its own column rather than a
+              group header, since <Table> is a flat-row component. */}
+          <Table
           columns={[
             {
-              key: 'select', label: '',
+              key: 'select',
+              sortable: false,
+              label: (
+                <span className='inline-flex items-center'>
+                  <Checkbox checked={allSelected} onChange={toggleAll} />
+                </span>
+              ),
               render: (item) => (
                 <div onClick={(e) => e.stopPropagation()}>
                   <Checkbox checked={selected.has(item.id)} onChange={() => toggleOne(item.id)} />
@@ -619,10 +744,10 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
             },
             { key: 'label', label: 'รายการ', flex: true, minWidth: 180 },
             {
-              key: 'amount', label: 'ราคาเต็ม',
+              key: 'amount', label: 'ราคาเต็ม(บาท)', align: 'right',
               render: (item) => (
-                <div className='flex flex-col'>
-                  <span>{formatBaht(item.amount)}</span>
+                <div className='flex flex-col items-end'>
+                  <span>{formatBaht(item.amount).replace('฿', '')}</span>
                   {item.pricingPct ? (
                     <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
                       {item.pricingPct > 0 ? '+' : ''}{item.pricingPct}%
@@ -632,17 +757,17 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
               ),
             },
             {
-              key: 'covered', label: 'สิทธิจ่าย',
-              render: (item) => <span style={{ color: 'var(--text-statusbadge-success)' }}>-{formatBaht(item.covered)}</span>,
+              key: 'covered', label: 'สิทธิจ่าย(บาท)', align: 'right',
+              render: (item) => <span style={{ color: 'var(--text-statusbadge-warning, #C2410C)' }}>-{formatBaht(item.covered).replace('฿', '')}</span>,
             },
             {
-              key: 'patientPortion', label: 'ส่วนเกินสิทธิ',
-              render: (item) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(item.patientPortion)}</span>,
+              key: 'patientPortion', label: 'ส่วนเกินสิทธิ(บาท)', align: 'right',
+              render: (item) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(item.patientPortion).replace('฿', '')}</span>,
             },
             /* TOR §1.8.2.3 — per-line percent, shown alongside the baht it
                works out to. Only meaningful in percent mode; flat-amount
                discounts stay a single visit-level figure (§1.8.2.4). */
-            ...(discountMode === 'percent' ? [{
+            ...(hasSelectedDiscountType && discountMode === 'percent' ? [{
               key: 'lineDiscount', label: 'ส่วนลด (%)', sortable: false,
               render: (item) => (
                 <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }} onClick={(e) => e.stopPropagation()}>
@@ -657,7 +782,7 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
                     inputStyle={{ textAlign: 'right' }}
                   />
                   <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-                    -{formatBaht(lineDiscount(item))}
+                    {formatBaht(lineDiscount(item)).replace('฿', '')} บาท
                   </span>
                 </div>
               ),
@@ -665,97 +790,116 @@ const PaymentModal = ({ row: rawRow, onClose, onVoid, onPay, pricing }) => {
           ]}
           rows={row.items}
           rowKey={(item) => item.id}
-          onRowClick={(item) => toggleOne(item.id)}
-          emptyMessage='ไม่มีรายการค่าใช้จ่าย'
-        />
+            emptyMessage='ไม่มีรายการค่าใช้จ่าย'
+          />
+        </section>
 
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+        <section className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
           <div className='flex items-center justify-between'>
-            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>ยอดรวม / สิทธิรับผิดชอบ</span>
-            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>{formatBaht(totalCharge)} / -{formatBaht(rightsCoverage)}</span>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>ยอดรวม</span>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>{formatBaht(totalCharge)}</span>
+          </div>
+          <div className='flex items-center justify-between'>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>สิทธิรับผิดชอบ</span>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-statusbadge-warning, #C2410C)' }}>-{formatBaht(rightsCoverage)}</span>
+          </div>
           </div>
 
           {/* Discount / exemption — TOR §1.5.2: distinct ยกเว้น/ลดหย่อน
               kinds each with their own type list, entered as either a
               percent (auto-computed to baht) or a flat baht amount. */}
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-            <RadioGroup
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+            <ChoiceButtonGroup
               legend='ประเภทส่วนลด'
-              direction='row'
               value={discountKind}
-              onChange={(v) => { setDiscountKind(v); setDiscountType(v === 'exempt' ? EXEMPTION_TYPES[0] : DISCOUNT_TYPES[0]); }}
-              options={[{ value: 'exempt', label: 'ยกเว้น' }, { value: 'discount', label: 'ลดหย่อน' }]}
+              onChange={(v) => {
+                setDiscountKind(v);
+                if (v === 'none') {
+                  setDiscountType('');
+                  setDiscountPct('0');
+                  setDiscountFlat('0');
+                  setLinePct(Object.fromEntries(row.items.map((item) => [item.id, 0])));
+                } else {
+                  setDiscountType('');
+                  setDiscountPct('0');
+                  setDiscountFlat('0');
+                  setLinePct(Object.fromEntries(row.items.map((item) => [item.id, 0])));
+                }
+              }}
+              options={[
+                { value: 'none', label: 'ไม่มีส่วนลด' },
+                { value: 'exempt', label: 'ยกเว้น' },
+                { value: 'discount', label: 'ลดหย่อน' },
+              ]}
             />
-            <RadioGroup
-              legend='ตามประเภทที่สำนักอนามัยกำหนด'
-              direction='row'
-              value={discountType}
-              onChange={setDiscountType}
-              options={discountTypeOptions.map((t) => ({ value: t, label: t }))}
-            />
-            <div className='flex items-center justify-between'>
-              <RadioGroup
-                direction='row'
-                value={discountMode}
-                onChange={setDiscountMode}
-                options={[{ value: 'percent', label: '%' }, { value: 'flat', label: 'จำนวนเงิน' }]}
-              />
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-                {discountMode === 'percent' ? (
-                  <>
-                    <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-                      ใส่ให้ทุกรายการ
-                    </span>
-                    <InputField
-                      type='number'
-                      size='sm'
-                      showLabel={false}
-                      showHelperText={false}
-                      value={discountPct}
-                      onChange={applyPctToAllLines}
-                      style={{ width: 64 }}
-                      inputStyle={{ textAlign: 'right' }}
+            {hasDiscount && (
+              <>
+                <ChoiceButtonGroup
+                  legend='ตามประเภทที่สำนักอนามัยกำหนด'
+                  value={discountType}
+                  onChange={setDiscountType}
+                  options={discountTypeOptions.map((t) => ({ value: t, label: t }))}
+                />
+                {hasSelectedDiscountType && (
+                  <div className='flex items-end flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+                    <ChoiceButtonGroup
+                      legend='รูปแบบส่วนลด'
+                      value={discountMode}
+                      onChange={setDiscountMode}
+                      options={[{ value: 'percent', label: '%' }, { value: 'flat', label: 'จำนวนเงิน' }]}
                     />
-                  </>
-                ) : (
-                  <InputField
-                    type='number'
-                    size='sm'
-                    showLabel={false}
-                    showHelperText={false}
-                    value={discountFlat}
-                    onChange={setDiscountFlat}
-                    style={{ width: 80 }}
-                    inputStyle={{ textAlign: 'right' }}
-                  />
+                    <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+                      {discountMode === 'percent' ? (
+                        <>
+                          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                            ใส่ให้ทุกรายการ
+                          </span>
+                          <InputField
+                            type='number'
+                            size='sm'
+                            showLabel={false}
+                            showHelperText={false}
+                            value={discountPct}
+                            onChange={applyPctToAllLines}
+                            style={{ width: 64 }}
+                            inputStyle={{ textAlign: 'right' }}
+                          />
+                        </>
+                      ) : (
+                        <InputField
+                          type='number'
+                          size='sm'
+                          showLabel={false}
+                          showHelperText={false}
+                          value={discountFlat}
+                          onChange={setDiscountFlat}
+                          style={{ width: 80 }}
+                          inputStyle={{ textAlign: 'right' }}
+                        />
+                      )}
+                      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>(-{formatBaht(discountAmount).replace('฿', '')} บาท)</span>
+                    </div>
+                  </div>
                 )}
-                <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>(-{formatBaht(discountAmount)})</span>
-              </div>
-            </div>
+              </>
+            )}
           </div>
 
-          <div className='flex items-center justify-between'>
+          <div
+            className='flex items-center justify-between'
+            style={{
+              marginTop: 'var(--dim-space-600, 24px)',
+              padding: 'var(--dim-space-400, 16px)',
+              background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+              borderRadius: 'var(--dim-radius-300)',
+            }}
+          >
             <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>ยอดที่ต้องชำระ</span>
             <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-brandPrimary-default)' }}>{formatBaht(netDue)}</span>
           </div>
-        </div>
+        </section>
 
-        <RadioGroup
-          legend='วิธีชำระเงิน'
-          direction='row'
-          value={method}
-          onChange={setMethod}
-          options={PAYMENT_METHODS.map((m) => ({ value: m.key, label: m.label }))}
-        />
-        <div className='flex items-end' style={{ gap: 'var(--dim-space-300)' }}>
-          <InputField label='จำนวนเงินที่รับ' type='number' value={received} onChange={setReceived} placeholder='0.00' />
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
-            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>เงินทอน</span>
-            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-statusbadge-success)' }}>{formatBaht(change)}</span>
-          </div>
-        </div>
-        {/* "ได้รับเงินจาก" — คู่มือ §2.1 step 11. */}
-        <InputField label='ได้รับเงินจาก' value={payerName} onChange={setPayerName} placeholder='ชื่อผู้ชำระเงิน' />
       </div>
     </Popup>
   );
@@ -772,12 +916,19 @@ const queueRowToSearchItem = (row) => ({
   ],
 });
 
+/* Demo recent-search rows for the all-patients registry. Kept separate from
+   the cashier-queue history so each tab remembers its own workflow. */
+const FINANCE_PATIENT_SEARCH_HISTORY_SEED = FINANCE_QUEUE
+  .slice(0, 4)
+  .map(queueRowToSearchItem);
+
 const FinancePaymentPage = () => {
   const [section, setSection] = useState('queue');
   const [queue, setQueue] = useState(FINANCE_QUEUE);
   const [tab, setTab] = useState('pending');
   const [activeRow, setActiveRow] = useState(null);
   const [searchQ, setSearchQ] = useState('');
+  const [queueFilters, setQueueFilters] = useState({ dept: 'all', rights: 'all', pharmacy: 'all' });
   const [cutoff, setCutoff] = useState(null);
   /* ตั้งค่าราคาขาย lives here, not inside its section — the section unmounts
      on every tab switch, and checkout has to read it (TOR §1.8.9.1). */
@@ -787,11 +938,11 @@ const FinancePaymentPage = () => {
   const [calledQueue, setCalledQueue] = useState(() => new Set());
   const summary = financeSummary(queue);
 
-  const {
-    history: searchHistory,
-    push: pushHistory,
-    clear: clearHistory,
-  } = useSearchHistory(SEARCH_HISTORY_KEY);
+  const queueSearch = useSearchHistory(SEARCH_HISTORY_KEY);
+  const patientSearch = useSearchHistory(PATIENT_SEARCH_HISTORY_KEY, {
+    seedIfEmpty: FINANCE_PATIENT_SEARCH_HISTORY_SEED,
+  });
+  const activeSearch = section === 'patients' ? patientSearch : queueSearch;
 
   /* บันทึกรับเงินผู้ป่วย — TOR §1.5.1 / คู่มือ §2.1. Completes a pending
      receipt: records payment method, amount received, change, payer
@@ -841,6 +992,13 @@ const FinancePaymentPage = () => {
         cashier: r.cashier || CURRENT_FINANCE_USER.name,
       };
     }));
+    setCalledQueue((prev) => {
+      if (!prev.has(rowId)) return prev;
+      const next = new Set(prev);
+      next.delete(rowId);
+      return next;
+    });
+    if (section === 'queue') setTab('paid');
   };
 
   /* Void — TOR §1.5.3 / คู่มือ §2.1 sub-flow. Reverses a paid receipt back
@@ -932,19 +1090,31 @@ const FinancePaymentPage = () => {
     return queue.filter((r) => r.status === statusKey);
   }, [queue, tab, section]);
 
+  const filteredStatusRows = useMemo(() => {
+    if (section !== 'queue') return statusRows;
+    return statusRows.filter((row) => (
+      (queueFilters.dept === 'all' || row.dept === queueFilters.dept)
+      && (queueFilters.rights === 'all' || row.rights.key === queueFilters.rights)
+      && (queueFilters.pharmacy === 'all' || row.pharmacyStatus === queueFilters.pharmacy)
+    ));
+  }, [statusRows, section, queueFilters]);
+
   const rows = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
-    if (!q) return statusRows;
-    return statusRows.filter((r) => {
+    if (!q) return filteredStatusRows;
+    return filteredStatusRows.filter((r) => {
       const fields = [r.queueNo, r.hn, r.patient.shortName, r.dept, r.patient.nationalId];
       return fields.some((f) => f && f.toString().toLowerCase().includes(q));
     });
-  }, [statusRows, searchQ]);
+  }, [filteredStatusRows, searchQ]);
 
-  const queueFiltersActive = searchQ.trim() !== '';
+  const queueFiltersActive = searchQ.trim() !== '' || Object.values(queueFilters).some((value) => value !== 'all');
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     queueFiltersActive,
-    () => setSearchQ(''),
+    () => {
+      setSearchQ('');
+      setQueueFilters({ dept: 'all', rights: 'all', pharmacy: 'all' });
+    },
   );
 
   /* Queue-table sorting — click a header to sort, click again to flip
@@ -958,6 +1128,7 @@ const FinancePaymentPage = () => {
   const QUEUE_SORT_ACCESSORS = {
     queueNo: (r) => r.queueNo,
     hn: (r) => r.hn,
+    vn: (r) => r.vn,
     patient: (r) => r.patient.shortName,
     rights: (r) => r.rights.label,
     dept: (r) => r.dept,
@@ -1026,8 +1197,9 @@ const FinancePaymentPage = () => {
   const sectionTabs = SECTIONS.map((s) => ({ key: s.key, label: s.label, icon: s.icon }));
 
   const columns = [
-    { key: 'queueNo', label: 'คิว' },
+    { key: 'queueNo', label: 'คิว', render: (row) => <ColorfulBadge badgeStyle='teal' size='small'>{row.queueNo}</ColorfulBadge> },
     { key: 'hn', label: 'HN' },
+    { key: 'vn', label: 'VN' },
     {
       key: 'patient', label: 'ผู้ป่วย', flex: true, minWidth: 220,
       render: (row) => (
@@ -1049,7 +1221,7 @@ const FinancePaymentPage = () => {
         </StatusBadge>
       ),
     },
-    { key: 'amountDue', label: 'ยอดชำระ', render: (row) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(row.amountDue)}</span> },
+    { key: 'amountDue', label: 'ยอดชำระ(บาท)', align: 'right', render: (row) => <span style={{ fontWeight: 'var(--type-weight-bold)' }}>{formatBaht(row.amountDue).replace('฿', '')}</span> },
     { key: 'status', label: 'สถานะ', render: (row) => <StatusBadge style={STATUS_STYLE[row.status]} size='small'>{QUEUE_STATUSES.find((s) => s.key === row.status)?.label}</StatusBadge> },
     {
       key: 'action', label: '', sortable: false,
@@ -1058,9 +1230,8 @@ const FinancePaymentPage = () => {
           {/* เรียกคิว — ใช้ตัวเดียวกับหน้าคิว OPD (src/pages/opd/QueuePage.jsx
               `makeRenderActions`): BrandIconButton ไอคอน `volume_up` แบบไอคอน
               ล้วน แล้วเข้ารหัสสถานะด้วย variant ไม่ใช่สลับเป็น badge
-                fill        เรียกได้ (ยาพร้อมแล้ว ยังไม่ได้เรียก)
+                fill        ยังไม่ได้เรียก
                 quaternary  เรียกไปแล้ว — ยังกดซ้ำได้ เพราะคนไข้ไม่มาตามเรียกรอบแรกเป็นเรื่องปกติ
-                disabled    ห้องยายังจัดยาไม่เสร็จ
               เดิมหน้านี้ใช้ NeutralSubdueButton + ไอคอน `campaign` ซึ่งไม่ตรง
               กับ OPD ทั้งตัวคอมโพเนนต์ ไอคอน และสีที่สื่อความหมาย */}
           {row.status === 'pending' && (
@@ -1073,19 +1244,12 @@ const FinancePaymentPage = () => {
                  identical declaration resolves fine. Every other caller sets
                  its variant once at mount and never sees this; this button
                  flips fill → quaternary on click, so it needs a new node. */
-              key={`call-${row.id}-${row.pharmacyStatus !== 'ready' ? 'off' : calledQueue.has(row.id) ? 'called' : 'ready'}`}
+              key={`call-${row.id}-${calledQueue.has(row.id) ? 'called' : 'ready'}`}
               icon='volume_up'
               size='sm'
-              variant={row.pharmacyStatus !== 'ready'
-                ? 'ghost'
-                : calledQueue.has(row.id) ? 'quaternary' : 'fill'}
-              disabled={row.pharmacyStatus !== 'ready'}
-              aria-label={row.pharmacyStatus !== 'ready'
-                ? 'ยังจัดยาไม่เสร็จ'
-                : calledQueue.has(row.id) ? 'เรียกคิวซ้ำ' : 'เรียกคิว'}
-              title={row.pharmacyStatus !== 'ready'
-                ? 'ห้องยายังจัดยาไม่เสร็จ'
-                : calledQueue.has(row.id) ? 'เรียกคิวแล้ว — กดเพื่อเรียกซ้ำ' : 'เรียกคิวมาชำระเงิน'}
+              variant={calledQueue.has(row.id) ? 'quaternary' : 'fill'}
+              aria-label={calledQueue.has(row.id) ? 'เรียกคิวซ้ำ' : 'เรียกคิว'}
+              title={calledQueue.has(row.id) ? 'เรียกคิวแล้ว — กดเพื่อเรียกซ้ำ' : 'เรียกคิวมาชำระเงิน'}
               onClick={(e) => { e.stopPropagation(); setCalledQueue((prev) => new Set(prev).add(row.id)); }}
             />
           )}
@@ -1096,6 +1260,33 @@ const FinancePaymentPage = () => {
       ),
     },
   ];
+
+  const patientRecordActionColumn = {
+    key: 'patientRecordAction', label: 'ดำเนินการ', sortable: false, align: 'right',
+    render: (row) => (
+      <div className='flex items-center justify-end'>
+        <NeutralSubdueButton
+          size='sm'
+          onClick={(event) => {
+            event.stopPropagation();
+            setActiveRow(row);
+          }}
+        >
+          ดูใบเสร็จ
+        </NeutralSubdueButton>
+      </div>
+    ),
+  };
+
+  /* The all-patients registry is a lookup list, not the cashier work queue:
+     hide operational state and call/payment controls there, but retain a
+     read-record entry point. */
+  const tableColumns = section === 'patients'
+    ? [
+      ...columns.filter((column) => !['pharmacyStatus', 'status', 'action'].includes(column.key)),
+      patientRecordActionColumn,
+    ]
+    : columns;
 
   const SUMMARY_CARDS = [
     { key: 'pending', label: 'รอชำระเงิน', value: summary.pendingCount, indicator: 'ในคิวการเงิน', color: 'info', icon: 'hourglass_top' },
@@ -1108,7 +1299,7 @@ const FinancePaymentPage = () => {
     <QueuePageShell
       activeKey='finance'
       breadcrumb={breadcrumb}
-      title='งานการเงิน (Finance / Payment)'
+      title='งานการเงิน'
       summaryCards={SUMMARY_CARDS}
       summaryFlushUnderSubHeader={false}
       tabs={sectionTabs}
@@ -1183,18 +1374,44 @@ const FinancePaymentPage = () => {
                   value={searchQ}
                   onChange={(v) => setSearchQ(v)}
                   onSubmit={(v, item) => {
-                    pushHistory(createRecentSearchEntry(v, item));
+                    activeSearch.push(createRecentSearchEntry(v, item));
                     setSearchQ(v);
                     const row = resolveSearchRow(v, item);
                     if (row) setActiveRow(row);
                   }}
                   placeholder='ค้นหาคิว / HN / ชื่อ-สกุลผู้ป่วย / เลขบัตรประชาชน / แผนก'
                   width={640}
-                  history={searchHistory}
-                  onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+                  history={activeSearch.history}
+                  onHistoryClear={activeSearch.history.length > 0 ? activeSearch.clear : undefined}
                   suggestions={searchSuggestions}
                 />
               </div>
+
+              {section === 'queue' && (
+                <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                  <FilterDropdown
+                    prefix='แผนก:'
+                    value={queueFilters.dept}
+                    onChange={(value) => setQueueFilters((prev) => ({ ...prev, dept: value }))}
+                    options={[
+                      { value: 'all', label: 'ทุกแผนก' },
+                      ...[...new Set(queue.map((row) => row.dept))].map((dept) => ({ value: dept, label: dept })),
+                    ]}
+                  />
+                  <FilterDropdown
+                    prefix='สิทธิ:'
+                    value={queueFilters.rights}
+                    onChange={(value) => setQueueFilters((prev) => ({ ...prev, rights: value }))}
+                    options={[{ value: 'all', label: 'ทุกสิทธิ' }, ...Object.values(RIGHTS_GROUPS).map((rights) => ({ value: rights.key, label: rights.label }))]}
+                  />
+                  <FilterDropdown
+                    prefix='สถานะยา:'
+                    value={queueFilters.pharmacy}
+                    onChange={(value) => setQueueFilters((prev) => ({ ...prev, pharmacy: value }))}
+                    options={[{ value: 'all', label: 'ทุกสถานะ' }, ...Object.values(PHARMACY_STATUSES).map((status) => ({ value: status.key, label: status.label }))]}
+                  />
+                </div>
+              )}
 
               <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
                 {showClearChip ? (
@@ -1205,7 +1422,7 @@ const FinancePaymentPage = () => {
                 <SmoothFilterResults opaque={resultsOpaque}>
                   <SearchResultCount found={sortedRows.length} total={statusRows.length} />
                   <Table
-                    columns={columns}
+                    columns={tableColumns}
                     rows={sortedRows}
                     sortConfig={sortConfig}
                     onSort={handleSort}
@@ -1216,7 +1433,7 @@ const FinancePaymentPage = () => {
                   />
                 </SmoothFilterResults>
               </div>
-              {activeRow && <PaymentModal row={activeRow} onClose={() => setActiveRow(null)} onVoid={handleVoid} onPay={handlePay} pricing={pricing} />}
+              {activeRow && <PaymentModal row={activeRow} onClose={() => setActiveRow(null)} onVoid={handleVoid} onPay={handlePay} pricing={pricing} viewOnly={section === 'patients'} />}
             </>
           )}
           {section === 'other' && <OtherChargesSection queue={queue} onAddCharge={handleAddOtherCharge} />}

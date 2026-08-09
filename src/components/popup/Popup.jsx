@@ -249,7 +249,7 @@ const FooterButton = ({ kind, action, fullWidth }) => {
     );
   }
   return (
-    <BrandPrimaryButton {...common} leadingIcon={action.leadingIcon}>
+    <BrandPrimaryButton {...common} leadingIcon={action.leadingIcon} trailingIcon={action.trailingIcon}>
       {action.label}
     </BrandPrimaryButton>
   );

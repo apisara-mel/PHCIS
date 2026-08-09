@@ -263,7 +263,12 @@ const measureTextPx = (text, font) => {
 const headerFloorPx = (column, { sortable = true } = {}) => {
   const title = column?.label ?? column?.header ?? '';
   const font = '400 12px Mitr, Sarabun, sans-serif';
-  const textW = measureTextPx(title, font);
+  /* A React-node label (for example a select-all Checkbox) stringifies to
+     "[object Object]". Measuring that phantom text locks the column at
+     ~126px even though the control only needs its intrinsic width. */
+  const textW = (typeof title === 'string' || typeof title === 'number')
+    ? measureTextPx(title, font)
+    : 0;
   const padX = 32;
   const sortW = sortable ? 18 : 0;
   return Math.ceil(textW + padX + sortW + 1);
@@ -409,7 +414,7 @@ export const HeaderCell = React.forwardRef(function HeaderCell(
           ? 'var(--surface-table-hover, var(--brand-p50, #F4FBF8))'
           : 'var(--surface-table-header, var(--brand-p50, #F4FBF8))',
         borderBottom: 'var(--dim-stroke-200, 2px) solid var(--border-table-default, var(--brand-p100, #E2F3EB))',
-        justifyContent: align === 'center' ? 'center' : 'flex-start',
+        justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'background-color 160ms cubic-bezier(0.32, 0.72, 0, 1)',
         ...style,
@@ -978,7 +983,7 @@ const TableHeaderInternal = ({
       sortDirection={sortDirection}
       titleWrap={!!column.headerWrap}
       contentFit={contentFit}
-      align={column.align === 'center' ? 'center' : 'left'}
+      align={column.align === 'center' || column.align === 'right' ? column.align : 'left'}
       onClick={sortable ? () => onSort(column.key) : undefined}
       aria-disabled={!sortable}
       style={{
@@ -1097,7 +1102,7 @@ const Row = ({
               : undefined,
           } : null),
           display: 'flex', alignItems: 'center',
-          justifyContent: c.align === 'center' ? 'center' : 'flex-start',
+          justifyContent: c.align === 'center' ? 'center' : c.align === 'right' ? 'flex-end' : 'flex-start',
           gap: 'var(--dim-space-150)',
           paddingLeft:  'var(--dim-space-400)',
           paddingRight: 'var(--dim-space-400)',
