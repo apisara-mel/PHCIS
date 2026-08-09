@@ -48,8 +48,8 @@ const TabCountBadge = ({
     <span
       className={`inline-flex items-center justify-center shrink-0 ${className}`}
       style={{
-        minWidth: 24,
-        height: 20,
+        minWidth: 'var(--dim-size-500, 24px)',
+        height: 'var(--dim-size-400, 20px)',
         paddingLeft: 'var(--dim-space-200)',
         paddingRight: 'var(--dim-space-200)',
         borderRadius: 'var(--dim-radius-full)',
