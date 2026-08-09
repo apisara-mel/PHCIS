@@ -8,6 +8,7 @@ import {
   MIH_TOPBAR_OFFSET,
   clearLerpedCssLength,
   setLerpedCssLength,
+  snapLerpedCssLength,
 } from '@/hooks/useHeaderAutoHide';
 import { useHistory } from 'react-router-dom';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -242,16 +243,38 @@ const PatientCard = ({
     if (!sticky || typeof document === 'undefined') return undefined;
     const el = cardRef.current;
     if (!el) return undefined;
+    /* `snap` on the first measure of a mount / route change: the lerp only
+       exists to glide the band during the scroll morph, and lerping in from
+       the *previous* page's card height leaves the var stranded at a stale
+       value (seen live: 202.63px against a 144px card → the sticky stepper
+       band pinned ~59px too low, with page content visible through the gap).
+       Steady-state updates from the ResizeObserver keep animating. */
+    let first = true;
     const publish = () => {
       const h = Math.round(el.getBoundingClientRect().height);
+      if (first) {
+        first = false;
+        snapLerpedCssLength(MIH_PATIENT_CARD_STICKY_HEIGHT_VAR, h);
+        return;
+      }
       setLerpedCssLength(MIH_PATIENT_CARD_STICKY_HEIGHT_VAR, h);
     };
     publish();
+    /* border-box, not the default content-box: the card shrinks on morph by
+       animating `padding-bottom` (24px → 0/16px), which never changes the
+       content box — a content-box observer stays silent and the band ends up
+       pinned ~24px below the card with page content showing through the gap. */
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
-    ro?.observe(el);
+    if (ro) {
+      try { ro.observe(el, { box: 'border-box' }); } catch (err) { ro.observe(el); }
+    }
+    /* Belt and braces for the padding transition — the observer reports the
+       end state, this catches browsers that coalesce the last frame. */
+    el.addEventListener('transitionend', publish);
     window.addEventListener('resize', publish);
     return () => {
       ro?.disconnect();
+      el.removeEventListener('transitionend', publish);
       window.removeEventListener('resize', publish);
       clearLerpedCssLength(MIH_PATIENT_CARD_STICKY_HEIGHT_VAR);
     };

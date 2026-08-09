@@ -69,20 +69,29 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
     {/* Match md button height so title stays on the same vertical axis as
         the action row (items-center on a wrapping button group would pull
         the title down to the mid-point of multiple rows). */}
+    {/* min-w-0 + truncate, not shrink-0: titles carry patient name / HN
+        (CheckupScreeningPage, CheckupRecordPage), so an unshrinkable nowrap
+        span pushes the shrink-0 action group past the right edge on a narrow
+        viewport and the sticky bar scrolls sideways. */}
     <span
-      className='shrink-0 inline-flex items-center'
+      className='min-w-0 inline-flex items-center'
+      title={typeof title === 'string' ? title : undefined}
       style={{
         color: 'var(--text-content-default)',
         fontFamily: 'var(--type-family-heading-content)',
         fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         lineHeight: 1.5,
         fontSize: 'var(--type-size-title, var(--type-size-base, 16px))',
-        whiteSpace: 'nowrap',
         minHeight: 'var(--dim-size-800, 40px)',
         ...morphTitleStyle,
       }}
     >
-      {title}
+      <span
+        className='min-w-0'
+        style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+      >
+        {title}
+      </span>
     </span>
     {afterTitle != null && afterTitle !== false && (
       <div className='shrink-0 inline-flex items-center' style={{ minHeight: 'var(--dim-size-800, 40px)' }}>

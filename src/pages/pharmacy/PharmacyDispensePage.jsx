@@ -1043,8 +1043,19 @@ const PharmacyDispensePage = () => {
             <Alert type='error' title='แพทย์ยกเลิกคำสั่งใช้ยา' subtext={`${row.orderCancelled.at} — ${row.orderCancelled.note}`}
               showDetail={false} showIndicator={false} showBadge={false} showCloseButton={false} style={{ maxWidth: '100%' }} />
           )}
-          {/* Terminal banners for closed queues only — PROBLEM (ส่งกลับแพทย์ /
-              แจ้งปัญหา) is logged under Med Error; no full-width banner. */}
+          {/* PROBLEM ไม่ใช่คิวที่ปิดแล้ว แต่ `isTerminal` ปิดปุ่ม "ยืนยันจ่ายยา" ไว้
+              — ถ้าไม่บอกเหตุผล เภสัชกรจะเจอปุ่มตายที่ step สุดท้ายโดยไม่รู้ว่าเพราะ
+              เพิ่งกด "ส่งกลับแพทย์เพื่อวินิจฉัยใหม่" / "แจ้งปัญหาใบยา" */}
+          {row.status === DISPENSE_STATUS.PROBLEM && (
+            <Alert
+              type='warning'
+              title='คิวนี้ถูกส่งกลับแพทย์ / แจ้งปัญหาใบยาไว้'
+              subtext={`${row.problemReason || 'รอแพทย์ตรวจสอบคำสั่งใช้ยาอีกครั้ง'} — ปุ่ม "ยืนยันจ่ายยา" จะกลับมาใช้ได้เมื่อคำสั่งใช้ยาถูกแก้ไขและส่งกลับมาที่ห้องยา`}
+              showCloseButton={false} style={{ maxWidth: '100%' }}
+            />
+          )}
+          {/* Terminal banners for closed queues only — PROBLEM has its own
+              notice above; it is also logged under Med Error. */}
           {isClosed && (
             <Alert
               type={row.status === DISPENSE_STATUS.DISPENSED ? 'success' : 'warning'}

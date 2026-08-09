@@ -29,6 +29,9 @@ export const DASHBOARD_EXPORT_FOOTER =
 
 export const VIEW_PAGE_SIZE = 20;
 
+/** Cell values kept in CSV form ("2026-08-10") — reformatted for the screen. */
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 /* ── Date-filter helpers (same semantics as the pharmacy report page) ─────── */
 
 const startOfDay = (d) => {
@@ -438,7 +441,29 @@ export const ReportViewPopup = ({ open, bundle, onClose, onExportReport, footnot
   const pageCount = Math.max(1, Math.ceil(rows.length / VIEW_PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageRows = rows.slice((safePage - 1) * VIEW_PAGE_SIZE, safePage * VIEW_PAGE_SIZE);
-  const columns = sanitized?.table ? buildReportTableColumns(sanitized.table.columns) : [];
+  /* Rows come from `buildExportReport`, which stores each cell in its CSV form
+     (ISO dates) so exports stay machine-readable. On screen that surfaced as
+     "2025-08-10" inside an otherwise Thai UI — reformat ISO dates at render
+     time and leave the exported value untouched. */
+  const columns = sanitized?.table
+    ? buildReportTableColumns(sanitized.table.columns).map((col) => {
+      const base = col.render;
+      return {
+        ...col,
+        /* Swap the value *before* the shared renderer runs — it wraps some
+           columns in JSX (nowrap / badge), so post-processing its output
+           would miss exactly the date columns that need reformatting. */
+        render: (r) => {
+          const v = r?.[col.key];
+          if (typeof v === 'string' && ISO_DATE_RE.test(v)) {
+            const thai = formatIsoDateThai(v);
+            return base ? base({ ...r, [col.key]: thai }) : thai;
+          }
+          return base ? base(r) : v;
+        },
+      };
+    })
+    : [];
 
   return (
     <Popup
@@ -502,10 +527,11 @@ export const ReportViewPopup = ({ open, bundle, onClose, onExportReport, footnot
             </div>
           ) : null}
 
-          <div
-            className='flex flex-col w-full'
-            style={{ gap: 'var(--dim-space-300)', maxHeight: '58vh', overflowY: 'auto' }}
-          >
+          {/* No inner scroller — `Popup` already scrolls its own body. A second
+              `maxHeight: 58vh` box nested inside it clipped the "แสดง 1-20 จาก
+              N รายการ" row + pager against the popup's bottom edge, and left
+              two scrollbars fighting over the same table. */}
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <span
               style={{
                 color: 'var(--text-brandPrimary-default)',
