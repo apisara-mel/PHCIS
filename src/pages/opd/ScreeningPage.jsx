@@ -1255,7 +1255,7 @@ const ScreeningPage = () => {
         <Footer
           type='with BTN'
           sticky
-          showAutoSave
+          showAutoSave={current !== 0}
           autoSaveText='ร่างแบบฟอร์ม (บันทึกล่าสุด: 2 นาทีที่แล้ว)'
           showButton3
           button3Label={current === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}

@@ -523,6 +523,7 @@ const NcdFormPage = () => {
 
         <PatientCard
           sticky
+          showBack={false}
           patient={cardPatient}
           title='บันทึกการตรวจรักษาโรคเฉพาะ (NCD)'
           drugAllergies={patient.drugAllergies}
@@ -605,7 +606,8 @@ const NcdFormPage = () => {
           steps={NCD_STEPS}
           queuePath='/clinic/ncd'
           step0FlushLeft
-        >
+            onSaveDraft={handleSaveDraft}
+          >
           <ActiveStep {...stepProps} />
         </TreatmentFormShell>
         <Footer />

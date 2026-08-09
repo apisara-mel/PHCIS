@@ -215,6 +215,7 @@ const HivStiFormPage = () => {
 
             <PatientCard
               sticky
+              showBack={false}
               patient={cardPatient}
               title={`บันทึกงาน HIV/STI — ครั้งที่ ${visitNo}${clinicPatient?.uic ? ` · ${clinicPatient.uic}` : ''}`}
               drugAllergies={mrPatient.drugAllergies}
@@ -270,7 +271,8 @@ const HivStiFormPage = () => {
               steps={HIV_STI_STEPS}
               queuePath={QUEUE_PATH}
               step0FlushLeft={false}
-            >
+            onSaveDraft={() => { if (!readOnly) saveHivStiDraft(hn, formRef.current); }}
+          >
               {/* Read-only renders the same steps inert — banner above
                   explains why nothing is clickable. */}
               <div style={readOnly ? { pointerEvents: 'none', opacity: 0.72 } : undefined}>

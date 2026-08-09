@@ -32,6 +32,7 @@ const WizardMorphHeader = React.memo(function WizardMorphHeader({
   onStepClick,
   completedSteps,
   labelNoWrap = true,
+  hideLabels = false,
   className = '',
   stepProgressClassName = 'justify-center',
   /** Page title already rendered in SubHeader — stepper band only. */
@@ -52,6 +53,7 @@ const WizardMorphHeader = React.memo(function WizardMorphHeader({
         completedSteps={completedSteps}
         className={stepProgressClassName}
         labelNoWrap={labelNoWrap}
+        hideLabels={hideLabels}
       />
     </StepMorphHeader>
   );

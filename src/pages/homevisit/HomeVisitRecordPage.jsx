@@ -217,6 +217,7 @@ const HomeVisitRecordPage = () => {
           <HomeVisitAccessGate subject='บันทึกการเยี่ยมบ้าน'>
             <PatientCard
               sticky
+              showBack={false}
               patient={cardPatient}
               title={`บันทึกประเมินการเยี่ยมบ้าน — ครั้งที่ ${visitNo}`}
               drugAllergies={mrPatient.drugAllergies}
@@ -328,7 +329,8 @@ const HomeVisitRecordPage = () => {
               onLeave={handleLeave}
               fromDepartment='งานเยี่ยมบ้าน'
               onFinish={() => { finishVisit(); return false; }}
-            >
+            onSaveDraft={() => { if (!readOnly) saveHomeVisitDraft(visitId, formRef.current, stepIndex); }}
+          >
               <ActiveStep
                 form={form}
                 setForm={setForm}

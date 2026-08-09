@@ -163,8 +163,6 @@ const CheckupRecordPage = () => {
         <Header breadcrumb={breadcrumb} standalone={false} />
         <SubHeader
           title={`บันทึกผลตรวจสุขภาพ — ${visit.orderNo}`}
-          onBack={handleLeave}
-          backLabel='กลับไปคิว'
           hideBottomBorder
         >
           <NeutralSubdueButton size='md' leadingIcon='checklist' onClick={() => history.push(`/checkup/screening/${visit.id}`)}>
@@ -304,6 +302,9 @@ const CheckupRecordPage = () => {
           step0FlushLeft={false}
           onLeave={handleLeave}
           fromDepartment='งานตรวจสุขภาพ'
+            onSaveDraft={() => {
+            if (!locked) saveCheckupDraft(DRAFT_KIND, visitId, form, stepIndex);
+          }}
           onFinish={() => {
             if (!saved && !locked) confirmSave();
             return true;

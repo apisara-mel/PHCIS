@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import {
   SectionTitle, FieldGrid, Field, Sym,
 } from '@/components/forms/Fields';
@@ -52,6 +53,7 @@ import ExamNotesPanel from '@/components/examination/ExamNotesPanel';
    เพื่อไม่ให้ไฟล์นี้ (ใหญ่อยู่แล้ว) โตต่อและกัน conflict ระหว่าง agent */
 import LabRadiologyResultsPanel from '@/pages/treat/panels/LabRadiologyResultsPanel';
 import VaccineGrowthPanel from '@/pages/treat/panels/VaccineGrowthPanel';
+import ReferralHistoryPanel from '@/pages/treat/panels/ReferralHistoryPanel';
 import VisitJourneyPanel, { VisitJourneyStagePanel } from '@/pages/treat/panels/VisitJourneyPanel';
 import VisitAttachmentsPanel from '@/pages/treat/panels/VisitAttachmentsPanel';
 import ProblemListPanel from '@/pages/treat/panels/ProblemListPanel';
@@ -177,6 +179,9 @@ const HISTORY_TABS = [
      ตัวเองใน src/pages/treat/panels/ เพื่อไม่ให้ไฟล์นี้บวมต่อ */
   'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)',
   'วัคซีนและกราฟการเจริญเติบโต',
+  /* TOR §1.4.3.4 — แพทย์ต้องเห็นประวัติการส่งต่อของผู้ป่วยได้จากในหน้า
+     บันทึกการรักษาโดยตรง ไม่ต้องข้ามไป /treat/refer */
+  'ประวัติการส่งต่อ',
 ];
 
 const HISTORY_TAB_JOURNEY = 'ภาพรวมการรักษา (ลงทะเบียน → ชำระเงิน)';
@@ -194,6 +199,7 @@ const HISTORY_TAB_XRAY = 'ผลการ X-ray / RIS';
 /* EMR §1.4 tab → panel component (ไฟล์แยกใน src/pages/treat/panels/) */
 const HISTORY_TAB_LABRAD  = 'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)';
 const HISTORY_TAB_VACCINE = 'วัคซีนและกราฟการเจริญเติบโต';
+const HISTORY_TAB_REFER   = 'ประวัติการส่งต่อ';
 
 /* Step 5 "สั่งการรักษา" อยู่ที่ index 4 ใน STEP_RENDERERS — ใช้โดย CTA
    ของ empty state ในแท็บผลแล็บ ("ไปสั่งตรวจ") */
@@ -566,6 +572,9 @@ export const MedicalHistoryReadOnlyLayout = ({
      (NCD ฯลฯ) ไม่ส่งมา จึง fallback เป็นค่าคงที่เดิม — พฤติกรรมไม่เปลี่ยน */
   stepIndexes = null,
 }) => {
+  /* ใช้เปิดทะเบียนการส่งต่อจากแท็บ "ประวัติการส่งต่อ" (TOR §1.4.3.4).
+     layout นี้อยู่ใต้ Router เสมอ (ทั้ง /treat/record และ modal ของ Step 6) */
+  const historyNav = useHistory();
   const pastVisits = useMemo(() => findVisitDetailsByHn(patient?.hn), [patient?.hn]);
   const hasCurrentVisit = Boolean(form);
   const visits = useMemo(() => {
@@ -700,6 +709,12 @@ export const MedicalHistoryReadOnlyLayout = ({
           />
         ) : activeTabLabel === HISTORY_TAB_VACCINE ? (
           <VaccineGrowthPanel patient={patient} form={form || {}} />
+        ) : activeTabLabel === HISTORY_TAB_REFER ? (
+          /* TOR §1.4.3.4 — อ่านจาก store เดียวกับ /treat/refer ไม่มีสำเนาข้อมูล */
+          <ReferralHistoryPanel
+            patient={patient}
+            onOpenRegister={() => historyNav.push('/treat/refer')}
+          />
         ) : activeTabLabel === HISTORY_TAB_LAB ? (
           <VisitJourneyStagePanel
             patient={patient}

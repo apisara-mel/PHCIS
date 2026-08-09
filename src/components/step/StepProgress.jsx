@@ -63,14 +63,14 @@ const AnimatedCheck = ({ active, size = 16 }) => (
   </svg>
 );
 
-const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = false, labelNoWrap = false }) => {
+const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = false, labelNoWrap = false, hideLabels = false }) => {
   const [hovered, setHovered] = useState(false);
   const isClickable = Boolean(onStepClick) && type !== TYPE.CURRENT;
   const showHover = hovered && isClickable;
   const circleSize = compact ? 22 : 28;
   const currentRing = compact ? 3 : 4;
   const checkSize = compact ? 12 : 16;
-  const stepWidth = compact ? 112 : 160;
+  const stepWidth = hideLabels ? circleSize : (compact ? 112 : 160);
 
   let bg, numberColor, titleColor;
   if (type === TYPE.CURRENT) {
@@ -108,11 +108,13 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
     <div
       className='shrink-0 flex flex-col items-start'
       style={{
-        width: labelNoWrap ? 'auto' : stepWidth,
-        minWidth: labelNoWrap ? stepWidth : undefined,
-        gap: compact ? 'var(--dim-space-050)' : 'var(--dim-space-200)',
+        width: hideLabels ? 'auto' : (labelNoWrap ? 'auto' : stepWidth),
+        minWidth: hideLabels ? undefined : (labelNoWrap ? stepWidth : undefined),
+        gap: hideLabels ? 0 : (compact ? 'var(--dim-space-050)' : 'var(--dim-space-200)'),
         transition: `width 220ms ${SMOOTH_EASE}, gap 220ms ${SMOOTH_EASE}`,
       }}
+      title={hideLabels ? label : undefined}
+      aria-label={hideLabels ? `ขั้นตอนที่ ${idx + 1}: ${label}` : undefined}
     >
       {/* Indicator row: circle + connector */}
       <div className='flex items-center gap-1.5 w-full' data-spotlight={`step-${idx + 1}`}>
@@ -191,35 +193,37 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
       </div>
 
       {/* Title + optional English subtitle (CPOE bilingual stepper) */}
-      <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-050)' }}>
-        <p
-          className='leading-[1.5] text-left m-0'
-          data-step-label
-          style={{
-            color: titleColor,
-            fontFamily: 'var(--type-family-body)',
-            fontSize: compact ? 'var(--type-size-xs)' : 'var(--type-size-sm)',
-            fontWeight: type === TYPE.CURRENT ? 700 : 400,
-            lineHeight: compact ? 1.35 : 1.5,
-            whiteSpace: labelNoWrap ? 'nowrap' : 'normal',
-            transition: `${TITLE_TRANSITION}, font-size 220ms ${SMOOTH_EASE}, line-height 220ms ${SMOOTH_EASE}`,
-          }}
-        >
-          {label}
-        </p>
-        {subtitle && !compact && (
+      {!hideLabels && (
+        <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-050)' }}>
           <p
-            className='text-xs leading-[1.5] text-left m-0'
+            className='leading-[1.5] text-left m-0'
+            data-step-label
             style={{
-              color: 'var(--text-steps-subtitle)',
+              color: titleColor,
               fontFamily: 'var(--type-family-body)',
-              transition: TITLE_TRANSITION,
+              fontSize: compact ? 'var(--type-size-xs)' : 'var(--type-size-sm)',
+              fontWeight: type === TYPE.CURRENT ? 700 : 400,
+              lineHeight: compact ? 1.35 : 1.5,
+              whiteSpace: labelNoWrap ? 'nowrap' : 'normal',
+              transition: `${TITLE_TRANSITION}, font-size 220ms ${SMOOTH_EASE}, line-height 220ms ${SMOOTH_EASE}`,
             }}
           >
-            {subtitle}
+            {label}
           </p>
-        )}
-      </div>
+          {subtitle && !compact && (
+            <p
+              className='text-xs leading-[1.5] text-left m-0'
+              style={{
+                color: 'var(--text-steps-subtitle)',
+                fontFamily: 'var(--type-family-body)',
+                transition: TITLE_TRANSITION,
+              }}
+            >
+              {subtitle}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -243,11 +247,12 @@ const StepProgress = ({
   framed = false,
   compact = false,
   labelNoWrap = false,
+  hideLabels = false,
   morph = false,
 }) => {
   const row = (
     <div
-      className={`flex items-start ${compact ? 'gap-1' : 'gap-1.5'} ${className}`}
+      className={`flex items-start ${compact || hideLabels ? 'gap-1' : 'gap-1.5'} ${className}`}
       style={{ transition: 'gap 200ms cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
       {steps.map((raw, idx) => {
@@ -271,6 +276,7 @@ const StepProgress = ({
             onStepClick={onStepClick}
             compact={compact}
             labelNoWrap={labelNoWrap}
+            hideLabels={hideLabels}
           />
         );
       })}

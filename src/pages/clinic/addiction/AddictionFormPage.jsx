@@ -215,6 +215,7 @@ const AddictionFormPage = () => {
         <AddictionAccessGate>
         <PatientCard
           sticky
+          showBack={false}
           patient={cardPatient}
           title={`บันทึกบำบัดสารเสพติด — ครั้งที่ ${seed.sessionNo}`}
           drugAllergies={mrPatient.drugAllergies}
@@ -282,6 +283,9 @@ const AddictionFormPage = () => {
           queuePath='/clinic/addiction'
           step0FlushLeft={false}
           onLeave={handleBack}
+            onSaveDraft={() => {
+            if (!readOnly) saveAddictionDraft(hn, formRef.current, stepIndex);
+          }}
         >
           <ActiveStep
             form={form}

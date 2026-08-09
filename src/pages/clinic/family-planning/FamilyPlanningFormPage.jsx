@@ -234,6 +234,7 @@ const FamilyPlanningFormPage = () => {
 
           <PatientCard
             sticky
+            showBack={false}
             patient={cardPatient}
             title={pageTitle}
             drugAllergies={mrPatient.drugAllergies}
@@ -390,6 +391,7 @@ const FamilyPlanningFormPage = () => {
             step0FlushLeft={false}
             onLeave={handleBack}
             fromDepartment='คลินิกวางแผนครอบครัว'
+            onSaveDraft={() => { if (!locked) saveFpDraft(fpHn, form, stepIndex); }}
           >
             <ActiveStep
               form={form}

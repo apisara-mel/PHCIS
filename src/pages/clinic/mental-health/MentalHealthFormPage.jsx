@@ -226,6 +226,7 @@ const MentalHealthFormPage = () => {
 
         <PatientCard
           sticky
+          showBack={false}
           patient={cardPatient}
           title='บันทึกสุขภาพจิต — คลินิกสุขภาพจิต'
           drugAllergies={intake.drugAllergies}
@@ -349,7 +350,8 @@ const MentalHealthFormPage = () => {
           queuePath={QUEUE_PATH}
           step0FlushLeft={false}
           onLeave={handleBack}
-        >
+            onSaveDraft={() => { if (!locked) saveMhDraft(mhHn, form, stepIndex); }}
+          >
           <ActiveStep
             form={form}
             setForm={setForm}

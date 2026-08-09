@@ -250,7 +250,7 @@ const DentalFormPage = () => {
           {...stepProps}
           saveState={saveState}
           confirmError={confirmError}
-          onSaveDraft={handleSaveDraft}
+            onSaveDraft={handleSaveDraft}
           onConfirm={handleConfirm}
         />
       );
@@ -356,6 +356,7 @@ const DentalFormPage = () => {
 
           <PatientCard
             sticky
+            showBack={false}
             patient={cardPatient}
             title='บันทึกทันตกรรม (Dental Record)'
             drugAllergies={patient.drugAllergies}
@@ -499,7 +500,8 @@ const DentalFormPage = () => {
               steps={DENTAL_STEPS}
               queuePath='/clinic/dental'
               step0FlushLeft={false}
-            >
+            onSaveDraft={handleSaveDraft}
+          >
               {renderStep()}
             </TreatmentFormShell>
           )}
