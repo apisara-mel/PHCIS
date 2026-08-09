@@ -206,6 +206,7 @@ const ImmunizationFormPage = () => {
 
           <PatientCard
             sticky
+            showBack={false}
             patient={cardPatient}
             title='บันทึกสุขภาพเด็กดี — คลินิกสุขภาพเด็กดี'
             drugAllergies={intake.drugAllergies}
@@ -349,6 +350,7 @@ const ImmunizationFormPage = () => {
             step0FlushLeft={false}
             onLeave={handleBack}
             fromDepartment='คลินิกสุขภาพเด็กดี'
+            onSaveDraft={() => { if (!locked) saveImmDraft(immHn, form, stepIndex); }}
           >
             <ActiveStep
               form={form}

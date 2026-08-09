@@ -75,6 +75,101 @@ export const REFER_TREATMENT_SUGGESTIONS = [
   'ให้ออกซิเจน 3 LPM และพ่นยาขยายหลอดลม 1 ครั้ง อาการทรงตัว',
 ];
 
+/* ── ทิศทางที่ 3: ส่งต่อภายในหน่วยงาน (TOR §1.5.8.3) ──────────────
+   คำศัพท์ปลายทางยกมาจากคู่มือ HCIS §2.1.17 (งานเยี่ยมบ้าน) และ §2.1.19
+   (ส่งต่อหน่วยงานภายใน ศบส.) — ไม่ต้องมีสถานพยาบาลปลายทาง/สิทธิเรียกเก็บ
+   แต่ต้องมี "ผู้รับมอบหมาย" + "กำหนดวันเยี่ยม/วันนัด" + "เป้าหมายการติดตาม". */
+export const INTERNAL_DESTINATIONS = [
+  {
+    value: 'home-visit',
+    label: 'งานเยี่ยมบ้าน (Home Health Care)',
+    unit: 'กลุ่มงานเวชศาสตร์ชุมชน · ศบส. 4 ดินแดง',
+    dueLabel: 'กำหนดวันออกเยี่ยมบ้าน',
+    icon: 'home_health',
+    team: [
+      'พว.สุชาดา แก้วมณี (พยาบาลเยี่ยมบ้าน)',
+      'พว.มานพ เกษมสุข (พยาบาลชุมชน)',
+      'กภ.ธนวัฒน์ พูนผล (นักกายภาพบำบัดเยี่ยมบ้าน)',
+    ],
+  },
+  {
+    value: 'special-clinic',
+    label: 'คลินิกเฉพาะโรค (NCD / เบาหวาน-ความดัน / เลิกบุหรี่)',
+    unit: 'คลินิกโรคเรื้อรัง · ศบส. 4 ดินแดง',
+    dueLabel: 'วันนัดคลินิกเฉพาะโรค',
+    icon: 'medical_services',
+    team: [
+      'พว.อรทัย ใจดี (พยาบาลคลินิก NCD)',
+      'นพ.ปิยะ วัฒนชัย (แพทย์คลินิกโรคเรื้อรัง)',
+      'ภก.วราภรณ์ ดีเลิศ (เภสัชกรคลินิกเลิกบุหรี่)',
+    ],
+  },
+  {
+    value: 'social-welfare',
+    label: 'งานสังคมสงเคราะห์',
+    unit: 'ฝ่ายสังคมสงเคราะห์ · ศบส. 4 ดินแดง',
+    dueLabel: 'วันนัดสัมภาษณ์/ประเมินทางสังคม',
+    icon: 'volunteer_activism',
+    team: [
+      'นางสาวพัชรี ทองสุข (นักสังคมสงเคราะห์ชำนาญการ)',
+      'นายกิตติ ศรีสมบูรณ์ (นักสังคมสงเคราะห์)',
+    ],
+  },
+  {
+    value: 'rehab',
+    label: 'งานเวชศาสตร์ฟื้นฟู / กายภาพบำบัด',
+    unit: 'ห้องกายภาพบำบัด · ศบส. 4 ดินแดง',
+    dueLabel: 'วันนัดทำกายภาพบำบัด',
+    icon: 'accessible',
+    team: [
+      'กภ.ธนวัฒน์ พูนผล (นักกายภาพบำบัด)',
+      'กภ.ณัฐนรี บุญมา (นักกายภาพบำบัด)',
+      'นางสาวศิริพร คงทรัพย์ (นักกิจกรรมบำบัด)',
+    ],
+  },
+];
+
+export const internalDestinationMeta = (value) =>
+  INTERNAL_DESTINATIONS.find((d) => d.value === value) || null;
+
+export const INTERNAL_GOAL_SUGGESTIONS = [
+  'ติดตามการกินยาและวัดความดันโลหิตที่บ้านสัปดาห์ละ 1 ครั้ง เป็นเวลา 4 สัปดาห์',
+  'ประเมินสภาพแวดล้อมในบ้าน ความเสี่ยงพลัดตกหกล้ม และสอนญาติดูแลแผลกดทับ',
+  'ฝึกเดินด้วยอุปกรณ์ช่วยเดินและประเมินกำลังกล้ามเนื้อซ้ำใน 2 สัปดาห์',
+  'ประเมินสิทธิการรักษาและสภาพเศรษฐกิจครอบครัวเพื่อขอสงเคราะห์ค่าเดินทาง',
+];
+
+export const INTERNAL_REASON_SUGGESTIONS = [
+  'ผู้รับบริการเป็นผู้สูงอายุติดเตียง ญาติดูแลคนเดียว ขอส่งงานเยี่ยมบ้านติดตามต่อเนื่อง',
+  'คุมน้ำตาลไม่ได้ต่อเนื่อง 3 ครั้ง ขอส่งคลินิกเฉพาะโรคเพื่อปรับแผนการรักษา',
+  'ผู้รับบริการไม่มีสิทธิการรักษาและไม่มีผู้ดูแล ขอส่งงานสังคมสงเคราะห์ประเมิน',
+  'หลังโรคหลอดเลือดสมอง มีอ่อนแรงซีกขวา ขอส่งกายภาพบำบัดฟื้นฟูสมรรถภาพ',
+];
+
+/* ── ระบบ e-Referral (TOR §1.5.8.1 / §1.5.8.4) ──────────────────
+   หน้าจอฝั่งเราทำได้เต็ม: เลขที่ e-Referral, สถานะคิวส่งออก, วันที่ปลายทาง
+   นัดให้ผู้รับบริการมารับบริการ. **ตัว gateway จริงยังไม่มี** — สถานะทุกแถว
+   มาจาก mock queue นี้ ไม่ได้ยิง API ออกไปจริง. */
+export const EREFERRAL_GATEWAY = {
+  name: 'e-Referral Gateway (สำนักอนามัย กทม.)',
+  endpoint: 'https://ereferral.bangkok.go.th/api/v1/referral',
+  protocol: 'HL7 FHIR R4 · ServiceRequest + Encounter',
+  status: 'degraded',
+  statusLabel: 'เชื่อมต่อได้บางส่วน',
+  lastSyncAt: '8 ส.ค. 2569 · 08:12',
+  degradedSince: '8 ส.ค. 2569 · 07:40',
+  note: 'ยังไม่มี gateway จริงในระบบต้นแบบ — คิวส่งออกด้านล่างเป็นสถานะจำลองตามรูปแบบข้อความที่กำหนดไว้',
+};
+
+export const EREFERRAL_QUEUE_STATUSES = [
+  { key: 'sent',    label: 'ส่งสำเร็จ',      badge: 'success' },
+  { key: 'pending', label: 'รอส่งในคิว',     badge: 'warning' },
+  { key: 'failed',  label: 'ส่งไม่สำเร็จ',    badge: 'error'   },
+];
+
+export const eReferralStatusMeta = (key) =>
+  EREFERRAL_QUEUE_STATUSES.find((s) => s.key === key) || EREFERRAL_QUEUE_STATUSES[1];
+
 let seq = 0;
 const uid = () => `ref-${Date.now().toString(36)}-${(seq += 1)}`;
 
@@ -84,11 +179,27 @@ export const nextReferNo = () => {
   return `RF-2569-${String(refNoSeq).padStart(5, '0')}`;
 };
 
-/* แถวว่างของแบบส่งต่อ — ทุกฟิลด์ตามคู่มือ §2.5.1 */
+/* เลขที่ใบส่งต่อภายใน — ชุดเลขคนละชุดกับใบส่งต่อภายนอก (คู่มือ §2.1.19) */
+let internalNoSeq = 131;
+export const nextInternalReferNo = () => {
+  internalNoSeq += 1;
+  return `IR-2569-${String(internalNoSeq).padStart(5, '0')}`;
+};
+
+export const nextReferNoFor = (direction) =>
+  (direction === 'internal' ? nextInternalReferNo() : nextReferNo());
+
+/* แถวว่างของแบบส่งต่อ — ทุกฟิลด์ตามคู่มือ §2.5.1
+
+   ห้ามออกเลขที่ใบส่งต่อที่นี่: ใบภายในใช้ชุด IR- คนละชุดกับ RF- ถ้าออกเลข
+   ตั้งแต่สร้างแถวว่าง ทุกใบภายใน (และแถว seed ทุกแถว) จะกินเลข RF- ทิ้ง
+   ทำให้ทะเบียนกระดาษมีเลขขาดหาย. ผู้เรียกเป็นคนกำหนดเลขตามทิศทางเอง
+   (`nextReferNoFor(direction)`) และ `saveReferral()` เป็นตาข่ายกันพลาด
+   ให้ใบที่ถูกบันทึกจริงมีเลขเสมอ. */
 export const blankReferral = (patient = {}) => ({
   id: '',
   direction: 'out',
-  referNo: nextReferNo(),
+  referNo: '',
   cardNo: '',
   hn: patient.hn || '',
   cid: patient.nationalId || '',
@@ -121,6 +232,21 @@ export const blankReferral = (patient = {}) => ({
   printCopies: 2,
   cancelledAt: '', cancelReason: '',
   createdBy: CURRENT_CLINICIAN.name, createdAt: '', amendedAt: '',
+
+  /* ส่งต่อภายในหน่วยงาน (§1.5.8.3) — ใช้เฉพาะ direction === 'internal' */
+  internalDestination: '',
+  assignee: '',
+  dueDate: '',
+  followUpGoal: '',
+  assignedAt: '',
+  assignmentAcceptedAt: '',
+
+  /* e-Referral (§1.5.8.1 / §1.5.8.4) — ทะเบียนเลขที่และคิวส่งออก */
+  eReferralNo: '',
+  eReferralStatus: '',
+  eReferralAttempts: 0,
+  eReferralError: '',
+  appointmentDate: '',
 });
 
 const REFERRALS = [
@@ -232,7 +358,94 @@ const REFERRALS = [
     sentDate: '1 มิถุนายน 2569', receivedDate: '3 มิถุนายน 2569',
     status: 'sent', printCount: 0, createdAt: '3 มิ.ย. 2569 · 09:15',
   },
+  /* ── ส่งต่อภายในหน่วยงาน (§1.5.8.3 · คู่มือ HCIS §2.1.17 / §2.1.19) ── */
+  {
+    ...blankReferral(),
+    id: 'ref-seed-7', direction: 'internal', referNo: 'IR-2569-00131', cardNo: 'BKK-4-IN-69131',
+    hn: '67-00001', cid: '1-1010-01234-56-7', name: 'นายสมชาย มั่นคง',
+    lastVisitDate: '6 พฤษภาคม 2569', fromCenter: 'center-4', toFacility: '',
+    patientAddress: { houseNo: '99/12', moo: '-', soi: 'ลาดพร้าว 15', road: 'ลาดพร้าว', subDistrict: 'จอมพล', district: 'จตุจักร', province: 'กรุงเทพมหานคร', zipcode: '10900' },
+    patientPhone: '081-234-9999', rights: 'ประกันสังคม', rightsExpired: false,
+    internalDestination: 'home-visit',
+    assignee: 'พว.สุชาดา แก้วมณี (พยาบาลเยี่ยมบ้าน)',
+    dueDate: '13 พฤษภาคม 2569',
+    followUpGoal: 'ติดตามการกินยาขับปัสสาวะ ชั่งน้ำหนักทุกวัน และวัดความดันโลหิตที่บ้านสัปดาห์ละ 2 ครั้ง เป็นเวลา 4 สัปดาห์',
+    history: 'ความดันโลหิตสูงและโรคไตเรื้อรังระยะ 3 อาศัยอยู่กับภรรยาสูงอายุ บ้านชั้นเดียวไม่มีลิฟต์',
+    symptom: 'ขาบวมทั้งสองข้าง เหนื่อยง่ายเวลาเดินขึ้นบันได',
+    requirement: 'ขอส่งงานเยี่ยมบ้านติดตามอาการบวมและการใช้ยาที่บ้าน',
+    communicableNotify: 'none',
+    sender: 'พญ.สมหญิง รักษ์ดี', sentDate: '6 พฤษภาคม 2569',
+    assignedAt: '6 พ.ค. 2569 · 11:02', assignmentAcceptedAt: '6 พ.ค. 2569 · 13:20',
+    status: 'sent', printCount: 1, createdAt: '6 พ.ค. 2569 · 10:55',
+  },
+  {
+    ...blankReferral(),
+    id: 'ref-seed-8', direction: 'internal', referNo: 'IR-2569-00127', cardNo: '',
+    hn: '67-00003', cid: '1-1101-34561-67-9', name: 'นายวีระ ดีงาม',
+    lastVisitDate: '28 เมษายน 2569', fromCenter: 'center-4', toFacility: '',
+    patientAddress: { houseNo: '18', moo: '4', soi: '', road: 'เจริญนคร', subDistrict: 'คลองต้นไทร', district: 'คลองสาน', province: 'กรุงเทพมหานคร', zipcode: '10600' },
+    patientPhone: '089-564-2425', rights: 'ข้าราชการ', rightsExpired: false,
+    internalDestination: 'special-clinic',
+    assignee: '',
+    dueDate: '',
+    followUpGoal: '',
+    history: 'เบาหวานชนิดที่ 2 คุมน้ำตาลไม่ได้ต่อเนื่อง 3 ครั้ง',
+    symptom: 'แผลที่เท้าขวาเรื้อรัง น้ำตาลปลายนิ้วสูงตลอด',
+    requirement: 'ขอส่งคลินิกเฉพาะโรคเพื่อปรับสูตรยาและสอนการดูแลเท้า',
+    communicableNotify: 'none',
+    sender: 'นพ.ปิยะ วัฒนชัย', sentDate: '',
+    status: 'draft', printCount: 0, createdAt: '28 เม.ย. 2569 · 15:30',
+  },
+  {
+    ...blankReferral(),
+    id: 'ref-seed-9', direction: 'internal', referNo: 'IR-2569-00118', cardNo: 'BKK-4-IN-69118',
+    hn: '67-00004', cid: '1-1101-34561-67-9', name: 'นางทักษพร ขำใจ',
+    lastVisitDate: '2 เมษายน 2569', fromCenter: 'center-4', toFacility: '',
+    patientAddress: { houseNo: '55/3', moo: '-', soi: 'สุทธิสาร 8', road: 'สุทธิสารวินิจฉัย', subDistrict: 'สามเสนนอก', district: 'ห้วยขวาง', province: 'กรุงเทพมหานคร', zipcode: '10310' },
+    patientPhone: '086-889-1120', rights: 'บัตรทอง (UC)', rightsExpired: true,
+    internalDestination: 'social-welfare',
+    assignee: 'นางสาวพัชรี ทองสุข (นักสังคมสงเคราะห์ชำนาญการ)',
+    dueDate: '9 เมษายน 2569',
+    followUpGoal: 'ประเมินสิทธิการรักษาที่หมดอายุและสภาพเศรษฐกิจครอบครัวเพื่อขอสงเคราะห์ค่าเดินทางไปตรวจ Mammogram',
+    history: 'ไม่มีโรคประจำตัว สิทธิบัตรทองหมดอายุ ไม่มีรายได้ประจำ',
+    symptom: 'คลำพบก้อนที่เต้านมซ้าย ต้องส่งตรวจต่อแต่ไม่มีค่าเดินทาง',
+    requirement: 'ขอส่งงานสังคมสงเคราะห์ช่วยประเมินและประสานสิทธิ',
+    communicableNotify: 'none',
+    sender: 'พญ.สมหญิง รักษ์ดี', sentDate: '2 เมษายน 2569',
+    assignedAt: '2 เม.ย. 2569 · 14:10',
+    status: 'cancelled', cancelledAt: '4 เม.ย. 2569 · 09:30',
+    cancelReason: 'ผู้รับบริการต่ออายุสิทธิบัตรทองเรียบร้อยแล้ว จึงไม่ต้องส่งสังคมสงเคราะห์',
+    printCount: 1, createdAt: '2 เม.ย. 2569 · 13:45',
+  },
+  {
+    ...blankReferral(),
+    id: 'ref-seed-10', direction: 'internal', referNo: 'IR-2569-00104', cardNo: 'BKK-4-IN-69104',
+    hn: '67-00002', cid: '1-1001-08881-44-6', name: 'นางสาวสมหญิง มีสุข',
+    lastVisitDate: '30 เมษายน 2569', fromCenter: 'center-4', toFacility: '',
+    patientAddress: { houseNo: '112', moo: '-', soi: 'อินทามระ 22', road: 'สุทธิสาร', subDistrict: 'ดินแดง', district: 'ดินแดง', province: 'กรุงเทพมหานคร', zipcode: '10400' },
+    patientPhone: '082-114-5566', rights: 'บัตรทอง (UC)', rightsExpired: false,
+    internalDestination: 'rehab',
+    assignee: 'กภ.ธนวัฒน์ พูนผล (นักกายภาพบำบัด)',
+    dueDate: '7 พฤษภาคม 2569',
+    followUpGoal: 'ฝึกการเคลื่อนไหวหลังผ่าตัดช่องท้อง ประเมินความแข็งแรงกล้ามเนื้อหน้าท้องซ้ำใน 2 สัปดาห์',
+    history: 'หลังผ่าตัดไส้ติ่ง 20 เม.ย. 2569 แผลแห้งดี',
+    symptom: 'ลุกนั่งลำบาก ปวดตึงแผลเวลาเปลี่ยนท่า',
+    requirement: 'ขอส่งกายภาพบำบัดฟื้นฟูหลังผ่าตัด',
+    communicableNotify: 'none',
+    sender: 'นพ.อนุชา ศรีวิไล', sentDate: '2 พฤษภาคม 2569',
+    assignedAt: '2 พ.ค. 2569 · 09:05', assignmentAcceptedAt: '2 พ.ค. 2569 · 09:40',
+    status: 'replied', printCount: 2, createdAt: '2 พ.ค. 2569 · 08:55',
+  },
 ];
+
+/* e-Referral: เติมเลขที่/สถานะคิวส่งออกให้ใบส่งต่อภายนอกที่ส่งแล้ว
+   (mock — ไม่ได้ยิงออก gateway จริง) */
+const EREFERRAL_SEED = {
+  'ref-seed-1': { eReferralNo: 'ERF-6900021-KLG', eReferralStatus: 'sent',    eReferralAttempts: 1, appointmentDate: '12 พฤษภาคม 2569' },
+  'ref-seed-3': { eReferralNo: 'ERF-6900014-VJR', eReferralStatus: 'failed',  eReferralAttempts: 3, eReferralError: 'ปลายทางตอบกลับ 409 — เลขบัตรประชาชนไม่ตรงกับทะเบียนราษฎร์', appointmentDate: '' },
+  'ref-seed-4': { eReferralNo: 'ERF-6900009-CKP', eReferralStatus: 'pending', eReferralAttempts: 0, appointmentDate: '' },
+};
+REFERRALS.forEach((r) => { if (EREFERRAL_SEED[r.id]) Object.assign(r, EREFERRAL_SEED[r.id]); });
 
 const listeners = new Set();
 const emit = () => { listeners.forEach((fn) => fn(REFERRALS)); };
@@ -250,15 +463,37 @@ export const referralsByDirection = (direction) =>
 export const referralsForPatient = (hn) =>
   getReferrals().filter((r) => r.hn === hn);
 
-/* legend "ข้อมูลไม่สมบูรณ์" ของคู่มือ §2.5.2 — แถวที่ยังขาดฟิลด์บังคับ */
+/* legend "ข้อมูลไม่สมบูรณ์" ของคู่มือ §2.5.2 — แถวที่ยังขาดฟิลด์บังคับ
+
+   ปลายทางภายนอกกรอกได้ 2 ทาง: เลือกจาก dropdown (`toFacility`) หรือพิมพ์
+   ชื่อสถานพยาบาลนอกรายการเอง (`toFacilityOther`) — ฟอร์มถือว่าทั้งสองทาง
+   ใช้ได้ ตัวตรวจจึงต้องรับทั้งคู่ ไม่งั้นใบที่พิมพ์ชื่อเองจะถูกบล็อกที่ปุ่ม
+   "ส่งใบส่งต่อ" ทั้งที่ไม่มี error รายฟิลด์ให้แก้. */
 export const REQUIRED_REFER_FIELDS = [
-  { key: 'toFacility', label: 'สถานพยาบาลปลายทาง' },
+  {
+    key: 'toFacility',
+    label: 'สถานพยาบาลปลายทาง',
+    has: (r) => !!String(r?.toFacility || '').trim() || !!String(r?.toFacilityOther || '').trim(),
+  },
   { key: 'symptom',    label: 'อาการ / เหตุผลการส่ง' },
   { key: 'sender',     label: 'ผู้ส่ง' },
 ];
 
-export const missingReferFields = (row) => REQUIRED_REFER_FIELDS
-  .filter((f) => !String(row?.[f.key] || '').trim())
+/* ส่งต่อภายในไม่ต้องมีสถานพยาบาลปลายทาง/สิทธิเรียกเก็บ แต่ต้องมี
+   หน่วยงานปลายทางภายใน + ผู้รับมอบหมาย + วันเยี่ยม/วันนัด */
+export const REQUIRED_INTERNAL_FIELDS = [
+  { key: 'internalDestination', label: 'หน่วยงานปลายทางภายใน' },
+  { key: 'assignee',            label: 'ผู้รับมอบหมาย' },
+  { key: 'dueDate',             label: 'กำหนดวันเยี่ยม / วันนัด' },
+  { key: 'symptom',             label: 'อาการ / เหตุผลการส่ง' },
+  { key: 'sender',              label: 'ผู้ส่ง' },
+];
+
+export const requiredFieldsFor = (direction) =>
+  (direction === 'internal' ? REQUIRED_INTERNAL_FIELDS : REQUIRED_REFER_FIELDS);
+
+export const missingReferFields = (row) => requiredFieldsFor(row?.direction)
+  .filter((f) => (f.has ? !f.has(row) : !String(row?.[f.key] || '').trim()))
   .map((f) => f.label)
   .concat(!String(row?.hn || '').trim() ? ['HN ในระบบ'] : []);
 
@@ -270,14 +505,18 @@ export const saveReferral = (draft) => {
     const row = {
       ...draft,
       id: uid(),
+      /* เลขที่ออกตอน "บันทึกจริง" เท่านั้น — ผู้เรียกที่ไม่ได้กำหนดเลขมาเอง
+         (เช่น การส่งต่อจากหน้าเฝ้าสังเกตอาการ) จะได้เลขตามทิศทางที่ถูกต้อง */
+      referNo: draft.referNo || nextReferNoFor(draft.direction),
       createdBy: CURRENT_CLINICIAN.name,
       createdAt: stampNow(),
     };
     REFERRALS.unshift(row);
     emit();
     appendAudit({
-      hn: row.hn, category: 'refer', field: `สร้างใบส่งต่อ ${row.referNo}`,
-      oldValue: '—', newValue: `${referStatusMeta(row.status).label} → ${facilityMeta(row.toFacility)?.label || 'ยังไม่ระบุปลายทาง'}`,
+      hn: row.hn, category: 'refer',
+      field: `สร้างใบส่งต่อ${row.direction === 'internal' ? 'ภายใน' : ''} ${row.referNo}`,
+      oldValue: '—', newValue: `${referStatusMeta(row.status).label} → ${referralTargetLabel(row)}`,
     });
     return { ...row };
   }
@@ -292,16 +531,36 @@ export const saveReferral = (draft) => {
   return { ...row };
 };
 
+/* ปลายทางของใบนี้ในรูปข้อความ — ใช้ทั้งในตาราง, timeline และ audit */
+export const referralTargetLabel = (row) => {
+  if (!row) return '—';
+  if (row.direction === 'internal') {
+    return internalDestinationMeta(row.internalDestination)?.label || 'ยังไม่ระบุหน่วยงานภายใน';
+  }
+  return facilityMeta(row.toFacility)?.label || row.toFacilityOther || 'ยังไม่ระบุปลายทาง';
+};
+
 export const sendReferral = (id) => {
   const row = REFERRALS.find((r) => r.id === id);
   if (!row) return null;
   row.status = 'sent';
   row.sentDate = row.sentDate || stampNow().split(' · ')[0];
   row.amendedAt = stampNow();
+  if (row.direction === 'internal') {
+    /* ส่งต่อภายใน = มอบหมายงานให้หน่วยงานใน ศบส. — ประทับเวลามอบหมาย
+       เพื่อให้การ "แก้ไข" ภายหลังเตือนได้ว่าผู้รับมอบหมายอาจเริ่มงานแล้ว */
+    row.assignedAt = row.assignedAt || stampNow();
+  } else {
+    /* ฝั่งภายนอกเข้าคิว e-Referral — ยังไม่มี gateway จริง จึงเข้าคิวรอส่ง */
+    row.eReferralNo = row.eReferralNo || `ERF-${row.referNo.replace(/[^0-9]/g, '').slice(-7)}-OUT`;
+    row.eReferralStatus = row.eReferralStatus || 'pending';
+  }
   emit();
   appendAudit({
-    hn: row.hn, category: 'refer', field: `ส่งแบบส่งต่อ ${row.referNo}`,
-    oldValue: 'ร่าง', newValue: `ส่งแล้ว → ${facilityMeta(row.toFacility)?.label || '—'}`,
+    hn: row.hn, category: 'refer',
+    field: `${row.direction === 'internal' ? 'มอบหมายใบส่งต่อภายใน' : 'ส่งแบบส่งต่อ'} ${row.referNo}`,
+    oldValue: 'ร่าง',
+    newValue: `ส่งแล้ว → ${referralTargetLabel(row)}${row.assignee ? ` (ผู้รับมอบหมาย ${row.assignee})` : ''}`,
   });
   return { ...row };
 };
@@ -331,6 +590,116 @@ export const printReferral = (id, copies = 1) => {
   appendAudit({
     hn: row.hn, category: 'refer', field: `พิมพ์แบบส่งต่อ ${row.referNo}`,
     oldValue: `พิมพ์แล้ว ${row.printCount - copies} ชุด`, newValue: `พิมพ์เพิ่ม ${copies} ชุด (รวม ${row.printCount})`,
+  });
+  return { ...row };
+};
+
+/* ── ประวัติการส่งต่อรายผู้ป่วยข้าม visit (TOR §1.5.8.2) ────────────
+   เรียงตามเวลาเสมอ (ใหม่ → เก่า) แม้ข้ามทิศทาง. ใบที่ยกเลิกยังอยู่ใน
+   timeline (ขีดฆ่า ไม่ลบ) และใบหมดอายุถูกคำนวณป้ายให้พร้อมใช้. */
+const TH_FULL_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+const TH_SHORT_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+/* รับได้ทั้ง "6 พฤษภาคม 2569" และ "6 พ.ค. 2569 · 10:40" */
+export const parseThaiDateString = (s) => {
+  const m = String(s || '').match(/(\d{1,2})\s+(\S+)\s+(\d{4})/);
+  if (!m) return null;
+  let mi = TH_FULL_MONTHS.indexOf(m[2]);
+  if (mi < 0) mi = TH_SHORT_MONTHS.indexOf(m[2]);
+  if (mi < 0) return null;
+  return new Date(Number(m[3]) - 543, mi, Number(m[1]));
+};
+
+export const isReferralExpired = (row) => {
+  if (!row?.validUntil) return false;
+  const d = parseThaiDateString(row.validUntil);
+  return !!d && d.getTime() < Date.now();
+};
+
+const referralTimeValue = (row) => {
+  const d = parseThaiDateString(row.sentDate)
+    || parseThaiDateString(row.createdAt)
+    || parseThaiDateString(row.lastVisitDate);
+  return d ? d.getTime() : 0;
+};
+
+export const referralHistoryForPatient = (hn) => {
+  const key = String(hn || '').trim();
+  if (!key) return [];
+  return getReferrals()
+    .filter((r) => r.hn === key)
+    .map((r) => ({
+      ...r,
+      targetLabel: referralTargetLabel(r),
+      expired: isReferralExpired(r),
+      sortValue: referralTimeValue(r),
+    }))
+    .sort((a, b) => b.sortValue - a.sortValue);
+};
+
+export const referralHistorySummary = (hn) => {
+  const rows = referralHistoryForPatient(hn);
+  return {
+    total: rows.length,
+    out: rows.filter((r) => r.direction === 'out').length,
+    incoming: rows.filter((r) => r.direction === 'in').length,
+    internal: rows.filter((r) => r.direction === 'internal').length,
+    cancelled: rows.filter((r) => r.status === 'cancelled').length,
+    expired: rows.filter((r) => r.expired).length,
+    latest: rows[0] || null,
+  };
+};
+
+/* ── คิวส่งออก e-Referral (§1.5.8.1 / §1.5.8.4) ───────────────── */
+export const eReferralQueue = () => getReferrals()
+  .filter((r) => r.direction === 'out' && !!r.eReferralStatus)
+  .map((r) => ({
+    id: r.id,
+    referNo: r.referNo,
+    eReferralNo: r.eReferralNo,
+    name: r.name,
+    hn: r.hn,
+    facility: facilityMeta(r.toFacility)?.label || r.toFacilityOther || '—',
+    status: r.eReferralStatus,
+    attempts: r.eReferralAttempts || 0,
+    error: r.eReferralError || '',
+    appointmentDate: r.appointmentDate || '',
+    sentDate: r.sentDate || '',
+  }));
+
+/* ลองส่งซ้ำ — ยังไม่มี gateway จริง จึงจำลองผลลัพธ์แบบตรงไปตรงมา:
+   ใบที่ error เพราะข้อมูลไม่ตรงจะ fail ซ้ำจนกว่าจะแก้ข้อมูลต้นทาง */
+export const retryEReferral = (id) => {
+  const row = REFERRALS.find((r) => r.id === id);
+  if (!row) return null;
+  const before = eReferralStatusMeta(row.eReferralStatus).label;
+  row.eReferralAttempts = (row.eReferralAttempts || 0) + 1;
+  if (row.eReferralError) {
+    row.eReferralStatus = 'failed';
+  } else {
+    row.eReferralStatus = 'sent';
+    row.appointmentDate = row.appointmentDate || '';
+  }
+  emit();
+  appendAudit({
+    hn: row.hn, category: 'refer', field: `ลองส่ง e-Referral ซ้ำ ${row.eReferralNo || row.referNo}`,
+    oldValue: before,
+    newValue: `${eReferralStatusMeta(row.eReferralStatus).label} (ครั้งที่ ${row.eReferralAttempts})${row.eReferralError ? ` — ${row.eReferralError}` : ''}`,
+  });
+  return { ...row };
+};
+
+/* บันทึกวันที่ปลายทางนัดให้ผู้รับบริการมารับบริการ (§1.5.8.4) */
+export const setReferralAppointmentDate = (id, date) => {
+  const row = REFERRALS.find((r) => r.id === id);
+  if (!row) return null;
+  const before = row.appointmentDate || '—';
+  row.appointmentDate = date || '';
+  emit();
+  appendAudit({
+    hn: row.hn, category: 'refer', field: `วันที่มารับบริการปลายทาง ${row.referNo}`,
+    oldValue: before, newValue: row.appointmentDate || '—',
   });
   return { ...row };
 };

@@ -41,7 +41,7 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
 
   return (
   <div
-    className={`flex items-center w-full shrink-0 ${MIH_CHROME_MORPH_SUBHEADER}`}
+    className={`flex items-start w-full shrink-0 ${MIH_CHROME_MORPH_SUBHEADER}`}
     style={{
       gap: 'var(--dim-space-400)',
       paddingLeft: 'var(--dim-space-600)',
@@ -66,18 +66,30 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
         {backLabel}
       </NeutralSubdueButton>
     )}
-    <span style={{
-      color: 'var(--text-content-default)',
-      fontFamily: 'var(--type-family-heading-content)',
-      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-      lineHeight: 1.5,
-      fontSize: 'var(--type-size-title, var(--type-size-base, 16px))',
-      ...morphTitleStyle,
-    }}>
+    {/* Match md button height so title stays on the same vertical axis as
+        the action row (items-center on a wrapping button group would pull
+        the title down to the mid-point of multiple rows). */}
+    <span
+      className='shrink-0 inline-flex items-center'
+      style={{
+        color: 'var(--text-content-default)',
+        fontFamily: 'var(--type-family-heading-content)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+        lineHeight: 1.5,
+        fontSize: 'var(--type-size-title, var(--type-size-base, 16px))',
+        whiteSpace: 'nowrap',
+        minHeight: 'var(--dim-size-800, 40px)',
+        ...morphTitleStyle,
+      }}
+    >
       {title}
     </span>
-    {afterTitle}
-    <div className='flex-1' />
+    {afterTitle != null && afterTitle !== false && (
+      <div className='shrink-0 inline-flex items-center' style={{ minHeight: 'var(--dim-size-800, 40px)' }}>
+        {afterTitle}
+      </div>
+    )}
+    <div className='flex-1 min-w-0' style={{ minHeight: 'var(--dim-size-800, 40px)' }} />
     {hasActions && (
       <div className='flex items-center shrink-0 flex-wrap justify-end' style={{ gap: 'var(--dim-space-300)' }}>
         {showConsentAction && <CreateConsentRequestHeaderAction />}

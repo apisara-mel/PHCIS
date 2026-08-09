@@ -13,6 +13,7 @@ import Stepper from '@/components/stepper/Stepper';
 import PharmacyLabelPrint from '@/components/pharmacy/PharmacyLabelPrint';
 import PharmacyPrescriptionPrint from '@/components/pharmacy/PharmacyPrescriptionPrint';
 import PharmacyAuxLabelPrint from '@/components/pharmacy/PharmacyAuxLabelPrint';
+import PharmacyPrintLangButton from '@/components/pharmacy/PharmacyPrintLangButton';
 import { triggerPharmacyPrint } from '@/components/pharmacy/pharmacyPrintUtils';
 import PharmacyVerificationPanel from '@/components/pharmacy/PharmacyVerificationPanel';
 import PharmacyCounselingPanel from '@/components/pharmacy/PharmacyCounselingPanel';
@@ -20,20 +21,27 @@ import PharmacyDeliveryPanel from '@/components/pharmacy/PharmacyDeliveryPanel';
 import PharmacyOwnMedicationsList from '@/components/pharmacy/PharmacyOwnMedicationsList';
 import PharmacyAllergyEditor from '@/components/pharmacy/PharmacyAllergyEditor';
 import PharmacyMedicationEditor from '@/components/pharmacy/PharmacyMedicationEditor';
+import PharmacyChangeDrugPopup from '@/components/pharmacy/PharmacyChangeDrugPopup';
+import FormularyStatusBadge from '@/components/pharmacy/FormularyStatusBadge';
+import OutOfRightsBadge from '@/components/pharmacy/OutOfRightsBadge';
 import PharmacyVoiceSuggestInput from '@/components/pharmacy/PharmacyVoiceSuggestInput';
 import PharmacySectionTopic from '@/components/pharmacy/PharmacySectionTopic';
 import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
+import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import Checkbox from '@/components/checkbox/Checkbox';
-import Icon from '@/components/icons/Icon';
+import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
+import DeleteMedicationConfirmPopup from '@/components/popup/DeleteMedicationConfirmPopup';
+import Popup from '@/components/popup/Popup';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
+import Textarea from '@/components/forms/Textarea';
+import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import { DEFAULT_MR_PATIENT, findMrPatientByHn } from '@/data/mrPatients';
 import { getPatientByHN } from '@/data/patientProfiles';
 import { resolveMedicationImage } from '@/data/medicationCatalog';
 import {
   DISPENSE_STATUS,
   PHARMACY_QUEUE,
-  QUEUE_TYPES,
-  PAYMENT_STATUS,
   checkAllergyConflicts,
   getStock,
   deductStock,
@@ -41,17 +49,16 @@ import {
   findPharmacyRowByQueueNo,
   logMedError,
   toggleItemPrepared,
+  toggleOwnMedicationReconciled,
   setOutOfRightsDocAttached,
-  setPaymentStatus,
   addPharmacyItem,
   updatePharmacyItem,
   removePharmacyItem,
   appendPharmacistNote,
-  toggleAuxLabel,
   AUX_LABEL_OPTIONS,
+  defaultAuxLabelsFor,
   createRefillPlan,
-  markRefillVisitPickedUp,
-  getAllergySafeDrugs,
+  clearRefillPlan,
 } from '@/data/pharmacyQueue';
 import {
   checkDrugInteractions,
@@ -103,8 +110,98 @@ const SectionCard = ({ title, action, children }) => (
   </div>
 );
 
+/* Label + value as two grid cells — parent owns columns so every group's
+   left labels share one vertical edge and every group's values share another. */
+const SupportingInfoCells = ({ label, children }) => (
+  <>
+    <span
+      className='shrink-0'
+      style={{
+        color: 'var(--text-content-tertiary)',
+        fontSize: 'var(--type-size-sm)',
+        fontFamily: 'var(--type-family-body)',
+        lineHeight: 1.5,
+        paddingTop: 'var(--dim-space-025, 1px)',
+      }}
+    >
+      {label}
+    </span>
+    <div
+      className='min-w-0'
+      style={{
+        color: 'var(--text-content-default)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        lineHeight: 1.5,
+        whiteSpace: 'pre-wrap',
+      }}
+    >
+      {children}
+    </div>
+  </>
+);
+
+const supportingValue = (value) => (
+  <span style={{ color: value ? 'var(--text-content-default)' : 'var(--text-content-secondary)' }}>
+    {value || 'ไม่มีข้อมูล'}
+  </span>
+);
+
+const SUPPORTING_GRID_STYLE_ID = 'mih-pharmacy-supporting-grid-style-v2';
+if (typeof document !== 'undefined' && !document.getElementById(SUPPORTING_GRID_STYLE_ID)) {
+  const css = document.createElement('style');
+  css.id = SUPPORTING_GRID_STYLE_ID;
+  css.textContent = `
+    .mih-pharmacy-supporting-grid {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      column-gap: var(--dim-space-400, 16px);
+      row-gap: var(--dim-space-300, 12px);
+      align-items: start;
+      width: 100%;
+    }
+    @media (min-width: 768px) {
+      .mih-pharmacy-supporting-grid {
+        /* label · value · label · value — labels/values align across both groups */
+        grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+        column-gap: var(--dim-space-400, 16px);
+      }
+      /* Extra space between the two groups (after each left-group value) */
+      .mih-pharmacy-supporting-grid > :nth-child(4n + 2) {
+        padding-right: var(--dim-space-400, 16px);
+      }
+    }
+  `;
+  document.head.appendChild(css);
+}
+
+/* Attention blink for แพ้ยา / ยาไม่พอ badges in รายการยาที่ต้องจ่าย. */
+const ALERT_BADGE_BLINK_STYLE_ID = 'mih-pharmacy-alert-badge-blink-style';
+if (typeof document !== 'undefined') {
+  const cssText = `
+@keyframes mih-pharmacy-alert-badge-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.mih-pharmacy-alert-badge-blink {
+  animation: mih-pharmacy-alert-badge-blink 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mih-pharmacy-alert-badge-blink { animation: none; opacity: 1; }
+}
+`;
+  let el = document.getElementById(ALERT_BADGE_BLINK_STYLE_ID);
+  if (!el) {
+    el = document.createElement('style');
+    el.id = ALERT_BADGE_BLINK_STYLE_ID;
+    document.head.appendChild(el);
+  }
+  if (el.textContent !== cssText) el.textContent = cssText;
+}
+
 const resolveRow = (queueNo) =>
   findPharmacyRowByQueueNo(queueNo)
+  || PHARMACY_QUEUE.find((r) => r.status === DISPENSE_STATUS.CALLED)
   || PHARMACY_QUEUE.find((r) => r.status === DISPENSE_STATUS.WAITING)
   || PHARMACY_QUEUE[0];
 
@@ -134,22 +231,26 @@ const toPatientCardShape = (mr) => ({
   doctor: 'พญ.สมหญิง รักษ์ดี',
   insurance: mr.rights,
   address: addressLine(mr.address),
+  drugAllergies: mr.drugAllergies || [],
+  chronicDiseases: mr.chronicDiseases || [],
 });
 
-const QUEUE_TYPE_LABEL = Object.fromEntries(QUEUE_TYPES.map((t) => [t.key, t.label]));
-
 /* Frequently-typed phrases per free-text field — surfaced as a
-   suggestion dropdown once 3+ characters are typed (see
-   PharmacyVoiceSuggestInput). Not pulled from any registry; these are
+   suggestion dropdown once 3+ characters are typed (SuggestibleTextarea
+   / PharmacyVoiceSuggestInput). Not pulled from any registry; these are
    just the wording that recurs across real ห้องจ่ายยา exception
    entries, so retyping the whole sentence isn't necessary every time. */
 const MED_ERROR_SUGGESTIONS = [
+  'ลายมือแพทย์อ่านไม่ออก',
+  'คำสั่งยาไม่ครบถ้วน',
   'จ่ายยาผิดขนาด',
   'จ่ายยาผิดชนิด',
   'จ่ายยาผิดคน',
   'ฉลากยาไม่ตรงกับคำสั่งแพทย์',
   'จำนวนยาที่จ่ายไม่ตรงกับใบสั่งยา',
   'ลืมแจ้งข้อควรระวังการใช้ยา',
+  'ขนาดยาที่สั่งไม่เหมาะสมกับผู้ป่วย',
+  'ยาที่สั่งไม่มีในคลัง ต้องปรึกษาแพทย์เปลี่ยนยา',
 ];
 const NO_SHOW_SUGGESTIONS = [
   'รอเกิน 3 วัน',
@@ -164,20 +265,67 @@ const PROBLEM_SUGGESTIONS = [
   'ยาที่สั่งไม่มีในคลัง ต้องปรึกษาแพทย์เปลี่ยนยา',
   'ข้อมูลผู้ป่วยไม่ตรงกับใบสั่งยา',
 ];
+const REDIAGNOSIS_SUGGESTIONS = [
+  'ผู้ป่วยแพ้ยาที่สั่ง — ไม่มียาทดแทนที่เหมาะสม',
+  'ขนาดยาที่สั่งไม่เหมาะสมกับผู้ป่วย',
+  'ยาที่สั่งไม่มีในคลังและไม่มียาทดแทน',
+  'สงสัยวินิจฉัยไม่ตรงกับอาการ/ผลตรวจ',
+  'ยาตีกันรุนแรง — ต้องการทบทวนแผนการรักษา',
+  'คำสั่งยาไม่ครบถ้วน ต้องให้แพทย์แก้ไข',
+];
 
-const formatThaiDate = (iso) => new Date(iso).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+const MED_ERROR_SEVERITY_OPTIONS = [
+  { value: 'low', label: 'ความรุนแรงต่ำ' },
+  { value: 'medium', label: 'ความรุนแรงปานกลาง' },
+  { value: 'high', label: 'ความรุนแรงสูง' },
+];
 
-const REFILL_VISIT_STATUS_PILL = {
-  due:        { style: 'warning', label: 'ถึงกำหนดรับยา' },
-  scheduled:  { style: 'neutral', label: 'รอกำหนด'       },
-  picked_up:  { style: 'success', label: 'รับยาแล้ว'     },
-};
-
-const PAYMENT_STATUS_PILL = {
-  [PAYMENT_STATUS.NOT_APPLICABLE]: { style: 'neutral', label: 'ไม่มีค่าใช้จ่าย' },
-  [PAYMENT_STATUS.UNPAID]:         { style: 'error',   label: 'ค้างชำระ'       },
-  [PAYMENT_STATUS.PAID]:           { style: 'success', label: 'ชำระแล้ว'       },
-};
+/* Compact refill / full-qty tags for the การแบ่งจ่าย column. */
+const RefillQtyTag = ({ selected, disabled, onClick, title, children }) => (
+  <button
+    type='button'
+    title={title}
+    aria-label={title}
+    aria-pressed={selected}
+    disabled={disabled}
+    onMouseDown={(e) => e.stopPropagation()}
+    onClick={(e) => {
+      e.stopPropagation();
+      if (disabled) return;
+      onClick?.(e);
+    }}
+    className='inline-flex items-center justify-center shrink-0'
+    style={{
+      height: 'var(--dim-size-500, 24px)',
+      minWidth: 'var(--dim-size-500, 24px)',
+      paddingLeft: 'var(--dim-space-200, 8px)',
+      paddingRight: 'var(--dim-space-200, 8px)',
+      borderRadius: 'var(--dim-radius-full)',
+      border: `var(--dim-stroke-100) solid ${
+        selected
+          ? 'var(--border-brandPrimary-tertiary, #C5EDDA)'
+          : 'var(--border-neutralbutton-tertiary, #E5E7EB)'
+      }`,
+      background: selected
+        ? 'var(--surface-brandPrimary-quaternary, #E6F4EE)'
+        : 'var(--surface-neutralbutton-quinary, #F9FAFB)',
+      color: selected
+        ? 'var(--text-brandprimarybutton-default, #007549)'
+        : 'var(--text-content-secondary)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs)',
+      fontWeight: selected ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)',
+      lineHeight: 1,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      opacity: disabled ? 0.6 : 1,
+      whiteSpace: 'nowrap',
+      position: 'relative',
+      zIndex: 1,
+    }}
+  >
+    {children}
+  </button>
+);
 
 const PharmacyDispensePage = () => {
   const history = useHistory();
@@ -202,6 +350,8 @@ const PharmacyDispensePage = () => {
      wizard, since dispensing isn't strictly linear (a pharmacist may need
      to revisit "ตรวจสอบ / แพ้ยา" after starting "จัดยา"). */
   const [currentStep, setCurrentStep] = useState(0);
+  const [draftSavedAt, setDraftSavedAt] = useState(null);
+  const [draftToast, setDraftToast] = useState(null);
 
   const [labelLang, setLabelLang] = useState('th');
   const [dispenseNow, setDispenseNow] = useState({});
@@ -223,6 +373,26 @@ const PharmacyDispensePage = () => {
      drug for another one) — lets onSave log a pharmacist note naming both
      the old and new drug once the swap is confirmed. */
   const [allergySwapConflict, setAllergySwapConflict] = useState(null);
+  /* Pending row for trash-icon delete confirmation (same chrome as CPOE). */
+  const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
+  /* Row targeted by the DS เปลี่ยนยา popup (table column or allergy alert). */
+  const [changeDrugItem, setChangeDrugItem] = useState(null);
+  /* Row targeted by ฉลากช่วย edit popup — draft holds selected phrases until save. */
+  const [auxLabelItem, setAuxLabelItem] = useState(null);
+  const [auxLabelDraft, setAuxLabelDraft] = useState([]);
+  const [auxLabelOtherOn, setAuxLabelOtherOn] = useState(false);
+  const [auxLabelOtherText, setAuxLabelOtherText] = useState('');
+  /* ส่งกลับแพทย์เพื่อวินิจฉัยใหม่ — null closed; item = from table row;
+     'allergy-all' = from allergy alert (all conflicts). */
+  const [rediagnosisTarget, setRediagnosisTarget] = useState(null);
+  const [rediagnosisReason, setRediagnosisReason] = useState('');
+  /* Per-item sent state — leading icon stays as check after confirm. */
+  const [rediagnosisSentById, setRediagnosisSentById] = useState({});
+  /* แนบเอกสารประกอบ — { item, kind: 'formulary' | 'rights' } + File[] draft. */
+  const [supportDocTarget, setSupportDocTarget] = useState(null);
+  const [supportDocFiles, setSupportDocFiles] = useState([]);
+  /* Preview an already-attached support doc ({ id, name, url, type }). */
+  const [supportDocPreview, setSupportDocPreview] = useState(null);
 
   /* Forces a re-render after mutators change the module-level row in
      place (see `pharmacyQueue.js`) — the object reference stays the
@@ -235,6 +405,10 @@ const PharmacyDispensePage = () => {
   const duplicates = useMemo(() => checkDuplicateDrugs(row.items), [row.items]);
   const highAlertItems = useMemo(() => checkHighAlert(row.items), [row.items]);
   const outOfRightsItems = useMemo(() => checkOutOfRights(mrPatient.rights, row.items), [mrPatient, row.items]);
+  const outOfRightsIds = useMemo(
+    () => new Set(outOfRightsItems.map((it) => it.id)),
+    [outOfRightsItems],
+  );
   const diseaseConflicts = useMemo(() => checkDisallowedChronicDisease(mrPatient, row.items), [mrPatient, row.items]);
   const doctorRestricted = useMemo(() => checkDoctorGroupRestriction(row.items), [row.items]);
   const watch = mrPatient.specialWatch || {};
@@ -256,18 +430,29 @@ const PharmacyDispensePage = () => {
     { title: 'ตรวจสอบคำสั่ง / คำแนะนำ / รับยา' },
   ];
 
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === DISPENSE_STEPS.length - 1;
+  const goPrevStep = () => setCurrentStep((s) => Math.max(0, s - 1));
+  const goNextStep = () => setCurrentStep((s) => Math.min(DISPENSE_STEPS.length - 1, s + 1));
+  const leaveDispense = () => history.push('/pharmacy/queue');
+  const handleSaveDraft = () => {
+    setDraftSavedAt(new Date());
+    setDraftToast({ id: Date.now(), variant: 'success', message: 'บันทึกร่างการจ่ายยาแล้ว' });
+  };
+  const draftAutoSaveText = draftSavedAt
+    ? `ร่างแบบฟอร์ม (บันทึกล่าสุด: ${draftSavedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} น.)`
+    : 'ร่างแบบฟอร์ม (บันทึกล่าสุด: ยังไม่ได้บันทึก)';
+
   /* Allergy conflicts get their own explicit "แพ้ยา" badge directly on the
      row (rather than the generic "?" mark below) so the pharmacist sees
      which drug — and which allergy class — without opening the alert
      banner above the table. */
   const allergyConflictMap = useMemo(() => new Map(conflicts.map((c) => [c.item.id, c])), [conflicts]);
 
-  /* Rows to mark with a "?" (legacy convention — คู่มือระบบงานห้องจ่ายยาฯ
-     §2.1.1 "กรณีผู้ป่วยแพ้ยา" — a "?" appears in front of the drug row
-     that conflicts) for every OTHER conflict type — allergy conflicts are
-     called out via `allergyConflictMap` instead. Interaction/duplicate
-     conflicts key off drug NAME (not id), so every item sharing that name
-     gets flagged too. */
+  /* Rows to mark with a "?" for every OTHER conflict type — allergy
+     conflicts are called out via `allergyConflictMap` instead.
+     Interaction/duplicate conflicts key off drug NAME (not id). */
+  const duplicateNames = useMemo(() => new Set(duplicates), [duplicates]);
   const conflictItemIds = useMemo(() => {
     const ids = new Set();
     highAlertItems.forEach((i) => ids.add(i.id));
@@ -301,27 +486,38 @@ const PharmacyDispensePage = () => {
   const nlemTotal = itemsWithStock.filter((i) => i.inFormulary).reduce((sum, i) => sum + i.subtotal, 0);
   const nonNlemTotal = grandTotal - nlemTotal;
   const hasInsufficientStock = itemsWithStock.some((i) => i.qtyNow > 0 && i.insufficient);
+  const hasMissingAuxLabels = itemsWithStock.some((i) => !(i.auxLabels || []).length);
   const alreadyDispensed = row.status === DISPENSE_STATUS.DISPENSED;
-  const isTerminal = [DISPENSE_STATUS.DISPENSED, DISPENSE_STATUS.NO_SHOW, DISPENSE_STATUS.PROBLEM, DISPENSE_STATUS.CANCELLED].includes(row.status);
+  /* Closed = irreversible end states — lock the medication table.
+     PROBLEM stays editable so เภสัช can still เปลี่ยนยา / ส่งกลับ / ปรับจำนวน
+     after flagging (e.g. no safe substitute yet). */
+  const isClosed = [
+    DISPENSE_STATUS.DISPENSED,
+    DISPENSE_STATUS.NO_SHOW,
+    DISPENSE_STATUS.CANCELLED,
+  ].includes(row.status);
+  const isTerminal = isClosed || row.status === DISPENSE_STATUS.PROBLEM;
+  const footerPrimaryLabel = isLastStep
+    ? (alreadyDispensed ? 'จ่ายยาแล้ว' : row.status === DISPENSE_STATUS.PARTIAL ? 'จ่ายส่วนที่เหลือ' : 'ยืนยันจ่ายยา')
+    : `ถัดไป: ${DISPENSE_STEPS[currentStep + 1].title}`;
 
-  /* Inline "เปลี่ยนยา" column — lets the pharmacist swap a line's drug
-     directly from the table (no need to open the "แก้ไข" modal). The
-     `<select>` options are pre-filtered via `getAllergySafeDrugs`, so an
-     allergy-conflicting row can only be swapped to something safe. */
-  const handleQuickDrugChange = (item, newName) => {
+  /* Inline "เปลี่ยนยา" — PharmacyChangeDrugPopup (เลือกยา → nested ระบุเหตุผล). */
+  const handleQuickDrugChange = (item, newName, reason = '') => {
     if (!newName || newName === item.name) return;
     const drug = getRegistryDrug(newName);
     const oldName = item.name;
     updatePharmacyItem(row.queueNo, item.id, {
       name: newName,
       unit: drug?.unit === 'capsule' ? 'แคปซูล' : 'เม็ด',
+      auxLabels: defaultAuxLabelsFor(newName),
     });
     const conflict = allergyConflictMap.get(item.id);
+    const reasonPart = reason ? ` · เหตุผล: ${reason}` : '';
     appendPharmacistNote(
       row.queueNo,
       conflict
-        ? `เปลี่ยนยาเนื่องจากผู้ป่วยแพ้ยา: จาก "${oldName}" (แพ้กลุ่ม ${conflict.allergyClass}) เป็น "${newName}"`
-        : `เปลี่ยนยาจาก "${oldName}" เป็น "${newName}"`,
+        ? `เปลี่ยนยาเนื่องจากผู้ป่วยแพ้ยา: จาก "${oldName}" (แพ้กลุ่ม ${conflict.allergyClass}) เป็น "${newName}"${reasonPart}`
+        : `เปลี่ยนยาจาก "${oldName}" เป็น "${newName}"${reasonPart}`,
     );
     bump();
   };
@@ -330,28 +526,114 @@ const PharmacyDispensePage = () => {
     { key: 'seq', label: 'ลำดับ', align: 'center', sortable: false, render: (r, i) => i + 1 },
     { key: 'image', label: 'รูป', sortable: false, render: (r) => <MedImageTile src={resolveMedicationImage(r.name)} alt={r.name} /> },
     {
-      key: 'name', label: 'ชื่อยา', flex: true, minWidth: 200,
+      key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220,
       render: (r) => {
         const allergyHit = allergyConflictMap.get(r.id);
+        const isDuplicate = duplicateNames.has(r.name);
+        const conflictHint = isDuplicate
+          ? 'มีรายการที่ซ้ำกัน'
+          : 'รายการนี้มีปัญหากับผู้ป่วย';
         return (
-          <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+          <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+            <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
+              {allergyHit && (
+                <Badge style='error' size='small' className='mih-pharmacy-alert-badge-blink'>แพ้ยา</Badge>
+              )}
+              {!allergyHit && conflictItemIds.has(r.id) && (
+                <span
+                  aria-label={conflictHint}
+                  title={conflictHint}
+                  className='inline-flex items-center justify-center shrink-0'
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 'var(--dim-radius-full)',
+                    background: 'var(--surface-alert-error)',
+                    color: 'var(--text-alert-error)',
+                    fontSize: 'var(--type-size-xs)',
+                    fontWeight: 'var(--type-weight-bold)',
+                    cursor: 'help',
+                  }}
+                >
+                  ?
+                </span>
+              )}
+              <TableEllipsisText text={r.name} />
+              {r.source === 'remed' && <Badge style='info' size='small'>Re-med</Badge>}
+            </div>
             {allergyHit && (
-              <span title={`ผู้ป่วยแพ้ยากลุ่ม ${allergyHit.allergyClass} (${allergyHit.symptom})`}>
-                <Badge style='error' size='small'>แพ้ยา</Badge>
-              </span>
-            )}
-            {!allergyHit && conflictItemIds.has(r.id) && (
               <span
-                aria-label='รายการนี้มีปัญหากับผู้ป่วย'
-                title='รายการนี้มีปัญหากับผู้ป่วย'
-                className='inline-flex items-center justify-center shrink-0'
-                style={{ width: 18, height: 18, borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-alert-error)', color: 'var(--text-alert-error)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-bold)' }}
+                style={{
+                  color: 'var(--text-alert-error)',
+                  fontSize: 'var(--type-size-xs)',
+                  fontFamily: 'var(--type-family-body)',
+                  lineHeight: 1.4,
+                }}
               >
-                ?
+                ผู้ป่วยแพ้กลุ่ม {allergyHit.allergyClass}
+                {allergyHit.symptom ? ` — ${allergyHit.symptom}` : ''}
               </span>
             )}
-            <TableEllipsisText text={r.name} />
-            {r.source === 'remed' && <Badge style='info' size='small'>Re-med</Badge>}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'outOfFormulary', label: 'ยานอกบัญชี', align: 'center', sortable: false,
+      render: (r) => {
+        if (r.inFormulary) return null;
+        const docs = r.outOfFormularyDocs || [];
+        return (
+          <div
+            className='flex flex-col items-center'
+            style={{ gap: 'var(--dim-space-100)' }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FormularyStatusBadge inFormulary={false} onlyOut />
+            <BrandSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon={docs.length ? 'check' : 'upload_file'}
+              disabled={isClosed}
+              aria-label={`อัปโหลดเอกสารประกอบยานอกบัญชี — ${r.name}`}
+              onClick={() => {
+                setSupportDocTarget({ item: r, kind: 'formulary' });
+                setSupportDocFiles([]);
+              }}
+            >
+              {docs.length ? `แนบแล้ว (${docs.length})` : 'อัปโหลดเอกสาร'}
+            </BrandSubdueButton>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'outOfRights', label: 'ยานอกสิทธิ', align: 'center', sortable: false,
+      render: (r) => {
+        if (!outOfRightsIds.has(r.id)) return null;
+        const docs = r.outOfRightsDocs || [];
+        return (
+          <div
+            className='flex flex-col items-center'
+            style={{ gap: 'var(--dim-space-100)' }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <OutOfRightsBadge rightsLabel={mrPatient.rights} />
+            <BrandSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon={docs.length ? 'check' : 'upload_file'}
+              disabled={isClosed}
+              aria-label={`อัปโหลดเอกสารประกอบยานอกสิทธิ — ${r.name}`}
+              onClick={() => {
+                setSupportDocTarget({ item: r, kind: 'rights' });
+                setSupportDocFiles([]);
+              }}
+            >
+              {docs.length ? `แนบแล้ว (${docs.length})` : 'อัปโหลดเอกสาร'}
+            </BrandSubdueButton>
           </div>
         );
       },
@@ -360,75 +642,207 @@ const PharmacyDispensePage = () => {
     { key: 'dose', label: 'ขนาด/ความถี่', render: (r) => `${r.dosePerTake} ${r.unit} · ${r.frequency} · ${r.when}` },
     { key: 'quantity', label: 'สั่งทั้งหมด', align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
     {
-      key: 'qtyNow', label: 'จ่ายครั้งนี้', align: 'center', sortable: false,
+      key: 'refillPlan', label: 'การแบ่งจ่าย', align: 'center', sortable: false,
+      render: (r) => {
+        const visitCount = r.refillPlan?.visits?.length;
+        const isFull = !r.refillPlan;
+        const applyFull = () => {
+          clearRefillPlan(row.queueNo, r.id);
+          setDispenseNow((s) => ({ ...s, [r.id]: r.remaining }));
+          bump();
+        };
+        const applyRefill = (visits, intervalDays) => {
+          const plan = createRefillPlan(row.queueNo, r.id, { visits, intervalDays });
+          const qty = plan?.visits?.[0]?.quantity
+            ?? Math.max(1, Math.ceil(r.remaining / visits));
+          setDispenseNow((s) => ({ ...s, [r.id]: qty }));
+          bump();
+        };
+        return (
+          <div
+            className='flex flex-col items-center'
+            style={{ gap: 'var(--dim-space-100)' }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              role='group'
+              aria-label={`การแบ่งจ่าย ${r.name}`}
+              className='flex items-center justify-center'
+              style={{ gap: 'var(--dim-space-100)', flexWrap: 'nowrap' }}
+            >
+              <RefillQtyTag
+                selected={isFull}
+                disabled={isClosed || r.remaining <= 0}
+                title='จ่ายเต็มจำนวน'
+                onClick={applyFull}
+              >
+                เต็มจำนวน
+              </RefillQtyTag>
+              <RefillQtyTag
+                selected={visitCount === 2}
+                disabled={isClosed || r.remaining <= 0}
+                title='แบ่งจ่าย 2 งวด'
+                onClick={() => applyRefill(2, 14)}
+              >
+                2 งวด
+              </RefillQtyTag>
+              <RefillQtyTag
+                selected={visitCount === 3}
+                disabled={isClosed || r.remaining <= 0}
+                title='แบ่งจ่าย 3 งวด'
+                onClick={() => applyRefill(3, 10)}
+              >
+                3 งวด
+              </RefillQtyTag>
+            </div>
+            {r.refillPlan && (
+              <span
+                style={{
+                  color: 'var(--text-content-tertiary)',
+                  fontSize: 'var(--type-size-xs)',
+                  fontFamily: 'var(--type-family-body)',
+                  lineHeight: 1.4,
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                งวดนี้ {r.refillPlan.visits[0]?.quantity ?? r.qtyNow} {r.unit}
+                {' · '}
+                รวม {r.remaining} {r.unit} / {visitCount} งวด
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'qtyNow', label: 'สั่งจ่ายครั้งนี้(เม็ด)', align: 'center', sortable: false,
       render: (r) => (
-        <Stepper
-          size='small'
-          value={r.qtyNow}
-          min={0}
-          max={r.remaining}
-          onChange={(n) => setDispenseNow((s) => ({ ...s, [r.id]: n ?? 0 }))}
-          disabled={isTerminal || r.remaining <= 0}
-          aria-label={`จำนวนที่จะจ่าย ${r.name}`}
-        />
+        <div onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+          <Stepper
+            size='small'
+            value={r.qtyNow}
+            min={0}
+            max={r.remaining}
+            onChange={(n) => setDispenseNow((s) => ({ ...s, [r.id]: n ?? 0 }))}
+            disabled={isClosed || r.remaining <= 0}
+            aria-label={`จำนวนที่จะจ่าย ${r.name}`}
+          />
+        </div>
       ),
     },
     {
       key: 'stock', label: 'คงคลัง', align: 'center',
       render: (r) => r.stockEntry
-        ? <Badge style={r.insufficient ? 'error' : 'neutral'} size='small'>{r.stockEntry.stock} {r.stockEntry.unit}{r.insufficient ? ' (ไม่พอ)' : ''}</Badge>
+        ? (
+          <Badge
+            style={r.insufficient ? 'error' : 'neutral'}
+            size='small'
+            className={r.insufficient ? 'mih-pharmacy-alert-badge-blink' : undefined}
+          >
+            {r.stockEntry.stock} {r.stockEntry.unit}{r.insufficient ? ' (ไม่พอ)' : ''}
+          </Badge>
+        )
         : <span style={{ color: 'var(--text-content-tertiary)' }}>ไม่มีข้อมูล</span>,
     },
-    { key: 'subtotal', label: 'ราคารวม', align: 'center', render: (r) => `฿${r.subtotal.toLocaleString()}` },
-    { key: 'claimable', label: 'ราคาที่เบิกได้', align: 'center', render: (r) => r.claimable > 0 ? `฿${r.claimable.toLocaleString()}` : <span style={{ color: 'var(--text-content-tertiary)' }}>เบิกไม่ได้</span> },
+    { key: 'subtotal', label: 'ราคารวม (บาท)', align: 'center', render: (r) => r.subtotal.toLocaleString() },
+    { key: 'claimable', label: 'ราคาที่เบิกได้ (บาท)', align: 'center', render: (r) => r.claimable > 0 ? r.claimable.toLocaleString() : <span style={{ color: 'var(--text-content-tertiary)' }}>เบิกไม่ได้</span> },
     {
-      key: 'changeDrug', label: 'เปลี่ยนยา', align: 'center', sortable: false,
-      render: (r) => (
-        <select
-          value={r.name}
-          disabled={isTerminal}
-          onChange={(e) => handleQuickDrugChange(r, e.target.value)}
-          aria-label={`เปลี่ยนยาแทน ${r.name}`}
-          style={{
-            width: '100%',
-            padding: 'var(--dim-space-150) var(--dim-space-200)',
-            background: 'var(--surface-input-default)',
-            border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-            borderRadius: 'var(--dim-radius-200)',
-            fontSize: 'var(--type-size-xs)',
-            appearance: 'none',
-            cursor: isTerminal ? 'not-allowed' : 'pointer',
-            opacity: isTerminal ? 0.6 : 1,
-          }}
-        >
-          {getAllergySafeDrugs(mrPatient.drugAllergies, r.name).map((d) => (
-            <option key={d.id} value={d.name}>{d.name}</option>
-          ))}
-        </select>
-      ),
+      key: 'auxLabels',
+      label: 'ฉลากช่วย (Auxiliary Label) *',
+      flex: true,
+      minWidth: 200,
+      sortable: false,
+      render: (r) => {
+        const labels = r.auxLabels || [];
+        return (
+          <div className='flex items-start min-w-0 w-full' style={{ gap: 'var(--dim-space-150)' }}>
+            <div className='flex-1 min-w-0'>
+              {labels.length === 0 ? (
+                <span style={{ color: 'var(--text-alert-error)', fontSize: 'var(--type-size-sm)' }}>
+                  ต้องระบุฉลากช่วย
+                </span>
+              ) : (
+                <ul
+                  className='flex flex-col min-w-0 m-0'
+                  style={{
+                    gap: 'var(--dim-space-050)',
+                    paddingLeft: 'var(--dim-space-400, 16px)',
+                    listStyleType: 'disc',
+                    color: 'var(--text-content-default)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-sm)',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {labels.map((label) => (
+                    <li key={label}>{label}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <NeutralSubdueIconButton
+              icon='edit'
+              variant='outline'
+              size='sm'
+              disabled={isClosed}
+              aria-label={`แก้ไขฉลากช่วยของ ${r.name}`}
+              title='แก้ไขฉลากช่วย'
+              onClick={(e) => {
+                e?.stopPropagation?.();
+                const current = [...(r.auxLabels || [])];
+                const presets = current.filter((l) => AUX_LABEL_OPTIONS.includes(l));
+                const customs = current.filter((l) => !AUX_LABEL_OPTIONS.includes(l));
+                setAuxLabelItem(r);
+                setAuxLabelDraft(presets);
+                setAuxLabelOtherOn(customs.length > 0);
+                setAuxLabelOtherText(customs.join('\n'));
+              }}
+            />
+          </div>
+        );
+      },
     },
     {
-      key: 'itemActions', label: 'แก้ไข', align: 'center', sortable: false,
+      key: 'itemActions', label: 'ดำเนินการ', align: 'center', sortable: false,
       render: (r) => (
-        <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-150)' }}>
-          <button
-            type='button'
-            aria-label={`แก้ไข ${r.name}`}
-            disabled={isTerminal}
-            onClick={() => setEditingItemId(r.id)}
-            style={{ background: 'transparent', border: 'none', cursor: isTerminal ? 'not-allowed' : 'pointer', color: 'var(--text-brandPrimary-default)', opacity: isTerminal ? 0.4 : 1 }}
+        <div
+          className='flex items-center justify-center'
+          style={{ gap: 'var(--dim-space-100)' }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <BrandSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='swap_horiz'
+            disabled={isClosed}
+            aria-label={`เปลี่ยนยาแทน ${r.name}`}
+            onClick={() => setChangeDrugItem(r)}
           >
-            <Icon name='edit' size={16} />
-          </button>
-          <button
-            type='button'
+            เปลี่ยนยา
+          </BrandSubdueButton>
+          <BrandSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon={rediagnosisSentById[r.id] ? 'check' : 'stethoscope'}
+            active={Boolean(rediagnosisSentById[r.id])}
+            disabled={isClosed}
+            aria-label={`ส่งกลับแพทย์เพื่อวินิจฉัยใหม่ — ${r.name}`}
+            onClick={() => openSendBackForRediagnosis(r)}
+          >
+            ส่งกลับแพทย์เพื่อวินิจฉัยใหม่
+          </BrandSubdueButton>
+          <NeutralSubdueIconButton
+            icon='delete'
+            variant='outline'
+            size='sm'
+            disabled={isClosed}
             aria-label={`ลบ ${r.name}`}
-            disabled={isTerminal}
-            onClick={() => { removePharmacyItem(row.queueNo, r.id); bump(); }}
-            style={{ background: 'transparent', border: 'none', cursor: isTerminal ? 'not-allowed' : 'pointer', color: 'var(--text-content-tertiary)', opacity: isTerminal ? 0.4 : 1 }}
-          >
-            <Icon name='close' size={16} />
-          </button>
+            title='ลบรายการยา'
+            onClick={() => setPendingDeleteItem(r)}
+          />
         </div>
       ),
     },
@@ -440,7 +854,7 @@ const PharmacyDispensePage = () => {
   };
 
   const handleConfirmDispense = () => {
-    if (hasInsufficientStock || isTerminal) return;
+    if (hasInsufficientStock || hasMissingAuxLabels || isTerminal) return;
     const dispensingItems = itemsWithStock.filter((i) => i.qtyNow > 0);
     deductStock(dispensingItems.map((i) => ({ name: i.name, quantity: i.qtyNow })));
     const nextItems = row.items.map((it) => {
@@ -458,32 +872,122 @@ const PharmacyDispensePage = () => {
     history.push('/pharmacy/queue', { state: { justDispensed: row.queueNo } });
   };
 
-  /* Opens the medication editor pre-targeted at the conflicting item, from
-     the allergy alert's "เปลี่ยนยา" action. */
+  /* Opens the change-drug popup for the conflicting item (allergy alert). */
   const handleAllergySwap = (conflict) => {
     setAllergySwapConflict(conflict);
-    setEditingItemId(conflict.item.id);
+    setChangeDrugItem(conflict.item);
   };
 
-  /* TOR: alongside swapping the drug, the pharmacist must be able to send
-     the case back to the prescribing doctor for a fresh diagnosis — e.g.
-     when no safe substitute exists. Flags the row as a problem (blocking
-     dispense until resolved), logs a note naming every conflicting drug,
-     and routes into the doctor's treatment form for this patient. */
-  const handleSendBackForRediagnosis = () => {
+  /* TOR: open reason popup before sending back to the prescribing doctor
+     for a fresh diagnosis. `item` from a table row; omit for allergy-alert
+     bulk action covering all conflicts. */
+  const openSendBackForRediagnosis = (item) => {
+    if (item) {
+      const conflict = conflicts.find((c) => c.item.id === item.id);
+      setRediagnosisTarget(item);
+      setRediagnosisReason(
+        conflict
+          ? `ผู้ป่วยแพ้ยา ${item.name} (แพ้กลุ่ม ${conflict.allergyClass})`
+          : '',
+      );
+      return;
+    }
     const drugList = conflicts.map((c) => `${c.item.name} (แพ้กลุ่ม ${c.allergyClass})`).join(', ');
-    const reason = `ส่งกลับแพทย์เพื่อวินิจฉัยใหม่ เนื่องจากผู้ป่วยแพ้ยา: ${drugList}`;
+    setRediagnosisTarget('allergy-all');
+    setRediagnosisReason(drugList ? `ผู้ป่วยแพ้ยา: ${drugList}` : '');
+  };
+
+  const closeRediagnosisPopup = () => {
+    setRediagnosisTarget(null);
+    setRediagnosisReason('');
+  };
+
+  const handleConfirmRediagnosis = () => {
+    if (!rediagnosisReason.trim() || !rediagnosisTarget) return;
+    const reason = `ส่งกลับแพทย์เพื่อวินิจฉัยใหม่: ${rediagnosisReason.trim()}`;
     appendPharmacistNote(row.queueNo, reason);
     logMedError(row.queueNo, reason, 'high');
     updatePharmacyRow(row.queueNo, { status: DISPENSE_STATUS.PROBLEM, problemFlag: true, problemReason: reason });
+
+    const sentIds = rediagnosisTarget === 'allergy-all'
+      ? conflicts.map((c) => c.item.id)
+      : [rediagnosisTarget.id];
+    setRediagnosisSentById((prev) => {
+      const next = { ...prev };
+      sentIds.forEach((id) => { next[id] = true; });
+      return next;
+    });
+    setDraftToast({ id: Date.now(), variant: 'success', message: 'ส่งสำเร็จแล้ว' });
+    closeRediagnosisPopup();
     bump();
-    history.push({ pathname: '/treat/record', state: { hn: row.hn, name: patient.fullName } });
+  };
+
+  const closeSupportDocPopup = () => {
+    setSupportDocTarget(null);
+    setSupportDocFiles([]);
+  };
+
+  const handleSaveSupportDocs = () => {
+    if (!supportDocTarget || !supportDocFiles.length) return;
+    const { item, kind } = supportDocTarget;
+    const field = kind === 'formulary' ? 'outOfFormularyDocs' : 'outOfRightsDocs';
+    const prev = item[field] || [];
+    const added = supportDocFiles.map((f, i) => ({
+      id: `supdoc-${item.id}-${Date.now()}-${i}`,
+      name: f.name,
+      size: f.size,
+      type: f.type || '',
+      url: URL.createObjectURL(f),
+    }));
+    updatePharmacyItem(row.queueNo, item.id, { [field]: [...prev, ...added] });
+    if (kind === 'rights') {
+      setOutOfRightsDocAttached(row.queueNo, true);
+    }
+    appendPharmacistNote(
+      row.queueNo,
+      `แนบเอกสารประกอบ${kind === 'formulary' ? 'ยานอกบัญชี' : 'ยานอกสิทธิ'}: ${item.name} — ${added.map((d) => d.name).join(', ')}`,
+    );
+    closeSupportDocPopup();
+    bump();
+    setDraftToast({ id: Date.now(), variant: 'success', message: 'แนบเอกสารประกอบแล้ว' });
+  };
+
+  const handleRemoveSupportDoc = (docId) => {
+    if (!supportDocTarget) return;
+    const { item, kind } = supportDocTarget;
+    const field = kind === 'formulary' ? 'outOfFormularyDocs' : 'outOfRightsDocs';
+    const prev = item[field] || [];
+    const removed = prev.find((d) => d.id === docId);
+    if (removed?.url) URL.revokeObjectURL(removed.url);
+    const next = prev.filter((d) => d.id !== docId);
+    updatePharmacyItem(row.queueNo, item.id, { [field]: next });
+    if (kind === 'rights') {
+      const stillAny = row.items.some((it) => {
+        if (it.id === item.id) return next.length > 0;
+        return (it.outOfRightsDocs || []).length > 0;
+      });
+      setOutOfRightsDocAttached(row.queueNo, stillAny);
+    }
+    /* Refresh target from live row so the list updates. */
+    const live = findPharmacyRowByQueueNo(row.queueNo)?.items.find((it) => it.id === item.id);
+    if (live) setSupportDocTarget({ item: live, kind });
+    if (supportDocPreview?.id === docId) setSupportDocPreview(null);
+    bump();
+  };
+
+  const openSupportDocPreview = (doc) => {
+    if (!doc?.url) {
+      setDraftToast({ id: Date.now(), variant: 'error', message: 'ไม่พบไฟล์สำหรับดูตัวอย่าง' });
+      return;
+    }
+    setSupportDocPreview(doc);
   };
 
   const handleLogMedError = () => {
     if (!medErrorText.trim()) return;
     logMedError(row.queueNo, medErrorText.trim(), medErrorSeverity);
     setMedErrorText('');
+    setMedErrorSeverity('medium');
     setMedErrorOpen(false);
     bump();
   };
@@ -504,19 +1008,23 @@ const PharmacyDispensePage = () => {
   return (
     <>
     <PharmacyLabelPrint patientName={patient.fullName} hn={row.hn} items={row.items} lang={labelLang} />
-    <PharmacyPrescriptionPrint patient={patient.fullName} hn={row.hn} diagnosis={row.diagnosis} doctor={patient.doctor} items={row.items} />
+    <PharmacyPrescriptionPrint patient={patient.fullName} hn={row.hn} diagnosis={row.diagnosis} doctor={patient.doctor} items={row.items} lang={labelLang} />
     <PharmacyAuxLabelPrint items={row.items} />
     <div className='min-h-screen w-full flex mih-pharmacy-no-print' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
       <Sidebar activeKey='pharmacy' />
       <main className='flex-1 flex flex-col min-w-0'>
         <Header breadcrumb={breadcrumb} />
         <PatientCard
+          sticky
+          showBack={false}
+          forceAlertRow
           patient={patient}
           title={`คิว ${row.queueNo} · จ่ายยา`}
           drugAllergies={mrPatient.drugAllergies}
           chronicDiseases={mrPatient.chronicDiseases}
         />
         <RecordWizardMorphBand
+          hideTitle
           title={`จ่ายยา · คิว ${row.queueNo}`}
           steps={DISPENSE_STEPS}
           current={currentStep}
@@ -524,34 +1032,6 @@ const PharmacyDispensePage = () => {
           stickyTop={MORPH_STICKY_BELOW_PATIENT}
         />
         <div className='flex-1 flex flex-col' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
-
-          {/* Order context — queue type, diagnosis, vitals snapshot, payment status */}
-          <SectionCard>
-            <div className='flex flex-wrap items-center justify-between w-full' style={{ gap: 'var(--dim-space-300)' }}>
-              <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300)' }}>
-                <Badge style='info' size='small'>{QUEUE_TYPE_LABEL[row.queueType]}</Badge>
-                <span className='text-sm' style={{ color: 'var(--text-content-default)' }}>
-                  {row.diagnosis?.icd10} — {row.diagnosis?.name}
-                </span>
-                <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>
-                  BP {row.vitalsSnapshot?.bp} · HR {row.vitalsSnapshot?.hr} · Temp {row.vitalsSnapshot?.temp}°C · น้ำหนัก {row.vitalsSnapshot?.weight} กก.
-                </span>
-              </div>
-              {/* Nurse Note (ToR §1.9.2.2) — nursing history captured before
-                  the doctor visit, shown read-only to pharmacy alongside vitals. */}
-              <div className='w-full text-xs' style={{ color: 'var(--text-content-secondary)' }}>
-                <span style={{ color: 'var(--text-content-tertiary)' }}>Nurse Note: </span>{row.nurseNote || 'ไม่มีข้อมูล'}
-              </div>
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                <Badge style={PAYMENT_STATUS_PILL[row.paymentStatus].style} size='small'>{PAYMENT_STATUS_PILL[row.paymentStatus].label}</Badge>
-                {row.paymentStatus === PAYMENT_STATUS.UNPAID && (
-                  <BrandSubdueButton variant='outline' size='sm' leadingIcon='payments' onClick={() => { setPaymentStatus(row.queueNo, PAYMENT_STATUS.PAID); bump(); }}>
-                    ยืนยันชำระเงินแล้ว
-                  </BrandSubdueButton>
-                )}
-              </div>
-            </div>
-          </SectionCard>
 
           {row.orderChanged && alertsOpen.orderChanged && (
             <Alert type='info' title='แพทย์แก้ไขคำสั่งใช้ยา' subtext={`${row.orderChanged.at} — ${row.orderChanged.note}`}
@@ -563,11 +1043,13 @@ const PharmacyDispensePage = () => {
             <Alert type='error' title='แพทย์ยกเลิกคำสั่งใช้ยา' subtext={`${row.orderCancelled.at} — ${row.orderCancelled.note}`}
               showDetail={false} showIndicator={false} showBadge={false} showCloseButton={false} style={{ maxWidth: '100%' }} />
           )}
-          {isTerminal && (
+          {/* Terminal banners for closed queues only — PROBLEM (ส่งกลับแพทย์ /
+              แจ้งปัญหา) is logged under Med Error; no full-width banner. */}
+          {isClosed && (
             <Alert
-              type={row.status === DISPENSE_STATUS.DISPENSED ? 'success' : row.status === DISPENSE_STATUS.NO_SHOW || row.status === DISPENSE_STATUS.CANCELLED ? 'warning' : 'error'}
-              title={row.status === DISPENSE_STATUS.DISPENSED ? 'จ่ายยาแล้ว' : row.status === DISPENSE_STATUS.NO_SHOW ? 'ผู้รับบริการไม่มารับยา' : row.status === DISPENSE_STATUS.CANCELLED ? 'ใบยาถูกยกเลิก' : 'ใบยามีปัญหา'}
-              subtext={row.status === DISPENSE_STATUS.DISPENSED ? `คิว ${row.queueNo} จ่ายยาเรียบร้อยแล้ว` : row.status === DISPENSE_STATUS.CANCELLED ? row.orderCancelled?.note : row.noShowReason || row.problemReason}
+              type={row.status === DISPENSE_STATUS.DISPENSED ? 'success' : 'warning'}
+              title={row.status === DISPENSE_STATUS.DISPENSED ? 'จ่ายยาแล้ว' : row.status === DISPENSE_STATUS.NO_SHOW ? 'ผู้รับบริการไม่มารับยา' : 'ใบยาถูกยกเลิก'}
+              subtext={row.status === DISPENSE_STATUS.DISPENSED ? `คิว ${row.queueNo} จ่ายยาเรียบร้อยแล้ว` : row.status === DISPENSE_STATUS.CANCELLED ? row.orderCancelled?.note : row.noShowReason}
               showCloseButton={false} style={{ maxWidth: '100%' }}
             />
           )}
@@ -596,13 +1078,13 @@ const PharmacyDispensePage = () => {
                       <span className='text-xs' style={{ color: 'var(--text-content-secondary)' }}>
                         <strong>{c.item.name}</strong> — แพ้กลุ่ม {c.allergyClass} ({c.symptom})
                       </span>
-                      <BrandSubdueButton variant='outline' size='sm' leadingIcon='swap_horiz' disabled={isTerminal} onClick={() => handleAllergySwap(c)}>
+                      <BrandSubdueButton variant='outline' size='sm' leadingIcon='swap_horiz' disabled={isClosed} onClick={() => handleAllergySwap(c)}>
                         เปลี่ยนยา
                       </BrandSubdueButton>
                     </div>
                   ))}
                   <div className='flex justify-end' style={{ paddingTop: 'var(--dim-space-100)', borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)' }}>
-                    <NeutralSubdueButton variant='outline' size='sm' leadingIcon='stethoscope' onClick={handleSendBackForRediagnosis}>
+                    <NeutralSubdueButton variant='outline' size='sm' leadingIcon='stethoscope' disabled={isClosed} onClick={() => openSendBackForRediagnosis()}>
                       ส่งกลับแพทย์เพื่อวินิจฉัยใหม่
                     </NeutralSubdueButton>
                   </div>
@@ -664,7 +1146,7 @@ const PharmacyDispensePage = () => {
           {/* Exception actions — moved here (was its own section further down
               the old single-scroll page) since reporting a no-show/problem
               belongs with the rest of "ตรวจสอบ / แพ้ยา". */}
-          {!isTerminal && (
+          {!isClosed && (
             <SectionCard title='กรณีพิเศษ'>
               <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
                 <NeutralSubdueButton variant='outline' size='sm' leadingIcon='person_off' onClick={() => setNoShowOpen((v) => !v)}>ผู้รับบริการไม่มารับยา</NeutralSubdueButton>
@@ -699,21 +1181,64 @@ const PharmacyDispensePage = () => {
 
           {currentStep === 0 && (
           <>
-          {/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.4.2) — joined live per-HN via
-              getPharmacySupportingInfo (treatment / consult / lab / xray /
-              appointment). Per-row overrides remain only as fallback. */}
+          {/* ข้อมูลประกอบการจ่ายยา (ToR §1.9.2.2–3 / §1.9.4.2) — Doctor /
+              Nurse Note, ผลการวินิจฉัย, lab/xray, ประวัติรักษา/ปรึกษา, นัดหมาย. */}
           <SectionCard title='ข้อมูลประกอบการจ่ายยา'>
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 w-full text-sm'>
-              <div><span style={{ color: 'var(--text-content-tertiary)' }}>ประวัติการรักษา: </span>{row.supportingInfo.treatmentHistory || 'ไม่มีข้อมูล'}</div>
-              <div><span style={{ color: 'var(--text-content-tertiary)' }}>ประวัติส่งปรึกษา: </span>{row.supportingInfo.consultHistory || 'ไม่มีข้อมูล'}</div>
-              <div>
-                <span style={{ color: 'var(--text-content-tertiary)' }}>ผลตรวจทางห้องปฏิบัติการ: </span>
-                {row.supportingInfo.labResults
-                  ? row.supportingInfo.labResults.map((l) => `${l.test} ${l.result}${l.flag !== 'normal' ? ` (${l.flag})` : ''}`).join(', ')
-                  : 'ไม่มีข้อมูล'}
-              </div>
-              <div><span style={{ color: 'var(--text-content-tertiary)' }}>ผลตรวจทางรังสีวิทยา: </span>{row.supportingInfo.radiologyResults || 'ไม่มีข้อมูล'}</div>
-              <div className='md:col-span-2'><span style={{ color: 'var(--text-content-tertiary)' }}>ข้อมูลนัดหมาย: </span>{row.supportingInfo.appointmentInfo || 'ไม่มีข้อมูล'}</div>
+            {/* 4-col on md+ (label · value · label · value) so left labels
+                across both groups share one edge and values share another.
+                2-col stacked pairs on small screens. */}
+            <div className='mih-pharmacy-supporting-grid text-sm'>
+              <SupportingInfoCells label='ผลการวินิจฉัย'>
+                {supportingValue(row.supportingInfo.diagnosis)}
+              </SupportingInfoCells>
+              <SupportingInfoCells label='Vital Signs'>
+                {supportingValue(row.supportingInfo.vitals)}
+              </SupportingInfoCells>
+              <SupportingInfoCells label='ข้อมูลนัดหมาย'>
+                {supportingValue(row.supportingInfo.appointmentInfo)}
+              </SupportingInfoCells>
+              <SupportingInfoCells label='Doctor Note'>
+                {supportingValue(row.supportingInfo.doctorNote)}
+              </SupportingInfoCells>
+              <SupportingInfoCells label='Nurse Note'>
+                {supportingValue(row.supportingInfo.nurseNote)}
+              </SupportingInfoCells>
+              <SupportingInfoCells label='ประวัติการรักษา'>
+                {supportingValue(row.supportingInfo.treatmentHistory)}
+              </SupportingInfoCells>
+              <SupportingInfoCells label='ประวัติส่งปรึกษา'>
+                {supportingValue(row.supportingInfo.consultHistory)}
+              </SupportingInfoCells>
+              <SupportingInfoCells label='ผลตรวจทางห้องปฏิบัติการ'>
+                {row.supportingInfo.labResults?.length ? (
+                  <ul
+                    className='flex flex-col m-0 p-0 list-none'
+                    style={{ gap: 'var(--dim-space-100)' }}
+                  >
+                    {row.supportingInfo.labResults.map((l, idx) => (
+                      <li
+                        key={`${l.test}-${idx}`}
+                        className='flex flex-wrap items-center'
+                        style={{ gap: 'var(--dim-space-200)' }}
+                      >
+                        <span>
+                          {l.date ? `${l.date} · ` : ''}{l.test}{l.result ? ` ${l.result}` : ''}
+                        </span>
+                        {l.flag && l.flag !== 'normal' && (
+                          <Badge style={l.flag === 'critical' ? 'error' : 'warning'} size='small'>
+                            {l.flag === 'critical' ? 'Critical' : 'ผิดปกติ'}
+                          </Badge>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  supportingValue(null)
+                )}
+              </SupportingInfoCells>
+              <SupportingInfoCells label='ผลตรวจทางรังสีวิทยา'>
+                {supportingValue(row.supportingInfo.radiologyResults)}
+              </SupportingInfoCells>
             </div>
           </SectionCard>
 
@@ -722,16 +1247,27 @@ const PharmacyDispensePage = () => {
             title='รายการยาที่ต้องจ่าย'
             action={
               <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                <NeutralSubdueButton variant='outline' size='sm' onClick={() => setLabelLang(labelLang === 'th' ? 'en' : 'th')}>
-                  ฉลาก: {labelLang === 'th' ? 'ไทย' : 'English'}
-                </NeutralSubdueButton>
-                <BrandSubdueButton variant='outline' size='sm' leadingIcon='print' onClick={() => triggerPharmacyPrint('label')}>
-                  พิมพ์ฉลากยา
+                <PharmacyPrintLangButton
+                  mode='label'
+                  label='พิมพ์ฉลากยา'
+                  leadingIcon='print'
+                  onLangChange={setLabelLang}
+                />
+                <PharmacyPrintLangButton
+                  mode='prescription'
+                  label='พิมพ์ใบสั่งยา'
+                  leadingIcon='description'
+                  onLangChange={setLabelLang}
+                />
+                <BrandSubdueButton
+                  variant='outline'
+                  size='sm'
+                  leadingIcon='sticky_note_2'
+                  onClick={() => triggerPharmacyPrint('auxlabel')}
+                >
+                  พิมพ์ฉลากช่วย
                 </BrandSubdueButton>
-                <BrandSubdueButton variant='outline' size='sm' leadingIcon='description' onClick={() => triggerPharmacyPrint('prescription')}>
-                  พิมพ์ใบสั่งยา
-                </BrandSubdueButton>
-                {!isTerminal && (
+                {!isClosed && (
                   <BrandSubdueButton variant='outline' size='sm' leadingIcon='add' onClick={() => setEditingItemId('new')}>
                     เพิ่มรายการยา
                   </BrandSubdueButton>
@@ -740,68 +1276,77 @@ const PharmacyDispensePage = () => {
             }
           >
             {row.status === DISPENSE_STATUS.PREPARING && <Badge style='info' size='small'>จัดยาแล้ว — รอยืนยันจ่ายยา</Badge>}
-            <Table columns={columns} rows={itemsWithStock} rowKey={(r) => r.id} stickyColCount={2} emptyMessage='ไม่มีรายการยา' />
-            {editingItemId && (
-              <PharmacyMedicationEditor
-                item={editingItemId === 'new' ? null : row.items.find((it) => it.id === editingItemId)}
-                allergies={mrPatient.drugAllergies}
-                onCancel={() => { setEditingItemId(null); setAllergySwapConflict(null); }}
-                onSave={(patch) => {
-                  if (editingItemId === 'new') {
-                    addPharmacyItem(row.queueNo, patch);
-                  } else {
-                    const oldItem = row.items.find((it) => it.id === editingItemId);
-                    updatePharmacyItem(row.queueNo, editingItemId, patch);
-                    if (allergySwapConflict?.item.id === editingItemId && patch.name !== oldItem?.name) {
-                      appendPharmacistNote(
-                        row.queueNo,
-                        `เปลี่ยนยาเนื่องจากผู้ป่วยแพ้ยา: จาก "${oldItem.name}" (แพ้กลุ่ม ${allergySwapConflict.allergyClass}) เป็น "${patch.name}"`,
-                      );
-                    }
+            <Table columns={columns} rows={itemsWithStock} rowKey={(r) => r.id} stickyColCount={3} emptyMessage='ไม่มีรายการยา' />
+            <PharmacyMedicationEditor
+              key={editingItemId || 'closed'}
+              open={Boolean(editingItemId)}
+              item={editingItemId && editingItemId !== 'new'
+                ? row.items.find((it) => it.id === editingItemId)
+                : null}
+              allergies={mrPatient.drugAllergies}
+              onCancel={() => { setEditingItemId(null); setAllergySwapConflict(null); }}
+              onSave={(patch) => {
+                if (editingItemId === 'new') {
+                  addPharmacyItem(row.queueNo, patch);
+                } else if (editingItemId) {
+                  const oldItem = row.items.find((it) => it.id === editingItemId);
+                  updatePharmacyItem(row.queueNo, editingItemId, patch);
+                  if (allergySwapConflict?.item.id === editingItemId && patch.name !== oldItem?.name) {
+                    appendPharmacistNote(
+                      row.queueNo,
+                      `เปลี่ยนยาเนื่องจากผู้ป่วยแพ้ยา: จาก "${oldItem.name}" (แพ้กลุ่ม ${allergySwapConflict.allergyClass}) เป็น "${patch.name}"`,
+                    );
                   }
-                  setEditingItemId(null);
-                  setAllergySwapConflict(null);
-                  bump();
-                }}
-              />
-            )}
-            <div className='flex items-center justify-end flex-wrap w-full' style={{ paddingTop: 'var(--dim-space-200)', borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)', gap: 'var(--dim-space-400)' }}>
+                }
+                setEditingItemId(null);
+                setAllergySwapConflict(null);
+                bump();
+              }}
+            />
+            <div
+              className='flex flex-col items-end w-full'
+              style={{
+                paddingTop: 'var(--dim-space-200)',
+                borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+                gap: 'var(--dim-space-100)',
+              }}
+            >
               <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>
-                ยาในบัญชี ฿{nlemTotal.toLocaleString()} · ยานอกบัญชี ฿{nonNlemTotal.toLocaleString()} · เบิกได้ ฿{claimableTotal.toLocaleString()}
+                ยาในบัญชี {nlemTotal.toLocaleString()} · ยานอกบัญชี {nonNlemTotal.toLocaleString()} · เบิกได้ {claimableTotal.toLocaleString()} บาท
               </span>
-              <span className='text-sm' style={{ color: 'var(--text-content-secondary)', marginRight: 'var(--dim-space-200)' }}>ยอดรวมทั้งใบสั่งยา</span>
-              <span className='text-base font-bold' style={{ color: 'var(--text-content-default)' }}>฿{grandTotal.toLocaleString()}</span>
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                <span className='text-sm' style={{ color: 'var(--text-content-secondary)' }}>ยอดรวมทั้งใบสั่งยา</span>
+                <span
+                  style={{
+                    color: 'var(--text-content-default)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-xl, 20px)',
+                    fontWeight: 'var(--type-weight-bold)',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {grandTotal.toLocaleString()} บาท
+                </span>
+              </div>
             </div>
 
-            {/* Med Error (ToR §1.9.2.4) — manual log entry. */}
-            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)', paddingTop: 'var(--dim-space-200)', borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)' }}>
-              <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                <span className='text-xs' style={{ color: 'var(--text-content-tertiary)', fontWeight: 'var(--type-weight-bold)' }}>Med Error</span>
-                {!isTerminal && (
-                  <NeutralSubdueButton variant='outline' size='sm' leadingIcon='error' onClick={() => setMedErrorOpen((v) => !v)}>
-                    บันทึก Med Error
+            {/* แจ้งปัญหาใบยา / Med Error (ToR §1.9.2.4) — form ใน Popup */}
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)', paddingTop: 'var(--dim-space-200)', borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)' }}>
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                <span className='text-xs' style={{ color: 'var(--text-content-tertiary)', fontWeight: 'var(--type-weight-bold)' }}>
+                  ยาไม่มีในคลัง / สั่งไม่ครบ / อ่านใบยาไม่ได้
+                </span>
+                {!isClosed && (
+                  <NeutralSubdueButton
+                    variant='outline'
+                    size='sm'
+                    leadingIcon='report'
+                    onClick={() => setMedErrorOpen(true)}
+                  >
+                    แจ้งปัญหาใบยา (MedError)
                   </NeutralSubdueButton>
                 )}
               </div>
-              {medErrorOpen && (
-                <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-300)' }}>
-                  <PharmacyVoiceSuggestInput
-                    value={medErrorText} onChange={setMedErrorText}
-                    placeholder='ระบุรายละเอียด Med Error'
-                    suggestions={MED_ERROR_SUGGESTIONS}
-                    aria-label='รายละเอียด Med Error'
-                  />
-                  <select
-                    value={medErrorSeverity} onChange={(e) => setMedErrorSeverity(e.target.value)}
-                    style={{ padding: 'var(--dim-space-150) var(--dim-space-300)', background: 'var(--surface-input-default)', border: 'var(--dim-stroke-100) solid var(--border-input-default)', borderRadius: 'var(--dim-radius-200)', fontSize: 'var(--type-size-sm)', appearance: 'none' }}
-                  >
-                    <option value='low'>ความรุนแรงต่ำ</option>
-                    <option value='medium'>ความรุนแรงปานกลาง</option>
-                    <option value='high'>ความรุนแรงสูง</option>
-                  </select>
-                  <BrandSubdueButton variant='outline' size='sm' disabled={!medErrorText.trim()} onClick={handleLogMedError}>บันทึก</BrandSubdueButton>
-                </div>
-              )}
               {row.medErrors.length > 0 && (
                 <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
                   {row.medErrors.map((e) => (
@@ -817,92 +1362,6 @@ const PharmacyDispensePage = () => {
               )}
             </div>
           </SectionCard>
-
-          {/* ฉลากช่วย (ToR §1.9.2.11) — per-item auxiliary-label sticker
-              picker, separate from the main drug label. */}
-          <SectionCard
-            title='ฉลากช่วย (Auxiliary Label)'
-            action={
-              <BrandSubdueButton variant='outline' size='sm' leadingIcon='sticky_note_2' onClick={() => triggerPharmacyPrint('auxlabel')}>
-                พิมพ์ฉลากช่วย
-              </BrandSubdueButton>
-            }
-          >
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
-              {row.items.map((item) => (
-                <div key={item.id} className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                  <span className='text-sm' style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>{item.name}</span>
-                  <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
-                    {AUX_LABEL_OPTIONS.map((label) => {
-                      const active = (item.auxLabels || []).includes(label);
-                      return (
-                        <button
-                          key={label}
-                          type='button'
-                          disabled={isTerminal}
-                          onClick={() => { toggleAuxLabel(row.queueNo, item.id, label); bump(); }}
-                          style={{
-                            padding: '0 var(--dim-space-300)',
-                            height: 'var(--dim-size-600, 32px)',
-                            borderRadius: 'var(--dim-radius-full)',
-                            border: `var(--dim-stroke-100) solid ${active ? 'var(--border-brandPrimary-default)' : 'var(--border-card-default)'}`,
-                            background: active ? 'var(--surface-brandPrimary-quaternary)' : 'transparent',
-                            color: active ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
-                            fontSize: 'var(--type-size-xs)',
-                            cursor: isTerminal ? 'not-allowed' : 'pointer',
-                            opacity: isTerminal ? 0.6 : 1,
-                          }}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          {/* แบ่งจ่ายยาเป็นงวด (Refill — ToR §1.9.4.5) — split an item's
-              remaining quantity across future scheduled pickups instead of
-              handing it all out in one visit. */}
-          <SectionCard title='แบ่งจ่ายยาเป็นงวด (Refill)'>
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
-              {row.items.map((item) => (
-                <div key={item.id} className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-                  <span className='text-sm' style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>{item.name}</span>
-                  {!item.refillPlan ? (
-                    <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                      <NeutralSubdueButton variant='outline' size='sm' leadingIcon='event_repeat' disabled={isTerminal} onClick={() => { createRefillPlan(row.queueNo, item.id, { visits: 2, intervalDays: 14 }); bump(); }}>
-                        แบ่งจ่าย 2 งวด (ทุก 14 วัน)
-                      </NeutralSubdueButton>
-                      <NeutralSubdueButton variant='outline' size='sm' leadingIcon='event_repeat' disabled={isTerminal} onClick={() => { createRefillPlan(row.queueNo, item.id, { visits: 3, intervalDays: 10 }); bump(); }}>
-                        แบ่งจ่าย 3 งวด (ทุก 10 วัน)
-                      </NeutralSubdueButton>
-                    </div>
-                  ) : (
-                    <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                      {item.refillPlan.visits.map((v) => (
-                        <div key={v.id} className='flex items-center justify-between flex-wrap' style={{ ...PHARMACY_NESTED_PANEL, gap: 'var(--dim-space-200)', padding: 'var(--dim-space-200) var(--dim-space-300)' }}>
-                          <span className='text-xs' style={{ color: 'var(--text-content-secondary)' }}>
-                            งวดที่ {v.visitNo} · {formatThaiDate(v.scheduledDate)} · {v.quantity} {item.unit}
-                          </span>
-                          <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                            <Badge style={REFILL_VISIT_STATUS_PILL[v.status].style} size='small'>{REFILL_VISIT_STATUS_PILL[v.status].label}</Badge>
-                            {v.status === 'due' && v.visitNo > 1 && (
-                              <NeutralSubdueButton variant='outline' size='sm' onClick={() => { markRefillVisitPickedUp(row.queueNo, item.id, v.id); bump(); }}>
-                                บันทึกรับยาแล้ว
-                              </NeutralSubdueButton>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </SectionCard>
           </>
           )}
 
@@ -910,7 +1369,7 @@ const PharmacyDispensePage = () => {
           <>
           {/* จัดยา checklist (ToR §1.9.3 — บันทึกสถานะการจัด และตรวจสอบรายการยา
               ทีละรายการ ก่อนเปลี่ยนสถานะเป็น "จัดยาแล้ว") */}
-          {!isTerminal && row.status !== DISPENSE_STATUS.WAITING && (
+          {!isClosed && row.status !== DISPENSE_STATUS.WAITING && (
             <SectionCard
               title='จัดยา — ตรวจสอบรายการก่อนจ่าย'
               action={
@@ -944,11 +1403,42 @@ const PharmacyDispensePage = () => {
             </SectionCard>
           )}
 
-          {/* Medication Reconciliation */}
+          {/* Medication Reconciliation — pharmacist can tick จัดยาแล้ว per
+              line (§1.9.5.5); current Rx syncs `prepared`, own-meds use
+              `reconciled`. */}
           <SectionCard title='การประสานรายการยา (Medication Reconciliation)'>
             <Table
               columns={[
-                { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 200 },
+                {
+                  key: 'checked', label: 'จัดยาแล้ว', align: 'center', sortable: false,
+                  render: (r) => (
+                    <div
+                      className='flex justify-center'
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={!!r.checked}
+                        disabled={isClosed}
+                        aria-label={`จัดยาแล้ว — ${r.name}`}
+                        onChange={() => {
+                          if (r.source === 'current') toggleItemPrepared(row.queueNo, r.itemId);
+                          else toggleOwnMedicationReconciled(row.queueNo, r.ownId);
+                          bump();
+                        }}
+                      />
+                    </div>
+                  ),
+                },
+                {
+                  key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220,
+                  render: (r) => (
+                    <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+                      <MedImageTile src={resolveMedicationImage(r.name)} alt={r.name} />
+                      <TableEllipsisText text={r.name} />
+                    </div>
+                  ),
+                },
                 { key: 'source', label: 'แหล่งที่มา', render: (r) => <Badge style={r.source === 'current' ? 'success' : 'info'} size='small'>{r.source === 'current' ? 'ใบสั่งยาปัจจุบัน' : 'ยาที่ผู้ป่วยนำมาเอง'}</Badge> },
                 { key: 'note', label: 'หมายเหตุ', flex: true, minWidth: 200, render: (r) => r.note || '—' },
               ]}
@@ -957,15 +1447,37 @@ const PharmacyDispensePage = () => {
                    additional units this visit still gets a reconciliation
                    line, with a note that reads as "continued", not "empty". */
                 ...row.items.map((it) => ({
-                  id: `cur-${it.id}`, name: it.name, source: 'current',
-                  note: it.source === 'remed' && it.quantity === 0 ? 'ต่อเนื่องจากรายการเดิม — ไม่มีการจ่ายเพิ่มครั้งนี้' : it.instructions,
+                  id: `cur-${it.id}`,
+                  itemId: it.id,
+                  name: it.name,
+                  source: 'current',
+                  checked: !!it.prepared,
+                  note: it.source === 'remed' && it.quantity === 0
+                    ? 'ต่อเนื่องจากรายการเดิม — ไม่มีการจ่ายเพิ่มครั้งนี้'
+                    : it.instructions,
                 })),
-                ...row.ownMedications.map((m) => ({ id: `own-${m.id}`, name: m.name, source: 'own', note: m.note })),
+                ...row.ownMedications.map((m) => ({
+                  id: `own-${m.id}`,
+                  ownId: m.id,
+                  name: m.name,
+                  source: 'own',
+                  checked: !!m.reconciled,
+                  note: m.note,
+                })),
               ]}
               rowKey={(r) => r.id}
               emptyMessage='ไม่มีข้อมูล'
             />
-            <PharmacyOwnMedicationsList queueNo={row.queueNo} row={row} onChange={bump} />
+          </SectionCard>
+
+          {/* §1.9.5.9 — own medications as a separate section (DS form fields). */}
+          <SectionCard title='ยาที่ผู้รับบริการนำมาเอง'>
+            <PharmacyOwnMedicationsList
+              queueNo={row.queueNo}
+              row={row}
+              onChange={bump}
+              disabled={isClosed}
+            />
           </SectionCard>
           </>
           )}
@@ -990,19 +1502,438 @@ const PharmacyDispensePage = () => {
         <Footer
           type='with BTN'
           sticky
-          showAutoSave={false}
-          showButton2={false}
+          /* Step 1 (รูปที่ 1): no auto-save chip. Step 2+ (รูปที่ 2): show draft status. */
+          showAutoSave={!isFirstStep}
+          autoSaveText={draftAutoSaveText}
           showButton3
-          button3Label='ย้อนกลับ'
-          onButton3Click={() => history.push('/pharmacy/queue')}
+          button3Label={isFirstStep ? 'ยกเลิก' : 'ย้อนกลับ'}
+          onButton3Click={isFirstStep ? leaveDispense : goPrevStep}
+          showButton2
+          button2Label='บันทึกร่าง'
+          button2Icon='save'
+          onButton2Click={handleSaveDraft}
           showButton1
-          button1Label={alreadyDispensed ? 'จ่ายยาแล้ว' : row.status === DISPENSE_STATUS.PARTIAL ? 'จ่ายส่วนที่เหลือ' : 'ยืนยันจ่ายยา'}
-          button1TrailingIcon='check'
-          button1Disabled={hasInsufficientStock || isTerminal}
-          onButton1Click={handleConfirmDispense}
+          button1Label={footerPrimaryLabel}
+          button1TrailingIcon={isLastStep ? 'check' : 'arrow_forward'}
+          button1Disabled={isLastStep && (hasInsufficientStock || hasMissingAuxLabels || isTerminal)}
+          onButton1Click={isLastStep ? handleConfirmDispense : goNextStep}
         />
+        <PhcisTopToast session={draftToast} onDismiss={() => setDraftToast(null)} />
       </main>
     </div>
+    <DeleteMedicationConfirmPopup
+      open={Boolean(pendingDeleteItem)}
+      medicationName={pendingDeleteItem?.name}
+      onClose={() => setPendingDeleteItem(null)}
+      onConfirm={() => {
+        if (!pendingDeleteItem) return;
+        removePharmacyItem(row.queueNo, pendingDeleteItem.id);
+        setPendingDeleteItem(null);
+        bump();
+      }}
+    />
+    <PharmacyChangeDrugPopup
+      open={Boolean(changeDrugItem)}
+      currentName={changeDrugItem?.name || ''}
+      allergies={mrPatient.drugAllergies}
+      onClose={() => {
+        setChangeDrugItem(null);
+        setAllergySwapConflict(null);
+      }}
+      onConfirm={(payload) => {
+        if (!changeDrugItem) return;
+        const newName = typeof payload === 'string' ? payload : payload?.name;
+        const reason = typeof payload === 'string' ? '' : (payload?.reason || '');
+        handleQuickDrugChange(changeDrugItem, newName, reason);
+        setChangeDrugItem(null);
+        setAllergySwapConflict(null);
+      }}
+    />
+    <Popup
+      open={Boolean(auxLabelItem)}
+      onClose={() => {
+        setAuxLabelItem(null);
+        setAuxLabelDraft([]);
+        setAuxLabelOtherOn(false);
+        setAuxLabelOtherText('');
+      }}
+      size='large'
+      title='แก้ไขฉลากช่วย (Auxiliary Label)'
+      subtitle={auxLabelItem ? `ยา: ${auxLabelItem.name}` : undefined}
+      secondaryAction={{
+        label: 'ยกเลิก',
+        onClick: () => {
+          setAuxLabelItem(null);
+          setAuxLabelDraft([]);
+          setAuxLabelOtherOn(false);
+          setAuxLabelOtherText('');
+        },
+      }}
+      primaryAction={{
+        label: 'บันทึก',
+        onClick: () => {
+          if (!auxLabelItem) return;
+          const other = auxLabelOtherText.trim();
+          if (auxLabelOtherOn && !other) return;
+          const next = [
+            ...auxLabelDraft,
+            ...(auxLabelOtherOn && other ? [other] : []),
+          ];
+          if (next.length === 0) return;
+          updatePharmacyItem(row.queueNo, auxLabelItem.id, { auxLabels: next });
+          setAuxLabelItem(null);
+          setAuxLabelDraft([]);
+          setAuxLabelOtherOn(false);
+          setAuxLabelOtherText('');
+          bump();
+        },
+        disabled: (
+          (auxLabelOtherOn && !auxLabelOtherText.trim())
+          || (auxLabelDraft.length === 0 && !(auxLabelOtherOn && auxLabelOtherText.trim()))
+        ),
+      }}
+      bodyStyle={{ gap: 'var(--dim-space-300)', display: 'flex', flexDirection: 'column' }}
+    >
+      <p
+        style={{
+          margin: 0,
+          color: 'var(--text-content-secondary)',
+          fontSize: 'var(--type-size-sm)',
+          fontFamily: 'var(--type-family-body)',
+          lineHeight: 1.5,
+        }}
+      >
+        ทุกรายการยาต้องมีฉลากช่วยอย่างน้อย 1 ข้อ
+      </p>
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+        {AUX_LABEL_OPTIONS.map((label) => {
+          const checked = auxLabelDraft.includes(label);
+          return (
+            <Checkbox
+              key={label}
+              checked={checked}
+              label={label}
+              onChange={(next) => {
+                setAuxLabelDraft((prev) => (
+                  next
+                    ? (prev.includes(label) ? prev : [...prev, label])
+                    : prev.filter((l) => l !== label)
+                ));
+              }}
+            />
+          );
+        })}
+        <Checkbox
+          checked={auxLabelOtherOn}
+          label='อื่นๆ'
+          onChange={(next) => {
+            setAuxLabelOtherOn(next);
+            if (!next) setAuxLabelOtherText('');
+          }}
+        />
+        {auxLabelOtherOn && (
+          <Textarea
+            label='ระบุฉลากช่วย'
+            required
+            showLabel
+            value={auxLabelOtherText}
+            onChange={setAuxLabelOtherText}
+            placeholder='พิมพ์ข้อความฉลากช่วยเพิ่มเติม'
+            rows={3}
+            minHeight={96}
+          />
+        )}
+      </div>
+    </Popup>
+    <Popup
+      open={medErrorOpen}
+      onClose={() => {
+        setMedErrorOpen(false);
+        setMedErrorText('');
+        setMedErrorSeverity('medium');
+      }}
+      size='large'
+      title='แจ้งปัญหาใบยา (MedError)'
+      subtitle='บันทึก Med Error ระบุรายละเอียดและความรุนแรง'
+      secondaryAction={{
+        label: 'ยกเลิก',
+        onClick: () => {
+          setMedErrorOpen(false);
+          setMedErrorText('');
+          setMedErrorSeverity('medium');
+        },
+      }}
+      primaryAction={{
+        label: 'บันทึก',
+        onClick: handleLogMedError,
+        disabled: !medErrorText.trim(),
+      }}
+      bodyStyle={{ gap: 'var(--dim-space-400)', display: 'flex', flexDirection: 'column' }}
+    >
+      <SuggestibleTextarea
+        voice
+        label='ระบุปัญหา'
+        required
+        value={medErrorText}
+        onChange={(e) => setMedErrorText(e?.target?.value ?? '')}
+        suggestions={MED_ERROR_SUGGESTIONS}
+        minChars={3}
+        height={120}
+        minHeight={96}
+        placeholder='พิมพ์หรือพูด เช่น ลายมือแพทย์อ่านไม่ออก / จ่ายยาผิดขนาด'
+        popoverAriaLabel='คำแนะนำปัญหาใบยา'
+      />
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+        <span
+          className='flex items-center'
+          style={{
+            gap: 'var(--dim-space-100)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-sm)',
+            fontWeight: 'var(--type-weight-regular)',
+            lineHeight: 1.5,
+            color: 'var(--text-neutral-default)',
+          }}
+        >
+          ระดับความรุนแรง
+          <span style={{ color: 'var(--text-input-require, #DC2626)' }} aria-hidden>*</span>
+        </span>
+        <div
+          role='radiogroup'
+          aria-label='ระดับความรุนแรง'
+          className='flex flex-wrap'
+          style={{ gap: 'var(--dim-space-200)' }}
+        >
+          {MED_ERROR_SEVERITY_OPTIONS.map((opt) => {
+            const selected = medErrorSeverity === opt.value;
+            return (
+              <BrandSubdueButton
+                key={opt.value}
+                variant={selected ? 'fill' : 'outline'}
+                size='sm'
+                active={selected}
+                onClick={() => setMedErrorSeverity(opt.value)}
+              >
+                {opt.label}
+              </BrandSubdueButton>
+            );
+          })}
+        </div>
+      </div>
+    </Popup>
+    <Popup
+      open={Boolean(rediagnosisTarget)}
+      onClose={closeRediagnosisPopup}
+      size='large'
+      title='ส่งกลับแพทย์เพื่อวินิจฉัยใหม่'
+      subtitle={
+        rediagnosisTarget && rediagnosisTarget !== 'allergy-all'
+          ? `ยาที่เกี่ยวข้อง: ${rediagnosisTarget.name}`
+          : 'ระบุเหตุผลก่อนส่งกลับให้แพทย์ทบทวนวินิจฉัย/คำสั่งยา'
+      }
+      secondaryAction={{
+        label: 'ยกเลิก',
+        onClick: closeRediagnosisPopup,
+      }}
+      primaryAction={{
+        label: 'ยืนยันส่งกลับ',
+        onClick: handleConfirmRediagnosis,
+        disabled: !rediagnosisReason.trim(),
+      }}
+      bodyStyle={{ gap: 'var(--dim-space-400)', display: 'flex', flexDirection: 'column' }}
+    >
+      <SuggestibleTextarea
+        voice
+        label='ระบุเหตุผล'
+        required
+        value={rediagnosisReason}
+        onChange={(e) => setRediagnosisReason(e?.target?.value ?? '')}
+        suggestions={REDIAGNOSIS_SUGGESTIONS}
+        minChars={3}
+        height={120}
+        minHeight={96}
+        placeholder='พิมพ์หรือพูดเหตุผลที่ต้องส่งกลับแพทย์ เช่น ไม่มียาทดแทนที่เหมาะสม'
+        popoverAriaLabel='คำแนะนำเหตุผลส่งกลับแพทย์'
+      />
+    </Popup>
+    <Popup
+      open={Boolean(supportDocTarget)}
+      onClose={closeSupportDocPopup}
+      size='large'
+      title={
+        supportDocTarget?.kind === 'formulary'
+          ? 'แนบเอกสารประกอบยานอกบัญชี'
+          : 'แนบเอกสารประกอบยานอกสิทธิ'
+      }
+      subtitle={supportDocTarget ? `ยา: ${supportDocTarget.item.name}` : ''}
+      secondaryAction={{
+        label: 'ยกเลิก',
+        onClick: closeSupportDocPopup,
+      }}
+      primaryAction={{
+        label: 'บันทึกเอกสาร',
+        onClick: handleSaveSupportDocs,
+        disabled: !supportDocFiles.length,
+      }}
+      bodyStyle={{ gap: 'var(--dim-space-400)', display: 'flex', flexDirection: 'column' }}
+    >
+      {(() => {
+        const existing = supportDocTarget
+          ? ((supportDocTarget.kind === 'formulary'
+            ? supportDocTarget.item.outOfFormularyDocs
+            : supportDocTarget.item.outOfRightsDocs) || [])
+          : [];
+        if (!existing.length) return null;
+        return (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+            <span
+              style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                color: 'var(--text-content-secondary)',
+              }}
+            >
+              เอกสารที่แนบแล้ว
+            </span>
+            {existing.map((doc) => (
+              <div
+                key={doc.id}
+                className='flex items-center w-full'
+                style={{
+                  gap: 'var(--dim-space-200)',
+                  padding: 'var(--dim-space-200) var(--dim-space-300)',
+                  borderRadius: 'var(--dim-radius-200, 8px)',
+                  border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                  background: 'var(--surface-card-100)',
+                }}
+              >
+                <button
+                  type='button'
+                  className='flex items-center flex-1 min-w-0 text-left'
+                  style={{
+                    gap: 'var(--dim-space-200)',
+                    background: 'transparent',
+                    border: 'none',
+                    padding: 0,
+                    cursor: doc.url ? 'pointer' : 'default',
+                  }}
+                  onClick={() => openSupportDocPreview(doc)}
+                  aria-label={`ดูตัวอย่าง ${doc.name}`}
+                  title='ดูตัวอย่างเอกสาร'
+                >
+                  <Sym name='description' size={20} color='var(--icon-content-secondary)' />
+                  <span
+                    className='flex-1 min-w-0 truncate'
+                    style={{
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-sm)',
+                      color: 'var(--text-brandprimarybutton-default, #007549)',
+                      textDecoration: doc.url ? 'underline' : 'none',
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    {doc.name}
+                  </span>
+                  <Sym name='visibility' size={18} color='var(--icon-brandprimarybutton-default, #007549)' />
+                </button>
+                {!isClosed && (
+                  <NeutralSubdueIconButton
+                    icon='close'
+                    variant='outline'
+                    size='sm'
+                    aria-label={`ลบ ${doc.name}`}
+                    onClick={() => handleRemoveSupportDoc(doc.id)}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+      <DragAndDrop
+        size='sm'
+        value={supportDocFiles}
+        onChange={setSupportDocFiles}
+        accept='.pdf,.png,.jpg,.jpeg,.doc,.docx'
+        multiple
+        disabled={isClosed}
+      />
+    </Popup>
+    <Popup
+      open={Boolean(supportDocPreview)}
+      onClose={() => setSupportDocPreview(null)}
+      size='extraLarge'
+      title='ดูตัวอย่างเอกสาร'
+      subtitle={supportDocPreview?.name || ''}
+      secondaryAction={{
+        label: 'ปิด',
+        onClick: () => setSupportDocPreview(null),
+      }}
+      primaryAction={
+        supportDocPreview?.url
+          ? {
+              label: 'เปิดในแท็บใหม่',
+              onClick: () => window.open(supportDocPreview.url, '_blank', 'noopener,noreferrer'),
+            }
+          : undefined
+      }
+      bodyStyle={{ gap: 'var(--dim-space-300)', display: 'flex', flexDirection: 'column' }}
+    >
+      {supportDocPreview?.url && (
+        (() => {
+          const type = (supportDocPreview.type || '').toLowerCase();
+          const name = (supportDocPreview.name || '').toLowerCase();
+          const isImage = type.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/.test(name);
+          const isPdf = type === 'application/pdf' || name.endsWith('.pdf');
+          if (isImage) {
+            return (
+              <img
+                src={supportDocPreview.url}
+                alt={supportDocPreview.name}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: 'min(70vh, 720px)',
+                  objectFit: 'contain',
+                  borderRadius: 'var(--dim-radius-200, 8px)',
+                  border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+                  background: 'var(--surface-neutral-quinary, #F9FAFB)',
+                }}
+              />
+            );
+          }
+          if (isPdf) {
+            return (
+              <iframe
+                title={supportDocPreview.name}
+                src={supportDocPreview.url}
+                style={{
+                  width: '100%',
+                  height: 'min(70vh, 720px)',
+                  border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+                  borderRadius: 'var(--dim-radius-200, 8px)',
+                  background: 'var(--surface-neutral-default, #FFFFFF)',
+                }}
+              />
+            );
+          }
+          return (
+            <div
+              className='flex flex-col items-center text-center'
+              style={{
+                gap: 'var(--dim-space-200)',
+                padding: 'var(--dim-space-800, 32px)',
+                color: 'var(--text-content-secondary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+              }}
+            >
+              <Sym name='draft' size={40} color='var(--icon-content-tertiary)' />
+              <span>ไฟล์ประเภทนี้ยังดูในหน้าต่างนี้ไม่ได้ — กด «เปิดในแท็บใหม่» เพื่อดาวน์โหลดหรือเปิดด้วยแอปอื่น</span>
+            </div>
+          );
+        })()
+      )}
+    </Popup>
     </>
   );
 };

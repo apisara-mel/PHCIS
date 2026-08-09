@@ -57,6 +57,7 @@ const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onNext, onSave, isLast })
   const nextStepLabel = isLast
     ? 'บันทึกข้อมูลผู้รับบริการ'
     : `ถัดไป: ${REGISTRATION_STEP_LABELS[stepIndex + 1]}`;
+  const isFirst = stepIndex === 0;
 
   return (
     <div
@@ -72,31 +73,33 @@ const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onNext, onSave, isLast })
     >
       <NeutralSubdueButton
         size='lg'
-        leadingIcon={stepIndex === 0 ? undefined : 'arrow_back'}
+        leadingIcon={isFirst ? undefined : 'arrow_back'}
         onClick={onPrev}
         className='shrink-0'
       >
-        {stepIndex === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}
+        {isFirst ? 'ยกเลิก' : 'ย้อนกลับ'}
       </NeutralSubdueButton>
-      <span className='inline-flex items-center min-w-0' style={{
-        gap: 'var(--dim-space-200)',
-        color: 'var(--text-content-secondary)',
-        fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
-      }}>
-        <span style={{
-          width: 8, height: 8, borderRadius: 'var(--dim-radius-full)',
-          background: 'var(--surface-brandPrimary-secondary, var(--brand-p200))',
-          opacity: 0.74,
-          flexShrink: 0,
-        }} />
-        ร่างแบบฟอร์ม (บันทึกล่าสุด: {lastSavedMin} นาทีที่แล้ว)
-      </span>
+      {!isFirst && (
+        <span className='inline-flex items-center min-w-0' style={{
+          gap: 'var(--dim-space-200)',
+          color: 'var(--text-content-secondary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+        }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: 'var(--dim-radius-full)',
+            background: 'var(--surface-brandPrimary-secondary, var(--brand-p200))',
+            opacity: 0.74,
+            flexShrink: 0,
+          }} />
+          ร่างแบบฟอร์ม (บันทึกล่าสุด: {lastSavedMin} นาทีที่แล้ว)
+        </span>
+      )}
       <div className='flex-1' />
       <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' onClick={onSave}>
         บันทึกร่าง
       </BrandSubdueButton>
-      <BrandPrimaryButton size='lg' trailingIcon='arrow_forward' onClick={onNext}>
+      <BrandPrimaryButton size='lg' trailingIcon={isLast ? 'check' : 'arrow_forward'} onClick={onNext}>
         {nextStepLabel}
       </BrandPrimaryButton>
     </div>

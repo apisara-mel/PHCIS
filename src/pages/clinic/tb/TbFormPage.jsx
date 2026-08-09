@@ -377,6 +377,7 @@ const TbFormPage = () => {
 
           <PatientCard
             sticky
+            showBack={false}
             patient={cardPatient}
             title='บันทึกการตรวจรักษาคลินิกวัณโรค'
             drugAllergies={drugAllergies}
@@ -471,6 +472,7 @@ const TbFormPage = () => {
             queuePath='/clinic/tb'
             step0FlushLeft={false}
             onLeave={requestLeave}
+            onSaveDraft={handleSaveDraft}
           >
             <ActiveStep {...stepProps} />
           </TreatmentFormShell>

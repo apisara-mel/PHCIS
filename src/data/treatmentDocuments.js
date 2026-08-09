@@ -57,6 +57,20 @@ export const DOC_TEMPLATES = [
     desc: 'เปิดทะเบียนการส่งต่อเพื่อออกใบส่งตัว',
     requiresDiagnosis: false, requiresSignature: false, deepLink: '/treat/refer',
   },
+  /* CPOE §1.5.10.2 — ใบคำขอตรวจที่ต้อง render เป็นแผ่นพิมพ์จริง
+     (เดิมมีแค่ตัวเลือกเทมเพลต ไม่มีแผ่นกระดาษออกมา) */
+  {
+    key: 'lab-request', group: 'request', icon: 'biotech',
+    title: 'ใบคำขอตรวจทางห้องปฏิบัติการ', subtitle: 'Laboratory Request Form',
+    desc: 'รายการตรวจที่สั่งในครั้งนี้ + สิ่งส่งตรวจ + การเตรียมตัวก่อนตรวจ + ลายเซ็นแพทย์ผู้สั่ง',
+    requiresDiagnosis: false, requiresSignature: true, feedsFromOrders: 'labs',
+  },
+  {
+    key: 'xray-request', group: 'request', icon: 'radiology',
+    title: 'ใบคำขอตรวจทางรังสีวิทยา', subtitle: 'Radiology Request Form',
+    desc: 'ท่าถ่าย/ตำแหน่ง + ข้อบ่งชี้ + คำถามการตั้งครรภ์ + การเตรียมตัว + ลายเซ็นแพทย์ผู้สั่ง',
+    requiresDiagnosis: false, requiresSignature: true, feedsFromOrders: 'xray',
+  },
 ];
 
 export const docTemplateMeta = (key) => DOC_TEMPLATES.find((t) => t.key === key) || null;
@@ -81,6 +95,15 @@ let seq = 0;
 const uid = (p) => `${p}-${Date.now().toString(36)}-${(seq += 1)}`;
 let docNoSeq = 4821;
 const nextDocNo = () => { docNoSeq += 1; return `DOC-2569-${docNoSeq}`; };
+
+/* เลขที่ใบคำขอตรวจ (§1.5.10.2) — คนละชุดกับ DOC- และต้องเป็น ASCII ล้วน
+   เพราะถูกพิมพ์เป็นบาร์โค้ด Code128 บนหัวใบคำขอ (Barcode128 แปลงอักขระ
+   นอก ASCII เป็นช่องว่าง ใบที่ยังไม่ออกเลขจึงห้ามพิมพ์บาร์โค้ดเด็ดขาด) */
+let labReqSeq = 3170;
+export const nextLabRequestNo = () => { labReqSeq += 1; return `LAB-REQ-2569-${labReqSeq}`; };
+
+let xrayReqSeq = 1440;
+export const nextXrayRequestNo = () => { xrayReqSeq += 1; return `XR-REQ-2569-${xrayReqSeq}`; };
 
 const DOCUMENTS = [
   {
@@ -177,13 +200,188 @@ export const cancelDocument = (id, reason) => {
 export const setDocumentConfidential = (id, confidential) => {
   const row = DOCUMENTS.find((d) => d.id === id);
   if (!row) return null;
+  const before = row.confidential ? 'ข้อมูลลับ' : 'ปกติ';
   row.confidential = !!confidential;
+  /* §1.5.11.5 — ชั้นความลับถูกพิมพ์ลงบนแผ่นเอกสาร การเปลี่ยนค่านี้หลังลงนาม
+     จึงทำให้เอกสารที่ลงนามไว้ไม่ตรงกับสิ่งที่พิมพ์ออกมา → ลายเซ็นเป็นโมฆะ
+     ต้องลงนามใหม่ (invalidateSignature emit + audit ให้เอง) */
+  if (row.signature && !row.signature.invalidated) {
+    invalidateSignature(id, 'สถานะข้อมูลลับของเอกสารถูกแก้ไขหลังลงนาม');
+  }
   emitDocs();
   appendAudit({
     hn: row.hn, visitId: row.visitId, category: 'confidential', field: `สถานะข้อมูลลับ — ${row.title}`,
-    oldValue: confidential ? 'ปกติ' : 'ข้อมูลลับ', newValue: confidential ? 'ข้อมูลลับ' : 'ปกติ',
+    oldValue: before, newValue: row.confidential ? 'ข้อมูลลับ' : 'ปกติ',
   });
   return { ...row };
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   §1.5.11.5 / §1.4.10.11 — ลายมือชื่ออิเล็กทรอนิกส์ (e-Signature)
+
+   เดิมระบบประทับได้แค่ "ลงนามโดย … เมื่อ …" + ภาพลายเซ็นวาดมือ (base64)
+   ซึ่งไม่ผูกกับใบรับรองอิเล็กทรอนิกส์ จึงยังไม่ใช่ e-Signature ตามกฎหมาย.
+
+   ที่เพิ่มในเวฟนี้ (ฝั่ง UI ให้ครบ): เลือกใบรับรอง → ยืนยัน PIN → ประทับ
+   บล็อกลายเซ็นดิจิทัลพร้อม digest ลงบนเอกสาร และขึ้นคอลัมน์ในทะเบียน.
+
+   **ยังไม่ใช่ PKI จริง**: digest คำนวณด้วยฟังก์ชัน hash อย่างง่ายในเบราว์เซอร์
+   ไม่ได้เซ็นด้วย private key ในอุปกรณ์ HSM/Token และไม่มี CA ตรวจสอบย้อนกลับ
+   — ต้องต่อกับผู้ให้บริการออกใบรับรอง (CA) จริงจึงจะปิด TOR ข้อนี้ได้. */
+
+export const SIGNING_CERTIFICATES = [
+  {
+    id: 'cert-somying',
+    holder: 'พญ.สมหญิง รักษ์ดี',
+    role: 'นายแพทย์ชำนาญการ · ศบส. 4 ดินแดง',
+    licenseNo: 'ว.28841',
+    serial: '5A:2F:91:C4:7B:03:8E:11',
+    issuer: 'Thailand National Root CA — สำนักงานพัฒนาธุรกรรมทางอิเล็กทรอนิกส์ (ETDA)',
+    issuedAt: '15 มกราคม 2568',
+    expiresAt: '15 มกราคม 2570',
+    expired: false,
+  },
+  {
+    id: 'cert-piya',
+    holder: 'นพ.ปิยะ วัฒนชัย',
+    role: 'นายแพทย์ · คลินิกโรคเรื้อรัง ศบส. 4',
+    licenseNo: 'ว.31207',
+    serial: '77:B0:14:DE:2A:65:C9:80',
+    issuer: 'Thailand National Root CA — สำนักงานพัฒนาธุรกรรมทางอิเล็กทรอนิกส์ (ETDA)',
+    issuedAt: '2 มีนาคม 2568',
+    expiresAt: '2 มีนาคม 2570',
+    expired: false,
+  },
+  {
+    /* ใบที่หมดอายุ — ต้องถูกบล็อกพร้อมเหตุผลและเสนอ fallback ลายเซ็นมือ */
+    id: 'cert-anucha',
+    holder: 'นพ.อนุชา ศรีวิไล',
+    role: 'นายแพทย์ · ศบส. 4 ดินแดง',
+    licenseNo: 'ว.26559',
+    serial: '1C:88:F0:35:9D:47:A2:6B',
+    issuer: 'Thailand National Root CA — สำนักงานพัฒนาธุรกรรมทางอิเล็กทรอนิกส์ (ETDA)',
+    issuedAt: '10 มิถุนายน 2566',
+    expiresAt: '10 มิถุนายน 2568',
+    expired: true,
+  },
+];
+
+export const certificateMeta = (id) =>
+  SIGNING_CERTIFICATES.find((c) => c.id === id) || null;
+
+/* PIN สาธิต — ระบบจริงต้องยืนยันกับ token/HSM ไม่ใช่เทียบค่าคงที่ */
+export const DEMO_SIGNING_PIN = '123456';
+export const MAX_PIN_ATTEMPTS = 3;
+
+/* digest แบบง่าย (FNV-1a 32-bit) — ไม่ใช่ SHA-256 จริง ใช้เพื่อให้เห็น
+   ว่าเอกสารต่างฉบับได้ค่า digest ต่างกัน และแก้เนื้อหาแล้วค่าเปลี่ยน */
+const simpleDigest = (input) => {
+  let h = 0x811c9dc5;
+  const s = String(input);
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).toUpperCase().padStart(8, '0');
+};
+
+/* basis ต้องครอบทุกอย่างที่ "ปรากฏบนแผ่นที่ลงนาม" — รวมสถานะเอกสารและ
+   ชั้นความลับ เพื่อให้การแก้ไขภายหลังทำให้ digest ไม่ตรงโดยอัตโนมัติ
+   (signatureStatusOf() จึงบอกได้เองว่าลายเซ็นเป็นโมฆะ แม้เส้นทางแก้ไข
+   ใหม่ ๆ จะลืมเรียก invalidateSignature) */
+export const buildDocumentDigest = (row) => {
+  const basis = [
+    row?.docNo, row?.title, row?.hn, row?.issuedAt, row?.templateKey,
+    row?.status, row?.confidential ? 'confidential' : 'normal',
+  ].join('|');
+  /* ทำให้ยาวขึ้นเป็น 4 บล็อกเพื่อให้ดูเหมือน fingerprint จริงบนแผ่นพิมพ์ */
+  return [
+    simpleDigest(basis),
+    simpleDigest(`${basis}#1`),
+    simpleDigest(`${basis}#2`),
+    simpleDigest(`${basis}#3`),
+  ].join(' ');
+};
+
+/* ล็อกชั่วคราวเมื่อใส่ PIN ผิดครบจำนวน — เก็บรายเอกสาร */
+const PIN_LOCKS = new Map();   /* docId → { attempts, lockedAt } */
+
+export const pinStateFor = (docId) => PIN_LOCKS.get(docId) || { attempts: 0, lockedAt: '' };
+
+export const registerPinFailure = (docId) => {
+  const state = pinStateFor(docId);
+  const next = { attempts: state.attempts + 1, lockedAt: state.lockedAt };
+  if (next.attempts >= MAX_PIN_ATTEMPTS) next.lockedAt = stampNow();
+  PIN_LOCKS.set(docId, next);
+  return next;
+};
+
+export const resetPinState = (docId) => { PIN_LOCKS.delete(docId); };
+
+/* ลงนามดิจิทัลบนเอกสาร */
+export const signDocument = (id, certificateId) => {
+  const row = DOCUMENTS.find((d) => d.id === id);
+  const cert = certificateMeta(certificateId);
+  if (!row || !cert) return { ok: false, message: 'ไม่พบเอกสารหรือใบรับรอง' };
+  if (cert.expired) {
+    return {
+      ok: false,
+      message: `ใบรับรองของ ${cert.holder} หมดอายุเมื่อ ${cert.expiresAt} — ลงนามดิจิทัลไม่ได้ ต้องต่ออายุใบรับรองก่อน หรือใช้ลายเซ็นมือแทนชั่วคราว`,
+    };
+  }
+  const digest = buildDocumentDigest(row);
+  row.signature = {
+    certificateId: cert.id,
+    signerName: cert.holder,
+    signerRole: cert.role,
+    licenseNo: cert.licenseNo,
+    serial: cert.serial,
+    issuer: cert.issuer,
+    expiresAt: cert.expiresAt,
+    signedAt: stampNow(),
+    digest,
+    invalidated: false,
+    invalidatedReason: '',
+  };
+  resetPinState(id);
+  emitDocs();
+  appendAudit({
+    hn: row.hn, visitId: row.visitId, category: 'document',
+    field: `ลงนามดิจิทัล ${row.docNo}`,
+    oldValue: 'ยังไม่ลงนาม',
+    newValue: `${cert.holder} (${cert.licenseNo}) · serial ${cert.serial} · digest ${digest}`,
+  });
+  return { ok: true, row: { ...row }, message: `ลงนามดิจิทัลบน ${row.docNo} เรียบร้อยแล้ว` };
+};
+
+/* เอกสารที่ถูกแก้หลังลงนาม → ลายเซ็นเดิมเป็นโมฆะ ต้องลงนามใหม่ */
+export const invalidateSignature = (id, reason) => {
+  const row = DOCUMENTS.find((d) => d.id === id);
+  if (!row || !row.signature) return null;
+  row.signature.invalidated = true;
+  row.signature.invalidatedReason = reason || 'เอกสารถูกแก้ไขหลังลงนาม';
+  row.signature.invalidatedAt = stampNow();
+  emitDocs();
+  appendAudit({
+    hn: row.hn, visitId: row.visitId, category: 'document',
+    field: `ลายเซ็นดิจิทัลเป็นโมฆะ ${row.docNo}`,
+    oldValue: `ลงนามโดย ${row.signature.signerName} เมื่อ ${row.signature.signedAt}`,
+    newValue: `เป็นโมฆะ — ${row.signature.invalidatedReason} · ต้องลงนามใหม่`,
+  });
+  return { ...row };
+};
+
+/* สถานะลายเซ็นที่ทะเบียน e-Document ใช้แสดงคอลัมน์.
+   นอกจากธง `invalidated` ยังเทียบ digest ปัจจุบันกับค่าที่ประทับไว้ตอนลงนาม
+   ด้วย — เอกสารที่ถูกแก้หลังลงนามจึงขึ้น "ลายเซ็นเป็นโมฆะ" เอง ไม่ต้องรอ
+   ให้ทุกเส้นทางแก้ไขจำเรียก invalidateSignature() */
+export const signatureStatusOf = (row) => {
+  if (!row?.signature) return { key: 'unsigned', label: 'ยังไม่ลงนาม', badge: 'neutral' };
+  if (row.signature.invalidated) return { key: 'invalid', label: 'ลายเซ็นเป็นโมฆะ', badge: 'error' };
+  if (row.signature.digest && buildDocumentDigest(row) !== row.signature.digest) {
+    return { key: 'invalid', label: 'ลายเซ็นเป็นโมฆะ', badge: 'error' };
+  }
+  return { key: 'signed', label: 'ลงนามดิจิทัลแล้ว', badge: 'success' };
 };
 
 /* ── ไฟล์แนบ multimedia (§1.4.3.22 / §1.4.6.5) ───────────────── */

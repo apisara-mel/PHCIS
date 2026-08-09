@@ -30,6 +30,7 @@ const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, is
   const nextStepLabel = isLast
     ? 'จบการบันทึก'
     : `ถัดไป: ${steps[stepIndex + 1].title}`;
+  const isFirst = stepIndex === 0;
 
   /* Footer chrome — Figma PHCIS | Medical-examination 330:42666.
      Aliases the brand-tinted footer treatment used across PHCIS pages:
@@ -42,7 +43,8 @@ const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, is
                       the form's card-100 surface).
      The "บันทึกร่าง" button uses Brand Subdue outline (#C5EDDA border,
      #007549 text) per Figma — not NeutralSubdue. Same pattern as
-     FormShell's footer so the two shells render identical action bars. */
+     FormShell's footer so the two shells render identical action bars.
+     mih-step-form: auto-save chip from step 2+; last primary uses check. */
   return (
     <div className={`flex items-center w-full ${MIH_CHROME_MORPH_FOOTER}`} style={{
       gap: 'var(--dim-space-300)',
@@ -55,25 +57,27 @@ const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, is
     }}>
       <NeutralSubdueButton
         size='lg'
-        leadingIcon={stepIndex === 0 ? undefined : 'arrow_back'}
+        leadingIcon={isFirst ? undefined : 'arrow_back'}
         onClick={onPrev}
         className='shrink-0'
       >
-        {stepIndex === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}
+        {isFirst ? 'ยกเลิก' : 'ย้อนกลับ'}
       </NeutralSubdueButton>
-      <span className='inline-flex items-center min-w-0' style={{
-        gap: 'var(--dim-space-200)',
-        color: 'var(--text-content-secondary)',
-        fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
-      }}>
-        <span style={{
-          width: 6, height: 6, borderRadius: 'var(--dim-radius-full)',
-          background: 'var(--text-brandPrimary-default)',
-          flexShrink: 0,
-        }} />
-        ร่างแบบฟอร์ม (บันทึกล่าสุด: {lastSavedMin} นาทีที่แล้ว)
-      </span>
+      {!isFirst && (
+        <span className='inline-flex items-center min-w-0' style={{
+          gap: 'var(--dim-space-200)',
+          color: 'var(--text-content-secondary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+        }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: 'var(--dim-radius-full)',
+            background: 'var(--text-brandPrimary-default)',
+            flexShrink: 0,
+          }} />
+          ร่างแบบฟอร์ม (บันทึกล่าสุด: {lastSavedMin} นาทีที่แล้ว)
+        </span>
+      )}
       <div className='flex-1' />
       {/* All three buttons render at h44 (size='lg') per Figma 330:42666 —
           smaller md (36 px) sizes break the action-row rhythm against
@@ -81,7 +85,7 @@ const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, is
       <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' onClick={onSave}>
         บันทึกร่าง
       </BrandSubdueButton>
-      <BrandPrimaryButton size='lg' trailingIcon='arrow_forward' onClick={onNext}>
+      <BrandPrimaryButton size='lg' trailingIcon={isLast ? 'check' : 'arrow_forward'} onClick={onNext}>
         {nextStepLabel}
       </BrandPrimaryButton>
     </div>
@@ -105,6 +109,8 @@ const TreatmentFormShell = ({
   step0FlushLeft = true,
   /** Optional leave handler for step 0 (ยกเลิก) — e.g. unsaved-changes guard. */
   onLeave,
+  /** Optional บันทึกร่าง handler — wired to the sticky footer save button. */
+  onSaveDraft,
   /** Shown as "จากแผนก" in the last-step internal-refer popup. */
   fromDepartment,
   /** Called after internal-refer confirm, before navigating to queuePath.
@@ -180,7 +186,14 @@ const TreatmentFormShell = ({
         </div>
       </div>
 
-      <Footer stepIndex={stepIndex} steps={steps} onPrev={handlePrev} onNext={handleNext} isLast={isLast} />
+      <Footer
+        stepIndex={stepIndex}
+        steps={steps}
+        onPrev={handlePrev}
+        onNext={handleNext}
+        onSave={onSaveDraft}
+        isLast={isLast}
+      />
 
       <InternalReferPopup
         open={referOpen}

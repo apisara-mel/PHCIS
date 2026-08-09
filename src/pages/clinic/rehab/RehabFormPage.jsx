@@ -608,6 +608,7 @@ const RehabFormPage = () => {
 
           <PatientCard
             sticky
+            showBack={false}
             patient={cardPatient}
             title='บันทึกกิจกรรมการฟื้นฟูและกายภาพบำบัด'
             drugAllergies={patient.drugAllergies}
@@ -728,6 +729,7 @@ const RehabFormPage = () => {
             step0FlushLeft={false}
             onLeave={handleLeave}
             fromDepartment='คลินิกเวชศาสตร์ฟื้นฟูและกายภาพบำบัด'
+            onSaveDraft={handleSaveDraft}
           >
             <ActiveStep {...stepProps} />
           </TreatmentFormShell>

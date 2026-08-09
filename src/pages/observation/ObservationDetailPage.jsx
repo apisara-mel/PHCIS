@@ -208,6 +208,7 @@ export default function ObservationDetailPage() {
   const [showPendingStatModal, setShowPendingStatModal] = useState(false);
   const [vitalsPage, setVitalsPage] = useState(1);
   const [draftSavedToast, setDraftSavedToast] = useState(false);
+  const [draftSavedAtLabel, setDraftSavedAtLabel] = useState(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   /* True once the session wrote a new vitals / note / STAT order into the
      in-memory record. Used with discharge-form dirty check so Cancel can
@@ -625,7 +626,10 @@ export default function ObservationDetailPage() {
      Every field on this page already lives in React state as the user
      types (no separate draft store to write to), so this just confirms
      the in-progress entry is safe instead of performing a real save. */
-  const handleSaveDraft = () => setDraftSavedToast(true);
+  const handleSaveDraft = () => {
+    setDraftSavedAtLabel(new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }));
+    setDraftSavedToast(true);
+  };
   const isDischargeDirty =
     dischargeForm.doctorSummary !== initialDischargeRef.current.doctorSummary
     || dischargeForm.dischargeAdvice !== initialDischargeRef.current.dischargeAdvice
@@ -1100,6 +1104,26 @@ export default function ObservationDetailPage() {
         >
           {isFirstStep ? 'ยกเลิก' : 'ย้อนกลับ'}
         </NeutralSubdueButton>
+        {!isFirstStep && (
+          <span
+            className='inline-flex items-center min-w-0'
+            style={{
+              gap: 'var(--dim-space-200)',
+              color: 'var(--text-content-secondary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+            }}
+          >
+            <span style={{
+              width: 6, height: 6, borderRadius: 'var(--dim-radius-full)',
+              background: 'var(--text-brandPrimary-default)',
+              flexShrink: 0,
+            }} />
+            {draftSavedToast || draftSavedAtLabel
+              ? `ร่างแบบฟอร์ม (บันทึกล่าสุด: ${draftSavedAtLabel || 'เมื่อครู่'})`
+              : 'ร่างแบบฟอร์ม (บันทึกล่าสุด: ยังไม่ได้บันทึก)'}
+          </span>
+        )}
         <div className='flex-1' />
         <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-300)' }}>
           <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' onClick={handleSaveDraft}>
@@ -1108,7 +1132,7 @@ export default function ObservationDetailPage() {
           <BrandPrimaryButton
             variant='fill'
             size='lg'
-            trailingIcon='arrow_forward'
+            trailingIcon={isLastStep ? 'check' : 'arrow_forward'}
             disabled={isLastStep && isDoctorSummaryMissing}
             onClick={handleFooterPrimaryClick}
           >

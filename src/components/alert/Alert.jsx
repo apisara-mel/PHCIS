@@ -211,6 +211,10 @@ const Alert = ({
   indicators,              // string[] | undefined
   badges,                  // string[] | undefined
   detail,                  // ReactNode | string | undefined
+  /* Optional trailing control on the title row (e.g. CTA button) — not
+     wrapped in the white DetailCard. Prefer this over `detail` when the
+     action should sit beside the heading. */
+  action,
   /* Figma "Show *" property panel toggles — each defaults to `true` so the
      section appears whenever content is provided. Pass `false` to force the
      slot off even when content is set (useful for component-library demos).
@@ -268,7 +272,7 @@ const Alert = ({
 
   useLayoutEffect(() => {
     recompute();
-  }, [maxContentHeight, indicators, badges, detail, subtext, title]);
+  }, [maxContentHeight, indicators, badges, detail, subtext, title, action]);
 
   /* ResizeObserver keeps the synced thumb correct when the alert reflows
      (e.g. badge wrap on viewport change). Falls back silently in unsupported
@@ -285,6 +289,22 @@ const Alert = ({
   const scrollAreaClass = showScrollBar
     ? 'flex flex-col flex-1 min-w-0 scrollbar-hide-native'
     : 'flex flex-col flex-1 min-w-0';
+
+  const titleBlock = title ? (
+    <p
+      style={{
+        margin: 'var(--dim-space-0)',
+        fontFamily: 'var(--type-family-heading-graphic2)',
+        fontWeight: 'var(--type-weight-regular, 400)',
+        fontSize: 'var(--type-size-sm, 14px)',
+        lineHeight: 1.5,
+        color: tone.text,
+        ...titleStyle,
+      }}
+    >
+      {title}
+    </p>
+  ) : null;
 
   return (
     <div
@@ -325,20 +345,16 @@ const Alert = ({
           className='flex flex-col w-full'
           style={{ gap: textGap, color: tone.text }}
         >
-          {title && (
-            <p
-              style={{
-                margin: 'var(--dim-space-0)',
-                fontFamily: 'var(--type-family-heading-graphic2)',
-                fontWeight: 'var(--type-weight-regular, 400)',
-                fontSize: 'var(--type-size-sm, 14px)',
-                lineHeight: 1.5,
-                color: tone.text,
-                ...titleStyle,
-              }}
+          {action && titleBlock ? (
+            <div
+              className='flex items-center justify-between w-full min-w-0'
+              style={{ gap: 'var(--dim-space-300)' }}
             >
-              {title}
-            </p>
+              <div className='min-w-0 flex-1'>{titleBlock}</div>
+              <div className='shrink-0'>{action}</div>
+            </div>
+          ) : (
+            titleBlock
           )}
           {showSubtext && subtext && (
             <p

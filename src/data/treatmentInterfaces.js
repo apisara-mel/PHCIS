@@ -130,6 +130,108 @@ const INBOUND_RESULTS = [
   },
 ];
 
+/* ── HL7 v2.5.1 ORU^R01 ต้นฉบับของแต่ละข้อความ (§1.4.7.3 / §1.5.2.1) ──
+   ผนวก ง กำหนดให้ LIS ส่งผลกลับด้วย ORU^R01. หน้าจอเดิมมีแค่ "กล่องขาเข้า"
+   ที่แสดงผลที่ parse แล้ว — ไม่มีทางดูข้อความดิบเพื่อตรวจว่าทำไมบางแถวถึง
+   ถูกตีกลับ. ที่เพิ่มคือ raw segment + ตารางฟิลด์ที่ถอดแล้ว วางคู่กัน.
+
+   **ยังไม่มี HL7 parser จริง** — ข้อความดิบด้านล่างเขียนตามรูปแบบผนวก ง
+   ไว้ล่วงหน้า และ `parsed` คือผลที่ parser ควรถอดได้ ไม่ได้ถอดสด. */
+const HL7_MESSAGES = {
+  'in-1': {
+    controlId: 'MSG00001',
+    raw: [
+      'MSH|^~\\&|LIS|BMA-LAB|PHCIS|BMA-CENTER04|20260506104112||ORU^R01|MSG00001|P|2.5.1',
+      'PID|1||67-00001^^^PHCIS^MR||มั่นคง^สมชาย||19640312|M|||99/12 ลาดพร้าว 15^^จตุจักร^กรุงเทพมหานคร^10900||081-234-9999',
+      'OBR|1|LAB-2569-04412|L24041201|BUN-CR^BUN / Creatinine^L|||20260506094000|||||||||1234^รักษ์ดี^สมหญิง',
+      'OBX|1|NM|BUN^Blood Urea Nitrogen^L||32|mg/dL|7-20|H|||F|||20260506104100',
+      'OBX|2|NM|CR^Creatinine^L||2.4|mg/dL|0.7-1.3|HH|||F|||20260506104100',
+    ],
+    parsed: [
+      { seg: 'MSH', field: 'MSH-9 ชนิดข้อความ', value: 'ORU^R01 (รายงานผลตรวจ)' },
+      { seg: 'MSH', field: 'MSH-7 วันเวลาที่ส่ง', value: '6 พ.ค. 2569 · 10:41:12' },
+      { seg: 'MSH', field: 'MSH-10 เลขที่ควบคุมข้อความ', value: 'MSG00001' },
+      { seg: 'MSH', field: 'MSH-12 เวอร์ชัน', value: '2.5.1' },
+      { seg: 'PID', field: 'PID-3 เลขประจำตัวผู้ป่วย (HN)', value: '67-00001' },
+      { seg: 'PID', field: 'PID-5 ชื่อ-นามสกุล', value: 'สมชาย มั่นคง' },
+      { seg: 'OBR', field: 'OBR-2 เลขที่ใบสั่งตรวจ', value: 'LAB-2569-04412' },
+      { seg: 'OBR', field: 'OBR-4 รายการตรวจ', value: 'BUN-CR — BUN / Creatinine' },
+      { seg: 'OBX', field: 'OBX-3 / OBX-5 ผล BUN', value: '32 mg/dL (ค่าปกติ 7–20) — flag H' },
+      { seg: 'OBX', field: 'OBX-3 / OBX-5 ผล Creatinine', value: '2.4 mg/dL (ค่าปกติ 0.7–1.3) — flag HH (ค่าวิกฤต)' },
+      { seg: 'OBX', field: 'OBX-11 สถานะผล', value: 'F (Final — ผลสมบูรณ์)' },
+    ],
+  },
+  'in-2': {
+    controlId: 'MSG00002',
+    raw: [
+      'MSH|^~\\&|LIS|BMA-LAB|PHCIS|BMA-CENTER04|20260506102210||ORU^R01|MSG00002|P|2.5.1',
+      'PID|1||67-00001^^^PHCIS^MR||มั่นคง^สมชาย||19640312|M',
+      'OBR|1|LAB-2569-04412|L24041202|CBC^Complete Blood Count^L|||20260506094000',
+      'OBX|1|NM|HB^Hemoglobin^L||11.2|g/dL|13-17|L|||F|||20260506102200',
+      'OBX|2|NM|WBC^White Blood Cell^L||8400|/uL|4000-10000|N|||F|||20260506102200',
+      'OBX|3|NM|PLT^Platelet^L||245000|/uL|150000-400000|N|||F|||20260506102200',
+    ],
+    parsed: [
+      { seg: 'MSH', field: 'MSH-9 ชนิดข้อความ', value: 'ORU^R01 (รายงานผลตรวจ)' },
+      { seg: 'MSH', field: 'MSH-10 เลขที่ควบคุมข้อความ', value: 'MSG00002' },
+      { seg: 'PID', field: 'PID-3 เลขประจำตัวผู้ป่วย (HN)', value: '67-00001' },
+      { seg: 'OBR', field: 'OBR-4 รายการตรวจ', value: 'CBC — Complete Blood Count' },
+      { seg: 'OBX', field: 'ผล Hemoglobin', value: '11.2 g/dL (ค่าปกติ 13–17) — flag L' },
+      { seg: 'OBX', field: 'ผล WBC', value: '8,400 /uL — ปกติ' },
+      { seg: 'OBX', field: 'ผล Platelet', value: '245,000 /uL — ปกติ' },
+    ],
+  },
+  'in-3': {
+    controlId: 'MSG00003',
+    /* HN ในข้อความไม่ตรงกับใบสั่งตรวจ — ต้องดู segment ได้แต่ห้ามนำเข้า */
+    raw: [
+      'MSH|^~\\&|LIS|BMA-LAB|PHCIS|BMA-CENTER04|20260506095803||ORU^R01|MSG00003|P|2.5.1',
+      'PID|1||67-99999^^^PHCIS^MR||มั่นดี^สมชาย||19640312|M',
+      'OBR|1|LAB-2569-04412|L24041203|FBS^Fasting Blood Sugar^L|||20260506080000',
+      'OBX|1|NM|FBS^Fasting Blood Sugar^L||118|mg/dL|70-99|H|||F|||20260506095800',
+    ],
+    parsed: [
+      { seg: 'MSH', field: 'MSH-10 เลขที่ควบคุมข้อความ', value: 'MSG00003' },
+      { seg: 'PID', field: 'PID-3 เลขประจำตัวผู้ป่วย (HN)', value: '67-99999 ⚠ ไม่ตรงกับ HN ของใบสั่งตรวจ LAB-2569-04412 (67-00001)', mismatch: true },
+      { seg: 'PID', field: 'PID-5 ชื่อ-นามสกุล', value: 'สมชาย มั่นดี ⚠ นามสกุลไม่ตรงกับผู้ป่วยในใบสั่ง (มั่นคง)', mismatch: true },
+      { seg: 'OBR', field: 'OBR-2 เลขที่ใบสั่งตรวจ', value: 'LAB-2569-04412' },
+      { seg: 'OBX', field: 'ผล FBS', value: '118 mg/dL (ค่าปกติ 70–99) — flag H' },
+    ],
+  },
+  'in-4': {
+    controlId: 'MSG00004',
+    /* ข้อความไม่สมบูรณ์ — segment OBX ขาด field ต้องแสดง raw ได้ ไม่ crash */
+    raw: [
+      'MSH|^~\\&|LIS|BMA-LAB|PHCIS|BMA-CENTER04|20260506093105||ORU^R01|MSG00004|P|2.5.1',
+      'PID|1||67-00003^^^PHCIS^MR||ดีงาม^วีระ||19710820|M',
+      'OBR|1|LAB-2569-04120|L24041204|HBA1C^HbA1c^L|||20260506083000',
+      'OBX|1|NM|HBA1C^HbA1c^L||10.2|%|',
+    ],
+    parsed: [
+      { seg: 'MSH', field: 'MSH-10 เลขที่ควบคุมข้อความ', value: 'MSG00004' },
+      { seg: 'PID', field: 'PID-3 เลขประจำตัวผู้ป่วย (HN)', value: '67-00003' },
+      { seg: 'OBR', field: 'OBR-4 รายการตรวจ', value: 'HBA1C — HbA1c' },
+      { seg: 'OBX', field: 'ผล HbA1c', value: '10.2 %' },
+      { seg: 'OBX', field: 'OBX-7 ค่าอ้างอิง', value: '⚠ ไม่มีค่าในข้อความ (segment ถูกตัดกลางคัน)', malformed: true },
+      { seg: 'OBX', field: 'OBX-8 flag การแปลผล', value: '⚠ ไม่มีค่าในข้อความ — ต้องให้ห้องแล็บส่งซ้ำ', malformed: true },
+      { seg: 'OBX', field: 'OBX-11 สถานะผล', value: '⚠ ไม่มีค่าในข้อความ', malformed: true },
+    ],
+  },
+};
+
+/* ข้อความ HL7 ของแถวขาเข้าแถวหนึ่ง — คืน null ถ้าไม่มีต้นฉบับเก็บไว้ */
+export const hl7MessageFor = (inboundId) => {
+  const m = HL7_MESSAGES[inboundId];
+  if (!m) return null;
+  return {
+    ...m,
+    raw: [...m.raw],
+    parsed: m.parsed.map((p) => ({ ...p })),
+    malformed: m.parsed.some((p) => p.malformed),
+    hasMismatch: m.parsed.some((p) => p.mismatch),
+  };
+};
+
 const inboundListeners = new Set();
 const emitInbound = () => { inboundListeners.forEach((fn) => fn(getInboundResults())); };
 
@@ -285,6 +387,61 @@ export const pacsStudiesFor = (hn) => PACS_STUDIES
   .filter((s) => !hn || s.hn === hn)
   .map((s) => ({ ...s }));
 
+/* ── PACS: บันทึกการ query DICOMweb ราย study (§1.4.7.4) ────────
+   ผนวก ง กำหนดให้ใช้ DICOMweb (QIDO-RS ค้น study / WADO-RS ดึงภาพ).
+   หน้าจอเดิมบอกได้แค่ "เปิดภาพไม่ได้" — ไม่มีทางดูว่า query ที่ยิงไปหน้าตา
+   อย่างไรและปลายทางตอบอะไรกลับมา ซึ่งเป็นสิ่งแรกที่ต้องดูเวลา debug.
+
+   **ยังไม่มี DICOMweb client จริง** — log ด้านล่างเป็นรูปแบบที่ควรได้
+   ไม่ได้ยิงออกไปจริง. */
+const PACS_BASE = 'https://pacs.bangkok.go.th/dicom-web';
+
+export const pacsQueryLogFor = (study) => {
+  if (!study) return [];
+  const up = isInterfaceUp('pacs');
+  return [
+    {
+      id: `${study.id}-qido`,
+      kind: 'QIDO-RS',
+      purpose: 'ค้นหา study ของผู้ป่วยรายนี้',
+      url: `${PACS_BASE}/studies?PatientID=${encodeURIComponent(study.hn)}&AccessionNumber=${encodeURIComponent(study.accession)}`,
+      method: 'GET',
+      at: study.studyDate,
+      status: up ? '200 OK' : '504 Gateway Timeout',
+      ok: up,
+      detail: up
+        ? `พบ 1 study · ${study.images} ภาพ · Modality ${study.examType}`
+        : 'ปลายทางไม่ตอบสนองภายใน 30 วินาที — รายการ study ที่เห็นมาจากแคชครั้งล่าสุด',
+    },
+    {
+      id: `${study.id}-wado`,
+      kind: 'WADO-RS',
+      purpose: 'ดึงภาพชุดเต็มมาแสดงในโปรแกรมดูภาพ',
+      url: `${PACS_BASE}/studies/${study.accession}/series`,
+      method: 'GET',
+      at: up ? study.studyDate : '—',
+      status: up ? '200 OK' : 'ยังไม่ได้เรียก',
+      ok: up,
+      detail: up
+        ? `พร้อมสตรีมภาพ ${study.images} ภาพ`
+        : 'ไม่ได้เรียกเพราะ QIDO-RS ล้มเหลวก่อน — ปุ่มเปิดภาพจึงถูกปิดไว้',
+    },
+    {
+      id: `${study.id}-report`,
+      kind: 'WADO-RS (SR)',
+      purpose: 'ดึงรายงานผลอ่าน (Structured Report)',
+      url: `${PACS_BASE}/studies/${study.accession}/metadata`,
+      method: 'GET',
+      at: study.reportedAt || '—',
+      status: study.report ? '200 OK (จากแคช)' : '204 No Content',
+      ok: !!study.report,
+      detail: study.report
+        ? 'รายงานผลถูกดึงมาเก็บไว้แล้ว จึงอ่านได้แม้ PACS ขาดการเชื่อมต่อ'
+        : 'ยังไม่มีรายงานผล — รังสีแพทย์ยังไม่อ่านฟิล์ม',
+    },
+  ];
+};
+
 export const openPacsStudy = (study) => {
   if (!isInterfaceUp('pacs')) {
     return { ok: false, message: 'PACS ไม่พร้อมใช้งาน — ไม่สามารถเปิดภาพได้ในขณะนี้' };
@@ -335,10 +492,13 @@ const DEVICES = [
     targets: ['weight', 'height'],
   },
   {
+    /* เครื่องนี้ตั้งใจให้ค่าอยู่ "นอกช่วงที่ยอมรับ" (SpO₂ ต่ำกว่า 50 %) เพื่อให้
+       สถานะกันค่าผิดของ §1.4.7.5 ทดสอบได้จริงใน UAT — หัววัดหลุดนิ้วจะอ่าน
+       ได้ค่าต่ำผิดปกติแบบนี้ ห้ามให้ระบบดึงเข้าสัญญาณชีพอัตโนมัติ */
     id: 'dev-3', name: 'Pulse Oximeter', code: 'SPO2-OPD-04', room: 'ห้องตรวจ 3',
     status: 'พร้อมใช้งาน', online: true,
-    reading: { spo2: 97, pulse: 82 },
-    readingLabel: 'SpO₂ 97 % · Pulse 82 /min', readAt: '6 พ.ค. 2569 · 09:21',
+    reading: { spo2: 47, pulse: 82 },
+    readingLabel: 'SpO₂ 47 % · Pulse 82 /min', readAt: '6 พ.ค. 2569 · 09:21',
     targets: ['spo2', 'pulse'],
   },
   {
@@ -352,11 +512,70 @@ const DEVICES = [
 
 export const getDevices = () => DEVICES.map((d) => ({ ...d, reading: { ...d.reading } }));
 
-/* ค่าที่ดึงจากอุปกรณ์ต้องติดป้าย source='device' เสมอ */
-export const buildDeviceVitalPatch = (device) => {
+/* ── ตารางตั้งค่าการ map ค่าอุปกรณ์ → ฟิลด์สัญญาณชีพ (§1.4.7.5) ──
+   ผนวก ง ต้องบอกได้ว่าเครื่องรุ่นไหนส่งค่าอะไร หน่วยอะไร และช่วงค่าที่ระบบ
+   ยอมรับก่อนเขียนลงสัญญาณชีพ. ค่าที่อ่านได้นอกช่วงนี้ห้าม auto-fill —
+   ต้องให้เจ้าหน้าที่ยืนยันก่อนเสมอ (กันเครื่องเสียแล้วเขียนค่ามั่วทับ). */
+export const DEVICE_FIELD_MAPPINGS = [
+  { deviceId: 'dev-1', field: 'bpSys',  unit: 'mmHg',  min: 50,  max: 260, hl7Code: 'MDC_PRESS_BLD_NONINV_SYS',  note: 'ความดันซิสโตลิก' },
+  { deviceId: 'dev-1', field: 'bpDia',  unit: 'mmHg',  min: 30,  max: 160, hl7Code: 'MDC_PRESS_BLD_NONINV_DIA',  note: 'ความดันไดแอสโตลิก' },
+  { deviceId: 'dev-1', field: 'pulse',  unit: '/min',  min: 30,  max: 220, hl7Code: 'MDC_PULS_RATE_NON_INV',     note: 'ชีพจรจากปลอกวัดความดัน' },
+  { deviceId: 'dev-2', field: 'weight', unit: 'กก.',   min: 1,   max: 300, hl7Code: 'MDC_MASS_BODY_ACTUAL',      note: 'ชั่งขณะสวมเสื้อผ้าบาง ไม่สวมรองเท้า' },
+  { deviceId: 'dev-2', field: 'height', unit: 'ซม.',   min: 30,  max: 230, hl7Code: 'MDC_LEN_BODY_ACTUAL',       note: 'ยืนตรง ส้นเท้าชิดผนัง' },
+  { deviceId: 'dev-3', field: 'spo2',   unit: '%',     min: 50,  max: 100, hl7Code: 'MDC_PULS_OXIM_SAT_O2',      note: 'ต้องรอค่านิ่งอย่างน้อย 10 วินาที' },
+  { deviceId: 'dev-3', field: 'pulse',  unit: '/min',  min: 30,  max: 220, hl7Code: 'MDC_PULS_OXIM_PULS_RATE',   note: 'ชีพจรจากเครื่องวัดออกซิเจน' },
+  { deviceId: 'dev-4', field: 'dtx',    unit: 'mg/dL', min: 20,  max: 600, hl7Code: 'MDC_CONC_GLU_CAPILLARY_WHOLEBLOOD', note: 'เจาะปลายนิ้ว เช็ดหยดแรกทิ้งก่อน' },
+];
+
+export const mappingsForDevice = (deviceId) =>
+  DEVICE_FIELD_MAPPINGS.filter((m) => m.deviceId === deviceId).map((m) => ({ ...m }));
+
+/* ตรวจว่าค่าที่อ่านได้อยู่ในช่วงที่ยอมรับหรือไม่ — ใช้กันไม่ให้ auto-fill
+   ค่าที่ผิดปกติเข้าไปเงียบ ๆ */
+export const validateDeviceReading = (device) => {
+  const maps = mappingsForDevice(device?.id);
+  const reading = device?.reading || {};
+  return maps.map((m) => {
+    const value = reading[m.field];
+    const hasValue = value != null && value !== '';
+    const inRange = hasValue && Number(value) >= m.min && Number(value) <= m.max;
+    return {
+      ...m,
+      value: hasValue ? value : null,
+      inRange,
+      outOfRange: hasValue && !inRange,
+      message: !hasValue
+        ? 'เครื่องยังไม่ส่งค่าฟิลด์นี้'
+        : inRange
+          ? 'อยู่ในช่วงที่ยอมรับ'
+          : `ค่า ${value} ${m.unit} อยู่นอกช่วงที่ยอมรับ (${m.min}–${m.max} ${m.unit}) — ต้องยืนยันก่อนบันทึก`,
+    };
+  });
+};
+
+/* อุปกรณ์นี้มีค่านอกช่วงหรือไม่ (ใช้ปิดปุ่มดึงค่าอัตโนมัติ) */
+export const deviceHasOutOfRange = (device) =>
+  validateDeviceReading(device).some((r) => r.outOfRange);
+
+/* ค่าที่ดึงจากอุปกรณ์ต้องติดป้าย source='device' เสมอ.
+
+   §1.4.7.5 — ค่าที่อยู่ "นอกช่วงที่ยอมรับ" ห้ามหลุดเข้าคิวไปเขียนลง
+   สัญญาณชีพเงียบ ๆ (เครื่องเสีย/วัดพลาดจะทับค่าจริงของผู้ป่วย) จึงถูกตัด
+   ออกจาก patch โดยปริยาย. ผู้เรียกที่ยืนยันรายฟิลด์กับเจ้าหน้าที่แล้วเท่านั้น
+   จึงส่ง includeOutOfRange: true เข้ามา และค่าที่ได้จะติดธง needsConfirm
+   เพื่อให้ฟอร์มปลายทางถามซ้ำก่อนเขียนเสมอ */
+export const buildDeviceVitalPatch = (device, { includeOutOfRange = false } = {}) => {
+  const outOfRangeFields = new Set(
+    validateDeviceReading(device).filter((r) => r.outOfRange).map((r) => r.field),
+  );
   const patch = {};
-  Object.entries(device.reading || {}).forEach(([k, v]) => {
-    patch[k] = { value: v, source: 'device', deviceCode: device.code, readAt: device.readAt };
+  Object.entries(device?.reading || {}).forEach(([k, v]) => {
+    const bad = outOfRangeFields.has(k);
+    if (bad && !includeOutOfRange) return;
+    patch[k] = {
+      value: v, source: 'device', deviceCode: device.code, readAt: device.readAt,
+      ...(bad ? { needsConfirm: true } : {}),
+    };
   });
   return patch;
 };
@@ -493,6 +712,109 @@ export const setTelemedState = (id, state) => {
     oldValue: before, newValue: telemedStateMeta(state).label,
   });
   return { ...row };
+};
+
+/* ── Telemedicine: บันทึก session + หลักฐานความยินยอม (§1.4.3.23) ──
+   TOR ต้องการให้ตรวจสอบย้อนกลับได้ว่า session หนึ่งเกิดอะไรขึ้นบ้าง และ
+   ผู้รับบริการยินยอมให้บันทึกภาพ/เสียงจริงหรือไม่ ใครเป็นผู้ให้ความยินยอม.
+
+   **ยังไม่มี WebRTC media server จริง** — ไม่มีไฟล์วิดีโอให้ดาวน์โหลด
+   สิ่งที่ export ได้คือ "บันทึกเหตุการณ์ของ session" (log) เท่านั้น. */
+
+/* ไทม์ไลน์เหตุการณ์ของ session — สร้างจากสถานะและเวลาที่บันทึกไว้จริง */
+export const telemedSessionLog = (session) => {
+  if (!session) return [];
+  const log = [
+    {
+      at: session.startedAt,
+      event: 'เปิดห้องสนทนา',
+      detail: `ผู้เปิดห้อง ${session.participants || '—'} · ผู้รับบริการ ${session.patientName} (HN ${session.hn})`,
+    },
+  ];
+  if (session.consentAt) {
+    log.push({
+      at: session.consentAt,
+      event: 'บันทึกความยินยอมให้อัดภาพ/เสียง',
+      detail: `ผู้ให้ความยินยอม: ${session.consentBy || '—'} · ขอบเขต: บันทึกภาพและเสียงตลอด session เพื่อใช้ประกอบเวชระเบียน`,
+    });
+  }
+  if (session.recording) {
+    log.push({
+      at: session.consentAt || session.startedAt,
+      event: 'เริ่มบันทึกภาพ/เสียง',
+      detail: 'เริ่มบันทึกหลังได้รับความยินยอมแล้วเท่านั้น',
+    });
+  }
+  const stateLabel = telemedStateMeta(session.state).label;
+  if (session.endedAt) {
+    log.push({
+      at: session.endedAt,
+      event: `สิ้นสุด session — ${stateLabel}`,
+      detail: session.state === 'noshow'
+        ? 'ผู้รับบริการไม่เข้าห้องสนทนาภายในเวลาที่กำหนด'
+        : session.state === 'dropped'
+          ? 'สายหลุดระหว่างสนทนา — ต้องนัดใหม่หรือโทรติดตาม'
+          : 'จบการสนทนาตามปกติ',
+    });
+  } else {
+    log.push({ at: '—', event: `สถานะปัจจุบัน — ${stateLabel}`, detail: 'session ยังไม่สิ้นสุด' });
+  }
+  return log;
+};
+
+/* หลักฐานความยินยอมของ session (ใช้แสดงในหน้าต่างรายละเอียด) */
+export const telemedConsentRecord = (session) => {
+  if (!session) return null;
+  if (!session.recording) {
+    return {
+      recorded: false,
+      summary: 'session นี้ไม่ได้บันทึกภาพ/เสียง จึงไม่ต้องขอความยินยอมเพื่อการบันทึก',
+      consentBy: '', consentAt: '',
+    };
+  }
+  return {
+    recorded: true,
+    summary: 'ผู้รับบริการให้ความยินยอมให้บันทึกภาพและเสียงระหว่างการปรึกษาทางไกล เพื่อใช้ประกอบเวชระเบียนเท่านั้น',
+    consentBy: session.consentBy || '—',
+    consentAt: session.consentAt || '—',
+    scope: 'บันทึกภาพและเสียงตลอด session · เก็บในเวชระเบียนของผู้รับบริการ · ไม่เผยแพร่ต่อบุคคลภายนอก',
+    retention: 'เก็บตามระเบียบเวชระเบียนของสำนักอนามัย',
+  };
+};
+
+/* ส่งออกบันทึก session เป็นข้อความ (ไม่มีไฟล์วิดีโอให้ดาวน์โหลดจริง) */
+export const exportTelemedLog = (session) => {
+  if (!session) return { ok: false, message: 'ไม่พบ session' };
+  const lines = telemedSessionLog(session)
+    .map((e) => `${e.at}\t${e.event}\t${e.detail}`)
+    .join('\n');
+  const consent = telemedConsentRecord(session);
+  const text = [
+    `บันทึกการปรึกษาทางไกล (Telemedicine Session Log)`,
+    `เลขที่ session: ${session.id}`,
+    `ผู้รับบริการ: ${session.patientName} (HN ${session.hn})`,
+    `ผู้ให้บริการ: ${session.participants || '—'}`,
+    `สถานะ: ${telemedStateMeta(session.state).label}`,
+    '',
+    'เหตุการณ์:',
+    lines,
+    '',
+    'ความยินยอม:',
+    consent.recorded
+      ? `${consent.summary}\nผู้ให้ความยินยอม: ${consent.consentBy}\nเมื่อ: ${consent.consentAt}\nขอบเขต: ${consent.scope}`
+      : consent.summary,
+    '',
+    'หมายเหตุ: ระบบต้นแบบยังไม่มี WebRTC media server จริง จึงไม่มีไฟล์ภาพ/เสียงให้ดาวน์โหลด',
+  ].join('\n');
+
+  appendAudit({
+    hn: session.hn, category: 'interface',
+    field: `ส่งออกบันทึก session ปรึกษาทางไกล ${session.id}`,
+    oldValue: '—',
+    newValue: `ส่งออกโดย ${CURRENT_CLINICIAN.name} เมื่อ ${stampNow()}`,
+  });
+
+  return { ok: true, text, message: 'ส่งออกบันทึก session แล้ว (บันทึกการส่งออกลงประวัติการแก้ไขเรียบร้อย)' };
 };
 
 export default INTERFACES;

@@ -211,6 +211,7 @@ const SocialWorkFormPage = () => {
 
           <PatientCard
             sticky
+            showBack={false}
             patient={cardPatient}
             title='บันทึกบริการสังคมสงเคราะห์ — แบบ สส.2'
             drugAllergies={intake.drugAllergies}
@@ -319,6 +320,7 @@ const SocialWorkFormPage = () => {
             queuePath={QUEUE_PATH}
             step0FlushLeft={false}
             onLeave={handleBack}
+            onSaveDraft={() => { if (mode !== 'view' && canWrite) saveSwDraft(swHn, form, stepIndex); }}
           >
             <ActiveStep
               form={form}

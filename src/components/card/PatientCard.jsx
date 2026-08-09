@@ -147,6 +147,16 @@ const AlertBadgeColumn = ({ label, items, compact = false }) => {
   );
 };
 
+const normalizeAlertItems = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items.map((item, idx) => {
+    if (typeof item === 'string') {
+      return { name: item, severity: 'medium', id: `alert-str-${idx}` };
+    }
+    return item;
+  }).filter((item) => item?.name);
+};
+
 const PatientCard = ({
   patient = DEFAULT_PATIENT,
   onBack,
@@ -160,6 +170,10 @@ const PatientCard = ({
   tags,
   drugAllergies,
   chronicDiseases,
+  /* Pharmacy / clinical dispense — always show แพ้ยา + โรคประจำตัว columns
+     (empty → "—") so the alert band matches TreatmentForm even when this
+     HN has no seeded allergies yet. */
+  forceAlertRow = false,
   /* Figma 343:5629 — compact / scrolled-up state. Single-row gradient
      card with 44px avatar, 24h HN/VIP pills, four right-aligned summary
      fields (สิทธิ์ · หมู่เลือด · ประเภท · แพทย์), title row collapsed,
@@ -218,9 +232,9 @@ const PatientCard = ({
     else history.goBack();
   };
 
-  const allergiesList = drugAllergies ?? patient?.drugAllergies ?? [];
-  const diseasesList = chronicDiseases ?? patient?.chronicDiseases ?? [];
-  const showAlertRow = allergiesList.length > 0 || diseasesList.length > 0;
+  const allergiesList = normalizeAlertItems(drugAllergies ?? patient?.drugAllergies);
+  const diseasesList = normalizeAlertItems(chronicDiseases ?? patient?.chronicDiseases);
+  const showAlertRow = forceAlertRow || allergiesList.length > 0 || diseasesList.length > 0;
 
   /* Publish live sticky height so RecordWizardMorphBand can stick flush
      under this card (TreatmentFormPage / ScreeningPage). */
@@ -480,7 +494,7 @@ const PatientCard = ({
           style={{
             gap: 'var(--dim-space-600, 24px)',
             marginTop: compact ? 'var(--dim-space-300, 12px)' : 'var(--dim-space-400, 16px)',
-            paddingBottom: compact ? 'var(--dim-space-400, 16px)' : 0,
+            paddingBottom: 'var(--dim-space-400, 16px)',
             transition: `margin-top ${T}, padding-bottom ${T}`,
           }}
         >

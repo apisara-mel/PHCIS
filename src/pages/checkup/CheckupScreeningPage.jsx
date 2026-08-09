@@ -188,8 +188,6 @@ const CheckupScreeningPage = () => {
         <Header breadcrumb={breadcrumb} standalone={false} />
         <SubHeader
           title={`แบบคัดกรอง — ${visit.name} · HN ${visit.hn}`}
-          onBack={handleLeave}
-          backLabel='กลับไปคิว'
           hideBottomBorder
         >
           <NeutralSubdueButton size='md' leadingIcon='monitor_heart' onClick={() => history.push(`/checkup/record/${visit.id}`)}>
@@ -406,17 +404,24 @@ const CheckupScreeningPage = () => {
               >
                 {stepIndex === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}
               </NeutralSubdueButton>
-              <span
-                className='inline-flex items-center min-w-0'
-                style={{
-                  gap: 'var(--dim-space-200)',
-                  color: 'var(--text-content-secondary)',
-                  fontFamily: 'var(--type-family-body)',
-                  fontSize: 'var(--type-size-sm)',
-                }}
-              >
-                {`แบบคัดกรองที่ ${stepIndex + 1} จาก ${CHECKUP_SCREENING_STEPS.length} · ${CHECKUP_SCREENING_STEPS[stepIndex].title}`}
-              </span>
+              {stepIndex > 0 && (
+                <span
+                  className='inline-flex items-center min-w-0'
+                  style={{
+                    gap: 'var(--dim-space-200)',
+                    color: 'var(--text-content-secondary)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-sm)',
+                  }}
+                >
+                  <span style={{
+                    width: 6, height: 6, borderRadius: 'var(--dim-radius-full)',
+                    background: 'var(--text-brandPrimary-default)',
+                    flexShrink: 0,
+                  }} />
+                  {`แบบคัดกรองที่ ${stepIndex + 1} จาก ${CHECKUP_SCREENING_STEPS.length} · ${CHECKUP_SCREENING_STEPS[stepIndex].title}`}
+                </span>
+              )}
               <div className='flex-1' />
               <BrandSubdueButton
                 variant='outline'
@@ -428,7 +433,7 @@ const CheckupScreeningPage = () => {
                 บันทึกร่าง
               </BrandSubdueButton>
               {isLast ? (
-                <BrandPrimaryButton size='lg' leadingIcon='save' onClick={confirmSave} disabled={locked}>
+                <BrandPrimaryButton size='lg' trailingIcon='check' onClick={confirmSave} disabled={locked}>
                   ยืนยันบันทึกแบบคัดกรอง
                 </BrandPrimaryButton>
               ) : (

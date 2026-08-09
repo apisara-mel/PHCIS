@@ -38,6 +38,12 @@ import {
   DTX_MEAL_STATE,
 } from '@/data/telemedRpm';
 import { canRecordCall } from '@/data/telemedConsent';
+import { describeStoredOrder, estimateOrderTotal } from '@/utils/telemedOrderCatalog';
+import {
+  openTelemedSession,
+  transportLabel,
+  TELEMED_SESSION_EVENTS,
+} from '@/utils/telemedSessionBridge';
 
 const MOBILE_PATIENT_HN = CURRENT_USER.centers?.[0]?.hn || '67-004321';
 
@@ -2200,53 +2206,71 @@ const SharedDocsTab = ({ docs, canDownload, onRetry, openDoc, setOpenDoc, zoom, 
 );
 
 /* (3) คำสั่งแพทย์ในสายนี้ (§4.3.3 ต่อ §4.3.4) */
-const DoctorOrdersTab = ({ orders, acknowledged, onAcknowledge, onPay, onPickup }) => (
-  <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-    {orders.length === 0 ? (
-      <EmptyRow icon='prescriptions' text='แพทย์ยังไม่ได้สั่งการรักษาในสายนี้' />
-    ) : (
-      <>
-        {orders.map((o) => {
-          const cancelled = o.status === 'cancelled';
-          const meta = TELEMED_ORDER_KIND[o.kind] || { label: 'คำสั่ง', icon: 'note' };
-          return (
-            <div key={o.id} style={{ ...sheetCardStyle, opacity: cancelled ? 0.7 : 1 }}>
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                <MobileIconBadge icon={meta.icon} tone={cancelled ? 'yellow' : 'green'} size={40} iconSize={18} />
-                <div className='flex-1 min-w-0'>
-                  <h3 style={{ ...sheetTitleStyle, fontSize: 'var(--type-size-sm, 14px)', textDecoration: cancelled ? 'line-through' : 'none' }}>
-                    {o.label}
-                  </h3>
-                  <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>{o.detail}</p>
+const DoctorOrdersTab = ({ orders, acknowledged, onAcknowledge, onPay, onPickup }) => {
+  /* คำสั่งจากแพทย์แสดงด้วยชื่อ/รหัส/ราคาจากแคตตาล็อกกลางชุดเดียวกับฝั่งเว็บ
+     (TOR §4.3.3) — รายการเก่าที่ใช้รหัสย่อเดิมยังอ่านออก ไม่มีวันหายจากจอ */
+  const described = orders.map((o) => describeStoredOrder(o));
+  const estimate = estimateOrderTotal(orders);
+  return (
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+      {described.length === 0 ? (
+        <EmptyRow icon='prescriptions' text='แพทย์ยังไม่ได้สั่งการรักษาในสายนี้' />
+      ) : (
+        <>
+          {described.map((o) => {
+            const cancelled = o.status === 'cancelled';
+            const meta = TELEMED_ORDER_KIND[o.kind] || { label: 'คำสั่ง', icon: 'note' };
+            return (
+              <div key={o.id} style={{ ...sheetCardStyle, opacity: cancelled ? 0.7 : 1 }}>
+                <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <MobileIconBadge icon={meta.icon} tone={cancelled ? 'yellow' : 'green'} size={40} iconSize={18} />
+                  <div className='flex-1 min-w-0'>
+                    <h3 style={{ ...sheetTitleStyle, fontSize: 'var(--type-size-sm, 14px)', textDecoration: cancelled ? 'line-through' : 'none' }}>
+                      {o.catalogLabel || o.label}
+                    </h3>
+                    <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>{o.catalogDetail || o.detail}</p>
+                  </div>
+                  <StatusBadge style={cancelled ? 'error' : acknowledged.includes(o.id) ? 'success' : 'info'} size='small'>
+                    {cancelled ? 'ยกเลิกโดยแพทย์' : acknowledged.includes(o.id) ? 'รับทราบแล้ว' : meta.label}
+                  </StatusBadge>
                 </div>
-                <StatusBadge style={cancelled ? 'error' : acknowledged.includes(o.id) ? 'success' : 'info'} size='small'>
-                  {cancelled ? 'ยกเลิกโดยแพทย์' : acknowledged.includes(o.id) ? 'รับทราบแล้ว' : meta.label}
-                </StatusBadge>
+                <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>
+                  {`ผู้สั่ง ${o.by || '—'} · ${formatVisitClock(o.at)}`}
+                  {o.code ? ` · รหัส ${o.code}` : ''}
+                  {o.priceLabel ? ` · ${o.priceLabel}` : ''}
+                  {cancelled && o.cancelReason ? ` · เหตุผล: ${o.cancelReason}` : ''}
+                </p>
+                {o.editedAt && (
+                  <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xxs, 10px)' }}>
+                    {`แพทย์แก้ไขคำสั่งนี้เมื่อ ${formatVisitClock(o.editedAt)}`}
+                  </p>
+                )}
+                {!cancelled && !acknowledged.includes(o.id) && (
+                  <BrandSubdueButton size='md' variant='outline' leadingIcon='check' onClick={() => onAcknowledge(o.id)}>
+                    รับทราบคำสั่งนี้
+                  </BrandSubdueButton>
+                )}
               </div>
-              <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>
-                {`ผู้สั่ง ${o.by || '—'} · ${formatVisitClock(o.at)}`}
-                {cancelled && o.cancelReason ? ` · เหตุผล: ${o.cancelReason}` : ''}
-              </p>
-              {!cancelled && !acknowledged.includes(o.id) && (
-                <BrandSubdueButton size='md' variant='outline' leadingIcon='check' onClick={() => onAcknowledge(o.id)}>
-                  รับทราบคำสั่งนี้
-                </BrandSubdueButton>
-              )}
-            </div>
-          );
-        })}
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <BrandButton size='lg' leadingIcon='payments' onClick={onPay}>
-            ไปชำระเงิน
-          </BrandButton>
-          <BrandSubdueButton size='lg' variant='outline' leadingIcon='local_shipping' onClick={onPickup}>
-            เลือกวิธีรับยา
-          </BrandSubdueButton>
-        </div>
-      </>
-    )}
-  </div>
-);
+            );
+          })}
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <p style={{ ...sheetBodyStyle, fontSize: 'var(--type-size-xs, 12px)' }}>
+              {estimate > 0
+                ? `ค่าตรวจโดยประมาณ ${estimate.toLocaleString('th-TH')} บาท (ยังไม่รวมค่ายา — คิดตามทะเบียนยาหน่วยบริการและสิทธิการรักษา)`
+                : 'ค่าใช้จ่ายคิดตามสิทธิการรักษาที่หน่วยบริการ — ยืนยันยอดจริงที่หน้าชำระเงิน'}
+            </p>
+            <BrandButton size='lg' leadingIcon='payments' onClick={onPay}>
+              ไปชำระเงิน
+            </BrandButton>
+            <BrandSubdueButton size='lg' variant='outline' leadingIcon='local_shipping' onClick={onPickup}>
+              เลือกวิธีรับยา
+            </BrandSubdueButton>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 /* (4) ส่งค่าจากอุปกรณ์ที่บ้าน (§1.13.1) */
 const DEVICE_FIELDS = ['bpSys', 'bpDia', 'dtx', 'temp', 'o2sat', 'weight'];
@@ -2518,6 +2542,7 @@ const MobileTelemedInner = ({ onStepChange }) => {
     ? requestedStage
     : 'consent';
   const [step, setStep] = useState(initialStep); /* consent | cameraPermission | micPermission | check | wait | call | done */
+  const stepRef = useRef(initialStep);
   const [recordingConsented, setRecordingConsented] = useState(false);
   const [consentMode, setConsentMode] = useState('initial'); /* initial | reconsent */
   const [pendingDevice, setPendingDevice] = useState(null); /* mic | cam */
@@ -2552,7 +2577,76 @@ const MobileTelemedInner = ({ onStepChange }) => {
   const [lastSubmitAt, setLastSubmitAt] = useState(null);
   const [confirmRepeat, setConfirmRepeat] = useState(false);
 
+  /* ── จับคู่ session กับแท็บห้องตรวจของแพทย์ (TOR §1.13.7) ────────────
+     ถ้ามีแท็บ /telemed เปิดอยู่ในเบราว์เซอร์เดียวกัน คำขอเข้าห้อง / การรับเข้า /
+     การออกจากสาย จะเดินจริงข้ามแท็บ. ไม่มีแท็บคู่หู → คงโฟลว์สาธิตเดิม
+     (เข้าสายอัตโนมัติหลัง 3.5 วินาที) พร้อมป้ายบอกว่าเป็นโหมดสาธิต. */
+  const sessionRef = useRef(null);
+  const [pairState, setPairState] = useState({ supported: false, transport: 'none', hasPeer: false, duplicate: false });
+  const [pairNotice, setPairNotice] = useState(null);
+
   useEffect(() => subscribeTelemedVisits(() => setVisitTick((t) => t + 1)), []);
+
+  useEffect(() => {
+    const session = openTelemedSession({
+      role: 'mobile',
+      onPeerChange: (s) => setPairState((prev) => (
+        prev.hasPeer === s.hasPeer && prev.duplicate === s.duplicate && prev.transport === s.transport
+          ? prev
+          : { ...prev, ...s }
+      )),
+      onMessage: (msg) => {
+        switch (msg.type) {
+          case TELEMED_SESSION_EVENTS.accept:
+            setPairNotice({ tone: 'success', text: 'แพทย์รับคุณเข้าห้องปรึกษาแล้ว' });
+            /* รับเข้าห้องได้เฉพาะตอนที่ยังรออยู่จริง — คำขอถูกยิงซ้ำทุก 15 วินาที
+               ถ้าไม่กันไว้ accept ที่มาช้าจะลากผู้ใช้จากหน้าให้คะแนน/จบแล้ว
+               กลับเข้าห้องวิดีโออีกครั้ง */
+            setStep((cur) => (cur === 'wait' ? 'call' : cur));
+            break;
+          case TELEMED_SESSION_EVENTS.decline:
+            setPairNotice({ tone: 'warn', text: 'แพทย์ยังไม่ว่างรับเข้าห้อง — กรุณารอสักครู่ ระบบจะส่งคำขอให้อีกครั้งอัตโนมัติ' });
+            break;
+          /* แพทย์วางสายเอง = จบการปรึกษา → เข้าขั้นให้คะแนนเหมือนผู้ใช้กดวางเอง */
+          case TELEMED_SESSION_EVENTS.leave:
+            setPairNotice({ tone: 'warn', text: 'แพทย์ออกจากห้องปรึกษาแล้ว' });
+            if (stepRef.current === 'call') {
+              setMinimized(false);
+              setReviewOpen(true);
+            }
+            break;
+          /* แท็บแพทย์ปิด/รีเฟรช (pagehide) ≠ จบการปรึกษา — ห้ามข้ามขั้นให้คะแนน
+             หรือปิดสายให้ผู้ใช้ ปล่อยให้ presence heartbeat จับคู่กลับมาเอง */
+          case TELEMED_SESSION_EVENTS.bye:
+            setPairNotice({ tone: 'warn', text: 'การเชื่อมต่อกับห้องตรวจของแพทย์หลุด — กำลังรอเชื่อมต่อใหม่' });
+            break;
+          case TELEMED_SESSION_EVENTS.consent:
+            setPairNotice(msg.granted
+              ? { tone: 'success', text: 'เริ่มบันทึกสายตามความยินยอมของคุณแล้ว' }
+              : { tone: 'warn', text: 'หยุดบันทึกสายแล้ว (ไม่มีความยินยอม)' });
+            break;
+          case 'duplicate':
+            setPairNotice({ tone: 'warn', text: 'มีการเชื่อมต่ออยู่แล้ว — พบแอปผู้รับบริการเปิดอยู่อีกแท็บหนึ่ง' });
+            break;
+          /* แท็บที่ซ้ำถูกปิดไปแล้ว → เก็บกวาดข้อความเตือนออก ไม่ให้ค้างถาวร */
+          case 'duplicate-cleared':
+            setPairNotice((cur) => (cur && cur.text.startsWith('มีการเชื่อมต่ออยู่แล้ว') ? null : cur));
+            break;
+          default:
+            break;
+        }
+      },
+    });
+    sessionRef.current = session;
+    setPairState({
+      supported: session.supported,
+      transport: session.transport,
+      hasPeer: session.hasPeer(),
+      duplicate: session.isDuplicate(),
+    });
+    return () => { session.close(); sessionRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ผูกกับ HN ของเจ้าของเครื่องเท่านั้น — ห้าม fallback ไปหยิบรายการของคนอื่น
      (ถ้ารายการถูกยกเลิก ผู้ใช้ต้องเห็น "ไม่มีรายการ" ไม่ใช่คำสั่งของผู้ป่วยรายอื่น) */
@@ -2691,16 +2785,37 @@ const MobileTelemedInner = ({ onStepChange }) => {
   );
 
   useEffect(() => {
+    /* ตัวจัดการข้อความ session ถูกผูกครั้งเดียว (deps []) จึงอ่าน step ปัจจุบัน
+       จาก ref แทน closure ที่ค้างค่าเริ่มต้น */
+    stepRef.current = step;
     onStepChange?.(step);
   }, [step, onStepChange]);
 
   useEffect(() => {
     if (step !== 'wait') return undefined;
     const tick = window.setInterval(() => setWaitSec((seconds) => seconds + 1), 1000);
-    const join = window.setTimeout(() => setStep('call'), WAIT_JOIN_MS);
+    /* ส่งคำขอเข้าห้องไปยังแท็บแพทย์จริง (ถ้ามี) */
+    const hasDoctorTab = Boolean(sessionRef.current?.hasPeer());
+    if (sessionRef.current) {
+      sessionRef.current.post(TELEMED_SESSION_EVENTS.joinRequest, {
+        hn: MOBILE_LINKED_HN,
+        name: CURRENT_USER?.name || 'ผู้รับบริการ',
+      });
+    }
+    /* มีแท็บแพทย์อยู่ → รอให้แพทย์กด "รับเข้าห้อง" จริง ห้ามเข้าสายเอง
+       ไม่มีแท็บแพทย์ → คงโฟลว์สาธิตเดิม */
+    const join = hasDoctorTab ? null : window.setTimeout(() => setStep('call'), WAIT_JOIN_MS);
+    /* ส่งคำขอซ้ำทุก 15 วินาที เผื่อแพทย์เพิ่งเปิดแท็บทีหลัง */
+    const reping = window.setInterval(() => {
+      sessionRef.current?.post(TELEMED_SESSION_EVENTS.joinRequest, {
+        hn: MOBILE_LINKED_HN,
+        name: CURRENT_USER?.name || 'ผู้รับบริการ',
+      });
+    }, 15000);
     return () => {
       clearInterval(tick);
-      clearTimeout(join);
+      clearInterval(reping);
+      if (join != null) clearTimeout(join);
     };
   }, [step]);
 
@@ -2727,6 +2842,8 @@ const MobileTelemedInner = ({ onStepChange }) => {
 
   const endCall = () => {
     setMinimized(false);
+    /* บอกแท็บแพทย์ว่าผู้รับบริการออกจากสายแล้ว (TOR §1.13.7) */
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.leave, { by: CURRENT_USER?.name || 'ผู้รับบริการ' });
     setReviewOpen(true);
   };
 
@@ -2904,6 +3021,40 @@ const MobileTelemedInner = ({ onStepChange }) => {
   if (step === 'wait') {
     return (
       <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
+        {/* สถานะการจับคู่กับห้องตรวจของแพทย์ (TOR §1.13.7) */}
+        <div
+          style={{
+            paddingTop: 'var(--dim-space-200, 8px)',
+            paddingBottom: 'var(--dim-space-200, 8px)',
+            paddingLeft: 'var(--dim-space-400, 16px)',
+            paddingRight: 'var(--dim-space-400, 16px)',
+          }}
+        >
+          {/* โทนของ notice ต้องชนะสถานะการจับคู่เสมอ — ข้อความ tone:'warn'
+              ('แพทย์ยังไม่ว่างรับเข้าห้อง') ต้องไม่ถูกวาดเป็น info เพียงเพราะ
+              มีแท็บแพทย์จับคู่อยู่ */}
+          <Alert
+            type={pairNotice
+              ? (pairNotice.tone === 'success' ? 'success' : 'warning')
+              : (pairState.hasPeer ? 'info' : 'warning')}
+            title={pairNotice?.text
+              || (pairState.duplicate
+                ? 'มีการเชื่อมต่ออยู่แล้ว'
+                : pairState.hasPeer
+                  ? 'เชื่อมต่อกับห้องตรวจของแพทย์แล้ว'
+                  : 'โหมดสาธิต — ยังไม่พบห้องตรวจของแพทย์')}
+            subtext={pairState.duplicate
+              ? 'พบแอปผู้รับบริการเปิดอยู่มากกว่าหนึ่งแท็บ — ปิดแท็บที่ไม่ใช้เพื่อไม่ให้คำขอซ้ำ'
+              : pairState.hasPeer
+                ? `${transportLabel(pairState.transport)} — ส่งคำขอเข้าห้องให้แพทย์แล้ว รอแพทย์กดรับเข้า`
+                : pairState.supported
+                  ? 'เปิด /telemed ในแท็บเดียวกันของเบราว์เซอร์นี้เพื่อจับคู่จริง — ระหว่างนี้ระบบจะพาเข้าสายอัตโนมัติเพื่อสาธิต'
+                  : 'เบราว์เซอร์นี้จับคู่ข้ามแท็บไม่ได้ — ระบบจะพาเข้าสายอัตโนมัติเพื่อสาธิต'}
+            showDetail={false}
+            showBadge={false}
+            showIndicator={false}
+          />
+        </div>
         <WaitingRoom
           doctorName={doctorName}
           specialty={specialty}

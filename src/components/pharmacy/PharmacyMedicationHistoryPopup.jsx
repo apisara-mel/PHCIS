@@ -15,7 +15,6 @@ import {
   PHARMACY_QUEUE,
   PHARMACY_USAGE_HISTORY,
   DISPENSE_STATUS,
-  PAYMENT_STATUS,
 } from '@/data/pharmacyQueue';
 
 /* ประวัติการรับยาของ HN — เปิดจากผู้รับบริการทั้งหมด (ไม่ navigate ออกจากหน้า).
@@ -59,12 +58,6 @@ const STATUS_PILL = {
   [DISPENSE_STATUS.NO_SHOW]:   { style: 'neutral', label: 'ไม่มารับยา'   },
   [DISPENSE_STATUS.PROBLEM]:   { style: 'error',   label: 'มีปัญหา'      },
   [DISPENSE_STATUS.CANCELLED]: { style: 'neutral', label: 'ยกเลิก'       },
-};
-
-const PAYMENT_STATUS_PILL = {
-  [PAYMENT_STATUS.NOT_APPLICABLE]: { style: 'neutral', label: 'ไม่มีค่าใช้จ่าย' },
-  [PAYMENT_STATUS.UNPAID]:         { style: 'error',   label: 'ค้างชำระ'       },
-  [PAYMENT_STATUS.PAID]:           { style: 'success', label: 'ชำระแล้ว'       },
 };
 
 const SOURCE_LABEL = {
@@ -228,7 +221,6 @@ const PharmacyMedicationHistoryPopup = ({
       switch (key) {
         case 'issuedDate':  return dateKey(row);
         case 'items':       return row.items?.length ?? 0;
-        case 'payment':     return PAYMENT_STATUS_PILL[row.paymentStatus]?.label || '';
         case 'status':      return STATUS_PILL[row.status]?.label || row.status || '';
         default:            return row[key] ?? '';
       }
@@ -283,15 +275,6 @@ const PharmacyMedicationHistoryPopup = ({
       key: 'dispensedAt',
       label: 'เวลาจ่ายยา',
       render: (r) => r.dispensedAt || '—',
-    },
-    {
-      key: 'payment',
-      label: 'การชำระเงิน',
-      render: (r) => {
-        const pill = PAYMENT_STATUS_PILL[r.paymentStatus];
-        if (!pill) return '—';
-        return <Badge style={pill.style} size='small'>{pill.label}</Badge>;
-      },
     },
     {
       key: 'status',

@@ -110,9 +110,14 @@ export const MR_PATIENTS = [
     address: { zip: '10310', province: 'กรุงเทพมหานคร', district: 'ดินแดง', subdistrict: 'ดินแดง', road: 'ประชาสงเคราะห์', moo: '', houseNo: '88/12' },
     emergency: [{ name: 'มาลี', last: 'มีสุข', relation: 'มารดา', phone: '081-555-1212' }],
     insurance: [{ type: 'บัตรทอง', claimCode: 'UC-2024-1024', verified: true }],
-    mobility: 'เดิน', flags: { vip: false, allergyDrug: false, allergyOther: false, chronic: false },
-    drugAllergies: [],
-    chronicDiseases: [],
+    mobility: 'เดิน', flags: { vip: false, allergyDrug: true, allergyOther: false, chronic: true },
+    drugAllergies: [
+      { name: 'Codeine', symptom: 'ผื่นลมพิษ, คลื่นไส้', severity: 'medium' },
+    ],
+    chronicDiseases: [
+      { name: 'โรคจมูกอักเสบจากภูมิแพ้ (AR)', severity: 'medium', detail: 'แพ้ฝุ่นละออง · ใช้ Cetirizine ตามอาการ' },
+      { name: 'โรคหืด (Asthma)', severity: 'high', detail: 'ควบคุมด้วย ICS · มีเครื่องพ่นยาสำรอง' },
+    ],
   },
   {
     hn: '67-00003',
@@ -127,8 +132,11 @@ export const MR_PATIENTS = [
     address: { zip: '11000', province: 'นนทบุรี', district: 'เมืองนนทบุรี', subdistrict: 'บางกระสอ', road: 'ติวานนท์', moo: '5', houseNo: '301' },
     emergency: [{ name: 'ปิยะดา', last: 'ดีงาม', relation: 'คู่สมรส', phone: '081-401-3399' }],
     insurance: [{ type: 'ข้าราชการ', claimCode: 'CSMBS-66-019', verified: true }],
-    mobility: 'เดิน', flags: { vip: false, allergyDrug: false, allergyOther: false, chronic: true },
-    drugAllergies: [],
+    mobility: 'เดิน', flags: { vip: false, allergyDrug: true, allergyOther: false, chronic: true },
+    drugAllergies: [
+      { name: 'Penicillin', symptom: 'ผื่นลมพิษทั่วตัว, หน้าบวม', severity: 'critical' },
+      { name: 'NSAIDs', symptom: 'ปวดท้อง / ผื่นลมพิษ', severity: 'high' },
+    ],
     chronicDiseases: [
       { name: 'โรคเบาหวานชนิดที่ 2 (DM)', severity: 'high'   },
       { name: 'ไขมันในเลือดสูง (Dyslipidemia)', severity: 'medium' },
@@ -147,9 +155,13 @@ export const MR_PATIENTS = [
     address: { zip: '10160', province: 'กรุงเทพมหานคร', district: 'บางบอน', subdistrict: 'บางบอน', road: 'เอกชัย', moo: '4', houseNo: '99/77' },
     emergency: [{ name: 'ชัยพร', last: 'ขำใจ', relation: 'คู่สมรส', phone: '081-922-1100' }],
     insurance: [{ type: 'ประกันสังคม', claimCode: 'SSO-2566-770', verified: true }],
-    mobility: 'เดิน', flags: { vip: false, allergyDrug: false, allergyOther: false, chronic: false },
-    drugAllergies: [],
-    chronicDiseases: [],
+    mobility: 'เดิน', flags: { vip: false, allergyDrug: true, allergyOther: false, chronic: true },
+    drugAllergies: [
+      { name: 'Sulfa', symptom: 'ผื่นแดงทั่วตัว', severity: 'high' },
+    ],
+    chronicDiseases: [
+      { name: 'ไมเกรน (Migraine)', severity: 'medium', detail: 'ปวดศีรษะเป็นพัก ๆ · หลีกเลี่ยงทริกเกอร์' },
+    ],
   },
   {
     hn: '67-00005',
@@ -164,9 +176,13 @@ export const MR_PATIENTS = [
     address: { zip: '10240', province: 'กรุงเทพมหานคร', district: 'บางกะปิ', subdistrict: 'หัวหมาก', road: 'ลาดพร้าว', moo: '', houseNo: '15/2' },
     emergency: [{ name: 'จิรา', last: 'จิรพัฒนกุล', relation: 'มารดา', phone: '089-101-2233' }],
     insurance: [{ type: 'บัตรทอง', claimCode: 'UC-2024-1188', verified: true }],
-    mobility: 'เดิน', flags: { vip: false, allergyDrug: false, allergyOther: false, chronic: false },
-    drugAllergies: [],
-    chronicDiseases: [],
+    mobility: 'เดิน', flags: { vip: false, allergyDrug: true, allergyOther: false, chronic: true },
+    drugAllergies: [
+      { name: 'Amoxicillin', symptom: 'ผื่นลมพิษ', severity: 'high' },
+    ],
+    chronicDiseases: [
+      { name: 'โรคหืดในเด็ก (Asthma)', severity: 'medium', detail: 'ใช้ยาพ่นตามแผน · ติดตามคลินิกเด็ก' },
+    ],
   },
   {
     hn: '67-00006',
@@ -181,8 +197,11 @@ export const MR_PATIENTS = [
     address: { zip: '10110', province: 'กรุงเทพมหานคร', district: 'วัฒนา', subdistrict: 'คลองเตยเหนือ', road: 'อโศก', moo: '', houseNo: '71/9' },
     emergency: [{ name: 'อรอนงค์', last: 'สุพรรณ', relation: 'บุตรสาว', phone: '089-712-4455' }],
     insurance: [{ type: 'บัตรทอง', claimCode: 'UC-2024-2299', verified: true }],
-    mobility: 'นั่งรถเข็น', flags: { vip: true, allergyDrug: false, allergyOther: false, chronic: true },
-    drugAllergies: [],
+    mobility: 'นั่งรถเข็น', flags: { vip: true, allergyDrug: true, allergyOther: false, chronic: true },
+    drugAllergies: [
+      { name: 'Penicillin', symptom: 'ผื่นลมพิษ, คัน', severity: 'high' },
+      { name: 'Aspirin', symptom: 'หายใจลำบาก / หลอดลมหดเกร็ง', severity: 'critical' },
+    ],
     chronicDiseases: [
       { name: 'ความดันโลหิตสูง (HT)',         severity: 'medium'   },
       { name: 'โรคหลอดเลือดสมอง (Stroke)',    severity: 'critical' },
@@ -201,9 +220,14 @@ export const MR_PATIENTS = [
     address: { zip: '11140', province: 'นนทบุรี', district: 'บางใหญ่', subdistrict: 'บางใหญ่', road: 'รัตนาธิเบศร์', moo: '8', houseNo: '256' },
     emergency: [{ name: 'ณัฐิกา', last: 'วศ์กุล', relation: 'คู่สมรส', phone: '089-887-1100' }],
     insurance: [{ type: 'รัฐวิสาหกิจ', claimCode: 'SOE-66-554', verified: true }],
-    mobility: 'เดิน', flags: { vip: false, allergyDrug: false, allergyOther: false, chronic: false },
-    drugAllergies: [],
-    chronicDiseases: [],
+    mobility: 'เดิน', flags: { vip: false, allergyDrug: true, allergyOther: false, chronic: true },
+    drugAllergies: [
+      { name: 'Statins', symptom: 'ปวดกล้ามเนื้อ / Myalgia', severity: 'medium' },
+    ],
+    chronicDiseases: [
+      { name: 'ไขมันในเลือดสูง (Dyslipidemia)', severity: 'high', detail: 'LDL สูง · ปรับอาหาร + ติดตาม lipid profile' },
+      { name: 'ความดันโลหิตสูง (HT)', severity: 'medium', detail: 'BP เป้าหมาย < 130/80' },
+    ],
   },
   {
     hn: '67-00008',
