@@ -3,7 +3,9 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Topic from '@/components/topic/Topic';
 import { HeaderCell, DataCell, TableRow } from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -318,7 +320,14 @@ export default function PositionPage() {
   }, [positions, search, filterStatus]);
 
   const hasPositions = positions.length > 0;
-  const isAllFilters = !filterStatus;
+  const filtersActive = !!filterStatus || !!search.trim();
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearch('');
+      setFilterStatus('');
+    },
+  );
 
   const openAdd = () => {
     setNameDraft('');
@@ -503,11 +512,6 @@ export default function PositionPage() {
 
               <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
                 <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  <FilterTag
-                    value='ทั้งหมด'
-                    selected={isAllFilters}
-                    onClick={() => setFilterStatus('')}
-                  />
                   <FilterDropdown
                     prefix='สถานะ:'
                     options={STATUS_OPTIONS}
@@ -515,6 +519,7 @@ export default function PositionPage() {
                     onChange={setFilterStatus}
                     placeholder='ทั้งหมด'
                   />
+                  <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 </div>
                 <div className='flex-1' />
                 <NeutralSubdueButton
@@ -558,6 +563,7 @@ export default function PositionPage() {
                 </NeutralSubdueButton>
               </div>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               <PositionTable
                 rows={filteredRows}
                 editMode={editMode}
@@ -571,6 +577,7 @@ export default function PositionPage() {
                 onEdit={openEdit}
                 onDelete={setDeleteConfirm}
               />
+              </SmoothFilterResults>
 
               {!editMode ? (
                 <BrandDashedAddButton onClick={openAdd}>

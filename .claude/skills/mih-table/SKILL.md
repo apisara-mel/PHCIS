@@ -104,6 +104,15 @@ Only when a screen explicitly needs pixel-locked columns (rare). Prefer content-
 | `stickyHeaderTop` | CSS length / var — header sticks to page (not table scroller) |
 | `trailingInset` | Extra right pad for action buttons at scroll end |
 | `editMode` + DnD handlers | Row reorder |
+| `pagination` | Default `true` — client pager when `rows.length > pageSize`. Set `false` to opt out (forms, or pages that already slice + render their own `<Pagination>`). Forced off in `editMode`. |
+| `pageSize` | Default `20` (`DEFAULT_TABLE_PAGE_SIZE` from `@/utils/tablePagination`) |
+| `page` / `onPageChange` | Optional controlled page (1-based) |
+
+## Pagination (system default)
+
+- **Page size 20.** Show sticky range label + `<Pagination>` only when the full `rows` list has **more than 20** items (design.md §6.30.16 — hide when one page fits).
+- Built into `<Table>` — pass the full filtered/sorted list; do not hand-roll a second pager unless you opt out with `pagination={false}`.
+- Shared pieces: [`src/utils/tablePagination.js`](../../../src/utils/tablePagination.js), [`src/hooks/useClientPagination.js`](../../../src/hooks/useClientPagination.js), [`src/components/table/TablePaginationBar.jsx`](../../../src/components/table/TablePaginationBar.jsx).
 
 ## Checklist — new or edited table page
 
@@ -115,6 +124,7 @@ Only when a screen explicitly needs pixel-locked columns (rare). Prefer content-
 - [ ] stickyColCount without hardcoded sticky pixel widths
 - [ ] HeaderCell title stays --type-size-table-title (12px)
 - [ ] Empty / loading states via emptyMessage / loading props
+- [ ] Pass full filtered rows; rely on Table pagination (>20) OR set pagination={false} if owning an external pager
 - [ ] Dev app path: if UI runs from MIH-PHCIS-local, sync src/ there too
 ```
 
@@ -130,8 +140,11 @@ Only when a screen explicitly needs pixel-locked columns (rare). Prefer content-
 
 | File | Role |
 |------|------|
-| `src/components/table/Table.jsx` | Orchestrator + HeaderCell / DataCell / measure |
+| `src/components/table/Table.jsx` | Orchestrator + HeaderCell / DataCell / measure + default paging |
+| `src/components/table/TablePaginationBar.jsx` | Sticky “แสดง X–Y จาก Z” + Pagination |
+| `src/utils/tablePagination.js` | `DEFAULT_TABLE_PAGE_SIZE = 20` + slice helpers |
+| `src/hooks/useClientPagination.js` | Hook for pages that own the footer outside Table |
 | `src/components/badge/StatusBadge.jsx` | `data-mih-status-badge` |
 | `src/components/badge/ColorfulBadge.jsx` | `data-mih-colorful-badge` |
-| `src/styles/tokens.css` / `design.md` §6.34 | Tokens + docs |
+| `src/styles/tokens.css` / `design.md` §6.34 / §6.30.16 | Tokens + docs |
 | `src/pages/pharmacy/PharmacyQueuePage.jsx` | Reference consumer (content-fit + badges) |

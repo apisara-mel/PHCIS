@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Icon from '@/components/icons/Icon';
@@ -154,6 +156,13 @@ const FamilyPlanningQueuePage = () => {
     filters.clientType === FILTER_DEFAULTS.clientType &&
     filters.nurse === FILTER_DEFAULTS.nurse &&
     filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick;
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters(FILTER_DEFAULTS);
+    setSearchQ('');
+    setPage(1);
+  });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const rows = useMemo(() => getFpQueueRows(), [tick]);
@@ -575,7 +584,6 @@ const FamilyPlanningQueuePage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200, 8px)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => { setFilters(FILTER_DEFAULTS); setPage(1); }} />
               <FilterDropdown prefix='บริการ:' options={FILTER_OPTIONS.service} value={filters.service} onChange={setFilter('service')} />
               <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.clientType} value={filters.clientType} onChange={setFilter('clientType')} />
               <FilterDateTag
@@ -586,12 +594,9 @@ const FamilyPlanningQueuePage = () => {
                 quickLabels={DATE_CHIP_LABELS}
               />
               <FilterDropdown prefix='ผู้ตรวจ:' options={FILTER_OPTIONS.nurse} value={filters.nurse} onChange={setFilter('nurse')} />
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
-
-          {activeTab !== 'scheduled' && (
-            <SearchResultCount found={sortedRows.length} total={rows.length} />
-          )}
 
           {activeTab === 'scheduled' ? (
             <Table
@@ -604,7 +609,9 @@ const FamilyPlanningQueuePage = () => {
               emptySubtext='รายการที่กด "ส่งตรวจ" แล้วจะย้ายไปอยู่ในแท็บ "รอตรวจ"'
             />
           ) : (
-            <>
+            <SmoothFilterResults opaque={resultsOpaque}>
+              <>
+              <SearchResultCount found={sortedRows.length} total={rows.length} />
               <Table
                 columns={columns}
                 rows={pageRows}
@@ -644,7 +651,8 @@ const FamilyPlanningQueuePage = () => {
                 <div className='flex-1' />
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
-            </>
+              </>
+            </SmoothFilterResults>
           )}
         </div>
       </div>

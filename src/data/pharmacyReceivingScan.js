@@ -50,16 +50,6 @@ export const RECEIVING_DOCUMENT_SCANS = [
   },
 ];
 
-/** Quick-pick list for the camera popup's "จำลองสแกน" when no camera /
-    BarcodeDetector is available — mix of documents + a few drug barcodes. */
-export const DEMO_SCAN_TARGETS = [
-  ...RECEIVING_DOCUMENT_SCANS.map((d) => ({ code: d.code, label: d.label })),
-  ...DRUG_REGISTRY.slice(0, 4).map((d) => ({
-    code: d.barcode,
-    label: `${d.name} · ${d.barcode}`,
-  })),
-];
-
 /** Build a blank receiving line pre-filled from a registry drug. */
 export const receivingLineFromDrug = (drug) => {
   if (!drug) return null;
@@ -69,9 +59,7 @@ export const receivingLineFromDrug = (drug) => {
   return {
     drugName: drug.name,
     quantity: 500,
-    packSize: drug.packSize
-      ? `กล่องละ ${drug.packSize} ${drug.unit === 'capsule' ? 'แคปซูล' : 'เม็ด'}`
-      : '',
+    unitKey: drug.unit || 'tablet',
     lot: '',
     expiryDate: '',
     receivedFrom: drug.manufacturer || 'องค์การเภสัชกรรม (GPO)',

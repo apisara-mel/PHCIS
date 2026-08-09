@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -160,6 +162,13 @@ const SocialWorkQueuePage = () => {
     && filters.worker === FILTER_DEFAULTS.worker
     && filters.clinic === FILTER_DEFAULTS.clinic
     && filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick;
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters(FILTER_DEFAULTS);
+    setSearchQ('');
+    setPage(1);
+  });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const rows = useMemo(() => getSwQueueRows(), [tick]);
@@ -601,7 +610,6 @@ const SocialWorkQueuePage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => { setFilters(FILTER_DEFAULTS); setPage(1); }} />
               <FilterDropdown prefix='กลุ่มเป้าหมาย:' options={FILTER_OPTIONS.targetGroup} value={filters.targetGroup} onChange={setFilter('targetGroup')} />
               <FilterDropdown prefix='การรับเรื่อง:' options={FILTER_OPTIONS.intakeChannel} value={filters.intakeChannel} onChange={setFilter('intakeChannel')} />
               <FilterDropdown prefix='ผู้ให้บริการ:' options={FILTER_OPTIONS.worker} value={filters.worker} onChange={setFilter('worker')} />
@@ -613,6 +621,7 @@ const SocialWorkQueuePage = () => {
                 defaultQuick={FILTER_DEFAULTS.dateValue.quick}
                 quickLabels={DATE_CHIP_LABELS}
               />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
@@ -624,7 +633,8 @@ const SocialWorkQueuePage = () => {
               emptyMessage='ไม่มีนัดหมายที่ยังไม่มาติดต่อวันนี้'
             />
           ) : (
-            <>
+            <SmoothFilterResults opaque={resultsOpaque}>
+              <>
               <SearchResultCount found={sortedRows.length} total={rows.length} />
               <Table
                 columns={columns}
@@ -657,15 +667,11 @@ const SocialWorkQueuePage = () => {
                 <span style={{ color: 'var(--text-content-secondary, #636B72)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
                   {`แสดง ${rangeStart}–${rangeEnd} จาก ${sortedRows.length} รายการ`}
                 </span>
-                {!isAllDefault && (
-                  <NeutralSubdueButton size='sm' variant='outline' onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); setPage(1); }}>
-                    ล้างตัวกรอง
-                  </NeutralSubdueButton>
-                )}
                 <div className='flex-1' />
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
-            </>
+              </>
+            </SmoothFilterResults>
           )}
         </div>
       </div>

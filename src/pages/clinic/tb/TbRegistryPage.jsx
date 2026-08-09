@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
@@ -410,6 +412,9 @@ const TbRegistryPage = () => {
   const isAllDefault = filters.fiscalYear === 'all' && filters.patientType === 'all'
     && filters.status === 'all' && filters.doctor === 'all' && !searchQ.trim();
   const resetFilters = () => { setFilters(FILTER_DEFAULTS); setSearchQ(''); setPage(1); };
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, resetFilters);
 
   const filtered = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
@@ -1632,14 +1637,15 @@ const TbRegistryPage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200, 8px)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={resetFilters} />
               <FilterDropdown prefix='ปีงบประมาณ:' options={fiscalYearOptions} value={filters.fiscalYear} onChange={setFilter('fiscalYear')} />
               <FilterDropdown prefix='ประเภทผู้ป่วย:' options={patientTypeOptions} value={filters.patientType} onChange={setFilter('patientType')} />
               <FilterDropdown prefix='สถานะทะเบียน:' options={STATUS_OPTIONS} value={filters.status} onChange={setFilter('status')} />
               <FilterDropdown prefix='แพทย์:' options={doctorOptions} value={filters.doctor} onChange={setFilter('doctor')} />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           <SearchResultCount found={filtered.length} total={rows.length} />
 
           {rows.length === 0 ? (
@@ -1658,11 +1664,6 @@ const TbRegistryPage = () => {
               icon='search_off'
               title='ไม่พบรายการที่ตรงกับการค้นหา / ตัวกรอง'
               subtitle='ลองปรับคำค้นหรือล้างตัวกรองเพื่อดูทะเบียนทั้งหมด'
-              action={(
-                <NeutralSubdueButton size='sm' leadingIcon='filter_alt_off' onClick={resetFilters}>
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
-              )}
             />
           ) : (
             <>
@@ -1696,7 +1697,9 @@ const TbRegistryPage = () => {
             </>
           )}
 
-          <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)', fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    </SmoothFilterResults>
+
+<span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)', fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858C92)' }}>
             <Icon name='lock' size={14} />
             การเปิดดูรายละเอียดทะเบียนทุกครั้งถูกบันทึกไว้ในประวัติการทำงาน (ข้อมูลลับ §1.4.2)
           </span>

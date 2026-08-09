@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
 import Dropdown from '@/components/forms/Dropdown';
@@ -266,6 +268,15 @@ const QueueCenterConsolePage = () => {
     && filters.time === FILTER_DEFAULTS.time
     && filters.source === FILTER_DEFAULTS.source
     && filters.dateValue?.quick === FILTER_DEFAULTS.dateValue.quick;
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearchQ('');
+      setFilters(FILTER_DEFAULTS);
+      setPage(1);
+    },
+  );
 
   const queueTypes = getQueueTypes();
 
@@ -1029,7 +1040,6 @@ const QueueCenterConsolePage = () => {
 
                 <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
                   <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                    <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => { setFilters(FILTER_DEFAULTS); setPage(1); }} />
                     <FilterDropdown prefix='ประเภทคิว:' options={FILTER_OPTIONS.queueType} value={filters.queueType} onChange={setFilter('queueType')} />
                     <FilterDateTag
                       prefix='วัน:'
@@ -1040,9 +1050,11 @@ const QueueCenterConsolePage = () => {
                     />
                     <FilterDropdown prefix='ช่วงเวลา:' options={FILTER_OPTIONS.time} value={filters.time} onChange={setFilter('time')} />
                     <FilterDropdown prefix='แหล่งที่มา:' options={FILTER_OPTIONS.source} value={filters.source} onChange={setFilter('source')} />
+                    <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                   </OverflowFlexRow>
                 </div>
 
+                <SmoothFilterResults opaque={resultsOpaque}>
                 <SearchResultCount found={sorted.length} total={rows.length} />
 
                 {sorted.length === 0 ? (
@@ -1059,7 +1071,7 @@ const QueueCenterConsolePage = () => {
                         variant='outline'
                         size='md'
                         leadingIcon='filter_alt_off'
-                        onClick={() => { setSearchQ(''); setFilters(FILTER_DEFAULTS); setPage(1); }}
+                        onClick={clearFilters}
                       >
                         ล้างตัวกรอง
                       </NeutralSubdueButton>
@@ -1088,6 +1100,7 @@ const QueueCenterConsolePage = () => {
                     </PaginationFooter>
                   </>
                 )}
+                </SmoothFilterResults>
               </section>
             </>
           )}

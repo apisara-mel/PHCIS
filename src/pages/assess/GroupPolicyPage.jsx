@@ -3,7 +3,9 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
@@ -421,7 +423,14 @@ export default function GroupPolicyPage() {
     });
   }, [policies, search]);
 
-  const isAllFilters = !filterStatus;
+  const filtersActive = !!filterStatus || !!search.trim();
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearch('');
+      setFilterStatus('');
+    },
+  );
   const hasPolicies = policies.length > 0;
   const hasAnySubBranch = useMemo(
     () => policies.some((p) => (p.subBranches || []).length > 0),
@@ -672,11 +681,6 @@ export default function GroupPolicyPage() {
 
                 <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
                   <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-                    <FilterTag
-                      value='ทั้งหมด'
-                      selected={isAllFilters}
-                      onClick={() => setFilterStatus('')}
-                    />
                     <FilterDropdown
                       prefix='สถานะ:'
                       options={STATUS_OPTIONS.filter((o) => o.value !== '')}
@@ -684,6 +688,7 @@ export default function GroupPolicyPage() {
                       onChange={setFilterStatus}
                       placeholder='ทั้งหมด'
                     />
+                    <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                   </div>
                   <div className='flex-1' />
                   <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
@@ -693,6 +698,7 @@ export default function GroupPolicyPage() {
               </section>
             ) : null}
 
+            <SmoothFilterResults opaque={resultsOpaque}>
             {visiblePolicies.map((policy) => (
               <GroupPolicySection
                 key={policy.id}
@@ -709,6 +715,7 @@ export default function GroupPolicyPage() {
                 onReorderSubBranches={handleReorderSubBranches}
               />
             ))}
+            </SmoothFilterResults>
 
             <section
               className='flex flex-col items-center w-full'

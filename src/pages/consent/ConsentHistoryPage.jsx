@@ -7,6 +7,8 @@ import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import FilterTag from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
@@ -374,6 +376,10 @@ function ConsentHistorySearch({ records, onSelectHn, embedded = false }) {
 function ConsentHistoryTimeline({ hn, records, embedded = false, onViewForm = null }) {
   const [actionFilter, setActionFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState({ quick: 'thisyear' });
+  const timelineFiltersActive = (actionFilter && actionFilter !== 'all') || (dateFilter?.quick && dateFilter.quick !== 'thisyear');
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(timelineFiltersActive, () => {
+    setActionFilter('all'); setDateFilter({ quick: 'thisyear' });
+  });
   const [internalViewEvent, setInternalViewEvent] = useState(null);
   const scrollPanelRef = useRef(null);
   const [pageScrollMaxH, setPageScrollMaxH] = useState(null);
@@ -470,12 +476,14 @@ function ConsentHistoryTimeline({ hn, records, embedded = false, onViewForm = nu
           />
         );
       })}
+      <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
     </div>
   );
 
   const stickyBg = embedded ? 'var(--surface-modal-default)' : 'var(--surface-card-100)';
 
   const timelineScrollPanel = (
+    <SmoothFilterResults opaque={resultsOpaque}>
     <div
       ref={scrollPanelRef}
       className={`mih-grouped-timeline-scroll w-full min-w-0 scrollbar-thin ${
@@ -536,6 +544,7 @@ function ConsentHistoryTimeline({ hn, records, embedded = false, onViewForm = nu
         />
       )}
     </div>
+    </SmoothFilterResults>
   );
 
   if (embedded) {

@@ -16,7 +16,9 @@ import hospitalPatientAdmittedAnim from '@/assets/illustrations/Hospital Patient
 import PrimarySearch, { DropdownPanel, SuggestionRow } from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import SecondarySearch from '@/components/search/SecondarySearch';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
 import Table, { EllipsisText } from '@/components/table/Table';
@@ -426,6 +428,24 @@ export default function ObservationQueuePage() {
     esi: 'all',
   };
   const [allTabFilters, setAllTabFilters] = useState(DEFAULT_ALL_TAB_FILTERS);
+  const allTabFiltersDefault =
+    allTabFilters.bed === DEFAULT_ALL_TAB_FILTERS.bed &&
+    allTabFilters.bedType === DEFAULT_ALL_TAB_FILTERS.bedType &&
+    allTabFilters.status === DEFAULT_ALL_TAB_FILTERS.status &&
+    allTabFilters.doctor === DEFAULT_ALL_TAB_FILTERS.doctor &&
+    allTabFilters.nurse === DEFAULT_ALL_TAB_FILTERS.nurse &&
+    allTabFilters.pain === DEFAULT_ALL_TAB_FILTERS.pain &&
+    allTabFilters.esi === DEFAULT_ALL_TAB_FILTERS.esi &&
+    (allTabFilters.date?.quick || DEFAULT_ALL_TAB_FILTERS.date.quick) === DEFAULT_ALL_TAB_FILTERS.date.quick;
+  const filtersActive = searchQuery.trim() !== '' || !allTabFiltersDefault;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearchQuery('');
+      setAllTabFilters(DEFAULT_ALL_TAB_FILTERS);
+      setQueuePage(1);
+    },
+  );
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
   /* 'priority' = clinical triage order (see boardPriority), 'bed' = the
      physical walking order a nurse uses when doing a round. */
@@ -1308,6 +1328,9 @@ export default function ObservationQueuePage() {
                 />
               </>
             )}
+            {(activeTab === 'all' || activeTab === 'observing') && (
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
+            )}
           </div>
 
           <div className='flex flex-wrap items-center gap-2'>
@@ -1330,6 +1353,7 @@ export default function ObservationQueuePage() {
           </div>
         </div>
 
+        <SmoothFilterResults opaque={resultsOpaque}>
         <SearchResultCount found={filteredPatients.length} total={patients.length} />
 
       {/* Main Content Area */}
@@ -2003,6 +2027,7 @@ export default function ObservationQueuePage() {
           <Pagination currentPage={queuePageClamped} pageCount={queueTotalPages} onPageChange={setQueuePage} />
         </div>
       )}
+        </SmoothFilterResults>
       </div>
       </div>
 

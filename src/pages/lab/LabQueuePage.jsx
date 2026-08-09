@@ -6,7 +6,9 @@ import Badge from '@/components/badge/Badge';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import AlertDialog from '@/components/popup/AlertDialog';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
@@ -618,6 +620,21 @@ const LabQueuePage = () => {
   const [urgency, setUrgency] = useState('all');
   const [location, setLocation] = useState('all');
   const [tube, setTube] = useState('all');
+  const filtersActive = query.trim() !== ''
+    || group !== 'all'
+    || urgency !== 'all'
+    || location !== 'all'
+    || tube !== 'all';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setQuery('');
+      setGroup('all');
+      setUrgency('all');
+      setLocation('all');
+      setTube('all');
+    },
+  );
   /* "STAT ก่อน" — on by default, matching the mockup where the toggle is
      already active and the STAT row sits at the top of the list. */
   const [statFirst, setStatFirst] = useState(true);
@@ -1325,8 +1342,10 @@ const LabQueuePage = () => {
                 <FilterDropdown prefix='กลุ่มตรวจ:' options={GROUP_OPTIONS} value={group} onChange={setGroup} />
                 <FilterDropdown prefix='จุดสั่ง:' options={LOCATION_OPTIONS} value={location} onChange={setLocation} />
                 <FilterDropdown prefix='ชนิดหลอด:' options={TUBE_OPTIONS} value={tube} onChange={setTube} />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               <SearchResultCount found={sorted.length} total={liveRows.length} />
 
               {/* Bulk action bar. Appears only when something is selected,
@@ -1433,6 +1452,7 @@ const LabQueuePage = () => {
                 <div className='flex-1' />
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
+              </SmoothFilterResults>
             </div>
 
             {/* Always mounted (rather than conditionally rendered) so opening

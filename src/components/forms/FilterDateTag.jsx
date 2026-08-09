@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import FilterTag from '@/components/forms/FilterTag';
-import DateFilterPopup, { QUICK_OPTIONS as POPUP_QUICK_OPTIONS } from '@/components/popup/DateFilterPopup';
+import DateFilterPopup, {
+  QUICK_OPTIONS as POPUP_QUICK_OPTIONS,
+  computeQuickRange,
+  computeQuickSingle,
+} from '@/components/popup/DateFilterPopup';
 
 /* MIH FilterDateTag — Figma 115:35757 (Tag group) + 238:39268 (DateFilterPopup).
    Composite of <FilterTag dropdown> trigger + <DateFilterPopup>.
@@ -18,6 +22,8 @@ import DateFilterPopup, { QUICK_OPTIONS as POPUP_QUICK_OPTIONS } from '@/compone
    Chip label resolution:
      • quick !== 'custom'  → quickLabels[quick] (caller-provided extras
                               merged on top of popup's own QUICK_OPTIONS)
+                              + optional resolved Thai date when
+                              `showResolvedDate` (e.g. "เดือนนี้ · 1 ส.ค. – 31 ส.ค. 2569")
      • quick === 'custom' → Thai-formatted date / range
                               (single → "5 พ.ค. 2569"; range → "5 พ.ค. – 12 พ.ค. 2569")     */
 
@@ -79,6 +85,16 @@ export const formatThaiDateRange = (selection) => {
   return '';
 };
 
+/** Resolve a quick-option key to a Thai date / range string for the chip. */
+export const formatResolvedQuickDates = (quick, today = new Date()) => {
+  if (!quick || quick === 'custom' || quick === 'all') return '';
+  const single = computeQuickSingle(quick, today);
+  if (single) return formatThaiDateRange({ tab: 'single', single });
+  const range = computeQuickRange(quick, today);
+  if (range) return formatThaiDateRange({ tab: 'range', range });
+  return '';
+};
+
 /* Built-in label map sourced from the popup's own QUICK_OPTIONS so the chip
    stays in sync with whatever the popup offers. Callers can add more keys
    via the `quickLabels` prop (e.g. 'today' / 'yesterday' that aren't in the
@@ -108,6 +124,7 @@ const FilterDateTag = ({
   defaultQuick = 'today', // fallback when no value/defaultValue provided
   quickLabels,            // extra labels merged over POPUP_QUICK_LABELS
   placeholder = 'เลือกวันที่',
+  showResolvedDate = false, // append Thai dates beside quick label (reports)
   selectedWhen,           // (value) => boolean — overrides "selected" chip styling
   className = '',
   style,
@@ -130,9 +147,14 @@ const FilterDateTag = ({
   );
 
   const label = (() => {
-    if (effectiveQuick !== 'custom') return allLabels[effectiveQuick] || placeholder;
-    const formatted = formatThaiDateRange(current);
-    return formatted || (allLabels.custom || 'กำหนดเอง');
+    if (effectiveQuick === 'custom') {
+      const formatted = formatThaiDateRange(current);
+      return formatted || (allLabels.custom || 'กำหนดเอง');
+    }
+    const quickLabel = allLabels[effectiveQuick] || placeholder;
+    if (!showResolvedDate) return quickLabel;
+    const dates = formatResolvedQuickDates(effectiveQuick);
+    return dates ? `${quickLabel} · ${dates}` : quickLabel;
   })();
 
   /* Queue pages default to วันนี้ — still show the brand selected chip. */

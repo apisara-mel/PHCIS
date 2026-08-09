@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
 import InputField from '@/components/forms/InputField';
@@ -212,6 +214,12 @@ const CheckupCommunityPage = () => {
   const [searchQ, setSearchQ] = useState('');
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
+  const filtersActive = statusFilter !== 'all' || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setStatusFilter('all');
+    setSearchQ('');
+    setPage(1);
+  });
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
@@ -471,16 +479,17 @@ const CheckupCommunityPage = () => {
 
             <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                <FilterTag value='ทั้งหมด' selected={statusFilter === 'all'} onClick={() => { setStatusFilter('all'); setPage(1); }} />
                 <FilterDropdown
                   prefix='สถานะ:'
                   options={[{ value: 'all', label: 'ทุกสถานะ' }, ...Object.values(COMMUNITY_STATUSES).map((s) => ({ value: s.key, label: s.label }))]}
                   value={statusFilter}
                   onChange={(v) => { setStatusFilter(v); setPage(1); }}
                 />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
             </div>
 
+            <SmoothFilterResults opaque={resultsOpaque}>
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
               <StatTile label='โครงการทั้งหมด' value={activities.length} unit='โครงการ' tone='info' icon='volunteer_activism' />
               <StatTile label='ผู้เข้าร่วมสะสม' value={activities.reduce((s, a) => s + (a.attendees || 0), 0)} unit='คน' tone='brand' icon='groups' />
@@ -517,6 +526,7 @@ const CheckupCommunityPage = () => {
                 <PagerRow page={page} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} unit='โครงการ' />
               </>
             )}
+            </SmoothFilterResults>
           </PageCard>
         ) : (
           <>

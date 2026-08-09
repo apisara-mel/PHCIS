@@ -5,7 +5,9 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Icon from '@/components/icons/Icon';
 import PrimarySearch from '@/components/search/PrimarySearch';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import StatusBadge from '@/components/badge/StatusBadge';
@@ -227,6 +229,15 @@ const FormsLibraryPage = () => {
     setPage(1);
   };
 
+  const filtersActive = !filtersAreDefault || !!normalizedQuery;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      resetToolbarFilters();
+      setSearch('');
+    },
+  );
+
   const passesToolbarFilters = (form) => {
     const m = catalogFiltersForForm(form);
     if (policyFilter !== 'all' && m.policy !== policyFilter) return false;
@@ -344,15 +355,6 @@ const FormsLibraryPage = () => {
             </div>
             <div role='toolbar' aria-label='กรองแบบฟอร์ม' className='w-full min-w-0'>
             <OverflowFlexRow className='w-full min-w-0' itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag
-                value='ทั้งหมด'
-                variant='brand'
-                size='lg'
-                selected={filtersAreDefault}
-                showLeadingIcon={false}
-                showTailingIcon={false}
-                onClick={resetToolbarFilters}
-              />
               <FilterDropdown
                 prefix='ประเภท:'
                 value={categoryFilter}
@@ -419,10 +421,12 @@ const FormsLibraryPage = () => {
                 variant='brand'
                 size='lg'
               />
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} size='lg' />
             </OverflowFlexRow>
             </div>
           </section>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           {filteredFormsFlat.length === 0 && (
             <section
               className='bg-surface-card rounded-card shadow-card border border-dashed flex flex-col items-center justify-center text-center'
@@ -545,6 +549,7 @@ const FormsLibraryPage = () => {
               siblingCount={1}
             />
           </section>
+          </SmoothFilterResults>
         </div>
         <Footer copyright='© 2026 ศูนย์การพยาบาลคุณภาพ ดินแดง กรุงเทพมหานคร' />
       </main>

@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
@@ -150,6 +152,9 @@ const TbScreeningPage = () => {
   const isAllDefault = filters.riskGroup === 'all' && filters.summary === 'all'
     && filters.dateValue.quick === 'all' && !searchQ.trim();
   const resetFilters = () => { setFilters(FILTER_DEFAULTS); setSearchQ(''); setPage(1); };
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, resetFilters);
 
   const dateFloor = useMemo(() => {
     switch (filters.dateValue.quick) {
@@ -762,7 +767,6 @@ const TbScreeningPage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200, 8px)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={resetFilters} />
               <FilterDropdown prefix='กลุ่มเสี่ยง:' options={riskGroupOptions} value={filters.riskGroup} onChange={setFilter('riskGroup')} />
               <FilterDropdown prefix='ผลสรุป:' options={summaryOptions} value={filters.summary} onChange={setFilter('summary')} />
               <FilterDateTag
@@ -772,9 +776,11 @@ const TbScreeningPage = () => {
                 defaultQuick={FILTER_DEFAULTS.dateValue.quick}
                 quickLabels={DATE_CHIP_LABELS}
               />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           <SearchResultCount found={filtered.length} total={rows.length} />
 
           {rows.length === 0 ? (
@@ -793,12 +799,8 @@ const TbScreeningPage = () => {
               icon='search_off'
               title='ไม่พบรายการที่ตรงกับการค้นหา / ตัวกรอง'
               subtitle='ลองปรับคำค้นหรือล้างตัวกรองเพื่อดูรายการทั้งหมด'
-              action={(
-                <NeutralSubdueButton size='sm' leadingIcon='filter_alt_off' onClick={resetFilters}>
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
-              )}
             />
+
           ) : (
             <>
               <Table
@@ -830,6 +832,8 @@ const TbScreeningPage = () => {
               </div>
             </>
           )}
+
+          </SmoothFilterResults>
 
           <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)', fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858C92)' }}>
             <Icon name='info' size={14} />

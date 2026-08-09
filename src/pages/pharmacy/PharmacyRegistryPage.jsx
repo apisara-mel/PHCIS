@@ -4,7 +4,9 @@ import Table from '@/components/table/Table';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import SearchResultCount from '@/components/search/SearchResultCount';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { resolveHighAlertBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
@@ -152,13 +154,16 @@ const PharmacyRegistryPage = () => {
     || highAlertFilter !== 'all'
     || unitFilter !== 'all';
 
-  const clearFilters = () => {
-    setSearch('');
-    setClassFilter('all');
-    setStatusFilter('all');
-    setHighAlertFilter('all');
-    setUnitFilter('all');
-  };
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearch('');
+      setClassFilter('all');
+      setStatusFilter('all');
+      setHighAlertFilter('all');
+      setUnitFilter('all');
+    },
+  );
 
   const requestToggle = (drug) => {
     setToggleConfirm({ drug, nextActive: !drug.active });
@@ -343,31 +348,25 @@ const PharmacyRegistryPage = () => {
               value={highAlertFilter}
               onChange={setHighAlertFilter}
             />
-            {filtersActive ? (
-              <FilterTag
-                variant='neutral'
-                leadingIcon='close'
-                value='ล้างตัวกรอง'
-                showTitle={false}
-                onClick={clearFilters}
-              />
-            ) : null}
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
           </div>
 
-          <SearchResultCount found={filtered.length} total={DRUG_REGISTRY.length} />
+          <SmoothFilterResults opaque={resultsOpaque}>
+            <SearchResultCount found={filtered.length} total={DRUG_REGISTRY.length} />
 
-          <Table
-            columns={columns}
-            rows={sortedRows}
-            rowKey={(d) => d.id}
-            sortConfig={sortConfig}
-            onSort={handleSort}
-            stickyColCount={1}
-            stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-            onRowClick={(d) => setEditDrugId(d.id)}
-            emptyMessage={filtersActive ? 'ไม่พบรายการยาที่ตรงกับเงื่อนไข' : 'ยังไม่มีรายการในทะเบียนยา'}
-            emptySubtext={filtersActive ? 'ลองล้างตัวกรองหรือแก้คำค้นหา' : null}
-          />
+            <Table
+              columns={columns}
+              rows={sortedRows}
+              rowKey={(d) => d.id}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              stickyColCount={1}
+              stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+              onRowClick={(d) => setEditDrugId(d.id)}
+              emptyMessage={filtersActive ? 'ไม่พบรายการยาที่ตรงกับเงื่อนไข' : 'ยังไม่มีรายการในทะเบียนยา'}
+              emptySubtext={filtersActive ? 'ลองล้างตัวกรองหรือแก้คำค้นหา' : null}
+            />
+          </SmoothFilterResults>
         </section>
       </div>
     </QueuePageShell>

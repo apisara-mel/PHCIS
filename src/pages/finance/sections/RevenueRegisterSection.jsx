@@ -3,6 +3,8 @@ import Table, { EllipsisText } from '@/components/table/Table';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import {
@@ -53,6 +55,18 @@ const RevenueRegisterSection = ({ queue }) => {
   })), [paidRows]);
 
   const grandTotal = paidRows.reduce((s, r) => s + netCollected(r), 0);
+
+  const filtersActive = !!q.trim()
+    || filters.rights !== 'all'
+    || filters.category !== 'all'
+    || filters.dateValue?.quick !== FILTER_DEFAULTS.dateValue.quick;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setQ('');
+      setFilters(FILTER_DEFAULTS);
+    },
+  );
 
   const columns = [
     {
@@ -134,10 +148,12 @@ const RevenueRegisterSection = ({ queue }) => {
           onChange={setFilter('dateValue')}
           defaultQuick={FILTER_DEFAULTS.dateValue.quick}
         />
+        <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         <div className='flex-1' />
         <NeutralSubdueButton leadingIcon='print' onClick={() => window.print()}>พิมพ์</NeutralSubdueButton>
       </div>
 
+      <SmoothFilterResults opaque={resultsOpaque}>
       <SearchResultCount found={paidRows.length} total={paidBase.length} />
 
       <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
@@ -173,6 +189,7 @@ const RevenueRegisterSection = ({ queue }) => {
       </div>
 
       <Table columns={columns} rows={paidRows} rowKey={(row) => row.id} emptyMessage='ไม่พบรายรับที่ตรงกับเงื่อนไข' />
+      </SmoothFilterResults>
     </div>
   );
 };

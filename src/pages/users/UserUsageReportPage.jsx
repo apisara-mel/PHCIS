@@ -9,7 +9,9 @@ import InputField from '@/components/forms/InputField';
 import Alert from '@/components/alert/Alert';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import PrimarySearch from '@/components/search/PrimarySearch';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -192,6 +194,15 @@ const UserUsageReportPage = () => {
     if (q) rows = rows.filter((r) => [r.user, r.action, r.mod].some((f) => f && f.toLowerCase().includes(q)));
     return rows;
   }, [logRows, logFilters, logQ]);
+
+  const logFiltersActive = logFilters.user !== 'all' || logFilters.mod !== 'all' || logFilters.ok !== 'all' || !!logQ.trim();
+  const { showClearChip: showLogClearChip, resultsOpaque: logResultsOpaque, clearFilters: clearLogFilters } = useSmoothClearFilters(
+    logFiltersActive,
+    () => {
+      setLogFilters({ user: 'all', mod: 'all', ok: 'all' });
+      setLogQ('');
+    },
+  );
 
   const logColumns = useMemo(() => ([
     { key: 'time', label: 'เวลา' },
@@ -430,11 +441,6 @@ const UserUsageReportPage = () => {
       />
       <div className='flex flex-wrap items-start w-full mih-report-no-print' style={{ gap: 'var(--dim-space-300, 12px)' }}>
         <OverflowFlexRow itemGap='var(--dim-space-200, 8px)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-          <FilterTag
-            value='ทั้งหมด'
-            selected={logFilters.user === 'all' && logFilters.mod === 'all' && logFilters.ok === 'all' && !logQ}
-            onClick={() => { setLogFilters({ user: 'all', mod: 'all', ok: 'all' }); setLogQ(''); }}
-          />
           <FilterDropdown prefix='ผู้ใช้:' options={userOptions} value={logFilters.user} onChange={(v) => setLogFilters((p) => ({ ...p, user: v }))} />
           <FilterDropdown prefix='โมดูล:' options={modOptions} value={logFilters.mod} onChange={(v) => setLogFilters((p) => ({ ...p, mod: v }))} />
           <FilterDropdown
@@ -443,6 +449,7 @@ const UserUsageReportPage = () => {
             value={logFilters.ok}
             onChange={(v) => setLogFilters((p) => ({ ...p, ok: v }))}
           />
+          <ClearFiltersTag active={showLogClearChip} onClear={clearLogFilters} />
         </OverflowFlexRow>
       </div>
       <div className='w-full flex items-start justify-center mih-report-no-print'>
@@ -454,18 +461,20 @@ const UserUsageReportPage = () => {
           title='ไม่พบเหตุการณ์ที่ตรงกับเงื่อนไข'
           subtitle='ลองล้างตัวกรองเพื่อดูประวัติทั้งหมด'
           action={(
-            <NeutralSubdueButton variant='outline' size='md' leadingIcon='filter_alt_off' onClick={() => { setLogFilters({ user: 'all', mod: 'all', ok: 'all' }); setLogQ(''); }}>
+            <NeutralSubdueButton variant='outline' size='md' leadingIcon='filter_alt_off' onClick={clearLogFilters}>
               ล้างตัวกรอง
             </NeutralSubdueButton>
           )}
         />
       ) : (
+        <SmoothFilterResults opaque={logResultsOpaque}>
         <Table
           columns={logColumns}
           rows={filteredLog.slice(0, 100).map((r, i) => ({ ...r, rowId: `log-${i}` }))}
           rowKey={(r) => r.rowId}
           emptyMessage='ไม่พบเหตุการณ์'
         />
+        </SmoothFilterResults>
       )}
     </ModuleCard>
   );

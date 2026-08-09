@@ -9,7 +9,9 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import SearchResultCount from '@/components/search/SearchResultCount';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import {
   MAIN_WAREHOUSE_STOCK,
   SUB_STOCK_BY_WAREHOUSE,
@@ -516,11 +518,14 @@ const PharmacyStockPage = () => {
     || classificationFilter !== 'all'
     || expiryFilter !== 'all';
 
-  const clearFilters = () => {
-    setSearch('');
-    setClassificationFilter('all');
-    setExpiryFilter('all');
-  };
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearch('');
+      setClassificationFilter('all');
+      setExpiryFilter('all');
+    },
+  );
 
   return (
     <QueuePageShell
@@ -597,20 +602,14 @@ const PharmacyStockPage = () => {
                   value={expiryFilter}
                   onChange={setExpiryFilter}
                 />
-                {filtersActive ? (
-                  <FilterTag
-                    variant='neutral'
-                    leadingIcon='close'
-                    value='ล้างตัวกรอง'
-                    showTitle={false}
-                    onClick={clearFilters}
-                  />
-                ) : null}
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </div>
 
-              <SearchResultCount found={filteredRows.length} total={rows.length} />
+              <SmoothFilterResults opaque={resultsOpaque}>
+                <SearchResultCount found={filteredRows.length} total={rows.length} />
 
-              <Table columns={columns} rows={filteredRows} rowKey={(r) => r.name} stickyColCount={1} emptyMessage='ไม่พบรายการยาที่ตรงกับเงื่อนไข' />
+                <Table columns={columns} rows={filteredRows} rowKey={(r) => r.name} stickyColCount={1} emptyMessage='ไม่พบรายการยาที่ตรงกับเงื่อนไข' />
+              </SmoothFilterResults>
             </>
           ) : (
             /* §1.9.9 — คลังยาย่อย: left rail cards (HistoryListForm pattern) + right drug list. */
@@ -718,20 +717,14 @@ const PharmacyStockPage = () => {
                     value={expiryFilter}
                     onChange={setExpiryFilter}
                   />
-                  {filtersActive ? (
-                    <FilterTag
-                      variant='neutral'
-                      leadingIcon='close'
-                      value='ล้างตัวกรอง'
-                      showTitle={false}
-                      onClick={clearFilters}
-                    />
-                  ) : null}
+                  <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 </div>
 
-                <SearchResultCount found={filteredRows.length} total={rows.length} />
+                <SmoothFilterResults opaque={resultsOpaque}>
+                  <SearchResultCount found={filteredRows.length} total={rows.length} />
 
-                <Table columns={columns} rows={filteredRows} rowKey={(r) => r.name} stickyColCount={1} emptyMessage='ไม่พบรายการยาที่ตรงกับเงื่อนไข' />
+                  <Table columns={columns} rows={filteredRows} rowKey={(r) => r.name} stickyColCount={1} emptyMessage='ไม่พบรายการยาที่ตรงกับเงื่อนไข' />
+                </SmoothFilterResults>
               </div>
             </div>
           )}

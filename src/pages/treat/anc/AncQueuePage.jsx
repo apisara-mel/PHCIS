@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -184,6 +186,15 @@ const AncQueuePage = () => {
     filters.visitType === FILTER_DEFAULTS.visitType &&
     filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick &&
     filters.time === FILTER_DEFAULTS.time;
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setFilters(FILTER_DEFAULTS);
+      setSearchQ('');
+      setPage(1);
+    },
+  );
 
   /* `rows` = mock roster + any scheduled appointments checked in this
      session (getAncQueueRows merges them); `scheduledNotArrived` backs the
@@ -474,7 +485,6 @@ const AncQueuePage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => setFilters(FILTER_DEFAULTS)} />
               <FilterDropdown prefix='ความเสี่ยง:' options={FILTER_OPTIONS.risk} value={filters.risk} onChange={setFilter('risk')} />
               <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.visitType} value={filters.visitType} onChange={setFilter('visitType')} />
@@ -486,9 +496,11 @@ const AncQueuePage = () => {
                 quickLabels={DATE_CHIP_LABELS}
               />
               <FilterDropdown prefix='เวลา:' options={FILTER_OPTIONS.time} value={filters.time} onChange={setFilter('time')} />
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           <SearchResultCount found={sortedRows.length} total={rows.length} />
 
           {activeTab === 'scheduled' ? (
@@ -532,6 +544,7 @@ const AncQueuePage = () => {
               </div>
             </>
           )}
+          </SmoothFilterResults>
         </div>
       </div>
     </QueuePageShell>

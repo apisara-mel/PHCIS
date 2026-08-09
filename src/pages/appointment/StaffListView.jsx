@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -430,6 +432,17 @@ const StaffListView = ({ staff, appointments = [], onSelect, onBookEarliest }) =
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const isFiltered = !!(filterPolicy || filterSub || filterDept);
+  const filtersActive = !!(search.trim() || isFiltered);
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearch('');
+      setFilterPolicy('');
+      setFilterSub('');
+      setFilterDept('');
+      setPage(1);
+    },
+  );
   const rangeStart = sorted.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, sorted.length);
   const totalDisplay = (search.trim() || isFiltered) ? sorted.length : DOCTOR_ROSTER_SIZE;
@@ -513,6 +526,7 @@ const StaffListView = ({ staff, appointments = [], onSelect, onBookEarliest }) =
                 value={filterDept}
                 onChange={(v) => { setFilterDept(v); setPage(1); }}
               />
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
             <div className='flex-1' />
             <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
@@ -531,6 +545,7 @@ const StaffListView = ({ staff, appointments = [], onSelect, onBookEarliest }) =
             </div>
           </div>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           <Table
             columns={columns}
             rows={pageRows}
@@ -565,6 +580,7 @@ const StaffListView = ({ staff, appointments = [], onSelect, onBookEarliest }) =
             </span>
             <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
           </div>
+          </SmoothFilterResults>
         </div>
       </section>
 

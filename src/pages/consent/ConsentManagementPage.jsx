@@ -5,6 +5,8 @@ import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
@@ -268,6 +270,18 @@ export default function ConsentManagementPage() {
   const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
   const hideStatusFilter = STATUS_FILTER_HIDDEN_TABS.has(activeTab);
   const hideFilters = FILTERS_HIDDEN_TABS.has(activeTab);
+
+  const isAllFilters = !filterChannel
+    && (!filterStatus || hideStatusFilter)
+    && (!filterDate || filterDate.quick === 'thisyear');
+  const filtersActive = !isAllFilters || search.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilterChannel('');
+    setFilterStatus('');
+    setFilterDate({ quick: 'thisyear' });
+    setSearch('');
+    setPage(1);
+  });
 
   const handleSubmit = (value, item) => {
     const q = (item?.value || item?.label || value || '').trim();
@@ -720,6 +734,7 @@ export default function ConsentManagementPage() {
                         onChange={(v) => { setFilterDate(v); setPage(1); }}
                         defaultQuick='thisyear'
                       />
+                      <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                     </>
                   )}
                 </div>
@@ -731,6 +746,7 @@ export default function ConsentManagementPage() {
                 )}
               </div>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               <SearchResultCount found={sorted.length} total={rows.length} />
 
               <Table
@@ -761,6 +777,7 @@ export default function ConsentManagementPage() {
                   <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
                 )}
               </div>
+              </SmoothFilterResults>
             </div>
           </section>
         </div>

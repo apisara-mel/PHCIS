@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
@@ -113,6 +115,14 @@ const UsersAccessPage = () => {
 
   const setFilter = (key) => (value) => setFilters((prev) => ({ ...prev, [key]: value }));
   const isAllDefault = Object.keys(FILTER_DEFAULTS).every((k) => filters[k] === FILTER_DEFAULTS[k]) && !searchQ;
+  const filtersActive = !isAllDefault;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setFilters(FILTER_DEFAULTS);
+      setSearchQ('');
+    },
+  );
 
   /* ── scope: รายชื่อผูกกับศูนย์ที่กำลังให้บริการ (คู่มือ MIS หน้า 1-4) ── */
   const scoped = useMemo(
@@ -442,11 +452,11 @@ const UsersAccessPage = () => {
 
               <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
                 <OverflowFlexRow itemGap='var(--dim-space-200, 8px)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                  <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); }} />
                   <FilterDropdown prefix='บทบาท:' options={roleOptions} value={filters.role} onChange={setFilter('role')} />
                   <FilterDropdown prefix='แผนก:' options={deptOptions} value={filters.dept} onChange={setFilter('dept')} />
                   <FilterDropdown prefix='ศูนย์:' options={centerOptions} value={filters.center} onChange={setFilter('center')} />
                   <FilterDropdown prefix='แหล่งบัญชี:' options={sourceOptions} value={filters.source} onChange={setFilter('source')} />
+                  <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 </OverflowFlexRow>
               </div>
 
@@ -465,12 +475,13 @@ const UsersAccessPage = () => {
                   title='ไม่พบผู้ใช้ที่ตรงกับเงื่อนไข'
                   subtitle='ลองปรับคำค้นหรือล้างตัวกรองเพื่อดูรายชื่อทั้งหมดของศูนย์นี้'
                   action={(
-                    <NeutralSubdueButton variant='outline' size='md' leadingIcon='filter_alt_off' onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); }}>
+                    <NeutralSubdueButton variant='outline' size='md' leadingIcon='filter_alt_off' onClick={clearFilters}>
                       ล้างตัวกรอง
                     </NeutralSubdueButton>
                   )}
                 />
               ) : (
+                <SmoothFilterResults opaque={resultsOpaque}>
                 <>
                   <Table
                     columns={columns}
@@ -502,6 +513,7 @@ const UsersAccessPage = () => {
                     <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
                   </div>
                 </>
+                </SmoothFilterResults>
               )}
             </ModuleCard>
           )}

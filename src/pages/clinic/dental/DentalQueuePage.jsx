@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -180,6 +182,13 @@ const DentalQueuePage = () => {
     filters.workType === FILTER_DEFAULTS.workType &&
     filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick &&
     filters.time === FILTER_DEFAULTS.time;
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters(FILTER_DEFAULTS);
+    setSearchQ('');
+    setPage(1);
+  });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const rows = useMemo(() => getDentalQueueRows(), [tick]);
@@ -490,7 +499,6 @@ const DentalQueuePage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => setFilters(FILTER_DEFAULTS)} />
               <FilterDropdown prefix='ทันตแพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='ประเภทงาน:' options={FILTER_OPTIONS.workType} value={filters.workType} onChange={setFilter('workType')} />
               <FilterDateTag
@@ -501,6 +509,7 @@ const DentalQueuePage = () => {
                 quickLabels={DATE_CHIP_LABELS}
               />
               <FilterDropdown prefix='เวลา:' options={FILTER_OPTIONS.time} value={filters.time} onChange={setFilter('time')} />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
@@ -513,6 +522,7 @@ const DentalQueuePage = () => {
             />
           ) : (
             <>
+            <SmoothFilterResults opaque={resultsOpaque}>
               <SearchResultCount found={sortedRows.length} total={rows.length} />
               <Table
                 columns={columns}
@@ -544,6 +554,7 @@ const DentalQueuePage = () => {
                 <div className='flex-1' />
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
+            </SmoothFilterResults>
             </>
           )}
         </div>

@@ -4,7 +4,9 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import InputField from '@/components/forms/InputField';
@@ -590,6 +592,8 @@ const AddictionRegistryPage = () => {
     || (filters.dateValue?.quick || 'all') !== 'all'
     || activeTab !== 'all';
 
+  const { showClearChip, resultsOpaque, clearFilters: smoothClearFilters } = useSmoothClearFilters(filtersActive, clearFilters);
+
   const clearFilters = () => {
     setSearchQ('');
     setFilters(FILTER_DEFAULTS);
@@ -1012,11 +1016,6 @@ const AddictionRegistryPage = () => {
 
             <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                <FilterTag
-                  value='ทั้งหมด'
-                  selected={!filtersActive}
-                  onClick={clearFilters}
-                />
                 <FilterDropdown
                   prefix='โปรแกรม:'
                   options={[{ value: 'all', label: 'ทุกโปรแกรม' }, ...ADDICTION_PROGRAMS.map((p) => ({ value: p.value, label: p.label }))]}
@@ -1042,10 +1041,12 @@ const AddictionRegistryPage = () => {
                   defaultQuick='all'
                   quickLabels={DATE_CHIP_LABELS}
                 />
+              <ClearFiltersTag active={showClearChip} onClear={smoothClearFilters} />
               </OverflowFlexRow>
             </div>
 
-            <SearchResultCount found={filtered.length} total={rows.length} />
+            <SmoothFilterResults opaque={resultsOpaque}>
+          <SearchResultCount found={filtered.length} total={rows.length} />
 
             {rows.length === 0 ? (
               <EmptyHint
@@ -1061,11 +1062,6 @@ const AddictionRegistryPage = () => {
             ) : filtered.length === 0 ? (
               <EmptyHint
                 icon='filter_alt_off'
-                action={(
-                  <NeutralSubdueButton variant='outline' leadingIcon='restart_alt' onClick={clearFilters}>
-                    ล้างตัวกรอง
-                  </NeutralSubdueButton>
-                )}
               >
                 ไม่พบข้อมูลที่ตรงกับเงื่อนไข ({filterSummary || 'ตัวกรองปัจจุบัน'}) — ปรับหรือล้างตัวกรองแล้วลองอีกครั้ง
               </EmptyHint>
@@ -1088,6 +1084,7 @@ const AddictionRegistryPage = () => {
                 </div>
               </>
             )}
+            </SmoothFilterResults>
           </SectionCard>
         </div>
       </AddictionAccessGate>

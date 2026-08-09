@@ -8,6 +8,8 @@ import Alert from '@/components/alert/Alert';
 import Select from '@/components/forms/Select';
 import DatePickerRange from '@/components/forms/DatePickerRange';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Switch from '@/components/switch/Switch';
 import PrivacyRevealPopup from '@/components/popup/PrivacyRevealPopup';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
@@ -236,7 +238,11 @@ const LabPatientHistoryPage = () => {
   };
 
   const hasFilter = !!range[0] || !!range[1] || group !== ALL || abnormalOnly;
-  const clearFilters = () => { setRange(['', '']); setGroup(ALL); setAbnormalOnly(false); };
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(hasFilter, () => {
+    setRange(['', '']);
+    setGroup(ALL);
+    setAbnormalOnly(false);
+  });
 
   const summaryCards = useMemo(() => [
     { key: 'visits', label: 'ครั้งที่มีผลตรวจ', value: data.columns.length, indicator: 'แสดงล่าสุด 8 ครั้ง', color: 'brand', icon: 'event_repeat' },
@@ -332,11 +338,7 @@ const LabPatientHistoryPage = () => {
                   เฉพาะค่าผิดปกติ
                 </span>
               </span>
-              {hasFilter && (
-                <NeutralSubdueButton variant='outline' size='md' leadingIcon='filter_alt_off' onClick={clearFilters}>
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
-              )}
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               <div className='flex-1' />
               <NeutralSubdueButton
                 variant='outline'
@@ -365,6 +367,7 @@ const LabPatientHistoryPage = () => {
               </BrandPrimaryButton>
             </div>
 
+            <SmoothFilterResults opaque={resultsOpaque} style={{ gap: 'var(--dim-space-400)' }}>
             {data.hasConfidential && (
               <Alert
                 type='info'
@@ -547,6 +550,7 @@ const LabPatientHistoryPage = () => {
                 showDetail={false}
               />
             )}
+            </SmoothFilterResults>
           </div>
         </div>
       </QueuePageShell>

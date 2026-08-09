@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import Table from '@/components/table/Table';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import StatusBadge from '@/components/badge/StatusBadge';
 import { Icon } from '@/components/icons/Icon';
@@ -342,6 +344,15 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
     [fiscalYear, center, queue, nhso],
   );
 
+  const filtersActive = center !== 'all' || fiscalYear !== FISCAL_YEARS[0].key;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setFiscalYear(FISCAL_YEARS[0].key);
+      setCenter('all');
+    },
+  );
+
   const {
     year, months, revenueMonthly, expenseMonthly,
     revenueTotal, expenseTotal, netTotal,
@@ -463,6 +474,7 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
           value={center}
           onChange={setCenter}
         />
+        <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
           {periodNote}
         </span>
@@ -470,6 +482,7 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
         <NeutralSubdueButton leadingIcon='print' onClick={() => window.print()}>พิมพ์รายงาน</NeutralSubdueButton>
       </div>
 
+      <SmoothFilterResults opaque={resultsOpaque}>
       {/* หัวเรื่องของรายงาน — เห็นเฉพาะตอนพิมพ์ เพราะบนจอมี breadcrumb + แท็บบอกอยู่แล้ว */}
       <div className='mih-finance-report__printonly'>
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>
@@ -582,6 +595,7 @@ const FinanceReportsSection = ({ queue = [], nhso = [] }) => {
           </span>
         </div>
       </SectionBlock>
+      </SmoothFilterResults>
     </div>
   );
 };

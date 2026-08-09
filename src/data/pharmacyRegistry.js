@@ -54,6 +54,27 @@ export const UNIT_CONVERSIONS = [
 const PACK_SIZE_ROTATION = [100, 500, 1000, 100, 100, 500];
 const packSizeForIndex = (i) => PACK_SIZE_ROTATION[i % PACK_SIZE_ROTATION.length];
 
+/* Stagger วันที่เริ่มจำหน่าย so reports can demo “ยาที่เพิ่มเข้ามาใหม่”
+   (roughly 1 in 4 rows land inside the last ~21 days). */
+const seedActiveFrom = (i) => {
+  if (i % 4 !== 0) return '2026-01-01';
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - (i % 21));
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const todayIsoLocal = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export const DRUG_CLASSIFICATIONS = [
   { key: 'nlem',         label: 'บัญชียาหลักแห่งชาติ (NLEM)'        },
   { key: 'non-nlem',     label: 'ยานอกบัญชียาหลักแห่งชาติ'          },
@@ -93,8 +114,11 @@ const PSYCHOTROPIC_NAMES = new Set(['Diazepam 5 mg']);
    Deterministic round-robin over a small pool of real Thai
    pharmaceutical manufacturers/distributors — illustrative assignment,
    not sourced from actual product data. */
-const MANUFACTURERS = ['องค์การเภสัชกรรม (GPO)', 'บริษัท เบอร์ลินฟาร์มาซูติคอลอินดัสตรี้ จำกัด', 'บริษัท ที.แมน ฟาร์มา จำกัด', 'บริษัท สยามฟาร์มาซูติคอล จำกัด'];
-const DISTRIBUTORS = ['บริษัท ดีเคเอสเอช (ประเทศไทย) จำกัด', 'บริษัท ซิลลิค ฟาร์มา จำกัด', 'บริษัท เซ็นทรัลโพลีเทรดดิ้ง จำกัด'];
+export const MANUFACTURERS = ['องค์การเภสัชกรรม (GPO)', 'บริษัท เบอร์ลินฟาร์มาซูติคอลอินดัสตรี้ จำกัด', 'บริษัท ที.แมน ฟาร์มา จำกัด', 'บริษัท สยามฟาร์มาซูติคอล จำกัด'];
+export const DISTRIBUTORS = ['บริษัท ดีเคเอสเอช (ประเทศไทย) จำกัด', 'บริษัท ซิลลิค ฟาร์มา จำกัด', 'บริษัท เซ็นทรัลโพลีเทรดดิ้ง จำกัด'];
+
+/** Dropdown options for รับจาก (ผู้ผลิต/ผู้จำหน่าย) on receiving forms. */
+export const SUPPLIER_OPTIONS = [...new Set([...MANUFACTURERS, ...DISTRIBUTORS, 'บริษัท ฟาร์มา จำกัด'])];
 
 /* Mock catalog for registry “โรคประจำตัวที่ไม่อนุญาต” dropdown — names
    align with `mrPatients.js` chronicDiseases[].name where possible. */
@@ -227,12 +251,12 @@ export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
     priceSchedule: [
       { id: `${i + 1}-p1`, effectiveFrom: '2026-01-01', effectiveTo: null, price: 1 + (i % 8) },
     ],
-    active: true,
+    active: i % 11 !== 0,
     /* วันที่เริ่มจำหน่ายยาในสถานพยาบาล / วันที่ตัดรายการยาออกจากสถานพยาบาล
        (ToR §1.9.10.1) — separate from the `active` toggle above: a drug
        can be toggled inactive immediately, but this date range records
        WHEN it was formally introduced/discontinued at this facility. */
-    activeFrom: '2026-01-01',
+    activeFrom: seedActiveFrom(i),
     activeTo: null,
     manufacturer: MANUFACTURERS[i % MANUFACTURERS.length],
     distributor: DISTRIBUTORS[i % DISTRIBUTORS.length],
@@ -346,6 +370,9 @@ export const upsertRegistryDrug = (form) => {
       code: form.code?.trim() || nextDrugCode(),
       barcode: form.barcode?.trim() || `885${String(registrySeq).padStart(10, '0')}`,
       image: resolveMedicationImage(form.name, null),
+      activeFrom: form.activeFrom || todayIsoLocal(),
+      activeTo: form.activeTo ?? null,
+      active: form.active !== false,
     };
     DRUG_REGISTRY.push(row);
     notifyRegistry();

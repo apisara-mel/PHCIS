@@ -3,6 +3,8 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import FilterDateTag from '@/components/forms/FilterDateTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import { Donut, HBarList } from '@/components/graph/Charts';
 import { QUICK_OPTIONS } from '@/components/popup/DateFilterPopup';
 import {
@@ -61,6 +63,10 @@ export default function ConsentDashboardPage() {
   const [pageDate, setPageDate] = useState({ quick: 'thismonth' });
   const [exportReport, setExportReport] = useState(null);
   const [viewReport, setViewReport] = useState(null);
+  const dateFiltersActive = (pageDate?.quick || 'thismonth') !== 'thismonth';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(dateFiltersActive, () => {
+    setPageDate({ quick: 'thismonth' });
+  });
 
   const periodReports = useMemo(() => reportsForDateFilter(pageDate), [pageDate]);
   const statusShareReport = useMemo(
@@ -105,6 +111,7 @@ export default function ConsentDashboardPage() {
       actions={(
         <>
           <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thismonth' />
+          <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
           <NeutralSubdueButton
             leadingIcon='ios_share'
             size='md'
@@ -116,6 +123,7 @@ export default function ConsentDashboardPage() {
       )}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
+        <SmoothFilterResults opaque={resultsOpaque} style={{ gap: 'var(--dim-space-400)' }}>
         {/* 1) KPI จาก worklist ตามช่วงวัน */}
         <section className='flex flex-col w-full' style={{ ...CARD_STYLE, gap: 'var(--dim-space-300)' }}>
           <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
@@ -285,6 +293,7 @@ export default function ConsentDashboardPage() {
           onViewReportChange={setViewReport}
           excludeKeys={['consent-status-share', 'consent-stats', 'personal-consent']}
         />
+        </SmoothFilterResults>
       </div>
     </QueuePageShell>
   );

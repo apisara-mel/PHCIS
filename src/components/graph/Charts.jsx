@@ -311,6 +311,76 @@ export const Donut = ({
   );
 };
 
+/** Color-matched legend: ● label  value · pct% (consent / report pie pattern). */
+export const DonutLegend = ({ segments }) => {
+  const total = segments.reduce((sum, s) => sum + Number(s.value || 0), 0);
+  return (
+    <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+      {segments.map((s) => {
+        const pct = total ? `${((Number(s.value) / total) * 100).toFixed(0)}%` : '0%';
+        const textStyle = {
+          color: s.color,
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-xs)',
+          lineHeight: 1.4,
+          whiteSpace: 'nowrap',
+        };
+        return (
+          <div
+            key={s.label}
+            className='inline-flex items-center min-w-0'
+            style={{ gap: 'var(--dim-space-150, 6px)' }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 'var(--dim-size-200, 12px)',
+                height: 'var(--dim-size-200, 12px)',
+                borderRadius: 'var(--dim-radius-full, 9999px)',
+                background: s.color,
+                flexShrink: 0,
+              }}
+            />
+            <span style={textStyle}>{s.label}</span>
+            <span style={textStyle}>
+              {Number(s.value).toLocaleString()} · {pct}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/** Donut + side legend — use for every report pie chart. */
+export const DonutWithLegend = ({
+  segments,
+  size = 180,
+  thickness,
+  centerLabel,
+  centerSub,
+  centerExtra,
+  activeIndex,
+  onSegmentClick,
+}) => (
+  <div
+    className='flex items-center justify-center w-full min-w-0 flex-wrap'
+    style={{ gap: 'var(--dim-space-400, 16px)' }}
+  >
+    <Donut
+      segments={segments}
+      size={size}
+      thickness={thickness}
+      centerLabel={centerLabel}
+      centerSub={centerSub}
+      centerExtra={centerExtra}
+      activeIndex={activeIndex}
+      onSegmentClick={onSegmentClick}
+    />
+    <DonutLegend segments={segments} />
+  </div>
+);
+
 const SEGMENT_TOOLTIP_STYLE = {
   position: 'absolute',
   left: '50%',
@@ -343,16 +413,21 @@ export const HBarList = ({
 }) => {
   const max = Math.max(...rows.map((r) => r.value)) || 1;
   const [hoverSeg, setHoverSeg] = useState(null); /* { row, seg } | null */
+  /* Row ≈ pad + label line + gap + bar + inter-row gap — keep scroll math honest. */
+  const rowUnit = 'calc(var(--dim-size-1100, 52px) + var(--dim-space-300, 12px))';
   const scrollStyle = maxVisibleRows != null && maxVisibleRows > 0
     ? {
-        maxHeight: `calc(${maxVisibleRows} * (var(--dim-size-1000, 48px) + var(--dim-space-150, 6px)))`,
+        maxHeight: `calc(${maxVisibleRows} * (${rowUnit}))`,
         overflowY: 'auto',
         paddingRight: 'var(--dim-space-100, 4px)',
         overscrollBehavior: 'contain',
       }
     : undefined;
   return (
-    <div className='flex flex-col gap-1.5' style={scrollStyle}>
+    <div
+      className='flex flex-col w-full min-w-0'
+      style={{ gap: 'var(--dim-space-100, 4px)', ...scrollStyle }}
+    >
       {rows.map((r, i) => {
         const isActive = activeIndex === i;
         const clickable = !!onRowClick;
@@ -366,33 +441,105 @@ export const HBarList = ({
           <div
             key={i}
             onClick={() => clickable && onRowClick(i)}
-            className={`relative flex items-center gap-2 text-sm rounded-md px-1 py-0.5 transition ${
+            className={`relative flex items-start w-full min-w-0 transition ${
               clickable ? 'cursor-pointer' : ''
-            } ${
-              isActive ? 'bg-brand-50' : clickable ? 'hover:bg-brand-50/60' : ''
             }`}
-            style={{ overflow: 'visible' }}
+            style={{
+              gap: 'var(--dim-space-300, 12px)',
+              padding: 'var(--dim-space-200, 8px) var(--dim-space-100, 4px)',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              background: isActive ? 'var(--surface-brandPrimary-quaternary, #F4FBF8)' : 'transparent',
+              boxSizing: 'border-box',
+              overflow: 'visible',
+            }}
+            onMouseEnter={(e) => {
+              if (!clickable || isActive) return;
+              e.currentTarget.style.background = 'var(--surface-brandPrimary-quaternary, #F4FBF8)';
+            }}
+            onMouseLeave={(e) => {
+              if (isActive) return;
+              e.currentTarget.style.background = 'transparent';
+            }}
             title={clickable ? 'ดูรายละเอียด' : undefined}
           >
             <span
-              className='w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 transition'
+              className='inline-flex items-center justify-center shrink-0'
               style={{
+                width: 'var(--dim-size-500, 24px)',
+                height: 'var(--dim-size-500, 24px)',
+                marginTop: 'var(--dim-space-050, 2px)',
+                borderRadius: 'var(--dim-radius-full, 9999px)',
                 background: isActive ? 'var(--brand-p700)' : 'var(--brand-p100)',
-                color:      isActive ? '#fff'              : 'var(--brand-p700)',
+                color: isActive ? '#fff' : 'var(--brand-p700)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+                fontWeight: 'var(--type-weight-bold)',
+                lineHeight: 1,
               }}
             >
               {i + 1}
             </span>
-            <div className='flex-1 min-w-0' style={{ overflow: 'visible' }}>
-              <div className={`truncate ${isActive ? 'font-bold text-brand-500' : 'text-ink'}`}>{r.label}</div>
+            <div
+              className='flex-1 min-w-0'
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--dim-space-200, 8px)',
+                overflow: 'visible',
+              }}
+            >
+              <div className='flex items-center w-full min-w-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                <div
+                  className='min-w-0 flex-1 truncate'
+                  style={{
+                    color: isActive ? 'var(--text-brandPrimary-default)' : 'var(--text-content-default)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-sm)',
+                    fontWeight: isActive ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)',
+                    lineHeight: 1.4,
+                  }}
+                  title={r.label}
+                >
+                  {r.label}
+                </div>
+                <span
+                  className='shrink-0 whitespace-nowrap tabular-nums'
+                  style={{
+                    color: 'var(--text-content-secondary)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-xs)',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <strong style={{ color: 'var(--text-content-default)', fontWeight: 'var(--type-weight-medium)' }}>
+                    {r.value.toLocaleString()}
+                  </strong>
+                  {' '}{valueLabel}
+                </span>
+                {r.second != null && (
+                  <span
+                    className='shrink-0 whitespace-nowrap tabular-nums'
+                    style={{
+                      width: 'var(--dim-size-1600, 64px)',
+                      textAlign: 'right',
+                      color: 'var(--text-content-tertiary)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-xs)',
+                    }}
+                  >
+                    {r.second.toLocaleString()} {secondLabel}
+                  </span>
+                )}
+              </div>
               <div
-                className='mt-0.5 flex items-center'
+                className='flex items-center w-full'
                 style={{
                   width: `${(r.value / max) * 100}%`,
-                  height: 'var(--dim-space-300, 12px)',
+                  minWidth: r.value > 0 ? 'var(--dim-space-400, 16px)' : 0,
                   maxWidth: '100%',
+                  height: 'var(--dim-space-200, 8px)',
                   background: segments && segments.length > 0 ? 'transparent' : 'var(--brand-p100)',
-                  borderRadius: 'var(--dim-radius-full)',
+                  borderRadius: 'var(--dim-radius-full, 9999px)',
                   overflow: 'visible',
                 }}
               >
@@ -434,7 +581,7 @@ export const HBarList = ({
                             style={{
                               top: '50%',
                               transform: 'translateY(-50%)',
-                              height: 'var(--dim-space-150, 6px)',
+                              height: 'var(--dim-space-200, 8px)',
                               background: s.color || (isActive ? 'var(--brand-p700)' : 'var(--brand-p400)'),
                               borderRadius: radius,
                             }}
@@ -450,24 +597,16 @@ export const HBarList = ({
                   })
                 ) : (
                   <div
-                    className='h-full rounded-full transition-all'
+                    className='rounded-full transition-all'
                     style={{
                       width: '100%',
-                      height: 'var(--dim-space-150, 6px)',
+                      height: 'var(--dim-space-200, 8px)',
                       background: isActive ? 'var(--brand-p700)' : 'var(--brand-p400)',
                     }}
                   />
                 )}
               </div>
             </div>
-            <span className='text-ink-secondary text-xs whitespace-nowrap tabular-nums'>
-              <strong className='text-ink'>{r.value.toLocaleString()}</strong> {valueLabel}
-            </span>
-            {r.second != null && (
-              <span className='text-ink-tertiary text-xs whitespace-nowrap tabular-nums w-16 text-right'>
-                {r.second.toLocaleString()} {secondLabel}
-              </span>
-            )}
           </div>
         );
       })}

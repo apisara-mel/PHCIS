@@ -10,6 +10,8 @@ import Icon from '@/components/icons/Icon';
 import { Donut, VBars, HBarList } from '@/components/graph/Charts';
 import FilterTag from '@/components/forms/FilterTag';
 import FilterDateTag from '@/components/forms/FilterDateTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { openConsentHistoryTab } from '@/data/consentPatientHistory';
 import {
@@ -82,68 +84,6 @@ const CELL_TEXT = {
   lineHeight: 1.5,
 };
 
-/* Time-range buckets for the report table (Figma filter chips). The index is
-   the unit rank: รายวัน=0 · รายสัปดาห์=1 · รายเดือน=2 · รายปี/ปีงบประมาณ=3. */
-const REPORT_PERIODS = ['รายวัน', 'รายสัปดาห์', 'รายเดือน', 'รายปี', 'ปีงบประมาณ'];
-const PERIOD_RANK = {
-  'รายวัน': 0,
-  'รายสัปดาห์': 1,
-  'รายเดือน': 2,
-  'รายปี': 3,
-  'ปีงบประมาณ': 3,
-};
-
-/* Span rank (0..3) of a DateFilterPopup quick-key — how wide the selected
-   "วัน:" range is. Used to disable period units larger than the range
-   (Figma 397:125953 — e.g. "วัน: วันนี้" ⇒ only รายวัน is meaningful). */
-const QUICK_SPAN = {
-  today: 0, yesterday: 0, tomorrow: 0, monthStart: 0, monthEnd: 0,
-  lastMonthStart: 0, lastMonthEnd: 0, todayLastYear: 0,
-  '7days': 1, thisweek: 1,
-  '30days': 2, thismonth: 2, lastmonth: 2,
-  thisyear: 3, lastyear: 3,
-};
-const spanRank = (dv) => {
-  if (!dv) return 3;
-  if (dv.quick === 'custom') {
-    const r = dv.range;
-    if (r && r.start && r.end) {
-      const days = Math.round((new Date(r.end) - new Date(r.start)) / 86400000) + 1;
-      if (days <= 1) return 0;
-      if (days <= 7) return 1;
-      if (days <= 31) return 2;
-      return 3;
-    }
-    return dv.tab === 'single' ? 0 : 3;
-  }
-  return QUICK_SPAN[dv.quick] ?? 3;
-};
-
-/* Thai date label + range→unit-rank for the report popup's range form. */
-const rangeRank = (r) => {
-  if (!r || !r.start || !r.end) return 3;
-  const a = new Date(r.start).setHours(0, 0, 0, 0);
-  const b = new Date(r.end).setHours(0, 0, 0, 0);
-  const days = Math.round((b - a) / 86400000) + 1;
-  if (days <= 1) return 0;
-  if (days <= 7) return 1;
-  if (days <= 31) return 2;
-  return 3;
-};
-
-/* The data is grouped into one table PER bucket of the selected period — Figma
-   395:127874 shows รายเดือน → มกราคม / กุมภาพันธ์ / มีนาคม sections, รายวัน → per-day, etc. */
-const periodBuckets = (period) => {
-  switch (period) {
-    case 'รายวัน':     return ['1 มิถุนายน 2569', '2 มิถุนายน 2569', '3 มิถุนายน 2569'];
-    case 'รายสัปดาห์': return ['สัปดาห์ที่ 1 (1–7 มิ.ย.)', 'สัปดาห์ที่ 2 (8–14 มิ.ย.)', 'สัปดาห์ที่ 3 (15–21 มิ.ย.)'];
-    case 'รายปี':      return ['ปี 2567', 'ปี 2568', 'ปี 2569'];
-    case 'ปีงบประมาณ': return ['ตุลาคม', 'พฤศจิกายน', 'ธันวาคม', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม'];
-    case 'รายเดือน':
-    default:           return ['มกราคม', 'กุมภาพันธ์', 'มีนาคม'];
-  }
-};
-
 /* X-axis labels for the comparison bar chart — full span per period
    (Figma 395:127874 shows a 12-month bar overview for รายเดือน). */
 const periodBarLabels = (period) => {
@@ -162,7 +102,6 @@ const periodBarLabels = (period) => {
 const DEFAULT_POPUP_PAGE_SIZE = 40;
 
 const ReportTablePopup = ({ open, report, onClose, reportsCatalog, onExported, onOpenHistory }) => {
-  const [period, setPeriod] = useState('รายเดือน');
   const [page, setPage] = useState(1);
   const [accessTimesFor, setAccessTimesFor] = useState(null);
   const panels = useNestedPopupPanel(0);
@@ -198,12 +137,6 @@ const ReportTablePopup = ({ open, report, onClose, reportsCatalog, onExported, o
   });
 
   const pageSize = Number(report?.pageSize) > 0 ? Number(report.pageSize) : DEFAULT_POPUP_PAGE_SIZE;
-  const sr = rangeRank(dateRange);
-  // If the chosen date range is narrower than the active period unit, fall
-  // back to the widest unit that still fits the range.
-  useEffect(() => {
-    if ((PERIOD_RANK[period] ?? 3) > sr) setPeriod(REPORT_PERIODS[sr]);
-  }, [sr]); // eslint-disable-line react-hooks/exhaustive-deps
   const allRows = report && report.table ? report.table.rows.map((r, i) => ({ ...r, _id: i })) : [];
   /* กรองด้วยช่วงวันที่ (_iso ประกบวันที่ไทย) */
   const rows = useMemo(() => {
@@ -215,6 +148,7 @@ const ReportTablePopup = ({ open, report, onClose, reportsCatalog, onExported, o
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report, dateRange, open]);
+  useEffect(() => { setPage(1); }, [dateRange.start, dateRange.end]);
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const safePage = Math.min(page, pageCount);
   const pageRows = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
@@ -295,39 +229,26 @@ const ReportTablePopup = ({ open, report, onClose, reportsCatalog, onExported, o
           style={{ gap: 'var(--dim-space-400)' }}
         >
           <div className='flex items-center justify-between flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-              <div className='flex items-end' style={{ gap: 'var(--dim-space-200)' }}>
-                <DateInputBox
-                  label='วันที่เริ่มต้น'
-                  placeholder='เลือกวันที่'
-                  value={dateRange.start}
-                  onChange={(d) => {
-                    setDateRange((prev) => ({
-                      start: d,
-                      end: prev.end && d && prev.end.getTime() < d.getTime() ? d : prev.end,
-                    }));
-                  }}
-                />
-                <span style={{ color: 'var(--text-content-tertiary)', flexShrink: 0 }}>-</span>
-                <DateInputBox
-                  label='วันที่สิ้นสุด'
-                  placeholder='เลือกวันที่'
-                  value={dateRange.end}
-                  onChange={(d) => setDateRange((prev) => ({ ...prev, end: d }))}
-                  minDate={dateRange.start || undefined}
-                />
-              </div>
-              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
-                {REPORT_PERIODS.map((p) => (
-                  <FilterTag
-                    key={p}
-                    value={p}
-                    selected={period === p}
-                    disabled={(PERIOD_RANK[p] ?? 3) > sr}
-                    onClick={() => setPeriod(p)}
-                  />
-                ))}
-              </div>
+            <div className='flex items-end' style={{ gap: 'var(--dim-space-200)' }}>
+              <DateInputBox
+                label='วันที่เริ่มต้น'
+                placeholder='เลือกวันที่'
+                value={dateRange.start}
+                onChange={(d) => {
+                  setDateRange((prev) => ({
+                    start: d,
+                    end: prev.end && d && prev.end.getTime() < d.getTime() ? d : prev.end,
+                  }));
+                }}
+              />
+              <span style={{ color: 'var(--text-content-tertiary)', flexShrink: 0 }}>-</span>
+              <DateInputBox
+                label='วันที่สิ้นสุด'
+                placeholder='เลือกวันที่'
+                value={dateRange.end}
+                onChange={(d) => setDateRange((prev) => ({ ...prev, end: d }))}
+                minDate={dateRange.start || undefined}
+              />
             </div>
             <NeutralSubdueButton leadingIcon='ios_share' size='sm' onClick={() => panels.goTo(1)}>
               นำส่งออกรายงาน
@@ -336,7 +257,7 @@ const ReportTablePopup = ({ open, report, onClose, reportsCatalog, onExported, o
 
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', maxHeight: '58vh', overflowY: 'auto' }}>
             <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', lineHeight: 1.4 }}>
-              รายการ ({period}) {report.key === 'personal-consent' ? '— คลิกแถวเพื่อดูประวัติความยินยอมรายบุคคล' : report.key === 'access-rights' ? '— คลิกแถวเพื่อดูวันเวลาการเข้าถึงรายครั้ง' : ''}
+              รายการ{report.key === 'personal-consent' ? ' — คลิกแถวเพื่อดูประวัติความยินยอมรายบุคคล' : report.key === 'access-rights' ? ' — คลิกแถวเพื่อดูวันเวลาการเข้าถึงรายครั้ง' : ''}
             </span>
             <Table
               columns={columns}
@@ -345,6 +266,7 @@ const ReportTablePopup = ({ open, report, onClose, reportsCatalog, onExported, o
               onRowClick={handleRowClick}
               emptyMessage='ไม่พบข้อมูลในช่วง/คำค้นนี้'
               emptySubtext='ลองล้างคำค้นหรือขยายช่วงวันที่'
+              pagination={false}
             />
             <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)' }}>
               <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
@@ -610,6 +532,11 @@ export function ConsentReportSections({
   const viewReport = viewReportProp ?? viewReportInternal;
   const setViewReport = onViewReportChange ?? setViewReportInternal;
 
+  const dateFiltersActive = (pageDate?.quick || 'thismonth') !== 'thismonth';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(dateFiltersActive, () => {
+    setPageDate({ quick: 'thismonth' });
+  });
+
   /* ตัวเลขล้อตาม FilterDateTag — rebuild จากแถวที่อยู่ในช่วงวัน */
   const reports = useMemo(
     () => reportsProp ?? reportsForDateFilter(pageDate),
@@ -631,19 +558,24 @@ export function ConsentReportSections({
               padding: 'var(--dim-space-300) var(--dim-space-400)',
             }}
           >
-            <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thismonth' />
+            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+              <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thismonth' />
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
+            </div>
             <NeutralSubdueButton leadingIcon='ios_share' size='md' onClick={() => setExportReport({ key: 'all', title: 'รายงานทั้งหมด' })}>
               นำส่งออกรายงานทั้งหมด
             </NeutralSubdueButton>
           </section>
         )}
 
-        {(excludeKeys.length
-          ? reports.filter((r) => !excludeKeys.includes(r.key))
-          : reports
-        ).map((r) => (
-          <ReportCard key={r.key} report={r} scale={1} onExport={setExportReport} onView={setViewReport} />
-        ))}
+        <SmoothFilterResults opaque={resultsOpaque} style={{ gap: 'var(--dim-space-400)' }}>
+          {(excludeKeys.length
+            ? reports.filter((r) => !excludeKeys.includes(r.key))
+            : reports
+          ).map((r) => (
+            <ReportCard key={r.key} report={r} scale={1} onExport={setExportReport} onView={setViewReport} />
+          ))}
+        </SmoothFilterResults>
       </div>
 
       <ReportTablePopup

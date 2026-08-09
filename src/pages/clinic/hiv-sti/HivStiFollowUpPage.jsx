@@ -11,7 +11,9 @@ import DatePickerRange from '@/components/forms/DatePickerRange';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import Popup from '@/components/popup/Popup';
@@ -543,6 +545,9 @@ const HivStiFollowUpPage = () => {
     setPage(1);
   };
 
+  const filtersActive = trackFilter !== 'all' || activeTab !== 'all' || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, clearAllFilters);
+
   /* ── PEP outcome (บันทึก / แก้ไข / ยกเลิก) ───────────────────────── */
 
   const openPepEditor = () => pepEditor.openWith(
@@ -1020,19 +1025,16 @@ const HivStiFollowUpPage = () => {
               </div>
 
               <div className='flex items-center flex-wrap mih-hivsti-noprint' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                <FilterTag
-                  value='ทั้งหมด'
-                  selected={trackFilter === 'all' && activeTab === 'all' && !searchQ.trim()}
-                  onClick={clearAllFilters}
-                />
                 <FilterDropdown
                   prefix='ประเภทการติดตาม:'
                   options={TRACK_FILTER_OPTIONS}
                   value={trackFilter}
                   onChange={(v) => { setTrackFilter(v); setPage(1); }}
                 />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </div>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               <SearchResultCount found={filteredRows.length} total={allRows.length} />
 
               {worklistEmpty ? (
@@ -1076,9 +1078,6 @@ const HivStiFollowUpPage = () => {
                   <span style={{ fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-secondary, #636B72)' }}>
                     ไม่พบรายการที่ตรงกับคำค้นหรือตัวกรองปัจจุบัน
                   </span>
-                  <NeutralSubdueButton variant='outline' size='sm' onClick={clearAllFilters}>
-                    ล้างตัวกรอง
-                  </NeutralSubdueButton>
                 </div>
               ) : (
                 <>
@@ -1098,6 +1097,7 @@ const HivStiFollowUpPage = () => {
                   </div>
                 </>
               )}
+              </SmoothFilterResults>
             </SectionCard>
           ) : unknownClient ? (
             /* ══ Edge — HN ไม่อยู่ในระบบติดตาม (ห้าม fallback เงียบ ๆ) ══ */

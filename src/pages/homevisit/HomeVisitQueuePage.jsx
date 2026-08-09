@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import TabCapsule from '@/components/tab/TabCapsule';
@@ -279,12 +281,14 @@ const HomeVisitQueuePage = () => {
     || filters.slot !== 'all'
     || (filters.dateValue?.quick || 'today') !== 'today'
     || activeTab !== 'today';
-
-  const clearFilters = () => {
-    setSearchQ('');
-    setFilters(FILTER_DEFAULTS);
-    setActiveTab('today');
-  };
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setSearchQ('');
+      setFilters(FILTER_DEFAULTS);
+      setActiveTab('today');
+    },
+  );
 
   const filterSummary = [
     activeTab === 'today' ? null : tabs.find((t) => t.key === activeTab)?.label,
@@ -556,7 +560,6 @@ const HomeVisitQueuePage = () => {
 
             <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                <FilterTag value='ทั้งหมด' selected={!filtersActive} onClick={clearFilters} />
                 <FilterDropdown
                   prefix='กลุ่ม:'
                   options={[{ value: 'all', label: 'ทุกกลุ่ม' }, ...HOMEVISIT_GROUPS.map((g) => ({ value: g.value, label: g.short }))]}
@@ -594,9 +597,11 @@ const HomeVisitQueuePage = () => {
                   value={filters.slot}
                   onChange={(v) => setFilters((f) => ({ ...f, slot: v }))}
                 />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
             </div>
 
+            <SmoothFilterResults opaque={resultsOpaque}>
             <SearchResultCount found={sortedRows.length} total={rows.length} />
 
             <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
@@ -688,6 +693,7 @@ const HomeVisitQueuePage = () => {
                 </div>
               </>
             )}
+            </SmoothFilterResults>
           </div>
         </div>
       </HomeVisitAccessGate>

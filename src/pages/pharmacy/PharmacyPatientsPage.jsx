@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import Badge from '@/components/badge/Badge';
@@ -79,12 +81,15 @@ const PharmacyPatientsPage = () => {
     || lifeFilter !== 'all'
     || searchQ.trim() !== '';
 
-  const clearFilters = () => {
-    setRegStatusFilter('all');
-    setLifeFilter('all');
-    setSearchQ('');
-    setPage(1);
-  };
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setRegStatusFilter('all');
+      setLifeFilter('all');
+      setSearchQ('');
+      setPage(1);
+    },
+  );
 
   const filtered = useMemo(() => {
     let rows = MR_PATIENTS;
@@ -260,33 +265,27 @@ const PharmacyPatientsPage = () => {
               value={lifeFilter}
               onChange={(v) => { setLifeFilter(v); setPage(1); }}
             />
-            {filtersActive ? (
-              <FilterTag
-                variant='neutral'
-                leadingIcon='close'
-                value='ล้างตัวกรอง'
-                showTitle={false}
-                onClick={clearFilters}
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
+          </div>
+
+          <SmoothFilterResults opaque={resultsOpaque}>
+            <SearchResultCount found={sortedRows.length} total={MR_PATIENTS.length} />
+
+            <div className='flex flex-col' style={{ minHeight: 'calc(100vh - 420px)' }}>
+              <Table
+                columns={columns}
+                rows={pageRows}
+                rowKey={(p) => p.hn}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                stickyColCount={1}
+                stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+                onRowClick={(p) => setHistoryPatient(p)}
+                emptyMessage={filtersActive ? 'ไม่พบผู้รับบริการที่ตรงกับตัวกรอง' : 'ยังไม่มีผู้รับบริการในระบบ'}
+                emptySubtext={filtersActive ? 'ลองล้างตัวกรองหรือแก้คำค้นหา' : null}
               />
-            ) : null}
-          </div>
-
-          <SearchResultCount found={sortedRows.length} total={MR_PATIENTS.length} />
-
-          <div className='flex flex-col' style={{ minHeight: 'calc(100vh - 420px)' }}>
-            <Table
-              columns={columns}
-              rows={pageRows}
-              rowKey={(p) => p.hn}
-              sortConfig={sortConfig}
-              onSort={handleSort}
-              stickyColCount={1}
-              stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-              onRowClick={(p) => setHistoryPatient(p)}
-              emptyMessage={filtersActive ? 'ไม่พบผู้รับบริการที่ตรงกับตัวกรอง' : 'ยังไม่มีผู้รับบริการในระบบ'}
-              emptySubtext={filtersActive ? 'ลองล้างตัวกรองหรือแก้คำค้นหา' : null}
-            />
-          </div>
+            </div>
+          </SmoothFilterResults>
 
           <div
             className='flex items-center w-full'

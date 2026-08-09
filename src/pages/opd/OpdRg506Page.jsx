@@ -3,7 +3,9 @@ import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import Table, { EllipsisText as TableEllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
@@ -157,6 +159,17 @@ const OpdRg506Page = () => {
   const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const isAllDefault = diseaseFilter === 'all' && statusFilter === 'all' && (dateValue.quick || 'all') === 'all';
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setDiseaseFilter('all');
+      setStatusFilter('all');
+      setDateValue({ quick: 'all' });
+      setSearchQ('');
+      setPage(1);
+    },
+  );
 
   const columns = useMemo(() => ([
     { key: 'reportNo', label: 'เลขที่รายงาน' },
@@ -330,11 +343,6 @@ const OpdRg506Page = () => {
               </div>
 
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                <FilterTag
-                  value='ทั้งหมด'
-                  selected={isAllDefault}
-                  onClick={() => { setDiseaseFilter('all'); setStatusFilter('all'); setDateValue({ quick: 'all' }); setPage(1); }}
-                />
                 <FilterDropdown
                   prefix='โรค:'
                   options={[
@@ -360,8 +368,10 @@ const OpdRg506Page = () => {
                   defaultQuick='all'
                   quickLabels={{ all: 'ทุกช่วงเวลา', today: 'วันนี้', yesterday: 'เมื่อวาน' }}
                 />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </div>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               <SearchResultCount found={filtered.length} total={cases.length} />
 
               {cases.length === 0 ? (
@@ -403,6 +413,7 @@ const OpdRg506Page = () => {
                   </div>
                 </>
               )}
+              </SmoothFilterResults>
             </div>
           ) : (
             /* ══ RECORD VIEW ══ */

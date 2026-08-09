@@ -6,7 +6,9 @@ import StatusBadge from '@/components/badge/StatusBadge';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import { computeQuickRange, computeQuickSingle } from '@/components/popup/DateFilterPopup';
 import CheckboxBox from '@/components/checkbox/CheckboxBox';
@@ -812,6 +814,28 @@ const XrayQueuePage = () => {
      to an inclusive day range and applied against the row's order day /
      appointment day (see resolveDateRange + rowMatchesDateRange above). */
   const [dateValue, setDateValue] = useState({ quick: 'today' });
+  const filtersActive = query.trim() !== ''
+    || modality !== 'all'
+    || urgency !== 'all'
+    || activeTab !== 'all'
+    || location !== 'all'
+    || resultType !== 'all'
+    || radiologist !== 'all'
+    || (dateValue?.quick || 'today') !== 'today';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setQuery('');
+      setModality('all');
+      setUrgency('all');
+      setActiveTab('all');
+      setLocation('all');
+      setResultType('all');
+      setRadiologist('all');
+      setDateValue({ quick: 'today' });
+      setPage(1);
+    },
+  );
   /* Bulk selection — ids of checked rows on the CURRENT page. Pruned to
      visible rows whenever filters/tab/page change so the selection bar
      can never act on rows the user cannot see. */
@@ -1882,8 +1906,10 @@ const XrayQueuePage = () => {
                 <FilterDropdown prefix='ประเภทผล:' options={RESULT_TYPE_OPTIONS} value={resultType} onChange={setResultType} />
                 <FilterDropdown prefix='ผู้อ่านผล:' options={RADIOLOGIST_OPTIONS} value={radiologist} onChange={setRadiologist} />
                 <FilterDateTag prefix='วันที่ส่งตรวจ:' value={dateValue} onChange={setDateValue} defaultQuick='today' />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
 
+              <SmoothFilterResults opaque={resultsOpaque}>
               <SearchResultCount found={sorted.length} total={liveRows.length} />
 
               {/* ── Sticky selection bar ── appears the moment ≥1 row is
@@ -1985,12 +2011,14 @@ const XrayQueuePage = () => {
                     variant='outline'
                     size='sm'
                     leadingIcon='filter_alt_off'
-                    onClick={() => setDateValue({ quick: 'today' })}
+                    onClick={clearFilters}
                   >
                     ล้างตัวกรอง
                   </NeutralSubdueButton>
                 </div>
               )}
+
+              </SmoothFilterResults>
 
               {/* Legend — what the row glyphs mean, so the affordances in
                   the exam column never need guessing. */}

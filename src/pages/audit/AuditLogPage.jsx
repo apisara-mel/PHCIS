@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import AUDIT_NAV from '@/pages/audit/auditNav';
 import { getAuditLog, subscribeAuditLog } from '@/pages/audit/auditData';
@@ -52,6 +54,15 @@ export default function AuditLogPage() {
     [rows, logSystem, logScope],
   );
 
+  const filtersActive = logScope !== 'today' || !!logSystem;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setLogScope('today');
+      setLogSystem('');
+    },
+  );
+
   const logCols = [
     { key: 'time', header: 'เวลา', render: (r) => <span style={LABEL}>{r.time}</span> },
     { key: 'user', header: 'ผู้ใช้งาน', render: (r) => <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}><Avatar name={r.user} /><span style={VAL}>{r.user}</span></div> },
@@ -90,9 +101,12 @@ export default function AuditLogPage() {
                 value={logSystem}
                 onChange={setLogSystem}
               />
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </div>
           </div>
+          <SmoothFilterResults opaque={resultsOpaque}>
           <Table columns={logCols} rows={filtered} rowKey={(r, i) => `${r.time}-${r.action}-${i}`} />
+          </SmoothFilterResults>
         </section>
       </div>
     </QueuePageShell>

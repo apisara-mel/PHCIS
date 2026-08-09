@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -46,6 +48,14 @@ export default function SystemRolesPage() {
   const roleOptions = useMemo(() => [{ value: '', label: 'Group policy: ทั้งหมด' }, ...ROLES.map((r) => ({ value: r.key, label: r.label }))], []);
   const deptOptions = useMemo(() => [{ value: '', label: 'แผนก: ทั้งหมด' }, ...DEPARTMENTS.map((d) => ({ value: d.key, label: d.label }))], []);
   const isAll = !filterRole && !filterDept;
+  const filtersActive = !isAll;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setFilterRole('');
+      setFilterDept('');
+    },
+  );
   const shownRoles = ROLES.filter((r) => !filterRole || r.key === filterRole);
 
   return (
@@ -67,13 +77,14 @@ export default function SystemRolesPage() {
               เพิ่ม จัดการบุคลากร บทบาท และสิทธิ์การเข้าถึงระบบ · บทบาททั้งหมด {totalSubRoles} รายการ
             </span>
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)', marginTop: 'var(--dim-space-200)' }}>
-              <FilterTag value='ทั้งหมด' selected={isAll} onClick={() => { setFilterRole(''); setFilterDept(''); }} />
               <FilterDropdown prefix='Group policy:' options={roleOptions} value={filterRole} onChange={setFilterRole} />
               <FilterDropdown prefix='แผนก:' options={deptOptions} value={filterDept} onChange={setFilterDept} />
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </div>
           </div>
 
           {/* grouped roles */}
+          <SmoothFilterResults opaque={resultsOpaque}>
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
             {shownRoles.map((role) => (
               <div key={role.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
@@ -104,6 +115,7 @@ export default function SystemRolesPage() {
               </div>
             ))}
           </div>
+          </SmoothFilterResults>
         </section>
       </div>
     </QueuePageShell>

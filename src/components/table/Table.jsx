@@ -10,6 +10,8 @@ import BrandIconButton       from '@/components/button/BrandIconButton';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { isMaskedWorklistNameColumn } from '@/utils/piiMasking';
+import useClientPagination, { DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/useClientPagination';
+import TablePaginationBar from '@/components/table/TablePaginationBar';
 
 /* Skeleton-row pulse — idempotent module-load stylesheet injection so HMR
    doesn't leave a stale <style> behind. Mirrors the AISearch chrome-strip
@@ -1181,6 +1183,16 @@ const Table = ({
      • `fixed` — legacy: use column.width / flex / minWidth as authored. */
   columnFit = 'content',
 
+  /* Client-side paging (system default): pageSize 20, show sticky pager
+     only when `rows.length > pageSize`. Opt out with `pagination={false}`
+     for forms, DnD editMode tables, or pages that already pass a
+     pre-sliced page and render their own <Pagination>. Controlled via
+     `page` + `onPageChange` when the parent owns page state. */
+  pagination = true,
+  pageSize = DEFAULT_TABLE_PAGE_SIZE,
+  page: pageProp,
+  onPageChange,
+
   className = '',
   style = {},
 }) => {
@@ -1196,6 +1208,23 @@ const Table = ({
        2. Body that is the real X-scroll container.
      A small effect syncs `scrollX` so the header tracks the body 1:1. */
   const usePageSticky = stickyHeaderTop !== null;
+
+  const pagingEnabled = pagination !== false && !editMode && !loading;
+  const {
+    pageRows,
+    page: safePage,
+    setPage,
+    totalPages,
+    total: pageTotal,
+    rangeStart,
+    rangeEnd,
+    showPagination,
+  } = useClientPagination(rows, {
+    pageSize,
+    enabled: pagingEnabled,
+    page: pageProp,
+    onPageChange,
+  });
 
   const wrapRef = useRef(null);
   const bodyRef = useRef(null);
@@ -1261,7 +1290,7 @@ const Table = ({
       fontsReady.then(() => { if (!cancelled) run(); });
     }
     return () => { cancelled = true; };
-  }, [fitContent, loading, columns, rows, editMode, sortConfig, headerFloors]);
+  }, [fitContent, loading, columns, pageRows, editMode, sortConfig, headerFloors]);
 
   const stickyLeft = (colIdx) => {
     let left = editMode ? DRAG_COL_W : 0;
@@ -1382,7 +1411,7 @@ const Table = ({
               ))}
             </div>
           ))
-        : rows.map((row, idx) => (
+        : pageRows.map((row, idx) => (
             <Row
               key={rowKey(row)}
               row={row}
@@ -1442,11 +1471,24 @@ const Table = ({
     </>
   );
 
+  const pagerBar = (
+    <TablePaginationBar
+      show={showPagination}
+      total={pageTotal}
+      rangeStart={rangeStart}
+      rangeEnd={rangeEnd}
+      page={safePage}
+      pageCount={totalPages}
+      onPageChange={setPage}
+    />
+  );
+
   /* Page-sticky layout: header is a sibling of (not nested in) the
      X-scroller, so its nearest scroll-container ancestor is the window
      and `top: stickyHeaderTop` resolves against the viewport. */
   if (usePageSticky) {
     return (
+      <>
       <div
         ref={wrapRef}
         className={`w-full ${className}`}
@@ -1528,6 +1570,8 @@ const Table = ({
           </div>
         </div>
       </div>
+      {pagerBar}
+      </>
     );
   }
 
@@ -1535,6 +1579,7 @@ const Table = ({
      to the top of the wrapper. Preserved for forms / popups where the
      surrounding context already manages page scroll. */
   return (
+    <>
     <div
       ref={wrapRef}
       className={`w-full overflow-x-auto ${className}`}
@@ -1563,7 +1608,10 @@ const Table = ({
         {rowsAndEmpty}
       </div>
     </div>
+    {pagerBar}
+    </>
   );
 };
 
 export default Table;
+export { DEFAULT_TABLE_PAGE_SIZE };

@@ -1481,7 +1481,6 @@ const TabUnderlineStateTable = ({ cellMinWidth = 160 }) => (
                 <TabUnderlineItem
                   size={row.key}
                   label='Tab Label'
-                  leadingIcon='pets'
                   {...col.props}
                 />
               </td>

@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -791,6 +793,15 @@ const QueuePage = () => {
     filters.type            === FILTER_DEFAULTS.type       &&
     filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick &&
     filters.time            === FILTER_DEFAULTS.time;
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => {
+      setFilters(FILTER_DEFAULTS);
+      setSearchQ('');
+      setPage(1);
+    },
+  );
 
   /* Draft callout — Figma 264:80153 / 264:56523. Always derived from the
      full row set so the sakura section keeps drawing attention even when
@@ -976,11 +987,6 @@ const QueuePage = () => {
                 itemGap='var(--dim-space-200)'
                 moreAriaLabel='แสดงตัวกรองที่ซ่อน'
               >
-                <FilterTag
-                  value='ทั้งหมด'
-                  selected={isAllDefault}
-                  onClick={() => setFilters(FILTER_DEFAULTS)}
-                />
                 <FilterDropdown
                   prefix='แผนก:'
                   options={FILTER_OPTIONS.department}
@@ -1012,6 +1018,7 @@ const QueuePage = () => {
                   value={filters.time}
                   onChange={setFilter('time')}
                 />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
               <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
                 <NeutralSubdueButton
@@ -1033,6 +1040,7 @@ const QueuePage = () => {
               </div>
             </div>
 
+            <SmoothFilterResults opaque={resultsOpaque}>
             <SearchResultCount found={sortedRows.length} total={rows.length} />
 
             {/* Draft callout — Figma 264:80153 / 264:56523. Lives INSIDE
@@ -1143,6 +1151,7 @@ const QueuePage = () => {
               <div className='flex-1' />
               <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
             </div>
+            </SmoothFilterResults>
           </div>
         </div>
     </QueuePageShell>

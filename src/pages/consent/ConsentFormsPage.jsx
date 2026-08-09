@@ -5,6 +5,8 @@ import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
@@ -205,6 +207,11 @@ export default function ConsentFormsPage() {
   const [filterCreator, setFilterCreator] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate, setFilterDate] = useState({ quick: 'thismonth' });
+
+  const filtersActive = search.trim() !== '' || !!filterGroup || !!filterSubBranch || !!filterDept || !!filterCreator || !!filterStatus || (filterDate?.quick && filterDate.quick !== 'thismonth');
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setSearch(''); setFilterGroup(''); setFilterSubBranch(''); setFilterDept(''); setFilterCreator(''); setFilterStatus(''); setFilterDate({ quick: 'thismonth' }); setPage(1);
+  });
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState(() => {
@@ -537,6 +544,7 @@ export default function ConsentFormsPage() {
                 onChange={(v) => { setFilterDate(v); setPage(1); }}
                 defaultQuick='thisyear'
               />
+              <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </div>
             <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
               <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>มุมมอง</span>
@@ -545,6 +553,7 @@ export default function ConsentFormsPage() {
           </div>
 
           {viewMode === 'list' ? (
+            <SmoothFilterResults opaque={resultsOpaque}>
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
               <Table
                 columns={columns}
@@ -573,7 +582,9 @@ export default function ConsentFormsPage() {
             <div className='w-full flex flex-col items-center justify-center' style={{ minHeight: 200 }}>
               <span style={{ ...MUTED_CELL }}>ไม่พบแบบฟอร์มความยินยอม</span>
             </div>
-          ) : (
+                    </SmoothFilterResults>
+
+) : (
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
               {grouped.map((g) => (
                 <GroupSection

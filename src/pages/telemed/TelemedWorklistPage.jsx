@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
@@ -190,6 +192,11 @@ const TelemedWorklistPage = () => {
     filters.doctor === FILTER_DEFAULTS.doctor &&
     filters.authen === FILTER_DEFAULTS.authen &&
     filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick;
+
+  const filtersActive = !isAllDefault || searchQ.trim() !== '';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters(FILTER_DEFAULTS); setSearchQ(''); setPage(1);
+  });
 
   const filtered = useMemo(() => {
     let rows = byTab;
@@ -674,11 +681,6 @@ const TelemedWorklistPage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag
-                value='ทั้งหมด'
-                selected={isAllDefault}
-                onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); setPage(1); }}
-              />
               <FilterDropdown prefix='หน่วยบริการต้นทาง:' options={filterOptions.origin} value={filters.origin} onChange={setFilter('origin')} />
               <FilterDropdown prefix='แพทย์:' options={filterOptions.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='Authen:' options={filterOptions.authen} value={filters.authen} onChange={setFilter('authen')} />
@@ -689,9 +691,11 @@ const TelemedWorklistPage = () => {
                 defaultQuick={FILTER_DEFAULTS.dateValue.quick}
                 quickLabels={DATE_CHIP_LABELS}
               />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
+          <SmoothFilterResults opaque={resultsOpaque}>
           <SearchResultCount found={sortedRows.length} total={visits.length} />
 
           {/* แถบส่งตรวจ (คู่มือบท 3 §4) */}
@@ -743,16 +747,7 @@ const TelemedWorklistPage = () => {
               icon='search_off'
               title='ไม่พบรายการที่ตรงกับการค้นหา / ตัวกรอง'
               hint='ลองปรับคำค้นหรือล้างตัวกรองเพื่อดูรายการทั้งหมดในแท็บนี้'
-              action={(
-                <NeutralSubdueButton
-                  size='md'
-                  variant='outline'
-                  leadingIcon='filter_alt_off'
-                  onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); setPage(1); }}
-                >
-                  ล้างตัวกรอง
-                </NeutralSubdueButton>
-              )}
+              
             />
           ) : (
             <>
@@ -773,6 +768,8 @@ const TelemedWorklistPage = () => {
               </PagerBar>
             </>
           )}
+          </SmoothFilterResults>
+
         </ContentCard>
       </div>
 

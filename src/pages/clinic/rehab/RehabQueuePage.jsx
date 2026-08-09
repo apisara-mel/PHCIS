@@ -4,7 +4,9 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag, { FilterDropdown } from '@/components/forms/FilterTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -456,6 +458,13 @@ const RehabQueuePage = () => {
      ล้างตัวกรอง escape hatch, an untouched empty tab does not (Nielsen #9:
      help users recognise + recover). */
   const filtersOrSearchActive = !isAllDefault || searchQ.trim() !== '';
+
+  const filtersActive = filtersOrSearchActive;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
+    setFilters(FILTER_DEFAULTS);
+    setSearchQ('');
+    setPage(1);
+  });
   const emptyMessage = filtersOrSearchActive
     ? 'ไม่พบรายการที่ตรงกับคำค้นหาหรือตัวกรองที่เลือก'
     : 'วันนี้ยังไม่มีคิวในกลุ่มนี้';
@@ -517,7 +526,6 @@ const RehabQueuePage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterTag value='ทั้งหมด' selected={isAllDefault} onClick={() => { setFilters(FILTER_DEFAULTS); setPage(1); }} />
               <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.serviceType} value={filters.serviceType} onChange={changeFilter('serviceType')} />
               <FilterDropdown prefix='สาเหตุ:' options={FILTER_OPTIONS.cause} value={filters.cause} onChange={changeFilter('cause')} />
               <FilterDropdown prefix='ผู้รักษา:' options={FILTER_OPTIONS.therapist} value={filters.therapist} onChange={changeFilter('therapist')} />
@@ -530,6 +538,7 @@ const RehabQueuePage = () => {
                 quickLabels={DATE_CHIP_LABELS}
               />
               <FilterDropdown prefix='เวลา:' options={FILTER_OPTIONS.time} value={filters.time} onChange={changeFilter('time')} />
+            <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
@@ -542,7 +551,8 @@ const RehabQueuePage = () => {
               emptyMessage='ไม่มีนัดหมายที่ยังไม่มาติดต่อวันนี้'
             />
           ) : (
-            <>
+            <SmoothFilterResults opaque={resultsOpaque}>
+              <>
               <SearchResultCount found={sortedRows.length} total={rows.length} />
               <Table
                 columns={columns}
@@ -555,18 +565,6 @@ const RehabQueuePage = () => {
                 stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
                 emptyMessage={emptyMessage}
               />
-
-              {sortedRows.length === 0 && filtersOrSearchActive && (
-                <div className='flex items-center justify-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-                  <NeutralSubdueButton
-                    size='sm'
-                    leadingIcon='filter_alt_off'
-                    onClick={() => { setFilters(FILTER_DEFAULTS); setSearchQ(''); setPage(1); }}
-                  >
-                    ล้างตัวกรองและคำค้นหา
-                  </NeutralSubdueButton>
-                </div>
-              )}
 
               <div
                 className='flex items-center w-full'
@@ -586,7 +584,8 @@ const RehabQueuePage = () => {
                 <div className='flex-1' />
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
-            </>
+              </>
+            </SmoothFilterResults>
           )}
         </div>
       </div>
