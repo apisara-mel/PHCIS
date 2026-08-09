@@ -116,7 +116,9 @@ const SCHEMA = {
   severityRequired: true,
   statusRequired:   true,
   symptomRequired:  true,
-  noteRequired:     true,
+  /* หมายเหตุ is optional — most allergy entries carry nothing beyond the
+     symptom, and forcing a note made clinicians type filler to move on. */
+  noteRequired:     false,
   /* PHCIS | OPD 334:56417 — three severity levels (ColorfulBadge red / orange / blue). */
   severityOptions: [
     { value: 'high',   label: 'รุนแรง'   },

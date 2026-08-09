@@ -684,6 +684,13 @@ const SymptomStep = ({ onValidityChange }) => {
         onConfirm={(id) => {
           setSelectedBedId(id);
           setOrders((o) => ({ ...o, bed: true }));
+          /* สั่งเตียง = ส่งผู้ป่วยเข้าระบบสังเกตอาการ — เปิดคิวสังเกตอาการใน
+             แท็บใหม่ เพื่อให้พยาบาลรับเคสต่อได้ทันทีโดยไม่ทิ้งแบบคัดกรอง
+             ที่ยังกรอกค้างอยู่ในแท็บเดิม (เรียกจากปุ่มยืนยันของ popup จึง
+             ไม่โดน popup blocker) */
+          if (typeof window !== 'undefined') {
+            window.open(`/observation?bed=${encodeURIComponent(id)}`, '_blank', 'noopener,noreferrer');
+          }
         }}
       />
 
