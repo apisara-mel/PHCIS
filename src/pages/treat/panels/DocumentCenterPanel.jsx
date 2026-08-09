@@ -23,7 +23,11 @@ import {
   DOC_TEMPLATES, docTemplateMeta, docStatusMeta, DOC_CANCEL_SUGGESTIONS,
   subscribeDocuments, documentsForPatient,
   issueDocument, printDocument, cancelDocument, setDocumentConfidential,
+  /* §1.5.11.5 / §1.4.10.11 — ลายมือชื่ออิเล็กทรอนิกส์ผูกใบรับรอง (mock) */
+  SIGNING_CERTIFICATES, certificateMeta, signDocument, signatureStatusOf,
+  DEMO_SIGNING_PIN, MAX_PIN_ATTEMPTS, pinStateFor, registerPinFailure,
 } from '@/data/treatmentDocuments';
+import { NO_EDIT_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
 
 /* PHCIS | EMR §1.4.6.2 – §1.4.6.5 / §1.4.10.9 / §1.4.10.11 —
    ศูนย์เอกสารและ e-Document ของการตรวจครั้งนี้.
@@ -112,6 +116,12 @@ const DocumentCenterPanel = ({ form, setForm, patient }) => {
   const [issueResult, setIssueResult] = useState(null);
   const [emptyRangeWarn, setEmptyRangeWarn] = useState(false);
   const [signatureGuard, setSignatureGuard] = useState(null);
+  /* §1.5.11.5 — เลือกใบรับรอง + ยืนยัน PIN ก่อนลงนามดิจิทัล */
+  const [signTarget, setSignTarget] = useState(null);
+  const [signCert, setSignCert] = useState('');
+  const [signPin, setSignPin] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [signResult, setSignResult] = useState(null);
 
   const hasDiagnosis = (form?.diagnoses || []).length > 0;
   const hasSignature = !!form?.certSignature;
@@ -210,10 +220,51 @@ const DocumentCenterPanel = ({ form, setForm, patient }) => {
       key: 'printCount', header: 'พิมพ์แล้ว',
       render: (row) => <span style={PANEL_LABEL_STYLE}>{row.printCount || 0} ครั้ง</span>,
     },
+    /* §1.5.11.5 + §1.4.10.11 — คอลัมน์ลายเซ็นดิจิทัลในทะเบียน e-Document */
+    {
+      key: 'signature', header: 'ลายเซ็นดิจิทัล',
+      render: (row) => {
+        const st = signatureStatusOf(row);
+        const sig = row.signature;
+        if (st.key === 'unsigned') {
+          return <StatusBadge style={st.badge} size='small' icon='draw'>{st.label}</StatusBadge>;
+        }
+        return (
+          <Tooltip
+            position='top'
+            content={`${sig.signerName} (${sig.licenseNo}) · ใบรับรอง serial ${sig.serial} · ออกโดย ${sig.issuer} · หมดอายุ ${sig.expiresAt} · ลงนาม ${sig.signedAt} · digest ${sig.digest}${sig.invalidated ? ` · เป็นโมฆะ: ${sig.invalidatedReason}` : ''}`}
+          >
+            <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 'var(--dim-space-100, 4px)' }}>
+              <StatusBadge style={st.badge} size='small' icon={st.key === 'invalid' ? 'gpp_bad' : 'verified_user'}>
+                {st.label}
+              </StatusBadge>
+              <span style={PANEL_LABEL_STYLE}>{sig.signerName} · {sig.signedAt}</span>
+            </span>
+          </Tooltip>
+        );
+      },
+    },
     {
       key: 'actions', header: '',
       render: (row) => (
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          {/* ลงนามดิจิทัล / ลงนามใหม่เมื่อลายเซ็นเดิมเป็นโมฆะ */}
+          <GuardedAction
+            allowed={access.canEdit && row.status !== 'cancelled'
+              && signatureStatusOf(row).key !== 'signed'}
+            reason={row.status === 'cancelled'
+              ? 'เอกสารถูกยกเลิกแล้ว — ลงนามไม่ได้'
+              : signatureStatusOf(row).key === 'signed'
+                ? 'เอกสารฉบับนี้ลงนามดิจิทัลแล้ว'
+                : NO_EDIT_RIGHT_TOOLTIP}
+          >
+            <NeutralSubdueButton
+              variant='outline' size='sm' leadingIcon='draw'
+              onClick={() => { setSignTarget(row); setSignCert(''); setSignPin(''); setPinError(''); }}
+            >
+              {signatureStatusOf(row).key === 'invalid' ? 'ลงนามใหม่' : 'ลงนามดิจิทัล'}
+            </NeutralSubdueButton>
+          </GuardedAction>
           <GuardedAction allowed={access.canEdit && row.status !== 'cancelled'}>
             <NeutralSubdueButton
               variant='outline' size='sm' leadingIcon='print'
@@ -244,6 +295,9 @@ const DocumentCenterPanel = ({ form, setForm, patient }) => {
   if (!access.canView) return <AccessDeniedPanel what='ศูนย์เอกสารของผู้รับบริการ' />;
 
   const pickedTpl = docTemplateMeta(picked);
+  /* เอกสารที่ถูกล็อกเพราะใส่ PIN ผิดครบจำนวน — ใช้สลับปุ่มหลักของ dialog
+     ลงนามให้เป็นทางออก แทนปุ่มที่กดแล้วไม่เกิดอะไรขึ้น */
+  const signLocked = !!(signTarget && pinStateFor(signTarget.id).lockedAt);
 
   return (
     <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
@@ -442,6 +496,139 @@ const DocumentCenterPanel = ({ form, setForm, patient }) => {
         onConfirm={() => setSignatureGuard(null)}
         onClose={() => setSignatureGuard(null)}
       />
+
+      {/* §1.5.11.5 — ลงนามดิจิทัล: เลือกใบรับรอง → ยืนยัน PIN → ประทับ digest.
+          เมื่อเอกสารถูกล็อกเพราะใส่ PIN ผิดครบจำนวน ลงนามไม่ได้จริง ๆ ปุ่มหลัก
+          จึงกลายเป็นทางออก "ปิด" (เดิมกดแล้วเงียบ ไม่มีอะไรเกิดขึ้น) */}
+      <AlertDialog
+        open={!!signTarget}
+        type='info'
+        title='ลงนามดิจิทัลบนเอกสาร'
+        description={signTarget
+          ? `${signTarget.title} (${signTarget.docNo}) — เลือกใบรับรองอิเล็กทรอนิกส์ของผู้ลงนาม แล้วยืนยันรหัส PIN`
+          : ''}
+        confirmLabel={signLocked ? 'ปิด' : 'ยืนยันและลงนาม'}
+        cancelLabel='ยกเลิก'
+        showCancel={!signLocked}
+        onConfirm={() => {
+          if (!signTarget) return;
+          if (signLocked) { setSignTarget(null); return; }
+          if (!signCert) { setPinError('ต้องเลือกใบรับรองก่อนลงนาม'); return; }
+          const cert = certificateMeta(signCert);
+          if (cert?.expired) {
+            /* ใบรับรองหมดอายุ → บล็อกพร้อมเหตุผล + เสนอ fallback ลายเซ็นมือ */
+            setSignResult(signDocument(signTarget.id, signCert));
+            setSignTarget(null);
+            return;
+          }
+          if (signPin !== DEMO_SIGNING_PIN) {
+            const state = registerPinFailure(signTarget.id);
+            if (state.lockedAt) {
+              setSignResult({
+                ok: false,
+                message: `ใส่รหัส PIN ผิดครบ ${MAX_PIN_ATTEMPTS} ครั้ง — ระบบล็อกการลงนามของเอกสารฉบับนี้ไว้ชั่วคราวเมื่อ ${state.lockedAt} กรุณาติดต่อผู้ดูแลระบบเพื่อปลดล็อก หรือใช้ลายเซ็นมือบนเอกสารที่พิมพ์แทน`,
+              });
+              setSignTarget(null);
+              return;
+            }
+            setPinError(`รหัส PIN ไม่ถูกต้อง — เหลืออีก ${MAX_PIN_ATTEMPTS - state.attempts} ครั้งก่อนถูกล็อกชั่วคราว`);
+            setSignPin('');
+            return;
+          }
+          setSignResult(signDocument(signTarget.id, signCert));
+          setSignTarget(null);
+        }}
+        onCancel={() => setSignTarget(null)}
+        onClose={() => setSignTarget(null)}
+      >
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          {signTarget && pinStateFor(signTarget.id).lockedAt ? (
+            <PanelAlert tone='error' icon='lock_clock' title='การลงนามของเอกสารฉบับนี้ถูกล็อกชั่วคราว'>
+              ใส่รหัส PIN ผิดครบ {MAX_PIN_ATTEMPTS} ครั้งเมื่อ {pinStateFor(signTarget.id).lockedAt} —
+              ติดต่อผู้ดูแลระบบเพื่อปลดล็อก หรือพิมพ์เอกสารแล้วลงลายมือชื่อด้วยปากกาแทน
+            </PanelAlert>
+          ) : null}
+
+          <Select
+            label='ใบรับรองอิเล็กทรอนิกส์ของผู้ลงนาม'
+            required
+            value={signCert}
+            onChange={(v) => { setSignCert(v); setPinError(''); }}
+            options={SIGNING_CERTIFICATES.map((c) => ({
+              value: c.id,
+              label: `${c.holder} (${c.licenseNo})${c.expired ? ' — ใบรับรองหมดอายุ' : ''}`,
+            }))}
+            placeholder='เลือกใบรับรอง'
+          />
+
+          {signCert ? (
+            (() => {
+              const c = certificateMeta(signCert);
+              return (
+                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+                    <span style={PANEL_LABEL_STYLE}>ผู้ถือใบรับรอง: <b>{c.holder}</b> · {c.role}</span>
+                  </div>
+                  <span style={PANEL_LABEL_STYLE}>หมายเลขใบรับรอง (serial): {c.serial}</span>
+                  <span style={PANEL_LABEL_STYLE}>ผู้ออกใบรับรอง: {c.issuer}</span>
+                  <span style={PANEL_LABEL_STYLE}>
+                    อายุใบรับรอง: {c.issuedAt} — {c.expiresAt}
+                  </span>
+                  {c.expired ? (
+                    <PanelAlert tone='error' icon='gpp_bad' title='ใบรับรองนี้หมดอายุแล้ว'>
+                      หมดอายุเมื่อ {c.expiresAt} — ลงนามดิจิทัลไม่ได้ ต้องต่ออายุใบรับรองกับผู้ให้บริการออกใบรับรองก่อน
+                      ระหว่างนี้ให้พิมพ์เอกสารแล้วลงลายมือชื่อด้วยปากกาแทน
+                    </PanelAlert>
+                  ) : null}
+                </div>
+              );
+            })()
+          ) : null}
+
+          <InputField
+            label='รหัส PIN ของใบรับรอง'
+            required
+            type='password'
+            value={signPin}
+            onChange={(v) => { setSignPin(v); setPinError(''); }}
+            showLeadingIcon={false}
+            placeholder='ใส่รหัส PIN 6 หลัก'
+            helperText={`ระบบสาธิตใช้รหัส ${DEMO_SIGNING_PIN} · ใส่ผิดครบ ${MAX_PIN_ATTEMPTS} ครั้งจะถูกล็อกชั่วคราว`}
+            error={pinError || undefined}
+          />
+
+          <PanelAlert tone='warning' icon='info' title='ขอบเขตของลายเซ็นดิจิทัลในระบบต้นแบบ'>
+            ระบบประทับบล็อกลายเซ็นพร้อมค่า digest ของเอกสารและข้อมูลใบรับรองจริงตามรูปแบบที่กำหนด
+            แต่ <b>ยังไม่ได้เซ็นด้วยกุญแจส่วนตัวใน HSM/Token จริง และไม่มี CA ตรวจสอบย้อนกลับ</b> —
+            ต้องต่อกับผู้ให้บริการออกใบรับรอง (CA) จริงจึงจะมีผลผูกพันตามกฎหมาย
+          </PanelAlert>
+        </div>
+      </AlertDialog>
+
+      {/* ผลการลงนาม */}
+      <AlertDialog
+        open={!!signResult}
+        type={signResult?.ok ? 'success' : 'warning'}
+        title={signResult?.ok ? 'ลงนามดิจิทัลสำเร็จ' : 'ลงนามดิจิทัลไม่สำเร็จ'}
+        description={signResult?.message || ''}
+        confirmLabel='ตกลง'
+        showCancel={false}
+        onConfirm={() => setSignResult(null)}
+        onClose={() => setSignResult(null)}
+      >
+        {signResult?.ok && signResult.row?.signature ? (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            <span style={PANEL_VALUE_STYLE}>
+              ลงนามดิจิทัลโดย {signResult.row.signature.signerName} ({signResult.row.signature.licenseNo})
+            </span>
+            <span style={PANEL_LABEL_STYLE}>เมื่อ {signResult.row.signature.signedAt}</span>
+            <span style={PANEL_LABEL_STYLE}>digest: {signResult.row.signature.digest}</span>
+            <span style={PANEL_LABEL_STYLE}>
+              บล็อกนี้จะถูกประทับบนเอกสารที่พิมพ์ และแสดงในคอลัมน์ "ลายเซ็นดิจิทัล" ของทะเบียน e-Document
+            </span>
+          </div>
+        ) : null}
+      </AlertDialog>
     </div>
   );
 };

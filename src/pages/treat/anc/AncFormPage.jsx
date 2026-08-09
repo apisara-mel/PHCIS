@@ -92,6 +92,7 @@ const AncFormPage = () => {
         />
         <PatientCard
           sticky
+          showBack={false}
           patient={cardPatient}
           title={`บันทึกฝากครรภ์ — ตรวจครรภ์ครั้งที่ ${seed.visitNo}`}
           drugAllergies={patient.drugAllergies}

@@ -15,6 +15,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import StatusBadge from '@/components/badge/StatusBadge';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
+import AlertDialog from '@/components/popup/AlertDialog';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import { TelemedCallStatsCard } from '@/components/graph/DashboardCards';
@@ -37,6 +38,16 @@ import {
 import { getTelemedVisits } from '@/data/telemedVisits';
 import { consentCoverage } from '@/data/telemedConsent';
 import { getAuditLog, subscribeAuditLog } from '@/pages/audit/auditData';
+import {
+  AUDIT_SESSION_ID,
+  TELEMED_AUDIT_RETENTION_LABEL,
+  auditStorageState,
+  getPreviousSessionAudit,
+  persistedAuditCounts,
+  purgePersistedAudit,
+  startTelemedAuditMirror,
+  subscribePersistedAudit,
+} from '@/utils/telemedAuditPersist';
 import {
   TELEMED_DEFAULT_ROLE,
   telemedCan,
@@ -67,6 +78,13 @@ import {
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:telemed-report';
 const PAGE_SIZE = 20;
+
+/* ที่มาของแต่ละแถวในแท็บบันทึกการเข้าใช้งาน (TOR §1.13.11) */
+const AUDIT_SOURCE_META = {
+  live:   { label: 'สด (session นี้)', tone: 'teal' },
+  stored: { label: 'จากเครื่อง',        tone: 'indigo' },
+  seed:   { label: 'ข้อมูลย้อนหลัง',    tone: 'grey' },
+};
 
 const TABS = [
   { key: 'stats', label: 'สถิติการปรึกษาทางไกล', icon: 'bar_chart' },
@@ -155,6 +173,7 @@ const TelemedReportPage = () => {
   const [outcomeFilter, setOutcomeFilter] = useState('all');
   const [dateValue, setDateValue] = useState({ quick: 'last30' });
   const [auditTick, setAuditTick] = useState(0);
+  const [purgeOpen, setPurgeOpen] = useState(false);
 
   const [from, setFrom] = useState(() => {
     const d = new Date();
@@ -168,6 +187,10 @@ const TelemedReportPage = () => {
     useSearchHistory(SEARCH_HISTORY_KEY, { seedIfEmpty: [] });
 
   useEffect(() => subscribeAuditLog(() => setAuditTick((t) => t + 1)), []);
+  /* TOR §1.13.11 — สะท้อน audit ของโมดูลลง localStorage เพื่อให้แถวรอด refresh
+     (auditData.js เป็น log ในหน่วยความจำของโมดูลอื่น จึงห่อไว้ ไม่แก้ไฟล์นั้น) */
+  useEffect(() => { startTelemedAuditMirror(); }, []);
+  useEffect(() => subscribePersistedAudit(() => setAuditTick((t) => t + 1)), []);
 
   const canSeeAll = telemedCan(role, 'stats');
   const canSeeAudit = telemedCan(role, 'audit') || telemedCan(role, 'stats');
@@ -221,7 +244,14 @@ const TelemedReportPage = () => {
   const monthly = useMemo(() => monthlySeries(calls), [calls]);
   const hourly = useMemo(() => hourlyBuckets(calls), [calls]);
 
-  /* ── audit rows: seed + live ─────────────────────────────────────── */
+  /* ── audit rows: seed + จากเครื่อง (session ก่อนหน้า) + สด ────────────
+     TOR §1.13.11 — แถวจาก session ปัจจุบันเคยหายเมื่อ refresh เพราะ
+     auditData.js เก็บในหน่วยความจำอย่างเดียว. ตอนนี้ telemedAuditPersist
+     สะท้อนลง localStorage แล้ว จึงรวมสามแหล่งโดยไม่ให้ซ้ำกัน:
+       live   — อ่านจาก auditData ของ session นี้ (แหล่งความจริงขณะทำงาน)
+       stored — แถวที่เก็บไว้จาก session ก่อน ๆ (แถวของ session นี้ถูกตัดออก
+                เพราะ live ครอบคลุมอยู่แล้ว)
+       seed   — ข้อมูลย้อนหลังจำลองจาก telemedCallStats.js */
   const auditRows = useMemo(() => {
     const seed = getTelemedAuditSeed();
     const live = getAuditLog()
@@ -238,13 +268,52 @@ const TelemedReportPage = () => {
         ok: r.ok,
         result: r.ok ? 'สำเร็จ' : 'ล้มเหลว',
         live: true,
+        source: 'live',
       }));
-    const combined = [...live, ...seed.map((r) => ({ ...r, timeLabel: `${formatStatDate(r.at)} ${formatStatTime(r.at)}` }))];
+    const stored = getPreviousSessionAudit().map((r) => ({
+      id: r.id,
+      at: new Date(r.storedAt).toISOString(),
+      timeLabel: `${formatStatDate(new Date(r.storedAt))} ${r.time}`,
+      user: r.user,
+      action: r.action,
+      hn: '',
+      name: '',
+      ip: `บันทึกในเครื่อง (${r.sessionId})`,
+      ok: r.ok,
+      result: r.ok ? 'สำเร็จ' : 'ล้มเหลว',
+      live: false,
+      source: 'stored',
+    }));
+    const combined = [
+      ...live,
+      ...stored,
+      ...seed.map((r) => ({
+        ...r,
+        timeLabel: `${formatStatDate(r.at)} ${formatStatTime(r.at)}`,
+        source: 'seed',
+      })),
+    ];
     if (!searchQ.trim()) return combined;
     const q = searchQ.trim().toLowerCase();
     return combined.filter((r) => [r.user, r.action, r.hn, r.name, r.result].some((f) => f && String(f).toLowerCase().includes(q)));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auditTick, searchQ]);
+
+  const auditStore = auditStorageState();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const auditCounts = useMemo(() => persistedAuditCounts(), [auditTick]);
+  /* การล้างบันทึกในเครื่องเป็นการทำลายหลักฐาน → เฉพาะเจ้าหน้าที่ PDPA */
+  const canPurgeAudit = role === 'pdpa';
+
+  const confirmPurgeAudit = () => {
+    const removed = purgePersistedAudit();
+    /* การล้างเองต้องถูกบันทึก และแถวนี้จะถูกเก็บลงเครื่องรอบใหม่ทันที */
+    logTelemedEvent(role, 'ล้างบันทึกการเข้าใช้งานที่เก็บในเครื่อง', {
+      detail: `ลบ ${removed} รายการ (session ${AUDIT_SESSION_ID})`,
+    });
+    setPurgeOpen(false);
+    setAuditTick((t) => t + 1);
+  };
 
   const activeRows = tab === 'stats' ? calls : auditRows;
 
@@ -288,11 +357,12 @@ const TelemedReportPage = () => {
         ]),
       ]
       : [
-        ['เวลา', 'ผู้ใช้', 'เหตุการณ์', 'HN', 'ผลลัพธ์', 'IP'],
+        ['เวลา', 'ผู้ใช้', 'เหตุการณ์', 'HN', 'ผลลัพธ์', 'IP', 'แหล่งข้อมูล'],
         ...auditRows.map((r) => [
           r.timeLabel, r.user, r.action,
           canSeePii ? r.hn : maskPii(r.hn, role),
           r.result, r.ip,
+          (AUDIT_SOURCE_META[r.source] || AUDIT_SOURCE_META.seed).label,
         ]),
       ];
     const csv = rows.map((r) => r.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -387,11 +457,14 @@ const TelemedReportPage = () => {
         {r.result}
       </StatusBadge>
     ) },
-    { key: 'live',      label: 'แหล่งข้อมูล', sortable: false, render: (r) => (
-      <ColorfulBadge style={r.live ? 'teal' : 'grey'} size='small' hierarchy='secondary'>
-        {r.live ? 'session ปัจจุบัน' : 'ประวัติย้อนหลัง'}
-      </ColorfulBadge>
-    ) },
+    { key: 'source',    label: 'แหล่งข้อมูล', sortable: false, render: (r) => {
+      const meta = AUDIT_SOURCE_META[r.source] || AUDIT_SOURCE_META.seed;
+      return (
+        <ColorfulBadge style={meta.tone} size='small' hierarchy='secondary'>
+          {meta.label}
+        </ColorfulBadge>
+      );
+    } },
   ]), [role]);
 
   return (
@@ -437,6 +510,37 @@ const TelemedReportPage = () => {
           <PageBanner tone='warning' icon='visibility_off' title='ข้อมูลผู้รับบริการถูกปิดบัง'>
             {telemedDenyReason(role, 'audit')} — เห็นเหตุการณ์ได้แต่ HN/ชื่อถูกปิดบังตาม TOR §1.4.2
           </PageBanner>
+        )}
+
+        {/* ── สถานะการเก็บบันทึกการเข้าใช้งานไว้ในเครื่อง (TOR §1.13.11) ── */}
+        {tab === 'audit' && (
+          auditStore.ok ? (
+            <PageBanner
+              tone='info'
+              icon='save'
+              title='บันทึกการเข้าใช้งานถูกเก็บไว้ในเครื่อง — ไม่หายเมื่อรีเฟรชหน้า'
+              actions={canPurgeAudit ? (
+                <NeutralSubdueButton
+                  size='sm'
+                  variant='outline'
+                  leadingIcon='delete_sweep'
+                  disabled={auditCounts.total === 0}
+                  title={auditCounts.total === 0 ? 'ยังไม่มีบันทึกที่เก็บไว้ในเครื่อง' : undefined}
+                  onClick={() => setPurgeOpen(true)}
+                >
+                  ล้างข้อมูลในเครื่อง
+                </NeutralSubdueButton>
+              ) : undefined}
+            >
+              {`เก็บไว้แล้ว ${auditCounts.total} รายการ (จาก session นี้ ${auditCounts.thisSession} · จาก session ก่อนหน้า ${auditCounts.previous}) · ${TELEMED_AUDIT_RETENTION_LABEL}`}
+              {' — ระบบยังไม่มี audit service ฝั่งเซิร์ฟเวอร์ จึงเก็บไว้ที่เบราว์เซอร์เครื่องนี้เท่านั้น (ข้อมูลไม่ข้ามเครื่อง)'}
+              {!canPurgeAudit && ' · การล้างบันทึกทำได้เฉพาะเจ้าหน้าที่ IT / PDPA'}
+            </PageBanner>
+          ) : (
+            <PageBanner tone='warning' icon='sd_card_alert' title='เก็บบันทึกลงเครื่องไม่ได้ — กลับไปใช้หน่วยความจำชั่วคราว'>
+              {auditStore.reason} — แถวของ session ปัจจุบันยังแสดงครบ แต่จะหายเมื่อปิดแท็บ
+            </PageBanner>
+          )
         )}
 
         <ContentCard>
@@ -623,6 +727,19 @@ const TelemedReportPage = () => {
           )}
         </ContentCard>
       </div>
+
+      {/* ── ล้างบันทึกการเข้าใช้งานที่เก็บในเครื่อง (เฉพาะ IT / PDPA) ── */}
+      <AlertDialog
+        open={purgeOpen}
+        type='destructive'
+        title='ล้างบันทึกการเข้าใช้งานที่เก็บในเครื่อง'
+        description={`จะลบบันทึก ${auditCounts.total} รายการที่เก็บไว้ในเบราว์เซอร์เครื่องนี้ (ข้อมูลย้อนหลังจำลองและเหตุการณ์ของ session ปัจจุบันยังแสดงอยู่) — การล้างครั้งนี้จะถูกบันทึกเป็นเหตุการณ์ใหม่พร้อมชื่อผู้ดำเนินการและเวลา`}
+        cancelLabel='ไม่ล้าง'
+        confirmLabel='ยืนยันล้างข้อมูลในเครื่อง'
+        onCancel={() => setPurgeOpen(false)}
+        onClose={() => setPurgeOpen(false)}
+        onConfirm={confirmPurgeAudit}
+      />
     </QueuePageShell>
   );
 };

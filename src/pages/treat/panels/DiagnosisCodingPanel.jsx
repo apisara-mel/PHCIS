@@ -16,7 +16,7 @@ import {
 } from '@/pages/treat/panels/panelHooks';
 import {
   CODE_SYSTEMS, codeSystemMeta, searchSnomed, icd10ForSnomed, snomedForIcd10,
-  EXTERNAL_CAUSE_SUGGESTIONS, UNCODED_LABEL,
+  EXTERNAL_CAUSE_SUGGESTIONS, UNCODED_LABEL, SNOMED_PROVENANCE,
 } from '@/data/treatmentSnomed';
 import { DIAGNOSIS_TYPE_OPTIONS, resolveDiagnosisType } from '@/data/treatmentVisits';
 import { appendAudit } from '@/data/treatmentAudit';
@@ -299,6 +299,18 @@ const DiagnosisCodingPanel = ({ form, setForm, patient }) => {
             </span>
           </PanelAlert>
         )}
+
+        {/* §1.4.5.2 — footnote ที่มาของตาราง cross-map (แสดงทุกโหมด) */}
+        <PanelAlert tone='warning' icon='menu_book' title={`ตาราง cross-map: ${SNOMED_PROVENANCE.statusLabel}`}>
+          <span style={{ display: 'block' }}>
+            มี {SNOMED_PROVENANCE.conceptCount.toLocaleString('th-TH')} concept · {SNOMED_PROVENANCE.scope}
+          </span>
+          <span style={{ display: 'block' }}>{SNOMED_PROVENANCE.mappingBasis}</span>
+          <span style={{ display: 'block' }}>{SNOMED_PROVENANCE.behaviour}</span>
+          <span style={{ display: 'block' }}>
+            <b>เหตุที่ยังไม่ครบ:</b> {SNOMED_PROVENANCE.licensing}
+          </span>
+        </PanelAlert>
       </PanelCard>
 
       <PanelCard

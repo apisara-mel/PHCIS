@@ -28,6 +28,7 @@ import {
   subscribeTelemedVisits,
   addTelemedOrder,
   cancelTelemedOrder,
+  updateTelemedOrder,
   addTelemedEvidence,
   removeTelemedEvidence,
   setTelemedServiceWindow,
@@ -608,6 +609,10 @@ const TelemedAssessmentPage = () => {
                 cancelTelemedOrder(visitId, orderId, reason, telemedActor(role));
                 logTelemedEvent(role, 'ยกเลิกคำสั่งการรักษา', { detail: reason });
               }}
+              onEditOrder={(orderId, patch) => {
+                updateTelemedOrder(visitId, orderId, patch, telemedActor(role));
+                logTelemedEvent(role, 'แก้ไขคำสั่งการรักษา', { detail: patch.detail });
+              }}
             />
             <Field label='การให้คำแนะนำ' required>
               <SuggestibleTextarea
@@ -982,6 +987,7 @@ const TelemedAssessmentPage = () => {
 
         <PatientCard
           sticky
+          showBack={false}
           patient={cardPatient}
           title='บันทึกการประเมินทางไกล (Telemedicine)'
           actions={(
@@ -1162,21 +1168,23 @@ const TelemedAssessmentPage = () => {
               >
                 {stepIndex === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}
               </NeutralSubdueButton>
-              <span
-                className='inline-flex items-center min-w-0'
-                style={{
-                  gap: 'var(--dim-space-200)',
-                  color: 'var(--text-content-secondary)',
-                  fontFamily: 'var(--type-family-body)',
-                  fontSize: 'var(--type-size-sm)',
-                }}
-              >
-                <span style={{ width: 'var(--dim-space-150, 6px)', height: 'var(--dim-space-150, 6px)', borderRadius: 'var(--dim-radius-full)', background: 'var(--text-brandPrimary-default)', flexShrink: 0 }} />
-                {stored
-                  ? `${stored.status === 'final' ? 'บันทึกสมบูรณ์' : 'ร่างแบบฟอร์ม'} · แก้ไขล่าสุด ${stored.updatedBy || stored.createdBy} ${formatClock(stored.updatedAt || stored.createdAt)}`
-                  : 'ยังไม่เคยบันทึก'}
-                {dirty ? ' · มีการแก้ไขที่ยังไม่บันทึก' : ''}
-              </span>
+              {stepIndex > 0 && (
+                <span
+                  className='inline-flex items-center min-w-0'
+                  style={{
+                    gap: 'var(--dim-space-200)',
+                    color: 'var(--text-content-secondary)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-sm)',
+                  }}
+                >
+                  <span style={{ width: 'var(--dim-space-150, 6px)', height: 'var(--dim-space-150, 6px)', borderRadius: 'var(--dim-radius-full)', background: 'var(--text-brandPrimary-default)', flexShrink: 0 }} />
+                  {stored
+                    ? `${stored.status === 'final' ? 'บันทึกสมบูรณ์' : 'ร่างแบบฟอร์ม'} · แก้ไขล่าสุด ${stored.updatedBy || stored.createdBy} ${formatClock(stored.updatedAt || stored.createdAt)}`
+                    : 'ยังไม่เคยบันทึก'}
+                  {dirty ? ' · มีการแก้ไขที่ยังไม่บันทึก' : ''}
+                </span>
+              )}
               <div className='flex-1' />
               <BrandSubdueButton
                 variant='outline'
@@ -1190,7 +1198,7 @@ const TelemedAssessmentPage = () => {
               </BrandSubdueButton>
               <BrandPrimaryButton
                 size='lg'
-                trailingIcon='arrow_forward'
+                trailingIcon={isLast ? 'check' : 'arrow_forward'}
                 disabled={readOnly && isLast}
                 onClick={() => (isLast ? handleFinish() : setStepIndex(stepIndex + 1))}
               >

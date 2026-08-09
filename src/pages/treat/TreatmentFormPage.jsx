@@ -21,6 +21,7 @@ import { blankSoap } from '@/data/treatmentSoap';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import { GuardedAction } from '@/pages/treat/panels/panelHooks';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
+import { mergePatientFlags } from '@/data/treatmentPatientFlags';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import { TREATMENT_QUEUE_ROWS, buildQueueSubMenuBuckets } from '@/data/treatmentQueue';
 import { sendPrescriptionToPharmacy } from '@/data/pharmacyQueue';
@@ -217,7 +218,16 @@ const TreatmentFormPage = () => {
      rights, drugAllergies, etc.). */
   const patient = useMemo(() => {
     const p = (navState && findMrPatientByHn(navState.hn)) || DEFAULT_MR_PATIENT;
-    return { ...p, queue: navState?.queue, name: navState?.name || `${p.firstNameTh} ${p.lastNameTh}` };
+    /* TOR §1.4.3.15 — ทะเบียนกลาง mrPatients.js seed แค่ vip/allergy/chronic
+       จึงไม่มีวันเห็นป้าย DNR / บริจาคอวัยวะ / เสี่ยงหกล้ม ที่ SafetyRail
+       เรนเดอร์ไว้แล้ว. mrPatients.js อยู่นอกขอบเขตการแก้ของเวฟนี้ จึง merge
+       overlay ของโมดูลตอนอ่านแทน (ดู src/data/treatmentPatientFlags.js) */
+    const withFlags = mergePatientFlags(p);
+    return {
+      ...withFlags,
+      queue: navState?.queue,
+      name: navState?.name || `${p.firstNameTh} ${p.lastNameTh}`,
+    };
   }, [navState]);
 
   /* Patient identity in the shape PatientCard expects (fullName /
@@ -335,6 +345,7 @@ const TreatmentFormPage = () => {
             the compact mini layout once it tucks under the app header. */}
         <PatientCard
           sticky
+          showBack={false}
           patient={cardPatient}
           title='บันทึกการรักษา'
           drugAllergies={patient.drugAllergies}

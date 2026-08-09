@@ -23,6 +23,7 @@ import {
   vitalSoftWarnings,
 } from '@/data/telemedAssessments';
 import { telemedCan, telemedDenyReason, logTelemedEvent, telemedActor } from '@/utils/telemedAccess';
+import { getEmrChart } from '@/utils/telemedEmr';
 
 /* TelemedEmrPanel — แท็บ "EMR / ประวัติ" + แผงประเมินในสาย (TOR §1.13.1,
    §1.13.2, §1.13.6). เสียบเข้า right panel ของ TelemedConsultOverlay แบบ
@@ -118,36 +119,11 @@ const InlineError = ({ children }) => (
   </span>
 );
 
-/* ── mock EMR ที่ดึงจาก PHCIS ระหว่างสาย (TOR §1.13.6) ────────────────── */
-const EMR_BY_HN = {
-  '67-00007': {
-    lastVisit: { date: '18 ก.ค. 2569', place: 'ศบส.41 คลองเตย', dx: 'Essential hypertension (I10)', doctor: 'พญ.สมหญิง รักษาดี' },
-    meds: ['Enalapril 5 mg 1×1 เช้า', 'Amlodipine 5 mg 1×1 เช้า', 'Simvastatin 20 mg 1×1 ก่อนนอน'],
-    allergies: ['Penicillin (ผื่นลมพิษ)'],
-    chronic: ['ความดันโลหิตสูง', 'ไขมันในเลือดสูง'],
-    labs: [
-      { name: 'Creatinine', value: '1.24 mg/dL', at: '18 ก.ค. 2569', abnormal: true },
-      { name: 'eGFR', value: '52 mL/min', at: '18 ก.ค. 2569', abnormal: true },
-      { name: 'K+', value: '4.2 mmol/L', at: '18 ก.ค. 2569', abnormal: false },
-    ],
-    imaging: [{ name: 'Chest X-ray (PA)', at: '02 พ.ค. 2569', impression: 'Cardiomegaly, no active lung lesion' }],
-    appointments: [{ at: '02 ก.ย. 2569 09:00', clinic: 'คลินิกผู้สูงอายุ (Telemedicine)' }],
-  },
-  '67-00001': {
-    lastVisit: { date: '02 ก.ค. 2569', place: 'รพ.สต. บางบัวทอง 2', dx: 'Type 2 diabetes mellitus (E11.9)', doctor: 'พญ.สมหญิง รักษาดี' },
-    meds: ['Metformin 500 mg 1×2 หลังอาหาร', 'Enalapril 5 mg 1×1 เช้า'],
-    allergies: ['Sulfa (คลื่นไส้)'],
-    chronic: ['เบาหวานชนิดที่ 2', 'ความดันโลหิตสูง'],
-    labs: [
-      { name: 'HbA1c', value: '6.4 %', at: '02 ก.ค. 2569', abnormal: false },
-      { name: 'FBS', value: '108 mg/dL', at: '02 ก.ค. 2569', abnormal: false },
-    ],
-    imaging: [],
-    appointments: [{ at: '16 ก.ย. 2569 10:30', clinic: 'คลินิกโรคเรื้อรัง (NCD)' }],
-  },
-};
-
-const EMPTY_EMR = { lastVisit: null, meds: [], allergies: [], chronic: [], labs: [], imaging: [], appointments: [] };
+/* ── EMR ที่ดึงจาก PHCIS ระหว่างสาย (TOR §1.13.6) ──────────────────────
+   เดิม mock ผูกไว้กับ HN แค่ 2 ราย ทำให้ผู้รับบริการรายอื่นเห็นว่างทุกพาเนล
+   (อ่านเหมือนระบบพัง). ตอนนี้ src/utils/telemedEmr.js สร้าง chart แบบ
+   deterministic ให้ทุก HN โดยใช้ชื่อยา/LAB/X-ray จากแคตตาล็อกกลางจริง —
+   ยังเป็นข้อมูลสาธิต (ไม่ได้ต่อ API PHCIS) จึงติดป้ายกำกับไว้ในพาเนล. */
 
 const SEVERITY_OPTIONS = [
   { value: 'mild',     label: 'เล็กน้อย' },
@@ -180,7 +156,7 @@ const TelemedEmrPanel = ({
   const canEdit = telemedCan(role, 'edit') || telemedCan(role, 'add');
   const editDenyReason = telemedDenyReason(role, 'edit');
 
-  const emr = EMR_BY_HN[hn] || EMPTY_EMR;
+  const emr = useMemo(() => getEmrChart(hn, { name: patientName }), [hn, patientName]);
 
   const rpm = useMemo(() => {
     const p = getRpmPatientByHn(hn);
@@ -292,24 +268,60 @@ const TelemedEmrPanel = ({
 
       {mode === 'emr' ? (
         <>
+          {/* ที่มาของข้อมูล — ห้ามให้เข้าใจผิดว่าเป็น chart จริงจาก PHCIS */}
+          <div
+            style={{
+              ...boxStyle,
+              marginTop: 'var(--dim-space-300, 12px)',
+              background: 'var(--surface-alert-info, #F0F6FF)',
+              borderColor: 'var(--border-alert-info, #DBEAFE)',
+            }}
+          >
+            <span className='inline-flex items-start' style={{ gap: 'var(--dim-space-150, 6px)', fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-secondary, #636B72)', lineHeight: 1.6 }}>
+              <Icon name='info' size={14} style={{ color: 'var(--text-alert-info, #1D4ED8)', flexShrink: 0 }} />
+              {emr.source}
+            </span>
+          </div>
+
           <Section
             icon='history'
-            title='การมารับบริการล่าสุด'
+            title='การมารับบริการย้อนหลัง'
+            right={emr.visits.length > 1 ? (
+              <ColorfulBadge style='grey' size='small' hierarchy='secondary'>{`${emr.visits.length} ครั้ง`}</ColorfulBadge>
+            ) : undefined}
             empty={emr.lastVisit ? undefined : 'ผู้รับบริการรายใหม่ — ยังไม่มีประวัติการรักษาในระบบ'}
           >
             {emr.lastVisit && (
               <>
-                <Row label='วันที่' value={emr.lastVisit.date} />
+                <Row label='ล่าสุด' value={emr.lastVisit.date} />
                 <Row label='หน่วยบริการ' value={emr.lastVisit.place} />
                 <Row label='การวินิจฉัย' value={emr.lastVisit.dx} />
                 <Row label='แพทย์' value={emr.lastVisit.doctor} />
+                <Row label='ประเภท' value={emr.lastVisit.type} />
+                {emr.visits.slice(1).map((v) => (
+                  <Row key={v.id} label={v.date} value={`${v.dx} · ${v.place}`} />
+                ))}
               </>
             )}
           </Section>
 
           <Section icon='pill' title='ยาเดิมที่ใช้อยู่' empty={emr.meds.length ? undefined : 'ยังไม่มีรายการยาเดิม'}>
             {emr.meds.map((m) => (
-              <Row key={m} label='' value={m} />
+              <div
+                key={m.name}
+                className='flex flex-col'
+                style={{ gap: 'var(--dim-space-050, 2px)', paddingTop: 'var(--dim-space-100, 4px)', paddingBottom: 'var(--dim-space-100, 4px)' }}
+              >
+                <span style={{ fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)', color: 'var(--text-content-default, #363B3F)' }}>
+                  {m.name}
+                </span>
+                <span style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-secondary, #636B72)' }}>
+                  {m.sig}
+                </span>
+                <span style={{ fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                  {`จ่ายครั้งล่าสุด ${m.lastDispensedAt}`}
+                </span>
+              </div>
             ))}
           </Section>
 
@@ -330,8 +342,15 @@ const TelemedEmrPanel = ({
           </Section>
 
           <Section icon='labs' title='ผลตรวจทางห้องปฏิบัติการ' empty={emr.labs.length ? undefined : 'ยังไม่มีผล LAB ในระบบ'}>
-            {emr.labs.map((l) => (
-              <Row key={l.name} label={`${l.name} · ${l.at}`} value={l.value} tone={l.abnormal ? 'danger' : undefined} />
+            {emr.labs.map((l, i) => (
+              <div key={`${l.code}-${l.name}-${i}`} style={{ paddingTop: 'var(--dim-space-050, 2px)', paddingBottom: 'var(--dim-space-050, 2px)' }}>
+                <Row label={`${l.name} · ${l.at}`} value={l.value} tone={l.abnormal ? 'danger' : undefined} />
+                {(l.panel || l.ref) && (
+                  <span style={{ fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    {[l.panel ? `${l.panel} (${l.code})` : '', l.ref].filter(Boolean).join(' · ')}
+                  </span>
+                )}
+              </div>
             ))}
           </Section>
 
@@ -386,8 +405,8 @@ const TelemedEmrPanel = ({
           </Section>
 
           <Section icon='event_available' title='การนัดหมายถัดไป' empty={emr.appointments.length ? undefined : 'ยังไม่มีนัดหมายถัดไป'}>
-            {emr.appointments.map((a) => (
-              <Row key={a.at} label={a.clinic} value={a.at} />
+            {emr.appointments.map((a, i) => (
+              <Row key={`${a.at}-${i}`} label={a.clinic} value={a.at} />
             ))}
           </Section>
 
@@ -400,18 +419,21 @@ const TelemedEmrPanel = ({
             </Section>
           )}
 
-          <div style={{ marginTop: 'var(--dim-space-400, 16px)' }}>
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)', marginTop: 'var(--dim-space-400, 16px)' }}>
             <BrandSubdueButton
               size='sm'
               variant='outline'
               leadingIcon='open_in_new'
               onClick={() => {
-                logTelemedEvent(role, 'เปิดบันทึกการรักษาจากห้องตรวจทางไกล', { detail: `HN ${hn}` });
+                logTelemedEvent(role, 'เปิด chart เต็มใน PHCIS จากห้องตรวจทางไกล', { detail: `HN ${hn}` });
                 onOpenTreatmentRecord?.();
               }}
             >
-              เปิดบันทึกการรักษา (/treat/record)
+              เปิด chart เต็มใน PHCIS
             </BrandSubdueButton>
+            <span style={{ fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-content-tertiary, #858C92)', lineHeight: 1.5 }}>
+              {`ไปที่ /treat/record พร้อม HN ${hn || '—'} — พาเนลนี้แสดงเฉพาะข้อมูลย่อที่ใช้ระหว่างสาย`}
+            </span>
           </div>
         </>
       ) : (

@@ -84,6 +84,9 @@ const TreatmentSafetyRail = ({ patient, form, stickyTop = 'var(--dim-size-1400, 
 
   const allergies = patient?.drugAllergies || [];
   const flags = patient?.flags || {};
+  /* ที่มาของแต่ละ flag (เอกสาร Living Will / บัตรบริจาคอวัยวะ / Morse Fall
+     Scale) — merge เข้ามาจาก treatmentPatientFlags.js ผ่าน TreatmentFormPage */
+  const flagSources = patient?.flagSources || {};
 
   /* "ยังไม่ได้ซักประวัติการแพ้" ต่างจาก "ไม่แพ้" — ใช้ธง allergyDrug /
      allergyOther ประกอบกับ form.allergies เพื่อแยกสองกรณีนี้ */
@@ -128,24 +131,40 @@ const TreatmentSafetyRail = ({ patient, form, stickyTop = 'var(--dim-size-1400, 
           )}
         </div>
 
-        {/* 2 · Flag ความปลอดภัย / DNR / บริจาคอวัยวะ */}
-        <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        {/* 2 · Flag ความปลอดภัย / DNR / บริจาคอวัยวะ
+             ป้ายทุกตัวบอก "ที่มา" ของ flag ใน tooltip (เอกสาร/แบบประเมิน +
+             วันที่) เพื่อให้ตรวจสอบย้อนกลับได้ ไม่ใช่ป้ายลอย ๆ — ที่มามาจาก
+             patient.flagSources ซึ่ง merge เข้ามาจาก treatmentPatientFlags.js */}
+        <div className='flex flex-wrap items-center min-w-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           {flags.dnr ? (
-            <Tooltip content='ผู้รับบริการแสดงเจตนาไม่ประสงค์รับการช่วยฟื้นคืนชีพ (DNR)' position='bottom'>
+            <Tooltip
+              content={`ผู้รับบริการแสดงเจตนาไม่ประสงค์รับการช่วยฟื้นคืนชีพ (DNR)${flagSources.dnr ? ` — ที่มา: ${flagSources.dnr}` : ''}`}
+              position='bottom'
+            >
               <span style={{ display: 'inline-flex' }}>
                 <StatusBadge style='error' size='small' icon='do_not_disturb_on'>DNR</StatusBadge>
               </span>
             </Tooltip>
           ) : null}
           {flags.organDonor ? (
-            <Tooltip content='ผู้รับบริการแสดงความจำนงบริจาคอวัยวะ' position='bottom'>
+            <Tooltip
+              content={`ผู้รับบริการแสดงความจำนงบริจาคอวัยวะ${flagSources.organDonor ? ` — ที่มา: ${flagSources.organDonor}` : ''}`}
+              position='bottom'
+            >
               <span style={{ display: 'inline-flex' }}>
                 <StatusBadge style='info' size='small' icon='volunteer_activism'>บริจาคอวัยวะ</StatusBadge>
               </span>
             </Tooltip>
           ) : null}
           {flags.fallRisk ? (
-            <StatusBadge style='warning' size='small' icon='personal_injury'>เสี่ยงพลัดตกหกล้ม</StatusBadge>
+            <Tooltip
+              content={`ต้องเฝ้าระวังความปลอดภัยระหว่างรับบริการ${flagSources.fallRisk ? ` — ที่มา: ${flagSources.fallRisk}` : ''}`}
+              position='bottom'
+            >
+              <span style={{ display: 'inline-flex' }}>
+                <StatusBadge style='warning' size='small' icon='personal_injury'>เสี่ยงพลัดตกหกล้ม</StatusBadge>
+              </span>
+            </Tooltip>
           ) : null}
           {flags.vip ? <StatusBadge style='purple' size='small' icon='star'>VIP</StatusBadge> : null}
           {rightsExpired ? (

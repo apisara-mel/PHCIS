@@ -12,6 +12,7 @@ import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import StatusBadge from '@/components/badge/StatusBadge';
 import Checkbox from '@/components/checkbox/Checkbox';
 import Icon from '@/components/icons/Icon';
 import Popup from '@/components/popup/Popup';
@@ -67,6 +68,16 @@ import {
   inDateRange,
 } from '@/pages/telemed/telemedShared';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import {
+  PHCIS_SYNC_STATUS,
+  ensureJournalForVisits,
+  getPhcisSyncState,
+  phcisSyncCounts,
+  phcisStorageState,
+  phcisRecordLink,
+  retryVisitSync,
+  subscribePhcisJournal,
+} from '@/utils/telemedPhcisBridge';
 
 /* TelemedWorklistPage — ระบบหน้าห้องตรวจทางไกล (TOR §1.13.3 / .7 / .8 /
    .10 / .11 + §4.3.5).
@@ -130,6 +141,10 @@ const TelemedWorklistPage = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
   const [restoreTarget, setRestoreTarget] = useState(null);
+  /* ผลการส่งข้อมูลเข้า PHCIS ครั้งล่าสุด (แบนเนอร์เหนือตาราง) */
+  const [syncNotice, setSyncNotice] = useState(null);
+  /* payload ที่ "จะถูกส่ง" — เปิดดูได้เพื่อให้ตรวจสอบได้ว่าเชื่อมข้อมูลอะไรบ้าง */
+  const [syncDetail, setSyncDetail] = useState(null);
 
   const {
     history: searchHistory,
@@ -159,9 +174,21 @@ const TelemedWorklistPage = () => {
       const readings = getRpmReadings(rpmPatient.id);
       rpm = { ...evaluateRpmPatient(rpmPatient, readings), patient: rpmPatient };
     }
-    return { ...v, rpm, consent: getConsentByVisit(v.id) };
+    return { ...v, rpm, consent: getConsentByVisit(v.id), phcis: getPhcisSyncState(v.id) };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [tick]);
+
+  /* ── PHCIS write-back (จำลอง) — TOR §1.13.3 ─────────────────────────
+     รายการที่ "ตรวจแล้ว" ถูก mirror ลงสมุดบันทึกในเครื่องอัตโนมัติหนึ่งครั้ง
+     (idempotent) แล้วหน้าจอ subscribe การเปลี่ยนแปลงเพื่อรีเฟรชคอลัมน์ */
+  useEffect(() => subscribePhcisJournal(() => setTick((t) => t + 1)), []);
+  useEffect(() => {
+    const touched = ensureJournalForVisits(getTelemedVisits(), 'ระบบ (อัตโนมัติเมื่อปิดการตรวจ)');
+    if (touched) setTick((t) => t + 1);
+  }, []);
+
+  const syncCounts = useMemo(() => phcisSyncCounts(visits), [visits]);
+  const syncStorage = phcisStorageState();
 
   const byTab = useMemo(() => {
     switch (tab) {
@@ -253,7 +280,10 @@ const TelemedWorklistPage = () => {
     { key: 'inprogress',  label: 'กำลังตรวจ',     value: visits.filter((v) => v.status === 'inprogress').length,  color: 'info',     icon: 'videocam' },
     { key: 'done',        label: 'ตรวจแล้ว',      value: visits.filter((v) => v.status === 'done').length,        color: 'positive', icon: 'check_circle' },
     { key: 'rpm',         label: 'ค่า RPM เกินเกณฑ์', value: visits.filter((v) => v.rpm?.level === 'critical').length, color: 'destructive', icon: 'monitor_heart' },
-  ]), [visits]);
+    /* TOR §1.13.3 — ตัวนับการเชื่อมข้อมูลกับ PHCIS */
+    { key: 'synced',      label: 'ส่งเข้า PHCIS แล้ว', value: syncCounts.synced, color: 'positive', icon: 'cloud_done' },
+    { key: 'syncFailed',  label: 'ส่ง PHCIS ไม่สำเร็จ', value: syncCounts.failed + syncCounts.pending, color: 'destructive', icon: 'cloud_off' },
+  ]), [visits, syncCounts]);
 
   const criticalRows = useMemo(() => visits.filter((v) => v.rpm?.level === 'critical' && v.status !== 'cancelled'), [visits]);
 
@@ -290,6 +320,24 @@ const TelemedWorklistPage = () => {
     setTelemedVisitStatus(row.id, 'inprogress', telemedActor(role));
     logTelemedEvent(role, 'เข้าร่วมสาย', { detail: `${row.name} (HN ${row.hn})` });
     startCall();
+  };
+
+  /* ── ส่งข้อมูลเข้า PHCIS / ทำงานทางคลินิกต่อ (TOR §1.13.3) ─────────── */
+  const handleRetrySync = (row) => {
+    if (!canSend) return;
+    const result = retryVisitSync(row, telemedActor(role));
+    logTelemedEvent(role, 'ลองส่งข้อมูลเข้า PHCIS อีกครั้ง', {
+      ok: result.ok,
+      detail: `${row.name} (HN ${row.hn}) · ${result.ok ? `อ้างอิง ${result.row.phcisRef}` : result.row.reason}`,
+    });
+    setSyncNotice(result.ok
+      ? { ok: true, text: `ส่งข้อมูลของ ${row.name} เข้า PHCIS แล้ว (อ้างอิง ${result.row.phcisRef})` }
+      : { ok: false, text: `ยังส่งไม่สำเร็จ — ${result.row.reason}` });
+  };
+
+  const handleContinueInPhcis = (row) => {
+    logTelemedEvent(role, 'เปิดทำงานทางคลินิกต่อในระบบตรวจรักษา (PHCIS)', { detail: `${row.name} (HN ${row.hn})` });
+    history.push(phcisRecordLink(row));
   };
 
   const openEdit = (row) => {
@@ -509,6 +557,72 @@ const TelemedWorklistPage = () => {
     </div>
   );
 
+  /* ── คอลัมน์ "เชื่อม PHCIS" (TOR §1.13.3) ──────────────────────────
+     ผู้สังเกตการณ์เห็นสถานะได้แต่กด "ลองใหม่" ไม่ได้ (สิทธิ์ edit เท่านั้น) */
+  const renderPhcis = (row) => {
+    const state = row.phcis;
+    if (!state) {
+      return (
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+          <StatusBadge style='neutral' size='small' icon='cloud_queue'>ยังไม่ส่ง</StatusBadge>
+          <span style={{ fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-content-tertiary)' }}>
+            ส่งเข้า PHCIS อัตโนมัติเมื่อปิดการตรวจ
+          </span>
+        </div>
+      );
+    }
+    const meta = PHCIS_SYNC_STATUS[state.status] || PHCIS_SYNC_STATUS.pending;
+    return (
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+        <StatusBadge style={meta.badge} size='small' icon={meta.icon}>{meta.label}</StatusBadge>
+        {state.status === 'synced' && state.phcisRef && (
+          <span style={{ fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-content-tertiary)' }}>
+            {`อ้างอิง ${state.phcisRef}`}
+          </span>
+        )}
+        {state.status === 'failed' && (
+          <span style={{ fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-alert-error, #B91C1C)', maxWidth: 'var(--dim-size-2280, 218px)' }}>
+            {state.reason}
+          </span>
+        )}
+        {/* ปิดห้องโดยไม่มีการให้บริการ — ไม่ใช่ความล้มเหลวของการส่ง จึงไม่มีปุ่มลองใหม่
+            และต้องไม่ถูกอ่านว่า "ส่งเข้า PHCIS แล้ว" */}
+        {state.status === 'no-show' && (
+          <span style={{ fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-content-secondary)', maxWidth: 'var(--dim-size-2280, 218px)' }}>
+            {state.reason}
+          </span>
+        )}
+        <AuditStamp
+          action={state.status === 'no-show' ? 'ปิดห้องโดยไม่มีการให้บริการ' : `ส่งครั้งที่ ${state.attempts}`}
+          by={state.by}
+          at={state.at}
+        />
+        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100)' }}>
+          {state.status === 'failed' && (
+            <NeutralSubdueButton
+              size='sm'
+              variant='outline'
+              leadingIcon='refresh'
+              disabled={!canSend}
+              title={canSend ? undefined : telemedDenyReason(role, 'edit')}
+              onClick={(e) => { e.stopPropagation(); handleRetrySync(row); }}
+            >
+              ลองใหม่
+            </NeutralSubdueButton>
+          )}
+          <NeutralSubdueButton
+            size='sm'
+            variant='outline'
+            leadingIcon='visibility'
+            onClick={(e) => { e.stopPropagation(); setSyncDetail({ row, state }); }}
+          >
+            ดูข้อมูลที่ส่ง
+          </NeutralSubdueButton>
+        </div>
+      </div>
+    );
+  };
+
   const renderActions = (row) => (
     <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100)' }}>
       {row.status === 'cancelled' ? (
@@ -540,6 +654,14 @@ const TelemedWorklistPage = () => {
             onClick={(e) => { e.stopPropagation(); history.push(`/telemed/assessment/${row.id}`); }}
           >
             บันทึกประเมิน
+          </NeutralSubdueButton>
+          <NeutralSubdueButton
+            size='sm'
+            variant='outline'
+            leadingIcon='medical_information'
+            onClick={(e) => { e.stopPropagation(); handleContinueInPhcis(row); }}
+          >
+            ดำเนินการต่อใน PHCIS
           </NeutralSubdueButton>
           <NeutralSubdueButton
             size='sm'
@@ -593,9 +715,10 @@ const TelemedWorklistPage = () => {
     { key: 'doctor',      label: 'แพทย์',           flex: true, minWidth: 150 },
     { key: 'notify',      label: 'แจ้งเตือน', sortable: false, render: renderNotify },
     { key: 'status',      label: 'สถานะ', render: renderStatus },
+    { key: 'phcis',       label: 'เชื่อม PHCIS', sortable: false, minWidth: 200, render: renderPhcis },
     { key: 'actions',     label: 'การจัดการ', sortable: false, render: renderActions },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [allPageSelected, canSend, canCancel, canNotify, pageRows, selected, role]);
+  ]), [allPageSelected, canSend, canCancel, canNotify, pageRows, selected, role, tick]);
 
   const hasAnyRow = byTab.length > 0;
   const sendDenyTitle = !canSend
@@ -659,6 +782,33 @@ const TelemedWorklistPage = () => {
         {!canAdd && (
           <PageBanner tone='warning' icon='visibility' title='บทบาทนี้ดูได้อย่างเดียว'>
             {telemedDenyReason(role, 'add')} — ปุ่มส่งตรวจ / แก้ไข / ยกเลิก ถูกปิดใช้งาน แต่ยังเปิดดูข้อมูลได้
+          </PageBanner>
+        )}
+
+        {/* ── การเชื่อมข้อมูลกับ PHCIS (TOR §1.13.3) ─────────────────── */}
+        <PageBanner tone='info' icon='sync_alt' title='การเชื่อมข้อมูลกับระบบ PHCIS'>
+          {`ส่งแล้ว ${syncCounts.synced} · รอส่ง ${syncCounts.pending} · ล้มเหลว ${syncCounts.failed} · ไม่มีการให้บริการ ${syncCounts['no-show']} · ยังไม่เข้าคิวส่ง ${syncCounts.untracked} รายการ`}
+          {' — ข้อมูลถูกบันทึกเป็นสมุดส่งข้อมูลในเครื่อง (จำลอง) เพราะยังไม่ได้ต่อ API เขียนกลับของ PHCIS จริง กด "ดำเนินการต่อใน PHCIS" เพื่อไปทำงานทางคลินิกต่อที่ระบบตรวจรักษา'}
+        </PageBanner>
+
+        {!syncStorage.ok && (
+          <PageBanner tone='warning' icon='sd_card_alert' title='บันทึกสถานะการซิงก์ลงเครื่องไม่ได้'>
+            {syncStorage.reason}
+          </PageBanner>
+        )}
+
+        {syncNotice && (
+          <PageBanner
+            tone={syncNotice.ok ? 'success' : 'danger'}
+            icon={syncNotice.ok ? 'cloud_done' : 'cloud_off'}
+            title={syncNotice.ok ? 'ส่งข้อมูลเข้า PHCIS สำเร็จ' : 'ส่งข้อมูลเข้า PHCIS ไม่สำเร็จ'}
+            actions={(
+              <NeutralSubdueButton size='sm' variant='outline' leadingIcon='close' onClick={() => setSyncNotice(null)}>
+                ปิด
+              </NeutralSubdueButton>
+            )}
+          >
+            {syncNotice.text}
           </PageBanner>
         )}
 
@@ -959,6 +1109,53 @@ const TelemedWorklistPage = () => {
         onClose={() => setRestoreTarget(null)}
         onConfirm={confirmRestore}
       />
+
+      {/* ── ข้อมูลที่ส่งเข้า PHCIS (TOR §1.13.3 — ตรวจสอบได้ว่าเชื่อมอะไรบ้าง) ── */}
+      <Popup
+        open={Boolean(syncDetail)}
+        onClose={() => setSyncDetail(null)}
+        title='ข้อมูลที่ส่งเข้าระบบ PHCIS'
+        subtitle={syncDetail ? `${maskPii(syncDetail.row.name, role)} · HN ${syncDetail.row.hn} · ${syncDetail.row.id}` : ''}
+        size='large'
+        width={720}
+        primaryAction={{ label: 'ปิด', onClick: () => setSyncDetail(null) }}
+        secondaryAction={syncDetail ? {
+          label: 'ดำเนินการต่อใน PHCIS',
+          onClick: () => { const r = syncDetail.row; setSyncDetail(null); handleContinueInPhcis(r); },
+        } : undefined}
+      >
+        {syncDetail && (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            <PageBanner tone='info' icon='info' title='นี่คือข้อมูลที่ "จะถูกส่ง" เมื่อเชื่อม API PHCIS จริง'>
+              ระบบยังไม่มี endpoint เขียนกลับ — ข้อมูลชุดนี้ถูกเก็บเป็นสมุดบันทึกในเครื่องเพื่อให้ตรวจสอบความครบถ้วนของฟิลด์ได้ก่อนต่อระบบจริง
+            </PageBanner>
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+              {[
+                ['สถานะ', (PHCIS_SYNC_STATUS[syncDetail.state.status] || {}).label || '—'],
+                ['เลขอ้างอิง PHCIS', syncDetail.state.phcisRef || '— (ยังไม่สำเร็จ)'],
+                ['เหตุที่ส่งไม่สำเร็จ', syncDetail.state.reason || '—'],
+                ['จำนวนครั้งที่ส่ง', String(syncDetail.state.attempts)],
+                ['วันเวลาที่บันทึก', formatThaiDateTime(syncDetail.state.at)],
+                ['ผู้ดำเนินการ', syncDetail.state.by],
+                ['แผนก / แพทย์', `${syncDetail.state.payload.department} · ${syncDetail.state.payload.doctor}`],
+                ['หน่วยบริการต้นทาง', syncDetail.state.payload.originUnit],
+                ['สิทธิ / Authen Code', `${syncDetail.state.payload.rights} · ${syncDetail.state.payload.authenCode || 'ยังไม่มี'}`],
+                ['อาการเบื้องต้น', syncDetail.state.payload.chiefComplaint || '—'],
+                ['ระยะเวลาให้บริการ', syncDetail.state.payload.durationMin != null ? `${syncDetail.state.payload.durationMin} นาที` : '—'],
+                ['หลักฐานแนบ', `${syncDetail.state.payload.evidenceCount} ไฟล์`],
+                ['คำสั่งการรักษา', syncDetail.state.payload.orders.length
+                  ? syncDetail.state.payload.orders.map((o) => `${o.label}${o.status === 'cancelled' ? ' (ยกเลิกโดยแพทย์)' : ''}`).join(' · ')
+                  : 'ไม่มีคำสั่งในสายนี้'],
+              ].map(([label, value]) => (
+                <div key={label} className='flex items-start' style={{ gap: 'var(--dim-space-300)' }}>
+                  <span style={{ minWidth: 'var(--dim-size-2100, 160px)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>{label}</span>
+                  <span style={{ flex: 1, fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Popup>
     </QueuePageShell>
   );
 };

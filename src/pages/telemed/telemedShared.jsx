@@ -3,10 +3,17 @@ import Icon from '@/components/icons/Icon';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import { TELEMED_ROLE_OPTIONS, getTelemedRole } from '@/utils/telemedAccess';
+import { startTelemedAuditMirror } from '@/utils/telemedAuditPersist';
 
 /* Page-local helpers ของโมดูล Telemedicine (เทียบ pattern กับ
    src/pages/clinic/tb/tbShared.jsx) — ไม่ใช่ design-system component,
    ใช้ภายในโฟลเดอร์ src/pages/telemed เท่านั้น. */
+
+/* TOR §1.13.11 — เริ่มสะท้อน audit ของโมดูลลงเครื่องตั้งแต่หน้าแรกที่ถูกโหลด
+   ไม่ใช่ตอนเปิดหน้ารายงาน มิฉะนั้นเหตุการณ์ที่เกิดก่อนเข้าหน้ารายงานจะไม่ถูก
+   เก็บ. ฟังก์ชันนี้ idempotent (เรียกซ้ำได้) และ try/catch ครบ จึงไม่ทำให้
+   หน้าจอพังแม้ localStorage ถูกปิด. */
+startTelemedAuditMirror();
 
 export const TELEMED_BREADCRUMB = (leaf) => ['ระบบ Telemedicine', leaf];
 

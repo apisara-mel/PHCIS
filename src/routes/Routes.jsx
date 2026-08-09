@@ -3,6 +3,15 @@ import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-d
 import { HeaderAutoHideProvider } from '@/context/HeaderAutoHideContext';
 
 import DashboardPage from '@/pages/dashboard/DashboardPage';
+/* ระบบรายงาน + แพลตฟอร์มวิเคราะห์ข้อมูล (TOR §1.20) — หน้าจอระดับโมดูลของ
+   แดชบอร์ด. ทุกหน้าใช้ Sidebar activeKey='dashboard' และเชื่อมกันด้วย
+   <DashboardSubNav> (TabUnderline) เหมือน PharmacySubNav. */
+import DashboardReportsHubPage from '@/pages/dashboard/DashboardReportsHubPage';
+import ServiceReportsPage from '@/pages/dashboard/ServiceReportsPage';
+import PharmacyAnalyticsPage from '@/pages/dashboard/PharmacyAnalyticsPage';
+import CheckupAnalyticsPage from '@/pages/dashboard/CheckupAnalyticsPage';
+import SpecialClinicDashboardPage from '@/pages/dashboard/SpecialClinicDashboardPage';
+import ExecutiveDashboardPage from '@/pages/dashboard/ExecutiveDashboardPage';
 import SystemHubPage from '@/pages/hub/SystemHubPage';
 import AppointmentPage from '@/pages/appointment/AppointmentPage';
 import AppointmentRequestInboxPage from '@/pages/appointment/AppointmentRequestInboxPage';
@@ -26,6 +35,7 @@ import ReferralRegisterPage from '@/pages/treat/ReferralRegisterPage';
 import TreatmentInterfacesPage from '@/pages/treat/TreatmentInterfacesPage';
 import ConsultRegisterPage from '@/pages/treat/ConsultRegisterPage';
 import OrderSetSettingsPage from '@/pages/treat/OrderSetSettingsPage';
+import AccessPolicyPage from '@/pages/treat/AccessPolicyPage';
 import XrayQueuePage from '@/pages/xray/XrayQueuePage';
 import XrayOrderPage from '@/pages/xray/XrayOrderPage';
 import XrayResultPage from '@/pages/xray/XrayResultPage';
@@ -321,6 +331,24 @@ export default function Routes() {
             Figma PHCIS-ALL · entered from hub card 2149:104214. No PhcisChrome — owns its shell. */}
         <Route exact path='/schedule'        component={SchedulePage} />
         <Route exact path='/schedule/:id'    component={ScheduleEditorPage} />
+        {/* ระบบรายงานและแพลตฟอร์มวิเคราะห์ข้อมูล (TOR §1.20) —
+              /dashboard                   = ภาพรวมโรงพยาบาล (เดิม)
+              /dashboard/reports           = ศูนย์รวมรายงาน + ทะเบียนแม่แบบ/คำขอรายงานใหม่ (§1.20.11)
+              /dashboard/reports/service   = รายงานผู้รับบริการ (§1.20.4 / §1.20.5)
+              /dashboard/reports/pharmacy  = รายงานเภสัชกรรมข้ามศูนย์ (§1.20.2 / §1.20.6) —
+                                             คนละหน้ากับ /pharmacy/reports ซึ่งเป็นรายงาน
+                                             เชิงปฏิบัติการรายวันของศูนย์เดียว
+              /dashboard/reports/checkup   = รายงานตรวจสุขภาพ + แม่แบบพิมพ์/ส่งออก (§1.20.8)
+              /dashboard/clinics           = Dashboard คลินิกพิเศษ 11 แท็บ (§1.20.7)
+              /dashboard/executive         = Dashboard ผู้บริหาร + แจ้งเตือนอัตโนมัติ (§1.20.10)
+            route ย่อยทั้งหมดต้องอยู่**เหนือ** /dashboard เพื่อความชัดเจน (ทุกตัว exact
+            อยู่แล้วจึงไม่ชนกัน แต่คงลำดับ specific → less-specific ตามแบบ /lab, /checkup). */}
+        <Route exact path='/dashboard/reports/service'  component={ServiceReportsPage} />
+        <Route exact path='/dashboard/reports/pharmacy' component={PharmacyAnalyticsPage} />
+        <Route exact path='/dashboard/reports/checkup'  component={CheckupAnalyticsPage} />
+        <Route exact path='/dashboard/reports'          component={DashboardReportsHubPage} />
+        <Route exact path='/dashboard/clinics'          component={SpecialClinicDashboardPage} />
+        <Route exact path='/dashboard/executive'        component={ExecutiveDashboardPage} />
         <Route exact path='/dashboard'       component={DashboardPage} />
         <Route exact path='/finance'          component={FinancePaymentPage} />
         <Route exact path='/opd'             component={QueuePage} />
@@ -396,6 +424,12 @@ export default function Routes() {
             ระบบบันทึกการรักษา เช่นเดียวกับ /treat/refer และ /treat/interfaces. */}
         <Route exact path='/treat/consult'    component={ConsultRegisterPage} />
         <Route exact path='/treat/order-sets' component={OrderSetSettingsPage} />
+        {/* นโยบายการเข้าถึงข้อมูล (ABAC · §1.4.8.1 / §1.4.2.1) — หน้าผู้ดูแลระบบ
+            ของระบบบันทึกการรักษา: กฎ บทบาท × หน่วยงาน × หมวดข้อมูล → ระดับการมองเห็น,
+            แท็บทดลองมุมมอง, ข้อมูลลับโดยค่าเริ่มต้น และ audit การแก้กฎ.
+            อยู่ในเมนูย่อยของ "ระบบบันทึกการรักษา" ข้าง /treat/order-sets
+            (activeKey='treat' เหมือน /treat/consult · /treat/interfaces). */}
+        <Route exact path='/treat/access-policy' component={AccessPolicyPage} />
         {/* งานรังสีวินิจฉัย — Radiology Information System (TOR §1.12).
             /xray/queue  = ลำดับการตรวจผู้ป่วย (worklist · the department's own
                            screen; รับ/ปฏิเสธ Request → ถ่าย → บันทึกผล → ยืนยันผล)
