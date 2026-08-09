@@ -1,109 +1,260 @@
-import React, { useMemo, useState } from 'react';
-import BrandButton from '@/components/button/BrandButton';
-import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import React, { useEffect, useMemo, useState } from 'react';
+import Popup from '@/components/popup/Popup';
 import { DRUG_REGISTRY } from '@/data/pharmacyRegistry';
 import { getAllergySafeDrugs } from '@/data/pharmacyQueue';
 
-/* Add/edit a single medication line — the same screen-level capability
-   the legacy ห้องจ่ายยา system offers (คู่มือระบบงานห้องจ่ายยาและบริหาร
-   เวชภัณฑ์ §2.1.1): search/pick a drug by name (พิมพ์ที่ "รหัส" แล้วเลือก
-   จากรายการ — here, a `<select>` over the drug registry) to add a fresh
-   line or SUBSTITUTE an existing one for a different drug, then edit its
-   dose/frequency/timing/quantity. Double-click-to-edit in the legacy UI;
-   here, an explicit "แก้ไข" action opens this same form. */
+/* Add/edit a single medication line as a Popup — same capability as the
+   legacy ห้องจ่ายยา add/edit screen (คู่มือระบบงานห้องจ่ายยาและบริหาร
+   เวชภัณฑ์ §2.1.1). Opened from "เพิ่มรายการยา" / row "แก้ไข". */
 
-const inputStyle = {
-  width: '100%', padding: 'var(--dim-space-150) var(--dim-space-300)',
-  background: 'var(--surface-input-default)',
-  border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-  borderRadius: 'var(--dim-radius-200)',
-  fontSize: 'var(--type-size-sm)',
-};
+const STYLE_ID = 'mih-pharmacy-med-editor-input-style';
+
+if (typeof document !== 'undefined' && !document.getElementById(STYLE_ID)) {
+  const css = document.createElement('style');
+  css.id = STYLE_ID;
+  css.textContent = `
+    .mih-pharmacy-med-editor-input,
+    .mih-pharmacy-med-editor-input:focus,
+    .mih-pharmacy-med-editor-input:focus-visible {
+      caret-color: var(--text-content-default, #1a1a1a);
+      border: 0 !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      -webkit-appearance: none !important;
+      appearance: none !important;
+    }
+    .mih-pharmacy-med-editor-input::placeholder {
+      color: var(--text-content-tertiary, #858c92);
+      opacity: 1;
+    }
+  `;
+  document.head.appendChild(css);
+}
+
+const FieldShell = ({ children }) => (
+  <div
+    className='flex items-center w-full'
+    style={{
+      minHeight: 'var(--dim-size-800, 40px)',
+      padding: 'var(--dim-space-150) var(--dim-space-300)',
+      background: 'var(--surface-input-default)',
+      border: 'var(--dim-stroke-100) solid var(--border-input-default)',
+      borderRadius: 'var(--dim-radius-200)',
+      boxSizing: 'border-box',
+    }}
+  >
+    {children}
+  </div>
+);
 
 const Field = ({ label, children }) => (
-  <label className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-    <span className='text-xs' style={{ color: 'var(--text-content-tertiary)' }}>{label}</span>
+  <label className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+    <span
+      style={{
+        color: 'var(--text-content-tertiary)',
+        fontSize: 'var(--type-size-xs)',
+        fontFamily: 'var(--type-family-body)',
+      }}
+    >
+      {label}
+    </span>
     {children}
   </label>
 );
 
-const PharmacyMedicationEditor = ({ item, allergies = [], onSave, onCancel }) => {
+const emptyDraft = () => ({
+  name: '',
+  dosePerTake: '1',
+  frequency: '',
+  when: '',
+  quantity: 1,
+  instructions: '',
+});
+
+const PharmacyMedicationEditor = ({
+  open = false,
+  item = null,
+  allergies = [],
+  onSave,
+  onCancel,
+}) => {
   const isNew = !item;
-  const [name, setName] = useState(item?.name || '');
-  const [dosePerTake, setDosePerTake] = useState(item?.dosePerTake || '1');
-  const [frequency, setFrequency] = useState(item?.frequency || '');
-  const [when, setWhen] = useState(item?.when || '');
-  const [quantity, setQuantity] = useState(item?.quantity || 1);
-  const [instructions, setInstructions] = useState(item?.instructions || '');
+  const [draft, setDraft] = useState(emptyDraft);
+
+  useEffect(() => {
+    if (!open) return;
+    setDraft(item
+      ? {
+          name: item.name || '',
+          dosePerTake: item.dosePerTake || '1',
+          frequency: item.frequency || '',
+          when: item.when || '',
+          quantity: item.quantity || 1,
+          instructions: item.instructions || '',
+        }
+      : emptyDraft());
+  }, [open, item]);
+
+  const setField = (key) => (e) => {
+    const value = e?.target ? e.target.value : e;
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  };
 
   /* Drugs whose pharmacological class matches one of the patient's known
      allergies are hidden from the picker so the pharmacist can't
      accidentally re-select an allergen while swapping a conflicting line.
-     The item's OWN original name stays visible even if it matches — this
-     form is also used for a plain dose/frequency edit, not just an
-     allergy swap, so the current drug must never vanish from its own
-     select. */
+     The item's OWN original name stays visible even if it matches. */
   const selectableDrugs = useMemo(
     () => getAllergySafeDrugs(allergies, item?.name),
     [allergies, item],
   );
   const hiddenCount = DRUG_REGISTRY.length - selectableDrugs.length;
 
+  const canSave = Boolean(String(draft.name || '').trim());
+
   const handleSave = () => {
-    if (!name.trim()) return;
+    if (!canSave) return;
+    const name = draft.name.trim();
     const drug = DRUG_REGISTRY.find((d) => d.name === name);
-    onSave({
+    onSave?.({
       name,
       unit: drug?.unit === 'capsule' ? 'แคปซูล' : 'เม็ด',
-      dosePerTake,
-      frequency,
-      when,
-      quantity: Number(quantity) || 1,
-      instructions,
+      dosePerTake: draft.dosePerTake,
+      frequency: draft.frequency,
+      when: draft.when,
+      quantity: Number(draft.quantity) || 1,
+      instructions: draft.instructions,
     });
   };
 
   return (
-    <div
-      className='flex flex-col w-full'
-      style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-400)', background: 'var(--surface-brandPrimary-quaternary)', border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-default)', borderRadius: 'var(--dim-radius-200)' }}
+    <Popup
+      open={open}
+      onClose={onCancel}
+      size='large'
+      title={isNew ? 'เพิ่มรายการยา' : 'แก้ไขรายการยา'}
+      subtitle={isNew ? undefined : 'เปลี่ยนเป็นยาตัวอื่นได้'}
+      secondaryAction={{ label: 'ยกเลิก', onClick: onCancel }}
+      primaryAction={{
+        label: 'บันทึก',
+        leadingIcon: 'save',
+        disabled: !canSave,
+        onClick: handleSave,
+      }}
     >
-      <span className='text-sm font-bold' style={{ color: 'var(--text-content-default)' }}>
-        {isNew ? 'เพิ่มรายการยา' : `แก้ไขรายการยา — เปลี่ยนเป็นยาตัวอื่นได้`}
-      </span>
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-3 w-full'>
+      <div
+        className='grid grid-cols-1 md:grid-cols-3 w-full'
+        style={{ gap: 'var(--dim-space-300)' }}
+      >
         <Field label='ชื่อยา'>
-          <select value={name} onChange={(e) => setName(e.target.value)} style={{ ...inputStyle, appearance: 'none' }}>
-            <option value=''>— เลือกยา —</option>
-            {selectableDrugs.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
-          </select>
+          <FieldShell>
+            <select
+              className='mih-pharmacy-med-editor-input w-full min-w-0'
+              value={draft.name}
+              onChange={setField('name')}
+              style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                color: 'var(--text-content-default)',
+              }}
+            >
+              <option value=''>— เลือกยา —</option>
+              {selectableDrugs.map((d) => (
+                <option key={d.id} value={d.name}>{d.name}</option>
+              ))}
+            </select>
+          </FieldShell>
           {hiddenCount > 0 && (
-            <span className='text-xs' style={{ color: 'var(--text-alert-error)' }}>
+            <span
+              style={{
+                color: 'var(--text-alert-error)',
+                fontSize: 'var(--type-size-xs)',
+                marginTop: 'var(--dim-space-050)',
+              }}
+            >
               ซ่อน {hiddenCount} รายการที่ผู้ป่วยมีประวัติแพ้
             </span>
           )}
         </Field>
         <Field label='ขนาดต่อครั้ง'>
-          <input style={inputStyle} value={dosePerTake} onChange={(e) => setDosePerTake(e.target.value)} placeholder='เช่น 1' />
+          <FieldShell>
+            <input
+              className='mih-pharmacy-med-editor-input w-full min-w-0'
+              value={draft.dosePerTake}
+              onChange={setField('dosePerTake')}
+              placeholder='เช่น 1'
+              style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                color: 'var(--text-content-default)',
+              }}
+            />
+          </FieldShell>
         </Field>
         <Field label='จำนวนที่สั่ง'>
-          <input type='number' min='1' style={inputStyle} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+          <FieldShell>
+            <input
+              type='number'
+              min='1'
+              className='mih-pharmacy-med-editor-input w-full min-w-0'
+              value={draft.quantity}
+              onChange={setField('quantity')}
+              style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                color: 'var(--text-content-default)',
+              }}
+            />
+          </FieldShell>
         </Field>
         <Field label='ความถี่'>
-          <input style={inputStyle} value={frequency} onChange={(e) => setFrequency(e.target.value)} placeholder='เช่น วันละ 2 ครั้ง' />
+          <FieldShell>
+            <input
+              className='mih-pharmacy-med-editor-input w-full min-w-0'
+              value={draft.frequency}
+              onChange={setField('frequency')}
+              placeholder='เช่น วันละ 2 ครั้ง'
+              style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                color: 'var(--text-content-default)',
+              }}
+            />
+          </FieldShell>
         </Field>
         <Field label='เวลา'>
-          <input style={inputStyle} value={when} onChange={(e) => setWhen(e.target.value)} placeholder='เช่น หลังอาหาร' />
+          <FieldShell>
+            <input
+              className='mih-pharmacy-med-editor-input w-full min-w-0'
+              value={draft.when}
+              onChange={setField('when')}
+              placeholder='เช่น หลังอาหาร'
+              style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                color: 'var(--text-content-default)',
+              }}
+            />
+          </FieldShell>
         </Field>
         <Field label='คำแนะนำเพิ่มเติม'>
-          <input style={inputStyle} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder='ถ้ามี' />
+          <FieldShell>
+            <input
+              className='mih-pharmacy-med-editor-input w-full min-w-0'
+              value={draft.instructions}
+              onChange={setField('instructions')}
+              placeholder='ถ้ามี'
+              style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                color: 'var(--text-content-default)',
+              }}
+            />
+          </FieldShell>
         </Field>
       </div>
-      <div className='flex items-center justify-end' style={{ gap: 'var(--dim-space-200)' }}>
-        <NeutralSubdueButton variant='outline' size='sm' onClick={onCancel}>ยกเลิก</NeutralSubdueButton>
-        <BrandButton size='sm' leadingIcon='save' disabled={!name.trim()} onClick={handleSave}>บันทึก</BrandButton>
-      </div>
-    </div>
+    </Popup>
   );
 };
 

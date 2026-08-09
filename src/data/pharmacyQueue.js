@@ -65,13 +65,31 @@ export const AUX_LABEL_OPTIONS = [
   'รับประทานยาให้หมดตามแพทย์สั่ง แม้อาการดีขึ้น',
 ];
 
-/* Illustrative starting defaults for a couple of seed drugs — pharmacist
-   can still add/remove per item on the dispense page. */
+/* Illustrative starting defaults per seed drug — every dispensed line must
+   carry ≥1 auxiliary label (ToR §1.9.2.11). Unmapped names fall back to a
+   generic "ห้ามหยุดยาเอง…" sticker so the table never starts empty. */
+const AUX_LABEL_FALLBACK = ['ห้ามหยุดยาเองโดยไม่ปรึกษาแพทย์'];
 const AUX_LABEL_DEFAULTS = {
   'Cetirizine 10 mg': ['อาจทำให้ง่วงซึม ห้ามขับรถหรือทำงานกับเครื่องจักร'],
+  'Loratadine 10 mg': ['อาจทำให้ง่วงซึม ห้ามขับรถหรือทำงานกับเครื่องจักร'],
   'Omeprazole 20 mg': ['รับประทานก่อนอาหาร'],
   'Amoxicillin 500 mg': ['รับประทานยาให้หมดตามแพทย์สั่ง แม้อาการดีขึ้น'],
+  'Ibuprofen 400 mg': ['รับประทานหลังอาหารทันที'],
+  'Aspirin 81 mg': ['รับประทานหลังอาหารทันที', 'ห้ามหยุดยาเองโดยไม่ปรึกษาแพทย์'],
+  'Paracetamol 500 mg': ['รับประทานหลังอาหารทันที'],
+  'Metformin 500 mg': ['รับประทานหลังอาหารทันที', 'ห้ามหยุดยาเองโดยไม่ปรึกษาแพทย์'],
+  'Enalapril 5 mg': ['ห้ามหยุดยาเองโดยไม่ปรึกษาแพทย์'],
+  'Amlodipine 5 mg': ['ห้ามหยุดยาเองโดยไม่ปรึกษาแพทย์'],
+  'Atorvastatin 20 mg': ['ห้ามหยุดยาเองโดยไม่ปรึกษาแพทย์'],
+  'Atorvastatin 10 mg': ['ห้ามหยุดยาเองโดยไม่ปรึกษาแพทย์'],
+  'Simvastatin 20 mg': ['ห้ามหยุดยาเองโดยไม่ปรึกษาแพทย์'],
+  'Spironolactone 25 mg': ['ห้ามหยุดยาเองโดยไม่ปรึกษาแพทย์'],
+  'Codeine Phosphate 30 mg': ['อาจทำให้ง่วงซึม ห้ามขับรถหรือทำงานกับเครื่องจักร'],
 };
+
+export const defaultAuxLabelsFor = (drugName) => (
+  AUX_LABEL_DEFAULTS[drugName] ? [...AUX_LABEL_DEFAULTS[drugName]] : [...AUX_LABEL_FALLBACK]
+);
 
 export const CURRENT_DISPENSER = { name: 'ภก.สิทธิชัย พรหมจันทร์', subRole: 'dispenser' };
 export const CURRENT_CLINICAL_PHARMACIST = { name: 'ภญ.กรรณิการ์ ภู่ตระกูล', subRole: 'clinical-pharm' };
@@ -82,12 +100,52 @@ export const CURRENT_CLINICAL_PHARMACIST = { name: 'ภญ.กรรณิกา
    actually in that pharmacological class are mapped — no fabricated
    cross-references. */
 export const DRUG_ALLERGY_CLASS = {
-  'Amoxicillin 500 mg':  'Penicillin',
-  'Amoxicillin 500mg':   'Penicillin',
-  'Ibuprofen 400 mg':    'NSAIDs',
-  'Ibuprofen 400mg':     'NSAIDs',
-  'Naproxen 250 mg':     'NSAIDs',
-  'Aspirin 81 mg':       'Aspirin',
+  'Amoxicillin 500 mg':       'Penicillin',
+  'Amoxicillin 500mg':        'Penicillin',
+  'Ibuprofen 400 mg':         'NSAIDs',
+  'Ibuprofen 400mg':          'NSAIDs',
+  'Naproxen 250 mg':          'NSAIDs',
+  'Aspirin 81 mg':            'Aspirin',
+  'Codeine Phosphate 30 mg':  'Codeine',
+  'Atorvastatin 20 mg':       'Statins',
+  'Atorvastatin 10 mg':       'Statins',
+  'Simvastatin 20 mg':        'Statins',
+};
+
+/* Canonical allergen line items — used when seeding a prescription so the
+   patient's `drugAllergies` class maps to a real dispensed drug name (and
+   thus lights the แพ้ยา badge in รายการยาที่ต้องจ่าย). */
+const ALLERGEN_SEED_BY_CLASS = {
+  Penicillin: {
+    name: 'Amoxicillin 500 mg', dosePerTake: '1', unit: 'เม็ด',
+    frequency: 'วันละ 3 ครั้ง', when: 'หลังอาหาร', quantity: 21,
+    instructions: 'รับประทานจนยาหมด แม้อาการดีขึ้น', drugType: 'GPO',
+  },
+  Amoxicillin: {
+    name: 'Amoxicillin 500 mg', dosePerTake: '1', unit: 'เม็ด',
+    frequency: 'วันละ 3 ครั้ง', when: 'หลังอาหาร', quantity: 21,
+    instructions: 'รับประทานจนยาหมด แม้อาการดีขึ้น', drugType: 'GPO',
+  },
+  NSAIDs: {
+    name: 'Ibuprofen 400 mg', dosePerTake: '1', unit: 'เม็ด',
+    frequency: 'วันละ 2 ครั้ง', when: 'หลังอาหารทันที', quantity: 10,
+    instructions: 'งดใช้ร่วมกับยาแก้ปวดกลุ่มเดียวกัน', drugType: 'TPU',
+  },
+  Aspirin: {
+    name: 'Aspirin 81 mg', dosePerTake: '1', unit: 'เม็ด',
+    frequency: 'วันละ 1 ครั้ง', when: 'หลังอาหาร', quantity: 30,
+    instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', drugType: 'GPO',
+  },
+  Codeine: {
+    name: 'Codeine Phosphate 30 mg', dosePerTake: '1', unit: 'เม็ด',
+    frequency: 'ทุก 6 ชั่วโมงเมื่อมีอาการ', when: 'หลังอาหาร', quantity: 10,
+    instructions: 'อาจทำให้ง่วงซึม — ระวังการใช้ซ้ำ', drugType: 'TPU',
+  },
+  Statins: {
+    name: 'Atorvastatin 20 mg', dosePerTake: '1', unit: 'เม็ด',
+    frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 30,
+    instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', drugType: 'GPO',
+  },
 };
 
 /* Drug picker options with allergens removed — shared by every "เปลี่ยนยา"
@@ -181,6 +239,9 @@ const SUB_STOCK_ROOM = {
   'Spironolactone 25 mg': { stock: 45, unit: 'เม็ด',    unitPrice: 2, lot: 'LOT-SPI-24A', expiryDate: addMonths(TODAY, 16) },
   'Simvastatin 20 mg':   { stock: 55,  unit: 'เม็ด',    unitPrice: 3, lot: 'LOT-SIM-24A', expiryDate: addMonths(TODAY, 7)  },
   'Amlodipine 5 mg':     { stock: 65,  unit: 'เม็ด',    unitPrice: 2, lot: 'LOT-AML-24A', expiryDate: addMonths(TODAY, 13) },
+  'Loratadine 10 mg':    { stock: 50,  unit: 'เม็ด',    unitPrice: 2, lot: 'LOT-LOR-24A', expiryDate: addMonths(TODAY, 15) },
+  'Aspirin 81 mg':       { stock: 100, unit: 'เม็ด',    unitPrice: 1, lot: 'LOT-ASA-24A', expiryDate: addMonths(TODAY, 12) },
+  'Codeine Phosphate 30 mg': { stock: 40, unit: 'เม็ด', unitPrice: 4, lot: 'LOT-COD-24A', expiryDate: addMonths(TODAY, 10) },
 };
 
 export const SUB_STOCK_BY_WAREHOUSE = {
@@ -211,6 +272,7 @@ export const MAIN_WAREHOUSE_STOCK = {
   'Ibuprofen 400 mg':    { stock: 200,  unit: 'เม็ด', unitPrice: 1.8, lot: 'LOT-IBU-MAIN-24', expiryDate: addMonths(TODAY, 5),  receivedFrom: 'บริษัท ฟาร์มา จำกัด', receivedAt: addMonths(TODAY, -3) },
   'Metformin 500 mg':    { stock: 5000, unit: 'เม็ด', unitPrice: 0.9, lot: 'LOT-MET-MAIN-24', expiryDate: addMonths(TODAY, 16), receivedFrom: 'องค์การเภสัชกรรม (GPO)', receivedAt: addMonths(TODAY, -2) },
   'Omeprazole 20 mg':    { stock: 1500, unit: 'แคปซูล', unitPrice: 3.5, lot: 'LOT-OME-MAIN-24', expiryDate: addMonths(TODAY, 8), receivedFrom: 'องค์การเภสัชกรรม (GPO)', receivedAt: addMonths(TODAY, -4) },
+  'Codeine Phosphate 30 mg': { stock: 400, unit: 'เม็ด', unitPrice: 3.2, lot: 'LOT-COD-MAIN-24', expiryDate: addMonths(TODAY, 12), receivedFrom: 'บริษัท ฟาร์มา จำกัด', receivedAt: addMonths(TODAY, -2) },
 };
 
 export const listSubWarehouses = ({ activeOnly = true } = {}) => (
@@ -701,10 +763,23 @@ export const checkAllergyConflicts = (patient, items = []) => {
   const conflicts = [];
   for (const item of items) {
     const drugClass = DRUG_ALLERGY_CLASS[item.name];
-    if (!drugClass) continue;
-    const allergy = allergies.find((a) => a.name === drugClass);
+    const drugNameLc = String(item.name || '').toLowerCase();
+    const allergy = allergies.find((a) => {
+      const aName = String(a.name || '').trim();
+      if (!aName) return false;
+      const aLc = aName.toLowerCase();
+      if (drugClass && aLc === String(drugClass).toLowerCase()) return true;
+      /* Direct name hit — e.g. allergy "Amoxicillin" vs item "Amoxicillin 500 mg". */
+      if (drugNameLc.includes(aLc)) return true;
+      return false;
+    });
     if (allergy) {
-      conflicts.push({ item, allergyClass: drugClass, symptom: allergy.symptom, severity: allergy.severity });
+      conflicts.push({
+        item,
+        allergyClass: drugClass || allergy.name,
+        symptom: allergy.symptom || '',
+        severity: allergy.severity,
+      });
     }
   }
   return conflicts;
@@ -715,10 +790,12 @@ const patientName = (hn) => {
   return p ? `${p.prefixTh}${p.firstNameTh} ${p.lastNameTh}` : hn;
 };
 
-/* Seed rows — HN 67-00001 (5 drug allergies) and 67-00009 (1 allergy) are
-   each prescribed a conflicting drug so the allergy banner has real data to
-   demonstrate against; 67-00009's Ibuprofen line also exceeds mock stock
-   (5 available) to demonstrate the insufficient-stock case. P-014 carries a
+/* Seed rows — HN 67-00001 (Penicillin / NSAIDs / Aspirin) is prescribed
+   Amoxicillin + Ibuprofen + Aspirin so รายการยาที่ต้องจ่าย shows multiple
+   แพ้ยา badges; 67-00009 (NSAIDs) gets Ibuprofen; 67-00002 (Codeine) gets
+   Codeine Phosphate; 67-00003 (Penicillin + NSAIDs) gets Amoxicillin +
+   Ibuprofen. 67-00009's Ibuprofen line also exceeds mock stock (5 available)
+   to demonstrate the insufficient-stock case. P-014 carries a
    Re-med item; P-017 carries an out-of-rights item (Atorvastatin 10 mg is
    ชำระเงินเอง-only in the registry, patient's right is รัฐวิสาหกิจ); P-015
    demonstrates the "doctor changed the order" alert. */
@@ -739,7 +816,10 @@ const MANUAL_SEED = [
     ownMedications: [], medErrors: [],
     items: [
       { id: 'i-1', name: 'Amoxicillin 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 3 ครั้ง', when: 'หลังอาหาร', quantity: 21, instructions: 'รับประทานจนยาหมด แม้อาการดีขึ้น', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
-      { id: 'i-2', name: 'Paracetamol 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'ทุก 6 ชั่วโมงเมื่อมีอาการ', when: 'หลังอาหาร', quantity: 20, instructions: 'รับประทานเมื่อมีไข้หรือปวด', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-2', name: 'Ibuprofen 400 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 2 ครั้ง', when: 'หลังอาหารทันที', quantity: 10, instructions: 'งดใช้ร่วมกับยาแก้ปวดกลุ่มเดียวกัน', source: 'new', quantityDispensed: 0, drugType: 'TPU' },
+      { id: 'i-2b', name: 'Aspirin 81 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'หลังอาหาร', quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-2c', name: 'Paracetamol 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'ทุก 6 ชั่วโมงเมื่อมีอาการ', when: 'หลังอาหาร', quantity: 20, instructions: 'รับประทานเมื่อมีไข้หรือปวด', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-2d', name: 'Cetirizine 10 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 10, instructions: 'อาจทำให้ง่วงซึม', source: 'new', quantityDispensed: 0, drugType: 'GPU' },
     ],
   },
   {
@@ -759,6 +839,8 @@ const MANUAL_SEED = [
       { id: 'i-3', name: 'Ibuprofen 400 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 2 ครั้ง', when: 'หลังอาหารทันที', quantity: 10, instructions: 'งดใช้ร่วมกับยาแก้ปวดกลุ่มเดียวกัน', source: 'new', quantityDispensed: 0, drugType: 'TPU' },
       { id: 'i-3b', name: 'Paracetamol 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'ทุก 6 ชั่วโมงเมื่อมีอาการ', when: 'หลังอาหาร', quantity: 20, instructions: 'รับประทานเมื่อมีไข้หรือปวด', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
       { id: 'i-3c', name: 'Omeprazole 20 mg', dosePerTake: '1', unit: 'แคปซูล', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนอาหารเช้า', quantity: 14, instructions: 'รับประทานก่อนอาหาร 30 นาที', source: 'remed', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-3d', name: 'Cetirizine 10 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 7, instructions: 'อาจทำให้ง่วงซึม', source: 'new', quantityDispensed: 0, drugType: 'GPU' },
+      { id: 'i-3e', name: 'Metformin 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 2 ครั้ง', when: 'หลังอาหาร', quantity: 60, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
     ],
   },
   {
@@ -773,11 +855,14 @@ const MANUAL_SEED = [
     problemFlag: false, problemReason: '',
     deliveryMethod: 'pickup', deliveryAddress: null,
     paymentStatus: PAYMENT_STATUS.NOT_APPLICABLE,
-    ownMedications: [{ id: 'om-1', name: 'Vitamin B Complex', note: 'ผู้ป่วยรับประทานเองประจำ ไม่ได้มาจากศูนย์', inFormulary: false }],
+    ownMedications: [{ id: 'om-1', name: 'Vitamin B Complex', note: 'ผู้ป่วยรับประทานเองประจำ ไม่ได้มาจากศูนย์', inFormulary: false, reconciled: false }],
     medErrors: [],
     items: [
-      { id: 'i-4', name: 'Paracetamol 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'ทุก 6 ชั่วโมงเมื่อมีอาการ', when: 'หลังอาหาร', quantity: 20, instructions: 'รับประทานเมื่อมีไข้หรือปวด', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-4', name: 'Codeine Phosphate 30 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'ทุก 6 ชั่วโมงเมื่อมีอาการ', when: 'หลังอาหาร', quantity: 10, instructions: 'อาจทำให้ง่วงซึม — ระวังการใช้ซ้ำ', source: 'new', quantityDispensed: 0, drugType: 'TPU' },
       { id: 'i-5', name: 'Cetirizine 10 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 10, instructions: 'อาจทำให้ง่วงซึม', source: 'remed', quantityDispensed: 0, drugType: 'GPU' },
+      { id: 'i-5b', name: 'Paracetamol 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'ทุก 6 ชั่วโมงเมื่อมีอาการ', when: 'หลังอาหาร', quantity: 20, instructions: 'รับประทานเมื่อมีไข้หรือปวด', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-5c', name: 'Omeprazole 20 mg', dosePerTake: '1', unit: 'แคปซูล', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนอาหารเช้า', quantity: 14, instructions: 'รับประทานก่อนอาหาร 30 นาที', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-5d', name: 'Loratadine 10 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'เช้า', quantity: 14, instructions: 'รับประทานต่อเนื่องตามอาการ', source: 'new', quantityDispensed: 0, drugType: 'GPU' },
     ],
   },
   {
@@ -795,6 +880,10 @@ const MANUAL_SEED = [
     ownMedications: [], medErrors: [],
     items: [
       { id: 'i-6', name: 'Metformin 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 2 ครั้ง', when: 'หลังอาหาร', quantity: 60, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-6b', name: 'Amoxicillin 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 3 ครั้ง', when: 'หลังอาหาร', quantity: 21, instructions: 'รับประทานจนยาหมด แม้อาการดีขึ้น', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-6c', name: 'Ibuprofen 400 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 2 ครั้ง', when: 'หลังอาหารทันที', quantity: 10, instructions: 'งดใช้ร่วมกับยาแก้ปวดกลุ่มเดียวกัน', source: 'new', quantityDispensed: 0, drugType: 'TPU' },
+      { id: 'i-6d', name: 'Atorvastatin 20 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-6e', name: 'Enalapril 5 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'เช้า', quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
     ],
   },
   {
@@ -813,6 +902,10 @@ const MANUAL_SEED = [
     ownMedications: [], medErrors: [],
     items: [
       { id: 'i-7', name: 'Omeprazole 20 mg', dosePerTake: '1', unit: 'แคปซูล', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนอาหารเช้า', quantity: 14, instructions: 'รับประทานก่อนอาหาร 30 นาที', source: 'new', quantityDispensed: 14, drugType: 'GPO' },
+      { id: 'i-7b', name: 'Paracetamol 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'ทุก 6 ชั่วโมงเมื่อมีอาการ', when: 'หลังอาหาร', quantity: 10, instructions: 'รับประทานเมื่อมีไข้หรือปวด', source: 'new', quantityDispensed: 10, drugType: 'GPO' },
+      { id: 'i-7c', name: 'Cetirizine 10 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 7, instructions: 'อาจทำให้ง่วงซึม', source: 'new', quantityDispensed: 7, drugType: 'GPU' },
+      { id: 'i-7d', name: 'Amoxicillin 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 3 ครั้ง', when: 'หลังอาหาร', quantity: 21, instructions: 'รับประทานจนยาหมด แม้อาการดีขึ้น', source: 'new', quantityDispensed: 21, drugType: 'GPO' },
+      { id: 'i-7e', name: 'Simvastatin 20 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 30, drugType: 'GPO' },
     ],
   },
   {
@@ -831,6 +924,9 @@ const MANUAL_SEED = [
     items: [
       { id: 'i-8', name: 'Atorvastatin 20 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
       { id: 'i-9', name: 'Atorvastatin 10 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 30, instructions: 'ยานอกบัญชี — ตรวจสอบสิทธิก่อนจ่าย', source: 'new', quantityDispensed: 0, drugType: 'TPU' },
+      { id: 'i-9b', name: 'Metformin 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 2 ครั้ง', when: 'หลังอาหาร', quantity: 60, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-9c', name: 'Amlodipine 5 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'เช้า', quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-9d', name: 'Omeprazole 20 mg', dosePerTake: '1', unit: 'แคปซูล', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนอาหารเช้า', quantity: 14, instructions: 'รับประทานก่อนอาหาร 30 นาที', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
     ],
   },
   {
@@ -877,6 +973,10 @@ const MANUAL_SEED = [
     ownMedications: [], medErrors: [],
     items: [
       { id: 'i-15', name: 'Paracetamol 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'ทุก 6 ชั่วโมงเมื่อมีอาการ', when: 'หลังอาหาร', quantity: 10, instructions: 'ยกเลิกโดยแพทย์', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-15b', name: 'Ibuprofen 400 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 2 ครั้ง', when: 'หลังอาหารทันที', quantity: 10, instructions: 'ยกเลิกโดยแพทย์', source: 'new', quantityDispensed: 0, drugType: 'TPU' },
+      { id: 'i-15c', name: 'Cetirizine 10 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 7, instructions: 'ยกเลิกโดยแพทย์', source: 'new', quantityDispensed: 0, drugType: 'GPU' },
+      { id: 'i-15d', name: 'Omeprazole 20 mg', dosePerTake: '1', unit: 'แคปซูล', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนอาหารเช้า', quantity: 14, instructions: 'ยกเลิกโดยแพทย์', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-15e', name: 'Vitamin B Complex', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'หลังอาหาร', quantity: 30, instructions: 'ยกเลิกโดยแพทย์', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
     ],
   },
 ];
@@ -919,14 +1019,17 @@ const FILLER_DRUGS = [
   { name: 'Amlodipine 5 mg',    unit: 'เม็ด',   dosePerTake: '1', frequency: 'วันละ 1 ครั้ง',           when: 'เช้า',       quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง',         drugType: 'GPO' },
 ];
 
-/* Build 2–4 line items per prescription so history / queue mock looks like
-   real multi-drug scripts (not a single Paracetamol every time). */
+/* Build line items per prescription — prefer 5 unique drugs so the
+   dispense table's "รายการยาที่ต้องจ่าย" mock always has enough depth.
+   When `hn` has known drug allergies, swap the first slot(s) for matching
+   allergen drugs so the แพ้ยา badge lights up without a separate seed. */
 const buildFillerItems = (startIdx, count, idPrefix, {
   quantityScale = 1,
   dispensed = false,
+  hn = null,
 } = {}) => {
   const n = Math.max(1, Math.min(count, FILLER_DRUGS.length));
-  return Array.from({ length: n }, (_, j) => {
+  const items = Array.from({ length: n }, (_, j) => {
     const drug = FILLER_DRUGS[(startIdx + j) % FILLER_DRUGS.length];
     const quantity = Math.max(1, Math.round(drug.quantity * quantityScale));
     return {
@@ -943,6 +1046,39 @@ const buildFillerItems = (startIdx, count, idPrefix, {
       drugType: drug.drugType,
     };
   });
+
+  if (hn) {
+    const allergies = findMrPatientByHn(hn)?.drugAllergies || [];
+    const usedNames = new Set(items.map((it) => it.name));
+    let slot = 0;
+    for (const allergy of allergies) {
+      if (slot >= items.length) break;
+      const seed = ALLERGEN_SEED_BY_CLASS[allergy.name];
+      if (!seed) continue;
+      if (usedNames.has(seed.name) && items.some((it) => it.name === seed.name)) {
+        /* Already present (FILLER_DRUGS rotation hit it) — keep as-is. */
+        continue;
+      }
+      const quantity = Math.max(1, Math.round(seed.quantity * quantityScale));
+      items[slot] = {
+        id: `${idPrefix}-alg${slot}`,
+        name: seed.name,
+        dosePerTake: seed.dosePerTake,
+        unit: seed.unit,
+        frequency: seed.frequency,
+        when: seed.when,
+        quantity,
+        quantityDispensed: dispensed ? quantity : 0,
+        instructions: seed.instructions,
+        source: 'new',
+        drugType: seed.drugType,
+      };
+      usedNames.add(seed.name);
+      slot += 1;
+    }
+  }
+
+  return items;
 };
 /* Front-of-queue rows have already been dealt with (a realistic FIFO
    pharmacy queue serves earlier arrivals first); only the tail is still
@@ -979,7 +1115,7 @@ const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
   const issuedAt = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   const wasCalled = [DISPENSE_STATUS.CALLED, DISPENSE_STATUS.PREPARING, DISPENSE_STATUS.DISPENSED, DISPENSE_STATUS.PARTIAL].includes(status);
   const wasDispensed = status === DISPENSE_STATUS.DISPENSED;
-  const itemCount = 2 + (i % 3); /* 2–4 drugs per script */
+  const itemCount = 5; /* รายการยาที่ต้องจ่าย — mock 5 รายการต่อใบสั่ง */
   return {
     id: `ph-f${n}`, queueNo: `P-0${n}`, hn, issuedAt,
     status, queueType,
@@ -997,7 +1133,7 @@ const FILLER_SEED = Array.from({ length: FILLER_COUNT }, (_, i) => {
     deliveryMethod: 'pickup', deliveryAddress: null,
     paymentStatus,
     ownMedications: [], medErrors: [],
-    items: buildFillerItems(i, itemCount, `i-f${n}`, { dispensed: wasDispensed }),
+    items: buildFillerItems(i, itemCount, `i-f${n}`, { dispensed: wasDispensed, hn }),
   };
 });
 
@@ -1011,6 +1147,10 @@ const SUPPORTING_INFO_OVERRIDES = {
   'P-018': {
     consultHistory: 'ส่งปรึกษาอายุรกรรมโรคไต 2 สัปดาห์ก่อน (ประเมินการทำงานของไตก่อนเริ่ม Spironolactone)',
     radiologyResults: null,
+  },
+  'P-015': {
+    doctorNote: 'ผู้ป่วยเบาหวานชนิดที่ 2 ควบคุมดี ปรับ Metformin เป็นวันละ 2 ครั้ง ตามผล lipid/FBS ล่าสุด แนะนำคุมอาหารต่อ และนัดติดตาม 3 เดือน',
+    nurseNote: 'ซักประวัติยาเดิมและอาการข้างเคียงจากยาเบาหวาน ไม่มีอาการ低血糖 วัดสัญญาณชีพก่อนพบแพทย์เรียบร้อย',
   },
 };
 export const PHARMACY_QUEUE = SEED.map((row) => ({
@@ -1026,8 +1166,24 @@ export const PHARMACY_QUEUE = SEED.map((row) => ({
      real field to filter against once/if multi-day data exists. */
   issuedDate: TODAY,
   outOfRightsDocAttached: false,
-  supportingInfo: getPharmacySupportingInfo(row.hn, SUPPORTING_INFO_OVERRIDES[row.queueNo]),
-  items: row.items.map((it) => ({ ...it, prepared: false, auxLabels: AUX_LABEL_DEFAULTS[it.name] || [], refillPlan: null })),
+  supportingInfo: getPharmacySupportingInfo(
+    row.hn,
+    SUPPORTING_INFO_OVERRIDES[row.queueNo],
+    {
+      diagnosis: row.diagnosis,
+      nurseNote: row.nurseNote,
+      doctorNote: row.doctorNote,
+      vitals: row.vitalsSnapshot,
+    },
+  ),
+  items: row.items.map((it) => ({
+    ...it,
+    prepared: false,
+    auxLabels: defaultAuxLabelsFor(it.name),
+    refillPlan: null,
+    outOfFormularyDocs: it.outOfFormularyDocs || [],
+    outOfRightsDocs: it.outOfRightsDocs || [],
+  })),
 }));
 
 /* §1.9.6.8 "สามารถดูสถิติการใช้ยาแต่ละประเภทได้" — `PHARMACY_QUEUE` above is
@@ -1066,6 +1222,7 @@ export const PHARMACY_USAGE_HISTORY = DAILY_VOLUME_FACTOR.flatMap((factor, dayId
       items: buildFillerItems(dayIdx * 3 + i, itemCount, `i-h${dayIdx}-${i}`, {
         quantityScale: factor,
         dispensed: true,
+        hn,
       }),
     };
   });
@@ -1144,7 +1301,7 @@ let ownMedSeq = 0;
 export const addOwnMedication = (queueNo, name, note = '', inFormulary = true) => {
   const row = findPharmacyRowByQueueNo(queueNo);
   if (!row) return null;
-  const entry = { id: `om-${++ownMedSeq}`, name, note, inFormulary };
+  const entry = { id: `om-${++ownMedSeq}`, name, note, inFormulary, reconciled: false };
   row.ownMedications = [...row.ownMedications, entry];
   return entry;
 };
@@ -1153,6 +1310,16 @@ export const removeOwnMedication = (queueNo, entryId) => {
   const row = findPharmacyRowByQueueNo(queueNo);
   if (!row) return;
   row.ownMedications = row.ownMedications.filter((m) => m.id !== entryId);
+};
+
+/* Own-med reconciliation check — pharmacist confirms they reviewed the
+   patient-brought line during Medication Reconciliation (§1.9.5.5 / §1.9.5.9). */
+export const toggleOwnMedicationReconciled = (queueNo, entryId) => {
+  const row = findPharmacyRowByQueueNo(queueNo);
+  if (!row) return;
+  row.ownMedications = row.ownMedications.map((m) => (
+    m.id === entryId ? { ...m, reconciled: !m.reconciled } : m
+  ));
 };
 
 /* จัดยา checklist (ToR §1.9.3 "บันทึกสถานะการจัด และตรวจสอบรายการยาได้") —
@@ -1198,12 +1365,20 @@ let itemSeq = 0;
 export const addPharmacyItem = (queueNo, itemPatch = {}) => {
   const row = findPharmacyRowByQueueNo(queueNo);
   if (!row) return null;
+  const name = itemPatch.name || '';
   const entry = {
     id: `item-new-${++itemSeq}`,
     name: '', dosePerTake: '1', unit: 'เม็ด', frequency: '', when: '', quantity: 1,
-    instructions: '', source: 'new', quantityDispensed: 0, drugType: 'GPO', prepared: false, auxLabels: [], refillPlan: null,
+    instructions: '', source: 'new', quantityDispensed: 0, drugType: 'GPO', prepared: false,
+    auxLabels: name ? defaultAuxLabelsFor(name) : [],
+    refillPlan: null,
+    outOfFormularyDocs: [],
+    outOfRightsDocs: [],
     ...itemPatch,
   };
+  if (!entry.auxLabels?.length && entry.name) {
+    entry.auxLabels = defaultAuxLabelsFor(entry.name);
+  }
   row.items = [...row.items, entry];
   return entry;
 };
@@ -1248,6 +1423,12 @@ export const createRefillPlan = (queueNo, itemId, { visits = 2, intervalDays = 1
   return plan;
 };
 
+export const clearRefillPlan = (queueNo, itemId) => {
+  const row = findPharmacyRowByQueueNo(queueNo);
+  if (!row) return;
+  row.items = row.items.map((it) => (it.id === itemId ? { ...it, refillPlan: null } : it));
+};
+
 export const markRefillVisitPickedUp = (queueNo, itemId, visitId) => {
   const row = findPharmacyRowByQueueNo(queueNo);
   if (!row) return;
@@ -1272,7 +1453,7 @@ export const markRefillVisitPickedUp = (queueNo, itemId, visitId) => {
    one-time transform. */
 let pharmacyQueueSeq = PHARMACY_QUEUE.length;
 export const sendPrescriptionToPharmacy = (visit) => {
-  const { hn, diagnoses = [], medications = [], vitals } = visit || {};
+  const { hn, diagnoses = [], medications = [], vitals, nurseNote, doctorNote } = visit || {};
   if (!hn || medications.length === 0) return null;
 
   const maxNo = PHARMACY_QUEUE.reduce((max, r) => {
@@ -1281,6 +1462,8 @@ export const sendPrescriptionToPharmacy = (visit) => {
   }, 0);
   const queueNo = `P-${String(maxNo + 1).padStart(3, '0')}`;
   const principleDx = diagnoses.find((d) => d.type === 'principle') || diagnoses[0] || null;
+
+  const diagnosis = { icd10: principleDx?.code || '', name: principleDx?.name || '' };
 
   const row = {
     id: `ph-${++pharmacyQueueSeq}`,
@@ -1292,10 +1475,12 @@ export const sendPrescriptionToPharmacy = (visit) => {
     issuedDate: TODAY,
     status: DISPENSE_STATUS.WAITING,
     queueType: 'general',
-    diagnosis: { icd10: principleDx?.code || '', name: principleDx?.name || '' },
+    diagnosis,
     vitalsSnapshot: {
       bp: vitals?.bp ?? '-', hr: vitals?.hr ?? '-', temp: vitals?.temp ?? '-', weight: vitals?.weight ?? '-',
     },
+    nurseNote: nurseNote || '',
+    doctorNote: doctorNote || '',
     orderChanged: null,
     orderCancelled: null,
     verifiedBy: null, verifiedAt: null, verificationLog: [],
@@ -1305,7 +1490,17 @@ export const sendPrescriptionToPharmacy = (visit) => {
     deliveryMethod: 'pickup', deliveryAddress: null,
     paymentStatus: PAYMENT_STATUS.NOT_APPLICABLE,
     outOfRightsDocAttached: false,
-    supportingInfo: getPharmacySupportingInfo(hn),
+    supportingInfo: getPharmacySupportingInfo(hn, {}, {
+      diagnosis,
+      nurseNote,
+      doctorNote,
+      vitals: {
+        bp: vitals?.bp ?? '-',
+        hr: vitals?.hr ?? '-',
+        temp: vitals?.temp ?? '-',
+        weight: vitals?.weight ?? '-',
+      },
+    }),
     ownMedications: [], medErrors: [],
     items: medications.map((m, i) => ({
       id: `item-cpoe-${queueNo}-${i}`,
@@ -1320,8 +1515,10 @@ export const sendPrescriptionToPharmacy = (visit) => {
       quantityDispensed: 0,
       drugType: 'GPO',
       prepared: false,
-      auxLabels: AUX_LABEL_DEFAULTS[m.name] || [],
+      auxLabels: defaultAuxLabelsFor(m.name),
       refillPlan: null,
+      outOfFormularyDocs: [],
+      outOfRightsDocs: [],
     })),
   };
   PHARMACY_QUEUE.push(row);

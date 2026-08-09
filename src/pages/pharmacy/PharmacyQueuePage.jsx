@@ -10,7 +10,7 @@ import BrandIconButton from '@/components/button/BrandIconButton';
 import Table, { EllipsisText as TableEllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import Badge from '@/components/badge/Badge';
-import { PHARMACY_QUEUE, DISPENSE_STATUS, QUEUE_TYPES, PAYMENT_STATUS, checkAllergyConflicts, updatePharmacyRow } from '@/data/pharmacyQueue';
+import { PHARMACY_QUEUE, DISPENSE_STATUS, QUEUE_TYPES, checkAllergyConflicts, updatePharmacyRow } from '@/data/pharmacyQueue';
 import { checkHighAlert } from '@/data/pharmacyRegistry';
 import { findMrPatientByHn } from '@/data/mrPatients';
 import PharmacySubNav, { PharmacyHeaderActions } from '@/components/pharmacy/PharmacySubNav';
@@ -57,13 +57,6 @@ const QUEUE_TYPE_PILL = {
   general: { style: 'neutral', label: 'ยาทั่วไป'   },
 };
 
-/* สถานะการชำระเงิน (ToR §1.9.5.2). */
-const PAYMENT_STATUS_PILL = {
-  [PAYMENT_STATUS.NOT_APPLICABLE]: { style: 'neutral', label: 'ไม่มีค่าใช้จ่าย' },
-  [PAYMENT_STATUS.UNPAID]:         { style: 'error',   label: 'ค้างชำระ'       },
-  [PAYMENT_STATUS.PAID]:           { style: 'success', label: 'ชำระแล้ว'       },
-};
-
 const Pill = ({ pill }) => <Badge style={pill.style} size='small'>{pill.label}</Badge>;
 
 /* Patient photo — registration queue avatar contract (QueuePatientAvatar). */
@@ -83,12 +76,6 @@ const ALLERGY_FILTER_OPTIONS = [
   { value: 'allergy',    label: 'แพ้ยาข้ามกลุ่ม'    },
   { value: 'highAlert',  label: 'High Alert'       },
   { value: 'none',       label: 'ไม่มีการแจ้งเตือน' },
-];
-const PAYMENT_FILTER_OPTIONS = [
-  { value: 'all', label: 'ทั้งหมด' },
-  { value: PAYMENT_STATUS.NOT_APPLICABLE, label: 'ไม่มีค่าใช้จ่าย' },
-  { value: PAYMENT_STATUS.UNPAID,         label: 'ค้างชำระ'       },
-  { value: PAYMENT_STATUS.PAID,           label: 'ชำระแล้ว'       },
 ];
 const actionModeForStatus = (status) => {
   if ([DISPENSE_STATUS.DISPENSED, DISPENSE_STATUS.NO_SHOW, DISPENSE_STATUS.PROBLEM, DISPENSE_STATUS.CANCELLED].includes(status)) return 'disabled';
@@ -163,7 +150,6 @@ const BASE_COLUMNS = [
     },
   },
   { key: 'issuedAt', label: 'เวลาสั่งยา' },
-  { key: 'payment', label: 'การชำระเงิน', render: (row) => <Pill pill={PAYMENT_STATUS_PILL[row.paymentStatus]} /> },
   { key: 'status', label: 'สถานะ', render: (row) => <Pill pill={STATUS_PILL[row.status]} /> },
 ];
 
@@ -193,7 +179,6 @@ const PharmacyQueuePage = () => {
   const [searchQ, setSearchQ] = useState('');
   const [queueTypeFilter, setQueueTypeFilter] = useState('all');
   const [allergyFilter, setAllergyFilter] = useState('all');
-  const [paymentFilter, setPaymentFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [lastCalled, setLastCalled] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -241,7 +226,6 @@ const PharmacyQueuePage = () => {
         return !hasAllergy && !hasHighAlert; // 'none'
       });
     }
-    if (paymentFilter !== 'all') result = result.filter((r) => r.paymentStatus === paymentFilter);
     if (searchQ) {
       const q = searchQ.toLowerCase();
       result = result.filter((r) =>
@@ -251,7 +235,7 @@ const PharmacyQueuePage = () => {
       );
     }
     return result;
-  }, [rows, activeTab, queueTypeFilter, allergyFilter, paymentFilter, searchQ]);
+  }, [rows, activeTab, queueTypeFilter, allergyFilter, searchQ]);
 
   /* Column-header sort — same pattern as the OPD screening worklist
      (src/pages/opd/QueuePage.jsx): only applied once the pharmacist
@@ -265,7 +249,6 @@ const PharmacyQueuePage = () => {
         case 'patient':   return row.patientName || '';
         case 'queueType': return QUEUE_TYPE_PILL[row.queueType]?.label || '';
         case 'items':     return row.items.length;
-        case 'payment':   return PAYMENT_STATUS_PILL[row.paymentStatus]?.label || '';
         case 'status':    return STATUS_PILL[row.status]?.label || '';
         default:          return row[key] ?? '';
       }
@@ -313,7 +296,6 @@ const PharmacyQueuePage = () => {
 
   const filtersActive = queueTypeFilter !== 'all'
     || allergyFilter !== 'all'
-    || paymentFilter !== 'all'
     || searchQ.trim() !== '';
 
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
@@ -321,7 +303,6 @@ const PharmacyQueuePage = () => {
     () => {
       setQueueTypeFilter('all');
       setAllergyFilter('all');
-      setPaymentFilter('all');
       setSearchQ('');
       setPage(1);
     },
@@ -395,12 +376,6 @@ const PharmacyQueuePage = () => {
                 options={ALLERGY_FILTER_OPTIONS}
                 value={allergyFilter}
                 onChange={setAllergyFilter}
-              />
-              <FilterDropdown
-                prefix='การชำระเงิน:'
-                options={PAYMENT_FILTER_OPTIONS}
-                value={paymentFilter}
-                onChange={setPaymentFilter}
               />
               <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </div>
