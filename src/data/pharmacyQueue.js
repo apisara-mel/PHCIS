@@ -755,6 +755,26 @@ export const deleteReceivingRecord = (id) => {
   return true;
 };
 
+/* Shortest allergy name that may be matched by name (not by class). Anything
+   shorter is treated as an incomplete entry — `PharmacyAllergyEditor` accepts
+   free text, and an unanchored 1–2 character substring ("e", "in") would flag
+   every line on the prescription and empty the change-drug picker. */
+const ALLERGY_NAME_MIN_CHARS = 4;
+
+const nameTokens = (s) =>
+  String(s || '').toLowerCase().split(/[^a-z0-9฀-๿]+/).filter(Boolean);
+
+/** Whole-token name match — "Amoxicillin" hits "Amoxicillin 500 mg", but a
+    stray "e" hits nothing. Multi-word allergies need every token present. */
+const allergyMatchesDrugName = (drugName, allergyName) => {
+  const aLc = String(allergyName || '').trim().toLowerCase();
+  if (aLc.length < ALLERGY_NAME_MIN_CHARS) return false;
+  const aTokens = nameTokens(aLc);
+  if (aTokens.length === 0) return false;
+  const dTokens = nameTokens(drugName);
+  return aTokens.every((t) => dTokens.some((d) => d === t || d.startsWith(t)));
+};
+
 /* Cross-references each prescribed item's drug class against the patient's
    `drugAllergies`. Returns [] when there's no conflict. */
 export const checkAllergyConflicts = (patient, items = []) => {
@@ -770,7 +790,7 @@ export const checkAllergyConflicts = (patient, items = []) => {
       const aLc = aName.toLowerCase();
       if (drugClass && aLc === String(drugClass).toLowerCase()) return true;
       /* Direct name hit — e.g. allergy "Amoxicillin" vs item "Amoxicillin 500 mg". */
-      if (drugNameLc.includes(aLc)) return true;
+      if (allergyMatchesDrugName(drugNameLc, aLc)) return true;
       return false;
     });
     if (allergy) {
@@ -1150,7 +1170,7 @@ const SUPPORTING_INFO_OVERRIDES = {
   },
   'P-015': {
     doctorNote: 'ผู้ป่วยเบาหวานชนิดที่ 2 ควบคุมดี ปรับ Metformin เป็นวันละ 2 ครั้ง ตามผล lipid/FBS ล่าสุด แนะนำคุมอาหารต่อ และนัดติดตาม 3 เดือน',
-    nurseNote: 'ซักประวัติยาเดิมและอาการข้างเคียงจากยาเบาหวาน ไม่มีอาการ低血糖 วัดสัญญาณชีพก่อนพบแพทย์เรียบร้อย',
+    nurseNote: 'ซักประวัติยาเดิมและอาการข้างเคียงจากยาเบาหวาน ไม่มีอาการน้ำตาลในเลือดต่ำ วัดสัญญาณชีพก่อนพบแพทย์เรียบร้อย',
   },
 };
 export const PHARMACY_QUEUE = SEED.map((row) => ({

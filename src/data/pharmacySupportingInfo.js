@@ -181,7 +181,10 @@ const formatVitals = (v) => {
 export const getPharmacySupportingInfo = (hn, overrides = {}, visit = {}) => ({
   diagnosis: formatDiagnosis(visit.diagnosis) ?? latestDiagnosis(hn) ?? overrides.diagnosis ?? null,
   vitals: formatVitals(visit.vitals || visit.vitalsSnapshot) ?? overrides.vitals ?? null,
-  doctorNote: latestNoteOfType(hn, 'doctor') ?? visit.doctorNote ?? overrides.doctorNote ?? null,
+  /* Current visit wins over the HN's note history — same precedence as
+     diagnosis / vitals / nurseNote. A prescription the doctor pushed today
+     must not be shadowed by an older treatmentNotes entry. */
+  doctorNote: visit.doctorNote ?? latestNoteOfType(hn, 'doctor') ?? overrides.doctorNote ?? null,
   nurseNote: visit.nurseNote ?? latestNoteOfType(hn, 'nurse') ?? overrides.nurseNote ?? null,
   treatmentHistory: latestTreatmentHistory(hn) ?? overrides.treatmentHistory ?? null,
   consultHistory: latestConsultHistory(hn) ?? overrides.consultHistory ?? null,
