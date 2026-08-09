@@ -588,7 +588,11 @@ const ALLERGY_MODE_RADIO_STYLE = {
   border: 'none',
 };
 
-const HistoryListForm = ({ schema, onValidityChange }) => {
+/* `onRecordsChange` is optional and purely observational — callers that only
+   need validity (every existing one) behave exactly as before. The OPD
+   screening flow uses it to build its review step without lifting this
+   form's state. */
+const HistoryListForm = ({ schema, onValidityChange, onRecordsChange }) => {
   const asideWidthPx =
     typeof schema.historyAsideWidthPx === 'number'
       ? schema.historyAsideWidthPx
@@ -613,6 +617,19 @@ const HistoryListForm = ({ schema, onValidityChange }) => {
   );
   const showRecordEditors = !modeToggle || declaresPresence;
   const copyFromMrDisabled = !!modeToggle && !declaresPresence;
+
+  /* Mirror the current entries out for observers (OPD screening review).
+     `declaresPresence` is included so "ไม่แพ้…" reads as an answer, not as
+     an empty section the nurse forgot. */
+  useEffect(() => {
+    if (typeof onRecordsChange !== 'function') return;
+    onRecordsChange({
+      topic: schema.topic,
+      declaresPresence: modeToggle ? declaresPresence : true,
+      records: showRecordEditors ? records : [],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records, declaresPresence, showRecordEditors]);
 
   useEffect(() => {
     if (typeof onValidityChange !== 'function') return;

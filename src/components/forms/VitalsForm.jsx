@@ -158,7 +158,7 @@ const REQUIRED_VITAL_FIELDS = [
   'waist',
 ];
 
-const VitalsForm = ({ onValidityChange }) => {
+const VitalsForm = ({ onValidityChange, onValuesChange }) => {
   const [roundVitalOverrides, setRoundVitalOverrides] = useState({});
 
   /* Per-field validity map populated by each VitalCard / PressureCard
@@ -267,6 +267,25 @@ const VitalsForm = ({ onValidityChange }) => {
     };
     return acc;
   }, {});
+
+  /* Optional, observational mirror of the round being edited — used by the
+     OPD screening review step. Callers that omit it are unaffected. */
+  useEffect(() => {
+    if (typeof onValuesChange !== 'function') return;
+    onValuesChange({
+      round: { date: activeRound.date, time: activeRound.time },
+      temp: activeVitals.temp?.value ?? '',
+      pressureSys: activeVitals.pressure?.sys ?? '',
+      pressureDia: activeVitals.pressure?.dia ?? '',
+      weight: activeVitals.weight?.value ?? '',
+      height: activeVitals.height?.value ?? '',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activeRound.id, activeRound.date, activeRound.time,
+    activeVitals.temp?.value, activeVitals.pressure?.sys, activeVitals.pressure?.dia,
+    activeVitals.weight?.value, activeVitals.height?.value,
+  ]);
 
   const updateActiveRoundVitals = useCallback((patch) => {
     setRoundVitalOverrides((prev) => {

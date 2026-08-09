@@ -131,8 +131,8 @@ const SCHEMA = {
   deleteConfirmLabel:       'ลบข้อมูลยา',
 };
 
-const AllergyForm = ({ onValidityChange }) => (
-  <HistoryListForm schema={SCHEMA} onValidityChange={onValidityChange} />
+const AllergyForm = ({ onValidityChange, onRecordsChange }) => (
+  <HistoryListForm schema={SCHEMA} onValidityChange={onValidityChange} onRecordsChange={onRecordsChange} />
 );
 
 export default AllergyForm;

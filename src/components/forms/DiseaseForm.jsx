@@ -220,8 +220,8 @@ const SCHEMA = {
  * Step 4 chronic-disease capture — Figma 162:19069.
  * @returns {React.ReactElement}
  */
-const DiseaseForm = ({ onValidityChange }) => (
-  <HistoryListForm schema={SCHEMA} onValidityChange={onValidityChange} />
+const DiseaseForm = ({ onValidityChange, onRecordsChange }) => (
+  <HistoryListForm schema={SCHEMA} onValidityChange={onValidityChange} onRecordsChange={onRecordsChange} />
 );
 
 export default DiseaseForm;

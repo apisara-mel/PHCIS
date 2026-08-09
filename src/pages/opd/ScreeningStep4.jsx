@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
-import DiseaseForm from '@/components/forms/DiseaseForm';
+import React, { useEffect, useState } from 'react';
 import SelectableCardButton from '@/components/button/SelectableCardButton';
+import { setScreeningSection } from '@/data/opdScreeningReview';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Icon from '@/components/icons/Icon';
 
 /**
- * OPD Screening — Step 4: ประวัติโรคประจำตัว + พฤติกรรมสุขภาพ.
+ * OPD Screening — Step 4: พฤติกรรมสุขภาพ.
  *
- * Base = the domain `DiseaseForm` (Figma PHCIS | OPD 162:19069 —
- * `HistoryListForm` + chronic-disease schema), untouched.
+ * ประวัติโรคประจำตัว used to sit here on top of `DiseaseForm`; it now lives
+ * as a sub-tab of step 3 (`ScreeningStep3`) together with the other allergy
+ * categories, so the flow holds exactly one `DiseaseForm` instance.
  *
- * TOR 1.2.2.6 adds the พฤติกรรมสุขภาพ section INSIDE the screening record
+ * TOR 1.2.2.6 keeps the พฤติกรรมสุขภาพ section INSIDE the screening record
  * (not only in the Forms Library): การสูบบุหรี่ / การดื่มแอลกอฮอล์ /
  * การออกกำลังกาย as SelectableCardButton radio groups + an optional detail
  * SuggestibleTextarea (voice + suggestions + minChars per project rule).
@@ -52,10 +53,19 @@ const ScreeningStep4 = ({ onValidityChange, patient }) => {
   const pick = (group, option) =>
     setChoices((c) => ({ ...c, [group]: c[group] === option ? null : option }));
 
+  /* ไม่มีฟิลด์บังคับในขั้นนี้ — โรคประจำตัวย้ายไปเป็นแท็บย่อยใน step 3 แล้ว
+     (DiseaseForm ต้องมีอินสแตนซ์เดียวในโฟลว์ ไม่งั้น state สองชุดจะไม่ตรงกัน) */
+  useEffect(() => {
+    if (typeof onValidityChange === 'function') onValidityChange(true);
+  }, [onValidityChange]);
+
+  /* ส่งค่าให้ step "ตรวจสอบข้อมูล" อ่านต่อ */
+  useEffect(() => {
+    setScreeningSection(patient?.hn, 'behaviour', { ...choices, detail });
+  }, [patient?.hn, choices, detail]);
+
   return (
     <div className='flex flex-col'>
-      <DiseaseForm onValidityChange={onValidityChange} patient={patient} />
-
       {/* TOR 1.2.2.6 — พฤติกรรมสุขภาพ captured in the screening record */}
       <section
         className='flex flex-col'
