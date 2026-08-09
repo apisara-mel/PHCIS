@@ -195,46 +195,53 @@ const daysAgo = (n) => {
 };
 
 /* How many days before today each visit happened. Most sit on today so the
-   register's "วันนี้" default has something to show; two pending rows are
+   register's "วันนี้" default has something to show; some pending rows are
    deliberately older so ยอดค้างชำระ exercises debt that crosses days. */
-const VISIT_DAYS_AGO = [0, 0, 0, 0, 0, 3, 0, 12];
+const visitDaysAgoFor = (status, i) => {
+  if (status === 'pending' && i % 5 === 0) return 3 + (i % 10);
+  if (status === 'pending' && i % 7 === 0) return 12;
+  return 0;
+};
 
-/* Queue rows — one per patient at the cashier counter. `status` +
-   payment metadata mock the outcome of §2.1's checkout flow. */
-export const FINANCE_QUEUE = VISITS.map((v, idx) => {
-  const patient = { ...NAMED(idx), hn: v.hn };
+const DEPTS = ['อายุรกรรม', 'ตรวจรักษา', 'ศัลยกรรม', 'กุมารเวช', 'ศูนย์กลาง'];
+const CENTERS = ['ศูนย์ 8 บางนา', 'ศูนย์กลาง', 'ศูนย์ 8 บางนา'];
+
+/** Build one cashier-queue row from a VISITS template + status. */
+const buildQueueRow = (visit, idx, status) => {
+  const patient = { ...NAMED(idx), hn: visit.hn };
   const rights = rightsFromInsurance(patient.insurance);
-  const items = buildItems(v.items, v.coverage);
+  const items = buildItems(visit.items, visit.coverage).map((it, itemIdx) => ({
+    ...it,
+    id: `${visit.hn}-${it.category}-${itemIdx}`,
+  }));
   const { totalCharge, rightsCoverage, amountDue } = totalsOf(items);
-  const discount = idx === 5 ? money(amountDue * 0.1) : 0; // one exemption/discount example (TOR §1.5.2)
+  const discount = idx % 11 === 5 ? money(amountDue * 0.1) : 0;
   const netDue = amountDue - discount;
 
-  const isPaid = idx < 3;
-  const isVoided = idx === 3;
-  const status = isVoided ? 'voided' : isPaid ? 'paid' : 'pending';
+  const isPaid = status === 'paid';
+  const isVoided = status === 'voided';
+  const settled = isPaid || isVoided;
 
-  const visitTime = `${8 + (idx % 4)}:${(idx * 7) % 60 < 10 ? '0' : ''}${(idx * 7) % 60}`;
-  const visitDate = thaiDate(daysAgo(VISIT_DAYS_AGO[idx] ?? 0));
+  const visitTime = `${8 + (idx % 4)}:${String((idx * 7) % 60).padStart(2, '0')}`;
+  const visitDate = thaiDate(daysAgo(visitDaysAgoFor(status, idx)));
 
-  /* วันที่-เวลา *รับชำระเงิน* — a separate fact from the visit. Money is
-     collected after the visit (here: ~40 min later, and always today for
-     the seeded receipts so "ชำระแล้ววันนี้" and ทะเบียนรายรับ agree), so
-     ทะเบียนรายรับ must file a receipt under this date, not the visit's
-     (TOR §1.8.1.12 / §1.8.5.3). */
   const paidClock = new Date();
   paidClock.setHours(8 + (idx % 4), ((idx * 7) % 60) + 40 > 59 ? ((idx * 7) % 60) - 20 : ((idx * 7) % 60) + 40, 0, 0);
   const paidDate = thaiDate(new Date());
   const paidTime = thaiTime(paidClock);
 
+  /* ~1 in 8 paid rows keep a residual so ยอดค้างชำระ / partial banner stay realistic. */
+  const residualDue = isPaid && idx % 8 === 0 ? money(netDue * 0.35) : 0;
+
   return {
-    id: `fin-${v.hn}`,
-    hn: v.hn,
+    id: `fin-${status}-${idx}`,
+    hn: visit.hn,
     vn: `A${String(idx + 1).padStart(4, '0')}`,
     counter: `เคาน์เตอร์การเงิน ${(idx % 3) + 1}`,
     patient,
     rights,
-    dept: v.dept,
-    center: v.center,
+    dept: visit.dept || DEPTS[idx % DEPTS.length],
+    center: visit.center || CENTERS[idx % CENTERS.length],
     visitDate,
     visitTime,
     queueNo: `F${String(idx + 1).padStart(3, '0')}`,
@@ -244,30 +251,43 @@ export const FINANCE_QUEUE = VISITS.map((v, idx) => {
     rightsCoverage,
     discount,
     amountDue: netDue,
+    residualDue,
     status,
-    receiptNo: status !== 'pending' ? `RE69-${String(1000 + idx)}` : null,
-    /* A voided receipt was paid before being reversed, so it keeps its
-       original payment method/date/reference for the printed record —
-       only `status` flips to 'voided' (see คู่มือ §2.1's "ยกเลิกใบเสร็จ"
-       sub-flow, which reverses an existing paid receipt). */
-    paymentMethod: (isPaid || isVoided) ? PAYMENT_METHODS[idx % PAYMENT_METHODS.length].key : null,
-    amountReceived: (isPaid || isVoided) ? netDue : null,
+    receiptNo: settled ? `RE69-${String(1000 + idx)}` : null,
+    paymentMethod: settled ? PAYMENT_METHODS[idx % PAYMENT_METHODS.length].key : null,
+    amountReceived: settled ? (residualDue ? money(netDue - residualDue) : netDue) : null,
     changeDue: 0,
-    payerName: (isPaid || isVoided) ? patient.shortName : null,
-    paidDate: (isPaid || isVoided) ? paidDate : null,
-    paidTime: (isPaid || isVoided) ? paidTime : null,
-    paidAt: (isPaid || isVoided) ? `${paidDate} · ${paidTime} น.` : null,
-    paymentRef: (isPaid || isVoided) ? `REF-${PAYMENT_METHODS[idx % PAYMENT_METHODS.length].key.toUpperCase()}-${1000 + idx}` : null,
-    cashier: isPaid || isVoided ? 'จนท.การเงิน สมศรี' : null,
-    voidReason: isVoided ? 'บันทึกรายการซ้ำ' : null,
-    /* Rows with no medication line have nothing for pharmacy to prepare;
-       the rest cycle through preparing/ready so the queue table has a
-       realistic mix (§1.8.8.1). */
+    payerName: settled ? patient.shortName : null,
+    paidDate: settled ? paidDate : null,
+    paidTime: settled ? paidTime : null,
+    paidAt: settled ? `${paidDate} · ${paidTime} น.` : null,
+    paymentRef: settled
+      ? `REF-${PAYMENT_METHODS[idx % PAYMENT_METHODS.length].key.toUpperCase()}-${1000 + idx}`
+      : null,
+    cashier: settled ? 'จนท.การเงิน สมศรี' : null,
+    voidReason: isVoided ? (idx % 2 === 0 ? 'บันทึกรายการซ้ำ' : 'ผู้ป่วยขอเปลี่ยนวิธีชำระเงิน') : null,
     pharmacyStatus: items.some((i) => i.category === 'medication')
       ? (idx % 2 === 0 ? 'ready' : 'preparing')
       : 'none',
   };
-});
+};
+
+/* 40 rows per payment status so each คิวชำระเงิน pill has enough list
+   volume for pagination / scroll demos. Templates cycle from VISITS. */
+const QUEUE_ROWS_PER_STATUS = 40;
+
+export const FINANCE_QUEUE = QUEUE_STATUSES.flatMap((statusDef, statusOrd) => (
+  Array.from({ length: QUEUE_ROWS_PER_STATUS }, (_, i) => {
+    const globalIdx = statusOrd * QUEUE_ROWS_PER_STATUS + i;
+    const template = VISITS[i % VISITS.length];
+    const hn = `67-${String(globalIdx + 1).padStart(5, '0')}`;
+    return buildQueueRow(
+      { ...template, hn, dept: template.dept || DEPTS[i % DEPTS.length] },
+      globalIdx,
+      statusDef.key,
+    );
+  })
+));
 
 export const computeTotals = totalsOf;
 

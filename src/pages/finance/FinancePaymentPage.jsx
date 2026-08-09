@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import QueuePageShell from '@/templates/QueuePageShell';
+import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import Table, { EllipsisText } from '@/components/table/Table';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import FilterTag from '@/components/forms/FilterTag';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
+import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import StatusBadge from '@/components/badge/StatusBadge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import InputField from '@/components/forms/InputField';
@@ -56,15 +56,13 @@ import {
 
    Two-level navigation, hierarchy matters:
      1. Section switcher (SECTIONS) — which functional area of the finance
-        module (คิวชำระเงิน / ทะเบียนรายรับ / ยอดค้างชำระ / ตัดยอด /
-        ปรับสิทธิ / NHSO e-Claim). This is the OUTER level, so it owns
-        QueuePageShell's sticky `tabs` slot (same position/style as OPD's
-        screening queue in src/pages/opd/QueuePage.jsx).
-     2. Payment-status filter (ทั้งหมด/รอชำระเงิน/ชำระแล้ว/ยกเลิกใบเสร็จ) —
-        the INNER level, only meaningful inside the "คิวชำระเงิน" section,
-        rendered as <FilterTag> chips below the search box (same filter-tag
-        style/position as OPD's screening queue) instead of competing for
-        the same sticky slot as the section switcher.
+        module (คิวชำระเงิน / ผู้รับบริการทั้งหมด / ทะเบียนรายรับ / …).
+        This is the OUTER level, so it owns QueuePageShell's sticky `tabs`
+        slot (same position/style as OPD's screening queue).
+     2. Payment-status filter (รอชำระเงิน/ชำระแล้ว/ยกเลิกใบเสร็จ) —
+        the INNER level, only on "คิวชำระเงิน", via StickyStatusTabBar +
+        TabPill. The former "ทั้งหมด" pill list now lives on the
+        "ผู้รับบริการทั้งหมด" section (full queue, no status pills).
 
    Covers TOR appendix ก §1.5 in full: charge breakdown by category
    (§1.5.1), %-discount/exemption (§1.5.2), and the "การยกเลิกใบเสร็จ"
@@ -89,6 +87,7 @@ import {
 
 const SECTIONS = [
   { key: 'queue', label: 'คิวชำระเงิน', icon: 'receipt_long' },
+  { key: 'patients', label: 'ผู้รับบริการทั้งหมด', icon: 'groups' },
   { key: 'other', label: 'ค่าใช้จ่ายอื่นๆ', icon: 'add_circle' },
   { key: 'status', label: 'ปรับสถานะรับชำระ', icon: 'sync_alt' },
   { key: 'signature', label: 'ลายเซ็นใบเสร็จ', icon: 'draw' },
@@ -776,7 +775,7 @@ const queueRowToSearchItem = (row) => ({
 const FinancePaymentPage = () => {
   const [section, setSection] = useState('queue');
   const [queue, setQueue] = useState(FINANCE_QUEUE);
-  const [tab, setTab] = useState('all');
+  const [tab, setTab] = useState('pending');
   const [activeRow, setActiveRow] = useState(null);
   const [searchQ, setSearchQ] = useState('');
   const [cutoff, setCutoff] = useState(null);
@@ -925,10 +924,13 @@ const FinancePaymentPage = () => {
       : r)));
   };
 
-  const statusRows = useMemo(
-    () => (tab === 'all' ? queue : queue.filter((r) => r.status === tab)),
-    [queue, tab],
-  );
+  /* "ผู้รับบริการทั้งหมด" = former pill "ทั้งหมด" (full queue).
+     "คิวชำระเงิน" filters by status pill (pending / paid / voided). */
+  const statusRows = useMemo(() => {
+    if (section === 'patients') return queue;
+    const statusKey = tab === 'all' ? 'pending' : tab;
+    return queue.filter((r) => r.status === statusKey);
+  }, [queue, tab, section]);
 
   const rows = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
@@ -1001,16 +1003,23 @@ const FinancePaymentPage = () => {
     return row ? queueRowToSearchItem(row) : query;
   };
 
-  /* INNER level — payment-status filter, nested inside the "คิวชำระเงิน"
-     section only (see the file-header comment on hierarchy). */
-  const statusTabs = [
-    { key: 'all', label: 'ทั้งหมด', icon: 'receipt_long', count: queue.length },
-    ...QUEUE_STATUSES.map((s) => ({
+  /* INNER level — status pills on "คิวชำระเงิน" only (no "ทั้งหมด";
+     that list lives on section "ผู้รับบริการทั้งหมด"). */
+  const statusTabs = useMemo(() => (
+    QUEUE_STATUSES.map((s) => ({
       key: s.key,
       label: s.label,
       icon: STATUS_TAB_ICON[s.key],
-      count: queue.filter((r) => r.status === s.key).length})),
-  ];
+      count: queue.filter((r) => r.status === s.key).length,
+    }))
+  ), [queue]);
+
+  const handleSectionChange = (next) => {
+    setSection(next);
+    if (next === 'queue' && (tab === 'all' || !QUEUE_STATUSES.some((s) => s.key === tab))) {
+      setTab('pending');
+    }
+  };
 
   /* OUTER level — section switcher, owns QueuePageShell's sticky `tabs`
      slot (same position/style as OPD's screening queue). */
@@ -1104,7 +1113,7 @@ const FinancePaymentPage = () => {
       summaryFlushUnderSubHeader={false}
       tabs={sectionTabs}
       activeTab={section}
-      onTabChange={setSection}
+      onTabChange={handleSectionChange}
     >
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -1116,44 +1125,59 @@ const FinancePaymentPage = () => {
           gap: 'var(--dim-space-600)',
         }}
       >
-        {/* Content background — flat surface-card, no border/shadow
-            (matches src/pages/opd/QueuePage.jsx's overall layout approach,
-            without that page's border + box-shadow treatment). */}
+        {/* ยอดค้างชำระ — white card wrapping the warning alert. TOR §1.8.1.16 */}
+        {section === 'queue' && summary.pendingCount + summary.partialCount > 0 && (
+          <section
+            className='w-full flex flex-col items-center min-w-0'
+            style={{
+              background: 'var(--surface-card-100)',
+              borderRadius: 'var(--dim-radius-500)',
+              boxShadow: 'var(--shadow-card)',
+              padding: 'var(--dim-space-400)',
+              boxSizing: 'border-box',
+            }}
+          >
+            <Alert
+              type='warning'
+              style={{ maxWidth: 'calc(2 * var(--dim-size-2500, 320px))' }}
+              /* Count and total must describe the same set — the total
+                 includes receipts settled only in part, so the count has
+                 to as well, or the banner contradicts itself. */
+              title={`มีผู้รับบริการค้างชำระ ${summary.pendingCount + summary.partialCount} ราย`}
+              subtext={summary.partialCount > 0
+                ? `ยอดรวม ${formatBaht(summary.outstandingTotal)} · ในนี้ ${summary.partialCount} รายชำระบางส่วนแล้ว`
+                : `ยอดรวม ${formatBaht(summary.outstandingTotal)}`}
+              action={(
+                <BrandSubdueButton size='sm' onClick={() => setSection('outstanding')}>
+                  ดูรายการค้างชำระ
+                </BrandSubdueButton>
+              )}
+            />
+          </section>
+        )}
+
+        {/* Queue / section content card — worklist chrome (space-600 pad for StickyStatusTabBar bleed). */}
         <div
           className='flex flex-col'
           style={{
-            gap: 'var(--dim-space-400)',
+            gap: 'var(--dim-space-600)',
             background: 'var(--surface-card-100)',
-            borderRadius: 'var(--dim-radius-300)',
-            padding: 'var(--dim-space-400)',
+            borderRadius: 'var(--dim-radius-500)',
+            boxShadow: 'var(--shadow-card)',
+            padding: 'var(--dim-space-600)',
           }}
         >
-          {section === 'queue' && (
+          {(section === 'queue' || section === 'patients') && (
             <>
-              {/* แจ้งเตือนกรณีค้างชำระ — TOR §1.8.1.16. Surfaces the
-                  outstanding-balance count/total up front instead of only
-                  inside the ยอดค้างชำระ tab, with a shortcut into that
-                  section's follow-up flow. */}
-              {summary.pendingCount + summary.partialCount > 0 && (
-                <Alert
-                  type='warning'
-                  /* Count and total must describe the same set — the total
-                     includes receipts settled only in part, so the count has
-                     to as well, or the banner contradicts itself. */
-                  title={`มีผู้รับบริการค้างชำระ ${summary.pendingCount + summary.partialCount} ราย`}
-                  subtext={summary.partialCount > 0
-                    ? `ยอดรวม ${formatBaht(summary.outstandingTotal)} · ในนี้ ${summary.partialCount} รายชำระบางส่วนแล้ว`
-                    : `ยอดรวม ${formatBaht(summary.outstandingTotal)}`}
-                  detail={(
-                    <div className='flex justify-end w-full'>
-                      <BrandSubdueButton size='sm' onClick={() => setSection('outstanding')}>ดูรายการค้างชำระ</BrandSubdueButton>
-                    </div>
-                  )}
+              {section === 'queue' ? (
+                <StickyStatusTabBar
+                  tabs={statusTabs}
+                  value={tab === 'all' ? 'pending' : tab}
+                  onChange={setTab}
+                  aria-label='กรองตามสถานะการชำระเงิน'
                 />
-              )}
+              ) : null}
 
-              {/* Centered PrimarySearch — same component/position as
-                  src/pages/opd/QueuePage.jsx's queue search. */}
               <div className='w-full flex items-start justify-center'>
                 <PrimarySearch
                   value={searchQ}
@@ -1172,56 +1196,26 @@ const FinancePaymentPage = () => {
                 />
               </div>
 
-              {/* INNER level — payment-status filter, below the search box.
-                  FilterTag chips (same filter-tag style as OPD's screening
-                  queue) rather than capsule tabs. */}
-              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                {statusTabs.map((t) => (
-                  <FilterTag
-                    key={t.key}
-                    leadingIcon={t.icon}
-                    selected={tab === t.key}
-                    onClick={() => setTab(t.key)}
-                    value={(
-                      <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-                        {t.label}
-                        {typeof t.count === 'number' && (
-                          <span
-                            className='inline-flex items-center justify-center'
-                            style={{
-                              minWidth: 20,
-                              height: 18,
-                              paddingLeft: 'var(--dim-space-150)',
-                              paddingRight: 'var(--dim-space-150)',
-                              borderRadius: 'var(--dim-radius-full)',
-                              background: tab === t.key ? 'var(--surface-brandtag-selected)' : 'var(--surface-brandtag-default)',
-                              color: tab === t.key ? 'var(--text-brandtag-selected)' : 'var(--text-brandtag-title)',
-                              fontFamily: 'var(--type-family-body)',
-                              fontSize: 'var(--type-size-xs)',
-                              fontWeight: 'var(--type-weight-medium)',
-                            }}
-                          >
-                            {t.count}
-                          </span>
-                        )}
-                      </span>
-                    )}
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                {showClearChip ? (
+                  <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                    <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
+                  </div>
+                ) : null}
+                <SmoothFilterResults opaque={resultsOpaque}>
+                  <SearchResultCount found={sortedRows.length} total={statusRows.length} />
+                  <Table
+                    columns={columns}
+                    rows={sortedRows}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    stickyColCount={3}
+                    onRowClick={(row) => setActiveRow(row)}
+                    stickyHeaderTop={section === 'queue' ? QUEUE_STICKY_UNDER_STATUS_TABS : QUEUE_STICKY_UNDER_TABS}
+                    emptyMessage={section === 'patients' ? 'ยังไม่มีผู้รับบริการในระบบการเงิน' : 'ไม่มีรายการในคิวการเงิน'}
                   />
-                ))}
-                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
+                </SmoothFilterResults>
               </div>
-              <SmoothFilterResults opaque={resultsOpaque}>
-              <SearchResultCount found={sortedRows.length} total={statusRows.length} />
-              <Table
-                columns={columns}
-                rows={sortedRows}
-                sortConfig={sortConfig}
-                onSort={handleSort}
-                stickyColCount={3}
-                onRowClick={(row) => setActiveRow(row)}
-                emptyMessage='ไม่มีรายการในคิวการเงิน'
-              />
-              </SmoothFilterResults>
               {activeRow && <PaymentModal row={activeRow} onClose={() => setActiveRow(null)} onVoid={handleVoid} onPay={handlePay} pricing={pricing} />}
             </>
           )}
