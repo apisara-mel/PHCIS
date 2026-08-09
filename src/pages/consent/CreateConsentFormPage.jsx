@@ -1138,18 +1138,20 @@ export default function CreateConsentFormPage() {
           >
             {step > 0 ? 'ย้อนกลับ' : 'ยกเลิก'}
           </NeutralSubdueButton>
-          <div className='flex items-center min-w-0 flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-            {showSaveBadge ? (
-              <ColorfulBadge style='green' size='small' hierarchy='secondary' icon='check_circle' showIcon width='hug'>
-                บันทึกร่างแล้ว
-              </ColorfulBadge>
-            ) : (
-              <span style={{ width: 8, height: 8, borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-positive-secondary, #A2EDDE)' }} />
-            )}
-            <span className='truncate' style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-              {`ร่างแบบฟอร์ม (บันทึกล่าสุด: ${lastSavedLabel})`}
-            </span>
-          </div>
+          {step > 0 && (
+            <div className='flex items-center min-w-0 flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+              {showSaveBadge ? (
+                <ColorfulBadge style='green' size='small' hierarchy='secondary' icon='check_circle' showIcon width='hug'>
+                  บันทึกร่างแล้ว
+                </ColorfulBadge>
+              ) : (
+                <span style={{ width: 8, height: 8, borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-positive-secondary, #A2EDDE)' }} />
+              )}
+              <span className='truncate' style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+                {`ร่างแบบฟอร์ม (บันทึกล่าสุด: ${lastSavedLabel})`}
+              </span>
+            </div>
+          )}
           <div className='flex-1' />
           <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-300)' }}>
             <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' disabled={!canSaveDraft} onClick={handleSaveDraft}>บันทึกร่าง</BrandSubdueButton>
