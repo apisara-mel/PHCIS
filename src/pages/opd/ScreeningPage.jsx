@@ -8,6 +8,7 @@ import QueueSubMenu from '@/components/layout/QueueSubMenu';
 import { useStepDirection } from '@/components/step/stepTransition';
 import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
 import ScreeningStep3 from '@/pages/opd/ScreeningStep3';
+import { setScreeningSection } from '@/data/opdScreeningReview';
 import ScreeningStep4 from '@/pages/opd/ScreeningStep4';
 import ScreeningStep5 from '@/pages/opd/ScreeningStep5';
 import AlertDialog from '@/components/popup/AlertDialog';
