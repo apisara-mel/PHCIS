@@ -19,7 +19,6 @@ import PharmacyVerificationPanel from '@/components/pharmacy/PharmacyVerificatio
 import PharmacyCounselingPanel from '@/components/pharmacy/PharmacyCounselingPanel';
 import PharmacyDeliveryPanel from '@/components/pharmacy/PharmacyDeliveryPanel';
 import PharmacyOwnMedicationsList from '@/components/pharmacy/PharmacyOwnMedicationsList';
-import PharmacyAllergyEditor from '@/components/pharmacy/PharmacyAllergyEditor';
 import PharmacyMedicationEditor from '@/components/pharmacy/PharmacyMedicationEditor';
 import PharmacyChangeDrugPopup from '@/components/pharmacy/PharmacyChangeDrugPopup';
 import FormularyStatusBadge from '@/components/pharmacy/FormularyStatusBadge';
@@ -483,6 +482,9 @@ const PharmacyDispensePage = () => {
   });
   const grandTotal = itemsWithStock.reduce((sum, i) => sum + i.subtotal, 0);
   const claimableTotal = itemsWithStock.reduce((sum, i) => sum + i.claimable, 0);
+  /* ยานอกบัญชียาหลัก (NLEM) — คิดจาก itemsWithStock เพราะ flag `inFormulary`
+     ถูกเติมตอนนั้น (row.items ดิบยังไม่มีค่านี้) */
+  const nonFormularyItems = itemsWithStock.filter((i) => !i.inFormulary);
   const nlemTotal = itemsWithStock.filter((i) => i.inFormulary).reduce((sum, i) => sum + i.subtotal, 0);
   const nonNlemTotal = grandTotal - nlemTotal;
   const hasInsufficientStock = itemsWithStock.some((i) => i.qtyNow > 0 && i.insufficient);
@@ -852,7 +854,25 @@ const PharmacyDispensePage = () => {
      หรือการกระทำของเภสัชกร (แบ่งจ่าย · สั่งจ่ายครั้งนี้ · คงคลัง · ฉลากช่วย ·
      ปุ่มดำเนินการ) เหลือเฉพาะสิ่งที่แพทย์สั่งมาจริง */
   const READONLY_HIDDEN_COLUMNS = ['refillPlan', 'qtyNow', 'stock', 'auxLabels', 'itemActions'];
-  const orderedItemColumns = columns.filter((c) => !READONLY_HIDDEN_COLUMNS.includes(c.key));
+  /* ยานอกบัญชี / ยานอกสิทธิ ต้องเห็นตั้งแต่ขั้นนี้ แต่ต้องเป็นป้ายเปล่า ๆ —
+     ปุ่มอัปโหลดเอกสารในสองคอลัมน์นั้นเป็น action จึงเหลือไว้ที่ step ตรวจสอบ */
+  const orderedItemColumns = columns
+    .filter((c) => !READONLY_HIDDEN_COLUMNS.includes(c.key))
+    .map((c) => {
+      if (c.key === 'outOfFormulary') {
+        return {
+          ...c,
+          render: (r) => (r.inFormulary ? null : <FormularyStatusBadge inFormulary={false} onlyOut />),
+        };
+      }
+      if (c.key === 'outOfRights') {
+        return {
+          ...c,
+          render: (r) => (outOfRightsIds.has(r.id) ? <OutOfRightsBadge rightsLabel={mrPatient.rights} /> : null),
+        };
+      }
+      return c;
+    });
 
   const handleMarkPreparing = () => {
     updatePharmacyRow(row.queueNo, { status: DISPENSE_STATUS.PREPARING });
@@ -1077,38 +1097,14 @@ const PharmacyDispensePage = () => {
 
           {currentStep === 1 && (
           <>
-          {/* แพ้ยา — editable (ToR §1.9.2.2 / §1.9.5). Feeds `checkAllergyConflicts`
-              directly below and `PatientCard`'s alert row above, both of which
-              re-read `mrPatient.drugAllergies` fresh on every render. */}
-          <SectionCard title='แพ้ยา'>
-            <PharmacyAllergyEditor hn={row.hn} allergies={mrPatient.drugAllergies} onChange={bump} />
-          </SectionCard>
+          {/* แพ้ยา (PharmacyAllergyEditor) ถูกถอดออกจากขั้นนี้ตามที่สั่ง —
+              ประวัติแพ้ยายังแสดงบนแถบ PatientCard ด้านบนทุกขั้นตอนอยู่แล้ว
+              และแก้ไขได้จากระบบคัดกรอง/เวชระเบียน ไม่ใช่หน้าจ่ายยา */}
 
           {/* Alerts */}
-          {conflicts.length > 0 && alertsOpen.allergy && (
-            <Alert type='warning' title='ความเสี่ยงการแพ้ยาข้ามกลุ่ม'
-              subtext={conflicts.map((c) => `${c.item.name} อยู่ในกลุ่ม ${c.allergyClass} ซึ่งผู้ป่วยมีประวัติแพ้ (${c.symptom})`).join(' · ')}
-              detail={
-                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-                  {conflicts.map((c) => (
-                    <div key={c.item.id} className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                      <span className='text-xs' style={{ color: 'var(--text-content-secondary)' }}>
-                        <strong>{c.item.name}</strong> — แพ้กลุ่ม {c.allergyClass} ({c.symptom})
-                      </span>
-                      <BrandSubdueButton variant='outline' size='sm' leadingIcon='swap_horiz' disabled={isClosed} onClick={() => handleAllergySwap(c)}>
-                        เปลี่ยนยา
-                      </BrandSubdueButton>
-                    </div>
-                  ))}
-                  <div className='flex justify-end' style={{ paddingTop: 'var(--dim-space-100)', borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)' }}>
-                    <NeutralSubdueButton variant='outline' size='sm' leadingIcon='stethoscope' disabled={isClosed} onClick={() => openSendBackForRediagnosis()}>
-                      ส่งกลับแพทย์เพื่อวินิจฉัยใหม่
-                    </NeutralSubdueButton>
-                  </div>
-                </div>
-              }
-              showIndicator={false} showBadge={false} onClose={() => closeAlert('allergy')} style={{ maxWidth: '100%' }} />
-          )}
+          {/* ตามที่สั่ง — ย้ายการแจ้งเตือน แพ้ยา / ยานอกบัญชี / ยานอกสิทธิ
+              ไปแสดงที่ step "รายการยา" (อ่านอย่างเดียว) แทน ขั้นนี้เหลือเฉพาะ
+              การตรวจสอบที่ต้องลงมือทำ */}
           {interactions.length > 0 && alertsOpen.interaction && (
             <Alert type='warning' title='ความเสี่ยงยาตีกัน (Drug Interaction)'
               subtext={interactions.map((p) => `${p.a} + ${p.b}: ${p.description}`).join(' · ')}
@@ -1128,27 +1124,6 @@ const PharmacyDispensePage = () => {
             <Alert type='warning' title='ผู้รับบริการต้องเฝ้าระวังพิเศษ'
               subtext={[watch.pregnant && 'ตั้งครรภ์', watch.breastfeeding && 'ให้นมบุตร', watch.g6pd && 'ภาวะพร่องเอนไซม์ G6PD'].filter(Boolean).join(' · ')}
               showDetail={false} showIndicator={false} showBadge={false} onClose={() => closeAlert('watch')} style={{ maxWidth: '100%' }} />
-          )}
-          {outOfRightsItems.length > 0 && alertsOpen.rights && (
-            <Alert type='error' title='มีรายการยานอกสิทธิการรักษา'
-              subtext={`${outOfRightsItems.map((i) => i.name).join(', ')} ไม่อยู่ในสิทธิ "${mrPatient.rights}" ของผู้ป่วย — ต้องมีเอกสารประกอบหรือให้ผู้ป่วยชำระเงินเอง`}
-              showDetail={false} showIndicator={false} showBadge={false} onClose={() => closeAlert('rights')} style={{ maxWidth: '100%' }} />
-          )}
-          {outOfRightsItems.length > 0 && (
-            <div
-              className='w-fit'
-              style={{
-                ...PHARMACY_NESTED_PANEL,
-                padding: 'var(--dim-space-300)',
-                ...(row.outOfRightsDocAttached ? { background: 'var(--surface-alert-success)' } : null),
-              }}
-            >
-              <Checkbox
-                checked={!!row.outOfRightsDocAttached}
-                onChange={(next) => { setOutOfRightsDocAttached(row.queueNo, next); bump(); }}
-                label='แนบเอกสารประกอบการสั่งยานอกสิทธิแล้ว'
-              />
-            </div>
           )}
           {diseaseConflicts.length > 0 && alertsOpen.disease && (
             <Alert type='error' title='ยาขัดแย้งกับโรคประจำตัวของผู้ป่วย'
@@ -1258,6 +1233,36 @@ const PharmacyDispensePage = () => {
               </SupportingInfoCells>
             </div>
           </SectionCard>
+
+          {/* ความเสี่ยงของใบสั่งยานี้ — อ่านอย่างเดียว ไม่มีปุ่ม เพราะขั้นนี้คือ
+              "แพทย์สั่งอะไรมา" การแก้ไข/เปลี่ยนยา/แนบเอกสารอยู่ที่ step ตรวจสอบ */}
+          {conflicts.length > 0 && (
+            <Alert
+              type='warning'
+              title='ผู้รับบริการมีประวัติแพ้ยาที่ตรงกับรายการในใบสั่งยา'
+              subtext={conflicts.map((c) => `${c.item.name} อยู่ในกลุ่ม ${c.allergyClass} ซึ่งผู้ป่วยมีประวัติแพ้ (${c.symptom})`).join(' · ')}
+              showDetail={false} showIndicator={false} showBadge={false} showCloseButton={false}
+              style={{ maxWidth: '100%' }}
+            />
+          )}
+          {nonFormularyItems.length > 0 && (
+            <Alert
+              type='warning'
+              title='มีรายการยานอกบัญชียาหลัก'
+              subtext={`${nonFormularyItems.map((i) => i.name).join(', ')} — โดยทั่วไปต้องมีเหตุผล/เอกสารประกอบการสั่งใช้`}
+              showDetail={false} showIndicator={false} showBadge={false} showCloseButton={false}
+              style={{ maxWidth: '100%' }}
+            />
+          )}
+          {outOfRightsItems.length > 0 && (
+            <Alert
+              type='error'
+              title='มีรายการยานอกสิทธิการรักษา'
+              subtext={`${outOfRightsItems.map((i) => i.name).join(', ')} ไม่อยู่ในสิทธิ "${mrPatient.rights}" ของผู้ป่วย — ต้องมีเอกสารประกอบหรือให้ผู้ป่วยชำระเงินเอง`}
+              showDetail={false} showIndicator={false} showBadge={false} showCloseButton={false}
+              style={{ maxWidth: '100%' }}
+            />
+          )}
 
           {/* Step 1 = อ่านอย่างเดียว: เภสัชกรดู "แพทย์สั่งอะไรมา" ก่อน แล้วค่อย
               ลงมือแก้/จัด/พิมพ์ในขั้นตรวจสอบ (step 2) — ตารางที่แก้ไขได้พร้อม
