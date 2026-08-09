@@ -6,8 +6,8 @@ import PatientCard from '@/components/card/PatientCard';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
 import { useStepDirection } from '@/components/step/stepTransition';
-import AllergyForm from '@/components/forms/AllergyForm';
 import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
+import ScreeningStep3 from '@/pages/opd/ScreeningStep3';
 import ScreeningStep4 from '@/pages/opd/ScreeningStep4';
 import ScreeningStep5 from '@/pages/opd/ScreeningStep5';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -48,9 +48,12 @@ import {
 const STEPS = [
   'สัญญาณชีพ',
   'อาการป่วย',
-  'ประวัติการแพ้ยา / สารเคมี',
-  'ประวัติโรคประจำตัว',
-  'แบบฟอร์ม',
+  /* แพ้ยา · แพ้อาหาร · แพ้สารเคมี · โรคประจำตัว · อื่น ๆ — pill sub-tabs
+     inside one step (ScreeningStep3). โรคประจำตัว moved in from step 4 so
+     only one DiseaseForm instance exists in the flow. */
+  'ประวัติการแพ้ / โรคประจำตัว',
+  'พฤติกรรมสุขภาพ',
+  'ตรวจสอบข้อมูล',
 ];
 
 /* ── Step 2 — อาการป่วย (Chief Complaint) ─────────────────────
@@ -370,7 +373,7 @@ const Sym = ({ name, size = 20 }) => (
   </span>
 );
 
-const SymptomStep = ({ onValidityChange }) => {
+const SymptomStep = ({ onValidityChange, patient = {} }) => {
   /* All defaults are empty / unselected so step 2 lands in the
      Figma 294:47891 empty-state on first entry — chief complaint,
      duration, present illness textareas blank; pain / triage / orders /
@@ -417,6 +420,21 @@ const SymptomStep = ({ onValidityChange }) => {
   useEffect(() => {
     if (typeof onValidityChange === 'function') onValidityChange(valid);
   }, [valid, onValidityChange]);
+
+  /* ส่งค่าที่กรอกให้ step "ตรวจสอบข้อมูล" อ่านต่อ */
+  useEffect(() => {
+    setScreeningSection(patient.hn, 'symptom', {
+      complaint,
+      duration,
+      presentIllness,
+      pain,
+      triage,
+      cert,
+      orders: CARE_ORDERS.filter((o) => orders[o.key]).map((o) => o.th),
+      othersNote: orders.others ? othersNote : '',
+      bedId: selectedBedId,
+    });
+  }, [patient.hn, complaint, duration, presentIllness, pain, triage, cert, orders, othersNote, selectedBedId]);
 
   const toggleOrder = (k) => setOrders((o) => ({ ...o, [k]: !o[k] }));
 
@@ -684,6 +702,13 @@ const SymptomStep = ({ onValidityChange }) => {
         onConfirm={(id) => {
           setSelectedBedId(id);
           setOrders((o) => ({ ...o, bed: true }));
+          /* สั่งเตียง = ส่งผู้ป่วยเข้าระบบสังเกตอาการ — เปิดคิวสังเกตอาการใน
+             แท็บใหม่ เพื่อให้พยาบาลรับเคสต่อได้ทันทีโดยไม่ทิ้งแบบคัดกรอง
+             ที่ยังกรอกค้างอยู่ในแท็บเดิม (เรียกจากปุ่มยืนยันของ popup จึง
+             ไม่โดน popup blocker) */
+          if (typeof window !== 'undefined') {
+            window.open(`/observation?bed=${encodeURIComponent(id)}`, '_blank', 'noopener,noreferrer');
+          }
         }}
       />
 
@@ -718,7 +743,7 @@ const SymptomStep = ({ onValidityChange }) => {
 const STEP_COMPONENTS = [
   ScreeningStep1,
   SymptomStep,
-  AllergyForm,
+  ScreeningStep3,
   ScreeningStep4,
   ScreeningStep5,
 ];

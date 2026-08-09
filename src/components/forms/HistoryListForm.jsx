@@ -237,6 +237,20 @@ const HistoryEntry = ({
   );
 };
 
+/* Fallback vocabulary for the หมายเหตุ voice field — a `voice` textarea must
+   always carry suggestions so dictation and typing offer the same wording.
+   A schema can override with `noteSuggestions`. */
+const DEFAULT_NOTE_SUGGESTIONS = [
+  'ผู้ป่วยแจ้งเอง ไม่มีเอกสารยืนยัน',
+  'ญาติเป็นผู้ให้ข้อมูล',
+  'มีบัตรแพ้ยาจากโรงพยาบาลอื่น',
+  'ยืนยันจากประวัติเวชระเบียนเดิม',
+  'ยังไม่เคยได้รับยากลุ่มนี้ซ้ำหลังเกิดอาการ',
+  'เคยได้รับยาซ้ำแล้วไม่มีอาการ',
+  'อยู่ระหว่างติดตามอาการ',
+  'แนะนำให้พกบัตรแพ้ยาติดตัวทุกครั้ง',
+];
+
 /* ── Right column: record fields — Figma 162:17951 row + DS Select w/ badge
    slot (2510:7072) via {@link BadgeSelectForm}. Badges sit inside the
    trigger only (no duplicate pill under the control).                */
@@ -306,8 +320,12 @@ const RecordCard = ({ index, record, schema, onChange, onRemove }) => (
     </div>
 
     <div className='flex items-start gap-3 w-full'>
+      {/* Both clinician-typed fields are voice textareas — they are dictated
+          at the bedside, and a `voice` field always ships with suggestions
+          so speech and typing offer the same vocabulary. */}
       <SuggestibleTextarea
         label='อาการ'
+        voice
         required={schema.symptomRequired !== false}
         value={record.symptom}
         onChange={(e) => onChange({ ...record, symptom: e.target.value })}
@@ -315,12 +333,15 @@ const RecordCard = ({ index, record, schema, onChange, onRemove }) => (
         suggestions={schema.symptomSuggestions}
         minChars={schema.symptomSuggestMinChars ?? 3}
       />
-      <Textarea
+      <SuggestibleTextarea
         label='หมายเหตุ'
+        voice
         required={schema.noteRequired === true}
         value={record.note}
         onChange={(e) => onChange({ ...record, note: e.target.value })}
         placeholder={schema.notePlaceholder || 'บันทึกข้อมูลเพิ่มเติม'}
+        suggestions={schema.noteSuggestions || DEFAULT_NOTE_SUGGESTIONS}
+        minChars={schema.noteSuggestMinChars ?? 3}
       />
     </div>
   </div>
@@ -567,7 +588,11 @@ const ALLERGY_MODE_RADIO_STYLE = {
   border: 'none',
 };
 
-const HistoryListForm = ({ schema, onValidityChange }) => {
+/* `onRecordsChange` is optional and purely observational — callers that only
+   need validity (every existing one) behave exactly as before. The OPD
+   screening flow uses it to build its review step without lifting this
+   form's state. */
+const HistoryListForm = ({ schema, onValidityChange, onRecordsChange }) => {
   const asideWidthPx =
     typeof schema.historyAsideWidthPx === 'number'
       ? schema.historyAsideWidthPx
@@ -592,6 +617,19 @@ const HistoryListForm = ({ schema, onValidityChange }) => {
   );
   const showRecordEditors = !modeToggle || declaresPresence;
   const copyFromMrDisabled = !!modeToggle && !declaresPresence;
+
+  /* Mirror the current entries out for observers (OPD screening review).
+     `declaresPresence` is included so "ไม่แพ้…" reads as an answer, not as
+     an empty section the nurse forgot. */
+  useEffect(() => {
+    if (typeof onRecordsChange !== 'function') return;
+    onRecordsChange({
+      topic: schema.topic,
+      declaresPresence: modeToggle ? declaresPresence : true,
+      records: showRecordEditors ? records : [],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records, declaresPresence, showRecordEditors]);
 
   useEffect(() => {
     if (typeof onValidityChange !== 'function') return;

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import VitalsForm from '@/components/forms/VitalsForm';
+import { setScreeningSection } from '@/data/opdScreeningReview';
 import VitalsGraphPopup from '@/components/popup/VitalsGraphPopup';
 import DatePickerRange from '@/components/forms/DatePickerRange';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -253,7 +254,11 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
         </BrandSubdueButton>
       </div>
 
-      <VitalsForm onValidityChange={onValidityChange} />
+      <VitalsForm
+        onValidityChange={onValidityChange}
+        /* ส่งค่าที่พยาบาลกรอกให้ step "ตรวจสอบข้อมูล" อ่านต่อ */
+        onValuesChange={(v) => setScreeningSection(patient.hn, 'vitals', v)}
+      />
 
       {/* TOR 1.2.2.4 — history popup with date-range window */}
       <VitalsGraphPopup

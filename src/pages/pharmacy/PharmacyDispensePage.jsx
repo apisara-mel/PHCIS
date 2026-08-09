@@ -848,6 +848,12 @@ const PharmacyDispensePage = () => {
     },
   ];
 
+  /* ตารางอ่านอย่างเดียวของ step "รายการยา" — ตัดทุกคอลัมน์ที่เป็นการตัดสินใจ
+     หรือการกระทำของเภสัชกร (แบ่งจ่าย · สั่งจ่ายครั้งนี้ · คงคลัง · ฉลากช่วย ·
+     ปุ่มดำเนินการ) เหลือเฉพาะสิ่งที่แพทย์สั่งมาจริง */
+  const READONLY_HIDDEN_COLUMNS = ['refillPlan', 'qtyNow', 'stock', 'auxLabels', 'itemActions'];
+  const orderedItemColumns = columns.filter((c) => !READONLY_HIDDEN_COLUMNS.includes(c.key));
+
   const handleMarkPreparing = () => {
     updatePharmacyRow(row.queueNo, { status: DISPENSE_STATUS.PREPARING });
     bump();
@@ -1253,6 +1259,23 @@ const PharmacyDispensePage = () => {
             </div>
           </SectionCard>
 
+          {/* Step 1 = อ่านอย่างเดียว: เภสัชกรดู "แพทย์สั่งอะไรมา" ก่อน แล้วค่อย
+              ลงมือแก้/จัด/พิมพ์ในขั้นตรวจสอบ (step 2) — ตารางที่แก้ไขได้พร้อม
+              ปุ่มทั้งหมดย้ายไปอยู่ที่นั่นแล้ว */}
+          <SectionCard title='รายการยาที่แพทย์สั่ง'>
+            <Table
+              columns={orderedItemColumns}
+              rows={itemsWithStock}
+              rowKey={(r) => r.id}
+              stickyColCount={3}
+              emptyMessage='ไม่มีรายการยา'
+            />
+          </SectionCard>
+          </>
+          )}
+
+          {currentStep === 1 && (
+          <>
           {/* Medication table */}
           <SectionCard
             title='รายการยาที่ต้องจ่าย'

@@ -1268,12 +1268,9 @@ export default function ObservationQueuePage() {
                   value={allTabFilters.bedType}
                   onChange={(val) => setAllTabFilters((prev) => ({ ...prev, bedType: val }))}
                 />
-                <FilterDropdown
-                  prefix='สถานะ'
-                  options={allTabFilterOptions.status}
-                  value={allTabFilters.status}
-                  onChange={(val) => setAllTabFilters((prev) => ({ ...prev, status: val }))}
-                />
+                {/* ไม่มีตัวกรอง "สถานะ" ในแท็บนี้ — ทุกแถวคือเคสที่ส่งต่อ/จำหน่าย
+                    ไปแล้ว (`ready_discharge` / `discharged` เท่านั้น) ตัวกรอง
+                    จึงไม่ได้ช่วยคัดอะไร คอลัมน์สถานะในตารางยังอยู่เหมือนเดิม */}
                 <FilterDropdown
                   prefix='ผู้สั่ง'
                   options={allTabFilterOptions.doctor}
