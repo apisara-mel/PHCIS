@@ -12,11 +12,14 @@ import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import DangerSubdueIconButton from '@/components/button/DangerSubdueIconButton';
 import Switch from '@/components/switch/Switch';
 import Alert from '@/components/alert/Alert';
+import ESignatureField from '@/components/form-builder/ESignatureField';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import { CENTER_OPTIONS } from '@/data/accessControlStore';
 import { readGroupPolicies } from '@/data/groupPolicyStore';
 import { readDepartments } from '@/data/departmentStore';
 import { readPositions } from '@/data/positionStore';
+import { isValidEmail, EMAIL_FORMAT_ERROR } from '@/data/usersAccess';
 import {
   TITLE_OPTIONS,
   GENDER_OPTIONS,
@@ -92,6 +95,38 @@ const VALUE = {
   lineHeight: 1.5,
 };
 
+/* คอลัมน์ตารางหน่วยงานและตำแหน่ง (step 2).
+   • วันเวลาเริ่มงาน / วันเวลาสิ้นสุด — ช่วงปฏิบัติงานที่ศูนย์นั้น
+   • สถานะในศูนย์ — Active/Inactive **รายศูนย์** ไม่ใช่รายบุคคล */
+const ASSIGN_COLUMNS = [
+  { key: 'order',      title: 'ลำดับ',            width: 72 },
+  { key: 'center',     title: 'ศูนย์บริการ',       width: 200 },
+  { key: 'group',      title: 'Group Policy',     width: 180 },
+  { key: 'sub',        title: 'สาขาย่อย',          width: 180 },
+  { key: 'dept',       title: 'แผนก',             width: 180 },
+  { key: 'position',   title: 'ตำแหน่ง',           width: 180 },
+  { key: 'startAt',    title: 'วันเวลาเริ่มงาน',    width: 208 },
+  { key: 'endAt',      title: 'วันเวลาสิ้นสุด',     width: 208 },
+  { key: 'active',     title: 'สถานะในศูนย์',      width: 152 },
+  { key: 'primary',    title: 'สาขาหลัก',          width: 104 },
+  { key: 'actions',    title: 'การดำเนินการ',      width: 120 },
+];
+
+const CELL_PAD = {
+  padding: 'var(--dim-space-200) var(--dim-space-400)',
+  borderBottom: 'var(--dim-stroke-100) solid var(--border-table-line)',
+};
+
+/* `datetime-local` คืนค่า 'YYYY-MM-DDTHH:mm' — แปลงเป็นรูปแบบไทยให้อ่านง่าย
+   บนหน้ารีวิว (ไม่แตะ timezone เพราะเป็นเวลาท้องถิ่นอยู่แล้ว). */
+function formatDateTime(v) {
+  if (!v) return '—';
+  const [date, time = ''] = String(v).split('T');
+  const [y, m, d] = date.split('-');
+  if (!y || !m || !d) return v;
+  return `${d}/${m}/${Number(y) + 543}${time ? ` ${time} น.` : ''}`;
+}
+
 function TopicHeader({ icon, title, subtitle }) {
   return (
     <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-200)' }}>
@@ -122,8 +157,10 @@ export default function AssessUserCreatePage() {
   const [step, setStep] = useState('personal');
   const stepIndex = STEPS.findIndex((s) => s.key === step);
   const [personal, setPersonal] = useState({
+    employeeCode: '',
     title: '', firstName: '', lastName: '', prefixEn: '', nameEn: '', surnameEn: '',
     gender: '', nationalId: '', licenseNo: '', birthDate: '', age: '', phone: '', email: '',
+    signature: '',
   });
   const [assignments, setAssignments] = useState([emptyAssignment()]);
   const [saved, setSaved] = useState(false);
@@ -136,6 +173,8 @@ export default function AssessUserCreatePage() {
   useEffect(() => {
     if (!existing) return;
     setPersonal({
+      employeeCode: existing.employeeCode || '',
+      signature: existing.signature || '',
       title: existing.title || '',
       firstName: existing.firstName || '',
       lastName: existing.lastName || '',
@@ -184,11 +223,17 @@ export default function AssessUserCreatePage() {
     });
   };
 
-  const personalValid = personal.firstName.trim() && personal.lastName.trim()
-    && personal.nationalId.trim() && personal.email.trim();
+  /* อีเมลบังคับกรอก **และ** ต้องถูกรูปแบบ ไม่งั้นข้ามไป step ถัดไปไม่ได้ */
+  const personalValid = personal.employeeCode.trim() && personal.firstName.trim()
+    && personal.lastName.trim() && personal.nationalId.trim()
+    && personal.email.trim() && isValidEmail(personal.email);
+
+  /* สิ้นสุดเว้นว่างได้ (= ปฏิบัติงานต่อเนื่อง) แต่ถ้าใส่ ต้องไม่มาก่อนวันเริ่ม */
+  const rangeValid = (r) => !r.startAt || !r.endAt || r.endAt > r.startAt;
 
   const assignmentValid = assignments.every((r) => (
     r.centerId && r.groupPolicyId && r.subBranchId && r.departmentId && r.positionId
+    && r.startAt && rangeValid(r)
   )) && assignments.some((r) => r.isPrimary);
 
   const duplicateIdx = findDuplicateAssignments(assignments);
@@ -291,6 +336,18 @@ export default function AssessUserCreatePage() {
             <section className='flex flex-col w-full' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <TopicHeader icon='face' title='ข้อมูลส่วนตัว' subtitle='กรอกข้อมูลส่วนตัวของบุคลากร' />
               <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+                <div style={{ flex: '1 1 240px', minWidth: 220 }}>
+                  <InputField
+                    label='รหัสพนักงาน'
+                    required
+                    value={personal.employeeCode}
+                    onChange={setField('employeeCode')}
+                    placeholder='เช่น EMP-00412'
+                    helperText='รหัสประจำตัวบุคลากรของสำนักอนามัย ต้องไม่ซ้ำกับผู้อื่น'
+                  />
+                </div>
+              </div>
+              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
                 <div style={{ flex: '1 1 140px', minWidth: 140 }}>
                   <Select label='คำนำหน้า' options={TITLE_OPTIONS} value={personal.title} onChange={setField('title')} searchable={false} />
                 </div>
@@ -336,8 +393,30 @@ export default function AssessUserCreatePage() {
                   <InputField label='เบอร์โทรศัพท์' value={personal.phone} onChange={setField('phone')} placeholder='08x-xxx-xxxx' />
                 </div>
                 <div style={{ flex: '1 1 240px', minWidth: 220 }}>
-                  <InputField label='อีเมล' required value={personal.email} onChange={setField('email')} placeholder='name@bma.go.th' />
+                  <InputField
+                    label='อีเมล'
+                    required
+                    value={personal.email}
+                    onChange={setField('email')}
+                    placeholder='name@bma.go.th'
+                    error={isValidEmail(personal.email) ? '' : EMAIL_FORMAT_ERROR}
+                  />
                 </div>
+              </div>
+
+              {/* ลายเซ็นดิจิทัล — เซ็นสดบนจอ หรืออัปโหลดรูปลายเซ็นก็ได้
+                  (ESignatureField รวมทั้งสองช่องทางไว้แล้ว ตาม TOR §1.8.4.1–.2) */}
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                <TopicHeader
+                  icon='stylus_note'
+                  title='ลายเซ็นดิจิทัล'
+                  subtitle='เซ็นบนจอหรืออัปโหลดรูปลายเซ็น — ใช้กำกับเอกสารที่บุคลากรคนนี้ลงนาม'
+                />
+                <ESignatureField
+                  value={personal.signature}
+                  onChange={setField('signature')}
+                  signerName={fullName(personal)}
+                />
               </div>
             </section>
           )}
@@ -364,21 +443,21 @@ export default function AssessUserCreatePage() {
                   borderRadius: 'var(--dim-radius-400)',
                 }}
               >
-                <table className='w-full border-collapse' style={{ minWidth: 1100 }}>
+                <table className='w-full border-collapse' style={{ minWidth: 1640 }}>
                   <thead>
                     <tr style={{ background: 'var(--surface-table-header)' }}>
-                      {['ลำดับ', 'ศูนย์บริการ', 'Group Policy', 'สาขาย่อย', 'แผนก', 'ตำแหน่ง', 'สาขาหลัก', 'การดำเนินการ'].map((h) => (
+                      {ASSIGN_COLUMNS.map(({ title, width }) => (
                         <th
-                          key={h}
+                          key={title}
                           className='text-left'
                           style={{
                             ...TABLE_HEAD,
                             padding: 'var(--dim-space-200) var(--dim-space-400)',
                             borderBottom: 'var(--dim-stroke-200) solid var(--border-table-default)',
-                            width: h === 'ลำดับ' ? 80 : h === 'สาขาหลัก' ? 112 : h === 'การดำเนินการ' ? 128 : undefined,
+                            width,
                           }}
                         >
-                          {h}
+                          {title}
                         </th>
                       ))}
                     </tr>
@@ -389,28 +468,65 @@ export default function AssessUserCreatePage() {
                       const subOpts = subOptsFor(row.groupPolicyId);
                       return (
                         <tr key={row.id} style={isDupe ? { background: 'var(--surface-alert-warning)' } : undefined}>
-                          <td style={{ ...CELL_TEXT, padding: 'var(--dim-space-200) var(--dim-space-400)', borderBottom: 'var(--dim-stroke-100) solid var(--border-table-line)' }}>
+                          <td style={{ ...CELL_TEXT, ...CELL_PAD }}>
                             {idx + 1}
                           </td>
-                          <td style={{ padding: 'var(--dim-space-200) var(--dim-space-400)', borderBottom: 'var(--dim-stroke-100) solid var(--border-table-line)' }}>
+                          <td style={CELL_PAD}>
                             <Select size='medium' showLabel={false} showHelperText={false} options={centerOpts} value={row.centerId} onChange={(v) => setAssignment(idx, { centerId: v, center: centerLabel(v) })} />
                           </td>
-                          <td style={{ padding: 'var(--dim-space-200) var(--dim-space-400)', borderBottom: 'var(--dim-stroke-100) solid var(--border-table-line)' }}>
+                          <td style={CELL_PAD}>
                             <Select size='medium' showLabel={false} showHelperText={false} options={groupOpts} value={row.groupPolicyId} onChange={(v) => setAssignment(idx, { groupPolicyId: v, subBranchId: '', subBranch: '' })} />
                           </td>
-                          <td style={{ padding: 'var(--dim-space-200) var(--dim-space-400)', borderBottom: 'var(--dim-stroke-100) solid var(--border-table-line)' }}>
+                          <td style={CELL_PAD}>
                             <Select size='medium' showLabel={false} showHelperText={false} options={subOpts} value={row.subBranchId} onChange={(v) => setAssignment(idx, { subBranchId: v })} disabled={!row.groupPolicyId} />
                           </td>
-                          <td style={{ padding: 'var(--dim-space-200) var(--dim-space-400)', borderBottom: 'var(--dim-stroke-100) solid var(--border-table-line)' }}>
+                          <td style={CELL_PAD}>
                             <Select size='medium' showLabel={false} showHelperText={false} options={deptOpts} value={row.departmentId} onChange={(v) => setAssignment(idx, { departmentId: v })} />
                           </td>
-                          <td style={{ padding: 'var(--dim-space-200) var(--dim-space-400)', borderBottom: 'var(--dim-stroke-100) solid var(--border-table-line)' }}>
+                          <td style={CELL_PAD}>
                             <Select size='medium' showLabel={false} showHelperText={false} options={posOpts} value={row.positionId} onChange={(v) => setAssignment(idx, { positionId: v })} />
                           </td>
-                          <td style={{ padding: 'var(--dim-space-200) var(--dim-space-400)', borderBottom: 'var(--dim-stroke-100) solid var(--border-table-line)' }}>
+                          <td style={CELL_PAD}>
+                            <InputField
+                              showLabel={false}
+                              showHelperText={false}
+                              showLeadingIcon={false}
+                              size='medium'
+                              type='datetime-local'
+                              value={row.startAt || ''}
+                              onChange={(v) => setAssignment(idx, { startAt: v })}
+                              aria-label={`วันเวลาเริ่มงานแถว ${idx + 1}`}
+                            />
+                          </td>
+                          <td style={CELL_PAD}>
+                            <InputField
+                              showLabel={false}
+                              showHelperText={false}
+                              showLeadingIcon={false}
+                              size='medium'
+                              type='datetime-local'
+                              value={row.endAt || ''}
+                              onChange={(v) => setAssignment(idx, { endAt: v })}
+                              aria-label={`วันเวลาสิ้นสุดแถว ${idx + 1}`}
+                            />
+                          </td>
+                          {/* สถานะรายศูนย์ — คนเดียวกัน Active ที่ศูนย์หนึ่ง Inactive อีกศูนย์ได้ */}
+                          <td style={CELL_PAD}>
+                            <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                              <Switch
+                                checked={row.active !== false}
+                                onChange={(next) => setAssignment(idx, { active: next })}
+                                aria-label={`สถานะในศูนย์แถว ${idx + 1}`}
+                              />
+                              <ColorfulBadge style={row.active !== false ? 'green' : 'grey'}>
+                                {row.active !== false ? 'Active' : 'Inactive'}
+                              </ColorfulBadge>
+                            </div>
+                          </td>
+                          <td style={CELL_PAD}>
                             <Switch checked={row.isPrimary} onChange={() => setPrimary(idx)} aria-label={`สาขาหลักแถว ${idx + 1}`} />
                           </td>
-                          <td style={{ padding: 'var(--dim-space-200) var(--dim-space-400)', borderBottom: 'var(--dim-stroke-100) solid var(--border-table-line)' }}>
+                          <td style={CELL_PAD}>
                             <DangerSubdueIconButton icon='delete' variant='ghost' size='md' aria-label='ลบ' disabled={assignments.length <= 1} onClick={() => removeAssignment(idx)} />
                           </td>
                         </tr>
@@ -429,12 +545,34 @@ export default function AssessUserCreatePage() {
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
                 <span style={TOPIC_PRIMARY}>ข้อมูลส่วนตัว</span>
                 <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-600)' }}>
+                  <InfoField label='รหัสพนักงาน' value={personal.employeeCode} />
                   <InfoField label='ชื่อ-นามสกุล' value={fullName(personal)} />
                   <InfoField label='Name' value={[personal.nameEn, personal.surnameEn].filter(Boolean).join(' ')} />
                   <InfoField label='เลขบัตรประชาชน' value={personal.nationalId} />
                   <InfoField label='รหัสวิชาชีพ (ว.)' value={personal.licenseNo} />
                   <InfoField label='อีเมล' value={personal.email} />
                   <InfoField label='เบอร์โทรศัพท์' value={personal.phone} />
+                </div>
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
+                  <span style={LABEL}>ลายเซ็นดิจิทัล</span>
+                  {personal.signature ? (
+                    <img
+                      src={personal.signature}
+                      alt='ลายเซ็นดิจิทัล'
+                      style={{
+                        height: 64,
+                        width: 'auto',
+                        maxWidth: 240,
+                        objectFit: 'contain',
+                        background: 'var(--surface-card-100)',
+                        border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                        borderRadius: 'var(--dim-radius-200)',
+                        padding: 'var(--dim-space-200)',
+                      }}
+                    />
+                  ) : (
+                    <span style={VALUE}>ยังไม่ได้เซ็น</span>
+                  )}
                 </div>
               </div>
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
@@ -456,6 +594,9 @@ export default function AssessUserCreatePage() {
                     <InfoField label='สาขาย่อย' value={labelOf(subOptsFor(row.groupPolicyId), row.subBranchId)} />
                     <InfoField label='แผนก' value={labelOf(deptOpts, row.departmentId)} />
                     <InfoField label='ตำแหน่ง' value={labelOf(posOpts, row.positionId)} />
+                    <InfoField label='วันเวลาเริ่มงาน' value={formatDateTime(row.startAt)} />
+                    <InfoField label='วันเวลาสิ้นสุด' value={row.endAt ? formatDateTime(row.endAt) : 'ไม่กำหนด'} />
+                    <InfoField label='สถานะในศูนย์' value={row.active !== false ? 'Active' : 'Inactive'} />
                     <InfoField label='สาขาหลัก' value={row.isPrimary ? 'ใช่' : 'ไม่ใช่'} />
                   </div>
                 ))}

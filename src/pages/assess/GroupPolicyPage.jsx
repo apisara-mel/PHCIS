@@ -614,28 +614,22 @@ export default function GroupPolicyPage() {
         sidebarFallbackKey='assess-group-policy'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
-        title={hasPolicies && showListChrome ? undefined : 'Group Policy'}
+        /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน (เหมือนหน้าศูนย์บริการ)
+           ระยะบนจึงเท่ากับหน้าอื่น และปุ่มยัง sticky ตอนเลื่อนตาราง */
+        title='Group Policy'
+        actions={showListChrome ? (
+          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openAddPolicy}>
+            เพิ่ม Group Policy
+          </BrandButton>
+        ) : undefined}
         headerInfo={showListChrome ? (
-          <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-              <div className='flex-1 min-w-0'>
-                <Topic
-                  hierarchy='tertiary'
-                  title='Group Policy'
-                  showSubText={false}
-                  showBadge={false}
-                  showChevron={false}
-                  showLeadingIcon={false}
-                  showSuccess={false}
-                />
-              </div>
-              <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openAddPolicy}>
-                เพิ่ม Group Policy
-              </BrandButton>
-            </div>
+          <section
+            className='flex flex-col w-full'
+            style={{ gap: 'var(--dim-space-400)', paddingTop: 'var(--dim-space-600)' }}
+          >
             <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               {summaryCards.map((c) => (
-                <SummaryCard key={c.key} card={c} variant='panel' hover />
+                <SummaryCard key={c.key} card={c} variant='panel' />
               ))}
             </div>
           </section>

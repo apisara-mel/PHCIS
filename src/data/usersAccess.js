@@ -652,7 +652,17 @@ export const isLicenseTaken = (licenseNo, exceptId = null) => {
 export const countActiveAdmins = () =>
   USERS.filter((u) => u.role === 'admin' && u.status === 'active').length;
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/* รูปแบบอีเมลกลางของระบบ — export ไว้ให้ฟอร์มอื่นตรวจด้วยกติกาเดียวกัน
+   (ทะเบียนศูนย์บริการ · เพิ่มบุคลากร) แทนที่จะเขียน regex ของใครของมัน */
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const EMAIL_FORMAT_ERROR = 'รูปแบบอีเมลไม่ถูกต้อง (ตัวอย่าง name@phcis.bma.go.th)';
+
+/** ค่าว่างถือว่าผ่าน — ให้ผู้เรียกตัดสินเองว่าฟิลด์นั้นบังคับกรอกหรือไม่. */
+export const isValidEmail = (raw) => {
+  const v = String(raw || '').trim();
+  return !v || EMAIL_RE.test(v);
+};
 
 /**
  * ตรวจ attribute ตาม TOR 1.17.1.3 + edge case ที่สเปกกำหนด.

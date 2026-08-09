@@ -95,9 +95,12 @@ const PanelSummaryCard = ({ card, hover = false }) => {
   const tile = card.tileBg || `var(--surface-statussummarycard-${card.color})`;
   const ink = card.iconInk || `var(--text-statussummarycard-${card.color}-number)`;
   const indIcon = card.indicatorIcon === undefined ? 'trending_up' : card.indicatorIcon;
+  /* การ์ดสรุปเป็นตัวเลขอ่านอย่างเดียว — **ไม่มีเงา และคลิกไม่ได้** ทุกหน้า
+     (ยืนยัน 10 ส.ค. 2569). prop `hover` เก็บไว้ไม่ให้ caller เดิมพัง แต่ไม่มีผล
+     — อย่าเผลอใส่ .mih-summary-card หรือ onClick กลับเข้ามาอีก. */
   return (
     <div
-      className={`flex flex-1 max-w-full min-w-[min(100%,200px)] items-start${hover ? ' mih-summary-card' : ''}`}
+      className='flex flex-1 max-w-full min-w-[min(100%,200px)] items-start'
       style={{
         gap: 'var(--dim-space-400)',
         padding: 'var(--dim-space-400)',

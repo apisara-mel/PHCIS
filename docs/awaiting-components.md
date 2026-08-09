@@ -64,16 +64,42 @@ design system เมื่อไร
 
 ---
 
-### 2. ESignatureField (ลายเซ็นอิเล็กทรอนิกส์ 3 ช่องทาง) — 🕐 รอเคสที่ 2
+### 2. ESignatureField (ลายเซ็นอิเล็กทรอนิกส์ 3 ช่องทาง) — ✅ ครบเคสที่ 2 แล้ว · เสนอยกขึ้น DS
 
 | | |
 |---|---|
-| **ใช้อยู่ที่** | `src/pages/forms/FormFillPage.jsx` (คลังแบบฟอร์ม — signature field) · `src/components/popup/ConsentFormFillPopup.jsx` (ลงทะเบียน — PDPA/ยินยอม) — 2 ที่ แต่เป็น flow เดียวกัน (การเซ็นใบยินยอม) จึงยังนับเป็นเคสเดียว |
+| **ใช้อยู่ที่** | `src/pages/forms/FormFillPage.jsx` (คลังแบบฟอร์ม) · `src/components/popup/ConsentFormFillPopup.jsx` (ลงทะเบียน — PDPA/ยินยอม) · **`src/pages/assess/AssessUserCreatePage.jsx` (จัดการระบบ — ลายเซ็นดิจิทัลของบุคลากร)** |
 | **หน้าที่** | ให้ผู้ลงนามเลือกช่องทางลายเซ็นตาม TOR 1.8.4.1–1.8.4.2: เลือกลายเซ็นที่บันทึกไว้ / วาดใหม่ (canvas `Signature` เดิม) / อัปโหลดรูป — ทุกช่องทางจบที่ `onChange(dataUrl)` เดียวกัน |
 | **ทำไมไม่มีของเดิมแทน** | `Signature` (form-builder) มีเฉพาะช่องทาง "วาด" — ไม่มี saved-signature picker และไม่มี upload ที่ไหนในระบบ |
 | **โครง API** | `<ESignatureField value onChange signerName height>` — tab state ภายใน, ลายเซ็นที่บันทึกเป็น mock 2 รายการ |
-| **รอเคสอะไร** | ระบบอื่นที่ต้องเซ็น: การเงิน (ใบเสร็จ), Lab (ผู้รายงานผล), ใบรับรองแพทย์ — เคสที่ 2 เมื่อไรยกขึ้น DS พร้อม Figma variant ครบ 3 แท็บ |
-| **บันทึกเมื่อ** | 2 ส.ค. 2569 |
+| **สถานะ** | เดิมรอเคสที่ 2 — **10 ส.ค. 2569 ได้เคสที่ 2 จริงแล้ว**: การเซ็นของ *บุคลากร* (ไม่ใช่ผู้รับบริการเซ็นใบยินยอม) เป็นคนละ flow จึงนับเป็นเคสอิสระ → เข้าเกณฑ์ยกขึ้น DS พร้อม Figma variant ครบ 3 แท็บ |
+| **บันทึกเมื่อ** | 2 ส.ค. 2569 · อัปเดต 10 ส.ค. 2569 |
+
+---
+
+### 18. RowActionMenu (เมนู ⋮ ประจำแถว) — ✅ ครบเคสที่ 2 แล้ว · เสนอยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/system/CenterStructureEditor.jsx` (แผนก / คลินิก / ห้อง-เตียง) · `src/pages/assess/AccessControlPage.jsx` (แม่แบบสิทธิ) — **2 ที่** และมี markup ชุดเดียวกันฝังอยู่ใน `src/pages/queue-center/QueueCenterConsolePage.jsx` ที่ควร alias ตามมา |
+| **หน้าที่** | ปุ่ม `more_vert` + Popover รายการคำสั่งประจำแถว รองรับ `disabled` / `danger` และปิดเมนูอัตโนมัติหลังเลือก — คำสั่งหลักที่ใช้คือ "ทำสำเนา" |
+| **ทำไมไม่มีของเดิมแทน** | `Popover` มีอยู่แล้วแต่เป็น shell เปล่า · `OverflowFlexRow` แก้คนละปัญหา (ปุ่มล้นแถว ไม่ใช่เมนูคำสั่ง) — ก่อนหน้านี้ทุกหน้าจึง copy markup เมนูไปเอง |
+| **โครง API** | `<RowActionMenu items={[{key, icon, label, onClick, disabled, danger}]} ariaLabel size variant minWidth />` |
+| **สถานะ** | เข้าเกณฑ์ยกขึ้น DS แล้ว — ถ้ายกควรกวาด `QueueCenterConsolePage` มา alias ด้วยจะได้เหลือชุดเดียว |
+| **บันทึกเมื่อ** | 10 ส.ค. 2569 |
+
+---
+
+### 19. CenterStructureEditor (โครงสร้างศูนย์ 3 ระดับ) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/system/AddCenterPage.jsx` step "แผนกและคลินิก" — 1 ที่ |
+| **หน้าที่** | แก้ไขต้นไม้ 3 ระดับ **แผนก → คลินิก → ห้องตรวจ/เตียง** ในฟอร์มเดียว: คลินิกมีเวลาเปิด-ปิดของตัวเอง (3 กลุ่มวัน) หรือใช้ตามเวลาศูนย์ · ห้อง/เตียงผูกกับคลินิก · ทุกระดับทำสำเนาได้จากเมนู ⋮ · เลือกได้ว่าจะใช้รูปแบบนี้กับศูนย์ใดบ้าง (`appliedCenters`) |
+| **ทำไมไม่มีของเดิมแทน** | ไม่มี tree-editor ที่แก้ไขได้แบบ nested ใน DS — ของเดิมมีแต่ตาราง/ลิสต์แบนชั้นเดียว |
+| **โครง API** | `<CenterStructureEditor departments onDepartmentsChange appliedCenters onAppliedCentersChange centerOptions />` · โมเดลอยู่ที่ `src/data/centerStructure.js` |
+| **รอเคสอะไร** | ที่อื่นที่ต้องแก้ลำดับชั้นแบบนี้ — เช่น ผังคลังยา (คลัง → ชั้น → ช่องเก็บ) หรือผังห้องตรวจของระบบนัดหมาย ถ้ามีเคสที่ 2 ควรยกเป็น `NestedTreeEditor` กลางที่รับ schema ต่อระดับ ไม่ใช่ยกตัวนี้ตรง ๆ |
+| **บันทึกเมื่อ** | 10 ส.ค. 2569 |
 
 ---
 

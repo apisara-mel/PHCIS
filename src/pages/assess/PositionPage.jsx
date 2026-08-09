@@ -446,28 +446,22 @@ export default function PositionPage() {
         sidebarFallbackKey='assess-positions'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
-        title={hasPositions ? undefined : 'ตำแหน่ง'}
+        /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน — ระยะบนจึงเท่ากันทุกหน้า
+           และปุ่มยัง sticky ตอนเลื่อนตาราง (แก้พร้อมกันทุกหน้า 10 ส.ค. 2569) */
+        title='ตำแหน่ง'
+        actions={hasPositions ? (
+          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openAdd}>
+            เพิ่มตำแหน่ง
+          </BrandButton>
+        ) : undefined}
         headerInfo={hasPositions ? (
-          <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-              <div className='flex-1 min-w-0'>
-                <Topic
-                  hierarchy='tertiary'
-                  title='ตำแหน่ง'
-                  showSubText={false}
-                  showBadge={false}
-                  showChevron={false}
-                  showLeadingIcon={false}
-                  showSuccess={false}
-                />
-              </div>
-              <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openAdd}>
-                เพิ่มตำแหน่ง
-              </BrandButton>
-            </div>
+          <section
+            className='flex flex-col w-full'
+            style={{ gap: 'var(--dim-space-400)', paddingTop: 'var(--dim-space-600)' }}
+          >
             <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               {summaryCards.map((c) => (
-                <SummaryCard key={c.key} card={c} variant='panel' hover />
+                <SummaryCard key={c.key} card={c} variant='panel' />
               ))}
             </div>
           </section>

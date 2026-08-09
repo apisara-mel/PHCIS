@@ -13,6 +13,8 @@ import {
   PERM_VIEW,
   PERM_EDIT,
   findAccessControl,
+  latestVersion,
+  formatVersion,
 } from '@/data/accessControlStore';
 
 /* PHCIS | Assess-control — Access rights detail (Figma 4D3nTx53 · 17:32686). */
@@ -95,11 +97,13 @@ function contextCards(record) {
       value: record.department,
       label: 'แผนก',
     },
+    /* ไม่มีการ์ด "ตำแหน่ง" — แม่แบบสิทธิไม่ผูกตำแหน่งแล้ว ตำแหน่งไปอยู่ที่
+       ขั้นตอนเพิ่มบุคลากรแทน. แสดงเวอร์ชันของแม่แบบตรงนี้แทน. */
     {
-      key: 'position',
-      icon: 'face',
-      value: record.position,
-      label: 'ตำแหน่ง',
+      key: 'version',
+      icon: 'history',
+      value: formatVersion(latestVersion(record)),
+      label: 'เวอร์ชันแม่แบบ',
       tileBg: 'var(--color-lavender-50, #F7F4FF)',
       iconInk: 'var(--text-statussummarycard-lavender-number, #8A6CD8)',
     },

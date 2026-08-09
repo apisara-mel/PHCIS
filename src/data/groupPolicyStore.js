@@ -5,33 +5,114 @@ const STORAGE_KEY = 'mih:group-policies';
 
 const uid = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
+/* Group Policy = สายวิชาชีพ/กลุ่มงานของบุคลากรในศูนย์บริการสาธารณสุข
+   แต่ละกลุ่มแตกเป็นสาขาย่อยตามความเชี่ยวชาญ — ชุดนี้อิงโครงบุคลากรของ
+   สำนักอนามัย เพื่อให้ dropdown ตอนผูกสิทธิ/เพิ่มบุคลากรมีตัวเลือกครบพอ
+   ใช้งานได้จริง (เดิมมีแค่ 2 กลุ่ม 4 สาขาย่อย). */
 export const DEMO_GROUP_POLICIES = [
   {
     id: 'gp-doctor',
     name: 'แพทย์',
     subBranches: [
-      { id: 'sb-dent', name: 'ทันตกรรม', active: true, order: 1 },
-      { id: 'sb-thai', name: 'แพทย์แผนไทย', active: true, order: 2 },
+      { id: 'sb-gp',     name: 'แพทย์เวชปฏิบัติทั่วไป', active: true, order: 1 },
+      { id: 'sb-family', name: 'แพทย์เวชศาสตร์ครอบครัว', active: true, order: 2 },
+      { id: 'sb-obgyn',  name: 'สูตินรีเวช', active: true, order: 3 },
+      { id: 'sb-psy',    name: 'จิตแพทย์', active: true, order: 4 },
+      { id: 'sb-dent',   name: 'ทันตแพทย์', active: true, order: 5 },
+      { id: 'sb-thai',   name: 'แพทย์แผนไทย', active: true, order: 6 },
     ],
   },
   {
     id: 'gp-nurse',
     name: 'พยาบาล',
     subBranches: [
-      { id: 'sb-opd', name: 'OPD', active: true, order: 1 },
-      { id: 'sb-ipd', name: 'IPD', active: false, order: 2 },
+      { id: 'sb-opd',       name: 'พยาบาลผู้ป่วยนอก (OPD)', active: true, order: 1 },
+      { id: 'sb-er',        name: 'พยาบาลห้องฉุกเฉิน', active: true, order: 2 },
+      { id: 'sb-anc',       name: 'พยาบาลฝากครรภ์', active: true, order: 3 },
+      { id: 'sb-vaccine',   name: 'พยาบาลสร้างเสริมภูมิคุ้มกัน', active: true, order: 4 },
+      { id: 'sb-nurse-com', name: 'พยาบาลเยี่ยมบ้าน/ชุมชน', active: true, order: 5 },
+      { id: 'sb-ipd',       name: 'พยาบาลสังเกตอาการ', active: false, order: 6 },
+    ],
+  },
+  {
+    id: 'gp-pharmacist',
+    name: 'เภสัชกร',
+    subBranches: [
+      { id: 'sb-dispense', name: 'เภสัชกรจ่ายยา', active: true, order: 1 },
+      { id: 'sb-stock',    name: 'เภสัชกรคลังยาและเวชภัณฑ์', active: true, order: 2 },
+      { id: 'sb-counsel',  name: 'เภสัชกรให้คำปรึกษาด้านยา', active: true, order: 3 },
+    ],
+  },
+  {
+    id: 'gp-medtech',
+    name: 'นักเทคนิคการแพทย์',
+    subBranches: [
+      { id: 'sb-lab',         name: 'ห้องปฏิบัติการทั่วไป', active: true, order: 1 },
+      { id: 'sb-lab-sendout', name: 'งานส่งตรวจภายนอก (Send-out)', active: true, order: 2 },
+    ],
+  },
+  {
+    id: 'gp-radiology',
+    name: 'นักรังสีการแพทย์',
+    subBranches: [
+      { id: 'sb-xray', name: 'รังสีวินิจฉัยทั่วไป', active: true, order: 1 },
+      { id: 'sb-pacs', name: 'ผู้ดูแลระบบ PACS', active: true, order: 2 },
+    ],
+  },
+  {
+    id: 'gp-dental-health',
+    name: 'เจ้าพนักงานทันตสาธารณสุข',
+    subBranches: [
+      { id: 'sb-dent-assist', name: 'ผู้ช่วยทันตแพทย์', active: true, order: 1 },
+      { id: 'sb-dent-school', name: 'ทันตสาธารณสุขในโรงเรียน', active: true, order: 2 },
+    ],
+  },
+  {
+    id: 'gp-registrar',
+    name: 'เจ้าหน้าที่เวชระเบียน',
+    subBranches: [
+      { id: 'sb-reg-front', name: 'จุดคัดกรอง/ลงทะเบียน', active: true, order: 1 },
+      { id: 'sb-reg-file',  name: 'แฟ้มเวชระเบียนและการส่งต่อ', active: true, order: 2 },
+    ],
+  },
+  {
+    id: 'gp-finance',
+    name: 'เจ้าหน้าที่การเงิน',
+    subBranches: [
+      { id: 'sb-cashier', name: 'การเงินและเก็บเงิน', active: true, order: 1 },
+      { id: 'sb-claim',   name: 'งานเคลมและสิทธิการรักษา', active: true, order: 2 },
+    ],
+  },
+  {
+    id: 'gp-public-health',
+    name: 'นักวิชาการสาธารณสุข',
+    subBranches: [
+      { id: 'sb-community', name: 'งานสาธารณสุขชุมชน', active: true, order: 1 },
+      { id: 'sb-school',    name: 'งานสุขภาพนักเรียน', active: true, order: 2 },
+      { id: 'sb-epidemic',  name: 'งานควบคุมโรคติดต่อ', active: true, order: 3 },
+    ],
+  },
+  {
+    id: 'gp-admin',
+    name: 'ผู้ดูแลระบบ',
+    subBranches: [
+      { id: 'sb-sysadmin',   name: 'ผู้ดูแลระบบศูนย์', active: true, order: 1 },
+      { id: 'sb-superadmin', name: 'ผู้ดูแลระบบส่วนกลาง', active: true, order: 2 },
     ],
   },
 ];
 
+/** ทะเบียนว่าง (เบราว์เซอร์ใหม่ / ยังไม่เคยตั้งค่า) ให้คืนชุดตั้งต้นแทน
+    ไม่งั้น dropdown "Group Policy" ตอนผูกสิทธิและเพิ่มบุคลากรจะว่างเปล่า
+    จนใช้งานไม่ได้เลย. เขียนทับได้ทันทีที่ผู้ใช้แก้ในหน้า Group Policy. */
 export function readGroupPolicies() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw == null) return [];
+    if (raw == null) return DEMO_GROUP_POLICIES;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) && parsed.length ? parsed : DEMO_GROUP_POLICIES;
   } catch {
-    return [];
+    return DEMO_GROUP_POLICIES;
   }
 }
 

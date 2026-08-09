@@ -248,28 +248,22 @@ export default function AssessUserPage() {
         sidebarFallbackKey='system-staff'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
-        title={hasRecords ? undefined : 'บุคลากร'}
+        /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน — ระยะบนจึงเท่ากันทุกหน้า
+           และปุ่มยัง sticky ตอนเลื่อนตาราง (แก้พร้อมกันทุกหน้า 10 ส.ค. 2569) */
+        title='บุคลากร'
+        actions={hasRecords ? (
+          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openCreate}>
+            เพิ่มบุคลากร
+          </BrandButton>
+        ) : undefined}
         headerInfo={hasRecords ? (
-          <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-              <h1 style={{
-                color: 'var(--text-topic-tertiary-title)',
-                fontFamily: 'var(--type-family-heading-content)',
-                fontSize: 'var(--type-size-base)',
-                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                lineHeight: 1.5,
-                margin: 'var(--dim-space-0)',
-              }}
-              >
-                บุคลากรและการเข้าถึง
-              </h1>
-              <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openCreate}>
-                เพิ่มบุคลากร
-              </BrandButton>
-            </div>
+          <section
+            className='flex flex-col w-full'
+            style={{ gap: 'var(--dim-space-400)', paddingTop: 'var(--dim-space-600)' }}
+          >
             <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               {summaryCards.map((c) => (
-                <SummaryCard key={c.key} card={c} variant='panel' hover />
+                <SummaryCard key={c.key} card={c} variant='panel' />
               ))}
             </div>
           </section>

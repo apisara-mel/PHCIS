@@ -162,6 +162,8 @@ import SystemRoleCreatePage from '@/pages/system/SystemRoleCreatePage';
 import SystemOverviewPage from '@/pages/system/SystemOverviewPage';
 import SystemCentersPage from '@/pages/system/SystemCentersPage';
 import AddCenterPage from '@/pages/system/AddCenterPage';
+import CenterStructurePage from '@/pages/system/CenterStructurePage';
+import CenterStructureCreatePage from '@/pages/system/CenterStructureCreatePage';
 import SystemConfidentialDataPage from '@/pages/system/SystemConfidentialDataPage';
 import AuditOverviewPage from '@/pages/audit/AuditOverviewPage';
 import AuditLogPage from '@/pages/audit/AuditLogPage';
@@ -279,6 +281,11 @@ export default function Routes() {
         {/* ศูนย์บริการ — health-center registry + 5-step add wizard (Figma 4D3nTx53 · 1:3273). */}
         <Route exact path='/admin/centers'      component={SystemCentersPage} />
         <Route exact path='/admin/centers/new'  component={AddCenterPage} />
+        {/* รูปแบบโครงสร้างศูนย์ — ทะเบียนแม่แบบ แผนก/คลินิก + ห้องตรวจ/เตียง
+            ที่นำไปเลือกใช้ตอนเพิ่มศูนย์บริการ (step "แผนกและคลินิก") */}
+        <Route exact path='/admin/structures/new'      component={CenterStructureCreatePage} />
+        <Route exact path='/admin/structures/:id/edit' component={CenterStructureCreatePage} />
+        <Route exact path='/admin/structures'          component={CenterStructurePage} />
         <Route exact path='/admin/staff'        component={SystemStaffPage} />
         <Route exact path='/admin/staff/new'    component={SystemStaffAddPage} />
         <Route exact path='/admin/staff/:id'    component={SystemStaffDetailPage} />

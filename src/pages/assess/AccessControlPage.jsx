@@ -10,6 +10,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
+import RowMenu from '@/components/overflow/RowActionMenu';
 import Switch from '@/components/switch/Switch';
 import SmallAlert from '@/components/alert/SmallAlert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
@@ -19,11 +20,13 @@ import {
   writeAccessControls,
   computeAccessControlStats,
   countPermissionBuckets,
+  duplicateAccessControl,
+  latestVersion,
+  formatVersion,
   CENTER_OPTIONS,
 } from '@/data/accessControlStore';
 import { readGroupPolicies } from '@/data/groupPolicyStore';
 import { readDepartments } from '@/data/departmentStore';
-import { readPositions } from '@/data/positionStore';
 
 /* PHCIS | Assess-control — สิทธิการเข้าถึง list (Figma 4D3nTx53 · 16:43747). */
 
@@ -85,7 +88,6 @@ export default function AccessControlPage() {
   const [filterGroup, setFilterGroup] = useState('');
   const [filterSub, setFilterSub] = useState('');
   const [filterDept, setFilterDept] = useState('');
-  const [filterPosition, setFilterPosition] = useState('');
   const [toast, setToast] = useState(null);
 
   const persist = useCallback((next) => {
@@ -115,7 +117,6 @@ export default function AccessControlPage() {
 
   const groupPolicies = useMemo(() => readGroupPolicies(), [records]);
   const departments = useMemo(() => readDepartments(), [records]);
-  const positions = useMemo(() => readPositions(), [records]);
 
   const subBranchOptions = useMemo(() => {
     const branches = groupPolicies.flatMap((g) => (g.subBranches || []).map((sb) => ({
@@ -130,12 +131,11 @@ export default function AccessControlPage() {
     if (filterGroup && r.groupPolicyId !== filterGroup) return false;
     if (filterSub && r.subBranchId !== filterSub) return false;
     if (filterDept && r.departmentId !== filterDept) return false;
-    if (filterPosition && r.positionId !== filterPosition) return false;
     return true;
-  }), [records, filterCenter, filterGroup, filterSub, filterDept, filterPosition]);
+  }), [records, filterCenter, filterGroup, filterSub, filterDept]);
 
   const hasRecords = records.length > 0;
-  const isAllFilters = !filterCenter && !filterGroup && !filterSub && !filterDept && !filterPosition;
+  const isAllFilters = !filterCenter && !filterGroup && !filterSub && !filterDept;
   const filtersActive = !isAllFilters;
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
@@ -144,7 +144,6 @@ export default function AccessControlPage() {
       setFilterGroup('');
       setFilterSub('');
       setFilterDept('');
-      setFilterPosition('');
     },
   );
 
@@ -157,7 +156,29 @@ export default function AccessControlPage() {
     showToast(next ? 'เปิดใช้งานสิทธิการเข้าถึงแล้ว' : 'ปิดใช้งานสิทธิการเข้าถึงแล้ว');
   };
 
+  /* ทำสำเนาแม่แบบ — id ใหม่ ชื่อต่อท้าย (สำเนา) และเริ่มนับเวอร์ชันใหม่ที่ v1 */
+  const handleDuplicate = (row) => {
+    const copy = duplicateAccessControl(row);
+    persist([...records, copy]);
+    showToast(`ทำสำเนา "${copy.templateName}" แล้ว`);
+  };
+
   const columns = useMemo(() => [
+    /* แม่แบบตั้งชื่อไว้ก่อนผูก Group Policy ชื่อ+เวอร์ชันจึงเป็นคอลัมน์แรก */
+    {
+      key: 'template',
+      header: 'แม่แบบ / เวอร์ชัน',
+      sortable: true,
+      minWidth: 200,
+      render: (row) => (
+        <div className='flex flex-col'>
+          <span style={TEXT_CELL}>{row.templateName || 'ไม่มีชื่อแม่แบบ'}</span>
+          <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+            {formatVersion(latestVersion(row))}
+          </span>
+        </div>
+      ),
+    },
     {
       key: 'center',
       header: 'ศูนย์บริการ',
@@ -178,11 +199,6 @@ export default function AccessControlPage() {
       key: 'department',
       header: 'แผนก',
       render: (row) => <PolicyBadge style='blue'>{row.department}</PolicyBadge>,
-    },
-    {
-      key: 'position',
-      header: 'ตำแหน่ง',
-      render: (row) => <PolicyBadge style='purple'>{row.position}</PolicyBadge>,
     },
     {
       key: 'viewCount',
@@ -219,7 +235,7 @@ export default function AccessControlPage() {
           <Switch
             checked={row.active}
             onChange={(next) => applyToggleActive(row.id, next)}
-            aria-label={`สถานะ ${row.position}`}
+            aria-label={`สถานะ ${row.templateName || row.groupPolicy || 'แม่แบบ'}`}
           />
         </span>
       ),
@@ -227,14 +243,30 @@ export default function AccessControlPage() {
     {
       key: 'action',
       header: 'การดำเนินการ',
+      minWidth: 148,
       render: (row) => (
-        <NeutralSubdueButton
-          leadingIcon='edit'
-          size='sm'
-          onClick={(e) => { e.stopPropagation(); openEdit(row); }}
+        <span
+          className='inline-flex items-center'
+          style={{ gap: 'var(--dim-space-200)' }}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          role='presentation'
         >
-          แก้ไข
-        </NeutralSubdueButton>
+          <NeutralSubdueButton
+            leadingIcon='edit'
+            size='sm'
+            onClick={() => openEdit(row)}
+          >
+            แก้ไข
+          </NeutralSubdueButton>
+          <RowMenu
+            ariaLabel={`ตัวเลือก ${row.templateName || 'แม่แบบ'}`}
+            items={[
+              { key: 'dup', icon: 'content_copy', label: 'ทำสำเนาแม่แบบ', onClick: () => handleDuplicate(row) },
+              { key: 'edit', icon: 'edit', label: 'แก้ไข (ออกเวอร์ชันใหม่)', onClick: () => openEdit(row) },
+            ]}
+          />
+        </span>
       ),
     },
   ], [records]);
@@ -244,7 +276,6 @@ export default function AccessControlPage() {
     group: [{ value: '', label: 'ทั้งหมด' }, ...groupPolicies.map((g) => ({ value: g.id, label: g.name }))],
     sub: [{ value: '', label: 'ทั้งหมด' }, ...subBranchOptions],
     dept: [{ value: '', label: 'ทั้งหมด' }, ...departments.map((d) => ({ value: d.id, label: d.name }))],
-    pos: [{ value: '', label: 'ทั้งหมด' }, ...positions.map((p) => ({ value: p.id, label: p.name }))],
   };
 
   return (
@@ -255,28 +286,22 @@ export default function AccessControlPage() {
         sidebarFallbackKey='assess-access-control'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
-        title={hasRecords ? undefined : 'สิทธิการเข้าถึง'}
+        /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน — ระยะบนจึงเท่ากันทุกหน้า
+           และปุ่มยัง sticky ตอนเลื่อนตาราง (แก้พร้อมกันทุกหน้า 10 ส.ค. 2569) */
+        title='สิทธิการเข้าถึง'
+        actions={hasRecords ? (
+          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openCreate}>
+            เพิ่มสิทธิการเข้าถึง
+          </BrandButton>
+        ) : undefined}
         headerInfo={hasRecords ? (
-          <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-              <h1 style={{
-                color: 'var(--text-topic-tertiary-title)',
-                fontFamily: 'var(--type-family-heading-content)',
-                fontSize: 'var(--type-size-base)',
-                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                lineHeight: 1.5,
-                margin: 'var(--dim-space-0)',
-              }}
-              >
-                สิทธิการเข้าถึง
-              </h1>
-              <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openCreate}>
-                เพิ่มสิทธิการเข้าถึง
-              </BrandButton>
-            </div>
+          <section
+            className='flex flex-col w-full'
+            style={{ gap: 'var(--dim-space-400)', paddingTop: 'var(--dim-space-600)' }}
+          >
             <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               {summaryCards.map((c) => (
-                <SummaryCard key={c.key} card={c} variant='panel' hover />
+                <SummaryCard key={c.key} card={c} variant='panel' />
               ))}
             </div>
           </section>
@@ -314,7 +339,6 @@ export default function AccessControlPage() {
                 <FilterDropdown prefix='Group Policy:' options={filterOpts.group} value={filterGroup} onChange={setFilterGroup} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='สาขาย่อย:' options={filterOpts.sub} value={filterSub} onChange={setFilterSub} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='ตำแหน่ง:' options={filterOpts.pos} value={filterPosition} onChange={setFilterPosition} placeholder='ทั้งหมด' />
                 <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 <div className='flex-1' />
                 <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
