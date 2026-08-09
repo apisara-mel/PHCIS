@@ -38,6 +38,10 @@ const SIDEMENU_LABEL_SIZE = 'var(--type-size-base, 16px)';
 const TREAT_MODULE_SUBITEMS = [
   { key: 'consult',    label: 'ทะเบียนการส่งปรึกษาแพทย์',             path: '/treat/consult' },
   { key: 'order-sets', label: 'ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา',   path: '/treat/order-sets' },
+  /* นโยบายการเข้าถึงข้อมูล (ABAC · TOR §1.4.8.1 / §1.4.2.1) — หน้าตั้งค่าของ
+     ผู้ดูแลระบบ วางถัดจาก "ตั้งค่าชุดคำสั่งฯ" เพราะเป็นกลุ่มตั้งค่าเหมือนกัน.
+     นิยาม Role ยังเป็นของ /users — หน้านี้กำหนดเฉพาะกฎ role × หน่วยงาน × หมวดข้อมูล. */
+  { key: 'access-policy', label: 'นโยบายการเข้าถึงข้อมูล (ABAC)',     path: '/treat/access-policy' },
   { key: 'interfaces', label: 'สถานะการเชื่อมต่อระบบภายนอก',         path: '/treat/interfaces' },
 ];
 
@@ -72,7 +76,25 @@ const OPD_CORE_SUBITEMS = [
 // sub-departments: `opd` (หน้าจอย่อยของงานผู้รับบริการนอก), `queue-center`
 // (หน้าจอย่อยของระบบบริหารจัดการคิว) and `treat`.
 const ITEMS = [
-  { key: 'dashboard', label: 'แดชบอร์ด',                  icon: 'bar_chart_4_bars', path: '/dashboard'   },
+  /* แดชบอร์ด + ระบบรายงาน (TOR §1.20). เดิมเป็นเมนูเดี่ยวชี้ /dashboard; wave นี้
+     เพิ่มหน้าจอระดับโมดูลอีก 6 หน้า จึงเปลี่ยนเป็นเมนูที่มี subItems แบบเดียวกับ
+     `checkup`/`appoint` — รายการแรกยังเป็นภาพรวมโรงพยาบาลเหมือนเดิม.
+     รายการตรงกับ DASHBOARD_NAV_LINKS ใน components/dashboard/DashboardSubNav.jsx
+     (TabUnderline ระดับหน้า) — แก้ที่ไหนต้องแก้ให้ตรงกันทั้งสองที่.
+     "รายงานเภสัชกรรม (ภาพรวมทุกศูนย์)" คนละหน้ากับ /pharmacy/reports ในเมนู
+     ระบบงานเภสัชกรรม ซึ่งเป็นรายงานเชิงปฏิบัติการรายวันของศูนย์เดียว. */
+  {
+    key: 'dashboard', label: 'แดชบอร์ด', icon: 'bar_chart_4_bars', path: '/dashboard',
+    subItems: [
+      { key: 'db-overview',  label: 'ภาพรวมโรงพยาบาล',                path: '/dashboard'                  },
+      { key: 'db-reports',   label: 'ศูนย์รวมรายงาน',                  path: '/dashboard/reports'          },
+      { key: 'db-service',   label: 'รายงานผู้รับบริการ',              path: '/dashboard/reports/service'  },
+      { key: 'db-pharmacy',  label: 'รายงานเภสัชกรรม (ภาพรวมทุกศูนย์)', path: '/dashboard/reports/pharmacy' },
+      { key: 'db-checkup',   label: 'รายงานตรวจสุขภาพ',                path: '/dashboard/reports/checkup'  },
+      { key: 'db-clinics',   label: 'Dashboard คลินิกพิเศษ',            path: '/dashboard/clinics'          },
+      { key: 'db-executive', label: 'Dashboard ผู้บริหาร',              path: '/dashboard/executive'        },
+    ],
+  },
   /* คลังเอกสาร e-document เป็นระบบระดับ Hub (systemCatalog doc-template) —
      เมนูของตัวเองผ่าน EDOCUMENT_NAV ไม่ใช่รายการใน PHCIS rail นี้. */
   { key: 'registration', label: 'งานเวชระเบียน',          icon: 'assignment',       path: '/registration/queue' },
@@ -102,11 +124,11 @@ const ITEMS = [
   /* Lab module pages cross-link via LabSubNav (TabUnderline) — same flat
      pattern as pharmacy. */
   { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',  iconSize: 18, path: '/lab/queue' },
-  { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   { key: 'finance',   label: 'งานการเงิน',                icon: 'baht',      path: '/finance'           },
+  { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
   /* สิทธิและการเบิกจ่าย — TOR §1.7.3–1.7.5. ตรวจสอบสิทธิ · ส่งเบิก · Claim ·
      ตั้งค่า เป็น tab sections ในหน้าเดียว (/rights) จึงไม่มี subItems.
-     วางติดงานการเงินเพราะเป็น workflow ต่อกัน (ชำระเงิน → ส่งเบิก). */
+     วางใกล้งานการเงินเพราะเป็น workflow ต่อกัน (ชำระเงิน → ส่งเบิก). */
   { key: 'rights',    label: 'สิทธิและการเบิกจ่าย',        icon: 'verified_user', path: '/rights' },
   /* ระบบงานตรวจสุขภาพ — TOR §1.19. ชุดตรวจ · กลุ่มเป้าหมาย (import spreadsheet) ·
      คิวตรวจ · คัดกรอง 7 แบบ + แปลผลอัตโนมัติ · รายงาน · กิจกรรมชุมชน. */

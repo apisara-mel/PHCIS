@@ -23,6 +23,7 @@ import {
   subscribeVaccines, vaccinesForPatient, findDuplicateVaccine,
   addVaccine, updateVaccine, cancelVaccine,
   GROWTH_METRICS, GROWTH_PERCENTILE_KEYS, GROWTH_MOPH_ZONES, MOPH_CHART_AGE_MAX,
+  GROWTH_BAND_PROVENANCE,
   growthDisplayForPatient, growthBandsFor, computeBmi, addGrowthMeasurement, mophZoneFor,
 } from '@/data/treatmentVaccines';
 
@@ -587,8 +588,25 @@ const VaccineGrowthPanel = ({ form, patient }) => {
             </a>
           </PanelAlert>
         ) : (
-          <PanelAlert tone='warning' icon='science' title='แถบสีเป็นชุดค่าประมาณสำหรับ prototype'>
-            ชุดข้อมูลอ้างอิงยังไม่ใช่ dataset ทางการของสมาคมต่อมไร้ท่อเด็กและวัยรุ่นไทย — ใช้ประกอบการดูแนวโน้มเท่านั้น
+          /* §1.4.3.10 — ที่มาของแถบ percentile แบบมีโครงสร้าง (ไม่ hard-code
+             ข้อความ) เพื่อให้ผู้ใช้ตรวจสอบได้ว่าเส้นอ้างอิงมาจากไหนและ
+             ยังขาดอะไรจึงจะเป็นชุดทางการ */
+          <PanelAlert tone='warning' icon='science' title={`แถบ percentile: ${GROWTH_BAND_PROVENANCE.statusLabel}`}>
+            <span style={{ display: 'block' }}>
+              <b>ควรอ้างอิง:</b> {GROWTH_BAND_PROVENANCE.intendedSource}
+            </span>
+            <span style={{ display: 'block' }}>
+              <b>ที่ใช้อยู่จริง:</b> {GROWTH_BAND_PROVENANCE.actualSource}
+            </span>
+            <span style={{ display: 'block' }}>
+              {GROWTH_BAND_PROVENANCE.ageRange} · {GROWTH_BAND_PROVENANCE.percentiles} · {GROWTH_BAND_PROVENANCE.interpolation}
+            </span>
+            <span style={{ display: 'block' }}>
+              <b>ข้อจำกัด:</b> {GROWTH_BAND_PROVENANCE.limitation}
+            </span>
+            <span style={{ display: 'block' }}>
+              ทบทวนล่าสุด {GROWTH_BAND_PROVENANCE.lastReviewedAt} โดย {GROWTH_BAND_PROVENANCE.reviewedBy}
+            </span>
           </PanelAlert>
         )}
 

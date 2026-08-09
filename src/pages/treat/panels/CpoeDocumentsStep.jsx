@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Step7Certificate } from '@/components/forms/TreatmentSteps';
 import Table from '@/components/table/Table';
 import Select from '@/components/forms/Select';
@@ -12,6 +12,10 @@ import BrandButton from '@/components/button/BrandButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import ConsentFormFillPopup from '@/components/popup/ConsentFormFillPopup';
 import PharmacyPrescriptionPrint from '@/components/pharmacy/PharmacyPrescriptionPrint';
+/* §1.5.10.2 — แผ่นพิมพ์ใบคำขอตรวจจริง (A4) + ตัวช่วยพิมพ์/บันทึกเป็น PDF */
+import LabRequestPrintSheet from '@/pages/treat/LabRequestPrintSheet';
+import XrayRequestPrintSheet from '@/pages/treat/XrayRequestPrintSheet';
+import { printWithFilename } from '@/pages/treat/printKit';
 import {
   PanelCard, PanelEmptyState, InfoPair, Sym, PANEL_LABEL_STYLE, PANEL_VALUE_STYLE,
 } from '@/pages/treat/panels/panelKit';
@@ -22,6 +26,10 @@ import {
   subscribeRequestTemplates, getRequestTemplates,
   upsertRequestTemplate, removeRequestTemplate,
 } from '@/data/treatmentOrderSets';
+import {
+  subscribeDocuments, documentsForPatient,
+  nextLabRequestNo, nextXrayRequestNo,
+} from '@/data/treatmentDocuments';
 import { FORMS, getFormsByCategory } from '@/data/formsLibrary';
 import { LAB_TEST_BY_ID } from '@/data/labCatalog';
 import { XRAY_EXAM_BY_ID } from '@/data/xrayCatalog';
@@ -116,6 +124,9 @@ const CpoeDocumentsStep = (props) => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [consentForm, setConsentForm] = useState(null);
   const [signatureOpen, setSignatureOpen] = useState(false);
+  /* §1.4.6.3 — กันพิมพ์เอกสารเปล่า · §1.5.11.4 — คำแนะนำบันทึกเป็น PDF */
+  const [emptyPrintGuard, setEmptyPrintGuard] = useState(false);
+  const [pdfHintOpen, setPdfHintOpen] = useState(false);
 
   const certLang = form?.certLanguage || 'th';
   const setCertLang = (v) => {
@@ -135,10 +146,68 @@ const CpoeDocumentsStep = (props) => {
   const consentForms = useMemo(() => getFormsByCategory('consent'), []);
   const consentRecords = form?.consentRecords || [];
 
+  /* §1.5.10.2 — เลขที่ใบคำขอต้องออกจริงเมื่อมีรายการสั่ง (เดิมแผ่นพิมพ์ตก
+     ไปใช้ข้อความไทย "ยังไม่ออกเลขที่" แล้วยิงเข้าบาร์โค้ด ซึ่งสแกนได้ค่าว่าง) */
+  useEffect(() => {
+    if (labs.length && !form?.labRequest?.requestNo) {
+      setForm((f) => ({
+        ...f,
+        labRequest: {
+          ...(f.labRequest || {}),
+          requestNo: nextLabRequestNo(),
+          requestedAt: f.labRequest?.requestedAt || stampNow(),
+        },
+      }));
+    }
+    if (films.length && !form?.xrayRequest?.requestNo) {
+      setForm((f) => ({
+        ...f,
+        xrayRequest: {
+          ...(f.xrayRequest || {}),
+          requestNo: nextXrayRequestNo(),
+          requestedAt: f.xrayRequest?.requestedAt || stampNow(),
+        },
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labs.length, films.length, form?.labRequest?.requestNo, form?.xrayRequest?.requestNo]);
+
+  /* §1.5.10.2 — แถบเตือนชั้นความลับบนแผ่นพิมพ์ต้องมีที่มาจากข้อมูลจริง:
+     ผู้ใช้ติ๊กเองที่การ์ดนี้ หรือมีเอกสารของผู้รับบริการรายนี้ที่ถูกทำ
+     เครื่องหมาย "ข้อมูลลับ" ไว้แล้วในศูนย์เอกสาร */
+  const [patientDocs] = useTreatmentStore(subscribeDocuments, () => documentsForPatient(hn), [hn]);
+  const hasConfidentialDoc = patientDocs.some((d) => d.confidential && d.status !== 'cancelled');
+  const resultConfidential = !!form?.resultConfidential || hasConfidentialDoc;
+
+  const setResultConfidential = (v) => {
+    const next = typeof v === 'boolean' ? v : !form?.resultConfidential;
+    setForm((f) => ({ ...f, resultConfidential: next }));
+    appendAudit({
+      hn, visitId, category: 'confidential', field: 'ชั้นความลับของผลตรวจบนใบคำขอ',
+      oldValue: form?.resultConfidential ? 'ข้อมูลลับ' : 'ปกติ',
+      newValue: next ? 'ข้อมูลลับ — แผ่นพิมพ์ขึ้นคำเตือนชั้นความลับ' : 'ปกติ',
+    });
+  };
+
   /* คำสั่งที่ต้องมีเอกสารประกอบแต่ยังไม่แนบ (§1.5.1.6 + §1.5.4.15) */
   const missingConsent = useMemo(() => meds
     .map((m) => ({ med: m, need: needsSupportingForm(m.name) }))
     .filter((x) => x.need && !x.med.supportingFormAttached), [meds]);
+
+  /* จำนวนรายการของเอกสารชนิดที่เลือกอยู่ — ใช้เตือนก่อนพิมพ์หน้าเปล่า
+     (§1.4.6.3: ห้ามปล่อยให้สั่งพิมพ์เอกสารที่ไม่มีเนื้อหา) */
+  const docItemCount = docType === 'prescription' ? meds.length
+    : docType === 'labrequest' ? labs.length
+      : docType === 'xrayrequest' ? films.length
+        : (form?.certIssue === 'yes' ? 1 : 0);
+  const docIsEmpty = docItemCount === 0;
+
+  /* ชื่อไฟล์เริ่มต้นของ Save as PDF — เบราว์เซอร์ใช้ document.title */
+  const docFileName = () => {
+    const label = DOC_TYPES.find((d) => d.key === docType)?.label || 'เอกสาร';
+    const who = (cardPatient?.fullName || patient?.name || '').replace(/\s+/g, '-');
+    return [label, patient?.hn, who].filter(Boolean).join('_');
+  };
 
   const printDoc = () => {
     appendAudit({
@@ -147,7 +216,24 @@ const CpoeDocumentsStep = (props) => {
       oldValue: '—', newValue: `พิมพ์โดย ${CURRENT_CLINICIAN.name} เมื่อ ${stampNow()}`,
     });
     setPreviewOpen(false);
-    if (typeof window !== 'undefined' && window.print) window.print();
+    printWithFilename(docFileName());
+  };
+
+  /* "บันทึกเป็น PDF" — เส้นทางเดียวกับพิมพ์ แต่ตั้งชื่อไฟล์ให้และเตือนว่า
+     ต้องเลือกปลายทาง "Save as PDF" ใน print dialog เอง */
+  const saveAsPdf = () => {
+    if (docIsEmpty) { setEmptyPrintGuard(true); return; }
+    setPdfHintOpen(true);
+  };
+
+  const doSaveAsPdf = () => {
+    appendAudit({
+      hn, visitId, category: 'document',
+      field: `บันทึกเป็น PDF — ${DOC_TYPES.find((d) => d.key === docType)?.label || docType}`,
+      oldValue: '—', newValue: `${docFileName()}.pdf · โดย ${CURRENT_CLINICIAN.name} เมื่อ ${stampNow()}`,
+    });
+    setPdfHintOpen(false);
+    printWithFilename(docFileName());
   };
 
   const saveTemplate = () => {
@@ -406,14 +492,58 @@ const CpoeDocumentsStep = (props) => {
           )
         ) : null}
 
+        {/* §1.5.10.2 — ทำเครื่องหมายว่าผลของใบคำขอนี้เป็นข้อมูลลับ →
+            แผ่นพิมพ์ขึ้นแถบเตือนชั้นความลับที่หัวกระดาษ */}
+        {docType === 'labrequest' || docType === 'xrayrequest' ? (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            <GuardedAction allowed={canEdit && !hasConfidentialDoc} reason={hasConfidentialDoc
+              ? 'ผู้รับบริการรายนี้มีเอกสารที่ทำเครื่องหมายข้อมูลลับอยู่แล้ว — ปลดที่ศูนย์เอกสาร'
+              : NO_EDIT_RIGHT_TOOLTIP}
+            >
+              <Checkbox
+                checked={resultConfidential}
+                onChange={setResultConfidential}
+                label='ผลการตรวจของใบคำขอนี้เป็นข้อมูลลับ (พิมพ์คำเตือนชั้นความลับบนแผ่นกระดาษ)'
+              />
+            </GuardedAction>
+            {hasConfidentialDoc ? (
+              <span style={PANEL_LABEL_STYLE}>
+                ระบบตั้งให้อัตโนมัติ เพราะผู้รับบริการรายนี้มีเอกสารที่ทำเครื่องหมาย "ข้อมูลลับ" อยู่ในศูนย์เอกสารแล้ว
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <NeutralSubdueButton variant='outline' size='sm' leadingIcon='visibility' onClick={() => setPreviewOpen(true)}>
             ดูตัวอย่างก่อนพิมพ์
+          </NeutralSubdueButton>
+          {/* §1.4.6.1–.4 / §1.5.11.4 — "บันทึกเป็น PDF" ใช้ปลายทาง Save as PDF
+              ของ print dialog พร้อมตั้งชื่อไฟล์ให้ (ไม่มี PDF engine ฝั่ง server) */}
+          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='picture_as_pdf' onClick={saveAsPdf}>
+            บันทึกเป็น PDF
           </NeutralSubdueButton>
           <span style={PANEL_LABEL_STYLE}>
             ขนาด A4 · หัวตารางซ้ำทุกหน้าเมื่อรายการยาวเกิน 1 หน้า · ยังไม่มี PDF engine ในระบบต้นแบบนี้
           </span>
         </div>
+
+        {/* §1.5.10.2 — แผ่นพิมพ์จริงของใบคำขอตรวจ (เดิมมีแค่ตัวเลือกเทมเพลต).
+            เรนเดอร์ในหน้าเลย และเป็นตัวเดียวที่ @media print ปล่อยให้เห็น */}
+        {docType === 'labrequest' ? (
+          <LabRequestPrintSheet
+            patient={{ ...patient, name: cardPatient?.fullName || patient?.name }}
+            form={form}
+            confidential={resultConfidential}
+          />
+        ) : null}
+        {docType === 'xrayrequest' ? (
+          <XrayRequestPrintSheet
+            patient={{ ...patient, name: cardPatient?.fullName || patient?.name }}
+            form={form}
+            confidential={resultConfidential}
+          />
+        ) : null}
       </PanelCard>
 
       {/* ── §1.5.2.10 ตัวจัดการเทมเพลตแบบฟอร์มคำขอ ────────── */}
@@ -680,7 +810,11 @@ const CpoeDocumentsStep = (props) => {
           : 'ยังไม่ได้ลงนามอิเล็กทรอนิกส์ — เอกสารจะพิมพ์เส้นสำหรับลงลายมือชื่อแทน ไม่ปล่อยช่องว่างเปล่า'}
         confirmLabel='พิมพ์'
         cancelLabel='ปิด'
-        onConfirm={printDoc}
+        onConfirm={() => {
+          /* §1.4.6.3 — ห้ามพิมพ์เอกสารที่ไม่มีเนื้อหา */
+          if (docIsEmpty) { setPreviewOpen(false); setEmptyPrintGuard(true); return; }
+          printDoc();
+        }}
         onCancel={() => setPreviewOpen(false)}
         onClose={() => setPreviewOpen(false)}
       >
@@ -693,9 +827,50 @@ const CpoeDocumentsStep = (props) => {
                 : docType === 'xrayrequest' ? `${films.length} รายการตรวจ`
                   : '1 ฉบับ'
           } />
+          {docIsEmpty ? (
+            <PanelAlert tone='warning' icon='error' title='เอกสารนี้ยังไม่มีรายการ'>
+              กด "พิมพ์" ตอนนี้จะได้กระดาษเปล่า — กลับไปเพิ่มรายการในขั้นตอนสั่งการรักษาก่อน
+            </PanelAlert>
+          ) : null}
           <span style={PANEL_LABEL_STYLE}>
             หมายเหตุ: ระบบต้นแบบพิมพ์ผ่าน @media print เท่านั้น (ยังไม่มี PDF engine) —
             ถ้ารายการยาวเกิน 1 หน้า หัวตารางจะซ้ำทุกหน้าและมีเลขหน้ากำกับ
+          </span>
+        </div>
+      </AlertDialog>
+
+      {/* §1.4.6.3 — เตือนก่อนพิมพ์เอกสารเปล่า */}
+      <AlertDialog
+        open={emptyPrintGuard}
+        type='warning'
+        title='ยังพิมพ์เอกสารนี้ไม่ได้'
+        description={`${DOC_TYPES.find((d) => d.key === docType)?.label || 'เอกสาร'} ยังไม่มีรายการใด — ถ้าสั่งพิมพ์ตอนนี้จะได้กระดาษเปล่า กรุณาเพิ่มรายการในขั้นตอนสั่งการรักษาก่อน แล้วจึงกลับมาพิมพ์อีกครั้ง`}
+        confirmLabel='กลับไปเพิ่มรายการ'
+        showCancel={false}
+        onConfirm={() => setEmptyPrintGuard(false)}
+        onClose={() => setEmptyPrintGuard(false)}
+      />
+
+      {/* §1.5.11.4 / §1.4.6.1–.4 — คำแนะนำบันทึกเป็น PDF (ไม่มี PDF engine) */}
+      <AlertDialog
+        open={pdfHintOpen}
+        type='info'
+        title='บันทึกเอกสารเป็นไฟล์ PDF'
+        description='ระบบต้นแบบยังไม่มีตัวสร้าง PDF ฝั่งเซิร์ฟเวอร์ — ใช้ความสามารถ "บันทึกเป็น PDF" ของเบราว์เซอร์แทน ซึ่งได้ไฟล์หน้าตาเหมือนที่พิมพ์ทุกประการ'
+        confirmLabel='เปิดหน้าต่างพิมพ์'
+        cancelLabel='ยกเลิก'
+        onConfirm={doSaveAsPdf}
+        onCancel={() => setPdfHintOpen(false)}
+        onClose={() => setPdfHintOpen(false)}
+      >
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          <InfoPair label='ชื่อไฟล์ที่ระบบตั้งให้' value={`${docFileName()}.pdf`} />
+          <span style={PANEL_LABEL_STYLE}>
+            ขั้นตอน: กด "เปิดหน้าต่างพิมพ์" → ที่ช่อง "ปลายทาง / Destination" เลือก
+            <b> "บันทึกเป็น PDF" (Save as PDF)</b> → กดบันทึก
+          </span>
+          <span style={PANEL_LABEL_STYLE}>
+            กระดาษถูกตั้งเป็น A4 แนวตั้ง ขอบ 12 มม. · หัวตารางซ้ำทุกหน้า · การบันทึกครั้งนี้ถูกเขียนลงประวัติการแก้ไข
           </span>
         </div>
       </AlertDialog>

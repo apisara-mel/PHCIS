@@ -607,6 +607,136 @@ design system เมื่อไร
 
 ---
 
+### 41. dashboardReportKit (ชุด primitive ของหน้ารายงาน — `ReportGroupCard` · `ChartPanel` · `ChartsRow` · `ReportViewPopup` · `ReportToolbar` · `StatTile` · `StatTileRow` · `EmptyChartNote` · `SectionTopic`) — 📐 มี 3 ผู้ใช้แล้ว พร้อมยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/dashboard/dashboardReportKit.jsx` — ทั้ง 6 หน้ารายงานของ §1.20 (`DashboardReportsHubPage` · `ServiceReportsPage` · `PharmacyAnalyticsPage` · `CheckupAnalyticsPage` · `SpecialClinicDashboardPage` · `ExecutiveDashboardPage`) |
+| **หน้าที่** | โครงซ้ำของหน้ารายงานทุกโมดูล: การ์ดกลุ่มรายงาน + แถวกราฟ + ป๊อปอัป "ดูรายงาน" (ตาราง + ช่วงวันที่ + ส่งออก) + แถบเครื่องมือกรอง sticky + StatTile + empty-state ของกราฟ · helper: `buildExportReport` `matchesIsoDateFilter` `donutFromCounts` `hbarRows` |
+| **ทำไมไม่มีของเดิมแทน** | เป็น pattern ที่ skill `mih-report-page` สั่งไว้ แต่วันนี้ถูก copy-paste ซ้ำระหว่าง `PharmacyReportsPage.jsx` กับ `ConsentReportPage.jsx` — ไม่มี component กลางใน DS เลย builder จึงสกัดเป็นชุดเดียวในโฟลเดอร์โมดูลแทนการแก้ไฟล์ของโมดูลอื่น |
+| **ทำไมควรยกขึ้น DS** | ผู้ใช้ ≥2 แล้วชัดเจน (6 หน้าใน §1.20 + อีก 2 หน้าที่ทำมือไว้ก่อน) — ควรยกเป็น `src/components/report/*` แล้วให้ pharmacy/consent มา alias ตาม ไม่ใช่ให้แต่ละโมดูลถือสำเนาของตัวเอง |
+| **โครง API ที่เสนอ** | `<ReportGroupCard title topic actions>` · `<ChartsRow>` / `<ChartPanel title footnote empty>` · `<ReportViewPopup reports activeKey onClose pageSize onExport>` · `<ReportToolbar sticky filters summary>` · `<StatTileRow>` / `<StatTile label value tone hint>` · `<EmptyChartNote icon reason howToFix>` |
+| **พฤติกรรมที่ต้องรักษาไว้** | empty state ต้องบอก "เหตุผล + วิธีแก้" ไม่ใช่กราฟสูง 0 · ตารางในป๊อปอัปใช้ `pagination={false}` + `<Pagination>` ภายนอก (กัน pager ซ้อน) · ช่วงวันที่ start > end → error inline + ปิดปุ่มส่งออก · HBar Top-N ใช้ `alignContent='start'` + `minHeight` · หารด้วยศูนย์ผ่าน `safePct` เสมอ |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave §1.20) |
+
+---
+
+### 42. DataSourceStrip (แถบแหล่งข้อมูล Read Replica + สถานะความสด) — 📐 มี 6 ผู้ใช้แล้ว พร้อมยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/components/dashboard/DataSourceStrip.jsx` — `DashboardReportsHubPage` · `ServiceReportsPage` · `PharmacyAnalyticsPage` · `SpecialClinicDashboardPage` · `CheckupAnalyticsPage` · `ExecutiveDashboardPage` — **6 ที่** |
+| **หน้าที่** | บอกผู้ใช้ว่า "ตัวเลขนี้มาจากไหนและสดแค่ไหน" ตาม TOR §1.20.9 — Read Replica ที่แยกจากฐานให้บริการ · 2 สถานะ (ปกติ · สัญญาณล่าช้าเมื่อ lag > 60 วิ) · เวลาอัปเดตล่าสุด · ป๊อปอัปรายละเอียด engine/scope/retention + ประวัติการซิงก์ |
+| **ทำไมไม่มีของเดิมแทน** | `Alert` เป็นคำเตือนแบบคงที่ · `ColorfulBadge` เป็นป้ายเดี่ยว — ไม่มีอะไรใน DS ที่เป็น "แถบ provenance ของข้อมูลที่กดดูรายละเอียดได้" |
+| **ทำไมควรยกขึ้น DS** | เกิน 2 ผู้ใช้ไปมาก และโมดูลอื่นที่แสดงตัวเลขรวม (การเงิน · สิทธิและการเบิกจ่าย · Lab QC) ต้องบอกที่มาของข้อมูลเหมือนกัน |
+| **โครง API ที่เสนอ** | `<DataSourceStrip source lagSeconds updatedAt onOpenDetail syncHistory>` — สถานะคำนวณจาก `lagSeconds` ไม่ใช่ prop สี เพื่อไม่ให้ผู้เรียกตัดสินใจเรื่อง threshold เอง |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave §1.20) |
+
+---
+
+### 43. DashboardSubNav (แถบสลับหน้ารายงานของโมดูลแดชบอร์ด) — 🚧 ไม่ใช่ของกลาง — เป็น nav เฉพาะโมดูล
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/components/dashboard/DashboardSubNav.jsx` — ทุกหน้าใน `src/pages/dashboard/*` ผ่าน `QueuePageShell` slot `belowSummary` |
+| **หน้าที่** | สลับ ภาพรวม ↔ ศูนย์รวมรายงาน ↔ รายงานผู้รับบริการ/เภสัชกรรม/ตรวจสุขภาพ ↔ คลินิกพิเศษ ↔ ผู้บริหาร |
+| **ทำไมไม่ยกขึ้น DS** | ตัวมันคือ `TabUnderline` ของ DS ที่ห่อ list ของ route ตาม pattern เดียวกับ `PharmacySubNav` / `LabSubNav` — สิ่งที่ซ้ำคือ *pattern* ไม่ใช่ component ที่ generalize ได้ (ลิสต์เมนูเป็นข้อมูลของโมดูล) |
+| **หมายเหตุถึงผู้ดูแล nav** | `DASHBOARD_NAV_LINKS` ในไฟล์นี้ **ต้องตรงกับ** `subItems` ของเมนู `dashboard` ใน `src/components/layout/Sidebar.jsx` — แก้ที่เดียวแล้วอีกที่จะเพี้ยน |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave §1.20) |
+
+---
+
+### 44. AreaHealthMapPanel (แผนที่เชิงตำแหน่งระดับพื้นที่ ผูกกับตัวกรอง) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/components/dashboard/AreaHealthMapPanel.jsx` — `ExecutiveDashboardPage` (§1.20.10.1) — 1 ที่ |
+| **หน้าที่** | ฉายพิกัด lat/lng จริงของศูนย์บริการลงกรอบสัดส่วน · ขนาดหมุด = จำนวนผู้ป่วย NCD · สีหมุด = ระดับความชุก · กดหมุดเพื่อกรองทั้งหน้า · sync สองทางกับตัวกรอง เขต → แขวง → สถานบริการ |
+| **ทำไมไม่มีของเดิมแทน** | `AddressMapBlock` เป็นฟอร์มลากหมุดเดียวตอนลงทะเบียนที่อยู่ · `ServiceCenterMapCard` (`src/components/graph/BigCharts.jsx`) เป็นการ์ดปิดตาย ไม่รับ props และไม่ผูกกับตัวกรองใด — ทั้งคู่ทำงานนี้ไม่ได้ |
+| **รอเคสอะไร** | โมดูลอื่นที่ต้องดูหลายหมุดพร้อมกันและกรองจากแผนที่ — เยี่ยมบ้าน (`/homevisit`), Telemedicine RPM (`TelemedGisOverviewPanel` รายการ #47 คือเคสใกล้เคียงที่สุด), รง.506 · **ถ้าเคสที่ 2 มา ควรออกแบบเป็น `MapOverviewPanel` ตัวเดียวที่รับ `markers` / `selectedKey` / `onSelect` แล้วให้ทั้งสองที่ alias** |
+| **ข้อจำกัดที่ตั้งใจ** | เป็นแผนที่เชิงตำแหน่ง ไม่ใช่ choropleth รูปเขตจริง และไม่เพิ่ม map library ใหม่เข้าโปรเจกต์ — แผนที่ OSM เต็มรูปแบบยังอยู่ที่ `ServiceCenterMapCard` บน `/dashboard` |
+| **คำขอถึงเจ้าของ `ServiceCenterMapCard`** | อยากได้ props `markers` / `selectedKey` / `onSelect` เพื่อให้แผนที่ OSM จริงผูกกับตัวกรองได้ — ถ้าได้ พาเนลนี้จะเลิกซ้ำและถูกยุบทิ้ง |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave §1.20) |
+
+---
+
+### 45. printKit (ชุด primitive แผ่นพิมพ์ A4 — `PrintSheetFrame` · `PrintTable` · `PrintBlock` · `PrintCell` · `PrintSignatureLine` · `usePrintSheet` · `printWithFilename`) — 📐 มี 4 ผู้ใช้แล้ว พร้อมยกขึ้น DS — รวมร่างกับรายการ #2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/treat/printKit.jsx` — `ReferralPrintSheet` · `InternalReferralPrintSheet` · `LabRequestPrintSheet` · `XrayRequestPrintSheet` — **4 ที่** |
+| **หน้าที่** | กติกากระดาษที่ทุกใบต้องมีเหมือนกัน: `@page` A4 portrait margin 12mm · `@media print` · หัวตาราง (`thead`) ซ้ำทุกหน้าเมื่อเกิน 1 หน้า · บล็อกห้ามฉีกกลางหน้า · ช่องลายเซ็น · `printWithFilename()` ตั้งชื่อไฟล์ผ่าน `document.title` ก่อนเรียก `window.print()` |
+| **ทำไมไม่มีของเดิมแทน** | DS ไม่มีหมวดเอกสารสำหรับพิมพ์เลย (เหตุผลเดียวกับรายการ #2) — เดิม `ReferralPrintSheet` ฝังกฎพิมพ์ไว้ในไฟล์ตัวเอง ทำให้ใบใหม่ทุกใบต้องคัดลอกกฎตาม |
+| **ทำไมควรยกขึ้น DS** | นี่คือ **implementation จริงตัวแรก** ของ `PrintSheet` ที่รายการ #2 (XrayReportSheet) เสนอไว้ — ถ้ายกขึ้น DS ควรยก `printKit` เป็นฐาน แล้วให้ `XrayReportSheet` · `FamilyPlanningFollowUpCard` (#40) · `registrationPrint` (#6) · `LabSendOutManifest` (#35) มา alias ทั้งหมด แทนที่จะออกแบบใหม่จากศูนย์ |
+| **ต้องมี token ใหม่** | เหมือนรายการ #2 — `--print-paper` `--print-ink` `--print-ink-soft` `--print-ink-muted` `--print-rule` (กระดาษไม่มี dark mode) |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave §1.4) |
+
+---
+
+### 46. ReferralHistoryPanel / ReferralHistoryTimeline (ไทม์ไลน์ใบส่งต่อข้าม visit) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/treat/panels/ReferralHistoryPanel.jsx` — ป๊อปอัปในทะเบียน `/treat/refer` + แท็บ "ประวัติการส่งต่อ" ใน Step 1 ของ `/treat/record` — 2 จุดเรียก แต่เป็น flow เดียว (ประวัติการส่งต่อ) จึงยังนับเป็นเคสเดียว |
+| **หน้าที่** | ไทม์ไลน์รายใบส่งต่อ เรียงตามเวลาเสมอแม้ข้ามทิศทาง (ออก/เข้า/ภายใน) · แต่ละแถวมีบล็อกเหตุผลยกเลิก / ผลตอบกลับของตัวเอง · ใบยกเลิกขีดฆ่าแต่ไม่หายจากไทม์ไลน์ · ใบหมดอายุขึ้นป้าย · jump-to-detail สลับแท็บตามทิศทางของใบ |
+| **ทำไมไม่มีของเดิมแทน** | `<Table>` บีบบล็อกเหตุผล/ผลตอบกลับจนอ่านไม่ออก · `HistoryTimeline` (ประวัติการวัด) เป็นไทม์ไลน์ค่าตัวเลข ไม่รับเนื้อหาอิสระต่อแถว — DS ยังไม่มี timeline ที่แถวมี body ของตัวเอง |
+| **รอเคสอะไร** | ไทม์ไลน์เอกสารตัวถัดไปที่แถวมีเนื้อหายาว — ทะเบียนการส่งปรึกษาแพทย์ (`/treat/consult`), ประวัติความยินยอม (`/consent/history`), ประวัติการนำส่งรายงาน (§1.20.8.2) · ถ้ามาแล้วควรยกเป็น `<RecordTimeline items renderBody onJump>` กลาง |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave §1.4) |
+
+---
+
+### 47. TelemedGisOverviewPanel (แผนที่จุดประเมิน RPM ระดับกระดาน) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/components/telemed/TelemedGisOverviewPanel.jsx` — `/telemed/rpm` (พาเนล "แผนที่จุดประเมิน (GIS)" เหนือการ์ด/ตารางกระดาน RPM) — 1 ที่ |
+| **หน้าที่** | หมุดของผู้รับบริการทุกรายพร้อมกัน สีตามระดับเฝ้าระวัง (ปกติ/เฝ้าระวัง/วิกฤต) · กรองตามสถานะ/เขต · คลิกหมุด → ค่าล่าสุด + sparkline + ไปที่การ์ดผู้ป่วย/เปิดสาย · empty state "ไม่พบจุดประเมินตามตัวกรอง" · ซ่อนตอนพิมพ์ · ทุก drill-down ยิง audit |
+| **ทำไมไม่มีของเดิมแทน** | `AddressMapBlock` ปักได้หมุดเดียวและเป็นฟอร์มให้ผู้ใช้ลากหมุดเอง (ใช้ตอนลงทะเบียนที่อยู่) — ไม่มี component ใดใน `src/components/` ที่แสดงหลายหมุด + สีตามระดับ + คลิกเพื่อ drill-down |
+| **รอเคสอะไร** | **เคสที่ 2 มาแล้วในเวฟเดียวกัน:** `AreaHealthMapPanel` (รายการ #44) ทำงานเดียวกันคนละโมดูล — ทั้งคู่เป็นแผนที่ SVG offline หลายหมุดที่ผูกกับตัวกรอง ควรออกแบบ `MapOverviewPanel` กลางตัวเดียวจาก 2 เคสนี้พร้อมกัน แทนที่จะยกตัวใดตัวหนึ่งขึ้นตรง ๆ |
+| **ข้อจำกัดที่ตั้งใจ** | แผนที่ SVG offline — ไม่มี tile server / ไม่เพิ่ม Leaflet เข้าโปรเจกต์ · พิกัดเป็นข้อมูลสาธิตจาก `telemedRpm.js` และมีแบนเนอร์ระบุไว้ชัดบนหน้าจอ |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave §1.13) |
+
+---
+
+### 48. AbacPolicyEditPopup (ตัวแก้กฎสิทธิ์ 3 แกน พร้อม preview กฎที่ชนะ) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/treat/AccessPolicyPage.jsx` (`/treat/access-policy`) — 1 ที่ |
+| **หน้าที่** | แก้กฎ ABAC 3 แกน (บทบาท × หน่วยงาน × หมวดข้อมูล → ระดับผลลัพธ์ 4 ระดับ) + preview ว่ากฎอื่นตัวไหนจะชนะเมื่อชนกัน (deny-by-default เมื่อไม่มีกฎ) + บังคับเหตุผล ≥10 ตัวอักษรตอนปิดใช้กฎ + เขียน audit ผู้แก้/เวลา/ค่าเดิม→ใหม่ |
+| **ทำไมไม่มีของเดิมแทน** | `AccessControlPage` (`/assess/access-control`) เป็นทะเบียนสิทธิ์ระดับ role ไม่ใช่ตัวแก้กฎหลายแกนที่มี conflict resolution — DS ไม่มี pattern "matrix rule editor" เลย |
+| **รอเคสอะไร** | หน้าตั้งค่าสิทธิ์ตัวถัดไปที่กฎชนกันได้ — `/assess/consent-access-rights` (สิทธิเข้าถึงตามระดับความยินยอม) และการตั้งค่าสิทธิ์ของ Lab/เภสัช · ถ้ามาแล้วควรยกเป็น `<PolicyMatrixEditor axes levels resolveConflict>` |
+| **หมายเหตุ** | ผลของกฎถูกบังคับใช้ที่ชั้น UI เท่านั้น (§1.4.8.1 ยังเป็น partial) — ถ้ายกขึ้น DS ต้องไม่สื่อว่า component นี้คือการบังคับสิทธิ์จริง |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave §1.4) |
+
+---
+
+### 49. Hl7SegmentInspector (มุมมองข้อความ HL7 ต้นฉบับคู่ตารางฟิลด์ที่ถอดแล้ว) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/treat/TreatmentInterfacesPage.jsx` — `AlertDialog` "ข้อความ HL7 v2.5.1" ที่ `/treat/interfaces` — 1 ที่ |
+| **หน้าที่** | แสดง raw segment (MSH/PID/OBR/OBX) แบบ monospace วางคู่ตารางฟิลด์ที่ถอดแล้วตามผนวก ง · ไฮไลต์ฟิลด์ที่ไม่ตรง (HN mismatch) เป็นสีเตือน · แถว malformed แสดง raw ครบและชี้ฟิลด์ที่ parse ไม่ได้โดยไม่ crash |
+| **ทำไมไม่มีของเดิมแทน** | DS ไม่มี code/log viewer เลย — ไม่มี component ที่คุม monospace + word-break ของข้อความยาว + การไฮไลต์ช่วงอักขระ |
+| **รอเคสอะไร** | จุดตรวจ interface อื่นที่ต้องดูข้อความดิบ — `/lab/interface` (LIS message queue), `/queue-center/integration`, DICOMweb request log (#ในหน้าเดียวกัน) · ถ้ามาแล้วควรยกเป็น `<RawMessageInspector raw fields highlights>` |
+| **หมายเหตุ** | ตารางฟิลด์คือ "ผลที่ parser ควรถอดได้" ไม่ได้ถอดสด — ยังไม่มี HL7 parser จริง (§1.4.7.3 / §1.5.2.1 ยัง partial) |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave §1.4) |
+
+---
+
+### 50. CertificateSignPopup (เลือกใบรับรอง + ยืนยัน PIN ก่อนลงนามดิจิทัล) — 🕐 รอเคสที่ 2 — คู่กับรายการ ESignatureField
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/treat/panels/DocumentCenterPanel.jsx` — Step 8 ศูนย์เอกสารของ `/treat/record` — 1 ที่ |
+| **หน้าที่** | เลือกใบรับรองจากรายการ (ผู้ถือ / เลขใบประกอบวิชาชีพ / serial / ผู้ออก / วันหมดอายุ) → ยืนยัน PIN → ประทับบล็อกลงนามพร้อม digest · ใบรับรองหมดอายุถูก block พร้อมเหตุผลและเสนอ fallback ลายเซ็นมือ · PIN ผิดครบ 3 ครั้งล็อกชั่วคราว |
+| **ทำไมไม่มีของเดิมแทน** | `ESignatureField` (รายการลายเซ็นอิเล็กทรอนิกส์ 3 ช่องทาง) จัดการ *ภาพ* ลายเซ็น (บันทึกไว้/วาด/อัปโหลด) — ไม่มีอะไรใน DS ที่จัดการ *ใบรับรอง* + PIN + สถานะโมฆะ |
+| **รอเคสอะไร** | จุดลงนามอื่นที่ TOR สั่งให้ผูก certificate — ใบผลแล็บที่ยืนยันโดยนักเทคนิค (§1.15.6), ใบรายงานผลรังสี (§1.12.6.5), ใบเสร็จการเงิน · ถ้ามาแล้วควรยกขึ้น DS **คู่กับ** `ESignatureField` เป็นตระกูลเดียวกัน (`<SignatureAction mode='drawn'|'certificate'>`) |
+| **หมายเหตุ** | ไม่ใช่ PKI จริง — digest เป็น FNV-1a ในเบราว์เซอร์ ไม่ได้เซ็นด้วย private key ใน HSM/Token (§1.5.11.5 / §1.4.10.11 ยัง partial) · ถ้ายกขึ้น DS ต้องออกแบบให้สลับไป backend signing ได้โดยไม่เปลี่ยน API ฝั่งผู้เรียก |
+| **บันทึกเมื่อ** | 9 ส.ค. 2569 (Wave §1.4) |
+
+---
+
 ## Token ที่รอ sync เข้า mih-design
 
 ทะเบียนของ **design token ที่ mirror ในนี้ (`src/styles/tokens.css` + `design.md`) ล้ำหน้า

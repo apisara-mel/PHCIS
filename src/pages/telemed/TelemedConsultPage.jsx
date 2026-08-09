@@ -26,9 +26,25 @@ import { appendAuditEvent } from '@/pages/audit/auditData';
 import TelemedEmrPanel from '@/components/telemed/TelemedEmrPanel';
 import TelemedOrderStrip from '@/components/telemed/TelemedOrderStrip';
 import {
+  openTelemedSession,
+  transportLabel,
+  TELEMED_SESSION_EVENTS,
+} from '@/utils/telemedSessionBridge';
+import { startTelemedAuditMirror } from '@/utils/telemedAuditPersist';
+import {
+  markPending,
+  queueVisitSync,
+  retryVisitSync,
+  recordNoShowVisit,
+  PHCIS_SYNC_STATUS,
+  NO_SHOW_REASON,
+  phcisRecordLink,
+} from '@/utils/telemedPhcisBridge';
+import {
   getTelemedVisitByHn,
   addTelemedOrder,
   cancelTelemedOrder,
+  updateTelemedOrder,
   addTelemedEvidence,
   setTelemedServiceWindow,
   subscribeTelemedVisits,
@@ -1037,6 +1053,11 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
      · Join request popup (146:20338 / 95:48873)
      · No-show ครั้งที่ 1·2 + timeslot auto-close (146:22674) */
   const [patientPresent, setPatientPresent] = useState(false);
+  /* "เคยมีผู้รับบริการอยู่ในห้องจริงหรือไม่" ตลอดสายนี้ — ใช้ตัดสินว่าจะเขียน
+     ข้อมูลกลับเข้า PHCIS ได้หรือไม่. ต้องเป็น ref เพราะตอน endCall() ทำงาน
+     setPatientPresent(false) อาจถูกเรียกไปแล้ว (ผู้ป่วยวางสาย / สัญญาณหลุด) */
+  const patientEverPresentRef = useRef(false);
+  const [patientLeft, setPatientLeft] = useState(false);
   const [joinRequestOpen, setJoinRequestOpen] = useState(false);
   const [noShowStep, setNoShowStep] = useState(null); // null | 1 | 2 | 'timeslot'
   const [timeslotCountdown, setTimeslotCountdown] = useState(30);
@@ -1044,6 +1065,17 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
   const noShowTimerRef = useRef(null);
   const [closeReason, setCloseReason] = useState(null); // null | 'endMeeting' | 'no-show' | 'timeslot'
   const [audioOnly, setAudioOnly] = useState(false);
+
+  /* ── การจับคู่ session ข้ามแท็บ web ↔ mobile (TOR §1.13.7) ──────────
+     เดิมฝั่งเว็บ "แกล้ง" ให้ผู้ป่วยขอเข้าห้อง 1.4 วินาทีหลังหมอเข้าสาย.
+     ตอนนี้ถ้ามีแท็บ /m/telemed เปิดอยู่ในเบราว์เซอร์เดียวกัน เหตุการณ์จะเดิน
+     จริงผ่าน BroadcastChannel (fallback: localStorage) — ไม่มีแท็บคู่หูค่อย
+     กลับไปใช้โหมดสาธิตเดิม. การจับคู่ข้ามเครื่องจริงต้องใช้ signalling
+     server + WebRTC ซึ่งอยู่นอกขอบเขต wave นี้ → คงป้าย "โหมดสาธิต" ไว้. */
+  const sessionRef = useRef(null);
+  const [peerState, setPeerState] = useState({ supported: false, transport: 'none', hasPeer: false, duplicate: false });
+  /* สถานะการส่งข้อมูลเข้า PHCIS ตอนจบสาย (TOR §1.13.3) */
+  const [phcisSync, setPhcisSync] = useState(null);
 
   // shared-document preview (PDF / image)
   const [previewDoc, setPreviewDoc] = useState(null);
@@ -1260,12 +1292,15 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setConsent('granted');
     setRecording(true);
     setConsentModal(false);
+    /* แจ้งแท็บผู้รับบริการให้เห็นสถานะ "กำลังบันทึก" ตรงกัน (TOR §1.13.7/§1.13.9) */
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.consent, { granted: true });
     appendAuditEvent({ user: DOCTOR.name, action: 'ยินยอมบันทึกวิดีโอ + เริ่มบันทึก' });
   };
   const denyConsent = () => {
     setConsentModal(false);
     setConsent('denied');
     setRecording(false);
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.consent, { granted: false });
     appendAuditEvent({ user: DOCTOR.name, action: 'ผู้รับบริการปฏิเสธการบันทึกสาย — หยุดบันทึกทันที', ok: false });
   };
 
@@ -1338,6 +1373,60 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     clearAdditionalCaseTimers();
   }, []);
 
+  /* เก็บ audit ของสายนี้ลงเครื่องด้วย (TOR §1.13.11) — idempotent */
+  useEffect(() => { startTelemedAuditMirror(); }, []);
+
+  /* เปิดช่องจับคู่ session กับแท็บมือถือ (TOR §1.13.7) — เปิดครั้งเดียวต่อหน้า */
+  useEffect(() => {
+    const session = openTelemedSession({
+      role: 'web',
+      onPeerChange: (s) => setPeerState((prev) => (
+        prev.hasPeer === s.hasPeer && prev.duplicate === s.duplicate && prev.transport === s.transport
+          ? prev
+          : { ...prev, ...s }
+      )),
+      onMessage: (msg) => {
+        switch (msg.type) {
+          case TELEMED_SESSION_EVENTS.joinRequest:
+            clearJoinRequestTimer();
+            clearNoShowTimer();
+            setNoShowStep(null);
+            setJoinRequestOpen(true);
+            appendAuditEvent({ user: DOCTOR.name, action: 'ผู้รับบริการขอเข้าห้องปรึกษา (จากแอปมือถือ)' });
+            break;
+          /* วางสายเอง ≠ สัญญาณหลุด — ต้องแยกกันทั้งบนหน้าจอและใน audit trail
+             เพราะเวลาให้บริการ/การเบิกจ่าย (คู่มือ 5.3.5) อ่านจากบันทึกนี้ */
+          case TELEMED_SESSION_EVENTS.leave:
+            setPatientPresent(false);
+            setPatientLeft(true);
+            appendAuditEvent({ user: DOCTOR.name, action: 'ผู้รับบริการวางสาย (สิ้นสุดการปรึกษา)', ok: true });
+            break;
+          case TELEMED_SESSION_EVENTS.bye:
+            /* แท็บผู้ป่วยปิด/รีเฟรชกลางคัน → เป็น "สัญญาณขาดหาย" จริง */
+            setPatientPresent(false);
+            setNetwork('lost');
+            appendAuditEvent({ user: DOCTOR.name, action: 'สัญญาณผู้รับบริการขาดหาย (แท็บผู้รับบริการหลุด)', ok: false });
+            break;
+          case TELEMED_SESSION_EVENTS.consent:
+            setConsent(msg.granted ? 'granted' : 'denied');
+            setVisitTick((t) => t + 1);
+            break;
+          default:
+            break;
+        }
+      },
+    });
+    sessionRef.current = session;
+    setPeerState({
+      supported: session.supported,
+      transport: session.transport,
+      hasPeer: session.hasPeer(),
+      duplicate: session.isDuplicate(),
+    });
+    return () => { session.close(); sessionRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const beginInCall = () => {
     clearConnectTimer();
     clearAdditionalCaseTimers();
@@ -1345,29 +1434,44 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setAbortJoinOpen(false);
     setElapsed(0);
     setPatientPresent(false);
+    patientEverPresentRef.current = false;
+    setPatientLeft(false);
     setJoinRequestOpen(false);
     setNoShowStep(null);
     setCloseReason(null);
     setAudioOnly(false);
     setPhase('in-call');
     appendAuditEvent({ user: DOCTOR.name, action: 'เข้าร่วมสาย Telemed' });
-    /* Demo: patient requests admission shortly after doctor enters (Figma 95:48873). */
-    joinRequestTimerRef.current = window.setTimeout(() => {
-      setJoinRequestOpen(true);
-    }, 1400);
+    /* เวลาเริ่มให้บริการ = เวลาที่แพทย์เข้าห้อง (คู่มือ 5.3.5) — ถ้าไม่บันทึกตรงนี้
+       การส่งข้อมูลเข้า PHCIS ตอนจบสายจะล้มเหลวด้วยเหตุ "ไม่มีเวลาให้บริการ" เสมอ */
+    stampServiceStart();
+    /* ประกาศให้แท็บมือถือรู้ว่าแพทย์เข้าห้องแล้ว */
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.hello, { phase: 'in-call' });
+    /* ไม่มีแท็บผู้รับบริการคู่หู → กลับไปใช้โหมดสาธิตเดิม (Figma 95:48873)
+       ถ้ามีแท็บคู่หู คำขอเข้าห้องจะมาจากฝั่งมือถือจริง ไม่ต้องแกล้ง */
+    if (!sessionRef.current?.hasPeer()) {
+      joinRequestTimerRef.current = window.setTimeout(() => {
+        setJoinRequestOpen(true);
+      }, 1400);
+    }
   };
 
   const admitJoinRequest = () => {
     clearAdditionalCaseTimers();
     setJoinRequestOpen(false);
     setPatientPresent(true);
+    patientEverPresentRef.current = true;   /* มีการให้บริการจริงแล้ว */
+    setPatientLeft(false);
     setNoShowStep(null);
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.accept, { by: DOCTOR.name });
     appendAuditEvent({ user: DOCTOR.name, action: 'รับผู้ป่วยเข้าสาย' });
   };
 
   const dismissJoinRequest = () => {
     clearJoinRequestTimer();
     setJoinRequestOpen(false);
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.decline, { by: DOCTOR.name });
+    appendAuditEvent({ user: DOCTOR.name, action: 'ยังไม่รับผู้ป่วยเข้าสาย (ปฏิเสธคำขอชั่วคราว)', ok: false });
     /* Patient still absent — escalate to no-show ครั้งที่ 1 after a short wait (demo). */
     clearNoShowTimer();
     noShowTimerRef.current = window.setTimeout(() => {
@@ -1401,6 +1505,66 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setNoShowStep((s) => (s == null ? 1 : s === 1 ? 2 : s === 2 ? 'timeslot' : null));
   };
 
+  /* ── ส่งสรุปการให้บริการ + คำสั่ง เข้า PHCIS ตอนจบสาย (TOR §1.13.3) ──
+     ยังไม่มี API จริง — เขียนลงสมุดบันทึกในเครื่องพร้อมสถานะที่ผู้ใช้เห็นได้
+     (สำเร็จ / รอส่ง / ล้มเหลว-ลองใหม่) และหน้าห้องตรวจอ่านสถานะเดียวกัน */
+  const pushVisitToPhcis = (extra = {}) => {
+    const visit = getTelemedVisitByHn(PATIENT.hn);
+    if (!visit) {
+      setPhcisSync({ status: 'none', reason: 'ไม่พบรายการตรวจของผู้รับบริการรายนี้ในหน้าห้องตรวจ' });
+      return;
+    }
+    markPending(visit, telemedActor(telemedRole));
+    const result = queueVisitSync(visit, telemedActor(telemedRole), extra);
+    setPhcisSync(result.row);
+    appendAuditEvent({
+      user: DOCTOR.name,
+      action: `ส่งสรุปการให้บริการเข้า PHCIS · ${result.ok ? result.row.phcisRef : result.row.reason}`,
+      ok: result.ok,
+    });
+  };
+
+  /* ปิดห้องโดยไม่มีการให้บริการ (ไม่มาตามนัด / หมดช่วงเวลานัด) — ห้ามเขียน
+     กลับเข้า PHCIS เป็นบริการที่ให้แล้ว (TOR §1.13.3 + คู่มือ 5.3.5) */
+  const recordNoShowToPhcis = (choice) => {
+    const visit = getTelemedVisitByHn(PATIENT.hn);
+    if (!visit) {
+      setPhcisSync({ status: 'none', reason: 'ไม่พบรายการตรวจของผู้รับบริการรายนี้ในหน้าห้องตรวจ' });
+      return;
+    }
+    const result = recordNoShowVisit(visit, telemedActor(telemedRole), choice);
+    setPhcisSync(result.row);
+    appendAuditEvent({
+      user: DOCTOR.name,
+      action: `ปิดห้องโดยไม่มีการให้บริการ · ${result.row?.reason || NO_SHOW_REASON['no-show']} — ไม่ส่งเข้า PHCIS`,
+      ok: false,
+    });
+  };
+
+  /* ปลายทางที่ "แก้เหตุที่ส่งไม่สำเร็จได้จริง" — ปุ่มลองส่งใหม่เพียงอย่างเดียว
+     เป็นทางตัน เพราะหน้าจอจบสายแก้หลักฐาน / เวลา / สิทธิ ไม่ได้เลย */
+  const syncFixTarget = () => {
+    const visit = activeVisit || getTelemedVisitByHn(PATIENT.hn);
+    if (!visit) return { label: 'ไปหน้าห้องตรวจ Telemedicine', path: '/telemed/worklist' };
+    if (visit.rightsExpired) return { label: 'ไปตรวจสอบสิทธิการรักษา', path: '/telemed/worklist' };
+    if (visit.authen === 'none' && !visit.authenCode) {
+      return { label: 'ไปขอ Authen Code สปสช.', path: `/telemed/assessment/${visit.id}` };
+    }
+    return { label: 'ไปแนบหลักฐาน / บันทึกเวลาให้บริการ', path: `/telemed/assessment/${visit.id}` };
+  };
+
+  const retryPhcisSync = () => {
+    const visit = getTelemedVisitByHn(PATIENT.hn);
+    if (!visit) return;
+    const result = retryVisitSync(visit, telemedActor(telemedRole));
+    setPhcisSync(result.row);
+    appendAuditEvent({
+      user: DOCTOR.name,
+      action: `ลองส่งข้อมูลเข้า PHCIS อีกครั้ง · ${result.ok ? result.row.phcisRef : result.row.reason}`,
+      ok: result.ok,
+    });
+  };
+
   const endCall = (choice = 'leave') => {
     clearConnectTimer();
     clearAdditionalCaseTimers();
@@ -1410,6 +1574,21 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     if (stream) stream.getTracks().forEach((t) => t.stop());
     if (screenStream) screenStream.getTracks().forEach((t) => t.stop());
     setRecording(false);
+    /* แจ้งแท็บผู้รับบริการว่าแพทย์ออกจากสายแล้ว */
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.leave, { by: DOCTOR.name, reason: choice });
+    /* เขียนกลับเข้า PHCIS เฉพาะเมื่อ "มีการให้บริการจริง" เท่านั้น —
+       ปิดห้องเพราะไม่มาตามนัด / หมดช่วงเวลานัด ต้องบันทึกเป็นไม่มีการให้บริการ
+       มิฉะนั้นรายการที่ไม่เคยตรวจจะขึ้นว่า "ส่งเข้า PHCIS แล้ว" และเบิกจ่ายได้ */
+    const served = (choice === 'leave' || choice === 'endMeeting') && patientEverPresentRef.current;
+    if (served) {
+      /* ปิดเวลาให้บริการเมื่อมีการให้บริการจริงเท่านั้น — ถ้าประทับ endedAt ให้
+         สายที่ไม่มีใครเข้าห้อง visit นั้นจะผ่าน blockingReason() แล้วถูก
+         mirror อัตโนมัติเป็น "ซิงก์แล้ว" ที่หน้าห้องตรวจในภายหลัง */
+      stampServiceEnd();
+      pushVisitToPhcis({ summary, diagnosis: '' });
+    } else {
+      recordNoShowToPhcis(choice === 'leave' || choice === 'endMeeting' ? 'no-show' : choice);
+    }
     setLeaveOpen(false);
     setNoShowStep(null);
     /* endMeeting = ปิดห้องสำหรับทุกคน; leave = แค่ออก */
@@ -2115,7 +2294,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
               >
-                <Sym name='call_end' size={32} fill={1} color='var(--icon-negative-default, #B91C1C)' />
+                <Sym name='call_end' size={32} fill={1} color='var(--icon-alertdialog-destructive, #B91C1C)' />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-200, 8px)', width: '100%' }}>
                 <h1 style={{
@@ -2182,7 +2361,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
         }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--dim-space-300, 12px)', marginBottom: 'var(--dim-space-600, 24px)' }}>
-            <Sym name='check_circle' size={32} fill={1} color='var(--icon-alertdialog-success, #067A4C)' />
+            <Sym name='check_circle' size={32} fill={1} color='var(--icon-alertdialog-success, #196C65)' />
             <h1 style={{ margin: 0, fontSize: 'var(--type-size-lg, 18px)', fontWeight: 'var(--type-weight-heading-strong, var(--type-weight-medium, 500))', color: 'var(--text-alertdialog-text, #363B3F)', textAlign: 'center' }}>
               จบการปรึกษาแล้ว
             </h1>
@@ -2216,8 +2395,73 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
             </div>
           </div>
 
+          {/* ── สถานะการส่งข้อมูลเข้า PHCIS (TOR §1.13.3) ── */}
+          <div
+            style={{
+              padding: 'var(--dim-space-400, 16px)',
+              borderRadius: 'var(--dim-radius-400, 12px)',
+              border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+              background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+              marginBottom: 'var(--dim-space-600, 24px)',
+              display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-200, 8px)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--dim-space-200, 8px)' }}>
+              <Sym
+                name={PHCIS_SYNC_STATUS[phcisSync?.status]?.icon || 'cloud_upload'}
+                size={20}
+                fill={1}
+                color={phcisSync?.status === 'synced'
+                  ? 'var(--icon-alertdialog-success, #196C65)'
+                  : phcisSync?.status === 'failed'
+                    ? 'var(--icon-alertdialog-destructive, #B91C1C)'
+                    : 'var(--text-content-tertiary, #858C92)'}
+              />
+              <div style={{ flex: 1, fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)', color: 'var(--text-content-default, #363B3F)' }}>
+                {phcisSync?.status === 'no-show'
+                  ? 'ไม่ได้ส่งเข้า PHCIS — ไม่มีการให้บริการ'
+                  : phcisSync?.status && PHCIS_SYNC_STATUS[phcisSync.status]
+                    ? `ส่งข้อมูลเข้า PHCIS: ${PHCIS_SYNC_STATUS[phcisSync.status].label}`
+                    : 'ยังไม่ได้ส่งข้อมูลเข้า PHCIS'}
+              </div>
+            </div>
+            <div style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-secondary, #636B72)', lineHeight: 1.6 }}>
+              {phcisSync?.status === 'synced'
+                ? `เลขอ้างอิง ${phcisSync.phcisRef} · สรุปการปรึกษาและคำสั่งถูกบันทึกไว้ในสมุดส่งข้อมูล (จำลอง — ยังไม่ได้ต่อ API PHCIS จริง)`
+                : phcisSync?.reason || 'ระบบจะส่งอัตโนมัติเมื่อปิดสาย'}
+            </div>
+            {phcisSync?.status === 'failed' && (() => {
+              const target = syncFixTarget();
+              return (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--dim-space-200, 8px)', alignItems: 'center' }}>
+                  <button
+                    type='button'
+                    onClick={() => { onClose?.(); history.push(target.path); }}
+                    style={{ ...primaryBtnStyle }}
+                  >
+                    {target.label}
+                  </button>
+                  <button
+                    type='button'
+                    onClick={retryPhcisSync}
+                    style={{ ...secondaryBtnStyle }}
+                  >
+                    ลองส่งใหม่
+                  </button>
+                  <span style={{ flexBasis: '100%', fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-content-tertiary, #858C92)', lineHeight: 1.6 }}>
+                    แก้เหตุข้างต้นที่หน้าปลายทางก่อน แล้วจึงกด “ลองส่งใหม่” — กดซ้ำโดยไม่แก้จะได้ผลเดิม
+                  </span>
+                </div>
+              );
+            })()}
+          </div>
+
           <div style={{ display: 'flex', gap: 'var(--dim-space-300, 12px)' }}>
-            <button type='button' onClick={() => { onClose?.(); history.push('/treat/record'); }} style={{ ...secondaryBtnStyle, flex: 1, justifyContent: 'center' }}>
+            <button
+              type='button'
+              onClick={() => { onClose?.(); history.push(activeVisit ? phcisRecordLink(activeVisit) : '/treat/record'); }}
+              style={{ ...secondaryBtnStyle, flex: 1, justifyContent: 'center' }}
+            >
               บันทึกการรักษา
             </button>
             <button type='button' onClick={() => { onClose?.(); history.push('/m/payment'); }} style={{ ...primaryBtnStyle, flex: 1, justifyContent: 'center' }}>
@@ -2325,7 +2569,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
           flexShrink: 0,
         }}
         >
-          <Sym name='screen_share' size={20} color='var(--icon-negative-default, #B91C1C)' />
+          <Sym name='screen_share' size={20} color='var(--icon-alertdialog-destructive, #B91C1C)' />
           <span style={{ fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)', color: 'var(--text-negative-primary, #B91C1C)' }}>
             คุณกำลังแชร์หน้าจอ
           </span>
@@ -2486,9 +2730,28 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
             <Banner tone='warn' icon='headphones' title='โหมดเสียงอย่างเดียว'
               text='วิดีโอถูกปิดชั่วคราวเพื่อรักษาการสนทนาให้ต่อเนื่อง' />
           )}
-          {!patientPresent && !joinRequestOpen && noShowStep == null && (
+          {/* ผู้รับบริการวางสายเอง ≠ สัญญาณหลุด — ห้ามชวนแพทย์ "เชื่อมต่อใหม่"
+             กับสายที่อีกฝ่ายตั้งใจจบไปแล้ว */}
+          {patientLeft && network !== 'lost' && (
+            <Banner tone='info' icon='call_end' title='ผู้รับบริการวางสายแล้ว'
+              text='ผู้รับบริการจบการปรึกษาจากฝั่งของตนเอง — สรุปการให้บริการแล้วกดออกจากสายเพื่อปิดรายการ' />
+          )}
+          {!patientPresent && !patientLeft && !joinRequestOpen && noShowStep == null && (
             <Banner tone='warn' icon='hourglass_top' title='รอผู้รับบริการเข้าห้อง'
               text='เมื่อผู้รับบริการขอเข้า จะมีหน้าต่างยืนยันให้รับเข้าห้องตรวจ' />
+          )}
+          {/* ── สถานะการจับคู่กับแอปผู้รับบริการ (TOR §1.13.7) ── */}
+          {peerState.duplicate ? (
+            <Banner tone='warn' icon='devices' title='มีการเชื่อมต่ออยู่แล้ว'
+              text='พบแท็บห้องตรวจของแพทย์เปิดอยู่มากกว่าหนึ่งแท็บ — ปิดแท็บที่ไม่ใช้เพื่อไม่ให้คำสั่งซ้ำซ้อน' />
+          ) : peerState.hasPeer ? (
+            <Banner tone='info' icon='smartphone' title='จับคู่กับแอปผู้รับบริการแล้ว'
+              text={`${transportLabel(peerState.transport)} — คำขอเข้าห้อง / การรับเข้า / การออกจากสาย เดินข้ามแท็บจริง (สาธิตภายในเบราว์เซอร์เดียวกัน)`} />
+          ) : (
+            <Banner tone='warn' icon='phonelink_off' title='โหมดสาธิต — ยังไม่พบแท็บผู้รับบริการ'
+              text={peerState.supported
+                ? 'เปิด /m/telemed ในแท็บเดียวกันของเบราว์เซอร์นี้เพื่อจับคู่ session จริง — ระหว่างนี้ระบบใช้เหตุการณ์จำลอง'
+                : 'เบราว์เซอร์นี้จับคู่ข้ามแท็บไม่ได้ (BroadcastChannel/localStorage ถูกปิด) — ใช้เหตุการณ์จำลองในแท็บเดียว'} />
           )}
           {camError && (
             <Banner tone='danger' icon='videocam_off' title='ไม่พบกล้อง/ถูกปฏิเสธสิทธิ์'
@@ -2764,7 +3027,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
             {rightTab === 'health' && (
               <div style={{ padding: 'var(--dim-space-400, 16px)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--dim-space-150, 6px)', marginBottom: 'var(--dim-space-300, 12px)' }}>
-                  <Sym name='lock' size={14} color='var(--icon-content-tertiary, #858C92)' />
+                  <Sym name='lock' size={14} color='var(--text-content-tertiary, #858C92)' />
                   <span style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858C92)' }}>ดูอย่างเดียว · แก้ไขได้ตามสิทธิ์ในระบบบันทึกการรักษา</span>
                 </div>
                 <div style={boxStyle}>
@@ -2818,7 +3081,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                 visitId={activeVisit.id}
                 role={telemedRole}
                 gis={ASSESSMENT_GIS}
-                onOpenTreatmentRecord={() => history.push('/treat/record')}
+                onOpenTreatmentRecord={() => history.push(phcisRecordLink(activeVisit))}
                 onSaveAssessment={(payload) => {
                   const base = getAssessmentByVisit(activeVisit.id) || makeBlankAssessment(activeVisit);
                   saveAssessment({
@@ -2865,6 +3128,10 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                   onCancelOrder={(orderId, reason) => {
                     cancelTelemedOrder(activeVisit.id, orderId, reason, telemedActor(telemedRole));
                     appendAuditEvent({ user: DOCTOR.name, action: `ยกเลิกคำสั่งการรักษา · ${reason}`, ok: false });
+                  }}
+                  onEditOrder={(orderId, patch) => {
+                    updateTelemedOrder(activeVisit.id, orderId, patch, telemedActor(telemedRole));
+                    appendAuditEvent({ user: DOCTOR.name, action: `แก้ไขคำสั่งการรักษา · ${patch.detail}` });
                   }}
                 />
                 )}
@@ -3215,6 +3482,7 @@ const Banner = ({ tone, icon, title, text, action }) => {
   const map = {
     danger: { bg: 'var(--surface-negative-secondary, #FBE8E8)', bd: 'var(--border-negative-primary, #E7A0A0)', fg: 'var(--text-negative-primary, #B91C1C)' },
     warn: { bg: 'var(--surface-warning-secondary, #FDF1E0)', bd: 'var(--border-warning-primary, #F0C589)', fg: 'var(--text-warning-primary, #A5641B)' },
+    info: { bg: 'var(--surface-alert-info, #F0F6FF)', bd: 'var(--border-alert-info, #DBEAFE)', fg: 'var(--text-alert-info, #1D4ED8)' },
   };
   const c = map[tone] || map.warn;
   return (

@@ -31,8 +31,13 @@ import {
   queueDeviceVitalPatch, overwrittenVitalFields, vitalFieldLabel,
   telemedStateMeta, subscribeTelemedSessions, getTelemedSessions,
   startTelemedSession, setTelemedState,
+  /* เวฟ TOR §1.4 เก็บ gap — 4 มุมมองรายละเอียดฝั่ง UI */
+  hl7MessageFor, pacsQueryLogFor,
+  DEVICE_FIELD_MAPPINGS, validateDeviceReading, deviceHasOutOfRange,
+  telemedSessionLog, telemedConsentRecord, exportTelemedLog,
 } from '@/data/treatmentInterfaces';
 import { TREATMENT_QUEUE_ROWS } from '@/data/treatmentQueue';
+import { NO_EDIT_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
 
 /* PHCIS | EMR §1.4.7.2 – §1.4.7.5 / §1.4.3.23 — สถานะการเชื่อมต่อระบบภายนอก.
 
@@ -141,6 +146,13 @@ const TreatmentInterfacesPage = () => {
   const [recordConsent, setRecordConsent] = useState(false);
   const [consentName, setConsentName] = useState('');
   const [reportTarget, setReportTarget] = useState(null);
+  /* §1.4.7.3 HL7 inspector · §1.4.7.4 study detail · §1.4.7.5 device mapping
+     · §1.4.3.23 telemed session log — 4 หน้าต่างรายละเอียดที่เพิ่มในเวฟนี้ */
+  const [hl7Target, setHl7Target] = useState(null);
+  const [studyTarget, setStudyTarget] = useState(null);
+  const [mappingTarget, setMappingTarget] = useState(null);
+  const [sessionTarget, setSessionTarget] = useState(null);
+  const [exportResult, setExportResult] = useState(null);
 
   const showToast = (variant, message) => setToast({ id: Date.now(), variant, message });
 
@@ -211,8 +223,15 @@ const TreatmentInterfacesPage = () => {
      จึงจัดคิว patch ไว้ให้หน้าบันทึกการรักษาหยิบไปใช้ และรายงานตามจริง
      ว่า "จัดคิวไว้" ไม่ใช่ "เขียนลงแล้ว" */
   const doPullDevice = (device) => {
+    /* ค่านอกช่วงถูกตัดออกจาก patch ตั้งแต่ชั้นข้อมูล — ถ้าไม่เหลือช่องไหนเลย
+       ต้องบอกตามจริงว่าไม่ได้จัดคิวอะไร ไม่ใช่ขึ้น toast ว่าสำเร็จ */
     const patch = buildDeviceVitalPatch(device);
     const fields = Object.keys(patch);
+    if (fields.length === 0) {
+      setDeviceTarget(null);
+      showToast('error', `ค่าจาก ${device.name} อยู่นอกช่วงที่ยอมรับทั้งหมด — ไม่ได้จัดคิวค่าใดเข้าสัญญาณชีพ ต้องตรวจสอบเครื่องก่อน`);
+      return;
+    }
     /* ยังไม่มีค่าปลายทางให้เทียบในหน้านี้ → ไม่มีการเขียนทับใด ๆ เกิดขึ้นจริง */
     const overwritten = overwrittenVitalFields(patch, {});
     queueDeviceVitalPatch({ hn: device.hn || '', device, patch });
@@ -268,23 +287,47 @@ const TreatmentInterfacesPage = () => {
     {
       key: 'actions', header: '',
       render: (row) => {
-        if (row.status === 'imported') return <span style={PANEL_LABEL_STYLE}>นำเข้าแล้ว</span>;
-        /* HN ไม่ตรง — ห้ามมีปุ่มนำเข้าเลย มีได้แค่ปุ่ม flag */
+        /* §1.4.7.3 — เปิดดูข้อความ HL7 ต้นฉบับได้ทุกแถว รวมแถวที่ตีกลับ
+           (ต้องตรวจได้ว่าทำไมถึงไม่ผ่าน) — ไม่ผูกกับสิทธิ์แก้ไข */
+        const inspectBtn = (
+          <NeutralSubdueButton
+            variant='outline' size='sm' leadingIcon='code'
+            onClick={() => setHl7Target(row)}
+          >
+            ดูข้อความ HL7
+          </NeutralSubdueButton>
+        );
+
+        if (row.status === 'imported') {
+          return (
+            <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <span style={PANEL_LABEL_STYLE}>นำเข้าแล้ว</span>
+              {inspectBtn}
+            </div>
+          );
+        }
+        /* HN ไม่ตรง — ห้ามมีปุ่มนำเข้าเลย มีได้แค่ปุ่ม flag + ดูข้อความ */
         if (row.status === 'mismatch') {
           return (
-            <GuardedAction allowed={access.canEdit}>
-              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='flag' onClick={() => setFlagTarget(row)}>
-                ตีกลับ / แจ้งห้องแล็บ
-              </NeutralSubdueButton>
-            </GuardedAction>
+            <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              {inspectBtn}
+              <GuardedAction allowed={access.canEdit}>
+                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='flag' onClick={() => setFlagTarget(row)}>
+                  ตีกลับ / แจ้งห้องแล็บ
+                </NeutralSubdueButton>
+              </GuardedAction>
+            </div>
           );
         }
         return (
-          <GuardedAction allowed={access.canEdit}>
-            <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={() => doImport(row)}>
-              นำเข้าสู่ visit
-            </NeutralSubdueButton>
-          </GuardedAction>
+          <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {inspectBtn}
+            <GuardedAction allowed={access.canEdit}>
+              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={() => doImport(row)}>
+                นำเข้าสู่ visit
+              </NeutralSubdueButton>
+            </GuardedAction>
+          </div>
         );
       },
     },
@@ -480,6 +523,13 @@ const TreatmentInterfacesPage = () => {
                     key: 'actions', header: '',
                     render: (r) => (
                       <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                        {/* §1.4.7.4 — รายละเอียด study + บันทึกการ query DICOMweb */}
+                        <NeutralSubdueButton
+                          variant='outline' size='sm' leadingIcon='travel_explore'
+                          onClick={() => setStudyTarget(r)}
+                        >
+                          รายละเอียด / query log
+                        </NeutralSubdueButton>
                         <NeutralSubdueButton
                           variant='outline' size='sm' leadingIcon='description'
                           onClick={() => setReportTarget(openPacsReport(r))}
@@ -543,13 +593,77 @@ const TreatmentInterfacesPage = () => {
                   {!d.online ? <span style={{ ...PANEL_LABEL_STYLE, color: 'var(--text-colorfulbadge-yellow, #A16207)' }}>{d.status}</span> : null}
                   <InfoPair label='ค่าที่อ่านได้ล่าสุด' value={d.readingLabel} minWidth={0} />
                   <InfoPair label='เวลาที่อ่าน' value={d.readAt} minWidth={0} />
-                  <GuardedAction allowed={access.canEdit && d.online}>
-                    <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={() => setDeviceTarget(d)}>
-                      ดึงค่าเข้าสัญญาณชีพ
+                  {/* §1.4.7.5 — ค่านอกช่วงที่ยอมรับห้าม auto-fill */}
+                  {deviceHasOutOfRange(d) ? (
+                    <PanelAlert tone='error' icon='error' title='มีค่าอยู่นอกช่วงที่ยอมรับ'>
+                      {validateDeviceReading(d).filter((r) => r.outOfRange).map((r) => r.message).join(' · ')}
+                      {' '}— ระบบไม่ดึงค่าเข้าสัญญาณชีพอัตโนมัติ ต้องตรวจสอบเครื่องและยืนยันด้วยตนเอง
+                    </PanelAlert>
+                  ) : null}
+                  <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    {/* §1.4.7.5 — ปุ่มต้องถูกปิดจริงเมื่อมีค่านอกช่วง ไม่ใช่แค่
+                        ขึ้นข้อความเตือน (คำเตือนสัญญาว่า "ระบบไม่ดึงค่าอัตโนมัติ") */}
+                    <GuardedAction
+                      allowed={access.canEdit && d.online && !deviceHasOutOfRange(d)}
+                      reason={deviceHasOutOfRange(d)
+                        ? 'มีค่าอยู่นอกช่วงที่ยอมรับ — ต้องตรวจสอบเครื่องก่อนดึงค่า'
+                        : !d.online ? 'อุปกรณ์ยังไม่พร้อมใช้งาน — ตรวจสอบเครื่องก่อน' : NO_EDIT_RIGHT_TOOLTIP}
+                    >
+                      <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={() => setDeviceTarget(d)}>
+                        ดึงค่าเข้าสัญญาณชีพ
+                      </NeutralSubdueButton>
+                    </GuardedAction>
+                    <NeutralSubdueButton variant='outline' size='sm' leadingIcon='settings_ethernet' onClick={() => setMappingTarget(d)}>
+                      ตั้งค่าการ map ค่า
                     </NeutralSubdueButton>
-                  </GuardedAction>
+                  </div>
                 </div>
               ))}
+            </div>
+
+            {/* §1.4.7.5 — ตารางรวมการ map ค่าทุกเครื่อง (ผนวก ง) */}
+            <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>
+              ตารางการเชื่อมโยงค่าจากอุปกรณ์ → ฟิลด์สัญญาณชีพ
+            </span>
+            <span style={PANEL_LABEL_STYLE}>
+              ค่าที่อ่านได้นอกช่วงที่ยอมรับจะไม่ถูกเขียนลงสัญญาณชีพอัตโนมัติ — ต้องให้เจ้าหน้าที่ยืนยันทุกครั้ง
+            </span>
+            <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+              <Table
+                columns={[
+                  {
+                    key: 'device', header: 'เครื่อง',
+                    render: (r) => {
+                      const d = devices.find((x) => x.id === r.deviceId);
+                      return (
+                        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                          <span style={PANEL_VALUE_STYLE}>{d?.name || r.deviceId}</span>
+                          <span style={PANEL_LABEL_STYLE}>{d?.code || ''}</span>
+                        </div>
+                      );
+                    },
+                  },
+                  {
+                    key: 'field', header: 'ฟิลด์สัญญาณชีพปลายทาง',
+                    render: (r) => <span style={PANEL_VALUE_STYLE}>{vitalFieldLabel(r.field)}</span>,
+                  },
+                  { key: 'unit', header: 'หน่วย' },
+                  {
+                    key: 'range', header: 'ช่วงค่าที่ยอมรับ',
+                    render: (r) => <span style={PANEL_LABEL_STYLE}>{r.min} – {r.max} {r.unit}</span>,
+                  },
+                  {
+                    key: 'hl7Code', header: 'รหัสอ้างอิง (ผนวก ง)',
+                    render: (r) => <span style={PANEL_LABEL_STYLE}>{r.hl7Code}</span>,
+                  },
+                  {
+                    key: 'note', header: 'หมายเหตุ', flex: 1,
+                    render: (r) => <span style={PANEL_LABEL_STYLE}>{r.note}</span>,
+                  },
+                ]}
+                rows={DEVICE_FIELD_MAPPINGS}
+                rowKey={(r) => `${r.deviceId}-${r.field}`}
+              />
             </div>
           </PanelCard>
         ) : null}
@@ -605,22 +719,33 @@ const TreatmentInterfacesPage = () => {
                     },
                     {
                       key: 'actions', header: '',
-                      render: (r) => (r.state === 'waiting' || r.state === 'active' ? (
+                      render: (r) => (
                         <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                          <GuardedAction allowed={access.canEdit}>
-                            <NeutralSubdueButton variant='outline' size='sm' leadingIcon='call_end' onClick={() => setTelemedState(r.id, 'ended')}>
-                              จบการสนทนา
-                            </NeutralSubdueButton>
-                          </GuardedAction>
-                          {r.state === 'waiting' ? (
-                            <GuardedAction allowed={access.canEdit}>
-                              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='person_off' onClick={() => setTelemedState(r.id, 'noshow')}>
-                                ไม่เข้าห้อง
-                              </NeutralSubdueButton>
-                            </GuardedAction>
+                          {/* §1.4.3.23 — ดูบันทึก session + หลักฐานความยินยอมได้ทุกแถว */}
+                          <NeutralSubdueButton
+                            variant='outline' size='sm' leadingIcon='receipt_long'
+                            onClick={() => setSessionTarget(r)}
+                          >
+                            บันทึก session
+                          </NeutralSubdueButton>
+                          {r.state === 'waiting' || r.state === 'active' ? (
+                            <>
+                              <GuardedAction allowed={access.canEdit}>
+                                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='call_end' onClick={() => setTelemedState(r.id, 'ended')}>
+                                  จบการสนทนา
+                                </NeutralSubdueButton>
+                              </GuardedAction>
+                              {r.state === 'waiting' ? (
+                                <GuardedAction allowed={access.canEdit}>
+                                  <NeutralSubdueButton variant='outline' size='sm' leadingIcon='person_off' onClick={() => setTelemedState(r.id, 'noshow')}>
+                                    ไม่เข้าห้อง
+                                  </NeutralSubdueButton>
+                                </GuardedAction>
+                              ) : null}
+                            </>
                           ) : null}
                         </div>
-                      ) : <span style={PANEL_LABEL_STYLE}>—</span>),
+                      ),
                     },
                   ]}
                   rows={sessions}
@@ -682,7 +807,29 @@ const TreatmentInterfacesPage = () => {
         onConfirm={() => doPullDevice(deviceTarget)}
         onCancel={() => setDeviceTarget(null)}
         onClose={() => setDeviceTarget(null)}
-      />
+      >
+        {/* §1.4.7.5 — ต้องเห็นรายฟิลด์ว่าอะไรจะถูกเขียน และอะไรถูกกันไว้
+            เพราะอยู่นอกช่วงที่ยอมรับ (ค่านอกช่วงไม่ถูกจัดคิวเด็ดขาด) */}
+        {deviceTarget ? (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {validateDeviceReading(deviceTarget).filter((r) => r.value != null).map((r) => (
+              <div key={r.field} className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                <StatusBadge style={r.outOfRange ? 'error' : 'success'} size='small' icon={r.outOfRange ? 'error' : 'check_circle'}>
+                  {r.outOfRange ? 'นอกช่วง — ไม่จัดคิว' : 'จัดคิวได้'}
+                </StatusBadge>
+                <span style={PANEL_VALUE_STYLE}>{vitalFieldLabel(r.field)}: {r.value} {r.unit}</span>
+                <span style={PANEL_LABEL_STYLE}>{r.message}</span>
+              </div>
+            ))}
+            {deviceHasOutOfRange(deviceTarget) ? (
+              <PanelAlert tone='error' icon='error' title='ต้องตรวจสอบเครื่องก่อน'>
+                ค่าที่อยู่นอกช่วงจะไม่ถูกเขียนลงสัญญาณชีพ — วัดซ้ำหรือส่งเครื่องตรวจสอบ
+                แล้วจึงกรอกค่าด้วยมือพร้อมระบุที่มาแทน
+              </PanelAlert>
+            ) : null}
+          </div>
+        ) : null}
+      </AlertDialog>
 
       {/* ใบรายงานผลจาก PACS — อ่านได้แม้การเชื่อมต่อขาด */}
       <AlertDialog
@@ -762,6 +909,387 @@ const TreatmentInterfacesPage = () => {
             />
           ) : null}
         </div>
+      </AlertDialog>
+
+      {/* ── §1.4.7.3 / §1.5.2.1 — ตัวตรวจข้อความ HL7 ORU^R01 ──────── */}
+      <AlertDialog
+        open={!!hl7Target}
+        type={hl7Target && hl7MessageFor(hl7Target.id)?.malformed ? 'warning' : 'info'}
+        title={`ข้อความ HL7 v2.5.1 — ${hl7Target?.testName || ''}`}
+        description={hl7Target
+          ? `ORU^R01 จาก LIS สำนักอนามัย · เลขที่ควบคุมข้อความ ${hl7MessageFor(hl7Target.id)?.controlId || '—'} · รับเมื่อ ${hl7Target.resultedAt}`
+          : ''}
+        confirmLabel='ปิด'
+        showCancel={false}
+        onConfirm={() => setHl7Target(null)}
+        onClose={() => setHl7Target(null)}
+      >
+        {hl7Target ? (() => {
+          const msg = hl7MessageFor(hl7Target.id);
+          if (!msg) {
+            return (
+              <PanelEmptyState
+                icon='code_off'
+                title='ไม่มีข้อความต้นฉบับของแถวนี้'
+                subtitle='แถวนี้ถูกบันทึกไว้ก่อนที่ระบบจะเก็บข้อความ HL7 ต้นฉบับ'
+              />
+            );
+          }
+          return (
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              {msg.hasMismatch ? (
+                <PanelAlert tone='error' icon='person_alert' title='HN ในข้อความไม่ตรงกับใบสั่งตรวจ'>
+                  ดูข้อความได้เพื่อการตรวจสอบ แต่ <b>ไม่มีปุ่มนำเข้า</b> — ต้องตีกลับให้ห้องปฏิบัติการแก้ไขต้นทางเท่านั้น
+                  ระบบไม่ยอมให้ merge ผลเข้าเวชระเบียนใด ๆ ทั้งสิ้น
+                </PanelAlert>
+              ) : null}
+              {msg.malformed ? (
+                <PanelAlert tone='warning' icon='report' title='ข้อความไม่สมบูรณ์ (malformed)'>
+                  บาง segment ถูกตัดกลางคัน — ระบบยังแสดงข้อความดิบให้ครบและชี้ฟิลด์ที่ถอดไม่ได้ไว้ในตารางด้านล่าง
+                  แทนที่จะล้มทั้งข้อความ ต้องให้ห้องปฏิบัติการส่งซ้ำ
+                </PanelAlert>
+              ) : null}
+
+              <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>
+                ข้อความดิบ (raw segments)
+              </span>
+              <div
+                className='w-full min-w-0'
+                style={{
+                  overflowX: 'auto',
+                  borderRadius: 'var(--dim-radius-300, 10px)',
+                  border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
+                  background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+                  paddingTop: 'var(--dim-space-300, 12px)',
+                  paddingRight: 'var(--dim-space-300, 12px)',
+                  paddingBottom: 'var(--dim-space-300, 12px)',
+                  paddingLeft: 'var(--dim-space-300, 12px)',
+                }}
+              >
+                {msg.raw.map((line, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      fontFamily: 'var(--type-family-mono, monospace)',
+                      fontSize: 'var(--type-size-xs, 12px)',
+                      lineHeight: 1.8,
+                      whiteSpace: 'pre',
+                      color: 'var(--text-content-default)',
+                    }}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+
+              <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>
+                ฟิลด์ที่ถอดได้ (ตามผนวก ง)
+              </span>
+              <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+                <Table
+                  columns={[
+                    {
+                      key: 'seg', header: 'Segment',
+                      render: (r) => <ColorfulBadge style='blue' size='small' width='hug'>{r.seg}</ColorfulBadge>,
+                    },
+                    { key: 'field', header: 'ฟิลด์', flex: 1 },
+                    {
+                      key: 'value', header: 'ค่า', flex: 2,
+                      render: (r) => (
+                        <span style={{
+                          ...PANEL_VALUE_STYLE,
+                          color: (r.malformed || r.mismatch)
+                            ? 'var(--text-alert-error, #B91C1C)'
+                            : 'var(--text-content-default)',
+                        }}
+                        >
+                          {r.value}
+                        </span>
+                      ),
+                    },
+                  ]}
+                  rows={msg.parsed}
+                  rowKey={(r, i) => `${r.seg}-${r.field}-${i}`}
+                />
+              </div>
+
+              <span style={PANEL_LABEL_STYLE}>
+                หมายเหตุ: ระบบต้นแบบยังไม่มี HL7 parser จริง — ตารางนี้คือผลที่ parser ควรถอดได้ตามผนวก ง
+                ไม่ได้ถอดสดจากข้อความดิบ
+              </span>
+            </div>
+          );
+        })() : null}
+      </AlertDialog>
+
+      {/* ── §1.4.7.4 — รายละเอียด study + บันทึกการ query DICOMweb ── */}
+      <AlertDialog
+        open={!!studyTarget}
+        type='info'
+        title={`รายละเอียด study — ${studyTarget?.examType || ''}`}
+        description={studyTarget
+          ? `Accession ${studyTarget.accession} · HN ${studyTarget.hn} · ถ่ายเมื่อ ${studyTarget.studyDate}`
+          : ''}
+        confirmLabel='ปิด'
+        showCancel={false}
+        onConfirm={() => setStudyTarget(null)}
+        onClose={() => setStudyTarget(null)}
+      >
+        {studyTarget ? (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+              <InfoPair label='จำนวนภาพ' value={`${studyTarget.images} ภาพ`} minWidth={120} />
+              <InfoPair label='สถานะ' value={studyTarget.status} minWidth={160} />
+              <InfoPair label='ผู้อ่านผล' value={studyTarget.reportedBy || 'ยังไม่ได้อ่านผล'} minWidth={240} />
+              <InfoPair label='อ่านผลเมื่อ' value={studyTarget.reportedAt || '—'} minWidth={200} />
+            </div>
+
+            {!pacsUp ? (
+              <PanelAlert tone='error' icon='cloud_off' title='PACS ขาดการเชื่อมต่อ'>
+                การเรียก WADO-RS เพื่อดึงภาพถูกระงับไว้ — รายงานผลที่ดึงมาเก็บแล้วยังอ่านได้ตามปกติ
+              </PanelAlert>
+            ) : null}
+
+            <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>
+              บันทึกการเรียก DICOMweb (QIDO-RS / WADO-RS)
+            </span>
+            <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+              <Table
+                columns={[
+                  {
+                    key: 'kind', header: 'ชนิดคำขอ',
+                    render: (r) => <ColorfulBadge style='purple' size='small' width='hug'>{r.kind}</ColorfulBadge>,
+                  },
+                  { key: 'purpose', header: 'วัตถุประสงค์', flex: 1 },
+                  {
+                    key: 'url', header: 'URL ที่เรียก', flex: 2,
+                    render: (r) => (
+                      <span style={{
+                        fontFamily: 'var(--type-family-mono, monospace)',
+                        fontSize: 'var(--type-size-xs, 12px)',
+                        lineHeight: 1.6,
+                        color: 'var(--text-content-tertiary)',
+                        wordBreak: 'break-all',
+                      }}
+                      >
+                        {r.method} {r.url}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'status', header: 'ผลตอบกลับ',
+                    render: (r) => (
+                      <StatusBadge style={r.ok ? 'success' : 'error'} size='small'>{r.status}</StatusBadge>
+                    ),
+                  },
+                  {
+                    key: 'detail', header: 'รายละเอียด', flex: 2,
+                    render: (r) => <span style={PANEL_LABEL_STYLE}>{r.detail}</span>,
+                  },
+                ]}
+                rows={pacsQueryLogFor(studyTarget)}
+                rowKey={(r) => r.id}
+              />
+            </div>
+
+            <span style={PANEL_LABEL_STYLE}>
+              หมายเหตุ: ระบบต้นแบบยังไม่มี DICOMweb client จริง — URL และผลตอบกลับด้านบนเป็นรูปแบบที่ควรได้
+              ไม่ได้ยิงคำขอออกไปจริง
+            </span>
+          </div>
+        ) : null}
+      </AlertDialog>
+
+      {/* ── §1.4.7.5 — ตั้งค่าการ map ค่าของเครื่องหนึ่งเครื่อง ────── */}
+      <AlertDialog
+        open={!!mappingTarget}
+        type='info'
+        title={`การเชื่อมโยงค่า — ${mappingTarget?.name || ''}`}
+        description={mappingTarget
+          ? `${mappingTarget.code} · ${mappingTarget.room} · อ่านค่าล่าสุดเมื่อ ${mappingTarget.readAt}`
+          : ''}
+        confirmLabel='ปิด'
+        showCancel={false}
+        onConfirm={() => setMappingTarget(null)}
+        onClose={() => setMappingTarget(null)}
+      >
+        {mappingTarget ? (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+            <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+              <Table
+                columns={[
+                  {
+                    key: 'field', header: 'ฟิลด์สัญญาณชีพ',
+                    render: (r) => <span style={PANEL_VALUE_STYLE}>{vitalFieldLabel(r.field)}</span>,
+                  },
+                  {
+                    key: 'value', header: 'ค่าที่อ่านได้',
+                    render: (r) => (r.value == null
+                      ? <span style={PANEL_LABEL_STYLE}>—</span>
+                      : (
+                        <span style={{
+                          ...PANEL_VALUE_STYLE,
+                          fontWeight: 'var(--type-weight-bold)',
+                          color: r.outOfRange ? 'var(--text-alert-error, #B91C1C)' : 'var(--text-content-default)',
+                        }}
+                        >
+                          {r.value} {r.unit}
+                        </span>
+                      )),
+                  },
+                  {
+                    key: 'range', header: 'ช่วงที่ยอมรับ',
+                    render: (r) => <span style={PANEL_LABEL_STYLE}>{r.min} – {r.max} {r.unit}</span>,
+                  },
+                  {
+                    key: 'check', header: 'ผลตรวจสอบ', flex: 2,
+                    render: (r) => (
+                      <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                        <StatusBadge
+                          style={r.value == null ? 'neutral' : r.inRange ? 'success' : 'error'}
+                          size='small'
+                          icon={r.outOfRange ? 'error' : undefined}
+                        >
+                          {r.value == null ? 'ไม่มีค่า' : r.inRange ? 'ผ่าน' : 'นอกช่วง'}
+                        </StatusBadge>
+                        <span style={PANEL_LABEL_STYLE}>{r.message}</span>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'hl7Code', header: 'รหัสอ้างอิง',
+                    render: (r) => <span style={PANEL_LABEL_STYLE}>{r.hl7Code}</span>,
+                  },
+                ]}
+                rows={validateDeviceReading(mappingTarget)}
+                rowKey={(r) => r.field}
+              />
+            </div>
+
+            <PanelAlert tone='info' icon='history' title='ประวัติการดึงค่าและการเขียนทับ'>
+              ทุกครั้งที่ดึงค่าเข้าสัญญาณชีพ ระบบบันทึกไว้ในประวัติการแก้ไข (แท็บประวัติการบันทึกฯ ของหน้าบันทึกการรักษา)
+              พร้อมระบุว่าเขียนทับค่าที่กรอกด้วยมือฟิลด์ใดบ้าง และค่าเดิมคืออะไร — พฤติกรรมนี้ไม่เปลี่ยนแปลง
+            </PanelAlert>
+
+            <span style={PANEL_LABEL_STYLE}>
+              หมายเหตุ: ตารางการ map เป็นค่าตั้งต้นตามผนวก ง — ระบบต้นแบบยังไม่มี MQTT broker จริง
+              การแก้ไขค่าเหล่านี้จากหน้าจอจะเปิดใช้เมื่อเชื่อมเกตเวย์อุปกรณ์จริงแล้ว
+            </span>
+          </div>
+        ) : null}
+      </AlertDialog>
+
+      {/* ── §1.4.3.23 — บันทึก session + หลักฐานความยินยอม ────────── */}
+      <AlertDialog
+        open={!!sessionTarget}
+        type='info'
+        title={`บันทึกการปรึกษาทางไกล — ${sessionTarget?.patientName || ''}`}
+        description={sessionTarget
+          ? `เลขที่ session ${sessionTarget.id} · HN ${sessionTarget.hn} · สถานะ ${telemedStateMeta(sessionTarget.state).label}`
+          : ''}
+        confirmLabel='ส่งออกบันทึก'
+        cancelLabel='ปิด'
+        onConfirm={() => {
+          const res = exportTelemedLog(sessionTarget);
+          setSessionTarget(null);
+          setExportResult(res);
+        }}
+        onCancel={() => setSessionTarget(null)}
+        onClose={() => setSessionTarget(null)}
+      >
+        {sessionTarget ? (() => {
+          const consent = telemedConsentRecord(sessionTarget);
+          return (
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>
+                เหตุการณ์ระหว่าง session
+              </span>
+              <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+                <Table
+                  columns={[
+                    { key: 'at', header: 'เวลา' },
+                    { key: 'event', header: 'เหตุการณ์', flex: 1 },
+                    {
+                      key: 'detail', header: 'รายละเอียด', flex: 2,
+                      render: (r) => <span style={PANEL_LABEL_STYLE}>{r.detail}</span>,
+                    },
+                  ]}
+                  rows={telemedSessionLog(sessionTarget)}
+                  rowKey={(r, i) => `${r.event}-${i}`}
+                />
+              </div>
+
+              <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>
+                หลักฐานความยินยอม
+              </span>
+              {consent.recorded ? (
+                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <PanelAlert tone='success' icon='verified' title='ได้รับความยินยอมให้บันทึกภาพ/เสียงแล้ว'>
+                    {consent.summary}
+                  </PanelAlert>
+                  <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+                    <InfoPair label='ผู้ให้ความยินยอม' value={consent.consentBy} minWidth={220} />
+                    <InfoPair label='ให้ความยินยอมเมื่อ' value={consent.consentAt} minWidth={200} />
+                  </div>
+                  <InfoPair label='ขอบเขตความยินยอม' value={consent.scope} minWidth={0} />
+                  <InfoPair label='ระยะเวลาจัดเก็บ' value={consent.retention} minWidth={0} />
+                </div>
+              ) : (
+                <PanelAlert tone='info' icon='videocam_off' title='session นี้ไม่ได้บันทึกภาพ/เสียง'>
+                  {consent.summary}
+                </PanelAlert>
+              )}
+
+              <span style={PANEL_LABEL_STYLE}>
+                หมายเหตุ: ระบบต้นแบบยังไม่มี WebRTC media server จริง — "ส่งออกบันทึก" ได้เฉพาะบันทึกเหตุการณ์
+                ไม่มีไฟล์ภาพ/เสียงให้ดาวน์โหลด
+              </span>
+            </div>
+          );
+        })() : null}
+      </AlertDialog>
+
+      {/* ผลการส่งออกบันทึก session */}
+      <AlertDialog
+        open={!!exportResult}
+        type={exportResult?.ok ? 'success' : 'warning'}
+        title={exportResult?.ok ? 'ส่งออกบันทึก session แล้ว' : 'ส่งออกไม่สำเร็จ'}
+        description={exportResult?.message || ''}
+        confirmLabel='ปิด'
+        showCancel={false}
+        onConfirm={() => setExportResult(null)}
+        onClose={() => setExportResult(null)}
+      >
+        {exportResult?.text ? (
+          <div
+            className='w-full min-w-0'
+            style={{
+              overflowX: 'auto',
+              maxHeight: 320,
+              overflowY: 'auto',
+              borderRadius: 'var(--dim-radius-300, 10px)',
+              border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
+              background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+              paddingTop: 'var(--dim-space-300, 12px)',
+              paddingRight: 'var(--dim-space-300, 12px)',
+              paddingBottom: 'var(--dim-space-300, 12px)',
+              paddingLeft: 'var(--dim-space-300, 12px)',
+            }}
+          >
+            <pre
+              style={{
+                fontFamily: 'var(--type-family-mono, monospace)',
+                fontSize: 'var(--type-size-xs, 12px)',
+                lineHeight: 1.7,
+                color: 'var(--text-content-default)',
+                whiteSpace: 'pre-wrap',
+                margin: 0,
+              }}
+            >
+              {exportResult.text}
+            </pre>
+          </div>
+        ) : null}
       </AlertDialog>
     </QueuePageShell>
   );

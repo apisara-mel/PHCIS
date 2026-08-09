@@ -15,9 +15,13 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
+import Popup from '@/components/popup/Popup';
 import ReferralPrintSheet from '@/pages/treat/ReferralPrintSheet';
+import InternalReferralPrintSheet from '@/pages/treat/InternalReferralPrintSheet';
+import { printWithFilename } from '@/pages/treat/printKit';
+import { ReferralHistoryTimeline } from '@/pages/treat/panels/ReferralHistoryPanel';
 import {
-  PanelCard, InfoPair, Sym, CancelledMark, strikeIf,
+  PanelCard, PanelEmptyState, InfoPair, Sym, CancelledMark, strikeIf,
   PANEL_LABEL_STYLE, PANEL_VALUE_STYLE,
 } from '@/pages/treat/panels/panelKit';
 import {
@@ -31,6 +35,10 @@ import {
   REFER_TREATMENT_SUGGESTIONS, blankReferral, subscribeReferrals, getReferrals,
   referralsByDirection, missingReferFields, isReferIncomplete,
   saveReferral, sendReferral, cancelReferral, printReferral,
+  INTERNAL_DESTINATIONS, internalDestinationMeta, INTERNAL_GOAL_SUGGESTIONS,
+  INTERNAL_REASON_SUGGESTIONS, nextReferNoFor, referralTargetLabel,
+  EREFERRAL_GATEWAY, eReferralQueue, eReferralStatusMeta, retryEReferral,
+  setReferralAppointmentDate,
 } from '@/data/treatmentRefer';
 import { NO_EDIT_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
 
@@ -43,10 +51,20 @@ import { NO_EDIT_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
 
 const breadcrumb = ['ทะเบียนการส่งต่อผู้รับบริการ'];
 
+/* ทิศทางที่ 3 "ส่งต่อภายในหน่วยงาน" (TOR §1.5.8.3) — คู่มือ HCIS
+   §2.1.17 งานเยี่ยมบ้าน / §2.1.19 ส่งต่อหน่วยงานภายใน ศบส. */
 const DIRECTION_TABS = [
-  { key: 'out', label: 'ส่งต่อออก' },
-  { key: 'in',  label: 'รับเข้าจากสถานพยาบาลอื่น' },
+  { key: 'out',      label: 'ส่งต่อออก' },
+  { key: 'in',       label: 'รับเข้าจากสถานพยาบาลอื่น' },
+  { key: 'internal', label: 'ส่งต่อภายในหน่วยงาน' },
 ];
+
+/* ชื่อไฟล์เริ่มต้นของ "บันทึกเป็น PDF" (§1.4.6.1) — เจ้าหน้าที่เวชระเบียน
+   ต้องเก็บไฟล์เข้าแฟ้มผู้รับบริการได้โดยไม่ต้องพิมพ์ชื่อเอง */
+const referralFileName = (row) => [
+  row?.direction === 'internal' ? 'ใบส่งต่อภายใน' : 'ใบส่งต่อ',
+  row?.referNo, row?.hn, row?.name,
+].filter(Boolean).join('_');
 
 const PER_PAGE = 10;
 
@@ -92,7 +110,8 @@ const StatusCell = ({ row }) => {
 
 /* ── ตารางทะเบียน ───────────────────────────────────────────── */
 
-const RegisterTable = ({ rows, direction, onOpen, emptyKind }) => {
+const RegisterTable = ({ rows, direction, onOpen, onHistory, emptyKind }) => {
+  const isInternal = direction === 'internal';
   const columns = [
     {
       key: 'referNo', header: 'เลขที่ใบส่งต่อ',
@@ -116,36 +135,76 @@ const RegisterTable = ({ rows, direction, onOpen, emptyKind }) => {
       render: (row) => <span style={strikeIf(row.status === 'cancelled') || undefined}>{row.name}</span>,
     },
     {
-      key: 'route', header: direction === 'out' ? 'ต้นทาง → ปลายทาง' : 'ต้นทาง → ศูนย์ของเรา',
+      key: 'route',
+      header: isInternal
+        ? 'ต้นทาง → หน่วยงานภายใน'
+        : direction === 'out' ? 'ต้นทาง → ปลายทาง' : 'ต้นทาง → ศูนย์ของเรา',
       render: (row) => (
         <span style={PANEL_LABEL_STYLE}>
           {centerMeta(row.fromCenter)?.label || '—'}
           {' → '}
-          {facilityMeta(row.toFacility)?.label || row.toFacilityOther || 'ยังไม่ระบุปลายทาง'}
+          {referralTargetLabel(row)}
         </span>
       ),
     },
-    { key: 'sentDate', header: 'วันที่ส่ง', render: (row) => row.sentDate || row.lastVisitDate || '—' },
-    {
-      key: 'validUntil', header: 'อายุใบส่งต่อ',
-      render: (row) => {
-        if (!row.validUntil) return <span style={PANEL_LABEL_STYLE}>—</span>;
-        const d = parseThaiDate(row.validUntil);
-        const expired = d && d.getTime() < Date.now();
-        return expired
-          ? <StatusBadge style='error' size='small' icon='event_busy'>หมดอายุ {row.validUntil}</StatusBadge>
-          : <span style={PANEL_LABEL_STYLE}>ถึง {row.validUntil}</span>;
+    ...(isInternal ? [
+      {
+        key: 'assignee', header: 'ผู้รับมอบหมาย',
+        render: (row) => (row.assignee
+          ? <span style={PANEL_VALUE_STYLE}>{row.assignee}</span>
+          : <StatusBadge style='warning' size='small' icon='person_alert'>ยังไม่มอบหมาย</StatusBadge>),
       },
-    },
+      {
+        key: 'dueDate',
+        header: 'กำหนดวันเยี่ยม / วันนัด',
+        render: (row) => (row.dueDate
+          ? <span style={PANEL_VALUE_STYLE}>{row.dueDate}</span>
+          : <span style={PANEL_LABEL_STYLE}>ยังไม่กำหนด</span>),
+      },
+    ] : [
+      { key: 'sentDate', header: 'วันที่ส่ง', render: (row) => row.sentDate || row.lastVisitDate || '—' },
+      {
+        key: 'validUntil', header: 'อายุใบส่งต่อ',
+        render: (row) => {
+          if (!row.validUntil) return <span style={PANEL_LABEL_STYLE}>—</span>;
+          const d = parseThaiDate(row.validUntil);
+          const expired = d && d.getTime() < Date.now();
+          return expired
+            ? <StatusBadge style='error' size='small' icon='event_busy'>หมดอายุ {row.validUntil}</StatusBadge>
+            : <span style={PANEL_LABEL_STYLE}>ถึง {row.validUntil}</span>;
+        },
+      },
+    ]),
     { key: 'status', header: 'สถานะ', render: (row) => <StatusCell row={row} /> },
+    {
+      key: 'history', header: 'ประวัติการส่งต่อ',
+      render: (row) => (
+        <NeutralSubdueButton
+          variant='outline'
+          size='sm'
+          leadingIcon='history'
+          onClick={(e) => {
+            /* กันไม่ให้ onRowClick ของตารางเปิดฟอร์มพร้อมกับ popup ประวัติ */
+            if (e && e.stopPropagation) e.stopPropagation();
+            onHistory(row);
+          }}
+        >
+          ดูของผู้ป่วยรายนี้
+        </NeutralSubdueButton>
+      ),
+    },
   ];
 
   const emptyCopy = {
     none: {
-      msg: direction === 'out' ? 'ยังไม่มีใบส่งต่อออกในระบบ' : 'ยังไม่มีใบส่งต่อรับเข้าจากสถานพยาบาลอื่น',
-      sub: direction === 'out'
-        ? 'กด "ออกใบส่งต่อใหม่" เพื่อสร้างใบส่งตัวฉบับแรกของศูนย์บริการ'
-        : 'ใบส่งต่อขาเข้าจะปรากฏที่นี่เมื่อสถานพยาบาลอื่นส่งผู้รับบริการมายังศูนย์',
+      msg: isInternal
+        ? 'ยังไม่มีใบส่งต่อภายในหน่วยงาน'
+        : direction === 'out' ? 'ยังไม่มีใบส่งต่อออกในระบบ' : 'ยังไม่มีใบส่งต่อรับเข้าจากสถานพยาบาลอื่น',
+      sub: isInternal
+        ? 'กด "ออกใบส่งต่อภายในใหม่" เพื่อส่งงานเยี่ยมบ้าน คลินิกเฉพาะโรค สังคมสงเคราะห์ หรือเวชศาสตร์ฟื้นฟู'
+        : direction === 'out'
+          ? 'กด "ออกใบส่งต่อใหม่" เพื่อสร้างใบส่งตัวฉบับแรกของศูนย์บริการ'
+          : 'ใบส่งต่อขาเข้าจะปรากฏที่นี่เมื่อสถานพยาบาลอื่นส่งผู้รับบริการมายังศูนย์',
     },
     filtered: {
       msg: 'ไม่พบใบส่งต่อที่ตรงกับเงื่อนไขการค้นหา',
@@ -192,6 +251,8 @@ const ReferralForm = ({ draft, setDraft, canEdit, readOnly }) => {
 
   const locked = readOnly || !canEdit;
   const a = draft.patientAddress || {};
+  const isInternal = draft.direction === 'internal';
+  const dest = internalDestinationMeta(draft.internalDestination);
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
@@ -226,6 +287,103 @@ const ReferralForm = ({ draft, setDraft, canEdit, readOnly }) => {
         </Row>
       </FormSection>
 
+      {isInternal ? (
+        /* ๒. (ส่งต่อภายใน) หน่วยงานปลายทางภายใน + การมอบหมาย — ไม่มี
+           สถานพยาบาลปลายทาง/สิทธิเรียกเก็บ ตามคู่มือ §2.1.19 */
+        <FormSection title='๒. หน่วยงานปลายทางภายในและการมอบหมาย'>
+          <Row>
+            <Col flex={2}>
+              <Select
+                label='ศูนย์บริการต้นทาง'
+                value={draft.fromCenter}
+                onChange={set('fromCenter')}
+                options={REFER_CENTERS.map((c) => ({ value: c.value, label: c.label }))}
+                placeholder='เลือกศูนย์บริการต้นทาง'
+                disabled={locked}
+              />
+            </Col>
+            <Col flex={3}>
+              <Select
+                label='หน่วยงานปลายทางภายใน'
+                required
+                value={draft.internalDestination}
+                onChange={(v) => setDraft((d) => ({
+                  /* เปลี่ยนหน่วยงานแล้วต้องล้างผู้รับมอบหมายเดิม เพราะรายชื่อ
+                     ทีมเป็นคนละชุด — ไม่งั้นจะเหลือชื่อคนที่ไม่อยู่หน่วยนั้น */
+                  ...d, internalDestination: v, assignee: '',
+                }))}
+                options={INTERNAL_DESTINATIONS.map((o) => ({ value: o.value, label: o.label }))}
+                placeholder='เลือกหน่วยงานปลายทางภายใน'
+                disabled={locked}
+                error={!draft.internalDestination ? 'ต้องระบุหน่วยงานปลายทางก่อนมอบหมายงาน' : undefined}
+              />
+            </Col>
+          </Row>
+          {dest ? (
+            <Row>
+              <InfoPair label='สังกัดหน่วยงานปลายทาง' value={dest.unit} minWidth={280} />
+            </Row>
+          ) : null}
+          <Row>
+            <Col flex={2}>
+              <Select
+                label='ผู้รับมอบหมาย'
+                required
+                value={draft.assignee}
+                onChange={set('assignee')}
+                options={(dest?.team || []).map((t) => ({ value: t, label: t }))}
+                placeholder={dest ? 'เลือกผู้รับมอบหมาย' : 'เลือกหน่วยงานปลายทางก่อน'}
+                disabled={locked || !dest}
+                error={!draft.assignee ? 'ต้องระบุผู้รับมอบหมายก่อนจึงจะส่งงานได้' : undefined}
+              />
+            </Col>
+            <Col flex={2}>
+              <InputField
+                label={dest?.dueLabel || 'กำหนดวันเยี่ยม / วันนัด'}
+                required
+                value={draft.dueDate}
+                onChange={set('dueDate')}
+                disabled={locked}
+                showLeadingIcon={false}
+                placeholder='เช่น 13 พฤษภาคม 2569'
+                helperText='บันทึกร่างได้แม้ยังไม่กำหนด แต่ส่งงานไม่ได้จนกว่าจะระบุ'
+                error={!draft.dueDate ? 'ต้องกำหนดวันก่อนจึงจะส่งงานได้' : undefined}
+              />
+            </Col>
+            <Col>
+              <InputField
+                label='ผู้ส่ง (แพทย์ / ผู้รับผิดชอบ)'
+                required
+                value={draft.sender}
+                onChange={set('sender')}
+                disabled={locked}
+                showLeadingIcon={false}
+                placeholder='ชื่อผู้ส่งต่อภายใน'
+              />
+            </Col>
+          </Row>
+          <SuggestibleTextarea
+            voice
+            label='เป้าหมายการติดตาม'
+            value={draft.followUpGoal}
+            onChange={setText('followUpGoal')}
+            suggestions={INTERNAL_GOAL_SUGGESTIONS}
+            minChars={2}
+            height={110}
+            minHeight={88}
+            disabled={locked}
+            popoverAriaLabel='ตัวอย่างเป้าหมายการติดตาม'
+            placeholder='สิ่งที่ต้องการให้หน่วยงานปลายทางติดตาม พร้อมความถี่และระยะเวลา'
+          />
+          {draft.assignedAt ? (
+            <PanelAlert tone='info' icon='assignment_ind' title='มอบหมายงานแล้ว'>
+              มอบหมายให้ {draft.assignee || '—'} เมื่อ {draft.assignedAt}
+              {draft.assignmentAcceptedAt ? ` · ผู้รับมอบหมายตอบรับแล้วเมื่อ ${draft.assignmentAcceptedAt}` : ' · ยังไม่ตอบรับ'}
+              {' '}— การแก้ไขหลังจากนี้ผู้รับมอบหมายอาจเริ่มลงพื้นที่ไปแล้ว ต้องแจ้งเจ้าตัวด้วยตนเองทุกครั้ง
+            </PanelAlert>
+          ) : null}
+        </FormSection>
+      ) : (
       <FormSection title='๒. สถานพยาบาลต้นทางและปลายทาง'>
         <Row>
           <Col flex={2}>
@@ -297,6 +455,7 @@ const ReferralForm = ({ draft, setDraft, canEdit, readOnly }) => {
           </Col>
         </Row>
       </FormSection>
+      )}
 
       <FormSection title='๓. ข้อมูลทางคลินิก'>
         <SuggestibleTextarea
@@ -354,11 +513,11 @@ const ReferralForm = ({ draft, setDraft, canEdit, readOnly }) => {
         />
         <SuggestibleTextarea
           voice
-          label='เหตุผลที่ส่งต่อ / สิ่งที่ต้องการให้ช่วยเหลือ'
+          label={isInternal ? 'เหตุผลที่ส่งต่อภายใน / สิ่งที่ต้องการให้หน่วยงานช่วย' : 'เหตุผลที่ส่งต่อ / สิ่งที่ต้องการให้ช่วยเหลือ'}
           required
           value={draft.requirement}
           onChange={setText('requirement')}
-          suggestions={REFER_REASON_SUGGESTIONS}
+          suggestions={isInternal ? INTERNAL_REASON_SUGGESTIONS : REFER_REASON_SUGGESTIONS}
           minChars={2}
           height={120}
           minHeight={88}
@@ -391,6 +550,92 @@ const ReferralForm = ({ draft, setDraft, canEdit, readOnly }) => {
   );
 };
 
+/* ── e-Referral: สถานะเกตเวย์ + คิวส่งออก (§1.5.8.1 / §1.5.8.4) ──
+   รูปแบบเดียวกับการ์ด interface ของ LIS ใน /treat/interfaces: สถานะ
+   endpoint + โปรโตคอล + เวลาที่เริ่มขาดการเชื่อมต่อ แล้วตามด้วยคิวส่งออก
+   ที่บอกได้ว่าใบไหนส่งสำเร็จ/รอคิว/ล้มเหลวเพราะอะไร.
+   **ยังไม่มี gateway จริง** — ทุกสถานะมาจาก mock ใน treatmentRefer.js */
+const EReferralPanel = ({ queue, canEdit, onRetry, onAppointment }) => {
+  const gw = EREFERRAL_GATEWAY;
+  const columns = [
+    { key: 'eReferralNo', header: 'เลขที่ e-Referral', render: (r) => r.eReferralNo || '—' },
+    { key: 'referNo', header: 'เลขที่ใบส่งต่อ' },
+    { key: 'name', header: 'ชื่อ - นามสกุล', flex: 1 },
+    { key: 'facility', header: 'สถานพยาบาลปลายทาง', flex: 1 },
+    {
+      key: 'status', header: 'สถานะคิวส่งออก',
+      render: (r) => {
+        const meta = eReferralStatusMeta(r.status);
+        return (
+          <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            <StatusBadge style={meta.badge} size='small'>{meta.label}</StatusBadge>
+            {r.attempts ? <span style={PANEL_LABEL_STYLE}>ลองส่งแล้ว {r.attempts} ครั้ง</span> : null}
+            {r.error ? (
+              <span style={{ ...PANEL_LABEL_STYLE, color: 'var(--text-alert-error, #B91C1C)' }}>{r.error}</span>
+            ) : null}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'appointmentDate', header: 'วันที่มารับบริการปลายทาง',
+      render: (r) => (r.appointmentDate
+        ? <span style={PANEL_VALUE_STYLE}>{r.appointmentDate}</span>
+        : <span style={PANEL_LABEL_STYLE}>ยังไม่ได้รับแจ้ง</span>),
+    },
+    {
+      key: 'actions', header: 'การจัดการ',
+      render: (r) => (
+        <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          <GuardedAction
+            allowed={canEdit && r.status !== 'sent'}
+            reason={r.status === 'sent' ? 'ใบนี้ส่งเข้าระบบ e-Referral สำเร็จแล้ว' : NO_EDIT_RIGHT_TOOLTIP}
+          >
+            <NeutralSubdueButton variant='outline' size='sm' leadingIcon='refresh' onClick={() => onRetry(r)}>
+              ลองส่งซ้ำ
+            </NeutralSubdueButton>
+          </GuardedAction>
+          <GuardedAction allowed={canEdit}>
+            <NeutralSubdueButton variant='outline' size='sm' leadingIcon='event_available' onClick={() => onAppointment(r)}>
+              บันทึกวันที่นัด
+            </NeutralSubdueButton>
+          </GuardedAction>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <PanelCard
+      title={gw.name}
+      subtitle={`${gw.endpoint} · ${gw.protocol}`}
+      action={<StatusBadge style='warning' size='small' icon='cloud_off'>{gw.statusLabel}</StatusBadge>}
+    >
+      <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        <InfoPair label='ซิงก์ล่าสุด' value={gw.lastSyncAt} minWidth={180} />
+        <InfoPair label='เริ่มขาดการเชื่อมต่อ' value={gw.degradedSince} minWidth={200} />
+        <InfoPair label='ใบในคิวส่งออก' value={`${queue.length} ใบ`} minWidth={140} />
+      </div>
+
+      <PanelAlert tone='warning' icon='info' title='ยังไม่มีเกตเวย์ e-Referral จริงในระบบต้นแบบ'>
+        {gw.note}
+      </PanelAlert>
+
+      {queue.length === 0 ? (
+        <PanelEmptyState
+          icon='outgoing_mail'
+          title='ยังไม่มีใบส่งต่อในคิว e-Referral'
+          subtitle='ใบส่งต่อออกที่กด "ส่งใบส่งต่อ" แล้วจะเข้าคิวนี้พร้อมเลขที่ e-Referral โดยอัตโนมัติ'
+        />
+      ) : (
+        <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+          <Table columns={columns} rows={queue} rowKey={(r) => r.id} />
+        </div>
+      )}
+    </PanelCard>
+  );
+};
+
 /* ── หน้าเพจ ─────────────────────────────────────────────────── */
 
 const ReferralRegisterPage = () => {
@@ -413,7 +658,18 @@ const ReferralRegisterPage = () => {
   const [sendGuard, setSendGuard] = useState(null);
   const [printTarget, setPrintTarget] = useState(null);
   const [printCopies, setPrintCopies] = useState(2);
+  /* 'print' = สั่งพิมพ์ปกติ · 'pdf' = บันทึกเป็น PDF (§1.4.6.1) — ต่างกันที่
+     ชื่อไฟล์เริ่มต้นที่ส่งให้ print dialog เท่านั้น ยังไม่มี PDF engine จริง */
+  const [printMode, setPrintMode] = useState('print');
   const [leaveGuard, setLeaveGuard] = useState(false);
+  /* ใบที่รออยู่หลังผ่านประตู "ยังไม่ได้บันทึก" — ใช้ตอนกระโดดข้ามใบจาก
+     popup ประวัติการส่งต่อ ไม่ให้ร่างที่พิมพ์ค้างไว้หายไปเงียบ ๆ */
+  const [pendingOpenRow, setPendingOpenRow] = useState(null);
+  /* §1.5.8.2 — popup ประวัติการส่งต่อรายผู้ป่วยข้าม visit */
+  const [historyTarget, setHistoryTarget] = useState(null);
+  /* §1.5.8.4 — บันทึกวันที่ปลายทางนัดผู้รับบริการมารับบริการ */
+  const [appointmentTarget, setAppointmentTarget] = useState(null);
+  const [appointmentDraft, setAppointmentDraft] = useState('');
 
   /* deep-link จากศูนย์เอกสาร Step 7 — เปิดฟอร์มใหม่ให้เลย.
      ต้องกิน nav state "ครั้งเดียว" แล้วล้างทิ้ง ไม่งั้นกด "กลับไปทะเบียน"
@@ -423,7 +679,9 @@ const ReferralRegisterPage = () => {
     if (navConsumedRef.current) return;
     if (!navState?.newForPatient) return;
     navConsumedRef.current = true;
-    const blank = blankReferral(navState.newForPatient);
+    /* deep-link มาจากศูนย์เอกสาร = ใบส่งต่อ "ภายนอก" เสมอ จึงขอเลขชุด RF-
+       ที่นี่ (blankReferral() ไม่ออกเลขให้แล้ว เพื่อไม่ให้เลขขาดหาย) */
+    const blank = { ...blankReferral(navState.newForPatient), direction: 'out', referNo: nextReferNoFor('out') };
     setDraft(blank);
     setBaseline(blank);
     setMode('form');
@@ -432,6 +690,11 @@ const ReferralRegisterPage = () => {
   }, [navState, history]);
 
   const directionRows = useMemo(() => referralsByDirection(direction), [rows, direction]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* คิวส่งออก e-Referral — อ่านจาก store เดียวกัน จึงรีเฟรชตาม `rows` */
+  const eReferralRows = useMemo(() => eReferralQueue(), [rows]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isInternalTab = direction === 'internal';
 
   const filtered = useMemo(() => {
     const match = buildMatcher(query);
@@ -465,29 +728,52 @@ const ReferralRegisterPage = () => {
 
   const openRow = (row) => { setDraft({ ...row }); setBaseline({ ...row }); setMode('form'); };
   const openNew = () => {
-    const blank = { ...blankReferral(), direction };
+    /* เลขที่ใบส่งต่อภายในเป็นคนละชุดกับภายนอก (IR- vs RF-) — ขอเลขครั้งเดียว
+       ตามทิศทางที่กำลังเปิดอยู่ (blankReferral() ไม่ออกเลขมาให้แล้ว จึงไม่มี
+       เลข RF- ถูกกินทิ้งตอนเปิดใบภายใน) */
+    const blank = { ...blankReferral(), direction, referNo: nextReferNoFor(direction) };
     setDraft(blank); setBaseline(blank); setMode('form');
   };
 
-  const backToList = () => {
-    if (dirty) { setLeaveGuard(true); return; }
+  /* ปลายทางหลังผ่านประตู "ยังไม่ได้บันทึก" — ถ้ามีใบที่รอเปิดอยู่ให้เด้งไป
+     ใบนั้นต่อ ไม่งั้นกลับไปหน้าทะเบียนตามเดิม */
+  const leaveForm = () => {
+    if (pendingOpenRow) {
+      const row = pendingOpenRow;
+      setPendingOpenRow(null);
+      setDirection(row.direction);
+      openRow(row);
+      return;
+    }
     setMode('list'); setDraft(null); setBaseline(null);
   };
 
+  const backToList = () => {
+    if (dirty) { setPendingOpenRow(null); setLeaveGuard(true); return; }
+    setMode('list'); setDraft(null); setBaseline(null);
+  };
+
+  /* ทิศทางของใบมาจากตัวใบเอง ไม่ใช่แท็บที่เปิดอยู่ — เพราะ popup ประวัติ
+     เปิดใบข้ามทิศทางได้ ถ้ายัด `direction` ของแท็บลงไปจะเปลี่ยนใบภายใน
+     ให้กลายเป็นใบภายนอกตอนกดบันทึก */
   const doSave = () => {
-    const saved = saveReferral({ ...draft, direction });
+    const saved = saveReferral({ ...draft, direction: draft.direction || direction });
     setDraft({ ...saved }); setBaseline({ ...saved });
-    showToast('success', `บันทึกร่างใบส่งต่อ ${saved.referNo} แล้ว`);
+    showToast('success', saved.status === 'draft'
+      ? `บันทึกร่างใบส่งต่อ ${saved.referNo} แล้ว`
+      : `บันทึกการแก้ไขใบส่งต่อ ${saved.referNo} แล้ว`);
     return saved;
   };
 
   const doSend = () => {
     const missing = missingReferFields(draft);
     if (missing.length) { setSendGuard(missing); return; }
-    const saved = saveReferral({ ...draft, direction });
+    const saved = saveReferral({ ...draft, direction: draft.direction || direction });
     const sent = sendReferral(saved.id);
     setDraft({ ...sent }); setBaseline({ ...sent });
-    showToast('success', `ส่งใบส่งต่อ ${sent.referNo} ไปยังปลายทางแล้ว`);
+    showToast('success', sent.direction === 'internal'
+      ? `มอบหมายใบส่งต่อภายใน ${sent.referNo} ให้ ${sent.assignee || 'หน่วยงานปลายทาง'} แล้ว`
+      : `ส่งใบส่งต่อ ${sent.referNo} ไปยังปลายทางแล้ว`);
   };
 
   const doPrint = () => {
@@ -502,8 +788,12 @@ const ReferralRegisterPage = () => {
     }
     if (draft?.id === updated.id) { setDraft({ ...updated }); setBaseline({ ...updated }); }
     setPrintTarget(null);
-    showToast('success', `บันทึกการพิมพ์ ${printCopies} ชุด (รวมพิมพ์แล้ว ${updated.printCount} ครั้ง)`);
-    if (typeof window !== 'undefined' && window.print) window.print();
+    showToast('success', printMode === 'pdf'
+      ? `เปิดหน้าต่างบันทึกเป็น PDF แล้ว (ชื่อไฟล์ ${referralFileName(updated)}) · บันทึกการพิมพ์ ${printCopies} ชุด`
+      : `บันทึกการพิมพ์ ${printCopies} ชุด (รวมพิมพ์แล้ว ${updated.printCount} ครั้ง)`);
+    /* §1.4.6.1 — ตั้งชื่อไฟล์ให้ปลายทาง "Save as PDF" ของเบราว์เซอร์ผ่าน
+       document.title (ยังไม่มี PDF engine ฝั่ง server) */
+    printWithFilename(referralFileName(updated));
   };
 
   /* โหมด "ไม่มีสิทธิ์" — ปฏิเสธทั้งหน้าพร้อมทางออกกลับคิว */
@@ -518,7 +808,16 @@ const ReferralRegisterPage = () => {
   }
 
   const canEdit = access.canEdit;
-  const rowLocked = draft ? (draft.status === 'sent' || draft.status === 'replied' || draft.status === 'cancelled') : false;
+  /* ใบส่งต่อ "ภายนอก" ที่ส่งออกไปแล้วห้ามแก้ เพราะปลายทางถือฉบับที่พิมพ์ไปแล้ว
+     — ต้องยกเลิกแล้วออกฉบับใหม่. ส่วนใบ "ภายใน" เป็นการมอบหมายงานในศูนย์
+     เดียวกัน คู่มือ §2.1.19 ให้แก้รายละเอียด/เลื่อนวันเยี่ยมได้ ระบบจึงปล่อย
+     ให้แก้ต่อได้แต่ต้องเตือนว่าผู้รับมอบหมายอาจเริ่มลงพื้นที่แล้ว (TOR §1.5.8.3
+     บังคับให้ "แก้ไข" ใช้งานได้จริง ไม่ใช่แค่ยกเลิกแล้วออกใหม่). */
+  const rowLocked = !draft
+    ? false
+    : draft.direction === 'internal'
+      ? draft.status === 'cancelled'
+      : (draft.status === 'sent' || draft.status === 'replied' || draft.status === 'cancelled');
 
   return (
     <QueuePageShell
@@ -534,7 +833,7 @@ const ReferralRegisterPage = () => {
       actions={mode === 'list' ? (
         <GuardedAction allowed={canEdit}>
           <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={openNew}>
-            ออกใบส่งต่อใหม่
+            {isInternalTab ? 'ออกใบส่งต่อภายในใหม่' : 'ออกใบส่งต่อใหม่'}
           </BrandButton>
         </GuardedAction>
       ) : null}
@@ -590,14 +889,38 @@ const ReferralRegisterPage = () => {
                 </span>
               </div>
 
-              <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
-                <RegisterTable
-                  rows={slice}
-                  direction={direction}
-                  onOpen={openRow}
-                  emptyKind={directionRows.length === 0 ? 'none' : 'filtered'}
+              {/* ทิศทางนี้ยังไม่มีใบเลย → empty state เฉพาะทิศทาง + ปุ่มสร้างใบแรก
+                  (แยกจาก empty-filtered ที่กรองแล้วไม่เจอ ซึ่งยังต้องเห็นโครงตาราง) */}
+              {directionRows.length === 0 ? (
+                <PanelEmptyState
+                  icon={isInternalTab ? 'diversity_1' : direction === 'out' ? 'send' : 'call_received'}
+                  title={isInternalTab
+                    ? 'ยังไม่มีใบส่งต่อภายในหน่วยงาน'
+                    : direction === 'out' ? 'ยังไม่มีใบส่งต่อออกในระบบ' : 'ยังไม่มีใบส่งต่อรับเข้าจากสถานพยาบาลอื่น'}
+                  subtitle={isInternalTab
+                    ? 'ส่งงานเยี่ยมบ้าน คลินิกเฉพาะโรค สังคมสงเคราะห์ หรือเวชศาสตร์ฟื้นฟู ได้จากปุ่มด้านล่าง'
+                    : direction === 'out'
+                      ? 'กดปุ่มด้านล่างเพื่อสร้างใบส่งตัวฉบับแรกของศูนย์บริการ'
+                      : 'ใบส่งต่อขาเข้าจะปรากฏที่นี่เมื่อสถานพยาบาลอื่นส่งผู้รับบริการมายังศูนย์'}
+                  action={direction !== 'in' ? (
+                    <GuardedAction allowed={canEdit}>
+                      <BrandButton variant='outline' size='sm' leadingIcon='add' onClick={openNew}>
+                        {isInternalTab ? 'สร้างใบส่งต่อภายในใบแรก' : 'สร้างใบส่งต่อใบแรก'}
+                      </BrandButton>
+                    </GuardedAction>
+                  ) : null}
                 />
-              </div>
+              ) : (
+                <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
+                  <RegisterTable
+                    rows={slice}
+                    direction={direction}
+                    onOpen={openRow}
+                    onHistory={(row) => setHistoryTarget(row)}
+                    emptyKind='filtered'
+                  />
+                </div>
+              )}
 
               {pageCount > 1 ? (
                 <div className='flex justify-end w-full'>
@@ -605,6 +928,29 @@ const ReferralRegisterPage = () => {
                 </div>
               ) : null}
             </PanelCard>
+
+            {/* §1.5.8.1 / §1.5.8.4 — สถานะเกตเวย์ e-Referral + คิวส่งออก
+                (แสดงเฉพาะแท็บส่งต่อออก เพราะรับเข้า/ภายในไม่ผ่าน gateway) */}
+            {direction === 'out' ? (
+              <EReferralPanel
+                queue={eReferralRows}
+                canEdit={canEdit}
+                onRetry={(row) => {
+                  const updated = retryEReferral(row.id);
+                  if (!updated) return;
+                  showToast(
+                    updated.eReferralStatus === 'sent' ? 'success' : 'error',
+                    updated.eReferralStatus === 'sent'
+                      ? `ส่ง ${updated.eReferralNo} เข้าระบบ e-Referral สำเร็จ`
+                      : `ส่ง ${updated.eReferralNo} ไม่สำเร็จ (ครั้งที่ ${updated.eReferralAttempts}) — ${updated.eReferralError}`,
+                  );
+                }}
+                onAppointment={(row) => {
+                  setAppointmentTarget(row);
+                  setAppointmentDraft(row.appointmentDate || '');
+                }}
+              />
+            ) : null}
           </>
         ) : (
           <>
@@ -616,25 +962,47 @@ const ReferralRegisterPage = () => {
                 <>
                   <GuardedAction allowed={canEdit && !rowLocked}>
                     <NeutralSubdueButton variant='outline' size='sm' leadingIcon='save' onClick={doSave}>
-                      บันทึกร่าง
+                      {draft.status === 'draft' ? 'บันทึกร่าง' : 'บันทึกการแก้ไข'}
                     </NeutralSubdueButton>
                   </GuardedAction>
                   <GuardedAction allowed={canEdit && draft.status === 'draft'}>
                     <BrandButton variant='fill' size='sm' leadingIcon='send' onClick={doSend}>
-                      ส่งใบส่งต่อ
+                      {draft.direction === 'internal' ? 'มอบหมายงานให้หน่วยงานภายใน' : 'ส่งใบส่งต่อ'}
                     </BrandButton>
                   </GuardedAction>
                   <GuardedAction
                     allowed={canEdit && draft.status !== 'cancelled' && !!draft.id}
                     reason={!draft.id ? 'ต้องกด "บันทึกร่าง" ก่อน จึงจะพิมพ์ใบส่งตัวได้' : NO_EDIT_RIGHT_TOOLTIP}
                   >
-                    <BrandSubdueButton variant='outline' size='sm' leadingIcon='print' onClick={() => setPrintTarget(draft)}>
-                      พิมพ์ใบส่งตัว
+                    <BrandSubdueButton
+                      variant='outline' size='sm' leadingIcon='print'
+                      onClick={() => { setPrintMode('print'); setPrintTarget(draft); }}
+                    >
+                      {draft.direction === 'internal' ? 'พิมพ์ใบส่งต่อภายใน' : 'พิมพ์ใบส่งตัว'}
                     </BrandSubdueButton>
+                  </GuardedAction>
+                  {/* §1.4.6.1 — บันทึกเป็นไฟล์ PDF โดยตั้งชื่อไฟล์ให้อัตโนมัติ */}
+                  <GuardedAction
+                    allowed={canEdit && draft.status !== 'cancelled' && !!draft.id}
+                    reason={!draft.id ? 'ต้องกด "บันทึกร่าง" ก่อน จึงจะบันทึกเป็น PDF ได้' : NO_EDIT_RIGHT_TOOLTIP}
+                  >
+                    <NeutralSubdueButton
+                      variant='outline' size='sm' leadingIcon='picture_as_pdf'
+                      onClick={() => { setPrintMode('pdf'); setPrintTarget(draft); }}
+                    >
+                      บันทึกเป็น PDF
+                    </NeutralSubdueButton>
                   </GuardedAction>
                   <GuardedAction allowed={canEdit && draft.status !== 'cancelled' && !!draft.id}>
                     <NeutralSubdueButton variant='outline' size='sm' leadingIcon='block' onClick={() => setCancelTarget(draft)}>
                       ยกเลิกใบส่งต่อ
+                    </NeutralSubdueButton>
+                  </GuardedAction>
+                  {/* §1.5.8.2 — เปิดประวัติการส่งต่อของผู้ป่วยรายนี้ได้จากในฟอร์มด้วย
+                      ไม่ต้องย้อนกลับไปทะเบียนก่อน */}
+                  <GuardedAction allowed={!!String(draft.hn || '').trim()} reason='ใบนี้ยังไม่มี HN ในระบบ — ยังดูประวัติข้าม visit ไม่ได้'>
+                    <NeutralSubdueButton variant='outline' size='sm' leadingIcon='history' onClick={() => setHistoryTarget(draft)}>
+                      ประวัติการส่งต่อ
                     </NeutralSubdueButton>
                   </GuardedAction>
                 </>
@@ -646,6 +1014,16 @@ const ReferralRegisterPage = () => {
               {rowLocked && draft.status !== 'cancelled' ? (
                 <PanelAlert tone='info' icon='lock' title='ใบส่งต่อถูกส่งออกไปแล้ว'>
                   แก้ไขเนื้อหาไม่ได้เพื่อรักษาความสอดคล้องกับฉบับที่ปลายทางได้รับ — หากข้อมูลผิด ให้ยกเลิกใบนี้พร้อมเหตุผลแล้วออกฉบับใหม่
+                </PanelAlert>
+              ) : null}
+              {/* ส่งต่อภายใน: แก้ได้ต่อ แต่ต้องเตือนก่อนว่าอาจกระทบงานที่เริ่มไปแล้ว */}
+              {draft.direction === 'internal' && (draft.status === 'sent' || draft.status === 'replied') ? (
+                <PanelAlert tone='warning' icon='assignment_late' title='ใบนี้มอบหมายงานไปแล้ว — แก้ไขได้แต่ต้องแจ้งผู้รับมอบหมาย'>
+                  มอบหมายให้ {draft.assignee || '—'}
+                  {draft.assignedAt ? ` เมื่อ ${draft.assignedAt}` : ''}
+                  {draft.assignmentAcceptedAt ? ` · ตอบรับแล้ว ${draft.assignmentAcceptedAt}` : ' · ยังไม่ตอบรับ'}
+                  {' '}— ผู้รับมอบหมายอาจเริ่มลงพื้นที่หรือเตรียมงานไปแล้ว
+                  ทุกการแก้ไขจะถูกบันทึกในประวัติการแก้ไข และต้องแจ้งเจ้าตัวด้วยตนเองทุกครั้ง
                 </PanelAlert>
               ) : null}
               {!canEdit ? (
@@ -662,9 +1040,16 @@ const ReferralRegisterPage = () => {
 
             <ReferralForm draft={draft} setDraft={setDraft} canEdit={canEdit} readOnly={rowLocked} />
 
-            {/* ใบพิมพ์ — แสดงตัวอย่างในหน้า และเป็นตัวเดียวที่ @media print ปล่อยให้เห็น */}
-            <PanelCard title='ตัวอย่างใบส่งตัวสำหรับพิมพ์' subtitle='พิมพ์ผ่าน @media print (ยังไม่มี PDF engine ในเวฟนี้)'>
-              <ReferralPrintSheet row={draft} copies={draft.printCopies} />
+            {/* ใบพิมพ์ — แสดงตัวอย่างในหน้า และเป็นตัวเดียวที่ @media print ปล่อยให้เห็น.
+                ส่งต่อภายในใช้แผ่นคนละแบบ (ไม่มีสถานพยาบาลปลายทาง มีช่องเซ็น
+                "ผู้รับมอบหมาย" แทน) ตามคู่มือ HCIS §2.1.19 */}
+            <PanelCard
+              title={draft.direction === 'internal' ? 'ตัวอย่างใบส่งต่อภายในสำหรับพิมพ์' : 'ตัวอย่างใบส่งตัวสำหรับพิมพ์'}
+              subtitle='กระดาษ A4 ขอบ 12 มม. ผ่าน @media print ของ printKit · ปุ่ม "บันทึกเป็น PDF" ด้านบนตั้งชื่อไฟล์ให้อัตโนมัติแล้วใช้ปลายทาง Save as PDF ของเบราว์เซอร์ (ยังไม่มี PDF engine ฝั่ง server)'
+            >
+              {draft.direction === 'internal'
+                ? <InternalReferralPrintSheet row={draft} copies={draft.printCopies} />
+                : <ReferralPrintSheet row={draft} copies={draft.printCopies} />}
             </PanelCard>
           </>
         )}
@@ -674,14 +1059,23 @@ const ReferralRegisterPage = () => {
       <ReasonDialog
         open={!!cancelTarget}
         type='destructive'
-        title='ยกเลิกใบส่งต่อ'
+        title={cancelTarget?.direction === 'internal' ? 'ยกเลิกใบส่งต่อภายใน' : 'ยกเลิกใบส่งต่อ'}
         description={
-          cancelTarget?.status === 'sent' || cancelTarget?.status === 'replied'
-            ? 'ใบส่งต่อฉบับนี้ถูกส่งออกไปแล้ว ปลายทางอาจได้รับเอกสารเรียบร้อยแล้ว — ต้องแจ้งปลายทางด้วยตนเองเพิ่มเติม ระบบจะเก็บใบนี้ไว้พร้อมเหตุผล ไม่ลบออกจากทะเบียน'
-            : 'ระบบจะขีดฆ่าใบส่งต่อนี้ไว้ในทะเบียนพร้อมเหตุผล ไม่ลบออกจากระบบ'
+          cancelTarget?.direction === 'internal'
+            ? (cancelTarget?.status === 'sent' || cancelTarget?.status === 'replied'
+              ? `งานนี้มอบหมายให้ ${cancelTarget?.assignee || 'หน่วยงานภายใน'} ไปแล้ว ผู้รับมอบหมายอาจเริ่มลงพื้นที่หรือเตรียมงานไว้แล้ว — ต้องแจ้งเจ้าตัวด้วยตนเองเพิ่มเติม ระบบจะขีดฆ่าใบนี้ไว้พร้อมเหตุผล ไม่ลบออกจากทะเบียน`
+              : 'ระบบจะขีดฆ่าใบส่งต่อภายในนี้ไว้ในทะเบียนพร้อมเหตุผล ไม่ลบออกจากระบบ')
+            : (cancelTarget?.status === 'sent' || cancelTarget?.status === 'replied'
+              ? 'ใบส่งต่อฉบับนี้ถูกส่งออกไปแล้ว ปลายทางอาจได้รับเอกสารเรียบร้อยแล้ว — ต้องแจ้งปลายทางด้วยตนเองเพิ่มเติม ระบบจะเก็บใบนี้ไว้พร้อมเหตุผล ไม่ลบออกจากทะเบียน'
+              : 'ระบบจะขีดฆ่าใบส่งต่อนี้ไว้ในทะเบียนพร้อมเหตุผล ไม่ลบออกจากระบบ')
         }
         confirmLabel='ยืนยันการยกเลิก'
-        suggestions={[
+        suggestions={cancelTarget?.direction === 'internal' ? [
+          'ผู้รับบริการย้ายที่อยู่ออกนอกพื้นที่รับผิดชอบของศูนย์บริการ',
+          'ผู้รับบริการปฏิเสธการเยี่ยมบ้าน ขอมารับบริการที่ศูนย์เองแทน',
+          'ส่งหน่วยงานภายในผิดหน่วย — ออกใบส่งต่อภายในฉบับใหม่แทน',
+          'อาการดีขึ้นแล้ว ไม่จำเป็นต้องติดตามที่บ้านต่อ',
+        ] : [
           'ผู้รับบริการปฏิเสธการส่งต่อ ขอรับการรักษาที่ศูนย์บริการต่อ',
           'ระบุสถานพยาบาลปลายทางผิด — ออกใบส่งต่อฉบับใหม่แทน',
           'อาการดีขึ้นหลังการรักษาที่ศูนย์ จึงไม่จำเป็นต้องส่งต่อ',
@@ -712,9 +1106,11 @@ const ReferralRegisterPage = () => {
       <AlertDialog
         open={!!printTarget}
         type='info'
-        title='พิมพ์ใบส่งตัว'
-        description={`ระบบจะนับจำนวนครั้งที่พิมพ์เพิ่มและบันทึกลงประวัติการแก้ไข (พิมพ์ไปแล้ว ${printTarget?.printCount || 0} ครั้ง)`}
-        confirmLabel='พิมพ์'
+        title={printMode === 'pdf' ? 'บันทึกใบส่งตัวเป็น PDF' : 'พิมพ์ใบส่งตัว'}
+        description={printMode === 'pdf'
+          ? `ระบบจะเปิดหน้าต่างพิมพ์ของเบราว์เซอร์ โดยตั้งชื่อไฟล์ให้เป็น "${printTarget ? referralFileName(printTarget) : ''}" — เลือกปลายทางเป็น "บันทึกเป็น PDF" (ยังไม่มี PDF engine ฝั่งเซิร์ฟเวอร์) · ระบบนับเป็นการพิมพ์และบันทึกลงประวัติการแก้ไขด้วย`
+          : `ระบบจะนับจำนวนครั้งที่พิมพ์เพิ่มและบันทึกลงประวัติการแก้ไข (พิมพ์ไปแล้ว ${printTarget?.printCount || 0} ครั้ง)`}
+        confirmLabel={printMode === 'pdf' ? 'บันทึกเป็น PDF' : 'พิมพ์'}
         cancelLabel='ยกเลิก'
         onConfirm={doPrint}
         onCancel={() => setPrintTarget(null)}
@@ -734,12 +1130,73 @@ const ReferralRegisterPage = () => {
       {/* กันออกจากฟอร์มโดยยังไม่บันทึก */}
       <UnsavedChangesPopup
         open={leaveGuard}
-        onClose={() => setLeaveGuard(false)}
-        onSave={() => { doSave(); setLeaveGuard(false); setMode('list'); setDraft(null); setBaseline(null); }}
-        onDiscard={() => { setLeaveGuard(false); setMode('list'); setDraft(null); setBaseline(null); }}
+        onClose={() => { setLeaveGuard(false); setPendingOpenRow(null); }}
+        onSave={() => { doSave(); setLeaveGuard(false); leaveForm(); }}
+        onDiscard={() => { setLeaveGuard(false); leaveForm(); }}
         title='ยังไม่ได้บันทึกใบส่งต่อฉบับนี้'
-        description='กด "บันทึก" เพื่อเก็บเป็นร่างไว้ในทะเบียน หรือ "ไม่บันทึก" เพื่อคืนค่าเดิมทั้งหมดและกลับไปหน้าทะเบียน'
+        description={pendingOpenRow
+          ? `กด "บันทึก" เพื่อเก็บใบฉบับนี้เป็นร่างก่อนเปิดใบ ${pendingOpenRow.referNo} หรือ "ไม่บันทึก" เพื่อทิ้งสิ่งที่พิมพ์ไว้แล้วเปิดใบนั้นทันที`
+          : 'กด "บันทึก" เพื่อเก็บเป็นร่างไว้ในทะเบียน หรือ "ไม่บันทึก" เพื่อคืนค่าเดิมทั้งหมดและกลับไปหน้าทะเบียน'}
       />
+
+      {/* §1.5.8.2 — ประวัติการส่งต่อรายผู้ป่วยข้าม visit ครบทั้ง 3 ทิศทาง */}
+      <Popup
+        open={!!historyTarget}
+        onClose={() => setHistoryTarget(null)}
+        size='extraLarge'
+        title={`ประวัติการส่งต่อ — ${historyTarget?.name || ''}`}
+        subtitle={`HN ${historyTarget?.hn || '—'} · ทุกใบส่งต่อของผู้รับบริการรายนี้ข้ามครั้งที่มารับบริการ เรียงตามเวลา (ใหม่ → เก่า) · ใบที่ยกเลิกยังคงอยู่ในประวัติ`}
+        primaryAction={{ label: 'ปิด', onClick: () => setHistoryTarget(null) }}
+      >
+        <ReferralHistoryTimeline
+          hn={historyTarget?.hn || ''}
+          onOpen={(row) => {
+            /* กระโดดไปที่ใบนั้นจริง ๆ — ต้องสลับแท็บตามทิศทางของใบด้วย
+               ไม่งั้นกด "กลับไปทะเบียน" แล้วจะไม่เจอใบที่เพิ่งดู.
+               ถ้าร่างที่เปิดอยู่ยังไม่ได้บันทึก ต้องผ่านประตูเดียวกับ
+               "กลับไปทะเบียน" ก่อน ไม่งั้นข้อความทางคลินิกที่พิมพ์ค้างไว้
+               จะถูกทับหายไปเงียบ ๆ */
+            if (dirty) {
+              setPendingOpenRow(row);
+              setHistoryTarget(null);
+              setLeaveGuard(true);
+              return;
+            }
+            setHistoryTarget(null);
+            setDirection(row.direction);
+            openRow(row);
+          }}
+        />
+      </Popup>
+
+      {/* §1.5.8.4 — วันที่ปลายทางนัดให้ผู้รับบริการมารับบริการ */}
+      <AlertDialog
+        open={!!appointmentTarget}
+        type='info'
+        title='บันทึกวันที่มารับบริการปลายทาง'
+        description={`ใบส่งต่อ ${appointmentTarget?.referNo || ''} · ${appointmentTarget?.facility || ''} — บันทึกวันที่ปลายทางแจ้งนัด เพื่อให้เจ้าหน้าที่ติดตามผู้รับบริการได้`}
+        confirmLabel='บันทึกวันที่'
+        cancelLabel='ยกเลิก'
+        onConfirm={() => {
+          const updated = setReferralAppointmentDate(appointmentTarget.id, appointmentDraft.trim());
+          setAppointmentTarget(null);
+          if (draft?.id === updated?.id) { setDraft({ ...updated }); setBaseline({ ...updated }); }
+          showToast('success', updated?.appointmentDate
+            ? `บันทึกวันที่มารับบริการ ${updated.appointmentDate} แล้ว`
+            : 'ล้างวันที่มารับบริการแล้ว');
+        }}
+        onCancel={() => setAppointmentTarget(null)}
+        onClose={() => setAppointmentTarget(null)}
+      >
+        <InputField
+          label='วันที่ปลายทางนัดให้มารับบริการ'
+          value={appointmentDraft}
+          onChange={setAppointmentDraft}
+          showLeadingIcon={false}
+          placeholder='เช่น 12 พฤษภาคม 2569'
+          helperText='เว้นว่างเพื่อล้างวันที่นัดออก — ทุกการแก้ไขถูกบันทึกในประวัติการแก้ไข'
+        />
+      </AlertDialog>
     </QueuePageShell>
   );
 };

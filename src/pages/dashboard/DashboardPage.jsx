@@ -5,11 +5,14 @@ import Header from '@/components/layout/Header';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import Icon from '@/components/icons/Icon';
 import Dropdown from '@/components/forms/Dropdown';
+import FilterTag from '@/components/forms/FilterTag';
 import SecondarySearch from '@/components/search/SecondarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
-import { Reveal } from '@/components/graph/Charts';
+import { DonutWithLegend, HBarList, Reveal } from '@/components/graph/Charts';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import Pagination from '@/components/pagination/Pagination';
+import Popup from '@/components/popup/Popup';
+import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
@@ -18,6 +21,18 @@ import { MIH_FOOTER_LEGAL_AUTOHIDE } from '@/components/layout/wizardChromeMorph
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import Topic from '@/components/topic/Topic';
 import { ANC_PATIENTS } from '@/data/ancVisits';
+import PHCIS_CHART, { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
+import {
+  ALLERGY_GROUPS,
+  ALLERGY_REGISTRY,
+  allergyCountsByGroup,
+  allergyCountsBySeverity,
+  allergyGroupLabel,
+  allergySeverityLabel,
+  topAllergens,
+  totalAllergyPatients,
+} from '@/data/dashboardAllergy';
+import { centerLabel, formatIsoDateThai, maskHn, maskThaiName, safePct } from '@/data/dashboardCommon';
 import {
   PopulationPyramidCard,
   OpdTypeLineCard,
@@ -120,6 +135,44 @@ const RECENT_PATIENTS = [
   { date: '6 พฤษภาคม 2569 17:00', cid: '1809900821477', name: 'น.ส.รวิวรรณ ไทยเจริญ',       age: 22, doctor: 'นพ.อภิชาติ ภักดี',     right: 'ประกันสุขภาพ',     room: 'ห้องตรวจ 3', status: 'กำลังตรวจ' },
 ];
 
+/* TOR 1.20.1.3 / 1.20.1.8 — ผู้รับบริการที่มีการแพ้ยา
+   ตารางในป๊อปอัป “ดูรายงาน” ปกปิดชื่อและ HN เสมอ (ข้อมูลแพ้ยาเป็นข้อมูลสุขภาพ
+   ที่ระบุตัวบุคคลได้) — ตัวเลขบนกราฟเป็นค่ารวมทั้งสำนักอนามัย */
+const ALLERGY_VIEW_PAGE_SIZE = 10;
+
+const ALLERGY_COLUMNS = [
+  { key: 'hn', label: 'HN (ปกปิด)', render: (r) => maskHn(r.hn), csv: (r) => maskHn(r.hn) },
+  {
+    key: 'name', label: 'ชื่อ-สกุล (ปกปิด)', flex: true, minWidth: 200,
+    render: (r) => maskThaiName(r.name), csv: (r) => maskThaiName(r.name),
+  },
+  { key: 'age', label: 'อายุ', align: 'center' },
+  {
+    key: 'group', label: 'กลุ่มยาที่แพ้', flex: true, minWidth: 200,
+    render: (r) => allergyGroupLabel(r.group), csv: (r) => allergyGroupLabel(r.group),
+  },
+  { key: 'drug', label: 'ตัวยา', flex: true, minWidth: 180 },
+  { key: 'reaction', label: 'อาการที่พบ', flex: true, minWidth: 220 },
+  {
+    key: 'severity', label: 'ความรุนแรง',
+    render: (r) => (
+      <Badge style={r.severity === 'severe' ? 'error' : r.severity === 'moderate' ? 'warning' : 'neutral'} size='small'>
+        {allergySeverityLabel(r.severity)}
+      </Badge>
+    ),
+    csv: (r) => allergySeverityLabel(r.severity),
+  },
+  {
+    key: 'center', label: 'ศูนย์ที่บันทึก', flex: true, minWidth: 200,
+    render: (r) => centerLabel(r.center), csv: (r) => centerLabel(r.center),
+  },
+  { key: 'source', label: 'แหล่งข้อมูล', flex: true, minWidth: 180 },
+  {
+    key: 'recordedAt', label: 'วันที่บันทึก',
+    render: (r) => formatIsoDateThai(r.recordedAt), csv: (r) => r.recordedAt,
+  },
+];
+
 /* Each Thai status label maps to a shared Badge style (Figma 302:73). */
 const STATUS_TO_BADGE_STYLE = {
   'รอตรวจ':    'yellow',
@@ -140,6 +193,47 @@ const DashboardPage = () => {
     intermediate: ANC_PATIENTS.filter((p) => p.riskLevel === 'intermediate').length,
     high:     ANC_PATIENTS.filter((p) => p.riskLevel === 'high').length,
   }), []);
+
+  /* TOR 1.20.1.3 / 1.20.1.8 — drug-allergy KPI + charts + ดูรายงาน popup */
+  const [allergyOpen, setAllergyOpen] = useState(false);
+  const [allergyPage, setAllergyPage] = useState(1);
+  const [allergyGroupFilter, setAllergyGroupFilter] = useState('all');
+
+  const allergyStats = useMemo(() => {
+    const byGroup = allergyCountsByGroup();
+    const bySeverity = allergyCountsBySeverity();
+    const total = ALLERGY_REGISTRY.length;
+    return {
+      patients: totalAllergyPatients(),
+      records: total,
+      severe: bySeverity.get('severe') || 0,
+      donut: ALLERGY_GROUPS
+        .map((g, i) => ({
+          label: g.label,
+          value: byGroup.get(g.key) || 0,
+          color: PHCIS_CHART_PALETTE[i % PHCIS_CHART_PALETTE.length],
+        }))
+        .filter((s) => s.value > 0),
+      topDrugs: topAllergens(6).map((d) => ({
+        label: d.label,
+        value: d.value,
+        segments: [{ value: d.value, color: PHCIS_CHART.pink, label: 'ราย' }],
+      })),
+    };
+  }, []);
+
+  const allergyRows = useMemo(() => (
+    allergyGroupFilter === 'all'
+      ? ALLERGY_REGISTRY
+      : ALLERGY_REGISTRY.filter((r) => r.group === allergyGroupFilter)
+  ), [allergyGroupFilter]);
+
+  const allergyPageCount = Math.max(1, Math.ceil(allergyRows.length / ALLERGY_VIEW_PAGE_SIZE));
+  const allergySafePage = Math.min(allergyPage, allergyPageCount);
+  const allergyPageRows = allergyRows.slice(
+    (allergySafePage - 1) * ALLERGY_VIEW_PAGE_SIZE,
+    allergySafePage * ALLERGY_VIEW_PAGE_SIZE,
+  );
 
   /* Recent patients table state */
   const [search, setSearch]   = useState('');
@@ -213,6 +307,12 @@ const DashboardPage = () => {
               placeholder='เลือกปีงบประมาณ'
             />
           </div>
+          {/* ทางเข้าแพลตฟอร์มรายงานทั้งหมดตาม TOR §1.20 */}
+          <Link to='/dashboard/reports'>
+            <NeutralSubdueButton variant='outline' size='sm' trailingIcon='chevron_right'>
+              ดูรายงานทั้งหมด
+            </NeutralSubdueButton>
+          </Link>
           <BrandButton
             variant='fill'
             size='sm'
@@ -266,6 +366,55 @@ const DashboardPage = () => {
             <ColorfulBadge style='yellow' size='small' hierarchy='secondary'>ความเสี่ยงปานกลาง {ancStats.intermediate}</ColorfulBadge>
             <ColorfulBadge style='red' size='small' hierarchy='secondary'>ความเสี่ยงสูง {ancStats.high}</ColorfulBadge>
           </div>
+        </Card>
+        </Reveal>
+
+        {/* — การแพ้ยาของผู้รับบริการ (TOR 1.20.1.3 จำนวน · 1.20.1.8 กราฟภาพรวม) — */}
+        <Reveal>
+        <Card
+          title='ผู้รับบริการที่มีการแพ้ยา'
+          icon='warning'
+          action={
+            <NeutralSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon='visibility'
+              onClick={() => { setAllergyOpen(true); setAllergyPage(1); }}
+            >
+              ดูรายงาน
+            </NeutralSubdueButton>
+          }
+        >
+          <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+            <StatTile label='ผู้รับบริการที่แพ้ยา (ราย)' value={allergyStats.patients} />
+            <StatTile label='รายการแพ้ยาที่บันทึก' value={allergyStats.records} />
+            <StatTile label='แพ้ยาระดับรุนแรง' value={allergyStats.severe} tone='warning' />
+            <StatTile
+              label='สัดส่วนแพ้รุนแรง'
+              value={`${safePct(allergyStats.severe, allergyStats.records)}%`}
+              tone='warning'
+            />
+          </div>
+
+          {allergyStats.donut.length === 0 ? (
+            <p className='text-xs text-ink-tertiary mt-4'>ยังไม่มีข้อมูลการแพ้ยาในทะเบียน</p>
+          ) : (
+            <div className='grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4'>
+              <div className='flex flex-col gap-2 min-w-0'>
+                <span className='text-xs text-ink-tertiary'>ภาพรวมตามกลุ่มยาที่แพ้</span>
+                <DonutWithLegend
+                  segments={allergyStats.donut}
+                  size={180}
+                  centerLabel={String(allergyStats.records)}
+                  centerSub='รายการ'
+                />
+              </div>
+              <div className='flex flex-col gap-2 min-w-0'>
+                <span className='text-xs text-ink-tertiary'>ตัวยาที่พบการแพ้บ่อยที่สุด (Top 6)</span>
+                <HBarList valueLabel='ราย' rows={allergyStats.topDrugs} />
+              </div>
+            </div>
+          )}
         </Card>
         </Reveal>
 
@@ -422,6 +571,56 @@ const DashboardPage = () => {
         </div>
       </div>
     </main>
+
+    {/* TOR 1.20.1.3 — ดูรายงานผู้รับบริการที่มีการแพ้ยา (ปกปิดชื่อและ HN) */}
+    <Popup
+      open={allergyOpen}
+      onClose={() => setAllergyOpen(false)}
+      size='extraLarge'
+      title='รายงานผู้รับบริการที่มีการแพ้ยา'
+      subtitle='ข้อมูลทั้งสำนักอนามัย · ปกปิดชื่อ-นามสกุลและ HN ตามหลักการคุ้มครองข้อมูลส่วนบุคคล'
+      primaryAction={{ label: 'ปิด', onClick: () => setAllergyOpen(false) }}
+    >
+      <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
+        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+          <FilterTag
+            value='ทุกกลุ่มยา'
+            selected={allergyGroupFilter === 'all'}
+            onClick={() => { setAllergyGroupFilter('all'); setAllergyPage(1); }}
+          />
+          {ALLERGY_GROUPS.map((g) => (
+            <FilterTag
+              key={g.key}
+              value={g.label}
+              selected={allergyGroupFilter === g.key}
+              onClick={() => { setAllergyGroupFilter(g.key); setAllergyPage(1); }}
+            />
+          ))}
+        </div>
+
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)', maxHeight: '58vh', overflowY: 'auto' }}>
+          <Table
+            columns={ALLERGY_COLUMNS}
+            rows={allergyPageRows}
+            rowKey={(r) => r.id}
+            emptyMessage='ไม่พบรายการแพ้ยาในกลุ่มที่เลือก'
+            emptySubtext='ลองเลือกกลุ่มยาอื่น หรือกด “ทุกกลุ่มยา”'
+            pagination={false}
+          />
+          <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)' }}>
+            <span className='flex-1 text-xs text-ink-secondary'>
+              แสดง {allergyRows.length === 0 ? 0 : (allergySafePage - 1) * ALLERGY_VIEW_PAGE_SIZE + 1}
+              -{Math.min(allergySafePage * ALLERGY_VIEW_PAGE_SIZE, allergyRows.length)} จาก {allergyRows.length} รายการ
+            </span>
+            <Pagination
+              currentPage={allergySafePage}
+              pageCount={allergyPageCount}
+              onPageChange={setAllergyPage}
+            />
+          </div>
+        </div>
+      </div>
+    </Popup>
   </div>
   </ClinicFilterProvider>
   );

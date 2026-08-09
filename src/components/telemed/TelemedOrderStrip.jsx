@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Icon from '@/components/icons/Icon';
 import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -7,17 +7,17 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
-import {
-  TELEMED_MED_CATALOG,
-  TELEMED_LAB_CATALOG,
-  TELEMED_XRAY_CATALOG,
-  TELEMED_CONSULT_TARGETS,
-  TELEMED_REFER_TARGETS,
-  TELEMED_ORDER_KIND,
-  formatClock,
-} from '@/data/telemedVisits';
+import InputField from '@/components/forms/InputField';
+import { TELEMED_ORDER_KIND, formatClock } from '@/data/telemedVisits';
 import { SUGGEST_REASON } from '@/data/telemedAssessments';
 import { telemedCan, telemedDenyReason, telemedActor } from '@/utils/telemedAccess';
+import {
+  TELEMED_CATALOG_SOURCE_LABEL,
+  catalogCounts,
+  describeStoredOrder,
+  optionsForKind,
+  resolveCatalogItem,
+} from '@/utils/telemedOrderCatalog';
 
 /* TelemedOrderStrip — แถบคำสั่งระหว่างสาย (TOR §4.3.3 + §1.13.3):
    สั่งยา · สั่ง LAB · สั่ง X-ray · ส่งปรึกษาภายใน · ส่งต่อภายนอก
@@ -33,33 +33,13 @@ import { telemedCan, telemedDenyReason, telemedActor } from '@/utils/telemedAcce
 
 const ORDER_KINDS = ['med', 'lab', 'xray', 'consult', 'refer'];
 
-const optionsFor = (kind) => {
-  switch (kind) {
-    case 'med':     return TELEMED_MED_CATALOG.map((m) => ({ value: m.code, label: m.name, subtext: `${m.sig} · ${m.qty}` }));
-    case 'lab':     return TELEMED_LAB_CATALOG.map((l) => ({ value: l.code, label: l.name, subtext: l.note }));
-    case 'xray':    return TELEMED_XRAY_CATALOG.map((x) => ({ value: x.code, label: x.name, subtext: x.note }));
-    case 'consult': return TELEMED_CONSULT_TARGETS.map((t) => ({ value: t, label: t }));
-    case 'refer':   return TELEMED_REFER_TARGETS.map((t) => ({ value: t, label: t }));
-    default:        return [];
-  }
-};
+/* จำนวนรายการที่ค้นได้ต่อประเภท — บอกผู้ใช้ว่าค้นจากแคตตาล็อกกลางกี่รายการ */
+const CATALOG_COUNTS = catalogCounts();
 
-const detailFor = (kind, value) => {
-  if (kind === 'med') {
-    const m = TELEMED_MED_CATALOG.find((x) => x.code === value);
-    return m ? { label: m.name, detail: `${m.sig} · ${m.qty}` } : null;
-  }
-  if (kind === 'lab') {
-    const l = TELEMED_LAB_CATALOG.find((x) => x.code === value);
-    return l ? { label: l.name, detail: l.note || 'ตรวจที่หน่วยบริการต้นทาง' } : null;
-  }
-  if (kind === 'xray') {
-    const x = TELEMED_XRAY_CATALOG.find((i) => i.code === value);
-    return x ? { label: x.name, detail: x.note || 'ตรวจที่หน่วยบริการที่มีเครื่องเอกซเรย์' } : null;
-  }
-  if (kind === 'consult') return { label: `ส่งปรึกษา ${value}`, detail: 'ปรึกษาภายในเครือข่ายศูนย์บริการ' };
-  if (kind === 'refer')   return { label: `ส่งต่อ ${value}`, detail: 'ออกใบส่งต่อและนัดหมายปลายทาง' };
-  return null;
+const CATALOG_HINT = {
+  med:  `ยาในทะเบียนกลาง ${CATALOG_COUNTS.med} รายการ`,
+  lab:  `รายการตรวจ LAB กลาง ${CATALOG_COUNTS.lab} รายการ`,
+  xray: `รายการเอกซเรย์กลาง ${CATALOG_COUNTS.xray} รายการ`,
 };
 
 const TelemedOrderStrip = ({
@@ -67,6 +47,7 @@ const TelemedOrderStrip = ({
   role = 'doctor',
   onAddOrder,
   onCancelOrder,
+  onEditOrder,
   compact = false,
   /* ปิดทั้งแถบเมื่อบันทึกถูกล็อก (visit ปิดแล้ว / ยกเลิก / อยู่ในโหมดอ่านอย่างเดียว)
      — สิทธิ์ 'order' อย่างเดียวไม่พอ เพราะแพทย์มีสิทธิ์แต่ต้องขอแก้ไขย้อนหลังก่อน */
@@ -75,27 +56,72 @@ const TelemedOrderStrip = ({
 }) => {
   const [openKind, setOpenKind] = useState(null);
   const [selection, setSelection] = useState('');
+  const [sig, setSig] = useState('');
+  const [qty, setQty] = useState('');
+  const [addError, setAddError] = useState('');
   const [note, setNote] = useState('');
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
+  const [editTarget, setEditTarget] = useState(null);
+  const [editDetail, setEditDetail] = useState('');
+  const [editError, setEditError] = useState('');
 
   const hasOrderCap = telemedCan(role, 'order');
   const canOrder = hasOrderCap && !disabled;
   const denyReason = hasOrderCap ? disabledReason : telemedDenyReason(role, 'order');
 
-  const closeAdd = () => { setOpenKind(null); setSelection(''); setNote(''); };
+  /* คำสั่งที่บันทึกไว้แล้ว → เติมรหัส/ราคาจากแคตตาล็อกกลาง โดยไม่ทิ้งแถวเดิม
+     (คำสั่งเก่าที่ใช้รหัสย่อของโมดูลยังอ่านออกผ่าน alias) */
+  const described = useMemo(() => orders.map((o) => describeStoredOrder(o)), [orders]);
+
+  const options = useMemo(() => (openKind ? optionsForKind(openKind) : []), [openKind]);
+  const picked = useMemo(
+    () => (openKind && selection ? resolveCatalogItem(openKind, selection) : null),
+    [openKind, selection],
+  );
+
+  const closeAdd = () => {
+    setOpenKind(null); setSelection(''); setNote(''); setSig(''); setQty(''); setAddError('');
+  };
+
+  const handlePick = (value) => {
+    setSelection(value);
+    setAddError('');
+    const item = resolveCatalogItem(openKind, value);
+    /* ยาเติมค่าตั้งต้นให้ แต่แพทย์แก้ได้ทุกครั้งก่อนบันทึก */
+    setSig(item?.sig || '');
+    setQty(item?.qty || '');
+  };
 
   const confirmAdd = () => {
-    if (!selection) return;
-    const resolved = detailFor(openKind, selection);
-    if (!resolved) return;
+    if (!selection) { setAddError('ต้องเลือกรายการก่อนบันทึกคำสั่ง'); return; }
+    const resolved = resolveCatalogItem(openKind, selection);
+    if (!resolved) { setAddError('ไม่พบรายการนี้ในแคตตาล็อกกลาง — เลือกรายการใหม่'); return; }
+    if (openKind === 'med' && (!sig.trim() || !qty.trim())) {
+      setAddError('ยาต้องระบุวิธีใช้ (sig) และจำนวนก่อนบันทึก');
+      return;
+    }
+    const baseDetail = openKind === 'med'
+      ? `${sig.trim()} · ${qty.trim()}`
+      : resolved.detail;
     onAddOrder?.({
       kind: openKind,
+      code: resolved.code,
       label: resolved.label,
-      detail: note.trim() ? `${resolved.detail} · ${note.trim()}` : resolved.detail,
+      detail: note.trim() ? `${baseDetail} · ${note.trim()}` : baseDetail,
+      priceLabel: resolved.priceLabel,
+      catalogSource: resolved.source,
     });
     closeAdd();
+  };
+
+  const confirmEdit = () => {
+    if (!editDetail.trim()) { setEditError('ต้องระบุรายละเอียดคำสั่งที่แก้ไข'); return; }
+    onEditOrder?.(editTarget.id, { detail: editDetail.trim() });
+    setEditTarget(null);
+    setEditDetail('');
+    setEditError('');
   };
 
   const confirmCancel = () => {
@@ -106,8 +132,8 @@ const TelemedOrderStrip = ({
     setCancelError('');
   };
 
-  const active = orders.filter((o) => o.status !== 'cancelled');
-  const cancelled = orders.filter((o) => o.status === 'cancelled');
+  const active = described.filter((o) => o.status !== 'cancelled');
+  const cancelled = described.filter((o) => o.status === 'cancelled');
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
@@ -179,10 +205,25 @@ const TelemedOrderStrip = ({
                     textDecoration: o.status === 'cancelled' ? 'line-through' : 'none',
                   }}
                 >
-                  {o.label}
+                  {o.catalogLabel || o.label}
                 </div>
                 <div style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-secondary, #636B72)' }}>
-                  {o.detail}
+                  {o.catalogDetail || o.detail}
+                </div>
+                <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)', marginTop: 'var(--dim-space-050, 2px)' }}>
+                  {o.code && (
+                    <ColorfulBadge style='grey' size='small' hierarchy='secondary'>{`รหัส ${o.code}`}</ColorfulBadge>
+                  )}
+                  {o.priceLabel && (
+                    <span style={{ fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                      {o.priceLabel}
+                    </span>
+                  )}
+                  {o.unresolved && (
+                    <ColorfulBadge style='orange' size='small' hierarchy='secondary'>
+                      รายการเดิมที่ยังไม่ผูกแคตตาล็อกกลาง
+                    </ColorfulBadge>
+                  )}
                 </div>
                 <div style={{ fontSize: 'var(--type-size-xxs, 10px)', color: 'var(--text-content-tertiary, #858C92)', marginTop: 'var(--dim-space-050, 2px)' }}>
                   {`ผู้สั่ง ${o.by || '—'} · ${formatClock(o.at)}`}
@@ -195,16 +236,30 @@ const TelemedOrderStrip = ({
                 )}
               </div>
               {o.status !== 'cancelled' && (
-                <NeutralSubdueButton
-                  size='sm'
-                  variant='outline'
-                  leadingIcon='cancel'
-                  disabled={!canOrder}
-                  title={canOrder ? undefined : denyReason}
-                  onClick={() => { setCancelTarget(o); setCancelReason(''); setCancelError(''); }}
-                >
-                  ยกเลิก
-                </NeutralSubdueButton>
+                <div className='flex items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                  {onEditOrder && (
+                    <NeutralSubdueButton
+                      size='sm'
+                      variant='outline'
+                      leadingIcon='edit'
+                      disabled={!canOrder}
+                      title={canOrder ? undefined : denyReason}
+                      onClick={() => { setEditTarget(o); setEditDetail(o.detail || ''); setEditError(''); }}
+                    >
+                      แก้ไข
+                    </NeutralSubdueButton>
+                  )}
+                  <NeutralSubdueButton
+                    size='sm'
+                    variant='outline'
+                    leadingIcon='cancel'
+                    disabled={!canOrder}
+                    title={canOrder ? undefined : denyReason}
+                    onClick={() => { setCancelTarget(o); setCancelReason(''); setCancelError(''); }}
+                  >
+                    ยกเลิก
+                  </NeutralSubdueButton>
+                </div>
               )}
             </div>
           ))}
@@ -224,18 +279,68 @@ const TelemedOrderStrip = ({
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
             <span style={{ fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-secondary, #636B72)' }}>
-              รายการ
+              {`รายการ${CATALOG_HINT[openKind] ? ` — ค้นจาก${CATALOG_HINT[openKind]}` : ''}`}
             </span>
             <Select
               showLabel={false}
               size='lg'
               searchable
               value={selection}
-              onChange={setSelection}
-              options={openKind ? optionsFor(openKind) : []}
-              placeholder='เลือกรายการ'
+              onChange={handlePick}
+              options={options}
+              placeholder='พิมพ์ชื่อหรือรหัสเพื่อค้นหารายการ'
             />
+            {options.length === 0 && (
+              <span style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-alert-warning, #C2410C)' }}>
+                ยังไม่มีรายการในแคตตาล็อกประเภทนี้ — ติดต่อผู้ดูแลทะเบียนรายการกลาง
+              </span>
+            )}
+            {picked && (
+              <span style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                {`รหัส ${picked.code} · ${picked.priceLabel}`}
+                {picked.source === 'legacy' ? ' · รายการเดิมของโมดูล (ยังไม่ผูกแคตตาล็อกกลาง)' : ''}
+              </span>
+            )}
           </div>
+
+          {/* ยาเท่านั้น: วิธีใช้ + จำนวน — บังคับกรอกก่อนบันทึก */}
+          {openKind === 'med' && (
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                <span style={{ fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-secondary, #636B72)' }}>
+                  วิธีใช้ (sig)
+                </span>
+                <InputField
+                  size='lg'
+                  showLabel={false}
+                  showHelperText={false}
+                  value={sig}
+                  onChange={(v) => { setSig(typeof v === 'string' ? v : v?.target?.value ?? ''); setAddError(''); }}
+                  placeholder='เช่น รับประทาน 1 เม็ด หลังอาหารเช้า-เย็น'
+                />
+              </div>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                <span style={{ fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-secondary, #636B72)' }}>
+                  จำนวนที่จ่าย
+                </span>
+                <InputField
+                  size='lg'
+                  showLabel={false}
+                  showHelperText={false}
+                  value={qty}
+                  onChange={(v) => { setQty(typeof v === 'string' ? v : v?.target?.value ?? ''); setAddError(''); }}
+                  placeholder='เช่น 60 เม็ด'
+                />
+              </div>
+            </div>
+          )}
+
+          {addError && (
+            <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)', color: 'var(--text-alert-error, #B91C1C)', fontSize: 'var(--type-size-xs, 12px)' }}>
+              <Icon name='error' size={12} />
+              {addError}
+            </span>
+          )}
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
             <span style={{ fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-secondary, #636B72)' }}>
               หมายเหตุถึงผู้รับบริการ
@@ -260,8 +365,45 @@ const TelemedOrderStrip = ({
             style={{ gap: 'var(--dim-space-100, 4px)', fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858C92)' }}
           >
             <Icon name='info' size={14} />
-            แคตตาล็อกในหน้านี้เป็นชุดย่อสำหรับการปรึกษาทางไกล — เมื่อเชื่อมกับ CPOE จริง รายการจะดึงจากแคตตาล็อกกลาง
+            {`รายการทั้งหมดอ่านจาก${TELEMED_CATALOG_SOURCE_LABEL} — ชื่อ รหัส และราคาตรงกับ CPOE ของหน่วยบริการ`}
           </span>
+        </div>
+      </Popup>
+
+      {/* แก้ไขคำสั่ง (ก่อนจบสาย) — เก็บค่าเดิมไว้เป็นร่องรอย */}
+      <Popup
+        open={Boolean(editTarget)}
+        onClose={() => setEditTarget(null)}
+        title='แก้ไขคำสั่งการรักษา'
+        subtitle={editTarget ? `${editTarget.catalogLabel || editTarget.label} · ผู้แก้ไข ${telemedActor(role)}` : ''}
+        width={compact ? 460 : 520}
+        secondaryAction={{ label: 'ไม่แก้ไข', onClick: () => setEditTarget(null) }}
+        primaryAction={{ label: 'บันทึกการแก้ไข', onClick: confirmEdit }}
+      >
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <span style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858C92)' }}>
+            {`ค่าเดิม: ${editTarget?.detail || '—'}`}
+          </span>
+          <SuggestibleTextarea
+            voice
+            minChars={3}
+            suggestions={[
+              'รับประทาน 1 เม็ด หลังอาหารเช้า-เย็น · 60 เม็ด',
+              'รับประทาน 1 เม็ด ก่อนนอน · 30 เม็ด',
+              'งดอาหาร 8 ชั่วโมงก่อนเจาะเลือด',
+              'เลื่อนไปตรวจที่หน่วยบริการใกล้บ้านแทน',
+            ]}
+            value={editDetail}
+            onChange={(v) => { setEditDetail(v); if (editError) setEditError(''); }}
+            placeholder='วิธีใช้ / จำนวน / คำแนะนำที่แก้ไข'
+            height={110}
+          />
+          {editError && (
+            <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)', color: 'var(--text-alert-error, #B91C1C)', fontSize: 'var(--type-size-xs, 12px)' }}>
+              <Icon name='error' size={12} />
+              {editError}
+            </span>
+          )}
         </div>
       </Popup>
 
@@ -270,7 +412,7 @@ const TelemedOrderStrip = ({
         open={Boolean(cancelTarget)}
         type='destructive'
         title='ยกเลิกคำสั่งการรักษา'
-        description={cancelTarget ? `${cancelTarget.label} — รายการจะถูกถอนออกจากแอปผู้รับบริการ และคงร่องรอยไว้ในประวัติการใช้งาน` : ''}
+        description={cancelTarget ? `${cancelTarget.catalogLabel || cancelTarget.label} — รายการจะถูกถอนออกจากแอปผู้รับบริการ และคงร่องรอยไว้ในประวัติการใช้งาน` : ''}
         cancelLabel='ไม่ยกเลิก'
         confirmLabel='ยืนยันยกเลิกคำสั่ง'
         onClose={() => setCancelTarget(null)}

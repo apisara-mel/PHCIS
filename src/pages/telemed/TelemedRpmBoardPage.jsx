@@ -25,6 +25,7 @@ import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import TelemedRpmSparkline from '@/components/telemed/TelemedRpmSparkline';
+import TelemedGisOverviewPanel from '@/components/telemed/TelemedGisOverviewPanel';
 import { useTelemedCall } from '@/components/telemed/TelemedCallProvider';
 import {
   RPM_SOURCE,
@@ -135,6 +136,9 @@ const TelemedRpmBoardPage = () => {
   const [ackNote, setAckNote] = useState('');
   const [ackError, setAckError] = useState('');
   const [toast, setToast] = useState(null);
+  /* แผนที่รวมจุดประเมิน (TOR §1.13.5) — เปิดไว้เป็นค่าเริ่มต้นเพื่อให้เห็นภาพรวมทันที
+     แต่ยุบได้เพราะกินพื้นที่แนวตั้งมากบนจอเล็ก */
+  const [gisOpen, setGisOpen] = useState(true);
 
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory(SEARCH_HISTORY_KEY, { seedIfEmpty: [] });
@@ -650,6 +654,43 @@ const TelemedRpmBoardPage = () => {
             {editDeny} — ปุ่มบันทึก / แก้ไข / ยกเลิกค่า ถูกปิดใช้งาน แต่ยังเปิดดูและเปิดสายได้
           </PageBanner>
         )}
+
+        {/* ── แผนที่รวมจุดประเมิน GIS (TOR §1.13.5) ─────────────────────
+            popup รายผู้ป่วย (AddressMapBlock) ยังอยู่เหมือนเดิมในรายละเอียด —
+            พาเนลนี้เพิ่ม "ภาพรวมทุกราย" ที่ข้อ 1.13.5 เรียกหา */}
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+            <NeutralSubdueButton
+              size='sm'
+              variant='outline'
+              leadingIcon={gisOpen ? 'expand_less' : 'map'}
+              onClick={() => {
+                setGisOpen((v) => !v);
+                logTelemedEvent(role, gisOpen ? 'ย่อแผนที่จุดประเมิน (GIS)' : 'เปิดแผนที่จุดประเมิน (GIS)');
+              }}
+            >
+              {gisOpen ? 'ย่อแผนที่จุดประเมิน (GIS)' : 'แสดงแผนที่จุดประเมิน (GIS)'}
+            </NeutralSubdueButton>
+            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+              {`ผู้รับบริการที่ติดตามอยู่ ${filtered.length} ราย${filtered.length === rows.length ? '' : ` จากทั้งหมด ${rows.length} ราย`}`}
+            </span>
+          </div>
+          {gisOpen && (
+            /* แผนที่ต้องอ่านตัวกรองชุดเดียวกับตาราง — ส่ง filtered ไม่ใช่ rows
+               (rows ใช้เฉพาะคำนวณกรอบแผนที่ให้นิ่งเวลาผู้ใช้กรอง) */
+            <TelemedGisOverviewPanel
+              rows={filtered}
+              boundsRows={rows}
+              onOpenPatient={(row) => {
+                if (!row) return;
+                setDetail(row.id);
+                logTelemedEvent(role, 'เปิดการ์ดผู้ป่วยจากแผนที่จุดประเมิน (GIS)', { detail: `${row.name} · HN ${row.hn}` });
+              }}
+              onCall={canJoin ? handleCall : undefined}
+              onPinOpen={(pin) => logTelemedEvent(role, 'ดูจุดประเมินบนแผนที่ GIS', { detail: `${pin.name} · ${pin.label}` })}
+            />
+          )}
+        </div>
 
         <ContentCard>
           <div className='w-full flex items-start justify-center'>

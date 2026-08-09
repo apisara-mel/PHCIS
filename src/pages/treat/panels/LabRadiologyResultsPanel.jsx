@@ -14,9 +14,12 @@ import {
 } from '@/pages/treat/panels/panelKit';
 import {
   useTreatmentAccess, useTreatmentStore, AccessDeniedPanel, PanelAlert, CountLabel,
+  ReasonDialog, GuardedAction,
 } from '@/pages/treat/panels/panelHooks';
 import {
   labVisitsFor, analytesFor, seriesFor, labFlagMeta,
+  subscribeHieConsent, getHieConsent, grantHieConsent, revokeHieConsent,
+  externalLabVisitCount, externalSourcesFor,
 } from '@/data/treatmentLabTrends';
 import {
   subscribeInterfaces, getInterface, pacsStudiesFor, openPacsStudy, openPacsReport,
@@ -107,15 +110,30 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
   const [analyte, setAnalyte] = useState('');
   const [pacsResult, setPacsResult] = useState(null);
   const [reportTarget, setReportTarget] = useState(null);
+  /* §1.4.3.2 — ประตูความยินยอมก่อนดูผลข้ามหน่วยบริการ */
+  const [hieGateOpen, setHieGateOpen] = useState(false);
+  const [hieRevokeOpen, setHieRevokeOpen] = useState(false);
 
-  const visits = useMemo(() => labVisitsFor(hn), [hn]);
-  const analytes = useMemo(() => analytesFor(hn), [hn]);
+  const [hieConsent] = useTreatmentStore(
+    subscribeHieConsent,
+    () => getHieConsent(hn),
+    [hn],
+  );
+  const showExternal = !!hieConsent;
+  const hiddenExternalCount = useMemo(() => externalLabVisitCount(hn), [hn]);
+  const externalSources = useMemo(() => externalSourcesFor(hn), [hn]);
+  /* แหล่งที่ล่มอยู่ — ต้องบอกว่าข้อมูลช่วงไหนขาด ไม่ปล่อยตารางว่างเงียบ ๆ */
+  const outages = externalSources.filter((s) => s.outage);
+
+  const opts = useMemo(() => ({ includeExternal: showExternal }), [showExternal]);
+  const visits = useMemo(() => labVisitsFor(hn, opts), [hn, opts]);
+  const analytes = useMemo(() => analytesFor(hn, opts), [hn, opts]);
   const selectedVisit = visits.find((v) => v.id === visitId) || visits[0] || null;
 
   const activeAnalyte = analyte || (analytes.find((a) => a.numeric)?.key || '');
   const series = useMemo(
-    () => (activeAnalyte ? seriesFor(hn, activeAnalyte) : []),
-    [hn, activeAnalyte],
+    () => (activeAnalyte ? seriesFor(hn, activeAnalyte, opts) : []),
+    [hn, activeAnalyte, opts],
   );
   const analyteMeta = analytes.find((a) => a.key === activeAnalyte);
 
@@ -149,10 +167,33 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
     { key: 'flag', header: 'การแปลผล', render: (row) => <FlagMark flag={row.flag} /> },
   ];
 
+  /* ป้ายบอกแหล่งที่มาของผล — ศูนย์เรา vs ศบส.อื่น vs รพ.สังกัด กทม.
+     ต้องติดทุกแถวเวลาเปิดโหมดข้ามหน่วยบริการ ไม่งั้นค่าต่างศูนย์จะปนกัน */
+  const SourceChip = ({ source, displayHn }) => {
+    if (!source) return null;
+    return (
+      <Tooltip
+        position='top'
+        content={source.kind === 'own'
+          ? 'ผลจากคลังของศูนย์บริการเราเอง — แก้ไข/สั่งซ้ำได้'
+          : `ผลจาก ${source.label} ผ่าน HIE — อ่านอย่างเดียว แก้ไขที่ต้นทางเท่านั้น · HN ต้นทาง ${displayHn || '—'}`}
+      >
+        <span style={{ display: 'inline-flex' }}>
+          <ColorfulBadge style={source.tone} size='small' width='hug'>{source.shortLabel}</ColorfulBadge>
+        </span>
+      </Tooltip>
+    );
+  };
+
   const compareColumns = [
     {
       key: 'reportedAt', header: 'วันที่รายงานผล',
-      render: (row) => <span style={PANEL_VALUE_STYLE}>{row.reportedAt}</span>,
+      render: (row) => (
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+          <span style={PANEL_VALUE_STYLE}>{row.reportedAt}</span>
+          {showExternal ? <SourceChip source={row.source} displayHn={row.displayHn} /> : null}
+        </div>
+      ),
     },
     {
       key: 'value', header: analyteMeta?.name || 'ผล',
@@ -216,6 +257,46 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
           <TabPill selected={mode === 'compare'} onClick={() => setMode('compare')}>เปรียบเทียบช่วงเวลา</TabPill>
         </div>
 
+        {/* ── §1.4.3.2 ประตูข้อมูลข้ามหน่วยบริการ (HIE) ──────────────
+             ยังไม่ยินยอม → ซ่อนแถวภายนอกแต่ "บอกจำนวนที่ซ่อน" เสมอ
+             ยินยอมแล้ว → แสดงพร้อมป้ายแหล่งที่มาทุกแถว + ปุ่มปิดกลับได้ */}
+        {hiddenExternalCount > 0 && !showExternal ? (
+          <PanelAlert tone='info' icon='hub' title={`มีผลตรวจจากหน่วยบริการอื่นอีก ${hiddenExternalCount} ครั้งที่ยังไม่ได้เปิดดู`}>
+            {externalSources.map((s) => s.label).join(' · ')}
+            {' '}— การดูข้อมูลข้ามหน่วยบริการต้องบันทึกเหตุผลและผู้เปิดดูไว้ในประวัติการเข้าถึงตามระเบียบข้อมูลส่วนบุคคล
+            <span style={{ display: 'block', marginTop: 'var(--dim-space-200, 8px)' }}>
+              <GuardedAction allowed={access.canView} reason='ไม่มีสิทธิ์เปิดดูข้อมูลข้ามหน่วยบริการ'>
+                <BrandButton variant='outline' size='sm' leadingIcon='lock_open' onClick={() => setHieGateOpen(true)}>
+                  ขอเปิดดูผลข้ามหน่วยบริการ
+                </BrandButton>
+              </GuardedAction>
+            </span>
+          </PanelAlert>
+        ) : null}
+
+        {showExternal ? (
+          <PanelAlert tone='success' icon='hub' title='กำลังแสดงผลข้ามหน่วยบริการ (HIE)'>
+            เปิดโดย {hieConsent.grantedBy} เมื่อ {hieConsent.grantedAt} · เหตุผล: {hieConsent.reason}
+            {' '}— ผลจากศูนย์อื่นเป็น <b>ข้อมูลอ่านอย่างเดียว</b> แก้ไขได้ที่ต้นทางเท่านั้น และทุกแถวติดป้ายแหล่งที่มาไว้แล้ว
+            <span style={{ display: 'block', marginTop: 'var(--dim-space-200, 8px)' }}>
+              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='lock' onClick={() => setHieRevokeOpen(true)}>
+                ปิดการแสดงผลข้ามหน่วยบริการ
+              </NeutralSubdueButton>
+            </span>
+          </PanelAlert>
+        ) : null}
+
+        {/* แหล่งภายนอกที่ล่ม — บอกช่วงข้อมูลที่ขาด ห้ามเงียบ */}
+        {showExternal && outages.length > 0 ? (
+          <PanelAlert tone='warning' icon='cloud_off' title='บางหน่วยบริการเชื่อมต่อไม่ได้ — ข้อมูลที่แสดงยังไม่ครบ'>
+            {outages.map((o) => (
+              <span key={o.id} style={{ display: 'block' }}>
+                {o.label}: ขาดการเชื่อมต่อตั้งแต่ {o.outage.since} — {o.outage.missingRange} ยังดึงมาไม่ได้ ({o.outage.reason})
+              </span>
+            ))}
+          </PanelAlert>
+        ) : null}
+
         {visits.length === 0 ? (
           <PanelEmptyState
             icon='biotech'
@@ -234,18 +315,35 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
                 label='เลือกครั้งที่ตรวจ'
                 value={selectedVisit?.id || ''}
                 onChange={setVisitId}
-                options={visits.map((v) => ({ value: v.id, label: `${v.reportedAt} · ${v.orderNo}` }))}
+                options={visits.map((v) => ({
+                  value: v.id,
+                  label: `${v.reportedAt} · ${v.orderNo}${v.external ? ` · ${v.source.shortLabel}` : ''}`,
+                }))}
                 placeholder='เลือกครั้งที่ตรวจ'
               />
             </div>
 
             {selectedVisit ? (
               <>
+                {/* ผลจากศูนย์อื่น = อ่านอย่างเดียว ต้องบอกให้ชัดก่อนอ่านค่า */}
+                {selectedVisit.external ? (
+                  <PanelAlert tone='info' icon='hub' title={`ผลนี้มาจาก ${selectedVisit.source.label}`}>
+                    ดึงผ่าน HIE ({selectedVisit.source.endpoint}) — <b>อ่านอย่างเดียว</b> แก้ไขหรือสั่งตรวจซ้ำต้องทำที่ต้นทาง ·
+                    {' '}HN ที่ต้นทางใช้คือ {selectedVisit.displayHn} (รูปแบบ เลขลำดับ/ปี-เลขศูนย์ ตามคู่มือ §8.1.3)
+                  </PanelAlert>
+                ) : null}
+
                 <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
                   <InfoPair label='เลขที่ใบสั่งตรวจ' value={selectedVisit.orderNo} />
                   <InfoPair label='เก็บสิ่งส่งตรวจ' value={selectedVisit.collectedAt} minWidth={180} />
                   <InfoPair label='รายงานผล' value={selectedVisit.reportedAt} minWidth={180} />
                   <InfoPair label='ผู้รายงานผล' value={selectedVisit.reportedBy} minWidth={200} />
+                  <InfoPair
+                    label='แหล่งข้อมูล'
+                    value={<SourceChip source={selectedVisit.source} displayHn={selectedVisit.displayHn} />}
+                    minWidth={160}
+                  />
+                  <InfoPair label='HN ที่แหล่งต้นทาง' value={selectedVisit.displayHn} minWidth={180} />
                 </div>
 
                 {selectedVisit.panels.map((p) => (
@@ -397,6 +495,39 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
         showCancel={false}
         onConfirm={() => setReportTarget(null)}
         onClose={() => setReportTarget(null)}
+      />
+
+      {/* §1.4.3.2 — ประตูขอเปิดดูข้ามหน่วยบริการ: บังคับเหตุผล ≥10 ตัวอักษร
+          (pattern เดียวกับประตูข้อมูลลับ §1.4.2.1) + เขียน access log */}
+      <ReasonDialog
+        open={hieGateOpen}
+        type='info'
+        title='ขอเปิดดูผลตรวจข้ามหน่วยบริการ'
+        description={`ระบบจะดึงผลตรวจของผู้รับบริการรายนี้จาก ${externalSources.map((s) => s.label).join(' · ')} มาแสดงเพิ่ม โดยเป็นข้อมูลอ่านอย่างเดียว — ชื่อผู้เปิดดู เวลา และเหตุผลจะถูกบันทึกในประวัติการเข้าถึงและลบไม่ได้`}
+        confirmLabel='ยืนยันและเปิดดู'
+        minLength={10}
+        suggestions={[
+          'ต้องใช้ผลตรวจเดิมจากศูนย์อื่นเพื่อประเมินแนวโน้มการทำงานของไตก่อนปรับยา',
+          'ผู้รับบริการย้ายมาจากศูนย์อื่น ขอดูผลเดิมเพื่อความต่อเนื่องในการรักษา',
+          'ต้องเทียบผลเดิมก่อนตัดสินใจส่งต่อ เพื่อไม่ให้สั่งตรวจซ้ำโดยไม่จำเป็น',
+        ]}
+        onConfirm={(reason) => { grantHieConsent(hn, reason); setHieGateOpen(false); }}
+        onClose={() => setHieGateOpen(false)}
+      />
+
+      <ReasonDialog
+        open={hieRevokeOpen}
+        type='warning'
+        title='ปิดการแสดงผลข้ามหน่วยบริการ'
+        description='ผลจากศูนย์อื่นจะถูกซ่อนอีกครั้ง (ยังนับจำนวนที่ซ่อนให้เห็นอยู่) — การปิดถูกบันทึกในประวัติการเข้าถึงเช่นกัน'
+        confirmLabel='ยืนยันการปิด'
+        minLength={5}
+        suggestions={[
+          'ดูข้อมูลที่ต้องการครบแล้ว ปิดเพื่อลดการเข้าถึงข้อมูลเกินจำเป็น',
+          'เปิดผิดคน — ปิดทันที',
+        ]}
+        onConfirm={(reason) => { revokeHieConsent(hn, reason); setHieRevokeOpen(false); }}
+        onClose={() => setHieRevokeOpen(false)}
       />
 
       <AlertDialog
