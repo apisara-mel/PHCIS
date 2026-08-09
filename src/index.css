@@ -677,37 +677,9 @@ a:focus, a:focus-visible,
    This file only keeps class/element overrides (e.g. .bg-white).
    ─────────────────────────────────────────────────────────────── */
 
-/* ── แรมป์สีเทาของ dark mode ───────────────────────────────────────
-   🐞 บั๊กที่ทำให้ "กด dark mode แล้วสีไม่เปลี่ยน":
-   บล็อก `[data-mode="dark"]` ใน tokens.css อ้าง `var(--d-*)` อยู่ 142 จุด
-   แต่ตัวแปร `--d-*` ถูกนิยามไว้ที่เดียวคือใต้ `[data-mobile-theme="dark"]`
-   (สโคปเฉพาะกรอบมือถือ) จึงไม่อยู่ใน scope ของ <html data-mode="dark">
-   → ทุก override คำนวณค่าไม่ได้ แล้ว fallback กลับไปใช้ค่าสว่างเหมือนเดิม
-
-   นิยามแรมป์ไว้ตรงนี้เพื่อให้ตัวแปรอยู่บน <html> ที่ถือ data-mode.
-   `--d-*` เป็นตัวช่วยภายในของธีม ไม่ใช่ design token ที่ component เรียกตรง ๆ
-   จึงอยู่ใน index.css ได้ (ตามที่ skill light-to-dark-mode กำหนดไว้)
-
-   ค่าทุกตัวมาจาก design.md §1a palette `neutral` — ห้ามกะสีเอง
-   ปลายทางที่ถูกต้องคือย้ายขึ้น @mih/design-tokens แล้ว `npm run tokens:pull`
-   ─────────────────────────────────────────────────────────────── */
-
-[data-mode="dark"] {
-  --d-bg:        #111314;  /* neutral/950 — พื้นจอ */
-  --d-surface-1: #222629;  /* neutral/900 — การ์ด / แถบนำทาง */
-  --d-surface-2: #363B3F;  /* neutral/800 — ช่องกรอก / modal */
-  --d-surface-3: #4D5358;  /* neutral/700 — พื้นที่ยกระดับ / active */
-  --d-hover:     #363B3F;  /* neutral/800 — hover ของแถว/รายการ */
-  --d-border-1:  #363B3F;  /* neutral/800 — เส้นคั่นบาง / gridline */
-  --d-border-2:  #4D5358;  /* neutral/700 — ขอบช่องกรอก */
-  --d-text-1:    #F4F5F5;  /* neutral/100 — ตัวอักษรหลัก */
-  --d-text-2:    #ADB2B7;  /* neutral/400 — ตัวอักษรรอง */
-  --d-text-3:    #858C92;  /* neutral/500 — ตัวอักษรลำดับสาม / placeholder */
-  --d-icon:      #C9CDD0;  /* neutral/300 — ไอคอนปกติ */
-
-  color-scheme: dark;
-  background-color: var(--d-bg);
-}
+/* แรมป์ --d-* และ token override ของโหมดมืดทั้งหมดอยู่ใน @mih/design-tokens
+   แล้ว (mirror: src/styles/tokens.css) — ไฟล์นี้เก็บเฉพาะ override ระดับ
+   class/element เช่น .bg-white ตามเดิม อย่านิยาม --d-* ซ้ำที่นี่. */
 
 /* Body backdrop follows the dark screen so no light gutter shows. */
 

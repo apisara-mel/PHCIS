@@ -727,34 +727,18 @@
   --dim-stroke-150: 1.5px;
 
   --type-family-body:             'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --type-family-heading-content:  'Mitr', 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --type-family-heading-content:  'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --type-family-ui:               'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  /* Brand display + title families:
-     heading-content = page/component titles (SubHeader, Popup, cards) → Mitr
-     heading-graphic = Thai-led display graphic, heading-graphic2 = Latin-led display + h1–h8
-     Fall back to Sarabun → system if the brand font hasn't loaded yet. */
+  /* Brand display families — used only by typography.display.graphic*
+     (heading-graphic = Thai-led, heading-graphic2 = Latin-led with broader weights).
+     Both fall back to Sarabun → system if the brand font hasn't loaded yet. */
   --type-family-heading-graphic:  'Sao Chingcha', 'Sarabun', system-ui, sans-serif;
   --type-family-heading-graphic2: 'Mitr', 'Sarabun', system-ui, sans-serif;
-  /* Button labels — Mitr (same brand family as heading-content) */
-  --type-family-button: var(--type-family-heading-content);
   --type-size-xxs:       10px;      /* typography.size.xxs */
   --type-size-xs:        12px;
   --type-size-sm:        14px;
   --type-size-base:      16px;
   --type-size-lg:        18px;      /* typography.size.lg */
-  /* Page/component titles (SubHeader, Popup, Topic) — 16px (= base) */
-  --type-size-title:     var(--type-size-base, 16px);
-  /* Table HeaderCell column title — fixed 12px (does NOT follow data-font-size
-     remapping of --type-size-xxs, so column headers stay dense). */
-  --type-size-table-title: 12px;
-  /* Button label sizes — fixed Mitr scale (exempt from data-font-size remap):
-     xLarge 18 / Large·Medium 16 / Small 14 */
-  --type-size-button-xl: 18px;
-  --type-size-button-lg: 16px;
-  --type-size-button-md: 16px;
-  --type-size-button-sm: 14px;
-  /* Default content / body copy (not button, badge, subtext, title) */
-  --type-size-content: var(--type-size-sm, 14px);
   --type-size-xl:        20px;      /* typography.size.xl */
   --type-size-2xl:       24px;      /* typography.size.2xl — Sign-in card heading (h3 · Mitr) */
   --type-size-3xl:       30px;      /* typography.size.3xl */
@@ -764,11 +748,6 @@
   --type-weight-regular: 400;
   --type-weight-medium:  500;
   --type-weight-bold:    700;
-  /* Page/component titles + button labels (SubHeader, Popup, Table HeaderCell,
-     h1–h4, ปุ่มทุกตระกูล) — Mitr Regular (400) */
-  --type-weight-title:   var(--type-weight-regular, 400);
-  /* Mitr emphasis (was often Bold 700) — use Medium so headings don't look heavy */
-  --type-weight-heading-strong: var(--type-weight-medium, 500);
 
   /* Composite text styles (Figma text styles → CSS). Use as classes below. */
   /* typography.h5-emphasis — Archive Payment Banner title 284:39953 */
@@ -1161,7 +1140,7 @@
   --text-secondarysearch-hover:       #4D5358;
   --text-secondarysearch-typing:      #4D5358;
   --text-secondarysearch-filled:      #4D5358;
-  /* focus ring ใช้ --focus-ring-input-hover (ค่าเดียวกับ effect input/100) — ไม่มี token แยกของ search */
+  --ring-secondarysearch:             rgb(var(--brand-p600-rgb) / 0.15); /* effect/input/100 = primaryborder/600 */
 
   /* Settings modal — surfaces, borders, text, mode-icon backdrops */
   --surface-modal-default:           #FFFFFF;
@@ -1467,17 +1446,12 @@
   --mobile-button-height-sm:     40px; /* dimension/size/800 */
   --mobile-button-height-md:     48px; /* dimension/size/1000 */
   --mobile-button-height-lg:     56px; /* dimension/size/1200 */
-  --mobile-button-height-xl:     64px; /* xLarge — Mitr 18 label */
   --mobile-button-padding-x:     var(--dim-space-600, 24px);
   --mobile-button-gap:           var(--dim-space-200, 8px);
   --mobile-button-gap-sm:        var(--dim-space-150, 6px);
-  --mobile-button-type-size-sm:  var(--type-size-button-sm, 14px);
-  --mobile-button-type-size-md:  var(--type-size-button-md, 16px);
-  --mobile-button-type-size-lg:  var(--type-size-button-lg, 16px);
-  --mobile-button-type-size-xl:  var(--type-size-button-xl, 18px);
-  /* legacy alias (Medium) */
-  --mobile-button-type-size:     var(--mobile-button-type-size-md);
-  --mobile-button-type-weight:   var(--type-weight-title, var(--type-weight-regular, 400));
+  --mobile-button-type-size:     var(--type-size-base, 16px);
+  --mobile-button-type-size-lg:  var(--type-size-lg, 18px);
+  --mobile-button-type-weight:   var(--type-weight-regular, 400);
   /* Brand Drop Shadow Bottom/300 — Fill default (Figma Brand Button) */
   --mobile-button-shadow-fill:
     0 var(--dim-space-100, 4px) var(--dim-space-100, 4px) -1px var(--PrimaryShadow-600),
@@ -1919,6 +1893,34 @@
    active brand's --brand-p* scale, so every [data-brand] theme stays
    on-brand in dark. Appended last so it wins the token cascade.
    ─────────────────────────────────────────────────────────────── */
+
+/* ───────────────────────────────────────────────────────────────
+   Dark mode — แรมป์สีเทาที่ทุก override ด้านล่างอ้างถึง
+   ───────────────────────────────────────────────────────────────
+   ⚠️ ต้องนิยามใน `[data-mode="dark"]` เท่านั้น — เคยมีบั๊กที่ตัวแปรชุดนี้
+   ถูกนิยามไว้ใต้ `[data-mobile-theme="dark"]` อย่างเดียว (สโคปกรอบมือถือ)
+   ทำให้ override ที่อ้าง var(--d-*) กว่า 140 จุดคำนวณค่าไม่ได้ แล้ว
+   fallback กลับไปใช้ค่าสว่าง → เปิด dark mode แล้วสีไม่เปลี่ยนเลยทั้งเว็บ
+
+   ค่าทั้งหมดคือ step ของ palette `neutral` ใน design.md §1a
+   ─────────────────────────────────────────────────────────────── */
+
+[data-mode="dark"] {
+  --d-bg:        #111314;  /* neutral/950 — พื้นจอ */
+  --d-surface-1: #222629;  /* neutral/900 — การ์ด / แถบนำทาง */
+  --d-surface-2: #363B3F;  /* neutral/800 — ช่องกรอก / modal */
+  --d-surface-3: #4D5358;  /* neutral/700 — พื้นที่ยกระดับ / active */
+  --d-hover:     #363B3F;  /* neutral/800 — hover ของแถว/รายการ */
+  --d-border-1:  #363B3F;  /* neutral/800 — เส้นคั่นบาง / gridline */
+  --d-border-2:  #4D5358;  /* neutral/700 — ขอบช่องกรอก */
+  --d-text-1:    #F4F5F5;  /* neutral/100 — ตัวอักษรหลัก */
+  --d-text-2:    #ADB2B7;  /* neutral/400 — ตัวอักษรรอง */
+  --d-text-3:    #858C92;  /* neutral/500 — ตัวอักษรลำดับสาม / placeholder */
+  --d-icon:      #C9CDD0;  /* neutral/300 — ไอคอนปกติ */
+
+  color-scheme: dark;
+  background-color: var(--d-bg);
+}
 
 /* ───────────────────────────────────────────────────────────────
    Dark mode — สลับ token ตาม design.md (generate 10 ส.ค. 2569)
@@ -2485,8 +2487,7 @@
   --surface-list-hover:               var(--d-hover);
   --surface-list-selected-hover:      var(--brand-p800);
   --text-list-default:                var(--d-text-1);
-  /* แถวที่เลือกอยู่ใช้ตัวอักษรโทนแบรนด์ให้เข้าชุดกับเครื่องหมายถูก
-     (เดิมขาวเท่าแถวธรรมดา เลยดูไม่ออกว่าเลือกอันไหน) */
+  /* แถวที่เลือกอยู่ใช้ตัวอักษรโทนแบรนด์ให้เข้าชุดกับเครื่องหมายถูก */
   --text-list-selected:               var(--brand-p400);
   --text-list-hover:                  var(--brand-p400);
   --text-list-selected-hover:         var(--brand-p400);
@@ -2602,8 +2603,7 @@
   --text-modal-subtext: var(--d-text-3);
   --border-neutral-tertiary: var(--d-border-2);
   --text-list-default: var(--d-text-1);
-  /* ให้ตรงกับบล็อก list ด้านบน — แถวที่เลือกใช้ตัวอักษรโทนแบรนด์
-     (บล็อกนี้อยู่ท้ายไฟล์จึงชนะ cascade ถ้าไม่แก้ด้วยจะทับค่าที่ตั้งไว้) */
+  /* ให้ตรงกับบล็อก list ด้านบน (บล็อกนี้อยู่ท้ายไฟล์จึงชนะ cascade) */
   --text-list-selected: var(--brand-p400);
   --text-list-subtext: var(--d-text-3);
   --text-statussummarycard-subtext: var(--d-text-3);
