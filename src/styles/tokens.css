@@ -642,25 +642,25 @@
      Used by MIH Design System components (Select/TabPill/etc).
      Keep these as simple pixel/weight aliases so the app can
      mirror Figma specs without hard-coding magic numbers. */
-  --dimension/space/050: 2px;
-  --dimension/space/100: 4px;
-  --dimension/space/150: 6px;
-  --dimension/space/200: 8px;
-  --dimension/space/300: 12px;
-  --dimension/space/400: 16px;
+  --dimension-space-050: 2px;
+  --dimension-space-100: 4px;
+  --dimension-space-150: 6px;
+  --dimension-space-200: 8px;
+  --dimension-space-300: 12px;
+  --dimension-space-400: 16px;
 
-  --dimension/radius/100:  4px;
-  --dimension/radius/200:  8px;
-  --dimension/radius/500:  16px;
-  --dimension/radius/full: 9999px;
+  --dimension-radius-100:  4px;
+  --dimension-radius-200:  8px;
+  --dimension-radius-500:  16px;
+  --dimension-radius-full: 9999px;
 
-  --dimension/size/300:   16px;  /* icon */
-  --dimension/size/500:   24px;  /* badge height */
-  --dimension/size/800:   40px;  /* avatar */
-  --dimension/size/1000:  48px;  /* list row min-h */
+  --dimension-size-300:   16px;  /* icon */
+  --dimension-size-500:   24px;  /* badge height */
+  --dimension-size-800:   40px;  /* avatar */
+  --dimension-size-1000:  48px;  /* list row min-h */
 
-  --dimension/stroke/100: 1px;
-  --dimension/stroke/200: 2px;
+  --dimension-stroke-100: 1px;
+  --dimension-stroke-200: 2px;
 
   /* ── Dash-aliased mirrors of the slash-named tokens above.
         CSS spec requires custom-property names to be <dashed-ident>
