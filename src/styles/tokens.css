@@ -1169,12 +1169,12 @@
   --text-modal-subtext:              #ADB2B7;
   --surface-navy-quaternary:         #F3F5FC;
 
-  --typograpphy/family/body: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --typograpphy/size/xs: 12px;
-  --typograpphy/size/sm: 14px;
-  --typograpphy/size/base: 16px;
-  --typograpphy/weight/regular: 400;
-  --typograpphy/weight/medium: 500;
+  --typography-family-body: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --typography-size-xs: 12px;
+  --typography-size-sm: 14px;
+  --typography-size-base: 16px;
+  --typography-weight-regular: 400;
+  --typography-weight-medium: 500;
 
   /* — Sidemenu (brand-aware) — */
   --surface-navigation-default: #FFFFFF;
