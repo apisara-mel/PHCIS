@@ -16,6 +16,7 @@ import SmallAlert from '@/components/alert/SmallAlert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
 import SuccessToast from '@/components/toast/SuccessToast';
+import CenterEditPopup from '@/pages/system/CenterEditPopup';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import {
   readCenters,
@@ -162,6 +163,8 @@ export default function SystemCentersPage() {
   const [toggleConfirm, setToggleConfirm] = useState(null);
   /* นำส่งออกรายงาน — ใช้ popup ตัวเดียวกับหน้าจัดการความยินยอม (เลือกไฟล์
      PDF/Excel/CSV + ช่วงวันที่ + หัวข้อ + บันทึก log) ไม่สร้าง flow ใหม่ */
+  /* ศูนย์ที่กำลังแก้ไข — เปิด popup ฟอร์มชุดเดียวกับหน้าเพิ่มศูนย์ */
+  const [editCenter, setEditCenter] = useState(null);
   const [exportReport, setExportReport] = useState(null);
   const [exportDone, setExportDone] = useState(false);
 
@@ -375,11 +378,11 @@ export default function SystemCentersPage() {
     {
       key: 'action',
       header: 'การดำเนินการ',
-      render: () => (
+      render: (row) => (
         <NeutralSubdueButton
           leadingIcon='edit'
           size='sm'
-          onClick={() => showToast('ฟีเจอร์แก้ไขกำลังพัฒนา')}
+          onClick={(e) => { e.stopPropagation(); setEditCenter(row); }}
         >
           แก้ไข
         </NeutralSubdueButton>
@@ -499,6 +502,16 @@ export default function SystemCentersPage() {
           </div>
         )}
       </QueuePageShell>
+
+      {/* key = id ของศูนย์ → เปลี่ยนแถวแล้วฟอร์ม remount อ่านค่าใหม่ตั้งแต่ต้น
+          (ไม่งั้น state ของศูนย์เดิมค้างอยู่ในฟอร์ม) */}
+      <CenterEditPopup
+        key={editCenter?.id || 'none'}
+        open={!!editCenter}
+        center={editCenter}
+        onClose={() => setEditCenter(null)}
+        onSaved={() => { refresh(); showToast('บันทึกการแก้ไขศูนย์บริการแล้ว'); }}
+      />
 
       <ExportFormatPopup
         open={!!exportReport}
