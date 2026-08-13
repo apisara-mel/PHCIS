@@ -9,6 +9,7 @@ import { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatien
 import { useStepDirection } from '@/components/step/stepTransition';
 import { triggerPharmacyPrint } from '@/components/pharmacy/pharmacyPrintUtils';
 import Icon from '@/components/icons/Icon';
+import PharmacyMedicationOrderStatusBadge from '@/components/pharmacy/PharmacyMedicationOrderStatusBadge';
 import { findMrPatientByHn } from '@/data/mrPatients';
 import { resolveMedicationImage } from '@/data/medicationCatalog';
 import {
@@ -126,6 +127,21 @@ const ITEM_COLUMNS = [
           ) : null}
         </div>
       </div>
+    ),
+  },
+  {
+    key: 'orderStatus',
+    label: 'สถานะยา',
+    align: 'center',
+    render: (it) => (
+      <PharmacyMedicationOrderStatusBadge
+        status={it.orderStatus}
+        effectiveMode={it.statusEffectiveMode}
+        effectiveAt={it.statusEffectiveAt}
+        lastDoseAt={it.lastDoseAt}
+        reason={it.statusReason}
+        showDetails
+      />
     ),
   },
   {
@@ -394,7 +410,7 @@ const PharmacyMedicationHistoryPopup = ({
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  {['ชื่อยา', 'ขนาด/ครั้ง', 'ความถี่', 'เวลาใช้ยา', 'จำนวน', 'ประเภท', 'แหล่งยา', 'คำแนะนำ'].map((label) => (
+                  {['ชื่อยา', 'สถานะยา', 'ขนาด/ครั้ง', 'ความถี่', 'เวลาใช้ยา', 'จำนวน', 'ประเภท', 'แหล่งยา', 'คำแนะนำ'].map((label) => (
                     <th key={label} style={thStyle}>{label}</th>
                   ))}
                 </tr>
@@ -403,6 +419,12 @@ const PharmacyMedicationHistoryPopup = ({
                 {selectedRx.items.map((it) => (
                   <tr key={it.id || it.name}>
                     <td style={tdStyle}>{it.name}</td>
+                    <td style={tdStyle}>{({
+                      continue: 'Continue',
+                      discontinue: 'Discontinue',
+                      completed: 'Completed',
+                      'on-hold': 'On hold',
+                    })[it.orderStatus] || 'Continue'}</td>
                     <td style={tdStyle}>{`${it.dosePerTake || '—'} ${it.unit || ''}`.trim()}</td>
                     <td style={tdStyle}>{it.frequency || '—'}</td>
                     <td style={tdStyle}>{it.when || '—'}</td>

@@ -1885,6 +1885,26 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
     ),
   },
   { key: 'name',       header: 'ชื่อยา' },
+  { key: 'orderStatus', header: 'สถานะคำสั่งยา', align: 'center',
+    render: (row) => {
+      const statusMeta = {
+        continue: { style: 'green', label: 'Continue' },
+        discontinue: { style: 'red', label: 'Discontinue' },
+        completed: { style: 'teal', label: 'Completed' },
+        'on-hold': { style: 'orange', label: 'On hold' },
+      }[row.orderStatus] || { style: 'green', label: 'Continue' };
+      return (
+        <ColorfulBadge
+          style={statusMeta.style}
+          size='small'
+          width='hug'
+          showDot
+        >
+          {statusMeta.label}
+        </ColorfulBadge>
+      );
+    },
+  },
   /* Figma PHCIS|CPOE 276:34332 — วิธีใช้ is read-only body text in the
      table (not an inline Select). Edits go through AddMedicationPopup. */
   { key: 'usage',      header: 'วิธีใช้' },
@@ -2403,6 +2423,11 @@ export const Step5Orders = ({
           id: `med-${Date.now()}-${i}`,
           image: resolveMedicationImage(p.name, p.image),
           name: p.name,
+          orderStatus: p.orderStatus || 'continue',
+          statusEffectiveMode: p.statusEffectiveMode || 'immediate',
+          statusEffectiveAt: p.statusEffectiveAt || '',
+          lastDoseAt: p.lastDoseAt || '',
+          statusReason: p.statusReason || '',
           usage: p.usage || 'รับประทาน',
           dosePerTake: p.dosePerTake || '1',
           unit: p.unit || 'เม็ด',
@@ -2485,6 +2510,11 @@ export const Step5Orders = ({
   const commitMedFromPopup = (entry) => {
     const normalized = {
       name: entry.name,
+      orderStatus: entry.orderStatus || 'continue',
+      statusEffectiveMode: entry.statusEffectiveMode || 'immediate',
+      statusEffectiveAt: entry.statusEffectiveAt || '',
+      lastDoseAt: entry.lastDoseAt || '',
+      statusReason: entry.statusReason || '',
       usage: entry.usage || 'รับประทาน (Oral)',
       dosePerTake: entry.dosePerTake || '1',
       unit: entry.unit || 'เม็ด',

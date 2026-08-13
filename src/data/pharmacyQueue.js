@@ -1388,7 +1388,7 @@ export const addPharmacyItem = (queueNo, itemPatch = {}) => {
   const name = itemPatch.name || '';
   const entry = {
     id: `item-new-${++itemSeq}`,
-    name: '', dosePerTake: '1', unit: 'เม็ด', frequency: '', when: '', quantity: 1,
+    name: '', orderStatus: 'continue', statusEffectiveMode: 'immediate', statusEffectiveAt: '', lastDoseAt: '', statusReason: '', dosePerTake: '1', unit: 'เม็ด', frequency: '', when: '', quantity: 1,
     instructions: '', source: 'new', quantityDispensed: 0, drugType: 'GPO', prepared: false,
     auxLabels: name ? defaultAuxLabelsFor(name) : [],
     refillPlan: null,
@@ -1525,6 +1525,11 @@ export const sendPrescriptionToPharmacy = (visit) => {
     items: medications.map((m, i) => ({
       id: `item-cpoe-${queueNo}-${i}`,
       name: m.name,
+      orderStatus: m.orderStatus || 'continue',
+      statusEffectiveMode: m.statusEffectiveMode || 'immediate',
+      statusEffectiveAt: m.statusEffectiveAt || '',
+      lastDoseAt: m.lastDoseAt || '',
+      statusReason: m.statusReason || '',
       dosePerTake: m.dosePerTake || '1',
       unit: m.unit || 'เม็ด',
       frequency: m.frequency || '',

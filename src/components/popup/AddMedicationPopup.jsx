@@ -4,6 +4,7 @@ import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Stepper from '@/components/stepper/Stepper';
 import { Field, FieldGrid } from '@/components/forms/Fields';
+import InputField from '@/components/forms/InputField';
 import {
   MEDICATION_NAME_OPTIONS,
   resolveMedicationImage,
@@ -113,8 +114,51 @@ const WHEN_OPTIONS = [
   { value: 'เมื่อมีอาการ', label: 'เมื่อมีอาการ' },
 ];
 
+const ORDER_STATUS_OPTIONS = [
+  { value: 'continue', label: 'Continue' },
+  { value: 'discontinue', label: 'Discontinue' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'on-hold', label: 'On hold' },
+];
+
+const EFFECTIVE_MODE_OPTIONS = [
+  { value: 'immediate', label: 'มีผลทันที' },
+  { value: 'scheduled', label: 'กำหนดวัน–เวลา' },
+];
+
+const STATUS_REASON_OPTIONS = {
+  discontinue: [
+    { value: 'เกิดอาการไม่พึงประสงค์จากยา', label: 'เกิดอาการไม่พึงประสงค์จากยา' },
+    { value: 'เปลี่ยนแผนการรักษา', label: 'เปลี่ยนแผนการรักษา' },
+    { value: 'ยาไม่ได้ผลตามเป้าหมาย', label: 'ยาไม่ได้ผลตามเป้าหมาย' },
+    { value: 'พบข้อห้ามใช้หรือความเสี่ยง', label: 'พบข้อห้ามใช้หรือความเสี่ยง' },
+    { value: 'รายการยาซ้ำซ้อน', label: 'รายการยาซ้ำซ้อน' },
+    { value: 'ผู้ป่วยปฏิเสธหรือขอหยุดยา', label: 'ผู้ป่วยปฏิเสธหรือขอหยุดยา' },
+    { value: 'อื่น ๆ', label: 'อื่น ๆ' },
+  ],
+  completed: [
+    { value: 'ให้ยาครบตามแผนการรักษา', label: 'ให้ยาครบตามแผนการรักษา' },
+    { value: 'ครบระยะเวลาการรักษา', label: 'ครบระยะเวลาการรักษา' },
+    { value: 'อาการหรือภาวะที่รักษาสิ้นสุดแล้ว', label: 'อาการหรือภาวะที่รักษาสิ้นสุดแล้ว' },
+    { value: 'อื่น ๆ', label: 'อื่น ๆ' },
+  ],
+  'on-hold': [
+    { value: 'งดยาก่อนทำหัตถการ', label: 'งดยาก่อนทำหัตถการ' },
+    { value: 'งดน้ำและอาหาร (NPO)', label: 'งดน้ำและอาหาร (NPO)' },
+    { value: 'รอผลตรวจทางห้องปฏิบัติการ', label: 'รอผลตรวจทางห้องปฏิบัติการ' },
+    { value: 'รอประเมินอาการหรือทบทวนแผนการรักษา', label: 'รอประเมินอาการหรือทบทวนแผนการรักษา' },
+    { value: 'ยาไม่พร้อมใช้ชั่วคราว', label: 'ยาไม่พร้อมใช้ชั่วคราว' },
+    { value: 'อื่น ๆ', label: 'อื่น ๆ' },
+  ],
+};
+
 const EMPTY = {
   name: '',
+  orderStatus: 'continue',
+  statusEffectiveMode: 'immediate',
+  statusEffectiveAt: '',
+  lastDoseAt: '',
+  statusReason: '',
   usage: 'รับประทาน (Oral)',
   dosePerTake: '1',
   unit: 'เม็ด',
@@ -160,6 +204,23 @@ const AddMedicationPopup = ({
     }));
   };
 
+  const setOrderStatus = (next) => {
+    const orderStatus = typeof next === 'object' && next?.target ? next.target.value : next;
+    setDraft((s) => ({
+      ...s,
+      orderStatus,
+      statusReason: orderStatus === s.orderStatus ? s.statusReason : '',
+      ...(orderStatus === 'continue'
+        ? {
+          statusEffectiveMode: 'immediate',
+          statusEffectiveAt: '',
+          lastDoseAt: '',
+          statusReason: '',
+        }
+        : {}),
+    }));
+  };
+
   /* Every field is required (Figma `เพิ่มยา` popup spec) — the
      primary CTA stays disabled until ชื่อยา / วิธีใช้ / หน่วย /
      ทานครั้งละ / จำนวน / ความถี่ / เวลาใช้ยา / การใช้ / คำเตือน
@@ -174,8 +235,16 @@ const AddMedicationPopup = ({
     const n = Number(v);
     return Number.isFinite(n) && n > 0;
   };
+  const needsStatusDetails = draft.orderStatus !== 'continue';
+  const needsStatusReason = ['discontinue', 'on-hold'].includes(draft.orderStatus);
+  const hasValidStatusDetails = !needsStatusDetails || (
+    isFilled(draft.statusEffectiveMode) &&
+    (draft.statusEffectiveMode !== 'scheduled' || isFilled(draft.statusEffectiveAt)) &&
+    (!needsStatusReason || isFilled(draft.statusReason))
+  );
   const canConfirm =
     isFilled(draft.name) &&
+    isFilled(draft.orderStatus) &&
     isFilled(draft.usage) &&
     isFilled(draft.unit) &&
     isPositiveNumber(draft.dosePerTake) &&
@@ -183,7 +252,8 @@ const AddMedicationPopup = ({
     isFilled(draft.frequency) &&
     isFilled(draft.when) &&
     isFilled(draft.purpose) &&
-    isFilled(draft.warning);
+    isFilled(draft.warning) &&
+    hasValidStatusDetails;
   const handleClear = () => setDraft(EMPTY);
   const handleConfirm = () => {
     if (!canConfirm) return;
@@ -202,7 +272,7 @@ const AddMedicationPopup = ({
     <Popup
       open={open}
       onClose={onClose}
-      size='large'
+      size='extraLarge'
       title={title}
       tertiaryAction={{ label: clearLabel, onClick: handleClear }}
       primaryAction={{ label: confirmLabel, onClick: handleConfirm, disabled: !canConfirm }}
@@ -215,7 +285,11 @@ const AddMedicationPopup = ({
          typed prescription. */
       closeOnEscape={false}
     >
-      <FieldGrid cols={2}>
+      <FieldGrid
+        cols={2}
+        rowGap='var(--dim-space-600, 24px)'
+        columnGap='var(--dim-space-600, 24px)'
+      >
         <Field label='ชื่อยา' required span={2}>
           {/* Typeable combobox — the trigger doubles as an input,
               so the doctor can type to filter MEDICATION_NAME_OPTIONS
@@ -232,6 +306,55 @@ const AddMedicationPopup = ({
             placeholder='เลือกชื่อยา หรือพิมพ์เพื่อค้นหา'
           />
         </Field>
+        <Field label='สถานะคำสั่งยา' required span={2}>
+          <Select
+            value={draft.orderStatus}
+            onChange={setOrderStatus}
+            options={ORDER_STATUS_OPTIONS}
+          />
+        </Field>
+        {needsStatusDetails && (
+          <>
+            <Field label='เริ่มมีผล' required>
+              <Select
+                value={draft.statusEffectiveMode}
+                onChange={setField('statusEffectiveMode')}
+                options={EFFECTIVE_MODE_OPTIONS}
+              />
+            </Field>
+            {draft.statusEffectiveMode === 'scheduled' ? (
+              <Field label='วัน–เวลาที่มีผล' required>
+                <InputField
+                  type='datetime-local'
+                  value={draft.statusEffectiveAt}
+                  onChange={setField('statusEffectiveAt')}
+                  showLabel={false}
+                  showHelperText={false}
+                />
+              </Field>
+            ) : <div />}
+            <Field label='วัน–เวลาที่ให้ยาครั้งสุดท้าย'>
+              <InputField
+                type='datetime-local'
+                value={draft.lastDoseAt}
+                onChange={setField('lastDoseAt')}
+                showLabel={false}
+                showHelperText={false}
+                className='w-full min-w-0'
+                style={{ width: '100%', minWidth: 0 }}
+                inputStyle={{ width: '100%', minWidth: 0 }}
+              />
+            </Field>
+            <Field label='เหตุผล' required={needsStatusReason}>
+              <Select
+                value={draft.statusReason}
+                onChange={setField('statusReason')}
+                options={STATUS_REASON_OPTIONS[draft.orderStatus] || []}
+                placeholder='เลือกเหตุผล'
+              />
+            </Field>
+          </>
+        )}
         <Field label='วิธีใช้' required>
           <Select
             value={draft.usage}

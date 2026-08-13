@@ -25,6 +25,7 @@ import FormularyStatusBadge from '@/components/pharmacy/FormularyStatusBadge';
 import OutOfRightsBadge from '@/components/pharmacy/OutOfRightsBadge';
 import PharmacyVoiceSuggestInput from '@/components/pharmacy/PharmacyVoiceSuggestInput';
 import PharmacySectionTopic from '@/components/pharmacy/PharmacySectionTopic';
+import PharmacyMedicationOrderStatusBadge from '@/components/pharmacy/PharmacyMedicationOrderStatusBadge';
 import { PHARMACY_NESTED_PANEL, PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
@@ -468,7 +469,17 @@ const PharmacyDispensePage = () => {
   const itemsWithStock = row.items.map((item) => {
     const stockEntry = getStock(item.name);
     const remaining = item.quantity - (item.quantityDispensed || 0);
-    const qtyNow = dispenseNow[item.id] ?? remaining;
+    const effectiveTimestamp = item.statusEffectiveAt
+      ? new Date(item.statusEffectiveAt).getTime()
+      : Number.NaN;
+    const isOrderInactive = item.orderStatus !== 'continue' && (
+      item.statusEffectiveMode !== 'scheduled' ||
+      !Number.isFinite(effectiveTimestamp) ||
+      effectiveTimestamp <= Date.now()
+    );
+    /* A stopped/completed/held order that has taken effect must never
+       contribute stock deduction or a dispense quantity. */
+    const qtyNow = isOrderInactive ? 0 : (dispenseNow[item.id] ?? remaining);
     const insufficient = !!stockEntry && qtyNow > stockEntry.stock;
     const unitPrice = stockEntry?.unitPrice ?? 0;
     const subtotal = unitPrice * qtyNow;
@@ -478,7 +489,7 @@ const PharmacyDispensePage = () => {
        ชำระเงินเอง (patient pays, nothing claimable). */
     const claimable = drug?.rightsEligible.includes(mrPatient.rights) ? subtotal : 0;
     const inFormulary = drug ? drug.classification === 'nlem' : true;
-    return { ...item, stockEntry, remaining, qtyNow, insufficient, unitPrice, subtotal, claimable, inFormulary };
+    return { ...item, stockEntry, remaining, qtyNow, insufficient, unitPrice, subtotal, claimable, inFormulary, isOrderInactive };
   });
   const grandTotal = itemsWithStock.reduce((sum, i) => sum + i.subtotal, 0);
   const claimableTotal = itemsWithStock.reduce((sum, i) => sum + i.claimable, 0);
@@ -488,7 +499,7 @@ const PharmacyDispensePage = () => {
   const nlemTotal = itemsWithStock.filter((i) => i.inFormulary).reduce((sum, i) => sum + i.subtotal, 0);
   const nonNlemTotal = grandTotal - nlemTotal;
   const hasInsufficientStock = itemsWithStock.some((i) => i.qtyNow > 0 && i.insufficient);
-  const hasMissingAuxLabels = itemsWithStock.some((i) => !(i.auxLabels || []).length);
+  const hasMissingAuxLabels = itemsWithStock.some((i) => !i.isOrderInactive && !(i.auxLabels || []).length);
   const alreadyDispensed = row.status === DISPENSE_STATUS.DISPENSED;
   /* Closed = irreversible end states — lock the medication table.
      PROBLEM stays editable so เภสัช can still เปลี่ยนยา / ส่งกลับ / ปรับจำนวน
@@ -579,6 +590,19 @@ const PharmacyDispensePage = () => {
           </div>
         );
       },
+    },
+    {
+      key: 'orderStatus', label: 'สถานะยา', align: 'center', sortable: false,
+      render: (r) => (
+        <PharmacyMedicationOrderStatusBadge
+          status={r.orderStatus}
+          effectiveMode={r.statusEffectiveMode}
+          effectiveAt={r.statusEffectiveAt}
+          lastDoseAt={r.lastDoseAt}
+          reason={r.statusReason}
+          showDetails
+        />
+      ),
     },
     {
       key: 'outOfFormulary', label: 'ยานอกบัญชี', align: 'center', sortable: false,
@@ -675,7 +699,7 @@ const PharmacyDispensePage = () => {
             >
               <RefillQtyTag
                 selected={isFull}
-                disabled={isClosed || r.remaining <= 0}
+                disabled={isClosed || r.isOrderInactive || r.remaining <= 0}
                 title='จ่ายเต็มจำนวน'
                 onClick={applyFull}
               >
@@ -683,7 +707,7 @@ const PharmacyDispensePage = () => {
               </RefillQtyTag>
               <RefillQtyTag
                 selected={visitCount === 2}
-                disabled={isClosed || r.remaining <= 0}
+                disabled={isClosed || r.isOrderInactive || r.remaining <= 0}
                 title='แบ่งจ่าย 2 งวด'
                 onClick={() => applyRefill(2, 14)}
               >
@@ -691,7 +715,7 @@ const PharmacyDispensePage = () => {
               </RefillQtyTag>
               <RefillQtyTag
                 selected={visitCount === 3}
-                disabled={isClosed || r.remaining <= 0}
+                disabled={isClosed || r.isOrderInactive || r.remaining <= 0}
                 title='แบ่งจ่าย 3 งวด'
                 onClick={() => applyRefill(3, 10)}
               >
@@ -728,7 +752,7 @@ const PharmacyDispensePage = () => {
             min={0}
             max={r.remaining}
             onChange={(n) => setDispenseNow((s) => ({ ...s, [r.id]: n ?? 0 }))}
-            disabled={isClosed || r.remaining <= 0}
+            disabled={isClosed || r.isOrderInactive || r.remaining <= 0}
             aria-label={`จำนวนที่จะจ่าย ${r.name}`}
           />
         </div>
@@ -887,7 +911,10 @@ const PharmacyDispensePage = () => {
       const withStock = itemsWithStock.find((i) => i.id === it.id);
       return { ...it, quantityDispensed: (it.quantityDispensed || 0) + (withStock?.qtyNow || 0) };
     });
-    const allComplete = nextItems.every((it) => it.quantityDispensed >= it.quantity);
+    const allComplete = nextItems.every((it) => {
+      const withStock = itemsWithStock.find((candidate) => candidate.id === it.id);
+      return withStock?.isOrderInactive || it.quantityDispensed >= it.quantity;
+    });
     updatePharmacyRow(row.queueNo, {
       items: nextItems,
       status: allComplete ? DISPENSE_STATUS.DISPENSED : DISPENSE_STATUS.PARTIAL,
