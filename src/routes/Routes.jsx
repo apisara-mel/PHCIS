@@ -293,6 +293,10 @@ export default function Routes() {
         <Route exact path='/admin/roles/new'    component={SystemRoleCreatePage} />
         <Route exact path='/admin/confidential-data'     component={SystemConfidentialDataPage} />
         <Route exact path='/admin/confidential-data/:hn' component={SystemConfidentialDataPage} />
+        {/* Pharmacy master data is maintained from central settings. */}
+        <Route exact path='/admin/pharmacy/registry'     component={PharmacyRegistryPage} />
+        <Route exact path='/admin/pharmacy/registry/new' component={PharmacyRegistryEditPage} />
+        <Route exact path='/admin/pharmacy/registry/:id' component={PharmacyRegistryEditPage} />
         {/* ระบบประวัติการใช้งาน (Audit / Activity log · Figma 0EDfjwf1 12:1624) —
             usage overview + history log. Top-level system, reached from the Hub. */}
         <Route exact path='/audit'           component={AuditOverviewPage} />
@@ -518,9 +522,10 @@ export default function Routes() {
         <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
-        <Route exact path='/pharmacy/registry'     component={PharmacyRegistryPage} />
-        <Route exact path='/pharmacy/registry/new' component={PharmacyRegistryEditPage} />
-        <Route exact path='/pharmacy/registry/:id' component={PharmacyRegistryEditPage} />
+        {/* Backward-compatible links from the former pharmacy-local registry. */}
+        <Redirect exact from='/pharmacy/registry' to='/admin/pharmacy/registry' />
+        <Redirect exact from='/pharmacy/registry/new' to='/admin/pharmacy/registry/new' />
+        <Redirect exact from='/pharmacy/registry/:id' to='/admin/pharmacy/registry/:id' />
         <Route exact path='/pharmacy/stock'        component={PharmacyStockPage} />
         <Route exact path='/pharmacy/requisition'  component={PharmacyRequisitionPage} />
         <Route exact path='/pharmacy/patients'     component={PharmacyPatientsPage} />

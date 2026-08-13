@@ -10,7 +10,10 @@ import {
   MOBILE_APP_CHANNEL,
   consentSignChannelOfIndex,
 } from '@/data/consentChannels';
-import { resolveConsentFormForWorklistType } from '@/data/consentFormRecords';
+import {
+  CONSENT_WORKLIST_FORM_POOL,
+  CONSENT_WORKLIST_TYPES,
+} from '@/data/consentFormRecords';
 
 /* ── Consent type → ColorfulBadge tone (Figma type pills) ───────────── */
 export const CONSENT_TYPE_TONE = {
@@ -115,7 +118,9 @@ export const CONSENT_CONFIRM = {
   reconsent: { type: 'info',        title: 'ส่งคำขอความยินยอมใหม่',     description: 'ระบบจะสร้างคำขอความยินยอมฉบับใหม่และแจ้งผู้ป่วยให้ลงนามอีกครั้ง', confirmLabel: 'ส่งคำขอ' },
 };
 
-const CONSENT_TYPES = ['PDPA', 'เบิกจ่าย'];
+/* ประเภท (วัตถุประสงค์) ของคำขอ — ไล่จากพูลแบบฟอร์มจริงในทะเบียน ไม่ hardcode
+   เดิมมีแค่ ['PDPA','เบิกจ่าย'] และทั้งคู่ชี้ไปแบบฟอร์มใบเดียวกัน (PH-009) */
+const CONSENT_TYPES = CONSENT_WORKLIST_TYPES;
 export { CONSENT_TYPES };
 const REQUESTERS = ['ลดา ดีงาม', 'นที ทองคำ'];
 const THAI_MONTHS_FULL = [
@@ -213,11 +218,14 @@ const buildConsentMockRecords = () => {
   return MOCK_STATUS_ROTATION.map((status, index) => {
   const id = index + 1;
   const patient = MOCK_PATIENTS[index % MOCK_PATIENTS.length];
-  const type = CONSENT_TYPES[index % CONSENT_TYPES.length];
+  /* แบบฟอร์มจริงจากทะเบียน — เดินคนละจังหวะกับผู้ป่วย (พูล 15 ใบ vs 32 คน)
+     คนเดียวกันจึงมีคำขอหลายแบบฟอร์ม ไม่ใช่ใบเดิมซ้ำ ๆ */
+  const form = CONSENT_WORKLIST_FORM_POOL[index % CONSENT_WORKLIST_FORM_POOL.length];
+  const type = form.worklistType;
   const day = (index % 27) + 1;
   /* ~2 ใน 3 เป็นเดือนนี้ — สลับตาม (type + cycle) เพื่อไม่ให้บางประเภทหายจากเดือนนี้ */
-  const typeIdx = index % CONSENT_TYPES.length;
-  const cycle = Math.floor(index / CONSENT_TYPES.length);
+  const typeIdx = index % CONSENT_WORKLIST_FORM_POOL.length;
+  const cycle = Math.floor(index / CONSENT_WORKLIST_FORM_POOL.length);
   const inThisMonth = (typeIdx + cycle) % 3 !== 0;
   const month = inThisMonth ? thisMonth : prevMonth;
   const year = inThisMonth ? thisYear : (index % 6 === 0 ? thisYear - 1 : prevYear);
@@ -233,7 +241,7 @@ const buildConsentMockRecords = () => {
     ? `${Math.min(day + 3 + (index % 5), 28)} ${month} ${year}`
     : '-';
   const signChannel = signChannelForStatus(status, id);
-  const { formCode, formName } = resolveConsentFormForWorklistType(type);
+  const { code: formCode, name: formName } = form;
   /* ชื่อซ้ำได้เมื่อคนละคำขอ — ไม่ต่อท้าย (2) / ไม่สร้าง HN ปลอม */
   const { hn, name } = patient;
 
@@ -244,7 +252,9 @@ const buildConsentMockRecords = () => {
     type,
     formCode,
     formName,
-    version: type === 'การวิจัย' ? 'V 2.1' : `V 1.${index % 3}`,
+    /* ยึด major ตามเวอร์ชันของแบบฟอร์มในทะเบียน แล้วไล่ minor ตามลำดับคำขอ —
+       ใบ V 2.x ในทะเบียนจะไม่โผล่เป็น V 1.x ใน worklist */
+    version: `V ${(String(form.version).match(/\d+/) || [1])[0]}.${index % 3}`,
     status,
     signChannel,
     requester: REQUESTERS[index % REQUESTERS.length],

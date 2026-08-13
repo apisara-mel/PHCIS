@@ -483,7 +483,15 @@ function ConsentHistoryTimeline({ hn, records, embedded = false, onViewForm = nu
   const stickyBg = embedded ? 'var(--surface-modal-default)' : 'var(--surface-card-100)';
 
   const timelineScrollPanel = (
-    <SmoothFilterResults opaque={resultsOpaque}>
+    /* embedded: SmoothFilterResults เป็น flex item ที่สูงตามเนื้อหา (flex 0 1 auto)
+       แต่ scroll panel ข้างในตั้ง `flex: 1 1 0; height: 0` ไว้ — พื้นที่ว่างใน
+       parent จึงเป็น 0 แล้ว panel ยุบหายทั้งอัน (เหลือแค่แถวตัวกรองโดนตัดครึ่ง)
+       ต้องให้ wrapper โตตาม parent ด้วย ไม่งั้นโซ่ flex ขาดตรงนี้
+       non-embedded ไม่แตะ — หน้า /consent/history scroll ที่ระดับหน้า */
+    <SmoothFilterResults
+      opaque={resultsOpaque}
+      className={embedded ? 'flex-1 min-h-0' : ''}
+    >
     <div
       ref={scrollPanelRef}
       className={`mih-grouped-timeline-scroll w-full min-w-0 scrollbar-thin ${

@@ -8,7 +8,9 @@ import { resolveConsentFormForWorklistType } from '@/data/consentFormRecords';
 import { bumpConsentFormVersionMinor } from '@/data/consentFormVersion';
 
 const STORAGE_KEY = 'mih:consent-workflow';
-const SEED_VERSION = 12; /* bump when CONSENT_RECORDS row count / shape changes */
+/* bump when CONSENT_RECORDS row count / shape changes
+   13 = worklist ผูกกับพูลแบบฟอร์มจริง 15 ใบ (เดิม PH-009 ใบเดียวทุกแถว) */
+const SEED_VERSION = 13;
 const SIGN_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
 const listeners = new Set();
@@ -111,10 +113,12 @@ const hasOpenSignatureRequest = (hn, type) =>
       && ['รอลงนาม', 'อยู่ระหว่างลงนาม'].includes(r.status),
   );
 
-/** เผยแพร่เทมเพลตใหม่ — ฉบับเซ็นแล้ว → ถูกแทนที่ · สร้าง รอลงนาม อัตโนมัติไปเวชระเบียน */
+/** เผยแพร่เทมเพลตใหม่ — ฉบับเซ็นแล้ว → ถูกแทนที่ · สร้าง รอลงนาม อัตโนมัติไปเวชระเบียน
+    คืน true เมื่อมีการแก้ state จริง (ให้ผู้เรียกตัดสินใจว่าต้อง persist ไหม) */
 const supersedeSignedRecordsForType = (type, { newVersion } = {}) => {
   const now = todayThai();
   const toCreate = [];
+  let created = 0;
 
   state.records = state.records.map((r) => {
     if (r.status !== 'ยินยอมแล้ว' || r.type !== type) return r;
@@ -186,15 +190,27 @@ const supersedeSignedRecordsForType = (type, { newVersion } = {}) => {
     state.records = state.records.map((r) => (
       r.id === src.id ? { ...r, supersededById: newId } : r
     ));
+    created += 1;
   });
+
+  return toCreate.length > 0 || created > 0;
 };
 
+/* persist() แจ้ง listener ทุกตัว และ ConsentManagementPage subscribe ด้วย
+   `setRows(loadRows())` ซึ่ง loadRows เรียกฟังก์ชันนี้อีกรอบ — ถ้า persist
+   ทุกครั้งแบบไม่มีเงื่อนไข จะกลายเป็น persist → listener → persist วนไม่จบ
+   (RangeError: Maximum call stack size exceeded ทั้งหน้า) จึง persist เฉพาะ
+   ตอนที่ state เปลี่ยนจริง ซึ่งเกิดแค่ครั้งแรกที่เทมเพลตถูกเผยแพร่เวอร์ชันใหม่ */
 export const applySupersededTypesToRecords = (supersededSet) => {
+  let changed = false;
   supersededSet.forEach((type) => {
-    if (!state.supersededTypes.includes(type)) state.supersededTypes.push(type);
-    supersedeSignedRecordsForType(type);
+    if (!state.supersededTypes.includes(type)) {
+      state.supersededTypes.push(type);
+      changed = true;
+    }
+    if (supersedeSignedRecordsForType(type)) changed = true;
   });
-  persist();
+  if (changed) persist();
   return getConsentRecords();
 };
 

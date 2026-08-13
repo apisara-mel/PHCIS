@@ -463,3 +463,35 @@ The other 9 are stubs:
 - **FormShell / TreatmentFormShell** handles step index, prev/next, sticky footer, and `UnsavedChangesPopup` guard.
 - **PatientCard header** is reused in Registration, OPD Screening, and Treatment detail pages (HN, name, avatar, age, insurance, status, contextual actions).
 - **Multi-step forms** never have an explicit "complete" route — final save returns to the originating queue (and most likely fires a success toast, not traced here).
+
+---
+
+## 11 · Mobile companion — ประวัติการเยี่ยมบ้าน
+
+```
+┌──────────────────────────────┐
+│ /m/records                   │
+│ MobileRecordsPage.jsx        │
+│ แท็บ “ประวัติการเยี่ยมบ้าน” │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌────────────────────────────────────────┐
+│ /m/home-visits                          │
+│ MobileHomeVisitHistoryPage.jsx          │
+│ Timeline เรียงวันที่ล่าสุด → เก่าสุด     │
+│ • วันที่ / เวลา / สถานที่                │
+│ • สรุปการเยี่ยมและผู้ให้บริการ           │
+└──────────────┬─────────────────────────┘
+               │ กดรายการ
+               ▼
+┌──────────────────────────────┐
+│ /m/visit/:id                 │
+│ MobileVisitPage.jsx          │
+│ รายละเอียดบันทึกการรักษา    │
+└──────────────────────────────┘
+```
+
+- **Actor:** ผู้รับบริการที่เข้าสู่ระบบแล้ว
+- **Data:** รายการ `type: 'homevisit'` จาก `usePhcisLink().visits`
+- **Empty state:** แสดงข้อความว่าไม่มีประวัติการเยี่ยมบ้าน

@@ -315,6 +315,53 @@ CONSENT_FORM_SUMMARY = buildConsentFormSummary(CONSENT_FORM_RECORDS);
 
 export const CONSENT_FORM_SCOPE_CATALOG = SCOPE_CATALOG;
 
+/* ── พูลแบบฟอร์มของ worklist จัดการความยินยอม ─────────────────────────
+   เดิม worklist ผูกทุกแถวไว้กับ PH-009 ใบเดียว (WORKLIST_TYPE_FORM_CODE
+   ที่ hardcode ทั้งสอง type ไปโค้ดเดียวกัน) ทำให้ทุกคำขอในระบบชื่อฟอร์ม
+   เดียวกันหมด · พูลนี้ดึงจากทะเบียนจริง 1 รายการต่อ 1 ชื่อฟอร์ม เพื่อให้
+   รหัส/ชื่อ/เวอร์ชันในหน้าจัดการความยินยอมอ้างอิงแบบฟอร์มที่มีอยู่จริง
+   (กดข้ามไปหน้าแบบฟอร์มความยินยอมแล้วต้องเจอใบเดียวกัน)
+
+   `worklistType` = วัตถุประสงค์การขอความยินยอม ใช้เป็นแกน "ประเภท" ของ
+   worklist + รายงาน — ทะเบียนเก็บ type = 'PDPA' หมดทุกใบเพราะโมดูลนี้ดูแล
+   เฉพาะความยินยอมเปิดเผยข้อมูล แกนนั้นจึงแยกประเภทอะไรไม่ได้ */
+const WORKLIST_PURPOSE_BY_FORM_NAME = {
+  'ใบยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)':                  'PDPA',
+  'ใบยินยอมเปิดเผยข้อมูลเพื่อการเบิกจ่าย':                 'เบิกจ่าย',
+  'ใบยินยอมใช้ข้อมูลเพื่อการวิจัยคุณภาพ':                  'วิจัย/พัฒนาคุณภาพ',
+  'ใบยินยอมส่งต่อข้อมูลไปยังสถานพยาบาลอื่น':               'ส่งต่อสถานพยาบาล',
+  'ใบยินยอมเปิดเผยข้อมูลสิทธิการรักษา':                    'เบิกจ่าย',
+  'ใบยินยอมใช้ข้อมูลสถิติเพื่อพัฒนาบริการ':                 'วิจัย/พัฒนาคุณภาพ',
+  'ใบยินยอมใช้ข้อมูลเพื่อส่งเบิก สปสช.':                    'เบิกจ่าย',
+  'ใบยินยอมเปิดเผยผลแล็บแก่ญาติผู้ดูแล':                    'เปิดเผยแก่บุคคลที่สาม',
+  'ใบยินยอมใช้ข้อมูลเพื่อรายงานกระทรวงสาธารณสุข':          'รายงานหน่วยงานรัฐ',
+  'ใบยินยอมเปิดเผยข้อมูลแก่บริษัทประกัน':                   'เปิดเผยแก่บุคคลที่สาม',
+  'ใบยินยอมใช้ข้อมูลครรภ์เพื่อติดตามคุณภาพ':                'วิจัย/พัฒนาคุณภาพ',
+  'ใบยินยอมเปิดเผยประวัติแพ้ยาแก่สถานพยาบาลอื่น':          'ส่งต่อสถานพยาบาล',
+  'ใบยินยอมใช้ข้อมูลเพื่อประเมินความเสี่ยงโรคเรื้อรัง':        'วิจัย/พัฒนาคุณภาพ',
+  'ใบยินยอมเปิดเผยผลแล็บแก่แพทย์ผู้ส่งตรวจ':                'ส่งต่อสถานพยาบาล',
+  'ใบยินยอมใช้ข้อมูลเพื่อเชื่อมต่อ Health ID':               'รายงานหน่วยงานรัฐ',
+};
+
+/** เผยแพร่แล้ว · 1 รายการต่อ 1 ชื่อฟอร์ม (ชื่อซ้ำในทะเบียนคือคนละ code) */
+export const CONSENT_WORKLIST_FORM_POOL = (() => {
+  const seen = new Set();
+  return CONSENT_FORM_RECORDS
+    .filter((f) => f.status === 'เผยแพร่' && !seen.has(f.name) && seen.add(f.name))
+    .map((f) => ({
+      code: f.code,
+      name: f.name,
+      version: f.version,
+      /* ยังไม่ได้ map ชื่อไหน → ตกไปที่ PDPA (ประเภทกลางของโมดูลนี้) */
+      worklistType: WORKLIST_PURPOSE_BY_FORM_NAME[f.name] || 'PDPA',
+    }));
+})();
+
+/** ประเภท (วัตถุประสงค์) ที่ worklist + รายงานใช้จริง — ไล่จากพูล ไม่ hardcode */
+export const CONSENT_WORKLIST_TYPES = [
+  ...new Set(CONSENT_WORKLIST_FORM_POOL.map((f) => f.worklistType)),
+];
+
 /** Unique PDPA form names — autocomplete on create/edit wizard (≥3 chars). */
 export const CONSENT_FORM_NAME_SUGGESTIONS = [...new Set([
   ...FORMS.map((f) => f.name),
@@ -340,11 +387,13 @@ export const getConsentFormNameSuggestions = ({
     .slice(0, 10);
 };
 
-/** Worklist type (จัดการความยินยอม) → canonical template code in this registry. */
-const WORKLIST_TYPE_FORM_CODE = {
-  'PDPA': 'PH-009',
-  'เบิกจ่าย': 'PH-009',
-};
+/** Worklist type (จัดการความยินยอม) → canonical template code in this registry.
+    ไล่จากพูลด้านบน — ใบแรกของแต่ละวัตถุประสงค์เป็นตัวแทน (เดิม hardcode ทั้ง
+    สอง type ไป PH-009 ใบเดียว จึงเป็นที่มาของ "ทุกแถวชื่อฟอร์มเดียวกัน") */
+const WORKLIST_TYPE_FORM_CODE = CONSENT_WORKLIST_FORM_POOL.reduce((map, f) => {
+  if (!map[f.worklistType]) map[f.worklistType] = f.code;
+  return map;
+}, {});
 
 const PH_CODE_RE = /^PH-(\d+)$/i;
 

@@ -9,7 +9,7 @@ import { useNestedPopupPanel } from '@/components/popup/useNestedPopupPanel';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import { buildConsentCompareGroups } from '@/data/consentPatientHistory';
 import { resolveConsentPatientCard } from '@/data/consentPatientDisplay';
-import { CONSENT_TYPE_TONE, CONSENT_STATUS } from '@/data/consentRecords';
+import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
 import { PHCIS_CHART } from '@/data/phcisChartPalette';
 import {
   buildConsentCompareExportReport,
@@ -56,8 +56,6 @@ const COLUMN_STYLE = {
 };
 
 const FormRow = ({ item }) => {
-  const statusTone = (CONSENT_STATUS[item.status] || {}).tone || 'grey';
-  const statusLabel = (CONSENT_STATUS[item.status] || {}).label || item.status;
   return (
     <div
       className='flex flex-col w-full'
@@ -80,12 +78,12 @@ const FormRow = ({ item }) => {
           </ColorfulBadge>
         )}
       </div>
+      {/* ไม่มีป้ายสถานะในการ์ดนี้ — คอลัมน์ที่การ์ดอยู่ (ให้ / ไม่ให้ความยินยอม)
+          บอกสถานะไปแล้ว ใส่ซ้ำทำให้อ่านเหมือนมีสองสถานะขัดกันเอง
+          เหลือแต่ป้ายประเภท (วัตถุประสงค์) ซึ่งเป็นข้อมูลที่คอลัมน์ไม่ได้บอก */}
       <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
         <ColorfulBadge style={CONSENT_TYPE_TONE[item.type] || 'grey'} size='small' hierarchy='secondary' width='hug'>
           {item.type}
-        </ColorfulBadge>
-        <ColorfulBadge style={statusTone} size='small' hierarchy='secondary' width='hug'>
-          {statusLabel}
         </ColorfulBadge>
       </div>
     </div>
@@ -112,6 +110,34 @@ const GroupColumn = ({ title, icon, tone, items, emptyLabel }) => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+/* สองคอลัมน์ ให้ / ไม่ให้ความยินยอม — แยกออกมาให้ popup "แบบฟอร์มความยินยอม
+   ทั้งหมด" เอาไปใช้เป็นแท็บหนึ่งได้ โดยไม่ต้องคัดลอกโครงคอลัมน์ไปอีกที่
+   (ไม่รวม PatientSummaryCard — ผู้เรียกวางเองตามบริบทของ popup) */
+export const ConsentCompareBody = ({ hn = null, records = [] }) => {
+  const groups = useMemo(
+    () => (hn ? buildConsentCompareGroups(hn, records) : { patient: null, consented: [], declined: [] }),
+    [hn, records],
+  );
+  return (
+    <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+      <GroupColumn
+        title='ให้ความยินยอม'
+        icon='check_circle'
+        tone='teal'
+        items={groups.consented}
+        emptyLabel='ยังไม่มีแบบฟอร์มที่ให้ความยินยอม'
+      />
+      <GroupColumn
+        title='ไม่ให้ความยินยอม'
+        icon='cancel'
+        tone='pink'
+        items={groups.declined}
+        emptyLabel='ยังไม่มีแบบฟอร์มที่ไม่ให้ความยินยอม'
+      />
     </div>
   );
 };
@@ -227,22 +253,7 @@ const ConsentComparePopup = ({ open, onClose, hn = null }) => {
               />
             )}
 
-            <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
-              <GroupColumn
-                title='ให้ความยินยอม'
-                icon='check_circle'
-                tone='teal'
-                items={groups.consented}
-                emptyLabel='ยังไม่มีแบบฟอร์มที่ให้ความยินยอม'
-              />
-              <GroupColumn
-                title='ไม่ให้ความยินยอม'
-                icon='cancel'
-                tone='pink'
-                items={groups.declined}
-                emptyLabel='ยังไม่มีแบบฟอร์มที่ไม่ให้ความยินยอม'
-              />
-            </div>
+            <ConsentCompareBody hn={hn} records={records} />
           </div>
         )}
       </Popup>

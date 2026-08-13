@@ -25,10 +25,11 @@ import {
   buildDrugRegistrySearchHistorySeed,
   createDrugRecentSearchEntry,
 } from '@/data/pharmacyRegistry';
-import PharmacySubNav, { PharmacyHeaderActions } from '@/components/pharmacy/PharmacySubNav';
+import { PharmacyAddDrugButton } from '@/components/pharmacy/PharmacySubNav';
 import PharmacyRegistryEditPopup from '@/components/pharmacy/PharmacyRegistryEditPopup';
 import { buildRegistrySummaryCards } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
+import SYSTEM_NAV from '@/pages/system/systemNav';
 
 /* Drug Registry (ระบบทะเบียนยา — ToR §1.9.1) list page.
    Search / filters alias PrimarySearch + FilterDropdown + FilterTag.
@@ -36,7 +37,7 @@ import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCar
    Active toggle uses Switch + informative AlertDialog confirm
    (AccessManagement / Department pattern). */
 
-const breadcrumb = ['ระบบงานเภสัชกรรม', 'ทะเบียนยา'];
+const breadcrumb = ['จัดการระบบ', 'ตั้งค่าระบบเภสัชกรรม', 'ทะเบียนยา'];
 
 const CLASS_OPTIONS = [
   { value: 'all', label: 'ทุกประเภท' },
@@ -292,12 +293,14 @@ const PharmacyRegistryPage = () => {
   return (
     <>
     <QueuePageShell
-      activeKey='pharmacy'
+      activeKey='system-pharmacy-registry'
+      sidebarItems={SYSTEM_NAV}
+      sidebarFallbackKey='system-overview'
+      brandTitle='ระบบ PHCIS'
       breadcrumb={breadcrumb}
-      title='ระบบงานเภสัชกรรม'
+      title='ทะเบียนยา'
       summaryCards={summaryCards}
-      actions={<PharmacyHeaderActions />}
-      belowSummary={<PharmacySubNav />}
+      actions={<PharmacyAddDrugButton />}
     >
       <div
         className='flex flex-col flex-1 min-w-0'

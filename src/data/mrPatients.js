@@ -3,8 +3,9 @@
    the MR queue table and the MR registration form (data flows via
    <Link state={...}> when the user clicks a row).
 
-   Target size: 40 unique MPI rows (unique full name + unique avatarUrl).
-   Extra portraits live under public/avatars/patient-mock-20…28.png. */
+   Target size: 100 unique MPI rows (HN 67-00001…67-00100, unique full name).
+   Portraits live under public/avatars/ (41 headshots, cycled — see the
+   avatar-assignment block below). */
 
 import { PATIENT_AVATAR_POOL } from '@/data/avatarAssets';
 
@@ -350,7 +351,7 @@ export const MR_PATIENTS = [
   },
 ];
 
-/* Compact filler rows — pad MPI roster to 40 with unique Thai names.
+/* Compact filler rows — pad MPI roster to 100 with unique Thai names.
    Shared address / rights cycle keeps the file readable; each HN + name
    pair is unique (no overlap with the hand-authored rows above). */
 const MR_FILLER_SEEDS = [
@@ -380,6 +381,69 @@ const MR_FILLER_SEEDS = [
   { hn: '67-00038', prefixTh: 'นางสาว', firstNameTh: 'อังคณา', lastNameTh: 'วัฒนา', prefixEn: 'Ms.', firstNameEn: 'Angkana', lastNameEn: 'Wattana', gender: 'หญิง', age: 27, status: 'draft', rights: 'ชำระเงินเอง' },
   { hn: '67-00039', prefixTh: 'นาย', firstNameTh: 'ธนากร', lastNameTh: 'ศิริวัฒน์', prefixEn: 'Mr.', firstNameEn: 'Thanakorn', lastNameEn: 'Siriwat', gender: 'ชาย', age: 32, status: 'active', rights: 'ประกันสังคม' },
   { hn: '67-00040', prefixTh: 'นาง', firstNameTh: 'เมตตา', lastNameTh: 'บุญช่วย', prefixEn: 'Mrs.', firstNameEn: 'Metta', lastNameEn: 'Boonchuay', gender: 'หญิง', age: 49, status: 'active', rights: 'บัตรทอง' },
+  /* ── 67-00041…67-00100 — ขยาย MPI เป็น 100 ราย (13 ส.ค. 2569) ────────
+     ส่วนใหญ่ "ไม่เคยให้ความยินยอม" โดยตั้งใจ: consent MOCK_PATIENTS ครอบคลุม
+     แค่ 32 HN แรก ที่เหลือจึงเป็นเคสจริงของทะเบียนที่ยังไม่มีความยินยอมเลย */
+  { hn: '67-00041', prefixTh: 'นาย', firstNameTh: 'ก้องเกียรติ', lastNameTh: 'ไพศาล', prefixEn: 'Mr.', firstNameEn: 'Kongkiat', lastNameEn: 'Phaisan', gender: 'ชาย', age: 46, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00042', prefixTh: 'นางสาว', firstNameTh: 'ณิชาภัทร', lastNameTh: 'คำแหง', prefixEn: 'Ms.', firstNameEn: 'Nichapat', lastNameEn: 'Khamhaeng', gender: 'หญิง', age: 25, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00043', prefixTh: 'นาย', firstNameTh: 'ภูวดล', lastNameTh: 'เรืองศรี', prefixEn: 'Mr.', firstNameEn: 'Phuwadon', lastNameEn: 'Rueangsri', gender: 'ชาย', age: 37, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00044', prefixTh: 'นาง', firstNameTh: 'สร้อยทอง', lastNameTh: 'แก้วประเสริฐ', prefixEn: 'Mrs.', firstNameEn: 'Soithong', lastNameEn: 'Kaewprasert', gender: 'หญิง', age: 53, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00045', prefixTh: 'นาย', firstNameTh: 'ธนวัฒน์', lastNameTh: 'ปานเจริญ', prefixEn: 'Mr.', firstNameEn: 'Thanawat', lastNameEn: 'Pancharoen', gender: 'ชาย', age: 29, status: 'pending', rights: 'ชำระเงินเอง' },
+  { hn: '67-00046', prefixTh: 'นางสาว', firstNameTh: 'เบญจวรรณ', lastNameTh: 'อุ่นใจ', prefixEn: 'Ms.', firstNameEn: 'Benjawan', lastNameEn: 'Unjai', gender: 'หญิง', age: 34, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00047', prefixTh: 'นาย', firstNameTh: 'ศราวุธ', lastNameTh: 'กิตติชัย', prefixEn: 'Mr.', firstNameEn: 'Sarawut', lastNameEn: 'Kittichai', gender: 'ชาย', age: 42, status: 'active', rights: 'รัฐวิสาหกิจ' },
+  { hn: '67-00048', prefixTh: 'นาง', firstNameTh: 'ทัศนีย์', lastNameTh: 'พรหมมา', prefixEn: 'Mrs.', firstNameEn: 'Tassanee', lastNameEn: 'Phromma', gender: 'หญิง', age: 57, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00049', prefixTh: 'นาย', firstNameTh: 'จตุพร', lastNameTh: 'ขันติธรรม', prefixEn: 'Mr.', firstNameEn: 'Jatuporn', lastNameEn: 'Khantitham', gender: 'ชาย', age: 35, status: 'inactive', rights: 'ประกันสังคม' },
+  { hn: '67-00050', prefixTh: 'นางสาว', firstNameTh: 'พรทิพย์', lastNameTh: 'สินสมบัติ', prefixEn: 'Ms.', firstNameEn: 'Porntip', lastNameEn: 'Sinsombat', gender: 'หญิง', age: 22, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00051', prefixTh: 'นาย', firstNameTh: 'วรเชษฐ์', lastNameTh: 'ฤกษ์ดี', prefixEn: 'Mr.', firstNameEn: 'Woracheth', lastNameEn: 'Roekdi', gender: 'ชาย', age: 48, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00052', prefixTh: 'นาง', firstNameTh: 'ลักษณา', lastNameTh: 'หอมกลิ่น', prefixEn: 'Mrs.', firstNameEn: 'Laksana', lastNameEn: 'Homklin', gender: 'หญิง', age: 41, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00053', prefixTh: 'นาย', firstNameTh: 'ประสิทธิ์', lastNameTh: 'ยอดแก้ว', prefixEn: 'Mr.', firstNameEn: 'Prasit', lastNameEn: 'Yodkaew', gender: 'ชาย', age: 60, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00054', prefixTh: 'นางสาว', firstNameTh: 'กมลรัตน์', lastNameTh: 'ทวีสุข', prefixEn: 'Ms.', firstNameEn: 'Kamolrat', lastNameEn: 'Thaweesuk', gender: 'หญิง', age: 26, status: 'draft', rights: 'ชำระเงินเอง' },
+  { hn: '67-00055', prefixTh: 'นาย', firstNameTh: 'อนุชิต', lastNameTh: 'ภูมิใจ', prefixEn: 'Mr.', firstNameEn: 'Anuchit', lastNameEn: 'Phumjai', gender: 'ชาย', age: 31, status: 'active', rights: 'ประกันชีวิต AIA' },
+  { hn: '67-00056', prefixTh: 'นาง', firstNameTh: 'สุนันทา', lastNameTh: 'เกตุแก้ว', prefixEn: 'Mrs.', firstNameEn: 'Sunantha', lastNameEn: 'Ketkaew', gender: 'หญิง', age: 50, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00057', prefixTh: 'นาย', firstNameTh: 'ไพโรจน์', lastNameTh: 'สนธิ', prefixEn: 'Mr.', firstNameEn: 'Pairote', lastNameEn: 'Sonthi', gender: 'ชาย', age: 55, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00058', prefixTh: 'นางสาว', firstNameTh: 'ธัญญารัตน์', lastNameTh: 'ชูเกียรติ', prefixEn: 'Ms.', firstNameEn: 'Thanyarat', lastNameEn: 'Chukiat', gender: 'หญิง', age: 28, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00059', prefixTh: 'นาย', firstNameTh: 'กิตติพงษ์', lastNameTh: 'นิลกาญจน์', prefixEn: 'Mr.', firstNameEn: 'Kittipong', lastNameEn: 'Nilkan', gender: 'ชาย', age: 39, status: 'active', rights: 'รัฐวิสาหกิจ' },
+  { hn: '67-00060', prefixTh: 'นาง', firstNameTh: 'อัมพร', lastNameTh: 'ดวงจันทร์', prefixEn: 'Mrs.', firstNameEn: 'Amporn', lastNameEn: 'Duangchan', gender: 'หญิง', age: 63, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00061', prefixTh: 'นาย', firstNameTh: 'ชนาธิป', lastNameTh: 'ผลบุญ', prefixEn: 'Mr.', firstNameEn: 'Chanathip', lastNameEn: 'Phonbun', gender: 'ชาย', age: 27, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00062', prefixTh: 'นางสาว', firstNameTh: 'วิภาวี', lastNameTh: 'ทรงศรี', prefixEn: 'Ms.', firstNameEn: 'Wipawee', lastNameEn: 'Songsri', gender: 'หญิง', age: 33, status: 'active', rights: 'ชำระเงินเอง' },
+  { hn: '67-00063', prefixTh: 'นาย', firstNameTh: 'สุทธิพงศ์', lastNameTh: 'เลิศวิไล', prefixEn: 'Mr.', firstNameEn: 'Sutthiphong', lastNameEn: 'Loetwilai', gender: 'ชาย', age: 44, status: 'inactive', rights: 'ข้าราชการ' },
+  { hn: '67-00064', prefixTh: 'นาง', firstNameTh: 'จินตนา', lastNameTh: 'พิทักษ์', prefixEn: 'Mrs.', firstNameEn: 'Jintana', lastNameEn: 'Phithak', gender: 'หญิง', age: 46, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00065', prefixTh: 'นาย', firstNameTh: 'รังสรรค์', lastNameTh: 'อ่อนหวาน', prefixEn: 'Mr.', firstNameEn: 'Rangsan', lastNameEn: 'Onwan', gender: 'ชาย', age: 52, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00066', prefixTh: 'นางสาว', firstNameTh: 'ปวีณา', lastNameTh: 'สุขสวัสดิ์', prefixEn: 'Ms.', firstNameEn: 'Paweena', lastNameEn: 'Suksawat', gender: 'หญิง', age: 24, status: 'pending', rights: 'บัตรทอง' },
+  { hn: '67-00067', prefixTh: 'นาย', firstNameTh: 'เอกพันธ์', lastNameTh: 'ชัยมงคล', prefixEn: 'Mr.', firstNameEn: 'Ekkaphan', lastNameEn: 'Chaimongkhon', gender: 'ชาย', age: 36, status: 'active', rights: 'รัฐวิสาหกิจ' },
+  { hn: '67-00068', prefixTh: 'นาง', firstNameTh: 'รัชนี', lastNameTh: 'ปิ่นทอง', prefixEn: 'Mrs.', firstNameEn: 'Ratchanee', lastNameEn: 'Pinthong', gender: 'หญิง', age: 58, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00069', prefixTh: 'นาย', firstNameTh: 'ยุทธนา', lastNameTh: 'เพ็ชรงาม', prefixEn: 'Mr.', firstNameEn: 'Yutthana', lastNameEn: 'Phetngam', gender: 'ชาย', age: 43, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00070', prefixTh: 'นางสาว', firstNameTh: 'สิริกร', lastNameTh: 'วรรณศิลป์', prefixEn: 'Ms.', firstNameEn: 'Sirikorn', lastNameEn: 'Wannasin', gender: 'หญิง', age: 30, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00071', prefixTh: 'นาย', firstNameTh: 'ดนัย', lastNameTh: 'ทองสุข', prefixEn: 'Mr.', firstNameEn: 'Danai', lastNameEn: 'Thongsuk', gender: 'ชาย', age: 38, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00072', prefixTh: 'นาง', firstNameTh: 'ประไพ', lastNameTh: 'ศรีอุดม', prefixEn: 'Mrs.', firstNameEn: 'Praphai', lastNameEn: 'Sri-udom', gender: 'หญิง', age: 61, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00073', prefixTh: 'นาย', firstNameTh: 'ภาคภูมิ', lastNameTh: 'จันทโชติ', prefixEn: 'Mr.', firstNameEn: 'Phakphum', lastNameEn: 'Chanthachot', gender: 'ชาย', age: 34, status: 'draft', rights: 'ชำระเงินเอง' },
+  { hn: '67-00074', prefixTh: 'นางสาว', firstNameTh: 'อรวรรณ', lastNameTh: 'กล้าหาญ', prefixEn: 'Ms.', firstNameEn: 'Orawan', lastNameEn: 'Klaharn', gender: 'หญิง', age: 27, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00075', prefixTh: 'นาย', firstNameTh: 'สมพงษ์', lastNameTh: 'นาคเงิน', prefixEn: 'Mr.', firstNameEn: 'Somphong', lastNameEn: 'Nakngoen', gender: 'ชาย', age: 49, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00076', prefixTh: 'นาง', firstNameTh: 'กัลยา', lastNameTh: 'บวรรัตน์', prefixEn: 'Mrs.', firstNameEn: 'Kanlaya', lastNameEn: 'Bowonrat', gender: 'หญิง', age: 45, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00077', prefixTh: 'นาย', firstNameTh: 'ธเนศ', lastNameTh: 'อัครเดช', prefixEn: 'Mr.', firstNameEn: 'Thanet', lastNameEn: 'Akkharadet', gender: 'ชาย', age: 32, status: 'active', rights: 'ประกันชีวิต AIA' },
+  { hn: '67-00078', prefixTh: 'นางสาว', firstNameTh: 'ชลธิชา', lastNameTh: 'พูนผล', prefixEn: 'Ms.', firstNameEn: 'Chonthicha', lastNameEn: 'Phunphon', gender: 'หญิง', age: 23, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00079', prefixTh: 'นาย', firstNameTh: 'วีรยุทธ', lastNameTh: 'สมานมิตร', prefixEn: 'Mr.', firstNameEn: 'Weerayut', lastNameEn: 'Samanmit', gender: 'ชาย', age: 40, status: 'inactive', rights: 'รัฐวิสาหกิจ' },
+  { hn: '67-00080', prefixTh: 'นาง', firstNameTh: 'เพ็ญศรี', lastNameTh: 'ครองธรรม', prefixEn: 'Mrs.', firstNameEn: 'Pensri', lastNameEn: 'Khrongtham', gender: 'หญิง', age: 54, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00081', prefixTh: 'นาย', firstNameTh: 'ชูศักดิ์', lastNameTh: 'แสนสุข', prefixEn: 'Mr.', firstNameEn: 'Chusak', lastNameEn: 'Saensuk', gender: 'ชาย', age: 47, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00082', prefixTh: 'นางสาว', firstNameTh: 'ณัฐริกา', lastNameTh: 'โชคชัย', prefixEn: 'Ms.', firstNameEn: 'Nattarika', lastNameEn: 'Chokchai', gender: 'หญิง', age: 29, status: 'active', rights: 'ชำระเงินเอง' },
+  { hn: '67-00083', prefixTh: 'นาย', firstNameTh: 'ปรีชา', lastNameTh: 'ทับทิม', prefixEn: 'Mr.', firstNameEn: 'Preecha', lastNameEn: 'Thapthim', gender: 'ชาย', age: 56, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00084', prefixTh: 'นาง', firstNameTh: 'มณีรัตน์', lastNameTh: 'เอี่ยมสอาด', prefixEn: 'Mrs.', firstNameEn: 'Maneerat', lastNameEn: 'Iamsa-ard', gender: 'หญิง', age: 42, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00085', prefixTh: 'นาย', firstNameTh: 'กฤษณะ', lastNameTh: 'บำรุงเกียรติ', prefixEn: 'Mr.', firstNameEn: 'Kritsana', lastNameEn: 'Bamrungkiat', gender: 'ชาย', age: 35, status: 'pending', rights: 'ประกันสังคม' },
+  { hn: '67-00086', prefixTh: 'นางสาว', firstNameTh: 'สุพัตรา', lastNameTh: 'ไชยวงศ์', prefixEn: 'Ms.', firstNameEn: 'Supatra', lastNameEn: 'Chaiwong', gender: 'หญิง', age: 31, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00087', prefixTh: 'นาย', firstNameTh: 'โกวิท', lastNameTh: 'ธรรมรักษ์', prefixEn: 'Mr.', firstNameEn: 'Kowit', lastNameEn: 'Thammarak', gender: 'ชาย', age: 59, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00088', prefixTh: 'นาง', firstNameTh: 'ยุพิน', lastNameTh: 'แสงเดือน', prefixEn: 'Mrs.', firstNameEn: 'Yupin', lastNameEn: 'Saengduean', gender: 'หญิง', age: 48, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00089', prefixTh: 'นาย', firstNameTh: 'ทวีศักดิ์', lastNameTh: 'ปัญญาดี', prefixEn: 'Mr.', firstNameEn: 'Thaweesak', lastNameEn: 'Panyadee', gender: 'ชาย', age: 37, status: 'active', rights: 'รัฐวิสาหกิจ' },
+  { hn: '67-00090', prefixTh: 'นางสาว', firstNameTh: 'จุฑามาศ', lastNameTh: 'ลีลาวดี', prefixEn: 'Ms.', firstNameEn: 'Juthamas', lastNameEn: 'Leelawadee', gender: 'หญิง', age: 25, status: 'draft', rights: 'ชำระเงินเอง' },
+  { hn: '67-00091', prefixTh: 'นาย', firstNameTh: 'นครินทร์', lastNameTh: 'เสาวภาคย์', prefixEn: 'Mr.', firstNameEn: 'Nakharin', lastNameEn: 'Saowaphak', gender: 'ชาย', age: 41, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00092', prefixTh: 'นาง', firstNameTh: 'สมคิด', lastNameTh: 'อุดมทรัพย์', prefixEn: 'Mrs.', firstNameEn: 'Somkid', lastNameEn: 'Udomsap', gender: 'หญิง', age: 64, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00093', prefixTh: 'นาย', firstNameTh: 'พิษณุ', lastNameTh: 'กมลเทพ', prefixEn: 'Mr.', firstNameEn: 'Phitsanu', lastNameEn: 'Kamonthep', gender: 'ชาย', age: 33, status: 'active', rights: 'ประกันสังคม' },
+  { hn: '67-00094', prefixTh: 'นางสาว', firstNameTh: 'ณัฏฐณิชา', lastNameTh: 'รักไทย', prefixEn: 'Ms.', firstNameEn: 'Natthanicha', lastNameEn: 'Rakthai', gender: 'หญิง', age: 26, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00095', prefixTh: 'นาย', firstNameTh: 'สราวุฒิ', lastNameTh: 'ภักดีชน', prefixEn: 'Mr.', firstNameEn: 'Sarawuth', lastNameEn: 'Phakdichon', gender: 'ชาย', age: 45, status: 'active', rights: 'ข้าราชการ' },
+  { hn: '67-00096', prefixTh: 'นาง', firstNameTh: 'วันเพ็ญ', lastNameTh: 'สุขเกษม', prefixEn: 'Mrs.', firstNameEn: 'Wanpen', lastNameEn: 'Sukkasem', gender: 'หญิง', age: 51, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00097', prefixTh: 'นาย', firstNameTh: 'อธิป', lastNameTh: 'วรรณกิจ', prefixEn: 'Mr.', firstNameEn: 'Athip', lastNameEn: 'Wannakit', gender: 'ชาย', age: 28, status: 'active', rights: 'ประกันชีวิต AIA' },
+  { hn: '67-00098', prefixTh: 'นางสาว', firstNameTh: 'รัตติกาล', lastNameTh: 'พงษ์ไพบูลย์', prefixEn: 'Ms.', firstNameEn: 'Rattikan', lastNameEn: 'Phongphaiboon', gender: 'หญิง', age: 34, status: 'inactive', rights: 'ประกันสังคม' },
+  { hn: '67-00099', prefixTh: 'นาย', firstNameTh: 'บรรจง', lastNameTh: 'เขียวสด', prefixEn: 'Mr.', firstNameEn: 'Banchong', lastNameEn: 'Khiaosot', gender: 'ชาย', age: 57, status: 'active', rights: 'บัตรทอง' },
+  { hn: '67-00100', prefixTh: 'นาง', firstNameTh: 'ศศิธร', lastNameTh: 'มงคลชัย', prefixEn: 'Mrs.', firstNameEn: 'Sasithorn', lastNameEn: 'Mongkolchai', gender: 'หญิง', age: 39, status: 'active', rights: 'ข้าราชการ' },
 ];
 
 const FILLER_ADDRESS = {
@@ -413,11 +477,13 @@ MR_FILLER_SEEDS.forEach((seed, i) => {
   });
 });
 
-/* One unique portrait per MPI row — PATIENT_AVATAR_POOL has 40 adult
-   headshots (incl. generated patient-mock-20…28). */
-if (MR_PATIENTS.length !== PATIENT_AVATAR_POOL.length) {
+/* Portrait per MPI row. PATIENT_AVATAR_POOL มี 41 headshot แต่ทะเบียนมี 100 ราย
+   จึงวนซ้ำ — เลือก modulo แทนการสุ่ม เพื่อให้ 41 แถวติดกันไม่มีหน้าซ้ำ (หน้า
+   ตารางละ 20 แถวจึงไม่มีวันเห็นหน้าซ้ำภายในหน้าเดียว) เตือนเฉพาะตอนพูลว่าง
+   หรือเล็กกว่าหนึ่งหน้าเท่านั้น — จำนวนไม่เท่ากันเป็นเรื่องปกติแล้ว */
+if (PATIENT_AVATAR_POOL.length < 20) {
   console.warn(
-    `[mrPatients] expected ${PATIENT_AVATAR_POOL.length} unique avatars for ${MR_PATIENTS.length} patients`,
+    `[mrPatients] avatar pool has only ${PATIENT_AVATAR_POOL.length} portraits — faces will repeat inside one table page`,
   );
 }
 MR_PATIENTS.forEach((p, i) => {

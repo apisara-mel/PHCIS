@@ -11,8 +11,11 @@ import { Icon } from '@/components/icons/Icon';
    (per-tab button) + TabUnderlineBar (parent wrapper) split.
 
    Props:
-     • tabs       Array<{ key, label, count? }>  (`icon` on a tab is ignored —
-                  underline tabs are label-only; no leading icon)
+     • tabs       Array<{ key, label, count?, groupStart? }>  (`icon` on a tab
+                  is ignored — underline tabs are label-only; no leading icon)
+                  `groupStart: true` draws a vertical divider *before* that tab
+                  so one strip can carry two kinds of tab (e.g. a set of status
+                  worklists + a separate directory view). Ignored on index 0.
      • value      currently selected tab key
      • onChange   (key) => void
      • animated   default true. When false, each tab paints its own
@@ -352,8 +355,23 @@ const TabUnderline = React.forwardRef(function TabUnderline(
         <div
           key={tab.key}
           data-tab-idx={idx}
+          className='flex items-stretch'
           style={{ display: idx >= firstHiddenIdx ? 'none' : undefined }}
         >
+          {/* Group divider — only when this tab opens a new group AND it is
+              not the first *visible* tab (a leading rule would dangle). */}
+          {tab.groupStart && idx > 0 && idx !== firstHiddenIdx && (
+            <span
+              aria-hidden
+              style={{
+                alignSelf: 'center',
+                width: 'var(--dim-stroke-100, 1px)',
+                height: 'var(--dim-space-500, 20px)',
+                background: 'var(--border-neutral-tertiary, #E2E4E6)',
+                flexShrink: 0,
+              }}
+            />
+          )}
           <TabButton
             tab={tab}
             selected={tab.key === value}
@@ -420,11 +438,26 @@ const TabUnderline = React.forwardRef(function TabUnderline(
             flexDirection: 'column',
           }}
         >
-          {hiddenTabs.map((tab) => {
+          {hiddenTabs.map((tab, hIdx) => {
             const selected = tab.key === value;
+            /* Carry the group break into the overflow menu as a horizontal rule. */
+            const rule = tab.groupStart && hIdx > 0 ? (
+              <span
+                key={`${tab.key}-rule`}
+                aria-hidden
+                style={{
+                  display: 'block',
+                  height: 'var(--dim-stroke-100, 1px)',
+                  background: 'var(--border-neutral-tertiary, #E2E4E6)',
+                  marginTop: 'var(--dim-space-100, 4px)',
+                  marginBottom: 'var(--dim-space-100, 4px)',
+                }}
+              />
+            ) : null;
             return (
+              <React.Fragment key={tab.key}>
+              {rule}
               <ActionList
-                key={tab.key}
                 as='button'
                 role='menuitem'
                 showLeadingIcon={false}
@@ -461,6 +494,7 @@ const TabUnderline = React.forwardRef(function TabUnderline(
                   fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
                 }}
               />
+              </React.Fragment>
             );
           })}
         </div>

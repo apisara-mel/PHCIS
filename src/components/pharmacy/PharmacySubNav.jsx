@@ -12,7 +12,6 @@ import PharmacyBorrowReturnRequestButton from '@/components/pharmacy/PharmacyBor
 const LINKS = [
   { key: 'queue',       label: 'คิวจ่ายยา',           path: '/pharmacy/queue'       },
   { key: 'patients',    label: 'ผู้รับบริการทั้งหมด', path: '/pharmacy/patients'    },
-  { key: 'registry',    label: 'ทะเบียนยา',           path: '/pharmacy/registry'    },
   { key: 'stock',       label: 'คลังยาและเวชภัณฑ์',   path: '/pharmacy/stock'       },
   { key: 'requisition', label: 'เบิกจ่าย/รับเข้าคลัง', path: '/pharmacy/requisition' },
   { key: 'reports',     label: 'รายงาน',              path: '/pharmacy/reports'     },
@@ -22,7 +21,6 @@ const TABS = LINKS.map(({ key, label }) => ({ key, label }));
 
 const resolveActiveKey = (pathname) => {
   if (pathname.startsWith('/pharmacy/patients')) return 'patients';
-  if (pathname.startsWith('/pharmacy/registry')) return 'registry';
   if (pathname.startsWith('/pharmacy/stock')) return 'stock';
   if (pathname.startsWith('/pharmacy/requisition')) return 'requisition';
   if (pathname.startsWith('/pharmacy/reports')) return 'reports';
@@ -33,12 +31,11 @@ const resolveActiveKey = (pathname) => {
 
 /** Primary action — same SubHeader slot on every pharmacy list page. */
 export const PharmacyAddDrugButton = () => {
-  const history = useHistory();
-  const { pathname } = useLocation();
-  if (pathname === '/pharmacy/registry/new') return null;
-
+  const openCreateDrug = () => {
+    window.open('/admin/pharmacy/registry/new', '_blank', 'noopener,noreferrer');
+  };
   return (
-    <BrandButton size='md' leadingIcon='add' onClick={() => history.push('/pharmacy/registry/new')}>
+    <BrandButton size='md' leadingIcon='add' onClick={openCreateDrug}>
       เพิ่มทะเบียนยา
     </BrandButton>
   );

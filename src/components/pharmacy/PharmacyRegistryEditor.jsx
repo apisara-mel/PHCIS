@@ -48,6 +48,7 @@ import {
 } from '@/data/pharmacyTmtCatalog';
 import { stripConsentScopes } from '@/data/consentFormScopes';
 import { PHARMACY_WORKLIST_CARD } from '@/pages/pharmacy/pharmacyContentCard';
+import SYSTEM_NAV from '@/pages/system/systemNav';
 
 /* Registry ชื่อยา photo — aliases design-system PhotoUploadField (Figma Photo
    3420:2565). Empty = dashed upload tile; filled = preview + clear. */
@@ -1400,8 +1401,11 @@ const PharmacyRegistryEditor = ({
     }
     return (
       <QueuePageShell
-        activeKey='pharmacy'
-        breadcrumb={['ระบบงานเภสัชกรรม', 'ทะเบียนยา', 'ไม่พบรายการยา']}
+        activeKey='system-pharmacy-registry'
+        sidebarItems={SYSTEM_NAV}
+        sidebarFallbackKey='system-overview'
+        brandTitle='ระบบ PHCIS'
+        breadcrumb={['จัดการระบบ', 'ทะเบียนยา', 'ไม่พบรายการยา']}
         title='ไม่พบรายการยา'
         onBack={onCancel}
         backLabel='กลับไปยังทะเบียนยา'
@@ -1529,12 +1533,15 @@ const PharmacyRegistryEditor = ({
     );
   }
 
-  const breadcrumb = ['ระบบงานเภสัชกรรม', 'ทะเบียนยา', isNew ? 'เพิ่มทะเบียนยา' : form.name || 'แก้ไขรายการยา'];
+  const breadcrumb = ['จัดการระบบ', 'ทะเบียนยา', isNew ? 'เพิ่มทะเบียนยา' : form.name || 'แก้ไขรายการยา'];
 
   return (
     <>
       <QueuePageShell
-        activeKey='pharmacy'
+        activeKey='system-pharmacy-registry'
+        sidebarItems={SYSTEM_NAV}
+        sidebarFallbackKey='system-overview'
+        brandTitle='ระบบ PHCIS'
         breadcrumb={breadcrumb}
         {...WIZARD_MORPH_SHELL_PROPS}
         headerInfo={(

@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""Show local Codex session status without reading credentials."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sqlite3
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Show Codex model, usage, and runtime mode")
+    parser.add_argument("--all", action="store_true", help="show recent sessions")
+    parser.add_argument("--json", action="store_true", help="emit JSON")
+    parser.add_argument("--watch", type=float, metavar="SECONDS", help="refresh continuously")
+    parser.add_argument("--limit", type=int, default=8, help="sessions shown with --all")
+    return parser.parse_args()
+
+
+def codex_home() -> Path:
+    return Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).expanduser()
+
+
+def human_tokens(value: int) -> str:
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.2f}M"
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}K"
+    return str(value)
+
+
+def sandbox_summary(raw: str) -> tuple[str, str]:
+    try:
+        value = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return raw or "unknown", "unknown"
+    mode = value.get("type", "unknown")
+    network = value.get("network", "unspecified")
+    file_system = value.get("file_system") or {}
+    fs_type = file_system.get("type")
+    if fs_type:
+        mode = f"{mode}/{fs_type}"
+    return mode, network
+
+
+def cli_version() -> str:
+    try:
+        result = subprocess.run(
+            ["codex", "--version"], capture_output=True, text=True, timeout=3, check=False
+        )
+        return (result.stdout or result.stderr).strip().splitlines()[-1]
+    except (OSError, subprocess.TimeoutExpired, IndexError):
+        return "unavailable"
+
+
+def load_sessions(limit: int, all_sessions: bool) -> list[dict]:
+    db_path = codex_home() / "state_5.sqlite"
+    if not db_path.exists():
+        raise RuntimeError(f"Codex state database not found: {db_path}")
+
+    where = "" if all_sessions else "WHERE cwd = ?"
+    params: list[object] = [] if all_sessions else [os.getcwd()]
+    params.append(max(1, limit if all_sessions else 1))
+    query = f"""
+        SELECT id, title, model, reasoning_effort, tokens_used, sandbox_policy,
+               approval_mode, memory_mode, updated_at, cwd, cli_version,
+               history_mode, agent_role, source
+        FROM threads
+        {where}
+        ORDER BY updated_at DESC
+        LIMIT ?
+    """
+
+    connection = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=2)
+    connection.row_factory = sqlite3.Row
+    try:
+        rows = connection.execute(query, params).fetchall()
+        if not rows and not all_sessions:
+            rows = connection.execute(query.replace(where, ""), [1]).fetchall()
+    finally:
+        connection.close()
+
+    sessions = []
+    for row in rows:
+        sandbox, network = sandbox_summary(row["sandbox_policy"])
+        sessions.append(
+            {
+                "session_id": row["id"],
+                "title": row["title"] or "Untitled",
+                "model": row["model"] or "not recorded",
+                "reasoning_effort": row["reasoning_effort"] or "default",
+                "tokens_used": row["tokens_used"],
+                "tokens_used_human": human_tokens(row["tokens_used"]),
+                "sandbox_mode": sandbox,
+                "network": network,
+                "approval_mode": row["approval_mode"] or "unknown",
+                "memory_mode": row["memory_mode"] or "unknown",
+                "history_mode": row["history_mode"] or "unknown",
+                "agent_role": row["agent_role"] or "primary",
+                "source": row["source"] or "unknown",
+                "updated_at": datetime.fromtimestamp(row["updated_at"]).astimezone().isoformat(timespec="seconds"),
+                "cwd": row["cwd"],
+                "cli_version": row["cli_version"] or cli_version(),
+            }
+        )
+    return sessions
+
+
+def display(session: dict, index: int | None = None) -> None:
+    heading = "Codex status" if index is None else f"Session {index}"
+    print(f"\033[1;36m{heading}\033[0m")
+    print(f"  Model       : {session['model']}")
+    print(f"  Reasoning   : {session['reasoning_effort']}")
+    print(f"  Usage       : {session['tokens_used_human']} tokens (session cumulative)")
+    print(f"  Mode        : sandbox={session['sandbox_mode']}, approvals={session['approval_mode']}")
+    print(f"  Network     : {session['network']}")
+    print(f"  Memory      : {session['memory_mode']}")
+    print(f"  Agent       : {session['agent_role']} ({session['source']})")
+    print(f"  Thread      : {session['title']}")
+    print(f"  Session ID  : {session['session_id']}")
+    print(f"  Updated     : {session['updated_at']}")
+    print(f"  CLI         : {session['cli_version']}")
+    print(f"  Directory   : {session['cwd']}")
+
+
+def render(args: argparse.Namespace) -> None:
+    sessions = load_sessions(args.limit, args.all)
+    if not sessions:
+        raise RuntimeError("No Codex sessions found")
+    if args.json:
+        print(json.dumps(sessions if args.all else sessions[0], ensure_ascii=False, indent=2))
+        return
+    for index, session in enumerate(sessions, 1):
+        if index > 1:
+            print()
+        display(session, index if args.all else None)
+    if not args.all:
+        print("\n  Note: API/account quota remaining is not exposed in the local session database.")
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        while True:
+            if args.watch:
+                print("\033[2J\033[H", end="")
+            render(args)
+            if not args.watch:
+                break
+            time.sleep(max(0.5, args.watch))
+        return 0
+    except (RuntimeError, sqlite3.Error) as error:
+        print(f"codex-status: {error}", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        return 130
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -56,12 +56,14 @@ import {
 } from '@/pages/consent/consentWorkflowPopups';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
-import { enrichConsentRow, resolveConsentPatientCard } from '@/data/consentPatientDisplay';
+import { enrichConsentRow, resolveConsentPatient, resolveConsentPatientCard } from '@/data/consentPatientDisplay';
+import { MR_PATIENTS } from '@/data/mrPatients';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import Icon from '@/components/icons/Icon';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
-import ConsentHistoryPopup from '@/pages/consent/ConsentHistoryPopup';
-import ConsentComparePopup from '@/pages/consent/ConsentComparePopup';
+/* ConsentHistoryPopup / ConsentComparePopup ไม่ได้ mount ที่นี่แล้ว — ทั้งสอง
+   มุมมองถูกยุบเข้าไปเป็นแท็บใน ConsentConsentedFormsPopup (13 ส.ค. 2569)
+   ตัว popup เดิมยังอยู่ในโค้ดเบสสำหรับหน้า /consent/history */
 import ConsentConsentedFormsPopup from '@/pages/consent/ConsentConsentedFormsPopup';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
@@ -80,6 +82,30 @@ const breadcrumb = ['จัดการความยินยอม'];
 const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'sent', 'consented', 'rejected', 'expiring', 'expired']);
 /* ไม่มีแท็บที่ซ่อน filter ทั้งหมด — คง Set ว่างไว้ให้ onTabChange ใช้ได้ */
 const FILTERS_HIDDEN_TABS = new Set();
+
+/* แท็บ 'all' = "ผู้รับบริการทั้งหมด" — 1 แถว = 1 คน (แท็บอื่น 1 แถว = 1 ฉบับ) */
+const PATIENT_TAB = 'all';
+
+/* ป้ายสรุปในแถวผู้รับบริการ — เรียงตาม "ต้องลงมือก่อน" ไม่ใช่ลำดับแท็บ
+   tone ตรงกับ CONSENT_STATUS เดิม เพื่อให้สีของสถานะเดียวกันไม่เปลี่ยนความหมาย
+   ข้ามแท็บ · bucket ไม่ทับกัน (ยอดรวมทั้ง 6 = จำนวนฉบับของคนนั้นพอดี) */
+const PATIENT_BUCKETS = [
+  { tab: 'pending',   label: 'รอดำเนินการ',      tone: 'red'    },
+  { tab: 'sent',      label: 'รอลงนาม',          tone: 'orange' },
+  { tab: 'expiring',  label: 'ใกล้หมดอายุ',       tone: 'yellow' },
+  { tab: 'expired',   label: 'หมดอายุ',          tone: 'red'    },
+  { tab: 'consented', label: 'ยินยอมแล้ว',        tone: 'green'  },
+  { tab: 'rejected',  label: 'ปฏิเสธ / เพิกถอน',  tone: 'grey'   },
+];
+
+/* ทะเบียนผู้รับบริการทั้งระบบ = MPI (`MR_PATIENTS`, 100 ราย) ไม่ใช่รายชื่อที่
+   ยุบจาก consent record — คนที่ยังไม่เคยมีคำขอความยินยอมเลยต้องอยู่ในตารางด้วย
+   (นั่นคือกลุ่มที่เจ้าหน้าที่ต้องตามไปขอความยินยอม) · ชื่อ/รูปดึงผ่าน resolver
+   ตัวเดียวกับ worklist เพื่อให้คนเดียวกันหน้าตาเหมือนกันทุกแท็บ */
+const PATIENT_DIRECTORY = MR_PATIENTS.map((mr) => {
+  const { name, avatarUrl } = resolveConsentPatient(mr.hn);
+  return { id: mr.hn, hn: mr.hn, name, avatarUrl };
+});
 
 const TEXT_CELL = {
   color: 'var(--text-content-default)',
@@ -140,9 +166,9 @@ export default function ConsentManagementPage() {
   const [sortConfig, setSortConfig] = useState({ key: 'createdDate', direction: 'asc' });
   const [dialog, setDialog] = useState(null);      // { record, confirmKey }
   /* ── Workflow popups (ด.1.1.7 / ด.1.1.8 / ด.1.1.1 / ด.1.1.2) ── */
-  const [historyPopup, setHistoryPopup] = useState(null); /* null | { hn?: string } */
-  const [compareFor, setCompareFor] = useState(null); /* null | { hn, name } */
-  const [viewConsentedFor, setViewConsentedFor] = useState(null); /* null | { hn, name, record } */
+  /* null | { hn, name, record, allForPatient } — popup เดียวที่รวม
+     แบบฟอร์มทั้งหมด / เปรียบเทียบ / Timeline ไว้เป็นแท็บ */
+  const [viewConsentedFor, setViewConsentedFor] = useState(null);
   const [reconsentFor, setReconsentFor] = useState(null);        // record
   const [paperFor, setPaperFor] = useState(null);                // record
   const [editFor, setEditFor] = useState(null);                  // signed record → PersonalDataConsentEditPopup
@@ -183,13 +209,20 @@ export default function ConsentManagementPage() {
       });
   }, [search, rows]);
 
-  /* ── Tabs with live counts (ทั้งระบบ) · Summary = เดือนนี้เท่านั้น ── */
+  /* ── Tabs with live counts (ทั้งระบบ) · Summary = เดือนนี้เท่านั้น ──
+     สองกลุ่ม คั่นด้วยเส้นแบ่ง (`groupStart`):
+       กลุ่ม 1 — worklist ตามสถานะความยินยอม (รอดำเนินการ … หมดอายุ)
+                 1 แถว = 1 ฉบับ · ตอบ "งานที่ต้องทำอยู่ตรงไหน" · เรียงตามวันที่
+       กลุ่ม 2 — ผู้รับบริการทั้งหมด: 1 แถว = 1 คน · ทะเบียนไว้ค้นรายคน · เรียงตาม HN
+     count จึงคนละหน่วยกัน — กลุ่มซ้ายนับ "ฉบับ" กลุ่มขวานับ "คน" (HN ไม่ซ้ำ)
+     แยก label ที่นี่ ไม่แก้ CONSENT_TABS เพราะ TelemedConsentPage ใช้ชุดเดียวกัน */
   const tabs = useMemo(() => CONSENT_TABS.map((t) => ({
     key: t.value,
-    label: t.label,
+    label: t.value === PATIENT_TAB ? 'ผู้รับบริการทั้งหมด' : t.label,
     icon: t.icon,
-    count: t.value === 'all'
-      ? rows.length
+    groupStart: t.value === PATIENT_TAB,
+    count: t.value === PATIENT_TAB
+      ? PATIENT_DIRECTORY.length
       : rows.filter((r) => matchesConsentWorklistTab(r, t.value)).length})), [rows]);
 
   const summaryCards = useMemo(() => buildConsentSummary(rows), [rows]);
@@ -263,11 +296,96 @@ export default function ConsentManagementPage() {
     return copy;
   }, [filtered, sortConfig]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  /* ── แท็บผู้รับบริการ: ยุบ record หลายฉบับของ HN เดียวกันเป็นแถวเดียว ──
+     ตัวกรอง (ช่องทาง / สถานะ / วันที่ / ค้นหา) ทำงานที่ระดับ *ฉบับ* ก่อน
+     แล้วค่อยยุบ — กรอง "สถานะ = หมดอายุ" จึงได้ "คนที่มีฉบับหมดอายุ" พร้อม
+     ยอดที่นับเฉพาะฉบับที่ผ่านตัวกรอง ไม่ใช่ทั้งแฟ้มของคนนั้น */
+  const isPatientTab = activeTab === PATIENT_TAB;
+
+  const patientRows = useMemo(() => {
+    if (!isPatientTab) return [];
+    /* 1) ยุบเฉพาะ "ฉบับที่ผ่านตัวกรอง" ตาม HN */
+    const byHn = new Map();
+    filtered.forEach((r) => {
+      let p = byHn.get(r.hn);
+      if (!p) {
+        p = {
+          total: 0, buckets: {}, lastActivity: '-', lastActivityKey: 0,
+          lastChannel: '-', latestSigned: null, latestSignedKey: 0,
+          guardian: r.guardian,
+        };
+        byHn.set(r.hn, p);
+      }
+      p.total += 1;
+      const bucket = PATIENT_BUCKETS.find((b) => matchesConsentWorklistTab(r, b.tab));
+      if (bucket) p.buckets[bucket.tab] = (p.buckets[bucket.tab] || 0) + 1;
+
+      /* ล่าสุด = วันที่ใหม่สุดในบรรดา สร้าง / ลงนาม / ถอน ของทุกฉบับของคนนี้ */
+      [r.createdDate, r.signedDate, r.withdrawnDate].forEach((d) => {
+        const k = thaiDateSortKey(d);
+        if (k > p.lastActivityKey) {
+          p.lastActivityKey = k;
+          p.lastActivity = d;
+          p.lastChannel = (r.signChannel && r.signChannel !== '-')
+            ? r.signChannel
+            : (r.requestChannel || (r.autoSent ? 'เวชระเบียน' : '-'));
+        }
+      });
+
+      /* ฉบับที่ลงนามล่าสุด — ใช้เป็นเป้าของปุ่ม "ดูแบบฟอร์มที่ให้ความยินยอม" */
+      if (r.status === 'ยินยอมแล้ว') {
+        const k = thaiDateSortKey(r.signedDate);
+        if (!p.latestSigned || k >= p.latestSignedKey) {
+          p.latestSigned = r;
+          p.latestSignedKey = k;
+        }
+      }
+    });
+
+    /* 2) จำนวนฉบับ "ทั้งหมด" (ไม่สนตัวกรอง) — ใช้แยก 2 กรณีที่ยอด = 0
+          ออกจากกัน: ไม่เคยให้ความยินยอมเลย ↔ มีอยู่แต่ไม่ตรงตัวกรองปัจจุบัน */
+    const everTotal = new Map();
+    rows.forEach((r) => everTotal.set(r.hn, (everTotal.get(r.hn) || 0) + 1));
+
+    /* 3) กางทะเบียนทั้ง 100 ราย แล้วค่อยติดยอด — คนที่ไม่มีฉบับเลยยังอยู่ในตาราง */
+    const q = search.trim().toLowerCase();
+    return PATIENT_DIRECTORY
+      .filter((p) => !q
+        || String(p.name).toLowerCase().includes(q)
+        || String(p.hn).toLowerCase().includes(q))
+      .map((p) => ({
+        ...p,
+        total: 0, buckets: {}, lastActivity: '-', lastActivityKey: 0,
+        lastChannel: '-', latestSigned: null, latestSignedKey: 0,
+        ...(byHn.get(p.hn) || null),
+        everTotal: everTotal.get(p.hn) || 0,
+      }));
+  }, [filtered, rows, search, isPatientTab]);
+
+  const sortedPatients = useMemo(() => {
+    const { key, direction } = sortConfig;
+    const sign = direction === 'desc' ? -1 : 1;
+    const byHn = (a, b) => String(a.hn).localeCompare(String(b.hn), 'th', { numeric: true });
+    const copy = patientRows.slice();
+    copy.sort((a, b) => {
+      let primary;
+      if (key === 'total') primary = a.total - b.total;
+      else if (key === 'lastActivity') primary = a.lastActivityKey - b.lastActivityKey;
+      else if (key === 'name') primary = String(a.name ?? '').localeCompare(String(b.name ?? ''), 'th');
+      else primary = byHn(a, b);
+      return primary !== 0 ? sign * primary : byHn(a, b);
+    });
+    return copy;
+  }, [patientRows, sortConfig]);
+
+  const displayRows = isPatientTab ? sortedPatients : sorted;
+  const totalPages = Math.max(1, Math.ceil(displayRows.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-  const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
+  const pageRows = displayRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const rangeStart = displayRows.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * PAGE_SIZE, displayRows.length);
+  /* ยอด "จากทั้งหมด" ต้องเป็นหน่วยเดียวกับแถว — คน (ทั้งทะเบียน) หรือ ฉบับ */
+  const displayTotal = isPatientTab ? PATIENT_DIRECTORY.length : rows.length;
   const hideStatusFilter = STATUS_FILTER_HIDDEN_TABS.has(activeTab);
   const hideFilters = FILTERS_HIDDEN_TABS.has(activeTab);
 
@@ -375,6 +493,10 @@ export default function ConsentManagementPage() {
         }}
       >
         <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+        {/* แท็บสถานะ = 1 แถว 1 ฉบับ → เหลือเฉพาะ action ระดับฉบับ
+            เปรียบเทียบ (compare_arrows) และ Timeline การเปลี่ยนแปลง (history)
+            เป็นมุมมองระดับ "คน" ไม่ใช่ระดับฉบับ — ย้ายไปอยู่แท็บ
+            ผู้รับบริการทั้งหมด ที่ 1 แถว = 1 คน แทน (renderPatientAction) */}
         <NeutralSubdueIconButton
           icon='visibility'
           variant='outline'
@@ -382,22 +504,6 @@ export default function ConsentManagementPage() {
           aria-label='ดูแบบฟอร์มที่ให้ความยินยอม'
           title='ดูแบบฟอร์มที่ให้ความยินยอม'
           onClick={() => setViewConsentedFor({ hn: row.hn, name: row.name, record: row })}
-        />
-        <NeutralSubdueIconButton
-          icon='compare_arrows'
-          variant='outline'
-          size='sm'
-          aria-label='เปรียบเทียบการให้ความยินยอม'
-          title='เปรียบเทียบให้ / ไม่ให้ความยินยอม'
-          onClick={() => setCompareFor({ hn: row.hn, name: row.name })}
-        />
-        <NeutralSubdueIconButton
-          icon='history'
-          variant='outline'
-          size='sm'
-          aria-label='ดูประวัติความยินยอม'
-          title='ประวัติความยินยอม'
-          onClick={() => setHistoryPopup({ hn: row.hn })}
         />
         {/* ด.1.1.2 — แถว signed แก้ไข/เพิกถอนรายข้อ 5.1/5.2 (ผ่าน verify) */}
         {row.status === 'ยินยอมแล้ว' && (
@@ -433,6 +539,31 @@ export default function ConsentManagementPage() {
       </div>
     );
   };
+
+  /* แถวผู้รับบริการไม่มี "สถานะเดียว" จึงไม่มี CTA ตามสถานะ — เหลือแต่ 3 ปุ่ม
+     ระดับคน ชุดเดียวกับแท็บอื่นเพื่อไม่ให้ไอคอนเดิมเปลี่ยนความหมาย */
+  const renderPatientAction = (p) => (
+    <div
+      className='flex items-center justify-end'
+      style={{ gap: 'var(--dim-space-150)', paddingRight: 'var(--dim-space-400, 16px)' }}
+    >
+      {/* แถวนี้เป็น "คน" ไม่ใช่ "ฉบับ" — ปุ่มเดียวเปิด popup ที่รวมทั้ง 3 มุมมอง
+          ของคนคนนั้นไว้เป็นแท็บ (แบบฟอร์มทั้งหมด · เปรียบเทียบให้/ไม่ให้ ·
+          Timeline การเปลี่ยนแปลง) เดิมเป็น 3 ไอคอน → 3 popup แยก */}
+      <NeutralSubdueIconButton
+        icon='visibility'
+        variant='outline'
+        size='sm'
+        disabled={!p.everTotal}
+        aria-label='ดูความยินยอมของผู้รับบริการรายนี้'
+        title={p.everTotal
+          ? `ดูความยินยอม — แบบฟอร์มทั้งหมด (${p.everTotal} ฉบับ) · เปรียบเทียบ · Timeline`
+          : 'ยังไม่มีแบบฟอร์มความยินยอม'}
+        onClick={() => p.everTotal
+          && setViewConsentedFor({ hn: p.hn, name: p.name, record: null, allForPatient: true })}
+      />
+    </div>
+  );
 
   const columns = useMemo(() => {
     const colCreatedDate = {
@@ -591,6 +722,74 @@ export default function ConsentManagementPage() {
     };
     const colAction = { key: 'action', header: 'การดำเนินการ', render: renderAction };
 
+    /* ── ผู้รับบริการทั้งหมด — 1 แถว = 1 คน ────────────────────────────
+       คอลัมน์ตอบคำถามของทะเบียน: คนนี้เป็นใคร · มีความยินยอมกี่ฉบับ ·
+       สภาพรวมเป็นยังไง · ขยับล่าสุดเมื่อไร — ไม่ใช่รายละเอียดของฉบับใดฉบับหนึ่ง */
+    if (activeTab === PATIENT_TAB) {
+      return [
+        colHn,
+        colName,
+        {
+          key: 'total', header: 'จำนวนความยินยอม', sortable: true,
+          render: (p) => (
+            <span
+              className='whitespace-nowrap'
+              style={{ ...(p.total ? TEXT_CELL : MUTED_CELL), fontVariantNumeric: 'tabular-nums' }}
+            >
+              {p.total} ฉบับ
+            </span>
+          ),
+        },
+        {
+          key: 'buckets', header: 'สถานะความยินยอม', flex: true, minWidth: 420,
+          render: (p) => {
+            const shown = PATIENT_BUCKETS.filter((b) => p.buckets[b.tab]);
+            if (shown.length) {
+              return (
+                <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
+                  {shown.map((b) => (
+                    <ColorfulBadge key={b.tab} style={b.tone} size='small' hierarchy='secondary' width='hug'>
+                      {`${b.label} ${p.buckets[b.tab]}`}
+                    </ColorfulBadge>
+                  ))}
+                </div>
+              );
+            }
+            /* ยอด 0 มีสองความหมาย — อย่าให้อ่านปนกัน
+               · everTotal 0 = ไม่เคยมีคำขอความยินยอมเลย → เป็นคุณสมบัติของคนคนนั้น
+                 (กลุ่มที่เจ้าหน้าที่ต้องตามไปขอ) จึงใช้ป้ายเหมือนสถานะอื่น
+               · everTotal > 0 = มีความยินยอม แต่ไม่มีฉบับไหนตรงตัวกรองที่เลือกอยู่
+                 → เป็นผลของมุมมอง ไม่ใช่ของคน จึงเป็นข้อความจาง ไม่ใช่ป้าย */
+            if (!p.everTotal) {
+              return (
+                <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+                  ไม่เคยให้ความยินยอม
+                </ColorfulBadge>
+              );
+            }
+            return (
+              <span style={MUTED_CELL}>
+                ไม่มีฉบับที่ตรงตัวกรอง (ทั้งหมด {p.everTotal} ฉบับ)
+              </span>
+            );
+          },
+        },
+        {
+          key: 'lastChannel', header: 'ช่องทางล่าสุด',
+          render: (p) => (
+            <span className='block whitespace-nowrap' style={TEXT_CELL}>
+              {p.lastChannel && p.lastChannel !== '-' ? p.lastChannel : <span style={MUTED_CELL}>-</span>}
+            </span>
+          ),
+        },
+        {
+          key: 'lastActivity', header: 'เคลื่อนไหวล่าสุด', sortable: true,
+          render: (p) => <Cell value={p.lastActivity} />,
+        },
+        { key: 'action', header: 'การดำเนินการ', render: renderPatientAction },
+      ];
+    }
+
     /* ยินยอมแล้ว: วันที่ลงนามขึ้นก่อน · วันที่สร้างอยู่หลังผู้สร้างคำขอ */
     if (activeTab === 'consented') {
       return [colSignedDate, colHn, colName, ...mid, colCreatedDate, colWithdrawn, colAction];
@@ -603,8 +802,8 @@ export default function ConsentManagementPage() {
     if (activeTab === 'expiring') {
       return [colExpiresInDays, colHn, colName, ...mid, colCreatedDate, colSignedDate, colWithdrawn, colAction];
     }
-    /* หมดอายุ / ความยินยอมทั้งหมด: วันที่สร้างอยู่หลังผู้สร้างคำขอ */
-    if (activeTab === 'expired' || activeTab === 'all') {
+    /* หมดอายุ: วันที่สร้างอยู่หลังผู้สร้างคำขอ */
+    if (activeTab === 'expired') {
       return [colHn, colName, ...mid, colCreatedDate, colSignedDate, colWithdrawn, colAction];
     }
     /* รอดำเนินการ — ขอเพิกถอน (ไม่รวม รอลงนาม / ใกล้หมดอายุ / หมดอายุ) */
@@ -676,7 +875,7 @@ export default function ConsentManagementPage() {
                 ? 'withdrawnDate'
                 : key === 'expiring'
                   ? 'expiresInDays'
-                  : key === 'all'
+                  : key === PATIENT_TAB
                     ? 'hn'
                     : key === 'pending' || key === 'sent'
                       ? 'createdDate'
@@ -747,7 +946,11 @@ export default function ConsentManagementPage() {
               </div>
 
               <SmoothFilterResults opaque={resultsOpaque}>
-              <SearchResultCount found={sorted.length} total={rows.length} />
+              <SearchResultCount
+                found={displayRows.length}
+                total={displayTotal}
+                unit={isPatientTab ? 'คน' : undefined}
+              />
 
               <Table
                 columns={columns}
@@ -757,7 +960,7 @@ export default function ConsentManagementPage() {
                 onSort={handleSort}
                 trailingInset='var(--dim-space-400, 16px)'
                 stickyColCount={
-                  activeTab === 'expired' || activeTab === 'all'
+                  activeTab === 'expired' || isPatientTab
                     ? 2
                     : activeTab === 'rejected'
                       ? 3
@@ -765,13 +968,13 @@ export default function ConsentManagementPage() {
                 }
                 /* Page scroll + sticky header ใต้ SubHeader/tabs — เหมือนแบบฟอร์มความยินยอม */
                 stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-                emptyMessage='ไม่พบรายการความยินยอม'
+                emptyMessage={isPatientTab ? 'ไม่พบผู้รับบริการ' : 'ไม่พบรายการความยินยอม'}
                 emptySubtext='ลองปรับตัวกรองหรือคำค้นหา'
               />
 
               <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)', paddingTop: 'var(--dim-space-400)' }}>
                 <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
-                  แสดง {rangeStart}-{rangeEnd} จาก {sorted.length} รายการ
+                  แสดง {rangeStart}-{rangeEnd} จาก {displayRows.length} {isPatientTab ? 'คน' : 'รายการ'}
                 </span>
                 {totalPages > 1 && (
                   <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
@@ -783,24 +986,13 @@ export default function ConsentManagementPage() {
         </div>
       </QueuePageShell>
 
-      <ConsentHistoryPopup
-        open={!!historyPopup}
-        onClose={() => setHistoryPopup(null)}
-        initialHn={historyPopup?.hn || null}
-      />
-
-      <ConsentComparePopup
-        open={!!compareFor}
-        onClose={() => setCompareFor(null)}
-        hn={compareFor?.hn || null}
-      />
-
       <ConsentConsentedFormsPopup
         open={!!viewConsentedFor}
         onClose={() => setViewConsentedFor(null)}
         hn={viewConsentedFor?.hn || null}
         name={viewConsentedFor?.name || null}
         record={viewConsentedFor?.record || null}
+        allForPatient={!!viewConsentedFor?.allForPatient}
       />
 
       {/* Per-status confirm dialog */}
