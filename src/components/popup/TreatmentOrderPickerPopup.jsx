@@ -15,18 +15,18 @@ if (typeof document !== 'undefined') {
   const styleId = 'mih-treatment-order-picker-row-style';
   const css = `
 .mih-treatment-order-picker-row {
-  background: var(--surface-card-default, #FFFFFF);
-  border-color: var(--border-neutral-quaternary, #E2E4E6);
+  background: var(--surface-list-default, #FFFFFF);
+  border-color: transparent;
   transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 .mih-treatment-order-picker-row:hover {
   background: var(--surface-list-hover, var(--surface-brandPrimary-quaternary, #EAF8F2));
-  border-color: var(--border-brandPrimary-quaternary, #C6ECDD);
+  border-color: transparent;
 }
 .mih-treatment-order-picker-row[aria-pressed='true'],
 .mih-treatment-order-picker-row[aria-pressed='true']:hover {
-  background: var(--surface-brandPrimary-quaternary, #EAF8F2);
-  border-color: var(--border-brandPrimary-tertiary, #8DD8B8);
+  background: var(--surface-list-hover, var(--surface-brandPrimary-quaternary, #EAF8F2));
+  border-color: var(--border-brandPrimary-quaternary, #C6ECDD);
 }
 `;
   let el = document.getElementById(styleId);
