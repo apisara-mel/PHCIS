@@ -69,7 +69,7 @@ import LabOrderPanel from '@/pages/treat/panels/LabOrderPanel';
 import RadiologyOrderPanel from '@/pages/treat/panels/RadiologyOrderPanel';
 import ProcedureOrderPanel from '@/pages/treat/panels/ProcedureOrderPanel';
 import ConsultComposerPanel from '@/pages/treat/panels/ConsultComposerPanel';
-import MedicalSupplyOrderPanel from '@/pages/treat/panels/MedicalSupplyOrderPanel';
+import MedicalSupplyOrderPanel, { MEDICAL_SUPPLY_CATALOG } from '@/pages/treat/panels/MedicalSupplyOrderPanel';
 import DocumentCenterPanel from '@/pages/treat/panels/DocumentCenterPanel';
 import ReDiagnosisPopup from '@/components/popup/ReDiagnosisPopup';
 import ReMedicinePopup from '@/components/popup/ReMedicinePopup';
@@ -80,6 +80,7 @@ import AddDiagnosisPopup from '@/components/popup/AddDiagnosisPopup';
 import AdvanceOrderPickerPopup from '@/components/popup/AdvanceOrderPickerPopup';
 import DeleteAdvanceOrderConfirmPopup from '@/components/popup/DeleteAdvanceOrderConfirmPopup';
 import AddMedicationPopup from '@/components/popup/AddMedicationPopup';
+import TreatmentOrderPickerPopup from '@/components/popup/TreatmentOrderPickerPopup';
 import ConfirmAddDiagnosisPopup from '@/components/popup/ConfirmAddDiagnosisPopup';
 import MedicalHistoryPopup from '@/components/popup/MedicalHistoryPopup';
 import AppointmentHistoryPopup from '@/components/popup/AppointmentHistoryPopup';
@@ -2401,6 +2402,50 @@ export const Step5Orders = ({
 }) => {
   const setCategory = (key) => setForm((s) => ({ ...s, orderCategory: key }));
   const dismissAlert = () => setForm((s) => ({ ...s, showAllergyAlert: false }));
+  const [orderPickerOpen, setOrderPickerOpen] = useState(false);
+  const orderPickerItems = useMemo(() => {
+    const medicationNames = ['Paracetamol 500mg', 'Cetirizine 10mg', 'Ibuprofen 400mg', 'Amoxicillin 500mg'];
+    const medicationItems = medicationNames.map((name, index) => {
+      const source = PAST_VISIT_MEDICATIONS.find((item) => item.name === name)
+        || PAST_VISIT_MEDICATIONS.find((item) => item.name?.startsWith(name.split(' ')[0]));
+      return {
+        id: index === 0 ? 'med-paracetamol' : index === 1 ? 'med-cetirizine' : `med-catalog-${index}`,
+        category: 'medication', name, unit: source?.unit || 'เม็ด', source,
+      };
+    });
+    const supplyId = { 'gauze-sterile-2x2': 'supply-gauze', 'cotton-ball': 'supply-cotton', 'medical-tape-1': 'supply-tape', 'syringe-5ml': 'supply-syringe', 'surgical-mask': 'supply-mask' };
+    return [...medicationItems, ...MEDICAL_SUPPLY_CATALOG.map((item) => ({
+      id: supplyId[item.value] || `supply-${item.value}`,
+      category: 'medicalSupply', name: item.label, unit: item.unit,
+    }))];
+  }, []);
+  const commitPickedOrders = (picked) => {
+    if (!picked?.length) return;
+    const now = Date.now();
+    setForm((current) => ({
+      ...current,
+      medications: [
+        ...(current.medications || []),
+        ...picked.filter((item) => item.category === 'medication').map((item, index) => ({
+          id: `med-${now}-${index}`, image: resolveMedicationImage(item.name, item.source?.image),
+          name: item.name, orderStatus: 'continue', usage: item.source?.usage || 'รับประทาน (Oral)',
+          dosePerTake: item.source?.dosePerTake || '1', unit: item.source?.unit || item.unit || 'เม็ด',
+          frequency: item.source?.frequency || 'วันละ 1 ครั้ง', when: item.source?.when || 'หลังอาหาร',
+          warning: item.source?.warning || '', quantity: item.source?.quantity ?? 1, totalPrice: item.source?.totalPrice ?? 0,
+          reimbursable: !!item.source?.reimbursable, purpose: item.source?.purpose || '',
+          approve: false, consult: false, stat: false, print: false, editor: 'พญ.สมหญิง',
+        })),
+      ],
+      medicalSupplies: [
+        ...(current.medicalSupplies || []),
+        ...picked.filter((item) => item.category === 'medicalSupply').map((item, index) => ({
+          id: `supply-${now}-${index}`, itemType: 'non_drug_supply', name: item.name,
+          unit: item.unit, quantity: 1, orderStatus: 'continue',
+        })),
+      ],
+      orderCategory: picked[0]?.category || current.orderCategory,
+    }));
+  };
 
   /* Re-Medicine popup state (Figma PHCIS|CPOE 200:23111). Opens from
      either Re-Diagnosis CTA — the title-row button (rows.length > 0)
@@ -2721,6 +2766,30 @@ export const Step5Orders = ({
       ? form.xrayOrders
       : [];
 
+  const hasAnyTreatmentOrder = (form.medications?.length || 0)
+    + (form.medicalSupplies?.length || 0)
+    + (form.labs?.filter((item) => !item.cancelledAt).length || 0)
+    + (form.xrayOrders?.length || 0)
+    + (form.procedureOrders?.filter((item) => !item.cancelledAt).length || 0)
+    + (form.consultOrders?.filter((item) => !item.cancelledAt).length || 0) > 0;
+
+  if (!hasAnyTreatmentOrder) {
+    return (
+      <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        <Topic hierarchy='primary' title='สั่งการรักษา (Treatment Order)' leadingIcon='description' showSubText={false} showBadge={false} showChevron={false} showSuccess={false} />
+        <div className='flex flex-col items-center justify-center w-full text-center' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-800, 32px) var(--dim-space-600, 24px)', background: 'var(--surface-card-default, #FFFFFF)', border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #E2E4E6)', borderRadius: 'var(--dim-radius-500, 20px)' }}>
+          <LottieIllustration animationData={firstaidKitAnim} size={160} />
+          <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            <p style={{ margin: 0, color: 'var(--text-content-default, #202427)', fontFamily: 'var(--type-family-heading-content)', fontSize: 'var(--type-size-lg, 20px)', fontWeight: 'var(--type-weight-medium, 500)' }}>ยังไม่มีการสั่งการรักษา</p>
+            <p style={{ margin: 0, color: 'var(--text-content-tertiary, #697077)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm, 14px)' }}>เพิ่มรายการทีละรายการ เลือกหลายรายการ หรือเลือกจาก Order Set</p>
+          </div>
+          <BrandPrimaryButton size='lg' leadingIcon='add' onClick={() => setOrderPickerOpen(true)}>เพิ่มรายการ</BrandPrimaryButton>
+        </div>
+        <TreatmentOrderPickerPopup open={orderPickerOpen} onClose={() => setOrderPickerOpen(false)} items={orderPickerItems} onConfirm={commitPickedOrders} />
+      </section>
+    );
+  }
+
   return (
     <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
       <Topic
@@ -2742,6 +2811,10 @@ export const Step5Orders = ({
           background: 'var(--surface-card-100)',
         }}
       >
+        <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <div style={{ color: 'var(--text-content-secondary, #454B50)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm, 14px)' }}>เพิ่มจากรายการ หรือเลือก Order Set ได้ในครั้งเดียว</div>
+          <BrandPrimaryButton leadingIcon='add' onClick={() => setOrderPickerOpen(true)}>เพิ่มรายการ</BrandPrimaryButton>
+        </div>
         {/* Category tabs — text-only TabCapsule per Figma PHCIS|CPOE
             200:18615. No leading status dot/icon and no trailing arrow:
             the brand-50 pill with brand-100 border carries the entire
@@ -3229,6 +3302,12 @@ export const Step5Orders = ({
             ? form.medications[pendingMedDelete]?.name
             : undefined
         }
+      />
+      <TreatmentOrderPickerPopup
+        open={orderPickerOpen}
+        onClose={() => setOrderPickerOpen(false)}
+        items={orderPickerItems}
+        onConfirm={commitPickedOrders}
       />
     </section>
   );
