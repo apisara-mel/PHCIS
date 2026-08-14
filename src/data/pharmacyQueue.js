@@ -227,6 +227,12 @@ export const SUB_WAREHOUSES = [
 ];
 
 const SUB_STOCK_ROOM = {
+  'ผ้าก๊อซปราศจากเชื้อ 2×2 นิ้ว': { stock: 120, unit: 'ห่อ', unitPrice: 12, lot: 'LOT-GAUZE-24A', expiryDate: addMonths(TODAY, 24) },
+  'สำลีก้อน':                    { stock: 80,  unit: 'ถุง', unitPrice: 18, lot: 'LOT-COTTON-24A', expiryDate: addMonths(TODAY, 24) },
+  'เทปกาวทางการแพทย์ 1 นิ้ว':    { stock: 60,  unit: 'ม้วน', unitPrice: 22, lot: 'LOT-TAPE-24A', expiryDate: addMonths(TODAY, 24) },
+  'พลาสเตอร์ปิดแผล':             { stock: 500, unit: 'ชิ้น', unitPrice: 2, lot: 'LOT-PLASTER-24A', expiryDate: addMonths(TODAY, 24) },
+  'กระบอกฉีดยา 5 mL':            { stock: 300, unit: 'ชิ้น', unitPrice: 4, lot: 'LOT-SYRINGE-24A', expiryDate: addMonths(TODAY, 24) },
+  'หน้ากากอนามัยทางการแพทย์':    { stock: 400, unit: 'ชิ้น', unitPrice: 3, lot: 'LOT-MASK-24A', expiryDate: addMonths(TODAY, 24) },
   'Amoxicillin 500 mg':  { stock: 40,  unit: 'เม็ด',    unitPrice: 3, lot: 'LOT-AMX-24A', expiryDate: addMonths(TODAY, 4)  },
   'Paracetamol 500 mg':  { stock: 200, unit: 'เม็ด',    unitPrice: 1, lot: 'LOT-PCM-24B', expiryDate: addMonths(TODAY, 14) },
   'Ibuprofen 400 mg':    { stock: 5,   unit: 'เม็ด',    unitPrice: 2, lot: 'LOT-IBU-24C', expiryDate: addMonths(TODAY, 2)  },
@@ -267,6 +273,10 @@ export const SUB_STOCK_BY_WAREHOUSE = {
 export const SUB_PHARMACY_STOCK = SUB_STOCK_BY_WAREHOUSE['wh-sub-pharmacy'];
 
 export const MAIN_WAREHOUSE_STOCK = {
+  'ผ้าก๊อซปราศจากเชื้อ 2×2 นิ้ว': { stock: 2000, unit: 'ห่อ', unitPrice: 10, lot: 'LOT-GAUZE-MAIN-24', expiryDate: addMonths(TODAY, 30), receivedFrom: 'กองเภสัชกรรม สำนักอนามัย', receivedAt: addMonths(TODAY, -1) },
+  'สำลีก้อน':                    { stock: 1200, unit: 'ถุง', unitPrice: 16, lot: 'LOT-COTTON-MAIN-24', expiryDate: addMonths(TODAY, 30), receivedFrom: 'กองเภสัชกรรม สำนักอนามัย', receivedAt: addMonths(TODAY, -1) },
+  'เทปกาวทางการแพทย์ 1 นิ้ว':    { stock: 800, unit: 'ม้วน', unitPrice: 20, lot: 'LOT-TAPE-MAIN-24', expiryDate: addMonths(TODAY, 30), receivedFrom: 'กองเภสัชกรรม สำนักอนามัย', receivedAt: addMonths(TODAY, -1) },
+  'พลาสเตอร์ปิดแผล':             { stock: 5000, unit: 'ชิ้น', unitPrice: 1.5, lot: 'LOT-PLASTER-MAIN-24', expiryDate: addMonths(TODAY, 30), receivedFrom: 'กองเภสัชกรรม สำนักอนามัย', receivedAt: addMonths(TODAY, -1) },
   'Amoxicillin 500 mg':  { stock: 3000, unit: 'เม็ด', unitPrice: 2.5, lot: 'LOT-AMX-MAIN-24', expiryDate: addMonths(TODAY, 10), receivedFrom: 'องค์การเภสัชกรรม (GPO)', receivedAt: addMonths(TODAY, -2) },
   'Paracetamol 500 mg':  { stock: 8000, unit: 'เม็ด', unitPrice: 0.8, lot: 'LOT-PCM-MAIN-24', expiryDate: addMonths(TODAY, 22), receivedFrom: 'องค์การเภสัชกรรม (GPO)', receivedAt: addMonths(TODAY, -1) },
   'Ibuprofen 400 mg':    { stock: 200,  unit: 'เม็ด', unitPrice: 1.8, lot: 'LOT-IBU-MAIN-24', expiryDate: addMonths(TODAY, 5),  receivedFrom: 'บริษัท ฟาร์มา จำกัด', receivedAt: addMonths(TODAY, -3) },
@@ -1258,9 +1268,50 @@ export const findPharmacyRowByQueueNo = (queueNo) =>
    together, only this in-memory array both read from. */
 export const updatePharmacyRow = (queueNo, patch) => {
   const row = findPharmacyRowByQueueNo(queueNo);
-  if (row) Object.assign(row, patch);
+  if (row) {
+    Object.assign(row, patch);
+    if (patch.status && row.cpoePrescriptionId) {
+      row.cpoeLifecycleStatus = patch.status;
+      row.cpoeUpdatedAt = new Date().toISOString();
+    }
+  }
   return row;
 };
+
+const appendPrescriptionAudit = (row, action, note, actor = 'ระบบ PHCIS') => {
+  const entry = {
+    id: `rx-audit-${row.cpoePrescriptionId || row.queueNo}-${Date.now()}`,
+    action,
+    note,
+    actor,
+    at: new Date().toISOString(),
+  };
+  row.prescriptionAudit = [entry, ...(row.prescriptionAudit || [])];
+  return entry;
+};
+
+/* Shared CPOE ↔ Pharmacy terminal event. The dispensing screen must not
+   write a pharmacy-only flag: CPOE needs the same outcome for medication
+   history and follow-up worklists. */
+export const markPrescriptionNoShow = (queueNo, reason, actor = CURRENT_DISPENSER.name) => {
+  const row = findPharmacyRowByQueueNo(queueNo);
+  if (!row || !reason?.trim()) return null;
+  const at = new Date().toISOString();
+  Object.assign(row, {
+    status: DISPENSE_STATUS.NO_SHOW,
+    noShow: true,
+    noShowReason: reason.trim(),
+    noShowAt: at,
+    noShowBy: actor,
+    cpoeLifecycleStatus: DISPENSE_STATUS.NO_SHOW,
+    cpoeUpdatedAt: at,
+  });
+  appendPrescriptionAudit(row, 'no_show', reason.trim(), actor);
+  return row;
+};
+
+export const findPrescriptionByCpoeId = (cpoePrescriptionId) =>
+  PHARMACY_QUEUE.find((row) => row.cpoePrescriptionId === cpoePrescriptionId) || null;
 
 /* ยกเลิกคำสั่งยา (ToR §1.9.2.10 "แจ้งเตือนห้องยาเมื่อแพทย์มีการแก้ไขหรือ
    ยกเลิกการสั่งยา") — makes DISPENSE_STATUS.CANCELLED a first-class,
@@ -1388,7 +1439,7 @@ export const addPharmacyItem = (queueNo, itemPatch = {}) => {
   const name = itemPatch.name || '';
   const entry = {
     id: `item-new-${++itemSeq}`,
-    name: '', orderStatus: 'continue', statusEffectiveMode: 'immediate', statusEffectiveAt: '', lastDoseAt: '', statusReason: '', stat: false, dosePerTake: '1', unit: 'เม็ด', frequency: '', when: '', quantity: 1,
+    name: '', itemType: 'medication', orderStatus: 'continue', statusEffectiveMode: 'immediate', statusEffectiveAt: '', lastDoseAt: '', statusReason: '', stat: false, dosePerTake: '1', unit: 'เม็ด', frequency: '', when: '', quantity: 1,
     instructions: '', source: 'new', quantityDispensed: 0, drugType: 'GPO', prepared: false,
     auxLabels: name ? defaultAuxLabelsFor(name) : [],
     refillPlan: null,
@@ -1473,8 +1524,14 @@ export const markRefillVisitPickedUp = (queueNo, itemId, visitId) => {
    one-time transform. */
 let pharmacyQueueSeq = PHARMACY_QUEUE.length;
 export const sendPrescriptionToPharmacy = (visit) => {
-  const { hn, diagnoses = [], medications = [], vitals, nurseNote, doctorNote } = visit || {};
-  if (!hn || medications.length === 0) return null;
+  const {
+    hn, diagnoses = [], medications = [], medicalSupplies = [], vitals, nurseNote, doctorNote,
+    visitKey, prescriptionId,
+  } = visit || {};
+  if (!hn || (medications.length === 0 && medicalSupplies.length === 0)) return null;
+
+  const resolvedVisitKey = visitKey || getVnByHn(hn) || `HN-${hn}`;
+  const cpoePrescriptionId = prescriptionId || `RX-${hn}-${resolvedVisitKey}`;
 
   const maxNo = PHARMACY_QUEUE.reduce((max, r) => {
     const n = Number(String(r.queueNo).replace(/^P-/, ''));
@@ -1485,8 +1542,102 @@ export const sendPrescriptionToPharmacy = (visit) => {
 
   const diagnosis = { icd10: principleDx?.code || '', name: principleDx?.name || '' };
 
+  const mappedItems = medications.map((m, i) => ({
+    id: `item-cpoe-${cpoePrescriptionId}-${i}`,
+    name: m.name,
+    orderStatus: m.orderStatus || 'continue',
+    statusEffectiveMode: m.statusEffectiveMode || 'immediate',
+    statusEffectiveAt: m.statusEffectiveAt || '',
+    lastDoseAt: m.lastDoseAt || '',
+    statusReason: m.statusReason || '',
+    stat: !!m.stat,
+    dosePerTake: m.dosePerTake || '1',
+    unit: m.unit || 'เม็ด',
+    frequency: m.frequency || '',
+    when: m.when || '',
+    quantity: m.quantity ?? 1,
+    instructions: m.purpose || m.warning || '',
+    source: 'new',
+    quantityDispensed: 0,
+    drugType: 'GPO',
+    prepared: false,
+    auxLabels: defaultAuxLabelsFor(m.name),
+    refillPlan: null,
+    outOfFormularyDocs: [],
+    outOfRightsDocs: [],
+    itemType: 'medication',
+  })).concat(medicalSupplies.map((supply, i) => ({
+    id: `item-cpoe-${cpoePrescriptionId}-supply-${i}`,
+    itemType: 'non_drug_supply',
+    catalogId: supply.catalogId || '',
+    name: supply.name,
+    orderStatus: supply.orderStatus || 'continue',
+    statusEffectiveMode: 'immediate',
+    statusEffectiveAt: '',
+    lastDoseAt: '',
+    statusReason: '',
+    stat: false,
+    dosePerTake: '',
+    unit: supply.unit || 'ชิ้น',
+    frequency: '',
+    when: '',
+    quantity: supply.quantity ?? 1,
+    instructions: supply.instructions || '',
+    source: 'new',
+    quantityDispensed: 0,
+    drugType: '',
+    prepared: false,
+    auxLabels: [],
+    refillPlan: null,
+    outOfFormularyDocs: [],
+    outOfRightsDocs: [],
+  })));
+
+  /* Re-sending the same visit is an update, not a duplicate queue ticket.
+     A dispensed/no-show prescription is immutable; a corrected order after
+     that outcome must use a new prescriptionId from CPOE. */
+  const existing = findPrescriptionByCpoeId(cpoePrescriptionId);
+  if (existing) {
+    const terminal = [DISPENSE_STATUS.DISPENSED, DISPENSE_STATUS.NO_SHOW].includes(existing.status);
+    if (terminal) {
+      existing.syncRejectedReason = 'ใบสั่งยาปิดงานแล้ว กรุณาสร้างใบสั่งยาใหม่';
+      existing.syncAction = 'rejected';
+      return existing;
+    }
+    Object.assign(existing, {
+      diagnosis,
+      vitalsSnapshot: {
+        bp: vitals?.bp ?? '-', hr: vitals?.hr ?? '-', temp: vitals?.temp ?? '-', weight: vitals?.weight ?? '-',
+      },
+      nurseNote: nurseNote || '',
+      doctorNote: doctorNote || '',
+      items: mappedItems,
+      status: DISPENSE_STATUS.WAITING,
+      problemFlag: false,
+      problemReason: '',
+      orderChanged: {
+        at: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+        note: 'CPOE ส่งรายการยาแก้ไขมายังห้องยา',
+      },
+      cpoeLifecycleStatus: 'updated',
+      cpoeUpdatedAt: new Date().toISOString(),
+      cpoeVersion: (existing.cpoeVersion || 1) + 1,
+      syncAction: 'updated',
+      syncRejectedReason: '',
+    });
+    appendPrescriptionAudit(existing, 'updated', `CPOE แก้ไขใบสั่งยาเป็นเวอร์ชัน ${existing.cpoeVersion}`, 'แพทย์ผู้สั่งยา');
+    return existing;
+  }
+
   const row = {
     id: `ph-${++pharmacyQueueSeq}`,
+    cpoePrescriptionId,
+    cpoeVisitKey: resolvedVisitKey,
+    cpoeVersion: 1,
+    cpoeLifecycleStatus: 'sent',
+    cpoeUpdatedAt: new Date().toISOString(),
+    syncAction: 'created',
+    prescriptionAudit: [],
     queueNo,
     hn,
     vn: getVnByHn(hn),
@@ -1522,31 +1673,9 @@ export const sendPrescriptionToPharmacy = (visit) => {
       },
     }),
     ownMedications: [], medErrors: [],
-    items: medications.map((m, i) => ({
-      id: `item-cpoe-${queueNo}-${i}`,
-      name: m.name,
-      orderStatus: m.orderStatus || 'continue',
-      statusEffectiveMode: m.statusEffectiveMode || 'immediate',
-      statusEffectiveAt: m.statusEffectiveAt || '',
-      lastDoseAt: m.lastDoseAt || '',
-      statusReason: m.statusReason || '',
-      stat: !!m.stat,
-      dosePerTake: m.dosePerTake || '1',
-      unit: m.unit || 'เม็ด',
-      frequency: m.frequency || '',
-      when: m.when || '',
-      quantity: m.quantity ?? 1,
-      instructions: m.purpose || m.warning || '',
-      source: 'new',
-      quantityDispensed: 0,
-      drugType: 'GPO',
-      prepared: false,
-      auxLabels: defaultAuxLabelsFor(m.name),
-      refillPlan: null,
-      outOfFormularyDocs: [],
-      outOfRightsDocs: [],
-    })),
+    items: mappedItems,
   };
+  appendPrescriptionAudit(row, 'sent', 'CPOE ส่งใบสั่งยาเข้าคิวห้องยา', 'แพทย์ผู้สั่งยา');
   PHARMACY_QUEUE.push(row);
   return row;
 };

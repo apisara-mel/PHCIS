@@ -102,6 +102,7 @@ const buildInitialForm = (p) => ({
      `treatmentVisits.js` for component-library / demo screens. */
   orderCategory: 'medication',
   medications: [],
+  medicalSupplies: [],
   labs: [],
   /* X-ray orders — [{ examId, view, urgency }] written by Step5Orders'
      xray tab (TOR §1.12.5.4). `examId` keys XRAY_EXAM_BY_ID
@@ -296,8 +297,8 @@ const TreatmentFormPage = () => {
     ? `ใบสั่งยาถูกกันไว้ — ${form.cpoeSendBlockReason || 'มีคำเตือน CDSS ระดับบล็อก'}`
     : medRecPending > 0
       ? `ยังประสานรายการยาเดิมไม่ครบ ${medRecPending} รายการ — ต้องระบุการตัดสินใจให้ครบก่อนส่งใบสั่งยา`
-      : form.medications.length === 0
-        ? 'ยังไม่มีรายการยาในใบสั่งยานี้'
+      : form.medications.length === 0 && (form.medicalSupplies || []).length === 0
+        ? 'ยังไม่มีรายการยาหรือเวชภัณฑ์ในใบสั่งนี้'
         : '';
   const canSendToPharmacy = !sendBlockReason;
 
@@ -310,14 +311,22 @@ const TreatmentFormPage = () => {
     }
     const row = sendPrescriptionToPharmacy({
       hn: patient.hn,
+      visitKey: navState?.vn || patient.queue,
       diagnoses: form.diagnoses,
       medications: form.medications,
+      medicalSupplies: form.medicalSupplies,
       vitals: form.vitals,
     });
     setPharmacySendToast({
       id: Date.now(),
       variant: row ? 'success' : 'error',
-      message: row ? `ส่งใบสั่งยาไปห้องยาแล้ว (คิว ${row.queueNo})` : 'ส่งใบสั่งยาไม่สำเร็จ',
+      message: row?.syncAction === 'updated'
+        ? `อัปเดตใบสั่งยาในคิว ${row.queueNo} แล้ว (เวอร์ชัน ${row.cpoeVersion})`
+        : row?.syncAction === 'rejected'
+          ? row.syncRejectedReason
+          : row
+            ? `ส่งใบสั่งยาไปห้องยาแล้ว (คิว ${row.queueNo})`
+            : 'ส่งใบสั่งยาไม่สำเร็จ',
     });
   };
 
