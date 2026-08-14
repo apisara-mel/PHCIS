@@ -9,6 +9,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandFilterTag from '@/components/forms/FilterTag';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
+import AlertDialog from '@/components/popup/AlertDialog';
 
 const CATEGORY_LABELS = {
   medication: 'ยา', medicalSupply: 'เวชภัณฑ์มิใช่ยา', lab: 'Lab',
@@ -33,10 +34,11 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
   const [creatingSet, setCreatingSet] = useState(false);
   const [setName, setSetName] = useState('');
   const [setDescription, setSetDescription] = useState('');
+  const [allergyConfirmOpen, setAllergyConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setMode('items'); setQuery(''); setCategory('all'); setSelectedIds([]); setCreatingSet(false);
+    setMode('items'); setQuery(''); setCategory('all'); setSelectedIds([]); setCreatingSet(false); setAllergyConfirmOpen(false);
   }, [open]);
 
   const visibleItems = useMemo(() => {
@@ -49,9 +51,15 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
     const available = new Set(items.map((item) => item.id));
     setSelectedIds(set.itemIds.filter((id) => available.has(id)));
   };
-  const handleConfirm = () => {
-    onConfirm?.(items.filter((item) => selectedIds.includes(item.id)));
+  const selectedItems = items.filter((item) => selectedIds.includes(item.id));
+  const selectedAllergyItems = selectedItems.filter((item) => item.allergyMatch);
+  const commitSelection = () => {
+    onConfirm?.(selectedItems);
     onClose?.();
+  };
+  const handleConfirm = () => {
+    if (selectedAllergyItems.length > 0) { setAllergyConfirmOpen(true); return; }
+    commitSelection();
   };
   const saveDoctorSet = () => {
     if (!setName.trim() || selectedIds.length === 0) return;
@@ -70,6 +78,7 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
   const allergyNames = (patient?.drugAllergies || []).map((item) => item.name).filter(Boolean);
 
   return (
+    <>
     <Popup open={open} onClose={onClose} size='extraLarge' title='เพิ่มรายการสั่งการรักษา'
       subtitle='ค้นหา เลือกหลายรายการ หรือเลือกชุดคำสั่งสำเร็จรูป'
       tertiaryAction={{ label: 'ล้างรายการที่เลือก', onClick: () => setSelectedIds([]), disabled: selectedIds.length === 0 }}
@@ -142,6 +151,19 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
         </div>
       </div>}
     </Popup>
+    <AlertDialog
+      open={allergyConfirmOpen}
+      onClose={() => setAllergyConfirmOpen(false)}
+      onCancel={() => setAllergyConfirmOpen(false)}
+      onConfirm={() => { setAllergyConfirmOpen(false); commitSelection(); }}
+      type='warning'
+      alignment='center'
+      title='ตรวจพบยาที่ผู้รับบริการมีประวัติแพ้'
+      description={`รายการที่เลือกมี ${selectedAllergyItems.length} รายการที่สัมพันธ์กับประวัติแพ้ยา: ${selectedAllergyItems.map((item) => `${item.name} (แพ้ ${item.allergyMatch})`).join(' · ')} กรุณาตรวจสอบความเหมาะสมก่อนยืนยันคำสั่งยา`}
+      cancelLabel='กลับไปตรวจสอบ'
+      confirmLabel='ยืนยันเพิ่มรายการ'
+    />
+    </>
   );
 };
 export default TreatmentOrderPickerPopup;
