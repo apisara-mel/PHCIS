@@ -1569,7 +1569,8 @@ export const sendPrescriptionToPharmacy = (visit) => {
   })).concat(medicalSupplies.map((supply, i) => ({
     id: `item-cpoe-${cpoePrescriptionId}-supply-${i}`,
     itemType: 'non_drug_supply',
-    catalogId: supply.catalogId || '',
+    /* ไม่มี TMT สำหรับเวชภัณฑ์มิใช่ยา — contract ข้ามระบบเก็บเพียง
+       ชื่อรายการ หน่วย และจำนวน (ต่างจากยาโดยตั้งใจ). */
     name: supply.name,
     orderStatus: supply.orderStatus || 'continue',
     statusEffectiveMode: 'immediate',

@@ -16,10 +16,10 @@ export const MEDICAL_SUPPLY_CATALOG = [
 ];
 
 const MedicalSupplyOrderPanel = ({ form, setForm }) => {
-  const [catalogId, setCatalogId] = useState('');
+  const [supplyOptionKey, setSupplyOptionKey] = useState('');
   const [quantity, setQuantity] = useState('1');
   const supplies = form.medicalSupplies || [];
-  const selected = MEDICAL_SUPPLY_CATALOG.find((item) => item.value === catalogId);
+  const selected = MEDICAL_SUPPLY_CATALOG.find((item) => item.value === supplyOptionKey);
 
   const addSupply = () => {
     if (!selected || Number(quantity) < 1) return;
@@ -30,7 +30,8 @@ const MedicalSupplyOrderPanel = ({ form, setForm }) => {
         {
           id: `supply-${Date.now()}`,
           itemType: 'non_drug_supply',
-          catalogId: selected.value,
+          /* เวชภัณฑ์มิใช่ยาไม่มี TMT — persist เฉพาะชื่อรายการ/หน่วย/จำนวน.
+             `selected.value` เป็น key ของ dropdown ฝั่ง UI เท่านั้น. */
           name: selected.label,
           unit: selected.unit,
           quantity: Number(quantity),
@@ -38,7 +39,7 @@ const MedicalSupplyOrderPanel = ({ form, setForm }) => {
         },
       ],
     }));
-    setCatalogId('');
+    setSupplyOptionKey('');
     setQuantity('1');
   };
 
@@ -62,8 +63,8 @@ const MedicalSupplyOrderPanel = ({ form, setForm }) => {
     <PanelCard title='สั่งเวชภัณฑ์มิใช่ยา' subtitle='รายการจะถูกส่งไปห้องยาพร้อมใบสั่ง CPOE เดียวกัน แต่แยกจากรายการยา'>
       <div className='grid w-full' style={{ gridTemplateColumns: 'minmax(280px, 1fr) minmax(120px, 180px) auto', gap: 'var(--dim-space-300)' }}>
         <Select
-          value={catalogId}
-          onChange={setCatalogId}
+          value={supplyOptionKey}
+          onChange={setSupplyOptionKey}
           options={MEDICAL_SUPPLY_CATALOG}
           placeholder='เลือกเวชภัณฑ์มิใช่ยา'
           showLabel={false}
