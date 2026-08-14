@@ -116,11 +116,14 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', border: `${checked ? 'var(--dim-stroke-200, 2px)' : 'var(--dim-stroke-100, 1px)'} solid ${checked ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-neutral-quaternary, #E2E4E6)'}`, borderRadius: 'var(--dim-radius-200, 8px)', background: checked ? 'var(--surface-brandPrimary-quaternary, #EAF8F2)' : 'var(--surface-card-default, #FFFFFF)' }}>
             <span onClick={(event) => event.stopPropagation()}><Checkbox checked={checked} onChange={() => toggle(item.id)} aria-label={`เลือก ${item.name}`} /></span>
-            <span className='flex-1 min-w-0'><span style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{item.name}</span><span style={{ display: 'block', color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>{item.detail || (item.unit ? `หน่วย ${item.unit}` : 'กรอกรายละเอียดหลังเพิ่มรายการ')}</span></span>
-            <span className='flex items-center flex-wrap justify-end' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              {item.allergyMatch && <ColorfulBadge style='red' size='small'>ผู้รับบริการแพ้ยานี้</ColorfulBadge>}
-              <ColorfulBadge style={CATEGORY_BADGES[item.category] || 'grey'} size='small'>{CATEGORY_LABELS[item.category]}</ColorfulBadge>
+            <span className='flex-1 min-w-0'>
+              <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                <span style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{item.name}</span>
+                {item.allergyMatch && <ColorfulBadge style='red' size='small'>ผู้รับบริการแพ้ยานี้</ColorfulBadge>}
+              </span>
+              <span style={{ display: 'block', color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>{item.detail || (item.unit ? `หน่วย ${item.unit}` : 'กรอกรายละเอียดหลังเพิ่มรายการ')}</span>
             </span>
+            <ColorfulBadge style={CATEGORY_BADGES[item.category] || 'grey'} size='small'>{CATEGORY_LABELS[item.category]}</ColorfulBadge>
           </button>; })}
           {visibleItems.length === 0 && <div className='flex flex-col items-center text-center' style={{ gap: 'var(--dim-space-200, 8px)', padding: 'var(--dim-space-800, 32px)' }}><Sym name='search_off' size={32} color='var(--icon-neutral-tertiary, #8A9095)' /><span style={{ color: 'var(--text-content-secondary, #454B50)', fontSize: 'var(--type-size-sm, 14px)' }}>ไม่พบรายการที่ค้นหา</span></div>}
         </div>
