@@ -11,6 +11,7 @@ import { StepReview } from '@/pages/consent/CreateConsentFormPage';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import { logExport } from '@/data/consentWorkflowStore';
 import { downloadConsentFormPdf } from '@/data/consentFormDownload';
+import Alert from '@/components/alert/Alert';
 
 /* PHCIS | Consent — ดูแบบฟอร์มความยินยอม ใน Popup (Figma 302:143587).
    เปิดจากปุ่ม visibility ในเมนูแบบฟอร์มความยินยอม แทนการนำทางเต็มหน้า. */
@@ -263,12 +264,23 @@ export function ConsentFormViewPopup({
       ]}
     >
       {record && (
-        <ConsentFormViewBody
-          record={record}
-          onToast={onToast}
-          showActions={false}
-          showAuditBar={showAuditBar}
-        />
+        <div className='flex flex-col items-center w-full' style={{ gap: 'var(--dim-space-500)' }}>
+          <Alert
+            type='info'
+            title='เอกสารสำหรับการตรวจสอบข้อมูล'
+            subtext='เอกสารฉบับนี้จัดแสดงเพื่อการตรวจสอบข้อมูลเท่านั้น ไม่สามารถแก้ไขหรือบันทึกข้อมูลผ่านหน้าต่างนี้ได้'
+            showCloseButton={false}
+            showBadge={false}
+            showIndicator={false}
+            style={{ width: '100%', maxWidth: 'var(--dim-size-2900, 640px)' }}
+          />
+          <ConsentFormViewBody
+            record={record}
+            onToast={onToast}
+            showActions={false}
+            showAuditBar={showAuditBar}
+          />
+        </div>
       )}
     </Popup>
   );
