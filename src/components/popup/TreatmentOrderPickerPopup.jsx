@@ -186,10 +186,33 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
       type='warning'
       alignment='center'
       title='ตรวจพบยาที่ผู้รับบริการมีประวัติแพ้'
-      description={selectedAllergyItems.map((item) => item.name).join(' · ')}
+      description=''
       cancelLabel='กลับไปตรวจสอบ'
       confirmLabel='ยืนยันเพิ่มรายการ'
-    />
+    >
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        {selectedAllergyItems.map((item) => (
+          <div
+            key={item.id}
+            className='flex items-center w-full text-left'
+            style={{
+              gap: 'var(--dim-space-200, 8px)',
+              padding: 'var(--dim-space-300, 12px)',
+              background: 'var(--surface-list-default, #FFFFFF)',
+              border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #E2E4E6)',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              color: 'var(--text-content-default, #202427)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm, 14px)',
+              fontWeight: 'var(--type-weight-medium, 500)',
+            }}
+          >
+            <Sym name='medication' size={20} color='var(--icon-danger-default, #DC2626)' />
+            <span>{item.name}</span>
+          </div>
+        ))}
+      </div>
+    </AlertDialog>
     </>
   );
 };
