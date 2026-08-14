@@ -1881,7 +1881,7 @@ const MedImageTile = ({ src, alt }) => {
 /* Medication-table columns (Figma PHCIS|CPOE 276:34332). Data fields
    render as read-only body text (EllipsisText); workflow flags stay
    as inline <Checkbox> toggles; row edits go through AddMedicationPopup. */
-const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
+const buildMedTableColumns = ({ updateRow, editRow }) => [
   { key: 'image', header: 'รูป',
     render: (row) => (
       <MedImageTile
@@ -1932,15 +1932,6 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
        row's full totalPrice is eligible for reimbursement, otherwise 0. */
     render: (row) => (row.reimbursable ? (row.totalPrice ?? 0) : 0)},
   { key: 'purpose',    header: 'การใช้' },
-  { key: 'approve',    header: 'Approve', align: 'center',
-    render: (row, idx) => (
-      <Checkbox
-        checked={!!row.approve}
-        onChange={(next) => updateRow(idx, { approve: next })}
-        aria-label={`อนุมัติ ${row.name}`}
-      />
-    ),
-  },
   { key: 'consult',    header: 'รอ Consult', align: 'center',
     render: (row, idx) => (
       <Checkbox
@@ -1959,29 +1950,6 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
       />
     ),
   },
-  { key: 'print',      header: 'พิมพ์', align: 'center',
-    render: (row, idx) => (
-      <Checkbox
-        checked={!!row.print}
-        onChange={(next) => updateRow(idx, { print: next })}
-        aria-label={`พิมพ์ ${row.name}`}
-      />
-    ),
-  },
-  /* Figma PHCIS|CPOE 276:34349 / header 276:34330 — re-introduces the
-     ผู้แก้ไข column as a Checkbox (96 px, centered). Bound to the row's
-     `edited` flag so the doctor can mark "I touched this entry" on the
-     audit trail without leaving the table. The full editor name still
-     lives on `row.editor` for later display surfaces. */
-  { key: 'edited',     header: 'ผู้แก้ไข', align: 'center',
-    render: (row, idx) => (
-      <Checkbox
-        checked={!!row.edited}
-        onChange={(next) => updateRow(idx, { edited: next })}
-        aria-label={`ผู้แก้ไข ${row.name}`}
-      />
-    ),
-  },
   { key: 'actions',    header: 'การดำเนินการ', align: 'center',
     /* Figma PHCIS|CPOE 195:34355 — row-action cluster: Edit then Delete. */
     render: (row, idx) => (
@@ -1996,13 +1964,6 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
           icon='edit'
           aria-label={`แก้ไข ${row.name}`}
           onClick={() => editRow?.(idx)}
-        />
-        <NeutralSubdueIconButton
-          variant='outline'
-          size='sm'
-          icon='delete'
-          aria-label={`ลบ ${row.name}`}
-          onClick={() => removeRow(idx)}
         />
       </div>
     ),
@@ -2704,7 +2665,6 @@ export const Step5Orders = ({
   const columns = useMemo(
     () => buildMedTableColumns({
       updateRow: updateMed,
-      removeRow: requestRemoveMed,
       editRow: openEditMed,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
