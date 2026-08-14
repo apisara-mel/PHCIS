@@ -7,6 +7,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { Sym } from '@/components/forms/Fields';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
+import BrandFilterTag from '@/components/forms/FilterTag';
 
 const CATEGORY_LABELS = { medication: 'ยา', medicalSupply: 'เวชภัณฑ์มิใช่ยา' };
 
@@ -72,7 +73,19 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => 
         <InputField label='ค้นหารายการ' value={query} onChange={(event) => setQuery(event?.target?.value ?? event ?? '')}
           placeholder='ค้นหาชื่อยา หรือเวชภัณฑ์มิใช่ยา' leadingIcon='search' />
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {[['all', 'ทั้งหมด'], ['medication', 'ยา'], ['medicalSupply', 'เวชภัณฑ์มิใช่ยา']].map(([key, label]) => <button key={key} type='button' onClick={() => setCategory(key)} aria-pressed={category === key} style={{ padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)', border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-tertiary, #D5D8DA)', borderRadius: 'var(--dim-radius-full, 9999px)', background: category === key ? 'var(--surface-brandPrimary-quaternary, #EAF8F2)' : 'var(--surface-card-default, #FFFFFF)', color: category === key ? 'var(--text-brandPrimary-default, #007549)' : 'var(--text-content-secondary, #454B50)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{label}</button>)}
+          {[['all', 'ทั้งหมด'], ['medication', 'ยา'], ['medicalSupply', 'เวชภัณฑ์มิใช่ยา']].map(([key, label]) => (
+            <BrandFilterTag
+              key={key}
+              variant='brand'
+              size='lg'
+              value={label}
+              selected={category === key}
+              showLeadingIcon={false}
+              showTailingIcon={false}
+              showTitle={false}
+              onClick={() => setCategory(key)}
+            />
+          ))}
         </div>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', border: `${checked ? 'var(--dim-stroke-200, 2px)' : 'var(--dim-stroke-100, 1px)'} solid ${checked ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-neutral-quaternary, #E2E4E6)'}`, borderRadius: 'var(--dim-radius-200, 8px)', background: checked ? 'var(--surface-brandPrimary-quaternary, #EAF8F2)' : 'var(--surface-card-default, #FFFFFF)' }}>
