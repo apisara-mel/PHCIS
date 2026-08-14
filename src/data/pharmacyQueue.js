@@ -942,7 +942,7 @@ const MANUAL_SEED = [
     paymentStatus: PAYMENT_STATUS.UNPAID,
     ownMedications: [], medErrors: [],
     items: [
-      { id: 'i-8', name: 'Atorvastatin 20 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
+      { id: 'i-8', name: 'Atorvastatin 20 mg', stat: true, dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 30, instructions: 'STAT Dose — ให้ยาทันที', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
       { id: 'i-9', name: 'Atorvastatin 10 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน', quantity: 30, instructions: 'ยานอกบัญชี — ตรวจสอบสิทธิก่อนจ่าย', source: 'new', quantityDispensed: 0, drugType: 'TPU' },
       { id: 'i-9b', name: 'Metformin 500 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 2 ครั้ง', when: 'หลังอาหาร', quantity: 60, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
       { id: 'i-9c', name: 'Amlodipine 5 mg', dosePerTake: '1', unit: 'เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'เช้า', quantity: 30, instructions: 'รับประทานต่อเนื่องตามแพทย์สั่ง', source: 'new', quantityDispensed: 0, drugType: 'GPO' },
@@ -1388,7 +1388,7 @@ export const addPharmacyItem = (queueNo, itemPatch = {}) => {
   const name = itemPatch.name || '';
   const entry = {
     id: `item-new-${++itemSeq}`,
-    name: '', orderStatus: 'continue', statusEffectiveMode: 'immediate', statusEffectiveAt: '', lastDoseAt: '', statusReason: '', dosePerTake: '1', unit: 'เม็ด', frequency: '', when: '', quantity: 1,
+    name: '', orderStatus: 'continue', statusEffectiveMode: 'immediate', statusEffectiveAt: '', lastDoseAt: '', statusReason: '', stat: false, dosePerTake: '1', unit: 'เม็ด', frequency: '', when: '', quantity: 1,
     instructions: '', source: 'new', quantityDispensed: 0, drugType: 'GPO', prepared: false,
     auxLabels: name ? defaultAuxLabelsFor(name) : [],
     refillPlan: null,
@@ -1530,6 +1530,7 @@ export const sendPrescriptionToPharmacy = (visit) => {
       statusEffectiveAt: m.statusEffectiveAt || '',
       lastDoseAt: m.lastDoseAt || '',
       statusReason: m.statusReason || '',
+      stat: !!m.stat,
       dosePerTake: m.dosePerTake || '1',
       unit: m.unit || 'เม็ด',
       frequency: m.frequency || '',

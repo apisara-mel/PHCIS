@@ -59,7 +59,9 @@ import {
   defaultAuxLabelsFor,
   createRefillPlan,
   clearRefillPlan,
+  CURRENT_CLINICAL_PHARMACIST,
 } from '@/data/pharmacyQueue';
+import { appendAuditEvent } from '@/pages/audit/auditData';
 import {
   checkDrugInteractions,
   checkDuplicateDrugs,
@@ -466,7 +468,7 @@ const PharmacyDispensePage = () => {
     return ids;
   }, [interactions, duplicates, highAlertItems, diseaseConflicts, doctorRestricted, row.items]);
 
-  const itemsWithStock = row.items.map((item) => {
+  const itemsWithStock = row.items.map((item, sourceIndex) => {
     const stockEntry = getStock(item.name);
     const remaining = item.quantity - (item.quantityDispensed || 0);
     const effectiveTimestamp = item.statusEffectiveAt
@@ -489,7 +491,10 @@ const PharmacyDispensePage = () => {
        ชำระเงินเอง (patient pays, nothing claimable). */
     const claimable = drug?.rightsEligible.includes(mrPatient.rights) ? subtotal : 0;
     const inFormulary = drug ? drug.classification === 'nlem' : true;
-    return { ...item, stockEntry, remaining, qtyNow, insufficient, unitPrice, subtotal, claimable, inFormulary, isOrderInactive };
+    return { ...item, sourceIndex, stockEntry, remaining, qtyNow, insufficient, unitPrice, subtotal, claimable, inFormulary, isOrderInactive };
+  }).sort((a, b) => {
+    if (!!a.stat !== !!b.stat) return a.stat ? -1 : 1;
+    return a.sourceIndex - b.sourceIndex;
   });
   const grandTotal = itemsWithStock.reduce((sum, i) => sum + i.subtotal, 0);
   const claimableTotal = itemsWithStock.reduce((sum, i) => sum + i.claimable, 0);
@@ -605,6 +610,10 @@ const PharmacyDispensePage = () => {
       ),
     },
     {
+      key: 'stat', label: 'STAT Dose', align: 'center', sortable: false,
+      render: (r) => (r.stat ? <Badge style='error' size='small'>STAT</Badge> : null),
+    },
+    {
       key: 'outOfFormulary', label: 'ยานอกบัญชี', align: 'center', sortable: false,
       render: (r) => {
         if (r.inFormulary) return null;
@@ -664,7 +673,6 @@ const PharmacyDispensePage = () => {
         );
       },
     },
-    { key: 'drugType', label: 'แหล่งยา', align: 'center' },
     { key: 'dose', label: 'ขนาด/ความถี่', render: (r) => `${r.dosePerTake} ${r.unit} · ${r.frequency} · ${r.when}` },
     { key: 'quantity', label: 'สั่งทั้งหมด', align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
     {
@@ -1353,7 +1361,23 @@ const PharmacyDispensePage = () => {
               onCancel={() => { setEditingItemId(null); setAllergySwapConflict(null); }}
               onSave={(patch) => {
                 if (editingItemId === 'new') {
-                  addPharmacyItem(row.queueNo, patch);
+                  const addedAt = new Date().toISOString();
+                  addPharmacyItem(row.queueNo, {
+                    ...patch,
+                    addedByPharmacist: CURRENT_CLINICAL_PHARMACIST.name,
+                    addedAt,
+                  });
+                  appendPharmacistNote(
+                    row.queueNo,
+                    `เพิ่มรายการยา "${patch.name}" โดยเภสัชกร · เหตุผล: ${patch.additionReason}`,
+                    CURRENT_CLINICAL_PHARMACIST.name,
+                  );
+                  appendAuditEvent({
+                    user: CURRENT_CLINICAL_PHARMACIST.name,
+                    action: `เพิ่มยา ${patch.name} ในใบสั่งยา ${row.queueNo} · เหตุผล: ${patch.additionReason}`,
+                    mod: 'ห้องยา',
+                    ok: true,
+                  });
                 } else if (editingItemId) {
                   const oldItem = row.items.find((it) => it.id === editingItemId);
                   updatePharmacyItem(row.queueNo, editingItemId, patch);
@@ -1591,8 +1615,9 @@ const PharmacyDispensePage = () => {
       open={Boolean(pendingDeleteItem)}
       medicationName={pendingDeleteItem?.name}
       onClose={() => setPendingDeleteItem(null)}
-      onConfirm={() => {
+      onConfirm={(reason) => {
         if (!pendingDeleteItem) return;
+        appendPharmacistNote(row.queueNo, `ลบรายการยา "${pendingDeleteItem.name}" · เหตุผล: ${reason}`);
         removePharmacyItem(row.queueNo, pendingDeleteItem.id);
         setPendingDeleteItem(null);
         bump();

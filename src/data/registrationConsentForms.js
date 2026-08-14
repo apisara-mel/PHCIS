@@ -233,8 +233,11 @@ export const resolveRegistrationConsentFormId = ({ formCode, type } = {}) => {
   const code = String(formCode || '').trim();
   if (REGISTRATION_CONSENT_FORMS[code]) return code;
   const t = String(type || '').trim();
-  if (t === 'PDPA' || /PDPA|ส่วนบุคคล/i.test(code)) return 'PD-1011';
-  if (t === 'การรักษา' || /รักษา/i.test(t)) return 'TX-1011';
-  if (t === 'เบิกจ่าย' || /เบิก/i.test(t)) return 'CL-1011';
+  /* รับได้ทั้งชื่อหัวข้อหลักปัจจุบัน (ข้อมูลส่วนบุคคล / ข้อมูลการรักษา /
+     การเบิกจ่าย) และค่าเดิม (PDPA / การรักษา / เบิกจ่าย) ที่อาจค้างใน
+     localStorage ของเครื่องที่ยังไม่ re-seed */
+  if (/เบิก/.test(t)) return 'CL-1011';
+  if (/รักษา/.test(t)) return 'TX-1011';
+  if (t === 'PDPA' || /ส่วนบุคคล/.test(t) || /PDPA|ส่วนบุคคล/i.test(code)) return 'PD-1011';
   return 'PD-1011';
 };

@@ -86,6 +86,10 @@ const FILTERS_HIDDEN_TABS = new Set();
 /* แท็บ 'all' = "ผู้รับบริการทั้งหมด" — 1 แถว = 1 คน (แท็บอื่น 1 แถว = 1 ฉบับ) */
 const PATIENT_TAB = 'all';
 
+/* ค่าพิเศษของ dropdown สถานะในแท็บผู้รับบริการ — ขึ้นต้นด้วย __ ให้ชนกับชื่อ
+   สถานะจริงใน CONSENT_STATUS ไม่ได้ */
+const NEVER_CONSENTED_FILTER = '__never__';
+
 /* ป้ายสรุปในแถวผู้รับบริการ — เรียงตาม "ต้องลงมือก่อน" ไม่ใช่ลำดับแท็บ
    tone ตรงกับ CONSENT_STATUS เดิม เพื่อให้สีของสถานะเดียวกันไม่เปลี่ยนความหมาย
    ข้ามแท็บ · bucket ไม่ทับกัน (ยอดรวมทั้ง 6 = จำนวนฉบับของคนนั้นพอดี) */
@@ -158,6 +162,8 @@ export default function ConsentManagementPage() {
   const canManage = canManageConsent();
   const canRevoke = canRevokeConsent();
   const [activeTab, setActiveTab] = useState('pending');
+  /* ประกาศไว้ต้น ๆ เพราะทั้ง statusOptions / filtered / patientRows ใช้ร่วมกัน */
+  const isPatientTab = activeTab === PATIENT_TAB;
   const [search, setSearch] = useState('');
   const [filterChannel, setFilterChannel] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -239,18 +245,26 @@ export default function ConsentManagementPage() {
       ...channels.map((c) => ({ value: c, label: c })),
     ];
   }, [rows]);
+  /* แท็บผู้รับบริการมีตัวเลือกพิเศษที่ไม่ใช่ "สถานะของฉบับ" — คนที่ยังไม่มีฉบับ
+     ใดเลยจึงไม่มีสถานะให้กรอง ต้องกรองที่ระดับคน (ดู patientRows ข้อ 4)
+     เป็นกลุ่มที่เจ้าหน้าที่ต้องตามไปขอความยินยอม จึงควรกดดูได้ในคลิกเดียว
+     แทนที่จะต้องไล่หน้าจนเจอ (เรียงตาม HN แล้วอยู่หน้า 3 เป็นต้นไป) */
   const statusOptions = useMemo(() => [
     { value: '', label: 'ทุกสถานะ' },
+    ...(isPatientTab ? [{ value: NEVER_CONSENTED_FILTER, label: 'ไม่เคยให้ความยินยอม' }] : []),
     ...Object.keys(CONSENT_STATUS).map((s) => ({ value: s, label: s })),
-  ], []);
+  ], [isPatientTab]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    /* ตัวเลือก "ไม่เคยให้ความยินยอม" ไม่ใช่สถานะของ record — ข้ามที่ชั้นนี้
+       ไม่งั้นจะกรองจนไม่เหลือฉบับไหนเลย แล้วตารางว่างทั้งหน้า */
+    const recordStatus = filterStatus === NEVER_CONSENTED_FILTER ? '' : filterStatus;
     return rows.filter((r) => {
       return (
         matchesConsentWorklistTab(r, activeTab) &&
         (!filterChannel || r.signChannel === filterChannel) &&
-        (!filterStatus || r.status === filterStatus) &&
+        (!recordStatus || r.status === recordStatus) &&
         matchesDateFilter(r.createdDate, filterDate) &&
         (!q || r.name.toLowerCase().includes(q) || r.hn.toLowerCase().includes(q))
       );
@@ -297,16 +311,16 @@ export default function ConsentManagementPage() {
   }, [filtered, sortConfig]);
 
   /* ── แท็บผู้รับบริการ: ยุบ record หลายฉบับของ HN เดียวกันเป็นแถวเดียว ──
-     ตัวกรอง (ช่องทาง / สถานะ / วันที่ / ค้นหา) ทำงานที่ระดับ *ฉบับ* ก่อน
-     แล้วค่อยยุบ — กรอง "สถานะ = หมดอายุ" จึงได้ "คนที่มีฉบับหมดอายุ" พร้อม
-     ยอดที่นับเฉพาะฉบับที่ผ่านตัวกรอง ไม่ใช่ทั้งแฟ้มของคนนั้น */
-  const isPatientTab = activeTab === PATIENT_TAB;
-
+     ตัวกรองระดับฉบับ (ช่องทาง / สถานะ / วันที่) ใช้คัดว่า "ใครโผล่ในตาราง"
+     ส่วนยอด/ป้ายสรุปนับจากทั้งแฟ้มของคนนั้นเสมอ (ดูข้อ 1 ด้านล่าง) */
   const patientRows = useMemo(() => {
     if (!isPatientTab) return [];
-    /* 1) ยุบเฉพาะ "ฉบับที่ผ่านตัวกรอง" ตาม HN */
+    /* 1) ยอด/ป้ายสรุปนับจาก "ทุกฉบับของคนนั้น" ไม่ใช่เฉพาะที่ผ่านตัวกรอง —
+       แถวนี้เป็นแฟ้มของคน ๆ หนึ่ง และ popup ที่กดเข้าไปก็กางทั้งแฟ้มเหมือนกัน
+       ถ้านับคนละชุด ตัวเลขหน้าตารางกับในป็อปอัปจะไม่ตรงกัน (6 vs 7)
+       ตัวกรองยังทำงาน — แต่ทำหน้าที่คัด "ใครโผล่ในตาราง" เท่านั้น (ข้อ 3) */
     const byHn = new Map();
-    filtered.forEach((r) => {
+    rows.forEach((r) => {
       let p = byHn.get(r.hn);
       if (!p) {
         p = {
@@ -342,25 +356,34 @@ export default function ConsentManagementPage() {
       }
     });
 
-    /* 2) จำนวนฉบับ "ทั้งหมด" (ไม่สนตัวกรอง) — ใช้แยก 2 กรณีที่ยอด = 0
-          ออกจากกัน: ไม่เคยให้ความยินยอมเลย ↔ มีอยู่แต่ไม่ตรงตัวกรองปัจจุบัน */
-    const everTotal = new Map();
-    rows.forEach((r) => everTotal.set(r.hn, (everTotal.get(r.hn) || 0) + 1));
+    /* 2) HN ที่มีอย่างน้อย 1 ฉบับผ่านตัวกรองปัจจุบัน — ใช้คัดว่าใครโผล่ในตาราง
+          (ตัวกรองคัดคน ไม่ได้ตัดยอดของคน) */
+    const passesFilter = new Set(filtered.map((r) => r.hn));
+    const filterNarrows = filtered.length !== rows.length;
 
     /* 3) กางทะเบียนทั้ง 100 ราย แล้วค่อยติดยอด — คนที่ไม่มีฉบับเลยยังอยู่ในตาราง */
     const q = search.trim().toLowerCase();
+    /* 4) ตัวเลือก "ไม่เคยให้ความยินยอม" กรองที่ระดับคน ไม่ใช่ระดับฉบับ */
+    const onlyNever = filterStatus === NEVER_CONSENTED_FILTER;
     return PATIENT_DIRECTORY
+      .filter((p) => (onlyNever ? !byHn.has(p.hn) : true))
+      .filter((p) => !filterNarrows || passesFilter.has(p.hn) || !byHn.has(p.hn))
       .filter((p) => !q
         || String(p.name).toLowerCase().includes(q)
         || String(p.hn).toLowerCase().includes(q))
-      .map((p) => ({
-        ...p,
-        total: 0, buckets: {}, lastActivity: '-', lastActivityKey: 0,
-        lastChannel: '-', latestSigned: null, latestSignedKey: 0,
-        ...(byHn.get(p.hn) || null),
-        everTotal: everTotal.get(p.hn) || 0,
-      }));
-  }, [filtered, rows, search, isPatientTab]);
+      .map((p) => {
+        const agg = byHn.get(p.hn) || null;
+        return {
+          ...p,
+          total: 0, buckets: {}, lastActivity: '-', lastActivityKey: 0,
+          lastChannel: '-', latestSigned: null, latestSignedKey: 0,
+          ...agg,
+          /* ยอดนับจากทั้งแฟ้มอยู่แล้ว — everTotal จึงเท่ากับ total เสมอ
+             เก็บไว้ให้คอลัมน์สถานะแยก "ไม่เคยให้ความยินยอม" ออกจากศูนย์อื่น ๆ */
+          everTotal: agg?.total || 0,
+        };
+      });
+  }, [filtered, rows, search, isPatientTab, filterStatus]);
 
   const sortedPatients = useMemo(() => {
     const { key, direction } = sortConfig;
@@ -471,8 +494,11 @@ export default function ConsentManagementPage() {
     else if (v.next === 'edit') setEditFor(v.record);
   };
 
-  /* ── Status-dependent action column ─────────────────────────────── */
-  const renderAction = (row) => {
+  /* ── Status-dependent action column ───────────────────────────────
+     `showView` ปิดได้เมื่อเอาไปใช้ในตารางของ popup "แบบฟอร์มความยินยอมทั้งหมด"
+     — ที่นั่นกดแถวก็เปิดเอกสารอยู่แล้ว ปุ่ม 👁 ซ้ำจะกลายเป็นทางที่สองที่ทำ
+     อย่างเดียวกัน · ส่วน CTA ตามสถานะยังใช้ dialog/verify ชุดเดียวกับหน้าหลัก */
+  const renderAction = (row, { showView = true, align = 'end' } = {}) => {
     const action = (CONSENT_STATUS[row.status] || {}).action;
     const fireAction = () => {
       if (!action) return;
@@ -486,37 +512,53 @@ export default function ConsentManagementPage() {
     };
     return (
       <div
-        className='flex items-center justify-end'
+        /* worklist หลักชิดขวา (คอลัมน์สุดท้ายติดขอบตาราง) ส่วนในตารางของ popup
+           ชิดซ้าย — ปุ่มอยู่ใกล้คอลัมน์สถานะที่เป็นตัวกำหนดว่าปุ่มไหนขึ้น */
+        className={`flex items-center ${align === 'start' ? 'justify-start' : 'justify-end'}`}
+        /* ทั้งแถวกดเพื่อเปิดเอกสารได้ — ปุ่มในคอลัมน์นี้ต้องไม่ยิง onRowClick ตาม
+           ไม่งั้นกด "เพิกถอน" แล้วเปิดหน้าเอกสารซ้อนขึ้นมาพร้อม dialog ยืนยัน */
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role='presentation'
         style={{
-          gap: 'var(--dim-space-400, 16px)',
-          paddingRight: 'var(--dim-space-400, 16px)',
+          /* 8px ระหว่างกลุ่มไอคอนกับ CTA — มากกว่าระยะในกลุ่ม (6px) นิดเดียว
+             พอให้อ่านเป็นสองกลุ่ม แต่ไม่ห่างจนดูเป็นคนละคอลัมน์ (เดิม 16px) */
+          gap: 'var(--dim-space-200, 8px)',
+          paddingRight: align === 'start' ? undefined : 'var(--dim-space-400, 16px)',
         }}
       >
-        <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-        {/* แท็บสถานะ = 1 แถว 1 ฉบับ → เหลือเฉพาะ action ระดับฉบับ
-            เปรียบเทียบ (compare_arrows) และ Timeline การเปลี่ยนแปลง (history)
-            เป็นมุมมองระดับ "คน" ไม่ใช่ระดับฉบับ — ย้ายไปอยู่แท็บ
-            ผู้รับบริการทั้งหมด ที่ 1 แถว = 1 คน แทน (renderPatientAction) */}
-        <NeutralSubdueIconButton
-          icon='visibility'
-          variant='outline'
-          size='sm'
-          aria-label='ดูแบบฟอร์มที่ให้ความยินยอม'
-          title='ดูแบบฟอร์มที่ให้ความยินยอม'
-          onClick={() => setViewConsentedFor({ hn: row.hn, name: row.name, record: row })}
-        />
-        {/* ด.1.1.2 — แถว signed แก้ไข/เพิกถอนรายข้อ 5.1/5.2 (ผ่าน verify) */}
-        {row.status === 'ยินยอมแล้ว' && (
-          <NeutralSubdueIconButton
-            icon='edit'
-            variant='outline'
-            size='sm'
-            aria-label='แก้ไขความยินยอมรายข้อ'
-            title='แก้ไขความยินยอม (5.1 / 5.2)'
-            onClick={() => setVerifyFor({ next: 'edit', record: row })}
-          />
+        {/* ต้องไม่ render กล่องนี้เมื่อไม่มีไอคอนสักปุ่ม — div เปล่ากว้าง 0 ก็จริง
+            แต่ `gap` ของ flex แม่ยังนับมันเป็นลูกอยู่ CTA เลยถูกดันขวาไป 16px
+            แถวที่ไม่มีไอคอนจึงไม่ชิดซ้ายเท่าแถวที่มี (เห็นชัดในตารางของ popup) */}
+        {(showView || row.status === 'ยินยอมแล้ว') && (
+          <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+            {/* แท็บสถานะ = 1 แถว 1 ฉบับ → เหลือเฉพาะ action ระดับฉบับ
+                เปรียบเทียบ (compare_arrows) และ Timeline การเปลี่ยนแปลง (history)
+                เป็นมุมมองระดับ "คน" ไม่ใช่ระดับฉบับ — ย้ายไปอยู่แท็บ
+                ผู้รับบริการทั้งหมด ที่ 1 แถว = 1 คน แทน (renderPatientAction) */}
+            {showView && (
+              <NeutralSubdueIconButton
+                icon='visibility'
+                variant='outline'
+                size='sm'
+                aria-label='ดูแบบฟอร์มที่ให้ความยินยอม'
+                title='ดูแบบฟอร์มที่ให้ความยินยอม'
+                onClick={() => setViewConsentedFor({ hn: row.hn, name: row.name, record: row })}
+              />
+            )}
+            {/* ด.1.1.2 — แถว signed แก้ไข/เพิกถอนรายข้อ 5.1/5.2 (ผ่าน verify) */}
+            {row.status === 'ยินยอมแล้ว' && (
+              <NeutralSubdueIconButton
+                icon='edit'
+                variant='outline'
+                size='sm'
+                aria-label='แก้ไขความยินยอมรายข้อ'
+                title='แก้ไขความยินยอม (5.1 / 5.2)'
+                onClick={() => setVerifyFor({ next: 'edit', record: row })}
+              />
+            )}
+          </div>
         )}
-        </div>
         {action && (
           action.kind === 'brand' ? (
             <BrandSubdueButton variant='fill' size='sm' onClick={fireAction}>
@@ -755,22 +797,12 @@ export default function ConsentManagementPage() {
                 </div>
               );
             }
-            /* ยอด 0 มีสองความหมาย — อย่าให้อ่านปนกัน
-               · everTotal 0 = ไม่เคยมีคำขอความยินยอมเลย → เป็นคุณสมบัติของคนคนนั้น
-                 (กลุ่มที่เจ้าหน้าที่ต้องตามไปขอ) จึงใช้ป้ายเหมือนสถานะอื่น
-               · everTotal > 0 = มีความยินยอม แต่ไม่มีฉบับไหนตรงตัวกรองที่เลือกอยู่
-                 → เป็นผลของมุมมอง ไม่ใช่ของคน จึงเป็นข้อความจาง ไม่ใช่ป้าย */
-            if (!p.everTotal) {
-              return (
-                <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
-                  ไม่เคยให้ความยินยอม
-                </ColorfulBadge>
-              );
-            }
+            /* ยอดนับจากทั้งแฟ้ม ยอด 0 จึงมีความหมายเดียว = ไม่เคยมีคำขอเลย
+               (กลุ่มที่เจ้าหน้าที่ต้องตามไปขอความยินยอม) */
             return (
-              <span style={MUTED_CELL}>
-                ไม่มีฉบับที่ตรงตัวกรอง (ทั้งหมด {p.everTotal} ฉบับ)
-              </span>
+              <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+                ไม่เคยให้ความยินยอม
+              </ColorfulBadge>
             );
           },
         },
@@ -876,7 +908,10 @@ export default function ConsentManagementPage() {
                 : key === 'expiring'
                   ? 'expiresInDays'
                   : key === PATIENT_TAB
-                    ? 'hn'
+                    /* ทะเบียนรายคน — เรียงตามชื่อ (ก-ฮ) ไม่ใช่ HN เพราะคนหา
+                       ผู้รับบริการจากชื่อ ไม่ได้จำเลข HN · ชื่อในพูลตัดคำนำหน้า
+                       (นาย/นาง/นางสาว) ออกแล้ว จึงเรียงตามชื่อจริงตามธรรมเนียมไทย */
+                    ? 'name'
                     : key === 'pending' || key === 'sent'
                       ? 'createdDate'
                       : 'createdDate',
@@ -958,6 +993,17 @@ export default function ConsentManagementPage() {
                 rowKey={(row) => row.id}
                 sortConfig={sortConfig}
                 onSort={handleSort}
+                /* กดทั้งแถวเพื่อเปิดเอกสาร — แท็บสถานะเปิดฉบับนั้นตรง ๆ
+                   ส่วนแท็บผู้รับบริการ (1 แถว = 1 คน) เปิด popup รวม 3 มุมมอง
+                   คนที่ยังไม่เคยมีคำขอ กดแล้วไม่ต้องเปิดอะไร (ไม่มีเอกสารให้ดู) */
+                onRowClick={(row) => (
+                  isPatientTab
+                    ? (row.everTotal
+                      && setViewConsentedFor({
+                        hn: row.hn, name: row.name, record: null, allForPatient: true,
+                      }))
+                    : setViewConsentedFor({ hn: row.hn, name: row.name, record: row })
+                )}
                 trailingInset='var(--dim-space-400, 16px)'
                 stickyColCount={
                   activeTab === 'expired' || isPatientTab
@@ -993,6 +1039,10 @@ export default function ConsentManagementPage() {
         name={viewConsentedFor?.name || null}
         record={viewConsentedFor?.record || null}
         allForPatient={!!viewConsentedFor?.allForPatient}
+        /* คอลัมน์ "การดำเนินการ" ในตารางของ popup ใช้ตัวเดียวกับ worklist
+           (CTA ตามสถานะ + แก้ไขฉบับที่ลงนามแล้ว) — ตัดปุ่ม 👁 ออกเพราะกดแถว
+           ก็เปิดเอกสารอยู่แล้ว · dialog/verify/toast ยังเป็นของหน้านี้ */
+        renderRecordAction={(row) => renderAction(row, { showView: false, align: 'start' })}
       />
 
       {/* Per-status confirm dialog */}

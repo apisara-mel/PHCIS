@@ -2561,17 +2561,28 @@ export const Step5Orders = ({
       };
     });
   };
-  const removeMed = (idx) => setForm((s) => ({
-    ...s,
-    medications: s.medications.filter((_, i) => i !== idx),
-  }));
-
   /* Delete-confirm — Figma PHCIS|CPOE 280:28154. `pendingMedDelete` holds
      the row index while the AlertDialog is open; the table delete icon
-     opens this popup instead of calling `removeMed` directly. */
+     opens this popup and requires an audit reason before removal. */
   const [pendingMedDelete, setPendingMedDelete] = useState(null);
-  const confirmDeleteMed = () => {
-    if (pendingMedDelete != null) removeMed(pendingMedDelete);
+  const confirmDeleteMed = (reason) => {
+    if (pendingMedDelete != null) {
+      const deleted = form.medications[pendingMedDelete];
+      setForm((s) => ({
+        ...s,
+        medications: s.medications.filter((_, i) => i !== pendingMedDelete),
+        medicationDeletionLog: [
+          ...(s.medicationDeletionLog || []),
+          {
+            id: deleted?.id || `deleted-med-${Date.now()}`,
+            name: deleted?.name || '',
+            reason,
+            deletedAt: new Date().toISOString(),
+            deletedBy: 'พญ.สมหญิง',
+          },
+        ],
+      }));
+    }
     setPendingMedDelete(null);
   };
   const requestRemoveMed = (idx) => setPendingMedDelete(idx);

@@ -4,12 +4,13 @@ import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { useNestedPopupPanel } from '@/components/popup/useNestedPopupPanel';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import { buildConsentCompareGroups } from '@/data/consentPatientHistory';
 import { resolveConsentPatientCard } from '@/data/consentPatientDisplay';
-import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
+import { CONSENT_TYPE_TONE, CONSENT_STATUS } from '@/data/consentRecords';
 import { PHCIS_CHART } from '@/data/phcisChartPalette';
 import {
   buildConsentCompareExportReport,
@@ -55,22 +56,39 @@ const COLUMN_STYLE = {
   minHeight: 200,
 };
 
-const FormRow = ({ item }) => {
+/** ป้ายชื่อสถานะชุดเดียวกับตาราง/worklist — ไม่ตั้งคำใหม่ให้ผู้ใช้ต้องแปล */
+const statusLabelOf = (status) =>
+  (CONSENT_STATUS[status] || {}).label || status || '';
+
+const FormRow = ({ item, onSelect }) => {
+  const clickable = typeof onSelect === 'function';
   return (
     <div
       className='flex flex-col w-full'
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? () => onSelect(item) : undefined}
+      onKeyDown={clickable ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(item); }
+      } : undefined}
       style={{
         gap: 'var(--dim-space-150)',
         padding: 'var(--dim-space-300)',
         borderRadius: 'var(--dim-radius-300)',
         background: 'var(--surface-card-200)',
         border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #E2E4E6)',
+        cursor: clickable ? 'pointer' : undefined,
       }}
     >
       <div className='flex items-start justify-between' style={{ gap: 'var(--dim-space-200)' }}>
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
           <span className='truncate' style={BODY}>{item.formName}</span>
-          <span style={MUTED}>{item.formCode} · {item.version}</span>
+          {/* รหัส · เวอร์ชัน · จำนวนฉบับ — ยอด "N ฉบับ" ของทุกการ์ดรวมกันต้อง
+              เท่ากับตัวเลขบนแท็บ "แบบฟอร์มทั้งหมด" ผู้ใช้จึงกระทบยอดเองได้ */}
+          <span style={MUTED}>
+            {item.formCode} · {item.version}
+            {item.recordCount ? ` · ${item.recordCount} ฉบับ` : ''}
+          </span>
         </div>
         {item.reconsentSent && (
           <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>
@@ -86,11 +104,39 @@ const FormRow = ({ item }) => {
           {item.type}
         </ColorfulBadge>
       </div>
+      {/* บรรทัดที่ผูกการ์ดนี้เข้ากับแถวในตาราง "แบบฟอร์มทั้งหมด" —
+          ซ้ายของ · คือผลที่ทำให้การ์ดอยู่คอลัมน์นี้ · ขวาคือสถานะของฉบับล่าสุด
+          ซึ่งเป็นสถานะที่ตารางแสดงอยู่ ไม่งั้นจะอ่านเหมือนสองแท็บขัดกัน
+          (เป็นข้อความ ไม่ใช่ badge — badge สถานะถูกตัดออกไปตั้งแต่รอบก่อน) */}
+      {(item.decidedDate || item.currentStatus) && (
+        <span style={MUTED}>
+          {statusLabelOf(item.status)}
+          {item.decidedDate && item.decidedDate !== '-' ? ` ${item.decidedDate}` : ''}
+          {item.hasPendingNewer && item.currentStatus
+            ? ` · ฉบับล่าสุด: ${statusLabelOf(item.currentStatus)}`
+            : ''}
+        </span>
+      )}
+      {clickable && (
+        /* CTA ชุดเดียวกับการ์ดใน Timeline (BrandSubdueButton outline + visibility)
+           กดทั้งใบก็ได้ ปุ่มนี้ทำให้เห็นชัดว่ากดเข้าไปดูเอกสารได้ — stopPropagation
+           กันไม่ให้ทั้งการ์ดกับปุ่มยิง onSelect ซ้อนกันสองครั้ง */
+        <div style={{ paddingTop: 'var(--dim-space-100)' }}>
+          <BrandSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='visibility'
+            onClick={(e) => { e.stopPropagation(); onSelect(item); }}
+          >
+            ดูแบบฟอร์มความยินยอม
+          </BrandSubdueButton>
+        </div>
+      )}
     </div>
   );
 };
 
-const GroupColumn = ({ title, icon, tone, items, emptyLabel }) => {
+const GroupColumn = ({ title, icon, tone, items, emptyLabel, onSelect }) => {
   const accent = tone === 'teal' ? PHCIS_CHART.teal : PHCIS_CHART.pink;
   return (
     <div style={COLUMN_STYLE}>
@@ -106,7 +152,7 @@ const GroupColumn = ({ title, icon, tone, items, emptyLabel }) => {
       ) : (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
           {items.map((item) => (
-            <FormRow key={item.id} item={item} />
+            <FormRow key={item.id} item={item} onSelect={onSelect} />
           ))}
         </div>
       )}
@@ -117,7 +163,7 @@ const GroupColumn = ({ title, icon, tone, items, emptyLabel }) => {
 /* สองคอลัมน์ ให้ / ไม่ให้ความยินยอม — แยกออกมาให้ popup "แบบฟอร์มความยินยอม
    ทั้งหมด" เอาไปใช้เป็นแท็บหนึ่งได้ โดยไม่ต้องคัดลอกโครงคอลัมน์ไปอีกที่
    (ไม่รวม PatientSummaryCard — ผู้เรียกวางเองตามบริบทของ popup) */
-export const ConsentCompareBody = ({ hn = null, records = [] }) => {
+export const ConsentCompareBody = ({ hn = null, records = [], onSelectForm = null }) => {
   const groups = useMemo(
     () => (hn ? buildConsentCompareGroups(hn, records) : { patient: null, consented: [], declined: [] }),
     [hn, records],
@@ -130,6 +176,7 @@ export const ConsentCompareBody = ({ hn = null, records = [] }) => {
         tone='teal'
         items={groups.consented}
         emptyLabel='ยังไม่มีแบบฟอร์มที่ให้ความยินยอม'
+        onSelect={onSelectForm}
       />
       <GroupColumn
         title='ไม่ให้ความยินยอม'
@@ -137,6 +184,7 @@ export const ConsentCompareBody = ({ hn = null, records = [] }) => {
         tone='pink'
         items={groups.declined}
         emptyLabel='ยังไม่มีแบบฟอร์มที่ไม่ให้ความยินยอม'
+        onSelect={onSelectForm}
       />
     </div>
   );

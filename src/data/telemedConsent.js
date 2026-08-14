@@ -94,9 +94,10 @@ const monthsAgoIso = (n) => {
   return d.toISOString();
 };
 
-/** แถว PDPA จากทะเบียน Consent กลาง — อ่านอย่างเดียว ใช้ seed คำศัพท์/รูปแบบ */
+/** แถว PDPA จากทะเบียน Consent กลาง — อ่านอย่างเดียว ใช้ seed คำศัพท์/รูปแบบ
+    หัวข้อหลัก "ข้อมูลส่วนบุคคล" คือ PDPA เดิม (ทะเบียนจัดใหม่เป็น 3 หัวข้อ) */
 export const SEEDED_PDPA_SOURCE = CONSENT_RECORDS
-  .filter((r) => r.type === 'PDPA')
+  .filter((r) => r.type === 'ข้อมูลส่วนบุคคล')
   .slice(0, 6);
 
 const SEED_CONSENTS = [

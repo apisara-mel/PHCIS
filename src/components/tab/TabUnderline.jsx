@@ -287,19 +287,29 @@ const TabUnderline = React.forwardRef(function TabUnderline(
       const btnEl = activeEl.querySelector('[role="tab"]');
       const btnRect = btnEl?.getBoundingClientRect();
 
+      /* `morphOnScroll` ย่อทั้งแถบด้วย scale3d ตอนเลื่อนหน้า — getBoundingClientRect
+         คืนค่า "หลังย่อ" แล้ว แต่ indicator เป็นลูกที่อยู่ในกล่องที่ถูกย่อ ค่า px
+         ที่เราสั่งจะถูกย่อซ้ำอีกรอบ ทำให้ขีดขยับไปทางซ้ายมากขึ้นเรื่อย ๆ ตามระยะ
+         ของแท็บ (แท็บแรกแทบไม่เพี้ยน แท็บท้าย ๆ เพี้ยนชัด) — หารกลับด้วย scale
+         ที่วัดจาก rect ÷ layout width · ไม่ย่อ (scale = 1) ค่าไม่เปลี่ยน */
+      const scale = (container.offsetWidth > 0 && cRect.width > 0)
+        ? cRect.width / container.offsetWidth
+        : 1;
+      const unscale = (v) => (scale > 0 ? v / scale : v);
+
       let x;
       let w;
       if (inkRect && inkRect.width > 0.5) {
         /* Hug the label glyph box — excludes count pill. */
-        x = inkRect.left - cRect.left;
-        w = Math.max(0, inkRect.width);
+        x = unscale(inkRect.left - cRect.left);
+        w = Math.max(0, unscale(inkRect.width));
       } else if (btnRect) {
-        x = btnRect.left - cRect.left + UNDERLINE_INSET;
-        w = Math.max(0, btnRect.width - 2 * UNDERLINE_INSET);
+        x = unscale(btnRect.left - cRect.left) + UNDERLINE_INSET;
+        w = Math.max(0, unscale(btnRect.width) - 2 * UNDERLINE_INSET);
       } else {
         const tRect = activeEl.getBoundingClientRect();
-        x = tRect.left - cRect.left + UNDERLINE_INSET;
-        w = Math.max(0, tRect.width - 2 * UNDERLINE_INSET);
+        x = unscale(tRect.left - cRect.left) + UNDERLINE_INSET;
+        w = Math.max(0, unscale(tRect.width) - 2 * UNDERLINE_INSET);
       }
 
       const isHoveringSelected    = activeIdx === selectedIdx && hoveredIdx >= 0;

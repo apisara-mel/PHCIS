@@ -70,7 +70,17 @@ const emptyDraft = () => ({
   when: '',
   quantity: 1,
   instructions: '',
+  additionReason: '',
 });
+
+const ADDITION_REASON_OPTIONS = [
+  'ปรับคำสั่งยาตามการทบทวนโดยเภสัชกร',
+  'แก้ไขรายการยาที่ตกหล่นจากคำสั่งแพทย์',
+  'เพิ่มยาสำหรับแก้ปัญหาความคลาดเคลื่อนทางยา',
+  'เพิ่มยาตามแนวทางหรือบัญชียาของสถานพยาบาล',
+  'เพิ่มยาหลังประสานและยืนยันกับแพทย์',
+  'อื่น ๆ',
+];
 
 const PharmacyMedicationEditor = ({
   open = false,
@@ -92,6 +102,7 @@ const PharmacyMedicationEditor = ({
           when: item.when || '',
           quantity: item.quantity || 1,
           instructions: item.instructions || '',
+          additionReason: item.additionReason || '',
         }
       : emptyDraft());
   }, [open, item]);
@@ -111,7 +122,10 @@ const PharmacyMedicationEditor = ({
   );
   const hiddenCount = DRUG_REGISTRY.length - selectableDrugs.length;
 
-  const canSave = Boolean(String(draft.name || '').trim());
+  const canSave = Boolean(
+    String(draft.name || '').trim()
+    && (!isNew || String(draft.additionReason || '').trim()),
+  );
 
   const handleSave = () => {
     if (!canSave) return;
@@ -125,6 +139,7 @@ const PharmacyMedicationEditor = ({
       when: draft.when,
       quantity: Number(draft.quantity) || 1,
       instructions: draft.instructions,
+      additionReason: draft.additionReason,
     });
   };
 
@@ -253,6 +268,27 @@ const PharmacyMedicationEditor = ({
             />
           </FieldShell>
         </Field>
+        {isNew && (
+          <Field label='เหตุผลที่เภสัชกรเพิ่มยา *'>
+            <FieldShell>
+              <select
+                className='mih-pharmacy-med-editor-input w-full min-w-0'
+                value={draft.additionReason}
+                onChange={setField('additionReason')}
+                style={{
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm)',
+                  color: 'var(--text-content-default)',
+                }}
+              >
+                <option value=''>— เลือกเหตุผล —</option>
+                {ADDITION_REASON_OPTIONS.map((reason) => (
+                  <option key={reason} value={reason}>{reason}</option>
+                ))}
+              </select>
+            </FieldShell>
+          </Field>
+        )}
       </div>
     </Popup>
   );

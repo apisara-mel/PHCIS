@@ -373,12 +373,17 @@ function ConsentHistorySearch({ records, onSelectHn, embedded = false }) {
   );
 }
 
-function ConsentHistoryTimeline({ hn, records, embedded = false, onViewForm = null }) {
+/* `defaultDateQuick` — หน้า /consent/history ตั้งต้นที่ "ปีนี้" เหมือนเดิม แต่ตอน
+   ฝังใน popup ของผู้รับบริการรายคน ต้องเป็น 'all' ให้ไทม์ไลน์ครอบคลุมช่วงเดียว
+   กับแท็บแบบฟอร์ม/เปรียบเทียบ (ซึ่งไม่กรองวันที่) ไม่งั้นสามแท็บนับคนละช่วงเวลา */
+function ConsentHistoryTimeline({
+  hn, records, embedded = false, onViewForm = null, defaultDateQuick = 'thisyear',
+}) {
   const [actionFilter, setActionFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState({ quick: 'thisyear' });
-  const timelineFiltersActive = (actionFilter && actionFilter !== 'all') || (dateFilter?.quick && dateFilter.quick !== 'thisyear');
+  const [dateFilter, setDateFilter] = useState({ quick: defaultDateQuick });
+  const timelineFiltersActive = (actionFilter && actionFilter !== 'all') || (dateFilter?.quick && dateFilter.quick !== defaultDateQuick);
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(timelineFiltersActive, () => {
-    setActionFilter('all'); setDateFilter({ quick: 'thisyear' });
+    setActionFilter('all'); setDateFilter({ quick: defaultDateQuick });
   });
   const [internalViewEvent, setInternalViewEvent] = useState(null);
   const scrollPanelRef = useRef(null);
@@ -462,7 +467,7 @@ function ConsentHistoryTimeline({ hn, records, embedded = false, onViewForm = nu
         prefix='วันที่:'
         value={dateFilter}
         onChange={setDateFilter}
-        defaultQuick='thisyear'
+        defaultQuick={defaultDateQuick}
       />
       {ACTION_FILTERS.map((f) => {
         const count = actionCounts[f.key] ?? 0;

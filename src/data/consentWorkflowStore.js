@@ -9,8 +9,9 @@ import { bumpConsentFormVersionMinor } from '@/data/consentFormVersion';
 
 const STORAGE_KEY = 'mih:consent-workflow';
 /* bump when CONSENT_RECORDS row count / shape changes
-   13 = worklist ผูกกับพูลแบบฟอร์มจริง 15 ใบ (เดิม PH-009 ใบเดียวทุกแถว) */
-const SEED_VERSION = 13;
+   13 = worklist ผูกกับพูลแบบฟอร์มจริง (เดิม PH-009 ใบเดียวทุกแถว)
+   14 = ทะเบียนแบบฟอร์มจัดใหม่เป็น 3 หัวข้อหลัก × 8 ใบ (ชื่อไม่ซ้ำ 24 ใบ) */
+const SEED_VERSION = 14;
 const SIGN_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
 const listeners = new Set();
@@ -328,10 +329,12 @@ export const cancelConsentRequest = (recordId) => {
 };
 
 /* ── Medical-record (เวชระเบียน) consent → worklist sync ─────────── */
+/* ค่าต้องเป็นหัวข้อหลัก 3 เรื่องของ consent (CONSENT_TOPICS) ไม่งั้นแถวที่ sync
+   มาจากเวชระเบียนจะมี type ที่ไม่มีในทะเบียนแบบฟอร์ม แล้วหลุดจากรายงาน/ตัวกรอง */
 const MR_FORM_ID_TO_TYPE = {
-  'PD-1011': 'PDPA',
-  'TX-1011': 'การรักษา',
-  'CL-1011': 'เบิกจ่าย',
+  'PD-1011': 'ข้อมูลส่วนบุคคล',
+  'TX-1011': 'ข้อมูลการรักษา',
+  'CL-1011': 'การเบิกจ่าย',
 };
 
 const MR_SLUG_TO_TYPE = {

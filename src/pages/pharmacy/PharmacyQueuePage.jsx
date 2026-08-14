@@ -58,6 +58,32 @@ const QUEUE_TYPE_PILL = {
 };
 
 const Pill = ({ pill }) => <Badge style={pill.style} size='small'>{pill.label}</Badge>;
+const hasStatDose = (row) => (row.items || []).some((item) => item.stat);
+
+/* STAT requires immediate attention. Idempotent module-load injection keeps
+   the worklist animation available even when DispensePage has not mounted. */
+const STAT_BLINK_STYLE_ID = 'mih-pharmacy-stat-badge-blink-style';
+if (typeof document !== 'undefined') {
+  const cssText = `
+@keyframes mih-pharmacy-stat-badge-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.mih-pharmacy-stat-badge-blink {
+  animation: mih-pharmacy-stat-badge-blink 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mih-pharmacy-stat-badge-blink { animation: none; opacity: 1; }
+}
+`;
+  let styleElement = document.getElementById(STAT_BLINK_STYLE_ID);
+  if (!styleElement) {
+    styleElement = document.createElement('style');
+    styleElement.id = STAT_BLINK_STYLE_ID;
+    document.head.appendChild(styleElement);
+  }
+  if (styleElement.textContent !== cssText) styleElement.textContent = cssText;
+}
 
 /* Patient photo — registration queue avatar contract (QueuePatientAvatar). */
 /* Allergy / High Alert flags for a row — shared by the table cell render
@@ -104,6 +130,15 @@ const makeRenderActions = ({ onCall }) => function ActionsCell(row) {
    Only `flex` / `minWidth` remain for the patient column that should grow. */
 const BASE_COLUMNS = [
   { key: 'queueNo', label: 'คิว', render: (row) => <Badge style='success' size='small'>{row.queueNo}</Badge> },
+  {
+    key: 'stat',
+    label: 'STAT Dose',
+    align: 'center',
+    sortable: false,
+    render: (row) => (hasStatDose(row) ? (
+      <Badge style='error' size='small' className='mih-pharmacy-stat-badge-blink'>STAT</Badge>
+    ) : null),
+  },
   { key: 'hn', label: 'HN' },
   /* VN (Visit Number) — same value as the OPD screening queue for this
      patient (see `getVnByHn` in patientProfiles.js). Blank for the handful
@@ -131,7 +166,6 @@ const BASE_COLUMNS = [
       );
     },
   },
-  { key: 'queueType', label: 'ประเภท', render: (row) => <Pill pill={QUEUE_TYPE_PILL[row.queueType]} /> },
   { key: 'items', label: 'จำนวนรายการยา', align: 'center', render: (row) => `${row.items.length} รายการ` },
   {
     key: 'allergy', label: 'แพ้ยา / High Alert', sortable: false,
@@ -242,7 +276,15 @@ const PharmacyQueuePage = () => {
      actually clicks a header (sortConfig.key === null keeps the existing
      insertion-order view untouched). */
   const sortedRows = useMemo(() => {
-    if (!sortConfig.key) return filtered;
+    if (!sortConfig.key) {
+      return filtered
+        .map((row, sourceIndex) => ({ row, sourceIndex }))
+        .sort((a, b) => {
+          if (hasStatDose(a.row) !== hasStatDose(b.row)) return hasStatDose(a.row) ? -1 : 1;
+          return a.sourceIndex - b.sourceIndex;
+        })
+        .map(({ row }) => row);
+    }
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
     const normalize = (row, key) => {
       switch (key) {
@@ -255,6 +297,7 @@ const PharmacyQueuePage = () => {
     };
     const collator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' });
     return [...filtered].sort((a, b) => {
+      if (hasStatDose(a) !== hasStatDose(b)) return hasStatDose(a) ? -1 : 1;
       const av = normalize(a, sortConfig.key);
       const bv = normalize(b, sortConfig.key);
       const primary = typeof av === 'number' && typeof bv === 'number'

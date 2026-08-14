@@ -185,6 +185,32 @@ const FORM_COLUMNS = [
   },
 ];
 
+/** ต่อคอลัมน์ "การดำเนินการ" ท้ายตาราง เมื่อผู้เรียกส่ง renderer มาให้
+    (ตัวเดียวกับหน้า worklist — CTA ตามสถานะ + ปุ่มแก้ไขของฉบับที่ลงนามแล้ว)
+    หุ้มด้วย stopPropagation เพราะแถวทั้งแถวกดเพื่อเปิดเอกสารอยู่ กดปุ่มใน
+    คอลัมน์นี้ต้องไม่เด้งเข้าหน้าเอกสารไปพร้อมกัน */
+const buildFormColumns = (renderRecordAction) => (
+  renderRecordAction
+    ? [
+      ...FORM_COLUMNS,
+      {
+        key: 'action',
+        label: 'การดำเนินการ',
+        sortable: false,
+        render: (r) => (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role='presentation'
+          >
+            {renderRecordAction(r)}
+          </div>
+        ),
+      },
+    ]
+    : FORM_COLUMNS
+);
+
 const ConsentConsentedFormsPopup = ({
   open,
   onClose,
@@ -193,6 +219,10 @@ const ConsentConsentedFormsPopup = ({
   record = null,
   focusRecordId = null,
   allForPatient = false,
+  /** (record) => ReactNode — คอลัมน์ "การดำเนินการ" ของตารางแบบฟอร์มทั้งหมด
+      ผู้เรียก (ConsentManagementPage) เป็นเจ้าของ dialog/verify/toast ทั้งหมด
+      popup แค่วางปุ่ม ไม่ถือ workflow state เอง */
+  renderRecordAction = null,
 }) => {
   const [records, setRecords] = useState(getConsentRecords);
   /* ฉบับที่ผู้ใช้เลือกจากตาราง (โหมด allForPatient เท่านั้น) */
@@ -374,6 +404,11 @@ const ConsentConsentedFormsPopup = ({
     };
   }, [isTimelinePanel, hn, open]);
 
+  const formColumns = useMemo(
+    () => buildFormColumns(renderRecordAction),
+    [renderRecordAction],
+  );
+
   const viewTabs = useMemo(() => [
     { key: 'forms',    label: 'แบบฟอร์มทั้งหมด', count: patientRecords.length },
     { key: 'compare',  label: 'เปรียบเทียบการให้ความยินยอม' },
@@ -482,7 +517,7 @@ const ConsentConsentedFormsPopup = ({
             </div>
             {view === 'forms' && (
               <Table
-                columns={FORM_COLUMNS}
+                columns={formColumns}
                 rows={patientRecords}
                 rowKey={(r) => r.id}
                 sortConfig={sortConfig}
@@ -493,7 +528,16 @@ const ConsentConsentedFormsPopup = ({
               />
             )}
             {view === 'compare' && (
-              <ConsentCompareBody hn={baseHn(hn)} records={records} />
+              /* การ์ดกดเข้าดูเอกสารได้เหมือนแถวในตาราง — item.id คือ id ของ
+                 "ฉบับที่มีผลล่าสุด" ของแบบฟอร์มนั้น จึงหา record จริงเจอเสมอ */
+              <ConsentCompareBody
+                hn={baseHn(hn)}
+                records={records}
+                onSelectForm={(item) => {
+                  const hit = records.find((r) => String(r.id) === String(item?.id));
+                  if (hit) setPicked(hit);
+                }}
+              />
             )}
             {view === 'timeline' && (
               /* Timeline scroll ในตัวเอง — ต้องได้ความสูงจริงจาก popup body
@@ -510,6 +554,9 @@ const ConsentConsentedFormsPopup = ({
                   hn={baseHn(hn)}
                   records={records}
                   embedded
+                  /* ไม่กรองวันที่ตั้งต้น — แท็บแบบฟอร์ม/เปรียบเทียบดูทั้งแฟ้ม
+                     ถ้าไทม์ไลน์ default เป็น "ปีนี้" สามแท็บจะนับคนละช่วงเวลา */
+                  defaultDateQuick='all'
                   onViewForm={setPickedEvent}
                 />
               </div>

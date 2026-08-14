@@ -16,9 +16,12 @@ import {
 } from '@/data/consentFormRecords';
 
 /* ── Consent type → ColorfulBadge tone (Figma type pills) ───────────── */
+/** tone ต่อหัวข้อหลัก 3 เรื่องของ consent — ชุดเดียวกับ FORM_TYPE_TONE
+    ในทะเบียนแบบฟอร์ม เพื่อให้สีของหัวข้อเดียวกันตรงกันทุกหน้า */
 export const CONSENT_TYPE_TONE = {
-  'PDPA':     'indigo',
-  'เบิกจ่าย': 'magenta',
+  'ข้อมูลส่วนบุคคล': 'indigo',
+  'ข้อมูลการรักษา':  'teal',
+  'การเบิกจ่าย':     'magenta',
 };
 
 /* ── Status meta — badge tone + which tab it belongs under + the action

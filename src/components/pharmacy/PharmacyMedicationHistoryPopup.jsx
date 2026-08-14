@@ -145,6 +145,12 @@ const ITEM_COLUMNS = [
     ),
   },
   {
+    key: 'stat',
+    label: 'STAT Dose',
+    align: 'center',
+    render: (it) => (it.stat ? <Badge style='error' size='small'>STAT</Badge> : null),
+  },
+  {
     key: 'dose',
     label: 'ขนาด/ครั้ง',
     render: (it) => `${it.dosePerTake || '—'} ${it.unit || ''}`.trim(),
@@ -165,11 +171,6 @@ const ITEM_COLUMNS = [
         {SOURCE_LABEL[it.source] || it.source || '—'}
       </Badge>
     ),
-  },
-  {
-    key: 'drugType',
-    label: 'แหล่งยา',
-    render: (it) => it.drugType || '—',
   },
 ];
 
@@ -410,7 +411,7 @@ const PharmacyMedicationHistoryPopup = ({
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  {['ชื่อยา', 'สถานะยา', 'ขนาด/ครั้ง', 'ความถี่', 'เวลาใช้ยา', 'จำนวน', 'ประเภท', 'แหล่งยา', 'คำแนะนำ'].map((label) => (
+                  {['ชื่อยา', 'สถานะยา', 'STAT Dose', 'ขนาด/ครั้ง', 'ความถี่', 'เวลาใช้ยา', 'จำนวน', 'ประเภท', 'คำแนะนำ'].map((label) => (
                     <th key={label} style={thStyle}>{label}</th>
                   ))}
                 </tr>
@@ -425,12 +426,12 @@ const PharmacyMedicationHistoryPopup = ({
                       completed: 'Completed',
                       'on-hold': 'On hold',
                     })[it.orderStatus] || 'Continue'}</td>
+                    <td style={tdStyle}>{it.stat ? 'STAT' : ''}</td>
                     <td style={tdStyle}>{`${it.dosePerTake || '—'} ${it.unit || ''}`.trim()}</td>
                     <td style={tdStyle}>{it.frequency || '—'}</td>
                     <td style={tdStyle}>{it.when || '—'}</td>
                     <td style={tdStyle}>{`${it.quantity ?? '—'}${it.unit ? ` ${it.unit}` : ''}`}</td>
                     <td style={tdStyle}>{SOURCE_LABEL[it.source] || it.source || '—'}</td>
-                    <td style={tdStyle}>{it.drugType || '—'}</td>
                     <td style={tdStyle}>{it.instructions || '—'}</td>
                   </tr>
                 ))}
