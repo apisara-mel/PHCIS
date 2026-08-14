@@ -460,6 +460,7 @@ export const DIAGNOSIS_SUGGESTIONS = [
    which sub-table renders. */
 export const TREATMENT_ORDER_CATEGORIES = [
   { key: 'medication', label: 'ยา',          type: 'default'      },
+  { key: 'medicalSupply', label: 'เวชภัณฑ์มิใช่ยา', type: 'default' },
   { key: 'lab',        label: 'แล็บ',         type: 'in-progress'  },
   { key: 'xray',       label: 'X-ray / RIS',  type: 'success'      },
   { key: 'procedure',  label: 'หัตถการ',      type: 'default'      },

@@ -69,6 +69,7 @@ import LabOrderPanel from '@/pages/treat/panels/LabOrderPanel';
 import RadiologyOrderPanel from '@/pages/treat/panels/RadiologyOrderPanel';
 import ProcedureOrderPanel from '@/pages/treat/panels/ProcedureOrderPanel';
 import ConsultComposerPanel from '@/pages/treat/panels/ConsultComposerPanel';
+import MedicalSupplyOrderPanel from '@/pages/treat/panels/MedicalSupplyOrderPanel';
 import DocumentCenterPanel from '@/pages/treat/panels/DocumentCenterPanel';
 import ReDiagnosisPopup from '@/components/popup/ReDiagnosisPopup';
 import ReMedicinePopup from '@/components/popup/ReMedicinePopup';
@@ -2364,6 +2365,7 @@ const FrequentOrdersCard = ({ onInsertChip, selectedLabels }) => {
    switching tabs still reads as "ยังไม่มีรายการ … ที่สั่ง · กรุณาสั่ง …". */
 const ORDER_EMPTY_STATE_TEXT = {
   medication: { title: 'ยังไม่มีรายการยาที่สั่ง',         subtitle: 'กรุณาสั่งยา',        addLabel: 'เพิ่มยา'      },
+  medicalSupply: { title: 'ยังไม่มีเวชภัณฑ์มิใช่ยาที่สั่ง', subtitle: 'กรุณาเพิ่มเวชภัณฑ์', addLabel: 'เพิ่มเวชภัณฑ์' },
   lab:        { title: 'ยังไม่มีรายการแล็บที่สั่ง',        subtitle: 'กรุณาสั่งแล็บ',       addLabel: 'เพิ่มแล็บ'    },
   xray:       { title: 'ยังไม่มีรายการ X-ray ที่สั่ง',    subtitle: 'กรุณาสั่ง X-ray',     addLabel: 'เพิ่ม X-ray'  },
   procedure:  { title: 'ยังไม่มีรายการหัตถการที่สั่ง',     subtitle: 'กรุณาสั่งหัตถการ',     addLabel: 'เพิ่มหัตถการ' },
@@ -2379,6 +2381,7 @@ const ORDER_EMPTY_STATE_TEXT = {
    procedure / consult table slots in without touching the JSX again. */
 const ORDER_TABLE_TEXT = {
   medication: { title: 'รายการยาที่สั่ง',                  subtitle: 'กด " + " เพื่อเพิ่มยารายการใหม่เข้าใน Order' },
+  medicalSupply: { title: 'รายการเวชภัณฑ์มิใช่ยาที่สั่ง', subtitle: 'รายการจะถูกส่งไปห้องยาพร้อมใบสั่งเดียวกัน' },
   lab:        { title: 'รายการแล็บที่สั่ง',                 subtitle: 'กด " + " เพื่อเพิ่มรายการตรวจเข้าใน Order' },
   xray:       { title: 'รายการตรวจทางรังสีวิทยาที่สั่ง',     subtitle: 'กด " + " เพื่อเพิ่มรายการตรวจเข้าใน Order' },
   procedure:  { title: 'รายการหัตถการที่สั่ง',              subtitle: 'กด " + " เพื่อเพิ่มรายการหัตถการเข้าใน Order' },
@@ -2388,7 +2391,7 @@ const ORDER_TABLE_TEXT = {
 /* CPOE §1.5 — หมวดที่มี panel เต็มรูปของตัวเองแล้ว (แทน empty state เดิม
    ที่ไม่มี picker). `medication` และ `xray` ยังใช้ตาราง/ปุ่มเดิมทั้งหมด
    แล้วเสริม panel ต่อท้าย จึงไม่อยู่ในชุดนี้. */
-const CPOE_PANEL_CATEGORIES = new Set(['lab', 'procedure', 'consult']);
+const CPOE_PANEL_CATEGORIES = new Set(['medicalSupply', 'lab', 'procedure', 'consult']);
 
 /* `onStepChange` / `stepIndexes` ถูกส่งมาจาก TreatmentFormPage อยู่แล้ว —
    รับไว้เพื่อให้สัญญาณ §1.5.4.15 มีปุ่ม "ไปแนบเอกสาร" ที่กระโดดไปขั้นเอกสาร
@@ -2792,6 +2795,9 @@ export const Step5Orders = ({
           <>
             {activeCategory === 'lab'
               ? <LabOrderPanel form={form} setForm={setForm} patient={patient} />
+              : null}
+            {activeCategory === 'medicalSupply'
+              ? <MedicalSupplyOrderPanel form={form} setForm={setForm} />
               : null}
             {activeCategory === 'procedure'
               ? <ProcedureOrderPanel form={form} setForm={setForm} patient={patient} />
