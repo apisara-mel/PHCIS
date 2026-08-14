@@ -2369,13 +2369,21 @@ export const Step5Orders = ({
   const dismissAlert = () => setForm((s) => ({ ...s, showAllergyAlert: false }));
   const [orderPickerOpen, setOrderPickerOpen] = useState(false);
   const orderPickerItems = useMemo(() => {
-    const medicationNames = ['Paracetamol 500mg', 'Cetirizine 10mg', 'Ibuprofen 400mg', 'Amoxicillin 500mg'];
-    const medicationItems = medicationNames.map((name, index) => {
+    const medicationCatalog = [
+      { name: 'Paracetamol 500mg', allergyTerms: ['paracetamol', 'acetaminophen'] },
+      { name: 'Cetirizine 10mg', allergyTerms: ['cetirizine'] },
+      { name: 'Ibuprofen 400mg', allergyTerms: ['ibuprofen', 'nsaid', 'nsaids', 'aspirin'] },
+      { name: 'Amoxicillin 500mg', allergyTerms: ['amoxicillin', 'penicillin', 'penicillins'] },
+    ];
+    const recordedAllergies = (patient?.drugAllergies || []).map((item) => String(item.name || '').toLowerCase());
+    const medicationItems = medicationCatalog.map(({ name, allergyTerms }, index) => {
       const source = PAST_VISIT_MEDICATIONS.find((item) => item.name === name)
         || PAST_VISIT_MEDICATIONS.find((item) => item.name?.startsWith(name.split(' ')[0]));
+      const allergyMatch = recordedAllergies.find((allergy) => allergyTerms.some((term) => allergy.includes(term) || term.includes(allergy)));
       return {
         id: index === 0 ? 'med-paracetamol' : index === 1 ? 'med-cetirizine' : `med-catalog-${index}`,
         category: 'medication', name, unit: source?.unit || 'เม็ด', source,
+        allergyMatch: allergyMatch || '',
       };
     });
     const supplyId = { 'gauze-sterile-2x2': 'supply-gauze', 'cotton-ball': 'supply-cotton', 'medical-tape-1': 'supply-tape', 'syringe-5ml': 'supply-syringe', 'surgical-mask': 'supply-mask' };
@@ -2387,7 +2395,7 @@ export const Step5Orders = ({
       ...ICD9_PROCEDURES.map((item) => ({ id: `procedure-${item.code}`, category: 'procedure', name: item.nameTh, unit: item.unit, detail: `ICD-9-CM ${item.code} · ${item.price.toLocaleString('th-TH')} บาท`, source: item })),
       ...CONSULT_CLINICS.map((item) => ({ id: `consult-${item.key}`, category: 'consult', name: item.label, detail: `คิวรอ ${item.waiting} ราย · สร้างเป็นคำขอปรึกษาฉบับร่าง`, source: item })),
     ];
-  }, []);
+  }, [patient?.drugAllergies]);
   const commitPickedOrders = (picked) => {
     if (!picked?.length) return;
     const now = Date.now();
@@ -2796,7 +2804,7 @@ export const Step5Orders = ({
           </div>
           <BrandPrimaryButton size='lg' leadingIcon='add' onClick={() => setOrderPickerOpen(true)}>เพิ่มรายการ</BrandPrimaryButton>
         </div>
-        <TreatmentOrderPickerPopup open={orderPickerOpen} onClose={() => setOrderPickerOpen(false)} items={orderPickerItems} onConfirm={commitPickedOrders} />
+        <TreatmentOrderPickerPopup open={orderPickerOpen} onClose={() => setOrderPickerOpen(false)} items={orderPickerItems} onConfirm={commitPickedOrders} patient={patient} cardPatient={cardPatient} />
       </section>
     );
   }
@@ -3319,6 +3327,8 @@ export const Step5Orders = ({
         onClose={() => setOrderPickerOpen(false)}
         items={orderPickerItems}
         onConfirm={commitPickedOrders}
+        patient={patient}
+        cardPatient={cardPatient}
       />
     </section>
   );

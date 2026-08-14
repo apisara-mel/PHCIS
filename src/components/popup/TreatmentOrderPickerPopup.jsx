@@ -8,6 +8,7 @@ import { Sym } from '@/components/forms/Fields';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandFilterTag from '@/components/forms/FilterTag';
+import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 
 const CATEGORY_LABELS = {
   medication: 'ยา', medicalSupply: 'เวชภัณฑ์มิใช่ยา', lab: 'Lab',
@@ -23,7 +24,7 @@ const ORDER_SETS = [
   { id: 'set-chest-symptom', name: 'ชุดประเมินอาการทางทรวงอก', description: 'CBC, เอกซเรย์ทรวงอก และปรึกษาอายุรกรรม', itemIds: ['lab-lab-cbc', 'xray-xr-cxr-pa', 'consult-im'] },
 ];
 
-const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => {
+const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patient, cardPatient }) => {
   const [mode, setMode] = useState('items');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
@@ -63,6 +64,10 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => 
     }]);
     setSetName(''); setSetDescription(''); setCreatingSet(false);
   };
+  const patientName = cardPatient?.fullName || patient?.fullName || patient?.name
+    || [patient?.prefixTh, patient?.firstNameTh, patient?.lastNameTh].filter(Boolean).join(' ')
+    || 'ไม่พบชื่อผู้รับบริการ';
+  const allergyNames = (patient?.drugAllergies || []).map((item) => item.name).filter(Boolean);
 
   return (
     <Popup open={open} onClose={onClose} size='extraLarge' title='เพิ่มรายการสั่งการรักษา'
@@ -71,6 +76,21 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => 
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
       primaryAction={{ label: `เพิ่ม ${selectedIds.length} รายการ`, onClick: handleConfirm, disabled: selectedIds.length === 0 }}
       bodyStyle={{ gap: 'var(--dim-space-400, 16px)' }}>
+      <PatientSummaryCard
+        variant='gradient'
+        avatarUrl={cardPatient?.avatarUrl || patient?.avatarUrl}
+        avatarAlt={patientName}
+        cells={[
+          { label: 'ชื่อ-นามสกุล ผู้รับบริการ', value: patientName },
+          { label: 'HN (Hospital Number)', value: cardPatient?.hn || patient?.hn || '—' },
+          { label: 'อายุ / เพศ', value: `${patient?.age != null ? `${patient.age} ปี` : '—'} / ${patient?.gender || '—'}` },
+          { label: 'สิทธิการรักษา', value: patient?.rights || cardPatient?.insurance || '—' },
+          {
+            label: 'ประวัติแพ้ยา',
+            value: allergyNames.length > 0 ? allergyNames.join(', ') : 'ไม่พบประวัติแพ้ยา',
+          },
+        ]}
+      />
       <TabBar aria-label='วิธีเพิ่มรายการสั่งการรักษา'>
         <TabPill label='ค้นหารายการ' selected={mode === 'items'} onClick={() => setMode('items')} />
         <TabPill label='ชุดคำสั่งสำเร็จรูป' selected={mode === 'sets'} onClick={() => setMode('sets')} />
@@ -97,7 +117,10 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => 
           {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', border: `${checked ? 'var(--dim-stroke-200, 2px)' : 'var(--dim-stroke-100, 1px)'} solid ${checked ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-neutral-quaternary, #E2E4E6)'}`, borderRadius: 'var(--dim-radius-200, 8px)', background: checked ? 'var(--surface-brandPrimary-quaternary, #EAF8F2)' : 'var(--surface-card-default, #FFFFFF)' }}>
             <span onClick={(event) => event.stopPropagation()}><Checkbox checked={checked} onChange={() => toggle(item.id)} aria-label={`เลือก ${item.name}`} /></span>
             <span className='flex-1 min-w-0'><span style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{item.name}</span><span style={{ display: 'block', color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>{item.detail || (item.unit ? `หน่วย ${item.unit}` : 'กรอกรายละเอียดหลังเพิ่มรายการ')}</span></span>
-            <ColorfulBadge style={CATEGORY_BADGES[item.category] || 'grey'} size='small'>{CATEGORY_LABELS[item.category]}</ColorfulBadge>
+            <span className='flex items-center flex-wrap justify-end' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+              {item.allergyMatch && <ColorfulBadge style='red' size='small'>ผู้รับบริการแพ้ยานี้</ColorfulBadge>}
+              <ColorfulBadge style={CATEGORY_BADGES[item.category] || 'grey'} size='small'>{CATEGORY_LABELS[item.category]}</ColorfulBadge>
+            </span>
           </button>; })}
           {visibleItems.length === 0 && <div className='flex flex-col items-center text-center' style={{ gap: 'var(--dim-space-200, 8px)', padding: 'var(--dim-space-800, 32px)' }}><Sym name='search_off' size={32} color='var(--icon-neutral-tertiary, #8A9095)' /><span style={{ color: 'var(--text-content-secondary, #454B50)', fontSize: 'var(--type-size-sm, 14px)' }}>ไม่พบรายการที่ค้นหา</span></div>}
         </div>
