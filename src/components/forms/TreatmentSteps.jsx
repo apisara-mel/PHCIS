@@ -1914,7 +1914,7 @@ const buildMedTableColumns = ({ updateRow, editRow }) => [
   /* Figma PHCIS|CPOE 276:34332 — วิธีใช้ is read-only body text in the
      table (not an inline Select). Edits go through AddMedicationPopup. */
   { key: 'usage',      header: 'วิธีใช้' },
-  { key: 'dosePerTake', header: 'ทานครั้งละ' },
+  { key: 'dosePerTake', header: 'ทานครั้งละ', align: 'center' },
   { key: 'unit',       header: 'หน่วย' },
   { key: 'frequency',  header: 'ความถี่' },
   { key: 'when',       header: 'เวลาใช้ยา' },
