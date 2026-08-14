@@ -28,7 +28,7 @@ import { appendAudit, stampNow, CURRENT_CLINICIAN } from '@/data/treatmentAudit'
 const UNCODED_LABEL = 'ยังไม่ลงรหัส';
 
 /* ICD-9-CM ชุดหัตถการที่ทำได้จริงในศูนย์บริการสาธารณสุข */
-const ICD9_PROCEDURES = [
+export const ICD9_PROCEDURES = [
   { code: '86.59', nameTh: 'เย็บปิดแผลผิวหนังและเนื้อเยื่อใต้ผิวหนัง', nameEn: 'Closure of skin and subcutaneous tissue', price: 350, unit: 'ครั้ง', claim: 350 },
   { code: '86.28', nameTh: 'ทำแผลและตัดเนื้อตายแบบไม่ผ่าตัด', nameEn: 'Nonexcisional debridement of wound', price: 200, unit: 'ครั้ง', claim: 200 },
   { code: '86.05', nameTh: 'ผ่าเปิดระบายหนองที่ผิวหนัง (I&D)', nameEn: 'Incision with removal of foreign body', price: 400, unit: 'ครั้ง', claim: 400 },

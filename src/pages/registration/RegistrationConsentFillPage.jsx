@@ -12,6 +12,7 @@ import BrandButton from '@/components/button/BrandButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import StatusBadge from '@/components/badge/StatusBadge';
 import InputField from '@/components/forms/InputField';
+import Select from '@/components/forms/Select';
 import Signature from '@/components/form-builder/Signature';
 import RadioButton from '@/components/radio/RadioButton';
 import Icon from '@/components/icons/Icon';
@@ -22,7 +23,7 @@ import {
   markRegistrationConsentCompleted,
 } from '@/data/registrationForm';
 import { recordMrConsentSigning } from '@/data/consentWorkflowStore';
-import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
+import { findMrPatientByHn, DEFAULT_MR_PATIENT, MR_PATIENTS } from '@/data/mrPatients';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 import ConsentQrScanBlock from '@/components/consent/ConsentQrScanBlock';
 
@@ -158,6 +159,11 @@ const RegistrationConsentFillPage = () => {
   const [hn, setHn] = useState(defaults.hn);
   const [answers, setAnswers] = useState(() => emptyAnswers(meta.clauses));
   const [signature, setSignature] = useState(null);
+  const patientOptions = useMemo(() => MR_PATIENTS.map((item) => ({
+    value: item.hn,
+    label: buildFullNameTh(item),
+    subtext: `${item.hn} · ${formatNationalId(item.nationalId)}`,
+  })), []);
 
   useEffect(() => {
     setAnswers(emptyAnswers(meta.clauses));
@@ -175,6 +181,13 @@ const RegistrationConsentFillPage = () => {
     fullName: setFullName,
     nationalId: setNationalId,
     hn: setHn,
+  };
+  const selectPatient = (nextHn) => {
+    const selected = findMrPatientByHn(nextHn);
+    if (!selected) return;
+    setFullName(buildFullNameTh(selected));
+    setNationalId(formatNationalId(selected.nationalId));
+    setHn(selected.hn);
   };
 
   const canSave = useMemo(() => {
@@ -348,16 +361,33 @@ const RegistrationConsentFillPage = () => {
                     <h2 style={sectionTitleStyle}>ข้อมูลผู้ป่วย</h2>
                     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
                       {(meta.patientFields || []).map((field) => (
-                        <InputField
-                          key={field.key}
-                          label={field.label}
-                          required={field.required}
-                          value={fieldValues[field.key] || ''}
-                          onChange={setFieldValue[field.key]}
-                          placeholder={field.placeholder}
-                          showHelperText={false}
-                          showLeadingIcon={false}
-                        />
+                        field.key === 'fullName' ? (
+                          <Select
+                            key={field.key}
+                            label={field.label}
+                            required={field.required}
+                            value={hn}
+                            onChange={selectPatient}
+                            options={patientOptions}
+                            placeholder='ค้นหาชื่อผู้รับบริการ หรือเลข HN'
+                            searchable
+                            showHelperText={false}
+                            showLeadingIcon
+                            leadingIcon='person_search'
+                          />
+                        ) : (
+                          <InputField
+                            key={field.key}
+                            label={field.label}
+                            required={field.required}
+                            value={fieldValues[field.key] || ''}
+                            onChange={setFieldValue[field.key]}
+                            placeholder={field.placeholder}
+                            showHelperText={false}
+                            showLeadingIcon={false}
+                            disabled={field.key === 'nationalId' || field.key === 'hn'}
+                          />
+                        )
                       ))}
                     </div>
                   </section>

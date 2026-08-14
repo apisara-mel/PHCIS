@@ -66,7 +66,7 @@ import { matchesDateFilter } from '@/data/financePaymentPrototype';
    มุมมองถูกยุบเข้าไปเป็นแท็บใน ConsentConsentedFormsPopup (13 ส.ค. 2569)
    ตัว popup เดิมยังอยู่ในโค้ดเบสสำหรับหน้า /consent/history */
 import ConsentConsentedFormsPopup from '@/pages/consent/ConsentConsentedFormsPopup';
-import ConsentRequestFormsPopup, { pendingConsentCardsFor } from '@/pages/consent/ConsentRequestFormsPopup';
+import { pendingConsentCardsFor } from '@/pages/consent/ConsentRequestFormsPopup';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* PHCIS | Consent — ระบบจัดการความยินยอม (Figma node 1:4).
@@ -178,8 +178,6 @@ export default function ConsentManagementPage() {
   /* null | { hn, name, record, allForPatient } — popup เดียวที่รวม
      แบบฟอร์มทั้งหมด / เปรียบเทียบ / Timeline ไว้เป็นแท็บ */
   const [viewConsentedFor, setViewConsentedFor] = useState(null);
-  /* null | patient row — popup เลือกแบบฟอร์มที่ยังไม่ขอความยินยอมของคนนั้น */
-  const [requestFormsFor, setRequestFormsFor] = useState(null);
   const [reconsentFor, setReconsentFor] = useState(null);        // record
   const [paperFor, setPaperFor] = useState(null);                // record
   const [editFor, setEditFor] = useState(null);                  // signed record → PersonalDataConsentEditPopup
@@ -630,7 +628,6 @@ export default function ConsentManagementPage() {
      ว่าใบไหน ต้องเลือกใน popup ก่อน แล้วค่อยพาไปหน้ากรอกเอกสารจริง
      (หน้าเดียวกับ Step 1 ของการลงทะเบียน) แล้วเด้งกลับมาที่ worklist */
   const openConsentFill = (patient, formId) => {
-    setRequestFormsFor(null);
     history.push({
       pathname: `/registration/consent/${formId}`,
       state: {
@@ -696,7 +693,10 @@ export default function ConsentManagementPage() {
           /* ป้ายในตารางย่อเหลือ "กรอกแบบฟอร์ม" ให้คอลัมน์ไม่กินความกว้าง —
              ชื่อเต็มอยู่บนหัว popup ที่เปิดขึ้นมาแล้ว (คำสั่ง user 14 ส.ค.) */
           title={`ยังไม่ขอความยินยอม ${p.pendingFormCount} แบบฟอร์ม`}
-          onClick={() => setRequestFormsFor(p)}
+          onClick={() => {
+            const nextForm = pendingConsentCardsFor(p.records || [])[0];
+            if (nextForm) openConsentFill(p, nextForm.id);
+          }}
         >
           กรอกแบบฟอร์ม
         </BrandSubdueButton>
@@ -1158,17 +1158,6 @@ export default function ConsentManagementPage() {
            (CTA ตามสถานะ + แก้ไขฉบับที่ลงนามแล้ว) — ตัดปุ่ม 👁 ออกเพราะกดแถว
            ก็เปิดเอกสารอยู่แล้ว · dialog/verify/toast ยังเป็นของหน้านี้ */
         renderRecordAction={(row) => renderAction(row, { showView: false, align: 'start' })}
-      />
-
-      {/* แท็บผู้รับบริการทั้งหมด — เลือกใบที่ยังไม่ขอความยินยอมก่อนไปหน้ากรอก */}
-      <ConsentRequestFormsPopup
-        open={!!requestFormsFor}
-        hn={requestFormsFor?.hn || null}
-        name={requestFormsFor?.name || null}
-        records={requestFormsFor?.records || []}
-        onClose={() => setRequestFormsFor(null)}
-        onFill={(formId) => openConsentFill(requestFormsFor, formId)}
-        onPrint={() => pushToast('พิมพ์แบบฟอร์มเปล่าให้ผู้รับบริการลงนาม — การพิมพ์ไม่เก็บ log')}
       />
 
       {/* Per-status confirm dialog */}

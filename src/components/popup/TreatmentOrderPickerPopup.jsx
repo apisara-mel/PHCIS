@@ -7,16 +7,52 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { Sym } from '@/components/forms/Fields';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
+import BrandFilterTag from '@/components/forms/FilterTag';
+import PatientSummaryCard from '@/components/card/PatientSummaryCard';
+import AlertDialog from '@/components/popup/AlertDialog';
 
-const CATEGORY_LABELS = { medication: 'ยา', medicalSupply: 'เวชภัณฑ์มิใช่ยา' };
+if (typeof document !== 'undefined') {
+  const styleId = 'mih-treatment-order-picker-row-style';
+  const css = `
+.mih-treatment-order-picker-row {
+  background: var(--surface-list-default, #FFFFFF);
+  border: var(--dim-stroke-100, 1px) solid transparent;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.mih-treatment-order-picker-row:hover {
+  background: var(--surface-list-hover, var(--surface-brandPrimary-quaternary, #EAF8F2));
+  border-color: transparent;
+}
+.mih-treatment-order-picker-row[aria-pressed='true'],
+.mih-treatment-order-picker-row[aria-pressed='true']:hover {
+  background: var(--surface-list-hover, var(--surface-brandPrimary-quaternary, #EAF8F2));
+  border-color: var(--border-brandPrimary-quaternary, #C6ECDD);
+}
+`;
+  let el = document.getElementById(styleId);
+  if (!el) {
+    el = document.createElement('style');
+    el.id = styleId;
+    document.head.appendChild(el);
+  }
+  if (el.textContent !== css) el.textContent = css;
+}
+
+const CATEGORY_LABELS = {
+  medication: 'ยา', medicalSupply: 'เวชภัณฑ์มิใช่ยา', lab: 'Lab',
+  xray: 'X-ray', procedure: 'หัตถการ', consult: 'ปรึกษา',
+};
+const CATEGORY_BADGES = { medication: 'teal', medicalSupply: 'blue', lab: 'purple', xray: 'orange', procedure: 'green', consult: 'grey' };
 
 const ORDER_SETS = [
   { id: 'set-wound-care', name: 'ชุดทำแผลทั่วไป', description: 'ยาลดปวดและอุปกรณ์ทำแผลพื้นฐาน', itemIds: ['med-paracetamol', 'supply-gauze', 'supply-tape'] },
   { id: 'set-allergy', name: 'ชุดบรรเทาอาการแพ้', description: 'ยาสำหรับอาการแพ้และหน้ากากอนามัย', itemIds: ['med-cetirizine', 'supply-mask'] },
   { id: 'set-minor-procedure', name: 'ชุดหัตถการแผลขนาดเล็ก', description: 'ผ้าก๊อซ สำลี เทปกาว และกระบอกฉีดยา', itemIds: ['supply-gauze', 'supply-cotton', 'supply-tape', 'supply-syringe'] },
+  { id: 'set-annual-checkup', name: 'ชุดตรวจสุขภาพประจำปี', description: 'CBC, FBS, ปัสสาวะ และเอกซเรย์ทรวงอก', itemIds: ['lab-lab-cbc', 'lab-lab-fbs', 'lab-lab-ua', 'xray-xr-cxr-pa'] },
+  { id: 'set-chest-symptom', name: 'ชุดประเมินอาการทางทรวงอก', description: 'CBC, เอกซเรย์ทรวงอก และปรึกษาอายุรกรรม', itemIds: ['lab-lab-cbc', 'xray-xr-cxr-pa', 'consult-im'] },
 ];
 
-const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => {
+const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patient, cardPatient }) => {
   const [mode, setMode] = useState('items');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
@@ -25,25 +61,32 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => 
   const [creatingSet, setCreatingSet] = useState(false);
   const [setName, setSetName] = useState('');
   const [setDescription, setSetDescription] = useState('');
+  const [allergyConfirmOpen, setAllergyConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setMode('items'); setQuery(''); setCategory('all'); setSelectedIds([]); setCreatingSet(false);
+    setMode('items'); setQuery(''); setCategory('all'); setSelectedIds([]); setCreatingSet(false); setAllergyConfirmOpen(false);
   }, [open]);
 
   const visibleItems = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('th-TH');
     return items.filter((item) => (category === 'all' || item.category === category)
-      && (!q || `${item.name} ${item.unit || ''}`.toLocaleLowerCase('th-TH').includes(q)));
+      && (!q || `${item.name} ${item.unit || ''} ${item.detail || ''}`.toLocaleLowerCase('th-TH').includes(q)));
   }, [category, items, query]);
   const toggle = (id) => setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
   const chooseSet = (set) => {
     const available = new Set(items.map((item) => item.id));
     setSelectedIds(set.itemIds.filter((id) => available.has(id)));
   };
-  const handleConfirm = () => {
-    onConfirm?.(items.filter((item) => selectedIds.includes(item.id)));
+  const selectedItems = items.filter((item) => selectedIds.includes(item.id));
+  const selectedAllergyItems = selectedItems.filter((item) => item.allergyMatch);
+  const commitSelection = () => {
+    onConfirm?.(selectedItems);
     onClose?.();
+  };
+  const handleConfirm = () => {
+    if (selectedAllergyItems.length > 0) { setAllergyConfirmOpen(true); return; }
+    commitSelection();
   };
   const saveDoctorSet = () => {
     if (!setName.trim() || selectedIds.length === 0) return;
@@ -56,29 +99,70 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => 
     }]);
     setSetName(''); setSetDescription(''); setCreatingSet(false);
   };
+  const patientName = cardPatient?.fullName || patient?.fullName || patient?.name
+    || [patient?.prefixTh, patient?.firstNameTh, patient?.lastNameTh].filter(Boolean).join(' ')
+    || 'ไม่พบชื่อผู้รับบริการ';
+  const allergyNames = (patient?.drugAllergies || []).map((item) => item.name).filter(Boolean);
 
   return (
+    <>
     <Popup open={open} onClose={onClose} size='extraLarge' title='เพิ่มรายการสั่งการรักษา'
       subtitle='ค้นหา เลือกหลายรายการ หรือเลือกชุดคำสั่งสำเร็จรูป'
       tertiaryAction={{ label: 'ล้างรายการที่เลือก', onClick: () => setSelectedIds([]), disabled: selectedIds.length === 0 }}
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
       primaryAction={{ label: `เพิ่ม ${selectedIds.length} รายการ`, onClick: handleConfirm, disabled: selectedIds.length === 0 }}
       bodyStyle={{ gap: 'var(--dim-space-400, 16px)' }}>
-      <TabBar aria-label='วิธีเพิ่มรายการสั่งการรักษา'>
+      <PatientSummaryCard
+        variant='gradient'
+        avatarUrl={cardPatient?.avatarUrl || patient?.avatarUrl}
+        avatarAlt={patientName}
+        cells={[
+          { label: 'ชื่อ-นามสกุล ผู้รับบริการ', value: patientName },
+          { label: 'HN (Hospital Number)', value: cardPatient?.hn || patient?.hn || '—' },
+          { label: 'อายุ / เพศ', value: `${patient?.age != null ? `${patient.age} ปี` : '—'} / ${patient?.gender || '—'}` },
+          { label: 'สิทธิการรักษา', value: patient?.rights || cardPatient?.insurance || '—' },
+          {
+            label: 'ประวัติแพ้ยา',
+            value: allergyNames.length > 0 ? allergyNames.join(', ') : 'ไม่พบประวัติแพ้ยา',
+          },
+        ]}
+      />
+      <TabBar
+        aria-label='วิธีเพิ่มรายการสั่งการรักษา'
+        style={{ background: 'transparent', padding: 0 }}
+      >
         <TabPill label='ค้นหารายการ' selected={mode === 'items'} onClick={() => setMode('items')} />
         <TabPill label='ชุดคำสั่งสำเร็จรูป' selected={mode === 'sets'} onClick={() => setMode('sets')} />
       </TabBar>
       {mode === 'items' ? <>
         <InputField label='ค้นหารายการ' value={query} onChange={(event) => setQuery(event?.target?.value ?? event ?? '')}
-          placeholder='ค้นหาชื่อยา หรือเวชภัณฑ์มิใช่ยา' leadingIcon='search' />
+          placeholder='ค้นหายา Lab X-ray หัตถการ หรือคลินิกปรึกษา' leadingIcon='search' />
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {[['all', 'ทั้งหมด'], ['medication', 'ยา'], ['medicalSupply', 'เวชภัณฑ์มิใช่ยา']].map(([key, label]) => <button key={key} type='button' onClick={() => setCategory(key)} aria-pressed={category === key} style={{ padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)', border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-tertiary, #D5D8DA)', borderRadius: 'var(--dim-radius-full, 9999px)', background: category === key ? 'var(--surface-brandPrimary-quaternary, #EAF8F2)' : 'var(--surface-card-default, #FFFFFF)', color: category === key ? 'var(--text-brandPrimary-default, #007549)' : 'var(--text-content-secondary, #454B50)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{label}</button>)}
+          {[['all', 'ทั้งหมด'], ...Object.entries(CATEGORY_LABELS)].map(([key, label]) => (
+            <BrandFilterTag
+              key={key}
+              variant='brand'
+              size='lg'
+              value={label}
+              selected={category === key}
+              showLeadingIcon={false}
+              showTailingIcon={false}
+              showTitle={false}
+              onClick={() => setCategory(key)}
+            />
+          ))}
         </div>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', border: `${checked ? 'var(--dim-stroke-200, 2px)' : 'var(--dim-stroke-100, 1px)'} solid ${checked ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-neutral-quaternary, #E2E4E6)'}`, borderRadius: 'var(--dim-radius-200, 8px)', background: checked ? 'var(--surface-brandPrimary-quaternary, #EAF8F2)' : 'var(--surface-card-default, #FFFFFF)' }}>
+          {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='mih-treatment-order-picker-row flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', borderRadius: 'var(--dim-radius-200, 8px)' }}>
             <span onClick={(event) => event.stopPropagation()}><Checkbox checked={checked} onChange={() => toggle(item.id)} aria-label={`เลือก ${item.name}`} /></span>
-            <span className='flex-1 min-w-0'><span style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{item.name}</span><span style={{ display: 'block', color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>{item.unit ? `หน่วย ${item.unit}` : 'กรอกรายละเอียดหลังเพิ่มรายการ'}</span></span>
-            <ColorfulBadge style={item.category === 'medication' ? 'teal' : 'blue'} size='small'>{CATEGORY_LABELS[item.category]}</ColorfulBadge>
+            <span className='flex-1 min-w-0'>
+              <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                <span style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{item.name}</span>
+                {item.allergyMatch && <ColorfulBadge style='red' size='small'>ผู้รับบริการแพ้ยานี้</ColorfulBadge>}
+              </span>
+              <span style={{ display: 'block', color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>{item.detail || (item.unit ? `หน่วย ${item.unit}` : 'กรอกรายละเอียดหลังเพิ่มรายการ')}</span>
+            </span>
+            <ColorfulBadge style={CATEGORY_BADGES[item.category] || 'grey'} size='small'>{CATEGORY_LABELS[item.category]}</ColorfulBadge>
           </button>; })}
           {visibleItems.length === 0 && <div className='flex flex-col items-center text-center' style={{ gap: 'var(--dim-space-200, 8px)', padding: 'var(--dim-space-800, 32px)' }}><Sym name='search_off' size={32} color='var(--icon-neutral-tertiary, #8A9095)' /><span style={{ color: 'var(--text-content-secondary, #454B50)', fontSize: 'var(--type-size-sm, 14px)' }}>ไม่พบรายการที่ค้นหา</span></div>}
         </div>
@@ -97,6 +181,42 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => 
         </div>
       </div>}
     </Popup>
+    <AlertDialog
+      open={allergyConfirmOpen}
+      onClose={() => setAllergyConfirmOpen(false)}
+      onCancel={() => setAllergyConfirmOpen(false)}
+      onConfirm={() => { setAllergyConfirmOpen(false); commitSelection(); }}
+      type='warning'
+      alignment='center'
+      title='ตรวจพบยาที่ผู้รับบริการมีประวัติแพ้'
+      description=''
+      cancelLabel='กลับไปตรวจสอบ'
+      confirmLabel='ยืนยันเพิ่มรายการ'
+    >
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        {selectedAllergyItems.map((item) => (
+          <div
+            key={item.id}
+            className='flex items-center w-full text-left'
+            style={{
+              gap: 'var(--dim-space-200, 8px)',
+              padding: 'var(--dim-space-300, 12px)',
+              background: 'var(--surface-list-default, #FFFFFF)',
+              border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-tertiary, #E2E4E6)',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              color: 'var(--text-content-default, #202427)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm, 14px)',
+              fontWeight: 'var(--type-weight-medium, 500)',
+            }}
+          >
+            <Sym name='medication' size={20} color='var(--icon-danger-default, #DC2626)' />
+            <span>{item.name}</span>
+          </div>
+        ))}
+      </div>
+    </AlertDialog>
+    </>
   );
 };
 export default TreatmentOrderPickerPopup;
