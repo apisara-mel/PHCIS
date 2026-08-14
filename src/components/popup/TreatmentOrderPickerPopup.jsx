@@ -9,12 +9,18 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandFilterTag from '@/components/forms/FilterTag';
 
-const CATEGORY_LABELS = { medication: 'ยา', medicalSupply: 'เวชภัณฑ์มิใช่ยา' };
+const CATEGORY_LABELS = {
+  medication: 'ยา', medicalSupply: 'เวชภัณฑ์มิใช่ยา', lab: 'Lab',
+  xray: 'X-ray', procedure: 'หัตถการ', consult: 'ปรึกษา',
+};
+const CATEGORY_BADGES = { medication: 'teal', medicalSupply: 'blue', lab: 'purple', xray: 'orange', procedure: 'green', consult: 'grey' };
 
 const ORDER_SETS = [
   { id: 'set-wound-care', name: 'ชุดทำแผลทั่วไป', description: 'ยาลดปวดและอุปกรณ์ทำแผลพื้นฐาน', itemIds: ['med-paracetamol', 'supply-gauze', 'supply-tape'] },
   { id: 'set-allergy', name: 'ชุดบรรเทาอาการแพ้', description: 'ยาสำหรับอาการแพ้และหน้ากากอนามัย', itemIds: ['med-cetirizine', 'supply-mask'] },
   { id: 'set-minor-procedure', name: 'ชุดหัตถการแผลขนาดเล็ก', description: 'ผ้าก๊อซ สำลี เทปกาว และกระบอกฉีดยา', itemIds: ['supply-gauze', 'supply-cotton', 'supply-tape', 'supply-syringe'] },
+  { id: 'set-annual-checkup', name: 'ชุดตรวจสุขภาพประจำปี', description: 'CBC, FBS, ปัสสาวะ และเอกซเรย์ทรวงอก', itemIds: ['lab-lab-cbc', 'lab-lab-fbs', 'lab-lab-ua', 'xray-xr-cxr-pa'] },
+  { id: 'set-chest-symptom', name: 'ชุดประเมินอาการทางทรวงอก', description: 'CBC, เอกซเรย์ทรวงอก และปรึกษาอายุรกรรม', itemIds: ['lab-lab-cbc', 'xray-xr-cxr-pa', 'consult-im'] },
 ];
 
 const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => {
@@ -35,7 +41,7 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => 
   const visibleItems = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('th-TH');
     return items.filter((item) => (category === 'all' || item.category === category)
-      && (!q || `${item.name} ${item.unit || ''}`.toLocaleLowerCase('th-TH').includes(q)));
+      && (!q || `${item.name} ${item.unit || ''} ${item.detail || ''}`.toLocaleLowerCase('th-TH').includes(q)));
   }, [category, items, query]);
   const toggle = (id) => setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
   const chooseSet = (set) => {
@@ -71,9 +77,9 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => 
       </TabBar>
       {mode === 'items' ? <>
         <InputField label='ค้นหารายการ' value={query} onChange={(event) => setQuery(event?.target?.value ?? event ?? '')}
-          placeholder='ค้นหาชื่อยา หรือเวชภัณฑ์มิใช่ยา' leadingIcon='search' />
+          placeholder='ค้นหายา Lab X-ray หัตถการ หรือคลินิกปรึกษา' leadingIcon='search' />
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {[['all', 'ทั้งหมด'], ['medication', 'ยา'], ['medicalSupply', 'เวชภัณฑ์มิใช่ยา']].map(([key, label]) => (
+          {[['all', 'ทั้งหมด'], ...Object.entries(CATEGORY_LABELS)].map(([key, label]) => (
             <BrandFilterTag
               key={key}
               variant='brand'
@@ -90,8 +96,8 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm }) => 
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', border: `${checked ? 'var(--dim-stroke-200, 2px)' : 'var(--dim-stroke-100, 1px)'} solid ${checked ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-neutral-quaternary, #E2E4E6)'}`, borderRadius: 'var(--dim-radius-200, 8px)', background: checked ? 'var(--surface-brandPrimary-quaternary, #EAF8F2)' : 'var(--surface-card-default, #FFFFFF)' }}>
             <span onClick={(event) => event.stopPropagation()}><Checkbox checked={checked} onChange={() => toggle(item.id)} aria-label={`เลือก ${item.name}`} /></span>
-            <span className='flex-1 min-w-0'><span style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{item.name}</span><span style={{ display: 'block', color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>{item.unit ? `หน่วย ${item.unit}` : 'กรอกรายละเอียดหลังเพิ่มรายการ'}</span></span>
-            <ColorfulBadge style={item.category === 'medication' ? 'teal' : 'blue'} size='small'>{CATEGORY_LABELS[item.category]}</ColorfulBadge>
+            <span className='flex-1 min-w-0'><span style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{item.name}</span><span style={{ display: 'block', color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>{item.detail || (item.unit ? `หน่วย ${item.unit}` : 'กรอกรายละเอียดหลังเพิ่มรายการ')}</span></span>
+            <ColorfulBadge style={CATEGORY_BADGES[item.category] || 'grey'} size='small'>{CATEGORY_LABELS[item.category]}</ColorfulBadge>
           </button>; })}
           {visibleItems.length === 0 && <div className='flex flex-col items-center text-center' style={{ gap: 'var(--dim-space-200, 8px)', padding: 'var(--dim-space-800, 32px)' }}><Sym name='search_off' size={32} color='var(--icon-neutral-tertiary, #8A9095)' /><span style={{ color: 'var(--text-content-secondary, #454B50)', fontSize: 'var(--type-size-sm, 14px)' }}>ไม่พบรายการที่ค้นหา</span></div>}
         </div>

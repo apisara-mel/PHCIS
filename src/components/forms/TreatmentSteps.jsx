@@ -70,6 +70,7 @@ import RadiologyOrderPanel from '@/pages/treat/panels/RadiologyOrderPanel';
 import ProcedureOrderPanel from '@/pages/treat/panels/ProcedureOrderPanel';
 import ConsultComposerPanel from '@/pages/treat/panels/ConsultComposerPanel';
 import MedicalSupplyOrderPanel, { MEDICAL_SUPPLY_CATALOG } from '@/pages/treat/panels/MedicalSupplyOrderPanel';
+import { ICD9_PROCEDURES } from '@/pages/treat/panels/ProcedureOrderPanel';
 import DocumentCenterPanel from '@/pages/treat/panels/DocumentCenterPanel';
 import ReDiagnosisPopup from '@/components/popup/ReDiagnosisPopup';
 import ReMedicinePopup from '@/components/popup/ReMedicinePopup';
@@ -138,12 +139,15 @@ import XrayOrderPicker from '@/components/xray/XrayOrderPicker';
 import Badge from '@/components/badge/Badge';
 import {
   XRAY_EXAM_BY_ID,
+  XRAY_EXAMS,
   XRAY_VIEWS,
   getRegion,
   claimFor,
   summariseSelection,
   duplicateWarning,
 } from '@/data/xrayCatalog';
+import { LAB_TESTS } from '@/data/labCatalog';
+import { CONSULT_CLINICS, blankConsult, doctorsForClinic, saveConsult } from '@/data/treatmentConsult';
 import {
   XRAY_URGENCIES,
   xrayHistoryFor,
@@ -2414,14 +2418,40 @@ export const Step5Orders = ({
       };
     });
     const supplyId = { 'gauze-sterile-2x2': 'supply-gauze', 'cotton-ball': 'supply-cotton', 'medical-tape-1': 'supply-tape', 'syringe-5ml': 'supply-syringe', 'surgical-mask': 'supply-mask' };
-    return [...medicationItems, ...MEDICAL_SUPPLY_CATALOG.map((item) => ({
-      id: supplyId[item.value] || `supply-${item.value}`,
-      category: 'medicalSupply', name: item.label, unit: item.unit,
-    }))];
+    return [
+      ...medicationItems,
+      ...MEDICAL_SUPPLY_CATALOG.map((item) => ({ id: supplyId[item.value] || `supply-${item.value}`, category: 'medicalSupply', name: item.label, unit: item.unit })),
+      ...LAB_TESTS.filter((item) => !item.retired).map((item) => ({ id: `lab-${item.id}`, category: 'lab', name: `${item.nameEn} — ${item.nameTh}`, detail: `${item.code} · ${item.price.toLocaleString('th-TH')} บาท`, source: item })),
+      ...XRAY_EXAMS.filter((item) => !item.retired).map((item) => ({ id: `xray-${item.id}`, category: 'xray', name: item.name, detail: `${item.code} · ${item.price.toLocaleString('th-TH')} บาท`, source: item })),
+      ...ICD9_PROCEDURES.map((item) => ({ id: `procedure-${item.code}`, category: 'procedure', name: item.nameTh, unit: item.unit, detail: `ICD-9-CM ${item.code} · ${item.price.toLocaleString('th-TH')} บาท`, source: item })),
+      ...CONSULT_CLINICS.map((item) => ({ id: `consult-${item.key}`, category: 'consult', name: item.label, detail: `คิวรอ ${item.waiting} ราย · สร้างเป็นคำขอปรึกษาฉบับร่าง`, source: item })),
+    ];
   }, []);
   const commitPickedOrders = (picked) => {
     if (!picked?.length) return;
     const now = Date.now();
+    const pickedConsults = picked.filter((item) => item.category === 'consult').map((item) => {
+      const clinic = item.source;
+      const doctor = doctorsForClinic(clinic.key).find((candidate) => candidate.onDuty);
+      return saveConsult({
+        ...blankConsult(), hn: patient?.hn || '', cid: patient?.cid || patient?.nationalId || '',
+        name: cardPatient?.fullName || patient?.name || '', rights: patient?.rights || '',
+        age: patient?.age ? `${patient.age} ปี` : '', gender: patient?.gender || '',
+        visitId: form?.visitId || 'v-current', toClinic: clinic.key, toDoctor: doctor?.key || '',
+        provisionalDx: (form?.diagnoses || []).map((d) => `${d.code || ''} ${d.name || ''}`.trim()).join(' · '),
+        provisionalDxAutoFilled: (form?.diagnoses?.length || 0) > 0,
+        question: `ขอปรึกษา${clinic.short || clinic.label}`, urgency: 'routine', consultType: 'general',
+        confidential: !!clinic.confidential,
+      });
+    });
+    let blockedXray = null;
+    const pickedXrays = picked.filter((item) => {
+      if (item.category !== 'xray' || (form.xrayOrders || []).some((row) => row.examId === item.source.id)) return false;
+      const warning = duplicateWarning(item.source.id, xrayHistory);
+      if (warning?.level === 'block') { blockedXray = { examId: item.source.id, warning }; return false; }
+      return true;
+    });
+    if (blockedXray) setXrayBlockNotice(blockedXray);
     setForm((current) => ({
       ...current,
       medications: [
@@ -2443,6 +2473,27 @@ export const Step5Orders = ({
           unit: item.unit, quantity: 1, orderStatus: 'continue',
         })),
       ],
+      labs: [
+        ...(current.labs || []),
+        ...picked.filter((item) => item.category === 'lab' && !(current.labs || []).some((row) => row.testId === item.source.id && !row.cancelledAt)).map((item, index) => ({
+          id: `lab-${item.source.id}-${now}-${index}`, testId: item.source.id, urgency: 'routine', note: '',
+          duplicateWarned: false, duplicateReason: '', cancelledAt: '', cancelReason: '',
+        })),
+      ],
+      xrayOrders: [
+        ...(current.xrayOrders || []),
+        ...pickedXrays.map((item) => ({ examId: item.source.id, view: item.source.views?.[0] || '', urgency: 'routine' })),
+      ],
+      procedureOrders: [
+        ...(current.procedureOrders || []),
+        ...picked.filter((item) => item.category === 'procedure').map((item, index) => ({
+          id: `proc-${now}-${index}`, code: item.source.code, name: item.source.nameTh, uncoded: false,
+          startDate: new Date().toISOString().slice(0, 10), startTime: '', endDate: '', endTime: '', site: '',
+          qty: 1, unit: item.source.unit, unitPrice: item.source.price, claimPerUnit: item.source.claim,
+          performer: 'somying', detail: '', otherActivity: '', cancelledAt: '', cancelReason: '',
+        })),
+      ],
+      consultOrders: [...(current.consultOrders || []), ...pickedConsults],
       orderCategory: picked[0]?.category || current.orderCategory,
     }));
   };
