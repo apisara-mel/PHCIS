@@ -199,7 +199,7 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
               gap: 'var(--dim-space-200, 8px)',
               padding: 'var(--dim-space-300, 12px)',
               background: 'var(--surface-list-default, #FFFFFF)',
-              border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #E2E4E6)',
+              border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-tertiary, #E2E4E6)',
               borderRadius: 'var(--dim-radius-200, 8px)',
               color: 'var(--text-content-default, #202427)',
               fontFamily: 'var(--type-family-body)',
