@@ -1,5 +1,8 @@
 # Consent Management — Use Cases & Edge Cases
 
+> ⓘ Flow การ **กรอกใบยินยอมเปิดเผยข้อมูล** (PD-1011 / TX-1011 / CL-1011) รวมขั้น
+> เสียบบัตรประชาชนยืนยันตัวตน แยกไปอยู่ที่ [`consent-fill-user-flow.md`](consent-fill-user-flow.md)
+
 > อัปเดต: 2 สิงหาคม 2569 · อ้างอิง Figma [PHCIS | Consent](https://www.figma.com/design/rRGyXjPE8dGrqLkrBfzECq/) + TOR ผนวก ก + `~/MIH-Docs-Vault/consent-management-ui-*.md`
 > สถานะ: ✅ ทำแล้วใน prototype · 🟡 ทำบางส่วน · 📋 ออกแบบไว้/รอ backend · ❌ ยังไม่ทำ (ระบุ Phase)
 

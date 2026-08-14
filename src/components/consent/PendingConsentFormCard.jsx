@@ -17,6 +17,12 @@ const PendingConsentFormCard = ({
   onPrint,
   onFill,
   fillLabel = 'กรอกแบบฟอร์ม',
+  /* ใบที่เคยขอความยินยอมไปแล้ว — ไม่มีปุ่มกรอก แต่ติดป้ายสถานะล่าสุดแทน
+     ({ label, tone }) เพื่อให้เห็นในหน้าเดียวว่าใบไหนทำไปแล้ว/ผลเป็นอย่างไร */
+  status = null,
+  showFill = true,
+  /* ใบที่ทำไปแล้ว — ปุ่มดูเอกสารที่ลงนามไว้ (แทนปุ่มกรอก) */
+  onView,
 }) => (
   <div
     className='flex w-full min-w-0 flex-col h-full'
@@ -91,13 +97,36 @@ const PendingConsentFormCard = ({
       </p>
     </div>
     <div
-      className='flex items-center justify-end w-full'
+      className='flex items-center w-full'
       style={{
         gap: 'var(--dim-space-200)',
         padding: 'var(--dim-space-400)',
         borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
       }}
     >
+      {status && (
+        <ColorfulBadge
+          style={status.tone || 'green'}
+          size='small'
+          hierarchy='secondary'
+          width='hug'
+          showDot={false}
+          showIcon={false}
+        >
+          {status.label}
+        </ColorfulBadge>
+      )}
+      <div className='flex-1' />
+      {onView && (
+        <BrandSubdueIconButton
+          type='button'
+          size='sm'
+          variant='outline'
+          icon='visibility'
+          aria-label='ดูแบบฟอร์มที่ลงนามแล้ว'
+          onClick={onView}
+        />
+      )}
       <BrandSubdueIconButton
         type='button'
         size='sm'
@@ -106,15 +135,17 @@ const PendingConsentFormCard = ({
         aria-label='พิมพ์แบบฟอร์ม'
         onClick={onPrint}
       />
-      <BrandButton
-        type='button'
-        size='sm'
-        variant='fill'
-        leadingIcon='edit'
-        onClick={onFill}
-      >
-        {fillLabel}
-      </BrandButton>
+      {showFill && (
+        <BrandButton
+          type='button'
+          size='sm'
+          variant='fill'
+          leadingIcon='edit'
+          onClick={onFill}
+        >
+          {fillLabel}
+        </BrandButton>
+      )}
     </div>
   </div>
 );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralButton from '@/components/button/NeutralButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -9,8 +9,18 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import { FakeQR } from '@/pages/mobile/MobileRegisterPage';
 import { StepReview } from '@/pages/consent/CreateConsentFormPage';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
-import { logExport } from '@/data/consentWorkflowStore';
+import { logExport, recordMrConsentSigning } from '@/data/consentWorkflowStore';
 import { downloadConsentFormPdf } from '@/data/consentFormDownload';
+import SecondarySearch from '@/components/search/SecondarySearch';
+import { SuggestionRow as SearchSuggestionRow } from '@/components/search/PrimarySearch';
+import PatientSummaryCard from '@/components/card/PatientSummaryCard';
+import Alert from '@/components/alert/Alert';
+import ConsentFormFillBody from '@/components/consent/ConsentFormFillBody';
+import { resolveConsentPatientCard } from '@/data/consentPatientDisplay';
+import { resolveRegistrationConsentFormId } from '@/data/registrationConsentForms';
+import { findMrPatientByHn, MR_PATIENTS } from '@/data/mrPatients';
+import { formatNationalId } from '@/data/registrationForm';
+import { DEFAULT_SERVICE_CENTER_CHANNEL } from '@/data/consentChannels';
 
 /* PHCIS | Consent — ดูแบบฟอร์มความยินยอม ใน Popup (Figma 302:143587).
    เปิดจากปุ่ม visibility ในเมนูแบบฟอร์มความยินยอม แทนการนำทางเต็มหน้า. */
@@ -251,23 +261,225 @@ export function ConsentFormViewPopup({
   onToast,
   showAuditBar = false,
 }) {
+  /* drill-down ใน Popup ใบเดียว (ห้ามเปิด Popup ซ้อน Popup):
+       view → patient (ต้องเลือกผู้รับบริการก่อน) → fill (กรอกแบบฟอร์มจริง)
+     บันทึกแล้วเข้า consent store ผูกกับเทมเพลตใบนี้ (รหัส/ชื่อ/เวอร์ชันจริง) */
+  const [step, setStep] = useState('view');
+  const [patientQuery, setPatientQuery] = useState('');
+  const [patientHn, setPatientHn] = useState(null);
+  const [formApi, setFormApi] = useState({ ready: false, submit: () => {} });
+
+  useEffect(() => {
+    if (open) return;
+    setStep('view');
+    setPatientQuery('');
+    setPatientHn(null);
+    setFormApi({ ready: false, submit: () => {} });
+  }, [open]);
+
+  /* ค้นจากทะเบียนผู้รับบริการเต็ม (MR_PATIENTS 100 ราย) — พูลเดียวกับแท็บ
+     ผู้รับบริการทั้งหมดใน worklist ไม่ใช่พูลคิว OPD ที่มีไม่กี่ราย */
+  const suggestions = useMemo(() => {
+    const q = patientQuery.trim().toLowerCase();
+    if (!q) return [];
+    return MR_PATIENTS
+      .filter((m) => {
+        const name = [m.prefixTh, m.firstNameTh, m.lastNameTh].filter(Boolean).join(' ');
+        const card = resolveConsentPatientCard(m.hn);
+        return [m.hn, name, card?.fullName, m.nationalId, m.phone]
+          .some((f) => f && String(f).toLowerCase().includes(q));
+      })
+      .slice(0, 8)
+      .map((m) => {
+        const card = resolveConsentPatientCard(m.hn);
+        return {
+          id: m.hn,
+          hn: m.hn,
+          label: card?.fullName
+            || [m.prefixTh, m.firstNameTh, m.lastNameTh].filter(Boolean).join(' '),
+          value: m.hn,
+          sublabel: m.nationalId ? `เลขบัตร ${formatNationalId(m.nationalId)}` : undefined,
+          badges: [{ label: m.hn, tone: 'indigo' }],
+        };
+      });
+  }, [patientQuery]);
+
+  const patient = useMemo(() => {
+    if (!patientHn) return null;
+    const card = resolveConsentPatientCard(patientHn);
+    const mr = findMrPatientByHn(patientHn);
+    return {
+      hn: patientHn,
+      fullName: card?.fullName || card?.shortName || '',
+      nationalId: mr?.nationalId ? formatNationalId(mr.nationalId) : '',
+      avatarUrl: card?.avatarUrl || '',
+    };
+  }, [patientHn]);
+
+  /* เทมเพลต PH-xxx สังกัดหัวข้อหลัก 1 ใน 3 — ใช้เอกสารกรอกของหัวข้อนั้น */
+  const fillFormId = useMemo(
+    () => (record ? resolveRegistrationConsentFormId({ formCode: record.code, type: record.type }) : null),
+    [record],
+  );
+
+  const handleSubmit = ({ outcome, fullName, hn }) => {
+    recordMrConsentSigning({
+      hn: hn || patient?.hn,
+      name: fullName,
+      formId: record.code,
+      formTitle: record.name,
+      type: record.type,
+      version: record.version,
+      channel: DEFAULT_SERVICE_CENTER_CHANNEL,
+      outcome,
+    });
+    onToast?.({
+      id: Date.now(),
+      variant: 'success',
+      message: `บันทึกความยินยอม ${record.name} ของ ${fullName} แล้ว — ดูได้ที่เมนูจัดการความยินยอม`,
+    });
+    onClose?.();
+  };
+
+  const isView = step === 'view';
+  const isPatient = step === 'patient';
+  const isFill = step === 'fill';
+
   return (
     <Popup
       open={!!open && !!record}
       onClose={onClose}
-      size='extraLarge'
+      onBack={isView ? undefined : () => setStep(isFill ? 'patient' : 'view')}
+      size={isPatient ? 'large' : 'extraLarge'}
+      width={isPatient ? 640 : undefined}
       title={record?.name || 'ดูแบบฟอร์มความยินยอม'}
-      actions={[
-        { key: 'print', kind: 'secondary', label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() },
-        { key: 'close', kind: 'secondary', label: 'ปิด', onClick: onClose },
-      ]}
+      subtitle={isPatient
+        ? 'เลือกผู้รับบริการก่อนกรอกแบบฟอร์ม'
+        : (isFill
+          ? [record?.code, record?.version, patient?.fullName && `ผู้รับบริการ: ${patient.fullName}`]
+            .filter(Boolean).join(' · ')
+          : undefined)}
+      actions={isView
+        ? [
+          { key: 'print', kind: 'secondary', label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() },
+          { key: 'close', kind: 'secondary', label: 'ปิด', onClick: onClose },
+          /* กรอกได้ต่อเมื่อเลือกผู้รับบริการก่อน — ปุ่มนี้พาไปขั้นเลือกคน */
+          { key: 'fill', kind: 'primary', label: 'กรอกแบบฟอร์ม', leadingIcon: 'edit', onClick: () => setStep('patient') },
+        ]
+        : (isPatient
+          ? [
+            { key: 'back', kind: 'secondary', label: 'ย้อนกลับ', onClick: () => setStep('view') },
+            { key: 'next', kind: 'primary', label: 'ต่อไป', onClick: () => setStep('fill'), disabled: !patient },
+          ]
+          : [
+            { key: 'print', kind: 'tertiary', label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() },
+            { key: 'cancel', kind: 'secondary', label: 'ยกเลิก', onClick: () => setStep('patient') },
+            { key: 'save', kind: 'primary', label: 'บันทึก', onClick: () => formApi.submit(), disabled: !formApi.ready },
+          ])}
     >
-      {record && (
-        <ConsentFormViewBody
+      {isView && record && (
+        <>
+          {/* กัน user เข้าใจผิดว่าฟอร์มในโหมดดูกรอกได้ — ช่องทั้งหมดเป็น preview */}
+          <Alert
+            type='info'
+            title='นี่เป็นมุมมองสำหรับดูแบบฟอร์มเท่านั้น'
+            subtext='หากต้องการกรอกแบบฟอร์มให้ผู้รับบริการ ให้คลิกปุ่ม "กรอกแบบฟอร์ม" ด้านล่าง แล้วเลือกผู้รับบริการก่อน'
+            showCloseButton={false}
+            showBadge={false}
+            showIndicator={false}
+          />
+          <ConsentFormViewBody
           record={record}
           onToast={onToast}
           showActions={false}
           showAuditBar={showAuditBar}
+        />
+        </>
+      )}
+
+      {isPatient && (
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          <span style={{
+            color: 'var(--text-content-default)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-sm)',
+            fontWeight: 'var(--type-weight-medium)',
+          }}>
+            ผู้รับบริการ <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}>*</span>
+          </span>
+
+          {patient ? (
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              <PatientSummaryCard
+                variant='gradient'
+                avatarUrl={patient.avatarUrl}
+                avatarAlt={patient.fullName}
+                cells={[
+                  { label: 'ชื่อ-นามสกุล ผู้รับบริการ', value: patient.fullName || '—' },
+                  { label: 'HN (Hospital Number)', value: patient.hn },
+                ]}
+              />
+              <NeutralSubdueButton
+                variant='outline'
+                size='sm'
+                leadingIcon='swap_horiz'
+                className='self-start'
+                onClick={() => { setPatientHn(null); setPatientQuery(''); }}
+              >
+                เปลี่ยนผู้รับบริการ
+              </NeutralSubdueButton>
+            </div>
+          ) : (
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+              <SecondarySearch
+                fullWidth
+                value={patientQuery}
+                onChange={(v) => setPatientQuery(v ?? '')}
+                placeholder='ค้นหา HN / เลขบัตร / ชื่อ-สกุล / โทรศัพท์'
+              />
+              {patientQuery.trim() && (
+                <div
+                  className='scrollbar-thin flex flex-col w-full'
+                  style={{
+                    maxHeight: 320,
+                    overflowY: 'auto',
+                    border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+                    borderRadius: 'var(--dim-radius-300)',
+                  }}
+                >
+                  {suggestions.length > 0 ? suggestions.map((item) => (
+                    <SearchSuggestionRow
+                      key={item.id || item.label}
+                      item={item}
+                      query={patientQuery}
+                      onPick={(picked) => { setPatientHn(picked.hn || picked.id); setPatientQuery(''); }}
+                    />
+                  )) : (
+                    <span style={{
+                      padding: 'var(--dim-space-300)',
+                      color: 'var(--text-content-tertiary)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-sm)',
+                    }}>
+                      ไม่พบรายการที่ค้นหา
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isFill && fillFormId && (
+        <ConsentFormFillBody
+          key={`${record?.code}-${patient?.hn}`}
+          formId={fillFormId}
+          initialFullName={patient?.fullName || ''}
+          initialNationalId={patient?.nationalId || ''}
+          initialHn={patient?.hn || ''}
+          onStateChange={setFormApi}
+          onSubmit={handleSubmit}
         />
       )}
     </Popup>

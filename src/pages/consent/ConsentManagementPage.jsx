@@ -629,7 +629,8 @@ export default function ConsentManagementPage() {
      เอกสารเป็นตัวเดียวกับหน้า /registration/consent/:formId · บันทึกแล้ว record
      เข้า consent store ผ่าน recordMrConsentSigning ตารางจึงอัปเดตเอง */
   const handleConsentFilled = ({ meta, outcome, name: signedName }) => {
-    setRequestFormsFor(null);
+    /* ไม่ปิด popup — ผู้รับบริการคนเดียวกันอาจมีใบอื่นให้ทำต่อ (popup เด้งกลับ
+       ไปรายการใบเอง) ปิดเมื่อผู้ใช้กด ปิด/✕ เท่านั้น */
     pushToast(outcome === 'declined'
       ? `บันทึกการไม่ยินยอม ${meta?.title || ''} ของ ${signedName || ''} แล้ว`
       : `บันทึกความยินยอม ${meta?.title || ''} ของ ${signedName || ''} แล้ว`);
@@ -1158,7 +1159,9 @@ export default function ConsentManagementPage() {
         open={!!requestFormsFor}
         hn={requestFormsFor?.hn || null}
         name={requestFormsFor?.name || null}
-        records={requestFormsFor?.records || []}
+        /* ดึงจาก rows ปัจจุบันด้วย HN ไม่ใช่ snapshot ตอนกดปุ่ม — บันทึกใบหนึ่ง
+           เสร็จแล้วรายการใบที่เหลือ/สถานะในกล่องต้องอัปเดตทันที */
+        records={requestFormsFor ? rows.filter((r) => r.hn === requestFormsFor.hn) : []}
         onClose={() => setRequestFormsFor(null)}
         onFill={handleConsentFilled}
         onPrint={() => pushToast('พิมพ์แบบฟอร์มเปล่าให้ผู้รับบริการลงนาม — การพิมพ์ไม่เก็บ log')}

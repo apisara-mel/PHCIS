@@ -17,6 +17,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import PendingConsentFormCard from '@/components/consent/PendingConsentFormCard';
 import ConsentDisclosureFillPopup from '@/components/consent/ConsentDisclosureFillPopup';
+import ConsentFormPrintConfirmDialog from '@/components/consent/ConsentFormPrintConfirmDialog';
 import Alert from '@/components/alert/Alert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import { REGISTRATION_PENDING_CONSENT_CARDS } from '@/data/registrationConsentForms';
@@ -356,6 +357,8 @@ export const StepConsent = ({ form, setForm, patient }) => {
   /* กรอกใบยินยอมใน popup ซ้อนบนหน้าลงทะเบียน — ไม่พาออกจาก step (เดิม push ไป
       /registration/consent/:formId แล้วต้องเด้งกลับมาพร้อม state) */
   const [fillFormId, setFillFormId] = useState(null);
+  /* การ์ดใบที่กำลังจะพิมพ์ — ยืนยันก่อนสั่งพิมพ์ (ปุ่มไอคอนกดพลาดง่าย) */
+  const [printForm, setPrintForm] = useState(null);
 
   const draftFullName = [form?.prefixTh, form?.firstNameTh, form?.lastNameTh]
     .map((p) => String(p || '').trim()).filter(Boolean).join(' ');
@@ -405,12 +408,18 @@ export const StepConsent = ({ form, setForm, patient }) => {
             <PendingConsentFormCard
               key={item.id}
               {...item}
-              onPrint={() => {}}
+              onPrint={() => setPrintForm(item)}
               onFill={() => setFillFormId(item.id)}
             />
           ))}
         </div>
       )}
+
+      <ConsentFormPrintConfirmDialog
+        form={printForm}
+        onCancel={() => setPrintForm(null)}
+        onConfirm={() => { setPrintForm(null); window.print?.(); }}
+      />
 
       {/* กรอกใบยินยอม — เอกสารตัวเดียวกับหน้า /registration/consent/:formId */}
       <ConsentDisclosureFillPopup
