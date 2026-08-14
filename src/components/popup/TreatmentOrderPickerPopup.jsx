@@ -127,7 +127,10 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
           },
         ]}
       />
-      <TabBar aria-label='วิธีเพิ่มรายการสั่งการรักษา'>
+      <TabBar
+        aria-label='วิธีเพิ่มรายการสั่งการรักษา'
+        style={{ background: 'transparent', padding: 0 }}
+      >
         <TabPill label='ค้นหารายการ' selected={mode === 'items'} onClick={() => setMode('items')} />
         <TabPill label='ชุดคำสั่งสำเร็จรูป' selected={mode === 'sets'} onClick={() => setMode('sets')} />
       </TabBar>
