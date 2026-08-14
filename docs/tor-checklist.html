@@ -157,6 +157,40 @@
     color:var(--muted);
     font-style:italic;
   }
+  /* ====== มติคณะทำงาน (คทง.) — TOR amendments agreed in the working-group meetings.
+     Rendered as its own block UNDER the original TOR text, so the TOR wording stays
+     untouched and the amendment reads as a delta against it. ====== */
+  .req .text-cell .ctg-note{
+    display:block;
+    margin-top:6px;
+    padding:6px 10px;
+    border-left:3px solid #B45309;      /* amber/700 */
+    background:#FFFBEB;                 /* amber/50 */
+    border-radius:0 6px 6px 0;
+    font-size:12px;
+    line-height:1.5;
+    color:#78350F;                      /* amber/900 */
+  }
+  .req .text-cell .ctg-note .ctg-kind{
+    display:inline-block;
+    margin-right:6px;
+    padding:1px 7px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:700;
+    color:#FFFFFF;
+    background:#B45309;
+    vertical-align:1px;
+  }
+  .req .text-cell .ctg-note[data-kind="ตัดออก"] .ctg-kind,
+  .req .text-cell .ctg-note[data-kind="เปลี่ยน"] .ctg-kind{background:#B91C1C}   /* red/700 */
+  .req .text-cell .ctg-note[data-kind="เพิ่มใหม่"] .ctg-kind{background:#15803D}  /* green/700 */
+  .req .text-cell .ctg-note .ctg-src{
+    display:block;
+    margin-top:3px;
+    font-size:10px;
+    opacity:.75;
+  }
 
   /* ====== Systems progress summary (top of main) ======
      Per top-level system (PHCIS / Community / Childcare / Mobile / Drug):
@@ -1557,6 +1591,59 @@ const SPOTLIGHT = {
   '4.12.3':   'mobile-payment-method',
 };
 
+/* ============================================================================
+   CTG — มติคณะทำงาน (working-group resolutions) that AMEND the TOR text.
+
+   The TOR wording in `DATA` above is never edited: it is the contract. What the
+   working groups agreed in their meetings is recorded here as a delta against
+   the TOR item it touches, and rendered directly under that item.
+
+   k (kind):
+     'ขยาย'      — TOR ข้อนี้ยังอยู่ แต่ที่ประชุมขยาย/เพิ่มรายละเอียดที่ต้องทำ
+     'เปลี่ยน'    — ที่ประชุมเปลี่ยนวิธีทำจากที่ TOR เขียนไว้
+     'ตัดออก'    — ที่ประชุมมติให้ตัดสิ่งที่ TOR ระบุไว้ออก
+     'เพิ่มใหม่'  — ความต้องการใหม่ที่ไม่มีข้อรองรับใน TOR เดิม (แขวนไว้ที่ข้อที่ใกล้ที่สุด)
+
+   ที่มา: Gap Analysis คทง.7 (ด้านการบริหารจัดการและพัฒนางานเภสัชกรรม) เทียบ TOR
+   กับมติที่ประชุมครั้งที่ 2–6 — โน้ตฉบับเต็มอยู่ใน Obsidian vault:
+   `TOR/13 คณะทำงาน/Gap-analysis/gap_analysis_คทง7.md` (bma-health-docs)
+   บันทึกลงไฟล์นี้ 2026-08-14
+   ========================================================================== */
+const CTG = {
+  /* --- 1. ระบบทะเบียนยา (Drug Profile) --- */
+  '1.9.1.3':  {k:'ขยาย', s:'คทง.7', t:'นอกจากกลุ่มตามบัญชียาหลัก/วัตถุออกฤทธิ์ ต้องแยกกลุ่ม “ยาในบัญชี” และ “ยานอกบัญชี (เบิกได้ / เบิกไม่ได้)” ด้วย เพื่อให้ระบบออกใบรับรองสิทธิข้าราชการได้'},
+  '1.9.1.4':  {k:'ขยาย', s:'คทง.7', t:'รายการเบิกได้/เบิกไม่ได้ต้องผูกกับการออกใบรับรองสิทธิข้าราชการ และรองรับยาที่ “เบิกได้เฉพาะโรค” (เบิกได้เฉพาะบางข้อบ่งใช้)'},
+  '1.9.1.5':  {k:'ขยาย', s:'คทง.7', t:'ไม่ใช่แค่ High Alert Drug — ต้องกำกับติดตาม DUE, HAD และยาเสพติด และเชื่อมทะเบียนยาเข้ากับผลตรวจทางห้องปฏิบัติการ เช่น ผลตรวจยีนแพ้ยา'},
+  '1.9.1.6':  {k:'ขยาย', s:'คทง.7', t:'ต้องกำหนดราคาสำหรับยาในบัญชีที่เบิกได้เฉพาะโรคได้ด้วย (เช่น ยาคุมกำเนิด — เบิกได้เฉพาะข้อบ่งใช้ นอกนั้นเก็บเงิน)'},
+
+  /* --- 2. ใบสั่งยา + การเตือนความปลอดภัยทางยา --- */
+  '1.5.4.20': {k:'ขยาย', s:'คทง.7', t:'CDSS Drug Interaction ต้องตรวจ DI ข้ามใบสั่งยา/ข้าม Visit ไม่ใช่เฉพาะภายในใบสั่งเดียว · ต้องเตือนลึกถึงระดับขนาดยา (dose) เช่น Simvastatin × Amlodipine · เพิ่มการเตือนเฉพาะกลุ่มเสี่ยง ผู้สูงอายุ (≥ 65 ปี) และเด็ก (0–12 ปี)'},
+  '1.9.2.9':  {k:'เปลี่ยน', s:'คทง.7', t:'ยกระดับจาก “แจ้งเตือน” เป็น “Block”: ต้องเตือนให้ส่งตรวจคัดกรอง HLA-B ก่อนสั่ง Allopurinol / Carbamazepine และต้อง block การสั่งยาเมื่อผลตรวจเป็น Positive หรือเมื่อยาอยู่ในกลุ่ม Pregnancy Category X'},
+  '1.9.4.7':  {k:'ขยาย', s:'คทง.7', t:'นอกจากแพ้ยา / ให้นมบุตร / ตั้งครรภ์ / G6PD ต้องรับผลตรวจยีน (HLA-B) มาแสดงและใช้เป็นเงื่อนไข block การสั่งยาร่วมด้วย'},
+  '1.9.5.5':  {k:'ขยาย', s:'คทง.7', t:'เพิ่มจุดบันทึก Medication Reconciliation ในหน้าซักประวัติ และให้แพทย์ดึงข้อมูลยาเดิมมาสั่งใช้ต่อได้ทันทีจากหน้านั้น'},
+  '1.9.5.6':  {k:'ขยาย', s:'คทง.7', t:'กรณี Re-med ที่ยาบริษัทเดิมหมด ระบบต้องเลือกยาบริษัทใหม่ที่มี GPU เดียวกันมาแทนได้'},
+  '1.9.10.3': {k:'ขยาย', s:'คทง.7', t:'รายการทดแทนต้องอ้างอิง GPU เดียวกัน และต่อเข้ากับ flow Re-med ได้โดยตรง'},
+
+  /* --- 3. คลังยาและเวชภัณฑ์ --- */
+  '1.9.9.4':  {k:'ตัดออก', s:'คทง.7', t:'มติให้ตัด “การยืม-คืนยาระหว่างศูนย์บริการสาธารณสุข” ออก และใช้การ “โอน” แทน เพื่อให้ระบบตัดสต็อกได้ถูกต้อง — คงไว้เฉพาะการแลกล็อตยา'},
+  '1.9.9.5':  {k:'ตัดออก', s:'คทง.7', t:'คำร้อง “ยืมยา / รายการยาที่ต้องได้รับคืน” ถูกแทนด้วยคำร้อง “โอน” และปลายทางต้องกดยืนยันรับยาก่อน ยาจึงจะเข้าสต็อกของศูนย์ปลายทาง'},
+  '1.9.6.9':  {k:'ขยาย', s:'คทง.7', t:'ช่อง “จำนวนขอเบิกใหม่” ระบบต้องเสนอค่าอัตโนมัติจากค่าเฉลี่ยการใช้ย้อนหลัง 3 เดือน'},
+  '1.9.8.3':  {k:'ขยาย', s:'คทง.7', t:'นอกจากค่า minimum คงที่ ต้องตั้งค่าการสำรองยาเป็น “เท่า” ของอัตราการใช้ได้ เช่น 1.5 เท่า หรือ 2 เท่า'},
+  '1.9.6.1':  {k:'ขยาย', s:'คทง.7', t:'flow เบิกจ่ายต้องมีขั้นอนุมัติดิจิทัล พร้อมบันทึกได้ว่าใครเป็นผู้อนุมัติ'},
+  '1.9.6.10': {k:'เปลี่ยน', s:'คทง.7', t:'ใช้การอนุมัติดิจิทัลและลายเซ็นอิเล็กทรอนิกส์แทนการพิมพ์ใบเบิกไปลงนามบนกระดาษ'},
+
+  /* --- 4. ฉลากยาและรายงาน --- */
+  '1.9.2.5':  {k:'เพิ่มใหม่', s:'คทง.7', t:'เพิ่มการพิมพ์ฉลากยา Pre-pack (แบ่งบรรจุล่วงหน้า) ที่ต้องระบุ Lot no. และคำนวณวันหมดอายุให้อัตโนมัติ'},
+  '1.9.7.3':  {k:'ขยาย', s:'คทง.7', t:'Lot no. และวันหมดอายุที่รับเข้าคลังต้องไหลต่อไปถึงฉลาก Pre-pack เพื่อใช้คำนวณวันหมดอายุบนฉลาก'},
+  '1.20.2.1': {k:'เพิ่มใหม่', s:'คทง.7', t:'เพิ่มรายงานที่ไม่มีใน TOR เดิม — ปริมาณยาเหลือใช้จากบ้านเรือนประชาชน · การฝึกงานของนักศึกษาเภสัชศาสตร์ (คำนวณชั่วโมงฝึกงาน) · กิจกรรมร้านยาเครือข่าย'},
+  '1.20.2.7': {k:'เปลี่ยน', s:'คทง.7', t:'รายงานความคลาดเคลื่อนทางยา (ME) ใช้รูปแบบที่กำหนดใหม่ และเพิ่มรายงานอาการไม่พึงประสงค์จากยา (ADR) ซึ่งไม่มีใน TOR เดิม'},
+
+  /* --- 5. การเชื่อมต่อและบริการสมัยใหม่ --- */
+  '1.9.11.1': {k:'เพิ่มใหม่', s:'คทง.7', t:'เชื่อมต่อกับระบบ Telemedicine เพื่อให้บริการเภสัชกรรมทางไกล (Telepharmacy) และเก็บสถิติการให้บริการได้'},
+  '1.9.4.8':  {k:'ขยาย', s:'คทง.7', t:'บันทึกที่อยู่จัดส่งยาได้อย่างน้อย 3 ที่อยู่ต่อผู้รับบริการ'},
+  '1.9.5.8':  {k:'ขยาย', s:'คทง.7', t:'นอกจากพิมพ์ที่อยู่จัดส่ง ต้องพิมพ์ “ใบหน้าซองพัสดุ” ออกจากระบบได้'},
+};
+
 const IMPL = {
   /* ===== 1.1 Registration =====
      Rechecked 2026-07-23 against Figma "PHCIS | Registration" (node 1:3827) TOR
@@ -2597,6 +2684,13 @@ const renderOneReq=(parent,r)=>{
   const implNote = impl?.n
     ? `<span class="impl-note">${escapeHtml(impl.n)}</span>`
     : '';
+  const ctg = CTG[r.id];
+  const ctgNote = ctg
+    ? `<div class="ctg-note" data-kind="${escapeHtml(ctg.k)}">`
+      + `<span class="ctg-kind">${escapeHtml(ctg.k)}</span>${escapeHtml(ctg.t)}`
+      + `<span class="ctg-src">มติที่ประชุม ${escapeHtml(ctg.s)} ครั้งที่ 2–6 · Gap Analysis ${escapeHtml(ctg.s)}</span>`
+      + `</div>`
+    : '';
   const aistate=getAiState(r.id);
   row.innerHTML=`
     <button class="state-btn" data-col="ai" data-state="${aistate}" title="AI เช็ค · คลิกวน ☐ → – → ✓">${STATE_ICONS[aistate]}</button>
@@ -2608,6 +2702,7 @@ const renderOneReq=(parent,r)=>{
       ${implNote}
       <button class="note-trigger">${hasNote?'📝 Note':'+ Note'}</button>
       <textarea class="${hasNote?'':'hidden'}" placeholder="Note / Implementation reference...">${escapeHtml(notes[r.id]||'')}</textarea>
+      ${ctgNote}
     </div>
   `;
   parent.appendChild(row);
