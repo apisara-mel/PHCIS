@@ -227,6 +227,20 @@ export const REGISTRATION_PENDING_CONSENT_CARDS = Object.values(REGISTRATION_CON
 export const getRegistrationConsentForm = (id) =>
   REGISTRATION_CONSENT_FORMS[id] || REGISTRATION_CONSENT_FORMS['PD-1011'];
 
+/** เข้มกว่า `resolveRegistrationConsentFormId` — คืน `null` เมื่อ record ไม่ได้
+    อยู่ในหัวข้อหลักทั้งสาม แทนที่จะ fallback เป็น PD-1011
+    ใช้ตอนถามว่า "ผู้รับบริการรายนี้ขอความยินยอมใบไหนไปแล้วบ้าง" — ถ้าใช้ตัวที่
+    fallback จะนับ record หัวข้ออื่นเป็น "ขอข้อมูลส่วนบุคคลแล้ว" ผิดทั้งหมด */
+export const matchRegistrationConsentFormId = ({ formCode, type } = {}) => {
+  const code = String(formCode || '').trim();
+  if (REGISTRATION_CONSENT_FORMS[code]) return code;
+  const t = String(type || '').trim();
+  if (/เบิก/.test(t)) return 'CL-1011';
+  if (/รักษา/.test(t)) return 'TX-1011';
+  if (t === 'PDPA' || /ส่วนบุคคล/.test(t)) return 'PD-1011';
+  return null;
+};
+
 /** Map consent worklist / timeline event → registration disclosure form id.
     Prefers PD-1011 / TX-1011 / CL-1011 codes; falls back by type; else PD-1011. */
 export const resolveRegistrationConsentFormId = ({ formCode, type } = {}) => {

@@ -778,6 +778,21 @@ design system เมื่อไร
 
 ---
 
+### 52. PendingConsentFormCard (การ์ดแบบฟอร์มที่ยังไม่ขอความยินยอม) — 📐 มี 2 ผู้ใช้แล้ว พร้อมยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/components/forms/RegistrationSteps.jsx` (Step 1 แบบฟอร์มยินยอม ของการลงทะเบียน) · `src/pages/consent/ConsentRequestFormsPopup.jsx` (ระบบจัดการความยินยอม → แท็บผู้รับบริการทั้งหมด → กรอกแบบฟอร์มความยินยอม) — 2 ที่ |
+| **หน้าที่** | การ์ดแบบฟอร์มความยินยอม 1 ใบ: ภาพปก (227×113) + ป้ายหัวข้อ + ป้ายเวอร์ชัน + ชื่อฟอร์ม + รหัสฟอร์ม + แถบ action (พิมพ์ ไอคอน · กรอกแบบฟอร์ม) |
+| **ทำไมไม่มีของเดิมแทน** | DS มี `Card` ทั่วไปกับ `FormCard` (`src/components/forms/FormsLibrary.jsx`) — FormCard เป็นการ์ดของคลังแบบฟอร์ม PHCIS (มี status badge / เวลาโดยประมาณ / หมวด) คนละสัญญากับการ์ดใบนี้ที่มีแค่ "ยังไม่ขอความยินยอม → กรอก/พิมพ์" |
+| **ปัญหาที่แก้** | เดิมการ์ดนี้เขียนอยู่ในไฟล์ `RegistrationSteps.jsx` (private) — พอระบบจัดการความยินยอมต้องใช้หน้าตาเดียวกันเป๊ะใน popup จึงต้องแยกออกมาแทนที่จะ copy (การ์ดสองใบจะ drift แยกกันทันทีที่ Figma ขยับ) |
+| **โครงที่เป็นอยู่** | `<PendingConsentFormCard categoryLabel categoryStyle version title code cover onPrint onFill fillLabel>` — ข้อมูลการ์ดมาจาก `REGISTRATION_PENDING_CONSENT_CARDS` (`src/data/registrationConsentForms.js`) |
+| **แก้ระหว่างย้าย** | `gap: 6` → `var(--dim-space-150, 6px)` (ตามกติกา token) · เพิ่ม `flex-1` ที่บล็อกเนื้อหา เพื่อให้แถบปุ่มของทุกใบอยู่ระดับเดียวกันเมื่อชื่อฟอร์มขึ้นบรรทัดไม่เท่ากัน |
+| **ยังไม่มีใน Figma** | มีใน Figma Registration 292:104252 (Consent Pending) แต่ยังไม่ได้เป็น component ของ MIH library — ต้องยืนยันชื่อ/variant ก่อนยกขึ้น DS |
+| **บันทึกเมื่อ** | 14 ส.ค. 2569 |
+
+---
+
 ## Token ที่รอ sync เข้า mih-design
 
 ทะเบียนของ **design token ที่ mirror ในนี้ (`src/styles/tokens.css` + `design.md`) ล้ำหน้า

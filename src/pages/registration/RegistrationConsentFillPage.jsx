@@ -23,12 +23,17 @@ import {
 } from '@/data/registrationForm';
 import { recordMrConsentSigning } from '@/data/consentWorkflowStore';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
+import CONSENT_NAV from '@/pages/consent/consentNav';
+import ConsentQrScanBlock from '@/components/consent/ConsentQrScanBlock';
 
 /* MIH RegistrationConsentFillPage — Figma PHCIS-Registration 295:41105
    (PHCIS_Registration_Step01_Consent). Two-column shell: form max 640px +
    QR / Patient View panel 448px. Content from PD-1011 / TX-1011 / CL-1011. */
 
 const breadcrumb = ['ระบบงานเวชระเบียน', 'ลงทะเบียนผู้รับบริการ'];
+/* เข้ามาจาก /consent (แท็บผู้รับบริการทั้งหมด) — หน้ากรอกใบเดียวกัน แต่ chrome
+   ต้องเป็นของระบบจัดการความยินยอม */
+const CONSENT_BREADCRUMB = ['จัดการความยินยอม', 'กรอกแบบฟอร์มความยินยอม'];
 
 const QR_SCAN_ILLUSTRATION = '/illustration/registration/consent-qr-scan.png';
 
@@ -62,15 +67,23 @@ const resolveConsentPatientDefaults = (locationState) => {
   const draft = loadRegistrationDraft();
   const hint = locationState?.patient || {};
   const roster = (hint.hn && findMrPatientByHn(hint.hn)) || DEFAULT_MR_PATIENT;
+  /* เข้ามาจากระบบจัดการความยินยอม = เจาะจงผู้รับบริการรายนั้นแล้ว จึงห้ามให้
+     ร่างการลงทะเบียนที่ค้างอยู่ (คนละคน) มาทับชื่อ/เลขบัตร — ฝั่งลงทะเบียน
+     ยังใช้ลำดับเดิม (draft ก่อน) เพราะชื่อที่พิมพ์แก้ในฟอร์มสดกว่า */
+  const hintFirst = Boolean(locationState?.preferPatientHint);
 
-  const fullName = buildFullNameTh(draft)
-    || buildFullNameTh(hint)
-    || buildFullNameTh(roster);
+  const fullName = hintFirst
+    ? (buildFullNameTh(hint) || buildFullNameTh(roster) || buildFullNameTh(draft))
+    : (buildFullNameTh(draft) || buildFullNameTh(hint) || buildFullNameTh(roster));
 
-  const nationalIdRaw = draft?.nationalId || hint.nationalId || roster.nationalId || '';
+  const nationalIdRaw = hintFirst
+    ? (hint.nationalId || roster.nationalId || '')
+    : (draft?.nationalId || hint.nationalId || roster.nationalId || '');
   const nationalId = nationalIdRaw ? formatNationalId(nationalIdRaw) : '';
 
-  const hn = hint.hn || draft?.hn || roster.hn || '';
+  const hn = hintFirst
+    ? (hint.hn || roster.hn || '')
+    : (hint.hn || draft?.hn || roster.hn || '');
 
   return { fullName, nationalId, hn, draft, patientHint: hint };
 };
@@ -180,9 +193,14 @@ const RegistrationConsentFillPage = () => {
     return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(target)}`;
   }, [meta.id]);
 
+  /* ปกติกลับหน้าลงทะเบียน — แต่ถ้าถูกเรียกจากระบบจัดการความยินยอม
+     (แท็บผู้รับบริการทั้งหมด → กรอกแบบฟอร์มความยินยอม) ต้องกลับไปที่นั่น */
+  const returnTo = location.state?.returnTo || '/registration/register';
+  const fromRegistration = returnTo === '/registration/register';
+
   const goBack = () => {
     history.push({
-      pathname: '/registration/register',
+      pathname: returnTo,
       state: location.state?.returnState || { hn: patientHint.hn },
     });
   };
@@ -200,9 +218,11 @@ const RegistrationConsentFillPage = () => {
       channel: DEFAULT_SERVICE_CENTER_CHANNEL,
       outcome,
     });
-    markRegistrationConsentCompleted(meta.id);
+    /* ธง "ยินยอมครบแล้ว" เป็นของร่างการลงทะเบียนที่กำลังทำอยู่ — ถ้ามาจาก
+       ระบบจัดการความยินยอม (คนละคนกับร่าง) ห้ามไปติ๊กให้ */
+    if (fromRegistration) markRegistrationConsentCompleted(meta.id);
     history.push({
-      pathname: '/registration/register',
+      pathname: returnTo,
       state: {
         ...(location.state?.returnState || {}),
         hn: patientHint.hn || hn,
@@ -219,9 +239,25 @@ const RegistrationConsentFillPage = () => {
         className='flex w-full min-h-screen'
         style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}
       >
-        <Sidebar activeKey='registration' />
+        {fromRegistration ? (
+          <Sidebar activeKey='registration' />
+        ) : (
+          /* ระบบจัดการความยินยอมเป็นระบบระดับบนสุดคนละตัวกับ PHCIS — เมนูข้าง
+             ต้องเป็นของระบบนั้น ไม่งั้นกรอกเสร็จแล้วหาทางกลับไม่เจอ */
+          <Sidebar
+            activeKey='consent-manage'
+            items={CONSENT_NAV}
+            fallbackKey='consent-manage'
+            openWidth='calc(var(--dim-size-2500, 320px) + var(--dim-size-1700, 80px))'
+            wrapLabels
+          />
+        )}
         <div className='flex-1 min-w-0 flex flex-col'>
-          <Header breadcrumb={breadcrumb} standalone={false} />
+          <Header
+            breadcrumb={fromRegistration ? breadcrumb : CONSENT_BREADCRUMB}
+            brandTitle={fromRegistration ? undefined : 'ระบบจัดการความยินยอม'}
+            standalone={false}
+          />
           <div
             className='w-full sticky'
             style={{
@@ -256,12 +292,27 @@ const RegistrationConsentFillPage = () => {
               </div>
             )}
           >
-            <BrandSubdueButton variant='outline' size='md' leadingIcon='print'>
-              พิมพ์บัตรผู้รับบริการ
-            </BrandSubdueButton>
-            <BrandPrimaryButton size='md' leadingIcon='credit_card'>
-              อ่านบัตรสมาร์ทการ์ด
-            </BrandPrimaryButton>
+            {/* ปุ่มชุดนี้เป็นงานเวชระเบียน (บัตรผู้รับบริการ / อ่านสมาร์ทการ์ด)
+                มาจากระบบจัดการความยินยอมจึงเหลือแค่พิมพ์แบบฟอร์มให้ลงนาม */}
+            {fromRegistration ? (
+              <>
+                <BrandSubdueButton variant='outline' size='md' leadingIcon='print'>
+                  พิมพ์บัตรผู้รับบริการ
+                </BrandSubdueButton>
+                <BrandPrimaryButton size='md' leadingIcon='credit_card'>
+                  อ่านบัตรสมาร์ทการ์ด
+                </BrandPrimaryButton>
+              </>
+            ) : (
+              <BrandSubdueButton
+                variant='outline'
+                size='md'
+                leadingIcon='print'
+                onClick={() => window.print?.()}
+              >
+                พิมพ์แบบฟอร์ม
+              </BrandSubdueButton>
+            )}
           </SubHeader>
           </div>
 
@@ -424,47 +475,10 @@ const RegistrationConsentFillPage = () => {
                     boxShadow: 'var(--shadow-brand-drop-bottom-200)',
                   }}
                 >
-                  <div className='flex flex-col items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
-                    <img
-                      src={QR_SCAN_ILLUSTRATION}
-                      alt=''
-                      width={112}
-                      height={112}
-                      style={{ width: 112, height: 112, objectFit: 'contain' }}
-                    />
-                    <p style={{
-                      margin: 0,
-                      width: '100%',
-                      textAlign: 'center',
-                      color: 'var(--text-content-default)',
-                      fontFamily: 'var(--type-family-heading-graphic2)',
-                      fontSize: 'var(--type-size-base, 16px)',
-                      fontWeight: 'var(--type-weight-regular)',
-                      lineHeight: 1.5,
-                    }}>
-                      หรือให้ผู้รับบริการยินยอมด้วยตนเองผ่านโทรศัพท์
-                      <br aria-hidden />
-                      Application
-                      <br aria-hidden />
-                      โดยสแกน QR Code ด้านล่างนี้
-                    </p>
-                    <div
-                      style={{
-                        background: 'var(--surface-card-100)',
-                        border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-                        borderRadius: 'var(--dim-radius-200)',
-                        padding: 'var(--dim-space-300)',
-                      }}
-                    >
-                      <img
-                        src={qrSrc}
-                        alt='QR Code สำหรับยินยอมผ่านมือถือ'
-                        width={160}
-                        height={160}
-                        style={{ display: 'block', width: 160, height: 160 }}
-                      />
-                    </div>
-                  </div>
+                  <ConsentQrScanBlock
+                    illustrationSrc={QR_SCAN_ILLUSTRATION}
+                    qrSrc={qrSrc}
+                  />
 
                   <div className='flex flex-col items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
                     <div className='flex items-center' style={{ gap: 'var(--dim-space-600)' }}>
