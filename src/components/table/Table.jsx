@@ -919,13 +919,18 @@ const TableHeaderInternal = ({
   sticky,
   stickyLeft,
   stickyShadow,
+  /* 'left' (default) | 'right' — ฝั่งที่คอลัมน์นี้ถูกตรึงไว้ */
+  stickySide = 'left',
+  stickyRight,
   onSort,
   contentFit = false,
   /* When non-null (page-sticky mode), the header row lives OUTSIDE the
      X-scrolling body, so its sticky-left columns can't use CSS
      `position: sticky; left:` (no scrollport to track). We instead place
      them with a counter-transform that cancels the parent's
-     `translateX(-scrollX)` so they appear pinned. */
+     `translateX(-scrollX)` so they appear pinned.
+     ฝั่งขวาใช้กติกาเดียวกันแต่ค่าเป็น `scrollX - maxScrollX` (ที่ปลายสุด = 0
+     คือตำแหน่งธรรมชาติ · ที่ต้นสุด = -maxScrollX คือดึงกลับมาชิดขอบขวาที่เห็น) */
   stickyTransformX = null,
 }) => {
   /* `sortIconName` is the orchestrator's pre-computed icon name; map it
@@ -937,26 +942,32 @@ const TableHeaderInternal = ({
       ? 'desc'
       : null;
 
+  const isRight = stickySide === 'right';
+  /* เงาชี้เข้าหาเนื้อหาที่ยังเลื่อนอยู่ — ฝั่งซ้ายทอดไปขวา ฝั่งขวาทอดไปซ้าย */
+  const shadow = stickyShadow
+    ? (isRight
+      ? '-6px 0 10px -6px var(--PrimaryShadow-601)'
+      : '6px 0 10px -6px var(--PrimaryShadow-601)')
+    : undefined;
   const stickyStyle = !sticky
     ? null
     : stickyTransformX != null
       ? {
           position: 'relative',
-          transform: `translate3d(${stickyTransformX}px, 0, 0)`,
+          /* number → px · string → ใช้ตามที่ส่งมา (ฝั่งขวาต้องบวก trailingInset
+             ซึ่งเป็น CSS var จึงต้องเป็น calc()) */
+          transform: `translate3d(${typeof stickyTransformX === 'number' ? `${stickyTransformX}px` : stickyTransformX}, 0, 0)`,
           background: 'var(--surface-table-header)',
           willChange: 'transform',
           zIndex: 30 - (column._idx ?? 0),
-          boxShadow: stickyShadow
-            ? '6px 0 10px -6px var(--PrimaryShadow-601)'
-            : undefined,
+          boxShadow: shadow,
         }
       : {
           position: 'sticky',
-          left: stickyLeft,
+          ...(isRight ? { right: stickyRight } : { left: stickyLeft }),
           zIndex: 30 - (column._idx ?? 0),
-          boxShadow: stickyShadow
-            ? '6px 0 10px -6px var(--PrimaryShadow-601)'
-            : undefined,
+          background: isRight ? 'var(--surface-table-header)' : undefined,
+          boxShadow: shadow,
         };
 
   /* Column heading source — accept BOTH `label` and `header` so the
@@ -1000,6 +1011,7 @@ const Row = ({
   row, index, columns,
   colWidths,
   stickyColCount, stickyLeft, stickyShadow,
+  stickyRightColCount = 0, stickyRight, endShadow = false,
   editMode, isDragging, isOver,
   onDragStart, onDragOver, onDrop, onDragEnd,
   onRowClick,
@@ -1088,6 +1100,10 @@ const Row = ({
       )}
       {columns.map((c, colIdx) => {
         const isSticky = colIdx < stickyColCount;
+        /* คอลัมน์ท้ายที่ตรึงไว้ขวา (เช่น "การดำเนินการ") — ปุ่มของแถวต้องเห็น
+           ตลอดโดยไม่ต้องเลื่อนตารางไปสุดขวาก่อน */
+        const isStickyRight = stickyRightColCount > 0
+          && colIdx >= columns.length - stickyRightColCount;
         const measuredW = colWidths ? colWidths[colIdx] : null;
         const cellStyle = {
           ...colSizeStyle(c, measuredW),
@@ -1099,6 +1115,17 @@ const Row = ({
             background: rowBg,
             boxShadow: stickyShadow && colIdx === stickyColCount - 1
               ? '6px 0 10px -6px var(--PrimaryShadow-601)'
+              : undefined,
+          } : null),
+          ...(isStickyRight && !isSticky ? {
+            position: 'sticky',
+            right: stickyRight ? stickyRight(colIdx) : 0,
+            /* เหนือเซลล์ที่เลื่อนผ่าน และเหนือ sticky ซ้าย (สูงสุด 20) เผื่อ
+               ตารางแคบจนสองฝั่งชนกัน — ยังต่ำกว่า drag handle (21) ไม่ได้ */
+            zIndex: 22,
+            background: rowBg,
+            boxShadow: endShadow && colIdx === columns.length - stickyRightColCount
+              ? '-6px 0 10px -6px var(--PrimaryShadow-601)'
               : undefined,
           } : null),
           display: 'flex', alignItems: 'center',
@@ -1140,6 +1167,11 @@ const Table = ({
 
   /* Sticky-left columns */
   stickyColCount = 0,
+
+  /* Sticky-RIGHT columns — จำนวนคอลัมน์ท้ายสุดที่ตรึงไว้ขอบขวา (ปกติ 1 =
+     คอลัมน์ "การดำเนินการ") ค่าเริ่มต้น 0 → ตารางอื่นทุกใบพฤติกรรมเดิมเป๊ะ
+     ใช้เมื่อคอลัมน์ปุ่มอยู่ท้ายตารางกว้างที่ต้องเลื่อนแนวนอนจึงจะเห็น */
+  stickyRightColCount = 0,
 
   /* Row interactions */
   onRowClick,
@@ -1235,6 +1267,10 @@ const Table = ({
   const bodyRef = useRef(null);
   const [stickyShadow, setStickyShadow] = useState(false);
   const [scrollX, setScrollX] = useState(0);
+  /* ระยะเลื่อนสูงสุด — ใช้วางคอลัมน์ที่ตรึงขวาในโหมด page-sticky (header อยู่
+     นอก scrollport จึงใช้ transform แทน `position: sticky`) + คุมเงาปลายทาง */
+  const [scrollMaxX, setScrollMaxX] = useState(0);
+  const [endShadow, setEndShadow] = useState(false);
   const fitContent = columnFit !== 'fixed';
 
   /* First paint: size columns at least as wide as their header labels so
@@ -1255,13 +1291,27 @@ const Table = ({
     if (!el) return;
     const onScroll = () => {
       const sl = el.scrollLeft;
+      const max = Math.max(0, el.scrollWidth - el.clientWidth);
       setStickyShadow(sl > 0);
+      setScrollMaxX(max);
+      setEndShadow(sl < max - 1);
       if (usePageSticky) setScrollX(sl);
     };
     onScroll();
     el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, [usePageSticky]);
+    /* คอลัมน์ตรึงขวาในโหมด page-sticky ผูกกับ maxScrollX ซึ่งเปลี่ยนตามความ
+       กว้างจอ/ตาราง — ไม่ฟัง resize แล้วหัวคอลัมน์จะค้างผิดตำแหน่ง */
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onScroll) : null;
+    if (ro) ro.observe(el);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', onScroll);
+    };
+    /* colWidths อยู่ใน deps เพราะ scrollWidth เปลี่ยนตอนวัดคอลัมน์เสร็จ
+       (ResizeObserver จับเฉพาะกล่องตัวเอง ไม่จับความกว้างของเนื้อหา) */
+  }, [usePageSticky, colWidths, columns.length]);
 
   /* Content-fit: max(header-text floor, intrinsic DOM width of header + cells).
      Uses off-DOM clones so page-sticky `overflow:hidden` cannot under-measure. */
@@ -1305,12 +1355,35 @@ const Table = ({
     return left;
   };
 
+  /* ระยะจากขอบขวา = ผลรวมความกว้างของคอลัมน์ที่อยู่ถัดไปทางขวา */
+  const stickyRight = (colIdx) => {
+    let right = 0;
+    for (let i = colIdx + 1; i < columns.length; i += 1) {
+      right += colWidthPx(columns[i], fitContent ? effectiveColWidths?.[i] : null);
+    }
+    return right;
+  };
+  const firstStickyRightIdx = stickyRightColCount > 0
+    ? columns.length - stickyRightColCount
+    : -1;
+  const isStickyRightCol = (colIdx) => firstStickyRightIdx >= 0 && colIdx >= firstStickyRightIdx;
+  const stickyRightWidth = stickyRightColCount > 0
+    ? (firstStickyRightIdx >= 0 ? stickyRight(firstStickyRightIdx - 1) : 0)
+    : 0;
+
   const totalMinWidth = columns.reduce(
     (s, c, i) => s + colWidthPx(c, fitContent ? effectiveColWidths?.[i] : null),
     0,
   ) + (editMode ? DRAG_COL_W : 0);
 
   const trailingInsetStyle = trailingInset ? { paddingRight: trailingInset } : null;
+
+  /* หัวคอลัมน์ที่ตรึงขวาในโหมด page-sticky: เลื่อนไป `scrollX - maxScrollX`
+     แล้วบวก trailingInset คืน เพราะ maxScrollX นับ padding ท้ายตารางไปด้วย
+     — ไม่บวกคืน หัวคอลัมน์จะเยื้องจากเซลล์ในตารางเท่ากับ inset */
+  const rightHeaderShift = trailingInset
+    ? `calc(${scrollX - scrollMaxX}px + ${trailingInset})`
+    : scrollX - scrollMaxX;
 
   const isSortable = (c) => c.sortable !== false && !!onSort;
 
@@ -1336,6 +1409,7 @@ const Table = ({
       {columns.map((c, colIdx) => {
         const sortable = isSortable(c);
         const isSticky = colIdx < stickyColCount;
+        const isRightSticky = isStickyRightCol(colIdx) && !isSticky;
         const sortIconName = sortConfig.key === c.key
           ? (sortConfig.direction === 'asc' ? 'expand_less' : 'expand_more')
           : 'unfold_more';
@@ -1355,11 +1429,17 @@ const Table = ({
                 : { width: c.width, flexShrink: 0 })}
             sortable={sortable}
             sortIconName={sortIconName}
-            sticky={isSticky}
+            sticky={isSticky || isRightSticky}
+            stickySide={isRightSticky ? 'right' : 'left'}
             stickyLeft={stickyLeft(colIdx)}
-            stickyShadow={stickyShadow && colIdx === stickyColCount - 1}
+            stickyRight={stickyRight(colIdx)}
+            stickyShadow={isRightSticky
+              ? (endShadow && colIdx === firstStickyRightIdx)
+              : (stickyShadow && colIdx === stickyColCount - 1)}
             onSort={onSort}
-            stickyTransformX={usePageSticky && isSticky ? scrollX : null}
+            stickyTransformX={usePageSticky && (isSticky || isRightSticky)
+              ? (isRightSticky ? rightHeaderShift : scrollX)
+              : null}
           />
         );
       })}
@@ -1428,6 +1508,9 @@ const Table = ({
               stickyColCount={stickyColCount}
               stickyLeft={stickyLeft}
               stickyShadow={stickyShadow}
+              stickyRightColCount={stickyRightColCount}
+              stickyRight={stickyRight}
+              endShadow={endShadow}
               editMode={editMode}
               isDragging={editMode && draggedIdx === idx}
               isOver={editMode && overIdx === idx && draggedIdx !== idx}
@@ -1558,6 +1641,25 @@ const Table = ({
                   height: '100%',
                   width: stickyLeft(stickyColCount),
                   transform: `translate3d(${scrollX}px, 0, 0)`,
+                  willChange: 'transform',
+                  background: 'var(--surface-table-header)',
+                  zIndex: 1,
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+            {/* กำแพงทึบฝั่งขวา — คู่กับแถบซ้ายด้านบน กันหัวคอลัมน์ที่เลื่อนผ่าน
+                โผล่ใต้คอลัมน์ "การดำเนินการ" ที่ถูกตรึงไว้ */}
+            {stickyRightColCount > 0 && (
+              <div
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  top: 'var(--dim-space-0)',
+                  right: 'var(--dim-space-0)',
+                  height: '100%',
+                  width: stickyRightWidth,
+                  transform: `translate3d(${typeof rightHeaderShift === 'number' ? `${rightHeaderShift}px` : rightHeaderShift}, 0, 0)`,
                   willChange: 'transform',
                   background: 'var(--surface-table-header)',
                   zIndex: 1,

@@ -62,6 +62,8 @@ import ConsentFieldCheckboxGroup from '@/components/consent/ConsentFieldCheckbox
 import FormScopeAccessEditor from '@/components/consent/FormScopeAccessEditor';
 import FormPositionAccessEditor from '@/components/consent/FormPositionAccessEditor';
 import CONSENT_NAV from '@/pages/consent/consentNav';
+import ConsentQrScanBlock from '@/components/consent/ConsentQrScanBlock';
+import { FakeQR } from '@/pages/mobile/MobileRegisterPage';
 
 /* PHCIS | Consent — สร้างแบบฟอร์มใหม่ (Figma node 294:124265, steps
    350:130712 / 354:135439 / 355:140557).
@@ -1709,6 +1711,10 @@ const ConsentChoiceRadios = ({ value = '', name, compact }) => {
 export function StepReview({
   name, code, type, version, ttl, docTitle, sections, patientFields, allowESign, note, reviewStepStyle,
   versionDiff, fromVersion, consentImpact, stackLayout = false,
+  /* แสดงบล็อกสแกน QR ให้ผู้รับบริการยินยอมเองเหนือเครื่องมือถือตัวอย่าง —
+     เปิดเฉพาะตอน "ดูแบบฟอร์มที่เผยแพร่แล้ว" (popup /consent/forms) เพราะใน
+     wizard สร้างฟอร์มยังไม่มีฟอร์มจริงให้สแกน */
+  showPatientQr = false,
 }) {
   const typeLabel = useMemo(() => (TYPE_OPTIONS.find((o) => o.value === type) || {}).label || 'เอกสารความยินยอม', [type]);
   const ttlDays = (TTL_OPTIONS.find((o) => o.value === ttl) || {}).label;
@@ -1859,8 +1865,13 @@ export function StepReview({
       </SectionCard>
 
       {!stackLayout ? (
-      /* ── Right — live patient-view phone ── */
+      /* ── Right — QR ให้ผู้รับบริการสแกน (ถ้าเปิด) + live patient-view phone ── */
       <SectionCard style={{ flex: 1, alignItems: 'center', gap: 'var(--dim-space-400)' }}>
+        {showPatientQr && (
+          <div className='flex flex-col items-center w-full' style={{ gap: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-200)' }}>
+            <ConsentQrScanBlock qrNode={<FakeQR seed={code || name || 'PHCIS'} size={160} />} />
+          </div>
+        )}
         <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
           <span style={{ color: 'var(--text-topic-tertiary-title)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-base)' }}>
             ตัวอย่างเอกสาร (Patient View)
@@ -1903,7 +1914,16 @@ export function StepReview({
             </div>
             {/* sticky confirm */}
             <div className='shrink-0' style={{ padding: 'var(--dim-space-300) var(--dim-space-400)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>
-              <BrandButton variant='fill' size='md' style={{ width: '100%' }}>ยืนยันการยินยอม</BrandButton>
+              {/* ตัวอย่างในเครื่องมือถือ — ปุ่มกดไม่ได้ (ดูเหมือนของจริงแต่ inert) */}
+              <BrandButton
+                variant='fill'
+                size='md'
+                tabIndex={-1}
+                aria-hidden
+                style={{ width: '100%', pointerEvents: 'none' }}
+              >
+                ยืนยันการยินยอม
+              </BrandButton>
             </div>
           </div>
         </div>

@@ -65,6 +65,7 @@ import { matchesDateFilter } from '@/data/financePaymentPrototype';
    มุมมองถูกยุบเข้าไปเป็นแท็บใน ConsentConsentedFormsPopup (13 ส.ค. 2569)
    ตัว popup เดิมยังอยู่ในโค้ดเบสสำหรับหน้า /consent/history */
 import ConsentConsentedFormsPopup from '@/pages/consent/ConsentConsentedFormsPopup';
+import ConsentRequestFormsPopup, { pendingConsentCardsFor } from '@/pages/consent/ConsentRequestFormsPopup';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* PHCIS | Consent — ระบบจัดการความยินยอม (Figma node 1:4).
@@ -175,6 +176,8 @@ export default function ConsentManagementPage() {
   /* null | { hn, name, record, allForPatient } — popup เดียวที่รวม
      แบบฟอร์มทั้งหมด / เปรียบเทียบ / Timeline ไว้เป็นแท็บ */
   const [viewConsentedFor, setViewConsentedFor] = useState(null);
+  /* null | patient row — popup เลือกแบบฟอร์มที่ยังไม่ขอความยินยอมของคนนั้น */
+  const [requestFormsFor, setRequestFormsFor] = useState(null);
   const [reconsentFor, setReconsentFor] = useState(null);        // record
   const [paperFor, setPaperFor] = useState(null);                // record
   const [editFor, setEditFor] = useState(null);                  // signed record → PersonalDataConsentEditPopup
@@ -327,12 +330,15 @@ export default function ConsentManagementPage() {
           total: 0, buckets: {}, lastActivity: '-', lastActivityKey: 0,
           lastChannel: '-', latestSigned: null, latestSignedKey: 0,
           guardian: r.guardian,
+          /* ทั้งแฟ้มของคนนี้ — ใช้หา "ใบที่ยังไม่ขอความยินยอม" (popup กรอก
+             แบบฟอร์ม) และรายการที่ลงนามแล้ว (ปุ่มเพิกถอนระดับคน) */
+          records: [], signedRecords: [],
         };
         byHn.set(r.hn, p);
       }
       p.total += 1;
-      const bucket = PATIENT_BUCKETS.find((b) => matchesConsentWorklistTab(r, b.tab));
-      if (bucket) p.buckets[bucket.tab] = (p.buckets[bucket.tab] || 0) + 1;
+      p.records.push(r);
+      if (r.status === 'ยินยอมแล้ว') p.signedRecords.push(r);
 
       /* ล่าสุด = วันที่ใหม่สุดในบรรดา สร้าง / ลงนาม / ถอน ของทุกฉบับของคนนี้ */
       [r.createdDate, r.signedDate, r.withdrawnDate].forEach((d) => {
@@ -356,6 +362,38 @@ export default function ConsentManagementPage() {
       }
     });
 
+    /* 1.1) ป้ายสรุปในคอลัมน์ "สถานะความยินยอม" = สถานะ **ล่าสุดของแต่ละ
+       แบบฟอร์ม** ไม่ใช่ทุกฉบับในแฟ้ม — แบบฟอร์มใบหนึ่งอาจเคยปฏิเสธแล้วมา
+       ยินยอมทีหลัง ถ้านับทุกฉบับ คนคนเดียวจะขึ้นทั้ง "ปฏิเสธ 1" และ
+       "ยินยอมแล้ว 1" พร้อมกัน ทั้งที่สถานะจริงตอนนี้คือยินยอมแล้ว
+       จับกลุ่มด้วยรหัสแบบฟอร์ม (fallback ชื่อฟอร์ม → หัวข้อหลัก) แล้วเลือกฉบับ
+       ที่เคลื่อนไหวล่าสุด (วันที่ใหม่สุด · เท่ากันใช้ id ที่มากกว่า = สร้างทีหลัง)
+       ผลข้างเคียงที่ตั้งใจ: ผลรวมป้าย ≤ "จำนวนความยินยอม" (ยอดฉบับทั้งแฟ้ม
+       ที่ต้องตรงกับ popup) — ป้ายนับ "แบบฟอร์ม" ส่วนยอดนับ "ฉบับ" */
+    const formKeyOf = (r) => r.formCode || r.formName || r.type || String(r.id);
+    const recencyOf = (r) => Math.max(
+      thaiDateSortKey(r.createdDate),
+      thaiDateSortKey(r.signedDate),
+      thaiDateSortKey(r.withdrawnDate),
+    );
+    byHn.forEach((p) => {
+      const latestByForm = new Map();
+      p.records.forEach((r) => {
+        const k = formKeyOf(r);
+        const prev = latestByForm.get(k);
+        if (!prev
+          || recencyOf(r) > recencyOf(prev)
+          || (recencyOf(r) === recencyOf(prev) && (r.id || 0) >= (prev.id || 0))) {
+          latestByForm.set(k, r);
+        }
+      });
+      p.buckets = {};
+      latestByForm.forEach((r) => {
+        const bucket = PATIENT_BUCKETS.find((b) => matchesConsentWorklistTab(r, b.tab));
+        if (bucket) p.buckets[bucket.tab] = (p.buckets[bucket.tab] || 0) + 1;
+      });
+    });
+
     /* 2) HN ที่มีอย่างน้อย 1 ฉบับผ่านตัวกรองปัจจุบัน — ใช้คัดว่าใครโผล่ในตาราง
           (ตัวกรองคัดคน ไม่ได้ตัดยอดของคน) */
     const passesFilter = new Set(filtered.map((r) => r.hn));
@@ -377,7 +415,11 @@ export default function ConsentManagementPage() {
           ...p,
           total: 0, buckets: {}, lastActivity: '-', lastActivityKey: 0,
           lastChannel: '-', latestSigned: null, latestSignedKey: 0,
+          records: [], signedRecords: [],
           ...agg,
+          /* จำนวนใบใน 3 หัวข้อหลักที่ยังไม่เคยมีคำขอเลย — ใช้เปิด/ปิดปุ่ม
+             "กรอกแบบฟอร์มความยินยอม" โดยไม่ต้องเปิด popup มาดูว่าว่างเปล่า */
+          pendingFormCount: pendingConsentCardsFor(agg?.records || []).length,
           /* ยอดนับจากทั้งแฟ้มอยู่แล้ว — everTotal จึงเท่ากับ total เสมอ
              เก็บไว้ให้คอลัมน์สถานะแยก "ไม่เคยให้ความยินยอม" ออกจากศูนย์อื่น ๆ */
           everTotal: agg?.total || 0,
@@ -582,12 +624,43 @@ export default function ConsentManagementPage() {
     );
   };
 
-  /* แถวผู้รับบริการไม่มี "สถานะเดียว" จึงไม่มี CTA ตามสถานะ — เหลือแต่ 3 ปุ่ม
-     ระดับคน ชุดเดียวกับแท็บอื่นเพื่อไม่ให้ไอคอนเดิมเปลี่ยนความหมาย */
+  /* กรอกแบบฟอร์มความยินยอม (แท็บผู้รับบริการทั้งหมด) — 1 แถว = 1 คน จึงเลือกใบ
+     ใน popup ก่อน แล้วกรอกใน nested popup ซ้อนขึ้นมา (ไม่พาออกจาก worklist)
+     เอกสารเป็นตัวเดียวกับหน้า /registration/consent/:formId · บันทึกแล้ว record
+     เข้า consent store ผ่าน recordMrConsentSigning ตารางจึงอัปเดตเอง */
+  const handleConsentFilled = ({ meta, outcome, name: signedName }) => {
+    setRequestFormsFor(null);
+    pushToast(outcome === 'declined'
+      ? `บันทึกการไม่ยินยอม ${meta?.title || ''} ของ ${signedName || ''} แล้ว`
+      : `บันทึกความยินยอม ${meta?.title || ''} ของ ${signedName || ''} แล้ว`);
+  };
+
+  /* เพิกถอนระดับคน — คนหนึ่งอาจมีหลายฉบับที่ลงนามแล้ว
+       1 ฉบับ  → เข้า dialog ยืนยัน + พิสูจน์ตัวตน ชุดเดียวกับแท็บสถานะทันที
+       >1 ฉบับ → เปิด popup รวมทุกฉบับให้เลือกก่อนว่าจะเพิกถอนใบไหน
+                 (คอลัมน์การดำเนินการใน popup ใช้ renderAction ตัวเดียวกัน) */
+  const startPatientRevoke = (p) => {
+    const signed = p.signedRecords || [];
+    if (!canRevoke || signed.length === 0) return;
+    if (signed.length === 1) {
+      setDialog({ record: signed[0], confirmKey: 'revoke' });
+      return;
+    }
+    setViewConsentedFor({ hn: p.hn, name: p.name, record: null, allForPatient: true });
+    pushToast(`${p.name} มี ${signed.length} ฉบับที่ยินยอมแล้ว — เลือกฉบับที่ต้องการเพิกถอนจากรายการ`);
+  };
+
+  /* แถวผู้รับบริการไม่มี "สถานะเดียว" จึงไม่มี CTA ตามสถานะ — เหลือปุ่มระดับคน
+     ชุดเดียวกับแท็บอื่นเพื่อไม่ให้ไอคอนเดิมเปลี่ยนความหมาย */
   const renderPatientAction = (p) => (
     <div
       className='flex items-center justify-end'
-      style={{ gap: 'var(--dim-space-150)', paddingRight: 'var(--dim-space-400, 16px)' }}
+      style={{ gap: 'var(--dim-space-200)', paddingRight: 'var(--dim-space-400, 16px)' }}
+      /* ทั้งแถวกดเพื่อเปิดแฟ้มของคนนี้ — ปุ่มในคอลัมน์นี้ต้องไม่ยิง onRowClick ตาม
+         ไม่งั้นกด "เพิกถอน" แล้ว popup แฟ้มจะเปิดซ้อนขึ้นมาพร้อม dialog ยืนยัน */
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      role='presentation'
     >
       {/* แถวนี้เป็น "คน" ไม่ใช่ "ฉบับ" — ปุ่มเดียวเปิด popup ที่รวมทั้ง 3 มุมมอง
           ของคนคนนั้นไว้เป็นแท็บ (แบบฟอร์มทั้งหมด · เปรียบเทียบให้/ไม่ให้ ·
@@ -604,6 +677,38 @@ export default function ConsentManagementPage() {
         onClick={() => p.everTotal
           && setViewConsentedFor({ hn: p.hn, name: p.name, record: null, allForPatient: true })}
       />
+
+      {/* ขอความยินยอมใบที่ยังไม่เคยขอ — ครบทั้ง 3 หัวข้อแล้วไม่ต้องแสดงอะไรเลย
+          (ไม่ใช่ปุ่มจาง ๆ ที่กดไม่ได้) คอลัมน์นี้แสดงเฉพาะงานที่ยังทำได้จริง
+          ใบที่หมดอายุ/ถูกถอนเป็นงานของ Re-Consent ในแท็บสถานะ ไม่ใช่ที่นี่ */}
+      {canManage && !!p.pendingFormCount && (
+        <BrandSubdueButton
+          variant='fill'
+          size='sm'
+          leadingIcon='edit_document'
+          /* ป้ายในตารางย่อเหลือ "กรอกแบบฟอร์ม" ให้คอลัมน์ไม่กินความกว้าง —
+             ชื่อเต็มอยู่บนหัว popup ที่เปิดขึ้นมาแล้ว (คำสั่ง user 14 ส.ค.) */
+          title={`ยังไม่ขอความยินยอม ${p.pendingFormCount} แบบฟอร์ม`}
+          onClick={() => setRequestFormsFor(p)}
+        >
+          กรอกแบบฟอร์ม
+        </BrandSubdueButton>
+      )}
+
+      {/* ด.1.1.2 / ด.1.1.1 — เพิกถอนเฉพาะคนที่มีฉบับ "ยินยอมแล้ว" อยู่จริง
+          (ปุ่มไม่ขึ้นเลยเมื่อไม่มี — ไม่ใช่ขึ้นแล้ว disabled ตามแท็บสถานะ) */}
+      {canRevoke && (p.signedRecords || []).length > 0 && (
+        <BrandSubdueButton
+          variant='outline'
+          size='sm'
+          title={(p.signedRecords || []).length === 1
+            ? `เพิกถอน — ${p.signedRecords[0].formName || p.signedRecords[0].formCode || 'ฉบับที่ยินยอมแล้ว'}`
+            : `มี ${p.signedRecords.length} ฉบับที่ยินยอมแล้ว — เลือกฉบับที่จะเพิกถอน`}
+          onClick={() => startPatientRevoke(p)}
+        >
+          เพิกถอน
+        </BrandSubdueButton>
+      )}
     </div>
   );
 
@@ -1005,6 +1110,9 @@ export default function ConsentManagementPage() {
                     : setViewConsentedFor({ hn: row.hn, name: row.name, record: row })
                 )}
                 trailingInset='var(--dim-space-400, 16px)'
+                /* คอลัมน์ "การดำเนินการ" ไม่ตรึงขอบขวา (คำสั่ง user 14 ส.ค.) —
+                   เลื่อนตารางไปทางขวาเพื่อดูปุ่มตามปกติ · `<Table>` รองรับ
+                   `stickyRightColCount` อยู่ถ้าเปลี่ยนใจภายหลัง */
                 stickyColCount={
                   activeTab === 'expired' || isPatientTab
                     ? 2
@@ -1043,6 +1151,17 @@ export default function ConsentManagementPage() {
            (CTA ตามสถานะ + แก้ไขฉบับที่ลงนามแล้ว) — ตัดปุ่ม 👁 ออกเพราะกดแถว
            ก็เปิดเอกสารอยู่แล้ว · dialog/verify/toast ยังเป็นของหน้านี้ */
         renderRecordAction={(row) => renderAction(row, { showView: false, align: 'start' })}
+      />
+
+      {/* แท็บผู้รับบริการทั้งหมด — เลือกใบที่ยังไม่ขอความยินยอมก่อนไปหน้ากรอก */}
+      <ConsentRequestFormsPopup
+        open={!!requestFormsFor}
+        hn={requestFormsFor?.hn || null}
+        name={requestFormsFor?.name || null}
+        records={requestFormsFor?.records || []}
+        onClose={() => setRequestFormsFor(null)}
+        onFill={handleConsentFilled}
+        onPrint={() => pushToast('พิมพ์แบบฟอร์มเปล่าให้ผู้รับบริการลงนาม — การพิมพ์ไม่เก็บ log')}
       />
 
       {/* Per-status confirm dialog */}

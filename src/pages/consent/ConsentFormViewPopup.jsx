@@ -133,6 +133,9 @@ export function ConsentFormViewBody({
           patientFields={PATIENT_FIELD_KEYS}
           allowESign
           note={consentFormViewNote()}
+          /* แผงขวาใช้ชุดเดียวกับหน้ากรอกใบยินยอมของเวชระเบียน — QR ให้
+             ผู้รับบริการสแกนยินยอมเองผ่านมือถือ อยู่เหนือเครื่องตัวอย่าง */
+          showPatientQr
         />
 
         {showAuditBar && (

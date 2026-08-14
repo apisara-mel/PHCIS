@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
 
 import {
   SectionTitle, SectionTitleIcon, SubCard, FieldGrid, Field,
@@ -15,12 +14,13 @@ import RadioButton from '@/components/radio/RadioButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
-import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import PendingConsentFormCard from '@/components/consent/PendingConsentFormCard';
+import ConsentDisclosureFillPopup from '@/components/consent/ConsentDisclosureFillPopup';
 import Alert from '@/components/alert/Alert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import { REGISTRATION_PENDING_CONSENT_CARDS } from '@/data/registrationConsentForms';
-import { saveRegistrationDraft } from '@/data/registrationForm';
+import { saveRegistrationDraft, markRegistrationConsentCompleted } from '@/data/registrationForm';
 import healthInsuranceAnim from '@/assets/illustrations/Girl finding health insurance online.json';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
@@ -344,141 +344,33 @@ const PatientStatusSection = ({
    Step 1 — แบบฟอร์มยินยอม (Figma 292:104252 · Consent Pending)
    ───────────────────────────────────────────────────────────── */
 
-const PendingConsentFormCard = ({
-  categoryLabel,
-  categoryStyle,
-  version,
-  title,
-  code,
-  cover,
-  onPrint,
-  onFill,
-}) => (
-  <div
-    className='flex w-full min-w-0 flex-col h-full'
-    style={{
-      borderRadius: 'var(--dim-radius-400)',
-      background: 'var(--surface-card-100)',
-      border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-      overflow: 'hidden',
-    }}
-  >
-    <div
-      className='relative w-full shrink-0 overflow-hidden'
-      style={{
-        aspectRatio: '227 / 113',
-        background: 'var(--surface-info-tertiary, #DBEAFE)',
-      }}
-    >
-      <img
-        src={cover}
-        alt=''
-        className='absolute inset-0 h-full w-full object-cover object-center'
-        loading='lazy'
-        decoding='async'
-      />
-    </div>
-    <div
-      className='flex flex-col w-full'
-      style={{
-        gap: 6,
-        padding: 'var(--dim-space-400)',
-      }}
-    >
-      <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-        <ColorfulBadge
-          style={categoryStyle}
-          size='small'
-          hierarchy='secondary'
-          showDot={false}
-          showIcon={false}
-        >
-          {categoryLabel}
-        </ColorfulBadge>
-        <ColorfulBadge
-          style='magenta'
-          size='small'
-          hierarchy='secondary'
-          showDot={false}
-          showIcon={false}
-        >
-          {version}
-        </ColorfulBadge>
-      </div>
-      <p style={{
-        margin: 0,
-        color: 'var(--text-content-default)',
-        fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
-        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-        lineHeight: 1.5,
-      }}>
-        {title}
-      </p>
-      <p style={{
-        margin: 0,
-        color: 'var(--text-content-tertiary)',
-        fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
-        fontWeight: 'var(--type-weight-regular)',
-        lineHeight: 1.5,
-      }}>
-        {code}
-      </p>
-    </div>
-    <div
-      className='flex items-center justify-end w-full'
-      style={{
-        gap: 'var(--dim-space-200)',
-        padding: 'var(--dim-space-400)',
-        borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-      }}
-    >
-      <BrandSubdueIconButton
-        type='button'
-        size='sm'
-        variant='outline'
-        icon='print'
-        aria-label='พิมพ์แบบฟอร์ม'
-        onClick={onPrint}
-      />
-      <BrandButton
-        type='button'
-        size='sm'
-        variant='fill'
-        leadingIcon='edit'
-        onClick={onFill}
-      >
-        กรอกแบบฟอร์ม
-      </BrandButton>
-    </div>
-  </div>
-);
+/* การ์ดใบนี้ย้ายไป `@/components/consent/PendingConsentFormCard` แล้ว —
+   ระบบจัดการความยินยอม (popup กรอกแบบฟอร์มความยินยอม) ใช้ใบเดียวกัน */
 
 /** Step 1 · แบบฟอร์มยินยอม — Figma Registration 292:104252.
  *  กรอกแบบฟอร์ม → /registration/consent/:formId (Figma 298:81941). */
-export const StepConsent = ({ form, patient }) => {
-  const history = useHistory();
-  const location = useLocation();
+export const StepConsent = ({ form, setForm, patient }) => {
   const completed = Array.isArray(form?.consentCompletedIds) ? form.consentCompletedIds : [];
   const pending = REGISTRATION_PENDING_CONSENT_CARDS.filter((f) => !completed.includes(f.id));
   const pendingCount = pending.length;
+  /* กรอกใบยินยอมใน popup ซ้อนบนหน้าลงทะเบียน — ไม่พาออกจาก step (เดิม push ไป
+      /registration/consent/:formId แล้วต้องเด้งกลับมาพร้อม state) */
+  const [fillFormId, setFillFormId] = useState(null);
 
-  const openFill = (formId) => {
+  const draftFullName = [form?.prefixTh, form?.firstNameTh, form?.lastNameTh]
+    .map((p) => String(p || '').trim()).filter(Boolean).join(' ');
+  const patientFullName = [patient?.prefixTh, patient?.firstNameTh, patient?.lastNameTh]
+    .map((p) => String(p || '').trim()).filter(Boolean).join(' ');
+  const rawNationalId = form?.nationalId || patient?.nationalId || '';
+
+  const markCompleted = (formId) => {
     saveRegistrationDraft(form);
-    history.push({
-      pathname: `/registration/consent/${formId}`,
-      state: {
-        patient: {
-          hn: patient?.hn,
-          prefixTh: patient?.prefixTh,
-          firstNameTh: patient?.firstNameTh,
-          lastNameTh: patient?.lastNameTh,
-          nationalId: patient?.nationalId,
-        },
-        returnState: location.state || { hn: patient?.hn },
-      },
+    markRegistrationConsentCompleted(formId);
+    setForm?.((s) => {
+      const prev = Array.isArray(s.consentCompletedIds) ? s.consentCompletedIds : [];
+      return prev.includes(formId) ? s : { ...s, consentCompletedIds: [...prev, formId] };
     });
+    setFillFormId(null);
   };
 
   return (
@@ -492,18 +384,8 @@ export const StepConsent = ({ form, patient }) => {
         </NeutralSubdueButton>
       </div>
 
-      {pendingCount > 0 && (
-        <Alert
-          type='warning'
-          title={`มี ${pendingCount} แบบฟอร์มที่ยังไม่ได้รับการยินยอม`}
-          subtext='กรุณาให้ผู้รับบริการกรอกแบบฟอร์มยินยอมการเข้ารับบริการให้ครบถ้วน'
-          showCloseButton={false}
-          showBadge={false}
-          showIndicator={false}
-          style={{ maxWidth: 640, width: '100%' }}
-        />
-      )}
-
+      {/* ไม่มี Alert เตือนจำนวนใบที่ค้าง — หัวข้อ "แบบฟอร์มที่ยังไม่ขอความยินยอม"
+          ด้านบนบอกอยู่แล้ว การเตือนซ้ำเป็น noise */}
       {pendingCount === 0 ? (
         <Alert
           type='success'
@@ -524,11 +406,24 @@ export const StepConsent = ({ form, patient }) => {
               key={item.id}
               {...item}
               onPrint={() => {}}
-              onFill={() => openFill(item.id)}
+              onFill={() => setFillFormId(item.id)}
             />
           ))}
         </div>
       )}
+
+      {/* กรอกใบยินยอม — เอกสารตัวเดียวกับหน้า /registration/consent/:formId */}
+      <ConsentDisclosureFillPopup
+        open={!!fillFormId}
+        formId={fillFormId}
+        patient={{
+          hn: patient?.hn || form?.hn || '',
+          fullName: draftFullName || patientFullName,
+          nationalId: rawNationalId ? formatNationalId(rawNationalId) : '',
+        }}
+        onClose={() => setFillFormId(null)}
+        onSaved={({ formId }) => markCompleted(formId)}
+      />
     </>
   );
 };
