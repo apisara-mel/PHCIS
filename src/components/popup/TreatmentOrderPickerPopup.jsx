@@ -186,7 +186,7 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
       type='warning'
       alignment='center'
       title='ตรวจพบยาที่ผู้รับบริการมีประวัติแพ้'
-      description={`รายการที่เลือกมี ${selectedAllergyItems.length} รายการที่สัมพันธ์กับประวัติแพ้ยา: ${selectedAllergyItems.map((item) => `${item.name} (แพ้ ${item.allergyMatch})`).join(' · ')} กรุณาตรวจสอบความเหมาะสมก่อนยืนยันคำสั่งยา`}
+      description={selectedAllergyItems.map((item) => item.name).join(' · ')}
       cancelLabel='กลับไปตรวจสอบ'
       confirmLabel='ยืนยันเพิ่มรายการ'
     />
