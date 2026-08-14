@@ -16,7 +16,7 @@ if (typeof document !== 'undefined') {
   const css = `
 .mih-treatment-order-picker-row {
   background: var(--surface-list-default, #FFFFFF);
-  border-color: transparent;
+  border: var(--dim-stroke-100, 1px) solid transparent;
   transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 .mih-treatment-order-picker-row:hover {
@@ -150,7 +150,7 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
           ))}
         </div>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='mih-treatment-order-picker-row flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', border: 'var(--dim-stroke-100, 1px) solid', borderRadius: 'var(--dim-radius-200, 8px)' }}>
+          {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='mih-treatment-order-picker-row flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', borderRadius: 'var(--dim-radius-200, 8px)' }}>
             <span onClick={(event) => event.stopPropagation()}><Checkbox checked={checked} onChange={() => toggle(item.id)} aria-label={`เลือก ${item.name}`} /></span>
             <span className='flex-1 min-w-0'>
               <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150, 6px)' }}>
