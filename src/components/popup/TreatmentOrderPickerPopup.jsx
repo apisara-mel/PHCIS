@@ -11,6 +11,34 @@ import BrandFilterTag from '@/components/forms/FilterTag';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import AlertDialog from '@/components/popup/AlertDialog';
 
+if (typeof document !== 'undefined') {
+  const styleId = 'mih-treatment-order-picker-row-style';
+  const css = `
+.mih-treatment-order-picker-row {
+  background: var(--surface-card-default, #FFFFFF);
+  border-color: var(--border-neutral-quaternary, #E2E4E6);
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.mih-treatment-order-picker-row:hover {
+  background: var(--surface-list-hover, var(--surface-brandPrimary-quaternary, #EAF8F2));
+  border-color: var(--border-brandPrimary-tertiary, #8DD8B8);
+  box-shadow: var(--shadow-card);
+}
+.mih-treatment-order-picker-row[aria-pressed='true'],
+.mih-treatment-order-picker-row[aria-pressed='true']:hover {
+  background: var(--surface-brandPrimary-quaternary, #EAF8F2);
+  border-color: var(--border-brandPrimary-default, #007549);
+}
+`;
+  let el = document.getElementById(styleId);
+  if (!el) {
+    el = document.createElement('style');
+    el.id = styleId;
+    document.head.appendChild(el);
+  }
+  if (el.textContent !== css) el.textContent = css;
+}
+
 const CATEGORY_LABELS = {
   medication: 'ยา', medicalSupply: 'เวชภัณฑ์มิใช่ยา', lab: 'Lab',
   xray: 'X-ray', procedure: 'หัตถการ', consult: 'ปรึกษา',
@@ -123,7 +151,7 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
           ))}
         </div>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', border: `${checked ? 'var(--dim-stroke-200, 2px)' : 'var(--dim-stroke-100, 1px)'} solid ${checked ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-neutral-quaternary, #E2E4E6)'}`, borderRadius: 'var(--dim-radius-200, 8px)', background: checked ? 'var(--surface-brandPrimary-quaternary, #EAF8F2)' : 'var(--surface-card-default, #FFFFFF)' }}>
+          {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='mih-treatment-order-picker-row flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', border: 'var(--dim-stroke-200, 2px) solid', borderRadius: 'var(--dim-radius-200, 8px)' }}>
             <span onClick={(event) => event.stopPropagation()}><Checkbox checked={checked} onChange={() => toggle(item.id)} aria-label={`เลือก ${item.name}`} /></span>
             <span className='flex-1 min-w-0'>
               <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150, 6px)' }}>
