@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Table from '@/components/table/Table';
 import Select from '@/components/forms/Select';
-import InputField from '@/components/forms/InputField';
+import Stepper from '@/components/stepper/Stepper';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import { PanelCard, PanelEmptyState } from '@/pages/treat/panels/panelKit';
@@ -61,18 +61,45 @@ const MedicalSupplyOrderPanel = ({ form, setForm }) => {
 
   return (
     <PanelCard title='สั่งเวชภัณฑ์มิใช่ยา' subtitle='รายการจะถูกส่งไปห้องยาพร้อมใบสั่ง CPOE เดียวกัน แต่แยกจากรายการยา'>
-      <div className='grid w-full' style={{ gridTemplateColumns: 'minmax(280px, 1fr) minmax(120px, 180px) auto', gap: 'var(--dim-space-300)' }}>
+      <div
+        className='grid w-full items-end'
+        style={{
+          gridTemplateColumns: 'minmax(280px, 1fr) minmax(128px, 180px) auto',
+          gap: 'var(--dim-space-300)',
+          alignItems: 'end',
+        }}
+      >
         <Select
+          label='รายการเวชภัณฑ์มิใช่ยา'
           value={supplyOptionKey}
           onChange={setSupplyOptionKey}
           options={MEDICAL_SUPPLY_CATALOG}
           placeholder='เลือกเวชภัณฑ์มิใช่ยา'
-          showLabel={false}
+          size='lg'
           showHelperText={false}
         />
-        <InputField label='จำนวน' type='number' min='1' value={quantity} onChange={setQuantity} />
+        <label className='flex flex-col items-start' style={{ gap: 'var(--dim-space-100)' }}>
+          <span style={{
+            color: 'var(--text-content-secondary)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-xs)',
+            fontWeight: 'var(--type-weight-medium)',
+            lineHeight: 1.5,
+          }}>
+            จำนวน
+          </span>
+          <Stepper
+            value={Number(quantity)}
+            onChange={(next) => setQuantity(String(next ?? 1))}
+            min={1}
+            max={999}
+            step={1}
+            size='large'
+            aria-label='จำนวนเวชภัณฑ์มิใช่ยา'
+          />
+        </label>
         <div className='flex items-end'>
-          <BrandPrimaryButton leadingIcon='add' disabled={!selected || Number(quantity) < 1} onClick={addSupply}>เพิ่มรายการ</BrandPrimaryButton>
+          <BrandPrimaryButton size='lg' leadingIcon='add' disabled={!selected || Number(quantity) < 1} onClick={addSupply}>เพิ่มรายการ</BrandPrimaryButton>
         </div>
       </div>
       {supplies.length > 0
