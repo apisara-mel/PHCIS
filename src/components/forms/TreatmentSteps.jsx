@@ -69,6 +69,8 @@ import LabOrderPanel from '@/pages/treat/panels/LabOrderPanel';
 import RadiologyOrderPanel from '@/pages/treat/panels/RadiologyOrderPanel';
 import ProcedureOrderPanel from '@/pages/treat/panels/ProcedureOrderPanel';
 import ConsultComposerPanel from '@/pages/treat/panels/ConsultComposerPanel';
+import MedicalSupplyOrderPanel, { MEDICAL_SUPPLY_CATALOG } from '@/pages/treat/panels/MedicalSupplyOrderPanel';
+import { ICD9_PROCEDURES } from '@/pages/treat/panels/ProcedureOrderPanel';
 import DocumentCenterPanel from '@/pages/treat/panels/DocumentCenterPanel';
 import ReDiagnosisPopup from '@/components/popup/ReDiagnosisPopup';
 import ReMedicinePopup from '@/components/popup/ReMedicinePopup';
@@ -79,6 +81,7 @@ import AddDiagnosisPopup from '@/components/popup/AddDiagnosisPopup';
 import AdvanceOrderPickerPopup from '@/components/popup/AdvanceOrderPickerPopup';
 import DeleteAdvanceOrderConfirmPopup from '@/components/popup/DeleteAdvanceOrderConfirmPopup';
 import AddMedicationPopup from '@/components/popup/AddMedicationPopup';
+import TreatmentOrderPickerPopup from '@/components/popup/TreatmentOrderPickerPopup';
 import ConfirmAddDiagnosisPopup from '@/components/popup/ConfirmAddDiagnosisPopup';
 import MedicalHistoryPopup from '@/components/popup/MedicalHistoryPopup';
 import AppointmentHistoryPopup from '@/components/popup/AppointmentHistoryPopup';
@@ -136,12 +139,15 @@ import XrayOrderPicker from '@/components/xray/XrayOrderPicker';
 import Badge from '@/components/badge/Badge';
 import {
   XRAY_EXAM_BY_ID,
+  XRAY_EXAMS,
   XRAY_VIEWS,
   getRegion,
   claimFor,
   summariseSelection,
   duplicateWarning,
 } from '@/data/xrayCatalog';
+import { LAB_TESTS } from '@/data/labCatalog';
+import { CONSULT_CLINICS, blankConsult, doctorsForClinic, saveConsult } from '@/data/treatmentConsult';
 import {
   XRAY_URGENCIES,
   xrayHistoryFor,
@@ -1875,7 +1881,7 @@ const MedImageTile = ({ src, alt }) => {
 /* Medication-table columns (Figma PHCIS|CPOE 276:34332). Data fields
    render as read-only body text (EllipsisText); workflow flags stay
    as inline <Checkbox> toggles; row edits go through AddMedicationPopup. */
-const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
+const buildMedTableColumns = ({ updateRow, editRow }) => [
   { key: 'image', header: 'รูป',
     render: (row) => (
       <MedImageTile
@@ -1908,7 +1914,7 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
   /* Figma PHCIS|CPOE 276:34332 — วิธีใช้ is read-only body text in the
      table (not an inline Select). Edits go through AddMedicationPopup. */
   { key: 'usage',      header: 'วิธีใช้' },
-  { key: 'dosePerTake', header: 'ทานครั้งละ' },
+  { key: 'dosePerTake', header: 'ทานครั้งละ', align: 'center' },
   { key: 'unit',       header: 'หน่วย' },
   { key: 'frequency',  header: 'ความถี่' },
   { key: 'when',       header: 'เวลาใช้ยา' },
@@ -1926,15 +1932,6 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
        row's full totalPrice is eligible for reimbursement, otherwise 0. */
     render: (row) => (row.reimbursable ? (row.totalPrice ?? 0) : 0)},
   { key: 'purpose',    header: 'การใช้' },
-  { key: 'approve',    header: 'Approve', align: 'center',
-    render: (row, idx) => (
-      <Checkbox
-        checked={!!row.approve}
-        onChange={(next) => updateRow(idx, { approve: next })}
-        aria-label={`อนุมัติ ${row.name}`}
-      />
-    ),
-  },
   { key: 'consult',    header: 'รอ Consult', align: 'center',
     render: (row, idx) => (
       <Checkbox
@@ -1953,29 +1950,6 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
       />
     ),
   },
-  { key: 'print',      header: 'พิมพ์', align: 'center',
-    render: (row, idx) => (
-      <Checkbox
-        checked={!!row.print}
-        onChange={(next) => updateRow(idx, { print: next })}
-        aria-label={`พิมพ์ ${row.name}`}
-      />
-    ),
-  },
-  /* Figma PHCIS|CPOE 276:34349 / header 276:34330 — re-introduces the
-     ผู้แก้ไข column as a Checkbox (96 px, centered). Bound to the row's
-     `edited` flag so the doctor can mark "I touched this entry" on the
-     audit trail without leaving the table. The full editor name still
-     lives on `row.editor` for later display surfaces. */
-  { key: 'edited',     header: 'ผู้แก้ไข', align: 'center',
-    render: (row, idx) => (
-      <Checkbox
-        checked={!!row.edited}
-        onChange={(next) => updateRow(idx, { edited: next })}
-        aria-label={`ผู้แก้ไข ${row.name}`}
-      />
-    ),
-  },
   { key: 'actions',    header: 'การดำเนินการ', align: 'center',
     /* Figma PHCIS|CPOE 195:34355 — row-action cluster: Edit then Delete. */
     render: (row, idx) => (
@@ -1990,13 +1964,6 @@ const buildMedTableColumns = ({ updateRow, removeRow, editRow }) => [
           icon='edit'
           aria-label={`แก้ไข ${row.name}`}
           onClick={() => editRow?.(idx)}
-        />
-        <NeutralSubdueIconButton
-          variant='outline'
-          size='sm'
-          icon='delete'
-          aria-label={`ลบ ${row.name}`}
-          onClick={() => removeRow(idx)}
         />
       </div>
     ),
@@ -2364,6 +2331,7 @@ const FrequentOrdersCard = ({ onInsertChip, selectedLabels }) => {
    switching tabs still reads as "ยังไม่มีรายการ … ที่สั่ง · กรุณาสั่ง …". */
 const ORDER_EMPTY_STATE_TEXT = {
   medication: { title: 'ยังไม่มีรายการยาที่สั่ง',         subtitle: 'กรุณาสั่งยา',        addLabel: 'เพิ่มยา'      },
+  medicalSupply: { title: 'ยังไม่มีเวชภัณฑ์มิใช่ยาที่สั่ง', subtitle: 'กรุณาเพิ่มเวชภัณฑ์', addLabel: 'เพิ่มเวชภัณฑ์' },
   lab:        { title: 'ยังไม่มีรายการแล็บที่สั่ง',        subtitle: 'กรุณาสั่งแล็บ',       addLabel: 'เพิ่มแล็บ'    },
   xray:       { title: 'ยังไม่มีรายการ X-ray ที่สั่ง',    subtitle: 'กรุณาสั่ง X-ray',     addLabel: 'เพิ่ม X-ray'  },
   procedure:  { title: 'ยังไม่มีรายการหัตถการที่สั่ง',     subtitle: 'กรุณาสั่งหัตถการ',     addLabel: 'เพิ่มหัตถการ' },
@@ -2379,6 +2347,7 @@ const ORDER_EMPTY_STATE_TEXT = {
    procedure / consult table slots in without touching the JSX again. */
 const ORDER_TABLE_TEXT = {
   medication: { title: 'รายการยาที่สั่ง',                  subtitle: 'กด " + " เพื่อเพิ่มยารายการใหม่เข้าใน Order' },
+  medicalSupply: { title: 'รายการเวชภัณฑ์มิใช่ยาที่สั่ง', subtitle: 'รายการจะถูกส่งไปห้องยาพร้อมใบสั่งเดียวกัน' },
   lab:        { title: 'รายการแล็บที่สั่ง',                 subtitle: 'กด " + " เพื่อเพิ่มรายการตรวจเข้าใน Order' },
   xray:       { title: 'รายการตรวจทางรังสีวิทยาที่สั่ง',     subtitle: 'กด " + " เพื่อเพิ่มรายการตรวจเข้าใน Order' },
   procedure:  { title: 'รายการหัตถการที่สั่ง',              subtitle: 'กด " + " เพื่อเพิ่มรายการหัตถการเข้าใน Order' },
@@ -2388,7 +2357,7 @@ const ORDER_TABLE_TEXT = {
 /* CPOE §1.5 — หมวดที่มี panel เต็มรูปของตัวเองแล้ว (แทน empty state เดิม
    ที่ไม่มี picker). `medication` และ `xray` ยังใช้ตาราง/ปุ่มเดิมทั้งหมด
    แล้วเสริม panel ต่อท้าย จึงไม่อยู่ในชุดนี้. */
-const CPOE_PANEL_CATEGORIES = new Set(['lab', 'procedure', 'consult']);
+const CPOE_PANEL_CATEGORIES = new Set(['medicalSupply', 'lab', 'procedure', 'consult']);
 
 /* `onStepChange` / `stepIndexes` ถูกส่งมาจาก TreatmentFormPage อยู่แล้ว —
    รับไว้เพื่อให้สัญญาณ §1.5.4.15 มีปุ่ม "ไปแนบเอกสาร" ที่กระโดดไปขั้นเอกสาร
@@ -2398,6 +2367,105 @@ export const Step5Orders = ({
 }) => {
   const setCategory = (key) => setForm((s) => ({ ...s, orderCategory: key }));
   const dismissAlert = () => setForm((s) => ({ ...s, showAllergyAlert: false }));
+  const [orderPickerOpen, setOrderPickerOpen] = useState(false);
+  const orderPickerItems = useMemo(() => {
+    const medicationCatalog = [
+      { name: 'Paracetamol 500mg', allergyTerms: ['paracetamol', 'acetaminophen'] },
+      { name: 'Cetirizine 10mg', allergyTerms: ['cetirizine'] },
+      { name: 'Ibuprofen 400mg', allergyTerms: ['ibuprofen', 'nsaid', 'nsaids', 'aspirin'] },
+      { name: 'Amoxicillin 500mg', allergyTerms: ['amoxicillin', 'penicillin', 'penicillins'] },
+    ];
+    const recordedAllergies = (patient?.drugAllergies || []).map((item) => String(item.name || '').toLowerCase());
+    const medicationItems = medicationCatalog.map(({ name, allergyTerms }, index) => {
+      const source = PAST_VISIT_MEDICATIONS.find((item) => item.name === name)
+        || PAST_VISIT_MEDICATIONS.find((item) => item.name?.startsWith(name.split(' ')[0]));
+      const allergyMatch = recordedAllergies.find((allergy) => allergyTerms.some((term) => allergy.includes(term) || term.includes(allergy)));
+      return {
+        id: index === 0 ? 'med-paracetamol' : index === 1 ? 'med-cetirizine' : `med-catalog-${index}`,
+        category: 'medication', name, unit: source?.unit || 'เม็ด', source,
+        allergyMatch: allergyMatch || '',
+      };
+    });
+    const supplyId = { 'gauze-sterile-2x2': 'supply-gauze', 'cotton-ball': 'supply-cotton', 'medical-tape-1': 'supply-tape', 'syringe-5ml': 'supply-syringe', 'surgical-mask': 'supply-mask' };
+    return [
+      ...medicationItems,
+      ...MEDICAL_SUPPLY_CATALOG.map((item) => ({ id: supplyId[item.value] || `supply-${item.value}`, category: 'medicalSupply', name: item.label, unit: item.unit })),
+      ...LAB_TESTS.filter((item) => !item.retired).map((item) => ({ id: `lab-${item.id}`, category: 'lab', name: `${item.nameEn} — ${item.nameTh}`, detail: `${item.code} · ${item.price.toLocaleString('th-TH')} บาท`, source: item })),
+      ...XRAY_EXAMS.filter((item) => !item.retired).map((item) => ({ id: `xray-${item.id}`, category: 'xray', name: item.name, detail: `${item.code} · ${item.price.toLocaleString('th-TH')} บาท`, source: item })),
+      ...ICD9_PROCEDURES.map((item) => ({ id: `procedure-${item.code}`, category: 'procedure', name: item.nameTh, unit: item.unit, detail: `ICD-9-CM ${item.code} · ${item.price.toLocaleString('th-TH')} บาท`, source: item })),
+      ...CONSULT_CLINICS.map((item) => ({ id: `consult-${item.key}`, category: 'consult', name: item.label, detail: `คิวรอ ${item.waiting} ราย · สร้างเป็นคำขอปรึกษาฉบับร่าง`, source: item })),
+    ];
+  }, [patient?.drugAllergies]);
+  const commitPickedOrders = (picked) => {
+    if (!picked?.length) return;
+    const now = Date.now();
+    const pickedConsults = picked.filter((item) => item.category === 'consult').map((item) => {
+      const clinic = item.source;
+      const doctor = doctorsForClinic(clinic.key).find((candidate) => candidate.onDuty);
+      return saveConsult({
+        ...blankConsult(), hn: patient?.hn || '', cid: patient?.cid || patient?.nationalId || '',
+        name: cardPatient?.fullName || patient?.name || '', rights: patient?.rights || '',
+        age: patient?.age ? `${patient.age} ปี` : '', gender: patient?.gender || '',
+        visitId: form?.visitId || 'v-current', toClinic: clinic.key, toDoctor: doctor?.key || '',
+        provisionalDx: (form?.diagnoses || []).map((d) => `${d.code || ''} ${d.name || ''}`.trim()).join(' · '),
+        provisionalDxAutoFilled: (form?.diagnoses?.length || 0) > 0,
+        question: `ขอปรึกษา${clinic.short || clinic.label}`, urgency: 'routine', consultType: 'general',
+        confidential: !!clinic.confidential,
+      });
+    });
+    let blockedXray = null;
+    const pickedXrays = picked.filter((item) => {
+      if (item.category !== 'xray' || (form.xrayOrders || []).some((row) => row.examId === item.source.id)) return false;
+      const warning = duplicateWarning(item.source.id, xrayHistory);
+      if (warning?.level === 'block') { blockedXray = { examId: item.source.id, warning }; return false; }
+      return true;
+    });
+    if (blockedXray) setXrayBlockNotice(blockedXray);
+    setForm((current) => ({
+      ...current,
+      medications: [
+        ...(current.medications || []),
+        ...picked.filter((item) => item.category === 'medication').map((item, index) => ({
+          id: `med-${now}-${index}`, image: resolveMedicationImage(item.name, item.source?.image),
+          name: item.name, orderStatus: 'continue', usage: item.source?.usage || 'รับประทาน (Oral)',
+          dosePerTake: item.source?.dosePerTake || '1', unit: item.source?.unit || item.unit || 'เม็ด',
+          frequency: item.source?.frequency || 'วันละ 1 ครั้ง', when: item.source?.when || 'หลังอาหาร',
+          warning: item.source?.warning || '', quantity: item.source?.quantity ?? 1, totalPrice: item.source?.totalPrice ?? 0,
+          reimbursable: !!item.source?.reimbursable, purpose: item.source?.purpose || '',
+          approve: false, consult: false, stat: false, print: false, editor: 'พญ.สมหญิง',
+        })),
+      ],
+      medicalSupplies: [
+        ...(current.medicalSupplies || []),
+        ...picked.filter((item) => item.category === 'medicalSupply').map((item, index) => ({
+          id: `supply-${now}-${index}`, itemType: 'non_drug_supply', name: item.name,
+          unit: item.unit, quantity: 1, orderStatus: 'continue',
+        })),
+      ],
+      labs: [
+        ...(current.labs || []),
+        ...picked.filter((item) => item.category === 'lab' && !(current.labs || []).some((row) => row.testId === item.source.id && !row.cancelledAt)).map((item, index) => ({
+          id: `lab-${item.source.id}-${now}-${index}`, testId: item.source.id, urgency: 'routine', note: '',
+          duplicateWarned: false, duplicateReason: '', cancelledAt: '', cancelReason: '',
+        })),
+      ],
+      xrayOrders: [
+        ...(current.xrayOrders || []),
+        ...pickedXrays.map((item) => ({ examId: item.source.id, view: item.source.views?.[0] || '', urgency: 'routine' })),
+      ],
+      procedureOrders: [
+        ...(current.procedureOrders || []),
+        ...picked.filter((item) => item.category === 'procedure').map((item, index) => ({
+          id: `proc-${now}-${index}`, code: item.source.code, name: item.source.nameTh, uncoded: false,
+          startDate: new Date().toISOString().slice(0, 10), startTime: '', endDate: '', endTime: '', site: '',
+          qty: 1, unit: item.source.unit, unitPrice: item.source.price, claimPerUnit: item.source.claim,
+          performer: 'somying', detail: '', otherActivity: '', cancelledAt: '', cancelReason: '',
+        })),
+      ],
+      consultOrders: [...(current.consultOrders || []), ...pickedConsults],
+      orderCategory: picked[0]?.category || current.orderCategory,
+    }));
+  };
 
   /* Re-Medicine popup state (Figma PHCIS|CPOE 200:23111). Opens from
      either Re-Diagnosis CTA — the title-row button (rows.length > 0)
@@ -2605,7 +2673,6 @@ export const Step5Orders = ({
   const columns = useMemo(
     () => buildMedTableColumns({
       updateRow: updateMed,
-      removeRow: requestRemoveMed,
       editRow: openEditMed,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2718,6 +2785,30 @@ export const Step5Orders = ({
       ? form.xrayOrders
       : [];
 
+  const hasAnyTreatmentOrder = (form.medications?.length || 0)
+    + (form.medicalSupplies?.length || 0)
+    + (form.labs?.filter((item) => !item.cancelledAt).length || 0)
+    + (form.xrayOrders?.length || 0)
+    + (form.procedureOrders?.filter((item) => !item.cancelledAt).length || 0)
+    + (form.consultOrders?.filter((item) => !item.cancelledAt).length || 0) > 0;
+
+  if (!hasAnyTreatmentOrder) {
+    return (
+      <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        <Topic hierarchy='primary' title='สั่งการรักษา (Treatment Order)' leadingIcon='description' showSubText={false} showBadge={false} showChevron={false} showSuccess={false} />
+        <div className='flex flex-col items-center justify-center w-full text-center' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-800, 32px) var(--dim-space-600, 24px)', background: 'var(--surface-card-default, #FFFFFF)', border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #E2E4E6)', borderRadius: 'var(--dim-radius-500, 20px)' }}>
+          <LottieIllustration animationData={firstaidKitAnim} size={160} />
+          <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            <p style={{ margin: 0, color: 'var(--text-content-default, #202427)', fontFamily: 'var(--type-family-heading-content)', fontSize: 'var(--type-size-lg, 20px)', fontWeight: 'var(--type-weight-medium, 500)' }}>ยังไม่มีการสั่งการรักษา</p>
+            <p style={{ margin: 0, color: 'var(--text-content-tertiary, #697077)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm, 14px)' }}>เพิ่มรายการทีละรายการ เลือกหลายรายการ หรือเลือกจาก Order Set</p>
+          </div>
+          <BrandPrimaryButton size='lg' leadingIcon='add' onClick={() => setOrderPickerOpen(true)}>เพิ่มรายการ</BrandPrimaryButton>
+        </div>
+        <TreatmentOrderPickerPopup open={orderPickerOpen} onClose={() => setOrderPickerOpen(false)} items={orderPickerItems} onConfirm={commitPickedOrders} patient={patient} cardPatient={cardPatient} />
+      </section>
+    );
+  }
+
   return (
     <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
       <Topic
@@ -2739,6 +2830,10 @@ export const Step5Orders = ({
           background: 'var(--surface-card-100)',
         }}
       >
+        <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <div style={{ color: 'var(--text-content-secondary, #454B50)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm, 14px)' }}>เพิ่มจากรายการ หรือเลือก Order Set ได้ในครั้งเดียว</div>
+          <BrandPrimaryButton leadingIcon='add' onClick={() => setOrderPickerOpen(true)}>เพิ่มรายการ</BrandPrimaryButton>
+        </div>
         {/* Category tabs — text-only TabCapsule per Figma PHCIS|CPOE
             200:18615. No leading status dot/icon and no trailing arrow:
             the brand-50 pill with brand-100 border carries the entire
@@ -2792,6 +2887,9 @@ export const Step5Orders = ({
           <>
             {activeCategory === 'lab'
               ? <LabOrderPanel form={form} setForm={setForm} patient={patient} />
+              : null}
+            {activeCategory === 'medicalSupply'
+              ? <MedicalSupplyOrderPanel form={form} setForm={setForm} />
               : null}
             {activeCategory === 'procedure'
               ? <ProcedureOrderPanel form={form} setForm={setForm} patient={patient} />
@@ -3223,6 +3321,14 @@ export const Step5Orders = ({
             ? form.medications[pendingMedDelete]?.name
             : undefined
         }
+      />
+      <TreatmentOrderPickerPopup
+        open={orderPickerOpen}
+        onClose={() => setOrderPickerOpen(false)}
+        items={orderPickerItems}
+        onConfirm={commitPickedOrders}
+        patient={patient}
+        cardPatient={cardPatient}
       />
     </section>
   );

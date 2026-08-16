@@ -46,6 +46,7 @@ import {
   getStock,
   deductStock,
   updatePharmacyRow,
+  markPrescriptionNoShow,
   findPharmacyRowByQueueNo,
   logMedError,
   toggleItemPrepared,
@@ -504,7 +505,7 @@ const PharmacyDispensePage = () => {
   const nlemTotal = itemsWithStock.filter((i) => i.inFormulary).reduce((sum, i) => sum + i.subtotal, 0);
   const nonNlemTotal = grandTotal - nlemTotal;
   const hasInsufficientStock = itemsWithStock.some((i) => i.qtyNow > 0 && i.insufficient);
-  const hasMissingAuxLabels = itemsWithStock.some((i) => !i.isOrderInactive && !(i.auxLabels || []).length);
+  const hasMissingAuxLabels = itemsWithStock.some((i) => i.itemType !== 'non_drug_supply' && !i.isOrderInactive && !(i.auxLabels || []).length);
   const alreadyDispensed = row.status === DISPENSE_STATUS.DISPENSED;
   /* Closed = irreversible end states — lock the medication table.
      PROBLEM stays editable so เภสัช can still เปลี่ยนยา / ส่งกลับ / ปรับจำนวน
@@ -1055,7 +1056,7 @@ const PharmacyDispensePage = () => {
 
   const handleNoShow = () => {
     if (!noShowReason.trim()) return;
-    updatePharmacyRow(row.queueNo, { status: DISPENSE_STATUS.NO_SHOW, noShow: true, noShowReason: noShowReason.trim() });
+    markPrescriptionNoShow(row.queueNo, noShowReason.trim());
     history.push('/pharmacy/queue');
   };
 
@@ -1350,7 +1351,28 @@ const PharmacyDispensePage = () => {
             }
           >
             {row.status === DISPENSE_STATUS.PREPARING && <Badge style='info' size='small'>จัดยาแล้ว — รอยืนยันจ่ายยา</Badge>}
-            <Table columns={columns} rows={itemsWithStock} rowKey={(r) => r.id} stickyColCount={3} emptyMessage='ไม่มีรายการยา' />
+            <PharmacySectionTopic title={`ยา (${itemsWithStock.filter((item) => item.itemType !== 'non_drug_supply').length})`} />
+            <Table
+              columns={columns}
+              rows={itemsWithStock.filter((item) => item.itemType !== 'non_drug_supply')}
+              rowKey={(r) => r.id}
+              stickyColCount={3}
+              emptyMessage='ไม่มีรายการยา'
+            />
+            <PharmacySectionTopic title={`เวชภัณฑ์มิใช่ยา (${itemsWithStock.filter((item) => item.itemType === 'non_drug_supply').length})`} />
+            <Table
+              columns={columns
+                .filter((column) => ['seq', 'name', 'quantity', 'qtyNow', 'stock', 'subtotal'].includes(column.key))
+                .map((column) => column.key === 'name'
+                  ? { ...column, label: 'เวชภัณฑ์มิใช่ยา' }
+                  : column.key === 'qtyNow'
+                    ? { ...column, label: 'สั่งจ่ายครั้งนี้' }
+                    : column)}
+              rows={itemsWithStock.filter((item) => item.itemType === 'non_drug_supply')}
+              rowKey={(r) => r.id}
+              stickyColCount={2}
+              emptyMessage='ไม่มีรายการเวชภัณฑ์มิใช่ยา'
+            />
             <PharmacyMedicationEditor
               key={editingItemId || 'closed'}
               open={Boolean(editingItemId)}
