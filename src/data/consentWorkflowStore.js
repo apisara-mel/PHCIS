@@ -328,6 +328,54 @@ export const cancelConsentRequest = (recordId) => {
   persist();
 };
 
+/* ── Mobile: ขอถอนความยินยอม (ด.1.1.5 / TOR 1.5.11) ─────────────────
+   ผู้รับบริการส่งคำขอจาก Mobile App → record เข้าสถานะ «ขอเพิกถอน»
+   (แท็บรอดำเนินการของ worklist) — การเพิกถอนจริงยังเป็นหน้าที่เจ้าหน้าที่ */
+
+/** HN ตัวแทนผู้ใช้ demo ฝั่ง Mobile ใน consent store (มีแถว mock อยู่แล้ว) */
+export const MOBILE_DEMO_HN = '67-00008';
+
+/** สถานะที่ผู้รับบริการยังถอนได้ (ความยินยอมยังมีผล) */
+export const WITHDRAWABLE_CONSENT_STATUSES = ['ยินยอมแล้ว', 'ใกล้หมดอายุ'];
+
+const withdrawalHistoryEntry = (record, status, channel, reason) => ({
+  date: todayThai(),
+  formCode: record.formCode,
+  formName: record.formName,
+  type: record.type,
+  version: record.version,
+  status,
+  channel,
+  ...(reason ? { reason } : {}),
+});
+
+export const requestConsentWithdrawal = (recordId, { reason = '', channel = MOBILE_APP_CHANNEL } = {}) => {
+  const record = state.records.find((r) => r.id === recordId);
+  if (!record || !WITHDRAWABLE_CONSENT_STATUSES.includes(record.status)) return null;
+  patchConsentRecord(recordId, {
+    status: 'ขอเพิกถอน',
+    /* เก็บสถานะเดิมไว้ให้ผู้รับบริการกด «ยกเลิกคำขอถอน» ย้อนกลับได้ */
+    prevStatus: record.status,
+    withdrawReason: reason,
+    withdrawRequestDate: todayThai(),
+    history: [...(record.history || []), withdrawalHistoryEntry(record, 'ขอเพิกถอน', channel, reason)],
+  });
+  return getConsentRecords().find((r) => r.id === recordId);
+};
+
+export const cancelConsentWithdrawalRequest = (recordId, { channel = MOBILE_APP_CHANNEL } = {}) => {
+  const record = state.records.find((r) => r.id === recordId);
+  if (!record || record.status !== 'ขอเพิกถอน') return null;
+  patchConsentRecord(recordId, {
+    status: record.prevStatus || 'ยินยอมแล้ว',
+    prevStatus: undefined,
+    withdrawReason: '',
+    withdrawRequestDate: '-',
+    history: [...(record.history || []), withdrawalHistoryEntry(record, 'ยกเลิกคำขอถอน', channel)],
+  });
+  return getConsentRecords().find((r) => r.id === recordId);
+};
+
 /* ── Medical-record (เวชระเบียน) consent → worklist sync ─────────── */
 /* ค่าต้องเป็นหัวข้อหลัก 3 เรื่องของ consent (CONSENT_TOPICS) ไม่งั้นแถวที่ sync
    มาจากเวชระเบียนจะมี type ที่ไม่มีในทะเบียนแบบฟอร์ม แล้วหลุดจากรายงาน/ตัวกรอง */

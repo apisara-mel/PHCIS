@@ -212,6 +212,7 @@ import MobileTelemedPage from '@/pages/mobile/MobileTelemedPage';
 import MobileRecordsPage from '@/pages/mobile/MobileRecordsPage';
 import MobileVisitPage from '@/pages/mobile/MobileVisitPage';
 import MobileProfilePage from '@/pages/mobile/MobileProfilePage';
+import MobileConsentPage from '@/pages/mobile/MobileConsentPage';
 import MobileProfileQrPage from '@/pages/mobile/MobileProfileQrPage';
 import MobileVitalsPage from '@/pages/mobile/MobileVitalsPage';
 import { MobileClinicsPage, MobileClinicDetailPage } from '@/pages/mobile/MobileClinicsPage';
@@ -664,6 +665,7 @@ export default function Routes() {
               <Route exact path='/m/records'             component={MobileRecordsPage} />
               <Route exact path='/m/visit/:id'           component={MobileVisitPage} />
               <Route exact path='/m/profile'             component={MobileProfilePage} />
+              <Route exact path='/m/consent'             component={MobileConsentPage} />
               <Route exact path='/m/profile/qr'          component={MobileProfileQrPage} />
               <Route exact path='/m/profile/vitals'      component={MobileVitalsPage} />
               <Route exact path='/m/clinics'             component={MobileClinicsPage} />
