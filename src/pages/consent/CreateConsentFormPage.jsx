@@ -1914,7 +1914,16 @@ export function StepReview({
             </div>
             {/* sticky confirm */}
             <div className='shrink-0' style={{ padding: 'var(--dim-space-300) var(--dim-space-400)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>
-              <BrandButton variant='fill' size='md' style={{ width: '100%' }}>ยืนยันการยินยอม</BrandButton>
+              {/* ตัวอย่างในเครื่องมือถือ — ปุ่มกดไม่ได้ (ดูเหมือนของจริงแต่ inert) */}
+              <BrandButton
+                variant='fill'
+                size='md'
+                tabIndex={-1}
+                aria-hidden
+                style={{ width: '100%', pointerEvents: 'none' }}
+              >
+                ยืนยันการยินยอม
+              </BrandButton>
             </div>
           </div>
         </div>

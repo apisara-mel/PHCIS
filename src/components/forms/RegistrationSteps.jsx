@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
 
 import {
   SectionTitle, SectionTitleIcon, SubCard, FieldGrid, Field,
@@ -17,10 +16,12 @@ import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import PendingConsentFormCard from '@/components/consent/PendingConsentFormCard';
+import ConsentDisclosureFillPopup from '@/components/consent/ConsentDisclosureFillPopup';
+import ConsentFormPrintConfirmDialog from '@/components/consent/ConsentFormPrintConfirmDialog';
 import Alert from '@/components/alert/Alert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import { REGISTRATION_PENDING_CONSENT_CARDS } from '@/data/registrationConsentForms';
-import { saveRegistrationDraft } from '@/data/registrationForm';
+import { saveRegistrationDraft, markRegistrationConsentCompleted } from '@/data/registrationForm';
 import healthInsuranceAnim from '@/assets/illustrations/Girl finding health insurance online.json';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
@@ -349,28 +350,30 @@ const PatientStatusSection = ({
 
 /** Step 1 · แบบฟอร์มยินยอม — Figma Registration 292:104252.
  *  กรอกแบบฟอร์ม → /registration/consent/:formId (Figma 298:81941). */
-export const StepConsent = ({ form, patient }) => {
-  const history = useHistory();
-  const location = useLocation();
+export const StepConsent = ({ form, setForm, patient }) => {
   const completed = Array.isArray(form?.consentCompletedIds) ? form.consentCompletedIds : [];
   const pending = REGISTRATION_PENDING_CONSENT_CARDS.filter((f) => !completed.includes(f.id));
   const pendingCount = pending.length;
+  /* กรอกใบยินยอมใน popup ซ้อนบนหน้าลงทะเบียน — ไม่พาออกจาก step (เดิม push ไป
+      /registration/consent/:formId แล้วต้องเด้งกลับมาพร้อม state) */
+  const [fillFormId, setFillFormId] = useState(null);
+  /* การ์ดใบที่กำลังจะพิมพ์ — ยืนยันก่อนสั่งพิมพ์ (ปุ่มไอคอนกดพลาดง่าย) */
+  const [printForm, setPrintForm] = useState(null);
 
-  const openFill = (formId) => {
+  const draftFullName = [form?.prefixTh, form?.firstNameTh, form?.lastNameTh]
+    .map((p) => String(p || '').trim()).filter(Boolean).join(' ');
+  const patientFullName = [patient?.prefixTh, patient?.firstNameTh, patient?.lastNameTh]
+    .map((p) => String(p || '').trim()).filter(Boolean).join(' ');
+  const rawNationalId = form?.nationalId || patient?.nationalId || '';
+
+  const markCompleted = (formId) => {
     saveRegistrationDraft(form);
-    history.push({
-      pathname: `/registration/consent/${formId}`,
-      state: {
-        patient: {
-          hn: patient?.hn,
-          prefixTh: patient?.prefixTh,
-          firstNameTh: patient?.firstNameTh,
-          lastNameTh: patient?.lastNameTh,
-          nationalId: patient?.nationalId,
-        },
-        returnState: location.state || { hn: patient?.hn },
-      },
+    markRegistrationConsentCompleted(formId);
+    setForm?.((s) => {
+      const prev = Array.isArray(s.consentCompletedIds) ? s.consentCompletedIds : [];
+      return prev.includes(formId) ? s : { ...s, consentCompletedIds: [...prev, formId] };
     });
+    setFillFormId(null);
   };
 
   return (
@@ -405,12 +408,31 @@ export const StepConsent = ({ form, patient }) => {
             <PendingConsentFormCard
               key={item.id}
               {...item}
-              onPrint={() => {}}
-              onFill={() => openFill(item.id)}
+              onPrint={() => setPrintForm(item)}
+              onFill={() => setFillFormId(item.id)}
             />
           ))}
         </div>
       )}
+
+      <ConsentFormPrintConfirmDialog
+        form={printForm}
+        onCancel={() => setPrintForm(null)}
+        onConfirm={() => { setPrintForm(null); window.print?.(); }}
+      />
+
+      {/* กรอกใบยินยอม — เอกสารตัวเดียวกับหน้า /registration/consent/:formId */}
+      <ConsentDisclosureFillPopup
+        open={!!fillFormId}
+        formId={fillFormId}
+        patient={{
+          hn: patient?.hn || form?.hn || '',
+          fullName: draftFullName || patientFullName,
+          nationalId: rawNationalId ? formatNationalId(rawNationalId) : '',
+        }}
+        onClose={() => setFillFormId(null)}
+        onSaved={({ formId }) => markCompleted(formId)}
+      />
     </>
   );
 };

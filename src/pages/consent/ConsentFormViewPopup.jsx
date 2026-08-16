@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralButton from '@/components/button/NeutralButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -7,11 +7,23 @@ import Popup from '@/components/popup/Popup';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import AlertDialog from '@/components/popup/AlertDialog';
 import { FakeQR } from '@/pages/mobile/MobileRegisterPage';
-import { StepReview } from '@/pages/consent/CreateConsentFormPage';
+import { StepReview, ConsentFormEditPopup } from '@/pages/consent/CreateConsentFormPage';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
-import { logExport } from '@/data/consentWorkflowStore';
+import {
+  getConsentFormDraftById,
+  readConsentFormDrafts,
+  saveConsentFormWizardDraft,
+} from '@/data/consentFormDraftStore';
+import { buildWizardDraftFromRecord } from '@/data/consentFormWizardContent';
+import { logExport, recordMrConsentSigning } from '@/data/consentWorkflowStore';
 import { downloadConsentFormPdf } from '@/data/consentFormDownload';
 import Alert from '@/components/alert/Alert';
+import ConsentFormFillBody from '@/components/consent/ConsentFormFillBody';
+import ConsentIdentityVerifyPanel from '@/components/consent/ConsentIdentityVerifyPanel';
+import { resolveRegistrationConsentFormId } from '@/data/registrationConsentForms';
+import { DEFAULT_SERVICE_CENTER_CHANNEL } from '@/data/consentChannels';
+import { DEFAULT_MR_PATIENT } from '@/data/mrPatients';
+import { formatNationalId } from '@/data/registrationForm';
 
 /* PHCIS | Consent — ดูแบบฟอร์มความยินยอม ใน Popup (Figma 302:143587).
    เปิดจากปุ่ม visibility ในเมนูแบบฟอร์มความยินยอม แทนการนำทางเต็มหน้า. */
@@ -83,6 +95,8 @@ export function ConsentFormViewBody({
   const [qrOpen, setQrOpen] = useState(false);
   const [versionOpen, setVersionOpen] = useState(false);
   const [bumpOpen, setBumpOpen] = useState(false);
+  /* registry row ของร่างที่จะแก้ — เปิด wizard เป็น popup (ไม่นำทางออกจากหน้า) */
+  const [editDraftFor, setEditDraftFor] = useState(null);
 
   if (!record) return null;
 
@@ -225,8 +239,38 @@ export function ConsentFormViewBody({
             record={record}
             onClose={() => setVersionOpen(false)}
             onCreateVersion={() => { setVersionOpen(false); goCreateVersion(); }}
-            onRestoreVersion={() => setVersionOpen(false)}
+            /* กู้คืน = สร้างแบบร่างเวอร์ชันใหม่ (ไม่เผยแพร่ทันที) — โผล่ในแท็บ
+               ที่ร่างไว้ของเมนูแบบฟอร์ม ให้แก้ไขก่อนเผยแพร่ */
+            onRestoreVersion={(row, snapshot, nextVersion) => {
+              /* กู้คืนซ้ำใบเดิม = อัปเดตร่างเดิม ไม่สร้างร่างซ้ำ — popup ประวัติ
+                 ยังเปิดอยู่ ให้เห็นร่างใหม่บน timeline ทันที */
+              const existing = readConsentFormDrafts().find(
+                (d) => d.registry?.code === row.code && d.registry?.version === nextVersion,
+              );
+              saveConsentFormWizardDraft({
+                ...buildWizardDraftFromRecord(row),
+                version: nextVersion,
+              }, { draftId: existing?.id });
+            }}
+            /* แก้ไขร่างจากการ์ดบน timeline → เปิด wizard เป็น popup ต่อ
+               (ปิดใบประวัติก่อน ไม่ให้ popup ซ้อนกัน) */
+            onEditDraft={(entry) => {
+              setVersionOpen(false);
+              const draft = getConsentFormDraftById(entry.draftId);
+              if (draft?.registry) setEditDraftFor(draft.registry);
+            }}
             onToast={onToast}
+          />
+          {/* wizard แก้ไขร่างจากการ์ดบน timeline — popup ต่อจากใบประวัติที่ปิดไปแล้ว */}
+          <ConsentFormEditPopup
+            key={editDraftFor ? `draft-${editDraftFor.id}` : 'draft-closed'}
+            open={!!editDraftFor}
+            record={editDraftFor}
+            onClose={() => setEditDraftFor(null)}
+            onPublished={({ code, version: ver }) => {
+              setEditDraftFor(null);
+              onToast?.({ id: Date.now(), variant: 'success', message: `เผยแพร่ ${code} เวอร์ชัน ${ver} แล้ว` });
+            }}
           />
           <AlertDialog
             open={bumpOpen}
@@ -252,35 +296,158 @@ export function ConsentFormViewPopup({
   onToast,
   showAuditBar = false,
 }) {
+  /* drill-down ใน Popup ใบเดียว (ห้ามเปิด Popup ซ้อน Popup):
+       view → identity → fill
+     ทางเข้านี้ผู้รับบริการไม่ได้ผ่านเวชระเบียน (ไม่ได้เสียบบัตรที่ตู้ Kiosk)
+     จึงต้องคั่นขั้นยืนยันตัวตน (ด.1.1.1) ก่อนกรอกเสมอ — แผงเดียวกับ
+     ConsentRequestFormsPopup แต่ไม่มีการ์ดข้อมูลบัตรฝั่งซ้าย เพราะยังไม่รู้
+     ว่าผู้รับบริการเป็นใคร (ชื่อ/HN ไปกรอกในตัวฟอร์มเอง)
+     บันทึกแล้วเข้า consent store ผูกกับเทมเพลตใบนี้ (รหัส/ชื่อ/เวอร์ชันจริง) */
+  const [step, setStep] = useState('view');
+  const [formApi, setFormApi] = useState({ ready: false, submit: () => {} });
+  /* กระจกสถานะจากแผงยืนยันตัวตน — state จริงอยู่ใน ConsentIdentityVerifyPanel */
+  const IDENTITY_IDLE = { verifiedAt: null, method: null, methodText: '', reading: false, subject: 'self', subjectLabel: '' };
+  const [identity, setIdentity] = useState(IDENTITY_IDLE);
+
+  useEffect(() => {
+    if (open) return;
+    setStep('view');
+    setIdentity(IDENTITY_IDLE);
+    setFormApi({ ready: false, submit: () => {} });
+  }, [open]);
+
+  /* เทมเพลต PH-xxx สังกัดหัวข้อหลัก 1 ใน 3 — ใช้เอกสารกรอกของหัวข้อนั้น */
+  const fillFormId = useMemo(
+    () => (record ? resolveRegistrationConsentFormId({ formCode: record.code, type: record.type }) : null),
+    [record],
+  );
+
+  /* ยืนยันตัวตนสำเร็จ = ระบบรู้แล้วว่าผู้รับบริการคือใคร → auto-fill
+     ชื่อตามบัตร / เลขบัตรประชาชน / เลข HN ในฟอร์ม (mock: การอ่านบัตร/นิ้ว/
+     เอกสารคืนตัวตนจากทะเบียน — ใช้ผู้รับบริการตัวอย่างของเวชระเบียน) */
+  const verifiedPatient = useMemo(() => ({
+    fullName: [DEFAULT_MR_PATIENT.prefixTh, DEFAULT_MR_PATIENT.firstNameTh, DEFAULT_MR_PATIENT.lastNameTh]
+      .filter(Boolean).join(' '),
+    nationalId: DEFAULT_MR_PATIENT.nationalId ? formatNationalId(DEFAULT_MR_PATIENT.nationalId) : '',
+    hn: DEFAULT_MR_PATIENT.hn || '',
+  }), []);
+
+  const handleSubmit = ({ outcome, fullName, hn }) => {
+    recordMrConsentSigning({
+      hn,
+      name: fullName,
+      formId: record.code,
+      formTitle: record.name,
+      type: record.type,
+      version: record.version,
+      channel: DEFAULT_SERVICE_CENTER_CHANNEL,
+      outcome,
+    });
+    onToast?.({
+      id: Date.now(),
+      variant: 'success',
+      message: `บันทึกความยินยอม ${record.name} ของ ${fullName} แล้ว — ดูได้ที่เมนูจัดการความยินยอม`,
+    });
+    onClose?.();
+  };
+
+  const isView = step === 'view';
+  const isIdentity = step === 'identity';
+  const isFill = step === 'fill';
+
+  /* เข้าขั้นยืนยันตัวตนใหม่ทุกครั้ง — ผลยืนยันรอบก่อนใช้ข้ามรอบไม่ได้ */
+  const openIdentity = () => {
+    setIdentity(IDENTITY_IDLE);
+    setFormApi({ ready: false, submit: () => {} });
+    setStep('identity');
+  };
+
   return (
     <Popup
       open={!!open && !!record}
       onClose={onClose}
-      size='extraLarge'
-      title={record?.name || 'ดูแบบฟอร์มความยินยอม'}
-      actions={[
-        { key: 'print', kind: 'secondary', label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() },
-        { key: 'close', kind: 'secondary', label: 'ปิด', onClick: onClose },
-      ]}
+      onBack={isView ? undefined : () => setStep(isFill ? 'identity' : 'view')}
+      /* identity สูงตาม content (large) — view/fill เอกสารยาว ใช้เต็มจอ */
+      size={isIdentity ? 'large' : 'extraLarge'}
+      width={isIdentity ? 720 : undefined}
+      title={isIdentity ? 'ยืนยันตัวตนผู้รับบริการ' : (record?.name || 'ดูแบบฟอร์มความยินยอม')}
+      subtitle={isIdentity
+        ? `ยืนยันตัวตนก่อนกรอก ${record?.name || 'แบบฟอร์มความยินยอม'}`
+        : (isFill
+          ? [record?.code, record?.version].filter(Boolean).join(' · ')
+          : undefined)}
+      actions={isView
+        ? [
+          { key: 'print', kind: 'secondary', label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() },
+          { key: 'close', kind: 'secondary', label: 'ปิด', onClick: onClose },
+          { key: 'fill', kind: 'primary', label: 'กรอกแบบฟอร์ม', leadingIcon: 'edit', onClick: openIdentity },
+        ]
+        : (isIdentity
+          ? [
+            { key: 'cancel', kind: 'secondary', label: 'ยกเลิก', onClick: () => setStep('view'), disabled: identity.reading },
+            { key: 'next', kind: 'primary', label: 'ต่อไป', onClick: () => setStep('fill'), disabled: !identity.verifiedAt || identity.reading },
+          ]
+          : [
+            { key: 'print', kind: 'tertiary', label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() },
+            { key: 'cancel', kind: 'secondary', label: 'ยกเลิก', onClick: () => setStep('view') },
+            { key: 'save', kind: 'primary', label: 'บันทึก', onClick: () => formApi.submit(), disabled: !formApi.ready },
+          ])}
     >
-      {record && (
-        <div className='flex flex-col items-center w-full' style={{ gap: 'var(--dim-space-500)' }}>
+      {isView && record && (
+        <>
+          {/* กัน user เข้าใจผิดว่าฟอร์มในโหมดดูกรอกได้ — ช่องทั้งหมดเป็น preview */}
           <Alert
             type='info'
-            title='เอกสารสำหรับการตรวจสอบข้อมูล'
-            subtext='เอกสารฉบับนี้จัดแสดงเพื่อการตรวจสอบข้อมูลเท่านั้น ไม่สามารถแก้ไขหรือบันทึกข้อมูลผ่านหน้าต่างนี้ได้'
+            title='โหมดดูตัวอย่างแบบฟอร์ม'
+            subtext='หน้านี้ยังกรอกข้อมูลไม่ได้ — กดปุ่ม "กรอกแบบฟอร์ม" ด้านล่างเพื่อเริ่มกรอกให้ผู้รับบริการ'
             showCloseButton={false}
             showBadge={false}
             showIndicator={false}
-            style={{ width: '100%', maxWidth: 'var(--dim-size-2900, 640px)' }}
           />
           <ConsentFormViewBody
-            record={record}
-            onToast={onToast}
-            showActions={false}
-            showAuditBar={showAuditBar}
+          record={record}
+          onToast={onToast}
+          showActions={false}
+          showAuditBar={showAuditBar}
+        />
+        </>
+      )}
+
+      {isIdentity && (
+        /* ไม่มีการ์ดข้อมูลบัตรฝั่งซ้าย — ทางเข้านี้ยังไม่รู้ว่าผู้รับบริการเป็นใคร
+           (ไม่ได้ลงทะเบียนผ่านเวชระเบียนมาก่อน) เหลือเฉพาะคอลัมน์ยืนยันตัวตน */
+        <ConsentIdentityVerifyPanel
+          formTitle={record?.name}
+          onChange={setIdentity}
+        />
+      )}
+
+      {isFill && fillFormId && (
+        <>
+          {identity.verifiedAt && (
+            <Alert
+              type={identity.method === 'card' ? 'success' : 'warning'}
+              title={identity.method === 'card'
+                ? 'ยืนยันตัวตนด้วยบัตรประชาชนแล้ว'
+                : 'ยืนยันตัวตนโดยไม่ใช้บัตรประชาชน'}
+              subtext={[identity.methodText, identity.verifiedAt].filter(Boolean).join(' · ')}
+              showCloseButton={false}
+              showBadge={false}
+              showIndicator={false}
+            />
+          )}
+          <ConsentFormFillBody
+            key={record?.code}
+            formId={fillFormId}
+            /* กรอกให้ล่วงหน้าเฉพาะเมื่อยืนยันตัวตนผ่านแล้ว (เข้าขั้นนี้ได้
+               ต้องผ่าน identity เสมอ — เงื่อนไขกันไว้เผื่อ flow อื่นในอนาคต) */
+            initialFullName={identity.verifiedAt ? verifiedPatient.fullName : ''}
+            initialNationalId={identity.verifiedAt ? verifiedPatient.nationalId : ''}
+            initialHn={identity.verifiedAt ? verifiedPatient.hn : ''}
+            onStateChange={setFormApi}
+            onSubmit={handleSubmit}
           />
-        </div>
+        </>
       )}
     </Popup>
   );

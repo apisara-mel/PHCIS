@@ -35,6 +35,8 @@ on:
 
 permissions:
   contents: read
+  # ลบ artifact build เก่า (dist-*) ก่อนอัปโหลดตัวใหม่ — กันโควตา storage เต็ม
+  actions: write
 
 # กัน publish ซ้อนกัน — ไม่ cancel ตัวที่กำลังวิ่ง เพราะ rsync/artifact ที่ค้างกลางทาง
 # จะทิ้ง web root ไว้ครึ่ง ๆ
@@ -83,14 +85,29 @@ jobs:
           echo "bundle: $(basename dist/assets/index.*.js)"
           du -sh dist
 
+      # dist หนัก ~110MB (media เดิมซ้ำทุก build) — โควตา Free มีแค่ 500MB
+      # จึงลบ dist-* รุ่นก่อนทิ้งก่อนอัปโหลดใหม่ (office-202 ใช้แค่ตัวล่าสุดเสมอ)
+      # 16 ส.ค. 2569: โควตาเคยเต็มจน upload ล้ม — ห้ามย้อนกลับไปเก็บหลายรุ่น
+      - name: ลบ artifact build เก่า (กันโควตา storage เต็ม)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.name | startswith("dist-")) | .id' \
+          | while read -r id; do
+              echo "delete artifact $id"
+              gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id" || true
+            done
+
       # อัปโหลดเสมอ ไม่ว่าจะ rsync ต่อได้หรือไม่ — นี่คือช่องทางที่ office-202
       # ใช้ดึง build ไป publish เอง (ดึงผ่าน gh run download / GitHub API)
+      # retention 1 วันพอ — cron ดึงภายใน ~5 นาที ไม่มีเหตุผลเก็บ 14 วัน
       - name: อัปโหลด dist เป็น artifact ให้ office-202 มาดึง
         uses: actions/upload-artifact@v4
         with:
           name: dist-${{ github.sha }}
           path: dist/
-          retention-days: 14
+          retention-days: 1
           if-no-files-found: error
 
       # แยก config check ออกมาเพื่อให้เห็นในหน้า summary ว่า "ข้าม" เพราะอะไร

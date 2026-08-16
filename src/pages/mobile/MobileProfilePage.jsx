@@ -210,7 +210,8 @@ const SuccessToast = ({ message, onDone }) => {
   );
 };
 
-const ProfileOtpVerification = ({ user, onBack, onVerified }) => {
+/* exported — /m/consent ใช้ยืนยันตัวตนก่อนลงนาม/ถอนความยินยอม (กติกาเดียวกัน) */
+export const ProfileOtpVerification = ({ user, onBack, onVerified }) => {
   const [otp, setOtp] = useState('');
 
   return (
@@ -612,6 +613,18 @@ const ProfileHome = ({ user, onEdit, onCopyHn }) => {
               </div>
             ))}
           </div>
+        </Card>
+
+        {/* Consent (PDPA) — TOR 1.5.11 / ด.1.1.5: ให้ความยินยอม + ขอถอนจากมือถือ */}
+        <Card style={{ width: '100%' }}>
+          <SectionTitle>ความยินยอม (PDPA)</SectionTitle>
+          <NavRow
+            icon='privacy_tip'
+            label='แบบฟอร์มความยินยอม · สแกน QR · ขอถอนความยินยอม'
+            value='ดูและจัดการความยินยอมของคุณ'
+            onClick={() => history.push('/m/consent')}
+            last
+          />
         </Card>
       </div>
     </div>

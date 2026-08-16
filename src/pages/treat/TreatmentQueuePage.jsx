@@ -589,7 +589,10 @@ const TreatmentQueuePage = () => {
             gap: 'var(--dim-space-600)',
           }}
         >
-          <div className='w-full flex items-start justify-center'>
+          {/* ปุ่มนำส่งออกรายงานย้ายมาอยู่ข้างกล่องค้นหา (16 ส.ค. 2569) */}
+          <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+            {/* spacer ซ้ายสมดุลกับกลุ่มปุ่มขวา — กล่องค้นหาอยู่กึ่งกลางจริง */}
+            <div className='flex-1' />
             <PrimarySearch
               value={searchQ}
               onChange={setSearchQ}
@@ -606,6 +609,16 @@ const TreatmentQueuePage = () => {
               width={640}
               avatars={searchAvatars}
             />
+            <div className='flex-1 flex justify-end'>
+            <NeutralSubdueButton
+              leadingIcon='ios_share'
+              collapseLabelBelow='lg'
+              accessibilityLabel='นำส่งออกรายงาน'
+              disabled={editMode}
+            >
+              นำส่งออกรายงาน
+            </NeutralSubdueButton>
+            </div>
           </div>
 
           <div
@@ -634,14 +647,6 @@ const TreatmentQueuePage = () => {
                 onClick={toggleEditMode}
               >
                 {editMode ? 'เสร็จสิ้น' : 'แก้ไขลำดับคิว'}
-              </NeutralSubdueButton>
-              <NeutralSubdueButton
-                leadingIcon='ios_share'
-                collapseLabelBelow='lg'
-                accessibilityLabel='นำส่งออกรายงาน'
-                disabled={editMode}
-              >
-                นำส่งออกรายงาน
               </NeutralSubdueButton>
             </div>
           </div>

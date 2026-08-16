@@ -422,15 +422,25 @@ export default function DepartmentPage() {
               className='w-full flex flex-col items-center'
               style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}
             >
-              <PrimarySearch
-                value={search}
-                onChange={setSearch}
-                onSubmit={handleSubmitSearch}
-                placeholder='ค้นหาชื่อแผนก'
-                width={640}
-                history={searchHistory}
-                onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
-              />
+              {/* ปุ่มนำส่งออกรายงานอยู่ข้างกล่องค้นหา (ย้ายจากแถวตัวกรอง — 16 ส.ค. 2569) */}
+              <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+                {/* spacer ซ้ายสมดุลกับกลุ่มปุ่มขวา — กล่องค้นหาอยู่กึ่งกลางจริง */}
+                <div className='flex-1' />
+                <PrimarySearch
+                  value={search}
+                  onChange={setSearch}
+                  onSubmit={handleSubmitSearch}
+                  placeholder='ค้นหาชื่อแผนก'
+                  width={640}
+                  history={searchHistory}
+                  onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+                />
+                <div className='flex-1 flex justify-end'>
+                <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
+                  นำส่งออกรายงาน
+                </NeutralSubdueButton>
+                </div>
+              </div>
 
               <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
                 <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
@@ -444,9 +454,6 @@ export default function DepartmentPage() {
                   <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 </div>
                 <div className='flex-1' />
-                <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
-                  นำส่งออกรายงาน
-                </NeutralSubdueButton>
               </div>
             </section>
 

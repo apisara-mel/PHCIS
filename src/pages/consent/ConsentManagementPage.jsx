@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
@@ -57,16 +56,16 @@ import {
 } from '@/pages/consent/consentWorkflowPopups';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
-import { enrichConsentRow, resolveConsentPatient, resolveConsentPatientCard } from '@/data/consentPatientDisplay';
+import { enrichConsentRow, resolveConsentPatient } from '@/data/consentPatientDisplay';
 import { MR_PATIENTS } from '@/data/mrPatients';
-import PatientSummaryCard from '@/components/card/PatientSummaryCard';
+import ConsentRevokeConfirmBody from '@/components/consent/ConsentRevokeConfirmBody';
 import Icon from '@/components/icons/Icon';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 /* ConsentHistoryPopup / ConsentComparePopup ไม่ได้ mount ที่นี่แล้ว — ทั้งสอง
    มุมมองถูกยุบเข้าไปเป็นแท็บใน ConsentConsentedFormsPopup (13 ส.ค. 2569)
    ตัว popup เดิมยังอยู่ในโค้ดเบสสำหรับหน้า /consent/history */
 import ConsentConsentedFormsPopup from '@/pages/consent/ConsentConsentedFormsPopup';
-import { pendingConsentCardsFor } from '@/pages/consent/ConsentRequestFormsPopup';
+import ConsentRequestFormsPopup, { pendingConsentCardsFor } from '@/pages/consent/ConsentRequestFormsPopup';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
 /* PHCIS | Consent — ระบบจัดการความยินยอม (Figma node 1:4).
@@ -122,11 +121,8 @@ const TEXT_CELL = {
 };
 const MUTED_CELL = { ...TEXT_CELL, color: 'var(--text-content-tertiary)' };
 
-const REVOKE_IMPACT_NOTES = [
-  'มีผลทันทีหลังพิสูจน์ตัวตนเจ้าของข้อมูลและดำเนินการเสร็จ',
-  'ประวัติการให้ความยินยอมยังคงอยู่ในระบบ (read-only)',
-  'ต้องสร้างคำขอความยินยอมใหม่หากต้องใช้สิทธิอีกครั้ง',
-];
+/* ข้อความผลของการเพิกถอน + การเสียผลประโยชน์ ย้ายไปรวมที่
+   ConsentRevokeConfirmBody (ใช้ร่วมกับขั้น nested ใน popup แฟ้ม) */
 
 const THAI_MONTHS = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -152,7 +148,6 @@ const Cell = ({ value }) =>
     : <span style={MUTED_CELL}>-</span>;
 
 export default function ConsentManagementPage() {
-  const history = useHistory();
   const { clinic } = useClinicFilter() || {};
   const serviceCenterChannel = formatServiceCenterChannel(clinic);
   /* ── Worklist rows เป็น state จริง (mock mutate ใน session) ──────────
@@ -178,6 +173,8 @@ export default function ConsentManagementPage() {
   /* null | { hn, name, record, allForPatient } — popup เดียวที่รวม
      แบบฟอร์มทั้งหมด / เปรียบเทียบ / Timeline ไว้เป็นแท็บ */
   const [viewConsentedFor, setViewConsentedFor] = useState(null);
+  /* null | patient row — popup เลือกแบบฟอร์มที่ยังไม่ขอความยินยอมของคนนั้น */
+  const [requestFormsFor, setRequestFormsFor] = useState(null);
   const [reconsentFor, setReconsentFor] = useState(null);        // record
   const [paperFor, setPaperFor] = useState(null);                // record
   const [editFor, setEditFor] = useState(null);                  // signed record → PersonalDataConsentEditPopup
@@ -520,16 +517,24 @@ export default function ConsentManagementPage() {
   };
 
   /* ด.1.1.1 — ผ่านการพิสูจน์ตัวตนแล้วค่อยปล่อย action ที่ทำแทนเจ้าของข้อมูล */
+  /* จบการเพิกถอน 1 ฉบับ (หลังยืนยันตัวตนผ่านแล้ว) — ใช้ทั้งจาก dialog ของ
+     แท็บสถานะ และจากขั้น nested ใน popup แฟ้มผู้รับบริการ
+     methodText มาจาก ConsentIdentityVerifyPanel เช่น "ยืนยันด้วยบัตรประชาชน
+     ของผู้รับบริการ" — เก็บติด toast เป็นร่องรอย audit */
+  const applyRevoke = (record, audit) => {
+    const auditNote = audit?.verifiedAt
+      ? ` (${audit.methodText || 'ยืนยันตัวตนแล้ว'} · ${audit.verifiedAt})`
+      : '';
+    patchRow(record.id, { status: 'ถอนความยินยอม', withdrawnDate: todayThai() });
+    pushToast(`เพิกถอนความยินยอมของ ${record.name} แล้ว${auditNote}`);
+  };
+
   const handleVerified = (audit) => {
     const v = verifyFor;
     setVerifyFor(null);
     if (!v) return;
     if (v.next === 'revoke') {
-      const auditNote = audit
-        ? ` (พิสูจน์ตัวตนโดย ${audit.method === 'otp' ? 'OTP' : 'เอกสาร'} · ${audit.verifiedAt})`
-        : '';
-      patchRow(v.record.id, { status: 'ถอนความยินยอม', withdrawnDate: todayThai() });
-      pushToast(`เพิกถอนความยินยอมของ ${v.record.name} แล้ว${auditNote}`);
+      applyRevoke(v.record, audit);
       return;
     }
     if (v.next === 'paper') setPaperFor(v.record);
@@ -540,12 +545,15 @@ export default function ConsentManagementPage() {
      `showView` ปิดได้เมื่อเอาไปใช้ในตารางของ popup "แบบฟอร์มความยินยอมทั้งหมด"
      — ที่นั่นกดแถวก็เปิดเอกสารอยู่แล้ว ปุ่ม 👁 ซ้ำจะกลายเป็นทางที่สองที่ทำ
      อย่างเดียวกัน · ส่วน CTA ตามสถานะยังใช้ dialog/verify ชุดเดียวกับหน้าหลัก */
-  const renderAction = (row, { showView = true, align = 'end' } = {}) => {
+  const renderAction = (row, { showView = true, align = 'end', requestRevoke = null } = {}) => {
     const action = (CONSENT_STATUS[row.status] || {}).action;
     const fireAction = () => {
       if (!action) return;
       if (action.confirm === 'revoke' && !canRevoke) return;
       if (action.confirm === 'revoke') {
+        /* ในตารางของ popup แฟ้ม — ขั้นยืนยัน/ยืนยันตัวตนเป็น drill-down ใน popup
+           เดียวกัน (requestRevoke ของ popup) ไม่เปิด dialog ซ้อน */
+        if (requestRevoke) { requestRevoke(row); return; }
         setDialog({ record: row, confirmKey: 'revoke' });
         return;
       }
@@ -624,34 +632,26 @@ export default function ConsentManagementPage() {
     );
   };
 
-  /* กรอกแบบฟอร์มความยินยอม (แท็บผู้รับบริการทั้งหมด) — 1 แถว = 1 คน จึงยังไม่รู้
-     ว่าใบไหน ต้องเลือกใน popup ก่อน แล้วค่อยพาไปหน้ากรอกเอกสารจริง
-     (หน้าเดียวกับ Step 1 ของการลงทะเบียน) แล้วเด้งกลับมาที่ worklist */
-  const openConsentFill = (patient, formId) => {
-    history.push({
-      pathname: `/registration/consent/${formId}`,
-      state: {
-        patient: { hn: patient.hn },
-        /* เจาะจงคนแล้ว — ห้ามให้ร่างการลงทะเบียนที่ค้างอยู่มาทับชื่อ/เลขบัตร */
-        preferPatientHint: true,
-        returnTo: '/consent',
-      },
-    });
+  /* กรอกแบบฟอร์มความยินยอม (แท็บผู้รับบริการทั้งหมด) — 1 แถว = 1 คน จึงเลือกใบ
+     ใน popup ก่อน แล้วกรอกใน nested popup ซ้อนขึ้นมา (ไม่พาออกจาก worklist)
+     เอกสารเป็นตัวเดียวกับหน้า /registration/consent/:formId · บันทึกแล้ว record
+     เข้า consent store ผ่าน recordMrConsentSigning ตารางจึงอัปเดตเอง */
+  const handleConsentFilled = ({ meta, outcome, name: signedName }) => {
+    /* ไม่ปิด popup — ผู้รับบริการคนเดียวกันอาจมีใบอื่นให้ทำต่อ (popup เด้งกลับ
+       ไปรายการใบเอง) ปิดเมื่อผู้ใช้กด ปิด/✕ เท่านั้น */
+    pushToast(outcome === 'declined'
+      ? `บันทึกการไม่ยินยอม ${meta?.title || ''} ของ ${signedName || ''} แล้ว`
+      : `บันทึกความยินยอม ${meta?.title || ''} ของ ${signedName || ''} แล้ว`);
   };
 
-  /* เพิกถอนระดับคน — คนหนึ่งอาจมีหลายฉบับที่ลงนามแล้ว
-       1 ฉบับ  → เข้า dialog ยืนยัน + พิสูจน์ตัวตน ชุดเดียวกับแท็บสถานะทันที
-       >1 ฉบับ → เปิด popup รวมทุกฉบับให้เลือกก่อนว่าจะเพิกถอนใบไหน
-                 (คอลัมน์การดำเนินการใน popup ใช้ renderAction ตัวเดียวกัน) */
+  /* เพิกถอนระดับคน — เปิด popup แฟ้มรวมทุกฉบับให้เลือกใบที่จะเพิกถอนเสมอ
+     แม้มียินยอมแค่ 1 ฉบับ (14 ส.ค. 2569) — เห็นบริบทเอกสารทั้งแฟ้มก่อนตัดสินใจ
+     แล้วค่อยกดเพิกถอนรายใบจากคอลัมน์การดำเนินการ (renderAction ชุดเดียวกัน) */
   const startPatientRevoke = (p) => {
     const signed = p.signedRecords || [];
     if (!canRevoke || signed.length === 0) return;
-    if (signed.length === 1) {
-      setDialog({ record: signed[0], confirmKey: 'revoke' });
-      return;
-    }
+    /* แค่เปิดแฟ้มให้เลือกใบ — ยังไม่มีอะไรสำเร็จ จึงไม่ขึ้น toast */
     setViewConsentedFor({ hn: p.hn, name: p.name, record: null, allForPatient: true });
-    pushToast(`${p.name} มี ${signed.length} ฉบับที่ยินยอมแล้ว — เลือกฉบับที่ต้องการเพิกถอนจากรายการ`);
   };
 
   /* แถวผู้รับบริการไม่มี "สถานะเดียว" จึงไม่มี CTA ตามสถานะ — เหลือปุ่มระดับคน
@@ -693,10 +693,7 @@ export default function ConsentManagementPage() {
           /* ป้ายในตารางย่อเหลือ "กรอกแบบฟอร์ม" ให้คอลัมน์ไม่กินความกว้าง —
              ชื่อเต็มอยู่บนหัว popup ที่เปิดขึ้นมาแล้ว (คำสั่ง user 14 ส.ค.) */
           title={`ยังไม่ขอความยินยอม ${p.pendingFormCount} แบบฟอร์ม`}
-          onClick={() => {
-            const nextForm = pendingConsentCardsFor(p.records || [])[0];
-            if (nextForm) openConsentFill(p, nextForm.id);
-          }}
+          onClick={() => setRequestFormsFor(p)}
         >
           กรอกแบบฟอร์ม
         </BrandSubdueButton>
@@ -708,9 +705,7 @@ export default function ConsentManagementPage() {
         <BrandSubdueButton
           variant='outline'
           size='sm'
-          title={(p.signedRecords || []).length === 1
-            ? `เพิกถอน — ${p.signedRecords[0].formName || p.signedRecords[0].formCode || 'ฉบับที่ยินยอมแล้ว'}`
-            : `มี ${p.signedRecords.length} ฉบับที่ยินยอมแล้ว — เลือกฉบับที่จะเพิกถอน`}
+          title={`มี ${(p.signedRecords || []).length} ฉบับที่ยินยอมแล้ว — เลือกฉบับที่จะเพิกถอนจากแฟ้ม`}
           onClick={() => startPatientRevoke(p)}
         >
           เพิกถอน
@@ -964,11 +959,6 @@ export default function ConsentManagementPage() {
 
   const confirm = dialog ? CONSENT_CONFIRM[dialog.confirmKey] : null;
 
-  const revokePatientCard = useMemo(() => {
-    if (dialog?.confirmKey !== 'revoke' || !dialog?.record) return null;
-    return resolveConsentPatientCard(dialog.record.hn, dialog.record.name);
-  }, [dialog]);
-
   const runDialogConfirm = () => {
     if (!dialog?.record) return;
     if (dialog.confirmKey === 'cancel') {
@@ -1052,7 +1042,10 @@ export default function ConsentManagementPage() {
               gap: 'var(--dim-space-600)',
             }}
           >
-            <div className='w-full flex items-start justify-center'>
+            {/* ปุ่มนำส่งออกรายงานอยู่ข้างกล่องค้นหา (ย้ายจากแถวตัวกรอง — 16 ส.ค. 2569) */}
+            <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+              {/* spacer ซ้ายสมดุลกับกลุ่มปุ่มขวา — กล่องค้นหาอยู่กึ่งกลางจริง */}
+              <div className='flex-1' />
               <PrimarySearch
                 value={search}
                 onChange={(v) => { setSearch(v); setPage(1); }}
@@ -1063,6 +1056,13 @@ export default function ConsentManagementPage() {
                 history={searchHistory}
                 onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
               />
+              {canExportConsent() && (
+                <div className='flex-1 flex justify-end'>
+                <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
+                  นำส่งออกรายงาน
+                </NeutralSubdueButton>
+                </div>
+              )}
             </div>
 
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
@@ -1085,11 +1085,6 @@ export default function ConsentManagementPage() {
                   )}
                 </div>
                 <div className='flex-1' />
-                {canExportConsent() && (
-                  <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
-                    นำส่งออกรายงาน
-                  </NeutralSubdueButton>
-                )}
               </div>
 
               <SmoothFilterResults opaque={resultsOpaque}>
@@ -1156,8 +1151,23 @@ export default function ConsentManagementPage() {
         allForPatient={!!viewConsentedFor?.allForPatient}
         /* คอลัมน์ "การดำเนินการ" ในตารางของ popup ใช้ตัวเดียวกับ worklist
            (CTA ตามสถานะ + แก้ไขฉบับที่ลงนามแล้ว) — ตัดปุ่ม 👁 ออกเพราะกดแถว
-           ก็เปิดเอกสารอยู่แล้ว · dialog/verify/toast ยังเป็นของหน้านี้ */
-        renderRecordAction={(row) => renderAction(row, { showView: false, align: 'start' })}
+           ก็เปิดเอกสารอยู่แล้ว · เพิกถอนเป็น drill-down ใน popup (opts.requestRevoke
+           จาก popup เอง) ส่วน mutation + toast ยังเป็นของหน้านี้ */
+        renderRecordAction={(row, opts) => renderAction(row, { showView: false, align: 'start', ...opts })}
+        onRevokeConfirmed={applyRevoke}
+      />
+
+      {/* แท็บผู้รับบริการทั้งหมด — เลือกใบที่ยังไม่ขอความยินยอมก่อนไปหน้ากรอก */}
+      <ConsentRequestFormsPopup
+        open={!!requestFormsFor}
+        hn={requestFormsFor?.hn || null}
+        name={requestFormsFor?.name || null}
+        /* ดึงจาก rows ปัจจุบันด้วย HN ไม่ใช่ snapshot ตอนกดปุ่ม — บันทึกใบหนึ่ง
+           เสร็จแล้วรายการใบที่เหลือ/สถานะในกล่องต้องอัปเดตทันที */
+        records={requestFormsFor ? rows.filter((r) => r.hn === requestFormsFor.hn) : []}
+        onClose={() => setRequestFormsFor(null)}
+        onFill={handleConsentFilled}
+        onPrint={() => pushToast('พิมพ์แบบฟอร์มเปล่าให้ผู้รับบริการลงนาม — การพิมพ์ไม่เก็บ log')}
       />
 
       {/* Per-status confirm dialog */}
@@ -1165,10 +1175,11 @@ export default function ConsentManagementPage() {
         open={!!dialog}
         type={confirm ? confirm.type : 'info'}
         title={confirm ? confirm.title : ''}
-        width={dialog?.confirmKey === 'revoke' ? 520 : undefined}
+        /* เพิกถอนมีการ์ดแบบฟอร์ม + การเสียผลประโยชน์ — กว้างขึ้นให้อ่านสบาย */
+        width={dialog?.confirmKey === 'revoke' ? 640 : undefined}
         description={
-          dialog?.confirmKey === 'revoke' && dialog?.record
-            ? dialog.record.formName || dialog.record.formCode || '—'
+          dialog?.confirmKey === 'revoke'
+            ? ''
             : (confirm ? confirm.description : '')
         }
         confirmLabel={confirm ? confirm.confirmLabel : 'ตกลง'}
@@ -1178,46 +1189,10 @@ export default function ConsentManagementPage() {
         onClose={() => setDialog(null)}
       >
         {dialog?.confirmKey === 'revoke' && (
-          <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
-            {revokePatientCard && (
-              <PatientSummaryCard
-                avatarUrl={revokePatientCard.avatarUrl}
-                avatarAlt={revokePatientCard.fullName || revokePatientCard.shortName || ''}
-                cells={[
-                  {
-                    label: 'ชื่อ-นามสกุล ผู้รับบริการ',
-                    value: revokePatientCard.fullName || revokePatientCard.shortName || '—',
-                  },
-                  {
-                    label: 'HN (Hospital Number)',
-                    value: revokePatientCard.hn || dialog.record?.hn || '—',
-                  },
-                ]}
-              />
-            )}
-            <div
-              className='flex flex-col w-full'
-              style={{ gap: 'var(--dim-space-150)', paddingBottom: 'var(--dim-space-600, 24px)' }}
-            >
-              <span style={{ ...TEXT_CELL, color: 'var(--text-content-secondary)' }}>
-                {CONSENT_CONFIRM.revoke.description}
-              </span>
-              {REVOKE_IMPACT_NOTES.map((note) => (
-                <div
-                  key={note}
-                  className='flex items-start w-full min-w-0'
-                  style={{ gap: 'var(--dim-space-150)' }}
-                >
-                  <Icon
-                    name='check_circle'
-                    size={16}
-                    color='var(--icon-brandPrimary-default, #007549)'
-                    style={{ flexShrink: 0, marginTop: 'var(--dim-space-050, 2px)' }}
-                  />
-                  <span style={{ ...MUTED_CELL, fontSize: 'var(--type-size-xs)' }}>{note}</span>
-                </div>
-              ))}
-            </div>
+          <div className='w-full' style={{ paddingBottom: 'var(--dim-space-600, 24px)' }}>
+            {/* การ์ดรายละเอียดแบบฟอร์ม + การเสียผลประโยชน์ + ผลของการเพิกถอน
+                — ชุดเดียวกับขั้น nested ใน popup แฟ้มผู้รับบริการ */}
+            <ConsentRevokeConfirmBody record={dialog.record} />
           </div>
         )}
       </AlertDialog>

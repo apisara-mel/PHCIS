@@ -838,8 +838,11 @@ const RegistrationQueuePage = () => {
                 gap: 'var(--dim-space-600)',
               }}
             >
-              {/* Search — centered inside the card per Figma 2756:148259 */}
-              <div className='w-full flex items-start justify-center'>
+              {/* Search — centered inside the card per Figma 2756:148259
+                  ปุ่มนำส่งออกรายงานย้ายมาอยู่ข้างกล่องค้นหา (16 ส.ค. 2569) */}
+              <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+                {/* spacer ซ้ายสมดุลกับกลุ่มปุ่มขวา — กล่องค้นหาอยู่กึ่งกลางจริง */}
+                <div className='flex-1' />
                 <PrimarySearch
                   value={searchQ}
                   onChange={setSearchQ}
@@ -869,6 +872,16 @@ const RegistrationQueuePage = () => {
                   placeholder='ค้นหา HN / เลขบัตร / Passport / ชื่อ-สกุล / โทรศัพท์'
                   width={640}
                 />
+                <div className='flex-1 flex justify-end'>
+                <NeutralSubdueButton
+                  leadingIcon='ios_share'
+                  collapseLabelBelow='lg'
+                  accessibilityLabel='นำส่งออกรายงาน'
+                  disabled={editMode}
+                >
+                  นำส่งออกรายงาน
+                </NeutralSubdueButton>
+                </div>
               </div>
 
               {/* Action bar — filter chips on the left, secondary actions on the right */}
@@ -912,14 +925,6 @@ const RegistrationQueuePage = () => {
                     onClick={toggleEditMode}
                   >
                     {editMode ? 'เสร็จสิ้น' : 'แก้ไขลำดับคิว'}
-                  </NeutralSubdueButton>
-                  <NeutralSubdueButton
-                    leadingIcon='ios_share'
-                    collapseLabelBelow='lg'
-                    accessibilityLabel='นำส่งออกรายงาน'
-                    disabled={editMode}
-                  >
-                    นำส่งออกรายงาน
                   </NeutralSubdueButton>
                   <BrandSubdueButton
                     variant='outline'
