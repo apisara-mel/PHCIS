@@ -27,6 +27,8 @@ export const SYSTEM_NAV = [
   { key: 'system-consent-access-rights', label: 'สิทธิตามความยินยอม', icon: 'verified_user', path: '/assess/consent-access-rights' },
   /* EMR §1.4.2.1 — การจัดการข้อมูลลับ (ย้ายจาก ระบบประวัติการใช้งาน) */
   { key: 'system-confidential-data', label: 'การจัดการข้อมูลลับ', icon: 'enhanced_encryption', path: '/admin/confidential-data' },
+  /* CPOE §1.5.7 — ชุด preset กลาง แบ่งตามอาการ/โรค พร้อมกำหนดผู้มีสิทธิ์ใช้งาน */
+  { key: 'system-order-sets', label: 'ชุดคำสั่งการรักษา', icon: 'playlist_add', path: '/admin/order-sets' },
   /* Pharmacy master data belongs to central settings. Operational pharmacy
      screens keep a CTA shortcut that deep-links to the create route. */
   { key: 'system-pharmacy-registry', label: 'ทะเบียนยา', icon: 'medication', path: '/admin/pharmacy/registry' },

@@ -228,6 +228,15 @@ const BLANK_DRUG = {
   manufacturer: '',
   distributor: '',
   usageRate: { avgPerMonth: 0, maxQty: 0, minQty: 0, reorderPoint: 0 },
+  administrationDefaults: {
+    route: 'oral',
+    dosePerTake: '1',
+    frequency: 'วันละ 1 ครั้ง',
+    when: 'หลังอาหาร',
+    days: '',
+    note: '',
+    unit: 'tablet',
+  },
   disallowedChronicDiseases: [],
   restrictedPrescriberScopes: [],
   restrictedPrescriberPositions: [],
@@ -308,6 +317,10 @@ const buildInitialForm = (base) => {
     rightsEligible: [...(base.rightsEligible || [])],
     priceSchedule: (base.priceSchedule || []).map((p) => ({ ...p })),
     usageRate: { ...(base.usageRate || BLANK_DRUG.usageRate) },
+    administrationDefaults: {
+      ...BLANK_DRUG.administrationDefaults,
+      ...(base.administrationDefaults || {}),
+    },
     disallowedChronicDiseases: [...(base.disallowedChronicDiseases || [])],
     restrictedPrescriberScopes: stripConsentScopes(base.restrictedPrescriberScopes || []),
     restrictedPrescriberPositions: [...(base.restrictedPrescriberPositions || [])],
@@ -452,7 +465,14 @@ const PharmacyRegistryEditor = ({
   }, [form.name, form.classification, form.rightsEligible.length, form.unit, form.highAlert]);
 
   const selectUnit = (unitKey) => {
-    setForm((prev) => ({ ...prev, ...defaultsForUnit(unitKey, prev.packSize) }));
+    setForm((prev) => ({
+      ...prev,
+      ...defaultsForUnit(unitKey, prev.packSize),
+      administrationDefaults: {
+        ...prev.administrationDefaults,
+        unit: unitKey,
+      },
+    }));
   };
 
   const conversionFromLabel = unitLabel(form.unit);
@@ -469,6 +489,13 @@ const PharmacyRegistryEditor = ({
   const title = isNew ? 'เพิ่มทะเบียนยา' : 'แก้ไขทะเบียนยา';
 
   const setField = (key, v) => setForm((prev) => ({ ...prev, [key]: v }));
+  const setAdministrationDefault = (key, value) => setForm((prev) => ({
+    ...prev,
+    administrationDefaults: {
+      ...prev.administrationDefaults,
+      [key]: value,
+    },
+  }));
   const toggleRight = (right) => setForm((prev) => ({
     ...prev,
     rightsEligible: prev.rightsEligible.includes(right)
@@ -945,6 +972,63 @@ const PharmacyRegistryEditor = ({
                   </NeutralSubdueButton>
                 </div>
               </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            icon='medication'
+            title='วิธีใช้ยาเริ่มต้น'
+            subtitle='ข้อมูลพื้นฐานของยานี้ ใช้เป็นค่าเริ่มต้นใน Preset และให้แพทย์ตรวจสอบก่อนสั่งจริง'
+          >
+            <div className='grid grid-cols-1 md:grid-cols-2 w-full min-w-0' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <Select
+                label='วิธีให้ยา'
+                value={form.administrationDefaults?.route || 'oral'}
+                onChange={(value) => setAdministrationDefault('route', value)}
+                searchable={false}
+                options={[
+                  { value: 'oral', label: 'รับประทาน' },
+                  { value: 'topical', label: 'ทาภายนอก' },
+                  { value: 'inhaled', label: 'สูดพ่น' },
+                  { value: 'injection', label: 'ฉีด' },
+                  { value: 'other', label: 'อื่น ๆ' },
+                ]}
+              />
+              <InputField
+                label='ทานครั้งละ (ค่าเริ่มต้น)'
+                value={form.administrationDefaults?.dosePerTake || ''}
+                onChange={(value) => setAdministrationDefault('dosePerTake', value)}
+                showLeadingIcon={false}
+                placeholder='เช่น 1'
+              />
+              <InputField
+                label='ความถี่ (ค่าเริ่มต้น)'
+                value={form.administrationDefaults?.frequency || ''}
+                onChange={(value) => setAdministrationDefault('frequency', value)}
+                showLeadingIcon={false}
+                placeholder='เช่น วันละ 1 ครั้ง'
+              />
+              <InputField
+                label='ช่วงเวลา'
+                value={form.administrationDefaults?.when || ''}
+                onChange={(value) => setAdministrationDefault('when', value)}
+                showLeadingIcon={false}
+                placeholder='เช่น หลังอาหาร'
+              />
+              <InputField
+                label='จำนวนวันเริ่มต้น (ถ้ามี)'
+                value={form.administrationDefaults?.days || ''}
+                onChange={(value) => setAdministrationDefault('days', value)}
+                showLeadingIcon={false}
+                placeholder='เช่น 7'
+              />
+              <InputField
+                label='คำแนะนำทั่วไป'
+                value={form.administrationDefaults?.note || ''}
+                onChange={(value) => setAdministrationDefault('note', value)}
+                showLeadingIcon={false}
+                placeholder='เช่น รับประทานพร้อมน้ำสะอาด'
+              />
             </div>
           </SectionCard>
 

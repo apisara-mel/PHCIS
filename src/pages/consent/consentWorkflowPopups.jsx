@@ -150,7 +150,7 @@ export function CreateConsentRequestPopup({
       onClose={() => (formApi.dirty ? formApi.requestCancel() : onClose())}
       size='large'
       title='สร้างคำขอเข้าถึงแบบฟอร์มยินยอม'
-      primaryAction={{ label: 'ส่งคำขอสิทธิ์', onClick: () => formApi.submit(), disabled: !formApi.ready }}
+      primaryAction={{ label: 'ส่งคำขอสิทธิ์เข้าถึงแบบฟอร์ม', onClick: () => formApi.submit(), disabled: !formApi.ready }}
       secondaryAction={{ label: 'ยกเลิก', onClick: () => (formApi.dirty ? formApi.requestCancel() : onClose()) }}
     >
       <AccessRequestForm

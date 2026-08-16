@@ -91,7 +91,7 @@ export default function CreateConsentRequestHeaderAction({ className = '' }) {
           setToast({
             id: Date.now(),
             variant: 'success',
-            message: `ส่งคำขอสิทธิ์ของ ${rec.name} แล้ว — รออนุมัติที่เมนูจัดการสิทธิ์การเข้าถึงแบบฟอร์ม`,
+            message: `ส่งคำขอสิทธิ์ของ ${rec.name} แล้ว — รออนุมัติที่เมนูจัดการสิทธิ์การขอเข้าถึงแบบฟอร์ม`,
           });
         }}
       />

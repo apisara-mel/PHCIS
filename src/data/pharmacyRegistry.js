@@ -84,6 +84,19 @@ export const DRUG_CLASSIFICATIONS = [
 
 const CAPSULE_NAMES = new Set(['Omeprazole 20 mg', 'Esomeprazole 40 mg', 'VILERM (Aciclovir 400 mg)']);
 
+/* Stable, non-patient-specific administration defaults. Clinical presets may
+   override these values for a diagnosis or symptom before the doctor signs
+   the final order in CPOE. */
+const administrationDefaultsFor = (unit) => ({
+  route: 'oral',
+  dosePerTake: '1',
+  frequency: 'วันละ 1 ครั้ง',
+  when: 'หลังอาหาร',
+  days: '',
+  note: '',
+  unit,
+});
+
 /* Illustrative flags only — NOT a clinically exhaustive High Alert Drug
    list (real hospital HAD lists center on insulin/heparin/opioids/
    concentrated electrolytes/chemo, none of which are in this outpatient
@@ -238,6 +251,7 @@ export const DRUG_REGISTRY = CANONICAL_OPTIONS.map((opt, i) => {
     tradeName,
     image: resolveMedicationImage(opt.value, opt.image),
     unit: CAPSULE_NAMES.has(opt.value) ? 'capsule' : 'tablet',
+    administrationDefaults: administrationDefaultsFor(CAPSULE_NAMES.has(opt.value) ? 'capsule' : 'tablet'),
     classification: NARCOTIC_NAMES.has(opt.value)
       ? 'narcotic'
       : PSYCHOTROPIC_NAMES.has(opt.value)

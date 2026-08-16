@@ -4,6 +4,7 @@ import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
 import Popover from '@/components/popup/Popover';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
+import DatePickerRange from '@/components/forms/DatePickerRange';
 import SelectableCardButton from '@/components/button/SelectableCardButton';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import PhotoUploadField from '@/components/forms/PhotoUploadField';
@@ -30,6 +31,7 @@ import {
   toConsentPatientSearchItem,
 } from '@/data/consentPatientSearch';
 import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRecords';
+import PHCIS_CURRENT_USER from '@/data/phcisCurrentUser';
 
 /* Shared ด.1.1.17.1 form — อัปโหลด/ถ่ายภาพแบบฟอร์มขอเข้าถึง → mock-OCR → ตรวจแก้ → ส่งคำขอ.
    Used by RequestFormAccessPage (full page), ScanImportPopup, and
@@ -41,6 +43,15 @@ const BODY_TEXT = {
   fontSize: 'var(--type-size-sm)',
   lineHeight: 1.6,
 };
+
+const isoFormat = (date) => {
+  if (!date) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+const isoParse = (value) => (value ? new Date(`${value}T00:00:00`) : null);
 /** Matches FieldShell in `_inputBox.jsx` — keeps custom fields aligned with Select/Input. */
 export const FIELD_SHELL_LAYOUT = {
   width: '100%',
@@ -190,7 +201,7 @@ export default function AccessRequestForm({
   onSubmit,
   onCancel,
   showFooter = true,
-  submitLabel = 'ส่งคำขอสิทธิ์',
+  submitLabel = 'ส่งคำขอสิทธิ์เข้าถึงแบบฟอร์ม',
   cancelLabel = 'ยกเลิก',
   onStateChange,
   initialAccessType = '',
@@ -204,12 +215,13 @@ export default function AccessRequestForm({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [ocrFailed, setOcrFailed] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [name, setName] = useState('');
-  const [empCode, setEmpCode] = useState('');
+  const [name, setName] = useState(PHCIS_CURRENT_USER.displayName || '');
+  const [empCode, setEmpCode] = useState(PHCIS_CURRENT_USER.employeeCode || '');
   const [unit, setUnit] = useState('');
   const [hn, setHn] = useState('');
   const [purpose, setPurpose] = useState('');
   const [scopes, setScopes] = useState([]);
+  const [requestedPeriod, setRequestedPeriod] = useState(['', '']);
   const [accessType, setAccessType] = useState(fixedAccessType || initialAccessType);
   const [formId, setFormId] = useState(initialFormId);
   const [reason, setReason] = useState('');
@@ -231,9 +243,9 @@ export default function AccessRequestForm({
   const applyOcrResult = (readable) => {
     if (readable) {
       setOcrFailed(false);
-      setName(OCR_RESULT.name);
-      setEmpCode(OCR_RESULT.empCode);
-      setUnit(OCR_RESULT.unit);
+      setName(PHCIS_CURRENT_USER.displayName || OCR_RESULT.name);
+      setEmpCode(PHCIS_CURRENT_USER.employeeCode || OCR_RESULT.empCode);
+      setUnit('');
       setHn(OCR_RESULT.hn);
       setPatientQuery('');
       setPurpose(OCR_RESULT.purpose);
@@ -244,8 +256,8 @@ export default function AccessRequestForm({
       setReasonDetail('');
     } else {
       setOcrFailed(true);
-      setName('');
-      setEmpCode('');
+      setName(PHCIS_CURRENT_USER.displayName || '');
+      setEmpCode(PHCIS_CURRENT_USER.employeeCode || '');
       setUnit('');
       setHn('');
       setPatientQuery('');
@@ -273,7 +285,8 @@ export default function AccessRequestForm({
     setFileError('');
     setUploadFiles([file]);
     setFileName(file.name);
-    runOcr(file.name, /\.pdf$/i.test(file.name) || file.type === 'application/pdf');
+    /* PDF และภาพ JPG/PNG ที่ผ่านการตรวจชนิดไฟล์ ล้วนส่งต่อเข้า OCR ได้ */
+    runOcr(file.name, true);
   };
 
   const handleUploadChange = (files) => {
@@ -309,12 +322,18 @@ export default function AccessRequestForm({
   };
 
   const needsPatient = accessType === 'patient_consent';
+  /* แบบฟอร์มอาจถูกขอเพื่อผู้รับบริการเฉพาะรายได้ด้วย จึงเปิดตัวเลือกผู้รับบริการ
+     ให้คำขอแบบฟอร์มเช่นกัน แต่บังคับเฉพาะประเภทข้อมูลความยินยอม */
+  const supportsPatient = accessType === 'patient_consent' || accessType === 'form';
   const needsForm = accessType === 'form';
   const reasonIsOther = reason === ACCESS_REASON_OTHER;
+  const [requestedStart, requestedEnd] = requestedPeriod;
+  const requestedPeriodInvalid = !!requestedStart && !!requestedEnd && requestedEnd < requestedStart;
   const resolvedReason = reasonIsOther ? reasonDetail.trim() : reason;
   const selectedForm = formId ? FORM_OPTIONS.find((o) => o.value === formId) : null;
   const dirty = Boolean(
-    fileName || name || hn || formId || reason || reasonDetail || additionalNote.trim() || patientQuery
+    fileName || hn || formId || reason || reasonDetail || additionalNote.trim() || patientQuery
+    || requestedStart || requestedEnd
     || (!fixedAccessType && accessType),
   );
   const ready = phase === 'review'
@@ -324,17 +343,19 @@ export default function AccessRequestForm({
     && (!needsForm || formId)
     && reason
     && (!reasonIsOther || reasonDetail.trim().length >= 3)
-    && purpose
     && scopes.length > 0
+    && !!requestedStart
+    && !!requestedEnd
+    && !requestedPeriodInvalid
     && (!needsPatient || hn.trim());
 
-  const selectedPatient = needsPatient && hn
+  const selectedPatient = supportsPatient && hn
     ? CONSENT_PATIENT_SEARCH_POOL.find((p) => p.hn === hn) || null
     : null;
 
   const patientSuggestions = useMemo(
-    () => (needsPatient ? consentPatientSearchSuggestions(patientQuery) : []),
-    [needsPatient, patientQuery],
+    () => (supportsPatient ? consentPatientSearchSuggestions(patientQuery) : []),
+    [supportsPatient, patientQuery],
   );
 
   useLayoutEffect(() => {
@@ -385,10 +406,12 @@ export default function AccessRequestForm({
       name: name.trim(),
       empCode: empCode.trim(),
       unit: unit.trim(),
-      hn: needsPatient ? hn.trim() : '-',
-      patientName: needsPatient ? (selectedPatient?.name || selectedPatient?.label || '') : '',
-      purpose,
+      hn: hn.trim() || '-',
+      patientName: selectedPatient?.name || selectedPatient?.label || '',
+      purpose: resolvedReason,
       scopes,
+      requestedPeriodStart: requestedStart,
+      requestedPeriodEnd: requestedEnd,
       fileName,
       accessType,
       accessTypeLabel: ACCESS_TYPE_DISPLAY_LABEL[accessType] || accessType,
@@ -421,6 +444,88 @@ export default function AccessRequestForm({
       requestCancel: () => requestCancelRef.current(),
     });
   }, [ready, dirty, accessType, formId, reason, reasonDetail, needsPatient, hn, fileName]);
+
+  const evidenceUpload = (
+    <>
+      <div
+        className='flex flex-col items-start w-full'
+        style={{ gap: 'var(--dim-space-150)', ...FIELD_SHELL_LAYOUT }}
+      >
+        <span style={LABEL_TEXT}>
+          อัปโหลดหลักฐานเพื่อสิทธิการเข้าถึงแบบฟอร์ม
+          <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span>
+        </span>
+        <div className='flex items-stretch w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+          <DragAndDrop
+            value={[]}
+            onChange={handleUploadChange}
+            onError={({ message }) => setFileError(message || 'ไฟล์ไม่ถูกต้อง')}
+            accept='.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf'
+            multiple={false}
+            preview={false}
+            size='sm'
+            title='ลากและวางไฟล์ หรือคลิกเพื่ออัปโหลด'
+            helper='อัปโหลดหลักฐาน (PDF, JPG หรือ PNG)'
+            ctaLabel='เลือกไฟล์'
+            error={!!fileError}
+            disabled={phase === 'reading'}
+            style={{ flex: '1 1 0', minWidth: 0, width: '100%', minHeight: 'var(--dim-size-2000, 128px)', height: 'var(--dim-size-2000, 128px)', boxSizing: 'border-box' }}
+          />
+          <PhotoUploadField
+            label='สแกนเอกสาร'
+            icon='document_scanner'
+            onClick={() => phase !== 'reading' && setCameraOpen(true)}
+            disabled={phase === 'reading'}
+            aria-label='สแกนเอกสารด้วยกล้อง'
+            style={{ width: 'var(--dim-size-2000, 128px)', height: 'var(--dim-size-2000, 128px)', flexShrink: 0, boxSizing: 'border-box' }}
+          />
+          <PhotoUploadField
+            label='ถ่ายภาพเอกสาร'
+            icon='photo_camera'
+            onClick={() => phase !== 'reading' && setCameraOpen(true)}
+            disabled={phase === 'reading'}
+            aria-label='ถ่ายภาพเอกสารด้วยกล้อง'
+            style={{ width: 'var(--dim-size-2000, 128px)', height: 'var(--dim-size-2000, 128px)', flexShrink: 0, boxSizing: 'border-box' }}
+          />
+        </div>
+        {phase === 'reading' && <UploadProgressBox progress={uploadProgress} label='กำลังอัปโหลดและอ่านเอกสาร…' fileName={fileName || undefined} />}
+        {phase === 'review' && uploadFiles[0] && <UploadEvidenceCard file={uploadFiles[0]} onRemove={clearEvidence} label='หลักฐานที่แนบ' />}
+        {phase === 'review' && (
+          <div
+            className='flex items-start w-full'
+            style={{
+              gap: 'var(--dim-space-200)',
+              padding: 'var(--dim-space-300) var(--dim-space-400)',
+              background: ocrFailed
+                ? 'var(--surface-danger-tertiary, #FEE2E2)'
+                : 'var(--surface-statussummarycard-positive, #D1F6EE)',
+              borderRadius: 'var(--dim-radius-300)',
+            }}
+          >
+            <Icon
+              name={ocrFailed ? 'error' : 'check_circle'}
+              size={18}
+              color={ocrFailed
+                ? 'var(--text-danger-default, #B91C1C)'
+                : 'var(--text-statussummarycard-positive-number, #196C65)'}
+            />
+            <span style={{
+              ...BODY_TEXT,
+              color: ocrFailed
+                ? 'var(--text-danger-default, #B91C1C)'
+                : 'var(--text-statussummarycard-positive-number, #196C65)',
+            }}
+            >
+              {ocrFailed
+                ? 'OCR อ่านข้อมูลจากภาพไม่สำเร็จ — กรอกข้อมูลเองได้ทุกช่องด้านล่าง (ไฟล์แนบยังถูกเก็บไว้)'
+                : 'อัปโหลดเอกสารสำเร็จ — อ่านข้อมูลจากเอกสารแล้ว ตรวจสอบก่อนบันทึก'}
+            </span>
+          </div>
+        )}
+      </div>
+      {fileError && <span style={ERROR_TEXT}>{fileError}</span>}
+    </>
+  );
 
   return (
     <>
@@ -464,9 +569,7 @@ export default function AccessRequestForm({
                     selected={accessType === opt.value}
                     onClick={() => {
                       setAccessType(opt.value);
-                      if (opt.value === 'form') {
-                        clearPatient();
-                      } else {
+                      if (opt.value !== 'form') {
                         setFormId('');
                       }
                     }}
@@ -510,26 +613,17 @@ export default function AccessRequestForm({
           </div>
           )}
 
-          {needsForm && (
-            <Select
-              label='ชื่อแบบฟอร์มความยินยอม'
-              required
-              options={FORM_OPTIONS}
-              value={formId}
-              onChange={setFormId}
-              placeholder='ค้นหาหรือเลือกแบบฟอร์ม…'
-              searchable
-            />
-          )}
+          {evidenceUpload}
 
-          {needsPatient && (
+          {supportsPatient && (
             <div
               className='flex flex-col items-start w-full'
               style={{ gap: 'var(--dim-space-150)', ...FIELD_SHELL_LAYOUT }}
             >
               <span style={LABEL_TEXT}>
                 ต้องการเข้าถึงข้อมูลของผู้รับบริการรายใด
-                <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span>
+                {needsPatient ? <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span> : null}
+                {!needsPatient ? <span style={{ color: 'var(--text-content-tertiary)' }}> (ถ้ามี)</span> : null}
               </span>
               {selectedPatient ? (
                 <div
@@ -686,7 +780,7 @@ export default function AccessRequestForm({
 
           {accessType && (
             <Select
-              label='เหตุผลที่ขอเข้าถึง'
+              label='วัตถุประสงค์/เหตุผลที่ขอเข้าถึง'
               required
               options={ACCESS_REASON_OPTIONS}
               value={reason}
@@ -703,13 +797,25 @@ export default function AccessRequestForm({
             <SuggestibleTextarea
               voice
               required
-              label='ระบุเหตุผลอื่นๆ'
+              label='ระบุวัตถุประสงค์/เหตุผลอื่นๆ'
               value={reasonDetail}
               onChange={(e) => setReasonDetail(e?.target?.value ?? (typeof e === 'string' ? e : ''))}
-              placeholder='พิมพ์หรือพูดเหตุผลที่ขอเข้าถึง…'
+              placeholder='พิมพ์หรือพูดวัตถุประสงค์หรือเหตุผลที่ขอเข้าถึง…'
               suggestions={ACCESS_REASON_OTHER_SUGGESTIONS}
               minChars={3}
               popoverAriaLabel='คำแนะนำเหตุผลที่ขอเข้าถึง'
+            />
+          )}
+
+          {needsForm && (
+            <Select
+              label='ชื่อแบบฟอร์มความยินยอม'
+              required
+              options={FORM_OPTIONS}
+              value={formId}
+              onChange={setFormId}
+              placeholder='ค้นหาหรือเลือกแบบฟอร์ม…'
+              searchable
             />
           )}
 
@@ -727,126 +833,14 @@ export default function AccessRequestForm({
           )}
         </div>
 
-        <div
-          className='flex flex-col items-start w-full'
-          style={{ gap: 'var(--dim-space-150)', ...FIELD_SHELL_LAYOUT }}
-        >
-          <span style={LABEL_TEXT}>
-            อัปโหลดหลักฐานเพื่อสิทธิการเข้าถึงแบบฟอร์ม
-            <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span>
-          </span>
-          <div className='flex items-stretch w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-            <DragAndDrop
-              value={[]}
-              onChange={handleUploadChange}
-              onError={({ message }) => setFileError(message || 'ไฟล์ไม่ถูกต้อง')}
-              accept='.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf'
-              multiple={false}
-              preview={false}
-              size='sm'
-              title='ลากและวางไฟล์ หรือคลิกเพื่ออัปโหลด'
-              helper='อัปโหลดหลักฐาน (PDF, JPG หรือ PNG)'
-              ctaLabel='เลือกไฟล์'
-              error={!!fileError}
-              disabled={phase === 'reading'}
-              style={{
-                flex: '1 1 0',
-                minWidth: 0,
-                width: '100%',
-                minHeight: 'var(--dim-size-2000, 128px)',
-                height: 'var(--dim-size-2000, 128px)',
-                boxSizing: 'border-box',
-              }}
-            />
-            <PhotoUploadField
-              label='สแกนเอกสาร'
-              icon='document_scanner'
-              onClick={() => phase !== 'reading' && setCameraOpen(true)}
-              disabled={phase === 'reading'}
-              aria-label='สแกนเอกสารด้วยกล้อง'
-              style={{
-                width: 'var(--dim-size-2000, 128px)',
-                height: 'var(--dim-size-2000, 128px)',
-                flexShrink: 0,
-                boxSizing: 'border-box',
-              }}
-            />
-            <PhotoUploadField
-              label='ถ่ายภาพเอกสาร'
-              icon='photo_camera'
-              onClick={() => phase !== 'reading' && setCameraOpen(true)}
-              disabled={phase === 'reading'}
-              aria-label='ถ่ายภาพเอกสารด้วยกล้อง'
-              style={{
-                width: 'var(--dim-size-2000, 128px)',
-                height: 'var(--dim-size-2000, 128px)',
-                flexShrink: 0,
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {phase === 'reading' && (
-            <UploadProgressBox
-              progress={uploadProgress}
-              label='กำลังอัปโหลดและอ่านเอกสาร…'
-              fileName={fileName || undefined}
-            />
-          )}
-
-          {phase === 'review' && uploadFiles[0] && (
-            <UploadEvidenceCard
-              file={uploadFiles[0]}
-              onRemove={clearEvidence}
-              label='หลักฐานที่แนบ'
-            />
-          )}
-        </div>
-        {fileError && <span style={ERROR_TEXT}>{fileError}</span>}
-
         {phase === 'review' && (
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <div
-              className='flex items-start'
-              style={{
-                gap: 'var(--dim-space-200)',
-                paddingTop: 'var(--dim-space-300)',
-                paddingRight: 'var(--dim-space-400)',
-                paddingBottom: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-400)',
-                background: ocrFailed
-                  ? 'var(--surface-danger-tertiary, #FEE2E2)'
-                  : 'var(--surface-statussummarycard-positive, #D1F6EE)',
-                borderRadius: 'var(--dim-radius-300)',
-              }}
-            >
-              <Icon
-                name={ocrFailed ? 'error' : 'check_circle'}
-                size={18}
-                color={ocrFailed
-                  ? 'var(--text-danger-default, #B91C1C)'
-                  : 'var(--text-statussummarycard-positive-number, #196C65)'}
-              />
-              <span style={{
-                ...BODY_TEXT,
-                color: ocrFailed
-                  ? 'var(--text-danger-default, #B91C1C)'
-                  : 'var(--text-statussummarycard-positive-number, #196C65)',
-              }}
-              >
-                {ocrFailed
-                  ? 'OCR อ่านข้อมูลจากภาพไม่สำเร็จ — กรอกข้อมูลเองได้ทุกช่องด้านล่าง (ไฟล์แนบยังถูกเก็บไว้)'
-                  : 'อ่านข้อมูลจากเอกสารสำเร็จ — ตรวจสอบและแก้ไขก่อนบันทึก'}
-              </span>
-            </div>
-            <span style={LABEL_TEXT}>ตรวจสอบข้อมูลคำขอ</span>
-            <div className='flex items-start flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
-              <div className='flex flex-col' style={{ flex: '1 1 260px', gap: 'var(--dim-space-300)' }}>
-                <InputField label='ผู้ขอ (เจ้าหน้าที่)' required value={name} onChange={setName} placeholder='ชื่อ-นามสกุลผู้ขอ' />
-                <InputField label='รหัสพนักงาน' value={empCode} onChange={setEmpCode} placeholder='เช่น EMP-0142' />
-                <InputField label='หน่วยงาน' value={unit} onChange={setUnit} placeholder='หน่วยงานต้นสังกัด' />
+            <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                <InputField label='ผู้ขอ (เจ้าหน้าที่)' required value={name} onChange={setName} disabled placeholder='ชื่อ-นามสกุลผู้ขอ' />
+                <InputField label='รหัสพนักงาน' value={empCode} onChange={setEmpCode} disabled placeholder='เช่น EMP-0142' />
               </div>
-              <div className='flex flex-col' style={{ flex: '1 1 260px', gap: 'var(--dim-space-300)' }}>
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
                 {needsPatient && selectedPatient && (
                   <div
                     className='flex items-center w-full'
@@ -886,8 +880,17 @@ export default function AccessRequestForm({
                     </span>
                   </div>
                 )}
-                <Select label='วัตถุประสงค์การใช้ข้อมูล' required options={PURPOSE_OPTIONS} value={purpose} onChange={setPurpose} placeholder='เลือกวัตถุประสงค์' searchable={false} />
                 <Select multiple selectAllLabel='เลือกทุกหมวด' label='ขอบเขตข้อมูลที่ขอเข้าถึง' required options={SCOPE_OPTIONS} value={scopes} onChange={setScopes} placeholder='เลือกหมวดข้อมูล' searchable={false} />
+                <DatePickerRange
+                  label='ช่วงวันที่ต้องการเริ่มใช้สิทธิ'
+                  required
+                  value={requestedPeriod}
+                  onChange={setRequestedPeriod}
+                  format={isoFormat}
+                  parse={isoParse}
+                  error={requestedPeriodInvalid ? 'วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น' : undefined}
+                  helperText='วันที่ผู้ขอเสนอ — Admin จะเป็นผู้กำหนดช่วงสิทธิจริง'
+                />
               </div>
             </div>
           </div>

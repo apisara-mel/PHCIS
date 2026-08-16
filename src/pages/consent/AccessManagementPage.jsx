@@ -28,8 +28,9 @@ import { ConsentFormViewPopup } from '@/pages/consent/ConsentFormViewPopup';
 import { getConsentFormByCode } from '@/data/consentFormRecords';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 import { ACCESS_TYPE_DISPLAY_LABEL } from '@/pages/consent/AccessRequestForm';
+import PHCIS_CURRENT_USER from '@/data/phcisCurrentUser';
 
-/* PHCIS | Consent — จัดการสิทธิ์การเข้าถึงแบบฟอร์ม (Figma node 363:122327).
+/* PHCIS | Consent — จัดการสิทธิ์การขอเข้าถึงแบบฟอร์ม (Figma node 363:122327).
    Access-request registry: summary cards · tabs · search · filters · table
    with a STATUS-DEPENDENT action column (✓ approve / ✗ reject, one disabled
    per status) and per-action confirm AlertDialogs. Mirrors the consent
@@ -37,11 +38,48 @@ import { ACCESS_TYPE_DISPLAY_LABEL } from '@/pages/consent/AccessRequestForm';
    All values alias design.md tokens; UI copy is Thai; data is local mock. */
 
 const PAGE_SIZE = 20;
-const breadcrumb = ['จัดการสิทธิ์การเข้าถึงแบบฟอร์ม'];
+const breadcrumb = ['จัดการสิทธิ์การขอเข้าถึงแบบฟอร์ม'];
 const GROUP_TONE = { 'แพทย์': 'green', 'พยาบาล': 'purple', 'เภสัชกร': 'teal', 'นักเทคนิคการแพทย์': 'blue' };
 
 /* แท็บที่กรองสถานะอยู่แล้ว — ซ่อน filter chip "สถานะ" */
 const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'approved', 'rejected', 'expired']);
+
+const MOCK_MY_PENDING_REQUESTS = [
+  {
+    id: 'my-req-01', reqNo: 'REQ-2569-8101', name: PHCIS_CURRENT_USER.displayName,
+    empCode: PHCIS_CURRENT_USER.employeeCode, group: PHCIS_CURRENT_USER.groupPolicy,
+    subBranch: PHCIS_CURRENT_USER.subBranch, dept: PHCIS_CURRENT_USER.department,
+    createdDate: '16 สิงหาคม 2569', createdTime: '09:15 น.', hn: '67-00009',
+    patientName: 'ธนวัฒน์ ศรีสุข', purpose: 'ตรวจสอบสถานะความยินยอมก่อนให้บริการ',
+    reason: 'ตรวจสอบสถานะความยินยอมก่อนให้บริการ', accessType: 'patient_consent',
+    accessTypeLabel: ACCESS_TYPE_DISPLAY_LABEL.patient_consent, formCode: 'PH-001',
+    formName: 'ใบยินยอมการใช้ข้อมูลส่วนบุคคล (PDPA)', requestedPeriodStart: '2026-08-18',
+    requestedPeriodEnd: '2026-08-31', period: '-', periodDays: '-', file: 'consent-pdpa.pdf',
+    fileSize: '1.1 MB', status: 'รออนุมัติ', periodStart: null, periodEnd: null, active: false,
+  },
+  {
+    id: 'my-req-02', reqNo: 'REQ-2569-8102', name: PHCIS_CURRENT_USER.displayName,
+    empCode: PHCIS_CURRENT_USER.employeeCode, group: PHCIS_CURRENT_USER.groupPolicy,
+    subBranch: PHCIS_CURRENT_USER.subBranch, dept: PHCIS_CURRENT_USER.department,
+    createdDate: '15 สิงหาคม 2569', createdTime: '14:20 น.', hn: '67-00014',
+    patientName: 'กมลวรรณ ใจดี', purpose: 'การรักษาพยาบาล', reason: 'ต้องใช้แบบฟอร์มในการให้บริการ',
+    accessType: 'form', accessTypeLabel: ACCESS_TYPE_DISPLAY_LABEL.form, formCode: 'PH-007',
+    formName: 'ใบยินยอมการรักษาทั่วไป', requestedPeriodStart: '2026-08-19',
+    requestedPeriodEnd: '2026-09-02', period: '-', periodDays: '-', file: 'general-consent.jpg',
+    fileSize: '860 KB', status: 'รออนุมัติ', periodStart: null, periodEnd: null, active: false,
+  },
+  {
+    id: 'my-req-03', reqNo: 'REQ-2569-8103', name: PHCIS_CURRENT_USER.displayName,
+    empCode: PHCIS_CURRENT_USER.employeeCode, group: PHCIS_CURRENT_USER.groupPolicy,
+    subBranch: PHCIS_CURRENT_USER.subBranch, dept: PHCIS_CURRENT_USER.department,
+    createdDate: '14 สิงหาคม 2569', createdTime: '10:05 น.', hn: '67-00021',
+    patientName: 'วรากร พัฒนกิจ', purpose: 'การส่งต่อผู้ป่วย', reason: 'ส่งต่อ / ประสานงานกับหน่วยงานอื่น',
+    accessType: 'patient_consent', accessTypeLabel: ACCESS_TYPE_DISPLAY_LABEL.patient_consent, formCode: 'PH-003',
+    formName: 'ใบยินยอมเปิดเผยข้อมูลเพื่อการส่งต่อ', requestedPeriodStart: '2026-08-20',
+    requestedPeriodEnd: '2026-09-10', period: '-', periodDays: '-', file: 'referral-consent.pdf',
+    fileSize: '1.4 MB', status: 'รออนุมัติ', periodStart: null, periodEnd: null, active: false,
+  },
+].map((row, index) => ({ ...row, avatarSrc: accessAvatarForGroup(row.group, index), audit: null }));
 
 const TEXT_CELL = {
   color: 'var(--text-content-default)',
@@ -72,6 +110,11 @@ const PatientCell = ({ row }) => {
     return <StackCell top={row.patientName} bottom={`HN ${row.hn}`} />;
   }
   return <Cell value={`HN ${row.hn}`} />;
+};
+
+const requestedPeriodLabel = (row) => {
+  if (!row?.requestedPeriodStart || !row?.requestedPeriodEnd) return '';
+  return `${thaiDateOfIso(row.requestedPeriodStart)} – ${thaiDateOfIso(row.requestedPeriodEnd)}`;
 };
 
 /* แบบฟอร์มความยินยอม — ชื่อ · PH-xxx · คลิกเปิด ConsentFormViewPopup (เดียวกับเมนูแบบฟอร์ม) */
@@ -244,12 +287,13 @@ const DocPreview = ({ row }) => (
           value={[row.group, row.subBranch, row.dept].filter(Boolean).join(' · ') || '-'}
         />
         <DocRow label='ประเภทการขอ' value={row.accessTypeLabel || '-'} />
-        <DocRow label='แบบฟอร์มความยินยอม' value={row.formName ? `${row.formCode ? `${row.formCode} · ` : ''}${row.formName}` : '-'} />
+        <DocRow label='แบบฟอร์มที่ขอเข้าถึง' value={row.formName ? `${row.formCode ? `${row.formCode} · ` : ''}${row.formName}` : '-'} />
         <DocRow label='เหตุผลที่ขอ' value={row.reason || '-'} />
         {row.note ? <DocRow label='บันทึกเพิ่มเติม' value={row.note} /> : null}
         <DocRow label='ผู้รับบริการ' value={accessPatientLabel(row)} />
         <DocRow label='วัตถุประสงค์' value={row.purpose} />
-        <DocRow label='ช่วงเวลาที่ขอเข้าถึง' value={`${row.period} (${row.periodDays})`} />
+        <DocRow label='ช่วงวันที่ผู้ขอเสนอ' value={requestedPeriodLabel(row) || '-'} />
+        <DocRow label='ช่วงเวลาสิทธิที่ Admin กำหนด' value={row.periodStart ? `${thaiDateOfIso(row.periodStart)} – ${thaiDateOfIso(row.periodEnd)}` : 'ยังไม่กำหนด'} />
       </div>
       <p style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.6, margin: 0 }}>
         ข้าพเจ้าขออนุญาตเข้าถึงข้อมูลของผู้รับบริการตามรายละเอียดข้างต้น เพื่อใช้ในวัตถุประสงค์ที่ระบุไว้เท่านั้น และยินยอมให้มีการบันทึกการเข้าถึงตามนโยบายความเป็นส่วนตัวของหน่วยงาน
@@ -266,12 +310,15 @@ const autoExpire = (r) => {
   return { ...r };
 };
 
-export default function AccessManagementPage() {
+export default function AccessManagementPage({ mineOnly = false }) {
+  const isMine = (row) => !mineOnly
+    || row?.name === PHCIS_CURRENT_USER.displayName
+    || row?.empCode === PHCIS_CURRENT_USER.employeeCode;
   /* rows เป็น state จริง (mock mutate ใน session) */
   const [rows, setRows] = useState(() => [
-    ...ACCESS_RECORDS.map(autoExpire),
+    ...(mineOnly ? [...ACCESS_RECORDS, ...MOCK_MY_PENDING_REQUESTS] : ACCESS_RECORDS).map(autoExpire),
     ...consumeAccessImports().map(autoExpire),
-  ]);
+  ].filter(isMine));
   const [activeTab, setActiveTab] = useState('pending');
   const [search, setSearch] = useState('');
   const [filterRequester, setFilterRequester] = useState('');
@@ -302,7 +349,7 @@ export default function AccessManagementPage() {
     const q = search.trim().toLowerCase();
     if (!q) return [];
     return rows
-      .filter((r) => `${r.reqNo} ${r.name} ${r.empCode} ${r.hn} ${r.patientName || ''} ${r.purpose || ''}`.toLowerCase().includes(q))
+      .filter((r) => `${r.reqNo} ${r.name} ${r.empCode} ${r.hn} ${r.patientName || ''} ${r.formCode || ''} ${r.formName || ''} ${r.purpose || ''}`.toLowerCase().includes(q))
       .slice(0, 8)
       .map((r) => ({
         id: String(r.id),
@@ -317,7 +364,7 @@ export default function AccessManagementPage() {
   useEffect(() => {
     const pending = consumeAccessImports();
     if (pending.length === 0) return undefined;
-    setRows((prev) => [...prev, ...pending.map(autoExpire)]);
+    setRows((prev) => [...prev, ...pending.map(autoExpire).filter(isMine)]);
     return undefined;
   }, []);
 
@@ -325,12 +372,12 @@ export default function AccessManagementPage() {
 
   const tabs = useMemo(() => ACCESS_TABS.map((t) => ({
     key: t.value,
-    label: t.label,
+    label: mineOnly && t.value === 'all' ? 'รายการคำขอเข้าถึงแบบฟอร์มทั้งหมด' : t.label,
     icon: t.icon,
     count: t.value === 'all'
       ? rows.length
       : rows.filter((r) => (ACCESS_STATUS[r.status] || {}).tab === t.value).length,
-  })), [rows]);
+  })), [rows, mineOnly]);
 
   const requesterOptions = useMemo(() => [
     { value: '', label: 'ทุกคน' },
@@ -355,7 +402,7 @@ export default function AccessManagementPage() {
         (!filterPurpose || r.purpose === filterPurpose) &&
         (!filterStatus || r.status === filterStatus) &&
         matchesDateFilter(r.createdDate, filterDate) &&
-        (!q || r.reqNo.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.empCode.toLowerCase().includes(q))
+        (!q || `${r.reqNo} ${r.name} ${r.empCode} ${r.hn || ''} ${r.patientName || ''} ${r.formCode || ''} ${r.formName || ''}`.toLowerCase().includes(q))
       );
     });
   }, [rows, activeTab, search, filterRequester, filterPurpose, filterStatus, filterDate]);
@@ -469,7 +516,7 @@ export default function AccessManagementPage() {
   /* ด.1.1.17.2 — คอลัมน์ช่วงเวลาสิทธิ + วันคงเหลือ (admin คลิกแก้ไขได้) */
   const renderPeriod = (row) => {
     const editable = row.periodStart && (row.status === 'อนุมัติแล้ว' || row.status === 'หมดอายุ');
-    if (!row.periodStart) return <StackCell top={row.period} bottom='ยังไม่กำหนดช่วงสิทธิ' />;
+    if (!row.periodStart) return <StackCell top='รอ Admin กำหนดช่วงสิทธิ' bottom={requestedPeriodLabel(row) ? `ผู้ขอเสนอ: ${requestedPeriodLabel(row)}` : 'ยังไม่มีช่วงวันที่เสนอ'} />;
     const left = daysLeftOfIso(row.periodEnd);
     const top = `${thaiDateOfIso(row.periodStart)} – ${thaiDateOfIso(row.periodEnd)}`;
     const bottom = left != null && left >= 0 ? `เหลืออีก ${left} วัน` : 'หมดช่วงเวลาแล้ว';
@@ -512,7 +559,7 @@ export default function AccessManagementPage() {
       render: (r) => <ScopeCell row={r} />,
     },
     { key: 'createdDate', header: 'วันที่สร้างคำขอ', sortable: true, render: (r) => <StackCell top={r.createdDate} bottom={formatAccessCreatedTime(r.createdTime)} /> },
-    { key: 'hn', header: 'ผู้รับบริการ', render: (r) => <PatientCell row={r} /> },
+    { key: 'hn', header: 'ขอเข้าถึงของผู้รับบริการ', render: (r) => <PatientCell row={r} /> },
     {
       key: 'accessType', header: 'ประเภทการขอ',
       render: (r) => {
@@ -523,7 +570,7 @@ export default function AccessManagementPage() {
       },
     },
     {
-      key: 'formName', header: 'แบบฟอร์มความยินยอม', flex: true, minWidth: 360,
+      key: 'formName', header: 'แบบฟอร์มที่ขอเข้าถึง', flex: true, minWidth: 360,
       render: (r) => (
         <FormCell
           row={r}
@@ -535,7 +582,7 @@ export default function AccessManagementPage() {
       ),
     },
     { key: 'reason', header: 'เหตุผลที่ขอ', render: (r) => <Cell value={r.reason} /> },
-    { key: 'period', header: 'ช่วงเวลาสิทธิ (เริ่ม-สิ้นสุด)', render: renderPeriod },
+    { key: 'period', header: 'ช่วงเวลาสิทธิ (Admin)', render: renderPeriod },
     { key: 'file', header: 'หลักฐาน', render: (r) => <FileCell name={r.file} size={r.fileSize} onClick={() => setPreviewFile(r)} /> },
     {
       key: 'status', header: 'สถานะ', sortable: true,
@@ -551,17 +598,17 @@ export default function AccessManagementPage() {
     /* ด.1.1.17.3 — เปิด/ปิดการให้สิทธิตามที่ระบุในเอกสาร */
     { key: 'active', header: 'Active', render: renderActive },
     { key: 'action', header: 'การจัดการ', render: renderAction },
-  ], []);
+  ].filter((column) => !mineOnly || !['name', 'empCode', 'active', 'action'].includes(column.key)), [mineOnly]);
 
   return (
     <>
       <QueuePageShell
-        activeKey='consent-access'
+        activeKey={mineOnly ? 'consent-my-requests' : 'consent-access'}
         sidebarItems={CONSENT_NAV}
         sidebarFallbackKey='consent-access'
         brandTitle='ระบบจัดการความยินยอม'
-        breadcrumb={breadcrumb}
-        title='จัดการสิทธิ์การเข้าถึงแบบฟอร์ม'
+        breadcrumb={mineOnly ? ['รายการคำขอของฉัน'] : breadcrumb}
+        title={mineOnly ? 'รายการคำขอของฉัน' : 'จัดการสิทธิ์การขอเข้าถึงแบบฟอร์ม'}
         headerInfo={(
           <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
             {summaryCards.map((c) => (

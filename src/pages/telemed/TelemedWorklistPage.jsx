@@ -742,7 +742,7 @@ const TelemedWorklistPage = () => {
             ทะเบียนความยินยอม
           </BrandSubdueButton>
           <BrandSubdueButton variant='outline' size='md' leadingIcon='bar_chart' onClick={() => history.push('/telemed/reports')}>
-            รายงาน / บันทึกการใช้งาน
+            รายงาน / ประวัติการใช้งาน
           </BrandSubdueButton>
           <BrandSubdueButton variant='outline' size='md' leadingIcon='print' onClick={handlePrint}>
             พิมพ์ใบรายชื่อคิว

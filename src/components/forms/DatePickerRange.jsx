@@ -38,7 +38,7 @@ export default function DatePickerRange(
     onChange && onChange(out);
   };
 
-  const pickerShell = { flex: '1 1 0', minWidth: 0 };
+  const pickerShell = { width: '100%', minWidth: 0 };
 
   return (
     <FieldShell
@@ -52,8 +52,11 @@ export default function DatePickerRange(
       style={{ minWidth: 320, ...style }}
     >
       <div
-        className='flex items-center w-full'
-        style={{ gap: 'var(--dim-space-150)' }}
+        className='grid w-full min-w-0 items-center'
+        style={{
+          gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+          gap: 'var(--dim-space-150)',
+        }}
       >
         <div style={pickerShell}>
           <DatePicker

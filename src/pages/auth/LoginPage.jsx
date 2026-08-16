@@ -2,11 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import InputField from '@/components/forms/InputField';
 import PasswordField from '@/components/forms/PasswordField';
+import Select from '@/components/forms/Select';
 import Checkbox from '@/components/checkbox/Checkbox';
 import BrandButton from '@/components/button/BrandButton';
 import { Sym } from '@/components/forms/_inputBox';
 import { FakeQR } from '@/pages/mobile/MobileRegisterPage';
 import { setSessionEmail } from '@/data/phcisSession';
+import { USERS } from '@/data/usersAccess';
+import { CLINIC_OPTIONS } from '@/components/layout/HeaderClinicContext';
+import { writeActiveCenter } from '@/data/centerStore';
 /* PHCIS Sign-in — Figma "PHCIS-Signin" Bg + login card (nodes 32:2131 / 40:10656).
    First screen of the auth flow (1st/2nd-time user). Two-column layout:
    isometric healthcare illustration on the left, brand seal + sign-in card
@@ -245,13 +249,16 @@ export default function LoginPage() {
   const history = useHistory();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedCenter, setSelectedCenter] = useState('');
   const [remember, setRemember] = useState(false);
   const [thaiIdOpen, setThaiIdOpen] = useState(false);
 
   const goToOtp = (e) => {
     e && e.preventDefault();
+    if (!selectedCenter) return;
     /* Persist login identity for ABAC (Consent, etc.) — production uses auth token. */
     setSessionEmail(username);
+    writeActiveCenter(selectedCenter);
     history.push('/login/verify');
   };
 
@@ -281,7 +288,11 @@ export default function LoginPage() {
     lineHeight: 1.5,
   };
 
-  const submitDisabled = !username || !password;
+  const matchedUser = USERS.find((u) => u.status === 'active' && u.email.toLowerCase() === username.trim().toLowerCase());
+  const permittedCenters = matchedUser
+    ? CLINIC_OPTIONS.filter((center) => (matchedUser.centers || []).includes(center.value))
+    : [];
+  const submitDisabled = !matchedUser || !password || !selectedCenter;
 
   return (
     <div className='mih-signin-screen'>
@@ -384,14 +395,33 @@ export default function LoginPage() {
             {/* Credentials */}
             <div className='flex flex-col items-stretch' style={{ gap: 'var(--dim-space-400)' }}>
               <InputField
-                label='อีเมลหรือชื่อผู้ใช้'
+                label='อีเมล'
                 leadingIcon='person'
-                placeholder='example@hospital.com หรือชื่อผู้ใช้'
+                placeholder='example@hospital.com'
                 value={username}
-                onChange={(v) => setUsername(v)}
+                onChange={(v) => { setUsername(v); setSelectedCenter(''); }}
                 autoComplete='username'
                 style={{ width: '100%' }}
               />
+              {username.trim() && matchedUser ? (
+                <Select
+                  label='ศูนย์บริการ'
+                  required
+                  leadingIcon='location_on'
+                  placeholder='เลือกศูนย์บริการที่ต้องการเข้าใช้งาน'
+                  options={permittedCenters}
+                  value={selectedCenter}
+                  onChange={setSelectedCenter}
+                  searchable={permittedCenters.length > 5}
+                  disabled={permittedCenters.length === 0}
+                  style={{ width: '100%' }}
+                />
+              ) : null}
+              {username.trim() && !matchedUser ? (
+                <span style={{ color: 'var(--text-error-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+                  กรุณากรอกอีเมลที่มีสิทธิ์เข้าใช้งานระบบ
+                </span>
+              ) : null}
               <PasswordField
                 label='รหัสผ่าน'
                 value={password}

@@ -19,7 +19,8 @@ const VIEW_SECTION_STYLE = {
   flexDirection: 'column',
   width: '100%',
   boxSizing: 'border-box',
-  background: 'var(--surface-card-100, #FFFFFF)',
+  /* มุมมองใช้ surface/card/200 ซึ่งเข้มขึ้นจาก card/100 หนึ่งระดับ */
+  background: 'var(--surface-card-200, #FDFDFD)',
   borderRadius: 'var(--dim-radius-500, 16px)',
   border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
   boxShadow: 'var(--shadow-card)',

@@ -1,3 +1,5 @@
+import { STAFF_AVATARS } from '@/data/avatarAssets';
+
 /* PHCIS | Audit — Log การเข้าถึงข้อมูลส่วนบุคคล (PDPA audit trail).
    ย้ายจากรายงาน Consent → ระบบประวัติการใช้งาน (/audit/pii-access). */
 
@@ -6,7 +8,7 @@ const STAFF = [
   'ทพ.ชนิดา ผ่องใส', 'พว.มานพ เกษมสุข', 'นพ.ปิยะ วัฒนชัย', 'ภก.รัตนา พูนผล',
 ];
 
-const N = 44;
+const N = 100;
 const seq = (fn) => Array.from({ length: N }, (_, i) => fn(i));
 const dtTH = (i) => `${1 + (i % 12)} มิ.ย. 2569 ${String(8 + (i % 9)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}`;
 const isoOf = (i) => `2026-06-${String(1 + (i % 12)).padStart(2, '0')}`;
@@ -27,6 +29,7 @@ export const PII_ACCESS_LOG_BARS = [
 export const PII_ACCESS_LOG_ROWS = seq((i) => ({
   id: `pii-${i}`,
   user: STAFF[i % STAFF.length],
+  avatarUrl: STAFF_AVATARS[i % STAFF_AVATARS.length],
   ip: `10.12.${(i % 6) + 4}.${((i * 11) % 200) + 1}`,
   action: i % 6 === 5 ? 'DELETE' : i % 3 === 0 ? 'EXPORT' : 'VIEW',
   target: i % 3 === 0 ? 'ประวัติการรักษา · HN-4802' + String(21 + (i % 20)).padStart(2, '0') : 'ผลตรวจ Lab · HN-4802' + String(21 + (i % 20)).padStart(2, '0'),

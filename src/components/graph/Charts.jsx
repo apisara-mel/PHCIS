@@ -619,7 +619,7 @@ export const HBarList = ({
    default is tuned for 12 monthly columns; callers plotting a handful of
    categories should widen it, otherwise the per-bar value labels sit ~10px
    apart and overlap each other. */
-export const VBars = ({ months, series, height = 200, onMonthClick, activeMonth = null, stacked = false, barMaxWidth = 10 }) => {
+export const VBars = ({ months, series, height = 200, onMonthClick, activeMonth = null, stacked = false, barMaxWidth = 10, showLegend = true }) => {
   const monthTotals = months.map((_, idx) => series.reduce((sum, s) => sum + s.values[idx], 0));
   const max = stacked
     ? Math.max(...monthTotals) || 1
@@ -741,7 +741,7 @@ export const VBars = ({ months, series, height = 200, onMonthClick, activeMonth 
           ))}
         </Tooltip>
       )}
-      <div className='flex items-center justify-center gap-4 mt-2'>
+      {showLegend ? <div className='flex items-center justify-center gap-4 mt-2'>
         {series.map((s, i) => (
           <span
             key={i}
@@ -752,7 +752,7 @@ export const VBars = ({ months, series, height = 200, onMonthClick, activeMonth 
             {s.label}
           </span>
         ))}
-      </div>
+      </div> : null}
     </div>
   );
 };

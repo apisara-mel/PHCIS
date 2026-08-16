@@ -144,7 +144,7 @@ export const ACCESS_TABS = [
   { value: 'rejected', label: 'ปฏิเสธ',     icon: 'person_cancel' },
   /* ด.1.1.17.2 — สิทธิตามช่วงเวลา: หมดช่วงเวลาแล้วสถานะเป็น Inactive อัตโนมัติ */
   { value: 'expired',  label: 'หมดอายุ', icon: 'hourglass_disabled' },
-  { value: 'all',      label: 'สิทธิ์การเข้าถึงแบบฟอร์มทั้งหมด', icon: 'group' },
+  { value: 'all',      label: 'การขอเข้าถึงแบบฟอร์มทั้งหมด', icon: 'group' },
 ];
 
 /* tone = ColorfulBadge style · tab = which tab it falls under · canApprove /
@@ -316,8 +316,9 @@ export const enqueueAccessImport = (payload) => {
     avatarSrc: payload.avatarSrc || accessAvatarForGroup(org.group, id),
     createdDate: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }),
     createdTime: formatAccessCreatedTime(new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })),
-    hn: accessType === 'form' ? '-' : (payload.hn || '-'),
-    patientName: accessType === 'form' ? '' : (payload.patientName || ''),
+    /* คำขอแบบฟอร์มอาจผูกกับผู้รับบริการเฉพาะรายได้ — อย่าทิ้ง HN/ชื่อจากเมนูคำขอ */
+    hn: payload.hn || payload.patientHn || '-',
+    patientName: payload.patientName || payload.patient?.name || '',
     purpose: payload.purpose || '-',
     reason: payload.reason || '-',
     note: payload.note || '',
@@ -328,6 +329,8 @@ export const enqueueAccessImport = (payload) => {
     formId: payload.formId || '',
     formCode: payload.formCode || '',
     formName: payload.formName || '',
+    requestedPeriodStart: payload.requestedPeriodStart || '',
+    requestedPeriodEnd: payload.requestedPeriodEnd || '',
     /* Data-category scopes from the request form (not org Group Policy). */
     scopes: payload.scopes || [],
     period: '-',

@@ -22,9 +22,6 @@ import {
   ReasonDialog, PanelAlert, CountLabel, paginate,
 } from '@/pages/treat/panels/panelHooks';
 import {
-  ORDER_SET_SCOPES, ORDER_SET_ITEM_KINDS, orderSetScopeMeta, itemKindMeta,
-  blankOrderSet, blankOrderSetItem, getOrderSets, subscribeOrderSets,
-  upsertOrderSet, setOrderSetActive, cancelOrderSet,
   CDSS_RULE_DEFS, CDSS_SEVERITIES, CDSS_ENFORCEMENTS, getCdssSettings,
   subscribeCdssSettings, setCdssRule, setRepeatOverride,
   priceHistoryFor, recordPriceChange, ROLE_ORDER_MATRIX,
@@ -41,19 +38,18 @@ import {
   XRAY_EXAMS, XRAY_RIGHTS, XRAY_MODALITY_BY_KEY, claimFor, setXrayExamRetired,
   subscribeCatalog as subscribeXrayCatalog, repeatWindowDays as xrayRepeatWindow,
 } from '@/data/xrayCatalog';
-import { CURRENT_CLINICIAN } from '@/data/treatmentAudit';
 import { NO_EDIT_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
 
-/* PHCIS | CPOE §1.5.7 (ชุดคำสั่ง) + §1.5.9 (ตั้งค่ารายการสั่งการรักษา)
-   + เกณฑ์การแจ้งเตือน CDSS ที่ §1.5.4.18–.21 บังคับให้ตั้งเองได้.
+/* PHCIS | CPOE §1.5.9 (ตั้งค่ารายการสั่งการรักษา) + เกณฑ์การแจ้งเตือน
+   CDSS ที่ §1.5.4.18–.21 บังคับให้ตั้งเองได้.
 
-   หน้าเดียว 5 แท็บ (list + create/edit ในหน้าเดียวกัน ตาม pattern
-   PharmacyRegistryPage — playbook §3). */
+   ชุด preset กลางและสิทธิ์ผู้เข้าถึงเป็นข้อมูลระดับระบบ จัดการเฉพาะที่
+   /admin/order-sets เพื่อไม่ให้สิทธิ์ของโมดูลการรักษากลายเป็นทางลัดข้าม
+   system.settings. หน้านี้จึงเหลือเฉพาะทะเบียนรายการ, CDSS และ Role. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา'];
+const breadcrumb = ['ระบบบันทึกการรักษา', 'ตั้งค่ารายการสั่งการรักษาและ CDSS'];
 
 const TABS = [
-  { key: 'sets',   label: 'ชุดคำสั่ง (Order set)' },
   { key: 'drugs',  label: 'รายการยาและเวชภัณฑ์' },
   { key: 'tests',  label: 'รายการ Lab / X-ray' },
   { key: 'cdss',   label: 'เกณฑ์การแจ้งเตือน CDSS' },
@@ -61,13 +57,6 @@ const TABS = [
 ];
 
 const PER_PAGE = 10;
-
-const SET_DESC_SUGGESTIONS = [
-  'ชุดมาตรฐานสำหรับผู้ป่วยโรคเรื้อรังที่มาตามนัดทุก 3 เดือน',
-  'ใช้กับผู้รับบริการที่มีอาการเฉียบพลันและยังแยกโรคไม่ได้',
-  'ชุดยาตามอาการสำหรับการติดเชื้อทางเดินหายใจส่วนบนที่ไม่มีข้อบ่งชี้ยาปฏิชีวนะ',
-  'ชุดติดตามหลังทำหัตถการ ใช้ร่วมกับการนัดทำแผล',
-];
 
 const baht = (n) => Number(n || 0).toLocaleString('th-TH');
 
@@ -79,67 +68,11 @@ const OrderSetSettingsPage = () => {
   const access = useTreatmentAccess();
   const canEdit = access.canEdit;
 
-  const [tab, setTab] = useState('sets');
+  const [tab, setTab] = useState('drugs');
   const [toast, setToast] = useState(null);
   const showToast = (variant, message) => setToast({ id: Date.now(), variant, message });
 
-  /* ── แท็บ 1 · ชุดคำสั่ง ─────────────────────────────────── */
-  const [sets, refreshSets] = useTreatmentStore(subscribeOrderSets, getOrderSets, []);
-  const [setDraft, setSetDraft] = useState(null);
-  const [setQuery, setSetQuery] = useState('');
-  const [setPage, setSetPage] = useState(1);
-  const [cancelSetTarget, setCancelSetTarget] = useState(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [nameError, setNameError] = useState('');
-
-  const filteredSets = useMemo(() => {
-    const q = setQuery.trim().toLowerCase();
-    if (!q) return sets;
-    return sets.filter((s) => s.name.toLowerCase().includes(q) || String(s.owner).toLowerCase().includes(q));
-  }, [sets, setQuery]);
-
-  useEffect(() => { setSetPage(1); }, [setQuery]);
-  const setsPaged = paginate(filteredSets, setPage, PER_PAGE);
-
-  const openNewSet = () => { setSetDraft({ ...blankOrderSet() }); setNameError(''); };
-  const openSet = (row) => { setSetDraft({ ...row, items: row.items.map((i) => ({ ...i })) }); setNameError(''); };
-
-  const saveSet = () => {
-    if (!String(setDraft.name || '').trim()) {
-      setNameError('ต้องตั้งชื่อชุดคำสั่งก่อนบันทึก');
-      return;
-    }
-    if ((setDraft.items || []).length === 0) {
-      setNameError('ชุดคำสั่งต้องมีอย่างน้อย 1 รายการ');
-      return;
-    }
-    const saved = upsertOrderSet(setDraft);
-    setSetDraft({ ...saved, items: saved.items.map((i) => ({ ...i })) });
-    setNameError('');
-    refreshSets();
-    showToast('success', `บันทึกชุดคำสั่ง "${saved.name}" แล้ว`);
-  };
-
-  const addSetItem = (kind) => setSetDraft((d) => ({ ...d, items: [...(d.items || []), blankOrderSetItem(kind)] }));
-  const patchSetItem = (id, patch) => setSetDraft((d) => ({
-    ...d, items: (d.items || []).map((i) => (i.id === id ? { ...i, ...patch } : i)),
-  }));
-  const removeSetItem = (id) => setSetDraft((d) => ({ ...d, items: (d.items || []).filter((i) => i.id !== id) }));
-
-  const optionsForKind = (kind) => {
-    if (kind === 'medication') {
-      return DRUG_REGISTRY.filter((d) => d.active).map((d) => ({ value: d.name, label: d.name, subtext: classificationLabel(d.classification) }));
-    }
-    if (kind === 'lab') {
-      return LAB_TESTS.filter((t) => !t.retired).map((t) => ({ value: t.id, label: `${t.nameEn} — ${t.nameTh}`, subtext: LAB_GROUP_LABEL[t.group] }));
-    }
-    if (kind === 'xray') {
-      return XRAY_EXAMS.filter((e) => !e.retired).map((e) => ({ value: e.id, label: e.name, subtext: XRAY_MODALITY_BY_KEY[e.modality]?.thai }));
-    }
-    return [];
-  };
-
-  /* ── แท็บ 2 · รายการยา ──────────────────────────────────── */
+  /* ── แท็บ 1 · รายการยา ──────────────────────────────────── */
   const [drugsTick, refreshDrugs] = useTreatmentStore(subscribeRegistry, () => Date.now(), []);
   const [drugQuery, setDrugQuery] = useState('');
   const [drugPage, setDrugPage] = useState(1);
@@ -188,7 +121,7 @@ const OrderSetSettingsPage = () => {
     showToast('success', 'บันทึกราคาใหม่พร้อมวันที่มีผลแล้ว');
   };
 
-  /* ── แท็บ 3 · Lab / X-ray ──────────────────────────────── */
+  /* ── แท็บ 2 · Lab / X-ray ──────────────────────────────── */
   const [labTick, refreshLab] = useTreatmentStore(subscribeLabCatalog, () => Date.now(), []);
   const [xrayTick, refreshXray] = useTreatmentStore(subscribeXrayCatalog, () => Date.now(), []);
   const [testKind, setTestKind] = useState('lab');
@@ -208,7 +141,7 @@ const OrderSetSettingsPage = () => {
   useEffect(() => { setTestPage(1); }, [testQuery, testKind]);
   const testsPaged = paginate(testRows, testPage, PER_PAGE);
 
-  /* ── แท็บ 4 · CDSS ─────────────────────────────────────── */
+  /* ── แท็บ 3 · CDSS ─────────────────────────────────────── */
   const [cdss, refreshCdss] = useTreatmentStore(subscribeCdssSettings, getCdssSettings, []);
   const [repeatKind, setRepeatKind] = useState('lab');
   const [repeatItem, setRepeatItem] = useState('');
@@ -226,12 +159,12 @@ const OrderSetSettingsPage = () => {
 
   if (!access.canView) {
     return (
-      <QueuePageShell activeKey='treat' breadcrumb={breadcrumb} title='ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา'>
+      <QueuePageShell activeKey='treat' breadcrumb={breadcrumb} title='ตั้งค่ารายการสั่งการรักษาและ CDSS'>
         <div style={{
           paddingTop: 'var(--dim-space-600, 24px)', paddingRight: 'var(--dim-space-600, 24px)',
           paddingBottom: 'var(--dim-space-600, 24px)', paddingLeft: 'var(--dim-space-600, 24px)',
         }}>
-          <AccessDeniedPanel what='การตั้งค่าชุดคำสั่งและรายการสั่งการรักษา' onBack={() => history.push('/treat/queue')} />
+          <AccessDeniedPanel what='การตั้งค่ารายการสั่งการรักษาและ CDSS' onBack={() => history.push('/treat/queue')} />
         </div>
       </QueuePageShell>
     );
@@ -241,19 +174,12 @@ const OrderSetSettingsPage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
-      title='ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา'
+      title='ตั้งค่ารายการสั่งการรักษาและ CDSS'
       onBack={() => history.push('/treat/queue')}
       backLabel='กลับไปหน้าคิว'
       tabs={TABS.map((t) => ({ key: t.key, label: t.label }))}
       activeTab={tab}
-      onTabChange={(k) => { setTab(k); setSetDraft(null); }}
-      actions={tab === 'sets' ? (
-        <GuardedAction allowed={canEdit}>
-          <BrandButton variant='fill' size='sm' leadingIcon='add' onClick={openNewSet}>
-            สร้างชุดคำสั่งใหม่
-          </BrandButton>
-        </GuardedAction>
-      ) : null}
+      onTabChange={setTab}
     >
       <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
 
@@ -271,314 +197,7 @@ const OrderSetSettingsPage = () => {
           </PanelAlert>
         ) : null}
 
-        {/* ══ แท็บ 1 · ชุดคำสั่ง ══════════════════════════ */}
-        {tab === 'sets' ? (
-          <>
-            <PanelCard
-              title='ชุดคำสั่งทั้งหมด'
-              subtitle='หนึ่งชุดผสมได้ทั้ง ยา + Lab + X-ray + หัตถการ ตามที่ TOR §1.5.7.1 ระบุ — ชุดที่ปิดใช้งานจะไม่ปรากฏในหน้าสั่งการรักษา'
-              action={<CountLabel n={filteredSets.length} unit='ชุด' />}
-            >
-              <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-                <PrimarySearch value={setQuery} onChange={setSetQuery} width={420} placeholder='ค้นหาชื่อชุดคำสั่ง หรือเจ้าของ' />
-                {setQuery ? (
-                  <NeutralSubdueButton variant='outline' size='sm' leadingIcon='filter_alt_off' onClick={() => setSetQuery('')}>
-                    ล้างคำค้น
-                  </NeutralSubdueButton>
-                ) : null}
-              </div>
-
-              {filteredSets.length === 0 ? (
-                <PanelEmptyState
-                  icon='playlist_add'
-                  title={sets.length === 0 ? 'ยังไม่มีชุดคำสั่งในระบบ' : `ไม่พบชุดคำสั่งที่ตรงกับ "${setQuery}"`}
-                  subtitle={sets.length === 0
-                    ? 'สร้างชุดคำสั่งแรกเพื่อให้แพทย์สั่งยา/แล็บ/รังสี/หัตถการชุดเดียวกันได้ในคลิกเดียว'
-                    : 'ลองพิมพ์คำที่สั้นลง หรือกดล้างคำค้น'}
-                  action={sets.length === 0 ? (
-                    <GuardedAction allowed={canEdit}>
-                      <BrandButton variant='outline' size='sm' leadingIcon='add' onClick={openNewSet}>
-                        สร้างชุดคำสั่งแรก
-                      </BrandButton>
-                    </GuardedAction>
-                  ) : (
-                    <NeutralSubdueButton variant='outline' size='sm' leadingIcon='backspace' onClick={() => setSetQuery('')}>
-                      ล้างคำค้น
-                    </NeutralSubdueButton>
-                  )}
-                />
-              ) : (
-                <>
-                  <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
-                    <Table
-                      rowKey={(r) => r.id}
-                      rows={setsPaged.slice}
-                      onRowClick={openSet}
-                      columns={[
-                        {
-                          key: 'name', header: 'ชื่อชุด', flex: 1,
-                          render: (r) => (
-                            <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                              <span style={PANEL_VALUE_STYLE}>{r.name}</span>
-                              <span style={PANEL_LABEL_STYLE}>{r.description || '—'}</span>
-                            </div>
-                          ),
-                        },
-                        {
-                          key: 'scope', header: 'เจ้าของ',
-                          render: (r) => (
-                            <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                              <ColorfulBadge style={orderSetScopeMeta(r.scope).badge} size='small' width='hug'>
-                                {orderSetScopeMeta(r.scope).label}
-                              </ColorfulBadge>
-                              <span style={PANEL_LABEL_STYLE}>{r.owner}</span>
-                            </div>
-                          ),
-                        },
-                        {
-                          key: 'items', header: 'จำนวนรายการแยกชนิด',
-                          render: (r) => (
-                            <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                              {ORDER_SET_ITEM_KINDS.map((k) => {
-                                const n = r.items.filter((i) => i.kind === k.key).length;
-                                if (!n) return null;
-                                return (
-                                  <ColorfulBadge key={k.key} style={k.badge} size='small' width='hug'>
-                                    {k.label} {n}
-                                  </ColorfulBadge>
-                                );
-                              })}
-                            </div>
-                          ),
-                        },
-                        {
-                          key: 'lastUsedAt', header: 'ใช้งานล่าสุด',
-                          render: (r) => (
-                            <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                              <span style={PANEL_VALUE_STYLE}>{r.lastUsedAt || '—'}</span>
-                              <span style={PANEL_LABEL_STYLE}>ใช้ไปแล้ว {r.useCount || 0} ครั้ง</span>
-                            </div>
-                          ),
-                        },
-                        {
-                          key: 'active', header: 'สถานะ',
-                          render: (r) => (
-                            <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                              <StatusBadge style={r.active ? 'success' : 'neutral'} size='small'>
-                                {r.active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
-                              </StatusBadge>
-                              <GuardedAction allowed={canEdit}>
-                                <NeutralSubdueButton
-                                  variant='outline' size='sm'
-                                  leadingIcon={r.active ? 'toggle_off' : 'toggle_on'}
-                                  onClick={() => {
-                                    if (r.active) { setCancelSetTarget(r); return; }
-                                    setOrderSetActive(r.id, true);
-                                    refreshSets();
-                                    showToast('success', `เปิดใช้งานชุดคำสั่ง "${r.name}" แล้ว`);
-                                  }}
-                                >
-                                  {r.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
-                                </NeutralSubdueButton>
-                              </GuardedAction>
-                            </div>
-                          ),
-                        },
-                      ]}
-                      emptyMessage='ยังไม่มีชุดคำสั่ง'
-                    />
-                  </div>
-                  {setsPaged.pageCount > 1 ? (
-                    <div className='flex justify-end w-full'>
-                      <Pagination currentPage={setsPaged.page} pageCount={setsPaged.pageCount} onPageChange={setSetPage} />
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </PanelCard>
-
-            {setDraft ? (
-              <PanelCard
-                title={setDraft.id ? `แก้ไขชุดคำสั่ง — ${setDraft.name}` : 'สร้างชุดคำสั่งใหม่'}
-                subtitle='กำหนดค่า default ต่อรายการได้ (ขนาด / ความถี่ / จำนวนวัน / ความเร่งด่วน) — แพทย์ยังปรับได้ตอนสั่งจริง'
-                action={
-                  <>
-                    <NeutralSubdueButton variant='outline' size='sm' leadingIcon='visibility' onClick={() => setPreviewOpen(true)}>
-                      ดูตัวอย่างก่อนบันทึก
-                    </NeutralSubdueButton>
-                    <GuardedAction allowed={canEdit}>
-                      <BrandButton variant='fill' size='sm' leadingIcon='save' onClick={saveSet}>
-                        บันทึกชุดคำสั่ง
-                      </BrandButton>
-                    </GuardedAction>
-                    <NeutralSubdueButton variant='outline' size='sm' leadingIcon='close' onClick={() => setSetDraft(null)}>
-                      ปิด
-                    </NeutralSubdueButton>
-                  </>
-                }
-              >
-                {nameError ? <PanelAlert tone='error' icon='error' title='บันทึกไม่ได้'>{nameError}</PanelAlert> : null}
-
-                <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-                  <div style={{ minWidth: 320, flex: 2 }}>
-                    <InputField
-                      label='ชื่อชุดคำสั่ง'
-                      required
-                      value={setDraft.name}
-                      onChange={(v) => setSetDraft((d) => ({ ...d, name: v }))}
-                      disabled={!canEdit}
-                      showLeadingIcon={false}
-                      placeholder='เช่น ชุดตรวจติดตามเบาหวาน'
-                      error={nameError && !String(setDraft.name).trim() ? nameError : undefined}
-                    />
-                  </div>
-                  <div style={{ minWidth: 260, flex: 1 }}>
-                    <Select
-                      label='ขอบเขตการใช้งาน'
-                      value={setDraft.scope}
-                      onChange={(v) => setSetDraft((d) => ({
-                        ...d, scope: v, owner: v === 'shared' ? CURRENT_CLINICIAN.center : CURRENT_CLINICIAN.name,
-                      }))}
-                      disabled={!canEdit}
-                      options={ORDER_SET_SCOPES.map((s) => ({ value: s.key, label: s.label }))}
-                      placeholder='เลือกขอบเขต'
-                    />
-                  </div>
-                </div>
-                <SuggestibleTextarea
-                  voice
-                  label='คำอธิบายการใช้งาน'
-                  value={setDraft.description}
-                  onChange={(e) => setSetDraft((d) => ({
-                    ...d, description: typeof e === 'string' ? e : e?.target?.value ?? '',
-                  }))}
-                  suggestions={SET_DESC_SUGGESTIONS}
-                  minChars={2}
-                  height={110}
-                  minHeight={80}
-                  disabled={!canEdit}
-                  popoverAriaLabel='ตัวอย่างคำอธิบายชุดคำสั่ง'
-                  placeholder='อธิบายว่าใช้ชุดนี้กับผู้รับบริการกลุ่มไหน'
-                />
-
-                <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                  <span style={PANEL_LABEL_STYLE}>เพิ่มรายการ:</span>
-                  {ORDER_SET_ITEM_KINDS.map((k) => (
-                    <GuardedAction key={k.key} allowed={canEdit}>
-                      <NeutralSubdueButton variant='outline' size='sm' leadingIcon='add' onClick={() => addSetItem(k.key)}>
-                        {k.label}
-                      </NeutralSubdueButton>
-                    </GuardedAction>
-                  ))}
-                </div>
-
-                {(setDraft.items || []).length === 0 ? (
-                  <PanelEmptyState
-                    icon='list_alt'
-                    title='ชุดคำสั่งนี้ยังไม่มีรายการ'
-                    subtitle='กดปุ่มด้านบนเพื่อเพิ่มยา แล็บ X-ray หรือหัตถการเข้าชุด — ผสมได้ทุกชนิดในชุดเดียว'
-                  />
-                ) : (
-                  <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
-                    <Table
-                      rowKey={(r) => r.id}
-                      rows={setDraft.items}
-                      columns={[
-                        {
-                          key: 'kind', header: 'ชนิด',
-                          render: (r) => (
-                            <ColorfulBadge style={itemKindMeta(r.kind).badge} size='small' width='hug'>
-                              {itemKindMeta(r.kind).label}
-                            </ColorfulBadge>
-                          ),
-                        },
-                        {
-                          key: 'label', header: 'รายการ', flex: 1,
-                          render: (r) => (r.kind === 'procedure' ? (
-                            <InputField
-                              value={r.label} onChange={(v) => patchSetItem(r.id, { label: v })}
-                              disabled={!canEdit} showLabel={false} showLeadingIcon={false}
-                              placeholder='ชื่อหัตถการ เช่น ทำแผลสะอาดขนาดเล็ก'
-                            />
-                          ) : (
-                            <Select
-                              value={r.kind === 'medication' ? r.label : r.refId}
-                              onChange={(v) => {
-                                const opt = optionsForKind(r.kind).find((o) => o.value === v);
-                                patchSetItem(r.id, { refId: v, label: r.kind === 'medication' ? v : (opt?.label || v) });
-                              }}
-                              disabled={!canEdit}
-                              options={optionsForKind(r.kind)}
-                              placeholder='เลือกรายการ'
-                              showLabel={false}
-                              showHelperText={false}
-                            />
-                          )),
-                        },
-                        {
-                          key: 'defaults', header: 'ค่า default',
-                          render: (r) => (r.kind === 'medication' ? (
-                            <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                              <div style={{ minWidth: 90 }}>
-                                <InputField value={r.dosePerTake} onChange={(v) => patchSetItem(r.id, { dosePerTake: v })}
-                                  disabled={!canEdit} showLabel={false} showLeadingIcon={false} placeholder='ขนาด' />
-                              </div>
-                              <div style={{ minWidth: 130 }}>
-                                <InputField value={r.frequency} onChange={(v) => patchSetItem(r.id, { frequency: v })}
-                                  disabled={!canEdit} showLabel={false} showLeadingIcon={false} placeholder='ความถี่' />
-                              </div>
-                              <div style={{ minWidth: 80 }}>
-                                <InputField value={r.days} onChange={(v) => patchSetItem(r.id, { days: v })}
-                                  disabled={!canEdit} showLabel={false} showLeadingIcon={false} placeholder='วัน' />
-                              </div>
-                            </div>
-                          ) : (
-                            <Select
-                              value={r.urgency}
-                              onChange={(v) => patchSetItem(r.id, { urgency: v })}
-                              disabled={!canEdit}
-                              options={[
-                                { value: 'routine', label: 'ปกติ' },
-                                { value: 'urgent', label: 'ด่วน' },
-                                { value: 'stat', label: 'ด่วนมาก (STAT)' },
-                              ]}
-                              placeholder='ความเร่งด่วน'
-                              showLabel={false}
-                              showHelperText={false}
-                            />
-                          )),
-                        },
-                        {
-                          key: 'note', header: 'หมายเหตุ',
-                          render: (r) => (
-                            <InputField
-                              value={r.note} onChange={(v) => patchSetItem(r.id, { note: v })}
-                              disabled={!canEdit} showLabel={false} showLeadingIcon={false}
-                              placeholder='คำแนะนำที่จะติดไปกับรายการ'
-                            />
-                          ),
-                        },
-                        {
-                          key: 'actions', header: '',
-                          render: (r) => (
-                            <GuardedAction allowed={canEdit}>
-                              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='delete' onClick={() => removeSetItem(r.id)}>
-                                ลบ
-                              </NeutralSubdueButton>
-                            </GuardedAction>
-                          ),
-                        },
-                      ]}
-                      emptyMessage='ยังไม่มีรายการในชุด'
-                    />
-                  </div>
-                )}
-              </PanelCard>
-            ) : null}
-          </>
-        ) : null}
-
-        {/* ══ แท็บ 2 · รายการยา ═══════════════════════════ */}
+        {/* ══ แท็บ 1 · รายการยาและเวชภัณฑ์ ═══════════════════ */}
         {tab === 'drugs' ? (
           <PanelCard
             title='รายการยาและเวชภัณฑ์'
@@ -853,7 +472,7 @@ const OrderSetSettingsPage = () => {
           </PanelCard>
         ) : null}
 
-        {/* ══ แท็บ 4 · CDSS ═══════════════════════════════ */}
+        {/* ══ แท็บ 3 · CDSS ═══════════════════════════════ */}
         {tab === 'cdss' ? (
           <>
             <PanelCard
@@ -978,7 +597,7 @@ const OrderSetSettingsPage = () => {
           </>
         ) : null}
 
-        {/* ══ แท็บ 5 · Role ═══════════════════════════════ */}
+        {/* ══ แท็บ 4 · Role ═══════════════════════════════ */}
         {tab === 'roles' ? (
           <PanelCard
             title='สิทธิ์การสั่งการรักษาตาม Role (อ่านอย่างเดียว)'
@@ -1008,53 +627,6 @@ const OrderSetSettingsPage = () => {
           </PanelCard>
         ) : null}
       </div>
-
-      {/* ตัวอย่างชุดคำสั่งก่อนบันทึก */}
-      <AlertDialog
-        open={previewOpen}
-        type='info'
-        title={`ตัวอย่างชุดคำสั่ง — ${setDraft?.name || '(ยังไม่ตั้งชื่อ)'}`}
-        description='นี่คือรายการที่จะถูกเพิ่มเข้าใบสั่งการรักษาเมื่อแพทย์เลือกชุดนี้'
-        confirmLabel='ปิด'
-        showCancel={false}
-        onConfirm={() => setPreviewOpen(false)}
-        onClose={() => setPreviewOpen(false)}
-      >
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {(setDraft?.items || []).length === 0 ? (
-            <span style={PANEL_LABEL_STYLE}>ยังไม่มีรายการในชุดนี้</span>
-          ) : setDraft.items.map((i) => (
-            <span key={i.id} style={PANEL_VALUE_STYLE}>
-              [{itemKindMeta(i.kind).label}] {i.label || '(ยังไม่เลือกรายการ)'}
-              {i.dosePerTake ? ` · ครั้งละ ${i.dosePerTake}` : ''}
-              {i.frequency ? ` · ${i.frequency}` : ''}
-              {i.days ? ` · ${i.days} วัน` : ''}
-              {i.note ? ` · ${i.note}` : ''}
-            </span>
-          ))}
-        </div>
-      </AlertDialog>
-
-      {/* ปิดใช้งานชุดคำสั่ง — บังคับเหตุผล */}
-      <ReasonDialog
-        open={!!cancelSetTarget}
-        type='warning'
-        title='ปิดใช้งานชุดคำสั่ง'
-        description='ชุดที่ปิดใช้งานจะไม่ปรากฏในหน้าสั่งการรักษา แต่ยังอยู่ในทะเบียนพร้อมเหตุผล เปิดกลับได้ทุกเมื่อ'
-        confirmLabel='ยืนยันการปิดใช้งาน'
-        suggestions={[
-          'แนวทางการรักษาเปลี่ยน ชุดนี้ไม่สอดคล้องกับแนวทางปัจจุบันแล้ว',
-          'มีชุดคำสั่งใหม่ที่ครอบคลุมกว่ามาแทนแล้ว',
-          'รายการยาในชุดถูกตัดออกจากบัญชีของศูนย์บริการ',
-        ]}
-        onConfirm={(reason) => {
-          cancelOrderSet(cancelSetTarget.id, reason);
-          refreshSets();
-          setCancelSetTarget(null);
-          showToast('success', 'ปิดใช้งานชุดคำสั่งแล้ว (เก็บไว้ในทะเบียนพร้อมเหตุผล)');
-        }}
-        onClose={() => setCancelSetTarget(null)}
-      />
 
       {/* ปิดรายการตรวจ — บังคับเหตุผล */}
       <ReasonDialog

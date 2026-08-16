@@ -578,13 +578,9 @@ export default function ConsentFormsPage() {
                 )}
               </div>
             </div>
-          ) : grouped.length === 0 ? (
-            <div className='w-full flex flex-col items-center justify-center' style={{ minHeight: 200 }}>
-              <span style={{ ...MUTED_CELL }}>ไม่พบแบบฟอร์มความยินยอม</span>
-            </div>
-                    </SmoothFilterResults>
-
-) : (
+            </SmoothFilterResults>
+          ) : (
+            <SmoothFilterResults opaque={resultsOpaque}>
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
               {grouped.map((g) => (
                 <GroupSection
@@ -598,6 +594,7 @@ export default function ConsentFormsPage() {
                 />
               ))}
             </div>
+            </SmoothFilterResults>
           )}
         </section>
       </div>

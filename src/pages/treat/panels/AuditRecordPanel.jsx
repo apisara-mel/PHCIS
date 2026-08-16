@@ -2,19 +2,19 @@ import React, { useMemo, useState } from 'react';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import StatusBadge from '@/components/badge/StatusBadge';
-import TabPill from '@/components/tab/TabPill';
 import Pagination from '@/components/pagination/Pagination';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import { STAFF_AVATARS } from '@/data/avatarAssets';
 import {
   PanelCard, PanelEmptyState, Sym,
   PANEL_LABEL_STYLE, PANEL_VALUE_STYLE,
 } from '@/pages/treat/panels/panelKit';
 import {
   useTreatmentAccess, useTreatmentStore, GuardedAction, AccessDeniedPanel,
-  ReasonDialog, CountLabel, paginate,
+  ReasonDialog, paginate,
 } from '@/pages/treat/panels/panelHooks';
 import {
-  AUDIT_CATEGORIES, auditCategoryMeta, subscribeTreatmentAudit,
+  auditCategoryMeta, subscribeTreatmentAudit,
   auditForVisit, markAuditErroneous, unmarkAuditErroneous,
 } from '@/data/treatmentAudit';
 
@@ -33,33 +33,31 @@ const AuditRecordPanel = ({ patient }) => {
     [hn],
   );
 
-  const [categoryFilter, setCategoryFilter] = useState([]);
   const [page, setPage] = useState(1);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [markTarget, setMarkTarget] = useState(null);
   const [unmarkTarget, setUnmarkTarget] = useState(null);
 
-  const filtered = useMemo(
-    () => audit.filter((r) => (categoryFilter.length === 0 ? true : categoryFilter.includes(r.category))),
-    [audit, categoryFilter],
-  );
+  const filtered = audit;
 
   const { pageCount, page: safePage, slice } = paginate(filtered, page, PER_PAGE);
+  const sortedSlice = useMemo(() => {
+    if (!sortConfig.key) return slice;
+    const sign = sortConfig.direction === 'desc' ? -1 : 1;
+    return slice.slice().sort((a, b) => sign * String(a[sortConfig.key] ?? '').localeCompare(String(b[sortConfig.key] ?? ''), 'th'));
+  }, [slice, sortConfig]);
 
-  const toggleCategory = (key) => {
-    setCategoryFilter((f) => (f.includes(key) ? f.filter((k) => k !== key) : [...f, key]));
-    setPage(1);
-  };
 
   const columns = [
     {
-      key: 'category', header: 'หมวด',
+      key: 'category', header: 'หมวด', sortable: true,
       render: (row) => {
         const meta = auditCategoryMeta(row.category);
         return <ColorfulBadge style={meta.tone} size='small' width='hug'>{meta.label}</ColorfulBadge>;
       },
     },
     {
-      key: 'field', header: 'รายการที่เปลี่ยน', flex: 1,
+      key: 'field', header: 'รายการที่เปลี่ยน', sortable: true, flex: 1,
       render: (row) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={PANEL_VALUE_STYLE}>{row.field}</span>
@@ -71,8 +69,8 @@ const AuditRecordPanel = ({ patient }) => {
         </div>
       ),
     },
-    { key: 'by', header: 'ผู้บันทึก' },
-    { key: 'recordedAt', header: 'เวลาที่บันทึก' },
+    { key: 'by', header: 'ผู้บันทึก', sortable: true, render: (row) => <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}><img src={row.byAvatarUrl || STAFF_AVATARS[0]} alt='' aria-hidden className='shrink-0 object-cover' style={{ width: 'var(--dim-size-500)', height: 'var(--dim-size-500)', borderRadius: 'var(--dim-radius-full)' }} /><span style={PANEL_VALUE_STYLE}>{row.by}</span></div> },
+    { key: 'recordedAt', header: 'เวลาที่บันทึก', sortable: true },
     {
       key: 'amendedAt', header: 'เวลาที่แก้ไข',
       render: (row) => (row.amendedAt
@@ -112,42 +110,18 @@ const AuditRecordPanel = ({ patient }) => {
   return (
     <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
       <PanelCard
-        title='ประวัติการบันทึกและแก้ไข (Audit Trail)'
-        subtitle='บันทึกครบ 4 เวลาตามข้อกำหนด — ผู้บันทึก · เวลาที่บันทึก · เวลาที่แก้ไข · เวลาที่ระบุว่าลงข้อมูลผิด'
-        action={<CountLabel n={filtered.length} />}
+        style={{ border: 'none', padding: 'var(--dim-space-0)' }}
       >
-        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <TabPill selected={categoryFilter.length === 0} onClick={() => { setCategoryFilter([]); setPage(1); }}>
-            ทุกหมวด
-          </TabPill>
-          {AUDIT_CATEGORIES.map((c) => (
-            <TabPill key={c.key} selected={categoryFilter.includes(c.key)} onClick={() => toggleCategory(c.key)}>
-              {c.label}
-            </TabPill>
-          ))}
-        </div>
-
         {audit.length === 0 ? (
           <PanelEmptyState
             icon='history'
             title='ยังไม่มีประวัติการบันทึกของผู้รับบริการรายนี้'
             subtitle='ทุกการบันทึก แก้ไข และยกเลิกจะปรากฏที่นี่ทันทีภายในรอบการทำงานเดียวกัน'
           />
-        ) : filtered.length === 0 ? (
-          <PanelEmptyState
-            icon='filter_alt_off'
-            title='ไม่พบรายการในหมวดที่เลือก'
-            subtitle={`มีประวัติทั้งหมด ${audit.length} รายการในหมวดอื่น — เลือก "ทุกหมวด" เพื่อดูทั้งหมด`}
-            action={
-              <NeutralSubdueButton variant='outline' size='sm' onClick={() => setCategoryFilter([])}>
-                แสดงทุกหมวด
-              </NeutralSubdueButton>
-            }
-          />
         ) : (
           <>
             <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
-              <Table columns={columns} rows={slice} rowKey={(r) => r.id} />
+              <Table columns={columns} rows={sortedSlice} rowKey={(r) => r.id} sortConfig={sortConfig} onSort={(key) => setSortConfig((p) => (p.key === key ? { key, direction: p.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' }))} />
             </div>
             {pageCount > 1 ? (
               <div className='flex justify-end w-full'>

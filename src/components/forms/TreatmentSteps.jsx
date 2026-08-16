@@ -2359,6 +2359,28 @@ const ORDER_TABLE_TEXT = {
    แล้วเสริม panel ต่อท้าย จึงไม่อยู่ในชุดนี้. */
 const CPOE_PANEL_CATEGORIES = new Set(['medicalSupply', 'lab', 'procedure', 'consult']);
 
+const normalizeTreatmentOrderIdentity = (value) => String(value || '')
+  .toLocaleLowerCase('th-TH')
+  .replace(/\s+/g, '')
+  .replace(/[()\-–—]/g, '');
+
+const pickerTreatmentOrderKey = (item = {}) => {
+  const source = item.source || {};
+  if (item.category === 'medication' || item.category === 'medicalSupply') {
+    return `${item.category}:${normalizeTreatmentOrderIdentity(item.name)}`;
+  }
+  if (item.category === 'lab' || item.category === 'xray') {
+    return `${item.category}:${source.id || item.name}`;
+  }
+  if (item.category === 'procedure') {
+    return `procedure:${source.code || normalizeTreatmentOrderIdentity(item.name)}`;
+  }
+  if (item.category === 'consult') {
+    return `consult:${source.key || normalizeTreatmentOrderIdentity(item.name)}`;
+  }
+  return `${item.category || 'unknown'}:${normalizeTreatmentOrderIdentity(item.name)}`;
+};
+
 /* `onStepChange` / `stepIndexes` ถูกส่งมาจาก TreatmentFormPage อยู่แล้ว —
    รับไว้เพื่อให้สัญญาณ §1.5.4.15 มีปุ่ม "ไปแนบเอกสาร" ที่กระโดดไปขั้นเอกสาร
    ได้จริง. ผู้เรียกที่ไม่มีขั้นเอกสาร (ไม่ส่ง stepIndexes) จะไม่เห็นปุ่มนี้ */
@@ -2397,10 +2419,35 @@ export const Step5Orders = ({
     ];
   }, [patient?.drugAllergies]);
   const commitPickedOrders = (picked) => {
-    if (!picked?.length) return;
+    if (!picked?.length) return false;
+
+    /* One semantic order may enter with different UI ids (manual list vs
+       preset). De-duplicate both within this batch and against active rows. */
+    const batchKeys = new Set();
+    const uniquePicked = picked.filter((item) => {
+      const key = pickerTreatmentOrderKey(item);
+      if (batchKeys.has(key)) return false;
+      batchKeys.add(key);
+      return true;
+    });
+    const existingKeys = new Set([
+      ...(form.medications || []).filter((row) => !row.cancelledAt)
+        .map((row) => `medication:${normalizeTreatmentOrderIdentity(row.name)}`),
+      ...(form.medicalSupplies || []).filter((row) => !row.cancelledAt)
+        .map((row) => `medicalSupply:${normalizeTreatmentOrderIdentity(row.name)}`),
+      ...(form.labs || []).filter((row) => !row.cancelledAt).map((row) => `lab:${row.testId}`),
+      ...(form.xrayOrders || []).map((row) => `xray:${row.examId}`),
+      ...(form.procedureOrders || []).filter((row) => !row.cancelledAt)
+        .map((row) => `procedure:${row.code || normalizeTreatmentOrderIdentity(row.name)}`),
+      ...(form.consultOrders || []).filter((row) => !row.cancelledAt && row.status !== 'cancelled')
+        .map((row) => `consult:${row.toClinic}`),
+    ]);
+    const pending = uniquePicked.filter((item) => !existingKeys.has(pickerTreatmentOrderKey(item)));
     const now = Date.now();
-    const pickedConsults = picked.filter((item) => item.category === 'consult').map((item) => {
+
+    const pickedConsults = pending.filter((item) => item.category === 'consult').map((item) => {
       const clinic = item.source;
+      const defaults = item.presetDefaults || {};
       const doctor = doctorsForClinic(clinic.key).find((candidate) => candidate.onDuty);
       return saveConsult({
         ...blankConsult(), hn: patient?.hn || '', cid: patient?.cid || patient?.nationalId || '',
@@ -2409,62 +2456,115 @@ export const Step5Orders = ({
         visitId: form?.visitId || 'v-current', toClinic: clinic.key, toDoctor: doctor?.key || '',
         provisionalDx: (form?.diagnoses || []).map((d) => `${d.code || ''} ${d.name || ''}`.trim()).join(' · '),
         provisionalDxAutoFilled: (form?.diagnoses?.length || 0) > 0,
-        question: `ขอปรึกษา${clinic.short || clinic.label}`, urgency: 'routine', consultType: 'general',
-        confidential: !!clinic.confidential,
+        question: `ขอปรึกษา${clinic.short || clinic.label}`,
+        urgency: defaults.urgency || 'routine', consultType: 'general',
+        confidential: !!clinic.confidential, note: defaults.note || '',
+        quantity: Number(defaults.quantity || 1), unit: defaults.unit || 'คำขอ',
+        days: defaults.days || '', dosePerTake: defaults.dosePerTake || '',
+        frequency: defaults.frequency || '', presetDefaults: defaults,
       });
     });
     let blockedXray = null;
-    const pickedXrays = picked.filter((item) => {
-      if (item.category !== 'xray' || (form.xrayOrders || []).some((row) => row.examId === item.source.id)) return false;
+    const pickedXrays = pending.filter((item) => {
+      if (item.category !== 'xray') return false;
       const warning = duplicateWarning(item.source.id, xrayHistory);
       if (warning?.level === 'block') { blockedXray = { examId: item.source.id, warning }; return false; }
       return true;
     });
     if (blockedXray) setXrayBlockNotice(blockedXray);
+
     setForm((current) => ({
       ...current,
       medications: [
         ...(current.medications || []),
-        ...picked.filter((item) => item.category === 'medication').map((item, index) => ({
-          id: `med-${now}-${index}`, image: resolveMedicationImage(item.name, item.source?.image),
-          name: item.name, orderStatus: 'continue', usage: item.source?.usage || 'รับประทาน (Oral)',
-          dosePerTake: item.source?.dosePerTake || '1', unit: item.source?.unit || item.unit || 'เม็ด',
-          frequency: item.source?.frequency || 'วันละ 1 ครั้ง', when: item.source?.when || 'หลังอาหาร',
-          warning: item.source?.warning || '', quantity: item.source?.quantity ?? 1, totalPrice: item.source?.totalPrice ?? 0,
-          reimbursable: !!item.source?.reimbursable, purpose: item.source?.purpose || '',
-          approve: false, consult: false, stat: false, print: false, editor: 'พญ.สมหญิง',
-        })),
+        ...pending.filter((item) => item.category === 'medication').map((item, index) => {
+          const source = item.source || {};
+          const defaults = item.presetDefaults || {};
+          const quantity = Number(defaults.quantity ?? source.quantity ?? 1);
+          const unit = defaults.unit || source.unit || item.unit || 'เม็ด';
+          const dosePerTake = defaults.dosePerTake || source.dosePerTake || '1';
+          const frequency = defaults.frequency || source.frequency || 'วันละ 1 ครั้ง';
+          const when = defaults.when || source.when || 'หลังอาหาร';
+          const presetUsage = defaults.dosePerTake || defaults.frequency || defaults.days
+            ? `รับประทานครั้งละ ${dosePerTake} ${unit} ${frequency}${when ? ` ${when}` : ''}${defaults.days ? ` เป็นเวลา ${defaults.days} วัน` : ''}`
+            : '';
+          const unitPrice = Number(source.unitPrice || 0);
+          return {
+            id: `med-${now}-${index}`, registryId: source.registryId || '',
+            image: resolveMedicationImage(item.name, source.image), name: item.name,
+            orderStatus: 'continue', usage: presetUsage || source.usage || 'รับประทาน (Oral)',
+            dosePerTake, unit, frequency, when,
+            warning: source.warning || '', quantity,
+            totalPrice: unitPrice ? unitPrice * quantity : (source.totalPrice ?? 0),
+            reimbursable: !!source.reimbursable, purpose: source.purpose || '',
+            days: defaults.days || '', urgency: defaults.urgency || 'routine', note: defaults.note || '',
+            sigDetail: defaults.days ? { durationDays: defaults.days, doseAmount: dosePerTake } : undefined,
+            presetDefaults: defaults,
+            approve: false, consult: false, stat: defaults.urgency === 'stat', print: false, editor: 'พญ.สมหญิง',
+          };
+        }),
       ],
       medicalSupplies: [
         ...(current.medicalSupplies || []),
-        ...picked.filter((item) => item.category === 'medicalSupply').map((item, index) => ({
-          id: `supply-${now}-${index}`, itemType: 'non_drug_supply', name: item.name,
-          unit: item.unit, quantity: 1, orderStatus: 'continue',
-        })),
+        ...pending.filter((item) => item.category === 'medicalSupply').map((item, index) => {
+          const defaults = item.presetDefaults || {};
+          return {
+            id: `supply-${now}-${index}`, itemType: 'non_drug_supply', name: item.name,
+            unit: defaults.unit || item.unit || 'ชิ้น', quantity: Number(defaults.quantity || 1),
+            orderStatus: 'continue', urgency: defaults.urgency || 'routine', note: defaults.note || '',
+            days: defaults.days || '', dosePerTake: defaults.dosePerTake || '',
+            frequency: defaults.frequency || '', presetDefaults: defaults,
+          };
+        }),
       ],
       labs: [
         ...(current.labs || []),
-        ...picked.filter((item) => item.category === 'lab' && !(current.labs || []).some((row) => row.testId === item.source.id && !row.cancelledAt)).map((item, index) => ({
-          id: `lab-${item.source.id}-${now}-${index}`, testId: item.source.id, urgency: 'routine', note: '',
-          duplicateWarned: false, duplicateReason: '', cancelledAt: '', cancelReason: '',
-        })),
+        ...pending.filter((item) => item.category === 'lab').map((item, index) => {
+          const defaults = item.presetDefaults || {};
+          return {
+            id: `lab-${item.source.id}-${now}-${index}`, testId: item.source.id,
+            urgency: defaults.urgency || 'routine', note: defaults.note || '',
+            quantity: Number(defaults.quantity || 1), unit: defaults.unit || 'ครั้ง',
+            days: defaults.days || '', dosePerTake: defaults.dosePerTake || '',
+            frequency: defaults.frequency || '', presetDefaults: defaults,
+            duplicateWarned: false, duplicateReason: '', cancelledAt: '', cancelReason: '',
+          };
+        }),
       ],
       xrayOrders: [
         ...(current.xrayOrders || []),
-        ...pickedXrays.map((item) => ({ examId: item.source.id, view: item.source.views?.[0] || '', urgency: 'routine' })),
+        ...pickedXrays.map((item) => {
+          const defaults = item.presetDefaults || {};
+          return {
+            examId: item.source.id, view: item.source.views?.[0] || '',
+            urgency: defaults.urgency || 'routine', note: defaults.note || '',
+            quantity: Number(defaults.quantity || 1), unit: defaults.unit || 'ครั้ง',
+            days: defaults.days || '', dosePerTake: defaults.dosePerTake || '',
+            frequency: defaults.frequency || '', presetDefaults: defaults,
+          };
+        }),
       ],
       procedureOrders: [
         ...(current.procedureOrders || []),
-        ...picked.filter((item) => item.category === 'procedure').map((item, index) => ({
-          id: `proc-${now}-${index}`, code: item.source.code, name: item.source.nameTh, uncoded: false,
-          startDate: new Date().toISOString().slice(0, 10), startTime: '', endDate: '', endTime: '', site: '',
-          qty: 1, unit: item.source.unit, unitPrice: item.source.price, claimPerUnit: item.source.claim,
-          performer: 'somying', detail: '', otherActivity: '', cancelledAt: '', cancelReason: '',
-        })),
+        ...pending.filter((item) => item.category === 'procedure').map((item, index) => {
+          const defaults = item.presetDefaults || {};
+          return {
+            id: `proc-${now}-${index}`, code: item.source.code, name: item.source.nameTh,
+            uncoded: !item.source.code,
+            startDate: new Date().toISOString().slice(0, 10), startTime: '', endDate: '', endTime: '', site: '',
+            qty: Number(defaults.quantity || 1), unit: defaults.unit || item.source.unit,
+            unitPrice: item.source.price, claimPerUnit: item.source.claim,
+            performer: 'somying', detail: defaults.note || '', note: defaults.note || '',
+            urgency: defaults.urgency || 'routine', days: defaults.days || '',
+            dosePerTake: defaults.dosePerTake || '', frequency: defaults.frequency || '',
+            presetDefaults: defaults, otherActivity: '', cancelledAt: '', cancelReason: '',
+          };
+        }),
       ],
       consultOrders: [...(current.consultOrders || []), ...pickedConsults],
-      orderCategory: picked[0]?.category || current.orderCategory,
+      orderCategory: pending[0]?.category || current.orderCategory,
     }));
+    return true;
   };
 
   /* Re-Medicine popup state (Figma PHCIS|CPOE 200:23111). Opens from

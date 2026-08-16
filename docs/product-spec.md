@@ -10,8 +10,10 @@ The codebase is a [Vite](../vite.config.mjs) + React 17 SPA. Routing is
 React Query) — the page that owns a flow also owns its `form` state object
 and threads it through step bodies via `{ form, setForm }`. Mock data lives
 in [src/data/](../src/data/) and is imported synchronously; there is no API
-client. Persistence is opportunistic: only the OPD draft list is kept in
-`sessionStorage` ([opdScreeningDrafts.js](../src/data/opdScreeningDrafts.js)).
+client. Persistence is opportunistic: OPD drafts use `sessionStorage`
+([opdScreeningDrafts.js](../src/data/opdScreeningDrafts.js)); system-managed
+treatment order sets use versioned `localStorage`
+([treatmentOrderSets.js](../src/data/treatmentOrderSets.js)).
 
 ---
 
@@ -75,6 +77,7 @@ Source of truth: [src/routes/Routes.jsx](../src/routes/Routes.jsx).
 | `/registration/register` | [RegistrationFormPage](../src/pages/registration/RegistrationFormPage.jsx) | 5-step ลงทะเบียน form (chip read) |
 | `/treat`, `/treat/queue` | [TreatmentQueuePage](../src/pages/treat/TreatmentQueuePage.jsx) | คิวตรวจรักษา (OPD CPOE) |
 | `/treat/record` | [TreatmentFormPage](../src/pages/treat/TreatmentFormPage.jsx) | 7-step บันทึกการรักษา |
+| `/admin/order-sets` | [SystemOrderSetsPage](../src/pages/system/SystemOrderSetsPage.jsx) | Admin registry for reusable treatment order sets, classification, and access |
 | `/forms` | [FormsLibraryPage](../src/pages/forms/FormsLibraryPage.jsx) | คลังแบบฟอร์ม hub |
 | `/forms/category/:categoryKey` | [FormsCategoryPage](../src/pages/forms/FormsCategoryPage.jsx) | Category drill-down with cards + pagination |
 | `/forms/:slug` | [FormDetailPage](../src/pages/forms/FormDetailPage.jsx) | Form detail + field-preview list + QR target |
@@ -583,7 +586,7 @@ Step bodies: [TreatmentSteps.jsx](../src/components/forms/TreatmentSteps.jsx) (~
 | 2 | หน้าจอคัดกรอง | read-only | Screening summary card — vitals, CC, triage, mobility, pain, orders from upstream nurse |
 | 3 | ตรวจร่างกาย | write | [BodyDrawingCanvas](../src/components/examination/BodyDrawingCanvas.jsx) + [BodyDiagramPanel](../src/components/examination/BodyDiagramPanel.jsx); nurse + doctor exam notes; attachments |
 | 4 | บันทึกแพทย์ | write | [AISearch (Doctor AI)](../src/components/search/AISearch.jsx) for ICD-10; diagnoses table + SuggestibleTextarea for diagnosis + doctor order; ordering doctor |
-| 5 | สั่งการรักษา | write | Category tabs (medication / lab / xray / procedure / consult); [AddMedicationPopup](../src/components/popup/AddMedicationPopup.jsx); FrequentOrdersCard chips; cross-class allergy alert panel |
+| 5 | สั่งการรักษา | write | [TreatmentOrderPickerPopup](../src/components/popup/TreatmentOrderPickerPopup.jsx) for one-time multi-select across medication / non-drug supply / lab / xray / procedure / consult; authorized Admin Order Sets + clinician personal sets; allergy confirmation before adding |
 | 6 | นัดหมาย | write | Mode radio (skip / schedule); ApptCollapse animation; clinic / type / doctor / reason / preparation; advance-orders; location (onsite / telemedicine); date + APPT_TIMESLOTS grid |
 | 7 | ใบรับรองแพทย์ | write | Issue radio (รับ / ไม่รับ); cert type; rest-days pills; FormBuilder signature canvas; signer |
 
@@ -623,7 +626,7 @@ From [`getTreatmentCompletedSteps`](../src/data/treatmentVisits.js):
   icdQuery,
 
   // Step 5 orders
-  orderCategory, medications, labs, xrayOrders, procedureOrders, consultOrders,
+  orderCategory, medications, medicalSupplies, labs, xrayOrders, procedureOrders, consultOrders,
   showAllergyAlert,
 
   // Step 6 appointment
@@ -668,9 +671,10 @@ From [`getTreatmentCompletedSteps`](../src/data/treatmentVisits.js):
 
 #### Step 5 — order category tabs
 
-- `form.orderCategory` is the active tab (`'medication' | 'lab' | 'xray' | 'procedure' | 'consult'`).
-- Each category has its own array (`form.medications`, `form.labs`, etc.) — switching the tab does NOT reset, so the user can build orders across categories.
-- Empty-state branch hides `<showAllergyAlert />` cross-class warning panel; populated-state shows it (dismissible — `setForm(s => ({ ...s, showAllergyAlert: false }))`).
+- The first paint is an empty state. “เพิ่มรายการ” opens `TreatmentOrderPickerPopup`, where the clinician can search, filter, select several rows across categories, or select an Order Set and add once.
+- `form.orderCategory` is the active list tab (`'medication' | 'medicalSupply' | 'lab' | 'xray' | 'procedure' | 'consult'`). Each category owns its own array and switching tabs does not reset the other orders.
+- Admin sets are resolved through `orderSetsForActor(currentActor)`: only active sets whose `access` matches the current user's explicit ID, role, or department are shown. Personal sets created by the clinician remain owner-only.
+- Selecting medication reuses the patient allergy matcher. If any selected medication matches the patient's allergy history, the allergy popup lists only the offending drugs and requires confirmation before the batch is added.
 
 #### Step 6 — appointment mode state machine
 
@@ -847,6 +851,20 @@ There is **no persistence** for fills — `useState` on FormFillPage owns the en
 #### Status toggle
 
 `user.status ∈ {'active', 'inactive'}`. Inactive users render greyed in the list and are filtered out of role-based permission resolution at runtime (intended; not yet enforced in mocks).
+
+### 9.2 System-managed treatment order sets
+
+**Route:** `/admin/order-sets` → [SystemOrderSetsPage](../src/pages/system/SystemOrderSetsPage.jsx). The legacy `/treat/order-sets` URL remains the Treatment registry/CDSS/role-settings screen; shared presets are managed in System Management.
+
+**Admin flow:** search/filter the registry → create or edit in an extra-large popup → enter one combined set/condition name → create or select a custom Group → add one or more orders → set access → save. A set can mix medication, non-drug medical supplies, lab, X-ray, procedure, consult, and free-text “other” orders. Medication defaults include dispensing quantity/unit, dose per take, frequency, days, and notes.
+
+**Medication defaults:** the Pharmacy Registry stores stable, non-patient-specific administration defaults (route, dose per take, frequency, timing, optional duration, and general note). An Order Set may override those values for its clinical context; when a preset omits an override, CPOE falls back to the registry defaults and the doctor confirms the final instruction before signing.
+
+**Access:** `access.mode` is either `all` or `restricted`. Restricted access accepts role keys, department keys, and user IDs; matching is OR across those lists. The creator retains access. Inactive sets never appear in the CPOE picker.
+
+The Admin editor requires `system.settings` view access to open and `system.settings` edit access to create, edit, or enable/disable a set. The current prototype resolves the active session user by stable ID; production should add center-scoped authorization in the clinical configuration API.
+
+**Persistence:** [treatmentOrderSets.js](../src/data/treatmentOrderSets.js) stores deep-cloned, versioned records under `mih:treatment-order-sets:v2`, migrates legacy personal/shared rows, publishes same-tab updates to subscribers, and records create/update/status/use audit events. Production should replace the browser store with the clinical configuration API while preserving this schema.
 
 ---
 

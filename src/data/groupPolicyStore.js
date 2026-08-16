@@ -16,10 +16,22 @@ export const DEMO_GROUP_POLICIES = [
     subBranches: [
       { id: 'sb-gp',     name: 'แพทย์เวชปฏิบัติทั่วไป', active: true, order: 1 },
       { id: 'sb-family', name: 'แพทย์เวชศาสตร์ครอบครัว', active: true, order: 2 },
-      { id: 'sb-obgyn',  name: 'สูตินรีเวช', active: true, order: 3 },
-      { id: 'sb-psy',    name: 'จิตแพทย์', active: true, order: 4 },
-      { id: 'sb-dent',   name: 'ทันตแพทย์', active: true, order: 5 },
-      { id: 'sb-thai',   name: 'แพทย์แผนไทย', active: true, order: 6 },
+      { id: 'sb-internal', name: 'อายุรแพทย์', active: true, order: 3 },
+      { id: 'sb-surgery', name: 'ศัลยแพทย์', active: true, order: 4 },
+      { id: 'sb-pediatrics', name: 'กุมารแพทย์', active: true, order: 5 },
+      { id: 'sb-obgyn',  name: 'สูติ-นรีแพทย์', active: true, order: 6 },
+      { id: 'sb-eye', name: 'จักษุแพทย์', active: true, order: 7 },
+      { id: 'sb-ent', name: 'โสต ศอ นาสิกแพทย์', active: true, order: 8 },
+      { id: 'sb-ortho', name: 'ออร์โธปิดิกส์', active: true, order: 9 },
+      { id: 'sb-psy',    name: 'จิตแพทย์', active: true, order: 10 },
+      { id: 'sb-er-doctor', name: 'แพทย์ฉุกเฉิน', active: true, order: 11 },
+      { id: 'sb-anes', name: 'วิสัญญีแพทย์', active: true, order: 12 },
+      { id: 'sb-derma', name: 'แพทย์ผิวหนัง', active: true, order: 13 },
+      { id: 'sb-neuro-surg', name: 'ประสาทศัลยแพทย์', active: true, order: 14 },
+      { id: 'sb-rehab-doctor', name: 'แพทย์เวชศาสตร์ฟื้นฟู', active: true, order: 15 },
+      { id: 'sb-radiologist', name: 'รังสีแพทย์', active: true, order: 16 },
+      { id: 'sb-dent',   name: 'ทันตแพทย์', active: true, order: 17 },
+      { id: 'sb-thai',   name: 'แพทย์แผนไทย', active: true, order: 18 },
     ],
   },
   {
@@ -102,6 +114,22 @@ export const DEMO_GROUP_POLICIES = [
   },
 ];
 
+/* นโยบายเดิมที่เคยบันทึกไว้ใน browser อาจยังมีชื่อ “แพทย์เฉพาะทาง”
+   จึง normalize ตอนอ่าน เพื่อให้ตัวเลือกในหน้าแก้ไขเป็นชุดสาขาแพทย์ที่ละเอียด
+   แม้ผู้ใช้จะเปิดระบบจากข้อมูล localStorage รุ่นก่อนก็ตาม */
+function normalizeGroupPolicies(policies) {
+  const doctorSeed = DEMO_GROUP_POLICIES.find((policy) => policy.id === 'gp-doctor');
+  return policies.map((policy) => {
+    if (policy.id !== 'gp-doctor' || !doctorSeed) return policy;
+    const current = (policy.subBranches || []).filter((branch) => branch.name !== 'แพทย์เฉพาะทาง');
+    const names = new Set(current.map((branch) => branch.name));
+    const additions = doctorSeed.subBranches
+      .filter((branch) => !names.has(branch.name))
+      .map((branch) => ({ ...branch, order: current.length + 1 }));
+    return { ...policy, subBranches: [...current, ...additions].map((branch, index) => ({ ...branch, order: index + 1 })) };
+  });
+}
+
 /** ทะเบียนว่าง (เบราว์เซอร์ใหม่ / ยังไม่เคยตั้งค่า) ให้คืนชุดตั้งต้นแทน
     ไม่งั้น dropdown "Group Policy" ตอนผูกสิทธิและเพิ่มบุคลากรจะว่างเปล่า
     จนใช้งานไม่ได้เลย. เขียนทับได้ทันทีที่ผู้ใช้แก้ในหน้า Group Policy. */
@@ -110,7 +138,7 @@ export function readGroupPolicies() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw == null) return DEMO_GROUP_POLICIES;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length ? parsed : DEMO_GROUP_POLICIES;
+    return Array.isArray(parsed) && parsed.length ? normalizeGroupPolicies(parsed) : DEMO_GROUP_POLICIES;
   } catch {
     return DEMO_GROUP_POLICIES;
   }

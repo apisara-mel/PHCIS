@@ -1,3 +1,5 @@
+import { STAFF_AVATARS } from '@/data/avatarAssets';
+
 /* ระบบประวัติการใช้งาน (Audit / Activity log) — shared mock data across the
    audit overview + log pages. Moved out of จัดการระบบ (SystemActivityPage)
    so the activity history is its own top-level system (Figma 0EDfjwf1 · 12:1624).
@@ -38,7 +40,28 @@ const SEED_LOG = [
 ];
 
 /** Live history log (newest first). Mutated in place so importers of `LOG` stay in sync. */
-export const LOG = SEED_LOG.map((row) => ({ ...row }));
+const MOCK_LOG_ACTIONS = ['เปิดดูข้อมูล', 'บันทึกการตรวจ', 'แก้ไขข้อมูล', 'เข้าสู่ระบบ', 'ส่งออกรายงาน'];
+const MOCK_LOG_MODULES = ['OPD / ตรวจรักษา', 'เวชระเบียน / ลงทะเบียน', 'ห้องยา', 'ห้องปฏิบัติการ', 'รายงาน / สถิติ'];
+const MOCK_LOG_USERS = ['นพ.กิตติ สุขใจ', 'พว.ณัฐชา แสงทอง', 'ภก.ปรีชา วัฒนกุล', 'น.ส.ชลธิชา บุญมี', 'นายธนกร ศรีสวัสดิ์'];
+const MOCK_LOG_TARGETS = ['ผู้รับบริการ HN 67-00001', 'ผู้รับบริการ HN 67-00002', 'คำสั่งยา Amoxicillin 500 mg', 'ผลตรวจ CBC · HN 67-00003', 'รายงานสรุปการให้บริการ'];
+const MOCK_LOG_DETAILS = ['เปิดดูข้อมูลผู้รับบริการ', 'บันทึกข้อมูลการตรวจรักษา', 'แก้ไขรายการยาและวิธีใช้', 'ส่งออกข้อมูลเพื่อจัดทำรายงาน', 'ปรับปรุงข้อมูลเวชระเบียน'];
+const MOCK_LOG_POLICIES = ['แพทย์เวชปฏิบัติทั่วไป', 'พยาบาลผู้ป่วยนอก', 'เภสัชกรจ่ายยา', 'เจ้าหน้าที่เวชระเบียน', 'ผู้ดูแลระบบ'];
+const MOCK_LOG_POSITIONS = ['แพทย์', 'พยาบาลวิชาชีพ', 'เภสัชกร', 'เจ้าหน้าที่เวชระเบียน', 'ผู้ดูแลระบบ'];
+const MOCK_LOG_ROWS = Array.from({ length: 91 }, (_, i) => ({
+  time: `${String((i % 28) + 1).padStart(2, '0')} มิ.ย. 2569 ${String(8 + (i % 10)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}:00`,
+  startedAt: `${String(8 + (i % 10)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}`,
+  endedAt: `${String(8 + (i % 10) + (i % 2)).padStart(2, '0')}:${String(((i * 7) + 12 + (i % 40)) % 60).padStart(2, '0')}`,
+  user: MOCK_LOG_USERS[i % MOCK_LOG_USERS.length],
+  action: MOCK_LOG_ACTIONS[i % MOCK_LOG_ACTIONS.length],
+  mod: MOCK_LOG_MODULES[i % MOCK_LOG_MODULES.length],
+  target: MOCK_LOG_TARGETS[i % MOCK_LOG_TARGETS.length],
+  detail: MOCK_LOG_DETAILS[i % MOCK_LOG_DETAILS.length],
+  groupPolicy: MOCK_LOG_POLICIES[i % MOCK_LOG_POLICIES.length],
+  position: MOCK_LOG_POSITIONS[i % MOCK_LOG_POSITIONS.length],
+  ok: i % 13 !== 0,
+  avatarUrl: STAFF_AVATARS[i % STAFF_AVATARS.length],
+}));
+export const LOG = [...SEED_LOG, ...MOCK_LOG_ROWS].map((row, i) => ({ ...row, avatarUrl: row.avatarUrl || STAFF_AVATARS[i % STAFF_AVATARS.length] }));
 const listeners = new Set();
 
 const pad2 = (n) => String(n).padStart(2, '0');

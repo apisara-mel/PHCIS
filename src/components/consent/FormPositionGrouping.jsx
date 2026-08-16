@@ -23,7 +23,7 @@ const PANEL = {
   padding: 'var(--dim-space-400)',
   borderRadius: 'var(--dim-radius-200, 8px)',
   border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-  background: 'var(--surface-card-100, #FFFFFF)',
+  background: 'var(--surface-card-200, #FDFDFD)',
 };
 
 function splitIntoColumns(items, columnCount = 2) {

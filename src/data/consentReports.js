@@ -341,7 +341,7 @@ const buildConsentStatsReport = (records) => {
     donut: [
       { label: 'ยินยอม', value: consentTotal, tone: 'positive' },
       { label: 'ปฏิเสธ / ถอน', value: rejectTotal, tone: 'danger' },
-    ].filter((s) => s.value > 0),
+    ],
     bars: [
       { name: 'ยินยอม', tone: 'positive', base: consentBars },
       { name: 'ไม่ยินยอม', tone: 'danger', base: rejectBars },
@@ -356,7 +356,8 @@ const buildConsentStatsReport = (records) => {
     table: {
       columns: [
         { key: 'hn', header: 'HN', width: 120 },
-        { key: 'status', header: 'สถานะ', width: 160, kind: 'status' },
+        { key: 'outcome', header: 'ผลลัพธ์การให้ความยินยอม', width: 220, kind: 'status' },
+        { key: 'status', header: 'สถานะเอกสาร', width: 160, kind: 'status' },
         { key: 'date', header: 'วันที่สร้าง', width: 170 },
       ],
       /* เฉพาะผลตัดสินแล้ว — สอดคล้อง pie ให้ความยินยอม / ไม่ให้ความยินยอม */
@@ -364,7 +365,8 @@ const buildConsentStatsReport = (records) => {
         .filter((r) => isConsentedOutcome(r) || isRejectedOutcome(r))
         .map((r) => ({
           hn: r.hn,
-          status: reportStatusOf(r),
+          outcome: reportStatusOf(r),
+          status: r.status,
           date: r.createdDate,
           _iso: toIso(r.createdDate),
         })),

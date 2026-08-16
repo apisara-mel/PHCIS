@@ -150,6 +150,7 @@ const TabUnderline = React.forwardRef(function TabUnderline(
     value,
     onChange,
     animated = true,
+    disableOverflow = false,
     /* When true, height/type/padding track `--header-morph-motion` (scroll compact). */
     morphOnScroll = false,
     className = '',
@@ -188,6 +189,10 @@ const TabUnderline = React.forwardRef(function TabUnderline(
      for the More trigger when there are overflowing tabs). The temp
      toggle happens synchronously before paint so users never see it. */
   const measureOverflow = useCallback(() => {
+    if (disableOverflow) {
+      setFirstHiddenIdx(tabs.length);
+      return;
+    }
     const container = containerRef.current;
     if (!container || tabs.length === 0) {
       setFirstHiddenIdx(tabs.length);
@@ -216,7 +221,7 @@ const TabUnderline = React.forwardRef(function TabUnderline(
     }
     tabEls.forEach((el, i) => { el.style.display = prevDisplay[i] || ''; });
     setFirstHiddenIdx((prev) => (prev === firstHidden ? prev : firstHidden));
-  }, [tabs]);
+  }, [tabs, disableOverflow]);
 
   useLayoutEffect(() => { measureOverflow(); }, [measureOverflow]);
   useLayoutEffect(() => {
@@ -394,7 +399,7 @@ const TabUnderline = React.forwardRef(function TabUnderline(
           />
         </div>
       ))}
-      {hasOverflow && (
+      {!disableOverflow && hasOverflow && (
         <OverflowMoreTrigger
           ref={moreBtnRef}
           open={moreOpen}

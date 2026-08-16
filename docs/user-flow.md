@@ -42,6 +42,8 @@ Legend:
    │   │  • นัดหมาย         ✕ │                                  │
    │   │  • ประวัติการใช้งาน  ✕ │                                  │
    │   │  • ผู้ใช้และสิทธิ์   ─┼──▶ /users                        │
+   │   │  • จัดการระบบ ▶       │                                  │
+   │   │     └─ ชุดคำสั่งฯ   ─┼──▶ /admin/order-sets              │
    │   └─────────────────────┘                                    │
    └──────────────────────────────────────────────────────────────┘
 ```
@@ -271,7 +273,7 @@ No drill-down navigation — terminal screen.
 - **Cross-step linking:**
   - Step 4 empty-state CTA "ตรวจร่างกาย" → `onStepChange(STEP_EXAM_INDEX)` jumps to Step 3.
   - Step 7 cert reads `form.diagnoses[0] + form.diagnosisNote` live from Step 4; missing → CTA back to Step 4.
-- **Step 5 order category tabs:** `form.orderCategory` switches active tab. Each category owns its own array (`medications` / `labs` / `xrayOrders` / `procedureOrders` / `consultOrders`); switching the tab does NOT reset.
+- **Step 5 order picker:** “เพิ่มรายการ” opens `TreatmentOrderPickerPopup`. The clinician can select several medication / non-drug supply / lab / X-ray / procedure / consult rows, or apply one authorized Order Set, then add once. Results are distributed to each category array without resetting existing orders; medication allergy matches require confirmation first.
 - **Step 6 appointment state machine:** `appointment.mode === 'skip'` collapses body (✓); `'schedule'` expands and requires `{ clinic, type, doctor, reason, preparation }`. `ApptCollapse` keeps body mounted but height-collapsed so toggling glides.
 - **Step 7 cert state machine:** `certIssue === 'no'` ⇒ ✓; `'yes'` requires `certSignature` (base64 PNG from canvas). `certSignedAt` only flips on explicit "ยืนยันลายเซ็น" — never on every stroke.
 - **Sticky PatientCard:** ABOVE TreatmentFormShell with `sticky` prop. Uses an internal IntersectionObserver + sentinel; collapses to mini variant as the form column scrolls under Header. Requires the `<main>` to be scrollable.
@@ -386,8 +388,39 @@ Legacy sandbox routes (deprecated, sidebar-less):
 | **UnsavedChangesPopup** | Navigate away from dirty multi-step form | Save · Discard · Cancel |
 | **DeleteQueueConfirmPopup** | "ยกเลิก" / trash on queue row | Confirm → row removed |
 | **AlertDialog** | Generic confirmation / error | OK · Cancel |
+| **TreatmentOrderPickerPopup** | “เพิ่มรายการ” in Treatment Step 5 | Search/filter/multi-select or apply an authorized Admin/personal Order Set → allergy confirmation when needed → add one batch |
+| **System Order Set editor** | “เพิ่มชุดคำสั่ง” or edit row in `/admin/order-sets` | Classify → add mixed orders → choose audience → validate/save → return to registry |
 | **ProfilePopover** | User card in sidebar | Opens SettingsModal |
 | **SettingsModal** | "Theme" in ProfilePopover | Light/dark/system + 10 brand colors |
+
+---
+
+### 8.1 System-managed Order Set flow
+
+```
+/admin/order-sets
+  │  registry grouped by user-created Group
+  │
+  ├──▶ + เพิ่มชุดคำสั่ง ··▶ editor popup
+  │                         1) combined set name / disease-or-symptom name
+  │                         2) select an existing Group or type a new Group name
+  │                         3) add medication / non-drug supply / lab /
+  │                            X-ray / procedure / consult / other
+  │                         4) access: everyone OR role/department/user
+  │                         5) save → versioned local store
+  │
+  └──▶ edit / enable / disable existing set
+
+/treat/record · Step 5
+  └──▶ เพิ่มรายการ ··▶ TreatmentOrderPickerPopup
+                        ├─ personal sets owned by current clinician
+                        └─ active Admin sets allowed for current actor
+                           (explicit user OR role OR department)
+```
+
+- Legacy `/treat/order-sets` remains the Treatment registry/CDSS/role-settings screen; shared presets are managed at `/admin/order-sets`.
+- Choosing an Admin set maps its saved defaults into the existing treatment arrays. If any item is retired, missing from the live catalog, or uses an unsupported free-text “other” target, the whole set is disabled until the configuration is corrected; nothing is silently coerced into a different order type.
+- `medicalSupply` is kept separate from medication and carries only item name, quantity, and unit into the pharmacy workflow.
 
 ---
 

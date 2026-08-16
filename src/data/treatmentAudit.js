@@ -1,3 +1,5 @@
+import { STAFF_AVATARS } from '@/data/avatarAssets';
+
 /* PHCIS | EMR §1.4 — Audit trail ของบันทึกการรักษา (TOR 1.4.3.16).
    ทะเบียนกลางของ "ใครแก้อะไร เมื่อไร" สำหรับทุก panel ใน /treat/record.
    Registration มี RegistrationEditHistoryPanel อยู่แล้ว — ไฟล์นี้คือ
@@ -9,7 +11,7 @@
 
 /* ── ผู้ใช้ปัจจุบัน (mock session) — ทุก audit row ประทับชื่อนี้ */
 export const CURRENT_CLINICIAN = {
-  id: 'u-somying',
+  id: 'u-001',
   name: 'พญ.สมหญิง รักษ์ดี',
   role: 'doctor',
   roleLabel: 'แพทย์',
@@ -86,6 +88,30 @@ const TREATMENT_AUDIT = [
     erroneousAt: '6 พ.ค. 2569 · 09:19', erroneousReason: 'คีย์เลข Lot สลับหลัก — บันทึกใหม่เป็นแถวถัดไป',
   },
 ];
+
+const MOCK_AUDIT_USERS = [
+  ['พญ.สมหญิง รักษ์ดี', STAFF_AVATARS[0]],
+  ['นพ.กิตติ สุขใจ', STAFF_AVATARS[1]],
+  ['พว.ณัฐชา แสงทอง', STAFF_AVATARS[2]],
+  ['ภก.ปรีชา วัฒนกุล', STAFF_AVATARS[3]],
+];
+const MOCK_AUDIT_FIELDS = ['บันทึกอาการสำคัญ', 'การวินิจฉัยโรค', 'รายการยา', 'บันทึกทางการพยาบาล', 'ผลตรวจ Lab'];
+for (let i = TREATMENT_AUDIT.length; i < 100; i += 1) {
+  const [by, byAvatarUrl] = MOCK_AUDIT_USERS[i % MOCK_AUDIT_USERS.length];
+  TREATMENT_AUDIT.push({
+    id: `ta-mock-${i + 1}`,
+    hn: '67-00001',
+    visitId: 'v-2569-05-06',
+    category: AUDIT_CATEGORIES[i % AUDIT_CATEGORIES.length].key,
+    field: `${MOCK_AUDIT_FIELDS[i % MOCK_AUDIT_FIELDS.length]} ครั้งที่ ${i + 1}`,
+    oldValue: '—',
+    newValue: 'บันทึกข้อมูลตัวอย่าง',
+    by,
+    byAvatarUrl,
+    recordedAt: `${(i % 28) + 1} มิ.ย. 2569 · ${String(8 + (i % 9)).padStart(2, '0')}:${String((i * 5) % 60).padStart(2, '0')}`,
+    amendedAt: '', erroneousAt: '', erroneousReason: '',
+  });
+}
 
 const listeners = new Set();
 const emit = () => { listeners.forEach((fn) => fn(TREATMENT_AUDIT)); };

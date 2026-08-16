@@ -2,8 +2,11 @@
    + เกณฑ์การแจ้งเตือน CDSS ที่ TOR §1.5.4.18–.21 ย้ำไว้ทุกข้อว่า
    "และมีระบบที่สามารถระบุเกณฑ์การแจ้งเตือนเองได้".
 
-   ชุดคำสั่งหนึ่งชุดผสมได้ทั้ง ยา + Lab + X-ray + หัตถการ (§1.5.7.1).
-   Mock in-memory + pub/sub (React 17 — subscribe + useEffect). */
+   ชุดคำสั่งหนึ่งชุดผสมได้ทั้ง ยา + เวชภัณฑ์มิใช่ยา + Lab + X-ray +
+   หัตถการ + ปรึกษา + คำสั่งอื่น (§1.5.7.1).
+
+   Prototype store นี้ persist ลง localStorage เพื่อให้ชุดที่ Admin/แพทย์สร้าง
+   ไม่หายเมื่อ refresh และยังคง pub/sub contract เดิมสำหรับ React 17. */
 
 import { CURRENT_CLINICIAN, stampNow, appendAudit } from '@/data/treatmentAudit';
 
@@ -15,22 +18,53 @@ export const ORDER_SET_SCOPES = [
 export const orderSetScopeMeta = (key) =>
   ORDER_SET_SCOPES.find((s) => s.key === key) || ORDER_SET_SCOPES[0];
 
+export const ORDER_SET_CLASSIFICATIONS = [
+  { key: 'symptom', label: 'ตามอาการ', icon: 'symptoms', badge: 'orange' },
+  { key: 'disease', label: 'ตามโรค',   icon: 'diagnosis', badge: 'blue' },
+];
+
+export const orderSetClassificationMeta = (key) =>
+  ORDER_SET_CLASSIFICATIONS.find((c) => c.key === key) || ORDER_SET_CLASSIFICATIONS[0];
+
+export const ORDER_SET_ACCESS_MODES = [
+  { key: 'all', label: 'ผู้สั่งการรักษาทุกคน' },
+  { key: 'restricted', label: 'จำกัดผู้เข้าถึง' },
+];
+
 export const ORDER_SET_ITEM_KINDS = [
-  { key: 'medication', label: 'ยา',       icon: 'pill',        badge: 'magenta' },
-  { key: 'lab',        label: 'แล็บ',      icon: 'science',     badge: 'blue'    },
-  { key: 'xray',       label: 'X-ray',    icon: 'radiology',   badge: 'purple'  },
-  { key: 'procedure',  label: 'หัตถการ',   icon: 'medical_services', badge: 'orange' },
+  { key: 'medication',    label: 'ยา',                icon: 'pill',             badge: 'magenta' },
+  { key: 'medicalSupply', label: 'เวชภัณฑ์มิใช่ยา',     icon: 'inventory_2',      badge: 'teal'    },
+  { key: 'lab',           label: 'แล็บ',               icon: 'science',          badge: 'blue'    },
+  { key: 'xray',          label: 'X-ray',             icon: 'radiology',        badge: 'purple'  },
+  { key: 'procedure',     label: 'หัตถการ',            icon: 'medical_services', badge: 'orange'  },
+  { key: 'consult',       label: 'ปรึกษา',             icon: 'forum',            badge: 'indigo'  },
+  { key: 'other',         label: 'อื่น ๆ',             icon: 'more_horiz',       badge: 'grey'    },
 ];
 
 export const itemKindMeta = (key) =>
   ORDER_SET_ITEM_KINDS.find((k) => k.key === key) || { key, label: key, icon: 'list', badge: 'grey' };
 
+export const blankOrderSetAccess = (mode = 'all') => ({
+  mode,
+  roles: [],
+  departments: [],
+  users: [],
+});
+
 export const blankOrderSet = () => ({
   id: '',
   name: '',
   scope: 'personal',
+  ownerId: CURRENT_CLINICIAN.id,
   owner: CURRENT_CLINICIAN.name,
   description: '',
+  groupLabel: '',
+  classification: 'symptom',
+  classificationLabel: '',
+  access: {
+    ...blankOrderSetAccess('restricted'),
+    users: [CURRENT_CLINICIAN.id],
+  },
   items: [],
   active: true,
   createdAt: '',
@@ -45,26 +79,36 @@ export const blankOrderSetItem = (kind = 'medication') => ({
   refId: '',
   label: '',
   /* ค่า default ต่อรายการ */
+  quantity: 1,
+  unit: '',
   dosePerTake: '',
   frequency: '',
+  when: '',
   days: '',
   urgency: 'routine',
   note: '',
 });
 
-const ORDER_SETS = [
+const ORDER_SET_STORAGE_KEY = 'mih:treatment-order-sets:v2';
+const ORDER_SET_STORAGE_VERSION = 2;
+
+const SEED_ORDER_SETS = [
   {
     id: 'os-1',
     name: 'ชุดตรวจติดตามเบาหวาน (DM follow-up)',
     scope: 'shared',
+    ownerId: 'system-admin',
     owner: 'ศูนย์บริการสาธารณสุข 4 ดินแดง',
     description: 'ชุดมาตรฐานสำหรับผู้ป่วยเบาหวานมาตามนัดทุก 3 เดือน',
+    classification: 'disease',
+    classificationLabel: 'เบาหวานชนิดที่ 2 (E11.9)',
+    access: { mode: 'restricted', roles: ['doctor', 'nurse'], departments: ['opd'], users: [] },
     items: [
-      { id: 'os1-1', kind: 'lab', refId: 'lab-hba1c', label: 'HbA1C', urgency: 'routine', note: 'ติดตามน้ำตาลสะสม' },
-      { id: 'os1-2', kind: 'lab', refId: 'lab-fbs', label: 'FBS (น้ำตาลในเลือดหลังงดอาหาร)', urgency: 'routine', note: 'งดอาหาร 8 ชม.' },
-      { id: 'os1-3', kind: 'lab', refId: 'lab-creatinine', label: 'Creatinine', urgency: 'routine', note: 'ประเมินการทำงานของไต' },
-      { id: 'os1-4', kind: 'lab', refId: 'lab-lipid', label: 'Lipid profile', urgency: 'routine', note: 'งดอาหาร 12 ชม.' },
-      { id: 'os1-5', kind: 'medication', refId: '', label: 'Metformin 500 mg', dosePerTake: '1', frequency: 'วันละ 2 ครั้ง', days: '90', note: 'หลังอาหารเช้า-เย็น' },
+      { id: 'os1-1', kind: 'lab', refId: 'lab-hba1c', label: 'HbA1C', quantity: 1, unit: 'ครั้ง', urgency: 'routine', note: 'ติดตามน้ำตาลสะสม' },
+      { id: 'os1-2', kind: 'lab', refId: 'lab-fbs', label: 'FBS (น้ำตาลในเลือดหลังงดอาหาร)', quantity: 1, unit: 'ครั้ง', urgency: 'routine', note: 'งดอาหาร 8 ชม.' },
+      { id: 'os1-3', kind: 'lab', refId: 'lab-creatinine', label: 'Creatinine', quantity: 1, unit: 'ครั้ง', urgency: 'routine', note: 'ประเมินการทำงานของไต' },
+      { id: 'os1-4', kind: 'lab', refId: 'lab-lipid', label: 'Lipid profile', quantity: 1, unit: 'ครั้ง', urgency: 'routine', note: 'งดอาหาร 12 ชม.' },
+      { id: 'os1-5', kind: 'medication', refId: 'drug-13', label: 'Metformin 500 mg', quantity: 180, unit: 'เม็ด', dosePerTake: '1', frequency: 'วันละ 2 ครั้ง', days: '90', urgency: 'routine', note: 'หลังอาหารเช้า-เย็น' },
     ],
     active: true,
     createdAt: '12 ม.ค. 2569 · 09:00', updatedAt: '2 เม.ย. 2569 · 14:10',
@@ -74,12 +118,16 @@ const ORDER_SETS = [
     id: 'os-2',
     name: 'ชุดไข้หวัดและติดเชื้อทางเดินหายใจส่วนบน',
     scope: 'personal',
+    ownerId: CURRENT_CLINICIAN.id,
     owner: 'พญ.สมหญิง รักษ์ดี',
     description: 'ยาตามอาการสำหรับ URI ที่ไม่มีข้อบ่งชี้ยาปฏิชีวนะ',
+    classification: 'disease',
+    classificationLabel: 'การติดเชื้อทางเดินหายใจส่วนบน (J06.9)',
+    access: { mode: 'restricted', roles: [], departments: [], users: [CURRENT_CLINICIAN.id] },
     items: [
-      { id: 'os2-1', kind: 'medication', refId: '', label: 'Paracetamol 500 mg', dosePerTake: '1', frequency: 'ทุก 6 ชั่วโมง เมื่อมีไข้', days: '3', note: 'ไม่เกินวันละ 8 เม็ด' },
-      { id: 'os2-2', kind: 'medication', refId: '', label: 'Cetirizine 10 mg', dosePerTake: '1', frequency: 'วันละ 1 ครั้ง', days: '5', note: 'ก่อนนอน อาจง่วง' },
-      { id: 'os2-3', kind: 'medication', refId: '', label: 'Bromhexine 8 mg', dosePerTake: '1', frequency: 'วันละ 3 ครั้ง', days: '5', note: 'หลังอาหาร' },
+      { id: 'os2-1', kind: 'medication', refId: 'drug-1', label: 'Paracetamol 500 mg', quantity: 12, unit: 'เม็ด', dosePerTake: '1', frequency: 'ทุก 6 ชั่วโมง เมื่อมีไข้', days: '3', urgency: 'routine', note: 'ไม่เกินวันละ 8 เม็ด' },
+      { id: 'os2-2', kind: 'medication', refId: 'drug-9', label: 'Cetirizine 10 mg', quantity: 5, unit: 'เม็ด', dosePerTake: '1', frequency: 'วันละ 1 ครั้ง', days: '5', urgency: 'routine', note: 'ก่อนนอน อาจง่วง' },
+      { id: 'os2-3', kind: 'other', refId: '', label: 'แนะนำพักผ่อนและดื่มน้ำให้เพียงพอ', quantity: 1, unit: 'คำสั่ง', urgency: 'routine', note: 'กลับมาพบแพทย์หากไข้สูงหรือหายใจลำบาก' },
     ],
     active: true,
     createdAt: '3 ก.พ. 2569 · 10:20', updatedAt: '3 ก.พ. 2569 · 10:20',
@@ -89,13 +137,18 @@ const ORDER_SETS = [
     id: 'os-3',
     name: 'ชุดประเมินอาการปวดท้องเฉียบพลัน',
     scope: 'shared',
+    ownerId: 'system-admin',
     owner: 'ศูนย์บริการสาธารณสุข 4 ดินแดง',
     description: 'ตรวจพื้นฐานสำหรับผู้รับบริการปวดท้องที่ยังแยกโรคไม่ได้',
+    classification: 'symptom',
+    classificationLabel: 'ปวดท้องเฉียบพลัน (R10.4)',
+    access: { mode: 'all', roles: [], departments: [], users: [] },
     items: [
-      { id: 'os3-1', kind: 'lab', refId: 'lab-cbc', label: 'CBC', urgency: 'urgent', note: 'ประเมินการติดเชื้อ' },
-      { id: 'os3-2', kind: 'lab', refId: 'lab-ua', label: 'Urinalysis (UA)', urgency: 'routine', note: 'แยกโรคทางเดินปัสสาวะ' },
-      { id: 'os3-3', kind: 'xray', refId: 'xr-acute-abd', label: 'เอกซเรย์ช่องท้องเฉียบพลัน', urgency: 'urgent', note: 'ซักประวัติตั้งครรภ์ก่อนถ่ายภาพ' },
-      { id: 'os3-4', kind: 'procedure', refId: '', label: 'ให้สารน้ำทางหลอดเลือดดำ (IV fluid)', note: 'ประเมินภาวะขาดน้ำก่อน' },
+      { id: 'os3-1', kind: 'lab', refId: 'lab-cbc', label: 'CBC', quantity: 1, unit: 'ครั้ง', urgency: 'urgent', note: 'ประเมินการติดเชื้อ' },
+      { id: 'os3-2', kind: 'lab', refId: 'lab-ua', label: 'Urinalysis (UA)', quantity: 1, unit: 'ครั้ง', urgency: 'routine', note: 'แยกโรคทางเดินปัสสาวะ' },
+      { id: 'os3-3', kind: 'xray', refId: 'xr-acute-abd', label: 'เอกซเรย์ช่องท้องเฉียบพลัน', quantity: 1, unit: 'ครั้ง', urgency: 'urgent', note: 'ซักประวัติตั้งครรภ์ก่อนถ่ายภาพ' },
+      { id: 'os3-4', kind: 'procedure', refId: '99.29', label: 'ให้สารน้ำทางหลอดเลือดดำ (IV fluid)', quantity: 1, unit: 'ครั้ง', urgency: 'urgent', note: 'ประเมินภาวะขาดน้ำก่อน' },
+      { id: 'os3-5', kind: 'consult', refId: 'surg', label: 'ปรึกษาคลินิกศัลยกรรมและทำแผล', quantity: 1, unit: 'คำขอ', urgency: 'urgent', note: 'เมื่อสงสัยภาวะศัลยกรรมช่องท้อง' },
     ],
     active: true,
     createdAt: '18 มี.ค. 2569 · 13:05', updatedAt: '18 มี.ค. 2569 · 13:05',
@@ -105,12 +158,17 @@ const ORDER_SETS = [
     id: 'os-4',
     name: 'ชุดทำแผลและตัดไหม',
     scope: 'personal',
+    ownerId: CURRENT_CLINICIAN.id,
     owner: 'พญ.สมหญิง รักษ์ดี',
     description: 'ยาและหัตถการสำหรับติดตามแผลหลังเย็บ',
+    classification: 'symptom',
+    classificationLabel: 'บาดแผลและการติดตามหลังเย็บแผล',
+    access: { mode: 'restricted', roles: [], departments: [], users: [CURRENT_CLINICIAN.id] },
     items: [
-      { id: 'os4-1', kind: 'procedure', refId: '', label: 'ทำแผลสะอาดขนาดเล็ก', note: 'ล้างด้วย NSS ปิดผ้าก๊อซ' },
-      { id: 'os4-2', kind: 'procedure', refId: '', label: 'ตัดไหม', note: 'นัดหลังเย็บ 7 วัน' },
-      { id: 'os4-3', kind: 'medication', refId: '', label: 'Paracetamol 500 mg', dosePerTake: '1', frequency: 'ทุก 6 ชั่วโมง เมื่อปวด', days: '3', note: '' },
+      { id: 'os4-1', kind: 'procedure', refId: '96.59', label: 'ล้างแผลด้วยน้ำเกลือ', quantity: 1, unit: 'ครั้ง', urgency: 'routine', note: 'ล้างด้วย NSS ปิดด้วยผ้าก๊อซ' },
+      { id: 'os4-2', kind: 'medicalSupply', refId: 'gauze-sterile-2x2', label: 'ผ้าก๊อซปราศจากเชื้อ 2×2 นิ้ว', quantity: 2, unit: 'ห่อ', urgency: 'routine', note: '' },
+      { id: 'os4-3', kind: 'medicalSupply', refId: 'medical-tape-1', label: 'เทปกาวทางการแพทย์ 1 นิ้ว', quantity: 1, unit: 'ม้วน', urgency: 'routine', note: '' },
+      { id: 'os4-4', kind: 'medication', refId: 'drug-1', label: 'Paracetamol 500 mg', quantity: 12, unit: 'เม็ด', dosePerTake: '1', frequency: 'ทุก 6 ชั่วโมง เมื่อปวด', days: '3', urgency: 'routine', note: '' },
     ],
     active: false,
     createdAt: '5 เม.ย. 2569 · 08:45', updatedAt: '20 เม.ย. 2569 · 09:30',
@@ -118,32 +176,152 @@ const ORDER_SETS = [
   },
 ];
 
+const uniqueStrings = (values) => [...new Set(
+  (Array.isArray(values) ? values : []).map((v) => String(v || '').trim()).filter(Boolean),
+)];
+
+/* Canonicalize the one legacy prototype id so persisted personal sets made
+   before the user directory acquired stable ids remain owned by the same
+   clinician. Authorization never falls back to a display-name comparison. */
+const canonicalUserId = (value) => {
+  const id = String(value || '').trim();
+  return id === 'u-somying' ? 'u-001' : id;
+};
+
+const normalizeAccess = (access, row = {}) => {
+  const legacyDefault = row.scope === 'personal'
+    ? { mode: 'restricted', roles: [], departments: [], users: [row.ownerId || CURRENT_CLINICIAN.id] }
+    : blankOrderSetAccess('all');
+  const source = access && typeof access === 'object' ? access : legacyDefault;
+  const mode = source.mode === 'restricted' ? 'restricted' : 'all';
+  return {
+    mode,
+    roles: uniqueStrings(source.roles),
+    departments: uniqueStrings(source.departments),
+    users: uniqueStrings(source.users).map(canonicalUserId),
+  };
+};
+
+const normalizeItem = (item = {}) => ({
+  ...blankOrderSetItem(item.kind || 'medication'),
+  ...item,
+  kind: ORDER_SET_ITEM_KINDS.some((k) => k.key === item.kind) ? item.kind : 'other',
+  quantity: Number.isFinite(Number(item.quantity)) && Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+  unit: String(item.unit || ''),
+});
+
+const normalizeOrderSet = (row = {}) => {
+  const base = blankOrderSet();
+  const scope = row.scope === 'shared' ? 'shared' : 'personal';
+  const classification = ORDER_SET_CLASSIFICATIONS.some((c) => c.key === row.classification)
+    ? row.classification
+    : 'symptom';
+  const normalized = {
+    ...base,
+    ...row,
+    scope,
+    ownerId: canonicalUserId(row.ownerId) || (scope === 'personal' ? CURRENT_CLINICIAN.id : 'system-admin'),
+    owner: row.owner || (scope === 'personal' ? CURRENT_CLINICIAN.name : CURRENT_CLINICIAN.center),
+    groupLabel: String(row.groupLabel || (row.classification === 'disease' ? 'โรค' : 'อาการ')).trim(),
+    classification,
+    classificationLabel: String(row.classificationLabel || row.indication || ''),
+    items: (Array.isArray(row.items) ? row.items : []).map(normalizeItem),
+  };
+  normalized.access = normalizeAccess(row.access, normalized);
+  return normalized;
+};
+
+const cloneOrderSet = (row) => ({
+  ...row,
+  access: {
+    ...row.access,
+    roles: [...(row.access?.roles || [])],
+    departments: [...(row.access?.departments || [])],
+    users: [...(row.access?.users || [])],
+  },
+  items: (row.items || []).map((item) => ({ ...item })),
+});
+
+const readPersistedOrderSets = () => {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    const raw = window.localStorage.getItem(ORDER_SET_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const rows = Array.isArray(parsed) ? parsed : parsed?.sets;
+    return Array.isArray(rows) ? rows.map(normalizeOrderSet) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const ORDER_SETS = readPersistedOrderSets() || SEED_ORDER_SETS.map(normalizeOrderSet);
+
+const persistOrderSets = () => {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return false;
+    window.localStorage.setItem(ORDER_SET_STORAGE_KEY, JSON.stringify({
+      version: ORDER_SET_STORAGE_VERSION,
+      sets: ORDER_SETS.map(cloneOrderSet),
+    }));
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 const setListeners = new Set();
-const emitSets = () => setListeners.forEach((fn) => fn(ORDER_SETS));
+const emitSets = () => {
+  persistOrderSets();
+  const snapshot = ORDER_SETS.map(cloneOrderSet);
+  setListeners.forEach((fn) => fn(snapshot));
+};
 
 export const subscribeOrderSets = (fn) => {
   setListeners.add(fn);
   return () => { setListeners.delete(fn); };
 };
 
-export const getOrderSets = () => ORDER_SETS.map((s) => ({ ...s, items: s.items.map((i) => ({ ...i })) }));
+export const getOrderSets = () => ORDER_SETS.map(cloneOrderSet);
 
-export const orderSetsForMe = () => getOrderSets().filter(
-  (s) => s.active && (s.scope === 'shared' || s.owner === CURRENT_CLINICIAN.name),
-);
+const actorMatchesOwner = (set, actor) => !!actor?.id
+  && canonicalUserId(actor.id) === canonicalUserId(set?.ownerId);
 
-let setSeq = ORDER_SETS.length;
+/* Access is the source of truth even for a legacy `personal` row: matching an
+   explicitly selected user, role OR department is sufficient. Old personal
+   rows without `access` are migrated to an owner-only allow-list, so the
+   historical scope contract remains intact. Module-level prescribe permission
+   is still enforced by the calling screen. */
+export const actorCanAccessOrderSet = (set, actor) => {
+  if (!set?.active || !actor) return false;
+  if (actorMatchesOwner(set, actor)) return true;
+  const access = normalizeAccess(set.access, set);
+  if (access.mode === 'all') return true;
+  const actorDepartments = uniqueStrings(actor.departments);
+  return access.users.includes(String(actor.id || ''))
+    || access.roles.includes(String(actor.role || ''))
+    || actorDepartments.some((department) => access.departments.includes(department));
+};
+
+export const orderSetsForActor = (actor) => getOrderSets().filter((set) => actorCanAccessOrderSet(set, actor));
+
+export const orderSetsForMe = () => orderSetsForActor(CURRENT_CLINICIAN);
+
+let setSeq = ORDER_SETS.reduce((max, set) => {
+  const numericId = Number.parseInt(String(set.id || '').match(/^os-(\d+)$/)?.[1] || '', 10);
+  return Number.isFinite(numericId) ? Math.max(max, numericId) : max;
+}, ORDER_SETS.length);
 
 export const upsertOrderSet = (row) => {
   if (!row.id) {
     setSeq += 1;
-    const created = {
+    const created = normalizeOrderSet({
       ...blankOrderSet(),
       ...row,
       id: `os-${setSeq}`,
       createdAt: stampNow(),
       updatedAt: stampNow(),
-    };
+    });
     ORDER_SETS.unshift(created);
     emitSets();
     appendAudit({
@@ -151,19 +329,20 @@ export const upsertOrderSet = (row) => {
       oldValue: '—', newValue: `${created.items.length} รายการ · ${orderSetScopeMeta(created.scope).label}`,
       by: CURRENT_CLINICIAN.name,
     });
-    return { ...created };
+    return cloneOrderSet(created);
   }
   const target = ORDER_SETS.find((s) => s.id === row.id);
   if (!target) return null;
   const before = `${target.name} · ${target.items.length} รายการ`;
-  Object.assign(target, row, { updatedAt: stampNow() });
+  const updated = normalizeOrderSet({ ...target, ...row, id: target.id, updatedAt: stampNow() });
+  Object.assign(target, updated);
   emitSets();
   appendAudit({
     category: 'document', field: `แก้ไขชุดคำสั่ง "${target.name}"`,
     oldValue: before, newValue: `${target.name} · ${target.items.length} รายการ`,
     by: CURRENT_CLINICIAN.name,
   });
-  return { ...target };
+  return cloneOrderSet(target);
 };
 
 export const setOrderSetActive = (id, active, reason = '') => {
@@ -178,7 +357,7 @@ export const setOrderSetActive = (id, active, reason = '') => {
     newValue: active ? 'เปิดใช้งาน' : `ปิดใช้งาน — ${reason || 'ไม่ได้ระบุเหตุผล'}`,
     by: CURRENT_CLINICIAN.name,
   });
-  return { ...target };
+  return cloneOrderSet(target);
 };
 
 /* ยกเลิกชุดคำสั่ง = ปิดใช้งานพร้อมเหตุผล ไม่ลบทิ้ง (คงร่องรอย) */
@@ -190,7 +369,7 @@ export const markOrderSetUsed = (id) => {
   target.useCount = (target.useCount || 0) + 1;
   target.lastUsedAt = stampNow();
   emitSets();
-  return { ...target };
+  return cloneOrderSet(target);
 };
 
 /* ── §1.5.9.2 ประวัติการเปลี่ยนราคายา ─────────────────────────

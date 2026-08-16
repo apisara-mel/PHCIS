@@ -200,6 +200,8 @@ export const USERS = [
       'forms.fill': 'edit',
       'lab.order': 'edit',
       'lab.result': 'view',
+      // Demo session is a delegated system-settings editor for this prototype.
+      'system.settings': 'edit',
     },
   },
   {
@@ -597,6 +599,46 @@ const ATTRIBUTE_SEED = {
   'u-011': { phone: '08-5544-3322', homeCenter: 'hc-4',  centers: ['hc-4'],          source: 'idp',   licenseType: 'mt',    licenseNo: 'ท.น.9921', channels: ['password', 'otp-mail'] },
   'u-012': { phone: '08-1000-2000', homeCenter: 'hc-4',  centers: ['hc-4', 'hc-25', 'hc-15', 'hc-3'], source: 'local', licenseType: 'none', licenseNo: '', channels: ['password', 'qr', 'otp-sms', 'otp-mail'] },
 };
+
+/* รายชื่อ mock สำหรับทะเบียนบุคลากร — ให้หน้าจัดการระบบมีข้อมูลครบ 100 คน
+   โดยยังใช้ schema เดียวกับผู้ใช้จริง (role / department / center / feature). */
+const MOCK_FIRST_NAMES = ['กิตติ', 'ณัฐชา', 'ปรีชา', 'วราภรณ์', 'ชลธิชา', 'ธนกร', 'สุภาวดี', 'เอกภพ', 'พิมพ์ชนก', 'ศุภชัย', 'อัญชลี', 'ภาคภูมิ', 'รัตนา', 'จักรกฤษณ์', 'นภัสสร', 'ธีรภัทร์', 'กมลวรรณ', 'สิรินดา', 'อดิศร', 'กัญญารัตน์'];
+const MOCK_LAST_NAMES = ['สุขใจ', 'แสงทอง', 'วัฒนกุล', 'บุญมี', 'ศรีสวัสดิ์', 'เจริญผล', 'อินทร์แก้ว', 'รักษ์ธรรม', 'วงศ์สกุล', 'พูนทรัพย์', 'ใจดี', 'สมบูรณ์'];
+const MOCK_ROLE_KEYS = ['doctor', 'nurse', 'pharmacist', 'registrar', 'lab-tech', 'admin'];
+const MOCK_DEPT_BY_ROLE = { doctor: 'opd', nurse: 'opd', pharmacist: 'pharmacy', registrar: 'registration', 'lab-tech': 'lab', admin: 'registration' };
+const MOCK_TITLE_BY_ROLE = { doctor: 'นพ.', nurse: 'พว.', pharmacist: 'ภก.', registrar: 'น.ส.', 'lab-tech': 'น.ส.', admin: 'นาย' };
+const MOCK_LICENSE_BY_ROLE = { doctor: 'md', nurse: 'rn', pharmacist: 'pharm', registrar: 'none', 'lab-tech': 'mt', admin: 'none' };
+const MOCK_CENTER_POOL = ['hc-4', 'hc-25', 'hc-15', 'hc-3'];
+const MOCK_BASE_USER_COUNT = USERS.length;
+
+for (let n = USERS.length + 1; n <= 100; n += 1) {
+  const role = MOCK_ROLE_KEYS[(n - MOCK_BASE_USER_COUNT - 1) % MOCK_ROLE_KEYS.length];
+  const dept = MOCK_DEPT_BY_ROLE[role];
+  const first = MOCK_FIRST_NAMES[(n - 1) % MOCK_FIRST_NAMES.length];
+  const last = MOCK_LAST_NAMES[Math.floor((n - 1) / MOCK_FIRST_NAMES.length) % MOCK_LAST_NAMES.length];
+  const homeCenter = MOCK_CENTER_POOL[(n - 1) % MOCK_CENTER_POOL.length];
+  const extraCenter = MOCK_CENTER_POOL[n % MOCK_CENTER_POOL.length];
+  const status = n % 17 === 0 ? 'disabled' : n % 11 === 0 ? 'pending' : 'active';
+  const subRoles = SUB_ROLES[role] || [];
+  USERS.push({
+    id: `u-${String(n).padStart(3, '0')}`,
+    name: `${MOCK_TITLE_BY_ROLE[role]}${first} ${last}`,
+    email: `staff${String(n).padStart(3, '0')}@phcis.bma.go.th`,
+    status,
+    role,
+    subRole: subRoles[(n - 1) % Math.max(1, subRoles.length)]?.key || '',
+    departments: [dept],
+    lastActive: `2026-05-${String((n % 28) + 1).padStart(2, '0')} 09:00`,
+    features: { 'dashboard.overview': 'view', [`${role === 'doctor' ? 'treat' : dept}.queue`]: 'view' },
+    phone: `08-${String(10000000 + n * 7919).slice(0, 8)}`,
+    homeCenter,
+    centers: homeCenter === extraCenter ? [homeCenter] : [homeCenter, extraCenter],
+    source: n % 2 ? 'idp' : 'local',
+    licenseType: MOCK_LICENSE_BY_ROLE[role],
+    licenseNo: MOCK_LICENSE_BY_ROLE[role] === 'none' ? '' : `MOCK-${String(n).padStart(5, '0')}`,
+    loginChannels: ['password', ...(n % 3 === 0 ? ['otp-mail'] : [])],
+  });
+}
 
 /** ฟิลด์ที่ sync มาจาก IdP → แสดงเป็น read-only บนหน้าแก้ไขผู้ใช้. */
 export const IDP_MANAGED_FIELDS = ['titleKey', 'givenName', 'lastName', 'email', 'departments', 'departmentCode', 'licenseNo', 'status'];

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
-import PhcisTopToast from '@/components/alert/PhcisTopToast';
+import SuccessScreen from '@/components/layout/SuccessScreen';
 import AccessRequestForm from '@/pages/consent/AccessRequestForm';
 import { enqueueAccessImport } from '@/data/accessRecords';
 import CONSENT_NAV from '@/pages/consent/consentNav';
@@ -27,7 +27,7 @@ export default function RequestFormAccessPage() {
   const navigate = useHistory();
   const location = useLocation();
   const prefill = location.state || {};
-  const [toast, setToast] = useState(null);
+  const [submittedRequest, setSubmittedRequest] = useState(null);
 
   return (
     <>
@@ -48,24 +48,25 @@ export default function RequestFormAccessPage() {
               key={`${prefill.formId || 'new'}-${prefill.accessType || 'none'}`}
               initialAccessType={prefill.accessType || ''}
               initialFormId={prefill.formId ? String(prefill.formId) : ''}
-              submitLabel='ส่งคำขอสิทธิ์'
+              submitLabel='ส่งคำขอสิทธิ์เข้าถึงแบบฟอร์ม'
               cancelLabel='ยกเลิก'
               onCancel={() => navigate.push('/consent/forms')}
               onSubmit={(payload) => {
                 const rec = enqueueAccessImport(payload);
-                setToast({
-                  id: Date.now(),
-                  variant: 'success',
-                  message: `ส่งคำขอสิทธิ์ของ ${rec.name} แล้ว — รออนุมัติที่เมนูจัดการสิทธิ์การเข้าถึงแบบฟอร์ม`,
-                });
-                navigate.push('/consent/access');
+                setSubmittedRequest(rec);
               }}
             />
           </section>
         </div>
       </QueuePageShell>
 
-      <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
+      {submittedRequest && (
+        <SuccessScreen
+          title='ส่งคำขอสิทธิ์เข้าถึงแบบฟอร์มสำเร็จ'
+          buttonLabel='ดูรายการคำขอของฉัน'
+          onDone={() => navigate.push('/consent/access/my-requests')}
+        />
+      )}
     </>
   );
 }

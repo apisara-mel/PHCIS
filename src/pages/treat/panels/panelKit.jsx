@@ -76,7 +76,7 @@ export const Sym = ({ name, size = 16, color = 'currentColor', fill = 0, weight 
   </span>
 );
 
-export const PanelCard = ({ title, subtitle, action, children, tone }) => (
+export const PanelCard = ({ title, subtitle, action, children, tone, style }) => (
   <section
     className='flex flex-col w-full min-w-0'
     style={{
@@ -85,6 +85,7 @@ export const PanelCard = ({ title, subtitle, action, children, tone }) => (
       ...(tone === 'quaternary'
         ? { background: 'var(--surface-neutral-quaternary, #F9FBFB)' }
         : null),
+      ...style,
     }}
   >
     {(title || action) ? (

@@ -276,6 +276,11 @@ const Popup = ({
   actions,
   footer,
   className = '',
+  /** Optional chrome overrides for screens that need a persistent header or
+      a compact action bar while the body grows (for example, a multi-select
+      access editor). */
+  headerStyle = {},
+  footerStyle = {},
   bodyStyle,
   bodyOuterStyle,
   /** Optional fixed dialog height (number → px, or any CSS string).
@@ -469,6 +474,7 @@ const Popup = ({
             paddingBottom: 'var(--dim-space-600)',
             paddingLeft: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
             background: 'var(--surface-modal-default)',
+            ...headerStyle,
           }}
         >
           {onBack ? <BackButton onClick={onBack} /> : leading}
@@ -553,6 +559,7 @@ const Popup = ({
               alignItems: 'center',
               justifyContent: isVertical ? 'center' : 'flex-end',
               borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+              ...footerStyle,
             }}
           >
             {footer ?? resolvedActions.map((a) => (

@@ -34,8 +34,8 @@ import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
 import ReferralRegisterPage from '@/pages/treat/ReferralRegisterPage';
 import TreatmentInterfacesPage from '@/pages/treat/TreatmentInterfacesPage';
 import ConsultRegisterPage from '@/pages/treat/ConsultRegisterPage';
-import OrderSetSettingsPage from '@/pages/treat/OrderSetSettingsPage';
 import AccessPolicyPage from '@/pages/treat/AccessPolicyPage';
+import OrderSetSettingsPage from '@/pages/treat/OrderSetSettingsPage';
 import XrayQueuePage from '@/pages/xray/XrayQueuePage';
 import XrayOrderPage from '@/pages/xray/XrayOrderPage';
 import XrayResultPage from '@/pages/xray/XrayResultPage';
@@ -165,6 +165,7 @@ import AddCenterPage from '@/pages/system/AddCenterPage';
 import CenterStructurePage from '@/pages/system/CenterStructurePage';
 import CenterStructureCreatePage from '@/pages/system/CenterStructureCreatePage';
 import SystemConfidentialDataPage from '@/pages/system/SystemConfidentialDataPage';
+import SystemOrderSetsPage from '@/pages/system/SystemOrderSetsPage';
 import AuditOverviewPage from '@/pages/audit/AuditOverviewPage';
 import AuditLogPage from '@/pages/audit/AuditLogPage';
 import AuditRecordHistoryPage from '@/pages/audit/AuditRecordHistoryPage';
@@ -272,6 +273,7 @@ export default function Routes() {
         <Redirect exact from='/consent/access/rights' to='/assess/consent-access-rights' />
         {/* จัดการสิทธิ์การเข้าถึง — access-request registry (Figma 363:122327). */}
         <Route exact path='/consent/access'       component={AccessManagementPage} />
+        <Route exact path='/consent/access/my-requests' render={() => <AccessManagementPage mineOnly />} />
         {/* สถิติและรายงาน — consent reports dashboard (Figma 358:113804). */}
         <Route exact path='/consent/report'       component={ConsentReportPage} />
         {/* ระบบจัดการระบบ (System/Org administration · Figma 0EDfjwf1 24:2612) —
@@ -293,6 +295,8 @@ export default function Routes() {
         <Route exact path='/admin/roles/new'    component={SystemRoleCreatePage} />
         <Route exact path='/admin/confidential-data'     component={SystemConfidentialDataPage} />
         <Route exact path='/admin/confidential-data/:hn' component={SystemConfidentialDataPage} />
+        {/* ชุดคำสั่งการรักษากลาง — ผู้ดูแลระบบกำหนดรายการและกลุ่มผู้มีสิทธิ์ใช้งาน */}
+        <Route exact path='/admin/order-sets'             component={SystemOrderSetsPage} />
         {/* Pharmacy master data is maintained from central settings. */}
         <Route exact path='/admin/pharmacy/registry'     component={PharmacyRegistryPage} />
         <Route exact path='/admin/pharmacy/registry/new' component={PharmacyRegistryEditPage} />
@@ -428,17 +432,17 @@ export default function Routes() {
             /treat/consult    = ทะเบียนการส่งปรึกษาแพทย์ (§1.5.6.1 / §1.5.6.7) —
                                 หัวฟอร์ม auto-fill เลขที่คำขอ/ผู้ขอ/หน่วยงาน +
                                 พิมพ์ใบส่งปรึกษา A4 ผ่าน ConsultPrintSheet
-            /treat/order-sets = ตั้งค่าชุดคำสั่ง + ทะเบียนรายการสั่งการรักษา
-                                (§1.5.1.8 / §1.5.7.1 / §1.5.9.1–.4) — ชุดยา
-                                รายแพทย์/ใช้ร่วม, ราคามีวันที่มีผล, เกณฑ์ CDSS
-            ทั้งสองหน้าใช้ Sidebar activeKey='treat' — เป็นเมนูย่อยของ
-            ระบบบันทึกการรักษา เช่นเดียวกับ /treat/refer และ /treat/interfaces. */}
+            หน้านี้ใช้ Sidebar activeKey='treat' — เป็นเมนูย่อยของระบบบันทึกการรักษา
+            เช่นเดียวกับ /treat/refer และ /treat/interfaces. */}
         <Route exact path='/treat/consult'    component={ConsultRegisterPage} />
+        {/* ทะเบียนยา/การตรวจ + CDSS เดิมของโมดูลการรักษา. ชุด preset กลางและ
+            สิทธิ์ผู้เข้าถึงแยกไปอยู่ที่ /admin/order-sets เพื่อไม่ให้ route นี้
+            กลายเป็นทางลัดข้ามสิทธิ์ system.settings. */}
         <Route exact path='/treat/order-sets' component={OrderSetSettingsPage} />
         {/* นโยบายการเข้าถึงข้อมูล (ABAC · §1.4.8.1 / §1.4.2.1) — หน้าผู้ดูแลระบบ
             ของระบบบันทึกการรักษา: กฎ บทบาท × หน่วยงาน × หมวดข้อมูล → ระดับการมองเห็น,
             แท็บทดลองมุมมอง, ข้อมูลลับโดยค่าเริ่มต้น และ audit การแก้กฎ.
-            อยู่ในเมนูย่อยของ "ระบบบันทึกการรักษา" ข้าง /treat/order-sets
+            อยู่ในเมนูย่อยของ "ระบบบันทึกการรักษา"
             (activeKey='treat' เหมือน /treat/consult · /treat/interfaces). */}
         <Route exact path='/treat/access-policy' component={AccessPolicyPage} />
         {/* งานรังสีวินิจฉัย — Radiology Information System (TOR §1.12).

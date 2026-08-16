@@ -37,10 +37,10 @@ const SIDEMENU_LABEL_SIZE = 'var(--type-size-base, 16px)';
 /* แผนกย่อยในระบบบันทึกการรักษา — แชร์กับเมนูคัดกรองและซักประวัติ */
 const TREAT_MODULE_SUBITEMS = [
   { key: 'consult',    label: 'ทะเบียนการส่งปรึกษาแพทย์',             path: '/treat/consult' },
-  { key: 'order-sets', label: 'ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา',   path: '/treat/order-sets' },
+  { key: 'order-settings', label: 'ตั้งค่ารายการสั่งการรักษาและ CDSS', path: '/treat/order-sets' },
   /* นโยบายการเข้าถึงข้อมูล (ABAC · TOR §1.4.8.1 / §1.4.2.1) — หน้าตั้งค่าของ
-     ผู้ดูแลระบบ วางถัดจาก "ตั้งค่าชุดคำสั่งฯ" เพราะเป็นกลุ่มตั้งค่าเหมือนกัน.
-     นิยาม Role ยังเป็นของ /users — หน้านี้กำหนดเฉพาะกฎ role × หน่วยงาน × หมวดข้อมูล. */
+     ผู้ดูแลระบบของโมดูลการรักษา. นิยาม Role ยังเป็นของ /users — หน้านี้กำหนด
+     เฉพาะกฎ role × หน่วยงาน × หมวดข้อมูล. */
   { key: 'access-policy', label: 'นโยบายการเข้าถึงข้อมูล (ABAC)',     path: '/treat/access-policy' },
   { key: 'interfaces', label: 'สถานะการเชื่อมต่อระบบภายนอก',         path: '/treat/interfaces' },
 ];

@@ -148,7 +148,7 @@ export function ScanImportPopup({ open, onClose, onImported }) {
       onClose={() => (formApi.dirty ? formApi.requestCancel() : onClose())}
       size='large'
       title='ขอสิทธิ์การเข้าถึงแบบฟอร์ม'
-      primaryAction={{ label: 'ส่งคำขอสิทธิ์', onClick: () => formApi.submit(), disabled: !formApi.ready }}
+      primaryAction={{ label: 'ส่งคำขอสิทธิ์เข้าถึงแบบฟอร์ม', onClick: () => formApi.submit(), disabled: !formApi.ready }}
       secondaryAction={{ label: 'ยกเลิก', onClick: () => (formApi.dirty ? formApi.requestCancel() : onClose()) }}
     >
       <AccessRequestForm
@@ -514,12 +514,18 @@ export function AccessDetailPopup({ open, record, onClose, thaiDateOfIso, onAppr
         />
         <DetailRow label='ประเภทการขอ' value={record.accessTypeLabel || '-'} />
         <DetailRow
-          label='แบบฟอร์มความยินยอม'
+          label='แบบฟอร์มที่ขอเข้าถึง'
           value={record.formName ? `${record.formCode ? `${record.formCode} · ` : ''}${record.formName}` : '-'}
         />
         <DetailRow label='เหตุผลที่ขอ' value={record.reason || '-'} />
         <DetailRow label='บันทึกเพิ่มเติม' value={record.note || '-'} />
         <DetailRow label='ผู้รับบริการ' value={accessPatientLabel(record)} />
+        <DetailRow
+          label='ช่วงวันที่ผู้ขอเสนอ'
+          value={record.requestedPeriodStart && record.requestedPeriodEnd
+            ? `${thaiDateOfIso(record.requestedPeriodStart)} – ${thaiDateOfIso(record.requestedPeriodEnd)}`
+            : '-'}
+        />
         <DetailRow label='วัตถุประสงค์' value={record.purpose} />
         <DetailRow
           label='ช่วงเวลาสิทธิ'
