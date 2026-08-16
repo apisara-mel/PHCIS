@@ -477,7 +477,10 @@ const StaffListView = ({ staff, appointments = [], onSelect, onBookEarliest }) =
           gap: 'var(--dim-space-600)',
         }}
       >
-        <div className='w-full flex items-start justify-center'>
+        {/* ปุ่มนำส่งออกรายงานย้ายมาอยู่ข้างกล่องค้นหา (16 ส.ค. 2569) */}
+        <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+          {/* spacer ซ้ายสมดุลกับกลุ่มปุ่มขวา — กล่องค้นหาอยู่กึ่งกลางจริง */}
+          <div className='flex-1' />
           <PrimarySearch
             value={search}
             onChange={(v) => { setSearch(v); setPage(1); }}
@@ -488,6 +491,11 @@ const StaffListView = ({ staff, appointments = [], onSelect, onBookEarliest }) =
             onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
             avatars={searchAvatars}
           />
+          <div className='flex-1 flex justify-end'>
+          <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
+            นำส่งออกรายงาน
+          </NeutralSubdueButton>
+          </div>
         </div>
 
         <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
@@ -539,9 +547,6 @@ const StaffListView = ({ staff, appointments = [], onSelect, onBookEarliest }) =
               >
                 Slot ที่ว่างเร็วที่สุด
               </BrandSubdueButton>
-              <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
-                นำส่งออกรายงาน
-              </NeutralSubdueButton>
             </div>
           </div>
 

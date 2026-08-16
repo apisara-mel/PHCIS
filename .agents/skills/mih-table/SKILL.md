@@ -101,6 +101,7 @@ Only when a screen explicitly needs pixel-locked columns (rare). Prefer content-
 | Prop | Notes |
 |------|--------|
 | `stickyColCount` | Number of left-pinned columns |
+| `stickyRightColCount` | Number of RIGHT-pinned columns (default `0`). Use `1` when the last column holds row CTAs and the table is wider than the viewport — otherwise the action buttons are only reachable after scrolling right. Works in both header modes; the page-sticky header counter-translates by `scrollX - maxScrollX` (+ `trailingInset`). |
 | `stickyHeaderTop` | CSS length / var — header sticks to page (not table scroller) |
 | `trailingInset` | Extra right pad for action buttons at scroll end |
 | `editMode` + DnD handlers | Row reorder |

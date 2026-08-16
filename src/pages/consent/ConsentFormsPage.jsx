@@ -25,7 +25,11 @@ import {
 import {
   CONSENT_FORM_DRAFTS_EVENT,
   getMergedConsentFormRecords,
+  readConsentFormDrafts,
+  saveConsentFormWizardDraft,
 } from '@/data/consentFormDraftStore';
+import { buildWizardDraftFromRecord } from '@/data/consentFormWizardContent';
+import Switch from '@/components/switch/Switch';
 import { logExport } from '@/data/consentWorkflowStore';
 import { downloadConsentFormPdf } from '@/data/consentFormDownload';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
@@ -251,9 +255,15 @@ export default function ConsentFormsPage() {
     }
   }, [location.search]);
 
+  /* toggle เผยแพร่/ไม่เผยแพร่จากคอลัมน์สถานะ — mock เก็บ override รายแถว
+     (id → สถานะใหม่) เพราะ registry หลักเป็นข้อมูล static */
+  const [statusOverride, setStatusOverride] = useState({});
+
   const allRecords = useMemo(
-    () => getMergedConsentFormRecords(CONSENT_FORM_RECORDS),
-    [draftRev],
+    () => getMergedConsentFormRecords(CONSENT_FORM_RECORDS).map(
+      (r) => (statusOverride[r.id] ? { ...r, status: statusOverride[r.id] } : r),
+    ),
+    [draftRev, statusOverride],
   );
 
   const summaryCards = useMemo(
@@ -399,6 +409,20 @@ export default function ConsentFormsPage() {
     setEditFor({ record: row, newVersion: true });
   };
 
+  /* กู้คืนเวอร์ชัน: ได้เป็น "แบบร่าง" ก่อนเสมอ — ไม่เผยแพร่ทันที เผื่อต้องแก้ไข
+     เนื้อหาก่อน · ผู้ใช้ยังอยู่ใน popup ประวัติเวอร์ชันต่อ (timeline โชว์ร่างใหม่
+     ทันที กดแก้ไขจากการ์ดร่างได้เลย — ร่างเข้าแท็บที่ร่างไว้อยู่แล้วเบื้องหลัง) */
+  const handleRestoreVersion = (row, snapshot, nextVersion) => {
+    /* กู้คืนซ้ำใบเดิม = อัปเดตร่างเดิม ไม่สร้างร่างซ้ำเป็นหลายแถว */
+    const existing = readConsentFormDrafts().find(
+      (d) => d.registry?.code === row.code && d.registry?.version === nextVersion,
+    );
+    saveConsentFormWizardDraft({
+      ...buildWizardDraftFromRecord(row),
+      version: nextVersion,
+    }, { draftId: existing?.id });
+  };
+
   /* แก้ไข: เทมเพลตที่เผยแพร่แล้วบังคับ bump — ร่าง/รอตรวจสอบแก้ตรงได้ — เปิด popup */
   const handleEdit = (row) => {
     if (row.isUserDraft) {
@@ -407,6 +431,20 @@ export default function ConsentFormsPage() {
     }
     if (row.status === 'เผยแพร่') setBumpFor(row);
     else setEditFor({ record: row, newVersion: false });
+  };
+
+  /* สลับเผยแพร่ ↔ ไม่เผยแพร่ จาก toggle ในคอลัมน์สถานะ — แถวย้ายแท็บตามสถานะใหม่
+     (ร่าง/รอตรวจสอบ toggle ไม่ได้ ต้องผ่านขั้นตรวจสอบ/เผยแพร่ใน wizard ก่อน) */
+  const handlePublishToggle = (row) => {
+    const next = row.status === 'เผยแพร่' ? 'ไม่เผยแพร่' : 'เผยแพร่';
+    setStatusOverride((prev) => ({ ...prev, [row.id]: next }));
+    setToast({
+      id: Date.now(),
+      variant: 'success',
+      message: next === 'เผยแพร่'
+        ? `เผยแพร่ ${row.code} แล้ว — ผู้ใช้เห็นแบบฟอร์มนี้ในระบบ`
+        : `ปิดการเผยแพร่ ${row.code} แล้ว — ย้ายไปแท็บไม่เผยแพร่`,
+    });
   };
 
   /* ด.1.1.15 — ดาวน์โหลด PDF เพื่อพิมพ์ให้ลงนาม (export → เก็บ log) */
@@ -472,7 +510,50 @@ export default function ConsentFormsPage() {
       { key: 'creator', header: 'ผู้สร้าง', render: (r) => <Cell value={r.creator} /> },
       {
         key: 'status', header: 'สถานะ', sortable: true,
-        render: (r) => <ColorfulBadge style={(CONSENT_FORM_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>,
+        /* กันคอลัมน์ยืด-หดตอนสลับ toggle: กว้างพอสำหรับ toggle + ป้ายที่ยาวสุด */
+        minWidth: 140,
+        /* toggle เฉพาะแท็บ "แบบฟอร์มทั้งหมด" — สลับสถานะแล้วแถวยังอยู่ให้เห็นผลตรงนั้น
+           แท็บสถานะรายกลุ่มใช้ badge ตามเดิม (แถวในแท็บถูกกรองด้วยสถานะอยู่แล้ว)
+           toggle = สถานะการเผยแพร่: เปิด (เผยแพร่) / ปิด (ไม่เผยแพร่) —
+           ร่าง/รอตรวจสอบยังเผยแพร่ตรงนี้ไม่ได้ จึงเป็น toggle ปิดแบบ disabled */
+        render: (r) => {
+          if (activeTab !== 'all') {
+            return (
+              <ColorfulBadge
+                style={(CONSENT_FORM_STATUS[r.status] || {}).tone || 'grey'}
+                size='small'
+                hierarchy='secondary'
+                width='hug'
+              >
+                {r.status}
+              </ColorfulBadge>
+            );
+          }
+          const publishable = r.status === 'เผยแพร่' || r.status === 'ไม่เผยแพร่';
+          return (
+            <div className='flex items-center flex-nowrap' style={{ gap: 'var(--dim-space-200)' }}>
+              <Switch
+                checked={r.status === 'เผยแพร่'}
+                disabled={!publishable}
+                aria-label={`${r.status === 'เผยแพร่' ? 'ปิดการเผยแพร่' : 'เผยแพร่'} ${r.code}`}
+                onChange={() => publishable && handlePublishToggle(r)}
+              />
+              <span className='whitespace-nowrap' style={{
+                /* จองความกว้างเท่าป้ายที่ยาวสุด ("รอตรวจสอบ" = 71px) — สลับ
+                   toggle แล้วความกว้างคอลัมน์ไม่ขยับ */
+                minWidth: 'var(--dim-size-1600, 72px)',
+                color: publishable
+                  ? 'var(--text-content-default)'
+                  : 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                lineHeight: 1.5,
+              }}>
+                {r.status}
+              </span>
+            </div>
+          );
+        },
       },
       { key: 'action', header: 'การดำเนินการ', minWidth: 304, render: renderAction },
     ];
@@ -578,13 +659,12 @@ export default function ConsentFormsPage() {
                 )}
               </div>
             </div>
+            </SmoothFilterResults>
           ) : grouped.length === 0 ? (
             <div className='w-full flex flex-col items-center justify-center' style={{ minHeight: 200 }}>
               <span style={{ ...MUTED_CELL }}>ไม่พบแบบฟอร์มความยินยอม</span>
             </div>
-                    </SmoothFilterResults>
-
-) : (
+          ) : (
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
               {grouped.map((g) => (
                 <GroupSection
@@ -630,7 +710,16 @@ export default function ConsentFormsPage() {
       record={versionFor}
       onClose={() => setVersionFor(null)}
       onCreateVersion={(row) => { setVersionFor(null); goCreateVersion(row); }}
-      onRestoreVersion={() => setVersionFor(null)}
+      onRestoreVersion={handleRestoreVersion}
+      /* แก้ไขร่างจากการ์ดบน timeline — เปิด wizard เป็น popup ต่อ (ปิดใบประวัติ
+         ก่อนแล้วค่อยเปิดใบแก้ไข ไม่ให้ popup ซ้อนกัน) */
+      onEditDraft={(entry) => {
+        setVersionFor(null);
+        const draftRow = allRecords.find(
+          (r) => r.isUserDraft && String(r.id) === String(entry.draftId),
+        );
+        if (draftRow) setEditFor({ record: draftRow, newVersion: false });
+      }}
       onToast={setToast}
     />
 

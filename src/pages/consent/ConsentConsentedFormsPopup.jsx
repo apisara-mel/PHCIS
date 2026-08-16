@@ -9,8 +9,12 @@ import { ConsentHistoryTimeline } from '@/pages/consent/ConsentHistoryPage';
 import { getConsentRecords, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import { resolveConsentPatientCard } from '@/data/consentPatientDisplay';
 import { toSignedFormViewEventFromRecord } from '@/data/signedConsentFormView';
-import { CONSENT_STATUS } from '@/data/consentRecords';
+import { CONSENT_STATUS, CONSENT_CONFIRM } from '@/data/consentRecords';
 import SignedConsentFormBody from '@/pages/consent/SignedConsentFormBody';
+import ConsentIdentityVerifyPanel from '@/components/consent/ConsentIdentityVerifyPanel';
+import ConsentRevokeConfirmBody from '@/components/consent/ConsentRevokeConfirmBody';
+import { formatNationalId, ID_CARD_CHIP_PHOTO_MOCK } from '@/data/registrationForm';
+import { findMrPatientByHn } from '@/data/mrPatients';
 
 /* PHCIS | Consent — ดูแบบฟอร์มความยินยอม (read-only inline)
    เปิดจาก icon view ใน worklist จัดการความยินยอม
@@ -221,8 +225,12 @@ const ConsentConsentedFormsPopup = ({
   allForPatient = false,
   /** (record) => ReactNode — คอลัมน์ "การดำเนินการ" ของตารางแบบฟอร์มทั้งหมด
       ผู้เรียก (ConsentManagementPage) เป็นเจ้าของ dialog/verify/toast ทั้งหมด
-      popup แค่วางปุ่ม ไม่ถือ workflow state เอง */
+      popup แค่วางปุ่ม ไม่ถือ workflow state เอง — ยกเว้นเพิกถอนที่เดินเป็น
+      drill-down ในนี้ (ดู requestRevoke ด้านล่าง) */
   renderRecordAction = null,
+  /** (record, audit) => void — ผู้เรียกลงมือเพิกถอนจริง (patch สถานะ + toast)
+      หลังผ่านขั้นยืนยัน + ยืนยันตัวตนใน popup นี้แล้ว */
+  onRevokeConfirmed = null,
 }) => {
   const [records, setRecords] = useState(getConsentRecords);
   /* ฉบับที่ผู้ใช้เลือกจากตาราง (โหมด allForPatient เท่านั้น) */
@@ -244,6 +252,25 @@ const ConsentConsentedFormsPopup = ({
   const morphHostRef = useRef(null);
   const patientCardRef = useRef(null);
 
+  /* เพิกถอนแบบ drill-down ใน popup เดียวกัน — ไม่เปิด dialog/popup ซ้อน:
+       list → 'confirm' (การ์ดแบบฟอร์ม + การเสียผลประโยชน์) → 'identity' (ด.1.1.1)
+     mutation + toast เป็นของผู้เรียกผ่าน onRevokeConfirmed */
+  const IDENTITY_IDLE = { verifiedAt: null, method: null, methodText: '', reading: false, subject: 'self', subjectLabel: '' };
+  const [revokeFor, setRevokeFor] = useState(null);
+  const [revokeStep, setRevokeStep] = useState('confirm'); /* 'confirm' | 'identity' */
+  const [revokeIdentity, setRevokeIdentity] = useState(IDENTITY_IDLE);
+
+  const beginRevoke = (rec) => {
+    setRevokeFor(rec);
+    setRevokeStep('confirm');
+    setRevokeIdentity(IDENTITY_IDLE);
+  };
+  const exitRevoke = () => {
+    setRevokeFor(null);
+    setRevokeStep('confirm');
+    setRevokeIdentity(IDENTITY_IDLE);
+  };
+
   useEffect(() => subscribeConsentStore(() => setRecords(getConsentRecords())), []);
   /* เปิดใหม่ / เปลี่ยนคน = กลับไปแท็บแรก + ลำดับตั้งต้นเสมอ */
   useEffect(() => {
@@ -252,6 +279,9 @@ const ConsentConsentedFormsPopup = ({
     setView('forms');
     setSortConfig({ key: null, direction: 'desc' });
     setHeaderCollapsed(false);
+    setRevokeFor(null);
+    setRevokeStep('confirm');
+    setRevokeIdentity(IDENTITY_IDLE);
   }, [open, hn]);
 
   /* ย้อนกลับจากหน้าเอกสาร → กลับไปแท็บเดิมที่กดมา */
@@ -404,10 +434,42 @@ const ConsentConsentedFormsPopup = ({
     };
   }, [isTimelinePanel, hn, open]);
 
+  /* ส่ง requestRevoke ของ popup เข้าไปให้ปุ่ม "เพิกถอน" ของผู้เรียก — ปุ่มอื่น
+     (Reconsent / ยกเลิกคำขอ / แก้ไข) ยังเดินเส้นทางเดิมของหน้าแม่ */
+  const actionRenderer = useMemo(() => (
+    renderRecordAction
+      ? (r) => renderRecordAction(r, { requestRevoke: beginRevoke })
+      : null
+  ), [renderRecordAction]);
   const formColumns = useMemo(
-    () => buildFormColumns(renderRecordAction),
-    [renderRecordAction],
+    () => buildFormColumns(actionRenderer),
+    [actionRenderer],
   );
+
+  /* ข้อมูลบัตรประชาชนในทะเบียน — คอลัมน์ซ้ายของขั้นยืนยันตัวตน (ชุดเดียวกับ
+     ขั้นยืนยันของ popup กรอกแบบฟอร์ม) */
+  const revokeIdCard = useMemo(() => {
+    const targetHn = revokeFor?.hn || hn;
+    if (!targetHn) return null;
+    const card = resolveConsentPatientCard(targetHn, revokeFor?.name || name);
+    const mr = findMrPatientByHn(baseHn(targetHn));
+    const addr = mr?.address;
+    return {
+      photoUrl: card?.avatarUrl || '',
+      idCardPhotoUrl: ID_CARD_CHIP_PHOTO_MOCK,
+      fullName: card?.fullName
+        || [mr?.prefixTh, mr?.firstNameTh, mr?.lastNameTh].filter(Boolean).join(' ')
+        || revokeFor?.name || name || '',
+      nationalId: mr?.nationalId ? formatNationalId(mr.nationalId) : '',
+      dob: mr?.dob || '',
+      gender: mr?.gender || '',
+      hn: targetHn,
+      address: addr
+        ? [addr.houseNo, addr.moo && `หมู่ ${addr.moo}`, addr.road, addr.subdistrict, addr.district, addr.province, addr.zip]
+          .filter(Boolean).join(' ')
+        : '',
+    };
+  }, [revokeFor, hn, name]);
 
   const viewTabs = useMemo(() => [
     { key: 'forms',    label: 'แบบฟอร์มทั้งหมด', count: patientRecords.length },
@@ -447,22 +509,75 @@ const ConsentConsentedFormsPopup = ({
       ].filter(Boolean).join(' · ')
       : 'รายการแบบฟอร์มที่ผู้รับบริการให้ความยินยอมแล้ว');
 
+  /* ขั้น drill-down เพิกถอน — เปลี่ยนหัว/ปุ่ม/เนื้อของ popup ใบเดิม (ห้ามซ้อน) */
+  const inRevoke = !!revokeFor;
+  const revokeConfirmStep = inRevoke && revokeStep === 'confirm';
+  const revokeIdentityStep = inRevoke && revokeStep === 'identity';
+
+  const finishRevoke = () => {
+    onRevokeConfirmed?.(revokeFor, {
+      method: revokeIdentity.method,
+      methodText: revokeIdentity.methodText,
+      subject: revokeIdentity.subject,
+      subjectLabel: revokeIdentity.subjectLabel,
+      verifiedAt: revokeIdentity.verifiedAt,
+    });
+    exitRevoke();
+  };
+
   return (
     <Popup
       open={open}
       onClose={onClose}
       /* ขนาดคงที่ทั้ง 3 แท็บ + หน้าตัวฟอร์ม — ถ้าย่อ/ขยายตอนสลับแท็บหรือกดเข้า
-         ฉบับ ผู้ใช้จะเสียตำแหน่งสายตาทุกครั้ง */
-      size={allForPatient ? 'extraLarge' : 'large'}
-      title={popupTitle}
-      subtitle={popupSubtitle}
+         ฉบับ ผู้ใช้จะเสียตำแหน่งสายตาทุกครั้ง · ขั้นเพิกถอนหดตาม content */
+      size={inRevoke ? 'large' : (allForPatient ? 'extraLarge' : 'large')}
+      width={inRevoke ? (revokeIdentityStep ? 1040 : 640) : undefined}
+      title={inRevoke
+        ? (revokeConfirmStep ? CONSENT_CONFIRM.revoke.title : 'ยืนยันตัวตนผู้รับบริการ')
+        : popupTitle}
+      subtitle={inRevoke
+        ? (revokeConfirmStep
+          ? 'ตรวจรายละเอียดและแจ้งการเสียผลประโยชน์ให้ผู้รับบริการทราบก่อนยืนยัน'
+          : 'ยืนยันตัวตนก่อนเพิกถอนความยินยอม')
+        : popupSubtitle}
       /* ปุ่มย้อนกลับอยู่แถวเดียวกับหัว popup (‹ ของ Popup เอง) แบบ nested popup
          อื่น ๆ ในระบบ — ไม่ใช่ปุ่มลอยอยู่ในเนื้อหา · X ยังปิดทั้ง popup เหมือนเดิม */
-      onBack={allForPatient && !listMode ? goBackToList : undefined}
+      onBack={inRevoke
+        ? (revokeIdentityStep ? () => setRevokeStep('confirm') : exitRevoke)
+        : (allForPatient && !listMode ? goBackToList : undefined)}
       /* แท็บ Timeline scroll เอง — ปิด scroll ของ body ไม่งั้นได้ scrollbar ซ้อน */
-      bodyScrollable={!isTimelinePanel}
-      secondaryAction={{ label: 'ปิด', onClick: onClose }}
+      bodyScrollable={inRevoke ? true : !isTimelinePanel}
+      primaryAction={revokeConfirmStep
+        ? {
+          label: CONSENT_CONFIRM.revoke.confirmLabel,
+          tone: 'danger',
+          onClick: () => setRevokeStep('identity'),
+        }
+        : (revokeIdentityStep
+          ? {
+            label: 'ต่อไป',
+            onClick: finishRevoke,
+            disabled: !revokeIdentity.verifiedAt || revokeIdentity.reading,
+          }
+          : undefined)}
+      secondaryAction={inRevoke
+        ? { label: 'ยกเลิก', onClick: exitRevoke, disabled: revokeIdentity.reading }
+        : { label: 'ปิด', onClick: onClose }}
     >
+      {/* ขั้นยืนยันการเพิกถอน — การ์ดแบบฟอร์ม + การเสียผลประโยชน์ */}
+      {revokeConfirmStep && <ConsentRevokeConfirmBody record={revokeFor} />}
+
+      {/* ขั้นยืนยันตัวตน (ด.1.1.1) — แผงเดียวกับทุกทางเข้าของโมดูล */}
+      {revokeIdentityStep && (
+        <ConsentIdentityVerifyPanel
+          idCard={revokeIdCard}
+          contextText='ยืนยันตัวตนก่อนเพิกถอนความยินยอม'
+          onChange={setRevokeIdentity}
+        />
+      )}
+
+      {!inRevoke && (
       <div
         ref={morphHostRef}
         className={`flex flex-col w-full min-w-0${isTimelinePanel ? ' flex-1 min-h-0' : ''}`}
@@ -585,6 +700,7 @@ const ConsentConsentedFormsPopup = ({
           <span style={MUTED}>ไม่พบข้อมูลแบบฟอร์มที่ให้ความยินยอม</span>
         )}
       </div>
+      )}
     </Popup>
   );
 };

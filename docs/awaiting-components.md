@@ -793,6 +793,42 @@ design system เมื่อไร
 
 ---
 
+### 53. ConsentQrScanBlock (บล็อกสแกน QR ให้ผู้รับบริการยินยอมเอง) — 📐 มี 2 ผู้ใช้แล้ว พร้อมยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/registration/RegistrationConsentFillPage.jsx` (แผงขวาหน้ากรอกใบยินยอม) · `src/pages/consent/CreateConsentFormPage.jsx` → `StepReview` เมื่อส่ง `showPatientQr` (popup ดูแบบฟอร์ม `/consent/forms`) — 2 ที่ |
+| **หน้าที่** | ภาพประกอบมือถือสแกน + คำอธิบาย "หรือให้ผู้รับบริการยินยอมด้วยตนเองผ่านโทรศัพท์ Application โดยสแกน QR Code ด้านล่างนี้" + กรอบ QR — เสนอทางเลือกให้ผู้รับบริการเซ็นเองแทนเจ้าหน้าที่กรอกแทน |
+| **ทำไมไม่มีของเดิมแทน** | `ConsentQrSendPopup` เป็น flow ส่ง QR ไปมือถือแบบ popup 3 stage · `FakeQR` เป็นตัว render QR ล้วน ๆ ไม่มี copy/ภาพประกอบ — บล็อกนี้คือ "ข้อเสนอ + QR" ที่ฝังในแผงข้างของหน้าเอกสาร |
+| **โครงที่เป็นอยู่** | `<ConsentQrScanBlock qrSrc \| qrNode qrSize illustrationSrc alt>` — ส่ง QR ได้ทั้ง URL รูป (เวชระเบียนใช้ api.qrserver.com) หรือโหนด (`<FakeQR seed=… />` ในฝั่ง consent ที่ไม่พึ่ง network) |
+| **ยังไม่มีใน Figma** | มีใน Figma Registration 295:41105 แต่ยังไม่ได้เป็น component ของ MIH library — ต้องยืนยันชื่อ/ขนาดก่อนยกขึ้น DS |
+| **บันทึกเมื่อ** | 14 ส.ค. 2569 |
+
+---
+
+### 54. ConsentFormFillBody + ConsentDisclosureFillPopup (กรอกใบยินยอมเปิดเผยข้อมูล) — 📐 มี 3 ผู้ใช้แล้ว พร้อมยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/registration/RegistrationConsentFillPage.jsx` (หน้าเต็ม `/registration/consent/:formId`) · `src/components/forms/RegistrationSteps.jsx` → `StepConsent` (popup จากการ์ด Step 1) · `src/pages/consent/ConsentRequestFormsPopup.jsx` (nested popup ในระบบจัดการความยินยอม) — 3 ที่ |
+| **หน้าที่** | `ConsentFormFillBody` = ตัวเอกสาร: ข้อมูลผู้ป่วย → ข้อความยินยอมรายข้อ (ยินยอม/ไม่ยินยอม) → ลายมือชื่อ + แผงขวา QR/Patient View · `ConsentDisclosureFillPopup` = เปลือก popup + ปุ่มบันทึก + `recordMrConsentSigning` + เตือนก่อนทิ้ง |
+| **ทำไมไม่มีของเดิมแทน** | `ConsentFormFillPopup` (`src/components/popup/`) กรอกฟอร์มจาก `formsLibrary.js` (checkbox + ลายเซ็น) คนละ schema กับใบเปิดเผยข้อมูล 3 ใบนี้ที่เป็น clause + ยินยอม/ไม่ยินยอมรายข้อ |
+| **ปัญหาที่แก้** | เดิมเอกสารเขียนอยู่ในหน้าเต็มหน้าเดียว (640 บรรทัด) — พอต้องเปิดเป็น popup 2 ที่ ถ้า copy จะได้เอกสาร 3 สำเนาที่ drift แยกกันทันที |
+| **โครงที่เป็นอยู่** | `<ConsentFormFillBody formId initialFullName initialNationalId initialHn showSidePanel onStateChange onSubmit>` — คุยกับปุ่มบันทึกของผู้เรียกผ่าน `onStateChange({ ready, submit })` (สัญญาเดียวกับ AccessRequestForm) |
+| **บันทึกเมื่อ** | 14 ส.ค. 2569 |
+
+### 55. ConsentIdentityVerifyPanel (แผงยืนยันตัวตนก่อนกรอกใบยินยอม ด.1.1.1) — 📐 มี 2 ผู้ใช้แล้ว พร้อมยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/consent/ConsentRequestFormsPopup.jsx` (worklist ผู้รับบริการทั้งหมด — มีการ์ดข้อมูลบัตรฝั่งซ้าย) · `src/pages/consent/ConsentFormViewPopup.jsx` (เมนูแบบฟอร์มความยินยอม — ไม่มีการ์ดซ้าย เพราะยังไม่รู้ตัวผู้รับบริการ) — 2 ที่ |
+| **หน้าที่** | รวมขั้นยืนยันตัวตนทั้งชุดไว้ในคอมโพเนนต์เดียวที่ถือ state เอง: ตัวเลือก "ผู้ให้ความยินยอม" (ผู้รับบริการเอง / ผู้ปกครองแทนบุตรผู้เยาว์ — เปลี่ยนคำในกล่องยืนยันเป็น "ของผู้ปกครอง") → pill tab 3 วิธี (เสียบบัตร / เอกสารแทนบัตร / สแกนลายนิ้วมือ) → สถานะสำเร็จ · รายงานขึ้นผู้เรียกทาง `onChange({ verifiedAt, method, methodText, reading, subject })` |
+| **ประกอบจาก** | `ConsentIdCardOnFile` + `ConsentIdCardReadStep` + `ConsentAltIdentityStep` + `ConsentFingerprintScanStep` + `ConsentIdentitySuccessStep` + `TabPill` + `RadioButton` + `CameraCapturePopup` (ลูกทั้งหมดรับ `personLabel` เพื่อสลับคำ ผู้รับบริการ/ผู้ปกครอง) |
+| **ปัญหาที่แก้** | เดิม state ~10 ตัว + mock timer ของขั้นยืนยันฝังอยู่ใน ConsentRequestFormsPopup — พอเมนูแบบฟอร์มต้องมีขั้นเดียวกัน ถ้า copy จะ drift ทันที จึงดึงออกมาเป็นแผงกลาง ผู้เรียกเหลือแค่กระจก state ไว้เปิดปุ่ม "ต่อไป" |
+| **บันทึกเมื่อ** | 14 ส.ค. 2569 |
+
+---
+
 ## Token ที่รอ sync เข้า mih-design
 
 ทะเบียนของ **design token ที่ mirror ในนี้ (`src/styles/tokens.css` + `design.md`) ล้ำหน้า
