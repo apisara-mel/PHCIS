@@ -810,7 +810,7 @@ design system เมื่อไร
 
 | | |
 |---|---|
-| **ใช้อยู่ที่** | `src/pages/registration/RegistrationConsentFillPage.jsx` (หน้าเต็ม `/registration/consent/:formId`) · `src/components/forms/RegistrationSteps.jsx` → `StepConsent` (popup จากการ์ด Step 1) · `src/pages/consent/ConsentRequestFormsPopup.jsx` (nested popup ในระบบจัดการความยินยอม) — 3 ที่ |
+| **ใช้อยู่ที่** | `src/pages/registration/RegistrationConsentFillPage.jsx` (หน้าเต็ม `/registration/consent/:formId`) · `src/components/forms/RegistrationSteps.jsx` → `StepConsent` (popup จากการ์ด Step 1) · `src/pages/consent/ConsentRequestFormsPopup.jsx` (nested popup ในระบบจัดการความยินยอม) · `src/pages/mobile/MobileConsentPage.jsx` (`/m/consent` — `showSidePanel={false}` ผู้รับบริการกรอกเองบนมือถือ) — 4 ที่ |
 | **หน้าที่** | `ConsentFormFillBody` = ตัวเอกสาร: ข้อมูลผู้ป่วย → ข้อความยินยอมรายข้อ (ยินยอม/ไม่ยินยอม) → ลายมือชื่อ + แผงขวา QR/Patient View · `ConsentDisclosureFillPopup` = เปลือก popup + ปุ่มบันทึก + `recordMrConsentSigning` + เตือนก่อนทิ้ง |
 | **ทำไมไม่มีของเดิมแทน** | `ConsentFormFillPopup` (`src/components/popup/`) กรอกฟอร์มจาก `formsLibrary.js` (checkbox + ลายเซ็น) คนละ schema กับใบเปิดเผยข้อมูล 3 ใบนี้ที่เป็น clause + ยินยอม/ไม่ยินยอมรายข้อ |
 | **ปัญหาที่แก้** | เดิมเอกสารเขียนอยู่ในหน้าเต็มหน้าเดียว (640 บรรทัด) — พอต้องเปิดเป็น popup 2 ที่ ถ้า copy จะได้เอกสาร 3 สำเนาที่ drift แยกกันทันที |
@@ -826,6 +826,16 @@ design system เมื่อไร
 | **ประกอบจาก** | `ConsentIdCardOnFile` + `ConsentIdCardReadStep` + `ConsentAltIdentityStep` + `ConsentFingerprintScanStep` + `ConsentIdentitySuccessStep` + `TabPill` + `RadioButton` + `CameraCapturePopup` (ลูกทั้งหมดรับ `personLabel` เพื่อสลับคำ ผู้รับบริการ/ผู้ปกครอง) |
 | **ปัญหาที่แก้** | เดิม state ~10 ตัว + mock timer ของขั้นยืนยันฝังอยู่ใน ConsentRequestFormsPopup — พอเมนูแบบฟอร์มต้องมีขั้นเดียวกัน ถ้า copy จะ drift ทันที จึงดึงออกมาเป็นแผงกลาง ผู้เรียกเหลือแค่กระจก state ไว้เปิดปุ่ม "ต่อไป" |
 | **บันทึกเมื่อ** | 14 ส.ค. 2569 |
+
+### 56. QrScannerView (จอสแกน QR mock ฝั่ง Mobile — viewfinder + มุมกรอบ + เส้นสแกน) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/mobile/MobileConsentPage.jsx` (`/m/consent` — สแกน QR จากจอเจ้าหน้าที่เพื่อเปิดใบยินยอม) — 1 ที่ |
+| **หน้าที่** | จอกล้องจำลองบนพื้นมืด: กรอบมุม 4 ด้าน + เส้นสแกนวิ่ง (keyframes `mih-mconsent-scan`) → เจอผลแล้วสลับเป็น check + ชื่อแบบฟอร์ม + ปุ่มไปต่อ/สแกนใหม่ · header ขาวของตัวเองเพราะ `MobileHeader` บังคับสีไอคอนเทาเข้ม อ่านไม่ออกบนพื้นกล้อง |
+| **ทำไมไม่มีของเดิมแทน** | `ConsentQrScanBlock` (#53) เป็นฝั่ง "แสดง QR ให้สแกน" (เจ้าหน้าที่) — ตัวนี้คือฝั่งกล้องของผู้รับบริการ คนละหน้าที่ |
+| **เคสที่ 2 ที่คาดว่าจะมา** | สแกน QR คิวตรวจ / สแกนเปิด e-Document อื่นบน Mobile app (TOR 4.5.4 / 4.6.4) |
+| **บันทึกเมื่อ** | 17 ส.ค. 2569 |
 
 ---
 

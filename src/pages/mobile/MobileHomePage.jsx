@@ -15,6 +15,8 @@ import StatusBadge from '@/components/badge/StatusBadge';
 import { MOBILE_ICON_TONES, MOBILE_SERVICE_META } from '@/components/mobile/mobileIconTones';
 import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
 import MobileIconBadge from '@/components/mobile/MobileIconBadge';
+import { getConsentRecords, subscribeConsentStore, MOBILE_DEMO_HN } from '@/data/consentWorkflowStore';
+import { CONSENT_TYPE_TONE } from '@/data/consentRecords';
 
 /* BMA Health · Home — Archive Figma 4WXeI8fgBLQGgQ9VheM2yD · 124:6012
    (also mirrored in Mobile Application 6dCDQkwc8DhvyovBbDTyp5 · 2042:27492).
@@ -957,6 +959,70 @@ const VisitHistoryCard = ({ visit, onClick }) => {
   );
 };
 
+/* แบบฟอร์มที่รอผู้ใช้ลงนาม (สถานะ รอลงนาม / อยู่ระหว่างลงนาม) — TOR 1.5.11
+   ซ่อนทั้ง section เมื่อไม่มีรายการ · กดแล้วไปทำต่อที่ /m/consent
+   (ยืนยันตัวตน + กรอกเอกสารอยู่ที่นั่น ไม่ทำซ้ำบน Home) */
+const PendingConsentSection = () => {
+  const history = useHistory();
+  const myHns = useMemo(
+    () => [...new Set([...(CURRENT_USER.centers || []).map((c) => c.hn), MOBILE_DEMO_HN])],
+    [],
+  );
+  const readPending = () => getConsentRecords()
+    .filter((r) => myHns.includes(r.hn) && ['รอลงนาม', 'อยู่ระหว่างลงนาม'].includes(r.status))
+    .sort((a, b) => b.id - a.id);
+  const [pending, setPending] = useState(readPending);
+  useEffect(() => subscribeConsentStore(() => setPending(readPending())), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!pending.length) return null;
+  return (
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)', paddingRight: 'var(--dim-space-600, 24px)' }}>
+      <SectionHead title='แบบฟอร์มที่ต้องให้ความยินยอม' count={pending.length} />
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        {pending.slice(0, 3).map((r) => (
+          <button
+            key={r.id}
+            type='button'
+            onClick={() => history.push('/m/consent')}
+            className='flex items-center text-left w-full'
+            style={{
+              gap: 'var(--dim-space-300, 12px)',
+              padding: 'var(--dim-space-300, 12px)',
+              background: C.card,
+              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+              borderRadius: 'var(--dim-radius-400, 12px)',
+              boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+              cursor: 'pointer',
+            }}
+          >
+            <MobileIconBadge icon='contract_edit' tone='green' size={40} iconSize={20} />
+            <div className='flex-1 min-w-0 flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                <ColorfulBadge style={CONSENT_TYPE_TONE[r.type] || 'teal'} size='small' hierarchy='secondary' width='hug'>
+                  {r.type}
+                </ColorfulBadge>
+                <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>
+                  รอลงนาม
+                </ColorfulBadge>
+              </div>
+              <span style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm, 14px)',
+                lineHeight: 1.5,
+                color: C.ink,
+              }}
+              >
+                {r.formName}
+              </span>
+            </div>
+            <Sym name='chevron_right' size={20} color='var(--icon-list-secondary, #858C92)' />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const HistoryCarousel = () => {
   const history = useHistory();
   const { visits } = usePhcisLink();
@@ -1020,6 +1086,7 @@ const MobileHomeInner = () => (
         >
           <PaymentBanner />
         </div>
+        <PendingConsentSection />
         <NextAppointments />
         <RequestsCarousel />
         <HistoryCarousel />

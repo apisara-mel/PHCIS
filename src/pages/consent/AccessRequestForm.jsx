@@ -839,7 +839,6 @@ export default function AccessRequestForm({
                   : 'อ่านข้อมูลจากเอกสารสำเร็จ — ตรวจสอบและแก้ไขก่อนบันทึก'}
               </span>
             </div>
-            <span style={LABEL_TEXT}>ตรวจสอบข้อมูลคำขอ</span>
             <div className='flex items-start flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               <div className='flex flex-col' style={{ flex: '1 1 260px', gap: 'var(--dim-space-300)' }}>
                 <InputField label='ผู้ขอ (เจ้าหน้าที่)' required value={name} onChange={setName} placeholder='ชื่อ-นามสกุลผู้ขอ' />
