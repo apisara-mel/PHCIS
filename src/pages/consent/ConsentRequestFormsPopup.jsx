@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import Alert from '@/components/alert/Alert';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -6,15 +6,7 @@ import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import PendingConsentFormCard from '@/components/consent/PendingConsentFormCard';
 import ConsentFormPrintConfirmDialog from '@/components/consent/ConsentFormPrintConfirmDialog';
-import ConsentIdCardOnFile from '@/components/consent/ConsentIdCardOnFile';
-import ConsentIdCardReadStep from '@/components/consent/ConsentIdCardReadStep';
-import ConsentIdentitySuccessStep from '@/components/consent/ConsentIdentitySuccessStep';
-import ConsentFingerprintScanStep from '@/components/consent/ConsentFingerprintScanStep';
-import ConsentAltIdentityStep, {
-  ALT_IDENTITY_CASE_LABEL,
-  ALT_IDENTITY_DOC_TYPES,
-} from '@/components/consent/ConsentAltIdentityStep';
-import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
+import ConsentIdentityVerifyPanel from '@/components/consent/ConsentIdentityVerifyPanel';
 import ConsentFormFillBody from '@/components/consent/ConsentFormFillBody';
 import SignedConsentFormBody from '@/pages/consent/SignedConsentFormBody';
 import { toSignedFormViewEventFromRecord } from '@/data/signedConsentFormView';
@@ -113,17 +105,11 @@ const ConsentRequestFormsPopup = ({
 
   /* 'list' | 'identity' | 'form' | 'view' — ขั้นภายใน popup ใบเดียวกัน */
   const [step, setStep] = useState('list');
-  /* 'card' | 'forgot' | 'foreign' — วิธียืนยันตัวตนที่เลือกจาก pill tab */
-  const [idTab, setIdTab] = useState('card');
-  const [altDocType, setAltDocType] = useState('');
-  const [altFileName, setAltFileName] = useState('');
-  const [altFileError, setAltFileError] = useState('');
-  const [altMatched, setAltMatched] = useState(false);
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [verifiedVia, setVerifiedVia] = useState(null);
   const [fillFormId, setFillFormId] = useState(null);
-  const [reading, setReading] = useState(false);
-  const [verifiedAt, setVerifiedAt] = useState(null);
+  /* กระจกสถานะจาก ConsentIdentityVerifyPanel — state จริงอยู่ในแผงนั้น
+     popup ใช้แค่เปิดปุ่ม "ต่อไป" + เอาข้อความวิธียืนยันไปโชว์ในขั้นกรอกฟอร์ม */
+  const IDENTITY_IDLE = { verifiedAt: null, method: null, methodText: '', reading: false, subject: 'self', subjectLabel: '' };
+  const [identity, setIdentity] = useState(IDENTITY_IDLE);
   const [formApi, setFormApi] = useState({ ready: false, submit: () => {} });
   /* null | 'list' | 'close' — ค้างไว้ว่าจะไปไหนต่อหลังยืนยันละทิ้งที่กรอกค้าง */
   const [confirmDiscard, setConfirmDiscard] = useState(null);
@@ -135,37 +121,25 @@ const ConsentRequestFormsPopup = ({
      ฟอร์มที่จะโชว์บนหัว popup อยู่ที่การ์ด ไม่ใช่ที่ record (record เก็บชื่อ
      ตามที่ store บันทึกไว้ ซึ่งอาจว่างสำหรับใบที่เพิ่งเซ็นในรอบนี้) */
   const [viewCard, setViewCard] = useState(null);
-  const readTimer = useRef(null);
 
   const meta = useMemo(
     () => (fillFormId ? getRegistrationConsentForm(fillFormId) : null),
     [fillFormId],
   );
 
-  /* ปิดแล้วเปิดใหม่ = เริ่มที่รายการใบเสมอ · การยืนยันตัวตนไม่ค้างข้ามรอบ */
+  /* ปิดแล้วเปิดใหม่ = เริ่มที่รายการใบเสมอ · การยืนยันตัวตนไม่ค้างข้ามรอบ
+     (state ภายในแผงยืนยันรีเซ็ตเองตอน unmount — เหลือแค่กระจกฝั่งนี้) */
   useEffect(() => {
-    if (open) return undefined;
-    if (readTimer.current) { clearTimeout(readTimer.current); readTimer.current = null; }
+    if (open) return;
     setStep('list');
     setListTab('pending');
     setViewCard(null);
     setFillFormId(null);
-    setReading(false);
-    setVerifiedAt(null);
-    setVerifiedVia(null);
-    setIdTab('card');
-    setAltDocType('');
-    setAltFileName('');
-    setAltFileError('');
-    setAltMatched(false);
-    setCameraOpen(false);
+    setIdentity(IDENTITY_IDLE);
     setFormApi({ ready: false, submit: () => {} });
     setConfirmDiscard(null);
     setPrintForm(null);
-    return undefined;
   }, [open]);
-
-  useEffect(() => () => { if (readTimer.current) clearTimeout(readTimer.current); }, []);
 
   const fillPatient = useMemo(() => {
     if (!hn) return null;
@@ -206,68 +180,12 @@ const ConsentRequestFormsPopup = ({
 
   if (!open) return null;
 
-  /* เลือกใบ → เข้าขั้นเสียบบัตรเสมอ (เปลี่ยนใบก็ต้องยืนยันใหม่) */
+  /* เลือกใบ → เข้าขั้นยืนยันตัวตนเสมอ (เปลี่ยนใบก็ต้องยืนยันใหม่) */
   const openFill = (formId) => {
     setFillFormId(formId);
-    setVerifiedAt(null);
-    setVerifiedVia(null);
-    setIdTab('card');
-    setAltDocType('');
-    setAltFileName('');
-    setAltFileError('');
-    setAltMatched(false);
-    setReading(false);
+    setIdentity(IDENTITY_IDLE);
     setFormApi({ ready: false, submit: () => {} });
     setStep('identity');
-  };
-
-  /* DragAndDrop คืน array ของไฟล์ · กล้องคืน dataURL → เก็บแค่ชื่อไฟล์ไว้โชว์
-     (mock — ยังไม่ส่งไฟล์จริงไปไหน) */
-  const handleAltFilePick = (files) => {
-    const file = Array.isArray(files) ? files[0] : files;
-    if (!file) return;
-    setAltFileError('');
-    setAltFileName(file.name || 'เอกสารที่อัปโหลด');
-  };
-
-  /* mock เครื่องสแกนลายนิ้วมือ — ของจริงเป็น event จากเครื่องอ่าน (backend) */
-  const startFingerprintScan = () => {
-    if (reading) return;
-    setReading(true);
-    readTimer.current = setTimeout(() => {
-      readTimer.current = null;
-      setReading(false);
-      setVerifiedVia('บุคคลต่างด้าว / ไม่มีบัตรประชาชน · ยืนยันด้วยการสแกนลายนิ้วมือ');
-      setVerifiedAt(new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }));
-    }, 1600);
-  };
-
-  const confirmAlt = () => {
-    if (!altDocType || !altFileName) return;
-    const docLabel = ALT_IDENTITY_DOC_TYPES.find((o) => o.value === altDocType)?.label || '';
-    setVerifiedVia(`${ALT_IDENTITY_CASE_LABEL.forgot} · ตรวจ${docLabel} (${altFileName}) · เจ้าหน้าที่ยืนยันข้อมูลตรงกัน`);
-    setVerifiedAt(new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }));
-    setAltMatched(true);
-  };
-
-  /* สลับวิธียืนยัน = เริ่มใหม่ ผลของวิธีก่อนหน้าใช้ไม่ได้ */
-  const switchIdTab = (next) => {
-    setIdTab(next);
-    setVerifiedAt(null);
-    setVerifiedVia(null);
-    setAltMatched(false);
-  };
-
-  /* mock เครื่องอ่านบัตร — ของจริงคือ event จาก smart-card reader (backend) */
-  const startCardRead = () => {
-    if (reading) return;
-    setReading(true);
-    readTimer.current = setTimeout(() => {
-      readTimer.current = null;
-      setReading(false);
-      setVerifiedAt(new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }));
-      setVerifiedVia(null);
-    }, 1400);
   };
 
   const openView = (card) => {
@@ -279,7 +197,7 @@ const ConsentRequestFormsPopup = ({
     setStep('list');
     setViewCard(null);
     setFillFormId(null);
-    setVerifiedAt(null);
+    setIdentity(IDENTITY_IDLE);
     setFormApi({ ready: false, submit: () => {} });
   };
 
@@ -291,9 +209,6 @@ const ConsentRequestFormsPopup = ({
   const isList = step === 'list';
   const isView = step === 'view';
   const isIdentity = step === 'identity';
-  const isCard = isIdentity && idTab === 'card';
-  const isAlt = isIdentity && idTab === 'forgot';
-  const isFinger = isIdentity && idTab === 'foreign';
 
   const title = isList
     ? 'กรอกแบบฟอร์มความยินยอม'
@@ -327,7 +242,7 @@ const ConsentRequestFormsPopup = ({
         primaryAction={isIdentity
           /* ปุ่มลงมือของแต่ละวิธี (อ่านบัตร / ยืนยันว่าเป็นคนเดียวกัน / สแกน
              ลายนิ้วมือ) อยู่ในกล่องของวิธีนั้น — footer เหลือ "ต่อไป" อย่างเดียว */
-          ? { label: 'ต่อไป', onClick: () => setStep('form'), disabled: !verifiedAt || reading }
+          ? { label: 'ต่อไป', onClick: () => setStep('form'), disabled: !identity.verifiedAt || identity.reading }
           : ((isList || isView)
             ? undefined
             : { label: 'บันทึก', onClick: () => formApi.submit(), disabled: !formApi.ready })}
@@ -335,7 +250,7 @@ const ConsentRequestFormsPopup = ({
           ? { label: 'ปิด', onClick: onClose }
           : (isView
             ? { label: 'ปิด', onClick: goList }
-            : { label: 'ยกเลิก', onClick: request('list'), disabled: reading })}
+            : { label: 'ยกเลิก', onClick: request('list'), disabled: identity.reading })}
         /* ด.1.1.15 — พิมพ์ใบยินยอมให้ลงนามบนกระดาษ (เฉพาะตอนอยู่ในเอกสารแล้ว) */
         tertiaryAction={(step === 'form' || isView)
           ? { label: 'พิมพ์', leadingIcon: 'print', onClick: () => window.print?.() }
@@ -442,89 +357,13 @@ const ConsentRequestFormsPopup = ({
         )}
 
         {isIdentity && (
-          /* สองคอลัมน์เท่ากัน 50/50: ซ้าย = ข้อมูลบัตรที่มีในระบบ · ขวา = การยืนยันตัวตน
-             items-stretch — คอลัมน์สูงเท่ากัน กล่องเขียวฝั่งขวายืดชนก้นการ์ดซ้าย */
-          <div className='flex items-stretch w-full min-w-0' style={{ gap: 'var(--dim-space-600)' }}>
-            <div className='flex flex-1 min-w-0'>
-              <ConsentIdCardOnFile idCard={idCardOnFile} stacked />
-            </div>
-
-            <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
-            {/* วิธียืนยัน 3 ทางเป็น pill tab (เดิมเป็นปุ่มทางออกใต้กล่องข้อมูล) */}
-            <TabBar align='center' aria-label='วิธียืนยันตัวตน' className='self-center shrink-0 max-w-full'>
-              <TabPill
-                size='small'
-                selected={idTab === 'card'}
-                leadingIcon='credit_card'
-                disabled={reading}
-                onClick={() => switchIdTab('card')}
-              >
-                นำบัตรมา
-              </TabPill>
-              <TabPill
-                size='small'
-                selected={idTab === 'forgot'}
-                leadingIcon='badge'
-                disabled={reading}
-                onClick={() => switchIdTab('forgot')}
-              >
-                ไม่ได้นำบัตรมา
-              </TabPill>
-              <TabPill
-                size='small'
-                selected={idTab === 'foreign'}
-                leadingIcon='fingerprint'
-                disabled={reading}
-                onClick={() => switchIdTab('foreign')}
-              >
-                บุคคลต่างด้าว
-              </TabPill>
-            </TabBar>
-
-            {/* ยืนยันผ่านแล้ว = แทนที่กล่องของวิธีนั้นด้วยสถานะสำเร็จ (Lottie
-                consent-success + "ยืนยันตัวตนสำเร็จ") ไม่ต้องเดาว่าต้องทำอะไรต่อ */}
-            {verifiedAt ? (
-              <ConsentIdentitySuccessStep
-                method={verifiedVia || 'ยืนยันด้วยบัตรประชาชน'}
-                verifiedAt={verifiedAt}
-              />
-            ) : (
-              <>
-            {isCard && (
-              <ConsentIdCardReadStep
-                formTitle={meta?.title}
-                status={reading ? 'reading' : 'idle'}
-                verified={!!verifiedAt}
-                onRead={startCardRead}
-              />
-            )}
-
-            {isAlt && (
-              <ConsentAltIdentityStep
-                docType={altDocType}
-                onDocTypeChange={setAltDocType}
-                fileName={altFileName}
-                onFilePick={handleAltFilePick}
-                onOpenCamera={() => setCameraOpen(true)}
-                onClearFile={() => { setAltFileName(''); setAltFileError(''); }}
-                fileError={altFileError}
-                matched={altMatched}
-                onConfirmMatch={confirmAlt}
-              />
-            )}
-
-            {isFinger && (
-              <ConsentFingerprintScanStep
-                formTitle={meta?.title}
-                status={reading ? 'scanning' : 'idle'}
-                verified={!!verifiedAt}
-                onScan={startFingerprintScan}
-              />
-            )}
-              </>
-            )}
-            </div>
-          </div>
+          /* แผงยืนยันตัวตนชุดกลาง — สองคอลัมน์ (ซ้าย = ข้อมูลบัตรในทะเบียน)
+             + ตัวเลือกผู้ให้ความยินยอม (ตนเอง/ผู้ปกครองแทนบุตร) + pill tab 3 วิธี */
+          <ConsentIdentityVerifyPanel
+            idCard={idCardOnFile}
+            formTitle={meta?.title}
+            onChange={setIdentity}
+          />
         )}
 
         {isView && viewCard?.record && (
@@ -538,15 +377,19 @@ const ConsentRequestFormsPopup = ({
 
         {step === 'form' && meta && (
           <>
-            {verifiedAt && (
+            {identity.verifiedAt && (
               <Alert
-                type={verifiedVia ? 'warning' : 'success'}
-                title={verifiedVia
-                  ? 'ยืนยันตัวตนโดยไม่ใช้บัตรประชาชน'
-                  : 'ยืนยันตัวตนด้วยบัตรประชาชนแล้ว'}
-                subtext={verifiedVia
-                  ? `${fillPatient?.fullName || ''} · ${verifiedVia} · ${verifiedAt}`
-                  : `${fillPatient?.fullName || ''} · ${fillPatient?.nationalId || ''} · ${verifiedAt}`}
+                /* บัตรประชาชน = ช่องทางมาตรฐาน (เขียว) · วิธีทดแทน = เหลืองให้เอะใจ */
+                type={identity.method === 'card' ? 'success' : 'warning'}
+                title={identity.method === 'card'
+                  ? 'ยืนยันตัวตนด้วยบัตรประชาชนแล้ว'
+                  : 'ยืนยันตัวตนโดยไม่ใช้บัตรประชาชน'}
+                subtext={[
+                  fillPatient?.fullName,
+                  identity.method === 'card' && identity.subject === 'self' ? fillPatient?.nationalId : null,
+                  identity.methodText,
+                  identity.verifiedAt,
+                ].filter(Boolean).join(' · ')}
                 showCloseButton={false}
                 showBadge={false}
                 showIndicator={false}
@@ -570,18 +413,6 @@ const ConsentRequestFormsPopup = ({
           </>
         )}
       </Popup>
-
-      {/* กล้องถ่ายเอกสาร — ชุดเดียวกับสแกนแบบฟอร์มขอสิทธิ์ (AccessRequestForm) */}
-      <CameraCapturePopup
-        open={cameraOpen}
-        onClose={() => setCameraOpen(false)}
-        onCapture={(dataUrl) => {
-          setCameraOpen(false);
-          if (!dataUrl) return;
-          setAltFileError('');
-          setAltFileName('ภาพถ่ายเอกสาร.png');
-        }}
-      />
 
       <ConsentFormPrintConfirmDialog
         form={printForm}

@@ -817,6 +817,16 @@ design system เมื่อไร
 | **โครงที่เป็นอยู่** | `<ConsentFormFillBody formId initialFullName initialNationalId initialHn showSidePanel onStateChange onSubmit>` — คุยกับปุ่มบันทึกของผู้เรียกผ่าน `onStateChange({ ready, submit })` (สัญญาเดียวกับ AccessRequestForm) |
 | **บันทึกเมื่อ** | 14 ส.ค. 2569 |
 
+### 55. ConsentIdentityVerifyPanel (แผงยืนยันตัวตนก่อนกรอกใบยินยอม ด.1.1.1) — 📐 มี 2 ผู้ใช้แล้ว พร้อมยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/consent/ConsentRequestFormsPopup.jsx` (worklist ผู้รับบริการทั้งหมด — มีการ์ดข้อมูลบัตรฝั่งซ้าย) · `src/pages/consent/ConsentFormViewPopup.jsx` (เมนูแบบฟอร์มความยินยอม — ไม่มีการ์ดซ้าย เพราะยังไม่รู้ตัวผู้รับบริการ) — 2 ที่ |
+| **หน้าที่** | รวมขั้นยืนยันตัวตนทั้งชุดไว้ในคอมโพเนนต์เดียวที่ถือ state เอง: ตัวเลือก "ผู้ให้ความยินยอม" (ผู้รับบริการเอง / ผู้ปกครองแทนบุตรผู้เยาว์ — เปลี่ยนคำในกล่องยืนยันเป็น "ของผู้ปกครอง") → pill tab 3 วิธี (เสียบบัตร / เอกสารแทนบัตร / สแกนลายนิ้วมือ) → สถานะสำเร็จ · รายงานขึ้นผู้เรียกทาง `onChange({ verifiedAt, method, methodText, reading, subject })` |
+| **ประกอบจาก** | `ConsentIdCardOnFile` + `ConsentIdCardReadStep` + `ConsentAltIdentityStep` + `ConsentFingerprintScanStep` + `ConsentIdentitySuccessStep` + `TabPill` + `RadioButton` + `CameraCapturePopup` (ลูกทั้งหมดรับ `personLabel` เพื่อสลับคำ ผู้รับบริการ/ผู้ปกครอง) |
+| **ปัญหาที่แก้** | เดิม state ~10 ตัว + mock timer ของขั้นยืนยันฝังอยู่ใน ConsentRequestFormsPopup — พอเมนูแบบฟอร์มต้องมีขั้นเดียวกัน ถ้า copy จะ drift ทันที จึงดึงออกมาเป็นแผงกลาง ผู้เรียกเหลือแค่กระจก state ไว้เปิดปุ่ม "ต่อไป" |
+| **บันทึกเมื่อ** | 14 ส.ค. 2569 |
+
 ---
 
 ## Token ที่รอ sync เข้า mih-design

@@ -33,8 +33,19 @@ const Row = ({ label, value }) => (
   </div>
 );
 
-/** `status`: 'idle' | 'reading' — ตัวจับเวลาอ่านบัตรอยู่ที่ผู้เรียก (popup) */
-const ConsentIdCardReadStep = ({ formTitle, status = 'idle', verified = false, onRead }) => (
+/** `status`: 'idle' | 'reading' — ตัวจับเวลาอ่านบัตรอยู่ที่ผู้เรียก (popup)
+    `personLabel`: เจ้าของบัตรที่ต้องเสียบ — 'ผู้รับบริการ' หรือ 'ผู้ปกครอง'
+    (กรณีผู้ปกครองให้ความยินยอมแทนบุตรที่เป็นผู้เยาว์) */
+const ConsentIdCardReadStep = ({
+  formTitle,
+  /* ประโยคบริบทเต็ม เช่น "ยืนยันตัวตนก่อนเพิกถอนความยินยอม" — ไม่ระบุ =
+     ใช้แบบขั้นกรอกฟอร์ม ("ยืนยันตัวตนก่อนกรอก <ชื่อฟอร์ม>") */
+  contextText,
+  personLabel = 'ผู้รับบริการ',
+  status = 'idle',
+  verified = false,
+  onRead,
+}) => (
   <div className='flex flex-col w-full flex-1' style={{ gap: 'var(--dim-space-500)' }}>
     <div
       className='flex flex-col items-center justify-center text-center w-full'
@@ -61,7 +72,7 @@ const ConsentIdCardReadStep = ({ formTitle, status = 'idle', verified = false, o
         }}>
           {status === 'reading'
             ? 'กำลังอ่านบัตรประชาชน…'
-            : 'กรุณาเสียบบัตรประชาชนของผู้รับบริการ'}
+            : `กรุณาเสียบบัตรประชาชนของ${personLabel}`}
         </span>
         <span style={{
           fontFamily: 'var(--type-family-body)',
@@ -70,7 +81,7 @@ const ConsentIdCardReadStep = ({ formTitle, status = 'idle', verified = false, o
         }}>
           {status === 'reading'
             ? 'ห้ามดึงบัตรออกจนกว่าระบบจะอ่านข้อมูลเสร็จ'
-            : `ยืนยันตัวตนก่อนกรอก ${formTitle || 'แบบฟอร์มความยินยอม'}`}
+            : (contextText || `ยืนยันตัวตนก่อนกรอก ${formTitle || 'แบบฟอร์มความยินยอม'}`)}
         </span>
       </div>
 

@@ -37,6 +37,8 @@ const FIELD_LABEL = {
 const REQUIRED = { color: 'var(--text-danger-default, #B91C1C)' };
 
 const ConsentAltIdentityStep = ({
+  /* เจ้าของเอกสารที่นำมาแทนบัตร — 'ผู้รับบริการ' หรือ 'ผู้ปกครอง' (ให้แทนบุตร) */
+  personLabel = 'ผู้รับบริการ',
   docType,
   onDocTypeChange,
   fileName,
@@ -59,7 +61,7 @@ const ConsentAltIdentityStep = ({
     }}
   >
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <span style={FIELD_LABEL}>เอกสารที่ใช้แทนบัตรประชาชน <span style={REQUIRED}>*</span></span>
+      <span style={FIELD_LABEL}>เอกสารของ{personLabel}ที่ใช้แทนบัตรประชาชน <span style={REQUIRED}>*</span></span>
       <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
         {ALT_IDENTITY_DOC_TYPES.map((o) => (
           <RadioButton

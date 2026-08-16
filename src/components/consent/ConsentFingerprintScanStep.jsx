@@ -1,5 +1,6 @@
 import React from 'react';
 import BrandButton from '@/components/button/BrandButton';
+import Icon from '@/components/icons/Icon';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import fingerprintAnimation from '@/assets/illustrations/fingerprint-scanning.json';
 
@@ -33,8 +34,17 @@ const Row = ({ label, value }) => (
   </div>
 );
 
-/** `status`: 'idle' | 'scanning' — ตัวจับเวลาอยู่ที่ผู้เรียก (popup) */
-const ConsentFingerprintScanStep = ({ formTitle, status = 'idle', verified = false, onScan }) => {
+/** `status`: 'idle' | 'scanning' — ตัวจับเวลาอยู่ที่ผู้เรียก (popup)
+    `personLabel`: คนที่ต้องวางนิ้ว — 'ผู้รับบริการ' หรือ 'ผู้ปกครอง' (ให้แทนบุตร) */
+const ConsentFingerprintScanStep = ({
+  formTitle,
+  /* ประโยคบริบทเต็ม (เช่นตอนเพิกถอน) — ไม่ระบุ = แบบขั้นกรอกฟอร์ม */
+  contextText,
+  personLabel = 'ผู้รับบริการ',
+  status = 'idle',
+  verified = false,
+  onScan,
+}) => {
   const scanning = status === 'scanning';
 
   return (
@@ -63,7 +73,7 @@ const ConsentFingerprintScanStep = ({ formTitle, status = 'idle', verified = fal
           }}>
             {scanning
               ? 'กำลังอ่านลายนิ้วมือ…'
-              : 'ให้ผู้รับบริการวางนิ้วบนเครื่องสแกนลายนิ้วมือ'}
+              : `ให้${personLabel}วางนิ้วบนเครื่องสแกนลายนิ้วมือ`}
           </span>
           <span style={{
             fontFamily: 'var(--type-family-body)',
@@ -72,7 +82,7 @@ const ConsentFingerprintScanStep = ({ formTitle, status = 'idle', verified = fal
           }}>
             {scanning
               ? 'ห้ามยกนิ้วจนกว่าระบบจะอ่านเสร็จ'
-              : `ยืนยันตัวตนก่อนกรอก ${formTitle || 'แบบฟอร์มความยินยอม'}`}
+              : (contextText || `ยืนยันตัวตนก่อนกรอก ${formTitle || 'แบบฟอร์มความยินยอม'}`)}
           </span>
         </div>
 

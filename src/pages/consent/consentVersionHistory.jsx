@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -7,11 +7,17 @@ import Icon from '@/components/icons/Icon';
 import {
   bumpVersion,
 } from '@/data/consentFormVersion';
+import {
+  readConsentFormDrafts,
+  formatConsentFormThaiDate,
+} from '@/data/consentFormDraftStore';
 
 /* Version Control ของเทมเพลตแบบฟอร์มความยินยอม — TOR ด.1.1.5.
 
    VersionHistoryPopup: timeline 5 เวอร์ชัน (mock คละประเภทการแก้ไข) +
-   กู้คืนเวอร์ชันเก่า → สร้างเวอร์ชันใหม่จาก snapshot (mock toast). */
+   กู้คืนเวอร์ชันเก่า → สร้างเวอร์ชันใหม่จาก snapshot เป็น "แบบร่าง"
+   ร่างที่ยังไม่เผยแพร่ของฟอร์มรหัสเดียวกันโผล่บนสุดของ timeline ด้วย
+   เพื่อให้เห็นว่ามีเวอร์ชันใหม่ค้างแก้อยู่ */
 
 export { bumpVersion };
 
@@ -57,10 +63,28 @@ const MOCK_EDIT_TEMPLATES = [
   },
 ];
 
-/** สร้าง timeline 5 เวอร์ชัน — เวอร์ชันล่าสุด = record.version */
+/** ร่างที่ยังไม่เผยแพร่ของฟอร์มรหัสเดียวกัน (เช่น เวอร์ชันที่เพิ่งกู้คืน) —
+    โผล่บนสุดของ timeline เพื่อบอกว่ามีเวอร์ชันใหม่ค้างแก้อยู่ในแท็บที่ร่างไว้ */
+const buildDraftEntries = (record) => readConsentFormDrafts()
+  .filter((d) => d.registry?.code === record.code && d.id !== record.id)
+  .map((d) => ({
+    id: `draft-${d.id}`,
+    draftId: d.id,
+    version: d.registry.version,
+    date: formatConsentFormThaiDate(d.savedAt),
+    editor: d.registry.creator || 'ผู้ใช้งาน',
+    summary: 'แบบร่างเวอร์ชันใหม่ (จากการกู้คืน/สร้างเวอร์ชัน) — แก้ไขให้เรียบร้อยก่อน แล้วจึงบันทึกและส่งเผยแพร่',
+    changes: [],
+    changeStyles: [],
+    status: 'ร่าง (ยังไม่เผยแพร่)',
+    isCurrent: false,
+    isDraft: true,
+  }));
+
+/** สร้าง timeline — ร่างค้างแก้ (ถ้ามี) อยู่บนสุด · เวอร์ชันเผยแพร่ล่าสุด = record.version */
 export const buildVersionHistory = (record) => {
   const currentVersion = record.version || 'V 1.4';
-  return MOCK_EDIT_TEMPLATES.map((tpl, i) => {
+  const published = MOCK_EDIT_TEMPLATES.map((tpl, i) => {
     const isCurrent = i === MOCK_EDIT_TEMPLATES.length - 1;
     return {
       id: `v-${i}`,
@@ -74,6 +98,7 @@ export const buildVersionHistory = (record) => {
       isCurrent,
     };
   }).reverse();
+  return [...buildDraftEntries(record), ...published];
 };
 
 const LINE = {
@@ -94,8 +119,31 @@ const CARD_BASE = {
   transition: 'border-color 160ms ease, box-shadow 160ms ease',
 };
 
-/** Vertical rail node — current = filled brand + ring; archived = outlined + icon. */
-function VersionTimelineNode({ isCurrent, isFirst }) {
+/** Vertical rail node — current = filled brand + ring; draft = outlined เหลือง
+    ไอคอนแก้ไข; archived = outlined + icon. */
+function VersionTimelineNode({ isCurrent, isFirst, isDraft }) {
+  if (isDraft) {
+    return (
+      <span
+        aria-hidden
+        className='inline-flex items-center justify-center shrink-0'
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 'var(--dim-radius-full)',
+          background: 'var(--surface-card-100, #FFFFFF)',
+          /* ชุด warning มีแค่ text/icon token — ใช้โทนส้มเดียวกันทั้งขอบและไอคอน */
+          border: 'var(--dim-stroke-200, 2px) solid var(--icon-warning-tertiary, #EA580C)',
+          color: 'var(--text-warning-default, #C2410C)',
+          boxShadow: 'var(--shadow-card)',
+          zIndex: 1,
+        }}
+      >
+        {/* restore — จุดนี้คือเวอร์ชันที่ได้จากการกู้คืน ให้ไอคอนเล่าที่มาตรงกับปุ่มกู้คืน */}
+        <Icon name='restore' size={14} />
+      </span>
+    );
+  }
   if (isCurrent) {
     return (
       <span
@@ -158,7 +206,7 @@ function VersionTimelineConnector({ fadeFromBrand = false }) {
   );
 }
 
-function VersionTimelineCard({ entry, onRestore }) {
+function VersionTimelineCard({ entry, onRestore, onEditDraft }) {
   const isCurrent = entry.isCurrent;
 
   return (
@@ -179,7 +227,12 @@ function VersionTimelineCard({ entry, onRestore }) {
       <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
         <div className='flex items-center flex-wrap flex-1 min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
           <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{entry.version}</ColorfulBadge>
-          <ColorfulBadge style={isCurrent ? 'green' : 'grey'} size='small' hierarchy='secondary' width='hug'>
+          <ColorfulBadge
+            style={entry.isDraft ? 'yellow' : (isCurrent ? 'green' : 'grey')}
+            size='small'
+            hierarchy='secondary'
+            width='hug'
+          >
             {entry.status}
           </ColorfulBadge>
         </div>
@@ -239,9 +292,21 @@ function VersionTimelineCard({ entry, onRestore }) {
         >
           <Icon name='person' size={14} color='var(--icon-neutral-secondary, #6B7280)' />
           {entry.editor}
-          {!isCurrent && ' · read-only'}
+          {entry.isDraft ? ' · ยังไม่เผยแพร่' : (!isCurrent && ' · read-only')}
         </span>
-        {!isCurrent && (
+        {/* ร่างแก้ไขต่อได้เลยจากตรงนี้ — แก้เสร็จใน wizard แล้วจึงบันทึก/ส่งเผยแพร่ */}
+        {entry.isDraft && (
+          <NeutralSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='edit'
+            onClick={() => onEditDraft?.(entry)}
+          >
+            แก้ไข
+          </NeutralSubdueButton>
+        )}
+        {/* ร่างไม่มีปุ่มกู้คืน — ตัวมันคือเวอร์ชันใหม่ที่รอแก้อยู่แล้ว */}
+        {!isCurrent && !entry.isDraft && (
           <NeutralSubdueButton
             variant='outline'
             size='sm'
@@ -262,19 +327,39 @@ export function VersionHistoryPopup({
   onClose,
   onCreateVersion,
   onRestoreVersion,
+  /* เปิด wizard แก้ไขร่างจากการ์ดร่างบน timeline (entry มี draftId) */
+  onEditDraft,
   onToast,
 }) {
   const [restoreTarget, setRestoreTarget] = useState(null);
-  const entries = useMemo(() => (record ? buildVersionHistory(record) : []), [record]);
+  /* นับรอบการกู้คืนใน popup นี้ — กู้คืนแล้ว "อยู่ที่เดิม" และ timeline อ่านร่าง
+     ใหม่มาแสดงทันที (ไม่ปิด popup ไม่พาไปแท็บอื่น) */
+  const [restoreRev, setRestoreRev] = useState(0);
+  const entries = useMemo(
+    () => (open && record ? buildVersionHistory(record) : []),
+    [open, record, restoreRev],
+  );
+
+  /* กู้คืนเสร็จ = เลื่อน timeline ขึ้นไปหาการ์ดร่างเวอร์ชันใหม่ให้เอง — ผู้ใช้
+     กดกู้คืนจากการ์ดเวอร์ชันเก่าที่อยู่ท้ายลิสต์ ไม่ต้องเลื่อนกลับขึ้นมาเอง */
+  const timelineTopRef = useRef(null);
+  useEffect(() => {
+    if (!restoreRev) return;
+    requestAnimationFrame(() => {
+      timelineTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [restoreRev]);
 
   const handleRestoreConfirm = () => {
     if (!record || !restoreTarget) return;
     const nextVersion = bumpVersion(record.version);
     onRestoreVersion?.(record, restoreTarget, nextVersion);
+    setRestoreRev((r) => r + 1);
     onToast?.({
       id: Date.now(),
       variant: 'success',
-      message: `กู้คืน ${record.code} จาก ${restoreTarget.version} แล้ว — ระบบสร้างเวอร์ชันใหม่ ${nextVersion} รอเผยแพร่`,
+      /* กู้คืน = ได้แบบร่างก่อนเสมอ — โชว์บน timeline ทันที กดแก้ไขต่อได้เลย */
+      message: `กู้คืน ${record.code} จาก ${restoreTarget.version} แล้ว — สร้างเป็นแบบร่าง ${nextVersion}`,
     });
     setRestoreTarget(null);
   };
@@ -284,30 +369,14 @@ export function VersionHistoryPopup({
       <Popup
         open={open}
         onClose={onClose}
-        size='large'
+        /* extraLarge — timeline ยาวขึ้นเมื่อมีร่างค้างแก้ ใช้พื้นที่เต็ม viewport */
+        size='extraLarge'
         title='ประวัติเวอร์ชันแบบฟอร์ม'
         subtitle={record ? `${record.code} · ${record.name}` : undefined}
         primaryAction={{ label: 'สร้างเวอร์ชันใหม่', onClick: () => record && onCreateVersion?.(record) }}
         secondaryAction={{ label: 'ปิด', onClick: onClose }}
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-          <div
-            className='flex items-start'
-            style={{
-              gap: 'var(--dim-space-200)',
-              paddingTop: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-400)',
-              paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-400)',
-              background: 'var(--surface-info-tertiary, #DBEAFE)',
-              borderRadius: 'var(--dim-radius-300)',
-            }}
-          >
-            <Icon name='info' size={18} color='var(--text-info-default, #1D4ED8)' />
-            <span style={{ ...LINE, color: 'var(--text-info-default, #1D4ED8)' }}>
-              แก้ไขเทมเพลตที่เผยแพร่แล้วต้อง &ldquo;สร้างเวอร์ชันใหม่&rdquo; เท่านั้น (ห้ามแก้ทับ) —
-              กู้คืนเวอร์ชันเก่าจะสร้างเวอร์ชันใหม่จาก snapshot นั้น (record ที่เซ็นเวอร์ชันเก่ายังคงอยู่)
-            </span>
-          </div>
-
           <div
             className='flex flex-col w-full'
             style={{
@@ -320,17 +389,23 @@ export function VersionHistoryPopup({
             {entries.map((e, i) => {
               const isLast = i === entries.length - 1;
               return (
-                <div key={e.id} className='flex items-stretch min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
+                <div
+                  key={e.id}
+                  /* จุด scroll เป้าหมายหลังกู้คืน — แถวบนสุดคือร่างที่เพิ่งสร้าง */
+                  ref={i === 0 ? timelineTopRef : undefined}
+                  className='flex items-stretch min-w-0'
+                  style={{ gap: 'var(--dim-space-400)' }}
+                >
                   <div
                     className='flex flex-col items-center shrink-0'
                     style={{ width: 32, paddingTop: 'var(--dim-space-300)' }}
                   >
-                    <VersionTimelineNode isCurrent={e.isCurrent} isFirst={i === 0} />
+                    <VersionTimelineNode isCurrent={e.isCurrent} isFirst={i === 0} isDraft={e.isDraft} />
                     {!isLast && (
                       <VersionTimelineConnector fadeFromBrand={e.isCurrent} />
                     )}
                   </div>
-                  <VersionTimelineCard entry={e} onRestore={setRestoreTarget} />
+                  <VersionTimelineCard entry={e} onRestore={setRestoreTarget} onEditDraft={onEditDraft} />
                 </div>
               );
             })}
@@ -343,7 +418,7 @@ export function VersionHistoryPopup({
         type='info'
         title='ยืนยันการกู้คืนเวอร์ชันแบบฟอร์ม'
         description={restoreTarget && record
-          ? `${record.code} · ${restoreTarget.version} — ระบบจะสร้างเวอร์ชันใหม่ ${bumpVersion(record.version)} จากเนื้อหา snapshot นี้ (ไม่แก้ทับเวอร์ชันที่เผยแพร่แล้ว)`
+          ? `${record.code} · ${restoreTarget.version} — ระบบจะสร้างเวอร์ชันใหม่ ${bumpVersion(record.version)} จากเนื้อหา snapshot นี้เป็น "แบบร่าง" ให้ตรวจแก้ก่อนเผยแพร่ (ไม่แก้ทับเวอร์ชันที่เผยแพร่แล้ว)`
           : undefined}
         confirmLabel='ยืนยันการกู้คืน'
         cancelLabel='ยกเลิก'
