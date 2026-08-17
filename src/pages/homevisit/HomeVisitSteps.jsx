@@ -33,10 +33,6 @@ import {
   PRESSURE_SORE_OPTIONS,
   ROLE_NOTE_SECTIONS,
   CARE_ACTIVITIES,
-  HOMEVISIT_DRUG_ORDERS,
-  HOMEVISIT_LAB_ORDERS,
-  HOMEVISIT_XRAY_ORDERS,
-  HOMEVISIT_PROCEDURE_ORDERS,
   FAMILY_RELATIONS,
   HOUSE_TYPE_OPTIONS,
   HOUSE_OWNERSHIP_OPTIONS,
@@ -97,9 +93,16 @@ import {
   sendNhsoClaim,
   getNhsoClaim,
   NHSO_REQUIRED_FIELDS,
-  getQuotaUsage,
-  getQuotaOverride,
 } from '@/data/homevisitHhc';
+import {
+  HOMEVISIT_ORDER_GROUPS,
+  HOMEVISIT_ORDER_NOTE_SUGGESTIONS,
+  collectHomeVisitOrderItems,
+  countHomeVisitOrders,
+  homeVisitOrderLabel,
+  sendOrdersToCpoe,
+  getCpoeHandoff,
+} from '@/data/homevisitCpoe';
 import { getVisitHistory, appendVisitHistory } from '@/data/homevisitRegistry';
 import { printHomeVisitSummary } from '@/pages/homevisit/homevisitPrint';
 import {
@@ -1358,35 +1361,57 @@ export const HomeVisitStep5Care = ({ form, setForm, readOnly, visitId, hn, appoi
   );
 };
 
-/* ── Step 6 — สั่งการรักษา (CPOE) ─────────────────────────────────── */
+/* ── Step 6 — สั่งการรักษา (CPOE · TOR 1.18.6) ────────────────────────
+   รายการทั้งหมดมาจากแคตตาล็อกกลางชุดเดียวกับหน้าจอ CPOE (`labCatalog` ·
+   `xrayCatalog` · ICD-9-CM · รายการยา/เวชภัณฑ์ของ Step5Orders) และส่งต่อ
+   ด้วย id เดิม เพื่อให้แพทย์ที่ศูนย์ฯ กด "นำเข้า" แล้วได้แถวคำสั่งจริง
+   ผ่านการตรวจซ้ำซ้อน/CDSS ของ CPOE — ไม่ใช่ข้อความที่ต้องคีย์ใหม่. */
 
-const ORDER_GROUPS = [
-  { key: 'drugOrders',      label: 'ยาและเวชภัณฑ์',        icon: 'pill',      options: HOMEVISIT_DRUG_ORDERS },
-  { key: 'labOrders',       label: 'ส่งตรวจทางห้องปฏิบัติการ', icon: 'biotech',  options: HOMEVISIT_LAB_ORDERS },
-  { key: 'xrayOrders',      label: 'ส่งตรวจเอกซเรย์',       icon: 'radiology', options: HOMEVISIT_XRAY_ORDERS },
-  { key: 'procedureOrders', label: 'หัตถการ/การดูแลต่อเนื่อง', icon: 'clipboard', options: HOMEVISIT_PROCEDURE_ORDERS },
-];
+export const HomeVisitStep6Orders = ({
+  form, setForm, readOnly, hn, appointment, registryEntry, blockedMsg,
+}) => {
+  const routerHistory = useHistory();
+  const patientHn = hn || registryEntry?.hn || appointment?.hn || '';
+  const [handoff, setHandoff] = useState(() => (patientHn ? getCpoeHandoff(patientHn) : null));
 
-export const HomeVisitStep6Orders = ({ form, setForm, readOnly, blockedMsg }) => {
-  const toggleOrder = (groupKey, value) => setForm((f) => ({
+  const toggleOrder = (groupKey, id) => setForm((f) => ({
     ...f,
-    [groupKey]: f[groupKey].includes(value)
-      ? f[groupKey].filter((v) => v !== value)
-      : [...f[groupKey], value],
+    [groupKey]: (f[groupKey] || []).includes(id)
+      ? f[groupKey].filter((v) => v !== id)
+      : [...(f[groupKey] || []), id],
   }));
 
-  const totalOrders = ORDER_GROUPS.reduce((sum, g) => sum + (form[g.key]?.length || 0), 0);
+  const totalOrders = countHomeVisitOrders(form);
+  /* คำสั่งที่ "ส่งไปแล้ว" ต่างจากที่เลือกอยู่ตอนนี้หรือไม่ — ถ้าต่างต้องส่งซ้ำ */
+  const sentIds = (handoff?.items || []).map((i) => i.id).sort().join('|');
+  const currentIds = collectHomeVisitOrderItems(form).map((i) => i.id).sort().join('|');
+  const handoffStale = !!handoff && sentIds !== currentIds;
+
+  const sendToCpoe = () => {
+    if (!patientHn || totalOrders === 0) return;
+    setHandoff(sendOrdersToCpoe({ hn: patientHn, visitId: appointment?.id, form }));
+  };
+
+  const openCpoe = () => routerHistory.push({
+    pathname: '/treat/record',
+    state: {
+      hn: patientHn,
+      name: registryEntry?.name || appointment?.name,
+      from: 'homevisit',
+    },
+  });
 
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
 
       <NoticeBand tone='neutral' icon='info'>
-        คำสั่งการรักษาที่บันทึกที่บ้านจะถูกส่งกลับเข้าระบบ CPOE ของศูนย์บริการสาธารณสุขเมื่อกด
-        “ส่งข้อมูลเข้ารักษาที่ศูนย์บริการฯ” ในขั้นตอนสุดท้าย (TOR 1.18.6) — ขั้นตอนนี้ไม่บังคับกรอก
+        รายการในขั้นตอนนี้เป็นรายการเดียวกับแคตตาล็อกของระบบ CPOE ที่ศูนย์บริการฯ (รหัสแล็บ/เอกซเรย์/ICD-9-CM
+        ชุดเดียวกัน) — กด “ส่งคำสั่งเข้า CPOE” แล้วแพทย์ที่ศูนย์ฯ นำเข้าเป็นคำสั่งจริงได้ทันที
+        โดยผ่านการตรวจซ้ำซ้อนและ CDSS ของ CPOE (TOR 1.18.6) · ขั้นตอนนี้ไม่บังคับกรอก
       </NoticeBand>
 
-      {ORDER_GROUPS.map((group) => (
+      {HOMEVISIT_ORDER_GROUPS.map((group) => (
         <StepSection key={group.key}>
           <TopicHeader
             icon={group.icon}
@@ -1398,14 +1423,17 @@ export const HomeVisitStep6Orders = ({ form, setForm, readOnly, blockedMsg }) =>
           >
             {group.label}
           </TopicHeader>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            {group.options.map((opt) => (
+          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+            {group.hint}
+          </span>
+          <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {group.items.map((opt) => (
               <SelectableTag
-                key={opt}
-                label={opt}
+                key={opt.id}
+                label={opt.detail ? `${opt.name} · ${opt.detail}` : opt.name}
                 size='md'
-                selected={form[group.key]?.includes(opt)}
-                onClick={readOnly ? undefined : () => toggleOrder(group.key, opt)}
+                selected={(form[group.key] || []).includes(opt.id)}
+                onClick={readOnly ? undefined : () => toggleOrder(group.key, opt.id)}
               />
             ))}
           </div>
@@ -1424,15 +1452,80 @@ export const HomeVisitStep6Orders = ({ form, setForm, readOnly, blockedMsg }) =>
           voice
           value={form.orderNote}
           onChange={(e) => setForm((f) => ({ ...f, orderNote: e.target.value }))}
-          suggestions={[
-            'ทำแผลทุกวันจันทร์และพฤหัสบดี โดยพยาบาลเยี่ยมบ้าน',
-            'เจาะเลือดที่บ้านในการเยี่ยมครั้งถัดไป งดน้ำงดอาหารก่อน 8 ชั่วโมง',
-            'นัดถ่ายภาพรังสีทรวงอกที่ศูนย์บริการฯ พร้อมพบแพทย์',
-          ]}
+          suggestions={HOMEVISIT_ORDER_NOTE_SUGGESTIONS}
           minChars={2}
           disabled={readOnly}
           placeholder='ความถี่ ระยะเวลา ผู้รับผิดชอบ และเงื่อนไขพิเศษของคำสั่งการรักษา'
         />
+      </StepSection>
+
+      {/* TOR 1.18.6 — ส่งคำสั่งเข้าคิวนำเข้าของ CPOE */}
+      <StepSection>
+        <TopicHeader
+          icon='swap_horiz'
+          aside={handoff && !handoffStale ? (
+            <ColorfulBadge
+              style={handoff.status === 'imported' ? 'teal' : 'blue'}
+              size='small' hierarchy='secondary' width='hug' maxWidth={460}
+            >
+              {handoff.status === 'imported'
+                ? `แพทย์นำเข้าเป็นคำสั่งจริงแล้ว ${handoff.importedCount} รายการ`
+                : `รอแพทย์นำเข้าที่หน้าจอ CPOE ${handoff.items.length} รายการ`}
+            </ColorfulBadge>
+          ) : undefined}
+        >
+          ส่งคำสั่งการรักษาเข้าระบบ CPOE ของศูนย์บริการฯ
+        </TopicHeader>
+
+        <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <BrandSubdueButton
+            variant='fill' size='md' leadingIcon='send'
+            onClick={sendToCpoe}
+            disabled={readOnly || totalOrders === 0 || !patientHn || (!!handoff && !handoffStale)}
+          >
+            {handoffStale ? 'ส่งคำสั่งชุดใหม่เข้า CPOE' : 'ส่งคำสั่งเข้า CPOE'}
+          </BrandSubdueButton>
+          <NeutralSubdueButton
+            variant='outline' size='md' leadingIcon='stethoscope'
+            onClick={openCpoe}
+            disabled={!patientHn}
+          >
+            เปิดหน้าจอ CPOE ของผู้รับบริการ
+          </NeutralSubdueButton>
+          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+            เลือกไว้ {totalOrders} รายการ
+          </span>
+        </div>
+
+        {!patientHn && (
+          <NoticeBand tone='warning' icon='person_alert'>
+            ยังไม่ทราบ HN ของผู้รับบริการ — เปิดบันทึกการเยี่ยมจากคิวหรือทะเบียน จึงจะส่งคำสั่งเข้า CPOE ได้
+          </NoticeBand>
+        )}
+
+        {handoff && handoff.status === 'imported' && !handoffStale && (
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            <AuditStamp by={handoff.by} at={handoff.at} prefix='ส่งจากการเยี่ยมโดย' />
+            <AuditStamp by={handoff.importedBy} at={handoff.importedAt} prefix='นำเข้าเป็นคำสั่งจริงโดย' />
+          </div>
+        )}
+
+        {handoff && handoff.status === 'pending' && !handoffStale && (
+          <>
+            <AuditStamp by={handoff.by} at={handoff.at} prefix='ส่งจากการเยี่ยมโดย' />
+            <NoticeBand tone='info' icon='pending_actions'>
+              คำสั่งรออยู่ในหน้าจอ CPOE ของ HN {patientHn} แล้ว — แพทย์จะเห็นแถบ “คำสั่งจากการเยี่ยมบ้าน”
+              ที่ขั้นสั่งการรักษา และกดนำเข้าเพื่อให้ผ่านการตรวจซ้ำซ้อน/CDSS ก่อนยืนยัน
+            </NoticeBand>
+          </>
+        )}
+
+        {handoffStale && (
+          <NoticeBand tone='warning' icon='sync_problem'>
+            รายการที่เลือกไว้ตอนนี้ไม่ตรงกับชุดที่ส่งเข้า CPOE เมื่อ {handoff.at}
+            {' '}— กด “ส่งคำสั่งชุดใหม่เข้า CPOE” เพื่อให้แพทย์เห็นรายการล่าสุด
+          </NoticeBand>
+        )}
       </StepSection>
     </StepCard>
   );
@@ -1482,7 +1575,7 @@ export const HomeVisitStep7Family = ({
     saveVisitSubmission(visitId, {
       hn,
       summary: form.assessmentNote,
-      orders: summarizeOrders(form),
+      orders: summarizeOrders(form, homeVisitOrderLabel),
       nextVisitDate: form.nextVisitDate,
     });
     appendVisitHistory(hn, {
@@ -1491,7 +1584,7 @@ export const HomeVisitStep7Family = ({
       adl: adlTotal,
       vitals: form.vitals,
       summary: form.assessmentNote,
-      orders: summarizeOrders(form),
+      orders: summarizeOrders(form, homeVisitOrderLabel),
       tools: summarizeStandardTools(form).map((t) => `${t.name} ${t.total}/${t.max}`).join(' · '),
     });
     /* ส่งชุดข้อมูลเบิกจ่าย สปสช. ต่อทันทีในขั้นตอนเดียวกัน */
@@ -1528,10 +1621,10 @@ export const HomeVisitStep7Family = ({
         .map((s) => [s.label, form.roleNotes[s.profession]]),
       activities: CARE_ACTIVITIES.filter((a) => form.activities?.[a.key]).map((a) => a.label),
       orders: [
-        ['ยาและเวชภัณฑ์', (form.drugOrders || []).join(' · ') || '—'],
-        ['ห้องปฏิบัติการ', (form.labOrders || []).join(' · ') || '—'],
-        ['เอกซเรย์', (form.xrayOrders || []).join(' · ') || '—'],
-        ['หัตถการ/ต่อเนื่อง', (form.procedureOrders || []).join(' · ') || '—'],
+        ['ยาและเวชภัณฑ์', (form.drugOrders || []).map(homeVisitOrderLabel).join(' · ') || '—'],
+        ['ห้องปฏิบัติการ', (form.labOrders || []).map(homeVisitOrderLabel).join(' · ') || '—'],
+        ['เอกซเรย์', (form.xrayOrders || []).map(homeVisitOrderLabel).join(' · ') || '—'],
+        ['หัตถการ/ต่อเนื่อง', (form.procedureOrders || []).map(homeVisitOrderLabel).join(' · ') || '—'],
       ].filter((row) => row[1] !== '—'),
       familyNote: form.familyNote,
       nextVisitDate: form.nextVisitDate,
@@ -1763,7 +1856,7 @@ export const HomeVisitStep7Family = ({
           <span>ระบบจะส่งข้อมูลต่อไปนี้เข้าเวชระเบียนของ{HOMEVISIT_CENTER}:</span>
           <span>· สัญญาณชีพและผลการประเมินการเยี่ยมครั้งนี้</span>
           <span>· คะแนน ADL {adlTotal}/{BARTHEL_MAX_SCORE} ({adlInterp.label})</span>
-          <span>· คำสั่งการรักษา: {summarizeOrders(form)}</span>
+          <span>· คำสั่งการรักษา: {summarizeOrders(form, homeVisitOrderLabel)}</span>
           <span>· นัดเยี่ยมครั้งถัดไป: {form.nextVisitDate ? formatHomeVisitDate(form.nextVisitDate) : 'ยังไม่กำหนด'}</span>
           <NoticeBand tone='warning' icon='warning'>
             เมื่อส่งแล้วจะส่งซ้ำไม่ได้ และข้อมูลจะปรากฏในหน้าติดตามการเยี่ยมบ้านทันที

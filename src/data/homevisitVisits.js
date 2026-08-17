@@ -876,39 +876,11 @@ export const CARE_ACTIVITIES = [
   { key: 'referCoord',   label: 'ประสานส่งต่อสถานพยาบาล',         group: 'ส่งต่อ' },
 ];
 
-/* ─── §1.18.6 สั่งการรักษา (CPOE) ─────────────────────────────────── */
-
-export const HOMEVISIT_DRUG_ORDERS = [
-  'พาราเซตามอล 500 มก. (1x3 เมื่อมีอาการ)',
-  'ยาลดความดัน Amlodipine 5 มก. (1x1 เช้า)',
-  'ยาเบาหวาน Metformin 500 มก. (1x2 หลังอาหาร)',
-  'ชุดทำแผลปลอดเชื้อ + น้ำเกลือล้างแผล',
-  'มอร์ฟีนชนิดน้ำ (ผู้ป่วยประคับประคอง)',
-  'อาหารทางการแพทย์สูตรครบถ้วน',
-  'ยาระบาย Lactulose',
-];
-
-export const HOMEVISIT_LAB_ORDERS = [
-  'DTX เจาะน้ำตาลปลายนิ้ว (ทำที่บ้าน)',
-  'CBC — ความสมบูรณ์ของเม็ดเลือด',
-  'BUN/Creatinine — การทำงานของไต',
-  'HbA1c — น้ำตาลสะสม',
-  'Urine Analysis — ตรวจปัสสาวะ',
-  'Wound culture — เพาะเชื้อจากแผล',
-];
-
-export const HOMEVISIT_XRAY_ORDERS = [
-  'Chest X-Ray (นัดถ่ายที่ศูนย์บริการฯ)',
-  'X-Ray กระดูกสะโพก (กรณีสงสัยกระดูกหัก)',
-];
-
-export const HOMEVISIT_PROCEDURE_ORDERS = [
-  'ทำแผลต่อเนื่องสัปดาห์ละ 2 ครั้ง',
-  'เปลี่ยนสายสวนปัสสาวะทุก 4 สัปดาห์',
-  'เปลี่ยนสายให้อาหารทางจมูกทุก 4 สัปดาห์',
-  'กายภาพบำบัดที่บ้านสัปดาห์ละ 1 ครั้ง',
-  'ให้ออกซิเจนที่บ้าน 2 ลิตร/นาที',
-];
+/* ─── §1.18.6 สั่งการรักษา (CPOE) ─────────────────────────────────────
+   รายการคำสั่งย้ายไปอยู่ที่ `src/data/homevisitCpoe.js` ซึ่งอ้างแคตตาล็อก
+   กลางของ CPOE โดยตรง (labCatalog · xrayCatalog · ICD-9-CM · รายการยา/
+   เวชภัณฑ์ของ Step5Orders) — ชุดข้อความเดิมของโมดูลนี้ถูกลบทิ้ง เพราะการ
+   มีแคตตาล็อกคู่ขนานคือสาเหตุที่คำสั่งจากบ้านนำเข้า CPOE ไม่ได้. */
 
 /* ─── Family Folder (TOR 1.10.12.3) ───────────────────────────────── */
 
@@ -1194,13 +1166,19 @@ export const getHomeVisitCompletedSteps = (form, stepIndex = 0) => ([
   !!form.nextVisitDate,
 ]);
 
+/** ค่าเริ่มต้นของตัวแปลงคำสั่ง → ข้อความ: ร่างรุ่นเก่าเก็บเป็นข้อความอยู่แล้ว.
+    ตั้งแต่ §1.18.6 ผูกกับ CPOE คำสั่งถูกเก็บเป็น id ของแคตตาล็อกกลาง จึงต้อง
+    ส่ง `homeVisitOrderLabel` (จาก `homevisitCpoe.js`) เข้ามาแปลงชื่อ —
+    ไฟล์นี้ import ไม่ได้เพราะ homevisitCpoe import ไฟล์นี้อยู่ (circular). */
+const defaultOrderLabel = (v) => (typeof v === 'string' ? v : v?.name || '');
+
 /** สรุปคำสั่งการรักษาทั้งหมดเป็นข้อความเดียว (ใช้ในใบสรุป/ตารางย้อนหลัง). */
-export const summarizeOrders = (form) => {
+export const summarizeOrders = (form, labelOf = defaultOrderLabel) => {
   const all = [
     ...(form.drugOrders || []),
     ...(form.labOrders || []),
     ...(form.xrayOrders || []),
     ...(form.procedureOrders || []),
-  ];
+  ].map(labelOf).filter(Boolean);
   return all.length ? all.join(' · ') : 'ไม่มีคำสั่งการรักษา';
 };
