@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import InputField from '@/components/forms/InputField';
 import Checkbox from '@/components/checkbox/Checkbox';
-import TabPill, { TabBar } from '@/components/tab/TabPill';
+import TabUnderline from '@/components/tab/TabUnderline';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { Sym } from '@/components/forms/Fields';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -30,6 +30,12 @@ const CATEGORY_LABELS = {
   xray: 'X-ray', procedure: 'หัตถการ', consult: 'ปรึกษา',
 };
 const CATEGORY_BADGES = { medication: 'teal', medicalSupply: 'blue', lab: 'purple', xray: 'orange', procedure: 'green', consult: 'grey' };
+
+/* สองวิธีเพิ่มรายการ — เลือกทีละรายการเอง หรือหยิบทั้งชุดคำสั่งสำเร็จรูป */
+const PICKER_TABS = [
+  { key: 'items', label: 'เลือกเอง' },
+  { key: 'sets', label: 'ชุดคำสั่งสำเร็จรูป' },
+];
 
 /* จังหวะย่อ/คลี่ส่วนเหนือตาราง — design.md §1d Motion (modal 220ms · easing enter) */
 const CHROME_MORPH_TRANSITION =
@@ -130,6 +136,69 @@ const registryDrugForSetItem = (setItem) => {
   if (byReference) return byReference;
   const name = normalizeMedicationText(setItem?.label);
   return DRUG_REGISTRY.find((drug) => normalizeMedicationText(drug.name) === name) || null;
+};
+
+/* กรอบการ์ดชุดคำสั่ง — design.md §6 Card (Default · Hover · Selected · Selected-hover).
+   ความหนา 2px ของสถานะ active ทำด้วย box-shadow ring ซ้อนบน border 1px
+   (ตาม design.md: "box-shadow simulates border width without layout shift")
+   ถ้าไปเพิ่ม border เป็น 2px ตรง ๆ การ์ดจะขยับ 1px ทุกครั้งที่เอาเมาส์ชี้ */
+const RING = (color) => `0 0 0 var(--dim-stroke-100, 1px) ${color}`;
+const CARD_NEUTRAL_FRAME = {
+  border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+  background: 'var(--surface-card-100, #FFFFFF)',
+  boxShadow: 'none',
+};
+
+const orderSetCardFrame = ({ selected, hovered, disabled }) => {
+  if (disabled) return CARD_NEUTRAL_FRAME;
+  if (selected) {
+    return {
+      border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-default, #007549)',
+      background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+      boxShadow: `${RING('var(--border-brandPrimary-default, #007549)')}, ${hovered ? 'var(--shadow-card-hover)' : 'var(--shadow-card)'}`,
+    };
+  }
+  if (hovered) {
+    return {
+      border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-tertiary, #C5EDDA)',
+      background: 'var(--surface-card-100, #FFFFFF)',
+      boxShadow: `${RING('var(--border-brandPrimary-tertiary, #C5EDDA)')}, var(--shadow-card-hover)`,
+    };
+  }
+  return CARD_NEUTRAL_FRAME;
+};
+
+/* การ์ดชุดคำสั่งการรักษา — คลิกได้ จึงต้องมี hover / focus-visible ครบตาม DS
+   (`unavailable` = ชุดที่ตรวจกับทะเบียนกลางไม่ผ่าน — ปิดการกดและไม่ตอบ hover) */
+const OrderSetCard = ({ selected, disabled, onClick, children }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      aria-pressed={selected}
+      disabled={disabled}
+      onMouseEnter={() => !disabled && setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => !disabled && setHovered(true)}
+      onBlur={() => setHovered(false)}
+      className='flex flex-col items-start text-left'
+      style={{
+        gap: 'var(--dim-space-200, 8px)',
+        padding: 'var(--dim-space-400, 16px)',
+        borderRadius: 'var(--dim-radius-400, 12px)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        transition: [
+          'box-shadow var(--motion-duration-popover, 160ms) var(--motion-easing-standard, cubic-bezier(0.4, 0, 0.2, 1))',
+          'border-color var(--motion-duration-popover, 160ms) var(--motion-easing-standard, cubic-bezier(0.4, 0, 0.2, 1))',
+          'background-color var(--motion-duration-popover, 160ms) var(--motion-easing-standard, cubic-bezier(0.4, 0, 0.2, 1))',
+        ].join(', '),
+        ...orderSetCardFrame({ selected, hovered, disabled }),
+      }}
+    >
+      {children}
+    </button>
+  );
 };
 
 const presetDefaultsFor = (setItem, fallbackUnit = '', registryDefaults = {}) => ({
@@ -319,11 +388,13 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
       return String(av).localeCompare(String(bv), 'th') * sign;
     });
   }, [visibleItems, sortConfig]);
-  /* สลับแท็บแล้วเริ่มนับใหม่ — แต่ละแท็บมี scroller ของตัวเองที่ scrollTop = 0 */
+  /* สลับแท็บแล้ว **คงสถานะย่อ/คลี่ไว้ตามเดิม** — ถ้าย่อการ์ดผู้รับบริการไปแล้ว
+     ในแท็บหนึ่ง อีกแท็บต้องย่ออยู่เหมือนกัน ไม่กระตุกคลี่กลับมาเอง
+     (อย่าใส่ setChromeCollapsed(false) กลับเข้ามา — แต่ละแท็บ mount scroller
+     ใหม่ที่ scrollTop = 0 จึงต้องไม่ให้ตำแหน่ง scroll มาสั่งคลี่ตอนสลับแท็บ) */
   const changeMode = (next) => {
     if (next === mode) return;
     setMode(next);
-    setChromeCollapsed(false);
   };
   const toggle = (id) => {
     setSelectedStoredSetId('');
@@ -513,15 +584,19 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
       </div>
       <div
         className='flex items-center flex-wrap'
-        style={{ gap: 'var(--dim-space-300, 12px)' }}
+        style={{
+          gap: 'var(--dim-space-300, 12px)',
+          borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-tertiary, #E2E4E6)',
+        }}
       >
-        <TabBar
+        <TabUnderline
           aria-label='วิธีเพิ่มรายการสั่งการรักษา'
-          style={{ background: 'transparent', padding: 0, width: 'auto', flex: '0 0 auto' }}
-        >
-          <TabPill selected={mode === 'items'} onClick={() => changeMode('items')}>ค้นหารายการ</TabPill>
-          <TabPill selected={mode === 'sets'} onClick={() => changeMode('sets')}>ชุดคำสั่งสำเร็จรูป</TabPill>
-        </TabBar>
+          tabs={PICKER_TABS}
+          value={mode}
+          onChange={changeMode}
+          disableOverflow
+          style={{ flex: '0 0 auto', gap: 'var(--dim-space-0)' }}
+        />
         {chromeCollapsed ? (
           <span
             className='flex items-center flex-wrap min-w-0 flex-1'
@@ -657,20 +732,11 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
               [item.kind]: (counts[item.kind] || 0) + 1,
             }), {}) : {};
             return (
-              <button
+              <OrderSetCard
                 key={set.id}
-                type='button'
-                onClick={() => chooseSet(set)}
-                aria-pressed={selected}
+                selected={selected}
                 disabled={unavailable}
-                className='flex flex-col items-start text-left'
-                style={{
-                  gap: 'var(--dim-space-200, 8px)',
-                  padding: 'var(--dim-space-400, 16px)',
-                  border: `${selected ? 'var(--dim-stroke-200, 2px)' : 'var(--dim-stroke-100, 1px)'} solid ${selected ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-neutral-quaternary, #F4F5F5)'}`,
-                  borderRadius: 'var(--dim-radius-400, 12px)',
-                  background: selected ? 'var(--surface-brandPrimary-quaternary, #F4FBF8)' : 'var(--surface-card-100, #FFFFFF)',
-                }}
+                onClick={() => chooseSet(set)}
               >
                 <span className='flex items-start justify-between w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                   <span style={{ color: 'var(--text-content-default, #363B3F)', fontSize: 'var(--type-size-base, 16px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{set.name}</span>
@@ -697,7 +763,7 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
                     ? `ไม่พร้อมใช้งาน · ตรวจสอบ ${set.unavailableCount || (set.items || []).length} รายการกับทะเบียนกลาง`
                     : `พร้อมเพิ่ม ${set.itemIds.length} รายการ`}
                 </span>
-              </button>
+              </OrderSetCard>
             );
           })}
         </div>
