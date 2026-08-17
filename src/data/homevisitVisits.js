@@ -12,6 +12,15 @@
    ทะเบียนผู้รับบริการ + ข้อมูลย้อนหลังรายบุคคลอยู่ใน `homevisitRegistry.js`
    (ซึ่ง import ไฟล์นี้ — ห้าม import กลับทางเพื่อกัน circular import). */
 
+import {
+  MNA_ITEMS,
+  countMnaAnswered,
+  isMnaComplete,
+  SCREEN_9Q_QUESTIONS,
+  count9qAnswered,
+  is9qComplete,
+} from '@/data/homevisitAssessments';
+
 /* ─── วันที่ / เวลา ────────────────────────────────────────────────── */
 
 const THAI_MONTHS = [
@@ -146,6 +155,9 @@ export const HOMEVISIT_SOURCES = [
   { value: 'healthDeskHv',  short: 'Health Desk–HV',   label: 'Health Desk–HV — รับแจ้งผ่านศูนย์ประสาน', badge: 'indigo', auto: true  },
   { value: 'motherChildHv', short: 'มารดาและทารก–HV',  label: 'มารดาและทารก–HV — เยี่ยมหลังคลอด',        badge: 'pink',   auto: true  },
   { value: 'centerFound',   short: 'ศูนย์พบเอง',        label: 'ศูนย์พบเอง — เจ้าหน้าที่ค้นพบในพื้นที่',   badge: 'teal',   auto: false },
+  /* มติ คทง.4 ต่อ §1.18.7 — “แบบลงทะเบียน HHC” ต้องรองรับเคสที่ส่งต่อ
+     ระหว่างศูนย์บริการสาธารณสุขด้วย ไม่ใช่แค่รับจากโรงพยาบาล/ศูนย์พบเอง */
+  { value: 'centerTransfer', short: 'ส่งต่อระหว่างศูนย์ฯ', label: 'ส่งต่อระหว่างศูนย์บริการสาธารณสุข — ผู้ป่วยย้ายพื้นที่รับผิดชอบ', badge: 'yellow', auto: true },
 ];
 
 export const resolveSource = (value) =>
@@ -864,39 +876,11 @@ export const CARE_ACTIVITIES = [
   { key: 'referCoord',   label: 'ประสานส่งต่อสถานพยาบาล',         group: 'ส่งต่อ' },
 ];
 
-/* ─── §1.18.6 สั่งการรักษา (CPOE) ─────────────────────────────────── */
-
-export const HOMEVISIT_DRUG_ORDERS = [
-  'พาราเซตามอล 500 มก. (1x3 เมื่อมีอาการ)',
-  'ยาลดความดัน Amlodipine 5 มก. (1x1 เช้า)',
-  'ยาเบาหวาน Metformin 500 มก. (1x2 หลังอาหาร)',
-  'ชุดทำแผลปลอดเชื้อ + น้ำเกลือล้างแผล',
-  'มอร์ฟีนชนิดน้ำ (ผู้ป่วยประคับประคอง)',
-  'อาหารทางการแพทย์สูตรครบถ้วน',
-  'ยาระบาย Lactulose',
-];
-
-export const HOMEVISIT_LAB_ORDERS = [
-  'DTX เจาะน้ำตาลปลายนิ้ว (ทำที่บ้าน)',
-  'CBC — ความสมบูรณ์ของเม็ดเลือด',
-  'BUN/Creatinine — การทำงานของไต',
-  'HbA1c — น้ำตาลสะสม',
-  'Urine Analysis — ตรวจปัสสาวะ',
-  'Wound culture — เพาะเชื้อจากแผล',
-];
-
-export const HOMEVISIT_XRAY_ORDERS = [
-  'Chest X-Ray (นัดถ่ายที่ศูนย์บริการฯ)',
-  'X-Ray กระดูกสะโพก (กรณีสงสัยกระดูกหัก)',
-];
-
-export const HOMEVISIT_PROCEDURE_ORDERS = [
-  'ทำแผลต่อเนื่องสัปดาห์ละ 2 ครั้ง',
-  'เปลี่ยนสายสวนปัสสาวะทุก 4 สัปดาห์',
-  'เปลี่ยนสายให้อาหารทางจมูกทุก 4 สัปดาห์',
-  'กายภาพบำบัดที่บ้านสัปดาห์ละ 1 ครั้ง',
-  'ให้ออกซิเจนที่บ้าน 2 ลิตร/นาที',
-];
+/* ─── §1.18.6 สั่งการรักษา (CPOE) ─────────────────────────────────────
+   รายการคำสั่งย้ายไปอยู่ที่ `src/data/homevisitCpoe.js` ซึ่งอ้างแคตตาล็อก
+   กลางของ CPOE โดยตรง (labCatalog · xrayCatalog · ICD-9-CM · รายการยา/
+   เวชภัณฑ์ของ Step5Orders) — ชุดข้อความเดิมของโมดูลนี้ถูกลบทิ้ง เพราะการ
+   มีแคตตาล็อกคู่ขนานคือสาเหตุที่คำสั่งจากบ้านนำเข้า CPOE ไม่ได้. */
 
 /* ─── Family Folder (TOR 1.10.12.3) ───────────────────────────────── */
 
@@ -1051,13 +1035,18 @@ export const createEmptyHomeVisitForm = (appointment = null, registryEntry = nul
   vitals: emptyVitals(),
   deviceReading: null,
   vitalsNote: '',
-  /* 4 — ประเมิน + คัดกรอง + ADL */
+  /* 4 — ประเมิน + คัดกรองด้วยเครื่องมือมาตรฐาน + ADL
+     (มติ คทง.4 ต่อ §1.18.5 — MNA-SF · 2Q/9Q · ADL · PPS คำนวณคะแนนอัตโนมัติ
+      แทนการให้ผู้บันทึกตัดสิน "ดีขึ้น/แย่ลง" เอง) */
   environment: {},
   caregiver: '',
-  nutrition: '',
+  mna: {},            /* MNA-SF 6 ข้อ → เติม `nutrition` ให้อัตโนมัติ */
+  nutrition: '',      /* ผลแปลจาก MNA-SF (ไม่ให้ผู้ใช้เลือกเองแล้ว) */
   pressureSore: '',
   painScore: null,
   screen2q: {},
+  screen9q: {},       /* บังคับเมื่อ 2Q ผลบวก */
+  pps: '',            /* Palliative Performance Scale 0–100% */
   assessmentNote: '',
   adlAnswers: {},
   /* 5 — บันทึกตามบทบาท + กิจกรรม */
@@ -1120,15 +1109,30 @@ export const getStepValidationError = (form, stepIndex) => {
       if (filled === 0) return 'กรุณาบันทึกสัญญาณชีพอย่างน้อย 1 ค่า (หรือกด “อ่านค่าจากอุปกรณ์”)';
       return null;
     }
-    case 3:
+    case 3: {
+      /* มติ คทง.4 ต่อ §1.18.5 — เครื่องมือมาตรฐานต้องประเมินให้ครบ
+         ระบบจึงคำนวณคะแนนและวิเคราะห์ข้อมูลย้อนหลังได้ */
+      if (!isMnaComplete(form.mna)) {
+        return `ยังประเมินภาวะโภชนาการ MNA-SF ไม่ครบ — ตอบแล้ว ${countMnaAnswered(form.mna)}/${MNA_ITEMS.length} ข้อ`;
+      }
       if (!isBarthelComplete(form.adlAnswers)) {
         const missing = BARTHEL_ITEMS
           .map((item, i) => (Number.isFinite(form.adlAnswers?.[item.key]) ? null : i + 1))
           .filter(Boolean);
         return `ยังประเมิน ADL (ดัชนีบาร์เธล) ไม่ครบ — เหลือข้อ ${missing.join(', ')} จาก ${BARTHEL_ITEMS.length} ข้อ`;
       }
+      const q2Answered = SCREEN_2Q_QUESTIONS.every((q) => typeof form.screen2q?.[q.key] === 'boolean');
+      if (!q2Answered) return 'กรุณาตอบแบบคัดกรองซึมเศร้า 2Q ให้ครบทั้ง 2 ข้อ';
+      const q2Positive = SCREEN_2Q_QUESTIONS.some((q) => form.screen2q?.[q.key] === true);
+      if (q2Positive && !is9qComplete(form.screen9q)) {
+        return `2Q ผลบวก — ต้องประเมิน 9Q ต่อให้ครบ (ตอบแล้ว ${count9qAnswered(form.screen9q)}/${SCREEN_9Q_QUESTIONS.length} ข้อ)`;
+      }
+      if (form.pps === '' || !Number.isFinite(Number(form.pps))) {
+        return 'กรุณาเลือกระดับความสามารถ PPS (Palliative Performance Scale) ของผู้รับบริการ';
+      }
       if (!String(form.assessmentNote || '').trim()) return 'กรุณาสรุปผลการประเมินการเยี่ยมบ้าน';
       return null;
+    }
     case 4: {
       const hasNote = Object.values(form.roleNotes || {}).some((v) => String(v || '').trim());
       if (!hasNote) return 'กรุณาบันทึกอย่างน้อย 1 วิชาชีพในบันทึกตามบทบาท';
@@ -1151,7 +1155,9 @@ export const getHomeVisitCompletedSteps = (form, stepIndex = 0) => ([
   !!form.arrivalTime,
   !!String(form.illnessHistory || '').trim(),
   summarizeVitals(form.vitals).filled > 0 && summarizeVitals(form.vitals).invalid.length === 0,
-  isBarthelComplete(form.adlAnswers) && !!String(form.assessmentNote || '').trim(),
+  isBarthelComplete(form.adlAnswers) && isMnaComplete(form.mna)
+    && form.pps !== '' && Number.isFinite(Number(form.pps))
+    && !!String(form.assessmentNote || '').trim(),
   Object.values(form.roleNotes || {}).some((v) => String(v || '').trim())
     && Object.values(form.activities || {}).some(Boolean),
   stepIndex > 5
@@ -1160,13 +1166,19 @@ export const getHomeVisitCompletedSteps = (form, stepIndex = 0) => ([
   !!form.nextVisitDate,
 ]);
 
+/** ค่าเริ่มต้นของตัวแปลงคำสั่ง → ข้อความ: ร่างรุ่นเก่าเก็บเป็นข้อความอยู่แล้ว.
+    ตั้งแต่ §1.18.6 ผูกกับ CPOE คำสั่งถูกเก็บเป็น id ของแคตตาล็อกกลาง จึงต้อง
+    ส่ง `homeVisitOrderLabel` (จาก `homevisitCpoe.js`) เข้ามาแปลงชื่อ —
+    ไฟล์นี้ import ไม่ได้เพราะ homevisitCpoe import ไฟล์นี้อยู่ (circular). */
+const defaultOrderLabel = (v) => (typeof v === 'string' ? v : v?.name || '');
+
 /** สรุปคำสั่งการรักษาทั้งหมดเป็นข้อความเดียว (ใช้ในใบสรุป/ตารางย้อนหลัง). */
-export const summarizeOrders = (form) => {
+export const summarizeOrders = (form, labelOf = defaultOrderLabel) => {
   const all = [
     ...(form.drugOrders || []),
     ...(form.labOrders || []),
     ...(form.xrayOrders || []),
     ...(form.procedureOrders || []),
-  ];
+  ].map(labelOf).filter(Boolean);
   return all.length ? all.join(' · ') : 'ไม่มีคำสั่งการรักษา';
 };

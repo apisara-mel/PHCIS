@@ -148,6 +148,7 @@ import {
 } from '@/data/xrayCatalog';
 import { LAB_TESTS } from '@/data/labCatalog';
 import { CONSULT_CLINICS, blankConsult, doctorsForClinic, saveConsult } from '@/data/treatmentConsult';
+import { getPendingCpoeHandoff, markCpoeHandoffImported } from '@/data/homevisitCpoe';
 import {
   XRAY_URGENCIES,
   xrayHistoryFor,
@@ -2619,6 +2620,43 @@ export const Step5Orders = ({
     }));
   };
 
+  /* ── TOR §1.18.6 — คำสั่งจากการเยี่ยมบ้านที่รอนำเข้า ─────────────
+     พยาบาลเยี่ยมบ้านเลือกคำสั่งจากแคตตาล็อกกลางชุดเดียวกันนี้ที่บ้าน
+     (`src/data/homevisitCpoe.js`) แล้วส่งมาเป็น handoff ราย HN. ที่นี่แค่
+     map id กลับเป็น picker item แล้วส่งเข้า `commitPickedOrders` ตัวเดิม
+     — ไม่มีเส้นทางสร้างแถวคำสั่งเส้นที่สองให้ต้องดูแล. */
+  const [homeVisitHandoff, setHomeVisitHandoff] = useState(
+    () => getPendingCpoeHandoff(patient?.hn),
+  );
+  const [homeVisitImportNote, setHomeVisitImportNote] = useState('');
+
+  const importHomeVisitOrders = () => {
+    if (!homeVisitHandoff) return;
+    const byId = new Map(orderPickerItems.map((item) => [item.id, item]));
+    const matched = homeVisitHandoff.items.map((i) => byId.get(i.id)).filter(Boolean);
+    const missing = homeVisitHandoff.items.length - matched.length;
+    /* กติกาของ CPOE ยังบังคับกับคำสั่งที่มาจากบ้านเหมือนกันทุกข้อ — เช่น
+       เอกซเรย์ซ้ำในระยะป้องกันรังสีถูก block. คำนวณไว้ก่อนเพื่อรายงานตามจริง
+       ว่ารายการไหน "ไม่ได้เข้า" แทนที่จะขึ้นว่าเข้าครบทุกรายการ */
+    const blocked = matched.filter((item) => item.category === 'xray'
+      && duplicateWarning(item.source?.id, xrayHistory)?.level === 'block');
+    const accepted = matched.length - blocked.length;
+    const committed = commitPickedOrders(matched);
+    markCpoeHandoffImported(patient?.hn, accepted, 'พญ.สมหญิง รักษ์ดี');
+    setHomeVisitHandoff(null);
+    setHomeVisitImportNote(
+      committed && accepted > 0
+        ? `นำเข้าคำสั่งจากการเยี่ยมบ้าน ${accepted} รายการเข้าขั้นสั่งการรักษาแล้ว`
+          + `${missing > 0 ? ` · ข้าม ${missing} รายการที่ไม่มีในแคตตาล็อกปัจจุบัน` : ''}`
+          + `${blocked.length > 0 ? ` · ระบบไม่อนุญาต ${blocked.length} รายการ (${blocked.map((b) => b.name).join(' · ')}) — ดูเหตุผลที่แท็บ X-ray / RIS` : ''}`
+          + ' — ตรวจสอบรายละเอียดแต่ละรายการก่อนยืนยัน'
+        : blocked.length > 0
+          ? `คำสั่งจากการเยี่ยมบ้านถูกกันไว้ทั้งหมด ${blocked.length} รายการ (${blocked.map((b) => b.name).join(' · ')})`
+            + ' — เปิดแท็บ X-ray / RIS เพื่อดูเหตุผลและตัดสินใจ'
+          : 'คำสั่งจากการเยี่ยมบ้านมีอยู่ใน Visit นี้แล้วทั้งหมด — ไม่มีรายการใหม่ที่ต้องเพิ่ม',
+    );
+  };
+
   /* AddMedicationPopup state — shared between "เพิ่มยา" (add), the
      per-row Edit icon button (Figma 195:34355), and the "Often order"
      chips that pre-seed the ชื่อยา field. `addMedEditIndex` is null
@@ -2896,6 +2934,25 @@ export const Step5Orders = ({
     return (
       <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
         <Topic hierarchy='primary' title='สั่งการรักษา (Treatment Order)' leadingIcon='description' showSubText={false} showBadge={false} showChevron={false} showSuccess={false} />
+        {/* TOR §1.18.6 — แถบเดียวกับ branch ที่มีคำสั่งแล้ว: เคสเยี่ยมบ้าน
+            ส่วนใหญ่มาถึงตอน Visit ยังไม่มีคำสั่งเลย จึงต้องแสดงที่ empty
+            state ด้วย ไม่งั้นคำสั่งที่ส่งมาจะไม่มีทางถูกเห็น */}
+        {homeVisitHandoff && (
+          <Alert
+            type='info'
+            title={`มีคำสั่งการรักษาจากการเยี่ยมบ้าน ${homeVisitHandoff.items.length} รายการรอนำเข้า`}
+            subtext={`ส่งโดย ${homeVisitHandoff.by} · ${homeVisitHandoff.at}${homeVisitHandoff.note ? ` · ${homeVisitHandoff.note}` : ''}`}
+            indicators={homeVisitHandoff.items.map((i) => i.name)}
+            action={(
+              <BrandPrimaryButton size='md' leadingIcon='download' onClick={importHomeVisitOrders}>
+                นำเข้าเป็นคำสั่งของ Visit นี้
+              </BrandPrimaryButton>
+            )}
+          />
+        )}
+        {homeVisitImportNote && (
+          <Alert type='success' title={homeVisitImportNote} onClose={() => setHomeVisitImportNote('')} />
+        )}
         <div className='flex flex-col items-center justify-center w-full text-center' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-800, 32px) var(--dim-space-600, 24px)', background: 'var(--surface-card-default, #FFFFFF)', border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #E2E4E6)', borderRadius: 'var(--dim-radius-500, 20px)' }}>
           <LottieIllustration animationData={firstaidKitAnim} size={160} />
           <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
@@ -2934,6 +2991,30 @@ export const Step5Orders = ({
           <div style={{ color: 'var(--text-content-secondary, #454B50)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm, 14px)' }}>เพิ่มจากรายการ หรือเลือก Order Set ได้ในครั้งเดียว</div>
           <BrandPrimaryButton leadingIcon='add' onClick={() => setOrderPickerOpen(true)}>เพิ่มรายการ</BrandPrimaryButton>
         </div>
+
+        {/* TOR §1.18.6 — คำสั่งที่พยาบาลบันทึกไว้ตอนเยี่ยมบ้านของ HN นี้
+            รอให้แพทย์ "นำเข้า" ผ่าน commitPickedOrders ตัวเดียวกับการเพิ่ม
+            รายการเอง จึงผ่านการตรวจซ้ำซ้อน/CDSS ครบเหมือนกัน */}
+        {homeVisitHandoff && (
+          <Alert
+            type='info'
+            title={`มีคำสั่งการรักษาจากการเยี่ยมบ้าน ${homeVisitHandoff.items.length} รายการรอนำเข้า`}
+            subtext={`ส่งโดย ${homeVisitHandoff.by} · ${homeVisitHandoff.at}${homeVisitHandoff.note ? ` · ${homeVisitHandoff.note}` : ''}`}
+            indicators={homeVisitHandoff.items.map((i) => i.name)}
+            action={(
+              <BrandPrimaryButton size='md' leadingIcon='download' onClick={importHomeVisitOrders}>
+                นำเข้าเป็นคำสั่งของ Visit นี้
+              </BrandPrimaryButton>
+            )}
+          />
+        )}
+        {homeVisitImportNote && (
+          <Alert
+            type='success'
+            title={homeVisitImportNote}
+            onClose={() => setHomeVisitImportNote('')}
+          />
+        )}
         {/* Category tabs — text-only TabCapsule per Figma PHCIS|CPOE
             200:18615. No leading status dot/icon and no trailing arrow:
             the brand-50 pill with brand-100 border carries the entire

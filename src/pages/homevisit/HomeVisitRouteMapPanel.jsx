@@ -10,6 +10,7 @@ import {
   formatDistance,
   resolveVisitStatus,
 } from '@/data/homevisitVisits';
+import { SERVICE_AREA, isInsideServiceArea } from '@/data/homevisitHhc';
 import { GroupBadge, EmptyHint, NoticeBand } from '@/pages/homevisit/homevisitShared';
 
 /* HomeVisitRouteMapPanel — มุมมอง "แผนที่" ของคิวนัดเยี่ยมบ้าน (TOR 1.18.2
@@ -91,6 +92,105 @@ const StopCard = ({ stop, index, selected, onSelect }) => {
   );
 };
 
+/* ขอบเขตพื้นที่รับผิดชอบ + จุดเยี่ยมทั้งหมดในภาพเดียว (มติ คทง.4 ต่อ §1.18.2).
+   วาดด้วย SVG จาก polygon ใน `homevisitHhc` — ยังเป็น mock ไม่ใช่ GIS จริง
+   (§2.3 เป็นของอีกทีม) แต่แทน "แผนที่วาดมือใน Family Folder" ได้แล้ว. */
+const ServiceAreaMap = ({ stops, selectedId, onSelect }) => {
+  const pts = [
+    ...SERVICE_AREA.polygon,
+    SERVICE_AREA.center,
+    ...stops.filter((s) => s.home?.pinSaved).map((s) => s.home),
+  ];
+  const lats = pts.map((p) => p.lat);
+  const lngs = pts.map((p) => p.lng);
+  const pad = 0.004;
+  const minLat = Math.min(...lats) - pad;
+  const maxLat = Math.max(...lats) + pad;
+  const minLng = Math.min(...lngs) - pad;
+  const maxLng = Math.max(...lngs) + pad;
+  const W = 480;
+  const H = 320;
+  const x = (lng) => ((lng - minLng) / (maxLng - minLng)) * W;
+  const y = (lat) => H - ((lat - minLat) / (maxLat - minLat)) * H;
+
+  return (
+    <div
+      className='w-full flex flex-col'
+      style={{
+        gap: 'var(--dim-space-200, 8px)',
+        padding: 'var(--dim-space-300, 12px)',
+        borderRadius: 'var(--dim-radius-400, 12px)',
+        border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+        background: 'var(--surface-card-100, #FFFFFF)',
+      }}
+    >
+      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <span className='text-brand-500'><Icon name='map' size={18} /></span>
+        <span style={{
+          fontSize: 'var(--type-size-sm)',
+          fontWeight: 'var(--type-weight-bold)',
+          color: 'var(--text-content-default, #363B3F)',
+        }}>
+          {SERVICE_AREA.label}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width='100%'
+        role='img'
+        aria-label={`แผนผังจุดเยี่ยม ${stops.length} จุดภายใน${SERVICE_AREA.label}`}
+        style={{ display: 'block', borderRadius: 'var(--dim-radius-300, 10px)', background: 'var(--surface-neutral-quaternary, #F9FBFB)' }}
+      >
+        <polygon
+          points={SERVICE_AREA.polygon.map((p) => `${x(p.lng)},${y(p.lat)}`).join(' ')}
+          fill='var(--surface-brandPrimary-quaternary, #F4FBF8)'
+          stroke='var(--border-brandPrimary-secondary, #6AD6A5)'
+          strokeWidth='2'
+          strokeDasharray='6 4'
+        />
+        <circle cx={x(SERVICE_AREA.center.lng)} cy={y(SERVICE_AREA.center.lat)} r='7' fill='var(--surface-brandPrimary-default, #007549)' />
+        <text
+          x={x(SERVICE_AREA.center.lng) + 12}
+          y={y(SERVICE_AREA.center.lat) + 4}
+          style={{ fontSize: 'var(--type-size-xs, 12px)' }}
+          fill='var(--text-content-secondary, #636B72)'
+        >
+          ศูนย์บริการฯ
+        </text>
+        {stops.filter((s) => s.home?.pinSaved).map((s, i) => {
+          const inside = isInsideServiceArea(s.home) !== false;
+          const isSel = s.id === selectedId;
+          return (
+            <g
+              key={s.id}
+              onClick={() => onSelect?.(s.id)}
+              style={{ cursor: 'pointer' }}
+            >
+              <circle
+                cx={x(s.home.lng)}
+                cy={y(s.home.lat)}
+                r={isSel ? 13 : 10}
+                fill={inside ? 'var(--surface-colorfulbadge-teal-bold, #24A899)' : 'var(--surface-pill-red, #FEE2E2)'}
+                stroke={isSel ? 'var(--border-brandPrimary-default, #007549)' : 'var(--surface-card-100, #FFFFFF)'}
+                strokeWidth='2'
+              />
+              <text
+                x={x(s.home.lng)}
+                y={y(s.home.lat) + 4}
+                style={{ fontSize: 'var(--type-size-xs, 12px)' }}
+                textAnchor='middle'
+                fill={inside ? 'var(--surface-card-100, #FFFFFF)' : 'var(--text-pill-red, #B91C1C)'}
+              >
+                {i + 1}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
+
 const HomeVisitRouteMapPanel = ({
   stops = [],
   selectedId,
@@ -101,6 +201,8 @@ const HomeVisitRouteMapPanel = ({
   const selected = stops.find((s) => s.id === selectedId) || stops[0] || null;
   const pinned = stops.filter((s) => s.home?.pinSaved);
   const unpinned = stops.filter((s) => !s.home?.pinSaved);
+  /* §1.18.2 (มติ คทง.4) — วาดขอบเขตพื้นที่บริการแทนแผนที่วาดมือใน Family Folder */
+  const outside = pinned.filter((s) => isInsideServiceArea(s.home) === false);
 
   if (stops.length === 0) {
     return (
@@ -151,6 +253,14 @@ const HomeVisitRouteMapPanel = ({
         </div>
 
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)', flex: '1 1 420px', minWidth: 320 }}>
+          <ServiceAreaMap stops={stops} selectedId={selected?.id} onSelect={onSelect} />
+          {outside.length > 0 && (
+            <NoticeBand tone='danger' icon='wrong_location'>
+              มี {outside.length} จุดอยู่นอก{SERVICE_AREA.label} — ตรวจสอบที่อยู่
+              หรือส่งต่อให้ศูนย์บริการสาธารณสุขที่รับผิดชอบพื้นที่นั้น
+              ({outside.map((s) => (s.confidential ? `HN ${s.hn}` : s.name)).join(' · ')})
+            </NoticeBand>
+          )}
           {selected?.home?.pinSaved ? (
             <>
               <AddressMapBlock

@@ -2399,21 +2399,27 @@ const IMPL = {
   '1.14.7': {s:'done', u:'/observation/record/obs-001', n:'สรุปผลการดูแลรักษา (Discharge Summary & Instructions)'},
   '1.14.8': {s:'done', u:'/observation/record/obs-001', n:'บันทึกการส่งต่อโรงพยาบาล (E-Referral Disposition)'},
 
-  /* ===== 1.18 Home Visit — /homevisit (Wave 2: queue + visit wizard + registry + follow-up; map/GPS = mock ตาม §2.3 ของทีมอื่น) ===== */
-  '1.18.1':  {s:'done',    u:'/homevisit',           n:'HomeVisitQueuePage: 7 แท็บ (รอออกเยี่ยม/กำลังเยี่ยม/ร่าง/เลยกำหนด/ยกเลิก) + filter + Table + Pagination + printHomeVisitQueue'},
-  '1.18.2':  {s:'done',    u:'/homevisit',           n:'HomeVisitRouteMapPanel (มุมมองแผนที่+ลำดับเดินทาง+distanceMeters) และ Step1 แสดงหมุดบ้านจากทะเบียน — mock map ตาม §2.3'},
+  /* ===== 1.18 Home Visit — /homevisit (Wave 2: queue + visit wizard + registry + follow-up; map/GPS = mock ตาม §2.3 ของทีมอื่น)
+         + รอบ Gap analysis คทง.4 (ส.ค. 69): โควตา สปสช. · เครื่องมือมาตรฐาน MNA/9Q/PPS · แบบลงทะเบียน HHC ·
+           ปักหมุดอัตโนมัติ+ขอบเขตพื้นที่ · ส่ง สปสช. อัตโนมัติ · ค้นเลขบัตรก่อนสร้าง HN · มุมมอง อสส. · export ข้อมูลดิบ ===== */
+  '1.18.1':  {s:'done',    u:'/homevisit',           n:'HomeVisitQueuePage: 7 แท็บ (รอออกเยี่ยม/กำลังเยี่ยม/ร่าง/เลยกำหนด/ยกเลิก) + filter + Table + Pagination + printHomeVisitQueue · [คทง.4] คอลัมน์ “สิทธิ สปสช.” จาก getQuotaUsage + ล็อกปุ่มออกเยี่ยมเมื่อเกินโควตา ต้องขออนุมัติพร้อมเหตุผล (saveQuotaOverride)'},
+  '1.18.2':  {s:'done',    u:'/homevisit',           n:'HomeVisitRouteMapPanel (มุมมองแผนที่+ลำดับเดินทาง+distanceMeters) และ Step1 แสดงหมุดบ้านจากทะเบียน — mock map ตาม §2.3 · [คทง.4] ServiceAreaMap วาดขอบเขตพื้นที่รับผิดชอบ + เตือนจุดนอกเขต และปุ่ม “ปักหมุดอัตโนมัติจากที่อยู่” (autoPinFromAddress) ในทะเบียน'},
   '1.18.3':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep2History ตาราง getVisitHistory + HomeVisitAccessGate/getHomeVisitAccess ล็อกตามสิทธิ (แสดง locked ไม่ใช่ empty)'},
   '1.18.4':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep3Vitals: กรอกเองครบ VITAL_FIELDS + evaluateVital + readDeviceVitals/getDeviceConnected (mock MIH-HV Kit) + BMI'},
-  '1.18.5':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep5Care วน ROLE_NOTE_SECTIONS บันทึกแยกรายวิชาชีพ (พยาบาล/สังคมฯ/กภ./แพทย์/เภสัช/โภชนาการ) + นับที่บันทึกแล้ว'},
-  '1.18.6':  {s:'partial', u:'/homevisit/visit',     n:'HomeVisitStep6Orders เลือกยา/Lab/X-ray/หัตถการจากรายการคงที่ + summarizeOrders แต่ไม่มี navigation/integration เข้าหน้าจอ CPOE จริง'},
-  '1.18.7':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep5Care: CARE_ACTIVITIES จัดกลุ่มตามงาน (พยาบาล/สังคมสงเคราะห์/ฟื้นฟู) เลือกหลายรายการ + บังคับอย่างน้อย 1'},
+  '1.18.5':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep5Care วน ROLE_NOTE_SECTIONS บันทึกแยกรายวิชาชีพ (พยาบาล/สังคมฯ/กภ./แพทย์/เภสัช/โภชนาการ) + นับที่บันทึกแล้ว · [คทง.4] Step4 ใช้เครื่องมือมาตรฐานแทน free-text: MNA-SF (เติมช่องภาวะโภชนาการอัตโนมัติ + ดึง BMI) · 2Q ผลบวก → บังคับ 9Q พร้อมเตือนข้อ 9 · PPS เสนอรอบเยี่ยมถัดไป — คำนวณ/แปลผลอัตโนมัติทุกตัว (homevisitAssessments.js)'},
+  '1.18.6':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep6Orders ใช้แคตตาล็อกกลางชุดเดียวกับ CPOE (labCatalog · xrayCatalog · ICD-9-CM · ยา/เวชภัณฑ์ของ Step5Orders) และส่งด้วย id เดิมผ่าน sendOrdersToCpoe → Step5Orders แสดงแถบ “คำสั่งจากการเยี่ยมบ้าน” แล้วนำเข้าด้วย commitPickedOrders ตัวเดียวกับที่แพทย์สั่งเอง (ผ่านตรวจซ้ำซ้อน/CDSS) + ปุ่มเปิดหน้าจอ CPOE ของผู้รับบริการ'},
+  '1.18.7':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep5Care: CARE_ACTIVITIES จัดกลุ่มตามงาน (พยาบาล/สังคมสงเคราะห์/ฟื้นฟู) เลือกหลายรายการ + บังคับอย่างน้อย 1 · [คทง.4] ทะเบียนเปลี่ยนเป็น “แบบลงทะเบียน HHC” — HHC_INTAKE_ROUTES 3 ทาง (รับจาก รพ. / ศูนย์พบเอง / ส่งต่อระหว่างศูนย์ฯ) + ช่องเลขที่เอกสารต้นทาง + แถบยืนยันว่าบันทึกหน้างานบน Tablet ได้'},
   '1.18.8':  {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep1Travel.captureLocation เรียก navigator.geolocation จริง + fallback ปักหมุดเองผ่าน AddressMapBlock เมื่อ denied'},
   '1.18.9':  {s:'done',    u:'/homevisit/visit',     n:'requestStampArrival/saveArrivalCheckIn เทียบ ARRIVAL_DISTANCE_THRESHOLD_M 300 ม. ยืนยันเมื่อไกลเกิน + restamp ต้องมีเหตุผล'},
   '1.18.10': {s:'done',    u:'/homevisit/visit',     n:'HomeVisitStep5Care.launchTelemed เปิด Popup แล้ว push /telemed/worklist พร้อม state {hn, from:homevisit, reason}'},
-  '1.10.12.1': {s:'done', u:'/homevisit/registry',  n:'HomeVisitRegistryPage: สร้าง/แก้/ยกเลิก(ต้องมีเหตุผล)/เปิดใหม่ + 6 กลุ่ม + HOMEVISIT_SOURCES ล็อกเคส auto + readSmartCard + AddressMapBlock + PhotoUploadField + AuditStamp'},
+  '1.10.12.1': {s:'done', u:'/homevisit/registry',  n:'HomeVisitRegistryPage: สร้าง/แก้/ยกเลิก(ต้องมีเหตุผล)/เปิดใหม่ + 6 กลุ่ม + HOMEVISIT_SOURCES ล็อกเคส auto + readSmartCard + AddressMapBlock + PhotoUploadField + AuditStamp · [คทง.4] ขั้นที่ 1 บังคับค้นเลขบัตร 13 หลัก (ตรวจ checksum) จากฐานข้อมูลกลางก่อนเปิดฟอร์มรายใหม่ — พบทะเบียนเดิมจะพาไปแก้แทนสร้าง HN ซ้ำ (§1.1.1.20) + แถบลูกโซ่ ชุมชน→สำรวจบ้าน→บุคคล→งานเยี่ยม (§2.1.6) + สถานะโควตา สปสช.'},
   '1.10.12.2': {s:'done', u:'/homevisit/visit',     n:'7 ขั้นตอนใน HOMEVISIT_STEP_RENDERERS: ข้อมูลทั่วไป/ประวัติ/vitals/ADL+2Q/บทบาท/CPOE/Family Folder + saveVisitSubmission ส่งเข้าศูนย์ฯ'},
   '1.10.12.3': {s:'done', u:'/homevisit/visit',     n:'HomeVisitStep7Family ปุ่ม "บันทึกงานเชิงรุกในโมดูลงานชุมชน" push /checkup/community พร้อม state {hn, from:homevisit}'},
-  '1.10.12.4': {s:'done', u:'/homevisit/follow-up', n:'HomeVisitFollowUpPage: LineChart vitals เลือก series + กราฟ ADL + ตาราง Lab/X-ray ตาม effRange + DatePickerRange + printHomeVisitFollowUp'},
+  '1.10.12.4': {s:'done', u:'/homevisit/follow-up', n:'HomeVisitFollowUpPage: LineChart vitals เลือก series + กราฟ ADL + ตาราง Lab/X-ray ตาม effRange + DatePickerRange + printHomeVisitFollowUp · [คทง.4] ปุ่มส่งออกข้อมูลดิบ (CSV) รายครั้ง + แยกตัวเลข Person/Visit และแสดงโควตา สปสช. (§2.4.1)'},
+  /* [คทง.4] ข้อที่กระทบระบบอื่นแต่ทำในโมดูลเยี่ยมบ้านรอบนี้ */
+  '1.7.1.1':   {s:'partial', u:'/homevisit/visit',   n:'[คทง.4] Step7 ส่งชุดข้อมูล สปสช. อัตโนมัติเมื่อกด “ส่งข้อมูลเข้ารักษาที่ศูนย์ฯ” (sendNhsoClaim + NHSO_REQUIRED_FIELDS + สถานะตีกลับ/ส่งซ้ำ) — ยังเป็น mock API ยังไม่ต่อ สปสช. จริง'},
+  '2.2.2':     {s:'partial', u:'/homevisit',         n:'[คทง.4] สลับมุมมองเป็นบัญชี อสส. (HOMEVISIT_ROLES) เห็นเฉพาะเคสที่ได้รับมอบหมายตามชุมชน และไม่เห็นเคสข้อมูลลับ + แถบบอกจำนวนเคสที่ถูกซ่อน — ระบบสิทธิผู้ใช้จริงอยู่ใน §2.2 ของอีกทีม'},
+  '2.4.1':     {s:'partial', u:'/homevisit',         n:'[คทง.4] ส่งออกข้อมูลดิบ CSV (queue/registry/follow-up) + แยกนับ Person กับ Visit ทุกหน้า — รายงานระดับเขต/ส่วนกลางยังอยู่ใน §2.4'},
 
   /* ===== 1.19 Health Check — /checkup (queue + targets + packages + record/screening wizards + reports + community) ===== */
   '1.19.1':  {s:'done',    u:'/checkup/packages',           n:'CHECKUP_CATALOG แยก 4 กลุ่ม (radiology/lab/procedure/other) + PackageEditor สร้างชุดตรวจสำเร็จรูป และ AddItemPopup สั่งตรวจได้ทุกกลุ่ม'},

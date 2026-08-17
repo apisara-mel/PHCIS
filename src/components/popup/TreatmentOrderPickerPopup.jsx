@@ -8,8 +8,10 @@ import { Sym } from '@/components/forms/Fields';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandFilterTag from '@/components/forms/FilterTag';
+import ClearFiltersTag from '@/components/forms/ClearFiltersTag';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import AlertDialog from '@/components/popup/AlertDialog';
+import Table, { EllipsisText } from '@/components/table/Table';
 import {
   itemKindMeta,
   markOrderSetUsed,
@@ -23,38 +25,15 @@ import { DEPARTMENTS, USERS } from '@/data/usersAccess';
 import { DRUG_REGISTRY, UNIT_TYPES, currentPrice } from '@/data/pharmacyRegistry';
 import { getStock } from '@/data/pharmacyQueue';
 
-if (typeof document !== 'undefined') {
-  const styleId = 'mih-treatment-order-picker-row-style';
-  const css = `
-.mih-treatment-order-picker-row {
-  background: var(--surface-list-default, #FFFFFF);
-  border: var(--dim-stroke-100, 1px) solid transparent;
-  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
-}
-.mih-treatment-order-picker-row:hover {
-  background: var(--surface-list-hover, var(--surface-brandPrimary-quaternary, #EAF8F2));
-  border-color: transparent;
-}
-.mih-treatment-order-picker-row[aria-pressed='true'],
-.mih-treatment-order-picker-row[aria-pressed='true']:hover {
-  background: var(--surface-list-hover, var(--surface-brandPrimary-quaternary, #EAF8F2));
-  border-color: var(--border-brandPrimary-quaternary, #C6ECDD);
-}
-`;
-  let el = document.getElementById(styleId);
-  if (!el) {
-    el = document.createElement('style');
-    el.id = styleId;
-    document.head.appendChild(el);
-  }
-  if (el.textContent !== css) el.textContent = css;
-}
-
 const CATEGORY_LABELS = {
   medication: 'ยา', medicalSupply: 'เวชภัณฑ์มิใช่ยา', lab: 'Lab',
   xray: 'X-ray', procedure: 'หัตถการ', consult: 'ปรึกษา',
 };
 const CATEGORY_BADGES = { medication: 'teal', medicalSupply: 'blue', lab: 'purple', xray: 'orange', procedure: 'green', consult: 'grey' };
+
+/* จังหวะย่อ/คลี่ส่วนเหนือตาราง — design.md §1d Motion (modal 220ms · easing enter) */
+const CHROME_MORPH_TRANSITION =
+  'var(--motion-duration-modal, 220ms) var(--motion-easing-enter, cubic-bezier(0.16, 1, 0.3, 1))';
 
 const ORDER_SET_CATEGORY_BY_KIND = {
   medication: 'medication',
@@ -167,7 +146,7 @@ const presetDefaultsFor = (setItem, fallbackUnit = '', registryDefaults = {}) =>
 const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patient, cardPatient }) => {
   const [mode, setMode] = useState('items');
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('all');
+  const [categories, setCategories] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [creatingSet, setCreatingSet] = useState(false);
   const [setName, setSetName] = useState('');
@@ -175,14 +154,49 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
   const [allergyConfirmOpen, setAllergyConfirmOpen] = useState(false);
   const [orderSetRevision, setOrderSetRevision] = useState(0);
   const [selectedStoredSetId, setSelectedStoredSetId] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [chromeCollapsed, setChromeCollapsed] = useState(false);
+  const [chromeEl, setChromeEl] = useState(null);
+  const [chromeHeight, setChromeHeight] = useState(0);
+  const [scrollHost, setScrollHost] = useState(null);
   const actor = useMemo(currentOrderSetActor, []);
 
   useEffect(() => subscribeOrderSets(() => setOrderSetRevision((value) => value + 1)), []);
 
   useEffect(() => {
     if (!open) return;
-    setMode('items'); setQuery(''); setCategory('all'); setSelectedIds([]); setCreatingSet(false); setAllergyConfirmOpen(false); setSelectedStoredSetId('');
+    setMode('items'); setQuery(''); setCategories([]); setSelectedIds([]); setCreatingSet(false); setAllergyConfirmOpen(false); setSelectedStoredSetId('');
+    setSortConfig({ key: null, direction: 'asc' }); setChromeCollapsed(false);
   }, [open]);
+
+  /* ความสูงจริงของการ์ดผู้รับบริการ — ใช้เป็นปลายทาง max-height ตอนคลี่กลับ
+     (วัดด้วย ResizeObserver เพราะความสูงเปลี่ยนตามจำนวนบรรทัดของประวัติแพ้ยา) */
+  useEffect(() => {
+    if (!chromeEl || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () => setChromeHeight(chromeEl.scrollHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(chromeEl);
+    return () => observer.disconnect();
+  }, [chromeEl]);
+
+  /* ตัวที่เลื่อนจริงคือกล่องภายในของ <Table> ไม่ใช่กล่องหุ้ม และ React 17
+     ไม่ delegate `scroll` จาก descendant ให้ onScroll ของ ancestor อีกแล้ว
+     — จึงดักที่ capture phase ของกล่องหุ้มแทน (scroll ไม่ bubble แต่ capture ได้)
+     Hysteresis กันเปิด/ปิดรัว ๆ: ยุบเมื่อเลื่อนพ้น 48px คลี่กลับเมื่อ ≤8px */
+  useEffect(() => {
+    if (!scrollHost) return undefined;
+    const onScroll = (event) => {
+      const el = event.target;
+      /* เลื่อนแนวนอนของตารางก็ยิง scroll เหมือนกัน — สนใจเฉพาะกล่องที่ล้นแนวตั้ง */
+      if (!el || typeof el.scrollTop !== 'number') return;
+      if (el.scrollHeight - el.clientHeight <= 1) return;
+      const top = el.scrollTop;
+      setChromeCollapsed((current) => (current ? top > 8 : top > 48));
+    };
+    scrollHost.addEventListener('scroll', onScroll, true);
+    return () => scrollHost.removeEventListener('scroll', onScroll, true);
+  }, [scrollHost]);
 
   const storedSetCards = useMemo(() => orderSetsForActor(actor).map((set) => {
     const resolvedItems = (set.items || []).map((setItem) => {
@@ -269,13 +283,111 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
 
   const visibleItems = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('th-TH');
-    return items.filter((item) => (category === 'all' || item.category === category)
+    return items.filter((item) => (categories.length === 0 || categories.includes(item.category))
       && (!q || `${item.name} ${item.unit || ''} ${item.detail || ''}`.toLocaleLowerCase('th-TH').includes(q)));
-  }, [category, items, query]);
+  }, [categories, items, query]);
+  const toggleCategory = (key) => {
+    setCategories((current) => current.includes(key)
+      ? current.filter((value) => value !== key)
+      : [...current, key]);
+  };
+  const handleSort = (key) => {
+    setSortConfig((prev) => (
+      prev.key === key
+        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    ));
+  };
+  const sortedItems = useMemo(() => {
+    if (!sortConfig.key) return visibleItems;
+    const valueFor = (item) => {
+      if (sortConfig.key === 'detail') return item.detail || (item.unit ? `หน่วย ${item.unit}` : '');
+      if (sortConfig.key === 'category') return CATEGORY_LABELS[item.category] || '';
+      if (sortConfig.key === 'stock') {
+        const stock = stockInfoForItem(item);
+        if (!stock) return -2;
+        if (!stock.known) return -1;
+        return stock.stock;
+      }
+      return item[sortConfig.key] ?? '';
+    };
+    const sign = sortConfig.direction === 'desc' ? -1 : 1;
+    return [...visibleItems].sort((a, b) => {
+      const av = valueFor(a);
+      const bv = valueFor(b);
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * sign;
+      return String(av).localeCompare(String(bv), 'th') * sign;
+    });
+  }, [visibleItems, sortConfig]);
+  /* สลับแท็บแล้วเริ่มนับใหม่ — แต่ละแท็บมี scroller ของตัวเองที่ scrollTop = 0 */
+  const changeMode = (next) => {
+    if (next === mode) return;
+    setMode(next);
+    setChromeCollapsed(false);
+  };
   const toggle = (id) => {
     setSelectedStoredSetId('');
     setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
   };
+  const pickerColumns = useMemo(() => [
+    {
+      key: 'select',
+      label: 'เลือก',
+      align: 'center',
+      sortable: false,
+      render: (row) => (
+        <span onClick={(event) => event.stopPropagation()}>
+          <Checkbox checked={selectedIds.includes(row.id)} onChange={() => toggle(row.id)} aria-label={`เลือก ${row.name}`} />
+        </span>
+      ),
+    },
+    {
+      key: 'name',
+      label: 'รายการ',
+      flex: true,
+      minWidth: 200,
+      render: (row) => (
+        <span className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)', flexWrap: 'nowrap' }}>
+          <span style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{row.name}</span>
+          {row.allergyMatch && <ColorfulBadge style='red' size='small'>ผู้รับบริการแพ้ยานี้</ColorfulBadge>}
+        </span>
+      ),
+    },
+    {
+      key: 'detail',
+      label: 'รายละเอียด',
+      flex: true,
+      minWidth: 180,
+      render: (row) => (
+        <EllipsisText text={row.detail || (row.unit ? `หน่วย ${row.unit}` : 'กรอกรายละเอียดหลังเพิ่มรายการ')} />
+      ),
+    },
+    {
+      key: 'stock',
+      label: 'สถานะคลัง',
+      render: (row) => {
+        const stock = stockInfoForItem(row);
+        if (!stock) return <span style={{ color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-sm, 14px)' }}>—</span>;
+        return (
+          <span className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)', flexWrap: 'nowrap' }}>
+            <StockBadge item={row} />
+            {stock.known && (
+              <span style={{ color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)', whiteSpace: 'nowrap' }}>
+                ต้องการ {stock.requested.toLocaleString('th-TH')} {stock.unit}
+              </span>
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'category',
+      label: 'ประเภท',
+      render: (row) => (
+        <ColorfulBadge style={CATEGORY_BADGES[row.category] || 'grey'} size='small'>{CATEGORY_LABELS[row.category]}</ColorfulBadge>
+      ),
+    },
+  ], [selectedIds]);
   const chooseSet = (set) => {
     if (set.unavailableCount > 0 || set.itemIds.length === 0) return;
     const available = new Set(selectableItems.map((item) => item.id));
@@ -347,70 +459,184 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
       tertiaryAction={{ label: 'ล้างรายการที่เลือก', onClick: () => setSelectedIds([]), disabled: selectedIds.length === 0 }}
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
       primaryAction={{ label: `เพิ่ม ${selectedIds.length} รายการ`, onClick: handleConfirm, disabled: selectedIds.length === 0 }}
-      bodyStyle={{ gap: 'var(--dim-space-400, 16px)' }}>
-      <PatientSummaryCard
-        variant='gradient'
-        avatarUrl={cardPatient?.avatarUrl || patient?.avatarUrl}
-        avatarAlt={patientName}
-        cells={[
-          { label: 'ชื่อ-นามสกุล ผู้รับบริการ', value: patientName },
-          { label: 'HN (Hospital Number)', value: cardPatient?.hn || patient?.hn || '—' },
-          { label: 'อายุ / เพศ', value: `${patient?.age != null ? `${patient.age} ปี` : '—'} / ${patient?.gender || '—'}` },
-          { label: 'สิทธิการรักษา', value: patient?.rights || cardPatient?.insurance || '—' },
-          {
-            label: 'ประวัติแพ้ยา',
-            value: allergyNames.length > 0 ? allergyNames.join(', ') : 'ไม่พบประวัติแพ้ยา',
-          },
-        ]}
-      />
-      <TabBar
-        aria-label='วิธีเพิ่มรายการสั่งการรักษา'
-        style={{ background: 'transparent', padding: 0 }}
+      bodyScrollable={false}
+      bodyStyle={{ gap: 0 }}>
+      {/* ส่วนเหนือตาราง — ย่อลงเมื่อผู้ใช้เลื่อนดูตาราง เพื่อคืนพื้นที่ให้ตาราง
+         แต่ยังคงแท็บ / ช่องค้นหา / ตัวกรอง ไว้ให้กดได้ตลอด ไม่ต้องเลื่อนกลับขึ้นบน */}
+      <div
+        className='flex flex-col'
+        style={{
+          flex: '0 0 auto',
+          gap: chromeCollapsed ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-400, 16px)',
+          marginBottom: chromeCollapsed ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-400, 16px)',
+          transition: [
+            `gap ${CHROME_MORPH_TRANSITION}`,
+            `margin-bottom ${CHROME_MORPH_TRANSITION}`,
+          ].join(', '),
+        }}
       >
-        <TabPill label='ค้นหารายการ' selected={mode === 'items'} onClick={() => setMode('items')} />
-        <TabPill label='ชุดคำสั่งสำเร็จรูป' selected={mode === 'sets'} onClick={() => setMode('sets')} />
-      </TabBar>
-      {mode === 'items' ? <>
-        <InputField label='ค้นหารายการ' value={query} onChange={(event) => setQuery(event?.target?.value ?? event ?? '')}
-          placeholder='ค้นหายา Lab X-ray หัตถการ หรือคลินิกปรึกษา' leadingIcon='search' />
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {[['all', 'ทั้งหมด'], ...Object.entries(CATEGORY_LABELS)].map(([key, label]) => (
+      {/* การ์ดผู้รับบริการ — บล็อกที่สูงที่สุด ยุบทั้งใบตอนเลื่อน
+         ข้อมูลสำคัญ (ชื่อ · HN · สิทธิ · แพ้ยา) ย้ายไปแถบสรุปบรรทัดเดียวด้านล่าง */}
+      <div
+        ref={setChromeEl}
+        aria-hidden={chromeCollapsed}
+        style={{
+          overflow: 'hidden',
+          /* flex column: min-height:auto ของ flex item จะชนะ max-height
+             ทำให้การ์ดไม่ยอมยุบ — ต้องปลดเป็น 0 ก่อน */
+          minHeight: 0,
+          flexShrink: 0,
+          maxHeight: chromeCollapsed ? 0 : (chromeHeight ? `${chromeHeight}px` : 'none'),
+          opacity: chromeCollapsed ? 0 : 1,
+          pointerEvents: chromeCollapsed ? 'none' : 'auto',
+          transition: [
+            `max-height ${CHROME_MORPH_TRANSITION}`,
+            'opacity var(--motion-duration-popover, 160ms) var(--motion-easing-standard, cubic-bezier(0.4, 0, 0.2, 1))',
+          ].join(', '),
+        }}
+      >
+        <PatientSummaryCard
+          variant='gradient'
+          avatarUrl={cardPatient?.avatarUrl || patient?.avatarUrl}
+          avatarAlt={patientName}
+          cells={[
+            { label: 'ชื่อ-นามสกุล ผู้รับบริการ', value: patientName },
+            { label: 'HN (Hospital Number)', value: cardPatient?.hn || patient?.hn || '—' },
+            { label: 'อายุ / เพศ', value: `${patient?.age != null ? `${patient.age} ปี` : '—'} / ${patient?.gender || '—'}` },
+            { label: 'สิทธิการรักษา', value: patient?.rights || cardPatient?.insurance || '—' },
+            {
+              label: 'ประวัติแพ้ยา',
+              value: allergyNames.length > 0 ? allergyNames.join(', ') : 'ไม่พบประวัติแพ้ยา',
+            },
+          ]}
+        />
+      </div>
+      <div
+        className='flex items-center flex-wrap'
+        style={{ gap: 'var(--dim-space-300, 12px)' }}
+      >
+        <TabBar
+          aria-label='วิธีเพิ่มรายการสั่งการรักษา'
+          style={{ background: 'transparent', padding: 0, width: 'auto', flex: '0 0 auto' }}
+        >
+          <TabPill selected={mode === 'items'} onClick={() => changeMode('items')}>ค้นหารายการ</TabPill>
+          <TabPill selected={mode === 'sets'} onClick={() => changeMode('sets')}>ชุดคำสั่งสำเร็จรูป</TabPill>
+        </TabBar>
+        {chromeCollapsed ? (
+          <span
+            className='flex items-center flex-wrap min-w-0 flex-1'
+            style={{ gap: 'var(--dim-space-200, 8px)' }}
+          >
+            <span
+              className='truncate'
+              style={{
+                color: 'var(--text-content-default, #202427)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm, 14px)',
+                fontWeight: 'var(--type-weight-medium, 500)',
+              }}
+            >
+              {patientName}
+            </span>
+            <span
+              className='truncate'
+              style={{
+                color: 'var(--text-content-tertiary, #697077)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs, 12px)',
+              }}
+            >
+              HN {cardPatient?.hn || patient?.hn || '—'} · {patient?.rights || cardPatient?.insurance || '—'}
+            </span>
+            {allergyNames.length > 0 ? (
+              <ColorfulBadge style='red' size='small'>แพ้ยา {allergyNames.join(', ')}</ColorfulBadge>
+            ) : null}
+          </span>
+        ) : null}
+      </div>
+      {mode === 'items' && (
+      /* ตอนย่อ: ช่องค้นหากับตัวกรองมาอยู่บรรทัดเดียวกัน ประหยัดอีกหนึ่งแถว */
+      <div
+        className='flex'
+        style={{
+          flexDirection: chromeCollapsed ? 'row' : 'column',
+          /* wrap เฉพาะตอนเป็นแถว — `flex-wrap: wrap` คู่กับ `column`
+             จะตัดเป็น "คอลัมน์ที่สอง" ดันตัวกรองไปอยู่ข้างขวา
+             แล้วยืดกล่องค้นหาเต็มความสูง เกิดที่ว่างใต้ช่องค้นหา */
+          flexWrap: chromeCollapsed ? 'wrap' : 'nowrap',
+          alignItems: chromeCollapsed ? 'center' : 'stretch',
+          gap: chromeCollapsed ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-400, 16px)',
+        }}
+      >
+        <div
+          className='min-w-0'
+          style={{
+            flex: chromeCollapsed
+              ? '1 1 var(--dim-size-2500, 320px)'
+              : '0 0 auto',
+          }}
+        >
+          <InputField
+            label='ค้นหารายการ'
+            showLabel={!chromeCollapsed}
+            showHelperText={false}
+            size={chromeCollapsed ? 'md' : 'lg'}
+            value={query}
+            onChange={(event) => setQuery(event?.target?.value ?? event ?? '')}
+            placeholder='ค้นหายา Lab X-ray หัตถการ หรือคลินิกปรึกษา'
+            leadingIcon='search'
+          />
+        </div>
+        <div
+          className='flex items-center flex-wrap'
+          style={{ gap: chromeCollapsed ? 'var(--dim-space-150, 6px)' : 'var(--dim-space-200, 8px)' }}
+        >
+          <BrandFilterTag
+            variant='brand'
+            size={chromeCollapsed ? 'sm' : 'lg'}
+            value='ทั้งหมด'
+            selected={categories.length === 0}
+            showLeadingIcon={false}
+            showTailingIcon={false}
+            showTitle={false}
+            onClick={() => setCategories([])}
+          />
+          {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
             <BrandFilterTag
               key={key}
               variant='brand'
-              size='lg'
+              size={chromeCollapsed ? 'sm' : 'lg'}
               value={label}
-              selected={category === key}
+              selected={categories.includes(key)}
               showLeadingIcon={false}
               showTailingIcon={false}
               showTitle={false}
-              onClick={() => setCategory(key)}
+              onClick={() => toggleCategory(key)}
             />
           ))}
+          <ClearFiltersTag active={categories.length > 0} onClear={() => setCategories([])} />
         </div>
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {visibleItems.map((item) => { const checked = selectedIds.includes(item.id); return <button key={item.id} type='button' onClick={() => toggle(item.id)} aria-pressed={checked} className='mih-treatment-order-picker-row flex items-center w-full text-left' style={{ gap: 'var(--dim-space-300, 12px)', padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', borderRadius: 'var(--dim-radius-200, 8px)' }}>
-            <span onClick={(event) => event.stopPropagation()}><Checkbox checked={checked} onChange={() => toggle(item.id)} aria-label={`เลือก ${item.name}`} /></span>
-            <span className='flex-1 min-w-0'>
-              <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-                <span style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{item.name}</span>
-                {item.allergyMatch && <ColorfulBadge style='red' size='small'>ผู้รับบริการแพ้ยานี้</ColorfulBadge>}
-              </span>
-              <span style={{ display: 'block', color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>{item.detail || (item.unit ? `หน่วย ${item.unit}` : 'กรอกรายละเอียดหลังเพิ่มรายการ')}</span>
-              <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)', marginTop: 'var(--dim-space-100, 4px)' }}>
-                <StockBadge item={item} />
-                {stockInfoForItem(item)?.known && (
-                  <span style={{ color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>
-                    ต้องการ {stockInfoForItem(item).requested.toLocaleString('th-TH')} {stockInfoForItem(item).unit}
-                  </span>
-                )}
-              </span>
-            </span>
-            <ColorfulBadge style={CATEGORY_BADGES[item.category] || 'grey'} size='small'>{CATEGORY_LABELS[item.category]}</ColorfulBadge>
-          </button>; })}
-          {visibleItems.length === 0 && <div className='flex flex-col items-center text-center' style={{ gap: 'var(--dim-space-200, 8px)', padding: 'var(--dim-space-800, 32px)' }}><Sym name='search_off' size={32} color='var(--icon-neutral-tertiary, #8A9095)' /><span style={{ color: 'var(--text-content-secondary, #454B50)', fontSize: 'var(--type-size-sm, 14px)' }}>ไม่พบรายการที่ค้นหา</span></div>}
+      </div>
+      )}
+      </div>
+      {mode === 'items' ? (
+        <div
+          ref={setScrollHost}
+          className='scrollbar-thin flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden'
+          style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'var(--dim-space-600, 24px)' }}
+        >
+          <Table
+            columns={pickerColumns}
+            rows={sortedItems}
+            rowKey={(row) => row.id}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            onRowClick={(row) => toggle(row.id)}
+            emptyMessage='ไม่พบรายการที่ค้นหา'
+            emptySubtext='ลองปรับคำค้นหาหรือเลือกหมวดหมู่อื่น'
+          />
         </div>
-      </> : <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+      ) : <div ref={setScrollHost} className='scrollbar-thin flex flex-col w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden' style={{ gap: 'var(--dim-space-400, 16px)', paddingBottom: 'var(--dim-space-600, 24px)' }}>
         <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           <div><div style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-base, 16px)', fontWeight: 'var(--type-weight-medium, 500)' }}>ชุดคำสั่งการรักษา</div><div style={{ color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-sm, 14px)' }}>ชุดมาตรฐานจัดการโดย Admin ส่วนแพทย์สร้างชุดส่วนตัวได้จากรายการที่เลือก</div></div>
           <BrandSubdueButton leadingIcon='add' disabled={!actor?.id || selectedIds.length === 0} onClick={() => setCreatingSet(true)}>เพิ่ม Order Set ของฉัน</BrandSubdueButton>
