@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
@@ -149,6 +150,10 @@ export const HivStiStep1History = ({ form, setForm, hn, clinicPatient, visitNo, 
 
   return (
     <StepCard>
+      {/* ผลจากจุดคัดกรองเดียวของระบบ (`/opd/screening`) — อ่านอย่างเดียว
+          คลินิกไม่คัดกรองซ้ำเอง step 2 เก็บเฉพาะแบบประเมินพฤติกรรมเสี่ยง */}
+      <CarriedScreeningPanel patient={{ hn }} />
+
       {/* ข้อมูลระดับคลินิกจากทะเบียน — read-only; แก้ไขที่ทะเบียนผู้รับบริการ
           เท่านั้น เพื่อไม่ให้ข้อมูลทะเบียนถูกแก้จากหน้าบันทึกการรักษา. */}
       <div className='flex flex-col gap-3'>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
-import { MIH_CHROME_MORPH_FOOTER } from '@/components/layout/wizardChromeMorphStyles';
+import { MIH_CHROME_MORPH_FOOTER, MIH_STEP_BODY_ENTER } from '@/components/layout/wizardChromeMorphStyles';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
@@ -22,6 +22,10 @@ export const TREATMENT_STEPS = [
 ];
 
 export const TREATMENT_STEP_LABELS = TREATMENT_STEPS.map((s) => s.title);
+
+/* ความยาวการเลื่อนตอนสลับ step — ล้อกับ --motion-duration-calendar (320ms)
+   ซึ่งเป็นจังหวะเดียวกับ keyframe จางเข้าของเนื้อหา step */
+const STEP_SCROLL_MS = 320;
 
 const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, isLast }) => {
   /* Primary CTA label — Figma PHCIS pattern: "ถัดไป: [next step]" so the
@@ -119,7 +123,71 @@ const TreatmentFormShell = ({
 }) => {
   const history = useHistory();
   const [referOpen, setReferOpen] = useState(false);
+  const bandRef = useRef(null);
+  const bodyRef = useRef(null);
+  const lastStepIndex = useRef(stepIndex);
   const isLast = stepIndex === steps.length - 1;
+
+  /* เปลี่ยน step แล้วต้องกลับไปเริ่มที่หัวของ step ใหม่เสมอ — ไม่งั้นผู้ใช้ที่
+     เลื่อนลงไปกลางฟอร์มอยู่ จะโดนสลับเนื้อหาใต้ตีนตัวเองแล้วโผล่กลางหน้า
+     อ่านไม่รู้เรื่อง เลื่อนให้ขอบบนการ์ดมาจอดใต้แถบ stepper พอดี
+     (อ่านค่า sticky `top` + ความสูงจริงของแถบ แทนการฮาร์ดโค้ดความสูง chrome)
+
+     tween เองด้วย rAF แทน `scrollTo({behavior:'smooth'})` เพราะ native smooth
+     คุม duration ไม่ได้ — ต้องให้จบพร้อม keyframe จางเข้าของเนื้อหา step */
+  useEffect(() => {
+    if (lastStepIndex.current === stepIndex) return;
+    lastStepIndex.current = stepIndex;
+    if (typeof window === 'undefined') return;
+    const body = bodyRef.current;
+    if (!body) return;
+
+    const band = bandRef.current?.firstElementChild;
+    const bandTop = band ? parseFloat(window.getComputedStyle(band).top) || 0 : 0;
+    const chromeBottom = bandTop + (band ? band.offsetHeight : 0);
+    const start = window.scrollY;
+    const target = Math.max(
+      0,
+      start + body.getBoundingClientRect().top - chromeBottom,
+    );
+    const delta = target - start;
+    if (Math.abs(delta) < 2) return undefined;
+
+    /* ข้ามแอนิเมชันเมื่อผู้ใช้ขอลดการเคลื่อนไหว หรือแท็บถูกซ่อนอยู่
+       (แท็บพื้นหลังไม่ได้รับ animation frame เลย ถ้ายัง tween จะไม่เลื่อนเลย
+       แล้วพอผู้ใช้กลับมาก็ยังค้างกลางฟอร์มเหมือนเดิม) */
+    const skipMotion = document.hidden
+      || (typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (skipMotion) {
+      window.scrollTo(0, target);
+      return undefined;
+    }
+
+    let cancelled = false;
+    /* ผู้ใช้ขยับล้อ/นิ้วเมื่อไหร่ ให้ยกเลิกทันที — อย่าแย่ง scroll กับคน */
+    const cancel = () => { cancelled = true; };
+    window.addEventListener('wheel', cancel, { passive: true });
+    window.addEventListener('touchstart', cancel, { passive: true });
+
+    const t0 = window.performance.now();
+    const step = (now) => {
+      if (cancelled) return;
+      const p = Math.min(1, (now - t0) / STEP_SCROLL_MS);
+      /* out-cubic — โค้ง "settle ไม่กระชาก" เดียวกับ --motion-easing-enter */
+      window.scrollTo(0, start + delta * (1 - (1 - p) ** 3));
+      if (p < 1) window.requestAnimationFrame(step);
+    };
+    const raf = window.requestAnimationFrame(step);
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener('wheel', cancel);
+      window.removeEventListener('touchstart', cancel);
+    };
+  }, [stepIndex]);
+
   const stepTitle = typeof steps[stepIndex] === 'string'
     ? steps[stepIndex]
     : steps[stepIndex]?.title;
@@ -146,15 +214,19 @@ const TreatmentFormShell = ({
     <main className='flex-1 min-w-0 flex flex-col' style={{
       background: 'var(--background-screen-brand-100, #F4FBF8)',
     }}>
-      <RecordWizardMorphBand
-        title={headerTitle}
-        steps={steps}
-        current={stepIndex}
-        completedSteps={completedSteps}
-        onStepClick={onStepChange}
-        stickyTop={morphStickyTop}
-      />
-      <div className='flex-1 flex flex-col min-h-0' style={{
+      {/* `display: contents` — ตัวห่อไว้จับ ref ของแถบ stepper เท่านั้น
+         ไม่กินกล่องจริง แถบ sticky จึงยังยึดกับ <main> เหมือนเดิม */}
+      <div ref={bandRef} style={{ display: 'contents' }}>
+        <RecordWizardMorphBand
+          title={headerTitle}
+          steps={steps}
+          current={stepIndex}
+          completedSteps={completedSteps}
+          onStepClick={onStepChange}
+          stickyTop={morphStickyTop}
+        />
+      </div>
+      <div ref={bodyRef} className='flex-1 flex flex-col min-h-0' style={{
         padding: 'var(--dim-space-600)',
         gap: 'var(--dim-space-400)',
       }}>
@@ -170,8 +242,14 @@ const TreatmentFormShell = ({
           {/* Step 1 brings its own ServiceDateList rail flush against the
               card's left edge, so it opts out of the 24px body padding.
               Steps 2–7 — Figma PHCIS treatment card body floor: min 640 px. */}
+          {/* `key={stepIndex}` รีสตาร์ท keyframe ทุกครั้งที่เปลี่ยน step —
+              เนื้อหา step ใหม่จึงค่อย ๆ จางขึ้นแทนการตัดภาพดิบ ๆ */}
           <div
-            className={stepIndex === 0 && step0FlushLeft ? undefined : 'flex flex-1 flex-col min-h-0'}
+            key={stepIndex}
+            className={[
+              stepIndex === 0 && step0FlushLeft ? '' : 'flex flex-1 flex-col min-h-0',
+              MIH_STEP_BODY_ENTER,
+            ].filter(Boolean).join(' ')}
             style={
               stepIndex === 0 && step0FlushLeft
                 ? undefined

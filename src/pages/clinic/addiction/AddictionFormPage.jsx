@@ -47,7 +47,10 @@ const breadcrumb = ['ระบบบันทึกการรักษา', '�
 
 const ADDICTION_STEPS = [
   { title: 'ซักประวัติ/แรกรับ', subtitle: 'Intake History' },
-  { title: 'คัดกรองและแบบประเมิน', subtitle: 'Screening & Assessment' },
+  /* ไม่ใช่ "คัดกรอง" — จุดคัดกรองมีที่เดียวที่ `/opd/screening` step นี้เก็บเฉพาะ
+     แบบประเมินของงานยาเสพติด (ASSIST · AUDIT · นิโคติน · ความพร้อมเลิกบุหรี่)
+     ส่วนผลคัดกรองแสดงอ่านอย่างเดียวที่ step 1 */
+  { title: 'แบบประเมิน', subtitle: 'Assessment' },
   { title: 'ตรวจร่างกาย', subtitle: 'Physical Examination' },
   { title: 'กิจกรรมบำบัด', subtitle: 'Therapy Activity' },
   { title: 'สั่งการรักษา', subtitle: 'Treatment Order' },

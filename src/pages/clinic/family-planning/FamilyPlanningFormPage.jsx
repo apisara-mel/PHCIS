@@ -53,7 +53,10 @@ const REGISTRY_PATH = '/clinic/family-planning/registry';
 
 const FP_STEPS = [
   { title: 'ประวัติการรักษา',        subtitle: 'Medical History' },
-  { title: 'ซักประวัติคัดกรอง',      subtitle: 'Screening (11 items)' },
+  /* ไม่ใช่ "คัดกรอง/ซักประวัติ" — จุดคัดกรองมีที่เดียวที่ `/opd/screening`
+     step นี้เก็บเฉพาะแบบประเมินคุณสมบัติการคุมกำเนิด 11 ข้อ (WHO MEC)
+     ส่วนผลคัดกรองแสดงอ่านอย่างเดียวที่ step 1 */
+  { title: 'แบบประเมิน',              subtitle: 'Assessment (11 items)' },
   { title: 'วางแผนครอบครัว',         subtitle: 'Family Planning' },
   { title: 'ตรวจสตรี',               subtitle: 'Breast & PV Exam' },
   { title: 'ดูแลหลังคลอด',           subtitle: 'Postpartum Care' },
