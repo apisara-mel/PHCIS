@@ -39,7 +39,6 @@ const StickyStatusTabBar = ({
   onChange,
   'aria-label': ariaLabel = 'กรองตามสถานะ',
 }) => {
-  const sentinelRef = useRef(null);
   const barRef = useRef(null);
   const [stuck, setStuck] = useState(false);
   const [stickyTopPx, setStickyTopPx] = useState(() => readFallbackTopPx());
@@ -78,17 +77,25 @@ const StickyStatusTabBar = ({
         `${topPx}px`,
       );
 
-      const sentinel = sentinelRef.current;
-      if (!sentinel) return;
-      setStuck(sentinel.getBoundingClientRect().top <= topPx + 0.5);
+      /* ไม่ใช้ sentinel แยกอีกต่อไป — sentinel เป็น flex child อีกตัวของ
+         การ์ด worklist ที่มี `gap` 24px จึงดัน TabPill ลงมาเกินระยะที่ตั้งไว้
+         (พัก 24px กลายเป็น ~48px). แถบนี้เป็น position:sticky อยู่แล้ว
+         เมื่อชนขอบบน rect.top จะเท่ากับ top ที่ตั้งไว้พอดี จึงอ่านสถานะ
+         "ติดขอบ" จากตัวมันเองได้ตรง ๆ โดยไม่ต้องมี element เพิ่ม. */
+      const el = barRef.current;
+      if (!el) return;
+      setStuck(el.getBoundingClientRect().top <= topPx + 0.5);
       publishGeometry();
     };
 
     sync();
-    window.addEventListener('scroll', sync, { passive: true });
+    /* capture:true — บางหน้าเลื่อนที่ container ภายใน (MihPageScrollRoot)
+       ไม่ใช่ window; ถ้าฟังแค่ window ค่า top จะค้างอยู่ที่ตอน mount แล้ว
+       แถบจะหยุดต่ำกว่า SubNav จนเห็นแถวตารางลอดขึ้นมาด้านบน. */
+    document.addEventListener('scroll', sync, { passive: true, capture: true });
     window.addEventListener('resize', sync);
     return () => {
-      window.removeEventListener('scroll', sync);
+      document.removeEventListener('scroll', sync, { capture: true });
       window.removeEventListener('resize', sync);
       document.documentElement.style.removeProperty(MIH_STATUS_TABBAR_STICKY_TOP_VAR);
       document.documentElement.style.removeProperty(MIH_STATUS_TABBAR_STICKY_BOTTOM_VAR);
@@ -113,13 +120,14 @@ const StickyStatusTabBar = ({
     };
   }, [stuck, tabs, value]);
 
-  const size = stuck ? 'small' : 'large';
+  /* ชิปขนาดเล็กทั้งสองสถานะ (Figma TabPill "Default" — สูง 32px · ตัวอักษร 14)
+     — ของเดิมตอนยังไม่ติดขอบใช้ "large" (สูง 48px · 16px) ซึ่งกินพื้นที่
+     เหนือช่องค้นหามากเกินไปในหน้าคิวทั้งของเภสัชกรรมและเยี่ยมบ้าน. */
+  const size = 'small';
 
   return (
-    <>
-      <div ref={sentinelRef} aria-hidden style={{ height: 1, marginBottom: -1 }} />
-      <div
-        ref={barRef}
+    <div
+      ref={barRef}
         className='w-full flex justify-center'
         style={{
           position: 'sticky',
@@ -132,16 +140,16 @@ const StickyStatusTabBar = ({
           /* Full-bleed to worklist card edges (card pad = space-600). */
           marginLeft: 'calc(-1 * var(--dim-space-600))',
           marginRight: 'calc(-1 * var(--dim-space-600))',
-          /* Rest: pull into card top pad. Stuck: 0 so border-box sits on
-             SubNav bottom (negative margin was leaving a 24px thead gap). */
-          marginTop: stuck
-            ? 'var(--dim-space-0)'
-            : 'calc(-1 * var(--dim-space-600))',
+          /* ระยะเหนือชิป = 24px พอดี ทั้งสองสถานะ:
+             พัก  — ใช้ padding บนของการ์ด worklist (24px) เป็นระยะ จึงไม่ดึง
+                    ขึ้นด้วย margin ลบ และไม่ใส่ padding บนซ้ำ (ของเดิม
+                    -24 + 24 + track pad ทำให้เหลื่อมเป็น ~45px)
+             ติดขอบ — ชิดใต้ SubNav ตามเดิม เพื่อไม่ให้หัวตารางมีช่องโหว่ */
+          marginTop: 'var(--dim-space-0)',
           width: 'calc(100% + 2 * var(--dim-space-600))',
           paddingLeft: 'var(--dim-space-600)',
           paddingRight: 'var(--dim-space-600)',
-          /* Rest: exactly 24px above pills. Stuck: flush to SubNav (0 top pad). */
-          paddingTop: stuck ? 'var(--dim-space-0)' : 'var(--dim-space-600)',
+          paddingTop: 'var(--dim-space-0)',
           paddingBottom: stuck ? 'var(--dim-space-200)' : 'var(--dim-space-0)',
           transition: [
             'box-shadow 200ms cubic-bezier(0.32, 0.72, 0, 1)',
@@ -167,8 +175,7 @@ const StickyStatusTabBar = ({
             </TabPill>
           ))}
         </TabBar>
-      </div>
-    </>
+    </div>
   );
 };
 
