@@ -13,3 +13,8 @@ dist-ssr
 
 # generated design-system site (npm run ds:build)
 dist-ds
+
+# bma.mobile = repo แยก (มี .git ของตัวเอง) ที่บังเอิญวางซ้อนอยู่ในโฟลเดอร์นี้
+# ตัวจริงรันจาก ~/MIH-PHCIS-local/bma.mobile — ห้ามให้หลุดเข้ามาใน bma.health
+# ไม่ใส่บรรทัดนี้ `git add -A` ครั้งเดียวจะดูด ~6,500 ไฟล์เข้ามาเป็น gitlink
+bma.mobile/
