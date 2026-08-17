@@ -187,6 +187,17 @@ export const ProfessionBadge = ({ profession, size = 'small' }) => {
   return <ColorfulBadge style={p.badge} size={size} hierarchy='secondary'>{p.label}</ColorfulBadge>;
 };
 
+/** ธง/ภาวะที่ต้องระวังเป็น "ข้อความธรรมดา" สำหรับเซลล์ในตาราง — ป้ายสีสด
+    หลายใบต่อแถวทำให้ตารางอ่านยากกว่าเดิม (ใช้ FlagBadges เฉพาะบนการ์ด/หัวฟอร์ม). */
+export const flagText = (group, flags = []) => {
+  const g = resolveGroup(group);
+  const parts = [
+    ...(g && PERSISTENT_FLAG_GROUPS.includes(group) ? [g.short] : []),
+    ...(flags || []).map((key) => resolveFlag(key)?.label).filter(Boolean),
+  ];
+  return parts.length ? parts.join(' · ') : '—';
+};
+
 /** ธงสถานะติดตัวผู้รับบริการ — กลุ่มระยะสุดท้าย/กลุ่มพิเศษจะมีธงกลุ่มนำหน้า
     เสมอ (edge case: flag ต้องติดตามไปทุกหน้าจอ). */
 export const FlagBadges = ({ group, flags = [], size = 'small' }) => {

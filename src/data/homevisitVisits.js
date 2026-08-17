@@ -207,7 +207,6 @@ export const HOMEVISIT_TIME_SLOTS = [
 export const HOMEVISIT_STATUSES = [
   { value: 'scheduled', label: 'นัดวันนี้',       badge: 'blue'   },
   { value: 'toDepart',  label: 'รอออกเยี่ยม',     badge: 'indigo' },
-  { value: 'visiting',  label: 'กำลังเยี่ยม',     badge: 'orange' },
   { value: 'done',      label: 'เยี่ยมเสร็จแล้ว', badge: 'teal'   },
   { value: 'draft',     label: 'ที่ร่างไว้',      badge: 'grey'   },
 ];
@@ -246,7 +245,7 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   },
   {
     id: 'hv-2603', hn: '67-00018', name: 'ธีรเดช อัครพงศ์', age: 55, gender: 'ชาย',
-    group: 'terminal', source: 'hhc', statusKey: 'visiting',
+    group: 'terminal', source: 'hhc', statusKey: 'toDepart',
     district: 'เขตพระโขนง', community: 'ชุมชนริมคลองพระโขนง',
     address: '77/3 ซอยสุขุมวิท 71 แขวงพระโขนงเหนือ เขตพระโขนง กรุงเทพมหานคร 10260',
     home: { lat: 13.7481, lng: 100.5288, pinSaved: true },
@@ -436,7 +435,6 @@ export const setHomeVisitStatus = (id, statusKey) =>
   upsertHomeVisitAppointment({ id, statusKey });
 
 /** "ออกเยี่ยม" — ย้ายจากรอออกเยี่ยม → กำลังเยี่ยม (คู่กับ 1.18.9 check-in). */
-export const startHomeVisit = (id) => setHomeVisitStatus(id, 'visiting');
 
 export const cancelHomeVisitAppointment = (id, reason) => {
   const all = readJson(APPT_CANCEL_KEY, {});

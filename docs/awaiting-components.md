@@ -881,6 +881,33 @@ design system เมื่อไร
 
 ---
 
+### 60. ModuleSubNav (แถบสลับหน้าในโมดูล — TabUnderline ที่ช่อง `belowSummary`) — 📐 มี 3 ผู้ใช้แล้ว พร้อมยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/components/pharmacy/PharmacySubNav.jsx` · `src/components/lab/LabSubNav.jsx` · `src/components/homevisit/HomeVisitSubNav.jsx` — 3 ที่ (โค้ดเกือบเหมือนกันทุกบรรทัด) |
+| **หน้าที่** | แถวสลับหน้าระดับโมดูล (คิว / ทะเบียน / รายงาน …) วางที่ช่อง `belowSummary` ของ `QueuePageShell` แทนการทำ sub-menu ในเมนูซ้าย — หนึ่งโมดูล = หนึ่งปลายทางใน rail แล้วสลับหน้าย่อยที่ตัวหน้าเอง |
+| **ทำไมไม่มีของเดิมแทน** | `TabUnderline` เป็น primitive ที่ไม่รู้เรื่อง routing · ทั้ง 3 ที่จึงเขียน `LINKS` + `resolveActiveKey(pathname)` + `history.push` ซ้ำกันเอง |
+| **โครง API** | `<ModuleSubNav links={[{ key, label, path }]} />` โดย active key มาจาก `useLocation().pathname` (longest-prefix match) — ผู้เรียกไม่ต้องเขียน resolver เอง |
+| **พฤติกรรมที่ต้องรักษาไว้** | `morphOnScroll` (ย่อเมื่อเลื่อน) · หน้าฟอร์มรายบุคคล (`/homevisit/visit`, `/pharmacy/dispense`) **ไม่อยู่** ในแถบ — เป็นหน้าของเคสหนึ่ง ไม่ใช่หน้าระดับโมดูล · `StickyStatusTabBar` วัดขอบล่างของแถบนี้ผ่าน `[data-mih-sticky-subnav]` เพื่อหยุดชิดกัน |
+| **บันทึกเมื่อ** | 17 ส.ค. 2569 |
+
+---
+
+### 61. HomeVisitMapPopup (ดูแผนที่ / แก้หมุดบ้านจากแถวในตาราง) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/homevisit/HomeVisitMapPopup.jsx` — เปิดจากปุ่มในคอลัมน์ "ที่อยู่/เขต" ของ `HomeVisitQueuePage` — 1 ที่ |
+| **หน้าที่** | Popup แผนที่ประจำแถว: ที่อยู่เต็ม + ระยะทางจากศูนย์ฯ + เตือนเมื่ออยู่นอกพื้นที่รับผิดชอบ + ปักหมุด/ลากหมุด/ใช้ตำแหน่งปัจจุบัน/ปักหมุดอัตโนมัติจากที่อยู่ แล้วบันทึกกลับ **2 ที่พร้อมกัน** (ทะเบียนผู้รับบริการ + overlay ของนัดในคิว) |
+| **ทำไมไม่มีของเดิมแทน** | `AddressMapBlock` เป็น field ในฟอร์ม ไม่มี chrome ของ popup/สถานะบันทึก · ไม่มี pattern "แก้พิกัดจากแถวในตารางโดยไม่ต้องเปิดฟอร์มเต็ม" ใน DS |
+| **โครง API** | `<HomeVisitMapPopup open row onClose onSaved />` — ถ้ายกขึ้น DS ต้องรับ `value` / `onSave(next)` แทนการเขียน store ของเยี่ยมบ้านเอง |
+| **พฤติกรรมที่ต้องรักษาไว้** | ป้ายสถานะ/ระยะทางอ่านจากตำแหน่งที่**บันทึกแล้ว** ไม่ใช่ draft (ไม่งั้นกระพริบเป็น "ยังไม่ได้ปักหมุด" ระหว่างลาก) · กด "บันทึกตำแหน่ง" ถึงจะติด `pinSaved: true` · ปุ่มบันทึก disabled จนกว่าพิกัดจะเปลี่ยนจริง |
+| **รอเคสอะไร** | หน้าอื่นที่ต้องแก้พิกัดจากแถว — ทะเบียนศูนย์บริการฯ (`/admin`), งานชุมชน §2.1 (สำรวจบ้าน), `AreaHealthMapPanel` (#44) |
+| **บันทึกเมื่อ** | 17 ส.ค. 2569 |
+
+---
+
 ## Token ที่รอ sync เข้า mih-design
 
 ทะเบียนของ **design token ที่ mirror ในนี้ (`src/styles/tokens.css` + `design.md`) ล้ำหน้า
