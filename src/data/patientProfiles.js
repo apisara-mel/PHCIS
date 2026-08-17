@@ -53,6 +53,9 @@ export const PATIENT_PROFILES = [
     insurance:  'สิทธิประกันสังคม รพ.พระนั่งเกล้า (10686)',
     address:    '124/64 พงษ์เวชอนุสรณ์ 2 สุขุมวิท บางจาก พระโขนง กรุงเทพมหานคร 10260',
     avatarUrl: '/avatars/somchai-mock.png',
+    /* Mock chip-card portrait keeps the same face as the profile and adds the
+       height-chart backdrop shown on the Thai ID-card photo. */
+    idCardPhotoUrl: '/illustration/id-card-somchai-mock.png',
     vip:        false,
   },
   {

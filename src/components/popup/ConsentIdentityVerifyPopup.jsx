@@ -65,7 +65,7 @@ export default function ConsentIdentityVerifyPopup({
     const addr = mr?.address;
     return {
       photoUrl: card?.avatarUrl || '',
-      idCardPhotoUrl: ID_CARD_CHIP_PHOTO_MOCK,
+      idCardPhotoUrl: card?.idCardPhotoUrl || card?.avatarUrl || ID_CARD_CHIP_PHOTO_MOCK,
       fullName: card?.fullName
         || [mr?.prefixTh, mr?.firstNameTh, mr?.lastNameTh].filter(Boolean).join(' ')
         || name,

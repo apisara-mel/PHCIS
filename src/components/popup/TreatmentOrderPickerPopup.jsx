@@ -21,6 +21,7 @@ import {
 import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import { DEPARTMENTS, USERS } from '@/data/usersAccess';
 import { DRUG_REGISTRY, UNIT_TYPES, currentPrice } from '@/data/pharmacyRegistry';
+import { getStock } from '@/data/pharmacyQueue';
 
 if (typeof document !== 'undefined') {
   const styleId = 'mih-treatment-order-picker-row-style';
@@ -108,6 +109,33 @@ const currentOrderSetActor = () => {
 const normalizeMedicationText = (value) => normalizeOrderText(value).replace(/\s+/g, '');
 
 const medicationUnitLabel = (key) => UNIT_TYPES.find((row) => row.key === key)?.label || key || 'เม็ด';
+
+/* คลังที่แสดงใน picker เป็นยอดคลังย่อยที่ห้องยาจะใช้จ่ายจริง
+   (อ่านอย่างเดียว) — ไม่ใช้ยอดคงคลังเป็นเงื่อนไขบล็อกการสั่งของแพทย์ */
+const stockInfoForItem = (item) => {
+  if (!['medication', 'medicalSupply'].includes(item?.category)) return null;
+  const entry = getStock(item?.name);
+  const requested = Number(item?.presetDefaults?.quantity ?? item?.quantity ?? 1) || 1;
+  if (!entry) return { known: false, requested, unit: item?.unit || '' };
+  return {
+    known: true,
+    stock: Number(entry.stock) || 0,
+    requested,
+    unit: entry.unit || item?.unit || '',
+    sufficient: (Number(entry.stock) || 0) >= requested,
+  };
+};
+
+const StockBadge = ({ item }) => {
+  const stock = stockInfoForItem(item);
+  if (!stock) return null;
+  if (!stock.known) return <ColorfulBadge style='grey' size='small'>ไม่พบข้อมูลคลัง</ColorfulBadge>;
+  return (
+    <ColorfulBadge style={stock.sufficient ? 'green' : 'red'} size='small'>
+      {stock.sufficient ? 'เพียงพอ' : 'ไม่พอจ่าย'} · เหลือ {stock.stock.toLocaleString('th-TH')} {stock.unit}
+    </ColorfulBadge>
+  );
+};
 
 const registryDrugIsAvailable = (drug) => {
   if (!drug || drug.active === false) return false;
@@ -369,6 +397,14 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
                 {item.allergyMatch && <ColorfulBadge style='red' size='small'>ผู้รับบริการแพ้ยานี้</ColorfulBadge>}
               </span>
               <span style={{ display: 'block', color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>{item.detail || (item.unit ? `หน่วย ${item.unit}` : 'กรอกรายละเอียดหลังเพิ่มรายการ')}</span>
+              <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)', marginTop: 'var(--dim-space-100, 4px)' }}>
+                <StockBadge item={item} />
+                {stockInfoForItem(item)?.known && (
+                  <span style={{ color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-xs, 12px)' }}>
+                    ต้องการ {stockInfoForItem(item).requested.toLocaleString('th-TH')} {stockInfoForItem(item).unit}
+                  </span>
+                )}
+              </span>
             </span>
             <ColorfulBadge style={CATEGORY_BADGES[item.category] || 'grey'} size='small'>{CATEGORY_LABELS[item.category]}</ColorfulBadge>
           </button>; })}

@@ -321,7 +321,10 @@ export const buildPersonalDataFromPatient = (patient) => {
     occupation: patient.occupation ?? '',
     marital: patient.marital ?? '',
     idCardFromChip: true,
-    idCardPhoto: ID_CARD_CHIP_PHOTO_MOCK,
+    /* Every mock card must show the same person as the registered profile.
+       A generated chip portrait is used when available; profile photo is the
+       safe fallback until that patient's card artwork is generated. */
+    idCardPhoto: patient.idCardPhotoUrl || patient.avatarUrl || ID_CARD_CHIP_PHOTO_MOCK,
     idCardAddress: formatIdCardAddress(patient.address),
     /* Only the registered address is on the chip — Figma 207:20375 shows
        the other two cards stay in default empty state with their

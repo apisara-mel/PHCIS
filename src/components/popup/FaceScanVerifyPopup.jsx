@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import { useFaceInFrame } from '@/lib/useFaceInFrame';
+import Checkbox from '@/components/checkbox/Checkbox';
 
 /* MIH FaceScanVerifyPopup — Figma PHCIS-Registration 402:52908 chrome.
    Capture method mirrored from bma.kiosk `06-FaceRecognition.tsx` +
@@ -66,6 +67,7 @@ const FaceScanVerifyPopup = ({
   const [cameraError, setCameraError] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [shot, setShot] = useState(null);
+  const [comparisonConfirmed, setComparisonConfirmed] = useState(false);
 
   useEffect(ensureGlowStyles, []);
 
@@ -81,6 +83,7 @@ const FaceScanVerifyPopup = ({
       setCameraError(false);
       setCameraReady(false);
       setShot(null);
+      setComparisonConfirmed(false);
       return undefined;
     }
 
@@ -147,15 +150,17 @@ const FaceScanVerifyPopup = ({
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0);
     setShot(canvas.toDataURL('image/jpeg', 0.92));
+    setComparisonConfirmed(false);
   }, []);
 
   const confirm = () => {
+    if (!shot || !comparisonConfirmed) return;
     onCapture?.(shot);
     onClose?.();
   };
 
   const statusText = shot
-    ? 'ตรวจสอบรูปก่อนยืนยัน — ถ่ายใหม่ได้หากไม่ชัด'
+    ? (comparisonConfirmed ? 'ตรวจสอบเรียบร้อย — รูปทั้งสองเป็นบุคคลเดียวกัน' : 'ตรวจสอบรูปถ่ายทั้งสองภาพก่อนยืนยัน — ถ่ายใหม่ได้หากไม่ชัด')
     : cameraError
       ? 'ไม่สามารถเข้าถึงกล้องได้'
       : !cameraReady
@@ -169,7 +174,7 @@ const FaceScanVerifyPopup = ({
   const actions = shot
     ? [
         { key: 'retake', kind: 'secondary', label: 'ถ่ายใหม่', onClick: () => setShot(null) },
-        { key: 'use', kind: 'primary', label: 'ใช้รูปนี้', onClick: confirm },
+        { key: 'use', kind: 'primary', label: 'ใช้รูปนี้', onClick: confirm, disabled: !comparisonConfirmed },
       ]
     : [
         { key: 'cancel', kind: 'secondary', label: 'ยกเลิก', onClick: onClose },
@@ -250,18 +255,27 @@ const FaceScanVerifyPopup = ({
           }}
         >
           {shot ? (
-            <img
-              src={shot}
-              alt='รูปที่ถ่ายเพื่อยืนยันตัวตน'
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                display: 'block',
-              }}
-            />
+            <div className='flex flex-col w-full h-full items-center justify-center' style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-300)', boxSizing: 'border-box' }}>
+              <div className='flex items-center justify-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                <div className='flex flex-col items-center min-w-0' style={{ gap: 'var(--dim-space-100)', flex: '1 1 0' }}>
+                  <img
+                    src={shot}
+                    alt='รูปที่ถ่ายเพื่อยืนยันตัวตน'
+                    style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', display: 'block', borderRadius: 'var(--dim-radius-200)' }}
+                  />
+                  <span style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-xs)', fontFamily: 'var(--type-family-body)' }}>รูปถ่ายปัจจุบัน</span>
+                </div>
+                <div className='flex flex-col items-center min-w-0' style={{ gap: 'var(--dim-space-100)', flex: '1 1 0' }}>
+                  <img
+                    src={avatarSrc}
+                    alt='รูปถ่ายจากบัตรประชาชน'
+                    style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', objectPosition: 'center 12%', display: 'block', borderRadius: 'var(--dim-radius-200)' }}
+                  />
+                  <span style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-xs)', fontFamily: 'var(--type-family-body)', textAlign: 'center' }}>รูปจากบัตรประชาชน<br />มีตัวเลขส่วนสูงด้านหลัง</span>
+                </div>
+              </div>
+              <div className='absolute inset-0 pointer-events-none' />
+            </div>
           ) : !cameraError ? (
             <>
               <video
@@ -323,6 +337,16 @@ const FaceScanVerifyPopup = ({
         </div>
 
         <p style={CAPTION} role='status'>{statusText}</p>
+
+        {shot && (
+          <Checkbox
+            checked={comparisonConfirmed}
+            onChange={setComparisonConfirmed}
+            label='ยืนยันว่ารูปถ่ายปัจจุบันเป็นบุคคลเดียวกับรูปจากบัตรประชาชน'
+            description='ตรวจสอบใบหน้าให้ตรงกันก่อนกดยืนยัน ระบบจะเก็บผลการตรวจสอบไว้ในประวัติการใช้งาน'
+            style={{ width: '100%' }}
+          />
+        )}
 
         <p style={{
           margin: 0,

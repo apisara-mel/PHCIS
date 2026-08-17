@@ -162,7 +162,7 @@ const ConsentRequestFormsPopup = ({
       photoUrl: patientCard?.avatarUrl || '',
       /* รูปจากชิปบัตรประชาชน (ฉากหลังแถบวัดส่วนสูง) — mock ชุดเดียวกับที่
          หน้าลงทะเบียนใช้ตอนอ่านบัตรสมาร์ทการ์ด */
-      idCardPhotoUrl: ID_CARD_CHIP_PHOTO_MOCK,
+      idCardPhotoUrl: patientCard?.idCardPhotoUrl || patientCard?.avatarUrl || ID_CARD_CHIP_PHOTO_MOCK,
       fullName: patientCard?.fullName
         || [mr?.prefixTh, mr?.firstNameTh, mr?.lastNameTh].filter(Boolean).join(' ')
         || name
