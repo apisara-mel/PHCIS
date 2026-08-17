@@ -554,17 +554,39 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
           </span>
         ) : null}
       </div>
-      {mode === 'items' && <>
-        <InputField
-          label='ค้นหารายการ'
-          showLabel={!chromeCollapsed}
-          showHelperText={false}
-          size={chromeCollapsed ? 'md' : 'lg'}
-          value={query}
-          onChange={(event) => setQuery(event?.target?.value ?? event ?? '')}
-          placeholder='ค้นหายา Lab X-ray หัตถการ หรือคลินิกปรึกษา'
-          leadingIcon='search'
-        />
+      {mode === 'items' && (
+      /* ตอนย่อ: ช่องค้นหากับตัวกรองมาอยู่บรรทัดเดียวกัน ประหยัดอีกหนึ่งแถว */
+      <div
+        className='flex'
+        style={{
+          flexDirection: chromeCollapsed ? 'row' : 'column',
+          /* wrap เฉพาะตอนเป็นแถว — `flex-wrap: wrap` คู่กับ `column`
+             จะตัดเป็น "คอลัมน์ที่สอง" ดันตัวกรองไปอยู่ข้างขวา
+             แล้วยืดกล่องค้นหาเต็มความสูง เกิดที่ว่างใต้ช่องค้นหา */
+          flexWrap: chromeCollapsed ? 'wrap' : 'nowrap',
+          alignItems: chromeCollapsed ? 'center' : 'stretch',
+          gap: chromeCollapsed ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-400, 16px)',
+        }}
+      >
+        <div
+          className='min-w-0'
+          style={{
+            flex: chromeCollapsed
+              ? '1 1 var(--dim-size-2500, 320px)'
+              : '0 0 auto',
+          }}
+        >
+          <InputField
+            label='ค้นหารายการ'
+            showLabel={!chromeCollapsed}
+            showHelperText={false}
+            size={chromeCollapsed ? 'md' : 'lg'}
+            value={query}
+            onChange={(event) => setQuery(event?.target?.value ?? event ?? '')}
+            placeholder='ค้นหายา Lab X-ray หัตถการ หรือคลินิกปรึกษา'
+            leadingIcon='search'
+          />
+        </div>
         <div
           className='flex items-center flex-wrap'
           style={{ gap: chromeCollapsed ? 'var(--dim-space-150, 6px)' : 'var(--dim-space-200, 8px)' }}
@@ -594,7 +616,8 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
           ))}
           <ClearFiltersTag active={categories.length > 0} onClear={() => setCategories([])} />
         </div>
-      </>}
+      </div>
+      )}
       </div>
       {mode === 'items' ? (
         <div
