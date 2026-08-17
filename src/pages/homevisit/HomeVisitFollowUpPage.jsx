@@ -37,6 +37,12 @@ import {
   HOMEVISIT_LAB_HISTORY,
   HOMEVISIT_XRAY_HISTORY,
 } from '@/data/homevisitRegistry';
+import {
+  getQuotaUsage,
+  fiscalYearLabel,
+  toCsv,
+  downloadCsv,
+} from '@/data/homevisitHhc';
 import { printHomeVisitFollowUp } from '@/pages/homevisit/homevisitPrint';
 import {
   HomeVisitAccessGate,
@@ -360,6 +366,38 @@ const HomeVisitFollowUpPage = () => {
     { key: 'result', label: 'ผลการอ่าน', flex: true, minWidth: 300 },
   ];
 
+  /* §2.4.1 + §1.18.1 (มติ คทง.4) — ดึงข้อมูลดิบรายครั้งไป Pivot เองได้
+     และแสดงโควตาสิทธิ สปสช. คู่กับตัวเลข Person / Visit ให้ไม่ปนกัน */
+  const quota = useMemo(
+    () => (registry ? getQuotaUsage(registry, getVisitHistory(selectedHn)) : null),
+    [registry, selectedHn],
+  );
+
+  const doExportRaw = () => downloadCsv(
+    `homevisit-followup-${selectedHn || 'all'}-${new Date().toISOString().slice(0, 10)}.csv`,
+    toCsv(visitsDesc.map((v) => ({
+      ...v,
+      hn: selectedHn,
+      name: registry?.confidential ? 'ข้อมูลลับ' : (registry?.name || selectedRow?.name || ''),
+      groupLabel: resolveGroup(registry?.group)?.short || '',
+      professionLabel: resolveProfession(v.profession)?.label || v.profession || '',
+      adlLabel: Number.isFinite(v.adl) ? interpretBarthel(v.adl).label : '',
+      ...VITAL_FIELDS.reduce((acc, f) => ({ ...acc, [`vital_${f.key}`]: v.vitals?.[f.key] ?? '' }), {}),
+    })), [
+      { key: 'hn', label: 'HN' },
+      { key: 'name', label: 'ชื่อ-นามสกุล' },
+      { key: 'groupLabel', label: 'กลุ่มผู้รับบริการ' },
+      { key: 'date', label: 'วันที่เยี่ยม (Visit)' },
+      { key: 'professionLabel', label: 'วิชาชีพผู้เยี่ยม' },
+      { key: 'adl', label: `คะแนน ADL (เต็ม ${BARTHEL_MAX_SCORE})` },
+      { key: 'adlLabel', label: 'แปลผล ADL' },
+      { key: 'tools', label: 'เครื่องมือมาตรฐาน (MNA · 9Q · PPS)' },
+      ...VITAL_FIELDS.map((f) => ({ key: `vital_${f.key}`, label: `${f.label} (${f.unit})` })),
+      { key: 'summary', label: 'สรุปผลการเยี่ยม' },
+      { key: 'orders', label: 'คำสั่งการรักษา' },
+    ]),
+  );
+
   const doPrint = () => printHomeVisitFollowUp({
     patientName: selectedRow?.name || registry?.name,
     hn: selectedHn,
@@ -387,6 +425,9 @@ const HomeVisitFollowUpPage = () => {
       actions={(
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           <AccessDemoToggle onRevoked={() => setTick((t) => t + 1)} />
+          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={doExportRaw} disabled={!selectedHn}>
+            ส่งออกข้อมูลดิบ (CSV)
+          </NeutralSubdueButton>
           <NeutralSubdueButton variant='outline' size='sm' leadingIcon='print' onClick={doPrint} disabled={!selectedHn}>
             พิมพ์ใบสรุปการติดตาม
           </NeutralSubdueButton>
@@ -489,9 +530,20 @@ const HomeVisitFollowUpPage = () => {
                     { label: 'วิชาชีพ', value: resolveProfession(registry.profession)?.label || '—' },
                     { label: 'ชุมชน/เขต', value: `${registry.community || '—'} · ${registry.district || '—'}` },
                     { label: 'ลงทะเบียนเมื่อ', value: formatHomeVisitDate(registry.registeredDate) },
-                    { label: 'เยี่ยมมาแล้ว', value: `${registry.visitCount || 0} ครั้ง` },
+                    { label: 'การให้บริการสะสม (Visit)', value: `${registry.visitCount || 0} ครั้ง` },
+                    { label: `สิทธิ สปสช. ${fiscalYearLabel().replace('ปีงบประมาณ ', 'ปีงบ ').split(' (')[0]}`, value: quota ? `${quota.used}/${quota.quota} ครั้ง` : '—' },
                   ]}
                 />
+              )}
+
+              {quota && (
+                <NoticeBand
+                  tone={quota.level === 'over' ? 'danger' : quota.level === 'near' ? 'warning' : 'info'}
+                  icon='confirmation_number'
+                >
+                  {quota.message} — ตัวเลขนี้นับ “การให้บริการ (Visit)” ของผู้รับบริการรายนี้
+                  ไม่ใช่จำนวน “รายบุคคล (Person)” ที่ใช้ในรายงานภาพรวมของศูนย์ฯ
+                </NoticeBand>
               )}
 
               {cancellation && (

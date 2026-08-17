@@ -55,7 +55,28 @@ import {
   getSmartCardPresent,
   setSmartCardPresent,
   readSmartCard,
+  getVisitHistory,
 } from '@/data/homevisitRegistry';
+import {
+  HHC_INTAKE_ROUTES,
+  HHC_FIELD_RECORDING_NOTE,
+  resolveIntakeRoute,
+  intakeRouteOfSource,
+  searchCentralPerson,
+  formatNationalId,
+  CENTRAL_DB_LABEL,
+  getRecordChain,
+  getChainGaps,
+  getQuotaUsage,
+  fiscalYearLabel,
+  autoPinFromAddress,
+  isInsideServiceArea,
+  SERVICE_AREA,
+  summarizePersonVsVisit,
+  toCsv,
+  downloadCsv,
+  RAW_EXPORT_COLUMNS,
+} from '@/data/homevisitHhc';
 import { printHomeVisitRegistry } from '@/pages/homevisit/homevisitPrint';
 import {
   HomeVisitAccessGate,
@@ -133,6 +154,9 @@ const EMPTY_FORM = {
   confidential: false,
   note: '',
   photoName: '',
+  /* มติ คทง.4 ต่อ §1.18.7 — “แบบลงทะเบียน HHC” ระบุทางที่เคสเข้าระบบ */
+  intakeRoute: '',
+  intakeRef: '',
 };
 
 const FILTER_DEFAULTS = {
@@ -172,6 +196,11 @@ const HomeVisitRegistryPage = () => {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
+
+  /* §1.1.1.20 (มติ คทง.4) — ต้องค้นเลขบัตร 13 หลักจากฐานข้อมูลกลางก่อน
+     จึงจะเปิดฟอร์มลงทะเบียนรายใหม่ได้ (กัน HN ซ้ำซ้อน) */
+  const [idInput, setIdInput] = useState('');
+  const [idLookup, setIdLookup] = useState(null);
 
   const {
     history: searchHistory,
@@ -265,17 +294,54 @@ const HomeVisitRegistryPage = () => {
     confidential: !!row.confidential,
     note: row.note || '',
     photoName: row.photoName || '',
+    intakeRoute: row.intakeRoute || intakeRouteOfSource(row.source),
+    intakeRef: row.intakeRef || '',
   });
 
   const openCreate = () => {
-    const next = { ...EMPTY_FORM, registeredDate: todayIsoDate(), source: 'centerFound' };
+    const next = {
+      ...EMPTY_FORM, registeredDate: todayIsoDate(), source: 'centerFound', intakeRoute: 'centerFound',
+    };
     setForm(next);
     setBaseline(JSON.stringify(next));
     setErrors({});
     setCardStatus(null);
     setSavedBanner(null);
+    setIdInput('');
+    setIdLookup(null);
     setEditing('new');
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /* ค้นฐานข้อมูลกลางด้วยเลขบัตร 13 หลัก แล้วเติมข้อมูลให้ (§1.1.1.20). */
+  const runIdSearch = () => {
+    const result = searchCentralPerson(idInput);
+    setIdLookup(result);
+    if (result.state !== 'found') return;
+
+    const { person } = result;
+    /* ถ้ามีทะเบียนเยี่ยมบ้านอยู่แล้ว → พาไปแก้รายการเดิม ไม่ให้สร้างซ้ำ */
+    const existing = person.hn ? findRegistryEntryByHn(person.hn) : null;
+    if (existing) {
+      const row = rows.find((r) => r.id === existing.id) || existing;
+      openEdit(row);
+      setIdLookup({
+        ...result,
+        message: `${person.name} มีทะเบียนเยี่ยมบ้านอยู่แล้ว (HN ${person.hn}) — เปิดรายการเดิมให้แก้ไขแทนการสร้างใหม่`,
+      });
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      nationalId: person.nationalId,
+      hn: person.hn || f.hn,
+      name: person.name,
+      age: person.age,
+      gender: person.gender,
+      district: person.district || f.district,
+      address: person.address || f.address,
+    }));
+    setErrors((e) => ({ ...e, nationalId: undefined, name: undefined, address: undefined }));
   };
 
   const openEdit = (row) => {
@@ -310,6 +376,20 @@ const HomeVisitRegistryPage = () => {
     [editing, rows],
   );
   const readOnly = !!(editingRow && editingRow.cancellation);
+
+  /* ลูกโซ่การบันทึก (§2.1.6) + โควตาสิทธิ สปสช. (§1.18.1) ของรายที่กำลังแก้ */
+  const chainOfEditing = useMemo(
+    () => (editingRow ? getRecordChain(editingRow) : []),
+    [editingRow],
+  );
+  const chainGapsOfEditing = useMemo(
+    () => (editingRow ? getChainGaps(editingRow) : []),
+    [editingRow],
+  );
+  const quotaOfEditing = useMemo(
+    () => (editingRow ? getQuotaUsage(editingRow, getVisitHistory(editingRow.hn)) : null),
+    [editingRow],
+  );
   const sourceLocked = isAutoReceivedSource(form.source) && editing !== 'new';
 
   const profile = useMemo(() => (form.hn ? getPatientByHN(form.hn) : null), [form.hn]);
@@ -378,8 +458,12 @@ const HomeVisitRegistryPage = () => {
     else if (duplicate && editing === 'new') {
       next.hn = `HN ${form.hn.trim()} มีทะเบียนเยี่ยมบ้านอยู่แล้ว (${duplicate.name}) — ให้แก้ไขรายการเดิมแทนการสร้างซ้ำ`;
     }
+    if (editing === 'new' && (!idLookup || idLookup.state === 'invalid')) {
+      next.nationalId = 'ต้องค้นเลขบัตรประชาชน 13 หลักจากฐานข้อมูลกลางก่อนบันทึกทะเบียนรายใหม่';
+    }
     if (!form.name.trim()) next.name = 'กรุณาระบุชื่อ-นามสกุลผู้รับบริการ';
     if (!form.group) next.group = 'กรุณาเลือกกลุ่มผู้รับบริการ 1 ใน 6 กลุ่ม';
+    if (!form.intakeRoute) next.intakeRoute = 'กรุณาเลือกทางที่รับเคสเข้าระบบ (แบบลงทะเบียน HHC)';
     if (!form.source) next.source = 'กรุณาเลือกประเภทรับเข้า';
     if (!form.district) next.district = 'กรุณาเลือกเขตที่อยู่ปัจจุบัน';
     if (!form.address.trim()) next.address = 'กรุณาระบุที่อยู่ปัจจุบันที่จะไปเยี่ยม';
@@ -415,6 +499,8 @@ const HomeVisitRegistryPage = () => {
       confidential: form.confidential,
       note: form.note.trim(),
       photoName: form.photoName,
+      intakeRoute: form.intakeRoute || intakeRouteOfSource(form.source),
+      intakeRef: form.intakeRef.trim(),
       active: true,
       visitCount: editingRow?.visitCount ?? 0,
       lastVisitDate: editingRow?.lastVisitDate ?? null,
@@ -492,6 +578,18 @@ const HomeVisitRegistryPage = () => {
     dateRange ? `ลงทะเบียน ${formatHomeVisitDate(dateRange.from)} – ${formatHomeVisitDate(dateRange.to)}` : null,
     searchQ.trim() ? `ค้นหา "${searchQ.trim()}"` : null,
   ].filter(Boolean).join(' · ');
+
+  /* §2.4.1 (มติ คทง.4) — ศูนย์ฯ ดึงข้อมูลดิบไป Pivot/วิเคราะห์เองได้ */
+  const doExportRaw = () => downloadCsv(
+    `homevisit-registry-${new Date().toISOString().slice(0, 10)}.csv`,
+    toCsv(filtered.map((r) => ({ ...r, name: r.confidential ? 'ข้อมูลลับ' : r.name })), RAW_EXPORT_COLUMNS),
+  );
+
+  /* แยกนับ "รายบุคคล" (Person) ออกจาก "การให้บริการ" (Visit) ให้ชัด */
+  const personVisit = useMemo(
+    () => summarizePersonVsVisit(filtered.filter((r) => !r.cancellation)),
+    [filtered],
+  );
 
   const doPrint = () => printHomeVisitRegistry(
     filtered.map((r) => ({
@@ -647,6 +745,9 @@ const HomeVisitRegistryPage = () => {
           >
             {getSmartCardPresent() ? 'จำลองไม่มีบัตรในเครื่องอ่าน' : 'จำลองมีบัตรในเครื่องอ่าน'}
           </NeutralSubdueButton>
+          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={doExportRaw}>
+            ส่งออกข้อมูลดิบ (CSV)
+          </NeutralSubdueButton>
           <NeutralSubdueButton variant='outline' size='sm' leadingIcon='print' onClick={doPrint}>
             พิมพ์ทะเบียน
           </NeutralSubdueButton>
@@ -774,6 +875,129 @@ const HomeVisitRegistryPage = () => {
                 </NoticeBand>
               )}
 
+              {/* §1.1.1.20 (มติ คทง.4) — ต้องค้นเลขบัตร 13 หลักจากฐานข้อมูล
+                  กลางก่อน จึงจะกรอกแบบลงทะเบียนรายใหม่ได้ */}
+              {editing === 'new' && (
+                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                  <TopicHeader icon='person_search'>ขั้นที่ 1 — ค้นหาจากเลขบัตรประชาชน (บังคับก่อนสร้างประวัติใหม่)</TopicHeader>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    ระบบค้น{CENTRAL_DB_LABEL}ก่อนเสมอ เพื่อกันการสร้าง HN ซ้ำซ้อนของผู้รับบริการรายเดิม
+                  </span>
+                  <div className='flex items-end w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                    <Field label='เลขบัตรประชาชน 13 หลัก' required error={errors.nationalId}>
+                      <InputField
+                        showLabel={false} showHelperText={false}
+                        value={idInput}
+                        onChange={(v) => {
+                          setIdInput(String(v).replace(/\D/g, '').slice(0, 13));
+                          setIdLookup(null);
+                          setErrors((e) => ({ ...e, nationalId: undefined }));
+                        }}
+                        placeholder='กรอกเลขบัตร 13 หลัก'
+                        error={errors.nationalId ? ' ' : undefined}
+                      />
+                    </Field>
+                    <BrandPrimaryButton size='md' leadingIcon='search' onClick={runIdSearch}>
+                      ค้นฐานข้อมูลกลาง
+                    </BrandPrimaryButton>
+                    <NeutralSubdueButton variant='outline' size='md' leadingIcon='credit_card' onClick={handleReadSmartCard}>
+                      อ่านจากบัตรประชาชนแทน
+                    </NeutralSubdueButton>
+                  </div>
+                  {idInput.length === 13 && (
+                    <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                      {formatNationalId(idInput)}
+                    </span>
+                  )}
+                  {idLookup && (
+                    <NoticeBand
+                      tone={idLookup.state === 'invalid' ? 'danger' : idLookup.state === 'found' ? 'info' : 'warning'}
+                      icon={idLookup.state === 'invalid' ? 'error' : idLookup.state === 'found' ? 'how_to_reg' : 'person_add'}
+                    >
+                      {idLookup.message}
+                    </NoticeBand>
+                  )}
+                  {!idLookup && (
+                    <NoticeBand tone='neutral' icon='lock'>
+                      แบบลงทะเบียนด้านล่างจะเปิดให้กรอกหลังค้นเลขบัตรแล้วเท่านั้น
+                    </NoticeBand>
+                  )}
+                </div>
+              )}
+
+              {(editing !== 'new' || (idLookup && idLookup.state !== 'invalid')) && (
+              <>
+              {/* §2.1.6 + §1.18.1 (มติ คทง.4) — ลูกโซ่การบันทึกภาพใหญ่→เล็ก
+                  และโควตาการเยี่ยมตามสิทธิ สปสช. ของผู้รับบริการรายนี้ */}
+              {editingRow && (
+                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                  <TopicHeader
+                    icon='account_tree'
+                    aside={(
+                      <ColorfulBadge
+                        style={quotaOfEditing?.badge || 'grey'}
+                        size='small' hierarchy='secondary' width='hug' maxWidth={320}
+                      >
+                        {`สิทธิ สปสช. — ${quotaOfEditing?.label || '—'}`}
+                      </ColorfulBadge>
+                    )}
+                  >
+                    ลำดับการบันทึกข้อมูล — ชุมชน → สำรวจบ้าน → ข้อมูลบุคคล → งานเยี่ยมบ้าน
+                  </TopicHeader>
+                  <div className='flex items-stretch w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    {chainOfEditing.map((step, idx) => (
+                      <div
+                        key={step.key}
+                        className='flex flex-col'
+                        style={{
+                          flex: '1 1 220px',
+                          minWidth: 200,
+                          gap: 'var(--dim-space-100, 4px)',
+                          paddingTop: 'var(--dim-space-300, 12px)',
+                          paddingBottom: 'var(--dim-space-300, 12px)',
+                          paddingLeft: 'var(--dim-space-300, 12px)',
+                          paddingRight: 'var(--dim-space-300, 12px)',
+                          borderRadius: 'var(--dim-radius-300, 10px)',
+                          border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+                          background: step.done
+                            ? 'var(--surface-brandPrimary-quaternary, #F4FBF8)'
+                            : 'var(--surface-neutral-quaternary, #F9FBFB)',
+                        }}
+                      >
+                        <ColorfulBadge
+                          style={step.done ? 'teal' : 'orange'}
+                          size='small' hierarchy='secondary' width='hug' maxWidth={220}
+                          showIcon icon={step.done ? 'check_circle' : 'pending'}
+                        >
+                          {`${idx + 1}. ${step.label}`}
+                        </ColorfulBadge>
+                        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary, #636B72)' }}>
+                          {step.detail}
+                        </span>
+                        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-quaternary, #ADB2B7)' }}>
+                          {step.owner}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {chainGapsOfEditing.length > 0 && (
+                    <NoticeBand tone='warning' icon='rule'>
+                      ยังบันทึกไม่ครบตามลำดับภาพใหญ่ → เล็ก — ขาด
+                      {' '}{chainGapsOfEditing.map((s) => s.label).join(' · ')} —
+                      ข้อมูลที่ขาดทำให้รายงานระดับชุมชนและการเบิกจ่ายไม่ครบ ควรบันทึกย้อนให้ครบก่อนออกเยี่ยมรอบถัดไป
+                    </NoticeBand>
+                  )}
+                  {quotaOfEditing && (
+                    <NoticeBand
+                      tone={quotaOfEditing.level === 'over' ? 'danger' : quotaOfEditing.level === 'near' ? 'warning' : 'info'}
+                      icon='confirmation_number'
+                    >
+                      {quotaOfEditing.message} ({fiscalYearLabel()})
+                    </NoticeBand>
+                  )}
+                </div>
+              )}
+
               {/* §1 ข้อมูลผู้รับบริการ + อ่านบัตร */}
               <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
                 <TopicHeader
@@ -890,9 +1114,62 @@ const HomeVisitRegistryPage = () => {
                 </div>
               </div>
 
-              {/* §3 ประเภทรับเข้า */}
+              {/* §3 แบบลงทะเบียน HHC — ทางที่เคสเข้าระบบ + ประเภทรับเข้า
+                  (มติ คทง.4 ต่อ §1.18.7: เปลี่ยนจาก “แบบส่งต่อ” เป็น
+                   “แบบลงทะเบียน HHC” ที่ครอบคลุมทั้ง 3 ทาง) */}
               <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-                <TopicHeader icon='call_received'>ประเภทรับเข้า</TopicHeader>
+                <TopicHeader icon='assignment_ind'>แบบลงทะเบียน HHC — ทางที่รับเคสเข้าระบบ</TopicHeader>
+                <NoticeBand tone='neutral' icon='tablet_mac'>
+                  {HHC_FIELD_RECORDING_NOTE}
+                </NoticeBand>
+                {errors.intakeRoute && (
+                  <span style={{ color: 'var(--text-input-errorHelper, #DC2626)', fontSize: 'var(--type-size-xs)' }}>
+                    {errors.intakeRoute}
+                  </span>
+                )}
+                <div
+                  className='flex items-stretch w-full flex-wrap'
+                  style={{ gap: 'var(--dim-space-300, 12px)' }}
+                  role='radiogroup'
+                  aria-label='ทางที่รับเคสเข้าระบบ'
+                >
+                  {HHC_INTAKE_ROUTES.map((r) => (
+                    <div key={r.value} style={{ flex: '1 1 260px', minWidth: 240, display: 'flex' }}>
+                      <SelectableOptionCard
+                        icon={r.icon}
+                        title={r.label}
+                        description={r.description}
+                        selected={form.intakeRoute === r.value}
+                        disabled={readOnly}
+                        onSelect={() => {
+                          setForm((f) => ({
+                            ...f,
+                            intakeRoute: r.value,
+                            /* ปรับ “ประเภทรับเข้า” ให้สอดคล้องกันอัตโนมัติ */
+                            source: r.sources.includes(f.source) ? f.source : r.sources[0],
+                          }));
+                          setErrors((e) => ({ ...e, intakeRoute: undefined, source: undefined }));
+                        }}
+                        className='w-full'
+                      />
+                    </div>
+                  ))}
+                </div>
+                <Field
+                  label='เลขที่เอกสารส่งต่อ / อ้างอิงต้นทาง'
+                  hint='เช่น เลขที่ใบส่งต่อจากโรงพยาบาล หรือเลขทะเบียนของศูนย์ฯ ต้นทาง (ถ้ามี)'
+                >
+                  <InputField
+                    showLabel={false} showHelperText={false}
+                    value={form.intakeRef} onChange={setField('intakeRef')} disabled={readOnly}
+                    placeholder='เช่น REF-รพ.จุฬาฯ-2569-0148'
+                  />
+                </Field>
+              </div>
+
+              {/* §3.1 ประเภทรับเข้า (ตามคู่มือระบบเดิม §2.2) */}
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                <TopicHeader icon='call_received'>ประเภทรับเข้าและผู้รับผิดชอบ</TopicHeader>
                 {sourceLocked && (
                   <NoticeBand tone='info' icon='link'>
                     เคสนี้รับต่อจากระบบอื่น ({resolveSource(form.source)?.label}) — ระบบล็อกช่องประเภทรับเข้าไว้
@@ -961,10 +1238,37 @@ const HomeVisitRegistryPage = () => {
                     error={errors.address ? ' ' : undefined}
                   />
                 </Field>
-                {!form.home?.pinSaved && (
+                {/* §1.18.2 (มติ คทง.4) — ปักหมุด GPS อัตโนมัติจากที่อยู่
+                    และตรวจว่าอยู่ในขอบเขตพื้นที่รับผิดชอบหรือไม่ */}
+                <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                  <NeutralSubdueButton
+                    variant='outline' size='md' leadingIcon='my_location'
+                    disabled={readOnly || !form.address.trim()}
+                    onClick={() => setField('home')(autoPinFromAddress(form.address, form.community))}
+                  >
+                    ปักหมุดอัตโนมัติจากที่อยู่
+                  </NeutralSubdueButton>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    {form.address.trim()
+                      ? `ระบบหาพิกัดจากที่อยู่ให้ก่อน แล้วเจ้าหน้าที่ปรับหมุดให้ตรงบ้านจริงได้ — ${SERVICE_AREA.label}`
+                      : 'กรอกที่อยู่ก่อน จึงจะปักหมุดอัตโนมัติได้'}
+                  </span>
+                </div>
+
+                {!form.home?.pinSaved ? (
                   <NoticeBand tone='warning' icon='location_searching'>
-                    ยังไม่ได้ปักหมุดตำแหน่งบ้าน — คลิกบนแผนที่หรือลากหมุดไปยังตำแหน่งบ้าน แล้วกด “บันทึกตำแหน่ง”
+                    ยังไม่ได้ปักหมุดตำแหน่งบ้าน — กด “ปักหมุดอัตโนมัติจากที่อยู่” หรือคลิก/ลากหมุดบนแผนที่แล้วกด “บันทึกตำแหน่ง”
                     เพื่อให้ทีมวางแผนเส้นทางออกเยี่ยมและเทียบระยะพิกัดตอนถึงบ้านได้ (ยังบันทึกทะเบียนได้แม้ยังไม่ปักหมุด)
+                  </NoticeBand>
+                ) : isInsideServiceArea(form.home) === false ? (
+                  <NoticeBand tone='danger' icon='wrong_location'>
+                    ตำแหน่งบ้านอยู่นอก{SERVICE_AREA.label} — ตรวจสอบที่อยู่อีกครั้ง
+                    หรือส่งต่อทะเบียนให้ศูนย์บริการสาธารณสุขที่รับผิดชอบพื้นที่นั้นแทน
+                  </NoticeBand>
+                ) : (
+                  <NoticeBand tone='info' icon='where_to_vote'>
+                    ตำแหน่งบ้านอยู่ใน{SERVICE_AREA.label}
+                    {form.home?.auto ? ` · ปักหมุดอัตโนมัติจากที่อยู่ (ความคลาดเคลื่อนประมาณ ${form.home.accuracyMeters} ม.)` : ''}
                   </NoticeBand>
                 )}
                 <AddressMapBlock
@@ -1056,6 +1360,8 @@ const HomeVisitRegistryPage = () => {
                   )}
                 </div>
               )}
+              </>
+              )}
 
               <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
                 <div className='flex-1' />
@@ -1125,6 +1431,21 @@ const HomeVisitRegistryPage = () => {
 
             <SmoothFilterResults opaque={resultsOpaque}>
             <SearchResultCount found={filtered.length} total={rows.length} />
+
+            {/* §2.4.1 (มติ คทง.4) — แยกนับรายบุคคล (Person) กับการให้บริการ (Visit) */}
+            <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <ColorfulBadge style='indigo' size='small' hierarchy='secondary' width='hug' maxWidth={280}>
+                {`รายบุคคล (Person) ${personVisit.persons} คน`}
+              </ColorfulBadge>
+              <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug' maxWidth={320}>
+                {`การให้บริการสะสม (Visit) ${personVisit.visits} ครั้ง`}
+              </ColorfulBadge>
+              {personVisit.byGroup.slice(0, 3).map((g) => (
+                <ColorfulBadge key={g.group} style='grey' size='small' hierarchy='secondary' width='hug' maxWidth={320}>
+                  {`${g.label} · ${g.persons} คน / ${g.visits} ครั้ง`}
+                </ColorfulBadge>
+              ))}
+            </div>
 
             {rows.length === 0 ? (
               <EmptyHint

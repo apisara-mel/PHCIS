@@ -40,6 +40,23 @@ import {
   resolveProfession,
   resolveVisitStatus,
 } from '@/data/homevisitVisits';
+import { getVisitHistory } from '@/data/homevisitRegistry';
+import {
+  HOMEVISIT_ROLES,
+  getHomeVisitRole,
+  setHomeVisitRole,
+  resolveRole,
+  filterRowsByRole,
+  volunteerScopeNote,
+  getQuotaUsage,
+  getQuotaOverride,
+  saveQuotaOverride,
+  QUOTA_OVERRIDE_REASONS,
+  fiscalYearLabel,
+  summarizePersonVsVisit,
+  toCsv,
+  downloadCsv,
+} from '@/data/homevisitHhc';
 import { printHomeVisitQueue } from '@/pages/homevisit/homevisitPrint';
 import HomeVisitRouteMapPanel from '@/pages/homevisit/HomeVisitRouteMapPanel';
 import {
@@ -113,6 +130,13 @@ const HomeVisitQueuePage = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
 
+  /* มติ คทง.4 — §2.2.2 อสส. เห็นเฉพาะเคสที่ได้รับมอบหมาย */
+  const [role, setRole] = useState(() => getHomeVisitRole());
+  /* มติ คทง.4 — §1.18.1 เยี่ยมเกินโควตา สปสช. ต้องขออนุมัติพร้อมเหตุผล */
+  const [quotaTarget, setQuotaTarget] = useState(null);
+  const [quotaReason, setQuotaReason] = useState('');
+  const [quotaError, setQuotaError] = useState('');
+
   const {
     history: searchHistory,
     push: pushHistory,
@@ -121,13 +145,21 @@ const HomeVisitQueuePage = () => {
 
   /* แถวคิวพร้อมสถานะยกเลิก + สถานะเลยกำหนดติดตาม เพื่อให้ตาราง/แท็บ/สรุป
      อ่านจากรูปทรงเดียวกัน (session writes ไม่ใช่ React state จึงพึ่ง tick). */
-  const rows = useMemo(() => getHomeVisitQueueRows().map((r) => ({
+  const rows = useMemo(() => filterRowsByRole(getHomeVisitQueueRows(), role).map((r) => ({
     ...r,
     cancellation: getHomeVisitAppointmentCancellation(r.id),
     overdue: getVisitFollowUpOverdue(r),
     nextDue: nextDueDate(r),
+    /* โควตาการเยี่ยมตามสิทธิ สปสช. ของปีงบประมาณปัจจุบัน (§1.18.1) */
+    quota: getQuotaUsage(r, getVisitHistory(r.hn)),
+    quotaOverride: getQuotaOverride(r.id),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  })), [tick]);
+  })), [tick, role]);
+
+  const hiddenByRole = useMemo(
+    () => getHomeVisitQueueRows().length - filterRowsByRole(getHomeVisitQueueRows(), role).length,
+    [role],
+  );
 
   const tabs = useMemo(() => ([
     { key: 'today',     label: 'นัดวันนี้',         icon: 'event_available',      count: rows.filter((r) => !r.cancellation).length },
@@ -212,10 +244,33 @@ const HomeVisitQueuePage = () => {
     state: { visitId: row.id, hn: row.hn, name: row.name },
   });
 
-  const dispatch = (row) => {
+  const doDispatch = (row) => {
     startHomeVisit(row.id);
     setTick((t) => t + 1);
     setActiveTab('visiting');
+  };
+
+  /* §1.18.1 (มติ คทง.4) — เยี่ยมเกินโควตา สปสช. ถูกล็อกไว้ก่อน ต้องระบุ
+     เหตุผลขออนุมัติเยี่ยมนอกโควตา จึงจะออกเยี่ยมได้ (กันเบิกไม่ได้). */
+  const dispatch = (row) => {
+    if (row.quota?.level === 'over' && !row.quotaOverride) {
+      setQuotaReason('');
+      setQuotaError('');
+      setQuotaTarget(row);
+      return;
+    }
+    doDispatch(row);
+  };
+
+  const confirmQuotaOverride = () => {
+    if (!quotaReason.trim()) {
+      setQuotaError('กรุณาระบุเหตุผลที่จำเป็นต้องเยี่ยมเกินโควตาสิทธิ สปสช.');
+      return;
+    }
+    saveQuotaOverride(quotaTarget.id, quotaReason.trim());
+    const target = quotaTarget;
+    setQuotaTarget(null);
+    doDispatch(target);
   };
 
   const openCancel = (row) => {
@@ -300,6 +355,42 @@ const HomeVisitQueuePage = () => {
     dateRange ? `วันนัด ${formatHomeVisitDate(dateRange.from)} – ${formatHomeVisitDate(dateRange.to)}` : null,
     searchQ.trim() ? `ค้นหา "${searchQ.trim()}"` : null,
   ].filter(Boolean).join(' · ');
+
+  /* §2.4.1 (มติ คทง.4) — ศูนย์ฯ ดึงข้อมูลดิบไป Pivot เองได้ และตัวเลข
+     "รายบุคคล" ต้องแยกจาก "การให้บริการ" ให้ชัดในทุกที่ที่รายงาน. */
+  const personVisit = useMemo(
+    () => summarizePersonVsVisit(sortedRows.filter((r) => !r.cancellation)),
+    [sortedRows],
+  );
+
+  const doExportRaw = () => {
+    const exportRows = sortedRows.map((r) => ({
+      ...r,
+      quotaUsed: r.quota?.used,
+      quotaRemaining: r.quota?.remaining,
+      statusLabel: r.cancellation ? 'ยกเลิกนัด' : resolveVisitStatus(r.statusKey)?.label,
+    }));
+    downloadCsv(
+      `homevisit-raw-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(exportRows, [
+        { key: 'hn', label: 'HN' },
+        { key: 'name', label: 'ชื่อ-นามสกุล', get: (r) => (r.confidential ? 'ข้อมูลลับ' : r.name) },
+        { key: 'group', label: 'กลุ่มผู้รับบริการ', get: (r) => resolveGroup(r.group)?.short || r.group },
+        { key: 'source', label: 'แหล่งรับเข้า', get: (r) => resolveSource(r.source)?.short || r.source },
+        { key: 'district', label: 'เขต' },
+        { key: 'community', label: 'ชุมชน' },
+        { key: 'responsible', label: 'ผู้รับผิดชอบ' },
+        { key: 'profession', label: 'วิชาชีพ', get: (r) => resolveProfession(r.profession)?.label || r.profession },
+        { key: 'visitDate', label: 'วันนัด' },
+        { key: 'appointmentTime', label: 'เวลานัด' },
+        { key: 'statusLabel', label: 'สถานะ' },
+        { key: 'visitCount', label: 'จำนวนครั้งที่เยี่ยมสะสม (Visit)' },
+        { key: 'quotaUsed', label: 'ใช้สิทธิ สปสช. ปีงบนี้ (ครั้ง)' },
+        { key: 'quotaRemaining', label: 'สิทธิคงเหลือ (ครั้ง)' },
+        { key: 'nextDue', label: 'กำหนดติดตามครั้งถัดไป' },
+      ]),
+    );
+  };
 
   const doPrint = () => printHomeVisitQueue(
     sortedRows.map((r) => ({
@@ -393,6 +484,28 @@ const HomeVisitQueuePage = () => {
       },
     },
     {
+      key: 'quota', label: 'สิทธิ สปสช.', sortable: false, flex: true, minWidth: 170,
+      render: (r) => (
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+          <ColorfulBadge
+            style={r.cancellation ? 'grey' : (r.quota?.badge || 'grey')}
+            size='small' hierarchy='secondary' width='hug' maxWidth={220}
+          >
+            {r.quota?.label || '—'}
+          </ColorfulBadge>
+          {r.quotaOverride ? (
+            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-pill-orange, #C2410C)' }}>
+              อนุมัติเยี่ยมนอกโควตาโดย {r.quotaOverride.by}
+            </span>
+          ) : (
+            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+              โควตากลุ่มนี้ {r.quota?.quota ?? '—'} ครั้ง/ปีงบ
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
       key: 'nextDue', label: 'นัดครั้งถัดไป', flex: true, minWidth: 170,
       render: (r) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
@@ -426,10 +539,12 @@ const HomeVisitQueuePage = () => {
             <>
               {(r.statusKey === 'scheduled' || r.statusKey === 'toDepart') && (
                 <BrandSubdueButton
-                  variant='fill' size='sm' leadingIcon='directions_car'
+                  variant={r.quota?.level === 'over' && !r.quotaOverride ? 'outline' : 'fill'}
+                  size='sm'
+                  leadingIcon={r.quota?.level === 'over' && !r.quotaOverride ? 'lock' : 'directions_car'}
                   onClick={(e) => { e.stopPropagation(); dispatch(r); }}
                 >
-                  ออกเยี่ยม
+                  {r.quota?.level === 'over' && !r.quotaOverride ? 'เกินโควตา — ขออนุมัติ' : 'ออกเยี่ยม'}
                 </BrandSubdueButton>
               )}
               <BrandSubdueButton
@@ -471,6 +586,21 @@ const HomeVisitQueuePage = () => {
       actions={(
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           <AccessDemoToggle onRevoked={() => setTick((t) => t + 1)} />
+          <NeutralSubdueButton
+            variant='outline' size='sm'
+            leadingIcon={role === 'volunteer' ? 'volunteer_activism' : 'badge'}
+            onClick={() => {
+              const next = role === 'volunteer' ? 'staff' : 'volunteer';
+              setHomeVisitRole(next);
+              setRole(next);
+              setPage(1);
+            }}
+          >
+            {`มุมมอง: ${resolveRole(role).label}`}
+          </NeutralSubdueButton>
+          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={doExportRaw}>
+            ส่งออกข้อมูลดิบ (CSV)
+          </NeutralSubdueButton>
           <NeutralSubdueButton variant='outline' size='sm' leadingIcon='print' onClick={doPrint}>
             พิมพ์แผนออกเยี่ยม
           </NeutralSubdueButton>
@@ -511,6 +641,38 @@ const HomeVisitQueuePage = () => {
             fontSize: 'var(--type-size-xs)',
           }}>
             {cancelError || 'ต้องระบุเหตุผล — ระบบบันทึกผู้ยกเลิกและเวลาให้อัตโนมัติ และนัดจะยังแสดงอยู่ในแท็บ “ยกเลิกนัดแล้ว”'}
+          </span>
+        </div>
+      </Popup>
+
+      <Popup
+        open={!!quotaTarget}
+        onClose={() => setQuotaTarget(null)}
+        title='ขออนุมัติเยี่ยมเกินโควตาสิทธิ สปสช.'
+        subtitle={quotaTarget ? `${quotaTarget.confidential ? 'ผู้รับบริการ (ข้อมูลลับ)' : quotaTarget.name} · HN: ${quotaTarget.hn}` : ''}
+        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setQuotaTarget(null) }}
+        primaryAction={{ label: 'อนุมัติและออกเยี่ยม', onClick: confirmQuotaOverride }}
+      >
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <NoticeBand tone='danger' icon='block'>
+            {quotaTarget?.quota?.message}
+          </NoticeBand>
+          <SuggestibleTextarea
+            label='เหตุผลที่จำเป็นต้องเยี่ยมเกินโควตา'
+            required
+            voice
+            value={quotaReason}
+            onChange={(e) => { setQuotaReason(e.target.value); if (e.target.value.trim()) setQuotaError(''); }}
+            suggestions={QUOTA_OVERRIDE_REASONS}
+            minChars={2}
+            placeholder='เช่น อาการทรุดลงเฉียบพลัน จำเป็นต้องเยี่ยมเพิ่มเพื่อความปลอดภัยของผู้ป่วย'
+          />
+          <span style={{
+            color: quotaError ? 'var(--text-input-errorHelper, #DC2626)' : 'var(--text-content-tertiary, #858C92)',
+            fontSize: 'var(--type-size-xs)',
+          }}>
+            {quotaError || 'ระบบบันทึกผู้อนุมัติและเวลาไว้กับนัดนี้ — การเยี่ยมนอกโควตาจะไม่ถูกส่งเบิกอัตโนมัติ '
+              + 'และต้องใช้งบประมาณของสำนักอนามัยแทน'}
           </span>
         </div>
       </Popup>
@@ -602,7 +764,27 @@ const HomeVisitQueuePage = () => {
             </div>
 
             <SmoothFilterResults opaque={resultsOpaque}>
+            {role === 'volunteer' && (
+              <NoticeBand tone='info' icon='volunteer_activism'>
+                {volunteerScopeNote()}
+                {hiddenByRole > 0 ? ` — ขณะนี้ซ่อนอยู่ ${hiddenByRole} เคส` : ''}
+              </NoticeBand>
+            )}
+
             <SearchResultCount found={sortedRows.length} total={rows.length} />
+
+            {/* §2.4.1 (มติ คทง.4) — แยกนับ "รายบุคคล" ออกจาก "การให้บริการ" */}
+            <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <ColorfulBadge style='indigo' size='small' hierarchy='secondary' width='hug' maxWidth={280}>
+                {`รายบุคคล (Person) ${personVisit.persons} คน`}
+              </ColorfulBadge>
+              <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug' maxWidth={320}>
+                {`การให้บริการสะสม (Visit) ${personVisit.visits} ครั้ง`}
+              </ColorfulBadge>
+              <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug' maxWidth={320}>
+                {`เฉลี่ย ${personVisit.avgVisitsPerPerson} ครั้ง/คน · ${fiscalYearLabel()}`}
+              </ColorfulBadge>
+            </div>
 
             <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
               <TabCapsule

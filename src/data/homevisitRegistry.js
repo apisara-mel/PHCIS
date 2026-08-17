@@ -23,7 +23,7 @@ import {
 const REGISTRY_SEED = [
   {
     id: 'hvreg-001', hn: '67-00005', name: 'สุดา ปลอดโปร่ง', age: 67, gender: 'หญิง',
-    nationalId: '1100400512345', group: 'severeDisability', source: 'hhc',
+    nationalId: '1100400512341', group: 'severeDisability', source: 'hhc',
     district: 'เขตคลองเตย', community: 'ชุมชนล็อค 1-2-3',
     address: '48/12 ซอยอาจณรงค์ 5 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
     home: { lat: 13.7702, lng: 100.4906, pinSaved: true },
@@ -37,7 +37,7 @@ const REGISTRY_SEED = [
   },
   {
     id: 'hvreg-002', hn: '67-00012', name: 'วิชัย รุ่งเรือง', age: 60, gender: 'ชาย',
-    nationalId: '3100600298761', group: 'chronic', source: 'hv',
+    nationalId: '3100600298764', group: 'chronic', source: 'hv',
     district: 'เขตวัฒนา', community: 'ชุมชนซอยทองหล่อ 20',
     address: '109 ซอยสุขุมวิท 55 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
     home: { lat: 13.7585, lng: 100.5122, pinSaved: true },
@@ -63,7 +63,7 @@ const REGISTRY_SEED = [
   },
   {
     id: 'hvreg-004', hn: '67-00027', name: 'จิราพร มณีโชติ', age: 23, gender: 'หญิง',
-    nationalId: '1409901234567', group: 'curable', source: 'motherChildHv',
+    nationalId: '1409901234560', group: 'curable', source: 'motherChildHv',
     district: 'เขตคลองเตย', community: 'ชุมชนพัฒนาใหม่',
     address: '15/44 ซอยไผ่สิงโต แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
     home: { lat: 13.7738, lng: 100.4972, pinSaved: true },
@@ -76,7 +76,7 @@ const REGISTRY_SEED = [
   },
   {
     id: 'hvreg-005', hn: '67-00003', name: 'ปริญญา รัตนา', age: 54, gender: 'หญิง',
-    nationalId: '3101200477881', group: 'mildDisability', source: 'healthDeskHv',
+    nationalId: '3101200477883', group: 'mildDisability', source: 'healthDeskHv',
     district: 'เขตวัฒนา', community: 'ชุมชนสวนอ้อย',
     address: '223 ซอยเอกมัย 12 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
     home: { lat: 13.7546, lng: 100.5205, pinSaved: true },
@@ -89,7 +89,7 @@ const REGISTRY_SEED = [
   },
   {
     id: 'hvreg-006', hn: '67-00021', name: 'วรรณภา ทองดี', age: 50, gender: 'หญิง',
-    nationalId: '3100900556677', group: 'chronic', source: 'centerFound',
+    nationalId: '3100900556670', group: 'chronic', source: 'centerFound',
     district: 'เขตคลองเตย', community: 'ชุมชนคลองเตยล็อค 4-5-6',
     address: '9/88 ซอยอาจณรงค์ 3 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
     home: { lat: 13.7684, lng: 100.4861, pinSaved: true },
@@ -102,7 +102,7 @@ const REGISTRY_SEED = [
   },
   {
     id: 'hvreg-007', hn: '67-00014', name: 'ชัยวัฒน์ ก้องเกียรติ', age: 47, gender: 'ชาย',
-    nationalId: '1103300221144', group: 'severeDisability', source: 'hhc',
+    nationalId: '1103300221142', group: 'severeDisability', source: 'hhc',
     district: 'เขตพระโขนง', community: 'ชุมชนสุเหร่าบ้านดอน',
     address: '66/2 ซอยสุขุมวิท 38 แขวงพระโขนง เขตคลองเตย กรุงเทพมหานคร 10110',
     home: { lat: 13.7523, lng: 100.5341, pinSaved: true },
@@ -115,7 +115,7 @@ const REGISTRY_SEED = [
   },
   {
     id: 'hvreg-008', hn: '67-00011', name: 'อรอุมา ดวงสว่าง', age: 48, gender: 'หญิง',
-    nationalId: '3120100998877', group: 'special', source: 'healthDeskHv',
+    nationalId: '3120100998872', group: 'special', source: 'healthDeskHv',
     district: 'เขตบางกอกน้อย', community: 'ชุมชนวัดระฆัง',
     address: '5/7 ซอยอิสรภาพ 44 แขวงบ้านช่างหล่อ เขตบางกอกน้อย กรุงเทพมหานคร 10700',
     home: { lat: 13.7601, lng: 100.4738, pinSaved: true },
@@ -128,7 +128,7 @@ const REGISTRY_SEED = [
   },
   {
     id: 'hvreg-009', hn: '67-00009', name: 'กิตติ ศรีสมบูรณ์', age: 52, gender: 'ชาย',
-    nationalId: '3100200334455', group: 'chronic', source: 'hv',
+    nationalId: '3100200334453', group: 'chronic', source: 'hv',
     district: 'เขตธนบุรี', community: 'ชุมชนตลาดพลู',
     address: '18 ซอยเทอดไท 33 แขวงตลาดพลู เขตธนบุรี กรุงเทพมหานคร 10600',
     home: { lat: 13.7442, lng: 100.4756, pinSaved: true },
@@ -141,7 +141,7 @@ const REGISTRY_SEED = [
   },
   {
     id: 'hvreg-010', hn: '67-00025', name: 'ภาสกร ชาญฉลาด', age: 41, gender: 'ชาย',
-    nationalId: '1101800776655', group: 'special', source: 'healthDeskHv',
+    nationalId: '1101800776656', group: 'special', source: 'healthDeskHv',
     district: 'เขตวัฒนา', community: 'ชุมชนใต้ทางด่วนอโศก',
     address: '4 ซอยสุขุมวิท 21 แขวงคลองเตยเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
     home: null,
@@ -154,7 +154,7 @@ const REGISTRY_SEED = [
   },
   {
     id: 'hvreg-011', hn: '67-00007', name: 'มาลี อ่อนน้อม', age: 45, gender: 'หญิง',
-    nationalId: '3101100443322', group: 'curable', source: 'hv',
+    nationalId: '3101100443324', group: 'curable', source: 'hv',
     district: 'เขตวัฒนา', community: 'ชุมชนซอยร่วมฤดี',
     address: '31 ซอยสุขุมวิท 31 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
     home: { lat: 13.7566, lng: 100.5148, pinSaved: true },
@@ -167,7 +167,7 @@ const REGISTRY_SEED = [
   },
   {
     id: 'hvreg-012', hn: '67-00017', name: 'ภัคจิรา วงศ์อนันต์', age: 41, gender: 'หญิง',
-    nationalId: '3130200665544', group: 'mildDisability', source: 'hhc',
+    nationalId: '3130200665549', group: 'mildDisability', source: 'hhc',
     district: 'เขตบางกอกน้อย', community: 'ชุมชนบ้านช่างหล่อ',
     address: '88 ซอยพรานนก 6 แขวงบ้านช่างหล่อ เขตบางกอกน้อย กรุงเทพมหานคร 10700',
     home: { lat: 13.7628, lng: 100.4712, pinSaved: true },
@@ -241,22 +241,22 @@ export const getRegistryCancellation = (id) =>
 
 const SMARTCARD_POOL = [
   {
-    nationalId: '1100400512345', name: 'สุดา ปลอดโปร่ง', gender: 'หญิง', age: 67,
+    nationalId: '1100400512341', name: 'สุดา ปลอดโปร่ง', gender: 'หญิง', age: 67,
     address: '48/12 ซอยอาจณรงค์ 5 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
     district: 'เขตคลองเตย', hn: '67-00005',
   },
   {
-    nationalId: '3100600298761', name: 'วิชัย รุ่งเรือง', gender: 'ชาย', age: 60,
+    nationalId: '3100600298764', name: 'วิชัย รุ่งเรือง', gender: 'ชาย', age: 60,
     address: '109 ซอยสุขุมวิท 55 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
     district: 'เขตวัฒนา', hn: '67-00012',
   },
   {
-    nationalId: '1103300221144', name: 'ชัยวัฒน์ ก้องเกียรติ', gender: 'ชาย', age: 47,
+    nationalId: '1103300221142', name: 'ชัยวัฒน์ ก้องเกียรติ', gender: 'ชาย', age: 47,
     address: '66/2 ซอยสุขุมวิท 38 แขวงพระโขนง เขตคลองเตย กรุงเทพมหานคร 10110',
     district: 'เขตพระโขนง', hn: '67-00014',
   },
   {
-    nationalId: '1409901234567', name: 'จิราพร มณีโชติ', gender: 'หญิง', age: 23,
+    nationalId: '1409901234560', name: 'จิราพร มณีโชติ', gender: 'หญิง', age: 23,
     address: '15/44 ซอยไผ่สิงโต แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
     district: 'เขตคลองเตย', hn: '67-00027',
   },
@@ -317,8 +317,13 @@ const VISIT_HISTORY_SEED = {
     { no: 2, date: '2025-07-14', by: 'พว.ดวงพร ห่วงใย', profession: 'nurse', adl: 2, vitals: { temp: '36.9', pulse: '84', respiration: '20', oxygen: '96', sys: '110', dia: '68', weight: '53', height: '172' }, summary: 'ติดเชื้อทางเดินปัสสาวะ 1 ครั้ง รักษาหายแล้ว', orders: 'Urine Analysis — ตรวจปัสสาวะ' },
     { no: 3, date: '2026-01-15', by: 'พว.ดวงพร ห่วงใย', profession: 'nurse', adl: 3, vitals: { temp: '36.7', pulse: '82', respiration: '18', oxygen: '97', sys: '114', dia: '72', weight: '55', height: '172' }, summary: 'สภาพทั่วไปคงที่ ญาติดูแลได้ดี', orders: 'เปลี่ยนสายสวนปัสสาวะทุก 4 สัปดาห์' },
   ],
+  /* กลุ่ม "รักษาหายได้" โควตา สปสช. 4 ครั้ง/ปีงบ — รายนี้ใช้ครบแล้วในปีงบ
+     ปัจจุบัน จึงเป็นเคสตัวอย่างของการล็อก/ขออนุมัติเยี่ยมนอกโควตา (§1.18.1). */
   '67-00027': [
-    { no: 1, date: '2026-08-01', by: 'พว.ดวงพร ห่วงใย', profession: 'nurse', adl: 20, vitals: { temp: '36.8', pulse: '80', respiration: '18', oxygen: '99', sys: '112', dia: '72', weight: '58', height: '160' }, summary: 'เยี่ยมหลังคลอดครั้งที่ 1 มารดาและทารกปกติ', orders: 'ไม่มีคำสั่งการรักษา' },
+    { no: 1, date: '2026-07-28', by: 'พว.ดวงพร ห่วงใย', profession: 'nurse', adl: 20, vitals: { temp: '36.9', pulse: '84', respiration: '18', oxygen: '98', sys: '116', dia: '74', weight: '60', height: '160' }, summary: 'เยี่ยมหลังคลอดครั้งที่ 1 ประเมินแผลผ่าคลอดและการให้นม', orders: 'ไม่มีคำสั่งการรักษา' },
+    { no: 2, date: '2026-08-01', by: 'พว.ดวงพร ห่วงใย', profession: 'nurse', adl: 20, vitals: { temp: '36.8', pulse: '80', respiration: '18', oxygen: '99', sys: '112', dia: '72', weight: '58', height: '160' }, summary: 'เยี่ยมหลังคลอดครั้งที่ 2 มารดาและทารกปกติ', orders: 'ไม่มีคำสั่งการรักษา' },
+    { no: 3, date: '2026-08-08', by: 'พว.ดวงพร ห่วงใย', profession: 'nurse', adl: 20, vitals: { temp: '36.7', pulse: '78', respiration: '18', oxygen: '99', sys: '110', dia: '70', weight: '57', height: '160' }, summary: 'เยี่ยมหลังคลอดครั้งที่ 3 น้ำหนักทารกขึ้นตามเกณฑ์', orders: 'ไม่มีคำสั่งการรักษา' },
+    { no: 4, date: '2026-08-14', by: 'พว.ดวงพร ห่วงใย', profession: 'nurse', adl: 20, vitals: { temp: '36.6', pulse: '76', respiration: '18', oxygen: '99', sys: '110', dia: '70', weight: '57', height: '160' }, summary: 'เยี่ยมหลังคลอดครั้งที่ 4 (ครบสิทธิ) มารดาฟื้นตัวดี ทารกกินนมแม่อย่างเดียว', orders: 'ไม่มีคำสั่งการรักษา' },
   ],
 };
 

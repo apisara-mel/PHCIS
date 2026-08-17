@@ -60,6 +60,7 @@ import {
   calcBmi,
   scoreBarthel,
   countBarthelAnswered,
+  isBarthelComplete,
   interpretBarthel,
   getArrivalCheckIn,
   saveArrivalCheckIn,
@@ -72,6 +73,33 @@ import {
   resolveSource,
   resolveProfession,
 } from '@/data/homevisitVisits';
+import {
+  MNA_ITEMS,
+  MNA_MAX_SCORE,
+  mnaBmiScore,
+  scoreMna,
+  countMnaAnswered,
+  isMnaComplete,
+  interpretMna,
+  SCREEN_9Q_QUESTIONS,
+  SCREEN_9Q_FREQUENCY,
+  SCREEN_9Q_MAX_SCORE,
+  score9q,
+  count9qAnswered,
+  is9qComplete,
+  has9qSuicidalRisk,
+  interpret9q,
+  PPS_LEVELS,
+  interpretPps,
+  summarizeStandardTools,
+} from '@/data/homevisitAssessments';
+import {
+  sendNhsoClaim,
+  getNhsoClaim,
+  NHSO_REQUIRED_FIELDS,
+  getQuotaUsage,
+  getQuotaOverride,
+} from '@/data/homevisitHhc';
 import { getVisitHistory, appendVisitHistory } from '@/data/homevisitRegistry';
 import { printHomeVisitSummary } from '@/pages/homevisit/homevisitPrint';
 import {
@@ -786,6 +814,45 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
   const q2Positive = SCREEN_2Q_QUESTIONS.filter((q) => form.screen2q?.[q.key] === true).length;
   const envRisks = HOME_ENVIRONMENT_ITEMS.filter((i) => form.environment?.[i.key] !== true);
 
+  /* ── เครื่องมือมาตรฐาน (มติ คทง.4 ต่อ §1.18.5) ──────────────────
+     MNA-SF · 9Q (เมื่อ 2Q ผลบวก) · PPS — คำนวณคะแนนและแปลผลอัตโนมัติ
+     ทุกตัว ไม่มีช่องให้ผู้บันทึกสรุปเป็น "ดีขึ้น/แย่ลง" เองอีก */
+  const bmi = useMemo(() => calcBmi(form.vitals?.weight, form.vitals?.height), [form.vitals]);
+  const bmiScore = useMemo(() => mnaBmiScore(bmi), [bmi]);
+
+  const mnaTotal = useMemo(() => scoreMna(form.mna), [form.mna]);
+  const mnaAnswered = useMemo(() => countMnaAnswered(form.mna), [form.mna]);
+  const mnaDone = isMnaComplete(form.mna);
+  const mnaInterp = useMemo(() => interpretMna(mnaTotal), [mnaTotal]);
+
+  /** ตอบ MNA — พร้อมเติมผลแปล (`nutrition`) ให้อัตโนมัติเมื่อครบทุกข้อ. */
+  const setMna = (itemKey, value) => setForm((f) => {
+    const mna = { ...f.mna, [itemKey]: value };
+    return {
+      ...f,
+      mna,
+      nutrition: isMnaComplete(mna) ? interpretMna(scoreMna(mna)).nutrition : '',
+    };
+  });
+
+  const applyBmiToMna = () => {
+    if (bmiScore === null) return;
+    setMna('f', bmiScore);
+  };
+
+  const q9Total = useMemo(() => score9q(form.screen9q), [form.screen9q]);
+  const q9Answered = useMemo(() => count9qAnswered(form.screen9q), [form.screen9q]);
+  const q9Done = is9qComplete(form.screen9q);
+  const q9Interp = useMemo(() => interpret9q(q9Total), [q9Total]);
+  const q9Suicidal = has9qSuicidalRisk(form.screen9q);
+
+  const set9q = (key, value) => setForm((f) => ({
+    ...f,
+    screen9q: { ...f.screen9q, [key]: value },
+  }));
+
+  const ppsInterp = useMemo(() => interpretPps(form.pps), [form.pps]);
+
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
@@ -824,13 +891,32 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
               placeholder='เลือกลักษณะผู้ดูแล'
             />
           </Field>
-          <Field label='ภาวะโภชนาการ'>
-            <Select
-              showLabel={false} showHelperText={false} searchable={false} size='lg'
-              value={form.nutrition} onChange={set('nutrition')} disabled={readOnly}
-              options={NUTRITION_OPTIONS}
-              placeholder='เลือกภาวะโภชนาการ'
-            />
+          <Field
+            label='ภาวะโภชนาการ'
+            hint='ระบบแปลผลจากคะแนน MNA-SF ด้านล่างให้อัตโนมัติ — ไม่ต้องเลือกเอง'
+          >
+            <div
+              className='flex items-center'
+              style={{
+                minHeight: 'var(--dim-size-1000, 48px)',
+                gap: 'var(--dim-space-200, 8px)',
+                paddingLeft: 'var(--dim-space-300, 12px)',
+                paddingRight: 'var(--dim-space-300, 12px)',
+                borderRadius: 'var(--dim-radius-200, 8px)',
+                border: 'var(--dim-stroke-100, 1px) solid var(--border-input-default, #DFE1E3)',
+                background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+              }}
+            >
+              {mnaDone ? (
+                <ColorfulBadge style={mnaInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={320}>
+                  {NUTRITION_OPTIONS.find((o) => o.value === mnaInterp.nutrition)?.label || mnaInterp.label}
+                </ColorfulBadge>
+              ) : (
+                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                  ยังประเมิน MNA-SF ไม่ครบ
+                </span>
+              )}
+            </div>
           </Field>
           <Field label='แผลกดทับ'>
             <Select
@@ -895,10 +981,163 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
           ))}
           {q2Positive > 0 && (
             <NoticeBand tone='warning' icon='psychology'>
-              คัดกรอง 2Q ผลบวก {q2Positive} ข้อ — ควรประเมิน 9Q ต่อและส่งต่อคลินิกสุขภาพจิตหากเข้าเกณฑ์
+              คัดกรอง 2Q ผลบวก {q2Positive} ข้อ — ต้องประเมิน 9Q ต่อให้ครบก่อนไปขั้นตอนถัดไป
+              และส่งต่อคลินิกสุขภาพจิตหากเข้าเกณฑ์
             </NoticeBand>
           )}
         </div>
+
+        {/* 9Q — บังคับเมื่อ 2Q ผลบวก (มติ คทง.4 ต่อ §1.18.5) */}
+        {q2Positive > 0 && (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <span style={{
+                fontSize: 'var(--type-size-sm)',
+                fontWeight: 'var(--type-weight-bold)',
+                color: 'var(--text-content-default, #363B3F)',
+              }}>
+                แบบประเมินโรคซึมเศร้า 9Q
+              </span>
+              <div className='flex-1' />
+              <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
+                {q9Total}/{SCREEN_9Q_MAX_SCORE} คะแนน
+              </span>
+              {q9Done && (
+                <ColorfulBadge style={q9Interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+                  {q9Interp.label}
+                </ColorfulBadge>
+              )}
+            </div>
+            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+              ถามความถี่ของอาการใน 2 สัปดาห์ที่ผ่านมา ระบบรวมคะแนนและแปลผลระดับความรุนแรงให้อัตโนมัติ
+              (ตอบแล้ว {q9Answered}/{SCREEN_9Q_QUESTIONS.length} ข้อ)
+            </span>
+            {SCREEN_9Q_QUESTIONS.map((q, idx) => (
+              <div key={q.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                <span style={{
+                  fontSize: 'var(--type-size-sm)',
+                  color: q.critical ? 'var(--text-pill-red, #B91C1C)' : 'var(--text-content-default, #363B3F)',
+                }}>
+                  {idx + 1}. {q.label}
+                </span>
+                <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  {SCREEN_9Q_FREQUENCY.map((opt) => (
+                    <SelectableTag
+                      key={opt.value}
+                      label={`${opt.label} (${opt.value})`}
+                      size='md'
+                      selected={form.screen9q?.[q.key] === opt.value}
+                      onClick={readOnly ? undefined : () => set9q(q.key, opt.value)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {q9Suicidal && (
+              <NoticeBand tone='danger' icon='crisis_alert'>
+                ผู้รับบริการตอบข้อ 9 (คิดทำร้ายตนเอง) — ต้องประเมินความเสี่ยงฆ่าตัวตาย (8Q)
+                และส่งต่อจิตแพทย์ทันทีในการเยี่ยมครั้งนี้ ห้ามรอรอบเยี่ยมถัดไป
+              </NoticeBand>
+            )}
+            {q9Done && !q9Suicidal && (
+              <NoticeBand tone={q9Interp.key === 'none' ? 'info' : 'warning'} icon='psychology_alt'>
+                {q9Interp.label} — {q9Interp.advice}
+              </NoticeBand>
+            )}
+          </div>
+        )}
+      </StepSection>
+
+      {/* ── MNA-SF (มติ คทง.4 ต่อ §1.18.5) ─────────────────────────── */}
+      <StepSection>
+        <TopicHeader
+          icon='nutrition'
+          aside={(
+            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
+                {mnaTotal}/{MNA_MAX_SCORE} คะแนน
+              </span>
+              <ColorfulBadge style={mnaInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+                {mnaDone ? mnaInterp.label : `ตอบแล้ว ${mnaAnswered}/${MNA_ITEMS.length} ข้อ`}
+              </ColorfulBadge>
+            </div>
+          )}
+        >
+          ประเมินภาวะโภชนาการ — MNA-SF
+        </TopicHeader>
+        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+          ใช้แบบประเมินมาตรฐานแทนการเลือก “ดี/เสี่ยง/ขาดสารอาหาร” เอง — ระบบรวมคะแนน แปลผล
+          และเติมช่อง “ภาวะโภชนาการ” ด้านบนให้อัตโนมัติเมื่อตอบครบทั้ง {MNA_ITEMS.length} ข้อ
+        </span>
+        {MNA_ITEMS.map((item, idx) => (
+          <div key={item.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <span className='flex-1 min-w-0' style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                {idx + 1}. {item.label}
+              </span>
+              {item.autoFromBmi && bmiScore !== null && form.mna?.f !== bmiScore && !readOnly && (
+                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='calculate' onClick={applyBmiToMna}>
+                  ใช้ค่า BMI {bmi} ที่ระบบคำนวณ
+                </NeutralSubdueButton>
+              )}
+            </div>
+            {item.autoFromBmi && bmiScore === null && (
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                ยังไม่มีค่า BMI — กรอกน้ำหนักและส่วนสูงในขั้นตอนสัญญาณชีพ แล้วกลับมากดใช้ค่าอัตโนมัติได้
+              </span>
+            )}
+            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              {item.options.map((opt) => (
+                <SelectableTag
+                  key={opt.value}
+                  label={`${opt.label} (${opt.value})`}
+                  size='md'
+                  selected={form.mna?.[item.key] === opt.value}
+                  onClick={readOnly ? undefined : () => setMna(item.key, opt.value)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+        {mnaDone && (
+          <NoticeBand tone={mnaInterp.key === 'normal' ? 'info' : 'warning'} icon='restaurant'>
+            {mnaInterp.label} — {mnaInterp.advice}
+          </NoticeBand>
+        )}
+      </StepSection>
+
+      {/* ── PPS (มติ คทง.4 ต่อ §1.18.5) ────────────────────────────── */}
+      <StepSection>
+        <TopicHeader
+          icon='monitor_heart'
+          aside={ppsInterp ? (
+            <ColorfulBadge style={ppsInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+              {ppsInterp.label}
+            </ColorfulBadge>
+          ) : undefined}
+        >
+          ระดับความสามารถ — PPS (Palliative Performance Scale)
+        </TopicHeader>
+        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+          เลือกระดับที่ตรงกับผู้รับบริการมากที่สุด — ระบบใช้ผลนี้เสนอรอบการเยี่ยมครั้งถัดไปให้อัตโนมัติ
+        </span>
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+          {PPS_LEVELS.map((level) => (
+            <SelectableTag
+              key={level.value}
+              label={level.label}
+              size='md'
+              selected={Number(form.pps) === level.value && form.pps !== ''}
+              onClick={readOnly ? undefined : () => set('pps')(level.value)}
+            />
+          ))}
+        </div>
+        {ppsInterp && (
+          <NoticeBand tone={ppsInterp.key === 'stable' ? 'info' : 'warning'} icon='event_repeat'>
+            {ppsInterp.label} — {ppsInterp.advice}
+            {ppsInterp.followUpDays ? ` (ระบบเสนอรอบเยี่ยมถัดไปทุก ${ppsInterp.followUpDays} วัน)` : ''}
+          </NoticeBand>
+        )}
       </StepSection>
 
       <StepSection>
@@ -1207,6 +1446,9 @@ export const HomeVisitStep7Family = ({
   const routerHistory = useHistory();
   const [submitOpen, setSubmitOpen] = useState(false);
   const submission = visitId ? getVisitSubmission(visitId) : null;
+  /* §1.7.1.1 (มติ คทง.4) — คีย์ที่นี่ที่เดียว แล้วส่งชุดข้อมูล สปสช. ต่อ
+     ให้อัตโนมัติ ไม่ต้องไปคีย์ซ้ำที่ระบบ BKK Home Care */
+  const [nhsoClaim, setNhsoClaim] = useState(() => (visitId ? getNhsoClaim(visitId) : null));
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -1228,6 +1470,14 @@ export const HomeVisitStep7Family = ({
   const adlTotal = scoreBarthel(form.adlAnswers);
   const adlInterp = interpretBarthel(adlTotal);
 
+  const claimContext = {
+    entry: registryEntry || appointment,
+    form,
+    adlComplete: isBarthelComplete(form.adlAnswers),
+  };
+
+  const sendClaim = () => setNhsoClaim(sendNhsoClaim(visitId, claimContext));
+
   const confirmSubmit = () => {
     saveVisitSubmission(visitId, {
       hn,
@@ -1242,7 +1492,10 @@ export const HomeVisitStep7Family = ({
       vitals: form.vitals,
       summary: form.assessmentNote,
       orders: summarizeOrders(form),
+      tools: summarizeStandardTools(form).map((t) => `${t.name} ${t.total}/${t.max}`).join(' · '),
     });
+    /* ส่งชุดข้อมูลเบิกจ่าย สปสช. ต่อทันทีในขั้นตอนเดียวกัน */
+    sendClaim();
     setSubmitOpen(false);
     onDataChanged?.();
   };
@@ -1396,6 +1649,71 @@ export const HomeVisitStep7Family = ({
           <NoticeBand tone='warning' icon='outbox'>
             ยังไม่ได้ส่งข้อมูลการเยี่ยมครั้งนี้เข้าศูนย์บริการฯ — ระบบจะสรุปสัญญาณชีพ ผลประเมิน ADL
             คำสั่งการรักษา และแผนการดูแล ส่งเข้าเวชระเบียนของศูนย์บริการฯ เมื่อกดปุ่มด้านบน
+          </NoticeBand>
+        )}
+      </StepSection>
+
+      {/* §1.7.1.1 (มติ คทง.4) — ส่งชุดข้อมูลเบิกจ่าย สปสช. ต่ออัตโนมัติ */}
+      <StepSection>
+        <TopicHeader
+          icon='cloud_sync'
+          aside={nhsoClaim ? (
+            <ColorfulBadge
+              style={nhsoClaim.status === 'accepted' ? 'teal' : 'orange'}
+              size='small' hierarchy='secondary' width='hug' maxWidth={420}
+            >
+              {nhsoClaim.status === 'accepted' ? `ส่งสำเร็จ · เลขอ้างอิง ${nhsoClaim.ref}` : 'ข้อมูลไม่ครบ — ยังส่งไม่ผ่าน'}
+            </ColorfulBadge>
+          ) : undefined}
+        >
+          ส่งข้อมูลเบิกจ่ายให้ สปสช. อัตโนมัติ
+        </TopicHeader>
+        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+          คีย์ข้อมูลที่ระบบนี้ที่เดียว ระบบส่งชุดข้อมูลที่ สปสช. ต้องการต่อให้เอง —
+          ไม่ต้องคีย์ซ้ำในระบบ BKK Home Care ซึ่งเป็นต้นเหตุที่ข้อมูลไม่ครบจนเบิกจ่ายไม่ได้
+        </span>
+
+        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          {NHSO_REQUIRED_FIELDS.map((f) => {
+            const ok = !!String(f.get(claimContext) || '').trim();
+            return (
+              <ColorfulBadge
+                key={f.key}
+                style={ok ? 'teal' : 'red'}
+                size='small'
+                hierarchy='secondary'
+                width='hug'
+                maxWidth={320}
+                showIcon
+                icon={ok ? 'check' : 'close'}
+              >
+                {f.label}
+              </ColorfulBadge>
+            );
+          })}
+        </div>
+
+        {nhsoClaim ? (
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <AuditStamp by={nhsoClaim.by} at={nhsoClaim.at} prefix='ส่งชุดข้อมูล สปสช. โดย' />
+            {nhsoClaim.status === 'incomplete' && (
+              <>
+                <NoticeBand tone='danger' icon='sync_problem'>
+                  สปสช. ตีกลับเพราะข้อมูลไม่ครบ — ขาด {nhsoClaim.missing.join(' · ')}
+                  {' '}กรุณากลับไปเติมให้ครบแล้วกดส่งอีกครั้ง
+                </NoticeBand>
+                <div>
+                  <NeutralSubdueButton variant='outline' size='sm' leadingIcon='refresh' onClick={sendClaim} disabled={readOnly}>
+                    ส่งชุดข้อมูลอีกครั้ง
+                  </NeutralSubdueButton>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <NoticeBand tone='neutral' icon='schedule_send'>
+            ระบบจะส่งชุดข้อมูลให้ สปสช. อัตโนมัติทันทีที่กด “ส่งข้อมูลเข้ารักษาที่ศูนย์บริการสาธารณสุข”
+            ด้านบน — ไม่ต้องกดส่งแยกอีกขั้นตอน
           </NoticeBand>
         )}
       </StepSection>
