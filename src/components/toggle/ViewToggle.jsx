@@ -34,7 +34,18 @@ const resolveButtonStyle = ({ selected, hovered }) => {
   };
 };
 
-const ViewToggle = ({ value, onChange }) => {
+/* ตัวเลือกมาตรฐาน — รายการ / ตาราง (ผู้เรียกเดิมไม่ต้องส่ง `options`). */
+export const VIEW_TOGGLE_LIST_GRID = [
+  { value: 'list', icon: 'format_list_bulleted', label: 'มุมมองรายการ' },
+  { value: 'grid', icon: 'grid_view', label: 'มุมมองตาราง' },
+];
+
+/**
+ * @param {Array<{value:string, icon:string, label:string}>} options
+ *   ชุดมุมมองอื่นที่ไม่ใช่ list/grid เช่น รายการ/แผนที่ ของงานเยี่ยมบ้าน —
+ *   ให้ยังเป็น component ตัวเดียวกัน จะได้ไม่มี toggle หน้าตาซ้ำในระบบ.
+ */
+const ViewToggle = ({ value, onChange, options = VIEW_TOGGLE_LIST_GRID }) => {
   const [hovered, setHovered] = useState(null);
 
   return (
@@ -47,7 +58,7 @@ const ViewToggle = ({ value, onChange }) => {
         background: 'var(--surface-brandPrimary-quaternary)',
       }}
     >
-      {[['list', 'format_list_bulleted'], ['grid', 'grid_view']].map(([v, icon]) => {
+      {options.map(({ value: v, icon, label }) => {
         const selected = value === v;
         const isHovered = hovered === v;
         const s = resolveButtonStyle({ selected, hovered: isHovered });
@@ -59,7 +70,8 @@ const ViewToggle = ({ value, onChange }) => {
             onMouseEnter={() => setHovered(v)}
             onMouseLeave={() => setHovered(null)}
             aria-pressed={selected}
-            aria-label={v === 'grid' ? 'มุมมองตาราง' : 'มุมมองรายการ'}
+            aria-label={label}
+            title={label}
             className='inline-flex items-center justify-center'
             style={{
               height: 'var(--dim-size-600, 32px)',

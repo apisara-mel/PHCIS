@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
+import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
@@ -9,7 +9,8 @@ import { FilterDropdown } from '@/components/forms/FilterTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
-import TabCapsule from '@/components/tab/TabCapsule';
+import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
+import ViewToggle from '@/components/toggle/ViewToggle';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -44,24 +45,18 @@ import { getVisitHistory } from '@/data/homevisitRegistry';
 import {
   HOMEVISIT_ROLES,
   getHomeVisitRole,
-  setHomeVisitRole,
-  resolveRole,
   filterRowsByRole,
   volunteerScopeNote,
   getQuotaUsage,
   getQuotaOverride,
   saveQuotaOverride,
   QUOTA_OVERRIDE_REASONS,
-  fiscalYearLabel,
-  summarizePersonVsVisit,
-  toCsv,
-  downloadCsv,
 } from '@/data/homevisitHhc';
-import { printHomeVisitQueue } from '@/pages/homevisit/homevisitPrint';
 import HomeVisitRouteMapPanel from '@/pages/homevisit/HomeVisitRouteMapPanel';
+import HomeVisitMapPopup from '@/pages/homevisit/HomeVisitMapPopup';
+import HomeVisitSubNav from '@/components/homevisit/HomeVisitSubNav';
 import {
   HomeVisitAccessGate,
-  AccessDemoToggle,
   GroupBadge,
   SourceBadge,
   FlagBadges,
@@ -98,6 +93,12 @@ const FILTER_DEFAULTS = {
 
 const DATE_CHIP_LABELS = { today: 'วันนี้', yesterday: 'เมื่อวาน', tomorrow: 'พรุ่งนี้' };
 
+/* มุมมองของหน้าคิว — รายการ ↔ แผนที่วางแผนเส้นทาง (§1.18.2) */
+const HOMEVISIT_VIEW_OPTIONS = [
+  { value: 'list', icon: 'format_list_bulleted', label: 'มุมมองรายการ' },
+  { value: 'map',  icon: 'map',                  label: 'มุมมองแผนที่ (แผนเส้นทาง)' },
+];
+
 const TAB_PREDICATE = {
   toDepart: (r) => !r.cancellation && (r.statusKey === 'toDepart' || r.statusKey === 'scheduled'),
   visiting: (r) => !r.cancellation && r.statusKey === 'visiting',
@@ -130,9 +131,13 @@ const HomeVisitQueuePage = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
 
-  /* มติ คทง.4 — §2.2.2 อสส. เห็นเฉพาะเคสที่ได้รับมอบหมาย */
-  const [role, setRole] = useState(() => getHomeVisitRole());
+  /* มติ คทง.4 — §2.2.2 อสส. เห็นเฉพาะเคสที่ได้รับมอบหมาย
+     (ยังกรองรายการอยู่ แต่ปุ่มสลับมุมมองถูกลบพร้อมแถบปุ่มบนหัวหน้า —
+      ค่าอ่านจาก session ที่ `setHomeVisitRole` เขียนไว้) */
+  const [role] = useState(() => getHomeVisitRole());
   /* มติ คทง.4 — §1.18.1 เยี่ยมเกินโควตา สปสช. ต้องขออนุมัติพร้อมเหตุผล */
+  /* §1.18.2 — ป๊อปอัปแผนที่/ปักหมุดของแถวที่กด */
+  const [mapTarget, setMapTarget] = useState(null);
   const [quotaTarget, setQuotaTarget] = useState(null);
   const [quotaReason, setQuotaReason] = useState('');
   const [quotaError, setQuotaError] = useState('');
@@ -170,6 +175,13 @@ const HomeVisitQueuePage = () => {
     { key: 'overdue',   label: 'เลยกำหนดติดตาม',    icon: 'running_with_errors',  count: rows.filter(TAB_PREDICATE.overdue).length },
     { key: 'cancelled', label: 'ยกเลิกนัดแล้ว',     icon: 'block',                count: rows.filter(TAB_PREDICATE.cancelled).length },
   ]), [rows]);
+
+  /* แถบสถานะย้ายมาเป็น TabPill เหนือช่องค้นหา (ตำแหน่งเดียวกับงานเภสัชกรรม)
+     — ตัวชิปแสดงชื่อสถานะ + จำนวน ไม่ใช้ไอคอนเหมือนแถบ underline เดิม */
+  const statusTabs = useMemo(
+    () => tabs.map(({ key, label, count }) => ({ key, label, count })),
+    [tabs],
+  );
 
   const dateRange = useMemo(() => dateFilterToIsoRange(filters.dateValue), [filters.dateValue]);
 
@@ -356,52 +368,6 @@ const HomeVisitQueuePage = () => {
     searchQ.trim() ? `ค้นหา "${searchQ.trim()}"` : null,
   ].filter(Boolean).join(' · ');
 
-  /* §2.4.1 (มติ คทง.4) — ศูนย์ฯ ดึงข้อมูลดิบไป Pivot เองได้ และตัวเลข
-     "รายบุคคล" ต้องแยกจาก "การให้บริการ" ให้ชัดในทุกที่ที่รายงาน. */
-  const personVisit = useMemo(
-    () => summarizePersonVsVisit(sortedRows.filter((r) => !r.cancellation)),
-    [sortedRows],
-  );
-
-  const doExportRaw = () => {
-    const exportRows = sortedRows.map((r) => ({
-      ...r,
-      quotaUsed: r.quota?.used,
-      quotaRemaining: r.quota?.remaining,
-      statusLabel: r.cancellation ? 'ยกเลิกนัด' : resolveVisitStatus(r.statusKey)?.label,
-    }));
-    downloadCsv(
-      `homevisit-raw-${new Date().toISOString().slice(0, 10)}.csv`,
-      toCsv(exportRows, [
-        { key: 'hn', label: 'HN' },
-        { key: 'name', label: 'ชื่อ-นามสกุล', get: (r) => (r.confidential ? 'ข้อมูลลับ' : r.name) },
-        { key: 'group', label: 'กลุ่มผู้รับบริการ', get: (r) => resolveGroup(r.group)?.short || r.group },
-        { key: 'source', label: 'แหล่งรับเข้า', get: (r) => resolveSource(r.source)?.short || r.source },
-        { key: 'district', label: 'เขต' },
-        { key: 'community', label: 'ชุมชน' },
-        { key: 'responsible', label: 'ผู้รับผิดชอบ' },
-        { key: 'profession', label: 'วิชาชีพ', get: (r) => resolveProfession(r.profession)?.label || r.profession },
-        { key: 'visitDate', label: 'วันนัด' },
-        { key: 'appointmentTime', label: 'เวลานัด' },
-        { key: 'statusLabel', label: 'สถานะ' },
-        { key: 'visitCount', label: 'จำนวนครั้งที่เยี่ยมสะสม (Visit)' },
-        { key: 'quotaUsed', label: 'ใช้สิทธิ สปสช. ปีงบนี้ (ครั้ง)' },
-        { key: 'quotaRemaining', label: 'สิทธิคงเหลือ (ครั้ง)' },
-        { key: 'nextDue', label: 'กำหนดติดตามครั้งถัดไป' },
-      ]),
-    );
-  };
-
-  const doPrint = () => printHomeVisitQueue(
-    sortedRows.map((r) => ({
-      ...r,
-      groupLabel: resolveGroup(r.group)?.short,
-      sourceLabel: resolveSource(r.source)?.short,
-      statusLabel: r.cancellation ? 'ยกเลิกนัด' : resolveVisitStatus(r.statusKey)?.label,
-    })),
-    filterSummary || 'นัดเยี่ยมวันนี้ทั้งหมด',
-  );
-
   /* ── คอลัมน์ ─────────────────────────────────────────────────────── */
   const renderName = (row) => {
     if (row.confidential) {
@@ -440,13 +406,19 @@ const HomeVisitQueuePage = () => {
     { key: 'group', label: 'กลุ่มผู้รับบริการ', render: (r) => <GroupBadge group={r.group} /> },
     { key: 'source', label: 'แหล่งรับเข้า', render: (r) => <SourceBadge source={r.source} /> },
     {
-      key: 'place', label: 'ที่อยู่/เขต', flex: true, minWidth: 220,
+      key: 'place', label: 'ที่อยู่/เขต', flex: true, minWidth: 260,
       render: (r) => (
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={r.cancellation ? GREYED : undefined}>{r.community || '—'} · {r.district || '—'}</span>
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-            {r.home?.pinSaved ? 'ปักหมุดตำแหน่งบ้านแล้ว' : 'ยังไม่ได้ปักหมุดตำแหน่งบ้าน'}
-          </span>
+          {/* §1.18.2 — ต้องดูแผนที่/แก้หมุดได้จากแถวในคิว เพื่อเดินทางไปถูกบ้าน */}
+          <NeutralSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon={r.home?.pinSaved ? 'map-pin' : 'wrong_location'}
+            onClick={(e) => { e.stopPropagation(); setMapTarget(r); }}
+          >
+            {r.home?.pinSaved ? 'ดูแผนที่ / แก้หมุด' : 'ยังไม่ปักหมุด — เปิดแผนที่'}
+          </NeutralSubdueButton>
         </div>
       ),
     },
@@ -582,40 +554,11 @@ const HomeVisitQueuePage = () => {
     <QueuePageShell
       activeKey='homevisit'
       breadcrumb={breadcrumb}
-      title='คิวนัดหมายเยี่ยมบ้าน'
-      actions={(
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <AccessDemoToggle onRevoked={() => setTick((t) => t + 1)} />
-          <NeutralSubdueButton
-            variant='outline' size='sm'
-            leadingIcon={role === 'volunteer' ? 'volunteer_activism' : 'badge'}
-            onClick={() => {
-              const next = role === 'volunteer' ? 'staff' : 'volunteer';
-              setHomeVisitRole(next);
-              setRole(next);
-              setPage(1);
-            }}
-          >
-            {`มุมมอง: ${resolveRole(role).label}`}
-          </NeutralSubdueButton>
-          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={doExportRaw}>
-            ส่งออกข้อมูลดิบ (CSV)
-          </NeutralSubdueButton>
-          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='print' onClick={doPrint}>
-            พิมพ์แผนออกเยี่ยม
-          </NeutralSubdueButton>
-          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='monitoring' onClick={() => history.push('/homevisit/follow-up')}>
-            ติดตามการเยี่ยมบ้าน
-          </NeutralSubdueButton>
-          <BrandSubdueButton variant='fill' leadingIcon='contact_page' onClick={() => history.push('/homevisit/registry')}>
-            ทะเบียนผู้รับบริการเยี่ยมบ้าน
-          </BrandSubdueButton>
-        </div>
-      )}
+      title='เยี่ยมบ้าน (Home Visit)'
+      /* แถบปุ่มบนหัวหน้าถูกลบออก — ทะเบียน/ติดตามเข้าถึงได้จากเมนูซ้าย
+         (Sidebar subItems ของ "ระบบการเยี่ยมบ้าน") อยู่แล้ว */
       summaryCards={summaryCards}
-      tabs={tabs}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
+      belowSummary={<HomeVisitSubNav />}
     >
       <Popup
         open={!!cancelTarget}
@@ -677,6 +620,13 @@ const HomeVisitQueuePage = () => {
         </div>
       </Popup>
 
+      <HomeVisitMapPopup
+        open={!!mapTarget}
+        row={mapTarget}
+        onClose={() => setMapTarget(null)}
+        onSaved={() => setTick((t) => t + 1)}
+      />
+
       <HomeVisitAccessGate subject='คิวนัดหมายเยี่ยมบ้าน'>
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -702,6 +652,12 @@ const HomeVisitQueuePage = () => {
               gap: 'var(--dim-space-600, 24px)',
             }}
           >
+            <StickyStatusTabBar
+              tabs={statusTabs}
+              value={activeTab}
+              onChange={setActiveTab}
+            />
+
             <div className='w-full flex items-start justify-center'>
               <PrimarySearch
                 value={searchQ}
@@ -761,6 +717,13 @@ const HomeVisitQueuePage = () => {
                 />
                 <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
+              {/* สลับ รายการ ↔ แผนที่ — อยู่ท้ายแถวตัวกรอง (นอก OverflowFlexRow
+                  เพื่อไม่ให้ถูกยุบเข้าเมนู "เพิ่มเติม" เวลาจอแคบ) */}
+              <ViewToggle
+                value={view}
+                onChange={setView}
+                options={HOMEVISIT_VIEW_OPTIONS}
+              />
             </div>
 
             <SmoothFilterResults opaque={resultsOpaque}>
@@ -773,39 +736,13 @@ const HomeVisitQueuePage = () => {
 
             <SearchResultCount found={sortedRows.length} total={rows.length} />
 
-            {/* §2.4.1 (มติ คทง.4) — แยกนับ "รายบุคคล" ออกจาก "การให้บริการ" */}
-            <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <ColorfulBadge style='indigo' size='small' hierarchy='secondary' width='hug' maxWidth={280}>
-                {`รายบุคคล (Person) ${personVisit.persons} คน`}
-              </ColorfulBadge>
-              <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug' maxWidth={320}>
-                {`การให้บริการสะสม (Visit) ${personVisit.visits} ครั้ง`}
-              </ColorfulBadge>
-              <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug' maxWidth={320}>
-                {`เฉลี่ย ${personVisit.avgVisitsPerPerson} ครั้ง/คน · ${fiscalYearLabel()}`}
-              </ColorfulBadge>
-            </div>
-
-            <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <TabCapsule
-                variant='filter'
-                label='มุมมองรายการ'
-                selected={view === 'list'}
-                onClick={() => setView('list')}
-              />
-              <TabCapsule
-                variant='filter'
-                label='มุมมองแผนที่ (แผนเส้นทาง)'
-                selected={view === 'map'}
-                onClick={() => setView('map')}
-              />
-              <div className='flex-1' />
+            {/* แท็บ "เลยกำหนดติดตาม" ไม่กรองตามวันนัด — ต้องบอกไว้ ไม่งั้น
+                ตัวกรองวันนัดที่ตั้งค้างอยู่จะดูเหมือนไม่ทำงาน */}
+            {activeTab === 'overdue' && (
               <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                {activeTab === 'overdue'
-                  ? 'แท็บนี้ไม่กรองตามวันนัด — แสดงทุกรายที่เลยรอบติดตามของกลุ่ม'
-                  : `เงื่อนไขปัจจุบัน: ${filterSummary || 'นัดเยี่ยมวันนี้ทั้งหมด'}`}
+                แท็บนี้ไม่กรองตามวันนัด — แสดงทุกรายที่เลยรอบติดตามของกลุ่ม
               </span>
-            </div>
+            )}
 
             {activeTab === 'overdue' && rows.filter(TAB_PREDICATE.overdue).length > 0 && (
               <NoticeBand tone='warning' icon='running_with_errors'>
@@ -848,7 +785,7 @@ const HomeVisitQueuePage = () => {
                   onSort={handleSort}
                   onRowClick={(r) => (r.cancellation ? undefined : openRecord(r))}
                   stickyColCount={3}
-                  stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+                  stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
                   emptyMessage='ไม่พบนัดเยี่ยมที่ตรงกับเงื่อนไข'
                 />
                 <div

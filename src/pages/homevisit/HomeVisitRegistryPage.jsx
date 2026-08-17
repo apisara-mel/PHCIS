@@ -18,6 +18,7 @@ import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import SelectableOptionCard from '@/components/card/SelectableOptionCard';
 import PatientCard from '@/components/card/PatientCard';
+import StickyStatusTabBar from '@/components/tab/StickyStatusTabBar';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -28,6 +29,7 @@ import Popup from '@/components/popup/Popup';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { getPatientByHN } from '@/data/patientProfiles';
+import HomeVisitSubNav from '@/components/homevisit/HomeVisitSubNav';
 import {
   HOMEVISIT_GROUPS,
   HOMEVISIT_SOURCES,
@@ -72,15 +74,9 @@ import {
   autoPinFromAddress,
   isInsideServiceArea,
   SERVICE_AREA,
-  summarizePersonVsVisit,
-  toCsv,
-  downloadCsv,
-  RAW_EXPORT_COLUMNS,
 } from '@/data/homevisitHhc';
-import { printHomeVisitRegistry } from '@/pages/homevisit/homevisitPrint';
 import {
   HomeVisitAccessGate,
-  AccessDemoToggle,
   GroupBadge,
   SourceBadge,
   FlagBadges,
@@ -230,6 +226,13 @@ const HomeVisitRegistryPage = () => {
     })),
     { key: 'cancelled', label: 'ยกเลิกทะเบียน', icon: 'block', count: rows.filter((r) => r.cancellation).length },
   ]), [rows]);
+
+  /* แท็บกรองกลุ่มผู้รับบริการย้ายมาเป็น TabPill เหนือช่องค้นหา ตำแหน่ง
+     เดียวกับงานเภสัชกรรม — เหลือ TabUnderline แถวเดียวคือ nav ของโมดูล */
+  const statusTabs = useMemo(
+    () => tabs.map(({ key, label, count }) => ({ key, label, count })),
+    [tabs],
+  );
 
   const dateRange = useMemo(() => dateFilterToIsoRange(filters.dateValue), [filters.dateValue]);
 
@@ -580,27 +583,6 @@ const HomeVisitRegistryPage = () => {
   ].filter(Boolean).join(' · ');
 
   /* §2.4.1 (มติ คทง.4) — ศูนย์ฯ ดึงข้อมูลดิบไป Pivot/วิเคราะห์เองได้ */
-  const doExportRaw = () => downloadCsv(
-    `homevisit-registry-${new Date().toISOString().slice(0, 10)}.csv`,
-    toCsv(filtered.map((r) => ({ ...r, name: r.confidential ? 'ข้อมูลลับ' : r.name })), RAW_EXPORT_COLUMNS),
-  );
-
-  /* แยกนับ "รายบุคคล" (Person) ออกจาก "การให้บริการ" (Visit) ให้ชัด */
-  const personVisit = useMemo(
-    () => summarizePersonVsVisit(filtered.filter((r) => !r.cancellation)),
-    [filtered],
-  );
-
-  const doPrint = () => printHomeVisitRegistry(
-    filtered.map((r) => ({
-      ...r,
-      groupLabel: resolveGroup(r.group)?.short,
-      sourceLabel: resolveSource(r.source)?.short,
-      statusLabel: r.cancellation ? 'ยกเลิกทะเบียน' : 'ใช้งาน',
-    })),
-    filterSummary || 'ทั้งหมด',
-  );
-
   /* ── คอลัมน์ตาราง ────────────────────────────────────────────────── */
   const columns = useMemo(() => ([
     { key: 'hn', label: 'HN', render: (r) => <span style={r.cancellation ? GREYED : undefined}>{r.hn}</span> },
@@ -732,34 +714,12 @@ const HomeVisitRegistryPage = () => {
     <QueuePageShell
       activeKey='homevisit'
       breadcrumb={breadcrumb}
-      title='ทะเบียนผู้รับบริการเยี่ยมบ้าน'
-      onBack={() => history.push('/homevisit')}
-      backLabel='กลับหน้าคิว'
-      actions={(
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <AccessDemoToggle onRevoked={() => setTick((t) => t + 1)} />
-          <NeutralSubdueButton
-            variant='outline' size='sm'
-            leadingIcon={getSmartCardPresent() ? 'credit_card' : 'credit_card_off'}
-            onClick={() => { setSmartCardPresent(!getSmartCardPresent()); setTick((t) => t + 1); }}
-          >
-            {getSmartCardPresent() ? 'จำลองไม่มีบัตรในเครื่องอ่าน' : 'จำลองมีบัตรในเครื่องอ่าน'}
-          </NeutralSubdueButton>
-          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={doExportRaw}>
-            ส่งออกข้อมูลดิบ (CSV)
-          </NeutralSubdueButton>
-          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='print' onClick={doPrint}>
-            พิมพ์ทะเบียน
-          </NeutralSubdueButton>
-          <BrandSubdueButton variant='fill' leadingIcon='person_add' onClick={openCreate}>
-            ลงทะเบียนผู้รับบริการ
-          </BrandSubdueButton>
-        </div>
-      )}
+      title='เยี่ยมบ้าน (Home Visit)'
+      /* แถบปุ่มบนหัวหน้าถูกลบออก — ปุ่ม “ลงทะเบียนผู้รับบริการ” ย้ายลงไป
+         อยู่เหนือตาราง เพราะเป็นทางเดียวที่เปิดแบบลงทะเบียนรายใหม่ได้
+         (กริยา “บันทึก” ของ TOR §1.10.12.1) */
       summaryCards={summaryCards}
-      tabs={tabs}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
+      belowSummary={<HomeVisitSubNav />}
     >
       <Popup
         open={!!cancelTarget}
@@ -1375,6 +1335,13 @@ const HomeVisitRegistryPage = () => {
 
           {/* ── รายการทะเบียน ────────────────────────────────────── */}
           <SectionCard>
+            <StickyStatusTabBar
+              tabs={statusTabs}
+              value={activeTab}
+              onChange={setActiveTab}
+              aria-label='กรองตามกลุ่มผู้รับบริการ'
+            />
+
             <div className='w-full flex items-start justify-center'>
               <PrimarySearch
                 value={searchQ}
@@ -1430,21 +1397,12 @@ const HomeVisitRegistryPage = () => {
             </div>
 
             <SmoothFilterResults opaque={resultsOpaque}>
-            <SearchResultCount found={filtered.length} total={rows.length} />
-
-            {/* §2.4.1 (มติ คทง.4) — แยกนับรายบุคคล (Person) กับการให้บริการ (Visit) */}
-            <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <ColorfulBadge style='indigo' size='small' hierarchy='secondary' width='hug' maxWidth={280}>
-                {`รายบุคคล (Person) ${personVisit.persons} คน`}
-              </ColorfulBadge>
-              <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug' maxWidth={320}>
-                {`การให้บริการสะสม (Visit) ${personVisit.visits} ครั้ง`}
-              </ColorfulBadge>
-              {personVisit.byGroup.slice(0, 3).map((g) => (
-                <ColorfulBadge key={g.group} style='grey' size='small' hierarchy='secondary' width='hug' maxWidth={320}>
-                  {`${g.label} · ${g.persons} คน / ${g.visits} ครั้ง`}
-                </ColorfulBadge>
-              ))}
+            <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <SearchResultCount found={filtered.length} total={rows.length} />
+              <div className='flex-1' />
+              <BrandSubdueButton variant='fill' leadingIcon='person_add' onClick={openCreate}>
+                ลงทะเบียนผู้รับบริการ
+              </BrandSubdueButton>
             </div>
 
             {rows.length === 0 ? (
