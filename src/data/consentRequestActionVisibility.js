@@ -35,6 +35,7 @@ const EXCLUDED_SYSTEM_PREFIXES = [
   '/components',
   '/preview',
   '/doc-template',
+  '/questionnaire',                /* แบบสัมภาษณ์ลูกค้า — เครื่องมือภายในทีม BA/SA */
 ];
 
 const isExcludedSystem = (path) =>

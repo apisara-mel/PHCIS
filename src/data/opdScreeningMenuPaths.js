@@ -5,7 +5,11 @@ const normalizePath = (pathname = '') => {
   return bare || '/';
 };
 
-/** Prefixes from Sidebar.jsx `opd.subItems` + core `/opd/*` workflow. */
+/* หมายเหตุ: เมนู "คัดกรอง" ไม่มีรายการย่อยรายคลินิกแล้ว (จุดคัดกรองเดียว)
+   รายชื่อ prefix ด้านล่างจึงไม่ได้สะท้อน `opd.subItems` อีกต่อไป — เก็บไว้เพราะ
+   `QueuePageShell` ใช้ตัดสินว่าจะยก `summaryTitle` ขึ้นไปเป็นหัวข้อใน SubHeader
+   ของหน้าเหล่านี้หรือไม่ (เรื่อง layout ล้วน ๆ ไม่เกี่ยวกับ active menu)
+   ถ้าจะแก้ ต้องดูหน้าคลินิกทั้ง 7 ที่พึ่งกฎนี้อยู่ด้วย */
 export const OPD_SCREENING_MENU_PATH_PREFIXES = [
   '/opd',
   '/clinic/hiv-sti',

@@ -51,7 +51,10 @@ const QUEUE_PATH = '/clinic/mental-health';
 
 const MH_STEPS = [
   { title: 'ประวัติการรักษา', subtitle: 'Medical History' },
-  { title: 'คัดกรองและแบบประเมิน', subtitle: 'Screening & Assessment' },
+  /* ไม่ใช่ "คัดกรอง" — จุดคัดกรองมีที่เดียวที่ `/opd/screening` step นี้เก็บเฉพาะ
+     แบบประเมินของงานสุขภาพจิต (MSE · 2Q · 9Q · 8Q · ST-5 · ภาวะสมองเสื่อม)
+     ส่วนผลคัดกรองแสดงอ่านอย่างเดียวที่ step 1 */
+  { title: 'แบบประเมิน', subtitle: 'Assessment' },
   { title: 'ตรวจร่างกาย', subtitle: 'Physical Examination' },
   { title: 'วินิจฉัย', subtitle: 'Diagnosis' },
   { title: 'สั่งการรักษา', subtitle: 'Treatment Order' },

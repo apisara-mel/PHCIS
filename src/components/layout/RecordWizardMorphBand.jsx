@@ -29,6 +29,9 @@ const RecordWizardMorphBand = React.memo(function RecordWizardMorphBand({
   completedSteps,
   /** Page title already in SubHeader — stepper band only. */
   hideTitle = false,
+  /** ฟอร์มบันทึกการรักษาเลื่อนขึ้นลงบ่อย — ปิด glide ที่พลิก flex-wrap
+      กลางทาง (กระตุก) ให้ stepper อยู่แถวตัวเองแล้วย่อด้วย scale อย่างเดียว */
+  stepperOwnRow = true,
   sticky = true,
   stickyTop = MORPH_STICKY_BELOW_TOPBAR,
   stickyZIndex = 1090,
@@ -40,6 +43,7 @@ const RecordWizardMorphBand = React.memo(function RecordWizardMorphBand({
         title={title}
         afterTitle={afterTitle}
         hideTitle={hideTitle}
+        stepperOwnRow={stepperOwnRow}
         steps={steps}
         current={current}
         onStepClick={onStepClick}

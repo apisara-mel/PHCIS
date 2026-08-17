@@ -6,6 +6,7 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import DatePicker from '@/components/forms/DatePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
 import TabCapsule from '@/components/tab/TabCapsule';
+import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -165,6 +166,9 @@ AssessmentCard.displayName = 'AssessmentCard';
    the patient actually has follow-up history, so it's appended at
    render time rather than listed here. */
 const STEP1_BASE_SECTIONS = [
+  /* ผลจากจุดคัดกรอง (`/opd/screening`) — อ่านอย่างเดียว. คลินิกพิเศษไม่คัดกรอง
+     ซ้ำเอง เพราะทุกคนผ่านจุดคัดกรองเดียวกัน จึงดึงผลรอบล่าสุดมาแสดงหัวสุด */
+  { key: 'screening',   label: 'ผลคัดกรอง' },
   { key: 'illness',     label: 'ประวัติเจ็บป่วย' },
   { key: 'obstetric',   label: 'ประวัติสูติกรรม' },
   { key: 'breastSpouse', label: 'เต้านม/สามี' },
@@ -293,6 +297,10 @@ export const AncStep1History = ({ form, setForm, cardPatient, ancHn, visitNo = 1
           />
         ))}
       </div>
+
+      <AssessmentCard ref={(el) => { sectionRefs.current.screening = el; }}>
+        <CarriedScreeningPanel patient={{ hn: ancHn }} />
+      </AssessmentCard>
 
       <AssessmentCard ref={(el) => { sectionRefs.current.illness = el; }}>
         <TopicHeader icon='file-text'>ประวัติส่วนตัวและการเจ็บป่วย</TopicHeader>

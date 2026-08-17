@@ -27,8 +27,9 @@ import { getOpdConsentSummary } from '@/data/consentWorkflowStore';
 import { buildOpdSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
-/* Topbar breadcrumb tailored for the OPD Queue page. */
-const breadcrumb = ['ระบบงานผู้รับบริการนอก (OPD)'];
+/* Topbar breadcrumb — ต้องตรงกับชื่อเมนู "คัดกรอง" ที่พาเข้ามาหน้านี้
+   ไม่งั้น breadcrumb กับหัวข้อหน้าจะเรียกชื่อระบบเดียวกันคนละอย่าง */
+const breadcrumb = ['คัดกรอง'];
 
 /* localStorage key for PrimarySearch recent-search history. Page-scoped so
    the OPD, registration, and treatment queues each keep their own list. */
@@ -742,7 +743,10 @@ const QueuePage = () => {
     [handleRegisterArrival],
   );
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  const [editMode, setEditMode] = useState(false);
+  /* ปุ่ม "แก้ไขลำดับคิว" ถูกเอาออกจากหน้านี้แล้ว — ไม่มีอะไรสลับโหมดนี้อีก
+     กลไกลาก-วางจัดลำดับ (draggedIdx / overIdx / handleDrag*) ยังอยู่ในไฟล์แต่
+     เข้าไม่ถึง ถ้ายืนยันว่าเลิกใช้ถาวรค่อยรื้อออกทั้งชุด */
+  const [editMode] = useState(false);
   const [draggedIdx, setDraggedIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
 
@@ -919,7 +923,7 @@ const QueuePage = () => {
     <QueuePageShell
       activeKey='opd'
       breadcrumb={breadcrumb}
-      title='ระบบงานผู้รับบริการนอก (OPD)'
+      title='คัดกรอง'
       summaryCards={SUMMARY_CARDS}
       tabs={TABS}
       activeTab={activeTab}
@@ -1033,16 +1037,6 @@ const QueuePage = () => {
                 />
                 <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
-              <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-                <NeutralSubdueButton
-                  leadingIcon={editMode ? 'check' : 'pending_actions'}
-                  collapseLabelBelow='lg'
-                  accessibilityLabel={editMode ? 'เสร็จสิ้น' : 'แก้ไขลำดับคิว'}
-                  onClick={() => setEditMode((m) => !m)}
-                >
-                  {editMode ? 'เสร็จสิ้น' : 'แก้ไขลำดับคิว'}
-                </NeutralSubdueButton>
-              </div>
             </div>
 
             <SmoothFilterResults opaque={resultsOpaque}>

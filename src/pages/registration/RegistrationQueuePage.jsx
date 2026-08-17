@@ -614,7 +614,9 @@ const RegistrationQueuePage = () => {
   /* Edit-queue-order mode — toggled by "แก้ไขลำดับคิว". Rows show a drag
      handle and reorder via HTML5 drag-and-drop; filters/search/tabs are
      bypassed so indices stay stable across the full queue. */
-  const [editMode, setEditMode] = useState(false);
+  /* ปุ่ม "แก้ไขลำดับคิว" ถูกเอาออกแล้ว — ไม่มีอะไรสลับโหมดนี้อีก
+     กลไกลาก-วางจัดลำดับยังอยู่แต่เข้าไม่ถึง (เหมือนหน้าคัดกรอง) */
+  const [editMode] = useState(false);
   const [draggedIdx, setDraggedIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
 
@@ -727,13 +729,6 @@ const RegistrationQueuePage = () => {
       ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
       : { key, direction: 'asc' }
   ));
-
-  const toggleEditMode = () => {
-    setEditMode((m) => {
-      if (!m) setSortConfig({ key: null, direction: 'asc' });
-      return !m;
-    });
-  };
 
   const sorted = useMemo(() => {
     if (editMode) return filtered;
@@ -918,14 +913,8 @@ const RegistrationQueuePage = () => {
                       {`แจ้งเตือน App (${MOBILE_PUSH_LOG.length})`}
                     </NeutralSubdueButton>
                   </span>
-                  <NeutralSubdueButton
-                    leadingIcon={editMode ? 'check' : 'format_list_bulleted'}
-                    collapseLabelBelow='lg'
-                    accessibilityLabel={editMode ? 'เสร็จสิ้น' : 'แก้ไขลำดับคิว'}
-                    onClick={toggleEditMode}
-                  >
-                    {editMode ? 'เสร็จสิ้น' : 'แก้ไขลำดับคิว'}
-                  </NeutralSubdueButton>
+                  {/* ปุ่ม "แก้ไขลำดับคิว" ถูกเอาออกจากทุกหน้าคิว (คัดกรอง ·
+                     เวชระเบียน · บันทึกการรักษา) — อย่าเผลอใส่กลับ */}
                   <BrandSubdueButton
                     variant='outline'
                     size='sm'

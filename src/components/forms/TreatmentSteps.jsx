@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
+import { getCarriedScreening } from '@/data/screeningHandoff';
 import {
   SectionTitle, FieldGrid, Field, Sym,
 } from '@/components/forms/Fields';
@@ -941,12 +942,18 @@ const AssessorRow = ({ assessor }) => (
   </div>
 );
 
-export const Step2Screening = () => {
-  const summary = DEFAULT_SCREENING_SUMMARY;
+/* `patient` มาแล้วจะอ่านผลคัดกรองรอบล่าสุดของ HN นั้นจาก `/opd/screening`
+   (จุดคัดกรองที่เดียวของระบบ) — ไม่ส่งมาก็ตกไปที่ชุด mock ของ Figma เหมือนเดิม
+   `title` ให้คลินิกพิเศษเปลี่ยนหัวข้อเป็น "ผลคัดกรองจากจุดคัดกรอง" ได้ */
+export const Step2Screening = ({ patient, title = 'คัดกรองและซักประวัติ (Screening)' }) => {
+  const summary = useMemo(
+    () => (patient ? getCarriedScreening(patient) : DEFAULT_SCREENING_SUMMARY),
+    [patient],
+  );
   const [activeTab, setActiveTab] = useState(0);
   return (
     <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-      <SectionTitle icon='description'>คัดกรองและซักประวัติ (Screening)</SectionTitle>
+      <SectionTitle icon='description'>{title}</SectionTitle>
 
       <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
         {SCREENING_TABS.map((label, i) => (

@@ -29,7 +29,10 @@ const breadcrumb = ['ระบบบันทึกการรักษา', '�
    medical certificate. */
 const ANC_STEPS = [
   { title: 'ประวัติการรักษา', subtitle: 'Medical History' },
-  { title: 'คัดกรองและซักประวัติ', subtitle: 'Screening' },
+  /* ไม่ใช่ "คัดกรอง" — จุดคัดกรองมีที่เดียวที่ `/opd/screening` step นี้เก็บเฉพาะ
+     แบบประเมินของงานฝากครรภ์ (ST-5 · 2Q · ความเสี่ยงตั้งครรภ์ · GDM ·
+     สัญญาณอันตราย · การสูบบุหรี่) ส่วนผลคัดกรองแสดงอ่านอย่างเดียวที่ step 1 */
+  { title: 'แบบประเมิน', subtitle: 'Assessment' },
   { title: 'ตรวจร่างกาย', subtitle: 'Physical Examination' },
   { title: 'วินิจฉัย', subtitle: 'Diagnosis' },
   { title: 'สั่งการรักษา', subtitle: 'Treatment Order' },

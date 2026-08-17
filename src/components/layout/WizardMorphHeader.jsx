@@ -37,6 +37,8 @@ const WizardMorphHeader = React.memo(function WizardMorphHeader({
   stepProgressClassName = 'justify-center',
   /** Page title already rendered in SubHeader — stepper band only. */
   hideTitle = false,
+  /** Stepper stays on its own row (no flex-wrap flip) — see StepMorphHeader. */
+  stepperOwnRow = false,
 }) {
   return (
     <StepMorphHeader
@@ -44,6 +46,7 @@ const WizardMorphHeader = React.memo(function WizardMorphHeader({
       title={title}
       afterTitle={afterTitle}
       hideTitle={hideTitle}
+      stepperOwnRow={stepperOwnRow}
       className={className}
     >
       <StepProgress

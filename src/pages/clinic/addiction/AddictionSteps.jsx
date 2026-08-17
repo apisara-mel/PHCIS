@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
@@ -45,7 +46,6 @@ import {
   ADDICTION_ACTIVITY_SUGGESTIONS,
   ADDICTION_COUNSELING_SUGGESTIONS,
   ADDICTION_PLAN_SUGGESTIONS,
-  getOpdCarriedScreening,
   getAddictionPriorSessions,
   hasProgramAssessmentData,
   isRightsExpired,
@@ -87,46 +87,14 @@ const ScaleQuestion = ({ question, scale, value, onPick, readOnly }) => (
 
 export const AddictionStep1History = ({ form, setForm, hn, readOnly, onProgramChange }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
-  const carried = getOpdCarriedScreening(hn);
   const program = resolveProgram(form.program);
 
   return (
     <StepCard>
-      {/* 1.10.5.3 — แสดงผลการซักประวัติจาก OPD (read-only, cross-module).
-          Same HN keys the OPD screening mock, so the carried block is
-          demonstrably the other module's data, not re-typed here. */}
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='history'>ผลการซักประวัติจากจุดคัดกรอง (OPD)</TopicHeader>
-        {carried ? (
-          <div
-            className='flex flex-col w-full'
-            style={{
-              gap: 'var(--dim-space-200, 8px)',
-              paddingTop: 'var(--dim-space-400, 16px)',
-              paddingBottom: 'var(--dim-space-400, 16px)',
-              paddingLeft: 'var(--dim-space-400, 16px)',
-              paddingRight: 'var(--dim-space-400, 16px)',
-              borderRadius: 'var(--dim-radius-200, 8px)',
-              background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-            }}
-          >
-            <span style={{ fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-default, #363B3F)', fontSize: 'var(--type-size-sm)' }}>
-              อาการสำคัญ: {carried.chiefComplaint}
-            </span>
-            <span style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-sm)' }}>
-              {carried.screeningNote}
-            </span>
-            <span style={{ color: 'var(--text-content-tertiary, #858C92)', fontSize: 'var(--type-size-xs)' }}>
-              บันทึกโดย {carried.recordedBy} · {carried.recordedAt} (อ่านอย่างเดียว — แก้ไขได้ที่ระบบคัดกรอง OPD)
-            </span>
-          </div>
-        ) : (
-          <NoticeBand tone='info' icon='info'>
-            ผู้รับบริการรายนี้ยังไม่มีผลการซักประวัติจากจุดคัดกรอง OPD ของวันนี้
-          </NoticeBand>
-        )}
-      </div>
+      {/* ผลจากจุดคัดกรองเดียวของระบบ (`/opd/screening`) — อ่านอย่างเดียว
+         เดิมบล็อกนี้อ่าน `getOpdCarriedScreening()` ซึ่งเป็น map คงที่คนละชุด
+         กับที่พยาบาลกรอกจริง ทำให้คลินิกเห็นคนละข้อมูลกับจุดคัดกรอง */}
+      <CarriedScreeningPanel patient={{ hn }} />
 
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='clipboard'>โปรแกรมบำบัดและสารเสพติดที่ใช้</TopicHeader>

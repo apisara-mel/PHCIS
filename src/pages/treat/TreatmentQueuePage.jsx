@@ -331,7 +331,9 @@ const TreatmentQueuePage = () => {
   const [searchQ, setSearchQ] = useState('');
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState(TREATMENT_QUEUE_ROWS);
-  const [editMode, setEditMode] = useState(false);
+  /* ปุ่ม "แก้ไขลำดับคิว" ถูกเอาออกแล้ว — ไม่มีอะไรสลับโหมดนี้อีก
+     กลไกลาก-วางจัดลำดับยังอยู่แต่เข้าไม่ถึง (เหมือนหน้าคัดกรอง / เวชระเบียน) */
+  const [editMode] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [draggedIdx, setDraggedIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
@@ -368,8 +370,6 @@ const TreatmentQueuePage = () => {
     setActiveTab(key);
     setPage(1);
   };
-
-  const toggleEditMode = () => setEditMode((m) => !m);
 
   const handleSort = (key) => {
     setSortConfig((prev) => {
@@ -639,16 +639,6 @@ const TreatmentQueuePage = () => {
               <FilterDropdown prefix='เวลา:' options={FILTER_OPTIONS.time} value={filters.time} onChange={setFilter('time')} />
               <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
-            <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-              <NeutralSubdueButton
-                leadingIcon={editMode ? 'check' : 'format_list_bulleted'}
-                collapseLabelBelow='lg'
-                accessibilityLabel={editMode ? 'เสร็จสิ้น' : 'แก้ไขลำดับคิว'}
-                onClick={toggleEditMode}
-              >
-                {editMode ? 'เสร็จสิ้น' : 'แก้ไขลำดับคิว'}
-              </NeutralSubdueButton>
-            </div>
           </div>
 
           <SmoothFilterResults opaque={resultsOpaque}>

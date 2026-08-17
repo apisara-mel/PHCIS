@@ -17,6 +17,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import { LineChart } from '@/components/graph/Charts';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
+import HomeVisitSubNav from '@/components/homevisit/HomeVisitSubNav';
 import {
   BARTHEL_MAX_SCORE,
   VITAL_FIELDS,
@@ -40,13 +41,9 @@ import {
 import {
   getQuotaUsage,
   fiscalYearLabel,
-  toCsv,
-  downloadCsv,
 } from '@/data/homevisitHhc';
-import { printHomeVisitFollowUp } from '@/pages/homevisit/homevisitPrint';
 import {
   HomeVisitAccessGate,
-  AccessDemoToggle,
   GroupBadge,
   SourceBadge,
   FlagBadges,
@@ -373,45 +370,6 @@ const HomeVisitFollowUpPage = () => {
     [registry, selectedHn],
   );
 
-  const doExportRaw = () => downloadCsv(
-    `homevisit-followup-${selectedHn || 'all'}-${new Date().toISOString().slice(0, 10)}.csv`,
-    toCsv(visitsDesc.map((v) => ({
-      ...v,
-      hn: selectedHn,
-      name: registry?.confidential ? 'ข้อมูลลับ' : (registry?.name || selectedRow?.name || ''),
-      groupLabel: resolveGroup(registry?.group)?.short || '',
-      professionLabel: resolveProfession(v.profession)?.label || v.profession || '',
-      adlLabel: Number.isFinite(v.adl) ? interpretBarthel(v.adl).label : '',
-      ...VITAL_FIELDS.reduce((acc, f) => ({ ...acc, [`vital_${f.key}`]: v.vitals?.[f.key] ?? '' }), {}),
-    })), [
-      { key: 'hn', label: 'HN' },
-      { key: 'name', label: 'ชื่อ-นามสกุล' },
-      { key: 'groupLabel', label: 'กลุ่มผู้รับบริการ' },
-      { key: 'date', label: 'วันที่เยี่ยม (Visit)' },
-      { key: 'professionLabel', label: 'วิชาชีพผู้เยี่ยม' },
-      { key: 'adl', label: `คะแนน ADL (เต็ม ${BARTHEL_MAX_SCORE})` },
-      { key: 'adlLabel', label: 'แปลผล ADL' },
-      { key: 'tools', label: 'เครื่องมือมาตรฐาน (MNA · 9Q · PPS)' },
-      ...VITAL_FIELDS.map((f) => ({ key: `vital_${f.key}`, label: `${f.label} (${f.unit})` })),
-      { key: 'summary', label: 'สรุปผลการเยี่ยม' },
-      { key: 'orders', label: 'คำสั่งการรักษา' },
-    ]),
-  );
-
-  const doPrint = () => printHomeVisitFollowUp({
-    patientName: selectedRow?.name || registry?.name,
-    hn: selectedHn,
-    registry: registry ? {
-      groupLabel: resolveGroup(registry.group)?.label,
-      sourceLabel: resolveSource(registry.source)?.label,
-      responsible: registry.responsible,
-    } : null,
-    range: effRange,
-    visits: visitsDesc,
-    labs,
-    xrays,
-  });
-
   const vitalSeriesLabel = VITAL_SERIES.find((s) => s.key === vitalSeriesKey)?.label || '';
   const selectedVisit = visits.find((v) => v.no === selectedVisitNo) || null;
 
@@ -419,24 +377,11 @@ const HomeVisitFollowUpPage = () => {
     <QueuePageShell
       activeKey='homevisit'
       breadcrumb={breadcrumb}
-      title='ติดตามการเยี่ยมบ้าน'
-      onBack={() => history.push('/homevisit')}
-      backLabel='กลับหน้าคิว'
-      actions={(
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <AccessDemoToggle onRevoked={() => setTick((t) => t + 1)} />
-          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='download' onClick={doExportRaw} disabled={!selectedHn}>
-            ส่งออกข้อมูลดิบ (CSV)
-          </NeutralSubdueButton>
-          <NeutralSubdueButton variant='outline' size='sm' leadingIcon='print' onClick={doPrint} disabled={!selectedHn}>
-            พิมพ์ใบสรุปการติดตาม
-          </NeutralSubdueButton>
-          <BrandSubdueButton variant='outline' leadingIcon='contact_page' onClick={() => history.push('/homevisit/registry')}>
-            ทะเบียนผู้รับบริการเยี่ยมบ้าน
-          </BrandSubdueButton>
-        </div>
-      )}
+      title='เยี่ยมบ้าน (Home Visit)'
+      /* แถบปุ่มบนหัวหน้าถูกลบออก — ทะเบียนเข้าถึงได้จากเมนูซ้าย
+         (Sidebar subItems ของ "ระบบการเยี่ยมบ้าน") */
       summaryCards={selectedHn ? summaryCards : undefined}
+      belowSummary={<HomeVisitSubNav />}
     >
       <HomeVisitAccessGate subject='ข้อมูลติดตามการเยี่ยมบ้าน'>
         <div

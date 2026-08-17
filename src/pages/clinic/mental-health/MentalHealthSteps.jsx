@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
@@ -207,6 +208,9 @@ const WarningBanner = ({ tone = 'danger', icon = 'e911_emergency', children }) =
 
 /* ── Step 1 — ประวัติการรักษา (TOR 1.10.3.3 + 1.10.3.4) ───────────── */
 const STEP1_SECTIONS = [
+  /* ผลจากจุดคัดกรอง (`/opd/screening`) — อ่านอย่างเดียว. คลินิกพิเศษไม่คัดกรอง
+     ซ้ำเอง เพราะทุกคนผ่านจุดคัดกรองเดียวกัน จึงดึงผลรอบล่าสุดมาแสดงหัวสุด */
+  { key: 'screening', label: 'ผลคัดกรอง' },
   { key: 'intake',    label: 'ผลการซักประวัติ' },
   { key: 'illness',   label: 'ประวัติการเจ็บป่วย' },
   { key: 'family',    label: 'ประวัติครอบครัว' },
@@ -297,6 +301,10 @@ export const MhStep1History = ({ form, setForm, mhHn, intake, registration, lock
 
       {/* ผลการซักประวัติจากจุดคัดกรอง — read-only (TOR 1.10.3.3: Vital
           Signs · Nurse Note · แพ้ยา · โรคประจำตัว). */}
+      <AssessmentCard ref={(el) => { sectionRefs.current.screening = el; }}>
+        <CarriedScreeningPanel patient={{ hn: mhHn }} />
+      </AssessmentCard>
+
       <AssessmentCard ref={(el) => { sectionRefs.current.intake = el; }}>
         <TopicHeader icon='clipboard'>ผลการซักประวัติจากจุดคัดกรอง (อ่านอย่างเดียว)</TopicHeader>
         <div

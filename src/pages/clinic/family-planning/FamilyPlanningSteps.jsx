@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
@@ -257,6 +258,9 @@ const SummaryRow = ({ label, children }) => (
 
 /* ══ Step 1 — ประวัติการรักษา (TOR 1.10.8.1 / 1.10.8.3) ═════════════ */
 const STEP1_SECTIONS = [
+  /* ผลจากจุดคัดกรอง (`/opd/screening`) — อ่านอย่างเดียว. คลินิกพิเศษไม่คัดกรอง
+     ซ้ำเอง เพราะทุกคนผ่านจุดคัดกรองเดียวกัน จึงดึงผลรอบล่าสุดมาแสดงหัวสุด */
+  { key: 'screening', label: 'ผลคัดกรอง' },
   { key: 'registration', label: 'ทะเบียนวางแผนครอบครัว' },
   { key: 'triage',       label: 'ผลการซักประวัติ' },
   { key: 'illness',      label: 'ประวัติการเจ็บป่วย' },
@@ -333,6 +337,10 @@ export const FpStep1History = ({ form, setForm, fpHn, registration, queueRow, lo
       </div>
 
       {/* ── ทะเบียนวางแผนครอบครัว (carried forward) ────────────────── */}
+      <AssessmentCard ref={(el) => { sectionRefs.current.screening = el; }}>
+        <CarriedScreeningPanel patient={{ hn: fpHn }} />
+      </AssessmentCard>
+
       <AssessmentCard ref={(el) => { sectionRefs.current.registration = el; }}>
         <TopicHeader icon='badge'>ทะเบียนวางแผนครอบครัว</TopicHeader>
         {registration && registration.status !== 'cancelled' ? (

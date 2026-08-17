@@ -52,7 +52,10 @@ const breadcrumb = ['ระบบบันทึกการรักษา', '�
 
 const HIV_STI_STEPS = [
   { title: 'ซักประวัติ', subtitle: 'History & Vital Signs' },
-  { title: 'พฤติกรรมเสี่ยงและคัดกรอง', subtitle: 'Risk & Screening' },
+  /* ไม่ใช่ "คัดกรอง" — จุดคัดกรองมีที่เดียวที่ `/opd/screening` step นี้เก็บเฉพาะ
+     แบบประเมินพฤติกรรมเสี่ยงและผลตรวจของงาน HIV/STI
+     ส่วนผลคัดกรองแสดงอ่านอย่างเดียวที่ step 1 */
+  { title: 'แบบประเมินพฤติกรรมเสี่ยง', subtitle: 'Risk Assessment' },
   { title: 'VCT & HIV Test', subtitle: 'Counseling & Testing' },
   { title: 'วินิจฉัย', subtitle: 'STI Diagnosis' },
   { title: 'สั่งการรักษา', subtitle: 'CPOE · PEP/PrEP' },

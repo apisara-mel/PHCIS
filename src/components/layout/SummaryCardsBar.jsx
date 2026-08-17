@@ -98,9 +98,14 @@ const PanelSummaryCard = ({ card, hover = false }) => {
   /* การ์ดสรุปเป็นตัวเลขอ่านอย่างเดียว — **ไม่มีเงา และคลิกไม่ได้** ทุกหน้า
      (ยืนยัน 10 ส.ค. 2569). prop `hover` เก็บไว้ไม่ให้ caller เดิมพัง แต่ไม่มีผล
      — อย่าเผลอใส่ .mih-summary-card หรือ onClick กลับเข้ามาอีก. */
+  /* ความกว้างขั้นต่ำ 160 ไม่ใช่ 200: แถบสรุปของ "ระบบสังเกตอาการ" มี 7 ใบ
+     7 × 200 + 6 × 16 (gap) = 1496px ซึ่งเกินความกว้างจริงของแถบ (~1358px)
+     ใบสุดท้ายเลยตกบรรทัดใหม่แล้วยืดเต็มความกว้าง ดูเหมือนของเสีย
+     160 ทำให้ 7 ใบพอดีตั้งแต่ ~1150px ขึ้นไป · หน้าที่มี ≤6 ใบไม่เปลี่ยนอะไร
+     เพราะ flex-grow ยืดเต็มแถวอยู่แล้ว */
   return (
     <div
-      className='flex flex-1 max-w-full min-w-[min(100%,200px)] items-start'
+      className='flex flex-1 max-w-full min-w-[min(100%,160px)] items-start'
       style={{
         gap: 'var(--dim-space-400)',
         padding: 'var(--dim-space-400)',
@@ -136,11 +141,15 @@ const PanelSummaryCard = ({ card, hover = false }) => {
             fontSize: 'var(--type-size-lg, 18px)',
             lineHeight: 1.5,
           }}>{card.value}</span>
-          <span className='truncate' style={{
+          {/* ป้ายกำกับตัดคำขึ้นบรรทัดใหม่ ไม่ใช่ `truncate` — พอการ์ดแคบลงเพื่อให้
+             อยู่บรรทัดเดียวกันครบทุกใบ ชื่อยาว ๆ อย่าง "เตียงพร้อมรับผู้ป่วยใหม่"
+             จะโดนตัดเป็น "เตียงพร้อมรับผู้…" ซึ่งอ่านไม่รู้เรื่อง */}
+          <span style={{
             color: 'var(--text-statussummarycard-subtext)',
             fontFamily: 'var(--type-family-body)',
             fontSize: 'var(--type-size-xs)',
             lineHeight: 1.5,
+            overflowWrap: 'anywhere',
           }}>{card.label}</span>
         </div>
         {card.indicator ? (

@@ -170,6 +170,11 @@ import AuditOverviewPage from '@/pages/audit/AuditOverviewPage';
 import AuditLogPage from '@/pages/audit/AuditLogPage';
 import AuditRecordHistoryPage from '@/pages/audit/AuditRecordHistoryPage';
 import AuditPiiAccessLogPage from '@/pages/audit/AuditPiiAccessLogPage';
+/* แบบสัมภาษณ์ลูกค้า (BA/SA Questionnaire) — เครื่องมือภายในของทีม BA/SA
+   สำหรับบันทึกคำตอบจากสำนักอนามัยระหว่างสัมภาษณ์ ตามไฟล์ต้นทาง
+   HCIS_BA_SA_Questionnaire_v1.0.xlsx (ดู src/data/questionnaire.js). */
+import QuestionnaireOverviewPage from '@/pages/questionnaire/QuestionnaireOverviewPage';
+import QuestionnaireModulePage from '@/pages/questionnaire/QuestionnaireModulePage';
 import CreateDocTemplatePage from '@/pages/doc-template/CreateDocTemplatePage';
 import GroupPolicyPage from '@/pages/assess/GroupPolicyPage';
 import DepartmentPage from '@/pages/assess/DepartmentPage';
@@ -309,6 +314,10 @@ export default function Routes() {
         <Route exact path='/audit/record-history'       component={AuditRecordHistoryPage} />
         <Route exact path='/audit/record-history/:hn'   component={AuditRecordHistoryPage} />
         <Route exact path='/audit/pii-access' component={AuditPiiAccessLogPage} />
+        {/* แบบสัมภาษณ์ลูกค้า — ภาพรวม + หน้าตอบคำถามรายโมดูล (8 โมดูล / 386 ข้อ).
+            คำตอบเก็บใน localStorage แล้วส่งออก CSV กลับเข้าไฟล์ Excel ต้นทาง. */}
+        <Route exact path='/questionnaire'             component={QuestionnaireOverviewPage} />
+        <Route exact path='/questionnaire/:moduleKey'  component={QuestionnaireModulePage} />
         {/* PHCIS | Assess-control — Group Policy (Figma 4D3nTx53 · 3:18430). */}
         <Route exact path='/assess/group-policy' component={GroupPolicyPage} />
         <Route exact path='/assess/departments'   component={DepartmentPage} />
