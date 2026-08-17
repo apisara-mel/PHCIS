@@ -158,6 +158,7 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
   const [chromeCollapsed, setChromeCollapsed] = useState(false);
   const [chromeEl, setChromeEl] = useState(null);
   const [chromeHeight, setChromeHeight] = useState(0);
+  const [scrollHost, setScrollHost] = useState(null);
   const actor = useMemo(currentOrderSetActor, []);
 
   useEffect(() => subscribeOrderSets(() => setOrderSetRevision((value) => value + 1)), []);
@@ -178,6 +179,24 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
     observer.observe(chromeEl);
     return () => observer.disconnect();
   }, [chromeEl]);
+
+  /* ตัวที่เลื่อนจริงคือกล่องภายในของ <Table> ไม่ใช่กล่องหุ้ม และ React 17
+     ไม่ delegate `scroll` จาก descendant ให้ onScroll ของ ancestor อีกแล้ว
+     — จึงดักที่ capture phase ของกล่องหุ้มแทน (scroll ไม่ bubble แต่ capture ได้)
+     Hysteresis กันเปิด/ปิดรัว ๆ: ยุบเมื่อเลื่อนพ้น 48px คลี่กลับเมื่อ ≤8px */
+  useEffect(() => {
+    if (!scrollHost) return undefined;
+    const onScroll = (event) => {
+      const el = event.target;
+      /* เลื่อนแนวนอนของตารางก็ยิง scroll เหมือนกัน — สนใจเฉพาะกล่องที่ล้นแนวตั้ง */
+      if (!el || typeof el.scrollTop !== 'number') return;
+      if (el.scrollHeight - el.clientHeight <= 1) return;
+      const top = el.scrollTop;
+      setChromeCollapsed((current) => (current ? top > 8 : top > 48));
+    };
+    scrollHost.addEventListener('scroll', onScroll, true);
+    return () => scrollHost.removeEventListener('scroll', onScroll, true);
+  }, [scrollHost]);
 
   const storedSetCards = useMemo(() => orderSetsForActor(actor).map((set) => {
     const resolvedItems = (set.items || []).map((setItem) => {
@@ -300,11 +319,11 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
       return String(av).localeCompare(String(bv), 'th') * sign;
     });
   }, [visibleItems, sortConfig]);
-  /* Hysteresis กันอาการเปิด/ปิดรัว ๆ: ยุบเมื่อเลื่อนลงพ้น 48px
-     และคลี่กลับเมื่อเลื่อนกลับเกือบสุดบน (≤8px) เท่านั้น */
-  const handlePickerScroll = (event) => {
-    const top = event.currentTarget.scrollTop;
-    setChromeCollapsed((current) => (current ? top > 8 : top > 48));
+  /* สลับแท็บแล้วเริ่มนับใหม่ — แต่ละแท็บมี scroller ของตัวเองที่ scrollTop = 0 */
+  const changeMode = (next) => {
+    if (next === mode) return;
+    setMode(next);
+    setChromeCollapsed(false);
   };
   const toggle = (id) => {
     setSelectedStoredSetId('');
@@ -463,6 +482,10 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
         aria-hidden={chromeCollapsed}
         style={{
           overflow: 'hidden',
+          /* flex column: min-height:auto ของ flex item จะชนะ max-height
+             ทำให้การ์ดไม่ยอมยุบ — ต้องปลดเป็น 0 ก่อน */
+          minHeight: 0,
+          flexShrink: 0,
           maxHeight: chromeCollapsed ? 0 : (chromeHeight ? `${chromeHeight}px` : 'none'),
           opacity: chromeCollapsed ? 0 : 1,
           pointerEvents: chromeCollapsed ? 'none' : 'auto',
@@ -496,8 +519,8 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
           aria-label='วิธีเพิ่มรายการสั่งการรักษา'
           style={{ background: 'transparent', padding: 0, width: 'auto', flex: '0 0 auto' }}
         >
-          <TabPill selected={mode === 'items'} onClick={() => setMode('items')}>ค้นหารายการ</TabPill>
-          <TabPill selected={mode === 'sets'} onClick={() => setMode('sets')}>ชุดคำสั่งสำเร็จรูป</TabPill>
+          <TabPill selected={mode === 'items'} onClick={() => changeMode('items')}>ค้นหารายการ</TabPill>
+          <TabPill selected={mode === 'sets'} onClick={() => changeMode('sets')}>ชุดคำสั่งสำเร็จรูป</TabPill>
         </TabBar>
         {chromeCollapsed ? (
           <span
@@ -575,8 +598,8 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
       </div>
       {mode === 'items' ? (
         <div
-          className='scrollbar-thin flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-clip'
-          onScroll={handlePickerScroll}
+          ref={setScrollHost}
+          className='scrollbar-thin flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden'
           style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'var(--dim-space-600, 24px)' }}
         >
           <Table
@@ -590,7 +613,7 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
             emptySubtext='ลองปรับคำค้นหาหรือเลือกหมวดหมู่อื่น'
           />
         </div>
-      ) : <div className='scrollbar-thin flex flex-col w-full flex-1 min-h-0 overflow-y-auto overflow-x-clip' style={{ gap: 'var(--dim-space-400, 16px)', paddingBottom: 'var(--dim-space-600, 24px)' }}>
+      ) : <div ref={setScrollHost} className='scrollbar-thin flex flex-col w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden' style={{ gap: 'var(--dim-space-400, 16px)', paddingBottom: 'var(--dim-space-600, 24px)' }}>
         <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           <div><div style={{ color: 'var(--text-content-default, #202427)', fontSize: 'var(--type-size-base, 16px)', fontWeight: 'var(--type-weight-medium, 500)' }}>ชุดคำสั่งการรักษา</div><div style={{ color: 'var(--text-content-tertiary, #697077)', fontSize: 'var(--type-size-sm, 14px)' }}>ชุดมาตรฐานจัดการโดย Admin ส่วนแพทย์สร้างชุดส่วนตัวได้จากรายการที่เลือก</div></div>
           <BrandSubdueButton leadingIcon='add' disabled={!actor?.id || selectedIds.length === 0} onClick={() => setCreatingSet(true)}>เพิ่ม Order Set ของฉัน</BrandSubdueButton>
