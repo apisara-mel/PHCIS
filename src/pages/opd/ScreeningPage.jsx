@@ -16,6 +16,7 @@ import Select from '@/components/forms/Select';
 import Textarea from '@/components/forms/Textarea';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Icon from '@/components/icons/Icon';
+import { PAIN_LEVELS, TRIAGE_LEVELS } from '@/data/opdScreeningCatalog';
 import Footer from '@/components/layout/Footer';
 import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
 import BedSelectionPopup from '@/components/popup/BedSelectionPopup';
@@ -87,13 +88,8 @@ const SymptomField = ({ label, required, children }) => (
    `sentiment_satisfied` (ไม่ปวด), `sentiment_calm`, `sentiment_neutral`,
    `sentiment_dissatisfied`, `sentiment_stressed` — not `sentiment_very_satisfied`
    for the first step, which is a different glyph in the font. */
-const PAIN_LEVELS = [
-  { key: 'none',   label: 'ไม่ปวด',   icon: 'sentiment_satisfied', tone: 'green'  },
-  { key: 'mild',   label: 'เล็กน้อย', icon: 'sentiment_calm',           tone: 'blue'   },
-  { key: 'mod',    label: 'ปานกลาง',  icon: 'sentiment_neutral',        tone: 'yellow' },
-  { key: 'severe', label: 'มาก',      icon: 'sentiment_dissatisfied',   tone: 'orange' },
-  { key: 'agony',  label: 'ทรมาน',    icon: 'sentiment_stressed',       tone: 'red'    },
-];
+/* ย้ายไป `@/data/opdScreeningCatalog` แล้ว — จุดคัดกรองมีที่เดียว แต่ฝั่งอ่าน
+   (คลินิกพิเศษ + CPOE) ต้องแปลง key/level กลับเป็น label ให้ตรงกัน */
 
 /* Pain tone tokens — every pair below aliases a variable that is actually
    emitted by `src/styles/tokens.css`, with a fallback equal to the token's
@@ -134,13 +130,7 @@ const PAIN_TONE_TOKENS = {
    button) plus a bilingual label (Thai / English). Surface + text
    tokens flow through `--surface-triage-levelN` / `--text-triage-levelN`
    already declared in index.css so brand swaps retint correctly. */
-const TRIAGE_LEVELS = [
-  { lv: 1, en: 'Resuscitation', th: 'วิกฤต',       bg: 'var(--surface-triage-level1)', fg: 'var(--text-triage-level1)' },
-  { lv: 2, en: 'Emergency',     th: 'ฉุกเฉิน',     bg: 'var(--surface-triage-level2)', fg: 'var(--text-triage-level2)' },
-  { lv: 3, en: 'Urgent',        th: 'เร่งด่วน',    bg: 'var(--surface-triage-level3)', fg: 'var(--text-triage-level3)' },
-  { lv: 4, en: 'Semi-urgent',   th: 'ไม่เร่งด่วน', bg: 'var(--surface-triage-level4)', fg: 'var(--text-triage-level4)' },
-  { lv: 5, en: 'Non-urgent',    th: 'ทั่วไป',      bg: 'var(--surface-triage-level5)', fg: 'var(--text-triage-level5)' },
-];
+/* ย้ายไป `@/data/opdScreeningCatalog` แล้ว (เหตุผลเดียวกับ PAIN_LEVELS) */
 
 /* Common Thai chief-complaint phrases clinicians type into the Step 2
    "อาการ (Chief Complaint)" field. Surface as autocomplete suggestions
@@ -1122,7 +1112,10 @@ const ScreeningPage = () => {
         onPickPatient={goToPatientScreening}
       />
       <main className='flex-1 flex flex-col min-w-0'>
-        <Header standalone={false} />
+        {/* ส่ง breadcrumb เองแทนการพึ่ง default ของ <Header> (ซึ่งยังเป็น
+           "ระบบงานผู้รับบริการนอก (OPD)" และเป็น default ของทั้งแอป) —
+           ต้นทางต้องอ่านว่า "คัดกรอง" ให้ตรงกับชื่อเมนูและหน้าคิว */}
+        <Header standalone={false} breadcrumb={['คัดกรอง', 'คัดกรองและซักประวัติ']} />
         <SubHeader title='คัดกรองและซักประวัติ' hideBottomBorder />
         <PatientCard sticky patient={patient} embedded />
         <RecordWizardMorphBand

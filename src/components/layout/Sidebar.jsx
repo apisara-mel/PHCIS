@@ -34,7 +34,7 @@ const NAV_FADE_BOTTOM =
 /* Primary nav + notification labels — match SideSubMenu item text (design.md §6.31.3). */
 const SIDEMENU_LABEL_SIZE = 'var(--type-size-base, 16px)';
 
-/* แผนกย่อยในระบบบันทึกการรักษา — แชร์กับเมนูคัดกรองและซักประวัติ */
+/* แผนกย่อยในระบบบันทึกการรักษา — เมนู "คัดกรอง" ไม่ใช้แล้ว (จุดคัดกรองเดียว) */
 const TREAT_MODULE_SUBITEMS = [
   { key: 'consult',    label: 'ทะเบียนการส่งปรึกษาแพทย์',             path: '/treat/consult' },
   { key: 'order-settings', label: 'ตั้งค่ารายการสั่งการรักษาและ CDSS', path: '/treat/order-sets' },
@@ -46,7 +46,7 @@ const TREAT_MODULE_SUBITEMS = [
 ];
 
 const TREAT_DEPARTMENT_SUBITEMS = [
-  { key: 'opd-treat',  label: 'แผนกผู้ป่วยนอก (OPD)',              path: '/treat/queue' },
+  { key: 'opd-treat',  label: 'แผนกอายุรกรรม',                     path: '/treat/queue' },
   { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)',    path: '/clinic/family-planning' },
   { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์', path: '/clinic/hiv-sti' },
   { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด',   path: '/clinic/addiction' },
@@ -60,10 +60,6 @@ const TREAT_DEPARTMENT_SUBITEMS = [
   { key: 'mental',     label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต',        path: '/clinic/mental-health' },
   { key: 'rehab',      label: 'แผนกเวชศาสตร์ฟื้นฟูและกายภาพบำบัด',      path: '/clinic/rehab' },
   { key: 'social',     label: 'แผนกสังคมสงเคราะห์',                    path: '/clinic/social-work' },
-];
-
-const OPD_CORE_SUBITEMS = [
-  { key: 'opd-queue',     label: 'แผนกผู้ป่วยนอก (OPD)',          path: '/opd/queue' },
 ];
 
 // Icon names = Material Symbols Outlined glyphs (loaded in index.html).
@@ -97,35 +93,40 @@ const ITEMS = [
   },
   /* คลังเอกสาร e-document เป็นระบบระดับ Hub (systemCatalog doc-template) —
      เมนูของตัวเองผ่าน EDOCUMENT_NAV ไม่ใช่รายการใน PHCIS rail นี้. */
-  { key: 'registration', label: 'งานเวชระเบียน',          icon: 'assignment',       path: '/registration/queue' },
-  { key: 'observation',   label: 'ระบบสังเกตอาการ', icon: 'monitor_heart',  path: '/observation' },
-  /* คัดกรองและซักประวัติ — เดิมชื่อ "ระบบงานผู้รับบริการนอก" (TOR §1.2.2).
+  { key: 'registration', label: 'เวชระเบียน',              icon: 'assignment',       path: '/registration/queue' },
+  { key: 'observation',   label: 'สังเกตอาการ',     icon: 'monitor_heart',  path: '/observation' },
+  /* คัดกรอง — เดิมชื่อ "ระบบงานผู้รับบริการนอก" แล้วเป็น "คัดกรองและซักประวัติ" (TOR §1.2.2).
      งาน OPD (คิว) อยู่เป็นเมนูย่อยภายใต้โมดูลนี้; รง.506 เป็นเมนูหลักแยก · §1.2.7 อยู่ที่
      ระบบจัดการระบบ (systemNav). `key` ยังเป็น `opd` เพื่อให้ทุกหน้าใน
      /opd/* ส่ง activeKey='opd' ได้โดยไม่ต้องแก้. */
   {
-    key: 'opd', label: 'คัดกรองและซักประวัติ', icon: 'clinical_notes', path: '/opd/screening',
-    subItems: [
-      ...OPD_CORE_SUBITEMS,
-      ...TREAT_DEPARTMENT_SUBITEMS.slice(1),
-    ],
+    key: 'opd', label: 'คัดกรอง', icon: 'clinical_notes', path: '/opd/queue',
+    /* ไม่มี subItems โดยตั้งใจ — ทุกคนที่เข้ามาใช้ "จุดคัดกรองเดียวกัน" ไม่ว่า
+       ปลายทางจะเป็นแผนกไหน เมนูนี้จึงเป็นรายการเดียวจบ ไม่แตกตาม 12 คลินิก
+       (ANC · NCD · HIV-STI · ยาเสพติด · วางแผนครอบครัว · ทันตกรรม · วัณโรค ·
+       สุขภาพจิต · เวชศาสตร์ฟื้นฟู · สังคมสงเคราะห์ · วัคซีน · ส่งเสริมสุขภาพ)
+       ซึ่งย้ายไปอยู่ใต้เมนู "บันทึกการรักษา" ที่เป็นที่ของมันแล้ว
+
+       path ชี้ /opd/queue (คิวจุดคัดกรอง — ที่ทุกคนมารวมกัน) ไม่ใช่
+       /opd/screening เพราะหน้าฟอร์มต้องเลือกผู้รับบริการจากคิวก่อน
+       ถ้าชี้ตรงไปที่ฟอร์ม คิวจะเข้าไม่ถึงจาก nav เลย */
   },
   /* ระบบบันทึกการรักษา · รังสี · แล็บ · เภสัช — วางถัดจากคัดกรองและซักประวัติ
      (workflow หลังคัดกรอง → ตรวจรักษา → สั่งตรวจ/รังสี/จ่ายยา). */
   {
-    key: 'treat', label: 'ระบบบันทึกการรักษา', icon: 'stethoscope',
+    key: 'treat', label: 'บันทึกการรักษา', icon: 'stethoscope',
     subItems: [
       TREAT_DEPARTMENT_SUBITEMS[0],
       ...TREAT_MODULE_SUBITEMS,
       ...TREAT_DEPARTMENT_SUBITEMS.slice(1),
     ],
   },
-  { key: 'radiology', label: 'แผนกรังสีวินิจฉัย',         icon: 'radiology', iconSize: 18, path: '/xray/queue' },
+  { key: 'radiology', label: 'รังสีวินิจฉัย',              icon: 'radiology', iconSize: 18, path: '/xray/queue' },
   /* Lab module pages cross-link via LabSubNav (TabUnderline) — same flat
      pattern as pharmacy. */
   { key: 'lab',       label: 'ห้องปฏิบัติการ',            icon: 'biotech',  iconSize: 18, path: '/lab/queue' },
-  { key: 'finance',   label: 'งานการเงิน',                icon: 'baht',      path: '/finance'           },
-  { key: 'pharmacy',  label: 'ระบบงานเภสัชกรรม',          icon: 'pill',      path: '/pharmacy/queue'    },
+  { key: 'finance',   label: 'การเงิน',                   icon: 'baht',      path: '/finance'           },
+  { key: 'pharmacy',  label: 'เภสัชกรรม',                 icon: 'pill',      path: '/pharmacy/queue'    },
   /* สิทธิและการเบิกจ่าย — TOR §1.7.3–1.7.5. ตรวจสอบสิทธิ · ส่งเบิก · Claim ·
      ตั้งค่า เป็น tab sections ในหน้าเดียว (/rights) จึงไม่มี subItems.
      วางใกล้งานการเงินเพราะเป็น workflow ต่อกัน (ชำระเงิน → ส่งเบิก). */
@@ -133,7 +134,7 @@ const ITEMS = [
   /* ระบบงานตรวจสุขภาพ — TOR §1.19. ชุดตรวจ · กลุ่มเป้าหมาย (import spreadsheet) ·
      คิวตรวจ · คัดกรอง 7 แบบ + แปลผลอัตโนมัติ · รายงาน · กิจกรรมชุมชน. */
   {
-    key: 'checkup', label: 'ระบบงานตรวจสุขภาพ', icon: 'health_metrics', path: '/checkup',
+    key: 'checkup', label: 'ตรวจสุขภาพ', icon: 'health_metrics', path: '/checkup',
     subItems: [
       { key: 'checkup-queue',     label: 'คิวตรวจสุขภาพ',           path: '/checkup'           },
       { key: 'checkup-targets',   label: 'กลุ่มเป้าหมายตรวจสุขภาพ',  path: '/checkup/targets'   },
@@ -146,17 +147,15 @@ const ITEMS = [
      ใน "ระบบบันทึกการรักษา": คิวนัดเยี่ยม · บันทึกเยี่ยม (mock GPS/map) ·
      ทะเบียน · ติดตาม. ทุกหน้าส่ง activeKey='homevisit'. */
   {
-    key: 'homevisit', label: 'ระบบการเยี่ยมบ้าน', icon: 'home_health', path: '/homevisit',
-    subItems: [
-      { key: 'hv-queue',     label: 'คิวนัดเยี่ยมบ้าน',      path: '/homevisit'           },
-      { key: 'hv-registry',  label: 'ทะเบียนเยี่ยมบ้าน',     path: '/homevisit/registry'  },
-      { key: 'hv-follow-up', label: 'ติดตามการเยี่ยมบ้าน',   path: '/homevisit/follow-up' },
-    ],
+    key: 'homevisit', label: 'เยี่ยมบ้าน (Home Visit)', icon: 'home_health', path: '/homevisit',
+    /* ไม่มี subItems โดยตั้งใจ — สลับหน้าในโมดูล (คิว · ทะเบียน · ติดตาม)
+       ใช้ TabUnderline ที่ `HomeVisitSubNav` เหมือน pharmacy / lab */
   },
-  /* รายงานเฝ้าระวังโรค รง.506 — TOR §1.2.3.6 (EPI-NET). เดิมเป็น submenu ใต้
-     คัดกรองและซักประวัติ; ยกเป็นเมนูหลักใน rail. Route ยังอยู่ที่ /opd/rg506. */
+  /* งานระบาดวิทยา — TOR §1.2.3.6 (EPI-NET). เดิมเป็น submenu ใต้คัดกรอง แล้ว
+     ยกเป็นเมนูหลักใน rail ชื่อ "รายงานเฝ้าระวังโรค รง.506".
+     `key` + route ยังเป็น opd-rg506 / /opd/rg506 เหมือนเดิม — เปลี่ยนแค่ชื่อเมนู. */
   {
-    key: 'opd-rg506', label: 'รายงานเฝ้าระวังโรค รง.506', icon: 'coronavirus', path: '/opd/rg506',
+    key: 'opd-rg506', label: 'งานระบาดวิทยา', icon: 'coronavirus', path: '/opd/rg506',
   },
   /* ระบบบริหารจัดการคิว — TOR §1.3. ระบบคิวกลางของศูนย์ (คนละตัวกับคิว
      ผู้รับบริการนอกใน `opd` ซึ่งเป็นคิวของแผนกเดียว) รวมคอนโซลเรียกคิว
