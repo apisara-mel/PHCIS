@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
-import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import {
-  HOMEVISIT_CENTER,
-  HOMEVISIT_CENTER_LOCATION,
-  distanceMeters,
-  formatDistance,
-  upsertHomeVisitAppointment,
-} from '@/data/homevisitVisits';
+import { upsertHomeVisitAppointment } from '@/data/homevisitVisits';
 import { findRegistryEntryByHn, upsertRegistryEntry } from '@/data/homevisitRegistry';
-import { autoPinFromAddress, isInsideServiceArea, SERVICE_AREA } from '@/data/homevisitHhc';
+import { isInsideServiceArea, SERVICE_AREA } from '@/data/homevisitHhc';
 import { NoticeBand } from '@/pages/homevisit/homevisitShared';
 
 /* ดูแผนที่ / ปักหมุดบ้าน จากแถวในตารางคิวเยี่ยมบ้าน (TOR §1.18.2).
@@ -34,7 +26,6 @@ const HomeVisitMapPopup = ({ open, row, onClose, onSaved }) => {
      "ยังไม่ได้ปักหมุด" ทั้งที่กำลังแก้อยู่). */
   const saved = row.home;
   const inside = current?.lat ? isInsideServiceArea(current) : null;
-  const dist = saved?.pinSaved ? distanceMeters(HOMEVISIT_CENTER_LOCATION, saved) : null;
   const dirty = !!draft
     && (draft.lat !== saved?.lat || draft.lng !== saved?.lng);
 
@@ -71,25 +62,6 @@ const HomeVisitMapPopup = ({ open, row, onClose, onSaved }) => {
           {row.address || 'ยังไม่ได้บันทึกที่อยู่'}
         </span>
 
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {saved?.pinSaved ? (
-            <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug' maxWidth={320}>
-              {`ระยะจาก${HOMEVISIT_CENTER} ประมาณ ${formatDistance(dist)}`}
-            </ColorfulBadge>
-          ) : (
-            <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug' maxWidth={320}>
-              ยังไม่ได้ปักหมุดตำแหน่งบ้าน
-            </ColorfulBadge>
-          )}
-          <NeutralSubdueButton
-            variant='outline' size='sm' leadingIcon='my_location'
-            disabled={!row.address}
-            onClick={() => setDraft(autoPinFromAddress(row.address, row.community))}
-          >
-            ปักหมุดอัตโนมัติจากที่อยู่
-          </NeutralSubdueButton>
-        </div>
-
         {inside === false && (
           <NoticeBand tone='danger' icon='wrong_location'>
             ตำแหน่งนี้อยู่นอก{SERVICE_AREA.label} — ตรวจสอบที่อยู่อีกครั้ง
@@ -104,11 +76,6 @@ const HomeVisitMapPopup = ({ open, row, onClose, onSaved }) => {
           hint='ลากหมุด คลิกบนแผนที่ หรือกด “ใช้ตำแหน่งปัจจุบัน” ตอนไปถึงบ้านจริง แล้วกดบันทึกตำแหน่ง'
           flush
         />
-
-        <NoticeBand tone='neutral' icon='info'>
-          บันทึกแล้วจะอัปเดตทั้งทะเบียนผู้รับบริการและแผนเส้นทางของวันนี้
-          — แผนที่เป็นแผนที่จำลอง (GIS จริงอยู่ในขอบเขต TOR §2.3)
-        </NoticeBand>
       </div>
     </Popup>
   );

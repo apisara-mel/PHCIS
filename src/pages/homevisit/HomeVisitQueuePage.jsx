@@ -11,6 +11,8 @@ import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import ViewToggle from '@/components/toggle/ViewToggle';
+import SuccessToast from '@/components/toast/SuccessToast';
+import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -19,6 +21,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Popup from '@/components/popup/Popup';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatientAvatar';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   HOMEVISIT_GROUPS,
@@ -34,7 +37,6 @@ import {
   getHomeVisitAppointmentCancellation,
   cancelHomeVisitAppointment,
   reactivateHomeVisitAppointment,
-  startHomeVisit,
   getVisitFollowUpOverdue,
   resolveGroup,
   resolveSource,
@@ -59,7 +61,7 @@ import {
   HomeVisitAccessGate,
   GroupBadge,
   SourceBadge,
-  FlagBadges,
+  flagText,
   EmptyHint,
   NoticeBand,
   GREYED,
@@ -93,6 +95,27 @@ const FILTER_DEFAULTS = {
 
 const DATE_CHIP_LABELS = { today: 'วันนี้', yesterday: 'เมื่อวาน', tomorrow: 'พรุ่งนี้' };
 
+/* §2.4.1 (มติ คทง.4) — นำส่งออกรายงานด้วย ExportFormatPopup ตัวเดียวกับ
+   หน้าอื่นในระบบ (ทะเบียนศูนย์บริการ / ความยินยอม / เภสัชกรรม) แทนการ
+   ดาวน์โหลด CSV ตรง ๆ เพื่อให้เลือกรูปแบบไฟล์/หัวข้อ และมี log การส่งออก */
+const HOMEVISIT_QUEUE_EXPORT_COLUMNS = [
+  { key: 'hn', header: 'HN', width: 110 },
+  { key: 'name', header: 'ชื่อ-นามสกุล', width: 200 },
+  { key: 'groupLabel', header: 'กลุ่มผู้รับบริการ', width: 160 },
+  { key: 'sourceLabel', header: 'แหล่งรับเข้า', width: 150 },
+  { key: 'district', header: 'เขต', width: 130 },
+  { key: 'community', header: 'ชุมชน', width: 180 },
+  { key: 'responsible', header: 'ผู้รับผิดชอบ', width: 170 },
+  { key: 'professionLabel', header: 'วิชาชีพ', width: 140 },
+  { key: 'visitDate', header: 'วันนัด', width: 120 },
+  { key: 'appointmentTime', header: 'เวลานัด', width: 100 },
+  { key: 'statusLabel', header: 'สถานะ', width: 130 },
+  { key: 'visitCount', header: 'จำนวนครั้งที่เยี่ยมสะสม (Visit)', width: 190 },
+  { key: 'quotaUsed', header: 'ใช้สิทธิ สปสช. ปีงบนี้ (ครั้ง)', width: 190 },
+  { key: 'quotaRemaining', header: 'สิทธิคงเหลือ (ครั้ง)', width: 150 },
+  { key: 'nextDue', header: 'กำหนดติดตามครั้งถัดไป', width: 180 },
+];
+
 /* มุมมองของหน้าคิว — รายการ ↔ แผนที่วางแผนเส้นทาง (§1.18.2) */
 const HOMEVISIT_VIEW_OPTIONS = [
   { value: 'list', icon: 'format_list_bulleted', label: 'มุมมองรายการ' },
@@ -101,7 +124,6 @@ const HOMEVISIT_VIEW_OPTIONS = [
 
 const TAB_PREDICATE = {
   toDepart: (r) => !r.cancellation && (r.statusKey === 'toDepart' || r.statusKey === 'scheduled'),
-  visiting: (r) => !r.cancellation && r.statusKey === 'visiting',
   done:     (r) => !r.cancellation && r.statusKey === 'done',
   draft:    (r) => !r.cancellation && r.statusKey === 'draft',
   overdue:  (r) => !r.cancellation && !!r.overdue,
@@ -138,6 +160,8 @@ const HomeVisitQueuePage = () => {
   /* มติ คทง.4 — §1.18.1 เยี่ยมเกินโควตา สปสช. ต้องขออนุมัติพร้อมเหตุผล */
   /* §1.18.2 — ป๊อปอัปแผนที่/ปักหมุดของแถวที่กด */
   const [mapTarget, setMapTarget] = useState(null);
+  const [exportReport, setExportReport] = useState(null);
+  const [exportDone, setExportDone] = useState(false);
   const [quotaTarget, setQuotaTarget] = useState(null);
   const [quotaReason, setQuotaReason] = useState('');
   const [quotaError, setQuotaError] = useState('');
@@ -169,7 +193,6 @@ const HomeVisitQueuePage = () => {
   const tabs = useMemo(() => ([
     { key: 'today',     label: 'นัดวันนี้',         icon: 'event_available',      count: rows.filter((r) => !r.cancellation).length },
     { key: 'toDepart',  label: 'รอออกเยี่ยม',       icon: 'directions_car',       count: rows.filter(TAB_PREDICATE.toDepart).length },
-    { key: 'visiting',  label: 'กำลังเยี่ยม',       icon: 'home_health',          count: rows.filter(TAB_PREDICATE.visiting).length },
     { key: 'done',      label: 'เยี่ยมเสร็จแล้ว',   icon: 'check_circle',         count: rows.filter(TAB_PREDICATE.done).length },
     { key: 'draft',     label: 'ที่ร่างไว้',        icon: 'save',                 count: rows.filter(TAB_PREDICATE.draft).length },
     { key: 'overdue',   label: 'เลยกำหนดติดตาม',    icon: 'running_with_errors',  count: rows.filter(TAB_PREDICATE.overdue).length },
@@ -245,7 +268,6 @@ const HomeVisitQueuePage = () => {
   const summaryCards = useMemo(() => ([
     { key: 'today',    label: 'นัดเยี่ยมวันนี้',   value: rows.filter((r) => !r.cancellation).length, color: 'info',        icon: 'event_available' },
     { key: 'toDepart', label: 'รอออกเยี่ยม',       value: rows.filter(TAB_PREDICATE.toDepart).length,  color: 'brand',       icon: 'directions_car'  },
-    { key: 'visiting', label: 'กำลังเยี่ยม',       value: rows.filter(TAB_PREDICATE.visiting).length,  color: 'inprogress',  icon: 'home_health'     },
     { key: 'done',     label: 'เยี่ยมเสร็จแล้ว',   value: rows.filter(TAB_PREDICATE.done).length,      color: 'positive',    icon: 'check_circle'    },
     { key: 'overdue',  label: 'เลยกำหนดติดตาม',    value: rows.filter(TAB_PREDICATE.overdue).length,   color: 'destructive', icon: 'running_with_errors' },
   ]), [rows]);
@@ -256,22 +278,17 @@ const HomeVisitQueuePage = () => {
     state: { visitId: row.id, hn: row.hn, name: row.name },
   });
 
-  const doDispatch = (row) => {
-    startHomeVisit(row.id);
-    setTick((t) => t + 1);
-    setActiveTab('visiting');
-  };
-
   /* §1.18.1 (มติ คทง.4) — เยี่ยมเกินโควตา สปสช. ถูกล็อกไว้ก่อน ต้องระบุ
-     เหตุผลขออนุมัติเยี่ยมนอกโควตา จึงจะออกเยี่ยมได้ (กันเบิกไม่ได้). */
-  const dispatch = (row) => {
+     เหตุผลขออนุมัติเยี่ยมนอกโควตา จึงจะเปิดแบบบันทึกการเยี่ยมได้
+     (ด่านนี้เดิมอยู่ที่ปุ่ม "ออกเยี่ยม" ซึ่งถูกตัดออกแล้ว). */
+  const startRecord = (row) => {
     if (row.quota?.level === 'over' && !row.quotaOverride) {
       setQuotaReason('');
       setQuotaError('');
       setQuotaTarget(row);
       return;
     }
-    doDispatch(row);
+    openRecord(row);
   };
 
   const confirmQuotaOverride = () => {
@@ -282,7 +299,7 @@ const HomeVisitQueuePage = () => {
     saveQuotaOverride(quotaTarget.id, quotaReason.trim());
     const target = quotaTarget;
     setQuotaTarget(null);
-    doDispatch(target);
+    openRecord(target);
   };
 
   const openCancel = (row) => {
@@ -368,21 +385,62 @@ const HomeVisitQueuePage = () => {
     searchQ.trim() ? `ค้นหา "${searchQ.trim()}"` : null,
   ].filter(Boolean).join(' · ');
 
+  const buildExportReport = () => ({
+    key: 'homevisit-queue',
+    title: 'คิวนัดหมายเยี่ยมบ้าน',
+    subtitle: filterSummary || 'นัดเยี่ยมวันนี้ทั้งหมด',
+    table: {
+      columns: HOMEVISIT_QUEUE_EXPORT_COLUMNS,
+      rows: sortedRows.map((r) => ({
+        hn: r.hn,
+        name: r.confidential ? 'ข้อมูลลับ' : r.name,
+        groupLabel: resolveGroup(r.group)?.short || r.group,
+        sourceLabel: resolveSource(r.source)?.short || r.source,
+        district: r.district,
+        community: r.community,
+        responsible: r.responsible,
+        professionLabel: resolveProfession(r.profession)?.label || r.profession,
+        visitDate: r.visitDate,
+        appointmentTime: r.appointmentTime,
+        statusLabel: r.cancellation ? 'ยกเลิกนัด' : resolveVisitStatus(r.statusKey)?.label,
+        visitCount: r.visitCount,
+        quotaUsed: r.quota?.used,
+        quotaRemaining: r.quota?.remaining,
+        nextDue: r.nextDue,
+      })),
+    },
+  });
+
   /* ── คอลัมน์ ─────────────────────────────────────────────────────── */
-  const renderName = (row) => {
-    if (row.confidential) {
-      return (
+  /* รูปผู้รับบริการ + ชื่อ — แบบเดียวกับคิวตรวจสุขภาพ/เภสัชกรรม.
+     เคส "ข้อมูลลับ" (§1.4.2) ไม่โชว์รูปจริง ใช้อักษรย่อแทน (noProfilePhoto)
+     ไม่งั้นรูปจะเปิดเผยตัวตนทั้งที่ชื่อถูกปิดบังอยู่ */
+  const renderName = (row) => (
+    <span className='inline-flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+      <QueuePatientAvatar
+        {...resolveQueuePatientAvatarProps({
+          hn: row.hn,
+          displayName: row.name,
+          noProfilePhoto: row.confidential,
+        })}
+        size={28}
+      />
+      {row.confidential ? (
         <MaskedWorklistName
           name={row.name}
           recordKey={row.id}
           linkTo={{ pathname: '/homevisit/visit', state: { visitId: row.id, hn: row.hn, name: row.name } }}
         />
-      );
-    }
-    return (
-      <span style={row.cancellation ? GREYED : { fontWeight: 'var(--type-weight-medium)' }}>{row.name}</span>
-    );
-  };
+      ) : (
+        <span
+          className='min-w-0 truncate'
+          style={row.cancellation ? GREYED : { fontWeight: 'var(--type-weight-medium)' }}
+        >
+          {row.name}
+        </span>
+      )}
+    </span>
+  );
 
   const columns = useMemo(() => ([
     {
@@ -395,12 +453,17 @@ const HomeVisitQueuePage = () => {
     },
     { key: 'hn', label: 'HN', render: (r) => <span style={r.cancellation ? GREYED : undefined}>{r.hn}</span> },
     {
-      key: 'name', label: 'ผู้รับบริการ', flex: true, minWidth: 190,
+      key: 'name', label: 'ชื่อ-สกุล ผู้รับบริการ', flex: true, minWidth: 190,
+      render: (r) => renderName(r),
+    },
+    {
+      /* ธง/ภาวะที่ต้องระวังแยกเป็นคอลัมน์ของตัวเอง — เดิมกองอยู่ใต้ชื่อ
+         ทำให้แถวสูงไม่เท่ากันและอ่านเทียบกันระหว่างแถวไม่ได้ */
+      key: 'flags', label: 'ภาวะที่ต้องระวัง', sortable: false, flex: true, minWidth: 200,
       render: (r) => (
-        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          {renderName(r)}
-          <FlagBadges group={r.group} flags={r.flags} />
-        </div>
+        <span style={r.cancellation ? GREYED : { color: 'var(--text-content-secondary, #636B72)' }}>
+          {flagText(r.group, r.flags)}
+        </span>
       ),
     },
     { key: 'group', label: 'กลุ่มผู้รับบริการ', render: (r) => <GroupBadge group={r.group} /> },
@@ -410,15 +473,19 @@ const HomeVisitQueuePage = () => {
       render: (r) => (
         <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={r.cancellation ? GREYED : undefined}>{r.community || '—'} · {r.district || '—'}</span>
-          {/* §1.18.2 — ต้องดูแผนที่/แก้หมุดได้จากแถวในคิว เพื่อเดินทางไปถูกบ้าน */}
-          <NeutralSubdueButton
-            variant='outline'
-            size='sm'
-            leadingIcon={r.home?.pinSaved ? 'map-pin' : 'wrong_location'}
-            onClick={(e) => { e.stopPropagation(); setMapTarget(r); }}
-          >
-            {r.home?.pinSaved ? 'ดูแผนที่ / แก้หมุด' : 'ยังไม่ปักหมุด — เปิดแผนที่'}
-          </NeutralSubdueButton>
+          {/* §1.18.2 — ต้องดูแผนที่/แก้หมุดได้จากแถวในคิว เพื่อเดินทางไปถูกบ้าน
+              ครอบด้วย inline-flex เพื่อให้ปุ่มกว้างเท่าเนื้อหา ไม่ยืดเต็มคอลัมน์
+              (พ่อแม่เป็น flex-col ซึ่ง stretch ลูกโดยปริยาย) */}
+          <span className='inline-flex self-start'>
+            <NeutralSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon='map'
+              onClick={(e) => { e.stopPropagation(); setMapTarget(r); }}
+            >
+              ดูแผนที่
+            </NeutralSubdueButton>
+          </span>
         </div>
       ),
     },
@@ -509,21 +576,13 @@ const HomeVisitQueuePage = () => {
             </BrandSubdueButton>
           ) : (
             <>
-              {(r.statusKey === 'scheduled' || r.statusKey === 'toDepart') && (
-                <BrandSubdueButton
-                  variant={r.quota?.level === 'over' && !r.quotaOverride ? 'outline' : 'fill'}
-                  size='sm'
-                  leadingIcon={r.quota?.level === 'over' && !r.quotaOverride ? 'lock' : 'directions_car'}
-                  onClick={(e) => { e.stopPropagation(); dispatch(r); }}
-                >
-                  {r.quota?.level === 'over' && !r.quotaOverride ? 'เกินโควตา — ขออนุมัติ' : 'ออกเยี่ยม'}
-                </BrandSubdueButton>
-              )}
               <BrandSubdueButton
-                variant='outline' size='sm' leadingIcon='assignment'
-                onClick={(e) => { e.stopPropagation(); openRecord(r); }}
+                variant={r.quota?.level === 'over' && !r.quotaOverride ? 'outline' : 'fill'}
+                size='sm'
+                leadingIcon={r.quota?.level === 'over' && !r.quotaOverride ? 'lock' : 'assignment'}
+                onClick={(e) => { e.stopPropagation(); startRecord(r); }}
               >
-                บันทึกการเยี่ยม
+                {r.quota?.level === 'over' && !r.quotaOverride ? 'เกินโควตา — ขออนุมัติ' : 'บันทึกการเยี่ยม'}
               </BrandSubdueButton>
               <NeutralSubdueButton
                 size='sm' leadingIcon='block'
@@ -594,7 +653,7 @@ const HomeVisitQueuePage = () => {
         title='ขออนุมัติเยี่ยมเกินโควตาสิทธิ สปสช.'
         subtitle={quotaTarget ? `${quotaTarget.confidential ? 'ผู้รับบริการ (ข้อมูลลับ)' : quotaTarget.name} · HN: ${quotaTarget.hn}` : ''}
         tertiaryAction={{ label: 'ยกเลิก', onClick: () => setQuotaTarget(null) }}
-        primaryAction={{ label: 'อนุมัติและออกเยี่ยม', onClick: confirmQuotaOverride }}
+        primaryAction={{ label: 'อนุมัติและเปิดแบบบันทึก', onClick: confirmQuotaOverride }}
       >
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           <NoticeBand tone='danger' icon='block'>
@@ -619,6 +678,18 @@ const HomeVisitQueuePage = () => {
           </span>
         </div>
       </Popup>
+
+      <ExportFormatPopup
+        open={!!exportReport}
+        report={exportReport}
+        onClose={() => setExportReport(null)}
+        onExported={() => setExportDone(true)}
+      />
+      <SuccessToast
+        open={exportDone}
+        message='นำส่งออกรายงานคิวเยี่ยมบ้านแล้ว — ระบบบันทึก log การส่งออกข้อมูล'
+        onClose={() => setExportDone(false)}
+      />
 
       <HomeVisitMapPopup
         open={!!mapTarget}
@@ -658,7 +729,8 @@ const HomeVisitQueuePage = () => {
               onChange={setActiveTab}
             />
 
-            <div className='w-full flex items-start justify-center'>
+            <div className='w-full flex items-start' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <div className='flex-1 min-w-0' />
               <PrimarySearch
                 value={searchQ}
                 onChange={setSearchQ}
@@ -674,6 +746,16 @@ const HomeVisitQueuePage = () => {
                 placeholder='ค้นหา HN / ชื่อผู้รับบริการ / ผู้รับผิดชอบ / ชุมชน'
                 width={640}
               />
+              <div className='flex-1 min-w-0 flex justify-end'>
+                <NeutralSubdueButton
+                  leadingIcon='ios_share'
+                  size='sm'
+                  collapseLabelBelow='lg'
+                  onClick={() => setExportReport(buildExportReport())}
+                >
+                  นำส่งออกรายงาน
+                </NeutralSubdueButton>
+              </div>
             </div>
 
             <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>

@@ -18,6 +18,10 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import { LineChart } from '@/components/graph/Charts';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import HomeVisitSubNav from '@/components/homevisit/HomeVisitSubNav';
+import RowActionMenu from '@/components/overflow/RowActionMenu';
+import SuccessToast from '@/components/toast/SuccessToast';
+import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
+import { printHomeVisitFollowUp } from '@/pages/homevisit/homevisitPrint';
 import {
   BARTHEL_MAX_SCORE,
   VITAL_FIELDS,
@@ -114,6 +118,8 @@ const HomeVisitFollowUpPage = () => {
   const [vitalSeriesKey, setVitalSeriesKey] = useState('sys');
   const [selectedVisitNo, setSelectedVisitNo] = useState(null);
   const [deepLinkMiss, setDeepLinkMiss] = useState(null);
+  const [exportReport, setExportReport] = useState(null);
+  const [exportDone, setExportDone] = useState(false);
 
   const {
     history: searchHistory,
@@ -370,6 +376,45 @@ const HomeVisitFollowUpPage = () => {
     [registry, selectedHn],
   );
 
+  const buildExportReport = () => ({
+    key: 'homevisit-followup',
+    title: 'ติดตามการเยี่ยมบ้าน',
+    subtitle: `${registry?.confidential ? 'ข้อมูลลับ' : (registry?.name || selectedRow?.name || '')} · HN ${selectedHn || '—'}`
+      + ` · ${formatHomeVisitDate(effRange.from)} – ${formatHomeVisitDate(effRange.to)}`,
+    table: {
+      columns: [
+        { key: 'date', header: 'วันที่เยี่ยม (Visit)', width: 140 },
+        { key: 'professionLabel', header: 'วิชาชีพผู้เยี่ยม', width: 160 },
+        { key: 'adl', header: `คะแนน ADL (เต็ม ${BARTHEL_MAX_SCORE})`, width: 160 },
+        { key: 'adlLabel', header: 'แปลผล ADL', width: 200 },
+        { key: 'tools', header: 'เครื่องมือมาตรฐาน (MNA · 9Q · PPS)', width: 240 },
+        ...VITAL_FIELDS.map((f) => ({ key: `vital_${f.key}`, header: `${f.label} (${f.unit})`, width: 150 })),
+        { key: 'summary', header: 'สรุปผลการเยี่ยม', width: 320 },
+        { key: 'orders', header: 'คำสั่งการรักษา', width: 280 },
+      ],
+      rows: visitsDesc.map((v) => ({
+        ...v,
+        professionLabel: resolveProfession(v.profession)?.label || v.profession || '',
+        adlLabel: Number.isFinite(v.adl) ? interpretBarthel(v.adl).label : '',
+        ...VITAL_FIELDS.reduce((acc, f) => ({ ...acc, [`vital_${f.key}`]: v.vitals?.[f.key] ?? '' }), {}),
+      })),
+    },
+  });
+
+  const doPrint = () => printHomeVisitFollowUp({
+    patientName: selectedRow?.name || registry?.name,
+    hn: selectedHn,
+    registry: registry ? {
+      groupLabel: resolveGroup(registry.group)?.label,
+      sourceLabel: resolveSource(registry.source)?.label,
+      responsible: registry.responsible,
+    } : null,
+    range: effRange,
+    visits: visitsDesc,
+    labs,
+    xrays,
+  });
+
   const vitalSeriesLabel = VITAL_SERIES.find((s) => s.key === vitalSeriesKey)?.label || '';
   const selectedVisit = visits.find((v) => v.no === selectedVisitNo) || null;
 
@@ -383,6 +428,18 @@ const HomeVisitFollowUpPage = () => {
       summaryCards={selectedHn ? summaryCards : undefined}
       belowSummary={<HomeVisitSubNav />}
     >
+      <ExportFormatPopup
+        open={!!exportReport}
+        report={exportReport}
+        onClose={() => setExportReport(null)}
+        onExported={() => setExportDone(true)}
+      />
+      <SuccessToast
+        open={exportDone}
+        message='นำส่งออกรายงานการติดตามแล้ว — ระบบบันทึก log การส่งออกข้อมูล'
+        onClose={() => setExportDone(false)}
+      />
+
       <HomeVisitAccessGate subject='ข้อมูลติดตามการเยี่ยมบ้าน'>
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -396,7 +453,8 @@ const HomeVisitFollowUpPage = () => {
         >
           {/* ── เลือกผู้รับบริการ ─────────────────────────────────── */}
           <SectionCard icon='person_search' title='เลือกผู้รับบริการที่ต้องการติดตาม'>
-            <div className='w-full flex items-start justify-center'>
+            <div className='w-full flex items-start' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <div className='flex-1 min-w-0' />
               <PrimarySearch
                 value={searchQ}
                 onChange={setSearchQ}
@@ -412,6 +470,17 @@ const HomeVisitFollowUpPage = () => {
                 placeholder='ค้นหา HN / ชื่อผู้รับบริการ / ผู้รับผิดชอบ'
                 width={640}
               />
+              <div className='flex-1 min-w-0 flex justify-end'>
+                <NeutralSubdueButton
+                  leadingIcon='ios_share'
+                  size='sm'
+                  collapseLabelBelow='lg'
+                  disabled={!selectedHn}
+                  onClick={() => setExportReport(buildExportReport())}
+                >
+                  นำส่งออกรายงาน
+                </NeutralSubdueButton>
+              </div>
             </div>
             {searchQ.trim() && !selectedHn ? (
               <SearchResultCount found={pickerMatchCount} total={pool.length} />
@@ -458,13 +527,22 @@ const HomeVisitFollowUpPage = () => {
                   </div>
                 )}
                 actions={(
-                  <BrandSubdueButton
-                    variant='outline'
-                    leadingIcon='assignment'
-                    onClick={() => history.push({ pathname: '/homevisit/visit', state: { hn: selectedHn } })}
-                  >
-                    เปิดบันทึกการเยี่ยม
-                  </BrandSubdueButton>
+                  <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <BrandSubdueButton
+                      variant='outline'
+                      leadingIcon='assignment'
+                      onClick={() => history.push({ pathname: '/homevisit/visit', state: { hn: selectedHn } })}
+                    >
+                      เปิดบันทึกการเยี่ยม
+                    </BrandSubdueButton>
+                    {/* §2.4.1 (มติ คทง.4) — ข้อมูลดิบ/ใบสรุปพิมพ์ เก็บในเมนู ⋮ */}
+                    <RowActionMenu
+                      ariaLabel='ตัวเลือกเพิ่มเติมของการติดตาม'
+                      items={[
+                        { key: 'print', icon: 'print', label: 'พิมพ์ใบสรุปการติดตาม', onClick: doPrint },
+                      ]}
+                    />
+                  </div>
                 )}
               />
 

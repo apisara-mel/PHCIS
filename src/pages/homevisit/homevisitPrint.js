@@ -57,25 +57,6 @@ const tableHtml = (headers, rows, emptyText) => {
 };
 
 /** พิมพ์คิวนัดหมายเยี่ยมบ้าน / แผนออกเยี่ยมของวัน (1.18.1 / 1.18.2). */
-export const printHomeVisitQueue = (rows, filterSummary) => {
-  const body = `
-    <h1>แผนการออกเยี่ยมบ้าน</h1>
-    <div class="meta">เงื่อนไขที่พิมพ์: ${esc(filterSummary || 'ทั้งหมด')} · จำนวน ${rows.length} รายการ</div>
-    ${tableHtml(
-    ['ลำดับ', 'เวลานัด', 'HN', 'ชื่อ-สกุล', 'กลุ่ม', 'แหล่งรับเข้า', 'ที่อยู่/เขต', 'ผู้รับผิดชอบ', 'สถานะ'],
-    rows.map((r, i) => [
-      i + 1, r.appointmentTime || '—', r.hn,
-      r.confidential ? '(ข้อมูลลับ)' : r.name,
-      r.groupLabel || '—', r.sourceLabel || '—',
-      `${r.community || '—'} · ${r.district || '—'}`,
-      r.responsible || '—', r.statusLabel || '—',
-    ]),
-    'ไม่มีรายการที่ตรงกับเงื่อนไขที่เลือก',
-  )}`;
-  openPrintDoc('แผนการออกเยี่ยมบ้าน', body);
-};
-
-/** พิมพ์ทะเบียนผู้รับบริการเยี่ยมบ้านตามตัวกรองปัจจุบัน (1.10.12.1). */
 export const printHomeVisitRegistry = (rows, filterSummary) => {
   const body = `
     <h1>ทะเบียนผู้รับบริการเยี่ยมบ้าน</h1>

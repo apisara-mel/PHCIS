@@ -18,7 +18,10 @@ import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import SelectableOptionCard from '@/components/card/SelectableOptionCard';
 import PatientCard from '@/components/card/PatientCard';
-import StickyStatusTabBar from '@/components/tab/StickyStatusTabBar';
+import RowActionMenu from '@/components/overflow/RowActionMenu';
+import SuccessToast from '@/components/toast/SuccessToast';
+import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
+import { printHomeVisitRegistry } from '@/pages/homevisit/homevisitPrint';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -71,6 +74,7 @@ import {
   getChainGaps,
   getQuotaUsage,
   fiscalYearLabel,
+  getVisitQuota,
   autoPinFromAddress,
   isInsideServiceArea,
   SERVICE_AREA,
@@ -80,6 +84,7 @@ import {
   GroupBadge,
   SourceBadge,
   FlagBadges,
+  flagText,
   TopicHeader,
   Field,
   SectionCard,
@@ -165,6 +170,22 @@ const FILTER_DEFAULTS = {
 
 const DATE_CHIP_LABELS = { all: 'ทุกช่วงเวลา' };
 
+/* §2.4.1 (มติ คทง.4) — นำส่งออกรายงานผ่าน ExportFormatPopup ตัวเดียวกับหน้าอื่น */
+const REGISTRY_EXPORT_COLUMNS = [
+  { key: 'hn', header: 'HN', width: 110 },
+  { key: 'nationalId', header: 'เลขบัตรประชาชน', width: 160 },
+  { key: 'name', header: 'ชื่อ-นามสกุล', width: 200 },
+  { key: 'groupLabel', header: 'กลุ่มผู้รับบริการ', width: 170 },
+  { key: 'sourceLabel', header: 'ประเภทรับเข้า', width: 160 },
+  { key: 'district', header: 'เขต', width: 130 },
+  { key: 'community', header: 'ชุมชน', width: 180 },
+  { key: 'responsible', header: 'ผู้รับผิดชอบ', width: 170 },
+  { key: 'registeredDate', header: 'วันที่ลงทะเบียน', width: 140 },
+  { key: 'lastVisitDate', header: 'วันที่เยี่ยมล่าสุด', width: 140 },
+  { key: 'visitCount', header: 'จำนวนครั้งที่เยี่ยม (Visit)', width: 180 },
+  { key: 'quota', header: 'โควตา สปสช. (ครั้ง/ปีงบ)', width: 180 },
+];
+
 /** patientProfiles เก็บอายุเป็น "52 ปี - 6 เดือน - 2 วัน" — ทะเบียนใช้เฉพาะปี. */
 const ageYearsOf = (profile) => {
   const m = /(\d+)/.exec(profile?.age || '');
@@ -189,6 +210,8 @@ const HomeVisitRegistryPage = () => {
   const [unsavedOpen, setUnsavedOpen] = useState(false);
   const [cardStatus, setCardStatus] = useState(null); /* {ok, message} */
 
+  const [exportReport, setExportReport] = useState(null);
+  const [exportDone, setExportDone] = useState(false);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
@@ -216,30 +239,14 @@ const HomeVisitRegistryPage = () => {
     return Array.from(names).map((n) => ({ value: n, label: n }));
   }, [rows]);
 
-  const tabs = useMemo(() => ([
-    { key: 'all', label: 'ทั้งหมด', icon: 'group', count: rows.filter((r) => !r.cancellation).length },
-    ...HOMEVISIT_GROUPS.map((g) => ({
-      key: g.value,
-      label: g.short,
-      icon: GROUP_ICONS[g.value] || 'person',
-      count: rows.filter((r) => !r.cancellation && r.group === g.value).length,
-    })),
-    { key: 'cancelled', label: 'ยกเลิกทะเบียน', icon: 'block', count: rows.filter((r) => r.cancellation).length },
-  ]), [rows]);
-
-  /* แท็บกรองกลุ่มผู้รับบริการย้ายมาเป็น TabPill เหนือช่องค้นหา ตำแหน่ง
-     เดียวกับงานเภสัชกรรม — เหลือ TabUnderline แถวเดียวคือ nav ของโมดูล */
-  const statusTabs = useMemo(
-    () => tabs.map(({ key, label, count }) => ({ key, label, count })),
-    [tabs],
-  );
-
   const dateRange = useMemo(() => dateFilterToIsoRange(filters.dateValue), [filters.dateValue]);
 
   const filtered = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
     return rows.filter((r) => {
-      if (activeTab === 'cancelled') {
+      if (activeTab === 'allStatus') {
+        /* ไม่กรองตามสถานะทะเบียน — เห็นทั้งที่ใช้งานอยู่และที่ยกเลิกแล้ว */
+      } else if (activeTab === 'cancelled') {
         if (!r.cancellation) return false;
       } else if (activeTab !== 'all') {
         if (r.cancellation || r.group !== activeTab) return false;
@@ -583,6 +590,39 @@ const HomeVisitRegistryPage = () => {
   ].filter(Boolean).join(' · ');
 
   /* §2.4.1 (มติ คทง.4) — ศูนย์ฯ ดึงข้อมูลดิบไป Pivot/วิเคราะห์เองได้ */
+  const buildExportReport = () => ({
+    key: 'homevisit-registry',
+    title: 'ทะเบียนผู้รับบริการเยี่ยมบ้าน',
+    subtitle: filterSummary || 'ทั้งหมด',
+    table: {
+      columns: REGISTRY_EXPORT_COLUMNS,
+      rows: filtered.map((r) => ({
+        hn: r.hn,
+        nationalId: r.nationalId,
+        name: r.confidential ? 'ข้อมูลลับ' : r.name,
+        groupLabel: resolveGroup(r.group)?.short || r.group,
+        sourceLabel: resolveSource(r.source)?.short || r.source,
+        district: r.district,
+        community: r.community,
+        responsible: r.responsible,
+        registeredDate: r.registeredDate,
+        lastVisitDate: r.lastVisitDate,
+        visitCount: r.visitCount,
+        quota: getVisitQuota(r.group),
+      })),
+    },
+  });
+
+  const doPrint = () => printHomeVisitRegistry(
+    filtered.map((r) => ({
+      ...r,
+      groupLabel: resolveGroup(r.group)?.short,
+      sourceLabel: resolveSource(r.source)?.short,
+      statusLabel: r.cancellation ? 'ยกเลิกทะเบียน' : 'ใช้งาน',
+    })),
+    filterSummary || 'ทั้งหมด',
+  );
+
   /* ── คอลัมน์ตาราง ────────────────────────────────────────────────── */
   const columns = useMemo(() => ([
     { key: 'hn', label: 'HN', render: (r) => <span style={r.cancellation ? GREYED : undefined}>{r.hn}</span> },
@@ -598,8 +638,16 @@ const HomeVisitRegistryPage = () => {
           <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
             {`${r.age ?? '—'} ปี / ${r.gender || '—'}`}
           </span>
-          <FlagBadges group={r.group} flags={r.flags} />
         </div>
+      ),
+    },
+    {
+      /* ธง/ภาวะที่ต้องระวังแยกเป็นคอลัมน์ของตัวเอง เหมือนหน้าคิว */
+      key: 'flags', label: 'ภาวะที่ต้องระวัง', sortable: false, flex: true, minWidth: 200,
+      render: (r) => (
+        <span style={r.cancellation ? GREYED : { color: 'var(--text-content-secondary, #636B72)' }}>
+          {flagText(r.group, r.flags)}
+        </span>
       ),
     },
     { key: 'group', label: 'กลุ่มผู้รับบริการ', render: (r) => <GroupBadge group={r.group} /> },
@@ -715,9 +763,13 @@ const HomeVisitRegistryPage = () => {
       activeKey='homevisit'
       breadcrumb={breadcrumb}
       title='เยี่ยมบ้าน (Home Visit)'
-      /* แถบปุ่มบนหัวหน้าถูกลบออก — ปุ่ม “ลงทะเบียนผู้รับบริการ” ย้ายลงไป
-         อยู่เหนือตาราง เพราะเป็นทางเดียวที่เปิดแบบลงทะเบียนรายใหม่ได้
-         (กริยา “บันทึก” ของ TOR §1.10.12.1) */
+      /* ปุ่มหลักของหน้าอยู่มุมขวาบน ถัดจาก “สร้างคำขอ” ของ SubHeader
+         (SubHeader วาง children ต่อจาก CreateConsentRequestHeaderAction) */
+      actions={(
+        <BrandPrimaryButton leadingIcon='person_add' onClick={openCreate}>
+          ลงทะเบียนผู้รับบริการ
+        </BrandPrimaryButton>
+      )}
       summaryCards={summaryCards}
       belowSummary={<HomeVisitSubNav />}
     >
@@ -1335,14 +1387,19 @@ const HomeVisitRegistryPage = () => {
 
           {/* ── รายการทะเบียน ────────────────────────────────────── */}
           <SectionCard>
-            <StickyStatusTabBar
-              tabs={statusTabs}
-              value={activeTab}
-              onChange={setActiveTab}
-              aria-label='กรองตามกลุ่มผู้รับบริการ'
+            <ExportFormatPopup
+              open={!!exportReport}
+              report={exportReport}
+              onClose={() => setExportReport(null)}
+              onExported={() => setExportDone(true)}
             />
-
-            <div className='w-full flex items-start justify-center'>
+            <SuccessToast
+              open={exportDone}
+              message='นำส่งออกรายงานทะเบียนเยี่ยมบ้านแล้ว — ระบบบันทึก log การส่งออกข้อมูล'
+              onClose={() => setExportDone(false)}
+            />
+            <div className='w-full flex items-start' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <div className='flex-1 min-w-0' />
               <PrimarySearch
                 value={searchQ}
                 onChange={setSearchQ}
@@ -1357,6 +1414,16 @@ const HomeVisitRegistryPage = () => {
                 placeholder='ค้นหา HN / ชื่อ-สกุล / ชุมชน / ผู้รับผิดชอบ'
                 width={620}
               />
+              <div className='flex-1 min-w-0 flex justify-end'>
+                <NeutralSubdueButton
+                  leadingIcon='ios_share'
+                  size='sm'
+                  collapseLabelBelow='lg'
+                  onClick={() => setExportReport(buildExportReport())}
+                >
+                  นำส่งออกรายงาน
+                </NeutralSubdueButton>
+              </div>
             </div>
 
             <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
@@ -1392,6 +1459,18 @@ const HomeVisitRegistryPage = () => {
                   defaultQuick='all'
                   quickLabels={DATE_CHIP_LABELS}
                 />
+                {/* แท็บ "ยกเลิกทะเบียน" ถูกลบพร้อมแถบชิป — ย้ายมาเป็นตัวกรอง
+                    เพื่อให้ยังเปิดดู/กู้คืนทะเบียนที่ยกเลิกได้ (TOR §1.10.12.1) */}
+                <FilterDropdown
+                  prefix='สถานะทะเบียน:'
+                  options={[
+                    { value: 'active', label: 'ใช้งาน' },
+                    { value: 'cancelled', label: 'ยกเลิกทะเบียน' },
+                    { value: 'all', label: 'ทั้งหมด' },
+                  ]}
+                  value={activeTab === 'cancelled' ? 'cancelled' : activeTab === 'allStatus' ? 'all' : 'active'}
+                  onChange={(v) => setActiveTab(v === 'cancelled' ? 'cancelled' : v === 'all' ? 'allStatus' : 'all')}
+                />
                 <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
             </div>
@@ -1400,9 +1479,13 @@ const HomeVisitRegistryPage = () => {
             <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
               <SearchResultCount found={filtered.length} total={rows.length} />
               <div className='flex-1' />
-              <BrandSubdueButton variant='fill' leadingIcon='person_add' onClick={openCreate}>
-                ลงทะเบียนผู้รับบริการ
-              </BrandSubdueButton>
+              {/* §2.4.1 (มติ คทง.4) — เก็บข้อมูลดิบ/พิมพ์ไว้ในเมนู ⋮ */}
+              <RowActionMenu
+                ariaLabel='ตัวเลือกเพิ่มเติมของทะเบียนเยี่ยมบ้าน'
+                items={[
+                  { key: 'print', icon: 'print', label: 'พิมพ์ทะเบียน', onClick: doPrint },
+                ]}
+              />
             </div>
 
             {rows.length === 0 ? (
