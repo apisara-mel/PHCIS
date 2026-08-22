@@ -21,6 +21,7 @@ import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
+import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
   readActivities,
@@ -76,6 +77,15 @@ const STATUS_OPTIONS = [
 
 const DUPLICATE_ACTIVITY_ERROR = 'ชื่อกิจกรรมซ้ำกับที่มีอยู่ กรุณาเปลี่ยนชื่อกิจกรรมใหม่';
 const DUPLICATE_SUB_ERROR = 'ชื่อกิจกรรมย่อยซ้ำกับที่มีอยู่ในกิจกรรมนี้';
+
+/* นำส่งออกรายงาน — จัดกลุ่มตามกิจกรรม (คอลัมน์แรก) + แถวกิจกรรมย่อย
+   ตาม context ที่เห็นบนหน้า (ค้นหา/ตัวกรอง/การเรียงตามตัวอักษร) */
+const ACTIVITY_EXPORT_COLUMNS = [
+  { key: 'activity', header: 'กิจกรรม', width: 220 },
+  { key: 'order', header: 'ลำดับ', width: 80 },
+  { key: 'name', header: 'ชื่อกิจกรรมย่อย', width: 300 },
+  { key: 'status', header: 'สถานะการใช้งาน', width: 150 },
+];
 
 /* Figma 3:18431 Roles_Empty — Ambulance Lottie 160×160; list footer 6:21313 / 10:29241 — 128×128. */
 const AMBULANCE_LOTTIE = '/illustration/ambulance.json';
@@ -340,6 +350,7 @@ export default function ActivityPage() {
   const [activityNameDraft, setActivityNameDraft] = useState('');
   const [activityNameError, setActivityNameError] = useState('');
   const [subActivityDraft, setSubActivityDraft] = useState('');
+  const [exportReport, setExportReport] = useState(null);
 
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:activity');
@@ -429,6 +440,43 @@ export default function ActivityPage() {
     const q = (value || '').trim();
     if (q) pushHistory({ label: q, value: q });
     setSearch(q);
+  };
+
+  /* รายงานสะท้อน context ปัจจุบัน: กลุ่มตามกิจกรรม + กิจกรรมย่อยที่ผ่าน
+     ค้นหา/ตัวกรองสถานะ เรียงตามตัวอักษรเหมือนบนหน้า */
+  const buildExportReport = () => {
+    const q = search.trim().toLowerCase();
+    const rows = [];
+    visibleActivities.forEach((a) => {
+      let order = 0;
+      sortSubActivities(a.subActivities).forEach((sub) => {
+        const matchesSearch = !q
+          || a.name.toLowerCase().includes(q)
+          || sub.name.toLowerCase().includes(q);
+        const matchesStatus = !filterStatus
+          || (filterStatus === 'active' && sub.active)
+          || (filterStatus === 'inactive' && !sub.active);
+        if (!matchesSearch || !matchesStatus) return;
+        order += 1;
+        rows.push({
+          _id: `${a.id}|${sub.id}`,
+          activity: a.name,
+          order,
+          name: sub.name,
+          status: sub.active ? 'เปิดการใช้งาน' : 'ปิดการใช้งาน',
+        });
+      });
+    });
+    const summary = [
+      filterStatus ? STATUS_OPTIONS.find((o) => o.value === filterStatus)?.label : null,
+      search.trim() ? `ค้นหา "${search.trim()}"` : null,
+    ].filter(Boolean).join(' · ');
+    return {
+      key: 'assess-activities',
+      title: 'ทะเบียนกิจกรรมและกิจกรรมย่อย',
+      subtitle: summary || 'ทั้งหมด',
+      table: { columns: ACTIVITY_EXPORT_COLUMNS, rows },
+    };
   };
 
   const canSaveActivityName = activityNameDraft.trim() && !activityNameError;
@@ -632,7 +680,12 @@ export default function ActivityPage() {
                     onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
                   />
                   <div className='flex-1 flex justify-end'>
-                  <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
+                  <NeutralSubdueButton
+                    leadingIcon='ios_share'
+                    size='sm'
+                    collapseLabelBelow='lg'
+                    onClick={() => setExportReport(buildExportReport())}
+                  >
                     นำส่งออกรายงาน
                   </NeutralSubdueButton>
                   </div>
@@ -683,6 +736,14 @@ export default function ActivityPage() {
           </div>
         )}
       </QueuePageShell>
+
+      {/* นำส่งออกรายงาน — popup มาตรฐานเดียวกับหน้ารายงานอื่น */}
+      <ExportFormatPopup
+        open={!!exportReport}
+        report={exportReport}
+        onClose={() => setExportReport(null)}
+        onExported={() => showToast('นำส่งออกรายงานกิจกรรมแล้ว — ระบบบันทึก log การส่งออกข้อมูล')}
+      />
 
       {/* Add activity — Figma 8:11704 */}
       <Popup
