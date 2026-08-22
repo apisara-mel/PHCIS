@@ -12,6 +12,7 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import NeutralIconButton from '@/components/button/NeutralIconButton';
+import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import { Icon } from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
@@ -195,6 +196,8 @@ function ActivitySection({
             size='sm'
             aria-label={`แก้ไขชื่อ ${row.name}`}
             onClick={() => setEditingSubId(row.id)}
+            /* ดินสอเป็น affordance รอง — ใช้โทนอ่อน (icon/neutral/tertiary) ไม่แย่งสายตาจากชื่อ */
+            style={{ color: 'var(--icon-neutral-tertiary, #ADB2B7)' }}
           />
         </span>
       )),
@@ -214,13 +217,14 @@ function ActivitySection({
       key: 'action',
       header: 'การดำเนินการ',
       render: (row) => (
-        <NeutralIconButton
-          icon='delete'
+        <NeutralSubdueIconButton
           variant='outline'
           size='sm'
           aria-label={`ลบ ${row.name}`}
           onClick={() => onDeleteSubActivity(activity, row)}
-        />
+        >
+          <Icon name='trash' size={16} />
+        </NeutralSubdueIconButton>
       ),
     },
   ], [activity, editingSubId, onToggleSubActive, onRenameSubActivity, onDeleteSubActivity]);
@@ -272,19 +276,21 @@ function ActivitySection({
               size='sm'
               aria-label={`แก้ไขชื่อกิจกรรม ${activity.name}`}
               onClick={() => setEditingName(true)}
+              style={{ color: 'var(--icon-neutral-tertiary, #ADB2B7)' }}
             />
           )}
           <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>
             {badgeLabel}
           </ColorfulBadge>
         </div>
-        <NeutralIconButton
-          icon='delete'
+        <NeutralSubdueIconButton
           variant='outline'
           size='sm'
           aria-label={`ลบกิจกรรม ${activity.name}`}
           onClick={() => onDeleteActivity(activity)}
-        />
+        >
+          <Icon name='trash' size={16} />
+        </NeutralSubdueIconButton>
       </div>
 
       {isOpen ? (
