@@ -431,19 +431,11 @@ export default function CenterStructureEditor({
         />
       ))}
 
-      {/* แผนกกับคลินิกอยู่ระดับเดียวกัน จึงเป็นปุ่มเพิ่มคู่กัน ไม่ใช่ปุ่มซ้อนชั้น */}
-      <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
-        <div style={{ flex: '1 1 240px' }}>
-          <BrandDashedAddButton className='w-full' style={{ width: '100%' }} onClick={() => addUnit('department')}>
-            เพิ่มแผนก
-          </BrandDashedAddButton>
-        </div>
-        <div style={{ flex: '1 1 240px' }}>
-          <BrandDashedAddButton className='w-full' style={{ width: '100%' }} onClick={() => addUnit('clinic')}>
-            เพิ่มคลินิก
-          </BrandDashedAddButton>
-        </div>
-      </div>
+      {/* แผนกกับคลินิกคือหน่วยระดับเดียวกัน — ปุ่มเดียว "เพิ่มแผนก/คลินิก"
+          (เริ่มเป็นแผนก แล้วสลับชนิดได้จาก dropdown ในการ์ด — 22 ส.ค. 2569) */}
+      <BrandDashedAddButton className='w-full' style={{ width: '100%' }} onClick={() => addUnit('department')}>
+        เพิ่มแผนก/คลินิก
+      </BrandDashedAddButton>
     </div>
   );
 }

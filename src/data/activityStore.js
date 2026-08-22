@@ -208,15 +208,11 @@ export function createSubActivity(name, order) {
   };
 }
 
+/* กิจกรรมย่อยเรียงตามตัวอักษรไทยเสมอ — ไม่มีการจัดลำดับเอง (ตัดฟีเจอร์
+   "แก้ไขลำดับ" ออก 22 ส.ค. 2569 ตาม feedback ผู้ใช้) field `order` เดิม
+   ยังอยู่ใน record เก่าได้ แค่ไม่ถูกใช้เรียงแล้ว */
 export function sortSubActivities(subActivities) {
-  return [...(subActivities || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
-}
-
-export function reorderSubActivities(subActivities, fromIdx, toIdx) {
-  const copy = sortSubActivities(subActivities);
-  const [moved] = copy.splice(fromIdx, 1);
-  copy.splice(toIdx, 0, moved);
-  return copy.map((sub, i) => ({ ...sub, order: i + 1 }));
+  return [...(subActivities || [])].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'th'));
 }
 
 export function isDuplicateActivityName(activities, name, excludeId = null) {
