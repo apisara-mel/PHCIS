@@ -245,21 +245,18 @@ function ActivitySection({
     >
       <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
         <div className='flex items-center min-w-0 flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-          <button
-            type='button'
-            aria-expanded={isOpen}
-            aria-label={`${isOpen ? 'ยุบ' : 'กาง'}กิจกรรม ${activity.name}`}
-            onClick={() => setCollapsed((c) => !c)}
-            className='inline-flex items-center min-w-0'
-            style={{ gap: 'var(--dim-space-200)', background: 'none', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left' }}
-          >
-            <Icon
-              name={isOpen ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}
-              size={20}
-              style={{ color: 'var(--text-content-tertiary)' }}
-            />
-            {!editingName ? <span style={ACTIVITY_TITLE}>{activity.name}</span> : null}
-          </button>
+          {!editingName ? (
+            <button
+              type='button'
+              aria-expanded={isOpen}
+              aria-label={`${isOpen ? 'ยุบ' : 'กาง'}กิจกรรม ${activity.name}`}
+              onClick={() => setCollapsed((c) => !c)}
+              className='inline-flex items-center min-w-0'
+              style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left' }}
+            >
+              <span style={ACTIVITY_TITLE}>{activity.name}</span>
+            </button>
+          ) : null}
           {editingName ? (
             <InlineNameEditor
               initial={activity.name}
@@ -283,14 +280,25 @@ function ActivitySection({
             {badgeLabel}
           </ColorfulBadge>
         </div>
-        <NeutralSubdueIconButton
-          variant='outline'
-          size='sm'
-          aria-label={`ลบกิจกรรม ${activity.name}`}
-          onClick={() => onDeleteActivity(activity)}
-        >
-          <Icon name='trash' size={16} />
-        </NeutralSubdueIconButton>
+        <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <NeutralSubdueIconButton
+            variant='outline'
+            size='sm'
+            aria-label={`ลบกิจกรรม ${activity.name}`}
+            onClick={() => onDeleteActivity(activity)}
+          >
+            <Icon name='trash' size={16} />
+          </NeutralSubdueIconButton>
+          {/* chevron ยุบ/กางอยู่ริมขวาสุดของหัวการ์ด (feedback 22 ส.ค. 2569) */}
+          <NeutralIconButton
+            icon={isOpen ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}
+            variant='ghost'
+            size='sm'
+            aria-expanded={isOpen}
+            aria-label={`${isOpen ? 'ยุบ' : 'กาง'}กิจกรรม ${activity.name}`}
+            onClick={() => setCollapsed((c) => !c)}
+          />
+        </div>
       </div>
 
       {isOpen ? (
