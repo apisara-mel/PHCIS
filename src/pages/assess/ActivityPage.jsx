@@ -121,9 +121,12 @@ function InlineNameEditor({ initial, onSave, onCancel, ariaLabel }) {
         onChange={setDraft}
         aria-label={ariaLabel}
       />
-      {/* ปุ่ม alias จาก DS Icon Button — ✓ เป็น Brand (ยืนยัน) · ✕ เป็น Neutral */}
+      {/* ปุ่ม alias จาก DS Icon Button ขนาดเท่ากัน (sm 36×36) —
+          ✓ Brand fill (ยืนยัน) · ✕ Neutral Subdue outline */}
       <BrandIconButton icon='check' variant='fill' size='sm' aria-label='บันทึกชื่อ' onClick={submit} />
-      <NeutralIconButton icon='close' variant='outline' size='sm' aria-label='ยกเลิกการแก้ไขชื่อ' onClick={onCancel} />
+      <NeutralSubdueIconButton variant='outline' size='sm' aria-label='ยกเลิกการแก้ไขชื่อ' onClick={onCancel}>
+        <Icon name='close' size={16} />
+      </NeutralSubdueIconButton>
     </form>
   );
 }
