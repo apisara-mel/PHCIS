@@ -26,6 +26,14 @@ import {
   latestVersion,
   formatVersion,
   countPermissionBuckets,
+  submitForApproval,
+  APPROVAL_DRAFT,
+  DATA_SCOPE_OPTIONS,
+  SCOPE_CENTER,
+  PII_OPTIONS,
+  PII_VISIBLE,
+  PII_MASKED,
+  dataScopeLabel,
 } from '@/data/accessControlStore';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
@@ -302,6 +310,13 @@ export default function AccessControlCreatePage() {
   /* Confirmation ก่อนบันทึกจริง (Nielsen #5 Error prevention) — การเปลี่ยนสิทธิ์
      กระทบการเข้าถึงของบุคลากรทั้งกลุ่มกิจกรรม จึงให้ทวนสรุปก่อนยืนยัน */
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
+  /* ธรรมาภิบาลสิทธิ์ (มติ คทง.13 §1.3/§2.3 + คทง.2/3/4/10/11):
+     ขอบเขตข้อมูล · การเห็น PII · ช่วงเวลาที่สิทธิ์มีผล · สถานะอนุมัติ */
+  const [dataScope, setDataScope] = useState(SCOPE_CENTER);
+  const [piiVisibility, setPiiVisibility] = useState(PII_VISIBLE);
+  const [effectiveFrom, setEffectiveFrom] = useState('');
+  const [effectiveTo, setEffectiveTo] = useState('');
+  const [approvalNote, setApprovalNote] = useState('');
 
   const activities = useMemo(() => readActivities(), []);
   const departments = useMemo(() => readDepartments(), []);
@@ -319,6 +334,11 @@ export default function AccessControlCreatePage() {
     setDepartmentId(existing.departmentId || '');
     setDescription(existing.description || '');
     setPermissions({ ...defaultPermissions(), ...existing.permissions });
+    setDataScope(existing.dataScope || SCOPE_CENTER);
+    setPiiVisibility(existing.piiVisibility || PII_VISIBLE);
+    setEffectiveFrom(existing.effectiveFrom || '');
+    setEffectiveTo(existing.effectiveTo || '');
+    setApprovalNote(existing.approvalNote || '');
   }, [existing]);
 
   const selectedActivity = activities.find((a) => a.id === activityId);
@@ -357,24 +377,36 @@ export default function AccessControlCreatePage() {
       description: description.trim(),
       permissions,
       active: base.active !== false,
+      dataScope,
+      piiVisibility,
+      effectiveFrom,
+      effectiveTo,
+      approvalNote: approvalNote.trim(),
     };
     /* แก้ของเดิม = ออกเวอร์ชันใหม่ (เวอร์ชันเก่าเก็บลง history ให้ย้อนดูได้) */
     return bump && existing ? bumpAccessControlVersion(withEdits) : withEdits;
   };
 
   const handleSaveDraft = () => {
-    upsertAccessControl(buildRecord({ bump: false }));
+    /* บันทึกร่าง = ยังไม่ส่งขออนุมัติ สิทธิ์จึงยังไม่มีผล */
+    upsertAccessControl({ ...buildRecord({ bump: false }), approvalStatus: APPROVAL_DRAFT });
   };
+
+  /* ช่วงวันที่ต้องไม่กลับหัว (สิ้นสุดก่อนเริ่ม) — คทง.13 §2.3 */
+  const dateRangeError = !!effectiveFrom && !!effectiveTo && effectiveTo < effectiveFrom
+    ? 'วันสิ้นสุดต้องไม่มาก่อนวันเริ่มมีผล'
+    : '';
 
   /* ปุ่ม primary เปิด modal ทวนสรุปก่อน — ยืนยันแล้วจึงบันทึกจริง */
   const handleSubmit = () => {
-    if (!nameValid) return;
+    if (!nameValid || dateRangeError) return;
     setConfirmSaveOpen(true);
   };
 
   const applySubmit = () => {
     setConfirmSaveOpen(false);
-    upsertAccessControl(buildRecord({ bump: true }));
+    /* กด "ส่งขออนุมัติ" = เข้าคิวรออนุมัติ ยังไม่มีผลจนกว่าผู้มีอำนาจจะอนุมัติ */
+    upsertAccessControl(submitForApproval(buildRecord({ bump: true }), approvalNote.trim()));
     if (isEdit) {
       navigate.push(`/assess/access-control/${id}`);
       return;
@@ -388,8 +420,12 @@ export default function AccessControlCreatePage() {
       ? `กิจกรรม "${labelOf(activityOpts, activityId)}"${subActivityId ? ` · ${labelOf(subActivityOpts, subActivityId)}` : ''}`
       : 'ยังไม่ผูกกิจกรรม';
     const versionNote = isEdit ? `บันทึกเป็น ${formatVersion(nextVersion)} (แทน ${formatVersion(currentVersion)})` : 'เวอร์ชันแรก (v1)';
-    return `${scope} — มีสิทธิดู ${view} ระบบ · มีสิทธิบันทึก ${edit} ระบบ · ${versionNote}`;
-  }, [permissions, activityId, subActivityId, activityOpts, subActivityOpts, isEdit, nextVersion, currentVersion]);
+    const period = effectiveFrom || effectiveTo
+      ? ` · มีผล ${effectiveFrom || 'ทันที'} ถึง ${effectiveTo || 'ไม่กำหนด'}`
+      : '';
+    return `${scope} — มีสิทธิดู ${view} ระบบ · มีสิทธิบันทึก ${edit} ระบบ · ${dataScopeLabel(dataScope)}${piiVisibility === PII_MASKED ? ' (ปิดบัง PII)' : ''}${period} · ${versionNote}`;
+  }, [permissions, activityId, subActivityId, activityOpts, subActivityOpts, isEdit, nextVersion,
+    currentVersion, dataScope, piiVisibility, effectiveFrom, effectiveTo]);
 
   if (isEdit && id && !existing) {
     return (
@@ -481,6 +517,79 @@ export default function AccessControlCreatePage() {
             />
           </section>
 
+          {/* Card 1.5 — ขอบเขตข้อมูลและระยะเวลา
+              มติ คทง.2/3/4/10/11: ศบส. เห็นเฉพาะของตน · กอง/ผู้บริหารเห็น
+              ภาพรวมแต่ปิดบัง PII · คทง.4: อสส. เห็นเฉพาะเคสที่ได้รับมอบหมาย
+              มติ คทง.13 §2.3: กำหนดช่วงเวลาเริ่ม-สิ้นสุดการเข้าถึงได้ */}
+          <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+            <Topic
+              hierarchy='primary'
+              title='ขอบเขตข้อมูลและระยะเวลาที่มีผล'
+              subText='กำหนดว่าเห็นข้อมูลของหน่วยใดได้บ้าง เห็นข้อมูลระบุตัวตนหรือไม่ และสิทธิ์นี้มีผลช่วงใด'
+              leadingIcon='shield_person'
+              showBadge={false}
+              showChevron={false}
+              showSuccess={false}
+            />
+            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              <div style={{ flex: '1 1 320px', minWidth: 260 }}>
+                <Select
+                  label='ขอบเขตข้อมูลที่มองเห็น'
+                  options={DATA_SCOPE_OPTIONS.map((o) => ({ value: o.value, label: o.label, subtext: o.hint }))}
+                  value={dataScope}
+                  onChange={setDataScope}
+                  searchable={false}
+                  showHelperText
+                  helperText='อสส./ผู้ช่วยงานชุมชน ให้เลือก "เฉพาะเคสที่ได้รับมอบหมาย" (มติ คทง.4)'
+                />
+              </div>
+              <div style={{ flex: '1 1 320px', minWidth: 260 }}>
+                <Select
+                  label='ข้อมูลระบุตัวตน (PII)'
+                  options={PII_OPTIONS}
+                  value={piiVisibility}
+                  onChange={setPiiVisibility}
+                  searchable={false}
+                  showHelperText
+                  helperText='ระดับกอง/ผู้บริหารให้ปิดบัง PII และดูผ่านรหัสนิรนาม (มติ คทง.10/11)'
+                />
+              </div>
+            </div>
+            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+                <InputField
+                  label='วันเริ่มมีผล'
+                  type='date'
+                  showLeadingIcon={false}
+                  value={effectiveFrom}
+                  onChange={setEffectiveFrom}
+                  helperText='เว้นว่าง = มีผลทันทีที่อนุมัติ'
+                />
+              </div>
+              <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+                <InputField
+                  label='วันสิ้นสุด'
+                  type='date'
+                  showLeadingIcon={false}
+                  value={effectiveTo}
+                  onChange={setEffectiveTo}
+                  error={dateRangeError || undefined}
+                  helperText={dateRangeError || 'เว้นว่าง = ไม่กำหนดวันสิ้นสุด'}
+                />
+              </div>
+              <div style={{ flex: '2 1 320px', minWidth: 260 }}>
+                <InputField
+                  label='เหตุผล/บันทึกถึงผู้อนุมัติ'
+                  showLeadingIcon={false}
+                  value={approvalNote}
+                  onChange={setApprovalNote}
+                  placeholder='เช่น ขอเปิดสิทธิ์ให้ทีมสังคมสงเคราะห์ปีงบ 69'
+                  helperText='แสดงให้ผู้มีอำนาจเห็นตอนพิจารณาอนุมัติ'
+                />
+              </div>
+            </div>
+          </section>
+
           {/* Card 2 — สิทธิ์เข้าถึงระบบ (Figma 15:30160 · card) */}
           <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-600)' }}>
             <Topic
@@ -516,12 +625,13 @@ export default function AccessControlCreatePage() {
           showButton2
           button2Label='บันทึกร่าง'
           button2Icon='save'
-          button2Disabled={!nameValid}
+          button2Disabled={!nameValid || !!dateRangeError}
           onButton2Click={handleSaveDraft}
           showButton1
-          button1Label={isEdit ? `บันทึกเป็น ${formatVersion(nextVersion)}` : 'สร้างแม่แบบสิทธิ'}
+          /* คทง.13 §1.3 — สิทธิ์ต้องผ่านการอนุมัติก่อนมีผล ปุ่มหลักจึงเป็น "ส่งขออนุมัติ" */
+          button1Label={isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติสิทธิ์'}
           button1TrailingIcon='arrow_forward'
-          button1Disabled={!nameValid}
+          button1Disabled={!nameValid || !!dateRangeError}
           onButton1Click={handleSubmit}
         />
       </QueuePageShell>
@@ -532,16 +642,16 @@ export default function AccessControlCreatePage() {
         onClose={() => setConfirmSaveOpen(false)}
         type='warning'
         alignment='center'
-        title={isEdit ? 'ยืนยันการบันทึกสิทธิ์เวอร์ชันใหม่?' : 'ยืนยันการสร้างสิทธิการเข้าถึง?'}
-        description={`แม่แบบ "${templateName.trim()}" — ${confirmSummary}`}
-        confirmLabel={isEdit ? `บันทึกเป็น ${formatVersion(nextVersion)}` : 'สร้างแม่แบบสิทธิ'}
+        title={isEdit ? 'ส่งขออนุมัติสิทธิ์เวอร์ชันใหม่?' : 'ส่งขออนุมัติสิทธิการเข้าถึง?'}
+        description={`แม่แบบ "${templateName.trim()}" — ${confirmSummary}. สิทธิ์จะยังไม่มีผลจนกว่าผู้มีอำนาจจะอนุมัติ`}
+        confirmLabel={isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติ'}
         cancelLabel='ยกเลิก'
         onConfirm={applySubmit}
       />
 
       {saved ? (
         <SuccessScreen
-          title={<>คุณสร้างสิทธิการเข้าถึงใหม่<br />สำเร็จ</>}
+          title={<>ส่งขออนุมัติสิทธิการเข้าถึง<br />สำเร็จ — รอผู้มีอำนาจอนุมัติ</>}
           buttonLabel='เข้าสู่หน้าสิทธิการเข้าถึง'
           onDone={() => navigate.push('/assess/access-control')}
         />

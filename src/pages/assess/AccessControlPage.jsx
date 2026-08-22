@@ -13,6 +13,7 @@ import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import RowMenu from '@/components/overflow/RowActionMenu';
 import Switch from '@/components/switch/Switch';
 import SmallAlert from '@/components/alert/SmallAlert';
+import AlertDialog from '@/components/popup/AlertDialog';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
@@ -24,7 +25,18 @@ import {
   latestVersion,
   formatVersion,
   CENTER_OPTIONS,
+  APPROVAL_META,
+  APPROVAL_DRAFT,
+  APPROVAL_PENDING,
+  APPROVAL_APPROVED,
+  APPROVAL_REJECTED,
+  approvalLabel,
+  decideApproval,
+  isAccessEffective,
+  dataScopeLabel,
+  PII_MASKED,
 } from '@/data/accessControlStore';
+import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
 
@@ -88,6 +100,9 @@ export default function AccessControlPage() {
   const [filterActivity, setFilterActivity] = useState('');
   const [filterSub, setFilterSub] = useState('');
   const [filterDept, setFilterDept] = useState('');
+  /* คทง.13 §1.3 — คิวอนุมัติสิทธิ์ต้องกรองดูได้ว่าอะไรค้างรออนุมัติ */
+  const [filterApproval, setFilterApproval] = useState('');
+  const [decision, setDecision] = useState(null); // { row, approved }
   const [toast, setToast] = useState(null);
 
   const persist = useCallback((next) => {
@@ -131,11 +146,12 @@ export default function AccessControlPage() {
     if (filterActivity && r.activityId !== filterActivity) return false;
     if (filterSub && r.subActivityId !== filterSub) return false;
     if (filterDept && r.departmentId !== filterDept) return false;
+    if (filterApproval && (r.approvalStatus || APPROVAL_DRAFT) !== filterApproval) return false;
     return true;
-  }), [records, filterCenter, filterActivity, filterSub, filterDept]);
+  }), [records, filterCenter, filterActivity, filterSub, filterDept, filterApproval]);
 
   const hasRecords = records.length > 0;
-  const isAllFilters = !filterCenter && !filterActivity && !filterSub && !filterDept;
+  const isAllFilters = !filterCenter && !filterActivity && !filterSub && !filterDept && !filterApproval;
   const filtersActive = !isAllFilters;
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
@@ -144,8 +160,23 @@ export default function AccessControlPage() {
       setFilterActivity('');
       setFilterSub('');
       setFilterDept('');
+      setFilterApproval('');
     },
   );
+
+  /* อนุมัติ/ไม่อนุมัติแม่แบบสิทธิ์ — บันทึกผู้อนุมัติและเวลาไว้ตรวจสอบย้อนหลัง */
+  const applyDecision = () => {
+    if (!decision) return;
+    const { row, approved } = decision;
+    const next = records.map((r) => (
+      r.id === row.id ? decideApproval(r, approved, PHCIS_CURRENT_USER.displayName) : r
+    ));
+    persist(next);
+    setDecision(null);
+    showToast(approved
+      ? `อนุมัติ "${row.templateName}" แล้ว — สิทธิ์มีผลตามช่วงเวลาที่กำหนด`
+      : `บันทึกไม่อนุมัติ "${row.templateName}" แล้ว`);
+  };
 
   const openCreate = () => navigate.push('/assess/access-control/new');
   const openDetail = (row) => navigate.push(`/assess/access-control/${row.id}`);
@@ -199,6 +230,53 @@ export default function AccessControlPage() {
       key: 'department',
       header: 'แผนก',
       render: (row) => <PolicyBadge style='blue'>{row.department}</PolicyBadge>,
+    },
+    /* คทง.13 §1.3 — สถานะอนุมัติ + ป้ายบอกว่ามีผลบังคับใช้จริงหรือยัง */
+    {
+      key: 'approval',
+      header: 'สถานะอนุมัติ',
+      minWidth: 150,
+      render: (row) => {
+        const status = row.approvalStatus || APPROVAL_DRAFT;
+        const meta = APPROVAL_META[status] || APPROVAL_META[APPROVAL_DRAFT];
+        const effective = isAccessEffective(row);
+        return (
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
+            <PolicyBadge style={meta.badge}>{meta.label}</PolicyBadge>
+            {status === APPROVAL_APPROVED && !effective ? (
+              <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+                ยังไม่ถึง/พ้นช่วงเวลา
+              </span>
+            ) : null}
+          </div>
+        );
+      },
+    },
+    /* มติ คทง.2/3/4/10/11 — ขอบเขตข้อมูล + การเห็นข้อมูลระบุตัวตน */
+    {
+      key: 'scope',
+      header: 'ขอบเขตข้อมูล',
+      minWidth: 180,
+      render: (row) => (
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
+          <span style={TEXT_CELL}>{dataScopeLabel(row.dataScope)}</span>
+          {row.piiVisibility === PII_MASKED ? (
+            <PolicyBadge style='yellow'>ปิดบัง PII</PolicyBadge>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: 'period',
+      header: 'ช่วงเวลาที่มีผล',
+      minWidth: 170,
+      render: (row) => (
+        <span style={TEXT_CELL}>
+          {row.effectiveFrom || row.effectiveTo
+            ? `${row.effectiveFrom || 'ทันที'} – ${row.effectiveTo || 'ไม่กำหนด'}`
+            : 'ไม่กำหนด'}
+        </span>
+      ),
     },
     {
       key: 'viewCount',
@@ -262,6 +340,11 @@ export default function AccessControlPage() {
           <RowMenu
             ariaLabel={`ตัวเลือก ${row.templateName || 'แม่แบบ'}`}
             items={[
+              /* คทง.13 §1.3 — ผู้มีอำนาจอนุมัติ/ไม่อนุมัติได้จากคิวนี้ */
+              ...((row.approvalStatus || APPROVAL_DRAFT) === APPROVAL_PENDING ? [
+                { key: 'approve', icon: 'check_circle', label: 'อนุมัติสิทธิ์', onClick: () => setDecision({ row, approved: true }) },
+                { key: 'reject', icon: 'cancel', label: 'ไม่อนุมัติ', onClick: () => setDecision({ row, approved: false }) },
+              ] : []),
               { key: 'dup', icon: 'content_copy', label: 'ทำสำเนาแม่แบบ', onClick: () => handleDuplicate(row) },
               { key: 'edit', icon: 'edit', label: 'แก้ไข (ออกเวอร์ชันใหม่)', onClick: () => openEdit(row) },
             ]}
@@ -276,6 +359,11 @@ export default function AccessControlPage() {
     activity: [{ value: '', label: 'ทั้งหมด' }, ...activities.map((a) => ({ value: a.id, label: a.name }))],
     sub: [{ value: '', label: 'ทั้งหมด' }, ...subActivityOptions],
     dept: [{ value: '', label: 'ทั้งหมด' }, ...departments.map((d) => ({ value: d.id, label: d.name }))],
+    approval: [
+      { value: '', label: 'ทั้งหมด' },
+      ...[APPROVAL_PENDING, APPROVAL_APPROVED, APPROVAL_DRAFT, APPROVAL_REJECTED]
+        .map((s) => ({ value: s, label: approvalLabel(s) })),
+    ],
   };
 
   return (
@@ -339,6 +427,7 @@ export default function AccessControlPage() {
                 <FilterDropdown prefix='กิจกรรม:' options={filterOpts.activity} value={filterActivity} onChange={setFilterActivity} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='กิจกรรมย่อย:' options={filterOpts.sub} value={filterSub} onChange={setFilterSub} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />
+                <FilterDropdown prefix='สถานะอนุมัติ:' options={filterOpts.approval} value={filterApproval} onChange={setFilterApproval} placeholder='ทั้งหมด' />
                 <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 <div className='flex-1' />
                 <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
@@ -372,6 +461,19 @@ export default function AccessControlPage() {
           </div>
         )}
       </QueuePageShell>
+
+      {/* ยืนยันก่อนอนุมัติ/ไม่อนุมัติ — มีผลต่อการเข้าถึงข้อมูลผู้ป่วยจริง */}
+      <AlertDialog
+        open={!!decision}
+        onClose={() => setDecision(null)}
+        type={decision?.approved ? 'success' : 'warning'}
+        alignment='center'
+        title={decision?.approved ? 'อนุมัติสิทธิการเข้าถึง?' : 'ไม่อนุมัติสิทธิการเข้าถึง?'}
+        description={decision ? `แม่แบบ "${decision.row.templateName}" — ${dataScopeLabel(decision.row.dataScope)}${decision.row.piiVisibility === PII_MASKED ? ' · ปิดบัง PII' : ''}${decision.row.effectiveFrom || decision.row.effectiveTo ? ` · มีผล ${decision.row.effectiveFrom || 'ทันที'} ถึง ${decision.row.effectiveTo || 'ไม่กำหนด'}` : ''}${decision.row.approvalNote ? ` · เหตุผล: ${decision.row.approvalNote}` : ''}` : ''}
+        confirmLabel={decision?.approved ? 'อนุมัติ' : 'ไม่อนุมัติ'}
+        cancelLabel='ยกเลิก'
+        onConfirm={applyDecision}
+      />
 
       {toast ? (
         <div className='fixed left-1/2 z-[200] -translate-x-1/2' style={{ bottom: 'var(--dim-space-600)' }}>

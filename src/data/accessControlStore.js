@@ -55,6 +55,101 @@ export const ALL_MODULE_KEYS = [
    ตีความกำกวมว่าหมายถึง 69 ศูนย์ ณ ตอนนี้ หรือศูนย์ที่จะเพิ่มในอนาคตด้วย. */
 export { CLINIC_OPTIONS as CENTER_OPTIONS } from '@/components/layout/HeaderClinicContext';
 
+/* ══════════════════════════════════════════════════════════════════════
+   สถานะการอนุมัติสิทธิ์ (มติ คทง.13 §1.3 — "บริหารจัดการสิทธิ์
+   เพิ่ม/ลด/แก้ไข/**อนุมัติ**") — แม่แบบสิทธิ์ที่ยังไม่อนุมัติจะยังไม่มีผล
+   ══════════════════════════════════════════════════════════════════════ */
+export const APPROVAL_DRAFT = 'draft';
+export const APPROVAL_PENDING = 'pending';
+export const APPROVAL_APPROVED = 'approved';
+export const APPROVAL_REJECTED = 'rejected';
+
+export const APPROVAL_META = {
+  [APPROVAL_DRAFT]: { label: 'ร่าง', badge: 'grey' },
+  [APPROVAL_PENDING]: { label: 'รออนุมัติ', badge: 'yellow' },
+  [APPROVAL_APPROVED]: { label: 'อนุมัติแล้ว', badge: 'green' },
+  [APPROVAL_REJECTED]: { label: 'ไม่อนุมัติ', badge: 'red' },
+};
+
+export const approvalLabel = (status) => (APPROVAL_META[status] || APPROVAL_META[APPROVAL_DRAFT]).label;
+
+/* ══════════════════════════════════════════════════════════════════════
+   ขอบเขตข้อมูลที่มองเห็น (Data Scope) — มติร่วม คทง.2/3/4:
+   "ศบส. เห็นเฉพาะข้อมูลของตนเอง · กองแผนงานเห็นภาพรวมทุกศูนย์ ·
+   ผู้บริหารเห็นสรุปทั้งหมด" + คทง.4: อสส. เห็นเฉพาะเคสที่ได้รับมอบหมาย
+   ══════════════════════════════════════════════════════════════════════ */
+export const SCOPE_ASSIGNED = 'assigned';
+export const SCOPE_CENTER = 'center';
+export const SCOPE_ZONE = 'zone';
+export const SCOPE_ALL = 'all';
+
+export const DATA_SCOPE_OPTIONS = [
+  { value: SCOPE_ASSIGNED, label: 'เฉพาะเคสที่ได้รับมอบหมาย', hint: 'อสส./ผู้ช่วยงานชุมชน — เห็นเฉพาะรายที่ถูกจ่ายงานให้ (มติ คทง.4)' },
+  { value: SCOPE_CENTER, label: 'เฉพาะศูนย์ของตนเอง', hint: 'ค่าเริ่มต้นของเจ้าหน้าที่ ศบส.' },
+  { value: SCOPE_ZONE, label: 'ทุกศูนย์ในกลุ่มเขต', hint: 'หัวหน้ากลุ่มเขต/ผู้นิเทศ' },
+  { value: SCOPE_ALL, label: 'ทุกศูนย์ (ภาพรวมสำนักอนามัย)', hint: 'กองแผนงาน/ผู้บริหาร — ดูสรุปได้ทั้งหมด' },
+];
+
+export const dataScopeLabel = (scope) => DATA_SCOPE_OPTIONS.find((o) => o.value === scope)?.label
+  || DATA_SCOPE_OPTIONS.find((o) => o.value === SCOPE_CENTER).label;
+
+/* มติ คทง.10 ครั้งที่ 4–5 + คทง.11 ครั้งที่ 2 — ระดับกอง/ผู้บริหารดูได้แค่
+   ภาพรวม "ไม่แสดงข้อมูลระบุตัวตน" (HN/ชื่อ/เลขบัตร) และ drill-down ใช้
+   รหัสนิรนามเท่านั้น จึงเป็นสวิตช์แยกจากขอบเขตข้อมูล */
+export const PII_VISIBLE = 'visible';
+export const PII_MASKED = 'masked';
+
+export const PII_OPTIONS = [
+  { value: PII_VISIBLE, label: 'เห็นข้อมูลระบุตัวตน (HN / ชื่อ / เลขบัตร)' },
+  { value: PII_MASKED, label: 'ปิดบังข้อมูลระบุตัวตน — ดูสรุป/รหัสนิรนามเท่านั้น' },
+];
+
+export const piiLabel = (v) => (v === PII_MASKED ? 'ปิดบัง PII' : 'เห็น PII');
+
+/** ค่าเริ่มต้นของแม่แบบใหม่ (ปลอดภัยไว้ก่อน: ศูนย์ตนเอง + ยังไม่อนุมัติ) */
+export const ACCESS_GOVERNANCE_DEFAULTS = {
+  approvalStatus: APPROVAL_DRAFT,
+  approvalNote: '',
+  approvedBy: '',
+  approvedAt: '',
+  submittedAt: '',
+  effectiveFrom: '',
+  effectiveTo: '',
+  dataScope: SCOPE_CENTER,
+  piiVisibility: PII_VISIBLE,
+};
+
+/** แม่แบบมีผลบังคับใช้จริงหรือยัง — ต้องอนุมัติแล้ว + เปิดใช้งาน + อยู่ในช่วงเวลา
+    (คทง.13 §2.3 — กำหนดช่วงเวลาการเข้าถึงข้อมูล Start/End ได้) */
+export function isAccessEffective(record, today = new Date().toISOString().slice(0, 10)) {
+  if (!record || record.active === false) return false;
+  if ((record.approvalStatus || APPROVAL_DRAFT) !== APPROVAL_APPROVED) return false;
+  if (record.effectiveFrom && today < record.effectiveFrom) return false;
+  if (record.effectiveTo && today > record.effectiveTo) return false;
+  return true;
+}
+
+export function submitForApproval(record, note = '') {
+  return {
+    ...record,
+    approvalStatus: APPROVAL_PENDING,
+    approvalNote: note,
+    submittedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function decideApproval(record, approved, approver, note = '') {
+  return {
+    ...record,
+    approvalStatus: approved ? APPROVAL_APPROVED : APPROVAL_REJECTED,
+    approvedBy: approver,
+    approvedAt: new Date().toISOString(),
+    approvalNote: note || record.approvalNote || '',
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export const DEMO_ACCESS_CONTROLS = [
   {
     id: 'ac-demo-dentist',
@@ -74,6 +169,13 @@ export const DEMO_ACCESS_CONTROLS = [
     departmentId: 'dept-dent',
     description: 'เข้าถึงเพียงระบบบันทึกการรักษา',
     active: true,
+    approvalStatus: APPROVAL_APPROVED,
+    approvedBy: 'ผู้อำนวยการศูนย์ 4',
+    approvedAt: '2026-08-01T04:35:00.000Z',
+    effectiveFrom: '2026-08-01',
+    effectiveTo: '',
+    dataScope: SCOPE_CENTER,
+    piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(
       ALL_MODULE_KEYS.map((k) => [k, k === 'phcis.treatment' ? PERM_EDIT : PERM_NONE]),
     ),
@@ -94,6 +196,13 @@ export const DEMO_ACCESS_CONTROLS = [
     departmentId: 'dept-opd',
     description: 'คัดกรอง บันทึกสัญญาณชีพ และดูผลตรวจ',
     active: true,
+    approvalStatus: APPROVAL_APPROVED,
+    approvedBy: 'ผู้อำนวยการศูนย์ 4',
+    approvedAt: '2026-07-20T02:15:00.000Z',
+    effectiveFrom: '2026-07-20',
+    effectiveTo: '',
+    dataScope: SCOPE_CENTER,
+    piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
       if (k === 'phcis.opd' || k === 'phcis.mr') return [k, PERM_EDIT];
       if (k === 'phcis.treatment' || k === 'phcis.dashboard' || k === 'phcis.appointment') return [k, PERM_VIEW];
@@ -119,6 +228,13 @@ export const DEMO_ACCESS_CONTROLS = [
     departmentId: 'dept-pharm',
     description: 'จ่ายยาตามคำสั่งแพทย์ และดูประวัติการรักษา',
     active: true,
+    approvalStatus: APPROVAL_APPROVED,
+    approvedBy: 'ผู้อำนวยการศูนย์ 15',
+    approvedAt: '2026-08-04T06:45:00.000Z',
+    effectiveFrom: '2026-08-04',
+    effectiveTo: '',
+    dataScope: SCOPE_CENTER,
+    piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
       if (k === 'phcis.pharmacy') return [k, PERM_EDIT];
       if (k === 'phcis.treatment' || k === 'phcis.mr' || k === 'phcis.dashboard') return [k, PERM_VIEW];
@@ -141,6 +257,13 @@ export const DEMO_ACCESS_CONTROLS = [
     departmentId: 'dept-reg',
     description: 'ลงทะเบียนผู้รับบริการและออกคิว',
     active: true,
+    approvalStatus: APPROVAL_APPROVED,
+    approvedBy: 'ผู้อำนวยการศูนย์ 4',
+    approvedAt: '2026-07-28T01:10:00.000Z',
+    effectiveFrom: '2026-07-28',
+    effectiveTo: '',
+    dataScope: SCOPE_CENTER,
+    piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
       if (k === 'phcis.mr' || k === 'phcis.appointment') return [k, PERM_EDIT];
       if (k === 'phcis.dashboard' || k === 'phcis.opd') return [k, PERM_VIEW];
@@ -163,6 +286,14 @@ export const DEMO_ACCESS_CONTROLS = [
     departmentId: 'dept-social',
     description: 'เยี่ยมบ้าน ประเมินสภาพสังคม และบันทึกการช่วยเหลือ',
     active: true,
+    /* ตัวอย่างแม่แบบที่ส่งขออนุมัติแล้วแต่ยังไม่มีผลบังคับใช้ (คทง.13 §1.3) */
+    approvalStatus: APPROVAL_PENDING,
+    submittedAt: '2026-08-18T03:25:00.000Z',
+    approvalNote: 'ขอเปิดสิทธิ์ให้ทีมสังคมสงเคราะห์ปีงบ 69',
+    effectiveFrom: '2026-09-01',
+    effectiveTo: '2027-09-30',
+    dataScope: SCOPE_CENTER,
+    piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
       if (k === 'phcis.mr' || k === 'phcis.treatment' || k === 'phcis.dashboard') return [k, PERM_VIEW];
       if (k === 'consent.manage') return [k, PERM_EDIT];
@@ -188,6 +319,13 @@ export const DEMO_ACCESS_CONTROLS = [
     departmentId: '',
     description: 'เข้าถึงได้ทุกโมดูลในศูนย์ที่รับผิดชอบ',
     active: true,
+    approvalStatus: APPROVAL_APPROVED,
+    approvedBy: 'ผู้อำนวยการสำนักอนามัย',
+    approvedAt: '2026-08-06T09:20:00.000Z',
+    effectiveFrom: '2026-08-06',
+    effectiveTo: '',
+    dataScope: SCOPE_ZONE,
+    piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => [k, PERM_EDIT])),
   },
   {
@@ -206,11 +344,75 @@ export const DEMO_ACCESS_CONTROLS = [
     departmentId: 'dept-lab',
     description: 'รับสิ่งส่งตรวจและรายงานผลแล็บ',
     active: false,
+    /* ตัวอย่างแม่แบบร่าง — ยังไม่ส่งขออนุมัติ จึงยังไม่มีผล */
+    approvalStatus: APPROVAL_DRAFT,
+    effectiveFrom: '',
+    effectiveTo: '',
+    dataScope: SCOPE_CENTER,
+    piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
       if (k === 'phcis.treatment') return [k, PERM_EDIT];
       if (k === 'phcis.mr' || k === 'phcis.dashboard') return [k, PERM_VIEW];
       return [k, PERM_NONE];
     })),
+  },
+  {
+    /* มติ คทง.4 — อสส. ล็อกอินบันทึกงานเองได้ แต่เห็นเฉพาะเคสที่ถูกจ่ายงานให้ */
+    id: 'ac-demo-volunteer',
+    templateName: 'สิทธิอาสาสมัครสาธารณสุข (อสส.)',
+    version: 1,
+    versionHistory: [],
+    updatedAt: '2026-08-22T02:00:00.000Z',
+    center: 'ศูนย์ 4 ดินแดง',
+    centerId: 'hc-4',
+    activity: 'นักวิชาการสาธารณสุข',
+    activityId: 'gp-public-health',
+    subActivity: 'งานสาธารณสุขชุมชน',
+    subActivityId: 'sb-community',
+    department: 'ส่งเสริมสุขภาพชุมชน',
+    departmentId: 'dept-community',
+    description: 'บันทึกผลปฏิบัติงานเยี่ยมบ้านเฉพาะรายที่ได้รับมอบหมาย',
+    active: true,
+    approvalStatus: APPROVAL_APPROVED,
+    approvedBy: 'ผู้อำนวยการศูนย์ 4',
+    approvedAt: '2026-08-22T02:05:00.000Z',
+    effectiveFrom: '2026-08-22',
+    effectiveTo: '',
+    dataScope: SCOPE_ASSIGNED,
+    piiVisibility: PII_VISIBLE,
+    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
+      if (k === 'phcis.dashboard') return [k, PERM_VIEW];
+      return [k, PERM_NONE];
+    })),
+  },
+  {
+    /* มติ คทง.10 ครั้งที่ 4–5 + คทง.11 ครั้งที่ 2 — ระดับกอง/ผู้บริหารเห็น
+       ภาพรวมทุกศูนย์ แต่ต้องปิดบังข้อมูลระบุตัวตน (PII) */
+    id: 'ac-demo-planning-div',
+    templateName: 'สิทธิกองแผนงาน — ภาพรวมทุกศูนย์ (ไม่แสดง PII)',
+    version: 1,
+    versionHistory: [],
+    updatedAt: '2026-08-22T02:10:00.000Z',
+    center: 'ศูนย์ 4 ดินแดง',
+    centerId: 'hc-4',
+    activity: 'ผู้ดูแลระบบ',
+    activityId: 'gp-admin',
+    subActivity: 'ผู้ดูแลระบบส่วนกลาง (สำนักอนามัย)',
+    subActivityId: 'sb-superadmin',
+    department: '',
+    departmentId: '',
+    description: 'ดูรายงาน/แดชบอร์ดรวมทุกศูนย์ ไม่เห็น HN/ชื่อ/เลขบัตร',
+    active: true,
+    approvalStatus: APPROVAL_APPROVED,
+    approvedBy: 'ผู้อำนวยการสำนักอนามัย',
+    approvedAt: '2026-08-22T02:15:00.000Z',
+    effectiveFrom: '2026-08-22',
+    effectiveTo: '',
+    dataScope: SCOPE_ALL,
+    piiVisibility: PII_MASKED,
+    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => (
+      k === 'phcis.dashboard' || k === 'consent.reports' ? [k, PERM_VIEW] : [k, PERM_NONE]
+    ))),
   },
 ];
 
@@ -225,6 +427,7 @@ function normalizeAccessControl(record) {
     groupPolicy, groupPolicyId, subBranch, subBranchId, ...rest
   } = record;
   return {
+    ...ACCESS_GOVERNANCE_DEFAULTS,
     ...rest,
     activity: rest.activity ?? groupPolicy ?? '',
     activityId: rest.activityId ?? groupPolicyId ?? '',
@@ -298,6 +501,7 @@ export function createAccessControl(draft) {
     updatedAt: new Date().toISOString(),
     active: true,
     permissions: defaultPermissions(),
+    ...ACCESS_GOVERNANCE_DEFAULTS,
     ...draft,
   };
 }
