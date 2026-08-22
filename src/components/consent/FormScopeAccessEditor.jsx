@@ -3,7 +3,7 @@ import CheckboxButton from '@/components/checkbox/CheckboxButton';
 import FormScopeEditor from '@/components/consent/FormScopeEditor';
 import { consentScopeKey } from '@/data/consentFormScopes';
 
-/* Shared “Group Policy ที่มีสิทธิเข้าถึงได้” block — CreateConsentFormPage step 2
+/* Shared “กิจกรรม ที่มีสิทธิเข้าถึงได้” block — CreateConsentFormPage step 2
    and FormScopeViewPopup edit mode use the same layout (heading + select-all +
    2-column checkbox tree). */
 
@@ -36,8 +36,8 @@ export default function FormScopeAccessEditor({
   onToggleMany,
   columns = 2,
   variant = 'card',
-  heading = 'Group Policy ที่มีสิทธิเข้าถึงได้',
-  allLabel = 'ทุก Group Policy',
+  heading = 'กิจกรรม ที่มีสิทธิเข้าถึงได้',
+  allLabel = 'ทุก กิจกรรม',
   readOnly = false,
   showHeading = true,
   style,

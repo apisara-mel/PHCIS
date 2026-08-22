@@ -80,12 +80,12 @@ const buildColumns = () => [
     render: renderStaffName},
   {
     key: 'groupPolicyLabel',
-    header: 'Group Policy',
+    header: 'กิจกรรม',
     sortable: true,
     render: renderGroupPolicy},
   {
     key: 'subDivision',
-    header: 'สาขาย่อย',
+    header: 'กิจกรรมย่อย',
     sortable: true,
     render: renderSubDivision},
   {
@@ -247,7 +247,7 @@ const EarliestSlotPopup = ({
       open={open}
       onClose={onClose}
       title='Slot ที่ว่างเร็วที่สุด'
-      subtitle='เลือก Group Policy / สาขา / แผนก แล้วค้นหาวัน–เวลาที่ว่างเร็วสุด'
+      subtitle='เลือก กิจกรรม / สาขา / แผนก แล้วค้นหาวัน–เวลาที่ว่างเร็วสุด'
       size='large'
       tertiaryAction={{ label: 'ปิด', onClick: onClose }}
       primaryAction={result
@@ -262,7 +262,7 @@ const EarliestSlotPopup = ({
     >
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
         <FieldGrid cols={1} rowGap='var(--dim-space-400)'>
-          <Field label='Group Policy'>
+          <Field label='กิจกรรม'>
             <Select
               size='large'
               value={policy}
@@ -272,7 +272,7 @@ const EarliestSlotPopup = ({
               showHelperText={false}
             />
           </Field>
-          <Field label='สาขาย่อย'>
+          <Field label='กิจกรรมย่อย'>
             <Select
               size='large'
               value={sub}
@@ -502,7 +502,7 @@ const StaffListView = ({ staff, appointments = [], onSelect, onBookEarliest }) =
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
               <FilterDropdown
-                prefix='Group Policy:'
+                prefix='กิจกรรม:'
                 options={policyOptions}
                 value={filterPolicy}
                 onChange={(v) => {
@@ -513,7 +513,7 @@ const StaffListView = ({ staff, appointments = [], onSelect, onBookEarliest }) =
                 }}
               />
               <FilterDropdown
-                prefix='สาขาย่อย:'
+                prefix='กิจกรรมย่อย:'
                 options={subOptions}
                 value={filterSub}
                 onChange={(v) => {

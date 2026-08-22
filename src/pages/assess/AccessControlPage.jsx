@@ -25,7 +25,7 @@ import {
   formatVersion,
   CENTER_OPTIONS,
 } from '@/data/accessControlStore';
-import { readGroupPolicies } from '@/data/groupPolicyStore';
+import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
 
 /* PHCIS | Assess-control — สิทธิการเข้าถึง list (Figma 4D3nTx53 · 16:43747). */
@@ -85,7 +85,7 @@ export default function AccessControlPage() {
   const navigate = useHistory();
   const [records, setRecords] = useState(() => readAccessControls());
   const [filterCenter, setFilterCenter] = useState('');
-  const [filterGroup, setFilterGroup] = useState('');
+  const [filterActivity, setFilterActivity] = useState('');
   const [filterSub, setFilterSub] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [toast, setToast] = useState(null);
@@ -115,33 +115,33 @@ export default function AccessControlPage() {
     },
   ], [stats]);
 
-  const groupPolicies = useMemo(() => readGroupPolicies(), [records]);
+  const activities = useMemo(() => readActivities(), [records]);
   const departments = useMemo(() => readDepartments(), [records]);
 
-  const subBranchOptions = useMemo(() => {
-    const branches = groupPolicies.flatMap((g) => (g.subBranches || []).map((sb) => ({
-      value: sb.id,
-      label: sb.name,
+  const subActivityOptions = useMemo(() => {
+    const subs = activities.flatMap((a) => (a.subActivities || []).map((sub) => ({
+      value: sub.id,
+      label: sub.name,
     })));
-    return branches;
-  }, [groupPolicies]);
+    return subs;
+  }, [activities]);
 
   const filteredRows = useMemo(() => records.filter((r) => {
     if (filterCenter && r.centerId !== filterCenter) return false;
-    if (filterGroup && r.groupPolicyId !== filterGroup) return false;
-    if (filterSub && r.subBranchId !== filterSub) return false;
+    if (filterActivity && r.activityId !== filterActivity) return false;
+    if (filterSub && r.subActivityId !== filterSub) return false;
     if (filterDept && r.departmentId !== filterDept) return false;
     return true;
-  }), [records, filterCenter, filterGroup, filterSub, filterDept]);
+  }), [records, filterCenter, filterActivity, filterSub, filterDept]);
 
   const hasRecords = records.length > 0;
-  const isAllFilters = !filterCenter && !filterGroup && !filterSub && !filterDept;
+  const isAllFilters = !filterCenter && !filterActivity && !filterSub && !filterDept;
   const filtersActive = !isAllFilters;
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
     () => {
       setFilterCenter('');
-      setFilterGroup('');
+      setFilterActivity('');
       setFilterSub('');
       setFilterDept('');
     },
@@ -164,7 +164,7 @@ export default function AccessControlPage() {
   };
 
   const columns = useMemo(() => [
-    /* แม่แบบตั้งชื่อไว้ก่อนผูก Group Policy ชื่อ+เวอร์ชันจึงเป็นคอลัมน์แรก */
+    /* แม่แบบตั้งชื่อไว้ก่อนผูกกิจกรรม ชื่อ+เวอร์ชันจึงเป็นคอลัมน์แรก */
     {
       key: 'template',
       header: 'แม่แบบ / เวอร์ชัน',
@@ -186,14 +186,14 @@ export default function AccessControlPage() {
       render: (row) => <span style={TEXT_CELL}>{row.center}</span>,
     },
     {
-      key: 'groupPolicy',
-      header: 'Group Policy',
-      render: (row) => <PolicyBadge style='blue'>{row.groupPolicy}</PolicyBadge>,
+      key: 'activity',
+      header: 'กิจกรรม',
+      render: (row) => <PolicyBadge style='blue'>{row.activity}</PolicyBadge>,
     },
     {
-      key: 'subBranch',
-      header: 'สาขาย่อย',
-      render: (row) => <PolicyBadge style='teal'>{row.subBranch}</PolicyBadge>,
+      key: 'subActivity',
+      header: 'กิจกรรมย่อย',
+      render: (row) => <PolicyBadge style='teal'>{row.subActivity}</PolicyBadge>,
     },
     {
       key: 'department',
@@ -235,7 +235,7 @@ export default function AccessControlPage() {
           <Switch
             checked={row.active}
             onChange={(next) => applyToggleActive(row.id, next)}
-            aria-label={`สถานะ ${row.templateName || row.groupPolicy || 'แม่แบบ'}`}
+            aria-label={`สถานะ ${row.templateName || row.activity || 'แม่แบบ'}`}
           />
         </span>
       ),
@@ -273,8 +273,8 @@ export default function AccessControlPage() {
 
   const filterOpts = {
     center: [{ value: '', label: 'ทั้งหมด' }, ...CENTER_OPTIONS],
-    group: [{ value: '', label: 'ทั้งหมด' }, ...groupPolicies.map((g) => ({ value: g.id, label: g.name }))],
-    sub: [{ value: '', label: 'ทั้งหมด' }, ...subBranchOptions],
+    activity: [{ value: '', label: 'ทั้งหมด' }, ...activities.map((a) => ({ value: a.id, label: a.name }))],
+    sub: [{ value: '', label: 'ทั้งหมด' }, ...subActivityOptions],
     dept: [{ value: '', label: 'ทั้งหมด' }, ...departments.map((d) => ({ value: d.id, label: d.name }))],
   };
 
@@ -336,8 +336,8 @@ export default function AccessControlPage() {
             >
               <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
                 <FilterDropdown prefix='ศูนย์:' options={filterOpts.center} value={filterCenter} onChange={setFilterCenter} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='Group Policy:' options={filterOpts.group} value={filterGroup} onChange={setFilterGroup} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='สาขาย่อย:' options={filterOpts.sub} value={filterSub} onChange={setFilterSub} placeholder='ทั้งหมด' />
+                <FilterDropdown prefix='กิจกรรม:' options={filterOpts.activity} value={filterActivity} onChange={setFilterActivity} placeholder='ทั้งหมด' />
+                <FilterDropdown prefix='กิจกรรมย่อย:' options={filterOpts.sub} value={filterSub} onChange={setFilterSub} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />
                 <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 <div className='flex-1' />

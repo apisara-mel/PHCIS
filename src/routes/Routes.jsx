@@ -176,7 +176,7 @@ import AuditPiiAccessLogPage from '@/pages/audit/AuditPiiAccessLogPage';
 import QuestionnaireOverviewPage from '@/pages/questionnaire/QuestionnaireOverviewPage';
 import QuestionnaireModulePage from '@/pages/questionnaire/QuestionnaireModulePage';
 import CreateDocTemplatePage from '@/pages/doc-template/CreateDocTemplatePage';
-import GroupPolicyPage from '@/pages/assess/GroupPolicyPage';
+import ActivityPage from '@/pages/assess/ActivityPage';
 import DepartmentPage from '@/pages/assess/DepartmentPage';
 import PositionPage from '@/pages/assess/PositionPage';
 import AccessControlPage from '@/pages/assess/AccessControlPage';
@@ -318,8 +318,10 @@ export default function Routes() {
             คำตอบเก็บใน localStorage แล้วส่งออก CSV กลับเข้าไฟล์ Excel ต้นทาง. */}
         <Route exact path='/questionnaire'             component={QuestionnaireOverviewPage} />
         <Route exact path='/questionnaire/:moduleKey'  component={QuestionnaireModulePage} />
-        {/* PHCIS | Assess-control — Group Policy (Figma 4D3nTx53 · 3:18430). */}
-        <Route exact path='/assess/group-policy' component={GroupPolicyPage} />
+        {/* PHCIS | Assess-control — กิจกรรม (Activity-based Access Control)
+            แทน Group Policy เดิม · โครงหน้า Figma 4D3nTx53 · 3:18430. */}
+        <Route exact path='/assess/activities' component={ActivityPage} />
+        <Redirect exact from='/assess/group-policy' to='/assess/activities' />
         <Route exact path='/assess/departments'   component={DepartmentPage} />
         <Route exact path='/assess/positions'     component={PositionPage} />
         <Route exact path='/assess/access-control/new' component={AccessControlCreatePage} />

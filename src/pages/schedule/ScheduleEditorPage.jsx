@@ -253,8 +253,8 @@ const HeroCard = ({ staff }) => (
       alignItems: 'center',
       gap: 'var(--dim-space-600, 24px)',
     }}>
-      <HeroPill label='Group Policy' value={staff.groupPolicyLabel || staff.groupPolicy} />
-      <HeroPill label='สาขาย่อย'      value={staff.subDivision} />
+      <HeroPill label='กิจกรรม' value={staff.groupPolicyLabel || staff.groupPolicy} />
+      <HeroPill label='กิจกรรมย่อย'      value={staff.subDivision} />
       <HeroPill label='แผนก'         value={staff.dept} />
     </div>
 

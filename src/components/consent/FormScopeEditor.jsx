@@ -88,7 +88,7 @@ const PANEL_GROUP = {
   overflow: 'hidden',
 };
 
-/** จัด catalog เป็น Group → สาขาย่อย → รายการแผนก (แต่ละแถว = scope เดียว). */
+/** จัด catalog เป็น Group → กิจกรรมย่อย → รายการแผนก (แต่ละแถว = scope เดียว). */
 function groupCatalogForEditor(catalog = []) {
   const byGroup = new Map();
   catalog.forEach((scope) => {
@@ -188,7 +188,7 @@ function EditorGroupCard({
   );
 }
 
-/** แก้ไข Group Policy / สาขาย่อย / แผนก — checkbox ครบ catalog · tick = เข้าถึงได้. */
+/** แก้ไข กิจกรรม / กิจกรรมย่อย / แผนก — checkbox ครบ catalog · tick = เข้าถึงได้. */
 export default function FormScopeEditor({
   catalog = [], selectedKeys, onToggle, onToggleMany, columns = 1, readOnly = false,
 }) {

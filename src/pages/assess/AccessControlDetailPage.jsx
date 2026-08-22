@@ -77,18 +77,18 @@ function contextCards(record) {
       label: 'ศูนย์บริการ',
     },
     {
-      key: 'group',
+      key: 'activity',
       icon: 'face',
       color: 'info',
-      value: record.groupPolicy,
-      label: 'Group Policy',
+      value: record.activity,
+      label: 'กิจกรรม',
     },
     {
       key: 'sub',
       icon: 'face',
       color: 'positive',
-      value: record.subBranch,
-      label: 'สาขาย่อย',
+      value: record.subActivity,
+      label: 'กิจกรรมย่อย',
     },
     {
       key: 'dept',

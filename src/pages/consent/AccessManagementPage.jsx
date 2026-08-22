@@ -182,7 +182,7 @@ const resolveAccessFormViewRecord = (row) => {
   };
 };
 
-/* Staff photo — keyed to Group Policy via row.avatarSrc (fallback by group). */
+/* Staff photo — keyed to กิจกรรม via row.avatarSrc (fallback by group). */
 const RequesterAvatar = ({ row }) => (
   <StaffProfileAvatar
     staff={{
@@ -194,7 +194,7 @@ const RequesterAvatar = ({ row }) => (
   />
 );
 
-/* Group Policy · สาขาย่อย · แผนก — badges บรรทัดเดียว (ไม่ wrap) */
+/* กิจกรรม · กิจกรรมย่อย · แผนก — badges บรรทัดเดียว (ไม่ wrap) */
 const ScopeCell = ({ row }) => (
   <div className='flex items-center flex-nowrap min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
     {row.group ? (
@@ -283,7 +283,7 @@ const DocPreview = ({ row }) => (
         <DocRow label='ผู้ขอ (เจ้าหน้าที่)' value={row.name} />
         <DocRow label='รหัสพนักงาน' value={row.empCode} />
         <DocRow
-          label='Group Policy / สาขาย่อย / แผนก'
+          label='กิจกรรม / กิจกรรมย่อย / แผนก'
           value={[row.group, row.subBranch, row.dept].filter(Boolean).join(' · ') || '-'}
         />
         <DocRow label='ประเภทการขอ' value={row.accessTypeLabel || '-'} />
@@ -555,7 +555,7 @@ export default function AccessManagementPage({ mineOnly = false }) {
     },
     { key: 'empCode', header: 'รหัสพนักงาน', sortable: true, render: (r) => <Cell value={r.empCode} /> },
     {
-      key: 'group', header: 'Group Policy / สาขาย่อย / แผนก',
+      key: 'group', header: 'กิจกรรม / กิจกรรมย่อย / แผนก',
       render: (r) => <ScopeCell row={r} />,
     },
     { key: 'createdDate', header: 'วันที่สร้างคำขอ', sortable: true, render: (r) => <StackCell top={r.createdDate} bottom={formatAccessCreatedTime(r.createdTime)} /> },

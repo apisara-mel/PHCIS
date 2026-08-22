@@ -32,9 +32,9 @@ const OFFICES = [
   { value: 'wtt21', label: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง' },
   { value: 'bna08', label: 'ศูนย์บริการสาธารณสุข 8 บางนา' },
 ];
-const GROUP_OPTS = [{ value: '', label: 'Group Policy' }, ...ROLES.map((r) => ({ value: r.key, label: r.label }))];
+const GROUP_OPTS = [{ value: '', label: 'กิจกรรม' }, ...ROLES.map((r) => ({ value: r.key, label: r.label }))];
 const DEPT_OPTS = [{ value: '', label: 'แผนก' }, ...DEPARTMENTS.map((d) => ({ value: d.key, label: d.label }))];
-const subOpts = (roleKey) => [{ value: '', label: 'สาขาย่อย' }, ...((SUB_ROLES[roleKey] || []).map((s) => ({ value: s.key, label: s.label })))];
+const subOpts = (roleKey) => [{ value: '', label: 'กิจกรรมย่อย' }, ...((SUB_ROLES[roleKey] || []).map((s) => ({ value: s.key, label: s.label })))];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -161,8 +161,8 @@ export default function SystemStaffAddPage() {
                 {rows.map((r, i) => (
                   <div key={i} className='flex items-end flex-wrap' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-300)', border: 'var(--dim-stroke-100) solid var(--border-card-default)', borderRadius: 'var(--dim-radius-400)' }}>
                     <div style={{ flex: '2 1 200px', minWidth: 180 }}><Select label={i === 0 ? 'สำนักงานอนามัย' : undefined} options={[{ value: '', label: 'เลือกสำนักงาน' }, ...OFFICES]} value={r.office} onChange={(v) => setRow(i, 'office', v)} /></div>
-                    <div style={{ flex: '1 1 130px', minWidth: 120 }}><Select label={i === 0 ? 'Group Policy' : undefined} options={GROUP_OPTS} value={r.group} onChange={(v) => setRow(i, 'group', v)} /></div>
-                    <div style={{ flex: '1 1 140px', minWidth: 120 }}><Select label={i === 0 ? 'สาขาย่อย' : undefined} options={subOpts(r.group)} value={r.sub} onChange={(v) => setRow(i, 'sub', v)} /></div>
+                    <div style={{ flex: '1 1 130px', minWidth: 120 }}><Select label={i === 0 ? 'กิจกรรม' : undefined} options={GROUP_OPTS} value={r.group} onChange={(v) => setRow(i, 'group', v)} /></div>
+                    <div style={{ flex: '1 1 140px', minWidth: 120 }}><Select label={i === 0 ? 'กิจกรรมย่อย' : undefined} options={subOpts(r.group)} value={r.sub} onChange={(v) => setRow(i, 'sub', v)} /></div>
                     <div style={{ flex: '1 1 130px', minWidth: 120 }}><Select label={i === 0 ? 'แผนก' : undefined} options={DEPT_OPTS} value={r.dept} onChange={(v) => setRow(i, 'dept', v)} /></div>
                     <button type='button' onClick={() => setPrimary(i)} className='inline-flex items-center' style={{ gap: 'var(--dim-space-100)', height: 44, border: 0, background: 'transparent', cursor: 'pointer', color: r.primary ? 'var(--text-brandPrimary-default)' : 'var(--text-content-tertiary)' }}>
                       <Icon name={r.primary ? 'radio_button_checked' : 'radio_button_unchecked'} size={18} />

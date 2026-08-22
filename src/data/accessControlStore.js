@@ -1,5 +1,9 @@
 /* PHCIS | Assess-control — Access rights (Figma 4D3nTx53 · 12:41101).
-   Mock persistence via localStorage. */
+   Mock persistence via localStorage.
+
+   แม่แบบสิทธิ์ผูกกับ **กิจกรรม (Activity)** — record ที่เคยบันทึกในยุค
+   Group Policy (`groupPolicyId`/`subBranchId`) ถูก normalize เป็น
+   `activityId`/`subActivityId` อัตโนมัติตอนอ่าน. */
 
 const STORAGE_KEY = 'mih:assess-access-control';
 
@@ -62,10 +66,10 @@ export const DEMO_ACCESS_CONTROLS = [
     updatedAt: '2026-08-01T04:30:00.000Z',
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
-    groupPolicy: 'แพทย์',
-    groupPolicyId: 'gp-doctor',
-    subBranch: 'ทันตแพทย์',
-    subBranchId: 'sb-dent',
+    activity: 'แพทย์',
+    activityId: 'gp-doctor',
+    subActivity: 'ทันตแพทย์',
+    subActivityId: 'sb-dent',
     department: 'ทันตกรรม',
     departmentId: 'dept-dent',
     description: 'เข้าถึงเพียงระบบบันทึกการรักษา',
@@ -82,10 +86,10 @@ export const DEMO_ACCESS_CONTROLS = [
     updatedAt: '2026-07-20T02:10:00.000Z',
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
-    groupPolicy: 'พยาบาล',
-    groupPolicyId: 'gp-nurse',
-    subBranch: 'พยาบาลผู้ป่วยนอก (OPD)',
-    subBranchId: 'sb-opd',
+    activity: 'พยาบาล',
+    activityId: 'gp-nurse',
+    subActivity: 'พยาบาลผู้ป่วยนอก (OPD)',
+    subActivityId: 'sb-opd',
     department: 'ผู้ป่วยนอก (OPD)',
     departmentId: 'dept-opd',
     description: 'คัดกรอง บันทึกสัญญาณชีพ และดูผลตรวจ',
@@ -107,10 +111,10 @@ export const DEMO_ACCESS_CONTROLS = [
     updatedAt: '2026-08-04T06:40:00.000Z',
     center: 'ศูนย์ 15 ห้วยขวาง (เจ้าคุณพระประยูรวงศ์)',
     centerId: 'hc-15',
-    groupPolicy: 'เภสัชกร',
-    groupPolicyId: 'gp-pharmacist',
-    subBranch: 'เภสัชกรจ่ายยา',
-    subBranchId: 'sb-dispense',
+    activity: 'เภสัชกร',
+    activityId: 'gp-pharmacist',
+    subActivity: 'เภสัชกรจ่ายยา',
+    subActivityId: 'sb-dispense',
     department: 'เภสัชกรรม',
     departmentId: 'dept-pharm',
     description: 'จ่ายยาตามคำสั่งแพทย์ และดูประวัติการรักษา',
@@ -129,10 +133,10 @@ export const DEMO_ACCESS_CONTROLS = [
     updatedAt: '2026-07-28T01:05:00.000Z',
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
-    groupPolicy: 'เจ้าหน้าที่เวชระเบียน',
-    groupPolicyId: 'gp-registrar',
-    subBranch: 'จุดคัดกรอง/ลงทะเบียน',
-    subBranchId: 'sb-reg-front',
+    activity: 'เจ้าหน้าที่เวชระเบียน',
+    activityId: 'gp-registrar',
+    subActivity: 'จุดคัดกรอง/ลงทะเบียน',
+    subActivityId: 'sb-reg-front',
     department: 'เวชระเบียน',
     departmentId: 'dept-reg',
     description: 'ลงทะเบียนผู้รับบริการและออกคิว',
@@ -140,6 +144,28 @@ export const DEMO_ACCESS_CONTROLS = [
     permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
       if (k === 'phcis.mr' || k === 'phcis.appointment') return [k, PERM_EDIT];
       if (k === 'phcis.dashboard' || k === 'phcis.opd') return [k, PERM_VIEW];
+      return [k, PERM_NONE];
+    })),
+  },
+  {
+    id: 'ac-demo-social-worker',
+    templateName: 'สิทธินักสังคมสงเคราะห์ศูนย์',
+    version: 1,
+    versionHistory: [],
+    updatedAt: '2026-08-18T03:20:00.000Z',
+    center: 'ศูนย์ 4 ดินแดง',
+    centerId: 'hc-4',
+    activity: 'นักสังคมสงเคราะห์',
+    activityId: 'act-social-worker',
+    subActivity: 'นักสังคมสงเคราะห์ศูนย์',
+    subActivityId: 'sub-sw-center',
+    department: 'สังคมสงเคราะห์',
+    departmentId: 'dept-social',
+    description: 'เยี่ยมบ้าน ประเมินสภาพสังคม และบันทึกการช่วยเหลือ',
+    active: true,
+    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
+      if (k === 'phcis.mr' || k === 'phcis.treatment' || k === 'phcis.dashboard') return [k, PERM_VIEW];
+      if (k === 'consent.manage') return [k, PERM_EDIT];
       return [k, PERM_NONE];
     })),
   },
@@ -153,11 +179,11 @@ export const DEMO_ACCESS_CONTROLS = [
     updatedAt: '2026-08-06T09:15:00.000Z',
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
-    /* ตัวอย่างแม่แบบที่ยังไม่ผูก Group Policy — ตั้งชื่อไว้ก่อนได้ */
-    groupPolicy: '',
-    groupPolicyId: '',
-    subBranch: '',
-    subBranchId: '',
+    /* ตัวอย่างแม่แบบที่ยังไม่ผูกกิจกรรม — ตั้งชื่อไว้ก่อนได้ */
+    activity: '',
+    activityId: '',
+    subActivity: '',
+    subActivityId: '',
     department: '',
     departmentId: '',
     description: 'เข้าถึงได้ทุกโมดูลในศูนย์ที่รับผิดชอบ',
@@ -172,10 +198,10 @@ export const DEMO_ACCESS_CONTROLS = [
     updatedAt: '2026-07-15T05:30:00.000Z',
     center: 'ศูนย์ 35 หัวหมาก',
     centerId: 'hc-35',
-    groupPolicy: 'นักเทคนิคการแพทย์',
-    groupPolicyId: 'gp-medtech',
-    subBranch: 'ห้องปฏิบัติการทั่วไป',
-    subBranchId: 'sb-lab',
+    activity: 'นักเทคนิคการแพทย์',
+    activityId: 'gp-medtech',
+    subActivity: 'ห้องปฏิบัติการทั่วไป',
+    subActivityId: 'sb-lab',
     department: 'ห้องปฏิบัติการ',
     departmentId: 'dept-lab',
     description: 'รับสิ่งส่งตรวจและรายงานผลแล็บ',
@@ -192,6 +218,21 @@ export function defaultPermissions() {
   return Object.fromEntries(ALL_MODULE_KEYS.map((k) => [k, PERM_NONE]));
 }
 
+/* record ยุค Group Policy → รูปกิจกรรม (field ใหม่มาก่อน ถ้ามีทั้งคู่) */
+function normalizeAccessControl(record) {
+  if (!record) return record;
+  const {
+    groupPolicy, groupPolicyId, subBranch, subBranchId, ...rest
+  } = record;
+  return {
+    ...rest,
+    activity: rest.activity ?? groupPolicy ?? '',
+    activityId: rest.activityId ?? groupPolicyId ?? '',
+    subActivity: rest.subActivity ?? subBranch ?? '',
+    subActivityId: rest.subActivityId ?? subBranchId ?? '',
+  };
+}
+
 /** ทะเบียนว่าง (เบราว์เซอร์ใหม่) ให้คืนชุดตั้งต้น — ไม่งั้นหน้าสิทธิการเข้าถึง
     ขึ้น empty state ทุกครั้งจนดูไม่ออกว่าหน้าตาใช้งานจริงเป็นยังไง.
     เขียนทับได้ทันทีที่ผู้ใช้กด "สร้างแม่แบบสิทธิ". */
@@ -200,7 +241,9 @@ export function readAccessControls() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw == null) return DEMO_ACCESS_CONTROLS;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length ? parsed : DEMO_ACCESS_CONTROLS;
+    return Array.isArray(parsed) && parsed.length
+      ? parsed.map(normalizeAccessControl)
+      : DEMO_ACCESS_CONTROLS;
   } catch {
     return DEMO_ACCESS_CONTROLS;
   }
@@ -237,7 +280,7 @@ export function countPermissionBuckets(permissions) {
    แม่แบบสิทธิ (template) + เวอร์ชัน
    ══════════════════════════════════════════════════════════════════════
    สิทธิการเข้าถึงหนึ่งชุด = **แม่แบบ** ที่ตั้งชื่อไว้ก่อน แล้วค่อยผูกกับ
-   Group Policy ทีหลัง (ผูกหรือไม่ผูกก็บันทึกได้ — `groupPolicyId` ว่างได้)
+   กิจกรรม/กิจกรรมย่อยทีหลัง (ผูกหรือไม่ผูกก็บันทึกได้ — `activityId` ว่างได้)
    และ **ไม่ผูกกับตำแหน่ง** — ตำแหน่งไปกำหนดตอนเพิ่มบุคลากรแทน.
 
    ทุกครั้งที่บันทึกทับของเดิม เลขเวอร์ชันจะเดินหน้าขึ้น 1 และ snapshot

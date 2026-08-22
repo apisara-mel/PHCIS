@@ -13,7 +13,7 @@ import { ROLES, SUB_ROLES, DEPARTMENTS, getRole } from '@/data/usersAccess';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 
 /* ระบบจัดการระบบ · บทบาทและสิทธิ์ (Figma 0EDfjwf1 · 0:1116).
-   Roles grouped by Group Policy (role) → sub-roles, each with a permission
+   Roles grouped by กิจกรรม (role) → sub-roles, each with a permission
    summary + "แก้ไขสิทธิ์". Reuses ROLES / SUB_ROLES + shared components. */
 
 const breadcrumb = ['จัดการระบบ', 'บทบาทและสิทธิ์'];
@@ -45,7 +45,7 @@ export default function SystemRolesPage() {
   const [filterRole, setFilterRole] = useState('');
   const [filterDept, setFilterDept] = useState('');
 
-  const roleOptions = useMemo(() => [{ value: '', label: 'Group policy: ทั้งหมด' }, ...ROLES.map((r) => ({ value: r.key, label: r.label }))], []);
+  const roleOptions = useMemo(() => [{ value: '', label: 'กิจกรรม: ทั้งหมด' }, ...ROLES.map((r) => ({ value: r.key, label: r.label }))], []);
   const deptOptions = useMemo(() => [{ value: '', label: 'แผนก: ทั้งหมด' }, ...DEPARTMENTS.map((d) => ({ value: d.key, label: d.label }))], []);
   const isAll = !filterRole && !filterDept;
   const filtersActive = !isAll;
@@ -77,7 +77,7 @@ export default function SystemRolesPage() {
               เพิ่ม จัดการบุคลากร บทบาท และสิทธิ์การเข้าถึงระบบ · บทบาททั้งหมด {totalSubRoles} รายการ
             </span>
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)', marginTop: 'var(--dim-space-200)' }}>
-              <FilterDropdown prefix='Group policy:' options={roleOptions} value={filterRole} onChange={setFilterRole} />
+              <FilterDropdown prefix='กิจกรรม:' options={roleOptions} value={filterRole} onChange={setFilterRole} />
               <FilterDropdown prefix='แผนก:' options={deptOptions} value={filterDept} onChange={setFilterDept} />
               <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </div>
@@ -98,7 +98,7 @@ export default function SystemRolesPage() {
                           <Icon name={role.icon} size={18} />
                         </span>
                         <div className='flex flex-col min-w-0'>
-                          <span className='truncate' style={VAL}>สาขาย่อย: {sub.label}</span>
+                          <span className='truncate' style={VAL}>กิจกรรมย่อย: {sub.label}</span>
                           <span className='truncate' style={META}>สิทธิ์เริ่มต้นตามมาตรฐานวิชาชีพ</span>
                         </div>
                       </div>

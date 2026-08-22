@@ -317,7 +317,7 @@ export function ApprovePeriodPopup({ open, record, onClose, onApprove }) {
             { label: 'รหัสพนักงาน', value: record.empCode },
             { label: 'เลขที่คำขอ', value: record.reqNo },
             {
-              label: 'Group Policy / สาขาย่อย / แผนก',
+              label: 'กิจกรรม / กิจกรรมย่อย / แผนก',
               children: <AccessOrgBadges record={record} />,
             },
           ]}
@@ -509,7 +509,7 @@ export function AccessDetailPopup({ open, record, onClose, thaiDateOfIso, onAppr
           <RequesterProfileCard record={record} />
         </DetailRow>
         <DetailRow
-          label='Group Policy / สาขาย่อย / แผนก'
+          label='กิจกรรม / กิจกรรมย่อย / แผนก'
           value={[record.group, record.subBranch, record.dept].filter(Boolean).join(' · ') || '-'}
         />
         <DetailRow label='ประเภทการขอ' value={record.accessTypeLabel || '-'} />

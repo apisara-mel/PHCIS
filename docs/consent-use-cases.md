@@ -50,7 +50,7 @@
 
 | # | Use case | สถานะ | หมายเหตุ |
 |---|---|---|---|
-| B1 | ทะเบียนเทมเพลต: ค้นหา + filter (ประเภท/Group Policy/สาขา/แผนก/ผู้สร้าง/สถานะ/วันที่) | ✅ | `ConsentFormsPage` |
+| B1 | ทะเบียนเทมเพลต: ค้นหา + filter (ประเภท/กิจกรรม/กิจกรรมย่อย/แผนก/ผู้สร้าง/สถานะ/วันที่) | ✅ | `ConsentFormsPage` |
 | B2 | สลับมุมมองตาราง ⇄ การ์ด | ✅ | `ViewToggle` |
 | B3 | สิทธิ์เข้าถึงหลาย scope ต่อฟอร์ม — "+N เพิ่มเติม" เปิด popover | ✅ | `ScopePopover` (Figma 291:254663) |
 | B4 | ดูฟอร์ม: preview เอกสารเต็ม + Patient View (มือถือ Live) | ✅ | `ConsentFormViewPage` |

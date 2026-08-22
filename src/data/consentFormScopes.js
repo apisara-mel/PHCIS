@@ -1,4 +1,4 @@
-/* Group Policy · สาขาย่อย · แผนก — canonical catalog (mirrors CreateConsentFormPage wizard). */
+/* กิจกรรม · กิจกรรมย่อย · แผนก — canonical catalog (mirrors CreateConsentFormPage wizard). */
 
 export const CONSENT_SCOPE_DEPTS = [
   'แผนกผู้ป่วยนอก (OPD)',
@@ -16,7 +16,7 @@ export const CONSENT_SCOPE_DEPTS = [
   'งานเวชระเบียน',
 ];
 
-/** ทุก Group Policy + สาขาย่อย (label ตรง wizard). */
+/** ทุก กิจกรรม + กิจกรรมย่อย (label ตรง wizard). */
 export const CONSENT_SCOPE_TREE = [
   {
     group: 'แพทย์',
@@ -144,7 +144,7 @@ export function dedupeConsentScopes(list) {
   });
 }
 
-/** สร้าง catalog ครบทุกกลุ่ม · สาขาย่อย · หมุนแผนกให้ครบทุกงาน. */
+/** สร้าง catalog ครบทุกกลุ่ม · กิจกรรมย่อย · หมุนแผนกให้ครบทุกงาน. */
 export function buildConsentScopeCatalog() {
   const scopes = [];
   let deptIdx = 0;
@@ -158,7 +158,7 @@ export function buildConsentScopeCatalog() {
       deptIdx += 1;
     });
   });
-  /* รอบที่สอง — สาขาย่อยเดิม + แผนกสลับ เพื่อให้ทุกแผนกปรากฏมากกว่า 1 ครั้ง */
+  /* รอบที่สอง — กิจกรรมย่อยเดิม + แผนกสลับ เพื่อให้ทุกแผนกปรากฏมากกว่า 1 ครั้ง */
   CONSENT_SCOPE_TREE.forEach(({ group, subBranches }) => {
     subBranches.forEach((subBranch, j) => {
       scopes.push({

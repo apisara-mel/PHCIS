@@ -21,25 +21,26 @@ import Popover from '@/components/popup/Popover';
 import AlertDialog from '@/components/popup/AlertDialog';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import ActionList from '@/components/list/ActionList';
-import Topic from '@/components/topic/Topic';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
-  readGroupPolicies,
-  writeGroupPolicies,
-  computeGroupPolicyStats,
-  createGroupPolicy,
-  createSubBranch,
-  sortSubBranches,
-  reorderSubBranches,
-  isDuplicateGroupPolicyName,
-} from '@/data/groupPolicyStore';
+  readActivities,
+  writeActivities,
+  computeActivityStats,
+  createActivity,
+  createSubActivity,
+  sortSubActivities,
+  reorderSubActivities,
+  isDuplicateActivityName,
+} from '@/data/activityStore';
 
-/* PHCIS | Assess-control — Create Group Policy (Figma 4D3nTx53 · 3:18430).
-   Empty state · summary cards · search · filters · grouped sub-branch tables
-   · add/edit popups · reorder · status toggles · confirm dialogs. */
+/* PHCIS | Assess-control — กิจกรรม (Activity-based Access Control).
+   แทนหน้า Group Policy เดิม (Figma 4D3nTx53 · 3:18430) — โครงหน้าเดียวกัน:
+   Empty state · summary cards · search · filters · grouped sub-activity tables
+   · add/edit popups · reorder · status toggles · confirm dialogs.
+   ลำดับชั้น กิจกรรมหลัก → กิจกรรมย่อย แสดงเป็นการ์ดหัวกิจกรรม + ตารางย่อยในการ์ด. */
 
-const breadcrumb = ['Group Policy'];
+const breadcrumb = ['กิจกรรม'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -62,7 +63,7 @@ const STATUS_OPTIONS = [
   { value: 'inactive', label: 'ปิดการใช้งาน' },
 ];
 
-const DUPLICATE_POLICY_ERROR = 'ชื่อGroup Policyซ้ำกับที่มีอยู่ กรุณาเปลี่ยนชื่อGroup Policyใหม่';
+const DUPLICATE_ACTIVITY_ERROR = 'ชื่อกิจกรรมซ้ำกับที่มีอยู่ กรุณาเปลี่ยนชื่อกิจกรรมใหม่';
 
 /* Figma 9:14401 — Edit 3 leading icon on outline subdue buttons (16px sm). */
 function Edit3LeadingIcon({ size = 16 }) {
@@ -72,7 +73,7 @@ function Edit3LeadingIcon({ size = 16 }) {
 /* Figma 3:18431 Roles_Empty — Ambulance Lottie 160×160; list footer 6:21313 / 10:29241 — 128×128. */
 const AMBULANCE_LOTTIE = '/illustration/ambulance.json';
 
-function EmptyIllustration({ size = 160, ariaLabel = 'ยังไม่มี Group Policy' }) {
+function EmptyIllustration({ size = 160, ariaLabel = 'ยังไม่มีกิจกรรม' }) {
   const [anim, setAnim] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -91,11 +92,11 @@ function EmptyIllustration({ size = 160, ariaLabel = 'ยังไม่มี G
 
 /* Figma 9:15461 Dropdown/Default — edit menu on Brand Subdue "แก้ไข". */
 const EDIT_MENU_ITEMS = [
-  { key: 'name', label: 'ชื่อ Group Policy' },
-  { key: 'subBranch', label: 'สาขาย่อย' },
+  { key: 'name', label: 'ชื่อกิจกรรม' },
+  { key: 'subActivity', label: 'กิจกรรมย่อย' },
 ];
 
-function GroupPolicyEditMenu({ onEditName, onEditSubBranch }) {
+function ActivityEditMenu({ onEditName, onEditSubActivity }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(null);
   const [menuWidth, setMenuWidth] = useState(256);
@@ -136,7 +137,7 @@ function GroupPolicyEditMenu({ onEditName, onEditSubBranch }) {
           zIndex: 'var(--sm-z-modal-popover, 1450)',
         }}
       >
-        <div role='menu' aria-label='แก้ไข Group Policy'>
+        <div role='menu' aria-label='แก้ไขกิจกรรม'>
           {EDIT_MENU_ITEMS.map((item) => (
             <ActionList
               key={item.key}
@@ -152,7 +153,7 @@ function GroupPolicyEditMenu({ onEditName, onEditSubBranch }) {
               onClick={() => {
                 close();
                 if (item.key === 'name') onEditName?.();
-                if (item.key === 'subBranch') onEditSubBranch?.();
+                if (item.key === 'subActivity') onEditSubActivity?.();
               }}
             />
           ))}
@@ -162,42 +163,42 @@ function GroupPolicyEditMenu({ onEditName, onEditSubBranch }) {
   );
 }
 
-function GroupPolicySection({
-  policy,
+function ActivitySection({
+  activity,
   search,
   filterStatus,
   reorderMode,
   onToggleReorder,
-  onEditPolicy,
-  onAddSubBranch,
-  onEditSubBranch,
-  onDeleteSubBranch,
+  onEditActivity,
+  onAddSubActivity,
+  onEditSubActivity,
+  onDeleteSubActivity,
   onToggleSubActive,
-  onReorderSubBranches,
+  onReorderSubActivities,
 }) {
   const [draggedIdx, setDraggedIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
-  const isReordering = reorderMode === policy.id;
+  const isReordering = reorderMode === activity.id;
 
-  const hasSubBranches = (policy.subBranches || []).length > 0;
+  const hasSubActivities = (activity.subActivities || []).length > 0;
   const q = search.trim().toLowerCase();
 
-  const subBranches = useMemo(() => {
-    const sorted = sortSubBranches(policy.subBranches);
-    return sorted.filter((sb) => {
+  const subActivities = useMemo(() => {
+    const sorted = sortSubActivities(activity.subActivities);
+    return sorted.filter((sub) => {
       const matchesSearch = !q
-        || policy.name.toLowerCase().includes(q)
-        || sb.name.toLowerCase().includes(q);
+        || activity.name.toLowerCase().includes(q)
+        || sub.name.toLowerCase().includes(q);
       const matchesStatus = !filterStatus
-        || (filterStatus === 'active' && sb.active)
-        || (filterStatus === 'inactive' && !sb.active);
+        || (filterStatus === 'active' && sub.active)
+        || (filterStatus === 'inactive' && !sub.active);
       return matchesSearch && matchesStatus;
     });
-  }, [policy, q, filterStatus]);
+  }, [activity, q, filterStatus]);
 
-  const policyMatchesSearch = !q
-    || policy.name.toLowerCase().includes(q)
-    || (policy.subBranches || []).some((sb) => sb.name.toLowerCase().includes(q));
+  const activityMatchesSearch = !q
+    || activity.name.toLowerCase().includes(q)
+    || (activity.subActivities || []).some((sub) => sub.name.toLowerCase().includes(q));
 
   const handleDragStart = (e, idx) => {
     setDraggedIdx(idx);
@@ -212,13 +213,13 @@ function GroupPolicySection({
       setDraggedIdx(null); setOverIdx(null);
       return;
     }
-    const sorted = sortSubBranches(policy.subBranches);
-    const fromId = subBranches[from]?.id;
-    const toId = subBranches[idx]?.id;
+    const sorted = sortSubActivities(activity.subActivities);
+    const fromId = subActivities[from]?.id;
+    const toId = subActivities[idx]?.id;
     const fromFull = sorted.findIndex((s) => s.id === fromId);
     const toFull = sorted.findIndex((s) => s.id === toId);
     if (fromFull >= 0 && toFull >= 0) {
-      onReorderSubBranches(policy.id, fromFull, toFull);
+      onReorderSubActivities(activity.id, fromFull, toFull);
     }
     setDraggedIdx(null);
     setOverIdx(null);
@@ -234,7 +235,7 @@ function GroupPolicySection({
     },
     {
       key: 'name',
-      header: 'ชื่อสาขาย่อย',
+      header: 'ชื่อกิจกรรมย่อย',
       flex: 1,
       minWidth: 200,
       sortable: true,
@@ -246,7 +247,7 @@ function GroupPolicySection({
       render: (row) => (
         <Switch
           checked={row.active}
-          onChange={(next) => onToggleSubActive(policy.id, row.id, next)}
+          onChange={(next) => onToggleSubActive(activity.id, row.id, next)}
           aria-label={`สถานะ ${row.name}`}
         />
       ),
@@ -260,7 +261,7 @@ function GroupPolicySection({
             variant='outline'
             size='sm'
             leadingIconElement={<Edit3LeadingIcon />}
-            onClick={() => onEditSubBranch(policy, row)}
+            onClick={() => onEditSubActivity(activity, row)}
             disabled={isReordering}
           >
             แก้ไข
@@ -269,7 +270,7 @@ function GroupPolicySection({
             variant='outline'
             size='sm'
             aria-label={`ลบ ${row.name}`}
-            onClick={() => onDeleteSubBranch(policy, row)}
+            onClick={() => onDeleteSubActivity(activity, row)}
             disabled={isReordering}
           >
             <Icon name='trash' size={16} />
@@ -277,24 +278,24 @@ function GroupPolicySection({
         </div>
       ),
     },
-  ], [policy, isReordering, onToggleSubActive, onEditSubBranch, onDeleteSubBranch]);
+  ], [activity, isReordering, onToggleSubActive, onEditSubActivity, onDeleteSubActivity]);
 
-  if (!hasSubBranches) {
+  if (!hasSubActivities) {
     if (filterStatus) return null;
-    if (q && !policyMatchesSearch) return null;
-  } else if (subBranches.length === 0 && (q || filterStatus)) {
+    if (q && !activityMatchesSearch) return null;
+  } else if (subActivities.length === 0 && (q || filterStatus)) {
     return null;
   }
 
-  const badgeLabel = `${policy.subBranches.length} สาขาย่อย`;
+  const badgeLabel = `${activity.subActivities.length} กิจกรรมย่อย`;
 
   return (
     <section
       className='w-full flex flex-col'
       style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}
     >
-      {!hasSubBranches ? (
-        /* Figma 6:21313 — policy created, no sub-branches yet */
+      {!hasSubActivities ? (
+        /* Figma 6:21313 — activity created, no sub-activities yet */
         <>
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <span
@@ -305,23 +306,23 @@ function GroupPolicySection({
                 color: 'var(--text-topic-secondary-title)',
               }}
             >
-              {policy.name}
+              {activity.name}
             </span>
             <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>
               {badgeLabel}
             </ColorfulBadge>
           </div>
-          <BrandDashedAddButton onClick={() => onAddSubBranch(policy)}>
-            เพิ่มสาขาย่อย
+          <BrandDashedAddButton onClick={() => onAddSubActivity(activity)}>
+            เพิ่มกิจกรรมย่อย
           </BrandDashedAddButton>
         </>
       ) : (
-        /* Figma 10:29241 — policy with sub-branch table */
+        /* Figma 10:29241 — activity with sub-activity table */
         <>
           <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
             <div className='flex items-center min-w-0 flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
               <span style={{ ...TEXT_CELL, fontFamily: 'var(--type-family-heading-graphic2)', color: 'var(--text-topic-secondary-title)' }}>
-                {policy.name}
+                {activity.name}
               </span>
               <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>
                 {badgeLabel}
@@ -333,20 +334,20 @@ function GroupPolicySection({
                 size='sm'
                 leadingIcon={isReordering ? 'check' : undefined}
                 leadingIconElement={isReordering ? undefined : <Edit3LeadingIcon />}
-                onClick={() => onToggleReorder(policy.id)}
+                onClick={() => onToggleReorder(activity.id)}
               >
                 {isReordering ? 'เสร็จสิ้น' : 'แก้ไขลำดับ'}
               </NeutralSubdueButton>
-              <GroupPolicyEditMenu
-                onEditName={() => onEditPolicy(policy)}
-                onEditSubBranch={() => onAddSubBranch(policy)}
+              <ActivityEditMenu
+                onEditName={() => onEditActivity(activity)}
+                onEditSubActivity={() => onAddSubActivity(activity)}
               />
             </div>
           </div>
 
           <Table
             columns={columns}
-            rows={subBranches}
+            rows={subActivities}
             rowKey={(row) => row.id}
             editMode={isReordering}
             draggedIdx={draggedIdx}
@@ -355,12 +356,12 @@ function GroupPolicySection({
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onDragEnd={handleDragEnd}
-            emptyMessage='ยังไม่มีสาขาย่อย'
+            emptyMessage='ยังไม่มีกิจกรรมย่อย'
           />
 
           {!isReordering ? (
-            <BrandDashedAddButton onClick={() => onAddSubBranch(policy)}>
-              เพิ่มสาขาย่อย
+            <BrandDashedAddButton onClick={() => onAddSubActivity(activity)}>
+              เพิ่มกิจกรรมย่อย
             </BrandDashedAddButton>
           ) : null}
         </>
@@ -369,59 +370,61 @@ function GroupPolicySection({
   );
 }
 
-export default function GroupPolicyPage() {
-  const [policies, setPolicies] = useState(() => readGroupPolicies());
+export default function ActivityPage() {
+  const [activities, setActivities] = useState(() => readActivities());
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [reorderMode, setReorderMode] = useState(null);
   const [toast, setToast] = useState(null);
   const dismissToast = useCallback(() => setToast(null), []);
 
-  const [addPolicyOpen, setAddPolicyOpen] = useState(false);
-  const [editPolicy, setEditPolicy] = useState(null);
-  const [subBranchModal, setSubBranchModal] = useState(null); // { mode, policy, sub? }
-  const [toggleConfirm, setToggleConfirm] = useState(null); // { policyId, subId, next }
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // { policyId, subId, subName }
-  const [deletePolicyConfirm, setDeletePolicyConfirm] = useState(null); // policy object
+  const [addActivityOpen, setAddActivityOpen] = useState(false);
+  const [editActivity, setEditActivity] = useState(null);
+  const [subActivityModal, setSubActivityModal] = useState(null); // { mode, activity, sub? }
+  const [toggleConfirm, setToggleConfirm] = useState(null); // { activityId, subId, next }
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { activityId, subId, subName }
+  const [deleteActivityConfirm, setDeleteActivityConfirm] = useState(null); // activity object
 
-  const [policyNameDraft, setPolicyNameDraft] = useState('');
-  const [policyNameError, setPolicyNameError] = useState('');
-  const [subBranchDraft, setSubBranchDraft] = useState('');
+  const [activityNameDraft, setActivityNameDraft] = useState('');
+  const [activityNameError, setActivityNameError] = useState('');
+  const [subActivityDraft, setSubActivityDraft] = useState('');
 
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
-    useSearchHistory('mih:primarysearch-history:group-policy');
+    useSearchHistory('mih:primarysearch-history:activity');
 
   const persist = useCallback((next) => {
-    writeGroupPolicies(next);
-    setPolicies(next);
+    writeActivities(next);
+    setActivities(next);
   }, []);
 
   const showToast = (message) => {
     setToast({ id: Date.now(), variant: 'success', message });
   };
 
-  const stats = useMemo(() => computeGroupPolicyStats(policies), [policies]);
+  const stats = useMemo(() => computeActivityStats(activities), [activities]);
 
+  /* ค่า active/inactive นับระดับกิจกรรมย่อย (สถานะเปิด/ปิดอยู่ที่กิจกรรมย่อย)
+     — label จึงต้องพูดว่า "กิจกรรมย่อย" ไม่ใช่ "กิจกรรม" */
   const summaryCards = useMemo(() => [
-    { key: 'total', icon: 'clipboard-list', color: 'info', value: String(stats.total), label: 'Group Policy ทั้งหมด' },
-    { key: 'active', icon: 'clipboard-list', color: 'positive', value: String(stats.active), label: 'Group Policy ที่เปิดใช้งาน' },
+    { key: 'total', icon: 'clipboard-list', color: 'info', value: String(stats.total), label: 'กิจกรรมทั้งหมด' },
+    { key: 'active', icon: 'clipboard-list', color: 'positive', value: String(stats.active), label: 'กิจกรรมย่อยที่เปิดใช้งาน' },
     {
       key: 'inactive',
       icon: 'clipboard-list',
       color: 'destructive',
       value: String(stats.inactive),
-      label: 'Group Policy ที่ปิดใช้งาน',
+      label: 'กิจกรรมย่อยที่ปิดใช้งาน',
     },
   ], [stats]);
 
-  const visiblePolicies = useMemo(() => {
+  const visibleActivities = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return policies.filter((p) => {
+    return activities.filter((a) => {
       if (!q) return true;
-      if (p.name.toLowerCase().includes(q)) return true;
-      return (p.subBranches || []).some((sb) => sb.name.toLowerCase().includes(q));
+      if (a.name.toLowerCase().includes(q)) return true;
+      return (a.subActivities || []).some((sub) => sub.name.toLowerCase().includes(q));
     });
-  }, [policies, search]);
+  }, [activities, search]);
 
   const filtersActive = !!filterStatus || !!search.trim();
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
@@ -431,54 +434,54 @@ export default function GroupPolicyPage() {
       setFilterStatus('');
     },
   );
-  const hasPolicies = policies.length > 0;
-  const hasAnySubBranch = useMemo(
-    () => policies.some((p) => (p.subBranches || []).length > 0),
-    [policies],
+  const hasActivities = activities.length > 0;
+  const hasAnySubActivity = useMemo(
+    () => activities.some((a) => (a.subActivities || []).length > 0),
+    [activities],
   );
-  const showListChrome = hasPolicies && hasAnySubBranch;
+  const showListChrome = hasActivities && hasAnySubActivity;
 
-  const validatePolicyName = (name, excludeId = null) => {
+  const validateActivityName = (name, excludeId = null) => {
     const trimmed = name.trim();
     if (!trimmed) return '';
-    if (isDuplicateGroupPolicyName(policies, trimmed, excludeId)) return DUPLICATE_POLICY_ERROR;
+    if (isDuplicateActivityName(activities, trimmed, excludeId)) return DUPLICATE_ACTIVITY_ERROR;
     return '';
   };
 
-  const handlePolicyNameChange = (next) => {
-    setPolicyNameDraft(next);
-    setPolicyNameError(validatePolicyName(next, editPolicy?.id));
+  const handleActivityNameChange = (next) => {
+    setActivityNameDraft(next);
+    setActivityNameError(validateActivityName(next, editActivity?.id));
   };
 
-  const closePolicyPopups = () => {
-    setAddPolicyOpen(false);
-    setEditPolicy(null);
-    setPolicyNameDraft('');
-    setPolicyNameError('');
+  const closeActivityPopups = () => {
+    setAddActivityOpen(false);
+    setEditActivity(null);
+    setActivityNameDraft('');
+    setActivityNameError('');
   };
 
-  const openAddPolicy = () => {
-    setPolicyNameDraft('');
-    setPolicyNameError('');
-    setEditPolicy(null);
-    setAddPolicyOpen(true);
+  const openAddActivity = () => {
+    setActivityNameDraft('');
+    setActivityNameError('');
+    setEditActivity(null);
+    setAddActivityOpen(true);
   };
 
-  const openEditPolicy = (policy) => {
-    setPolicyNameDraft(policy.name);
-    setPolicyNameError('');
-    setAddPolicyOpen(false);
-    setEditPolicy(policy);
+  const openEditActivity = (activity) => {
+    setActivityNameDraft(activity.name);
+    setActivityNameError('');
+    setAddActivityOpen(false);
+    setEditActivity(activity);
   };
 
-  const openAddSubBranch = (policy) => {
-    setSubBranchDraft('');
-    setSubBranchModal({ mode: 'add', policy });
+  const openAddSubActivity = (activity) => {
+    setSubActivityDraft('');
+    setSubActivityModal({ mode: 'add', activity });
   };
 
-  const openEditSubBranch = (policy, sub) => {
-    setSubBranchDraft(sub.name);
-    setSubBranchModal({ mode: 'edit', policy, sub });
+  const openEditSubActivity = (activity, sub) => {
+    setSubActivityDraft(sub.name);
+    setSubActivityModal({ mode: 'edit', activity, sub });
   };
 
   const handleSubmitSearch = (value) => {
@@ -487,139 +490,139 @@ export default function GroupPolicyPage() {
     setSearch(q);
   };
 
-  const canSavePolicyName = policyNameDraft.trim() && !policyNameError;
+  const canSaveActivityName = activityNameDraft.trim() && !activityNameError;
 
-  const canSaveEditPolicyName = useMemo(() => {
-    const trimmed = policyNameDraft.trim();
-    if (!trimmed || policyNameError || !editPolicy) return false;
-    return trimmed !== editPolicy.name.trim();
-  }, [policyNameDraft, policyNameError, editPolicy]);
+  const canSaveEditActivityName = useMemo(() => {
+    const trimmed = activityNameDraft.trim();
+    if (!trimmed || activityNameError || !editActivity) return false;
+    return trimmed !== editActivity.name.trim();
+  }, [activityNameDraft, activityNameError, editActivity]);
 
-  const saveNewPolicy = () => {
-    const trimmed = policyNameDraft.trim();
-    const err = validatePolicyName(trimmed);
+  const saveNewActivity = () => {
+    const trimmed = activityNameDraft.trim();
+    const err = validateActivityName(trimmed);
     if (!trimmed || err) {
-      setPolicyNameError(err || 'กรุณาระบุชื่อ Group Policy');
+      setActivityNameError(err || 'กรุณาระบุชื่อกิจกรรม');
       return;
     }
-    const next = [...policies, createGroupPolicy(trimmed)];
+    const next = [...activities, createActivity(trimmed)];
     persist(next);
-    closePolicyPopups();
-    showToast('เพิ่ม Group Policy สำเร็จ');
+    closeActivityPopups();
+    showToast('เพิ่มกิจกรรมสำเร็จ');
   };
 
-  const saveEditPolicy = () => {
-    const trimmed = policyNameDraft.trim();
-    const err = validatePolicyName(trimmed, editPolicy?.id);
-    if (!trimmed || err || !editPolicy || trimmed === editPolicy.name.trim()) {
-      setPolicyNameError(err || 'กรุณาระบุชื่อ Group Policy');
+  const saveEditActivity = () => {
+    const trimmed = activityNameDraft.trim();
+    const err = validateActivityName(trimmed, editActivity?.id);
+    if (!trimmed || err || !editActivity || trimmed === editActivity.name.trim()) {
+      setActivityNameError(err || 'กรุณาระบุชื่อกิจกรรม');
       return;
     }
-    const next = policies.map((p) => (p.id === editPolicy.id ? { ...p, name: trimmed } : p));
+    const next = activities.map((a) => (a.id === editActivity.id ? { ...a, name: trimmed } : a));
     persist(next);
-    closePolicyPopups();
-    showToast('แก้ไขชื่อ Group Policy สำเร็จ');
+    closeActivityPopups();
+    showToast('แก้ไขชื่อกิจกรรมสำเร็จ');
   };
 
-  const applyDeletePolicy = () => {
-    if (!deletePolicyConfirm) return;
-    const next = policies.filter((p) => p.id !== deletePolicyConfirm.id);
+  const applyDeleteActivity = () => {
+    if (!deleteActivityConfirm) return;
+    const next = activities.filter((a) => a.id !== deleteActivityConfirm.id);
     persist(next);
-    setDeletePolicyConfirm(null);
-    closePolicyPopups();
-    showToast('ลบ Group Policy สำเร็จ');
+    setDeleteActivityConfirm(null);
+    closeActivityPopups();
+    showToast('ลบกิจกรรมสำเร็จ');
   };
 
-  const saveSubBranch = () => {
-    const name = subBranchDraft.trim();
-    if (!name || !subBranchModal) return;
-    const { mode, policy, sub } = subBranchModal;
-    const next = policies.map((p) => {
-      if (p.id !== policy.id) return p;
+  const saveSubActivity = () => {
+    const name = subActivityDraft.trim();
+    if (!name || !subActivityModal) return;
+    const { mode, activity, sub } = subActivityModal;
+    const next = activities.map((a) => {
+      if (a.id !== activity.id) return a;
       if (mode === 'add') {
-        const order = (p.subBranches?.length || 0) + 1;
-        return { ...p, subBranches: [...(p.subBranches || []), createSubBranch(name, order)] };
+        const order = (a.subActivities?.length || 0) + 1;
+        return { ...a, subActivities: [...(a.subActivities || []), createSubActivity(name, order)] };
       }
       return {
-        ...p,
-        subBranches: (p.subBranches || []).map((sb) => (
-          sb.id === sub.id ? { ...sb, name } : sb
+        ...a,
+        subActivities: (a.subActivities || []).map((s) => (
+          s.id === sub.id ? { ...s, name } : s
         )),
       };
     });
     persist(next);
-    setSubBranchModal(null);
-    setSubBranchDraft('');
-    showToast(mode === 'add' ? 'เพิ่มสาขาย่อยสำเร็จ' : 'บันทึกสาขาย่อยสำเร็จ');
+    setSubActivityModal(null);
+    setSubActivityDraft('');
+    showToast(mode === 'add' ? 'เพิ่มกิจกรรมย่อยสำเร็จ' : 'บันทึกกิจกรรมย่อยสำเร็จ');
   };
 
-  const applyToggleSubActive = (policyId, subId, next) => {
-    const nextPolicies = policies.map((p) => {
-      if (p.id !== policyId) return p;
+  const applyToggleSubActive = (activityId, subId, next) => {
+    const nextActivities = activities.map((a) => {
+      if (a.id !== activityId) return a;
       return {
-        ...p,
-        subBranches: (p.subBranches || []).map((sb) => (
-          sb.id === subId ? { ...sb, active: next } : sb
+        ...a,
+        subActivities: (a.subActivities || []).map((s) => (
+          s.id === subId ? { ...s, active: next } : s
         )),
       };
     });
-    persist(nextPolicies);
+    persist(nextActivities);
     setToggleConfirm(null);
-    showToast(next ? 'เปิดใช้งานสาขาย่อยแล้ว' : 'ปิดใช้งานสาขาย่อยแล้ว');
+    showToast(next ? 'เปิดใช้งานกิจกรรมย่อยแล้ว' : 'ปิดใช้งานกิจกรรมย่อยแล้ว');
   };
 
-  const handleToggleSubActive = (policyId, subId, next) => {
+  const handleToggleSubActive = (activityId, subId, next) => {
     if (!next) {
-      setToggleConfirm({ policyId, subId, next });
+      setToggleConfirm({ activityId, subId, next });
       return;
     }
-    applyToggleSubActive(policyId, subId, next);
+    applyToggleSubActive(activityId, subId, next);
   };
 
-  const handleDeleteSubBranch = (policy, sub) => {
-    setDeleteConfirm({ policyId: policy.id, subId: sub.id, subName: sub.name });
+  const handleDeleteSubActivity = (activity, sub) => {
+    setDeleteConfirm({ activityId: activity.id, subId: sub.id, subName: sub.name });
   };
 
-  const applyDeleteSubBranch = () => {
+  const applyDeleteSubActivity = () => {
     if (!deleteConfirm) return;
-    const { policyId, subId } = deleteConfirm;
-    const next = policies.map((p) => {
-      if (p.id !== policyId) return p;
-      const filtered = (p.subBranches || []).filter((sb) => sb.id !== subId);
-      const reordered = filtered.map((sb, i) => ({ ...sb, order: i + 1 }));
-      return { ...p, subBranches: reordered };
+    const { activityId, subId } = deleteConfirm;
+    const next = activities.map((a) => {
+      if (a.id !== activityId) return a;
+      const filtered = (a.subActivities || []).filter((s) => s.id !== subId);
+      const reordered = filtered.map((s, i) => ({ ...s, order: i + 1 }));
+      return { ...a, subActivities: reordered };
     });
     persist(next);
     setDeleteConfirm(null);
-    showToast('ลบสาขาย่อยสำเร็จ');
+    showToast('ลบกิจกรรมย่อยสำเร็จ');
   };
 
-  const handleReorderSubBranches = (policyId, fromIdx, toIdx) => {
-    const next = policies.map((p) => {
-      if (p.id !== policyId) return p;
-      return { ...p, subBranches: reorderSubBranches(p.subBranches, fromIdx, toIdx) };
+  const handleReorderSubActivities = (activityId, fromIdx, toIdx) => {
+    const next = activities.map((a) => {
+      if (a.id !== activityId) return a;
+      return { ...a, subActivities: reorderSubActivities(a.subActivities, fromIdx, toIdx) };
     });
     persist(next);
   };
 
-  const toggleReorder = (policyId) => {
-    setReorderMode((prev) => (prev === policyId ? null : policyId));
+  const toggleReorder = (activityId) => {
+    setReorderMode((prev) => (prev === activityId ? null : activityId));
   };
 
   return (
     <>
       <QueuePageShell
-        activeKey='assess-group-policy'
+        activeKey='assess-activity'
         sidebarItems={ASSESS_NAV}
-        sidebarFallbackKey='assess-group-policy'
+        sidebarFallbackKey='assess-activity'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
         /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน (เหมือนหน้าศูนย์บริการ)
            ระยะบนจึงเท่ากับหน้าอื่น และปุ่มยัง sticky ตอนเลื่อนตาราง */
-        title='Group Policy'
+        title='กิจกรรม'
         actions={showListChrome ? (
-          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openAddPolicy}>
-            เพิ่ม Group Policy
+          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openAddActivity}>
+            เพิ่มกิจกรรม
           </BrandButton>
         ) : undefined}
         headerInfo={showListChrome ? (
@@ -635,7 +638,7 @@ export default function GroupPolicyPage() {
           </section>
         ) : null}
       >
-        {!hasPolicies ? (
+        {!hasActivities ? (
           <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)' }}>
             <section
               className='flex flex-col items-center justify-center flex-1 w-full'
@@ -649,10 +652,10 @@ export default function GroupPolicyPage() {
                   fontSize: 'var(--type-size-sm)',
                 }}
               >
-                ในระบบยังไม่มีบทบาทหน้าที่
+                ในระบบยังไม่มีกิจกรรม
               </span>
-              <BrandButton variant='fill' size='lg' leadingIcon='add' onClick={openAddPolicy}>
-                เพิ่ม Group Policy
+              <BrandButton variant='fill' size='lg' leadingIcon='add' onClick={openAddActivity}>
+                เพิ่มกิจกรรม
               </BrandButton>
             </section>
           </div>
@@ -671,7 +674,7 @@ export default function GroupPolicyPage() {
                     value={search}
                     onChange={setSearch}
                     onSubmit={handleSubmitSearch}
-                    placeholder='ค้นหาชื่อ Group Policy / ชื่อสาขาย่อย'
+                    placeholder='ค้นหาชื่อกิจกรรม / ชื่อกิจกรรมย่อย'
                     width={640}
                     history={searchHistory}
                     onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
@@ -700,20 +703,20 @@ export default function GroupPolicyPage() {
             ) : null}
 
             <SmoothFilterResults opaque={resultsOpaque}>
-            {visiblePolicies.map((policy) => (
-              <GroupPolicySection
-                key={policy.id}
-                policy={policy}
+            {visibleActivities.map((activity) => (
+              <ActivitySection
+                key={activity.id}
+                activity={activity}
                 search={search}
                 filterStatus={filterStatus}
                 reorderMode={reorderMode}
                 onToggleReorder={toggleReorder}
-                onEditPolicy={openEditPolicy}
-                onAddSubBranch={openAddSubBranch}
-                onEditSubBranch={openEditSubBranch}
-                onDeleteSubBranch={handleDeleteSubBranch}
+                onEditActivity={openEditActivity}
+                onAddSubActivity={openAddSubActivity}
+                onEditSubActivity={openEditSubActivity}
+                onDeleteSubActivity={handleDeleteSubActivity}
                 onToggleSubActive={handleToggleSubActive}
-                onReorderSubBranches={handleReorderSubBranches}
+                onReorderSubActivities={handleReorderSubActivities}
               />
             ))}
             </SmoothFilterResults>
@@ -722,97 +725,97 @@ export default function GroupPolicyPage() {
               className='flex flex-col items-center w-full'
               style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
             >
-              <EmptyIllustration size={128} ariaLabel='เพิ่ม Group Policy' />
-              <BrandButton variant='fill' size='lg' leadingIcon='add' onClick={openAddPolicy}>
-                เพิ่ม Group Policy
+              <EmptyIllustration size={128} ariaLabel='เพิ่มกิจกรรม' />
+              <BrandButton variant='fill' size='lg' leadingIcon='add' onClick={openAddActivity}>
+                เพิ่มกิจกรรม
               </BrandButton>
             </section>
           </div>
         )}
       </QueuePageShell>
 
-      {/* Add Group Policy — Figma 8:11704 */}
+      {/* Add activity — Figma 8:11704 */}
       <Popup
-        open={addPolicyOpen}
-        onClose={closePolicyPopups}
+        open={addActivityOpen}
+        onClose={closeActivityPopups}
         size='large'
-        title='ชื่อ Group Policy'
-        subtitle='ใส่ชื่อกลุ่มตำแหน่งหน้าที่ของบุคลากร'
-        tertiaryAction={{ label: 'ยกเลิก', onClick: closePolicyPopups }}
+        title='ชื่อกิจกรรม'
+        subtitle='ใส่ชื่อกิจกรรมหลักของบุคลากร'
+        tertiaryAction={{ label: 'ยกเลิก', onClick: closeActivityPopups }}
         primaryAction={{
           label: 'ตกลง',
-          onClick: saveNewPolicy,
-          disabled: !canSavePolicyName,
+          onClick: saveNewActivity,
+          disabled: !canSaveActivityName,
         }}
       >
         <InputField
           autoFocus
           showLabel={false}
-          showHelperText={!!policyNameError}
+          showHelperText={!!activityNameError}
           showLeadingIcon={false}
-          placeholder='เช่น แพทย์, พยาบาล'
-          value={policyNameDraft}
-          onChange={handlePolicyNameChange}
-          error={policyNameError || undefined}
+          placeholder='เช่น แพทย์, นักสังคมสงเคราะห์'
+          value={activityNameDraft}
+          onChange={handleActivityNameChange}
+          error={activityNameError || undefined}
         />
       </Popup>
 
-      {/* Edit Group Policy name — Figma 9:15670 */}
+      {/* Edit activity name — Figma 9:15670 */}
       <Popup
-        open={!!editPolicy}
-        onClose={closePolicyPopups}
+        open={!!editActivity}
+        onClose={closeActivityPopups}
         size='large'
-        title='แก้ไขชื่อ Group Policy'
-        subtitle='ใส่ชื่อกลุ่มตำแหน่งหน้าที่ของบุคลากร'
-        tertiaryAction={{ label: 'ยกเลิก', onClick: closePolicyPopups }}
+        title='แก้ไขชื่อกิจกรรม'
+        subtitle='ใส่ชื่อกิจกรรมหลักของบุคลากร'
+        tertiaryAction={{ label: 'ยกเลิก', onClick: closeActivityPopups }}
         secondaryAction={{
-          label: 'ลบ Group Policy',
-          onClick: () => editPolicy && setDeletePolicyConfirm(editPolicy),
+          label: 'ลบกิจกรรม',
+          onClick: () => editActivity && setDeleteActivityConfirm(editActivity),
         }}
         primaryAction={{
           label: 'ตกลง',
-          onClick: saveEditPolicy,
-          disabled: !canSaveEditPolicyName,
+          onClick: saveEditActivity,
+          disabled: !canSaveEditActivityName,
         }}
       >
         <InputField
           autoFocus
           showLabel={false}
-          showHelperText={!!policyNameError}
+          showHelperText={!!activityNameError}
           showLeadingIcon={false}
-          placeholder='เช่น แพทย์, พยาบาล'
-          value={policyNameDraft}
-          onChange={handlePolicyNameChange}
-          error={policyNameError || undefined}
+          placeholder='เช่น แพทย์, นักสังคมสงเคราะห์'
+          value={activityNameDraft}
+          onChange={handleActivityNameChange}
+          error={activityNameError || undefined}
         />
       </Popup>
 
-      {/* Add / edit sub-branch — Figma 8:11833 */}
+      {/* Add / edit sub-activity — Figma 8:11833 */}
       <Popup
-        open={!!subBranchModal}
-        onClose={() => setSubBranchModal(null)}
+        open={!!subActivityModal}
+        onClose={() => setSubActivityModal(null)}
         size='large'
-        title={subBranchModal?.mode === 'add'
-          ? `สาขาย่อยสำหรับ${subBranchModal?.policy?.name || ''}`
-          : 'แก้ไขสาขาย่อย'}
-        subtitle={subBranchModal?.mode === 'add'
-          ? 'ระบุชื่อสาขาย่อยภายใต้ Group Policy นี้'
-          : 'แก้ไขชื่อสาขาย่อย'}
-        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setSubBranchModal(null) }}
+        title={subActivityModal?.mode === 'add'
+          ? `กิจกรรมย่อยสำหรับ${subActivityModal?.activity?.name || ''}`
+          : 'แก้ไขกิจกรรมย่อย'}
+        subtitle={subActivityModal?.mode === 'add'
+          ? 'ระบุชื่อกิจกรรมย่อยภายใต้กิจกรรมนี้'
+          : 'แก้ไขชื่อกิจกรรมย่อย'}
+        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setSubActivityModal(null) }}
         primaryAction={{
-          label: subBranchModal?.mode === 'add' ? 'ตกลง' : 'บันทึก',
-          onClick: saveSubBranch,
-          disabled: !subBranchDraft.trim(),
+          label: subActivityModal?.mode === 'add' ? 'ตกลง' : 'บันทึก',
+          onClick: saveSubActivity,
+          disabled: !subActivityDraft.trim(),
         }}
       >
         <InputField
           autoFocus
-          label='สาขาย่อย'
+          label='กิจกรรมย่อย'
           required
           showLeadingIcon={false}
-          placeholder='เช่น ทันตกรรม, แพทย์แผนไทย'
-          value={subBranchDraft}
-          onChange={setSubBranchDraft}
+          placeholder='เช่น นักสังคมสงเคราะห์ศูนย์'
+          value={subActivityDraft}
+          onChange={setSubActivityDraft}
         />
       </Popup>
 
@@ -821,13 +824,13 @@ export default function GroupPolicyPage() {
         onClose={() => setToggleConfirm(null)}
         type='warning'
         alignment='center'
-        title='ปิดการใช้งานสาขาย่อย?'
-        description='การปิดใช้งานจะทำให้สาขาย่อยนี้ไม่สามารถใช้งานได้จนกว่าจะเปิดอีกครั้ง'
+        title='ปิดการใช้งานกิจกรรมย่อย?'
+        description='การปิดใช้งานจะทำให้กิจกรรมย่อยนี้ไม่สามารถใช้งานได้จนกว่าจะเปิดอีกครั้ง'
         confirmLabel='ปิดการใช้งาน'
         cancelLabel='ยกเลิก'
         onConfirm={() => {
           if (toggleConfirm) {
-            applyToggleSubActive(toggleConfirm.policyId, toggleConfirm.subId, toggleConfirm.next);
+            applyToggleSubActive(toggleConfirm.activityId, toggleConfirm.subId, toggleConfirm.next);
           }
         }}
       />
@@ -837,25 +840,25 @@ export default function GroupPolicyPage() {
         onClose={() => setDeleteConfirm(null)}
         type='warning'
         alignment='center'
-        title='ลบสาขาย่อย?'
+        title='ลบกิจกรรมย่อย?'
         description={deleteConfirm ? `ต้องการลบ "${deleteConfirm.subName}" ออกจากระบบหรือไม่` : ''}
         confirmLabel='ลบ'
         cancelLabel='ยกเลิก'
-        onConfirm={applyDeleteSubBranch}
+        onConfirm={applyDeleteSubActivity}
       />
 
       <AlertDialog
-        open={!!deletePolicyConfirm}
-        onClose={() => setDeletePolicyConfirm(null)}
+        open={!!deleteActivityConfirm}
+        onClose={() => setDeleteActivityConfirm(null)}
         type='warning'
         alignment='center'
-        title='ลบ Group Policy?'
-        description={deletePolicyConfirm
-          ? `ต้องการลบ "${deletePolicyConfirm.name}" และสาขาย่อยทั้งหมดออกจากระบบหรือไม่`
+        title='ลบกิจกรรม?'
+        description={deleteActivityConfirm
+          ? `ต้องการลบ "${deleteActivityConfirm.name}" และกิจกรรมย่อยทั้งหมดออกจากระบบหรือไม่`
           : ''}
         confirmLabel='ลบ'
         cancelLabel='ยกเลิก'
-        onConfirm={applyDeletePolicy}
+        onConfirm={applyDeleteActivity}
       />
 
       <PhcisTopToast session={toast} onDismiss={dismissToast} />

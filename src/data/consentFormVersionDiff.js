@@ -134,7 +134,7 @@ export const buildConsentFormWizardDiff = (baseline, current) => {
 
   const access = [];
   const scopeDiff = listDiff(
-    'Group Policy / สาขาย่อย / แผนก',
+    'กิจกรรม / กิจกรรมย่อย / แผนก',
     b.accessScopeKeys,
     c.accessScopeKeys,
     (key) => scopeFmt(b.accessScopes.concat(c.accessScopes), key),

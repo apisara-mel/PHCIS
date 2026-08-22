@@ -10,6 +10,11 @@ export const PHCIS_CURRENT_USER = {
   displayName: 'พญ.สมหญิง รักษ์ดี',
   displayNameEn: 'Somying Rakdee',
   employeeCode: 'EMP-0001',
+  /* กิจกรรม (Activity-based Access Control) — แทน Group Policy เดิม */
+  activity: 'แพทย์',
+  subActivity: 'ทันตแพทย์',
+  /* alias ชื่อเดิม — consumer นอกโมดูล assess (dashboard/consent) ยังอ่าน
+     field นี้อยู่ ค่อยทยอยย้ายไป activity/subActivity */
   groupPolicy: 'แพทย์',
   subBranch: 'ทันตแพทย์',
   department: 'ทันตกรรม',
@@ -18,8 +23,8 @@ export const PHCIS_CURRENT_USER = {
 
 /** Figma 43:11139 hub profile-cover chips — derived from PHCIS_CURRENT_USER. */
 export const PHCIS_CURRENT_USER_HUB_META = [
-  { label: 'Group Policy', value: PHCIS_CURRENT_USER.groupPolicy },
-  { label: 'สาขาย่อย', value: PHCIS_CURRENT_USER.subBranch },
+  { label: 'กิจกรรม', value: PHCIS_CURRENT_USER.activity },
+  { label: 'กิจกรรมย่อย', value: PHCIS_CURRENT_USER.subActivity },
   { label: 'แผนก', value: PHCIS_CURRENT_USER.department },
 ];
 

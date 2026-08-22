@@ -1,19 +1,29 @@
-/* PHCIS | Assess-control — Group Policy registry (Figma 3:18430).
-   Mock persistence via localStorage; shapes match the list + popup flows. */
+/* PHCIS | Assess-control — ทะเบียนกิจกรรม (Activity-based Access Control).
+   Mock persistence via localStorage; shapes match the list + popup flows.
 
-const STORAGE_KEY = 'mih:group-policies';
+   แทนที่ระบบ "Group Policy" เดิม: สิทธิ์การเข้าถึงเมนู/โมดูลผูกกับ
+   **กิจกรรม (Activity)** ที่บุคลากรปฏิบัติ ไม่ใช่กลุ่มนโยบายแบบตายตัว
+   - กิจกรรมหลัก  เช่น "นักสังคมสงเคราะห์"
+   - กิจกรรมย่อย เช่น "นักสังคมสงเคราะห์ศูนย์", "นักสังคมสงเคราะห์นักจิตวิทยา"
+
+   ข้อมูล Group Policy ที่ผู้ใช้เคยบันทึกไว้ใน browser จะถูก migrate
+   อัตโนมัติตอนอ่าน (`readActivities`) — id เดิม (gp-… / sb-…) คงไว้เพื่อให้
+   record สิทธิ์/บุคลากรที่อ้างถึงยังจับคู่ได้ ส่วน id ใหม่ใช้ act-… / sub-… */
+
+const STORAGE_KEY = 'mih:activities';
+const LEGACY_STORAGE_KEY = 'mih:group-policies';
 
 const uid = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-/* Group Policy = สายวิชาชีพ/กลุ่มงานของบุคลากรในศูนย์บริการสาธารณสุข
-   แต่ละกลุ่มแตกเป็นสาขาย่อยตามความเชี่ยวชาญ — ชุดนี้อิงโครงบุคลากรของ
-   สำนักอนามัย เพื่อให้ dropdown ตอนผูกสิทธิ/เพิ่มบุคลากรมีตัวเลือกครบพอ
-   ใช้งานได้จริง (เดิมมีแค่ 2 กลุ่ม 4 สาขาย่อย). */
-export const DEMO_GROUP_POLICIES = [
+/* กิจกรรมหลัก = สายงาน/บทบาทกิจกรรมของบุคลากรในศูนย์บริการสาธารณสุข
+   แต่ละกิจกรรมแตกเป็นกิจกรรมย่อยตามความเชี่ยวชาญ — ชุดนี้อิงโครงบุคลากร
+   ของสำนักอนามัย เพื่อให้ dropdown ตอนผูกสิทธิ/เพิ่มบุคลากรมีตัวเลือกครบ
+   พอใช้งานได้จริง. */
+export const DEMO_ACTIVITIES = [
   {
     id: 'gp-doctor',
     name: 'แพทย์',
-    subBranches: [
+    subActivities: [
       { id: 'sb-gp',     name: 'แพทย์เวชปฏิบัติทั่วไป', active: true, order: 1 },
       { id: 'sb-family', name: 'แพทย์เวชศาสตร์ครอบครัว', active: true, order: 2 },
       { id: 'sb-internal', name: 'อายุรแพทย์', active: true, order: 3 },
@@ -37,7 +47,7 @@ export const DEMO_GROUP_POLICIES = [
   {
     id: 'gp-nurse',
     name: 'พยาบาล',
-    subBranches: [
+    subActivities: [
       { id: 'sb-opd',       name: 'พยาบาลผู้ป่วยนอก (OPD)', active: true, order: 1 },
       { id: 'sb-er',        name: 'พยาบาลห้องฉุกเฉิน', active: true, order: 2 },
       { id: 'sb-anc',       name: 'พยาบาลฝากครรภ์', active: true, order: 3 },
@@ -49,16 +59,25 @@ export const DEMO_GROUP_POLICIES = [
   {
     id: 'gp-pharmacist',
     name: 'เภสัชกร',
-    subBranches: [
+    subActivities: [
       { id: 'sb-dispense', name: 'เภสัชกรจ่ายยา', active: true, order: 1 },
       { id: 'sb-stock',    name: 'เภสัชกรคลังยาและเวชภัณฑ์', active: true, order: 2 },
       { id: 'sb-counsel',  name: 'เภสัชกรให้คำปรึกษาด้านยา', active: true, order: 3 },
     ],
   },
   {
+    id: 'act-social-worker',
+    name: 'นักสังคมสงเคราะห์',
+    subActivities: [
+      { id: 'sub-sw-center', name: 'นักสังคมสงเคราะห์ศูนย์', active: true, order: 1 },
+      { id: 'sub-sw-psychologist', name: 'นักสังคมสงเคราะห์นักจิตวิทยา', active: true, order: 2 },
+      { id: 'sub-sw-mental', name: 'นักสังคมสงเคราะห์จิต', active: true, order: 3 },
+    ],
+  },
+  {
     id: 'gp-medtech',
     name: 'นักเทคนิคการแพทย์',
-    subBranches: [
+    subActivities: [
       { id: 'sb-lab',         name: 'ห้องปฏิบัติการทั่วไป', active: true, order: 1 },
       { id: 'sb-lab-sendout', name: 'งานส่งตรวจภายนอก (Send-out)', active: true, order: 2 },
     ],
@@ -66,7 +85,7 @@ export const DEMO_GROUP_POLICIES = [
   {
     id: 'gp-radiology',
     name: 'นักรังสีการแพทย์',
-    subBranches: [
+    subActivities: [
       { id: 'sb-xray', name: 'รังสีวินิจฉัยทั่วไป', active: true, order: 1 },
       { id: 'sb-pacs', name: 'ผู้ดูแลระบบ PACS', active: true, order: 2 },
     ],
@@ -74,7 +93,7 @@ export const DEMO_GROUP_POLICIES = [
   {
     id: 'gp-dental-health',
     name: 'เจ้าพนักงานทันตสาธารณสุข',
-    subBranches: [
+    subActivities: [
       { id: 'sb-dent-assist', name: 'ผู้ช่วยทันตแพทย์', active: true, order: 1 },
       { id: 'sb-dent-school', name: 'ทันตสาธารณสุขในโรงเรียน', active: true, order: 2 },
     ],
@@ -82,7 +101,7 @@ export const DEMO_GROUP_POLICIES = [
   {
     id: 'gp-registrar',
     name: 'เจ้าหน้าที่เวชระเบียน',
-    subBranches: [
+    subActivities: [
       { id: 'sb-reg-front', name: 'จุดคัดกรอง/ลงทะเบียน', active: true, order: 1 },
       { id: 'sb-reg-file',  name: 'แฟ้มเวชระเบียนและการส่งต่อ', active: true, order: 2 },
     ],
@@ -90,7 +109,7 @@ export const DEMO_GROUP_POLICIES = [
   {
     id: 'gp-finance',
     name: 'เจ้าหน้าที่การเงิน',
-    subBranches: [
+    subActivities: [
       { id: 'sb-cashier', name: 'การเงินและเก็บเงิน', active: true, order: 1 },
       { id: 'sb-claim',   name: 'งานเคลมและสิทธิการรักษา', active: true, order: 2 },
     ],
@@ -98,7 +117,7 @@ export const DEMO_GROUP_POLICIES = [
   {
     id: 'gp-public-health',
     name: 'นักวิชาการสาธารณสุข',
-    subBranches: [
+    subActivities: [
       { id: 'sb-community', name: 'งานสาธารณสุขชุมชน', active: true, order: 1 },
       { id: 'sb-school',    name: 'งานสุขภาพนักเรียน', active: true, order: 2 },
       { id: 'sb-epidemic',  name: 'งานควบคุมโรคติดต่อ', active: true, order: 3 },
@@ -107,97 +126,113 @@ export const DEMO_GROUP_POLICIES = [
   {
     id: 'gp-admin',
     name: 'ผู้ดูแลระบบ',
-    subBranches: [
+    subActivities: [
       { id: 'sb-sysadmin',   name: 'ผู้ดูแลระบบศูนย์', active: true, order: 1 },
       { id: 'sb-superadmin', name: 'ผู้ดูแลระบบส่วนกลาง', active: true, order: 2 },
     ],
   },
 ];
 
-/* นโยบายเดิมที่เคยบันทึกไว้ใน browser อาจยังมีชื่อ “แพทย์เฉพาะทาง”
-   จึง normalize ตอนอ่าน เพื่อให้ตัวเลือกในหน้าแก้ไขเป็นชุดสาขาแพทย์ที่ละเอียด
-   แม้ผู้ใช้จะเปิดระบบจากข้อมูล localStorage รุ่นก่อนก็ตาม */
-function normalizeGroupPolicies(policies) {
-  const doctorSeed = DEMO_GROUP_POLICIES.find((policy) => policy.id === 'gp-doctor');
-  return policies.map((policy) => {
-    if (policy.id !== 'gp-doctor' || !doctorSeed) return policy;
-    const current = (policy.subBranches || []).filter((branch) => branch.name !== 'แพทย์เฉพาะทาง');
-    const names = new Set(current.map((branch) => branch.name));
-    const additions = doctorSeed.subBranches
-      .filter((branch) => !names.has(branch.name))
-      .map((branch) => ({ ...branch, order: current.length + 1 }));
-    return { ...policy, subBranches: [...current, ...additions].map((branch, index) => ({ ...branch, order: index + 1 })) };
-  });
+/* แปลง record หนึ่งรายการให้เป็นรูปกิจกรรม — รองรับทั้งของใหม่
+   (subActivities) และของเก่าจากยุค Group Policy (subBranches). */
+function toActivityShape(record) {
+  if (!record) return record;
+  const subs = record.subActivities || record.subBranches || [];
+  const { subBranches, ...rest } = record;
+  return { ...rest, subActivities: subs };
+}
+
+/* ชุดข้อมูลที่ migrate มาจาก Group Policy อาจยังไม่มีกิจกรรมตัวอย่างใหม่
+   "นักสังคมสงเคราะห์" — เติมให้เสมอ เพื่อให้โครงกิจกรรมหลัก→ย่อย
+   มีตัวอย่างครบตามสเปกแม้เปิดจาก localStorage รุ่นก่อน. */
+function ensureSocialWorker(activities) {
+  const seed = DEMO_ACTIVITIES.find((a) => a.id === 'act-social-worker');
+  const has = activities.some((a) => a.id === seed.id || a.name.trim() === seed.name);
+  return has ? activities : [...activities, seed];
 }
 
 /** ทะเบียนว่าง (เบราว์เซอร์ใหม่ / ยังไม่เคยตั้งค่า) ให้คืนชุดตั้งต้นแทน
-    ไม่งั้น dropdown "Group Policy" ตอนผูกสิทธิและเพิ่มบุคลากรจะว่างเปล่า
-    จนใช้งานไม่ได้เลย. เขียนทับได้ทันทีที่ผู้ใช้แก้ในหน้า Group Policy. */
-export function readGroupPolicies() {
+    ไม่งั้น dropdown "กิจกรรม" ตอนผูกสิทธิและเพิ่มบุคลากรจะว่างเปล่า
+    จนใช้งานไม่ได้เลย. เขียนทับได้ทันทีที่ผู้ใช้แก้ในหน้ากิจกรรม. */
+export function readActivities() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw == null) return DEMO_GROUP_POLICIES;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length ? normalizeGroupPolicies(parsed) : DEMO_GROUP_POLICIES;
+    if (raw != null) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) return ensureSocialWorker(parsed.map(toActivityShape));
+      return DEMO_ACTIVITIES;
+    }
+    /* migrate ข้อมูล Group Policy เดิม (ครั้งเดียว แล้วเก็บใน key ใหม่) */
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacy != null) {
+      const parsed = JSON.parse(legacy);
+      if (Array.isArray(parsed) && parsed.length) {
+        const migrated = ensureSocialWorker(parsed.map(toActivityShape));
+        writeActivities(migrated);
+        return migrated;
+      }
+    }
+    return DEMO_ACTIVITIES;
   } catch {
-    return DEMO_GROUP_POLICIES;
+    return DEMO_ACTIVITIES;
   }
 }
 
-export function writeGroupPolicies(policies) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(policies));
+export function writeActivities(activities) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
 }
 
-export function computeGroupPolicyStats(policies) {
-  const subBranches = policies.flatMap((p) => p.subBranches || []);
+export function computeActivityStats(activities) {
+  const subActivities = activities.flatMap((a) => a.subActivities || []);
   return {
-    total: policies.length,
-    active: subBranches.filter((s) => s.active).length,
-    inactive: subBranches.filter((s) => !s.active).length,
+    total: activities.length,
+    active: subActivities.filter((s) => s.active).length,
+    inactive: subActivities.filter((s) => !s.active).length,
   };
 }
 
-export function createGroupPolicy(name) {
+export function createActivity(name) {
   return {
-    id: uid('gp'),
+    id: uid('act'),
     name: name.trim(),
-    subBranches: [],
+    subActivities: [],
   };
 }
 
-export function createSubBranch(name, order) {
+export function createSubActivity(name, order) {
   return {
-    id: uid('sb'),
+    id: uid('sub'),
     name: name.trim(),
     active: true,
     order,
   };
 }
 
-export function sortSubBranches(subBranches) {
-  return [...(subBranches || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+export function sortSubActivities(subActivities) {
+  return [...(subActivities || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
-export function reorderSubBranches(subBranches, fromIdx, toIdx) {
-  const copy = sortSubBranches(subBranches);
+export function reorderSubActivities(subActivities, fromIdx, toIdx) {
+  const copy = sortSubActivities(subActivities);
   const [moved] = copy.splice(fromIdx, 1);
   copy.splice(toIdx, 0, moved);
-  return copy.map((sb, i) => ({ ...sb, order: i + 1 }));
+  return copy.map((sub, i) => ({ ...sub, order: i + 1 }));
 }
 
-export function isDuplicateGroupPolicyName(policies, name, excludeId = null) {
+export function isDuplicateActivityName(activities, name, excludeId = null) {
   const norm = name.trim().toLowerCase();
   if (!norm) return false;
-  return policies.some((p) => (
-    p.id !== excludeId && p.name.trim().toLowerCase() === norm
+  return activities.some((a) => (
+    a.id !== excludeId && a.name.trim().toLowerCase() === norm
   ));
 }
 
-export function loadDemoPolicies() {
-  writeGroupPolicies(DEMO_GROUP_POLICIES);
-  return DEMO_GROUP_POLICIES;
+export function loadDemoActivities() {
+  writeActivities(DEMO_ACTIVITIES);
+  return DEMO_ACTIVITIES;
 }
 
-export function clearGroupPolicies() {
+export function clearActivities() {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
