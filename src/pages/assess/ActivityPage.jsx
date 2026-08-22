@@ -58,12 +58,13 @@ const TEXT_CELL = {
   lineHeight: 1.5,
 };
 
-/* ชื่อกิจกรรมหลักบนหัวการ์ด — ใหญ่กว่าเนื้อตาราง ให้ลำดับชั้นชัด */
+/* ชื่อกิจกรรมหลักบนหัวการ์ด — ใหญ่กว่าเนื้อตาราง ให้ลำดับชั้นชัด
+   น้ำหนัก regular เท่าหัวการ์ดหน้าอื่น (ลดจาก medium — feedback 22 ส.ค. 2569) */
 const ACTIVITY_TITLE = {
   color: 'var(--text-topic-secondary-title)',
   fontFamily: 'var(--type-family-heading-graphic2)',
   fontSize: 'var(--type-size-base)',
-  fontWeight: 'var(--type-weight-medium)',
+  fontWeight: 'var(--type-weight-regular)',
   lineHeight: 1.5,
 };
 

@@ -161,7 +161,7 @@ const BrandIconButton = React.forwardRef(function BrandIconButton(
       onMouseUp={() => setPressed(false)}
       disabled={disabled}
       aria-disabled={disabled}
-      className={`inline-flex items-center justify-center transition-all duration-200 ease-out ${className}`}
+      className={`inline-flex items-center justify-center transition-all duration-200 ease-out shrink-0 ${className}`}
       style={{
         width: dim.box, height: dim.box,
         borderRadius: 'var(--dim-radius-200)',
