@@ -442,39 +442,28 @@ export default function ActivityPage() {
     setSearch(q);
   };
 
-  /* รายงานสะท้อน context ปัจจุบัน: กลุ่มตามกิจกรรม + กิจกรรมย่อยที่ผ่าน
-     ค้นหา/ตัวกรองสถานะ เรียงตามตัวอักษรเหมือนบนหน้า */
+  /* รายงาน **ทั้งหมด** — ทุกกิจกรรม/กิจกรรมย่อยในทะเบียน (ไม่ตัดตาม
+     ตัวกรอง/คำค้นบนหน้า) แบ่งเป็นกลุ่มหลัก (กิจกรรม) → กลุ่มย่อย
+     (กิจกรรมย่อย) เรียงตามตัวอักษรทั้งสองระดับ */
   const buildExportReport = () => {
-    const q = search.trim().toLowerCase();
     const rows = [];
-    visibleActivities.forEach((a) => {
-      let order = 0;
-      sortSubActivities(a.subActivities).forEach((sub) => {
-        const matchesSearch = !q
-          || a.name.toLowerCase().includes(q)
-          || sub.name.toLowerCase().includes(q);
-        const matchesStatus = !filterStatus
-          || (filterStatus === 'active' && sub.active)
-          || (filterStatus === 'inactive' && !sub.active);
-        if (!matchesSearch || !matchesStatus) return;
-        order += 1;
-        rows.push({
-          _id: `${a.id}|${sub.id}`,
-          activity: a.name,
-          order,
-          name: sub.name,
-          status: sub.active ? 'เปิดการใช้งาน' : 'ปิดการใช้งาน',
+    [...activities]
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'th'))
+      .forEach((a) => {
+        sortSubActivities(a.subActivities).forEach((sub, idx) => {
+          rows.push({
+            _id: `${a.id}|${sub.id}`,
+            activity: a.name,
+            order: idx + 1,
+            name: sub.name,
+            status: sub.active ? 'เปิดการใช้งาน' : 'ปิดการใช้งาน',
+          });
         });
       });
-    });
-    const summary = [
-      filterStatus ? STATUS_OPTIONS.find((o) => o.value === filterStatus)?.label : null,
-      search.trim() ? `ค้นหา "${search.trim()}"` : null,
-    ].filter(Boolean).join(' · ');
     return {
       key: 'assess-activities',
       title: 'ทะเบียนกิจกรรมและกิจกรรมย่อย',
-      subtitle: summary || 'ทั้งหมด',
+      subtitle: `ทั้งหมด ${activities.length} กิจกรรมหลัก · ${rows.length} กิจกรรมย่อย`,
       table: { columns: ACTIVITY_EXPORT_COLUMNS, rows },
     };
   };
