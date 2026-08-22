@@ -10,59 +10,72 @@
    อัตโนมัติตอนอ่าน (`readActivities`) — id เดิม (gp-… / sb-…) คงไว้เพื่อให้
    record สิทธิ์/บุคลากรที่อ้างถึงยังจับคู่ได้ ส่วน id ใหม่ใช้ act-… / sub-… */
 
-const STORAGE_KEY = 'mih:activities';
-const LEGACY_STORAGE_KEY = 'mih:group-policies';
+/* v2 (22 ส.ค. 2569) — ชุด mock ใหม่อิงโครง ศบส. จริง; bump key เพื่อให้
+   เบราว์เซอร์ที่เคยเก็บชุดเก่า (specialty โรงพยาบาล) เห็นชุดใหม่ทันที */
+const STORAGE_KEY = 'mih:activities-v2';
+const LEGACY_STORAGE_KEYS = ['mih:activities', 'mih:group-policies'];
 
 const uid = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-/* กิจกรรมหลัก = สายงาน/บทบาทกิจกรรมของบุคลากรในศูนย์บริการสาธารณสุข
-   แต่ละกิจกรรมแตกเป็นกิจกรรมย่อยตามความเชี่ยวชาญ — ชุดนี้อิงโครงบุคลากร
-   ของสำนักอนามัย เพื่อให้ dropdown ตอนผูกสิทธิ/เพิ่มบุคลากรมีตัวเลือกครบ
-   พอใช้งานได้จริง. */
+/* กิจกรรมหลัก = สายงาน/บทบาทกิจกรรมของบุคลากรใน **ศูนย์บริการสาธารณสุข
+   สำนักอนามัย กรุงเทพมหานคร** — กิจกรรมย่อย = งานบริการที่ ศบส. มีจริง
+   อิงคู่มือระบบงานทั้ง 21 เล่ม (คลินิกตรวจรักษา · ทันตกรรม · เภสัชกรรมและ
+   บริหารเวชภัณฑ์ · ชันสูตรโรค · รังสีวินิจฉัย · เวชระเบียน · ห้องเงิน ·
+   สังคมสงเคราะห์และเวชศาสตร์ฟื้นฟู · สุขภาพจิต · วัณโรค · โรคติดต่อทาง
+   เพศสัมพันธ์/เอดส์ · บำบัดสารเสพติด · ฝากครรภ์ · วางแผนครอบครัว ·
+   สร้างเสริมภูมิคุ้มกันโรค · อนามัยโรงเรียน · สาธารณสุขชุมชน · สัตวแพทย์ ·
+   ส่งเสริมสุขภาพเฉพาะกลุ่ม · สืบค้น/ส่งต่อ · Telemedicine)
+   — ไม่มี specialty ระดับโรงพยาบาล (ศัลยกรรม/ออร์โธ/จักษุ ฯลฯ) เพราะ
+   ศบส. เป็นหน่วยบริการปฐมภูมิ. */
 export const DEMO_ACTIVITIES = [
   {
     id: 'gp-doctor',
     name: 'แพทย์',
     subActivities: [
-      { id: 'sb-gp',     name: 'แพทย์เวชปฏิบัติทั่วไป', active: true, order: 1 },
-      { id: 'sb-family', name: 'แพทย์เวชศาสตร์ครอบครัว', active: true, order: 2 },
-      { id: 'sb-internal', name: 'อายุรแพทย์', active: true, order: 3 },
-      { id: 'sb-surgery', name: 'ศัลยแพทย์', active: true, order: 4 },
-      { id: 'sb-pediatrics', name: 'กุมารแพทย์', active: true, order: 5 },
-      { id: 'sb-obgyn',  name: 'สูติ-นรีแพทย์', active: true, order: 6 },
-      { id: 'sb-eye', name: 'จักษุแพทย์', active: true, order: 7 },
-      { id: 'sb-ent', name: 'โสต ศอ นาสิกแพทย์', active: true, order: 8 },
-      { id: 'sb-ortho', name: 'ออร์โธปิดิกส์', active: true, order: 9 },
-      { id: 'sb-psy',    name: 'จิตแพทย์', active: true, order: 10 },
-      { id: 'sb-er-doctor', name: 'แพทย์ฉุกเฉิน', active: true, order: 11 },
-      { id: 'sb-anes', name: 'วิสัญญีแพทย์', active: true, order: 12 },
-      { id: 'sb-derma', name: 'แพทย์ผิวหนัง', active: true, order: 13 },
-      { id: 'sb-neuro-surg', name: 'ประสาทศัลยแพทย์', active: true, order: 14 },
-      { id: 'sb-rehab-doctor', name: 'แพทย์เวชศาสตร์ฟื้นฟู', active: true, order: 15 },
-      { id: 'sb-radiologist', name: 'รังสีแพทย์', active: true, order: 16 },
-      { id: 'sb-dent',   name: 'ทันตแพทย์', active: true, order: 17 },
-      { id: 'sb-thai',   name: 'แพทย์แผนไทย', active: true, order: 18 },
+      { id: 'sb-gp',          name: 'ตรวจรักษาโรคทั่วไป', active: true, order: 1 },
+      { id: 'sb-family',      name: 'เวชศาสตร์ครอบครัวและเยี่ยมบ้าน', active: true, order: 2 },
+      { id: 'sb-ncd',         name: 'คลินิกโรคเรื้อรัง (เบาหวาน/ความดัน)', active: true, order: 3 },
+      { id: 'sb-anc-doctor',  name: 'คลินิกฝากครรภ์', active: true, order: 4 },
+      { id: 'sb-wellbaby',    name: 'คลินิกสุขภาพเด็กดี', active: true, order: 5 },
+      { id: 'sb-elderly-doc', name: 'คลินิกผู้สูงอายุครบวงจร', active: true, order: 6 },
+      { id: 'sb-mental',      name: 'คลินิกสุขภาพจิต', active: true, order: 7 },
+      { id: 'sb-tb',          name: 'คลินิกวัณโรค', active: true, order: 8 },
+      { id: 'sb-sti',         name: 'คลินิกโรคติดต่อทางเพศสัมพันธ์และเอดส์', active: true, order: 9 },
+      { id: 'sb-drug-clinic', name: 'คลินิกบำบัดสารเสพติด', active: true, order: 10 },
+      { id: 'sb-telemed',     name: 'แพทย์ทางไกล (Telemedicine)', active: true, order: 11 },
     ],
   },
   {
-    id: 'gp-nurse',
-    name: 'พยาบาล',
+    id: 'act-dentist',
+    name: 'ทันตแพทย์',
     subActivities: [
-      { id: 'sb-opd',       name: 'พยาบาลผู้ป่วยนอก (OPD)', active: true, order: 1 },
-      { id: 'sb-er',        name: 'พยาบาลห้องฉุกเฉิน', active: true, order: 2 },
-      { id: 'sb-anc',       name: 'พยาบาลฝากครรภ์', active: true, order: 3 },
-      { id: 'sb-vaccine',   name: 'พยาบาลสร้างเสริมภูมิคุ้มกัน', active: true, order: 4 },
-      { id: 'sb-nurse-com', name: 'พยาบาลเยี่ยมบ้าน/ชุมชน', active: true, order: 5 },
-      { id: 'sb-ipd',       name: 'พยาบาลสังเกตอาการ', active: false, order: 6 },
+      { id: 'sub-dent-opd',       name: 'ตรวจรักษาทางทันตกรรม', active: true, order: 1 },
+      { id: 'sub-dent-prevent',   name: 'ทันตกรรมป้องกันในโรงเรียน', active: true, order: 2 },
+      { id: 'sub-dent-community', name: 'ทันตสาธารณสุขชุมชน', active: true, order: 3 },
     ],
   },
   {
     id: 'gp-pharmacist',
     name: 'เภสัชกร',
     subActivities: [
-      { id: 'sb-dispense', name: 'เภสัชกรจ่ายยา', active: true, order: 1 },
-      { id: 'sb-stock',    name: 'เภสัชกรคลังยาและเวชภัณฑ์', active: true, order: 2 },
-      { id: 'sb-counsel',  name: 'เภสัชกรให้คำปรึกษาด้านยา', active: true, order: 3 },
+      { id: 'sb-dispense', name: 'จ่ายยาผู้ป่วยนอก', active: true, order: 1 },
+      { id: 'sb-stock',    name: 'บริหารคลังยาและเวชภัณฑ์', active: true, order: 2 },
+      { id: 'sb-counsel',  name: 'ให้คำปรึกษาด้านยา', active: true, order: 3 },
+    ],
+  },
+  {
+    id: 'gp-nurse',
+    name: 'พยาบาลวิชาชีพ',
+    subActivities: [
+      { id: 'sb-opd',           name: 'คัดกรองและซักประวัติ (OPD)', active: true, order: 1 },
+      { id: 'sb-er',            name: 'ปฐมพยาบาลและฉุกเฉิน', active: true, order: 2 },
+      { id: 'sb-anc',           name: 'คลินิกฝากครรภ์', active: true, order: 3 },
+      { id: 'sb-fp',            name: 'วางแผนครอบครัว', active: true, order: 4 },
+      { id: 'sb-vaccine',       name: 'สร้างเสริมภูมิคุ้มกันโรค (วัคซีน)', active: true, order: 5 },
+      { id: 'sb-nurse-com',     name: 'พยาบาลอนามัยชุมชน (เยี่ยมบ้าน)', active: true, order: 6 },
+      { id: 'sb-homeward',      name: 'การพยาบาลต่อเนื่องที่บ้าน (Home Ward)', active: true, order: 7 },
+      { id: 'sb-elderly-nurse', name: 'คลินิกผู้สูงอายุครบวงจร', active: true, order: 8 },
+      { id: 'sb-ipd',           name: 'สังเกตอาการ', active: false, order: 9 },
     ],
   },
   {
@@ -75,52 +88,72 @@ export const DEMO_ACTIVITIES = [
     ],
   },
   {
+    id: 'gp-public-health',
+    name: 'นักวิชาการสาธารณสุข',
+    subActivities: [
+      { id: 'sb-community',    name: 'งานสาธารณสุขชุมชน', active: true, order: 1 },
+      { id: 'sb-school',       name: 'งานอนามัยโรงเรียน', active: true, order: 2 },
+      { id: 'sb-epidemic',     name: 'งานควบคุมโรคติดต่อและระบาดวิทยา', active: true, order: 3 },
+      { id: 'sb-health-promo', name: 'งานสร้างเสริมสุขภาพและป้องกันโรค', active: true, order: 4 },
+      { id: 'sb-envocc',       name: 'งานอาชีวอนามัยและอนามัยสิ่งแวดล้อม', active: true, order: 5 },
+    ],
+  },
+  {
     id: 'gp-medtech',
     name: 'นักเทคนิคการแพทย์',
     subActivities: [
-      { id: 'sb-lab',         name: 'ห้องปฏิบัติการทั่วไป', active: true, order: 1 },
-      { id: 'sb-lab-sendout', name: 'งานส่งตรวจภายนอก (Send-out)', active: true, order: 2 },
+      { id: 'sb-lab',         name: 'ห้องปฏิบัติการชันสูตรโรค', active: true, order: 1 },
+      { id: 'sb-lab-collect', name: 'เจาะเก็บสิ่งส่งตรวจ', active: true, order: 2 },
+      { id: 'sb-lab-sendout', name: 'งานส่งตรวจภายนอก (Send-out)', active: true, order: 3 },
     ],
   },
   {
     id: 'gp-radiology',
     name: 'นักรังสีการแพทย์',
     subActivities: [
-      { id: 'sb-xray', name: 'รังสีวินิจฉัยทั่วไป', active: true, order: 1 },
+      { id: 'sb-xray', name: 'รังสีวินิจฉัยทั่วไป (เอกซเรย์)', active: true, order: 1 },
       { id: 'sb-pacs', name: 'ผู้ดูแลระบบ PACS', active: true, order: 2 },
+    ],
+  },
+  {
+    id: 'act-physio',
+    name: 'นักกายภาพบำบัด',
+    subActivities: [
+      { id: 'sub-pt-opd',  name: 'กายภาพบำบัดผู้ป่วยนอก', active: true, order: 1 },
+      { id: 'sub-pt-home', name: 'ฟื้นฟูสมรรถภาพที่บ้านและชุมชน', active: true, order: 2 },
     ],
   },
   {
     id: 'gp-dental-health',
     name: 'เจ้าพนักงานทันตสาธารณสุข',
     subActivities: [
-      { id: 'sb-dent-assist', name: 'ผู้ช่วยทันตแพทย์', active: true, order: 1 },
-      { id: 'sb-dent-school', name: 'ทันตสาธารณสุขในโรงเรียน', active: true, order: 2 },
+      { id: 'sb-dent-assist', name: 'ผู้ช่วยงานทันตกรรม', active: true, order: 1 },
+      { id: 'sb-dent-school', name: 'ทันตสุขศึกษาในโรงเรียน', active: true, order: 2 },
     ],
   },
   {
     id: 'gp-registrar',
     name: 'เจ้าหน้าที่เวชระเบียน',
     subActivities: [
-      { id: 'sb-reg-front', name: 'จุดคัดกรอง/ลงทะเบียน', active: true, order: 1 },
+      { id: 'sb-reg-front', name: 'จุดคัดกรอง/ลงทะเบียนและตรวจสอบสิทธิ', active: true, order: 1 },
       { id: 'sb-reg-file',  name: 'แฟ้มเวชระเบียนและการส่งต่อ', active: true, order: 2 },
+      { id: 'sb-reg-queue', name: 'ประชาสัมพันธ์และจัดการคิว', active: true, order: 3 },
     ],
   },
   {
     id: 'gp-finance',
     name: 'เจ้าหน้าที่การเงิน',
     subActivities: [
-      { id: 'sb-cashier', name: 'การเงินและเก็บเงิน', active: true, order: 1 },
+      { id: 'sb-cashier', name: 'การเงินและเก็บเงิน (ห้องเงิน)', active: true, order: 1 },
       { id: 'sb-claim',   name: 'งานเคลมและสิทธิการรักษา', active: true, order: 2 },
     ],
   },
   {
-    id: 'gp-public-health',
-    name: 'นักวิชาการสาธารณสุข',
+    id: 'act-vet',
+    name: 'สัตวแพทย์',
     subActivities: [
-      { id: 'sb-community', name: 'งานสาธารณสุขชุมชน', active: true, order: 1 },
-      { id: 'sb-school',    name: 'งานสุขภาพนักเรียน', active: true, order: 2 },
-      { id: 'sb-epidemic',  name: 'งานควบคุมโรคติดต่อ', active: true, order: 3 },
+      { id: 'sub-vet-clinic', name: 'คลินิกสัตวแพทย์ (วัคซีน/ทำหมัน)', active: true, order: 1 },
+      { id: 'sub-vet-rabies', name: 'งานควบคุมโรคพิษสุนัขบ้า', active: true, order: 2 },
     ],
   },
   {
@@ -128,7 +161,7 @@ export const DEMO_ACTIVITIES = [
     name: 'ผู้ดูแลระบบ',
     subActivities: [
       { id: 'sb-sysadmin',   name: 'ผู้ดูแลระบบศูนย์', active: true, order: 1 },
-      { id: 'sb-superadmin', name: 'ผู้ดูแลระบบส่วนกลาง', active: true, order: 2 },
+      { id: 'sb-superadmin', name: 'ผู้ดูแลระบบส่วนกลาง (สำนักอนามัย)', active: true, order: 2 },
     ],
   },
 ];
@@ -162,16 +195,8 @@ export function readActivities() {
       if (Array.isArray(parsed) && parsed.length) return ensureSocialWorker(parsed.map(toActivityShape));
       return DEMO_ACTIVITIES;
     }
-    /* migrate ข้อมูล Group Policy เดิม (ครั้งเดียว แล้วเก็บใน key ใหม่) */
-    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
-    if (legacy != null) {
-      const parsed = JSON.parse(legacy);
-      if (Array.isArray(parsed) && parsed.length) {
-        const migrated = ensureSocialWorker(parsed.map(toActivityShape));
-        writeActivities(migrated);
-        return migrated;
-      }
-    }
+    /* key เก่า (ชุด mock ยุค Group Policy / v1) ไม่ migrate — ชุดใหม่อิง
+       โครง ศบส. จริงแทน; การแก้ไขหลังจากนี้เก็บใน key v2 ตามปกติ */
     return DEMO_ACTIVITIES;
   } catch {
     return DEMO_ACTIVITIES;
@@ -230,5 +255,5 @@ export function loadDemoActivities() {
 
 export function clearActivities() {
   localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem(LEGACY_STORAGE_KEY);
+  LEGACY_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
 }

@@ -10,13 +10,14 @@ export const PHCIS_CURRENT_USER = {
   displayName: 'พญ.สมหญิง รักษ์ดี',
   displayNameEn: 'Somying Rakdee',
   employeeCode: 'EMP-0001',
-  /* กิจกรรม (Activity-based Access Control) — แทน Group Policy เดิม */
-  activity: 'แพทย์',
-  subActivity: 'ทันตแพทย์',
+  /* กิจกรรม (Activity-based Access Control) — แทน Group Policy เดิม
+     ชุดค่าอิงโครงกิจกรรมจริงของ ศบส. สำนักอนามัย */
+  activity: 'ทันตแพทย์',
+  subActivity: 'ตรวจรักษาทางทันตกรรม',
   /* alias ชื่อเดิม — consumer นอกโมดูล assess (dashboard/consent) ยังอ่าน
      field นี้อยู่ ค่อยทยอยย้ายไป activity/subActivity */
-  groupPolicy: 'แพทย์',
-  subBranch: 'ทันตแพทย์',
+  groupPolicy: 'ทันตแพทย์',
+  subBranch: 'ตรวจรักษาทางทันตกรรม',
   department: 'ทันตกรรม',
   departmentKey: 'dental',
 };
