@@ -99,6 +99,17 @@ export const DEMO_ACTIVITIES = [
     ],
   },
   {
+    /* มติ คทง.4 — อสส. ล็อกอินบันทึกผลปฏิบัติงานเองได้เพื่อเบิกค่าป่วยการ
+       แต่เห็นเฉพาะเคสที่ได้รับมอบหมาย (แม่แบบสิทธิ์ scope = assigned) */
+    id: 'act-volunteer',
+    name: 'อาสาสมัครสาธารณสุข (อสส.)',
+    subActivities: [
+      { id: 'sub-vol-visit', name: 'เยี่ยมบ้านตามที่ได้รับมอบหมาย', active: true, order: 1 },
+      { id: 'sub-vol-survey', name: 'สำรวจข้อมูลสุขภาพครัวเรือน', active: true, order: 2 },
+      { id: 'sub-vol-screen', name: 'คัดกรองสุขภาพเบื้องต้นในชุมชน', active: true, order: 3 },
+    ],
+  },
+  {
     id: 'gp-medtech',
     name: 'นักเทคนิคการแพทย์',
     subActivities: [
