@@ -27,7 +27,7 @@ import {
   getVisitSubmission,
   resolveSource,
 } from '@/data/homevisitVisits';
-import { findRegistryEntryByHn } from '@/data/homevisitRegistry';
+import { findRegistryEntryByHn, getVisitHistory } from '@/data/homevisitRegistry';
 import { HOMEVISIT_STEP_RENDERERS } from '@/pages/homevisit/HomeVisitSteps';
 import {
   HomeVisitAccessGate,
@@ -113,6 +113,18 @@ const HomeVisitRecordPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [visitId, tick],
   );
+
+  /* มติ คทง.4 — แจ้งเตือนการบันทึกบริการซ้ำซ้อนในวันเดียวกัน: ค่าตอบแทน
+     CG/อสส. ของวันเดียวกันจะชนกันแล้วเบิกไม่ได้ จึงเตือนตั้งแต่เปิดหน้า
+     (ไม่บล็อก — เยี่ยมซ้ำวันเดียวกันมีเหตุจำเป็นได้ เช่น เคสฉุกเฉิน) */
+  const sameDayVisit = useMemo(() => {
+    if (!hn) return null;
+    const today = new Date().toISOString().slice(0, 10);
+    return (getVisitHistory(hn) || []).find((h) => {
+      const d = String(h.date || h.visitDate || '').slice(0, 10);
+      return d === today && h.visitId !== visitId;
+    }) || null;
+  }, [hn, visitId]);
 
   const setForm = (updater) => {
     setDirty(true);
@@ -264,6 +276,21 @@ const HomeVisitRecordPage = () => {
                 <NoticeBand tone='warning' icon='assignment_late'>
                   ผู้รับบริการรายนี้ยังไม่มีทะเบียนเยี่ยมบ้าน — บันทึกการเยี่ยมได้
                   แต่ควรลงทะเบียนก่อนเพื่อให้มีกลุ่มผู้รับบริการ ตำแหน่งบ้าน และรอบการติดตามที่ถูกต้อง
+                </NoticeBand>
+              </div>
+            )}
+
+            {sameDayVisit && !readOnly && (
+              <div style={{
+                paddingTop: 'var(--dim-space-300)',
+                paddingLeft: 'var(--dim-space-600)',
+                paddingRight: 'var(--dim-space-600)',
+              }}>
+                <NoticeBand tone='warning' icon='event_repeat'>
+                  วันนี้มีการบันทึกบริการของผู้รับบริการรายนี้แล้ว
+                  {sameDayVisit.by ? ` (โดย ${sameDayVisit.by})` : ''} —
+                  การบันทึกซ้ำในวันเดียวกันทำให้การเบิกค่าตอบแทน CG/อสส. ชนกันและเบิกไม่ได้
+                  ตรวจสอบก่อนบันทึกต่อ (มติ คทง.4)
                 </NoticeBand>
               </div>
             )}
