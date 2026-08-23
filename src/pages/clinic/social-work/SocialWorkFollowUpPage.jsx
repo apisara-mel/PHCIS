@@ -30,6 +30,8 @@ import {
   resolveSwFundType,
   resolveSwTargetGroup,
   resolveSwProblemLabel,
+  resolveSwContactChannel,
+  swContactChannelBadge,
   hasSocialWorkRights,
   setSocialWorkRights,
   logSwPrint,
@@ -254,6 +256,18 @@ const SocialWorkFollowUpPage = () => {
 
   const followColumns = [
     { key: 'date', label: 'วันที่ติดตาม', render: (r) => formatSwDate(r.date) },
+    {
+      /* ช่องทางติดตามใช้นิยามใหม่ตามมติ คทง.10 ครั้งที่ 3 ข้อ 7 —
+         ศูนย์บริการสาธารณสุข / โทรติดตาม / ประสาน อสส.
+         ข้อมูลมาจาก popup "ติดตามและประเมินผล" ของแบบ ส.ส.2 ที่ refit แล้ว
+         (รายการ seed เดิมที่ยังไม่มีช่องทางให้ถือเป็น "ศูนย์บริการสาธารณสุข") */
+      key: 'channel', label: 'ช่องทางการติดตาม',
+      render: (r) => (
+        <ColorfulBadge style={swContactChannelBadge(r.channel || 'center')} size='small' hierarchy='secondary'>
+          {resolveSwContactChannel(r.channel || 'center')}
+        </ColorfulBadge>
+      ),
+    },
     {
       key: 'reached', label: 'ผลการติดต่อ',
       render: (r) => (

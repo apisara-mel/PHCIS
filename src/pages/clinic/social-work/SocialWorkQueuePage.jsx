@@ -54,7 +54,9 @@ import {
    restorable (playbook §5). ปัญหาหลักที่เป็นรหัสลับ (ความรุนแรง /
    ทารุณกรรม / คดีความ / HIV) ถูกปกปิดตาม §1.4.2 เมื่อผู้ใช้ไม่มีสิทธิ. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสังคมสงเคราะห์'];
+/* หน้าแรกของโมดูลย้ายไปเป็น SocialWorkHomePage (มติ คทง.10 ครั้งที่ 3) —
+   หน้าคิวจึงอยู่ใต้ /clinic/social-work/queue และมีปุ่มกลับหน้าแรก */
+const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสังคมสงเคราะห์', 'คิวงานสังคมสงเคราะห์'];
 const SUMMARY_TITLE = 'คิวงานสังคมสงเคราะห์';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:social-work-queue';
 const PAGE_SIZE = 20;
@@ -492,7 +494,9 @@ const SocialWorkQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
-      title='งานสังคมสงเคราะห์'
+      title='คิวงานสังคมสงเคราะห์'
+      onBack={() => history.push('/clinic/social-work')}
+      backLabel='กลับหน้าแรก'
       actions={(
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           {/* Demo toggle สำหรับสถานะ "สิทธิไม่พอ" (mock-only — RBAC จริงมากับ §1.4.2/§1.20) */}
