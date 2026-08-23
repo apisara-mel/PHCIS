@@ -41,6 +41,10 @@ import { getPatientByHN } from '@/data/patientProfiles';
 import { resolveMedicationImage } from '@/data/medicationCatalog';
 import {
   DISPENSE_STATUS,
+  canDispensePharmacyOrder,
+  getPharmacyVerification,
+  unverifyPharmacyOrder,
+  verifyPharmacyOrder,
   PHARMACY_QUEUE,
   checkAllergyConflicts,
   getStock,
@@ -516,6 +520,12 @@ const PharmacyDispensePage = () => {
     DISPENSE_STATUS.CANCELLED,
   ].includes(row.status);
   const isTerminal = isClosed || row.status === DISPENSE_STATUS.PROBLEM;
+
+  /* Sequence Lock (มติ คทง.1 ครั้งที่ 3) — เภสัชยืนยัน → การเงินเก็บเงิน →
+     จึงจ่ายยาได้ ล็อกจริงทั้งสองขั้น ไม่ใช่แค่เตือน */
+  const verification = getPharmacyVerification(row.queueNo);
+  const dispenseGate = canDispensePharmacyOrder(row);
+  const paymentBlocked = !dispenseGate.ok;
   const footerPrimaryLabel = isLastStep
     ? (alreadyDispensed ? 'จ่ายยาแล้ว' : row.status === DISPENSE_STATUS.PARTIAL ? 'จ่ายส่วนที่เหลือ' : 'ยืนยันจ่ายยา')
     : `ถัดไป: ${DISPENSE_STEPS[currentStep + 1].title}`;
@@ -914,6 +924,8 @@ const PharmacyDispensePage = () => {
 
   const handleConfirmDispense = () => {
     if (hasInsufficientStock || hasMissingAuxLabels || isTerminal) return;
+    /* มติ คทง.1 — ยังไม่ชำระเงิน/ปิดสิทธิ ห้ามจ่ายยา (กันยักยอกยา) */
+    if (paymentBlocked) return;
     const dispensingItems = itemsWithStock.filter((i) => i.qtyNow > 0);
     deductStock(dispensingItems.map((i) => ({ name: i.name, quantity: i.qtyNow })));
     const nextItems = row.items.map((it) => {
@@ -1116,6 +1128,58 @@ const PharmacyDispensePage = () => {
               showCloseButton={false} style={{ maxWidth: '100%' }}
             />
           )}
+          {/* Sequence Lock (มติ คทง.1 ครั้งที่ 3) — สองแถบนี้คือขั้นที่ 2 และ 3
+              ของลำดับ เภสัชยืนยัน → การเงินเก็บเงิน → จ่ายยา
+              แถบแรก: ยังไม่ยืนยัน = ห้องการเงินยังออกใบเสร็จไม่ได้ (กันต้อง
+              ยกเลิกใบเสร็จเมื่อเภสัชแก้จำนวนยาทีหลัง)
+              แถบสอง: ยังไม่ชำระ = ปุ่ม "ยืนยันจ่ายยา" ถูกล็อก (กันยักยอกยา) */}
+          {!isClosed && !verification && (
+            <Alert
+              type='info'
+              title='ยังไม่ได้ยืนยันรายการยาไปห้องการเงิน'
+              subtext='ห้องการเงินจะออกใบเสร็จได้ก็ต่อเมื่อเภสัชกรตรวจสอบและยืนยันรายการยาแล้ว — ยืนยันหลังจากปรับจำนวน/เปลี่ยนยาเสร็จเรียบร้อย เพื่อไม่ต้องยกเลิกใบเสร็จภายหลัง'
+              showCloseButton={false}
+              style={{ maxWidth: '100%' }}
+              action={(
+                <BrandSubdueButton
+                  variant='fill'
+                  size='sm'
+                  leadingIcon='fact_check'
+                  onClick={() => { verifyPharmacyOrder(row.queueNo); bump(); }}
+                >
+                  ยืนยันรายการยา (ส่งห้องการเงิน)
+                </BrandSubdueButton>
+              )}
+            />
+          )}
+          {!isClosed && verification && (
+            <Alert
+              type='success'
+              title={`เภสัชกรยืนยันรายการยาแล้ว — ${verification.by}`}
+              subtext={`ยืนยันเมื่อ ${verification.at} · ห้องการเงินออกใบเสร็จได้แล้ว หากต้องแก้จำนวนยา/เปลี่ยนยา ให้ถอนการยืนยันก่อน`}
+              showCloseButton={false}
+              style={{ maxWidth: '100%' }}
+              action={(
+                <NeutralSubdueButton
+                  size='sm'
+                  leadingIcon='undo'
+                  onClick={() => { unverifyPharmacyOrder(row.queueNo, 'ต้องแก้ไขรายการยา'); bump(); }}
+                >
+                  ถอนการยืนยัน
+                </NeutralSubdueButton>
+              )}
+            />
+          )}
+          {!isClosed && paymentBlocked && (
+            <Alert
+              type='warning'
+              title='ยังจ่ายยาไม่ได้ — ผู้รับบริการยังไม่ได้ชำระเงิน/ปิดสิทธิ'
+              subtext={dispenseGate.reason}
+              showCloseButton={false}
+              style={{ maxWidth: '100%' }}
+            />
+          )}
+
           {/* Terminal banners for closed queues only — PROBLEM has its own
               notice above; it is also logged under Med Error. */}
           {isClosed && (
@@ -1627,7 +1691,7 @@ const PharmacyDispensePage = () => {
           showButton1
           button1Label={footerPrimaryLabel}
           button1TrailingIcon={isLastStep ? 'check' : 'arrow_forward'}
-          button1Disabled={isLastStep && (hasInsufficientStock || hasMissingAuxLabels || isTerminal)}
+          button1Disabled={isLastStep && (hasInsufficientStock || hasMissingAuxLabels || isTerminal || paymentBlocked)}
           onButton1Click={isLastStep ? handleConfirmDispense : goNextStep}
         />
         <PhcisTopToast session={draftToast} onDismiss={() => setDraftToast(null)} />

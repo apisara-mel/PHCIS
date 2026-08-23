@@ -620,6 +620,44 @@ const QueueSettingsPage = () => {
                   </div>
                 </div>
 
+                {/* มติ คทง.1 ครั้งที่ 3 — คิวเดียวตลอดการรับบริการ (Single Queue)
+                    เปิดไว้เป็นค่าเริ่มต้น; เปิด/ปิดได้เผื่อศูนย์ที่ยังใช้ระบบเดิม */}
+                <div
+                  className='w-full flex items-start flex-wrap'
+                  style={{
+                    gap: 'var(--dim-space-300)',
+                    paddingTop: 'var(--dim-space-300)',
+                    paddingBottom: 'var(--dim-space-300)',
+                    paddingLeft: 'var(--dim-space-400)',
+                    paddingRight: 'var(--dim-space-400)',
+                    borderRadius: 'var(--dim-radius-200, 8px)',
+                    background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+                  }}
+                >
+                  <Switch
+                    checked={settings.codeFormat.singleQueuePerVisit}
+                    disabled={!canAdmin}
+                    aria-label='คิวเดียวตลอดการรับบริการ'
+                    onChange={(next) => {
+                      if (!guardAdmin()) return;
+                      const value = typeof next === 'boolean' ? next : !settings.codeFormat.singleQueuePerVisit;
+                      patch('codeFormat', 'singleQueuePerVisit')(value);
+                      setToast(value
+                        ? 'เปิดคิวเดียวตลอดการรับบริการแล้ว — ผู้รับบริการถือเลขคิวใบเดียวทุกจุด'
+                        : 'ปิดคิวเดียวตลอดการรับบริการ — แต่ละจุดจะออกเลขคิวของตัวเอง');
+                    }}
+                  />
+                  <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+                    <FieldLabel>คิวเดียวตลอดการรับบริการ (Single Queue ต่อ 1 Visit)</FieldLabel>
+                    <HelperText>
+                      ผู้รับบริการถือเลขคิวใบเดียวตั้งแต่คัดกรอง → ห้องตรวจ → ห้องยา → การเงิน
+                      ไม่ต้องรับบัตรคิวใหม่ทุกจุด และโอนคิวข้ามจุดแล้วเลขไม่เปลี่ยน ·
+                      ลำดับ &quot;เรียก&quot; ยังเป็นของแต่ละจุด จอแสดงคิวจึงต้องมีข้อความกำกับว่า
+                      ลำดับเรียกอาจไม่เรียงตามเลขคิว (มติ คทง.1)
+                    </HelperText>
+                  </div>
+                </div>
+
                 <div className='w-full flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
                   <FieldLabel>พรีวิวสด</FieldLabel>
                   {QUEUE_STATIONS.slice(0, 8).map((s) => (

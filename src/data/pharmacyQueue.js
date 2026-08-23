@@ -1715,3 +1715,75 @@ export const sendPrescriptionToPharmacy = (visit) => {
   PHARMACY_QUEUE.push(row);
   return row;
 };
+
+/* ═══ Sequence Lock: เภสัช → การเงิน → จ่ายยา (มติ คทง.1 ครั้งที่ 3) ══════
+   ที่ประชุมลงรายละเอียดลำดับงานหลังแพทย์สั่งยาไว้ชัดเจน และเหตุผลของแต่ละ
+   ขั้นคือปัญหาหน้างานจริง:
+
+     1) แพทย์สั่งยา → ข้อมูลไปห้องยา **และ** ห้องการเงินพร้อมกัน
+     2) **เภสัชกรตรวจสอบและกดยืนยันก่อน** ห้องการเงินจึงออกใบเสร็จได้
+        เหตุผล: ถ้าออกใบเสร็จก่อนแล้วเภสัชแก้จำนวนยา/เปลี่ยนยา ต้องยกเลิก
+        ใบเสร็จทั้งใบ ซึ่งเป็นภาระและเสี่ยงต่อการตรวจสอบทางการเงิน
+     3) **ผู้ป่วยชำระเงิน/ปิดสิทธิก่อนรับยา**
+        เหตุผล: กันปัญหา "ยักยอกยา" และความเสี่ยงที่เจ้าหน้าที่ต้อง
+        รับผิดชอบเงินส่วนต่างเอง
+
+   ทั้งสองขั้นเป็น **ล็อกจริง** ไม่ใช่คำเตือน — ฝั่งห้องยากดจ่ายยาไม่ได้
+   จนกว่าจะชำระครบ และฝั่งการเงินเรียกเก็บไม่ได้จนกว่าเภสัชจะยืนยัน
+   (หน้าการเงินอยู่นอกขอบเขตไฟล์ชุดนี้ จึง export ตัวตรวจให้เรียกใช้)   */
+
+const PHARMACIST_VERIFY_KEY = 'mih:pharmacy-verified-orders';
+
+/** เภสัชกรยืนยันรายการยาแล้ว — ปลดล็อกให้ห้องการเงินออกใบเสร็จได้ */
+export const verifyPharmacyOrder = (queueNo, { by, note = '' } = {}) => {
+  if (!queueNo) return null;
+  const store = readJson(PHARMACIST_VERIFY_KEY, {});
+  store[queueNo] = {
+    by: by || CURRENT_DISPENSER.name,
+    at: TODAY,
+    note,
+  };
+  writeJson(PHARMACIST_VERIFY_KEY, store);
+  return store[queueNo];
+};
+
+/** ถอนการยืนยัน — ใช้เมื่อต้องกลับมาแก้จำนวนยา/เปลี่ยนยาหลังยืนยันไปแล้ว
+    (ต้องมีเหตุผล เพราะฝั่งการเงินอาจเริ่มตั้งเรื่องแล้ว) */
+export const unverifyPharmacyOrder = (queueNo, reason) => {
+  if (!queueNo) return;
+  const store = readJson(PHARMACIST_VERIFY_KEY, {});
+  const prev = store[queueNo];
+  delete store[queueNo];
+  writeJson(PHARMACIST_VERIFY_KEY, store);
+  return prev ? { ...prev, revokedReason: reason || 'ไม่ระบุเหตุผล' } : null;
+};
+
+export const getPharmacyVerification = (queueNo) =>
+  (queueNo ? readJson(PHARMACIST_VERIFY_KEY, {})[queueNo] || null : null);
+
+/** ขั้นที่ 2 — ห้องการเงินเรียกเก็บได้หรือยัง
+    @returns {{ ok: boolean, reason: string|null }} */
+export const canBillPharmacyOrder = (row) => {
+  if (!row) return { ok: false, reason: 'ไม่พบรายการยาของคิวนี้' };
+  const verification = getPharmacyVerification(row.queueNo);
+  if (!verification) {
+    return {
+      ok: false,
+      reason: 'เภสัชกรยังไม่ได้ยืนยันรายการยา — ออกใบเสร็จตอนนี้เสี่ยงต้องยกเลิกใบเสร็จหากมีการแก้จำนวนยา (มติ คทง.1)',
+    };
+  }
+  return { ok: true, reason: null };
+};
+
+/** ขั้นที่ 3 — จ่ายยาให้ผู้ป่วยได้หรือยัง
+    n/a = ไม่มีส่วนที่ต้องชำระ (เบิกได้เต็มตามสิทธิ) จ่ายได้เลย */
+export const canDispensePharmacyOrder = (row) => {
+  if (!row) return { ok: false, reason: 'ไม่พบรายการยาของคิวนี้' };
+  if (row.paymentStatus === PAYMENT_STATUS.UNPAID) {
+    return {
+      ok: false,
+      reason: 'ผู้รับบริการยังไม่ได้ชำระเงิน/ปิดสิทธิ — ต้องชำระที่ห้องการเงินก่อนรับยา (มติ คทง.1)',
+    };
+  }
+  return { ok: true, reason: null };
+};
