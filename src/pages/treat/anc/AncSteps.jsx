@@ -18,6 +18,7 @@ import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import {
   formatAncDate,
   calculateGestationalAge,
+  evaluateWeightGain,
   formatGestationalAge,
   calculateEDC,
   ANC_STRESS_QUESTIONS,
@@ -866,6 +867,7 @@ export const AncStep2Screening = ({ form, setForm }) => {
    fetal heart rate + oral-health check (TOR 1.10.7.7). */
 export const AncStep3Examination = ({ form, setForm }) => {
   const setVital = (key) => (value) => setForm((f) => ({ ...f, vitals: { ...f.vitals, [key]: value } }));
+  const setField = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
   const gaByLmp = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
 
@@ -883,6 +885,14 @@ export const AncStep3Examination = ({ form, setForm }) => {
     const diff = Math.abs(gaByLmp.weeks - exam);
     return diff >= 3 ? diff : 0;
   }, [gaByLmp, form.gaByExam]);
+
+  /* มติ คทง.2 — BMI ก่อนตั้งครรภ์ + เกณฑ์การเพิ่มน้ำหนักตามอายุครรภ์ (IOM 2009) */
+  const bmiResult = useMemo(() => evaluateWeightGain({
+    prePregnancyWeight: form.prePregnancyWeight,
+    currentWeight: form.vitals?.weight,
+    heightCm: form.vitals?.height,
+    gaWeeks: gaByLmp?.weeks,
+  }), [form.prePregnancyWeight, form.vitals?.weight, form.vitals?.height, gaByLmp]);
 
   return (
     <StepCard>
@@ -904,7 +914,36 @@ export const AncStep3Examination = ({ form, setForm }) => {
           <Field label='ส่วนสูง (ซม.)'>
             <InputField value={form.vitals.height} onChange={setVital('height')} type='number' />
           </Field>
+          {/* มติ คทง.2 — น้ำหนักก่อนตั้งครรภ์เป็นฐานคำนวณ BMI และเกณฑ์การเพิ่มน้ำหนัก */}
+          <Field label='น้ำหนักก่อนตั้งครรภ์ (กก.)' hint='ใช้คำนวณ BMI และเกณฑ์น้ำหนักที่ควรเพิ่ม'>
+            <InputField value={form.prePregnancyWeight} onChange={setField('prePregnancyWeight')} type='number' placeholder='เช่น 52' />
+          </Field>
         </div>
+
+        {/* มติ คทง.2 — BMI + เกณฑ์การเพิ่มน้ำหนักแปลผลอัตโนมัติ (IOM 2009) */}
+        {bmiResult && (
+          <div className='flex flex-col gap-2'>
+            <div className='flex items-center gap-2 flex-wrap'>
+              <ColorfulBadge style={bmiResult.band?.badge || 'grey'} size='small' hierarchy='secondary' width='hug' maxWidth={520}>
+                {`BMI ก่อนตั้งครรภ์ ${bmiResult.bmi} — ${bmiResult.band?.label || '—'}`}
+              </ColorfulBadge>
+              {bmiResult.level && (
+                <ColorfulBadge style={bmiResult.badge} size='small' hierarchy='secondary' width='hug' maxWidth={520}>
+                  {`น้ำหนักเพิ่ม ${bmiResult.gained} กก.`}
+                </ColorfulBadge>
+              )}
+            </div>
+            <span style={{
+              color: 'var(--text-content-tertiary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+              lineHeight: 1.5,
+            }}
+            >
+              {bmiResult.message || bmiResult.band?.advice}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ตรวจปัสสาวะ — the legacy exam screen (p.2-10) records Sugar and

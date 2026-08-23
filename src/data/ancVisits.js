@@ -381,6 +381,94 @@ export const interpretOralHealthScreen = (answers) => {
 
 export const ANC_DEFAULT_VITALS = { bp: '110/70', hr: 82, temp: 36.7, rr: 18, spo2: 99, weight: 58, height: 160 };
 
+/* ═══════════════════════════════════════════════════════════════════
+   มติ คทง.2 — "น้ำหนักและ BMI คำนวณ/แปลผลอัตโนมัติ"
+   เดิมมีแค่ checkbox ความเสี่ยง (BMI < 18.5 หรือ > 30 · น้ำหนักขึ้นผิดเกณฑ์)
+   ให้พยาบาลติ๊กเอง — ต่อไปคำนวณจากน้ำหนัก/ส่วนสูงที่กรอกจริง เกณฑ์การเพิ่ม
+   น้ำหนักอ้างอิง IOM 2009 (ครรภ์เดี่ยว) ที่กรมอนามัยใช้ในสมุดสุขภาพแม่และเด็ก
+   ═══════════════════════════════════════════════════════════════════ */
+
+export const calcBmi = (weightKg, heightCm) => {
+  const w = Number(weightKg);
+  const h = Number(heightCm);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
+  const m = h / 100;
+  return Math.round((w / (m * m)) * 10) / 10;
+};
+
+/** แปลผล BMI ก่อนตั้งครรภ์ + ช่วงน้ำหนักที่ควรเพิ่มตลอดการตั้งครรภ์ (IOM 2009) */
+export const interpretPrePregnancyBmi = (bmi) => {
+  if (bmi == null) return null;
+  if (bmi < 18.5) {
+    return {
+      group: 'underweight', label: 'น้ำหนักน้อยกว่าเกณฑ์ (BMI < 18.5)', badge: 'yellow',
+      totalGain: [12.5, 18], weeklyGain: [0.44, 0.58], risk: true,
+      advice: 'ควรเพิ่มน้ำหนักตลอดครรภ์ 12.5–18 กก. — ให้คำแนะนำโภชนาการเพิ่มพลังงาน',
+    };
+  }
+  if (bmi < 23) {
+    return {
+      group: 'normal', label: 'น้ำหนักปกติ (BMI 18.5–22.9)', badge: 'green',
+      totalGain: [11.5, 16], weeklyGain: [0.35, 0.50], risk: false,
+      advice: 'ควรเพิ่มน้ำหนักตลอดครรภ์ 11.5–16 กก.',
+    };
+  }
+  if (bmi < 25) {
+    return {
+      group: 'overweight', label: 'น้ำหนักเกิน (BMI 23–24.9)', badge: 'yellow',
+      totalGain: [7, 11.5], weeklyGain: [0.23, 0.33], risk: false,
+      advice: 'ควรเพิ่มน้ำหนักตลอดครรภ์ 7–11.5 กก. — เฝ้าระวังเบาหวานขณะตั้งครรภ์',
+    };
+  }
+  if (bmi < 30) {
+    return {
+      group: 'obese1', label: 'อ้วนระดับ 1 (BMI 25–29.9)', badge: 'orange',
+      totalGain: [7, 11.5], weeklyGain: [0.23, 0.33], risk: true,
+      advice: 'ควรเพิ่มน้ำหนักตลอดครรภ์ 7–11.5 กก. — คัดกรองเบาหวานและความดันถี่ขึ้น',
+    };
+  }
+  return {
+    group: 'obese2', label: 'อ้วนระดับ 2 ขึ้นไป (BMI ≥ 30)', badge: 'red',
+    totalGain: [5, 9], weeklyGain: [0.17, 0.27], risk: true,
+    advice: 'ควรเพิ่มน้ำหนักตลอดครรภ์ 5–9 กก. — ส่งพบแพทย์ประเมินความเสี่ยงครรภ์',
+  };
+};
+
+/** เทียบน้ำหนักที่เพิ่มจริงกับเกณฑ์ ณ อายุครรภ์นั้น
+    (ไตรมาสแรกใช้เกณฑ์รวม 0.5–2 กก. · หลัง 13 สัปดาห์บวกอัตราต่อสัปดาห์) */
+export const evaluateWeightGain = ({ prePregnancyWeight, currentWeight, heightCm, gaWeeks }) => {
+  const pre = Number(prePregnancyWeight);
+  const cur = Number(currentWeight);
+  const wk = Number(gaWeeks);
+  if (!Number.isFinite(pre) || !Number.isFinite(cur) || pre <= 0 || cur <= 0) return null;
+  const bmi = calcBmi(pre, heightCm);
+  const band = interpretPrePregnancyBmi(bmi);
+  const gained = Math.round((cur - pre) * 10) / 10;
+  if (!band || !Number.isFinite(wk) || wk <= 0) return { gained, bmi, band, level: null };
+  const [lo, hi] = wk < 14
+    ? [0.5, 2]
+    : [
+      Math.round((0.5 + band.weeklyGain[0] * (wk - 13)) * 10) / 10,
+      Math.round((2 + band.weeklyGain[1] * (wk - 13)) * 10) / 10,
+    ];
+  if (gained < lo) {
+    return {
+      gained, bmi, band, expected: [lo, hi], level: 'low', badge: 'orange',
+      message: `น้ำหนักเพิ่ม ${gained} กก. ต่ำกว่าเกณฑ์ที่อายุครรภ์ ${wk} สัปดาห์ (ควรอยู่ ${lo}–${hi} กก.) — ประเมินภาวะโภชนาการและการเจริญเติบโตของทารก`,
+    };
+  }
+  if (gained > hi) {
+    return {
+      gained, bmi, band, expected: [lo, hi], level: 'high', badge: 'orange',
+      message: `น้ำหนักเพิ่ม ${gained} กก. สูงกว่าเกณฑ์ที่อายุครรภ์ ${wk} สัปดาห์ (ควรอยู่ ${lo}–${hi} กก.) — เฝ้าระวังเบาหวานขณะตั้งครรภ์และครรภ์เป็นพิษ`,
+    };
+  }
+  return {
+    gained, bmi, band, expected: [lo, hi], level: 'ok', badge: 'green',
+    message: `น้ำหนักเพิ่ม ${gained} กก. อยู่ในเกณฑ์ที่ควรเป็น (${lo}–${hi} กก.) ที่อายุครรภ์ ${wk} สัปดาห์`,
+  };
+};
+
 /* ─── Step 4 — วินิจฉัย (risk level) ──────────────────────────────── */
 
 export const ANC_RISK_LEVELS = [
@@ -728,6 +816,8 @@ export const DEFAULT_ANC_VISIT = {
 
   // Step 3 — ตรวจร่างกาย (TOR 1.10.7.7)
   vitals: { ...ANC_DEFAULT_VITALS },
+  /* มติ คทง.2 — ฐานคำนวณ BMI ก่อนตั้งครรภ์และเกณฑ์การเพิ่มน้ำหนัก (IOM 2009) */
+  prePregnancyWeight: '',
   fundusHeight: '',
   fetalHeartRate: '',
   // Per-visit exam findings — legacy "บันทึกการตรวจครรภ์" (p.2-10/2-11)
