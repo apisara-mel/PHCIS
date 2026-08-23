@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
-import TabCapsule from '@/components/tab/TabCapsule';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -36,12 +35,14 @@ import {
    แท็บเรียงตามลำดับที่เจ้าหน้าที่ทำจริง: เห็นกิจกรรมค้างก่อน → ชั่ง/วัด →
    ประเมินพัฒนาการ → วัคซีน → ส่งต่อ                                        */
 
+/* แท็บใช้แถบของ QueuePageShell (เหมือน StudentHealthProfilePage) ไม่ใช่
+   TabCapsule ซึ่งเป็น "ชิปเดี่ยว" ไม่ใช่แถบแท็บ */
 const TABS = [
-  { key: 'overview',    label: 'ภาพรวม / กิจกรรมค้าง' },
-  { key: 'growth',      label: 'โภชนาการและการเจริญเติบโต' },
-  { key: 'development', label: 'พัฒนาการ (DSPM)' },
-  { key: 'vaccine',     label: 'วัคซีน' },
-  { key: 'referral',    label: 'ส่งต่อ ศบส.' },
+  { key: 'overview',    label: 'ภาพรวม / กิจกรรมค้าง',        icon: 'notifications_active' },
+  { key: 'growth',      label: 'โภชนาการและการเจริญเติบโต',   icon: 'monitor_weight' },
+  { key: 'development', label: 'พัฒนาการ (DSPM)',              icon: 'child_care' },
+  { key: 'vaccine',     label: 'วัคซีน',                       icon: 'vaccines' },
+  { key: 'referral',    label: 'ส่งต่อ ศบส.',                  icon: 'forward_to_inbox' },
 ];
 
 const DEV_NOTE_SUGGESTIONS = [
@@ -139,6 +140,9 @@ const DaycareChildPage = () => {
       activeKey='daycare'
       breadcrumb={['สถานรับเลี้ยงเด็กกลางวัน', 'แฟ้มเด็ก', childFullName(child)]}
       title={childFullName(child)}
+      tabs={TABS.map((t) => (t.key === 'overview' ? { ...t, count: alerts.length } : t))}
+      activeTab={tab}
+      onTabChange={setTab}
       actions={(
         <NeutralSubdueButton size='sm' leadingIcon='arrow_back' onClick={() => history.push('/clinic/daycare')}>
           กลับหน้าเด็กในความดูแล
@@ -160,12 +164,6 @@ const DaycareChildPage = () => {
             </div>
           </div>
         </SubCard>
-
-        <TabCapsule
-          tabs={TABS.map((t) => ({ key: t.key, label: t.label }))}
-          activeKey={tab}
-          onChange={setTab}
-        />
 
         {tab === 'overview' && (
           <SubCard>

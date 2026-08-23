@@ -978,6 +978,16 @@ design system เมื่อไร
 | **รอเคสอะไร** | โมดูลที่ 2 ที่ต้องการ alert engine แบบเดียวกัน |
 | **บันทึกเมื่อ** | 24 ส.ค. 2569 |
 
+### 68. StatTile — เลข 0 แสดงเป็น "ศูนย์ขีดทับ" อ่านเป็นสัญลักษณ์ห้าม — 🐞 ข้อสังเกตด้าน typography รอเจ้าของ DS เคาะ
+
+| | |
+|---|---|
+| **พบที่** | `StatTile` ใน `src/pages/clinic/school-health/schoolHealthShared.jsx` — ใช้ที่ `/clinic/daycare/monitoring` และ Dashboard อนามัยโรงเรียน |
+| **อาการ** | ค่า `value={0}` เรนเดอร์ด้วย `--type-family-heading-graphic2` (= **Mitr**) ซึ่ง glyph เลข 0 เป็น *slashed zero* — ที่ขนาด 24px อ่านเป็นสัญลักษณ์ 🚫 "ห้าม/ไม่อนุญาต" แทนที่จะเป็นเลขศูนย์ ทำให้การ์ด "ถึงกำหนดวันนี้ 0 รายการ" ดูเหมือนแจ้งเตือนแทนที่จะเป็นข่าวดี |
+| **ทำไมยังไม่แก้** | เป็น typography ของ DS ที่มีอยู่ก่อนและกระทบโมดูลอนามัยโรงเรียนที่ส่งมอบไปแล้วด้วย — การเปลี่ยน font stack ของ StatTile เป็นการตัดสินใจของเจ้าของ design system ไม่ใช่แก้เฉพาะหน้าในโมดูลใหม่ |
+| **ทางเลือกที่เสนอ** | (ก) เปลี่ยน StatTile ให้ใช้ `--type-family-heading-content` เหมือน summary card ของ QueuePageShell ซึ่งเลข 0 ปกติ · (ข) เพิ่ม `font-feature-settings: "zero" 0` ถ้า Mitr มี feature นี้ · (ค) ยอมรับตามนี้ถ้า Figma ตั้งใจใช้ Mitr |
+| **บันทึกเมื่อ** | 24 ส.ค. 2569 |
+
 ---
 
 ## Token ที่รอ sync เข้า mih-design
