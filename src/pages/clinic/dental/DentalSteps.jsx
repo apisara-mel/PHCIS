@@ -919,12 +919,20 @@ const ProcedureEditorPopup = ({
           </div>
         </div>
 
+        {/* มติ คทง.6 — เลือกได้ทุกตำแหน่งที่ปฏิบัติงานในศูนย์ ไม่ผูกกับผู้เข้าระบบ
+            (รายงานผลงาน/การเบิกดึงตามชื่อผู้ทำหัตถการ — กันเงินเข้าผิดศูนย์) */}
         <Select
           label='ผู้ทำหัตถการ'
           value={draft.performer}
-          placeholder='เลือกทันตแพทย์'
-          options={DENTAL_DOCTORS.map((d) => ({ value: d, label: d }))}
+          placeholder='เลือกผู้ทำหัตถการ'
+          options={DENTAL_PERFORMERS.map((p) => ({
+            value: p.name,
+            label: p.name,
+            subtext: `${p.role} · ${p.center}`,
+          }))}
           onChange={(v) => setDraft((d) => ({ ...d, performer: v }))}
+          showHelperText
+          helperText='เลือกได้ทุกตำแหน่งที่ปฏิบัติงานในศูนย์ รวมทันตแพทย์ที่มาปฏิบัติงานแทน — ผลงานและการเบิกอิงชื่อนี้ ไม่ใช่ผู้เข้าระบบ'
         />
 
         {procedure && (
