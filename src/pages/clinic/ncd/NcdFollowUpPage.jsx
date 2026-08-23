@@ -14,6 +14,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import VitalSignTimelineCard from '@/components/card/VitalSignTimelineCard';
+import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
 import NcdTrendSection from '@/pages/clinic/ncd/NcdTrendSection';
 import {
   DmControlGaugeCard,
@@ -762,6 +763,20 @@ const NcdFollowUpPage = () => {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* การตรวจทันตกรรมในการติดตาม (TOR 1.10.2.8) — มติ คทง.6 กำหนดให้
+                  ผลตรวจฟันมาจากหน้าทันตกรรมที่เดียว คลินิกโรคเฉพาะดูอย่างเดียว
+                  ไม่ต้องเปิด Visit ทันตกรรมใหม่ (ผู้ป่วยเบาหวานคือกลุ่มที่ต้อง
+                  เฝ้าระวังโรคปริทันต์เป็นพิเศษ จึงอยู่ในหน้าติดตามด้วย) */}
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                <SectionHeader icon='dentistry'>การตรวจทันตกรรม</SectionHeader>
+                <CarriedDentalPanel
+                  hn={hn}
+                  patientName={profile?.fullName || registration?.name}
+                  from='dm'
+                  title='ผลการตรวจทันตกรรม (จากคลินิกทันตกรรม)'
+                />
               </div>
 
               {/* ตารางข้อมูล */}

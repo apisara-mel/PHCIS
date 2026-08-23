@@ -28,6 +28,8 @@ import {
   getDentalQueueRows,
   getDentalScheduledNotArrived,
   checkInDentalAppointment,
+  getDentalCheckRequests,
+  cancelDentalCheckRequest,
 } from '@/data/dentalVisits';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 
@@ -51,13 +53,16 @@ const SUMMARY_TITLE = 'คิวทันตกรรม (Dental Clinic)';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:dental-queue';
 const PAGE_SIZE = 20;
 
-const buildTabs = (rows, scheduledCount) => [
+const buildTabs = (rows, scheduledCount, referredCount) => [
   { key: 'all',       label: 'ทั้งหมด',              icon: 'group',           count: rows.length },
   { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',        count: rows.filter((p) => p.statusKey === 'waiting').length },
   { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',      count: rows.filter((p) => p.statusKey === 'progress').length },
   { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle',    count: rows.filter((p) => p.statusKey === 'done').length },
   { key: 'draft',     label: 'ที่ร่างไว้',            icon: 'save',            count: rows.filter((p) => p.statusKey === 'draft').length },
   { key: 'scheduled', label: 'นัดแล้วยังไม่มาติดต่อ', icon: 'event_available', count: scheduledCount },
+  /* มติ คทง.6 — คำขอตรวจฟันที่คลินิกส่งเสริม (ANC · เบาหวาน · เยี่ยมบ้าน ฯลฯ)
+     ส่งมาโดยไม่เปิด Visit ทันตกรรม ทันตแพทย์เป็นคนดึงเข้าตรวจเองที่แท็บนี้ */
+  { key: 'referred',  label: 'ส่งตรวจจากคลินิกส่งเสริม', icon: 'forward_to_inbox', count: referredCount },
 ];
 
 const TAB_STATUS_FILTER = {
@@ -194,7 +199,11 @@ const DentalQueuePage = () => {
   const rows = useMemo(() => getDentalQueueRows(), [tick]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const scheduledNotArrived = useMemo(() => getDentalScheduledNotArrived(), [tick]);
-  const tabs = useMemo(() => buildTabs(rows, scheduledNotArrived.length), [rows, scheduledNotArrived]);
+  const referredRows = useMemo(() => getDentalCheckRequests(), [tick]);
+  const tabs = useMemo(
+    () => buildTabs(rows, scheduledNotArrived.length, referredRows.length),
+    [rows, scheduledNotArrived, referredRows],
+  );
 
   /* "ส่งตรวจ" (legacy p.2-2) — checking in moves the scheduled row into
      รอตรวจ in-session; jump the user to that tab so they see it land. */
@@ -209,10 +218,11 @@ const DentalQueuePage = () => {
     { key: 'waiting',   label: 'รอตรวจ',            value: rows.filter((p) => p.statusKey === 'waiting').length, color: 'warning', icon: 'schedule' },
     { key: 'done',      label: 'ตรวจเสร็จแล้ว',     value: rows.filter((p) => p.statusKey === 'done').length, color: 'positive', icon: 'check_circle' },
     { key: 'scheduled', label: 'นัดแล้วยังไม่มา',    value: scheduledNotArrived.length, color: 'info', icon: 'event_available' },
-  ]), [rows, scheduledNotArrived]);
+    { key: 'referred',  label: 'ส่งตรวจจากคลินิกอื่น', value: referredRows.length, color: 'warning', icon: 'forward_to_inbox' },
+  ]), [rows, scheduledNotArrived, referredRows]);
 
   const filtered = useMemo(() => {
-    if (activeTab === 'scheduled') return [];
+    if (activeTab === 'scheduled' || activeTab === 'referred') return [];
     let result = rows;
     const tabPred = TAB_STATUS_FILTER[activeTab];
     if (tabPred) result = result.filter(tabPred);
@@ -424,6 +434,34 @@ const DentalQueuePage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), []);
 
+  /* ส่งตรวจจากคลินิกส่งเสริม (มติ คทง.6) — คำขอ ไม่ใช่ Visit: ทันตแพทย์กด
+     "รับเข้าตรวจ" แล้วจึงเปิดหน้าบันทึกทันตกรรมของ HN นั้น คำขอถูกเคลียร์
+     พร้อมกันเพื่อไม่ให้ค้างเป็นธงซ้ำ */
+  const openReferral = (row) => {
+    cancelDentalCheckRequest(row.hn);
+    setTick((t) => t + 1);
+    history.push({ pathname: '/clinic/dental/record', state: { hn: row.hn, name: row.patientName } });
+  };
+
+  const referredColumns = useMemo(() => ([
+    { key: 'fromLabel',   label: 'ส่งมาจาก',        flex: true, minWidth: 180 },
+    { key: 'hn',          label: 'HN' },
+    { key: 'patientName', label: 'ชื่อ-นามสกุล',    flex: true, minWidth: 168 },
+    { key: 'reason',      label: 'เหตุผลที่ส่งตรวจ', flex: true, minWidth: 280,
+      render: (r) => <span className='block truncate' title={r.reason}>{r.reason}</span> },
+    { key: 'requestedBy', label: 'ผู้ส่งตรวจ',      flex: true, minWidth: 160 },
+    { key: 'requestedAt', label: 'วัน-เวลาที่ส่ง',   flex: true, minWidth: 170 },
+    {
+      key: 'accept', label: 'การจัดการ', sortable: false,
+      render: (row) => (
+        <BrandSubdueButton variant='fill' size='sm' leadingIcon='login' onClick={(e) => { e.stopPropagation(); openReferral(row); }}>
+          รับเข้าตรวจ
+        </BrandSubdueButton>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ]), []);
+
   /* Empty copy differentiates "queue truly empty today" from
      "search/filter found nothing" (spec edge cases). */
   const emptyMessage = searchQ.trim() || !isAllDefault
@@ -513,7 +551,14 @@ const DentalQueuePage = () => {
             </OverflowFlexRow>
           </div>
 
-          {activeTab === 'scheduled' ? (
+          {activeTab === 'referred' ? (
+            <Table
+              columns={referredColumns}
+              rows={referredRows}
+              rowKey={(row) => row.hn}
+              emptyMessage='ยังไม่มีคำขอส่งตรวจทันตกรรมจากคลินิกส่งเสริม'
+            />
+          ) : activeTab === 'scheduled' ? (
             <Table
               columns={scheduledColumns}
               rows={scheduledNotArrived}
