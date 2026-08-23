@@ -98,7 +98,7 @@
     <div class="subtitle">Feature × Figma × Vibe code — เทียบกับ TOR (ผนวก ก / ด)</div>
   </div>
   <div class="spacer"></div>
-  <div class="stamp">ข้อมูลจาก <b>docs/tor-checklist.html</b><br>(status map ในโค้ด) · อัปเดต 9 ส.ค. 2026</div>
+  <div class="stamp">ข้อมูลจาก <b>docs/tor-checklist.html</b><br>(status map ในโค้ด) · อัปเดต 23 ส.ค. 2026</div>
 </header>
 
 <main>
@@ -124,7 +124,7 @@
   <div class="foot">
     <b>ที่มาข้อมูล.</b> ทุกตัวเลขดึงจาก status map ในไฟล์ <code>docs/tor-checklist.html</code>
     (id ของ TOR → <code>{s: done|partial|todo}</code>) — เป็นแหล่งความจริงเดียวกับ TOR Compliance Checklist
-    รวม 698 รายการที่ประเมินแล้ว (627 done · 67 partial · เหลือ 4 ที่ยัง todo) · denominator = จำนวน leaf item ทั้งหมดของแต่ละระบบตาม TOR<br>
+    รวม 729 รายการที่ประเมินแล้ว (649 done · 70 partial · เหลือ 10 ที่ยัง todo — 6 ในนั้นคือ §3.5 childcare ที่รอโมดูลแยก) · denominator = จำนวน leaf item ทั้งหมดของแต่ละระบบตาม TOR<br>
     <b>คอลัมน์ Figma.</b> <span class="chip yes" style="min-width:16px;height:16px">✓</span> = ทุกหน้าที่ vibe code แล้วมีต้นทางออกแบบใน Figma (โค้ดอ้าง Figma node id ทุกหน้า) ·
     <span class="chip part" style="min-width:16px;height:16px">◐</span> = ออกแบบบางส่วน ·
     <span class="chip no" style="min-width:16px;height:16px">—</span> = ยังไม่ได้ออกแบบ (ระบบที่ยังไม่เริ่ม)<br>
@@ -188,6 +188,10 @@ const WEB=[
   {tor:'1.19', name:'ระบบงานตรวจสุขภาพ', figma:'no', done:0,partial:0, total:21, route:'—', note:'', notstarted:true},
   // หมายเหตุ: §2 Community, §3 สุขภาพนักเรียน, §5 คลังยา เป็นระบบ top-level แยกต่างหาก
   // (sibling ของ PHCIS บน System Hub) — ไม่นับรวมใน count ของ PHCIS
+  // §3 เริ่มพัฒนาแล้ว (wave 2026-08 งานอนามัยโรงเรียน) — แสดงเป็นแถว extra
+  // เพื่อไม่ถ่วง headline/totals ของ PHCIS ตามกติกาข้างบน. todo 6 ข้อ =
+  // §3.5 childcare ที่ตัดออกจากขอบเขตโมดูลตามมติ คทง.5 (รอโมดูลพี่น้องแยก).
+  {tor:'3', name:'ระบบสุขภาพนักเรียน — งานอนามัยโรงเรียน (School Health)', figma:'no', done:22,partial:3, total:31, route:'/clinic/school-health · /schools · /students · /student/:studentId · /batch-vaccine · /dashboard · /reports', note:'คิวรับบริการ · ทะเบียนโรงเรียน (ห้องเรียน/ครูประจำชั้น/กิจกรรม 5 ด้าน) · ทะเบียนนักเรียน + นำเข้า Excel + เลื่อนชั้นอัตโนมัติ · แฟ้มสุขภาพรายคน Tabs 6 บริการ + แปลผลอัตโนมัติ (BMI for Age/ซีด/สายตา/เหา/พัฒนาการ/สุขภาพจิต) + กราฟการเจริญเติบโต · Batch entry รายห้อง (วัคซีน+Lot No./ทันตกรรม/ชั่งวัด) · Dashboard drill-down + เก็บตก · รายงาน 8 กลุ่ม — partial: AI สรุปปัญหาสุขภาพยัง rule-based, เกณฑ์อ้างอิงกราฟเป็น mock lookup, รายงาน open-ended · todo 6 ข้อ = §3.5 childcare (นอกขอบเขตโมดูล)', extra:true},
 ];
 const MOB=[
   {tor:'DS',   name:'Design System (Mobile Component Library)', figma:'yes', done:0,partial:0, total:1, override:95, route:'/m/components', note:'mobile component library · brand buttons · tokens · Sym icon system'},

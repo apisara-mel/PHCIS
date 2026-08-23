@@ -59,6 +59,11 @@ const TREAT_DEPARTMENT_SUBITEMS = [
   { key: 'tb',         label: 'แผนกวัณโรค',                            path: '/clinic/tb' },
   { key: 'mental',     label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต',        path: '/clinic/mental-health' },
   { key: 'rehab',      label: 'แผนกเวชศาสตร์ฟื้นฟูและกายภาพบำบัด',      path: '/clinic/rehab' },
+  /* งานสังคมสงเคราะห์ (TOR §1.10.11) — path ชี้หน้าแรกของโมดูล (ค้นหา + เมนู
+     หลัก 5 ปุ่ม ตามมติ คทง.10 ครั้งที่ 3) ไม่ใช่คิว; คิวย้ายไป /clinic/social-work/queue
+     หน้าอื่น (ส.ส.3 /referral · ส.ส.4 /activities · รายงาน /reports · โภชนาการ
+     /nutrition · ทะเบียน · ผู้ขอวัสดุ) เข้าถึงจากเมนูบนหน้าแรก — pattern เดียวกับ
+     pharmacy/lab ที่ rail มีรายการเดียวแล้วสลับหน้าในโมดูลเอง. */
   { key: 'social',     label: 'แผนกสังคมสงเคราะห์',                    path: '/clinic/social-work' },
 ];
 
