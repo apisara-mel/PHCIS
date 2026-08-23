@@ -151,6 +151,24 @@ const ITEMS = [
     /* ไม่มี subItems โดยตั้งใจ — สลับหน้าในโมดูล (คิว · ทะเบียน · ติดตาม)
        ใช้ TabUnderline ที่ `HomeVisitSubNav` เหมือน pharmacy / lab */
   },
+  /* งานอนามัยโรงเรียน — TOR §3 (ระบบสุขภาพนักเรียน). เป็นระบบ top-level บน
+     System Hub (SYSTEM_CATALOG key 'school-health') แต่หน้าจอทั้งหมดใช้
+     chrome ของ PHCIS จึงมีเมนูใน rail นี้ด้วย — ทุกหน้าส่ง
+     activeKey='school-health'. รายการแรกคือคิวรับบริการ.
+     (เหมือน `opd`/`treat` — SideSubMenu รับเฉพาะ { key, label, path } ไอคอนที่
+     builder เสนอไว้ apartment / groups / vaccines / monitoring / summarize
+     จึงยังไม่ถูกใช้จนกว่าเมนูย่อยจะรองรับไอคอน) */
+  {
+    key: 'school-health', label: 'งานอนามัยโรงเรียน', icon: 'school', path: '/clinic/school-health',
+    subItems: [
+      { key: 'sch-queue',    label: 'คิวรับบริการอนามัยโรงเรียน',      path: '/clinic/school-health'               },
+      { key: 'sch-schools',  label: 'ทะเบียนโรงเรียน',                 path: '/clinic/school-health/schools'       },
+      { key: 'sch-students', label: 'ทะเบียนนักเรียน',                 path: '/clinic/school-health/students'      },
+      { key: 'sch-batch',    label: 'บันทึกบริการรายห้อง (Batch)',      path: '/clinic/school-health/batch-vaccine' },
+      { key: 'sch-dashboard',label: 'Dashboard อนามัยโรงเรียน',        path: '/clinic/school-health/dashboard'     },
+      { key: 'sch-reports',  label: 'รายงานอนามัยโรงเรียน',            path: '/clinic/school-health/reports'       },
+    ],
+  },
   /* งานระบาดวิทยา — TOR §1.2.3.6 (EPI-NET). เดิมเป็น submenu ใต้คัดกรอง แล้ว
      ยกเป็นเมนูหลักใน rail ชื่อ "รายงานเฝ้าระวังโรค รง.506".
      `key` + route ยังเป็น opd-rg506 / /opd/rg506 เหมือนเดิม — เปลี่ยนแค่ชื่อเมนู. */
