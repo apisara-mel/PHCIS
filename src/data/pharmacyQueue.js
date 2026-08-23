@@ -1732,34 +1732,33 @@ export const sendPrescriptionToPharmacy = (visit) => {
    จนกว่าจะชำระครบ และฝั่งการเงินเรียกเก็บไม่ได้จนกว่าเภสัชจะยืนยัน
    (หน้าการเงินอยู่นอกขอบเขตไฟล์ชุดนี้ จึง export ตัวตรวจให้เรียกใช้)   */
 
-const PHARMACIST_VERIFY_KEY = 'mih:pharmacy-verified-orders';
+/* สถานะการยืนยันของเภสัชกร เก็บเป็น state ระดับโมดูลเหมือน mock อื่นในไฟล์นี้
+   (PHARMACY_QUEUE / BORROW_RETURN_RECORDS ก็ mutate ในหน่วยความจำ ไม่ผูก
+   sessionStorage) — คงอยู่ตลอด session ของ SPA ซึ่งพอสำหรับโปรโตไทป์ */
+const PHARMACIST_VERIFICATIONS = {};
 
 /** เภสัชกรยืนยันรายการยาแล้ว — ปลดล็อกให้ห้องการเงินออกใบเสร็จได้ */
 export const verifyPharmacyOrder = (queueNo, { by, note = '' } = {}) => {
   if (!queueNo) return null;
-  const store = readJson(PHARMACIST_VERIFY_KEY, {});
-  store[queueNo] = {
+  PHARMACIST_VERIFICATIONS[queueNo] = {
     by: by || CURRENT_DISPENSER.name,
     at: TODAY,
     note,
   };
-  writeJson(PHARMACIST_VERIFY_KEY, store);
-  return store[queueNo];
+  return PHARMACIST_VERIFICATIONS[queueNo];
 };
 
 /** ถอนการยืนยัน — ใช้เมื่อต้องกลับมาแก้จำนวนยา/เปลี่ยนยาหลังยืนยันไปแล้ว
     (ต้องมีเหตุผล เพราะฝั่งการเงินอาจเริ่มตั้งเรื่องแล้ว) */
 export const unverifyPharmacyOrder = (queueNo, reason) => {
-  if (!queueNo) return;
-  const store = readJson(PHARMACIST_VERIFY_KEY, {});
-  const prev = store[queueNo];
-  delete store[queueNo];
-  writeJson(PHARMACIST_VERIFY_KEY, store);
+  if (!queueNo) return null;
+  const prev = PHARMACIST_VERIFICATIONS[queueNo];
+  delete PHARMACIST_VERIFICATIONS[queueNo];
   return prev ? { ...prev, revokedReason: reason || 'ไม่ระบุเหตุผล' } : null;
 };
 
 export const getPharmacyVerification = (queueNo) =>
-  (queueNo ? readJson(PHARMACIST_VERIFY_KEY, {})[queueNo] || null : null);
+  (queueNo ? PHARMACIST_VERIFICATIONS[queueNo] || null : null);
 
 /** ขั้นที่ 2 — ห้องการเงินเรียกเก็บได้หรือยัง
     @returns {{ ok: boolean, reason: string|null }} */

@@ -1156,7 +1156,7 @@ const PharmacyDispensePage = () => {
             <Alert
               type='success'
               title={`เภสัชกรยืนยันรายการยาแล้ว — ${verification.by}`}
-              subtext={`ยืนยันเมื่อ ${verification.at} · ห้องการเงินออกใบเสร็จได้แล้ว หากต้องแก้จำนวนยา/เปลี่ยนยา ให้ถอนการยืนยันก่อน`}
+              subtext={`ยืนยันเมื่อ ${new Date(verification.at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })} · ห้องการเงินออกใบเสร็จได้แล้ว หากต้องแก้จำนวนยา/เปลี่ยนยา ให้ถอนการยืนยันก่อน`}
               showCloseButton={false}
               style={{ maxWidth: '100%' }}
               action={(

@@ -89,8 +89,9 @@ export const getResultsInbox = (doctor, { includeAcknowledged = false } = {}) =>
         kind: 'lab',
         kindLabel: 'Lab',
         id: o.id,
-        hn: o.patient?.hn,
-        patientName: o.patient?.name,
+        hn: o.patient?.hn || o.hn,
+        /* PATIENT_PROFILES ใช้ fullName/shortName ไม่มี field `name` */
+        patientName: o.patient?.fullName || o.patient?.shortName || '—',
         doctor: o.doctor,
         itemLabel: labelled.testLabel || o.testId,
         resultSummary: o.resultSummary || '—',
@@ -102,9 +103,12 @@ export const getResultsInbox = (doctor, { includeAcknowledged = false } = {}) =>
       };
     });
 
+  /* ฝั่ง X-ray ใช้ชื่อ field คนละชุดกับ Lab: แพทย์ผู้สั่งคือ `orderedBy`
+     และความผิดปกติอยู่ใน `resultType` (ไม่ใช่ boolean critical/abnormal)
+     — ถ้า map ตรง ๆ แบบ Lab จะได้ตารางว่างและไม่มีป้ายวิกฤตเลย */
   const xrayRows = XRAY_ORDERS
     .filter(xrayIsReady)
-    .filter((o) => !doctor || o.doctor === doctor)
+    .filter((o) => !doctor || (o.orderedBy || o.doctor) === doctor)
     .map((o) => {
       const labelled = withExamLabel(o);
       const key = `xray:${o.id}`;
@@ -113,14 +117,14 @@ export const getResultsInbox = (doctor, { includeAcknowledged = false } = {}) =>
         kind: 'xray',
         kindLabel: 'X-ray',
         id: o.id,
-        hn: o.patient?.hn,
-        patientName: o.patient?.name,
-        doctor: o.doctor,
+        hn: o.patient?.hn || o.hn,
+        patientName: o.patient?.fullName || o.patient?.shortName || '—',
+        doctor: o.orderedBy || o.doctor,
         itemLabel: labelled.examLabel || o.examId,
         resultSummary: o.impression || o.resultSummary || '—',
-        critical: !!o.critical,
-        abnormal: !!o.abnormal,
-        reportedAt: o.reportedAt || o.orderedAt || '—',
+        critical: o.resultType === 'abnormalUrgent',
+        abnormal: o.resultType === 'abnormal' || o.resultType === 'inconclusive',
+        reportedAt: o.verifiedAt || o.reportedAt || o.orderedAt || '—',
         ack: acks[key] || null,
         href: '/xray/worklist',
       };
