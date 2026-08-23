@@ -908,7 +908,7 @@ design system เมื่อไร
 
 ---
 
-### 62. schoolHealthShared — ชุด layout primitive ของหน้าโมดูล (PageBody · PageCard · SubCard · SectionHeader · NoticeBar · ErrorList · EmptyState · PagerRow · ReadField · Field · FieldRow · StatTile · StatRow · AuditLine · ReadOnlyBanner · StatusPill) — 🕐 รอเคสที่ 2
+### 62. schoolHealthShared — ชุด layout primitive ของหน้าโมดูล (PageBody · PageCard · SubCard · SectionHeader · NoticeBar · ErrorList · EmptyState · PagerRow · ReadField · Field · FieldRow · StatTile · StatRow · AuditLine · ReadOnlyBanner · StatusPill) — 📐 มีผู้ใช้ที่ 2 แล้ว (daycare) พร้อมยกขึ้น DS
 
 | | |
 |---|---|
@@ -966,6 +966,17 @@ design system เมื่อไร
 | **โครง API** | ถ้ามีผู้ใช้ที่ 2 (เช่น พยาบาล OPD หรือหน้า Hub) ควรทำ `<ResultsInbox owner scope onAcknowledge />` กลาง แล้วให้ทุกหน้าเรียกด้วย owner ต่างกัน |
 | **รอเคสอะไร** | หน้าที่ 2 ที่ต้องแสดง inbox เดียวกัน — คาดว่าเป็น Hub/หน้าแรกของแพทย์ |
 | **บันทึกเมื่อ** | 23 ส.ค. 2569 |
+
+### 67. daycareCore + โมดูลสถานรับเลี้ยงเด็กกลางวัน (แจ้งเตือนกิจกรรมตามอายุ · แปลผลโภชนาการเด็กปฐมวัย) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/data/daycareCore.js` + 5 หน้าใน `src/pages/clinic/daycare/` — 1 โมดูล |
+| **หน้าที่** | เครื่องยนต์แจ้งเตือน "กิจกรรมที่ถึงกำหนดตามอายุเด็ก" (`getChildAlerts`) 3 ระดับ upcoming/due/overdue ล่วงหน้า 7 วันและค้างเมื่อเกินกำหนด + แปลผลภาวะโภชนาการเด็ก 0–5 ปีจากน้ำหนักตามเกณฑ์ส่วนสูง (`interpretGrowth`) + นัดประเมินพัฒนาการครั้งที่ 2 อัตโนมัติ |
+| **ทำไมไม่มีของเดิมแทน** | อนามัยโรงเรียนใช้ BMI for Age 5–19 ปีและรอบบริการรายเทอม คนละเกณฑ์กับเด็กปฐมวัยที่อิงอายุเป็นเดือน; ไม่มี alert engine กลางใน DS |
+| **โครง API** | ถ้ามีโมดูลที่ 2 ที่ต้องเตือน "กิจกรรมตามอายุ/รอบเวลา" (เช่น ANC ตามอายุครรภ์, NCD ตามรอบนัด) ควรทำ `buildScheduleAlerts({ subject, rules, leadDays })` กลาง แล้วให้แต่ละโมดูลส่ง rules ของตัวเอง |
+| **รอเคสอะไร** | โมดูลที่ 2 ที่ต้องการ alert engine แบบเดียวกัน |
+| **บันทึกเมื่อ** | 24 ส.ค. 2569 |
 
 ---
 

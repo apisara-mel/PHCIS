@@ -174,6 +174,20 @@ const ITEMS = [
       { key: 'sch-reports',  label: 'รายงานอนามัยโรงเรียน',            path: '/clinic/school-health/reports'       },
     ],
   },
+  /* สถานรับเลี้ยงเด็กกลางวัน — TOR §3.5. แยกเมนูจากอนามัยโรงเรียนตามมติ คทง.5
+     เพราะกลุ่มเป้าหมายคือเด็กปฐมวัย 0–5 ปี (เกณฑ์โภชนาการ/พัฒนาการ/วัคซีน
+     คนละชุดกับนักเรียน) แต่ layout และ vocabulary ออกแบบให้สอดคล้องกัน
+     ตามมติครั้งที่ 3 ("หน้าจอควรสอดคล้องกันทั้งคลินิกเด็กดี สถานรับเลี้ยง
+     และโรงเรียน") */
+  {
+    key: 'daycare', label: 'สถานรับเลี้ยงเด็กกลางวัน', icon: 'child_care', path: '/clinic/daycare',
+    subItems: [
+      { key: 'dc-children-queue', label: 'เด็กในความดูแล',            path: '/clinic/daycare'            },
+      { key: 'dc-registry',       label: 'ทะเบียนเด็ก',               path: '/clinic/daycare/children'   },
+      { key: 'dc-lessons',        label: 'กิจกรรมการเรียนการสอน',     path: '/clinic/daycare/lessons'    },
+      { key: 'dc-monitoring',     label: 'ติดตามกิจกรรมที่ถึงกำหนด',  path: '/clinic/daycare/monitoring' },
+    ],
+  },
   /* งานระบาดวิทยา — TOR §1.2.3.6 (EPI-NET). เดิมเป็น submenu ใต้คัดกรอง แล้ว
      ยกเป็นเมนูหลักใน rail ชื่อ "รายงานเฝ้าระวังโรค รง.506".
      `key` + route ยังเป็น opd-rg506 / /opd/rg506 เหมือนเดิม — เปลี่ยนแค่ชื่อเมนู. */

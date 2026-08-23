@@ -107,6 +107,15 @@ import StudentHealthProfilePage from '@/pages/clinic/school-health/StudentHealth
 import SchoolHealthBatchVaccinePage from '@/pages/clinic/school-health/SchoolHealthBatchVaccinePage';
 import SchoolHealthDashboardPage from '@/pages/clinic/school-health/SchoolHealthDashboardPage';
 import SchoolHealthReportsPage from '@/pages/clinic/school-health/SchoolHealthReportsPage';
+
+/* สถานรับเลี้ยงเด็กกลางวัน (TOR §3.5) — โมดูลพี่น้องของงานอนามัยโรงเรียน
+   ตามมติ คทง.5: กลุ่มเป้าหมายคือเด็กปฐมวัย 0–5 ปี เกณฑ์/กิจกรรมคนละชุดกับ
+   นักเรียนในโรงเรียน จึงแยกโมดูลแต่ใช้ layout primitive ร่วมกัน */
+import DaycareQueuePage from '@/pages/clinic/daycare/DaycareQueuePage';
+import DaycareChildRegistryPage from '@/pages/clinic/daycare/DaycareChildRegistryPage';
+import DaycareChildPage from '@/pages/clinic/daycare/DaycareChildPage';
+import DaycareLessonsPage from '@/pages/clinic/daycare/DaycareLessonsPage';
+import DaycareMonitoringPage from '@/pages/clinic/daycare/DaycareMonitoringPage';
 import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
 import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
 import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
@@ -571,6 +580,12 @@ export default function Routes() {
         <Route exact path='/clinic/school-health/dashboard'     component={SchoolHealthDashboardPage} />
         <Route exact path='/clinic/school-health/reports'       component={SchoolHealthReportsPage} />
         <Route exact path='/clinic/school-health/student/:studentId' component={StudentHealthProfilePage} />
+        {/* daycare — route static อยู่เหนือ /child/:childId เช่นเดียวกับ school-health */}
+        <Route exact path='/clinic/daycare'            component={DaycareQueuePage} />
+        <Route exact path='/clinic/daycare/children'   component={DaycareChildRegistryPage} />
+        <Route exact path='/clinic/daycare/lessons'    component={DaycareLessonsPage} />
+        <Route exact path='/clinic/daycare/monitoring' component={DaycareMonitoringPage} />
+        <Route exact path='/clinic/daycare/child/:childId' component={DaycareChildPage} />
         <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
