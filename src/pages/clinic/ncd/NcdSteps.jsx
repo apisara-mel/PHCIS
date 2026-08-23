@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
@@ -28,6 +28,11 @@ import {
   NCD_BEHAVIOR_ITEMS,
   NCD_BEHAVIOR_SUGGESTIONS,
   NCD_PHYSICAL_EXAM_SUGGESTIONS,
+  FOOT_RISK_FACTORS,
+  interpretFootRisk,
+  interpretEgfr,
+  calcEgfr,
+  SMOKING_STATUS_OPTIONS,
   NCD_DIAGNOSIS_SUGGESTIONS,
   NCD_ADVICE_SUGGESTIONS,
   formatNcdDate,
@@ -314,7 +319,23 @@ export const NcdStep2Assessment = ({ form, setForm, diseaseGroups = [], readOnly
 };
 
 /* ── Step 3 — ตรวจร่างกาย ─────────────────────────────────────────── */
-export const NcdStep3Examination = ({ form, setForm, diseaseGroups = [], readOnly = false }) => {
+export const NcdStep3Examination = ({ form, setForm, patient, diseaseGroups = [], readOnly = false }) => {
+  /* มติ คทง.3 — แปลผลอัตโนมัติ: ระดับเสี่ยงเท้า · eGFR → ระยะ CKD */
+  const footRisk = useMemo(
+    () => (Object.values(form.footFindings || {}).some(Boolean)
+      ? interpretFootRisk(form.footFindings)
+      : null),
+    [form.footFindings],
+  );
+  const autoEgfr = useMemo(
+    () => calcEgfr({ creatinine: form.creatinine, age: patient?.age, gender: patient?.gender }),
+    [form.creatinine, patient?.age, patient?.gender],
+  );
+  const egfrResult = useMemo(
+    () => interpretEgfr(form.egfr || autoEgfr),
+    [form.egfr, autoEgfr],
+  );
+
   const setVital = (key) => (value) => {
     if (readOnly) return;
     setForm((f) => ({ ...f, vitals: { ...f.vitals, [key]: value } }));
@@ -389,6 +410,40 @@ export const NcdStep3Examination = ({ form, setForm, diseaseGroups = [], readOnl
       {hasDm && (
         <div className='flex flex-col gap-3'>
           <TopicHeader icon='clipboard-list'>ตรวจเท้าเบาหวาน (Diabetic foot exam)</TopicHeader>
+          {/* มติ คทง.3 — ติ๊กสิ่งที่ตรวจพบ ระบบแปลผลระดับเสี่ยงให้อัตโนมัติ */}
+          <div className='flex items-start gap-2 w-full flex-wrap'>
+            {FOOT_RISK_FACTORS.map((f) => (
+              <SelectableTag
+                key={f.key}
+                label={f.label}
+                size='lg'
+                selected={!!form.footFindings?.[f.key]}
+                onClick={() => {
+                  if (readOnly) return;
+                  setForm((prev) => ({
+                    ...prev,
+                    footFindings: { ...(prev.footFindings || {}), [f.key]: !prev.footFindings?.[f.key] },
+                  }));
+                }}
+              />
+            ))}
+          </div>
+          {footRisk && (
+            <div className='flex flex-col gap-1'>
+              <ColorfulBadge style={footRisk.badge} size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+                {`ระดับเสี่ยงเท้าเบาหวาน: ${footRisk.label}`}
+              </ColorfulBadge>
+              <span style={{
+                color: 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                lineHeight: 1.5,
+              }}
+              >
+                {footRisk.advice}
+              </span>
+            </div>
+          )}
           <SuggestibleTextarea
             voice
             disabled={readOnly}
@@ -396,10 +451,86 @@ export const NcdStep3Examination = ({ form, setForm, diseaseGroups = [], readOnl
             onChange={setNote('footExam')}
             suggestions={NCD_PHYSICAL_EXAM_SUGGESTIONS}
             minChars={3}
-            placeholder='เช่น ผิวแห้ง ไม่มีแผล ชีพจรหลังเท้าปกติ / monofilament test ปกติ'
+            placeholder='บันทึกรายละเอียดเพิ่มเติม เช่น ตำแหน่งแผล ขนาด ลักษณะผิวหนัง'
           />
         </div>
       )}
+
+      {/* มติ คทง.3 — ตรวจไต: Creatinine/eGFR พร้อมสีเตือน + suggestion ยืนยัน CKD */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='biotech'>ตรวจการทำงานของไต (Renal function)</TopicHeader>
+        <div className='flex items-start gap-4 w-full flex-wrap'>
+          <Field label='Creatinine (mg/dL)' hint='กรอกแล้วระบบคำนวณ eGFR ให้อัตโนมัติ (CKD-EPI 2021)'>
+            <InputField disabled={readOnly} value={form.creatinine} onChange={set('creatinine')} type='number' placeholder='เช่น 1.1' />
+          </Field>
+          <Field label='eGFR (mL/min/1.73m²)' hint={autoEgfr != null ? `คำนวณจาก Creatinine + อายุ + เพศ ได้ ${autoEgfr}` : 'กรอกเองได้หากมีผลจากห้องแล็บ'}>
+            <InputField disabled={readOnly} value={form.egfr} onChange={set('egfr')} type='number' placeholder={autoEgfr != null ? String(autoEgfr) : 'เช่น 72'} />
+          </Field>
+        </div>
+        {egfrResult && (
+          <div className='flex flex-col gap-2'>
+            <ColorfulBadge style={egfrResult.badge} size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+              {`ระยะการทำงานของไต: ${egfrResult.label}`}
+            </ColorfulBadge>
+            {egfrResult.ckd && (
+              <WarningNote icon='clinical_notes'>
+                ค่านี้เข้าเกณฑ์โรคไตเรื้อรัง (CKD {egfrResult.stage}) — หากผลต่อเนื่อง ≥ 3 เดือน
+                ให้ยืนยันการวินิจฉัยและบันทึก ICD-10 ของ CKD
+                <div className='mt-2'>
+                  <SelectableTag
+                    label={`ยืนยันวินิจฉัย CKD ${egfrResult.stage}`}
+                    size='lg'
+                    selected={!!form.ckdConfirmed}
+                    onClick={() => {
+                      if (readOnly) return;
+                      setForm((prev) => ({ ...prev, ckdConfirmed: !prev.ckdConfirmed }));
+                    }}
+                  />
+                </div>
+              </WarningNote>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* มติ คทง.3 — แถบพฤติกรรมสูบบุหรี่ + ส่งต่อบำบัดถ้ายังสูบ */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='activity'>พฤติกรรมการสูบบุหรี่</TopicHeader>
+        <div className='flex items-start gap-2 w-full flex-wrap'>
+          {SMOKING_STATUS_OPTIONS.map((o) => (
+            <SelectableTag
+              key={o.value}
+              label={o.label}
+              size='lg'
+              selected={form.smokingStatus === o.value}
+              onClick={() => {
+                if (readOnly) return;
+                setForm((prev) => ({
+                  ...prev,
+                  smokingStatus: prev.smokingStatus === o.value ? '' : o.value,
+                  smokingReferred: o.value === 'current' ? prev.smokingReferred : false,
+                }));
+              }}
+            />
+          ))}
+        </div>
+        {form.smokingStatus === 'current' && (
+          <WarningNote icon='smoking_rooms'>
+            ผู้รับบริการยังสูบบุหรี่ — ควรส่งต่อคลินิกบำบัดผู้ติดสารเสพติด (เลิกบุหรี่)
+            <div className='mt-2'>
+              <SelectableTag
+                label='ส่งต่อคลินิกเลิกบุหรี่แล้ว'
+                size='lg'
+                selected={!!form.smokingReferred}
+                onClick={() => {
+                  if (readOnly) return;
+                  setForm((prev) => ({ ...prev, smokingReferred: !prev.smokingReferred }));
+                }}
+              />
+            </div>
+          </WarningNote>
+        )}
+      </div>
 
       {hasResp && (
         <div className='flex flex-col gap-3'>

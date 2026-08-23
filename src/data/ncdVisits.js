@@ -608,6 +608,83 @@ export const NCD_ASSESSMENT_TEMPLATES = {
   },
 };
 
+/* ═══════════════════════════════════════════════════════════════════
+   มติ คทง.3 — เกณฑ์แปลผลอัตโนมัติของแถบตรวจเฉพาะทาง
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ตรวจเท้าเบาหวาน — ปัจจัยตามแบบคัดกรองกรมการแพทย์ (IWGDF risk category) */
+export const FOOT_RISK_FACTORS = [
+  { key: 'lostProtectiveSensation', label: 'สูญเสียการรับความรู้สึกป้องกัน (monofilament ผิดปกติ)', weight: 'sensation' },
+  { key: 'pedalPulseAbsent', label: 'คลำชีพจรหลังเท้า/แข้งไม่ได้ (สงสัย PAD)', weight: 'pad' },
+  { key: 'deformity', label: 'เท้าผิดรูป / จุดกดทับ / ตาปลาหนา', weight: 'deformity' },
+  { key: 'ulcer', label: 'มีแผลที่เท้าขณะนี้', weight: 'ulcer' },
+  { key: 'amputation', label: 'ประวัติแผลเรื้อรัง/ถูกตัดนิ้วหรือเท้ามาก่อน', weight: 'amputation' },
+];
+
+/** แปลผลระดับเสี่ยงเท้าเบาหวานอัตโนมัติ + ระยะการตรวจซ้ำที่แนะนำ */
+export const interpretFootRisk = (findings = {}) => {
+  const has = (k) => !!findings[k];
+  if (has('ulcer') || has('amputation')) {
+    return {
+      level: 'urgent', badge: 'red', label: 'ความเสี่ยงสูงมาก (มีแผล/เคยถูกตัด)',
+      advice: 'ส่งต่อคลินิกเท้าเบาหวาน/ศัลยกรรมทันที และตรวจซ้ำทุก 1–3 เดือน',
+    };
+  }
+  const risky = ['lostProtectiveSensation', 'pedalPulseAbsent', 'deformity'].filter(has);
+  if (risky.length >= 2) {
+    return {
+      level: 'high', badge: 'orange', label: 'ความเสี่ยงสูง',
+      advice: 'ตรวจเท้าซ้ำทุก 3 เดือน + สอนดูแลเท้าและเลือกรองเท้าที่เหมาะสม',
+    };
+  }
+  if (risky.length === 1) {
+    return {
+      level: 'moderate', badge: 'yellow', label: 'ความเสี่ยงปานกลาง',
+      advice: 'ตรวจเท้าซ้ำทุก 6 เดือน + ให้คำแนะนำการดูแลเท้าประจำวัน',
+    };
+  }
+  return {
+    level: 'low', badge: 'green', label: 'ความเสี่ยงต่ำ',
+    advice: 'ตรวจเท้าซ้ำปีละครั้ง พร้อมสอนการดูแลเท้าเบื้องต้น',
+  };
+};
+
+/** แปลผล eGFR → ระยะ CKD (KDIGO) + สีเตือน */
+export const interpretEgfr = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (n >= 90) return { stage: 'G1', badge: 'green', label: 'G1 — ปกติหรือสูง (≥ 90)', ckd: false };
+  if (n >= 60) return { stage: 'G2', badge: 'green', label: 'G2 — ลดลงเล็กน้อย (60–89)', ckd: false };
+  if (n >= 45) return { stage: 'G3a', badge: 'yellow', label: 'G3a — ลดลงเล็กน้อยถึงปานกลาง (45–59)', ckd: true };
+  if (n >= 30) return { stage: 'G3b', badge: 'orange', label: 'G3b — ลดลงปานกลางถึงมาก (30–44)', ckd: true };
+  if (n >= 15) return { stage: 'G4', badge: 'orange', label: 'G4 — ลดลงมาก (15–29)', ckd: true };
+  return { stage: 'G5', badge: 'red', label: 'G5 — ไตวายระยะสุดท้าย (< 15)', ckd: true };
+};
+
+/** CKD-EPI 2021 (ไม่ใช้ตัวแปรเชื้อชาติ) — คำนวณ eGFR จาก Cr + อายุ + เพศ */
+export const calcEgfr = ({ creatinine, age, gender }) => {
+  const scr = Number(creatinine);
+  const a = Number(age);
+  if (!Number.isFinite(scr) || scr <= 0 || !Number.isFinite(a) || a <= 0) return null;
+  const female = gender === 'female' || gender === 'หญิง';
+  const k = female ? 0.7 : 0.9;
+  const alpha = female ? -0.241 : -0.302;
+  const ratio = scr / k;
+  const egfr = 142
+    * Math.pow(Math.min(ratio, 1), alpha)
+    * Math.pow(Math.max(ratio, 1), -1.200)
+    * Math.pow(0.9938, a)
+    * (female ? 1.012 : 1);
+  return Math.round(egfr);
+};
+
+/* พฤติกรรมการสูบบุหรี่ — มติให้มีแถบแยกและส่งต่อบำบัดถ้ายังสูบ */
+export const SMOKING_STATUS_OPTIONS = [
+  { value: 'never', label: 'ไม่เคยสูบ' },
+  { value: 'quit', label: 'เคยสูบ — เลิกแล้ว' },
+  { value: 'current', label: 'ยังสูบอยู่' },
+];
+
 /* ─── Default record form state (NcdFormPage) ────────────────────── */
 
 export const NCD_DEFAULT_VITALS = { bp: '132/84', hr: 78, temp: 36.6, rr: 18, spo2: 98, weight: 68.0, height: 165 };
@@ -627,8 +704,18 @@ export const DEFAULT_NCD_VISIT = {
   fbs: '',
   pefr: '',
   footExam: '',                 // DM foot exam summary
+  /* มติ คทง.3 ครั้งที่ 4–7 — ตรวจเท้าเบาหวานต้อง "แปลผลระดับเสี่ยงอัตโนมัติ"
+     จึงเก็บ finding แบบมีโครง (ไม่ใช่ข้อความล้วน) เพื่อคำนวณระดับเสี่ยงได้ */
+  footFindings: {},             // keyed FOOT_RISK_FACTORS
   lungSound: '',
+  /* มติ คทง.3 — ตรวจไต: แสดง Creatinine/eGFR พร้อมสีเตือน + suggestion ยืนยัน CKD */
+  creatinine: '',
+  egfr: '',
+  ckdConfirmed: false,
   physicalExamNote: '',
+  /* มติ คทง.3 — แถบพฤติกรรมสูบบุหรี่ + ส่งต่อคลินิกบำบัดบุหรี่ถ้ายังสูบ */
+  smokingStatus: '',            // 'never' | 'quit' | 'current'
+  smokingReferred: false,
 
   // Step 4 — วินิจฉัย + คำสั่งการรักษา (TOR 1.10.2.3/.5)
   diagnosisNote: '',
