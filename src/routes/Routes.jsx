@@ -82,12 +82,17 @@ import RehabQueuePage from '@/pages/clinic/rehab/RehabQueuePage';
 import RehabFormPage from '@/pages/clinic/rehab/RehabFormPage';
 import RehabRegistryPage from '@/pages/clinic/rehab/RehabRegistryPage';
 import RehabFollowUpPage from '@/pages/clinic/rehab/RehabFollowUpPage';
+import SocialWorkHomePage from '@/pages/clinic/social-work/SocialWorkHomePage';
 import SocialWorkQueuePage from '@/pages/clinic/social-work/SocialWorkQueuePage';
 import SocialWorkFormPage from '@/pages/clinic/social-work/SocialWorkFormPage';
 import SocialWorkRegistryPage from '@/pages/clinic/social-work/SocialWorkRegistryPage';
 import SocialWorkRequesterRegistryPage from '@/pages/clinic/social-work/SocialWorkRequesterRegistryPage';
 import SocialWorkSupplyPage from '@/pages/clinic/social-work/SocialWorkSupplyPage';
 import SocialWorkFollowUpPage from '@/pages/clinic/social-work/SocialWorkFollowUpPage';
+import SocialWorkReferralPage from '@/pages/clinic/social-work/SocialWorkReferralPage';
+import SocialWorkActivityPage from '@/pages/clinic/social-work/SocialWorkActivityPage';
+import SocialWorkReportsPage from '@/pages/clinic/social-work/SocialWorkReportsPage';
+import SocialWorkNutritionPage from '@/pages/clinic/social-work/SocialWorkNutritionPage';
 import HomeVisitQueuePage from '@/pages/homevisit/HomeVisitQueuePage';
 import HomeVisitRecordPage from '@/pages/homevisit/HomeVisitRecordPage';
 import HomeVisitRegistryPage from '@/pages/homevisit/HomeVisitRegistryPage';
@@ -533,13 +538,22 @@ export default function Routes() {
         <Route exact path='/clinic/rehab/record'   component={RehabFormPage} />
         <Route exact path='/clinic/rehab/registry' component={RehabRegistryPage} />
         <Route exact path='/clinic/rehab/followup' component={RehabFollowUpPage} />
-        <Route exact path='/clinic/social-work'            component={SocialWorkQueuePage} />
+        {/* งานสังคมสงเคราะห์ (TOR §1.10.11) — IA ใหม่ตามมติ คทง.10 ครั้งที่ 3:
+            base route = หน้าแรก (ค้นหา + เมนูหลัก 5 ปุ่ม + ตรวจข้ามศูนย์) ส่วน
+            คิวเดิมย้ายไป /queue — สองบรรทัดนี้ต้องเปลี่ยนพร้อมกันเสมอ มิฉะนั้น
+            ปุ่ม "กลับหน้าแรก"/เมนูหลักบน Home จะ 404 */}
+        <Route exact path='/clinic/social-work'            component={SocialWorkHomePage} />
+        <Route exact path='/clinic/social-work/queue'      component={SocialWorkQueuePage} />
         <Route exact path='/clinic/social-work/record/:hn' component={SocialWorkFormPage} />
         <Route exact path='/clinic/social-work/record'     component={SocialWorkFormPage} />
         <Route exact path='/clinic/social-work/registry'   component={SocialWorkRegistryPage} />
         <Route exact path='/clinic/social-work/requesters' component={SocialWorkRequesterRegistryPage} />
         <Route exact path='/clinic/social-work/supplies'   component={SocialWorkSupplyPage} />
         <Route exact path='/clinic/social-work/follow-up'  component={SocialWorkFollowUpPage} />
+        <Route exact path='/clinic/social-work/referral'   component={SocialWorkReferralPage} />
+        <Route exact path='/clinic/social-work/activities' component={SocialWorkActivityPage} />
+        <Route exact path='/clinic/social-work/reports'    component={SocialWorkReportsPage} />
+        <Route exact path='/clinic/social-work/nutrition'  component={SocialWorkNutritionPage} />
         {/* ระบบการเยี่ยมบ้าน (TOR §1.18) — ระบบใหม่ระดับ rail ไม่ใช่คลินิกใน /clinic */}
         <Route exact path='/homevisit'           component={HomeVisitQueuePage} />
         <Route exact path='/homevisit/visit'     component={HomeVisitRecordPage} />

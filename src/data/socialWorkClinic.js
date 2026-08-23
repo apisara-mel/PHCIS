@@ -41,6 +41,8 @@ const K = {
   rights: 'mih:sw:rights',
   printLog: 'mih:sw:print-log',
   appointments: 'mih:sw:appointments',
+  /* running number ของเลข SN (SN/ปีงบ/เลขศบส./running) — มติครั้งที่ 3 ข้อ 13–14 */
+  snRun: 'mih:sw:sn-run',
 };
 
 /* ── Date helpers ──────────────────────────────────────────────────── */
@@ -648,12 +650,28 @@ export const saveSwRegistration = (entry) => {
   if (!isNew) {
     editLog.push({ by: SW_CURRENT_USER, at: new Date().toISOString() });
   }
+  /* เลข CASE ออกอัตโนมัติครั้งเดียวตอนบันทึกสำเร็จ — แต่มติ คทง.10 ครั้งที่ 3
+     ข้อ 13 อนุญาตให้ "แก้ไขเลขที่บันทึกผิดเองได้" จึงยอมรับค่าที่ผู้ใช้พิมพ์
+     มาแทน พร้อมเก็บประวัติการแก้เลขไว้ทุกครั้ง (caseNoHistory) */
+  const caseNoHistory = [...(previous?.caseNoHistory || [])];
+  const nextCaseNo = previous
+    ? (entry.caseNo || previous.caseNo)
+    : (entry.caseNo || nextSwCaseNo());
+  if (previous && entry.caseNo && entry.caseNo !== previous.caseNo) {
+    caseNoHistory.push({
+      from: previous.caseNo,
+      to: entry.caseNo,
+      by: SW_CURRENT_USER,
+      at: new Date().toISOString(),
+      reason: entry.caseNoEditReason || '',
+    });
+  }
   const saved = {
     ...(previous || {}),
     ...entry,
     id: entry.id || `sw-reg-new-${Date.now()}`,
-    /* เลข CASE ออกครั้งเดียวตอนบันทึกสำเร็จ และ immutable หลังจากนั้น */
-    caseNo: previous?.caseNo || entry.caseNo || nextSwCaseNo(),
+    caseNo: nextCaseNo,
+    caseNoHistory,
     receivedDate: entry.receivedDate || todayIso(),
     status: entry.status || previous?.status || 'active',
     recordedBy: previous?.recordedBy || SW_CURRENT_USER,
@@ -891,6 +909,25 @@ export const DEFAULT_SW_VISIT = {
   terminationReason: '',
   terminationDate: '',
   terminatedBy: '',
+  /* Intake ตามมติ คทง.10 ครั้งที่ 3 (Intake 1–10) — อยู่บนหน้าเดียว
+     ไม่ใช่ step ยาวอีกต่อไป */
+  receivedDate: '',
+  sn: '',
+  previousVisitCount: 0,
+  serviceCause: '',
+  /* Fact Finding — ที่อยู่ 2 แบบแก้ไขได้ · ความเป็นเจ้าของ · ภูมิลำเนา */
+  currentAddress: '',
+  houseRegAddress: '',
+  sameAddress: false,
+  residenceOwnership: '',
+  environmentNote: '',
+  domicile: '',
+  education: '',
+  occupation: '',
+  welfareCard: '',
+  /* แบบย่อย 10 ชุด (ปุ่ม Pop-up) — คีย์ตาม SW_SUB_FORMS แต่ละชุดเก็บ
+     { ...ค่า, savedBy, savedAt, editedAt } ของตัวเอง (audit ต่อ popup) */
+  subForms: {},
   /* step 8 — คำสั่ง / เอกสาร / ส่งต่อ / นัดหมาย */
   medicalOrders: '',
   documents: [],
@@ -909,6 +946,9 @@ export const saveSwVisitRecord = (hn, form) => {
   const list = all[hn] || [];
   const entry = {
     ...form,
+    /* เลข SN ออกอัตโนมัติเฉพาะตอนบันทึกสำเร็จ — ถ้าผู้ใช้พิมพ์แก้เองไว้แล้ว
+       (มติครั้งที่ 3 ข้อ 13–14) ให้ยึดค่าที่ผู้ใช้พิมพ์ */
+    sn: form.sn || takeNextSwSn(form.serviceDate),
     savedBy: SW_CURRENT_USER,
     savedAt: new Date().toISOString(),
     visitDate: form.serviceDate || todayIso(),
@@ -1024,4 +1064,365 @@ export const getSwFundHistory = (hn, from, to) => {
   })));
   return [...seeded, ...recorded]
     .filter((f) => (!from || f.date >= from) && (!to || f.date <= to));
+};
+
+/* ══════════════════════════════════════════════════════════════════════
+   ส่วนเพิ่มตามมติ คทง.10 ครั้งที่ 2–5 (IA ใหม่: หน้าแรก + ส.ส.2 แบบ popup +
+   ส.ส.3 + ส.ส.4 + รายงาน 12 ฉบับ + โภชนาการ)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── ศูนย์บริการสาธารณสุขเจ้าของระบบ ───────────────────────────────── */
+export const SW_HOME_CENTER = {
+  code: '21',
+  name: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง',
+  zone: 'กลุ่มเขตกรุงเทพกลาง–ตะวันออก',
+  office: 'สำนักอนามัย กรุงเทพมหานคร',
+};
+
+/* ── ช่องทางการติดตาม/ดำเนินการ (นิยามใหม่ มติครั้งที่ 3 ข้อ 7) ──────
+   ใช้ร่วมกันทั้งหน้าติดตามผล (1.10.11.5), popup Follow-up & Evaluation
+   ของ ส.ส.2 และหน้ากิจกรรม ส.ส.4 */
+export const SW_CONTACT_CHANNELS = [
+  { value: 'center', label: 'ศูนย์บริการสาธารณสุข', icon: 'local_hospital', badge: 'teal' },
+  { value: 'phone', label: 'โทรติดตาม', icon: 'call', badge: 'indigo' },
+  { value: 'volunteer', label: 'ประสาน อสส.', icon: 'diversity_3', badge: 'yellow' },
+];
+
+export const resolveSwContactChannel = (value) =>
+  SW_CONTACT_CHANNELS.find((c) => c.value === value)?.label || '—';
+
+export const swContactChannelBadge = (value) =>
+  SW_CONTACT_CHANNELS.find((c) => c.value === value)?.badge || 'grey';
+
+/* ── เลขประจำตัวประชาชน 13 หลัก — ตรวจ checksum ก่อนยิงค้นหาข้ามศูนย์ ── */
+export const normalizeCid = (value) => String(value || '').replace(/\D/g, '');
+
+export const isValidThaiCid = (value) => {
+  const cid = normalizeCid(value);
+  if (cid.length !== 13) return false;
+  let sum = 0;
+  for (let i = 0; i < 12; i += 1) sum += Number(cid[i]) * (13 - i);
+  return ((11 - (sum % 11)) % 10) === Number(cid[12]);
+};
+
+export const formatCid = (value) => {
+  const cid = normalizeCid(value);
+  if (cid.length !== 13) return value || '—';
+  return `${cid[0]}-${cid.slice(1, 5)}-${cid.slice(5, 10)}-${cid.slice(10, 12)}-${cid[12]}`;
+};
+
+/* ── เลข SN — รูปแบบ SN/<ปีงบ>/<เลขศบส.>/<running 4 หลัก> ──────────
+   ออกอัตโนมัติเมื่อบันทึกสำเร็จ แต่ผู้ใช้พิมพ์แก้เองได้ (มติข้อ 13–14)
+   ระบบตรวจซ้ำกับเลขที่มีอยู่ก่อนบันทึกเสมอ */
+const SW_SN_SEED_COUNT = 48;
+
+export const thaiFiscalYear = (iso) => {
+  const d = iso ? new Date(iso) : new Date();
+  if (Number.isNaN(d.getTime())) return new Date().getFullYear() + 543;
+  const be = d.getFullYear() + 543;
+  /* ปีงบประมาณไทยเริ่ม 1 ต.ค. — เดือน 9 (index) ขึ้นไปนับเป็นปีงบถัดไป */
+  return d.getMonth() >= 9 ? be + 1 : be;
+};
+
+export const fiscalYearBounds = (fiscalYear) => {
+  const startCe = fiscalYear - 543 - 1;
+  return { from: `${startCe}-10-01`, to: `${startCe + 1}-09-30` };
+};
+
+export const buildSwSn = (run, iso) =>
+  `SN/${thaiFiscalYear(iso)}/${SW_HOME_CENTER.code}/${String(run).padStart(4, '0')}`;
+
+export const peekNextSwSn = (iso) => buildSwSn(readJson(K.snRun, SW_SN_SEED_COUNT) + 1, iso);
+
+export const takeNextSwSn = (iso) => {
+  const run = readJson(K.snRun, SW_SN_SEED_COUNT) + 1;
+  writeJson(K.snRun, run);
+  return buildSwSn(run, iso);
+};
+
+/** รวมเลข SN ที่ถูกใช้แล้วทั้งระบบ (seed + ที่บันทึกไว้ใน session) */
+export const getUsedSwSns = () => {
+  const used = new Set(SW_CROSS_CENTER_VISITS.filter((v) => v.center === SW_HOME_CENTER.code).map((v) => v.sn));
+  const all = readJson(K.visits, {});
+  Object.values(all).forEach((list) => (list || []).forEach((v) => { if (v.sn) used.add(v.sn); }));
+  return [...used];
+};
+
+export const isSwSnTaken = (sn, exceptHn) => {
+  if (!sn) return false;
+  if (SW_CROSS_CENTER_VISITS.some((v) => v.sn === sn && v.hn !== exceptHn)) return true;
+  const all = readJson(K.visits, {});
+  return Object.entries(all).some(([hn, list]) =>
+    hn !== exceptHn && (list || []).some((v) => v.sn === sn));
+};
+
+/* ── ค้นหาข้ามศูนย์บริการสาธารณสุขด้วยเลขบัตรประชาชน (มติครั้งที่ 3) ──
+   mock ประวัติการใช้บริการงานสังคมสงเคราะห์ของทุกศูนย์ในระบบ PHCIS —
+   ผลลัพธ์เรียงจากครั้งล่าสุด และแสดง HN | SN | ชื่อ-สกุล | อายุ |
+   วดป.เกิด | เลขบัตร | วันที่ใช้บริการ | รหัสปัญหาหลัก */
+export const SW_CROSS_CENTER_VISITS = [
+  { hn: '67-00012', sn: 'SN/2569/21/0001', cid: '3100600287451', name: 'วิชัย รุ่งเรือง', birthDate: '1966-08-22', sex: 'ชาย', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-07-22', problemCode: '1415' },
+  { hn: '67-00012', sn: 'SN/2568/21/0311', cid: '3100600287451', name: 'วิชัย รุ่งเรือง', birthDate: '1966-08-22', sex: 'ชาย', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-01-09', problemCode: '0703' },
+  { hn: '60-01188', sn: 'SN/2567/03/0142', cid: '3100600287451', name: 'วิชัย รุ่งเรือง', birthDate: '1966-08-22', sex: 'ชาย', center: '03', centerName: 'ศูนย์บริการสาธารณสุข 3 บางซื่อ', visitDate: '2024-11-14', problemCode: '1003' },
+  { hn: '67-00021', sn: 'SN/2569/21/0021', cid: '3102200478196', name: 'วรรณภา ทองดี', birthDate: '1976-05-11', sex: 'หญิง', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-03-06', problemCode: '0102' },
+  { hn: '58-00934', sn: 'SN/2566/41/0087', cid: '3102200478196', name: 'วรรณภา ทองดี', birthDate: '1976-05-11', sex: 'หญิง', center: '41', centerName: 'ศูนย์บริการสาธารณสุข 41 คลองเตย', visitDate: '2023-08-19', problemCode: '0510' },
+  { hn: '67-00007', sn: 'SN/2569/21/0007', cid: '3101700592318', name: 'มาลี อ่อนน้อม', birthDate: '1981-03-02', sex: 'หญิง', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-07-14', problemCode: '1003' },
+  { hn: '67-00003', sn: 'SN/2569/21/0003', cid: '5670012380043', name: 'ปริญญา รัตนา', birthDate: '1972-09-27', sex: 'หญิง', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-06-26', problemCode: '0701' },
+  { hn: '67-00014', sn: 'SN/2569/21/0014', cid: '3100900341827', name: 'ชัยวัฒน์ ก้องเกียรติ', birthDate: '1979-12-08', sex: 'ชาย', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-04-10', problemCode: '1410' },
+  { hn: '55-02201', sn: 'SN/2565/24/0056', cid: '3100900341827', name: 'ชัยวัฒน์ ก้องเกียรติ', birthDate: '1979-12-08', sex: 'ชาย', center: '24', centerName: 'ศูนย์บริการสาธารณสุข 24 บางเขน', visitDate: '2022-06-30', problemCode: '1204' },
+  { hn: '67-00017', sn: 'SN/2569/21/0017', cid: '3101100728934', name: 'ภัคจิรา วงศ์อนันต์', birthDate: '1985-07-19', sex: 'หญิง', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-06-02', problemCode: '1104' },
+  { hn: '67-00005', sn: 'SN/2569/21/0007', cid: '3550900192864', name: 'สุดา ปลอดโปร่ง', birthDate: '1959-01-30', sex: 'หญิง', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-05-06', problemCode: '0709' },
+  { hn: '67-00019', sn: 'SN/2569/21/0019', cid: '1101400963275', name: 'นันทิดา พรเลิศ', birthDate: '1998-02-04', sex: 'หญิง', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-07-10', problemCode: '1409' },
+  { hn: '67-00031', sn: 'SN/2569/21/0041', cid: '1102700845513', name: 'ด.ช.ปุณณวิช แจ่มใส', birthDate: '2024-03-18', sex: 'ชาย', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-07-23', problemCode: '1001' },
+  { hn: '67-00022', sn: 'SN/2569/21/0022', cid: '3100300581927', name: 'อนุชา สมบูรณ์ทรัพย์', birthDate: '1982-04-25', sex: 'ชาย', center: '21', centerName: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', visitDate: '2026-06-02', problemCode: '1303' },
+];
+
+export const calcAgeYears = (birthIso, atIso) => {
+  if (!birthIso) return null;
+  const b = new Date(birthIso);
+  const a = atIso ? new Date(atIso) : new Date();
+  if (Number.isNaN(b.getTime()) || Number.isNaN(a.getTime())) return null;
+  let age = a.getFullYear() - b.getFullYear();
+  const m = a.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && a.getDate() < b.getDate())) age -= 1;
+  return Math.max(0, age);
+};
+
+/**
+ * ค้นหาข้ามศูนย์ด้วยเลขบัตรประชาชน 13 หลัก
+ * @returns {{ ok: boolean, error?: string, rows: Array }}
+ *   ok=false + error → เลขบัตรไม่ครบ/ตัวเลขผิด (validate ก่อนยิงค้นหา)
+ *   ok=true + rows=[] → "ไม่พบ" ตามมติ (หน้าจอต้องขึ้นคำว่า ไม่พบ)
+ */
+export const searchSwCrossCenter = (cidInput) => {
+  const cid = normalizeCid(cidInput);
+  if (cid.length === 0) return { ok: false, error: 'กรุณากรอกเลขประจำตัวประชาชน 13 หลัก', rows: [] };
+  if (cid.length !== 13) return { ok: false, error: `เลขประจำตัวประชาชนต้องมี 13 หลัก (กรอกแล้ว ${cid.length} หลัก)`, rows: [] };
+  if (!isValidThaiCid(cid)) return { ok: false, error: 'เลขประจำตัวประชาชนไม่ถูกต้อง (ตรวจสอบหลักตรวจสอบไม่ผ่าน)', rows: [] };
+  const rows = SW_CROSS_CENTER_VISITS
+    .filter((v) => v.cid === cid)
+    .map((v) => ({ ...v, id: `${v.hn}-${v.visitDate}-${v.sn}`, age: calcAgeYears(v.birthDate, v.visitDate) }))
+    .sort((a, b) => (b.visitDate || '').localeCompare(a.visitDate || ''));
+  return { ok: true, rows };
+};
+
+/** ค้นหาผู้ใช้บริการในศูนย์ตนเอง (ชื่อ / สกุล / เลขบัตร / HN / SN) */
+export const searchSwPeople = (query) => {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return [];
+  const digits = normalizeCid(q);
+  const byHn = new Map();
+  SW_CROSS_CENTER_VISITS
+    .filter((v) => v.center === SW_HOME_CENTER.code)
+    .forEach((v) => {
+      const prev = byHn.get(v.hn);
+      if (!prev || (v.visitDate || '') > (prev.visitDate || '')) byHn.set(v.hn, v);
+    });
+  return [...byHn.values()]
+    .filter((v) => v.name.toLowerCase().includes(q)
+      || v.hn.toLowerCase().includes(q)
+      || (v.sn || '').toLowerCase().includes(q)
+      || (digits.length >= 4 && v.cid.includes(digits)))
+    .map((v) => ({ ...v, id: v.hn, age: calcAgeYears(v.birthDate) }))
+    .sort((a, b) => (b.visitDate || '').localeCompare(a.visitDate || ''));
+};
+
+/* ── vocabulary เพิ่มของ Fact Finding (มติครั้งที่ 3) ────────────────── */
+export const SW_RESIDENCE_OWNERSHIP = [
+  { value: 'own', label: 'บ้านของตนเอง' },
+  { value: 'family', label: 'บ้านของญาติ/ครอบครัว' },
+  { value: 'rent', label: 'บ้านเช่า / ห้องเช่า' },
+  { value: 'welfare', label: 'บ้านพักสวัสดิการ / บ้านพักหน่วยงาน' },
+  { value: 'temple', label: 'อาศัยวัด / มูลนิธิ / สถานสงเคราะห์' },
+  { value: 'none', label: 'ไม่มีที่อยู่เป็นหลักแหล่ง' },
+];
+export const resolveSwOwnership = (v) =>
+  SW_RESIDENCE_OWNERSHIP.find((o) => o.value === v)?.label || '—';
+
+/** ภูมิลำเนา 6 ค่า ตามมติครั้งที่ 3 */
+export const SW_DOMICILES = [
+  { value: 'bangkok', label: 'กรุงเทพมหานคร' },
+  { value: 'central', label: 'ภาคกลาง/ปริมณฑล' },
+  { value: 'northeast', label: 'ภาคตะวันออกเฉียงเหนือ' },
+  { value: 'north', label: 'ภาคเหนือ' },
+  { value: 'south', label: 'ภาคใต้' },
+  { value: 'foreign', label: 'ต่างประเทศ / ไม่มีสถานะทางทะเบียน' },
+];
+export const resolveSwDomicile = (v) => SW_DOMICILES.find((o) => o.value === v)?.label || '—';
+
+export const SW_OCCUPATIONS = [
+  'ไม่ได้ประกอบอาชีพ / ว่างงาน', 'รับจ้างทั่วไป', 'ค้าขาย / ธุรกิจส่วนตัว',
+  'พนักงานบริษัท / ลูกจ้าง', 'รับราชการ / รัฐวิสาหกิจ', 'เกษตรกรรม',
+  'นักเรียน / นักศึกษา', 'เกษียณอายุ', 'อื่น ๆ',
+];
+
+/** สถานะยากจน/รายได้น้อย อ้างอิงบัตรสวัสดิการแห่งรัฐ (มติข้อ 16) */
+export const SW_WELFARE_CARD_STATUS = [
+  { value: 'holder', label: 'มีบัตรสวัสดิการแห่งรัฐ', badge: 'teal' },
+  { value: 'applied', label: 'ยื่นขอแล้ว รอผลพิจารณา', badge: 'yellow' },
+  { value: 'rejected', label: 'ยื่นแล้วไม่ผ่านเกณฑ์', badge: 'red' },
+  { value: 'none', label: 'ไม่มีบัตร / ไม่เคยยื่น', badge: 'grey' },
+];
+export const resolveSwWelfareCard = (v) =>
+  SW_WELFARE_CARD_STATUS.find((o) => o.value === v)?.label || '—';
+export const swWelfareCardBadge = (v) =>
+  SW_WELFARE_CARD_STATUS.find((o) => o.value === v)?.badge || 'grey';
+
+/* ── แบบย่อย 10 ชุดของ ส.ส.2 (ปุ่ม Pop-up แก้ไขได้ตลอด — มติครั้งที่ 3) ── */
+export const SW_SUB_FORMS = [
+  { key: 'diagnosis', label: 'ประเมินและวินิจฉัยทางสังคม', icon: 'psychology_alt', hint: 'ปัญหาหลัก 1 + ปัญหาร่วมไม่เกิน 3' },
+  { key: 'plan', label: 'วางแผนการช่วยเหลือ', icon: 'checklist', hint: 'เป้าหมาย · กิจกรรม · ผู้รับผิดชอบ' },
+  { key: 'intervention', label: 'การให้ความช่วยเหลือ (Intervention)', icon: 'volunteer_activism', hint: 'บริการ · เงินสนับสนุน · วัสดุ' },
+  { key: 'followup', label: 'ติดตามและประเมินผล (Follow-up & Evaluation)', icon: 'event_repeat', hint: 'ศบส. / โทรติดตาม / ประสาน อสส.' },
+  { key: 'termination', label: 'การยุติการให้บริการ (Termination)', icon: 'task_alt', hint: 'เหตุผลการยุติ + วันที่' },
+  { key: 'childRisk', label: 'คัดกรองและเฝ้าระวังภาวะเสี่ยงในเด็ก', icon: 'child_care', hint: 'สำหรับผู้รับบริการอายุต่ำกว่า 18 ปี' },
+  { key: 'violence', label: 'คัดกรองความรุนแรงในครอบครัว', icon: 'shield_person', hint: 'ข้อมูลลับ §1.4.2' },
+  { key: 'disability', label: 'ประเมินความพิการ', icon: 'accessible', hint: '7 ประเภทตาม พ.ร.บ. คนพิการ' },
+  { key: 'elderly', label: 'คัดกรองผู้สูงอายุ (ADL)', icon: 'elderly', hint: 'Barthel ADL Index 10 หัวข้อ' },
+  { key: 'depression2q', label: 'คัดกรองภาวะซึมเศร้า 2Q', icon: 'sentiment_dissatisfied', hint: 'ผลบวก → ส่งปรึกษาคลินิกสุขภาพจิต' },
+];
+
+export const findSwSubForm = (key) => SW_SUB_FORMS.find((f) => f.key === key) || null;
+
+/** popup ที่ถือว่า "บันทึกแล้ว" — ใช้ทำ badge สถานะบนปุ่ม */
+export const isSwSubFormSaved = (form, key) => !!form?.subForms?.[key]?.savedAt;
+
+/* ── แบบคัดกรองเด็กเสี่ยง (รายงานฉบับที่ 6) ─────────────────────────── */
+export const SW_CHILD_RISK_ITEMS = [
+  { key: 'nutrition', label: 'ภาวะโภชนาการไม่เป็นไปตามเกณฑ์' },
+  { key: 'school', label: 'ไม่ได้เรียนหนังสือ / ออกจากระบบการศึกษา' },
+  { key: 'caregiver', label: 'ขาดผู้ดูแลหลัก หรือผู้ดูแลไม่พร้อม' },
+  { key: 'violence', label: 'มีร่องรอยการถูกทำร้ายร่างกาย/จิตใจ' },
+  { key: 'neglect', label: 'ถูกปล่อยปละละเลย / ไม่ได้รับการดูแลขั้นพื้นฐาน' },
+  { key: 'labour', label: 'ถูกใช้แรงงาน / ต้องหารายได้เลี้ยงครอบครัว' },
+  { key: 'substance', label: 'อยู่ในครอบครัวที่มีผู้ใช้สารเสพติด' },
+  { key: 'development', label: 'พัฒนาการล่าช้าไม่สมวัย' },
+  { key: 'economy', label: 'ครอบครัวมีปัญหาเศรษฐานะรุนแรง' },
+];
+
+export const SW_CHILD_RISK_LEVELS = [
+  { key: 'none', label: 'ไม่พบภาวะเสี่ยง', badge: 'green', max: 0 },
+  { key: 'watch', label: 'เฝ้าระวัง — ติดตามต่อเนื่อง', badge: 'yellow', max: 2 },
+  { key: 'high', label: 'เสี่ยงสูง — ต้องมีแผนช่วยเหลือทันที', badge: 'red', max: Infinity },
+];
+
+export const interpretChildRisk = (checked) => {
+  const n = (checked || []).length;
+  return { count: n, band: SW_CHILD_RISK_LEVELS.find((l) => n <= l.max) || SW_CHILD_RISK_LEVELS[2] };
+};
+
+/* ── แบบคัดกรองความรุนแรงในครอบครัว (รายงานฉบับที่ 7) ───────────────── */
+export const SW_VIOLENCE_TYPES = [
+  { value: 'physical', label: 'ความรุนแรงทางร่างกาย' },
+  { value: 'mental', label: 'ความรุนแรงทางจิตใจ / วาจา' },
+  { value: 'sexual', label: 'ความรุนแรงทางเพศ' },
+  { value: 'neglect', label: 'การทอดทิ้ง / ปล่อยปละละเลย' },
+  { value: 'economic', label: 'ความรุนแรงทางเศรษฐกิจ (ควบคุมทรัพย์สิน)' },
+];
+
+export const SW_VIOLENCE_ITEMS = [
+  { key: 'hurt', label: 'ถูกทำร้ายร่างกายในรอบ 12 เดือนที่ผ่านมา' },
+  { key: 'threat', label: 'ถูกข่มขู่ คุกคาม หรือทำให้หวาดกลัว' },
+  { key: 'control', label: 'ถูกควบคุมการใช้จ่ายหรือจำกัดการติดต่อกับผู้อื่น' },
+  { key: 'forced', label: 'ถูกบังคับให้มีเพศสัมพันธ์โดยไม่ยินยอม' },
+  { key: 'fear', label: 'รู้สึกไม่ปลอดภัยเมื่ออยู่ที่บ้าน' },
+  { key: 'child', label: 'มีเด็กในบ้านที่เห็นหรือได้รับผลกระทบจากเหตุการณ์' },
+];
+
+export const SW_VIOLENCE_LEVELS = [
+  { key: 'none', label: 'ไม่พบความเสี่ยง', badge: 'green', max: 0 },
+  { key: 'moderate', label: 'เสี่ยงปานกลาง — วางแผนความปลอดภัย', badge: 'yellow', max: 2 },
+  { key: 'high', label: 'เสี่ยงสูง — ต้องมีแผนช่วยเหลือและส่งต่อทันที', badge: 'red', max: Infinity },
+];
+
+export const interpretViolence = (checked) => {
+  const n = (checked || []).length;
+  return { count: n, band: SW_VIOLENCE_LEVELS.find((l) => n <= l.max) || SW_VIOLENCE_LEVELS[2] };
+};
+
+/* ── แบบประเมินความพิการ 7 ประเภท (รายงานฉบับที่ 8) ─────────────────── */
+export const SW_DISABILITY_TYPES = [
+  { value: 'vision', label: 'ประเภทที่ 1 ทางการเห็น' },
+  { value: 'hearing', label: 'ประเภทที่ 2 ทางการได้ยินหรือสื่อความหมาย' },
+  { value: 'physical', label: 'ประเภทที่ 3 ทางการเคลื่อนไหวหรือทางร่างกาย' },
+  { value: 'mental', label: 'ประเภทที่ 4 ทางจิตใจหรือพฤติกรรม' },
+  { value: 'intellect', label: 'ประเภทที่ 5 ทางสติปัญญา' },
+  { value: 'learning', label: 'ประเภทที่ 6 ทางการเรียนรู้' },
+  { value: 'autism', label: 'ประเภทที่ 7 ออทิสติก' },
+];
+export const resolveSwDisabilityType = (v) =>
+  SW_DISABILITY_TYPES.find((d) => d.value === v)?.label || '—';
+
+export const SW_DISABILITY_CARD_STATUS = [
+  { value: 'have', label: 'มีบัตรประจำตัวคนพิการแล้ว' },
+  { value: 'expired', label: 'มีบัตรแต่หมดอายุ' },
+  { value: 'processing', label: 'อยู่ระหว่างดำเนินการขอบัตร' },
+  { value: 'none', label: 'ยังไม่มีบัตร' },
+];
+export const resolveSwDisabilityCard = (v) =>
+  SW_DISABILITY_CARD_STATUS.find((d) => d.value === v)?.label || '—';
+
+/* ── แบบคัดกรองภาวะซึมเศร้า 2Q (รายงาน + Flag ข้อควรระวัง) ──────────── */
+export const SW_2Q_ITEMS = [
+  { key: 'q1', label: 'ใน 2 สัปดาห์ที่ผ่านมา รวมวันนี้ ท่านรู้สึกหดหู่ เศร้า หรือท้อแท้สิ้นหวังหรือไม่' },
+  { key: 'q2', label: 'ใน 2 สัปดาห์ที่ผ่านมา รวมวันนี้ ท่านรู้สึกเบื่อ ทำอะไรก็ไม่เพลิดเพลินหรือไม่' },
+];
+
+export const interpret2Q = (answers) => {
+  const positive = SW_2Q_ITEMS.some((i) => answers?.[i.key] === 'yes');
+  const answered = SW_2Q_ITEMS.every((i) => answers?.[i.key]);
+  return {
+    answered,
+    positive,
+    label: !answered ? 'ยังคัดกรองไม่ครบ' : (positive ? 'ผลบวก — ควรส่งปรึกษาคลินิกสุขภาพจิต (ประเมิน 9Q ต่อ)' : 'ผลลบ — ไม่พบภาวะซึมเศร้า'),
+    badge: !answered ? 'grey' : (positive ? 'red' : 'green'),
+  };
+};
+
+/* ── ข้อความแนะนำสำหรับ SuggestibleTextarea ของ popup ใหม่ ──────────── */
+export const SW_SERVICE_CAUSE_SUGGESTIONS = [
+  'ผู้รับบริการไม่มีค่าใช้จ่ายในการเดินทางมารับบริการต่อเนื่อง',
+  'พยาบาลจุดคัดกรองส่งปรึกษาเนื่องจากไม่มีสิทธิการรักษา',
+  'ทีมเยี่ยมบ้านพบผู้ป่วยติดเตียงขาดผ้าอ้อมและวัสดุทำแผล',
+  'ญาติแจ้งว่าไม่สามารถดูแลผู้สูงอายุได้ตลอดเวลาเนื่องจากต้องทำงาน',
+  'ผู้รับบริการประสบปัญหาความรุนแรงในครอบครัวและต้องการที่พักปลอดภัย',
+  'ครูประจำชั้นส่งต่อกรณีเด็กขาดเรียนบ่อยจากปัญหาเศรษฐานะของครอบครัว',
+];
+
+export const SW_PLAN_SUGGESTIONS = [
+  'ประสานสำนักงานเขตเพื่อขอรับเงินสงเคราะห์ครอบครัวผู้มีรายได้น้อยภายใน 30 วัน',
+  'จัดหาวัสดุและกายอุปกรณ์จากคลังงานสังคมสงเคราะห์ให้ครบตามความจำเป็น',
+  'ประสานอาสาสมัครสาธารณสุขในพื้นที่ให้ติดตามเยี่ยมเดือนละ 1 ครั้ง',
+  'ส่งต่อคลินิกสุขภาพจิตเพื่อประเมินและบำบัดภาวะซึมเศร้า',
+  'วางแผนความปลอดภัยร่วมกับผู้รับบริการและกำหนดช่องทางติดต่อฉุกเฉิน',
+  'ประสานสถานศึกษาเพื่อคงสถานภาพนักเรียนและขอทุนการศึกษา',
+];
+
+export const SW_EVALUATION_SUGGESTIONS = [
+  'ผู้รับบริการเข้าถึงสิทธิและสวัสดิการที่วางแผนไว้ครบถ้วนแล้ว',
+  'ปัญหาบรรเทาลงบางส่วน ยังต้องติดตามต่อเนื่องอีก 3 เดือน',
+  'ครอบครัวมีศักยภาพในการดูแลเพิ่มขึ้น ลดความถี่การเยี่ยมเป็นราย 2 เดือน',
+  'ยังไม่บรรลุเป้าหมาย เนื่องจากผู้รับบริการย้ายที่อยู่ ติดตามไม่ได้',
+  'ผู้รับบริการปฏิเสธการช่วยเหลือบางรายการ บันทึกเหตุผลไว้ในแฟ้มเคส',
+];
+
+export const SW_SAFETY_PLAN_SUGGESTIONS = [
+  'กำหนดจุดปลอดภัยในบ้านและซักซ้อมเส้นทางออกจากบ้านกับผู้รับบริการแล้ว',
+  'ให้เบอร์สายด่วน 1300 และเบอร์ติดต่อนักสังคมสงเคราะห์เจ้าของเคสไว้',
+  'ประสานผู้นำชุมชนและ อสส. ให้ช่วยเฝ้าระวังในพื้นที่',
+  'จัดหาที่พักพิงชั่วคราวและประสานบ้านพักเด็กและครอบครัวแล้ว',
+];
+
+/* ── ปีงบประมาณสำหรับตัวกรองรายงาน ─────────────────────────────────── */
+export const SW_FISCAL_YEARS = [2567, 2568, 2569, 2570].map((y) => ({
+  value: String(y),
+  label: `ปีงบประมาณ ${y}`,
+}));
+
+export const CURRENT_SW_FISCAL_YEAR = String(thaiFiscalYear());
+
+/** เลข CASE ซ้ำหรือยัง (ใช้ตอนผู้ใช้พิมพ์แก้เลขที่บันทึกผิด — มติข้อ 13) */
+export const isSwCaseNoTaken = (caseNo, exceptId) => {
+  if (!caseNo) return false;
+  return getSwRegistryRows().some((r) => r.caseNo === caseNo && r.id !== exceptId);
 };

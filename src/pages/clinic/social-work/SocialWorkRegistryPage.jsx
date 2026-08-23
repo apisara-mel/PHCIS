@@ -28,6 +28,10 @@ import {
   SW_INTAKE_CHANNELS,
   SW_TARGET_GROUPS,
   SW_INFORMANT_RELATIONS,
+  SW_WELFARE_CARD_STATUS,
+  resolveSwWelfareCard,
+  swWelfareCardBadge,
+  isSwCaseNoTaken,
   SW_PROBLEM_OPTIONS,
   resolveSwClientType,
   resolveSwIntakeChannel,
@@ -86,6 +90,11 @@ const EMPTY_FORM = {
   houseRegAddress: '',
   sameAddress: false,
   owner: '',
+  /* สถานะยากจน/รายได้น้อย อ้างอิงบัตรสวัสดิการแห่งรัฐ (มติ คทง.10 ครั้งที่ 3 ข้อ 16) */
+  welfareCard: '',
+  /* ปลดล็อกช่องเลขที่สังคมสงเคราะห์เพื่อแก้เลขที่บันทึกผิด (มติข้อ 13) */
+  caseNoEdit: false,
+  caseNoEditReason: '',
 };
 
 const SocialWorkRegistryPage = () => {
@@ -182,6 +191,9 @@ const SocialWorkRegistryPage = () => {
       houseRegAddress: row.houseRegAddress || '',
       sameAddress: !!row.currentAddress && row.currentAddress === row.houseRegAddress,
       owner: row.owner || '',
+      welfareCard: row.welfareCard || '',
+      caseNoEdit: false,
+      caseNoEditReason: '',
       status: row.status,
     });
     setErrors({});
@@ -234,6 +246,12 @@ const SocialWorkRegistryPage = () => {
     if (!form.informantRelation) nextErrors.informantRelation = 'กรุณาระบุความเกี่ยวข้องของผู้ให้ข้อมูล';
     if (!form.currentAddress.trim()) nextErrors.currentAddress = 'กรุณาระบุที่อยู่ปัจจุบัน';
     if (!form.owner) nextErrors.owner = 'กรุณาเลือกนักสังคมสงเคราะห์เจ้าของเคส';
+    /* แก้เลขที่สังคมสงเคราะห์ที่บันทึกผิด (มติข้อ 13) — ต้องไม่ซ้ำและต้องมีเหตุผล */
+    if (form.caseNoEdit) {
+      if (!form.caseNo.trim()) nextErrors.caseNo = 'กรุณาระบุเลขที่สังคมสงเคราะห์ที่ถูกต้อง';
+      else if (isSwCaseNoTaken(form.caseNo.trim(), form.id)) nextErrors.caseNo = 'เลขที่นี้ถูกใช้กับทะเบียนรายอื่นแล้ว';
+      if (!form.caseNoEditReason.trim()) nextErrors.caseNoEditReason = 'ระบุเหตุผลที่แก้ไขเลขที่สังคมสงเคราะห์';
+    }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -243,6 +261,8 @@ const SocialWorkRegistryPage = () => {
       hn: form.hn,
       name: form.name,
       caseNo: form.caseNo || undefined,
+      caseNoEditReason: form.caseNoEdit ? form.caseNoEditReason.trim() : '',
+      welfareCard: form.welfareCard,
       receivedDate: form.receivedDate,
       clientType: form.clientType,
       intakeChannel: form.intakeChannel,
@@ -327,6 +347,16 @@ const SocialWorkRegistryPage = () => {
     },
     { key: 'owner', label: 'เจ้าของเคส', flex: true, minWidth: 180, render: (r) => <span style={dim(r)}>{r.owner || '—'}</span> },
     {
+      key: 'welfareCard', label: 'สถานะรายได้น้อย',
+      render: (r) => (r.welfareCard
+        ? (
+          <ColorfulBadge style={swWelfareCardBadge(r.welfareCard)} size='small' hierarchy='secondary'>
+            {resolveSwWelfareCard(r.welfareCard)}
+          </ColorfulBadge>
+        )
+        : <span style={{ color: 'var(--text-content-tertiary, #858C92)' }}>ยังไม่ระบุ</span>),
+    },
+    {
       key: 'status', label: 'สถานะ',
       render: (r) => (r.status === 'cancelled' ? (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
@@ -352,6 +382,19 @@ const SocialWorkRegistryPage = () => {
               <br />
               <span style={{ color: 'var(--text-content-tertiary, #858C92)' }}>
                 แก้ไขล่าสุด {r.editLog[r.editLog.length - 1].by} · {formatSwDateTime(r.editLog[r.editLog.length - 1].at)}
+              </span>
+            </>
+          )}
+          {(r.caseNoHistory || []).length > 0 && (
+            <>
+              <br />
+              <span style={{ color: 'var(--text-warning-default, #C2410C)' }}>
+                {`แก้เลขที่ ${r.caseNoHistory[r.caseNoHistory.length - 1].from} → ${r.caseNoHistory[r.caseNoHistory.length - 1].to}`}
+                <br />
+                {`โดย ${r.caseNoHistory[r.caseNoHistory.length - 1].by} · ${formatSwDateTime(r.caseNoHistory[r.caseNoHistory.length - 1].at)}`}
+                {r.caseNoHistory[r.caseNoHistory.length - 1].reason
+                  ? ` · เหตุผล: ${r.caseNoHistory[r.caseNoHistory.length - 1].reason}`
+                  : ''}
               </span>
             </>
           )}
@@ -525,14 +568,57 @@ const SocialWorkRegistryPage = () => {
               <NeutralSubdueButton size='sm' leadingIcon='close' onClick={closeForm}>ปิดแบบฟอร์ม</NeutralSubdueButton>
             </div>
 
-            {/* เลขที่สังคมสงเคราะห์ — read-only เสมอ และว่างจนกว่าจะบันทึกสำเร็จ */}
+            {/* เลขที่สังคมสงเคราะห์ — ออกอัตโนมัติเมื่อบันทึกสำเร็จ และปลดล็อกให้
+                แก้เลขที่บันทึกผิดได้ตามมติ คทง.10 ครั้งที่ 3 ข้อ 13 (บังคับเหตุผล
+                + ตรวจเลขซ้ำ + เก็บประวัติการแก้ไว้ในแถว) */}
             <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
               <SwField
                 label='เลขที่สังคมสงเคราะห์ (เลข CASE)'
-                hint={form.caseNo ? 'ออกครั้งเดียวและไม่เปลี่ยนอีกเมื่อแก้ไข' : 'ระบบจะออกเลขให้อัตโนมัติ (รูปแบบ สค.nnnn/ปี พ.ศ.) เมื่อบันทึกสำเร็จ'}
+                hint={errors.caseNo
+                  || (form.caseNoEdit
+                    ? 'กำลังแก้ไขเลขที่ — ต้องไม่ซ้ำกับทะเบียนรายอื่น'
+                    : (form.caseNo
+                      ? 'ออกอัตโนมัติเมื่อบันทึกสำเร็จ — กด "แก้เลขที่" เมื่อบันทึกผิด'
+                      : 'ระบบจะออกเลขให้อัตโนมัติ (รูปแบบ สค.nnnn/ปี พ.ศ.) เมื่อบันทึกสำเร็จ'))}
+                hintTone={errors.caseNo ? 'error' : undefined}
               >
-                <InputField value={form.caseNo} onChange={() => {}} disabled placeholder='ออกให้อัตโนมัติเมื่อบันทึก' />
+                <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <InputField
+                    value={form.caseNo}
+                    onChange={setField('caseNo')}
+                    disabled={!canRead || !form.caseNoEdit}
+                    error={!!errors.caseNo}
+                    showHelperText={false}
+                    placeholder='ออกให้อัตโนมัติเมื่อบันทึก'
+                  />
+                  {canRead && editing !== 'new' && (
+                    <NeutralSubdueButton
+                      size='sm'
+                      leadingIcon={form.caseNoEdit ? 'lock' : 'edit'}
+                      onClick={() => setForm((f) => ({ ...f, caseNoEdit: !f.caseNoEdit, caseNoEditReason: '' }))}
+                    >
+                      {form.caseNoEdit ? 'ยกเลิกแก้เลขที่' : 'แก้เลขที่'}
+                    </NeutralSubdueButton>
+                  )}
+                </div>
               </SwField>
+              {form.caseNoEdit && (
+                <SwField
+                  label='เหตุผลที่แก้ไขเลขที่สังคมสงเคราะห์'
+                  required
+                  hint={errors.caseNoEditReason}
+                  hintTone={errors.caseNoEditReason ? 'error' : undefined}
+                  minWidth={280}
+                >
+                  <InputField
+                    value={form.caseNoEditReason}
+                    onChange={setField('caseNoEditReason')}
+                    error={!!errors.caseNoEditReason}
+                    showHelperText={false}
+                    placeholder='เช่น บันทึกเลขซ้ำกับเคสอื่น / พิมพ์ปี พ.ศ. ผิด'
+                  />
+                </SwField>
+              )}
               <SwField label='วันที่รับเรื่อง' required hint={errors.receivedDate} hintTone={errors.receivedDate ? 'error' : undefined}>
                 <DatePicker
                   showLabel={false}
@@ -656,6 +742,20 @@ const SocialWorkRegistryPage = () => {
                     options={SW_WORKERS.map((w) => ({ value: w, label: w }))}
                     placeholder='เลือกเจ้าของเคส'
                     error={errors.owner ? ' ' : undefined}
+                  />
+                </SwField>
+                {/* สถานะยากจน/รายได้น้อย อ้างอิงบัตรสวัสดิการแห่งรัฐ (มติข้อ 16) */}
+                <SwField
+                  label='สถานะยากจน / รายได้น้อย (บัตรสวัสดิการแห่งรัฐ)'
+                  hint='ใช้ประกอบการพิจารณาเงินสงเคราะห์และการช่วยเหลือด้านโภชนาการ'
+                >
+                  <Select
+                    showLabel={false} searchable={false} size='lg'
+                    disabled={!canRead}
+                    value={form.welfareCard}
+                    onChange={setField('welfareCard')}
+                    options={SW_WELFARE_CARD_STATUS}
+                    placeholder='เลือกสถานะบัตรสวัสดิการแห่งรัฐ'
                   />
                 </SwField>
               </div>
