@@ -1443,6 +1443,11 @@ export const DEFAULT_IMM_VISIT = {
   todayDoses: [],
   /* step 6 — ตรวจสุขภาพทั่วไป */
   exam: {}, examAllNormal: false, examNote: '', illnessHistory: '', allergyNote: '',
+  /* step 6 — สุขภาพช่องปากเด็กดี (มติ คทง.6 ครั้งที่ 3 · blueprint หน้า 9)
+     "ลงข้อมูลแปรงสีฟันซี่แรก (คลินิกเด็กดี)" — เป็นงานส่งเสริมสุขภาพของ
+     WBC ไม่ใช่หัตถการทันตกรรม จึงลงที่นี่ได้ ส่วนผลตรวจฟันจริงยังมาจาก
+     หน้าทันตกรรมที่เดียวผ่าน CarriedDentalPanel */
+  firstToothAge: '', firstToothBrushStarted: '', oralCareAdvice: false, oralCareNote: '',
   /* step 7 — EMR / CPOE / Telemedicine */
   labOrders: {}, medOrders: {}, orderNote: '',
   telemedStatus: '', doctor: '',

@@ -608,10 +608,14 @@ export const getDentalCompletedSteps = (form, stepIndex = 0) => {
 
 export const DENTAL_CARE_SURFACES = [
   { key: 'dental', label: 'คลินิกทันตกรรม', route: '/clinic/dental', source: true },
-  { key: 'elderly', label: 'คลินิกผู้สูงอายุ', route: null },
-  { key: 'menopause', label: 'คลินิกวัยทอง', route: null },
+  /* TOR §1.10 มีคลินิกพิเศษ 12 คลินิก ไม่มี "ผู้สูงอายุ / วัยทอง / เด็กดี"
+     เป็นคลินิกแยก — ในระบบนี้ทั้งสามกลุ่มรับบริการผ่านโมดูลที่มีอยู่จริง
+     (ตรวจสุขภาพตามกลุ่มวัย §1.19 · สร้างเสริมภูมิคุ้มกัน §1.10.9) จึงชี้
+     route ไปที่โมดูลนั้นแทนการสร้างคลินิกใหม่นอกขอบเขต TOR */
+  { key: 'elderly', label: 'ตรวจสุขภาพผู้สูงอายุ', route: '/checkup' },
+  { key: 'menopause', label: 'ตรวจสุขภาพวัยทอง', route: '/checkup' },
   { key: 'homevisit', label: 'เยี่ยมบ้าน', route: '/homevisit' },
-  { key: 'wbc', label: 'คลินิกสุขภาพเด็กดี (WBC)', route: null },
+  { key: 'wbc', label: 'คลินิกสุขภาพเด็กดี (WBC)', route: '/clinic/immunization' },
   { key: 'anc', label: 'คลินิกหญิงตั้งครรภ์ (ANC)', route: '/treat/anc' },
   { key: 'school', label: 'อนามัยโรงเรียน', route: '/clinic/school-health' },
   { key: 'dm', label: 'คลินิกเบาหวาน (DM)', route: '/clinic/ncd' },

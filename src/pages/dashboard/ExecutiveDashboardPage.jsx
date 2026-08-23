@@ -58,6 +58,9 @@ import {
   listAnomalyAcks,
   revokeAnomalyAck,
   subDistrictOptions,
+  defaultAreaForScope,
+  scopeNoticeForUser,
+  scopedAreaOptions,
 } from '@/data/dashboardExecutive';
 
 /* TOR §1.20.10 — Dashboard ผู้บริหาร (Area Health Analytics)
@@ -215,10 +218,32 @@ const ExecutiveDashboardPage = () => {
   const currentRole = asExecutive ? EXECUTIVE_ROLES[0] : PHCIS_CURRENT_USER.groupPolicy;
   const allowed = EXECUTIVE_ROLES.includes(currentRole);
 
+  /* มติ คทง.11 ครั้งที่ 2 — ขอบเขตข้อมูลต้องมาจากแม่แบบสิทธิ์ของผู้ใช้
+     ไม่ใช่เปิดทั้งสำนักอนามัยให้ทุกคน: ตัวเลือกเขต/สถานบริการถูกจำกัดตาม
+     dataScope และค่าเริ่มต้นล็อกไว้ที่เขตของตนเองเมื่อ scope แคบ
+     (ผู้บริหารที่สลับโหมดดูภาพรวมได้ scope='all' จึงเห็นครบเหมือนเดิม) */
+  const scopeUser = useMemo(
+    () => (asExecutive ? { ...PHCIS_CURRENT_USER, dataScope: 'all' } : PHCIS_CURRENT_USER),
+    [asExecutive],
+  );
+  const areaOptions = useMemo(() => scopedAreaOptions(scopeUser), [scopeUser]);
+  const scopeNotice = useMemo(() => scopeNoticeForUser(scopeUser), [scopeUser]);
+  const scopedDefaultArea = useMemo(() => defaultAreaForScope(scopeUser), [scopeUser]);
+
   const [dateFilter, setDateFilter] = useState(DEFAULT_DATE_FILTER);
   const [area, setArea] = useState(DEFAULT_AREA);
   const [subDistrict, setSubDistrict] = useState(DEFAULT_SUB);
   const [center, setCenter] = useState(DEFAULT_CENTER);
+
+  /* ถ้าเขตที่เลือกอยู่นอกขอบเขตของผู้ใช้ (เช่น สลับโหมดกลับมาเป็นเจ้าหน้าที่)
+     ให้ดีดกลับมาที่ค่าเริ่มต้นของ scope ทันที ไม่ปล่อยให้ค้างดูข้อมูลนอกสิทธิ์ */
+  useEffect(() => {
+    if (!areaOptions.some((o) => o.value === area)) {
+      setArea(scopedDefaultArea);
+      setSubDistrict(DEFAULT_SUB);
+      setCenter(DEFAULT_CENTER);
+    }
+  }, [areaOptions, area, scopedDefaultArea]);
 
   /* §1.20.10.5 — อ่านจาก log ระดับโมดูล เพื่อให้การรับทราบไม่หายเมื่อออกจากหน้า
      แล้วกลับเข้ามาใหม่ (state ของ component หายตอน unmount) */
@@ -559,6 +584,29 @@ const ExecutiveDashboardPage = () => {
       >
         <DataSourceStrip scopeLabel={scopeLabel} />
 
+        {/* มติ คทง.11 — บอกผู้ใช้ตรง ๆ ว่าตัวเลือกถูกจำกัดเพราะขอบเขตข้อมูล
+            ไม่ใช่ระบบเสียหรือข้อมูลหาย */}
+        {scopeNotice && (
+          <div
+            className='flex items-center w-full'
+            style={{
+              gap: 'var(--dim-space-200)',
+              paddingTop: 'var(--dim-space-300)',
+              paddingBottom: 'var(--dim-space-300)',
+              paddingLeft: 'var(--dim-space-400)',
+              paddingRight: 'var(--dim-space-400)',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+              color: 'var(--text-brandPrimary-default, #007549)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+            }}
+          >
+            <Icon name='shield_person' size={18} />
+            <span className='flex-1 min-w-0'>{scopeNotice}</span>
+          </div>
+        )}
+
         <ReportToolbar
           trailing={(
             <NeutralSubdueButton leadingIcon='ios_share' size='md' onClick={() => openExport('all')}>
@@ -578,7 +626,7 @@ const ExecutiveDashboardPage = () => {
               size='md'
               value={area}
               onChange={(next) => { setArea(next); setSubDistrict('all'); setCenter('all'); }}
-              options={AREA_OPTIONS}
+              options={areaOptions}
               placeholder='เขต'
             />
           </div>

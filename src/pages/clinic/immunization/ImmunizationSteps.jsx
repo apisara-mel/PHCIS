@@ -15,6 +15,7 @@ import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
 import GrowthPercentileChart from '@/pages/clinic/immunization/GrowthPercentileChart';
 import EpiScheduleMatrix from '@/pages/clinic/immunization/EpiScheduleMatrix';
+import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
 import {
   getActiveVaccines,
   getVaccineById,
@@ -1168,7 +1169,7 @@ export const ImmStep5Vaccine = ({ form, setForm, immHn, child, locked }) => {
 };
 
 /* ── Step 6 — ตรวจสุขภาพทั่วไป 14 ระบบ (1.10.9.7) ──────────────────── */
-export const ImmStep6GeneralExam = ({ form, setForm, locked }) => {
+export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked }) => {
   const setExam = (key, value) => {
     if (locked) return;
     setForm((f) => ({ ...f, exam: { ...f.exam, [key]: value }, examAllNormal: false }));
@@ -1239,6 +1240,58 @@ export const ImmStep6GeneralExam = ({ form, setForm, locked }) => {
           suggestions={EXAM_NOTE_SUGGESTIONS}
           minChars={3}
           placeholder='บันทึกสิ่งที่ตรวจพบ โดยเฉพาะระบบที่ผิดปกติ'
+        />
+      </div>
+
+      {/* สุขภาพช่องปากเด็กดี (มติ คทง.6 ครั้งที่ 3) — ผลตรวจฟันจริงมาจาก
+          หน้าทันตกรรมที่เดียว (แผงด้านล่าง อ่านอย่างเดียว) ส่วนที่ WBC ลงเอง
+          คือข้อมูลส่งเสริมสุขภาพช่องปาก: ฟันซี่แรกขึ้นเมื่ออายุเท่าไร และ
+          เริ่มแปรงสีฟันซี่แรกแล้วหรือยัง (blueprint หน้า 9) */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='dentistry'>สุขภาพช่องปากเด็ก</TopicHeader>
+        <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <div style={{ minWidth: 220, flex: '1 1 220px' }}>
+            <InputField
+              label='ฟันซี่แรกขึ้นเมื่ออายุ (เดือน)'
+              disabled={locked}
+              value={form.firstToothAge}
+              onChange={(e) => setForm((f) => ({ ...f, firstToothAge: e.target.value }))}
+              placeholder='เช่น 7'
+            />
+          </div>
+          <div style={{ minWidth: 240, flex: '1 1 240px' }}>
+            <Select
+              label='เริ่มแปรงสีฟันซี่แรกแล้วหรือยัง'
+              disabled={locked}
+              value={form.firstToothBrushStarted}
+              onChange={(v) => setForm((f) => ({ ...f, firstToothBrushStarted: v }))}
+              options={[
+                { value: 'yes', label: 'แปรงแล้ว (ผู้ปกครองแปรงให้)' },
+                { value: 'wipe', label: 'ยังไม่แปรง — ใช้ผ้าเช็ดเหงือก/ฟัน' },
+                { value: 'no', label: 'ยังไม่ได้ทำความสะอาดช่องปาก' },
+                { value: 'na', label: 'ยังไม่มีฟันขึ้น' },
+              ]}
+              placeholder='เลือกสถานะ'
+            />
+          </div>
+        </div>
+        {(form.firstToothBrushStarted === 'no' || form.firstToothBrushStarted === 'wipe') && (
+          <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+            ยังไม่ได้แปรงสีฟัน — ต้องให้คำแนะนำการทำความสะอาดช่องปากแก่ผู้ปกครองก่อนกลับ
+          </ColorfulBadge>
+        )}
+        <SelectableTag
+          label='ให้คำแนะนำการดูแลช่องปากแก่ผู้ปกครองแล้ว'
+          size='lg'
+          selected={!!form.oralCareAdvice}
+          onClick={() => { if (!locked) setForm((f) => ({ ...f, oralCareAdvice: !f.oralCareAdvice })); }}
+        />
+        <CarriedDentalPanel
+          hn={immHn}
+          patientName={child?.fullName || child?.shortName}
+          from='wbc'
+          readOnly={locked}
+          title='ผลการตรวจทันตกรรม (จากคลินิกทันตกรรม)'
         />
       </div>
 

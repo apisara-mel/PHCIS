@@ -500,6 +500,17 @@ MR_PATIENTS.forEach((p, i) => {
    older female patients. */
 const SPECIAL_WATCH_OVERRIDES = {
   '67-00003': { g6pd: true },
+  /* มติ คทง.7 — ต้องมีเคสหญิงตั้งครรภ์จริงในชุดข้อมูล ไม่งั้นกติกา "บล็อก
+     ยา Pregnancy Category X" ไม่มีวันทำงานให้เห็นเลย */
+  '67-00027': { pregnant: true },
+};
+
+/* มติ คทง.7 — ผลคัดกรองเภสัชพันธุศาสตร์ (HLA-B) ต่อผู้รับบริการ
+   ใช้เป็นแหล่งของกติกา "ห้ามสั่ง Allopurinol / Carbamazepine เมื่อผลบวก"
+   ผู้ที่ไม่มีในตารางนี้ = ยังไม่เคยตรวจ → ระบบเตือนให้ส่งตรวจก่อนเริ่มยา */
+const GENETIC_SCREENING_OVERRIDES = {
+  '67-00001': [{ gene: 'HLA-B*58:01', result: 'Positive', testedAt: '12 มี.ค. 2569', lab: 'ห้องปฏิบัติการกลาง สำนักอนามัย' }],
+  '67-00010': [{ gene: 'HLA-B*15:02', result: 'Negative', testedAt: '5 ก.พ. 2569', lab: 'ห้องปฏิบัติการกลาง สำนักอนามัย' }],
 };
 
 /* TOR §1.1.1.3 — passport search axis. Applied as a post-process merge
@@ -522,6 +533,8 @@ const LIFE_STATUS_OVERRIDES = {
 
 MR_PATIENTS.forEach((p) => {
   p.specialWatch = { pregnant: false, breastfeeding: false, g6pd: false, ...SPECIAL_WATCH_OVERRIDES[p.hn] };
+  p.geneticScreenings = p.geneticScreenings ?? GENETIC_SCREENING_OVERRIDES[p.hn] ?? [];
+  p.pregnant = p.specialWatch.pregnant;
   p.passportNo = p.passportNo ?? PASSPORT_OVERRIDES[p.hn] ?? '';
   const life = LIFE_STATUS_OVERRIDES[p.hn];
   p.lifeStatus = p.lifeStatus ?? life?.lifeStatus ?? 'alive';

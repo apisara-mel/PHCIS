@@ -23,6 +23,11 @@ import {
 } from '@/data/treatmentQueue';
 import { buildTreatmentSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import {
+  acknowledgeResult, getResultsInbox, subscribeResultsInbox,
+} from '@/data/resultsInbox';
+import { CURRENT_CLINICIAN } from '@/data/treatmentAudit';
 
 /* MIH TreatmentQueuePage — Figma PHCIS-ALL node 2760:140031.
    ระบบบันทึกการรักษา · คิวตรวจรักษาทั่วไป (OPD).
@@ -55,6 +60,9 @@ const TABS = [
   { key: 'progress', label: 'กำลังตรวจ',         icon: 'assignment',    count: 2 },
   { key: 'done',     label: 'ตรวจเสร็จแล้ว',     icon: 'check_circle',  count: 2 },
   { key: 'draft',    label: 'ที่ร่างไว้',         icon: 'save',          count: 2 },
+  /* มติ คทง.1 — To-Do List ผล Lab/X-ray ที่ออกแล้วแต่ยังไม่มีใครรับทราบ
+     (ผู้ป่วยกลับบ้านไปแล้วก็ยังต้องมีคนตามผล) count เติมตอน render */
+  { key: 'results',  label: 'ผลตรวจรอรับทราบ',   icon: 'lab_profile',   count: 0 },
 ];
 
 const TAB_STATUS_FILTER = {
@@ -328,6 +336,64 @@ const BASE_COLUMNS = [
 const TreatmentQueuePage = () => {
   const history = useHistory();
   const [activeTab, setActiveTab] = useState('all');
+
+  /* มติ คทง.1 — To-Do List ผลตรวจของแพทย์ที่ล็อกอินอยู่ (Lab + X-ray รวมกัน)
+     ผลวิกฤต/ผิดปกติเรียงขึ้นก่อน กด "รับทราบผล" แล้วประทับชื่อ+เวลา */
+  const [resultsTick, setResultsTick] = useState(0);
+  useEffect(() => subscribeResultsInbox(() => setResultsTick((t) => t + 1)), []);
+  const resultRows = useMemo(
+    () => getResultsInbox(CURRENT_CLINICIAN.name),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resultsTick],
+  );
+  const tabsWithResults = useMemo(
+    () => TABS.map((t) => (t.key === 'results' ? { ...t, count: resultRows.length } : t)),
+    [resultRows],
+  );
+
+  const resultColumns = useMemo(() => ([
+    {
+      key: 'kindLabel', label: 'ประเภท', width: 92,
+      render: (r) => (
+        <ColorfulBadge style={r.kind === 'lab' ? 'teal' : 'indigo'} size='small' hierarchy='secondary' width='hug'>
+          {r.kindLabel}
+        </ColorfulBadge>
+      ),
+    },
+    { key: 'hn', label: 'HN' },
+    { key: 'patientName', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 168 },
+    { key: 'itemLabel', label: 'รายการตรวจ', flex: true, minWidth: 180 },
+    {
+      key: 'resultSummary', label: 'สรุปผล', flex: true, minWidth: 280,
+      render: (r) => (
+        <span className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+          {(r.critical || r.abnormal) && (
+            <ColorfulBadge style={r.critical ? 'red' : 'orange'} size='small' hierarchy='secondary' width='hug'>
+              {r.critical ? 'วิกฤต' : 'ผิดปกติ'}
+            </ColorfulBadge>
+          )}
+          <span className='block truncate' title={r.resultSummary}>{r.resultSummary}</span>
+        </span>
+      ),
+    },
+    { key: 'reportedAt', label: 'เวลารายงานผล', width: 140 },
+    {
+      key: 'ackAction', label: 'การดำเนินการ', width: 150, sortable: false,
+      render: (r) => (r.ack ? (
+        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+          {`รับทราบแล้ว · ${r.ack.at}`}
+        </span>
+      ) : (
+        <BrandSubdueButton
+          variant='fill' size='sm' leadingIcon='check'
+          onClick={(e) => { e.stopPropagation(); acknowledgeResult(r.key, { by: CURRENT_CLINICIAN.name }); }}
+        >
+          รับทราบผล
+        </BrandSubdueButton>
+      )),
+    },
+  ]), []);
+
   const [searchQ, setSearchQ] = useState('');
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState(TREATMENT_QUEUE_ROWS);
@@ -568,7 +634,7 @@ const TreatmentQueuePage = () => {
       breadcrumb={breadcrumb}
       summaryTitle={SUMMARY_TITLE}
       summaryCards={SUMMARY_CARDS}
-      tabs={TABS}
+      tabs={tabsWithResults}
       activeTab={activeTab}
       onTabChange={handleTabChange}
     >
@@ -641,6 +707,16 @@ const TreatmentQueuePage = () => {
             </OverflowFlexRow>
           </div>
 
+          {activeTab === 'results' ? (
+            <Table
+              columns={resultColumns}
+              rows={resultRows}
+              rowKey={(r) => r.key}
+              onRowClick={(r) => history.push(r.href)}
+              stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+              emptyMessage='ไม่มีผลตรวจที่รอรับทราบ — ผลที่ออกใหม่จะมาแสดงที่นี่'
+            />
+          ) : (
           <SmoothFilterResults opaque={resultsOpaque}>
           <SearchResultCount found={sortedRows.length} total={rows.length} />
 
@@ -691,6 +767,7 @@ const TreatmentQueuePage = () => {
             )}
           </div>
           </SmoothFilterResults>
+          )}
         </div>
       </div>
     </QueuePageShell>

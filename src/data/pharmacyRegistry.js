@@ -505,3 +505,94 @@ export const checkDoctorGroupRestriction = (items = []) =>
       return { item, group: drug?.restrictedToDoctorGroup || null };
     })
     .filter((r) => r.group);
+
+/* ═══ มติ คทง.7 — เภสัชพันธุศาสตร์ + ยาที่ห้ามในหญิงตั้งครรภ์ ═══════════
+   ที่ประชุมสั่งเพิ่ม 2 กติกาที่ TOR เดิมไม่มี และทั้งคู่เป็น **hard block**
+   ไม่ใช่แค่เตือน:
+     1) ยาที่ต้องคัดกรองยีนก่อนสั่ง (HLA-B) — ถ้ายังไม่มีผลตรวจให้เตือนให้
+        ส่งตรวจก่อน ถ้าผลเป็น Positive ให้ **บล็อกการสั่ง**
+     2) ยากลุ่ม Pregnancy Category X — บล็อกเมื่อผู้รับบริการตั้งครรภ์
+
+   เก็บเป็นตารางกติกาข้างทะเบียนยา (ไม่ใช่ field ในทุกแถวยา) เพราะกติกา
+   ผูกกับ "สารออกฤทธิ์" ไม่ใช่ชื่อการค้า — ยาบริษัทไหนก็ติดกติกาเดียวกัน */
+
+export const PHARMACOGENOMIC_RULES = [
+  {
+    matches: ['allopurinol'],
+    gene: 'HLA-B*58:01',
+    labName: 'HLA-B*58:01 screening',
+    risk: 'Stevens-Johnson syndrome / TEN — ผื่นแพ้ยารุนแรงถึงชีวิต',
+  },
+  {
+    matches: ['carbamazepine'],
+    gene: 'HLA-B*15:02',
+    labName: 'HLA-B*15:02 screening',
+    risk: 'Stevens-Johnson syndrome / TEN — พบสูงในประชากรเอเชีย',
+  },
+];
+
+/* Category X ที่มีจริงในบริบท ศบส. — ยาที่ห้ามใช้ในหญิงตั้งครรภ์เด็ดขาด
+   เพราะมีหลักฐานความพิการของทารกและไม่มีข้อบ่งใช้ใดคุ้มความเสี่ยง */
+export const PREGNANCY_CATEGORY_X = [
+  { matches: ['isotretinoin'],  reason: 'ทำให้ทารกพิการรุนแรง (retinoid embryopathy)' },
+  { matches: ['warfarin'],      reason: 'warfarin embryopathy — กระดูกและจมูกผิดรูป เลือดออกในทารก' },
+  { matches: ['methotrexate'],  reason: 'ยับยั้ง folate — ทำให้แท้งและทารกพิการ' },
+  { matches: ['misoprostol'],   reason: 'กระตุ้นการบีบตัวของมดลูก — เสี่ยงแท้ง/มดลูกแตก' },
+  { matches: ['finasteride'],   reason: 'รบกวนพัฒนาการอวัยวะเพศทารกเพศชาย' },
+  { matches: ['simvastatin', 'atorvastatin', 'rosuvastatin'], reason: 'สแตติน — ยับยั้งการสร้างคอเลสเตอรอลที่ทารกต้องใช้พัฒนาเซลล์' },
+];
+
+const matchesAny = (name, list = []) => {
+  const n = norm(name);
+  return list.some((m) => n.includes(norm(m)));
+};
+
+/** ผลตรวจยีนของผู้รับบริการ — รับได้ทั้ง `patient.geneticScreenings`
+    (`[{ gene, result }]`) และผล Lab ทั่วไปที่ชื่อมีรหัสยีนอยู่ */
+const findGeneResult = (patient, gene) => {
+  const explicit = (patient?.geneticScreenings || []).find((g) => norm(g.gene) === norm(gene));
+  if (explicit) return String(explicit.result || '').toLowerCase();
+  const lab = (patient?.labResults || []).find((l) => norm(l.name).includes(norm(gene)));
+  return lab ? String(lab.result || lab.value || '').toLowerCase() : null;
+};
+
+/** [{ item, gene, labName, risk, state }] — state:
+      'positive' = ผลเป็นบวก → ห้ามสั่ง (block)
+      'pending'  = ยังไม่มีผลตรวจ → ต้องส่งตรวจก่อน (warn)
+    ผลลบไม่คืนค่าอะไร เพราะสั่งได้ตามปกติ */
+export const checkPharmacogenomicRisk = (patient, items = []) => {
+  const hits = [];
+  items.forEach((item) => {
+    PHARMACOGENOMIC_RULES.forEach((rule) => {
+      if (!matchesAny(item.name, rule.matches)) return;
+      const result = findGeneResult(patient, rule.gene);
+      if (result == null || result === '') {
+        hits.push({ item, ...rule, state: 'pending' });
+      } else if (result.includes('positive') || result.includes('บวก') || result.includes('พบ')) {
+        hits.push({ item, ...rule, state: 'positive' });
+      }
+    });
+  });
+  return hits;
+};
+
+/** ตั้งครรภ์อยู่หรือไม่ — เวชระเบียนเก็บได้หลายแบบ ยอมรับทุกแบบที่ใช้จริง */
+export const isPregnantPatient = (patient) => Boolean(
+  patient?.pregnant
+  || patient?.specialWatch?.pregnant
+  || patient?.isPregnant
+  || patient?.pregnancy?.active
+  || (patient?.gaWeeks != null && patient.gaWeeks !== '')
+  || (patient?.lmp && patient?.pregnancyStatus !== 'ไม่ตั้งครรภ์'),
+);
+
+/** [{ item, reason }] — ยา Category X ที่ถูกสั่งให้หญิงตั้งครรภ์ (block) */
+export const checkPregnancyCategoryX = (patient, items = []) => {
+  if (!isPregnantPatient(patient)) return [];
+  const hits = [];
+  items.forEach((item) => {
+    const rule = PREGNANCY_CATEGORY_X.find((r) => matchesAny(item.name, r.matches));
+    if (rule) hits.push({ item, reason: rule.reason });
+  });
+  return hits;
+};

@@ -266,12 +266,15 @@ const EXPIRY_OPTIONS = [
   { value: '6',   label: 'หมดอายุภายใน 6 เดือน' },
   { value: '12',  label: 'หมดอายุภายใน 12 เดือน' },
 ];
-/* §1.9.9.4–5 ประวัติ filter — TOR names แลกล็อต / ยืมยา / ยาที่ต้องคืน. */
+/* §1.9.9.4–5 ประวัติ filter — เดิม TOR เรียก แลกล็อต / ยืมยา / ยาที่ต้องคืน
+   **มติ คทง.7 ให้ตัดยืม-คืนออก ใช้ "โอน" แทน** ตัวเลือกยืม/คืนจึงเหลือไว้
+   สำหรับกรองรายการเดิมเท่านั้น สร้างใหม่ไม่ได้. */
 const BORROW_HISTORY_FILTER_OPTIONS = [
   { value: 'all', label: 'ทุกประเภท' },
-  { value: 'borrow', label: 'ยืมยา' },
-  { value: 'return', label: 'ยาที่ต้องคืน' },
+  { value: 'transfer', label: 'โอนยา' },
   { value: 'lot-exchange', label: 'แลกล็อต' },
+  { value: 'borrow', label: 'ยืมยา (รายการเดิม)' },
+  { value: 'return', label: 'ยาที่ต้องคืน (รายการเดิม)' },
 ];
 const BORROW_DIRECTION_FILTER_OPTIONS = [
   { value: 'all', label: 'ทั้งหมด' },
@@ -415,15 +418,18 @@ const PharmacyStockPage = () => {
     bump();
   };
 
-  /* §1.9.9.5 — confirm incoming ยืม/คืน/แลกล็อต after AlertDialog. */
+  /* §1.9.9.5 + มติ คทง.7 — ปลายทางกด "ยืนยันรับยาเข้าคลัง" แล้วยาจึงเข้า
+     สต็อกคลังย่อยที่กำลังเปิดอยู่จริง (ไม่ใช่แค่เปลี่ยนสถานะแถว) */
   const handleConfirmBorrowReturn = () => {
     if (!pendingConfirmBorrow?.id) return;
-    const { id, type, drugName } = pendingConfirmBorrow;
-    const row = confirmBorrowReturnRequest(id);
+    const { id, type, drugName, quantity, unit } = pendingConfirmBorrow;
+    const row = confirmBorrowReturnRequest(id, { warehouseId: subWarehouseId });
     setPendingConfirmBorrow(null);
     if (row) {
       const typeLabel = BORROW_RETURN_TYPE_LABEL[type] || type;
-      setToastMessage(`ยืนยันคำร้อง${typeLabel} «${drugName}» แล้ว`);
+      setToastMessage(row.stockedIn
+        ? `รับยา «${drugName}» ${quantity} ${unit} เข้าคลังแล้ว — สต็อกอัปเดตเรียบร้อย`
+        : `ยืนยันคำร้อง${typeLabel} «${drugName}» แล้ว`);
       bump();
     }
   };
@@ -772,7 +778,7 @@ const PharmacyStockPage = () => {
             style={{ ...PHARMACY_WORKLIST_CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}
           >
             <PharmacySectionTopic
-              title='ประวัติคำร้องยืม–คืน–แลกล็อตระหว่างศูนย์'
+              title='ประวัติคำร้องโอน–แลกล็อตระหว่างศูนย์'
               trailing={(
                 <PharmacyBorrowReturnRequestButton
                   size='sm'
@@ -806,7 +812,7 @@ const PharmacyStockPage = () => {
                     </Badge>
                   ),
                 },
-                { key: 'type', label: 'ประเภท', render: (r) => <Badge style={r.type === 'borrow' ? 'info' : r.type === 'return' ? 'success' : 'warning'} size='small'>{BORROW_RETURN_TYPE_LABEL[r.type]}</Badge> },
+                { key: 'type', label: 'ประเภท', render: (r) => <Badge style={r.type === 'transfer' ? 'info' : r.type === 'lot-exchange' ? 'warning' : 'neutral'} size='small'>{BORROW_RETURN_TYPE_LABEL[r.type]}</Badge> },
                 { key: 'drugName', label: 'ชื่อยา', flex: true, minWidth: 180 },
                 { key: 'quantity', label: 'จำนวน', align: 'center', render: (r) => `${r.quantity} ${r.unit}` },
                 { key: 'requestedBy', label: 'ชื่อผู้สร้างคำร้อง', flex: true, minWidth: 180, render: (r) => r.requestedBy || '—' },
@@ -817,7 +823,7 @@ const PharmacyStockPage = () => {
                   key: 'itemActions', label: 'ดำเนินการ', align: 'center', sortable: false,
                   render: (r) => (r.direction === 'incoming' && r.status === 'pending') ? (
                     <BrandSubdueButton size='sm' variant='fill' onClick={() => setPendingConfirmBorrow(r)}>
-                      ยืนยัน
+                      {r.type === 'transfer' ? 'รับยาเข้าคลัง' : 'ยืนยัน'}
                     </BrandSubdueButton>
                   ) : '—',
                 },
@@ -848,11 +854,13 @@ const PharmacyStockPage = () => {
         open={Boolean(pendingConfirmBorrow)}
         type='info'
         alignment='center'
-        title='ยืนยันคำร้องนี้?'
+        title={pendingConfirmBorrow?.type === 'transfer' ? 'รับยาเข้าคลังหรือไม่?' : 'ยืนยันคำร้องนี้?'}
         description={pendingConfirmBorrow
-          ? `ยืนยันรับคำร้อง${BORROW_RETURN_TYPE_LABEL[pendingConfirmBorrow.type] || ''} «${pendingConfirmBorrow.drugName}» จำนวน ${pendingConfirmBorrow.quantity} ${pendingConfirmBorrow.unit} จาก ${pendingConfirmBorrow.counterpartCenter}`
+          ? (pendingConfirmBorrow.type === 'transfer'
+            ? `รับ «${pendingConfirmBorrow.drugName}» จำนวน ${pendingConfirmBorrow.quantity} ${pendingConfirmBorrow.unit} ที่โอนมาจาก ${pendingConfirmBorrow.counterpartCenter} เข้าสต็อกคลังย่อยนี้ — ยาจะเข้าระบบเมื่อกดยืนยันเท่านั้น (มติ คทง.7)`
+            : `ยืนยันรับคำร้อง${BORROW_RETURN_TYPE_LABEL[pendingConfirmBorrow.type] || ''} «${pendingConfirmBorrow.drugName}» จำนวน ${pendingConfirmBorrow.quantity} ${pendingConfirmBorrow.unit} จาก ${pendingConfirmBorrow.counterpartCenter}`)
           : ''}
-        confirmLabel='ยืนยัน'
+        confirmLabel={pendingConfirmBorrow?.type === 'transfer' ? 'รับยาเข้าคลัง' : 'ยืนยัน'}
         cancelLabel='ยกเลิก'
         onConfirm={handleConfirmBorrowReturn}
         onCancel={() => setPendingConfirmBorrow(null)}

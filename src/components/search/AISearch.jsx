@@ -285,8 +285,23 @@ const HistoryRow = ({ item, onSelect, highlighted = false, onHover, query = '' }
           </ColorfulBadge>
         </div>
       )}
-      <span className='flex-1 min-w-0 whitespace-normal' style={{ color: 'inherit' }}>
-        {q ? highlightMatch(item.label, q, `ai-${item.id || item.label}`) : item.label}
+      <span className='flex-1 min-w-0 flex flex-col' style={{ color: 'inherit', gap: 'var(--dim-space-025, 2px)' }}>
+        <span className='whitespace-normal'>
+          {q ? highlightMatch(item.label, q, `ai-${item.id || item.label}`) : item.label}
+        </span>
+        {/* บรรทัดรองบอกว่าแถวนี้ตรงกับคำค้นเพราะอะไร ใช้เมื่อคำที่พิมพ์ไม่ได้
+            อยู่ในชื่อทางการ เช่น ค้น ICD-10 ด้วยศัพท์แพทย์ทั่วไป (มติ คทง.1) */}
+        {item.subLabel && (
+          <span
+            className='whitespace-normal'
+            style={{
+              fontSize: 'var(--type-size-xs)',
+              color: 'var(--text-content-tertiary, #858C92)',
+            }}
+          >
+            {item.subLabel}
+          </span>
+        )}
       </span>
       <Sym
         name='add_circle'

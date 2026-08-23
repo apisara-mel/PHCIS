@@ -6,7 +6,7 @@ import Select from '@/components/forms/Select';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE } from '@/components/layout/HeaderClinicContext';
 import {
-  BORROW_RETURN_TYPES,
+  TRANSFER_TYPES,
   createBorrowReturnRequest,
 } from '@/data/pharmacyQueue';
 import {
@@ -17,8 +17,12 @@ import {
 } from '@/data/pharmacyRegistry';
 import { resolveMedicationImage } from '@/data/medicationCatalog';
 
-/* §1.9.9.4 — header action on every pharmacy page: สร้างคำร้องยืม/คืน/แลกล็อต.
-   Drug name + counting unit resolve from ทะเบียนยา only. */
+/* §1.9.9.4 — header action on every pharmacy page: สร้างคำร้องโอน/แลกล็อต.
+   Drug name + counting unit resolve from ทะเบียนยา only.
+
+   **มติ คทง.7** — ตัด "ยืม-คืน" ระหว่างศูนย์ฯ ออกจากตัวเลือกที่สร้างใหม่ได้
+   (ใช้ "โอน" แทน เพื่อให้ตัดสต็อกถูกต้อง และปลายทางต้องกดยืนยันรับยา ยา
+   จึงจะเข้าระบบ) — รายการยืม/คืนเดิมยังดูย้อนหลังได้ที่ตารางประวัติ */
 
 const COUNTERPART_CENTER_OPTIONS = CLINIC_OPTIONS
   .filter((c) => c.value !== DEFAULT_CLINIC_VALUE)
@@ -27,10 +31,10 @@ const COUNTERPART_CENTER_OPTIONS = CLINIC_OPTIONS
     label: c.label.replace(/^ศูนย์/, 'ศูนย์บริการสาธารณสุข'),
   }));
 
-const BORROW_TYPE_OPTIONS = BORROW_RETURN_TYPES.map((t) => ({ value: t.key, label: t.label }));
+const BORROW_TYPE_OPTIONS = TRANSFER_TYPES.map((t) => ({ value: t.key, label: t.label }));
 
 const blankRequest = () => ({
-  type: 'borrow',
+  type: 'transfer',
   drugName: '',
   quantity: '',
   counterpartCenter: COUNTERPART_CENTER_OPTIONS[0]?.value || '',
@@ -40,7 +44,7 @@ const registryUnitLabel = (unitKey) => UNIT_TYPES.find((u) => u.key === unitKey)
 
 const PharmacyBorrowReturnRequestButton = ({
   size = 'md',
-  label = 'สร้างคำร้องยืม/คืน/แลกล็อต',
+  label = 'สร้างคำร้องโอน/แลกล็อต',
   onOpen,
   onCreated,
 }) => {
@@ -101,7 +105,7 @@ const PharmacyBorrowReturnRequestButton = ({
         variant='outline'
         size={size}
         leadingIcon='swap_horiz'
-        aria-label='สร้างคำร้องยืม/คืน/แลกล็อต'
+        aria-label='สร้างคำร้องโอน/แลกล็อต'
         onClick={openForm}
       >
         {label}
@@ -110,8 +114,8 @@ const PharmacyBorrowReturnRequestButton = ({
         open={open}
         onClose={closeForm}
         size='large'
-        title='สร้างคำร้องยืม/คืน/แลกล็อต'
-        subtitle='ส่งคำร้องไปยังศูนย์บริการสาธารณสุขคู่กรณี'
+        title='สร้างคำร้องโอน/แลกล็อต'
+        subtitle='ส่งคำร้องไปยังศูนย์บริการสาธารณสุขคู่กรณี — การโอนจะตัดสต็อกต้นทางทันที และเข้าสต็อกปลายทางเมื่อปลายทางกดรับยา'
         primaryAction={{
           label: 'ส่งคำร้อง',
           onClick: handleSubmit,
