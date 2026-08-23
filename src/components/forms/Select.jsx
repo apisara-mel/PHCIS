@@ -583,7 +583,7 @@ const Select = React.forwardRef(function Select(
   };
 
   /* "Select all" row (multi only) — operates on the ENABLED options only, so a
-     disabled row (e.g. a สาขาย่อย whose Group Policy isn't selected) is never
+     disabled row (e.g. a กิจกรรมย่อย whose กิจกรรม isn't selected) is never
      force-selected. Toggles: select every enabled option, or clear them. */
   const selectableValues = options.filter((o) => !(o && o.disabled)).map((o) => o.value ?? o);
   const allSelected = multiple && selectableValues.length > 0 && selectableValues.every((vv) => arr.includes(vv));

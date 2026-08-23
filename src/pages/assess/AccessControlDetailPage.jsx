@@ -15,6 +15,12 @@ import {
   findAccessControl,
   latestVersion,
   formatVersion,
+  APPROVAL_META,
+  APPROVAL_DRAFT,
+  APPROVAL_APPROVED,
+  isAccessEffective,
+  dataScopeLabel,
+  PII_MASKED,
 } from '@/data/accessControlStore';
 
 /* PHCIS | Assess-control — Access rights detail (Figma 4D3nTx53 · 17:32686). */
@@ -77,18 +83,18 @@ function contextCards(record) {
       label: 'ศูนย์บริการ',
     },
     {
-      key: 'group',
+      key: 'activity',
       icon: 'face',
       color: 'info',
-      value: record.groupPolicy,
-      label: 'Group Policy',
+      value: record.activity,
+      label: 'กิจกรรม',
     },
     {
       key: 'sub',
       icon: 'face',
       color: 'positive',
-      value: record.subBranch,
-      label: 'สาขาย่อย',
+      value: record.subActivity,
+      label: 'กิจกรรมย่อย',
     },
     {
       key: 'dept',
@@ -108,6 +114,24 @@ function contextCards(record) {
       iconInk: 'var(--text-statussummarycard-lavender-number, #8A6CD8)',
     },
   ];
+}
+
+/* ช่องข้อมูลอ่านอย่างเดียวในการ์ดธรรมาภิบาลสิทธิ์ */
+function GovField({ label, text, children }) {
+  return (
+    <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100)', flex: '1 1 200px' }}>
+      <span style={{
+        color: 'var(--text-content-tertiary)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-xs)',
+        lineHeight: 1.5,
+      }}
+      >
+        {label}
+      </span>
+      {children || <span style={CELL_TEXT}>{text || '—'}</span>}
+    </div>
+  );
 }
 
 function PermBadge({ level }) {
@@ -215,6 +239,51 @@ export default function AccessControlDetailPage() {
             {cards.map((card) => (
               <SummaryCard key={card.key} card={card} />
             ))}
+          </div>
+        </section>
+
+        {/* ธรรมาภิบาลสิทธิ์ — สถานะอนุมัติ · ขอบเขตข้อมูล · ช่วงเวลาที่มีผล
+            (มติ คทง.13 §1.3/§2.3 + คทง.2/3/4/10/11) */}
+        <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+          <Topic
+            hierarchy='primary'
+            title='การอนุมัติและขอบเขตข้อมูล'
+            subText={isAccessEffective(record)
+              ? 'สิทธิ์นี้ได้รับอนุมัติและมีผลบังคับใช้อยู่'
+              : 'สิทธิ์นี้ยังไม่มีผลบังคับใช้ (รออนุมัติ หรือยังไม่ถึง/พ้นช่วงเวลา)'}
+            leadingIcon='shield_person'
+            showBadge={false}
+            showChevron={false}
+            showSuccess={false}
+          />
+          <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-600)' }}>
+            <GovField label='สถานะอนุมัติ'>
+              <ColorfulBadge
+                style={(APPROVAL_META[record.approvalStatus || APPROVAL_DRAFT] || APPROVAL_META[APPROVAL_DRAFT]).badge}
+                size='small'
+                hierarchy='secondary'
+                width='hug'
+              >
+                {(APPROVAL_META[record.approvalStatus || APPROVAL_DRAFT] || APPROVAL_META[APPROVAL_DRAFT]).label}
+              </ColorfulBadge>
+            </GovField>
+            <GovField label='ผู้อนุมัติ' text={record.approvalStatus === APPROVAL_APPROVED ? (record.approvedBy || '—') : '—'} />
+            <GovField
+              label='วันที่อนุมัติ'
+              text={record.approvedAt ? new Date(record.approvedAt).toLocaleDateString('th-TH') : '—'}
+            />
+            <GovField label='ขอบเขตข้อมูลที่มองเห็น' text={dataScopeLabel(record.dataScope)} />
+            <GovField
+              label='ข้อมูลระบุตัวตน (PII)'
+              text={record.piiVisibility === PII_MASKED ? 'ปิดบัง — ดูสรุป/รหัสนิรนาม' : 'เห็นข้อมูลระบุตัวตน'}
+            />
+            <GovField
+              label='ช่วงเวลาที่มีผล'
+              text={record.effectiveFrom || record.effectiveTo
+                ? `${record.effectiveFrom || 'ทันที'} – ${record.effectiveTo || 'ไม่กำหนด'}`
+                : 'ไม่กำหนด'}
+            />
+            {record.approvalNote ? <GovField label='เหตุผล/บันทึกถึงผู้อนุมัติ' text={record.approvalNote} /> : null}
           </div>
         </section>
 

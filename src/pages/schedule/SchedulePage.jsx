@@ -71,7 +71,7 @@ const COLUMNS = [
   },
   {
     key: 'groupPolicyLabel',
-    header: 'Group Policy',
+    header: 'กิจกรรม',
     sortable: true,
     render: (row) => <StaffBadge label={row.groupPolicyLabel || row.groupPolicy} />,
   },

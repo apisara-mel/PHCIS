@@ -12,11 +12,13 @@ import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import DangerSubdueIconButton from '@/components/button/DangerSubdueIconButton';
 import Switch from '@/components/switch/Switch';
 import Alert from '@/components/alert/Alert';
+import Radio from '@/components/radio/Radio';
+import AlertDialog from '@/components/popup/AlertDialog';
 import ESignatureField from '@/components/form-builder/ESignatureField';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import { CENTER_OPTIONS } from '@/data/accessControlStore';
-import { readGroupPolicies } from '@/data/groupPolicyStore';
+import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
 import { readPositions } from '@/data/positionStore';
 import { isValidEmail, EMAIL_FORMAT_ERROR } from '@/data/usersAccess';
@@ -30,6 +32,7 @@ import {
   findDuplicateAssignments,
   fullName,
   centerLabel,
+  readAssessUsers,
 } from '@/data/assessUserStore';
 
 /* PHCIS | Assess-control — Create personnel (Figma 4D3nTx53 · 10:44391). */
@@ -101,8 +104,8 @@ const VALUE = {
 const ASSIGN_COLUMNS = [
   { key: 'order',      title: 'ลำดับ',            width: 72 },
   { key: 'center',     title: 'ศูนย์บริการ',       width: 200 },
-  { key: 'group',      title: 'Group Policy',     width: 180 },
-  { key: 'sub',        title: 'สาขาย่อย',          width: 180 },
+  { key: 'activity',   title: 'กิจกรรม',           width: 180 },
+  { key: 'sub',        title: 'กิจกรรมย่อย',       width: 180 },
   { key: 'dept',       title: 'แผนก',             width: 180 },
   { key: 'position',   title: 'ตำแหน่ง',           width: 180 },
   { key: 'startAt',    title: 'วันเวลาเริ่มงาน',    width: 208 },
@@ -165,10 +168,21 @@ export default function AssessUserCreatePage() {
   const [assignments, setAssignments] = useState([emptyAssignment()]);
   const [saved, setSaved] = useState(false);
   const [showDupeAlert, setShowDupeAlert] = useState(false);
+  /* โหมดเพิ่มบุคลากร: สร้างใหม่ vs เลือกบุคลากรเดิมจากระบบ (กันสร้างคนซ้ำ
+     และกันให้สิทธิ์ซ้ำซ้อน — Nielsen #5/#6) เฉพาะ flow สร้าง (ไม่ใช่แก้ไข) */
+  const [entryMode, setEntryMode] = useState('new'); // 'new' | 'existing'
+  const [pickedUserId, setPickedUserId] = useState('');
+  /* Confirmation ก่อนบันทึกจริง — การผูกสิทธิ์กิจกรรมมีผลต่อการเข้าถึงข้อมูลผู้ป่วย */
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
 
-  const groupPolicies = useMemo(() => readGroupPolicies(), []);
+  const activities = useMemo(() => readActivities(), []);
   const departments = useMemo(() => readDepartments(), []);
   const positions = useMemo(() => readPositions(), []);
+  const allUsers = useMemo(() => readAssessUsers(), []);
+  const pickedUser = useMemo(
+    () => (entryMode === 'existing' ? allUsers.find((u) => u.id === pickedUserId) || null : null),
+    [entryMode, pickedUserId, allUsers],
+  );
 
   useEffect(() => {
     if (!existing) return;
@@ -192,15 +206,58 @@ export default function AssessUserCreatePage() {
     setAssignments(existing.assignments?.length ? existing.assignments : [emptyAssignment()]);
   }, [existing]);
 
+  /* เลือกบุคลากรเดิม → เติมข้อมูลส่วนตัว + สิทธิ์กิจกรรมเดิมของเขาเข้าฟอร์ม
+     (แถวเดิมโชว์ให้เห็นว่ามีอะไรอยู่แล้ว — เพิ่มแถวใหม่ได้โดยไม่ให้ซ้ำ)
+     สลับกลับมา "สร้างใหม่" หรือเปลี่ยนคน = ล้างฟอร์มเริ่มใหม่ */
+  useEffect(() => {
+    if (isEdit) return;
+    if (!pickedUser) {
+      setPersonal({
+        employeeCode: '', title: '', firstName: '', lastName: '', prefixEn: '', nameEn: '', surnameEn: '',
+        gender: '', nationalId: '', licenseNo: '', birthDate: '', age: '', phone: '', email: '',
+        signature: '',
+      });
+      setAssignments([emptyAssignment()]);
+      return;
+    }
+    setPersonal({
+      employeeCode: pickedUser.employeeCode || '',
+      signature: pickedUser.signature || '',
+      title: pickedUser.title || '',
+      firstName: pickedUser.firstName || '',
+      lastName: pickedUser.lastName || '',
+      prefixEn: pickedUser.prefixEn || '',
+      nameEn: pickedUser.nameEn || '',
+      surnameEn: pickedUser.surnameEn || '',
+      gender: pickedUser.gender || '',
+      nationalId: pickedUser.nationalId || '',
+      licenseNo: pickedUser.licenseNo || '',
+      birthDate: pickedUser.birthDate || '',
+      age: pickedUser.age || '',
+      phone: pickedUser.phone || '',
+      email: pickedUser.email || '',
+    });
+    setAssignments(pickedUser.assignments?.length ? pickedUser.assignments : [emptyAssignment()]);
+  }, [isEdit, pickedUser]);
+
   const centerOpts = [{ value: '', label: 'เลือกศูนย์บริการ' }, ...CENTER_OPTIONS];
-  const groupOpts = [{ value: '', label: 'เลือก Group Policy' }, ...groupPolicies.map((g) => ({ value: g.id, label: g.name }))];
+  const activityOpts = [{ value: '', label: 'เลือกกิจกรรม' }, ...activities.map((a) => ({ value: a.id, label: a.name }))];
   const deptOpts = [{ value: '', label: 'เลือกแผนก' }, ...departments.map((d) => ({ value: d.id, label: d.name }))];
   const posOpts = [{ value: '', label: 'เลือกตำแหน่ง' }, ...positions.map((p) => ({ value: p.id, label: p.name }))];
 
+  /* Auto-complete เลือกบุคลากรเดิม — ค้นด้วยชื่อ/รหัสพนักงาน/เลขวิชาชีพ
+     (Select searchable) พร้อม subtext บอกกิจกรรมเดิมกันเลือกผิดคน */
+  const userPickOpts = useMemo(() => allUsers.map((u) => ({
+    value: u.id,
+    label: fullName(u),
+    subtext: [u.employeeCode, u.licenseNo, (u.assignments || []).filter((a) => a.activity).map((a) => a.activity).join(', ')]
+      .filter(Boolean).join(' · ') || 'ยังไม่มีสิทธิ์กิจกรรม',
+  })), [allUsers]);
+
   const labelOf = (opts, value) => opts.find((o) => o.value === value)?.label || '';
-  const subOptsFor = (groupPolicyId) => {
-    const gp = groupPolicies.find((g) => g.id === groupPolicyId);
-    return [{ value: '', label: 'เลือกสาขาย่อย' }, ...(gp?.subBranches || []).map((sb) => ({ value: sb.id, label: sb.name }))];
+  const subOptsFor = (activityId) => {
+    const act = activities.find((a) => a.id === activityId);
+    return [{ value: '', label: 'เลือกกิจกรรมย่อย' }, ...(act?.subActivities || []).map((sub) => ({ value: sub.id, label: sub.name }))];
   };
 
   const setField = (key) => (v) => setPersonal((p) => ({ ...p, [key]: v }));
@@ -232,19 +289,20 @@ export default function AssessUserCreatePage() {
   const rangeValid = (r) => !r.startAt || !r.endAt || r.endAt > r.startAt;
 
   const assignmentValid = assignments.every((r) => (
-    r.centerId && r.groupPolicyId && r.subBranchId && r.departmentId && r.positionId
+    r.centerId && r.activityId && r.subActivityId && r.departmentId && r.positionId
     && r.startAt && rangeValid(r)
   )) && assignments.some((r) => r.isPrimary);
 
   const duplicateIdx = findDuplicateAssignments(assignments);
 
   const buildRecord = () => {
-    const base = existing || createAssessUser({});
+    /* เลือกบุคลากรเดิม = อัปเดต record ของคนนั้น (id เดิม) ไม่สร้างคนซ้ำ */
+    const base = existing || pickedUser || createAssessUser({});
     const normalized = assignments.map((r) => ({
       ...r,
       center: centerLabel(r.centerId) || labelOf(centerOpts, r.centerId),
-      groupPolicy: labelOf(groupOpts, r.groupPolicyId),
-      subBranch: labelOf(subOptsFor(r.groupPolicyId), r.subBranchId),
+      activity: labelOf(activityOpts, r.activityId),
+      subActivity: labelOf(subOptsFor(r.activityId), r.subActivityId),
       department: labelOf(deptOpts, r.departmentId),
       position: labelOf(posOpts, r.positionId),
     }));
@@ -281,8 +339,14 @@ export default function AssessUserCreatePage() {
     else if (step === 'review') setStep('assign');
   };
 
+  /* ปุ่มบันทึกเปิด modal ทวนสรุปก่อน — ยืนยันแล้วจึงบันทึกจริง */
   const handleSubmit = () => {
     if (!personalValid || !assignmentValid || duplicateIdx.length) return;
+    setConfirmSaveOpen(true);
+  };
+
+  const applySubmit = () => {
+    setConfirmSaveOpen(false);
     const record = upsertAssessUser(buildRecord());
     if (isEdit) {
       navigate.push(`/assess/users/${record.id}`);
@@ -290,6 +354,13 @@ export default function AssessUserCreatePage() {
     }
     setSaved(true);
   };
+
+  const confirmSummary = useMemo(() => {
+    const acts = [...new Set(assignments.map((r) => labelOf(activityOpts, r.activityId)).filter(Boolean))];
+    const primary = assignments.find((r) => r.isPrimary);
+    const center = primary ? (centerLabel(primary.centerId) || labelOf(centerOpts, primary.centerId)) : '';
+    return `${fullName(personal)} — ${assignments.length} หน่วยงาน · กิจกรรม: ${acts.join(', ') || '—'}${center ? ` · ศูนย์หลัก: ${center}` : ''}`;
+  }, [assignments, personal, activityOpts, centerOpts]);
 
   const footerPrimary = step === 'personal'
     ? { label: 'ถัดไป: หน่วยงานและตำแหน่ง', icon: 'arrow_forward', disabled: !personalValid, onClick: goNext }
@@ -332,6 +403,73 @@ export default function AssessUserCreatePage() {
         )}
       >
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)', paddingBottom: 'var(--dim-space-900)' }}>
+          {/* โหมดเพิ่มบุคลากร — แยก "สร้างใหม่" vs "เลือกจากระบบ" ให้ชัดตั้งแต่ต้น
+              เลือกคนเดิมแล้วเห็นสิทธิ์กิจกรรมที่มีอยู่ทันที กันให้สิทธิ์ซ้ำซ้อน */}
+          {!isEdit && step === 'personal' && (
+            <section className='flex flex-col w-full' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
+              <TopicHeader
+                icon='person_add'
+                title='เลือกวิธีเพิ่มบุคลากร'
+                subtitle='สร้างบุคลากรใหม่ หรือเลือกบุคลากรเดิมจากระบบเพื่อเพิ่ม/ปรับสิทธิ์กิจกรรม'
+              />
+              <div className='flex flex-wrap items-start' style={{ gap: 'var(--dim-space-600)' }}>
+                <Radio
+                  name='assess-user-entry-mode'
+                  value='new'
+                  checked={entryMode === 'new'}
+                  onChange={() => { setEntryMode('new'); setPickedUserId(''); }}
+                  label='สร้างบุคลากรใหม่'
+                  description='กรอกข้อมูลบุคลากรที่ยังไม่เคยมีในระบบ'
+                />
+                <Radio
+                  name='assess-user-entry-mode'
+                  value='existing'
+                  checked={entryMode === 'existing'}
+                  onChange={() => setEntryMode('existing')}
+                  label='เลือกบุคลากรเดิมจากระบบ'
+                  description='ค้นหาด้วยชื่อ รหัสพนักงาน หรือเลขวิชาชีพ แล้วปรับสิทธิ์ของคนเดิม'
+                />
+              </div>
+              {entryMode === 'existing' && (
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)', maxWidth: 480 }}>
+                  <Select
+                    label='ค้นหาบุคลากรเดิม'
+                    options={userPickOpts}
+                    value={pickedUserId}
+                    onChange={setPickedUserId}
+                    searchable
+                    placeholder='พิมพ์ชื่อ / รหัสพนักงาน / เลขวิชาชีพ'
+                    helperText={allUsers.length ? 'ระบบจะเติมข้อมูลและสิทธิ์เดิมของบุคลากรให้อัตโนมัติ' : 'ยังไม่มีบุคลากรในระบบ — สลับไป "สร้างบุคลากรใหม่"'}
+                  />
+                  {pickedUser ? (
+                    <div
+                      className='flex flex-col'
+                      style={{
+                        gap: 'var(--dim-space-200)',
+                        padding: 'var(--dim-space-400)',
+                        background: 'var(--surface-brandPrimary-quaternary)',
+                        border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                        borderRadius: 'var(--dim-radius-400)',
+                      }}
+                    >
+                      <span style={LABEL}>สิทธิ์กิจกรรมเดิมของ {fullName(pickedUser)}</span>
+                      {(pickedUser.assignments || []).filter((a) => a.activity).length ? (
+                        <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                          {(pickedUser.assignments || []).filter((a) => a.activity).map((a) => (
+                            <ColorfulBadge key={a.id} style='teal' size='small' hierarchy='secondary' width='hug'>
+                              {[a.activity, a.subActivity, a.center].filter(Boolean).join(' · ')}
+                            </ColorfulBadge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={VALUE}>ยังไม่มีสิทธิ์กิจกรรม — เพิ่มได้ใน step หน่วยงานและตำแหน่ง</span>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </section>
+          )}
           {step === 'personal' && (
             <section className='flex flex-col w-full' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <TopicHeader icon='face' title='ข้อมูลส่วนตัว' subtitle='กรอกข้อมูลส่วนตัวของบุคลากร' />
@@ -465,7 +603,7 @@ export default function AssessUserCreatePage() {
                   <tbody>
                     {assignments.map((row, idx) => {
                       const isDupe = duplicateIdx.includes(idx);
-                      const subOpts = subOptsFor(row.groupPolicyId);
+                      const subOpts = subOptsFor(row.activityId);
                       return (
                         <tr key={row.id} style={isDupe ? { background: 'var(--surface-alert-warning)' } : undefined}>
                           <td style={{ ...CELL_TEXT, ...CELL_PAD }}>
@@ -475,10 +613,10 @@ export default function AssessUserCreatePage() {
                             <Select size='medium' showLabel={false} showHelperText={false} options={centerOpts} value={row.centerId} onChange={(v) => setAssignment(idx, { centerId: v, center: centerLabel(v) })} />
                           </td>
                           <td style={CELL_PAD}>
-                            <Select size='medium' showLabel={false} showHelperText={false} options={groupOpts} value={row.groupPolicyId} onChange={(v) => setAssignment(idx, { groupPolicyId: v, subBranchId: '', subBranch: '' })} />
+                            <Select size='medium' showLabel={false} showHelperText={false} options={activityOpts} value={row.activityId} onChange={(v) => setAssignment(idx, { activityId: v, subActivityId: '', subActivity: '' })} />
                           </td>
                           <td style={CELL_PAD}>
-                            <Select size='medium' showLabel={false} showHelperText={false} options={subOpts} value={row.subBranchId} onChange={(v) => setAssignment(idx, { subBranchId: v })} disabled={!row.groupPolicyId} />
+                            <Select size='medium' showLabel={false} showHelperText={false} options={subOpts} value={row.subActivityId} onChange={(v) => setAssignment(idx, { subActivityId: v })} disabled={!row.activityId} />
                           </td>
                           <td style={CELL_PAD}>
                             <Select size='medium' showLabel={false} showHelperText={false} options={deptOpts} value={row.departmentId} onChange={(v) => setAssignment(idx, { departmentId: v })} />
@@ -590,8 +728,8 @@ export default function AssessUserCreatePage() {
                   >
                     <InfoField label='ลำดับ' value={String(idx + 1)} />
                     <InfoField label='ศูนย์บริการ' value={centerLabel(row.centerId) || labelOf(centerOpts, row.centerId)} />
-                    <InfoField label='Group Policy' value={labelOf(groupOpts, row.groupPolicyId)} />
-                    <InfoField label='สาขาย่อย' value={labelOf(subOptsFor(row.groupPolicyId), row.subBranchId)} />
+                    <InfoField label='กิจกรรม' value={labelOf(activityOpts, row.activityId)} />
+                    <InfoField label='กิจกรรมย่อย' value={labelOf(subOptsFor(row.activityId), row.subActivityId)} />
                     <InfoField label='แผนก' value={labelOf(deptOpts, row.departmentId)} />
                     <InfoField label='ตำแหน่ง' value={labelOf(posOpts, row.positionId)} />
                     <InfoField label='วันเวลาเริ่มงาน' value={formatDateTime(row.startAt)} />
@@ -623,9 +761,23 @@ export default function AssessUserCreatePage() {
           onButton1Click={footerPrimary.onClick}
         />
       </QueuePageShell>
+      {/* ทวนสรุปก่อนบันทึกการเปลี่ยนแปลงสิทธิ์ — กระทบการเข้าถึงข้อมูลของบุคลากร */}
+      <AlertDialog
+        open={confirmSaveOpen}
+        onClose={() => setConfirmSaveOpen(false)}
+        type='warning'
+        alignment='center'
+        title={pickedUser || isEdit ? 'ยืนยันการบันทึกสิทธิ์ของบุคลากรเดิม?' : 'ยืนยันการสร้างบุคลากร?'}
+        description={confirmSummary}
+        confirmLabel={isEdit ? 'บันทึก' : pickedUser ? 'บันทึกสิทธิ์' : 'สร้างบุคลากร'}
+        cancelLabel='ยกเลิก'
+        onConfirm={applySubmit}
+      />
       {saved ? (
         <SuccessScreen
-          title={<>คุณสร้างบุคลากรใหม่<br />สำเร็จ</>}
+          title={pickedUser
+            ? <>อัปเดตสิทธิ์บุคลากร<br />สำเร็จ</>
+            : <>คุณสร้างบุคลากรใหม่<br />สำเร็จ</>}
           buttonLabel='เข้าสู่หน้าบุคลากร'
           onDone={() => navigate.push('/assess/users')}
         />

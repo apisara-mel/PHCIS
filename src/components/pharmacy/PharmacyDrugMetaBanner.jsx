@@ -3,7 +3,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
 
 /* Shared drug identity strip for pharmacy registry popups
-   (Group Policy / Position restrictors). */
+   (กิจกรรม / Position restrictors). */
 
 const META_LABEL = {
   color: 'var(--text-content-tertiary)',

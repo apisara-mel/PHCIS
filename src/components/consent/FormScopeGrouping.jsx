@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 
-/** รวม scopes เป็น Group Policy → สาขาย่อย → แผนก (ไม่ซ้ำ). */
+/** รวม scopes เป็น กิจกรรม → กิจกรรมย่อย → แผนก (ไม่ซ้ำ). */
 export function groupFormScopes(scopes = []) {
   const byGroup = new Map();
   scopes.forEach(({ group, subBranch, dept }) => {
@@ -141,7 +141,7 @@ function renderPanelGroup({ group, branches }, { isPanel, branchGap, stretch = f
   );
 }
 
-/** Group Policy / สาขาย่อย / แผนก — แสดงแบบจัดกลุ่ม (ไม่ใช้ badge). */
+/** กิจกรรม / กิจกรรมย่อย / แผนก — แสดงแบบจัดกลุ่ม (ไม่ใช้ badge). */
 export default function FormScopeGrouping({
   scopes, source, dense = false, variant = 'inline', columns = 1,
 }) {

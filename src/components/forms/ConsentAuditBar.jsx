@@ -13,7 +13,7 @@ import { StaffAvatar } from '@/components/appointment/StaffProfileAvatar';
    RegistrationEditHistoryPanel แต่ย่อเหลือบรรทัดเดียว + ปุ่ม mark-wrong.
    ยังไม่มีใน MIH DS — ลงทะเบียนใน docs/awaiting-components.md.
 
-   โหมดดูแบบฟอร์ม (popup): hide icon / timestamps / flag แล้วโชว์ avatar + Group Policy */
+   โหมดดูแบบฟอร์ม (popup): hide icon / timestamps / flag แล้วโชว์ avatar + กิจกรรม */
 
 const LINE = {
   color: 'var(--text-content-secondary)',
@@ -39,7 +39,7 @@ const GROUP_TONE = {
  * @param {boolean} [showFlag=true]
  * @param {boolean} [showRecordedByLabel=true] — แสดงคำนำหน้า "บันทึกโดย"
  * @param {string} [avatarSrc] — รูปโปรไฟล์เจ้าหน้าที่
- * @param {string} [groupPolicy] — Group Policy ของเจ้าหน้าที่
+ * @param {string} [groupPolicy] — กิจกรรม ของเจ้าหน้าที่
  */
 export default function ConsentAuditBar({
   recordedBy,

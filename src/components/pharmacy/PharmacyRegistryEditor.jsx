@@ -1133,7 +1133,7 @@ const PharmacyRegistryEditor = ({
           <SectionCard
             icon='groups'
             title='กลุ่มแพทย์เฉพาะที่อนุญาตให้สั่ง'
-            subtitle='กำหนด Group Policy และตำแหน่งที่อนุญาตให้สั่งจ่ายยานี้'
+            subtitle='กำหนด กิจกรรม และตำแหน่งที่อนุญาตให้สั่งจ่ายยานี้'
           >
             <div
               className='grid w-full min-w-0'
@@ -1160,7 +1160,7 @@ const PharmacyRegistryEditor = ({
                     lineHeight: 1.5,
                   }}
                 >
-                  Group Policy / สาขาย่อย / แผนก
+                  กิจกรรม / กิจกรรมย่อย / แผนก
                 </span>
                 {prescriberScopes.length > 0 ? (
                   <FormScopeGrouping scopes={prescriberScopes} columns={1} variant='panel' dense />
@@ -1173,7 +1173,7 @@ const PharmacyRegistryEditor = ({
                   className='w-fit'
                   style={{ alignSelf: 'flex-start', width: 'fit-content', marginTop: 'auto' }}
                 >
-                  {prescriberScopes.length ? 'แก้ไข Group Policy' : 'เลือก Group Policy'}
+                  {prescriberScopes.length ? 'แก้ไข กิจกรรม' : 'เลือก กิจกรรม'}
                 </NeutralSubdueButton>
               </div>
 
@@ -1399,7 +1399,7 @@ const PharmacyRegistryEditor = ({
                       lineHeight: 1.5,
                     }}
                   >
-                    Group Policy / สาขาย่อย / แผนก ที่อนุญาตให้สั่ง
+                    กิจกรรม / กิจกรรมย่อย / แผนก ที่อนุญาตให้สั่ง
                   </span>
                   {prescriberScopes.length > 0 ? (
                     <FormScopeGrouping scopes={prescriberScopes} columns={1} variant='panel' dense />

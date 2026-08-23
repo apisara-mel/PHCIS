@@ -810,8 +810,13 @@ const XrayResultPage = () => {
       findings: draft.findings,
       impression: draft.impression,
       resultType: draft.resultType,
-      lockedBy: draft.radiologistId,
-      radiologist: XRAY_RADIOLOGIST_BY_ID[draft.radiologistId]?.name ?? selectedRaw.radiologist,
+      /* คทง.9 hardening — ยืนยันผล **ห้ามโอนความเป็นเจ้าของ**: ถ้ารายงานถูก
+         ล็อกด้วยรหัสแพทย์ผู้อ่านแล้ว การเปลี่ยน dropdown ตอน verify ต้องไม่
+         เขียนทับ lockedBy (ไม่งั้นเจ้าของเดิมกลายเป็นคนอื่นแก้แทนได้) */
+      lockedBy: selectedRaw.lockedBy || draft.radiologistId,
+      radiologist: selectedRaw.lockedBy
+        ? selectedRaw.radiologist
+        : (XRAY_RADIOLOGIST_BY_ID[draft.radiologistId]?.name ?? selectedRaw.radiologist),
     });
     setConfirmVerifyOpen(false);
     notify('ยืนยันผลการตรวจแล้ว — แพทย์ผู้ส่งตรวจเปิดดูผลได้ทันที');
@@ -830,7 +835,8 @@ const XrayResultPage = () => {
       resultType: draft.resultType,
       amendments: [
         ...selectedRaw.amendments,
-        { at: nowTime(), by: currentUser.name, reason: amendDialog.reason.trim() },
+        /* byId = รหัสแพทย์ (authoritative) — ชื่ออาจซ้ำ/เปลี่ยนได้ */
+        { at: nowTime(), by: currentUser.name, byId: currentUserId, reason: amendDialog.reason.trim() },
       ],
     });
     setAmendDialog({ open: false, reason: '' });
@@ -895,7 +901,7 @@ const XrayResultPage = () => {
       lockedBy: null,
       amendments: [
         ...selectedRaw.amendments,
-        { at: nowTime(), by: currentUser.name, reason: `ยกเลิกการรายงานผล (Cancel Report) — ${cancelDialog.reason.trim()}` },
+        { at: nowTime(), by: currentUser.name, byId: currentUserId, reason: `ยกเลิกการรายงานผล (Cancel Report) — ${cancelDialog.reason.trim()}` },
       ],
     });
     setCancelDialog({ open: false, reason: '' });

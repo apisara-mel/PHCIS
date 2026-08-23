@@ -122,14 +122,16 @@ function ReadonlyPermTable({ title, modules, permissions }) {
   );
 }
 
+/* จับคู่แม่แบบสิทธิ์กับ assignment ด้วย ศูนย์ + กิจกรรม + กิจกรรมย่อย + แผนก —
+   ไม่มี positionId เพราะแม่แบบสิทธิ์ไม่ผูกกับตำแหน่ง (เดิมเทียบ positionId
+   ซึ่งแม่แบบไม่มี field นี้ ทำให้จับคู่ไม่เจอเลย) */
 function findAccessForAssignment(accessList, assignment) {
   if (!assignment) return null;
   return accessList.find((ac) => (
     ac.centerId === assignment.centerId
-    && ac.groupPolicyId === assignment.groupPolicyId
-    && ac.subBranchId === assignment.subBranchId
+    && ac.activityId === assignment.activityId
+    && ac.subActivityId === assignment.subActivityId
     && ac.departmentId === assignment.departmentId
-    && ac.positionId === assignment.positionId
   )) || null;
 }
 
@@ -166,11 +168,11 @@ export default function AssessUserDetailPage() {
 
   const summaryCards = [
     {
-      key: 'gp',
+      key: 'activity',
       icon: 'face',
       color: 'info',
-      value: primary?.groupPolicy || '—',
-      label: 'Group Policy',
+      value: primary?.activity || '—',
+      label: 'กิจกรรม',
     },
     {
       key: 'centers',
@@ -205,8 +207,8 @@ export default function AssessUserDetailPage() {
   const assignmentColumns = [
     { key: 'order', header: 'ลำดับ', render: (_row, idx) => <span style={TEXT_CELL}>{idx + 1}</span> },
     { key: 'center', header: 'ศูนย์บริการ', render: (row) => <span style={TEXT_CELL}>{row.center}</span> },
-    { key: 'groupPolicy', header: 'Group Policy', render: (row) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{row.groupPolicy}</ColorfulBadge> },
-    { key: 'subBranch', header: 'สาขาย่อย', render: (row) => <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>{row.subBranch}</ColorfulBadge> },
+    { key: 'activity', header: 'กิจกรรม', render: (row) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{row.activity}</ColorfulBadge> },
+    { key: 'subActivity', header: 'กิจกรรมย่อย', render: (row) => <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>{row.subActivity}</ColorfulBadge> },
     { key: 'department', header: 'แผนก', render: (row) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{row.department}</ColorfulBadge> },
     { key: 'position', header: 'ตำแหน่ง', render: (row) => <ColorfulBadge style='purple' size='small' hierarchy='secondary' width='hug'>{row.position}</ColorfulBadge> },
     {
@@ -281,12 +283,12 @@ export default function AssessUserDetailPage() {
               </div>
               <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-600)' }}>
                 <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
-                  <span style={{ fontSize: 'var(--type-size-xs)', opacity: 0.85 }}>Group Policy</span>
-                  <span style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>{primary?.groupPolicy || '—'}</span>
+                  <span style={{ fontSize: 'var(--type-size-xs)', opacity: 0.85 }}>กิจกรรม</span>
+                  <span style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>{primary?.activity || '—'}</span>
                 </div>
                 <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
-                  <span style={{ fontSize: 'var(--type-size-xs)', opacity: 0.85 }}>สาขาย่อย</span>
-                  <span style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>{primary?.subBranch || '—'}</span>
+                  <span style={{ fontSize: 'var(--type-size-xs)', opacity: 0.85 }}>กิจกรรมย่อย</span>
+                  <span style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>{primary?.subActivity || '—'}</span>
                 </div>
                 <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
                   <span style={{ fontSize: 'var(--type-size-xs)', opacity: 0.85 }}>แผนก</span>
@@ -374,8 +376,8 @@ export default function AssessUserDetailPage() {
             }}
             >
               {matchedAccess
-                ? `สิทธิ์ตามบทบาท ${primary?.groupPolicy} · ${primary?.position}`
-                : 'ยังไม่มีสิทธิการเข้าถึงที่ตรงกับบทบาทหลัก'}
+                ? `สิทธิ์ตามกิจกรรม ${primary?.activity} · ${primary?.position}`
+                : 'ยังไม่มีสิทธิการเข้าถึงที่ตรงกับกิจกรรมหลัก'}
             </span>
           </div>
           {matchedAccess ? (

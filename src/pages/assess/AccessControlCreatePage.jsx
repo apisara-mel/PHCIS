@@ -8,6 +8,7 @@ import Footer from '@/components/layout/Footer';
 import SuccessScreen from '@/components/layout/SuccessScreen';
 import BrandButton from '@/components/button/BrandButton';
 import Radio from '@/components/radio/Radio';
+import AlertDialog from '@/components/popup/AlertDialog';
 import { HeaderCell, DataCell, TableRow } from '@/components/table/Table';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
@@ -24,8 +25,17 @@ import {
   bumpAccessControlVersion,
   latestVersion,
   formatVersion,
+  countPermissionBuckets,
+  submitForApproval,
+  APPROVAL_DRAFT,
+  DATA_SCOPE_OPTIONS,
+  SCOPE_CENTER,
+  PII_OPTIONS,
+  PII_VISIBLE,
+  PII_MASKED,
+  dataScopeLabel,
 } from '@/data/accessControlStore';
-import { readGroupPolicies } from '@/data/groupPolicyStore';
+import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
 
 /* PHCIS | Assess-control — Create / edit access rights (Figma 4D3nTx53 · 15:30160). */
@@ -91,25 +101,25 @@ function PermRadioCell({ name, value, level, checked, onSelect }) {
 
 function RoleFieldsTable({
   centerId,
-  groupPolicyId,
-  subBranchId,
+  activityId,
+  subActivityId,
   departmentId,
   description,
   centerOpts,
-  groupOpts,
-  subBranchOpts,
+  activityOpts,
+  subActivityOpts,
   deptOpts,
   onCenter,
-  onGroup,
-  onSubBranch,
+  onActivity,
+  onSubActivity,
   onDepartment,
   onDescription,
 }) {
   /* ไม่มีคอลัมน์ "ตำแหน่ง" — บทบาทไม่ผูกกับตำแหน่ง ตำแหน่งกำหนดตอนเพิ่มบุคลากร */
   const headers = [
     { title: 'ศูนย์บริการ', width: ROLE_COL_W.field, sort: true },
-    { title: 'Group Policy', width: ROLE_COL_W.field, sort: true },
-    { title: 'สาขาย่อย', width: ROLE_COL_W.field, sort: true },
+    { title: 'กิจกรรม', width: ROLE_COL_W.field, sort: true },
+    { title: 'กิจกรรมย่อย', width: ROLE_COL_W.field, sort: true },
     { title: 'แผนก', width: ROLE_COL_W.field, sort: true },
     { title: 'คำอธิบาย', width: ROLE_COL_W.description, sort: false },
   ];
@@ -138,10 +148,10 @@ function RoleFieldsTable({
             <Select size='medium' showLabel={false} showHelperText={false} options={centerOpts} value={centerId} onChange={onCenter} />
           </DataCell>
           <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
-            <Select size='medium' showLabel={false} showHelperText={false} options={groupOpts} value={groupPolicyId} onChange={onGroup} />
+            <Select size='medium' showLabel={false} showHelperText={false} options={activityOpts} value={activityId} onChange={onActivity} />
           </DataCell>
           <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
-            <Select size='medium' showLabel={false} showHelperText={false} options={subBranchOpts} value={subBranchId} onChange={onSubBranch} />
+            <Select size='medium' showLabel={false} showHelperText={false} options={subActivityOpts} value={subActivityId} onChange={onSubActivity} />
           </DataCell>
           <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
             <Select size='medium' showLabel={false} showHelperText={false} options={deptOpts} value={departmentId} onChange={onDepartment} />
@@ -291,14 +301,24 @@ export default function AccessControlCreatePage() {
 
   const [templateName, setTemplateName] = useState('');
   const [centerId, setCenterId] = useState('');
-  const [groupPolicyId, setGroupPolicyId] = useState('');
-  const [subBranchId, setSubBranchId] = useState('');
+  const [activityId, setActivityId] = useState('');
+  const [subActivityId, setSubActivityId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [description, setDescription] = useState('');
   const [permissions, setPermissions] = useState(defaultPermissions);
   const [saved, setSaved] = useState(false);
+  /* Confirmation ก่อนบันทึกจริง (Nielsen #5 Error prevention) — การเปลี่ยนสิทธิ์
+     กระทบการเข้าถึงของบุคลากรทั้งกลุ่มกิจกรรม จึงให้ทวนสรุปก่อนยืนยัน */
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
+  /* ธรรมาภิบาลสิทธิ์ (มติ คทง.13 §1.3/§2.3 + คทง.2/3/4/10/11):
+     ขอบเขตข้อมูล · การเห็น PII · ช่วงเวลาที่สิทธิ์มีผล · สถานะอนุมัติ */
+  const [dataScope, setDataScope] = useState(SCOPE_CENTER);
+  const [piiVisibility, setPiiVisibility] = useState(PII_VISIBLE);
+  const [effectiveFrom, setEffectiveFrom] = useState('');
+  const [effectiveTo, setEffectiveTo] = useState('');
+  const [approvalNote, setApprovalNote] = useState('');
 
-  const groupPolicies = useMemo(() => readGroupPolicies(), []);
+  const activities = useMemo(() => readActivities(), []);
   const departments = useMemo(() => readDepartments(), []);
 
   /* เวอร์ชันที่กำลังแก้อยู่: ของใหม่เริ่มที่ v1 · ของเดิมบันทึกทับแล้วเดินขึ้นหนึ่งขั้น */
@@ -309,27 +329,32 @@ export default function AccessControlCreatePage() {
     if (!existing) return;
     setTemplateName(existing.templateName || '');
     setCenterId(existing.centerId || '');
-    setGroupPolicyId(existing.groupPolicyId || '');
-    setSubBranchId(existing.subBranchId || '');
+    setActivityId(existing.activityId || '');
+    setSubActivityId(existing.subActivityId || '');
     setDepartmentId(existing.departmentId || '');
     setDescription(existing.description || '');
     setPermissions({ ...defaultPermissions(), ...existing.permissions });
+    setDataScope(existing.dataScope || SCOPE_CENTER);
+    setPiiVisibility(existing.piiVisibility || PII_VISIBLE);
+    setEffectiveFrom(existing.effectiveFrom || '');
+    setEffectiveTo(existing.effectiveTo || '');
+    setApprovalNote(existing.approvalNote || '');
   }, [existing]);
 
-  const selectedGroup = groupPolicies.find((g) => g.id === groupPolicyId);
-  const subBranchOpts = useMemo(() => {
-    const list = selectedGroup?.subBranches || [];
-    return [{ value: '', label: 'เลือกสาขาย่อย' }, ...list.map((sb) => ({ value: sb.id, label: sb.name }))];
-  }, [selectedGroup]);
+  const selectedActivity = activities.find((a) => a.id === activityId);
+  const subActivityOpts = useMemo(() => {
+    const list = selectedActivity?.subActivities || [];
+    return [{ value: '', label: 'เลือกกิจกรรมย่อย' }, ...list.map((sub) => ({ value: sub.id, label: sub.name }))];
+  }, [selectedActivity]);
 
   const centerOpts = [{ value: '', label: 'เลือกศูนย์บริการ' }, ...CENTER_OPTIONS];
-  /* Group Policy ยังไม่ผูกก็บันทึกแม่แบบได้ — ค่าว่างจึงอ่านว่า "ยังไม่ผูก" */
-  const groupOpts = [{ value: '', label: 'ยังไม่ผูก Group Policy' }, ...groupPolicies.map((g) => ({ value: g.id, label: g.name }))];
+  /* กิจกรรมยังไม่ผูกก็บันทึกแม่แบบได้ — ค่าว่างจึงอ่านว่า "ยังไม่ผูก" */
+  const activityOpts = [{ value: '', label: 'ยังไม่ผูกกิจกรรม' }, ...activities.map((a) => ({ value: a.id, label: a.name }))];
   const deptOpts = [{ value: '', label: 'เลือกแผนก' }, ...departments.map((d) => ({ value: d.id, label: d.name }))];
 
   const labelOf = (opts, value) => opts.find((o) => o.value === value)?.label || '';
 
-  /* บันทึกได้เมื่อ **ตั้งชื่อแม่แบบ** แล้ว — ไม่บังคับ Group Policy / ตำแหน่ง */
+  /* บันทึกได้เมื่อ **ตั้งชื่อแม่แบบ** แล้ว — ไม่บังคับกิจกรรม / ตำแหน่ง */
   const nameValid = templateName.trim().length > 0;
 
   const setPerm = (key, level) => {
@@ -343,33 +368,64 @@ export default function AccessControlCreatePage() {
       templateName: templateName.trim(),
       centerId,
       center: labelOf(centerOpts, centerId),
-      groupPolicyId,
-      groupPolicy: groupPolicyId ? labelOf(groupOpts, groupPolicyId) : '',
-      subBranchId,
-      subBranch: labelOf(subBranchOpts, subBranchId),
+      activityId,
+      activity: activityId ? labelOf(activityOpts, activityId) : '',
+      subActivityId,
+      subActivity: labelOf(subActivityOpts, subActivityId),
       departmentId,
       department: labelOf(deptOpts, departmentId),
       description: description.trim(),
       permissions,
       active: base.active !== false,
+      dataScope,
+      piiVisibility,
+      effectiveFrom,
+      effectiveTo,
+      approvalNote: approvalNote.trim(),
     };
     /* แก้ของเดิม = ออกเวอร์ชันใหม่ (เวอร์ชันเก่าเก็บลง history ให้ย้อนดูได้) */
     return bump && existing ? bumpAccessControlVersion(withEdits) : withEdits;
   };
 
   const handleSaveDraft = () => {
-    upsertAccessControl(buildRecord({ bump: false }));
+    /* บันทึกร่าง = ยังไม่ส่งขออนุมัติ สิทธิ์จึงยังไม่มีผล */
+    upsertAccessControl({ ...buildRecord({ bump: false }), approvalStatus: APPROVAL_DRAFT });
   };
 
+  /* ช่วงวันที่ต้องไม่กลับหัว (สิ้นสุดก่อนเริ่ม) — คทง.13 §2.3 */
+  const dateRangeError = !!effectiveFrom && !!effectiveTo && effectiveTo < effectiveFrom
+    ? 'วันสิ้นสุดต้องไม่มาก่อนวันเริ่มมีผล'
+    : '';
+
+  /* ปุ่ม primary เปิด modal ทวนสรุปก่อน — ยืนยันแล้วจึงบันทึกจริง */
   const handleSubmit = () => {
-    if (!nameValid) return;
-    upsertAccessControl(buildRecord({ bump: true }));
+    if (!nameValid || dateRangeError) return;
+    setConfirmSaveOpen(true);
+  };
+
+  const applySubmit = () => {
+    setConfirmSaveOpen(false);
+    /* กด "ส่งขออนุมัติ" = เข้าคิวรออนุมัติ ยังไม่มีผลจนกว่าผู้มีอำนาจจะอนุมัติ */
+    upsertAccessControl(submitForApproval(buildRecord({ bump: true }), approvalNote.trim()));
     if (isEdit) {
       navigate.push(`/assess/access-control/${id}`);
       return;
     }
     setSaved(true);
   };
+
+  const confirmSummary = useMemo(() => {
+    const { view, edit } = countPermissionBuckets(permissions);
+    const scope = activityId
+      ? `กิจกรรม "${labelOf(activityOpts, activityId)}"${subActivityId ? ` · ${labelOf(subActivityOpts, subActivityId)}` : ''}`
+      : 'ยังไม่ผูกกิจกรรม';
+    const versionNote = isEdit ? `บันทึกเป็น ${formatVersion(nextVersion)} (แทน ${formatVersion(currentVersion)})` : 'เวอร์ชันแรก (v1)';
+    const period = effectiveFrom || effectiveTo
+      ? ` · มีผล ${effectiveFrom || 'ทันที'} ถึง ${effectiveTo || 'ไม่กำหนด'}`
+      : '';
+    return `${scope} — มีสิทธิดู ${view} ระบบ · มีสิทธิบันทึก ${edit} ระบบ · ${dataScopeLabel(dataScope)}${piiVisibility === PII_MASKED ? ' (ปิดบัง PII)' : ''}${period} · ${versionNote}`;
+  }, [permissions, activityId, subActivityId, activityOpts, subActivityOpts, isEdit, nextVersion,
+    currentVersion, dataScope, piiVisibility, effectiveFrom, effectiveTo]);
 
   if (isEdit && id && !existing) {
     return (
@@ -406,7 +462,7 @@ export default function AccessControlCreatePage() {
           }}
         >
           {/* Card 0 — แม่แบบ + เวอร์ชัน. ตั้งชื่อแม่แบบก่อนเป็นอันดับแรก
-              โดยยังไม่ต้องผูก Group Policy — ผูกทีหลังได้ในการ์ดถัดไป. */}
+              โดยยังไม่ต้องผูกกิจกรรม — ผูกทีหลังได้ในการ์ดถัดไป. */}
           <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
             <Topic
               hierarchy='primary'
@@ -425,7 +481,7 @@ export default function AccessControlCreatePage() {
                   value={templateName}
                   onChange={setTemplateName}
                   placeholder='เช่น สิทธิแพทย์ตรวจโรคทั่วไป'
-                  helperText='ชื่อนี้ใช้อ้างอิงแม่แบบตอนนำไปผูกกับ Group Policy หรือบุคลากร'
+                  helperText='ชื่อนี้ใช้อ้างอิงแม่แบบตอนนำไปผูกกับกิจกรรมหรือบุคลากร'
                 />
               </div>
               <VersionBadge current={currentVersion} next={nextVersion} isEdit={!!existing} history={existing?.versionHistory} />
@@ -445,20 +501,93 @@ export default function AccessControlCreatePage() {
             />
             <RoleFieldsTable
               centerId={centerId}
-              groupPolicyId={groupPolicyId}
-              subBranchId={subBranchId}
+              activityId={activityId}
+              subActivityId={subActivityId}
               departmentId={departmentId}
               description={description}
               centerOpts={centerOpts}
-              groupOpts={groupOpts}
-              subBranchOpts={subBranchOpts}
+              activityOpts={activityOpts}
+              subActivityOpts={subActivityOpts}
               deptOpts={deptOpts}
               onCenter={setCenterId}
-              onGroup={(v) => { setGroupPolicyId(v); setSubBranchId(''); }}
-              onSubBranch={setSubBranchId}
+              onActivity={(v) => { setActivityId(v); setSubActivityId(''); }}
+              onSubActivity={setSubActivityId}
               onDepartment={setDepartmentId}
               onDescription={setDescription}
             />
+          </section>
+
+          {/* Card 1.5 — ขอบเขตข้อมูลและระยะเวลา
+              มติ คทง.2/3/4/10/11: ศบส. เห็นเฉพาะของตน · กอง/ผู้บริหารเห็น
+              ภาพรวมแต่ปิดบัง PII · คทง.4: อสส. เห็นเฉพาะเคสที่ได้รับมอบหมาย
+              มติ คทง.13 §2.3: กำหนดช่วงเวลาเริ่ม-สิ้นสุดการเข้าถึงได้ */}
+          <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+            <Topic
+              hierarchy='primary'
+              title='ขอบเขตข้อมูลและระยะเวลาที่มีผล'
+              subText='กำหนดว่าเห็นข้อมูลของหน่วยใดได้บ้าง เห็นข้อมูลระบุตัวตนหรือไม่ และสิทธิ์นี้มีผลช่วงใด'
+              leadingIcon='shield_person'
+              showBadge={false}
+              showChevron={false}
+              showSuccess={false}
+            />
+            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              <div style={{ flex: '1 1 320px', minWidth: 260 }}>
+                <Select
+                  label='ขอบเขตข้อมูลที่มองเห็น'
+                  options={DATA_SCOPE_OPTIONS.map((o) => ({ value: o.value, label: o.label, subtext: o.hint }))}
+                  value={dataScope}
+                  onChange={setDataScope}
+                  searchable={false}
+                  showHelperText
+                  helperText='อสส./ผู้ช่วยงานชุมชน ให้เลือก "เฉพาะเคสที่ได้รับมอบหมาย" (มติ คทง.4)'
+                />
+              </div>
+              <div style={{ flex: '1 1 320px', minWidth: 260 }}>
+                <Select
+                  label='ข้อมูลระบุตัวตน (PII)'
+                  options={PII_OPTIONS}
+                  value={piiVisibility}
+                  onChange={setPiiVisibility}
+                  searchable={false}
+                  showHelperText
+                  helperText='ระดับกอง/ผู้บริหารให้ปิดบัง PII และดูผ่านรหัสนิรนาม (มติ คทง.10/11)'
+                />
+              </div>
+            </div>
+            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+                <InputField
+                  label='วันเริ่มมีผล'
+                  type='date'
+                  showLeadingIcon={false}
+                  value={effectiveFrom}
+                  onChange={setEffectiveFrom}
+                  helperText='เว้นว่าง = มีผลทันทีที่อนุมัติ'
+                />
+              </div>
+              <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+                <InputField
+                  label='วันสิ้นสุด'
+                  type='date'
+                  showLeadingIcon={false}
+                  value={effectiveTo}
+                  onChange={setEffectiveTo}
+                  error={dateRangeError || undefined}
+                  helperText={dateRangeError || 'เว้นว่าง = ไม่กำหนดวันสิ้นสุด'}
+                />
+              </div>
+              <div style={{ flex: '2 1 320px', minWidth: 260 }}>
+                <InputField
+                  label='เหตุผล/บันทึกถึงผู้อนุมัติ'
+                  showLeadingIcon={false}
+                  value={approvalNote}
+                  onChange={setApprovalNote}
+                  placeholder='เช่น ขอเปิดสิทธิ์ให้ทีมสังคมสงเคราะห์ปีงบ 69'
+                  helperText='แสดงให้ผู้มีอำนาจเห็นตอนพิจารณาอนุมัติ'
+                />
+              </div>
+            </div>
           </section>
 
           {/* Card 2 — สิทธิ์เข้าถึงระบบ (Figma 15:30160 · card) */}
@@ -496,19 +625,33 @@ export default function AccessControlCreatePage() {
           showButton2
           button2Label='บันทึกร่าง'
           button2Icon='save'
-          button2Disabled={!nameValid}
+          button2Disabled={!nameValid || !!dateRangeError}
           onButton2Click={handleSaveDraft}
           showButton1
-          button1Label={isEdit ? `บันทึกเป็น ${formatVersion(nextVersion)}` : 'สร้างแม่แบบสิทธิ'}
+          /* คทง.13 §1.3 — สิทธิ์ต้องผ่านการอนุมัติก่อนมีผล ปุ่มหลักจึงเป็น "ส่งขออนุมัติ" */
+          button1Label={isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติสิทธิ์'}
           button1TrailingIcon='arrow_forward'
-          button1Disabled={!nameValid}
+          button1Disabled={!nameValid || !!dateRangeError}
           onButton1Click={handleSubmit}
         />
       </QueuePageShell>
 
+      {/* ทวนสรุปก่อนบันทึกการเปลี่ยนแปลงสิทธิ์ — กัน slip ก่อนกระทบทั้งกลุ่มกิจกรรม */}
+      <AlertDialog
+        open={confirmSaveOpen}
+        onClose={() => setConfirmSaveOpen(false)}
+        type='warning'
+        alignment='center'
+        title={isEdit ? 'ส่งขออนุมัติสิทธิ์เวอร์ชันใหม่?' : 'ส่งขออนุมัติสิทธิการเข้าถึง?'}
+        description={`แม่แบบ "${templateName.trim()}" — ${confirmSummary}. สิทธิ์จะยังไม่มีผลจนกว่าผู้มีอำนาจจะอนุมัติ`}
+        confirmLabel={isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติ'}
+        cancelLabel='ยกเลิก'
+        onConfirm={applySubmit}
+      />
+
       {saved ? (
         <SuccessScreen
-          title={<>คุณสร้างสิทธิการเข้าถึงใหม่<br />สำเร็จ</>}
+          title={<>ส่งขออนุมัติสิทธิการเข้าถึง<br />สำเร็จ — รอผู้มีอำนาจอนุมัติ</>}
           buttonLabel='เข้าสู่หน้าสิทธิการเข้าถึง'
           onDone={() => navigate.push('/assess/access-control')}
         />

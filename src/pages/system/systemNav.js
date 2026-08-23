@@ -14,7 +14,9 @@ export const SYSTEM_NAV = [
   /* แม่แบบโครงสร้างภายในศูนย์ (แผนก/คลินิก + ห้องตรวจ/เตียง) ตั้งไว้ครั้งเดียว
      แล้วเลือกใช้ซ้ำได้ตอนเพิ่มศูนย์บริการ — อยู่ต่อจากศูนย์บริการเพราะผูกกัน */
   { key: 'system-structures',     label: 'รูปแบบโครงสร้างศูนย์', icon: 'account_tree',  path: '/admin/structures' },
-  { key: 'assess-group-policy',   label: 'Group Policy',    icon: 'business_center',  path: '/assess/group-policy' },
+  /* กิจกรรม (Activity-based Access Control) — แทน Group Policy เดิม 22 ส.ค. 2569
+     ลำดับชั้น กิจกรรมหลัก → กิจกรรมย่อย; route เดิม /assess/group-policy redirect มาที่นี่ */
+  { key: 'assess-activity',       label: 'กิจกรรม',          icon: 'business_center',  path: '/assess/activities' },
   /* "แผนก" ถูกซ่อนจากเมนู 10 ส.ค. 2569 — แผนกไม่ใช่ทะเบียนลอย ๆ อีกต่อไป แต่
      ผูกกับศูนย์บริการ สร้าง/แก้ที่ step "แผนกและคลินิก" ของหน้าเพิ่มศูนย์บริการ
      ตามลำดับชั้น แผนก → คลินิก → ห้อง/เตียง. route /assess/departments ยังเปิด

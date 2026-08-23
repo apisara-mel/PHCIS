@@ -95,7 +95,7 @@ const Cell = ({ value }) =>
     ? <span style={TEXT_CELL}>{value}</span>
     : <span style={MUTED_CELL}>-</span>;
 
-/* Group Policy — เปิด popup ดูรายละเอียด */
+/* กิจกรรม — เปิด popup ดูรายละเอียด */
 const ScopeCell = ({ row, onView }) => (
   <NeutralSubdueButton
     leadingIcon='groups'
@@ -103,7 +103,7 @@ const ScopeCell = ({ row, onView }) => (
     size='sm'
     onClick={() => onView(row)}
   >
-    ดู Group policy
+    ดู กิจกรรม
   </NeutralSubdueButton>
 );
 
@@ -290,7 +290,7 @@ export default function ConsentFormsPage() {
     ...CONSENT_SCOPE_TREE.map((g) => ({ value: g.group, label: g.group })),
   ], []);
   const subBranchOptions = useMemo(() => [
-    { value: '', label: 'ทุกสาขาย่อย' },
+    { value: '', label: 'ทุกกิจกรรมย่อย' },
     ...CONSENT_SCOPE_TREE.flatMap((g) => g.subBranches.map((s) => ({ value: s, label: s }))),
   ], []);
   const deptOptions = useMemo(() => [
@@ -338,7 +338,7 @@ export default function ConsentFormsPage() {
     setToast({
       id: Date.now(),
       variant: 'success',
-      message: 'บันทึก Group Policy / สาขาย่อย / แผนก ที่เข้าถึงได้แล้ว',
+      message: 'บันทึก กิจกรรม / กิจกรรมย่อย / แผนก ที่เข้าถึงได้แล้ว',
     });
   };
 
@@ -459,7 +459,7 @@ export default function ConsentFormsPage() {
       },
       {
         key: 'group',
-        header: 'Group Policy / สาขาย่อย / แผนก ที่เข้าถึงได้',
+        header: 'กิจกรรม / กิจกรรมย่อย / แผนก ที่เข้าถึงได้',
         render: (r) => <ScopeCell row={r} onView={setScopeViewFor} />,
       },
       {
@@ -531,8 +531,8 @@ export default function ConsentFormsPage() {
 
           <div className='w-full flex items-start' style={{ gap: 'var(--dim-space-300)' }}>
             <div className='flex items-center flex-wrap min-w-0 flex-1' style={{ gap: 'var(--dim-space-200)' }}>
-              <FilterDropdown prefix='Group Policy:' options={groupOptions} value={filterGroup} onChange={(v) => { setFilterGroup(v); setPage(1); }} />
-              <FilterDropdown prefix='สาขาย่อย:' options={subBranchOptions} value={filterSubBranch} onChange={(v) => { setFilterSubBranch(v); setPage(1); }} />
+              <FilterDropdown prefix='กิจกรรม:' options={groupOptions} value={filterGroup} onChange={(v) => { setFilterGroup(v); setPage(1); }} />
+              <FilterDropdown prefix='กิจกรรมย่อย:' options={subBranchOptions} value={filterSubBranch} onChange={(v) => { setFilterSubBranch(v); setPage(1); }} />
               <FilterDropdown prefix='แผนก:' options={deptOptions} value={filterDept} onChange={(v) => { setFilterDept(v); setPage(1); }} />
               <FilterDropdown prefix='ผู้สร้าง:' options={creatorOptions} value={filterCreator} onChange={(v) => { setFilterCreator(v); setPage(1); }} />
               {activeTab === 'all' && (

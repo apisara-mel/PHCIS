@@ -26,7 +26,7 @@ import {
   CDSS_RULE_DEFS, getCdssSettings, subscribeCdssSettings, isCdssRuleOn,
   cdssBlocks, getCdssRule, orderSetsForMe, subscribeOrderSets, markOrderSetUsed,
 } from '@/data/treatmentOrderSets';
-import { appendAudit } from '@/data/treatmentAudit';
+import { appendAudit, CURRENT_CLINICIAN } from '@/data/treatmentAudit';
 import { NO_EDIT_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
 import MedicationSigDetailPanel from '@/pages/treat/panels/MedicationSigDetailPanel';
 
@@ -369,6 +369,12 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
     });
   };
 
+  /* มติ คทง.1 ครั้งที่ 4 — แพทย์หลายคนสั่งใน VN เดียวได้ แต่ระบบบันทึกรหัส
+     ผู้สั่งทุกรายการ และ **แพทย์ยกเลิก/แก้คำสั่งของแพทย์ท่านอื่นผ่านระบบ
+     โดยตรงไม่ได้** — แถวที่ไม่มี orderedBy (ของเดิม) ถือเป็นของผู้ใช้ปัจจุบัน */
+  const ownedByOther = (row) => Boolean(row.orderedBy && row.orderedBy !== CURRENT_CLINICIAN.name);
+  const otherDoctorReason = (row) => `คำสั่งนี้สั่งโดย ${row.orderedBy} — ยกเลิก/แก้ไขได้เฉพาะแพทย์ผู้สั่ง (มติ คทง.1)`;
+
   const doStop = (reason) => {
     if (!stopTarget) return;
     patchRow(stopTarget.id, { discontinuedAt: new Date().toISOString(), discontinueReason: reason });
@@ -411,6 +417,8 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
         ...(f.medications || []),
         ...meds.map((m, i) => ({
           id: `med-set-${Date.now()}-${i}`,
+          /* มติ คทง.1 — บันทึกรหัสผู้สั่งทุกรายการ (ต่อ VN สั่งได้หลายแพทย์) */
+          orderedBy: CURRENT_CLINICIAN.name,
           name: m.label,
           usage: 'รับประทาน (Oral)',
           dosePerTake: m.dosePerTake || '1',
@@ -554,19 +562,28 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
             </NeutralSubdueButton>
           </GuardedAction>
           {row.cancelledAt || row.discontinuedAt ? (
-            <GuardedAction allowed={canEdit}>
+            <GuardedAction
+              allowed={canEdit && !ownedByOther(row)}
+              reason={ownedByOther(row) ? otherDoctorReason(row) : undefined}
+            >
               <NeutralSubdueButton variant='outline' size='sm' leadingIcon='undo' onClick={() => restore(row)}>
                 กู้คืน
               </NeutralSubdueButton>
             </GuardedAction>
           ) : (
             <>
-              <GuardedAction allowed={canEdit}>
+              <GuardedAction
+                allowed={canEdit && !ownedByOther(row)}
+                reason={ownedByOther(row) ? otherDoctorReason(row) : undefined}
+              >
                 <NeutralSubdueButton variant='outline' size='sm' leadingIcon='stop_circle' onClick={() => setStopTarget(row)}>
                   หยุดยา
                 </NeutralSubdueButton>
               </GuardedAction>
-              <GuardedAction allowed={canEdit}>
+              <GuardedAction
+                allowed={canEdit && !ownedByOther(row)}
+                reason={ownedByOther(row) ? otherDoctorReason(row) : undefined}
+              >
                 <NeutralSubdueButton variant='outline' size='sm' leadingIcon='block' onClick={() => setCancelTarget(row)}>
                   ยกเลิก
                 </NeutralSubdueButton>

@@ -50,7 +50,7 @@ const scopesToKeySet = (scopes) => new Set(scopes.map(consentScopeKey));
 const keySetToScopes = (keys, catalog) =>
   dedupeConsentScopes(catalog.filter((s) => keys.has(consentScopeKey(s))));
 
-/** Popup — Group Policy / สาขาย่อย / แผนก ที่เข้าถึงได้ (เปิดจากตารางแบบฟอร์ม). */
+/** Popup — กิจกรรม / กิจกรรมย่อย / แผนก ที่เข้าถึงได้ (เปิดจากตารางแบบฟอร์ม). */
 export default function FormScopeViewPopup({
   open,
   record,
@@ -128,8 +128,8 @@ export default function FormScopeViewPopup({
 
   const isEdit = mode === 'edit';
   const title = isEdit
-    ? 'แก้ไข Group Policy / สาขาย่อย / แผนก ที่เข้าถึงได้'
-    : 'Group Policy / สาขาย่อย / แผนก ที่เข้าถึงได้';
+    ? 'แก้ไข กิจกรรม / กิจกรรมย่อย / แผนก ที่เข้าถึงได้'
+    : 'กิจกรรม / กิจกรรมย่อย / แผนก ที่เข้าถึงได้';
 
   return (
     <Popup
@@ -181,7 +181,7 @@ export default function FormScopeViewPopup({
             />
           ) : (
             <section className='w-full flex flex-col min-w-0' style={VIEW_SECTION_STYLE}>
-              <h3 style={VIEW_HEADING_STYLE}>Group Policy ที่มีสิทธิเข้าถึงได้</h3>
+              <h3 style={VIEW_HEADING_STYLE}>กิจกรรม ที่มีสิทธิเข้าถึงได้</h3>
               <FormScopeGrouping scopes={recordScopes} columns={2} variant='panel' />
             </section>
           )}

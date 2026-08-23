@@ -132,9 +132,9 @@ const AppointmentStaffHero = ({ staff }) => {
           gap: 'var(--dim-space-600)',
         }}
       >
-        <HeroMetaColumn label='Group Policy' value={policyLabel} />
+        <HeroMetaColumn label='กิจกรรม' value={policyLabel} />
         {staff.subDivision && (
-          <HeroMetaColumn label='สาขาย่อย' value={staff.subDivision} />
+          <HeroMetaColumn label='กิจกรรมย่อย' value={staff.subDivision} />
         )}
         {staff.dept && <HeroMetaColumn label='แผนก' value={staff.dept} />}
       </div>

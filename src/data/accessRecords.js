@@ -6,7 +6,7 @@ import { resolveConsentPatient } from '@/data/consentPatientDisplay';
 import { ACCESS_TYPE_DISPLAY_LABEL } from '@/pages/consent/AccessRequestForm';
 import { STAFF_AVATAR } from '@/pages/appointment/appointmentStaffAvatars';
 
-/* Staff org scope — mirrors ConsentFormsPage Group Policy / สาขาย่อย / แผนก. */
+/* Staff org scope — mirrors ConsentFormsPage กิจกรรม / กิจกรรมย่อย / แผนก. */
 const STAFF_ORG_POOL = [
   { group: 'แพทย์', subBranch: 'แพทย์เฉพาะทาง', dept: 'อายุรกรรม' },
   { group: 'พยาบาล', subBranch: 'พยาบาลวิชาชีพ', dept: 'ผู้ป่วยนอก' },
@@ -28,7 +28,7 @@ const STAFF_ORG_POOL = [
   { group: 'เภสัชกร', subBranch: 'เภสัชกรโรงพยาบาล', dept: 'คลังยา' },
 ];
 
-/** Profile photo keyed to Group Policy (staff portrait pool). */
+/** Profile photo keyed to กิจกรรม (staff portrait pool). */
 export const accessAvatarForGroup = (group, seed = 0) => {
   const flip = seed % 2 === 0;
   switch (group) {
@@ -331,7 +331,7 @@ export const enqueueAccessImport = (payload) => {
     formName: payload.formName || '',
     requestedPeriodStart: payload.requestedPeriodStart || '',
     requestedPeriodEnd: payload.requestedPeriodEnd || '',
-    /* Data-category scopes from the request form (not org Group Policy). */
+    /* Data-category scopes from the request form (not org กิจกรรม). */
     scopes: payload.scopes || [],
     period: '-',
     periodDays: '-',

@@ -246,6 +246,34 @@ const QueueTvFrame = ({
           {children}
         </div>
 
+        {/* ── ข้อความกำกับลำดับคิว ───────────────────────────────────────
+            มติ คทง.1 — จอแสดงคิวทุกจอต้องบอกชัดว่าลำดับการเรียกขึ้นอยู่กับ
+            ความเร่งด่วนทางการแพทย์ (triage) ไม่ใช่เรียงตามหมายเลขเสมอ
+            เพื่อกันความเข้าใจผิด/ข้อร้องเรียนเรื่องคิวแซง */}
+        <div
+          role='note'
+          style={{
+            boxSizing: 'border-box',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 'var(--dim-space-300, 12px)',
+            width: '100%',
+            paddingTop: 'var(--dim-space-200, 8px)',
+            paddingBottom: 'var(--dim-space-200, 8px)',
+            paddingLeft: 'var(--dim-space-600, 24px)',
+            paddingRight: 'var(--dim-space-600, 24px)',
+            background: 'var(--surface-neutral-tertiary, #F4F5F5)',
+            color: INK_SECONDARY,
+            fontFamily: FONT_DISPLAY,
+            fontSize: 'var(--type-size-xl, 20px)',
+            fontWeight: 'var(--type-weight-regular, 400)',
+          }}
+        >
+          <Sym name='info' size={24} color={INK_SECONDARY} />
+          <span>ลำดับการเรียกคิวขึ้นอยู่กับความเร่งด่วนทางการแพทย์ อาจไม่เรียงตามหมายเลข</span>
+        </div>
+
         {/* ── แถบประกาศ ──────────────────────────────────────────────── */}
         <AnnouncementMarquee text={announcement} />
 

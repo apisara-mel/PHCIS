@@ -5,7 +5,7 @@ import PharmacyDrugMetaBanner from '@/components/pharmacy/PharmacyDrugMetaBanner
 import { CONSENT_FORM_SCOPE_CATALOG } from '@/data/consentFormRecords';
 import { consentScopeKey, dedupeConsentScopes, stripConsentScopes } from '@/data/consentFormScopes';
 
-/* Pharmacy registry — pick Group Policy / สาขาย่อย / แผนก ที่อนุญาตให้สั่ง
+/* Pharmacy registry — pick กิจกรรม / กิจกรรมย่อย / แผนก ที่อนุญาตให้สั่ง
    (same chrome as consent FormScopeViewPopup edit mode). */
 
 const scopesToKeySet = (scopes) => new Set((scopes || []).map(consentScopeKey));
@@ -82,7 +82,7 @@ const PharmacyPrescriberScopePopup = ({
       open={!!open}
       onClose={onClose}
       size='extraLarge'
-      title='เลือก Group Policy ที่มีสิทธิสั่งจ่ายได้'
+      title='เลือก กิจกรรม ที่มีสิทธิสั่งจ่ายได้'
       primaryAction={{
         label: 'บันทึก',
         onClick: handleSave,
@@ -104,7 +104,7 @@ const PharmacyPrescriberScopePopup = ({
           onToggleMany={handleToggleMany}
           columns={2}
           showHeading={false}
-          allLabel='ทุก Group Policy'
+          allLabel='ทุก กิจกรรม'
         />
       </div>
     </Popup>

@@ -1,5 +1,9 @@
 /* PHCIS | Assess-control — Personnel registry (Figma 4D3nTx53 · 10:44391).
-   Mock persistence via localStorage. */
+   Mock persistence via localStorage.
+
+   assignment ของบุคลากรผูกกับ **กิจกรรม/กิจกรรมย่อย** — record ยุค
+   Group Policy (`groupPolicyId`/`subBranchId`) ถูก normalize อัตโนมัติ
+   ตอนอ่าน. */
 
 import { CENTER_OPTIONS } from '@/data/accessControlStore';
 
@@ -47,10 +51,10 @@ export const DEMO_ASSESS_USERS = [
         id: 'asgn-1',
         centerId: 'hc-4',
         center: 'ศูนย์ 4 ดินแดง',
-        groupPolicyId: 'gp-doctor',
-        groupPolicy: 'แพทย์',
-        subBranchId: 'sb-dent',
-        subBranch: 'ทันตแพทย์',
+        activityId: 'act-dentist',
+        activity: 'ทันตแพทย์',
+        subActivityId: 'sub-dent-opd',
+        subActivity: 'ตรวจรักษาทางทันตกรรม',
         departmentId: 'dept-dent',
         department: 'ทันตกรรม',
         positionId: 'pos-specialist',
@@ -66,10 +70,10 @@ export function emptyAssignment() {
     id: uid(),
     centerId: '',
     center: '',
-    groupPolicyId: '',
-    groupPolicy: '',
-    subBranchId: '',
-    subBranch: '',
+    activityId: '',
+    activity: '',
+    subActivityId: '',
+    subActivity: '',
     departmentId: '',
     department: '',
     positionId: '',
@@ -92,12 +96,32 @@ export function activeCenterCount(user) {
   return ids.size;
 }
 
+/* assignment ยุค Group Policy → รูปกิจกรรม (field ใหม่มาก่อน ถ้ามีทั้งคู่) */
+function normalizeAssignment(row) {
+  if (!row) return row;
+  const {
+    groupPolicy, groupPolicyId, subBranch, subBranchId, ...rest
+  } = row;
+  return {
+    ...rest,
+    activity: rest.activity ?? groupPolicy ?? '',
+    activityId: rest.activityId ?? groupPolicyId ?? '',
+    subActivity: rest.subActivity ?? subBranch ?? '',
+    subActivityId: rest.subActivityId ?? subBranchId ?? '',
+  };
+}
+
+function normalizeAssessUser(user) {
+  if (!user) return user;
+  return { ...user, assignments: (user.assignments || []).map(normalizeAssignment) };
+}
+
 export function readAssessUsers() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw == null) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeAssessUser) : [];
   } catch {
     return [];
   }
@@ -167,7 +191,7 @@ export function loadDemoAssessUsers() {
 }
 
 export function assignmentKey(row) {
-  return [row.centerId, row.groupPolicyId, row.subBranchId, row.departmentId, row.positionId].join('|');
+  return [row.centerId, row.activityId, row.subActivityId, row.departmentId, row.positionId].join('|');
 }
 
 export function findDuplicateAssignments(assignments) {
@@ -175,7 +199,7 @@ export function findDuplicateAssignments(assignments) {
   const dupes = [];
   (assignments || []).forEach((row, idx) => {
     const key = assignmentKey(row);
-    if (!row.centerId || !row.groupPolicyId || !row.subBranchId || !row.departmentId || !row.positionId) return;
+    if (!row.centerId || !row.activityId || !row.subActivityId || !row.departmentId || !row.positionId) return;
     if (seen.has(key)) dupes.push(idx);
     else seen.set(key, idx);
   });

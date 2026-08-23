@@ -103,11 +103,11 @@ export default function AuditLogPage() {
     { key: 'mod', header: 'ระบบที่เข้าถึง', sortable: true, render: (r) => <span style={LABEL}>{r.mod}</span> },
     { key: 'target', header: 'ข้อมูลของใคร / รายการ', sortable: true, render: (r) => <span style={VAL}>{r.target || '—'}</span> },
     { key: 'detail', header: 'รายละเอียด', sortable: true, render: (r) => <span style={LABEL}>{r.detail || r.action}</span> },
-    { key: 'groupPolicy', header: 'Group Policy', sortable: true, render: (r) => <span style={LABEL}>{r.groupPolicy || '—'}</span> },
+    { key: 'groupPolicy', header: 'กิจกรรม', sortable: true, render: (r) => <span style={LABEL}>{r.groupPolicy || '—'}</span> },
     { key: 'position', header: 'ตำแหน่ง', sortable: true, render: (r) => <span style={LABEL}>{r.position || '—'}</span> },
     { key: 'status', header: 'สถานะ', render: (r) => <ColorfulBadge style={r.ok ? 'green' : 'red'} size='small' hierarchy='secondary' width='hug'>{r.ok ? 'สำเร็จ' : 'ถูกปฏิเสธ'}</ColorfulBadge> },
   ];
-  const exportReport = { key: 'activity-history', title: 'ประวัติการใช้งานทั้งหมด', table: { columns: [{ key: 'time', header: 'วันเวลา' }, { key: 'startedAt', header: 'เริ่มต้น' }, { key: 'endedAt', header: 'สิ้นสุด' }, { key: 'user', header: 'ผู้ใช้งาน' }, { key: 'mod', header: 'ระบบที่เข้าถึง' }, { key: 'target', header: 'ข้อมูลของใคร / รายการ' }, { key: 'detail', header: 'รายละเอียด' }, { key: 'groupPolicy', header: 'Group Policy' }, { key: 'position', header: 'ตำแหน่ง' }, { key: 'status', header: 'สถานะ' }], rows: sorted.map((r) => ({ ...r, status: r.ok ? 'สำเร็จ' : 'ถูกปฏิเสธ' })) } };
+  const exportReport = { key: 'activity-history', title: 'ประวัติการใช้งานทั้งหมด', table: { columns: [{ key: 'time', header: 'วันเวลา' }, { key: 'startedAt', header: 'เริ่มต้น' }, { key: 'endedAt', header: 'สิ้นสุด' }, { key: 'user', header: 'ผู้ใช้งาน' }, { key: 'mod', header: 'ระบบที่เข้าถึง' }, { key: 'target', header: 'ข้อมูลของใคร / รายการ' }, { key: 'detail', header: 'รายละเอียด' }, { key: 'groupPolicy', header: 'กิจกรรม' }, { key: 'position', header: 'ตำแหน่ง' }, { key: 'status', header: 'สถานะ' }], rows: sorted.map((r) => ({ ...r, status: r.ok ? 'สำเร็จ' : 'ถูกปฏิเสธ' })) } };
 
   return (
     <QueuePageShell

@@ -16,7 +16,7 @@ import SmallAlert from '@/components/alert/SmallAlert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import { CENTER_OPTIONS } from '@/data/accessControlStore';
-import { readGroupPolicies } from '@/data/groupPolicyStore';
+import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
 import { readPositions } from '@/data/positionStore';
 import {
@@ -78,7 +78,7 @@ export default function AssessUserPage() {
   const [records, setRecords] = useState(() => readAssessUsers());
   const [search, setSearch] = useState('');
   const [filterCenter, setFilterCenter] = useState('');
-  const [filterGroup, setFilterGroup] = useState('');
+  const [filterActivity, setFilterActivity] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterPosition, setFilterPosition] = useState('');
   const [toast, setToast] = useState(null);
@@ -110,7 +110,7 @@ export default function AssessUserPage() {
     },
   ], [stats]);
 
-  const groupPolicies = useMemo(() => readGroupPolicies(), [records]);
+  const activities = useMemo(() => readActivities(), [records]);
   const departments = useMemo(() => readDepartments(), [records]);
   const positions = useMemo(() => readPositions(), [records]);
 
@@ -119,23 +119,23 @@ export default function AssessUserPage() {
     return records.filter((r) => {
       const primary = primaryAssignment(r);
       if (filterCenter && primary?.centerId !== filterCenter) return false;
-      if (filterGroup && primary?.groupPolicyId !== filterGroup) return false;
+      if (filterActivity && primary?.activityId !== filterActivity) return false;
       if (filterDept && primary?.departmentId !== filterDept) return false;
       if (filterPosition && primary?.positionId !== filterPosition) return false;
       if (!q) return true;
       const hay = [fullName(r), r.email, r.licenseNo, r.nameEn, r.surnameEn].join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [records, search, filterCenter, filterGroup, filterDept, filterPosition]);
+  }, [records, search, filterCenter, filterActivity, filterDept, filterPosition]);
 
   const hasRecords = records.length > 0;
-  const filtersActive = !!(filterCenter || filterGroup || filterDept || filterPosition || search.trim());
+  const filtersActive = !!(filterCenter || filterActivity || filterDept || filterPosition || search.trim());
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
     () => {
       setSearch('');
       setFilterCenter('');
-      setFilterGroup('');
+      setFilterActivity('');
       setFilterDept('');
       setFilterPosition('');
     },
@@ -166,19 +166,19 @@ export default function AssessUserPage() {
       ),
     },
     {
-      key: 'groupPolicy',
-      header: 'Group Policy',
+      key: 'activity',
+      header: 'กิจกรรม',
       render: (row) => {
         const p = primaryAssignment(row);
-        return p?.groupPolicy ? <PolicyBadge style='blue'>{p.groupPolicy}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
+        return p?.activity ? <PolicyBadge style='blue'>{p.activity}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
       },
     },
     {
-      key: 'subBranch',
-      header: 'สาขาย่อย',
+      key: 'subActivity',
+      header: 'กิจกรรมย่อย',
       render: (row) => {
         const p = primaryAssignment(row);
-        return p?.subBranch ? <PolicyBadge style='teal'>{p.subBranch}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
+        return p?.subActivity ? <PolicyBadge style='teal'>{p.subActivity}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
       },
     },
     {
@@ -235,7 +235,7 @@ export default function AssessUserPage() {
 
   const filterOpts = {
     center: [{ value: '', label: 'ทั้งหมด' }, ...CENTER_OPTIONS],
-    group: [{ value: '', label: 'ทั้งหมด' }, ...groupPolicies.map((g) => ({ value: g.id, label: g.name }))],
+    activity: [{ value: '', label: 'ทั้งหมด' }, ...activities.map((a) => ({ value: a.id, label: a.name }))],
     dept: [{ value: '', label: 'ทั้งหมด' }, ...departments.map((d) => ({ value: d.id, label: d.name }))],
     pos: [{ value: '', label: 'ทั้งหมด' }, ...positions.map((p) => ({ value: p.id, label: p.name }))],
   };
@@ -310,7 +310,7 @@ export default function AssessUserPage() {
               />
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
                 <FilterDropdown prefix='ศูนย์:' options={filterOpts.center} value={filterCenter} onChange={setFilterCenter} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='Group Policy:' options={filterOpts.group} value={filterGroup} onChange={setFilterGroup} placeholder='ทั้งหมด' />
+                <FilterDropdown prefix='กิจกรรม:' options={filterOpts.activity} value={filterActivity} onChange={setFilterActivity} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='ตำแหน่ง:' options={filterOpts.pos} value={filterPosition} onChange={setFilterPosition} placeholder='ทั้งหมด' />
                 <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
