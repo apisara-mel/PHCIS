@@ -92,6 +92,16 @@ import HomeVisitQueuePage from '@/pages/homevisit/HomeVisitQueuePage';
 import HomeVisitRecordPage from '@/pages/homevisit/HomeVisitRecordPage';
 import HomeVisitRegistryPage from '@/pages/homevisit/HomeVisitRegistryPage';
 import HomeVisitFollowUpPage from '@/pages/homevisit/HomeVisitFollowUpPage';
+/* งานอนามัยโรงเรียน (TOR §3 — ระบบสุขภาพนักเรียน) — ระบบ top-level ระดับเดียว
+   กับ PHCIS บน System Hub (SYSTEM_CATALOG key 'school-health') แต่หน้าจออยู่ใต้
+   /clinic/school-health และใช้ Sidebar ของ PHCIS (activeKey='school-health'). */
+import SchoolHealthQueuePage from '@/pages/clinic/school-health/SchoolHealthQueuePage';
+import SchoolRegistryPage from '@/pages/clinic/school-health/SchoolRegistryPage';
+import StudentRegistryPage from '@/pages/clinic/school-health/StudentRegistryPage';
+import StudentHealthProfilePage from '@/pages/clinic/school-health/StudentHealthProfilePage';
+import SchoolHealthBatchVaccinePage from '@/pages/clinic/school-health/SchoolHealthBatchVaccinePage';
+import SchoolHealthDashboardPage from '@/pages/clinic/school-health/SchoolHealthDashboardPage';
+import SchoolHealthReportsPage from '@/pages/clinic/school-health/SchoolHealthReportsPage';
 import PharmacyQueuePage from '@/pages/pharmacy/PharmacyQueuePage';
 import PharmacyDispensePage from '@/pages/pharmacy/PharmacyDispensePage';
 import PharmacyRegistryPage from '@/pages/pharmacy/PharmacyRegistryPage';
@@ -535,6 +545,18 @@ export default function Routes() {
         <Route exact path='/homevisit/visit'     component={HomeVisitRecordPage} />
         <Route exact path='/homevisit/registry'  component={HomeVisitRegistryPage} />
         <Route exact path='/homevisit/follow-up' component={HomeVisitFollowUpPage} />
+        {/* งานอนามัยโรงเรียน (TOR §3 ระบบสุขภาพนักเรียน) — 7 หน้า: คิว ·
+            ทะเบียนโรงเรียน · ทะเบียนนักเรียน · แฟ้มสุขภาพรายคน (Tabs 6 บริการ) ·
+            บันทึกบริการรายห้อง (Batch) · Dashboard · รายงาน.
+            เหมือนกลุ่ม /lab: route static ทั้งหมดอยู่**เหนือ**
+            /clinic/school-health/student/:studentId — <Switch> จับตัวแรกที่ match. */}
+        <Route exact path='/clinic/school-health'               component={SchoolHealthQueuePage} />
+        <Route exact path='/clinic/school-health/schools'       component={SchoolRegistryPage} />
+        <Route exact path='/clinic/school-health/students'      component={StudentRegistryPage} />
+        <Route exact path='/clinic/school-health/batch-vaccine' component={SchoolHealthBatchVaccinePage} />
+        <Route exact path='/clinic/school-health/dashboard'     component={SchoolHealthDashboardPage} />
+        <Route exact path='/clinic/school-health/reports'       component={SchoolHealthReportsPage} />
+        <Route exact path='/clinic/school-health/student/:studentId' component={StudentHealthProfilePage} />
         <Route exact path='/pharmacy'          component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />

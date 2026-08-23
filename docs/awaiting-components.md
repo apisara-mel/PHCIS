@@ -908,6 +908,45 @@ design system เมื่อไร
 
 ---
 
+### 62. schoolHealthShared — ชุด layout primitive ของหน้าโมดูล (PageBody · PageCard · SubCard · SectionHeader · NoticeBar · ErrorList · EmptyState · PagerRow · ReadField · Field · FieldRow · StatTile · StatRow · AuditLine · ReadOnlyBanner · StatusPill) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/clinic/school-health/schoolHealthShared.jsx` — ทั้ง 7 หน้าของโมดูลงานอนามัยโรงเรียน (`src/pages/clinic/school-health/`) — 1 โมดูล |
+| **หน้าที่** | ชุดโครงหน้า/การ์ด/หัวข้อ/แถบแจ้งเตือน/empty state/pager/ช่องอ่าน-กรอก/สรุปตัวเลข/บรรทัด audit/แถบ read-only/ป้ายสถานะ ที่ทุกหน้าในโมดูลใช้ร่วมกัน |
+| **ทำไมไม่มีของเดิมแทน** | โครงเดียวกับที่ `src/pages/checkup/CheckupUi.jsx` ทำไว้ แต่ CheckupUi เป็นไฟล์ภายในของโมดูล checkup (playbook §4 ห้ามแก้/พึ่งพาไฟล์ page ของโมดูลอื่น) — จึงคัดโครงมาไว้ในโฟลเดอร์โมดูลตัวเอง |
+| **โครง API** | primitive แต่ละตัวรับ props เรียบ ๆ (`title` / `tone` / `children`) — ถ้ายกขึ้น DS ควรเริ่มจากตัวที่ซ้ำจริงข้ามโมดูลแล้ว: `PageCard` / `SectionHeader` / `EmptyState` / `NoticeBar` / `PagerRow` / `StatTile` |
+| **รอเคสอะไร** | **เคสที่ 2 มีแล้วโดยพฤตินัย** — `CheckupUi.jsx` (checkup) เป็นโครงเดียวกัน และ homevisit ก็มีโครงคล้ายกัน → เข้าเกณฑ์เสนอยก `PageCard`/`SectionHeader`/`EmptyState`/`NoticeBar`/`PagerRow`/`StatTile` ขึ้น DS แล้วให้ checkup + school-health + homevisit alias ตาม แต่ยังไม่ได้ออกแบบ API กลางร่วมกัน จึงคงสถานะรอไว้ก่อน |
+| **บันทึกเมื่อ** | 23 ส.ค. 2569 |
+
+---
+
+### 63. TabScaffold + CancelRecordPopup + RecordActions + FormFooter (แพตเทิร์น "ฟอร์มบันทึก + ประวัติย้อนหลัง + แสดง/บันทึก/แก้ไข/ยกเลิก" ต่อแท็บบริการ) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/clinic/school-health/SchoolHealthSteps.jsx` — Tabs 6 บริการของ `StudentHealthProfilePage.jsx` (ตรวจสุขภาพ / ทันตกรรม / ประวัติวัคซีน / ให้บริการวัคซีน / ประเมินพัฒนาการ / สุขภาพจิต) — 1 ที่ |
+| **หน้าที่** | โครงแท็บบริการมาตรฐาน: ฟอร์มบันทึกครั้งใหม่ + ตารางประวัติย้อนหลัง (ผู้บันทึก/ตำแหน่ง/เวลา/สถานะ) + ปุ่มชุด แสดง/บันทึก/บันทึกร่าง/แก้ไข/ยกเลิก(+เหตุผล)/เปิดใช้งานคืน ครบ 4 กริยาตาม TOR |
+| **ทำไมไม่มีของเดิมแทน** | ตัว step body เป็นโดเมนเฉพาะอนามัยโรงเรียน แต่ scaffold (`TabScaffold` / `CancelRecordPopup` / `RecordActions` / `FormFooter`) เป็นแพตเทิร์นทั่วไปที่ DS ยังไม่มี — `TreatmentFormShell`/`FormShell` เป็น wizard ทั้งหน้า ไม่ใช่ "หลายบริการอิสระในหน้าเดียวผ่าน Tabs" |
+| **โครง API** | `<TabScaffold form history readOnly onSave onSaveDraft onEdit onCancel />` + `<CancelRecordPopup open reason onConfirm />` — ถ้ายกขึ้น DS ให้แท็บโดเมนส่งเฉพาะเนื้อฟอร์ม/คอลัมน์ประวัติ |
+| **รอเคสอะไร** | คลินิกอื่นที่มีหลายบริการอิสระต่อผู้รับบริการหนึ่งคนในหน้าเดียว — เช่น งานชุมชน (§2) หรือ childcare (§3.5) ที่จะเป็นโมดูลแยก |
+| **บันทึกเมื่อ** | 23 ส.ค. 2569 |
+
+---
+
+### 64. StudentImportPopup (นำเข้าสเปรดชีตรายห้อง — เลือกไฟล์ → เลือกปลายทาง → preview → นำเข้าเฉพาะแถวที่ผ่าน) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/pages/clinic/school-health/StudentImportPopup.jsx` — เปิดจาก `StudentRegistryPage.jsx` (นำเข้ารายชื่อนักเรียนรายห้อง) — 1 ที่ |
+| **หน้าที่** | Popup นำเข้า Excel/CSV: เลือกไฟล์ → เลือกปลายทาง โรงเรียน→ชั้น→ห้อง→ปีการศึกษา (ตามคู่มือ HCIS §2.3.1) → ตาราง preview พร้อมรายงานแถว error (เลขบัตรซ้ำ/ผิดรูปแบบ · วันเกิดในอนาคต · ข้อมูลไม่ครบ) → นำเข้าเฉพาะแถวที่ผ่าน |
+| **ทำไมไม่มีของเดิมแทน** | โครงเดียวกับ `CheckupImportPopup` (โมดูล checkup §1.19.2) แต่เพิ่มขั้นเลือกปลายทางแบบ cascade — DS ยังไม่มี popup นำเข้าสเปรดชีตกลาง |
+| **โครง API** | ถ้ามีผู้ใช้ที่ 3 ควรทำ `SpreadsheetImportPopup` กลางใน DS: `<SpreadsheetImportPopup columns validators destinationFields onImport />` แล้วให้ checkup + school-health (+โมดูลที่ 3) ส่ง config |
+| **รอเคสอะไร** | โมดูลที่ 3 ที่ต้องนำเข้าสเปรดชีต — ผู้ใช้จริงตอนนี้มี 2 ราย (CheckupImportPopup + StudentImportPopup) แต่ยังเป็นโค้ดแยกกัน 2 ชุด ยังไม่ได้ออกแบบ API กลางร่วมกัน |
+| **บันทึกเมื่อ** | 23 ส.ค. 2569 |
+
+---
+
 ## Token ที่รอ sync เข้า mih-design
 
 ทะเบียนของ **design token ที่ mirror ในนี้ (`src/styles/tokens.css` + `design.md`) ล้ำหน้า
