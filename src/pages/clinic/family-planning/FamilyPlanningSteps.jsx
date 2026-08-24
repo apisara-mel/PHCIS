@@ -9,6 +9,9 @@ import SelectableTag from '@/components/forms/SelectableTag';
 import TabCapsule from '@/components/tab/TabCapsule';
 import FileUploadField from '@/components/forms/FileUploadField';
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
+import EDocumentBuilderPopup from '@/components/form-builder/EDocumentBuilderPopup';
+import EDocumentSheetPopup from '@/components/form-builder/EDocumentSheet';
+import { countBlockFields } from '@/utils/formBuilderModel';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -1825,6 +1828,43 @@ export const FpStep7Documents = ({
     ...f, documents: f.documents.filter((_, i) => i !== index),
   }));
 
+  /* ── e-Document ที่สร้างเอง (TOR §1.10.8.4) ─────────────────────────
+     `documents` = ไฟล์ที่แนบเข้ามา · `eDocuments` = เอกสารที่สร้างจาก
+     form-builder ในการมารับบริการครั้งนี้ — คนละเรื่องกัน จึงแยกรายการ */
+  const [eDocBuilderOpen, setEDocBuilderOpen] = useState(false);
+  const [eDocEditing, setEDocEditing] = useState(null);
+  const [eDocViewing, setEDocViewing] = useState(null);
+
+  const eDocuments = form.eDocuments ?? [];
+
+  const saveEDocument = ({ name, blocks, templateSlug }) => {
+    const now = new Date().toISOString();
+    setForm((f) => {
+      const list = f.eDocuments ?? [];
+      const next = eDocEditing
+        ? list.map((d) => (d.id === eDocEditing.id
+          ? { ...d, name, blocks, templateSlug, updatedAt: now }
+          : d))
+        : [...list, {
+          id: `edoc-${Date.now().toString(36)}`,
+          name,
+          templateSlug,
+          blocks,
+          createdBy: FP_CURRENT_USER,
+          createdAt: now,
+          updatedAt: now,
+        }];
+      /* keep the legacy single-document alias pointing at the first one */
+      return { ...f, eDocuments: next, eDocBlocks: next[0]?.blocks ?? [] };
+    });
+    setEDocEditing(null);
+  };
+
+  const removeEDocument = (id) => setForm((f) => {
+    const next = (f.eDocuments ?? []).filter((d) => d.id !== id);
+    return { ...f, eDocuments: next, eDocBlocks: next[0]?.blocks ?? [] };
+  });
+
   const handleDrop = (files) => {
     setDropFiles(files);
     const metas = (files || []).map((file) => ({
@@ -1926,6 +1966,101 @@ export const FpStep7Documents = ({
         ) : (
           <EmptyState icon='attach_file' title='ยังไม่มีเอกสารแนบ' subtitle='แนบใบผลตรวจ ใบส่งต่อ หรือเอกสารยินยอมของผู้รับบริการได้ที่นี่' />
         )}
+
+        {/* ── สร้าง e-Document เอง (TOR §1.10.8.4) ───────────────────
+            แนบไฟล์อย่างเดียวปิดข้อนี้ไม่ได้ — TOR ขอ "ตัวสร้าง e-Document"
+            คือหน่วยบริการต้องออกเอกสารเองได้จากแบบฟอร์มในคลัง */}
+        <div
+          className='flex flex-col w-full'
+          style={{
+            gap: 'var(--dim-space-250, 10px)',
+            marginTop: 'var(--dim-space-300, 12px)',
+            paddingTop: 'var(--dim-space-300, 12px)',
+            borderTop: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #EDEFF1)',
+          }}
+        >
+          <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <span
+              className='flex items-center'
+              style={{
+                gap: 'var(--dim-space-100, 4px)',
+                fontSize: 'var(--type-size-sm)',
+                fontWeight: 'var(--type-weight-bold)',
+                color: 'var(--text-content-default, #363B3F)',
+              }}
+            >
+              <Icon name='post_add' size={16} />
+              e-Document ที่สร้างในครั้งนี้
+            </span>
+            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+              สร้างจากแบบฟอร์มในคลังเอกสาร e-document แล้วปรับให้ตรงกับผู้รับบริการรายนี้
+            </span>
+            <div className='flex-1' />
+            {!locked && (
+              <BrandSubdueButton
+                variant='outline'
+                size='sm'
+                leadingIcon='note_add'
+                onClick={() => { setEDocEditing(null); setEDocBuilderOpen(true); }}
+              >
+                สร้าง e-Document
+              </BrandSubdueButton>
+            )}
+          </div>
+
+          {eDocuments.length > 0 ? (
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+              {eDocuments.map((d) => (
+                <div key={d.id} className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <Icon name='description' size={16} />
+                  <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>{d.name}</span>
+                  <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
+                    {countBlockFields(d.blocks)} ช่องกรอก
+                  </ColorfulBadge>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    · สร้างโดย {d.createdBy} · {formatFpDateTime(d.createdAt)}
+                  </span>
+                  <div className='flex-1' />
+                  <NeutralSubdueButton size='sm' leadingIcon='visibility' onClick={() => setEDocViewing(d)}>
+                    ดู / พิมพ์
+                  </NeutralSubdueButton>
+                  {!locked && (
+                    <>
+                      <NeutralSubdueButton
+                        size='sm'
+                        leadingIcon='edit'
+                        onClick={() => { setEDocEditing(d); setEDocBuilderOpen(true); }}
+                      >
+                        แก้ไข
+                      </NeutralSubdueButton>
+                      <NeutralSubdueButton size='sm' leadingIcon='delete' onClick={() => removeEDocument(d.id)}>ลบ</NeutralSubdueButton>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon='post_add'
+              title='ยังไม่ได้สร้าง e-Document'
+              subtitle='เช่น ใบยินยอมคุมกำเนิด หรือแบบประเมินที่ต้องให้ผู้รับบริการลงนามในครั้งนี้'
+            />
+          )}
+        </div>
+
+        <EDocumentBuilderPopup
+          open={eDocBuilderOpen}
+          editing={eDocEditing}
+          patientName={cardPatient?.fullName}
+          onClose={() => { setEDocBuilderOpen(false); setEDocEditing(null); }}
+          onSave={saveEDocument}
+        />
+        <EDocumentSheetPopup
+          open={Boolean(eDocViewing)}
+          doc={eDocViewing}
+          patient={{ fullName: cardPatient?.fullName, hn: fpHn }}
+          onClose={() => setEDocViewing(null)}
+        />
       </div>
 
       {/* ── นัดหมาย (TOR 1.10.8.5) ─────────────────────────────────── */}
@@ -2101,6 +2236,11 @@ export const FpStep7Documents = ({
             ].filter(Boolean).join(' · ') || 'ไม่มีการส่งต่อ'}
           </SummaryRow>
           <SummaryRow label='เอกสารแนบ'>{form.documents.length > 0 ? `${form.documents.length} ไฟล์` : 'ไม่มี'}</SummaryRow>
+          <SummaryRow label='e-Document ที่สร้าง'>
+            {(form.eDocuments ?? []).length > 0
+              ? (form.eDocuments ?? []).map((d) => d.name).join(' · ')
+              : 'ไม่มี'}
+          </SummaryRow>
           <SummaryRow label='นัดหมาย'>
             {appt.cancelled ? 'ยกเลิกนัดหมาย' : (appt.date ? `${formatFpDate(appt.date)}${appt.time ? ` เวลา ${appt.time} น.` : ''}` : 'ไม่มีนัดหมาย')}
           </SummaryRow>
