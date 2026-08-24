@@ -130,7 +130,10 @@ export const getZone = (zoneId, maxColumns = 3) =>
 /* ── สถานะย่อยของคิว → badge บนแถวคิวถัดไป ───────────────────────────────
    จุดรับยาใช้ pharmacyStatus (1.3.6.2) ตามข้อความที่ตั้งไว้ในหน้าตั้งค่าคิว
    จุดอื่นใช้ประเภทคิว (ด่วน / ผู้สูงอายุ / นัดหมาย) — ทั่วไปไม่ต้องมี badge */
-const PHARMACY_BADGE = { pending: 'grey', preparing: 'orange', ready: 'green' };
+/* awaitingPayment = ยาพร้อมแล้วแต่ยังไม่ชำระเงิน/ปิดสิทธิ (Sequence Lock
+   มติ คทง.1) — ใช้สีเหลืองให้ต่างจาก "พร้อมรับยา" ชัดเจน ผู้รับบริการจะได้
+   ไปที่การเงินก่อน ไม่ใช่มายืนรอที่ช่องจ่ายยา */
+const PHARMACY_BADGE = { pending: 'grey', preparing: 'orange', awaitingPayment: 'yellow', ready: 'green' };
 const QUEUE_TYPE_BADGE = { urgent: 'red', elderly: 'purple', appointment: 'blue', general: null };
 const QUEUE_TYPE_LABEL = { urgent: 'ด่วน', elderly: 'ผู้สูงอายุ/ผู้พิการ', appointment: 'นัดหมาย', general: 'ทั่วไป' };
 

@@ -38,6 +38,15 @@
 import { PATIENT_PROFILES, getPatientByHN } from '@/data/patientProfiles';
 import { MR_PATIENTS } from '@/data/mrPatients';
 
+/* §1.3.6.2 — สถานะห้องยาบนจอคิว **อ่านจากห้องยาจริง** ไม่ใช่ค่า mock ในไฟล์นี้
+   เดิม pharmacyStatus ถูก seed ไว้ตายตัว จอ TV จึงโชว์ "พร้อมรับยา" ทั้งที่
+   เภสัชยังไม่ได้จัดยา — ผู้รับบริการเดินไปรอที่ช่องจ่ายยาแล้วต้องกลับมานั่งรอใหม่ */
+import {
+  PHARMACY_QUEUE,
+  DISPENSE_STATUS,
+  canDispensePharmacyOrder,
+} from '@/data/pharmacyQueue';
+
 /* ─────────────────────────────────────────────────────────── หน่วยบริการ */
 
 export const QUEUE_CENTER_SITE = {
@@ -244,6 +253,10 @@ const settings = {
   pharmacyMap: {
     pending: 'รอจัดยา',
     preparing: 'กำลังจัดยา',
+    /* มติ คทง.1 (Sequence Lock) — ยาจัดเสร็จแล้วแต่ยังไม่ได้ชำระเงิน/ปิดสิทธิ
+       ต้องไม่ขึ้นว่า "พร้อมรับยา" บนจอ ไม่งั้นผู้รับบริการมายืนรอที่ช่องจ่ายยา
+       ทั้งที่ยังจ่ายเงินไม่เสร็จ แล้วเกิดข้อโต้แย้งหน้าเคาน์เตอร์ */
+    awaitingPayment: 'รอชำระเงิน/ปิดสิทธิ',
     ready: 'พร้อมรับยา',
   },
   /* บันทึกผู้แก้ไขล่าสุดของแต่ละ section (ConsentAuditBar) */
@@ -718,10 +731,21 @@ const byOrder = (a, b) => {
   return new Date(a.issuedAt) - new Date(b.issuedAt);
 };
 
-export const getQueues = () => queues.map((q) => ({ ...q }));
+/* §1.3.6.2 — ทุกทางที่อ่านคิวออกไปแสดงผล ต้องได้สถานะห้องยา "สด" จาก
+   pharmacyQueue.js ไม่ใช่ค่าที่ seed ไว้ในไฟล์นี้
+   ทำเป็น decorator จุดเดียวแล้วเรียกจากทุก getter เพื่อไม่ให้จอ TV กับหน้าคิว
+   เห็นสถานะไม่ตรงกัน (ปัญหาเดิมของการ copy ค่าไปหลายที่)
+   ถ้า HN นั้นไม่มีใบยาในห้องยา คงค่าเดิมไว้ — ไม่เดาสถานะให้ */
+const withLivePharmacyStatus = (q) => {
+  if (!q || !q.pharmacyStatus) return q;
+  const live = resolvePharmacyStatus(q.patient?.hn);
+  return live ? { ...q, pharmacyStatus: live } : q;
+};
+
+export const getQueues = () => queues.map((q) => withLivePharmacyStatus({ ...q }));
 
 export const getQueuesByStation = (stationId) =>
-  queues.filter((q) => q.stationId === stationId).map((q) => ({ ...q }));
+  queues.filter((q) => q.stationId === stationId).map((q) => withLivePharmacyStatus({ ...q }));
 
 export const getQueueById = (id) => {
   const q = queues.find((row) => row.id === id);
@@ -750,12 +774,50 @@ export const remainingCount = (stationId) =>
   ).length;
 
 /** รีบิลด์ currentByStation ในที่เดิม (จอ TV ถือ reference เดิมตลอด) */
+/* ── §1.3.6.2 สถานะเตรียมยาจริงจากห้องยา ────────────────────────────────
+   จับคู่คิวจุดรับยากับใบยาใน pharmacyQueue.js ด้วย HN แล้วแปลงสถานะการจ่ายยา
+   เป็นสถานะที่จอคิวเข้าใจ
+
+   ลำดับการตัดสินสำคัญ: **เช็คการชำระเงินก่อนบอกว่าพร้อมรับยา** เพราะ
+   Sequence Lock (มติ คทง.1) ห้ามจ่ายยาก่อนชำระเงิน/ปิดสิทธิ — ถ้าจอบอก
+   "พร้อมรับยา" ทั้งที่ยังจ่ายเงินไม่เสร็จ ผู้รับบริการจะไปยืนรอผิดที่ */
+/* ⚠️ pharmacyQueue.js import `getStation` จากไฟล์นี้อยู่แล้ว การ import กลับ
+   จึงปิดวงจร (circular import) — ถ้าสร้าง map นี้เป็น const ระดับโมดูล มันจะ
+   ถูกประเมินตอน module init ซึ่งฝั่ง pharmacyQueue อาจยังไม่ export
+   DISPENSE_STATUS ออกมา → อ่านได้ undefined แล้วพังทั้งไฟล์
+   (เจอจริงตอน bundle โดยให้ pharmacyQueue เป็น entry)
+   แก้โดยสร้าง map ตอนเรียกใช้ ไม่ใช่ตอนโหลดไฟล์ */
+const dispenseToQueueStatus = () => ({
+  [DISPENSE_STATUS.WAITING]:   'pending',
+  [DISPENSE_STATUS.CALLED]:    'preparing',
+  [DISPENSE_STATUS.PREPARING]: 'preparing',
+  [DISPENSE_STATUS.DISPENSED]: 'ready',
+  [DISPENSE_STATUS.PARTIAL]:   'ready',
+  [DISPENSE_STATUS.PROBLEM]:   'pending',
+});
+
+/** คืนสถานะห้องยาจริงของ HN นี้ — null = ไม่มีใบยาในห้องยา (ให้ใช้ค่าเดิม) */
+export const resolvePharmacyStatus = (hn) => {
+  /* กันกรณีถูกเรียกระหว่าง module init ของวงจร import — ยังไม่พร้อมก็คืน null
+     ให้ผู้เรียกใช้ค่าเดิมไปก่อน ดีกว่าโยน error ทั้งหน้า */
+  if (!hn || !Array.isArray(PHARMACY_QUEUE) || !DISPENSE_STATUS) return null;
+  const row = PHARMACY_QUEUE.find((r) => r.hn === hn);
+  if (!row) return null;
+
+  const mapped = dispenseToQueueStatus()[row.status];
+  if (!mapped) return null;
+
+  /* ยาจัดเสร็จแล้วแต่ยังติดขั้นชำระเงิน → ยังไม่ใช่ "พร้อมรับยา" */
+  if (mapped === 'ready' && !canDispensePharmacyOrder(row).ok) return 'awaitingPayment';
+  return mapped;
+};
+
 const rebuildCurrent = () => {
   QUEUE_STATIONS.forEach((st) => {
     const active = queues
       .filter((q) => q.stationId === st.id && (q.status === 'calling' || q.status === 'serving'))
       .sort((a, b) => new Date(b.lastCallAt || b.issuedAt) - new Date(a.lastCallAt || a.issuedAt))[0];
-    currentByStation[st.id] = active ? { ...active } : null;
+    currentByStation[st.id] = active ? withLivePharmacyStatus({ ...active }) : null;
   });
   /* ล้าง key ของจุดบริการที่ถูกลบไปแล้ว */
   Object.keys(currentByStation).forEach((k) => {
