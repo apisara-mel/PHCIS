@@ -11764,7 +11764,7 @@ The treatment / screening header shrinks as the user scrolls so the patient iden
 
 | Prop | Behaviour |
 |---|---|
-| _(none)_ | Static **full** layout (Figma 150:33649). Multi-row grid with เพศ / อายุ / เลขบัตรประชาชน / ที่อยู่. |
+| _(none)_ | Static **full** layout adapted from Figma 150:33649. Avatar, identity, HN/VIP, and clinical fields share one horizontal row; the field group scrolls horizontally when space is constrained. |
 | `compact` | Static **mini** layout (Figma 343:5629). Single row, 44 px avatar, 24h HN/VIP pills, four right-aligned summary fields. Use in the Components Library to freeze the stuck state. |
 | `sticky` | **Parallax** — PatientCard renders a 1 px sentinel above itself, observes intersection with the viewport (offset by `stickyTop`), and toggles `compact` automatically. The card is wrapped in `position: sticky; top: stickyTop; z-index: 1100` so it pins under the app header (z-1200) while page content scrolls past. |
 | `stickyTop` | Pixel offset for the sticky top edge. Defaults to **64** to clear the PHCIS app `Header` (h-16, sticky, z-1200). |
@@ -11775,10 +11775,10 @@ The treatment / screening header shrinks as the user scrolls so the patient iden
 |---|---|---|
 | Outer wrapper | `pt-16 pb-24 px-24` | `pt-16 pb-0 px-24` (alert row carries its own pb) |
 | Back · title · actions row | visible, `max-height 56 / opacity 1` | collapsed: `max-height 0 / opacity 0 / pointer-events: none / aria-hidden` |
-| Gradient card | column · `p-16` · gap 24 | row + flex-wrap · `px-16 py-8` · gap 24 |
+| Gradient card | row · no-wrap · `p-16` · gap 24 | row + flex-wrap · `px-16 py-8` · gap 24 |
 | Avatar | 68 × 68 (border-box, 4 px white ring) | 44 × 44 (Figma 343:1288) |
 | HN / VIP pills | h-32 · `px-12` · font 14 | h-24 · `px-8` · font 12 |
-| Fields | grid: เพศ · อายุ · เลขบัตรประชาชน · หมู่เลือด · ประเภท · แพทย์ · สิทธิ์ · ที่อยู่ | row, right-aligned: สิทธิ์ · หมู่เลือด · ประเภท · แพทย์ |
+| Fields | same row as avatar: เพศ · อายุ · เลขบัตรประชาชน · หมู่เลือด · ประเภท · แพทย์ · สิทธิ์ (horizontal scroll when constrained) | row, right-aligned: สิทธิ์ · หมู่เลือด · ประเภท · แพทย์ |
 | `แพ้ยา` / `โรคประจำตัว` row | label **stacked above** badges (`flex-col`, gap 4) | label **inline with** badges (`flex-row flex-wrap`, gap 8) |
 | Initials fallback font | 24 px | 18 px |
 
@@ -13326,4 +13326,3 @@ When adding a new mobile primitive: create the file under [src/components/mobile
 Other mobile primitives (Card / Input / Field / Badge / Header / SectionLabel / Shell) do not yet have a Figma master — when they do, add Figma node IDs to the §7.3 component map and drop the `Mobile*` prefix following the button-family convention.
 
 ---
-

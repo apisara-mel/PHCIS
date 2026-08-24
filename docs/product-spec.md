@@ -572,28 +572,30 @@ Unlike OPD Screening, Registration does NOT currently implement an `UnsavedChang
 
 **QueueSubMenu** ([src/components/layout/QueueSubMenu.jsx](../src/components/layout/QueueSubMenu.jsx)) — pinned between Sidebar and main column inside the form page. Three buckets: รอตรวจ / กำลังตรวจ / ตรวจเสร็จ. Each bucket carries `{ items, total }` so the section header can show the full queue size while the list only renders the Figma preview (5 / 1 / 5). Starts collapsed so the form gets full horizontal space until the doctor opts in. "ดูทั้งหมด" jumps to `/treat/queue`.
 
-### 7.2 Treatment form (7 steps)
+### 7.2 Treatment form (8 steps)
 
 Page: [TreatmentFormPage.jsx](../src/pages/treat/TreatmentFormPage.jsx) — owns one `form` object via `buildInitialForm(patient)`.
 Shell: [TreatmentFormShell.jsx](../src/templates/TreatmentFormShell.jsx).
 Step bodies: [TreatmentSteps.jsx](../src/components/forms/TreatmentSteps.jsx) (~3700 lines, one of the largest in the project).
 
-**Step labels** ([TreatmentFormShell.jsx:13](../src/templates/TreatmentFormShell.jsx#L13)) — 7 entries with bilingual subtitles.
+**Step labels** ([cpoeSteps.js](../src/pages/treat/cpoeSteps.js)) — 8 entries with bilingual subtitles.
 
 | # | Title | Read/Write | Key components |
 |---|---|---|---|
 | 1 | ประวัติ | read-only | [HistoryTimeline](../src/components/timeline/HistoryTimeline.jsx), allergy / chronic-disease lists from MR patient |
 | 2 | หน้าจอคัดกรอง | read-only | Screening summary card — vitals, CC, triage, mobility, pain, orders from upstream nurse |
 | 3 | ตรวจร่างกาย | write | [BodyDrawingCanvas](../src/components/examination/BodyDrawingCanvas.jsx) + [BodyDiagramPanel](../src/components/examination/BodyDiagramPanel.jsx); nurse + doctor exam notes; attachments |
-| 4 | บันทึกแพทย์ | write | [AISearch (Doctor AI)](../src/components/search/AISearch.jsx) for ICD-10; diagnoses table + SuggestibleTextarea for diagnosis + doctor order; ordering doctor |
-| 5 | สั่งการรักษา | write | [TreatmentOrderPickerPopup](../src/components/popup/TreatmentOrderPickerPopup.jsx) for one-time multi-select across medication / non-drug supply / lab / xray / procedure / consult; authorized Admin Order Sets + clinician personal sets; allergy confirmation before adding |
-| 6 | นัดหมาย | write | Mode radio (skip / schedule); ApptCollapse animation; clinic / type / doctor / reason / preparation; advance-orders; location (onsite / telemedicine); date + APPT_TIMESLOTS grid |
-| 7 | ใบรับรองแพทย์ | write | Issue radio (รับ / ไม่รับ); cert type; rest-days pills; FormBuilder signature canvas; signer |
+| 4 | SOAP Note | write | Subjective / Objective / Assessment / Plan physician note |
+| 5 | วินิจฉัย | write | [AISearch (Doctor AI)](../src/components/search/AISearch.jsx) for ICD-10; diagnoses table + diagnosis and doctor-order notes; ordering doctor |
+| 6 | สั่งการรักษา / CPOE | write | Embedded 4-part workflow: common order + safety → catalog selection → review/sign/routing → tracking/results. Shares Lab, Radiology, Procedure rows with category panels; [TreatmentOrderPickerPopup](../src/components/popup/TreatmentOrderPickerPopup.jsx) additionally supports medication / non-drug supply / consult and Order Sets |
+| 7 | นัดหมาย | write | Mode radio (skip / schedule); ApptCollapse animation; clinic / type / doctor / reason / preparation; advance-orders; location (onsite / telemedicine); date + APPT_TIMESLOTS grid |
+| 8 | เอกสาร/ใบรับรองแพทย์ | write | Issue radio (รับ / ไม่รับ); cert type; rest-days pills; FormBuilder signature canvas; signer; document center |
 
 #### Cross-step linking
 
-- **Step 4 → Step 3** — `Step4DoctorRecord` shows a "ตรวจร่างกาย" empty-state CTA when no body markers / drawings exist; clicking jumps to Step 3 via `onStepChange(STEP_EXAM_INDEX)`. The populated-state header also has an "แก้ไข" button doing the same.
-- **Step 7 → Step 4** — `Step7Certificate` reads `form.diagnoses[0]` and `form.diagnosisNote` to populate the diagnosis section of the certificate; if either is missing, the section shows the empty-state with a "บันทึกการวินิจฉัย" CTA back to Step 4.
+- **Step 5 → Step 3** — diagnosis shows a "ตรวจร่างกาย" CTA when no body markers / drawings exist.
+- **Step 8 → Step 5** — the certificate reads `form.diagnoses[0]` and `form.diagnosisNote`; missing diagnosis links back to Step 5.
+- **Step 6 unified CPOE ↔ category panels** — curated Lab, Radiology, and Procedure selections reconcile into the same treatment arrays, so selecting or deleting on either surface updates the other and persists in the encounter draft.
 
 #### Required fields per step (check-mark rule)
 
@@ -604,10 +606,11 @@ From [`getTreatmentCompletedSteps`](../src/data/treatmentVisits.js):
 | 1 ประวัติ | `stepIndex > 0` (read-only; ✓ once advanced past) |
 | 2 หน้าจอคัดกรอง | `stepIndex > 1` (read-only) |
 | 3 ตรวจร่างกาย | `stepIndex > 2` (no enforced required field) |
-| 4 บันทึกแพทย์ | `diagnosisNote` + `doctorOrderNote` + `orderingDoctor` non-empty |
-| 5 สั่งการรักษา | `stepIndex > 4` (orders are optional — empty state is valid) |
-| 6 นัดหมาย | `appointment.mode === 'skip'` **OR** `mode === 'schedule'` + clinic/type/doctor/reason/preparation all non-empty |
-| 7 ใบรับรองแพทย์ | `certIssue === 'no'` **OR** `certIssue === 'yes'` + `certSignature` non-empty |
+| 4 SOAP Note | at least one meaningful SOAP field |
+| 5 วินิจฉัย | `diagnosisNote` + `doctorOrderNote` + `orderingDoctor` non-empty |
+| 6 สั่งการรักษา / CPOE | orders remain optional; workflow safety rules gate signing/routing when an order exists |
+| 7 นัดหมาย | `appointment.mode === 'skip'` **OR** `mode === 'schedule'` + clinic/type/doctor/reason/preparation all non-empty |
+| 8 เอกสาร/ใบรับรองแพทย์ | `certIssue === 'no'` **OR** `certIssue === 'yes'` + `certSignature` non-empty |
 
 #### Data shape (excerpt — full at [TreatmentFormPage.jsx:39-136](../src/pages/treat/TreatmentFormPage.jsx#L39-L136))
 

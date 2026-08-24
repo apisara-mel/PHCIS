@@ -382,9 +382,10 @@ const PatientCard = ({
       )}
 
       {/* Patient info gradient card — compact (Figma 343:5629 mini) or
-          full (Figma 150:33649). Compact: single row, 44px avatar, 24h
-          HN/VIP pills, four right-aligned summary fields. Full: 68px
-          avatar, 32h pills, summary fields in one horizontal row. The
+          full (adapted from Figma 150:33649). Both modes keep the avatar,
+          identity text, HN/VIP pills, and summary fields in one horizontal
+          row. Full uses a 68px avatar and 32h pills; compact uses a 44px
+          avatar and 24h pills. The
           address is intentionally omitted here; it belongs in the medical
           record detail, not in the always-visible clinical safety card. */}
       <div
@@ -392,9 +393,9 @@ const PatientCard = ({
         style={{
           backgroundImage:
             'linear-gradient(94.93deg, var(--patient-card-grad-start) 0.67%, var(--patient-card-grad-end) 100.76%)',
-          flexDirection: compact ? 'row' : 'column',
+          flexDirection: 'row',
           flexWrap: compact ? 'wrap' : 'nowrap',
-          alignItems: compact ? 'center' : 'stretch',
+          alignItems: 'center',
           paddingLeft: 'var(--dim-space-400, 16px)',
           paddingRight: 'var(--dim-space-400, 16px)',
           paddingTop: compact ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-400, 16px)',
@@ -403,7 +404,8 @@ const PatientCard = ({
           transition: `padding ${T}, gap ${T}, flex-direction ${T}`,
         }}
       >
-        <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        <div className='flex shrink-0 flex-wrap items-center' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+          <div className='flex shrink-0 items-center' style={{ gap: 'var(--dim-space-400, 16px)' }}>
           <div
             className='rounded-full overflow-hidden border-4 border-white bg-[color:var(--patient-card-avatar-bg)] shrink-0 flex items-center justify-center text-white'
             style={{
@@ -444,6 +446,7 @@ const PatientCard = ({
             <p className='font-bold text-base leading-snug'>{patient.fullName}</p>
             <p className='text-sm leading-snug'>{patient.englishName}</p>
           </div>
+          </div>
           <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
             <span
               className='inline-flex items-center rounded-full bg-badge-greenBg text-badge-greenText font-medium'
@@ -483,7 +486,7 @@ const PatientCard = ({
           </div>
         ) : (
           <div
-            className='flex w-full min-w-0 flex-nowrap items-start overflow-x-auto scrollbar-thin'
+            className='flex flex-1 min-w-0 flex-nowrap items-start overflow-x-auto scrollbar-thin'
             style={{ gap: 'var(--dim-space-600, 24px)' }}
           >
             <Field label='เพศ' value={patient.sex} />

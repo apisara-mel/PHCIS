@@ -71,6 +71,7 @@ import RadiologyOrderPanel from '@/pages/treat/panels/RadiologyOrderPanel';
 import ProcedureOrderPanel from '@/pages/treat/panels/ProcedureOrderPanel';
 import ConsultComposerPanel from '@/pages/treat/panels/ConsultComposerPanel';
 import MedicalSupplyOrderPanel, { MEDICAL_SUPPLY_CATALOG } from '@/pages/treat/panels/MedicalSupplyOrderPanel';
+import { CpoeWorkflowPanel } from '@/pages/treat/CpoeWorkflowPage';
 import { ICD9_PROCEDURES } from '@/pages/treat/panels/ProcedureOrderPanel';
 import DocumentCenterPanel from '@/pages/treat/panels/DocumentCenterPanel';
 import ReDiagnosisPopup from '@/components/popup/ReDiagnosisPopup';
@@ -3104,6 +3105,7 @@ export const Step5Orders = ({
     return (
       <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
         <Topic hierarchy='primary' title='สั่งการรักษา (Treatment Order)' leadingIcon='description' showSubText={false} showBadge={false} showChevron={false} showSuccess={false} />
+        <CpoeWorkflowPanel embedded patient={patient} form={form} setForm={setForm} />
         {/* TOR §1.18.6 — แถบเดียวกับ branch ที่มีคำสั่งแล้ว: เคสเยี่ยมบ้าน
             ส่วนใหญ่มาถึงตอน Visit ยังไม่มีคำสั่งเลย จึงต้องแสดงที่ empty
             state ด้วย ไม่งั้นคำสั่งที่ส่งมาจะไม่มีทางถูกเห็น */}
@@ -3147,6 +3149,8 @@ export const Step5Orders = ({
         showChevron={false}
         showSuccess={false}
       />
+
+      <CpoeWorkflowPanel embedded patient={patient} form={form} setForm={setForm} />
 
       <div
         className='flex flex-col w-full'
