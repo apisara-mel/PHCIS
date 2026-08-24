@@ -31,6 +31,7 @@ import RegistrationVisitOpenPage from '@/pages/registration/RegistrationVisitOpe
 import RegistrationConsentFillPage from '@/pages/registration/RegistrationConsentFillPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
+import CpoeWorkflowPage from '@/pages/treat/CpoeWorkflowPage';
 import ReferralRegisterPage from '@/pages/treat/ReferralRegisterPage';
 import TreatmentInterfacesPage from '@/pages/treat/TreatmentInterfacesPage';
 import ConsultRegisterPage from '@/pages/treat/ConsultRegisterPage';
@@ -443,6 +444,7 @@ export default function Routes() {
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        <Route exact path='/treat/cpoe'      component={CpoeWorkflowPage} />
         {/* แฟ้มเวชระเบียนอิเล็กทรอนิกส์ · หน้าจอระดับโมดูล (TOR §1.4)
             /treat/refer      = ทะเบียนการส่งต่อผู้รับบริการ 2 ทิศทาง (ส่งต่อออก /
                                 รับเข้า) + ฟอร์มตามแบบ ศบส. + พิมพ์ใบส่งตัว

@@ -361,6 +361,13 @@ const TreatmentFormPage = () => {
           chronicDiseases={patient.chronicDiseases}
           actions={
             <>
+              <BrandSubdueButton
+                variant='outline'
+                leadingIcon='assignment_add'
+                onClick={() => history.push('/treat/cpoe')}
+              >
+                เปิด CPOE แบบรวม
+              </BrandSubdueButton>
               <GuardedAction allowed={canSendToPharmacy} reason={sendBlockReason}>
                 <BrandSubdueButton
                   variant='outline'
