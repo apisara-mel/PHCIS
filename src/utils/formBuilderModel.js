@@ -247,21 +247,36 @@ const inputTypeOf = (type) => {
 export const blocksFromLibraryForm = (form) => {
   const out = [];
   (form?.sections ?? []).forEach((section) => {
-    let bucket = null;
+    /* The section heading belongs to the FIRST block emitted for that
+       section only. Repeating it on every block turned "การยินยอม" with
+       four tick-boxes into four separate "การยินยอม" headings on the
+       printed sheet. */
+    let headingUsed = false;
+    const headingFor = () => {
+      if (headingUsed) return '';
+      headingUsed = true;
+      return section.title ?? '';
+    };
+
+    let bucket = null;      /* run of text-ish fields */
+    let ticks = null;       /* run of checkbox fields → one block, many options */
     const flush = () => {
       if (bucket && bucket.fields.length) out.push(bucket);
       bucket = null;
+      if (ticks && ticks.options.length) out.push(ticks);
+      ticks = null;
     };
 
     (section.fields ?? []).forEach((f) => {
       if (FIELDY_TYPES.has(f.type)) {
+        if (ticks) flush();
         if (!bucket) {
           bucket = {
             id: uid('block'),
             kind: 'section',
             badge: 'ข้อความ',
             type: 'fields',
-            title: section.title ?? '',
+            title: headingFor(),
             required: false,
             fields: [],
           };
@@ -275,23 +290,30 @@ export const blocksFromLibraryForm = (form) => {
         return;
       }
 
-      /* non-field types break the run — otherwise a signature would land
-         inside the text group and lose its own block */
-      flush();
-
       if (f.type === 'checkbox') {
-        out.push({
-          id: uid('block'),
-          kind: 'checkbox',
-          badge: 'เลือกหลายตัวเลือก',
-          type: 'checkbox',
-          title: section.title ?? '',
-          required: Boolean(f.required),
-          options: [makeOption(f.label)],
-          showAddOption: true,
-        });
+        /* consecutive tick-boxes are ONE question with several options —
+           that is what the paper form actually looks like */
+        if (bucket) { out.push(bucket); bucket = null; }
+        if (!ticks) {
+          ticks = {
+            id: uid('block'),
+            kind: 'checkbox',
+            badge: 'เลือกหลายตัวเลือก',
+            type: 'checkbox',
+            title: headingFor(),
+            required: Boolean(f.required),
+            options: [],
+            showAddOption: true,
+          };
+        }
+        ticks.required = ticks.required || Boolean(f.required);
+        ticks.options.push(makeOption(f.label));
         return;
       }
+
+      /* anything else breaks both runs — otherwise a signature would land
+         inside the text group and lose its own block */
+      flush();
       if (f.type === 'select') {
         out.push({
           id: uid('block'),

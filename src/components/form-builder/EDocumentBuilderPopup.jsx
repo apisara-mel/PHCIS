@@ -3,7 +3,7 @@ import Popup from '@/components/popup/Popup';
 import Icon from '@/components/icons/Icon';
 import Alert from '@/components/alert/Alert';
 import StatusBadge from '@/components/badge/StatusBadge';
-import TextField from '@/components/forms/TextField';
+import InputField from '@/components/forms/InputField';
 import FormBuilderPalette from '@/components/form-builder/FormBuilderPalette';
 import FormBuilderCanvas from '@/components/form-builder/FormBuilderCanvas';
 import FormBuilderPatientPreview from '@/components/form-builder/FormBuilderPatientPreview';
@@ -87,11 +87,16 @@ const TemplatePicker = ({ query, setQuery, choice, setChoice }) => {
         </span>
       </button>
 
-      <TextField
+      <InputField
         label='ค้นหาแบบฟอร์มในคลัง'
+        /* InputField's contract is onChange(value) — a plain string, NOT a
+           DOM event (see the header comment in InputField.jsx) */
         value={query}
-        onChange={(e) => setQuery(e?.target ? e.target.value : e)}
+        onChange={setQuery}
         placeholder='เช่น ยินยอม / ประเมิน / F-1001'
+        leadingIcon='search'
+        showHelperText={false}
+        size='md'
       />
 
       <div

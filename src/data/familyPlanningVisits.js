@@ -587,7 +587,12 @@ export const DEFAULT_FP_VISIT = {
 
   /* S7 — e-Document + นัดหมาย + พิมพ์บัตร */
   documents: [],                   /* [{ name, size, uploadedBy, uploadedAt }] */
-  eDocBlocks: [],                  /* form-builder DragAndDrop blocks */
+  /* e-Document ที่ "สร้าง" ในการมารับบริการครั้งนี้ด้วย form-builder
+     (ต่างจาก documents ที่เป็นไฟล์ "แนบ" เข้ามา) — TOR §1.10.8.4
+     [{ id, name, templateSlug, blocks, createdBy, createdAt, updatedAt }] */
+  eDocuments: [],
+  /* legacy alias — บล็อกของเอกสารใบแรก เผื่อโค้ดเดิมที่อ่าน field นี้ */
+  eDocBlocks: [],
   appointment: { date: '', time: '', type: '', note: '', cancelled: false },
   cardPrinted: false,
 };
