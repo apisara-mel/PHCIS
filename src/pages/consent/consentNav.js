@@ -17,7 +17,6 @@ export const CONSENT_NAV = [
   { key: 'consent-my-requests', label: 'รายการคำขอของฉัน', icon: 'assignment', path: '/consent/access/my-requests' },
   { key: 'consent-access',    label: 'จัดการสิทธิ์การขอเข้าถึงแบบฟอร์ม', icon: 'lock', path: '/consent/access' },
   { key: 'consent-history',   label: 'ประวัติความยินยอม', icon: 'history', path: '/consent/history' },
-  { key: 'consent-report',    label: 'รายงานความยินยอม', icon: 'bar_chart_4_bars', path: '/consent/report' },
 ];
 
 export default CONSENT_NAV;
