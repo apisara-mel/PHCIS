@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { morphPanelPaddingStyle, morphStepScaleStyle } from '@/components/layout/headerMorphStyles';
-import { useHeaderMorphedFlag } from '@/hooks/useGlobalHeaderMorph';
 
 /* Figma node 2709:6562 — Step Indicator (MIH Design System Foundation)
    Variants: type (Default | Current | Success) × state (Default | Hover)
@@ -64,7 +63,7 @@ const AnimatedCheck = ({ active, size = 16 }) => (
   </svg>
 );
 
-const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = false, labelNoWrap = false, hideLabels = false, inline = false }) => {
+const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = false, labelNoWrap = false, hideLabels = false }) => {
   const [hovered, setHovered] = useState(false);
   const isClickable = Boolean(onStepClick) && type !== TYPE.CURRENT;
   const showHover = hovered && isClickable;
@@ -107,16 +106,8 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
 
   return (
     <div
-      className={inline
-        ? 'flex flex-row items-center min-w-0'
-        : 'shrink-0 flex flex-col items-start'}
-      style={inline ? {
-        /* scrolled band: number LEFT, label RIGHT, connector trailing —
-           each item grows so the connectors share the leftover width */
-        flex: isLast ? '0 0 auto' : '1 1 auto',
-        gap: 'var(--dim-space-150)',
-        transition: `gap 220ms ${SMOOTH_EASE}`,
-      } : {
+      className='shrink-0 flex flex-col items-start'
+      style={{
         width: hideLabels ? 'auto' : (labelNoWrap ? 'auto' : stepWidth),
         minWidth: hideLabels ? undefined : (labelNoWrap ? stepWidth : undefined),
         gap: hideLabels ? 0 : (compact ? 'var(--dim-space-050)' : 'var(--dim-space-200)'),
@@ -126,7 +117,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
       aria-label={hideLabels ? `ขั้นตอนที่ ${idx + 1}: ${label}` : undefined}
     >
       {/* Indicator row: circle + connector */}
-      <div className={`flex items-center gap-1.5 ${inline ? 'shrink-0' : 'w-full'}`} data-spotlight={`step-${idx + 1}`}>
+      <div className='flex items-center gap-1.5 w-full' data-spotlight={`step-${idx + 1}`}>
         <button
           type='button'
           onClick={() => isClickable && onStepClick(idx)}
@@ -190,7 +181,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
             {idx + 1}
           </span>
         </button>
-        {!isLast && !inline && (
+        {!isLast && (
           <div
             className='flex-1 h-px min-w-0'
             style={{
@@ -203,7 +194,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
 
       {/* Title + optional English subtitle (CPOE bilingual stepper) */}
       {!hideLabels && (
-        <div className={`flex flex-col items-start ${inline ? 'shrink-0' : 'w-full'}`} style={{ gap: 'var(--dim-space-050)' }}>
+        <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-050)' }}>
           <p
             className='leading-[1.5] text-left m-0'
             data-step-label
@@ -213,7 +204,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
               fontSize: compact ? 'var(--type-size-xs)' : 'var(--type-size-sm)',
               fontWeight: type === TYPE.CURRENT ? 700 : 400,
               lineHeight: compact ? 1.35 : 1.5,
-              whiteSpace: (inline || labelNoWrap) ? 'nowrap' : 'normal',
+              whiteSpace: labelNoWrap ? 'nowrap' : 'normal',
               transition: `${TITLE_TRANSITION}, font-size 220ms ${SMOOTH_EASE}, line-height 220ms ${SMOOTH_EASE}`,
             }}
           >
@@ -232,19 +223,6 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
             </p>
           )}
         </div>
-      )}
-
-      {/* inline mode puts the connector last so the run reads
-          ① สัญญาณชีพ ──── ② อาการป่วย ──── … */}
-      {!isLast && inline && (
-        <div
-          className='flex-1 h-px'
-          style={{
-            minWidth: 'var(--dim-space-400, 16px)',
-            background: connectorBg,
-            transition: CONNECTOR_TRANSITION,
-          }}
-        />
       )}
     </div>
   );
@@ -271,17 +249,10 @@ const StepProgress = ({
   labelNoWrap = false,
   hideLabels = false,
   morph = false,
-  /* Scroll-morph bands (WizardMorphHeader) opt in: once the page is
-     scrolled the stepper flips from number-above-label to
-     number-left / label-right, which fits the shrunken band without
-     shrinking the type any further. */
-  inlineWhenMorphed = false,
 }) => {
-  const morphed = useHeaderMorphedFlag();
-  const inline = inlineWhenMorphed && morphed && !hideLabels;
   const row = (
     <div
-      className={`flex ${inline ? 'items-center w-full' : 'items-start'} ${compact || hideLabels ? 'gap-1' : 'gap-1.5'} ${className}`}
+      className={`flex items-start ${compact || hideLabels ? 'gap-1' : 'gap-1.5'} ${className}`}
       style={{ transition: 'gap 200ms cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
       {steps.map((raw, idx) => {
@@ -306,7 +277,6 @@ const StepProgress = ({
             compact={compact}
             labelNoWrap={labelNoWrap}
             hideLabels={hideLabels}
-            inline={inline}
           />
         );
       })}

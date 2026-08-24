@@ -108,9 +108,7 @@ export const morphStepHeaderStepGlideDenseStyle = {
   whiteSpace: 'nowrap',
 };
 
-/** Stepper-only root (SubHeader owns title) — tighter vertical padding.
-    ก่อน scroll ลดจาก 12px เหลือ 8px ตามมติผู้ใช้ ส.ค. 69 (คู่กับ
-    paddingBottom ของ PageHeaderInfoPanel dense ที่ลดจาก 24 → 12). */
+/** Stepper-only root (SubHeader owns title) — tighter vertical padding. */
 export const morphStepOnlyRootDenseStyle = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -118,7 +116,7 @@ export const morphStepOnlyRootDenseStyle = {
   columnGap: 'var(--dim-space-300)',
   overflow: 'hidden',
   paddingTop:
-    'calc(var(--dim-space-200) + (var(--dim-space-100) - var(--dim-space-200)) * var(--header-morph, 0))',
+    'calc(var(--dim-space-300) + (var(--dim-space-100) - var(--dim-space-300)) * var(--header-morph, 0))',
   paddingBottom:
     'calc(var(--dim-space-0) + var(--dim-space-100) * var(--header-morph, 0))',
 };

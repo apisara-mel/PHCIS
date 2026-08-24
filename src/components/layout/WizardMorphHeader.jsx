@@ -57,7 +57,6 @@ const WizardMorphHeader = React.memo(function WizardMorphHeader({
         className={stepProgressClassName}
         labelNoWrap={labelNoWrap}
         hideLabels={hideLabels}
-        inlineWhenMorphed
       />
     </StepMorphHeader>
   );

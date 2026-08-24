@@ -15,16 +15,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Tooltip from '@/components/tooltip/Tooltip';
 import { resolveSeverityBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
-import BrandButton from '@/components/button/BrandButton';
 import { DEFAULT_PATIENT } from '@/data/patientProfiles';
-
-/* ประวัติการรักษา popup — loaded lazily ON CLICK, never at module init.
-   MedicalHistoryPopup imports MedicalHistoryReadOnlyLayout from
-   TreatmentSteps, and TreatmentSteps imports MedicalHistoryPopup back;
-   a static import from PatientCard (which nearly every clinical page
-   mounts) would join that cycle and can read a binding still in its
-   temporal dead zone. A dynamic import sidesteps the graph entirely. */
-const MedicalHistoryPopupLazy = React.lazy(() => import('@/components/popup/MedicalHistoryPopup'));
 
 /* Derive 1-2 character initials from the patient's name. Prefers the
    first two Thai given-name graphemes ("นายสมชาย มั่นใจดี" → "สม"),
@@ -59,7 +50,7 @@ const Field = ({ label, value, minWidth }) => (
     title={typeof value === 'string' && value.length > 28 ? value : undefined}
   >
     <span className='text-xs leading-snug opacity-90 whitespace-nowrap'>{label}</span>
-    <span className='text-sm font-normal leading-snug -tracking-[0.28px] whitespace-nowrap'>{value}</span>
+    <span className='text-sm font-bold leading-snug -tracking-[0.28px] whitespace-nowrap'>{value}</span>
   </div>
 );
 
@@ -180,12 +171,6 @@ const PatientCard = ({
   tags,
   drugAllergies,
   chronicDiseases,
-  /* ปุ่ม "ประวัติการรักษา" ข้างกลุ่มโรคประจำตัว (มติผู้ใช้ ส.ค. 69).
-     Pass a handler to take over the click (e.g. route to a full-page
-     history); leave it undefined and the card opens the shared
-     ประวัติการรักษา popup itself. `showMedicalHistory={false}` hides it. */
-  onMedicalHistory,
-  showMedicalHistory = true,
   /* Pharmacy / clinical dispense — always show แพ้ยา + โรคประจำตัว columns
      (empty → "—") so the alert band matches TreatmentForm even when this
      HN has no seeded allergies yet. */
@@ -251,7 +236,6 @@ const PatientCard = ({
   const allergiesList = normalizeAlertItems(drugAllergies ?? patient?.drugAllergies);
   const diseasesList = normalizeAlertItems(chronicDiseases ?? patient?.chronicDiseases);
   const showAlertRow = forceAlertRow || allergiesList.length > 0 || diseasesList.length > 0;
-  const [historyOpen, setHistoryOpen] = useState(false);
 
   /* Publish live sticky height so RecordWizardMorphBand can stick flush
      under this card (TreatmentFormPage / ScreeningPage). */
@@ -539,27 +523,7 @@ const PatientCard = ({
         >
           <AlertBadgeColumn label='แพ้ยา' items={allergiesList} compact={compact} />
           <AlertBadgeColumn label='โรคประจำตัว' items={diseasesList} compact={compact} />
-          {showMedicalHistory && (
-            /* shrink-0 + ml-auto keeps the button pinned to the end of the
-               row no matter how many badges wrap above it */
-            <div className='shrink-0 ml-auto self-center'>
-              <BrandButton
-                variant='outline'
-                size='sm'
-                leadingIcon='stethoscope'
-                onClick={() => (onMedicalHistory ? onMedicalHistory(patient) : setHistoryOpen(true))}
-              >
-                ประวัติการรักษา
-              </BrandButton>
-            </div>
-          )}
         </div>
-      )}
-
-      {historyOpen && (
-        <React.Suspense fallback={null}>
-          <MedicalHistoryPopupLazy open onClose={() => setHistoryOpen(false)} patient={patient} />
-        </React.Suspense>
       )}
     </div>
     </>
