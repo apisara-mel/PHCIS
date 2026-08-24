@@ -443,6 +443,7 @@ export default function Routes() {
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
         <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        <Redirect exact from='/treat/cpoe' to='/treat/record?step=orders' />
         {/* แฟ้มเวชระเบียนอิเล็กทรอนิกส์ · หน้าจอระดับโมดูล (TOR §1.4)
             /treat/refer      = ทะเบียนการส่งต่อผู้รับบริการ 2 ทิศทาง (ส่งต่อออก /
                                 รับเข้า) + ฟอร์มตามแบบ ศบส. + พิมพ์ใบส่งตัว

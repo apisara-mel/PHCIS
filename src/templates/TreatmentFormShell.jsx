@@ -104,7 +104,10 @@ const TreatmentFormShell = ({
   steps = TREATMENT_STEPS,
   queuePath = '/treat/queue',
   morphTitle,
+  hideMorphTitle = false,
   morphStickyTop = MORPH_STICKY_BELOW_PATIENT,
+  /** Optional persistent clinical summary rendered beside every step. */
+  sidePanel = null,
   /* OPD's Step 1 brings its own ServiceDateList rail flush against the
      card's left edge, so it opts out of the 24px body padding — that's an
      OPD-specific layout quirk, not a general "step 1" rule. Sub-departments
@@ -224,14 +227,16 @@ const TreatmentFormShell = ({
           completedSteps={completedSteps}
           onStepClick={onStepChange}
           stickyTop={morphStickyTop}
+          hideTitle={hideMorphTitle}
         />
       </div>
       <div ref={bodyRef} className='flex-1 flex flex-col min-h-0' style={{
         padding: 'var(--dim-space-600)',
         gap: 'var(--dim-space-400)',
       }}>
+        <div className={sidePanel ? 'mih-treatment-shell-layout' : 'flex flex-col flex-1 min-h-0'}>
         <div
-          className='flex flex-col w-full flex-1 min-h-0'
+          className='mih-treatment-shell-main flex flex-col w-full flex-1 min-h-0'
           style={{
             borderRadius: 'var(--dim-radius-500)',
             background: 'var(--surface-card-100)',
@@ -261,6 +266,12 @@ const TreatmentFormShell = ({
           >
             {children}
           </div>
+        </div>
+        {sidePanel && (
+          <aside className='mih-treatment-screening-rail' aria-label='สรุปคัดกรองและซักประวัติ'>
+            {sidePanel}
+          </aside>
+        )}
         </div>
       </div>
 
