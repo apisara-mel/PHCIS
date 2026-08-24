@@ -73,7 +73,7 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
         (CheckupScreeningPage, CheckupRecordPage), so an unshrinkable nowrap
         span pushes the shrink-0 action group past the right edge on a narrow
         viewport and the sticky bar scrolls sideways. */}
-    <span
+    <h1
       className='min-w-0 inline-flex items-center'
       title={typeof title === 'string' ? title : undefined}
       style={{
@@ -83,6 +83,7 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
         lineHeight: 1.5,
         fontSize: 'var(--type-size-title, var(--type-size-base, 16px))',
         minHeight: 'var(--dim-size-800, 40px)',
+        margin: 0,
         ...morphTitleStyle,
       }}
     >
@@ -92,7 +93,7 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
       >
         {title}
       </span>
-    </span>
+    </h1>
     {afterTitle != null && afterTitle !== false && (
       <div className='shrink-0 inline-flex items-center' style={{ minHeight: 'var(--dim-size-800, 40px)' }}>
         {afterTitle}

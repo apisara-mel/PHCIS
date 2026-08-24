@@ -376,7 +376,7 @@ export default function ConsentFormsPage() {
 
   const renderAction = (row) => (
     <div
-      className='flex items-center justify-end flex-nowrap shrink-0'
+      className='flex items-center justify-end flex-wrap shrink-0'
       style={{ gap: 'var(--dim-space-150)' }}
     >
       <NeutralSubdueIconButton icon='visibility' variant='outline' size='sm' aria-label='ดูแบบฟอร์ม' title='ดูแบบฟอร์ม' onClick={() => setViewFor(row)} />
@@ -440,6 +440,80 @@ export default function ConsentFormsPage() {
     return [...leading, updatedDateCol, ...trailing];
   }, [activeTab]);
 
+  const renderMobileFormCard = (row) => (
+    <article
+      key={row.id}
+      className='w-full flex flex-col'
+      style={{
+        gap: 'var(--dim-space-300)',
+        padding: 'var(--dim-space-400)',
+        background: 'var(--surface-card-100)',
+        border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+        borderRadius: 'var(--dim-radius-300, 10px)',
+        boxShadow: 'var(--shadow-card)',
+      }}
+    >
+      <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+            <strong style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)' }}>
+              {row.code}
+            </strong>
+            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{row.version}</ColorfulBadge>
+          </div>
+          <button
+            type='button'
+            className='w-full text-left'
+            onClick={() => setViewFor(row)}
+            style={{
+              minHeight: 'var(--dim-size-900, 44px)',
+              padding: 0,
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-content-default)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-base)',
+              fontWeight: 'var(--type-weight-medium)',
+              lineHeight: 1.5,
+            }}
+          >
+            {row.name}
+          </button>
+        </div>
+        <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <Switch
+            checked={row.status === 'เผยแพร่'}
+            aria-label={`${row.status === 'เผยแพร่' ? 'ยกเลิกเผยแพร่' : 'เผยแพร่'} ${row.code}`}
+            onChange={(checked) => setStatusConfirm({ record: row, nextStatus: checked ? 'เผยแพร่' : 'ไม่เผยแพร่' })}
+          />
+          <ColorfulBadge style={(CONSENT_FORM_STATUS[row.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>
+            {row.status}
+          </ColorfulBadge>
+        </div>
+      </div>
+
+      <div className='grid grid-cols-2 w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+          <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>อัปเดตล่าสุด</span>
+          <span style={TEXT_CELL}>{row.updatedDate || '-'}</span>
+        </div>
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+          <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ผู้แก้ไขล่าสุด</span>
+          <span className='truncate' style={TEXT_CELL}>{row.updatedBy || row.creator || '-'}</span>
+        </div>
+      </div>
+
+      <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-200)' }}>
+        <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>สิทธิ์การเข้าถึง</span>
+        <AccessCell row={row} onView={setAccessViewFor} />
+      </div>
+
+      <div className='flex justify-end w-full' style={{ borderTop: 'var(--dim-stroke-100) solid var(--border-card-default)', paddingTop: 'var(--dim-space-300)' }}>
+        {renderAction(row)}
+      </div>
+    </article>
+  );
+
   return (
     <>
     <QueuePageShell
@@ -477,6 +551,7 @@ export default function ConsentFormsPage() {
           <div className='w-full flex items-start justify-center'>
             <PrimarySearch
               value={search}
+              inputAriaLabel='ค้นหาแบบฟอร์มความยินยอมด้วยชื่อ รหัส หรือกลุ่มงาน'
               onChange={(v) => { setSearch(v); setPage(1); }}
               onSubmit={handleSubmit}
               placeholder='ค้นหาชื่อแบบฟอร์ม / รหัส / กลุ่มงาน...'
@@ -512,20 +587,30 @@ export default function ConsentFormsPage() {
           {viewMode === 'list' ? (
             <SmoothFilterResults opaque={resultsOpaque}>
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
-              <Table
-                columns={columns}
-                rows={pageRows}
-                rowKey={(row) => row.id}
-                sortConfig={sortConfig}
-                onSort={handleSort}
-                stickyColCount={2}
-                trailingInset='var(--dim-space-400, 16px)'
-                /* Pin under sticky SubHeader + tabs — offset tracks Topbar
-                   auto-hide via --mih-queue-sticky-under-tabs (QueuePageShell). */
-                stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-                emptyMessage='ไม่พบแบบฟอร์มความยินยอม'
-                emptySubtext='ลองปรับคำค้นหาหรือเปลี่ยนแท็บ'
-              />
+              <div className='md:hidden flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                {pageRows.length ? pageRows.map(renderMobileFormCard) : (
+                  <div className='flex flex-col items-center text-center w-full' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-600)' }}>
+                    <strong style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>ไม่พบแบบฟอร์มความยินยอม</strong>
+                    <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>ลองปรับคำค้นหาหรือเปลี่ยนแท็บ</span>
+                  </div>
+                )}
+              </div>
+              <div className='hidden md:block w-full'>
+                <Table
+                  columns={columns}
+                  rows={pageRows}
+                  rowKey={(row) => row.id}
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+                  stickyColCount={2}
+                  trailingInset='var(--dim-space-400, 16px)'
+                  /* Pin under sticky SubHeader + tabs — offset tracks Topbar
+                     auto-hide via --mih-queue-sticky-under-tabs (QueuePageShell). */
+                  stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+                  emptyMessage='ไม่พบแบบฟอร์มความยินยอม'
+                  emptySubtext='ลองปรับคำค้นหาหรือเปลี่ยนแท็บ'
+                />
+              </div>
               <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)', paddingTop: 'var(--dim-space-400)' }}>
                 <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
                   แสดง {rangeStart}-{rangeEnd} จาก {sorted.length} รายการ

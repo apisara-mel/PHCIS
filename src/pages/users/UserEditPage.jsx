@@ -116,8 +116,22 @@ const UserEditPage = () => {
   const [otpVerified, setOtpVerified] = useState(!isNew);
   const [leaving, setLeaving] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [permissionQuery, setPermissionQuery] = useState('');
+  const [showGrantedOnly, setShowGrantedOnly] = useState(false);
 
   const markDirty = () => setDirty(true);
+
+  const visibleFeatureGroups = useMemo(() => {
+    const query = permissionQuery.trim().toLocaleLowerCase('th');
+    return FEATURE_GROUPS.map((group) => ({
+      ...group,
+      features: group.features.filter((feature) => {
+        if (showGrantedOnly && !form.features[feature.key]) return false;
+        if (!query) return true;
+        return `${group.label} ${feature.label} ${feature.key}`.toLocaleLowerCase('th').includes(query);
+      }),
+    })).filter((group) => group.features.length > 0);
+  }, [permissionQuery, showGrantedOnly, form.features]);
 
   const setField = (key, v) => {
     markDirty();
@@ -502,12 +516,12 @@ const UserEditPage = () => {
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500, 20px)' }}>
       <SectionCard
         icon='content_copy'
-        title='Role Template'
-        subtitle='Template ใช้กำหนดค่าเริ่มต้นเท่านั้น หลังนำมาใช้ยังแก้สิทธิ์ของผู้ใช้รายนี้ได้อย่างอิสระ'
+        title='แม่แบบสิทธิ์ตามบทบาท'
+        subtitle='ใช้กำหนดค่าเริ่มต้น หลังนำมาใช้ยังแก้สิทธิ์ของผู้ใช้รายนี้ได้'
       >
         <div className='grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] items-end w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           <Select
-            label='เลือก Template สิทธิ์'
+            label='เลือกแม่แบบสิทธิ์'
             searchable={false}
             disabled={readOnly}
             value={selectedTemplate}
@@ -516,8 +530,8 @@ const UserEditPage = () => {
               value: template.key,
               label: `${template.label} — ${template.description}`,
             }))}
-            placeholder='— เลือก Role Template —'
-            helperText='ระบบจะคัดลอก Role และสิทธิ์เริ่มต้นมาให้ โดยไม่ล็อกการแก้ไขภายหลัง'
+            placeholder='— เลือกแม่แบบสิทธิ์ —'
+            helperText='ระบบจะคัดลอกหน้าที่และสิทธิ์เริ่มต้นมาให้ โดยไม่ล็อกการแก้ไขภายหลัง'
           />
           <BrandSubdueButton
             size='md'
@@ -525,7 +539,7 @@ const UserEditPage = () => {
             disabled={readOnly || !selectedTemplate}
             onClick={applyRoleTemplate}
           >
-            นำ Template มาใช้
+            นำแม่แบบมาใช้
           </BrandSubdueButton>
         </div>
       </SectionCard>
@@ -559,8 +573,31 @@ const UserEditPage = () => {
       <SectionCard
         icon='lock_person'
         title='สิทธิ์การใช้งานฟีเจอร์'
-        subtitle={`กำหนดสิทธิ์ระดับ Module / Menu / Submenu — Read ${access.view} · Write ${access.write} · Read and Write ${access.edit}`}
+        subtitle={`กำหนดสิทธิ์ระดับโมดูลและเมนู — ดู ${access.view} · แก้ไข ${access.write} · ดูและแก้ไข ${access.edit}`}
       >
+        <div className='grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] items-end w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <InputField
+            label='ค้นหาเมนูหรือโมดูล'
+            value={permissionQuery}
+            onChange={setPermissionQuery}
+            placeholder='เช่น คิวผู้ป่วย, เวชระเบียน, รายงาน'
+            leadingIcon='search'
+          />
+          <label
+            className='inline-flex items-center'
+            style={{
+              gap: 'var(--dim-space-200)',
+              minHeight: 'var(--dim-size-900, 44px)',
+              color: 'var(--text-content-secondary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+            }}
+          >
+            <Switch checked={showGrantedOnly} onChange={setShowGrantedOnly} aria-label='แสดงเฉพาะเมนูที่มีสิทธิ์' />
+            แสดงเฉพาะเมนูที่มีสิทธิ์
+          </label>
+        </div>
+
         <div
           className='flex flex-wrap items-center w-full'
           style={{
@@ -574,7 +611,7 @@ const UserEditPage = () => {
             borderRadius: 'var(--dim-radius-200, 8px)',
           }}
         >
-          <span className='text-xs text-ink-secondary font-medium'>ระดับสิทธิ์:</span>
+          <span className='text-xs text-ink-secondary font-medium'>ความหมายของระดับสิทธิ์:</span>
           {ACCESS_OPTIONS.map((opt) => (
             <span
               key={opt.value}
@@ -586,14 +623,27 @@ const UserEditPage = () => {
             </span>
           ))}
           <span className='ml-auto text-xs text-ink-tertiary'>
-            ระบบจะแสดงเฉพาะระดับสิทธิ์ที่แต่ละเมนูรองรับ
+            แต่ละเมนูจะแสดงเฉพาะระดับสิทธิ์ที่รองรับ
           </span>
         </div>
 
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500, 20px)' }}>
-          {FEATURE_GROUPS.map((g) => (
-            <FeatureGroupBlock key={g.key} group={g} features={form.features} setFeature={setFeature} disabled={readOnly} />
-          ))}
+          {visibleFeatureGroups.length ? visibleFeatureGroups.map((g) => (
+            <FeatureGroupBlock
+              key={g.key}
+              group={g}
+              features={form.features}
+              setFeature={setFeature}
+              disabled={readOnly}
+              forceExpanded={Boolean(permissionQuery.trim()) || showGrantedOnly}
+            />
+          )) : (
+            <div className='flex flex-col items-center text-center w-full' role='status' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-600)' }}>
+              <Icon name='search_off' size={32} style={{ color: 'var(--icon-neutral-tertiary)' }} />
+              <strong style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>ไม่พบเมนูที่ตรงกับตัวกรอง</strong>
+              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>ลองเปลี่ยนคำค้นหา หรือปิดตัวกรองเฉพาะเมนูที่มีสิทธิ์</span>
+            </div>
+          )}
         </div>
       </SectionCard>
     </div>
@@ -648,7 +698,7 @@ const UserEditPage = () => {
 
               {/* Sticky action bar — แสดง/บันทึก/ยกเลิก/แก้ไข ครบ */}
               <section
-                className='bg-surface-card rounded-card shadow-card flex flex-wrap items-center w-full sticky bottom-0'
+                className='bg-surface-card rounded-card shadow-card flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center w-full sticky bottom-0'
                 style={{
                   gap: 'var(--dim-space-300, 12px)',
                   paddingTop: 'var(--dim-space-400, 16px)',
@@ -663,7 +713,7 @@ const UserEditPage = () => {
                     <span className='text-xs text-ink-tertiary'>
                       สรุป: <strong className='text-ink-secondary'>{roleMeta.label}</strong>
                       {' · '}{form.departments.length} แผนก
-                      {' · '}Read {access.view}, Write {access.write}, Read and Write {access.edit}
+                      {' · '}ดู {access.view}, แก้ไข {access.write}, ดูและแก้ไข {access.edit}
                       {' · '}{form.loginChannels.length} ช่องทางเข้าสู่ระบบ
                     </span>
                   ) : null}
@@ -684,17 +734,20 @@ const UserEditPage = () => {
                     ต้องยืนยันตัวตนด้วย OTP ที่แท็บ "การเข้าสู่ระบบ" ก่อนจึงจะสร้างบัญชีได้
                   </span>
                 ) : null}
-                <NeutralSubdueButton variant='outline' size='md' onClick={goBack}>
-                  ยกเลิก
-                </NeutralSubdueButton>
-                <BrandButton
-                  size='md'
-                  leadingIcon='save'
-                  disabled={readOnly || (isNew && !otpVerified)}
-                  onClick={handleSave}
-                >
-                  {isNew ? 'สร้างผู้ใช้' : 'บันทึกการเปลี่ยนแปลง'}
-                </BrandButton>
+                <div className='flex items-center justify-end w-full sm:w-auto' style={{ gap: 'var(--dim-space-300)' }}>
+                  <NeutralSubdueButton className='flex-1 sm:flex-none' variant='outline' size='md' onClick={goBack}>
+                    ยกเลิก
+                  </NeutralSubdueButton>
+                  <BrandButton
+                    className='flex-1 sm:flex-none'
+                    size='md'
+                    leadingIcon='save'
+                    disabled={readOnly || (isNew && !otpVerified)}
+                    onClick={handleSave}
+                  >
+                    {isNew ? 'สร้างผู้ใช้' : 'บันทึกการเปลี่ยนแปลง'}
+                  </BrandButton>
+                </div>
               </section>
             </>
           )}
