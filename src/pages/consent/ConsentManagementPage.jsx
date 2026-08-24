@@ -80,7 +80,7 @@ const PAGE_SIZE = 20;
 const breadcrumb = ['จัดการความยินยอม'];
 
 /* แท็บที่ tab กรองสถานะอยู่แล้ว — ซ่อน filter chip "สถานะ" */
-const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'sent', 'consented', 'rejected', 'expiring', 'expired']);
+const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'sent', 'consented', 'rejected', 'expired']);
 /* ไม่มีแท็บที่ซ่อน filter ทั้งหมด — คง Set ว่างไว้ให้ onTabChange ใช้ได้ */
 const FILTERS_HIDDEN_TABS = new Set();
 
@@ -90,6 +90,7 @@ const PATIENT_TAB = 'all';
 /* ค่าพิเศษของ dropdown สถานะในแท็บผู้รับบริการ — ขึ้นต้นด้วย __ ให้ชนกับชื่อ
    สถานะจริงใน CONSENT_STATUS ไม่ได้ */
 const NEVER_CONSENTED_FILTER = '__never__';
+const WAITING_UPDATE_FILTER = '__waiting_update__';
 
 /* ป้ายสรุปในแถวผู้รับบริการ — เรียงตาม "ต้องลงมือก่อน" ไม่ใช่ลำดับแท็บ
    tone ตรงกับ CONSENT_STATUS เดิม เพื่อให้สีของสถานะเดียวกันไม่เปลี่ยนความหมาย
@@ -97,8 +98,7 @@ const NEVER_CONSENTED_FILTER = '__never__';
 const PATIENT_BUCKETS = [
   { tab: 'pending',   label: 'รอดำเนินการ',      tone: 'red'    },
   { tab: 'sent',      label: 'รอลงนาม',          tone: 'orange' },
-  { tab: 'expiring',  label: 'ใกล้หมดอายุ',       tone: 'yellow' },
-  { tab: 'expired',   label: 'หมดอายุ',          tone: 'red'    },
+  { tab: 'expired',   label: 'รอการอัปเดต',      tone: 'orange' },
   { tab: 'consented', label: 'ยินยอมแล้ว',        tone: 'green'  },
   { tab: 'rejected',  label: 'ปฏิเสธ / เพิกถอน',  tone: 'grey'   },
 ];
@@ -177,6 +177,7 @@ export default function ConsentManagementPage() {
   const [requestFormsFor, setRequestFormsFor] = useState(null);
   const [reconsentFor, setReconsentFor] = useState(null);        // record
   const [paperFor, setPaperFor] = useState(null);                // record
+  const [paperOpen, setPaperOpen] = useState(false);
   const [editFor, setEditFor] = useState(null);                  // signed record → PersonalDataConsentEditPopup
   /* Identity gate — { next: 'revoke'|'paper'|'edit', record } */
   const [verifyFor, setVerifyFor] = useState(null);
@@ -252,17 +253,21 @@ export default function ConsentManagementPage() {
   const statusOptions = useMemo(() => [
     { value: '', label: 'ทุกสถานะ' },
     ...(isPatientTab ? [{ value: NEVER_CONSENTED_FILTER, label: 'ไม่เคยให้ความยินยอม' }] : []),
-    ...Object.keys(CONSENT_STATUS).map((s) => ({ value: s, label: s })),
+    { value: WAITING_UPDATE_FILTER, label: 'รอการอัปเดต' },
+    ...Object.keys(CONSENT_STATUS)
+      .filter((status) => !['ใกล้หมดอายุ', 'หมดอายุ', 'หมดอายุ-Reconsent'].includes(status))
+      .map((status) => ({ value: status, label: CONSENT_STATUS[status]?.label || status })),
   ], [isPatientTab]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     /* ตัวเลือก "ไม่เคยให้ความยินยอม" ไม่ใช่สถานะของ record — ข้ามที่ชั้นนี้
        ไม่งั้นจะกรองจนไม่เหลือฉบับไหนเลย แล้วตารางว่างทั้งหน้า */
-    const recordStatus = filterStatus === NEVER_CONSENTED_FILTER ? '' : filterStatus;
+    const recordStatus = [NEVER_CONSENTED_FILTER, WAITING_UPDATE_FILTER].includes(filterStatus) ? '' : filterStatus;
     return rows.filter((r) => {
       return (
         matchesConsentWorklistTab(r, activeTab) &&
+        (filterStatus !== WAITING_UPDATE_FILTER || (CONSENT_STATUS[r.status] || {}).tab === 'expired') &&
         (!filterChannel || r.signChannel === filterChannel) &&
         (!recordStatus || r.status === recordStatus) &&
         matchesDateFilter(r.createdDate, filterDate) &&
@@ -957,6 +962,101 @@ export default function ConsentManagementPage() {
     return [colHn, colName, ...mid, colCreatedDate, colSignedDate, colWithdrawn, colAction];
   }, [activeTab]);
 
+  const openRowDetail = (row) => {
+    if (isPatientTab) {
+      if (!row.everTotal) return;
+      setViewConsentedFor({ hn: row.hn, name: row.name, record: null, allForPatient: true });
+      return;
+    }
+    setViewConsentedFor({ hn: row.hn, name: row.name, record: row });
+  };
+
+  const renderMobileConsentCard = (row) => {
+    const statusMeta = CONSENT_STATUS[row.status] || {};
+    const patientBuckets = isPatientTab
+      ? PATIENT_BUCKETS.filter((bucket) => row.buckets?.[bucket.tab])
+      : [];
+    return (
+      <article
+        key={`${row.hn}-${row.id || 'patient'}`}
+        className='w-full flex flex-col'
+        style={{
+          gap: 'var(--dim-space-300)',
+          padding: 'var(--dim-space-400)',
+          background: 'var(--surface-card-100)',
+          border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+          borderRadius: 'var(--dim-radius-300, 10px)',
+          boxShadow: 'var(--shadow-card)',
+        }}
+      >
+        <button
+          type='button'
+          disabled={isPatientTab && !row.everTotal}
+          onClick={() => openRowDetail(row)}
+          className='flex items-start text-left w-full'
+          style={{
+            gap: 'var(--dim-space-300)',
+            minHeight: 'var(--dim-size-900, 44px)',
+            padding: 0,
+            background: 'transparent',
+            border: 'none',
+            cursor: isPatientTab && !row.everTotal ? 'default' : 'pointer',
+          }}
+        >
+          <span className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
+            <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+              <strong style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>
+                <MaskedWorklistName name={row.name} recordKey={row.hn || row.id} truncate={false} />
+              </strong>
+              <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>HN {row.hn}</ColorfulBadge>
+            </span>
+            {!isPatientTab ? (
+              <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
+                {row.formName || '-'}
+              </span>
+            ) : (
+              <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+                ความยินยอมทั้งหมด {row.total || 0} ฉบับ
+              </span>
+            )}
+          </span>
+          {!isPatientTab ? (
+            <ColorfulBadge style={statusMeta.tone || 'grey'} size='small' hierarchy='secondary' width='hug'>
+              {statusMeta.label || row.status}
+            </ColorfulBadge>
+          ) : null}
+        </button>
+
+        {isPatientTab ? (
+          <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-150)' }}>
+            {patientBuckets.length ? patientBuckets.map((bucket) => (
+              <ColorfulBadge key={bucket.tab} style={bucket.tone} size='small' hierarchy='secondary' width='hug'>
+                {bucket.label} {row.buckets[bucket.tab]}
+              </ColorfulBadge>
+            )) : (
+              <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>ไม่เคยให้ความยินยอม</ColorfulBadge>
+            )}
+          </div>
+        ) : (
+          <div className='grid grid-cols-2 w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            <span className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>วันที่สร้างคำขอ</span>
+              <span style={TEXT_CELL}>{row.createdDate || '-'}</span>
+            </span>
+            <span className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+              <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>เวอร์ชั่น / ช่องทาง</span>
+              <span style={TEXT_CELL}>{row.version || '-'} · {row.signChannel && row.signChannel !== '-' ? row.signChannel : row.requestChannel || '-'}</span>
+            </span>
+          </div>
+        )}
+
+        <div className='flex justify-end w-full' style={{ borderTop: 'var(--dim-stroke-100) solid var(--border-card-default)', paddingTop: 'var(--dim-space-300)' }}>
+          {isPatientTab ? renderPatientAction(row) : renderAction(row, { align: 'start' })}
+        </div>
+      </article>
+    );
+  };
+
   const confirm = dialog ? CONSENT_CONFIRM[dialog.confirmKey] : null;
 
   const runDialogConfirm = () => {
@@ -1029,7 +1129,7 @@ export default function ConsentManagementPage() {
       >
         <div
           className='flex flex-col flex-1 min-w-0'
-          style={{ padding: 'var(--dim-space-600)' }}
+          style={{ padding: 'var(--dim-space-600)', overflowX: 'hidden' }}
         >
           <section
             className='w-full flex flex-col'
@@ -1048,6 +1148,7 @@ export default function ConsentManagementPage() {
               <div className='flex-1' />
               <PrimarySearch
                 value={search}
+                inputAriaLabel='ค้นหารายการความยินยอมด้วย HN เลขบัตร ชื่อ หรือโทรศัพท์'
                 onChange={(v) => { setSearch(v); setPage(1); }}
                 onSubmit={handleSubmit}
                 placeholder='ค้นหา HN / เลขบัตร / Passport / ชื่อ-สกุล / โทรศัพท์'
@@ -1056,13 +1157,18 @@ export default function ConsentManagementPage() {
                 history={searchHistory}
                 onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
               />
-              {canExportConsent() && (
-                <div className='flex-1 flex justify-end'>
-                <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
-                  นำส่งออกรายงาน
-                </NeutralSubdueButton>
-                </div>
-              )}
+              <div className='flex-1 flex justify-end flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                {canManage ? (
+                  <BrandSubdueButton leadingIcon='upload_file' size='sm' onClick={() => setPaperOpen(true)}>
+                    อัปโหลดแบบฟอร์มกระดาษ
+                  </BrandSubdueButton>
+                ) : null}
+                {canExportConsent() ? (
+                  <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
+                    นำส่งออกรายงาน
+                  </NeutralSubdueButton>
+                ) : null}
+              </div>
             </div>
 
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
@@ -1094,39 +1200,31 @@ export default function ConsentManagementPage() {
                 unit={isPatientTab ? 'คน' : undefined}
               />
 
-              <Table
-                columns={columns}
-                rows={pageRows}
-                rowKey={(row) => row.id}
-                sortConfig={sortConfig}
-                onSort={handleSort}
-                /* กดทั้งแถวเพื่อเปิดเอกสาร — แท็บสถานะเปิดฉบับนั้นตรง ๆ
-                   ส่วนแท็บผู้รับบริการ (1 แถว = 1 คน) เปิด popup รวม 3 มุมมอง
-                   คนที่ยังไม่เคยมีคำขอ กดแล้วไม่ต้องเปิดอะไร (ไม่มีเอกสารให้ดู) */
-                onRowClick={(row) => (
-                  isPatientTab
-                    ? (row.everTotal
-                      && setViewConsentedFor({
-                        hn: row.hn, name: row.name, record: null, allForPatient: true,
-                      }))
-                    : setViewConsentedFor({ hn: row.hn, name: row.name, record: row })
+              <div className='md:hidden flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                {pageRows.length ? pageRows.map(renderMobileConsentCard) : (
+                  <div className='flex flex-col items-center text-center w-full' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-600)' }}>
+                    <strong style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>
+                      {isPatientTab ? 'ไม่พบผู้รับบริการ' : 'ไม่พบรายการความยินยอม'}
+                    </strong>
+                    <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>ลองปรับตัวกรองหรือคำค้นหา</span>
+                  </div>
                 )}
-                trailingInset='var(--dim-space-400, 16px)'
-                /* คอลัมน์ "การดำเนินการ" ไม่ตรึงขอบขวา (คำสั่ง user 14 ส.ค.) —
-                   เลื่อนตารางไปทางขวาเพื่อดูปุ่มตามปกติ · `<Table>` รองรับ
-                   `stickyRightColCount` อยู่ถ้าเปลี่ยนใจภายหลัง */
-                stickyColCount={
-                  activeTab === 'expired' || isPatientTab
-                    ? 2
-                    : activeTab === 'rejected'
-                      ? 3
-                      : 3
-                }
-                /* Page scroll + sticky header ใต้ SubHeader/tabs — เหมือนแบบฟอร์มความยินยอม */
-                stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-                emptyMessage={isPatientTab ? 'ไม่พบผู้รับบริการ' : 'ไม่พบรายการความยินยอม'}
-                emptySubtext='ลองปรับตัวกรองหรือคำค้นหา'
-              />
+              </div>
+              <div className='hidden md:block w-full'>
+                <Table
+                  columns={columns}
+                  rows={pageRows}
+                  rowKey={(row) => row.id}
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+                  onRowClick={openRowDetail}
+                  trailingInset='var(--dim-space-400, 16px)'
+                  stickyColCount={activeTab === 'expired' || isPatientTab ? 2 : 3}
+                  stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+                  emptyMessage={isPatientTab ? 'ไม่พบผู้รับบริการ' : 'ไม่พบรายการความยินยอม'}
+                  emptySubtext='ลองปรับตัวกรองหรือคำค้นหา'
+                />
+              </div>
 
               <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)', paddingTop: 'var(--dim-space-400)' }}>
                 <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
@@ -1211,19 +1309,35 @@ export default function ConsentManagementPage() {
 
       {/* ด.1.1.8 — บันทึกให้/เพิกถอนจากเอกสารกระดาษ */}
       <PaperConsentRecordPopup
-        open={!!paperFor}
+        open={paperOpen || !!paperFor}
         record={paperFor}
-        onClose={() => setPaperFor(null)}
-        onSave={({ mode, fileName, effectiveDate, reason }) => {
-          const rec = paperFor;
+        records={rows}
+        onClose={() => { setPaperOpen(false); setPaperFor(null); }}
+        onSave={({ mode, record: selectedRecord, fileName, effectiveDate, reason, storageType, verifiedBy }) => {
+          const rec = selectedRecord || paperFor;
+          setPaperOpen(false);
           setPaperFor(null);
           if (rec) {
             if (mode === 'revoke') {
-              patchRow(rec.id, { status: 'ถอนความยินยอม', withdrawnDate: effectiveDate });
+              patchRow(rec.id, {
+                status: 'ถอนความยินยอม',
+                withdrawnDate: effectiveDate,
+                storageType,
+                verifiedBy,
+                originalFile: fileName,
+              });
             } else {
-              patchRow(rec.id, { status: 'ยินยอมแล้ว', signChannel: serviceCenterChannel, signedDate: effectiveDate });
+              patchRow(rec.id, {
+                status: 'ยินยอมแล้ว',
+                signChannel: 'เอกสารกระดาษ',
+                signedDate: effectiveDate,
+                storageType,
+                verifiedBy,
+                originalFile: fileName,
+                signature: null,
+              });
             }
-            pushToast(`บันทึกจากเอกสาร (${fileName}) ของ ${rec.name} แล้ว · เหตุผล: ${reason.slice(0, 40)}${reason.length > 40 ? '…' : ''}`);
+            pushToast(`บันทึก Paper Consent (${fileName}) ของ ${rec.name} แล้ว · ตรวจสอบจากไฟล์ต้นฉบับ · เหตุผล: ${reason.slice(0, 40)}${reason.length > 40 ? '…' : ''}`);
           }
         }}
       />

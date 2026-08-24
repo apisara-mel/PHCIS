@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH BrandRadiusSubdueIconButton — Figma "Brand Radius Subdue Icon Button"
    (node 3871:4640). Pill-shaped low-emphasis (subdued) brand button with a
@@ -123,7 +124,8 @@ const BrandRadiusSubdueIconButton = React.forwardRef(function BrandRadiusSubdueI
   const isHover = hovered && !disabled;
   const isFocus = focused && !disabled;
   const isActive = active || selected;
-  const dim = SIZES[size] || SIZES.md;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.md;
   const s = resolveStyles({ variant, isHover, active: isActive, focused: isFocus, disabled });
 
   return (

@@ -671,6 +671,57 @@ a:focus, a:focus-visible,
   }
 }
 
+/* OPD treatment form: keep the screening quick summary beside every step.
+   Below desktop width it stacks before the active step so safety context
+   nor the safety data is squeezed into an unreadable column. */
+.mih-treatment-shell-layout {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--dim-space-400);
+}
+
+.mih-treatment-screening-rail {
+  order: -1;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .mih-treatment-shell-layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .mih-treatment-screening-rail {
+    order: initial;
+    position: sticky;
+    top: calc(
+      var(--mih-topbar-offset, var(--dim-size-1400))
+      + var(--mih-patient-card-sticky-height, var(--dim-size-1400))
+      + var(--dim-size-1800)
+    );
+    flex: 0 0 var(--dim-size-2500);
+    width: var(--dim-size-2500);
+    max-height: calc(
+      100vh
+      - var(--mih-topbar-offset, var(--dim-size-1400))
+      - var(--mih-patient-card-sticky-height, var(--dim-size-1400))
+      - var(--dim-size-1800)
+      - var(--dim-space-600)
+    );
+    overflow-y: auto;
+  }
+
+  .mih-treatment-screening-rail.is-collapsed {
+    flex-basis: var(--dim-size-1600);
+    width: var(--dim-size-1600);
+    overflow: visible;
+  }
+}
+
 /* ───────────────────────────────────────────────────────────────
    Dark mode — COMPONENT / UTILITY overrides
    Token variable remaps live in @mih/design-tokens.
@@ -802,4 +853,3 @@ a:focus, a:focus-visible,
 .line-clamp-3 {
   line-height: 1.5;
 }
-

@@ -161,50 +161,19 @@ export const useLocalHeaderMorph = (hostRef, {
   return morph;
 };
 
-/** Morph value past which chrome counts as "scrolled" for layout SWITCHES
-    (as opposed to the continuous size/padding interpolation the CSS var
-    drives). Flex-direction cannot be interpolated, so anything that has to
-    re-flow — the stepper going number-above-label → number-left-of-label —
-    needs a discrete flip, and it should land once, late, not flicker
-    around the midpoint. */
-export const HEADER_MORPHED_THRESHOLD = 0.55;
-
-/** `<html data-header-morphed="1">` while scrolled past the threshold.
-    Written from the SAME animator that drives `--header-morph`, so no
-    component needs its own scroll listener to know. */
-export const HEADER_MORPHED_ATTR = 'data-header-morphed';
-
-/** Boolean form of `--header-morph`, for layout that must flip rather than
-    interpolate. Reads the attribute above via MutationObserver — one
-    listener app-wide already computes it, so this costs no scroll work and
-    re-renders only on the two crossings. */
-export const useHeaderMorphedFlag = () => {
-  const [morphed, setMorphed] = useState(
-    () => (typeof document !== 'undefined'
-      && document.documentElement.getAttribute(HEADER_MORPHED_ATTR) === '1'),
-  );
-  useEffect(() => {
-    const el = document.documentElement;
-    const read = () => setMorphed(el.getAttribute(HEADER_MORPHED_ATTR) === '1');
-    read();
-    const obs = new MutationObserver(read);
-    obs.observe(el, { attributes: true, attributeFilter: [HEADER_MORPHED_ATTR] });
-    return () => obs.disconnect();
-  }, []);
-  return morphed;
-};
-
 /** Writes `--header-morph` (0→1) on `:root` from window scroll — one listener app-wide. */
 export const useGlobalHeaderMorph = () => {
   useEffect(() => {
+    let stepInline = false;
     const animator = createHeaderMorphAnimator((value, motion) => {
       document.documentElement.style.setProperty('--header-morph', value.toFixed(4));
       document.documentElement.style.setProperty('--header-morph-motion', motion.toFixed(4));
-      /* write only on change — setAttribute on <html> every frame would
-         wake every MutationObserver watching it */
-      const next = value >= HEADER_MORPHED_THRESHOLD ? '1' : '0';
-      if (document.documentElement.getAttribute(HEADER_MORPHED_ATTR) !== next) {
-        document.documentElement.setAttribute(HEADER_MORPHED_ATTR, next);
+      if (!stepInline && motion >= 0.35) {
+        stepInline = true;
+        document.documentElement.setAttribute('data-mih-step-inline', '1');
+      } else if (stepInline && motion <= 0.15) {
+        stepInline = false;
+        document.documentElement.removeAttribute('data-mih-step-inline');
       }
     });
     const onScroll = () => animator.setTargetFromScroll(window.scrollY);
@@ -215,7 +184,7 @@ export const useGlobalHeaderMorph = () => {
       animator.destroy();
       document.documentElement.style.removeProperty('--header-morph');
       document.documentElement.style.removeProperty('--header-morph-motion');
-      document.documentElement.removeAttribute(HEADER_MORPHED_ATTR);
+      document.documentElement.removeAttribute('data-mih-step-inline');
     };
   }, []);
 };

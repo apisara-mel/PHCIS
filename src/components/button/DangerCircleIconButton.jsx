@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH DangerCircleIconButton — Figma "Danger Circle Icon Button" (node 3853:1177).
    Danger (red) sibling of BrandCircleIconButton: round (50%) icon-only button
@@ -97,7 +98,8 @@ const DangerCircleIconButton = React.forwardRef(function DangerCircleIconButton(
   const focused = focusedProp ?? focusedState;
   const isHover = hovered && !disabled;
   const isFocus = focused && !disabled;
-  const dim = SIZES[size] || SIZES.md;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.md;
   const s = resolveStyles({ variant, isHover, selected, focused: isFocus, disabled });
   return (
     <button

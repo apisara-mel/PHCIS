@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { morphPanelPaddingStyle, morphStepScaleStyle } from '@/components/layout/headerMorphStyles';
-import { useHeaderMorphedFlag } from '@/hooks/useGlobalHeaderMorph';
 
 /* Figma node 2709:6562 — Step Indicator (MIH Design System Foundation)
    Variants: type (Default | Current | Success) × state (Default | Hover)
@@ -11,7 +10,9 @@ import { useHeaderMorphedFlag } from '@/hooks/useGlobalHeaderMorph';
                          num text/steps/select (white)   · title text/steps/title-select  (Bold)
      Success + Default : bg surface/steps/success        · check icon white            · title text/steps/title-success
      Success + Hover   : bg surface/steps/success-hover  · check icon white            · title text/steps/title-success
-   Sizes: Step item 160px · Circle 28×28 (border-box, so Current's inner becomes 20×20) · Indicator gap 6px · Column gap 8px */
+   Product density aliases: Step item 112px · Circle 20×20 · Indicator gap 4px
+   · Column gap 2px. The 44×44 hit area is absolutely expanded so it no
+   longer forces the visual row to reserve 44px of height. */
 
 const TYPE = { DEFAULT: 'default', CURRENT: 'current', SUCCESS: 'success' };
 
@@ -64,14 +65,24 @@ const AnimatedCheck = ({ active, size = 16 }) => (
   </svg>
 );
 
-const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = false, labelNoWrap = false, hideLabels = false, inline = false }) => {
+const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = false, labelNoWrap = false, hideLabels = false }) => {
   const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const isClickable = Boolean(onStepClick) && type !== TYPE.CURRENT;
   const showHover = hovered && isClickable;
-  const circleSize = compact ? 22 : 28;
-  const currentRing = compact ? 3 : 4;
-  const checkSize = compact ? 12 : 16;
-  const stepWidth = hideLabels ? circleSize : (compact ? 112 : 160);
+  const circleSize = compact
+    ? 'var(--dim-size-300, 16px)'
+    : 'var(--dim-size-400, 20px)';
+  const currentRing = 'var(--dim-stroke-200, 2px)';
+  const checkSize = compact
+    ? 'var(--dim-size-100, 8px)'
+    : 'var(--dim-size-200, 12px)';
+  const stepWidth = compact
+    ? 'var(--dim-size-1700, 80px)'
+    : 'var(--dim-size-1900, 112px)';
+  const hitAreaInlineMargin = compact
+    ? 'calc(-1 * var(--dim-size-250, 14px))'
+    : 'calc(-1 * var(--dim-space-300, 12px))';
 
   let bg, numberColor, titleColor;
   if (type === TYPE.CURRENT) {
@@ -107,67 +118,89 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
 
   return (
     <div
-      className={inline
-        ? 'flex flex-row items-center min-w-0'
-        : 'shrink-0 flex flex-col items-start'}
-      style={inline ? {
-        /* scrolled band: number LEFT, label RIGHT, connector trailing —
-           each item grows so the connectors share the leftover width */
-        flex: isLast ? '0 0 auto' : '1 1 auto',
-        gap: 'var(--dim-space-150)',
-        transition: `gap 220ms ${SMOOTH_EASE}`,
-      } : {
+      className='shrink-0 flex flex-col items-start'
+      data-step-item
+      style={{
         width: hideLabels ? 'auto' : (labelNoWrap ? 'auto' : stepWidth),
         minWidth: hideLabels ? undefined : (labelNoWrap ? stepWidth : undefined),
-        gap: hideLabels ? 0 : (compact ? 'var(--dim-space-050)' : 'var(--dim-space-200)'),
+        gap: hideLabels ? 'var(--dim-space-0)' : (compact ? 'var(--dim-space-0)' : 'var(--dim-space-050)'),
         transition: `width 220ms ${SMOOTH_EASE}, gap 220ms ${SMOOTH_EASE}`,
       }}
       title={hideLabels ? label : undefined}
-      aria-label={hideLabels ? `ขั้นตอนที่ ${idx + 1}: ${label}` : undefined}
     >
       {/* Indicator row: circle + connector */}
-      <div className={`flex items-center gap-1.5 ${inline ? 'shrink-0' : 'w-full'}`} data-spotlight={`step-${idx + 1}`}>
+      <div
+        className='flex items-center w-full'
+        data-step-indicator
+        style={{ gap: 'var(--dim-space-100, 4px)' }}
+        data-spotlight={`step-${idx + 1}`}
+      >
         <button
           type='button'
           onClick={() => isClickable && onStepClick(idx)}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          aria-label={`ขั้นตอนที่ ${idx + 1}: ${label}`}
+          aria-current={type === TYPE.CURRENT ? 'step' : undefined}
           className={[
-            'relative box-border rounded-full flex items-center justify-center font-bold shrink-0 overflow-hidden',
-            compact ? 'text-xs' : 'text-sm',
+            'relative box-border rounded-full flex items-center justify-center shrink-0',
             isClickable ? 'cursor-pointer' : 'cursor-default',
           ].join(' ')}
           style={{
-            width: circleSize,
+            width: 'var(--dim-size-900, 44px)',
             height: circleSize,
-            background: bg,
-            color: numberColor,
-            border:
-              type === TYPE.CURRENT
-                ? `${currentRing}px solid var(--primaryBorder-600)`
-                : 'none',
-            boxShadow:
-              type === TYPE.CURRENT
-                ? `0 0 0 ${currentRing}px var(--primaryBorder-600)`
-                : 'none',
-            /* `translateZ(0)` + `willChange: transform` promote the button
-               to its own GPU layer so the scale-on-hover renders without
-               re-rasterising the inner number on every animation frame —
-               which is what was causing the text inside to look jittery
-               during the transition. `backfaceVisibility: hidden` also
-               stabilises subpixel snapping on WebKit. */
-            transform: `scale(${circleScale}) translateZ(0)`,
-            transformOrigin: 'center',
-            transition: `${CIRCLE_TRANSITION}, width 220ms ${SMOOTH_EASE}, height 220ms ${SMOOTH_EASE}`,
-            willChange: 'transform',
-            backfaceVisibility: 'hidden',
+            marginLeft: hitAreaInlineMargin,
+            marginRight: hitAreaInlineMargin,
+            padding: 'var(--dim-space-0)',
+            background: 'transparent',
+            border: 'none',
             outline: 'none',
+            outlineOffset: 'var(--dim-space-0)',
           }}
         >
+          <span
+            aria-hidden
+            className='absolute rounded-full'
+            style={{
+              width: 'var(--dim-size-900, 44px)',
+              height: 'var(--dim-size-900, 44px)',
+            }}
+          />
+          <span
+            className={[
+              'relative box-border rounded-full flex items-center justify-center font-bold shrink-0 overflow-hidden',
+            ].join(' ')}
+            style={{
+              width: circleSize,
+              height: circleSize,
+              background: bg,
+              color: numberColor,
+              border:
+                type === TYPE.CURRENT
+                  ? `${currentRing} solid var(--primaryBorder-600)`
+                  : 'none',
+              outline: focused
+                ? 'var(--dim-stroke-400, 4px) solid var(--border-brandPrimaryButton-tertiary)'
+                : 'none',
+              outlineOffset: 'var(--dim-space-0)',
+              boxShadow:
+                type === TYPE.CURRENT
+                  ? `0 0 0 ${currentRing} var(--primaryBorder-600)`
+                  : 'none',
+              fontSize: compact ? 'var(--type-size-xxs, 10px)' : 'var(--type-size-xs, 12px)',
+              transform: `scale(${circleScale}) translateZ(0)`,
+              transformOrigin: 'center',
+              transition: `${CIRCLE_TRANSITION}, width 220ms ${SMOOTH_EASE}, height 220ms ${SMOOTH_EASE}`,
+              willChange: 'transform',
+              backfaceVisibility: 'hidden',
+            }}
+          >
           {/* Always render both glyphs so they cross-fade between the
               numeric "upcoming" state and the check-mark "success" state
               instead of popping. Both are absolutely centred inside the
-              button (which is `position: relative`); the check uses an
+              visual circle (which is `position: relative`); the check uses an
               inline SVG so we can animate its stroke length, making it
               "draw itself" when the step transitions to success. */}
           <span
@@ -189,10 +222,12 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
           >
             {idx + 1}
           </span>
+          </span>
         </button>
-        {!isLast && !inline && (
+        {!isLast && (
           <div
             className='flex-1 h-px min-w-0'
+            data-step-connector
             style={{
               background: connectorBg,
               transition: CONNECTOR_TRANSITION,
@@ -203,17 +238,21 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
 
       {/* Title + optional English subtitle (CPOE bilingual stepper) */}
       {!hideLabels && (
-        <div className={`flex flex-col items-start ${inline ? 'shrink-0' : 'w-full'}`} style={{ gap: 'var(--dim-space-050)' }}>
+        <div
+          className='flex flex-col items-start w-full'
+          data-step-label-group
+          style={{ gap: 'var(--dim-space-050)' }}
+        >
           <p
             className='leading-[1.5] text-left m-0'
             data-step-label
             style={{
               color: titleColor,
               fontFamily: 'var(--type-family-body)',
-              fontSize: compact ? 'var(--type-size-xs)' : 'var(--type-size-sm)',
-              fontWeight: type === TYPE.CURRENT ? 700 : 400,
-              lineHeight: compact ? 1.35 : 1.5,
-              whiteSpace: (inline || labelNoWrap) ? 'nowrap' : 'normal',
+              fontSize: compact ? 'var(--type-size-xxs, 10px)' : 'var(--type-size-xs, 12px)',
+              fontWeight: type === TYPE.CURRENT ? 'var(--type-weight-bold, 700)' : 'var(--type-weight-regular, 400)',
+              lineHeight: compact ? 1.3 : 1.35,
+              whiteSpace: labelNoWrap ? 'nowrap' : 'normal',
               transition: `${TITLE_TRANSITION}, font-size 220ms ${SMOOTH_EASE}, line-height 220ms ${SMOOTH_EASE}`,
             }}
           >
@@ -221,10 +260,13 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
           </p>
           {subtitle && !compact && (
             <p
-              className='text-xs leading-[1.5] text-left m-0'
+              className='text-left m-0'
+              data-step-subtitle
               style={{
                 color: 'var(--text-steps-subtitle)',
                 fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xxs, 10px)',
+                lineHeight: 1.3,
                 transition: TITLE_TRANSITION,
               }}
             >
@@ -233,25 +275,12 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
           )}
         </div>
       )}
-
-      {/* inline mode puts the connector last so the run reads
-          ① สัญญาณชีพ ──── ② อาการป่วย ──── … */}
-      {!isLast && inline && (
-        <div
-          className='flex-1 h-px'
-          style={{
-            minWidth: 'var(--dim-space-400, 16px)',
-            background: connectorBg,
-            transition: CONNECTOR_TRANSITION,
-          }}
-        />
-      )}
     </div>
   );
 };
 
 /* `framed` wraps the row in a white card chrome (top-rounded card surface +
-   brand-quaternary bottom border + 24px padding) — the variant used inside
+   brand-quaternary bottom border + compact token-based padding) — the variant used inside
    form pages (OPD Screening etc.) where the stepper sits flush above the
    body. Default (`framed={false}`) renders plain — used inside FormShell /
    TreatmentFormShell that supply their own chrome. */
@@ -271,18 +300,15 @@ const StepProgress = ({
   labelNoWrap = false,
   hideLabels = false,
   morph = false,
-  /* Scroll-morph bands (WizardMorphHeader) opt in: once the page is
-     scrolled the stepper flips from number-above-label to
-     number-left / label-right, which fits the shrunken band without
-     shrinking the type any further. */
-  inlineWhenMorphed = false,
 }) => {
-  const morphed = useHeaderMorphedFlag();
-  const inline = inlineWhenMorphed && morphed && !hideLabels;
   const row = (
     <div
-      className={`flex ${inline ? 'items-center w-full' : 'items-start'} ${compact || hideLabels ? 'gap-1' : 'gap-1.5'} ${className}`}
-      style={{ transition: 'gap 200ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+      className={`flex items-start ${className}`}
+      data-step-progress
+      style={{
+        gap: 'var(--dim-space-050, 2px)',
+        transition: 'gap 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+      }}
     >
       {steps.map((raw, idx) => {
         const { title, subtitle } = normalizeStep(raw);
@@ -306,7 +332,6 @@ const StepProgress = ({
             compact={compact}
             labelNoWrap={labelNoWrap}
             hideLabels={hideLabels}
-            inline={inline}
           />
         );
       })}
@@ -321,12 +346,17 @@ const StepProgress = ({
 
   return (
     <div
-      className={`w-full bg-surface-card border-b rounded-t-card flex items-center justify-center ${
-        compact ? 'px-4 py-3' : ''
-      }`}
+      className='w-full bg-surface-card border-b rounded-t-card flex items-center justify-center'
       style={{
         borderBottomColor: 'var(--border-brandPrimary-quaternary)',
-        ...(compact ? {} : morphPanelPaddingStyle),
+        ...(compact
+          ? {
+              paddingLeft: 'var(--dim-space-400, 16px)',
+              paddingRight: 'var(--dim-space-400, 16px)',
+              paddingTop: 'var(--dim-space-100, 4px)',
+              paddingBottom: 'var(--dim-space-100, 4px)',
+            }
+          : morphPanelPaddingStyle),
       }}
     >
       {morphedRow}

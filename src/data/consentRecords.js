@@ -34,8 +34,8 @@ export const CONSENT_STATUS = {
   'ยินยอมแล้ว':        { tone: 'green',  tab: 'consented', action: { label: 'เพิกถอน',    kind: 'brandSubdue', confirm: 'revoke' } },
   'ปฏิเสธ':           { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
   'ถอนความยินยอม':    { tone: 'red',    tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
-  'ใกล้หมดอายุ':       { tone: 'yellow', tab: 'expiring',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
-  'หมดอายุ':          { tone: 'red',    tab: 'expired',   action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
+  'ใกล้หมดอายุ':       { tone: 'orange', tab: 'expired', label: 'รอการอัปเดต', action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
+  'หมดอายุ':          { tone: 'orange', tab: 'expired', label: 'รอการอัปเดต', action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
   /* Edge case (Figma note 312:97428): เทมเพลตออกเวอร์ชันใหม่ — ฉบับเดิมถูกแทนที่
      (read-only) · ระบบสร้างคำขอ รอลงนาม อัตโนมัติไปเวชระเบียน */
   'ถูกแทนที่ด้วยเวอร์ชันใหม่': {
@@ -57,7 +57,7 @@ export const CONSENT_STATUS = {
   'หมดอายุ-Reconsent': {
     tone: 'red',
     tab: 'expired',
-    label: 'หมดอายุ',
+    label: 'รอการอัปเดต',
     action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' },
   },
   /* ด.1.1.4 — เจ้าหน้าที่ยกเลิกคำขอที่ยังไม่ลงนาม (audit คงอยู่) */
@@ -85,8 +85,7 @@ export const CONSENT_TABS = [
   { value: 'sent',      label: 'รอลงนาม',           icon: 'draw' },
   { value: 'consented', label: 'ยินยอมแล้ว',        icon: 'verified' },
   { value: 'rejected',  label: 'ปฏิเสธ / เพิกถอน',  icon: 'do_not_disturb_on' },
-  { value: 'expiring',  label: 'ใกล้หมดอายุ',       icon: 'hourglass_top' },
-  { value: 'expired',   label: 'หมดอายุ',           icon: 'hourglass_disabled' },
+  { value: 'expired',   label: 'รอการอัปเดต',       icon: 'update' },
   { value: 'all',       label: 'ความยินยอมทั้งหมด',  icon: 'list' },
 ];
 
@@ -520,17 +519,10 @@ const SUMMARY_CARD_META = [
     indicatorIcon: null,
   },
   {
-    key: 'expiring', iconSvg: `${ICON}/wait.svg`,
-    tileBg: 'var(--surface-info-tertiary, #DBEAFE)',
-    iconInk: 'var(--text-info-default, #1D4ED8)',
-    label: 'ใกล้หมดอายุ',
-    indicatorIcon: null,
-  },
-  {
     key: 'expired', iconSvg: `${ICON}/hourglass-disabled.svg`,
     tileBg: 'var(--surface-neutral-tertiary, #F4F5F5)',
     iconInk: 'var(--text-neutral-default, #4D5358)',
-    label: 'หมดอายุ',
+    label: 'รอการอัปเดต',
     indicatorIcon: null,
   },
 ];

@@ -9,11 +9,9 @@
    Step2Screening ของ CPOE ก็ hardcode `DEFAULT_SCREENING_SUMMARY` ไว้เฉย ๆ
    ไม่ได้อ่านของที่พยาบาลกรอกจริงเลย — ข้อมูลจึงไม่ตรงกันทั้งระบบ
 
-   ค่าที่ยังไม่ได้กรอกจะ fallback ไปที่ `DEFAULT_SCREENING_SUMMARY` (ชุด mock
-   ของ Figma) เพื่อให้หน้าจอไม่ว่างเปล่าตอน demo — เช็ค `captured` ถ้าต้องรู้ว่า
-   เป็นข้อมูลจริงหรือ mock */
+   ค่าที่ยังไม่ได้กรอกต้องแสดงเป็นค่าว่าง ไม่ใช้ข้อมูลตัวอย่างจาก Figma
+   เพราะข้อมูลนี้อยู่ในบริบทการรักษาจริงของผู้รับบริการ */
 
-import { DEFAULT_SCREENING_SUMMARY } from '@/data/treatmentVisits';
 import { getScreeningReview } from '@/data/opdScreeningReview';
 import { painLevelByKey, triageLevelByLevel } from '@/data/opdScreeningCatalog';
 
@@ -24,35 +22,31 @@ const measured = (x) => {
   return t === '' || Number(t) === 0 ? '' : t;
 };
 
-const firstFilled = (...values) =>
-  values.find((v) => String(v ?? '').trim() !== '') ?? '';
-
-/** ผลคัดกรองรอบล่าสุดของผู้รับบริการ ในรูปแบบเดียวกับ DEFAULT_SCREENING_SUMMARY */
+/** ผลคัดกรองรอบล่าสุดของผู้รับบริการในรูปแบบอ่านอย่างเดียวของหน้าตรวจรักษา */
 export const getCarriedScreening = (patient = {}) => {
   const review = getScreeningReview(patient.hn);
   const symptom = review.symptom || null;
   const vitals = review.vitals || null;
-  const captured = Boolean(symptom || vitals);
+  const captured = Object.keys(review).some((key) => key !== '_meta');
 
   const pain = painLevelByKey(symptom?.pain);
   const triage = triageLevelByLevel(symptom?.triage);
 
   return {
-    ...DEFAULT_SCREENING_SUMMARY,
-    /* false = ยังไม่มีใครคัดกรองรอบนี้ กำลังโชว์ค่า mock ของ Figma อยู่ */
     captured,
-    cc: firstFilled(symptom?.complaint, DEFAULT_SCREENING_SUMMARY.cc),
-    duration: firstFilled(symptom?.duration, DEFAULT_SCREENING_SUMMARY.duration),
+    capturedAt: review._meta?.updatedAt || '',
+    cc: symptom?.complaint || '',
+    duration: symptom?.duration || '',
     presentIllness: symptom?.presentIllness || '',
     triage: triage
       ? { level: triage.lv, label: triage.en, subLabel: triage.th, tone: triage.tone }
-      : DEFAULT_SCREENING_SUMMARY.triage,
+      : null,
     pain: pain
       ? { icon: pain.icon, label: pain.label }
-      : DEFAULT_SCREENING_SUMMARY.pain,
+      : null,
     orders: (symptom?.orders || []).length > 0
       ? [...symptom.orders, ...(symptom.othersNote ? [symptom.othersNote] : [])]
-      : DEFAULT_SCREENING_SUMMARY.orders,
+      : [],
     vitalItems: [
       { label: 'อุณหภูมิ', value: measured(vitals?.temp) ? `${measured(vitals.temp)} °C` : '' },
       {
@@ -65,6 +59,10 @@ export const getCarriedScreening = (patient = {}) => {
       { label: 'ส่วนสูง', value: measured(vitals?.height) ? `${measured(vitals.height)} ซม.` : '' },
     ],
     behaviour: review.behaviour || null,
+    mobility: null,
+    assessor: null,
+    allergies: patient.drugAllergies || [],
+    chronic: patient.chronicDiseases || [],
   };
 };
 

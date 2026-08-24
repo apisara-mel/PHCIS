@@ -203,17 +203,17 @@ No drill-down navigation — terminal screen.
               │  navigate(`/treat/record`, { state:{ hn, queue, name } })
               ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
-│ /treat/record   TreatmentFormPage.jsx (TreatmentFormShell, 7 steps)        │
+│ /treat/record   TreatmentFormPage.jsx (TreatmentFormShell, 8 steps)        │
 │                                                                            │
 │  ┌─────────────────────────────────────────────────────────────┐           │
 │  │ Header  PatientCard  ⤴ back → /treat/queue                  │           │
 │  │         actions: พิมพ์ใบสั่งยา · พิมพ์ OPD Card             │           │
 │  └─────────────────────────────────────────────────────────────┘           │
 │                                                                            │
-│  Step 1 ─▶ Step 2 ─▶ Step 3 ─▶ Step 4 ─▶ Step 5 ─▶ Step 6 ─▶ Step 7        │
+│  Step 1 ─▶ Step 2 ─▶ Step 3 ─▶ Step 4 ─▶ Step 5 ─▶ Step 6 ─▶ Step 7 ─▶ 8  │
 │  ─────────────────────────────────────────────────────────────────         │
-│  ประวัติ   คัดกรอง    ตรวจ      บันทึก     สั่งยา /    นัดหมาย    ใบรับรอง  │
-│  การรักษา  & ซัก       ร่างกาย    แพทย์     สั่งตรวจ                          │
+│  ประวัติ   คัดกรอง    ตรวจ      SOAP      วินิจฉัย   สั่งการ     นัดหมาย เอกสาร│
+│  การรักษา  & ซัก       ร่างกาย    Note                 รักษา/CPOE             │
 │           ประวัติ      (Phys.    (Dx +     (med tbl +                       │
 │  (left    (vitals +    Exam)     ICD-10    labs +                          │
 │   rail +  symptoms     ★see       + plan)   advice)                        │
@@ -267,17 +267,17 @@ No drill-down navigation — terminal screen.
 
 ### Logic — flow notes
 
-- **Entry:** `/treat/record`, `state:{ hn, queue, name }`. Page resolves **two** patient shapes — `patient` via `findMrPatientByHn` (full MR) and `cardPatient` via `getPatientByHN` (display). Both fall back to defaults so direct visits don't crash.
+- **Entry:** `/treat/record`, `state:{ hn, queue, name }`. Page resolves **two** patient shapes — `patient` via `findMrPatientByHn` (full MR) and `cardPatient` via `getPatientByHN` (display). A direct visit without HN redirects to `/treat/queue` so clinical data is never shown under a fallback patient.
 - **State ownership:** `form` lives on the page; `buildInitialForm(patient)` runs once on mount. Switching patients via `QueueSubMenu.onPickPatient` re-mounts the page via `history.push('/treat/record', ...)`.
 - **Read-only steps (1, 2):** ประวัติ / หน้าจอคัดกรอง are summaries only — ✓ flips when `stepIndex > N` (advance-past).
 - **Cross-step linking:**
-  - Step 4 empty-state CTA "ตรวจร่างกาย" → `onStepChange(STEP_EXAM_INDEX)` jumps to Step 3.
-  - Step 7 cert reads `form.diagnoses[0] + form.diagnosisNote` live from Step 4; missing → CTA back to Step 4.
-- **Step 5 order picker:** “เพิ่มรายการ” opens `TreatmentOrderPickerPopup`. The clinician can select several medication / non-drug supply / lab / X-ray / procedure / consult rows, or apply one authorized Order Set, then add once. Results are distributed to each category array without resetting existing orders; medication allergy matches require confirmation first.
-- **Step 6 appointment state machine:** `appointment.mode === 'skip'` collapses body (✓); `'schedule'` expands and requires `{ clinic, type, doctor, reason, preparation }`. `ApptCollapse` keeps body mounted but height-collapsed so toggling glides.
-- **Step 7 cert state machine:** `certIssue === 'no'` ⇒ ✓; `'yes'` requires `certSignature` (base64 PNG from canvas). `certSignedAt` only flips on explicit "ยืนยันลายเซ็น" — never on every stroke.
+  - Step 5 diagnosis empty-state CTA "ตรวจร่างกาย" → Step 3.
+  - Step 8 documents reads `form.diagnoses[0] + form.diagnosisNote` live from Step 5; missing → CTA back to Step 5.
+- **Step 6 CPOE:** embeds the previous four-part CPOE workflow—สร้างคำสั่ง → เลือกรายการ → ตรวจสอบ/ลงนาม/ส่งปลายทาง → ติดตามผล—above the category panels. Both surfaces share `form.cpoeWorkflow` plus the same `labs`, `xrayOrders`, and `procedureOrders` arrays. `TreatmentOrderPickerPopup` still supports multi-select medication / non-drug supply / lab / X-ray / procedure / consult and Order Sets.
+- **Step 7 appointment state machine:** `appointment.mode === 'skip'` collapses body (✓); `'schedule'` expands and requires `{ clinic, type, doctor, reason, preparation }`.
+- **Step 8 documents/cert state machine:** `certIssue === 'no'` ⇒ ✓; `'yes'` requires `certSignature`.
 - **Sticky PatientCard:** ABOVE TreatmentFormShell with `sticky` prop. Uses an internal IntersectionObserver + sentinel; collapses to mini variant as the form column scrolls under Header. Requires the `<main>` to be scrollable.
-- **Step ✓ aggregation:** `getTreatmentCompletedSteps(form, stepIndex)` returns 7 booleans → `<TreatmentFormShell completedSteps={...} />` → `<StepProgress>`.
+- **Step ✓ aggregation:** `getCpoeCompletedSteps(form, stepIndex)` returns 8 booleans → `<TreatmentFormShell completedSteps={...} />` → `<StepProgress>`.
 - **Leave guard:** dirty + route change → `UnsavedChangesPopup`. The page also intercepts the browser back gesture.
 
 ---

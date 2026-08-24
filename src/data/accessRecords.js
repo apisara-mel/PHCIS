@@ -144,7 +144,7 @@ export const ACCESS_TABS = [
   { value: 'rejected', label: 'ปฏิเสธ',     icon: 'person_cancel' },
   /* ด.1.1.17.2 — สิทธิตามช่วงเวลา: หมดช่วงเวลาแล้วสถานะเป็น Inactive อัตโนมัติ */
   { value: 'expired',  label: 'หมดอายุ', icon: 'hourglass_disabled' },
-  { value: 'all',      label: 'การขอเข้าถึงแบบฟอร์มทั้งหมด', icon: 'group' },
+  { value: 'all',      label: 'รายการขอเข้าถึงแบบฟอร์มทั้งหมด', icon: 'group' },
 ];
 
 /* tone = ColorfulBadge style · tab = which tab it falls under · canApprove /
@@ -239,9 +239,8 @@ export const ACCESS_RECORDS = (() => {
   const expired = status === 'หมดอายุ';
   const periodStart = approved ? isoShift(-10 - (i % 5)) : expired ? isoShift(-40) : null;
   const periodEnd = approved ? isoShift(3 + (i % 4) * 9) : expired ? isoShift(-3 - (i % 4)) : null;
-  const formOnly = i % 4 === 0;
-  const hn = formOnly ? '-' : `67-${String(1 + n).padStart(5, '0')}`;
-  const patient = formOnly ? null : resolveConsentPatient(hn);
+  const hn = `67-${String(1 + n).padStart(5, '0')}`;
+  const patient = resolveConsentPatient(hn);
   /* stride 5 — เดือนเดียวกันได้หลายกลุ่มวิชาชีพ (pie ไม่พังตอน filter รายเดือน) */
   const org = accessOrgOfIndex(i * 5);
   const active = approved && slot < (plan.activeCount ?? plan.count);
@@ -260,14 +259,10 @@ export const ACCESS_RECORDS = (() => {
     patientName: patient?.name || '',
     purpose: PURPOSES[i % PURPOSES.length],
     reason: REASONS[i % REASONS.length],
-    accessType: formOnly ? 'form' : 'patient_consent',
-    accessTypeLabel: formOnly
-      ? ACCESS_TYPE_DISPLAY_LABEL.form
-      : ACCESS_TYPE_DISPLAY_LABEL.patient_consent,
+    accessType: 'patient_consent',
+    accessTypeLabel: ACCESS_TYPE_DISPLAY_LABEL.patient_consent,
     formCode: `PH-${String((i % 12) + 1).padStart(3, '0')}`,
-    formName: formOnly
-      ? 'ใบยินยอมการรักษาทั่วไป'
-      : 'ใบยินยอมการใช้ข้อมูลส่วนบุคคล (PDPA)',
+    formName: 'ใบยินยอมการใช้ข้อมูลส่วนบุคคล (PDPA)',
     period: `${day}-${Math.min(day + 10, 28)} ${month} 2569`,
     periodDays: `${(i % 3) * 5 + 5} วัน`,
     file: file[0],
@@ -335,8 +330,8 @@ export const enqueueAccessImport = (payload) => {
     scopes: payload.scopes || [],
     period: '-',
     periodDays: '-',
-    file: payload.fileName || 'scanned-form.pdf',
-    fileSize: '1.2 MB',
+    file: payload.fileName || '',
+    fileSize: payload.fileName ? '1.2 MB' : '-',
     status: 'รออนุมัติ',
     periodStart: null,
     periodEnd: null,

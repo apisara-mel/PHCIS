@@ -59,6 +59,7 @@ const InnerVoiceTextarea = React.forwardRef(({
   minHeight = VOICE_TEXTAREA_MIN_HEIGHT,
   boxRef,
   disabled = false,
+  resizable = true,
 }, ref) => (
   <VoiceTextarea
     ref={ref}
@@ -68,6 +69,7 @@ const InnerVoiceTextarea = React.forwardRef(({
     showLabel={!!label}
     showHelperText={false}
     disabled={disabled}
+    resizable={resizable}
     value={value ?? ''}
     /* VoiceTextarea emits (value, event); suggestion hook expects that pair.
        Wrapping as a DOM event breaks minChars filtering (Figma 162:24221). */
@@ -95,6 +97,7 @@ const SuggestibleTextarea = ({
   height = VOICE_TEXTAREA_HEIGHT,
   minHeight = VOICE_TEXTAREA_MIN_HEIGHT,
   disabled = false,
+  resizable = true,
   popoverWidth = 591,
   popoverAriaLabel = 'คำแนะนำ',
 }) => {
@@ -134,6 +137,7 @@ const SuggestibleTextarea = ({
     ref: textareaRef,
     boxRef,
     disabled,
+    resizable,
   };
 
   const passthroughChange = voice

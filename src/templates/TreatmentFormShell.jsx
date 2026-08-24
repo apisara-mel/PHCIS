@@ -27,7 +27,10 @@ export const TREATMENT_STEP_LABELS = TREATMENT_STEPS.map((s) => s.title);
    ซึ่งเป็นจังหวะเดียวกับ keyframe จางเข้าของเนื้อหา step */
 const STEP_SCROLL_MS = 320;
 
-const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, isLast }) => {
+const Footer = ({
+  stepIndex, steps, onPrev, onNext, onSave, isLast,
+  draftStatusText = 'ยังไม่มีร่างที่บันทึก', draftDirty = false, draftSaving = false,
+}) => {
   /* Primary CTA label — Figma PHCIS pattern: "ถัดไป: [next step]" so the
      clinician sees where they're heading without re-reading the stepper.
      Last step swaps the forward label for the explicit commit action. */
@@ -68,25 +71,40 @@ const Footer = ({ stepIndex, steps, lastSavedMin = 2, onPrev, onNext, onSave, is
         {isFirst ? 'ยกเลิก' : 'ย้อนกลับ'}
       </NeutralSubdueButton>
       {!isFirst && (
-        <span className='inline-flex items-center min-w-0' style={{
+        <span
+          role='status'
+          aria-live='polite'
+          className='inline-flex items-center min-w-0'
+          style={{
           gap: 'var(--dim-space-200)',
           color: 'var(--text-content-secondary)',
           fontFamily: 'var(--type-family-body)',
           fontSize: 'var(--type-size-sm)',
-        }}>
+          }}
+        >
           <span style={{
-            width: 6, height: 6, borderRadius: 'var(--dim-radius-full)',
-            background: 'var(--text-brandPrimary-default)',
+            width: 'var(--dim-space-150)',
+            height: 'var(--dim-space-150)',
+            borderRadius: 'var(--dim-radius-full)',
+            background: draftDirty
+              ? 'var(--text-warning-default)'
+              : 'var(--text-brandPrimary-default)',
             flexShrink: 0,
           }} />
-          ร่างแบบฟอร์ม (บันทึกล่าสุด: {lastSavedMin} นาทีที่แล้ว)
+          {draftStatusText}
         </span>
       )}
       <div className='flex-1' />
       {/* All three buttons render at h44 (size='lg') per Figma 330:42666 —
           smaller md (36 px) sizes break the action-row rhythm against
           the 44 px primary CTA. */}
-      <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' onClick={onSave}>
+      <BrandSubdueButton
+        variant='outline'
+        size='lg'
+        leadingIcon='save'
+        onClick={onSave}
+        disabled={!onSave || !draftDirty || draftSaving}
+      >
         บันทึกร่าง
       </BrandSubdueButton>
       <BrandPrimaryButton size='lg' trailingIcon={isLast ? 'check' : 'arrow_forward'} onClick={onNext}>
@@ -104,7 +122,11 @@ const TreatmentFormShell = ({
   steps = TREATMENT_STEPS,
   queuePath = '/treat/queue',
   morphTitle,
+  hideMorphTitle = false,
   morphStickyTop = MORPH_STICKY_BELOW_PATIENT,
+  /** Optional persistent clinical summary rendered beside every step. */
+  sidePanel = null,
+  sidePanelCollapsed = false,
   /* OPD's Step 1 brings its own ServiceDateList rail flush against the
      card's left edge, so it opts out of the 24px body padding — that's an
      OPD-specific layout quirk, not a general "step 1" rule. Sub-departments
@@ -115,11 +137,17 @@ const TreatmentFormShell = ({
   onLeave,
   /** Optional บันทึกร่าง handler — wired to the sticky footer save button. */
   onSaveDraft,
+  /** Truthful draft state shown in the footer; never a fabricated timestamp. */
+  draftStatusText,
+  draftDirty = false,
+  draftSaving = false,
   /** Shown as "จากแผนก" in the last-step internal-refer popup. */
   fromDepartment,
   /** Called after internal-refer confirm, before navigating to queuePath.
       Return false to skip the default history.push(queuePath). */
   onFinish,
+  /** Return false to keep the user on the form before opening final refer. */
+  onBeforeFinish,
 }) => {
   const history = useHistory();
   const [referOpen, setReferOpen] = useState(false);
@@ -200,7 +228,10 @@ const TreatmentFormShell = ({
     } else onStepChange(stepIndex - 1);
   };
   const handleNext = () => {
-    if (isLast) setReferOpen(true);
+    if (isLast) {
+      if (onBeforeFinish?.() === false) return;
+      setReferOpen(true);
+    }
     else onStepChange(stepIndex + 1);
   };
   const handleReferConfirm = (payload) => {
@@ -224,14 +255,16 @@ const TreatmentFormShell = ({
           completedSteps={completedSteps}
           onStepClick={onStepChange}
           stickyTop={morphStickyTop}
+          hideTitle={hideMorphTitle}
         />
       </div>
       <div ref={bodyRef} className='flex-1 flex flex-col min-h-0' style={{
         padding: 'var(--dim-space-600)',
         gap: 'var(--dim-space-400)',
       }}>
+        <div className={sidePanel ? 'mih-treatment-shell-layout' : 'flex flex-col flex-1 min-h-0'}>
         <div
-          className='flex flex-col w-full flex-1 min-h-0'
+          className='mih-treatment-shell-main flex flex-col w-full flex-1 min-h-0'
           style={{
             borderRadius: 'var(--dim-radius-500)',
             background: 'var(--surface-card-100)',
@@ -262,6 +295,15 @@ const TreatmentFormShell = ({
             {children}
           </div>
         </div>
+        {sidePanel && (
+          <aside
+            className={`mih-treatment-screening-rail${sidePanelCollapsed ? ' is-collapsed' : ''}`}
+            aria-label='สรุปคัดกรองและซักประวัติ'
+          >
+            {sidePanel}
+          </aside>
+        )}
+        </div>
       </div>
 
       <Footer
@@ -271,6 +313,9 @@ const TreatmentFormShell = ({
         onNext={handleNext}
         onSave={onSaveDraft}
         isLast={isLast}
+        draftStatusText={draftStatusText}
+        draftDirty={draftDirty}
+        draftSaving={draftSaving}
       />
 
       <InternalReferPopup

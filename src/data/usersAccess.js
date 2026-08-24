@@ -6,9 +6,10 @@ import { STAFF_AVATARS } from '@/data/avatarAssets';
      1) บทบาท (role)           — primary job function (single)
      2) บทบาทย่อย (sub-role)    — specialty inside the role (single)
      3) แผนก (departments)     — clinical units the user works in (multi)
-     4) สิทธิ์ฟีเจอร์ (features) — per-feature access level: none / view / edit
+     4) สิทธิ์ฟีเจอร์ (features) — per-feature access level: none / view / write / edit
 
-   Feature access is stored as a map { featureKey → 'view' | 'edit' }.
+   Feature access is stored as a map { featureKey → 'view' | 'write' | 'edit' }.
+   `edit` is retained as the backwards-compatible value for Read and Write.
    Missing keys = no access. Some features only support 'edit' (binary
    actions like "ส่ง QR") — declared via supportedLevels on each feature. */
 
@@ -171,6 +172,83 @@ export const FEATURE_GROUPS = [
       { key: 'system.settings', label: 'ตั้งค่าระบบ',          supportedLevels: ['view', 'edit'] },
       { key: 'audit.log',       label: 'ประวัติการใช้งานระบบ',  supportedLevels: ['view'] },
     ],
+  },
+];
+
+const featureTemplate = (entries) => Object.fromEntries(entries);
+
+/**
+ * Role is a reusable permission template. Applying a template only copies
+ * defaults into the user record; the resulting module/menu/submenu rights
+ * remain editable per user afterwards.
+ */
+export const ROLE_TEMPLATES = [
+  {
+    key: 'doctor-standard',
+    role: 'doctor',
+    label: 'แพทย์ผู้ให้บริการ',
+    description: 'อ่านข้อมูลผู้ป่วยและบันทึกการรักษา ใบสั่งยา ผลตรวจ และความยินยอม',
+    features: featureTemplate([
+      ['dashboard.overview', 'view'], ['opd.queue', 'edit'], ['opd.screening', 'edit'],
+      ['opd.vitals', 'edit'], ['treat.queue', 'edit'], ['treat.record', 'edit'],
+      ['treat.prescribe', 'edit'], ['treat.diagnosis', 'edit'], ['forms.view', 'view'],
+      ['forms.fill', 'write'], ['lab.order', 'write'], ['lab.result', 'view'],
+    ]),
+  },
+  {
+    key: 'nurse-standard',
+    role: 'nurse',
+    label: 'พยาบาลผู้ให้บริการ',
+    description: 'จัดการคิว คัดกรอง สัญญาณชีพ และบันทึกแบบฟอร์มความยินยอม',
+    features: featureTemplate([
+      ['dashboard.overview', 'view'], ['opd.queue', 'edit'], ['opd.screening', 'edit'],
+      ['opd.vitals', 'edit'], ['treat.queue', 'view'], ['treat.record', 'write'],
+      ['forms.view', 'view'], ['forms.fill', 'write'], ['forms.share', 'write'],
+    ]),
+  },
+  {
+    key: 'pharmacist-standard',
+    role: 'pharmacist',
+    label: 'เภสัชกร',
+    description: 'อ่านข้อมูลการรักษาและจัดการงานจ่ายยา ตรวจสอบคำสั่งยา และคลังยา',
+    features: featureTemplate([
+      ['dashboard.overview', 'view'], ['treat.record', 'view'], ['treat.prescribe', 'view'],
+      ['pharm.dispense', 'edit'], ['pharm.stock', 'edit'], ['pharm.registry', 'edit'],
+      ['pharm.verify', 'edit'], ['pharm.requisition', 'edit'], ['forms.view', 'view'],
+    ]),
+  },
+  {
+    key: 'registrar-standard',
+    role: 'registrar',
+    label: 'เจ้าหน้าที่เวชระเบียน',
+    description: 'จัดการลงทะเบียน ข้อมูลผู้ป่วย และเอกสารความยินยอม',
+    features: featureTemplate([
+      ['dashboard.overview', 'view'], ['reg.queue', 'edit'], ['reg.register', 'edit'],
+      ['reg.profile', 'edit'], ['forms.view', 'view'], ['forms.fill', 'write'],
+      ['forms.share', 'write'],
+    ]),
+  },
+  {
+    key: 'lab-standard',
+    role: 'lab-tech',
+    label: 'เจ้าหน้าที่ห้องปฏิบัติการ',
+    description: 'อ่านคำสั่งตรวจและบันทึกผลตรวจห้องปฏิบัติการ/รังสี',
+    features: featureTemplate([
+      ['dashboard.overview', 'view'], ['lab.order', 'view'], ['lab.result', 'edit'],
+      ['radiology.read', 'edit'], ['forms.view', 'view'],
+    ]),
+  },
+  {
+    key: 'admin-standard',
+    role: 'admin',
+    label: 'ผู้ดูแลระบบ',
+    description: 'จัดการผู้ใช้ การตั้งค่าระบบ รายงาน และ Audit Log',
+    features: Object.fromEntries(FEATURE_GROUPS.flatMap((group) => group.features.map((feature) => [
+      feature.key,
+      feature.supportedLevels.includes('edit') && feature.supportedLevels.includes('view')
+        ? 'edit'
+        : (feature.supportedLevels.includes('edit') ? 'write' : 'view'),
+    ]))),
   },
 ];
 
@@ -435,12 +513,14 @@ export const ROLE_PALETTE = {
 /* Quick aggregations for the user-row summary chip. */
 export const countAccess = (features = {}) => {
   let view = 0;
+  let write = 0;
   let edit = 0;
   for (const v of Object.values(features)) {
     if (v === 'edit') edit += 1;
+    else if (v === 'write') write += 1;
     else if (v === 'view') view += 1;
   }
-  return { view, edit, total: view + edit };
+  return { view, write, edit, total: view + write + edit };
 };
 
 /* ══════════════════════════════════════════════════════════════════════

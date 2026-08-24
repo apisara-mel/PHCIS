@@ -22,9 +22,10 @@ export const isBureauAdmin = () => {
   return u?.role === 'admin' && u?.subRole === 'sys-admin';
 };
 
-/** ระดับสิทธิ์ของ feature key เดิม: 'edit' | 'view' | null */
+/** ระดับสิทธิ์: edit = Read and Write (legacy-compatible), write = Write only. */
 export const featureLevel = (key) => getCurrentUser()?.features?.[key] ?? null;
 export const canEdit = (key) => featureLevel(key) === 'edit';
+export const canWrite = (key) => featureLevel(key) === 'edit' || featureLevel(key) === 'write';
 export const canView = (key) => featureLevel(key) === 'edit' || featureLevel(key) === 'view';
 
 /** ลง audit trail ของงานผู้ดูแลระบบ — mod คงที่ 'ผู้ดูแลระบบ' ทุกครั้ง. */
@@ -244,7 +245,7 @@ export const PermissionGate = ({ feature, featureLabel, children }) => {
       </ModuleCard>
     );
   }
-  return typeof children === 'function' ? children(level !== 'edit') : children;
+  return typeof children === 'function' ? children(level !== 'edit' && level !== 'write') : children;
 };
 
 /** ชิปสถานะ Active/Inactive ที่ใช้ทั้งโมดูล. */

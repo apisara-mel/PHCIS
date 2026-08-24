@@ -6,6 +6,7 @@ import { canCreateConsentRequest } from '@/data/consentPermissions';
 import { shouldShowCreateConsentRequestAction } from '@/data/consentRequestActionVisibility';
 import { morphSubHeaderPaddingStyle, morphTitleStyle } from '@/components/layout/headerMorphStyles';
 import { MIH_CHROME_MORPH_SUBHEADER } from '@/components/layout/wizardChromeMorphStyles';
+import { ButtonSizeAliasProvider } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH SubHeader — design-system page sub-header.
    Shares the SAME 1px brand-quaternary bottom border and brand-tinted
@@ -34,16 +35,22 @@ import { MIH_CHROME_MORPH_SUBHEADER } from '@/components/layout/wizardChromeMorp
        SummaryCardsBar can sit flush with no visible “top stroke” on the panel.
      hideBottomBorder — when true, omits only the 1px bottom border (keeps shadow). */
 
+/* Density contract: every button rendered in this page-title row inherits the
+   existing `sm` size alias (36px) through ButtonSizeAliasProvider. This also
+   reaches buttons nested inside compound header actions without page-by-page
+   overrides. */
+
 const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', children, flushSummaryCardsBelow = false, hideBottomBorder = false }) => {
   const { pathname } = useLocation();
   const showConsentAction = canCreateConsentRequest() && shouldShowCreateConsentRequestAction(pathname);
   const hasActions = children || showConsentAction;
 
   return (
+  <ButtonSizeAliasProvider size='sm'>
   <div
     className={`flex items-start w-full shrink-0 ${MIH_CHROME_MORPH_SUBHEADER}`}
     style={{
-      gap: 'var(--dim-space-400)',
+      gap: 'var(--dim-space-300)',
       paddingLeft: 'var(--dim-space-600)',
       paddingRight: 'var(--dim-space-600)',
       ...morphSubHeaderPaddingStyle,
@@ -59,7 +66,7 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
     {onBack && (
       <NeutralSubdueButton
         variant='outline'
-        size='md'
+        size='sm'
         leadingIcon='chevron_left'
         onClick={onBack}
       >
@@ -73,7 +80,7 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
         (CheckupScreeningPage, CheckupRecordPage), so an unshrinkable nowrap
         span pushes the shrink-0 action group past the right edge on a narrow
         viewport and the sticky bar scrolls sideways. */}
-    <span
+    <h1
       className='min-w-0 inline-flex items-center'
       title={typeof title === 'string' ? title : undefined}
       style={{
@@ -82,7 +89,8 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
         fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
         lineHeight: 1.5,
         fontSize: 'var(--type-size-title, var(--type-size-base, 16px))',
-        minHeight: 'var(--dim-size-800, 40px)',
+        minHeight: 'var(--dim-size-700, 36px)',
+        margin: 0,
         ...morphTitleStyle,
       }}
     >
@@ -92,20 +100,21 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
       >
         {title}
       </span>
-    </span>
+    </h1>
     {afterTitle != null && afterTitle !== false && (
-      <div className='shrink-0 inline-flex items-center' style={{ minHeight: 'var(--dim-size-800, 40px)' }}>
+      <div className='shrink-0 inline-flex items-center' style={{ minHeight: 'var(--dim-size-700, 36px)' }}>
         {afterTitle}
       </div>
     )}
-    <div className='flex-1 min-w-0' style={{ minHeight: 'var(--dim-size-800, 40px)' }} />
+    <div className='flex-1 min-w-0' style={{ minHeight: 'var(--dim-size-700, 36px)' }} />
     {hasActions && (
-      <div className='flex items-center shrink-0 flex-wrap justify-end' style={{ gap: 'var(--dim-space-300)' }}>
+      <div className='flex items-center shrink-0 flex-wrap justify-end' style={{ gap: 'var(--dim-space-200)' }}>
         {showConsentAction && <CreateConsentRequestHeaderAction />}
         {children}
       </div>
     )}
   </div>
+  </ButtonSizeAliasProvider>
   );
 };
 

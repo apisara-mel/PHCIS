@@ -16,6 +16,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import Icon from '@/components/icons/Icon';
 import ViewToggle from '@/components/toggle/ViewToggle';
+import Switch from '@/components/switch/Switch';
 import AlertDialog from '@/components/popup/AlertDialog';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import {
@@ -32,9 +33,8 @@ import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import { ConsentFormEditPopup } from '@/pages/consent/CreateConsentFormPage';
 import { ConsentFormViewPopup } from '@/pages/consent/ConsentFormViewPopup';
-import FormScopeViewPopup from '@/components/consent/FormScopeViewPopup';
-import FormPositionViewPopup from '@/components/consent/FormPositionViewPopup';
-import { CONSENT_SCOPE_DEPTS, CONSENT_SCOPE_TREE } from '@/data/consentFormScopes';
+import FormAccessViewPopup from '@/components/consent/FormAccessViewPopup';
+import { CONSENT_SCOPE_DEPTS, resolveRecordPositions } from '@/data/consentFormScopes';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — แบบฟอร์มความยินยอม (Figma 291:113045 · flow 277:150901).
@@ -95,27 +95,14 @@ const Cell = ({ value }) =>
     ? <span style={TEXT_CELL}>{value}</span>
     : <span style={MUTED_CELL}>-</span>;
 
-/* กิจกรรม — เปิด popup ดูรายละเอียด */
-const ScopeCell = ({ row, onView }) => (
+const AccessCell = ({ row, onView }) => (
   <NeutralSubdueButton
-    leadingIcon='groups'
+    leadingIcon='lock_person'
     variant='outline'
     size='sm'
     onClick={() => onView(row)}
   >
-    ดู กิจกรรม
-  </NeutralSubdueButton>
-);
-
-/* ตำแหน่งที่มีสิทธิเข้าถึงได้ — เปิด popup ดู/แก้ไข */
-const PositionCell = ({ row, onView }) => (
-  <NeutralSubdueButton
-    leadingIcon='badge'
-    variant='outline'
-    size='sm'
-    onClick={() => onView(row)}
-  >
-    ดูตำแหน่ง
+    ผู้ที่มีสิทธิ์เข้าถึง
   </NeutralSubdueButton>
 );
 
@@ -202,15 +189,14 @@ export default function ConsentFormsPage() {
   });
   const [search, setSearch] = useState('');
   const [filterGroup, setFilterGroup] = useState('');
-  const [filterSubBranch, setFilterSubBranch] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterCreator, setFilterCreator] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate, setFilterDate] = useState({ quick: 'thismonth' });
 
-  const filtersActive = search.trim() !== '' || !!filterGroup || !!filterSubBranch || !!filterDept || !!filterCreator || !!filterStatus || (filterDate?.quick && filterDate.quick !== 'thismonth');
+  const filtersActive = search.trim() !== '' || !!filterGroup || !!filterDept || !!filterCreator || !!filterStatus || (filterDate?.quick && filterDate.quick !== 'thismonth');
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
-    setSearch(''); setFilterGroup(''); setFilterSubBranch(''); setFilterDept(''); setFilterCreator(''); setFilterStatus(''); setFilterDate({ quick: 'thismonth' }); setPage(1);
+    setSearch(''); setFilterGroup(''); setFilterDept(''); setFilterCreator(''); setFilterStatus(''); setFilterDate({ quick: 'thismonth' }); setPage(1);
   });
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [page, setPage] = useState(1);
@@ -223,10 +209,9 @@ export default function ConsentFormsPage() {
   const [bumpFor, setBumpFor] = useState(null);         // published record → บังคับ bump
   const [editFor, setEditFor] = useState(null);         // { record, newVersion } → ConsentFormEditPopup
   const [viewFor, setViewFor] = useState(null);         // record → ConsentFormViewPopup
-  const [scopeViewFor, setScopeViewFor] = useState(null); // record → FormScopeViewPopup
-  const [positionViewFor, setPositionViewFor] = useState(null); // record → FormPositionViewPopup
-  const [scopeSaveRev, setScopeSaveRev] = useState(0);
-  const [positionSaveRev, setPositionSaveRev] = useState(0);
+  const [accessViewFor, setAccessViewFor] = useState(null);
+  const [statusOverrides, setStatusOverrides] = useState({});
+  const [statusConfirm, setStatusConfirm] = useState(null);
   const [toast, setToast] = useState(null);
   const [draftRev, setDraftRev] = useState(0);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
@@ -251,10 +236,12 @@ export default function ConsentFormsPage() {
     }
   }, [location.search]);
 
-  const allRecords = useMemo(
-    () => getMergedConsentFormRecords(CONSENT_FORM_RECORDS),
-    [draftRev],
-  );
+  const allRecords = useMemo(() => (
+    getMergedConsentFormRecords(CONSENT_FORM_RECORDS).map((record) => ({
+      ...record,
+      status: statusOverrides[record.id] || record.status,
+    }))
+  ), [draftRev, statusOverrides]);
 
   const summaryCards = useMemo(
     () => buildConsentFormSummary(allRecords),
@@ -286,13 +273,10 @@ export default function ConsentFormsPage() {
   })), [allRecords]);
 
   const groupOptions = useMemo(() => [
-    { value: '', label: 'ทุกกลุ่ม' },
-    ...CONSENT_SCOPE_TREE.map((g) => ({ value: g.group, label: g.group })),
-  ], []);
-  const subBranchOptions = useMemo(() => [
-    { value: '', label: 'ทุกกิจกรรมย่อย' },
-    ...CONSENT_SCOPE_TREE.flatMap((g) => g.subBranches.map((s) => ({ value: s, label: s }))),
-  ], []);
+    { value: '', label: 'ทุกบทบาท' },
+    ...[...new Set(allRecords.flatMap((record) => resolveRecordPositions(record)))]
+      .map((role) => ({ value: role, label: role })),
+  ], [allRecords]);
   const deptOptions = useMemo(() => [
     { value: '', label: 'ทุกแผนก' },
     ...CONSENT_SCOPE_DEPTS.map((d) => ({ value: d, label: d })),
@@ -303,7 +287,7 @@ export default function ConsentFormsPage() {
   ], []);
   const creatorOptions = useMemo(() => [
     { value: '', label: 'ทุกคน' },
-    ...[...new Set(allRecords.map((r) => r.creator))].map((c) => ({ value: c, label: c })),
+    ...[...new Set(allRecords.map((r) => r.updatedBy || r.creator))].map((c) => ({ value: c, label: c })),
   ], [allRecords]);
 
   const filtered = useMemo(() => {
@@ -313,45 +297,15 @@ export default function ConsentFormsPage() {
       const scopes = recordScopes(r);
       return (
         (activeTab === 'all' || meta.tab === activeTab) &&
-        (!filterGroup || scopes.some((s) => s.group === filterGroup)) &&
-        (!filterSubBranch || scopes.some((s) => s.subBranch === filterSubBranch)) &&
+        (!filterGroup || resolveRecordPositions(r).includes(filterGroup)) &&
         (!filterDept || scopes.some((s) => s.dept === filterDept)) &&
         (!filterStatus || r.status === filterStatus) &&
-        (!filterCreator || r.creator === filterCreator) &&
+        (!filterCreator || (r.updatedBy || r.creator) === filterCreator) &&
         matchesDateFilter(r.createdDate, filterDate) &&
         (!q || r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || (r.group || '').toLowerCase().includes(q))
       );
     });
-  }, [activeTab, search, filterGroup, filterSubBranch, filterDept, filterStatus, filterCreator, filterDate, scopeSaveRev, positionSaveRev, allRecords]);
-
-  const handleScopeSave = (row, scopes) => {
-    const primary = scopes[0];
-    Object.assign(row, {
-      scopes,
-      group: primary?.group ?? row.group,
-      subBranch: primary?.subBranch ?? row.subBranch,
-      dept: primary?.dept ?? row.dept,
-      moreCount: Math.max(0, scopes.length - 1),
-    });
-    setScopeViewFor({ ...row, scopes });
-    setScopeSaveRev((v) => v + 1);
-    setToast({
-      id: Date.now(),
-      variant: 'success',
-      message: 'บันทึก กิจกรรม / กิจกรรมย่อย / แผนก ที่เข้าถึงได้แล้ว',
-    });
-  };
-
-  const handlePositionSave = (row, positions) => {
-    Object.assign(row, { positions: [...positions] });
-    setPositionViewFor({ ...row, positions: [...positions] });
-    setPositionSaveRev((v) => v + 1);
-    setToast({
-      id: Date.now(),
-      variant: 'success',
-      message: 'บันทึกตำแหน่งที่มีสิทธิเข้าถึงได้แล้ว',
-    });
-  };
+  }, [activeTab, search, filterGroup, filterDept, filterStatus, filterCreator, filterDate, allRecords]);
 
   const handleSort = (key) => setSortConfig((prev) => (
     prev.key === key
@@ -422,7 +376,7 @@ export default function ConsentFormsPage() {
 
   const renderAction = (row) => (
     <div
-      className='flex items-center justify-end flex-nowrap shrink-0'
+      className='flex items-center justify-end flex-wrap shrink-0'
       style={{ gap: 'var(--dim-space-150)' }}
     >
       <NeutralSubdueIconButton icon='visibility' variant='outline' size='sm' aria-label='ดูแบบฟอร์ม' title='ดูแบบฟอร์ม' onClick={() => setViewFor(row)} />
@@ -458,21 +412,25 @@ export default function ConsentFormsPage() {
         render: (r) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{r.version}</ColorfulBadge>,
       },
       {
-        key: 'group',
-        header: 'กิจกรรม / กิจกรรมย่อย / แผนก ที่เข้าถึงได้',
-        render: (r) => <ScopeCell row={r} onView={setScopeViewFor} />,
-      },
-      {
-        key: 'positions',
-        header: 'ตำแหน่งที่มีสิทธิเข้าถึงได้',
-        render: (r) => <PositionCell row={r} onView={setPositionViewFor} />,
+        key: 'access',
+        header: 'สิทธิ์การเข้าถึง',
+        render: (r) => <AccessCell row={r} onView={setAccessViewFor} />,
       },
     ];
     const trailing = [
-      { key: 'creator', header: 'ผู้สร้าง', render: (r) => <Cell value={r.creator} /> },
+      { key: 'updatedBy', header: 'ผู้ที่อัปเดตล่าสุด', render: (r) => <Cell value={r.updatedBy || r.creator} /> },
       {
         key: 'status', header: 'สถานะ', sortable: true,
-        render: (r) => <ColorfulBadge style={(CONSENT_FORM_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>,
+        render: (r) => (
+          <div className='flex items-center flex-nowrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <Switch
+              checked={r.status === 'เผยแพร่'}
+              aria-label={`${r.status === 'เผยแพร่' ? 'ยกเลิกเผยแพร่' : 'เผยแพร่'} ${r.code}`}
+              onChange={(checked) => setStatusConfirm({ record: r, nextStatus: checked ? 'เผยแพร่' : 'ไม่เผยแพร่' })}
+            />
+            <ColorfulBadge style={(CONSENT_FORM_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>
+          </div>
+        ),
       },
       { key: 'action', header: 'การดำเนินการ', minWidth: 304, render: renderAction },
     ];
@@ -481,6 +439,80 @@ export default function ConsentFormsPage() {
     }
     return [...leading, updatedDateCol, ...trailing];
   }, [activeTab]);
+
+  const renderMobileFormCard = (row) => (
+    <article
+      key={row.id}
+      className='w-full flex flex-col'
+      style={{
+        gap: 'var(--dim-space-300)',
+        padding: 'var(--dim-space-400)',
+        background: 'var(--surface-card-100)',
+        border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+        borderRadius: 'var(--dim-radius-300, 10px)',
+        boxShadow: 'var(--shadow-card)',
+      }}
+    >
+      <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+            <strong style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)' }}>
+              {row.code}
+            </strong>
+            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{row.version}</ColorfulBadge>
+          </div>
+          <button
+            type='button'
+            className='w-full text-left'
+            onClick={() => setViewFor(row)}
+            style={{
+              minHeight: 'var(--dim-size-900, 44px)',
+              padding: 0,
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-content-default)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-base)',
+              fontWeight: 'var(--type-weight-medium)',
+              lineHeight: 1.5,
+            }}
+          >
+            {row.name}
+          </button>
+        </div>
+        <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <Switch
+            checked={row.status === 'เผยแพร่'}
+            aria-label={`${row.status === 'เผยแพร่' ? 'ยกเลิกเผยแพร่' : 'เผยแพร่'} ${row.code}`}
+            onChange={(checked) => setStatusConfirm({ record: row, nextStatus: checked ? 'เผยแพร่' : 'ไม่เผยแพร่' })}
+          />
+          <ColorfulBadge style={(CONSENT_FORM_STATUS[row.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>
+            {row.status}
+          </ColorfulBadge>
+        </div>
+      </div>
+
+      <div className='grid grid-cols-2 w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+          <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>อัปเดตล่าสุด</span>
+          <span style={TEXT_CELL}>{row.updatedDate || '-'}</span>
+        </div>
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+          <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ผู้แก้ไขล่าสุด</span>
+          <span className='truncate' style={TEXT_CELL}>{row.updatedBy || row.creator || '-'}</span>
+        </div>
+      </div>
+
+      <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-200)' }}>
+        <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>สิทธิ์การเข้าถึง</span>
+        <AccessCell row={row} onView={setAccessViewFor} />
+      </div>
+
+      <div className='flex justify-end w-full' style={{ borderTop: 'var(--dim-stroke-100) solid var(--border-card-default)', paddingTop: 'var(--dim-space-300)' }}>
+        {renderAction(row)}
+      </div>
+    </article>
+  );
 
   return (
     <>
@@ -519,6 +551,7 @@ export default function ConsentFormsPage() {
           <div className='w-full flex items-start justify-center'>
             <PrimarySearch
               value={search}
+              inputAriaLabel='ค้นหาแบบฟอร์มความยินยอมด้วยชื่อ รหัส หรือกลุ่มงาน'
               onChange={(v) => { setSearch(v); setPage(1); }}
               onSubmit={handleSubmit}
               placeholder='ค้นหาชื่อแบบฟอร์ม / รหัส / กลุ่มงาน...'
@@ -531,10 +564,9 @@ export default function ConsentFormsPage() {
 
           <div className='w-full flex items-start' style={{ gap: 'var(--dim-space-300)' }}>
             <div className='flex items-center flex-wrap min-w-0 flex-1' style={{ gap: 'var(--dim-space-200)' }}>
-              <FilterDropdown prefix='กิจกรรม:' options={groupOptions} value={filterGroup} onChange={(v) => { setFilterGroup(v); setPage(1); }} />
-              <FilterDropdown prefix='กิจกรรมย่อย:' options={subBranchOptions} value={filterSubBranch} onChange={(v) => { setFilterSubBranch(v); setPage(1); }} />
+              <FilterDropdown prefix='บทบาท:' options={groupOptions} value={filterGroup} onChange={(v) => { setFilterGroup(v); setPage(1); }} />
               <FilterDropdown prefix='แผนก:' options={deptOptions} value={filterDept} onChange={(v) => { setFilterDept(v); setPage(1); }} />
-              <FilterDropdown prefix='ผู้สร้าง:' options={creatorOptions} value={filterCreator} onChange={(v) => { setFilterCreator(v); setPage(1); }} />
+              <FilterDropdown prefix='ผู้ที่อัปเดตล่าสุด:' options={creatorOptions} value={filterCreator} onChange={(v) => { setFilterCreator(v); setPage(1); }} />
               {activeTab === 'all' && (
                 <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
               )}
@@ -555,20 +587,30 @@ export default function ConsentFormsPage() {
           {viewMode === 'list' ? (
             <SmoothFilterResults opaque={resultsOpaque}>
             <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
-              <Table
-                columns={columns}
-                rows={pageRows}
-                rowKey={(row) => row.id}
-                sortConfig={sortConfig}
-                onSort={handleSort}
-                stickyColCount={2}
-                trailingInset='var(--dim-space-400, 16px)'
-                /* Pin under sticky SubHeader + tabs — offset tracks Topbar
-                   auto-hide via --mih-queue-sticky-under-tabs (QueuePageShell). */
-                stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-                emptyMessage='ไม่พบแบบฟอร์มความยินยอม'
-                emptySubtext='ลองปรับคำค้นหาหรือเปลี่ยนแท็บ'
-              />
+              <div className='md:hidden flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                {pageRows.length ? pageRows.map(renderMobileFormCard) : (
+                  <div className='flex flex-col items-center text-center w-full' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-600)' }}>
+                    <strong style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>ไม่พบแบบฟอร์มความยินยอม</strong>
+                    <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>ลองปรับคำค้นหาหรือเปลี่ยนแท็บ</span>
+                  </div>
+                )}
+              </div>
+              <div className='hidden md:block w-full'>
+                <Table
+                  columns={columns}
+                  rows={pageRows}
+                  rowKey={(row) => row.id}
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+                  stickyColCount={2}
+                  trailingInset='var(--dim-space-400, 16px)'
+                  /* Pin under sticky SubHeader + tabs — offset tracks Topbar
+                     auto-hide via --mih-queue-sticky-under-tabs (QueuePageShell). */
+                  stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
+                  emptyMessage='ไม่พบแบบฟอร์มความยินยอม'
+                  emptySubtext='ลองปรับคำค้นหาหรือเปลี่ยนแท็บ'
+                />
+              </div>
               <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)', paddingTop: 'var(--dim-space-400)' }}>
                 <span style={{ flex: 1, color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
                   แสดง {rangeStart}-{rangeEnd} จาก {sorted.length} รายการ
@@ -607,18 +649,10 @@ export default function ConsentFormsPage() {
       onToast={setToast}
     />
 
-    <FormScopeViewPopup
-      open={!!scopeViewFor}
-      record={scopeViewFor}
-      onClose={() => setScopeViewFor(null)}
-      onSave={handleScopeSave}
-    />
-
-    <FormPositionViewPopup
-      open={!!positionViewFor}
-      record={positionViewFor}
-      onClose={() => setPositionViewFor(null)}
-      onSave={handlePositionSave}
+    <FormAccessViewPopup
+      open={!!accessViewFor}
+      record={accessViewFor}
+      onClose={() => setAccessViewFor(null)}
     />
 
     {/* ด.1.1.5 — timeline เวอร์ชัน + สร้างเวอร์ชันใหม่ */}
@@ -654,12 +688,37 @@ export default function ConsentFormsPage() {
       open={!!bumpFor}
       type='warning'
       title='แบบฟอร์มนี้เผยแพร่แล้ว'
-      description={bumpFor ? `${bumpFor.code} (${bumpFor.version}) แก้ทับไม่ได้ — ระบบจะสร้างเวอร์ชันใหม่ ${bumpVersion(bumpFor.version)} ให้แก้ไขแทน และเก็บเวอร์ชันเดิมเป็น read-only` : ''}
+      description={bumpFor ? `${bumpFor.code} (${bumpFor.version}) แก้ทับไม่ได้ — ระบบจะสร้างเวอร์ชันใหม่ ${bumpVersion(bumpFor.version)} ให้แก้ไขแทน และเก็บประวัติเวอร์ชันเดิมไว้` : ''}
       confirmLabel='สร้างเวอร์ชันใหม่'
       cancelLabel='ยกเลิก'
       onConfirm={() => { const row = bumpFor; setBumpFor(null); if (row) goCreateVersion(row); }}
       onCancel={() => setBumpFor(null)}
       onClose={() => setBumpFor(null)}
+    />
+
+    <AlertDialog
+      open={!!statusConfirm}
+      type={statusConfirm?.nextStatus === 'เผยแพร่' ? 'info' : 'destructive'}
+      title={statusConfirm?.nextStatus === 'เผยแพร่' ? 'ยืนยันการเผยแพร่แบบฟอร์ม' : 'ยืนยันการยกเลิกเผยแพร่'}
+      description={statusConfirm
+        ? statusConfirm.nextStatus === 'เผยแพร่'
+          ? `${statusConfirm.record.code} จะพร้อมใช้งานสำหรับบทบาทและหน่วยงานที่ได้รับสิทธิ์`
+          : `${statusConfirm.record.code} จะไม่สามารถถูกเลือกใช้กับรายการใหม่ได้ แต่ประวัติเดิมยังคงอยู่`
+        : ''}
+      confirmLabel={statusConfirm?.nextStatus === 'เผยแพร่' ? 'เผยแพร่' : 'ยกเลิกเผยแพร่'}
+      cancelLabel='ยกเลิก'
+      onConfirm={() => {
+        if (!statusConfirm) return;
+        setStatusOverrides((prev) => ({ ...prev, [statusConfirm.record.id]: statusConfirm.nextStatus }));
+        setToast({
+          id: Date.now(),
+          variant: 'success',
+          message: `${statusConfirm.record.code} เปลี่ยนสถานะเป็น ${statusConfirm.nextStatus} แล้ว`,
+        });
+        setStatusConfirm(null);
+      }}
+      onCancel={() => setStatusConfirm(null)}
+      onClose={() => setStatusConfirm(null)}
     />
 
     <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />

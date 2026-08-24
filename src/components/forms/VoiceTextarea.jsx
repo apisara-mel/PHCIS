@@ -12,6 +12,34 @@ import {
   stopSpeechRecognition,
 } from '@/utils/speechRecognition';
 
+/* The wrapper owns all visual chrome. Keep the native textarea completely
+   neutral across Chromium/Safari; this editor intentionally keeps a visible
+   caret because it is a long-form clinical typing surface. */
+if (typeof document !== 'undefined') {
+  const STYLE_ID = 'mih-voice-textarea-native-reset';
+  document.getElementById(STYLE_ID)?.remove();
+  const styleElement = document.createElement('style');
+  styleElement.id = STYLE_ID;
+  styleElement.textContent = `
+.mih-voice-textarea-input,
+.mih-voice-textarea-input:focus,
+.mih-voice-textarea-input:focus-visible {
+  caret-color: var(--brand-p600, #08A768) !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+.mih-voice-textarea-input::placeholder {
+  color: var(--text-input-default, #858C92) !important;
+  opacity: 1 !important;
+}
+`;
+  document.head.appendChild(styleElement);
+}
+
 /* MIH VoiceTextarea — Figma "Voice Textarea" (node 3217:3511 Default, 3280:3970
    variant matrix). Multiline text input with a bottom toolbar holding:
      • a language picker (alias of <FilterDropdown> with Thai + English),
@@ -89,6 +117,7 @@ const VoiceTextarea = React.forwardRef(function VoiceTextarea(
     onDeleteClick,
     state,
     disabled = false,
+    resizable = true,
     height = VOICE_TEXTAREA_HEIGHT,
     minHeight = VOICE_TEXTAREA_MIN_HEIGHT,
     id: idProp,
@@ -274,6 +303,7 @@ const VoiceTextarea = React.forwardRef(function VoiceTextarea(
           /* Clip the toolbar's rounded bottom corners flush with the outer
              box's rounded corners (the form's stroke wraps the curve). */
           overflow: 'hidden',
+          resize: disabled || !resizable ? 'none' : 'vertical',
           transition: 'border-color 160ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 160ms cubic-bezier(0.4, 0, 0.2, 1), background 160ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
@@ -313,7 +343,7 @@ const VoiceTextarea = React.forwardRef(function VoiceTextarea(
             disabled={disabled}
             required={required}
             aria-invalid={!!error || undefined}
-            className='mih-input-placeholder w-full h-full bg-transparent'
+            className='mih-input-placeholder mih-voice-textarea-input w-full h-full bg-transparent'
             style={{
               color: s.valueColor,
               caretColor: 'var(--brand-p600)',

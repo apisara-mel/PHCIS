@@ -38,13 +38,13 @@ export const morphStepScaleStyle = {
 
 export const morphPanelPaddingStyle = {
   paddingLeft:
-    'calc(var(--dim-space-600) + (var(--dim-space-400) - var(--dim-space-600)) * var(--header-morph, 0))',
+    'calc(var(--dim-space-400) + (var(--dim-space-300) - var(--dim-space-400)) * var(--header-morph, 0))',
   paddingRight:
-    'calc(var(--dim-space-600) + (var(--dim-space-400) - var(--dim-space-600)) * var(--header-morph, 0))',
+    'calc(var(--dim-space-400) + (var(--dim-space-300) - var(--dim-space-400)) * var(--header-morph, 0))',
   paddingTop:
-    'calc(var(--dim-space-600) + (var(--dim-space-300) - var(--dim-space-600)) * var(--header-morph, 0))',
+    'calc(var(--dim-space-400) + (var(--dim-space-200) - var(--dim-space-400)) * var(--header-morph, 0))',
   paddingBottom:
-    'calc(var(--dim-space-600) + (var(--dim-space-300) - var(--dim-space-600)) * var(--header-morph, 0))',
+    'calc(var(--dim-space-400) + (var(--dim-space-200) - var(--dim-space-400)) * var(--header-morph, 0))',
 };
 
 export const morphSubHeaderPaddingStyle = {
@@ -70,9 +70,8 @@ export const morphStepHeaderRootDenseStyle = {
   columnGap: 'var(--dim-space-300)',
   overflow: 'hidden',
   paddingTop:
-    'calc(var(--dim-space-400) + (var(--dim-space-200) - var(--dim-space-400)) * var(--header-morph, 0))',
-  paddingBottom:
-    'calc(var(--dim-space-0) + var(--dim-space-200) * var(--header-morph, 0))',
+    'calc(var(--dim-space-200) + (var(--dim-space-100) - var(--dim-space-200)) * var(--header-morph, 0))',
+  paddingBottom: 'var(--dim-space-0)',
 };
 
 export const morphStepHeaderTitleWrapDenseStyle = {
@@ -88,8 +87,8 @@ export const morphStepHeaderStepAreaDenseStyle = {
   minWidth: 0,
   position: 'relative',
   minHeight:
-    'calc((1 - var(--header-morph-motion, 0)) * var(--dim-size-1200, 56px) + var(--header-morph-motion, 0) * var(--dim-size-1000, 48px))',
-  marginTop: 'calc((1 - var(--header-morph-motion, 0)) * var(--dim-space-300, 12px))',
+    'calc((1 - var(--header-morph-motion, 0)) * var(--dim-size-800, 40px) + var(--header-morph-motion, 0) * var(--dim-size-600, 32px))',
+  marginTop: 'calc((1 - var(--header-morph-motion, 0)) * var(--dim-space-100, 4px))',
   alignSelf: 'center',
 };
 
@@ -108,9 +107,7 @@ export const morphStepHeaderStepGlideDenseStyle = {
   whiteSpace: 'nowrap',
 };
 
-/** Stepper-only root (SubHeader owns title) — tighter vertical padding.
-    ก่อน scroll ลดจาก 12px เหลือ 8px ตามมติผู้ใช้ ส.ค. 69 (คู่กับ
-    paddingBottom ของ PageHeaderInfoPanel dense ที่ลดจาก 24 → 12). */
+/** Stepper-only root (SubHeader owns title) — tighter vertical padding. */
 export const morphStepOnlyRootDenseStyle = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -118,9 +115,8 @@ export const morphStepOnlyRootDenseStyle = {
   columnGap: 'var(--dim-space-300)',
   overflow: 'hidden',
   paddingTop:
-    'calc(var(--dim-space-200) + (var(--dim-space-100) - var(--dim-space-200)) * var(--header-morph, 0))',
-  paddingBottom:
-    'calc(var(--dim-space-0) + var(--dim-space-100) * var(--header-morph, 0))',
+    'calc(var(--dim-space-100) * (1 - var(--header-morph, 0)))',
+  paddingBottom: 'var(--dim-space-0)',
 };
 
 /** Stepper-only dense band (title lives in SubHeader) — scale + height
@@ -130,7 +126,7 @@ export const morphStepOnlyAreaDenseStyle = {
   minWidth: 0,
   position: 'relative',
   minHeight:
-    'calc((1 - var(--header-morph-motion, 0)) * var(--dim-size-1200, 56px) + var(--header-morph-motion, 0) * var(--dim-size-800, 40px))',
+    'calc((1 - var(--header-morph-motion, 0)) * var(--dim-size-800, 40px) + var(--header-morph-motion, 0) * var(--dim-size-600, 32px))',
   marginTop: 0,
   alignSelf: 'stretch',
   display: 'flex',

@@ -301,6 +301,7 @@ const PrimarySearch = ({
   onChange,
   onSubmit,
   placeholder = 'ค้นหาเลข HN / เลขบัตรประชาชน / ชื่อ-นามสกุล',
+  inputAriaLabel = 'ค้นหา',
   width = 640,
   /* Kept for backward API compatibility; the current Figma component no
      longer renders the legacy recent-search avatar pile. */
@@ -495,6 +496,7 @@ const PrimarySearch = ({
           <input
             ref={inputRef}
             type='search'
+            aria-label={inputAriaLabel}
             value={v}
             placeholder={placeholder}
             onChange={handleChange}

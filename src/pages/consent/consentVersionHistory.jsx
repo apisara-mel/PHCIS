@@ -292,7 +292,7 @@ function VersionTimelineCard({ entry, onRestore, onEditDraft }) {
         >
           <Icon name='person' size={14} color='var(--icon-neutral-secondary, #6B7280)' />
           {entry.editor}
-          {entry.isDraft ? ' · ยังไม่เผยแพร่' : (!isCurrent && ' · read-only')}
+          {entry.isDraft ? ' · ยังไม่เผยแพร่' : ''}
         </span>
         {/* ร่างแก้ไขต่อได้เลยจากตรงนี้ — แก้เสร็จใน wizard แล้วจึงบันทึก/ส่งเผยแพร่ */}
         {entry.isDraft && (
@@ -325,7 +325,6 @@ export function VersionHistoryPopup({
   open,
   record,
   onClose,
-  onCreateVersion,
   onRestoreVersion,
   /* เปิด wizard แก้ไขร่างจากการ์ดร่างบน timeline (entry มี draftId) */
   onEditDraft,
@@ -373,7 +372,6 @@ export function VersionHistoryPopup({
         size='extraLarge'
         title='ประวัติเวอร์ชันแบบฟอร์ม'
         subtitle={record ? `${record.code} · ${record.name}` : undefined}
-        primaryAction={{ label: 'สร้างเวอร์ชันใหม่', onClick: () => record && onCreateVersion?.(record) }}
         secondaryAction={{ label: 'ปิด', onClick: onClose }}
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>

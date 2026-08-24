@@ -451,7 +451,20 @@ export default function Routes() {
         <Route exact path='/registration/consent/:formId' component={RegistrationConsentFillPage} />
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
-        <Route exact path='/treat/record'    component={TreatmentFormPage} />
+        {/* Key by encounter identity so selecting another queue patient
+            remounts every form hook; clinical state can never leak across HN. */}
+        <Route
+          exact
+          path='/treat/record'
+          render={(props) => (
+            <TreatmentFormPage
+              key={`${props.location.state?.hn || 'missing'}:${props.location.state?.vn || props.location.key}`}
+              {...props}
+            />
+          )}
+        />
+        {/* A CPOE order must always belong to a selected encounter. */}
+        <Redirect exact from='/treat/cpoe' to='/treat/queue' />
         {/* แฟ้มเวชระเบียนอิเล็กทรอนิกส์ · หน้าจอระดับโมดูล (TOR §1.4)
             /treat/refer      = ทะเบียนการส่งต่อผู้รับบริการ 2 ทิศทาง (ส่งต่อออก /
                                 รับเข้า) + ฟอร์มตามแบบ ศบส. + พิมพ์ใบส่งตัว

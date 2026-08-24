@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Icon from '@/components/icons/Icon';
 import { ROLE_PALETTE } from '@/data/usersAccess';
 
@@ -8,9 +8,10 @@ import { ROLE_PALETTE } from '@/data/usersAccess';
    สิ่งเดียวที่เพิ่มคือ `disabled` เพื่อรองรับสิทธิ์ "ดูอย่างเดียว". */
 
 export const ACCESS_OPTIONS = [
-  { value: 'none', label: 'ไม่มีสิทธิ์', icon: 'block',      color: 'var(--text-content-tertiary)' },
-  { value: 'view', label: 'ดูได้',       icon: 'visibility', color: 'var(--text-colorfulbadge-blue)',   surface: 'var(--surface-colorfulbadge-blue)' },
-  { value: 'edit', label: 'แก้ไขได้',     icon: 'edit',       color: 'var(--text-brandPrimary-default)', surface: 'var(--surface-brandPrimary-quaternary)' },
+  { value: 'none',  label: 'ไม่มีสิทธิ์',      icon: 'block',      color: 'var(--text-content-tertiary)' },
+  { value: 'view',  label: 'ดูข้อมูล (Read)',             icon: 'visibility', color: 'var(--text-colorfulbadge-blue)', surface: 'var(--surface-colorfulbadge-blue)' },
+  { value: 'write', label: 'แก้ไขข้อมูล (Write)',         icon: 'edit_note',  color: 'var(--text-colorfulbadge-orange)', surface: 'var(--surface-colorfulbadge-orange)' },
+  { value: 'edit',  label: 'ดูและแก้ไข (Read and Write)', icon: 'edit',       color: 'var(--text-brandPrimary-default)', surface: 'var(--surface-brandPrimary-quaternary)' },
 ];
 
 /** Section card — การ์ดขาวหัวเรื่อง + เนื้อหา (เหมือนเดิมทุกประการ). */
@@ -25,24 +26,26 @@ export const SectionCard = ({ icon, title, subtitle, children, action }) => (
       gap: 'var(--dim-space-400, 16px)',
     }}
   >
-    <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-      <div
-        className='shrink-0 inline-flex items-center justify-center'
-        style={{
-          width: 'var(--dim-size-800, 40px)',
-          height: 'var(--dim-size-800, 40px)',
-          borderRadius: 'var(--dim-radius-300, 10px)',
-          background: 'var(--surface-brandPrimary-quaternary)',
-          color: 'var(--text-brandPrimary-default)',
-        }}
-      >
-        <Icon name={icon} size={20} />
+    <div className='flex flex-col sm:flex-row items-start sm:items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+      <div className='flex items-start sm:items-center flex-1 min-w-0 w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        <div
+          className='shrink-0 inline-flex items-center justify-center'
+          style={{
+            width: 'var(--dim-size-800, 40px)',
+            height: 'var(--dim-size-800, 40px)',
+            borderRadius: 'var(--dim-radius-300, 10px)',
+            background: 'var(--surface-brandPrimary-quaternary)',
+            color: 'var(--text-brandPrimary-default)',
+          }}
+        >
+          <Icon name={icon} size={20} />
+        </div>
+        <div className='flex-1 min-w-0 flex flex-col'>
+          <h2 className='text-base font-bold text-ink'>{title}</h2>
+          {subtitle && <p className='text-xs text-ink-tertiary'>{subtitle}</p>}
+        </div>
       </div>
-      <div className='flex-1 min-w-0 flex flex-col'>
-        <h2 className='text-base font-bold text-ink'>{title}</h2>
-        {subtitle && <p className='text-xs text-ink-tertiary'>{subtitle}</p>}
-      </div>
-      {action}
+      {action ? <div className='flex items-center flex-wrap w-full sm:w-auto shrink-0' style={{ gap: 'var(--dim-space-200)' }}>{action}</div> : null}
     </div>
     {children}
   </section>
@@ -133,7 +136,7 @@ export const AccessSegmentedControl = ({ feature, value, onChange, disabled = fa
   const supported = feature.supportedLevels || ['view', 'edit'];
   return (
     <div
-      className='inline-flex items-center'
+      className='inline-flex items-center flex-wrap w-full md:w-auto'
       style={{
         paddingTop: 'var(--dim-space-100, 4px)',
         paddingBottom: 'var(--dim-space-100, 4px)',
@@ -145,7 +148,10 @@ export const AccessSegmentedControl = ({ feature, value, onChange, disabled = fa
       }}
     >
       {ACCESS_OPTIONS.map((opt) => {
-        const isSupported = opt.value === 'none' || supported.includes(opt.value);
+        const isSupported = opt.value === 'none'
+          || (opt.value === 'view' && supported.includes('view'))
+          || (opt.value === 'write' && supported.includes('edit'))
+          || (opt.value === 'edit' && supported.includes('view') && supported.includes('edit'));
         const enabled = isSupported && !disabled;
         const selected = (value || 'none') === opt.value;
         const surface = opt.surface || 'var(--surface-brandPrimary-quaternary)';
@@ -155,10 +161,10 @@ export const AccessSegmentedControl = ({ feature, value, onChange, disabled = fa
             type='button'
             disabled={!enabled}
             onClick={() => enabled && onChange(opt.value === 'none' ? null : opt.value)}
-            className='inline-flex items-center'
+            className='inline-flex items-center flex-1 md:flex-none justify-center'
             style={{
               gap: 'var(--dim-space-150, 6px)',
-              height: 'var(--dim-size-500, 24px)',
+              minHeight: 'var(--dim-size-900, 44px)',
               paddingLeft: 'var(--dim-space-250, 10px)',
               paddingRight: 'var(--dim-space-300, 12px)',
               borderRadius: 'var(--dim-radius-full)',
@@ -183,18 +189,25 @@ export const AccessSegmentedControl = ({ feature, value, onChange, disabled = fa
   );
 };
 
-export const FeatureGroupBlock = ({ group, features, setFeature, disabled = false }) => {
+export const FeatureGroupBlock = ({ group, features, setFeature, disabled = false, forceExpanded = false }) => {
+  const [expanded, setExpanded] = useState(false);
+  const isExpanded = forceExpanded || expanded;
   const groupCount = group.features.reduce((acc, f) => {
     const v = features[f.key];
     if (v === 'view') acc.view += 1;
+    else if (v === 'write') acc.write += 1;
     else if (v === 'edit') acc.edit += 1;
     return acc;
-  }, { view: 0, edit: 0 });
+  }, { view: 0, write: 0, edit: 0 });
 
   const applyAll = (level) => {
     if (disabled) return;
     group.features.forEach((f) => {
-      const ok = !level || (f.supportedLevels || ['view', 'edit']).includes(level);
+      const supported = f.supportedLevels || ['view', 'edit'];
+      const ok = !level
+        || (level === 'view' && supported.includes('view'))
+        || (level === 'write' && supported.includes('edit'))
+        || (level === 'edit' && supported.includes('view') && supported.includes('edit'));
       if (level && ok) setFeature(f.key, level);
       else if (!level) setFeature(f.key, null);
     });
@@ -206,11 +219,23 @@ export const FeatureGroupBlock = ({ group, features, setFeature, disabled = fals
     cursor: disabled ? 'not-allowed' : 'pointer',
     color,
     opacity: disabled ? 0.5 : 1,
+    minHeight: 'var(--dim-size-900, 44px)',
+    paddingLeft: 'var(--dim-space-200)',
+    paddingRight: 'var(--dim-space-200)',
   });
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-      <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+      <div
+        className='flex flex-wrap items-center w-full'
+        style={{
+          gap: 'var(--dim-space-300, 12px)',
+          padding: 'var(--dim-space-300)',
+          background: 'var(--surface-card-100)',
+          border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+          borderRadius: 'var(--dim-radius-200, 8px)',
+        }}
+      >
         <div
           className='shrink-0 inline-flex items-center justify-center'
           style={{
@@ -224,26 +249,50 @@ export const FeatureGroupBlock = ({ group, features, setFeature, disabled = fals
           <Icon name={group.icon} size={16} />
         </div>
         <div className='flex-1 min-w-0 flex flex-col'>
-          <span className='text-sm font-bold text-ink'>{group.label}</span>
+          <span className='text-sm font-bold text-ink'>โมดูล · {group.label}</span>
           <span className='text-xs text-ink-tertiary'>
-            ดูได้ {groupCount.view} · แก้ไขได้ {groupCount.edit} จาก {group.features.length} ฟีเจอร์
+            ดู {groupCount.view} · แก้ไข {groupCount.write} · ดูและแก้ไข {groupCount.edit} จาก {group.features.length} เมนู
           </span>
         </div>
-        <div className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+        <button
+          type='button'
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={isExpanded}
+          className='inline-flex items-center justify-center shrink-0'
+          style={{
+            gap: 'var(--dim-space-200)',
+            minHeight: 'var(--dim-size-900, 44px)',
+            paddingLeft: 'var(--dim-space-300)',
+            paddingRight: 'var(--dim-space-300)',
+            border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+            borderRadius: 'var(--dim-radius-200, 8px)',
+            background: 'var(--surface-card-100)',
+            color: 'var(--text-brandPrimary-default)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-sm)',
+            fontWeight: 'var(--type-weight-medium)',
+          }}
+        >
+          {isExpanded ? 'ซ่อนเมนู' : `แสดง ${group.features.length} เมนู`}
+          <Icon name={isExpanded ? 'expand_less' : 'expand_more'} size={18} />
+        </button>
+        {isExpanded ? <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-100)' }}>
+          <span className='text-xs text-ink-tertiary'>ตั้งทั้งโมดูล:</span>
           <button type='button' disabled={disabled} onClick={() => applyAll('view')} className='text-xs underline' style={bulkStyle('var(--text-colorfulbadge-blue)')}>
-            เลือกดูทั้งหมด
+            ดูข้อมูล
           </button>
-          <span className='text-xs text-ink-tertiary'>·</span>
+          <button type='button' disabled={disabled} onClick={() => applyAll('write')} className='text-xs underline' style={bulkStyle('var(--text-colorfulbadge-orange)')}>
+            แก้ไขข้อมูล
+          </button>
           <button type='button' disabled={disabled} onClick={() => applyAll('edit')} className='text-xs underline' style={bulkStyle('var(--text-brandPrimary-default)')}>
-            ให้แก้ไขทั้งหมด
+            ดูและแก้ไข
           </button>
-          <span className='text-xs text-ink-tertiary'>·</span>
           <button type='button' disabled={disabled} onClick={() => applyAll(null)} className='text-xs underline' style={bulkStyle('var(--text-content-tertiary)')}>
             ล้าง
           </button>
-        </div>
+        </div> : null}
       </div>
-      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+      {isExpanded ? <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
         {group.features.map((f) => (
           <div
             key={f.key}
@@ -259,7 +308,10 @@ export const FeatureGroupBlock = ({ group, features, setFeature, disabled = fals
               borderRadius: 'var(--dim-radius-200, 8px)',
             }}
           >
-            <span className='flex-1 min-w-0 text-sm text-ink'>{f.label}</span>
+            <span className='flex-1 min-w-0 flex flex-col'>
+              <span className='text-sm text-ink'>{f.label}</span>
+              <span className='text-xs text-ink-tertiary'>เมนู · {f.key}</span>
+            </span>
             <AccessSegmentedControl
               feature={f}
               value={features[f.key]}
@@ -268,7 +320,7 @@ export const FeatureGroupBlock = ({ group, features, setFeature, disabled = fals
             />
           </div>
         ))}
-      </div>
+      </div> : null}
     </div>
   );
 };

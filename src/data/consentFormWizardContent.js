@@ -71,6 +71,7 @@ const buildSections = (record) => {
     id: `cs-${record.id}-${i}`,
     title: c.title,
     detail: c.detail,
+    detailFormat: c.detailFormat || { bold: false, italic: false, underline: false },
     fieldType: c.fieldType || 'boolean',
   }));
 };
@@ -100,7 +101,7 @@ export const buildWizardDraftFromRecord = (record) => {
     signatures: ['patient', 'doctor'],
     note: 'เอกสารนี้มีอายุตามที่ระบุในอายุการใช้งาน นับจากวันที่ลงนาม',
     requireGuardian: false,
-    allowESign: true,
+    allowESign: false,
   };
 };
 

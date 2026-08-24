@@ -71,6 +71,7 @@ import RadiologyOrderPanel from '@/pages/treat/panels/RadiologyOrderPanel';
 import ProcedureOrderPanel from '@/pages/treat/panels/ProcedureOrderPanel';
 import ConsultComposerPanel from '@/pages/treat/panels/ConsultComposerPanel';
 import MedicalSupplyOrderPanel, { MEDICAL_SUPPLY_CATALOG } from '@/pages/treat/panels/MedicalSupplyOrderPanel';
+import { CpoeWorkflowPanel } from '@/pages/treat/CpoeWorkflowPage';
 import { ICD9_PROCEDURES } from '@/pages/treat/panels/ProcedureOrderPanel';
 import DocumentCenterPanel from '@/pages/treat/panels/DocumentCenterPanel';
 import ReDiagnosisPopup from '@/components/popup/ReDiagnosisPopup';
@@ -94,7 +95,6 @@ import {
 } from '@/data/medicationCatalog';
 import {
   findVisitDetailsByHn,
-  DEFAULT_SCREENING_SUMMARY,
   DEFAULT_MEASUREMENT_ROUNDS,
   DEFAULT_NURSE_EXAM_NOTES,
   DEFAULT_DOCTOR_EXAM_NOTES,
@@ -848,13 +848,6 @@ const TriageBadge = ({ triage }) => (
   </div>
 );
 
-const MobilityTile = ({ mobility }) => (
-  <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
-    <IconTile icon={mobility.icon} />
-    <ValueText>{mobility.label}</ValueText>
-  </div>
-);
-
 const AllergyHistoryPanel = ({ allergies }) => (
   <SummaryPanel title='ประวัติการแพ้ยา / สารเคมี'>
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
@@ -875,44 +868,50 @@ const ChronicHistoryPanel = ({ chronicDiseases }) => (
   </SummaryPanel>
 );
 
-const ScreeningSummaryBody = ({ summary }) => (
-  <>
-    <VitalsSignHorizontalPanel
-      measurementRounds={summary.measurementRounds ?? DEFAULT_MEASUREMENT_ROUNDS}
-    />
+const ScreeningSummaryBody = ({ summary }) => {
+  const vitalItems = (summary.vitalItems || []).filter((item) => item.value);
+  return (
+    <>
+    <SummaryPanel title='สัญญาณชีพล่าสุด'>
+      {vitalItems.length > 0 ? (
+        <div className='grid grid-cols-2 w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          {vitalItems.map((item) => (
+            <HistoryInfoText key={item.label} label={item.label} value={item.value} />
+          ))}
+        </div>
+      ) : <ValueText>ยังไม่มีค่าสัญญาณชีพที่บันทึก</ValueText>}
+    </SummaryPanel>
 
     <SummaryPanel title='อาการป่วย'>
       <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
-        <HistoryInfoText label='อาการ (Chief Complaint)' value={summary.cc} />
-        <HistoryInfoText label='ระยะเวลาที่มีอาการ (Duration of Illness)' value={summary.duration} />
+        <HistoryInfoText label='อาการ (Chief Complaint)' value={summary.cc || '—'} />
+        <HistoryInfoText label='ระยะเวลาที่มีอาการ (Duration of Illness)' value={summary.duration || '—'} />
       </div>
     </SummaryPanel>
 
-    <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
+    {summary.triage && (
       <SummaryPanel title='ความเร่งด่วน'>
         <TriageBadge triage={summary.triage} />
       </SummaryPanel>
-      <SummaryPanel title='สภาพของผู้รับบริการ'>
-        <MobilityTile mobility={summary.mobility} />
-      </SummaryPanel>
-    </div>
+    )}
 
     <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
       <SummaryPanel title='ระดับความเจ็บปวด (Pain Score)'>
-        <PainTile pain={summary.pain} />
+        {summary.pain ? <PainTile pain={summary.pain} /> : <ValueText>—</ValueText>}
       </SummaryPanel>
       <SummaryPanel title='คำสั่งการพยาบาลและการสังเกตอาการ'>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
-          {summary.orders.map((order, i) => (
-            <ValueText key={i}>{order}</ValueText>
-          ))}
+          {summary.orders.length > 0
+            ? summary.orders.map((order, i) => <ValueText key={i}>{order}</ValueText>)
+            : <ValueText>—</ValueText>}
         </div>
       </SummaryPanel>
     </div>
 
-    <AssessorRow assessor={summary.assessor} />
-  </>
-);
+    {summary.assessor && <AssessorRow assessor={summary.assessor} />}
+    </>
+  );
+};
 
 const AssessorRow = ({ assessor }) => (
   <div className='flex items-center' style={{
@@ -943,11 +942,11 @@ const AssessorRow = ({ assessor }) => (
 );
 
 /* `patient` มาแล้วจะอ่านผลคัดกรองรอบล่าสุดของ HN นั้นจาก `/opd/screening`
-   (จุดคัดกรองที่เดียวของระบบ) — ไม่ส่งมาก็ตกไปที่ชุด mock ของ Figma เหมือนเดิม
+   (จุดคัดกรองที่เดียวของระบบ) — ไม่มีข้อมูลจริงจะแสดง empty state ที่ชัดเจน
    `title` ให้คลินิกพิเศษเปลี่ยนหัวข้อเป็น "ผลคัดกรองจากจุดคัดกรอง" ได้ */
 export const Step2Screening = ({ patient, title = 'คัดกรองและซักประวัติ (Screening)' }) => {
   const summary = useMemo(
-    () => (patient ? getCarriedScreening(patient) : DEFAULT_SCREENING_SUMMARY),
+    () => getCarriedScreening(patient || {}),
     [patient],
   );
   const [activeTab, setActiveTab] = useState(0);
@@ -972,7 +971,17 @@ export const Step2Screening = ({ patient, title = 'คัดกรองแล�
         background: 'var(--border-neutral-tertiary, var(--border-card-default))',
       }} />
 
-      {activeTab === 0 && <ScreeningSummaryBody summary={summary} />}
+      {activeTab === 0 && (
+        summary.captured
+          ? <ScreeningSummaryBody summary={summary} />
+          : (
+            <Alert
+              type='warning'
+              title='ยังไม่มีผลคัดกรองสำหรับการเข้ารับบริการครั้งนี้'
+              subtext='กรุณาส่งผู้รับบริการไปจุดคัดกรองก่อนเริ่มตรวจรักษา ข้อมูลตัวอย่างจะไม่ถูกนำมาแสดงแทนข้อมูลจริง'
+            />
+          )
+      )}
       {activeTab === 1 && <AllergyHistoryPanel allergies={summary.allergies} />}
       {activeTab === 2 && <ChronicHistoryPanel chronicDiseases={summary.chronicDiseases} />}
       {activeTab === 3 && (
@@ -980,6 +989,161 @@ export const Step2Screening = ({ patient, title = 'คัดกรองแล�
           <ValueText>—</ValueText>
         </SummaryPanel>
       )}
+    </section>
+  );
+};
+
+/* Persistent quick-look rail for the doctor's OPD record. This deliberately
+   keeps only safety-critical screening facts; Step 2 remains available for
+   the complete read-only screening record and its four detail tabs. */
+const ScreeningRailMetric = ({ label, value }) => (
+  <div
+    className='flex flex-col min-w-0'
+    style={{
+      gap: 'var(--dim-space-050, 2px)',
+      padding: 'var(--dim-space-300, 12px)',
+      borderRadius: 'var(--dim-radius-300, 12px)',
+      background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+    }}
+  >
+    <span style={{
+      color: 'var(--text-content-tertiary, #697077)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs, 12px)',
+    }}>
+      {label}
+    </span>
+    <span style={{
+      color: 'var(--text-content-default, #202427)',
+      fontFamily: 'var(--type-family-heading-content)',
+      fontSize: 'var(--type-size-sm, 14px)',
+      fontWeight: 'var(--type-weight-medium, 500)',
+      overflowWrap: 'anywhere',
+    }}>
+      {value || '—'}
+    </span>
+  </div>
+);
+
+const clinicalEntryName = (entry) => (
+  typeof entry === 'string' ? entry : entry?.name
+);
+
+const formatScreeningCapturedAt = (value) => {
+  if (!value) return 'ไม่ระบุเวลาบันทึก';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'ไม่ระบุเวลาบันทึก';
+  return new Intl.DateTimeFormat('th-TH', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date);
+};
+
+export const ScreeningSummaryRail = ({ patient, collapsed = false, onToggle }) => {
+  const summary = useMemo(
+    () => getCarriedScreening(patient || {}),
+    [patient],
+  );
+  const vitalMetrics = (summary.vitalItems || []).filter((item) => item.value);
+
+  return (
+    <section
+      className='flex flex-col w-full'
+      style={{
+        width: collapsed ? 'var(--dim-size-1600, 72px)' : '100%',
+        gap: collapsed ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-400, 16px)',
+        padding: collapsed ? 'var(--dim-space-300, 12px)' : 'var(--dim-space-400, 16px)',
+        borderRadius: 'var(--dim-radius-500, 20px)',
+        border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+        background: 'var(--surface-card-100, #FFFFFF)',
+        boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+      }}
+    >
+      <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        {!collapsed && <span
+          className='inline-flex items-center justify-center shrink-0'
+          style={{
+            width: 'var(--dim-size-800, 40px)',
+            height: 'var(--dim-size-800, 40px)',
+            borderRadius: 'var(--dim-radius-full, 9999px)',
+            background: 'var(--surface-brandPrimary-quaternary, #E2F3EB)',
+            color: 'var(--icon-brandPrimary-default, #007549)',
+          }}
+        >
+          <Sym name='vital_signs' size='var(--dim-size-500, 24px)' color='currentColor' />
+        </span>}
+        {!collapsed && <div className='flex flex-col min-w-0 flex-1' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+          <span style={{
+            color: 'var(--text-topic-primary-title, #007549)',
+            fontFamily: 'var(--type-family-heading-content)',
+            fontSize: 'var(--type-size-base, 16px)',
+            fontWeight: 'var(--type-weight-medium, 500)',
+          }}>
+            สรุปคัดกรองและซักประวัติ
+          </span>
+          <span style={{
+            color: 'var(--text-content-tertiary, #697077)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-xs, 12px)',
+          }}>
+            {summary.captured
+              ? `บันทึก ${formatScreeningCapturedAt(summary.capturedAt)}`
+              : 'ยังไม่มีข้อมูลจากจุดคัดกรอง'}
+          </span>
+        </div>}
+        {onToggle && (
+          <NeutralSubdueIconButton
+            icon={collapsed ? 'chevron_left' : 'chevron_right'}
+            size='lg'
+            variant='fill'
+            onClick={onToggle}
+            aria-label={collapsed ? 'ขยายสรุปคัดกรอง' : 'ย่อสรุปคัดกรอง'}
+            aria-expanded={!collapsed}
+          />
+        )}
+      </div>
+
+      {!collapsed && !summary.captured && (
+        <Alert
+          type='warning'
+          title='ยังไม่มีผลคัดกรองครั้งนี้'
+          subtext='ข้อมูลตัวอย่างจะไม่ถูกนำมาแสดงแทนข้อมูลจริง'
+        />
+      )}
+
+      {!collapsed && summary.captured && <>
+      <div className='grid grid-cols-2' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        {vitalMetrics.map((metric) => <ScreeningRailMetric key={metric.label} {...metric} />)}
+      </div>
+
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        <ScreeningRailMetric label='อาการสำคัญ' value={summary.cc} />
+        <ScreeningRailMetric label='ระยะเวลาที่มีอาการ' value={summary.duration} />
+      </div>
+
+      {summary.triage && <div className='flex items-center justify-between' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        <span style={{
+          color: 'var(--text-content-secondary, #454B50)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm, 14px)',
+        }}>
+          ระดับคัดกรอง
+        </span>
+        <ColorfulBadge style={summary.triage.tone} size='small' hierarchy='secondary'>
+          {`Level ${summary.triage.level} · ${summary.triage.label}`}
+        </ColorfulBadge>
+      </div>}
+
+      <ScreeningRailMetric label='Pain score' value={summary.pain?.label} />
+      <ScreeningRailMetric
+        label='ประวัติแพ้ยา / สารเคมี'
+        value={(summary.allergies || []).map(clinicalEntryName).filter(Boolean).join(', ') || 'ไม่พบข้อมูล'}
+      />
+      <ScreeningRailMetric
+        label='โรคประจำตัว'
+        value={(summary.chronicDiseases || []).map(clinicalEntryName).filter(Boolean).join(', ') || 'ไม่พบข้อมูล'}
+      />
+      </>}
     </section>
   );
 };
@@ -2941,6 +3105,7 @@ export const Step5Orders = ({
     return (
       <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
         <Topic hierarchy='primary' title='สั่งการรักษา (Treatment Order)' leadingIcon='description' showSubText={false} showBadge={false} showChevron={false} showSuccess={false} />
+        <CpoeWorkflowPanel embedded patient={patient} form={form} setForm={setForm} />
         {/* TOR §1.18.6 — แถบเดียวกับ branch ที่มีคำสั่งแล้ว: เคสเยี่ยมบ้าน
             ส่วนใหญ่มาถึงตอน Visit ยังไม่มีคำสั่งเลย จึงต้องแสดงที่ empty
             state ด้วย ไม่งั้นคำสั่งที่ส่งมาจะไม่มีทางถูกเห็น */}
@@ -2984,6 +3149,8 @@ export const Step5Orders = ({
         showChevron={false}
         showSuccess={false}
       />
+
+      <CpoeWorkflowPanel embedded patient={patient} form={form} setForm={setForm} />
 
       <div
         className='flex flex-col w-full'

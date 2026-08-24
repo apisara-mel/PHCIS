@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH NeutralSubdueIconButton — Figma "Neutral Subdue Icon Button" (node 2024:4516).
    2 styles (fill / outline) × 3 sizes × 5 states.
@@ -100,6 +101,8 @@ const NeutralSubdueIconButton = React.forwardRef(function NeutralSubdueIconButto
     variant = 'fill',
     size = 'sm',
     'aria-label': ariaLabel,
+    onFocus,
+    onBlur,
     children,
     className = '',
     style = {},
@@ -109,16 +112,18 @@ const NeutralSubdueIconButton = React.forwardRef(function NeutralSubdueIconButto
 ) {
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
+  const [keyboardFocused, setKeyboardFocused] = useState(false);
   const isHover = (hovered || hoveredProp) && !disabled;
   const isActive = active || selected;
-  const dim = SIZES[size] || SIZES.sm;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.sm;
   const styleType = variant === 'outlined' ? 'outline' : variant;
   const s = resolveStyles({
     variant: styleType,
     isHover,
     active: isActive,
     activeAppearance,
-    focused,
+    focused: focused || keyboardFocused,
     disabled,
   });
   return (
@@ -132,6 +137,14 @@ const NeutralSubdueIconButton = React.forwardRef(function NeutralSubdueIconButto
       onMouseLeave={() => { setHovered(false); setPressed(false); }}
       onMouseDown={() => !disabled && setPressed(true)}
       onMouseUp={() => setPressed(false)}
+      onFocus={(event) => {
+        setKeyboardFocused(true);
+        onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setKeyboardFocused(false);
+        onBlur?.(event);
+      }}
       disabled={disabled}
       aria-disabled={disabled}
       className={`inline-flex items-center justify-center transition-all duration-200 ease-out shrink-0 ${className}`}

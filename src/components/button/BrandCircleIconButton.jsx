@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH BrandCircleIconButton — Figma "Brand Circle Icon Button" (node 2103:548).
    Round (50%) variant of BrandIconButton: 3 styles (fill/outline/ghost) ×
@@ -114,7 +115,8 @@ const BrandCircleIconButton = React.forwardRef(function BrandCircleIconButton(
   const focused = focusedProp ?? focusedState;
   const isHover = hovered && !disabled;
   const isFocus = focused && !disabled;
-  const dim = SIZES[size] || SIZES.md;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.md;
   const s = resolveStyles({ variant, isHover, selected, focused: isFocus, disabled });
   return (
     <button

@@ -12,6 +12,7 @@ import {
 } from '@/hooks/useHeaderAutoHide';
 import { useHistory } from 'react-router-dom';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import { ButtonSizeAliasProvider } from '@/components/button/ButtonSizeAliasContext';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Tooltip from '@/components/tooltip/Tooltip';
 import { resolveSeverityBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
@@ -59,7 +60,12 @@ const Field = ({ label, value, minWidth }) => (
     title={typeof value === 'string' && value.length > 28 ? value : undefined}
   >
     <span className='text-xs leading-snug opacity-90 whitespace-nowrap'>{label}</span>
-    <span className='text-sm font-normal leading-snug -tracking-[0.28px] whitespace-nowrap'>{value}</span>
+    <span
+      className='text-sm leading-snug -tracking-[0.28px] whitespace-nowrap'
+      style={{ fontWeight: 'var(--type-weight-regular, 400)' }}
+    >
+      {value}
+    </span>
   </div>
 );
 
@@ -191,10 +197,11 @@ const PatientCard = ({
      HN has no seeded allergies yet. */
   forceAlertRow = false,
   /* Figma 343:5629 — compact / scrolled-up state. Single-row gradient
-     card with 44px avatar, 24h HN/VIP pills, four right-aligned summary
+     card with product-density 40px avatar, 24h HN/VIP pills, four right-aligned summary
      fields (สิทธิ์ · หมู่เลือด · ประเภท · แพทย์), title row collapsed,
      and the แพ้ยา / โรคประจำตัว labels inline with their badges. Drops
-     เพศ / อายุ / เลขบัตรประชาชน / ที่อยู่ to keep the header tight. */
+     เพศ / อายุ / เลขบัตรประชาชน to keep the header tight. Address stays
+     in the medical record detail instead of this clinical safety card. */
   compact: compactProp,
   /* Figma 343:1926 parallax header. When true, PatientCard owns the
      sticky chrome: it renders a 1px sentinel above itself, observes
@@ -300,26 +307,22 @@ const PatientCard = ({
   const T = `${CHROME_TRANSITION_MS}ms ${CHROME_TRANSITION_EASE}`;
 
   const cardStyle = {
-    paddingTop: embedded ? 0 : 'var(--dim-space-400, 16px)',
-    ...(embedded
-      ? {
-          paddingLeft: 'var(--dim-space-600, 24px)',
-          paddingRight: 'var(--dim-space-600, 24px)',
-        }
-      : null),
+    paddingTop: embedded ? 'var(--dim-space-0)' : 'var(--dim-space-300, 12px)',
+    paddingLeft: 'var(--dim-space-400, 16px)',
+    paddingRight: 'var(--dim-space-400, 16px)',
     /* Compact / sticky bottom space:
-       • With alert row → 0 here (the alert row owns its 16 px pb).
-       • Sticky without alert → 16 px white pad so rounded teal corners
+       • With alert row → 0 here (the alert row owns its bottom padding).
+       • Sticky without alert → 12 px white pad so rounded teal corners
          don't let page content show through (OPD ScreeningPage embedded
          sticky used to set pb=0 and looked see-through).
-       • Expanded non-sticky → 24 px. */
+       • Expanded non-sticky → 16 px. */
     paddingBottom: sticky
-      ? (showAlertRow ? 0 : 'var(--dim-space-400, 16px)')
+      ? (showAlertRow ? 'var(--dim-space-0)' : 'var(--dim-space-300, 12px)')
       : embedded
-        ? 0
+        ? 'var(--dim-space-0)'
         : compact
-          ? (showAlertRow ? 0 : 'var(--dim-space-400, 16px)')
-          : 'var(--dim-space-600, 24px)',
+          ? (showAlertRow ? 'var(--dim-space-0)' : 'var(--dim-space-300, 12px)')
+          : 'var(--dim-space-400, 16px)',
     /* Opaque white underlay — embedded previously skipped surface fill,
        so sticky ScreeningPage showed brand-100 page bg around the card. */
     background: 'var(--surface-card-100, #FFFFFF)',
@@ -347,7 +350,7 @@ const PatientCard = ({
       ref={cardRef}
       className={embedded
         ? 'w-full'
-        : 'w-full px-6 border-b border-brand-200 shadow-card'}
+        : 'w-full border-b border-brand-200 shadow-card'}
       style={cardStyle}
     >
       {/* Top row (back · title · actions). Figma 343:5629 drops this row
@@ -356,18 +359,19 @@ const PatientCard = ({
           `pointer-events: none` lock the buttons out while invisible.
           `embedded` skips this chrome when QueuePageShell owns the title. */}
       {!embedded && (
+      <ButtonSizeAliasProvider size='sm'>
       <div
         aria-hidden={compact}
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 'var(--dim-space-400, 16px)',
+          gap: 'var(--dim-space-300, 12px)',
           /* Collapse animation needs hidden; expanded row must stay visible so
              header actions (BrandSubdueButton hover lift / focus ring) are not cropped. */
           overflow: compact ? 'hidden' : 'visible',
-          maxHeight: compact ? 0 : 56,
+          maxHeight: compact ? 0 : 'var(--dim-size-1200, 56px)',
           opacity: compact ? 0 : 1,
-          marginBottom: compact ? 0 : 'var(--dim-space-400, 16px)',
+          marginBottom: compact ? 0 : 'var(--dim-space-300, 12px)',
           pointerEvents: compact ? 'none' : 'auto',
           transition: `max-height ${T}, opacity ${T}, margin-bottom ${T}`,
         }}
@@ -377,7 +381,7 @@ const PatientCard = ({
         {showBack && (
         <NeutralSubdueButton
           variant='outline'
-          size='md'
+          size='sm'
           leadingIcon='chevron_left'
           onClick={handleBack}
         >
@@ -394,38 +398,42 @@ const PatientCard = ({
           <div className='ml-auto flex items-center gap-2'>{actions}</div>
         )}
       </div>
+      </ButtonSizeAliasProvider>
       )}
 
       {/* Patient info gradient card — compact (Figma 343:5629 mini) or
-          full (Figma 150:33649). Compact: single row, 44px avatar, 24h
-          HN/VIP pills, four right-aligned summary fields. Full: 68px
-          avatar, 32h pills, summary fields in one horizontal row. */}
+          full (adapted from Figma 150:33649). Both modes keep the avatar,
+          identity text, HN/VIP pills, and summary fields in one horizontal
+          row. The product density aliases reduce the full avatar to 56px,
+          the compact avatar to 40px, and both HN/VIP pills to 24px. The
+          address is intentionally omitted here; it belongs in the medical
+          record detail, not in the always-visible clinical safety card. */}
       <div
         className='w-full rounded-card flex'
         style={{
           backgroundImage:
             'linear-gradient(94.93deg, var(--patient-card-grad-start) 0.67%, var(--patient-card-grad-end) 100.76%)',
-          flexDirection: compact ? 'row' : 'column',
+          flexDirection: 'row',
           flexWrap: compact ? 'wrap' : 'nowrap',
-          alignItems: compact ? 'center' : 'stretch',
-          paddingLeft: 'var(--dim-space-400, 16px)',
-          paddingRight: 'var(--dim-space-400, 16px)',
-          paddingTop: compact ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-400, 16px)',
-          paddingBottom: compact ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-400, 16px)',
-          gap: compact ? 'var(--dim-space-600, 24px)' : 'var(--dim-space-600, 24px)',
+          alignItems: 'center',
+          paddingLeft: 'var(--dim-space-300, 12px)',
+          paddingRight: 'var(--dim-space-300, 12px)',
+          paddingTop: compact ? 'var(--dim-space-100, 4px)' : 'var(--dim-space-300, 12px)',
+          paddingBottom: compact ? 'var(--dim-space-100, 4px)' : 'var(--dim-space-300, 12px)',
+          gap: 'var(--dim-space-300, 12px)',
           transition: `padding ${T}, gap ${T}, flex-direction ${T}`,
         }}
       >
-        <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        <div className='flex shrink-0 flex-wrap items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <div className='flex shrink-0 items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           <div
             className='rounded-full overflow-hidden border-4 border-white bg-[color:var(--patient-card-avatar-bg)] shrink-0 flex items-center justify-center text-white'
             style={{
-              /* Figma 343:1288 (compact stuck) = size-[44px] outer; full
-                 Figma 150:33649 = size-[68px] outer. `border-box` so the
-                 `width` value matches Figma's total dimension and the
-                 4 px white ring eats into it (image renders inside). */
-              width: compact ? 44 : 68,
-              height: compact ? 44 : 68,
+              /* Product density aliases the source 44/68px avatars to the
+                 nearest smaller size tokens (40/56px). `border-box` keeps
+                 the white ring inside the declared outer size. */
+              width: compact ? 'var(--dim-size-800, 40px)' : 'var(--dim-size-1200, 56px)',
+              height: compact ? 'var(--dim-size-800, 40px)' : 'var(--dim-size-1200, 56px)',
               boxSizing: 'border-box',
               transition: `width ${T}, height ${T}`,
             }}
@@ -443,7 +451,7 @@ const PatientCard = ({
                 style={{
                   fontFamily: 'var(--type-family-heading-content)',
                   fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                  fontSize: compact ? 18 : 24,
+                  fontSize: compact ? 'var(--type-size-base, 16px)' : 'var(--type-size-xl, 20px)',
                   lineHeight: 1,
                   letterSpacing: '-0.02em',
                   transition: `font-size ${T}`,
@@ -453,18 +461,19 @@ const PatientCard = ({
               </span>
             )}
           </div>
-          <div className='flex flex-col text-white' style={{ width: compact ? 'auto' : 180 }}>
+          <div className='flex flex-col text-white' style={{ width: compact ? 'auto' : 'var(--dim-size-2050, 144px)' }}>
             <p className='font-bold text-base leading-snug'>{patient.fullName}</p>
             <p className='text-sm leading-snug'>{patient.englishName}</p>
+          </div>
           </div>
           <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
             <span
               className='inline-flex items-center rounded-full bg-badge-greenBg text-badge-greenText font-medium'
               style={{
-                height: compact ? 24 : 32,
-                paddingLeft: compact ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-300, 12px)',
-                paddingRight: compact ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-300, 12px)',
-                fontSize: compact ? 'var(--type-size-xs, 12px)' : 'var(--type-size-sm, 14px)',
+                height: 'var(--dim-size-500, 24px)',
+                paddingLeft: 'var(--dim-space-200, 8px)',
+                paddingRight: 'var(--dim-space-200, 8px)',
+                fontSize: 'var(--type-size-xs, 12px)',
                 transition: `height ${T}, padding ${T}, font-size ${T}`,
               }}
             >
@@ -474,10 +483,10 @@ const PatientCard = ({
               <span
                 className='inline-flex items-center rounded-full bg-badge-redBg text-badge-redText font-medium'
                 style={{
-                  height: compact ? 24 : 32,
-                  paddingLeft: compact ? 8 : 12,
-                  paddingRight: compact ? 8 : 12,
-                  fontSize: compact ? 12 : 14,
+                  height: 'var(--dim-size-500, 24px)',
+                  paddingLeft: 'var(--dim-space-200, 8px)',
+                  paddingRight: 'var(--dim-space-200, 8px)',
+                  fontSize: 'var(--type-size-xs, 12px)',
                   transition: `height ${T}, padding ${T}, font-size ${T}`,
                 }}
               >
@@ -488,7 +497,10 @@ const PatientCard = ({
         </div>
 
         {compact ? (
-          <div className='flex flex-1 min-w-0 flex-wrap items-center justify-end gap-x-6 gap-y-2 text-white'>
+          <div
+            className='flex flex-1 min-w-0 flex-wrap items-center justify-end text-white'
+            style={{ columnGap: 'var(--dim-space-400, 16px)', rowGap: 'var(--dim-space-100, 4px)' }}
+          >
             <Field label='สิทธิ์การรักษา' value={patient.insurance} />
             <Field label='หมู่เลือด' value={patient.bloodType} />
             <Field label='ประเภท' value={patient.patientType} />
@@ -496,8 +508,8 @@ const PatientCard = ({
           </div>
         ) : (
           <div
-            className='flex w-full min-w-0 flex-nowrap items-start overflow-x-auto scrollbar-thin'
-            style={{ gap: 'var(--dim-space-600, 24px)' }}
+            className='flex flex-1 min-w-0 flex-nowrap items-start overflow-x-auto scrollbar-thin'
+            style={{ gap: 'var(--dim-space-400, 16px)' }}
           >
             <Field label='เพศ' value={patient.sex} />
             <Field label='อายุ' value={patient.age} />
@@ -506,7 +518,6 @@ const PatientCard = ({
             <Field label='ประเภท' value={patient.patientType} />
             <Field label='แพทย์เจ้าของคนไข้' value={patient.doctor} minWidth={160} />
             <Field label='สิทธิ์การรักษา' value={patient.insurance} minWidth={220} />
-            <Field label='ที่อยู่' value={patient.address} minWidth={280} />
           </div>
         )}
       </div>
@@ -517,7 +528,7 @@ const PatientCard = ({
       {tags && (
         <div
           className='flex w-full flex-wrap items-center'
-          style={{ gap: 'var(--dim-space-200, 8px)', marginTop: 'var(--dim-space-300, 12px)' }}
+          style={{ gap: 'var(--dim-space-100, 4px)', marginTop: 'var(--dim-space-200, 8px)' }}
         >
           {tags}
         </div>
@@ -529,11 +540,11 @@ const PatientCard = ({
          and chronic conditions while charting. */}
       {showAlertRow && (
         <div
-          className='flex w-full flex-wrap'
+          className='flex w-full flex-wrap items-center'
           style={{
-            gap: 'var(--dim-space-600, 24px)',
-            marginTop: compact ? 'var(--dim-space-300, 12px)' : 'var(--dim-space-400, 16px)',
-            paddingBottom: 'var(--dim-space-400, 16px)',
+            gap: 'var(--dim-space-400, 16px)',
+            marginTop: compact ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-300, 12px)',
+            paddingBottom: 'var(--dim-space-300, 12px)',
             transition: `margin-top ${T}, padding-bottom ${T}`,
           }}
         >
