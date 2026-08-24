@@ -19,9 +19,29 @@ const reorderList = (list, fromId, toIndex) => {
   return next;
 };
 
-export default function useFormBuilder() {
-  const initialBlocks = useMemo(() => createInitialBlocks(), []);
-  const [formName, setFormName] = useState(DEFAULT_FORM_NAME);
+/**
+ * @param {object}   [opts]
+ * @param {Array}    [opts.blocks]      seed the canvas with these instead of the
+ *                                      สร้างแบบฟอร์มใหม่ starter set — used when
+ *                                      editing an existing e-Document or starting
+ *                                      from a คลังเอกสาร template.
+ * @param {string}   [opts.name]        seed ชื่อแบบฟอร์ม.
+ * @param {string}   [opts.storageKey]  localStorage key for saveDraft. Pass a
+ *                                      distinct key (or `null` to disable) when
+ *                                      the builder is embedded inside a clinical
+ *                                      record — a นัดวางแผนครอบครัว draft must not
+ *                                      overwrite the คลังเอกสาร template draft.
+ * All options are optional; omitting them keeps the original behaviour.
+ */
+export default function useFormBuilder(opts = {}) {
+  const { blocks: seedBlocks, name: seedName, storageKey = DRAFT_STORAGE_KEY } = opts;
+  /* seeded once — later edits live in state, not in the prop */
+  const initialBlocks = useMemo(
+    () => (seedBlocks && seedBlocks.length ? seedBlocks : createInitialBlocks()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const [formName, setFormName] = useState(seedName || DEFAULT_FORM_NAME);
   const [blocks, setBlocks] = useState(initialBlocks);
   const [selectedId, setSelectedId] = useState(initialBlocks[0]?.id ?? null);
   const [coverFiles, setCoverFiles] = useState([]);
@@ -107,19 +127,24 @@ export default function useFormBuilder() {
       coverFiles: coverFiles.map((f) => ({ name: f.name, size: f.size, type: f.type })),
       savedAt: new Date().toISOString(),
     };
+    if (!storageKey) {
+      /* embedded builder — the host owns persistence (e.g. the visit record) */
+      setLastSaved(new Date());
+      return true;
+    }
     try {
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(payload));
+      localStorage.setItem(storageKey, JSON.stringify(payload));
       setLastSaved(new Date());
       return true;
     } catch {
       return false;
     }
-  }, [formName, blocks, coverFiles]);
+  }, [formName, blocks, coverFiles, storageKey]);
 
   const publish = useCallback(() => {
     saveDraft();
-    return { formName, blockCount: blocks.length };
-  }, [saveDraft, formName, blocks.length]);
+    return { formName, blockCount: blocks.length, blocks };
+  }, [saveDraft, formName, blocks]);
 
   const scrollPreviewToBlock = useCallback((id) => {
     setSelectedId(id);
