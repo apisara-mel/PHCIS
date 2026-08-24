@@ -21,6 +21,17 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+/* `locale='th'` — Thai weekday initials + Buddhist-era month label. Added
+   for the radiology booking calendar (TOR §1.12.3), where the calendar is
+   read by front-desk staff and shown to patients; English month names next
+   to Thai slot labels read as a half-translated screen. Default stays 'en'
+   so every existing caller (DateFilterPopup, DatePicker) is unchanged. */
+const TH_WEEKDAYS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+const TH_MONTHS = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+];
+
 const Sym = ({ name, size = 16, color }) => (
   <span
     className='material-symbols-outlined'
@@ -97,10 +108,18 @@ const Calendar = ({
   showRightChevron = true,
   minDate,                 // dates strictly before this are disabled (inclusive lower bound)
   isFull,                  // (Date) => boolean — mark fully-booked days (render "เต็ม", non-selectable)
+  /* string, or (Date) => string when the reason differs per day — a room
+     that is CLOSED on Sunday is not the same as one that is fully booked,
+     and labelling both "เต็ม" tells the user something untrue. */
   fullLabel = 'เต็ม',
+  locale = 'en',           // 'en' (default) | 'th'
 }) => {
+  const isThai = locale === 'th';
   const grid = buildGrid(viewMonth);
-  const monthLabel = `${MONTH_NAMES[viewMonth.getMonth()]} ${viewMonth.getFullYear()}`;
+  const weekdays = isThai ? TH_WEEKDAYS : WEEKDAYS;
+  const monthLabel = isThai
+    ? `${TH_MONTHS[viewMonth.getMonth()]} ${viewMonth.getFullYear() + 543}`
+    : `${MONTH_NAMES[viewMonth.getMonth()]} ${viewMonth.getFullYear()}`;
   const minTs = minDate ? startOfDay(minDate).getTime() : null;
 
   const stateOf = (d) => {
@@ -208,7 +227,7 @@ const Calendar = ({
 
       {/* Weekday row */}
       <div className='flex w-full' style={{ gap: 'var(--dim-space-050)' }}>
-        {WEEKDAYS.map((w) => (
+        {weekdays.map((w) => (
           <div
             key={w}
             className='flex-1 flex items-center justify-center'
@@ -236,7 +255,7 @@ const Calendar = ({
               state={stateOf(d)}
               cellStyleFor={cellStyleFor}
               onSelect={onSelect}
-              fullLabel={fullLabel}
+              fullLabel={typeof fullLabel === 'function' ? fullLabel(d) : fullLabel}
             />
           ))}
         </div>

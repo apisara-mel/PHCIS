@@ -1050,3 +1050,48 @@ repo `mih-design`** — เกิดจาก typography sweep (Mitr) + redesign
 |---|---|---|
 | `AlertChip` — ป้ายสถานะสี red/orange + ไอคอน | **`ColorfulBadge`** (`src/components/badge/ColorfulBadge.jsx`) รับ `style` / `icon` / `fill` / `width` และใช้ token ชุด `--surface-colorfulbadge-*` ตัวเดียวกัน | alias ไปใช้ ColorfulBadge แล้ว (6 จุด) — ใส่ `width='hug'` เพราะค่าเริ่มต้น `cap` ตัดข้อความคลินิกเป็น "อาการทรุ…" |
 | `<div role="alert">` แต่งเอง 5 กล่อง | **`Alert`** (`src/components/alert/Alert.jsx` · Figma 297:59) มี `type` / `title` / `subtext` / `indicators` / `badges` / `detail` / ปุ่มปิด | alias ไปใช้ Alert แล้ว (5 จุด) — ลิสต์ย่อยใช้ `indicators` แทนการเขียน `<ul>` เอง |
+
+## 69. XraySlotPicker — ปฏิทินจองคิวตรวจรังสี
+
+- **ไฟล์:** `src/components/xray/XraySlotPicker.jsx` · data layer `src/data/xraySchedule.js`
+- **ใช้ที่:** `/xray/order` (TOR §1.12.3) — 1 ที่
+- **สถานะ DS:** ยังไม่มีใน Figma/design.md — เป็น **composition** ของ DS ที่มีอยู่แล้ว
+  (`forms/Calendar` + `timeslot/Timeslot` + `alert/Alert` + `badge/StatusBadge`)
+  ไม่ได้สร้าง primitive ใหม่ จึงไม่ต้องยกขึ้น DS จนกว่าจะมีผู้ใช้ที่ 2
+- **ยกขึ้น DS เมื่อ:** มีระบบอื่นต้องจองห้อง/ทรัพยากรตามช่วงเวลา (เช่น ห้องหัตถการ,
+  ห้องทันตกรรม) → ตอนนั้นค่อยถอดเป็น `ResourceSlotPicker` ทั่วไป
+
+### ส่วนที่แก้ใน DS component เดิม (additive, backward compatible)
+
+- `forms/Calendar.jsx`
+  - `locale='th'` — ชื่อเดือน/วันภาษาไทย + ปี พ.ศ. (default `'en'` เหมือนเดิม
+    ผู้เรียกเดิม DateFilterPopup / DatePicker ไม่กระทบ)
+  - `fullLabel` รับ **function `(Date) => string`** ได้แล้ว — วันที่ห้องปิดขึ้น "ปิด"
+    ส่วนวันที่เต็มขึ้น "เต็ม" (เดิมเป็น string เดียวจึงบอกได้อย่างเดียว)
+  - **ควรผลักกลับเข้า Figma** ทั้ง 2 ข้อ — ปฏิทินไทยเป็นค่า default ที่ถูกกว่าสำหรับ
+    ระบบนี้ และ "ปิด ≠ เต็ม" เป็นข้อมูลคนละอย่าง
+
+## 70. PatientCard — แถวแพ้ยา/โรคประจำตัว inline + ปุ่มประวัติการรักษา (มติผู้ใช้ 24 ส.ค. 69)
+
+- **ไฟล์:** `src/components/card/PatientCard.jsx`
+- Label "แพ้ยา" / "โรคประจำตัว" ย้ายมาอยู่ **บรรทัดเดียวกับ badge** ทั้ง 2 โหมด
+  (เดิม full layout วางไว้บรรทัดบน — Figma 150:33649)
+- ค่าในแถวข้อมูลผู้ป่วย (เพศ/อายุ/เลขบัตร/หมู่เลือด/ประเภท/แพทย์/สิทธิ์/ที่อยู่)
+  เปลี่ยนจาก `font-bold` → `font-normal`
+- ปุ่ม **ประวัติการรักษา** ใหม่ที่ท้ายแถว เปิด `MedicalHistoryPopup`
+  (โหลดแบบ `React.lazy` เพราะ popup นั้น import กลับมาที่ `TreatmentSteps` —
+  static import จะพา PatientCard เข้าไปอยู่ใน cycle เดิมและเสี่ยง TDZ)
+  - props ใหม่: `onMedicalHistory` (override การกด) · `showMedicalHistory` (ซ่อนปุ่ม)
+- **ต้องอัปเดต Figma** — ทั้ง 3 ข้อต่างจาก 150:33649 / 343:5629 ที่ catalog ไว้
+
+## 71. StepProgress — สลับเป็นเลขซ้าย/ข้อความขวาเมื่อ scroll (มติผู้ใช้ 24 ส.ค. 69)
+
+- **ไฟล์:** `src/components/step/StepProgress.jsx` · `src/hooks/useGlobalHeaderMorph.js`
+- prop ใหม่ `inlineWhenMorphed` (default `false` — ผู้เรียกเดิมไม่กระทบ);
+  `WizardMorphHeader` เปิดให้เอง แถบ step ทุกหน้าที่ใช้ scroll-morph จึงได้ทันที
+- ใช้ `useHeaderMorphedFlag()` — อ่าน `<html data-header-morphed>` ที่
+  `useGlobalHeaderMorph` เขียนอยู่แล้ว ผ่าน MutationObserver จึง **ไม่มี scroll
+  listener ตัวที่สอง** และ re-render แค่ตอนข้าม threshold (0.55)
+- เหตุที่ต้อง flip ไม่ใช่ interpolate: `flex-direction` interpolate ไม่ได้
+- ระยะบน-ล่างของแถบ step ก่อน scroll ลดลง (`PageHeaderInfoPanel` dense
+  paddingBottom 24→12px · `morphStepOnlyRootDenseStyle` paddingTop 12→8px)

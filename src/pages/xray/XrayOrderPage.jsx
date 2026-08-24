@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
@@ -17,6 +17,7 @@ import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import XrayOrderPicker from '@/components/xray/XrayOrderPicker';
 import XrayReportSheet from '@/components/xray/XrayReportSheet';
+import XraySlotPicker from '@/components/xray/XraySlotPicker';
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
 import {
   XRAY_EXAM_BY_ID, XRAY_VIEWS, XRAY_FILM_SIZES, XRAY_RIGHT_BY_KEY,
@@ -27,6 +28,7 @@ import {
   generateXN, xrayHistoryFor,
 } from '@/data/xrayOrders';
 import { XRAY_RADIOGRAPHERS } from '@/data/xrayResultTemplates';
+import { roomsForExams, bookXraySlot, formatThaiDateTime } from '@/data/xraySchedule';
 
 /* บันทึกส่งตรวจทางรังสีวิทยา — the RIS order-entry screen (TOR §1.12.5,
    with the นัดตรวจ branch of §1.12.3 and the patient search of §1.12.2).
@@ -465,6 +467,10 @@ const XrayOrderPage = () => {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }));
   const [sendAt, setSendAt] = useState('');
+  /* ช่วงเวลานัดที่จองไว้จริงในตารางห้องตรวจ — TOR §1.12.3. `sendAt` remains
+     the raw datetime the form has always carried (and the walk-in path
+     still uses it alone); `slot` is the booked room slot behind it. */
+  const [slot, setSlot] = useState(null);
   const [requestType, setRequestType] = useState('');
   const [urgency, setUrgency] = useState('');
   /* คลินิกที่ขอตรวจ / แพทย์ผู้ส่งตรวจ open pre-filled from the last saved
@@ -583,6 +589,9 @@ const XrayOrderPage = () => {
     setReason('');
     setFilmRows([]);
     setShowMissing(false);
+    /* the booked slot belonged to the previous patient's basket */
+    setSlot(null);
+    setSendAt('');
   };
 
   /* วันเวลาส่ง/นัด → ลักษณะการขอตรวจ auto-flip — legacy §2.2 behaviour
@@ -591,11 +600,40 @@ const XrayOrderPage = () => {
      requirement forward). A past/now datetime keeps walk-in semantics. */
   const handleSendAt = (v) => {
     setSendAt(v);
+    /* Hand-typing the datetime bypasses the room calendar, so the booked
+       slot no longer describes what is on screen — drop it rather than
+       print an appointment slip for a slot nobody holds. */
+    if (slot && v !== slot.isoLocal) setSlot(null);
     if (v && new Date(v).getTime() > Date.now()) {
       if (requestType !== 'appointment') setRequestType('appointment');
     } else if (requestType === 'appointment') {
       setRequestType('walkin');
     }
+  };
+
+  /* Adding or removing an exam changes how many consecutive slots the
+     booking needs, so a slot chosen for the OLD basket may no longer fit.
+     Drop it and make the user re-pick rather than silently keeping a time
+     the room cannot honour. Keyed on the basket itself so a re-render (or
+     the save that books the slot) does not clear a still-valid choice. */
+  const basketKey = selected.join('|');
+  const prevBasket = useRef(basketKey);
+  useEffect(() => {
+    if (prevBasket.current === basketKey) return;
+    prevBasket.current = basketKey;
+    setSlot((cur) => {
+      if (cur) setSendAt('');
+      return null;
+    });
+  }, [basketKey]);
+
+  /* Picking a slot in the calendar IS setting วันเวลาส่ง/นัด — the two stay
+     in lockstep so the existing validation, sheet and auto-flip keep
+     working unchanged. */
+  const handleSlot = (next) => {
+    setSlot(next);
+    setSendAt(next?.isoLocal ?? '');
+    if (next && requestType !== 'appointment') setRequestType('appointment');
   };
 
   /* Single add gate — every path that ADDS exams (picker rows handle their
@@ -699,12 +737,20 @@ const XrayOrderPage = () => {
      blocked save lands the user ON the first offending field instead of
      leaving them to hunt from the summary (Nielsen #9). Validation
      itself is unchanged — same baseline + per-exam-config union. */
+  /* Can this basket be booked in-house at all? Drives both the validation
+     rule below and the picker's own warning panel. */
+  const slotBlockReason = useMemo(() => roomsForExams(selected).blockReason, [selected]);
+
   const missingItems = useMemo(() => {
     const out = [];
     const push = (label, section, target, short) => out.push({ label, section, target, short: short ?? label });
     if (!patient) push('ผู้รับบริการ (ค้นหาและเลือกผู้ป่วย)', 'patient', 'xo-field-patient', 'กรุณาค้นหาและเลือกผู้รับบริการ');
     if (!requestType) push('ลักษณะการขอตรวจ', 'request', 'xo-field-requestType', 'กรุณาเลือกลักษณะการขอตรวจ');
     if (requestType === 'appointment' && !sendAt) push('วันเวลาส่ง/นัด (จำเป็นเมื่อเป็นนัดตรวจ)', 'request', 'xo-field-sendAt', 'กรุณาระบุวันเวลาส่ง/นัด — จำเป็นเมื่อเป็นนัดตรวจ');
+    /* §1.12.3 — a นัดตรวจ has to hold a real room slot. Skipped only when
+       the basket has no in-house room to book (referral-only / mixed),
+       where the datetime alone is all the system can promise. */
+    if (requestType === 'appointment' && !slotBlockReason && !slot) push('ช่วงเวลานัดจากปฏิทินห้องตรวจ', 'request', 'xo-slot-picker', 'กรุณาเลือกช่วงเวลานัดจากปฏิทินห้องตรวจ');
     if (!urgency) push('ความเร่งด่วน', 'request', 'xo-field-urgency', 'กรุณาเลือกความเร่งด่วน');
     if (!location) push('คลินิกที่ขอตรวจ', 'request', 'xo-field-location', 'กรุณาเลือกคลินิกที่ขอตรวจ');
     if (!doctor.trim()) push('แพทย์ผู้ส่งตรวจ', 'request', 'xo-field-doctor', 'กรุณาระบุแพทย์ผู้ส่งตรวจ');
@@ -760,7 +806,7 @@ const XrayOrderPage = () => {
       });
     });
     return out;
-  }, [patient, requestType, sendAt, urgency, location, doctor, selected, selectedExams, clinicalSummary, diagnosis, allergyHas, allergyAgent, needPregnancy, pregStatus, viewSel, reason]);
+  }, [patient, requestType, sendAt, slot, slotBlockReason, urgency, location, doctor, selected, selectedExams, clinicalSummary, diagnosis, allergyHas, allergyAgent, needPregnancy, pregStatus, viewSel, reason]);
 
   /* Unchanged public shape: `missing` stays the summary-Alert string list. */
   const missing = useMemo(() => missingItems.map((m) => m.label), [missingItems]);
@@ -810,6 +856,22 @@ const XrayOrderPage = () => {
        confirms the request rather than persisting it. The shape it would
        POST is one row per selected exam sharing NEXT_XN, exactly what
        xrayOrders.js CURATED_ORDERS model (ORD-X405 = the multi-row case). */
+    /* §1.12.3 — hold the room slot. Everything else on this screen is a
+       mock POST (there is no radiology backend), but the schedule IS real
+       client state: the slot has to disappear from the calendar for the
+       next person booking, so this one write actually persists. */
+    if (requestType === 'appointment' && slot) {
+      bookXraySlot({
+        dateISO: slot.dateISO,
+        time: slot.time,
+        roomId: slot.roomId,
+        examIds: selected,
+        hn: patient?.hn,
+        patientName: patient?.fullName,
+        xn: NEXT_XN,
+        note: reason || null,
+      });
+    }
     setSaved(true);
     /* ใบนัดตรวจรังสี pre-ticks itself for appointment orders — legacy §2.2
        opens it automatically after the นัดตรวจ flip. */
@@ -836,7 +898,11 @@ const XrayOrderPage = () => {
       orderedBy: doctor,
       urgencyLabel: urgencyMeta?.thai,
       requestType,
-      scheduledAt: sendAt,
+      /* the slip is patient-facing — print the Thai stamp and the room,
+         not the raw datetime-local value the form field holds */
+      scheduledAt: slot
+        ? `${slot.scheduledAt} น. · ${slot.room?.name ?? ''}`
+        : (sendAt ? formatThaiDateTime(sendAt.slice(0, 10), sendAt.slice(11, 16)) : ''),
       orderedAt: requestedAt,
       rightLabel: XRAY_RIGHT_BY_KEY[rightKey]?.thai,
       allergy: { has: allergyHas === true, agent: allergyAgent, symptom: allergySymptom },
@@ -871,7 +937,7 @@ const XrayOrderPage = () => {
     center: 'ศูนย์บริการสาธารณสุข 4 ดินแดง',
     printedAt: requestedAt,
   }), [
-    selectedExams, location, doctor, urgencyMeta, requestType, sendAt, requestedAt,
+    selectedExams, location, doctor, urgencyMeta, requestType, sendAt, slot, requestedAt,
     rightKey, allergyHas, allergyAgent, allergySymptom, pregStatus, lmp,
     clinicalSummary, diagnosis, note, patient, viewSel, summary,
   ]);
@@ -1132,17 +1198,27 @@ const XrayOrderPage = () => {
                 branch promises (slot on the appointment day + printed
                 ใบนัดตรวจรังสี carrying the prep instructions). */}
             {requestType === 'appointment' && (
-              <Alert
-                type='info'
-                iconName='event_available'
-                title={sendAt
-                  ? `นัดตรวจวันที่ ${new Date(sendAt).toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
-                  : 'นัดตรวจ — กรุณาระบุวันเวลาส่ง/นัด'}
-                subtext={`ระบบจะพิมพ์ใบนัดตรวจรังสีพร้อมคำแนะนำการเตรียมตัวให้หลังบันทึก · เวลาห้องตรวจโดยประมาณ ${selectedExams.reduce((s, e) => s + (e.durationMin ?? 0), 0)} นาที (${selected.length} รายการ)`}
-                showBadge={false}
-                showIndicator={false}
-                showDetail={false}
-              />
+              <div id='xo-slot-picker' className='flex flex-col w-full' style={{ gap: 'var(--dim-space-250)' }}>
+                <XraySlotPicker
+                  examIds={selected}
+                  patient={patient}
+                  value={slot}
+                  onChange={handleSlot}
+                />
+                <Alert
+                  type={slot ? 'success' : fieldError('xo-slot-picker') ? 'error' : 'info'}
+                  iconName='print'
+                  title={slot
+                    ? `นัดตรวจ ${slot.scheduledAt} น. · ${slot.room?.name ?? ''}`
+                    : fieldError('xo-slot-picker') ?? 'ยังไม่ได้เลือกช่วงเวลานัด'}
+                  subtext={slot
+                    ? 'ระบบจะพิมพ์ใบนัดตรวจรังสีพร้อมคำแนะนำการเตรียมตัวให้หลังบันทึก'
+                    : `เลือกช่วงเวลาจากปฏิทินด้านบน · เวลาห้องตรวจโดยประมาณ ${selectedExams.reduce((s, e) => s + (e.durationMin ?? 0), 0)} นาที (${selected.length} รายการ)`}
+                  showBadge={false}
+                  showIndicator={false}
+                  showDetail={false}
+                />
+              </div>
             )}
 
             {/* ความเร่งด่วน — §1.12.5.4 first column; STAT is red and jumps
