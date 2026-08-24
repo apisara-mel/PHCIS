@@ -16,6 +16,7 @@ import {
   SUB_ROLES,
   DEPARTMENTS,
   FEATURE_GROUPS,
+  ROLE_TEMPLATES,
   TITLES,
   LICENSE_TYPES,
   PROFESSIONAL_ROLES,
@@ -114,6 +115,7 @@ const UserEditPage = () => {
   const [saved, setSaved] = useState('');
   const [otpVerified, setOtpVerified] = useState(!isNew);
   const [leaving, setLeaving] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
 
   const markDirty = () => setDirty(true);
 
@@ -167,6 +169,22 @@ const UserEditPage = () => {
         licenseType: licType ? licType.key : 'none',
       };
     });
+  };
+
+  const applyRoleTemplate = () => {
+    const template = ROLE_TEMPLATES.find((item) => item.key === selectedTemplate);
+    if (!template) return;
+    const subs = SUB_ROLES[template.role] || [];
+    const license = LICENSE_TYPES.find((item) => item.roles.includes(template.role));
+    markDirty();
+    setForm((prev) => ({
+      ...prev,
+      role: template.role,
+      subRole: subs.some((item) => item.key === prev.subRole) ? prev.subRole : (subs[0]?.key || ''),
+      licenseType: license?.key || 'none',
+      features: { ...template.features },
+    }));
+    setSaved(`นำ Role Template “${template.label}” มาใช้แล้ว คุณยังปรับสิทธิ์ราย Module / Menu / Submenu ต่อได้`);
   };
 
   const subRoles = SUB_ROLES[form.role] || [];
@@ -483,6 +501,36 @@ const UserEditPage = () => {
   const renderAccess = (readOnly) => (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500, 20px)' }}>
       <SectionCard
+        icon='content_copy'
+        title='Role Template'
+        subtitle='Template ใช้กำหนดค่าเริ่มต้นเท่านั้น หลังนำมาใช้ยังแก้สิทธิ์ของผู้ใช้รายนี้ได้อย่างอิสระ'
+      >
+        <div className='grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] items-end w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <Select
+            label='เลือก Template สิทธิ์'
+            searchable={false}
+            disabled={readOnly}
+            value={selectedTemplate}
+            onChange={setSelectedTemplate}
+            options={ROLE_TEMPLATES.map((template) => ({
+              value: template.key,
+              label: `${template.label} — ${template.description}`,
+            }))}
+            placeholder='— เลือก Role Template —'
+            helperText='ระบบจะคัดลอก Role และสิทธิ์เริ่มต้นมาให้ โดยไม่ล็อกการแก้ไขภายหลัง'
+          />
+          <BrandSubdueButton
+            size='md'
+            leadingIcon='download'
+            disabled={readOnly || !selectedTemplate}
+            onClick={applyRoleTemplate}
+          >
+            นำ Template มาใช้
+          </BrandSubdueButton>
+        </div>
+      </SectionCard>
+
+      <SectionCard
         icon='badge'
         title='หน้าที่ (Role)'
         subtitle='เลือกหน้าที่หลักของผู้ใช้ — ใช้กำหนดสิทธิ์เริ่มต้นและจัดกลุ่มในระบบ'
@@ -511,7 +559,7 @@ const UserEditPage = () => {
       <SectionCard
         icon='lock_person'
         title='สิทธิ์การใช้งานฟีเจอร์'
-        subtitle={`กำหนดการเข้าถึงแต่ละฟีเจอร์ ไม่มีสิทธิ์ / ดูได้ / แก้ไขได้ — สรุปปัจจุบัน: ดูได้ ${access.view} · แก้ไขได้ ${access.edit}`}
+        subtitle={`กำหนดสิทธิ์ระดับ Module / Menu / Submenu — Read ${access.view} · Write ${access.write} · Read and Write ${access.edit}`}
       >
         <div
           className='flex flex-wrap items-center w-full'
@@ -538,7 +586,7 @@ const UserEditPage = () => {
             </span>
           ))}
           <span className='ml-auto text-xs text-ink-tertiary'>
-            ฟีเจอร์บางอย่างเปิดได้แค่ "แก้ไขได้" หรือ "ดูได้" เท่านั้น
+            ระบบจะแสดงเฉพาะระดับสิทธิ์ที่แต่ละเมนูรองรับ
           </span>
         </div>
 
@@ -615,7 +663,7 @@ const UserEditPage = () => {
                     <span className='text-xs text-ink-tertiary'>
                       สรุป: <strong className='text-ink-secondary'>{roleMeta.label}</strong>
                       {' · '}{form.departments.length} แผนก
-                      {' · '}ดูได้ {access.view}, แก้ไขได้ {access.edit}
+                      {' · '}Read {access.view}, Write {access.write}, Read and Write {access.edit}
                       {' · '}{form.loginChannels.length} ช่องทางเข้าสู่ระบบ
                     </span>
                   ) : null}

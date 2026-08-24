@@ -14,7 +14,6 @@ export const CONSENT_NAV = [
   { key: 'consent-manage',    label: 'จัดการความยินยอม',    icon: 'assignment_turned_in', path: '/consent' },
   { key: 'consent-forms',     label: 'แบบฟอร์มความยินยอม',  icon: 'folder_open',          path: '/consent/forms' },
   { key: 'consent-new',       label: 'สร้างแบบฟอร์มจัดการความยินยอมใหม่',   icon: 'note_add',             path: '/consent/forms/new' },
-  { key: 'consent-request-access', label: 'ขอสิทธิ์การเข้าถึงแบบฟอร์ม', icon: 'upload_file', path: '/consent/forms/request-access' },
   { key: 'consent-my-requests', label: 'รายการคำขอของฉัน', icon: 'assignment', path: '/consent/access/my-requests' },
   { key: 'consent-access',    label: 'จัดการสิทธิ์การขอเข้าถึงแบบฟอร์ม', icon: 'lock', path: '/consent/access' },
   { key: 'consent-history',   label: 'ประวัติความยินยอม', icon: 'history', path: '/consent/history' },

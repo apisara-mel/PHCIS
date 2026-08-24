@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
 import DatePicker from '@/components/forms/DatePicker';
+import Select from '@/components/forms/Select';
 import FileUploadField from '@/components/forms/FileUploadField';
 import { UploadProgressBox, useSmoothUploadProgress } from '@/components/forms/UploadProgressBar';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
@@ -149,13 +150,14 @@ export function CreateConsentRequestPopup({
       open={open}
       onClose={() => (formApi.dirty ? formApi.requestCancel() : onClose())}
       size='large'
-      title='สร้างคำขอเข้าถึงแบบฟอร์มยินยอม'
-      primaryAction={{ label: 'ส่งคำขอสิทธิ์เข้าถึงแบบฟอร์ม', onClick: () => formApi.submit(), disabled: !formApi.ready }}
+      title='คำขอเข้าถึงข้อมูล'
+      primaryAction={{ label: 'ส่งคำขอเข้าถึงข้อมูล', onClick: () => formApi.submit(), disabled: !formApi.ready }}
       secondaryAction={{ label: 'ยกเลิก', onClick: () => (formApi.dirty ? formApi.requestCancel() : onClose()) }}
     >
       <AccessRequestForm
         key={open ? 'open' : 'closed'}
         showFooter={false}
+        fixedAccessType='patient_consent'
         initialFormId={initialFormId}
         onCancel={onClose}
         onSubmit={(payload) => onCreate?.(payload)}
@@ -342,7 +344,7 @@ const REASON_HINTS = [
   'รับเอกสารความยินยอมฉบับกระดาษจากหน่วยบริการเครือข่าย',
 ];
 
-export function PaperConsentRecordPopup({ open, record, onClose, onSave }) {
+export function PaperConsentRecordPopup({ open, record, records = [], onClose, onSave }) {
   const [mode, setMode] = useState('grant');
   const [fileName, setFileName] = useState(null);
   const [pendingName, setPendingName] = useState(null);
@@ -351,12 +353,16 @@ export function PaperConsentRecordPopup({ open, record, onClose, onSave }) {
   const [effectiveDate, setEffectiveDate] = useState(null);
   const [reason, setReason] = useState('');
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [selectedRecordId, setSelectedRecordId] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setMode('grant'); setFileName(null); setPendingName(null); setUploading(false);
     setFileError(''); setEffectiveDate(null); setReason(''); setConfirmDiscard(false);
+    setSelectedRecordId(record?.id != null ? String(record.id) : '');
   }, [open]);
+
+  const resolvedRecord = record || records.find((item) => String(item.id) === selectedRecordId) || null;
 
   const uploadProgress = useSmoothUploadProgress({
     active: uploading,
@@ -377,8 +383,8 @@ export function PaperConsentRecordPopup({ open, record, onClose, onSave }) {
     setUploading(true);
   };
 
-  const dirty = fileName || effectiveDate || reason.trim();
-  const ready = !!fileName && !!effectiveDate && reason.trim().length > 0;
+  const dirty = selectedRecordId || fileName || effectiveDate || reason.trim();
+  const ready = !!resolvedRecord && !!fileName && !!effectiveDate && reason.trim().length > 0;
 
   const requestClose = () => {
     if (dirty) setConfirmDiscard(true);
@@ -392,15 +398,55 @@ export function PaperConsentRecordPopup({ open, record, onClose, onSave }) {
         onClose={requestClose}
         size='large'
         title='บันทึกจากเอกสารกระดาษ'
-        subtitle={record ? `${record.name} · HN ${record.hn} · ${record.type}` : 'บันทึกให้/เพิกถอนความยินยอมจากเอกสารของเจ้าของข้อมูล'}
+        subtitle={resolvedRecord ? `${resolvedRecord.name} · HN ${resolvedRecord.hn} · ${resolvedRecord.type}` : 'เลือกผู้รับบริการและแบบฟอร์มตามเอกสารต้นฉบับ'}
         primaryAction={{
           label: mode === 'grant' ? 'บันทึกการให้ความยินยอม' : 'บันทึกการเพิกถอน',
-          onClick: () => ready && onSave({ mode, fileName, effectiveDate: thaiDateFormat(effectiveDate), reason }),
+          onClick: () => ready && onSave({
+            mode,
+            record: resolvedRecord,
+            fileName,
+            effectiveDate: thaiDateFormat(effectiveDate),
+            reason,
+            storageType: 'Paper',
+            verifiedBy: 'original_file',
+            signature: null,
+          }),
           disabled: !ready,
         }}
         secondaryAction={{ label: 'ยกเลิก', onClick: requestClose }}
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+          {!record ? (
+            <Select
+              label='ผู้รับบริการ / แบบฟอร์มความยินยอม'
+              required
+              searchable
+              value={selectedRecordId}
+              onChange={setSelectedRecordId}
+              options={records.map((item) => ({
+                value: String(item.id),
+                label: `${item.name} · HN ${item.hn} · ${item.formName || item.type}`,
+              }))}
+              placeholder='ค้นหา HN ชื่อ หรือแบบฟอร์ม'
+            />
+          ) : null}
+
+          <div
+            className='flex flex-wrap items-center w-full'
+            style={{
+              gap: 'var(--dim-space-200, 8px)',
+              padding: 'var(--dim-space-300, 12px)',
+              borderRadius: 'var(--dim-radius-300, 10px)',
+              background: 'var(--surface-brandPrimary-quaternary)',
+              color: 'var(--text-brandPrimary-default)',
+            }}
+          >
+            <Icon name='verified_user' size={18} />
+            <span className='flex-1 min-w-0 text-sm'>ตรวจสอบจากไฟล์เอกสารต้นฉบับ · ไม่ต้องบันทึกลายเซ็นซ้ำในระบบ</span>
+            <ColorfulBadge style='orange' size='small'>Paper</ColorfulBadge>
+            <ColorfulBadge style='grey' size='small'>Application</ColorfulBadge>
+            <ColorfulBadge style='grey' size='small'>Digital</ColorfulBadge>
+          </div>
           {/* ประเภทการบันทึก */}
           <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
             {PAPER_MODES.map((m) => {

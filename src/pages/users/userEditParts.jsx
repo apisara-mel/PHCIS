@@ -8,9 +8,10 @@ import { ROLE_PALETTE } from '@/data/usersAccess';
    สิ่งเดียวที่เพิ่มคือ `disabled` เพื่อรองรับสิทธิ์ "ดูอย่างเดียว". */
 
 export const ACCESS_OPTIONS = [
-  { value: 'none', label: 'ไม่มีสิทธิ์', icon: 'block',      color: 'var(--text-content-tertiary)' },
-  { value: 'view', label: 'ดูได้',       icon: 'visibility', color: 'var(--text-colorfulbadge-blue)',   surface: 'var(--surface-colorfulbadge-blue)' },
-  { value: 'edit', label: 'แก้ไขได้',     icon: 'edit',       color: 'var(--text-brandPrimary-default)', surface: 'var(--surface-brandPrimary-quaternary)' },
+  { value: 'none',  label: 'ไม่มีสิทธิ์',      icon: 'block',      color: 'var(--text-content-tertiary)' },
+  { value: 'view',  label: 'Read',             icon: 'visibility', color: 'var(--text-colorfulbadge-blue)', surface: 'var(--surface-colorfulbadge-blue)' },
+  { value: 'write', label: 'Write',            icon: 'edit_note',  color: 'var(--text-colorfulbadge-orange)', surface: 'var(--surface-colorfulbadge-orange)' },
+  { value: 'edit',  label: 'Read and Write',   icon: 'edit',       color: 'var(--text-brandPrimary-default)', surface: 'var(--surface-brandPrimary-quaternary)' },
 ];
 
 /** Section card — การ์ดขาวหัวเรื่อง + เนื้อหา (เหมือนเดิมทุกประการ). */
@@ -133,7 +134,7 @@ export const AccessSegmentedControl = ({ feature, value, onChange, disabled = fa
   const supported = feature.supportedLevels || ['view', 'edit'];
   return (
     <div
-      className='inline-flex items-center'
+      className='inline-flex items-center flex-wrap'
       style={{
         paddingTop: 'var(--dim-space-100, 4px)',
         paddingBottom: 'var(--dim-space-100, 4px)',
@@ -145,7 +146,10 @@ export const AccessSegmentedControl = ({ feature, value, onChange, disabled = fa
       }}
     >
       {ACCESS_OPTIONS.map((opt) => {
-        const isSupported = opt.value === 'none' || supported.includes(opt.value);
+        const isSupported = opt.value === 'none'
+          || (opt.value === 'view' && supported.includes('view'))
+          || (opt.value === 'write' && supported.includes('edit'))
+          || (opt.value === 'edit' && supported.includes('view') && supported.includes('edit'));
         const enabled = isSupported && !disabled;
         const selected = (value || 'none') === opt.value;
         const surface = opt.surface || 'var(--surface-brandPrimary-quaternary)';
@@ -187,14 +191,19 @@ export const FeatureGroupBlock = ({ group, features, setFeature, disabled = fals
   const groupCount = group.features.reduce((acc, f) => {
     const v = features[f.key];
     if (v === 'view') acc.view += 1;
+    else if (v === 'write') acc.write += 1;
     else if (v === 'edit') acc.edit += 1;
     return acc;
-  }, { view: 0, edit: 0 });
+  }, { view: 0, write: 0, edit: 0 });
 
   const applyAll = (level) => {
     if (disabled) return;
     group.features.forEach((f) => {
-      const ok = !level || (f.supportedLevels || ['view', 'edit']).includes(level);
+      const supported = f.supportedLevels || ['view', 'edit'];
+      const ok = !level
+        || (level === 'view' && supported.includes('view'))
+        || (level === 'write' && supported.includes('edit'))
+        || (level === 'edit' && supported.includes('view') && supported.includes('edit'));
       if (level && ok) setFeature(f.key, level);
       else if (!level) setFeature(f.key, null);
     });
@@ -210,7 +219,7 @@ export const FeatureGroupBlock = ({ group, features, setFeature, disabled = fals
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-      <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+      <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
         <div
           className='shrink-0 inline-flex items-center justify-center'
           style={{
@@ -224,18 +233,22 @@ export const FeatureGroupBlock = ({ group, features, setFeature, disabled = fals
           <Icon name={group.icon} size={16} />
         </div>
         <div className='flex-1 min-w-0 flex flex-col'>
-          <span className='text-sm font-bold text-ink'>{group.label}</span>
+          <span className='text-sm font-bold text-ink'>Module · {group.label}</span>
           <span className='text-xs text-ink-tertiary'>
-            ดูได้ {groupCount.view} · แก้ไขได้ {groupCount.edit} จาก {group.features.length} ฟีเจอร์
+            Read {groupCount.view} · Write {groupCount.write} · Read and Write {groupCount.edit} จาก {group.features.length} เมนู
           </span>
         </div>
-        <div className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+        <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
           <button type='button' disabled={disabled} onClick={() => applyAll('view')} className='text-xs underline' style={bulkStyle('var(--text-colorfulbadge-blue)')}>
-            เลือกดูทั้งหมด
+            Read ทั้ง Module
+          </button>
+          <span className='text-xs text-ink-tertiary'>·</span>
+          <button type='button' disabled={disabled} onClick={() => applyAll('write')} className='text-xs underline' style={bulkStyle('var(--text-colorfulbadge-orange)')}>
+            Write ทั้ง Module
           </button>
           <span className='text-xs text-ink-tertiary'>·</span>
           <button type='button' disabled={disabled} onClick={() => applyAll('edit')} className='text-xs underline' style={bulkStyle('var(--text-brandPrimary-default)')}>
-            ให้แก้ไขทั้งหมด
+            Read and Write
           </button>
           <span className='text-xs text-ink-tertiary'>·</span>
           <button type='button' disabled={disabled} onClick={() => applyAll(null)} className='text-xs underline' style={bulkStyle('var(--text-content-tertiary)')}>
@@ -259,7 +272,10 @@ export const FeatureGroupBlock = ({ group, features, setFeature, disabled = fals
               borderRadius: 'var(--dim-radius-200, 8px)',
             }}
           >
-            <span className='flex-1 min-w-0 text-sm text-ink'>{f.label}</span>
+            <span className='flex-1 min-w-0 flex flex-col'>
+              <span className='text-sm text-ink'>{f.label}</span>
+              <span className='text-xs text-ink-tertiary'>Menu / Submenu · {f.key}</span>
+            </span>
             <AccessSegmentedControl
               feature={f}
               value={features[f.key]}

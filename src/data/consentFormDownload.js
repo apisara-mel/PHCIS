@@ -9,8 +9,12 @@ const A4_H_PT = 841.89;
 const SCALE = 2;
 const PAGE_W = Math.round(A4_W_PT * SCALE);
 const PAGE_H = Math.round(A4_H_PT * SCALE);
-const MARGIN = 56 * SCALE;
-const CONTENT_W = PAGE_W - MARGIN * 2;
+const MM_TO_PT = 72 / 25.4;
+const MARGIN_LEFT = 30 * MM_TO_PT * SCALE;
+const MARGIN_RIGHT = 20 * MM_TO_PT * SCALE;
+const MARGIN_TOP = 20 * MM_TO_PT * SCALE;
+const MARGIN_BOTTOM = 20 * MM_TO_PT * SCALE;
+const CONTENT_W = PAGE_W - MARGIN_LEFT - MARGIN_RIGHT;
 
 const SIGNATURE_LABELS = {
   patient: 'ลายมือชื่อผู้ป่วย',
@@ -66,7 +70,7 @@ const buildLayout = (record) => {
   ops.push({ kind: 'gap', h: 12 * SCALE });
   ops.push({ kind: 'heading', text: draft.docTitle || record.name || '—' });
   ops.push({ kind: 'meta', text: `รหัส ${record.code || '—'} · เวอร์ชัน ${record.version || '—'} · ประเภท ${record.type || '—'}` });
-  ops.push({ kind: 'meta', text: `สถานะ ${record.status || '—'} · อัปเดต ${record.updatedDate || '—'} · ผู้สร้าง ${record.creator || '—'}` });
+  ops.push({ kind: 'meta', text: `สถานะ ${record.status || '—'} · อัปเดต ${record.updatedDate || '—'} · ผู้ที่อัปเดตล่าสุด ${record.updatedBy || record.creator || '—'}` });
   ops.push({ kind: 'meta', text: `ขอบเขตการใช้งาน: ${scopeText}` });
   ops.push({ kind: 'rule' });
   ops.push({ kind: 'sectionTitle', text: 'ข้อมูลผู้ให้ความยินยอม (ตัวอย่าง)' });
@@ -80,7 +84,7 @@ const buildLayout = (record) => {
 
   (draft.sections || []).forEach((sec, i) => {
     ops.push({ kind: 'clauseTitle', text: `${i + 1}. ${sec.title || '—'}` });
-    ops.push({ kind: 'body', text: sec.detail || '—' });
+    ops.push({ kind: 'body', text: sec.detail || '—', detailFormat: sec.detailFormat || {} });
     ops.push({ kind: 'checkbox', text: '☐  ข้าพเจ้าได้อ่านและเข้าใจข้อความข้างต้นแล้ว' });
     ops.push({ kind: 'gap', h: 6 * SCALE });
   });
@@ -106,13 +110,13 @@ const buildLayout = (record) => {
 };
 
 const measureOps = (ctx, ops) => {
-  let y = MARGIN;
+  let y = MARGIN_TOP;
   const pages = [[]];
 
   const ensure = (need) => {
-    if (y + need > PAGE_H - MARGIN) {
+    if (y + need > PAGE_H - MARGIN_BOTTOM) {
       pages.push([]);
-      y = MARGIN;
+      y = MARGIN_TOP;
     }
   };
 
@@ -144,7 +148,12 @@ const measureOps = (ctx, ops) => {
     if (op.kind === 'sectionTitle') font = `600 ${15 * SCALE}px Sarabun, sans-serif`;
     if (op.kind === 'clauseTitle') font = `600 ${14 * SCALE}px Sarabun, sans-serif`;
     if (op.kind === 'meta') { font = `${12 * SCALE}px Sarabun, sans-serif`; lineH = 18 * SCALE; }
-    if (op.kind === 'body') { font = `${13 * SCALE}px Sarabun, sans-serif`; lineH = 20 * SCALE; }
+    if (op.kind === 'body') {
+      const weight = op.detailFormat?.bold ? '700 ' : '';
+      const italic = op.detailFormat?.italic ? 'italic ' : '';
+      font = `${italic}${weight}${13 * SCALE}px Sarabun, sans-serif`;
+      lineH = 20 * SCALE;
+    }
     if (op.kind === 'field') { font = `${13 * SCALE}px Sarabun, sans-serif`; lineH = 22 * SCALE; }
     if (op.kind === 'checkbox') { font = `${13 * SCALE}px Sarabun, sans-serif`; lineH = 22 * SCALE; }
     if (op.kind === 'footer') { font = `${11 * SCALE}px Sarabun, sans-serif`; lineH = 16 * SCALE; }
@@ -170,24 +179,24 @@ const drawPage = (ctx, pageOps) => {
       ctx.strokeStyle = '#C5EDDA';
       ctx.lineWidth = SCALE;
       ctx.beginPath();
-      ctx.moveTo(MARGIN, op.y + 8 * SCALE);
-      ctx.lineTo(PAGE_W - MARGIN, op.y + 8 * SCALE);
+      ctx.moveTo(MARGIN_LEFT, op.y + 8 * SCALE);
+      ctx.lineTo(PAGE_W - MARGIN_RIGHT, op.y + 8 * SCALE);
       ctx.stroke();
       return;
     }
     if (op.kind === 'signature') {
       ctx.fillStyle = '#232B36';
       ctx.font = `${13 * SCALE}px Sarabun, sans-serif`;
-      ctx.fillText(op.text, MARGIN, op.y + 16 * SCALE);
+      ctx.fillText(op.text, MARGIN_LEFT, op.y + 16 * SCALE);
       ctx.strokeStyle = '#ADB2B7';
       ctx.lineWidth = SCALE;
       ctx.beginPath();
-      ctx.moveTo(MARGIN, op.y + 48 * SCALE);
-      ctx.lineTo(MARGIN + CONTENT_W * 0.55, op.y + 48 * SCALE);
+      ctx.moveTo(MARGIN_LEFT, op.y + 48 * SCALE);
+      ctx.lineTo(MARGIN_LEFT + CONTENT_W * 0.55, op.y + 48 * SCALE);
       ctx.stroke();
       ctx.fillStyle = '#858C92';
       ctx.font = `${11 * SCALE}px Sarabun, sans-serif`;
-      ctx.fillText('วันที่ ____ / ____ / ______', MARGIN, op.y + 64 * SCALE);
+      ctx.fillText('วันที่ ____ / ____ / ______', MARGIN_LEFT, op.y + 64 * SCALE);
       return;
     }
 
@@ -199,7 +208,15 @@ const drawPage = (ctx, pageOps) => {
 
     let y = op.y + op.lineH;
     (op.lines || [op.text]).forEach((line) => {
-      ctx.fillText(line, MARGIN, y);
+      ctx.fillText(line, MARGIN_LEFT, y);
+      if (op.kind === 'body' && op.detailFormat?.underline) {
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineWidth = SCALE;
+        ctx.beginPath();
+        ctx.moveTo(MARGIN_LEFT, y + 2 * SCALE);
+        ctx.lineTo(MARGIN_LEFT + ctx.measureText(line).width, y + 2 * SCALE);
+        ctx.stroke();
+      }
       y += op.lineH;
     });
   });

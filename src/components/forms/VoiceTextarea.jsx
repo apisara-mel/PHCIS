@@ -89,6 +89,7 @@ const VoiceTextarea = React.forwardRef(function VoiceTextarea(
     onDeleteClick,
     state,
     disabled = false,
+    resizable = true,
     height = VOICE_TEXTAREA_HEIGHT,
     minHeight = VOICE_TEXTAREA_MIN_HEIGHT,
     id: idProp,
@@ -274,6 +275,7 @@ const VoiceTextarea = React.forwardRef(function VoiceTextarea(
           /* Clip the toolbar's rounded bottom corners flush with the outer
              box's rounded corners (the form's stroke wraps the curve). */
           overflow: 'hidden',
+          resize: disabled || !resizable ? 'none' : 'vertical',
           transition: 'border-color 160ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 160ms cubic-bezier(0.4, 0, 0.2, 1), background 160ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
