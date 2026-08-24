@@ -26,6 +26,8 @@ import {
   listPackages, visitItems, visitTotals, formatBahtTh,
   formatThaiDate, formatThaiDateTime, emrLinksFor, hasEmrHistory, openNextRound,
   listVisitsByHn, CHECKUP_STAFF,
+  CHECKUP_ORDER_KINDS, CHECKUP_ORDER_STATUS, checkupOrderKind,
+  listCheckupOrders, saveCheckupOrder, sendCheckupOrder, cancelCheckupOrder,
 } from '@/data/checkupStore';
 import {
   PageBody, PageCard, EmptyState, NoticeBar, SectionHeader, SubCard,
@@ -284,6 +286,10 @@ const CheckupOrderPage = () => {
   const [printOpen, setPrintOpen] = useState(false);
   const [labelOpen, setLabelOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  /* §1.19.15 — คำสั่งการรักษาที่ออกจากผลตรวจสุขภาพ */
+  const [orderDraft, setOrderDraft] = useState(null);
+  const [orderCancelTarget, setOrderCancelTarget] = useState(null);
+  const [orderCancelReason, setOrderCancelReason] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
   const [toast, setToast] = useState('');
@@ -459,6 +465,12 @@ const CheckupOrderPage = () => {
   };
 
   const emrLinks = emrLinksFor(visit.hn);
+  /* §1.19.15 — โหลดใหม่ทุกครั้งที่ tick เปลี่ยน (บันทึก/ส่ง/ยกเลิกคำสั่ง) */
+  const checkupOrders = useMemo(
+    () => listCheckupOrders(visit.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visit.id, tick],
+  );
 
   return (
     <div className='flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
@@ -661,22 +673,90 @@ const CheckupOrderPage = () => {
             <PageCard>
               <SectionHeader
                 icon='stethoscope'
-                title='คำสั่งการรักษา (CPOE)'
-                subtitle='เชื่อมโยงระบบบันทึกการรักษาของแพทย์ — เปิดดูได้อย่างเดียว ไม่แก้ไขจากฝั่งตรวจสุขภาพ (TOR 1.19.15)'
+                title='คำสั่งการรักษาจากผลตรวจสุขภาพ (CPOE)'
+                subtitle='บันทึกคำสั่งที่ออกจากผลตรวจ แล้วส่งเข้าระบบบันทึกการรักษาให้แพทย์ยืนยันต่อ (TOR 1.19.15)'
+                trailing={(
+                  <BrandSubdueButton
+                    size='sm' variant='fill' leadingIcon='add'
+                    disabled={cancelled}
+                    onClick={() => setOrderDraft({ kind: 'medication', detail: '', reason: '' })}
+                  >
+                    บันทึกคำสั่ง
+                  </BrandSubdueButton>
+                )}
               />
-              {hasEmrHistory(visit.hn) ? (
-                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+              <NoticeBar tone='info' icon='info'>
+                หน้านี้บันทึก “เจตนาการสั่ง” จากผลตรวจ — ขนาดยา วิธีใช้ และการตรวจ CDSS
+                ยังทำที่ระบบบันทึกการรักษาตามเดิม เพื่อไม่ให้มีระบบสั่งยาซ้อนกันสองที่
+              </NoticeBar>
+
+              {checkupOrders.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon='assignment_add'
+                  title='ยังไม่มีคำสั่งการรักษาจากผลตรวจนี้'
+                  subtitle='กด “บันทึกคำสั่ง” เมื่อผลตรวจมีสิ่งที่ต้องสั่งยา ตรวจเพิ่ม ส่งต่อ หรือนัดติดตาม'
+                />
+              ) : (
+                <Table
+                  columns={[
+                    {
+                      key: 'kind', label: 'ประเภท', flex: true, minWidth: 190,
+                      render: (r) => (
+                        <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>
+                          {checkupOrderKind(r.kind)?.label || r.kind}
+                        </ColorfulBadge>
+                      ),
+                    },
+                    { key: 'detail', label: 'รายละเอียดคำสั่ง', flex: true, minWidth: 240 },
+                    { key: 'reason', label: 'เหตุผลจากผลตรวจ', flex: true, minWidth: 220 },
+                    {
+                      key: 'status', label: 'สถานะ', width: 190,
+                      render: (r) => (
+                        <ColorfulBadge style={CHECKUP_ORDER_STATUS[r.status]?.style || 'grey'} size='small' hierarchy='secondary' width='hug'>
+                          {CHECKUP_ORDER_STATUS[r.status]?.label || r.status}
+                        </ColorfulBadge>
+                      ),
+                    },
+                    { key: 'createdBy', label: 'ผู้บันทึก', flex: true, minWidth: 160 },
+                    {
+                      key: 'actions', label: 'การดำเนินการ', width: 210, sortable: false,
+                      render: (r) => (r.status === 'cancelled' ? '—' : (
+                        <div className='flex items-center' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                          {r.status === 'draft' && (
+                            <BrandSubdueButton
+                              size='sm' variant='fill' leadingIcon='send'
+                              onClick={() => { sendCheckupOrder(visit.id, r.id); setTick((t) => t + 1); }}
+                            >
+                              ส่งเข้าระบบ
+                            </BrandSubdueButton>
+                          )}
+                          <NeutralSubdueButton
+                            size='sm' leadingIcon='close'
+                            onClick={() => { setOrderCancelTarget(r); setOrderCancelReason(''); }}
+                          >
+                            ยกเลิก
+                          </NeutralSubdueButton>
+                        </div>
+                      )),
+                    },
+                  ]}
+                  rows={checkupOrders}
+                  rowKey={(r) => r.id}
+                  emptyMessage='ยังไม่มีคำสั่ง'
+                />
+              )}
+
+              {/* ลิงก์อ่านประวัติเดิม — ยังมีประโยชน์ประกอบการตัดสินใจสั่ง */}
+              {hasEmrHistory(visit.hn) && (
+                <SubCard>
+                  <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    ประวัติการรักษาเดิม (อ่านอย่างเดียว)
+                  </span>
                   {emrLinks.map((l) => (
                     <ReadOnlyLinkRow key={l.to} to={l.to} icon={l.icon} label={l.label} note={l.note} />
                   ))}
-                </div>
-              ) : (
-                <EmptyState
-                  compact
-                  icon='folder_off'
-                  title='ไม่มีข้อมูลการรักษาเดิมของผู้รับบริการนี้'
-                  subtitle='เมื่อผู้รับบริการมีประวัติในระบบ OPD / Lab / รังสี ลิงก์อ่านอย่างเดียวจะปรากฏที่นี่'
-                />
+                </SubCard>
               )}
             </PageCard>
 
@@ -758,7 +838,98 @@ const CheckupOrderPage = () => {
 
         <Footer />
 
-        <AddItemPopup
+        {/* §1.19.15 — บันทึก/แก้ไขคำสั่งการรักษาจากผลตรวจ */}
+      <Popup
+        open={!!orderDraft}
+        onClose={() => setOrderDraft(null)}
+        size='large'
+        title={orderDraft?.id ? 'แก้ไขคำสั่งการรักษา' : 'บันทึกคำสั่งการรักษาจากผลตรวจสุขภาพ'}
+        subtitle='คำสั่งจะถูกส่งเข้าระบบบันทึกการรักษาให้แพทย์ยืนยันและระบุรายละเอียดยาต่อ'
+        primaryAction={{
+          label: 'บันทึกคำสั่ง',
+          onClick: () => {
+            saveCheckupOrder(visit.id, orderDraft);
+            setOrderDraft(null);
+            setTick((t) => t + 1);
+          },
+          disabled: !orderDraft?.detail?.trim(),
+        }}
+        secondaryAction={{ label: 'ยกเลิก', onClick: () => setOrderDraft(null) }}
+      >
+        {orderDraft && (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+            <Select
+              label='ประเภทคำสั่ง'
+              value={orderDraft.kind}
+              onChange={(v) => setOrderDraft((d) => ({ ...d, kind: v }))}
+              options={CHECKUP_ORDER_KINDS.map((k) => ({ value: k.value, label: k.label }))}
+            />
+            <SuggestibleTextarea
+              label='รายละเอียดคำสั่ง'
+              required
+              value={orderDraft.detail}
+              onChange={(ev) => setOrderDraft((d) => ({ ...d, detail: ev?.target ? ev.target.value : ev }))}
+              suggestions={[
+                'เริ่มยาลดไขมัน — ให้แพทย์พิจารณาขนาดยาที่ CPOE',
+                'ตรวจ HbA1c ซ้ำใน 3 เดือน',
+                'ส่งต่อคลินิกโรคเรื้อรัง (NCD) เพื่อขึ้นทะเบียน',
+                'นัดติดตามผลเลือดซ้ำใน 1 เดือน',
+                'ให้คำแนะนำลดเค็ม/ลดหวาน และออกกำลังกาย',
+              ]}
+              minChars={2}
+              rows={3}
+              voice
+              placeholder='สิ่งที่ต้องการสั่งจากผลตรวจครั้งนี้'
+            />
+            <SuggestibleTextarea
+              label='เหตุผลจากผลตรวจ'
+              value={orderDraft.reason}
+              onChange={(ev) => setOrderDraft((d) => ({ ...d, reason: ev?.target ? ev.target.value : ev }))}
+              suggestions={[
+                'LDL สูงกว่าเกณฑ์ต่อเนื่อง 2 ครั้ง',
+                'FBS อยู่ในเกณฑ์เสี่ยงเบาหวาน',
+                'ความดันโลหิตสูงกว่าเกณฑ์ขณะตรวจ',
+                'พบความผิดปกติจากภาพรังสีทรวงอก',
+              ]}
+              minChars={2}
+              rows={2}
+              voice
+              placeholder='อ้างอิงค่าที่ผิดปกติ เพื่อให้แพทย์ที่รับคำสั่งเห็นที่มา'
+            />
+          </div>
+        )}
+      </Popup>
+
+      {/* ยกเลิกคำสั่ง — เหตุผลบังคับ */}
+      <Popup
+        open={!!orderCancelTarget}
+        onClose={() => setOrderCancelTarget(null)}
+        title='ยกเลิกคำสั่งการรักษา'
+        subtitle={orderCancelTarget ? `${checkupOrderKind(orderCancelTarget.kind)?.label || ''} · ${orderCancelTarget.detail}` : ''}
+        primaryAction={{
+          label: 'ยืนยันยกเลิก',
+          onClick: () => {
+            cancelCheckupOrder(visit.id, orderCancelTarget.id, orderCancelReason);
+            setOrderCancelTarget(null);
+            setTick((t) => t + 1);
+          },
+          disabled: !orderCancelReason.trim(),
+        }}
+        secondaryAction={{ label: 'ปิด', onClick: () => setOrderCancelTarget(null) }}
+      >
+        <SuggestibleTextarea
+          label='เหตุผลการยกเลิก'
+          required
+          value={orderCancelReason}
+          onChange={(e) => setOrderCancelReason(e?.target ? e.target.value : e)}
+          suggestions={['บันทึกผิดรายการ', 'แพทย์พิจารณาแล้วไม่ต้องสั่ง', 'ผู้รับบริการปฏิเสธการรักษา', 'สั่งซ้ำกับรายการเดิม']}
+          minChars={2}
+          rows={3}
+          voice
+        />
+      </Popup>
+
+      <AddItemPopup
           open={addOpen}
           onClose={() => setAddOpen(false)}
           existing={items.map((i) => i.code)}

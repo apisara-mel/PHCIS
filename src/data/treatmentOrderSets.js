@@ -438,6 +438,9 @@ export const CDSS_RULE_DEFS = [
   { key: 'dose',        label: 'ขนาดยาเกินเพดาน (Dose limit)',    tor: '1.5.4.18', hint: 'เทียบ mg/kg/dose และ mg/kg/day กับเพดานตามน้ำหนัก' },
   { key: 'highalert',   label: 'ยาความเสี่ยงสูง / ยาควบคุม',       tor: '1.5.4.18', hint: 'High Alert · ยาเสพติดให้โทษ · วัตถุออกฤทธิ์' },
   { key: 'rights',      label: 'สิทธิเบิกไม่ครอบคลุม',            tor: '1.5.1.4',  hint: 'ยา/รายการตรวจที่สิทธิของผู้รับบริการเบิกไม่ได้' },
+  /* มติ คทง.7 — สองข้อนี้ที่ประชุมสั่งให้ "บล็อก" ไม่ใช่แค่เตือน ปิดไม่ได้ */
+  { key: 'pharmacogenomic', label: 'คัดกรองยีนก่อนสั่งยา (HLA-B)', tor: 'มติ คทง.7', hint: 'Allopurinol / Carbamazepine — ต้องมีผล HLA-B ก่อน และห้ามสั่งเมื่อผลเป็นบวก', lockedOn: true },
+  { key: 'pregnancy',       label: 'ยาห้ามใช้ในหญิงตั้งครรภ์ (Category X)', tor: 'มติ คทง.7', hint: 'บล็อกการสั่งยากลุ่ม Pregnancy Category X เมื่อผู้รับบริการตั้งครรภ์', lockedOn: true },
 ];
 
 const CDSS_SETTINGS = {
@@ -447,6 +450,8 @@ const CDSS_SETTINGS = {
   dose:        { enabled: true,  minSeverity: 'warning', enforcement: 'warn'  },
   highalert:   { enabled: true,  minSeverity: 'warning', enforcement: 'warn'  },
   rights:      { enabled: true,  minSeverity: 'info',    enforcement: 'warn'  },
+  pharmacogenomic: { enabled: true, minSeverity: 'info', enforcement: 'block' },
+  pregnancy:       { enabled: true, minSeverity: 'info', enforcement: 'block' },
 };
 
 /* override หน้าต่างเวลา "สั่งซ้ำ" ต่อรายการ Lab / X-ray (§1.5.2.4 / §1.5.3.6) */

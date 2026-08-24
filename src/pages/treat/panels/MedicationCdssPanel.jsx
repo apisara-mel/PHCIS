@@ -17,6 +17,7 @@ import {
 import {
   checkDrugInteractions, checkDuplicateDrugs, checkHighAlert, checkOutOfRights,
   checkDisallowedChronicDisease, getRegistryDrug, currentPrice, DRUG_CLASSIFICATIONS,
+  checkPharmacogenomicRisk, checkPregnancyCategoryX,
 } from '@/data/pharmacyRegistry';
 import {
   ORDER_MODES, orderModeMeta, calcDoseByWeight, timesPerDayFrom,
@@ -157,7 +158,58 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
       }
     }
 
-    /* ปฏิกิริยาระหว่างยา */
+    /* มติ คทง.7 — คัดกรองยีนก่อนสั่งยา (HLA-B)
+       ผลบวก = ห้ามสั่ง (dismiss ไม่ได้ เหมือนแพ้ยาตรงตัว)
+       ยังไม่มีผล = เตือนให้ส่งตรวจก่อน (dismiss ได้ เพราะบางกรณีแพทย์
+       สั่งพร้อมใบส่งตรวจและจ่ายยาเมื่อผลออก) */
+    if (isCdssRuleOn('pharmacogenomic')) {
+      const gene = checkPharmacogenomicRisk(patient, active);
+      const positive = gene.filter((g) => g.state === 'positive');
+      const pending = gene.filter((g) => g.state === 'pending');
+      if (positive.length) {
+        out.push({
+          key: 'pgx-positive', rule: 'pharmacogenomic', severity: 'critical', tone: 'error',
+          icon: 'genetics', dismissible: false,
+          title: `ผลคัดกรองยีนเป็นบวก ${positive.length} รายการ — ห้ามสั่ง`,
+          summary: positive.map((g) => `${g.item.name} (${g.gene} Positive)`).join(' · '),
+          details: positive.map((g) => ({
+            head: `${g.item.name} · ${g.gene}`,
+            body: `ผลตรวจ ${g.gene} เป็นบวก — ${g.risk} ห้ามสั่งยาชนิดนี้ ให้เลือกยากลุ่มอื่นแทน`,
+          })),
+        });
+      }
+      if (pending.length) {
+        out.push({
+          key: 'pgx-pending', rule: 'pharmacogenomic', severity: 'warning', tone: 'warning',
+          icon: 'science', dismissible: true,
+          title: `ต้องคัดกรองยีนก่อนสั่ง ${pending.length} รายการ`,
+          summary: pending.map((g) => `${g.item.name} (ยังไม่มีผล ${g.gene})`).join(' · '),
+          details: pending.map((g) => ({
+            head: `${g.item.name} · ${g.gene}`,
+            body: `ยังไม่มีผลตรวจ ${g.labName} ในระบบ — ส่งตรวจก่อนเริ่มยา (${g.risk})`,
+          })),
+        });
+      }
+    }
+
+    /* มติ คทง.7 — ยา Pregnancy Category X ในหญิงตั้งครรภ์ = ห้ามสั่ง */
+    if (isCdssRuleOn('pregnancy')) {
+      const catX = checkPregnancyCategoryX(patient, active);
+      if (catX.length) {
+        out.push({
+          key: 'pregnancy-x', rule: 'pregnancy', severity: 'critical', tone: 'error',
+          icon: 'pregnant_woman', dismissible: false,
+          title: `ยาห้ามใช้ในหญิงตั้งครรภ์ ${catX.length} รายการ — ห้ามสั่ง`,
+          summary: catX.map((c) => c.item.name).join(' · '),
+          details: catX.map((c) => ({
+            head: `${c.item.name} · Pregnancy Category X`,
+            body: `ผู้รับบริการอยู่ระหว่างตั้งครรภ์ — ${c.reason} ให้เลือกยาที่ปลอดภัยในหญิงตั้งครรภ์แทน`,
+          })),
+        });
+      }
+    }
+
+    /* ปฏิกิริยาระหว่างยา — ในใบเดียวกัน */
     if (isCdssRuleOn('interaction')) {
       const pairs = checkDrugInteractions(active);
       if (pairs.length) {
@@ -168,6 +220,39 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
           summary: pairs.map((p) => `${p.a} + ${p.b}`).join(' · '),
           details: pairs.map((p) => ({ head: `${p.a} + ${p.b}`, body: p.description })),
         });
+      }
+
+      /* **มติ คทง.1** — DI ข้าม Visit: เทียบยาที่กำลังสั่งวันนี้กับยาที่ผู้รับ
+         บริการ "ยังกินอยู่" จาก visit ก่อนหน้า คู่ที่ชนกันเองในประวัติเดิม
+         ไม่ต้องเตือน (แพทย์เจ้าของเดิมพิจารณาไปแล้ว) — เตือนเฉพาะคู่ที่เกิด
+         จากยาใหม่วันนี้ ไม่งั้นเป็น alert fatigue ทันที */
+      const carried = (form?.activeMedsFromPastVisits || []).filter((m) => !m.stoppedAt);
+      if (carried.length && active.length) {
+        const activeNames = new Set(active.map((r) => String(r.name).toLowerCase()));
+        const crossPairs = checkDrugInteractions([...active, ...carried])
+          .filter((p) => {
+            const a = String(p.a).toLowerCase();
+            const b = String(p.b).toLowerCase();
+            /* คู่ที่ "ขาหนึ่งเป็นยาใหม่วันนี้ อีกขาเป็นยาเดิม" เท่านั้น */
+            return activeNames.has(a) !== activeNames.has(b);
+          })
+          .map((p) => {
+            const oldName = activeNames.has(String(p.a).toLowerCase()) ? p.b : p.a;
+            const source = carried.find((m) => String(m.name).toLowerCase() === String(oldName).toLowerCase());
+            return { ...p, oldName, source };
+          });
+        if (crossPairs.length) {
+          out.push({
+            key: 'interaction-crossvisit', rule: 'interaction', severity: 'critical', tone: 'error',
+            icon: 'history_toggle_off', dismissible: true,
+            title: `ปฏิกิริยากับยาเดิมที่ยังใช้อยู่ ${crossPairs.length} คู่`,
+            summary: crossPairs.map((p) => `${p.a} + ${p.b}`).join(' · '),
+            details: crossPairs.map((p) => ({
+              head: `${p.a} + ${p.b}`,
+              body: `${p.description} — ${p.oldName} เป็นยาเดิมจาก${p.source?.clinic || 'visit ก่อนหน้า'} เริ่มใช้ ${p.source?.startedAt || '—'} และยังไม่ได้หยุด`,
+            })),
+          });
+        }
       }
     }
 
@@ -304,7 +389,7 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
     }
 
     return out.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]);
-  }, [rows, patient, patientRights, weightKg, cdss, form?.sameDayPrescriptions, onGoToDocuments]);
+  }, [rows, patient, patientRights, weightKg, cdss, form?.sameDayPrescriptions, form?.activeMedsFromPastVisits, onGoToDocuments]);
 
   /* §1.5.4.18–.21 — "ระดับความรุนแรงขั้นต่ำที่แจ้ง" ที่ตั้งไว้ต่อกฎต้องมีผลจริง
      (เดิมค่านี้ถูกบันทึกและ audit แต่ไม่มีใครอ่าน สัญญาณ info/warning จึงเด้ง

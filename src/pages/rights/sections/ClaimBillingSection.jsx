@@ -164,8 +164,20 @@ const VisitClaimCard = ({ visit, expanded, onToggle, onEdit, role }) => {
         </div>
 
         <div className='flex flex-col shrink-0 items-start' style={{ width: 150, gap: 'var(--dim-space-050, 2px)' }}>
-          <ColorfulBadge badgeStyle={rights?.badge || 'grey'} size='small'>{rights?.code || '-'}</ColorfulBadge>
-          <span style={T.muted}>{kind.label}</span>
+          {/* มติ คทง.8 — เคสสิทธิทับซ้อนต้องเห็นทั้งสองสิทธิตั้งแต่ในลิสต์
+              ไม่งั้นเจ้าหน้าที่อ่านยอดเรียกเก็บผิด (เห็นแค่ของสิทธิหลัก) */}
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            <ColorfulBadge badgeStyle={rights?.badge || 'grey'} size='small'>{rights?.code || '-'}</ColorfulBadge>
+            {claim.secondaryRights && (
+              <>
+                <span style={T.muted}>+</span>
+                <ColorfulBadge badgeStyle={claim.secondaryRights.badge || 'grey'} size='small'>
+                  {claim.secondaryRights.code}
+                </ColorfulBadge>
+              </>
+            )}
+          </div>
+          <span style={T.muted}>{claim.hasOverlappingRights ? 'สิทธิทับซ้อน · ร่วมจ่าย' : kind.label}</span>
         </div>
 
         <div className='flex flex-col shrink-0' style={{ width: 130 }}>
@@ -175,7 +187,14 @@ const VisitClaimCard = ({ visit, expanded, onToggle, onEdit, role }) => {
 
         <div className='flex flex-col shrink-0' style={{ width: 140 }}>
           <span style={T.label}>ยอดเรียกเก็บ</span>
-          <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>{formatBaht(claim.claimTotal)}</span>
+          {/* มีสิทธิรอง = เรียกเก็บสองผู้จ่าย ต้องโชว์ยอดรวมทั้งสอง ไม่ใช่
+              เฉพาะสิทธิหลัก มิฉะนั้นยอดในลิสต์ต่ำกว่าความจริง */}
+          <span style={{ ...T.value, color: 'var(--text-statusbadge-success, #196C65)' }}>
+            {formatBaht(claim.claimTotal + claim.secondaryClaimTotal)}
+          </span>
+          {claim.secondaryClaimTotal > 0 && (
+            <span style={T.muted}>{`หลัก ${formatBaht(claim.claimTotal)} · รอง ${formatBaht(claim.secondaryClaimTotal)}`}</span>
+          )}
         </div>
 
         <div className='flex flex-col shrink-0' style={{ width: 130 }}>
@@ -429,9 +448,55 @@ const BillingEditPopup = ({ visit, role, onClose }) => {
 
           {/* §1.7.4.4 — ยอดที่ต้องเรียกเก็บ (คำนวณสด) */}
           <SectionCard title='ยอดที่ต้องเรียกเก็บ (คำนวณจากเงื่อนไขด้านบน)' subtitle='TOR §1.7.4.4' icon='calculate'>
-            <div className='grid' style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'var(--dim-space-300)' }}>
+            {/* มติ คทง.8 — เคสสิทธิทับซ้อน ต้องเห็นว่า "ใครจ่ายส่วนไหน" ไม่ใช่
+                เห็นแค่ยอดสุทธิก้อนเดียว มิฉะนั้นเจ้าหน้าที่ตรวจสอบไม่ได้ */}
+            {preview.hasOverlappingRights && (
+              <div
+                className='flex items-start w-full'
+                style={{
+                  gap: 'var(--dim-space-200)',
+                  paddingTop: 'var(--dim-space-300)',
+                  paddingBottom: 'var(--dim-space-300)',
+                  paddingLeft: 'var(--dim-space-400)',
+                  paddingRight: 'var(--dim-space-400)',
+                  borderRadius: 'var(--dim-radius-200, 8px)',
+                  background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+                  color: 'var(--text-brandPrimary-default, #007549)',
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm)',
+                }}
+              >
+                <Icon name='account_balance_wallet' size={18} />
+                <span className='flex-1 min-w-0'>
+                  {`ผู้รับบริการรายนี้ถือสิทธิทับซ้อน ${preview.rightsStack.map((r) => r.name).join(' → ')}`}
+                  {' — ระบบเรียกเก็บสิทธิหลักก่อน ส่วนที่เหลือให้สิทธิรองร่วมจ่าย เหลือจึงเป็นส่วนร่วมจ่ายของผู้ป่วย (มติ คทง.8)'}
+                  {preview.betterPrimaryAvailable
+                    ? ` · ถ้าสลับให้ “${preview.betterPrimaryAvailable.name}” เป็นสิทธิหลัก ผู้ป่วยจะจ่ายน้อยลง ${formatBaht(preview.betterPrimaryAvailable.savesAmount)} — ตรวจสอบก่อนยืนยัน`
+                    : ' · ลำดับสิทธิปัจจุบันทำให้ผู้ป่วยจ่ายน้อยที่สุดแล้ว'}
+                </span>
+              </div>
+            )}
+            <div
+              className='grid'
+              style={{
+                gridTemplateColumns: preview.hasOverlappingRights
+                  ? 'repeat(5, minmax(0, 1fr))'
+                  : 'repeat(4, minmax(0, 1fr))',
+                gap: 'var(--dim-space-300)',
+              }}
+            >
               <MetricTile label='ค่าใช้จ่ายรวม' value={formatBaht(preview.totalCharge)} />
-              <MetricTile label='ยอดเรียกเก็บ' value={formatBaht(preview.claimTotal)} tone='var(--text-statusbadge-success, #196C65)' hint={preview.capTrimmed > 0 ? `ถูกตัดด้วยเพดาน ${formatBaht(preview.capTrimmed)}` : undefined} />
+              <MetricTile label={preview.hasOverlappingRights ? 'สิทธิหลักเรียกเก็บ' : 'ยอดเรียกเก็บ'} value={formatBaht(preview.claimTotal)} tone='var(--text-statusbadge-success, #196C65)' hint={preview.capTrimmed > 0 ? `ถูกตัดด้วยเพดาน ${formatBaht(preview.capTrimmed)}` : undefined} />
+              {preview.hasOverlappingRights && (
+                <MetricTile
+                  label='สิทธิรองร่วมจ่าย'
+                  value={formatBaht(preview.secondaryClaimTotal)}
+                  tone='var(--text-statusbadge-success, #196C65)'
+                  hint={preview.secondaryCapTrimmed > 0
+                    ? `ถูกตัดด้วยเพดานสิทธิรอง ${formatBaht(preview.secondaryCapTrimmed)}`
+                    : preview.secondaryRights?.name}
+                />
+              )}
               <MetricTile label='ส่วนเงินสด' value={formatBaht(preview.cashTotal)} hint={preview.feeTotal > 0 ? `รวมค่าธรรมเนียม ${formatBaht(preview.feeTotal)}` : undefined} />
               <MetricTile label='ส่วนลดที่ออก' value={formatBaht(preview.discountAmount)} hint={preview.deduction ? preview.deduction.name : 'ไม่มีการลดหย่อน'} />
             </div>
@@ -440,8 +505,11 @@ const BillingEditPopup = ({ visit, role, onClose }) => {
                 { key: 'label', label: 'รายการ', flex: true, minWidth: 200 },
                 { key: 'payer', label: 'ผู้รับผิดชอบ', render: (l) => <ColorfulBadge badgeStyle={PAYER_KINDS[l.payer].badge} size='small'>{PAYER_KINDS[l.payer].label}</ColorfulBadge> },
                 { key: 'amount', label: 'ราคาเต็ม', render: (l) => formatBaht(l.amount) },
-                { key: 'claimAmount', label: 'ส่วนเรียกเก็บ', render: (l) => formatBaht(l.claimAmount) },
-                { key: 'cashAmount', label: 'ส่วนเงินสด', render: (l) => formatBaht(l.cashAmount) },
+                { key: 'claimAmount', label: preview.hasOverlappingRights ? 'สิทธิหลัก' : 'ส่วนเรียกเก็บ', render: (l) => formatBaht(l.claimAmount) },
+                ...(preview.hasOverlappingRights
+                  ? [{ key: 'secondaryClaimAmount', label: 'สิทธิรองร่วมจ่าย', render: (l) => formatBaht(l.secondaryClaimAmount || 0) }]
+                  : []),
+                { key: 'cashAmount', label: preview.hasOverlappingRights ? 'ผู้ป่วยร่วมจ่าย' : 'ส่วนเงินสด', render: (l) => formatBaht(l.cashAmount) },
               ]}
               rows={preview.lines}
               rowKey={(l) => l.id}

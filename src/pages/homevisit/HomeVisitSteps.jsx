@@ -8,6 +8,7 @@ import SelectableTag from '@/components/forms/SelectableTag';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
+import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -482,7 +483,7 @@ export const HomeVisitStep1Travel = ({
 
 /* ── Step 2 — ประวัติ ─────────────────────────────────────────────── */
 
-export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, blockedMsg }) => {
+export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, registryEntry, blockedMsg }) => {
   const canSeeHistory = getHomeVisitAccess();
   const historyRows = useMemo(() => (canSeeHistory && hn ? getVisitHistory(hn).slice().reverse() : []), [canSeeHistory, hn]);
 
@@ -576,6 +577,18 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, blockedMsg 
           </div>
         )}
         {!readOnly && <BrandDashedAddButton onClick={addMedication}>เพิ่มรายการยาที่พบที่บ้าน</BrandDashedAddButton>}
+      </StepSection>
+
+      {/* มติ คทง.6 — งานทันตกรรมของทีมเยี่ยมบ้านต้องเชื่อมกลับมาที่ระบบ
+          ทันตกรรม: พยาบาลเยี่ยมบ้านเห็นผลตรวจฟันล่าสุดได้โดยไม่ต้องเปิด
+          Visit ทันตกรรมใหม่ และส่งตรวจได้เมื่อพบปัญหาช่องปากที่บ้าน */}
+      <StepSection>
+        <CarriedDentalPanel
+          hn={hn}
+          patientName={registryEntry?.name}
+          from='homevisit'
+          readOnly={readOnly}
+        />
       </StepSection>
 
       <StepSection>

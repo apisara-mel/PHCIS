@@ -7,7 +7,7 @@
    builder for DentalFormPage. Bangkok health-center context (ศบส.) —
    Thai patients, ทพญ./ทพ. providers, one dental operatory per shift. */
 
-import { DENTAL_SNOMED_BY_ICD } from '@/data/dentalCatalog';
+import { DENTAL_SNOMED_BY_ICD, findDentalProcedure } from '@/data/dentalCatalog';
 
 /* ─── ผู้ใช้ปัจจุบัน (audit trail) ────────────────────────────────────
    Every save stamps ผู้บันทึก + วัน-เวลา (playbook §5). Mock signed-in
@@ -590,4 +590,153 @@ export const getDentalCompletedSteps = (form, stepIndex = 0) => {
     !!(form.appointment?.date || form.appointment?.reason),
     !!form.certIssue,
   ];
+};
+
+/* ═══ ผลทันตกรรมที่ส่งไปแสดงในคลินิกส่งเสริม (มติ คทง.6 ครั้งที่ 3) ═══════
+   Pain point จาก blueprint หน้า 9: เดิมพยาบาลคลินิกส่งเสริมต้องเปิด Visit
+   ทันตกรรมใหม่เพื่อดู/ลงผลตรวจฟัน ทำให้เกิด double entry และสถิติซ้ำ
+   มติคือ **ลงข้อมูลที่หน้าทันตกรรมที่เดียว แล้วส่งผลไปแสดงในหน้าคลินิก
+   ส่งเสริมต่าง ๆ โดยไม่ต้องเปิด Visit ใหม่** — ฝั่งคลินิกส่งเสริมเป็น
+   read-only ทั้งหมด ทำได้อย่างเดียวคือ "ส่งตรวจทันตกรรม" (flagging) ซึ่ง
+   เป็นคำขอ ไม่ใช่การเปิด Visit (Screen first, data entry later — หน้า 10)
+
+   หน้าที่ต้องเห็นแผงนี้ตามขอบเขต UI หน้า 13 (8 หน้า):
+     ทันตกรรม (ต้นทาง) · ผู้สูงอายุ · วัยทอง · เยี่ยมบ้าน · เด็กดี (WBC) ·
+     ฝากครรภ์ (ANC) · อนามัยโรงเรียน · เบาหวาน (DM)
+   §1.10.2.8 ก็สั่งไว้ตรงกัน — การติดตามผู้ป่วยโรคเฉพาะต้องแสดง
+   "การตรวจทันตกรรม" ร่วมกับ Lab/X-ray                                    */
+
+export const DENTAL_CARE_SURFACES = [
+  { key: 'dental', label: 'คลินิกทันตกรรม', route: '/clinic/dental', source: true },
+  /* TOR §1.10 มีคลินิกพิเศษ 12 คลินิก ไม่มี "ผู้สูงอายุ / วัยทอง / เด็กดี"
+     เป็นคลินิกแยก — ในระบบนี้ทั้งสามกลุ่มรับบริการผ่านโมดูลที่มีอยู่จริง
+     (ตรวจสุขภาพตามกลุ่มวัย §1.19 · สร้างเสริมภูมิคุ้มกัน §1.10.9) จึงชี้
+     route ไปที่โมดูลนั้นแทนการสร้างคลินิกใหม่นอกขอบเขต TOR */
+  { key: 'elderly', label: 'ตรวจสุขภาพผู้สูงอายุ', route: '/checkup' },
+  { key: 'menopause', label: 'ตรวจสุขภาพวัยทอง', route: '/checkup' },
+  { key: 'homevisit', label: 'เยี่ยมบ้าน', route: '/homevisit' },
+  { key: 'wbc', label: 'คลินิกสุขภาพเด็กดี (WBC)', route: '/clinic/immunization' },
+  { key: 'anc', label: 'คลินิกหญิงตั้งครรภ์ (ANC)', route: '/treat/anc' },
+  { key: 'school', label: 'อนามัยโรงเรียน', route: '/clinic/school-health' },
+  { key: 'dm', label: 'คลินิกเบาหวาน (DM)', route: '/clinic/ncd' },
+];
+/* "#46, #36" — ป้ายตำแหน่งฟันสำหรับแผงสรุป (dentalShared มีตัวเดียวกัน
+   แต่อยู่ฝั่งหน้าเพจ; แผงที่ใช้ร่วมทุกคลินิกต้องอ่านจาก data layer) */
+export const toothListLabelOf = (teeth = []) =>
+  (teeth.length === 0 ? 'ทั้งปาก' : teeth.map((t) => `#${t}`).join(', '));
+
+export const dentalSurfaceLabelOf = (key) =>
+  DENTAL_CARE_SURFACES.find((s) => s.key === key)?.label || key;
+
+const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+/* "9 ธ.ค. 2568" / "3 ส.ค. 2569 · 09:15" → Date (พ.ศ. → ค.ศ.).
+   คืน null เมื่อ parse ไม่ได้ เพื่อให้ผู้เรียกตัดสินใจเองแทนที่จะได้
+   Invalid Date ไปคำนวณต่อ */
+export const parseThaiDate = (text) => {
+  if (!text) return null;
+  const m = String(text).match(/(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
+  if (!m) return null;
+  const monthIdx = THAI_MONTHS.indexOf(m[2]);
+  if (monthIdx < 0) return null;
+  return new Date(Number(m[3]) - 543, monthIdx, Number(m[1]));
+};
+
+const monthsSince = (date) => {
+  if (!date) return null;
+  const now = new Date();
+  return (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
+};
+
+/* ─── คำขอส่งตรวจทันตกรรมจากคลินิกส่งเสริม (flagging) ──────────────────
+   ไม่เปิด Visit — เป็นธงที่ไปโผล่ในคิวทันตกรรมให้ทันตแพทย์ดึงเข้าตรวจ
+   เอง (ทันตแพทย์เป็นคนเปิด Visit จริงที่หน้าทันตกรรมตามเดิม)          */
+const CHECK_REQUEST_KEY = 'mih:dental-check-requests';
+
+export const requestDentalCheck = (hn, { from, fromLabel, reason, patientName } = {}) => {
+  if (!hn) return null;
+  const store = readJson(CHECK_REQUEST_KEY, {});
+  const record = {
+    hn,
+    patientName: patientName || '',
+    from: from || 'other',
+    fromLabel: fromLabel || dentalSurfaceLabelOf(from),
+    reason: (reason || '').trim() || 'ไม่ระบุเหตุผล',
+    requestedBy: CURRENT_DENTAL_USER,
+    requestedAt: formatDentalDateTime(),
+  };
+  store[hn] = record;
+  writeJson(CHECK_REQUEST_KEY, store);
+  return record;
+};
+
+export const getDentalCheckRequest = (hn) => (hn ? readJson(CHECK_REQUEST_KEY, {})[hn] || null : null);
+
+export const cancelDentalCheckRequest = (hn) => {
+  if (!hn) return;
+  const store = readJson(CHECK_REQUEST_KEY, {});
+  delete store[hn];
+  writeJson(CHECK_REQUEST_KEY, store);
+};
+
+/* คิวทันตกรรมใช้ดึงคำขอทั้งหมดมาแสดงเป็นแท็บ "ส่งตรวจจากคลินิกอื่น" */
+export const getDentalCheckRequests = () => Object.values(readJson(CHECK_REQUEST_KEY, {}));
+
+export const DENTAL_CHECK_REASON_SUGGESTIONS = [
+  'พบฟันผุหลายซี่ระหว่างตรวจร่างกาย ขอส่งตรวจทันตกรรม',
+  'เหงือกบวมแดง มีเลือดออกขณะแปรงฟัน',
+  'คัดกรองสุขภาพช่องปากผิดปกติ ควรพบทันตแพทย์',
+  'ยังไม่เคยตรวจสุขภาพช่องปากในปีนี้ ขอส่งตรวจตามรอบ',
+  'ผู้รับบริการแจ้งปวดฟัน/เสียวฟันระหว่างรับบริการ',
+  'มีฟันโยก/ฟันหักที่ต้องประเมินก่อนวางแผนการรักษา',
+];
+
+/* ─── สรุปผลทันตกรรมสำหรับคลินิกส่งเสริม (read-only) ───────────────────
+   รวม 3 แหล่งเป็นก้อนเดียว: visit ที่บันทึกไว้ในเซสชัน → visit ที่ตรวจ
+   เสร็จแล้ว → ledger รายซี่ย้อนหลัง แล้วแปลผลสถานะการตรวจฟันให้อัตโนมัติ
+   (เกิน 6 เดือน = ควรตรวจซ้ำ ตามรอบตรวจสุขภาพช่องปากประจำปี)          */
+export const getDentalCarrySummary = (hn) => {
+  const request = getDentalCheckRequest(hn);
+  const visit = getSavedDentalVisit(hn);
+
+  const procedures = (visit?.procedures || []).map((p) => {
+    const meta = findDentalProcedure(p.procedureId);
+    return {
+      id: p.id,
+      name: meta?.name || p.procedureId,
+      unit: meta?.unit || 'ครั้ง',
+      quantity: p.quantity ?? 1,
+      teeth: p.teeth || [],
+      surfaces: p.surfaces || [],
+      date: (p.recordedAt || visit?.savedAt || '').split(' · ')[0],
+      dentist: p.recordedBy || visit?.savedBy || '',
+    };
+  });
+
+  const ledger = Object.entries(DENTAL_TOOTH_HISTORY[hn] || {})
+    .flatMap(([toothId, rows]) => rows.map((r) => ({ ...r, toothId: Number(toothId) })))
+    .sort((a, b) => (parseThaiDate(b.date)?.getTime() || 0) - (parseThaiDate(a.date)?.getTime() || 0));
+
+  const lastVisitAt = visit?.savedAt || null;
+  const lastDate = parseThaiDate(lastVisitAt) || parseThaiDate(ledger[0]?.date);
+  const lastServiceLabel = lastVisitAt ? lastVisitAt.split(' · ')[0] : (ledger[0]?.date || null);
+  const months = monthsSince(lastDate);
+
+  let status = 'never';
+  if (request) status = 'requested';
+  else if (!lastDate) status = 'never';
+  else if (months !== null && months >= 6) status = 'due';
+  else status = 'current';
+
+  return {
+    status,
+    request,
+    lastServiceLabel,
+    monthsSinceLast: months,
+    dentist: visit?.savedBy || ledger[0]?.dentist || null,
+    diagnoses: visit?.diagnoses || [],
+    procedures,
+    ledger,
+    hasAny: !!(visit || ledger.length),
+  };
 };

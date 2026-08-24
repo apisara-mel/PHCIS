@@ -8,6 +8,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Icon from '@/components/icons/Icon';
 import Information from '@/components/information/Information';
+import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import {
   CHECKUP_ITEM_GROUPS, CHECKUP_ITEM_GROUP_LABEL, REF_SOURCES,
@@ -432,7 +433,7 @@ export const CheckupStep2Results = ({ form, setForm, visit, locked }) => {
 
 /* ── Step 3 — physical examination ───────────────────────────────── */
 
-export const CheckupStep3Physical = ({ form, setForm, locked }) => {
+export const CheckupStep3Physical = ({ form, setForm, visit, locked }) => {
   const physical = form.physical || {};
   const set = (key) => (val) => setForm((f) => ({ ...f, physical: { ...f.physical, [key]: val } }));
 
@@ -492,6 +493,18 @@ export const CheckupStep3Physical = ({ form, setForm, locked }) => {
         showSubText={false}
         showBadge={false}
         maxWidth={900}
+      />
+
+      {/* มติ คทง.6 — ตรวจสุขภาพตามกลุ่มวัย (ผู้สูงอายุ · วัยทอง) เป็นสองใน
+          8 หน้าที่ต้องเห็นผลตรวจฟัน; ในระบบนี้ทั้งสองกลุ่มรับบริการผ่าน
+          โมดูลตรวจสุขภาพ ไม่ได้แยกเป็นคลินิก จึงฝังแผงไว้ที่ขั้นตรวจร่างกาย
+          — อ่านอย่างเดียว ผลตรวจฟันยังบันทึกที่หน้าทันตกรรมที่เดียว */}
+      <CarriedDentalPanel
+        hn={visit?.hn}
+        patientName={visit?.name}
+        from='elderly'
+        fromLabel='งานตรวจสุขภาพ'
+        readOnly={locked}
       />
     </div>
   );

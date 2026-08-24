@@ -20,6 +20,15 @@ export const PHCIS_CURRENT_USER = {
   subBranch: 'ตรวจรักษาทางทันตกรรม',
   department: 'ทันตกรรม',
   departmentKey: 'dental',
+  /* มติ คทง.11 ครั้งที่ 2 — ขอบเขตข้อมูลที่ผู้ใช้คนนี้มองเห็นบน dashboard
+     ต้องมาจากแม่แบบสิทธิ์ ไม่ใช่ให้ทุกคนเห็นทั้งสำนักอนามัย
+     ค่าเหล่านี้คือสิ่งที่ตัวจริงจะ resolve จาก accessControlStore ตอน login */
+  dataScope: 'center',
+  piiVisibility: 'visible',
+  centerName: 'ศูนย์บริการสาธารณสุข 4 ดินแดง',
+  centerKey: 'ศบส.4 ดินแดง',
+  zoneName: 'กลุ่มเขตกรุงเทพกลาง',
+  districtKey: 'dindaeng',
 };
 
 /** Figma 43:11139 hub profile-cover chips — derived from PHCIS_CURRENT_USER. */

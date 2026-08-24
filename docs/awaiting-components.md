@@ -908,7 +908,7 @@ design system เมื่อไร
 
 ---
 
-### 62. schoolHealthShared — ชุด layout primitive ของหน้าโมดูล (PageBody · PageCard · SubCard · SectionHeader · NoticeBar · ErrorList · EmptyState · PagerRow · ReadField · Field · FieldRow · StatTile · StatRow · AuditLine · ReadOnlyBanner · StatusPill) — 🕐 รอเคสที่ 2
+### 62. schoolHealthShared — ชุด layout primitive ของหน้าโมดูล (PageBody · PageCard · SubCard · SectionHeader · NoticeBar · ErrorList · EmptyState · PagerRow · ReadField · Field · FieldRow · StatTile · StatRow · AuditLine · ReadOnlyBanner · StatusPill) — 📐 มีผู้ใช้ที่ 2 แล้ว (daycare) พร้อมยกขึ้น DS
 
 | | |
 |---|---|
@@ -944,6 +944,49 @@ design system เมื่อไร
 | **โครง API** | ถ้ามีผู้ใช้ที่ 3 ควรทำ `SpreadsheetImportPopup` กลางใน DS: `<SpreadsheetImportPopup columns validators destinationFields onImport />` แล้วให้ checkup + school-health (+โมดูลที่ 3) ส่ง config |
 | **รอเคสอะไร** | โมดูลที่ 3 ที่ต้องนำเข้าสเปรดชีต — ผู้ใช้จริงตอนนี้มี 2 ราย (CheckupImportPopup + StudentImportPopup) แต่ยังเป็นโค้ดแยกกัน 2 ชุด ยังไม่ได้ออกแบบ API กลางร่วมกัน |
 | **บันทึกเมื่อ** | 23 ส.ค. 2569 |
+
+### 65. CarriedDentalPanel (ผลตรวจทันตกรรมที่ส่งไปแสดงในคลินิกส่งเสริม — อ่านอย่างเดียว + ปุ่มส่งตรวจ) — 📐 มี 3 ผู้ใช้แล้ว พร้อมยกขึ้น DS
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/components/dental/CarriedDentalPanel.jsx` — ANC (`AncSteps.jsx` step 3) · NCD ติดตาม (`NcdFollowUpPage.jsx`) · เยี่ยมบ้าน (`HomeVisitSteps.jsx` step 2) — 3 ที่ |
+| **หน้าที่** | แผงอ่านอย่างเดียวที่ดึงผลตรวจ/หัตถการทันตกรรมล่าสุดของ HN นั้นมาแสดงในคลินิกส่งเสริม (สถานะการตรวจฟันแปลผลอัตโนมัติ เกิน 6 เดือน = ควรตรวจซ้ำ · การวินิจฉัย · ตารางหัตถการพร้อมหน่วยนับ ซี่/ด้าน/ครั้ง) + ปุ่ม "ส่งตรวจทันตกรรม" ที่สร้าง **คำขอ** ไม่ใช่ Visit ใหม่ (มติ คทง.6 ครั้งที่ 3 · TOR §1.10.2.8) |
+| **ทำไมไม่มีของเดิมแทน** | รูปแบบเดียวกับ `CarriedScreeningPanel` (ผลคัดกรองจากจุดคัดกรอง) แต่ต้นทางคนละโมดูลและมี action ส่งกลับ — DS ยังไม่มี "carried result panel" กลาง |
+| **โครง API** | ควรทำ `<CarriedResultPanel source="dental|screening|lab" hn patientName from onRequest />` กลางใน DS แล้วให้ทันตกรรม/คัดกรอง/Lab ส่ง adapter ของตัวเอง — ตัวแผง (หัวข้อ + badge สถานะ + InfoPair แถว + ตาราง + แถบ read-only + ปุ่ม action) เหมือนกันหมด |
+| **รอเคสอะไร** | มีผู้ใช้ครบ 3 ที่แล้ว รอเคาะ API `CarriedResultPanel` ร่วมกับเจ้าของ `CarriedScreeningPanel` ก่อนยกขึ้น DS |
+| **บันทึกเมื่อ** | 23 ส.ค. 2569 |
+
+### 66. ResultsInboxTab (To-Do List ผลตรวจ Lab/X-ray ที่ยังไม่มีใครรับทราบ) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/data/resultsInbox.js` + แท็บ "ผลตรวจรอรับทราบ" ใน `src/pages/treat/TreatmentQueuePage.jsx` — 1 ที่ |
+| **หน้าที่** | รวมผล Lab + X-ray ที่ออกแล้ว (terminalForDoctor) ของแพทย์ผู้สั่ง เป็นรายการเดียว เรียงวิกฤต→ผิดปกติ→ปกติ พร้อมปุ่ม "รับทราบผล" ที่ประทับชื่อ+เวลา (มติ คทง.1 — ผู้ป่วยกลับบ้านแล้วผลยังต้องมีคนตาม) |
+| **ทำไมไม่มีของเดิมแทน** | ไม่มี inbox กลางใน DS; worklist ของ Lab/X-ray เป็นมุมของห้องแล็บ/รังสี ไม่ใช่มุมของแพทย์ผู้สั่ง |
+| **โครง API** | ถ้ามีผู้ใช้ที่ 2 (เช่น พยาบาล OPD หรือหน้า Hub) ควรทำ `<ResultsInbox owner scope onAcknowledge />` กลาง แล้วให้ทุกหน้าเรียกด้วย owner ต่างกัน |
+| **รอเคสอะไร** | หน้าที่ 2 ที่ต้องแสดง inbox เดียวกัน — คาดว่าเป็น Hub/หน้าแรกของแพทย์ |
+| **บันทึกเมื่อ** | 23 ส.ค. 2569 |
+
+### 67. daycareCore + โมดูลสถานรับเลี้ยงเด็กกลางวัน (แจ้งเตือนกิจกรรมตามอายุ · แปลผลโภชนาการเด็กปฐมวัย) — 🕐 รอเคสที่ 2
+
+| | |
+|---|---|
+| **ใช้อยู่ที่** | `src/data/daycareCore.js` + 5 หน้าใน `src/pages/clinic/daycare/` — 1 โมดูล |
+| **หน้าที่** | เครื่องยนต์แจ้งเตือน "กิจกรรมที่ถึงกำหนดตามอายุเด็ก" (`getChildAlerts`) 3 ระดับ upcoming/due/overdue ล่วงหน้า 7 วันและค้างเมื่อเกินกำหนด + แปลผลภาวะโภชนาการเด็ก 0–5 ปีจากน้ำหนักตามเกณฑ์ส่วนสูง (`interpretGrowth`) + นัดประเมินพัฒนาการครั้งที่ 2 อัตโนมัติ |
+| **ทำไมไม่มีของเดิมแทน** | อนามัยโรงเรียนใช้ BMI for Age 5–19 ปีและรอบบริการรายเทอม คนละเกณฑ์กับเด็กปฐมวัยที่อิงอายุเป็นเดือน; ไม่มี alert engine กลางใน DS |
+| **โครง API** | ถ้ามีโมดูลที่ 2 ที่ต้องเตือน "กิจกรรมตามอายุ/รอบเวลา" (เช่น ANC ตามอายุครรภ์, NCD ตามรอบนัด) ควรทำ `buildScheduleAlerts({ subject, rules, leadDays })` กลาง แล้วให้แต่ละโมดูลส่ง rules ของตัวเอง |
+| **รอเคสอะไร** | โมดูลที่ 2 ที่ต้องการ alert engine แบบเดียวกัน |
+| **บันทึกเมื่อ** | 24 ส.ค. 2569 |
+
+### 68. StatTile — เลข 0 แสดงเป็น "ศูนย์ขีดทับ" อ่านเป็นสัญลักษณ์ห้าม — 🐞 ข้อสังเกตด้าน typography รอเจ้าของ DS เคาะ
+
+| | |
+|---|---|
+| **พบที่** | `StatTile` ใน `src/pages/clinic/school-health/schoolHealthShared.jsx` — ใช้ที่ `/clinic/daycare/monitoring` และ Dashboard อนามัยโรงเรียน |
+| **อาการ** | ค่า `value={0}` เรนเดอร์ด้วย `--type-family-heading-graphic2` (= **Mitr**) ซึ่ง glyph เลข 0 เป็น *slashed zero* — ที่ขนาด 24px อ่านเป็นสัญลักษณ์ 🚫 "ห้าม/ไม่อนุญาต" แทนที่จะเป็นเลขศูนย์ ทำให้การ์ด "ถึงกำหนดวันนี้ 0 รายการ" ดูเหมือนแจ้งเตือนแทนที่จะเป็นข่าวดี |
+| **ทำไมยังไม่แก้** | เป็น typography ของ DS ที่มีอยู่ก่อนและกระทบโมดูลอนามัยโรงเรียนที่ส่งมอบไปแล้วด้วย — การเปลี่ยน font stack ของ StatTile เป็นการตัดสินใจของเจ้าของ design system ไม่ใช่แก้เฉพาะหน้าในโมดูลใหม่ |
+| **ทางเลือกที่เสนอ** | (ก) เปลี่ยน StatTile ให้ใช้ `--type-family-heading-content` เหมือน summary card ของ QueuePageShell ซึ่งเลข 0 ปกติ · (ข) เพิ่ม `font-feature-settings: "zero" 0` ถ้า Mitr มี feature นี้ · (ค) ยอมรับตามนี้ถ้า Figma ตั้งใจใช้ Mitr |
+| **บันทึกเมื่อ** | 24 ส.ค. 2569 |
 
 ---
 
@@ -1007,3 +1050,48 @@ repo `mih-design`** — เกิดจาก typography sweep (Mitr) + redesign
 |---|---|---|
 | `AlertChip` — ป้ายสถานะสี red/orange + ไอคอน | **`ColorfulBadge`** (`src/components/badge/ColorfulBadge.jsx`) รับ `style` / `icon` / `fill` / `width` และใช้ token ชุด `--surface-colorfulbadge-*` ตัวเดียวกัน | alias ไปใช้ ColorfulBadge แล้ว (6 จุด) — ใส่ `width='hug'` เพราะค่าเริ่มต้น `cap` ตัดข้อความคลินิกเป็น "อาการทรุ…" |
 | `<div role="alert">` แต่งเอง 5 กล่อง | **`Alert`** (`src/components/alert/Alert.jsx` · Figma 297:59) มี `type` / `title` / `subtext` / `indicators` / `badges` / `detail` / ปุ่มปิด | alias ไปใช้ Alert แล้ว (5 จุด) — ลิสต์ย่อยใช้ `indicators` แทนการเขียน `<ul>` เอง |
+
+## 69. XraySlotPicker — ปฏิทินจองคิวตรวจรังสี
+
+- **ไฟล์:** `src/components/xray/XraySlotPicker.jsx` · data layer `src/data/xraySchedule.js`
+- **ใช้ที่:** `/xray/order` (TOR §1.12.3) — 1 ที่
+- **สถานะ DS:** ยังไม่มีใน Figma/design.md — เป็น **composition** ของ DS ที่มีอยู่แล้ว
+  (`forms/Calendar` + `timeslot/Timeslot` + `alert/Alert` + `badge/StatusBadge`)
+  ไม่ได้สร้าง primitive ใหม่ จึงไม่ต้องยกขึ้น DS จนกว่าจะมีผู้ใช้ที่ 2
+- **ยกขึ้น DS เมื่อ:** มีระบบอื่นต้องจองห้อง/ทรัพยากรตามช่วงเวลา (เช่น ห้องหัตถการ,
+  ห้องทันตกรรม) → ตอนนั้นค่อยถอดเป็น `ResourceSlotPicker` ทั่วไป
+
+### ส่วนที่แก้ใน DS component เดิม (additive, backward compatible)
+
+- `forms/Calendar.jsx`
+  - `locale='th'` — ชื่อเดือน/วันภาษาไทย + ปี พ.ศ. (default `'en'` เหมือนเดิม
+    ผู้เรียกเดิม DateFilterPopup / DatePicker ไม่กระทบ)
+  - `fullLabel` รับ **function `(Date) => string`** ได้แล้ว — วันที่ห้องปิดขึ้น "ปิด"
+    ส่วนวันที่เต็มขึ้น "เต็ม" (เดิมเป็น string เดียวจึงบอกได้อย่างเดียว)
+  - **ควรผลักกลับเข้า Figma** ทั้ง 2 ข้อ — ปฏิทินไทยเป็นค่า default ที่ถูกกว่าสำหรับ
+    ระบบนี้ และ "ปิด ≠ เต็ม" เป็นข้อมูลคนละอย่าง
+
+## 70. PatientCard — แถวแพ้ยา/โรคประจำตัว inline + ปุ่มประวัติการรักษา (มติผู้ใช้ 24 ส.ค. 69)
+
+- **ไฟล์:** `src/components/card/PatientCard.jsx`
+- Label "แพ้ยา" / "โรคประจำตัว" ย้ายมาอยู่ **บรรทัดเดียวกับ badge** ทั้ง 2 โหมด
+  (เดิม full layout วางไว้บรรทัดบน — Figma 150:33649)
+- ค่าในแถวข้อมูลผู้ป่วย (เพศ/อายุ/เลขบัตร/หมู่เลือด/ประเภท/แพทย์/สิทธิ์/ที่อยู่)
+  เปลี่ยนจาก `font-bold` → `font-normal`
+- ปุ่ม **ประวัติการรักษา** ใหม่ที่ท้ายแถว เปิด `MedicalHistoryPopup`
+  (โหลดแบบ `React.lazy` เพราะ popup นั้น import กลับมาที่ `TreatmentSteps` —
+  static import จะพา PatientCard เข้าไปอยู่ใน cycle เดิมและเสี่ยง TDZ)
+  - props ใหม่: `onMedicalHistory` (override การกด) · `showMedicalHistory` (ซ่อนปุ่ม)
+- **ต้องอัปเดต Figma** — ทั้ง 3 ข้อต่างจาก 150:33649 / 343:5629 ที่ catalog ไว้
+
+## 71. StepProgress — สลับเป็นเลขซ้าย/ข้อความขวาเมื่อ scroll (มติผู้ใช้ 24 ส.ค. 69)
+
+- **ไฟล์:** `src/components/step/StepProgress.jsx` · `src/hooks/useGlobalHeaderMorph.js`
+- prop ใหม่ `inlineWhenMorphed` (default `false` — ผู้เรียกเดิมไม่กระทบ);
+  `WizardMorphHeader` เปิดให้เอง แถบ step ทุกหน้าที่ใช้ scroll-morph จึงได้ทันที
+- ใช้ `useHeaderMorphedFlag()` — อ่าน `<html data-header-morphed>` ที่
+  `useGlobalHeaderMorph` เขียนอยู่แล้ว ผ่าน MutationObserver จึง **ไม่มี scroll
+  listener ตัวที่สอง** และ re-render แค่ตอนข้าม threshold (0.55)
+- เหตุที่ต้อง flip ไม่ใช่ interpolate: `flex-direction` interpolate ไม่ได้
+- ระยะบน-ล่างของแถบ step ก่อน scroll ลดลง (`PageHeaderInfoPanel` dense
+  paddingBottom 24→12px · `morphStepOnlyRootDenseStyle` paddingTop 12→8px)

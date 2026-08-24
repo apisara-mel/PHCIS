@@ -38,6 +38,15 @@
 import { PATIENT_PROFILES, getPatientByHN } from '@/data/patientProfiles';
 import { MR_PATIENTS } from '@/data/mrPatients';
 
+/* §1.3.6.2 — สถานะห้องยาบนจอคิว **อ่านจากห้องยาจริง** ไม่ใช่ค่า mock ในไฟล์นี้
+   เดิม pharmacyStatus ถูก seed ไว้ตายตัว จอ TV จึงโชว์ "พร้อมรับยา" ทั้งที่
+   เภสัชยังไม่ได้จัดยา — ผู้รับบริการเดินไปรอที่ช่องจ่ายยาแล้วต้องกลับมานั่งรอใหม่ */
+import {
+  PHARMACY_QUEUE,
+  DISPENSE_STATUS,
+  canDispensePharmacyOrder,
+} from '@/data/pharmacyQueue';
+
 /* ─────────────────────────────────────────────────────────── หน่วยบริการ */
 
 export const QUEUE_CENTER_SITE = {
@@ -209,6 +218,13 @@ const settings = {
     separator: '-',
     resetCycle: 'daily',
     padZero: true,
+    /* **มติ คทง.1 ครั้งที่ 3** — "คิวเดียวตลอดการรับบริการ" (Single Queue):
+       ผู้รับบริการหนึ่งคนใน 1 Visit ถือเลขคิวใบเดียวตั้งแต่คัดกรอง → ห้องตรวจ
+       → ห้องยา → การเงิน ไม่ต้องรับบัตรคิวใหม่ทุกจุด เพราะของเดิมสับสนมาก
+       (คนไข้ถือบัตร 4 ใบ เลขคนละชุด ไม่รู้ว่าจอไหนเรียกเลขไหน)
+       ลำดับ "เรียก" ยังเป็นของแต่ละจุดตามเดิม จอ TV จึงต้องมีข้อความกำกับว่า
+       ลำดับเรียกอาจไม่เรียงตามเลขคิว */
+    singleQueuePerVisit: true,
   },
   /* (5) การเตือนเวลารอ — 1.3.7.2 (นาที ต่อประเภทคิว) */
   waitAlert: {
@@ -237,6 +253,10 @@ const settings = {
   pharmacyMap: {
     pending: 'รอจัดยา',
     preparing: 'กำลังจัดยา',
+    /* มติ คทง.1 (Sequence Lock) — ยาจัดเสร็จแล้วแต่ยังไม่ได้ชำระเงิน/ปิดสิทธิ
+       ต้องไม่ขึ้นว่า "พร้อมรับยา" บนจอ ไม่งั้นผู้รับบริการมายืนรอที่ช่องจ่ายยา
+       ทั้งที่ยังจ่ายเงินไม่เสร็จ แล้วเกิดข้อโต้แย้งหน้าเคาน์เตอร์ */
+    awaitingPayment: 'รอชำระเงิน/ปิดสิทธิ',
     ready: 'พร้อมรับยา',
   },
   /* บันทึกผู้แก้ไขล่าสุดของแต่ละ section (ConsentAuditBar) */
@@ -368,6 +388,24 @@ export const isOverdue = (q) => {
 
 const counters = {};
 
+/* มติ คทง.1 — ทะเบียนเลขคิวประจำ Visit: HN → { code, issuedDate, firstStationId }
+   ใช้ตัดสินว่าผู้รับบริการรายนี้ "มีเลขคิวของวันนี้แล้วหรือยัง" ก่อนออกใบใหม่
+   (คีย์เป็น HN + วันที่ เพราะรอบคิว reset รายวันตาม codeFormat.resetCycle) */
+const visitCodes = {};
+
+const todayKey = () => iso(now()).slice(0, 10);
+
+const visitKeyOf = (patient) => {
+  const hn = patient?.hn || patient?.HN || '';
+  return hn ? `${hn}@${todayKey()}` : '';
+};
+
+/** เลขคิวประจำ Visit ของผู้รับบริการรายนี้ (null = ยังไม่เคยออกคิววันนี้) */
+export const getVisitQueueCode = (patient) => {
+  const key = visitKeyOf(patient);
+  return key ? visitCodes[key] || null : null;
+};
+
 export const previewQueueCode = (stationId, seq) => {
   const st = getStation(stationId);
   const { digits, separator, padZero } = settings.codeFormat;
@@ -376,6 +414,10 @@ export const previewQueueCode = (stationId, seq) => {
   return `${st?.prefix || '?'}${separator}${body}`;
 };
 
+/* ยังคงไว้สำหรับโหมด "คิวแยกตามจุดบริการ" (singleQueuePerVisit = false) และ
+   ทางเรียกอื่นในอนาคต — issueQueue/transferQueue เดินเลขเองเพื่อรองรับ
+   Single Queue (มติ คทง.1) */
+// eslint-disable-next-line no-unused-vars
 const nextQueueCode = (stationId) => {
   counters[stationId] = (counters[stationId] || 0) + 1;
   return previewQueueCode(stationId, counters[stationId]);
@@ -689,10 +731,21 @@ const byOrder = (a, b) => {
   return new Date(a.issuedAt) - new Date(b.issuedAt);
 };
 
-export const getQueues = () => queues.map((q) => ({ ...q }));
+/* §1.3.6.2 — ทุกทางที่อ่านคิวออกไปแสดงผล ต้องได้สถานะห้องยา "สด" จาก
+   pharmacyQueue.js ไม่ใช่ค่าที่ seed ไว้ในไฟล์นี้
+   ทำเป็น decorator จุดเดียวแล้วเรียกจากทุก getter เพื่อไม่ให้จอ TV กับหน้าคิว
+   เห็นสถานะไม่ตรงกัน (ปัญหาเดิมของการ copy ค่าไปหลายที่)
+   ถ้า HN นั้นไม่มีใบยาในห้องยา คงค่าเดิมไว้ — ไม่เดาสถานะให้ */
+const withLivePharmacyStatus = (q) => {
+  if (!q || !q.pharmacyStatus) return q;
+  const live = resolvePharmacyStatus(q.patient?.hn);
+  return live ? { ...q, pharmacyStatus: live } : q;
+};
+
+export const getQueues = () => queues.map((q) => withLivePharmacyStatus({ ...q }));
 
 export const getQueuesByStation = (stationId) =>
-  queues.filter((q) => q.stationId === stationId).map((q) => ({ ...q }));
+  queues.filter((q) => q.stationId === stationId).map((q) => withLivePharmacyStatus({ ...q }));
 
 export const getQueueById = (id) => {
   const q = queues.find((row) => row.id === id);
@@ -721,12 +774,50 @@ export const remainingCount = (stationId) =>
   ).length;
 
 /** รีบิลด์ currentByStation ในที่เดิม (จอ TV ถือ reference เดิมตลอด) */
+/* ── §1.3.6.2 สถานะเตรียมยาจริงจากห้องยา ────────────────────────────────
+   จับคู่คิวจุดรับยากับใบยาใน pharmacyQueue.js ด้วย HN แล้วแปลงสถานะการจ่ายยา
+   เป็นสถานะที่จอคิวเข้าใจ
+
+   ลำดับการตัดสินสำคัญ: **เช็คการชำระเงินก่อนบอกว่าพร้อมรับยา** เพราะ
+   Sequence Lock (มติ คทง.1) ห้ามจ่ายยาก่อนชำระเงิน/ปิดสิทธิ — ถ้าจอบอก
+   "พร้อมรับยา" ทั้งที่ยังจ่ายเงินไม่เสร็จ ผู้รับบริการจะไปยืนรอผิดที่ */
+/* ⚠️ pharmacyQueue.js import `getStation` จากไฟล์นี้อยู่แล้ว การ import กลับ
+   จึงปิดวงจร (circular import) — ถ้าสร้าง map นี้เป็น const ระดับโมดูล มันจะ
+   ถูกประเมินตอน module init ซึ่งฝั่ง pharmacyQueue อาจยังไม่ export
+   DISPENSE_STATUS ออกมา → อ่านได้ undefined แล้วพังทั้งไฟล์
+   (เจอจริงตอน bundle โดยให้ pharmacyQueue เป็น entry)
+   แก้โดยสร้าง map ตอนเรียกใช้ ไม่ใช่ตอนโหลดไฟล์ */
+const dispenseToQueueStatus = () => ({
+  [DISPENSE_STATUS.WAITING]:   'pending',
+  [DISPENSE_STATUS.CALLED]:    'preparing',
+  [DISPENSE_STATUS.PREPARING]: 'preparing',
+  [DISPENSE_STATUS.DISPENSED]: 'ready',
+  [DISPENSE_STATUS.PARTIAL]:   'ready',
+  [DISPENSE_STATUS.PROBLEM]:   'pending',
+});
+
+/** คืนสถานะห้องยาจริงของ HN นี้ — null = ไม่มีใบยาในห้องยา (ให้ใช้ค่าเดิม) */
+export const resolvePharmacyStatus = (hn) => {
+  /* กันกรณีถูกเรียกระหว่าง module init ของวงจร import — ยังไม่พร้อมก็คืน null
+     ให้ผู้เรียกใช้ค่าเดิมไปก่อน ดีกว่าโยน error ทั้งหน้า */
+  if (!hn || !Array.isArray(PHARMACY_QUEUE) || !DISPENSE_STATUS) return null;
+  const row = PHARMACY_QUEUE.find((r) => r.hn === hn);
+  if (!row) return null;
+
+  const mapped = dispenseToQueueStatus()[row.status];
+  if (!mapped) return null;
+
+  /* ยาจัดเสร็จแล้วแต่ยังติดขั้นชำระเงิน → ยังไม่ใช่ "พร้อมรับยา" */
+  if (mapped === 'ready' && !canDispensePharmacyOrder(row).ok) return 'awaitingPayment';
+  return mapped;
+};
+
 const rebuildCurrent = () => {
   QUEUE_STATIONS.forEach((st) => {
     const active = queues
       .filter((q) => q.stationId === st.id && (q.status === 'calling' || q.status === 'serving'))
       .sort((a, b) => new Date(b.lastCallAt || b.issuedAt) - new Date(a.lastCallAt || a.issuedAt))[0];
-    currentByStation[st.id] = active ? { ...active } : null;
+    currentByStation[st.id] = active ? withLivePharmacyStatus({ ...active }) : null;
   });
   /* ล้าง key ของจุดบริการที่ถูกลบไปแล้ว */
   Object.keys(currentByStation).forEach((k) => {
@@ -786,10 +877,27 @@ export const issueQueue = ({
 
   seq += 1;
   const stationQueues = queues.filter((q) => q.stationId === stationId);
+
+  /* มติ คทง.1 — Single Queue: ถ้าผู้รับบริการรายนี้มีเลขคิวของ Visit วันนี้แล้ว
+     ให้ **ใช้เลขเดิม** ที่จุดถัดไป แทนการออกเลขใหม่ · ลำดับภายในจุด (seqNo)
+     ยังเดินของใครของมันตามเดิม เพื่อให้คิวเรียงถูกในแต่ละห้อง */
+  const visitKey = visitKeyOf(patient);
+  const existingVisit = visitKey ? visitCodes[visitKey] : null;
+  const stationSeq = (counters[stationId] = (counters[stationId] || 0) + 1);
+  const code = (settings.codeFormat.singleQueuePerVisit && existingVisit)
+    ? existingVisit.code
+    : previewQueueCode(stationId, stationSeq);
+  if (visitKey && !existingVisit) {
+    visitCodes[visitKey] = { code, issuedDate: todayKey(), firstStationId: stationId };
+  }
+
   const q = {
     id: `q-${String(seq).padStart(4, '0')}`,
-    code: nextQueueCode(stationId),
-    seqNo: counters[stationId],
+    code,
+    /* จุดแรกที่ออกเลขนี้ — ใช้อธิบายบนใบคิว/จอว่าเลขนี้มาจากจุดไหน */
+    visitCode: visitKey ? visitCodes[visitKey].code : code,
+    carriedFromVisit: Boolean(settings.codeFormat.singleQueuePerVisit && existingVisit),
+    seqNo: stationSeq,
     stationId,
     patient: { ...patient },
     queueType,
@@ -957,13 +1065,22 @@ export const transferQueue = (queueId, toStationId, reason = '') => {
   const from = getStation(q.stationId);
   q.transferFrom = q.stationId;
   q.stationId = toStationId;
-  q.code = nextQueueCode(toStationId);
+  /* มติ คทง.1 — โอนคิวข้ามจุดแล้ว "เลขคิวต้องไม่เปลี่ยน" (Single Queue)
+     ผู้รับบริการถือใบเดิมตลอด Visit; เปลี่ยนเฉพาะลำดับภายในจุดปลายทาง */
+  counters[toStationId] = (counters[toStationId] || 0) + 1;
+  if (!settings.codeFormat.singleQueuePerVisit) q.code = previewQueueCode(toStationId, counters[toStationId]);
   q.seqNo = counters[toStationId];
   q.status = 'waiting';
   const max = Math.max(0, ...queues.filter((r) => r.stationId === toStationId).map((r) => r.order));
   q.order = max + 1;
   q.pharmacyStatus = to.serviceType === 'pharmacy' ? (q.pharmacyStatus || 'pending') : null;
-  pushAudit(q, `โอนคิว ${from?.label || ''} → ${to.label} (รหัสใหม่ ${q.code})`, reason);
+  pushAudit(
+    q,
+    settings.codeFormat.singleQueuePerVisit
+      ? `โอนคิว ${from?.label || ''} → ${to.label} (คงเลขคิวเดิม ${q.code} ตามระบบคิวเดียวต่อ Visit)`
+      : `โอนคิว ${from?.label || ''} → ${to.label} (รหัสใหม่ ${q.code})`,
+    reason,
+  );
   rebuildCurrent();
   notify();
   return { ok: true, queue: { ...q } };

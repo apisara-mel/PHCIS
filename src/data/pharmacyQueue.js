@@ -586,11 +586,28 @@ export const RECEIVING_RECORDS = buildReceivingSeeds(40);
    here, which this center can confirm). `type` covers all three request
    kinds the ToR names: ยืม (borrow) / คืน (return) / แลกล็อต (lot-exchange,
    for near-expiry stock swaps between centers). */
-export const BORROW_RETURN_TYPES = [
-  { key: 'borrow',       label: 'ยืม'       },
-  { key: 'return',       label: 'คืน'       },
+/* **มติ คทง.7** — ตัด "ยืม-คืน" ระหว่างศูนย์ฯ ออก ให้ใช้ **"โอน"** แทน
+   เหตุผล: ยืม-คืนทำให้สต็อกสองศูนย์ไม่ตรงกับของจริง (ต้นทางยังนับว่ามียา
+   ปลายทางก็มียาใช้) ระบบตัดสต็อกไม่ถูก · การโอนตัดสต็อกต้นทางทันทีที่ส่ง
+   และ **เข้าสต็อกปลายทางเมื่อปลายทางกดยืนยันรับยาเท่านั้น**
+   คงชนิด 'borrow'/'return' ไว้อ่านประวัติเก่าได้ แต่สร้างใหม่ไม่ได้แล้ว. */
+export const TRANSFER_TYPES = [
+  { key: 'transfer',     label: 'โอน'       },
   { key: 'lot-exchange', label: 'แลกล็อต'   },
 ];
+
+export const LEGACY_TRANSFER_TYPES = [
+  { key: 'borrow',       label: 'ยืม (รายการเดิมก่อนใช้ระบบโอน)' },
+  { key: 'return',       label: 'คืน (รายการเดิมก่อนใช้ระบบโอน)' },
+];
+
+/* ทุกชนิดที่แสดงในตารางประวัติ = ที่สร้างใหม่ได้ + ที่เป็นรายการเดิม */
+export const BORROW_RETURN_TYPES = [...TRANSFER_TYPES, ...LEGACY_TRANSFER_TYPES];
+
+export const transferTypeLabelOf = (key) =>
+  BORROW_RETURN_TYPES.find((t) => t.key === key)?.label || key;
+
+export const isLegacyTransferType = (key) => key === 'borrow' || key === 'return';
 
 /* §1.9.9.4–5 history must cover all three TOR kinds (แลกล็อต / ยืมยา /
    ยาที่ต้องคืน) for both ผู้ส่งคำร้อง and ผู้รับคำร้อง — include completed
@@ -603,15 +620,31 @@ export const BORROW_RETURN_RECORDS = [
   { id: 'br-005', type: 'lot-exchange', direction: 'outgoing', drugName: 'Paracetamol 500 mg', quantity: 500, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 9 หลวงพ่อทวีศักดิ์', requestedBy: CURRENT_DISPENSER.name, requestedAt: addMonths(TODAY, -3), status: 'completed' },
   { id: 'br-003', type: 'lot-exchange', direction: 'incoming', drugName: 'Atorvastatin 20 mg', quantity: 60, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 21 วัดธาตุทอง', requestedBy: 'ภก.วรากรณ์ สุขใจ', requestedAt: addMonths(TODAY, 0), status: 'pending' },
   { id: 'br-006', type: 'borrow', direction: 'incoming', drugName: 'Metformin 500 mg', quantity: 150, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 12 บางคอแหลม', requestedBy: 'ภญ.ปิยะดา จันทร์เพ็ญ', requestedAt: addMonths(TODAY, -1), status: 'completed' },
+  { id: 'br-008', type: 'transfer', direction: 'incoming', drugName: 'Ibuprofen 400 mg', quantity: 120, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 3 บางซื่อ', requestedBy: 'ภญ.สุพัตรา เรืองวิทย์', requestedAt: TODAY, status: 'pending', lot: 'LOT-IBU-26C' },
+  { id: 'br-009', type: 'transfer', direction: 'outgoing', drugName: 'Metformin 500 mg', quantity: 200, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 12 บางคอแหลม', requestedBy: CURRENT_DISPENSER.name, requestedAt: TODAY, status: 'pending' },
   { id: 'br-007', type: 'return', direction: 'incoming', drugName: 'Cetirizine 10 mg', quantity: 40, unit: 'เม็ด', counterpartCenter: 'ศูนย์บริการสาธารณสุข 8 บางขุนเทียน', requestedBy: 'ภก.ธนวัฒน์ ศรีสุข', requestedAt: addMonths(TODAY, -2), status: 'completed' },
 ];
 
-/* §1.9.9.5 — confirm an incoming request from another center (ยืนยันการ
-   แลกล็อต / ยืนยันการให้ยืม). Only meaningful for `direction: 'incoming'`. */
-export const confirmBorrowReturnRequest = (id) => {
+/* §1.9.9.5 + **มติ คทง.7** — ปลายทางกดยืนยัน "รับยาเข้าคลัง" แล้วยาจึงเข้า
+   ระบบ: อัปเดตสต็อกคลังย่อยปลายทางจริง แล้วประทับผู้รับ + เวลา ถ้าไม่กด
+   ยืนยัน ยาจะค้างสถานะ "รอปลายทางรับยา" ไม่เข้าสต็อกทั้งสองฝั่ง (กันยา
+   หายระหว่างทาง). กดซ้ำไม่เพิ่มสต็อกซ้ำ — completed แล้วคืนแถวเดิมเลย. */
+export const confirmBorrowReturnRequest = (id, { warehouseId, receivedBy } = {}) => {
   const row = BORROW_RETURN_RECORDS.find((r) => r.id === id);
   if (!row) return null;
+  if (row.status === 'completed') return row;
+
+  if (row.type === 'transfer' && row.direction === 'incoming') {
+    const stockMap = getSubStockMap(warehouseId);
+    const entry = stockMap[row.drugName];
+    if (entry) entry.stock += Number(row.quantity) || 0;
+    else stockMap[row.drugName] = { stock: Number(row.quantity) || 0, unit: row.unit, unitPrice: 0, lot: row.lot || '—', expiryDate: row.expiryDate || null };
+    row.stockedIn = true;
+  }
+
   row.status = 'completed';
+  row.receivedBy = receivedBy || CURRENT_DISPENSER.name;
+  row.receivedAt = TODAY;
   return row;
 };
 
@@ -621,6 +654,8 @@ let borrowReturnSeq = BORROW_RETURN_RECORDS.length;
    above, which only handles the receiving side). Always `direction:
    'outgoing'` since this center is the one sending the request. */
 export const createBorrowReturnRequest = ({ type, drugName, quantity, unit, counterpartCenter, requestedBy }) => {
+  /* มติ คทง.7 — สร้างคำร้อง "ยืม/คืน" ใหม่ไม่ได้อีกแล้ว ใช้ "โอน" แทน */
+  if (isLegacyTransferType(type)) return null;
   const row = {
     id: `br-${++borrowReturnSeq}`,
     type, direction: 'outgoing', drugName, quantity: Number(quantity) || 0, unit, counterpartCenter,
@@ -1679,4 +1714,75 @@ export const sendPrescriptionToPharmacy = (visit) => {
   appendPrescriptionAudit(row, 'sent', 'CPOE ส่งใบสั่งยาเข้าคิวห้องยา', 'แพทย์ผู้สั่งยา');
   PHARMACY_QUEUE.push(row);
   return row;
+};
+
+/* ═══ Sequence Lock: เภสัช → การเงิน → จ่ายยา (มติ คทง.1 ครั้งที่ 3) ══════
+   ที่ประชุมลงรายละเอียดลำดับงานหลังแพทย์สั่งยาไว้ชัดเจน และเหตุผลของแต่ละ
+   ขั้นคือปัญหาหน้างานจริง:
+
+     1) แพทย์สั่งยา → ข้อมูลไปห้องยา **และ** ห้องการเงินพร้อมกัน
+     2) **เภสัชกรตรวจสอบและกดยืนยันก่อน** ห้องการเงินจึงออกใบเสร็จได้
+        เหตุผล: ถ้าออกใบเสร็จก่อนแล้วเภสัชแก้จำนวนยา/เปลี่ยนยา ต้องยกเลิก
+        ใบเสร็จทั้งใบ ซึ่งเป็นภาระและเสี่ยงต่อการตรวจสอบทางการเงิน
+     3) **ผู้ป่วยชำระเงิน/ปิดสิทธิก่อนรับยา**
+        เหตุผล: กันปัญหา "ยักยอกยา" และความเสี่ยงที่เจ้าหน้าที่ต้อง
+        รับผิดชอบเงินส่วนต่างเอง
+
+   ทั้งสองขั้นเป็น **ล็อกจริง** ไม่ใช่คำเตือน — ฝั่งห้องยากดจ่ายยาไม่ได้
+   จนกว่าจะชำระครบ และฝั่งการเงินเรียกเก็บไม่ได้จนกว่าเภสัชจะยืนยัน
+   (หน้าการเงินอยู่นอกขอบเขตไฟล์ชุดนี้ จึง export ตัวตรวจให้เรียกใช้)   */
+
+/* สถานะการยืนยันของเภสัชกร เก็บเป็น state ระดับโมดูลเหมือน mock อื่นในไฟล์นี้
+   (PHARMACY_QUEUE / BORROW_RETURN_RECORDS ก็ mutate ในหน่วยความจำ ไม่ผูก
+   sessionStorage) — คงอยู่ตลอด session ของ SPA ซึ่งพอสำหรับโปรโตไทป์ */
+const PHARMACIST_VERIFICATIONS = {};
+
+/** เภสัชกรยืนยันรายการยาแล้ว — ปลดล็อกให้ห้องการเงินออกใบเสร็จได้ */
+export const verifyPharmacyOrder = (queueNo, { by, note = '' } = {}) => {
+  if (!queueNo) return null;
+  PHARMACIST_VERIFICATIONS[queueNo] = {
+    by: by || CURRENT_DISPENSER.name,
+    at: TODAY,
+    note,
+  };
+  return PHARMACIST_VERIFICATIONS[queueNo];
+};
+
+/** ถอนการยืนยัน — ใช้เมื่อต้องกลับมาแก้จำนวนยา/เปลี่ยนยาหลังยืนยันไปแล้ว
+    (ต้องมีเหตุผล เพราะฝั่งการเงินอาจเริ่มตั้งเรื่องแล้ว) */
+export const unverifyPharmacyOrder = (queueNo, reason) => {
+  if (!queueNo) return null;
+  const prev = PHARMACIST_VERIFICATIONS[queueNo];
+  delete PHARMACIST_VERIFICATIONS[queueNo];
+  return prev ? { ...prev, revokedReason: reason || 'ไม่ระบุเหตุผล' } : null;
+};
+
+export const getPharmacyVerification = (queueNo) =>
+  (queueNo ? PHARMACIST_VERIFICATIONS[queueNo] || null : null);
+
+/** ขั้นที่ 2 — ห้องการเงินเรียกเก็บได้หรือยัง
+    @returns {{ ok: boolean, reason: string|null }} */
+export const canBillPharmacyOrder = (row) => {
+  if (!row) return { ok: false, reason: 'ไม่พบรายการยาของคิวนี้' };
+  const verification = getPharmacyVerification(row.queueNo);
+  if (!verification) {
+    return {
+      ok: false,
+      reason: 'เภสัชกรยังไม่ได้ยืนยันรายการยา — ออกใบเสร็จตอนนี้เสี่ยงต้องยกเลิกใบเสร็จหากมีการแก้จำนวนยา (มติ คทง.1)',
+    };
+  }
+  return { ok: true, reason: null };
+};
+
+/** ขั้นที่ 3 — จ่ายยาให้ผู้ป่วยได้หรือยัง
+    n/a = ไม่มีส่วนที่ต้องชำระ (เบิกได้เต็มตามสิทธิ) จ่ายได้เลย */
+export const canDispensePharmacyOrder = (row) => {
+  if (!row) return { ok: false, reason: 'ไม่พบรายการยาของคิวนี้' };
+  if (row.paymentStatus === PAYMENT_STATUS.UNPAID) {
+    return {
+      ok: false,
+      reason: 'ผู้รับบริการยังไม่ได้ชำระเงิน/ปิดสิทธิ — ต้องชำระที่ห้องการเงินก่อนรับยา (มติ คทง.1)',
+    };
+  }
+  return { ok: true, reason: null };
 };

@@ -10,7 +10,10 @@ import BrandIconButton from '@/components/button/BrandIconButton';
 import Table, { EllipsisText as TableEllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import Badge from '@/components/badge/Badge';
-import { PHARMACY_QUEUE, DISPENSE_STATUS, QUEUE_TYPES, checkAllergyConflicts, updatePharmacyRow } from '@/data/pharmacyQueue';
+import {
+  PHARMACY_QUEUE, DISPENSE_STATUS, QUEUE_TYPES, PAYMENT_STATUS,
+  checkAllergyConflicts, getPharmacyVerification, updatePharmacyRow,
+} from '@/data/pharmacyQueue';
 import { checkHighAlert } from '@/data/pharmacyRegistry';
 import { findMrPatientByHn } from '@/data/mrPatients';
 import PharmacySubNav, { PharmacyHeaderActions } from '@/components/pharmacy/PharmacySubNav';
@@ -185,6 +188,18 @@ const BASE_COLUMNS = [
   },
   { key: 'issuedAt', label: 'เวลาสั่งยา' },
   { key: 'status', label: 'สถานะ', render: (row) => <Pill pill={STATUS_PILL[row.status]} /> },
+  /* Sequence Lock (มติ คทง.1) — ให้เห็นตั้งแต่หน้าคิวว่าแถวไหนติดขั้นไหน
+     จะได้ไม่เปิดเข้าไปแล้วเจอปุ่ม "ยืนยันจ่ายยา" ตายโดยไม่รู้เหตุผล */
+  {
+    key: 'sequenceLock', label: 'ลำดับก่อนจ่ายยา', flex: true, minWidth: 190, sortable: false,
+    render: (row) => {
+      const verified = Boolean(getPharmacyVerification(row.queueNo));
+      const unpaid = row.paymentStatus === PAYMENT_STATUS.UNPAID;
+      if (!verified) return <Badge style='info' size='small'>รอเภสัชยืนยันรายการยา</Badge>;
+      if (unpaid) return <Badge style='warning' size='small'>รอชำระเงิน/ปิดสิทธิ</Badge>;
+      return <Badge style='success' size='small'>พร้อมจ่ายยา</Badge>;
+    },
+  },
 ];
 
 const PAGE_SIZE = 20;

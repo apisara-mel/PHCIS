@@ -7,6 +7,7 @@ import DatePicker from '@/components/forms/DatePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
 import TabCapsule from '@/components/tab/TabCapsule';
 import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
+import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -865,7 +866,7 @@ export const AncStep2Screening = ({ form, setForm }) => {
 /* ── Step 3 — ตรวจร่างกาย ──────────────────────────────────────────
    Vitals + ANC-specific additions: ระดับยอดมดลูก (fundus height) +
    fetal heart rate + oral-health check (TOR 1.10.7.7). */
-export const AncStep3Examination = ({ form, setForm }) => {
+export const AncStep3Examination = ({ form, setForm, ancHn, cardPatient }) => {
   const setVital = (key) => (value) => setForm((f) => ({ ...f, vitals: { ...f.vitals, [key]: value } }));
   const setField = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -1077,6 +1078,15 @@ export const AncStep3Examination = ({ form, setForm }) => {
           </ColorfulBadge>
         )}
       </div>
+
+      {/* มติ คทง.6 — ผลตรวจฟันมาจากหน้าทันตกรรมที่เดียว ANC ไม่ลงผลเอง
+          และไม่ต้องเปิด Visit ทันตกรรมใหม่ ทำได้แค่ "ส่งตรวจทันตกรรม" */}
+      <CarriedDentalPanel
+        hn={ancHn}
+        patientName={cardPatient?.name}
+        from='anc'
+        title='ผลการตรวจทันตกรรม (จากคลินิกทันตกรรม)'
+      />
 
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='clipboard-list'>คัดกรองสุขภาพช่องปาก (Maternal Oral Screening)</TopicHeader>

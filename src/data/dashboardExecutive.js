@@ -380,3 +380,54 @@ export const revokeAnomalyAck = (id) => {
   anomalyAckLog = next;
   return listAnomalyAcks();
 };
+
+/* ═══ ขอบเขตข้อมูลของผู้ใช้บน Dashboard (มติ คทง.11 ครั้งที่ 2) ══════════
+   มติ: "ศบส. เห็นเฉพาะข้อมูลของตนเอง · กองแผนงานเห็นภาพรวมทุกศูนย์ ·
+   ผู้บริหารเห็นสรุปทั้งหมด" — เดิมแม่แบบสิทธิ์เก็บ dataScope ไว้แล้ว
+   (accessControlStore) แต่ dashboard ไม่เคยอ่าน ทุกคนจึงเห็นทั้งสำนักอนามัย
+   ฟังก์ชันชุดนี้คือสะพานเชื่อม: แปลง scope ของผู้ใช้ → ตัวเลือกเขต/สถาน
+   บริการที่เลือกได้จริง + ค่าเริ่มต้นที่ถูกล็อกไว้                        */
+
+/** เขตที่ผู้ใช้เห็นได้ตาม scope — คืน null = เห็นได้ทุกเขต */
+export const visibleAreaKeysForScope = (user) => {
+  const scope = user?.dataScope || 'center';
+  if (scope === 'all') return null;
+  if (scope === 'zone') {
+    /* กลุ่มเขต — mock ใช้เขตของผู้ใช้ + เขตที่อยู่ในกลุ่มเดียวกัน
+       (ระบบจริงมาจากตารางกลุ่มเขตของสำนักอนามัย) */
+    const own = BKK_AREAS.find((a) => a.key === user?.districtKey);
+    if (!own) return null;
+    return BKK_AREAS.slice(0, 3).map((a) => a.key).concat(own.key)
+      .filter((k, i, arr) => arr.indexOf(k) === i);
+  }
+  /* center / assigned — เห็นเฉพาะเขตที่ศูนย์ตนเองตั้งอยู่ */
+  return user?.districtKey ? [user.districtKey] : [];
+};
+
+/** ตัวเลือกเขตที่กดได้จริงตาม scope (ตัด "ทุกเขต" ทิ้งเมื่อเห็นได้เขตเดียว) */
+export const scopedAreaOptions = (user) => {
+  const keys = visibleAreaKeysForScope(user);
+  if (keys === null) return AREA_OPTIONS;
+  const rows = BKK_AREAS.filter((a) => keys.includes(a.key))
+    .map((a) => ({ value: a.key, label: a.district }));
+  return rows.length > 1 ? [{ value: 'all', label: 'ทุกเขตในกลุ่ม' }, ...rows] : rows;
+};
+
+/** ค่าเริ่มต้นของตัวกรองตาม scope — scope แคบต้องเริ่มที่เขตตนเอง ไม่ใช่ "ทุกเขต" */
+export const defaultAreaForScope = (user) => {
+  const opts = scopedAreaOptions(user);
+  return opts[0]?.value || 'all';
+};
+
+/** ข้อความอธิบายให้ผู้ใช้รู้ว่าทำไมตัวเลือกถึงมีแค่นี้ (ไม่ใช่ระบบเสีย) */
+export const scopeNoticeForUser = (user) => {
+  const scope = user?.dataScope || 'center';
+  if (scope === 'all') return null;
+  if (scope === 'zone') {
+    return `ขอบเขตข้อมูลของคุณคือ "${user?.zoneName || 'กลุ่มเขตของท่าน'}" — เห็นได้เฉพาะเขตในกลุ่มนี้ (มติ คทง.11)`;
+  }
+  if (scope === 'assigned') {
+    return 'ขอบเขตข้อมูลของคุณคือเฉพาะเคสที่ได้รับมอบหมาย — แดชบอร์ดภาพรวมจึงแสดงเท่าที่เกี่ยวข้องกับงานของคุณ (มติ คทง.4)';
+  }
+  return `ขอบเขตข้อมูลของคุณคือ "${user?.centerName || 'ศูนย์ของท่าน'}" — ตัวเลือกเขต/สถานบริการจึงถูกจำกัดไว้ตามแม่แบบสิทธิ์ (มติ คทง.11)`;
+};

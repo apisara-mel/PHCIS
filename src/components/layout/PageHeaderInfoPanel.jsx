@@ -23,8 +23,12 @@ const PageHeaderInfoPanel = ({ children, dense = false }) => (
         'calc(var(--dim-space-600) + (var(--dim-space-400) - var(--dim-space-600)) * var(--header-morph))',
       paddingRight:
         'calc(var(--dim-space-600) + (var(--dim-space-400) - var(--dim-space-600)) * var(--header-morph))',
-      paddingBottom:
-        'calc(var(--dim-space-600) + (var(--dim-space-200) - var(--dim-space-600)) * var(--header-morph))',
+      /* dense = wizard step band. ก่อน scroll เดิมเว้นล่าง 24px ทำให้แถบ
+         step สูงเกินจำเป็น (มติผู้ใช้ ส.ค. 69) — ลดเหลือ 12px แล้วยังหด
+         ต่อเป็น 8px ตอน scroll เหมือนเดิม. Non-dense panels ไม่เปลี่ยน. */
+      paddingBottom: dense
+        ? 'calc(var(--dim-space-300) + (var(--dim-space-200) - var(--dim-space-300)) * var(--header-morph))'
+        : 'calc(var(--dim-space-600) + (var(--dim-space-200) - var(--dim-space-600)) * var(--header-morph))',
       gap:
         'calc(var(--dim-space-400) + (var(--dim-space-0) - var(--dim-space-400)) * var(--header-morph))',
     }}

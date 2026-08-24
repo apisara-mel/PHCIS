@@ -675,7 +675,12 @@ const VISIT_SPECS = [
     org: 'CGD', confirmTreatment: true, confirmCode: true,
   },
   {
-    rights: 'rm-bma', clinic: 'internal', sub: 1, doctor: 2, daysAgo: 1, kind: 'normal', cycle: 'cy-2569-08',
+    /* มติ คทง.8 — เคสสิทธิทับซ้อนตัวอย่าง: ข้าราชการ กทม. (คุ้มครอง 50%
+       เพดาน 2,000) + ประกันสุขภาพเอกชนที่ผู้ป่วยซื้อเอง (80% เพดาน 1,500)
+       ส่วนที่สิทธิหลักไม่คุ้มครอง ประกันเอกชนรับช่วงต่อ เหลือจึงเป็นส่วน
+       ร่วมจ่ายจริงของผู้ป่วย — เคสแบบนี้พบจริงและ TOR เดิมคำนวณไม่ได้ */
+    rights: 'rm-bma', secondaryRights: 'rm-private',
+    clinic: 'internal', sub: 1, doctor: 2, daysAgo: 1, kind: 'normal', cycle: 'cy-2569-08',
     icd10: [['E78.5', 'principle'], ['E66.9', 'comorbidity']],
     icd9: [['90.59', 'completed']],
     charges: [['opd', 1], ['lipid', 1], ['metformin', 1], ['copy', 1]],
@@ -830,6 +835,10 @@ export const RIGHTS_VISITS = VISIT_SPECS.map((spec, idx) => {
     billingRightsId: resolvedRights,
     originalRightsId: spec.rights,
     rightsExpired: !!spec.expiredRights,
+    /* **มติ คทง.8** — ผู้รับบริการหนึ่งคนถือสิทธิได้มากกว่าหนึ่ง (สิทธิทับซ้อน)
+       และส่วนที่สิทธิหลักไม่คุ้มครองอาจมีสิทธิรอง "ร่วมจ่าย" ให้อีกชั้น
+       ก่อนตกเป็นเงินสดของผู้ป่วยจริง — ดู resolveRightsStack ด้านล่าง */
+    secondaryRightsId: spec.secondaryRights || null,
 
     /* §1.7.4.6 / §1.7.4.7 */
     visitKind: spec.kind,
@@ -903,7 +912,85 @@ export const PAYER_KINDS = {
      5. ประเภทการลดหย่อน (§1.7.5.5) then reduces the patient's เงินสด share.
    Every screen that shows money calls this, so the summary cards, the row
    totals and the cycle roll-up can never disagree. */
-export const computeVisitClaim = (visit) => {
+/* ═══ สิทธิทับซ้อน + สิทธิร่วมจ่าย (มติ คทง.8) ═══════════════════════════
+   Gap ที่ที่ประชุมชี้: TOR เดิมรองรับแค่ "บันทึกสิทธิ" หนึ่งสิทธิต่อคน แต่หน้า
+   งานจริงมีผู้รับบริการที่ถือสิทธิทับซ้อนกันหลายสิทธิ และมีสิทธิที่ต้อง
+   "ร่วมจ่าย" — ระบบต้องมี Logic ตัดสินว่าสิทธิไหนเป็นสิทธิหลัก และส่วนที่
+   สิทธิหลักไม่คุ้มครองมีสิทธิรองมารับช่วงได้แค่ไหน ก่อนตกเป็นเงินของผู้ป่วย
+
+   ลำดับความสำคัญ (สิทธิเฉพาะกลุ่มมาก่อนสิทธิพื้นฐาน) — ตัวเลขน้อย = สิทธิหลัก
+   เกณฑ์นี้ตั้งจากหลักที่ใช้จริง: สิทธิที่จ่ายให้เต็มจำนวน/เฉพาะโรค ต้องถูก
+   ใช้ก่อนสิทธิพื้นฐานเสมอ ไม่งั้นผู้ป่วยเสียสิทธิที่ดีกว่าโดยไม่ตั้งใจ */
+const RIGHTS_PRIORITY = {
+  CASH: 99,
+};
+
+export const rightsPriority = (right) => {
+  if (!right) return 98;
+  if (RIGHTS_PRIORITY[right.code] != null) return RIGHTS_PRIORITY[right.code];
+  /* คุ้มครองสูงกว่า = สิทธิหลักกว่า; เท่ากันให้สิทธิที่มีเพดานสูงกว่าอยู่ก่อน */
+  return 100 - (right.coveragePct || 0);
+};
+
+/** เรียงสิทธิที่ผู้รับบริการถืออยู่เป็น [สิทธิหลัก, สิทธิรอง, …]
+    ตัดสิทธิที่ปิดใช้งานและสิทธิซ้ำออกให้เอง */
+export const resolveRightsStack = (rightsIds = []) => {
+  const seen = new Set();
+  return rightsIds
+    .map((id) => rightsById(id))
+    .filter((r) => r && r.active !== false && !seen.has(r.id) && seen.add(r.id))
+    .sort((a, b) => rightsPriority(a) - rightsPriority(b));
+};
+
+/** สิทธิทั้งหมดที่ visit นี้ถืออยู่ เรียงตาม **ลำดับที่ใช้เรียกเก็บจริง**
+    (สิทธิหลักที่เจ้าหน้าที่เลือกไว้ → สิทธิรอง) ไม่ใช่ลำดับตามเกณฑ์ความคุ้มครอง
+    — เจตนา: หน้าจอต้องสะท้อนสิ่งที่ระบบทำจริง ถ้าเรียงตามเกณฑ์แล้วโชว์สลับกับ
+    ที่เรียกเก็บ เจ้าหน้าที่จะอ่านผิดทันที ส่วนคำแนะนำว่าควรสลับสิทธิหรือไม่
+    แยกไปที่ `betterPrimaryAvailable` ด้านล่าง (เป็นคำเตือน ไม่ใช่การสลับเอง) */
+export const visitRightsStack = (visit) => {
+  if (!visit) return [];
+  if (visit.rightsExpired) return [rightsById('rm-cash')].filter(Boolean);
+  const seen = new Set();
+  return [visit.billingRightsId, visit.secondaryRightsId]
+    .map((id) => rightsById(id))
+    .filter((r) => r && r.active !== false && !seen.has(r.id) && seen.add(r.id));
+};
+
+/** มีสิทธิทับซ้อนหรือไม่ — ใช้ติดป้ายเตือนให้เจ้าหน้าที่ตรวจก่อนเรียกเก็บ */
+export const hasOverlappingRights = (visit) => visitRightsStack(visit).length > 1;
+
+/** สลับสิทธิหลัก-รองแล้วผู้ป่วยจ่ายน้อยลงหรือไม่ — คืนสิทธิที่ควรใช้เป็น
+    สิทธิหลักแทน (หรือ null ถ้าลำดับปัจจุบันดีอยู่แล้ว)
+
+    ⚠️ คำนวณผลลัพธ์จริงทั้งสองลำดับแล้วเทียบ **ไม่ใช่ดูแค่ %ความคุ้มครอง**
+    เพราะสิทธิที่คุ้มครอง % สูงกว่าอาจมีเพดานต่ำกว่าหรือมีค่าธรรมเนียม ทำให้
+    ผู้ป่วยจ่ายมากขึ้นก็ได้ (เช่น ประกันเอกชน 80% เพดาน 1,500 + ค่าธรรมเนียม
+    100 บาท เทียบกับสิทธิราชการ 50% เพดาน 2,000 ไม่มีค่าธรรมเนียม)
+
+    **ไม่สลับให้อัตโนมัติ** เพราะการเลือกสิทธิเป็นดุลพินิจของเจ้าหน้าที่ตาม
+    §1.7.4.3 — ระบบทำได้แค่เตือนพร้อมบอกส่วนต่างเป็นตัวเงิน */
+export const betterPrimaryAvailable = (visit) => {
+  const stack = visitRightsStack(visit);
+  if (stack.length < 2) return null;
+  const [primary, secondary] = stack;
+
+  /* ต้องส่ง withHint:false ทั้งสองครั้ง — computeVisitClaim เรียกฟังก์ชันนี้
+     กลับมาในผลลัพธ์ ถ้าไม่ตัดวงจรจะ recursion ไม่รู้จบ */
+  const current = computeVisitClaim(visit, { withHint: false });
+  const swapped = computeVisitClaim(
+    { ...visit, billingRightsId: secondary.id, secondaryRightsId: primary.id },
+    { withHint: false },
+  );
+
+  /* เทียบยอดที่ผู้ป่วยต้องจ่ายจริง (รวมค่าธรรมเนียมและส่วนลดแล้ว) */
+  if (swapped.cashTotal >= current.cashTotal) return null;
+  return {
+    ...secondary,
+    savesAmount: money(current.cashTotal - swapped.cashTotal),
+  };
+};
+
+export const computeVisitClaim = (visit, { withHint = true } = {}) => {
   const rights = rightsById(visit.billingRightsId) || rightsById('rm-cash');
   const selfPay = !rights || rights.code === 'CASH' || visit.rightsExpired;
   const coverage = selfPay ? 0 : Math.max(0, Math.min(100, rights.coveragePct)) / 100;
@@ -930,10 +1017,55 @@ export const computeVisitClaim = (visit) => {
     claimTotal = cap;
   }
 
+  /* ── รอบที่ 2: สิทธิรองร่วมจ่าย (มติ คทง.8) ────────────────────────────
+     ส่วนที่สิทธิหลักไม่คุ้มครอง (รวมส่วนที่โดนเพดานตัด และหมวดที่ถูก exclude)
+     ยังไม่ใช่เงินของผู้ป่วยทันที — ถ้าผู้รับบริการถือสิทธิรองอยู่ ให้สิทธิรอง
+     รับช่วงตามเงื่อนไขของตัวเอง (coveragePct / exclusions / เพดานของตัวเอง)
+     เหลือเท่าไรจึงเป็น "ส่วนร่วมจ่าย" ที่ผู้ป่วยจ่ายจริง
+
+     ทำเป็นรอบแยกโดยตั้งใจ ไม่รวมเป็นสูตรเดียว เพราะสิทธิแต่ละใบมีเพดานและ
+     ข้อยกเว้นของตัวเอง — ถ้ารวมเป็นเปอร์เซ็นต์เดียวจะคำนวณเพดานผิดทันที */
+  const secondary = selfPay ? null : rightsById(visit.secondaryRightsId);
+  const secondaryUsable = secondary
+    && secondary.active !== false
+    && secondary.code !== 'CASH'
+    && secondary.id !== rights.id;
+
+  let secondaryClaimTotal = 0;
+  let secondaryCapTrimmed = 0;
+  if (secondaryUsable) {
+    const secCoverage = Math.max(0, Math.min(100, secondary.coveragePct)) / 100;
+    const secExclusions = new Set(secondary.exclusions || []);
+    lines.forEach((line) => {
+      const remainder = line.amount - line.claimAmount;
+      if (remainder <= 0 || secExclusions.has(line.category)) return;
+      const secClaim = money(remainder * secCoverage);
+      if (secClaim <= 0) return;
+      line.secondaryClaimAmount = secClaim;
+      line.cashAmount = money(line.cashAmount - secClaim);
+      secondaryClaimTotal += secClaim;
+    });
+
+    const secCap = secondary.capPerVisit || 0;
+    if (secCap > 0 && secondaryClaimTotal > secCap) {
+      secondaryCapTrimmed = money(secondaryClaimTotal - secCap);
+      secondaryClaimTotal = secCap;
+      /* คืนส่วนที่เกินเพดานกลับไปเป็นเงินสดของผู้ป่วย เพื่อให้ยอดรวมยังตรง */
+      let toReturn = secondaryCapTrimmed;
+      lines.forEach((line) => {
+        if (toReturn <= 0 || !line.secondaryClaimAmount) return;
+        const back = Math.min(toReturn, line.secondaryClaimAmount);
+        line.secondaryClaimAmount = money(line.secondaryClaimAmount - back);
+        line.cashAmount = money(line.cashAmount + back);
+        toReturn = money(toReturn - back);
+      });
+    }
+  }
+
   const fees = selfPay ? [] : (rights.fees || []);
   const feeTotal = fees.reduce((s, f) => s + f.amount, 0);
 
-  const grossCash = totalCharge - claimTotal;
+  const grossCash = totalCharge - claimTotal - secondaryClaimTotal;
   const deduction = DEDUCTION_TYPES.find((d) => d.id === visit.deductionTypeId && d.active) || null;
   const discountAmount = !deduction
     ? 0
@@ -950,6 +1082,16 @@ export const computeVisitClaim = (visit) => {
 
   return {
     rights,
+    /* มติ คทง.8 — เปิดเผยทั้งกองสิทธิและยอดที่สิทธิรองรับช่วง เพื่อให้หน้าจอ
+       แสดงได้ว่า "ใครจ่ายส่วนไหน" ไม่ใช่เห็นแค่ยอดสุทธิก้อนเดียว */
+    secondaryRights: secondaryUsable ? secondary : null,
+    rightsStack: visitRightsStack(visit),
+    hasOverlappingRights: hasOverlappingRights(visit),
+    betterPrimaryAvailable: withHint ? betterPrimaryAvailable(visit) : null,
+    secondaryClaimTotal,
+    secondaryCapTrimmed,
+    /* ส่วนร่วมจ่ายที่ผู้ป่วยรับผิดชอบเองหลังหักทุกสิทธิแล้ว */
+    coPayTotal: Math.max(0, totalCharge - claimTotal - secondaryClaimTotal),
     selfPay,
     lines,
     totalCharge,

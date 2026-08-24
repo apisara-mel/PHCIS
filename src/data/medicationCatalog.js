@@ -89,6 +89,11 @@ export const MEDICATION_NAME_OPTIONS = [
   { value: 'Indapamide 1.5 mg',           image: medImg('indapamide')          },
   { value: 'Vitamin B Complex',           image: medImg('vitamin-b')           },
   { value: 'Folic Acid 5 mg',             image: medImg('folic-acid')          },
+  /* มติ คทง.7 — ยาที่ต้องคัดกรองยีน HLA-B ก่อนสั่ง ต้องมีในทะเบียนยา
+     มิฉะนั้นกติกา "บล็อกเมื่อผลยีนเป็นบวก" ไม่มียาให้ทดสอบเลย
+     (ยังไม่มีภาพเฉพาะ — resolveMedicationImage จะ fallback ให้เอง) */
+  { value: 'Allopurinol 100 mg',          image: FALLBACK_MED_IMG              },
+  { value: 'Carbamazepine 200 mg',        image: FALLBACK_MED_IMG              },
   /* Controlled / psychotropic seeds for pharmacyRegistry classifications. */
   { value: 'Codeine Phosphate 30 mg',     image: medImg('codeine')             },
   { value: 'Diazepam 5 mg',               image: medImg('diazepam')            },

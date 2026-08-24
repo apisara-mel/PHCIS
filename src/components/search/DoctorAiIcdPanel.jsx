@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import AISearch from '@/components/search/AISearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
-import { DEFAULT_ICD_SUGGESTIONS } from '@/data/treatmentVisits';
+import { DEFAULT_ICD_SUGGESTIONS, commonTermsForIcd } from '@/data/treatmentVisits';
 import doctorAiAnim from '@/assets/illustrations/Aijson.json';
 
 /* Doctor AI ICD-10 search panel — Figma PHCIS|Medical-examination 156:27359.
@@ -12,18 +12,33 @@ const DOCTOR_AI_GRADIENT_START = '#6B83FF';
 const DOCTOR_AI_GRADIENT_MID = '#A875FF';
 const DOCTOR_AI_GRADIENT_END = '#FF7EB3';
 
-const ICD_SEARCH_INDEX = DEFAULT_ICD_SUGGESTIONS.map((c) => ({
-  ...c,
-  haystack: `${c.code} ${c.name}`.toLowerCase(),
-}));
-
-export const icdToRow = (c) => ({
-  id: c.code,
-  label: c.name,
-  badge: c.code,
-  badgeStyle: 'blue',
-  value: c.name,
+/* มติ คทง.1 ครั้งที่ 3 — index ต้องครอบ "ศัพท์แพทย์ทั่วไป" ด้วย ไม่ใช่แค่
+   ชื่อทางการของ ICD-10: แพทย์พิมพ์ "ปวดหัว" / "ความดัน" / "flu" แล้วต้องเจอ
+   (เดิมค้นเฉพาะ code + ชื่อทางการ ซึ่งเป็นศัพท์ของ Coder) */
+const ICD_SEARCH_INDEX = DEFAULT_ICD_SUGGESTIONS.map((c) => {
+  const terms = commonTermsForIcd(c.code);
+  return {
+    ...c,
+    commonTerms: terms,
+    haystack: `${c.code} ${c.name} ${terms.join(' ')}`.toLowerCase(),
+  };
 });
+
+export const icdToRow = (c, query = '') => {
+  /* เมื่อหาเจอเพราะคำพูดทั่วไป ให้บอกด้วยว่าตรงกับคำไหน — แพทย์จะได้มั่นใจ
+     ว่าไม่ได้เลือกรหัสผิด (ชื่อทางการมักไม่มีคำที่เพิ่งพิมพ์ไป) */
+  const q = String(query || '').trim().toLowerCase();
+  const hit = q ? (c.commonTerms || []).find((t) => t.toLowerCase().includes(q)) : null;
+  const officialHit = q && `${c.code} ${c.name}`.toLowerCase().includes(q);
+  return {
+    id: c.code,
+    label: c.name,
+    badge: c.code,
+    badgeStyle: 'blue',
+    value: c.name,
+    subLabel: hit && !officialHit ? `ตรงกับคำที่ใช้ทั่วไป: ${hit}` : undefined,
+  };
+};
 
 /**
  * @param {object} props
@@ -47,7 +62,7 @@ export default function DoctorAiIcdPanel({
     return ICD_SEARCH_INDEX
       .filter((c) => c.haystack.includes(q))
       .slice(0, 8)
-      .map(icdToRow);
+      .map((c) => icdToRow(c, q));
   }, [value]);
 
   return (
@@ -112,7 +127,7 @@ export default function DoctorAiIcdPanel({
         historyEmptyMessage='ยังไม่มีประวัติการค้นหารหัส ICD-10'
         emptyMessage='ไม่พบรหัสที่ตรงกับคำค้น'
         aria-label='ค้นหารหัส ICD-10'
-        placeholder='ค้นหารหัสโรค เช่น ไข้เลือดออก'
+        placeholder='ค้นหาด้วยคำที่ใช้พูดได้เลย เช่น ปวดหัว · ความดัน · flu · A90'
         width={width}
         dropdownInFlow={dropdownInFlow}
       />

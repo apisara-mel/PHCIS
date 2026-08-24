@@ -59,6 +59,11 @@ const TREAT_DEPARTMENT_SUBITEMS = [
   { key: 'tb',         label: 'แผนกวัณโรค',                            path: '/clinic/tb' },
   { key: 'mental',     label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต',        path: '/clinic/mental-health' },
   { key: 'rehab',      label: 'แผนกเวชศาสตร์ฟื้นฟูและกายภาพบำบัด',      path: '/clinic/rehab' },
+  /* งานสังคมสงเคราะห์ (TOR §1.10.11) — path ชี้หน้าแรกของโมดูล (ค้นหา + เมนู
+     หลัก 5 ปุ่ม ตามมติ คทง.10 ครั้งที่ 3) ไม่ใช่คิว; คิวย้ายไป /clinic/social-work/queue
+     หน้าอื่น (ส.ส.3 /referral · ส.ส.4 /activities · รายงาน /reports · โภชนาการ
+     /nutrition · ทะเบียน · ผู้ขอวัสดุ) เข้าถึงจากเมนูบนหน้าแรก — pattern เดียวกับ
+     pharmacy/lab ที่ rail มีรายการเดียวแล้วสลับหน้าในโมดูลเอง. */
   { key: 'social',     label: 'แผนกสังคมสงเคราะห์',                    path: '/clinic/social-work' },
 ];
 
@@ -167,6 +172,20 @@ const ITEMS = [
       { key: 'sch-batch',    label: 'บันทึกบริการรายห้อง (Batch)',      path: '/clinic/school-health/batch-vaccine' },
       { key: 'sch-dashboard',label: 'Dashboard อนามัยโรงเรียน',        path: '/clinic/school-health/dashboard'     },
       { key: 'sch-reports',  label: 'รายงานอนามัยโรงเรียน',            path: '/clinic/school-health/reports'       },
+    ],
+  },
+  /* สถานรับเลี้ยงเด็กกลางวัน — TOR §3.5. แยกเมนูจากอนามัยโรงเรียนตามมติ คทง.5
+     เพราะกลุ่มเป้าหมายคือเด็กปฐมวัย 0–5 ปี (เกณฑ์โภชนาการ/พัฒนาการ/วัคซีน
+     คนละชุดกับนักเรียน) แต่ layout และ vocabulary ออกแบบให้สอดคล้องกัน
+     ตามมติครั้งที่ 3 ("หน้าจอควรสอดคล้องกันทั้งคลินิกเด็กดี สถานรับเลี้ยง
+     และโรงเรียน") */
+  {
+    key: 'daycare', label: 'สถานรับเลี้ยงเด็กกลางวัน', icon: 'child_care', path: '/clinic/daycare',
+    subItems: [
+      { key: 'dc-children-queue', label: 'เด็กในความดูแล',            path: '/clinic/daycare'            },
+      { key: 'dc-registry',       label: 'ทะเบียนเด็ก',               path: '/clinic/daycare/children'   },
+      { key: 'dc-lessons',        label: 'กิจกรรมการเรียนการสอน',     path: '/clinic/daycare/lessons'    },
+      { key: 'dc-monitoring',     label: 'ติดตามกิจกรรมที่ถึงกำหนด',  path: '/clinic/daycare/monitoring' },
     ],
   },
   /* งานระบาดวิทยา — TOR §1.2.3.6 (EPI-NET). เดิมเป็น submenu ใต้คัดกรอง แล้ว
