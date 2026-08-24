@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH BrandCircleSubdueIconButton — Figma "Brand Circle Subdue Icon Button"
    (node 2103:645). The only Circle Icon Button family with a true XSmall
@@ -136,7 +137,8 @@ const BrandCircleSubdueIconButton = React.forwardRef(function BrandCircleSubdueI
   const isFocus  = focused && !disabled;
   const isActiveForAria = active || selected;
   const isActiveForStyle = isActiveForAria || visualActive;
-  const dim = SIZES[size] || SIZES.md;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.md;
   const s = resolveStyles({ variant, isHover, active: isActiveForStyle, focused: isFocus, disabled });
   const isCheckGlyph = icon === 'check';
 

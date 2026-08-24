@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 import Tooltip from '@/components/tooltip/Tooltip';
 
 /** Tailwind-aligned min-widths: label shows at this width and up; below = icon-only when `collapseLabelBelow` is set. */
@@ -135,7 +136,8 @@ const NeutralSubdueButton = React.forwardRef(function NeutralSubdueButton(
   const [pressed, setPressed] = useState(false);
   const isHover = (hovered || hoveredProp) && !disabled;
   const styleType = variant === 'outlined' ? 'outline' : variant;
-  const dim = SIZES[size] || SIZES.sm;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.sm;
   const s = resolveStyles({ variant: styleType, isHover, active, focused, disabled });
   const renderLeadingIcon  = showLeadingIcon  !== undefined
     ? showLeadingIcon

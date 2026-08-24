@@ -38,7 +38,7 @@ export default function CreateConsentRequestHeaderAction({ className = '' }) {
       <BrandSubdueButton
         ref={triggerRef}
         variant='outline'
-        size='md'
+        size='sm'
         leadingIcon={CREATE_CONSENT_REQUEST_ICON}
         trailingIcon='expand_more'
         active={menuOpen}

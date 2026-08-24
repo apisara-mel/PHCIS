@@ -164,9 +164,17 @@ export const useLocalHeaderMorph = (hostRef, {
 /** Writes `--header-morph` (0→1) on `:root` from window scroll — one listener app-wide. */
 export const useGlobalHeaderMorph = () => {
   useEffect(() => {
+    let stepInline = false;
     const animator = createHeaderMorphAnimator((value, motion) => {
       document.documentElement.style.setProperty('--header-morph', value.toFixed(4));
       document.documentElement.style.setProperty('--header-morph-motion', motion.toFixed(4));
+      if (!stepInline && motion >= 0.35) {
+        stepInline = true;
+        document.documentElement.setAttribute('data-mih-step-inline', '1');
+      } else if (stepInline && motion <= 0.15) {
+        stepInline = false;
+        document.documentElement.removeAttribute('data-mih-step-inline');
+      }
     });
     const onScroll = () => animator.setTargetFromScroll(window.scrollY);
     onScroll();
@@ -176,6 +184,7 @@ export const useGlobalHeaderMorph = () => {
       animator.destroy();
       document.documentElement.style.removeProperty('--header-morph');
       document.documentElement.style.removeProperty('--header-morph-motion');
+      document.documentElement.removeAttribute('data-mih-step-inline');
     };
   }, []);
 };

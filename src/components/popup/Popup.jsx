@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import DangerButton from '@/components/button/DangerButton';
 import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMotion';
 
@@ -77,22 +78,6 @@ import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMoti
      type/family/body                 → subtitle font
      type/size/{base,sm}              → 16 / 14 */
 
-const Sym = ({ name, size = 16, color }) => (
-  <span
-    className='material-symbols-outlined'
-    style={{
-      fontFamily: 'Material Symbols Outlined',
-      fontSize: size,
-      color,
-      lineHeight: 1,
-      display: 'inline-flex',
-    }}
-    aria-hidden
-  >
-    {name}
-  </span>
-);
-
 /* Width per size variant — Figma:
      default     → 448px
      large       → 640px
@@ -149,66 +134,28 @@ const unlockBodyScroll = () => {
    Maps to design.md §7d Neutral Icon Button (Square) Ghost variant:
      Default — bg surface/neutralButton/quaternary       icon icon/neutralButton/default
      Hover   — bg surface/neutralButton/quaternary-hover icon icon/neutralButton/secondary */
-const CloseButton = ({ onClick }) => {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      type='button'
-      aria-label='ปิด'
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className='shrink-0 flex items-center justify-center transition-colors duration-150 ease-out'
-      style={{
-        width: 'var(--dim-size-600, 32px)',
-        height: 'var(--dim-size-600, 32px)',
-        background: hovered
-          ? 'var(--surface-neutralbutton-quaternary-hover, #F4F5F5)'
-          : 'var(--surface-neutralbutton-quaternary, #F9FBFB)',
-        border: 'none',
-        borderRadius: 'var(--dim-radius-200, 8px)',
-        cursor: 'pointer',
-        color: hovered
-          ? 'var(--icon-neutralbutton-secondary, #636B72)'
-          : 'var(--icon-neutralbutton-default, #4D5358)',
-      }}
-    >
-      <Sym name='close' size={16} color='currentColor' />
-    </button>
-  );
-};
+const CloseButton = ({ onClick }) => (
+  <NeutralSubdueIconButton
+    icon='close'
+    size='lg'
+    variant='fill'
+    aria-label='ปิด'
+    onClick={onClick}
+  />
+);
 
 /* Back (‹) icon button — same square-ghost treatment as CloseButton,
    mirrored to sit at the START of the header when a Popup shows a
    sub-screen it can step back out of (e.g. void-receipt reason form). */
-const BackButton = ({ onClick }) => {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      type='button'
-      aria-label='ย้อนกลับ'
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className='shrink-0 flex items-center justify-center transition-colors duration-150 ease-out'
-      style={{
-        width: 'var(--dim-size-600, 32px)',
-        height: 'var(--dim-size-600, 32px)',
-        background: hovered
-          ? 'var(--surface-neutralbutton-quaternary-hover, #F4F5F5)'
-          : 'var(--surface-neutralbutton-quaternary, #F9FBFB)',
-        border: 'none',
-        borderRadius: 'var(--dim-radius-200, 8px)',
-        cursor: 'pointer',
-        color: hovered
-          ? 'var(--icon-neutralbutton-secondary, #636B72)'
-          : 'var(--icon-neutralbutton-default, #4D5358)',
-      }}
-    >
-      <Sym name='arrow_back' size={16} color='currentColor' />
-    </button>
-  );
-};
+const BackButton = ({ onClick }) => (
+  <NeutralSubdueIconButton
+    icon='arrow_back'
+    size='lg'
+    variant='fill'
+    aria-label='ย้อนกลับ'
+    onClick={onClick}
+  />
+);
 
 /* Render a single footer action via the matching DS button.
    `kind` selects: tertiary → NeutralSubdueButton, secondary → BrandSubdueButton outline,
@@ -305,6 +252,7 @@ const Popup = ({
     stackIdRef.current = `popup-${Math.random().toString(36).slice(2)}`;
   }
   const stackId = stackIdRef.current;
+  const titleId = `${stackId}-title`;
   const { mounted, motionState } = useModalMotion(open, MODAL_MOTION_MS);
   const [stackDepth, setStackDepth] = useState(0);
 
@@ -338,6 +286,48 @@ const Popup = ({
     lockBodyScroll();
     return () => unlockBodyScroll();
   }, [mounted]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const previousFocus = document.activeElement;
+    const focusableSelector = [
+      'button:not([disabled])',
+      '[href]',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    const focusDialog = window.requestAnimationFrame(() => {
+      const focusables = dialogRef.current?.querySelectorAll(focusableSelector);
+      (focusables?.[0] || dialogRef.current)?.focus();
+    });
+    const trapFocus = (event) => {
+      if (event.key !== 'Tab' || !isTopPopup()) return;
+      const focusables = [...(dialogRef.current?.querySelectorAll(focusableSelector) || [])]
+        .filter((element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true');
+      if (focusables.length === 0) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', trapFocus);
+    return () => {
+      window.cancelAnimationFrame(focusDialog);
+      document.removeEventListener('keydown', trapFocus);
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [open, stackId]);
 
   if (!mounted) return null;
 
@@ -433,6 +423,9 @@ const Popup = ({
         ref={dialogRef}
         role='dialog'
         aria-modal='true'
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : 'หน้าต่างโต้ตอบ'}
+        tabIndex={-1}
         className={`mih-popup-dialog ${className}`.trim()}
         data-state={motionState}
         style={{
@@ -484,6 +477,7 @@ const Popup = ({
           >
             {title && (
               <p
+                id={titleId}
                 style={{
                   color: 'var(--text-modal-text)',
                   fontFamily: 'var(--type-family-heading-content)',

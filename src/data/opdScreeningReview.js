@@ -37,7 +37,14 @@ const hnKey = (hn) => String(hn || 'unknown');
 export const setScreeningSection = (hn, section, data) => {
   const all = read();
   const forHn = all[hnKey(hn)] || {};
-  all[hnKey(hn)] = { ...forHn, [section]: data };
+  all[hnKey(hn)] = {
+    ...forHn,
+    [section]: data,
+    _meta: {
+      ...(forHn._meta || {}),
+      updatedAt: new Date().toISOString(),
+    },
+  };
   write(all);
 };
 

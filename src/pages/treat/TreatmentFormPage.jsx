@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import React, {
+  useCallback, useEffect, useMemo, useRef, useState,
+} from 'react';
+import { Redirect, useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
 import Header from '@/components/layout/Header';
@@ -28,6 +30,13 @@ import { TREATMENT_QUEUE_ROWS, buildQueueSubMenuBuckets } from '@/data/treatment
 import { sendPrescriptionToPharmacy } from '@/data/pharmacyQueue';
 import { gateCpoeOrder } from '@/data/consentWorkflowStore';
 import AlertDialog from '@/components/popup/AlertDialog';
+import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
+import {
+  clearTreatmentDraft,
+  loadTreatmentDraft,
+  saveTreatmentDraft,
+  saveTreatmentRecord,
+} from '@/data/treatmentDraftStore';
 import {
   TREATMENT_DEFAULT_VITALS,
   TREATMENT_DEFAULT_SYMPTOMS,
@@ -216,6 +225,7 @@ const TreatmentFormPage = () => {
   const history = useHistory();
   const location = useLocation();
   const { state: navState } = location;
+  const [screeningRailCollapsed, setScreeningRailCollapsed] = useState(false);
 
   /* Patient identity used by the step bodies (MR shape — full address,
      rights, drugAllergies, etc.). */
@@ -242,15 +252,34 @@ const TreatmentFormPage = () => {
     [navState?.hn],
   );
 
+  const encounterHn = navState?.hn || '';
+  const visitKey = navState?.vn || navState?.queue || 'current';
+  const initialSessionRef = useRef(null);
+  if (initialSessionRef.current == null) {
+    const draft = encounterHn ? loadTreatmentDraft(encounterHn, visitKey) : null;
+    initialSessionRef.current = {
+      draft,
+      form: draft?.form || buildInitialForm(patient),
+    };
+  }
+
   /* /treat/cpoe is retained as a backwards-compatible deep link, but CPOE
      now lives in Step 6 of the OPD treatment record instead of opening a
      second page with its own duplicated patient header and stepper. */
   const [stepIndex, setStepIndex] = useState(() => (
     new URLSearchParams(location.search).get('step') === 'orders'
       ? CPOE_STEP_ORDERS
-      : 0
+      : initialSessionRef.current.draft?.stepIndex || 0
   ));
-  const [form, setForm] = useState(() => buildInitialForm(patient));
+  const [form, setForm] = useState(() => initialSessionRef.current.form);
+  const baselineJsonRef = useRef(JSON.stringify(initialSessionRef.current.form));
+  const formJson = useMemo(() => JSON.stringify(form), [form]);
+  const dirty = formJson !== baselineJsonRef.current;
+  const [draftStatus, setDraftStatus] = useState(() => ({
+    state: initialSessionRef.current.draft ? 'saved' : 'idle',
+    savedAt: initialSessionRef.current.draft?.savedAt || '',
+  }));
+  const [pendingNavigation, setPendingNavigation] = useState(null);
 
   const ActiveStep = STEP_RENDERERS[stepIndex];
   /* 8 ช่องตามลำดับ CPOE (แทรก SOAP ที่ step 4) — ห้ามใช้ตัวเดิม 7 ช่อง
@@ -294,9 +323,98 @@ const TreatmentFormPage = () => {
      the in-app stand-in for a CPOE→pharmacy message, since there's no
      real backend here. Disabled while Step 5 has no medication rows yet
      so it can't fire an empty prescription. */
-  const [pharmacySendToast, setPharmacySendToast] = useState(null);
+  const [pageToast, setPageToast] = useState(null);
   const [consentGateOpen, setConsentGateOpen] = useState(null);
-  const dismissPharmacySendToast = () => setPharmacySendToast(null);
+  const dismissPageToast = () => setPageToast(null);
+  const unblockRef = useRef(null);
+  const allowNavigationRef = useRef(false);
+
+  const persistDraft = useCallback(({ announce = true } = {}) => {
+    if (!encounterHn) return false;
+    setDraftStatus((current) => ({ ...current, state: 'saving' }));
+    const result = saveTreatmentDraft({
+      hn: encounterHn, visitKey, form, stepIndex,
+    });
+    if (!result.ok) {
+      setDraftStatus((current) => ({ ...current, state: 'error' }));
+      if (announce) {
+        setPageToast({ id: Date.now(), variant: 'error', message: 'บันทึกร่างไม่สำเร็จ กรุณาลองอีกครั้ง' });
+      }
+      return false;
+    }
+    baselineJsonRef.current = JSON.stringify(form);
+    setDraftStatus({ state: 'saved', savedAt: result.savedAt });
+    if (announce) {
+      setPageToast({ id: Date.now(), variant: 'success', message: 'บันทึกร่างแล้ว' });
+    }
+    return true;
+  }, [encounterHn, form, stepIndex, visitKey]);
+
+  /* A short encounter-scoped autosave keeps interruptions safe while the
+     visible footer continues to expose an explicit save action. */
+  useEffect(() => {
+    if (!dirty || !encounterHn) return undefined;
+    const timer = window.setTimeout(() => persistDraft({ announce: false }), 2000);
+    return () => window.clearTimeout(timer);
+  }, [dirty, encounterHn, persistDraft]);
+
+  useEffect(() => {
+    const stepTitle = CPOE_TREATMENT_STEPS[stepIndex]?.title || 'บันทึกการรักษา';
+    const previousTitle = document.title;
+    document.title = `${stepTitle} | ตรวจรักษาทั่วไป (OPD) | PHCIS`;
+    return () => { document.title = previousTitle; };
+  }, [stepIndex]);
+
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const beforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [dirty]);
+
+  /* Catch Sidebar/breadcrumb navigation as well as the local queue submenu.
+     The pending location is replayed only after the user saves or discards. */
+  useEffect(() => {
+    if (!dirty) return undefined;
+    allowNavigationRef.current = false;
+    const unblock = history.block((nextLocation) => {
+      if (allowNavigationRef.current) return undefined;
+      setPendingNavigation({ type: 'location', location: nextLocation });
+      return false;
+    });
+    unblockRef.current = unblock;
+    return () => {
+      if (unblockRef.current === unblock) unblockRef.current = null;
+      unblock();
+    };
+  }, [dirty, history]);
+
+  const continuePendingNavigation = useCallback(() => {
+    const target = pendingNavigation?.location;
+    setPendingNavigation(null);
+    if (!target) return;
+    allowNavigationRef.current = true;
+    unblockRef.current?.();
+    unblockRef.current = null;
+    history.push({
+      pathname: target.pathname,
+      search: target.search,
+      hash: target.hash,
+      state: target.state,
+    });
+  }, [history, pendingNavigation]);
+
+  const saveAndContinueNavigation = () => {
+    if (persistDraft()) continuePendingNavigation();
+  };
+
+  const discardAndContinueNavigation = () => {
+    baselineJsonRef.current = formJson;
+    continuePendingNavigation();
+  };
 
   /* §1.5.4.17 / §1.5.4.18–.21 — สองคำสัญญาบนหน้าจอที่ต้องบังคับใช้จริง:
      (1) med-rec ยังประสานไม่ครบ  (2) มีคำเตือน CDSS ระดับ "บล็อก"
@@ -326,7 +444,7 @@ const TreatmentFormPage = () => {
       medicalSupplies: form.medicalSupplies,
       vitals: form.vitals,
     });
-    setPharmacySendToast({
+    setPageToast({
       id: Date.now(),
       variant: row ? 'success' : 'error',
       message: row?.syncAction === 'updated'
@@ -339,8 +457,86 @@ const TreatmentFormPage = () => {
     });
   };
 
+  const validationMessageForStep = useCallback((index) => {
+    if (index === CPOE_STEP_INDEXES.soap && !completedSteps[index]) {
+      return 'กรุณาบันทึก SOAP Note อย่างน้อยหนึ่งหัวข้อก่อนดำเนินการต่อ';
+    }
+    if (index === CPOE_STEP_INDEXES.diagnosis && !completedSteps[index]) {
+      return 'กรุณาบันทึกการวินิจฉัย แผนการรักษา และแพทย์ผู้สั่งให้ครบ';
+    }
+    if (index === CPOE_STEP_INDEXES.appointment && !completedSteps[index]) {
+      return 'กรุณาระบุว่านัดหมายหรือไม่นัดหมาย และกรอกข้อมูลนัดให้ครบ';
+    }
+    if (index === CPOE_STEP_INDEXES.documents && !completedSteps[index]) {
+      return 'กรุณาระบุการออกเอกสารหรือใบรับรองแพทย์ให้เรียบร้อย';
+    }
+    return '';
+  }, [completedSteps]);
+
+  const validateStep = useCallback((index) => {
+    const message = validationMessageForStep(index);
+    if (!message) return true;
+    setPageToast({ id: Date.now(), variant: 'error', message });
+    return false;
+  }, [validationMessageForStep]);
+
+  const requestStepChange = useCallback((nextIndex) => {
+    if (nextIndex === stepIndex) return;
+    if (nextIndex > stepIndex && !validateStep(stepIndex)) return;
+    setStepIndex(nextIndex);
+  }, [stepIndex, validateStep]);
+
+  const validateBeforeFinish = useCallback(() => {
+    const requiredSteps = [
+      CPOE_STEP_INDEXES.soap,
+      CPOE_STEP_INDEXES.diagnosis,
+      CPOE_STEP_INDEXES.appointment,
+      CPOE_STEP_INDEXES.documents,
+    ];
+    const missingStep = requiredSteps.find((index) => !completedSteps[index]);
+    if (missingStep == null) return true;
+    const message = validationMessageForStep(missingStep)
+      || `กรุณาตรวจสอบขั้นตอน ${CPOE_TREATMENT_STEPS[missingStep]?.title || missingStep + 1}`;
+    setPageToast({ id: Date.now(), variant: 'error', message });
+    setStepIndex(missingStep);
+    return false;
+  }, [completedSteps, validationMessageForStep]);
+
+  const handleFinish = useCallback(() => {
+    const result = saveTreatmentRecord({ hn: encounterHn, visitKey, form });
+    if (!result.ok) {
+      setPageToast({ id: Date.now(), variant: 'error', message: 'จบการบันทึกไม่สำเร็จ กรุณาลองอีกครั้ง' });
+      return false;
+    }
+    clearTreatmentDraft(encounterHn, visitKey);
+    baselineJsonRef.current = JSON.stringify(form);
+    allowNavigationRef.current = true;
+    return true;
+  }, [encounterHn, form, visitKey]);
+
+  const draftStatusText = useMemo(() => {
+    if (draftStatus.state === 'saving') return 'กำลังบันทึกร่าง…';
+    if (draftStatus.state === 'error') return 'บันทึกร่างไม่สำเร็จ';
+    if (dirty) return 'มีการแก้ไขที่ยังไม่บันทึก';
+    if (draftStatus.savedAt) {
+      const savedTime = new Date(draftStatus.savedAt).toLocaleTimeString('th-TH', {
+        hour: '2-digit', minute: '2-digit',
+      });
+      return `บันทึกร่างล่าสุด ${savedTime} น.`;
+    }
+    return 'ยังไม่มีร่างที่บันทึก';
+  }, [dirty, draftStatus]);
+
+  if (!encounterHn) return <Redirect to='/treat/queue' />;
+
   return (
     <ClinicFilterProvider>
+    <UnsavedChangesPopup
+      open={!!pendingNavigation}
+      onClose={() => setPendingNavigation(null)}
+      onSave={saveAndContinueNavigation}
+      onDiscard={discardAndContinueNavigation}
+    />
     <div className='flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
       <Sidebar activeKey='treat' />
       {/* QueueSubMenu — Figma "Sub Menu B" (PHCIS-ALL 2624:122779
@@ -373,7 +569,7 @@ const TreatmentFormPage = () => {
               <BrandSubdueButton
                 variant='outline'
                 leadingIcon='assignment_add'
-                onClick={() => setStepIndex(CPOE_STEP_ORDERS)}
+                onClick={() => requestStepChange(CPOE_STEP_ORDERS)}
               >
                 ไป Step 6: CPOE
               </BrandSubdueButton>
@@ -392,7 +588,7 @@ const TreatmentFormPage = () => {
               <BrandSubdueButton
                 variant='outline'
                 leadingIcon='medication'
-                onClick={() => setStepIndex(CPOE_STEP_DOCUMENTS)}
+                onClick={() => requestStepChange(CPOE_STEP_DOCUMENTS)}
               >
                 พิมพ์ใบสั่งยา
               </BrandSubdueButton>
@@ -400,7 +596,7 @@ const TreatmentFormPage = () => {
             </>
           }
         />
-        <PhcisTopToast session={pharmacySendToast} onDismiss={dismissPharmacySendToast} />
+        <PhcisTopToast session={pageToast} onDismiss={dismissPageToast} />
         <AlertDialog
           open={!!consentGateOpen}
           type='warning'
@@ -419,10 +615,24 @@ const TreatmentFormPage = () => {
         <TreatmentFormShell
           steps={CPOE_TREATMENT_STEPS}
           stepIndex={stepIndex}
-          onStepChange={setStepIndex}
+          onStepChange={requestStepChange}
           completedSteps={completedSteps}
           hideMorphTitle
-          sidePanel={<ScreeningSummaryRail patient={patient} />}
+          sidePanelCollapsed={screeningRailCollapsed}
+          sidePanel={(
+            <ScreeningSummaryRail
+              patient={patient}
+              collapsed={screeningRailCollapsed}
+              onToggle={() => setScreeningRailCollapsed((value) => !value)}
+            />
+          )}
+          onLeave={() => history.push('/treat/queue')}
+          onSaveDraft={() => persistDraft()}
+          draftStatusText={draftStatusText}
+          draftDirty={dirty}
+          draftSaving={draftStatus.state === 'saving'}
+          onBeforeFinish={validateBeforeFinish}
+          onFinish={handleFinish}
         >
           {/* `cardPatient` mirrors what the sticky PatientCard header
               renders (fullName / insurance), so Step 6's mini patient
@@ -441,7 +651,7 @@ const TreatmentFormPage = () => {
             setForm={setForm}
             patient={patient}
             cardPatient={cardPatient}
-            onStepChange={setStepIndex}
+            onStepChange={requestStepChange}
             stepIndexes={CPOE_STEP_INDEXES}
           />
         </TreatmentFormShell>

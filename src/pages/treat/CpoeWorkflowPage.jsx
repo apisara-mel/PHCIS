@@ -27,6 +27,7 @@ import {
   CPOE_TYPE_META,
   buildNewTrackingRows,
 } from '@/data/cpoeWorkflow';
+import { XRAY_EXAM_BY_ID } from '@/data/xrayCatalog';
 import {
   InfoPair,
   PanelCard,
@@ -65,8 +66,7 @@ const TYPE_FILTERS = [
   { key: 'procedure', label: 'Procedure', icon: 'medical_services' },
 ];
 
-const patient = PATIENT_PROFILES.find((item) => item.hn === '67-00003') || PATIENT_PROFILES[0];
-const DRAFT_KEY = 'mih:cpoe-workflow:draft:67-00003';
+const DEMO_PATIENT = PATIENT_PROFILES.find((item) => item.hn === '67-00003') || PATIENT_PROFILES[0];
 
 const initialHeader = {
   requestingUnit: 'opd-2',
@@ -127,7 +127,7 @@ const OrderTitle = ({ order }) => (
   </div>
 );
 
-const PatientBanner = () => (
+const PatientBanner = ({ patient }) => (
   <section
     className='w-full flex flex-col lg:flex-row lg:items-center'
     style={{
@@ -186,13 +186,24 @@ const MetricCard = ({ icon, label, value, tone = 'info' }) => (
   </div>
 );
 
-const CpoeWorkflowPage = () => {
+const treatmentOrderIds = (form) => [
+  ...(form?.labs || []).map((item) => item.testId),
+  ...(form?.xrayOrders || []).map((item) => item.examId),
+  ...(form?.procedureOrders || []).map((item) => `procedure-${item.code}`),
+].filter((id) => CPOE_CATALOG_BY_ID[id]);
+
+const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setForm }) => {
   const history = useHistory();
-  const [step, setStep] = useState(0);
-  const [header, setHeader] = useState(initialHeader);
-  const [safety, setSafety] = useState(initialSafety);
-  const [selectedIds, setSelectedIds] = useState(CPOE_INITIAL_ORDER_IDS);
-  const [delivery, setDelivery] = useState(initialDelivery);
+  const patient = patientProp || DEMO_PATIENT;
+  const workflowSeed = form?.cpoeWorkflow || {};
+  const draftKey = `mih:cpoe-workflow:draft:${patient?.hn || 'unknown'}`;
+  const [step, setStep] = useState(workflowSeed.step || 0);
+  const [header, setHeader] = useState(workflowSeed.header || initialHeader);
+  const [safety, setSafety] = useState(workflowSeed.safety || initialSafety);
+  const [selectedIds, setSelectedIds] = useState(
+    workflowSeed.selectedIds || (embedded ? treatmentOrderIds(form) : CPOE_INITIAL_ORDER_IDS),
+  );
+  const [delivery, setDelivery] = useState(workflowSeed.delivery || initialDelivery);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [coverageOnly, setCoverageOnly] = useState(false);
@@ -201,8 +212,8 @@ const CpoeWorkflowPage = () => {
   const [attest, setAttest] = useState(false);
   const [signPin, setSignPin] = useState('');
   const [signatureError, setSignatureError] = useState('');
-  const [routing, setRouting] = useState([]);
-  const [trackingRows, setTrackingRows] = useState(CPOE_RECENT_RESULTS);
+  const [routing, setRouting] = useState(workflowSeed.routing || []);
+  const [trackingRows, setTrackingRows] = useState(workflowSeed.trackingRows || CPOE_RECENT_RESULTS);
   const [trackingQuery, setTrackingQuery] = useState('');
   const [trackingType, setTrackingType] = useState('all');
   const [trackingStatus, setTrackingStatus] = useState('all');
@@ -253,13 +264,41 @@ const CpoeWorkflowPage = () => {
     }
     setDirty(true);
     const timer = window.setTimeout(() => {
-      const payload = { header, safety, selectedIds, delivery, savedAt: new Date().toISOString() };
-      window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+      const payload = {
+        step, header, safety, selectedIds, delivery, routing, trackingRows,
+        savedAt: new Date().toISOString(),
+      };
+      window.sessionStorage.setItem(draftKey, JSON.stringify(payload));
       setLastSaved(`บันทึกล่าสุด ${nowLabel()} น.`);
       setDirty(false);
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [delivery, header, safety, selectedIds]);
+  }, [delivery, draftKey, header, routing, safety, selectedIds, step, trackingRows]);
+
+  /* Embedded mode is the canonical Step 6 CPOE surface. Keep every field
+     on TreatmentFormPage's encounter-scoped form so the page-level draft,
+     dirty guard, and patient switch safety cover this workflow too. */
+  useEffect(() => {
+    if (!embedded || !setForm) return;
+    const nextWorkflow = {
+      step, header, safety, selectedIds, delivery, routing, trackingRows,
+    };
+    setForm((current) => {
+      if (JSON.stringify(current.cpoeWorkflow || {}) === JSON.stringify(nextWorkflow)) return current;
+      return { ...current, cpoeWorkflow: nextWorkflow };
+    });
+  }, [delivery, embedded, header, routing, safety, selectedIds, setForm, step, trackingRows]);
+
+  /* Category panels and the unified picker edit the same order arrays.
+     Reconcile curated Lab/Radiology/Procedure IDs back into the workflow
+     whenever a row is added or removed from either surface. */
+  useEffect(() => {
+    if (!embedded) return;
+    const next = treatmentOrderIds(form);
+    setSelectedIds((current) => (
+      JSON.stringify(current) === JSON.stringify(next) ? current : next
+    ));
+  }, [embedded, form?.labs, form?.procedureOrders, form?.xrayOrders]);
 
   useEffect(() => {
     const guard = (event) => {
@@ -296,7 +335,82 @@ const CpoeWorkflowPage = () => {
     ));
   }, [coverageOnly, query, typeFilter]);
 
-  const toggleOrder = (id) => setSelectedIds((current) => (
+  const syncTreatmentOrders = (nextIds) => {
+    if (!embedded || !setForm) return;
+    const wanted = new Set(nextIds);
+    const catalogLabIds = new Set(CPOE_CATALOG.filter((item) => item.type === 'lab').map((item) => item.id));
+    const catalogXrayIds = new Set(CPOE_CATALOG.filter((item) => item.type === 'xray').map((item) => item.id));
+    const catalogProcedureCodes = new Set(
+      CPOE_CATALOG.filter((item) => item.type === 'procedure').map((item) => item.code),
+    );
+    setForm((current) => {
+      const labs = (current.labs || []).filter((item) => (
+        !catalogLabIds.has(item.testId) || wanted.has(item.testId)
+      ));
+      CPOE_CATALOG.filter((item) => item.type === 'lab' && wanted.has(item.id)).forEach((item) => {
+        if (!labs.some((row) => row.testId === item.id)) {
+          labs.push({
+            id: `lab-${item.id}-${Date.now()}`,
+            testId: item.id,
+            urgency: header.urgency,
+            note: header.physicianQuestion,
+            quantity: 1,
+            unit: 'ครั้ง',
+          });
+        }
+      });
+
+      const xrayOrders = (current.xrayOrders || []).filter((item) => (
+        !catalogXrayIds.has(item.examId) || wanted.has(item.examId)
+      ));
+      CPOE_CATALOG.filter((item) => item.type === 'xray' && wanted.has(item.id)).forEach((item) => {
+        if (!xrayOrders.some((row) => row.examId === item.id)) {
+          xrayOrders.push({
+            examId: item.id,
+            view: XRAY_EXAM_BY_ID[item.id]?.views?.[0] || '',
+            urgency: header.urgency,
+            note: header.physicianQuestion,
+            quantity: 1,
+            unit: 'ครั้ง',
+          });
+        }
+      });
+
+      const procedureOrders = (current.procedureOrders || []).filter((item) => (
+        !catalogProcedureCodes.has(item.code) || wanted.has(`procedure-${item.code}`)
+      ));
+      CPOE_CATALOG.filter((item) => item.type === 'procedure' && wanted.has(item.id)).forEach((item) => {
+        if (!procedureOrders.some((row) => row.code === item.code)) {
+          procedureOrders.push({
+            id: `proc-${Date.now()}-${item.code}`,
+            code: item.code,
+            name: item.name,
+            startDate: new Date().toISOString().slice(0, 10),
+            startTime: '',
+            endDate: '',
+            endTime: '',
+            site: '',
+            qty: 1,
+            unit: 'ครั้ง',
+            unitPrice: item.price,
+            claimPerUnit: item.covered ? item.price : 0,
+            performer: 'somying',
+            detail: header.physicianQuestion,
+            urgency: header.urgency,
+          });
+        }
+      });
+      return { ...current, labs, xrayOrders, procedureOrders };
+    });
+  };
+
+  const updateSelectedIds = (updater) => {
+    const next = typeof updater === 'function' ? updater(selectedIds) : updater;
+    setSelectedIds(next);
+    syncTreatmentOrders(next);
+  };
+
+  const toggleOrder = (id) => updateSelectedIds((current) => (
     current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
   ));
 
@@ -430,7 +544,10 @@ const CpoeWorkflowPage = () => {
   };
 
   const saveNowAndLeave = () => {
-    window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ header, safety, selectedIds, delivery, savedAt: new Date().toISOString() }));
+    window.sessionStorage.setItem(draftKey, JSON.stringify({
+      step, header, safety, selectedIds, delivery, routing, trackingRows,
+      savedAt: new Date().toISOString(),
+    }));
     setDirty(false);
     history.push('/treat/record');
   };
@@ -682,7 +799,7 @@ const CpoeWorkflowPage = () => {
         <PanelCard
           title={`ตะกร้าคำสั่ง (${selectedOrders.length})`}
           subtitle='รายการจะคงอยู่เมื่อเปลี่ยนหน้า'
-          action={selectedOrders.length ? <DangerSubdueButton size='sm' variant='outline' onClick={() => setSelectedIds([])}>ล้างทั้งหมด</DangerSubdueButton> : null}
+          action={selectedOrders.length ? <DangerSubdueButton size='sm' variant='outline' onClick={() => updateSelectedIds([])}>ล้างทั้งหมด</DangerSubdueButton> : null}
         >
           {selectedOrders.length ? selectedOrders.map((order) => (
             <div
@@ -901,7 +1018,7 @@ const CpoeWorkflowPage = () => {
                   {selectedTracking.status === 'sent' ? 'ยกเลิกคำสั่ง' : 'ขอแก้ไข/ยกเลิก'}
                 </DangerSubdueButton>
               ) : null}
-              {['reported', 'critical'].includes(selectedTracking.status) ? <BrandSubdueButton size='sm' leadingIcon='replay' onClick={() => { const matched = CPOE_CATALOG.find((item) => selectedTracking.item.includes(item.name.split('—')[0].trim())); if (matched && !selectedIds.includes(matched.id)) setSelectedIds((current) => [...current, matched.id]); setStep(0); }}>สั่งซ้ำ</BrandSubdueButton> : null}
+              {['reported', 'critical'].includes(selectedTracking.status) ? <BrandSubdueButton size='sm' leadingIcon='replay' onClick={() => { const matched = CPOE_CATALOG.find((item) => selectedTracking.item.includes(item.name.split('—')[0].trim())); if (matched && !selectedIds.includes(matched.id)) updateSelectedIds((current) => [...current, matched.id]); setStep(0); }}>สั่งซ้ำ</BrandSubdueButton> : null}
               {['reported', 'critical'].includes(selectedTracking.status) ? <NeutralSubdueButton size='sm' variant='outline' leadingIcon='forward_to_inbox'>ส่งต่อผล</NeutralSubdueButton> : null}
             </div>
           </PanelCard>
@@ -911,6 +1028,117 @@ const CpoeWorkflowPage = () => {
   };
 
   const screen = [renderCreateOrder, renderSelectOrders, renderReview, renderTracking][step]();
+
+  if (embedded) {
+    return (
+      <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+        {toast ? (
+          <Alert
+            type='success'
+            title={toast}
+            showDetail={false}
+            showBadge={false}
+            showIndicator={false}
+            onClose={() => setToast('')}
+          />
+        ) : null}
+
+        <PanelCard
+          title='รายละเอียดกระบวนการ CPOE'
+          subtitle='สร้าง เลือก ตรวจสอบ ลงนาม ส่ง และติดตามคำสั่ง Lab, Radiology และ Procedure ภายใน Step 6 เดียวกัน'
+          action={(
+            <StatusBadge style={dirty ? 'warning' : 'success'} size='small' icon={dirty ? 'sync' : 'cloud_done'}>
+              {dirty ? 'กำลังบันทึกร่าง…' : lastSaved}
+            </StatusBadge>
+          )}
+        >
+          <div className='w-full overflow-x-auto' style={{ paddingTop: 'var(--dim-space-200)', paddingBottom: 'var(--dim-space-200)' }}>
+            <StepProgress
+              steps={STEPS}
+              current={step}
+              completedSteps={STEPS.map((_, index) => index < step || (index === 2 && routingComplete))}
+              onStepClick={(index) => {
+                if (index <= step || (index === 3 && routingComplete)) setStep(index);
+              }}
+              compact
+              labelNoWrap
+            />
+          </div>
+        </PanelCard>
+
+        {screen}
+
+        <div
+          className='flex items-center flex-wrap w-full'
+          style={{
+            gap: 'var(--dim-space-300)',
+            padding: 'var(--dim-space-400)',
+            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+            borderRadius: 'var(--dim-radius-400)',
+            background: 'var(--surface-navigation-default)',
+            boxShadow: 'var(--shadow-brand-drop-top-100)',
+          }}
+        >
+          {step > 0 ? (
+            <NeutralSubdueButton size='lg' leadingIcon='arrow_back' onClick={() => setStep((current) => current - 1)}>
+              ย้อนกลับ
+            </NeutralSubdueButton>
+          ) : null}
+          <div className='flex-1 min-w-0' />
+          <BrandSubdueButton
+            size='lg'
+            variant='outline'
+            leadingIcon={step === 3 ? 'download' : 'save'}
+            onClick={() => setToast(step === 3 ? 'เตรียมไฟล์ CSV แล้ว' : 'บันทึกร่าง CPOE เรียบร้อยแล้ว')}
+          >
+            {step === 3 ? 'ส่งออก CSV' : 'บันทึกร่าง CPOE'}
+          </BrandSubdueButton>
+          <BrandButton
+            size='lg'
+            leadingIcon={step === 2 && routing.length === 0 ? 'verified' : step === 3 ? 'refresh' : undefined}
+            trailingIcon={step < 3 && !(step === 2 && routing.length === 0) ? 'arrow_forward' : undefined}
+            onClick={goNext}
+            disabled={nextDisabled}
+          >
+            {nextLabel}
+          </BrandButton>
+        </div>
+
+        <AlertDialog
+          open={!!cancelTarget}
+          type='warning'
+          title={cancelTarget?.status === 'sent' ? 'ยกเลิกคำสั่งก่อนปลายทางรับ' : 'ส่งคำขอแก้ไข/ยกเลิกไปยังปลายทาง'}
+          description={cancelTarget ? `${cancelTarget.id} · ${cancelTarget.item}` : ''}
+          confirmLabel={cancelTarget?.status === 'sent' ? 'ยืนยันยกเลิก' : 'ส่งคำขอ'}
+          cancelLabel='กลับ'
+          onConfirm={confirmCancel}
+          onCancel={() => { setCancelTarget(null); setCancelReason(''); }}
+          onClose={() => { setCancelTarget(null); setCancelReason(''); }}
+        >
+          <InputField
+            label='เหตุผล'
+            required
+            value={cancelReason}
+            onChange={setCancelReason}
+            placeholder='ระบุเหตุผลเพื่อบันทึก Audit และแจ้งปลายทาง'
+            error={cancelTarget && !cancelReason.trim() ? 'จำเป็นต้องระบุเหตุผล' : undefined}
+          />
+        </AlertDialog>
+
+        <AlertDialog
+          open={!!ackTarget}
+          type='warning'
+          title='ยืนยันรับทราบผลวิกฤต'
+          description={ackTarget ? `${ackTarget.id} · ${ackTarget.result} · การยืนยันนี้จะบันทึกชื่อแพทย์และเวลาใน Audit log` : ''}
+          confirmLabel='รับทราบและบันทึก'
+          cancelLabel='กลับ'
+          onConfirm={acknowledgeCritical}
+          onCancel={() => setAckTarget(null)}
+          onClose={() => setAckTarget(null)}
+        />
+      </section>
+    );
+  }
 
   return (
     <div className='mih-cpoe-workflow flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100)' }}>
@@ -944,7 +1172,7 @@ const CpoeWorkflowPage = () => {
             </div>
           </div>
 
-          <PatientBanner />
+          <PatientBanner patient={patient} />
           <div className='w-full overflow-x-auto' style={{ paddingTop: 'var(--dim-space-200)', paddingBottom: 'var(--dim-space-200)' }}>
             <StepProgress steps={STEPS} current={step} completedSteps={STEPS.map((_, index) => index < step || (index === 2 && routingComplete))} onStepClick={(index) => { if (index <= step || (index === 3 && routingComplete)) setStep(index); }} compact labelNoWrap />
           </div>
@@ -1052,4 +1280,5 @@ const CpoeWorkflowPage = () => {
   );
 };
 
+export { CpoeWorkflowPage as CpoeWorkflowPanel };
 export default CpoeWorkflowPage;

@@ -152,6 +152,9 @@ export default function PhcisTopToast({ session, onDismiss }) {
   const inner = (
     <div
       className='phcis-top-toast__inner'
+      role={variant === 'error' ? 'alert' : 'status'}
+      aria-live={variant === 'error' ? 'assertive' : 'polite'}
+      aria-atomic='true'
       onMouseEnter={hasAction ? handlePointerEnter : undefined}
       onMouseLeave={hasAction ? handlePointerLeave : undefined}
       style={{
