@@ -984,6 +984,135 @@ export const Step2Screening = ({ patient, title = 'คัดกรองแล�
   );
 };
 
+/* Persistent quick-look rail for the doctor's OPD record. This deliberately
+   keeps only safety-critical screening facts; Step 2 remains available for
+   the complete read-only screening record and its four detail tabs. */
+const ScreeningRailMetric = ({ label, value }) => (
+  <div
+    className='flex flex-col min-w-0'
+    style={{
+      gap: 'var(--dim-space-050, 2px)',
+      padding: 'var(--dim-space-300, 12px)',
+      borderRadius: 'var(--dim-radius-300, 12px)',
+      background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+    }}
+  >
+    <span style={{
+      color: 'var(--text-content-tertiary, #697077)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs, 12px)',
+    }}>
+      {label}
+    </span>
+    <span style={{
+      color: 'var(--text-content-default, #202427)',
+      fontFamily: 'var(--type-family-heading-content)',
+      fontSize: 'var(--type-size-sm, 14px)',
+      fontWeight: 'var(--type-weight-medium, 500)',
+      overflowWrap: 'anywhere',
+    }}>
+      {value || '—'}
+    </span>
+  </div>
+);
+
+export const ScreeningSummaryRail = ({ patient }) => {
+  const summary = useMemo(
+    () => (patient ? getCarriedScreening(patient) : DEFAULT_SCREENING_SUMMARY),
+    [patient],
+  );
+  const latestVitals = summary.measurementRounds?.[0]?.vitals || summary.vitals || {};
+  const carriedVitals = Object.fromEntries(
+    (summary.vitalItems || []).map((item) => [item.label, item.value]),
+  );
+  const vitalMetrics = [
+    { label: 'อุณหภูมิ', value: carriedVitals.อุณหภูมิ || (latestVitals.temp?.value ? `${latestVitals.temp.value} °C` : '') },
+    { label: 'ชีพจร', value: latestVitals.pr?.value ? `${latestVitals.pr.value} ครั้ง/นาที` : '' },
+    { label: 'ความดัน', value: carriedVitals['ความดันโลหิต'] || (latestVitals.bp?.value ? `${latestVitals.bp.value} mmHg` : '') },
+    { label: 'SpO₂', value: latestVitals.spo2?.value ? `${latestVitals.spo2.value}%` : '' },
+    { label: 'น้ำหนัก', value: carriedVitals.น้ำหนัก || (latestVitals.weight?.value ? `${latestVitals.weight.value} กก.` : '') },
+    { label: 'ส่วนสูง', value: carriedVitals.ส่วนสูง || (latestVitals.height?.value ? `${latestVitals.height.value} ซม.` : '') },
+  ];
+
+  return (
+    <section
+      className='flex flex-col w-full'
+      style={{
+        gap: 'var(--dim-space-400, 16px)',
+        padding: 'var(--dim-space-400, 16px)',
+        borderRadius: 'var(--dim-radius-500, 20px)',
+        border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+        background: 'var(--surface-card-100, #FFFFFF)',
+        boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+      }}
+    >
+      <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        <span
+          className='inline-flex items-center justify-center shrink-0'
+          style={{
+            width: 'var(--dim-size-800, 40px)',
+            height: 'var(--dim-size-800, 40px)',
+            borderRadius: 'var(--dim-radius-full, 9999px)',
+            background: 'var(--surface-brandPrimary-quaternary, #E2F3EB)',
+            color: 'var(--icon-brandPrimary-default, #007549)',
+          }}
+        >
+          <Sym name='vital_signs' size='var(--dim-size-500, 24px)' color='currentColor' />
+        </span>
+        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+          <span style={{
+            color: 'var(--text-topic-primary-title, #007549)',
+            fontFamily: 'var(--type-family-heading-content)',
+            fontSize: 'var(--type-size-base, 16px)',
+            fontWeight: 'var(--type-weight-medium, 500)',
+          }}>
+            สรุปคัดกรองและซักประวัติ
+          </span>
+          <span style={{
+            color: 'var(--text-content-tertiary, #697077)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-xs, 12px)',
+          }}>
+            ข้อมูลล่าสุดจากจุดคัดกรอง
+          </span>
+        </div>
+      </div>
+
+      <div className='grid grid-cols-2' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        {vitalMetrics.map((metric) => <ScreeningRailMetric key={metric.label} {...metric} />)}
+      </div>
+
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        <ScreeningRailMetric label='อาการสำคัญ' value={summary.cc} />
+        <ScreeningRailMetric label='ระยะเวลาที่มีอาการ' value={summary.duration} />
+      </div>
+
+      <div className='flex items-center justify-between' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        <span style={{
+          color: 'var(--text-content-secondary, #454B50)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm, 14px)',
+        }}>
+          ระดับคัดกรอง
+        </span>
+        <ColorfulBadge style={summary.triage.tone} size='small' hierarchy='secondary'>
+          {`Level ${summary.triage.level} · ${summary.triage.label}`}
+        </ColorfulBadge>
+      </div>
+
+      <ScreeningRailMetric label='Pain score' value={summary.pain?.label} />
+      <ScreeningRailMetric
+        label='ประวัติแพ้ยา / สารเคมี'
+        value={(summary.allergies || []).map((item) => item.name).join(', ') || 'ไม่พบข้อมูล'}
+      />
+      <ScreeningRailMetric
+        label='โรคประจำตัว'
+        value={(summary.chronicDiseases || []).map((item) => item.name).join(', ') || 'ไม่พบข้อมูล'}
+      />
+    </section>
+  );
+};
+
 /* Treatment step grey panels — Figma 151:36633 · 317:29773 (บันทึกการตรวจ · บันทึกจากการตรวจร่างกาย · วินิจฉัย) */
 const TREATMENT_GREY_PANEL_SHELL = {
   gap: 'var(--dim-space-300)',

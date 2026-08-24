@@ -10,12 +10,13 @@ import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
 import {
   Step1History, Step2Screening, Step3Examination, Step4DoctorRecord,
-  Step5Orders, Step6Appointment,
+  Step5Orders, Step6Appointment, ScreeningSummaryRail,
 } from '@/components/forms/TreatmentSteps';
 import SoapNotePanel from '@/pages/treat/panels/SoapNotePanel';
 import CpoeDocumentsStep from '@/pages/treat/panels/CpoeDocumentsStep';
 import {
-  CPOE_TREATMENT_STEPS, getCpoeCompletedSteps, cpoeStepIndex, CPOE_STEP_DOCUMENTS,
+  CPOE_TREATMENT_STEPS, getCpoeCompletedSteps, cpoeStepIndex,
+  CPOE_STEP_ORDERS, CPOE_STEP_DOCUMENTS,
 } from '@/pages/treat/cpoeSteps';
 import { blankSoap } from '@/data/treatmentSoap';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
@@ -213,7 +214,8 @@ const CPOE_STEP_INDEXES = {
 
 const TreatmentFormPage = () => {
   const history = useHistory();
-  const { state: navState } = useLocation();
+  const location = useLocation();
+  const { state: navState } = location;
 
   /* Patient identity used by the step bodies (MR shape — full address,
      rights, drugAllergies, etc.). */
@@ -240,7 +242,14 @@ const TreatmentFormPage = () => {
     [navState?.hn],
   );
 
-  const [stepIndex, setStepIndex] = useState(0);
+  /* /treat/cpoe is retained as a backwards-compatible deep link, but CPOE
+     now lives in Step 6 of the OPD treatment record instead of opening a
+     second page with its own duplicated patient header and stepper. */
+  const [stepIndex, setStepIndex] = useState(() => (
+    new URLSearchParams(location.search).get('step') === 'orders'
+      ? CPOE_STEP_ORDERS
+      : 0
+  ));
   const [form, setForm] = useState(() => buildInitialForm(patient));
 
   const ActiveStep = STEP_RENDERERS[stepIndex];
@@ -356,7 +365,7 @@ const TreatmentFormPage = () => {
           sticky
           showBack={false}
           patient={cardPatient}
-          title='บันทึกการรักษา'
+          title='ตรวจรักษาทั่วไป (OPD)'
           drugAllergies={patient.drugAllergies}
           chronicDiseases={patient.chronicDiseases}
           actions={
@@ -364,9 +373,9 @@ const TreatmentFormPage = () => {
               <BrandSubdueButton
                 variant='outline'
                 leadingIcon='assignment_add'
-                onClick={() => history.push('/treat/cpoe')}
+                onClick={() => setStepIndex(CPOE_STEP_ORDERS)}
               >
-                เปิด CPOE แบบรวม
+                ไป Step 6: CPOE
               </BrandSubdueButton>
               <GuardedAction allowed={canSendToPharmacy} reason={sendBlockReason}>
                 <BrandSubdueButton
@@ -412,7 +421,8 @@ const TreatmentFormPage = () => {
           stepIndex={stepIndex}
           onStepChange={setStepIndex}
           completedSteps={completedSteps}
-          morphTitle='ตรวจรักษาทั่วไป (OPD)'
+          hideMorphTitle
+          sidePanel={<ScreeningSummaryRail patient={patient} />}
         >
           {/* `cardPatient` mirrors what the sticky PatientCard header
               renders (fullName / insurance), so Step 6's mini patient

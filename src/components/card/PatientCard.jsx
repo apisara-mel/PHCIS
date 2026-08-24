@@ -179,7 +179,8 @@ const PatientCard = ({
      card with 44px avatar, 24h HN/VIP pills, four right-aligned summary
      fields (สิทธิ์ · หมู่เลือด · ประเภท · แพทย์), title row collapsed,
      and the แพ้ยา / โรคประจำตัว labels inline with their badges. Drops
-     เพศ / อายุ / เลขบัตรประชาชน / ที่อยู่ to keep the header tight. */
+     เพศ / อายุ / เลขบัตรประชาชน to keep the header tight. Address stays
+     in the medical record detail instead of this clinical safety card. */
   compact: compactProp,
   /* Figma 343:1926 parallax header. When true, PatientCard owns the
      sticky chrome: it renders a 1px sentinel above itself, observes
@@ -383,7 +384,9 @@ const PatientCard = ({
       {/* Patient info gradient card — compact (Figma 343:5629 mini) or
           full (Figma 150:33649). Compact: single row, 44px avatar, 24h
           HN/VIP pills, four right-aligned summary fields. Full: 68px
-          avatar, 32h pills, summary fields in one horizontal row. */}
+          avatar, 32h pills, summary fields in one horizontal row. The
+          address is intentionally omitted here; it belongs in the medical
+          record detail, not in the always-visible clinical safety card. */}
       <div
         className='w-full rounded-card flex'
         style={{
@@ -490,7 +493,6 @@ const PatientCard = ({
             <Field label='ประเภท' value={patient.patientType} />
             <Field label='แพทย์เจ้าของคนไข้' value={patient.doctor} minWidth={160} />
             <Field label='สิทธิ์การรักษา' value={patient.insurance} minWidth={220} />
-            <Field label='ที่อยู่' value={patient.address} minWidth={280} />
           </div>
         )}
       </div>
