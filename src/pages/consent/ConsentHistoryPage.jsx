@@ -638,9 +638,9 @@ export default function ConsentHistoryPage() {
 
   return (
     <QueuePageShell
-      activeKey='consent-manage'
+      activeKey='consent-history'
       sidebarItems={CONSENT_NAV}
-      sidebarFallbackKey='consent-manage'
+      sidebarFallbackKey='consent-history'
       brandTitle='ระบบจัดการความยินยอม'
       breadcrumb={hn ? breadcrumbTimeline : breadcrumbSearch}
       title={hn ? 'Timeline การเปลี่ยนแปลงความยินยอม' : 'ประวัติความยินยอม'}

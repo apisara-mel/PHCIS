@@ -468,6 +468,7 @@ const ConsentWizardHeader = React.memo(function ConsentWizardHeader({
   return (
     <WizardMorphHeader
       title='สร้างแบบฟอร์มจัดการความยินยอมใหม่'
+      className='min-w-0 overflow-hidden'
       afterTitle={prefill?.fromVersion ? (
         <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
           สร้างเวอร์ชันใหม่จาก {prefill.fromVersion} → {prefill.version}
@@ -1072,7 +1073,7 @@ export default function CreateConsentFormPage() {
           />
         )}
       >
-        <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)', paddingBottom: 96 }}>
+        <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)', paddingBottom: 'var(--dim-size-1800, 96px)' }}>
           {step === 0 && (
             <StepBasics
               template={template} setTemplate={setTemplate} applyTemplate={applyTemplate}
@@ -1123,7 +1124,7 @@ export default function CreateConsentFormPage() {
 
         {/* Sticky wizard action bar (Figma footer 350:130686) */}
         <div
-          className={`sticky bottom-0 z-10 flex items-center w-full ${MIH_CHROME_MORPH_FOOTER}`}
+          className={`sticky bottom-0 z-10 flex items-center flex-wrap w-full ${MIH_CHROME_MORPH_FOOTER}`}
           style={{
             background: 'var(--surface-card-100)',
             borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
@@ -1155,7 +1156,7 @@ export default function CreateConsentFormPage() {
             </div>
           )}
           <div className='flex-1' />
-          <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-300)' }}>
+          <div className='flex items-center justify-end flex-wrap min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
             <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' disabled={!canSaveDraft} onClick={handleSaveDraft}>บันทึกร่าง</BrandSubdueButton>
             <BrandButton variant='fill' size='lg' trailingIcon={nextIcon} disabled={!canAdvance} onClick={goNext}>
               {nextLabel}

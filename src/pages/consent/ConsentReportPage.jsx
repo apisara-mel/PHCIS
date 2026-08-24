@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Redirect } from 'react-router-dom';
+import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -27,6 +27,7 @@ import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { ExportFormatPopup, DateInputBox, buildReportTableColumns, ExportFormatFormBody, useExportFormatState } from '@/pages/consent/consentExportPopup';
 import { sanitizeExportReportMeta } from '@/utils/exportPiiSanitize';
 import { useNestedPopupPanel } from '@/components/popup/useNestedPopupPanel';
+import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — สถิติและรายงาน (Figma node 358:113804).
    A stack of report cards, each with a title + subtitle, filter chips, a row
@@ -364,7 +365,7 @@ export function ReportCard({ report, onExport, onView, scale = 1 }) {
       </div>
 
       {(report.stats || []).length > 0 && (
-        <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)', minWidth: 'min(100%, 360px)' }}>
+        <div className='flex items-stretch flex-wrap min-w-0 w-full' style={{ gap: 'var(--dim-space-400)' }}>
           {report.stats.map((s) => (
             <SummaryCard key={s.label} card={statCard({ ...s, value: scaleStatValue(s.value, scale) })} variant='panel' />
           ))}
@@ -380,9 +381,9 @@ export function ReportCard({ report, onExport, onView, scale = 1 }) {
                   className='flex flex-col'
                   style={{
                     gap: 'var(--dim-space-300)',
-                    flex: '1 1 400px',
-                    minWidth: 360,
-                    maxWidth: 480,
+                    flex: '1 1 var(--dim-size-2500, 320px)',
+                    minWidth: 0,
+                    width: '100%',
                     padding: 'var(--dim-space-400)',
                     borderRadius: 'var(--dim-radius-400)',
                     background: 'var(--surface-card-100)',
@@ -396,7 +397,7 @@ export function ReportCard({ report, onExport, onView, scale = 1 }) {
                       {report.donutTitle}
                     </span>
                   )}
-                  <div className='flex items-center justify-center w-full' style={{ gap: 'var(--dim-space-400)', flex: 1 }}>
+                  <div className='flex items-center justify-center flex-wrap w-full' style={{ gap: 'var(--dim-space-400)', flex: 1 }}>
                     <Donut
                       segments={scaledDonut}
                       size={200}
@@ -424,8 +425,8 @@ export function ReportCard({ report, onExport, onView, scale = 1 }) {
                   className='flex flex-col flex-1 min-w-0'
                   style={{
                     gap: 'var(--dim-space-300)',
-                    flex: '1 1 320px',
-                    minWidth: 320,
+                    flex: '1 1 var(--dim-size-2500, 320px)',
+                    minWidth: 0,
                     padding: 'var(--dim-space-400)',
                     borderRadius: 'var(--dim-radius-400)',
                     background: 'var(--surface-card-100)',
@@ -601,7 +602,22 @@ export function ConsentReportSections({
   );
 }
 
-/** @deprecated ใช้ /consent/dashboard — redirect สำหรับ bookmark เก่า */
 export default function ConsentReportPage() {
-  return <Redirect to='/consent/dashboard' />;
+  return (
+    <QueuePageShell
+      activeKey='consent-report'
+      sidebarItems={CONSENT_NAV}
+      sidebarFallbackKey='consent-report'
+      brandTitle='ระบบจัดการความยินยอม'
+      breadcrumb={['รายงานความยินยอม']}
+      title='รายงานความยินยอม'
+    >
+      <div
+        className='flex flex-col flex-1 min-w-0'
+        style={{ padding: 'var(--dim-space-600)' }}
+      >
+        <ConsentReportSections />
+      </div>
+    </QueuePageShell>
+  );
 }

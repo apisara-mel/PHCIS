@@ -166,9 +166,9 @@ export default function ConsentDashboardPage() {
               className='flex flex-col'
               style={{
                 gap: 'var(--dim-space-300)',
-                flex: '1 1 400px',
-                minWidth: 360,
-                maxWidth: 480,
+                flex: '1 1 var(--dim-size-2500, 320px)',
+                minWidth: 0,
+                width: '100%',
                 padding: 'var(--dim-space-400)',
                 borderRadius: 'var(--dim-radius-400)',
                 background: 'var(--surface-card-100)',
@@ -181,7 +181,7 @@ export default function ConsentDashboardPage() {
                 <span style={MUTED_XS}>ไม่มีรายการในช่วงที่เลือก</span>
               ) : (
                 <div
-                  className='flex items-center justify-center w-full'
+                  className='flex items-center justify-center flex-wrap w-full'
                   style={{ gap: 'var(--dim-space-400)', flex: 1 }}
                 >
                   <Donut
@@ -225,8 +225,8 @@ export default function ConsentDashboardPage() {
               className='flex flex-col flex-1 min-w-0'
               style={{
                 gap: 'var(--dim-space-300)',
-                flex: '1 1 320px',
-                minWidth: 320,
+                flex: '1 1 var(--dim-size-2500, 320px)',
+                minWidth: 0,
                 padding: 'var(--dim-space-400)',
                 borderRadius: 'var(--dim-radius-400)',
                 background: 'var(--surface-card-100)',

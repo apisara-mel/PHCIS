@@ -20,6 +20,7 @@ import { downloadConsentFormPdf } from '@/data/consentFormDownload';
 import Alert from '@/components/alert/Alert';
 import ConsentFormFillBody from '@/components/consent/ConsentFormFillBody';
 import ConsentIdentityVerifyPanel from '@/components/consent/ConsentIdentityVerifyPanel';
+import ConsentQrScanBlock from '@/components/consent/ConsentQrScanBlock';
 import { resolveRegistrationConsentFormId } from '@/data/registrationConsentForms';
 import { DEFAULT_SERVICE_CENTER_CHANNEL } from '@/data/consentChannels';
 import { DEFAULT_MR_PATIENT } from '@/data/mrPatients';
@@ -138,20 +139,40 @@ export function ConsentFormViewBody({
           </MetaCell>
         </div>
 
-        <StepReview
-          name={record.name}
-          docTitle={record.name}
-          code={record.code}
-          type='data'
-          version={record.version}
-          sections={PREVIEW_SECTIONS}
-          patientFields={PATIENT_FIELD_KEYS}
-          allowESign
-          note={consentFormViewNote()}
-          /* แผงขวาใช้ชุดเดียวกับหน้ากรอกใบยินยอมของเวชระเบียน — QR ให้
-             ผู้รับบริการสแกนยินยอมเองผ่านมือถือ อยู่เหนือเครื่องตัวอย่าง */
-          showPatientQr
-        />
+        <div className='hidden md:block'>
+          <StepReview
+            name={record.name}
+            docTitle={record.name}
+            code={record.code}
+            type='data'
+            version={record.version}
+            sections={PREVIEW_SECTIONS}
+            patientFields={PATIENT_FIELD_KEYS}
+            allowESign
+            note={consentFormViewNote()}
+            /* แผงขวาใช้ชุดเดียวกับหน้ากรอกใบยินยอมของเวชระเบียน — QR ให้
+               ผู้รับบริการสแกนยินยอมเองผ่านมือถือ อยู่เหนือเครื่องตัวอย่าง */
+            showPatientQr
+          />
+        </div>
+
+        <div className='md:hidden flex flex-col min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
+          <StepReview
+            name={record.name}
+            docTitle={record.name}
+            code={record.code}
+            type='data'
+            version={record.version}
+            sections={PREVIEW_SECTIONS}
+            patientFields={PATIENT_FIELD_KEYS}
+            allowESign
+            note={consentFormViewNote()}
+            stackLayout
+          />
+          <ConsentQrScanBlock
+            qrNode={<FakeQR seed={record.code || record.name} />}
+          />
+        </div>
 
         {showAuditBar && (
         <ConsentAuditBar
