@@ -13,6 +13,7 @@ export const isConsentRequestDashboardPath = (pathname = '') => {
 
 /** หน้า consent ที่ไม่ต้องมีปุ่มสร้างคำขอใน SubHeader */
 const CONSENT_NO_CREATE_ACTION_PATHS = new Set([
+  '/consent',                      /* หน้าจัดการความยินยอมไม่มีปุ่มสร้างคำขอส่วนกลาง */
   '/consent/forms/request-access', /* ขอสิทธิ์ — มีฟอร์มสร้างคำขออยู่แล้ว */
   '/consent/access',               /* จัดการสิทธิ์ — หน้าคิว/อนุมัติ ไม่ใช่จุดสร้าง */
 ]);

@@ -139,6 +139,7 @@ const TTL_OPTIONS = [
   { value: '60',  label: '60 วัน' },
   { value: '90',  label: '90 วัน' },
   { value: '365', label: '1 ปี (365 วัน)' },
+  { value: 'unlimited', label: 'ไม่จำกัดอายุการใช้งาน' },
 ];
 /* ตำแหน่ง — options จาก consentFormScopes.js */
 
@@ -166,7 +167,7 @@ const DETAIL_HINTS = [
 
 /* ด.1.1.13 — field type ต่อข้อความยินยอม (form builder) */
 const FIELD_TYPE_OPTIONS = [
-  { value: 'boolean',  label: 'ยินยอม / ไม่ยินยอม (Boolean)' },
+  { value: 'boolean',  label: 'ยินยอม / ไม่ยินยอม (รูปแบบ 1 ตัวเลือก)' },
   { value: 'checkbox', label: 'Checkbox รับทราบ' },
   { value: 'text',     label: 'ข้อความสั้น (Text)' },
   { value: 'textarea', label: 'ข้อความยาว (Textarea)' },
@@ -181,7 +182,13 @@ const TYPE_THAI_TO_VALUE = {
 };
 
 let SECTION_SEQ = 2;
-const makeSection = () => ({ id: `cs-${SECTION_SEQ++}`, title: '', detail: '', fieldType: 'boolean' });
+const makeSection = () => ({
+  id: `cs-${SECTION_SEQ++}`,
+  title: '',
+  detail: '',
+  detailFormat: { bold: false, italic: false, underline: false },
+  fieldType: 'boolean',
+});
 
 const sectionHasContent = (s) => (
   Boolean(s) && String(s.title ?? '').trim() && String(s.detail ?? '').trim()
@@ -277,6 +284,7 @@ const consentWizardSnapshot = (state) => JSON.stringify({
     .map((s) => ({
       title: String(s.title ?? '').trim(),
       detail: String(s.detail ?? '').trim(),
+      detailFormat: s.detailFormat || { bold: false, italic: false, underline: false },
       fieldType: s.fieldType ?? 'boolean',
     })),
   note: state.note ?? '',
@@ -304,13 +312,14 @@ const buildWizardStateFromPrefill = (prefill) => ({
       id: s.id || `cs-prefill-${i}`,
       title: s.title || '',
       detail: s.detail || '',
+      detailFormat: s.detailFormat || { bold: false, italic: false, underline: false },
       fieldType: s.fieldType || 'boolean',
     }))
     : [makeSection(), makeSection()],
   signatures: normalizeFieldKeys(prefill.signatures, DEFAULT_SIGNATURE_KEYS),
   note: prefill.note ?? '',
   requireGuardian: !!prefill.requireGuardian,
-  allowESign: prefill.allowESign !== false,
+  allowESign: false,
 });
 
 /* ── Small presentational helpers ───────────────────────────────────── */
@@ -805,7 +814,7 @@ export default function CreateConsentFormPage() {
   const [signatures, setSignatures] = useState(() => [...DEFAULT_SIGNATURE_KEYS]);
   const [note, setNote] = useState('');
   const [requireGuardian, setRequireGuardian] = useState(false);
-  const [allowESign, setAllowESign] = useState(true);
+  const [allowESign] = useState(false);
 
   /* Prefill ครั้งเดียวตอน mount — แก้ไข / สร้างเวอร์ชันใหม่: โหลดทุก field
      ที่เคยกรอก (Step 1 + Step 2) ให้แก้ต่อได้ทั้งหมด (ด.1.1.5). */
@@ -837,13 +846,13 @@ export default function CreateConsentFormPage() {
         id: s.id || `cs-prefill-${i}`,
         title: s.title || '',
         detail: s.detail || '',
+        detailFormat: s.detailFormat || { bold: false, italic: false, underline: false },
         fieldType: s.fieldType || 'boolean',
       })));
     }
     setSignatures(normalizeFieldKeys(prefill.signatures, DEFAULT_SIGNATURE_KEYS));
     if (prefill.note != null) setNote(prefill.note);
     if (prefill.requireGuardian != null) setRequireGuardian(prefill.requireGuardian);
-    if (prefill.allowESign != null) setAllowESign(prefill.allowESign);
     setSavedSnapshot(consentWizardSnapshot(buildWizardStateFromPrefill(prefill)));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1104,7 +1113,7 @@ export default function CreateConsentFormPage() {
               setSignatureField={setSignatureField}
               note={note} setNote={setNote}
               requireGuardian={requireGuardian} setRequireGuardian={setRequireGuardian}
-              allowESign={allowESign} setAllowESign={setAllowESign}
+              allowESign={allowESign}
             />
             </ErrorBoundary>
           )}
@@ -1411,7 +1420,7 @@ function StepAccess({ accessScopes, setAccessScopes, position, setPosition, posi
       <FormPositionAccessEditor
         value={position}
         onChange={setPosition}
-        columns={2}
+        columns={4}
         style={positionCardStyle}
       />
 
@@ -1471,12 +1480,56 @@ const SectionDropIndicator = ({ active }) => (
   />
 );
 
+const SectionFormatToolbar = ({ value = {}, onChange }) => (
+  <div
+    className='flex items-center flex-wrap'
+    role='toolbar'
+    aria-label='จัดรูปแบบ Section'
+    style={{
+      gap: 'var(--dim-space-150, 6px)',
+      padding: 'var(--dim-space-200, 8px)',
+      border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default)',
+      borderRadius: 'var(--dim-radius-200, 8px)',
+      background: 'var(--surface-card-100)',
+    }}
+  >
+    <span className='text-xs text-ink-tertiary'>Section · จัดรูปแบบ</span>
+    {[
+      { key: 'bold', icon: 'format_bold', label: 'ตัวหนา' },
+      { key: 'italic', icon: 'format_italic', label: 'ตัวเอียง' },
+      { key: 'underline', icon: 'format_underlined', label: 'ขีดเส้นใต้' },
+    ].map((format) => {
+      const active = Boolean(value[format.key]);
+      return (
+        <button
+          key={format.key}
+          type='button'
+          aria-label={format.label}
+          aria-pressed={active}
+          onClick={() => onChange({ ...value, [format.key]: !active })}
+          className='inline-flex items-center justify-center'
+          style={{
+            width: 'var(--dim-size-600, 32px)',
+            height: 'var(--dim-size-600, 32px)',
+            border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default)',
+            borderRadius: 'var(--dim-radius-150, 6px)',
+            background: active ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
+            color: active ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
+          }}
+        >
+          <Icon name={format.icon} size={18} />
+        </button>
+      );
+    })}
+  </div>
+);
+
 function StepContent(props) {
   const {
     patientFields, setPatientField,
     sections, updateSection, removeSection, reorderSections, addSection,
     signatures, setSignatureField, note, setNote,
-    requireGuardian, setRequireGuardian, allowESign, setAllowESign,
+    requireGuardian, setRequireGuardian,
     patientCardStyle,
     notesCardStyle,
   } = props;
@@ -1575,9 +1628,20 @@ function StepContent(props) {
                 }}
               >
                 <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-800, 32px)' }}>
-                  <InputField label='หัวข้อ' required value={s.title} onChange={(v) => updateSection(s.id, { title: v })} placeholder='เช่น ยินยอมรับการรักษา' />
+                  <InputField
+                    label='หัวข้อ'
+                    required
+                    value={s.title}
+                    onChange={(v) => updateSection(s.id, { title: v })}
+                    placeholder='เช่น ยินยอมรับการรักษา'
+                    helperText='ไม่ต้องใส่เลขข้อ เดี๋ยวระบบจะใส่ให้'
+                  />
+                  <SectionFormatToolbar
+                    value={s.detailFormat}
+                    onChange={(detailFormat) => updateSection(s.id, { detailFormat })}
+                  />
                   <SuggestibleTextarea
-                    voice label='รายละเอียด' required
+                    voice label='รายละเอียด Section' required
                     value={s.detail} onChange={(v) => updateSection(s.id, { detail: typeof v === 'string' ? v : v?.target?.value ?? '' })}
                     placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
                     suggestions={DETAIL_HINTS} minChars={3} height={120}
@@ -1623,7 +1687,6 @@ function StepContent(props) {
         />
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400) var(--dim-space-600)' }}>
           <Checkbox checked={requireGuardian} onChange={(checked) => setRequireGuardian(Boolean(checked))} label='สำหรับผู้ป่วย / จำเป็นต้องกรอกผู้ปกครอง' />
-          <Checkbox checked={allowESign} onChange={(checked) => setAllowESign(Boolean(checked))} label='อนุญาตให้ใช้ e-Signature' />
         </div>
       </SectionCard>
     </>
@@ -1734,7 +1797,7 @@ export function StepReview({
     <div style={{ height: 'var(--dim-stroke-100)', background: 'var(--border-brandPrimary-quaternary)' }} />
   );
 
-  const Clause = ({ index, title: ct, detail, compact, clauseId, lite }) => (
+  const Clause = ({ index, title: ct, detail, detailFormat, compact, clauseId, lite }) => (
     <div className='flex flex-col min-w-0'>
       <div className='flex flex-col' style={{ gap: compact ? 'var(--dim-space-100)' : 'var(--dim-space-100)' }}>
         <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: compact ? 11 : 'var(--type-size-sm)', lineHeight: 1.4 }}>
@@ -1743,7 +1806,15 @@ export function StepReview({
         {detail ? (
           <span
             className={compact || lite ? 'line-clamp-3' : undefined}
-            style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: compact ? 10 : 'var(--type-size-sm)', lineHeight: compact ? 1.5 : 1.6 }}
+            style={{
+              color: 'var(--text-content-secondary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: compact ? 10 : 'var(--type-size-sm)',
+              fontWeight: detailFormat?.bold ? 'var(--type-weight-bold)' : 'var(--type-weight-regular)',
+              fontStyle: detailFormat?.italic ? 'italic' : 'normal',
+              textDecoration: detailFormat?.underline ? 'underline' : 'none',
+              lineHeight: compact ? 1.5 : 1.6,
+            }}
           >
             {lite ? truncatePreviewText(detail) : truncatePreviewText(detail, 480) || detail}
           </span>
@@ -1809,7 +1880,7 @@ export function StepReview({
           {filledSections.length === 0 ? (
             <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>ยังไม่มีข้อความยินยอม</span>
           ) : previewSections.map((s, i) => (
-            <Clause key={s.id || `clause-${i}`} index={i + 1} title={s.title} detail={s.detail} clauseId={s.id} lite={stackLayout} />
+            <Clause key={s.id || `clause-${i}`} index={i + 1} title={s.title} detail={s.detail} detailFormat={s.detailFormat} clauseId={s.id} lite={stackLayout} />
           ))}
           {hiddenPreviewCount > 0 ? (
             <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
@@ -1838,14 +1909,6 @@ export function StepReview({
           <Icon name='edit' size={20} />
           <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>เซ็นชื่อในกล่องนี้</span>
         </div>
-        {allowESign && (
-          <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-150)' }}>
-            <Icon name='check_circle' size={16} color='var(--text-brandPrimary-default)' />
-            <span style={{ color: 'var(--text-content-default, #363B3F)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-              อนุญาต e-Signature
-            </span>
-          </div>
-        )}
         {/* Note box — Figma 355:139568. */}
         <div
           className='flex flex-col w-full'
@@ -1910,7 +1973,7 @@ export function StepReview({
               {filledSections.length === 0 ? (
                 <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 11 }}>ยังไม่มีข้อความยินยอม</span>
               ) : filledSections.slice(0, 6).map((s, i) => (
-                <Clause key={s.id} index={i + 1} title={s.title} detail={s.detail} compact clauseId={s.id} />
+                <Clause key={s.id} index={i + 1} title={s.title} detail={s.detail} detailFormat={s.detailFormat} compact clauseId={s.id} />
               ))}
             </div>
             {/* sticky confirm */}
@@ -1967,7 +2030,7 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
   const [signatures, setSignatures] = useState(() => [...DEFAULT_SIGNATURE_KEYS]);
   const [note, setNote] = useState('');
   const [requireGuardian, setRequireGuardian] = useState(false);
-  const [allowESign, setAllowESign] = useState(true);
+  const [allowESign] = useState(false);
   const [baselineSnapshot, setBaselineSnapshot] = useState(null);
 
   /* Reset + prefill whenever popup opens for a record */
@@ -2001,13 +2064,13 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
         id: s.id || `cs-edit-${i}`,
         title: s.title || '',
         detail: s.detail || '',
+        detailFormat: s.detailFormat || { bold: false, italic: false, underline: false },
         fieldType: s.fieldType || 'boolean',
       })));
     }
     setSignatures(normalizeFieldKeys(prefill.signatures, DEFAULT_SIGNATURE_KEYS));
     if (prefill.note != null) setNote(prefill.note);
     if (prefill.requireGuardian != null) setRequireGuardian(prefill.requireGuardian);
-    if (prefill.allowESign != null) setAllowESign(prefill.allowESign);
     setBaselineSnapshot(consentWizardSnapshot(buildWizardStateFromPrefill(prefill)));
   }, [open, record?.id, newVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2240,7 +2303,7 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
                 setSignatureField={setSignatureField}
                 note={note} setNote={setNote}
                 requireGuardian={requireGuardian} setRequireGuardian={setRequireGuardian}
-                allowESign={allowESign} setAllowESign={setAllowESign}
+                allowESign={allowESign}
                 patientCardStyle={{ marginTop: 'var(--dim-space-600, 24px)' }}
                 notesCardStyle={{ marginBottom: 'var(--dim-space-600, 24px)' }}
               />

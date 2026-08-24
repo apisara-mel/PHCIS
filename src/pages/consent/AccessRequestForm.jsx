@@ -85,13 +85,6 @@ const SCOPE_OPTIONS = ['ประวัติการรักษา', 'ผล�
 /** ประเภทสิ่งที่ขอเข้าถึง */
 export const ACCESS_TYPE_OPTIONS = [
   {
-    value: 'form',
-    label: 'ขอเข้าถึงแบบฟอร์มความยินยอม',
-    shortLabel: 'ขอใช้แบบฟอร์มยินยอม',
-    caption: 'ขอใช้เทมเพลตแบบฟอร์มที่เผยแพร่ในระบบ',
-    description: 'ขอสิทธิ์ดูหรือใช้เทมเพลตแบบฟอร์มความยินยอมที่เผยแพร่ในระบบ เพื่อให้บริการหรือจัดทำเอกสาร',
-  },
-  {
     value: 'patient_consent',
     label: 'ขอเข้าถึงข้อมูลความยินยอมของผู้รับบริการ',
     shortLabel: 'ขอดูข้อมูลการให้ความยินยอมของผู้รับบริการ',
@@ -103,7 +96,6 @@ export const ACCESS_TYPE_OPTIONS = [
 /** เหตุผลที่ขอสิทธิ์ (dropdown) — ค่า `other` เปิด Voice SuggestibleTextarea */
 export const ACCESS_REASON_OTHER = 'other';
 export const ACCESS_REASON_OPTIONS = [
-  { value: 'ต้องใช้แบบฟอร์มในการให้บริการ', label: 'ต้องใช้แบบฟอร์มในการให้บริการ' },
   { value: 'ตรวจสอบสถานะความยินยอมก่อนให้บริการ', label: 'ตรวจสอบสถานะความยินยอมก่อนให้บริการ' },
   { value: 'ส่งต่อ / ประสานงานกับหน่วยงานอื่น', label: 'ส่งต่อ / ประสานงานกับหน่วยงานอื่น' },
   { value: 'งานวิจัย / ตรวจสอบคุณภาพ', label: 'งานวิจัย / ตรวจสอบคุณภาพ' },
@@ -112,7 +104,7 @@ export const ACCESS_REASON_OPTIONS = [
 ];
 
 const ACCESS_REASON_OTHER_SUGGESTIONS = [
-  'ขอใช้แบบฟอร์มเพื่อพิมพ์ให้ผู้รับบริการลงนามที่จุดบริการ',
+  'ตรวจสอบข้อมูลความยินยอมก่อนให้บริการแก่ผู้รับบริการ',
   'ต้องการตรวจสอบว่าผู้รับบริการเคยให้ความยินยอมเรื่องใดบ้าง',
   'ประสานส่งต่อข้อมูลความยินยอมไปยังสถานพยาบาลอื่นตามคำขอ',
   'ใช้ประกอบการตรวจสอบคุณภาพและ audit ภายในหน่วยงาน',
@@ -122,14 +114,17 @@ const ACCESS_REASON_OTHER_SUGGESTIONS = [
 
 const ACCESS_ADDITIONAL_NOTE_SUGGESTIONS = [
   'แนบหลักฐานคำขอจากหน่วยงานต้นสังกัดแล้ว',
-  'ขอใช้แบบฟอร์มเพื่อให้บริการที่จุดรับบริการวันนี้',
+  'ขอตรวจสอบข้อมูลความยินยอมเพื่อให้บริการที่จุดรับบริการวันนี้',
   'ผู้รับบริการมาพร้อมผู้ปกครอง — ต้องการตรวจสอบความยินยอมเดิม',
   'ประสานงานส่งต่อข้อมูลความยินยอมไปโรงพยาบาลปลายทาง',
   'ใช้ประกอบการตรวจสอบสิทธิก่อนให้บริการ',
 ];
 
 export const ACCESS_TYPE_DISPLAY_LABEL = Object.fromEntries(
-  ACCESS_TYPE_OPTIONS.map((o) => [o.value, o.shortLabel]),
+  [
+    ...ACCESS_TYPE_OPTIONS.map((o) => [o.value, o.shortLabel]),
+    ['form', 'คำขอเดิมสำหรับแบบฟอร์ม (Legacy)'],
+  ],
 );
 
 /** แบบฟอร์มความยินยอมที่เลือกได้ (เผยแพร่ก่อน แล้วตามด้วยสถานะอื่น) */
@@ -201,14 +196,14 @@ export default function AccessRequestForm({
   onSubmit,
   onCancel,
   showFooter = true,
-  submitLabel = 'ส่งคำขอสิทธิ์เข้าถึงแบบฟอร์ม',
+  submitLabel = 'ส่งคำขอเข้าถึงข้อมูล',
   cancelLabel = 'ยกเลิก',
   onStateChange,
-  initialAccessType = '',
+  initialAccessType = 'patient_consent',
   initialFormId = '',
   fixedAccessType = '',
 }) {
-  const [phase, setPhase] = useState('upload');
+  const [phase, setPhase] = useState('review');
   const [uploadFiles, setUploadFiles] = useState([]);
   const [fileName, setFileName] = useState(null);
   const [fileError, setFileError] = useState('');
@@ -263,7 +258,7 @@ export default function AccessRequestForm({
       setPatientQuery('');
       setPurpose('');
       setScopes([]);
-      setAccessType(fixedAccessType || '');
+      setAccessType(fixedAccessType || 'patient_consent');
       setFormId('');
       setReason('');
       setReasonDetail('');
@@ -299,7 +294,7 @@ export default function AccessRequestForm({
     setFileName(null);
     setFileError('');
     setOcrFailed(false);
-    setPhase('upload');
+    setPhase('review');
   };
 
   const handleCameraCapture = (dataUrl) => {
@@ -324,8 +319,8 @@ export default function AccessRequestForm({
   const needsPatient = accessType === 'patient_consent';
   /* แบบฟอร์มอาจถูกขอเพื่อผู้รับบริการเฉพาะรายได้ด้วย จึงเปิดตัวเลือกผู้รับบริการ
      ให้คำขอแบบฟอร์มเช่นกัน แต่บังคับเฉพาะประเภทข้อมูลความยินยอม */
-  const supportsPatient = accessType === 'patient_consent' || accessType === 'form';
-  const needsForm = accessType === 'form';
+  const supportsPatient = true;
+  const needsForm = false;
   const reasonIsOther = reason === ACCESS_REASON_OTHER;
   const [requestedStart, requestedEnd] = requestedPeriod;
   const requestedPeriodInvalid = !!requestedStart && !!requestedEnd && requestedEnd < requestedStart;
@@ -337,7 +332,6 @@ export default function AccessRequestForm({
     || (!fixedAccessType && accessType),
   );
   const ready = phase === 'review'
-    && fileName
     && name.trim()
     && accessType
     && (!needsForm || formId)
@@ -452,8 +446,7 @@ export default function AccessRequestForm({
         style={{ gap: 'var(--dim-space-150)', ...FIELD_SHELL_LAYOUT }}
       >
         <span style={LABEL_TEXT}>
-          อัปโหลดหลักฐานเพื่อสิทธิการเข้าถึงแบบฟอร์ม
-          <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span>
+          อัปโหลดหลักฐานประกอบคำขอ (ถ้ามี)
         </span>
         <div className='flex items-stretch w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
           <DragAndDrop
@@ -465,7 +458,7 @@ export default function AccessRequestForm({
             preview={false}
             size='sm'
             title='ลากและวางไฟล์ หรือคลิกเพื่ออัปโหลด'
-            helper='อัปโหลดหลักฐาน (PDF, JPG หรือ PNG)'
+            helper='ไม่บังคับ · รองรับ PDF, JPG หรือ PNG'
             ctaLabel='เลือกไฟล์'
             error={!!fileError}
             disabled={phase === 'reading'}
@@ -480,17 +473,17 @@ export default function AccessRequestForm({
             style={{ width: 'var(--dim-size-2000, 128px)', height: 'var(--dim-size-2000, 128px)', flexShrink: 0, boxSizing: 'border-box' }}
           />
           <PhotoUploadField
-            label='ถ่ายภาพเอกสาร'
+            label='ถ่ายภาพ'
             icon='photo_camera'
             onClick={() => phase !== 'reading' && setCameraOpen(true)}
             disabled={phase === 'reading'}
-            aria-label='ถ่ายภาพเอกสารด้วยกล้อง'
+            aria-label='ถ่ายภาพด้วยกล้อง'
             style={{ width: 'var(--dim-size-2000, 128px)', height: 'var(--dim-size-2000, 128px)', flexShrink: 0, boxSizing: 'border-box' }}
           />
         </div>
         {phase === 'reading' && <UploadProgressBox progress={uploadProgress} label='กำลังอัปโหลดและอ่านเอกสาร…' fileName={fileName || undefined} />}
         {phase === 'review' && uploadFiles[0] && <UploadEvidenceCard file={uploadFiles[0]} onRemove={clearEvidence} label='หลักฐานที่แนบ' />}
-        {phase === 'review' && (
+        {phase === 'review' && Boolean(fileName) && (
           <div
             className='flex items-start w-full'
             style={{

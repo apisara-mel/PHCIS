@@ -41,7 +41,9 @@ export default function FormPositionEditor({
       <div
         className='grid w-full min-w-0'
         style={{
-          gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))`,
+          gridTemplateColumns: columns > 2
+            ? 'repeat(auto-fit, minmax(var(--dim-size-2000, 128px), 1fr))'
+            : `repeat(${cols.length}, minmax(0, 1fr))`,
           gap: 'var(--dim-space-500)',
         }}
       >
