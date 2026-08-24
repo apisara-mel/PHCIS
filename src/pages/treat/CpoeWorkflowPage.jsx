@@ -68,15 +68,22 @@ const TYPE_FILTERS = [
 
 const DEMO_PATIENT = PATIENT_PROFILES.find((item) => item.hn === '67-00003') || PATIENT_PROFILES[0];
 
-const initialHeader = {
+/* วัน-เวลาปัจจุบันในรูปแบบ พ.ศ. ที่ทั้งหน้านี้ใช้ ("2569-08-25T10:20").
+   เดิม initialHeader ตรึงวันไว้ที่ 24 ส.ค. 2569 — ทุกใบสั่งที่เปิดวันอื่น
+   จึงถูกประทับวันย้อนหลัง และ `วันที่ต้องการตรวจ` ก็เป็นอดีตตั้งแต่เปิดฟอร์ม */
+const pad2 = (n) => String(n).padStart(2, '0');
+const toBuddhistDateTimeInput = (d) =>
+  `${d.getFullYear() + 543}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+  + `T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+const buildInitialHeader = () => ({
   requestingUnit: 'opd-2',
-  orderedAt: '2569-08-24T10:20',
-  requestedAt: '2569-08-24T11:00',
+  orderedAt: toBuddhistDateTimeInput(new Date()),
+  requestedAt: toBuddhistDateTimeInput(new Date(Date.now() + 40 * 60 * 1000)),
   urgency: 'routine',
   indication: 'ไอเรื้อรัง เหนื่อยง่าย น้ำหนักลด ต้องการประเมินพยาธิสภาพทรวงอก',
   diagnosis: 'R05.3 — Chronic cough',
   physicianQuestion: 'ประเมินรอยโรคในทรวงอกและภาวะแทรกซ้อนก่อนวางแผนรักษา',
-};
+});
 
 const initialSafety = {
   pregnancyStatus: 'not-pregnant',
@@ -198,7 +205,7 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
   const workflowSeed = form?.cpoeWorkflow || {};
   const draftKey = `mih:cpoe-workflow:draft:${patient?.hn || 'unknown'}`;
   const [step, setStep] = useState(workflowSeed.step || 0);
-  const [header, setHeader] = useState(workflowSeed.header || initialHeader);
+  const [header, setHeader] = useState(() => workflowSeed.header || buildInitialHeader());
   const [safety, setSafety] = useState(workflowSeed.safety || initialSafety);
   const [selectedIds, setSelectedIds] = useState(
     workflowSeed.selectedIds || (embedded ? treatmentOrderIds(form) : CPOE_INITIAL_ORDER_IDS),
@@ -436,6 +443,42 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
     return groups;
   }, {}), [selectedOrders]);
 
+  /* ปลายทางต้องมาจากรายการที่แพทย์เลือกจริง — เดิม hard-code ไว้ 3 ปลายทาง
+     ทุกครั้ง สั่งแล็บใบเดียวก็ยังขึ้น "RIS/PACS ล้มเหลว" กับ "ห้องพยาบาล
+     สำเร็จ" ทั้งที่ไม่ได้สั่ง (เห็นตอนเปิดหน้าจริง 25 ส.ค. 69)
+     RIS/PACS ยังคงล้มเหลวไว้ตอนที่ "มีคำสั่งรังสีจริง" เพื่อให้ยังเดโม
+     ปุ่มส่งซ้ำได้ ไม่ใช่เพื่อสุ่มความล้มเหลวให้ทุกใบ */
+  const buildRoutingFor = (orders) => {
+    const destinations = [];
+    orders.forEach((order) => {
+      const dest = order.destination || CPOE_TYPE_META[order.type]?.destination;
+      if (dest && !destinations.includes(dest)) destinations.push(dest);
+    });
+    return destinations.map((destination) => (
+      destination === 'RIS/PACS'
+        ? { destination, status: 'error', detail: 'RIS ไม่ตอบกลับภายในเวลาที่กำหนด' }
+        : {
+          destination,
+          status: 'success',
+          detail: destination === 'LIS'
+            ? 'LN-2569-10831 · รับเข้าคิวแล้ว'
+            : 'คิว N-021 · รับคำสั่งแล้ว',
+        }
+    ));
+  };
+
+  /* คำสั่งที่ปลายทางตอบรับแล้วต้องโผล่ในตารางติดตาม (Step 4) ทันที —
+     เดิมสร้างแถวเฉพาะตอนกด "ส่งซ้ำ" คนที่ส่งผ่านตั้งแต่ครั้งแรกจึงไป
+     หน้าติดตามแล้วไม่เจอคำสั่งของตัวเอง */
+  const appendTrackingRows = (orders) => {
+    if (!orders.length) return;
+    setTrackingRows((current) => {
+      const existingIds = new Set(current.map((item) => item.item));
+      const created = buildNewTrackingRows(orders).filter((item) => !existingIds.has(item.item));
+      return [...created, ...current];
+    });
+  };
+
   const startRouting = () => {
     setSignatureError('');
     if (!attest) {
@@ -446,26 +489,30 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
       setSignatureError('PIN ไม่ถูกต้อง — สำหรับต้นแบบใช้ 123456');
       return;
     }
-    setRouting([
-      { destination: 'LIS', status: 'success', detail: 'LN-2569-10831 · รับเข้าคิวแล้ว' },
-      { destination: 'RIS/PACS', status: 'error', detail: 'RIS ไม่ตอบกลับภายในเวลาที่กำหนด' },
-      { destination: 'ห้องพยาบาล', status: 'success', detail: 'คิว N-021 · รับคำสั่งแล้ว' },
-    ]);
-    setToast('ลงนามสำเร็จ · ส่งคำสั่งแล้ว 2 จาก 3 ปลายทาง');
+    const nextRouting = buildRoutingFor(selectedOrders);
+    setRouting(nextRouting);
+    const delivered = new Set(
+      nextRouting.filter((item) => item.status === 'success').map((item) => item.destination),
+    );
+    appendTrackingRows(selectedOrders.filter((order) => delivered.has(order.destination)));
+    const okCount = nextRouting.filter((item) => item.status === 'success').length;
+    setToast(okCount === nextRouting.length
+      ? `ลงนามสำเร็จ · ส่งคำสั่งครบ ${okCount} ปลายทาง`
+      : `ลงนามสำเร็จ · ส่งคำสั่งแล้ว ${okCount} จาก ${nextRouting.length} ปลายทาง`);
   };
 
   const retryFailedRouting = () => {
+    const retried = routing.filter((item) => item.status === 'error').map((item) => item.destination);
+    if (!retried.length) return;
     setRouting((current) => current.map((item) => (
       item.status === 'error'
         ? { ...item, status: 'success', detail: 'XN-2569-01496 · ส่งซ้ำสำเร็จและรับเข้าคิวแล้ว' }
         : item
     )));
-    setTrackingRows((current) => {
-      const existingIds = new Set(current.map((item) => item.item));
-      const created = buildNewTrackingRows(selectedOrders).filter((item) => !existingIds.has(item.item));
-      return [...created, ...current];
-    });
-    setToast('ส่งคำสั่งเข้า RIS/PACS ซ้ำสำเร็จ');
+    /* เฉพาะคำสั่งของปลายทางที่เพิ่งส่งซ้ำ — ของปลายทางอื่นขึ้นตารางไปแล้ว
+       ตั้งแต่ตอนลงนาม */
+    appendTrackingRows(selectedOrders.filter((order) => retried.includes(order.destination)));
+    setToast(`ส่งคำสั่งเข้า ${retried.join(' · ')} ซ้ำสำเร็จ`);
   };
 
   const routingHasError = routing.some((item) => item.status === 'error');

@@ -131,9 +131,25 @@ export const CPOE_RECENT_RESULTS = [
   },
 ];
 
-export const buildNewTrackingRows = (orders, orderIdPrefix = 'ORD-690824') => orders.map((order, index) => ({
+/* เดิมทุกแถวที่สร้างใหม่ถูกประทับ "24 ส.ค. 2569 10:24" และเลขที่ ORD-690824
+   ตายตัว — คำสั่งที่เพิ่งลงนามวันนี้จึงขึ้นตารางติดตามเป็นของเมื่อวาน และ
+   เลขที่ชนกับใบเก่า ให้ derive จากเวลาจริงตอนกดส่ง */
+const TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/** "25 ส.ค. 2569 10:24" */
+export const formatThaiDateTime = (d = new Date()) =>
+  `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`
+  + ` ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+/** "ORD-690825" — ปี พ.ศ. 2 หลัก + เดือน + วัน */
+export const buildOrderIdPrefix = (d = new Date()) =>
+  `ORD-${String((d.getFullYear() + 543) % 100)}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+
+export const buildNewTrackingRows = (orders, orderIdPrefix = buildOrderIdPrefix()) => orders.map((order, index) => ({
   id: `${orderIdPrefix}-${String(120 + index).padStart(4, '0')}`,
-  orderedAt: '24 ส.ค. 2569 10:24',
+  orderedAt: formatThaiDateTime(),
   type: order.type,
   item: order.name,
   status: 'sent',
@@ -146,7 +162,7 @@ export const buildNewTrackingRows = (orders, orderIdPrefix = 'ORD-690824') => or
   acknowledged: true,
   version: 1,
   timeline: [
-    { time: '10:24', title: 'ลงนามคำสั่ง', detail: 'พญ.สมหญิง รักษ์ดี · ว.12345' },
-    { time: '10:24', title: `ส่งคำสั่งเข้า ${order.destination}`, detail: 'ระบบปลายทางตอบรับแล้ว' },
+    { time: formatThaiDateTime().slice(-5), title: 'ลงนามคำสั่ง', detail: 'พญ.สมหญิง รักษ์ดี · ว.12345' },
+    { time: formatThaiDateTime().slice(-5), title: `ส่งคำสั่งเข้า ${order.destination}`, detail: 'ระบบปลายทางตอบรับแล้ว' },
   ],
 }));
