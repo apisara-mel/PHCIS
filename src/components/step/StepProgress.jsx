@@ -65,6 +65,7 @@ const AnimatedCheck = ({ active, size = 16 }) => (
 
 const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = false, labelNoWrap = false, hideLabels = false }) => {
   const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const isClickable = Boolean(onStepClick) && type !== TYPE.CURRENT;
   const showHover = hovered && isClickable;
   const circleSize = compact ? 22 : 28;
@@ -114,7 +115,6 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
         transition: `width 220ms ${SMOOTH_EASE}, gap 220ms ${SMOOTH_EASE}`,
       }}
       title={hideLabels ? label : undefined}
-      aria-label={hideLabels ? `ขั้นตอนที่ ${idx + 1}: ${label}` : undefined}
     >
       {/* Indicator row: circle + connector */}
       <div className='flex items-center gap-1.5 w-full' data-spotlight={`step-${idx + 1}`}>
@@ -123,42 +123,55 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
           onClick={() => isClickable && onStepClick(idx)}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          aria-label={`ขั้นตอนที่ ${idx + 1}: ${label}`}
+          aria-current={type === TYPE.CURRENT ? 'step' : undefined}
           className={[
-            'relative box-border rounded-full flex items-center justify-center font-bold shrink-0 overflow-hidden',
-            compact ? 'text-xs' : 'text-sm',
+            'relative box-border rounded-full flex items-center justify-center shrink-0',
             isClickable ? 'cursor-pointer' : 'cursor-default',
           ].join(' ')}
           style={{
-            width: circleSize,
-            height: circleSize,
-            background: bg,
-            color: numberColor,
-            border:
-              type === TYPE.CURRENT
-                ? `${currentRing}px solid var(--primaryBorder-600)`
-                : 'none',
-            boxShadow:
-              type === TYPE.CURRENT
-                ? `0 0 0 ${currentRing}px var(--primaryBorder-600)`
-                : 'none',
-            /* `translateZ(0)` + `willChange: transform` promote the button
-               to its own GPU layer so the scale-on-hover renders without
-               re-rasterising the inner number on every animation frame —
-               which is what was causing the text inside to look jittery
-               during the transition. `backfaceVisibility: hidden` also
-               stabilises subpixel snapping on WebKit. */
-            transform: `scale(${circleScale}) translateZ(0)`,
-            transformOrigin: 'center',
-            transition: `${CIRCLE_TRANSITION}, width 220ms ${SMOOTH_EASE}, height 220ms ${SMOOTH_EASE}`,
-            willChange: 'transform',
-            backfaceVisibility: 'hidden',
-            outline: 'none',
+            width: 'var(--dim-size-900, 44px)',
+            height: 'var(--dim-size-900, 44px)',
+            padding: 'var(--dim-space-0)',
+            background: 'transparent',
+            border: 'none',
+            outline: focused
+              ? 'var(--dim-stroke-400, 4px) solid var(--border-brandPrimaryButton-tertiary)'
+              : 'none',
+            outlineOffset: 'var(--dim-space-0)',
           }}
         >
+          <span
+            className={[
+              'relative box-border rounded-full flex items-center justify-center font-bold shrink-0 overflow-hidden',
+              compact ? 'text-xs' : 'text-sm',
+            ].join(' ')}
+            style={{
+              width: circleSize,
+              height: circleSize,
+              background: bg,
+              color: numberColor,
+              border:
+                type === TYPE.CURRENT
+                  ? `${currentRing}px solid var(--primaryBorder-600)`
+                  : 'none',
+              boxShadow:
+                type === TYPE.CURRENT
+                  ? `0 0 0 ${currentRing}px var(--primaryBorder-600)`
+                  : 'none',
+              transform: `scale(${circleScale}) translateZ(0)`,
+              transformOrigin: 'center',
+              transition: `${CIRCLE_TRANSITION}, width 220ms ${SMOOTH_EASE}, height 220ms ${SMOOTH_EASE}`,
+              willChange: 'transform',
+              backfaceVisibility: 'hidden',
+            }}
+          >
           {/* Always render both glyphs so they cross-fade between the
               numeric "upcoming" state and the check-mark "success" state
               instead of popping. Both are absolutely centred inside the
-              button (which is `position: relative`); the check uses an
+              visual circle (which is `position: relative`); the check uses an
               inline SVG so we can animate its stroke length, making it
               "draw itself" when the step transitions to success. */}
           <span
@@ -179,6 +192,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
             }}
           >
             {idx + 1}
+          </span>
           </span>
         </button>
         {!isLast && (

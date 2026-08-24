@@ -100,6 +100,8 @@ const NeutralSubdueIconButton = React.forwardRef(function NeutralSubdueIconButto
     variant = 'fill',
     size = 'sm',
     'aria-label': ariaLabel,
+    onFocus,
+    onBlur,
     children,
     className = '',
     style = {},
@@ -109,6 +111,7 @@ const NeutralSubdueIconButton = React.forwardRef(function NeutralSubdueIconButto
 ) {
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
+  const [keyboardFocused, setKeyboardFocused] = useState(false);
   const isHover = (hovered || hoveredProp) && !disabled;
   const isActive = active || selected;
   const dim = SIZES[size] || SIZES.sm;
@@ -118,7 +121,7 @@ const NeutralSubdueIconButton = React.forwardRef(function NeutralSubdueIconButto
     isHover,
     active: isActive,
     activeAppearance,
-    focused,
+    focused: focused || keyboardFocused,
     disabled,
   });
   return (
@@ -132,6 +135,14 @@ const NeutralSubdueIconButton = React.forwardRef(function NeutralSubdueIconButto
       onMouseLeave={() => { setHovered(false); setPressed(false); }}
       onMouseDown={() => !disabled && setPressed(true)}
       onMouseUp={() => setPressed(false)}
+      onFocus={(event) => {
+        setKeyboardFocused(true);
+        onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setKeyboardFocused(false);
+        onBlur?.(event);
+      }}
       disabled={disabled}
       aria-disabled={disabled}
       className={`inline-flex items-center justify-center transition-all duration-200 ease-out shrink-0 ${className}`}

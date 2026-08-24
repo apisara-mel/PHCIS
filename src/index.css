@@ -672,7 +672,7 @@ a:focus, a:focus-visible,
 }
 
 /* OPD treatment form: keep the screening quick summary beside every step.
-   Below desktop width it stacks after the active step so neither the form
+   Below desktop width it stacks before the active step so safety context
    nor the safety data is squeezed into an unreadable column. */
 .mih-treatment-shell-layout {
   display: flex;
@@ -684,6 +684,7 @@ a:focus, a:focus-visible,
 }
 
 .mih-treatment-screening-rail {
+  order: -1;
   width: 100%;
   min-width: 0;
 }
@@ -695,6 +696,7 @@ a:focus, a:focus-visible,
   }
 
   .mih-treatment-screening-rail {
+    order: initial;
     position: sticky;
     top: calc(
       var(--mih-topbar-offset, var(--dim-size-1400))
@@ -711,6 +713,12 @@ a:focus, a:focus-visible,
       - var(--dim-space-600)
     );
     overflow-y: auto;
+  }
+
+  .mih-treatment-screening-rail.is-collapsed {
+    flex-basis: var(--dim-size-1600);
+    width: var(--dim-size-1600);
+    overflow: visible;
   }
 }
 
