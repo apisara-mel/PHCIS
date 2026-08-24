@@ -16,7 +16,7 @@ import { ButtonSizeAliasProvider } from '@/components/button/ButtonSizeAliasCont
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Tooltip from '@/components/tooltip/Tooltip';
 import { resolveSeverityBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
-import BrandButton from '@/components/button/BrandButton';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { DEFAULT_PATIENT } from '@/data/patientProfiles';
 
 /* ประวัติการรักษา popup — loaded lazily ON CLICK, never at module init.
@@ -554,14 +554,14 @@ const PatientCard = ({
             /* shrink-0 + ml-auto keeps the button pinned to the end of the
                row no matter how many badges wrap above it */
             <div className='shrink-0 ml-auto self-center'>
-              <BrandButton
+              <BrandSubdueButton
                 variant='outline'
                 size='sm'
-                leadingIcon='stethoscope'
+                leadingIcon='history'
                 onClick={() => (onMedicalHistory ? onMedicalHistory(patient) : setHistoryOpen(true))}
               >
                 ประวัติการรักษา
-              </BrandButton>
+              </BrandSubdueButton>
             </div>
           )}
         </div>

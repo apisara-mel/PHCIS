@@ -798,18 +798,28 @@ const dispenseToQueueStatus = () => ({
 
 /** คืนสถานะห้องยาจริงของ HN นี้ — null = ไม่มีใบยาในห้องยา (ให้ใช้ค่าเดิม) */
 export const resolvePharmacyStatus = (hn) => {
-  /* กันกรณีถูกเรียกระหว่าง module init ของวงจร import — ยังไม่พร้อมก็คืน null
-     ให้ผู้เรียกใช้ค่าเดิมไปก่อน ดีกว่าโยน error ทั้งหน้า */
-  if (!hn || !Array.isArray(PHARMACY_QUEUE) || !DISPENSE_STATUS) return null;
-  const row = PHARMACY_QUEUE.find((r) => r.hn === hn);
-  if (!row) return null;
+  if (!hn) return null;
+  /* ⚠️ ต้องเป็น try/catch ไม่ใช่ if-guard
+     pharmacyQueue.js กับไฟล์นี้ import กันเป็นวงจร ตอน module init ฝั่งหนึ่ง
+     ยังไม่ประกาศ const เสร็จ การ "อ่าน" ตัวแปรนั้นจะ **throw ReferenceError
+     (TDZ)** ทันที — เช็คด้วย `!PHARMACY_QUEUE` จึงไม่ช่วย เพราะพังตั้งแต่ตอนอ่าน
+     (เจอจริง: rebuildCurrent() ถูกเรียกตอน init แล้วทั้งแอปจอขาว)
+     ระหว่าง init คืน null ให้ใช้ค่าที่ seed ไว้ก่อน — พอมีการเรียกคิวครั้งแรก
+     rebuildCurrent จะรันใหม่แล้วได้ค่าสดเอง */
+  try {
+    if (!Array.isArray(PHARMACY_QUEUE) || !DISPENSE_STATUS) return null;
+    const row = PHARMACY_QUEUE.find((r) => r.hn === hn);
+    if (!row) return null;
 
-  const mapped = dispenseToQueueStatus()[row.status];
-  if (!mapped) return null;
+    const mapped = dispenseToQueueStatus()[row.status];
+    if (!mapped) return null;
 
-  /* ยาจัดเสร็จแล้วแต่ยังติดขั้นชำระเงิน → ยังไม่ใช่ "พร้อมรับยา" */
-  if (mapped === 'ready' && !canDispensePharmacyOrder(row).ok) return 'awaitingPayment';
-  return mapped;
+    /* ยาจัดเสร็จแล้วแต่ยังติดขั้นชำระเงิน → ยังไม่ใช่ "พร้อมรับยา" */
+    if (mapped === 'ready' && !canDispensePharmacyOrder(row).ok) return 'awaitingPayment';
+    return mapped;
+  } catch (e) {
+    return null;
+  }
 };
 
 const rebuildCurrent = () => {

@@ -220,6 +220,146 @@ export const createInitialBlocks = () => [
   },
 ];
 
+
+/* ── คลังเอกสาร e-document template → builder blocks ───────────────────
+   `formsLibrary.js` stores each template as a flat static preview
+   (`sections[].fields[] = { label, type, required }`) so the catalog and
+   the mobile QR page can render it without a live schema. The builder
+   needs real blocks, so map across:
+     text / date / datetime / number  → พับรวมเป็น section block เดียว
+                                        (consecutive run) — ไม่งั้นได้บล็อก
+                                        ละ 1 ช่องเต็มไปหมด แก้ยาก
+     textarea                         → field ใน section เดียวกัน แต่
+                                        inputType='textarea'
+     checkbox / select / signature    → บล็อกของตัวเอง
+   The result is EDITABLE — clinicians start from the ทางการ template then
+   add/remove for this particular visit, which is the whole point of
+   §1.10.8.4 (สร้าง e-Document ด้วย form-builder ไม่ใช่แค่แนบไฟล์). */
+const FIELDY_TYPES = new Set(['text', 'textarea', 'date', 'datetime', 'number']);
+
+const inputTypeOf = (type) => {
+  if (type === 'textarea') return 'textarea';
+  if (type === 'date' || type === 'datetime') return 'date';
+  if (type === 'number') return 'number';
+  return 'text';
+};
+
+export const blocksFromLibraryForm = (form) => {
+  const out = [];
+  (form?.sections ?? []).forEach((section) => {
+    /* The section heading belongs to the FIRST block emitted for that
+       section only. Repeating it on every block turned "การยินยอม" with
+       four tick-boxes into four separate "การยินยอม" headings on the
+       printed sheet. */
+    let headingUsed = false;
+    const headingFor = () => {
+      if (headingUsed) return '';
+      headingUsed = true;
+      return section.title ?? '';
+    };
+
+    let bucket = null;      /* run of text-ish fields */
+    let ticks = null;       /* run of checkbox fields → one block, many options */
+    const flush = () => {
+      if (bucket && bucket.fields.length) out.push(bucket);
+      bucket = null;
+      if (ticks && ticks.options.length) out.push(ticks);
+      ticks = null;
+    };
+
+    (section.fields ?? []).forEach((f) => {
+      if (FIELDY_TYPES.has(f.type)) {
+        if (ticks) flush();
+        if (!bucket) {
+          bucket = {
+            id: uid('block'),
+            kind: 'section',
+            badge: 'ข้อความ',
+            type: 'fields',
+            title: headingFor(),
+            required: false,
+            fields: [],
+          };
+        }
+        bucket.fields.push(makeField({
+          label: f.label,
+          placeholder: f.placeholder ?? '',
+          required: Boolean(f.required),
+          inputType: inputTypeOf(f.type),
+        }));
+        return;
+      }
+
+      if (f.type === 'checkbox') {
+        /* consecutive tick-boxes are ONE question with several options —
+           that is what the paper form actually looks like */
+        if (bucket) { out.push(bucket); bucket = null; }
+        if (!ticks) {
+          ticks = {
+            id: uid('block'),
+            kind: 'checkbox',
+            badge: 'เลือกหลายตัวเลือก',
+            type: 'checkbox',
+            title: headingFor(),
+            required: Boolean(f.required),
+            options: [],
+            showAddOption: true,
+          };
+        }
+        ticks.required = ticks.required || Boolean(f.required);
+        ticks.options.push(makeOption(f.label));
+        return;
+      }
+
+      /* anything else breaks both runs — otherwise a signature would land
+         inside the text group and lose its own block */
+      flush();
+      if (f.type === 'select') {
+        out.push({
+          id: uid('block'),
+          kind: 'dropdown',
+          badge: 'Dropdown',
+          type: 'dropdown',
+          title: f.label,
+          required: Boolean(f.required),
+          options: (f.options ?? ['ตัวเลือก 1', 'ตัวเลือก 2']).map(makeOption),
+        });
+        return;
+      }
+      if (f.type === 'signature') {
+        out.push({
+          id: uid('block'),
+          kind: 'signature',
+          badge: 'ลายเซ็น',
+          type: 'signature',
+          title: f.label,
+          required: Boolean(f.required),
+        });
+      }
+    });
+
+    flush();
+  });
+
+  return out;
+};
+
+/* Blocks keep DOM ids that must stay unique when a saved e-Document is
+   re-opened alongside another one — re-key on load. */
+export const rekeyBlocks = (blocks = []) => blocks.map((b) => ({
+  ...b,
+  id: uid('block'),
+  fields: b.fields?.map((f) => ({ ...f, id: uid('field') })),
+  options: b.options?.map((o) => ({ ...o, id: uid('opt') })),
+}));
+
+/** How many answerable items a saved e-Document holds — shown in the list row. */
+export const countBlockFields = (blocks = []) => blocks.reduce((n, b) => {
+  if (b.type === 'divider') return n;
+  if (b.type === 'fields') return n + (b.fields?.length ?? 0);
+  return n + 1;
+}, 0);
+
 export const createBlockFromKind = (kind) => {
   const factory = KIND_TEMPLATES[kind];
   if (!factory) return null;

@@ -1095,3 +1095,39 @@ repo `mih-design`** — เกิดจาก typography sweep (Mitr) + redesign
 - เหตุที่ต้อง flip ไม่ใช่ interpolate: `flex-direction` interpolate ไม่ได้
 - ระยะบน-ล่างของแถบ step ก่อน scroll ลดลง (`PageHeaderInfoPanel` dense
   paddingBottom 24→12px · `morphStepOnlyRootDenseStyle` paddingTop 12→8px)
+
+## 72. EDocumentBuilderPopup + EDocumentSheet — สร้าง e-Document ในระเบียนผู้ป่วย (TOR §1.10.8.4)
+
+- **ไฟล์:** `src/components/form-builder/EDocumentBuilderPopup.jsx` ·
+  `src/components/form-builder/EDocumentSheet.jsx`
+- **ใช้ที่:** `/clinic/family-planning/record` ขั้นตอนที่ 7 — 1 ที่
+- **สถานะ DS:** composition ของ form-builder ที่มีอยู่แล้ว
+  (`FormBuilderPalette` + `FormBuilderCanvas` + `FormBuilderPatientPreview`
+  ใน `Popup`) ไม่ได้สร้าง primitive ใหม่
+- **ยกขึ้น DS เมื่อ:** คลินิกอื่นต้องออก e-Document เองบ้าง (ANC, NCD, สังคมสงเคราะห์)
+  → ตอนนั้นถอดเป็น `<ClinicalEDocumentSection value onChange />` ใช้ร่วมกัน
+
+### ทำไมต้องมี EDocumentSheet แยกจาก FormBuilderPatientPreview
+
+`FormBuilderPatientPreview` เป็น mock จอมือถือ 320px — ถูกสำหรับออกแบบฟอร์มที่
+คนกรอกบนมือถือ แต่**ผิดสำหรับกระดาษที่ยื่นให้ผู้รับบริการเซ็น** `EDocumentSheet`
+จึงเรนเดอร์บล็อกชุดเดียวกันเป็นใบ A4 มีเส้นประให้เขียน + ช่องลายเซ็น
+
+### ส่วนที่แก้ของเดิม (additive, backward compatible)
+
+- `useFormBuilder(opts)` — รับ `{ blocks, name, storageKey }` ได้แล้ว
+  (`storageKey: null` = host เก็บเอง ไม่แตะ localStorage ของคลังเอกสาร);
+  `publish()` คืน `blocks` มาด้วย · เรียกแบบไม่ส่ง opts ได้ผลเหมือนเดิมทุกอย่าง
+- `formBuilderModel.js` — เพิ่ม `blocksFromLibraryForm` / `rekeyBlocks` /
+  `countBlockFields`
+- `familyPlanningVisits.js` — เพิ่ม `eDocuments: []` (คง `eDocBlocks` ไว้เป็น alias
+  ของเอกสารใบแรก เผื่อโค้ดเดิม)
+
+### บทเรียนที่ควรจำ
+
+- คลังเอกสารเก็บ template เป็น preview แบน ๆ (`sections[].fields[]`) ไม่ใช่ schema จริง
+  → ต้อง map ก่อนเข้า builder และ **ต้องยุบ checkbox ที่ติดกันให้เป็นบล็อกเดียว**
+  ไม่งั้นหัวข้อ "การยินยอม" จะซ้ำ 4 บรรทัดบนใบพิมพ์ (เจอตอนตรวจหน้าจริง)
+- print stylesheet ต้อง scope ด้วย attribute ของตัวเองบน `<html>` และ **portal
+  ใบพิมพ์ไปที่ `document.body`** — กฎ `body > *:not(.print-only)` จะซ่อน `#root`
+  ไปด้วยถ้าใบพิมพ์ฝังอยู่ข้างใน แล้วพิมพ์ออกมาได้หน้าเปล่า
