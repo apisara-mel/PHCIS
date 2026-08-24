@@ -12,11 +12,13 @@ import {
 } from '@/hooks/useHeaderAutoHide';
 import { useHistory } from 'react-router-dom';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { ButtonSizeAliasProvider } from '@/components/button/ButtonSizeAliasContext';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Tooltip from '@/components/tooltip/Tooltip';
 import { resolveSeverityBadgeStyle } from '@/components/badge/clinicalBadgeStyles';
 import { DEFAULT_PATIENT } from '@/data/patientProfiles';
+import MedicalHistoryPopup from '@/components/popup/MedicalHistoryPopup';
 
 /* Derive 1-2 character initials from the patient's name. Prefers the
    first two Thai given-name graphemes ("นายสมชาย มั่นใจดี" → "สม"),
@@ -51,7 +53,12 @@ const Field = ({ label, value, minWidth }) => (
     title={typeof value === 'string' && value.length > 28 ? value : undefined}
   >
     <span className='text-xs leading-snug opacity-90 whitespace-nowrap'>{label}</span>
-    <span className='text-sm font-bold leading-snug -tracking-[0.28px] whitespace-nowrap'>{value}</span>
+    <span
+      className='text-sm leading-snug -tracking-[0.28px] whitespace-nowrap'
+      style={{ fontWeight: 'var(--type-weight-regular, 400)' }}
+    >
+      {value}
+    </span>
   </div>
 );
 
@@ -200,6 +207,7 @@ const PatientCard = ({
   const autoHide = useHeaderAutoHide();
   const resolvedStickyTop = stickyTop ?? autoHide?.topbarOffset ?? APP_TOPBAR_HEIGHT;
   const [imgError, setImgError] = useState(false);
+  const [medicalHistoryOpen, setMedicalHistoryOpen] = useState(false);
   const sentinelRef = useRef(null);
   const cardRef = useRef(null);
   const [stuck, setStuck] = useState(false);
@@ -519,7 +527,7 @@ const PatientCard = ({
          and chronic conditions while charting. */}
       {showAlertRow && (
         <div
-          className='flex w-full flex-wrap'
+          className='flex w-full flex-wrap items-center'
           style={{
             gap: 'var(--dim-space-400, 16px)',
             marginTop: compact ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-300, 12px)',
@@ -529,9 +537,22 @@ const PatientCard = ({
         >
           <AlertBadgeColumn label='แพ้ยา' items={allergiesList} compact={compact} />
           <AlertBadgeColumn label='โรคประจำตัว' items={diseasesList} compact={compact} />
+          <BrandSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='history'
+            onClick={() => setMedicalHistoryOpen(true)}
+          >
+            ประวัติการรักษา
+          </BrandSubdueButton>
         </div>
       )}
     </div>
+    <MedicalHistoryPopup
+      open={medicalHistoryOpen}
+      onClose={() => setMedicalHistoryOpen(false)}
+      patient={patient}
+    />
     </>
   );
 };

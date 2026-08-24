@@ -8464,13 +8464,18 @@ surface to the nearest smaller existing tokens. No new token is introduced.
 
 | Runtime property | Default | `compact` |
 |---|---:|---:|
-| Step item width | `dimension/size/2000` · 128 px | `dimension/size/1800` · 96 px |
-| Visual circle | `dimension/size/500` · 24 px | `dimension/size/400` · 20 px |
+| Step item width | `dimension/size/1900` · 112 px | `dimension/size/1700` · 80 px |
+| Visual circle | `dimension/size/400` · 20 px | `dimension/size/300` · 16 px |
 | Current ring | `dimension/stroke/200` · 2 px | `dimension/stroke/200` · 2 px |
 | Circle number / title | `typography/size/xs` · 12 px | `typography/size/xxs` · 10 px |
 | Subtitle | `typography/size/xxs` · 10 px | hidden |
-| Indicator / row gap | `dimension/space/100` · 4 px | `dimension/space/050`–`100` · 2–4 px |
-| Interactive hit target | `dimension/size/900` · **44 px** | `dimension/size/900` · **44 px** |
+| Indicator / row gap | `dimension/space/050`–`100` · 2–4 px | `dimension/space/0`–`100` · 0–4 px |
+| Interactive hit target | absolute `dimension/size/900` · **44 px** (does not affect row height) | same |
+
+When global header morph passes 35%, `data-mih-step-inline="1"` switches the
+sticky step band to an inline compact layout: number/check circle on the left,
+Thai step title on the right, subtitle and connector hidden. Hysteresis returns
+to the expanded stacked layout below 15%, preventing flicker near the threshold.
 
 ---
 
@@ -11801,6 +11806,8 @@ The treatment / screening header shrinks as the user scrolls so the patient iden
 | Fields | same row as avatar: เพศ · อายุ · เลขบัตรประชาชน · หมู่เลือด · ประเภท · แพทย์ · สิทธิ์ (horizontal scroll when constrained) | row, right-aligned: สิทธิ์ · หมู่เลือด · ประเภท · แพทย์ |
 | `แพ้ยา` / `โรคประจำตัว` row | label **stacked above** badges (`flex-col`, gap 4) | label **inline with** badges (`flex-row flex-wrap`, gap 4) |
 | Initials fallback font | 20 px | 16 px |
+| Clinical field values | Sarabun Regular (`--type-weight-regular`) | same |
+| History action | `BrandSubdueButton sm` after the โรคประจำตัว group → `MedicalHistoryPopup` | same |
 
 ### Transition
 

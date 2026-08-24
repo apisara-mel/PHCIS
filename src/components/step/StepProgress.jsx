@@ -10,8 +10,9 @@ import { morphPanelPaddingStyle, morphStepScaleStyle } from '@/components/layout
                          num text/steps/select (white)   · title text/steps/title-select  (Bold)
      Success + Default : bg surface/steps/success        · check icon white            · title text/steps/title-success
      Success + Hover   : bg surface/steps/success-hover  · check icon white            · title text/steps/title-success
-   Product density aliases: Step item 128px · Circle 24×24 · Indicator gap 4px
-   · Column gap 4px. The interactive button remains 44×44 for touch access. */
+   Product density aliases: Step item 112px · Circle 20×20 · Indicator gap 4px
+   · Column gap 2px. The 44×44 hit area is absolutely expanded so it no
+   longer forces the visual row to reserve 44px of height. */
 
 const TYPE = { DEFAULT: 'default', CURRENT: 'current', SUCCESS: 'success' };
 
@@ -70,15 +71,18 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
   const isClickable = Boolean(onStepClick) && type !== TYPE.CURRENT;
   const showHover = hovered && isClickable;
   const circleSize = compact
-    ? 'var(--dim-size-400, 20px)'
-    : 'var(--dim-size-500, 24px)';
+    ? 'var(--dim-size-300, 16px)'
+    : 'var(--dim-size-400, 20px)';
   const currentRing = 'var(--dim-stroke-200, 2px)';
   const checkSize = compact
-    ? 'var(--dim-size-200, 12px)'
-    : 'var(--dim-size-250, 14px)';
+    ? 'var(--dim-size-100, 8px)'
+    : 'var(--dim-size-200, 12px)';
   const stepWidth = compact
-    ? 'var(--dim-size-1800, 96px)'
-    : 'var(--dim-size-2000, 128px)';
+    ? 'var(--dim-size-1700, 80px)'
+    : 'var(--dim-size-1900, 112px)';
+  const hitAreaInlineMargin = compact
+    ? 'calc(-1 * var(--dim-size-250, 14px))'
+    : 'calc(-1 * var(--dim-space-300, 12px))';
 
   let bg, numberColor, titleColor;
   if (type === TYPE.CURRENT) {
@@ -115,10 +119,11 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
   return (
     <div
       className='shrink-0 flex flex-col items-start'
+      data-step-item
       style={{
         width: hideLabels ? 'auto' : (labelNoWrap ? 'auto' : stepWidth),
         minWidth: hideLabels ? undefined : (labelNoWrap ? stepWidth : undefined),
-        gap: hideLabels ? 'var(--dim-space-0)' : (compact ? 'var(--dim-space-050)' : 'var(--dim-space-100)'),
+        gap: hideLabels ? 'var(--dim-space-0)' : (compact ? 'var(--dim-space-0)' : 'var(--dim-space-050)'),
         transition: `width 220ms ${SMOOTH_EASE}, gap 220ms ${SMOOTH_EASE}`,
       }}
       title={hideLabels ? label : undefined}
@@ -126,6 +131,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
       {/* Indicator row: circle + connector */}
       <div
         className='flex items-center w-full'
+        data-step-indicator
         style={{ gap: 'var(--dim-space-100, 4px)' }}
         data-spotlight={`step-${idx + 1}`}
       >
@@ -144,16 +150,24 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
           ].join(' ')}
           style={{
             width: 'var(--dim-size-900, 44px)',
-            height: 'var(--dim-size-900, 44px)',
+            height: circleSize,
+            marginLeft: hitAreaInlineMargin,
+            marginRight: hitAreaInlineMargin,
             padding: 'var(--dim-space-0)',
             background: 'transparent',
             border: 'none',
-            outline: focused
-              ? 'var(--dim-stroke-400, 4px) solid var(--border-brandPrimaryButton-tertiary)'
-              : 'none',
+            outline: 'none',
             outlineOffset: 'var(--dim-space-0)',
           }}
         >
+          <span
+            aria-hidden
+            className='absolute rounded-full'
+            style={{
+              width: 'var(--dim-size-900, 44px)',
+              height: 'var(--dim-size-900, 44px)',
+            }}
+          />
           <span
             className={[
               'relative box-border rounded-full flex items-center justify-center font-bold shrink-0 overflow-hidden',
@@ -167,6 +181,10 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
                 type === TYPE.CURRENT
                   ? `${currentRing} solid var(--primaryBorder-600)`
                   : 'none',
+              outline: focused
+                ? 'var(--dim-stroke-400, 4px) solid var(--border-brandPrimaryButton-tertiary)'
+                : 'none',
+              outlineOffset: 'var(--dim-space-0)',
               boxShadow:
                 type === TYPE.CURRENT
                   ? `0 0 0 ${currentRing} var(--primaryBorder-600)`
@@ -209,6 +227,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
         {!isLast && (
           <div
             className='flex-1 h-px min-w-0'
+            data-step-connector
             style={{
               background: connectorBg,
               transition: CONNECTOR_TRANSITION,
@@ -219,7 +238,11 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
 
       {/* Title + optional English subtitle (CPOE bilingual stepper) */}
       {!hideLabels && (
-        <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-050)' }}>
+        <div
+          className='flex flex-col items-start w-full'
+          data-step-label-group
+          style={{ gap: 'var(--dim-space-050)' }}
+        >
           <p
             className='leading-[1.5] text-left m-0'
             data-step-label
@@ -238,6 +261,7 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
           {subtitle && !compact && (
             <p
               className='text-left m-0'
+              data-step-subtitle
               style={{
                 color: 'var(--text-steps-subtitle)',
                 fontFamily: 'var(--type-family-body)',
@@ -280,8 +304,9 @@ const StepProgress = ({
   const row = (
     <div
       className={`flex items-start ${className}`}
+      data-step-progress
       style={{
-        gap: compact || hideLabels ? 'var(--dim-space-050, 2px)' : 'var(--dim-space-100, 4px)',
+        gap: 'var(--dim-space-050, 2px)',
         transition: 'gap 200ms cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
@@ -328,8 +353,8 @@ const StepProgress = ({
           ? {
               paddingLeft: 'var(--dim-space-400, 16px)',
               paddingRight: 'var(--dim-space-400, 16px)',
-              paddingTop: 'var(--dim-space-200, 8px)',
-              paddingBottom: 'var(--dim-space-200, 8px)',
+              paddingTop: 'var(--dim-space-100, 4px)',
+              paddingBottom: 'var(--dim-space-100, 4px)',
             }
           : morphPanelPaddingStyle),
       }}

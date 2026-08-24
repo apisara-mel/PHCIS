@@ -117,6 +117,11 @@ is the opt-in validation gate added so a step earns ✓ only when its
 required fields are filled — not just because the user has advanced past
 it. Parents compute the array; the component never validates on its own.
 
+The sticky wizard band is vertically compact at rest. After scrolling, each
+step changes from stacked (circle above title) to inline (circle left, title
+right); subtitles and connector lines collapse in this scrolled state. The
+visible row is compact while each step retains an absolute 44 px hit area.
+
 Per-form validators:
 - Registration → [`getRegistrationCompletedSteps(form)`](../src/data/registrationForm.js) — array of 5 booleans, derived from the `<Field required>` markers in [RegistrationSteps.jsx](../src/components/forms/RegistrationSteps.jsx).
 - Treatment → [`getTreatmentCompletedSteps(form, stepIndex)`](../src/data/treatmentVisits.js) — array of 7 booleans. Steps 1, 2, 3, 5 use advance-past semantics (no clear required field); Steps 4, 6, 7 use real validators.
