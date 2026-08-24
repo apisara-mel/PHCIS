@@ -251,7 +251,7 @@ const CarriedDentalPanel = ({
           label='เหตุผลที่ส่งตรวจ'
           required
           value={reason}
-          onChange={setReason}
+          onChange={(e) => setReason(e?.target ? e.target.value : e)}
           rows={4}
           placeholder='ระบุสิ่งที่พบระหว่างให้บริการ เช่น พบฟันผุหลายซี่ เหงือกบวม'
           suggestions={DENTAL_CHECK_REASON_SUGGESTIONS}

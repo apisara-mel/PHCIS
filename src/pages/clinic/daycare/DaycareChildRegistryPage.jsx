@@ -393,7 +393,7 @@ const DaycareChildRegistryPage = () => {
           label='เหตุผลการจำหน่าย'
           required
           value={dischargeReason}
-          onChange={setDischargeReason}
+          onChange={(e) => setDischargeReason(e?.target ? e.target.value : e)}
           suggestions={DISCHARGE_REASONS}
           minChars={2}
           rows={3}

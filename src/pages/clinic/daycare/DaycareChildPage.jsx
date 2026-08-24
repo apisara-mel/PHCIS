@@ -474,7 +474,7 @@ const DaycareChildPage = () => {
             <SuggestibleTextarea
               label='บันทึกผู้ประเมิน'
               value={devDraft.note}
-              onChange={(v) => setDevDraft((d) => ({ ...d, note: v }))}
+              onChange={(ev) => setDevDraft((d) => ({ ...d, note: ev?.target ? ev.target.value : ev }))}
               suggestions={DEV_NOTE_SUGGESTIONS}
               minChars={2}
               rows={3}
@@ -518,7 +518,7 @@ const DaycareChildPage = () => {
               label='เหตุผลการส่งต่อ'
               required
               value={referralDraft.reason}
-              onChange={(v) => setReferralDraft((d) => ({ ...d, reason: v }))}
+              onChange={(ev) => setReferralDraft((d) => ({ ...d, reason: ev?.target ? ev.target.value : ev }))}
               suggestions={REFERRAL_REASON_SUGGESTIONS}
               minChars={2}
               rows={3}
@@ -551,7 +551,7 @@ const DaycareChildPage = () => {
           label='เหตุผลการยกเลิก'
           required
           value={cancelReason}
-          onChange={setCancelReason}
+          onChange={(e) => setCancelReason(e?.target ? e.target.value : e)}
           suggestions={['ผู้ปกครองขอเลื่อน', 'ส่งต่อผิดคลินิก', 'เด็กได้รับบริการที่อื่นแล้ว']}
           minChars={2}
           rows={3}

@@ -33,6 +33,7 @@ const emptyStore = () => ({
   community: {},
   communityNew: [],
   reports: {},           /* visitId → report state */
+  treatmentOrders: {},   /* visitId → คำสั่งการรักษาจากผลตรวจ (§1.19.15) */
   audit: [],             /* newest-first audit trail */
   rights: {},            /* demo permission toggles */
 });
@@ -2116,3 +2117,113 @@ export const CANCEL_REASON_SUGGESTIONS = [
   'ผู้รับบริการย้ายไปตรวจที่หน่วยบริการอื่น',
   'เครื่องมือตรวจขัดข้อง นัดตรวจใหม่',
 ];
+
+/* ═══ คำสั่งการรักษาจากผลตรวจสุขภาพ (TOR §1.19.15) ══════════════════════
+   ข้อกำหนดคือ "สามารถ **บันทึก** ข้อมูลการสั่งการรักษา (เชื่อมโยง CPOE)"
+   ของเดิมมีแค่ลิงก์อ่านอย่างเดียวไป /treat — แพทย์ที่อ่านผลตรวจสุขภาพจึง
+   สั่งอะไรจากหน้านี้ไม่ได้เลย ต้องจำผลแล้วไปเปิดอีกหน้าหนึ่ง
+
+   หลักการที่ยึด (แบบเดียวกับ CarriedDentalPanel ของ คทง.6):
+   **ไม่ทำระบบสั่งยาซ้อนกับ CPOE** — คำสั่งที่บันทึกที่นี่คือ "คำสั่งที่ออก
+   จากผลตรวจสุขภาพ" ซึ่งส่งเข้าไปเป็นรายการรอในระบบบันทึกการรักษา แล้วให้
+   แพทย์ยืนยัน/ปรับที่ CPOE ตามเดิม จุดนี้จึงเก็บเจตนา + เหตุผลทางคลินิก
+   ไม่ใช่ขนาดยา/วิธีใช้ ซึ่งเป็นงานของ CPOE ที่มี CDSS ครบแล้ว           */
+
+export const CHECKUP_ORDER_KINDS = [
+  { value: 'medication', label: 'สั่งยา',                     icon: 'pill',        route: '/treat/queue' },
+  { value: 'lab',        label: 'ตรวจทางห้องปฏิบัติการเพิ่ม', icon: 'science',     route: '/lab/worklist' },
+  { value: 'imaging',    label: 'ตรวจทางรังสีเพิ่ม',          icon: 'radiology',   route: '/xray/worklist' },
+  { value: 'refer',      label: 'ส่งต่อคลินิก/สถานพยาบาล',    icon: 'forward_to_inbox', route: '/treat/refer' },
+  { value: 'followup',   label: 'นัดติดตามผล',                icon: 'event',       route: '/appointment' },
+  { value: 'advice',     label: 'คำแนะนำ/ปรับพฤติกรรม',       icon: 'health_and_safety', route: null },
+];
+
+export const checkupOrderKind = (v) =>
+  CHECKUP_ORDER_KINDS.find((k) => k.value === v) || null;
+
+export const CHECKUP_ORDER_STATUS = {
+  draft: { label: 'ร่าง', style: 'grey' },
+  sent: { label: 'ส่งเข้าระบบการรักษาแล้ว', style: 'green' },
+  cancelled: { label: 'ยกเลิกแล้ว', style: 'red' },
+};
+
+/** คำสั่งทั้งหมดของใบตรวจสุขภาพหนึ่งใบ (ใหม่สุดอยู่บน) */
+export const listCheckupOrders = (visitId) => {
+  const store = readStore();
+  return [...((store.treatmentOrders || {})[visitId] || [])]
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+};
+
+export const saveCheckupOrder = (visitId, draft) => {
+  if (!visitId) return null;
+  const now = new Date().toISOString();
+  let saved = null;
+  mutate((store) => {
+    const all = store.treatmentOrders || {};
+    const rows = all[visitId] || [];
+    const id = draft.id || `cto-${visitId}-${rows.length + 1}-${Date.now()}`;
+    const existing = rows.find((r) => r.id === id);
+    saved = existing
+      ? { ...existing, ...draft, id, updatedBy: CHECKUP_STAFF.name, updatedAt: now }
+      : {
+        status: 'draft',
+        ...draft,
+        id,
+        visitId,
+        createdBy: CHECKUP_STAFF.name,
+        createdAt: now,
+        updatedBy: CHECKUP_STAFF.name,
+        updatedAt: now,
+      };
+    store.treatmentOrders = {
+      ...all,
+      [visitId]: existing ? rows.map((r) => (r.id === id ? saved : r)) : [...rows, saved],
+    };
+    return store;
+  });
+  logCheckupAudit({
+    action: draft.id ? 'แก้ไขคำสั่งการรักษาจากผลตรวจสุขภาพ' : 'บันทึกคำสั่งการรักษาจากผลตรวจสุขภาพ',
+    subject: visitId,
+    detail: `${checkupOrderKind(draft.kind)?.label || draft.kind} — ${draft.detail || ''}`,
+  });
+  return saved;
+};
+
+/** ส่งคำสั่งเข้าระบบบันทึกการรักษา — ยังไม่ผูก backend จริง จึงเป็นการ
+    เปลี่ยนสถานะ + ประทับผู้ส่ง/เวลา ให้ตามรอยได้ว่าใครส่งเมื่อไร */
+export const sendCheckupOrder = (visitId, orderId) => {
+  const now = new Date().toISOString();
+  mutate((store) => {
+    const all = store.treatmentOrders || {};
+    store.treatmentOrders = {
+      ...all,
+      [visitId]: (all[visitId] || []).map((r) => (
+        r.id === orderId
+          ? { ...r, status: 'sent', sentBy: CHECKUP_STAFF.name, sentAt: now }
+          : r
+      )),
+    };
+    return store;
+  });
+  logCheckupAudit({ action: 'ส่งคำสั่งการรักษาเข้าระบบบันทึกการรักษา', subject: visitId, detail: orderId });
+  return listCheckupOrders(visitId);
+};
+
+/** ยกเลิกคำสั่ง — เหตุผลบังคับตามแนวเดียวกับที่อื่นในระบบ */
+export const cancelCheckupOrder = (visitId, orderId, reason) => {
+  const now = new Date().toISOString();
+  mutate((store) => {
+    const all = store.treatmentOrders || {};
+    store.treatmentOrders = {
+      ...all,
+      [visitId]: (all[visitId] || []).map((r) => (
+        r.id === orderId
+          ? { ...r, status: 'cancelled', cancelReason: reason || 'ไม่ระบุเหตุผล', cancelledBy: CHECKUP_STAFF.name, cancelledAt: now }
+          : r
+      )),
+    };
+    return store;
+  });
+  logCheckupAudit({ action: 'ยกเลิกคำสั่งการรักษาจากผลตรวจสุขภาพ', subject: visitId, detail: `${orderId} · ${reason || ''}` });
+  return listCheckupOrders(visitId);
+};

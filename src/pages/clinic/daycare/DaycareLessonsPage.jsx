@@ -198,7 +198,7 @@ const DaycareLessonsPage = () => {
               label='กิจกรรม'
               required
               value={editing.topic}
-              onChange={(v) => setEditing((e) => ({ ...e, topic: v }))}
+              onChange={(ev) => setEditing((e) => ({ ...e, topic: ev?.target ? ev.target.value : ev }))}
               suggestions={TOPIC_SUGGESTIONS}
               minChars={2}
               rows={2}
@@ -208,7 +208,7 @@ const DaycareLessonsPage = () => {
             <SuggestibleTextarea
               label='บันทึกการสังเกตเด็ก'
               value={editing.detail}
-              onChange={(v) => setEditing((e) => ({ ...e, detail: v }))}
+              onChange={(ev) => setEditing((e) => ({ ...e, detail: ev?.target ? ev.target.value : ev }))}
               suggestions={[
                 'เด็กเข้าร่วมครบทุกคน ทำกิจกรรมได้ตามวัย',
                 'มีเด็กที่ยังทำตามคำสั่ง 2 ขั้นตอนไม่ได้ — บันทึกไว้ประกอบการประเมินพัฒนาการ',
@@ -244,7 +244,7 @@ const DaycareLessonsPage = () => {
           label='เหตุผลการยกเลิก'
           required
           value={cancelReason}
-          onChange={setCancelReason}
+          onChange={(e) => setCancelReason(e?.target ? e.target.value : e)}
           suggestions={['บันทึกซ้ำ', 'ลงวันที่ผิด', 'กิจกรรมถูกยกเลิกจริง']}
           minChars={2}
           rows={3}
