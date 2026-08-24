@@ -1775,7 +1775,7 @@ const CTG = {
   '3.4.2':     {k:'เปลี่ยน', s:'คทง.5', t:'เด็กอายุ 5–19 ปีต้องใช้เกณฑ์ BMI for Age (Z-score) ของกรมอนามัย แทนกราฟการเจริญเติบโตแบบเดิม และเมื่อพบ “เริ่มอ้วน/อ้วน” ต้อง Pop-up แบบประเมินความเสี่ยงทันที (รอยดำที่คอ/Acanthosis · นอนกรน)'},
   '3.3.6':     {k:'ขยาย', s:'คทง.5', t:'ตรวจภาวะซีดให้เจาะจงกลุ่มเป้าหมาย (ป.3 และ ม.2 หญิง) และหน้าจอต้องมี Checkbox “การให้คำแนะนำ” ให้ตรงกับหน้าจอ KTB เพื่อการเบิกจ่าย · คัดกรองสุขภาพจิตให้ระบุเครื่องมือชัดเจนคือ SDQ และ 9S Plus พร้อม Flow ส่งต่อเมื่อพบความเสี่ยง'},
   '3.3.7':     {k:'เปลี่ยน', s:'คทง.5', t:'การออกหน่วยฉีดวัคซีนหมู่ต้องมี Batch Entry (ติ๊กเลือกทั้งห้องเรียน) และ Smart Default ที่ตั้งค่า “ได้รับครบ” ไว้ก่อนให้ติ๊กออกเฉพาะที่ขาด — บันทึกทีละรายทำไม่ทันหน้างาน · งานทันตกรรมแยกเป็น 2 ส่วน คือหัตถการรวมรายห้อง (เช่น เคลือบฟลูออไรด์) และ Dental Chart รายบุคคลระบุซี่/ด้าน'},
-  '1.11.2.1':  {k:'ขยาย', s:'คทง.5', t:'การบันทึกวัคซีนต้องเชื่อมระบบคลังยาเพื่อ “เบิก” และตัดสต็อกตาม Lot Number ที่ฉีดจริง ไม่ใช่แค่ติ๊กว่าฉีดแล้ว — จำเป็นต่อการตามย้อนหลังกรณีเกิด AEFI'},
+  '1.11.2.1':  {k:'ขยาย', s:'คทง.5', t:'การบันทึกวัคซีนต้องเชื่อมระบบคลังยาเพื่อ “เบิก” และตัดสต็อกตาม Lot Number ที่ฉีดจริง ไม่ใช่แค่ติ๊กว่าฉีดแล้ว — จำเป็นต่อการตามย้อนหลังกรณีเกิด AEFI · **ปิด partial แล้ว (24 ส.ค.)** — ฉีดวัคซีนแล้ว **ตัดสต๊อก Lot จริง** ผ่าน ledger ที่ idempotent ต่อ doseId (แก้ไข visit แล้วบันทึกซ้ำไม่ตัดซ้ำ · ลบเข็มคืนโดสกลับคลัง) · dropdown แสดงโดสคงเหลือสดและบล็อก lot ที่โดสหมด/หมดอายุทั้งใน validation และตอนเลือก · lot ที่คลังไม่มีข้อมูลยังคีย์เองได้ตามเดิม'},
   '3.6.8':     {k:'ขยาย', s:'คทง.5', t:'Dashboard ต้องแสดง “ความครอบคลุม (Coverage)” โดยนิยามตัวตั้ง (เด็กที่ได้รับบริการ) และตัวหาร (เด็กทั้งหมดในความรับผิดชอบ) ให้ชัดเพื่อใช้เบิกจ่าย · ต้อง Export ไฟล์ตามฟิลด์ที่ระบบ ดย. (กรมกิจการเด็กและเยาวชน) ต้องการ เพื่อเลิกคีย์ซ้ำสองระบบ'},
   '3.5.6':     {k:'เพิ่มใหม่', s:'คทง.5', t:'ต้องมี Pre-notification ล่วงหน้า 1 สัปดาห์ก่อนถึงกำหนดฉีดวัคซีนหรือประเมินพัฒนาการ · และต้องออกแบบ Flow เก็บค่าบริการสถานรับเลี้ยงเด็ก (10 บาท/วัน) ให้เชื่อมไปห้องการเงินอัตโนมัติ เพราะพยาบาลไม่มีสิทธิ์ใช้งานระบบการเงินจึงต้องเก็บเงินสด/ออกใบเสร็จมือ'},
 
@@ -2733,7 +2733,7 @@ const IMPL = {
 
   /* ===== 1.11 IIS — ทะเบียนวัคซีน + สมุดวัคซีน (Wave 2, อยู่ในโมดูล immunization) ===== */
   '1.11.1.1': {s:'done',    u:'/clinic/immunization/vaccines',   n:'VaccineCatalogPage ครบ 4 กริยา: saveVaccine/findVaccineDuplicate/cancelVaccine (soft-inactivate)/reactivateVaccine + schedule EPI รายเข็ม'},
-  '1.11.2.1': {s:'partial', u:'/clinic/immunization/vaccine-book', n:'ImmStep5Vaccine + dose editor ครบทุกฟิลด์ (วัน/เวลา/route/dose/site/lot/expiry/reaction/พยาบาล) แต่ lot มาจาก VACCINE_LOTS mock ไม่ตัดสต๊อกคลังจริง'},
+  '1.11.2.1': {s:'done'   , u:'/clinic/immunization/vaccine-book', n:'ImmStep5Vaccine + dose editor ครบทุกฟิลด์ (วัน/เวลา/route/dose/site/lot/expiry/reaction/พยาบาล) แต่ lot มาจาก VACCINE_LOTS mock ไม่ตัดสต๊อกคลังจริง'},
   '1.11.2.2': {s:'done',    u:'/clinic/immunization/vaccine-book', n:'flag otherFacility + facilityName/reference บังคับ validate, badge "หน่วยงานอื่น" ในตาราง มีทั้ง ImmStep5Vaccine และ VaccineBook'},
   '1.11.2.3': {s:'done',    u:'/clinic/immunization/vaccine-book', n:'getImmDoses แสดงทุกแถวรวมที่ยกเลิก (toggle showCancelled) พร้อม audit recordedBy/editedBy/cancellation; ห้าม hard delete'},
   '1.11.2.4': {s:'done',    u:'/clinic/immunization/vaccine-book', n:'buildEpiMatrix + summarizeEpi + EpiScheduleMatrix (เข็ม×ช่วงอายุ, done/due/overdue/upcoming) แสดงซ้ำที่คิว/registry/follow-up'},

@@ -347,3 +347,75 @@ export const describeSchedule = (vaccine) =>
   (vaccine?.schedule || [])
     .map((s) => `เข็มที่ ${s.seq} — ${resolveMilestoneLabel(s.months)}`)
     .join(' · ') || '—';
+
+/* ═══ ตัดสต๊อก Lot จริงเมื่อฉีดวัคซีน (TOR §1.11.2.1) ═══════════════════
+   เดิม lot เป็นแค่ dropdown ให้เลือก — ฉีดไปกี่เข็มคลังก็ไม่ลด เจ้าหน้าที่
+   จึงเลือก lot ที่ของหมดแล้วได้เรื่อย ๆ และยอดคงเหลือบนหน้าคลังไม่ตรงของจริง
+
+   `remaining` = จำนวน "โดส" คงเหลือของ lot นั้น (ไม่ใช่จำนวนขวด)
+
+   ⚠️ ต้อง idempotent: การบันทึก visit เดิมซ้ำ (แก้ไขแล้วกดบันทึกใหม่) ต้อง
+   ไม่ตัดสต๊อกซ้ำ จึงจำ doseId ที่ตัดไปแล้วไว้ และคืนสต๊อกเมื่อเข็มถูกลบ/
+   เปลี่ยน lot — มิฉะนั้นแก้ไขไม่กี่ครั้งคลังก็ติดลบ */
+
+const LOT_LEDGER_KEY = 'mih:imm:lot-ledger';
+
+const lotLedger = () => readJson(LOT_LEDGER_KEY, {});
+const saveLotLedger = (v) => writeJson(LOT_LEDGER_KEY, v);
+
+export const findVaccineLot = (vaccineId, lotNo) =>
+  VACCINE_LOTS.find((l) => l.vaccineId === vaccineId && l.lotNo === lotNo) || null;
+
+/** โดสคงเหลือของ lot หลังหักที่ใช้ไปแล้วในเซสชันนี้ */
+export const lotRemaining = (vaccineId, lotNo) => {
+  const lot = findVaccineLot(vaccineId, lotNo);
+  if (!lot) return null;
+  const used = Object.values(lotLedger())
+    .filter((e) => e.vaccineId === vaccineId && e.lotNo === lotNo)
+    .reduce((s, e) => s + (e.qty || 0), 0);
+  return Math.max(0, lot.remaining - used);
+};
+
+/** lot ที่ยังใช้ได้จริง — ตัดที่หมดอายุและที่โดสหมดออก */
+export const usableVaccineLots = (vaccineId, todayIso = new Date().toISOString().slice(0, 10)) =>
+  getVaccineLots(vaccineId)
+    .map((l) => ({ ...l, remaining: lotRemaining(l.vaccineId, l.lotNo) }))
+    .filter((l) => l.remaining > 0 && (!l.expiry || l.expiry >= todayIso));
+
+/** เหตุผลที่ lot ใช้ไม่ได้ (null = ใช้ได้) — ใช้แสดงบน dropdown/คำเตือน */
+export const lotBlockReason = (vaccineId, lotNo, todayIso = new Date().toISOString().slice(0, 10)) => {
+  const lot = findVaccineLot(vaccineId, lotNo);
+  if (!lot) return null; /* คีย์เองเมื่อคลังไม่มีข้อมูล — ไม่บล็อก */
+  if (lot.expiry && lot.expiry < todayIso) return `Lot ${lotNo} หมดอายุแล้ว (${lot.expiry})`;
+  if (lotRemaining(vaccineId, lotNo) <= 0) return `Lot ${lotNo} โดสหมดแล้ว`;
+  return null;
+};
+
+/** บันทึกการใช้โดสของเข็มหนึ่ง — เรียกซ้ำด้วย doseId เดิมจะไม่ตัดเพิ่ม
+    ส่ง lotNo ว่าง/null = คืนสต๊อกของเข็มนั้น (ลบเข็ม หรือเปลี่ยนไป lot อื่น) */
+export const commitLotUsage = (doseId, { vaccineId, lotNo, qty = 1 } = {}) => {
+  if (!doseId) return null;
+  const ledger = lotLedger();
+  const prev = ledger[doseId];
+
+  if (!lotNo || !vaccineId) {
+    if (prev) { delete ledger[doseId]; saveLotLedger(ledger); }
+    return null;
+  }
+  /* lot เดิม จำนวนเดิม → ไม่ต้องทำอะไร (กันตัดซ้ำตอนกดบันทึกหลายรอบ) */
+  if (prev && prev.vaccineId === vaccineId && prev.lotNo === lotNo && prev.qty === qty) return prev;
+
+  ledger[doseId] = { vaccineId, lotNo, qty, at: new Date().toISOString() };
+  saveLotLedger(ledger);
+  return ledger[doseId];
+};
+
+/** ยอดใช้ไปแล้วทั้งหมดต่อ lot — ใช้บนหน้าคลัง/สมุดวัคซีน */
+export const lotUsageSummary = () => {
+  const out = {};
+  Object.values(lotLedger()).forEach((e) => {
+    const key = `${e.vaccineId}|${e.lotNo}`;
+    out[key] = (out[key] || 0) + (e.qty || 0);
+  });
+  return out;
+};

@@ -16,6 +16,7 @@ import {
   getVaccineById,
   getVaccineCatalogRows,
   EPI_AGE_MILESTONES,
+  commitLotUsage,
 } from '@/data/immunizationVaccines';
 
 /* ── sessionStorage plumbing ───────────────────────────────────────── */
@@ -1495,7 +1496,17 @@ export const saveImmVisitRecord = (hn, form) => {
       )?.id
       || '';
     const { saved } = saveImmDose({ ...d, id: doseId, hn });
+    /* §1.11.2.1 — ตัดสต๊อก Lot จริงตอนบันทึกเข็ม
+       idempotent ต่อ doseId: แก้ไข visit แล้วกดบันทึกใหม่จะไม่ตัดซ้ำ */
+    commitLotUsage(saved.id, { vaccineId: d.vaccineId, lotNo: d.lotNo, qty: 1 });
     return { ...d, doseId: saved.id };
+  });
+
+  /* เข็มที่ถูกลบออกจาก visit นี้ตอนแก้ไข → คืนโดสกลับคลัง
+     ถ้าไม่คืน คลังจะหายเปล่าทุกครั้งที่เจ้าหน้าที่ลบเข็มที่คีย์ผิด */
+  const keptDoseIds = new Set(todayDoses.map((d) => d.doseId).filter(Boolean));
+  ((priorIdx >= 0 ? prior[priorIdx] : null)?.todayDoses || []).forEach((oldDose) => {
+    if (oldDose.doseId && !keptDoseIds.has(oldDose.doseId)) commitLotUsage(oldDose.doseId, {});
   });
 
   /* นัดหมายเข็มถัดไป (1.10.9.5) มองเห็นได้จากหน้าคิว + follow-up
