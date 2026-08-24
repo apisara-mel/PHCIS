@@ -8458,6 +8458,20 @@ The preview panel (`id="panel-search"`) contains two independent IIFE-scoped dem
 | Column gap | `dimension/space/200` | **8 px** | gap: indicator ↓ content |
 | Check icon size | `dimension/size/300` | **16 px** | `.st-check` SVG (Figma 2857:2369) |
 
+**PHCIS product density override (2026-08-24):** the Foundation dimensions
+above remain the source reference, while `StepProgress` aliases the product
+surface to the nearest smaller existing tokens. No new token is introduced.
+
+| Runtime property | Default | `compact` |
+|---|---:|---:|
+| Step item width | `dimension/size/2000` · 128 px | `dimension/size/1800` · 96 px |
+| Visual circle | `dimension/size/500` · 24 px | `dimension/size/400` · 20 px |
+| Current ring | `dimension/stroke/200` · 2 px | `dimension/stroke/200` · 2 px |
+| Circle number / title | `typography/size/xs` · 12 px | `typography/size/xxs` · 10 px |
+| Subtitle | `typography/size/xxs` · 10 px | hidden |
+| Indicator / row gap | `dimension/space/100` · 4 px | `dimension/space/050`–`100` · 2–4 px |
+| Interactive hit target | `dimension/size/900` · **44 px** | `dimension/size/900` · **44 px** |
+
 ---
 
 #### 6.18.3 Typography
@@ -9576,6 +9590,12 @@ Each set has 4 prop combinations: `horizontal: Yes/No` × `type: reading / bmi`.
 **MIH Design Template:** `Urt0JAQES9364u2ud3XtpY`
 
 The Header is a 64 px fixed top bar. Left zone: Brand Subdue Icon Button (40 px) + program name + inline breadcrumb. Centre: Brand Tag pill (location selector with dropdown). Right zone: calendar date, font-size switcher (ก ก ก), **Neutral Subdue Button** (คู่มือใช้งานระบบ).
+
+**Page-title SubHeader density:** buttons in the row that contains the page
+title are wrapped by `ButtonSizeAliasProvider size="sm"`. All canonical button
+families therefore resolve to `dimension/size/700` (36 px), including buttons
+nested inside compound header actions. Buttons outside SubHeader keep the size
+requested by their caller.
 
 ---
 
@@ -11754,7 +11774,7 @@ Form state keys: `nurseExam`, `doctorExam`, `examSystem`, `examView`, `bodyMarke
 ## §6.26b PatientCard — sticky / parallax header
 
 > **Component:** [`PatientCard`](src/components/card/PatientCard.jsx)
-> **Figma:** `150:33649` (full default) · `343:1926` (compact mini gradient row) · `343:5629` (compact + alert row) · `343:1288` (44 px avatar)
+> **Figma:** `150:33649` (full default) · `343:1926` (compact mini gradient row) · `343:5629` (compact + alert row) · `343:1288` (source 44 px avatar; product aliases it to 40 px)
 > **Library demo:** [/components/patient-card](src/pages/components/ComponentsLibraryPage.jsx)
 > **Used by:** [TreatmentFormPage](src/pages/treat/TreatmentFormPage.jsx), [ScreeningPage](src/pages/opd/ScreeningPage.jsx)
 
@@ -11765,7 +11785,7 @@ The treatment / screening header shrinks as the user scrolls so the patient iden
 | Prop | Behaviour |
 |---|---|
 | _(none)_ | Static **full** layout adapted from Figma 150:33649. Avatar, identity, HN/VIP, and clinical fields share one horizontal row; the field group scrolls horizontally when space is constrained. |
-| `compact` | Static **mini** layout (Figma 343:5629). Single row, 44 px avatar, 24h HN/VIP pills, four right-aligned summary fields. Use in the Components Library to freeze the stuck state. |
+| `compact` | Static **mini** layout (Figma 343:5629). Single row, 40 px avatar, 24h HN/VIP pills, four right-aligned summary fields. Use in the Components Library to freeze the stuck state. |
 | `sticky` | **Parallax** — PatientCard renders a 1 px sentinel above itself, observes intersection with the viewport (offset by `stickyTop`), and toggles `compact` automatically. The card is wrapped in `position: sticky; top: stickyTop; z-index: 1100` so it pins under the app header (z-1200) while page content scrolls past. |
 | `stickyTop` | Pixel offset for the sticky top edge. Defaults to **64** to clear the PHCIS app `Header` (h-16, sticky, z-1200). |
 
@@ -11773,14 +11793,14 @@ The treatment / screening header shrinks as the user scrolls so the patient iden
 
 | Element | Full (default) | Compact (stuck) |
 |---|---|---|
-| Outer wrapper | `pt-16 pb-24 px-24` | `pt-16 pb-0 px-24` (alert row carries its own pb) |
+| Outer wrapper | `pt-12 pb-16 px-16` | `pt-12 pb-0 px-16` (alert row carries its own pb) |
 | Back · title · actions row | visible, `max-height 56 / opacity 1` | collapsed: `max-height 0 / opacity 0 / pointer-events: none / aria-hidden` |
-| Gradient card | row · no-wrap · `p-16` · gap 24 | row + flex-wrap · `px-16 py-8` · gap 24 |
-| Avatar | 68 × 68 (border-box, 4 px white ring) | 44 × 44 (Figma 343:1288) |
-| HN / VIP pills | h-32 · `px-12` · font 14 | h-24 · `px-8` · font 12 |
+| Gradient card | row · no-wrap · `p-12` · gap 12 | row + flex-wrap · `px-12 py-4` · gap 12 |
+| Avatar | 56 × 56 (border-box, white ring) | 40 × 40 (smaller alias of Figma 343:1288) |
+| HN / VIP pills | h-24 · `px-8` · font 12 | h-24 · `px-8` · font 12 |
 | Fields | same row as avatar: เพศ · อายุ · เลขบัตรประชาชน · หมู่เลือด · ประเภท · แพทย์ · สิทธิ์ (horizontal scroll when constrained) | row, right-aligned: สิทธิ์ · หมู่เลือด · ประเภท · แพทย์ |
-| `แพ้ยา` / `โรคประจำตัว` row | label **stacked above** badges (`flex-col`, gap 4) | label **inline with** badges (`flex-row flex-wrap`, gap 8) |
-| Initials fallback font | 24 px | 18 px |
+| `แพ้ยา` / `โรคประจำตัว` row | label **stacked above** badges (`flex-col`, gap 4) | label **inline with** badges (`flex-row flex-wrap`, gap 4) |
+| Initials fallback font | 20 px | 16 px |
 
 ### Transition
 

@@ -108,7 +108,7 @@ A step circle renders in one of three types:
 
 | Type | Visual | When |
 |---|---|---|
-| `current` | brand-filled circle with 4-px outer ring, bold title | `idx === current` (always wins) |
+| `current` | compact brand-filled circle with 2-px outer ring, bold title | `idx === current` (always wins) |
 | `success` | brand-filled circle with animated check mark | `completedSteps[idx] === true` (or `idx < current` when prop omitted) |
 | `default` | neutral filled circle with step number | otherwise |
 

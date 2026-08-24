@@ -38,13 +38,13 @@ export const morphStepScaleStyle = {
 
 export const morphPanelPaddingStyle = {
   paddingLeft:
-    'calc(var(--dim-space-600) + (var(--dim-space-400) - var(--dim-space-600)) * var(--header-morph, 0))',
+    'calc(var(--dim-space-400) + (var(--dim-space-300) - var(--dim-space-400)) * var(--header-morph, 0))',
   paddingRight:
-    'calc(var(--dim-space-600) + (var(--dim-space-400) - var(--dim-space-600)) * var(--header-morph, 0))',
+    'calc(var(--dim-space-400) + (var(--dim-space-300) - var(--dim-space-400)) * var(--header-morph, 0))',
   paddingTop:
-    'calc(var(--dim-space-600) + (var(--dim-space-300) - var(--dim-space-600)) * var(--header-morph, 0))',
+    'calc(var(--dim-space-400) + (var(--dim-space-200) - var(--dim-space-400)) * var(--header-morph, 0))',
   paddingBottom:
-    'calc(var(--dim-space-600) + (var(--dim-space-300) - var(--dim-space-600)) * var(--header-morph, 0))',
+    'calc(var(--dim-space-400) + (var(--dim-space-200) - var(--dim-space-400)) * var(--header-morph, 0))',
 };
 
 export const morphSubHeaderPaddingStyle = {

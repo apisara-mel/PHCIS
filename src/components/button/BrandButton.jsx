@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH BrandButton — Figma "Brand Button" (node 231:29).
    3 variants (fill / outline / ghost) × 4 sizes (sm 36 / md 40 / lg 44 / xl 52)
@@ -156,7 +157,8 @@ const BrandButton = React.forwardRef(function BrandButton(
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
   const isHover = (hovered || hoveredProp) && !disabled;
-  const dim = SIZES[size] || SIZES.md;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.md;
   const s = resolveStyles({ variant, isHover, active, focused, disabled });
   const renderLeadingIcon  = showLeadingIcon  !== undefined ? showLeadingIcon  : !!leadingIcon;
   const renderTrailingIcon = showTrailingIcon !== undefined ? showTrailingIcon : !!trailingIcon;

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH NeutralSubdueIconButton — Figma "Neutral Subdue Icon Button" (node 2024:4516).
    2 styles (fill / outline) × 3 sizes × 5 states.
@@ -114,7 +115,8 @@ const NeutralSubdueIconButton = React.forwardRef(function NeutralSubdueIconButto
   const [keyboardFocused, setKeyboardFocused] = useState(false);
   const isHover = (hovered || hoveredProp) && !disabled;
   const isActive = active || selected;
-  const dim = SIZES[size] || SIZES.sm;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.sm;
   const styleType = variant === 'outlined' ? 'outline' : variant;
   const s = resolveStyles({
     variant: styleType,

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH DangerSubdueButton — Figma "Danger Subdue Button" (node 2024:3592).
    2 styles (fill / outline) × 3 sizes × 5 states.
@@ -106,7 +107,8 @@ const DangerSubdueButton = React.forwardRef(function DangerSubdueButton(
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
   const isHover = (hovered || hoveredProp) && !disabled;
-  const dim = SIZES[size] || SIZES.md;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.md;
   const s = resolveStyles({ variant, isHover, active, focused, disabled });
   const renderLeadingIcon  = showLeadingIcon  !== undefined ? showLeadingIcon  : !!leadingIcon;
   const renderTrailingIcon = showTrailingIcon !== undefined ? showTrailingIcon : !!trailingIcon;

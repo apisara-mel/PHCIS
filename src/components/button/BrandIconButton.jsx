@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH BrandIconButton — Figma "Brand Icon Button" (node 377:11596).
    Square icon-only button.
@@ -146,7 +147,8 @@ const BrandIconButton = React.forwardRef(function BrandIconButton(
   const [pressed, setPressed] = useState(false);
   const isHover = (hovered || hoveredProp) && !disabled;
   const isActive = active || selected;
-  const dim = SIZES[size] || SIZES.md;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.md;
   const s = resolveStyles({ variant, isHover, active: isActive, focused, disabled });
   return (
     <button

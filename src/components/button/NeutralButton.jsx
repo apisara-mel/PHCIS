@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH NeutralButton — Figma "Neutral Button" (node 2024:3591).
    3 styles (fill / outline / ghost) × 3 sizes × 5 states.
@@ -122,7 +123,8 @@ const NeutralButton = React.forwardRef(function NeutralButton(
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
   const isHover = (hovered || hoveredProp) && !disabled;
-  const dim = SIZES[size] || SIZES.md;
+  const resolvedSize = useAliasedButtonSize(size);
+  const dim = SIZES[resolvedSize] || SIZES.md;
   const s = resolveStyles({ variant, isHover, active, focused, disabled });
   const renderLeadingIcon  = showLeadingIcon  !== undefined ? showLeadingIcon  : !!leadingIcon;
   const renderTrailingIcon = showTrailingIcon !== undefined ? showTrailingIcon : !!trailingIcon;

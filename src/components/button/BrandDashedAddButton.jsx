@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import { useAliasedButtonSize } from '@/components/button/ButtonSizeAliasContext';
 
 /* MIH BrandDashedAddButton — Figma MIH Design System Foundation node 3360:2711.
    Full-width dashed "add row" control for HistoryListForm (allergies / diseases).
@@ -62,6 +63,8 @@ const BrandDashedAddButton = ({
   ...rest
 }) => {
   const [hover, setHover] = useState(false);
+  const resolvedSize = useAliasedButtonSize('lg');
+  const compact = resolvedSize === 'sm';
   const interactive = !disabled;
   const hovered = interactive && (hoveredProp ?? hover);
   const brandFadeDisabled = disabled && disabledAppearance === 'brandFade';
@@ -92,6 +95,16 @@ const BrandDashedAddButton = ({
       className={className}
       style={{
         ...BASE_STYLE,
+        ...(compact
+          ? {
+              height: 'var(--dim-size-700, 36px)',
+              gap: 'var(--dim-space-150, 6px)',
+              paddingLeft: 'var(--dim-space-300, 12px)',
+              paddingRight: 'var(--dim-space-300, 12px)',
+              paddingTop: 'var(--dim-space-150, 6px)',
+              paddingBottom: 'var(--dim-space-150, 6px)',
+            }
+          : null),
         ...(borderless ? BORDERLESS_STYLE : null),
         width: '100%',
         ...style,
@@ -102,12 +115,12 @@ const BrandDashedAddButton = ({
         opacity: brandFadeDisabled ? 0.5 : 1,
         /* Lock to title weight — after ...style so callers cannot thicken label */
         fontFamily: 'var(--type-family-button, var(--type-family-heading-content))',
-        fontSize: 'var(--type-size-button-md, 16px)',
+        fontSize: compact ? 'var(--type-size-button-sm, 14px)' : 'var(--type-size-button-md, 16px)',
         fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
       }}
       {...rest}
     >
-      <Icon name={icon} size={iconSize} />
+      <Icon name={icon} size={compact ? 'var(--dim-size-300, 16px)' : iconSize} />
       {children}
     </button>
   );
