@@ -259,7 +259,8 @@ export default function AssessUserPage() {
         headerInfo={hasRecords ? (
           <section
             className='flex flex-col w-full'
-            style={{ gap: 'var(--dim-space-400)', paddingTop: 'var(--dim-space-600)' }}
+            /* ระยะบนเท่ากับหน้าอื่น (26 ส.ค. 2569) — เดิม space-600 ทำให้การ์ดสรุปห่างจากแถวชื่อหน้ากว่าหน้าอื่น 24px */
+            style={{ gap: 'var(--dim-space-400)' }}
           >
             <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               {summaryCards.map((c) => (

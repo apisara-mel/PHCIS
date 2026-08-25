@@ -8,14 +8,15 @@ import Footer from '@/components/layout/Footer';
 import SuccessScreen from '@/components/layout/SuccessScreen';
 import BrandButton from '@/components/button/BrandButton';
 import Radio from '@/components/radio/Radio';
+import Icon from '@/components/icons/Icon';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import AlertDialog from '@/components/popup/AlertDialog';
 import { HeaderCell, DataCell, TableRow } from '@/components/table/Table';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
-  PHCIS_MODULES,
-  CONSENT_MODULES,
   PERM_NONE,
   PERM_VIEW,
+  PERM_WRITE,
   PERM_EDIT,
   CENTER_OPTIONS,
   defaultPermissions,
@@ -37,10 +38,20 @@ import {
 } from '@/data/accessControlStore';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
+import { readPositions, sortPositions } from '@/data/positionStore';
+import {
+  ACCESS_SYSTEMS,
+  PERM_META,
+  PERM_MIXED,
+  menuLeafKeys,
+  systemLeafKeys,
+  rollupLevel,
+  setLevelForLeaves,
+} from '@/data/accessMenuCatalog';
 
 /* PHCIS | Assess-control — Create / edit access rights (Figma 4D3nTx53 · 15:30160). */
 
-const breadcrumb = ['สิทธิการเข้าถึง'];
+const breadcrumb = ['สิทธิ์การเข้าถึงระบบ'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -80,7 +91,7 @@ const DATA_CELL_OFF = {
   showButton3: false,
 };
 
-const PERM_COL_W = { none: 128, view: 128, edit: 160 };
+const PERM_COL_W = { none: 112, view: 156, write: 116, edit: 156 };
 const ROLE_COL_W = { field: 224, description: 448 };
 
 function PermRadioCell({ name, value, level, checked, onSelect }) {
@@ -101,32 +112,37 @@ function PermRadioCell({ name, value, level, checked, onSelect }) {
 
 function RoleFieldsTable({
   centerId,
+  positionId,
   activityId,
   subActivityId,
   departmentId,
   description,
   centerOpts,
+  positionOpts,
   activityOpts,
   subActivityOpts,
   deptOpts,
   onCenter,
+  onPosition,
   onActivity,
   onSubActivity,
   onDepartment,
   onDescription,
 }) {
-  /* ไม่มีคอลัมน์ "ตำแหน่ง" — บทบาทไม่ผูกกับตำแหน่ง ตำแหน่งกำหนดตอนเพิ่มบุคลากร */
+  /* สิทธิ์กำหนดตาม ตำแหน่ง · บทบาท · แผนก (26 ส.ค. 2569 มติผู้ใช้) — เดิมไม่มี
+     คอลัมน์ "ตำแหน่ง" เพราะถือว่าตำแหน่งกำหนดตอนเพิ่มบุคลากรอย่างเดียว */
   const headers = [
     { title: 'ศูนย์บริการ', width: ROLE_COL_W.field, sort: true },
-    { title: 'กิจกรรม', width: ROLE_COL_W.field, sort: true },
-    { title: 'กิจกรรมย่อย', width: ROLE_COL_W.field, sort: true },
+    { title: 'ตำแหน่ง', width: ROLE_COL_W.field, sort: true },
+    { title: 'บทบาท', width: ROLE_COL_W.field, sort: true },
+    { title: 'บทบาทย่อย', width: ROLE_COL_W.field, sort: true },
     { title: 'แผนก', width: ROLE_COL_W.field, sort: true },
     { title: 'คำอธิบาย', width: ROLE_COL_W.description, sort: false },
   ];
 
   return (
     <div className='w-full overflow-x-auto' style={TABLE_FRAME}>
-      <div style={{ minWidth: ROLE_COL_W.field * 4 + ROLE_COL_W.description }}>
+      <div style={{ minWidth: ROLE_COL_W.field * 5 + ROLE_COL_W.description }}>
         <div className='flex w-full'>
           {headers.map(({ title, width, sort }, i) => (
             <HeaderCell
@@ -146,6 +162,9 @@ function RoleFieldsTable({
         <TableRow>
           <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
             <Select size='medium' showLabel={false} showHelperText={false} options={centerOpts} value={centerId} onChange={onCenter} />
+          </DataCell>
+          <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
+            <Select size='medium' showLabel={false} showHelperText={false} options={positionOpts} value={positionId} onChange={onPosition} />
           </DataCell>
           <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
             <Select size='medium' showLabel={false} showHelperText={false} options={activityOpts} value={activityId} onChange={onActivity} />
@@ -212,82 +231,187 @@ function VersionBadge({ current, next, isEdit, history = [] }) {
   );
 }
 
-function PermissionTable({ title, modules, permissions, onChange }) {
-  return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <Topic
-        hierarchy='tertiary'
-        title={title}
-        showSubText={false}
-        showBadge={false}
-        showChevron={false}
-        showLeadingIcon={false}
-        showSuccess={false}
+/* ══════════════════════════════════════════════════════════════════════
+   PermissionTree — สิทธิ์ 3 ระดับ: ระบบ → เมนู → เมนูย่อย (26 ส.ค. 2569)
+   ══════════════════════════════════════════════════════════════════════
+   ระดับสิทธิ์เก็บที่ "ใบ" (เมนูที่ไม่มีเมนูย่อย หรือเมนูย่อยแต่ละอัน) แถวแม่
+   เป็นตัวสรุป — กดที่แถวแม่ = เซ็ตลูกทุกตัวพร้อมกัน ลูกไม่เท่ากันแสดงว่า
+   "กำหนดรายเมนู" */
+
+const PERM_HEADERS = [
+  { level: PERM_NONE, title: 'ไม่มีสิทธิ์', width: PERM_COL_W.none },
+  { level: PERM_VIEW, title: 'อ่านได้อย่างเดียว', width: PERM_COL_W.view },
+  { level: PERM_WRITE, title: 'เขียนได้', width: PERM_COL_W.write },
+  { level: PERM_EDIT, title: 'อ่านและเขียนได้', width: PERM_COL_W.edit },
+];
+
+const PERM_TREE_MIN_W = 640;
+
+function PermLevelCells({ nodeKey, label, level, onSelect, rowStyle }) {
+  return PERM_HEADERS.map((col, i) => (
+    <DataCell
+      key={col.level}
+      {...DATA_CELL_OFF}
+      style={{
+        width: col.width,
+        flexShrink: 0,
+        justifyContent: 'center',
+        ...(i === PERM_HEADERS.length - 1 ? {} : {}),
+        ...rowStyle,
+      }}
+    >
+      <PermRadioCell
+        name={nodeKey}
+        value={`${label} — ${PERM_META[col.level].label}`}
+        level={col.level}
+        checked={level === col.level}
+        onSelect={onSelect}
       />
-      <div className='w-full overflow-x-auto' style={TABLE_FRAME}>
-        <div style={{ minWidth: 560 }}>
-          <div className='flex w-full'>
-            <HeaderCell
-              title='โมดูล'
-              showSubtext={false}
-              style={{ flex: '1 1 0', minWidth: 0, borderTopLeftRadius: 'var(--dim-radius-400)' }}
-            />
-            <HeaderCell
-              title='ไม่มีสิทธิ'
-              showSubtext={false}
-              align='center'
-              style={{ width: PERM_COL_W.none, flexShrink: 0 }}
-            />
-            <HeaderCell
-              title='มีสิทธิดู'
-              showSubtext={false}
-              align='center'
-              style={{ width: PERM_COL_W.view, flexShrink: 0 }}
-            />
-            <HeaderCell
-              title='มีสิทธิบันทึก'
-              showSubtext={false}
-              align='center'
-              style={{ width: PERM_COL_W.edit, flexShrink: 0, borderTopRightRadius: 'var(--dim-radius-400)' }}
-            />
-          </div>
-          {modules.map((mod, rowIdx) => {
-            const current = permissions[mod.key] || PERM_NONE;
-            const setLevel = (level) => onChange(mod.key, level);
-            const isLast = rowIdx === modules.length - 1;
-            const rowStyle = isLast ? { borderBottom: 'none' } : {};
-            return (
-              <TableRow key={mod.key}>
-                <DataCell
-                  {...DATA_CELL_OFF}
-                  style={{ flex: '1 1 0', minWidth: 0, ...rowStyle }}
-                >
-                  <span style={CELL_TEXT}>{mod.label}</span>
-                </DataCell>
-                {[PERM_NONE, PERM_VIEW, PERM_EDIT].map((level) => (
-                  <DataCell
-                    key={level}
-                    {...DATA_CELL_OFF}
-                    style={{
-                      width: PERM_COL_W[level === PERM_EDIT ? 'edit' : level === PERM_VIEW ? 'view' : 'none'],
-                      flexShrink: 0,
-                      justifyContent: 'center',
-                      ...rowStyle,
-                    }}
-                  >
-                    <PermRadioCell
-                      name={mod.key}
-                      value={mod.label}
-                      level={level}
-                      checked={current === level}
-                      onSelect={setLevel}
-                    />
-                  </DataCell>
-                ))}
-              </TableRow>
-            );
-          })}
+    </DataCell>
+  ));
+}
+
+function PermNodeRow({
+  nodeKey, label, depth, level, onSelect, expandable, expanded, onToggle,
+}) {
+  const isSystem = depth === 0;
+  return (
+    <TableRow>
+      <DataCell
+        {...DATA_CELL_OFF}
+        style={{
+          flex: '1 1 0',
+          minWidth: 0,
+          paddingLeft: `calc(var(--dim-space-400) + ${depth} * var(--dim-space-600))`,
+          background: isSystem ? 'var(--surface-brandPrimary-quaternary)' : undefined,
+        }}
+      >
+        <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+          {expandable ? (
+            <button
+              type='button'
+              onClick={onToggle}
+              aria-label={expanded ? `ย่อ ${label}` : `กาง ${label}`}
+              aria-expanded={expanded}
+              className='inline-flex items-center justify-center shrink-0'
+              style={{
+                width: 'var(--dim-size-500, 20px)',
+                height: 'var(--dim-size-500, 20px)',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-content-tertiary)',
+                cursor: 'pointer',
+              }}
+            >
+              <Icon name={expanded ? 'expand_more' : 'chevron_right'} size={18} />
+            </button>
+          ) : (
+            <span className='shrink-0' style={{ width: 'var(--dim-size-500, 20px)' }} />
+          )}
+          <span
+            className='truncate'
+            style={{
+              ...CELL_TEXT,
+              fontFamily: isSystem
+                ? 'var(--type-family-heading-graphic2)'
+                : 'var(--type-family-body)',
+              color: isSystem ? 'var(--text-brandPrimary-default)' : CELL_TEXT.color,
+            }}
+          >
+            {label}
+          </span>
+          {level === PERM_MIXED ? (
+            <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+              กำหนดรายเมนู
+            </ColorfulBadge>
+          ) : null}
         </div>
+      </DataCell>
+      <PermLevelCells nodeKey={nodeKey} label={label} level={level} onSelect={onSelect} />
+    </TableRow>
+  );
+}
+
+function PermissionTree({ permissions, onSetLeaves }) {
+  /* ระบบกางไว้หมดตั้งแต่แรก · เมนูย่อยพับไว้ก่อน ไม่งั้นแถวยาวเป็นร้อย */
+  const [openMenus, setOpenMenus] = useState({});
+  const [closedSystems, setClosedSystems] = useState({});
+  const toggleMenu = (key) => setOpenMenus((p) => ({ ...p, [key]: !p[key] }));
+  const toggleSystem = (key) => setClosedSystems((p) => ({ ...p, [key]: !p[key] }));
+
+  return (
+    <div className='w-full overflow-x-auto' style={TABLE_FRAME}>
+      <div style={{ minWidth: PERM_TREE_MIN_W }}>
+        <div className='flex w-full'>
+          <HeaderCell
+            title='ระบบ / เมนู / เมนูย่อย'
+            showSubtext={false}
+            style={{ flex: '1 1 0', minWidth: 0, borderTopLeftRadius: 'var(--dim-radius-400)' }}
+          />
+          {PERM_HEADERS.map((col, i) => (
+            <HeaderCell
+              key={col.level}
+              title={col.title}
+              showSubtext={false}
+              align='center'
+              style={{
+                width: col.width,
+                flexShrink: 0,
+                ...(i === PERM_HEADERS.length - 1
+                  ? { borderTopRightRadius: 'var(--dim-radius-400)' }
+                  : {}),
+              }}
+            />
+          ))}
+        </div>
+
+        {ACCESS_SYSTEMS.map((system) => {
+          const sysLeaves = systemLeafKeys(system);
+          const sysOpen = !closedSystems[system.key];
+          return (
+            <React.Fragment key={system.key}>
+              <PermNodeRow
+                nodeKey={system.key}
+                label={system.label}
+                depth={0}
+                level={rollupLevel(permissions, sysLeaves)}
+                onSelect={(lv) => onSetLeaves(sysLeaves, lv)}
+                expandable
+                expanded={sysOpen}
+                onToggle={() => toggleSystem(system.key)}
+              />
+              {sysOpen && system.menus.map((menu) => {
+                const leaves = menuLeafKeys(menu);
+                const hasChildren = menu.children.length > 0;
+                const menuOpen = !!openMenus[menu.key];
+                return (
+                  <React.Fragment key={menu.key}>
+                    <PermNodeRow
+                      nodeKey={menu.key}
+                      label={menu.label}
+                      depth={1}
+                      level={rollupLevel(permissions, leaves)}
+                      onSelect={(lv) => onSetLeaves(leaves, lv)}
+                      expandable={hasChildren}
+                      expanded={menuOpen}
+                      onToggle={() => toggleMenu(menu.key)}
+                    />
+                    {hasChildren && menuOpen && menu.children.map((sub) => (
+                      <PermNodeRow
+                        key={sub.key}
+                        nodeKey={sub.key}
+                        label={sub.label}
+                        depth={2}
+                        level={permissions[sub.key] || PERM_NONE}
+                        onSelect={(lv) => onSetLeaves([sub.key], lv)}
+                      />
+                    ))}
+                  </React.Fragment>
+                );
+              })}
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );
@@ -301,6 +425,7 @@ export default function AccessControlCreatePage() {
 
   const [templateName, setTemplateName] = useState('');
   const [centerId, setCenterId] = useState('');
+  const [positionId, setPositionId] = useState('');
   const [activityId, setActivityId] = useState('');
   const [subActivityId, setSubActivityId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
@@ -323,6 +448,7 @@ export default function AccessControlCreatePage() {
 
   const activities = useMemo(() => readActivities(), []);
   const departments = useMemo(() => readDepartments(), []);
+  const positions = useMemo(() => sortPositions(readPositions()).filter((p) => p.active !== false), []);
 
   /* เวอร์ชันที่กำลังแก้อยู่: ของใหม่เริ่มที่ v1 · ของเดิมบันทึกทับแล้วเดินขึ้นหนึ่งขั้น */
   const currentVersion = existing ? latestVersion(existing) : 1;
@@ -332,6 +458,7 @@ export default function AccessControlCreatePage() {
     if (!existing) return;
     setTemplateName(existing.templateName || '');
     setCenterId(existing.centerId || '');
+    setPositionId(existing.positionId || '');
     setActivityId(existing.activityId || '');
     setSubActivityId(existing.subActivityId || '');
     setDepartmentId(existing.departmentId || '');
@@ -349,21 +476,24 @@ export default function AccessControlCreatePage() {
   const selectedActivity = activities.find((a) => a.id === activityId);
   const subActivityOpts = useMemo(() => {
     const list = selectedActivity?.subActivities || [];
-    return [{ value: '', label: 'เลือกกิจกรรมย่อย' }, ...list.map((sub) => ({ value: sub.id, label: sub.name }))];
+    return [{ value: '', label: 'ทุกบทบาทย่อย' }, ...list.map((sub) => ({ value: sub.id, label: sub.name }))];
   }, [selectedActivity]);
 
   const centerOpts = [{ value: '', label: 'เลือกศูนย์บริการ' }, ...CENTER_OPTIONS];
-  /* กิจกรรมยังไม่ผูกก็บันทึกแม่แบบได้ — ค่าว่างจึงอ่านว่า "ยังไม่ผูก" */
-  const activityOpts = [{ value: '', label: 'ยังไม่ผูกกิจกรรม' }, ...activities.map((a) => ({ value: a.id, label: a.name }))];
-  const deptOpts = [{ value: '', label: 'เลือกแผนก' }, ...departments.map((d) => ({ value: d.id, label: d.name }))];
+  /* คุณลักษณะที่เว้นว่าง = ไม่จำกัด (ตรงกับกติกา ABAC ใน accessControlStore)
+     จึงอ่านว่า "ทุก…" ไม่ใช่ "ยังไม่ผูก" */
+  const positionOpts = [{ value: '', label: 'ทุกตำแหน่ง' }, ...positions.map((p) => ({ value: p.id, label: p.name }))];
+  const activityOpts = [{ value: '', label: 'ทุกบทบาท' }, ...activities.map((a) => ({ value: a.id, label: a.name }))];
+  const deptOpts = [{ value: '', label: 'ทุกแผนก' }, ...departments.map((d) => ({ value: d.id, label: d.name }))];
 
   const labelOf = (opts, value) => opts.find((o) => o.value === value)?.label || '';
 
   /* บันทึกได้เมื่อ **ตั้งชื่อแม่แบบ** แล้ว — ไม่บังคับกิจกรรม / ตำแหน่ง */
   const nameValid = templateName.trim().length > 0;
 
-  const setPerm = (key, level) => {
-    setPermissions((p) => ({ ...p, [key]: level }));
+  /* เซ็ตระดับสิทธิ์ให้ "ใบ" ที่ส่งมา — แถวระบบ/เมนูส่งใบของทั้งกลุ่มมาพร้อมกัน */
+  const applyLeaves = (leafKeys, level) => {
+    setPermissions((p) => setLevelForLeaves(p, leafKeys, level));
   };
 
   const buildRecord = ({ bump }) => {
@@ -373,6 +503,8 @@ export default function AccessControlCreatePage() {
       templateName: templateName.trim(),
       centerId,
       center: labelOf(centerOpts, centerId),
+      positionId,
+      position: positionId ? labelOf(positionOpts, positionId) : '',
       activityId,
       activity: activityId ? labelOf(activityOpts, activityId) : '',
       subActivityId,
@@ -422,16 +554,20 @@ export default function AccessControlCreatePage() {
   };
 
   const confirmSummary = useMemo(() => {
-    const { view, edit } = countPermissionBuckets(permissions);
-    const scope = activityId
-      ? `กิจกรรม "${labelOf(activityOpts, activityId)}"${subActivityId ? ` · ${labelOf(subActivityOpts, subActivityId)}` : ''}`
-      : 'ยังไม่ผูกกิจกรรม';
+    const { view, write, edit } = countPermissionBuckets(permissions);
+    const parts = [
+      positionId ? `ตำแหน่ง "${labelOf(positionOpts, positionId)}"` : '',
+      activityId ? `บทบาท "${labelOf(activityOpts, activityId)}"${subActivityId ? ` · ${labelOf(subActivityOpts, subActivityId)}` : ''}` : '',
+      departmentId ? `แผนก "${labelOf(deptOpts, departmentId)}"` : '',
+    ].filter(Boolean);
+    const scope = parts.length ? parts.join(' · ') : 'ยังไม่ผูกตำแหน่ง/บทบาท/แผนก';
     const versionNote = isEdit ? `บันทึกเป็น ${formatVersion(nextVersion)} (แทน ${formatVersion(currentVersion)})` : 'เวอร์ชันแรก (v1)';
     const period = effectiveFrom || effectiveTo
       ? ` · มีผล ${effectiveFrom || 'ทันที'} ถึง ${effectiveTo || 'ไม่กำหนด'}`
       : '';
-    return `${scope} — มีสิทธิดู ${view} ระบบ · มีสิทธิบันทึก ${edit} ระบบ · ${dataScopeLabel(dataScope)}${piiVisibility === PII_MASKED ? ' (ปิดบัง PII)' : ''}${period} · ${versionNote}`;
-  }, [permissions, activityId, subActivityId, activityOpts, subActivityOpts, isEdit, nextVersion,
+    return `${scope} — อ่านได้ ${view} เมนู · เขียนได้ ${write} เมนู · อ่านและเขียนได้ ${edit} เมนู · ${dataScopeLabel(dataScope)}${piiVisibility === PII_MASKED ? ' (ปิดบัง PII)' : ''}${period} · ${versionNote}`;
+  }, [permissions, positionId, activityId, subActivityId, departmentId, positionOpts, activityOpts,
+    subActivityOpts, deptOpts, isEdit, nextVersion,
     currentVersion, dataScope, piiVisibility, effectiveFrom, effectiveTo,
     dailyFrom, dailyTo]);
 
@@ -443,10 +579,10 @@ export default function AccessControlCreatePage() {
         sidebarFallbackKey='assess-access-control'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
-        title='สิทธิการเข้าถึง'
+        title='สิทธิ์การเข้าถึงระบบ'
         onBack={() => navigate.push('/assess/access-control')}
       >
-        <div style={{ padding: 'var(--dim-space-600)' }}>ไม่พบสิทธิการเข้าถึง</div>
+        <div style={{ padding: 'var(--dim-space-600)' }}>ไม่พบสิทธิ์การเข้าถึงระบบ</div>
       </QueuePageShell>
     );
   }
@@ -459,7 +595,7 @@ export default function AccessControlCreatePage() {
         sidebarFallbackKey='assess-access-control'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
-        title='สิทธิการเข้าถึง'
+        title='สิทธิ์การเข้าถึงระบบ'
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -474,7 +610,7 @@ export default function AccessControlCreatePage() {
           <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
             <Topic
               hierarchy='primary'
-              title='แม่แบบสิทธิการเข้าถึง'
+              title='แม่แบบสิทธิ์การเข้าถึงระบบ'
               showSubText={false}
               leadingIcon='dashboard_customize'
               showBadge={false}
@@ -509,15 +645,18 @@ export default function AccessControlCreatePage() {
             />
             <RoleFieldsTable
               centerId={centerId}
+              positionId={positionId}
               activityId={activityId}
               subActivityId={subActivityId}
               departmentId={departmentId}
               description={description}
               centerOpts={centerOpts}
+              positionOpts={positionOpts}
               activityOpts={activityOpts}
               subActivityOpts={subActivityOpts}
               deptOpts={deptOpts}
               onCenter={setCenterId}
+              onPosition={setPositionId}
               onActivity={(v) => { setActivityId(v); setSubActivityId(''); }}
               onSubActivity={setSubActivityId}
               onDepartment={setDepartmentId}
@@ -625,29 +764,18 @@ export default function AccessControlCreatePage() {
             </div>
           </section>
 
-          {/* Card 2 — สิทธิ์เข้าถึงระบบ (Figma 15:30160 · card) */}
+          {/* Card 2 — สิทธิ์การเข้าถึงระบบ (Figma 15:30160 · card) */}
           <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-600)' }}>
             <Topic
               hierarchy='primary'
-              title='สิทธิ์เข้าถึงระบบ'
-              subText='เลือกระดับการเข้าถึงของแต่ละระบบ'
+              title='สิทธิ์การเข้าถึงระบบ'
+              subText='กำหนดได้ถึงระดับเมนูย่อย — กดที่แถวระบบหรือเมนูเพื่อเซ็ตทั้งกลุ่มพร้อมกัน'
               leadingIcon='settings'
               showBadge={false}
               showChevron={false}
               showSuccess={false}
             />
-            <PermissionTable
-              title='ระบบ PHCIS'
-              modules={PHCIS_MODULES}
-              permissions={permissions}
-              onChange={setPerm}
-            />
-            <PermissionTable
-              title='ระบบจัดการความยินยอม'
-              modules={CONSENT_MODULES}
-              permissions={permissions}
-              onChange={setPerm}
-            />
+            <PermissionTree permissions={permissions} onSetLeaves={applyLeaves} />
           </section>
         </div>
 
@@ -677,7 +805,7 @@ export default function AccessControlCreatePage() {
         onClose={() => setConfirmSaveOpen(false)}
         type='warning'
         alignment='center'
-        title={isEdit ? 'ส่งขออนุมัติสิทธิ์เวอร์ชันใหม่?' : 'ส่งขออนุมัติสิทธิการเข้าถึง?'}
+        title={isEdit ? 'ส่งขออนุมัติสิทธิ์เวอร์ชันใหม่?' : 'ส่งขออนุมัติสิทธิ์การเข้าถึงระบบ?'}
         description={`แม่แบบ "${templateName.trim()}" — ${confirmSummary}. สิทธิ์จะยังไม่มีผลจนกว่าผู้มีอำนาจจะอนุมัติ`}
         confirmLabel={isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติ'}
         cancelLabel='ยกเลิก'
@@ -686,8 +814,8 @@ export default function AccessControlCreatePage() {
 
       {saved ? (
         <SuccessScreen
-          title={<>ส่งขออนุมัติสิทธิการเข้าถึง<br />สำเร็จ — รอผู้มีอำนาจอนุมัติ</>}
-          buttonLabel='เข้าสู่หน้าสิทธิการเข้าถึง'
+          title={<>ส่งขออนุมัติสิทธิ์การเข้าถึงระบบ<br />สำเร็จ — รอผู้มีอำนาจอนุมัติ</>}
+          buttonLabel='เข้าสู่หน้าสิทธิ์การเข้าถึงระบบ'
           onDone={() => navigate.push('/assess/access-control')}
         />
       ) : null}

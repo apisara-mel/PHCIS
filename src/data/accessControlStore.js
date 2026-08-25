@@ -1,48 +1,49 @@
 /* PHCIS | Assess-control — Access rights (Figma 4D3nTx53 · 12:41101).
    Mock persistence via localStorage.
 
-   แม่แบบสิทธิ์ผูกกับ **กิจกรรม (Activity)** — record ที่เคยบันทึกในยุค
+   แม่แบบสิทธิ์กำหนดตาม **ตำแหน่ง · บทบาท · แผนก** (26 ส.ค. 2569) — record ที่เคยบันทึกในยุค
    Group Policy (`groupPolicyId`/`subBranchId`) ถูก normalize เป็น
    `activityId`/`subActivityId` อัตโนมัติตอนอ่าน. */
 
 const STORAGE_KEY = 'mih:assess-access-control';
 
+import {
+  PERM_NONE as LEVEL_NONE,
+  PERM_VIEW as LEVEL_VIEW,
+  PERM_EDIT as LEVEL_EDIT,
+  emptyPermissions,
+  normalizePermissions,
+  countPermissionLevels,
+} from '@/data/accessMenuCatalog';
+
 const uid = () => `ac-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-export const PERM_NONE = 'none';
-export const PERM_VIEW = 'view';
-export const PERM_EDIT = 'edit';
+/* ระดับสิทธิ์ + โครงเมนู 3 ระดับอยู่ที่ accessMenuCatalog — ที่นี่ re-export
+   ให้หน้าที่เรียกใช้อยู่แล้วไม่ต้องแก้ import (26 ส.ค. 2569) */
+export {
+  PERM_NONE,
+  PERM_VIEW,
+  PERM_WRITE,
+  PERM_EDIT,
+  PERM_MIXED,
+  PERM_LEVELS,
+  PERM_META,
+  permLabel,
+  ACCESS_SYSTEMS,
+  menuLeafKeys,
+  systemLeafKeys,
+  rollupLevel,
+  setLevelForLeaves,
+} from '@/data/accessMenuCatalog';
 
-export const PHCIS_MODULES = [
-  { key: 'phcis.dashboard', label: 'แดชบอร์ด' },
-  { key: 'phcis.mr', label: 'งานเวชระเบียน' },
-  { key: 'phcis.opd', label: 'ระบบงานผู้รับบริการนอก' },
-  { key: 'phcis.treatment', label: 'ระบบบันทึกการรักษา' },
-  { key: 'phcis.radiology', label: 'แผนกรังสีวินิจฉัย' },
-  { key: 'phcis.pharmacy', label: 'ระบบงานเภสัชกรรม' },
-  { key: 'phcis.finance', label: 'งานการเงิน' },
-  { key: 'phcis.appointment', label: 'ระบบนัดหมาย' },
-];
-
-export const CONSENT_MODULES = [
-  { key: 'consent.dashboard', label: 'แดชบอร์ด' },
-  { key: 'consent.manage', label: 'จัดการความยินยอม' },
-  { key: 'consent.forms', label: 'แบบฟอร์มความยินยอม' },
-  { key: 'consent.create', label: 'สร้างแบบฟอร์มจัดการความยินยอมใหม่' },
-  { key: 'consent.access', label: 'จัดการสิทธิ์การเข้าถึง' },
-  { key: 'consent.reports', label: 'สถิติและรายงาน' },
-];
-
-export const EDOCUMENT_MODULES = [
-  { key: 'edocument.dashboard', label: 'แดชบอร์ด' },
-  { key: 'edocument.catalog', label: 'คลังเอกสาร e-document ทั้งหมด' },
-  { key: 'edocument.create', label: 'สร้างเอกสาร e-document ใหม่' },
-];
-
-export const ALL_MODULE_KEYS = [
-  ...PHCIS_MODULES.map((m) => m.key),
-  ...CONSENT_MODULES.map((m) => m.key),
-  ...EDOCUMENT_MODULES.map((m) => m.key),
+/* คีย์โมดูลยุคเดิม (สิทธิ์แบน ๆ 17 รายการ) — เหลือไว้ใช้ seed ข้อมูลตัวอย่าง
+   เท่านั้น ตอนอ่านจะถูกแปลงเป็นสิทธิ์ระดับเมนู/เมนูย่อยให้อัตโนมัติ */
+const LEGACY_MODULE_KEYS = [
+  'phcis.dashboard', 'phcis.mr', 'phcis.opd', 'phcis.treatment',
+  'phcis.radiology', 'phcis.pharmacy', 'phcis.finance', 'phcis.appointment',
+  'consent.dashboard', 'consent.manage', 'consent.forms', 'consent.create',
+  'consent.access', 'consent.reports',
+  'edocument.dashboard', 'edocument.catalog', 'edocument.create',
 ];
 
 /* ตัวเลือกศูนย์บริการ = ศูนย์บริการสาธารณสุขทั้ง 69 ศูนย์ของสำนักอนามัย
@@ -217,6 +218,8 @@ export const DEMO_ACCESS_CONTROLS = [
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
     activity: 'ทันตแพทย์',
+    position: 'ผู้เชี่ยวชาญ (Specialist)',
+    positionId: 'pos-specialist',
     activityId: 'act-dentist',
     subActivity: 'ตรวจรักษาทางทันตกรรม',
     subActivityId: 'sub-dent-opd',
@@ -234,7 +237,7 @@ export const DEMO_ACCESS_CONTROLS = [
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(
-      ALL_MODULE_KEYS.map((k) => [k, k === 'phcis.treatment' ? PERM_EDIT : PERM_NONE]),
+      LEGACY_MODULE_KEYS.map((k) => [k, k === 'phcis.treatment' ? LEVEL_EDIT : LEVEL_NONE]),
     ),
   },
   {
@@ -246,6 +249,8 @@ export const DEMO_ACCESS_CONTROLS = [
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
     activity: 'พยาบาลวิชาชีพ',
+    position: 'ปฏิบัติการ',
+    positionId: 'pos-practitioner',
     activityId: 'gp-nurse',
     subActivity: 'คัดกรองและซักประวัติ (OPD)',
     subActivityId: 'sb-opd',
@@ -263,10 +268,10 @@ export const DEMO_ACCESS_CONTROLS = [
     dailyTo: '16:00',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.opd' || k === 'phcis.mr') return [k, PERM_EDIT];
-      if (k === 'phcis.treatment' || k === 'phcis.dashboard' || k === 'phcis.appointment') return [k, PERM_VIEW];
-      return [k, PERM_NONE];
+    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
+      if (k === 'phcis.opd' || k === 'phcis.mr') return [k, LEVEL_EDIT];
+      if (k === 'phcis.treatment' || k === 'phcis.dashboard' || k === 'phcis.appointment') return [k, LEVEL_VIEW];
+      return [k, LEVEL_NONE];
     })),
   },
   {
@@ -281,6 +286,8 @@ export const DEMO_ACCESS_CONTROLS = [
     center: 'ศูนย์ 15 ห้วยขวาง (เจ้าคุณพระประยูรวงศ์)',
     centerId: 'hc-15',
     activity: 'เภสัชกร',
+    position: 'ปฏิบัติการ',
+    positionId: 'pos-practitioner',
     activityId: 'gp-pharmacist',
     subActivity: 'จ่ายยาผู้ป่วยนอก',
     subActivityId: 'sb-dispense',
@@ -295,10 +302,10 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.pharmacy') return [k, PERM_EDIT];
-      if (k === 'phcis.treatment' || k === 'phcis.mr' || k === 'phcis.dashboard') return [k, PERM_VIEW];
-      return [k, PERM_NONE];
+    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
+      if (k === 'phcis.pharmacy') return [k, LEVEL_EDIT];
+      if (k === 'phcis.treatment' || k === 'phcis.mr' || k === 'phcis.dashboard') return [k, LEVEL_VIEW];
+      return [k, LEVEL_NONE];
     })),
   },
   {
@@ -310,6 +317,8 @@ export const DEMO_ACCESS_CONTROLS = [
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
     activity: 'เจ้าหน้าที่เวชระเบียน',
+    position: '',
+    positionId: '',
     activityId: 'gp-registrar',
     subActivity: 'จุดคัดกรอง/ลงทะเบียนและตรวจสอบสิทธิ',
     subActivityId: 'sb-reg-front',
@@ -324,10 +333,10 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.mr' || k === 'phcis.appointment') return [k, PERM_EDIT];
-      if (k === 'phcis.dashboard' || k === 'phcis.opd') return [k, PERM_VIEW];
-      return [k, PERM_NONE];
+    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
+      if (k === 'phcis.mr' || k === 'phcis.appointment') return [k, LEVEL_EDIT];
+      if (k === 'phcis.dashboard' || k === 'phcis.opd') return [k, LEVEL_VIEW];
+      return [k, LEVEL_NONE];
     })),
   },
   {
@@ -339,6 +348,8 @@ export const DEMO_ACCESS_CONTROLS = [
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
     activity: 'นักสังคมสงเคราะห์',
+    position: 'ปฏิบัติการ',
+    positionId: 'pos-practitioner',
     activityId: 'act-social-worker',
     subActivity: 'นักสังคมสงเคราะห์ศูนย์',
     subActivityId: 'sub-sw-center',
@@ -354,10 +365,10 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '2027-09-30',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.mr' || k === 'phcis.treatment' || k === 'phcis.dashboard') return [k, PERM_VIEW];
-      if (k === 'consent.manage') return [k, PERM_EDIT];
-      return [k, PERM_NONE];
+    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
+      if (k === 'phcis.mr' || k === 'phcis.treatment' || k === 'phcis.dashboard') return [k, LEVEL_VIEW];
+      if (k === 'consent.manage') return [k, LEVEL_EDIT];
+      return [k, LEVEL_NONE];
     })),
   },
   {
@@ -370,7 +381,9 @@ export const DEMO_ACCESS_CONTROLS = [
     updatedAt: '2026-08-06T09:15:00.000Z',
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
-    /* ตัวอย่างแม่แบบที่ยังไม่ผูกกิจกรรม — ตั้งชื่อไว้ก่อนได้ */
+    /* ตัวอย่างแม่แบบที่ยังไม่ผูกบทบาท — ตั้งชื่อไว้ก่อนได้ */
+    position: '',
+    positionId: '',
     activity: '',
     activityId: '',
     subActivity: '',
@@ -386,7 +399,7 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_ZONE,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => [k, PERM_EDIT])),
+    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => [k, LEVEL_EDIT])),
   },
   {
     id: 'ac-demo-lab',
@@ -397,6 +410,8 @@ export const DEMO_ACCESS_CONTROLS = [
     center: 'ศูนย์ 35 หัวหมาก',
     centerId: 'hc-35',
     activity: 'นักเทคนิคการแพทย์',
+    position: 'ปฏิบัติการ',
+    positionId: 'pos-practitioner',
     activityId: 'gp-medtech',
     subActivity: 'ห้องปฏิบัติการชันสูตรโรค',
     subActivityId: 'sb-lab',
@@ -410,10 +425,10 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.treatment') return [k, PERM_EDIT];
-      if (k === 'phcis.mr' || k === 'phcis.dashboard') return [k, PERM_VIEW];
-      return [k, PERM_NONE];
+    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
+      if (k === 'phcis.treatment') return [k, LEVEL_EDIT];
+      if (k === 'phcis.mr' || k === 'phcis.dashboard') return [k, LEVEL_VIEW];
+      return [k, LEVEL_NONE];
     })),
   },
   {
@@ -426,6 +441,8 @@ export const DEMO_ACCESS_CONTROLS = [
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
     activity: 'อาสาสมัครสาธารณสุข (อสส.)',
+    position: '',
+    positionId: '',
     activityId: 'act-volunteer',
     subActivity: 'เยี่ยมบ้านตามที่ได้รับมอบหมาย',
     subActivityId: 'sub-vol-visit',
@@ -440,9 +457,9 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_ASSIGNED,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.dashboard') return [k, PERM_VIEW];
-      return [k, PERM_NONE];
+    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
+      if (k === 'phcis.dashboard') return [k, LEVEL_VIEW];
+      return [k, LEVEL_NONE];
     })),
   },
   {
@@ -456,6 +473,8 @@ export const DEMO_ACCESS_CONTROLS = [
     center: 'ศูนย์ 4 ดินแดง',
     centerId: 'hc-4',
     activity: 'ผู้ดูแลระบบ',
+    position: '',
+    positionId: '',
     activityId: 'gp-admin',
     subActivity: 'ผู้ดูแลระบบส่วนกลาง (สำนักอนามัย)',
     subActivityId: 'sb-superadmin',
@@ -470,14 +489,15 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_ALL,
     piiVisibility: PII_MASKED,
-    permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => (
-      k === 'phcis.dashboard' || k === 'consent.reports' ? [k, PERM_VIEW] : [k, PERM_NONE]
+    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => (
+      k === 'phcis.dashboard' || k === 'consent.reports' ? [k, LEVEL_VIEW] : [k, LEVEL_NONE]
     ))),
   },
 ];
 
+/** สิทธิ์เริ่มต้น = ไม่มีสิทธิ์ทุกเมนู/เมนูย่อยของทุกระบบ */
 export function defaultPermissions() {
-  return Object.fromEntries(ALL_MODULE_KEYS.map((k) => [k, PERM_NONE]));
+  return emptyPermissions();
 }
 
 /* record ยุค Group Policy → รูปกิจกรรม (field ใหม่มาก่อน ถ้ามีทั้งคู่) */
@@ -493,6 +513,12 @@ function normalizeAccessControl(record) {
     activityId: rest.activityId ?? groupPolicyId ?? '',
     subActivity: rest.subActivity ?? subBranch ?? '',
     subActivityId: rest.subActivityId ?? subBranchId ?? '',
+    /* ตำแหน่งเพิ่งเข้ามาเป็นตัวกำหนดสิทธิ์ (26 ส.ค. 2569) — record เดิมไม่มี
+       field นี้ อ่านเป็นค่าว่าง = ไม่จำกัดตำแหน่ง */
+    position: rest.position ?? '',
+    positionId: rest.positionId ?? '',
+    /* สิทธิ์ยุคโมดูลแบน ๆ ถูกกระจายลงเมนู/เมนูย่อยให้อัตโนมัติ (26 ส.ค. 2569) */
+    permissions: normalizePermissions(rest.permissions),
   };
 }
 
@@ -502,13 +528,13 @@ function normalizeAccessControl(record) {
 export function readAccessControls() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw == null) return DEMO_ACCESS_CONTROLS;
+    if (raw == null) return DEMO_ACCESS_CONTROLS.map(normalizeAccessControl);
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) && parsed.length
       ? parsed.map(normalizeAccessControl)
-      : DEMO_ACCESS_CONTROLS;
+      : DEMO_ACCESS_CONTROLS.map(normalizeAccessControl);
   } catch {
-    return DEMO_ACCESS_CONTROLS;
+    return DEMO_ACCESS_CONTROLS.map(normalizeAccessControl);
   }
 }
 
@@ -525,18 +551,9 @@ export function computeAccessControlStats(records) {
   };
 }
 
+/** นับ "ใบ" (เมนู/เมนูย่อย) ตามระดับสิทธิ์ — view/write/edit แยกกัน */
 export function countPermissionBuckets(permissions) {
-  const perms = permissions || {};
-  let view = 0;
-  let edit = 0;
-  let none = 0;
-  ALL_MODULE_KEYS.forEach((k) => {
-    const p = perms[k] || PERM_NONE;
-    if (p === PERM_EDIT) edit += 1;
-    else if (p === PERM_VIEW) view += 1;
-    else none += 1;
-  });
-  return { view, edit, none };
+  return countPermissionLevels(permissions);
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -627,7 +644,7 @@ export function upsertAccessControl(record) {
    attribute ไหนที่แม่แบบระบุไว้ assignment ต้องตรงเป๊ะ (assignment ที่
    ไม่ได้ระบุค่าไว้ถือว่าไม่ตรง — ปลอดภัยไว้ก่อน) */
 
-const ABAC_ATTRS = ['centerId', 'activityId', 'subActivityId', 'departmentId'];
+const ABAC_ATTRS = ['centerId', 'positionId', 'activityId', 'subActivityId', 'departmentId'];
 
 export function matchesAssignment(record, assignment) {
   if (!record || !assignment) return false;
@@ -635,7 +652,7 @@ export function matchesAssignment(record, assignment) {
   /* แม่แบบที่ระบุแค่ "ศูนย์" โดยไม่ผูกบทบาท/กิจกรรมย่อย/แผนกเลย (เช่น
      "สิทธิผู้ดูแลระบบศูนย์") ต้อง **ไม่** จับคู่ให้อัตโนมัติ ไม่งั้นเจ้าหน้าที่
      ทุกคนในศูนย์นั้นจะได้สิทธิ์ผู้ดูแลระบบไปด้วย — สิทธิ์แบบนี้ต้องมอบรายคน */
-  const hasRoleAttr = !!(record.activityId || record.subActivityId || record.departmentId);
+  const hasRoleAttr = !!(record.positionId || record.activityId || record.subActivityId || record.departmentId);
   if (!hasRoleAttr) return false;
   return ABAC_ATTRS.every((k) => !record[k] || record[k] === assignment[k]);
 }

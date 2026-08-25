@@ -65,6 +65,8 @@ const Header = ({
   merged = false,
   flushShadow = 'none',
   autoHide = true,
+  /* ชิปเลือกศูนย์บริการบนแถบบน — ปิดได้รายระบบ (26 ส.ค. 2569) */
+  showClinicFilter = true,
   collapsed: collapsedProp,
 }) => {
   const autoHideCtx = useHeaderAutoHide();
@@ -220,6 +222,7 @@ const Header = ({
     )}
 
       {/* Hub: location tag left (Figma 270:72714). Default: md+ in bar. */}
+      {showClinicFilter ? (
       <FilterDropdown
         leadingIcon='location_on'
         options={clinicOptions}
@@ -227,6 +230,7 @@ const Header = ({
         onChange={setClinic}
         className={isHub ? 'shrink-0 inline-flex' : 'shrink-0 hidden md:inline-flex'}
       />
+      ) : null}
 
       <div className='flex-1' />
 

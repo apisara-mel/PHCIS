@@ -8,11 +8,16 @@ import Icon from '@/components/icons/Icon';
 import Table from '@/components/table/Table';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
-  PHCIS_MODULES,
-  CONSENT_MODULES,
+  ACCESS_SYSTEMS,
+  PERM_META,
+  PERM_MIXED,
+  menuLeafKeys,
+  systemLeafKeys,
+  rollupLevel,
+  countPermissionLevels,
+} from '@/data/accessMenuCatalog';
+import {
   PERM_NONE,
-  PERM_VIEW,
-  PERM_EDIT,
   readAccessControls,
   resolveUserAccess,
   dataScopeLabel,
@@ -63,18 +68,19 @@ const VALUE = {
   lineHeight: 1.5,
 };
 
-const PERM_BADGE = {
-  [PERM_NONE]: { style: 'red', label: 'ไม่มีสิทธิ' },
-  [PERM_VIEW]: { style: 'blue', label: 'มีสิทธิดู' },
-  [PERM_EDIT]: { style: 'teal', label: 'มีสิทธิแก้ไข' },
-};
-
 const GENDER_LABEL = { male: 'ชาย', female: 'หญิง', other: 'อื่นๆ' };
 
 function PermBadge({ level }) {
-  const meta = PERM_BADGE[level] || PERM_BADGE[PERM_NONE];
+  if (level === PERM_MIXED) {
+    return (
+      <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+        กำหนดรายเมนู
+      </ColorfulBadge>
+    );
+  }
+  const meta = PERM_META[level] || PERM_META[PERM_NONE];
   return (
-    <ColorfulBadge style={meta.style} size='small' hierarchy='secondary' width='hug'>
+    <ColorfulBadge style={meta.badge} size='small' hierarchy='secondary' width='hug'>
       {meta.label}
     </ColorfulBadge>
   );
@@ -89,41 +95,65 @@ function InfoField({ label, value }) {
   );
 }
 
-function ReadonlyPermTable({ title, modules, permissions }) {
-  const rows = modules.map((mod) => ({
-    id: mod.key,
-    label: mod.label,
-    level: permissions[mod.key] || PERM_NONE,
-  }));
+/* สิทธิ์ที่บุคลากรได้รับจริง — ระบบ → เมนู → เมนูย่อย แสดงเฉพาะที่มีสิทธิ์
+   (26 ส.ค. 2569 โครงเดียวกับหน้าแม่แบบสิทธิ์) */
+function ReadonlyPermTree({ permissions }) {
+  const rows = [];
+  ACCESS_SYSTEMS.forEach((system) => {
+    const sysLeaves = systemLeafKeys(system);
+    if (sysLeaves.every((k) => (permissions[k] || PERM_NONE) === PERM_NONE)) return;
+    rows.push({ id: system.key, label: system.label, depth: 0, level: rollupLevel(permissions, sysLeaves) });
+    system.menus.forEach((menu) => {
+      const leaves = menuLeafKeys(menu);
+      if (leaves.every((k) => (permissions[k] || PERM_NONE) === PERM_NONE)) return;
+      const level = rollupLevel(permissions, leaves);
+      rows.push({ id: menu.key, label: menu.label, depth: 1, level });
+      if (level === PERM_MIXED) {
+        menu.children.forEach((sub) => {
+          const subLevel = permissions[sub.key] || PERM_NONE;
+          if (subLevel === PERM_NONE) return;
+          rows.push({ id: sub.key, label: sub.label, depth: 2, level: subLevel });
+        });
+      }
+    });
+  });
 
   const columns = [
     {
       key: 'label',
-      header: 'ระบบ',
+      header: 'ระบบ / เมนู / เมนูย่อย',
       flex: 1,
-      minWidth: 220,
-      render: (row) => <span style={TEXT_CELL}>{row.label}</span>,
+      minWidth: 260,
+      render: (row) => (
+        <span
+          style={{
+            ...TEXT_CELL,
+            paddingLeft: `calc(${row.depth} * var(--dim-space-600))`,
+            fontFamily: row.depth === 0
+              ? 'var(--type-family-heading-graphic2)'
+              : 'var(--type-family-body)',
+            color: row.depth === 0 ? 'var(--text-brandPrimary-default)' : TEXT_CELL.color,
+          }}
+        >
+          {row.label}
+        </span>
+      ),
     },
     {
       key: 'level',
-      header: 'สิทธิการเข้าถึง',
+      header: 'ระดับสิทธิ์',
       render: (row) => <PermBadge level={row.level} />,
     },
   ];
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <span style={{
-        color: 'var(--text-topic-tertiary-title)',
-        fontFamily: 'var(--type-family-heading-graphic2)',
-        fontSize: 'var(--type-size-base)',
-        fontWeight: 'var(--type-weight-regular)',
-        lineHeight: 1.5,
-      }}
-      >
-        {title}
-      </span>
-      <Table columns={columns} rows={rows} rowKey={(row) => row.id} />
+      <Table
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        emptyMessage='ยังไม่ได้รับสิทธิ์เข้าถึงระบบใด'
+      />
     </div>
   );
 }
@@ -132,9 +162,11 @@ function ReadonlyPermTable({ title, modules, permissions }) {
    accessControlStore แล้ว (ABAC + รวมหลายแม่แบบ + เช็คสถานะอนุมัติ/ช่วงเวลา)
    ของเดิมที่นี่จับคู่แค่ assignment หลักใบเดียวและไม่สนสถานะอนุมัติ */
 
+/* นับ "เมนู" ที่เข้าถึงได้ (ไม่ใช่ระบบ) — สิทธิ์ละเอียดถึงระดับเมนูย่อยแล้ว */
 function countSystemsWithAccess(permissions) {
   if (!permissions) return 0;
-  return Object.values(permissions).filter((p) => p === PERM_VIEW || p === PERM_EDIT).length;
+  const { view, write, edit } = countPermissionLevels(permissions);
+  return view + write + edit;
 }
 
 export default function AssessUserDetailPage() {
@@ -369,7 +401,7 @@ export default function AssessUserDetailPage() {
               lineHeight: 1.5,
             }}
             >
-              สิทธิ์เข้าถึงระบบ
+              สิทธิ์การเข้าถึงระบบ
             </span>
             <span style={{
               color: 'var(--text-topic-primary-subtext-default)',
@@ -419,8 +451,7 @@ export default function AssessUserDetailPage() {
                   value={access.openNow ? 'อยู่ในช่วงเวลาที่เข้าใช้ได้' : 'นอกช่วงเวลาที่กำหนด'}
                 />
               </div>
-              <ReadonlyPermTable title='ระบบ PHCIS' modules={PHCIS_MODULES} permissions={permissions} />
-              <ReadonlyPermTable title='ระบบ Consent' modules={CONSENT_MODULES} permissions={permissions} />
+              <ReadonlyPermTree permissions={permissions} />
             </>
           ) : null}
         </section>

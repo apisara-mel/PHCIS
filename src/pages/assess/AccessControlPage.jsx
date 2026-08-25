@@ -24,7 +24,6 @@ import {
   duplicateAccessControl,
   latestVersion,
   formatVersion,
-  CENTER_OPTIONS,
   APPROVAL_META,
   APPROVAL_DRAFT,
   APPROVAL_PENDING,
@@ -39,10 +38,11 @@ import {
 import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
+import { readPositions, sortPositions } from '@/data/positionStore';
 
-/* PHCIS | Assess-control — สิทธิการเข้าถึง list (Figma 4D3nTx53 · 16:43747). */
+/* PHCIS | Assess-control — สิทธิ์การเข้าถึงระบบ list (Figma 4D3nTx53 · 16:43747). */
 
-const breadcrumb = ['สิทธิการเข้าถึง'];
+const breadcrumb = ['สิทธิ์การเข้าถึงระบบ'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -80,7 +80,7 @@ function EmptyIllustration() {
       animationData={anim}
       size={160}
       loop
-      ariaLabel='ยังไม่มีสิทธิการเข้าถึงระบบ'
+      ariaLabel='ยังไม่มีสิทธิ์การเข้าถึงระบบ'
     />
   );
 }
@@ -93,10 +93,19 @@ function PolicyBadge({ style, children }) {
   );
 }
 
+/* คุณลักษณะที่แม่แบบเว้นว่าง = ไม่จำกัด — เดิมวาดเป็นป้ายเปล่าจนดูเหมือน
+   ข้อมูลหาย (26 ส.ค. 2569) ตอนนี้บอกตรง ๆ ว่า "ทุก…" */
+function AttrCell({ value, style, emptyLabel }) {
+  if (value) return <PolicyBadge style={style}>{value}</PolicyBadge>;
+  return (
+    <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)' }}>{emptyLabel}</span>
+  );
+}
+
 export default function AccessControlPage() {
   const navigate = useHistory();
   const [records, setRecords] = useState(() => readAccessControls());
-  const [filterCenter, setFilterCenter] = useState('');
+  const [filterPosition, setFilterPosition] = useState('');
   const [filterActivity, setFilterActivity] = useState('');
   const [filterSub, setFilterSub] = useState('');
   const [filterDept, setFilterDept] = useState('');
@@ -118,19 +127,20 @@ export default function AccessControlPage() {
   const stats = useMemo(() => computeAccessControlStats(records), [records]);
 
   const summaryCards = useMemo(() => [
-    { key: 'total', icon: 'clipboard-list', color: 'info', value: String(stats.total), label: 'สิทธิ์เข้าถึงระบบทั้งหมด' },
-    { key: 'active', icon: 'clipboard-list', color: 'positive', value: String(stats.active), label: 'สิทธิ์เข้าถึงระบบที่เปิดใช้งาน' },
+    { key: 'total', icon: 'clipboard-list', color: 'info', value: String(stats.total), label: 'สิทธิ์การเข้าถึงระบบทั้งหมด' },
+    { key: 'active', icon: 'clipboard-list', color: 'positive', value: String(stats.active), label: 'สิทธิ์การเข้าถึงระบบที่เปิดใช้งาน' },
     {
       key: 'inactive',
       icon: 'clipboard-list',
       value: String(stats.inactive),
-      label: 'สิทธิ์เข้าถึงระบบที่ปิดใช้งาน',
+      label: 'สิทธิ์การเข้าถึงระบบที่ปิดใช้งาน',
       tileBg: 'var(--surface-danger-tertiary, #FEE2E2)',
       iconInk: 'var(--text-danger-default, #B91C1C)',
     },
   ], [stats]);
 
   const activities = useMemo(() => readActivities(), [records]);
+  const positions = useMemo(() => sortPositions(readPositions()).filter((p) => p.active !== false), [records]);
   const departments = useMemo(() => readDepartments(), [records]);
 
   const subActivityOptions = useMemo(() => {
@@ -142,21 +152,47 @@ export default function AccessControlPage() {
   }, [activities]);
 
   const filteredRows = useMemo(() => records.filter((r) => {
-    if (filterCenter && r.centerId !== filterCenter) return false;
+    if (filterPosition && r.positionId !== filterPosition) return false;
     if (filterActivity && r.activityId !== filterActivity) return false;
     if (filterSub && r.subActivityId !== filterSub) return false;
     if (filterDept && r.departmentId !== filterDept) return false;
     if (filterApproval && (r.approvalStatus || APPROVAL_DRAFT) !== filterApproval) return false;
     return true;
-  }), [records, filterCenter, filterActivity, filterSub, filterDept, filterApproval]);
+  }), [records, filterPosition, filterActivity, filterSub, filterDept, filterApproval]);
+
+  /* แบ่งทะเบียนตาม Group Policy (บทบาทหลัก) แล้วเรียงด้วยบทบาทย่อยในกลุ่ม
+     (26 ส.ค. 2569 มติผู้ใช้) — แม่แบบที่ยังไม่ผูก Group Policy ไปกองท้ายสุด */
+  const groupedRows = useMemo(() => {
+    const byActivity = new Map();
+    filteredRows.forEach((row) => {
+      const key = row.activityId || '';
+      if (!byActivity.has(key)) {
+        byActivity.set(key, {
+          key: key || 'unassigned',
+          label: row.activity || 'ยังไม่ผูก Group Policy',
+          unassigned: !key,
+          rows: [],
+        });
+      }
+      byActivity.get(key).rows.push(row);
+    });
+    const groups = [...byActivity.values()];
+    groups.forEach((g) => g.rows.sort((a, b) => (
+      String(a.subActivity || '').localeCompare(String(b.subActivity || ''), 'th')
+    )));
+    return groups.sort((a, b) => {
+      if (a.unassigned !== b.unassigned) return a.unassigned ? 1 : -1;
+      return String(a.label).localeCompare(String(b.label), 'th');
+    });
+  }, [filteredRows]);
 
   const hasRecords = records.length > 0;
-  const isAllFilters = !filterCenter && !filterActivity && !filterSub && !filterDept && !filterApproval;
+  const isAllFilters = !filterPosition && !filterActivity && !filterSub && !filterDept && !filterApproval;
   const filtersActive = !isAllFilters;
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
     () => {
-      setFilterCenter('');
+      setFilterPosition('');
       setFilterActivity('');
       setFilterSub('');
       setFilterDept('');
@@ -184,7 +220,7 @@ export default function AccessControlPage() {
 
   const applyToggleActive = (id, next) => {
     persist(records.map((r) => (r.id === id ? { ...r, active: next } : r)));
-    showToast(next ? 'เปิดใช้งานสิทธิการเข้าถึงแล้ว' : 'ปิดใช้งานสิทธิการเข้าถึงแล้ว');
+    showToast(next ? 'เปิดใช้งานสิทธิ์การเข้าถึงระบบแล้ว' : 'ปิดใช้งานสิทธิ์การเข้าถึงระบบแล้ว');
   };
 
   /* ทำสำเนาแม่แบบ — id ใหม่ ชื่อต่อท้าย (สำเนา) และเริ่มนับเวอร์ชันใหม่ที่ v1 */
@@ -210,26 +246,27 @@ export default function AccessControlPage() {
         </div>
       ),
     },
+    /* สิทธิ์กำหนดตาม ตำแหน่ง · บทบาท · แผนก (26 ส.ค. 2569 มติผู้ใช้) —
+       คอลัมน์ "ศูนย์บริการ" ถอดออก ศูนย์เป็นขอบเขตข้อมูล ไม่ใช่ตัวกำหนดสิทธิ์ */
     {
-      key: 'center',
-      header: 'ศูนย์บริการ',
-      sortable: true,
-      render: (row) => <span style={TEXT_CELL}>{row.center}</span>,
+      key: 'position',
+      header: 'ตำแหน่ง',
+      render: (row) => <AttrCell value={row.position} style='purple' emptyLabel='ทุกตำแหน่ง' />,
     },
     {
       key: 'activity',
-      header: 'กิจกรรม',
-      render: (row) => <PolicyBadge style='blue'>{row.activity}</PolicyBadge>,
+      header: 'บทบาท',
+      render: (row) => <AttrCell value={row.activity} style='blue' emptyLabel='ทุกบทบาท' />,
     },
     {
       key: 'subActivity',
-      header: 'กิจกรรมย่อย',
-      render: (row) => <PolicyBadge style='teal'>{row.subActivity}</PolicyBadge>,
+      header: 'บทบาทย่อย',
+      render: (row) => <AttrCell value={row.subActivity} style='teal' emptyLabel='ทุกบทบาทย่อย' />,
     },
     {
       key: 'department',
       header: 'แผนก',
-      render: (row) => <PolicyBadge style='blue'>{row.department}</PolicyBadge>,
+      render: (row) => <AttrCell value={row.department} style='blue' emptyLabel='ทุกแผนก' />,
     },
     /* คทง.13 §1.3 — สถานะอนุมัติ + ป้ายบอกว่ามีผลบังคับใช้จริงหรือยัง */
     {
@@ -278,9 +315,11 @@ export default function AccessControlPage() {
         </span>
       ),
     },
+    /* สิทธิ์ละเอียดถึงระดับเมนูย่อยแล้ว — ตัวเลขจึงนับ "เมนู" ไม่ใช่ "ระบบ"
+       (26 ส.ค. 2569) */
     {
       key: 'viewCount',
-      header: 'ระบบที่มีสิทธิดู',
+      header: 'เมนูที่อ่านได้',
       align: 'center',
       render: (row) => {
         const { view } = countPermissionBuckets(row.permissions);
@@ -288,21 +327,21 @@ export default function AccessControlPage() {
       },
     },
     {
+      key: 'writeCount',
+      header: 'เมนูที่เขียนได้',
+      align: 'center',
+      render: (row) => {
+        const { write } = countPermissionBuckets(row.permissions);
+        return <span style={TEXT_CELL}>{write}</span>;
+      },
+    },
+    {
       key: 'editCount',
-      header: 'ระบบที่มีสิทธิบันทึก',
+      header: 'เมนูที่อ่านและเขียนได้',
       align: 'center',
       render: (row) => {
         const { edit } = countPermissionBuckets(row.permissions);
         return <span style={TEXT_CELL}>{edit}</span>;
-      },
-    },
-    {
-      key: 'noneCount',
-      header: 'ระบบที่ไม่มีสิทธิ',
-      align: 'center',
-      render: (row) => {
-        const { none } = countPermissionBuckets(row.permissions);
-        return <span style={TEXT_CELL}>{none}</span>;
       },
     },
     {
@@ -355,7 +394,7 @@ export default function AccessControlPage() {
   ], [records]);
 
   const filterOpts = {
-    center: [{ value: '', label: 'ทั้งหมด' }, ...CENTER_OPTIONS],
+    position: [{ value: '', label: 'ทั้งหมด' }, ...positions.map((p) => ({ value: p.id, label: p.name }))],
     activity: [{ value: '', label: 'ทั้งหมด' }, ...activities.map((a) => ({ value: a.id, label: a.name }))],
     sub: [{ value: '', label: 'ทั้งหมด' }, ...subActivityOptions],
     dept: [{ value: '', label: 'ทั้งหมด' }, ...departments.map((d) => ({ value: d.id, label: d.name }))],
@@ -376,16 +415,17 @@ export default function AccessControlPage() {
         breadcrumb={breadcrumb}
         /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน — ระยะบนจึงเท่ากันทุกหน้า
            และปุ่มยัง sticky ตอนเลื่อนตาราง (แก้พร้อมกันทุกหน้า 10 ส.ค. 2569) */
-        title='สิทธิการเข้าถึง'
+        title='สิทธิ์การเข้าถึงระบบ'
         actions={hasRecords ? (
           <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openCreate}>
-            เพิ่มสิทธิการเข้าถึง
+            เพิ่มสิทธิ์การเข้าถึงระบบ
           </BrandButton>
         ) : undefined}
         headerInfo={hasRecords ? (
           <section
             className='flex flex-col w-full'
-            style={{ gap: 'var(--dim-space-400)', paddingTop: 'var(--dim-space-600)' }}
+            /* ระยะบนเท่ากับหน้าอื่น (26 ส.ค. 2569) — เดิม space-600 ทำให้การ์ดสรุปห่างจากแถวชื่อหน้ากว่าหน้าอื่น 24px */
+            style={{ gap: 'var(--dim-space-400)' }}
           >
             <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               {summaryCards.map((c) => (
@@ -409,23 +449,25 @@ export default function AccessControlPage() {
                   fontSize: 'var(--type-size-sm)',
                 }}
               >
-                ในระบบยังไม่มีการสร้างสิทธิการเข้าถึงระบบ
+                ในระบบยังไม่มีการสร้างสิทธิ์การเข้าถึงระบบ
               </span>
               <BrandButton variant='fill' size='lg' leadingIcon='add' onClick={openCreate}>
-                เพิ่มสิทธิเข้าถึงระบบ
+                เพิ่มสิทธิ์การเข้าถึงระบบ
               </BrandButton>
             </section>
           </div>
         ) : (
           <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}>
+            {/* ตัวกรองกับตารางอยู่ในการ์ดขาวใบเดียวกัน (26 ส.ค. 2569) — เดิมแยก
+                สองใบทำให้แถวตัวกรองลอยเป็นกล่องของตัวเอง ทั้งที่กรองตารางใบล่าง */}
             <section
               className='w-full flex flex-col'
-              style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}
+              style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
             >
               <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-                <FilterDropdown prefix='ศูนย์:' options={filterOpts.center} value={filterCenter} onChange={setFilterCenter} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='กิจกรรม:' options={filterOpts.activity} value={filterActivity} onChange={setFilterActivity} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='กิจกรรมย่อย:' options={filterOpts.sub} value={filterSub} onChange={setFilterSub} placeholder='ทั้งหมด' />
+                <FilterDropdown prefix='ตำแหน่ง:' options={filterOpts.position} value={filterPosition} onChange={setFilterPosition} placeholder='ทั้งหมด' />
+                <FilterDropdown prefix='บทบาท:' options={filterOpts.activity} value={filterActivity} onChange={setFilterActivity} placeholder='ทั้งหมด' />
+                <FilterDropdown prefix='บทบาทย่อย:' options={filterOpts.sub} value={filterSub} onChange={setFilterSub} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='สถานะอนุมัติ:' options={filterOpts.approval} value={filterApproval} onChange={setFilterApproval} placeholder='ทั้งหมด' />
                 <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
@@ -434,29 +476,54 @@ export default function AccessControlPage() {
                   นำส่งออกรายงาน
                 </NeutralSubdueButton>
               </div>
-            </section>
 
-            <section
-              className='w-full flex flex-col'
-              style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}
-            >
-              <span style={{ ...TEXT_CELL, fontFamily: 'var(--type-family-heading-graphic2)', color: 'var(--text-topic-secondary-title)' }}>
-                สิทธิ์เข้าถึงระบบ
-              </span>
+              <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+                <span style={{ ...TEXT_CELL, fontFamily: 'var(--type-family-heading-graphic2)', color: 'var(--text-topic-secondary-title)' }}>
+                  สิทธิ์การเข้าถึงระบบ
+                </span>
 
-              <SmoothFilterResults opaque={resultsOpaque}>
-              <Table
-                columns={columns}
-                rows={filteredRows}
-                rowKey={(row) => row.id}
-                onRowClick={openDetail}
-                emptyMessage='ไม่พบสิทธิการเข้าถึง'
-              />
-              </SmoothFilterResults>
+                <SmoothFilterResults opaque={resultsOpaque}>
+                {groupedRows.length ? (
+                  <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
+                    {groupedRows.map((group) => (
+                      <div key={group.key} className='w-full flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+                        <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                          <ColorfulBadge
+                            style={group.unassigned ? 'grey' : 'blue'}
+                            size='small'
+                            hierarchy='secondary'
+                            width='hug'
+                          >
+                            {`Group Policy: ${group.label}`}
+                          </ColorfulBadge>
+                          <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+                            {`${group.rows.length} แม่แบบ`}
+                          </span>
+                        </div>
+                        <Table
+                          columns={columns}
+                          rows={group.rows}
+                          rowKey={(row) => row.id}
+                          onRowClick={openDetail}
+                          emptyMessage='ไม่พบสิทธิ์การเข้าถึงระบบ'
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <Table
+                    columns={columns}
+                    rows={[]}
+                    rowKey={(row) => row.id}
+                    emptyMessage='ไม่พบสิทธิ์การเข้าถึงระบบ'
+                  />
+                )}
+                </SmoothFilterResults>
 
-              <BrandDashedAddButton onClick={openCreate}>
-                เพิ่มสิทธิ์เข้าถึงระบบ
-              </BrandDashedAddButton>
+                <BrandDashedAddButton onClick={openCreate}>
+                  เพิ่มสิทธิ์การเข้าถึงระบบ
+                </BrandDashedAddButton>
+              </div>
             </section>
           </div>
         )}
@@ -468,7 +535,7 @@ export default function AccessControlPage() {
         onClose={() => setDecision(null)}
         type={decision?.approved ? 'success' : 'warning'}
         alignment='center'
-        title={decision?.approved ? 'อนุมัติสิทธิการเข้าถึง?' : 'ไม่อนุมัติสิทธิการเข้าถึง?'}
+        title={decision?.approved ? 'อนุมัติสิทธิ์การเข้าถึงระบบ?' : 'ไม่อนุมัติสิทธิ์การเข้าถึงระบบ?'}
         description={decision ? `แม่แบบ "${decision.row.templateName}" — ${dataScopeLabel(decision.row.dataScope)}${decision.row.piiVisibility === PII_MASKED ? ' · ปิดบัง PII' : ''}${decision.row.effectiveFrom || decision.row.effectiveTo ? ` · มีผล ${decision.row.effectiveFrom || 'ทันที'} ถึง ${decision.row.effectiveTo || 'ไม่กำหนด'}` : ''}${decision.row.approvalNote ? ` · เหตุผล: ${decision.row.approvalNote}` : ''}` : ''}
         confirmLabel={decision?.approved ? 'อนุมัติ' : 'ไม่อนุมัติ'}
         cancelLabel='ยกเลิก'

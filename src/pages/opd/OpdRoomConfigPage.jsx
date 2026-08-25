@@ -3,9 +3,9 @@ import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import DatePicker from '@/components/forms/DatePicker';
 import Dropdown from '@/components/forms/Dropdown';
+import Select from '@/components/forms/Select';
 import InputField from '@/components/forms/InputField';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
-import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
@@ -25,6 +25,9 @@ import {
 } from '@/data/opdRoomConfig';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import { buildDoctorRoster } from '@/pages/appointment/appointmentDoctorRoster';
+import {
+  CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE, useClinicFilter,
+} from '@/components/layout/HeaderClinicContext';
 
 /* OpdRoomConfigPage — TOR 1.2.7.1 + 1.2.7.2.
    Daily exam-room + quota configuration:
@@ -77,9 +80,26 @@ const OpdRoomConfigPage = () => {
   const history = useHistory();
   const roster = useMemo(() => buildDoctorRoster() || [], []);
   const doctorOptions = useMemo(
-    () => roster.map((d) => ({ value: d.name, label: `${d.name} (${d.subDivision})` })),
+    /* ชื่อแพทย์เป็นตัวหลัก · สาขาต่อท้ายเป็นสีเทาอ่อน (26 ส.ค. 2569) */
+    () => roster.map((d) => ({
+      value: d.name,
+      label: (
+        <>
+          {d.name}
+          <span style={{ color: 'var(--text-content-tertiary, #858C92)' }}>{` (${d.subDivision})`}</span>
+        </>
+      ),
+    })),
     [roster],
   );
+
+  /* ตัวเลือกศูนย์บริการย้ายลงมาอยู่ในหน้า — ชิปบน Header ของจัดการระบบถูกถอด
+     ออก 26 ส.ค. 2569 (มติผู้ใช้) */
+  const clinicCtx = useClinicFilter();
+  const [localClinic, setLocalClinic] = useState(DEFAULT_CLINIC_VALUE);
+  const clinic = clinicCtx ? clinicCtx.clinic : localClinic;
+  const setClinic = clinicCtx ? clinicCtx.setClinic : setLocalClinic;
+  const clinicOptions = clinicCtx ? clinicCtx.options : CLINIC_OPTIONS;
 
   const [dateKey, setDateKey] = useState(() => todayKey());
   const [config, setConfig] = useState(() => getRoomConfigOrDefault(todayKey()));
@@ -105,7 +125,10 @@ const OpdRoomConfigPage = () => {
   ));
 
   /* Role mock — user without OPD-admin role sees the page read-only. */
-  const [isAdmin, setIsAdmin] = useState(true);
+  /* เดิมมีชิปสลับบทบาทตัวอย่าง (หัวหน้างาน OPD ↔ เจ้าหน้าที่ทั่วไป) ไว้เดโม
+     สิทธิ์อ่านอย่างเดียว — ถอดออก 26 ส.ค. 2569 (มติผู้ใช้) สิทธิ์จริงมาจาก
+     แม่แบบสิทธิ์การเข้าถึงระบบ ไม่ใช่สวิตช์ในหน้า */
+  const isAdmin = true;
 
   const loadDate = (key) => {
     const cfg = getRoomConfigOrDefault(key);
@@ -373,15 +396,6 @@ const OpdRoomConfigPage = () => {
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
         title='ตั้งค่าห้องตรวจและโควตารายวัน'
-        actions={(
-          <NeutralSubdueButton
-            leadingIcon={isAdmin ? 'admin_panel_settings' : 'lock'}
-            onClick={() => setIsAdmin((v) => !v)}
-            accessibilityLabel='สลับบทบาทตัวอย่าง'
-          >
-            {isAdmin ? 'บทบาท: หัวหน้างาน OPD (แก้ไขได้)' : 'บทบาท: เจ้าหน้าที่ทั่วไป (อ่านอย่างเดียว)'}
-          </NeutralSubdueButton>
-        )}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -393,27 +407,8 @@ const OpdRoomConfigPage = () => {
             gap: 'var(--dim-space-400)',
           }}
         >
-          {!isAdmin && (
-            <div
-              className='flex items-center'
-              style={{
-                gap: 'var(--dim-space-200)',
-                paddingTop: 'var(--dim-space-300)',
-                paddingBottom: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-400)',
-                paddingRight: 'var(--dim-space-400)',
-                background: 'var(--surface-alert-warning, #FFF9F0)',
-                borderRadius: 'var(--dim-radius-400, 12px)',
-              }}
-            >
-              <Icon name='lock' size={18} style={{ color: 'var(--text-warning-default, #C2410C)' }} />
-              <span style={{ ...cellText, color: 'var(--text-warning-default, #C2410C)', fontWeight: 'var(--type-weight-medium)' }}>
-                สิทธิ์ไม่เพียงพอ — บทบาทของคุณดูการตั้งค่าได้อย่างเดียว การแก้ไขต้องเป็นหัวหน้างาน OPD
-              </span>
-            </div>
-          )}
 
-          {/* Date + audit strip */}
+          {/* Date strip */}
           <div
             className='w-full flex flex-col'
             style={{
@@ -428,6 +423,15 @@ const OpdRoomConfigPage = () => {
             }}
           >
             <div className='flex items-end flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+              <div style={{ minWidth: 260 }}>
+                <Select
+                  label='ศูนย์บริการ'
+                  options={clinicOptions}
+                  value={clinic}
+                  onChange={setClinic}
+                  showHelperText={false}
+                />
+              </div>
               <DatePicker
                 label='วันที่ให้บริการ'
                 value={parseDateKey(dateKey)}
@@ -444,14 +448,7 @@ const OpdRoomConfigPage = () => {
               >
                 คัดลอกจากประวัติ
               </BrandSubdueButton>
-              {copiedFrom && (
-                <Badge style='info' size='small'>{`คัดลอกจาก ${thaiDateLabel(copiedFrom)} — ยังไม่บันทึก`}</Badge>
-              )}
             </div>
-            <ConsentAuditBar
-              recordedBy={config.savedBy || 'ยังไม่เคยบันทึกสำหรับวันนี้ (ใช้ค่าเริ่มต้น)'}
-              recordedAt={config.savedAt || '—'}
-            />
           </div>
 
           {/* Section 1 — ตั้งค่าห้องตรวจ */}
@@ -485,9 +482,12 @@ const OpdRoomConfigPage = () => {
                     paddingLeft: 'var(--dim-space-300)',
                     paddingRight: 'var(--dim-space-300)',
                     borderRadius: 'var(--dim-radius-300, 10px)',
+                    /* พื้นเทาอ่อนแบบหน้าอื่น ไม่มีกรอบนอก (26 ส.ค. 2569) —
+                       เหลือกรอบไว้เฉพาะแถวที่กรอกโควตาผิด */
+                    background: 'var(--surface-neutral-quaternary, #F9FBFB)',
                     border: quotaErrors[`room-${idx}`]
                       ? 'var(--dim-stroke-100, 1px) solid var(--border-dangerButton-default, #DC2626)'
-                      : 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+                      : 'none',
                   }}
                 >
                   <span style={{ ...cellText, width: 112, fontWeight: 'var(--type-weight-medium)' }}>{r.room}</span>

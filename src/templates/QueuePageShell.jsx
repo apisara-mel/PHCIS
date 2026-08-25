@@ -232,6 +232,9 @@ const QueuePageShell = ({
         breadcrumb={breadcrumb}
         brandTitle={brandTitle}
         standalone={!hasSubHeader}
+        /* ระบบจัดการระบบไม่มีชิปเลือกศูนย์บนแถบบน — ตั้งค่าเป็นรายศูนย์ในหน้า
+           ที่ต้องใช้แทน (26 ส.ค. 2569 มติผู้ใช้) */
+        showClinicFilter={brandTitle !== 'จัดการระบบ'}
       />
       <main className='flex-1 min-w-0 flex flex-col'>
         {(effectiveTitle || onBack || actions) ? (

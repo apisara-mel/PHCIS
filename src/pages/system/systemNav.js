@@ -7,7 +7,7 @@
    Keys are chosen to cover the activeKey every admin/assess page already
    passes, so both the /admin/* and /assess/* page sets show ONE identical
    menu without per-page edits. (SystemRolesPage keeps its own /admin/roles
-   route but is no longer surfaced here — replaced by "สิทธิการเข้าถึง".) */
+   route but is no longer surfaced here — replaced by "สิทธิ์การเข้าถึงระบบ".) */
 export const SYSTEM_NAV = [
   { key: 'system-overview',       label: 'แดชบอร์ด',        icon: 'bar_chart_4_bars', path: '/admin' },
   /* แม่แบบโครงสร้างภายในศูนย์ (แผนก/คลินิก + ห้องตรวจ/เตียง) ตั้งไว้ครั้งเดียว
@@ -27,7 +27,7 @@ export const SYSTEM_NAV = [
      อยู่สำหรับลิงก์เดิม แค่ไม่มีเมนูของตัวเอง — แบบเดียวกับ SystemRolesPage. */
   /* TOR §1.2.7 — ห้องตรวจ × แพทย์ประจำห้อง + โควตารายวัน (เดิมอยู่เมนู OPD) */
   { key: 'system-opd-room-config', label: 'ตั้งค่าห้องตรวจและโควตารายวัน', icon: 'meeting_room', path: '/opd/room-config' },
-  { key: 'assess-access-control', label: 'สิทธิการเข้าถึง',   icon: 'how_to_reg',       path: '/assess/access-control' },
+  { key: 'assess-access-control', label: 'สิทธิ์การเข้าถึงระบบ',   icon: 'how_to_reg',       path: '/assess/access-control' },
   /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม: ถอดออกจากเมนู
      25 ส.ค. 69 (มติผู้ใช้) route /assess/consent-access-rights ยังเข้าได้ตามลิงก์เดิม */
   /* EMR §1.4.2.1 — การจัดการข้อมูลลับ: ถอดออกจากเมนู 25 ส.ค. 69 (มติผู้ใช้)
