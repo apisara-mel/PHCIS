@@ -115,9 +115,64 @@ export const ACCESS_GOVERNANCE_DEFAULTS = {
   submittedAt: '',
   effectiveFrom: '',
   effectiveTo: '',
+  /* ช่วงเวลาเข้าใช้งานรายวัน (Figma "PHCIS | History and Access" — access-time
+     window เช่น 08.00-16.00 น.) — ต่างจาก effectiveFrom/To ที่เป็น "ช่วงวัน"
+     เว้นว่างทั้งคู่ = เข้าได้ตลอด 24 ชม. */
+  dailyFrom: '',
+  dailyTo: '',
   dataScope: SCOPE_CENTER,
   piiVisibility: PII_VISIBLE,
 };
+
+/* ══════════════════════════════════════════════════════════════════════
+   ช่วงเวลาเข้าใช้งานรายวัน
+   ══════════════════════════════════════════════════════════════════════ */
+
+const hhmmToMinutes = (t) => {
+  /* ค่าว่างต้องคืน null ไม่ใช่ 0 — Number('') = 0 ทำให้ "ไม่กำหนดเวลา"
+     กลายเป็นหน้าต่าง 00:00-00:00 คือเข้าได้แค่เที่ยงคืนพอดี */
+  if (!t) return null;
+  const [h, m] = String(t).split(':');
+  const hh = Number(h);
+  const mm = Number(m);
+  return Number.isNaN(hh) ? null : hh * 60 + (Number.isNaN(mm) ? 0 : mm);
+};
+
+/** '08:00' → '08.00' (รูปแบบราชการไทย 24 ชม.) */
+export const formatAccessTime = (t) => {
+  /* ต้องเช็คค่าว่างก่อน — Number('') = 0 ไม่ใช่ NaN ทำให้ช่องว่างกลายเป็น "00.00" */
+  if (!t) return '';
+  const [h, m] = String(t).split(':');
+  const hh = Number(h);
+  if (Number.isNaN(hh)) return '';
+  return `${String(hh).padStart(2, '0')}.${(m || '00').padStart(2, '0')}`;
+};
+
+/** ข้อความช่วงเวลารายวัน — 'ตลอด 24 ชม.' ถ้าไม่ได้กำหนด */
+export function formatDailyWindow(record) {
+  const from = formatAccessTime(record?.dailyFrom);
+  const to = formatAccessTime(record?.dailyTo);
+  if (!from && !to) return 'ตลอด 24 ชม.';
+  return `${from || '00.00'} - ${to || '24.00'} น.`;
+}
+
+/** ตอนนี้อยู่ในช่วงเวลาเข้าใช้งานรายวันไหม — ไม่กำหนด = ได้ตลอด
+    รองรับช่วงข้ามเที่ยงคืน (เช่น 20:00-06:00 สำหรับเวรดึก) */
+export function isWithinDailyWindow(record, now = new Date()) {
+  const from = hhmmToMinutes(record?.dailyFrom);
+  const to = hhmmToMinutes(record?.dailyTo);
+  if (from == null && to == null) return true;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const start = from == null ? 0 : from;
+  const end = to == null ? 24 * 60 : to;
+  return start <= end ? (cur >= start && cur <= end) : (cur >= start || cur <= end);
+}
+
+/** เข้าใช้ได้ ณ ตอนนี้จริงไหม = มีผลบังคับใช้ + อยู่ในช่วงเวลารายวัน */
+export function isAccessOpenNow(record, now = new Date()) {
+  return isAccessEffective(record, now.toISOString().slice(0, 10))
+    && isWithinDailyWindow(record, now);
+}
 
 /** แม่แบบมีผลบังคับใช้จริงหรือยัง — ต้องอนุมัติแล้ว + เปิดใช้งาน + อยู่ในช่วงเวลา
     (คทง.13 §2.3 — กำหนดช่วงเวลาการเข้าถึงข้อมูล Start/End ได้) */
@@ -174,6 +229,8 @@ export const DEMO_ACCESS_CONTROLS = [
     approvedAt: '2026-08-01T04:35:00.000Z',
     effectiveFrom: '2026-08-01',
     effectiveTo: '',
+    dailyFrom: '07:30',
+    dailyTo: '17:30',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(
@@ -201,6 +258,9 @@ export const DEMO_ACCESS_CONTROLS = [
     approvedAt: '2026-07-20T02:15:00.000Z',
     effectiveFrom: '2026-07-20',
     effectiveTo: '',
+    /* พยาบาล OPD เข้าระบบได้เฉพาะเวลาราชการ (Figma History & Access) */
+    dailyFrom: '08:00',
+    dailyTo: '16:00',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(ALL_MODULE_KEYS.map((k) => {
@@ -553,6 +613,88 @@ export function upsertAccessControl(record) {
     : [...list, record];
   writeAccessControls(next);
   return record;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ABAC — จับคู่ "แม่แบบสิทธิ์" กับ "บุคลากร" ด้วย attribute
+   ══════════════════════════════════════════════════════════════════════
+   แม่แบบไม่ได้ผูกกับตัวบุคคลโดยตรง แต่ผูกกับคุณลักษณะของการปฏิบัติงาน
+   (ศูนย์บริการ · กิจกรรม · กิจกรรมย่อย · แผนก) ตามข้อกำหนด TOR §1.17 /
+   §1.4 ที่ให้ใช้ ABAC ซ้อนบน role — บุคลากรคนหนึ่งจึงได้สิทธิ์จาก
+   assignment ของตัวเองโดยอัตโนมัติ ไม่ต้องมากดผูกทีละคน
+
+   กติกาการจับคู่: attribute ไหนที่ "แม่แบบเว้นว่าง" = ไม่จำกัด ·
+   attribute ไหนที่แม่แบบระบุไว้ assignment ต้องตรงเป๊ะ (assignment ที่
+   ไม่ได้ระบุค่าไว้ถือว่าไม่ตรง — ปลอดภัยไว้ก่อน) */
+
+const ABAC_ATTRS = ['centerId', 'activityId', 'subActivityId', 'departmentId'];
+
+export function matchesAssignment(record, assignment) {
+  if (!record || !assignment) return false;
+  if (assignment.active === false) return false;
+  /* แม่แบบที่ระบุแค่ "ศูนย์" โดยไม่ผูกบทบาท/กิจกรรมย่อย/แผนกเลย (เช่น
+     "สิทธิผู้ดูแลระบบศูนย์") ต้อง **ไม่** จับคู่ให้อัตโนมัติ ไม่งั้นเจ้าหน้าที่
+     ทุกคนในศูนย์นั้นจะได้สิทธิ์ผู้ดูแลระบบไปด้วย — สิทธิ์แบบนี้ต้องมอบรายคน */
+  const hasRoleAttr = !!(record.activityId || record.subActivityId || record.departmentId);
+  if (!hasRoleAttr) return false;
+  return ABAC_ATTRS.every((k) => !record[k] || record[k] === assignment[k]);
+}
+
+/** assignment ทั้งหมดของบุคลากรที่เข้าเงื่อนไขแม่แบบนี้ */
+export function matchingAssignments(record, user) {
+  return (user?.assignments || []).filter((a) => matchesAssignment(record, a));
+}
+
+/** บุคลากรที่ถือสิทธิ์ตามแม่แบบนี้ — คืน [{ user, assignments }] */
+export function usersHoldingTemplate(record, users) {
+  return (users || [])
+    .filter((u) => u.active !== false)
+    .map((user) => ({ user, assignments: matchingAssignments(record, user) }))
+    .filter((row) => row.assignments.length > 0);
+}
+
+/* ลำดับความ "กว้าง" ของสิทธิ์ — ใช้รวมสิทธิ์จากหลายแม่แบบแบบ union
+   (ได้สิทธิ์กว้างสุดที่แม่แบบใดแม่แบบหนึ่งให้ไว้) */
+const PERM_RANK = { [PERM_NONE]: 0, [PERM_VIEW]: 1, [PERM_EDIT]: 2 };
+const SCOPE_RANK = {
+  [SCOPE_ASSIGNED]: 0, [SCOPE_CENTER]: 1, [SCOPE_ZONE]: 2, [SCOPE_ALL]: 3,
+};
+
+/** สิทธิ์ที่บุคลากรคนนี้ได้รับจริง — รวมจากทุกแม่แบบที่อนุมัติแล้วและยังมีผล
+    คืน { templates, modules, dataScope, piiVisibility, openNow } */
+export function resolveUserAccess(user, records, now = new Date()) {
+  const today = now.toISOString().slice(0, 10);
+  const matched = (records || [])
+    .filter((r) => isAccessEffective(r, today))
+    .map((record) => ({ record, assignments: matchingAssignments(record, user) }))
+    .filter((row) => row.assignments.length > 0);
+
+  const modules = {};
+  ALL_MODULE_KEYS.forEach((k) => { modules[k] = { level: PERM_NONE, sources: [] }; });
+
+  let dataScope = SCOPE_ASSIGNED;
+  let piiVisibility = PII_MASKED;
+
+  matched.forEach(({ record }) => {
+    ALL_MODULE_KEYS.forEach((k) => {
+      const lvl = record.permissions?.[k] || PERM_NONE;
+      if (lvl === PERM_NONE) return;
+      const cur = modules[k];
+      if (PERM_RANK[lvl] > PERM_RANK[cur.level]) cur.level = lvl;
+      if (!cur.sources.includes(record.templateName)) cur.sources.push(record.templateName);
+    });
+    if (SCOPE_RANK[record.dataScope] > SCOPE_RANK[dataScope]) dataScope = record.dataScope;
+    if (record.piiVisibility !== PII_MASKED) piiVisibility = PII_VISIBLE;
+  });
+
+  return {
+    templates: matched,
+    modules,
+    dataScope: matched.length ? dataScope : SCOPE_ASSIGNED,
+    piiVisibility: matched.length ? piiVisibility : PII_MASKED,
+    /* ตอนนี้เข้าใช้ได้ไหม — ขอแค่แม่แบบใดแม่แบบหนึ่งเปิดอยู่ */
+    openNow: matched.some(({ record }) => isWithinDailyWindow(record, now)),
+  };
 }
 
 export function loadDemoAccessControls() {

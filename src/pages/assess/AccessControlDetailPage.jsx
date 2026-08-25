@@ -19,9 +19,13 @@ import {
   APPROVAL_DRAFT,
   APPROVAL_APPROVED,
   isAccessEffective,
+  isWithinDailyWindow,
+  formatDailyWindow,
+  usersHoldingTemplate,
   dataScopeLabel,
   PII_MASKED,
 } from '@/data/accessControlStore';
+import { readAssessUsers, fullName } from '@/data/assessUserStore';
 
 /* PHCIS | Assess-control — Access rights detail (Figma 4D3nTx53 · 17:32686). */
 
@@ -202,6 +206,11 @@ export default function AccessControlDetailPage() {
   const { id } = useParams();
   const record = useMemo(() => findAccessControl(id), [id]);
   const cards = useMemo(() => (record ? contextCards(record) : []), [record]);
+  /* บุคลากรที่เข้าเงื่อนไข ABAC ของแม่แบบนี้ */
+  const holders = useMemo(
+    () => (record ? usersHoldingTemplate(record, readAssessUsers()) : []),
+    [record],
+  );
 
   if (!record) {
     return (
@@ -283,8 +292,61 @@ export default function AccessControlDetailPage() {
                 ? `${record.effectiveFrom || 'ทันที'} – ${record.effectiveTo || 'ไม่กำหนด'}`
                 : 'ไม่กำหนด'}
             />
+            {/* หน้าต่างเวลาเข้าใช้งานรายวัน (Figma "PHCIS | History and Access") */}
+            <GovField label='เวลาเข้าใช้งาน (รายวัน)'>
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                <span style={CELL_TEXT}>{formatDailyWindow(record)}</span>
+                {record.dailyFrom || record.dailyTo ? (
+                  <ColorfulBadge
+                    style={isWithinDailyWindow(record) ? 'green' : 'grey'}
+                    size='small'
+                    hierarchy='secondary'
+                    width='hug'
+                  >
+                    {isWithinDailyWindow(record) ? 'อยู่ในเวลา' : 'นอกเวลาเข้าใช้'}
+                  </ColorfulBadge>
+                ) : null}
+              </div>
+            </GovField>
             {record.approvalNote ? <GovField label='เหตุผล/บันทึกถึงผู้อนุมัติ' text={record.approvalNote} /> : null}
           </div>
+        </section>
+
+        {/* ผู้ถือสิทธิ์ตามแม่แบบนี้ — ABAC จับคู่จาก assignment ของบุคลากรเอง
+            (ศูนย์ · กิจกรรม · กิจกรรมย่อย · แผนก) ไม่ต้องผูกรายคน */}
+        <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+          <Topic
+            hierarchy='primary'
+            title={`ผู้ถือสิทธิ์นี้ (${holders.length} คน)`}
+            subText='ระบบจับคู่ให้อัตโนมัติจากศูนย์/กิจกรรม/แผนกที่บุคลากรปฏิบัติงาน — ไม่ต้องผูกทีละคน'
+            leadingIcon='group'
+            showBadge={false}
+            showChevron={false}
+            showSuccess={false}
+          />
+          {holders.length === 0 ? (
+            <span style={CELL_TEXT}>
+              ยังไม่มีบุคลากรที่เข้าเงื่อนไขแม่แบบนี้ — ตรวจว่ามีผู้ปฏิบัติงานตรงกับ
+              ศูนย์/กิจกรรม/แผนกที่กำหนดไว้ด้านบนหรือยัง
+            </span>
+          ) : (
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              {holders.map(({ user, assignments }) => (
+                <div
+                  key={user.id}
+                  className='flex flex-wrap items-baseline w-full'
+                  style={{ gap: 'var(--dim-space-300)' }}
+                >
+                  <span style={{ ...CELL_TEXT, minWidth: 180 }}>{fullName(user)}</span>
+                  <span style={{ ...CELL_TEXT, color: 'var(--text-content-tertiary)' }}>
+                    {assignments
+                      .map((a) => [a.center, a.activity, a.department].filter(Boolean).join(' · '))
+                      .join('  |  ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Permissions card (Figma 17:29411) */}

@@ -14,16 +14,18 @@ export const SYSTEM_NAV = [
   /* แม่แบบโครงสร้างภายในศูนย์ (แผนก/คลินิก + ห้องตรวจ/เตียง) ตั้งไว้ครั้งเดียว
      แล้วเลือกใช้ซ้ำได้ตอนเพิ่มศูนย์บริการ — อยู่ต่อจากศูนย์บริการเพราะผูกกัน */
   { key: 'system-structures',     label: 'รูปแบบโครงสร้างศูนย์', icon: 'account_tree',  path: '/admin/structures' },
-  /* กิจกรรม (Activity-based Access Control) — แทน Group Policy เดิม 22 ส.ค. 2569
-     ลำดับชั้น กิจกรรมหลัก → กิจกรรมย่อย; route เดิม /assess/group-policy redirect มาที่นี่ */
-  { key: 'assess-activity',       label: 'กิจกรรม',          icon: 'business_center',  path: '/assess/activities' },
+  /* บทบาท (Activity-based Access Control) — แทน Group Policy เดิม 22 ส.ค. 2569
+     ลำดับชั้น บทบาทหลัก → บทบาทย่อย; route เดิม /assess/group-policy redirect มาที่นี่
+     ป้ายเมนูเปลี่ยนจาก "กิจกรรม" เป็น "บทบาท" 25 ส.ค. 2569 (route/key คงเดิม) */
+  { key: 'assess-activity',       label: 'บทบาท',            icon: 'business_center',  path: '/assess/activities' },
+  /* ตำแหน่งอยู่ติดกับบทบาท — เป็นคู่ที่ตั้งค่าไปด้วยกัน (25 ส.ค. 2569) */
+  { key: 'assess-positions',      label: 'ตำแหน่ง',          icon: 'account_tree',     path: '/assess/positions' },
   /* "แผนก" ถูกซ่อนจากเมนู 10 ส.ค. 2569 — แผนกไม่ใช่ทะเบียนลอย ๆ อีกต่อไป แต่
      ผูกกับศูนย์บริการ สร้าง/แก้ที่ step "แผนกและคลินิก" ของหน้าเพิ่มศูนย์บริการ
      ตามลำดับชั้น แผนก → คลินิก → ห้อง/เตียง. route /assess/departments ยังเปิด
      อยู่สำหรับลิงก์เดิม แค่ไม่มีเมนูของตัวเอง — แบบเดียวกับ SystemRolesPage. */
   /* TOR §1.2.7 — ห้องตรวจ × แพทย์ประจำห้อง + โควตารายวัน (เดิมอยู่เมนู OPD) */
   { key: 'system-opd-room-config', label: 'ตั้งค่าห้องตรวจและโควตารายวัน', icon: 'meeting_room', path: '/opd/room-config' },
-  { key: 'assess-positions',      label: 'ตำแหน่ง',          icon: 'account_tree',     path: '/assess/positions' },
   { key: 'assess-access-control', label: 'สิทธิการเข้าถึง',   icon: 'how_to_reg',       path: '/assess/access-control' },
   /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม (เพิ่ม/ยกเลิกสิทธิ) */
   { key: 'system-consent-access-rights', label: 'สิทธิตามความยินยอม', icon: 'verified_user', path: '/assess/consent-access-rights' },
