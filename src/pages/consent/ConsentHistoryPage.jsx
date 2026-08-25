@@ -638,9 +638,12 @@ export default function ConsentHistoryPage() {
 
   return (
     <QueuePageShell
-      activeKey='consent-history'
+      /* เมนู "ประวัติความยินยอม" ถอดออกจาก side menu แล้ว (25 ส.ค. 69) —
+         ไฮไลต์ "จัดการความยินยอม" ซึ่งเป็นต้นทางของหน้านี้แทน ไม่งั้น
+         side menu จะไม่มีเมนูไหน active */
+      activeKey='consent-manage'
       sidebarItems={CONSENT_NAV}
-      sidebarFallbackKey='consent-history'
+      sidebarFallbackKey='consent-manage'
       brandTitle='ระบบจัดการความยินยอม'
       breadcrumb={hn ? breadcrumbTimeline : breadcrumbSearch}
       title={hn ? 'Timeline การเปลี่ยนแปลงความยินยอม' : 'ประวัติความยินยอม'}

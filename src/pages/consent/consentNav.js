@@ -10,7 +10,8 @@
    system. */
 /* ถอดออกจากเมนูแล้ว แต่ route ยังอยู่ (เข้าได้จากปุ่มหลังส่งคำขอใน
    RequestFormAccessPage): 'รายการคำขอของฉัน' /consent/access/my-requests
-   (มติผู้ใช้ 25 ส.ค. 69) · 'รายงานความยินยอม' /consent/report (24 ส.ค. 69) */
+   (มติผู้ใช้ 25 ส.ค. 69) · 'ประวัติความยินยอม' /consent/history (25 ส.ค. 69)
+   · 'รายงานความยินยอม' /consent/report (24 ส.ค. 69) */
 export const CONSENT_NAV = [
   /* ด.1.1.12 — แดชบอร์ดมีหน้าจริงของตัวเองแล้ว (เดิมชี้ /consent) */
   { key: 'consent-dashboard', label: 'แดชบอร์ด',           icon: 'bar_chart_4_bars',     path: '/consent/dashboard' },
@@ -18,7 +19,6 @@ export const CONSENT_NAV = [
   { key: 'consent-forms',     label: 'แบบฟอร์มความยินยอม',  icon: 'folder_open',          path: '/consent/forms' },
   { key: 'consent-new',       label: 'สร้างแบบฟอร์มจัดการความยินยอมใหม่',   icon: 'note_add',             path: '/consent/forms/new' },
   { key: 'consent-access',    label: 'จัดการสิทธิ์การขอเข้าถึงแบบฟอร์ม', icon: 'lock', path: '/consent/access' },
-  { key: 'consent-history',   label: 'ประวัติความยินยอม', icon: 'history', path: '/consent/history' },
 ];
 
 export default CONSENT_NAV;
