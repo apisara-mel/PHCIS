@@ -7,11 +7,7 @@ import Topic from '@/components/topic/Topic';
 import { HeaderCell, DataCell, TableRow } from '@/components/table/Table';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
-  PHCIS_MODULES,
-  CONSENT_MODULES,
   PERM_NONE,
-  PERM_VIEW,
-  PERM_EDIT,
   findAccessControl,
   latestVersion,
   formatVersion,
@@ -26,10 +22,18 @@ import {
   PII_MASKED,
 } from '@/data/accessControlStore';
 import { readAssessUsers, fullName } from '@/data/assessUserStore';
+import {
+  ACCESS_SYSTEMS,
+  PERM_META,
+  PERM_MIXED,
+  menuLeafKeys,
+  systemLeafKeys,
+  rollupLevel,
+} from '@/data/accessMenuCatalog';
 
 /* PHCIS | Assess-control — Access rights detail (Figma 4D3nTx53 · 17:32686). */
 
-const breadcrumb = ['สิทธิการเข้าถึง'];
+const breadcrumb = ['สิทธิ์การเข้าถึงระบบ'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -71,11 +75,7 @@ const DATA_CELL_OFF = {
 
 const PERM_COL_W = 128;
 
-const PERM_BADGE = {
-  [PERM_NONE]: { style: 'red', label: 'ไม่มีสิทธิ' },
-  [PERM_VIEW]: { style: 'blue', label: 'มีสิทธิดู' },
-  [PERM_EDIT]: { style: 'teal', label: 'มีสิทธิแก้ไข' },
-};
+
 
 function contextCards(record) {
   return [
@@ -86,19 +86,27 @@ function contextCards(record) {
       value: record.center,
       label: 'ศูนย์บริการ',
     },
+    /* สิทธิ์กำหนดตาม ตำแหน่ง · บทบาท · แผนก (26 ส.ค. 2569 มติผู้ใช้) */
+    {
+      key: 'position',
+      icon: 'badge',
+      color: 'info',
+      value: record.position,
+      label: 'ตำแหน่ง',
+    },
     {
       key: 'activity',
       icon: 'face',
       color: 'info',
       value: record.activity,
-      label: 'กิจกรรม',
+      label: 'บทบาท',
     },
     {
       key: 'sub',
       icon: 'face',
       color: 'positive',
       value: record.subActivity,
-      label: 'กิจกรรมย่อย',
+      label: 'บทบาทย่อย',
     },
     {
       key: 'dept',
@@ -107,8 +115,7 @@ function contextCards(record) {
       value: record.department,
       label: 'แผนก',
     },
-    /* ไม่มีการ์ด "ตำแหน่ง" — แม่แบบสิทธิไม่ผูกตำแหน่งแล้ว ตำแหน่งไปอยู่ที่
-       ขั้นตอนเพิ่มบุคลากรแทน. แสดงเวอร์ชันของแม่แบบตรงนี้แทน. */
+    /* เวอร์ชันของแม่แบบต่อท้ายชุดคุณลักษณะ */
     {
       key: 'version',
       icon: 'history',
@@ -139,63 +146,100 @@ function GovField({ label, text, children }) {
 }
 
 function PermBadge({ level }) {
-  const meta = PERM_BADGE[level] || PERM_BADGE[PERM_NONE];
+  if (level === PERM_MIXED) {
+    return (
+      <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+        กำหนดรายเมนู
+      </ColorfulBadge>
+    );
+  }
+  const meta = PERM_META[level] || PERM_META[PERM_NONE];
   return (
-    <ColorfulBadge style={meta.style} size='small' hierarchy='secondary' width='hug'>
+    <ColorfulBadge style={meta.badge} size='small' hierarchy='secondary' width='hug'>
       {meta.label}
     </ColorfulBadge>
   );
 }
 
-function ReadonlyPermTable({ title, modules, permissions }) {
+/* ตารางสิทธิ์แบบอ่านอย่างเดียว — ระบบ → เมนู → เมนูย่อย ตามโครงเดียวกับ
+   หน้าแก้ไข (26 ส.ค. 2569) แสดงเฉพาะรายการที่ "มีสิทธิ์" เพื่อไม่ให้ยาวเป็นร้อยแถว */
+function ReadonlyPermTree({ permissions }) {
+  const rows = [];
+  ACCESS_SYSTEMS.forEach((system) => {
+    const sysLeaves = systemLeafKeys(system);
+    if (sysLeaves.every((k) => (permissions[k] || PERM_NONE) === PERM_NONE)) return;
+    rows.push({ key: system.key, label: system.label, depth: 0, level: rollupLevel(permissions, sysLeaves) });
+    system.menus.forEach((menu) => {
+      const leaves = menuLeafKeys(menu);
+      if (leaves.every((k) => (permissions[k] || PERM_NONE) === PERM_NONE)) return;
+      const level = rollupLevel(permissions, leaves);
+      rows.push({ key: menu.key, label: menu.label, depth: 1, level });
+      /* เมนูย่อยแจกแจงเฉพาะตอนสิทธิ์ไม่เท่ากันทั้งเมนู */
+      if (level === PERM_MIXED) {
+        menu.children.forEach((sub) => {
+          const subLevel = permissions[sub.key] || PERM_NONE;
+          if (subLevel === PERM_NONE) return;
+          rows.push({ key: sub.key, label: sub.label, depth: 2, level: subLevel });
+        });
+      }
+    });
+  });
+
+  if (!rows.length) {
+    return (
+      <span style={{ ...CELL_TEXT, color: 'var(--text-content-tertiary)' }}>
+        แม่แบบนี้ยังไม่ได้เปิดสิทธิ์เข้าถึงระบบใดเลย
+      </span>
+    );
+  }
+
   return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <Topic
-        hierarchy='tertiary'
-        title={title}
-        showSubText={false}
-        showBadge={false}
-        showChevron={false}
-        showLeadingIcon={false}
-        showSuccess={false}
-      />
-      <div className='w-full overflow-x-auto' style={TABLE_FRAME}>
-        <div style={{ minWidth: 360 }}>
-          <div className='flex w-full'>
-            <HeaderCell
-              title='ระบบ'
-              showSubtext={false}
-              showSorting
-              style={{ flex: '1 1 0', minWidth: 0, borderTopLeftRadius: 'var(--dim-radius-400)' }}
-            />
-            <HeaderCell
-              title='สิทธิการเข้าถึง'
-              showSubtext={false}
-              showSorting
-              style={{ width: PERM_COL_W, flexShrink: 0, borderTopRightRadius: 'var(--dim-radius-400)' }}
-            />
-          </div>
-          {modules.map((mod, rowIdx) => {
-            const isLast = rowIdx === modules.length - 1;
-            const rowStyle = isLast ? { borderBottom: 'none' } : {};
-            return (
-              <TableRow key={mod.key}>
-                <DataCell
-                  {...DATA_CELL_OFF}
-                  style={{ flex: '1 1 0', minWidth: 0, ...rowStyle }}
-                >
-                  <span style={CELL_TEXT}>{mod.label}</span>
-                </DataCell>
-                <DataCell
-                  {...DATA_CELL_OFF}
-                  style={{ width: PERM_COL_W, flexShrink: 0, ...rowStyle }}
-                >
-                  <PermBadge level={permissions[mod.key] || PERM_NONE} />
-                </DataCell>
-              </TableRow>
-            );
-          })}
+    <div className='w-full overflow-x-auto' style={TABLE_FRAME}>
+      <div style={{ minWidth: 360 }}>
+        <div className='flex w-full'>
+          <HeaderCell
+            title='ระบบ / เมนู / เมนูย่อย'
+            showSubtext={false}
+            style={{ flex: '1 1 0', minWidth: 0, borderTopLeftRadius: 'var(--dim-radius-400)' }}
+          />
+          <HeaderCell
+            title='ระดับสิทธิ์'
+            showSubtext={false}
+            style={{ width: PERM_COL_W, flexShrink: 0, borderTopRightRadius: 'var(--dim-radius-400)' }}
+          />
         </div>
+        {rows.map((row, i) => {
+          const rowStyle = i === rows.length - 1 ? { borderBottom: 'none' } : {};
+          return (
+            <TableRow key={row.key}>
+              <DataCell
+                {...DATA_CELL_OFF}
+                style={{
+                  flex: '1 1 0',
+                  minWidth: 0,
+                  paddingLeft: `calc(var(--dim-space-400) + ${row.depth} * var(--dim-space-600))`,
+                  background: row.depth === 0 ? 'var(--surface-brandPrimary-quaternary)' : undefined,
+                  ...rowStyle,
+                }}
+              >
+                <span
+                  style={{
+                    ...CELL_TEXT,
+                    fontFamily: row.depth === 0
+                      ? 'var(--type-family-heading-graphic2)'
+                      : 'var(--type-family-body)',
+                    color: row.depth === 0 ? 'var(--text-brandPrimary-default)' : CELL_TEXT.color,
+                  }}
+                >
+                  {row.label}
+                </span>
+              </DataCell>
+              <DataCell {...DATA_CELL_OFF} style={{ width: PERM_COL_W, flexShrink: 0, ...rowStyle }}>
+                <PermBadge level={row.level} />
+              </DataCell>
+            </TableRow>
+          );
+        })}
       </div>
     </div>
   );
@@ -220,10 +264,10 @@ export default function AccessControlDetailPage() {
         sidebarFallbackKey='assess-access-control'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
-        title='สิทธิการเข้าถึง'
+        title='สิทธิ์การเข้าถึงระบบ'
         onBack={() => navigate.push('/assess/access-control')}
       >
-        <div style={{ padding: 'var(--dim-space-600)' }}>ไม่พบสิทธิการเข้าถึง</div>
+        <div style={{ padding: 'var(--dim-space-600)' }}>ไม่พบสิทธิ์การเข้าถึงระบบ</div>
       </QueuePageShell>
     );
   }
@@ -235,7 +279,7 @@ export default function AccessControlDetailPage() {
       sidebarFallbackKey='assess-access-control'
       brandTitle='จัดการระบบ'
       breadcrumb={breadcrumb}
-      title='สิทธิการเข้าถึง'
+      title='สิทธิ์การเข้าถึงระบบ'
       onBack={() => navigate.push('/assess/access-control')}
     >
       <div
@@ -313,12 +357,12 @@ export default function AccessControlDetailPage() {
         </section>
 
         {/* ผู้ถือสิทธิ์ตามแม่แบบนี้ — ABAC จับคู่จาก assignment ของบุคลากรเอง
-            (ศูนย์ · กิจกรรม · กิจกรรมย่อย · แผนก) ไม่ต้องผูกรายคน */}
+            (ศูนย์ · ตำแหน่ง · บทบาท · บทบาทย่อย · แผนก) ไม่ต้องผูกรายคน */}
         <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
           <Topic
             hierarchy='primary'
             title={`ผู้ถือสิทธิ์นี้ (${holders.length} คน)`}
-            subText='ระบบจับคู่ให้อัตโนมัติจากศูนย์/กิจกรรม/แผนกที่บุคลากรปฏิบัติงาน — ไม่ต้องผูกทีละคน'
+            subText='ระบบจับคู่ให้อัตโนมัติจากศูนย์/ตำแหน่ง/บทบาท/แผนกที่บุคลากรปฏิบัติงาน — ไม่ต้องผูกทีละคน'
             leadingIcon='group'
             showBadge={false}
             showChevron={false}
@@ -327,7 +371,7 @@ export default function AccessControlDetailPage() {
           {holders.length === 0 ? (
             <span style={CELL_TEXT}>
               ยังไม่มีบุคลากรที่เข้าเงื่อนไขแม่แบบนี้ — ตรวจว่ามีผู้ปฏิบัติงานตรงกับ
-              ศูนย์/กิจกรรม/แผนกที่กำหนดไว้ด้านบนหรือยัง
+              ศูนย์/ตำแหน่ง/บทบาท/แผนกที่กำหนดไว้ด้านบนหรือยัง
             </span>
           ) : (
             <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
@@ -340,7 +384,7 @@ export default function AccessControlDetailPage() {
                   <span style={{ ...CELL_TEXT, minWidth: 180 }}>{fullName(user)}</span>
                   <span style={{ ...CELL_TEXT, color: 'var(--text-content-tertiary)' }}>
                     {assignments
-                      .map((a) => [a.center, a.activity, a.department].filter(Boolean).join(' · '))
+                      .map((a) => [a.center, a.position, a.activity, a.department].filter(Boolean).join(' · '))
                       .join('  |  ')}
                   </span>
                 </div>
@@ -353,23 +397,14 @@ export default function AccessControlDetailPage() {
         <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-600)' }}>
           <Topic
             hierarchy='primary'
-            title='สิทธิ์เข้าถึงระบบ'
-            subText='เลือกระดับการเข้าถึงของแต่ละระบบ'
+            title='สิทธิ์การเข้าถึงระบบ'
+            subText='ระดับการเข้าถึงรายเมนู — แสดงเฉพาะระบบ/เมนูที่เปิดสิทธิ์ไว้'
             leadingIcon='settings'
             showBadge={false}
             showChevron={false}
             showSuccess={false}
           />
-          <ReadonlyPermTable
-            title='ระบบ PHCIS'
-            modules={PHCIS_MODULES}
-            permissions={record.permissions}
-          />
-          <ReadonlyPermTable
-            title='ระบบจัดการความยินยอม'
-            modules={CONSENT_MODULES}
-            permissions={record.permissions}
-          />
+          <ReadonlyPermTree permissions={record.permissions} />
         </section>
       </div>
     </QueuePageShell>

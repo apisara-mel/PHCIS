@@ -11,7 +11,7 @@
    `existing` ว่าง = โหมดสร้างใหม่ · ส่ง record ของศูนย์เข้ามา = โหมดแก้ไข
    (โหลดค่าเดิมเข้าฟอร์ม แล้วบันทึกทับ record เดิมแทนการเพิ่มใหม่) */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Footer from '@/components/layout/Footer';
@@ -32,7 +32,7 @@ import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout
 import Switch from '@/components/switch/Switch';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import SYSTEM_NAV from '@/pages/system/systemNav';
-import CenterStructureEditor from '@/pages/system/CenterStructureEditor';
+import { StructureReview, StructureUnitsEditor } from '@/pages/system/structureForm';
 import { TIME_OPTIONS } from '@/pages/system/centerHourOptions';
 import {
   readCenters,
@@ -51,11 +51,13 @@ import {
   DEFAULT_HOUR_GROUPS,
   normalizeCenterHours,
   createBranch,
+  formatCenterAddress,
   normalizeBranches,
 } from '@/data/centerStore';
 import { isValidEmail, EMAIL_FORMAT_ERROR } from '@/data/usersAccess';
 import {
   createStructureTemplate,
+  countStructure,
   defaultStructure,
   instantiateUnits,
   readStructures,
@@ -227,6 +229,15 @@ const NEUTRAL_PANEL = {
    กว้างเต็มการ์ด จะได้อยู่บรรทัดเดียวไม่ถูกตัดขึ้นบรรทัดใหม่. */
 const FIELD_W = 640;
 
+/* คำนำหน้ารหัสสาขา (รหัสศูนย์แม่) — อ่านอย่างเดียว อยู่ในกล่องเดียวกับช่องกรอก */
+const BRANCH_CODE_PREFIX = {
+  color: 'var(--text-content-tertiary)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  lineHeight: 1.5,
+  whiteSpace: 'nowrap',
+};
+
 const FIELD_HINT = {
   color: 'var(--text-content-tertiary)',
   fontFamily: 'var(--type-family-body)',
@@ -263,11 +274,17 @@ export const CENTER_FORM_STEPS = STEPS;
    useCenterForm — state ทั้งหมดของฟอร์มศูนย์บริการ
    ══════════════════════════════════════════════════════════════════════ */
 
-export function useCenterForm({ existing = null, onSaved } = {}) {
+export function useCenterForm({ existing = null, onSaved, branchOf = false, parentIdInit = '' } = {}) {
   const navigate = useHistory();
   /* ปิดฟอร์มแล้วไปไหน — หน้าเต็มกลับไปทะเบียนศูนย์ · popup แค่ปิดตัวเอง */
   const done = () => (onSaved ? onSaved() : navigate.push('/admin/centers'));
   const editing = existing;
+  /* โหมด "ศูนย์บริการย่อย" — ต้องเลือกศูนย์แม่ก่อน ฟิลด์อื่นถึงจะโผล่
+     (25 ส.ค. 2569) สาขาใช้รหัสหน่วยบริการเดียวกับศูนย์แม่ */
+  const [parentId, setParentId] = useState(parentIdInit || '');
+  const parentCenters = useMemo(() => readCenters().filter((c) => !c.draft && !c.parentId), []);
+  const parentCenter = parentCenters.find((c) => c.id === parentId) || null;
+
   const [step, setStep] = useState('info');
   const idx = STEPS.findIndex((s) => s.key === step);
   const goNext = () => idx < STEPS.length - 1 && setStep(STEPS[idx + 1].key);
@@ -382,8 +399,15 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
     ? 'รูปแบบไม่ถูกต้อง — ต้องเป็นตัวอักษร 2 ตัวตามด้วยตัวเลข 7 หลัก เช่น GA0012460'
     : '';
   /* ซ้ำแล้วไปต่อไม่ได้ — เดิมปล่อยผ่านจนถึงตอนกดบันทึกแล้วค่อยเด้ง alert */
+  /* รหัสสาขา = รหัสศูนย์แม่ + "-" + เลขสาขา */
+  const branchPrefix = branchOf && parentCenter ? String(parentCenter.code || '') : '';
+  const branchSuffix = branchPrefix && String(info.code || '').startsWith(`${branchPrefix}-`)
+    ? String(info.code).slice(branchPrefix.length + 1)
+    : '';
   const infoValid = isValidHcode9(info.hcode9) && info.name.trim()
-    && !codeDupOwner && !nameDupOwner;
+    && !codeDupOwner && !nameDupOwner
+    /* สาขาย่อยต้องเลือกศูนย์แม่ และใส่เลขสาขาท้ายรหัสก่อนเสมอ */
+    && (!branchOf || (!!parentId && !!branchSuffix));
   const locationValid = Boolean(loc.zip && loc.province && loc.district && loc.pinSaved);
   /* ช่องอีเมลไม่บังคับกรอก แต่ถ้ากรอกแล้วต้องถูกรูปแบบ ไม่งั้นไปขั้นถัดไปไม่ได้ */
   const contactValid = emails.every(isValidEmail);
@@ -403,6 +427,43 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
 
   /* รหัสศูนย์เป็นตัวเลขล้วน — กรองตัวอักษรทิ้งตั้งแต่ตอนพิมพ์ (25 ส.ค. 2569) */
   const setCode = (raw) => setInfo((p) => ({ ...p, code: String(raw || '').replace(/\D/g, '') }));
+
+  /* รหัสสาขาย่อย = "<รหัสศูนย์หลัก>-<เลขสาขา>" — ส่วนหน้าล็อกไว้ตามศูนย์แม่
+     ผู้ใช้พิมพ์แก้ได้เฉพาะเลขท้าย (25 ส.ค. 2569) */
+  const setBranchSuffix = (raw) => {
+    const digits = String(raw || '').replace(/\D/g, '');
+    setInfo((p) => ({ ...p, code: `${branchPrefix}-${digits}` }));
+  };
+
+  /* เลือกศูนย์แม่ = คัดลอกรหัสหน่วยบริการ/ที่ตั้ง/เวลาทำการมาเป็นจุดตั้งต้น */
+  const chooseParent = (id) => {
+    setParentId(id);
+    const p = parentCenters.find((c) => c.id === id);
+    if (!p) return;
+    const prefix = String(p.code || '');
+    /* เลขสาขาถัดไปของศูนย์แม่นี้ */
+    const used = readCenters()
+      .map((c) => String(c.code || ''))
+      .filter((c) => c.startsWith(`${prefix}-`))
+      .map((c) => Number(c.slice(prefix.length + 1)))
+      .filter((n) => Number.isFinite(n));
+    const nextSuffix = used.length ? Math.max(...used) + 1 : 1;
+    setInfo((prev) => ({
+      ...prev,
+      hcode9: p.hcode9 || '',
+      hcode5: p.hcode5 || '',
+      code: `${prefix}-${nextSuffix}`,
+      name: prev.name || '',
+    }));
+    setLoc((prev) => ({ ...prev, ...(p.location || {}), province: BKK_PROVINCE, pinSaved: true }));
+    setHours(normalizeCenterHours(p.hours || DEFAULT_HOUR_GROUPS));
+  };
+
+  /* เปิดจากปุ่ม "เพิ่มศูนย์บริการย่อย" ในแถวไหน = ศูนย์แถวนั้นเป็นศูนย์แม่ทันที */
+  useEffect(() => {
+    if (branchOf && parentIdInit) chooseParent(parentIdInit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setHcode5 = (raw) => {
     setHcode5Touched(true);
@@ -436,11 +497,25 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
       branches,
       draft,
     });
+    /* สาขาย่อยอ้างศูนย์แม่ไว้ด้วย เพื่อไม่ให้ไปโผล่เป็นตัวเลือก "ศูนย์แม่" เอง */
+    if (branchOf && parentId) center.parentId = parentId;
     if (editing) {
       /* กระจาย editing ก่อน เพื่อคงฟิลด์ที่ฟอร์มไม่ได้แตะไว้ครบ */
       writeCenters(all.map((c) => (c.id === editing.id
         ? { ...editing, ...center, id: editing.id, active: editing.active, draft }
         : c)));
+    } else if (branchOf && parentId) {
+      /* บันทึกเป็นศูนย์ใหม่ + ผูกชื่อสาขาไว้ที่ศูนย์แม่ให้ทะเบียนแสดงได้ทันที */
+      writeCenters([...all.map((c) => (c.id === parentId
+        ? {
+          ...c,
+          branches: [...(c.branches || []), createBranch({
+            name: center.name,
+            address: formatCenterAddress(center.location),
+            phone: center.phones?.[0] || '',
+          })],
+        }
+        : c)), center]);
     } else {
       writeCenters([...all, center]);
     }
@@ -487,7 +562,9 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
 
 
   /* รูปแบบโครงสร้างที่บันทึกไว้จากหน้า "รูปแบบโครงสร้างศูนย์" */
-  const savedStructures = useMemo(() => readStructures(), []);
+  /* เก็บใน state เพราะผู้ใช้สร้างรูปแบบใหม่ได้จากใน step 5 (25 ส.ค. 2569) */
+  const [savedStructures, setSavedStructures] = useState(() => readStructures());
+
   /* popup "ที่มีอยู่แล้ว" ใช้ตัวเดียวสองโหมด — 'code' (รหัสศูนย์) กับ
      'name' (ชื่อสำนักงานอนามัย) · null = ปิด */
   const [codeListMode, setCodeListMode] = useState(null);
@@ -527,6 +604,8 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
   return {
     step, setStep, idx, goNext, goPrev, STEPS, footerPrimary,
     info, setI, setHcode9, setHcode5, setCode, hcode9Error,
+    branchOf, parentId, chooseParent, parentCenters, parentCenter,
+    branchPrefix, branchSuffix, setBranchSuffix,
     loc, setL, handleDistrictChange, mapValue, handleMapChange,
     phones, setPhones, handleRemovePhone,
     emails, setEmails, handleRemoveEmail,
@@ -552,6 +631,8 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
 export function CenterFormBody({ form }) {
   const {
     step, info, setI, setHcode9, setHcode5, setCode, hcode9Error,
+    branchOf, parentId, chooseParent, parentCenters, parentCenter,
+    branchPrefix, branchSuffix, setBranchSuffix,
     existingCenters, setShowCodeList, codeUnique, nameUnique, codeError, nameError,
     loc, setL, handleDistrictChange, mapValue, handleMapChange,
     phones, setPhones, handleRemovePhone,
@@ -567,9 +648,92 @@ export function CenterFormBody({ form }) {
           {/* STEP 1 — center info (Figma 3:598) */}
           {step === 'info' && (
             <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
-              <SectionHead icon='domain'>ข้อมูลศูนย์บริการ</SectionHead>
-              {/* ช่องกรอกกว้าง 640 เท่าเดิม แต่ไม่ครอบคำอธิบายใต้ช่อง — ไม่งั้น
-                  บรรทัด "รหัสหน่วยบริการแบบใหม่…hcode.moph.go.th" ถูกบีบจนตกบรรทัด */}
+              <SectionHead icon='domain'>
+                {branchOf ? 'ข้อมูลศูนย์บริการย่อย' : 'ข้อมูลศูนย์บริการ'}
+              </SectionHead>
+              {branchOf ? (
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)', maxWidth: FIELD_W }}>
+                  <Select
+                    label='ศูนย์บริการหลัก'
+                    required
+                    searchable
+                    showHelperText={false}
+                    placeholder='เลือกศูนย์บริการหลัก'
+                    options={parentCenters.map((c) => ({
+                      value: c.id,
+                      label: c.name || 'ศูนย์บริการ',
+                      subtext: c.hcode9 || '',
+                    }))}
+                    value={parentId}
+                    onChange={chooseParent}
+                  />
+                  <span style={FIELD_HINT}>
+                    เลือกศูนย์หลักของศูนย์บริการย่อย
+                  </span>
+                </div>
+              ) : null}
+              {/* สาขาย่อยที่เลือกศูนย์แม่แล้ว — ข้อมูลที่สืบทอดจากศูนย์แม่แสดงเป็น
+                  ข้อความอ่านอย่างเดียว เหลือกรอกแค่รหัสและชื่อของสาขา
+                  (25 ส.ค. 2569) */}
+              {branchOf && parentCenter ? (
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
+                  <div
+                    className='flex flex-wrap w-full'
+                    style={{
+                      gap: 'var(--dim-space-500)',
+                      padding: 'var(--dim-space-400)',
+                      background: 'var(--surface-brandPrimary-quaternary)',
+                      borderRadius: 'var(--dim-radius-400, 12px)',
+                    }}
+                  >
+                    <BranchInfoItem label='รหัสศูนย์หลัก' value={parentCenter.code} />
+                    <BranchInfoItem label='รหัสหน่วยบริการ (9 หลัก)' value={parentCenter.hcode9} />
+                    <BranchInfoItem label='รหัสหน่วยบริการเดิม (5 หลัก)' value={parentCenter.hcode5} />
+                    <BranchInfoItem label='ศูนย์บริการหลัก' value={parentCenter.name} />
+                    <BranchInfoItem label='ที่ตั้งศูนย์แม่' value={formatCenterAddress(parentCenter.location)} />
+                    <BranchInfoItem
+                      label='เวลาทำการ (จันทร์–ศุกร์)'
+                      value={formatCenterHoursLine(parentCenter.hours, 'in', 'weekday')}
+                    />
+                  </div>
+
+                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)', maxWidth: FIELD_W }}>
+                    <InputField
+                      label='รหัสศูนย์ย่อย'
+                      required
+                      value={branchSuffix}
+                      onChange={setBranchSuffix}
+                      placeholder='1'
+                      leading={<span style={BRANCH_CODE_PREFIX}>{`${branchPrefix}-`}</span>}
+                      error={codeError || undefined}
+                      showHelperText={false}
+                      trailing={codeUnique ? <UniqueTick label='รหัสนี้ยังไม่ถูกใช้' /> : undefined}
+                    />
+                    <span style={codeError ? FIELD_ERROR : FIELD_HINT}>
+                      {codeError || 'รหัสของสาขาย่อย ต้องไม่ซ้ำกับที่มีอยู่แล้ว'}
+                    </span>
+                  </div>
+
+                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)', maxWidth: FIELD_W }}>
+                    <InputField
+                      label='ชื่อสาขาย่อย'
+                      required
+                      value={info.name}
+                      onChange={setI('name')}
+                      placeholder='สาขาชุมชนวัดปากน้ำฝั่งเหนือ'
+                      error={nameError || undefined}
+                      showHelperText={false}
+                      trailing={nameUnique ? <UniqueTick label='ชื่อนี้ยังไม่ถูกใช้' /> : undefined}
+                    />
+                    <span style={nameError ? FIELD_ERROR : FIELD_HINT}>
+                      {nameError || 'ชื่อต้องไม่ซ้ำกับที่มีอยู่แล้ว'}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* ศูนย์หลักใช้ฟอร์มเต็มตามเดิม */}
+              {!branchOf ? (
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
                 {/* รหัสหน่วยบริการ 9 หลัก มาก่อนทุกฟิลด์ — เป็นรหัสหลักของศูนย์ */}
                 <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
@@ -667,6 +831,7 @@ export function CenterFormBody({ form }) {
                   </span>
                 </div>
               </div>
+              ) : null}
             </div>
           )}
 
@@ -795,15 +960,8 @@ export function CenterFormBody({ form }) {
           {/* STEP 5 — แผนก → คลินิก → ห้อง/เตียง */}
           {step === 'structure' && (
             <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-              <Topic
-                hierarchy='primary'
-                title='แผนกและคลินิก'
-                subText='แผนกและคลินิกอยู่ระดับเดียวกัน แต่ละรายการมีห้องตรวจ/เตียงของตัวเอง'
-                leadingIcon='account_tree'
-                showBadge={false}
-                showChevron={false}
-                showSuccess={false}
-              />
+              {/* ปุ่ม "สร้างรูปแบบใหม่" ถูกถอดออก 25 ส.ค. 2569 — สร้างรูปแบบ
+                  ทำที่เมนู "รูปแบบโครงสร้างศูนย์" ที่เดียว ตรงนี้เลือกอย่างเดียว */}
               <StructureTemplatePicker
                 templates={savedStructures}
                 value={structureTemplateId}
@@ -814,32 +972,25 @@ export function CenterFormBody({ form }) {
                   setUnits(tpl ? instantiateUnits(tpl.units) : defaultStructure());
                 }}
               />
-              {/* section "ใช้รูปแบบโครงสร้างนี้กับศูนย์" ถูกถอดออกจากฟอร์มเพิ่มศูนย์
-                  25 ส.ค. 2569 — ตอนสร้างศูนย์ยังไม่ใช่จังหวะไปผูกรูปแบบให้ศูนย์อื่น
-                  ยังใช้ได้ตามเดิมที่หน้า "รูปแบบโครงสร้างศูนย์" ซึ่งเป็นที่ของมัน */}
-              <CenterStructureEditor
-                units={units}
-                onUnitsChange={setUnits}
-                showAppliedCenters={false}
-              />
 
-              {/* สาขาย่อย — ศูนย์หนึ่งแห่งมีจุดให้บริการย่อยในชุมชนได้หลายจุด
-                  อยู่ step เดียวกับโครงสร้างเพราะเป็น "หน่วยให้บริการ" เหมือนกัน */}
-              <Topic
-                hierarchy='primary'
-                title='สาขาย่อย'
-                subText='จุดให้บริการย่อยของศูนย์นี้ — ใช้รหัสหน่วยบริการเดียวกับศูนย์แม่ แต่มีที่ตั้งและเบอร์โทรของตัวเอง'
-                leadingIcon='store'
-                showBadge={false}
-                showChevron={false}
-                showSuccess={false}
-              />
-              <BranchesPanel
-                branches={branches}
-                onAdd={addBranch}
-                onChange={updateBranch}
-                onRemove={removeBranch}
-              />
+              {/* เลือกรูปแบบที่บันทึกไว้ = โชว์รายละเอียดให้ตรวจ (อ่านอย่างเดียว)
+                  เลือก "เริ่มจากโครงสร้างตั้งต้น" = กรอกเองด้วยฟอร์มชุดเดียวกับ
+                  หน้าสร้างรูปแบบ (25 ส.ค. 2569) */}
+              {structureTemplateId === STRUCTURE_FROM_SCRATCH ? (
+                <StructureUnitsEditor units={units} onUnitsChange={setUnits} />
+              ) : null}
+              {structureTemplateId && structureTemplateId !== STRUCTURE_FROM_SCRATCH ? (
+                <StructureReview
+                  showName={false}
+                  name=''
+                  units={units}
+                  counts={countStructure(units)}
+                />
+              ) : null}
+
+
+              {/* ส่วน "สาขาย่อย" ถูกถอดออกจาก step 5 (25 ส.ค. 2569) — เพิ่มสาขาย่อย
+                  ทำจากปุ่ม "เพิ่มศูนย์บริการ → เพิ่มศูนย์บริการย่อย" ในทะเบียนศูนย์ */}
             </div>
           )}
 
@@ -943,7 +1094,7 @@ export function CenterFormBody({ form }) {
                 />
                 {/* สาขาย่อยขึ้นก่อน — เป็นระดับ "สถานที่" ที่ครอบแผนก/คลินิก */}
                 {branches.length ? (
-                  <div className='flex flex-col w-full' style={{ ...NEUTRAL_PANEL, gap: 'var(--dim-space-200)' }}>
+                  <div className='flex flex-col w-full' style={{ ...NEUTRAL_PANEL, flex: 'none', gap: 'var(--dim-space-200)' }}>
                     <span style={REVIEW_PANEL_TITLE}>{`สาขาย่อย ${branches.length} แห่ง`}</span>
                     {branches.map((b) => (
                       <Information
@@ -966,7 +1117,7 @@ export function CenterFormBody({ form }) {
                     const rooms = u.nodes.filter((n) => n.kind !== 'bed').length;
                     const beds = u.nodes.length - rooms;
                     return (
-                      <div key={u.id} className='flex flex-col' style={{ ...NEUTRAL_PANEL, gap: 'var(--dim-space-200)' }}>
+                      <div key={u.id} className='flex flex-col' style={{ ...NEUTRAL_PANEL, flex: 'none', gap: 'var(--dim-space-200)' }}>
                         <span style={REVIEW_PANEL_TITLE}>
                           {`${unitKindLabel(u.kind)} · ${u.name || 'ไม่มีชื่อ'}`}
                         </span>
@@ -996,12 +1147,20 @@ function label(opts, v) { const o = opts.find((x) => x.value === v); return o &&
 /* เลือกรูปแบบโครงสร้างที่เคยสร้างไว้มาเป็นจุดตั้งต้นของศูนย์นี้.
    เลือกแล้วระบบคัดลอกมาเป็นชุดใหม่ (id ใหม่ทั้งหมด) — แก้ต่อในฟอร์มนี้ได้เลย
    โดยรูปแบบต้นทางในทะเบียนไม่เปลี่ยนตาม. */
+/* ค่าที่บอกว่า "เลือกแล้วว่าจะเริ่มจากโครงสร้างตั้งต้น" — ต่างจาก '' ที่แปลว่า
+   ยังไม่ได้เลือกอะไรเลย ('' ทำให้ Select แสดงเป็น placeholder สีจาง) */
+export const STRUCTURE_FROM_SCRATCH = '__scratch__';
+
 function StructureTemplatePicker({ templates, value, onChange }) {
   const options = [
-    { value: '', label: 'เริ่มจากโครงสร้างตั้งต้น (ไม่ใช้รูปแบบที่บันทึกไว้)' },
+    { value: STRUCTURE_FROM_SCRATCH, label: 'เริ่มจากโครงสร้างตั้งต้น (ไม่ใช้รูปแบบที่บันทึกไว้)' },
+    /* สรุปโครงสร้างเป็น subtext ของ DS (สีอ่อนกว่าและอยู่บรรทัดรอง) —
+       เดิมต่อท้ายชื่อในบรรทัดเดียวด้วยสีเดียวกันจนอ่านเป็นชื่อยาว ๆ
+       (25 ส.ค. 2569) */
     ...templates.map((t) => ({
       value: t.id,
-      label: `${t.name}${t.draft ? ' (ร่าง)' : ''} — ${summarizeStructure(t.units || [])}`,
+      label: `${t.name}${t.draft ? ' (ร่าง)' : ''}`,
+      subtext: summarizeStructure(t.units || []),
     })),
   ];
 
@@ -1017,15 +1176,6 @@ function StructureTemplatePicker({ templates, value, onChange }) {
         gap: 'var(--dim-space-300)',
       }}
     >
-      <Topic
-        hierarchy='primary'
-        title='ใช้รูปแบบที่เคยสร้างไว้'
-        subText='เลือกรูปแบบโครงสร้างที่บันทึกไว้มาเป็นจุดตั้งต้น แล้วปรับต่อได้'
-        leadingIcon='account_tree'
-        showBadge={false}
-        showChevron={false}
-        showSuccess={false}
-      />
       <div style={{ maxWidth: 640 }}>
         <Select
           label='รูปแบบโครงสร้างศูนย์'
@@ -1034,7 +1184,7 @@ function StructureTemplatePicker({ templates, value, onChange }) {
           helperText={templates.length
             ? 'เลือกแล้วระบบจะคัดลอกมาให้ — แก้ต่อที่นี่ได้โดยรูปแบบต้นทางไม่เปลี่ยน'
             : 'ยังไม่มีรูปแบบที่บันทึกไว้ — สร้างได้ที่เมนู "รูปแบบโครงสร้างศูนย์"'}
-          placeholder='เริ่มจากโครงสร้างตั้งต้น'
+          placeholder='เลือกรูปแบบโครงสร้างศูนย์'
           options={options}
           value={value}
           onChange={onChange}
@@ -1106,6 +1256,20 @@ function ExistingCodesPopup({ open, centers, onClose, mode = 'code' }) {
         </div>
       )}
     </Popup>
+  );
+}
+
+/* ข้อมูลที่สาขาย่อยสืบทอดจากศูนย์แม่ — อ่านอย่างเดียว */
+function BranchInfoItem({ label, value }) {
+  return (
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)', minWidth: 160 }}>
+      <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+        {label}
+      </span>
+      <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
+        {String(value || '').trim() || '—'}
+      </span>
+    </div>
   );
 }
 

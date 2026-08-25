@@ -183,6 +183,8 @@ export const DEMO_ASSESS_USERS = [
         id: 'asgn-5',
         centerId: 'hc-35',
         center: 'ศูนย์ 35 หัวหมาก',
+        /* ตัวอย่างคนที่ประจำสาขาย่อย — ตารางบุคลากรจะขึ้น "ศูนย์บริการย่อย …" */
+        branch: 'สาขาชุมชนหัวหมาก',
         activityId: 'gp-medtech',
         activity: 'นักเทคนิคการแพทย์',
         subActivityId: 'sb-lab',
@@ -235,6 +237,9 @@ export function emptyAssignment() {
     id: uid(),
     centerId: '',
     center: '',
+    /* สาขาย่อยของศูนย์ (ศบส.สาขา) — ว่าง = ประจำที่ศูนย์แม่ */
+    branchId: '',
+    branch: '',
     activityId: '',
     activity: '',
     subActivityId: '',
@@ -273,6 +278,8 @@ function normalizeAssignment(row) {
     activityId: rest.activityId ?? groupPolicyId ?? '',
     subActivity: rest.subActivity ?? subBranch ?? '',
     subActivityId: rest.subActivityId ?? subBranchId ?? '',
+    branchId: rest.branchId ?? '',
+    branch: rest.branch ?? '',
   };
 }
 
@@ -377,4 +384,13 @@ export function findDuplicateAssignments(assignments) {
 
 export function centerLabel(centerId) {
   return CENTER_OPTIONS.find((c) => c.value === centerId)?.label || '';
+}
+
+/** ป้ายศูนย์ที่ใช้แสดงในตาราง — คนที่ประจำสาขาย่อยขึ้นชื่อสาขา ไม่ใช่ชื่อศูนย์แม่
+    เพื่อให้เห็นจากตารางได้ทันทีว่าอยู่ที่จุดบริการย่อย (26 ส.ค. 69 มติผู้ใช้) */
+export function assignmentCenterLabel(assignment) {
+  if (!assignment) return '';
+  const branch = (assignment.branch || '').trim();
+  if (branch) return `ศูนย์บริการย่อย ${branch}`;
+  return assignment.center || centerLabel(assignment.centerId) || '';
 }

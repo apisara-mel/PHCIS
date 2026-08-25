@@ -18,6 +18,7 @@ import ESignatureField from '@/components/form-builder/ESignatureField';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import { CENTER_OPTIONS } from '@/data/accessControlStore';
+import { findCenterDetail } from '@/data/centerStore';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
 import { readPositions } from '@/data/positionStore';
@@ -104,8 +105,10 @@ const VALUE = {
 const ASSIGN_COLUMNS = [
   { key: 'order',      title: 'ลำดับ',            width: 72 },
   { key: 'center',     title: 'ศูนย์บริการ',       width: 200 },
-  { key: 'activity',   title: 'กิจกรรม',           width: 180 },
-  { key: 'sub',        title: 'กิจกรรมย่อย',       width: 180 },
+  /* สาขาย่อยของศูนย์ที่เลือก — เว้นว่าง = ประจำที่ศูนย์แม่ (26 ส.ค. 69) */
+  { key: 'branch',     title: 'ศูนย์บริการย่อย',    width: 200 },
+  { key: 'activity',   title: 'Group Policy',      width: 180 },
+  { key: 'sub',        title: 'บทบาท',             width: 180 },
   { key: 'dept',       title: 'แผนก',             width: 180 },
   { key: 'position',   title: 'ตำแหน่ง',           width: 180 },
   { key: 'startAt',    title: 'วันเวลาเริ่มงาน',    width: 208 },
@@ -255,9 +258,19 @@ export default function AssessUserCreatePage() {
   })), [allUsers]);
 
   const labelOf = (opts, value) => opts.find((o) => o.value === value)?.label || '';
+  /* สาขาย่อยขึ้นกับศูนย์ที่เลือกในแถวนั้น — ศูนย์ที่ยังไม่มีสาขาจะเหลือแค่
+     "ประจำที่ศูนย์แม่" ให้เลือก */
+  const branchOptsFor = (centerId) => {
+    const detail = centerId ? findCenterDetail(centerId) : null;
+    return [
+      { value: '', label: 'ประจำที่ศูนย์แม่' },
+      ...(detail?.branches || []).map((b) => ({ value: b.id, label: b.name })),
+    ];
+  };
+
   const subOptsFor = (activityId) => {
     const act = activities.find((a) => a.id === activityId);
-    return [{ value: '', label: 'เลือกกิจกรรมย่อย' }, ...(act?.subActivities || []).map((sub) => ({ value: sub.id, label: sub.name }))];
+    return [{ value: '', label: 'เลือกบทบาท' }, ...(act?.subActivities || []).map((sub) => ({ value: sub.id, label: sub.name }))];
   };
 
   const setField = (key) => (v) => setPersonal((p) => ({ ...p, [key]: v }));
@@ -303,6 +316,7 @@ export default function AssessUserCreatePage() {
       center: centerLabel(r.centerId) || labelOf(centerOpts, r.centerId),
       activity: labelOf(activityOpts, r.activityId),
       subActivity: labelOf(subOptsFor(r.activityId), r.subActivityId),
+      branch: r.branchId ? labelOf(branchOptsFor(r.centerId), r.branchId) : '',
       department: labelOf(deptOpts, r.departmentId),
       position: labelOf(posOpts, r.positionId),
     }));
@@ -610,7 +624,18 @@ export default function AssessUserCreatePage() {
                             {idx + 1}
                           </td>
                           <td style={CELL_PAD}>
-                            <Select size='medium' showLabel={false} showHelperText={false} options={centerOpts} value={row.centerId} onChange={(v) => setAssignment(idx, { centerId: v, center: centerLabel(v) })} />
+                            <Select size='medium' showLabel={false} showHelperText={false} options={centerOpts} value={row.centerId} onChange={(v) => setAssignment(idx, { centerId: v, center: centerLabel(v), branchId: '', branch: '' })} />
+                          </td>
+                          <td style={CELL_PAD}>
+                            <Select
+                              size='medium'
+                              showLabel={false}
+                              showHelperText={false}
+                              options={branchOptsFor(row.centerId)}
+                              value={row.branchId}
+                              onChange={(v) => setAssignment(idx, { branchId: v, branch: labelOf(branchOptsFor(row.centerId), v) })}
+                              disabled={!row.centerId}
+                            />
                           </td>
                           <td style={CELL_PAD}>
                             <Select size='medium' showLabel={false} showHelperText={false} options={activityOpts} value={row.activityId} onChange={(v) => setAssignment(idx, { activityId: v, subActivityId: '', subActivity: '' })} />
@@ -728,8 +753,9 @@ export default function AssessUserCreatePage() {
                   >
                     <InfoField label='ลำดับ' value={String(idx + 1)} />
                     <InfoField label='ศูนย์บริการ' value={centerLabel(row.centerId) || labelOf(centerOpts, row.centerId)} />
-                    <InfoField label='กิจกรรม' value={labelOf(activityOpts, row.activityId)} />
-                    <InfoField label='กิจกรรมย่อย' value={labelOf(subOptsFor(row.activityId), row.subActivityId)} />
+                    <InfoField label='ศูนย์บริการย่อย' value={row.branchId ? labelOf(branchOptsFor(row.centerId), row.branchId) : 'ประจำที่ศูนย์แม่'} />
+                    <InfoField label='Group Policy' value={labelOf(activityOpts, row.activityId)} />
+                    <InfoField label='บทบาท' value={labelOf(subOptsFor(row.activityId), row.subActivityId)} />
                     <InfoField label='แผนก' value={labelOf(deptOpts, row.departmentId)} />
                     <InfoField label='ตำแหน่ง' value={labelOf(posOpts, row.positionId)} />
                     <InfoField label='วันเวลาเริ่มงาน' value={formatDateTime(row.startAt)} />

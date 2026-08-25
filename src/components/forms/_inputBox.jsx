@@ -228,6 +228,7 @@ export const InputBox = React.forwardRef(function InputBox({
   onBlur,
   placeholder,
   leadingIcon,
+  leading,                   /* arbitrary leading node (e.g. คำนำหน้ารหัส) */
   trailing,                  /* arbitrary trailing node (e.g. mic button) */
   state,                     /* manual state override */
   error = false,
@@ -311,6 +312,7 @@ export const InputBox = React.forwardRef(function InputBox({
       }}
     >
       {leadingIcon && <Sym name={leadingIcon} size={dim.iconSize} color={s.iconColor} />}
+      {leading}
       <input
         ref={assignInputRef}
         id={id}

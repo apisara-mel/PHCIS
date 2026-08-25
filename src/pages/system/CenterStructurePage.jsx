@@ -7,7 +7,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
-import SmallAlert from '@/components/alert/SmallAlert';
+import SuccessToast from '@/components/toast/SuccessToast';
 import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import CenterStructurePopup from '@/pages/system/CenterStructurePopup';
@@ -64,6 +64,8 @@ export default function CenterStructurePage() {
   const [removing, setRemoving] = useState(null);
   /* popup สร้างรูปแบบใหม่ — เปิดจากปุ่มในหน้านี้ทั้งสามจุด */
   const [creating, setCreating] = useState(false);
+  /* ชื่อรูปแบบที่เพิ่งสร้างสำเร็จ — ใช้เปิด dialog ยืนยันผล (25 ส.ค. 2569) */
+  const [createdName, setCreatedName] = useState(null);
   /* รูปแบบที่กำลังแก้ไขใน popup — null = ไม่ได้เปิดอยู่ */
   const [editingTpl, setEditingTpl] = useState(null);
   /* รูปแบบที่กำลังเปิดดูรายชื่อศูนย์ — คอลัมน์ "ศูนย์ที่ใช้รูปแบบนี้" เดิมยาว
@@ -248,9 +250,27 @@ export default function CenterStructurePage() {
         <CenterStructurePopup
           open
           onClose={() => setCreating(false)}
-          onSaved={() => { refresh(); showToast('สร้างรูปแบบโครงสร้างศูนย์แล้ว'); }}
+          onSaved={() => {
+            const list = readStructures();
+            refresh();
+            setCreatedName(list[list.length - 1]?.name || 'รูปแบบใหม่');
+          }}
         />
       ) : null}
+
+      <AlertDialog
+        open={!!createdName}
+        onClose={() => setCreatedName(null)}
+        type='success'
+        alignment='center'
+        title='สร้างรูปแบบโครงสร้างศูนย์สำเร็จ'
+        description={createdName
+          ? `"${createdName}" ถูกบันทึกลงทะเบียนแล้ว — เลือกใช้ได้ตอนเพิ่มศูนย์บริการ`
+          : ''}
+        confirmLabel='เรียบร้อย'
+        showCancel={false}
+        onConfirm={() => setCreatedName(null)}
+      />
 
       {/* แก้ไขก็เปิดเป็น popup เหมือนกัน — key = id ให้ฟอร์ม remount ตามรูปแบบที่เลือก */}
       {editingTpl ? (
@@ -314,11 +334,13 @@ export default function CenterStructurePage() {
         onConfirm={confirmDelete}
       />
 
-      {toast ? (
-        <div style={{ position: 'fixed', right: 24, bottom: 96, zIndex: 1400 }}>
-          <SmallAlert type='success' title={toast} />
-        </div>
-      ) : null}
+      {/* toast ของ DS โผล่ด้านบนจอเหมือนหน้าอื่น (Figma 139:20246) —
+          ของเดิมเป็นกล่องลอยมุมขวาล่างที่ทำเองเฉพาะหน้านี้ (25 ส.ค. 2569) */}
+      <SuccessToast
+        open={!!toast}
+        message={toast || ''}
+        onClose={() => setToast(null)}
+      />
     </QueuePageShell>
   );
 }
