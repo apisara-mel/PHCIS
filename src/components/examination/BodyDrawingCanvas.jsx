@@ -52,6 +52,18 @@ import {
   getMarkerRegionLabel,
 } from '@/components/examination/markerSuggestions';
 
+/* คำแนะนำโน้ตบนภาพร่างกาย (mock) — ขึ้นเมื่อพิมพ์ครบ 3 ตัวอักษร
+   ของจริงควรดึงจากคำที่แพทย์ในหน่วยนั้นใช้บ่อย */
+const BODY_MARK_NOTE_HINTS = [
+  'แผลถลอก ขนาดประมาณ 2 ซม.',
+  'รอยฟกช้ำ สีเขียวคล้ำ',
+  'บวมแดง กดเจ็บ',
+  'แผลผ่าตัดเดิม เย็บ 5 เข็ม',
+  'ผื่นแดงคัน กระจายเป็นหย่อม',
+  'จุดกดเจ็บชัดเจน ไม่มีบาดแผลภายนอก',
+  'ปานแต่กำเนิด ไม่เปลี่ยนแปลง',
+];
+
 /* MIH BodyDrawingCanvas — Figma PHCIS | Medical-examination
    Embedded 191:25071 (diagram card + ExamSupportList row)
    Modal body 75:34452 inside Popup 75:35675 (toolbar + canvas + drawing tools). */
@@ -1302,12 +1314,19 @@ export const BodyMarkNoteField = React.forwardRef(function BodyMarkNoteField(
        suggestions popover can anchor to the field's bounding box. */
     boxRef,
     onFocus,
+    /* คำแนะนำของช่องโน้ตบนภาพร่างกาย — ผู้เรียกส่งชุดของตัวเองมาแทนได้
+       (มติผู้ใช้ 25 ส.ค. 69: ทุกช่อง voice ต้องมี suggestion) */
+    suggestions = BODY_MARK_NOTE_HINTS,
+    minChars = 3,
     ...rest
   },
   ref,
 ) {
   return (
-    <VoiceTextarea
+    <SuggestibleTextarea
+      voice
+      suggestions={suggestions}
+      minChars={minChars}
       ref={ref}
       boxRef={boxRef}
       showLabel={false}

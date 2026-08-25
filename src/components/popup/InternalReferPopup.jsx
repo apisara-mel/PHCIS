@@ -1,11 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import Select from '@/components/forms/Select';
-import VoiceTextarea from '@/components/forms/VoiceTextarea';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import { DEPARTMENTS } from '@/data/usersAccess';
 import { readDepartments } from '@/data/departmentStore';
 import { QUEUE_STATIONS, getStationLabel } from '@/data/queueCenterStore';
 import { DEFAULT_CLINIC_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
+
+/* คำแนะนำหมายเหตุการส่งต่อภายใน (mock) — ขึ้นเมื่อพิมพ์ครบ 3 ตัวอักษร
+   (มติผู้ใช้ 25 ส.ค. 69) ของจริงควรดึงจากคลังคำของหน่วยบริการ */
+const INTERNAL_REFER_NOTE_HINTS = [
+  'อาการคงที่ พร้อมส่งต่อ',
+  'แจ้งประวัติแพ้ยาให้ปลายทางแล้ว',
+  'ขอให้ตรวจซ้ำก่อนจ่ายยา',
+  'ผู้รับบริการต้องการพบแพทย์คนเดิม',
+  'นัดติดตามอาการภายใน 1 สัปดาห์',
+  'แนบผลแลปล่าสุดไปด้วยแล้ว',
+];
 
 /* Shared "ส่งต่อภายใน" popup — same destination catalogs as observation
    discharge: assess departments ∪ usersAccess DEPARTMENTS, and every
@@ -88,12 +99,15 @@ export function InternalReferFields({
         required
         disabled={!department}
       />
-      <VoiceTextarea
+      <SuggestibleTextarea
+        voice
         label='หมายเหตุ'
         value={note}
         onChange={(val) => onNoteChange?.(typeof val === 'string' ? val : val?.target?.value || '')}
         placeholder='เช่น อาการคงที่ พร้อมส่งต่อ · แจ้งประวัติแพ้ยา · เอกสารที่ต้องแนบ'
         showHelperText={false}
+        suggestions={INTERNAL_REFER_NOTE_HINTS}
+        minChars={3}
       />
     </div>
   );

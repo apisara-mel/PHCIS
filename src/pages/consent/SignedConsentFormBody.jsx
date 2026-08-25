@@ -45,6 +45,9 @@ const consentRadioStyle = {
   pointerEvents: 'none',
 };
 
+/* ฉบับที่ลงนามแล้วเป็น read-only — ตัวเลือกต้อง `disabled` จริง (มติผู้ใช้
+   25 ส.ค. 69) ของเดิมกันไว้แค่ pointerEvents:'none' ซึ่ง Tab ยังโฟกัสเข้าไปได้
+   และไม่ขึ้น state disabled ตาม DS ทำให้ดูเหมือนยังกดเปลี่ยนคำตอบได้ */
 const ConsentChoiceRadios = ({ value, name }) => (
   <div
     className='flex flex-wrap items-center'
@@ -59,6 +62,7 @@ const ConsentChoiceRadios = ({ value, name }) => (
       title='ยินยอม'
       checked={value === 'yes'}
       onChange={() => {}}
+      disabled
       border
       showRadio={false}
       showCircleIcon={false}
@@ -75,6 +79,7 @@ const ConsentChoiceRadios = ({ value, name }) => (
       title='ไม่ยินยอม'
       checked={value === 'no'}
       onChange={() => {}}
+      disabled
       border
       showRadio={false}
       showCircleIcon={false}

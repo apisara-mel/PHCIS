@@ -24,6 +24,9 @@ export default function DatePickerRange(
     showLeadingIcon = true,
     disabled = false,
     endMinFromStart = true,
+    /** วันแรกสุดที่เลือกได้ — ส่ง `minDate={new Date()}` เพื่อห้ามเลือกวันย้อนหลัง
+        (ช่องสิ้นสุดจะใช้ค่าที่มากกว่าระหว่าง minDate กับวันเริ่มต้นเสมอ) */
+    minDate,
     className = '',
     style = {},
   },
@@ -31,6 +34,15 @@ export default function DatePickerRange(
   const [startRaw, endRaw] = value;
   const startDate = parse ? parse(startRaw) : null;
   const endDate = parse ? parse(endRaw) : null;
+
+  /* ช่องสิ้นสุดต้องไม่ต่ำกว่าทั้ง minDate และวันเริ่มต้น — ถ้าใช้แค่ startDate
+     ผู้ใช้จะเลือกวันสิ้นสุดย้อนหลังได้ตอนที่ยังไม่ได้เลือกวันเริ่มต้น */
+  const endMin = (() => {
+    const floor = minDate ? new Date(minDate) : null;
+    const fromStart = endMinFromStart ? startDate : null;
+    if (floor && fromStart) return floor > fromStart ? floor : fromStart;
+    return fromStart || floor || undefined;
+  })();
 
   const emit = (idx, d) => {
     const formatted = d && format ? format(d) : '';
@@ -65,6 +77,7 @@ export default function DatePickerRange(
             onChange={(d) => emit(0, d)}
             format={format}
             placeholder={placeholders[0]}
+            minDate={minDate}
             leadingIcon={showLeadingIcon ? leadingIcon : undefined}
             showFieldName={false}
             showLabel={false}
@@ -95,7 +108,7 @@ export default function DatePickerRange(
             format={format}
             placeholder={placeholders[1]}
             leadingIcon={showLeadingIcon ? leadingIcon : undefined}
-            minDate={endMinFromStart ? startDate ?? undefined : undefined}
+            minDate={endMin}
             showFieldName={false}
             showLabel={false}
             showHelperText={false}
