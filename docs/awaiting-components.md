@@ -1191,3 +1191,37 @@ mock data ใน `accessRecords.js` ใช้ `i % 12` ทั้ง **เดื�
 - **ประวัติคำขอเข้าถึงข้อมูล** — `accessRecords.js` ให้ 1 ใน 7 เป็นของผู้ใช้
   ปัจจุบัน (`mine`) เพื่อให้มีประวัติกระจายหลายเดือน/หลายสถานะ ของจริงต้องมา
   จาก requester ที่บันทึกไว้ตอนยื่นคำขอ
+
+## 75. RichTextEditor — กล่องข้อความจัดรูปแบบตามที่ไฮไลต์ (มติผู้ใช้ 25 ส.ค. 69)
+
+`src/components/forms/RichTextEditor.jsx` — ใช้ครั้งแรกที่ "ข้อความ" นำของเอกสาร
+ใน CreateConsentFormPage step 3
+
+- **ทำไมต้องมี:** ของเดิมเก็บ bold/italic/underline เป็น flag **ระดับช่อง**
+  (`detailFormat`) กดแล้วหนาทั้งช่อง ผู้ใช้ต้องการแบบกล่องเขียนบล็อก —
+  ไฮไลต์คำแล้วกด B หนาเฉพาะคำนั้น
+- **วิธีทำ:** `contentEditable` + `document.execCommand` — ได้ selection-based
+  formatting + undo/redo ของเบราว์เซอร์ฟรี และไม่ต้องลง rich-text library ใหม่
+  (โปรเจกต์นี้ยังไม่มี) · execCommand ถูกมาร์ค deprecated แต่ยังทำงานทุก
+  เบราว์เซอร์ที่ระบบรองรับและยังไม่มีตัวแทนมาตรฐาน ถ้าวันหนึ่งเลิกทำงาน ให้
+  เปลี่ยนไปเขียน `<b>/<i>/<u>` เองผ่าน Selection API โดย API ของ component
+  ไม่ต้องเปลี่ยน
+- **ปุ่ม:** alias `BrandSubdueIconButton` ทั้งหมด จะได้ state hover/focus/active
+  ตามสเปกคอมโพเนนต์ · ใช้ `onMouseDown` + `preventDefault` แทน `onClick`
+  ไม่งั้นคลิกปุ่มแล้วกล่องเสีย selection ก่อน execCommand จะได้ทำงาน
+- **ลิงก์:** ไฮไลต์ → ปุ่ม 🔗 → วาง URL · ต้องเก็บ `Range` ไว้เองก่อนโฟกัสหลุด
+  ไปช่อง URL ไม่งั้นไฮไลต์หาย
+- **ความปลอดภัย:** export `sanitizeRichText()` — เหลือเฉพาะ
+  `b/strong/i/em/u/a/br/div/p/span` และ href ที่ขึ้นต้นด้วย
+  `http(s)|mailto:|tel:|/` เท่านั้น ลิงก์บังคับ `rel="noopener noreferrer"`
+  **ผู้เรียกต้องเรนเดอร์ผ่านตัวนี้เสมอ ห้ามยัด innerHTML ดิบ** ·
+  `richTextToPlain()` ไว้เช็ค required / ทำ preview แบบตัดคำ
+- **สถานะ DS:** ยังไม่มี rich-text editor ใน Figma — เป็น vibe code
+- **ยกขึ้น DS เมื่อ:** มีหน้าที่ 2 ต้องการ (เช่น ประกาศ/ข่าวสาร, template
+  เอกสารอื่น) หรือ Figma ออกแบบ pattern นี้เป็นทางการ
+
+### ที่ยังไม่ได้ทำ
+
+`value` เป็น HTML แต่ตอนนี้ยังใช้แค่กับ `intro` ที่ไม่ได้ถูกเรนเดอร์ใน preview
+— ถ้าจะเอาไปใช้กับ `sections[].detail` ต้องแก้ `Clause` ให้เรนเดอร์ HTML ผ่าน
+`sanitizeRichText()` และเปลี่ยนตัวเช็ค required ให้ใช้ `richTextToPlain()`

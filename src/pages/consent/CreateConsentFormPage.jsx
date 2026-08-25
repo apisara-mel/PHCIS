@@ -4,6 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout/WizardMorphHeader';
 import { MIH_CHROME_MORPH_FOOTER } from '@/components/layout/wizardChromeMorphStyles';
 import StepProgress from '@/components/step/StepProgress';
+import RichTextEditor from '@/components/forms/RichTextEditor';
 import {
   POPUP_MORPH_MOTION_VAR,
   POPUP_MORPH_VAR,
@@ -880,6 +881,8 @@ export default function CreateConsentFormPage() {
   const [sections, setSections] = useState(() => [makeSection(), makeSection()]);
   const [signatures, setSignatures] = useState(() => [...DEFAULT_SIGNATURE_KEYS]);
   const [note, setNote] = useState('');
+  /* ข้อความนำของเอกสาร (HTML จาก RichTextEditor) — แยกขาดจาก detail ของแต่ละข้อ */
+  const [intro, setIntro] = useState('');
   const [requireGuardian, setRequireGuardian] = useState(false);
   const [allowESign] = useState(false);
 
@@ -1197,6 +1200,7 @@ export default function CreateConsentFormPage() {
               signatures={signatures}
               setSignatureField={setSignatureField}
               note={note} setNote={setNote}
+              intro={intro} setIntro={setIntro}
               requireGuardian={requireGuardian} setRequireGuardian={setRequireGuardian}
               allowESign={allowESign}
             />
@@ -1631,9 +1635,7 @@ const SectionFormatToolbar = ({
     aria-label='จัดรูปแบบ Section'
     style={{ gap: 'var(--dim-space-150, 6px)' }}
   >
-    <span className='text-xs text-ink-tertiary'>
-      จัดรูปแบบ{sectionIndex >= 0 ? ` · ข้อ ${sectionIndex + 1}` : ''}
-    </span>
+    <span className='text-xs text-ink-tertiary'>ข้อความ</span>
     {[
       { key: 'bold', icon: 'format_bold', label: 'ตัวหนา' },
       { key: 'italic', icon: 'format_italic', label: 'ตัวเอียง' },
@@ -1682,11 +1684,17 @@ const SectionFormatToolbar = ({
   </div>
 );
 
+/* ช่อง "หัวข้อ" อยู่หลัง (ไอคอนลาก + ช่องว่าง + วงเลข + ช่องว่าง) — body
+   ด้านล่างต้องเยื้องเท่ากันถึงจะ align กับช่องหัวข้อ (มติผู้ใช้ 25 ส.ค. 69) */
+const SECTION_BODY_INDENT =
+  'calc(var(--dim-size-400, 20px) + var(--dim-space-200, 8px) + var(--dim-size-500, 24px) + var(--dim-space-200, 8px))';
+
 function StepContent(props) {
   const {
     patientFields, setPatientField,
     sections, updateSection, removeSection, reorderSections, addSection,
     signatures, setSignatureField, note, setNote,
+    intro, setIntro,
     requireGuardian, setRequireGuardian,
     patientCardStyle,
     notesCardStyle,
@@ -1733,15 +1741,16 @@ function StepContent(props) {
 
       <SectionCard>
         <ColumnHeading>ข้อความยินยอม</ColumnHeading>
-        {activeSection ? (
-          <SectionFormatToolbar
-            sectionIndex={sections.findIndex((x) => x.id === activeSection.id)}
-            value={activeSection.detailFormat}
-            onChange={(detailFormat) => updateSection(activeSection.id, { detailFormat })}
-            detail={activeSection.detail}
-            onDetailChange={(detail) => updateSection(activeSection.id, { detail })}
-          />
-        ) : null}
+        {/* กล่องข้อความนำ — เป็นข้อความของ "เอกสาร" ไม่ใช่ของข้อใดข้อหนึ่ง
+            จึงไม่ผูกกับช่อง "รายละเอียด" ในกล่องข้อ (มติผู้ใช้ 25 ส.ค. 69)
+            จัดรูปแบบได้ตามที่ไฮไลต์ + แทรกลิงก์ได้ */}
+        <RichTextEditor
+          label='ข้อความ'
+          value={intro}
+          onChange={setIntro}
+          placeholder='พิมพ์ข้อความนำของเอกสาร เช่น ข้าพเจ้าได้รับคำอธิบายจากเจ้าหน้าที่แล้ว...'
+          ariaLabel='ข้อความนำของเอกสารความยินยอม'
+        />
         <div
           className='flex flex-col'
           style={{ gap: 'var(--dim-space-300)' }}
@@ -1775,14 +1784,19 @@ function StepContent(props) {
                   onMouseDown={() => setGrabIdx(i)}
                   onMouseUp={() => setGrabIdx(null)}
                   title='ลากเพื่อจัดลำดับ'
-                  style={{ color: 'var(--text-content-tertiary)', cursor: 'grab', lineHeight: 0, touchAction: 'none' }}
+                  className='inline-flex items-center justify-center shrink-0'
+                  style={{
+                    width: 'var(--dim-size-400, 20px)',
+                    color: 'var(--text-content-tertiary)', cursor: 'grab', lineHeight: 0, touchAction: 'none',
+                  }}
                 >
                   <Icon name='drag_indicator' size={18} />
                 </span>
                 <span
                   className='inline-flex items-center justify-center'
                   style={{
-                    width: 24, height: 24, borderRadius: 'var(--dim-radius-full)',
+                    width: 'var(--dim-size-500, 24px)', height: 'var(--dim-size-500, 24px)',
+                    borderRadius: 'var(--dim-radius-full)', flexShrink: 0,
                     background: 'var(--surface-brandPrimary-quaternary)', color: 'var(--text-brandPrimary-default)',
                     fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)',
                   }}
@@ -1799,7 +1813,9 @@ function StepContent(props) {
                     required
                     value={s.title}
                     onChange={(v) => updateSection(s.id, { title: v })}
-                    placeholder='เช่น ยินยอมรับการรักษา'
+                    /* ซ่อน label ไว้ (เลขข้อทำหน้าที่หัวแถว) placeholder จึงต้อง
+                       บอกด้วยว่าช่องนี้คือหัวข้อ ไม่ใช่แค่ยกตัวอย่าง */
+                    placeholder='ใส่หัวข้อ เช่น ยินยอมการรักษา'
                     showHelperText={false}
                   />
                 </div>
@@ -1808,6 +1824,7 @@ function StepContent(props) {
               <div
                 className='grid w-full min-w-0'
                 style={{
+                  paddingLeft: SECTION_BODY_INDENT,
                   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                   columnGap: 'var(--dim-space-1200, 48px)',
                   rowGap: 'var(--dim-space-800, 32px)',
@@ -1882,9 +1899,6 @@ function StepContent(props) {
           placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
           suggestions={DETAIL_HINTS} minChars={3} height={120}
         />
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400) var(--dim-space-600)' }}>
-          <Checkbox checked={requireGuardian} onChange={(checked) => setRequireGuardian(Boolean(checked))} label='สำหรับผู้ป่วย / จำเป็นต้องกรอกผู้ปกครอง' />
-        </div>
       </SectionCard>
     </>
   );
@@ -2237,6 +2251,8 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
   const [sections, setSections] = useState(() => [makeSection(), makeSection()]);
   const [signatures, setSignatures] = useState(() => [...DEFAULT_SIGNATURE_KEYS]);
   const [note, setNote] = useState('');
+  /* ข้อความนำของเอกสาร (HTML จาก RichTextEditor) — แยกขาดจาก detail ของแต่ละข้อ */
+  const [intro, setIntro] = useState('');
   const [requireGuardian, setRequireGuardian] = useState(false);
   const [allowESign] = useState(false);
   const [baselineSnapshot, setBaselineSnapshot] = useState(null);
@@ -2510,6 +2526,7 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
                 signatures={signatures}
                 setSignatureField={setSignatureField}
                 note={note} setNote={setNote}
+                intro={intro} setIntro={setIntro}
                 requireGuardian={requireGuardian} setRequireGuardian={setRequireGuardian}
                 allowESign={allowESign}
                 patientCardStyle={{ marginTop: 'var(--dim-space-600, 24px)' }}
