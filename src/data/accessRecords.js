@@ -227,6 +227,7 @@ export const ACCESS_RECORDS = (() => {
   const plan = ACCESS_STATUS_PLAN.find((p) => p.status === status);
   const slot = bucketSlot[status]++;
   const n = i + 1;
+  const spread = Math.floor(i / MONTHS.length);
   const day = (n % 27) + 1;
   const month = slot < plan.momThis
     ? MONTHS[thisMonthIdx]
@@ -247,7 +248,12 @@ export const ACCESS_RECORDS = (() => {
   return {
     id: n,
     reqNo: `REQ-2569-${String(40 + n).padStart(4, '0')}`,
-    name: NAMES[i % NAMES.length],
+    /* เดือนใช้ `i % MONTHS.length` (12) — ถ้าชื่อ/วัตถุประสงค์/รหัสฟอร์ม
+       ใช้ modulus ที่หาร 12 ลงตัว ทุกรายการในเดือนเดียวกันจะได้ค่าเดียวกันหมด
+       (เห็นชัดตอนทำ timeline 25 ส.ค. 69 — ผู้ขอซ้ำกัน 6 แถวรวด)
+       คูณ stride ไม่ช่วย เพราะยังอยู่ residue class เดิม จึงบวก `spread`
+       ที่เดินหน้า 1 ทุกครั้งที่ i ครบรอบ 12 */
+    name: NAMES[(i + spread) % NAMES.length],
     empCode: `EMP-${String(100 + n).padStart(4, '0')}`,
     group: org.group,
     subBranch: org.subBranch,
@@ -257,11 +263,11 @@ export const ACCESS_RECORDS = (() => {
     createdTime: `${String((i % 9) + 1).padStart(2, '0')}:00 น.`,
     hn,
     patientName: patient?.name || '',
-    purpose: PURPOSES[i % PURPOSES.length],
+    purpose: PURPOSES[(i + spread) % PURPOSES.length],
     reason: REASONS[i % REASONS.length],
     accessType: 'patient_consent',
     accessTypeLabel: ACCESS_TYPE_DISPLAY_LABEL.patient_consent,
-    formCode: `PH-${String((i % 12) + 1).padStart(3, '0')}`,
+    formCode: `PH-${String(((i + spread * 5) % 12) + 1).padStart(3, '0')}`,
     formName: 'ใบยินยอมการใช้ข้อมูลส่วนบุคคล (PDPA)',
     period: `${day}-${Math.min(day + 10, 28)} ${month} 2569`,
     periodDays: `${(i % 3) * 5 + 5} วัน`,

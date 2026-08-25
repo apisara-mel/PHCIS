@@ -84,6 +84,9 @@ const QueuePageShell = ({
   sidebarOpenWidth,
   /** Wrap sidemenu labels onto multiple lines. */
   sidebarWrapLabels,
+  /** ซ่อน Sidebar ทั้งแถบ — ระบบจัดการความยินยอมไม่ใช้ side menu แล้ว
+      (มติผู้ใช้ 25 ส.ค. 69) เนื้อหากินเต็มความกว้างแทน */
+  hideSidebar = false,
   breadcrumb,
   brandTitle,
   title,
@@ -218,13 +221,15 @@ const QueuePageShell = ({
     className='flex w-full min-h-screen'
     style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}
   >
-    <Sidebar
-      activeKey={activeKey}
-      items={sidebarItems}
-      fallbackKey={sidebarFallbackKey}
-      openWidth={resolvedSidebarOpenWidth}
-      wrapLabels={resolvedSidebarWrapLabels}
-    />
+    {hideSidebar ? null : (
+      <Sidebar
+        activeKey={activeKey}
+        items={sidebarItems}
+        fallbackKey={sidebarFallbackKey}
+        openWidth={resolvedSidebarOpenWidth}
+        wrapLabels={resolvedSidebarWrapLabels}
+      />
+    )}
     <div className='flex-1 min-w-0 flex flex-col'>
       <Header
         breadcrumb={breadcrumb}

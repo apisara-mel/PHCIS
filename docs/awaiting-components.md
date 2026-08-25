@@ -1131,3 +1131,34 @@ repo `mih-design`** — เกิดจาก typography sweep (Mitr) + redesign
 - print stylesheet ต้อง scope ด้วย attribute ของตัวเองบน `<html>` และ **portal
   ใบพิมพ์ไปที่ `document.body`** — กฎ `body > *:not(.print-only)` จะซ่อน `#root`
   ไปด้วยถ้าใบพิมพ์ฝังอยู่ข้างใน แล้วพิมพ์ออกมาได้หน้าเปล่า
+
+## 73. AccessRequestHistoryTimeline — timeline แบ่งคอลัมน์ (มติผู้ใช้ 25 ส.ค. 69)
+
+`src/components/consent/AccessRequestHistoryTimeline.jsx` — ใช้ใน popup
+"ประวัติคำขอเข้าถึงข้อมูล" (`CreateConsentRequestHeaderAction`)
+
+- **ปัญหาของเดิม:** เป็นการ์ดเรียงกัน ยัด 2 ฟิลด์ต่อบรรทัดคั่นด้วย "·"
+  (`reqNo · name` / `reason · date`) ไม่มีอะไร align กัน กวาดตาลงมาเทียบข้าม
+  รายการไม่ได้ · ไม่มีหัวคอลัมน์บอกว่าวันที่ที่เห็นคือวันที่ยื่นคำขอ ไม่ใช่ช่วง
+  ที่ขอเข้าถึง · ใช้ `patientName || name` ช่องเดียวทั้งที่เป็นคนละคน
+  (ผู้ขอ vs ผู้รับบริการ) · `slice(0, 12)` ตัดเงียบ ๆ ไม่บอกว่าเหลืออีกเท่าไร
+- **ของใหม่:** grid `gridTemplateColumns` สตริงเดียวใช้ทั้งหัวตารางและทุกแถว
+  → คอลัมน์ตรงกันเสมอ · รางเวลาซ้ายสุด (เส้น + จุดสีตามสถานะ) · หัวข้อเดือน
+  sticky ผ่าน `GroupedTimeline` ที่มีอยู่แล้ว · หัวคอลัมน์ sticky
+  · แสดงครบ 124 รายการ + บอกยอดรวมใน subtitle
+- **คอลัมน์:** วันที่/เวลา · เลขคำขอ (+รหัสฟอร์ม) · ผู้ขอ (+หน่วยงาน) ·
+  ผู้รับบริการ (+HN) · วัตถุประสงค์ (+purpose) · สถานะ
+- **สถานะ DS:** composition ของ `GroupedTimeline` + `StickyTimelineDateHeader`
+  + `ColorfulBadge` ที่มีอยู่แล้ว — ไม่ได้สร้าง primitive ใหม่ แต่ **โครง
+  "timeline ที่แบ่งคอลัมน์"** ยังไม่มีใน DS
+- **ยกขึ้น DS เมื่อ:** มีหน้าที่ 2 ต้องการ timeline แบบมีคอลัมน์ (เช่น audit log
+  ของ `จัดการสิทธิ์`, ประวัติการแก้ไขแบบฟอร์ม) → ถอดเป็น
+  `<ColumnTimeline columns rows groupBy />` ใช้ร่วมกัน
+
+### บทเรียนที่ควรจำ
+
+mock data ใน `accessRecords.js` ใช้ `i % 12` ทั้ง **เดือน** และ **ชื่อผู้ขอ**
+(NAMES มี 12) และ `formCode` → ทุกรายการในเดือนเดียวกันกลายเป็นคนเดียวกันหมด
+มองไม่ออกตอนเป็นการ์ด แต่พอทำเป็นคอลัมน์เห็นทันทีว่าซ้ำ 6 แถวรวด
+**คูณ stride co-prime ไม่ช่วย** (`i*5 % 12` ยังอยู่ residue class เดิม) ต้องบวก
+ค่าที่เดินหน้าเมื่อ `i` ครบรอบ — ใช้ `spread = Math.floor(i / MONTHS.length)`

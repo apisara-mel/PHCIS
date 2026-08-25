@@ -1085,6 +1085,7 @@ export default function ConsentManagementPage() {
     <>
       <QueuePageShell
         activeKey='consent-manage'
+        hideSidebar
         sidebarItems={CONSENT_NAV}
         sidebarFallbackKey='consent-manage'
         brandTitle='ระบบจัดการความยินยอม'

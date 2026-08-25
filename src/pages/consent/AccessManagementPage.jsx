@@ -604,6 +604,7 @@ export default function AccessManagementPage({ mineOnly = false }) {
     <>
       <QueuePageShell
         activeKey={mineOnly ? 'consent-my-requests' : 'consent-access'}
+        hideSidebar
         sidebarItems={CONSENT_NAV}
         sidebarFallbackKey='consent-access'
         brandTitle='ระบบจัดการความยินยอม'

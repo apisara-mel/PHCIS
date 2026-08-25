@@ -103,6 +103,7 @@ export default function ConsentDashboardPage() {
   return (
     <QueuePageShell
       activeKey='consent-dashboard'
+      hideSidebar
       sidebarItems={CONSENT_NAV}
       sidebarFallbackKey='consent-dashboard'
       brandTitle='ระบบจัดการความยินยอม'

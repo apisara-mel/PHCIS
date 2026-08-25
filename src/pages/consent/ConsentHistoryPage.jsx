@@ -639,6 +639,7 @@ export default function ConsentHistoryPage() {
   return (
     <QueuePageShell
       activeKey='consent-history'
+      hideSidebar
       sidebarItems={CONSENT_NAV}
       sidebarFallbackKey='consent-history'
       brandTitle='ระบบจัดการความยินยอม'

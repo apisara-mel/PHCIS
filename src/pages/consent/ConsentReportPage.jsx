@@ -606,6 +606,7 @@ export default function ConsentReportPage() {
   return (
     <QueuePageShell
       activeKey='consent-report'
+      hideSidebar
       sidebarItems={CONSENT_NAV}
       sidebarFallbackKey='consent-report'
       brandTitle='ระบบจัดการความยินยอม'

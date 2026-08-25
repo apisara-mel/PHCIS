@@ -3,10 +3,10 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import Popover from '@/components/popup/Popover';
 import Popup from '@/components/popup/Popup';
 import ActionList from '@/components/list/ActionList';
-import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import AccessRequestHistoryTimeline from '@/components/consent/AccessRequestHistoryTimeline';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import { CreateConsentRequestPopup } from '@/pages/consent/consentWorkflowPopups';
-import { ACCESS_RECORDS, ACCESS_STATUS, enqueueAccessImport } from '@/data/accessRecords';
+import { ACCESS_RECORDS, enqueueAccessImport } from '@/data/accessRecords';
 import { canCreateConsentRequest } from '@/data/consentPermissions';
 
 /** Material Symbols — เอกสาร + plus (Figma consent access-request action). */
@@ -118,34 +118,12 @@ export default function CreateConsentRequestHeaderAction({ className = '' }) {
       <Popup
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
-        size='large'
+        size='extraLarge'
         title='ประวัติคำขอเข้าถึงข้อมูล'
-        subtitle='ข้อมูลเดียวกับแท็บ “รายการขอเข้าถึงแบบฟอร์มทั้งหมด” ในรายการคำขอของฉัน'
+        subtitle={`ข้อมูลเดียวกับแท็บ “รายการขอเข้าถึงแบบฟอร์มทั้งหมด” ในรายการคำขอของฉัน · ทั้งหมด ${ACCESS_RECORDS.length} คำขอ`}
         secondaryAction={{ label: 'ปิด', onClick: () => setHistoryOpen(false) }}
       >
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          {ACCESS_RECORDS.slice(0, 12).map((record) => (
-            <div
-              key={record.id}
-              className='flex flex-wrap items-center w-full'
-              style={{
-                gap: 'var(--dim-space-300, 12px)',
-                padding: 'var(--dim-space-300, 12px)',
-                border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default)',
-                borderRadius: 'var(--dim-radius-300, 10px)',
-                background: 'var(--surface-card-100)',
-              }}
-            >
-              <div className='flex flex-col flex-1 min-w-0'>
-                <span className='text-sm font-medium text-ink'>{record.reqNo} · {record.patientName || record.name}</span>
-                <span className='text-xs text-ink-tertiary'>{record.reason} · {record.createdDate} {record.createdTime}</span>
-              </div>
-              <ColorfulBadge style={ACCESS_STATUS[record.status]?.tone || 'grey'} size='small' showDot>
-                {record.status}
-              </ColorfulBadge>
-            </div>
-          ))}
-        </div>
+        <AccessRequestHistoryTimeline records={ACCESS_RECORDS} />
       </Popup>
 
       <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
