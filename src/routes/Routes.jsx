@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Switch, Redirect, useLocation } from 'react-router-dom';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { HeaderAutoHideProvider } from '@/context/HeaderAutoHideContext';
 
 import DashboardPage from '@/pages/dashboard/DashboardPage';
@@ -257,6 +258,15 @@ import MobilePharmacySuccessPage from '@/pages/mobile/MobilePharmacySuccessPage'
 import MobileComponentsPage from '@/pages/mobile/MobileComponentsPage';
 import MobileSplashPage from '@/pages/mobile/MobileSplashPage';
 
+/* boundary ระดับหน้า — key ด้วย pathname เพื่อให้หน้าที่พังไม่ลากทั้งระบบ
+   ไปด้วย: พอผู้ใช้กดเมนูอื่น pathname เปลี่ยน boundary ล้าง error แล้ว
+   render หน้าใหม่ตามปกติ (boundary ตัวนอกใน App.jsx ยังทำหน้าที่กันพังของ
+   provider/chrome เหมือนเดิม) */
+function RouteErrorBoundary({ children }) {
+  const location = useLocation();
+  return <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>;
+}
+
 export default function Routes() {
   return (
     <Router>
@@ -268,6 +278,7 @@ export default function Routes() {
           media streams survive route changes — the doctor can minimise the
           call and keep recording in ระบบบันทึกการรักษา (TOR 1.13). */}
       <TelemedCallProvider>
+      <RouteErrorBoundary>
       <Switch>
         {/* Root = System Selection Hub (PHCIS-ALL · Figma node 2149:104090).
             Shown BEFORE entering any specific subsystem. Each card routes
@@ -763,6 +774,7 @@ export default function Routes() {
           </MobileAppProvider>
         </Route>
       </Switch>
+      </RouteErrorBoundary>
       </TelemedCallProvider>
       </HeaderAutoHideProvider>
     </Router>

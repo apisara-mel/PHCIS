@@ -103,6 +103,19 @@ export const MEDICATION_NAME_OPTIONS = [
   { value: 'Methocarbamol 750mg',         image: medImg('methocarbamol')       },
   { value: 'Amoxicillin 500mg',           image: medImg('amoxicillin')         },
   { value: 'Omeprazole 20mg',             image: medImg('omeprazole')          },
+
+  /* ── เวชภัณฑ์คุมกำเนิด (คลินิกวางแผนครอบครัว §1.10.8.7) ──────────────
+     ก่อนหน้านี้แค็ตตาล็อกกลางไม่มียาคุมกำเนิดเลยสักตัว พอ CPOE ของคลินิก
+     วางแผนครอบครัวเปลี่ยนมาใช้ AddMedicationPopup จึงสั่ง "ยาหลักของ
+     คลินิกตัวเอง" พร้อมขนาด/วิธีใช้ไม่ได้ — สั่งได้แต่ยาแก้ปวด/ยาปฏิชีวนะ
+     image เว้นว่างไว้เพราะยังไม่มีรูปแผงจริงใน public/images/medications
+     (เว้นว่าง = ขึ้น glyph ยา ไม่ใช่รูปยาตัวอื่นที่ผิด) */
+  { value: 'Levonorgestrel 0.15 mg + Ethinylestradiol 0.03 mg (ยาเม็ดคุมกำเนิดฮอร์โมนรวม COC)', image: '' },
+  { value: 'Norethisterone 0.35 mg (ยาเม็ดคุมกำเนิดฮอร์โมนเดี่ยว POP)',                          image: '' },
+  { value: 'Medroxyprogesterone acetate 150 mg/mL (ยาฉีดคุมกำเนิด DMPA)',                        image: '' },
+  { value: 'Etonogestrel 68 mg (ยาฝังคุมกำเนิด Implant)',                                        image: '' },
+  { value: 'Levonorgestrel 1.5 mg (ยาคุมกำเนิดฉุกเฉิน)',                                          image: '' },
+  { value: 'Ferrous fumarate 200 mg (ยาเม็ดเสริมธาตุเหล็ก)',                                      image: '' },
 ].map((opt) => ({ ...opt, label: opt.value }));
 
 const IMAGE_BY_KEY = new Map(
@@ -125,8 +138,12 @@ export const resolveMedicationImage = (name, explicitSrc) => {
     if (explicitSrc && String(explicitSrc).trim()) return explicitSrc;
     return '';
   }
-  const keyed = IMAGE_BY_KEY.get(normKey(name));
-  if (keyed) return keyed;
+  /* รายการที่อยู่ในแค็ตตาล็อกแต่ตั้งใจไม่มีรูป (image: '') ต้องคืนค่าว่าง
+     ไม่ใช่ตกไปที่ FALLBACK ซึ่งเป็น "รูปแผง Ibuprofen" — โชว์แผงยาผิดตัว
+     บนใบสั่งยาอันตรายกว่าไม่โชว์รูปเลย (MedImageTile จะ render เป็น
+     glyph ยาแทนเมื่อ src ว่าง) */
+  const key = normKey(name);
+  if (IMAGE_BY_KEY.has(key)) return IMAGE_BY_KEY.get(key) || '';
   const slug = slugFromName(name);
   if (slug) return medImg(slug);
   if (explicitSrc && String(explicitSrc).trim() && explicitSrc !== FALLBACK_MED_IMG) {

@@ -138,6 +138,9 @@ const TelemedEmrPanel = ({
   patientName,
   visitId,
   role = 'doctor',
+  /* อายุ (ปี) — ส่งมาจากคลินิกที่ mount แผงนี้ ใช้เลือกชุด chart จำลอง
+     ให้เหมาะกับวัย (เด็ก < 15 ปีจะไม่ขึ้นยา/โรคของผู้ใหญ่) ไม่ส่งก็ได้ */
+  ageYears,
   onOpenTreatmentRecord,
   onRequestAccess,
   onSaveAssessment,
@@ -156,7 +159,7 @@ const TelemedEmrPanel = ({
   const canEdit = telemedCan(role, 'edit') || telemedCan(role, 'add');
   const editDenyReason = telemedDenyReason(role, 'edit');
 
-  const emr = useMemo(() => getEmrChart(hn, { name: patientName }), [hn, patientName]);
+  const emr = useMemo(() => getEmrChart(hn, { name: patientName, ageYears }), [hn, patientName, ageYears]);
 
   const rpm = useMemo(() => {
     const p = getRpmPatientByHn(hn);

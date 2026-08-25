@@ -2709,7 +2709,7 @@ const IMPL = {
   '1.10.8.4': {s:'done',    u:'/clinic/family-planning/record', n:'แนบไฟล์หลายไฟล์ (FileUploadField + DragAndDrop) + validate ชนิด/ขนาด ≤10MB + รายการไฟล์พร้อมผู้แนบ/เวลา/ลบ · <b>+ ตัวสร้าง e-Document ด้วย form-builder</b> (ขั้นตอนที่ 7): เลือกแบบฟอร์มจากคลังเอกสาร e-document แล้ว map เป็นบล็อกที่แก้ไขได้ (blocksFromLibraryForm) หรือเริ่มจากเอกสารเปล่า · palette/canvas/preview ชุดเดียวกับหน้าสร้างแบบฟอร์ม · บันทึกลง form.eDocuments พร้อมผู้สร้าง/เวลา · ดู–แก้ไข–ลบ รายฉบับ · ใบพิมพ์ A4 มีหัวศูนย์ + ชื่อผู้รับบริการ/HN + ช่องเว้นสำหรับกรอกบนกระดาษ (EDocumentSheet)'},
   '1.10.8.5': {s:'done',    u:'/clinic/family-planning/record', n:'นัดหมาย S7: ประเภทนัด 7 แบบ + วัน/เวลา + หมายเหตุ (SuggestibleTextarea voice) + validate วันในอดีต + ยกเลิก/นัดใหม่ + สรุปบนบัตรติดตาม'},
   '1.10.8.6': {s:'done',    u:'/clinic/family-planning/registry', n:'ทะเบียน วผ.: ออกเลขที่เมื่อบันทึกสำเร็จเท่านั้น (คู่มือ p.2-3) + ค้นหาช่วงวันที่ + รายงาน 7 ฉบับเป็น filter chips + แก้ไข/ยกเลิกพร้อมเหตุผล/เปิดใช้งาน/พิมพ์บัตรติดตาม + audit ทุกแถว'},
-  '1.10.8.7': {s:'partial', u:'/clinic/family-planning/record', n:'ครบ 7/9: วางแผนครอบครัว+คำแนะนำ · ตรวจสตรี (มะเร็งเต้านม+DrawingCanvasPopup, ตรวจภายใน/Pap) · หลังคลอดแม่+เด็ก · ประวัติ · ส่งปรึกษาภายใน · นัด · พิมพ์บัตร — บาง 2 ข้อ: CPOE เป็น chip บัญชียาคลินิก (ไม่ต่อ AddMedicationPopup) และส่งต่อภายนอกเป็นฟอร์ม inline'},
+  '1.10.8.7': {s:'partial', u:'/clinic/family-planning/record', n:'ครบ 8/9: วางแผนครอบครัว+คำแนะนำ · ตรวจสตรี (มะเร็งเต้านม+DrawingCanvasPopup, ตรวจภายใน/Pap) · หลังคลอดแม่+เด็ก · ประวัติ · ส่งปรึกษาภายใน · นัด · พิมพ์บัตร · <b>CPOE ปิดแล้ว</b> — เปลี่ยนจากป๊อปอัป สั่ง/ไม่สั่ง ของคลินิกเอง มาใช้ AddMedicationPopup ตัวเดียวกับ OPD ใบสั่งยาจึงมี ชื่อยา/สถานะคำสั่ง/วิธีใช้/หน่วย/ครั้งละ/ความถี่/เวลาใช้ยา/จำนวน ครบ แสดงเป็นตารางพร้อมปุ่มลบ (chip ชุดยาประจำคลินิกยังอยู่เป็นทางลัด) · <b>ยัง partial</b> ที่การส่งต่อภายนอกซึ่งยังเป็นฟอร์ม inline ไม่ได้ใช้ฟอร์มส่งต่อกลางร่วมกับโมดูลอื่น'},
 
   /* ===== 1.10.10 งานเวชศาสตร์ฟื้นฟูและกายภาพบำบัด — /clinic/rehab (Wave 2) ===== */
   '1.10.10.1': {s:'done',    u:'/clinic/rehab', n:'ข้อมูลทั่วไป read-only 3 จุด: คอลัมน์คิว → PatientCard sticky บน /record (เพศ อายุ บัตร ปชช. สิทธิ แพ้ยา โรคประจำตัว) → popup ทะเบียน; แก้ทะเบียนราษฎร์จากโมดูลนี้ไม่ได้'},
@@ -2718,7 +2718,7 @@ const IMPL = {
   '1.10.10.4': {s:'done',    u:'/clinic/rehab/record', n:'S6 อัปโหลด: FileUploadField + CameraCapturePopup + UploadProgressBar + preview + ลบพร้อม confirm; validate นามสกุล/ขนาด >10MB; metadata ไปกับ visit เห็นในหน้าติดตาม'},
   '1.10.10.5': {s:'done',    u:'/clinic/rehab/record', n:'S7 นัดหมายครบ แสดง/บันทึก/แก้ไข/ยกเลิก (บังคับเหตุผล+audit) + mirror ไป appointmentExtraStore (id A-REHAB) + validate วันย้อนหลัง/slot ชน/ครั้งคงเหลือใน Course + พิมพ์ใบนัด'},
   '1.10.10.6': {s:'done',    u:'/clinic/rehab/registry', n:'ทะเบียนฟื้นฟู+IMC ครบ 4 กริยา + เปิดใช้งานอีกครั้ง + audit trail รายฟิลด์ + บล็อกขึ้นทะเบียนซ้ำ (AlertDialog) + validate onset/admit, Barthel 0–100 + golden-period countdown 6 เดือน'},
-  '1.10.10.7': {s:'partial', u:'/clinic/rehab/record', n:'PE 7 แท็บ (ROM/Brunnstrom/Sensation/Reflex/Special test/Body diagram) + Barthel ADL (BarthelIndexGrid) + ICD-10 + Goal + Course + โปรแกรมฟื้นฟู/หัตถการ + CPOE Step5Orders — partial: Telemedicine เป็น badge+banner ยังไม่ mount TelemedEmrPanel ในฟอร์ม'},
+  '1.10.10.7': {s:'done',    u:'/clinic/rehab/record', n:'PE 7 แท็บ + Barthel ADL + ICD-10 + Goal + Course + โปรแกรมฟื้นฟู/หัตถการ + CPOE Step5Orders + <b>mount TelemedEmrPanel ในฟอร์มแล้ว</b> — กด "เข้าร่วมการปรึกษา" แล้วเห็น EMR ของผู้ป่วย (ประวัติการมารับบริการ · ยาเดิม · การแพ้ยา/อาหาร) และแท็บบันทึกประเมิน ในหน้าเดียวกับฟอร์ม ไม่ต้องสลับไปหน้า Telemedicine · ยืนยันบนหน้าจริงด้วย HN 67-00016'},
   '1.10.10.8': {s:'done',    u:'/clinic/rehab/followup', n:'ติดตาม 3 มุมมอง: ตาราง (Barthel/ROM/MMT/BP/Lab/X-ray/เอกสาร ต่อครั้ง) · เกจ 3 ใบ (Barthel แรกรับ vs ล่าสุด, %goal, ครั้งเทียบแผน) · กราฟแนวโน้ม (RehabTrendSection) + VitalSignTimelineCard + แถบสรุป Course'},
 
   /* ===== 1.10.9 งานสร้างเสริมภูมิคุ้มกัน — /clinic/immunization (Wave 2, ครอบ §1.11 IIS) ===== */
@@ -2728,7 +2728,7 @@ const IMPL = {
   '1.10.9.4': {s:'done',    u:'/clinic/immunization/record',     n:'ImmStep8Summary FileUploadField + validateImmUpload (.pdf/.jpg/.png ≤10MB) + ลบเอกสารพร้อม audit ผู้แนบ/เวลา'},
   '1.10.9.5': {s:'done',    u:'/clinic/immunization/record',     n:'ImmStep8Summary ประเภท/วัน/เวลา/หมายเหตุ → saveImmAppointment, ยกเลิก+นัดใหม่ได้, โผล่แท็บ "นัดแล้วยังไม่มาติดต่อ"'},
   '1.10.9.6': {s:'done',    u:'/clinic/immunization/registry',   n:'ImmunizationRegistryPage + saveImmRegistration/cancelImmRegistration/reactivate, guardians[] บังคับชื่อ+ความสัมพันธ์+เบอร์ อย่างน้อย 1 คน'},
-  '1.10.9.7': {s:'partial', u:'/clinic/immunization/record',     n:'ครบ 8 ขั้นตอน ImmStep1-8 (ANC/โภชนาการ/Growth chart/DSPM/วัคซีน/ตรวจ 14 ระบบ/ประวัติเจ็บป่วย) แต่ CPOE+Telemedicine เป็น SelectableTag/สถานะจำลอง ไม่ผูกระบบยา-lab จริง'},
+  '1.10.9.7': {s:'partial', u:'/clinic/immunization/record',     n:'ครบ 8 ขั้นตอน ImmStep1-8 (ANC/โภชนาการ/Growth chart/DSPM/วัคซีน/ตรวจ 14 ระบบ/ประวัติเจ็บป่วย) · <b>Telemedicine ปิดแล้ว</b> — กด "เริ่มปรึกษา" ใน Step 7 แล้ว mount TelemedEmrPanel เห็น EMR ของเด็กในหน้าเดียวกัน + ทำ chart จำลองให้แยกตามวัย (เดิมเด็ก 2 เดือนขึ้น เบาหวานชนิดที่ 2 + Atorvastatin + Enalapril ซึ่งผิดทางคลินิก ตอนนี้ขึ้นยาน้ำเด็ก + ภาวะซีดจากการขาดธาตุเหล็ก) · <b>ยัง partial ที่ CPOE</b> — chip สั่งตรวจยังไม่ผูกระบบยา-แล็บจริง และโมดูลแล็บอยู่นอกขอบเขตที่แก้ได้'},
   '1.10.9.8': {s:'done',    u:'/clinic/immunization/follow-up',  n:'ImmunizationFollowUpPage 4 แท็บ: GrowthPercentileChart, dspmTimeline, nextDue+AEFI+ประวัติเข็ม, outreachRows รายชื่อค้างเข็ม/ขาดนัด'},
 
   /* ===== 1.11 IIS — ทะเบียนวัคซีน + สมุดวัคซีน (Wave 2, อยู่ในโมดูล immunization) ===== */
@@ -2766,10 +2766,10 @@ const IMPL = {
   '1.12.6.2': {s:'done',    u:'/xray/result', n:'ค้นหารายชื่อผู้ได้รับเอกซเรย์ (ช่วงวันที่ · HN/ชื่อ/XN · modality · สถานะ)'},
   '1.12.6.3': {s:'done',    u:'/xray/result', n:'lockedBy = รหัสแพทย์อ่านผล → แพทย์ท่านอื่นแก้ไม่ได้ (read-only + banner); เจ้าของแก้ได้แต่ต้องระบุเหตุผล → amendments'},
   '1.12.6.4': {s:'done',    u:'/xray/result', n:'ผลย้อนหลังของผู้รับบริการ (เทียบฟิล์มเดิม) + บน detail panel'},
-  '1.12.6.5': {s:'partial', u:'/xray/result', n:'ใบผลเอกซเรย์ preview + @media print; ยังไม่มี print template/PDF จริง'},
+  '1.12.6.5': {s:'done',    u:'/xray/result', n:'ใบผลเอกซเรย์ preview + <b>print template จริงที่พิมพ์หลายหน้าได้</b> — ของเดิมครอบด้วย visibility:hidden + position:fixed ซึ่ง clip ไว้แค่หน้าแรก รายงานยาวจึงขาดหายและมีหน้าว่างนำหน้า · เปลี่ยนเป็น portal สำเนาไปใต้ body + ซ่อนลูกอื่นของ body (scope ด้วย data-mih-xrayresult-print ของโมดูลเอง) สำเนาอยู่ใน normal flow เบราว์เซอร์จึงแบ่งหน้าเอง · ใช้ XrayReportSheet ชุดเดียวกับจอ (PDF ฝั่งเซิร์ฟเวอร์ยังไม่มี ใช้ Print to PDF ของเบราว์เซอร์)'},
   '1.12.6.6': {s:'done',    u:'/xray/setup',  n:'คำช่วย + ชุดคำช่วย (แทรกที่ตำแหน่งเคอร์เซอร์ใน Findings ที่ /xray/result); phrase-set membership ยัง read-only'},
   '1.12.6.7': {s:'done',    u:'/xray/setup',  n:'Template ผลตรวจ 15 แบบ (รวม TB active/old สำหรับคลินิกวัณโรค)'},
-  '1.12.6.8': {s:'partial', u:'/xray/queue',  n:'กรองตามชนิดการตรวจ/ประเภทผล/ผู้อ่านผล + ค้นคำในผลตรวจ; ตัวกรองช่วงเวลายังไม่ subset mock (ข้อมูลเป็นวันเดียว)'},
+  '1.12.6.8': {s:'done',    u:'/xray/queue',  n:'กรองตามชนิดการตรวจ/ประเภทผล/ผู้อ่านผล + ค้นคำในผลตรวจ + <b>ช่วงเวลาที่ตรวจกรองได้จริง</b> — เพิ่ม field orderedOn (ISO) ให้ทุกใบ: ใบที่ยังค้างคิวเป็นวันนี้ ใบที่อ่าน/รับรองผลแล้วกระจายย้อนหลังได้ถึง 30 วัน · rowMatchesDateRange เลิกใช้ค่าคงที่ MOCK_DAY มาอ่านวันของแถวนั้นแทน · ยืนยันบนหน้าจริง: เลือก วันนี้ ได้ 19 จาก 54 รายการ (เดิมได้ 54/54)'},
   '1.12.6.9': {s:'done',    u:'/xray/result', n:'ปกติ / ผิดปกติ / ผิดปกติเร่งด่วน / ไม่ชัดเจน — เร่งด่วนต้องยืนยันก่อนบันทึก'},
 
   /* ===== 1.15 ระบบงานห้องปฏิบัติการ (LIS) — wave 2026-08 =====

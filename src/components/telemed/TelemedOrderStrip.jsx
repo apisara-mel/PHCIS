@@ -355,7 +355,7 @@ const TelemedOrderStrip = ({
                 'นำใบนัดและบัตรประชาชนไปด้วยทุกครั้ง',
               ]}
               value={note}
-              onChange={setNote}
+              onChange={(e) => setNote(e?.target ? e.target.value : e)}
               placeholder='ข้อความที่จะแสดงคู่กับคำสั่งบนแอปผู้รับบริการ'
               height={110}
             />

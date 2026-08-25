@@ -575,7 +575,12 @@ export const DEFAULT_FP_VISIT = {
 
   /* S6 — คำสั่งทางการแพทย์ + ส่งปรึกษา/ส่งต่อ */
   doctor: '',
+  /* ชุดยามาตรฐานของคลินิก (chip เปิด/ปิด) */
   medOrders: {},
+  /* §1.10.8.7 — ยาที่สั่งผ่าน AddMedicationPopup พร้อมขนาด/วิธีใช้/จำนวน
+     ชุด chip บอกได้แค่ "สั่ง/ไม่สั่ง" ซึ่งไม่พอสำหรับใบสั่งยาจริง
+     [{ id, name, usage, dosePerTake, frequency, when, quantity, image }] */
+  medications: [],
   advanceOrders: {},
   internalReferEnabled: false,
   internalReferUnit: '',
