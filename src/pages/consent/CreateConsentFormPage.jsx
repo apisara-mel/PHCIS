@@ -1819,14 +1819,28 @@ function StepContent(props) {
                     showHelperText={false}
                   />
                 </div>
+                {/* Field Type อยู่แถวเดียวกับหัวข้อ (มติผู้ใช้ 25 ส.ค. 69)
+                    — ประหยัดพื้นที่ ของเดิมกินคอลัมน์ขวาทั้งคอลัมน์เพื่อ
+                    select ตัวเดียวที่ยัง disabled อยู่ */}
+                <div className='shrink-0' style={{ width: 'var(--dim-size-2600, 384px)' }}>
+                  {/* ด.1.1.13 — consent forms lock field type to boolean */}
+                  <Select
+                    label='รูปแบบคำตอบของข้อนี้ (Field Type)'
+                    showLabel={false}
+                    options={FIELD_TYPE_OPTIONS}
+                    value={s.fieldType || 'boolean'}
+                    onChange={(v) => updateSection(s.id, { fieldType: v })}
+                    searchable={false}
+                    disabled
+                  />
+                </div>
                 <CardXButton label='ลบข้อความ' onClick={() => removeSection(s.id)} disabled={sections.length <= 1} />
               </div>
               <div
                 className='grid w-full min-w-0'
                 style={{
                   paddingLeft: SECTION_BODY_INDENT,
-                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                  columnGap: 'var(--dim-space-1200, 48px)',
+                  gridTemplateColumns: 'minmax(0, 1fr)',
                   rowGap: 'var(--dim-space-800, 32px)',
                 }}
               >
@@ -1860,17 +1874,6 @@ function StepContent(props) {
                       ไม่ต้องใส่เลขข้อ ระบบจะใส่ตามลำดับโดยอัตโนมัติ
                     </span>
                   </div>
-                </div>
-                <div className='flex flex-col min-w-0'>
-                  {/* ด.1.1.13 — consent forms lock field type to boolean */}
-                  <Select
-                    label='รูปแบบคำตอบของข้อนี้ (Field Type)'
-                    options={FIELD_TYPE_OPTIONS}
-                    value={s.fieldType || 'boolean'}
-                    onChange={(v) => updateSection(s.id, { fieldType: v })}
-                    searchable={false}
-                    disabled
-                  />
                 </div>
               </div>
               </div>
