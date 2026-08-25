@@ -603,8 +603,9 @@ export default function AccessManagementPage({ mineOnly = false }) {
   return (
     <>
       <QueuePageShell
-        activeKey={mineOnly ? 'consent-my-requests' : 'consent-access'}
-        hideSidebar
+        /* mineOnly ไม่มีเมนูของตัวเองแล้ว (ถอดออก 25 ส.ค. 69) — ไฮไลต์
+           "จัดการสิทธิ์ฯ" ซึ่งเป็นหน้าเดียวกัน ไม่งั้น side menu จะไม่มีอะไร active */
+        activeKey='consent-access'
         sidebarItems={CONSENT_NAV}
         sidebarFallbackKey='consent-access'
         brandTitle='ระบบจัดการความยินยอม'

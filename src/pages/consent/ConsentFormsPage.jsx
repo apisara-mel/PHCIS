@@ -518,7 +518,6 @@ export default function ConsentFormsPage() {
     <>
     <QueuePageShell
       activeKey='consent-forms'
-      hideSidebar
       sidebarItems={CONSENT_NAV}
       sidebarFallbackKey='consent-forms'
       brandTitle='ระบบจัดการความยินยอม'

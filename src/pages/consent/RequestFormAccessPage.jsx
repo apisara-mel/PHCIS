@@ -33,7 +33,6 @@ export default function RequestFormAccessPage() {
     <>
       <QueuePageShell
         activeKey='consent-request-access'
-        hideSidebar
         sidebarItems={CONSENT_NAV}
         sidebarFallbackKey='consent-request-access'
         brandTitle='ระบบจัดการความยินยอม'
