@@ -2718,7 +2718,7 @@ const IMPL = {
   '1.10.10.4': {s:'done',    u:'/clinic/rehab/record', n:'S6 อัปโหลด: FileUploadField + CameraCapturePopup + UploadProgressBar + preview + ลบพร้อม confirm; validate นามสกุล/ขนาด >10MB; metadata ไปกับ visit เห็นในหน้าติดตาม'},
   '1.10.10.5': {s:'done',    u:'/clinic/rehab/record', n:'S7 นัดหมายครบ แสดง/บันทึก/แก้ไข/ยกเลิก (บังคับเหตุผล+audit) + mirror ไป appointmentExtraStore (id A-REHAB) + validate วันย้อนหลัง/slot ชน/ครั้งคงเหลือใน Course + พิมพ์ใบนัด'},
   '1.10.10.6': {s:'done',    u:'/clinic/rehab/registry', n:'ทะเบียนฟื้นฟู+IMC ครบ 4 กริยา + เปิดใช้งานอีกครั้ง + audit trail รายฟิลด์ + บล็อกขึ้นทะเบียนซ้ำ (AlertDialog) + validate onset/admit, Barthel 0–100 + golden-period countdown 6 เดือน'},
-  '1.10.10.7': {s:'partial', u:'/clinic/rehab/record', n:'PE 7 แท็บ (ROM/Brunnstrom/Sensation/Reflex/Special test/Body diagram) + Barthel ADL (BarthelIndexGrid) + ICD-10 + Goal + Course + โปรแกรมฟื้นฟู/หัตถการ + CPOE Step5Orders — partial: Telemedicine เป็น badge+banner ยังไม่ mount TelemedEmrPanel ในฟอร์ม'},
+  '1.10.10.7': {s:'done',    u:'/clinic/rehab/record', n:'PE 7 แท็บ + Barthel ADL + ICD-10 + Goal + Course + โปรแกรมฟื้นฟู/หัตถการ + CPOE Step5Orders + <b>mount TelemedEmrPanel ในฟอร์มแล้ว</b> — กด "เข้าร่วมการปรึกษา" แล้วเห็น EMR ของผู้ป่วย (ประวัติการมารับบริการ · ยาเดิม · การแพ้ยา/อาหาร) และแท็บบันทึกประเมิน ในหน้าเดียวกับฟอร์ม ไม่ต้องสลับไปหน้า Telemedicine · ยืนยันบนหน้าจริงด้วย HN 67-00016'},
   '1.10.10.8': {s:'done',    u:'/clinic/rehab/followup', n:'ติดตาม 3 มุมมอง: ตาราง (Barthel/ROM/MMT/BP/Lab/X-ray/เอกสาร ต่อครั้ง) · เกจ 3 ใบ (Barthel แรกรับ vs ล่าสุด, %goal, ครั้งเทียบแผน) · กราฟแนวโน้ม (RehabTrendSection) + VitalSignTimelineCard + แถบสรุป Course'},
 
   /* ===== 1.10.9 งานสร้างเสริมภูมิคุ้มกัน — /clinic/immunization (Wave 2, ครอบ §1.11 IIS) ===== */
@@ -2728,7 +2728,7 @@ const IMPL = {
   '1.10.9.4': {s:'done',    u:'/clinic/immunization/record',     n:'ImmStep8Summary FileUploadField + validateImmUpload (.pdf/.jpg/.png ≤10MB) + ลบเอกสารพร้อม audit ผู้แนบ/เวลา'},
   '1.10.9.5': {s:'done',    u:'/clinic/immunization/record',     n:'ImmStep8Summary ประเภท/วัน/เวลา/หมายเหตุ → saveImmAppointment, ยกเลิก+นัดใหม่ได้, โผล่แท็บ "นัดแล้วยังไม่มาติดต่อ"'},
   '1.10.9.6': {s:'done',    u:'/clinic/immunization/registry',   n:'ImmunizationRegistryPage + saveImmRegistration/cancelImmRegistration/reactivate, guardians[] บังคับชื่อ+ความสัมพันธ์+เบอร์ อย่างน้อย 1 คน'},
-  '1.10.9.7': {s:'partial', u:'/clinic/immunization/record',     n:'ครบ 8 ขั้นตอน ImmStep1-8 (ANC/โภชนาการ/Growth chart/DSPM/วัคซีน/ตรวจ 14 ระบบ/ประวัติเจ็บป่วย) แต่ CPOE+Telemedicine เป็น SelectableTag/สถานะจำลอง ไม่ผูกระบบยา-lab จริง'},
+  '1.10.9.7': {s:'partial', u:'/clinic/immunization/record',     n:'ครบ 8 ขั้นตอน ImmStep1-8 (ANC/โภชนาการ/Growth chart/DSPM/วัคซีน/ตรวจ 14 ระบบ/ประวัติเจ็บป่วย) · <b>Telemedicine ปิดแล้ว</b> — กด "เริ่มปรึกษา" ใน Step 7 แล้ว mount TelemedEmrPanel เห็น EMR ของเด็กในหน้าเดียวกัน + ทำ chart จำลองให้แยกตามวัย (เดิมเด็ก 2 เดือนขึ้น เบาหวานชนิดที่ 2 + Atorvastatin + Enalapril ซึ่งผิดทางคลินิก ตอนนี้ขึ้นยาน้ำเด็ก + ภาวะซีดจากการขาดธาตุเหล็ก) · <b>ยัง partial ที่ CPOE</b> — chip สั่งตรวจยังไม่ผูกระบบยา-แล็บจริง และโมดูลแล็บอยู่นอกขอบเขตที่แก้ได้'},
   '1.10.9.8': {s:'done',    u:'/clinic/immunization/follow-up',  n:'ImmunizationFollowUpPage 4 แท็บ: GrowthPercentileChart, dspmTimeline, nextDue+AEFI+ประวัติเข็ม, outreachRows รายชื่อค้างเข็ม/ขาดนัด'},
 
   /* ===== 1.11 IIS — ทะเบียนวัคซีน + สมุดวัคซีน (Wave 2, อยู่ในโมดูล immunization) ===== */

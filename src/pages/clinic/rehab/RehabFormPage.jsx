@@ -12,6 +12,7 @@ import Popup from '@/components/popup/Popup';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
+import TelemedEmrPanel from '@/components/telemed/TelemedEmrPanel';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
 import {
   RehabStep1History, RehabStep2Examination, RehabStep3Adl,
@@ -716,6 +717,20 @@ const RehabFormPage = () => {
                 วิสิตนี้เป็นการฟื้นฟูผ่าน Telemedicine — บันทึกแบบประเมินและหัตถการได้ตามปกติระหว่างการปรึกษา
                 และการวางสายไม่ลบข้อมูลที่ร่างไว้
               </Banner>
+            )}
+
+            {/* TOR 1.10.10.7 — ระหว่างอยู่ในสาย ต้องเห็น EMR ของผู้ป่วยจริง
+                ไม่ใช่แค่แบนเนอร์ นักกายภาพฯ ต้องอ่านประวัติ/ยา/สัญญาณชีพ
+                ระหว่างประเมินทางไกล จึง mount แผงเดียวกับหน้า Telemedicine
+                (TelemedEmrPanel) แทนที่จะให้สลับหน้าไปมา
+                onOpenTreatmentRecord ไม่ต้องส่ง — หน้านี้ *คือ* บันทึกการรักษา */}
+            {queueRow?.telemedicine && telemedStatus === 'started' && (
+              <TelemedEmrPanel
+                hn={rehabHn}
+                patientName={cardPatient?.fullName || patient.name}
+                visitId={recordId}
+                role='doctor'
+              />
             )}
           </div>
 

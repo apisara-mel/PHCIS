@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import TelemedEmrPanel from '@/components/telemed/TelemedEmrPanel';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -1346,7 +1347,7 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked }) => 
 };
 
 /* ── Step 7 — EMR / CPOE + Telemedicine (1.10.9.7) ─────────────────── */
-export const ImmStep7Orders = ({ form, setForm, locked }) => {
+export const ImmStep7Orders = ({ form, setForm, locked, immHn, child }) => {
   const toggle = (group, key) => {
     if (locked) return;
     setForm((f) => ({ ...f, [group]: { ...f[group], [key]: !f[group]?.[key] } }));
@@ -1430,6 +1431,24 @@ export const ImmStep7Orders = ({ form, setForm, locked }) => {
             </BrandSubdueButton>
           )}
         </div>
+
+        {/* TOR 1.10.9.7 — ระหว่างปรึกษาทางไกล พยาบาล/แพทย์ต้องเห็น EMR ของเด็ก
+            จริง ๆ (ประวัติการมารับบริการ · ยาเดิม · การแพ้) ไม่ใช่แค่ป้ายสถานะ
+            จึง mount แผงเดียวกับหน้า Telemedicine แทนที่จะให้สลับหน้าไปมา
+            เหมือนที่ทำใน RehabFormPage */}
+        {form.telemedStatus === 'started' && (
+          <TelemedEmrPanel
+            hn={immHn}
+            patientName={child?.fullName || child?.name}
+            visitId={`V-IMM-${immHn || 'unknown'}`}
+            role='doctor'
+            /* คลินิกเด็กดี = ผู้รับบริการเป็นเด็กเสมอ ส่งอายุจริงไปให้แผง
+               เลือกชุดข้อมูลตามวัย (ไม่งั้นเด็ก 2 เดือนขึ้นยาความดัน) */
+            ageYears={child?.birthDate
+              ? Math.floor((Date.now() - new Date(child.birthDate).getTime()) / (365.25 * 24 * 3600 * 1000))
+              : 0}
+          />
+        )}
       </div>
     </StepCard>
   );
