@@ -8,9 +8,12 @@ const TYPE_META = {
   procedure: { label: 'หัตถการ', short: 'Procedure', destination: 'ห้องพยาบาล', icon: 'medical_services' },
 };
 
-const catalogLabs = LAB_TESTS
-  .filter((item) => ['lab-cbc', 'lab-creatinine', 'lab-electrolytes', 'lab-fbs', 'lab-hba1c'].includes(item.id))
-  .map((item) => ({
+/* ── mapper: รายการในแค็ตตาล็อกจริง → order ที่ CPOE เข้าใจ ─────────────
+   เดิม map ไว้เฉพาะ 15 รายการที่ pick มาโชว์ใน Step "เลือกรายการ" ทำให้
+   คำสั่งที่หมอสั่งจาก popup "เพิ่มรายการ" (ซึ่งใช้แค็ตตาล็อกเต็ม) เช่น
+   Urinalysis หลุดจากตะกร้า CPOE — ไม่ถูกตรวจสอบ ไม่ถูกลงนาม ไม่ถูกส่ง
+   ปลายทาง แยก mapper ออกมาให้ resolve ได้ทุกรายการ ไม่ใช่แค่ 15 ใบ */
+export const labToCpoeOrder = (item) => ({
     id: item.id,
     type: 'lab',
     code: item.code,
@@ -23,11 +26,9 @@ const catalogLabs = LAB_TESTS
       : 'ไม่ต้องงดอาหาร',
     requirement: `สิ่งส่งตรวจ ${item.tubeCount || 1} หลอด · ระบบเลือกชนิดหลอดให้อัตโนมัติ`,
     urgency: 'routine',
-  }));
+});
 
-const catalogXrays = XRAY_EXAMS
-  .filter((item) => ['xr-cxr-pa', 'xr-kub', 'ct-brain', 'ct-chest', 'mri-lspine'].includes(item.id))
-  .map((item) => ({
+export const xrayToCpoeOrder = (item) => ({
     id: item.id,
     type: 'xray',
     code: item.code,
@@ -45,9 +46,9 @@ const catalogXrays = XRAY_EXAMS
     femaleScreening: Boolean(item.femaleScreening),
     referralOnly: Boolean(item.referralOnly),
     urgency: 'routine',
-  }));
+});
 
-const catalogProcedures = ICD9_PROCEDURES.slice(0, 5).map((item) => ({
+export const procedureToCpoeOrder = (item) => ({
   id: `procedure-${item.code}`,
   type: 'procedure',
   code: item.code,
@@ -58,11 +59,40 @@ const catalogProcedures = ICD9_PROCEDURES.slice(0, 5).map((item) => ({
   preparation: 'ประเมินสัญญาณชีพและยืนยันตำแหน่งก่อนทำหัตถการ',
   requirement: `ICD-9-CM ${item.code} · หน่วย ${item.unit}`,
   urgency: 'routine',
-}));
+});
+
+/* รายการที่ยกมาโชว์เป็นการ์ดใน Step "เลือกรายการ" — เป็นแค่ shortcut
+   ไม่ใช่ขอบเขตของสิ่งที่ CPOE รองรับ (ดู resolveCpoeOrder) */
+const CATALOG_LAB_IDS = ['lab-cbc', 'lab-creatinine', 'lab-electrolytes', 'lab-fbs', 'lab-hba1c'];
+const CATALOG_XRAY_IDS = ['xr-cxr-pa', 'xr-kub', 'ct-brain', 'ct-chest', 'mri-lspine'];
+
+const catalogLabs = LAB_TESTS.filter((item) => CATALOG_LAB_IDS.includes(item.id)).map(labToCpoeOrder);
+const catalogXrays = XRAY_EXAMS.filter((item) => CATALOG_XRAY_IDS.includes(item.id)).map(xrayToCpoeOrder);
+const catalogProcedures = ICD9_PROCEDURES.slice(0, 5).map(procedureToCpoeOrder);
 
 export const CPOE_TYPE_META = TYPE_META;
 export const CPOE_CATALOG = [...catalogLabs, ...catalogXrays, ...catalogProcedures];
 export const CPOE_CATALOG_BY_ID = Object.fromEntries(CPOE_CATALOG.map((item) => [item.id, item]));
+
+/** id ใด ๆ จากแค็ตตาล็อกจริง (แล็บ · รังสี · หัตถการ `procedure-<ICD9>`)
+    → order ที่ CPOE ใช้ได้ · คืน null เมื่อ resolve ไม่ได้ ผู้เรียกต้องกันเอง */
+export const resolveCpoeOrder = (id) => {
+  if (!id) return null;
+  if (CPOE_CATALOG_BY_ID[id]) return CPOE_CATALOG_BY_ID[id];
+
+  const lab = LAB_TESTS.find((item) => item.id === id);
+  if (lab) return labToCpoeOrder(lab);
+
+  const xray = XRAY_EXAMS.find((item) => item.id === id);
+  if (xray) return xrayToCpoeOrder(xray);
+
+  if (String(id).startsWith('procedure-')) {
+    const code = String(id).slice('procedure-'.length);
+    const proc = ICD9_PROCEDURES.find((item) => item.code === code);
+    if (proc) return procedureToCpoeOrder(proc);
+  }
+  return null;
+};
 
 export const CPOE_INITIAL_ORDER_IDS = ['lab-cbc', 'lab-creatinine', 'ct-chest'];
 

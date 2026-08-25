@@ -521,6 +521,11 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
   const patientName = cardPatient?.fullName || patient?.fullName || patient?.name
     || [patient?.prefixTh, patient?.firstNameTh, patient?.lastNameTh].filter(Boolean).join(' ')
     || 'ไม่พบชื่อผู้รับบริการ';
+  /* ยึดอายุจาก PatientCard ของ Visit ก่อน (สตริงละเอียด) แล้วค่อย fallback
+     ไปที่ตัวเลขปีของ MPI */
+  const ageLabel = cardPatient?.age
+    ? String(cardPatient.age)
+    : (patient?.age != null ? `${patient.age} ปี` : '—');
   const allergyNames = (patient?.drugAllergies || []).map((item) => item.name).filter(Boolean);
 
   return (
@@ -566,6 +571,11 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
           ].join(', '),
         }}
       >
+        {/* อายุต้องตรงกับ PatientCard ของ Visit — `cardPatient` (patientProfiles)
+            เก็บเป็นสตริงละเอียด "42 ปี - 3 เดือน - 8 วัน" ส่วน `patient`
+            (mrPatients) เก็บเป็นตัวเลขปีของ MPI คนละชุด ซึ่งของ HN เดียวกัน
+            ไม่ตรงกัน (42 vs 37) — popup เคยหยิบตัวหลัง หมอจึงเห็นอายุสองค่า
+            ในหน้าจอเดียว ให้ยึดของ Visit ก่อนเสมอ */}
         <PatientSummaryCard
           variant='gradient'
           avatarUrl={cardPatient?.avatarUrl || patient?.avatarUrl}
@@ -573,7 +583,7 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
           cells={[
             { label: 'ชื่อ-นามสกุล ผู้รับบริการ', value: patientName },
             { label: 'HN (Hospital Number)', value: cardPatient?.hn || patient?.hn || '—' },
-            { label: 'อายุ / เพศ', value: `${patient?.age != null ? `${patient.age} ปี` : '—'} / ${patient?.gender || '—'}` },
+            { label: 'อายุ / เพศ', value: `${ageLabel} / ${cardPatient?.sex || patient?.gender || '—'}` },
             { label: 'สิทธิการรักษา', value: patient?.rights || cardPatient?.insurance || '—' },
             {
               label: 'ประวัติแพ้ยา',

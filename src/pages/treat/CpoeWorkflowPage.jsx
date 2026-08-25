@@ -21,11 +21,11 @@ import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
 import {
   CPOE_CATALOG,
-  CPOE_CATALOG_BY_ID,
   CPOE_INITIAL_ORDER_IDS,
   CPOE_RECENT_RESULTS,
   CPOE_TYPE_META,
   buildNewTrackingRows,
+  resolveCpoeOrder,
 } from '@/data/cpoeWorkflow';
 import { XRAY_EXAM_BY_ID } from '@/data/xrayCatalog';
 import {
@@ -193,11 +193,14 @@ const MetricCard = ({ icon, label, value, tone = 'info' }) => (
   </div>
 );
 
+/* ทุกคำสั่งใน Visit ที่ CPOE แทนค่าได้ — ไม่ใช่แค่ 15 รายการที่ยกมาโชว์เป็น
+   การ์ด เดิมกรองด้วย CPOE_CATALOG_BY_ID ทำให้แล็บ/รังสีที่สั่งจาก popup
+   "เพิ่มรายการ" (แค็ตตาล็อกเต็ม) หายไปจากตะกร้า แล้วข้ามด่านลงนามไปเงียบ ๆ */
 const treatmentOrderIds = (form) => [
   ...(form?.labs || []).map((item) => item.testId),
   ...(form?.xrayOrders || []).map((item) => item.examId),
-  ...(form?.procedureOrders || []).map((item) => `procedure-${item.code}`),
-].filter((id) => CPOE_CATALOG_BY_ID[id]);
+  ...(form?.procedureOrders || []).filter((item) => !item.cancelledAt).map((item) => `procedure-${item.code}`),
+].filter((id) => resolveCpoeOrder(id));
 
 const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setForm }) => {
   const history = useHistory();
@@ -236,7 +239,7 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
   const autosaveReady = useRef(false);
 
   const selectedOrders = useMemo(
-    () => selectedIds.map((id) => CPOE_CATALOG_BY_ID[id]).filter(Boolean),
+    () => selectedIds.map((id) => resolveCpoeOrder(id)).filter(Boolean),
     [selectedIds],
   );
 
@@ -342,56 +345,57 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
     ));
   }, [coverageOnly, query, typeFilter]);
 
+  /* CPOE → form: ตะกร้าคือความจริงชุดเดียวกับคำสั่งใน Visit
+     - แถวที่ CPOE แทนค่าไม่ได้ (ไม่อยู่ในแค็ตตาล็อกจริงเลย) ปล่อยไว้ ไม่แตะ
+     - แถวหัตถการที่ยกเลิกแล้วเก็บไว้เป็นประวัติ ไม่ให้ตะกร้าลบทิ้ง
+     เดิมกรองด้วยชุด id ของแค็ตตาล็อก 15 ใบ ติ๊กออกจากตะกร้าจึงลบได้เฉพาะ
+     15 ใบนั้น ส่วนใบอื่นค้างอยู่ในฟอร์มแบบเงียบ ๆ */
   const syncTreatmentOrders = (nextIds) => {
     if (!embedded || !setForm) return;
     const wanted = new Set(nextIds);
-    const catalogLabIds = new Set(CPOE_CATALOG.filter((item) => item.type === 'lab').map((item) => item.id));
-    const catalogXrayIds = new Set(CPOE_CATALOG.filter((item) => item.type === 'xray').map((item) => item.id));
-    const catalogProcedureCodes = new Set(
-      CPOE_CATALOG.filter((item) => item.type === 'procedure').map((item) => item.code),
-    );
+    const keep = (id) => !resolveCpoeOrder(id) || wanted.has(id);
+
     setForm((current) => {
-      const labs = (current.labs || []).filter((item) => (
-        !catalogLabIds.has(item.testId) || wanted.has(item.testId)
-      ));
-      CPOE_CATALOG.filter((item) => item.type === 'lab' && wanted.has(item.id)).forEach((item) => {
-        if (!labs.some((row) => row.testId === item.id)) {
-          labs.push({
-            id: `lab-${item.id}-${Date.now()}`,
-            testId: item.id,
-            urgency: header.urgency,
-            note: header.physicianQuestion,
-            quantity: 1,
-            unit: 'ครั้ง',
-          });
-        }
-      });
-
-      const xrayOrders = (current.xrayOrders || []).filter((item) => (
-        !catalogXrayIds.has(item.examId) || wanted.has(item.examId)
-      ));
-      CPOE_CATALOG.filter((item) => item.type === 'xray' && wanted.has(item.id)).forEach((item) => {
-        if (!xrayOrders.some((row) => row.examId === item.id)) {
-          xrayOrders.push({
-            examId: item.id,
-            view: XRAY_EXAM_BY_ID[item.id]?.views?.[0] || '',
-            urgency: header.urgency,
-            note: header.physicianQuestion,
-            quantity: 1,
-            unit: 'ครั้ง',
-          });
-        }
-      });
-
+      const labs = (current.labs || []).filter((item) => keep(item.testId));
+      const xrayOrders = (current.xrayOrders || []).filter((item) => keep(item.examId));
       const procedureOrders = (current.procedureOrders || []).filter((item) => (
-        !catalogProcedureCodes.has(item.code) || wanted.has(`procedure-${item.code}`)
+        item.cancelledAt || keep(`procedure-${item.code}`)
       ));
-      CPOE_CATALOG.filter((item) => item.type === 'procedure' && wanted.has(item.id)).forEach((item) => {
-        if (!procedureOrders.some((row) => row.code === item.code)) {
+
+      nextIds.forEach((id) => {
+        const order = resolveCpoeOrder(id);
+        if (!order) return;
+
+        if (order.type === 'lab' && !labs.some((row) => row.testId === id)) {
+          labs.push({
+            id: `lab-${id}-${Date.now()}`,
+            testId: id,
+            urgency: header.urgency,
+            note: header.physicianQuestion,
+            quantity: 1,
+            unit: 'ครั้ง',
+          });
+          return;
+        }
+
+        if (order.type === 'xray' && !xrayOrders.some((row) => row.examId === id)) {
+          xrayOrders.push({
+            examId: id,
+            view: XRAY_EXAM_BY_ID[id]?.views?.[0] || '',
+            urgency: header.urgency,
+            note: header.physicianQuestion,
+            quantity: 1,
+            unit: 'ครั้ง',
+          });
+          return;
+        }
+
+        if (order.type === 'procedure'
+          && !procedureOrders.some((row) => !row.cancelledAt && row.code === order.code)) {
           procedureOrders.push({
-            id: `proc-${Date.now()}-${item.code}`,
-            code: item.code,
-            name: item.name,
+            id: `proc-${Date.now()}-${order.code}`,
+            code: order.code,
+            name: order.name,
             startDate: new Date().toISOString().slice(0, 10),
             startTime: '',
             endDate: '',
@@ -399,14 +403,15 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
             site: '',
             qty: 1,
             unit: 'ครั้ง',
-            unitPrice: item.price,
-            claimPerUnit: item.covered ? item.price : 0,
+            unitPrice: order.price,
+            claimPerUnit: order.covered ? order.price : 0,
             performer: 'somying',
             detail: header.physicianQuestion,
             urgency: header.urgency,
           });
         }
       });
+
       return { ...current, labs, xrayOrders, procedureOrders };
     });
   };
