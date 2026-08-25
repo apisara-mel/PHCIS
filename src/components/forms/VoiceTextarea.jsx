@@ -124,6 +124,9 @@ const VoiceTextarea = React.forwardRef(function VoiceTextarea(
     name,
     className = '',
     style = {},
+    /** สไตล์ตัวอักษรของ textarea (bold/italic/underline ฯลฯ) — ใช้ตอนต้องให้
+        ข้อความสะท้อนการจัดรูปแบบที่เลือกไว้ที่อื่น */
+    textareaStyle,
     /* Popover anchor for SuggestibleTextarea — attaches to the bordered shell. */
     boxRef,
     onFocus: onFocusProp,
@@ -358,6 +361,7 @@ const VoiceTextarea = React.forwardRef(function VoiceTextarea(
               fontWeight: 'var(--type-weight-regular)',
               lineHeight: 1.5,
               resize: 'none',
+              ...textareaStyle,
             }}
             {...rest}
           />

@@ -25,6 +25,7 @@ const InnerTextarea = React.forwardRef(({
   rows = 3,
   boxRef,
   disabled = false,
+  textareaStyle,
 }, ref) => (
   <TextareaCanonical
     ref={ref}
@@ -42,6 +43,7 @@ const InnerTextarea = React.forwardRef(({
     onBlur={onBlur}
     rows={rows}
     placeholder={placeholder}
+    textareaStyle={textareaStyle}
     className='flex-1 min-w-0'
   />
 ));
@@ -60,6 +62,7 @@ const InnerVoiceTextarea = React.forwardRef(({
   boxRef,
   disabled = false,
   resizable = true,
+  textareaStyle,
 }, ref) => (
   <VoiceTextarea
     ref={ref}
@@ -79,6 +82,7 @@ const InnerVoiceTextarea = React.forwardRef(({
     height={height}
     minHeight={minHeight}
     placeholder={placeholder}
+    textareaStyle={textareaStyle}
     className='flex-1 min-w-0'
   />
 ));
@@ -90,6 +94,8 @@ const SuggestibleTextarea = ({
   value,
   onChange,
   placeholder,
+  /** สไตล์ตัวอักษรใน textarea — ส่งต่อให้ทั้งแบบ voice และแบบธรรมดา */
+  textareaStyle,
   suggestions,
   minChars = 3,
   rows = 3,
@@ -138,6 +144,7 @@ const SuggestibleTextarea = ({
     boxRef,
     disabled,
     resizable,
+    textareaStyle,
   };
 
   const passthroughChange = voice

@@ -1789,7 +1789,20 @@ function StepContent(props) {
                 >
                   {i + 1}
                 </span>
-                <div className='flex-1' />
+                {/* ช่อง "หัวข้อ" อยู่แถวเดียวกับเลขข้อ (มติผู้ใช้ 25 ส.ค. 69)
+                    — ประหยัดความสูงและอ่านเป็น "ข้อ N: <หัวข้อ>" ได้ทันที
+                    showLabel={false} เพราะเลขข้อทำหน้าที่หัวแถวอยู่แล้ว */}
+                <div className='flex-1 min-w-0'>
+                  <InputField
+                    label='หัวข้อ'
+                    showLabel={false}
+                    required
+                    value={s.title}
+                    onChange={(v) => updateSection(s.id, { title: v })}
+                    placeholder='เช่น ยินยอมรับการรักษา'
+                    showHelperText={false}
+                  />
+                </div>
                 <CardXButton label='ลบข้อความ' onClick={() => removeSection(s.id)} disabled={sections.length <= 1} />
               </div>
               <div
@@ -1801,20 +1814,20 @@ function StepContent(props) {
                 }}
               >
                 <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-800, 32px)' }}>
-                  <InputField
-                    label='หัวข้อ'
-                    required
-                    value={s.title}
-                    onChange={(v) => updateSection(s.id, { title: v })}
-                    placeholder='เช่น ยินยอมรับการรักษา'
-                    showHelperText={false}
-                  />
                   <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                     <SuggestibleTextarea
-                      voice label='รายละเอียด Section' required
+                      voice label='รายละเอียด' required
                       value={s.detail} onChange={(v) => updateSection(s.id, { detail: typeof v === 'string' ? v : v?.target?.value ?? '' })}
                       placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
                       suggestions={DETAIL_HINTS} minChars={3} height={120}
+                      /* สะท้อนการจัดรูปแบบจากกล่องด้านบน — ข้อความเดียวกัน
+                         ต้องหน้าตาเหมือนกันทั้งสองที่ ไม่งั้นดูเหมือนคนละช่อง
+                         (มติผู้ใช้ 25 ส.ค. 69) */
+                      textareaStyle={{
+                        fontWeight: s.detailFormat?.bold ? 'var(--type-weight-bold, 700)' : undefined,
+                        fontStyle: s.detailFormat?.italic ? 'italic' : undefined,
+                        textDecoration: s.detailFormat?.underline ? 'underline' : undefined,
+                      }}
                     />
                     {/* คำอธิบายเลขข้อย้ายมาอยู่ใต้ช่องรายละเอียด (มติผู้ใช้
                         25 ส.ค. 69) — SuggestibleTextarea บังคับ
