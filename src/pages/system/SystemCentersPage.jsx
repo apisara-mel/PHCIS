@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
@@ -15,6 +15,8 @@ import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
 import SuccessToast from '@/components/toast/SuccessToast';
 import CenterEditPopup from '@/pages/system/CenterEditPopup';
+import Popover from '@/components/popup/Popover';
+import ActionList from '@/components/list/ActionList';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import {
   readStructures,
@@ -214,6 +216,13 @@ export default function SystemCentersPage() {
   const [editCenter, setEditCenter] = useState(null);
   /* เพิ่มศูนย์บริการ — popup ฟอร์มเดียวกัน แค่ไม่มีศูนย์ตั้งต้น */
   const [addOpen, setAddOpen] = useState(false);
+  /* เมนูใต้ปุ่ม "เพิ่มศูนย์บริการ" — เลือกว่าจะเพิ่มศูนย์หลักหรือสาขาย่อย
+     (25 ส.ค. 2569) */
+  const addBtnRef = useRef(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [branchOpen, setBranchOpen] = useState(false);
+  /* ศูนย์แม่ที่ตั้งไว้ล่วงหน้าเมื่อกดเพิ่มสาขาย่อยจากในแถว */
+  const [branchParentId, setBranchParentId] = useState('');
   /* ทะเบียนรูปแบบโครงสร้าง — ใช้บอกว่าศูนย์ไหนผูกรูปแบบใดไว้ */
   const [structures, setStructures] = useState(() => readStructures());
   const [exportReport, setExportReport] = useState(null);
@@ -256,7 +265,7 @@ export default function SystemCentersPage() {
     window.setTimeout(() => setToast(null), 2800);
   };
 
-  const goAdd = () => setAddOpen(true);
+  const goAdd = () => setAddMenuOpen((v) => !v);
 
   const hasCenters = centers.length > 0;
   const filtersActive = !!search.trim();
@@ -446,14 +455,25 @@ export default function SystemCentersPage() {
     {
       key: 'action',
       header: 'การดำเนินการ',
+      minWidth: 260,
       render: (row) => (
-        <NeutralSubdueButton
-          leadingIcon='edit'
-          size='sm'
-          onClick={(e) => { e.stopPropagation(); setEditCenter(row); }}
-        >
-          แก้ไข
-        </NeutralSubdueButton>
+        <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+          <NeutralSubdueButton
+            leadingIcon='edit'
+            size='sm'
+            onClick={(e) => { e.stopPropagation(); setEditCenter(row); }}
+          >
+            แก้ไข
+          </NeutralSubdueButton>
+          {/* เพิ่มสาขาย่อยให้ศูนย์แถวนี้ได้เลย ไม่ต้องไปเลือกศูนย์ในป๊อปอัปอีกรอบ */}
+          <NeutralSubdueButton
+            leadingIcon='add'
+            size='sm'
+            onClick={(e) => { e.stopPropagation(); setBranchParentId(row.id); setBranchOpen(true); }}
+          >
+            เพิ่มศูนย์บริการย่อย
+          </NeutralSubdueButton>
+        </div>
       ),
     },
   ], [centers, structures]);
@@ -482,9 +502,18 @@ export default function SystemCentersPage() {
         /* ปุ่มเพิ่มศูนย์บริการอยู่ใน SubHeader ที่ sticky ด้วย — เลื่อนตาราง
            ลงไปแล้วปุ่มยังอยู่ ไม่ต้องเลื่อนกลับขึ้นบนสุด */
         actions={hasCenters ? (
-          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={goAdd}>
-            เพิ่มศูนย์บริการ
-          </BrandButton>
+          <span ref={addBtnRef} className='inline-flex'>
+            {/* trailing chevron บอกว่าปุ่มนี้กางเมนู ไม่ใช่กดแล้วทำเลย */}
+            <BrandButton
+              variant='fill'
+              size='md'
+              leadingIcon='add'
+              trailingIcon={addMenuOpen ? 'expand_less' : 'expand_more'}
+              onClick={goAdd}
+            >
+              เพิ่มศูนย์บริการ
+            </BrandButton>
+          </span>
         ) : undefined}
         tabs={hasCenters ? tabDefs : undefined}
         activeTab={activeTab}
@@ -573,6 +602,61 @@ export default function SystemCentersPage() {
           </div>
         )}
       </QueuePageShell>
+
+      {/* เมนูของปุ่ม "เพิ่มศูนย์บริการ" — ศูนย์หลัก vs สาขาย่อย */}
+      <Popover
+        open={addMenuOpen}
+        onClose={() => setAddMenuOpen(false)}
+        anchorRef={addBtnRef}
+        style={{ zIndex: 1600 }}
+      >
+        <div
+          role='menu'
+          className='flex flex-col'
+          style={{
+            minWidth: 240,
+            background: 'var(--surface-card-100)',
+            borderRadius: 'var(--dim-radius-300, 10px)',
+            border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
+            boxShadow: 'var(--shadow-drop-bottom-400)',
+            paddingTop: 'var(--dim-space-100)',
+            paddingBottom: 'var(--dim-space-100)',
+          }}
+        >
+          {/* ใช้ <ActionList> ของ DS (Figma 2796:3168) แทนปุ่มที่จัดสไตล์เอง —
+              ได้ hover/สีตัวอักษร/ระยะขอบตามระบบ (25 ส.ค. 2569) */}
+          {[
+            { key: 'main', label: 'เพิ่มศูนย์บริการหลัก', icon: 'domain', onClick: () => setAddOpen(true) },
+            { key: 'branch', label: 'เพิ่มศูนย์บริการย่อย', icon: 'store', onClick: () => setBranchOpen(true) },
+          ].map((item) => (
+            <ActionList
+              key={item.key}
+              as='button'
+              role='menuitem'
+              label={item.label}
+              leadingIcon={item.icon}
+              showSwitch={false}
+              showBadge={false}
+              showCheck={false}
+              showChevronRight={false}
+              onClick={() => { setAddMenuOpen(false); item.onClick(); }}
+            />
+          ))}
+        </div>
+      </Popover>
+
+      {/* ศูนย์บริการย่อยใช้ฟอร์มชุดเดียวกับศูนย์หลัก ต่างแค่บังคับเลือกศูนย์แม่
+          ก่อนถึงจะกรอกอย่างอื่นได้ (25 ส.ค. 2569) */}
+      {branchOpen ? (
+        <CenterEditPopup
+          open
+          branchOf
+          parentIdInit={branchParentId}
+          center={null}
+          onClose={() => { setBranchOpen(false); setBranchParentId(''); }}
+          onSaved={() => { refresh(); showToast('เพิ่มศูนย์บริการย่อยแล้ว'); }}
+        />
+      ) : null}
 
       {/* เพิ่มศูนย์บริการ — mount ใหม่ทุกครั้งที่เปิด ฟอร์มจะได้เริ่มจากว่างเสมอ */}
       {addOpen ? (
