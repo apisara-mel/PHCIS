@@ -18,6 +18,7 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Icon from '@/components/icons/Icon';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import SecondarySearch from '@/components/search/SecondarySearch';
 import {
   SectionHeader as SearchSectionHeader,
@@ -32,6 +33,7 @@ import {
 } from '@/data/consentPatientSearch';
 import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRecords';
 import PHCIS_CURRENT_USER from '@/data/phcisCurrentUser';
+import StaffProfileAvatar from '@/components/appointment/StaffProfileAvatar';
 
 /* Shared ด.1.1.17.1 form — อัปโหลด/ถ่ายภาพแบบฟอร์มขอเข้าถึง → mock-OCR → ตรวจแก้ → ส่งคำขอ.
    Used by RequestFormAccessPage (full page), ScanImportPopup, and
@@ -43,6 +45,10 @@ const BODY_TEXT = {
   fontSize: 'var(--type-size-sm)',
   lineHeight: 1.6,
 };
+
+/* วันแรกที่เลือกได้ = วันนี้ (คำนวณครั้งเดียวตอนโหลดโมดูล ไม่สร้าง Date
+   ใหม่ทุก render) */
+const requestPeriodFloor = new Date();
 
 const isoFormat = (date) => {
   if (!date) return '';
@@ -614,7 +620,7 @@ export default function AccessRequestForm({
               style={{ gap: 'var(--dim-space-150)', ...FIELD_SHELL_LAYOUT }}
             >
               <span style={LABEL_TEXT}>
-                ต้องการเข้าถึงข้อมูลของผู้รับบริการรายใด
+                เลือกผู้รับบริการที่ต้องการเข้าถึง
                 {needsPatient ? <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span> : null}
                 {!needsPatient ? <span style={{ color: 'var(--text-content-tertiary)' }}> (ถ้ามี)</span> : null}
               </span>
@@ -644,25 +650,24 @@ export default function AccessRequestForm({
                     >
                       {selectedPatient.label}
                     </span>
-                    {(selectedPatient.nationalId || selectedPatient.phone) && (
+                    {selectedPatient.nationalId && (
                       <span style={{
                         ...BODY_TEXT,
                         fontSize: 'var(--type-size-xs)',
                         color: 'var(--text-content-tertiary)',
                       }}
                       >
-                        {[
-                          selectedPatient.nationalId
-                            ? `เลขบัตร ${selectedPatient.nationalId}`
-                            : '',
-                          selectedPatient.phone ? `โทร ${selectedPatient.phone}` : '',
-                        ].filter(Boolean).join(' · ')}
+                        {/* ตัดเบอร์โทรออก (มติผู้ใช้ 25 ส.ค. 69) — เป็นข้อมูล
+                            ติดต่อที่ไม่จำเป็นต่อการยืนยันว่าเลือกถูกคน */}
+                        {selectedPatient.nationalId
+                          ? `เลขบัตร ${selectedPatient.nationalId}`
+                          : ''}
                       </span>
                     )}
                   </span>
-                  <NeutralSubdueButton variant='outline' size='sm' leadingIcon='close' onClick={clearPatient}>
+                  <BrandSubdueButton variant='outline' size='sm' leadingIcon='close' onClick={clearPatient}>
                     เปลี่ยน
-                  </NeutralSubdueButton>
+                  </BrandSubdueButton>
                 </div>
               ) : (
                 <div ref={patientSearchBoxRef} className='relative w-full'>
@@ -828,12 +833,55 @@ export default function AccessRequestForm({
 
         {phase === 'review' && (
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
-              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-                <InputField label='ผู้ขอ (เจ้าหน้าที่)' required value={name} onChange={setName} disabled placeholder='ชื่อ-นามสกุลผู้ขอ' />
-                <InputField label='รหัสพนักงาน' value={empCode} onChange={setEmpCode} disabled placeholder='เช่น EMP-0142' />
+          {/* ระยะห่างระหว่างฟิลด์ในป็อปอัปต้องเท่ากันทุกช่อง (มติผู้ใช้ 25 ส.ค. 69)
+              — เดิมกล่องนอกใช้ space-400 แต่กลุ่มข้างในใช้ space-300 จึงดูไม่สม่ำเสมอ */}
+            <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              {/* ผู้ขอ = ผู้ใช้ที่ล็อกอินอยู่ แก้ไม่ได้อยู่แล้ว — แสดงเป็นการ์ด
+                  พื้นเขียวอ่อนแทนช่องกรอกที่ disabled และยกขึ้นเป็น section แรก
+                  (มติผู้ใช้ 25 ส.ค. 69) ช่อง disabled 2 ช่องดูเหมือนต้องกรอก
+                  ทั้งที่กรอกไม่ได้ */}
+              <div
+                className='flex items-center w-full min-w-0'
+                style={{
+                  gap: 'var(--dim-space-300)',
+                  padding: 'var(--dim-space-300) var(--dim-space-400)',
+                  background: 'var(--surface-brandPrimary-quaternary)',
+                  border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                  borderRadius: 'var(--dim-radius-300, 10px)',
+                }}
+              >
+                {/* PHCIS_CURRENT_USER ไม่มีรูป — StaffProfileAvatar จะ fallback
+                    เป็นตัวย่อจากชื่อให้เอง */}
+                <StaffProfileAvatar staff={{ name }} size={40} />
+                <div className='flex flex-col min-w-0 flex-1' style={{ gap: 'var(--dim-space-050)' }}>
+                  <span
+                    className='truncate'
+                    style={{
+                      color: 'var(--text-content-primary)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-sm)',
+                      fontWeight: 'var(--type-weight-medium, 500)',
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {name || '—'}
+                  </span>
+                  <span
+                    className='truncate'
+                    style={{
+                      color: 'var(--text-content-tertiary)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-xs)',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {[empCode, PHCIS_CURRENT_USER.department, PHCIS_CURRENT_USER.activity]
+                      .filter(Boolean).join(' · ')}
+                  </span>
+                </div>
+                <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>ผู้ขอ</ColorfulBadge>
               </div>
-              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
                 {needsPatient && selectedPatient && (
                   <div
                     className='flex items-center w-full'
@@ -881,8 +929,11 @@ export default function AccessRequestForm({
                   onChange={setRequestedPeriod}
                   format={isoFormat}
                   parse={isoParse}
+                  /* ขอสิทธิ์ย้อนหลังไม่ได้ — ทั้งวันเริ่มต้นและวันสิ้นสุดเลือก
+                     ได้ตั้งแต่วันนี้เป็นต้นไป (มติผู้ใช้ 25 ส.ค. 69) */
+                  minDate={requestPeriodFloor}
                   error={requestedPeriodInvalid ? 'วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น' : undefined}
-                  helperText='วันที่ผู้ขอเสนอ — Admin จะเป็นผู้กำหนดช่วงสิทธิจริง'
+                  helperText='อาจจะมีการปรับเปลี่ยนเวลาตามที่ผู้ดูแลระบบพิจารณาตามความเหมาะสม'
                 />
               </div>
             </div>

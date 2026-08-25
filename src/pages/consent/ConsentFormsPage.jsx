@@ -110,20 +110,15 @@ const AccessCell = ({ row, onView }) => (
 /* Cover illustration baked from Figma (PHCIS | Consent 356:111486). */
 const GRID_COVER = '/illustration/consent/form-cover-01.png';
 
-/* Hide the grid carousel rows' scrollbars (idempotent module-load injection). */
-if (typeof document !== 'undefined' && !document.getElementById('mih-grid-row-style')) {
-  const s = document.createElement('style');
-  s.id = 'mih-grid-row-style';
-  s.textContent = '.mih-grid-row{scrollbar-width:none;-ms-overflow-style:none;}.mih-grid-row::-webkit-scrollbar{display:none;height:0;}';
-  document.head.appendChild(s);
-}
 
 /* Grid-view card (Figma 336:170901) — cover illustration + type/version badge,
-   title, code, and ดู / พิมพ์ / แก้ไข actions. Fixed width for the carousel. */
+   title, code, and ดู / พิมพ์ / แก้ไข actions.
+   กว้างเต็ม track ของ grid — เดิมกว้างคงที่ 240px เพราะอยู่ใน carousel
+   แนวนอน ซึ่งถอดออกแล้ว (มติผู้ใช้ 25 ส.ค. 69) */
 const FormGridCard = ({ row, onView, onEdit }) => (
   <div
     className='flex flex-col'
-    style={{ width: 240, flexShrink: 0, background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)', borderRadius: 'var(--dim-radius-400)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}
+    style={{ width: '100%', background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)', borderRadius: 'var(--dim-radius-400)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}
   >
     <div style={{ width: '100%', height: 132, background: 'var(--surface-brandPrimary-quaternary)' }}>
       <img src={GRID_COVER} alt='' aria-hidden draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -143,42 +138,6 @@ const FormGridCard = ({ row, onView, onEdit }) => (
       </div>
     </div>
   </div>
-);
-
-/* Subtitle copy for grid group header. */
-const GROUP_SUBTITLE = 'หนังสือยินยอมเปิดเผยข้อมูลส่วนบุคคล (PDPA)';
-
-/* One Consent-type group — white card with a header (icon · title · type badge ·
-   count · subtitle · ดูทั้งหมด) and a horizontal carousel of form cards. */
-const GroupSection = ({ type, rows, onView, onEdit, onSeeAll, cardStyle }) => (
-  <section className='w-full flex flex-col' style={{ ...cardStyle, gap: 'var(--dim-space-400)' }}>
-    <div className='flex items-center justify-between w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
-        <span
-          className='inline-flex items-center justify-center shrink-0'
-          style={{ width: 'var(--dim-size-800, 40px)', height: 'var(--dim-size-800, 40px)', borderRadius: 'var(--dim-radius-200)', background: 'var(--surface-brandPrimary-quaternary)', color: 'var(--text-brandPrimary-default)' }}
-        >
-          <Icon name='clipboard-list' size={20} />
-        </span>
-        <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', lineHeight: 1.4 }}>
-              แบบฟอร์มยินยอมเปิดเผยข้อมูล
-            </span>
-            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>PDPA</ColorfulBadge>
-            <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>{rows.length} แบบฟอร์ม</ColorfulBadge>
-          </div>
-          <span className='truncate' style={{ ...MUTED_CELL }}>{GROUP_SUBTITLE}</span>
-        </div>
-      </div>
-      <NeutralSubdueButton trailingIcon='chevron_right' size='sm' onClick={onSeeAll}>ดูทั้งหมด</NeutralSubdueButton>
-    </div>
-    <div className='mih-grid-row' style={{ display: 'flex', gap: 'var(--dim-space-400)', overflowX: 'auto', paddingBottom: 'var(--dim-space-100)' }}>
-      {rows.map((r) => (
-        <FormGridCard key={r.id} row={r} onView={() => onView(r)} onEdit={() => onEdit(r)} />
-      ))}
-    </div>
-  </section>
 );
 
 export default function ConsentFormsPage() {
@@ -641,16 +600,24 @@ export default function ConsentFormsPage() {
             </SmoothFilterResults>
           ) : (
             <SmoothFilterResults opaque={resultsOpaque}>
-            <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
-              {grouped.map((g) => (
-                <GroupSection
-                  key={g.type}
-                  type={g.type}
-                  rows={g.rows}
-                  cardStyle={CARD_STYLE}
-                  onView={(r) => setViewFor(r)}
-                  onEdit={handleEdit}
-                  onSeeAll={() => { setViewMode('list'); setPage(1); }}
+            {/* มุมมองการ์ด = การ์ดล้วน ๆ ไม่มีหัวข้อกลุ่มและไม่แยก section
+                (มติผู้ใช้ 25 ส.ค. 69) — เดิมห่อทุกกลุ่มด้วยหัวข้อ
+                "แบบฟอร์มยินยอมเปิดเผยข้อมูล" ซ้ำกันและเลื่อนแนวนอนทีละแถว
+                ทำให้เห็นแบบฟอร์มได้ทีละไม่กี่ใบ */}
+            <div
+              className='grid w-full min-w-0'
+              style={{
+                gridTemplateColumns: 'repeat(auto-fill, minmax(var(--dim-size-2450, 280px), 1fr))',
+                gap: 'var(--dim-space-400)',
+                alignItems: 'start',
+              }}
+            >
+              {grouped.flatMap((g) => g.rows).map((r) => (
+                <FormGridCard
+                  key={r.id}
+                  row={r}
+                  onView={() => setViewFor(r)}
+                  onEdit={() => handleEdit(r)}
                 />
               ))}
             </div>
