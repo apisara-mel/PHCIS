@@ -3,7 +3,7 @@ import CheckboxButton from '@/components/checkbox/CheckboxButton';
 import FormScopeEditor from '@/components/consent/FormScopeEditor';
 import { consentScopeKey } from '@/data/consentFormScopes';
 
-/* Shared “บทบาท ที่มีสิทธิเข้าถึงได้” block — CreateConsentFormPage step 2
+/* Shared “บทบาทที่มีสิทธิเข้าถึงได้” block — CreateConsentFormPage step 2
    and FormScopeViewPopup edit mode use the same layout (heading + select-all +
    checkbox tree)
 
@@ -40,9 +40,11 @@ export default function FormScopeAccessEditor({
   onToggle,
   onToggleMany,
   columns = 2,
+  /** คอลัมน์ของกิจกรรมย่อยภายในการ์ดบทบาท — ส่งต่อให้ FormScopeEditor */
+  branchColumns = 1,
   variant = 'card',
-  heading = 'บทบาท ที่มีสิทธิเข้าถึงได้',
-  allLabel = 'ทุก บทบาท',
+  heading = 'บทบาทที่มีสิทธิเข้าถึงได้',
+  allLabel = 'ทุกบทบาท',
   readOnly = false,
   showHeading = true,
   style,
@@ -82,6 +84,7 @@ export default function FormScopeAccessEditor({
         onToggle={readOnly ? undefined : onToggle}
         onToggleMany={readOnly ? () => {} : onToggleMany}
         columns={columns}
+        branchColumns={branchColumns}
         readOnly={readOnly}
       />
     </>
