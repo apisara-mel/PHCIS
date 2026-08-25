@@ -312,7 +312,9 @@ const StepProgress = ({
       className={`flex items-start ${className}`}
       data-step-progress
       style={{
-        gap: 'var(--dim-space-050, 2px)',
+        /* 4px — 2px แคบเกินไปเมื่อป้ายขั้นตอนยาว ตัวหนังสือของสอง step
+           แทบชนกัน (25 ส.ค. 2569) */
+        gap: 'var(--dim-space-100, 4px)',
         transition: 'gap 200ms cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
