@@ -17,6 +17,11 @@ import SuccessToast from '@/components/toast/SuccessToast';
 import CenterEditPopup from '@/pages/system/CenterEditPopup';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import {
+  readStructures,
+  findStructureForCenter,
+  summarizeStructure,
+} from '@/data/centerStructure';
+import {
   readCenters,
   writeCenters,
   computeCenterStats,
@@ -209,6 +214,8 @@ export default function SystemCentersPage() {
   const [editCenter, setEditCenter] = useState(null);
   /* เพิ่มศูนย์บริการ — popup ฟอร์มเดียวกัน แค่ไม่มีศูนย์ตั้งต้น */
   const [addOpen, setAddOpen] = useState(false);
+  /* ทะเบียนรูปแบบโครงสร้าง — ใช้บอกว่าศูนย์ไหนผูกรูปแบบใดไว้ */
+  const [structures, setStructures] = useState(() => readStructures());
   const [exportReport, setExportReport] = useState(null);
   const [exportDone, setExportDone] = useState(false);
 
@@ -231,6 +238,8 @@ export default function SystemCentersPage() {
 
   const refresh = useCallback(() => {
     setCenters(readCenters());
+    /* อ่านทะเบียนรูปแบบใหม่ด้วย — ผูก/ยกเลิกรูปแบบจากหน้าอื่นแล้วคอลัมน์นี้ต้องตาม */
+    setStructures(readStructures());
   }, []);
 
   useEffect(() => {
@@ -318,6 +327,7 @@ export default function SystemCentersPage() {
       case 'phone': return row.phones?.[0] || '';
       case 'email': return row.emails?.[0] || '';
       case 'website': return row.website || '';
+      case 'structure': return findStructureForCenter(structures, row)?.name || '';
       case 'hours': return formatCenterHoursLine(row.hours, 'in', 'weekday');
       case 'active': return row.active ? 1 : 0;
       default: return '';
@@ -400,6 +410,21 @@ export default function SystemCentersPage() {
       render: (row) => <span style={TEXT_CELL}>{row.website || '—'}</span>,
     },
     {
+      key: 'structure',
+      header: 'รูปแบบโครงสร้างศูนย์',
+      minWidth: 260,
+      render: (row) => {
+        const tpl = findStructureForCenter(structures, row);
+        if (!tpl) return <span style={SUBTEXT_CELL}>ยังไม่ผูกรูปแบบ</span>;
+        return (
+          <div className='flex flex-col'>
+            <span style={TEXT_CELL}>{tpl.name}</span>
+            <span style={SUBTEXT_CELL}>{summarizeStructure(tpl.units)}</span>
+          </div>
+        );
+      },
+    },
+    {
       key: 'hours',
       header: 'เวลาทำการ',
       /* กว้างพอให้ "วันหยุดนักขัตฤกษ์ + นอกเวลา 16.00 - 20.00 น." อยู่บรรทัดเดียว */
@@ -431,7 +456,7 @@ export default function SystemCentersPage() {
         </NeutralSubdueButton>
       ),
     },
-  ], [centers]);
+  ], [centers, structures]);
 
   return (
     <>
@@ -443,9 +468,10 @@ export default function SystemCentersPage() {
         breadcrumb={breadcrumb}
         title='ศูนย์บริการ'
         headerInfo={hasCenters ? (
-          /* ชื่อหน้า + ปุ่มเพิ่มศูนย์อยู่ใน SubHeader มาตรฐานแล้ว (เหมือนหน้าอื่น)
-             ตรงนี้จึงเหลือเฉพาะการ์ดสรุป และเว้นบน 24px ให้เท่าหน้าอื่น */
-          <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)', paddingTop: 'var(--dim-space-600)' }}>
+          /* ชื่อหน้า + ปุ่มเพิ่มศูนย์อยู่ใน SubHeader มาตรฐานแล้ว ตรงนี้เหลือเฉพาะ
+             การ์ดสรุป — ไม่เว้นบน ให้ชิด SubHeader เท่าหน้าจัดการความยินยอม
+             (25 ส.ค. 2569 เดิมเว้น 24px ทำให้ห่างจากปุ่มมากกว่าหน้าอื่น) */
+          <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
             <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               {summaryCards.map((c) => (
                 <SummaryCard key={c.key} card={c} variant='panel' />

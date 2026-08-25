@@ -395,6 +395,16 @@ export function computeCenterStats(centers) {
   };
 }
 
+/** รหัสศูนย์ถัดไปที่ยังว่าง — ต่อจากรหัสตัวเลขที่มากที่สุดในทะเบียน
+    (ศูนย์บริการสาธารณสุขใช้รหัสเรียงเลข 1..69 อยู่แล้ว) */
+export function nextCenterCode(centers) {
+  const max = (centers || []).reduce((acc, c) => {
+    const n = Number(String(c.code || '').trim());
+    return Number.isFinite(n) && n > acc ? n : acc;
+  }, 0);
+  return String(max + 1);
+}
+
 export function isDuplicateCenterCode(centers, code, excludeId = null) {
   const norm = String(code || '').trim();
   if (!norm) return false;

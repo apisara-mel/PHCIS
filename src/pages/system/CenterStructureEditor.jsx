@@ -150,17 +150,6 @@ function NodeRow({ node, onChange, onDuplicate, onRemove, canRemove }) {
         borderRadius: 'var(--dim-radius-300)',
       }}
     >
-      <div style={{ flex: '1 1 180px', minWidth: 160 }}>
-        <Select
-          label='ประเภท'
-          showHelperText={false}
-          size='medium'
-          searchable={false}
-          options={NODE_KINDS.map((k) => ({ value: k.key, label: k.label }))}
-          value={node.kind}
-          onChange={(v) => onChange({ kind: v })}
-        />
-      </div>
       <div style={{ flex: '2 1 200px', minWidth: 180 }}>
         <InputField
           label={isBed ? 'ชื่อเตียง' : 'ชื่อห้องตรวจ'}
@@ -268,17 +257,6 @@ function UnitCard({ unit, index, onChange, onDuplicate, onRemove, canRemove }) {
 
       <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
         {/* ประเภทเป็นแค่ป้ายกำกับ ไม่ใช่ชั้นของโครงสร้าง — แผนกกับคลินิกอยู่ระดับเดียวกัน */}
-        <div style={{ flex: '1 1 180px', minWidth: 160 }}>
-          <Select
-            label='ประเภท'
-            showHelperText={false}
-            size='medium'
-            searchable={false}
-            options={UNIT_KINDS.map((k) => ({ value: k.key, label: k.label }))}
-            value={unit.kind}
-            onChange={(v) => onChange({ kind: v })}
-          />
-        </div>
         <div style={{ flex: '2 1 260px', minWidth: 220 }}>
           <InputField
             label={`ชื่อ${unitKindLabel(unit.kind)}`}
@@ -370,6 +348,8 @@ export default function CenterStructureEditor({
   centerOptions,
   /* ซ่อนการ์ด "ใช้รูปแบบนี้กับศูนย์" ในบริบทที่ผูกศูนย์อยู่แล้ว */
   showAppliedCenters = true,
+  /* false = โชว์เฉพาะการ์ด "ใช้รูปแบบนี้กับศูนย์" (ใช้ตอนแยกเป็น step) */
+  showUnits = true,
 }) {
   const setUnit = (unitId, patch) => onUnitsChange(
     units.map((u) => (u.id === unitId ? { ...u, ...patch } : u)),
@@ -419,23 +399,34 @@ export default function CenterStructureEditor({
         </section>
       )}
 
-      {units.map((unit, i) => (
-        <UnitCard
-          key={unit.id}
-          unit={unit}
-          index={i}
-          canRemove={units.length > 1}
-          onChange={(patch) => setUnit(unit.id, patch)}
-          onDuplicate={() => dupUnit(unit)}
-          onRemove={() => delUnit(unit.id)}
-        />
-      ))}
+      {showUnits ? (
+        <>
+          {units.map((unit, i) => (
+            <UnitCard
+              key={unit.id}
+              unit={unit}
+              index={i}
+              canRemove={units.length > 1}
+              onChange={(patch) => setUnit(unit.id, patch)}
+              onDuplicate={() => dupUnit(unit)}
+              onRemove={() => delUnit(unit.id)}
+            />
+          ))}
 
-      {/* แผนกกับคลินิกคือหน่วยระดับเดียวกัน — ปุ่มเดียว "เพิ่มแผนก/คลินิก"
-          (เริ่มเป็นแผนก แล้วสลับชนิดได้จาก dropdown ในการ์ด — 22 ส.ค. 2569) */}
-      <BrandDashedAddButton className='w-full' style={{ width: '100%' }} onClick={() => addUnit('department')}>
-        เพิ่มแผนก/คลินิก
-      </BrandDashedAddButton>
+          {/* แผนกกับคลินิกคือหน่วยระดับเดียวกัน ต่างกันแค่ป้ายกำกับ
+              ถอดช่อง "ประเภท" ออกจากการ์ดแล้ว (25 ส.ค. 2569) — ชนิดของหน่วย
+              จึงกำหนดตั้งแต่ตอนกดเพิ่ม แยกเป็นสองปุ่มไปเลย ไม่งั้นจะสร้าง
+              "คลินิก" ไม่ได้อีกเลย */}
+          <div className='flex w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            <BrandDashedAddButton className='flex-1' style={{ flex: 1 }} onClick={() => addUnit('department')}>
+              เพิ่มแผนก
+            </BrandDashedAddButton>
+            <BrandDashedAddButton className='flex-1' style={{ flex: 1 }} onClick={() => addUnit('clinic')}>
+              เพิ่มคลินิก
+            </BrandDashedAddButton>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

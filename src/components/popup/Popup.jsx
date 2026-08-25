@@ -223,6 +223,9 @@ const Popup = ({
   primaryAction,
   secondaryAction,
   tertiaryAction,
+  /* โหนดที่วางกึ่งกลางแถวหัวข้อ (เช่น แถบ step ของ popup แบบหลายขั้น) —
+     ต่างจาก headerTrailing ที่ชิดขวาติดปุ่มปิด */
+  headerCenter,
   actions,
   footer,
   className = '',
@@ -470,6 +473,8 @@ const Popup = ({
             paddingBottom: 'var(--dim-space-600)',
             paddingLeft: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
             background: 'var(--surface-modal-default)',
+            /* ให้ headerCenter วางกึ่งกลางจริงด้วย absolute ได้ */
+            position: 'relative',
             ...headerStyle,
           }}
         >
@@ -508,6 +513,21 @@ const Popup = ({
               </p>
             )}
           </div>
+          {headerCenter ? (
+            /* กึ่งกลาง popup จริง ๆ ไม่ใช่กึ่งกลางของพื้นที่ที่เหลือจาก title
+               (ถ้าอยู่ใน flow ปกติ title จะดันให้เยื้องไปทางขวา) */
+            <div
+              className='absolute flex items-start justify-center'
+              style={{
+                left: 0,
+                right: 0,
+                top: 'var(--dim-space-600)',
+                pointerEvents: 'none',
+              }}
+            >
+              <div style={{ pointerEvents: 'auto' }}>{headerCenter}</div>
+            </div>
+          ) : null}
           {(headerTrailing || showCloseButton) && (
             <div
               className='inline-flex shrink-0 items-center'

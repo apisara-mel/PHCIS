@@ -39,6 +39,7 @@ import {
   writeCenters,
   createCenter,
   isDuplicateCenterCode,
+  nextCenterCode,
   isDuplicateHcode9,
   formatCenterHoursLine,
   normalizeHcode9,
@@ -74,7 +75,9 @@ const STEPS = [
   { key: 'contact', n: 3, label: 'ข้อมูลการติดต่อ' },
   { key: 'hours', n: 4, label: 'เวลาทำการ' },
   /* สร้างศูนย์แล้วสร้างแผนก/คลินิก + ห้องตรวจ/เตียง ไปพร้อมกันในขั้นตอนเดียว */
-  { key: 'structure', n: 5, label: 'แผนกและคลินิก' },
+  /* ป้าย step เปลี่ยนจาก "แผนกและคลินิก" เป็น "รูปแบบโครงสร้างศูนย์"
+     25 ส.ค. 2569 — ให้ตรงกับชื่อเมนู/ทะเบียนที่ step นี้ไปหยิบรูปแบบมาใช้ */
+  { key: 'structure', n: 5, label: 'รูปแบบโครงสร้างศูนย์' },
   { key: 'review', n: 6, label: 'รีวิว' },
 ];
 /* ศูนย์บริการสาธารณสุขทั้งหมดอยู่ในกรุงเทพมหานคร — ช่องจังหวัดจึงล็อกค่าไว้
@@ -231,6 +234,12 @@ const FIELD_HINT = {
   lineHeight: 1.5,
 };
 
+/* ข้อความใต้ช่องตอนกรอกซ้ำ — ใช้สีเดียวกับ helper ตอน error ของ InputField */
+const FIELD_ERROR = {
+  ...FIELD_HINT,
+  color: 'var(--text-input-errorHelper, var(--text-danger-secondary))',
+};
+
 const REVIEW_PANEL_TITLE = {
   color: 'var(--text-topic-tertiary-title)',
   fontFamily: 'var(--type-family-heading-graphic2)',
@@ -269,7 +278,9 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
   const [info, setInfo] = useState(() => ({
     hcode9: existing?.hcode9 || '',
     hcode5: existing?.hcode5 || '',
-    code: existing?.code || '',
+    /* สร้างใหม่ = เติมรหัสศูนย์ถัดไปให้เลย (ต่อจากรหัสสูงสุดในทะเบียน)
+       ผู้ใช้แก้ทับได้ — ระบบตรวจซ้ำให้อยู่แล้ว (25 ส.ค. 2569) */
+    code: existing?.code || nextCenterCode(readCenters()),
     name: existing?.name || '',
   }));
   const [hcode5Touched, setHcode5Touched] = useState(false);
@@ -336,11 +347,43 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
     setContactDelete(null);
   };
 
+  /* ศูนย์ที่มีอยู่แล้วในทะเบียน — ใช้ทั้งรายการ "ดูรหัสที่มีอยู่" และตัวเลือก
+     ศูนย์ที่จะใช้รูปแบบโครงสร้างเดียวกัน. อ่านครั้งเดียวตอน mount ก็พอ เพราะ
+     ทะเบียนเปลี่ยนได้จากหน้าอื่นเท่านั้น ไม่ใช่จากในฟอร์มนี้. */
+  const existingCenters = useMemo(
+    () => readCenters().filter((c) => !c.draft && c.id !== editing?.id),
+    [editing],
+  );
+  /* ตรวจซ้ำกับทะเบียนที่มีอยู่ (ไม่นับศูนย์ที่กำลังแก้ไข) —
+     ไม่ซ้ำ = ติ๊กถูกท้ายช่อง · ซ้ำ = ขึ้น error ใต้ช่องและไปขั้นถัดไปไม่ได้ */
+  const codeDupOwner = useMemo(() => {
+    const v = info.code.trim();
+    if (!v) return null;
+    return existingCenters.find((c) => String(c.code || '').trim() === v) || null;
+  }, [info.code, existingCenters]);
+  const nameDupOwner = useMemo(() => {
+    const v = info.name.trim();
+    if (!v) return null;
+    return existingCenters.find((c) => String(c.name || '').trim() === v) || null;
+  }, [info.name, existingCenters]);
+
+  const codeError = codeDupOwner
+    ? `รหัสศูนย์นี้ถูกใช้แล้วโดย "${codeDupOwner.name || 'ศูนย์บริการอื่น'}"${codeDupOwner.hcode9 ? ` (${codeDupOwner.hcode9})` : ''}`
+    : '';
+  const nameError = nameDupOwner
+    ? `ชื่อนี้ถูกใช้แล้ว${nameDupOwner.code ? ` โดยศูนย์รหัส ${nameDupOwner.code}` : ''}${nameDupOwner.hcode9 ? ` (${nameDupOwner.hcode9})` : ''}`
+    : '';
+
+  const codeUnique = !!info.code.trim() && !codeDupOwner;
+  const nameUnique = !!info.name.trim() && !nameDupOwner;
+
   /* บังคับแค่รหัส 9 หลัก (+ ชื่อศูนย์) — รหัส 5 หลักและรหัสศูนย์ไม่บังคับ */
   const hcode9Error = info.hcode9 && !isValidHcode9(info.hcode9)
     ? 'รูปแบบไม่ถูกต้อง — ต้องเป็นตัวอักษร 2 ตัวตามด้วยตัวเลข 7 หลัก เช่น GA0012460'
     : '';
-  const infoValid = isValidHcode9(info.hcode9) && info.name.trim();
+  /* ซ้ำแล้วไปต่อไม่ได้ — เดิมปล่อยผ่านจนถึงตอนกดบันทึกแล้วค่อยเด้ง alert */
+  const infoValid = isValidHcode9(info.hcode9) && info.name.trim()
+    && !codeDupOwner && !nameDupOwner;
   const locationValid = Boolean(loc.zip && loc.province && loc.district && loc.pinSaved);
   /* ช่องอีเมลไม่บังคับกรอก แต่ถ้ากรอกแล้วต้องถูกรูปแบบ ไม่งั้นไปขั้นถัดไปไม่ได้ */
   const contactValid = emails.every(isValidEmail);
@@ -357,6 +400,9 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
       hcode5: hcode5Touched ? p.hcode5 : deriveHcode5(next),
     }));
   };
+
+  /* รหัสศูนย์เป็นตัวเลขล้วน — กรองตัวอักษรทิ้งตั้งแต่ตอนพิมพ์ (25 ส.ค. 2569) */
+  const setCode = (raw) => setInfo((p) => ({ ...p, code: String(raw || '').replace(/\D/g, '') }));
 
   const setHcode5 = (raw) => {
     setHcode5Touched(true);
@@ -439,22 +485,6 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
     if (editing || onSaved) done(); else setSubmitted(true);
   };
 
-  /* ศูนย์ที่มีอยู่แล้วในทะเบียน — ใช้ทั้งรายการ "ดูรหัสที่มีอยู่" และตัวเลือก
-     ศูนย์ที่จะใช้รูปแบบโครงสร้างเดียวกัน. อ่านครั้งเดียวตอน mount ก็พอ เพราะ
-     ทะเบียนเปลี่ยนได้จากหน้าอื่นเท่านั้น ไม่ใช่จากในฟอร์มนี้. */
-  const existingCenters = useMemo(
-    () => readCenters().filter((c) => !c.draft && c.id !== editing?.id),
-    [editing],
-  );
-  /* ติ๊กถูกท้ายช่อง: กรอกแล้วและไม่ซ้ำกับทะเบียนที่มีอยู่ (ไม่นับศูนย์ที่กำลังแก้ไข) */
-  const codeUnique = useMemo(() => {
-    const v = info.code.trim();
-    return !!v && !existingCenters.some((c) => String(c.code || '').trim() === v);
-  }, [info.code, existingCenters]);
-  const nameUnique = useMemo(() => {
-    const v = info.name.trim();
-    return !!v && !existingCenters.some((c) => String(c.name || '').trim() === v);
-  }, [info.name, existingCenters]);
 
   /* รูปแบบโครงสร้างที่บันทึกไว้จากหน้า "รูปแบบโครงสร้างศูนย์" */
   const savedStructures = useMemo(() => readStructures(), []);
@@ -496,7 +526,7 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
 
   return {
     step, setStep, idx, goNext, goPrev, STEPS, footerPrimary,
-    info, setI, setHcode9, setHcode5, hcode9Error,
+    info, setI, setHcode9, setHcode5, setCode, hcode9Error,
     loc, setL, handleDistrictChange, mapValue, handleMapChange,
     phones, setPhones, handleRemovePhone,
     emails, setEmails, handleRemoveEmail,
@@ -507,7 +537,7 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
     structureTemplateId, setStructureTemplateId,
     savedStructures, otherCenterOptions,
     existingCenters, showCodeList, setShowCodeList, codeListMode,
-    codeUnique, nameUnique,
+    codeUnique, nameUnique, codeError, nameError,
     infoValid, locationValid, contactValid, structureValid,
     persistCenter, handleSaveDraft, handleCreate, cancel,
     submitted, setSubmitted,
@@ -521,8 +551,8 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
 
 export function CenterFormBody({ form }) {
   const {
-    step, info, setI, setHcode9, setHcode5, hcode9Error,
-    existingCenters, setShowCodeList, codeUnique, nameUnique,
+    step, info, setI, setHcode9, setHcode5, setCode, hcode9Error,
+    existingCenters, setShowCodeList, codeUnique, nameUnique, codeError, nameError,
     loc, setL, handleDistrictChange, mapValue, handleMapChange,
     phones, setPhones, handleRemovePhone,
     emails, setEmails, handleRemoveEmail,
@@ -577,7 +607,7 @@ export function CenterFormBody({ form }) {
                     />
                   </div>
                   <span style={FIELD_HINT}>
-                    ไม่บังคับ — เติมให้อัตโนมัติจากรหัส 9 หลัก ใช้อ้างอิงกับระบบและรายงานเดิมที่ยังใช้รหัส 5 หลัก
+                    เติมให้อัตโนมัติจากรหัส 9 หลัก ใช้อ้างอิงกับระบบและรายงานเดิมที่ยังใช้รหัส 5 หลัก
                   </span>
                 </div>
 
@@ -587,8 +617,11 @@ export function CenterFormBody({ form }) {
                       <InputField
                         label='รหัสศูนย์'
                         value={info.code}
-                        onChange={setI('code')}
+                        onChange={setCode}
                         placeholder='เช่น 4'
+                        inputMode='numeric'
+                        error={codeError || undefined}
+                        showHelperText={false}
                         trailing={codeUnique ? <UniqueTick label='รหัสศูนย์นี้ยังไม่ถูกใช้' /> : undefined}
                       />
                     </div>
@@ -601,7 +634,9 @@ export function CenterFormBody({ form }) {
                       {`ดูรหัสที่มีอยู่ (${existingCenters.length})`}
                     </NeutralSubdueButton>
                   </div>
-                  <span style={FIELD_HINT}>รหัสศูนย์ต้องไม่ซ้ำกับที่มีอยู่แล้ว</span>
+                  <span style={codeError ? FIELD_ERROR : FIELD_HINT}>
+                    {codeError || 'รหัสศูนย์ต้องไม่ซ้ำกับที่มีอยู่แล้ว'}
+                  </span>
                 </div>
 
                 <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
@@ -613,6 +648,8 @@ export function CenterFormBody({ form }) {
                         value={info.name}
                         onChange={setI('name')}
                         placeholder='ศูนย์ดินแดง'
+                        error={nameError || undefined}
+                        showHelperText={false}
                         trailing={nameUnique ? <UniqueTick label='ชื่อนี้ยังไม่ถูกใช้' /> : undefined}
                       />
                     </div>
@@ -625,7 +662,9 @@ export function CenterFormBody({ form }) {
                       {`ดูชื่อที่มีอยู่ (${existingCenters.length})`}
                     </NeutralSubdueButton>
                   </div>
-                  <span style={FIELD_HINT}>ชื่อต้องไม่ซ้ำกับที่มีอยู่แล้ว</span>
+                  <span style={nameError ? FIELD_ERROR : FIELD_HINT}>
+                    {nameError || 'ชื่อต้องไม่ซ้ำกับที่มีอยู่แล้ว'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -729,10 +768,15 @@ export function CenterFormBody({ form }) {
                 showChevron={false}
                 showSuccess={false}
               />
-              {/* แยกตามกลุ่มวัน: จันทร์-ศุกร์ · เสาร์-อาทิตย์ · วันหยุดนักขัตฤกษ์
-                  กลุ่มไหนปิดทำการก็ปิดสวิตช์ทิ้งไว้ ไม่ต้องกรอกเวลา */}
+              {/* แยกตามกลุ่มวัน: จันทร์-ศุกร์ · เสาร์-อาทิตย์
+                  กลุ่มไหนปิดทำการก็ปิดสวิตช์ทิ้งไว้ ไม่ต้องกรอกเวลา
+
+                  "วันหยุดนักขัตฤกษ์" ถูกถอดออกจาก step นี้ 25 ส.ค. 2569 —
+                  ย้ายไปคุมที่เมนู "วันหยุดประจำปี" ของจัดการระบบ ซึ่งเป็น
+                  ทะเบียนกลางตามประกาศสำนักนายกฯ ใช้ร่วมกันทุกศูนย์
+                  (ตั้งทีละศูนย์แล้วประกาศเปลี่ยนต้องไล่แก้ 69 ที่) */}
               <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-                {HOUR_GROUPS.map((g) => (
+                {HOUR_GROUPS.filter((g) => g.key !== 'holiday').map((g) => (
                   <DayGroupHoursPanel
                     key={g.key}
                     group={g}
@@ -740,6 +784,10 @@ export function CenterFormBody({ form }) {
                     onChange={(patch) => setGroupHours(g.key, patch)}
                   />
                 ))}
+                <span style={FIELD_HINT}>
+                  วันหยุดนักขัตฤกษ์ปิดทำการตามประกาศวันหยุดราชการ —
+                  แก้ไขได้ที่เมนู “วันหยุดประจำปี” ของจัดการระบบ ใช้ร่วมกันทุกศูนย์
+                </span>
               </div>
             </div>
           )}
@@ -766,12 +814,13 @@ export function CenterFormBody({ form }) {
                   setUnits(tpl ? instantiateUnits(tpl.units) : defaultStructure());
                 }}
               />
+              {/* section "ใช้รูปแบบโครงสร้างนี้กับศูนย์" ถูกถอดออกจากฟอร์มเพิ่มศูนย์
+                  25 ส.ค. 2569 — ตอนสร้างศูนย์ยังไม่ใช่จังหวะไปผูกรูปแบบให้ศูนย์อื่น
+                  ยังใช้ได้ตามเดิมที่หน้า "รูปแบบโครงสร้างศูนย์" ซึ่งเป็นที่ของมัน */}
               <CenterStructureEditor
                 units={units}
                 onUnitsChange={setUnits}
-                appliedCenters={appliedCenters}
-                onAppliedCentersChange={setAppliedCenters}
-                centerOptions={otherCenterOptions}
+                showAppliedCenters={false}
               />
 
               {/* สาขาย่อย — ศูนย์หนึ่งแห่งมีจุดให้บริการย่อยในชุมชนได้หลายจุด
@@ -1025,13 +1074,19 @@ function ExistingCodesPopup({ open, centers, onClose, mode = 'code' }) {
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            columnGap: 'var(--dim-space-500)',
+            /* 40px ตามที่ผู้ใช้กำหนด — สเกล dimension.space ไม่มีขั้น 40px
+               (มีแค่ 32 = space-800 กับ 48 = space-1200) จึงอ้าง dimension.size.800
+               ซึ่งมีค่า 40px ตรงตัว · ถ้า Figma ยืนยันว่า gap 40px เป็นค่ามาตรฐาน
+               ควรเพิ่ม --dim-space-1000: 40px ที่ mih-design แล้ว tokens:pull */
+            columnGap: 'var(--dim-size-800, 40px)',
           }}
         >
           {centers.map((c) => (
             <div
               key={c.id}
-              className='flex items-center justify-between flex-wrap w-full'
+              /* ชิดซ้ายทั้งแถว — เดิม justify-between ดันรหัสหน่วยบริการไปสุดขอบขวา
+                 ทำให้ตากวาดไกลระหว่างชื่อกับรหัส (25 ส.ค. 2569) */
+              className='flex items-center min-w-0 w-full'
               style={{
                 gap: 'var(--dim-space-300)',
                 paddingTop: 'var(--dim-space-300)',
@@ -1041,13 +1096,11 @@ function ExistingCodesPopup({ open, centers, onClose, mode = 'code' }) {
                 borderRadius: 'var(--dim-radius-200, 8px)',
               }}
             >
-              <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
-                <ColorfulBadge style='green'>{c.code || '—'}</ColorfulBadge>
-                <span className='truncate' style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-                  {c.name || 'ไม่มีชื่อศูนย์'}
-                </span>
-              </div>
-              <span style={FIELD_HINT}>{c.hcode9 || 'ไม่มีรหัสหน่วยบริการ'}</span>
+              <ColorfulBadge style='green'>{c.code || '—'}</ColorfulBadge>
+              <span className='truncate' style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+                {c.name || 'ไม่มีชื่อศูนย์'}
+              </span>
+              <span style={{ ...FIELD_HINT, whiteSpace: 'nowrap' }}>{c.hcode9 || 'ไม่มีรหัสหน่วยบริการ'}</span>
             </div>
           ))}
         </div>
@@ -1220,8 +1273,19 @@ function DayGroupHoursPanel({ group, value, onChange }) {
       }}
     >
       <div className='flex items-center justify-between flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
-        <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-          <Icon name={group.icon} size={20} style={{ color: 'var(--text-brandPrimary-default)', flexShrink: 0 }} />
+        {/* ไอคอนเรียงกับ "บรรทัดหัวข้อ" ไม่ใช่กึ่งกลางของบล็อกสองบรรทัด —
+            หัวข้อ 16px line-height 1.5 = สูง 24px · ไอคอน 20px จึงเยื้องลง 2px
+            เพื่อให้ศูนย์กลางไอคอนตรงกับศูนย์กลางบรรทัดหัวข้อ (25 ส.ค. 2569) */}
+        <div className='flex items-start min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <Icon
+            name={group.icon}
+            size={20}
+            style={{
+              color: 'var(--text-brandPrimary-default)',
+              flexShrink: 0,
+              marginTop: 'var(--dim-space-050, 2px)',
+            }}
+          />
           <div className='flex flex-col min-w-0'>
             <span style={{ color: 'var(--text-topic-tertiary-title)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)', lineHeight: 1.5 }}>
               {group.label}

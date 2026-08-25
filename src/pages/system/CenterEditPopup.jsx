@@ -55,12 +55,16 @@ export default function CenterEditPopup({ open, center, onClose, onSaved }) {
         /* step อยู่บรรทัดเดียวกับหัวข้อ popup (25 ส.ค. 2569) — เดิมเป็นแถบ
            framed ใต้หัวข้อ ทำให้ "ข้อความ" กับ "step" คนละบรรทัด */
         headerTrailing={(
-          <StepProgress
-            steps={CENTER_FORM_STEPS.map((st) => st.label)}
-            current={idx}
-            onStepClick={(i) => { if (i < idx) setStep(CENTER_FORM_STEPS[i].key); }}
-            labelNoWrap
-          />
+          /* ดันแถบ step ลงมาหนึ่งบรรทัด (24px) — หัวข้อ popup อยู่บรรทัดบน
+             แถวเลข step จะได้ไม่ชนระดับเดียวกับตัวหนังสือพอดี (25 ส.ค. 2569) */
+          <div style={{ paddingTop: 'var(--dim-space-600, 24px)' }}>
+            <StepProgress
+              steps={CENTER_FORM_STEPS.map((st) => st.label)}
+              current={idx}
+              onStepClick={(i) => { if (i < idx) setStep(CENTER_FORM_STEPS[i].key); }}
+              labelNoWrap
+            />
+          </div>
         )}
         secondaryAction={idx > 0
           ? { label: 'ย้อนกลับ', onClick: form.goPrev }

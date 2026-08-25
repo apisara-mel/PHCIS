@@ -154,13 +154,136 @@ export function createStructureTemplate(patch = {}) {
   };
 }
 
+/* ── ชุดตั้งต้นสำหรับเดโม ─────────────────────────────────────────────
+   ศูนย์บริการสาธารณสุขของ กทม. ไม่ได้มีโครงสร้างเดียวกันทั้ง 69 แห่ง —
+   ศูนย์ใหญ่มีทันตกรรม/ชันสูตร/รังสีครบ ส่วนศูนย์เล็กมีแค่ตรวจโรคทั่วไป
+   กับห้องยา จึงทำเป็น "รูปแบบ" ไว้ 4 แบบให้เลือกใช้ซ้ำตอนเพิ่มศูนย์
+   ⚠️ การจับคู่ว่าศูนย์ไหนใช้รูปแบบไหนเป็นข้อมูลสมมุติสำหรับเดโม
+   ยังไม่ใช่ผังจริงจากสำนักอนามัย */
+
+const hcode = (n) => `GA00${12456 + n}`;
+
+/* ศูนย์บริการทุกแห่งต้องผูกรูปแบบโครงสร้าง — แบ่งตามขนาดของศูนย์
+   ที่เหลือจาก "ใหญ่" กับ "กลาง" ถือเป็นศูนย์ขนาดเล็กทั้งหมด จึงไม่มีศูนย์ไหน
+   หลุดออกจากทะเบียนรูปแบบ (25 ส.ค. 2569) */
+const ALL_CENTER_NOS = Array.from({ length: 69 }, (_, i) => i + 1);
+const BIG_CENTER_NOS = [1, 3, 4, 7, 10, 21, 22, 25, 35, 41, 43, 49, 57, 60, 64, 69];
+const MEDIUM_CENTER_NOS = [
+  2, 5, 6, 8, 9, 11, 12, 15, 17, 19, 23, 24, 26, 29, 30,
+  33, 36, 37, 40, 45, 48, 51, 53, 56, 61, 62, 66, 67,
+];
+const SMALL_CENTER_NOS = ALL_CENTER_NOS.filter(
+  (n) => !BIG_CENTER_NOS.includes(n) && !MEDIUM_CENTER_NOS.includes(n),
+);
+
+const DEMO_TEMPLATES = [
+  {
+    id: 'structure-demo-full',
+    name: 'ศูนย์ขนาดใหญ่ — ครบทุกงานบริการ',
+    appliedCenters: BIG_CENTER_NOS.map(hcode),
+    units: [
+      { kind: 'department', name: 'ผู้ป่วยนอก (OPD)', code: 'OPD', nodes: [
+        { kind: 'room', name: 'ห้องตรวจ 1', code: 'R1', doctor: 'พญ.สมหญิง รักษ์ดี' },
+        { kind: 'room', name: 'ห้องตรวจ 2', code: 'R2', doctor: 'นพ.ธนกฤต ใจดี' },
+        { kind: 'room', name: 'ห้องตรวจ 3', code: 'R3', doctor: '' },
+        { kind: 'bed', name: 'เตียงสังเกตอาการ', code: 'B1', capacity: 4 },
+      ] },
+      { kind: 'department', name: 'ทันตกรรม', code: 'DENT', nodes: [
+        { kind: 'room', name: 'ยูนิตทำฟัน 1', code: 'D1', doctor: 'ทพ.ณัฐพล ยิ้มสวย' },
+        { kind: 'room', name: 'ยูนิตทำฟัน 2', code: 'D2', doctor: '' },
+      ] },
+      { kind: 'department', name: 'เภสัชกรรม', code: 'PHAR', nodes: [
+        { kind: 'room', name: 'ช่องจ่ายยา 1', code: 'P1' },
+        { kind: 'room', name: 'ช่องจ่ายยา 2', code: 'P2' },
+      ] },
+      { kind: 'department', name: 'ชันสูตรโรค', code: 'LAB', nodes: [
+        { kind: 'room', name: 'ห้องเจาะเลือด', code: 'L1' },
+      ] },
+      { kind: 'department', name: 'รังสีวินิจฉัย', code: 'XRAY', nodes: [
+        { kind: 'room', name: 'ห้องเอกซเรย์', code: 'X1' },
+      ] },
+      { kind: 'clinic', name: 'คลินิกโรคเรื้อรัง (เบาหวาน/ความดัน)', code: 'NCD', nodes: [
+        { kind: 'room', name: 'ห้องตรวจ NCD', code: 'N1', doctor: 'นพ.ธนกฤต ใจดี' },
+      ] },
+      { kind: 'clinic', name: 'คลินิกฝากครรภ์', code: 'ANC', nodes: [
+        { kind: 'room', name: 'ห้องตรวจ ANC', code: 'A1' },
+      ] },
+      { kind: 'clinic', name: 'คลินิกสร้างเสริมภูมิคุ้มกันโรค', code: 'EPI', nodes: [
+        { kind: 'room', name: 'ห้องฉีดวัคซีน', code: 'E1' },
+      ] },
+    ],
+  },
+  {
+    id: 'structure-demo-medium',
+    name: 'ศูนย์ขนาดกลาง — มีทันตกรรม',
+    appliedCenters: MEDIUM_CENTER_NOS.map(hcode),
+    units: [
+      { kind: 'department', name: 'ผู้ป่วยนอก (OPD)', code: 'OPD', nodes: [
+        { kind: 'room', name: 'ห้องตรวจ 1', code: 'R1', doctor: '' },
+        { kind: 'room', name: 'ห้องตรวจ 2', code: 'R2', doctor: '' },
+        { kind: 'bed', name: 'เตียงสังเกตอาการ', code: 'B1', capacity: 2 },
+      ] },
+      { kind: 'department', name: 'ทันตกรรม', code: 'DENT', nodes: [
+        { kind: 'room', name: 'ยูนิตทำฟัน', code: 'D1' },
+      ] },
+      { kind: 'department', name: 'เภสัชกรรม', code: 'PHAR', nodes: [
+        { kind: 'room', name: 'ช่องจ่ายยา', code: 'P1' },
+      ] },
+      { kind: 'clinic', name: 'คลินิกโรคเรื้อรัง (เบาหวาน/ความดัน)', code: 'NCD', nodes: [
+        { kind: 'room', name: 'ห้องตรวจ NCD', code: 'N1' },
+      ] },
+    ],
+  },
+  {
+    id: 'structure-demo-small',
+    name: 'ศูนย์ขนาดเล็ก — ตรวจโรคทั่วไป',
+    appliedCenters: SMALL_CENTER_NOS.map(hcode),
+    units: [
+      { kind: 'department', name: 'ผู้ป่วยนอก (OPD)', code: 'OPD', nodes: [
+        { kind: 'room', name: 'ห้องตรวจ', code: 'R1' },
+        { kind: 'bed', name: 'เตียงสังเกตอาการ', code: 'B1', capacity: 1 },
+      ] },
+      { kind: 'department', name: 'เภสัชกรรม', code: 'PHAR', nodes: [
+        { kind: 'room', name: 'ช่องจ่ายยา', code: 'P1' },
+      ] },
+    ],
+  },
+  {
+    id: 'structure-demo-branch',
+    name: 'สาขาย่อย/จุดบริการชุมชน',
+    appliedCenters: [],
+    draft: true,
+    units: [
+      { kind: 'clinic', name: 'จุดบริการชุมชน', code: 'CBS', nodes: [
+        { kind: 'room', name: 'โต๊ะตรวจ', code: 'C1' },
+      ] },
+    ],
+  },
+];
+
+export const DEMO_STRUCTURES = DEMO_TEMPLATES.map((t) => ({
+  ...createStructureTemplate({
+    name: t.name,
+    units: t.units.map((u) => createUnit(u)),
+    appliedCenters: t.appliedCenters,
+    draft: t.draft,
+  }),
+  /* id คงที่ เพื่อให้ลิงก์ /admin/structures/:id/edit ใช้ได้ทุกครั้งที่โหลด */
+  id: t.id,
+}));
+
 export function readStructures() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw == null ? [] : JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.map(normalizeTemplate) : [];
+    /* เบราว์เซอร์ใหม่ให้ชุดตัวอย่าง — ไม่งั้นหน้า "รูปแบบโครงสร้างศูนย์" ว่าง
+       และ dropdown "ใช้รูปแบบที่เคยสร้างไว้" ในฟอร์มเพิ่มศูนย์ก็ไม่มีอะไรให้เลือก
+       (แบบเดียวกับ readCenters ที่คืน DEMO_CENTERS) */
+    if (raw == null) return DEMO_STRUCTURES.map(normalizeTemplate);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.length) return DEMO_STRUCTURES.map(normalizeTemplate);
+    return parsed.map(normalizeTemplate);
   } catch {
-    return [];
+    return DEMO_STRUCTURES.map(normalizeTemplate);
   }
 }
 
@@ -182,6 +305,17 @@ export function writeStructures(list) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch { /* private mode / storage เต็ม — ข้ามไป ไม่ให้หน้าจอพัง */ }
+}
+
+/** รูปแบบโครงสร้างที่ศูนย์นี้ผูกอยู่ — เทียบด้วย hcode9 ก่อน แล้วค่อยรหัสศูนย์
+    (appliedCenters เก็บได้ทั้งสองแบบตามที่ผู้ใช้เลือกตอนผูก) */
+export function findStructureForCenter(structures, center) {
+  if (!center) return null;
+  const keys = [center.hcode9, center.code].filter(Boolean).map(String);
+  if (!keys.length) return null;
+  return (structures || []).find(
+    (t) => (t.appliedCenters || []).some((k) => keys.includes(String(k))),
+  ) || null;
 }
 
 export function findStructure(id) {

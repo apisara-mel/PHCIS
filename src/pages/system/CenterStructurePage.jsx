@@ -8,7 +8,11 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import SmallAlert from '@/components/alert/SmallAlert';
-import RowMenu from '@/components/overflow/RowActionMenu';
+import DangerSubdueButton from '@/components/button/DangerSubdueButton';
+import AlertDialog from '@/components/popup/AlertDialog';
+import CenterStructurePopup from '@/pages/system/CenterStructurePopup';
+import Popup from '@/components/popup/Popup';
+import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import { readCenters } from '@/data/centerStore';
 import {
@@ -56,6 +60,16 @@ export default function CenterStructurePage() {
   const navigate = useHistory();
   const [rows, setRows] = useState(() => readStructures());
   const [toast, setToast] = useState(null);
+  /* รูปแบบที่กำลังจะลบ — null = ไม่มี dialog เปิดอยู่ */
+  const [removing, setRemoving] = useState(null);
+  /* popup สร้างรูปแบบใหม่ — เปิดจากปุ่มในหน้านี้ทั้งสามจุด */
+  const [creating, setCreating] = useState(false);
+  /* รูปแบบที่กำลังแก้ไขใน popup — null = ไม่ได้เปิดอยู่ */
+  const [editingTpl, setEditingTpl] = useState(null);
+  /* รูปแบบที่กำลังเปิดดูรายชื่อศูนย์ — คอลัมน์ "ศูนย์ที่ใช้รูปแบบนี้" เดิมยาว
+     จนตารางอ่านไม่ได้ (บางรูปแบบผูก 28 ศูนย์) จึงย้ายมาเป็นปุ่มดูใน
+     คอลัมน์การดำเนินการแทน (25 ส.ค. 2569) */
+  const [viewing, setViewing] = useState(null);
 
   const refresh = useCallback(() => setRows(readStructures()), []);
   useEffect(() => { refresh(); }, [refresh]);
@@ -91,11 +105,11 @@ export default function CenterStructurePage() {
   const summaryCards = useMemo(() => [
     { key: 'total', icon: 'account_tree', color: 'info', value: String(totals.templates), label: 'รูปแบบโครงสร้างทั้งหมด' },
     { key: 'clinics', icon: 'medical_services', color: 'positive', value: String(totals.clinics), label: 'คลินิกในทุกรูปแบบ' },
-    { key: 'applied', icon: 'domain', value: String(totals.applied), label: 'ศูนย์ที่ผูกรูปแบบแล้ว' },
+    { key: 'applied', icon: 'domain', color: 'brand', value: String(totals.applied), label: 'ศูนย์ที่ผูกรูปแบบแล้ว' },
   ], [totals]);
 
-  const goCreate = () => navigate.push('/admin/structures/new');
-  const goEdit = (row) => navigate.push(`/admin/structures/${row.id}/edit`);
+  const goCreate = () => setCreating(true);
+  const goEdit = (row) => setEditingTpl(row);
 
   const handleDuplicate = (row) => {
     const copy = duplicateStructureTemplate(row);
@@ -103,9 +117,12 @@ export default function CenterStructurePage() {
     showToast(`ทำสำเนา "${copy.name}" แล้ว`);
   };
 
-  const handleDelete = (row) => {
-    persist(rows.filter((r) => r.id !== row.id));
-    showToast(`ลบ "${row.name}" แล้ว`);
+  /* ลบต้องยืนยันก่อน — รูปแบบหนึ่งผูกกับหลายศูนย์ ลบพลาดแล้วต้องตั้งใหม่ทั้งชุด */
+  const confirmDelete = () => {
+    if (!removing) return;
+    persist(rows.filter((r) => r.id !== removing.id));
+    showToast(`ลบ "${removing.name}" แล้ว`);
+    setRemoving(null);
   };
 
   const columns = useMemo(() => [
@@ -128,25 +145,9 @@ export default function CenterStructurePage() {
       render: (row) => <span style={TEXT_CELL}>{summarizeStructure(row.units || [])}</span>,
     },
     {
-      key: 'applied',
-      header: 'ศูนย์ที่ใช้รูปแบบนี้',
-      minWidth: 220,
-      render: (row) => {
-        const ids = row.appliedCenters || [];
-        if (!ids.length) return <span style={SUBTEXT_CELL}>ยังไม่ได้ผูกกับศูนย์ใด</span>;
-        return (
-          <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-100)' }}>
-            {ids.map((id) => (
-              <ColorfulBadge key={id} style='green' width='hug'>{centerLabelOf(id)}</ColorfulBadge>
-            ))}
-          </div>
-        );
-      },
-    },
-    {
       key: 'action',
       header: 'การดำเนินการ',
-      minWidth: 148,
+      minWidth: 320,
       render: (row) => (
         <span
           className='inline-flex items-center'
@@ -155,20 +156,29 @@ export default function CenterStructurePage() {
           onKeyDown={(e) => e.stopPropagation()}
           role='presentation'
         >
+          {/* กางปุ่มออกมาให้เห็นทั้งหมด ไม่ซ่อนใต้เมนู ⋮ (25 ส.ค. 2569) —
+              มีแค่ 3 การกระทำ ซ่อนไว้แล้วต้องคลิกสองครั้งกว่าจะถึง */}
+          <BrandSubdueIconButton
+            icon='visibility'
+            variant='outline'
+            size='sm'
+            aria-label={`ดูศูนย์ที่ใช้ ${row.name}`}
+            title={`ศูนย์ที่ใช้รูปแบบนี้ (${(row.appliedCenters || []).length})`}
+            onClick={() => setViewing(row)}
+          />
           <NeutralSubdueButton leadingIcon='edit' size='sm' onClick={() => goEdit(row)}>
             แก้ไข
           </NeutralSubdueButton>
-          <RowMenu
-            ariaLabel={`ตัวเลือก ${row.name}`}
-            items={[
-              { key: 'dup', icon: 'content_copy', label: 'ทำสำเนารูปแบบ', onClick: () => handleDuplicate(row) },
-              { key: 'del', icon: 'delete', label: 'ลบรูปแบบ', danger: true, onClick: () => handleDelete(row) },
-            ]}
-          />
+          <NeutralSubdueButton leadingIcon='content_copy' size='sm' onClick={() => handleDuplicate(row)}>
+            ทำสำเนา
+          </NeutralSubdueButton>
+          <DangerSubdueButton leadingIcon='delete' variant='ghost' size='sm' onClick={() => setRemoving(row)}>
+            ลบ
+          </DangerSubdueButton>
         </span>
       ),
     },
-  ], [rows, centerLabelOf]);
+  ], [rows]);
 
   const hasRows = rows.length > 0;
 
@@ -180,30 +190,37 @@ export default function CenterStructurePage() {
       brandTitle='จัดการระบบ'
       breadcrumb={breadcrumb}
       title='รูปแบบโครงสร้างศูนย์'
+      /* การ์ดสรุปอยู่ใน headerInfo เพื่อให้ใช้พื้นหลังเดียวกับแถบหัวข้อ+ปุ่ม
+         เหมือนหน้าอื่น (ศูนย์บริการ · วันหยุดประจำปี · สิทธิการเข้าถึง) —
+         ของเดิมอยู่ในเนื้อหน้าเลยตกไปอยู่บนพื้นเขียวจาง (25 ส.ค. 2569) */
+      headerInfo={hasRows ? (
+        <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+            {summaryCards.map((c) => (
+              <SummaryCard key={c.key} card={c} variant='panel' />
+            ))}
+          </div>
+        </section>
+      ) : null}
       actions={hasRows ? (
         <BrandButton variant='fill' size='md' leadingIcon='add' onClick={goCreate}>
-          สร้างรูปแบบใหม่
+          สร้างรูปแบบโครงสร้างศูนย์ใหม่
         </BrandButton>
       ) : null}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
         {hasRows ? (
           <>
-            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
-              {summaryCards.map((c) => (
-                <div key={c.key} style={{ flex: '1 1 240px', minWidth: 220 }}>
-                  <SummaryCard {...c} />
-                </div>
-              ))}
-            </div>
-
             <section className='w-full flex flex-col' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
               <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-                ตั้งรูปแบบ แผนก/คลินิก และห้องตรวจ/เตียง ไว้ครั้งเดียว แล้วเลือกใช้ซ้ำได้ตอนเพิ่มศูนย์บริการ
+                ตั้งรูปแบบโครงสร้างศูนย์ เพื่อเลือกใช้ซ้ำตอนเพิ่มศูนย์บริการ
               </span>
-              <Table columns={columns} rows={rows} rowKey='id' onRowClick={goEdit} />
+              {/* rowKey ต้องเป็นฟังก์ชัน — ของเดิมส่ง string 'id' ซึ่ง Table เรียก
+                  เป็นฟังก์ชัน (rowKey is not a function) แต่ไม่เคยพังเพราะตาราง
+                  ว่างมาตลอด เพิ่งโผล่ตอนมีข้อมูลตัวอย่าง (25 ส.ค. 2569) */}
+              <Table columns={columns} rows={rows} rowKey={(row) => row.id} onRowClick={goEdit} />
               <BrandDashedAddButton className='w-full' style={{ width: '100%' }} onClick={goCreate}>
-                สร้างรูปแบบโครงสร้างใหม่
+                สร้างรูปแบบโครงสร้างศูนย์ใหม่
               </BrandDashedAddButton>
             </section>
           </>
@@ -220,11 +237,82 @@ export default function CenterStructurePage() {
               โดยไม่ต้องตั้งค่าใหม่ทุกศูนย์
             </span>
             <BrandButton variant='fill' size='md' leadingIcon='add' onClick={goCreate}>
-              สร้างรูปแบบใหม่
+              สร้างรูปแบบโครงสร้างศูนย์ใหม่
             </BrandButton>
           </section>
         )}
       </div>
+
+      {/* mount ใหม่ทุกครั้งที่เปิด ฟอร์มจะได้เริ่มจากโครงสร้างตั้งต้นเสมอ */}
+      {creating ? (
+        <CenterStructurePopup
+          open
+          onClose={() => setCreating(false)}
+          onSaved={() => { refresh(); showToast('สร้างรูปแบบโครงสร้างศูนย์แล้ว'); }}
+        />
+      ) : null}
+
+      {/* แก้ไขก็เปิดเป็น popup เหมือนกัน — key = id ให้ฟอร์ม remount ตามรูปแบบที่เลือก */}
+      {editingTpl ? (
+        <CenterStructurePopup
+          key={editingTpl.id}
+          open
+          template={editingTpl}
+          onClose={() => setEditingTpl(null)}
+          onSaved={() => { refresh(); showToast('บันทึกรูปแบบโครงสร้างศูนย์แล้ว'); }}
+        />
+      ) : null}
+
+      <Popup
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+        size='default'
+        title='ศูนย์ที่ใช้รูปแบบนี้'
+        subtitle={viewing
+          ? `${viewing.name} · ${(viewing.appliedCenters || []).length} ศูนย์`
+          : undefined}
+        secondaryAction={{ label: 'ปิด', onClick: () => setViewing(null) }}
+      >
+        {(viewing?.appliedCenters || []).length ? (
+          /* ข้อความธรรมดา 2 คอลัมน์ — badge เขียวเรียงกัน 28 อันอ่านยากกว่า
+             และไม่ได้สื่อสถานะอะไร (25 ส.ค. 2569) */
+          <div
+            className='w-full'
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              columnGap: 'var(--dim-space-600)',
+              rowGap: 'var(--dim-space-200)',
+            }}
+          >
+            {(viewing.appliedCenters || []).map((id) => (
+              <span key={id} style={TEXT_CELL}>{centerLabelOf(id)}</span>
+            ))}
+          </div>
+        ) : (
+          <span style={SUBTEXT_CELL}>ยังไม่ได้ผูกกับศูนย์ใด</span>
+        )}
+      </Popup>
+
+      <AlertDialog
+        open={!!removing}
+        onClose={() => setRemoving(null)}
+        type='warning'
+        alignment='center'
+        title='ลบรูปแบบโครงสร้างนี้?'
+        description={removing ? (
+          <>
+            {`"${removing.name}" จะถูกลบออกจากทะเบียน`}
+            <br />
+            {(removing.appliedCenters || []).length
+              ? `ศูนย์บริการ ${(removing.appliedCenters || []).length} แห่งที่ผูกรูปแบบนี้ไว้จะไม่มีรูปแบบอ้างอิง — โครงสร้างที่บันทึกไว้ในแต่ละศูนย์ยังอยู่ตามเดิม`
+              : 'รูปแบบนี้ยังไม่ได้ผูกกับศูนย์ใด'}
+          </>
+        ) : ''}
+        confirmLabel='ลบรูปแบบ'
+        cancelLabel='ยกเลิก'
+        onConfirm={confirmDelete}
+      />
 
       {toast ? (
         <div style={{ position: 'fixed', right: 24, bottom: 96, zIndex: 1400 }}>
