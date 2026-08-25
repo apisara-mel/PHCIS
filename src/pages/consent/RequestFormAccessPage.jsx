@@ -17,10 +17,17 @@ const CARD_STYLE = {
   borderRadius: 'var(--dim-radius-500)',
   border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
   boxShadow: 'var(--shadow-card)',
-  padding: 'var(--dim-space-600)',
+  paddingTop: 'var(--dim-space-600)',
+  paddingRight: 'var(--dim-space-600)',
+  paddingBottom: 'var(--dim-space-600)',
+  paddingLeft: 'var(--dim-space-600)',
   gap: 'var(--dim-space-400)',
-  width: 'fit-content',
-  maxWidth: '100%',
+  /* กว้างพอให้ตารางขอบเขตข้อมูล 2 คอลัมน์อยู่ในบรรทัดเดียว (มติผู้ใช้
+     25 ส.ค. 69) — 'fit-content' เดิมกว้างตาม FieldShell (640px) ทำให้กลุ่ม
+     "ข้อมูลอ่อนไหว" ตกลงไปข้างล่างเสมอ · ไม่มี token ขนาด 960px จึงประกอบจาก
+     สองตัวที่มีอยู่ (640 + 320) แทนการใส่ตัวเลขดิบ */
+  width: '100%',
+  maxWidth: 'calc(var(--dim-size-2900, 640px) + var(--dim-size-2500, 320px))',
 };
 
 export default function RequestFormAccessPage() {

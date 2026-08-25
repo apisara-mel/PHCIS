@@ -146,7 +146,10 @@ export function ScanImportPopup({ open, onClose, onImported }) {
     <Popup
       open={open}
       onClose={() => (formApi.dirty ? formApi.requestCancel() : onClose())}
+      /* ฟอร์มเดียวกับ "คำขอเข้าถึงข้อมูล" จึงต้องกว้างเท่ากัน ไม่งั้นตาราง
+         ขอบเขตข้อมูล 2 คอลัมน์แตกบรรทัดเฉพาะทางเข้านี้ */
       size='large'
+      width={960}
       title='ขอสิทธิ์การเข้าถึงแบบฟอร์ม'
       primaryAction={{ label: 'ส่งคำขอสิทธิ์เข้าถึงแบบฟอร์ม', onClick: () => formApi.submit(), disabled: !formApi.ready }}
       secondaryAction={{ label: 'ยกเลิก', onClick: () => (formApi.dirty ? formApi.requestCancel() : onClose()) }}

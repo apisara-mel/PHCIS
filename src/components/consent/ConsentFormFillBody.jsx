@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import InputField from '@/components/forms/InputField';
 import RadioButton from '@/components/radio/RadioButton';
 import Signature from '@/components/form-builder/Signature';
+import { consentSignatureRoles } from '@/data/consentFormFieldKeys';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Icon from '@/components/icons/Icon';
 import Popover from '@/components/popup/Popover';
@@ -102,6 +103,18 @@ export default function ConsentFormFillBody({
   onStateChange,
   /** ส่งผลลัพธ์ตอนบันทึก: { formId, meta, fullName, nationalId, hn, answers, outcome, signature } */
   onSubmit,
+  /** keys ของผู้ลงนามที่แบบฟอร์มกำหนด — ถ้าไม่ส่ง ใช้ meta.signatures */
+  signatureKeys,
+  /** badge สถานะยืนยันตัวตน — วางแถวเดียวกับหัวข้อ "ข้อมูลผู้ป่วย"
+      (มติผู้ใช้ 25 ส.ค. 69) เดิมเป็น Alert เต็มความกว้างเหนือฟอร์ม
+      ทั้งที่บอกสถานะสั้น ๆ แค่บรรทัดเดียว */
+  identityBadge = null,
+  /** โหมด "นำเข้าจากเอกสารกระดาษ" — ลายมือชื่ออยู่บนไฟล์ต้นฉบับที่อัปโหลด
+      จึงไม่ต้องเซ็นซ้ำในระบบ และไม่นับเป็นเงื่อนไขของปุ่มบันทึก
+      (มติผู้ใช้ 25 ส.ค. 69) */
+  hideSignature = false,
+  /** ช่องอัปโหลดไฟล์ต้นฉบับ — ผู้เรียกส่ง JSX เข้ามาวางใต้ข้อมูลผู้ป่วย */
+  uploadSlot = null,
 }) {
   const meta = useMemo(() => getRegistrationConsentForm(formId), [formId]);
 
@@ -109,13 +122,22 @@ export default function ConsentFormFillBody({
   const [nationalId, setNationalId] = useState(initialNationalId);
   const [hn, setHn] = useState(initialHn);
   const [answers, setAnswers] = useState(() => emptyAnswers(meta.clauses));
-  const [signature, setSignature] = useState(null);
+  /* ช่องเซ็นหนึ่งช่องต่อผู้ลงนามหนึ่งคนที่แบบฟอร์มกำหนดไว้ (มติผู้ใช้ 25 ส.ค. 69)
+     เดิมมีช่องเดียวตายตัวไม่ว่าจะเลือกผู้ลงนามกี่คน */
+  const signatureRoles = useMemo(
+    () => consentSignatureRoles(signatureKeys ?? meta.signatures),
+    [signatureKeys, meta.signatures],
+  );
+  const [signatures, setSignatures] = useState({});
+  const setRoleSignature = (key, value) => setSignatures((prev) => ({ ...prev, [key]: value }));
+  /* ผู้เรียกเดิมรับ `signature` เดี่ยว — ส่งของผู้ป่วยไปเหมือนเดิมเพื่อไม่ให้พัง */
+  const signature = signatures[signatureRoles[0]?.key] ?? null;
   const [qrOpen, setQrOpen] = useState(false);
   const qrButtonRef = useRef(null);
 
   useEffect(() => {
     setAnswers(emptyAnswers(meta.clauses));
-    setSignature(null);
+    setSignatures({});
   }, [meta.id, meta.clauses]);
 
   useEffect(() => {
@@ -133,8 +155,9 @@ export default function ConsentFormFillBody({
       return String(fieldValues[f.key] || '').trim() !== '';
     });
     const clausesOk = meta.clauses.every((c) => answers[c.id] === 'yes' || answers[c.id] === 'no');
-    return Boolean(fieldsOk && clausesOk && signature);
-  }, [answers, fieldValues, meta.clauses, meta.patientFields, signature]);
+    const signaturesOk = hideSignature || signatureRoles.every((r) => signatures[r.key]);
+    return Boolean(fieldsOk && clausesOk && signaturesOk);
+  }, [answers, fieldValues, meta.clauses, meta.patientFields, signatures, signatureRoles, hideSignature]);
 
   /* ปุ่มบันทึกอยู่นอก component นี้ — ส่ง submit ให้ผู้เรียกถือไว้ · ไม่ใส่
      onSubmit/onStateChange ใน deps เพราะ callback มักเป็น inline function
@@ -142,14 +165,19 @@ export default function ConsentFormFillBody({
   useEffect(() => {
     onStateChange?.({
       ready: canSave,
+      /* คืน payload ให้ผู้เรียกด้วย — ผู้เรียกที่ต้องส่งข้อมูลเอกสารไปพร้อมกับ
+         ข้อมูลอื่นในคลิกเดียว (เช่น popup อัปโหลดแบบฟอร์มกระดาษ) อ่านจาก
+         onSubmit ไม่ทันใน tick เดียวกัน */
       submit: () => {
-        if (!canSave) return;
+        if (!canSave) return null;
         const outcome = Object.values(answers).some((a) => a === 'no') ? 'declined' : 'signed';
-        onSubmit?.({ formId: meta.id, meta, fullName, nationalId, hn, answers, outcome, signature });
+        const payload = { formId: meta.id, meta, fullName, nationalId, hn, answers, outcome, signature, signatures };
+        onSubmit?.(payload);
+        return payload;
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canSave, answers, fullName, nationalId, hn, signature, meta]);
+  }, [canSave, answers, fullName, nationalId, hn, signature, signatures, meta]);
 
   const qrSrc = useMemo(() => {
     const target = typeof window !== 'undefined'
@@ -225,7 +253,15 @@ export default function ConsentFormFillBody({
           </div>
         ) : null}
         <section className='flex flex-col items-center' style={{ ...sectionCardStyle, gap: 'var(--dim-space-400)' }}>
-          <h2 style={sectionTitleStyle}>ข้อมูลผู้ป่วย</h2>
+          <div
+            className='flex items-center justify-between flex-wrap w-full min-w-0'
+            style={{ gap: 'var(--dim-space-200)' }}
+          >
+            {/* sectionTitleStyle มี width:100% — ต้อง override เป็น auto
+                ไม่งั้น badge ถูกดันตกไปบรรทัดล่าง */}
+            <h2 style={{ ...sectionTitleStyle, width: 'auto' }}>ข้อมูลผู้ป่วย</h2>
+            {identityBadge}
+          </div>
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
             {(meta.patientFields || []).map((field) => (
               <InputField
@@ -302,14 +338,22 @@ export default function ConsentFormFillBody({
         </section>
 
         <section className='flex flex-col items-center' style={{ ...sectionCardStyle, gap: 'var(--dim-space-400)' }}>
-          <h2 style={sectionTitleStyle}>ลายมือชื่อ</h2>
-          <Signature
-            value={signature}
-            onChange={setSignature}
-            onConfirm={setSignature}
-            height={100}
-            width='100%'
-          />
+          <h2 style={sectionTitleStyle}>{hideSignature ? 'เอกสารต้นฉบับที่ลงนามแล้ว' : 'ลายมือชื่อ'}</h2>
+          {hideSignature ? uploadSlot : null}
+          {(hideSignature ? [] : signatureRoles).map((role) => (
+            <div key={role.key} className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
+              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary)' }}>
+                {role.label}
+              </span>
+              <Signature
+                value={signatures[role.key] || null}
+                onChange={(v) => setRoleSignature(role.key, v)}
+                onConfirm={(v) => setRoleSignature(role.key, v)}
+                height={100}
+                width='100%'
+              />
+            </div>
+          ))}
           <div
             className='flex flex-col w-full'
             style={{
@@ -336,7 +380,9 @@ export default function ConsentFormFillBody({
               fontWeight: 'var(--type-weight-regular)',
               lineHeight: 1.5,
             }}>
-              {meta.signatureNote || 'เอกสารนี้มีอายุ 365 วัน นับจากวันที่ลงนาม'}
+              {hideSignature
+                ? 'ลายมือชื่อผู้ลงนามอยู่บนเอกสารต้นฉบับที่แนบไว้ — ไม่ต้องเซ็นซ้ำในระบบ'
+                : (meta.signatureNote || 'เอกสารนี้มีอายุ 365 วัน นับจากวันที่ลงนาม')}
             </span>
           </div>
         </section>

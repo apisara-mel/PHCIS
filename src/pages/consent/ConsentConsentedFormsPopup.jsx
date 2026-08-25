@@ -693,7 +693,9 @@ const ConsentConsentedFormsPopup = ({
               patientHn={sourceRecord?.hn || patientCard?.hn || hn || ''}
               patientName={sourceRecord?.name
                 || patientCard?.fullName || patientCard?.shortName || name || ''}
-              showFormHeader
+              /* ไม่ต้องมีการ์ดหัวแบบฟอร์มซ้ำ (มติผู้ใช้ 25 ส.ค. 69) — ชื่อฟอร์ม
+                 รหัส และเวอร์ชันเป็นหัวข้อกับคำบรรยายของ popup อยู่แล้ว */
+              showFormHeader={false}
             />
           </div>
         ) : (

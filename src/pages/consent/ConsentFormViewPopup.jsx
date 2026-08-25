@@ -3,6 +3,9 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralButton from '@/components/button/NeutralButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Tooltip from '@/components/tooltip/Tooltip';
+import { resolveFormScopes } from '@/components/consent/FormScopeGrouping';
+import { stripConsentScopes, consentPositionLabel } from '@/data/consentFormScopes';
 import Popup from '@/components/popup/Popup';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -84,6 +87,85 @@ const MetaCell = ({ label, children, stack = false }) => (
   </div>
 );
 
+/* รหัสแบบฟอร์ม + เวอร์ชั่น — ใน popup ดูตัวอย่างจะถูกยกไปวางแถวเดียวกับ Alert
+   (มติผู้ใช้ 25 ส.ค. 69) เพราะสองชิปนี้กินความสูงเต็มแถวโดยไม่มีข้อมูลพอ
+   ส่วนหน้าเต็ม (ConsentFormViewPage) ยังวางไว้เหนือเนื้อหาเหมือนเดิม */
+/* ปุ่ม "ผู้ที่มีสิทธิ์เข้าถึง" ย้ายจากคอลัมน์การดำเนินการในตารางเข้ามาอยู่ใน
+   popup ดูตัวอย่าง (มติผู้ใช้ 25 ส.ค. 69) — hover แล้วเห็นรายชื่อได้เลย
+   ไม่ต้องเปิด popup ซ้อน popup */
+const ACCESS_HINT_TEXT = {
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-xs)',
+  color: 'var(--text-content-secondary, #5F676D)',
+  lineHeight: 1.5,
+};
+const ACCESS_HINT_GROUP = {
+  ...ACCESS_HINT_TEXT,
+  fontWeight: 'var(--type-weight-medium, 500)',
+  color: 'var(--text-content-primary)',
+};
+
+export const ConsentFormAccessHoverButton = ({ record }) => {
+  const groups = useMemo(() => {
+    const scopes = stripConsentScopes(resolveFormScopes(record));
+    const map = new Map();
+    scopes.forEach((sc) => {
+      const g = sc.group || '-';
+      if (!map.has(g)) map.set(g, new Set());
+      if (sc.subBranch && sc.subBranch !== '-') map.get(g).add(sc.subBranch);
+    });
+    return [...map.entries()].map(([group, subs]) => ({ group, subs: [...subs] }));
+  }, [record]);
+
+  const positions = (record?.positions || []).map(consentPositionLabel).filter(Boolean);
+
+  const hint = (
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+      {positions.length ? (
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+          <span style={ACCESS_HINT_GROUP}>ตำแหน่ง</span>
+          <span style={ACCESS_HINT_TEXT}>{positions.join(' · ')}</span>
+        </div>
+      ) : null}
+      {groups.length ? groups.map((g) => (
+        <div key={g.group} className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+          <span style={ACCESS_HINT_GROUP}>{g.group}</span>
+          <span style={ACCESS_HINT_TEXT}>{g.subs.length ? g.subs.join(' · ') : 'ทุกหน่วยงาน'}</span>
+        </div>
+      )) : (
+        <span style={ACCESS_HINT_TEXT}>ยังไม่ได้กำหนดผู้มีสิทธิ์เข้าถึง</span>
+      )}
+    </div>
+  );
+
+  return (
+    /* self-stretch บน anchor ของ Tooltip + height 100% บนปุ่ม — ปุ่มจึงสูงเท่า
+       กล่อง "รหัสแบบฟอร์ม" ที่อยู่แถวเดียวกัน (มติผู้ใช้ 25 ส.ค. 69)
+       แถวนั้นเป็น items-stretch อยู่แล้ว ไม่ต้อง hardcode ความสูง */
+    <Tooltip variant='light' position='bottom' maxWidth={360} content={hint} className='self-stretch shrink-0'>
+      <NeutralSubdueButton
+        leadingIcon='lock_person'
+        variant='outline'
+        size='sm'
+        style={{ height: '100%' }}
+      >
+        ผู้ที่มีสิทธิ์เข้าถึง
+      </NeutralSubdueButton>
+    </Tooltip>
+  );
+};
+
+export const ConsentFormMetaChips = ({ record }) => (
+  <div className='flex items-stretch flex-wrap shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+    <MetaCell label='รหัสแบบฟอร์ม'>
+      <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>{record.code || '—'}</ColorfulBadge>
+    </MetaCell>
+    <MetaCell label='เวอร์ชั่น'>
+      <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{record.version}</ColorfulBadge>
+    </MetaCell>
+  </div>
+);
+
 /** Shared preview body — ใช้ใน Popup และหน้าเต็ม (deep link). */
 export function ConsentFormViewBody({
   record,
@@ -92,6 +174,8 @@ export function ConsentFormViewBody({
   onToast,
   showActions = true,
   showAuditBar = true,
+  /* popup ดูตัวอย่างยกชิป รหัส/เวอร์ชั่น ไปวางแถวเดียวกับ Alert เอง */
+  showMeta = true,
 }) {
   const [qrOpen, setQrOpen] = useState(false);
   const [versionOpen, setVersionOpen] = useState(false);
@@ -130,14 +214,7 @@ export function ConsentFormViewBody({
   return (
     <>
       <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
-        <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-          <MetaCell label='รหัสแบบฟอร์ม'>
-            <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>{record.code || '—'}</ColorfulBadge>
-          </MetaCell>
-          <MetaCell label='เวอร์ชั่น'>
-            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{record.version}</ColorfulBadge>
-          </MetaCell>
-        </div>
+        {showMeta ? <ConsentFormMetaChips record={record} /> : null}
 
         <div className='hidden md:block'>
           <StepReview
@@ -148,6 +225,7 @@ export function ConsentFormViewBody({
             version={record.version}
             sections={PREVIEW_SECTIONS}
             patientFields={PATIENT_FIELD_KEYS}
+            signatures={record.signatures}
             allowESign
             note={consentFormViewNote()}
             /* แผงขวาใช้ชุดเดียวกับหน้ากรอกใบยินยอมของเวชระเบียน — QR ให้
@@ -165,6 +243,7 @@ export function ConsentFormViewBody({
             version={record.version}
             sections={PREVIEW_SECTIONS}
             patientFields={PATIENT_FIELD_KEYS}
+            signatures={record.signatures}
             allowESign
             note={consentFormViewNote()}
             stackLayout
@@ -417,19 +496,31 @@ export function ConsentFormViewPopup({
       {isView && record && (
         <>
           {/* กัน user เข้าใจผิดว่าฟอร์มในโหมดดูกรอกได้ — ช่องทั้งหมดเป็น preview */}
-          <Alert
-            type='info'
-            title='โหมดดูตัวอย่างแบบฟอร์ม'
-            subtext='หน้านี้ยังกรอกข้อมูลไม่ได้ — กดปุ่ม "กรอกแบบฟอร์ม" ด้านล่างเพื่อเริ่มกรอกให้ผู้รับบริการ'
-            showCloseButton={false}
-            showBadge={false}
-            showIndicator={false}
-          />
+          {/* Alert กับชิป รหัส/เวอร์ชั่น อยู่แถวเดียวกัน (มติผู้ใช้ 25 ส.ค. 69) —
+              เดิมชิปกินความสูงเต็มแถวของตัวเองทั้งที่มีข้อมูลแค่ 2 ค่า */}
+          <div
+            className='flex items-stretch flex-wrap w-full min-w-0'
+            style={{ gap: 'var(--dim-space-300)' }}
+          >
+            <div className='flex-1 min-w-0'>
+              <Alert
+                type='info'
+                title='โหมดดูตัวอย่างแบบฟอร์ม'
+                subtext='หน้านี้ยังกรอกข้อมูลไม่ได้ — กดปุ่ม "กรอกแบบฟอร์ม" ด้านล่างเพื่อเริ่มกรอกให้ผู้รับบริการ'
+                showCloseButton={false}
+                showBadge={false}
+                showIndicator={false}
+              />
+            </div>
+            <ConsentFormMetaChips record={record} />
+            <ConsentFormAccessHoverButton record={record} />
+          </div>
           <ConsentFormViewBody
           record={record}
           onToast={onToast}
           showActions={false}
           showAuditBar={showAuditBar}
+          showMeta={false}
         />
         </>
       )}
@@ -444,22 +535,30 @@ export function ConsentFormViewPopup({
       )}
 
       {isFill && fillFormId && (
-        <>
-          {identity.verifiedAt && (
-            <Alert
-              type={identity.method === 'card' ? 'success' : 'warning'}
-              title={identity.method === 'card'
-                ? 'ยืนยันตัวตนด้วยบัตรประชาชนแล้ว'
-                : 'ยืนยันตัวตนโดยไม่ใช้บัตรประชาชน'}
-              subtext={[identity.methodText, identity.verifiedAt].filter(Boolean).join(' · ')}
-              showCloseButton={false}
-              showBadge={false}
-              showIndicator={false}
-            />
-          )}
-          <ConsentFormFillBody
+        <ConsentFormFillBody
             key={record?.code}
+            /* สถานะยืนยันตัวตนเป็น badge ข้างหัวข้อ "ข้อมูลผู้ป่วย"
+               (มติผู้ใช้ 25 ส.ค. 69) — เดิมเป็น Alert เต็มความกว้างเหนือฟอร์ม
+               ทั้งที่เนื้อหาคือสถานะสั้น ๆ บรรทัดเดียว รายละเอียด (วิธียืนยัน +
+               เวลา) ย้ายไปอยู่ใน title ของ badge */
+            identityBadge={identity.verifiedAt ? (
+              <ColorfulBadge
+                style={identity.method === 'card' ? 'green' : 'yellow'}
+                size='small'
+                hierarchy='secondary'
+                width='hug'
+                /* tick ถูก แทนจุดสี (มติผู้ใช้ 25 ส.ค. 69) — ทั้งสองเคสคือ
+                   "ยืนยันแล้ว" ต่างกันที่วิธี ซึ่ง tone สื่ออยู่แล้ว */
+                icon='check_circle'
+                title={[identity.methodText, identity.verifiedAt].filter(Boolean).join(' · ')}
+              >
+                {identity.method === 'card' ? 'ยืนยันตัวตนด้วยบัตรประชาชนแล้ว' : 'ยืนยันตัวตนโดยไม่ใช้บัตรประชาชน'}
+              </ColorfulBadge>
+            ) : null}
             formId={fillFormId}
+            /* ผู้ลงนามตามที่แบบฟอร์มนี้กำหนดไว้ — ช่องเซ็นในฟอร์มจริงต้องเท่ากับ
+               ที่เลือกไว้ตอนสร้าง (มติผู้ใช้ 25 ส.ค. 69) */
+            signatureKeys={record?.signatures}
             /* กรอกให้ล่วงหน้าเฉพาะเมื่อยืนยันตัวตนผ่านแล้ว (เข้าขั้นนี้ได้
                ต้องผ่าน identity เสมอ — เงื่อนไขกันไว้เผื่อ flow อื่นในอนาคต) */
             initialFullName={identity.verifiedAt ? verifiedPatient.fullName : ''}
@@ -467,8 +566,7 @@ export function ConsentFormViewPopup({
             initialHn={identity.verifiedAt ? verifiedPatient.hn : ''}
             onStateChange={setFormApi}
             onSubmit={handleSubmit}
-          />
-        </>
+        />
       )}
     </Popup>
   );

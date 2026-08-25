@@ -107,6 +107,41 @@ export const morphStepHeaderStepGlideDenseStyle = {
   whiteSpace: 'nowrap',
 };
 
+/* ── Title + stepper อยู่แถวเดียวกันตั้งแต่ยังไม่ scroll (มติผู้ใช้ 25 ส.ค. 69)
+   ชุดนี้ = geometry ตอน morph=1 ของ glide ด้านบน แต่ตรึงไว้ทุกค่า morph
+   เหลือแค่ scale ที่ยังหดตาม scroll — ไม่มีการพลิกแถว จึงไม่มีอาการกระตุก
+   ที่ threshold แบบ glide เดิม (ดูคอมเมนต์ stepperOwnRow ใน StepMorphHeader) */
+
+export const morphStepHeaderTitleWrapInlineStyle = {
+  flex: '0 1 auto',
+  minWidth: 0,
+  maxWidth: '42%',
+  paddingRight: 'var(--dim-space-400, 16px)',
+};
+
+export const morphStepHeaderStepAreaInlineStyle = {
+  flex: '1 1 auto',
+  minWidth: 0,
+  position: 'relative',
+  minHeight:
+    'calc((1 - var(--header-morph-motion, 0)) * var(--dim-size-800, 40px) + var(--header-morph-motion, 0) * var(--dim-size-600, 32px))',
+  alignSelf: 'center',
+};
+
+export const morphStepHeaderStepGlideInlineStyle = {
+  position: 'absolute',
+  top: '50%',
+  left: '100%',
+  transform: [
+    'translate3d(-100%, -50%, 0)',
+    'scale(calc(1 + (0.8 - 1) * var(--header-morph-motion, 0)))',
+  ].join(' '),
+  transformOrigin: 'right center',
+  willChange: 'transform',
+  backfaceVisibility: 'hidden',
+  whiteSpace: 'nowrap',
+};
+
 /** Stepper-only root (SubHeader owns title) — tighter vertical padding. */
 export const morphStepOnlyRootDenseStyle = {
   display: 'flex',

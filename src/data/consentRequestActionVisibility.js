@@ -1,4 +1,5 @@
-/** ปุ่ม "สร้างคำขอเข้าถึงแบบฟอร์มยินยอม" — แสดงเฉพาะ PHCIS + Consent, ยกเว้นทุกหน้า dashboard. */
+/** ปุ่ม "คำขอเข้าถึงข้อมูล" — แสดงเฉพาะหน้า PHCIS, ยกเว้นทุกหน้า dashboard
+    (ระบบจัดการความยินยอมถอดออกจาก SubHeader แล้ว 25 ส.ค. 69). */
 
 const normalizePath = (pathname = '') => {
   const bare = pathname.split('?')[0].replace(/\/+$/, '');
@@ -50,7 +51,10 @@ export const shouldShowCreateConsentRequestAction = (pathname = '') => {
   if (isConsentRequestDashboardPath(path)) return false;
   if (isConsentNoCreateActionPage(path)) return false;
   if (isExcludedSystem(path)) return false;
-  if (isConsentSystem(path)) return true;
+  /* ระบบจัดการความยินยอมไม่มีปุ่มนี้ใน SubHeader แล้ว (มติผู้ใช้ 25 ส.ค. 69)
+     — ยังใช้ได้จากหน้า PHCIS (เวชระเบียน / จ่ายยา ฯลฯ) ซึ่งเป็นจุดที่คนหน้างาน
+     ขอสิทธิ์จริง ๆ ส่วนงานฝั่งผู้ดูแลอยู่ที่เมนู "จัดการสิทธิ์ฯ" ใน side menu */
+  if (isConsentSystem(path)) return false;
   /* ที่เหลือภายใต้ Router หลัก = workflow PHCIS (Sidebar default nav) */
   return true;
 };

@@ -281,9 +281,16 @@ export const StatTile = ({ label, value, unit, tone, hint }) => {
       <span className='inline-flex items-baseline min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
         <span
           className='tabular-nums truncate'
+          /* ตัวเลขล้วนไม่ใช้ Mitr — Mitr เรนเดอร์เลข 0 เป็น *slashed zero* และที่
+             24px มันอ่านเป็นสัญลักษณ์ 🚫 "ห้าม" ไม่ใช่ศูนย์ (ยืนยันบนหน้าจริง
+             25 ส.ค. 69: การ์ด "ถึงกำหนดวันนี้ 0 รายการ" ดูเหมือนแจ้งเตือน)
+             Mitr ไม่มี OpenType feature `zero` ให้ปิดขีดทับ จึงต้องเปลี่ยน
+             family เฉพาะ "ตัวเลขที่ยืนเดี่ยว" — หัวข้อ/ข้อความยังใช้ Mitr ตามเดิม.
+             ระยะยาวควรแก้ที่ token ใน mih-design (ดู docs/awaiting-components.md) */
           style={{
             color,
-            fontFamily: 'var(--type-family-heading-graphic2)',
+            fontFamily: 'var(--type-family-heading-content)',
+            fontWeight: 'var(--type-weight-bold)',
             fontSize: 'var(--type-size-2xl, 24px)',
             lineHeight: 1.2,
           }}

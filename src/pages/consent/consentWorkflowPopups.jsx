@@ -4,9 +4,13 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import DatePicker from '@/components/forms/DatePicker';
 import Select from '@/components/forms/Select';
 import FileUploadField from '@/components/forms/FileUploadField';
+import DragAndDrop from '@/components/form-builder/DragAndDrop';
+import ConsentFormFillBody from '@/components/consent/ConsentFormFillBody';
+import { resolveRegistrationConsentFormId } from '@/data/registrationConsentForms';
+import PhotoUploadField from '@/components/forms/PhotoUploadField';
+import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
 import { UploadProgressBox, useSmoothUploadProgress } from '@/components/forms/UploadProgressBar';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
-import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
@@ -25,7 +29,7 @@ import AccessRequestForm from '@/pages/consent/AccessRequestForm';
      • ReconsentPopup — ด.1.1.7 Re-Consent ครบวงจร: เลือกช่องทาง + วันครบ
        ก่อนสร้าง record รอลงนามเวอร์ชันล่าสุด
      • PaperConsentRecordPopup — ด.1.1.8 เจ้าหน้าที่บันทึกให้/เพิกถอนจาก
-       เอกสารกระดาษ: แนบสแกน + วันที่มีผล + เหตุผล + ConsentAuditBar
+       เอกสารกระดาษ: แนบสแกน + วันที่มีผล + เหตุผล
 
    ทุก popup มี guard "ยืนยันการละทิ้งการแก้ไข" เมื่อปิดกลางทาง. ค่า visual ทุกตัว
    alias design.md tokens; copy ไทย; mock local. */
@@ -51,6 +55,15 @@ const ERROR_TEXT = {
   fontFamily: 'var(--type-family-body)',
   fontSize: 'var(--type-size-xs)',
   lineHeight: 1.5,
+};
+
+/* ป้ายชื่อช่องอัปโหลด — ชุดเดียวกับ LABEL_TEXT ของหน้าสร้างคำขอเข้าถึงข้อมูล */
+const UPLOAD_LABEL = {
+  color: 'var(--text-content-default)',
+  fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
+  fontSize: 'var(--type-size-sm)',
+  fontWeight: 'var(--type-weight-medium, 500)',
+  lineHeight: 1.45,
 };
 
 /* Hover / selected-hover via CSS so border + surface update without layout shift. */
@@ -149,7 +162,10 @@ export function CreateConsentRequestPopup({
     <Popup
       open={open}
       onClose={() => (formApi.dirty ? formApi.requestCancel() : onClose())}
+      /* กว้างพอให้ตารางขอบเขตข้อมูล 2 คอลัมน์อยู่ในบรรทัดเดียว (มติผู้ใช้
+         25 ส.ค. 69) — 'large' เดิมบีบจนคอลัมน์ขวาตกลงไปข้างล่าง */
       size='large'
+      width={960}
       title='คำขอเข้าถึงข้อมูล'
       primaryAction={{ label: 'ส่งคำขอเข้าถึงข้อมูล', onClick: () => formApi.submit(), disabled: !formApi.ready }}
       secondaryAction={{ label: 'ยกเลิก', onClick: () => (formApi.dirty ? formApi.requestCancel() : onClose()) }}
@@ -333,11 +349,7 @@ export function ReconsentPopup({ open, record, onClose, onConfirm }) {
   );
 }
 
-/* ══ 3) บันทึกจากเอกสารกระดาษ (ด.1.1.8) ═════════════════════════════════ */
-const PAPER_MODES = [
-  { value: 'grant',  label: 'บันทึกการให้ความยินยอม',  icon: 'task_alt' },
-  { value: 'revoke', label: 'บันทึกการเพิกถอน',        icon: 'do_not_disturb_on' },
-];
+/* ══ 3) อัปโหลดแบบฟอร์มกระดาษ (ด.1.1.8) ═════════════════════════════════ */
 const REASON_HINTS = [
   'ผู้ป่วยยื่นเอกสารเพิกถอนความยินยอมด้วยตนเองที่ศูนย์บริการ',
   'ผู้ปกครองยื่นหนังสือให้ความยินยอมแทนผู้เยาว์',
@@ -345,7 +357,9 @@ const REASON_HINTS = [
 ];
 
 export function PaperConsentRecordPopup({ open, record, records = [], onClose, onSave }) {
-  const [mode, setMode] = useState('grant');
+  /* ป็อปอัปนี้บันทึก "ให้ความยินยอม" จากเอกสารกระดาษอย่างเดียว (มติผู้ใช้
+     25 ส.ค. 69) — การเพิกถอนมีทางเข้าของตัวเองในหน้าจัดการความยินยอม */
+  const mode = 'grant';
   const [fileName, setFileName] = useState(null);
   const [pendingName, setPendingName] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -353,14 +367,49 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
   const [effectiveDate, setEffectiveDate] = useState(null);
   const [reason, setReason] = useState('');
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  /* สถานะของ "เอกสารที่กรอก" อยู่ใน ConsentFormFillBody — คุยผ่าน onStateChange
+     สัญญาเดียวกับที่หน้าเวชระเบียนกับ popup อื่น ๆ ใช้ */
+  const [docApi, setDocApi] = useState({ ready: false, submit: () => {} });
+  /* ผู้รับบริการกับแบบฟอร์มแยกเป็นคนละช่อง (มติผู้ใช้ 25 ส.ค. 69) — ของเดิม
+     ยัดรวมเป็นบรรทัดเดียว "ชื่อ · HN · แบบฟอร์ม" ทำให้คนไข้ที่มีหลายฟอร์ม
+     โผล่ซ้ำหลายบรรทัดในลิสต์เดียว หาว่าจะเลือกอันไหนไม่ออก */
+  const [selectedHn, setSelectedHn] = useState('');
   const [selectedRecordId, setSelectedRecordId] = useState('');
 
   useEffect(() => {
     if (!open) return;
-    setMode('grant'); setFileName(null); setPendingName(null); setUploading(false);
-    setFileError(''); setEffectiveDate(null); setReason(''); setConfirmDiscard(false);
+    setFileName(null); setPendingName(null); setUploading(false);
+    setFileError(''); setEffectiveDate(null); setReason(''); setConfirmDiscard(false); setCameraOpen(false);
+    setDocApi({ ready: false, submit: () => {} });
+    setSelectedHn(record?.hn != null ? String(record.hn) : '');
     setSelectedRecordId(record?.id != null ? String(record.id) : '');
   }, [open]);
+
+  /* หนึ่งบรรทัดต่อผู้รับบริการหนึ่งคน — ระเบียนคนเดียวกันหลายใบยุบเป็นแถวเดียว */
+  const patientOptions = useMemo(() => {
+    const seen = new Map();
+    records.forEach((item) => {
+      const key = String(item.hn);
+      if (!seen.has(key)) seen.set(key, { value: key, label: `${item.name} · HN ${item.hn}` });
+    });
+    return [...seen.values()];
+  }, [records]);
+
+  const formOptions = useMemo(() => records
+    .filter((item) => String(item.hn) === selectedHn)
+    .map((item) => ({
+      value: String(item.id),
+      label: item.formName || item.type,
+      subtext: item.formCode || undefined,
+    })), [records, selectedHn]);
+
+  const pickPatient = (hn) => {
+    setSelectedHn(hn);
+    /* เลือกให้เลยถ้าคนนั้นมีใบเดียว — ไม่ต้องให้กดซ้ำในช่องที่มีตัวเลือกเดียว */
+    const forHn = records.filter((item) => String(item.hn) === hn);
+    setSelectedRecordId(forHn.length === 1 ? String(forHn[0].id) : '');
+  };
 
   const resolvedRecord = record || records.find((item) => String(item.id) === selectedRecordId) || null;
 
@@ -383,8 +432,105 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
     setUploading(true);
   };
 
-  const dirty = selectedRecordId || fileName || effectiveDate || reason.trim();
-  const ready = !!resolvedRecord && !!fileName && !!effectiveDate && reason.trim().length > 0;
+  const dirty = selectedHn || selectedRecordId || fileName || effectiveDate || reason.trim();
+  /* ต้องกรอกเอกสารครบเหมือนตอนผู้รับบริการกรอกเอง + แนบต้นฉบับ (มติผู้ใช้
+     25 ส.ค. 69) — ลายมือชื่อไม่นับ เพราะอยู่บนกระดาษที่อัปโหลดมาแล้ว */
+  const ready = !!resolvedRecord && !!fileName && !!effectiveDate
+    && reason.trim().length > 0 && docApi.ready;
+
+  const fillFormId = useMemo(
+    () => (resolvedRecord
+      ? resolveRegistrationConsentFormId({
+        formCode: resolvedRecord.formCode,
+        type: resolvedRecord.type,
+      })
+      : null),
+    [resolvedRecord],
+  );
+
+  const uploadSlot = (
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
+    {/* ชุดอัปโหลดเดียวกับหน้าสร้างคำขอเข้าถึงข้อมูล (มติผู้ใช้ 25 ส.ค. 69)
+        — ลากวาง + สแกนเอกสาร + ถ่ายภาพ แทนปุ่ม "เลือกไฟล์" บรรทัดเดียว */}
+    <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-150)' }}>
+      <span style={UPLOAD_LABEL}>
+        แนบสแกนเอกสารต้นฉบับที่ผู้รับบริการลงนามแล้ว
+        <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span>
+      </span>
+      <div className='flex items-stretch w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        <DragAndDrop
+          value={[]}
+          onChange={(next) => {
+            const picked = next?.[next.length - 1];
+            const raw = picked?.file || picked;
+            if (raw?.name) handleFile(raw);
+          }}
+          onError={({ message }) => setFileError(message || 'ไฟล์ไม่ถูกต้อง')}
+          accept='.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf'
+          multiple={false}
+          preview={false}
+          size='sm'
+          title='ลากและวางไฟล์ หรือคลิกเพื่ออัปโหลด'
+          helper='รองรับ PDF, JPG หรือ PNG'
+          ctaLabel='เลือกไฟล์'
+          error={!!fileError}
+          disabled={uploading}
+          style={{ flex: '1 1 0', minWidth: 0, width: '100%', minHeight: 'var(--dim-size-2000, 128px)', height: 'var(--dim-size-2000, 128px)', boxSizing: 'border-box' }}
+        />
+        <PhotoUploadField
+          label='สแกนเอกสาร'
+          icon='document_scanner'
+          onClick={() => !uploading && setCameraOpen(true)}
+          disabled={uploading}
+          aria-label='สแกนเอกสารด้วยกล้อง'
+          style={{ width: 'var(--dim-size-2000, 128px)', height: 'var(--dim-size-2000, 128px)', flexShrink: 0, boxSizing: 'border-box' }}
+        />
+        <PhotoUploadField
+          label='ถ่ายภาพ'
+          icon='photo_camera'
+          onClick={() => !uploading && setCameraOpen(true)}
+          disabled={uploading}
+          aria-label='ถ่ายภาพด้วยกล้อง'
+          style={{ width: 'var(--dim-size-2000, 128px)', height: 'var(--dim-size-2000, 128px)', flexShrink: 0, boxSizing: 'border-box' }}
+        />
+      </div>
+      {fileName ? (
+        <div
+          className='flex items-center w-full min-w-0'
+          style={{
+            gap: 'var(--dim-space-200)',
+            paddingTop: 'var(--dim-space-200)',
+            paddingRight: 'var(--dim-space-300)',
+            paddingBottom: 'var(--dim-space-200)',
+            paddingLeft: 'var(--dim-space-300)',
+            borderRadius: 'var(--dim-radius-300)',
+            background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+            border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+          }}
+        >
+          <Icon name='description' size={18} color='var(--text-brandPrimary-default)' />
+          <span className='flex-1 min-w-0 truncate text-sm'>{fileName}</span>
+          <button
+            type='button'
+            onClick={() => { setFileName(null); setPendingName(null); setUploading(false); }}
+            aria-label='ลบไฟล์ที่แนบ'
+            style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 0, color: 'var(--text-content-tertiary)' }}
+          >
+            <Icon name='close' size={16} />
+          </button>
+        </div>
+      ) : null}
+    </div>
+    {uploading && (
+      <UploadProgressBox
+        progress={uploadProgress}
+        label='กำลังอัปโหลดไฟล์…'
+        fileName={pendingName || undefined}
+      />
+    )}
+    {fileError && <span style={ERROR_TEXT}>{fileError}</span>}
+    </div>
+  );
 
   const requestClose = () => {
     if (dirty) setConfirmDiscard(true);
@@ -396,109 +542,83 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
       <Popup
         open={open}
         onClose={requestClose}
+        /* กว้างขึ้นให้สองช่องบน (ผู้รับบริการ / แบบฟอร์ม) อยู่ครบในบรรทัดเดียว
+           และช่องเหตุผลไม่ถูกบีบจนพิมพ์ได้ทีละสองสามคำ (มติผู้ใช้ 25 ส.ค. 69) */
         size='large'
-        title='บันทึกจากเอกสารกระดาษ'
+        width={880}
+        title='อัปโหลดแบบฟอร์มกระดาษ'
         subtitle={resolvedRecord ? `${resolvedRecord.name} · HN ${resolvedRecord.hn} · ${resolvedRecord.type}` : 'เลือกผู้รับบริการและแบบฟอร์มตามเอกสารต้นฉบับ'}
         primaryAction={{
-          label: mode === 'grant' ? 'บันทึกการให้ความยินยอม' : 'บันทึกการเพิกถอน',
-          onClick: () => ready && onSave({
-            mode,
-            record: resolvedRecord,
-            fileName,
-            effectiveDate: thaiDateFormat(effectiveDate),
-            reason,
-            storageType: 'Paper',
-            verifiedBy: 'original_file',
-            signature: null,
-          }),
+          label: 'บันทึกการให้ความยินยอม',
+          onClick: () => {
+            if (!ready) return;
+            /* ให้ ConsentFormFillBody คายคำตอบรายข้อออกมาก่อน แล้วค่อยส่งขึ้นไป
+               พร้อมกัน — ไม่งั้นผู้เรียกได้แต่ไฟล์แนบ ไม่รู้ว่ายินยอมข้อไหนบ้าง */
+            const document = docApi.submit?.() || null;
+            onSave({
+              mode,
+              record: resolvedRecord,
+              fileName,
+              effectiveDate: thaiDateFormat(effectiveDate),
+              reason,
+              storageType: 'Paper',
+              verifiedBy: 'original_file',
+              signature: null,
+              document,
+            });
+          },
           disabled: !ready,
         }}
         secondaryAction={{ label: 'ยกเลิก', onClick: requestClose }}
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
           {!record ? (
-            <Select
-              label='ผู้รับบริการ / แบบฟอร์มความยินยอม'
-              required
-              searchable
-              value={selectedRecordId}
-              onChange={setSelectedRecordId}
-              options={records.map((item) => ({
-                value: String(item.id),
-                label: `${item.name} · HN ${item.hn} · ${item.formName || item.type}`,
-              }))}
-              placeholder='ค้นหา HN ชื่อ หรือแบบฟอร์ม'
-            />
+            <div
+              className='grid w-full min-w-0'
+              style={{
+                gridTemplateColumns: 'repeat(auto-fit, minmax(var(--dim-size-2400, 240px), 1fr))',
+                gap: 'var(--dim-space-400)',
+              }}
+            >
+              <Select
+                label='ผู้รับบริการ'
+                required
+                searchable
+                value={selectedHn}
+                onChange={pickPatient}
+                options={patientOptions}
+                placeholder='ค้นหา HN หรือชื่อผู้รับบริการ'
+              />
+              <Select
+                label='แบบฟอร์มความยินยอม'
+                required
+                searchable
+                value={selectedRecordId}
+                onChange={setSelectedRecordId}
+                options={formOptions}
+                disabled={!selectedHn}
+                placeholder={selectedHn ? 'เลือกแบบฟอร์มตามเอกสารต้นฉบับ' : 'เลือกผู้รับบริการก่อน'}
+              />
+            </div>
           ) : null}
 
-          <div
-            className='flex flex-wrap items-center w-full'
-            style={{
-              gap: 'var(--dim-space-200, 8px)',
-              padding: 'var(--dim-space-300, 12px)',
-              borderRadius: 'var(--dim-radius-300, 10px)',
-              background: 'var(--surface-brandPrimary-quaternary)',
-              color: 'var(--text-brandPrimary-default)',
-            }}
-          >
-            <Icon name='verified_user' size={18} />
-            <span className='flex-1 min-w-0 text-sm'>ตรวจสอบจากไฟล์เอกสารต้นฉบับ · ไม่ต้องบันทึกลายเซ็นซ้ำในระบบ</span>
-            <ColorfulBadge style='orange' size='small'>Paper</ColorfulBadge>
-            <ColorfulBadge style='grey' size='small'>Application</ColorfulBadge>
-            <ColorfulBadge style='grey' size='small'>Digital</ColorfulBadge>
-          </div>
-          {/* ประเภทการบันทึก */}
-          <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
-            {PAPER_MODES.map((m) => {
-              const selected = mode === m.value;
-              return (
-                <button
-                  key={m.value}
-                  type='button'
-                  aria-pressed={selected}
-                  onClick={() => setMode(m.value)}
-                  className='inline-flex items-center'
-                  style={{
-                    flex: '1 1 200px',
-                    gap: 'var(--dim-space-200)',
-                    paddingTop: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-400)',
-                    paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-400)',
-                    borderRadius: 'var(--dim-radius-300)',
-                    border: `var(--dim-stroke-100) solid ${selected ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-card-default)'}`,
-                    background: selected ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
-                    color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-default)',
-                    fontFamily: 'var(--type-family-body)',
-                    fontSize: 'var(--type-size-sm)',
-                    fontWeight: selected ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)',
-                    cursor: 'pointer',
-                    outline: 'none',
-                  }}
-                >
-                  <Icon name={m.icon} size={18} />
-                  {m.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <FileUploadField
-            label='แนบสแกนเอกสาร (ให้/เพิกถอนความยินยอม)'
-            helperText={fileError || 'PDF, JPG หรือ PNG ขนาดไม่เกิน 10 MB'}
-            accept='.pdf,.jpg,.jpeg,.png'
-            buttonLabel='เลือกไฟล์สแกน'
-            fileName={fileName}
-            onFile={handleFile}
-            onClear={() => { setFileName(null); setPendingName(null); setUploading(false); }}
-            disabled={uploading}
-          />
-          {uploading && (
-            <UploadProgressBox
-              progress={uploadProgress}
-              label='กำลังอัปโหลดไฟล์…'
-              fileName={pendingName || undefined}
+          {/* เอกสารฉบับเต็ม — ตัวเดียวกับที่ผู้รับบริการกรอกเอง (มติผู้ใช้
+              25 ส.ค. 69) เจ้าหน้าที่จึงเลือกความยินยอมรายข้อตามที่เซ็นมาบน
+              กระดาษได้ครบ · ช่องแนบต้นฉบับไปแทนที่บล็อกลายมือชื่อ */}
+          {fillFormId ? (
+            <ConsentFormFillBody
+              key={fillFormId}
+              formId={fillFormId}
+              initialFullName={resolvedRecord?.name || ''}
+              initialHn={resolvedRecord?.hn || ''}
+              showSidePanel={false}
+              hideSignature
+              uploadSlot={uploadSlot}
+              onStateChange={setDocApi}
             />
+          ) : (
+            uploadSlot
           )}
-          {fileError && <span style={ERROR_TEXT}>{fileError}</span>}
 
           <DatePicker
             label='วันที่มีผล'
@@ -521,10 +641,27 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
             height={110}
           />
 
-          {/* Audit ตาม TOR 1.4.3.16 — แสดง ณ จุดบันทึก */}
-          <ConsentAuditBar recordedBy={STAFF_NAME} recordedAt={nowThai()} />
         </div>
       </Popup>
+
+      <CameraCapturePopup
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        /* CameraCapturePopup ส่ง dataURL มาเป็นสตริง ไม่ใช่ File — ต้องแปลงเอง
+           แบบเดียวกับ handleCameraCapture ในหน้าสร้างคำขอเข้าถึงข้อมูล */
+        onCapture={(dataUrl) => {
+          setCameraOpen(false);
+          if (!dataUrl) return;
+          const comma = dataUrl.indexOf(',');
+          const meta = comma >= 0 ? dataUrl.slice(0, comma) : '';
+          const b64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+          const mime = (meta.match(/data:([^;]+)/) || [])[1] || 'image/png';
+          const bin = atob(b64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+          handleFile(new File([bytes], 'camera-scan.png', { type: mime }));
+        }}
+      />
 
       <AlertDialog
         open={confirmDiscard}

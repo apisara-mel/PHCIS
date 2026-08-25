@@ -4,6 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout/WizardMorphHeader';
 import { MIH_CHROME_MORPH_FOOTER } from '@/components/layout/wizardChromeMorphStyles';
 import StepProgress from '@/components/step/StepProgress';
+import RichTextEditor, { sanitizeRichText, richTextToPlain } from '@/components/forms/RichTextEditor';
 import {
   POPUP_MORPH_MOTION_VAR,
   POPUP_MORPH_VAR,
@@ -51,6 +52,8 @@ import {
   stripConsentScopes,
 } from '@/data/consentFormScopes';
 import {
+  CONSENT_SIGNATURE_FIELDS,
+  consentSignatureRoles,
   DEFAULT_PATIENT_FIELD_KEYS,
   DEFAULT_SIGNATURE_KEYS,
   fieldSetHas,
@@ -173,6 +176,20 @@ const TEMPLATE_PREFILL = {
   data: TPL('ใบยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)', [{ title: 'การเปิดเผยข้อมูลสุขภาพ', detail: 'ข้าพเจ้ายินยอมให้เปิดเผยข้อมูลสุขภาพแก่บุคคล/หน่วยงานที่ระบุ เพื่อวัตถุประสงค์ที่กำหนดไว้' }], { ttl: '365', cover: 1 }),
 };
 
+/* หน้าปกราชการ — ตราสำนักอนามัย กรุงเทพมหานคร (มติผู้ใช้ 25 ส.ค. 69)
+   ใบยินยอมที่ออกในนามหน่วยงานต้องมีตราหน่วยงานบนหน้าปก ภาพประกอบสต็อก
+   20 แบบด้านล่างไม่มีอันไหนสื่อว่าเป็นเอกสารราชการเลย
+   เก็บเป็นคีย์สตริง 'official' ไม่ใช่ index เพื่อไม่ให้เลขหน้าปกของฟอร์มเดิม
+   ที่บันทึกไว้แล้วเลื่อนตำแหน่ง */
+export const OFFICIAL_COVER = {
+  key: 'official',
+  label: 'หน้าปกราชการ (ตราสำนักอนามัย)',
+  official: true,
+  logo: '/images/office-health-logo.png',
+  org: 'สำนักอนามัย',
+  orgSub: 'กรุงเทพมหานคร',
+};
+
 /* Form-cover thumbnails — MIH Consent wizard (356:111486). */
 const COVERS = Array.from({ length: 20 }, (_, i) => {
   const n = String(i + 1).padStart(2, '0');
@@ -208,12 +225,7 @@ const PATIENT_FIELDS = [
   { key: 'citizen',    label: 'เลขบัตรประชาชน' },
   { key: 'contact',    label: 'ข้อมูลบุคคล' },
 ];
-const SIGNATURE_FIELDS = [
-  { key: 'patient', label: 'ผู้ป่วย / ผู้ปกครอง' },
-  { key: 'doctor',  label: 'แพทย์ผู้รักษา' },
-  { key: 'witness', label: 'พยาน' },
-  { key: 'nurse',   label: 'พยาบาล' },
-];
+const SIGNATURE_FIELDS = CONSENT_SIGNATURE_FIELDS;
 
 const TITLE_HINTS = ['ความยินยอมในการรักษา', 'การเปิดเผยข้อมูล', 'ความเสี่ยงและภาวะแทรกซ้อน', 'การถอนความยินยอม'];
 const DETAIL_HINTS = [
@@ -388,7 +400,7 @@ const SectionCard = ({ children, style }) => (
       borderRadius: 'var(--dim-radius-500)',
       border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
       boxShadow: 'var(--shadow-card)',
-      padding: 'var(--dim-space-600)',
+      paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
       gap: 'var(--dim-space-400)',
       ...style,
     }}
@@ -473,7 +485,7 @@ const TemplateCard = ({ tpl, selected, onClick, style }) => {
            border + a 1px inset box-shadow ring (layout-neutral). */
         border: `var(--dim-stroke-100) solid ${selected ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-brandPrimary-quaternary)'}`,
         borderRadius: 'var(--dim-radius-500)',
-        padding: 'var(--dim-space-600)',
+        paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
         boxShadow: selected
           ? 'inset 0 0 0 var(--dim-stroke-100) var(--border-brandPrimary-default, #007549), var(--shadow-brand-drop-bottom-400)'
           : lifted ? 'var(--shadow-brand-drop-bottom-400)' : 'var(--shadow-card)',
@@ -538,6 +550,8 @@ const ConsentWizardHeader = React.memo(function ConsentWizardHeader({
       <div className='hidden md:block w-full min-w-0'>
         <WizardMorphHeader
           title='สร้างแบบฟอร์มจัดการความยินยอมใหม่'
+          /* title กับ step อยู่แถวเดียวกันตั้งแต่ยังไม่ scroll (มติผู้ใช้ 25 ส.ค. 69) */
+          stepperSameRow
           className='min-w-0 overflow-hidden'
           afterTitle={prefill?.fromVersion ? (
             <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
@@ -592,6 +606,10 @@ const ConsentFormEditPopupSteps = React.memo(function ConsentFormEditPopupSteps(
           current={step}
           completedSteps={completedSteps}
           onStepClick={onStepClick}
+          /* ชื่อ step ต้องอยู่บรรทัดเดียว (มติผู้ใช้ 25 ส.ค. 69) — ของเดิม
+             "ตรวจสอบและเผยแพร่" ตัดเป็น 2 บรรทัดเพราะช่อง step กว้างคงที่
+             labelNoWrap เปลี่ยนเป็น width:auto + minWidth เดิม + nowrap */
+          labelNoWrap
           className='justify-center w-full'
         />
       </div>
@@ -756,13 +774,52 @@ const CoverCard = ({ cover, selected, onClick, style }) => {
         ...(style || {}),
       }}
     >
-      <img
-        src={cover.image}
-        alt={cover.label}
-        draggable={false}
-        className='block w-full h-full'
-        style={{ objectFit: 'cover', borderRadius: 'inherit' }}
-      />
+      {cover.official ? (
+        <span
+          className='flex flex-col items-center justify-center w-full h-full'
+          style={{
+            gap: 'var(--dim-space-150)',
+            background: 'var(--surface-card-100)',
+            borderRadius: 'inherit',
+          }}
+        >
+          <img
+            src={cover.logo}
+            alt=''
+            aria-hidden
+            draggable={false}
+            style={{ height: '46%', width: 'auto', objectFit: 'contain', display: 'block' }}
+          />
+          <span
+            style={{
+              color: 'var(--text-content-default)',
+              fontFamily: 'var(--type-family-heading-graphic2)',
+              fontSize: 'var(--type-size-xs)',
+              lineHeight: 1.3,
+            }}
+          >
+            {cover.org}
+          </span>
+          <span
+            style={{
+              color: 'var(--text-content-tertiary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              lineHeight: 1.3,
+            }}
+          >
+            {cover.orgSub}
+          </span>
+        </span>
+      ) : (
+        <img
+          src={cover.image}
+          alt={cover.label}
+          draggable={false}
+          className='block w-full h-full'
+          style={{ objectFit: 'cover', borderRadius: 'inherit' }}
+        />
+      )}
       {selected && (
         <span
           aria-hidden
@@ -797,7 +854,7 @@ const UploadDropzone = ({ onFile, style }) => {
         background: 'var(--surface-formbuilder-default, #f4fbf8)',
         borderRadius: 'var(--dim-radius-200)',
         gap: 'var(--dim-space-200)',
-        padding: 'var(--dim-space-600)',
+        paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
         color: 'var(--text-formbuilder-text, #007549)',
         cursor: 'pointer',
         transition: 'border-color 0.18s ease',
@@ -877,6 +934,8 @@ export default function CreateConsentFormPage() {
   const [sections, setSections] = useState(() => [makeSection(), makeSection()]);
   const [signatures, setSignatures] = useState(() => [...DEFAULT_SIGNATURE_KEYS]);
   const [note, setNote] = useState('');
+  /* ข้อความนำของเอกสาร (HTML จาก RichTextEditor) — แยกขาดจาก detail ของแต่ละข้อ */
+  const [intro, setIntro] = useState('');
   const [requireGuardian, setRequireGuardian] = useState(false);
   const [allowESign] = useState(false);
 
@@ -1164,7 +1223,7 @@ export default function CreateConsentFormPage() {
           />
         )}
       >
-        <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-400)', gap: 'var(--dim-space-400)', paddingBottom: 'var(--dim-size-1800, 96px)' }}>
+        <div className='flex flex-col flex-1 min-w-0' style={{ paddingTop: 'var(--dim-space-400)', paddingRight: 'var(--dim-space-400)', paddingLeft: 'var(--dim-space-400)', gap: 'var(--dim-space-400)', paddingBottom: 'var(--dim-size-1800, 96px)' }}>
           {step === 0 && (
             <StepBasics
               template={template} setTemplate={setTemplate} applyTemplate={applyTemplate}
@@ -1194,6 +1253,7 @@ export default function CreateConsentFormPage() {
               signatures={signatures}
               setSignatureField={setSignatureField}
               note={note} setNote={setNote}
+              intro={intro} setIntro={setIntro}
               requireGuardian={requireGuardian} setRequireGuardian={setRequireGuardian}
               allowESign={allowESign}
             />
@@ -1204,6 +1264,8 @@ export default function CreateConsentFormPage() {
               <StepReview
                 name={name} code={code} type={type} version={version} ttl={ttl}
                 docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
+                signatures={signatures}
+                intro={intro}
                 note={note}
                 fromVersion={prefill?.fromVersion}
                 versionDiff={versionDiff}
@@ -1220,7 +1282,7 @@ export default function CreateConsentFormPage() {
             background: 'var(--surface-card-100)',
             borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
             boxShadow: 'var(--shadow-brand-drop-top-100)',
-            padding: 'var(--dim-space-300) var(--dim-space-400)',
+            paddingTop: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-400)',
             gap: 'var(--dim-space-300)',
           }}
         >
@@ -1372,9 +1434,18 @@ function StepBasics(props) {
       ) : null}
 
       <SectionCard style={coverCardStyle}>
-        <CardHeading title='เลือกหน้าปกแบบฟอร์ม' subtext='เป็นแม่แบบเบื้องต้น ซึ่งสามารถแก้ไขได้ภายหลัง' badge={`${COVERS.length} หน้าปก`} />
+        <CardHeading title='เลือกหน้าปกแบบฟอร์ม' subtext='เป็นแม่แบบเบื้องต้น ซึ่งสามารถแก้ไขได้ภายหลัง' badge={`${COVERS.length + 1} หน้าปก`} />
         <CardCarousel>
           <UploadDropzone key='upload' onFile={handleCoverFile} style={{ flex: CARD_BASIS }} />
+          {/* หน้าปกราชการมาก่อนภาพประกอบสต็อก — เป็นตัวเลือกที่ถูกต้องสำหรับ
+              เอกสารที่ออกในนามสำนักอนามัย (มติผู้ใช้ 25 ส.ค. 69) */}
+          <CoverCard
+            key='official'
+            cover={OFFICIAL_COVER}
+            selected={cover === 'official'}
+            onClick={() => setCover('official')}
+            style={{ flex: CARD_BASIS }}
+          />
           {customCover && (
             <CoverCard
               key='custom'
@@ -1522,7 +1593,13 @@ function StepAccess({ accessScopes, setAccessScopes, position, setPosition, posi
         selectedKeys={selectedScopeKeys}
         onToggle={handleScopeToggle}
         onToggleMany={handleScopeToggleMany}
-        columns={2}
+        /* 1 คอลัมน์ — แต่ละบทบาทกินเต็มแถว แล้วบทบาทถัดไปลงแถวใหม่
+           (มติผู้ใช้ 25 ส.ค. 69) ของเดิม 2 คอลัมน์ทำให้การ์ดสูงไม่เท่ากัน
+           และรายการย่อยในแต่ละบทบาทถูกบีบจนอ่านยาก */
+        columns={1}
+        /* กิจกรรมย่อยข้างในการ์ดแบ่งเป็น 4 คอลัมน์ (มติผู้ใช้ 25 ส.ค. 69)
+           — การ์ดกินเต็มแถวแล้วเหลือที่ว่างขวามือเยอะ */
+        branchColumns={4}
         style={scopeCardStyle}
       />
     </>
@@ -1573,20 +1650,55 @@ const SectionDropIndicator = ({ active }) => (
   />
 );
 
-const SectionFormatToolbar = ({ value = {}, onChange }) => (
+/* กรอบเป็นของกล่องด้านนอก — textarea ข้างในต้องไม่มี chrome ของเบราว์เซอร์เลย
+   (กฎใน CLAUDE.md: ห้ามให้เส้น/โฟกัสริงของ UA ทะลุออกมา) ฉีดครั้งเดียวตอน
+   โหลดโมดูล เพื่อให้ HMR ไม่ทิ้ง <style> ค้าง */
+if (typeof document !== 'undefined' && !document.getElementById('mih-consent-format-input-style')) {
+  const el = document.createElement('style');
+  el.id = 'mih-consent-format-input-style';
+  el.textContent = [
+    '.mih-consent-format-input,',
+    '.mih-consent-format-input:focus,',
+    '.mih-consent-format-input:focus-visible {',
+    '  border: 0 !important;',
+    '  outline: none !important;',
+    '  box-shadow: none !important;',
+    '  background: transparent !important;',
+    '  -webkit-appearance: none !important;',
+    '  appearance: none !important;',
+    '  padding: 0;',
+    '}',
+    '.mih-consent-format-input::placeholder {',
+    '  color: var(--text-content-tertiary);',
+    '  opacity: 1;',
+    '}',
+  ].join('\n');
+  document.head.appendChild(el);
+}
+
+/* กล่องจัดรูปแบบ = แถบปุ่ม + ช่องพิมพ์จริง (มติผู้ใช้ 25 ส.ค. 69)
+   ช่องนี้แก้ `detail` ของข้อที่กำลังเลือก — ตัวเดียวกับช่อง "รายละเอียด
+   Section" ในกล่องข้อ พิมพ์ที่ไหนก็ขึ้นอีกที่ทันที (state เดียวกัน) */
+const SectionFormatToolbar = ({
+  value = {}, onChange, sectionIndex = -1, detail = '', onDetailChange,
+}) => (
   <div
-    className='flex items-center flex-wrap'
-    role='toolbar'
-    aria-label='จัดรูปแบบ Section'
+    className='flex flex-col w-full min-w-0'
     style={{
-      gap: 'var(--dim-space-150, 6px)',
-      padding: 'var(--dim-space-200, 8px)',
+      gap: 'var(--dim-space-200, 8px)',
+      paddingTop: 'var(--dim-space-200, 8px)', paddingRight: 'var(--dim-space-200, 8px)', paddingBottom: 'var(--dim-space-200, 8px)', paddingLeft: 'var(--dim-space-200, 8px)',
       border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default)',
       borderRadius: 'var(--dim-radius-200, 8px)',
       background: 'var(--surface-card-100)',
     }}
   >
-    <span className='text-xs text-ink-tertiary'>Section · จัดรูปแบบ</span>
+   <div
+    className='flex items-center flex-wrap'
+    role='toolbar'
+    aria-label='จัดรูปแบบ Section'
+    style={{ gap: 'var(--dim-space-150, 6px)' }}
+  >
+    <span className='text-xs text-ink-tertiary'>ข้อความ</span>
     {[
       { key: 'bold', icon: 'format_bold', label: 'ตัวหนา' },
       { key: 'italic', icon: 'format_italic', label: 'ตัวเอียง' },
@@ -1614,14 +1726,38 @@ const SectionFormatToolbar = ({ value = {}, onChange }) => (
         </button>
       );
     })}
+   </div>
+    <textarea
+      className='mih-consent-format-input w-full min-w-0'
+      value={detail}
+      onChange={(e) => onDetailChange?.(e.target.value)}
+      placeholder={sectionIndex >= 0 ? `พิมพ์ข้อความของข้อ ${sectionIndex + 1}...` : 'พิมพ์ข้อความ...'}
+      rows={3}
+      style={{
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        lineHeight: 1.6,
+        color: 'var(--text-content-primary)',
+        fontWeight: value.bold ? 'var(--type-weight-bold, 700)' : 'var(--type-weight-regular, 400)',
+        fontStyle: value.italic ? 'italic' : 'normal',
+        textDecoration: value.underline ? 'underline' : 'none',
+        resize: 'vertical',
+      }}
+    />
   </div>
 );
+
+/* ช่อง "หัวข้อ" อยู่หลัง (ไอคอนลาก + ช่องว่าง + วงเลข + ช่องว่าง) — body
+   ด้านล่างต้องเยื้องเท่ากันถึงจะ align กับช่องหัวข้อ (มติผู้ใช้ 25 ส.ค. 69) */
+const SECTION_BODY_INDENT =
+  'calc(var(--dim-size-400, 20px) + var(--dim-space-200, 8px) + var(--dim-size-500, 24px) + var(--dim-space-800, 32px))';
 
 function StepContent(props) {
   const {
     patientFields, setPatientField,
     sections, updateSection, removeSection, reorderSections, addSection,
     signatures, setSignatureField, note, setNote,
+    intro, setIntro,
     requireGuardian, setRequireGuardian,
     patientCardStyle,
     notesCardStyle,
@@ -1632,7 +1768,12 @@ function StepContent(props) {
   const [dragIdx, setDragIdx] = useState(null);
   const [dropIndex, setDropIndex] = useState(null);
   const [grabIdx, setGrabIdx] = useState(null);
+  /* toolbar จัดรูปแบบย้ายออกมาอยู่ใต้หัวข้อ "ข้อความยินยอม" (มติผู้ใช้ 25 ส.ค. 69)
+     จึงต้องรู้ว่ากำลังจัดรูปแบบให้ข้อไหน — จำข้อที่ผู้ใช้ focus ล่าสุด
+     ค่าเริ่มต้น = ข้อแรก */
+  const [formatSectionId, setFormatSectionId] = useState(null);
   const resetDrag = () => { setDragIdx(null); setDropIndex(null); setGrabIdx(null); };
+  const activeSection = sections.find((x) => x.id === formatSectionId) || sections[0] || null;
   const dropAt = (insertAt) => {
     if (dragIdx == null || insertAt == null) return;
     let to = insertAt;
@@ -1663,6 +1804,16 @@ function StepContent(props) {
 
       <SectionCard>
         <ColumnHeading>ข้อความยินยอม</ColumnHeading>
+        {/* กล่องข้อความนำ — เป็นข้อความของ "เอกสาร" ไม่ใช่ของข้อใดข้อหนึ่ง
+            จึงไม่ผูกกับช่อง "รายละเอียด" ในกล่องข้อ (มติผู้ใช้ 25 ส.ค. 69)
+            จัดรูปแบบได้ตามที่ไฮไลต์ + แทรกลิงก์ได้ */}
+        <RichTextEditor
+          label='ข้อความ'
+          value={intro}
+          onChange={setIntro}
+          placeholder='พิมพ์ข้อความนำของเอกสาร เช่น ข้าพเจ้าได้รับคำอธิบายจากเจ้าหน้าที่แล้ว...'
+          ariaLabel='ข้อความนำของเอกสารความยินยอม'
+        />
         <div
           className='flex flex-col'
           style={{ gap: 'var(--dim-space-300)' }}
@@ -1679,71 +1830,75 @@ function StepContent(props) {
                 onDragOver={(e) => handleDragOverCard(e, i)}
                 onDrop={(e) => { e.preventDefault(); dropAt(dropIndex); }}
                 onDragEnd={resetDrag}
+                onFocusCapture={() => setFormatSectionId(s.id)}
                 className='flex flex-col'
+                /* ระยะระหว่างแถวในการ์ดข้อ = 24px (มติผู้ใช้ 25 ส.ค. 69) —
+                   32px ทำให้การ์ดสูงจนเห็นได้ทีละข้อเดียวบนจอ 13" */
                 style={{
-                  gap: 'var(--dim-space-800, 32px)',
+                  gap: 'var(--dim-space-600, 24px)',
                   border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
                   borderRadius: 'var(--dim-radius-400)',
-                  padding: 'var(--dim-space-400)',
+                  paddingTop: 'var(--dim-space-400)',
+                  paddingRight: 'var(--dim-space-400)',
+                  paddingBottom: 'var(--dim-space-400)',
+                  paddingLeft: 'var(--dim-space-400)',
                   background: 'var(--surface-neutral-quaternary, #F9FBFB)',
                   opacity: dragIdx === i ? 0.45 : 1,
                   transition: 'opacity 120ms ease',
                 }}
               >
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+              {/* ระยะระหว่างกล่องในแถวหัวการ์ด = 32px (มติผู้ใช้ 25 ส.ค. 69)
+                  แต่ไอคอนลากกับวงเลขยังเป็นกลุ่มเดียวกัน จึงห่อไว้ให้ชิด 8px */}
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-800, 32px)' }}>
+                <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                 <span
                   onMouseDown={() => setGrabIdx(i)}
                   onMouseUp={() => setGrabIdx(null)}
                   title='ลากเพื่อจัดลำดับ'
-                  style={{ color: 'var(--text-content-tertiary)', cursor: 'grab', lineHeight: 0, touchAction: 'none' }}
+                  className='inline-flex items-center justify-center shrink-0'
+                  style={{
+                    width: 'var(--dim-size-400, 20px)',
+                    color: 'var(--text-content-tertiary)', cursor: 'grab', lineHeight: 0, touchAction: 'none',
+                  }}
                 >
                   <Icon name='drag_indicator' size={18} />
                 </span>
                 <span
                   className='inline-flex items-center justify-center'
                   style={{
-                    width: 24, height: 24, borderRadius: 'var(--dim-radius-full)',
+                    width: 'var(--dim-size-500, 24px)', height: 'var(--dim-size-500, 24px)',
+                    borderRadius: 'var(--dim-radius-full)', flexShrink: 0,
                     background: 'var(--surface-brandPrimary-quaternary)', color: 'var(--text-brandPrimary-default)',
                     fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)',
                   }}
                 >
                   {i + 1}
                 </span>
-                <div className='flex-1' />
-                <CardXButton label='ลบข้อความ' onClick={() => removeSection(s.id)} disabled={sections.length <= 1} />
-              </div>
-              <div
-                className='grid w-full min-w-0'
-                style={{
-                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                  columnGap: 'var(--dim-space-1200, 48px)',
-                  rowGap: 'var(--dim-space-800, 32px)',
-                }}
-              >
-                <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-800, 32px)' }}>
+                </div>
+                {/* ช่อง "หัวข้อ" อยู่แถวเดียวกับเลขข้อ (มติผู้ใช้ 25 ส.ค. 69)
+                    — ประหยัดความสูงและอ่านเป็น "ข้อ N: <หัวข้อ>" ได้ทันที
+                    showLabel={false} เพราะเลขข้อทำหน้าที่หัวแถวอยู่แล้ว */}
+                <div className='flex-1 min-w-0'>
                   <InputField
                     label='หัวข้อ'
+                    showLabel={false}
                     required
                     value={s.title}
                     onChange={(v) => updateSection(s.id, { title: v })}
-                    placeholder='เช่น ยินยอมรับการรักษา'
-                    helperText='ไม่ต้องใส่เลขข้อ เดี๋ยวระบบจะใส่ให้'
-                  />
-                  <SectionFormatToolbar
-                    value={s.detailFormat}
-                    onChange={(detailFormat) => updateSection(s.id, { detailFormat })}
-                  />
-                  <SuggestibleTextarea
-                    voice label='รายละเอียด Section' required
-                    value={s.detail} onChange={(v) => updateSection(s.id, { detail: typeof v === 'string' ? v : v?.target?.value ?? '' })}
-                    placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
-                    suggestions={DETAIL_HINTS} minChars={3} height={120}
+                    /* ซ่อน label ไว้ (เลขข้อทำหน้าที่หัวแถว) placeholder จึงต้อง
+                       บอกด้วยว่าช่องนี้คือหัวข้อ ไม่ใช่แค่ยกตัวอย่าง */
+                    placeholder='ใส่หัวข้อ เช่น ยินยอมการรักษา'
+                    showHelperText={false}
                   />
                 </div>
-                <div className='flex flex-col min-w-0'>
+                {/* Field Type อยู่แถวเดียวกับหัวข้อ (มติผู้ใช้ 25 ส.ค. 69)
+                    — ประหยัดพื้นที่ ของเดิมกินคอลัมน์ขวาทั้งคอลัมน์เพื่อ
+                    select ตัวเดียวที่ยัง disabled อยู่ */}
+                <div className='shrink-0' style={{ width: 'var(--dim-size-2600, 384px)' }}>
                   {/* ด.1.1.13 — consent forms lock field type to boolean */}
                   <Select
                     label='รูปแบบคำตอบของข้อนี้ (Field Type)'
+                    showLabel={false}
                     options={FIELD_TYPE_OPTIONS}
                     value={s.fieldType || 'boolean'}
                     onChange={(v) => updateSection(s.id, { fieldType: v })}
@@ -1751,12 +1906,56 @@ function StepContent(props) {
                     disabled
                   />
                 </div>
+                <CardXButton label='ลบข้อความ' onClick={() => removeSection(s.id)} disabled={sections.length <= 1} />
+              </div>
+              <div
+                className='grid w-full min-w-0'
+                style={{
+                  paddingLeft: SECTION_BODY_INDENT,
+                  gridTemplateColumns: 'minmax(0, 1fr)',
+                  rowGap: 'var(--dim-space-600, 24px)',
+                }}
+              >
+                <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+                  <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                    <SuggestibleTextarea
+                      voice label='รายละเอียด' required
+                      value={s.detail} onChange={(v) => updateSection(s.id, { detail: typeof v === 'string' ? v : v?.target?.value ?? '' })}
+                      placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
+                      suggestions={DETAIL_HINTS} minChars={3} height={120}
+                      /* FieldShell cap ที่ 640px — ปลดเฉพาะที่นี่ให้กว้าง
+                         เท่ากล่องหัวข้อในแถวบน (มติผู้ใช้ 25 ส.ค. 69) */
+                      style={{ maxWidth: '100%' }}
+                      /* สะท้อนการจัดรูปแบบจากกล่องด้านบน — ข้อความเดียวกัน
+                         ต้องหน้าตาเหมือนกันทั้งสองที่ ไม่งั้นดูเหมือนคนละช่อง
+                         (มติผู้ใช้ 25 ส.ค. 69) */
+                      textareaStyle={{
+                        fontWeight: s.detailFormat?.bold ? 'var(--type-weight-bold, 700)' : undefined,
+                        fontStyle: s.detailFormat?.italic ? 'italic' : undefined,
+                        textDecoration: s.detailFormat?.underline ? 'underline' : undefined,
+                      }}
+                    />
+                    {/* คำอธิบายเลขข้อย้ายมาอยู่ใต้ช่องรายละเอียด (มติผู้ใช้
+                        25 ส.ค. 69) — SuggestibleTextarea บังคับ
+                        showHelperText={false} จึงต้องเรนเดอร์เอง */}
+                    <span
+                      style={{
+                        fontFamily: 'var(--type-family-body)',
+                        fontSize: 'var(--type-size-xs)',
+                        color: 'var(--text-content-tertiary)',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      ไม่ต้องใส่เลขข้อ ระบบจะใส่ตามลำดับโดยอัตโนมัติ
+                    </span>
+                  </div>
+                </div>
               </div>
               </div>
               <SectionDropIndicator active={dragIdx != null && dropIndex === i + 1} />
             </React.Fragment>
           ))}
-          <BrandDashedAddButton icon='add' onClick={addSection}>เพิ่มข้อความ</BrandDashedAddButton>
+          <BrandDashedAddButton icon='add' onClick={addSection}>เพิ่มข้อ</BrandDashedAddButton>
         </div>
       </SectionCard>
 
@@ -1778,9 +1977,6 @@ function StepContent(props) {
           placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
           suggestions={DETAIL_HINTS} minChars={3} height={120}
         />
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400) var(--dim-space-600)' }}>
-          <Checkbox checked={requireGuardian} onChange={(checked) => setRequireGuardian(Boolean(checked))} label='สำหรับผู้ป่วย / จำเป็นต้องกรอกผู้ปกครอง' />
-        </div>
       </SectionCard>
     </>
   );
@@ -1867,6 +2063,13 @@ const ConsentChoiceRadios = ({ value = '', name, compact }) => {
 
 export function StepReview({
   name, code, type, version, ttl, docTitle, sections, patientFields, allowESign, note, reviewStepStyle,
+  /* ข้อความนำของเอกสาร (rich text จาก step 2) — preview ต้องมีข้อมูลครบตามที่
+     กรอกไว้จริง (มติผู้ใช้ 25 ส.ค. 69) ของเดิม `intro` ค้างอยู่ที่ step 2
+     ไม่ได้ถูกส่งมาที่นี่เลย ผู้สร้างฟอร์มจึงไม่มีทางเห็นก่อนเผยแพร่ */
+  intro = '',
+  /* ผู้ลงนามที่เลือกไว้ — preview ต้องมีช่องเซ็นเท่าจำนวนที่เลือก
+     (มติผู้ใช้ 25 ส.ค. 69) ไม่ใช่กล่องเดียวตายตัว */
+  signatures,
   versionDiff, fromVersion, consentImpact, stackLayout = false,
   /* แสดงบล็อกสแกน QR ให้ผู้รับบริการยินยอมเองเหนือเครื่องมือถือตัวอย่าง —
      เปิดเฉพาะตอน "ดูแบบฟอร์มที่เผยแพร่แล้ว" (popup /consent/forms) เพราะใน
@@ -1889,6 +2092,22 @@ export function StepReview({
   const Divider = () => (
     <div style={{ height: 'var(--dim-stroke-100)', background: 'var(--border-brandPrimary-quaternary)' }} />
   );
+
+  /* ข้อความนำเป็น rich text — ต้อง sanitize ก่อนเสมอ ห้ามยัด innerHTML ดิบ */
+  const introHtml = sanitizeRichText(intro);
+  const hasIntro = Boolean(richTextToPlain(intro).trim());
+  const IntroBlock = ({ compact }) => (hasIntro ? (
+    <div
+      className='mih-consent-preview-intro min-w-0'
+      style={{
+        color: 'var(--text-content-secondary)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: compact ? 11 : 'var(--type-size-sm)',
+        lineHeight: 1.6,
+      }}
+      dangerouslySetInnerHTML={{ __html: introHtml }}
+    />
+  ) : null);
 
   const Clause = ({ index, title: ct, detail, detailFormat, compact, clauseId, lite }) => (
     <div className='flex flex-col min-w-0'>
@@ -1970,7 +2189,8 @@ export function StepReview({
 
         <ColumnHeading>ข้อความยินยอม</ColumnHeading>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
-          {filledSections.length === 0 ? (
+          <IntroBlock />
+          {filledSections.length === 0 && !hasIntro ? (
             <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>ยังไม่มีข้อความยินยอม</span>
           ) : previewSections.map((s, i) => (
             <Clause key={s.id || `clause-${i}`} index={i + 1} title={s.title} detail={s.detail} detailFormat={s.detailFormat} clauseId={s.id} lite={stackLayout} />
@@ -1986,22 +2206,30 @@ export function StepReview({
 
         <ColumnHeading>ลายมือชื่อ</ColumnHeading>
         {/* Signature capture box — Figma "Signature / Default" (272:46900):
-            formbuilder dashed box, edit glyph + "เซ็นชื่อในกล่องนี้". */}
-        <div
-          className='flex flex-col items-center justify-center w-full'
-          style={{
-            minHeight: 96,
-            border: 'var(--dim-stroke-150) dashed var(--border-formbuilder-default, #C5EDDA)',
-            background: 'var(--surface-formbuilder-default, #F4FBF8)',
-            borderRadius: 'var(--dim-radius-200)',
-            gap: 'var(--dim-space-200)',
-            padding: 'var(--dim-space-600)',
-            color: 'var(--text-formbuilder-subtext, #858C92)',
-          }}
-        >
-          <Icon name='edit' size={20} />
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>เซ็นชื่อในกล่องนี้</span>
-        </div>
+            formbuilder dashed box, edit glyph + "เซ็นชื่อในกล่องนี้".
+            หนึ่งกล่องต่อผู้ลงนามหนึ่งคนที่เลือกไว้ (มติผู้ใช้ 25 ส.ค. 69) */}
+        {consentSignatureRoles(signatures).map((role) => (
+          <div key={role.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150)' }}>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary)' }}>
+              {role.label}
+            </span>
+            <div
+              className='flex flex-col items-center justify-center w-full'
+              style={{
+                minHeight: 96,
+                border: 'var(--dim-stroke-150) dashed var(--border-formbuilder-default, #C5EDDA)',
+                background: 'var(--surface-formbuilder-default, #F4FBF8)',
+                borderRadius: 'var(--dim-radius-200)',
+                gap: 'var(--dim-space-200)',
+                paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
+                color: 'var(--text-formbuilder-subtext, #858C92)',
+              }}
+            >
+              <Icon name='edit' size={20} />
+              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>เซ็นชื่อในกล่องนี้</span>
+            </div>
+          </div>
+        ))}
         {/* Note box — Figma 355:139568. */}
         <div
           className='flex flex-col w-full'
@@ -2009,7 +2237,7 @@ export function StepReview({
             background: 'var(--surface-card-200, #FDFDFD)',
             border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
             borderRadius: 'var(--dim-radius-400)',
-            padding: 'var(--dim-space-400)',
+            paddingTop: 'var(--dim-space-400)', paddingRight: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-400)', paddingLeft: 'var(--dim-space-400)',
             gap: 'var(--dim-space-100)',
             color: 'var(--text-content-secondary)',
           }}
@@ -2036,7 +2264,7 @@ export function StepReview({
           <div className='flex-1' />
           <span
             className='inline-flex items-center'
-            style={{ gap: 'var(--dim-space-100)', padding: '2px var(--dim-space-200)', borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-statussummarycard-positive, #D1F6EE)', color: 'var(--text-statussummarycard-positive-number, #196C65)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}
+            style={{ gap: 'var(--dim-space-100)', paddingTop: '2px', paddingRight: 'var(--dim-space-200)', paddingBottom: '2px', paddingLeft: 'var(--dim-space-200)', borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-statussummarycard-positive, #D1F6EE)', color: 'var(--text-statussummarycard-positive-number, #196C65)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}
           >
             <span style={{ width: 6, height: 6, borderRadius: 'var(--dim-radius-full)', background: 'currentColor' }} />
             Live
@@ -2051,26 +2279,27 @@ export function StepReview({
             {/* app bar */}
             <div
               className='flex items-center shrink-0'
-              style={{ gap: 'var(--dim-space-200)', padding: '40px var(--dim-space-400) var(--dim-space-300)', borderBottom: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}
+              style={{ gap: 'var(--dim-space-200)', paddingTop: '40px', paddingRight: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-400)', borderBottom: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}
             >
               <Icon name='arrow_back_ios_new' size={16} color='var(--text-content-secondary)' />
               <span style={{ flex: 1, textAlign: 'center', color: 'var(--text-content-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>ใบยินยอม</span>
               <span style={{ width: 16 }} />
             </div>
             {/* scrollable doc */}
-            <div className='flex flex-col scrollbar-thin' style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 'var(--dim-space-400)', gap: 'var(--dim-space-400)' }}>
-              <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)', padding: 'var(--dim-space-300)', borderRadius: 'var(--dim-radius-200)', background: 'var(--surface-brandPrimary-quaternary)' }}>
+            <div className='flex flex-col scrollbar-thin' style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingTop: 'var(--dim-space-400)', paddingRight: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-400)', paddingLeft: 'var(--dim-space-400)', gap: 'var(--dim-space-400)' }}>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)', paddingTop: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-300)', paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-300)', borderRadius: 'var(--dim-radius-200)', background: 'var(--surface-brandPrimary-quaternary)' }}>
                 <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)', lineHeight: 1.4 }}>{title}</span>
                 <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 11 }}>{code || 'PH-001'} · {version || 'V1.0'}</span>
               </div>
-              {filledSections.length === 0 ? (
+              <IntroBlock compact />
+              {filledSections.length === 0 && !hasIntro ? (
                 <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 11 }}>ยังไม่มีข้อความยินยอม</span>
               ) : filledSections.slice(0, 6).map((s, i) => (
                 <Clause key={s.id} index={i + 1} title={s.title} detail={s.detail} detailFormat={s.detailFormat} compact clauseId={s.id} />
               ))}
             </div>
             {/* sticky confirm */}
-            <div className='shrink-0' style={{ padding: 'var(--dim-space-300) var(--dim-space-400)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>
+            <div className='shrink-0' style={{ paddingTop: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-400)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>
               {/* ตัวอย่างในเครื่องมือถือ — ปุ่มกดไม่ได้ (ดูเหมือนของจริงแต่ inert) */}
               <BrandButton
                 variant='fill'
@@ -2122,6 +2351,8 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
   const [sections, setSections] = useState(() => [makeSection(), makeSection()]);
   const [signatures, setSignatures] = useState(() => [...DEFAULT_SIGNATURE_KEYS]);
   const [note, setNote] = useState('');
+  /* ข้อความนำของเอกสาร (HTML จาก RichTextEditor) — แยกขาดจาก detail ของแต่ละข้อ */
+  const [intro, setIntro] = useState('');
   const [requireGuardian, setRequireGuardian] = useState(false);
   const [allowESign] = useState(false);
   const [baselineSnapshot, setBaselineSnapshot] = useState(null);
@@ -2395,6 +2626,7 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
                 signatures={signatures}
                 setSignatureField={setSignatureField}
                 note={note} setNote={setNote}
+                intro={intro} setIntro={setIntro}
                 requireGuardian={requireGuardian} setRequireGuardian={setRequireGuardian}
                 allowESign={allowESign}
                 patientCardStyle={{ marginTop: 'var(--dim-space-600, 24px)' }}
@@ -2407,6 +2639,8 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
                 <StepReview
                   name={name} code={code} type={type} version={version} ttl={ttl}
                   docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
+                  signatures={signatures}
+                  intro={intro}
                   note={note}
                   fromVersion={prefill?.fromVersion}
                   versionDiff={versionDiff}

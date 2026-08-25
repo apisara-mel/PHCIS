@@ -976,16 +976,18 @@ design system เมื่อไร
 | **ทำไมไม่มีของเดิมแทน** | อนามัยโรงเรียนใช้ BMI for Age 5–19 ปีและรอบบริการรายเทอม คนละเกณฑ์กับเด็กปฐมวัยที่อิงอายุเป็นเดือน; ไม่มี alert engine กลางใน DS |
 | **โครง API** | ถ้ามีโมดูลที่ 2 ที่ต้องเตือน "กิจกรรมตามอายุ/รอบเวลา" (เช่น ANC ตามอายุครรภ์, NCD ตามรอบนัด) ควรทำ `buildScheduleAlerts({ subject, rules, leadDays })` กลาง แล้วให้แต่ละโมดูลส่ง rules ของตัวเอง |
 | **รอเคสอะไร** | โมดูลที่ 2 ที่ต้องการ alert engine แบบเดียวกัน |
-| **บันทึกเมื่อ** | 24 ส.ค. 2569 |
+| **บันทึกเมื่อ** | 24 ส.ค. 2569 · แก้เฉพาะจุด 25 ส.ค. 2569 |
 
-### 68. StatTile — เลข 0 แสดงเป็น "ศูนย์ขีดทับ" อ่านเป็นสัญลักษณ์ห้าม — 🐞 ข้อสังเกตด้าน typography รอเจ้าของ DS เคาะ
+### 68. เลข 0 ใน Mitr อ่านเป็นสัญลักษณ์ห้าม — ✅ แก้เฉพาะจุดแล้ว 25 ส.ค. 69 · ยังรอเจ้าของ DS เคาะระดับ token
 
 | | |
 |---|---|
 | **พบที่** | `StatTile` ใน `src/pages/clinic/school-health/schoolHealthShared.jsx` — ใช้ที่ `/clinic/daycare/monitoring` และ Dashboard อนามัยโรงเรียน |
 | **อาการ** | ค่า `value={0}` เรนเดอร์ด้วย `--type-family-heading-graphic2` (= **Mitr**) ซึ่ง glyph เลข 0 เป็น *slashed zero* — ที่ขนาด 24px อ่านเป็นสัญลักษณ์ 🚫 "ห้าม/ไม่อนุญาต" แทนที่จะเป็นเลขศูนย์ ทำให้การ์ด "ถึงกำหนดวันนี้ 0 รายการ" ดูเหมือนแจ้งเตือนแทนที่จะเป็นข่าวดี |
-| **ทำไมยังไม่แก้** | เป็น typography ของ DS ที่มีอยู่ก่อนและกระทบโมดูลอนามัยโรงเรียนที่ส่งมอบไปแล้วด้วย — การเปลี่ยน font stack ของ StatTile เป็นการตัดสินใจของเจ้าของ design system ไม่ใช่แก้เฉพาะหน้าในโมดูลใหม่ |
-| **ทางเลือกที่เสนอ** | (ก) เปลี่ยน StatTile ให้ใช้ `--type-family-heading-content` เหมือน summary card ของ QueuePageShell ซึ่งเลข 0 ปกติ · (ข) เพิ่ม `font-feature-settings: "zero" 0` ถ้า Mitr มี feature นี้ · (ค) ยอมรับตามนี้ถ้า Figma ตั้งใจใช้ Mitr |
+| **พิสูจน์แล้ว** | 25 ส.ค. 69 ทดสอบบนหน้าจริง: `font-feature-settings: "zero" 0` และ `font-variant-numeric` **ไม่มีผล** — Mitr ไม่มี OpenType feature `zero`, ขีดทับอยู่ใน glyph ตั้งต้น จึงปิดไม่ได้ · เปลี่ยนเป็น `--type-family-heading-content` (Sarabun) แล้วเลขอ่านออกทันที |
+| **แก้แล้วที่** | `StatTile` (`schoolHealthShared.jsx`) · KPI ของ `dashboardReportKit.jsx` · ตัวเลขกลางโดนัทใน `Charts.jsx` — **เฉพาะ 3 จุดที่เป็น "ตัวเลขยืนเดี่ยว"** เพิ่ม `font-weight: bold` ชดเชยน้ำหนักที่หายไปจาก Mitr |
+| **ยังไม่แก้ (ตั้งใจ)** | อีก ~350 จุดที่ใช้ Mitr เป็นฟอนต์**หัวข้อ/ข้อความ** — เลขที่ปนอยู่ในประโยคอ่านออกจากบริบทอยู่แล้ว และการเปลี่ยนทั้งหมดคือการเปลี่ยน identity ของ DS ซึ่งไม่ใช่การตัดสินใจของฝั่ง implementation |
+| **เสนอให้ mih-design ทำต่อ** | วิธีที่แก้ครบทุกจุดโดยไม่แตะ component เลยคือประกาศ `@font-face` ที่จำกัด `unicode-range: U+0030-0039` ให้ตัวเลขตกไปใช้ Sarabun แล้ววางไว้**หน้า** Mitr ใน stack ของ `--type-family-heading-graphic2` — ต้องแก้ที่ repo `mih-design` (`tokens.css` เป็นไฟล์ generated ห้ามแก้ที่นี่ ดู CLAUDE.md) |
 | **บันทึกเมื่อ** | 24 ส.ค. 2569 |
 
 ---
@@ -1132,7 +1134,101 @@ repo `mih-design`** — เกิดจาก typography sweep (Mitr) + redesign
   ใบพิมพ์ไปที่ `document.body`** — กฎ `body > *:not(.print-only)` จะซ่อน `#root`
   ไปด้วยถ้าใบพิมพ์ฝังอยู่ข้างใน แล้วพิมพ์ออกมาได้หน้าเปล่า
 
-### 73. AddMedicationPopup — วิธีใช้ default เป็น "รับประทาน (Oral)" เสมอ · 🐞 ข้อสังเกต รอเจ้าของ DS เคาะ
+## 73. AccessRequestHistoryTimeline — timeline แบ่งคอลัมน์ (มติผู้ใช้ 25 ส.ค. 69)
+
+`src/components/consent/AccessRequestHistoryTimeline.jsx` — ใช้ใน popup
+"ประวัติคำขอเข้าถึงข้อมูล" (`CreateConsentRequestHeaderAction`)
+
+- **ปัญหาของเดิม:** เป็นการ์ดเรียงกัน ยัด 2 ฟิลด์ต่อบรรทัดคั่นด้วย "·"
+  (`reqNo · name` / `reason · date`) ไม่มีอะไร align กัน กวาดตาลงมาเทียบข้าม
+  รายการไม่ได้ · ไม่มีหัวคอลัมน์บอกว่าวันที่ที่เห็นคือวันที่ยื่นคำขอ ไม่ใช่ช่วง
+  ที่ขอเข้าถึง · ใช้ `patientName || name` ช่องเดียวทั้งที่เป็นคนละคน
+  (ผู้ขอ vs ผู้รับบริการ) · `slice(0, 12)` ตัดเงียบ ๆ ไม่บอกว่าเหลืออีกเท่าไร
+- **ของใหม่:** grid `gridTemplateColumns` สตริงเดียวใช้ทั้งหัวตารางและทุกแถว
+  → คอลัมน์ตรงกันเสมอ · รางเวลาซ้ายสุด (เส้น + จุดสีตามสถานะ) · หัวข้อเดือน
+  sticky ผ่าน `GroupedTimeline` ที่มีอยู่แล้ว · หัวคอลัมน์ sticky
+  · แสดงครบ 124 รายการ + บอกยอดรวมใน subtitle
+- **คอลัมน์:** วันที่/เวลา · เลขคำขอ (+รหัสฟอร์ม) · ผู้ขอ (+หน่วยงาน) ·
+  ผู้รับบริการ (+HN) · วัตถุประสงค์ (+purpose) · สถานะ
+- **สถานะ DS:** composition ของ `GroupedTimeline` + `StickyTimelineDateHeader`
+  + `ColorfulBadge` ที่มีอยู่แล้ว — ไม่ได้สร้าง primitive ใหม่ แต่ **โครง
+  "timeline ที่แบ่งคอลัมน์"** ยังไม่มีใน DS
+- **ยกขึ้น DS เมื่อ:** มีหน้าที่ 2 ต้องการ timeline แบบมีคอลัมน์ (เช่น audit log
+  ของ `จัดการสิทธิ์`, ประวัติการแก้ไขแบบฟอร์ม) → ถอดเป็น
+  `<ColumnTimeline columns rows groupBy />` ใช้ร่วมกัน
+
+### บทเรียนที่ควรจำ
+
+mock data ใน `accessRecords.js` ใช้ `i % 12` ทั้ง **เดือน** และ **ชื่อผู้ขอ**
+(NAMES มี 12) และ `formCode` → ทุกรายการในเดือนเดียวกันกลายเป็นคนเดียวกันหมด
+มองไม่ออกตอนเป็นการ์ด แต่พอทำเป็นคอลัมน์เห็นทันทีว่าซ้ำ 6 แถวรวด
+**คูณ stride co-prime ไม่ช่วย** (`i*5 % 12` ยังอยู่ residue class เดิม) ต้องบวก
+ค่าที่เดินหน้าเมื่อ `i` ครบรอบ — ใช้ `spread = Math.floor(i / MONTHS.length)`
+
+## 74. ColumnTimeline — timeline แบ่งคอลัมน์ (ยกขึ้นจาก #73, 25 ส.ค. 69)
+
+`src/components/timeline/ColumnTimeline.jsx` — ถอดออกมาจาก
+`AccessRequestHistoryTimeline` (#73) ทันทีที่มีผู้ใช้รายที่ 2 ตามเงื่อนไขที่
+เขียนไว้ในข้อนั้นเอง
+
+- **ผู้ใช้:** `AccessRequestHistoryTimeline` (ประวัติคำขอเข้าถึงข้อมูล) ·
+  `AppointmentCreationHistoryTimeline` (ประวัติสร้างการนัดหมาย)
+- **API:** `columns=[{ key, label, track, align?, badge?, primary(row), secondary?(row) }]`
+  · `getDateTime(row)` ใช้จัดกลุ่มรายเดือน · `getTone(row)` คุมทั้งสีจุดบนราง
+  และ tone ของ badge (คอลัมน์ที่ตั้ง `badge: true`) — สีจึงตรงกันเสมอโดย
+  ไม่ต้อง map เอง
+- **สถานะ DS:** composition ของ `GroupedTimeline` + `StickyTimelineDateHeader`
+  + `ColorfulBadge` — ยังไม่มี primitive "timeline ที่มีคอลัมน์" ใน Figma
+- **ยกขึ้น DS เมื่อ:** Figma ออกแบบ pattern นี้เป็นทางการ (ตอนนี้เป็น vibe code
+  ที่ derive จาก timeline เดิม)
+
+### ข้อมูลที่ยัง mock — ต้องต่อของจริงก่อนขึ้น production
+
+- **ประวัติสร้างการนัดหมาย** (`src/pages/appointment/appointmentCreationHistory.js`)
+  — นัดหมายใน mock **ไม่มี `createdBy` / `createdAt`** (`appt()` เก็บแค่
+  `staffId` ของแพทย์เจ้าของ slot ซึ่งคนละเรื่องกับคนที่กดสร้าง) โมดูลนี้จึง
+  derive ขึ้นมา: หยิบ 1 ใน 5 ของ `INITIAL_APPOINTMENTS` มาเป็นของผู้ใช้ปัจจุบัน
+  แล้วสมมติเวลาที่กดสร้างว่าอยู่ก่อนวันนัด 2–7 วัน
+  **ของจริงต้องมาจาก audit trail ของ appointment** ไม่ใช่ derive แบบนี้
+- **ประวัติคำขอเข้าถึงข้อมูล** — `accessRecords.js` ให้ 1 ใน 7 เป็นของผู้ใช้
+  ปัจจุบัน (`mine`) เพื่อให้มีประวัติกระจายหลายเดือน/หลายสถานะ ของจริงต้องมา
+  จาก requester ที่บันทึกไว้ตอนยื่นคำขอ
+
+## 75. RichTextEditor — กล่องข้อความจัดรูปแบบตามที่ไฮไลต์ (มติผู้ใช้ 25 ส.ค. 69)
+
+`src/components/forms/RichTextEditor.jsx` — ใช้ครั้งแรกที่ "ข้อความ" นำของเอกสาร
+ใน CreateConsentFormPage step 3
+
+- **ทำไมต้องมี:** ของเดิมเก็บ bold/italic/underline เป็น flag **ระดับช่อง**
+  (`detailFormat`) กดแล้วหนาทั้งช่อง ผู้ใช้ต้องการแบบกล่องเขียนบล็อก —
+  ไฮไลต์คำแล้วกด B หนาเฉพาะคำนั้น
+- **วิธีทำ:** `contentEditable` + `document.execCommand` — ได้ selection-based
+  formatting + undo/redo ของเบราว์เซอร์ฟรี และไม่ต้องลง rich-text library ใหม่
+  (โปรเจกต์นี้ยังไม่มี) · execCommand ถูกมาร์ค deprecated แต่ยังทำงานทุก
+  เบราว์เซอร์ที่ระบบรองรับและยังไม่มีตัวแทนมาตรฐาน ถ้าวันหนึ่งเลิกทำงาน ให้
+  เปลี่ยนไปเขียน `<b>/<i>/<u>` เองผ่าน Selection API โดย API ของ component
+  ไม่ต้องเปลี่ยน
+- **ปุ่ม:** alias `BrandSubdueIconButton` ทั้งหมด จะได้ state hover/focus/active
+  ตามสเปกคอมโพเนนต์ · ใช้ `onMouseDown` + `preventDefault` แทน `onClick`
+  ไม่งั้นคลิกปุ่มแล้วกล่องเสีย selection ก่อน execCommand จะได้ทำงาน
+- **ลิงก์:** ไฮไลต์ → ปุ่ม 🔗 → วาง URL · ต้องเก็บ `Range` ไว้เองก่อนโฟกัสหลุด
+  ไปช่อง URL ไม่งั้นไฮไลต์หาย
+- **ความปลอดภัย:** export `sanitizeRichText()` — เหลือเฉพาะ
+  `b/strong/i/em/u/a/br/div/p/span` และ href ที่ขึ้นต้นด้วย
+  `http(s)|mailto:|tel:|/` เท่านั้น ลิงก์บังคับ `rel="noopener noreferrer"`
+  **ผู้เรียกต้องเรนเดอร์ผ่านตัวนี้เสมอ ห้ามยัด innerHTML ดิบ** ·
+  `richTextToPlain()` ไว้เช็ค required / ทำ preview แบบตัดคำ
+- **สถานะ DS:** ยังไม่มี rich-text editor ใน Figma — เป็น vibe code
+- **ยกขึ้น DS เมื่อ:** มีหน้าที่ 2 ต้องการ (เช่น ประกาศ/ข่าวสาร, template
+  เอกสารอื่น) หรือ Figma ออกแบบ pattern นี้เป็นทางการ
+
+### ที่ยังไม่ได้ทำ
+
+`value` เป็น HTML แต่ตอนนี้ยังใช้แค่กับ `intro` ที่ไม่ได้ถูกเรนเดอร์ใน preview
+— ถ้าจะเอาไปใช้กับ `sections[].detail` ต้องแก้ `Clause` ให้เรนเดอร์ HTML ผ่าน
+`sanitizeRichText()` และเปลี่ยนตัวเช็ค required ให้ใช้ `richTextToPlain()`
+
+## 76. AddMedicationPopup — วิธีใช้ default เป็น "รับประทาน (Oral)" เสมอ · 🐞 ข้อสังเกต รอเจ้าของ DS เคาะ
 
 | | |
 |---|---|
@@ -1142,7 +1238,7 @@ repo `mih-design`** — เกิดจาก typography sweep (Mitr) + redesign
 | **ทางเลือกที่เสนอ** | ผูก route/หน่วยเริ่มต้นไว้กับรายการยาในแค็ตตาล็อก (เพิ่ม field `defaultRoute` / `defaultUnit` ใน `MEDICATION_NAME_OPTIONS`) แล้วให้ popup เติมให้เมื่อเลือกยา — ผู้ใช้ยังแก้ทับได้ |
 | **บันทึกเมื่อ** | 25 ส.ค. 2569 |
 
-### 74. รูปยา fallback เป็น "แผง Ibuprofen" — แก้แล้วบางส่วน 25 ส.ค. 69
+## 77. รูปยา fallback เป็น "แผง Ibuprofen" — แก้แล้วบางส่วน 25 ส.ค. 69
 
 `FALLBACK_MED_IMG` คือรูป Ibuprofen ดังนั้นยาทุกตัวที่ยังไม่มีรูปของตัวเองจะ
 แสดง **แผง Ibuprofen** ซึ่งบนใบสั่งยาอันตรายกว่าไม่แสดงรูปเลย

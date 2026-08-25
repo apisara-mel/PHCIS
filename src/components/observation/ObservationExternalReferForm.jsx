@@ -3,7 +3,7 @@ import Select from '@/components/forms/Select';
 import InputField from '@/components/forms/InputField';
 import DatePicker from '@/components/forms/DatePicker';
 import TimePicker from '@/components/forms/TimePicker';
-import VoiceTextarea from '@/components/forms/VoiceTextarea';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import CheckboxButton from '@/components/checkbox/CheckboxButton';
 import RadioButton from '@/components/radio/RadioButton';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
@@ -339,6 +339,62 @@ function VitalsFields({ value = {}, onChange }) {
  * Nested external-referral form — matches the paper ส่งต่อภายนอก form
  * (หน่วยงาน / สิทธิ / สาเหตุ Refer · อาการแรกรับ · อาการปัจจุบัน · สถานะสุดท้าย).
  */
+/* ── คำแนะนำต่อฟิลด์ (mock) ───────────────────────────────────────────────
+   ทุกช่องที่พูด/พิมพ์ได้ต้องมี suggestion ขึ้นเมื่อพิมพ์ครบ 3 ตัวอักษร
+   (มติผู้ใช้ 25 ส.ค. 69) — คนละชุดต่อฟิลด์ เพราะ "อาการแรกรับ" กับ
+   "การดำเนินการ" ใช้คำคนละแบบ ของจริงควรดึงจากคลังคำของแต่ละหน่วยบริการ */
+const DX_HINTS = [
+  'Acute Bronchospasm',
+  'Acute Coronary Syndrome',
+  'Cerebrovascular Accident (Stroke)',
+  'Severe Dengue',
+  'Diabetic Ketoacidosis',
+  'Sepsis / Septic shock',
+  'Head injury — สงสัยเลือดออกในสมอง',
+];
+
+const PRESENTING_HINTS = [
+  'หายใจเหนื่อยหอบ พูดเป็นคำ ๆ',
+  'เจ็บแน่นหน้าอกร้าวไปแขนซ้าย',
+  'ซึมลง เรียกไม่ค่อยรู้สึกตัว',
+  'ไข้สูง หนาวสั่น ความดันต่ำ',
+  'ปากเบี้ยว แขนขาอ่อนแรงซีกขวา',
+  'อาเจียนเป็นเลือด หน้าซีด',
+];
+
+const OTHER_NOTE_HINTS = [
+  'ญาติรับทราบและยินยอมการส่งต่อแล้ว',
+  'มีประวัติแพ้ยา — ระบุในใบส่งต่อแล้ว',
+  'นำผลแลป / ฟิล์มเอกซเรย์ไปด้วย',
+  'ผู้ป่วยถือบัตรประจำตัวโรคเรื้อรังมาด้วย',
+];
+
+const CURRENT_SYMPTOM_HINTS = [
+  'อาการคงที่ ระหว่างรอส่งต่อ',
+  'ยังหายใจเหนื่อย ต้องให้ออกซิเจนตลอด',
+  'รู้สึกตัวดีขึ้นหลังให้ยา',
+  'ความดันยังต่ำ ต้องให้สารน้ำต่อเนื่อง',
+  'ปวดลดลงหลังได้ยาแก้ปวด',
+  'ชักหยุดแล้ว หลับ ตอบสนองต่อเสียงเรียก',
+];
+
+const ACTION_HINTS = [
+  'ให้ออกซิเจน cannula 3 LPM',
+  'เปิดเส้นให้สารน้ำ NSS 1000 ml',
+  'พ่นยาขยายหลอดลม 1 ครั้ง',
+  'ให้ยาแก้ปวดทางหลอดเลือดดำ',
+  'ใส่ท่อช่วยหายใจก่อนส่งต่อ',
+  'ห้ามเลือด ทำแผล และดามอวัยวะ',
+];
+
+const REFER_NOTE_HINTS = [
+  'อาการคงที่ พร้อมส่งต่อ',
+  'ประสานปลายทางแล้ว มีเตียงรองรับ',
+  'ต้องการรถพยาบาลพร้อมออกซิเจน',
+  'ญาติเดินทางไปพร้อมผู้ป่วย',
+  'ขอให้ปลายทางเตรียมห้องผ่าตัด',
+];
+
 export default function ObservationExternalReferForm({ draft, onChange }) {
   const [icdSearchOpen, setIcdSearchOpen] = useState(false);
   const set = (key) => (value) => onChange((prev) => ({ ...prev, [key]: value }));
@@ -530,7 +586,9 @@ export default function ObservationExternalReferForm({ draft, onChange }) {
 
         <FieldRow>
           <FieldSpan cols={4}>
-            <VoiceTextarea
+            <SuggestibleTextarea
+              voice
+              suggestions={DX_HINTS} minChars={3}
               label='Dx (Diagnosis)'
               value={draft.dx}
               onChange={setText('dx')}
@@ -604,7 +662,9 @@ export default function ObservationExternalReferForm({ draft, onChange }) {
 
         <FieldRow>
           <FieldSpan cols={4}>
-            <VoiceTextarea
+            <SuggestibleTextarea
+              voice
+              suggestions={PRESENTING_HINTS} minChars={3}
               label='อาการแรกรับ'
               value={draft.presentingSymptoms}
               onChange={setText('presentingSymptoms')}
@@ -749,7 +809,9 @@ export default function ObservationExternalReferForm({ draft, onChange }) {
         {draft.hasOther && (
           <FieldRow>
             <FieldSpan cols={4}>
-              <VoiceTextarea
+              <SuggestibleTextarea
+                voice
+                suggestions={OTHER_NOTE_HINTS} minChars={3}
                 label='อื่นๆ (ระบุ)'
                 value={draft.otherNotes}
                 onChange={setText('otherNotes')}
@@ -767,7 +829,9 @@ export default function ObservationExternalReferForm({ draft, onChange }) {
       <FormSection title='อาการปัจจุบันและการดำเนินการ'>
         <FieldRow>
           <FieldSpan cols={4}>
-            <VoiceTextarea
+            <SuggestibleTextarea
+              voice
+              suggestions={CURRENT_SYMPTOM_HINTS} minChars={3}
               label='อาการปัจจุบัน'
               value={draft.currentSymptoms}
               onChange={setText('currentSymptoms')}
@@ -826,7 +890,9 @@ export default function ObservationExternalReferForm({ draft, onChange }) {
 
         <FieldRow>
           <FieldSpan cols={4}>
-            <VoiceTextarea
+            <SuggestibleTextarea
+              voice
+              suggestions={ACTION_HINTS} minChars={3}
               label='การดำเนินการ'
               value={draft.actionsTaken}
               onChange={setText('actionsTaken')}
@@ -926,7 +992,9 @@ export default function ObservationExternalReferForm({ draft, onChange }) {
 
         <FieldRow>
           <FieldSpan cols={4}>
-            <VoiceTextarea
+            <SuggestibleTextarea
+              voice
+              suggestions={REFER_NOTE_HINTS} minChars={3}
               label='หมายเหตุ'
               value={draft.note}
               onChange={setText('note')}

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
+import AppointmentMenuButton from '@/components/layout/AppointmentMenuButton';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
@@ -924,6 +925,9 @@ const QueuePage = () => {
       activeKey='opd'
       breadcrumb={breadcrumb}
       title='คัดกรอง'
+      /* ปุ่ม "การนัดหมาย" ชุดเดียวกับหน้าเวชระเบียน (มติผู้ใช้ 25 ส.ค. 69)
+         — คนคัดกรองต้องนัดหมายต่อได้จากหน้านี้เลย ไม่ต้องย้อนไปเวชระเบียน */
+      actions={<AppointmentMenuButton />}
       summaryCards={SUMMARY_CARDS}
       tabs={TABS}
       activeTab={activeTab}

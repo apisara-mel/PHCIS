@@ -39,6 +39,8 @@ const WizardMorphHeader = React.memo(function WizardMorphHeader({
   hideTitle = false,
   /** Stepper stays on its own row (no flex-wrap flip) — see StepMorphHeader. */
   stepperOwnRow = false,
+  /** Title + stepper แถวเดียวกันตั้งแต่ยังไม่ scroll — see StepMorphHeader. */
+  stepperSameRow = false,
 }) {
   return (
     <StepMorphHeader
@@ -47,6 +49,7 @@ const WizardMorphHeader = React.memo(function WizardMorphHeader({
       afterTitle={afterTitle}
       hideTitle={hideTitle}
       stepperOwnRow={stepperOwnRow}
+      stepperSameRow={stepperSameRow}
       className={className}
     >
       <StepProgress
