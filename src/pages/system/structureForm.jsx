@@ -61,6 +61,21 @@ export const STRUCTURE_FORM_STEPS_WITH_CENTERS = [
   { key: 'review', label: 'รีวิว' },
 ];
 
+/* ตรวจรหัสซ้ำ — ใช้ทั้งใน useStructureForm และตัวแก้ไขที่ฝังในฟอร์มศูนย์ */
+export function computeCodeIssues(units = []) {
+  const dupOf = (list) => {
+    const count = {};
+    list.forEach((c) => { const v = String(c || '').trim(); if (v) count[v] = (count[v] || 0) + 1; });
+    return new Set(Object.keys(count).filter((k) => count[k] > 1));
+  };
+  const dupUnitCodes = dupOf(units.map((u) => u.code));
+  const dupNodeCodes = {};
+  units.forEach((u) => { dupNodeCodes[u.id] = dupOf((u.nodes || []).map((n) => n.code)); });
+  const hasAny = dupUnitCodes.size > 0
+    || Object.keys(dupNodeCodes).some((k) => dupNodeCodes[k].size > 0);
+  return { dupUnitCodes, dupNodeCodes, hasAny };
+}
+
 export function useStructureForm({ existing = null, onSaved, withCenters = false } = {}) {
   const isEdit = !!existing;
   const steps = withCenters ? STRUCTURE_FORM_STEPS_WITH_CENTERS : STRUCTURE_FORM_STEPS;
@@ -116,23 +131,19 @@ export function useStructureForm({ existing = null, onSaved, withCenters = false
      — รหัสแผนก/คลินิก: ห้ามซ้ำกันภายในรูปแบบเดียวกัน
      — รหัสจุดรับบริการ: ห้ามซ้ำกันภายในแผนก/คลินิกเดียวกัน
        (คนละแผนกใช้ R1 ได้ เพราะอ่านคู่กับรหัสแผนกอยู่แล้ว) */
-  const codeIssues = useMemo(() => {
-    const dupOf = (list) => {
-      const count = {};
-      list.forEach((c) => { const v = String(c || '').trim(); if (v) count[v] = (count[v] || 0) + 1; });
-      return new Set(Object.keys(count).filter((k) => count[k] > 1));
-    };
-    const dupUnitCodes = dupOf(units.map((u) => u.code));
-    const dupNodeCodes = {};
-    units.forEach((u) => { dupNodeCodes[u.id] = dupOf((u.nodes || []).map((n) => n.code)); });
-    const hasAny = dupUnitCodes.size > 0
-      || Object.keys(dupNodeCodes).some((k) => dupNodeCodes[k].size > 0);
-    return { dupUnitCodes, dupNodeCodes, hasAny };
-  }, [units]);
+  const codeIssues = useMemo(() => computeCodeIssues(units), [units]);
 
   const addBlankUnit = (kind = 'department') => setUnits((prev) => [...prev, createUnit({ kind })]);
 
   /* ต้องมีชื่อรูปแบบ (ไม่ซ้ำ) และทุกแผนก/คลินิกต้องมีชื่อ ไม่งั้นรายการจะอ่านไม่ออก */
+  /* แก้ไข: ยังไม่แตะอะไรเลย = ปุ่มบันทึกยังกดไม่ได้ (25 ส.ค. 2569) */
+  const isDirty = useMemo(() => {
+    if (!existing) return true;
+    if (name.trim() !== String(existing.name || '').trim()) return true;
+    if (JSON.stringify(appliedCenters) !== JSON.stringify(existing.appliedCenters || [])) return true;
+    return JSON.stringify(units) !== JSON.stringify(existing.units || []);
+  }, [existing, name, units, appliedCenters]);
+
   const valid = !!name.trim() && !nameDupOwner
     && units.length > 0 && units.every((u) => u.name.trim())
     && !codeIssues.hasAny;
@@ -182,7 +193,7 @@ export function useStructureForm({ existing = null, onSaved, withCenters = false
     units, setUnits,
     appliedCenters, setAppliedCenters,
     centerOptions,
-    valid, saved, setSaved,
+    valid, isDirty, saved, setSaved,
     handleSaveDraft, handleSubmit,
     summary: summarizeStructure(units),
     counts: countStructure(units),
@@ -448,9 +459,24 @@ function StructureUnitsBuilder({ units, onUnitsChange, onAdd, codeIssues }) {
   );
 }
 
+/* ตัวแก้ไขโครงสร้างแบบยืนเดี่ยว — ใช้ใน step 5 ของฟอร์มศูนย์ตอนผู้ใช้เลือก
+   "เริ่มจากโครงสร้างตั้งต้น" คือกรอกโครงสร้างเองด้วยฟอร์มชุดเดียวกับหน้า
+   สร้างรูปแบบ (25 ส.ค. 2569) */
+export function StructureUnitsEditor({ units, onUnitsChange }) {
+  const codeIssues = useMemo(() => computeCodeIssues(units), [units]);
+  return (
+    <StructureUnitsBuilder
+      units={units}
+      onUnitsChange={onUnitsChange}
+      onAdd={(kind = 'department') => onUnitsChange([...units, createUnit({ kind })])}
+      codeIssues={codeIssues}
+    />
+  );
+}
+
 /* หน้ารีวิว (step สุดท้าย) — สรุปข้อมูลจาก step 1 + 2 แบบอ่านอย่างเดียว
    ให้ตรวจทานก่อนบันทึก ไม่ใช่ฟอร์มกรอกซ้ำ (25 ส.ค. 2569) */
-function StructureReview({ name, units, counts }) {
+export function StructureReview({ name, units, counts, showName = true }) {
   const stats = [
     { key: 'departments', label: 'แผนก', value: counts.departments },
     { key: 'clinics', label: 'คลินิก', value: counts.clinics },
@@ -460,7 +486,8 @@ function StructureReview({ name, units, counts }) {
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-      {/* ชื่อรูปแบบ + ตัวเลขสรุป */}
+      {/* ชื่อรูปแบบ + ตัวเลขสรุป — ซ่อนชื่อได้เมื่อผู้เรียกโชว์ชื่อเองอยู่แล้ว */}
+      {showName ? (
       <div
         className='flex flex-col w-full'
         style={{
@@ -503,6 +530,7 @@ function StructureReview({ name, units, counts }) {
           ))}
         </div>
       </div>
+      ) : null}
 
       {/* รายการแผนก/คลินิก — แจกแจงทุก field ที่กรอกไว้ใน step 2 */}
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
@@ -520,11 +548,33 @@ function StructureReview({ name, units, counts }) {
                 borderRadius: 'var(--dim-radius-300)',
               }}
             >
-              <span style={{ ...FIELD_LABEL, color: 'var(--text-topic-tertiary-title)' }}>
-                {`${i + 1}. ${unitKindLabel(u.kind)}${u.name ? ` · ${u.name}` : ''}`}
-              </span>
+              {/* เลขข้อเป็นวงกลมพื้นเขียวอ่อน ตัวหนา — เดิมกลืนไปกับข้อความ
+                  จนไล่ลำดับไม่ทัน (25 ส.ค. 2569) */}
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                <span
+                  className='inline-flex items-center justify-center shrink-0'
+                  style={{
+                    width: 'var(--dim-size-500, 24px)',
+                    height: 'var(--dim-size-500, 24px)',
+                    borderRadius: 'var(--dim-radius-1000, 100px)',
+                    background: 'var(--surface-brandPrimary-quaternary)',
+                    color: 'var(--text-brandPrimary-default)',
+                    fontFamily: 'var(--type-family-heading-graphic2)',
+                    fontSize: 'var(--type-size-xs)',
+                    lineHeight: 1,
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <span style={{ ...FIELD_LABEL, color: 'var(--text-topic-tertiary-title)' }}>
+                  {`${unitKindLabel(u.kind)}${u.name ? ` · ${u.name}` : ''}`}
+                </span>
+              </div>
 
-              <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-500)' }}>
+              {/* ทั้งแถวฟิลด์และรายการห้องใช้ grid 6 คอลัมน์ชุดเดียวกัน —
+                  "ชื่อจุดรับบริการ" จึงตรงกับ "ชื่อแผนก" และรหัสตรงกับรหัส
+                  (25 ส.ค. 2569) */}
+              <div style={REVIEW_GRID}>
                 <ReviewField label='ประเภท' value={unitKindLabel(u.kind)} />
                 <ReviewField
                   label={u.kind === 'clinic' ? 'ชื่อคลินิก' : 'ชื่อแผนก'}
@@ -537,26 +587,22 @@ function StructureReview({ name, units, counts }) {
               </div>
 
               {u.nodes.length ? (
-                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150)' }}>
-                  <div className='flex items-end w-full' style={{ gap: 'var(--dim-space-200)' }}>
-                    <span style={{ width: 24, flexShrink: 0 }} aria-hidden />
-                    <span className='flex-1 min-w-0' style={{ ...FIELD_LABEL, color: 'var(--text-content-tertiary)' }}>
-                      ชื่อจุดรับบริการ/ห้องตรวจ
-                    </span>
-                    <span style={{ ...FIELD_LABEL, color: 'var(--text-content-tertiary)', width: 120, flexShrink: 0 }}>
-                      รหัส
-                    </span>
-                  </div>
+                <div style={REVIEW_GRID}>
+                  <span aria-hidden />
+                  {/* ใช้ขนาดเดียวกับป้ายของ ReviewField (xs) — เดิมเป็น sm
+                      ทำให้สอง subtext ในการ์ดเดียวกันตัวไม่เท่ากัน (25 ส.ค. 2569) */}
+                  <span style={REVIEW_LABEL}>ชื่อจุดรับบริการ/ห้องตรวจ</span>
+                  <span style={REVIEW_LABEL}>รหัส</span>
+                  <span style={{ gridColumn: 'span 3' }} aria-hidden />
                   {u.nodes.map((n, j) => (
-                    <div key={n.id} className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-                      <span style={{ ...REVIEW_VALUE, width: 24, flexShrink: 0, textAlign: 'right', color: 'var(--text-content-tertiary)' }}>
+                    <React.Fragment key={n.id}>
+                      <span style={{ ...REVIEW_VALUE, color: 'var(--text-content-tertiary)', textAlign: 'right' }}>
                         {`${j + 1}.`}
                       </span>
-                      <span className='flex-1 min-w-0' style={REVIEW_VALUE}>
-                        {n.name || `จุดรับบริการ ${j + 1}`}
-                      </span>
-                      <span style={{ ...REVIEW_VALUE, width: 120, flexShrink: 0 }}>{n.code || '—'}</span>
-                    </div>
+                      <span style={REVIEW_VALUE}>{n.name || `จุดรับบริการ ${j + 1}`}</span>
+                      <span style={REVIEW_VALUE}>{n.code || '—'}</span>
+                      <span style={{ gridColumn: 'span 3' }} aria-hidden />
+                    </React.Fragment>
                   ))}
                 </div>
               ) : (
@@ -572,6 +618,23 @@ function StructureReview({ name, units, counts }) {
   );
 }
 
+/* กริด 6 คอลัมน์ที่ใช้ร่วมกันทั้งแถวฟิลด์และรายการจุดรับบริการ */
+const REVIEW_GRID = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+  columnGap: 'var(--dim-space-400)',
+  rowGap: 'var(--dim-space-200)',
+  width: '100%',
+};
+
+/* ป้ายกำกับในหน้ารีวิว — ขนาด xs ใช้ร่วมกันทุกจุด */
+const REVIEW_LABEL = {
+  color: 'var(--text-content-tertiary)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-xs)',
+  lineHeight: 1.5,
+};
+
 const REVIEW_VALUE = {
   color: 'var(--text-content-default)',
   fontFamily: 'var(--type-family-body)',
@@ -582,10 +645,8 @@ const REVIEW_VALUE = {
 /* ป้าย + ค่าที่กรอกไว้ — ค่าว่างแสดงเป็น "—" ไม่ปล่อยช่องว่าง */
 function ReviewField({ label, value }) {
   return (
-    <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)', minWidth: 140 }}>
-      <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-        {label}
-      </span>
+    <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+      <span style={REVIEW_LABEL}>{label}</span>
       <span style={REVIEW_VALUE}>{String(value || '').trim() || '—'}</span>
     </div>
   );

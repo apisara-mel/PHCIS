@@ -16,10 +16,11 @@ export default function CenterStructurePopup({ open, template = null, onClose, o
   const form = useStructureForm({
     existing: template,
     onSaved: () => { onSaved?.(); onClose?.(); },
-    /* โหมดแก้ไขมี step ผูกศูนย์ด้วย — ตอนสร้างไม่มี */
-    withCenters: !isCreate,
+    /* แก้ไขใช้ step ชุดเดียวกับสร้าง — ต่างแค่มีข้อมูลกรอกไว้แล้ว
+       (25 ส.ค. 2569) การผูกศูนย์เกิดตอนศูนย์เลือกรูปแบบนี้เอง */
+    withCenters: false,
   });
-  const { idx, setStep, goNext, stepValid, valid, STEPS } = form;
+  const { idx, setStep, goNext, stepValid, valid, isDirty, STEPS } = form;
   const isLast = idx === STEPS.length - 1;
 
   return (
@@ -40,9 +41,10 @@ export default function CenterStructurePopup({ open, template = null, onClose, o
       )}
       primaryAction={{
         label: isLast
-          ? (isCreate ? 'สร้างรูปแบบนี้' : 'บันทึกรูปแบบ')
+          ? (isCreate ? 'สร้างรูปแบบนี้' : 'บันทึกการแก้ไขรูปแบบ')
           : `ถัดไป: ${STEPS[idx + 1].label}`,
-        disabled: isLast ? !valid : !stepValid,
+        /* แก้ไขแล้วยังไม่เปลี่ยนอะไร = บันทึกไม่ได้ */
+        disabled: isLast ? (!valid || (!isCreate && !isDirty)) : !stepValid,
         onClick: isLast ? form.handleSubmit : goNext,
       }}
       secondaryAction={idx > 0
@@ -52,7 +54,7 @@ export default function CenterStructurePopup({ open, template = null, onClose, o
     >
       <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
         {/* popup ไม่ยุ่งกับการผูกศูนย์ — ทำที่หน้าเต็มหรือหน้าทะเบียนแทน */}
-        <StructureFormBody form={form} stepped showAppliedCenters={!isCreate} />
+        <StructureFormBody form={form} stepped showAppliedCenters={false} />
       </div>
     </Popup>
   );
