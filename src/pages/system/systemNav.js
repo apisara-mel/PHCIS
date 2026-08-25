@@ -10,20 +10,17 @@
    route but is no longer surfaced here — replaced by "สิทธิการเข้าถึง".) */
 export const SYSTEM_NAV = [
   { key: 'system-overview',       label: 'แดชบอร์ด',        icon: 'bar_chart_4_bars', path: '/admin' },
-  { key: 'system-centers',        label: 'ศูนย์บริการ',      icon: 'domain',           path: '/admin/centers' },
   /* แม่แบบโครงสร้างภายในศูนย์ (แผนก/คลินิก + ห้องตรวจ/เตียง) ตั้งไว้ครั้งเดียว
-     แล้วเลือกใช้ซ้ำได้ตอนเพิ่มศูนย์บริการ — อยู่ต่อจากศูนย์บริการเพราะผูกกัน */
+     แล้วเลือกใช้ซ้ำได้ตอนเพิ่มศูนย์บริการ — ย้ายมาต่อจากแดชบอร์ด 25 ส.ค. 69 (มติผู้ใช้)
+     เพราะเป็นของที่ตั้งก่อนเริ่มเพิ่มศูนย์ */
   { key: 'system-structures',     label: 'รูปแบบโครงสร้างศูนย์', icon: 'account_tree',  path: '/admin/structures' },
-  /* วันหยุดประจำปี — ทะเบียนกลางตามประกาศสำนักนายกฯ ใช้ร่วมกันทุกศูนย์
-     (25 ส.ค. 2569 ถอด "วันหยุดนักขัตฤกษ์" ออกจาก step เวลาทำการของฟอร์มศูนย์
-     เพราะตั้งทีละศูนย์แล้วประกาศเปลี่ยนต้องไล่แก้ 69 ที่) */
-  { key: 'system-holidays',       label: 'วันหยุดประจำปี',   icon: 'event_busy',       path: '/admin/holidays' },
+  { key: 'system-centers',        label: 'ศูนย์บริการ',      icon: 'domain',           path: '/admin/centers' },
+  /* ตำแหน่งอยู่ใต้ศูนย์บริการ — ตั้งผังคน/ตำแหน่งต่อจากผังศูนย์ (25 ส.ค. 69 มติผู้ใช้) */
+  { key: 'assess-positions',      label: 'ตำแหน่ง',          icon: 'account_tree',     path: '/assess/positions' },
   /* บทบาท (Activity-based Access Control) — แทน Group Policy เดิม 22 ส.ค. 2569
      ลำดับชั้น บทบาทหลัก → บทบาทย่อย; route เดิม /assess/group-policy redirect มาที่นี่
      ป้ายเมนูเปลี่ยนจาก "กิจกรรม" เป็น "บทบาท" 25 ส.ค. 2569 (route/key คงเดิม) */
   { key: 'assess-activity',       label: 'บทบาท',            icon: 'business_center',  path: '/assess/activities' },
-  /* ตำแหน่งอยู่ติดกับบทบาท — เป็นคู่ที่ตั้งค่าไปด้วยกัน (25 ส.ค. 2569) */
-  { key: 'assess-positions',      label: 'ตำแหน่ง',          icon: 'account_tree',     path: '/assess/positions' },
   /* "แผนก" ถูกซ่อนจากเมนู 10 ส.ค. 2569 — แผนกไม่ใช่ทะเบียนลอย ๆ อีกต่อไป แต่
      ผูกกับศูนย์บริการ สร้าง/แก้ที่ step "แผนกและคลินิก" ของหน้าเพิ่มศูนย์บริการ
      ตามลำดับชั้น แผนก → คลินิก → ห้อง/เตียง. route /assess/departments ยังเปิด
@@ -31,16 +28,19 @@ export const SYSTEM_NAV = [
   /* TOR §1.2.7 — ห้องตรวจ × แพทย์ประจำห้อง + โควตารายวัน (เดิมอยู่เมนู OPD) */
   { key: 'system-opd-room-config', label: 'ตั้งค่าห้องตรวจและโควตารายวัน', icon: 'meeting_room', path: '/opd/room-config' },
   { key: 'assess-access-control', label: 'สิทธิการเข้าถึง',   icon: 'how_to_reg',       path: '/assess/access-control' },
-  /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม (เพิ่ม/ยกเลิกสิทธิ) */
-  { key: 'system-consent-access-rights', label: 'สิทธิตามความยินยอม', icon: 'verified_user', path: '/assess/consent-access-rights' },
-  /* EMR §1.4.2.1 — การจัดการข้อมูลลับ (ย้ายจาก ระบบประวัติการใช้งาน) */
-  { key: 'system-confidential-data', label: 'การจัดการข้อมูลลับ', icon: 'enhanced_encryption', path: '/admin/confidential-data' },
+  /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม: ถอดออกจากเมนู
+     25 ส.ค. 69 (มติผู้ใช้) route /assess/consent-access-rights ยังเข้าได้ตามลิงก์เดิม */
+  /* EMR §1.4.2.1 — การจัดการข้อมูลลับ: ถอดออกจากเมนู 25 ส.ค. 69 (มติผู้ใช้)
+     route /admin/confidential-data ยังเข้าได้ตามลิงก์เดิม */
   /* CPOE §1.5.7 — ชุด preset กลาง แบ่งตามอาการ/โรค พร้อมกำหนดผู้มีสิทธิ์ใช้งาน */
   { key: 'system-order-sets', label: 'ชุดคำสั่งการรักษา', icon: 'playlist_add', path: '/admin/order-sets' },
   /* Pharmacy master data belongs to central settings. Operational pharmacy
      screens keep a CTA shortcut that deep-links to the create route. */
   { key: 'system-pharmacy-registry', label: 'ทะเบียนยา', icon: 'medication', path: '/admin/pharmacy/registry' },
   { key: 'system-staff',          label: 'บุคลากร',          icon: 'group',            path: '/assess/users' },
+  /* วันหยุดประจำปี — ทะเบียนกลางตามประกาศสำนักนายกฯ ใช้ร่วมกันทุกศูนย์
+     ย้ายมาไว้ล่างสุดของเมนู 25 ส.ค. 69 (มติผู้ใช้) */
+  { key: 'system-holidays',       label: 'วันหยุดประจำปี',   icon: 'event_busy',       path: '/admin/holidays' },
 ];
 
 export default SYSTEM_NAV;

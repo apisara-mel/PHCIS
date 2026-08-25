@@ -3,10 +3,8 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import { FilterDropdown } from '@/components/forms/FilterTag';
-import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
-import Topic from '@/components/topic/Topic';
 import { HeaderCell, DataCell, TableRow } from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
@@ -321,7 +319,8 @@ export default function PositionPage() {
 
   const hasPositions = positions.length > 0;
   const filtersActive = !!filterStatus || !!search.trim();
-  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+  /* ตัวกรองสถานะถูกถอดออกจากหน้า 25 ส.ค. 69 — เหลือแค่ช่องค้นหา ใช้เฉพาะ resultsOpaque */
+  const { resultsOpaque } = useSmoothClearFilters(
     filtersActive,
     () => {
       setSearch('');
@@ -491,64 +490,36 @@ export default function PositionPage() {
         ) : (
           <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}>
             <section
-              className='w-full flex flex-col items-center'
-              style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}
-            >
-              {/* ปุ่มนำส่งออกรายงานอยู่ข้างกล่องค้นหา (ย้ายจากแถวตัวกรอง — 16 ส.ค. 2569) */}
-              <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
-                {/* spacer ซ้ายสมดุลกับกลุ่มปุ่มขวา — กล่องค้นหาอยู่กึ่งกลางจริง */}
-                <div className='flex-1' />
-                <PrimarySearch
-                  value={search}
-                  onChange={setSearch}
-                  onSubmit={handleSubmitSearch}
-                  placeholder='ค้นหาชื่อตำแหน่ง'
-                  width={640}
-                  history={searchHistory}
-                  onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
-                />
-                <div className='flex-1 flex justify-end'>
-                <NeutralSubdueButton
-                  leadingIcon='ios_share'
-                  variant='outline'
-                  size='sm'
-                  collapseLabelBelow='lg'
-                >
-                  นำส่งออกรายงาน
-                </NeutralSubdueButton>
-                </div>
-              </div>
-
-              <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  <FilterDropdown
-                    prefix='สถานะ:'
-                    options={STATUS_OPTIONS}
-                    value={filterStatus}
-                    onChange={setFilterStatus}
-                    placeholder='ทั้งหมด'
-                  />
-                  <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
-                </div>
-                <div className='flex-1' />
-              </div>
-            </section>
-
-            <section
               className='w-full flex flex-col'
               style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)' }}
             >
+            {/* ปุ่มนำส่งออกรายงานอยู่ข้างกล่องค้นหา (ย้ายจากแถวตัวกรอง — 16 ส.ค. 2569) */}
+            <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+              {/* spacer ซ้ายสมดุลกับกลุ่มปุ่มขวา — กล่องค้นหาอยู่กึ่งกลางจริง */}
+              <div className='flex-1' />
+              <PrimarySearch
+                value={search}
+                onChange={setSearch}
+                onSubmit={handleSubmitSearch}
+                placeholder='ค้นหาชื่อตำแหน่ง'
+                width={640}
+                history={searchHistory}
+                onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+              />
+              <div className='flex-1 flex justify-end'>
+              <NeutralSubdueButton
+                leadingIcon='ios_share'
+                variant='outline'
+                size='sm'
+                collapseLabelBelow='lg'
+              >
+                นำส่งออกรายงาน
+              </NeutralSubdueButton>
+              </div>
+            </div>
+
               <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-600)' }}>
                 <div className='flex items-center min-w-0 flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-                  <Topic
-                    hierarchy='secondary'
-                    title='ตำแหน่ง'
-                    showSubText={false}
-                    showBadge={false}
-                    showChevron={false}
-                    showLeadingIcon={false}
-                    showSuccess={false}
-                  />
                   <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>
                     {positions.length} ตำแหน่ง
                   </ColorfulBadge>
@@ -641,7 +612,16 @@ export default function PositionPage() {
         type='warning'
         alignment='center'
         title='ลบตำแหน่ง?'
-        description={deleteConfirm ? `ต้องการลบ "${deleteConfirm.name}" ออกจากระบบหรือไม่` : ''}
+        /* ชื่อยาว ๆ ให้ขึ้นบรรทัดใหม่ อ่านง่ายกว่าอยู่ต่อท้ายประโยค (25 ส.ค. 69) */
+        description={deleteConfirm ? (
+          <>
+            ต้องการลบ
+            <br />
+            {`"${deleteConfirm.name}"`}
+            <br />
+            ออกจากระบบหรือไม่
+          </>
+        ) : ''}
         confirmLabel='ลบ'
         cancelLabel='ยกเลิก'
         onConfirm={applyDeletePosition}

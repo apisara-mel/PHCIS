@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import ActionList from '@/components/list/ActionList';
+import Select from '@/components/forms/Select';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import { FilterDropdown } from '@/components/forms/FilterTag';
-import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -33,16 +35,18 @@ import {
   isDuplicateActivityName,
 } from '@/data/activityStore';
 
-/* PHCIS | Assess-control — กิจกรรม (Activity-based Access Control).
+/* PHCIS | Assess-control — บทบาท (Activity-based Access Control).
+   คำบนหน้า 25 ส.ค. 69: กลุ่ม = "Group Policy" · รายการย่อย = "บทบาท"
+   (มติผู้ใช้) — route/key/ตัวแปรยังเป็น activity เหมือนเดิม.
    แทนหน้า Group Policy เดิม (Figma 4D3nTx53 · 3:18430) — โครงหน้าเดียวกัน:
-   Empty state · summary cards · search · filters · การ์ดกิจกรรม (ยุบ-กางได้)
-   + ตารางกิจกรรมย่อยเรียงตามตัวอักษร · แก้ชื่อ inline · confirm dialogs.
+   Empty state · summary cards · search · filters · การ์ดบทบาท (ยุบ-กางได้)
+   + ตารางบทบาทเรียงตามตัวอักษร · แก้ชื่อ inline · confirm dialogs.
 
-   ปรับตาม feedback 22 ส.ค. 2569: ตัดโหมด "แก้ไขลำดับ" ออก (กิจกรรมย่อย
-   เรียงตามตัวอักษรไทยเสมอ) · หัวข้อกิจกรรม collapse ได้ · ชื่อกิจกรรมหลัก
-   ฟอนต์ใหญ่ขึ้น · แก้ชื่อกิจกรรม/กิจกรรมย่อยตรงชื่อผ่าน icon ดินสอ. */
+   ปรับตาม feedback 22 ส.ค. 2569: ตัดโหมด "แก้ไขลำดับ" ออก (บทบาท
+   เรียงตามตัวอักษรไทยเสมอ) · หัวข้อบทบาท collapse ได้ · ชื่อบทบาทหลัก
+   ฟอนต์ใหญ่ขึ้น · แก้ชื่อบทบาท/บทบาทตรงชื่อผ่าน icon ดินสอ. */
 
-const breadcrumb = ['กิจกรรม'];
+const breadcrumb = ['บทบาท'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -59,7 +63,7 @@ const TEXT_CELL = {
   lineHeight: 1.5,
 };
 
-/* ชื่อกิจกรรมหลักบนหัวการ์ด — ใหญ่กว่าเนื้อตาราง ให้ลำดับชั้นชัด
+/* ชื่อ Group Policy บนหัวการ์ด — ใหญ่กว่าเนื้อตาราง ให้ลำดับชั้นชัด
    น้ำหนัก regular เท่าหัวการ์ดหน้าอื่น (ลดจาก medium — feedback 22 ส.ค. 2569) */
 const ACTIVITY_TITLE = {
   color: 'var(--text-topic-secondary-title)',
@@ -75,22 +79,86 @@ const STATUS_OPTIONS = [
   { value: 'inactive', label: 'ปิดการใช้งาน' },
 ];
 
-const DUPLICATE_ACTIVITY_ERROR = 'ชื่อกิจกรรมซ้ำกับที่มีอยู่ กรุณาเปลี่ยนชื่อกิจกรรมใหม่';
-const DUPLICATE_SUB_ERROR = 'ชื่อกิจกรรมย่อยซ้ำกับที่มีอยู่ในกิจกรรมนี้';
+const DUPLICATE_ACTIVITY_ERROR = 'ชื่อ Group Policy ซ้ำกับที่มีอยู่ กรุณาเปลี่ยนชื่อใหม่';
+const DUPLICATE_SUB_ERROR = 'ชื่อบทบาทซ้ำกับที่มีอยู่ใน Group Policy นี้';
 
-/* นำส่งออกรายงาน — จัดกลุ่มตามกิจกรรม (คอลัมน์แรก) + แถวกิจกรรมย่อย
+/* นำส่งออกรายงาน — จัดกลุ่มตามบทบาท (คอลัมน์แรก) + แถวบทบาท
    ตาม context ที่เห็นบนหน้า (ค้นหา/ตัวกรอง/การเรียงตามตัวอักษร) */
 const ACTIVITY_EXPORT_COLUMNS = [
-  { key: 'activity', header: 'กิจกรรม', width: 220 },
+  { key: 'activity', header: 'Group Policy', width: 220 },
   { key: 'order', header: 'ลำดับ', width: 80 },
-  { key: 'name', header: 'ชื่อกิจกรรมย่อย', width: 300 },
+  { key: 'name', header: 'ชื่อบทบาท', width: 300 },
   { key: 'status', header: 'สถานะการใช้งาน', width: 150 },
 ];
 
 /* Figma 3:18431 Roles_Empty — Ambulance Lottie 160×160; list footer 6:21313 / 10:29241 — 128×128. */
 const AMBULANCE_LOTTIE = '/illustration/ambulance.json';
 
-function EmptyIllustration({ size = 160, ariaLabel = 'ยังไม่มีกิจกรรม' }) {
+/* เมนูใต้ปุ่ม "เพิ่ม Group Policy / บทบาท" — portal ไป <body> เพราะ SubHeader
+   อยู่ในแถบที่ถูก scale ด้วย header morph (transform) ซึ่งกลายเป็น containing
+   block ของ position:fixed ทำให้เมนูหลุดตำแหน่ง (บทเรียนเดียวกับ TabUnderline) */
+function AddMenu({ anchorRef, open, onClose, items }) {
+  const [pos, setPos] = useState({ top: 0, right: 0 });
+  useEffect(() => {
+    if (!open) return undefined;
+    const btn = anchorRef.current;
+    if (btn) {
+      const r = btn.getBoundingClientRect();
+      setPos({ top: Math.round(r.bottom + 4), right: Math.round(window.innerWidth - r.right) });
+    }
+    const close = (e) => {
+      if (anchorRef.current && anchorRef.current.contains(e.target)) return;
+      const pop = document.getElementById('mih-activity-add-menu');
+      if (pop && pop.contains(e.target)) return;
+      onClose();
+    };
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, anchorRef, onClose]);
+
+  if (!open || typeof document === 'undefined') return null;
+  return createPortal((
+    <div
+      id='mih-activity-add-menu'
+      role='menu'
+      style={{
+        position: 'fixed',
+        top: pos.top,
+        right: pos.right,
+        minWidth: 'var(--dim-size-2450, 280px)',
+        background: 'var(--surface-dropdown-default)',
+        border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',
+        borderRadius: 'var(--dim-radius-500)',
+        boxShadow: 'var(--shadow-dropdown)',
+        padding: 'var(--dim-space-100)',
+        zIndex: 'var(--sm-z-popover, 1199)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {items.map((it) => (
+        <ActionList
+          key={it.key}
+          label={it.label}
+          subtext={it.subtext}
+          showSubtext={!!it.subtext}
+          /* เมนูคำสั่งล้วน — ไม่มีไอคอนหน้า/ท้ายแถว (มติผู้ใช้ 25 ส.ค. 69) */
+          showLeadingIcon={false}
+          showCheck={false}
+          showChevronRight={false}
+          onClick={() => { onClose(); it.onClick(); }}
+        />
+      ))}
+    </div>
+  ), document.body);
+}
+
+function EmptyIllustration({ size = 160, ariaLabel = 'ยังไม่มี Group Policy' }) {
   const [anim, setAnim] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -153,7 +221,7 @@ function ActivitySection({
   onDeleteSubActivity,
   onToggleSubActive,
 }) {
-  /* เริ่มแบบกางออก — ยุบเก็บหัวข้อที่ไม่ได้ใช้ได้จาก chevron/ชื่อกิจกรรม */
+  /* เริ่มแบบกางออก — ยุบเก็บหัวข้อที่ไม่ได้ใช้ได้จาก chevron/ชื่อบทบาท */
   const [collapsed, setCollapsed] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [editingSubId, setEditingSubId] = useState(null);
@@ -189,7 +257,7 @@ function ActivitySection({
     },
     {
       key: 'name',
-      header: 'ชื่อกิจกรรมย่อย',
+      header: 'ชื่อบทบาท',
       flex: 1,
       minWidth: 240,
       render: (row) => (row.id === editingSubId ? (
@@ -250,7 +318,7 @@ function ActivitySection({
     return null;
   }
 
-  const badgeLabel = `${(activity.subActivities || []).length} กิจกรรมย่อย`;
+  const badgeLabel = `${(activity.subActivities || []).length} บทบาท`;
 
   return (
     <section
@@ -263,7 +331,7 @@ function ActivitySection({
             <button
               type='button'
               aria-expanded={isOpen}
-              aria-label={`${isOpen ? 'ยุบ' : 'กาง'}กิจกรรม ${activity.name}`}
+              aria-label={`${isOpen ? 'ยุบ' : 'กาง'} Group Policy ${activity.name}`}
               onClick={() => setCollapsed((c) => !c)}
               className='inline-flex items-center min-w-0'
               style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left' }}
@@ -274,7 +342,7 @@ function ActivitySection({
           {editingName ? (
             <InlineNameEditor
               initial={activity.name}
-              ariaLabel={`แก้ไขชื่อกิจกรรม ${activity.name}`}
+              ariaLabel={`แก้ไขชื่อ Group Policy ${activity.name}`}
               onSave={(name) => {
                 if (onRenameActivity(activity, name)) setEditingName(false);
               }}
@@ -285,7 +353,7 @@ function ActivitySection({
               icon='edit'
               variant='ghost'
               size='sm'
-              aria-label={`แก้ไขชื่อกิจกรรม ${activity.name}`}
+              aria-label={`แก้ไขชื่อ Group Policy ${activity.name}`}
               onClick={() => setEditingName(true)}
               style={{ color: 'var(--icon-neutral-tertiary, #ADB2B7)' }}
             />
@@ -298,7 +366,7 @@ function ActivitySection({
           <NeutralSubdueIconButton
             variant='outline'
             size='sm'
-            aria-label={`ลบกิจกรรม ${activity.name}`}
+            aria-label={`ลบ Group Policy ${activity.name}`}
             onClick={() => onDeleteActivity(activity)}
           >
             <Icon name='trash' size={16} />
@@ -309,7 +377,7 @@ function ActivitySection({
             variant='ghost'
             size='sm'
             aria-expanded={isOpen}
-            aria-label={`${isOpen ? 'ยุบ' : 'กาง'}กิจกรรม ${activity.name}`}
+            aria-label={`${isOpen ? 'ยุบ' : 'กาง'} Group Policy ${activity.name}`}
             onClick={() => setCollapsed((c) => !c)}
           />
         </div>
@@ -322,11 +390,11 @@ function ActivitySection({
               columns={columns}
               rows={subActivities}
               rowKey={(row) => row.id}
-              emptyMessage='ยังไม่มีกิจกรรมย่อย'
+              emptyMessage='ยังไม่มีบทบาท'
             />
           ) : null}
           <BrandDashedAddButton onClick={() => onAddSubActivity(activity)}>
-            เพิ่มกิจกรรมย่อย
+            เพิ่มบทบาท
           </BrandDashedAddButton>
         </>
       ) : null}
@@ -342,7 +410,10 @@ export default function ActivityPage() {
   const dismissToast = useCallback(() => setToast(null), []);
 
   const [addActivityOpen, setAddActivityOpen] = useState(false);
-  const [addSubFor, setAddSubFor] = useState(null); // activity object
+  const [addSubFor, setAddSubFor] = useState(null); // activity object | { pick: true } เมื่อเปิดจากปุ่มบนหัวหน้า
+  const [subParentId, setSubParentId] = useState('');
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const addBtnRef = useRef(null);
   const [toggleConfirm, setToggleConfirm] = useState(null); // { activityId, subId, next }
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { activityId, subId, subName }
   const [deleteActivityConfirm, setDeleteActivityConfirm] = useState(null); // activity object
@@ -369,17 +440,17 @@ export default function ActivityPage() {
 
   const stats = useMemo(() => computeActivityStats(activities), [activities]);
 
-  /* ค่า active/inactive นับระดับกิจกรรมย่อย (สถานะเปิด/ปิดอยู่ที่กิจกรรมย่อย)
-     — label จึงต้องพูดว่า "กิจกรรมย่อย" ไม่ใช่ "กิจกรรม" */
+  /* การ์ดใบแรกนับจำนวน Group Policy ส่วน active/inactive นับที่ระดับ "บทบาท"
+     (สถานะเปิด/ปิดอยู่ที่บทบาท ไม่ใช่ที่ Group Policy) */
   const summaryCards = useMemo(() => [
-    { key: 'total', icon: 'clipboard-list', color: 'info', value: String(stats.total), label: 'กิจกรรมทั้งหมด' },
-    { key: 'active', icon: 'clipboard-list', color: 'positive', value: String(stats.active), label: 'กิจกรรมย่อยที่เปิดใช้งาน' },
+    { key: 'total', icon: 'clipboard-list', color: 'info', value: String(stats.total), label: 'Group Policy ทั้งหมด' },
+    { key: 'active', icon: 'clipboard-list', color: 'positive', value: String(stats.active), label: 'บทบาทที่เปิดใช้งาน' },
     {
       key: 'inactive',
       icon: 'clipboard-list',
       color: 'destructive',
       value: String(stats.inactive),
-      label: 'กิจกรรมย่อยที่ปิดใช้งาน',
+      label: 'บทบาทที่ปิดใช้งาน',
     },
   ], [stats]);
 
@@ -393,7 +464,9 @@ export default function ActivityPage() {
   }, [activities, search]);
 
   const filtersActive = !!filterStatus || !!search.trim();
-  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+  /* ตัวกรองสถานะถูกถอดออกจากหน้า 25 ส.ค. 69 — เหลือแค่ช่องค้นหา จึงใช้เฉพาะ
+     resultsOpaque (เฟดผลลัพธ์ตอนล้างคำค้น) */
+  const { resultsOpaque } = useSmoothClearFilters(
     filtersActive,
     () => {
       setSearch('');
@@ -425,6 +498,17 @@ export default function ActivityPage() {
     setActivityNameError('');
   };
 
+  /* "เพิ่มบทบาท" จากปุ่มบนหัวหน้า — ต้องเลือก Group Policy ปลายทางในฟอร์ม */
+  const openAddSubFromHeader = () => {
+    if (!activities.length) {
+      showError('เพิ่ม Group Policy ก่อน แล้วจึงเพิ่มบทบาทเข้าไปได้');
+      return;
+    }
+    setSubParentId(activities[0].id);
+    setSubActivityDraft('');
+    setAddSubFor({ pick: true });
+  };
+
   const openAddActivity = () => {
     setActivityNameDraft('');
     setActivityNameError('');
@@ -442,9 +526,9 @@ export default function ActivityPage() {
     setSearch(q);
   };
 
-  /* รายงาน **ทั้งหมด** — ทุกกิจกรรม/กิจกรรมย่อยในทะเบียน (ไม่ตัดตาม
-     ตัวกรอง/คำค้นบนหน้า) แบ่งเป็นกลุ่มหลัก (กิจกรรม) → กลุ่มย่อย
-     (กิจกรรมย่อย) เรียงตามตัวอักษรทั้งสองระดับ */
+  /* รายงาน **ทั้งหมด** — ทุก Group Policy / บทบาทในทะเบียน (ไม่ตัดตาม
+     ตัวกรอง/คำค้นบนหน้า) แบ่งเป็นกลุ่ม (Group Policy) → บทบาท
+     เรียงตามตัวอักษรทั้งสองระดับ */
   const buildExportReport = () => {
     const rows = [];
     [...activities]
@@ -462,8 +546,8 @@ export default function ActivityPage() {
       });
     return {
       key: 'assess-activities',
-      title: 'ทะเบียนกิจกรรมและกิจกรรมย่อย',
-      subtitle: `ทั้งหมด ${activities.length} กิจกรรมหลัก · ${rows.length} กิจกรรมย่อย`,
+      title: 'ทะเบียน Group Policy และบทบาท',
+      subtitle: `ทั้งหมด ${activities.length} Group Policy · ${rows.length} บทบาท`,
       table: { columns: ACTIVITY_EXPORT_COLUMNS, rows },
     };
   };
@@ -474,20 +558,20 @@ export default function ActivityPage() {
     const trimmed = activityNameDraft.trim();
     const err = validateActivityName(trimmed);
     if (!trimmed || err) {
-      setActivityNameError(err || 'กรุณาระบุชื่อกิจกรรม');
+      setActivityNameError(err || 'กรุณาระบุชื่อ Group Policy');
       return;
     }
     const next = [...activities, createActivity(trimmed)];
     persist(next);
     closeAddActivity();
-    showToast('เพิ่มกิจกรรมสำเร็จ');
+    showToast('เพิ่ม Group Policy สำเร็จ');
   };
 
-  /* แก้ชื่อกิจกรรมหลัก inline — คืน true เมื่อบันทึกแล้ว (หรือชื่อไม่เปลี่ยน) */
+  /* แก้ชื่อ Group Policy inline — คืน true เมื่อบันทึกแล้ว (หรือชื่อไม่เปลี่ยน) */
   const renameActivity = (activity, name) => {
     const trimmed = name.trim();
     if (!trimmed) {
-      showError('กรุณาระบุชื่อกิจกรรม');
+      showError('กรุณาระบุชื่อ Group Policy');
       return false;
     }
     if (trimmed === activity.name.trim()) return true;
@@ -496,16 +580,16 @@ export default function ActivityPage() {
       return false;
     }
     persist(activities.map((a) => (a.id === activity.id ? { ...a, name: trimmed } : a)));
-    showToast('แก้ไขชื่อกิจกรรมสำเร็จ');
+    showToast('แก้ไขชื่อ Group Policy สำเร็จ');
     return true;
   };
 
-  /* แก้ชื่อกิจกรรมย่อย inline — กันชื่อซ้ำภายในกิจกรรมเดียวกัน */
+  /* แก้ชื่อบทบาท inline — กันชื่อซ้ำภายใน Group Policy เดียวกัน */
   const renameSubActivity = (activityId, subId, name) => {
     const trimmed = name.trim();
     const activity = activities.find((a) => a.id === activityId);
     if (!trimmed) {
-      showError('กรุณาระบุชื่อกิจกรรมย่อย');
+      showError('กรุณาระบุชื่อบทบาท');
       return false;
     }
     const current = (activity?.subActivities || []).find((s) => s.id === subId);
@@ -526,7 +610,7 @@ export default function ActivityPage() {
         )),
       };
     }));
-    showToast('บันทึกกิจกรรมย่อยสำเร็จ');
+    showToast('บันทึกบทบาทสำเร็จ');
     return true;
   };
 
@@ -535,13 +619,32 @@ export default function ActivityPage() {
     const next = activities.filter((a) => a.id !== deleteActivityConfirm.id);
     persist(next);
     setDeleteActivityConfirm(null);
-    showToast('ลบกิจกรรมสำเร็จ');
+    showToast('ลบ Group Policy สำเร็จ');
   };
+
+  /* ชื่อบทบาทต้องไม่ซ้ำ "ภายใน Group Policy เดียวกัน" — เช็คสดระหว่างพิมพ์
+     เพื่อบอกก่อนกดตกลง (ยังคงเช็คซ้ำอีกครั้งตอนบันทึกกันแข่งกันแก้) */
+  const subParentForDraft = addSubFor?.pick
+    ? activities.find((a) => a.id === subParentId)
+    : addSubFor;
+  const subDraftError = (() => {
+    const name = subActivityDraft.trim();
+    if (!name || !subParentForDraft) return '';
+    const dupe = (subParentForDraft.subActivities || []).some(
+      (x) => x.name.trim().toLowerCase() === name.toLowerCase(),
+    );
+    return dupe ? `มีบทบาทชื่อนี้อยู่แล้วใน "${subParentForDraft.name}"` : '';
+  })();
 
   const saveSubActivity = () => {
     const name = subActivityDraft.trim();
     if (!name || !addSubFor) return;
-    const dupe = (addSubFor.subActivities || []).some(
+    /* เปิดจากปุ่มบนหัวหน้า → parent มาจาก Select ในฟอร์ม; เปิดจากการ์ด → ใช้การ์ดนั้น */
+    const parent = addSubFor.pick
+      ? activities.find((a) => a.id === subParentId)
+      : addSubFor;
+    if (!parent) return;
+    const dupe = (parent.subActivities || []).some(
       (s) => s.name.trim().toLowerCase() === name.toLowerCase(),
     );
     if (dupe) {
@@ -549,14 +652,14 @@ export default function ActivityPage() {
       return;
     }
     const next = activities.map((a) => {
-      if (a.id !== addSubFor.id) return a;
+      if (a.id !== parent.id) return a;
       const order = (a.subActivities?.length || 0) + 1;
       return { ...a, subActivities: [...(a.subActivities || []), createSubActivity(name, order)] };
     });
     persist(next);
     setAddSubFor(null);
     setSubActivityDraft('');
-    showToast('เพิ่มกิจกรรมย่อยสำเร็จ');
+    showToast('เพิ่มบทบาทสำเร็จ');
   };
 
   const applyToggleSubActive = (activityId, subId, next) => {
@@ -571,7 +674,7 @@ export default function ActivityPage() {
     });
     persist(nextActivities);
     setToggleConfirm(null);
-    showToast(next ? 'เปิดใช้งานกิจกรรมย่อยแล้ว' : 'ปิดใช้งานกิจกรรมย่อยแล้ว');
+    showToast(next ? 'เปิดใช้งานบทบาทแล้ว' : 'ปิดใช้งานบทบาทแล้ว');
   };
 
   const handleToggleSubActive = (activityId, subId, next) => {
@@ -595,7 +698,7 @@ export default function ActivityPage() {
     });
     persist(next);
     setDeleteConfirm(null);
-    showToast('ลบกิจกรรมย่อยสำเร็จ');
+    showToast('ลบบทบาทสำเร็จ');
   };
 
   return (
@@ -608,16 +711,35 @@ export default function ActivityPage() {
         breadcrumb={breadcrumb}
         /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน (เหมือนหน้าศูนย์บริการ)
            ระยะบนจึงเท่ากับหน้าอื่น และปุ่มยัง sticky ตอนเลื่อนตาราง */
-        title='กิจกรรม'
+        title='บทบาท'
         actions={showListChrome ? (
-          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openAddActivity}>
-            เพิ่มกิจกรรม
-          </BrandButton>
+          <>
+            <BrandButton
+              ref={addBtnRef}
+              variant='fill'
+              size='md'
+              leadingIcon='add'
+              trailingIcon='expand_more'
+              onClick={() => setAddMenuOpen((v) => !v)}
+            >
+              เพิ่ม Group Policy / บทบาท
+            </BrandButton>
+            <AddMenu
+              anchorRef={addBtnRef}
+              open={addMenuOpen}
+              onClose={() => setAddMenuOpen(false)}
+              items={[
+                { key: 'group', label: 'เพิ่ม Group Policy', subtext: 'กลุ่มบทบาทหลัก เช่น แพทย์ · พยาบาล', onClick: openAddActivity },
+                { key: 'role', label: 'เพิ่มบทบาท', subtext: 'บทบาทภายใต้ Group Policy ที่เลือก', onClick: openAddSubFromHeader },
+              ]}
+            />
+          </>
         ) : undefined}
         headerInfo={showListChrome ? (
           <section
             className='flex flex-col w-full'
-            style={{ gap: 'var(--dim-space-400)', paddingTop: 'var(--dim-space-600)' }}
+            /* ระยะบนเท่ากับหน้าศูนย์บริการ/แดชบอร์ด (25 ส.ค. 69) — เดิม space-600 ทำให้ห่างกว่าหน้าอื่น 24px */
+            style={{ gap: 'var(--dim-space-400)' }}
           >
             <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               {summaryCards.map((c) => (
@@ -641,10 +763,10 @@ export default function ActivityPage() {
                   fontSize: 'var(--type-size-sm)',
                 }}
               >
-                ในระบบยังไม่มีกิจกรรม
+                ในระบบยังไม่มีบทบาท
               </span>
               <BrandButton variant='fill' size='lg' leadingIcon='add' onClick={openAddActivity}>
-                เพิ่มกิจกรรม
+                เพิ่ม Group Policy
               </BrandButton>
             </section>
           </div>
@@ -663,7 +785,7 @@ export default function ActivityPage() {
                     value={search}
                     onChange={setSearch}
                     onSubmit={handleSubmitSearch}
-                    placeholder='ค้นหาชื่อกิจกรรม / ชื่อกิจกรรมย่อย'
+                    placeholder='ค้นหาชื่อบทบาท / ชื่อบทบาท'
                     width={640}
                     history={searchHistory}
                     onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
@@ -680,19 +802,6 @@ export default function ActivityPage() {
                   </div>
                 </div>
 
-                <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-                  <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-                    <FilterDropdown
-                      prefix='สถานะ:'
-                      options={STATUS_OPTIONS.filter((o) => o.value !== '')}
-                      value={filterStatus}
-                      onChange={setFilterStatus}
-                      placeholder='ทั้งหมด'
-                    />
-                    <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
-                  </div>
-                  <div className='flex-1' />
-                </div>
               </section>
             ) : null}
 
@@ -717,9 +826,9 @@ export default function ActivityPage() {
               className='flex flex-col items-center w-full'
               style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
             >
-              <EmptyIllustration size={128} ariaLabel='เพิ่มกิจกรรม' />
+              <EmptyIllustration size={128} ariaLabel='เพิ่ม Group Policy' />
               <BrandButton variant='fill' size='lg' leadingIcon='add' onClick={openAddActivity}>
-                เพิ่มกิจกรรม
+                เพิ่ม Group Policy
               </BrandButton>
             </section>
           </div>
@@ -731,7 +840,7 @@ export default function ActivityPage() {
         open={!!exportReport}
         report={exportReport}
         onClose={() => setExportReport(null)}
-        onExported={() => showToast('นำส่งออกรายงานกิจกรรมแล้ว — ระบบบันทึก log การส่งออกข้อมูล')}
+        onExported={() => showToast('นำส่งออกรายงานบทบาทแล้ว — ระบบบันทึก log การส่งออกข้อมูล')}
       />
 
       {/* Add activity — Figma 8:11704 */}
@@ -739,8 +848,8 @@ export default function ActivityPage() {
         open={addActivityOpen}
         onClose={closeAddActivity}
         size='large'
-        title='ชื่อกิจกรรม'
-        subtitle='ใส่ชื่อกิจกรรมหลักของบุคลากร'
+        title='ชื่อ Group Policy'
+        subtitle='ใส่ชื่อ Group Policy — กลุ่มบทบาทหลักของบุคลากร'
         tertiaryAction={{ label: 'ยกเลิก', onClick: closeAddActivity }}
         primaryAction={{
           label: 'ตกลง',
@@ -765,23 +874,40 @@ export default function ActivityPage() {
         open={!!addSubFor}
         onClose={() => setAddSubFor(null)}
         size='large'
-        title={`กิจกรรมย่อยสำหรับ${addSubFor?.name || ''}`}
-        subtitle='ระบุชื่อกิจกรรมย่อยภายใต้กิจกรรมนี้'
+        title={addSubFor?.pick ? 'เพิ่มบทบาท' : `บทบาทสำหรับ${addSubFor?.name || ''}`}
+        subtitle={addSubFor?.pick
+          ? 'เลือก Group Policy ที่จะเพิ่มบทบาทเข้าไป แล้วระบุชื่อบทบาท'
+          : 'ระบุชื่อบทบาทภายใต้บทบาทนี้'}
         tertiaryAction={{ label: 'ยกเลิก', onClick: () => setAddSubFor(null) }}
         primaryAction={{
           label: 'ตกลง',
           onClick: saveSubActivity,
-          disabled: !subActivityDraft.trim(),
+          disabled: !subActivityDraft.trim() || !!subDraftError || (addSubFor?.pick && !subParentId),
         }}
       >
+        {addSubFor?.pick && (
+          <div style={{ marginBottom: 'var(--dim-space-400)' }}>
+            <Select
+              label='Group Policy'
+              required
+              options={activities.map((a) => ({ value: a.id, label: a.name }))}
+              value={subParentId}
+              onChange={setSubParentId}
+              searchable={false}
+              showHelperText={false}
+            />
+          </div>
+        )}
         <InputField
           autoFocus
-          label='กิจกรรมย่อย'
+          label='บทบาท'
           required
           showLeadingIcon={false}
           placeholder='เช่น นักสังคมสงเคราะห์ศูนย์'
           value={subActivityDraft}
           onChange={setSubActivityDraft}
+          error={subDraftError || undefined}
+          showHelperText={!!subDraftError}
         />
       </Popup>
 
@@ -790,8 +916,8 @@ export default function ActivityPage() {
         onClose={() => setToggleConfirm(null)}
         type='warning'
         alignment='center'
-        title='ปิดการใช้งานกิจกรรมย่อย?'
-        description='การปิดใช้งานจะทำให้กิจกรรมย่อยนี้ไม่สามารถใช้งานได้จนกว่าจะเปิดอีกครั้ง'
+        title='ปิดการใช้งานบทบาท?'
+        description='การปิดใช้งานจะทำให้บทบาทนี้ไม่สามารถใช้งานได้จนกว่าจะเปิดอีกครั้ง'
         confirmLabel='ปิดการใช้งาน'
         cancelLabel='ยกเลิก'
         onConfirm={() => {
@@ -806,7 +932,7 @@ export default function ActivityPage() {
         onClose={() => setDeleteConfirm(null)}
         type='warning'
         alignment='center'
-        title='ลบกิจกรรมย่อย?'
+        title='ลบบทบาท?'
         description={deleteConfirm ? `ต้องการลบ "${deleteConfirm.subName}" ออกจากระบบหรือไม่` : ''}
         confirmLabel='ลบ'
         cancelLabel='ยกเลิก'
@@ -818,9 +944,9 @@ export default function ActivityPage() {
         onClose={() => setDeleteActivityConfirm(null)}
         type='warning'
         alignment='center'
-        title='ลบกิจกรรม?'
+        title='ลบ Group Policy?'
         description={deleteActivityConfirm
-          ? `ต้องการลบ "${deleteActivityConfirm.name}" และกิจกรรมย่อยทั้งหมดออกจากระบบหรือไม่`
+          ? `ต้องการลบ "${deleteActivityConfirm.name}" และบทบาททั้งหมดออกจากระบบหรือไม่`
           : ''}
         confirmLabel='ลบ'
         cancelLabel='ยกเลิก'
