@@ -415,13 +415,13 @@ const AddictionCommunityPage = () => {
     || filters.status !== 'all'
     || activeTab !== 'all';
 
-  const { showClearChip, resultsOpaque, clearFilters: smoothClearFilters } = useSmoothClearFilters(filtersActive, clearFilters);
-
   const clearFilters = () => {
     setSearchQ('');
     setFilters(FILTER_DEFAULTS);
     setActiveTab('all');
   };
+
+  const { showClearChip, resultsOpaque, clearFilters: smoothClearFilters } = useSmoothClearFilters(filtersActive, clearFilters);
 
   const filterSummary = [
     activeTab === 'all' ? null : tabs.find((t) => t.key === activeTab)?.label,
