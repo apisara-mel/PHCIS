@@ -170,7 +170,7 @@ export const QueueReasonPopup = ({ open, mode = 'cancel', queue, stationLabel, o
             label={meta.label}
             required
             value={reason}
-            onChange={setReason}
+            onChange={(e) => setReason(e?.target ? e.target.value : e)}
             suggestions={REASON_SUGGESTIONS[mode] || REASON_SUGGESTIONS.cancel}
             minChars={2}
             placeholder='พิมพ์หรือพูดเหตุผล — ระบบจะบันทึกผู้ทำรายการและเวลาไว้ในประวัติคิว'
@@ -367,7 +367,7 @@ export const QueueEditPopup = ({ open, queue, onClose, onSave, canEdit = true })
               voice
               label='เหตุผลการแก้ไข (บันทึกในประวัติคิว)'
               value={reason}
-              onChange={setReason}
+              onChange={(e) => setReason(e?.target ? e.target.value : e)}
               suggestions={[
                 'แก้ไขตามข้อมูลจริงที่เคาน์เตอร์',
                 'เจ้าหน้าที่คีย์ประเภทคิวผิด',
