@@ -21,11 +21,11 @@ import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
 import {
   CPOE_CATALOG,
-  CPOE_CATALOG_BY_ID,
   CPOE_INITIAL_ORDER_IDS,
   CPOE_RECENT_RESULTS,
   CPOE_TYPE_META,
   buildNewTrackingRows,
+  resolveCpoeOrder,
 } from '@/data/cpoeWorkflow';
 import { XRAY_EXAM_BY_ID } from '@/data/xrayCatalog';
 import {
@@ -68,15 +68,22 @@ const TYPE_FILTERS = [
 
 const DEMO_PATIENT = PATIENT_PROFILES.find((item) => item.hn === '67-00003') || PATIENT_PROFILES[0];
 
-const initialHeader = {
+/* วัน-เวลาปัจจุบันในรูปแบบ พ.ศ. ที่ทั้งหน้านี้ใช้ ("2569-08-25T10:20").
+   เดิม initialHeader ตรึงวันไว้ที่ 24 ส.ค. 2569 — ทุกใบสั่งที่เปิดวันอื่น
+   จึงถูกประทับวันย้อนหลัง และ `วันที่ต้องการตรวจ` ก็เป็นอดีตตั้งแต่เปิดฟอร์ม */
+const pad2 = (n) => String(n).padStart(2, '0');
+const toBuddhistDateTimeInput = (d) =>
+  `${d.getFullYear() + 543}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+  + `T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+const buildInitialHeader = () => ({
   requestingUnit: 'opd-2',
-  orderedAt: '2569-08-24T10:20',
-  requestedAt: '2569-08-24T11:00',
+  orderedAt: toBuddhistDateTimeInput(new Date()),
+  requestedAt: toBuddhistDateTimeInput(new Date(Date.now() + 40 * 60 * 1000)),
   urgency: 'routine',
   indication: 'ไอเรื้อรัง เหนื่อยง่าย น้ำหนักลด ต้องการประเมินพยาธิสภาพทรวงอก',
   diagnosis: 'R05.3 — Chronic cough',
   physicianQuestion: 'ประเมินรอยโรคในทรวงอกและภาวะแทรกซ้อนก่อนวางแผนรักษา',
-};
+});
 
 const initialSafety = {
   pregnancyStatus: 'not-pregnant',
@@ -186,11 +193,14 @@ const MetricCard = ({ icon, label, value, tone = 'info' }) => (
   </div>
 );
 
+/* ทุกคำสั่งใน Visit ที่ CPOE แทนค่าได้ — ไม่ใช่แค่ 15 รายการที่ยกมาโชว์เป็น
+   การ์ด เดิมกรองด้วย CPOE_CATALOG_BY_ID ทำให้แล็บ/รังสีที่สั่งจาก popup
+   "เพิ่มรายการ" (แค็ตตาล็อกเต็ม) หายไปจากตะกร้า แล้วข้ามด่านลงนามไปเงียบ ๆ */
 const treatmentOrderIds = (form) => [
   ...(form?.labs || []).map((item) => item.testId),
   ...(form?.xrayOrders || []).map((item) => item.examId),
-  ...(form?.procedureOrders || []).map((item) => `procedure-${item.code}`),
-].filter((id) => CPOE_CATALOG_BY_ID[id]);
+  ...(form?.procedureOrders || []).filter((item) => !item.cancelledAt).map((item) => `procedure-${item.code}`),
+].filter((id) => resolveCpoeOrder(id));
 
 const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setForm }) => {
   const history = useHistory();
@@ -198,7 +208,7 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
   const workflowSeed = form?.cpoeWorkflow || {};
   const draftKey = `mih:cpoe-workflow:draft:${patient?.hn || 'unknown'}`;
   const [step, setStep] = useState(workflowSeed.step || 0);
-  const [header, setHeader] = useState(workflowSeed.header || initialHeader);
+  const [header, setHeader] = useState(() => workflowSeed.header || buildInitialHeader());
   const [safety, setSafety] = useState(workflowSeed.safety || initialSafety);
   const [selectedIds, setSelectedIds] = useState(
     workflowSeed.selectedIds || (embedded ? treatmentOrderIds(form) : CPOE_INITIAL_ORDER_IDS),
@@ -229,7 +239,7 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
   const autosaveReady = useRef(false);
 
   const selectedOrders = useMemo(
-    () => selectedIds.map((id) => CPOE_CATALOG_BY_ID[id]).filter(Boolean),
+    () => selectedIds.map((id) => resolveCpoeOrder(id)).filter(Boolean),
     [selectedIds],
   );
 
@@ -335,56 +345,57 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
     ));
   }, [coverageOnly, query, typeFilter]);
 
+  /* CPOE → form: ตะกร้าคือความจริงชุดเดียวกับคำสั่งใน Visit
+     - แถวที่ CPOE แทนค่าไม่ได้ (ไม่อยู่ในแค็ตตาล็อกจริงเลย) ปล่อยไว้ ไม่แตะ
+     - แถวหัตถการที่ยกเลิกแล้วเก็บไว้เป็นประวัติ ไม่ให้ตะกร้าลบทิ้ง
+     เดิมกรองด้วยชุด id ของแค็ตตาล็อก 15 ใบ ติ๊กออกจากตะกร้าจึงลบได้เฉพาะ
+     15 ใบนั้น ส่วนใบอื่นค้างอยู่ในฟอร์มแบบเงียบ ๆ */
   const syncTreatmentOrders = (nextIds) => {
     if (!embedded || !setForm) return;
     const wanted = new Set(nextIds);
-    const catalogLabIds = new Set(CPOE_CATALOG.filter((item) => item.type === 'lab').map((item) => item.id));
-    const catalogXrayIds = new Set(CPOE_CATALOG.filter((item) => item.type === 'xray').map((item) => item.id));
-    const catalogProcedureCodes = new Set(
-      CPOE_CATALOG.filter((item) => item.type === 'procedure').map((item) => item.code),
-    );
+    const keep = (id) => !resolveCpoeOrder(id) || wanted.has(id);
+
     setForm((current) => {
-      const labs = (current.labs || []).filter((item) => (
-        !catalogLabIds.has(item.testId) || wanted.has(item.testId)
-      ));
-      CPOE_CATALOG.filter((item) => item.type === 'lab' && wanted.has(item.id)).forEach((item) => {
-        if (!labs.some((row) => row.testId === item.id)) {
-          labs.push({
-            id: `lab-${item.id}-${Date.now()}`,
-            testId: item.id,
-            urgency: header.urgency,
-            note: header.physicianQuestion,
-            quantity: 1,
-            unit: 'ครั้ง',
-          });
-        }
-      });
-
-      const xrayOrders = (current.xrayOrders || []).filter((item) => (
-        !catalogXrayIds.has(item.examId) || wanted.has(item.examId)
-      ));
-      CPOE_CATALOG.filter((item) => item.type === 'xray' && wanted.has(item.id)).forEach((item) => {
-        if (!xrayOrders.some((row) => row.examId === item.id)) {
-          xrayOrders.push({
-            examId: item.id,
-            view: XRAY_EXAM_BY_ID[item.id]?.views?.[0] || '',
-            urgency: header.urgency,
-            note: header.physicianQuestion,
-            quantity: 1,
-            unit: 'ครั้ง',
-          });
-        }
-      });
-
+      const labs = (current.labs || []).filter((item) => keep(item.testId));
+      const xrayOrders = (current.xrayOrders || []).filter((item) => keep(item.examId));
       const procedureOrders = (current.procedureOrders || []).filter((item) => (
-        !catalogProcedureCodes.has(item.code) || wanted.has(`procedure-${item.code}`)
+        item.cancelledAt || keep(`procedure-${item.code}`)
       ));
-      CPOE_CATALOG.filter((item) => item.type === 'procedure' && wanted.has(item.id)).forEach((item) => {
-        if (!procedureOrders.some((row) => row.code === item.code)) {
+
+      nextIds.forEach((id) => {
+        const order = resolveCpoeOrder(id);
+        if (!order) return;
+
+        if (order.type === 'lab' && !labs.some((row) => row.testId === id)) {
+          labs.push({
+            id: `lab-${id}-${Date.now()}`,
+            testId: id,
+            urgency: header.urgency,
+            note: header.physicianQuestion,
+            quantity: 1,
+            unit: 'ครั้ง',
+          });
+          return;
+        }
+
+        if (order.type === 'xray' && !xrayOrders.some((row) => row.examId === id)) {
+          xrayOrders.push({
+            examId: id,
+            view: XRAY_EXAM_BY_ID[id]?.views?.[0] || '',
+            urgency: header.urgency,
+            note: header.physicianQuestion,
+            quantity: 1,
+            unit: 'ครั้ง',
+          });
+          return;
+        }
+
+        if (order.type === 'procedure'
+          && !procedureOrders.some((row) => !row.cancelledAt && row.code === order.code)) {
           procedureOrders.push({
-            id: `proc-${Date.now()}-${item.code}`,
-            code: item.code,
-            name: item.name,
+            id: `proc-${Date.now()}-${order.code}`,
+            code: order.code,
+            name: order.name,
             startDate: new Date().toISOString().slice(0, 10),
             startTime: '',
             endDate: '',
@@ -392,14 +403,15 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
             site: '',
             qty: 1,
             unit: 'ครั้ง',
-            unitPrice: item.price,
-            claimPerUnit: item.covered ? item.price : 0,
+            unitPrice: order.price,
+            claimPerUnit: order.covered ? order.price : 0,
             performer: 'somying',
             detail: header.physicianQuestion,
             urgency: header.urgency,
           });
         }
       });
+
       return { ...current, labs, xrayOrders, procedureOrders };
     });
   };
@@ -436,6 +448,42 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
     return groups;
   }, {}), [selectedOrders]);
 
+  /* ปลายทางต้องมาจากรายการที่แพทย์เลือกจริง — เดิม hard-code ไว้ 3 ปลายทาง
+     ทุกครั้ง สั่งแล็บใบเดียวก็ยังขึ้น "RIS/PACS ล้มเหลว" กับ "ห้องพยาบาล
+     สำเร็จ" ทั้งที่ไม่ได้สั่ง (เห็นตอนเปิดหน้าจริง 25 ส.ค. 69)
+     RIS/PACS ยังคงล้มเหลวไว้ตอนที่ "มีคำสั่งรังสีจริง" เพื่อให้ยังเดโม
+     ปุ่มส่งซ้ำได้ ไม่ใช่เพื่อสุ่มความล้มเหลวให้ทุกใบ */
+  const buildRoutingFor = (orders) => {
+    const destinations = [];
+    orders.forEach((order) => {
+      const dest = order.destination || CPOE_TYPE_META[order.type]?.destination;
+      if (dest && !destinations.includes(dest)) destinations.push(dest);
+    });
+    return destinations.map((destination) => (
+      destination === 'RIS/PACS'
+        ? { destination, status: 'error', detail: 'RIS ไม่ตอบกลับภายในเวลาที่กำหนด' }
+        : {
+          destination,
+          status: 'success',
+          detail: destination === 'LIS'
+            ? 'LN-2569-10831 · รับเข้าคิวแล้ว'
+            : 'คิว N-021 · รับคำสั่งแล้ว',
+        }
+    ));
+  };
+
+  /* คำสั่งที่ปลายทางตอบรับแล้วต้องโผล่ในตารางติดตาม (Step 4) ทันที —
+     เดิมสร้างแถวเฉพาะตอนกด "ส่งซ้ำ" คนที่ส่งผ่านตั้งแต่ครั้งแรกจึงไป
+     หน้าติดตามแล้วไม่เจอคำสั่งของตัวเอง */
+  const appendTrackingRows = (orders) => {
+    if (!orders.length) return;
+    setTrackingRows((current) => {
+      const existingIds = new Set(current.map((item) => item.item));
+      const created = buildNewTrackingRows(orders).filter((item) => !existingIds.has(item.item));
+      return [...created, ...current];
+    });
+  };
+
   const startRouting = () => {
     setSignatureError('');
     if (!attest) {
@@ -446,26 +494,30 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
       setSignatureError('PIN ไม่ถูกต้อง — สำหรับต้นแบบใช้ 123456');
       return;
     }
-    setRouting([
-      { destination: 'LIS', status: 'success', detail: 'LN-2569-10831 · รับเข้าคิวแล้ว' },
-      { destination: 'RIS/PACS', status: 'error', detail: 'RIS ไม่ตอบกลับภายในเวลาที่กำหนด' },
-      { destination: 'ห้องพยาบาล', status: 'success', detail: 'คิว N-021 · รับคำสั่งแล้ว' },
-    ]);
-    setToast('ลงนามสำเร็จ · ส่งคำสั่งแล้ว 2 จาก 3 ปลายทาง');
+    const nextRouting = buildRoutingFor(selectedOrders);
+    setRouting(nextRouting);
+    const delivered = new Set(
+      nextRouting.filter((item) => item.status === 'success').map((item) => item.destination),
+    );
+    appendTrackingRows(selectedOrders.filter((order) => delivered.has(order.destination)));
+    const okCount = nextRouting.filter((item) => item.status === 'success').length;
+    setToast(okCount === nextRouting.length
+      ? `ลงนามสำเร็จ · ส่งคำสั่งครบ ${okCount} ปลายทาง`
+      : `ลงนามสำเร็จ · ส่งคำสั่งแล้ว ${okCount} จาก ${nextRouting.length} ปลายทาง`);
   };
 
   const retryFailedRouting = () => {
+    const retried = routing.filter((item) => item.status === 'error').map((item) => item.destination);
+    if (!retried.length) return;
     setRouting((current) => current.map((item) => (
       item.status === 'error'
         ? { ...item, status: 'success', detail: 'XN-2569-01496 · ส่งซ้ำสำเร็จและรับเข้าคิวแล้ว' }
         : item
     )));
-    setTrackingRows((current) => {
-      const existingIds = new Set(current.map((item) => item.item));
-      const created = buildNewTrackingRows(selectedOrders).filter((item) => !existingIds.has(item.item));
-      return [...created, ...current];
-    });
-    setToast('ส่งคำสั่งเข้า RIS/PACS ซ้ำสำเร็จ');
+    /* เฉพาะคำสั่งของปลายทางที่เพิ่งส่งซ้ำ — ของปลายทางอื่นขึ้นตารางไปแล้ว
+       ตั้งแต่ตอนลงนาม */
+    appendTrackingRows(selectedOrders.filter((order) => retried.includes(order.destination)));
+    setToast(`ส่งคำสั่งเข้า ${retried.join(' · ')} ซ้ำสำเร็จ`);
   };
 
   const routingHasError = routing.some((item) => item.status === 'error');

@@ -71,6 +71,44 @@ const CHRONIC_POOL = [
   { name: 'ภาวะซีดจากการขาดธาตุเหล็ก', dx: 'Iron deficiency anaemia (D50.9)' },
 ];
 
+/* ── กลุ่มเด็ก ────────────────────────────────────────────────────────
+   chart จำลองเดิม seed จาก HN อย่างเดียว ไม่รู้อายุ พอเอา TelemedEmrPanel
+   ไป mount ในคลินิกสุขภาพเด็กดี (TOR 1.10.9.7) เด็ก 2 เดือนเลยขึ้น
+   "เบาหวานชนิดที่ 2 + Atorvastatin + Enalapril" ซึ่งอ่านแล้วผิดทางคลินิก
+   ชัดเจน จึงต้องแยกชุดข้อมูลตามอายุ ไม่ใช่ปล่อยให้สุ่มจาก pool ผู้ใหญ่ */
+const CHILD_CHRONIC_POOL = [
+  { name: 'ภูมิแพ้ทางเดินหายใจส่วนบน', dx: 'Allergic rhinitis (J30.4)' },
+  { name: 'หอบหืดในเด็ก', dx: 'Asthma, unspecified (J45.9)' },
+  { name: 'ผื่นภูมิแพ้ผิวหนัง', dx: 'Atopic dermatitis (L20.9)' },
+  { name: 'ภาวะซีดจากการขาดธาตุเหล็ก', dx: 'Iron deficiency anaemia (D50.9)' },
+  { name: 'น้ำหนักน้อยกว่าเกณฑ์', dx: 'Underweight for age (R62.8)' },
+];
+
+const CHILD_MED_POOL = [
+  'Paracetamol syrup 120 mg/5 mL',
+  'ORS (ผงเกลือแร่)',
+  'Ferrous drops (ธาตุเหล็กชนิดหยด)',
+  'Vitamin D drops',
+  'Cetirizine syrup 5 mg/5 mL',
+  'Salbutamol syrup 2 mg/5 mL',
+];
+
+const CHILD_MED_SIG_POOL = [
+  'ครั้งละ 2.5 มล. เวลามีไข้ ทุก 4-6 ชม.',
+  'ครั้งละ 0.6 มล. วันละครั้ง หลังอาหารเช้า',
+  'ครั้งละ 5 มล. วันละครั้ง ก่อนนอน',
+  'ผสมน้ำ 1 แก้ว จิบบ่อย ๆ เมื่อถ่ายเหลว',
+];
+
+const CHILD_ALLERGY_POOL = [
+  'นมวัว (ผื่นลมพิษ)',
+  'ไข่ขาว (ผื่นคัน)',
+  'Amoxicillin (ผื่นแดง)',
+];
+
+/** เด็กตาม TOR = อายุน้อยกว่า 15 ปี (เกณฑ์เดียวกับคลินิกสุขภาพเด็กดี) */
+const CHILD_AGE_MAX = 15;
+
 const ALLERGY_POOL = [
   'Penicillin (ผื่นลมพิษ)',
   'Sulfa (คลื่นไส้ อาเจียน)',
@@ -177,6 +215,9 @@ const EMPTY_CHART = {
  */
 export const getEmrChart = (hn, hint = {}) => {
   if (!hn) return { ...EMPTY_CHART };
+  /* `ageYears` ส่งมาจากหน้าที่ mount แผง (คลินิกเด็กดีส่งอายุเด็กจริง)
+     ถ้าไม่ส่งมาก็ถือเป็นผู้ใหญ่เหมือนเดิม — ผู้เรียกเดิมจึงไม่กระทบ */
+  const isChild = typeof hint.ageYears === 'number' && hint.ageYears < CHILD_AGE_MAX;
   const seed = hashString(`emr:${hn}`);
   const rng = makeRng(seed);
   const visit = getTelemedVisitByHn(hn);
@@ -194,8 +235,8 @@ export const getEmrChart = (hn, hint = {}) => {
     };
   }
 
-  const chronicCount = 1 + (seed % 3);
-  const chronic = pickMany(rng, CHRONIC_POOL, chronicCount);
+  const chronicCount = isChild ? 1 : 1 + (seed % 3);
+  const chronic = pickMany(rng, isChild ? CHILD_CHRONIC_POOL : CHRONIC_POOL, chronicCount);
   const doctor = visit?.doctor || pick(rng, TELEMED_DOCTORS);
   const place = visit?.originUnit || pick(rng, TELEMED_ORIGIN_UNITS);
 
@@ -216,12 +257,14 @@ export const getEmrChart = (hn, hint = {}) => {
   }
 
   /* ── ยาเดิม ── */
-  const medNames = MEDICATION_NAME_OPTIONS
-    .filter((m) => !/\d(mg|mcg)\b/i.test(m.value))
-    .map((m) => m.value);
-  const meds = pickMany(rng, medNames, 1 + (seed % 4)).map((name) => ({
+  const medNames = isChild
+    ? CHILD_MED_POOL
+    : MEDICATION_NAME_OPTIONS
+      .filter((m) => !/\d(mg|mcg)\b/i.test(m.value))
+      .map((m) => m.value);
+  const meds = pickMany(rng, medNames, isChild ? 1 + (seed % 2) : 1 + (seed % 4)).map((name) => ({
     name,
-    sig: pick(rng, [
+    sig: pick(rng, isChild ? CHILD_MED_SIG_POOL : [
       '1×1 หลังอาหารเช้า',
       '1×2 หลังอาหารเช้า-เย็น',
       '1×1 ก่อนนอน',
@@ -231,7 +274,7 @@ export const getEmrChart = (hn, hint = {}) => {
   }));
 
   /* ── แพ้ยา (ราวครึ่งหนึ่งไม่มีประวัติแพ้ → empty state ยังได้ใช้) ── */
-  const allergies = rng() > 0.45 ? pickMany(rng, ALLERGY_POOL, 1 + (seed % 2)) : [];
+  const allergies = rng() > 0.45 ? pickMany(rng, isChild ? CHILD_ALLERGY_POOL : ALLERGY_POOL, 1 + (seed % 2)) : [];
 
   /* ── ผล LAB จากแคตตาล็อกกลาง ── */
   const labTests = pickMany(rng, LAB_TESTS.filter((t) => !t.retired), 2 + (seed % 3));

@@ -12,7 +12,7 @@ import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
 import {
   Step1History, Step2Screening, Step3Examination, Step4DoctorRecord,
-  Step5Orders, Step6Appointment, ScreeningSummaryRail,
+  Step5Orders, Step6Appointment,
 } from '@/components/forms/TreatmentSteps';
 import SoapNotePanel from '@/pages/treat/panels/SoapNotePanel';
 import CpoeDocumentsStep from '@/pages/treat/panels/CpoeDocumentsStep';
@@ -233,7 +233,6 @@ const TreatmentFormPage = () => {
   const history = useHistory();
   const location = useLocation();
   const { state: navState } = location;
-  const [screeningRailCollapsed, setScreeningRailCollapsed] = useState(false);
 
   /* Patient identity used by the step bodies (MR shape — full address,
      rights, drugAllergies, etc.). */
@@ -626,14 +625,11 @@ const TreatmentFormPage = () => {
           onStepChange={requestStepChange}
           completedSteps={completedSteps}
           hideMorphTitle
-          sidePanelCollapsed={screeningRailCollapsed}
-          sidePanel={(
-            <ScreeningSummaryRail
-              patient={patient}
-              collapsed={screeningRailCollapsed}
-              onToggle={() => setScreeningRailCollapsed((value) => !value)}
-            />
-          )}
+          /* แถบสรุปคัดกรองด้านขวาถูกถอดออกชั่วคราวตามคำสั่งผู้ใช้ (25 ส.ค. 69)
+             — คอลัมน์บันทึกจึงกินความกว้างเต็ม (shell สลับ layout ให้เองเมื่อ
+             ไม่มี sidePanel) `ScreeningSummaryRail` ยังอยู่ใน TreatmentSteps
+             พร้อมเสียบกลับ ถ้าจะเอาคืนให้ส่ง sidePanel/sidePanelCollapsed
+             กลับเข้ามาที่นี่ */
           onLeave={() => history.push('/treat/queue')}
           onSaveDraft={() => persistDraft()}
           draftStatusText={draftStatusText}

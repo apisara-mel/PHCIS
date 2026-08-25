@@ -18,6 +18,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
+import AddMedicationPopup from '@/components/popup/AddMedicationPopup';
 import DrawingCanvasPopup from '@/components/popup/DrawingCanvasPopup';
 import FamilyPlanningFollowUpCard, { printFpFollowUpCard } from '@/pages/clinic/family-planning/FamilyPlanningFollowUpCard';
 import {
@@ -1513,6 +1514,22 @@ export const FpStep6Orders = ({ form, setForm, locked }) => {
   const dispensingBlocked = screen.mustReferDoctor && !form.doctorConsulted;
   const pregnant = form.pregnancyTest === 'positive';
   const [medPopupOpen, setMedPopupOpen] = useState(false);
+  const [removeMed, setRemoveMed] = useState(null);
+
+  /* §1.10.8.7 — ยานอกชุดมาตรฐานสั่งผ่าน AddMedicationPopup ตัวเดียวกับ OPD
+     เพื่อให้ได้ขนาด/วิธีใช้/ความถี่/จำนวนครบแบบใบสั่งยาจริง
+     (chip ด้านบนบอกได้แค่สั่ง/ไม่สั่ง ใช้เป็นทางลัดของชุดยาประจำคลินิก) */
+  const addMedication = (med) => {
+    setForm((f) => ({
+      ...f,
+      medications: [...(f.medications || []), { ...med, id: `fpmed-${Date.now()}` }],
+    }));
+    setMedPopupOpen(false);
+  };
+  const confirmRemoveMed = () => {
+    setForm((f) => ({ ...f, medications: (f.medications || []).filter((m) => m.id !== removeMed.id) }));
+    setRemoveMed(null);
+  };
   const [orderPopupOpen, setOrderPopupOpen] = useState(false);
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
@@ -1593,6 +1610,29 @@ export const FpStep6Orders = ({ form, setForm, locked }) => {
             );
           })}
         </div>
+        {/* ยาที่สั่งพร้อมขนาด/วิธีใช้ — ส่วนที่ chip ให้ไม่ได้ */}
+        <Table
+          columns={[
+            { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220 },
+            { key: 'usage', label: 'วิธีใช้', flex: true, minWidth: 140 },
+            { key: 'dosePerTake', label: 'ครั้งละ' },
+            { key: 'frequency', label: 'ความถี่', flex: true, minWidth: 140 },
+            { key: 'when', label: 'เวลาใช้ยา', flex: true, minWidth: 130 },
+            { key: 'quantity', label: 'จำนวน' },
+            {
+              key: 'actions', label: 'การดำเนินการ', sortable: false,
+              render: (row) => (locked ? null : (
+                <NeutralSubdueButton size='sm' leadingIcon='delete' onClick={() => setRemoveMed(row)}>
+                  ลบ
+                </NeutralSubdueButton>
+              )),
+            },
+          ]}
+          rows={form.medications || []}
+          rowKey={(r) => r.id || r.name}
+          emptyMessage='ยังไม่มียาที่ระบุขนาด/วิธีใช้ — กด "เพิ่มรายการยา" ด้านบน'
+        />
+
         {(dispensingBlocked || pregnant) && (
           <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-warning-default, #C2410C)' }}>
             รายการยาที่จางลงถูกปิดไว้:{' '}
@@ -1729,29 +1769,26 @@ export const FpStep6Orders = ({ form, setForm, locked }) => {
         </div>
       )}
 
-      {/* Popup เพิ่มรายการยานอกชุดมาตรฐาน — โครงเดียวกับ AddMedicationPopup
-          ของ OPD แต่คุมด้วยรายการยาของคลินิกวางแผนครอบครัวเอง */}
-      <Popup
+      {/* §1.10.8.7 — ใช้ AddMedicationPopup ตัวเดียวกับ OPD ไม่ใช่ป๊อปอัป
+          สั่ง/ไม่สั่งของคลินิกเอง ใบสั่งยาจึงมีขนาด-วิธีใช้-จำนวนครบ */}
+      <AddMedicationPopup
         open={medPopupOpen}
         onClose={() => setMedPopupOpen(false)}
-        size='large'
-        title='เพิ่มรายการยาคุมกำเนิด'
-        subtitle='เลือกจากบัญชียาของคลินิกวางแผนครอบครัว'
-        tertiaryAction={{ label: 'ปิด', onClick: () => setMedPopupOpen(false) }}
-        primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setMedPopupOpen(false) }}
+        onConfirm={addMedication}
+        title='เพิ่มรายการยา — คลินิกวางแผนครอบครัว'
+      />
+
+      <Popup
+        open={!!removeMed}
+        onClose={() => setRemoveMed(null)}
+        title='ลบรายการยา'
+        subtitle={removeMed ? removeMed.name : ''}
+        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setRemoveMed(null) }}
+        primaryAction={{ label: 'ยืนยันลบ', onClick: confirmRemoveMed, tone: 'danger' }}
       >
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {FP_MED_ORDERS.map((m) => (
-            <ChoiceRow
-              key={m.key}
-              label={m.label}
-              options={[{ value: true, label: 'สั่ง' }, { value: false, label: 'ไม่สั่ง' }]}
-              value={!!form.medOrders[m.key]}
-              onSelect={(v) => setForm((f) => ({ ...f, medOrders: { ...f.medOrders, [m.key]: v } }))}
-              locked={locked || (medBlocked(m) && !form.medOrders[m.key])}
-            />
-          ))}
-        </div>
+        <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+          รายการยาที่ลบแล้วไม่สามารถกู้คืนได้ ต้องการลบใช่หรือไม่?
+        </span>
       </Popup>
 
       <Popup

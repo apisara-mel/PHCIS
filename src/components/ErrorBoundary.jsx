@@ -1,6 +1,12 @@
 import React from 'react';
 
-/* Catches render errors so the tab is not a blank white screen. */
+/* Catches render errors so the tab is not a blank white screen.
+
+   `resetKey` — เปลี่ยนค่าเมื่อไหร่ก็ล้าง error state (Routes.jsx ส่ง
+   pathname เข้ามา) เดิม boundary จับ error แล้ว **ค้างถาวร**: ผู้ใช้กด
+   เมนูอื่นก็ยังเห็นหน้า error เพราะ state ไม่เคยถูกล้าง ต้อง reload ทั้ง
+   แท็บถึงจะกลับมาใช้งานได้ — หน้าเดียวพังจึงทำให้ทั้งระบบใช้ไม่ได้
+   (เจอตอนกวาด route ทั้งหมด 25 ส.ค. 69) */
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -13,6 +19,13 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error('[PHCIS ErrorBoundary]', error, info);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (this.state.error && prevProps.resetKey !== this.props.resetKey) {
+      /* eslint-disable-next-line react/no-did-update-set-state */
+      this.setState({ error: null });
+    }
   }
 
   render() {
@@ -50,10 +63,42 @@ export default class ErrorBoundary extends React.Component {
         >
           {error?.stack || error?.message || String(error)}
         </pre>
-        <p style={{ margin: '16px 0 0', fontSize: 13 }}>
-          ลองรัน <code>npm run dev</code> แล้วเปิด{' '}
-          <strong>http://127.0.0.1:3000/preview/body-record</strong>
-        </p>
+        {/* ทางออกให้ผู้ใช้จริง — เดิมมีแต่คำแนะนำสำหรับนักพัฒนา
+            (`npm run dev`) ซึ่งเจ้าหน้าที่ที่หน้างานทำตามไม่ได้ */}
+        <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+          <button
+            type='button'
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              border: 'var(--dim-stroke-100, 1px) solid #FECACA',
+              background: '#fff',
+              color: '#7F1D1D',
+              fontFamily: 'inherit',
+              fontSize: 14,
+              cursor: 'pointer',
+            }}
+          >
+            โหลดหน้านี้ใหม่
+          </button>
+          <button
+            type='button'
+            onClick={() => { window.location.href = '/'; }}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              border: 'none',
+              background: '#7F1D1D',
+              color: '#fff',
+              fontFamily: 'inherit',
+              fontSize: 14,
+              cursor: 'pointer',
+            }}
+          >
+            กลับหน้าแรก
+          </button>
+        </div>
       </div>
     );
   }

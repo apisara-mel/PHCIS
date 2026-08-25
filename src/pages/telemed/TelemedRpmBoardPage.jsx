@@ -966,7 +966,7 @@ const TelemedRpmBoardPage = () => {
                 'วัดซ้ำหลังพัก 5 นาที เนื่องจากค่าครั้งแรกสูงผิดปกติ',
               ]}
               value={addNote}
-              onChange={setAddNote}
+              onChange={(e) => setAddNote(e?.target ? e.target.value : e)}
               placeholder='บริบทของการวัด (ใครวัด · วัดอย่างไร)'
               height={100}
             />

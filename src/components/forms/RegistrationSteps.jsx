@@ -2672,7 +2672,7 @@ export const Step5Flags = ({ form, setForm }) => {
                 label='ระบุสภาพของผู้รับบริการ'
                 required
                 value={form.mobilityOther}
-                onChange={setMobilityOther}
+                onChange={(e) => setMobilityOther(e?.target ? e.target.value : e)}
                 placeholder='ใช้ไม้เท้า / ใช้ walker'
                 suggestions={MOBILITY_OTHER_SUGGESTIONS}
                 minChars={1}

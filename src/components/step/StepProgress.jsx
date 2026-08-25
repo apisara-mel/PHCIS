@@ -253,6 +253,12 @@ const StepItem = ({ label, subtitle, idx, type, isLast, onStepClick, compact = f
               fontWeight: type === TYPE.CURRENT ? 'var(--type-weight-bold, 700)' : 'var(--type-weight-regular, 400)',
               lineHeight: compact ? 1.3 : 1.35,
               whiteSpace: labelNoWrap ? 'nowrap' : 'normal',
+              /* nowrap labels are wider than the 80/112px step slot, so two
+                 long Thai titles in a row end up touching ("ตรวจสอบและยืนยัน
+                 ติดตามและดูผล" read as one phrase in CPOE Step 6). Reserve a
+                 gutter on the label itself — the step item is width:auto, so
+                 the gutter also pushes the next circle clear. */
+              paddingRight: labelNoWrap ? 'var(--dim-space-200, 8px)' : undefined,
               transition: `${TITLE_TRANSITION}, font-size 220ms ${SMOOTH_EASE}, line-height 220ms ${SMOOTH_EASE}`,
             }}
           >
