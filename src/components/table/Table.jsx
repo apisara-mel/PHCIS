@@ -966,7 +966,10 @@ const TableHeaderInternal = ({
           position: 'sticky',
           ...(isRight ? { right: stickyRight } : { left: stickyLeft }),
           zIndex: 30 - (column._idx ?? 0),
-          background: isRight ? 'var(--surface-table-header)' : undefined,
+          /* ต้องทึบทั้งสองฝั่ง — ฝั่งซ้ายเคยปล่อย undefined ทำให้หัวคอลัมน์ที่
+             เลื่อนผ่าน (เช่น "ที่ตั้ง") มองทะลุออกมาทับคอลัมน์ที่ตรึงไว้
+             ตอน scroll แนวนอน ทั้งที่เซลล์ข้อมูลข้างล่างถูกบังถูกต้องแล้ว */
+          background: 'var(--surface-table-header)',
           boxShadow: shadow,
         };
 

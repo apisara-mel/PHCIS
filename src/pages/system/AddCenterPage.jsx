@@ -100,6 +100,7 @@ export default function AddCenterPage() {
       />
       <ExistingCodesPopup
         open={form.showCodeList}
+        mode={form.codeListMode}
         centers={form.existingCenters}
         onClose={() => form.setShowCodeList(false)}
       />

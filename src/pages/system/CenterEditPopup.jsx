@@ -9,9 +9,10 @@ import {
   CENTER_FORM_STEPS,
 } from '@/pages/system/centerForm';
 
-/* ระบบจัดการระบบ · แก้ไขศูนย์บริการ (popup แบบ step)
+/* ระบบจัดการระบบ · เพิ่ม/แก้ไขศูนย์บริการ (popup แบบ step)
    ══════════════════════════════════════════════════════════════════════
-   กด "แก้ไข" ในตารางทะเบียนศูนย์แล้วเปิดเป็น popup แทนการเปลี่ยนหน้า —
+   กด "เพิ่มศูนย์บริการ" หรือ "แก้ไข" ในทะเบียนศูนย์แล้วเปิดเป็น popup แทน
+   การเปลี่ยนหน้า (25 ส.ค. 2569 — ปุ่มเพิ่มเดิมพาไป /admin/centers/new) —
    รูปแบบเดียวกับ "แก้ไขแบบฟอร์มความยินยอม" คือ Popup extraLarge +
    แถบ step ด้านบน + ปุ่มเดินหน้า/ถอยหลังที่ footer ของ popup
 
@@ -28,6 +29,8 @@ export default function CenterEditPopup({ open, center, onClose, onSaved }) {
   const { idx, setStep, footerPrimary } = form;
 
   const isLast = idx === CENTER_FORM_STEPS.length - 1;
+  /* ไม่มี center ที่ส่งเข้ามา = โหมดเพิ่มศูนย์ใหม่ */
+  const isCreate = !center;
 
   return (
     <>
@@ -35,29 +38,36 @@ export default function CenterEditPopup({ open, center, onClose, onSaved }) {
         open={open}
         onClose={onClose}
         size='extraLarge'
-        title={`แก้ไขศูนย์บริการ${center?.name ? ` · ${center.name}` : ''}`}
-        subtitle={center?.hcode9 ? `รหัสหน่วยบริการ ${center.hcode9}` : undefined}
+        title={isCreate ? 'เพิ่มศูนย์บริการ' : `แก้ไขศูนย์บริการ${center?.name ? ` · ${center.name}` : ''}`}
+        /* โหมดเพิ่มไม่มี subtitle — หัวข้อ "เพิ่มศูนย์บริการ" กับแถบ step
+           บอกครบอยู่แล้ว (25 ส.ค. 2569) */
+        subtitle={isCreate
+          ? undefined
+          : (center?.hcode9 ? `รหัสหน่วยบริการ ${center.hcode9}` : undefined)}
         /* ปุ่มหลักเดินไป step ถัดไป จนถึง step สุดท้ายจึงเป็น "บันทึก" */
         primaryAction={{
-          label: isLast ? 'บันทึกการแก้ไข' : footerPrimary.label,
+          label: isLast
+            ? (isCreate ? 'สร้างศูนย์บริการนี้' : 'บันทึกการแก้ไข')
+            : footerPrimary.label,
           disabled: footerPrimary.disabled,
           onClick: isLast ? form.handleCreate : form.goNext,
         }}
+        /* step อยู่บรรทัดเดียวกับหัวข้อ popup (25 ส.ค. 2569) — เดิมเป็นแถบ
+           framed ใต้หัวข้อ ทำให้ "ข้อความ" กับ "step" คนละบรรทัด */
+        headerTrailing={(
+          <StepProgress
+            steps={CENTER_FORM_STEPS.map((st) => st.label)}
+            current={idx}
+            onStepClick={(i) => { if (i < idx) setStep(CENTER_FORM_STEPS[i].key); }}
+            labelNoWrap
+          />
+        )}
         secondaryAction={idx > 0
           ? { label: 'ย้อนกลับ', onClick: form.goPrev }
           : { label: 'ยกเลิก', onClick: onClose }}
         tertiaryAction={{ label: 'บันทึกร่าง', onClick: form.handleSaveDraft }}
       >
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
-          {/* แถบ step — คลิกย้อนกลับไป step ที่ผ่านมาแล้วได้ เหมือนหน้าเต็ม */}
-          <StepProgress
-            steps={CENTER_FORM_STEPS.map((s) => s.label)}
-            current={idx}
-            onStepClick={(i) => { if (i < idx) setStep(CENTER_FORM_STEPS[i].key); }}
-            framed
-          />
-          <CenterFormBody form={form} />
-        </div>
+        <CenterFormBody form={form} />
       </Popup>
 
       <DeleteCenterContactConfirmPopup
@@ -68,6 +78,7 @@ export default function CenterEditPopup({ open, center, onClose, onSaved }) {
       />
       <ExistingCodesPopup
         open={form.showCodeList}
+        mode={form.codeListMode}
         centers={form.existingCenters}
         onClose={() => form.setShowCodeList(false)}
       />

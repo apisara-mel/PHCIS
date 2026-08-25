@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
-import { FilterDropdown } from '@/components/forms/FilterTag';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Table from '@/components/table/Table';
@@ -65,11 +63,6 @@ const SUBTEXT_CELL = {
   lineHeight: 1.5,
 };
 
-const STATUS_OPTIONS = [
-  { value: 'active', label: 'เปิดบริการ' },
-  { value: 'inactive', label: 'ปิดใช้งาน' },
-];
-
 const CENTER_TABS = [
   { key: 'all', label: 'ทั้งหมด', icon: 'school' },
   { key: 'draft', label: 'บันทึกร่าง', icon: 'save' },
@@ -127,18 +120,57 @@ function EmptyIllustration() {
 }
 
 /* เวลาทำการแยกตามกลุ่มวัน — จันทร์-ศุกร์ / เสาร์-อาทิตย์ / วันหยุดนักขัตฤกษ์
-   แสดงเฉพาะ "ในเวลาราชการ" ของแต่ละกลุ่มให้แถวไม่สูงเกินไป กลุ่มที่ปิดทำการ
+   ชื่อกลุ่มวันเป็นบรรทัดหัว แล้วช่วงเวลาอยู่บรรทัดถัดไป (25 ส.ค. 2569 —
+   เดิมอยู่บรรทัดเดียวกันทำให้คอลัมน์กว้างเกินและอ่านคู่กันยาก):
+     วันจันทร์ – ศุกร์
+     8-16น.
+   แสดงเฉพาะ "ในเวลาราชการ" ของแต่ละกลุ่ม · กลุ่มที่ปิดทำการ
    formatCenterHoursLine จะคืน "ปิดทำการ" ให้เอง. */
 function HoursCell({ hours }) {
   return (
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+      {HOUR_GROUPS.map((g) => {
+        /* ทั้งในเวลาและนอกเวลามาจาก step "เวลาทำการ" ของฟอร์มเพิ่มศูนย์บริการ
+           ชุดเดียวกัน — ปิดทำการทั้งวันก็ขึ้นบรรทัดเดียว ไม่ต้องแยกในเวลา/นอกเวลา */
+        const inLine = formatCenterHoursLine(hours, 'in', g.key);
+        const outLine = formatCenterHoursLine(hours, 'out', g.key);
+        const closed = inLine === 'ปิดทำการ';
+        return (
+          <div key={g.key} className='flex flex-col'>
+            <span style={SUBTEXT_CELL}>{g.label}</span>
+            {closed ? (
+              <span style={TEXT_CELL}>ปิดทำการ</span>
+            ) : (
+              <>
+                <span style={TEXT_CELL}>{`ในเวลา ${inLine}`}</span>
+                {/* ศูนย์ที่ไม่ได้เปิดคลินิกนอกเวลาก็ไม่ต้องขึ้นบรรทัด "นอกเวลา —" */}
+                {outLine !== '—' ? (
+                  <span style={TEXT_CELL}>{`นอกเวลา ${outLine}`}</span>
+                ) : null}
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ชื่อศูนย์ + สาขาย่อย — ศูนย์ที่มีจุดให้บริการย่อย (เช่น ศูนย์ 49 ตลิ่งชัน)
+   ต้องเห็นสาขาได้จากทะเบียนเลย ไม่ต้องเปิดเข้าไปแก้ไขก่อนถึงจะรู้ว่ามีสาขา */
+function NameCell({ row }) {
+  const branches = Array.isArray(row.branches) ? row.branches : [];
+  return (
     <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
-      {HOUR_GROUPS.map((g) => (
-        /* กลุ่มวันกับช่วงเวลาอยู่บรรทัดเดียวกัน — แถวตารางจะได้ไม่สูงเป็น 6 บรรทัด */
-        <div key={g.key} className='flex items-baseline' style={{ gap: 'var(--dim-space-200)' }}>
-          <span style={SUBTEXT_CELL}>{g.label}</span>
-          <span style={TEXT_CELL}>{formatCenterHoursLine(hours, 'in', g.key)}</span>
-        </div>
-      ))}
+      <span style={TEXT_CELL}>{row.name}</span>
+      {branches.length ? (
+        <>
+          <span style={SUBTEXT_CELL}>{`สาขาย่อย ${branches.length} แห่ง`}</span>
+          {branches.map((b) => (
+            <span key={b.id || b.name} style={SUBTEXT_CELL}>{`• ${b.name}`}</span>
+          ))}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -154,17 +186,17 @@ function HcodeCell({ row }) {
 }
 
 export default function SystemCentersPage() {
-  const navigate = useHistory();
   const [centers, setCenters] = useState(() => readCenters());
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
   const [toast, setToast] = useState(null);
   const [toggleConfirm, setToggleConfirm] = useState(null);
   /* นำส่งออกรายงาน — ใช้ popup ตัวเดียวกับหน้าจัดการความยินยอม (เลือกไฟล์
      PDF/Excel/CSV + ช่วงวันที่ + หัวข้อ + บันทึก log) ไม่สร้าง flow ใหม่ */
-  /* ศูนย์ที่กำลังแก้ไข — เปิด popup ฟอร์มชุดเดียวกับหน้าเพิ่มศูนย์ */
+  /* ศูนย์ที่กำลังแก้ไข — เปิด popup ฟอร์มชุดเดียวกับตอนเพิ่มศูนย์ */
   const [editCenter, setEditCenter] = useState(null);
+  /* เพิ่มศูนย์บริการ — popup ฟอร์มเดียวกัน แค่ไม่มีศูนย์ตั้งต้น */
+  const [addOpen, setAddOpen] = useState(false);
   const [exportReport, setExportReport] = useState(null);
   const [exportDone, setExportDone] = useState(false);
 
@@ -203,15 +235,14 @@ export default function SystemCentersPage() {
     window.setTimeout(() => setToast(null), 2800);
   };
 
-  const goAdd = () => navigate.push('/admin/centers/new');
+  const goAdd = () => setAddOpen(true);
 
   const hasCenters = centers.length > 0;
-  const filtersActive = !!filterStatus || !!search.trim();
+  const filtersActive = !!search.trim();
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
     () => {
       setSearch('');
-      setFilterStatus('');
     },
   );
 
@@ -257,14 +288,12 @@ export default function SystemCentersPage() {
       const inTab = activeTab === 'draft' ? c.draft : !c.draft;
       if (!inTab) return false;
 
-      const hay = `${c.code} ${c.name} ${c.hcode9 || ''} ${c.hcode5 || ''}`.toLowerCase();
+      const branchNames = (c.branches || []).map((b) => b.name).join(' ');
+      const hay = `${c.code} ${c.name} ${c.hcode9 || ''} ${c.hcode5 || ''} ${branchNames}`.toLowerCase();
       const matchesSearch = !q || hay.includes(q);
-      const matchesStatus = !filterStatus
-        || (filterStatus === 'active' && c.active)
-        || (filterStatus === 'inactive' && !c.active);
-      return matchesSearch && matchesStatus;
+      return matchesSearch;
     });
-  }, [centers, search, filterStatus, activeTab]);
+  }, [centers, search, activeTab]);
 
   /* ค่าที่ใช้เรียงต่อคอลัมน์ — เก็บแยกจาก render() เพราะบางคอลัมน์ render
      เป็น JSX (รหัสหน่วยบริการ / เวลาทำการ) เรียงจาก DOM ตรง ๆ ไม่ได้ */
@@ -333,7 +362,7 @@ export default function SystemCentersPage() {
       key: 'name',
       header: 'ชื่อศูนย์บริการ',
       sortable: true,
-      render: (row) => <span style={TEXT_CELL}>{row.name}</span>,
+      render: (row) => <NameCell row={row} />,
     },
     {
       key: 'address',
@@ -478,19 +507,14 @@ export default function SystemCentersPage() {
                   </div>
                 </div>
 
-                <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-                  <div className='flex items-center flex-wrap min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-                    <FilterDropdown
-                      prefix='สถานะ:'
-                      options={STATUS_OPTIONS}
-                      value={filterStatus}
-                      onChange={setFilterStatus}
-                      placeholder='ทั้งหมด'
-                    />
+                {/* ตัวกรอง "สถานะ" ถูกถอดออก 25 ส.ค. 2569 ตามที่ผู้ใช้สั่ง —
+                    เหลือเฉพาะชิปล้างคำค้น ซึ่งจะโผล่ก็ต่อเมื่อมีการค้นหาจริง */}
+                {showClearChip ? (
+                  <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
                     <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
+                    <div className='flex-1' />
                   </div>
-                  <div className='flex-1' />
-                </div>
+                ) : null}
               </div>
 
               <SmoothFilterResults opaque={resultsOpaque}>
@@ -509,6 +533,16 @@ export default function SystemCentersPage() {
           </div>
         )}
       </QueuePageShell>
+
+      {/* เพิ่มศูนย์บริการ — mount ใหม่ทุกครั้งที่เปิด ฟอร์มจะได้เริ่มจากว่างเสมอ */}
+      {addOpen ? (
+        <CenterEditPopup
+          open
+          center={null}
+          onClose={() => setAddOpen(false)}
+          onSaved={() => { refresh(); showToast('เพิ่มศูนย์บริการแล้ว'); }}
+        />
+      ) : null}
 
       {/* key = id ของศูนย์ → เปลี่ยนแถวแล้วฟอร์ม remount อ่านค่าใหม่ตั้งแต่ต้น
           (ไม่งั้น state ของศูนย์เดิมค้างอยู่ในฟอร์ม) */}

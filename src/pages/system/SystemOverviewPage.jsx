@@ -8,12 +8,12 @@ import DangerSubdueIconButton from '@/components/button/DangerSubdueIconButton';
 import Icon from '@/components/icons/Icon';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 
-/* ระบบจัดการระบบ · ภาพรวมองค์กร (Figma 0EDfjwf1 · 12:1624).
+/* ระบบจัดการระบบ · แดชบอร์ด (Figma 0EDfjwf1 · 12:1624).
    Org structure landing: summary (offices · departments · positions · staff)
    + office table. The activity / usage history moved to its own system
    (ระบบประวัติการใช้งาน · /audit). Reuses SummaryCard / Table / ColorfulBadge. */
 
-const breadcrumb = ['จัดการระบบ', 'ภาพรวม'];
+const breadcrumb = ['จัดการระบบ', 'แดชบอร์ด'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -64,7 +64,7 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
       sidebarFallbackKey='system-overview'
       brandTitle='ระบบ PHCIS'
       breadcrumb={breadcrumb}
-      title='ภาพรวมองค์กร'
+      title='แดชบอร์ด'
       headerInfo={(
         <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
           {SUMMARY.map((c) => <SummaryCard key={c.key} card={c} variant='panel' />)}

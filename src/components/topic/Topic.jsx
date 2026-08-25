@@ -140,10 +140,11 @@ const Topic = React.forwardRef(function Topic(
   const isPrimary = hierarchy === 'primary';
   const isDisabled = disabled || state === 'disabled';
   const interactive = !!onClick && !isDisabled;
-  /* Runtime hover uses CSS pseudo-classes so Primary rows tint even when
-     they are labels-only (no onClick). Forced `state` keeps inline tones for
-     the design-system matrix. */
-  const useRuntimeHover = isPrimary && !state && !isDisabled;
+  /* Runtime hover uses CSS pseudo-classes. เฉพาะแถวที่กดได้จริงเท่านั้น —
+     Topic ที่เป็นหัวข้อเฉย ๆ (ไม่มี onClick) ต้องไม่ติดสีตอนเอาเมาส์ไปวาง
+     เพราะอ่านเหมือนกดได้ทั้งที่กดไม่ได้ (25 ส.ค. 2569).
+     Forced `state` keeps inline tones for the design-system matrix. */
+  const useRuntimeHover = isPrimary && interactive && !state && !isDisabled;
   const effectiveState = state || (isDisabled ? 'disabled' : 'default');
   const tone = isPrimary ? resolvePrimary(effectiveState) : null;
 
@@ -170,7 +171,11 @@ const Topic = React.forwardRef(function Topic(
           paddingTop: 'var(--dim-space-200, 8px)',
           paddingBottom: 'var(--dim-space-200, 8px)',
           borderRadius: 'var(--dim-radius-400, 12px)',
-          ...(useRuntimeHover ? {} : { background: tone.bg }),
+          /* หัวข้อที่กดไม่ได้ = ไม่มีพื้นหลังเลย (โปร่งใส) ปล่อยให้เห็นพื้นการ์ด
+             ที่อยู่ข้างหลัง — ไม่ใช่แถบสีจาง ๆ พาดขวางฟอร์ม (25 ส.ค. 2569) */
+          ...(useRuntimeHover
+            ? {}
+            : { background: interactive || state || isDisabled ? tone.bg : 'transparent' }),
           cursor: interactive ? 'pointer' : (isDisabled ? 'not-allowed' : 'default'),
           transition: `background-color 160ms ${EASE}`,
           ...style,

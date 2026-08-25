@@ -49,6 +49,8 @@ import {
   HOUR_GROUPS,
   DEFAULT_HOUR_GROUPS,
   normalizeCenterHours,
+  createBranch,
+  normalizeBranches,
 } from '@/data/centerStore';
 import { isValidEmail, EMAIL_FORMAT_ERROR } from '@/data/usersAccess';
 import {
@@ -75,21 +77,131 @@ const STEPS = [
   { key: 'structure', n: 5, label: 'แผนกและคลินิก' },
   { key: 'review', n: 6, label: 'รีวิว' },
 ];
+/* ศูนย์บริการสาธารณสุขทั้งหมดอยู่ในกรุงเทพมหานคร — ช่องจังหวัดจึงล็อกค่าไว้
+   ค่าเดียวและปิดการแก้ไข (25 ส.ค. 2569) ไม่ต้องให้เลือกจังหวัดอื่นแล้วหลุด */
+const BKK_PROVINCE = 'bkk';
 const PROVINCE_OPTS = [
-  { value: '', label: 'จังหวัด' },
-  { value: 'bkk', label: 'กรุงเทพมหานคร' }, { value: 'nonthaburi', label: 'นนทบุรี' },
-  { value: 'samutprakan', label: 'สมุทรปราการ' }, { value: 'pathumthani', label: 'ปทุมธานี' },
+  { value: BKK_PROVINCE, label: 'กรุงเทพมหานคร' },
 ];
+
+/* รหัสไปรษณีย์เฉพาะที่มีในกรุงเทพมหานคร (25 รหัส) — แสดงเฉพาะตัวเลข
+   ไม่ต่อท้ายด้วยชื่อเขต เพราะมีช่อง "เขต/อำเภอ" แยกอยู่แล้ว */
+const BKK_ZIP_OPTS = [
+  { value: '', label: 'รหัสไปรษณีย์' },
+  { value: '10100', label: '10100' },
+  { value: '10110', label: '10110' },
+  { value: '10120', label: '10120' },
+  { value: '10140', label: '10140' },
+  { value: '10150', label: '10150' },
+  { value: '10160', label: '10160' },
+  { value: '10170', label: '10170' },
+  { value: '10200', label: '10200' },
+  { value: '10210', label: '10210' },
+  { value: '10220', label: '10220' },
+  { value: '10230', label: '10230' },
+  { value: '10240', label: '10240' },
+  { value: '10250', label: '10250' },
+  { value: '10260', label: '10260' },
+  { value: '10300', label: '10300' },
+  { value: '10310', label: '10310' },
+  { value: '10400', label: '10400' },
+  { value: '10500', label: '10500' },
+  { value: '10510', label: '10510' },
+  { value: '10520', label: '10520' },
+  { value: '10530', label: '10530' },
+  { value: '10600', label: '10600' },
+  { value: '10700', label: '10700' },
+  { value: '10800', label: '10800' },
+  { value: '10900', label: '10900' },
+];
+/* ทะเบียนเขต × แขวง ของกรุงเทพมหานคร ครบทั้ง 50 เขต / 180 แขวง
+   (25 ส.ค. 2569 — เดิมเป็น placeholder 4 เขต) · `zip` = รหัสไปรษณีย์หลัก
+   ของเขตนั้น ใช้เติมช่องรหัสไปรษณีย์ให้อัตโนมัติเมื่อเลือกเขต */
+const BKK_DISTRICTS = [
+  { name: 'พระนคร', zip: '10200', subdistricts: ['พระบรมมหาราชวัง', 'วังบูรพาภิรมย์', 'วัดราชบพิธ', 'สำราญราษฎร์', 'ศาลเจ้าพ่อเสือ', 'เสาชิงช้า', 'บวรนิเวศ', 'ตลาดยอด', 'ชนะสงคราม', 'บ้านพานถม', 'บางขุนพรหม', 'วัดสามพระยา'] },
+  { name: 'ดุสิต', zip: '10300', subdistricts: ['ดุสิต', 'วชิรพยาบาล', 'สวนจิตรลดา', 'สี่แยกมหานาค', 'ถนนนครไชยศรี'] },
+  { name: 'หนองจอก', zip: '10530', subdistricts: ['กระทุ่มราย', 'หนองจอก', 'คลองสิบ', 'คลองสิบสอง', 'โคกแฝด', 'คู้ฝั่งเหนือ', 'ลำผักชี', 'ลำต้อยติ่ง'] },
+  { name: 'บางรัก', zip: '10500', subdistricts: ['มหาพฤฒาราม', 'สีลม', 'สุริยวงศ์', 'บางรัก', 'สี่พระยา'] },
+  { name: 'บางเขน', zip: '10220', subdistricts: ['อนุสาวรีย์', 'ท่าแร้ง'] },
+  { name: 'บางกะปิ', zip: '10240', subdistricts: ['คลองจั่น', 'หัวหมาก'] },
+  { name: 'ปทุมวัน', zip: '10330', subdistricts: ['รองเมือง', 'วังใหม่', 'ปทุมวัน', 'ลุมพินี'] },
+  { name: 'ป้อมปราบศัตรูพ่าย', zip: '10100', subdistricts: ['ป้อมปราบ', 'วัดเทพศิรินทร์', 'คลองมหานาค', 'บ้านบาตร', 'วัดโสมนัส'] },
+  { name: 'พระโขนง', zip: '10260', subdistricts: ['บางจาก', 'พระโขนงใต้'] },
+  { name: 'มีนบุรี', zip: '10510', subdistricts: ['มีนบุรี', 'แสนแสบ'] },
+  { name: 'ลาดกระบัง', zip: '10520', subdistricts: ['ลาดกระบัง', 'คลองสองต้นนุ่น', 'คลองสามประเวศ', 'ลำปลาทิว', 'ทับยาว', 'ขุมทอง'] },
+  { name: 'ยานนาวา', zip: '10120', subdistricts: ['ช่องนนทรี', 'บางโพงพาง'] },
+  { name: 'สัมพันธวงศ์', zip: '10100', subdistricts: ['จักรวรรดิ', 'สัมพันธวงศ์', 'ตลาดน้อย'] },
+  { name: 'พญาไท', zip: '10400', subdistricts: ['สามเสนใน', 'พญาไท'] },
+  { name: 'ธนบุรี', zip: '10600', subdistricts: ['วัดกัลยาณ์', 'หิรัญรูจี', 'บางยี่เรือ', 'บุคคโล', 'ตลาดพลู', 'ดาวคะนอง', 'สำเหร่'] },
+  { name: 'บางกอกใหญ่', zip: '10600', subdistricts: ['วัดท่าพระ', 'วัดอรุณ'] },
+  { name: 'ห้วยขวาง', zip: '10310', subdistricts: ['ห้วยขวาง', 'บางกะปิ', 'สามเสนนอก'] },
+  { name: 'คลองสาน', zip: '10600', subdistricts: ['สมเด็จเจ้าพระยา', 'คลองสาน', 'บางลำภูล่าง', 'คลองต้นไทร'] },
+  { name: 'ตลิ่งชัน', zip: '10170', subdistricts: ['คลองชักพระ', 'ตลิ่งชัน', 'ฉิมพลี', 'บางพรม', 'บางระมาด', 'บางเชือกหนัง'] },
+  { name: 'บางกอกน้อย', zip: '10700', subdistricts: ['ศิริราช', 'บ้านช่างหล่อ', 'บางขุนนนท์', 'บางขุนศรี', 'อรุณอมรินทร์'] },
+  { name: 'บางขุนเทียน', zip: '10150', subdistricts: ['ท่าข้าม', 'แสมดำ'] },
+  { name: 'ภาษีเจริญ', zip: '10160', subdistricts: ['บางหว้า', 'บางด้วน', 'บางจาก', 'บางแวก', 'คลองขวาง', 'ปากคลองภาษีเจริญ', 'คูหาสวรรค์'] },
+  { name: 'หนองแขม', zip: '10160', subdistricts: ['หนองแขม', 'หนองค้างพลู'] },
+  { name: 'ราษฎร์บูรณะ', zip: '10140', subdistricts: ['ราษฎร์บูรณะ', 'บางปะกอก'] },
+  { name: 'บางพลัด', zip: '10700', subdistricts: ['บางพลัด', 'บางอ้อ', 'บางบำหรุ', 'บางยี่ขัน'] },
+  { name: 'ดินแดง', zip: '10400', subdistricts: ['ดินแดง', 'รัชดาภิเษก'] },
+  { name: 'บึงกุ่ม', zip: '10240', subdistricts: ['คลองกุ่ม', 'นวมินทร์', 'นวลจันทร์'] },
+  { name: 'สาทร', zip: '10120', subdistricts: ['ทุ่งวัดดอน', 'ยานนาวา', 'ทุ่งมหาเมฆ'] },
+  { name: 'บางซื่อ', zip: '10800', subdistricts: ['บางซื่อ', 'วงศ์สว่าง'] },
+  { name: 'จตุจักร', zip: '10900', subdistricts: ['ลาดยาว', 'เสนานิคม', 'จันทรเกษม', 'จอมพล', 'จตุจักร'] },
+  { name: 'บางคอแหลม', zip: '10120', subdistricts: ['บางคอแหลม', 'วัดพระยาไกร', 'บางโคล่'] },
+  { name: 'ประเวศ', zip: '10250', subdistricts: ['ประเวศ', 'หนองบอน', 'ดอกไม้'] },
+  { name: 'คลองเตย', zip: '10110', subdistricts: ['คลองเตย', 'คลองตัน', 'พระโขนง'] },
+  { name: 'สวนหลวง', zip: '10250', subdistricts: ['สวนหลวง', 'อ่อนนุช', 'พัฒนาการ'] },
+  { name: 'จอมทอง', zip: '10150', subdistricts: ['บางขุนเทียน', 'บางค้อ', 'บางมด', 'จอมทอง'] },
+  { name: 'ดอนเมือง', zip: '10210', subdistricts: ['สีกัน', 'ดอนเมือง', 'สนามบิน'] },
+  { name: 'ราชเทวี', zip: '10400', subdistricts: ['ทุ่งพญาไท', 'ถนนพญาไท', 'ถนนเพชรบุรี', 'มักกะสัน'] },
+  { name: 'ลาดพร้าว', zip: '10230', subdistricts: ['ลาดพร้าว', 'จรเข้บัว'] },
+  { name: 'วัฒนา', zip: '10110', subdistricts: ['คลองเตยเหนือ', 'คลองตันเหนือ', 'พระโขนงเหนือ'] },
+  { name: 'บางแค', zip: '10160', subdistricts: ['บางแค', 'บางแคเหนือ', 'บางไผ่', 'หลักสอง'] },
+  { name: 'หลักสี่', zip: '10210', subdistricts: ['ทุ่งสองห้อง', 'ตลาดบางเขน'] },
+  { name: 'สายไหม', zip: '10220', subdistricts: ['สายไหม', 'ออเงิน', 'คลองถนน'] },
+  { name: 'คันนายาว', zip: '10230', subdistricts: ['คันนายาว', 'รามอินทรา'] },
+  { name: 'สะพานสูง', zip: '10240', subdistricts: ['สะพานสูง', 'ราษฎร์พัฒนา', 'ทับช้าง'] },
+  { name: 'วังทองหลาง', zip: '10310', subdistricts: ['วังทองหลาง', 'สะพานสอง', 'คลองเจ้าคุณสิงห์', 'พลับพลา'] },
+  { name: 'คลองสามวา', zip: '10510', subdistricts: ['สามวาตะวันตก', 'สามวาตะวันออก', 'บางชัน', 'ทรายกองดิน', 'ทรายกองดินใต้'] },
+  { name: 'บางนา', zip: '10260', subdistricts: ['บางนาเหนือ', 'บางนาใต้'] },
+  { name: 'ทวีวัฒนา', zip: '10170', subdistricts: ['ทวีวัฒนา', 'ศาลาธรรมสพน์'] },
+  { name: 'ทุ่งครุ', zip: '10140', subdistricts: ['บางมด', 'ทุ่งครุ'] },
+  { name: 'บางบอน', zip: '10150', subdistricts: ['บางบอนเหนือ', 'บางบอนใต้', 'คลองบางพราน', 'คลองบางบอน'] },
+];
+
+/* ค่าที่เก็บใน record เป็น "ชื่อไทย" ตรง ๆ ไม่ใช่ key ภาษาอังกฤษ — ให้ตรงกับ
+   ทะเบียนศูนย์จริงจากสำนักอนามัย (CENTER_DIRECTORY) ที่เก็บชื่อเขตเป็นไทย */
 const DISTRICT_OPTS = [
   { value: '', label: 'เขต/อำเภอ' },
-  { value: 'dindaeng', label: 'ดินแดง' }, { value: 'watthana', label: 'วัฒนา' },
-  { value: 'bangsue', label: 'บางซื่อ' }, { value: 'phranakhon', label: 'พระนคร' },
+  ...BKK_DISTRICTS.map((d) => ({ value: d.name, label: d.name })),
 ];
+
+const DISTRICT_BY_NAME = BKK_DISTRICTS.reduce((acc, d) => { acc[d.name] = d; return acc; }, {});
+
+/** ตัวเลือกแขวงของเขตที่เลือก — เขตยังไม่เลือก = ไม่มีตัวเลือก (ช่องถูก disabled) */
+function subdistrictOptsFor(districtName) {
+  const d = DISTRICT_BY_NAME[districtName];
+  return [
+    { value: '', label: 'แขวง/ตำบล' },
+    ...((d?.subdistricts || []).map((x) => ({ value: x, label: x }))),
+  ];
+}
+
+/** รวมทุกแขวงไว้ใช้ตอนแปลงค่า → ป้ายในหน้ารีวิว */
 const SUBDISTRICT_OPTS = [
   { value: '', label: 'แขวง/ตำบล' },
-  { value: 'dindaeng', label: 'ดินแดง' }, { value: 'samsennai', label: 'สามเสนใน' },
+  ...BKK_DISTRICTS.flatMap((d) => d.subdistricts.map((x) => ({ value: x, label: x }))),
 ];
 const TIME_OPTS = TIME_OPTIONS;
+
+/* ปุ่มเพิ่มแบบเส้นประในฟอร์มนี้ย่อจาก 56px เหลือ 48px + ตัวอักษรเล็กลง —
+   ของเดิมสูงเท่าช่องกรอกทำให้แถบเส้นประเด่นกว่าเนื้อฟอร์ม (25 ส.ค. 2569) */
+const DASHED_ADD_SM = {
+  width: '100%',
+  height: 'var(--dim-size-1000, 48px)',
+  fontSize: 'var(--type-size-button-sm, 14px)',
+};
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -162,14 +274,25 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
   }));
   const [hcode5Touched, setHcode5Touched] = useState(false);
   const [loc, setLoc] = useState(() => ({
-    zip: '', province: '', district: '', subdistrict: '', road: '', moo: '', no: '',
+    zip: '', province: BKK_PROVINCE, district: '', subdistrict: '', road: '', moo: '', no: '',
     lat: undefined, lng: undefined,
     ...(existing?.location || {}),
+    /* จังหวัดล็อกเป็นกรุงเทพฯ เสมอ — record เก่าที่ไม่ได้บันทึกจังหวัดไว้จะได้
+       ไม่ค้างเป็นค่าว่างจนผ่าน validation ไม่ได้ */
+    province: BKK_PROVINCE,
     /* ศูนย์ที่บันทึกไว้แล้วถือว่าปักหมุดมาแล้ว ไม่ต้องบังคับปักซ้ำตอนแก้ไข */
     pinSaved: !!existing,
   }));
   const setI = (k) => (v) => setInfo((p) => ({ ...p, [k]: v }));
   const setL = (k) => (v) => setLoc((p) => ({ ...p, [k]: v }));
+  /* เปลี่ยนเขต = ล้างแขวงที่เลือกไว้ (ไม่งั้นค้างเป็นแขวงของเขตเดิม) และเติม
+     รหัสไปรษณีย์หลักของเขตนั้นให้ — ผู้ใช้แก้เองได้ถ้าเขตนั้นมีหลายรหัส */
+  const handleDistrictChange = (v) => setLoc((p) => ({
+    ...p,
+    district: v,
+    subdistrict: '',
+    zip: DISTRICT_BY_NAME[v]?.zip || p.zip,
+  }));
   const handleMapChange = (patch) => setLoc((p) => ({ ...p, ...patch }));
   const [phones, setPhones] = useState(() => (existing?.phones?.length ? existing.phones : ['']));
   const [emails, setEmails] = useState(() => (existing?.emails?.length ? existing.emails : ['']));
@@ -187,6 +310,13 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
   /* รูปแบบโครงสร้างที่เคยสร้างไว้ (หน้า "รูปแบบโครงสร้างศูนย์") — เลือกมาใช้
      เป็นจุดตั้งต้นได้ แล้วปรับต่อในฟอร์มนี้โดยไม่กระทบตัวรูปแบบต้นทาง */
   const [structureTemplateId, setStructureTemplateId] = useState('');
+
+  /* สาขาย่อย (ศบส.สาขา) — จุดให้บริการย่อยของศูนย์นี้ในพื้นที่ ใช้รหัสหน่วย
+     บริการเดียวกับศูนย์แม่ แต่มีที่ตั้ง/เบอร์โทรของตัวเอง (25 ส.ค. 2569) */
+  const [branches, setBranches] = useState(() => normalizeBranches(existing?.branches || []));
+  const addBranch = () => setBranches((p) => [...p, createBranch()]);
+  const updateBranch = (id, patch) => setBranches((p) => p.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  const removeBranch = (id) => setBranches((p) => p.filter((b) => b.id !== id));
 
   const handleRemovePhone = (i) => {
     if (phones[i]?.trim()) setContactDelete({ kind: 'phone', index: i });
@@ -257,6 +387,7 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
          เว็บไซต์ที่มีอยู่จะหายกลายเป็น "—" */
       website: editing?.website || '',
       hours,
+      branches,
       draft,
     });
     if (editing) {
@@ -303,8 +434,9 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
   const handleCreate = () => {
     if (!infoValid || !structureValid) return;
     if (!persistCenter(false)) return;
-    /* สร้างใหม่ = โชว์หน้าสำเร็จ (หน้าเต็ม) · แก้ไข = ปิด popup แล้วรีเฟรชตาราง */
-    if (editing) done(); else setSubmitted(true);
+    /* หน้าเต็ม (ไม่มี onSaved) = โชว์หน้าสำเร็จ · popup (ส่ง onSaved มา) =
+       ปิดตัวเองแล้วให้ผู้เรียกรีเฟรชตาราง + ขึ้น toast เอง ทั้งเพิ่มและแก้ไข */
+    if (editing || onSaved) done(); else setSubmitted(true);
   };
 
   /* ศูนย์ที่มีอยู่แล้วในทะเบียน — ใช้ทั้งรายการ "ดูรหัสที่มีอยู่" และตัวเลือก
@@ -314,9 +446,23 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
     () => readCenters().filter((c) => !c.draft && c.id !== editing?.id),
     [editing],
   );
+  /* ติ๊กถูกท้ายช่อง: กรอกแล้วและไม่ซ้ำกับทะเบียนที่มีอยู่ (ไม่นับศูนย์ที่กำลังแก้ไข) */
+  const codeUnique = useMemo(() => {
+    const v = info.code.trim();
+    return !!v && !existingCenters.some((c) => String(c.code || '').trim() === v);
+  }, [info.code, existingCenters]);
+  const nameUnique = useMemo(() => {
+    const v = info.name.trim();
+    return !!v && !existingCenters.some((c) => String(c.name || '').trim() === v);
+  }, [info.name, existingCenters]);
+
   /* รูปแบบโครงสร้างที่บันทึกไว้จากหน้า "รูปแบบโครงสร้างศูนย์" */
   const savedStructures = useMemo(() => readStructures(), []);
-  const [showCodeList, setShowCodeList] = useState(false);
+  /* popup "ที่มีอยู่แล้ว" ใช้ตัวเดียวสองโหมด — 'code' (รหัสศูนย์) กับ
+     'name' (ชื่อสำนักงานอนามัย) · null = ปิด */
+  const [codeListMode, setCodeListMode] = useState(null);
+  const showCodeList = !!codeListMode;
+  const setShowCodeList = (v) => setCodeListMode(v ? (typeof v === 'string' ? v : 'code') : null);
 
   /* ตัวศูนย์ที่กำลังสร้างถูกผูกรูปแบบให้อยู่แล้ว จึงไม่ต้องอยู่ในตัวเลือก */
   const otherCenterOptions = useMemo(
@@ -351,15 +497,17 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
   return {
     step, setStep, idx, goNext, goPrev, STEPS, footerPrimary,
     info, setI, setHcode9, setHcode5, hcode9Error,
-    loc, setL, mapValue, handleMapChange,
+    loc, setL, handleDistrictChange, mapValue, handleMapChange,
     phones, setPhones, handleRemovePhone,
     emails, setEmails, handleRemoveEmail,
     contactDelete, setContactDelete, confirmContactDelete,
     hours, setGroupHours,
     units, setUnits, appliedCenters, setAppliedCenters,
+    branches, addBranch, updateBranch, removeBranch,
     structureTemplateId, setStructureTemplateId,
     savedStructures, otherCenterOptions,
-    existingCenters, showCodeList, setShowCodeList,
+    existingCenters, showCodeList, setShowCodeList, codeListMode,
+    codeUnique, nameUnique,
     infoValid, locationValid, contactValid, structureValid,
     persistCenter, handleSaveDraft, handleCreate, cancel,
     submitted, setSubmitted,
@@ -374,13 +522,14 @@ export function useCenterForm({ existing = null, onSaved } = {}) {
 export function CenterFormBody({ form }) {
   const {
     step, info, setI, setHcode9, setHcode5, hcode9Error,
-    existingCenters, setShowCodeList,
-    loc, setL, mapValue, handleMapChange,
+    existingCenters, setShowCodeList, codeUnique, nameUnique,
+    loc, setL, handleDistrictChange, mapValue, handleMapChange,
     phones, setPhones, handleRemovePhone,
     emails, setEmails, handleRemoveEmail,
     hours, setGroupHours,
     savedStructures, structureTemplateId, setStructureTemplateId,
     units, setUnits, appliedCenters, setAppliedCenters, otherCenterOptions,
+    branches, addBranch, updateBranch, removeBranch,
   } = form;
 
   return (
@@ -435,7 +584,13 @@ export function CenterFormBody({ form }) {
                 <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
                   <div className='flex items-end' style={{ maxWidth: FIELD_W, gap: 'var(--dim-space-300)' }}>
                     <div className='flex-1 min-w-0'>
-                      <InputField label='รหัสศูนย์' value={info.code} onChange={setI('code')} placeholder='เช่น 4' />
+                      <InputField
+                        label='รหัสศูนย์'
+                        value={info.code}
+                        onChange={setI('code')}
+                        placeholder='เช่น 4'
+                        trailing={codeUnique ? <UniqueTick label='รหัสศูนย์นี้ยังไม่ถูกใช้' /> : undefined}
+                      />
                     </div>
                     {/* กันกรอกซ้ำ — เปิดดูรหัสที่ใช้ไปแล้วได้โดยไม่ต้องออกจากฟอร์ม */}
                     <NeutralSubdueButton
@@ -446,11 +601,31 @@ export function CenterFormBody({ form }) {
                       {`ดูรหัสที่มีอยู่ (${existingCenters.length})`}
                     </NeutralSubdueButton>
                   </div>
-                  <span style={FIELD_HINT}>ต้องไม่ซ้ำกับที่มีอยู่แล้ว</span>
+                  <span style={FIELD_HINT}>รหัสศูนย์ต้องไม่ซ้ำกับที่มีอยู่แล้ว</span>
                 </div>
 
-                <div style={{ maxWidth: FIELD_W }}>
-                  <InputField label='ชื่อสำนักงานอนามัย' required value={info.name} onChange={setI('name')} placeholder='ศูนย์ดินแดง' />
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                  <div className='flex items-end' style={{ maxWidth: FIELD_W, gap: 'var(--dim-space-300)' }}>
+                    <div className='flex-1 min-w-0'>
+                      <InputField
+                        label='ชื่อสำนักงานอนามัย'
+                        required
+                        value={info.name}
+                        onChange={setI('name')}
+                        placeholder='ศูนย์ดินแดง'
+                        trailing={nameUnique ? <UniqueTick label='ชื่อนี้ยังไม่ถูกใช้' /> : undefined}
+                      />
+                    </div>
+                    {/* กันตั้งชื่อซ้ำ — เปิดดูชื่อที่ใช้ไปแล้วได้จากในฟอร์มเลย */}
+                    <NeutralSubdueButton
+                      leadingIcon='list'
+                      size='md'
+                      onClick={() => setShowCodeList('name')}
+                    >
+                      {`ดูชื่อที่มีอยู่ (${existingCenters.length})`}
+                    </NeutralSubdueButton>
+                  </div>
+                  <span style={FIELD_HINT}>ชื่อต้องไม่ซ้ำกับที่มีอยู่แล้ว</span>
                 </div>
               </div>
             </div>
@@ -461,10 +636,20 @@ export function CenterFormBody({ form }) {
             <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
               <SectionHead icon='location_on'>ที่ตั้งศูนย์บริการ</SectionHead>
               <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}><Select label='รหัสไปรษณีย์' required options={[{ value: '', label: 'รหัสไปรษณีย์' }, { value: '10400', label: '10400' }, { value: '10110', label: '10110' }]} value={loc.zip} onChange={setL('zip')} /></div>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}><Select label='จังหวัด' required options={PROVINCE_OPTS} value={loc.province} onChange={setL('province')} /></div>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}><Select label='เขต/อำเภอ' required options={DISTRICT_OPTS} value={loc.district} onChange={setL('district')} /></div>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}><Select label='แขวง/ตำบล' options={SUBDISTRICT_OPTS} value={loc.subdistrict} onChange={setL('subdistrict')} /></div>
+                <div style={{ flex: '1 1 200px', minWidth: 180 }}><Select label='รหัสไปรษณีย์' required options={BKK_ZIP_OPTS} value={loc.zip} onChange={setL('zip')} /></div>
+                {/* ล็อกเป็นกรุงเทพมหานครเสมอ — แสดงค่าไว้ให้เห็นแต่แก้ไม่ได้ */}
+                <div style={{ flex: '1 1 200px', minWidth: 180 }}><Select label='จังหวัด' required disabled options={PROVINCE_OPTS} value={BKK_PROVINCE} onChange={() => {}} /></div>
+                <div style={{ flex: '1 1 200px', minWidth: 180 }}><Select label='เขต/อำเภอ' required options={DISTRICT_OPTS} value={loc.district} onChange={handleDistrictChange} /></div>
+                {/* ปิดไว้ก่อนจนกว่าจะเลือกเขต — แขวงขึ้นกับเขตที่เลือกเท่านั้น */}
+                <div style={{ flex: '1 1 200px', minWidth: 180 }}>
+                  <Select
+                    label='แขวง/ตำบล'
+                    disabled={!loc.district}
+                    options={subdistrictOptsFor(loc.district)}
+                    value={loc.subdistrict}
+                    onChange={setL('subdistrict')}
+                  />
+                </div>
               </div>
               <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
                 <div style={{ flex: '1 1 200px', minWidth: 180 }}><InputField label='ถนน' value={loc.road} onChange={setL('road')} placeholder='ถนน' /></div>
@@ -501,8 +686,8 @@ export function CenterFormBody({ form }) {
             <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
               <Topic
                 hierarchy='primary'
-                title='เบอร์โทรศัพท์'
-                leadingIcon='call'
+                title='ข้อมูลการติดต่อ'
+                showLeadingIcon={false}
                 showSubText={false}
                 showBadge={false}
                 showChevron={false}
@@ -587,6 +772,24 @@ export function CenterFormBody({ form }) {
                 appliedCenters={appliedCenters}
                 onAppliedCentersChange={setAppliedCenters}
                 centerOptions={otherCenterOptions}
+              />
+
+              {/* สาขาย่อย — ศูนย์หนึ่งแห่งมีจุดให้บริการย่อยในชุมชนได้หลายจุด
+                  อยู่ step เดียวกับโครงสร้างเพราะเป็น "หน่วยให้บริการ" เหมือนกัน */}
+              <Topic
+                hierarchy='primary'
+                title='สาขาย่อย'
+                subText='จุดให้บริการย่อยของศูนย์นี้ — ใช้รหัสหน่วยบริการเดียวกับศูนย์แม่ แต่มีที่ตั้งและเบอร์โทรของตัวเอง'
+                leadingIcon='store'
+                showBadge={false}
+                showChevron={false}
+                showSuccess={false}
+              />
+              <BranchesPanel
+                branches={branches}
+                onAdd={addBranch}
+                onChange={updateBranch}
+                onRemove={removeBranch}
               />
             </div>
           )}
@@ -689,6 +892,24 @@ export function CenterFormBody({ form }) {
                     },
                   ]}
                 />
+                {/* สาขาย่อยขึ้นก่อน — เป็นระดับ "สถานที่" ที่ครอบแผนก/คลินิก */}
+                {branches.length ? (
+                  <div className='flex flex-col w-full' style={{ ...NEUTRAL_PANEL, gap: 'var(--dim-space-200)' }}>
+                    <span style={REVIEW_PANEL_TITLE}>{`สาขาย่อย ${branches.length} แห่ง`}</span>
+                    {branches.map((b) => (
+                      <Information
+                        key={b.id}
+                        subText={[b.address, b.phone].filter(Boolean).join(' · ') || 'ยังไม่ระบุที่ตั้ง'}
+                        text={b.name}
+                        showBadge={false}
+                        showBadge2={false}
+                        maxWidth='none'
+                        style={{ width: '100%' }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+
                 {/* แผนกกับคลินิกอยู่ระดับเดียวกัน จึงเรียงเป็นรายการเดียว
                     ไม่ใช่คลินิกซ้อนอยู่ใต้แผนก */}
                 <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
@@ -777,22 +998,36 @@ function StructureTemplatePicker({ templates, value, onChange }) {
 
 /* รายการรหัสที่ถูกใช้ไปแล้ว — เปิดจากปุ่มข้างช่อง "รหัสศูนย์" เพื่อเช็คก่อนกรอก
    ว่ารหัสไหนชนบ้าง โดยไม่ต้องออกจากฟอร์มไปหน้าทะเบียนศูนย์. */
-function ExistingCodesPopup({ open, centers, onClose }) {
+function ExistingCodesPopup({ open, centers, onClose, mode = 'code' }) {
+  const isName = mode === 'name';
   return (
     <Popup
       open={open}
       onClose={onClose}
-      title='รหัสศูนย์ที่มีอยู่แล้ว'
+      title={isName ? 'ชื่อสำนักงานอนามัยที่มีอยู่แล้ว' : 'รหัสศูนย์ที่มีอยู่แล้ว'}
       subtitle={centers.length
-        ? `ใช้ไปแล้ว ${centers.length} รหัส — เลือกรหัสที่ยังไม่ถูกใช้`
-        : 'ยังไม่มีศูนย์บริการในทะเบียน ใช้รหัสใดก็ได้'}
-      size='default'
-      primaryAction={{ label: 'ปิด', onClick: onClose }}
+        ? (isName ? 'กรุณาไม่ตั้งชื่อซ้ำ' : 'กรุณาไม่ใช้รหัสซ้ำ')
+        : 'ยังไม่มีศูนย์บริการในทะเบียน ใช้ได้ทั้งหมด'}
+      /* เต็มหน้าจอ — ทะเบียนมี 69 รหัส ถ้าเป็น popup ขนาดปกติต้อง scroll ยาวมาก */
+      size='extraLarge'
+      /* ปุ่มปิดเป็น Brand Subdue · outline (secondaryAction) — popup นี้แค่เปิดดู
+         ไม่มีอะไรให้ยืนยัน จึงไม่ควรใช้ปุ่มหลักแบบ fill */
+      secondaryAction={{ label: 'ปิด', onClick: onClose }}
     >
       {centers.length === 0 ? (
         <span style={FIELD_HINT}>ยังไม่มีศูนย์บริการที่บันทึกไว้</span>
       ) : (
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+        /* รายการแบบ dropdown — ไม่มีกรอบรายบรรทัด (25 ส.ค. 2569) แถวติดกัน
+           อ่านเป็นลิสต์เดียว ไม่ใช่การ์ด 69 ใบซ้อนกัน · แบ่ง 3 คอลัมน์ให้
+           กวาดตาหารหัสได้เร็วโดยไม่ต้อง scroll ยาว */
+        <div
+          className='w-full'
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            columnGap: 'var(--dim-space-500)',
+          }}
+        >
           {centers.map((c) => (
             <div
               key={c.id}
@@ -800,11 +1035,10 @@ function ExistingCodesPopup({ open, centers, onClose }) {
               style={{
                 gap: 'var(--dim-space-300)',
                 paddingTop: 'var(--dim-space-300)',
-                paddingRight: 'var(--dim-space-400)',
+                paddingRight: 'var(--dim-space-200)',
                 paddingBottom: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-400)',
-                border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-                borderRadius: 'var(--dim-radius-300)',
+                paddingLeft: 'var(--dim-space-200)',
+                borderRadius: 'var(--dim-radius-200, 8px)',
               }}
             >
               <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
@@ -819,6 +1053,99 @@ function ExistingCodesPopup({ open, centers, onClose }) {
         </div>
       )}
     </Popup>
+  );
+}
+
+/* ติ๊กถูกสีเขียวท้ายช่องกรอก — บอกว่าค่าที่พิมพ์ไม่ซ้ำกับทะเบียนที่มีอยู่ */
+function UniqueTick({ label }) {
+  return (
+    <span className='inline-flex items-center' role='img' aria-label={label} title={label}>
+      <Icon name='check_circle' size={20} color='var(--icon-positive-success, #24A899)' />
+    </span>
+  );
+}
+
+/* รายการสาขาย่อย — การ์ดละหนึ่งสาขา (ชื่อ / ที่ตั้ง / เบอร์โทร) + ปุ่มเพิ่ม
+   ไม่บังคับกรอก: ศูนย์ที่ไม่มีสาขาย่อยก็ปล่อยว่างไว้ได้ (createCenter จะตัด
+   รายการที่ไม่มีชื่อทิ้งตอนบันทึกอยู่แล้ว) */
+function BranchesPanel({ branches, onAdd, onChange, onRemove }) {
+  return (
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+      {branches.length === 0 ? (
+        <span
+          style={{
+            color: 'var(--text-content-tertiary)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-sm)',
+            lineHeight: 1.5,
+          }}
+        >
+          ศูนย์นี้ยังไม่มีสาขาย่อย — กด “เพิ่มสาขาย่อย” ถ้ามีจุดให้บริการย่อยในพื้นที่
+        </span>
+      ) : null}
+
+      {branches.map((b, i) => (
+        <div key={b.id} className='flex flex-col' style={{ ...NEUTRAL_PANEL, gap: 'var(--dim-space-400)' }}>
+          <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            <div className='flex-1 min-w-0'>
+              <Topic
+                hierarchy='tertiary-on'
+                title={`สาขาย่อยที่ ${i + 1}`}
+                showSubText={false}
+                showBadge={false}
+                showSuccess={false}
+              />
+            </div>
+            <BrandSubdueIconButton
+              icon='delete'
+              variant='outline'
+              size='md'
+              aria-label={`ลบสาขาย่อยที่ ${i + 1}`}
+              onClick={() => onRemove(b.id)}
+            />
+          </div>
+          <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+            <div style={{ flex: '1 1 260px', minWidth: 220 }}>
+              <InputField
+                label='ชื่อสาขาย่อย'
+                showLeadingIcon={false}
+                showHelperText={false}
+                size='lg'
+                value={b.name}
+                onChange={(v) => onChange(b.id, { name: v })}
+                placeholder='สาขาชุมชนวัดปากน้ำฝั่งเหนือ'
+              />
+            </div>
+            <div style={{ flex: '2 1 320px', minWidth: 240 }}>
+              <InputField
+                label='ที่ตั้ง'
+                showLeadingIcon={false}
+                showHelperText={false}
+                size='lg'
+                value={b.address}
+                onChange={(v) => onChange(b.id, { address: v })}
+                placeholder='ชุมชนวัดปากน้ำฝั่งเหนือ แขวงคลองชักพระ เขตตลิ่งชัน'
+              />
+            </div>
+            <div style={{ flex: '1 1 200px', minWidth: 180 }}>
+              <InputField
+                label='เบอร์โทรศัพท์'
+                showLeadingIcon={false}
+                showHelperText={false}
+                size='lg'
+                value={b.phone}
+                onChange={(v) => onChange(b.id, { phone: v })}
+                placeholder='0 2424 9410 ต่อ 21'
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <BrandDashedAddButton className='w-full' style={DASHED_ADD_SM} onClick={onAdd}>
+        เพิ่มสาขาย่อย
+      </BrandDashedAddButton>
+    </div>
   );
 }
 
@@ -869,7 +1196,7 @@ function ContactFieldPanel({
           />
         </div>
       ))}
-      <BrandDashedAddButton className='w-full' style={{ width: '100%' }} onClick={onAdd}>
+      <BrandDashedAddButton className='w-full' style={DASHED_ADD_SM} onClick={onAdd}>
         {addLabel}
       </BrandDashedAddButton>
     </div>

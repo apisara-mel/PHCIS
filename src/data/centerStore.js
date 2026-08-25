@@ -197,6 +197,67 @@ const CENTER_DIRECTORY = {
   69: { address: '15 ซ.01 กาญจนภิเษก 11/5 แขวงคันนายาว เขตคันนายาว', zip: '10230', district: 'คันนายาว', phone: '0 2379 8911' },
 };
 
+/* สาขาย่อย (ศบส.สาขา) — ศูนย์บริการหนึ่งแห่งมีจุดให้บริการย่อยในพื้นที่ได้
+   หลายจุด ใช้รหัสหน่วยบริการของศูนย์แม่ร่วมกัน แต่มีที่ตั้ง/เบอร์โทรของตัวเอง
+   ⚠️ ชุดนี้เป็น **ข้อมูลตั้งต้นสำหรับเดโม** (ชื่อชุมชน/แขวงเป็นของจริงในเขตนั้น
+   แต่การจับคู่ว่าศูนย์ไหนมีสาขาอะไรยังไม่ใช่ทะเบียนจริงจากสำนักอนามัย)
+   เก็บแค่ชื่อ + แขวง — ที่อยู่เต็มและเบอร์ต่อสร้างอัตโนมัติจากศูนย์แม่ */
+const CENTER_BRANCHES = {
+  3:  [{ name: 'สาขาชุมชนวัดสร้อยทอง', sub: 'บางซื่อ' }, { name: 'สาขาชุมชนประชานฤมิตร', sub: 'วงศ์สว่าง' }],
+  4:  [{ name: 'สาขาชุมชนแฟลตดินแดง 1', sub: 'ดินแดง' }, { name: 'สาขาชุมชนรัชดาภิเษก', sub: 'รัชดาภิเษก' }],
+  8:  [{ name: 'สาขาชุมชนสุขุมวิท 103', sub: 'บางนาเหนือ' }],
+  10: [{ name: 'สาขาชุมชนล็อค 1-2-3 คลองเตย', sub: 'คลองเตย' }, { name: 'สาขาชุมชนพัฒนาใหม่', sub: 'คลองตัน' }],
+  21: [{ name: 'สาขาชุมชนคลองเตยเหนือ', sub: 'คลองเตยเหนือ' }],
+  22: [{ name: 'สาขาชุมชนอ่อนนุช 39', sub: 'อ่อนนุช' }],
+  25: [{ name: 'สาขาชุมชนประชาสงเคราะห์ 26', sub: 'สามเสนนอก' }],
+  29: [{ name: 'สาขาชุมชนวัดสีสุก', sub: 'บางค้อ' }],
+  35: [{ name: 'สาขาชุมชนหัวหมาก', sub: 'หัวหมาก' }],
+  40: [{ name: 'สาขาชุมชนหมู่บ้านเศรษฐกิจ', sub: 'บางแคเหนือ' }],
+  42: [{ name: 'สาขาชุมชนแสมดำ', sub: 'แสมดำ' }],
+  43: [{ name: 'สาขาชุมชนแสนแสบ', sub: 'แสนแสบ' }],
+  44: [{ name: 'สาขาชุมชนคลองสิบ', sub: 'คลองสิบ' }, { name: 'สาขาชุมชนลำผักชี', sub: 'ลำผักชี' }],
+  45: [{ name: 'สาขาชุมชนทับยาว', sub: 'ทับยาว' }],
+  49: [{ name: 'สาขาชุมชนวัดปากน้ำฝั่งเหนือ', sub: 'คลองชักพระ' }, { name: 'สาขาชุมชนบางพรม', sub: 'บางพรม' }],
+  50: [{ name: 'สาขาชุมชนคลองกุ่ม', sub: 'คลองกุ่ม' }],
+  54: [{ name: 'สาขาชุมชนบางมด', sub: 'บางมด' }],
+  57: [{ name: 'สาขาชุมชนหนองบอน', sub: 'หนองบอน' }, { name: 'สาขาชุมชนดอกไม้', sub: 'ดอกไม้' }],
+  60: [{ name: 'สาขาชุมชนสีกัน', sub: 'สีกัน' }],
+  61: [{ name: 'สาขาชุมชนออเงิน', sub: 'ออเงิน' }],
+  64: [{ name: 'สาขาชุมชนทรายกองดิน', sub: 'ทรายกองดิน' }, { name: 'สาขาชุมชนสามวาตะวันออก', sub: 'สามวาตะวันออก' }],
+  67: [{ name: 'สาขาชุมชนศาลาธรรมสพน์', sub: 'ศาลาธรรมสพน์' }],
+  69: [{ name: 'สาขาชุมชนรามอินทรา', sub: 'รามอินทรา' }],
+};
+
+/** สร้างรายการสาขาย่อยของศูนย์หมายเลข n — เติมที่อยู่เต็มจากเขตของศูนย์แม่
+    และเบอร์ต่อจากเบอร์กลางของศูนย์ (ต่อ 21, 22, …) */
+function seedBranchesFor(n) {
+  const seeds = CENTER_BRANCHES[n];
+  if (!seeds) return [];
+  const info = CENTER_DIRECTORY[n] || {};
+  return normalizeBranches(seeds.map((b, i) => ({
+    name: b.name,
+    address: `แขวง${b.sub} เขต${info.district || ''}`.trim(),
+    phone: info.phone ? `${info.phone} ต่อ ${21 + i}` : '',
+  })));
+}
+
+/** สร้าง object สาขาย่อยให้มี id เสมอ — ฟอร์มและตารางใช้ id เป็น key */
+export function createBranch(patch = {}) {
+  return {
+    id: patch.id || `branch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    name: String(patch.name || '').trim(),
+    address: String(patch.address || '').trim(),
+    phone: String(patch.phone || '').trim(),
+  };
+}
+
+/** ปรับรายการสาขาย่อยให้อยู่ในรูปมาตรฐาน + ตัดรายการที่ไม่มีชื่อทิ้ง */
+export function normalizeBranches(list = []) {
+  return (Array.isArray(list) ? list : [])
+    .map((b) => createBranch(b))
+    .filter((b) => b.name);
+}
+
 /* เวลาทำการมาตรฐานของศูนย์บริการสาธารณสุข: จันทร์-ศุกร์ 08:00-16:00
    เสาร์-อาทิตย์และวันหยุดนักขัตฤกษ์ปิด — ศูนย์ที่เปิดต่างจากนี้ override ท้ายไฟล์. */
 const STANDARD_HOURS = {
@@ -205,23 +266,34 @@ const STANDARD_HOURS = {
   holiday: { closed: true, inStart: '', inEnd: '', outStart: '', outEnd: '' },
 };
 
-/* ศูนย์ที่เปิดนอกเวลา/เสาร์-อาทิตย์ด้วย (คลินิกนอกเวลาราชการ) */
+/* ศูนย์ที่เปิดคลินิกนอกเวลาราชการ / เสาร์-อาทิตย์ด้วย
+   ⚠️ ข้อมูลตั้งต้นสำหรับเดโม — รอตารางเปิดบริการจริงจากสำนักอนามัย
+   3 แบบ: เย็น 16-20 · เย็น 17-20 · เย็น + เสาร์เช้า */
+const EVENING_1620 = { closed: false, inStart: '08:00', inEnd: '16:00', outStart: '16:00', outEnd: '20:00' };
+const EVENING_1720 = { closed: false, inStart: '08:00', inEnd: '16:00', outStart: '17:00', outEnd: '20:00' };
+const SAT_MORNING = { closed: false, inStart: '08:00', inEnd: '12:00', outStart: '', outEnd: '' };
+const CLOSED_DAY = { closed: true, inStart: '', inEnd: '', outStart: '', outEnd: '' };
+
 const EXTENDED_HOURS_CENTERS = {
-  4: {
-    weekday: { closed: false, inStart: '08:00', inEnd: '16:00', outStart: '17:00', outEnd: '20:00' },
-    weekend: { closed: false, inStart: '08:00', inEnd: '12:00', outStart: '', outEnd: '' },
-    holiday: { closed: true, inStart: '', inEnd: '', outStart: '', outEnd: '' },
-  },
-  25: {
-    weekday: { closed: false, inStart: '08:00', inEnd: '16:00', outStart: '16:00', outEnd: '20:00' },
-    weekend: { closed: false, inStart: '08:00', inEnd: '12:00', outStart: '', outEnd: '' },
-    holiday: { closed: true, inStart: '', inEnd: '', outStart: '', outEnd: '' },
-  },
-  43: {
-    weekday: { closed: false, inStart: '08:00', inEnd: '16:00', outStart: '16:00', outEnd: '20:00' },
-    weekend: { closed: false, inStart: '08:00', inEnd: '12:00', outStart: '', outEnd: '' },
-    holiday: { closed: true, inStart: '', inEnd: '', outStart: '', outEnd: '' },
-  },
+  3:  { weekday: EVENING_1620, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  4:  { weekday: EVENING_1720, weekend: SAT_MORNING, holiday: CLOSED_DAY },
+  7:  { weekday: EVENING_1620, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  10: { weekday: EVENING_1620, weekend: SAT_MORNING, holiday: CLOSED_DAY },
+  17: { weekday: EVENING_1620, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  21: { weekday: EVENING_1720, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  25: { weekday: EVENING_1620, weekend: SAT_MORNING, holiday: CLOSED_DAY },
+  35: { weekday: EVENING_1620, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  41: { weekday: EVENING_1720, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  43: { weekday: EVENING_1620, weekend: SAT_MORNING, holiday: CLOSED_DAY },
+  48: { weekday: EVENING_1620, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  49: { weekday: EVENING_1720, weekend: SAT_MORNING, holiday: CLOSED_DAY },
+  51: { weekday: EVENING_1620, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  57: { weekday: EVENING_1620, weekend: SAT_MORNING, holiday: CLOSED_DAY },
+  60: { weekday: EVENING_1720, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  61: { weekday: EVENING_1620, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  64: { weekday: EVENING_1620, weekend: SAT_MORNING, holiday: CLOSED_DAY },
+  67: { weekday: EVENING_1720, weekend: CLOSED_DAY,  holiday: CLOSED_DAY },
+  69: { weekday: EVENING_1620, weekend: SAT_MORNING, holiday: CLOSED_DAY },
 };
 
 export const DEMO_CENTERS = CLINIC_OPTIONS.map(({ value, label }) => {
@@ -253,6 +325,7 @@ export const DEMO_CENTERS = CLINIC_OPTIONS.map(({ value, label }) => {
     website: 'webportal.bangkok.go.th/health',
     /* mirror ค่าวันทำการไว้ที่ root ให้ผู้อ่านรุ่นเก่ายังใช้ได้ */
     hours: { ...hours, ...hours.weekday },
+    branches: seedBranchesFor(n),
     active: true,
     draft: false,
   };
@@ -266,7 +339,12 @@ export function readCenters() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw == null) return DEMO_CENTERS;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length ? parsed : DEMO_CENTERS;
+    if (!Array.isArray(parsed) || !parsed.length) return DEMO_CENTERS;
+    /* ทะเบียนที่บันทึกไว้ก่อนมีฟิลด์ "สาขาย่อย" — เติมสาขาตั้งต้นให้ตามรหัสศูนย์
+       ไม่งั้นเบราว์เซอร์ที่เคยเปิดหน้านี้แล้วจะไม่เห็นสาขาย่อยเลย */
+    return parsed.map((c) => (c.branches
+      ? c
+      : { ...c, branches: seedBranchesFor(Number(c.code)) }));
   } catch {
     return DEMO_CENTERS;
   }
@@ -287,6 +365,7 @@ export function createCenter(payload) {
     emails = [],
     website = '',
     hours = {},
+    branches = [],
     draft = false,
   } = payload;
 
@@ -301,6 +380,7 @@ export function createCenter(payload) {
     emails: emails.map((e) => String(e).trim()).filter(Boolean),
     website: String(website || '').trim(),
     hours: normalizeCenterHours(hours),
+    branches: normalizeBranches(branches),
     active: true,
     draft: !!draft,
   };
@@ -343,13 +423,14 @@ export function formatCenterAddress(loc = {}) {
   return parts.join(' ');
 }
 
+/* รูปแบบเวลาราชการไทย — 24 ชั่วโมง สองหลักเสมอ คั่นนาทีด้วยจุด: 08.00 / 18.30
+   (เดิมย่อเป็น "8" / "16" ซึ่งไม่ใช่รูปแบบที่หนังสือราชการใช้) */
 function formatHourToken(t) {
   if (!t) return '—';
   const [h, m] = String(t).split(':');
   const hour = Number(h);
   if (Number.isNaN(hour)) return t;
-  const mins = m === '00' ? '' : `.${m}`;
-  return `${hour}${mins}`;
+  return `${String(hour).padStart(2, '0')}.${(m || '00').padStart(2, '0')}`;
 }
 
 /** `kind` = 'in' | 'out' · `groupKey` = weekday (ค่าตั้งต้น) | weekend | holiday. */
@@ -358,7 +439,8 @@ export function formatCenterHoursLine(hours = {}, kind, groupKey = 'weekday') {
   if (g.closed) return 'ปิดทำการ';
   const [start, end] = kind === 'in' ? [g.inStart, g.inEnd] : [g.outStart, g.outEnd];
   if (!start && !end) return '—';
-  return `${formatHourToken(start)}-${formatHourToken(end)}น.`;
+  /* "08.00 - 16.00 น." — เว้นวรรครอบขีดและก่อน "น." ตามรูปแบบราชการไทย */
+  return `${formatHourToken(start)} - ${formatHourToken(end)} น.`;
 }
 
 export function loadDemoCenters() {
