@@ -1090,6 +1090,20 @@ export default function ConsentManagementPage() {
         brandTitle='ระบบจัดการความยินยอม'
         breadcrumb={breadcrumb}
         title='จัดการความยินยอม'
+        /* "อัปโหลดแบบฟอร์มกระดาษ" อยู่แถวเดียวกับชื่อหน้า ไม่ใช่ข้างกล่องค้นหา
+           (มติผู้ใช้ 25 ส.ค. 69) — เป็น action ระดับหน้า ไม่ใช่ตัวกรองผลค้นหา */
+        actions={canManage ? (
+          <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+            <BrandSubdueButton
+              variant='outline'
+              size='lg'
+              leadingIcon='upload_file'
+              onClick={() => setPaperOpen(true)}
+            >
+              อัปโหลดแบบฟอร์มกระดาษ
+            </BrandSubdueButton>
+          </div>
+        ) : null}
         headerInfo={(
           <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
             {summaryCards.map((c) => (
@@ -1158,11 +1172,6 @@ export default function ConsentManagementPage() {
                 onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
               />
               <div className='flex-1 flex justify-end flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                {canManage ? (
-                  <BrandSubdueButton leadingIcon='upload_file' size='sm' onClick={() => setPaperOpen(true)}>
-                    อัปโหลดแบบฟอร์มกระดาษ
-                  </BrandSubdueButton>
-                ) : null}
                 {canExportConsent() ? (
                   <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg' onClick={handleExport}>
                     นำส่งออกรายงาน

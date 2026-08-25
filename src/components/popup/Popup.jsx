@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
+import NeutralIconButton from '@/components/button/NeutralIconButton';
 import DangerButton from '@/components/button/DangerButton';
 import useModalMotion, { MODAL_MOTION_MS } from '@/components/popup/useModalMotion';
 
@@ -131,14 +131,17 @@ const unlockBodyScroll = () => {
 };
 
 /* Close (X) icon button — Figma 104:5369 (Default / Hover).
-   Maps to design.md §7d Neutral Icon Button (Square) Ghost variant:
-     Default — bg surface/neutralButton/quaternary       icon icon/neutralButton/default
-     Hover   — bg surface/neutralButton/quaternary-hover icon icon/neutralButton/secondary */
+   design.md §7d Neutral Icon Button (Square) **Ghost**:
+     Default — no fill, so the X reads as chrome, not as an action button
+     Hover   — bg surface/neutralButton/quaternary
+   เดิมใช้ NeutralSubdueIconButton variant='fill' ซึ่งเป็น §7f — Fill Default
+   ของตัวนั้นคือ surface/neutralButton/secondary (#E2E4E6) จึงมีพื้นสีเทาตั้งแต่
+   ยังไม่ hover ผิดจาก §7d ที่คอมเมนต์นี้อ้างไว้เอง (มติผู้ใช้ 25 ส.ค. 69). */
 const CloseButton = ({ onClick }) => (
-  <NeutralSubdueIconButton
+  <NeutralIconButton
     icon='close'
     size='lg'
-    variant='fill'
+    variant='ghost'
     aria-label='ปิด'
     onClick={onClick}
   />
@@ -148,10 +151,10 @@ const CloseButton = ({ onClick }) => (
    mirrored to sit at the START of the header when a Popup shows a
    sub-screen it can step back out of (e.g. void-receipt reason form). */
 const BackButton = ({ onClick }) => (
-  <NeutralSubdueIconButton
+  <NeutralIconButton
     icon='arrow_back'
     size='lg'
-    variant='fill'
+    variant='ghost'
     aria-label='ย้อนกลับ'
     onClick={onClick}
   />
