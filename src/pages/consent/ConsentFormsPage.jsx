@@ -377,9 +377,10 @@ export default function ConsentFormsPage() {
 
   /* ปุ่มไอคอนล้วนต้องมีคำอธิบายตอน hover (มติผู้ใช้ 25 ส.ค. 69) — title ของ
      เบราว์เซอร์ขึ้นช้าและสไตล์ไม่ตรงระบบ จึงห่อด้วย <Tooltip> ของ DS
+     variant='light' = พื้นขาว (มติผู้ใช้ 25 ส.ค. 69)
      (aria-label ยังอยู่ครบสำหรับ screen reader) */
   const IconAction = ({ hint, ...props }) => (
-    <Tooltip content={hint} position='top'>
+    <Tooltip content={hint} position='top' variant='light'>
       <span className='inline-flex shrink-0'>
         <NeutralSubdueIconButton variant='outline' size='sm' aria-label={hint} {...props} />
       </span>
@@ -430,11 +431,16 @@ export default function ConsentFormsPage() {
         key: 'status', header: 'สถานะ', sortable: true,
         render: (r) => (
           <div className='flex items-center flex-nowrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            <Switch
-              checked={r.status === 'เผยแพร่'}
-              aria-label={`${r.status === 'เผยแพร่' ? 'ยกเลิกเผยแพร่' : 'เผยแพร่'} ${r.code}`}
-              onChange={(checked) => setStatusConfirm({ record: r, nextStatus: checked ? 'เผยแพร่' : 'ไม่เผยแพร่' })}
-            />
+            {/* "รอตรวจสอบ" ยังไม่ผ่านการตรวจ จึงยังเผยแพร่ไม่ได้ — แสดงแค่
+                สถานะ ไม่มี toggle (มติผู้ใช้ 25 ส.ค. 69) ของเดิมมี toggle
+                ให้กดได้ทั้งที่ยังไม่ควรเผยแพร่ */}
+            {r.status === 'รอตรวจสอบ' ? null : (
+              <Switch
+                checked={r.status === 'เผยแพร่'}
+                aria-label={`${r.status === 'เผยแพร่' ? 'ยกเลิกเผยแพร่' : 'เผยแพร่'} ${r.code}`}
+                onChange={(checked) => setStatusConfirm({ record: r, nextStatus: checked ? 'เผยแพร่' : 'ไม่เผยแพร่' })}
+              />
+            )}
             <ColorfulBadge style={(CONSENT_FORM_STATUS[r.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>{r.status}</ColorfulBadge>
           </div>
         ),
@@ -490,11 +496,14 @@ export default function ConsentFormsPage() {
           </button>
         </div>
         <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-          <Switch
-            checked={row.status === 'เผยแพร่'}
-            aria-label={`${row.status === 'เผยแพร่' ? 'ยกเลิกเผยแพร่' : 'เผยแพร่'} ${row.code}`}
-            onChange={(checked) => setStatusConfirm({ record: row, nextStatus: checked ? 'เผยแพร่' : 'ไม่เผยแพร่' })}
-          />
+          {/* การ์ดมือถือใช้กติกาเดียวกับตาราง — "รอตรวจสอบ" ไม่มี toggle */}
+          {row.status === 'รอตรวจสอบ' ? null : (
+            <Switch
+              checked={row.status === 'เผยแพร่'}
+              aria-label={`${row.status === 'เผยแพร่' ? 'ยกเลิกเผยแพร่' : 'เผยแพร่'} ${row.code}`}
+              onChange={(checked) => setStatusConfirm({ record: row, nextStatus: checked ? 'เผยแพร่' : 'ไม่เผยแพร่' })}
+            />
+          )}
           <ColorfulBadge style={(CONSENT_FORM_STATUS[row.status] || {}).tone || 'grey'} size='small' hierarchy='secondary' width='hug'>
             {row.status}
           </ColorfulBadge>

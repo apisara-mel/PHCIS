@@ -26,6 +26,7 @@ const InnerTextarea = React.forwardRef(({
   boxRef,
   disabled = false,
   textareaStyle,
+  style,
 }, ref) => (
   <TextareaCanonical
     ref={ref}
@@ -44,6 +45,7 @@ const InnerTextarea = React.forwardRef(({
     rows={rows}
     placeholder={placeholder}
     textareaStyle={textareaStyle}
+    style={style}
     className='flex-1 min-w-0'
   />
 ));
@@ -63,6 +65,7 @@ const InnerVoiceTextarea = React.forwardRef(({
   disabled = false,
   resizable = true,
   textareaStyle,
+  style,
 }, ref) => (
   <VoiceTextarea
     ref={ref}
@@ -83,6 +86,7 @@ const InnerVoiceTextarea = React.forwardRef(({
     minHeight={minHeight}
     placeholder={placeholder}
     textareaStyle={textareaStyle}
+    style={style}
     className='flex-1 min-w-0'
   />
 ));
@@ -96,6 +100,8 @@ const SuggestibleTextarea = ({
   placeholder,
   /** สไตล์ตัวอักษรใน textarea — ส่งต่อให้ทั้งแบบ voice และแบบธรรมดา */
   textareaStyle,
+  /** สไตล์ของ FieldShell — เช่น ปลด maxWidth 640px เมื่อฟอร์มต้องการเต็มความกว้าง */
+  style,
   suggestions,
   minChars = 3,
   rows = 3,
@@ -145,6 +151,7 @@ const SuggestibleTextarea = ({
     disabled,
     resizable,
     textareaStyle,
+    style,
   };
 
   const passthroughChange = voice

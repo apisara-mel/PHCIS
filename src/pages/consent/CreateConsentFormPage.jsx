@@ -1855,6 +1855,9 @@ function StepContent(props) {
                       value={s.detail} onChange={(v) => updateSection(s.id, { detail: typeof v === 'string' ? v : v?.target?.value ?? '' })}
                       placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
                       suggestions={DETAIL_HINTS} minChars={3} height={120}
+                      /* FieldShell cap ที่ 640px — ปลดเฉพาะที่นี่ให้กว้าง
+                         เท่ากล่องหัวข้อในแถวบน (มติผู้ใช้ 25 ส.ค. 69) */
+                      style={{ maxWidth: '100%' }}
                       /* สะท้อนการจัดรูปแบบจากกล่องด้านบน — ข้อความเดียวกัน
                          ต้องหน้าตาเหมือนกันทั้งสองที่ ไม่งั้นดูเหมือนคนละช่อง
                          (มติผู้ใช้ 25 ส.ค. 69) */
