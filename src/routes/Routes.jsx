@@ -299,6 +299,9 @@ export default function Routes() {
         <Route exact path='/consent'              component={ConsentManagementPage} />
         {/* แดชบอร์ดความยินยอม (ด.1.1.12) */}
         <Route exact path='/consent/dashboard' component={ConsentDashboardPage} />
+        {/* ตัวสร้างเทมเพลตย้ายไปเป็นป๊อปอัปบนแดชบอร์ดแล้ว — ลิงก์เดิม/แท็บที่ค้าง
+            bundle เก่าไว้ต้องไม่เจอจอขาว (25 ส.ค. 69) */}
+        <Redirect exact from='/consent/dashboard/templates' to='/consent/dashboard' />
         {/* สร้างแบบฟอร์มใหม่ — 4-step wizard, stays INSIDE the consent system
             (own consent side menu) instead of bouncing to /forms (PHCIS). */}
         {/* แบบฟอร์มความยินยอม — consent-form template registry (Figma 291:113045). */}

@@ -80,12 +80,23 @@ const PAGE_SIZE = 20;
 const breadcrumb = ['จัดการความยินยอม'];
 
 /* แท็บที่ tab กรองสถานะอยู่แล้ว — ซ่อน filter chip "สถานะ" */
-const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'sent', 'consented', 'rejected', 'expired']);
+const STATUS_FILTER_HIDDEN_TABS = new Set(['pending', 'sent', 'consented', 'rejected', 'expired', 'expiring', 'expiredOnly']);
 /* ไม่มีแท็บที่ซ่อน filter ทั้งหมด — คง Set ว่างไว้ให้ onTabChange ใช้ได้ */
 const FILTERS_HIDDEN_TABS = new Set();
 
 /* แท็บ 'all' = "ผู้รับบริการทั้งหมด" — 1 แถว = 1 คน (แท็บอื่น 1 แถว = 1 ฉบับ) */
 const PATIENT_TAB = 'all';
+
+/* แท็บของหน้านี้ = CONSENT_TABS + สองแท็บย่อยของกอง "รอการอัปเดต"
+   (ใกล้หมดอายุ / หมดอายุแล้ว) — ต่อที่นี่ ไม่แก้ CONSENT_TABS เพราะ
+   TelemedConsentPage ใช้ชุดเดียวกันและยังต้องการกองรวมกองเดียว */
+const EXPIRY_SUBTABS = [
+  { value: 'expiring',    label: 'ใกล้หมดอายุ',  icon: 'schedule' },
+  { value: 'expiredOnly', label: 'หมดอายุแล้ว',  icon: 'event_busy' },
+];
+const WORKLIST_TABS = CONSENT_TABS.flatMap((t) => (
+  t.value === 'expired' ? [t, ...EXPIRY_SUBTABS] : [t]
+));
 
 /* ค่าพิเศษของ dropdown สถานะในแท็บผู้รับบริการ — ขึ้นต้นด้วย __ ให้ชนกับชื่อ
    สถานะจริงใน CONSENT_STATUS ไม่ได้ */
@@ -223,7 +234,7 @@ export default function ConsentManagementPage() {
        กลุ่ม 2 — ผู้รับบริการทั้งหมด: 1 แถว = 1 คน · ทะเบียนไว้ค้นรายคน · เรียงตาม HN
      count จึงคนละหน่วยกัน — กลุ่มซ้ายนับ "ฉบับ" กลุ่มขวานับ "คน" (HN ไม่ซ้ำ)
      แยก label ที่นี่ ไม่แก้ CONSENT_TABS เพราะ TelemedConsentPage ใช้ชุดเดียวกัน */
-  const tabs = useMemo(() => CONSENT_TABS.map((t) => ({
+  const tabs = useMemo(() => WORKLIST_TABS.map((t) => ({
     key: t.value,
     label: t.value === PATIENT_TAB ? 'ผู้รับบริการทั้งหมด' : t.label,
     icon: t.icon,
@@ -938,7 +949,7 @@ export default function ConsentManagementPage() {
       return [colExpiresInDays, colHn, colName, ...mid, colCreatedDate, colSignedDate, colWithdrawn, colAction];
     }
     /* หมดอายุ: วันที่สร้างอยู่หลังผู้สร้างคำขอ */
-    if (activeTab === 'expired') {
+    if (activeTab === 'expired' || activeTab === 'expiredOnly') {
       return [colHn, colName, ...mid, colCreatedDate, colSignedDate, colWithdrawn, colAction];
     }
     /* รอดำเนินการ — ขอเพิกถอน (ไม่รวม รอลงนาม / ใกล้หมดอายุ / หมดอายุ) */
@@ -1222,7 +1233,7 @@ export default function ConsentManagementPage() {
                   onSort={handleSort}
                   onRowClick={openRowDetail}
                   trailingInset='var(--dim-space-400, 16px)'
-                  stickyColCount={activeTab === 'expired' || isPatientTab ? 2 : 3}
+                  stickyColCount={activeTab === 'expired' || activeTab === 'expiredOnly' || isPatientTab ? 2 : 3}
                   stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
                   emptyMessage={isPatientTab ? 'ไม่พบผู้รับบริการ' : 'ไม่พบรายการความยินยอม'}
                   emptySubtext='ลองปรับตัวกรองหรือคำค้นหา'

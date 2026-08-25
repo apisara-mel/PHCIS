@@ -417,6 +417,9 @@ const Select = React.forwardRef(function Select(
     helperText,
     error,
     placeholder = 'Select option',
+    /* คำนำหน้าค่าที่เลือกในช่อง trigger — สีจาง เช่น prefix='Template:'
+       ให้ขึ้นเป็น "Template: แดชบอร์ดมาตรฐาน" (ไม่โชว์ตอนยังไม่ได้เลือก) */
+    prefix,
     value,
     defaultValue,
     onChange,
@@ -739,6 +742,20 @@ const Select = React.forwardRef(function Select(
             >
               {selected.badge.label}
             </ColorfulBadge>
+          )}
+          {prefix && !isPlaceholder && (
+            <span
+              className='shrink-0'
+              style={{
+                color: 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: dim.fontSize,
+                fontWeight: dim.fontWeight,
+                lineHeight: 1.5,
+              }}
+            >
+              {prefix}
+            </span>
           )}
           {searchable ? (
             <input

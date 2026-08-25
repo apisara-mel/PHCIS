@@ -34,8 +34,8 @@ export const CONSENT_STATUS = {
   'ยินยอมแล้ว':        { tone: 'green',  tab: 'consented', action: { label: 'เพิกถอน',    kind: 'brandSubdue', confirm: 'revoke' } },
   'ปฏิเสธ':           { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
   'ถอนความยินยอม':    { tone: 'red',    tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
-  'ใกล้หมดอายุ':       { tone: 'orange', tab: 'expired', label: 'รอการอัปเดต', action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
-  'หมดอายุ':          { tone: 'orange', tab: 'expired', label: 'รอการอัปเดต', action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
+  'ใกล้หมดอายุ':       { tone: 'orange', tab: 'expired', label: 'ใกล้หมดอายุ', action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
+  'หมดอายุ':          { tone: 'red',    tab: 'expired', label: 'หมดอายุแล้ว', action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
   /* Edge case (Figma note 312:97428): เทมเพลตออกเวอร์ชันใหม่ — ฉบับเดิมถูกแทนที่
      (read-only) · ระบบสร้างคำขอ รอลงนาม อัตโนมัติไปเวชระเบียน */
   'ถูกแทนที่ด้วยเวอร์ชันใหม่': {
@@ -57,7 +57,7 @@ export const CONSENT_STATUS = {
   'หมดอายุ-Reconsent': {
     tone: 'red',
     tab: 'expired',
-    label: 'รอการอัปเดต',
+    label: 'หมดอายุแล้ว',
     action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' },
   },
   /* ด.1.1.4 — เจ้าหน้าที่ยกเลิกคำขอที่ยังไม่ลงนาม (audit คงอยู่) */
@@ -107,9 +107,15 @@ export const isConsentExpired = (record) => EXPIRED_CONSENT_STATUSES.includes(re
 export const isConsentPendingWorklist = (record) =>
   (CONSENT_STATUS[record?.status] || {}).tab === 'pending';
 
+/* แท็บ 'expired' (รอการอัปเดต) = ใกล้หมดอายุ + หมดอายุแล้ว รวมกัน — คงไว้เป็น
+   worklist เดียวของงาน Reconsent · สองแท็บย่อยด้านล่างเป็นมุมมองแยกของกองเดียวกัน
+   'expiring'    — ยังไม่หมดอายุ แต่เหลือไม่เกิน PENDING_EXPIRY_WINDOW_DAYS วัน
+   'expiredOnly' — หมดอายุแล้วจริง (รวม record ที่ถูก reconsent ไปแล้ว) */
 export const matchesConsentWorklistTab = (record, tab) => {
   if (tab === 'all') return true;
   if (tab === 'pending') return isConsentPendingWorklist(record);
+  if (tab === 'expiring') return !isConsentExpired(record) && isConsentExpiringWithinDays(record);
+  if (tab === 'expiredOnly') return isConsentExpired(record);
   return (CONSENT_STATUS[record?.status] || {}).tab === tab;
 };
 

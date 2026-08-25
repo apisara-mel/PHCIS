@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import ActionList from '@/components/list/ActionList';
 import OverflowMoreTrigger from '@/components/overflow/OverflowMoreTrigger';
 import TabCountBadge from '@/components/tab/TabCountBadge';
@@ -434,7 +435,9 @@ const TabUnderline = React.forwardRef(function TabUnderline(
           }}
         />
       )}
-      {moreOpen && hiddenTabs.length > 0 && (
+      {/* portal ไป <body> — แถบแท็บถูก scale ด้วย morph (transform) ซึ่งกลายเป็น
+          containing block ของ position:fixed ทำให้เมนูไปโผล่ไกลจากปุ่ม ⋯ */}
+      {moreOpen && hiddenTabs.length > 0 && typeof document !== 'undefined' && createPortal((
         <div
           id='mih-taboverflow-pop'
           role='menu'
@@ -513,7 +516,7 @@ const TabUnderline = React.forwardRef(function TabUnderline(
             );
           })}
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 });
