@@ -63,6 +63,171 @@ export const DEMO_ASSESS_USERS = [
       },
     ],
   },
+  {
+    id: 'user-demo-sudarat',
+    title: 'นางสาว',
+    firstName: 'สุดารัตน์',
+    lastName: 'พงษ์เจริญ',
+    prefixEn: 'Ms.',
+    nameEn: 'Sudarat',
+    surnameEn: 'Pongcharoen',
+    gender: 'female',
+    nationalId: '1-1010-20304-05-6',
+    licenseNo: 'พย.24817',
+    birthDate: '02/06/2533',
+    age: '35-2-23',
+    phone: '081-445-2210',
+    email: 'sudarat@bma.go.th',
+    active: true,
+    assignments: [
+      {
+        id: 'asgn-2',
+        centerId: 'hc-4',
+        center: 'ศูนย์ 4 ดินแดง',
+        activityId: 'gp-nurse',
+        activity: 'พยาบาลวิชาชีพ',
+        subActivityId: 'sb-opd',
+        subActivity: 'คัดกรองและซักประวัติ (OPD)',
+        departmentId: 'dept-opd',
+        department: 'ผู้ป่วยนอก (OPD)',
+        positionId: 'pos-practitioner',
+        position: 'ผู้ปฏิบัติงาน',
+        isPrimary: true,
+      },
+    ],
+  },
+  {
+    id: 'user-demo-anucha',
+    title: 'นาย',
+    firstName: 'อนุชา',
+    lastName: 'แก้วประเสริฐ',
+    prefixEn: 'Mr.',
+    nameEn: 'Anucha',
+    surnameEn: 'Kaewprasert',
+    gender: 'male',
+    nationalId: '3-2020-30405-06-7',
+    licenseNo: 'ภ.31204',
+    birthDate: '19/11/2531',
+    age: '37-9-06',
+    phone: '089-332-7788',
+    email: 'anucha@bma.go.th',
+    active: true,
+    assignments: [
+      {
+        id: 'asgn-3',
+        centerId: 'hc-15',
+        center: 'ศูนย์ 15 ห้วยขวาง (เจ้าคุณพระประยูรวงศ์)',
+        activityId: 'gp-pharmacist',
+        activity: 'เภสัชกร',
+        subActivityId: 'sb-dispense',
+        subActivity: 'จ่ายยาผู้ป่วยนอก',
+        departmentId: 'dept-pharm',
+        department: 'เภสัชกรรม',
+        positionId: 'pos-practitioner',
+        position: 'ผู้ปฏิบัติงาน',
+        isPrimary: true,
+      },
+    ],
+  },
+  {
+    id: 'user-demo-kanokwan',
+    title: 'นาง',
+    firstName: 'กนกวรรณ',
+    lastName: 'ศรีสุวรรณ',
+    prefixEn: 'Mrs.',
+    nameEn: 'Kanokwan',
+    surnameEn: 'Srisuwan',
+    gender: 'female',
+    nationalId: '1-3030-40506-07-8',
+    licenseNo: '',
+    birthDate: '25/01/2527',
+    age: '42-7-00',
+    phone: '086-119-4520',
+    email: 'kanokwan@bma.go.th',
+    active: true,
+    assignments: [
+      {
+        id: 'asgn-4',
+        centerId: 'hc-4',
+        center: 'ศูนย์ 4 ดินแดง',
+        activityId: 'gp-registrar',
+        activity: 'เจ้าหน้าที่เวชระเบียน',
+        subActivityId: 'sb-reg-front',
+        subActivity: 'จุดคัดกรอง/ลงทะเบียนและตรวจสอบสิทธิ',
+        departmentId: 'dept-reg',
+        department: 'เวชระเบียน',
+        positionId: 'pos-officer',
+        position: 'เจ้าหน้าที่',
+        isPrimary: true,
+      },
+    ],
+  },
+  {
+    id: 'user-demo-phichit',
+    title: 'นาย',
+    firstName: 'พิชิต',
+    lastName: 'รุ่งเรืองกิจ',
+    prefixEn: 'Mr.',
+    nameEn: 'Phichit',
+    surnameEn: 'Rungruangkij',
+    gender: 'male',
+    nationalId: '5-4040-50607-08-9',
+    licenseNo: 'ทน.10233',
+    birthDate: '08/09/2529',
+    age: '39-11-17',
+    phone: '092-770-1188',
+    email: 'phichit@bma.go.th',
+    active: true,
+    assignments: [
+      {
+        id: 'asgn-5',
+        centerId: 'hc-35',
+        center: 'ศูนย์ 35 หัวหมาก',
+        activityId: 'gp-medtech',
+        activity: 'นักเทคนิคการแพทย์',
+        subActivityId: 'sb-lab',
+        subActivity: 'ตรวจวิเคราะห์ทางห้องปฏิบัติการ',
+        departmentId: 'dept-lab',
+        department: 'ชันสูตรโรค',
+        positionId: 'pos-practitioner',
+        position: 'ผู้ปฏิบัติงาน',
+        isPrimary: true,
+      },
+    ],
+  },
+  {
+    id: 'user-demo-waraporn',
+    title: 'นางสาว',
+    firstName: 'วราภรณ์',
+    lastName: 'อินทรสุข',
+    prefixEn: 'Ms.',
+    nameEn: 'Waraporn',
+    surnameEn: 'Intarasuk',
+    gender: 'female',
+    nationalId: '1-5050-60708-09-0',
+    licenseNo: 'สค.4471',
+    birthDate: '30/03/2535',
+    age: '33-5-26',
+    phone: '094-880-5512',
+    email: 'waraporn@bma.go.th',
+    active: true,
+    assignments: [
+      {
+        id: 'asgn-6',
+        centerId: 'hc-4',
+        center: 'ศูนย์ 4 ดินแดง',
+        activityId: 'act-social-worker',
+        activity: 'นักสังคมสงเคราะห์',
+        subActivityId: 'sub-sw-center',
+        subActivity: 'ให้คำปรึกษาในศูนย์บริการ',
+        departmentId: 'dept-social',
+        department: 'สังคมสงเคราะห์',
+        positionId: 'pos-practitioner',
+        position: 'ผู้ปฏิบัติงาน',
+        isPrimary: true,
+      },
+    ],
+  },
 ];
 
 export function emptyAssignment() {
@@ -119,11 +284,15 @@ function normalizeAssessUser(user) {
 export function readAssessUsers() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw == null) return [];
+    /* เบราว์เซอร์ใหม่ให้ชุดตัวอย่าง — ไม่งั้นทะเบียนบุคลากรว่างเปล่า และหน้า
+       "สิทธิการเข้าถึง" ก็หา "ผู้ถือสิทธิ์" ไม่เจอเลยทั้งที่แม่แบบอนุมัติแล้ว
+       (แบบเดียวกับ readCenters ที่คืน DEMO_CENTERS) */
+    if (raw == null) return DEMO_ASSESS_USERS.map(normalizeAssessUser);
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.map(normalizeAssessUser) : [];
+    if (!Array.isArray(parsed)) return DEMO_ASSESS_USERS.map(normalizeAssessUser);
+    return parsed.map(normalizeAssessUser);
   } catch {
-    return [];
+    return DEMO_ASSESS_USERS.map(normalizeAssessUser);
   }
 }
 

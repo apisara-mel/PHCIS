@@ -128,7 +128,17 @@ function EmptyIllustration() {
    formatCenterHoursLine จะคืน "ปิดทำการ" ให้เอง. */
 function HoursCell({ hours }) {
   return (
-    <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+    /* กลุ่มวันอยู่คอลัมน์ซ้าย · เวลาอยู่คอลัมน์ขวาบรรทัดเดียวกัน (25 ส.ค. 2569)
+       วันที่เปิดนอกเวลาด้วยจะมีบรรทัดที่สองในคอลัมน์ขวาเท่านั้น กลุ่มวันไม่ซ้ำ */
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr',
+        columnGap: 'var(--dim-space-300)',
+        rowGap: 'var(--dim-space-200)',
+        alignItems: 'baseline',
+      }}
+    >
       {HOUR_GROUPS.map((g) => {
         /* ทั้งในเวลาและนอกเวลามาจาก step "เวลาทำการ" ของฟอร์มเพิ่มศูนย์บริการ
            ชุดเดียวกัน — ปิดทำการทั้งวันก็ขึ้นบรรทัดเดียว ไม่ต้องแยกในเวลา/นอกเวลา */
@@ -136,20 +146,22 @@ function HoursCell({ hours }) {
         const outLine = formatCenterHoursLine(hours, 'out', g.key);
         const closed = inLine === 'ปิดทำการ';
         return (
-          <div key={g.key} className='flex flex-col'>
-            <span style={SUBTEXT_CELL}>{g.label}</span>
-            {closed ? (
-              <span style={TEXT_CELL}>ปิดทำการ</span>
-            ) : (
-              <>
-                <span style={TEXT_CELL}>{`ในเวลา ${inLine}`}</span>
-                {/* ศูนย์ที่ไม่ได้เปิดคลินิกนอกเวลาก็ไม่ต้องขึ้นบรรทัด "นอกเวลา —" */}
-                {outLine !== '—' ? (
-                  <span style={TEXT_CELL}>{`นอกเวลา ${outLine}`}</span>
-                ) : null}
-              </>
-            )}
-          </div>
+          <React.Fragment key={g.key}>
+            <span style={{ ...SUBTEXT_CELL, whiteSpace: 'nowrap' }}>{g.label}</span>
+            <div className='flex flex-col'>
+              {closed ? (
+                <span style={{ ...TEXT_CELL, whiteSpace: 'nowrap' }}>ปิดทำการ</span>
+              ) : (
+                <>
+                  <span style={{ ...TEXT_CELL, whiteSpace: 'nowrap' }}>{`ในเวลา ${inLine}`}</span>
+                  {/* ศูนย์ที่ไม่ได้เปิดคลินิกนอกเวลาก็ไม่ต้องขึ้นบรรทัด "นอกเวลา —" */}
+                  {outLine !== '—' ? (
+                    <span style={{ ...TEXT_CELL, whiteSpace: 'nowrap' }}>{`นอกเวลา ${outLine}`}</span>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </React.Fragment>
         );
       })}
     </div>
@@ -390,6 +402,8 @@ export default function SystemCentersPage() {
     {
       key: 'hours',
       header: 'เวลาทำการ',
+      /* กว้างพอให้ "วันหยุดนักขัตฤกษ์ + นอกเวลา 16.00 - 20.00 น." อยู่บรรทัดเดียว */
+      minWidth: 340,
       render: (row) => <HoursCell hours={row.hours} />,
     },
     {

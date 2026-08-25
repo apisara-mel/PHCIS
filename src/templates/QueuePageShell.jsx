@@ -87,6 +87,8 @@ const QueuePageShell = ({
   breadcrumb,
   brandTitle,
   title,
+  /** โหนดที่แสดงต่อท้าย title ใน SubHeader (เช่น ชิปตัวกรอง) */
+  afterTitle,
   onBack,
   backLabel,
   actions,
@@ -244,6 +246,7 @@ const QueuePageShell = ({
           >
             <SubHeader
               title={effectiveTitle}
+              afterTitle={afterTitle}
               onBack={onBack}
               backLabel={backLabel}
               /* แถบ sticky ถัดไป (tabs / belowSummary) เป็นตัวทิ้งเงา — SubHeader ไม่ซ้อนเส้น */

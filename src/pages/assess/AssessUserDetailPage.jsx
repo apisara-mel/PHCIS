@@ -14,6 +14,12 @@ import {
   PERM_VIEW,
   PERM_EDIT,
   readAccessControls,
+  resolveUserAccess,
+  dataScopeLabel,
+  piiLabel,
+  formatDailyWindow,
+  formatVersion,
+  latestVersion,
 } from '@/data/accessControlStore';
 import {
   findAssessUser,
@@ -122,18 +128,9 @@ function ReadonlyPermTable({ title, modules, permissions }) {
   );
 }
 
-/* จับคู่แม่แบบสิทธิ์กับ assignment ด้วย ศูนย์ + กิจกรรม + กิจกรรมย่อย + แผนก —
-   ไม่มี positionId เพราะแม่แบบสิทธิ์ไม่ผูกกับตำแหน่ง (เดิมเทียบ positionId
-   ซึ่งแม่แบบไม่มี field นี้ ทำให้จับคู่ไม่เจอเลย) */
-function findAccessForAssignment(accessList, assignment) {
-  if (!assignment) return null;
-  return accessList.find((ac) => (
-    ac.centerId === assignment.centerId
-    && ac.activityId === assignment.activityId
-    && ac.subActivityId === assignment.subActivityId
-    && ac.departmentId === assignment.departmentId
-  )) || null;
-}
+/* การจับคู่แม่แบบสิทธิ์กับ assignment ย้ายไปอยู่ที่ resolveUserAccess ใน
+   accessControlStore แล้ว (ABAC + รวมหลายแม่แบบ + เช็คสถานะอนุมัติ/ช่วงเวลา)
+   ของเดิมที่นี่จับคู่แค่ assignment หลักใบเดียวและไม่สนสถานะอนุมัติ */
 
 function countSystemsWithAccess(permissions) {
   if (!permissions) return 0;
@@ -147,8 +144,14 @@ export default function AssessUserDetailPage() {
   const accessList = useMemo(() => readAccessControls(), [id]);
 
   const primary = useMemo(() => (user ? primaryAssignment(user) : null), [user]);
-  const matchedAccess = useMemo(() => findAccessForAssignment(accessList, primary), [accessList, primary]);
-  const permissions = matchedAccess?.permissions || {};
+  /* สิทธิ์ที่ได้รับจริง — รวมทุกแม่แบบที่ "อนุมัติแล้ว + ยังมีผล" และตรงกับ
+     assignment ของคนนี้ (ABAC) ไม่ใช่ดูแค่กิจกรรมหลักใบเดียวเหมือนเดิม */
+  const access = useMemo(() => resolveUserAccess(user, accessList), [user, accessList]);
+  const permissions = useMemo(
+    () => Object.fromEntries(Object.entries(access.modules).map(([k, v]) => [k, v.level])),
+    [access],
+  );
+  const matchedAccess = access.templates.length > 0;
 
   if (!user) {
     return (
@@ -376,12 +379,46 @@ export default function AssessUserDetailPage() {
             }}
             >
               {matchedAccess
-                ? `สิทธิ์ตามกิจกรรม ${primary?.activity} · ${primary?.position}`
-                : 'ยังไม่มีสิทธิการเข้าถึงที่ตรงกับกิจกรรมหลัก'}
+                ? `รวมจากแม่แบบที่อนุมัติแล้ว ${access.templates.length} ฉบับ — ได้สิทธิ์กว้างที่สุดที่แต่ละแม่แบบให้ไว้`
+                : 'ยังไม่ได้รับสิทธิ์ — ไม่มีแม่แบบที่อนุมัติแล้วและตรงกับศูนย์/กิจกรรม/แผนกที่ปฏิบัติงาน'}
             </span>
           </div>
           {matchedAccess ? (
             <>
+              {/* ที่มาของสิทธิ์ + ธรรมาภิบาลที่ได้จากการรวมแม่แบบ */}
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                {access.templates.map(({ record }) => (
+                  <div
+                    key={record.id}
+                    className='flex flex-wrap items-baseline w-full'
+                    style={{ gap: 'var(--dim-space-300)' }}
+                  >
+                    <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>
+                      {formatVersion(latestVersion(record))}
+                    </ColorfulBadge>
+                    <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+                      {record.templateName}
+                    </span>
+                    <span style={{
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-sm)',
+                      color: 'var(--text-content-tertiary)',
+                    }}
+                    >
+                      {[record.center, record.activity, record.department].filter(Boolean).join(' · ')}
+                      {` · เข้าใช้ได้ ${formatDailyWindow(record)}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-600)' }}>
+                <InfoField label='ขอบเขตข้อมูลที่มองเห็น' value={dataScopeLabel(access.dataScope)} />
+                <InfoField label='ข้อมูลระบุตัวตน (PII)' value={piiLabel(access.piiVisibility)} />
+                <InfoField
+                  label='สถานะเข้าใช้ ณ ตอนนี้'
+                  value={access.openNow ? 'อยู่ในช่วงเวลาที่เข้าใช้ได้' : 'นอกช่วงเวลาที่กำหนด'}
+                />
+              </div>
               <ReadonlyPermTable title='ระบบ PHCIS' modules={PHCIS_MODULES} permissions={permissions} />
               <ReadonlyPermTable title='ระบบ Consent' modules={CONSENT_MODULES} permissions={permissions} />
             </>

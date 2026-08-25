@@ -315,6 +315,9 @@ export default function AccessControlCreatePage() {
   const [dataScope, setDataScope] = useState(SCOPE_CENTER);
   const [piiVisibility, setPiiVisibility] = useState(PII_VISIBLE);
   const [effectiveFrom, setEffectiveFrom] = useState('');
+  /* ช่วงเวลาเข้าใช้งานรายวัน (access-time window) — Figma "History and Access" */
+  const [dailyFrom, setDailyFrom] = useState('');
+  const [dailyTo, setDailyTo] = useState('');
   const [effectiveTo, setEffectiveTo] = useState('');
   const [approvalNote, setApprovalNote] = useState('');
 
@@ -337,6 +340,8 @@ export default function AccessControlCreatePage() {
     setDataScope(existing.dataScope || SCOPE_CENTER);
     setPiiVisibility(existing.piiVisibility || PII_VISIBLE);
     setEffectiveFrom(existing.effectiveFrom || '');
+    setDailyFrom(existing.dailyFrom || '');
+    setDailyTo(existing.dailyTo || '');
     setEffectiveTo(existing.effectiveTo || '');
     setApprovalNote(existing.approvalNote || '');
   }, [existing]);
@@ -380,6 +385,8 @@ export default function AccessControlCreatePage() {
       dataScope,
       piiVisibility,
       effectiveFrom,
+      dailyFrom,
+      dailyTo,
       effectiveTo,
       approvalNote: approvalNote.trim(),
     };
@@ -425,7 +432,8 @@ export default function AccessControlCreatePage() {
       : '';
     return `${scope} — มีสิทธิดู ${view} ระบบ · มีสิทธิบันทึก ${edit} ระบบ · ${dataScopeLabel(dataScope)}${piiVisibility === PII_MASKED ? ' (ปิดบัง PII)' : ''}${period} · ${versionNote}`;
   }, [permissions, activityId, subActivityId, activityOpts, subActivityOpts, isEdit, nextVersion,
-    currentVersion, dataScope, piiVisibility, effectiveFrom, effectiveTo]);
+    currentVersion, dataScope, piiVisibility, effectiveFrom, effectiveTo,
+    dailyFrom, dailyTo]);
 
   if (isEdit && id && !existing) {
     return (
@@ -577,6 +585,33 @@ export default function AccessControlCreatePage() {
                   helperText={dateRangeError || 'เว้นว่าง = ไม่กำหนดวันสิ้นสุด'}
                 />
               </div>
+              {/* ช่วงเวลาเข้าใช้งานรายวัน — Figma "PHCIS | History and Access"
+                  กำหนดหน้าต่างเวลาต่อวัน (เช่น 08.00-16.00 น.) แยกจากช่วง "วัน"
+                  ข้างบน · เว้นว่าง = เข้าได้ตลอด 24 ชม. · ข้ามเที่ยงคืนได้ (เวรดึก) */}
+              <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+                <InputField
+                  label='เข้าใช้งานได้ตั้งแต่ (รายวัน)'
+                  type='time'
+                  showLeadingIcon={false}
+                  value={dailyFrom}
+                  onChange={setDailyFrom}
+                  helperText='เว้นว่าง = เข้าได้ตลอด 24 ชม.'
+                />
+              </div>
+              <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+                <InputField
+                  label='ถึงเวลา (รายวัน)'
+                  type='time'
+                  showLeadingIcon={false}
+                  value={dailyTo}
+                  onChange={setDailyTo}
+                  helperText={dailyFrom && dailyTo && dailyTo < dailyFrom
+                    ? 'ข้ามเที่ยงคืน — ใช้กับเวรดึก'
+                    : 'เว้นว่าง = ถึงสิ้นวัน'}
+                />
+              </div>
+            </div>
+            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               <div style={{ flex: '2 1 320px', minWidth: 260 }}>
                 <InputField
                   label='เหตุผล/บันทึกถึงผู้อนุมัติ'
