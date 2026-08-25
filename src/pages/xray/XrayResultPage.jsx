@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
@@ -92,11 +93,23 @@ if (typeof document !== 'undefined') {
   color: var(--text-primarysearch-default, #ADB2B7);
   opacity: 1; /* Firefox defaults ::placeholder to 0.54 */
 }
+/* พิมพ์ใบผลเอกซเรย์ — §1.12.6.5
+   ของเดิมใช้ visibility:hidden + position:fixed ครอบ preview ในโมดัล ซึ่ง
+   **พิมพ์ได้หน้าเดียว**: element ที่ position:fixed ถูก clip อยู่แค่หน้าแรก
+   รายงานที่ยาวกว่า 1 หน้า (impression + technique + คำแนะนำ) จึงขาดหาย
+   และ visibility:hidden ยังทิ้งกล่อง layout ไว้ ทำให้ได้หน้าว่างนำหน้า
+
+   ของใหม่ใช้ pattern เดียวกับ FamilyPlanningFollowUpCard / EDocumentSheet:
+   ซ่อนลูกโดยตรงของ <body> ทั้งหมดยกเว้นสำเนาสำหรับพิมพ์ที่ portal ออกไป
+   อยู่ใต้ body — สำเนานั้นอยู่ใน normal flow เบราว์เซอร์จึงแบ่งหน้าเองได้
+   ต้อง scope ด้วย attribute ของโมดูลนี้เอง เพราะ Routes.jsx import ทุกหน้า
+   แบบ static → stylesheet ของทุกโมดูลมีผลพร้อมกัน ถ้าไม่ scope จะซ่อน
+   print-root ของกันเองแล้วได้กระดาษเปล่า */
+.mih-xrayresult-print-only { display: none; }
 @media print {
-  body * { visibility: hidden !important; }
-  .mih-xrayresult-print-area, .mih-xrayresult-print-area * { visibility: visible !important; }
-  .mih-xrayresult-print-area { position: fixed; inset: 0; overflow: visible; background: var(--surface-card-100, #FFFFFF); }
-  .mih-xrayresult-print-area .no-print { display: none !important; }
+  html[data-mih-xrayresult-print] body > *:not(.mih-xrayresult-print-only) { display: none !important; }
+  html[data-mih-xrayresult-print] .mih-xrayresult-print-only { display: block !important; }
+  .mih-xrayresult-print-only .no-print { display: none !important; }
 }
 `;
   let el = document.getElementById(styleId);
@@ -387,6 +400,19 @@ const TextInput = ({ value, onChange, placeholder, label, required, id }) => (
 
 /* ─────────────────────────────────────────────────────────────────────────
    Page component */
+/** พิมพ์ใบผล — ติด attribute ให้ @media print เห็นเฉพาะรอบการพิมพ์ แล้วถอดออก
+    (pattern เดียวกับ printFpFollowUpCard / printEDocument) */
+const printXrayReport = () => {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  try {
+    document.documentElement.setAttribute('data-mih-xrayresult-print', 'sheet');
+    window.print();
+    window.setTimeout(() => document.documentElement.removeAttribute('data-mih-xrayresult-print'), 500);
+  } catch (err) {
+    document.documentElement.removeAttribute('data-mih-xrayresult-print');
+  }
+};
+
 const XrayResultPage = () => {
   /* react-router v5 on this branch — location.search is read directly for
      the ?xn / ?mode deep link; no v6 APIs (useNavigate/useSearchParams). */
@@ -464,6 +490,7 @@ const XrayResultPage = () => {
   const [tplDialog, setTplDialog] = useState({ open: false, name: '', bindToMe: true });
   const [phraseDialog, setPhraseDialog] = useState({ open: false, text: '' });
   const [printOpen, setPrintOpen] = useState(false);
+
   const [historyOpen, setHistoryOpen] = useState(false);
   const [expandedHistory, setExpandedHistory] = useState({});
   const [toast, setToast] = useState({ open: false, message: '' });
@@ -487,6 +514,31 @@ const XrayResultPage = () => {
 
   const selectedRaw = rows.find((r) => r.id === selectedId) ?? null;
   const row = selectedRaw ? withExamLabel(selectedRaw) : null;
+
+  /* ใบรายงานผลชุดเดียว ใช้ทั้งใน preview และในสำเนาที่ portal ออกไปพิมพ์ —
+     สร้างครั้งเดียวเพื่อไม่ให้กระดาษกับจอต่างกันได้
+     ต้องอยู่ "หลัง" const row เท่านั้น (เคยวางไว้ข้างบนแล้วชน TDZ:
+     Cannot access 'row' before initialization → หน้าจอขาวทั้งหน้า) */
+  const reportSheet = useMemo(() => (row ? (
+    <XrayReportSheet
+      variant='report'
+      order={{
+        ...row,
+        radiologistLicense: (XRAY_RADIOLOGIST_BY_ID[row.lockedBy]
+          ?? XRAY_RADIOLOGISTS.find((d) => d.name === row.radiologist))?.license,
+      }}
+      patient={{
+        hn: row.hn,
+        fullName: row.patient?.fullName,
+        age: row.patient?.age,
+        sex: row.patient?.sex,
+        rightLabel: row.rightLabel,
+      }}
+      center='ศูนย์บริการสาธารณสุข 4 ดินแดง'
+      printedAt={`${thaiToday()} ${row.verifiedAt || row.reportedAt || ''}`.trim()}
+    />
+  ) : null), [row]);
+
 
   /* Deep link — the worklist navigates here as
      `/xray/result?xn=X69-0418&mode=verify` (react-router v5: read
@@ -2169,7 +2221,7 @@ const XrayResultPage = () => {
             <NeutralSubdueButton variant='outline' size='md' onClick={() => setPrintOpen(false)}>
               ปิด
             </NeutralSubdueButton>
-            <BrandButton size='md' leadingIcon='print' onClick={() => window.print()}>
+            <BrandButton size='md' leadingIcon='print' onClick={printXrayReport}>
               พิมพ์
             </BrandButton>
           </>
@@ -2179,28 +2231,16 @@ const XrayResultPage = () => {
             <XrayReportSheet>, so the paper is identical wherever it is
             printed from (/xray/order, /preview/xray-sheets). The wrapper
             keeps this page's print-scoping class. */}
-        {row ? (
-          <div className='mih-xrayresult-print-area w-full'>
-            <XrayReportSheet
-              variant='report'
-              order={{
-                ...row,
-                radiologistLicense: (XRAY_RADIOLOGIST_BY_ID[row.lockedBy]
-                  ?? XRAY_RADIOLOGISTS.find((d) => d.name === row.radiologist))?.license,
-              }}
-              patient={{
-                hn: row.hn,
-                fullName: row.patient?.fullName,
-                age: row.patient?.age,
-                sex: row.patient?.sex,
-                rightLabel: row.rightLabel,
-              }}
-              center='ศูนย์บริการสาธารณสุข 4 ดินแดง'
-              printedAt={`${thaiToday()} ${row.verifiedAt || row.reportedAt || ''}`.trim()}
-            />
-          </div>
-        ) : null}
+        {row ? <div className='w-full'>{reportSheet}</div> : null}
       </MiniDialog>
+
+      {/* สำเนาสำหรับพิมพ์ — ต้องเป็นลูกโดยตรงของ <body> เพราะกฎ @media print
+          ซ่อน `body > *` ที่ไม่มี class นี้ ถ้าฝังไว้ในโมดัลจะโดนซ่อนไปพร้อม
+          #root แล้วพิมพ์ออกมาได้หน้าเปล่า */}
+      {printOpen && row && typeof document !== 'undefined' && createPortal(
+        <div className='mih-xrayresult-print-only'>{reportSheet}</div>,
+        document.body,
+      )}
 
       <SuccessToast
         open={toast.open}

@@ -117,6 +117,17 @@ export const XRAY_RESULT_TYPE_BY_KEY = Object.fromEntries(XRAY_RESULT_TYPES.map(
 const XN_YEAR = '69';
 export const generateXN = (seq) => `X${XN_YEAR}-${String(seq).padStart(4, '0')}`;
 
+/* ISO ของ "วันนี้ ลบ n วัน" — ใช้สร้างวันที่ให้ mock กระจายหลายวัน
+   คิวที่ยังไม่จบ (requested/accepted/performed) ต้องเป็นวันนี้เสมอ เพราะเป็น
+   งานค้างหน้าเครื่อง ส่วนใบที่อ่านผล/รับรองแล้วย้อนหลังได้ */
+const dayAgoISO = (n) => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+export const XRAY_TODAY_ISO = dayAgoISO(0);
+
 const NAMED = (i) => PATIENT_PROFILES[i % PATIENT_PROFILES.length];
 const RADIOLOGIST = (i) => XRAY_RADIOLOGISTS[i % XRAY_RADIOLOGISTS.length];
 const RADIOGRAPHER = (i) => XRAY_RADIOGRAPHERS[i % XRAY_RADIOGRAPHERS.length];
@@ -141,6 +152,10 @@ const viewLabel = (exam) =>
                  hold display NAMES; lockedBy holds the ID for the guard.)
      cancelReason exception paths (manual pp.8–9). */
 const BLANK = {
+  /* วันที่ส่งตรวจ (ISO) — แยกจาก orderedAt ที่เก็บแค่ "เวลา"
+     §1.12.6.8 ต้องกรองตาม "ช่วงเวลาที่ตรวจ" ได้จริง ซึ่งทำไม่ได้ถ้า mock
+     ทุกใบเป็นวันเดียวกัน (ตัวกรองเลยไม่เคยตัดอะไรออกเลย) */
+  orderedOn: null,
   scheduledAt: null, acceptedAt: null, performedAt: null, reportedAt: null, verifiedAt: null,
   radiographer: null, radiologist: null,
   allergy: { has: false, agent: '', symptom: '' },
@@ -476,6 +491,11 @@ const BULK_ORDERS = Array.from({ length: 40 }, (_, i) => {
     status,
     requestType: status === 'scheduled' ? 'appointment' : 'walkin',
     orderedAt: timeAt(start),
+    /* ใบที่ปิดงานแล้วกระจายย้อนหลังได้ถึง 30 วัน (deterministic ตาม i)
+       ใบที่ยังค้างอยู่ในคิวต้องเป็นวันนี้ */
+    orderedOn: (status === 'reported' || status === 'verified')
+      ? dayAgoISO(1 + ((i * 7) % 30))
+      : dayAgoISO(0),
     scheduledAt: status === 'scheduled' ? `${1 + (i % 14)} ส.ค. 2569 ${timeAt(60 + (i % 4) * 30)}` : null,
     acceptedAt: reached('accepted') ? timeAt(start + 12) : null,
     performedAt: reached('performed') ? timeAt(start + 35) : null,
@@ -502,7 +522,10 @@ const BULK_ORDERS = Array.from({ length: 40 }, (_, i) => {
   };
 });
 
-export const XRAY_ORDERS = [...CURATED_ORDERS, ...BULK_ORDERS];
+/* แถวที่คัดมาเอง (CURATED) คือ "งานของวันนี้" — เติม orderedOn ให้อัตโนมัติ
+   จะได้ไม่ต้องไล่ใส่ทีละแถวและไม่มีแถวไหนหลุดออกจากตัวกรองช่วงวันที่ */
+export const XRAY_ORDERS = [...CURATED_ORDERS, ...BULK_ORDERS]
+  .map((o) => (o.orderedOn ? o : { ...o, orderedOn: XRAY_TODAY_ISO }));
 
 /* ─────────────────────────────────────────────────────────────────────────
    DERIVED VIEWS

@@ -265,7 +265,12 @@ const resolveDateRange = (value) => {
 const rowMatchesDateRange = (row, range) => {
   if (!range) return true;
   const inRange = (d) => d != null && d >= range.start && d <= range.end;
-  if (inRange(MOCK_DAY)) return true; /* order day — today for every mock row */
+  /* §1.12.6.8 — กรองด้วย "วันที่ส่งตรวจของแถวนั้น" (row.orderedOn) ไม่ใช่
+     ค่าคงที่วันนี้ ก่อนหน้านี้ทุกแถว mock เป็นวันเดียวกันหมด ตัวกรองช่วงเวลา
+     จึงไม่เคยตัดอะไรออกเลย — ดูที่ xrayOrders.js ซึ่งตอนนี้กระจายใบที่ปิดงาน
+     แล้วย้อนหลังได้ถึง 30 วัน */
+  const orderDay = row.orderedOn ? startOfDay(new Date(`${row.orderedOn}T00:00:00`)) : MOCK_DAY;
+  if (inRange(orderDay)) return true;
   const scheduledDay = row.scheduledAt ? parseThaiDate(row.scheduledAt) : null;
   return inRange(scheduledDay);
 };
