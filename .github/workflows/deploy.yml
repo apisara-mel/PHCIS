@@ -1,18 +1,33 @@
 name: Deploy to production
 
 # Publish ขึ้น UAT (https://bma-health.mih.co.th) เฉพาะเมื่อสั่งเองเท่านั้น —
-# merge เข้า main ไม่ trigger workflow นี้อีกต่อไป เพื่อให้ทีมรวมโค้ดบน main ได้
-# โดยที่หน้าเว็บจริง (มีคนอื่นดูอยู่) ยังไม่เปลี่ยนจนกว่าจะ publish
+# merge เข้า main ไม่ trigger workflow นี้ เพื่อให้ทีมรวมโค้ดบน main ได้โดยที่
+# หน้าเว็บจริง (มีคนอื่นดูอยู่) ยังไม่เปลี่ยนจนกว่าจะ publish
 #
 # วิธี publish:
 #   gh workflow run "Deploy to production" --ref main
 #   หรือ GitHub → Actions → Deploy to production → Run workflow (branch: main)
 #
-# หลัง Actions สำเร็จ office-202 ดึง artifact dist-<sha> ไปเสิร์ฟผ่าน Cloudflare
-# Tunnel (ปกติ ~3–5 นาที) ส่วน rsync ตรงขึ้นเซิร์ฟเวอร์ทำก็ต่อเมื่อตั้ง DEPLOY_*
-# ครบเท่านั้น — ถ้ายังไม่ได้ตั้งจะ "ข้าม" ไม่ fail
+# ─── ทำไมไม่ใช้ actions/upload-artifact แล้ว ───────────────────────────────
+# 14–25 ส.ค. 2569 deploy fail ติดกัน 15 ครั้งด้วย
+#   "Failed to CreateArtifact: Artifact storage quota has been hit."
+# build ผ่านทุกครั้ง แต่ upload ไม่ได้ → office-202 ไม่มีของให้ดึง เว็บค้างที่
+# build วันที่ 10 ส.ค. ต้นเหตุคือ dist หนัก 174MB (media 159MB ซ้ำทุก build)
+# แต่โควตา artifact ของ private repo มีจำกัด และ GitHub recalc usage ช้า 6–12 ชม.
+# ลบ artifact เก่าทิ้งก่อนอัปโหลดก็ไม่ช่วย เพราะโควตายังไม่ถูกคืนตอนที่ต้องใช้
 #
-# ถ้าอยากให้ rsync ตรงขึ้นเซิร์ฟเวอร์ ตั้งค่าเพิ่มใน repo settings:
+# ตอนนี้จึงส่งของผ่าน GitHub Release แทน (tag เดียวใช้ซ้ำ: uat-latest)
+#   - release asset ไม่กินโควตา Actions artifact
+#   - แยก payload เป็น 2 ก้อน: app.tar.gz (~15MB เปลี่ยนทุก build)
+#     กับ media.tar.gz (~159MB แทบไม่เปลี่ยน) — media อัปโหลดเฉพาะตอน hash เปลี่ยน
+#     ทำให้ deploy ปกติส่งของแค่ ~15MB ไม่ใช่ 174MB
+#   - --clobber ทับ asset เดิมเสมอ จึงมีของอยู่ชุดเดียว ไม่สะสม
+#
+# office-202 ดึงไป publish ด้วย: ./scripts/publish-uat-manual.sh
+#
+# ส่วน rsync ตรงขึ้นเซิร์ฟเวอร์ทำก็ต่อเมื่อตั้ง DEPLOY_* ครบเท่านั้น — ถ้ายังไม่ได้
+# ตั้งจะ "ข้าม" ไม่ fail (เครื่องหลัง Cloudflare Tunnel ให้ GitHub runner ต่อไม่ได้
+# อยู่แล้ว ช่องทางหลักจึงเป็น Release)
 #
 #   Secrets (Settings → Secrets and variables → Actions → Secrets)
 #     DEPLOY_SSH_KEY         private key ที่ public half อยู่ใน ~/.ssh/authorized_keys บนเซิร์ฟเวอร์
@@ -32,22 +47,28 @@ on:
         description: 'เหตุผล/หมายเหตุ (optional) — แสดงใน Actions summary'
         required: false
         type: string
+      force_media:
+        description: 'บังคับอัปโหลด media ใหม่แม้ hash ไม่เปลี่ยน'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
-  contents: read
-  # ลบ artifact build เก่า (dist-*) ก่อนอัปโหลดตัวใหม่ — กันโควตา storage เต็ม
-  actions: write
+  contents: write   # ต้องเขียน release (เดิมเป็น actions: write ไว้ลบ artifact — ไม่ใช้แล้ว)
 
-# กัน publish ซ้อนกัน — ไม่ cancel ตัวที่กำลังวิ่ง เพราะ rsync/artifact ที่ค้างกลางทาง
+# กัน publish ซ้อนกัน — ไม่ cancel ตัวที่กำลังวิ่ง เพราะ rsync/upload ที่ค้างกลางทาง
 # จะทิ้ง web root ไว้ครึ่ง ๆ
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+env:
+  RELEASE_TAG: uat-latest
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout bma.health
@@ -85,30 +106,96 @@ jobs:
           echo "bundle: $(basename dist/assets/index.*.js)"
           du -sh dist
 
-      # dist หนัก ~110MB (media เดิมซ้ำทุก build) — โควตา Free มีแค่ 500MB
-      # จึงลบ dist-* รุ่นก่อนทิ้งก่อนอัปโหลดใหม่ (office-202 ใช้แค่ตัวล่าสุดเสมอ)
-      # 16 ส.ค. 2569: โควตาเคยเต็มจน upload ล้ม — ห้ามย้อนกลับไปเก็บหลายรุ่น
-      - name: ลบ artifact build เก่า (กันโควตา storage เต็ม)
+      # media = โฟลเดอร์รูปที่แทบไม่เปลี่ยนระหว่าง build (159MB จาก 174MB)
+      # แยกออกมาเพื่อไม่ต้องส่งซ้ำทุกรอบ — นี่คือต้นเหตุที่โควตาเคยเต็ม
+      - name: แพ็ก payload แยก app / media
+        id: pack
+        run: |
+          set -euo pipefail
+          MEDIA_DIRS=""
+          for d in images avatars illustration; do
+            [ -d "dist/$d" ] && MEDIA_DIRS="$MEDIA_DIRS $d"
+          done
+          EXCLUDES=""
+          for d in $MEDIA_DIRS; do EXCLUDES="$EXCLUDES --exclude=./$d"; done
+
+          tar -czf app.tar.gz -C dist $EXCLUDES .
+          echo "app.tar.gz: $(du -h app.tar.gz | cut -f1)"
+
+          if [ -n "$MEDIA_DIRS" ]; then
+            tar -czf media.tar.gz -C dist $MEDIA_DIRS
+            # hash จากเนื้อไฟล์ ไม่ใช่จาก tar — tar ฝัง timestamp ทำให้ hash เปลี่ยนทุกครั้ง
+            ( cd dist && find $MEDIA_DIRS -type f -print0 | sort -z | xargs -0 sha256sum ) \
+              | sha256sum | cut -d' ' -f1 > media.sha
+            echo "media.tar.gz: $(du -h media.tar.gz | cut -f1) · sha $(cat media.sha)"
+            echo "has_media=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_media=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          BUNDLE="$(basename dist/assets/index.*.js)"
+          {
+            echo "sha=${{ github.sha }}"
+            echo "bundle=$BUNDLE"
+            echo "ref=${{ github.ref_name }}"
+            echo "run_id=${{ github.run_id }}"
+          } > BUILD.txt
+          echo "bundle=$BUNDLE" >> "$GITHUB_OUTPUT"
+
+      - name: อัปโหลดขึ้น GitHub Release (ช่องทางที่ office-202 มาดึง)
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
+          HAS_MEDIA: ${{ steps.pack.outputs.has_media }}
+          FORCE_MEDIA: ${{ github.event.inputs.force_media }}
         run: |
-          gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
-            --jq '.artifacts[] | select(.name | startswith("dist-")) | .id' \
-          | while read -r id; do
-              echo "delete artifact $id"
-              gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id" || true
-            done
+          set -euo pipefail
+          TAG="$RELEASE_TAG"
 
-      # อัปโหลดเสมอ ไม่ว่าจะ rsync ต่อได้หรือไม่ — นี่คือช่องทางที่ office-202
-      # ใช้ดึง build ไป publish เอง (ดึงผ่าน gh run download / GitHub API)
-      # retention 1 วันพอ — cron ดึงภายใน ~5 นาที ไม่มีเหตุผลเก็บ 14 วัน
-      - name: อัปโหลด dist เป็น artifact ให้ office-202 มาดึง
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-${{ github.sha }}
-          path: dist/
-          retention-days: 1
-          if-no-files-found: error
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "UAT build ล่าสุด" \
+              --notes "ก้อน build ล่าสุดสำหรับ https://bma-health.mih.co.th — tag นี้ถูกทับทุกครั้งที่ publish (ไม่ใช่ release ของเวอร์ชันโปรแกรม)" \
+              --latest=false
+          fi
+
+          UPLOAD_MEDIA=false
+          if [ "$HAS_MEDIA" = "true" ]; then
+            rm -rf prev && mkdir -p prev
+            gh release download "$TAG" -p media.sha -D prev --clobber >/dev/null 2>&1 || true
+            PREV_SHA="$(cat prev/media.sha 2>/dev/null || echo none)"
+            NEW_SHA="$(cat media.sha)"
+            if [ "$FORCE_MEDIA" = "true" ]; then
+              UPLOAD_MEDIA=true
+              echo "::notice::force_media=true — อัปโหลด media ใหม่"
+            elif [ "$PREV_SHA" != "$NEW_SHA" ]; then
+              UPLOAD_MEDIA=true
+              echo "::notice::media เปลี่ยน ($PREV_SHA → $NEW_SHA) — อัปโหลดใหม่"
+            else
+              echo "::notice::media ไม่เปลี่ยน ($NEW_SHA) — ข้ามการอัปโหลด 159MB"
+            fi
+          fi
+
+          FILES="app.tar.gz BUILD.txt"
+          if [ "$UPLOAD_MEDIA" = "true" ]; then FILES="$FILES media.tar.gz media.sha"; fi
+          # --clobber ทับของเดิม จึงเหลือของชุดเดียวเสมอ ไม่สะสมเหมือน artifact
+          gh release upload "$TAG" $FILES --clobber
+
+          echo "uploaded_media=$UPLOAD_MEDIA" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### ของพร้อมให้ office-202 ดึงแล้ว"
+            echo ""
+            echo "- **bundle:** \`${{ steps.pack.outputs.bundle }}\`"
+            echo "- **app.tar.gz:** $(du -h app.tar.gz | cut -f1)"
+            echo "- **media:** $([ "$UPLOAD_MEDIA" = "true" ] && echo "อัปโหลดใหม่ $(du -h media.tar.gz | cut -f1)" || echo "ไม่เปลี่ยน — ข้าม")"
+            echo ""
+            echo "รันบน office-202:"
+            echo ''
+            echo '```sh'
+            echo "./scripts/publish-uat-manual.sh"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # แยก config check ออกมาเพื่อให้เห็นในหน้า summary ว่า "ข้าม" เพราะอะไร
       - name: เช็คว่าตั้งค่า rsync ครบไหม
@@ -126,19 +213,7 @@ jobs:
           [ -n "$DEPLOY_SSH_KEY" ] || MISSING="$MISSING DEPLOY_SSH_KEY"
           if [ -n "$MISSING" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::ข้ามขั้นตอน rsync — ยังไม่ได้ตั้ง:$MISSING · ใช้ artifact dist-${{ github.sha }} แทนได้เลย"
-            {
-              echo "### ข้าม rsync ขึ้นเซิร์ฟเวอร์"
-              echo ""
-              echo "ยังไม่ได้ตั้ง:$MISSING"
-              echo ""
-              echo "ดึง build ไป publish เองด้วย:"
-              echo ''
-              echo '```sh'
-              echo "gh workflow run \"Deploy to production\" --ref main"
-              echo "gh run download ${{ github.run_id }} -R ${{ github.repository }} -n dist-${{ github.sha }} -D dist"
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::ข้ามขั้นตอน rsync — ยังไม่ได้ตั้ง:$MISSING · ใช้ release $RELEASE_TAG แทนได้เลย"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
@@ -154,7 +229,7 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p "${DEPLOY_PORT:-22}" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          test -s ~/.ssh/known_hosts || { echo "::error::ssh-keyscan ไม่เจอ host key — เช็ค DEPLOY_HOST/DEPLOY_PORT และ firewall ว่าเปิดให้ GitHub runner เข้าไหม (เครื่องหลัง Cloudflare Tunnel จะเข้าไม่ได้ ให้ใช้ artifact แทน)"; exit 1; }
+          test -s ~/.ssh/known_hosts || { echo "::error::ssh-keyscan ไม่เจอ host key — เช็ค DEPLOY_HOST/DEPLOY_PORT และ firewall ว่าเปิดให้ GitHub runner เข้าไหม (เครื่องหลัง Cloudflare Tunnel จะเข้าไม่ได้ ให้ใช้ release แทน)"; exit 1; }
 
       # --delete ปิดไว้เป็นค่าเริ่มต้นโดยตั้งใจ: ถ้า DEPLOY_PATH ตั้งผิด มันจะลบของบน
       # เซิร์ฟเวอร์ทิ้ง และการเก็บ asset hash เก่าไว้ยังช่วยคนที่เปิดหน้าเว็บค้างอยู่
@@ -183,7 +258,7 @@ jobs:
           DEPLOY_URL: ${{ vars.DEPLOY_URL }}
         run: |
           URL="${DEPLOY_URL:-https://bma-health.mih.co.th}"
-          EXPECTED="$(basename dist/assets/index.*.js)"
+          EXPECTED="${{ steps.pack.outputs.bundle }}"
           echo "คาดว่าจะเจอ: $EXPECTED"
           for i in 1 2 3 4 5 6; do
             LIVE="$(curl -fsSL --max-time 30 "$URL" | grep -oE 'index\.[a-f0-9]+\.js' | head -1 || true)"
