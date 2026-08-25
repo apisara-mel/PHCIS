@@ -51,6 +51,8 @@ import {
   stripConsentScopes,
 } from '@/data/consentFormScopes';
 import {
+  CONSENT_SIGNATURE_FIELDS,
+  consentSignatureRoles,
   DEFAULT_PATIENT_FIELD_KEYS,
   DEFAULT_SIGNATURE_KEYS,
   fieldSetHas,
@@ -208,12 +210,7 @@ const PATIENT_FIELDS = [
   { key: 'citizen',    label: 'เลขบัตรประชาชน' },
   { key: 'contact',    label: 'ข้อมูลบุคคล' },
 ];
-const SIGNATURE_FIELDS = [
-  { key: 'patient', label: 'ผู้ป่วย / ผู้ปกครอง' },
-  { key: 'doctor',  label: 'แพทย์ผู้รักษา' },
-  { key: 'witness', label: 'พยาน' },
-  { key: 'nurse',   label: 'พยาบาล' },
-];
+const SIGNATURE_FIELDS = CONSENT_SIGNATURE_FIELDS;
 
 const TITLE_HINTS = ['ความยินยอมในการรักษา', 'การเปิดเผยข้อมูล', 'ความเสี่ยงและภาวะแทรกซ้อน', 'การถอนความยินยอม'];
 const DETAIL_HINTS = [
@@ -1210,6 +1207,7 @@ export default function CreateConsentFormPage() {
               <StepReview
                 name={name} code={code} type={type} version={version} ttl={ttl}
                 docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
+                signatures={signatures}
                 note={note}
                 fromVersion={prefill?.fromVersion}
                 versionDiff={versionDiff}
@@ -1585,7 +1583,7 @@ const SectionDropIndicator = ({ active }) => (
   />
 );
 
-const SectionFormatToolbar = ({ value = {}, onChange }) => (
+const SectionFormatToolbar = ({ value = {}, onChange, sectionIndex = -1 }) => (
   <div
     className='flex items-center flex-wrap'
     role='toolbar'
@@ -1598,7 +1596,9 @@ const SectionFormatToolbar = ({ value = {}, onChange }) => (
       background: 'var(--surface-card-100)',
     }}
   >
-    <span className='text-xs text-ink-tertiary'>Section · จัดรูปแบบ</span>
+    <span className='text-xs text-ink-tertiary'>
+      จัดรูปแบบ{sectionIndex >= 0 ? ` · ข้อ ${sectionIndex + 1}` : ''}
+    </span>
     {[
       { key: 'bold', icon: 'format_bold', label: 'ตัวหนา' },
       { key: 'italic', icon: 'format_italic', label: 'ตัวเอียง' },
@@ -1644,7 +1644,12 @@ function StepContent(props) {
   const [dragIdx, setDragIdx] = useState(null);
   const [dropIndex, setDropIndex] = useState(null);
   const [grabIdx, setGrabIdx] = useState(null);
+  /* toolbar จัดรูปแบบย้ายออกมาอยู่ใต้หัวข้อ "ข้อความยินยอม" (มติผู้ใช้ 25 ส.ค. 69)
+     จึงต้องรู้ว่ากำลังจัดรูปแบบให้ข้อไหน — จำข้อที่ผู้ใช้ focus ล่าสุด
+     ค่าเริ่มต้น = ข้อแรก */
+  const [formatSectionId, setFormatSectionId] = useState(null);
   const resetDrag = () => { setDragIdx(null); setDropIndex(null); setGrabIdx(null); };
+  const activeSection = sections.find((x) => x.id === formatSectionId) || sections[0] || null;
   const dropAt = (insertAt) => {
     if (dragIdx == null || insertAt == null) return;
     let to = insertAt;
@@ -1675,6 +1680,13 @@ function StepContent(props) {
 
       <SectionCard>
         <ColumnHeading>ข้อความยินยอม</ColumnHeading>
+        {activeSection ? (
+          <SectionFormatToolbar
+            sectionIndex={sections.findIndex((x) => x.id === activeSection.id)}
+            value={activeSection.detailFormat}
+            onChange={(detailFormat) => updateSection(activeSection.id, { detailFormat })}
+          />
+        ) : null}
         <div
           className='flex flex-col'
           style={{ gap: 'var(--dim-space-300)' }}
@@ -1691,6 +1703,7 @@ function StepContent(props) {
                 onDragOver={(e) => handleDragOverCard(e, i)}
                 onDrop={(e) => { e.preventDefault(); dropAt(dropIndex); }}
                 onDragEnd={resetDrag}
+                onFocusCapture={() => setFormatSectionId(s.id)}
                 className='flex flex-col'
                 style={{
                   gap: 'var(--dim-space-800, 32px)',
@@ -1739,11 +1752,7 @@ function StepContent(props) {
                     value={s.title}
                     onChange={(v) => updateSection(s.id, { title: v })}
                     placeholder='เช่น ยินยอมรับการรักษา'
-                    helperText='ไม่ต้องใส่เลขข้อ เดี๋ยวระบบจะใส่ให้'
-                  />
-                  <SectionFormatToolbar
-                    value={s.detailFormat}
-                    onChange={(detailFormat) => updateSection(s.id, { detailFormat })}
+                    helperText='ไม่ต้องใส่เลขข้อ ระบบจะใส่ตามลำดับโดยอัตโนมัติ'
                   />
                   <SuggestibleTextarea
                     voice label='รายละเอียด Section' required
@@ -1768,7 +1777,7 @@ function StepContent(props) {
               <SectionDropIndicator active={dragIdx != null && dropIndex === i + 1} />
             </React.Fragment>
           ))}
-          <BrandDashedAddButton icon='add' onClick={addSection}>เพิ่มข้อความ</BrandDashedAddButton>
+          <BrandDashedAddButton icon='add' onClick={addSection}>เพิ่มข้อ</BrandDashedAddButton>
         </div>
       </SectionCard>
 
@@ -1879,6 +1888,9 @@ const ConsentChoiceRadios = ({ value = '', name, compact }) => {
 
 export function StepReview({
   name, code, type, version, ttl, docTitle, sections, patientFields, allowESign, note, reviewStepStyle,
+  /* ผู้ลงนามที่เลือกไว้ — preview ต้องมีช่องเซ็นเท่าจำนวนที่เลือก
+     (มติผู้ใช้ 25 ส.ค. 69) ไม่ใช่กล่องเดียวตายตัว */
+  signatures,
   versionDiff, fromVersion, consentImpact, stackLayout = false,
   /* แสดงบล็อกสแกน QR ให้ผู้รับบริการยินยอมเองเหนือเครื่องมือถือตัวอย่าง —
      เปิดเฉพาะตอน "ดูแบบฟอร์มที่เผยแพร่แล้ว" (popup /consent/forms) เพราะใน
@@ -1998,22 +2010,30 @@ export function StepReview({
 
         <ColumnHeading>ลายมือชื่อ</ColumnHeading>
         {/* Signature capture box — Figma "Signature / Default" (272:46900):
-            formbuilder dashed box, edit glyph + "เซ็นชื่อในกล่องนี้". */}
-        <div
-          className='flex flex-col items-center justify-center w-full'
-          style={{
-            minHeight: 96,
-            border: 'var(--dim-stroke-150) dashed var(--border-formbuilder-default, #C5EDDA)',
-            background: 'var(--surface-formbuilder-default, #F4FBF8)',
-            borderRadius: 'var(--dim-radius-200)',
-            gap: 'var(--dim-space-200)',
-            padding: 'var(--dim-space-600)',
-            color: 'var(--text-formbuilder-subtext, #858C92)',
-          }}
-        >
-          <Icon name='edit' size={20} />
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>เซ็นชื่อในกล่องนี้</span>
-        </div>
+            formbuilder dashed box, edit glyph + "เซ็นชื่อในกล่องนี้".
+            หนึ่งกล่องต่อผู้ลงนามหนึ่งคนที่เลือกไว้ (มติผู้ใช้ 25 ส.ค. 69) */}
+        {consentSignatureRoles(signatures).map((role) => (
+          <div key={role.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150)' }}>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary)' }}>
+              {role.label}
+            </span>
+            <div
+              className='flex flex-col items-center justify-center w-full'
+              style={{
+                minHeight: 96,
+                border: 'var(--dim-stroke-150) dashed var(--border-formbuilder-default, #C5EDDA)',
+                background: 'var(--surface-formbuilder-default, #F4FBF8)',
+                borderRadius: 'var(--dim-radius-200)',
+                gap: 'var(--dim-space-200)',
+                padding: 'var(--dim-space-600)',
+                color: 'var(--text-formbuilder-subtext, #858C92)',
+              }}
+            >
+              <Icon name='edit' size={20} />
+              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}>เซ็นชื่อในกล่องนี้</span>
+            </div>
+          </div>
+        ))}
         {/* Note box — Figma 355:139568. */}
         <div
           className='flex flex-col w-full'
@@ -2419,6 +2439,7 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
                 <StepReview
                   name={name} code={code} type={type} version={version} ttl={ttl}
                   docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
+                signatures={signatures}
                   note={note}
                   fromVersion={prefill?.fromVersion}
                   versionDiff={versionDiff}

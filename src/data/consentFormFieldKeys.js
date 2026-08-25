@@ -3,6 +3,27 @@
 export const DEFAULT_PATIENT_FIELD_KEYS = ['name', 'hn', 'doctor'];
 export const DEFAULT_SIGNATURE_KEYS = ['patient', 'doctor'];
 
+/** ผู้ลงนามที่เลือกได้ใน wizard — ใช้ร่วมกันทั้งหน้าสร้าง, preview และฟอร์มจริง
+    เพื่อให้จำนวนช่องเซ็นตรงกันทั้งสามที่ (มติผู้ใช้ 25 ส.ค. 69) */
+export const CONSENT_SIGNATURE_FIELDS = [
+  { key: 'patient', label: 'ผู้ป่วย / ผู้ปกครอง' },
+  { key: 'doctor',  label: 'แพทย์ผู้รักษา' },
+  { key: 'witness', label: 'พยาน' },
+  { key: 'nurse',   label: 'พยาบาล' },
+];
+
+const SIGNATURE_LABEL = Object.fromEntries(
+  CONSENT_SIGNATURE_FIELDS.map((f) => [f.key, f.label]),
+);
+
+export const consentSignatureLabel = (key) => SIGNATURE_LABEL[key] || key;
+
+/** keys ที่เลือกไว้ → [{ key, label }] เรียงตามลำดับใน CONSENT_SIGNATURE_FIELDS */
+export const consentSignatureRoles = (value) => {
+  const set = new Set(normalizeFieldKeys(value, DEFAULT_SIGNATURE_KEYS));
+  return CONSENT_SIGNATURE_FIELDS.filter((f) => set.has(f.key));
+};
+
 /** Normalize Set / array / corrupted JSON (e.g. `{}` from old Set saves) → string[]. */
 export const normalizeFieldKeys = (value, fallback = []) => {
   if (value instanceof Set) return [...value].filter(Boolean);

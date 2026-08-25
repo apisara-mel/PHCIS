@@ -225,6 +225,7 @@ export function ConsentFormViewBody({
             version={record.version}
             sections={PREVIEW_SECTIONS}
             patientFields={PATIENT_FIELD_KEYS}
+            signatures={record.signatures}
             allowESign
             note={consentFormViewNote()}
             /* แผงขวาใช้ชุดเดียวกับหน้ากรอกใบยินยอมของเวชระเบียน — QR ให้
@@ -242,6 +243,7 @@ export function ConsentFormViewBody({
             version={record.version}
             sections={PREVIEW_SECTIONS}
             patientFields={PATIENT_FIELD_KEYS}
+            signatures={record.signatures}
             allowESign
             note={consentFormViewNote()}
             stackLayout
@@ -554,6 +556,9 @@ export function ConsentFormViewPopup({
               </ColorfulBadge>
             ) : null}
             formId={fillFormId}
+            /* ผู้ลงนามตามที่แบบฟอร์มนี้กำหนดไว้ — ช่องเซ็นในฟอร์มจริงต้องเท่ากับ
+               ที่เลือกไว้ตอนสร้าง (มติผู้ใช้ 25 ส.ค. 69) */
+            signatureKeys={record?.signatures}
             /* กรอกให้ล่วงหน้าเฉพาะเมื่อยืนยันตัวตนผ่านแล้ว (เข้าขั้นนี้ได้
                ต้องผ่าน identity เสมอ — เงื่อนไขกันไว้เผื่อ flow อื่นในอนาคต) */
             initialFullName={identity.verifiedAt ? verifiedPatient.fullName : ''}
