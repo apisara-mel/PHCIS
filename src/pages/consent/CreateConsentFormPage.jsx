@@ -1583,18 +1583,53 @@ const SectionDropIndicator = ({ active }) => (
   />
 );
 
-const SectionFormatToolbar = ({ value = {}, onChange, sectionIndex = -1 }) => (
+/* กรอบเป็นของกล่องด้านนอก — textarea ข้างในต้องไม่มี chrome ของเบราว์เซอร์เลย
+   (กฎใน CLAUDE.md: ห้ามให้เส้น/โฟกัสริงของ UA ทะลุออกมา) ฉีดครั้งเดียวตอน
+   โหลดโมดูล เพื่อให้ HMR ไม่ทิ้ง <style> ค้าง */
+if (typeof document !== 'undefined' && !document.getElementById('mih-consent-format-input-style')) {
+  const el = document.createElement('style');
+  el.id = 'mih-consent-format-input-style';
+  el.textContent = [
+    '.mih-consent-format-input,',
+    '.mih-consent-format-input:focus,',
+    '.mih-consent-format-input:focus-visible {',
+    '  border: 0 !important;',
+    '  outline: none !important;',
+    '  box-shadow: none !important;',
+    '  background: transparent !important;',
+    '  -webkit-appearance: none !important;',
+    '  appearance: none !important;',
+    '  padding: 0;',
+    '}',
+    '.mih-consent-format-input::placeholder {',
+    '  color: var(--text-content-tertiary);',
+    '  opacity: 1;',
+    '}',
+  ].join('\n');
+  document.head.appendChild(el);
+}
+
+/* กล่องจัดรูปแบบ = แถบปุ่ม + ช่องพิมพ์จริง (มติผู้ใช้ 25 ส.ค. 69)
+   ช่องนี้แก้ `detail` ของข้อที่กำลังเลือก — ตัวเดียวกับช่อง "รายละเอียด
+   Section" ในกล่องข้อ พิมพ์ที่ไหนก็ขึ้นอีกที่ทันที (state เดียวกัน) */
+const SectionFormatToolbar = ({
+  value = {}, onChange, sectionIndex = -1, detail = '', onDetailChange,
+}) => (
   <div
-    className='flex items-center flex-wrap'
-    role='toolbar'
-    aria-label='จัดรูปแบบ Section'
+    className='flex flex-col w-full min-w-0'
     style={{
-      gap: 'var(--dim-space-150, 6px)',
+      gap: 'var(--dim-space-200, 8px)',
       padding: 'var(--dim-space-200, 8px)',
       border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default)',
       borderRadius: 'var(--dim-radius-200, 8px)',
       background: 'var(--surface-card-100)',
     }}
+  >
+   <div
+    className='flex items-center flex-wrap'
+    role='toolbar'
+    aria-label='จัดรูปแบบ Section'
+    style={{ gap: 'var(--dim-space-150, 6px)' }}
   >
     <span className='text-xs text-ink-tertiary'>
       จัดรูปแบบ{sectionIndex >= 0 ? ` · ข้อ ${sectionIndex + 1}` : ''}
@@ -1626,6 +1661,24 @@ const SectionFormatToolbar = ({ value = {}, onChange, sectionIndex = -1 }) => (
         </button>
       );
     })}
+   </div>
+    <textarea
+      className='mih-consent-format-input w-full min-w-0'
+      value={detail}
+      onChange={(e) => onDetailChange?.(e.target.value)}
+      placeholder={sectionIndex >= 0 ? `พิมพ์ข้อความของข้อ ${sectionIndex + 1}...` : 'พิมพ์ข้อความ...'}
+      rows={3}
+      style={{
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        lineHeight: 1.6,
+        color: 'var(--text-content-primary)',
+        fontWeight: value.bold ? 'var(--type-weight-bold, 700)' : 'var(--type-weight-regular, 400)',
+        fontStyle: value.italic ? 'italic' : 'normal',
+        textDecoration: value.underline ? 'underline' : 'none',
+        resize: 'vertical',
+      }}
+    />
   </div>
 );
 
@@ -1685,6 +1738,8 @@ function StepContent(props) {
             sectionIndex={sections.findIndex((x) => x.id === activeSection.id)}
             value={activeSection.detailFormat}
             onChange={(detailFormat) => updateSection(activeSection.id, { detailFormat })}
+            detail={activeSection.detail}
+            onDetailChange={(detail) => updateSection(activeSection.id, { detail })}
           />
         ) : null}
         <div
@@ -1754,12 +1809,27 @@ function StepContent(props) {
                     placeholder='เช่น ยินยอมรับการรักษา'
                     showHelperText={false}
                   />
-                  <SuggestibleTextarea
-                    voice label='รายละเอียด Section' required
-                    value={s.detail} onChange={(v) => updateSection(s.id, { detail: typeof v === 'string' ? v : v?.target?.value ?? '' })}
-                    placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
-                    suggestions={DETAIL_HINTS} minChars={3} height={120}
-                  />
+                  <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                    <SuggestibleTextarea
+                      voice label='รายละเอียด Section' required
+                      value={s.detail} onChange={(v) => updateSection(s.id, { detail: typeof v === 'string' ? v : v?.target?.value ?? '' })}
+                      placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
+                      suggestions={DETAIL_HINTS} minChars={3} height={120}
+                    />
+                    {/* คำอธิบายเลขข้อย้ายมาอยู่ใต้ช่องรายละเอียด (มติผู้ใช้
+                        25 ส.ค. 69) — SuggestibleTextarea บังคับ
+                        showHelperText={false} จึงต้องเรนเดอร์เอง */}
+                    <span
+                      style={{
+                        fontFamily: 'var(--type-family-body)',
+                        fontSize: 'var(--type-size-xs)',
+                        color: 'var(--text-content-tertiary)',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      ไม่ต้องใส่เลขข้อ ระบบจะใส่ตามลำดับโดยอัตโนมัติ
+                    </span>
+                  </div>
                 </div>
                 <div className='flex flex-col min-w-0'>
                   {/* ด.1.1.13 — consent forms lock field type to boolean */}
